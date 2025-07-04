@@ -1,25 +1,16 @@
-commit bb45bc27b5d786943bdc058bdae54b1bde78613b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 15 22:49:52 2017 +0100
+commit 6bfd2d19ffa5b9700e1ddc8744bdfedf40d2b705
+Author: Ivan Moscoso <moscoso@gmail.com>
+Date:   Sat Jul 15 11:53:48 2017 -0600
 
-    cmd/compile: make more use of value switches
+    regexp: clarify example for 'FindString'
     
-    Use them to replace if/else chains with at least three comparisons,
-    where the code becomes clearly simpler.
+    Clarifying that FindString only provides left-most match
     
-    Passes toolstash -cmp on std cmd.
-    
-    Change-Id: Ic98aa3905944ddcab5aef5f9d9ba376853263d94
-    Reviewed-on: https://go-review.googlesource.com/70934
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ic6ecec12cca759fd4b3565ef5901a110843ffd56
+    Reviewed-on: https://go-review.googlesource.com/48609
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/esc.go   | 18 ++++-----
- src/cmd/compile/internal/gc/noder.go |  9 ++---
- src/cmd/compile/internal/gc/sinit.go |  6 +--
- src/cmd/compile/internal/gc/ssa.go   | 16 ++++----
- src/cmd/compile/internal/gc/walk.go  | 77 ++++++++++++++++--------------------
- 5 files changed, 58 insertions(+), 68 deletions(-)
+ src/regexp/example_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

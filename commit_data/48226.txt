@@ -1,31 +1,24 @@
-commit 4f04e1d99fac7abf067b6bd3a299f1fbc9a59414
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 11 11:55:27 2022 -0800
+commit b177b2d51ea14637d7a75542cbfd3843db387453
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat May 1 19:43:55 2021 +0200
 
-    cmd/compile: remove unified IR quirks mode
+    os, syscall: use wait6 to avoid wait/kill race on dragonfly
     
-    Unified IR quirks mode existed to help bootstrap unified IR by forcing
-    it to produce bit-for-bit identical output to the original gc noder
-    and typechecker. However, I believe it's far enough along now to stand
-    on its own, plus we have good test coverage of generics already for
-    -G=3 mode.
+    Follow CL 23967 and CL 24021 which did the same on linux and freebsd,
+    respectively.
     
-    Change-Id: I8bf412c8bb5d720eadeac3fe31f49dc73679da70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385998
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #13987
+    Updates #16028
+    
+    Change-Id: Ia30ef8b5cffd8f9eb75c29ee5fe350dac2be6d44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315279
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/base/debug.go          |   1 -
- src/cmd/compile/internal/gc/main.go             |  12 -
- src/cmd/compile/internal/noder/quirks.go        | 369 ------------------------
- src/cmd/compile/internal/noder/reader.go        |  57 +---
- src/cmd/compile/internal/noder/unified.go       |   6 +-
- src/cmd/compile/internal/noder/unified_test.go  | 160 ----------
- src/cmd/compile/internal/noder/writer.go        |  84 +-----
- src/cmd/compile/internal/reflectdata/reflect.go |   4 +-
- src/cmd/compile/internal/typecheck/dcl.go       |   7 -
- src/cmd/compile/internal/typecheck/iexport.go   |  15 +-
- src/cmd/compile/internal/walk/closure.go        |   2 +-
- 11 files changed, 10 insertions(+), 707 deletions(-)
+ src/os/wait_unimp.go                   |  4 ++--
+ src/os/wait_wait6.go                   | 12 +++++++-----
+ src/syscall/zerrors_dragonfly_amd64.go |  2 ++
+ src/syscall/zsysnum_dragonfly_amd64.go |  1 +
+ 4 files changed, 12 insertions(+), 7 deletions(-)

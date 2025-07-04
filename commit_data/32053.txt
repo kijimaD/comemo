@@ -1,17 +1,37 @@
-commit 0d482b382481734b430621c08cad58e20faf8aa8
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Mon Jul 17 13:51:37 2017 -0400
+commit 8577f81a10f4e5b5736119cdd960c44a5ad600f5
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jan 24 09:48:58 2017 +0000
 
-    syscall: update check for UserNS support for centos 7
+    cmd/compile/internal: Optimization with RBIT and REV
     
-    Fixes #20796
-    Fixes #16283
+    By checking GOARM in ssa/gen/ARM.rules, each intermediate operator
+    can be implemented via different instruction serials.
     
-    Change-Id: Ib11992fbd2bc1fbb3b14ae5a6bf0da2e4c12f641
-    Reviewed-on: https://go-review.googlesource.com/49311
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    It is up to the user to choose between compitability and efficiency.
+    
+    The Bswap32(x) is optimized to REV(x) when GOARM >= 6.
+    The CTZ(x) is optimized to CLZ(RBIT x) when GOARM == 7.
+    
+    Change-Id: Ie9ee645fa39333fa79ad84ed4d1cefac30422814
+    Reviewed-on: https://go-review.googlesource.com/35610
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/exec_linux_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/arm/ssa.go            |  2 ++
+ src/cmd/compile/internal/ssa/gen/ARM.rules     | 14 ++++++---
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  4 ++-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 28 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     |  2 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  2 ++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 42 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  2 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  2 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  2 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  2 ++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  2 ++
+ src/cmd/compile/internal/ssa/rewritedec.go     |  2 ++
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  2 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  2 ++
+ 16 files changed, 105 insertions(+), 7 deletions(-)

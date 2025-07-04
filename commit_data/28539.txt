@@ -1,15 +1,15 @@
-commit 196df6f0c9ddd7043984cdf5d7becfb647ec1a31
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 26 13:22:08 2016 -0700
+commit 36358b16062fb419a4c78b3f03b24106cb057222
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 09:59:06 2016 +1000
 
-    go/ast: better documentation for CallExpr node
+    api: remove os.File.Size and http.Transport.Dialer
     
-    Fixes #17222.
+    This method and field were added and then later removed during the 1.7
+    development cycle.
     
-    Change-Id: Iffffc8cbb8627d06afa9066246b68fa2da4600e3
-    Reviewed-on: https://go-review.googlesource.com/29810
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0482a6356b91d2be67880b44ef5d8a1daab49ec8
+    Reviewed-on: https://go-review.googlesource.com/23670
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/go/ast/ast.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next.txt | 2 --
+ 1 file changed, 2 deletions(-)

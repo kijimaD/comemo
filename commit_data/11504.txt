@@ -1,33 +1,12 @@
-commit 28397befabea2bb984b8eda963d9e7c16ffafd45
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 1 00:36:45 2012 +0900
+commit f8e9bbe475f014aab614000bde498961149539c5
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jan 31 10:32:24 2012 -0500
 
-    net: replace error variable name e, errno with err
+    cmd/ld: fix gdbscript
     
-    R=rsc, r
+    R=golang-dev, lvd
     CC=golang-dev
-    https://golang.org/cl/5593046
+    https://golang.org/cl/5601058
 
- src/pkg/net/fd.go                | 33 ++++++++---------
- src/pkg/net/fd_darwin.go         | 12 +++----
- src/pkg/net/fd_freebsd.go        | 20 +++++------
- src/pkg/net/fd_linux.go          | 32 ++++++++---------
- src/pkg/net/fd_netbsd.go         | 20 +++++------
- src/pkg/net/fd_openbsd.go        | 20 +++++------
- src/pkg/net/fd_windows.go        | 78 ++++++++++++++++++++--------------------
- src/pkg/net/file.go              | 21 +++++------
- src/pkg/net/interface_darwin.go  | 31 ++++++----------
- src/pkg/net/interface_freebsd.go | 31 ++++++----------
- src/pkg/net/interface_linux.go   | 24 ++++---------
- src/pkg/net/interface_windows.go | 40 ++++++++++-----------
- src/pkg/net/ipsock.go            | 27 +++++---------
- src/pkg/net/ipsock_plan9.go      | 21 +++--------
- src/pkg/net/lookup_windows.go    | 18 +++++-----
- src/pkg/net/multicast_test.go    |  6 ++--
- src/pkg/net/net_test.go          | 18 +++++-----
- src/pkg/net/sendfile_linux.go    | 10 +++---
- src/pkg/net/sockopt.go           |  4 +--
- src/pkg/net/tcpsock_posix.go     | 12 +++----
- src/pkg/net/udpsock_posix.go     |  8 ++---
- src/pkg/net/unixsock_posix.go    | 26 +++++++-------
- 22 files changed, 230 insertions(+), 282 deletions(-)
+ src/cmd/ld/dwarf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

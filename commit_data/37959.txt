@@ -1,20 +1,13 @@
-commit 149d9de4b1e50d9f671c79264075f72fa01343e5
+commit 8595868ea781a19b765319ce42da5c074c73ae34
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 28 16:33:49 2019 -0800
+Date:   Mon Sep 17 11:32:04 2018 -0700
 
-    cmd/gofmt: test that Go 2 number literals can be formatted
+    go/types: fix a couple of internal comments
     
-    R=Go1.13
-    
-    Updates #12711.
-    Updates #19308.
-    Updates #28493.
-    Updates #29008.
-    
-    Change-Id: Icd25aa7f6e18ed671ea6cf2b1b292899daf4b1a5
-    Reviewed-on: https://go-review.googlesource.com/c/160018
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If0e8fbb05c09ee7c64e1aa6b0aa2ade35a70df8a
+    Reviewed-on: https://go-review.googlesource.com/135696
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/gofmt/testdata/go2numbers.golden | 156 +++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/go2numbers.input  | 156 +++++++++++++++++++++++++++++++
- 2 files changed, 312 insertions(+)
+ src/go/types/decl.go    | 2 +-
+ src/go/types/typexpr.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

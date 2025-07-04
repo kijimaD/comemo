@@ -1,26 +1,18 @@
-commit 313d9653933ad0dc00ca0e4c066e33f01adcd316
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 6 19:36:01 2023 -0700
+commit c01feba15de402dce666e4f9bf14a06fc64aa97d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 15:41:21 2022 -0700
 
-    cmd/doc: format field doc comments when printing entire struct
+    spec: clarify "continue" statement
     
-    cmd/doc passes structs to go/format, but that means that comments
-    on fields within those structs don't look like what cmd/doc prints
-    when asked for a struct field directly. Tweak the field comments
-    so that they look the same either way.
+    Taking into account the discussion and relevant feedback on a
+    change proposed in 2013 (see e-mail thread mentioned in issue).
     
-    Fixes #56592
+    Fixes #48864.
     
-    Change-Id: I198cb7a58e3d8558406c386072c630332f91c6b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483055
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I811d518b7cbdf6b815695174f1da3d4251f491c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405756
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/doc/doc_test.go     | 41 ++++++++++++++++++++++++++++++++++--
- src/cmd/doc/pkg.go          | 51 +++++++++++++++++++++++++++++++++++++++------
- src/cmd/doc/testdata/pkg.go |  1 +
- 3 files changed, 85 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

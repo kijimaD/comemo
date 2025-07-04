@@ -1,28 +1,19 @@
-commit 527ace0ffa81d59698d3a78ac3545de7295ea76b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jun 16 23:04:25 2022 +0700
+commit bd9776357732eb3a3c635427bb3591e4cbc79cc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 17:38:55 2021 -0700
 
-    cmd/compile: skip substituting closures in unsafe builtins arguments
+    cmd/compile/internal/types2: use an opaque environment for Instantiate
     
-    For unsafe.{Alignof,Offsetof,Sizeof}, subster will transform them them
-    to OLITERAL nodes, and discard their arguments. However, any closure in
-    their children nodes were already processed and added to declaration
-    queue. Thus, we lack of information for generating instantiation for
-    the closure.
+    This is a port of CL 343930 from go/types, adjusted to work for
+    the compiler: here Environment carries a *Checker, if available.
     
-    To fix it, just skip substituting the closures if we are going to edit
-    the children nodes of unsafe builtins.
-    
-    Fixes #53390
-    
-    Change-Id: Ia815cd05af9dc0491f10faac4399f378ac53dec6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412794
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I44544fad7da870fa0c02832baa6abd2909d50304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344612
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 27 ++++++++++++++++++++++-----
- test/typeparam/issue53390.go              | 20 ++++++++++++++++++++
- 2 files changed, 42 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 26 +++++++++++++++++++++++---
+ 2 files changed, 24 insertions(+), 4 deletions(-)

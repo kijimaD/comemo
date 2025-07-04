@@ -1,17 +1,130 @@
-commit 485ed2fa5b5e0b7067ef72a0f4bdc9ca12b77ed7
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 2 21:04:15 2024 +0100
+commit 1f4db9dbd6b743ffd1f3be350649ddebaad695c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 12:44:46 2023 -0400
 
-    crypto/rsa: return error if keygen random source is broken
+    math/rand/v2: update benchmarks
     
-    Fixes #70643
+    Change the benchmarks to use the result of the calls,
+    as I found that in certain cases inlining resulted in
+    discarding part of the computation in the benchmark loop.
+    Add various benchmarks that will be relevant in future CLs.
     
-    Change-Id: I47c76500bb2e79b0d1dc096651eb45885f6888b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632896
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    goos: linux
+    goarch: amd64
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 220860f76f.amd64 │
+                            │      sec/op      │
+    SourceUint64-32                1.555n ± 1%
+    GlobalInt64-32                 2.071n ± 1%
+    GlobalInt63Parallel-32        0.1023n ± 1%
+    GlobalUint64-32                5.193n ± 1%
+    GlobalUint64Parallel-32       0.2341n ± 0%
+    Int64-32                       2.056n ± 2%
+    Uint64-32                      2.077n ± 2%
+    GlobalIntN1000-32              4.077n ± 2%
+    IntN1000-32                    3.476n ± 2%
+    Int64N1000-32                  3.059n ± 1%
+    Int64N1e8-32                   2.942n ± 1%
+    Int64N1e9-32                   2.932n ± 1%
+    Int64N2e9-32                   2.925n ± 1%
+    Int64N1e18-32                  3.116n ± 1%
+    Int64N2e18-32                  4.067n ± 1%
+    Int64N4e18-32                  4.054n ± 1%
+    Int32N1000-32                  2.951n ± 1%
+    Int32N1e8-32                   3.102n ± 1%
+    Int32N1e9-32                   3.535n ± 1%
+    Int32N2e9-32                   3.514n ± 1%
+    Float32-32                     2.760n ± 1%
+    Float64-32                     2.284n ± 1%
+    ExpFloat64-32                  3.757n ± 1%
+    NormFloat64-32                 3.837n ± 1%
+    Perm3-32                       35.23n ± 2%
+    Perm30-32                      208.8n ± 1%
+    Perm30ViaShuffle-32            111.7n ± 1%
+    ShuffleOverhead-32             101.1n ± 1%
+    Concurrent-32                  2.108n ± 7%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/rand/v2
+    cpu: Apple M1
+                           │ 220860f76f.arm64 │
+                           │      sec/op      │
+    SourceUint64-8                2.316n ± 1%
+    GlobalInt64-8                 2.183n ± 1%
+    GlobalInt63Parallel-8        0.4331n ± 0%
+    GlobalUint64-8                4.377n ± 2%
+    GlobalUint64Parallel-8       0.9237n ± 0%
+    Int64-8                       2.538n ± 1%
+    Uint64-8                      2.604n ± 1%
+    GlobalIntN1000-8              3.857n ± 2%
+    IntN1000-8                    3.822n ± 2%
+    Int64N1000-8                  3.318n ± 0%
+    Int64N1e8-8                   3.349n ± 1%
+    Int64N1e9-8                   3.317n ± 2%
+    Int64N2e9-8                   3.317n ± 2%
+    Int64N1e18-8                  3.542n ± 1%
+    Int64N2e18-8                  5.087n ± 0%
+    Int64N4e18-8                  5.084n ± 0%
+    Int32N1000-8                  3.208n ± 2%
+    Int32N1e8-8                   3.610n ± 1%
+    Int32N1e9-8                   4.235n ± 0%
+    Int32N2e9-8                   4.229n ± 1%
+    Float32-8                     3.468n ± 0%
+    Float64-8                     3.447n ± 0%
+    ExpFloat64-8                  4.567n ± 0%
+    NormFloat64-8                 4.821n ± 0%
+    Perm3-8                       28.89n ± 0%
+    Perm30-8                      175.7n ± 0%
+    Perm30ViaShuffle-8            153.5n ± 0%
+    ShuffleOverhead-8             119.8n ± 1%
+    Concurrent-8                  2.433n ± 3%
+    
+    goos: linux
+    goarch: 386
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 220860f76f.386 │
+                            │     sec/op     │
+    SourceUint64-32             2.370n ±  1%
+    GlobalInt64-32              3.569n ±  1%
+    GlobalInt63Parallel-32     0.3221n ±  1%
+    GlobalUint64-32             8.797n ± 10%
+    GlobalUint64Parallel-32    0.6351n ±  0%
+    Int64-32                    2.612n ±  2%
+    Uint64-32                   3.350n ±  1%
+    GlobalIntN1000-32           5.892n ±  1%
+    IntN1000-32                 4.546n ±  1%
+    Int64N1000-32               14.59n ±  1%
+    Int64N1e8-32                14.76n ±  2%
+    Int64N1e9-32                16.57n ±  1%
+    Int64N2e9-32                14.54n ±  1%
+    Int64N1e18-32               16.14n ±  1%
+    Int64N2e18-32               18.10n ±  1%
+    Int64N4e18-32               18.65n ±  1%
+    Int32N1000-32               3.560n ±  1%
+    Int32N1e8-32                3.770n ±  2%
+    Int32N1e9-32                4.098n ±  0%
+    Int32N2e9-32                4.179n ±  1%
+    Float32-32                  21.18n ±  4%
+    Float64-32                  20.60n ±  2%
+    ExpFloat64-32               13.07n ±  0%
+    NormFloat64-32              7.738n ±  2%
+    Perm3-32                    36.73n ±  1%
+    Perm30-32                   211.9n ±  1%
+    Perm30ViaShuffle-32         165.2n ±  1%
+    ShuffleOverhead-32          133.9n ±  1%
+    Concurrent-32               3.287n ±  2%
+    
+    For #61716.
+    
+    Change-Id: I2f0938eae4b7bf736a8cd899a99783e731bf2179
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502496
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/internal/fips140/rsa/keygen.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/math/rand/v2/rand_test.go | 250 +++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 223 insertions(+), 27 deletions(-)

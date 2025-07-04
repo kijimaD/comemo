@@ -1,48 +1,14 @@
-commit 7de71c8526d9055be9da99a9ef2a09eb16363d6a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 4 20:59:05 2016 -0800
+commit f6fd086d5ef25e4d9edc953aa1a5b75a475abebb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 28 09:57:04 2015 -0700
 
-    net/http: make Client use Request.Cancel for timeouts instead of CancelRequest
+    runtime: add missing word in comment
     
-    In the beginning, there was no way to cancel an HTTP request.
-    
-    We later added Transport.CancelRequest to cancel an in-flight HTTP
-    request by breaking its underlying TCP connection, but it was hard to
-    use correctly and didn't work in all cases. And its error messages
-    were terrible. Some of those issues were fixed over time, but the most
-    unfixable problem was that it didn't compose well. All RoundTripper
-    implementations had to choose to whether to implement CancelRequest
-    and both decisions had negative consequences.
-    
-    In Go 1.5 we added Request.Cancel, which composed well, worked in all
-    phases, had nice error messages, etc. But we forgot to use it in the
-    implementation of Client.Timeout (a timeout which spans multiple
-    requests and reading request bodies).
-    
-    In Go 1.6 (upcoming), we added HTTP/2 support, but now Client.Timeout
-    didn't work because the http2.Transport didn't have a CancelRequest
-    method.
-    
-    Rather than add a CancelRequest method to http2, officially deprecate
-    it and update the only caller (Client, for Client.Cancel) to use
-    Request.Cancel instead.
-    
-    The http2 Client timeout tests are enabled now.
-    
-    For compatibility, we still use CancelRequest in Client if we don't
-    recognize the RoundTripper type. But documentation has been updated to
-    tell people that CancelRequest is deprecated.
-    
-    Fixes #13540
-    
-    Change-Id: I15546b90825bb8b54905e17563eca55ea2642075
-    Reviewed-on: https://go-review.googlesource.com/18260
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Iffe27445e35ec071cf0920a05c81b8a97a3ed712
+    Reviewed-on: https://go-review.googlesource.com/16431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client.go      | 184 ++++++++++++++++++++++++++++++--------------
- src/net/http/client_test.go |  10 +--
- src/net/http/header.go      |  10 +++
- src/net/http/transport.go   |   2 +
- 4 files changed, 142 insertions(+), 64 deletions(-)
+ src/runtime/mbarrier.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

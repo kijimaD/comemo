@@ -1,23 +1,24 @@
-commit 95b240b2cd63e9631b3d0be72a10a3f2cc6f1d28
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Dec 18 07:28:16 2021 -0500
+commit 4480c822ba37ea3795fa4dbb56d13578d7961d88
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 13 13:49:55 2021 -0400
 
-    go/doc: handle generic receiver strings
+    cmd/internal/obj: don't emit args_stackmap for ABIInternal asm funcs
     
-    A receiver expression for a type with parameters may be an IndexExpr
-    or IndexListExpr in addition to an Ident or StarExpr. Add cases to
-    recvString to account for the new types.
+    The compiler currently emits an "*.args_stackmap" symbol for all
+    bodyless functions, so that asm functions will have the proper stack
+    map. At the moment the code in the compiler that emits args_stackmap
+    assumes ABI0; to avoid misleading stackmaps, turn off args_stackmap
+    generation for non-ABI0 asm functions.
     
-    Add tests that compare the fields of Func, and the fields of Type that
-    hold Funcs. These fields weren't previously tested.
+    Updates #40724.
     
-    Change-Id: Ia2cef51c85113422e0c5745c77dddcd53507ee51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375095
-    Trust: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia5e3528d56da5fb107e799bd658e52496ba4a331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309790
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/doc/doc_test.go | 139 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/go/doc/reader.go   |  30 ++++++++++-
- 2 files changed, 167 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/plist.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

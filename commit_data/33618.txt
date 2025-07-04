@@ -1,44 +1,23 @@
-commit 4e19cfcdf2ff316cc14357516c01f30722f19000
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Wed Nov 15 20:56:10 2017 +0300
+commit 6126384f6da7866fb0a0ec2e33509306c738c40b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 25 13:18:30 2017 -0700
 
-    cmd/internal/obj/x86: add AVX2 gather and VSIB
+    runtime: unify sigTabT type across Unix systems
     
-    Enables AVX2 gather instructions and VSIB support,
-    which makes vm32{x,y} vm64{x,y} operands encodable.
-    
-    AXXX constants placed with respect to sorting order.
-    New VEX optabs inserted near non-VEX entries to simplify
-    potential transition to auto-generated VSIB optabs.
-    
-    Tests go into new AMD64 encoder test file (amd64enc_extra.s)
-    to avoid unnecessary interactions with auto-generated "amd64enc.s".
-    
-    Side note: x86avxgen did not produced these instructions
-    because x86.v0.2.csv misses them.
-    This also explains why x86 test suite have no AVX2 gather
-    instructions tests.
-    
-    List of new instructions:
-      VGATHERPDP
-      VGATHERDPS
-      VGATHERQPD
-      VGATHERQPS
-      VPGATHERDD
-      VPGATHERDQ
-      VPGATHERQD
-      VPGATHERQQ
-    
-    Change-Id: Iac852f3c5016523670bd99de6bec6a48f66fb4f6
-    Reviewed-on: https://go-review.googlesource.com/77970
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I8e8a3a118b1216f191c9076b70a88f6f3f19f79f
+    Reviewed-on: https://go-review.googlesource.com/59150
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go          |   1 +
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 237 +++++++++++++++++++++
- src/cmd/asm/internal/asm/testdata/amd64error.s     |  25 +++
- src/cmd/internal/obj/x86/aenum.go                  |   8 +
- src/cmd/internal/obj/x86/anames.go                 |   8 +
- src/cmd/internal/obj/x86/asm6.go                   | 146 ++++++++++++-
- 6 files changed, 423 insertions(+), 2 deletions(-)
+ src/runtime/runtime2.go             |  1 +
+ src/runtime/signal_darwin.go        |  5 -----
+ src/runtime/signal_dragonfly.go     |  5 -----
+ src/runtime/signal_freebsd.go       |  5 -----
+ src/runtime/signal_netbsd.go        |  5 -----
+ src/runtime/signal_openbsd.go       |  5 -----
+ src/runtime/signal_solaris.go       |  5 -----
+ src/runtime/signal_unix.go          | 10 ++++++++++
+ src/runtime/sigtab_linux_generic.go |  5 -----
+ src/runtime/sigtab_linux_mipsx.go   |  5 -----
+ 10 files changed, 11 insertions(+), 40 deletions(-)

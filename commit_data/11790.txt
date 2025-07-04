@@ -1,23 +1,12 @@
-commit 0e3514eaac009cbb4cb54e00979df357da234b7e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 11 11:50:51 2012 +0900
+commit 21a3aceb4a960cffdd0f1b85f2c3718635526108
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 10 17:26:40 2012 -0800
 
-    net: enable SO_REUSEADDR, SO_REUSEPORT options on stream, multicast listeners only
+    fix build: update image/png test
     
-    This CL changes default SOL_SOCKET settings to mitigate connect
-    failure on OpenBSD or similar platforms which support randomized
-    transport protocol port number assignment.
-    
-    Fixes #2830.
-    
-    R=rsc, jsing
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5648044
+    https://golang.org/cl/5649062
 
- src/pkg/net/sock_bsd.go        |  5 +++++
- src/pkg/net/sock_linux.go      |  5 +++++
- src/pkg/net/sock_windows.go    |  5 +++++
- src/pkg/net/sockopt_bsd.go     | 35 ++++++++++++++++-------------------
- src/pkg/net/sockopt_linux.go   | 19 ++++++++-----------
- src/pkg/net/sockopt_windows.go |  8 +++++---
- 6 files changed, 44 insertions(+), 33 deletions(-)
+ src/pkg/image/png/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

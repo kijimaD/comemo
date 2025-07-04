@@ -1,20 +1,14 @@
-commit 844e642392e1586e6631aafeda5007f9f0f55145
-Author: Keisuke Kishimoto <keisuke.kishimoto@gmail.com>
-Date:   Sun Sep 8 16:39:46 2019 +0000
+commit 42cdc26665a6aeccb6c8fd9c0620961c7b434862
+Author: Hasan Ozgan <hasan@ozgan.net>
+Date:   Thu Feb 7 23:22:54 2019 +0000
 
-    syscall: minor cleanup of duplicated code
+    database/sql: add example for DB.Prepare and Tx.Prepare
     
-    Call the Nano methods of Timespec and Timeval in TimespecToNsec and
-    TimevalToNsec respectively, instead of duplicating the implementation.
-    
-    Change-Id: I17551ea54c59c1e45ce472e029c625093a67251a
-    GitHub-Last-Rev: fecf43d163f4ebe72e8bb1d3854d4ad962c08b03
-    GitHub-Pull-Request: golang/go#33390
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188397
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ib9272a7713ed7aaf8ad54c4827be8c095763e648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161677
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/timestruct.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/database/sql/example_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

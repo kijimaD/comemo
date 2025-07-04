@@ -1,24 +1,23 @@
-commit 0b5f72251bb564c7780b61f56a37faab31ed3512
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 1 17:40:50 2024 -0800
+commit 695a53620fda42487f02a40af7fc3bc8da45425a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 5 11:11:10 2023 -0400
 
-    slices: add iterator-related functions
+    internal/coverage/encodecounter: followup changes from code review
     
-    Fixes #61899
+    This patch contains a small set of changes with fixes for some
+    issues that surfaced during the code review for CL 484535. Due
+    to an error on my part, these never got included in the final version
+    that was checked in (I rebased, mailed the rebase, but then never
+    mailed the final patch set with the changes). This patch sends
+    the remaining bits and pieces.
     
-    Change-Id: Icbde1ac8293723eefc3251008ae9711e756ed1b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568477
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #59563.
+    
+    Change-Id: I87dc05a83f8e44c8bfe7203bc2b035defc817af9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492981
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/61899.txt                         |   8 ++
- doc/next/6-stdlib/3-iter.md                |  17 +++
- doc/next/6-stdlib/99-minor/slices/61899.md |   1 +
- src/cmd/dist/test.go                       |  16 +--
- src/go/build/deps_test.go                  |   2 +-
- src/slices/iter.go                         |  86 ++++++++++++++
- src/slices/iter_test.go                    | 184 +++++++++++++++++++++++++++++
- src/slices/sort_test.go                    |  19 ++-
- 8 files changed, 319 insertions(+), 14 deletions(-)
+ src/internal/coverage/encodecounter/encode.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

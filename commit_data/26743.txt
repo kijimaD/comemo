@@ -1,27 +1,35 @@
-commit 5c7ae10f66eae34b8a786fc2fdf753bf48a3d116
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 6 15:19:12 2016 +1000
+commit ed737fd8cdc1a668027bb5f5dac8879afabcca3b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 10:29:27 2016 -0800
 
-    runtime: merge 64bit lfstack impls
+    [dev.ssa] cmd/compile: fix @ rewrite rules
     
-    Merge all the 64bit lfstack impls into one file, adjust build tags to
-    match.
+    The @ directive used to read the target block after some value
+    structure had already changed.  I don't think it was ever really
+    a bug, but it's confusing.
     
-    Merge all the comments on the various lfstack implementations for
-    posterity.
+    It might fail like this:
     
-    lfstack_amd64.go can probably be merged, but it is slightly different so
-    that will happen in a followup.
+    (Foo x y) -> @v.Args[0].Block (Bar y (Baz ...))
     
-    Change-Id: I5362d5e127daa81c9cb9d4fa8a0cc5c5e5c2707c
-    Reviewed-on: https://go-review.googlesource.com/21591
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    v.Op = Bar
+    v.Args[0] = y
+    v.Args[1] = v.Args[0].Block.NewValue(Baz, ...)
+    
+    That new value is allocated in the block of y, not the
+    block of x.
+    
+    Anyway, read the destination block first so this
+    potential bug can't happen.
+    
+    Change-Id: Ie41d2fc349b35cefaa319fa9327808bcb781b4e2
+    Reviewed-on: https://go-review.googlesource.com/19900
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- .../{lfstack_linux_ppc64x.go => lfstack_64bit.go}  |  7 +++--
- src/runtime/lfstack_darwin_arm64.go                | 25 -----------------
- src/runtime/lfstack_linux_arm64.go                 | 25 -----------------
- src/runtime/lfstack_linux_mips64x.go               | 32 ----------------------
- 4 files changed, 5 insertions(+), 84 deletions(-)
+ src/cmd/compile/internal/ssa/TODO              |  2 --
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 19 ++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 18 ++++++++++++------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  7 +++++--
+ 4 files changed, 27 insertions(+), 19 deletions(-)

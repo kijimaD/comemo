@@ -1,12 +1,16 @@
-commit a9824f178da9c636a7c4110c74cdcf0a297173ac
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 15 17:04:02 2013 +0400
+commit f9dbbdb1d330865b3a2a363badba280179cc0d53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 15 15:52:54 2013 +1100
 
-    runtime: fix debug output
+    mime: use .wav instead of .bmp during windows tests
     
-    R=golang-dev, minux.ma
+    Some systems do not have .bmp mime.
+    
+    Update #4723.
+    
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7312101
+    https://golang.org/cl/7326047
 
- src/pkg/runtime/stack.c | 2 +-
+ src/pkg/mime/type_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

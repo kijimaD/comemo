@@ -1,14 +1,24 @@
-commit e27a81221f5cdb529db1ba5481597526e05cb77c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Sep 10 15:26:19 2017 +1000
+commit 9e83c11fca44282e4b8b1e099f437f557b73b43e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 15:54:12 2017 -0400
 
-    misc/cgo/testcshared: run tests in parallel
+    runtime/pprof: expand inlined frames in symbolized proto profiles
     
-    Change-Id: Id1b5939cfcd210a0cb5f61915ce2d077c7fcec11
-    Reviewed-on: https://go-review.googlesource.com/62592
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Currently proto symbolization uses runtime.FuncForPC and assumes each
+    PC maps to a single frame. This isn't true in the presence of inlining
+    (even with leaf-only inlining this can get incorrect results).
+    
+    Change PC symbolization to use runtime.CallersFrames to expand each PC
+    to all of the frames at that PC.
+    
+    Change-Id: I8d20dff7495a5de495ae07f569122c225d433ced
+    Reviewed-on: https://go-review.googlesource.com/41256
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 58 ++++++++++++++++--------------------
- 1 file changed, 25 insertions(+), 33 deletions(-)
+ src/runtime/pprof/pprof.go      |  4 +-
+ src/runtime/pprof/pprof_test.go | 27 ++++++++++++
+ src/runtime/pprof/proto.go      | 98 +++++++++++++++++++++++++----------------
+ src/runtime/pprof/protomem.go   |  5 +--
+ 4 files changed, 91 insertions(+), 43 deletions(-)

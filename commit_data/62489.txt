@@ -1,0 +1,34 @@
+commit b4a333fea588b0df6f441f0e9838cff9338c71c4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 5 12:08:35 2025 +0100
+
+    crypto/internal/fips140/bigmod: explicitly clear expanded limbs on reset
+    
+    Russ Cox noticed that reset was clearing limbs up to the *previous* Nat
+    size, not up to the new size, because clear(x.limbs) was happening
+    before the x.limbs[:n] reslice.
+    
+    That's potentially a severe issue, because it may leave garbage in
+    x.limbs[len(x.limbs):n] if n < cap(x.limbs).
+    
+    We were saved by an accidental invariant caused by the bug itself,
+    though: x.limbs[len(x.limbs):cap(x.limbs)] are always zero.
+    
+    reset was always clearing all exposed (and hence potentially non-zero)
+    limbs before shrinking the Nat, and the only other function that could
+    shrink the Nat was trim, which only trims zero limbs.
+    
+    Near miss.
+    
+    Preserve the accidental invariant in the fix, because memclr is cheap
+    and it just proved it can save us from potential mistakes.
+    
+    Change-Id: I6a6a4656a77735d8e8d520c699c4d85dd33ce497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655056
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/fips140/bigmod/nat.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

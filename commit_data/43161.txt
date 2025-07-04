@@ -1,19 +1,29 @@
-commit 8c84dcfe8c6a795ed6ae6be540ffc638841144ce
-Author: David Chase <drchase@google.com>
-Date:   Mon Aug 10 18:30:11 2020 -0400
+commit c3b9042132efc4e9f3485cd12b07acd1ca9c7d57
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Wed Mar 11 17:02:50 2020 -0700
 
-    cmd/compile: enable late expansion for closure calls
+    cmd/cover: skip function declarations with blank names
     
-    This works for "normal" calls.
-    Defer func() and Go func() still pending.
-    RT calls still pending.
+    Function declarations with blank ("_") names do not introduce a binding,
+    and therefore cannot be referenced or executed (in fact, they do not
+    make it into the final compiled binary at all). As such, counters
+    defined while annotating their bodies will always be zero.
     
-    Change-Id: I29cbdad8c877d12c08bbf7f3f0696611de877da9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247771
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    These types of functions are commonly used to create compile-time
+    checks (e.g., stringer) which are not expected to be executed.
+    
+    Skip over these functions when annotating a file, preventing the unused
+    counters from being generated and appearing as uncovered lines in
+    coverage reports.
+    
+    Fixes #36264
+    
+    Change-Id: I6b516cf43c430a6248d68d5f483a3902253fbdab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223117
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/cover/cover.go                             |  5 ++++
+ .../go/testdata/script/cover_blank_func_decl.txt   | 31 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

@@ -1,14 +1,14 @@
-commit 0218dfe7eb4afded4614a51d03bfedfec995378d
+commit 933d7129c07e32ffa403c94634fa0c7045f6b3d8
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 13:11:41 2013 -0400
+Date:   Mon Sep 9 13:03:59 2013 -0400
 
-    cmd/gc: allow inlined struct == to mention unsafe.Pointer even in safe mode
-    
-    Fixes #5578.
+    cmd/gc: squelch spurious "invalid recursive type" error
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/13417044
+    https://golang.org/cl/13512047
 
- src/cmd/gc/walk.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/gc/align.c          |  6 ++++--
+ src/cmd/gc/typecheck.c      |  8 +++++++-
+ test/fixedbugs/issue5581.go | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 3 deletions(-)

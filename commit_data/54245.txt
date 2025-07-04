@@ -1,22 +1,16 @@
-commit f7f1c4f86d72bac49cfd30fc94ec62756d951245
-Author: shuang cui <imcusg@gmail.com>
-Date:   Tue Aug 29 00:43:43 2023 +0000
+commit 574b5decf239f5dad1f25a71d2853a08e237821d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:59:41 2022 +0800
 
-    Revert "cmd/compile/internal/liveness: remove repetitive word"
+    cmd/internal/obj/x86: return comparison directly
     
-    This reverts commit 50bd17205fd9540615c03461a0047e59d29e6efd.
-    
-    Reason for revert: The first being the English word, the second being the name of the 3rd parameter.
-    
-    Change-Id: Iabca436b93ecc5481874e1eac0a1768292447431
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523835
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4b596b252c1785b13c4a166e9ef5f4ae812cd1bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436704
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/liveness/plive.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/asm6.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

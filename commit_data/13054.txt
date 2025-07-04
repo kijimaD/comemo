@@ -1,19 +1,14 @@
-commit 95643647ae980f6d55e92d9ca22f262efa6bcde5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri May 11 10:50:03 2012 +0400
+commit aa45e52e74f37e39a5a8234071742d50b87b7b2c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 11 03:09:14 2012 +0800
 
-    runtime: add parallel for algorithm
-    This is factored out part of:
-    https://golang.org/cl/5279048/
-    (parallel GC)
+    runtime: fix complex division benchmarks
+    we can't add the division result to n during iteration, because it might
+    turn n into NaN or Inf.
     
-    R=bsiegert, mpimenov, rsc, minux.ma, r
+    R=golang-dev, rsc, iant, iant
     CC=golang-dev
-    https://golang.org/cl/5986054
+    https://golang.org/cl/6197045
 
- src/cmd/dist/buildruntime.c    |   1 +
- src/pkg/runtime/export_test.go |  25 +++++
- src/pkg/runtime/parfor.c       | 210 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/parfor_test.go | 117 +++++++++++++++++++++++
- src/pkg/runtime/runtime.h      |  35 +++++++
- 5 files changed, 388 insertions(+)
+ src/pkg/runtime/complex_test.go | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)

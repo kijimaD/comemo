@@ -1,19 +1,19 @@
-commit f9c5ef8d8f94b364c758930f64b9305c52200b5b
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Thu Dec 5 03:22:34 2019 +0000
+commit 9fc41cd697634c1a292750a66208ebba626efd5e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 23 08:58:49 2019 +0200
 
-    runtime: fix threshold calculation of TestPhysicalMemoryUtilization
+    runtime: report correct error if kevent failed in netpollinit
     
-    Variable 'procs' used to calculate the threshold of overuse in
-    TestPhysicalMemoryUtilization should be updated if GOMAXPROCS
-    gets changed, otherwise the threshold could be a large number,
-    making the test meaningless.
+    Report the value returned by kevent, not the previously set errno which
+    is 0.
     
-    Change-Id: I876cbf11457529f56bae77af1e35f4538a721f95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210297
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Found while debugging CL 198544
+    
+    Change-Id: I854f5418f8ed8e083d909d328501355496c67a53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202777
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/testdata/testprog/gc.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/runtime/netpoll_kqueue.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

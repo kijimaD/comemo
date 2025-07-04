@@ -1,20 +1,20 @@
-commit a50c3ffbd47e3dcfc1b5bd2a2d19d55731481eaa
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Jan 29 20:14:18 2020 +1100
+commit 28287552bcdaca6efd43e75d6bf427a4d2237536
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 11 21:02:20 2019 +0000
 
-    cmd/internal/obj/riscv,cmd/link: shorten the riscv64 call sequence
+    Revert "cmd/go/internal/modconv: use modules to examine instead of using only direct source control entries"
     
-    Now that the other dependent offset has been identified, we can remove the
-    unnecessary ADDI instruction from the riscv64 call sequence (reducing it
-    to AUIPC+JALR, rather than the previous AUIPC+ADDI+JALR).
+    This reverts CL 191218.
     
-    Change-Id: I348c4efb686f9f71ed1dd1d25fb9142a41230b0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216798
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reason for revert: broke cmd/go/internal/modconv in the 'linux-amd64-longtest' builder.
+    (https://build.golang.org/log/e28011d0f918d4b4c503ab47e479d9e76c769abd)
+    
+    Change-Id: I0d260b0a5ad510d3d304c8aac8286fcab921d2fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194797
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 9 ---------
- src/cmd/link/internal/ld/pcln.go  | 4 ++--
- src/runtime/asm_riscv64.s         | 5 ++---
- 3 files changed, 4 insertions(+), 14 deletions(-)
+ src/cmd/go/internal/modconv/convert.go      | 11 +++---
+ src/cmd/go/internal/modfetch/repo.go        | 56 +++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_init_dep.txt | 11 +++---
+ 3 files changed, 64 insertions(+), 14 deletions(-)

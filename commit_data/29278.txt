@@ -1,24 +1,21 @@
-commit 4a13f31ffd4ff8648ccc4c2b2193abde22f7fd26
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Oct 28 08:11:39 2016 -0700
+commit 9a243303b86a0c5aaf25875a7d07dabd629b0662
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 4 16:59:46 2016 -0700
 
-    net/http/httputil: add ModifyResponse to reverseProxy
+    cmd/compile: omit some temp panicdivide calls
     
-    Adds ModifyResponse, an optional func to ReverseProxy
-    that modifies a response in the backend, right before
-    the headers of the response are written to the internal
-    response writer.
-    If ModifyResponse returns an error, the proxy returns
-    a StatusBadGateway error.
+    When the divisor is known to be a constant
+    non-zero, don't insert panicdivide calls
+    that will just be eliminated later.
     
-    Fixes #14237.
+    The main benefit here is readability of the SSA
+    form for compiler developers.
     
-    Change-Id: I8e03139e34dea0084512ccbd8cc49e941bf9fb5d
-    Reviewed-on: https://go-review.googlesource.com/32356
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icb7d07fc996941fbaff84524ac3e4b53d8e75fda
+    Reviewed-on: https://go-review.googlesource.com/28530
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 13 ++++++++++
- src/net/http/httputil/reverseproxy_test.go | 41 ++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

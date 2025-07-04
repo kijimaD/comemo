@@ -1,14 +1,15 @@
-commit 2c14dbe458f77792e12b432423b4462da4f37d49
+commit fa5f86281ef10e5676e6672bed4a7b9e7111afa2
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 09:07:19 2014 -0400
+Date:   Mon Sep 1 17:25:26 2014 -0400
 
-    crypto/tls: print unexpected error in test
+    runtime: change concatstring panic to gothrow
     
-    Maybe will help us understand Solaris build failure.
+    It was a throw originally; it was converted incorrectly.
     
-    TBR=aram
+    LGTM=dave
+    R=khr, dave
     CC=golang-codereviews
-    https://golang.org/cl/139290043
+    https://golang.org/cl/139000043
 
- src/pkg/crypto/tls/handshake_client_test.go | 2 +-
+ src/pkg/runtime/string.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

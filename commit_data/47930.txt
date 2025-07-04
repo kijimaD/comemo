@@ -1,37 +1,30 @@
-commit 68b3d36ff4e71d68f25d36caff8b4ba2b3b9c980
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 11 15:36:38 2022 -0800
+commit f6e7fe2711849e2e57f79b89ee7928b8806618c8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 7 10:15:33 2021 -0400
 
-    go/types, types2: make function type inference argument-order independent
+    runtime: move findrunnable timer delay computation closer to use
     
-    If we have more than 2 arguments, we may have arguments with named and
-    unnamed types. If that is the case, permutate params and args such that
-    the arguments with named types are first in the list. This doesn't affect
-    type inference if all types are taken as is. But when we have inexact
-    unification enabled (as is the case for function type inference), when
-    a named type is unified with an unnamed type, unification proceeds with
-    the underlying type of the named type because otherwise unification would
-    fail right away. This leads to an asymmetry in type inference: in cases
-    where arguments of named and unnamed types are passed to parameters with
-    identical type, different types (named vs underlying) may be inferred
-    depending on the order of the arguments.
-    By ensuring that named types are seen first, order dependence is avoided
-    and unification succeeds where it can.
+    findrunnable has a couple places where delta is recomputed from a new
+    pollUntil value. This proves to be a pain in refactoring, as it is easy
+    to forget to do properly.
     
-    This CL implements the respectice code but keeps it disabled for now,
-    pending decision whether we want to address this issue in the first
-    place.
+    Move computation of delta closer to its use, where it is more logical
+    anyways.
     
-    For #43056.
+    This CL should have no functional changes.
     
-    Change-Id: Ibe3b08ec2afe90a24a8c30cd1875d504bcc2ef39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377894
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #43997.
+    For #44313.
+    
+    Change-Id: I89980fd7f40f8a4c56c7540cae03ff99e12e1422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307910
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/infer.go           | 50 +++++++++++++++++++++-
- .../types2/testdata/fixedbugs/issue43056.go2       | 31 ++++++++++++++
- src/go/types/infer.go                              | 50 +++++++++++++++++++++-
- src/go/types/testdata/fixedbugs/issue43056.go2     | 31 ++++++++++++++
- 4 files changed, 160 insertions(+), 2 deletions(-)
+ src/runtime/lock_futex.go |  2 +-
+ src/runtime/lock_js.go    |  7 ++++++-
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/proc.go       | 31 +++++++++++++------------------
+ 4 files changed, 21 insertions(+), 21 deletions(-)

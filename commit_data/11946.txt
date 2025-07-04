@@ -1,13 +1,15 @@
-commit 32cb495b185b50b08aea7fd9402ddf3152f1fda8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 16 10:26:01 2012 +1100
+commit 79db6ada48d09dbbf47c4fb0f49ebbd2a044a35b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 16 00:19:42 2012 +0100
 
-    build: keep environment variable changes local during Windows build
+    cmd/gc: error on constant shift overflows.
     
-    R=bradfitz, rsc
-    CC=golang-dev
-    https://golang.org/cl/5673048
+    Fixes #3019.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5674044
 
- src/all.bat  |  7 +++----
- src/make.bat | 15 ++++++++++-----
- 2 files changed, 13 insertions(+), 9 deletions(-)
+ src/cmd/gc/mparith2.c | 26 +++++++++++++++++---------
+ test/const2.go        |  4 +++-
+ 2 files changed, 20 insertions(+), 10 deletions(-)

@@ -1,21 +1,13 @@
-commit a2cc8b20fd6576b1db729159c096aadfb91fbb9e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 1 17:31:06 2017 -0800
+commit a9a1d020ec4a4deb417160a091c0ed41123063bc
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 7 15:57:04 2016 -0500
 
-    cmd/go: fix TestFFLAGS for Fortran compilers that accept unknown options
+    cmd/internal/sys, runtime/internal/sys: gofmt
     
-    The test assumed that passing an unknown option to the Fortran
-    compiler would cause the compiler to fail. Unfortunately it appears
-    that some succeed. It's irrelevant to the actual test, which is
-    verifying that the flag was indeed passed.
-    
-    Fixes #19080.
-    
-    Change-Id: Ib9e89447a2104e4742f4b98938373fc2522772aa
-    Reviewed-on: https://go-review.googlesource.com/37658
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ice8f3b42194852f7ee8f00f004e80014d1ea119b
+    Reviewed-on: https://go-review.googlesource.com/32875
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/internal/sys/arch.go          | 14 +++++++-------
+ src/runtime/internal/sys/arch_mips.go | 14 +++++++-------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

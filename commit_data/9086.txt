@@ -1,13 +1,14 @@
-commit 8cf8806d3162010b3007252924c0adfb92e85961
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Jul 15 16:00:05 2011 +0200
+commit e1b2e202179ae380616f81e2355b55dc33169d23
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 15 01:01:49 2011 -0400
 
-    gc: some enhancements to printing debug info.
+    http: sniffing placeholder
     
-    R=rsc
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4710046
+    https://golang.org/cl/4746041
 
- src/cmd/gc/print.c | 21 +++++++++++++++++++++
- src/cmd/gc/subr.c  | 39 +++++++++++++++++++++++++++------------
- 2 files changed, 48 insertions(+), 12 deletions(-)
+ src/pkg/http/Makefile  |  1 +
+ src/pkg/http/server.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/http/sniff.go  | 18 ++++++++++++++++
+ 3 files changed, 72 insertions(+), 4 deletions(-)

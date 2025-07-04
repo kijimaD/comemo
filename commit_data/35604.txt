@@ -1,27 +1,31 @@
-commit ebb8a1f8e6bf14ce4773e930870985571aaff932
-Author: Dennis Kuhnert <mail.kuhnert@gmail.com>
-Date:   Tue May 29 17:39:00 2018 +0200
+commit 2dbf15e88ea33c04ccc1d0762b2cfcb3bfd8a039
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 22 19:58:59 2018 -0500
 
-    cmd/go: output coverage report even if there are no test files
+    cmd/compile: teach front-end deadcode about && and ||
     
-    When using test -cover or -coverprofile the output for "no test files"
-    is the same format as for "no tests to run".
+    The front-end dead code elimination is very simple. Currently, it just
+    looks for if statements with constant boolean conditions. Its main
+    purpose is to reduce load on the compiler and shrink code before
+    inlining computes hairiness.
     
-    Fixes #24570
+    This CL teaches front-end dead code elimination about short-circuiting
+    boolean expressions && and ||, since they're essentially the same as
+    if statements.
     
-    Change-Id: If05609411676d42d94c1feac4bc839974fae2cc1
-    Reviewed-on: https://go-review.googlesource.com/115095
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This also teaches the inliner that the constant 'if' form left behind
+    by deadcode is free.
+    
+    These changes will help with runtime modifications in the next CL that
+    would otherwise inhibit inlining in some hot code paths. Currently,
+    however, they have no significant impact on benchmarks.
+    
+    Change-Id: I886203b3c4acdbfef08148fddd7f3a7af5afc7c1
+    Reviewed-on: https://go-review.googlesource.com/96778
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go                        | 37 ++++++++++++++++++++++++++++
- src/cmd/go/internal/load/test.go             |  3 ---
- src/cmd/go/internal/test/test.go             | 28 +++++----------------
- src/cmd/go/testdata/testcover/pkg1/a.go      |  7 ++++++
- src/cmd/go/testdata/testcover/pkg2/a.go      |  7 ++++++
- src/cmd/go/testdata/testcover/pkg2/a_test.go |  1 +
- src/cmd/go/testdata/testcover/pkg3/a.go      |  7 ++++++
- src/cmd/go/testdata/testcover/pkg3/a_test.go |  7 ++++++
- src/cmd/internal/test2json/test2json.go      |  4 +--
- 9 files changed, 74 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/inl.go       |  6 +++++
+ src/cmd/compile/internal/gc/typecheck.go | 42 ++++++++++++++++++++++++++++----
+ 2 files changed, 43 insertions(+), 5 deletions(-)

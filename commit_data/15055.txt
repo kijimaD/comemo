@@ -1,37 +1,19 @@
-commit 354a3a151337d8997f97a8dabfd6d85377c5270f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Jan 31 08:52:46 2013 +0100
+commit 0e74f04accf82abb075a4d7a908e0b726d9752dd
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Jan 30 23:14:29 2013 -0800
 
-    cmd/8l: fix misassembling of MOVB involving (AX)(BX*1)
+    container/heap: split example into two
     
-    The linker accepts MOVB involving non-byte-addressable
-    registers, by generating XCHG instructions to AX or BX.
-    It does not handle the case where nor AX nor BX are available.
+    This adds a simple IntHeap example, and modifies the more complex
+    PriorityQueue example to make use of the index field it maintains.
     
-    See also revision 1470920a2804.
+    Fixes #4331.
     
-    Assembling
-        TEXT ·Truc(SB),7,$0
-        MOVB BP, (BX)(AX*1)
-        RET
-    
-    gives before:
-       08048c60 <main.Truc>:
-        8048c60:       87 dd         xchg   %ebx,%ebp
-        8048c62:       88 1c 03      mov    %bl,(%ebx,%eax,1)
-        8048c65:       87 dd         xchg   %ebx,%ebp
-        8048c67:       c3            ret
-    
-    and after:
-       08048c60 <main.Truc>:
-        8048c60:       87 cd         xchg   %ecx,%ebp
-        8048c62:       88 0c 03      mov    %cl,(%ebx,%eax,1)
-        8048c65:       87 cd         xchg   %ecx,%ebp
-        8048c67:       c3            ret
-    
-    R=golang-dev, rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/7226066
+    https://golang.org/cl/7068048
 
- src/cmd/8l/span.c | 80 ++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 65 insertions(+), 15 deletions(-)
+ src/pkg/container/heap/example_intheap_test.go     | 43 +++++++++++++
+ .../heap/{example_test.go => example_pq_test.go}   | 73 ++++++++++------------
+ src/pkg/container/heap/heap.go                     |  2 +-
+ 3 files changed, 78 insertions(+), 40 deletions(-)

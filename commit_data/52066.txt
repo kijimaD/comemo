@@ -1,23 +1,19 @@
-commit 20da76da91ddf1629cbabb31d4f05cdff1ce452a
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Feb 23 20:17:09 2023 +0000
+commit f8e70fc9a6d2a88d51d36208e64b12a236fce1b1
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Mar 30 15:47:57 2022 +0800
 
-    Revert "cmd/link: default to external linking with cgo std packages"
+    strings: document the use of simple case-folding in EqualFold
     
-    This reverts CL 470298.
+    Fixes #52022
     
-    Reason for revert: causes issues with Google internal testing.
-    
-    Updates #58619.
-    Updates #58620.
-    
-    Change-Id: Ic6601820ba8758ef96b71e32d9ffc549c36d5c98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470835
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I077fc062dfd02f79eb83713490efbe0bdc783d8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/link/internal/ld/lib.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/strings/example_test.go | 7 ++++++-
+ src/strings/strings.go      | 4 +++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

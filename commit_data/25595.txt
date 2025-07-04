@@ -1,21 +1,16 @@
-commit 01b86400d94e3261f4163a9fc894596a4596571f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 15 10:53:51 2016 -0800
+commit b2b8559987bb2f6779fe993bb173e945692f24fc
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Nov 11 23:05:06 2015 -0500
 
-    net/http: update bundled http2, pass through Transport.CloseIdleConnections
+    runtime/internal/atomic: added mips64 support.
     
-    Wire up Transport.CloseIdleConnections to http2.Transport.CloseIdleConnections.
-    
-    Updates x/net/http2 to git rev c92cdcb0 for https://golang.org/cl/18678
-    
-    Fixes #13975
-    
-    Change-Id: I1183a31256104ff95ae7621e5788cfeee741b1aa
-    Reviewed-on: https://go-review.googlesource.com/18679
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2eaf0658771a0ff788429e2f503d116531166315
+    Reviewed-on: https://go-review.googlesource.com/16834
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/h2_bundle.go |  9 +++++----
- src/net/http/transport.go | 14 ++++++++++++--
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ src/runtime/internal/atomic/arch1_mips64.go   |   9 +
+ src/runtime/internal/atomic/arch1_mips64le.go |   9 +
+ src/runtime/internal/atomic/asm_mips64x.s     | 231 ++++++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_mips64x.go |  56 +++++++
+ src/runtime/internal/atomic/atomic_mips64x.s  |  36 ++++
+ 5 files changed, 341 insertions(+)

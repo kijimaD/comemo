@@ -1,0 +1,28 @@
+commit d382f1467960d67a6b5eb25447f689a0ccac371e
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Tue Apr 29 14:33:15 2025 -0400
+
+    crypto/tls: use illegal param alert for bad compression
+    
+    Previously if the clientHandshakeState for the TLS 1.2 client code
+    encountered a server helo message that contained a compression method
+    other than compressionNone, we would emit an unexpected message alert.
+    
+    Instead, it seems more appropriate to return an illegal parameter alert.
+    The server hello message _was_ expected, it just contained a bad
+    parameter option.
+    
+    Making this change also allows enabling the InvalidCompressionMethod
+    bogo test.
+    
+    Updates #72006
+    
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669155
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/tls/bogo_config.json    | 1 -
+ src/crypto/tls/handshake_client.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

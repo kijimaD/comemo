@@ -1,16 +1,24 @@
-commit 556b3f5bdf935d80d83b26520838852fd840ef70
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 2 23:23:24 2019 -0700
+commit 46d4aa273d0b7bbfb758f1ac6b03e016ad803623
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 5 20:39:45 2018 -0500
 
-    test: add regress tests for unsafe.Pointer rules
+    crypto/tls: implement TLS 1.3 downgrade protection
     
-    Updates #23109.
+    TLS_FALLBACK_SCSV is extremely fragile in the presence of sparse
+    supported_version, but gave it the best try I could.
     
-    Change-Id: I55f7860c868acc948a6397ab6a9295e177724a56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170450
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Set the server random canaries but don't check them yet, waiting for the
+    browsers to clear the way of misbehaving middleboxes.
+    
+    Updates #9671
+    
+    Change-Id: Ie55efdec671d639cf1e716acef0c5f103e91a7ce
+    Reviewed-on: https://go-review.googlesource.com/c/147617
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- test/escape_unsafe.go | 69 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 69 insertions(+)
+ src/crypto/tls/common.go                 | 16 ++++++++++++++++
+ src/crypto/tls/handshake_client_test.go  |  2 +-
+ src/crypto/tls/handshake_server.go       | 18 ++++++++++++++----
+ src/crypto/tls/handshake_server_test.go  |  5 +++++
+ src/crypto/tls/handshake_server_tls13.go | 21 +++++++++++++++++++++
+ 5 files changed, 57 insertions(+), 5 deletions(-)

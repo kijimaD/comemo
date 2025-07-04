@@ -1,29 +1,40 @@
-commit e8534640557939755917edc3e6afc16d93b2e70b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Mar 21 13:45:50 2022 -0400
+commit d48f6d9f6f1ee7099ad129552507903e191ad589
+Author: Dan Scales <danscales@google.com>
+Date:   Fri May 14 16:35:04 2021 -0700
 
-    cmd/compile, cmd/link: produce unlinkable object when compile without -p
+    [dev.typeparams] Don't check typecheck(3) on transform, so no need to export/import it
     
-    CL 391014 requires the compiler to be invoked with the -p flag, to
-    specify the package path. People are used to run "go tool compile"
-    from the command line with the -p flag. This is mostly for simple
-    testing, or debugging the compiler. The produced object file is
-    almost never intended to be linked.
+    We have a value typecheck(3) that indicates that a node in a generic
+    function still needs transformation (via the functions in transform.go).
+    But it is not very desirable to export/import the value of typecheck(3).
+    So, I changed the stenciling code to just try to transform all relevant
+    node types during node copy. Almost all tranform functions were already
+    idempotent. I only had to add an extra if check before calling
+    transformAssign() in the OAS case. We still use the typecheck(3) in
+    noder to determine when higher-nodes have to delay transformation
+    because one or more of their args are delaying transformation.
     
-    This CL makes the compiler allow "go tool compile" without the -p
-    flag again. It will produce an unlinkable object. If the linker
-    sees such an object it will error out.
+    Added new test mapsimp.go that required these tranformations after import.
     
-    Change-Id: I7bdb162c3cad61dadd5c456d903b92493a3df20f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394217
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    As an additional change, export/import of OINDEX requires exporting the
+    type using w.exoticType() rather than w.typ(), in order to handle
+    generic functions. Since generic functions can have pre-transform
+    operations, the index operation can have a tuple type (multiple return
+    from a map lookup).
+    
+    Added printing of imported function bodies in -W=3 debug mode.
+    
+    Change-Id: I220e2428dc5f2741e91db146f075eb5b6045f451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322191
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/base/flag.go  |  3 ++-
- src/cmd/internal/goobj/objfile.go      |  2 ++
- src/cmd/internal/obj/objfile.go        |  5 +++++
- src/cmd/link/internal/loader/loader.go |  4 ++++
- src/cmd/link/link_test.go              | 28 ++++++++++++++++++++++++++++
- 5 files changed, 41 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go     |  64 +++++------
+ src/cmd/compile/internal/typecheck/iexport.go |   2 +-
+ src/cmd/compile/internal/typecheck/iimport.go |   6 +-
+ test/typeparam/mapsimp.dir/a.go               | 108 ++++++++++++++++++
+ test/typeparam/mapsimp.dir/main.go            | 156 ++++++++++++++++++++++++++
+ test/typeparam/mapsimp.go                     |   7 ++
+ 6 files changed, 308 insertions(+), 35 deletions(-)

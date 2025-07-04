@@ -1,20 +1,33 @@
-commit c12cd31a3326e6b2119525cd07cebc6d6e1b52ee
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Thu Feb 16 14:58:47 2017 -0200
+commit 682ffae6db749ba63df4b8bc1739974346bb14d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 12:07:13 2016 -0400
 
-    cmd/internal/obj/ppc64: Fix RLDIMI
+    internal/pprof/profile: new package, moved from cmd/internal/pprof/profile
     
-    Fix the encoding of the SH field for rldimi.
+    This allows both the runtime and the cmd/pprof code to use the package,
+    just like we do for internal/trace.
     
-    The SH field of rldimi is 6-bit wide and it is not contiguous in the instruction.
-    Bits 0-4 are placed in bit fields 16-20 in the instruction, while bit 5 is
-    placed in bit field 30. The current implementation does not consider this and,
-    therefore, any SH field between 32 and 63 are encoded wrongly in the instruciton.
-    
-    Change-Id: I4d25a0a70f4219569be0e18160dea5505bd7fff0
-    Reviewed-on: https://go-review.googlesource.com/37350
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I7606977284e1def36c9647354c58e7c1e93dba6b
+    Reviewed-on: https://go-review.googlesource.com/32452
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/internal/pprof/driver/driver.go                | 2 +-
+ src/cmd/internal/pprof/driver/interactive.go           | 2 +-
+ src/cmd/internal/pprof/fetch/fetch.go                  | 2 +-
+ src/cmd/internal/pprof/plugin/plugin.go                | 2 +-
+ src/cmd/internal/pprof/report/report.go                | 2 +-
+ src/cmd/internal/pprof/symbolizer/symbolizer.go        | 2 +-
+ src/cmd/internal/pprof/symbolz/symbolz.go              | 2 +-
+ src/cmd/pprof/pprof.go                                 | 2 +-
+ src/cmd/trace/pprof.go                                 | 2 +-
+ src/go/build/deps_test.go                              | 1 +
+ src/{cmd => }/internal/pprof/profile/encode.go         | 0
+ src/{cmd => }/internal/pprof/profile/filter.go         | 0
+ src/{cmd => }/internal/pprof/profile/legacy_profile.go | 0
+ src/{cmd => }/internal/pprof/profile/profile.go        | 0
+ src/{cmd => }/internal/pprof/profile/profile_test.go   | 0
+ src/{cmd => }/internal/pprof/profile/proto.go          | 0
+ src/{cmd => }/internal/pprof/profile/proto_test.go     | 0
+ src/{cmd => }/internal/pprof/profile/prune.go          | 0
+ 18 files changed, 10 insertions(+), 9 deletions(-)

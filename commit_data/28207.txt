@@ -1,17 +1,68 @@
-commit 66121ce8a95f587be8641f79c66c8536660a16d5
-Author: Erik Staab <estaab@google.com>
-Date:   Sat Sep 3 15:57:48 2016 -0700
+commit bc1989f1154b5b8f235e7e4932d935e490d6e79e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 4 14:04:03 2016 -0700
 
-    runtime: remove redundant expression from SetFinalizer
+    cmd/compile: optimize lookupVarOutgoing
     
-    The previous if condition already checks the same expression and doesn't
-    have side effects.
+    If b has exactly one predecessor, as happens
+    frequently with static calls, we can make
+    lookupVarOutgoing generate less garbage.
     
-    Change-Id: Ieaf30a786572b608d0a883052b45fd3f04bc6147
-    Reviewed-on: https://go-review.googlesource.com/28475
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Instead of generating a value that is just
+    going to be an OpCopy and then get eliminated,
+    loop. This can lead to lots of looping.
+    However, this loop is way cheaper than generating
+    lots of ssa.Values and then eliminating them.
+    
+    For a subset of the code in #15537:
+    
+    Before:
+    
+           28.31 real        36.17 user         1.68 sys
+    2282450944  maximum resident set size
+    
+    After:
+    
+            9.63 real        11.66 user         0.51 sys
+     638144512  maximum resident set size
+    
+    Updates #15537.
+    
+    Excitingly, it appears that this also helps
+    regular code:
+    
+    name       old time/op      new time/op      delta
+    Template        288ms ± 6%       276ms ± 7%   -4.13%        (p=0.000 n=21+24)
+    Unicode         143ms ± 8%       141ms ±10%     ~           (p=0.287 n=24+25)
+    GoTypes         932ms ± 4%       874ms ± 4%   -6.20%        (p=0.000 n=23+22)
+    Compiler        4.89s ± 4%       4.58s ± 4%   -6.46%        (p=0.000 n=22+23)
+    MakeBash        40.2s ±13%       39.8s ± 9%     ~           (p=0.648 n=23+23)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   388user-ms ±10%  373user-ms ± 5%   -3.80%        (p=0.000 n=24+25)
+    Unicode    203user-ms ± 6%  202user-ms ± 7%     ~           (p=0.492 n=22+24)
+    GoTypes    1.29user-s ± 4%  1.17user-s ± 4%   -9.67%        (p=0.000 n=25+23)
+    Compiler   6.86user-s ± 5%  6.28user-s ± 4%   -8.49%        (p=0.000 n=25+25)
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       51.5MB ± 0%      47.6MB ± 0%   -7.47%        (p=0.000 n=22+25)
+    Unicode        37.2MB ± 0%      37.1MB ± 0%   -0.21%        (p=0.000 n=25+25)
+    GoTypes         166MB ± 0%       138MB ± 0%  -16.83%        (p=0.000 n=25+25)
+    Compiler        756MB ± 0%       628MB ± 0%  -16.96%        (p=0.000 n=25+23)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         450k ± 0%        445k ± 0%   -1.02%        (p=0.000 n=25+25)
+    Unicode          356k ± 0%        356k ± 0%     ~           (p=0.374 n=24+25)
+    GoTypes         1.31M ± 0%       1.25M ± 0%   -4.18%        (p=0.000 n=25+25)
+    Compiler        5.29M ± 0%       5.02M ± 0%   -5.15%        (p=0.000 n=25+23)
+    
+    It also seems to help in other cases in which
+    phi insertion is a pain point (#14774, #14934).
+    
+    Change-Id: Ibd05ed7b99d262117ece7bb250dfa8c3d1cc5dd2
+    Reviewed-on: https://go-review.googlesource.com/22790
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mfinal.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

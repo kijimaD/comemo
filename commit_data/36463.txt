@@ -1,18 +1,21 @@
-commit 9cfa41c826ba358dc6f911f72dfbfda8c13d27fe
-Author: Seebs <seebs@sourcegraph.com>
-Date:   Fri Aug 3 11:50:55 2018 -0500
+commit 3334eee400ad4dc202f53d3efa34fddb013f9c17
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 30 09:02:14 2018 +0200
 
-    os: use Println instead of Printf in example
+    cmd/cgo: add support for GOARCH=riscv64
     
-    This message has no format specifiers and no trailing newline.
-    It should use Println for consistency with other examples.
+    Even though GOARCH=riscv64 is not supported by gc yet, it is easy
+    to make cmd/cgo already support it.
     
-    Change-Id: I49bd1652f9449fcbdd79c6b689c123090972aab3
-    Reviewed-on: https://go-review.googlesource.com/127836
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Together with the changes in debug/elf in CL 107339 this e.g. allows
+    to generate Go type definitions for linux/riscv64 in the
+    golang.org/x/sys/unix package without using gccgo.
+    
+    Change-Id: I6b849df2ddac56c8c483eb03d56009669ca36973
+    Reviewed-on: https://go-review.googlesource.com/110066
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

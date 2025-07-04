@@ -1,34 +1,24 @@
-commit 530c829270bef744b3acae7891a0635874af3fd4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 17 09:59:50 2025 -0800
+commit 4f55a5af5e5d325a534222050564766c249218aa
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sun Apr 2 23:54:35 2023 +0900
 
-    syscall: use consistent message for ESTALE on Linux
+    sync: do not unnecessarily keep alive functions wrapped by Once(Func|Value|Values)
     
-    For some reason the ESTALE error message differed on Linux systems.
-    On Linux strerror normally returns "Stale file handle" for ESTALE,
-    except possibly in the en_GB locale. The mkerrors.sh script sets
-    LC_ALL=C, so it should always produces "stale file handle".
-    However, for some reason, several targets use "stale NFS file handle"
-    instead.
+    The function passed to OnceFunc/OnceValue/OnceValues may transitively
+    keep more allocations alive. As the passed function is guaranteed to be
+    called at most once, it is safe to drop it after the first call is
+    complete. This avoids keeping the passed function (and anything it
+    transitively references) alive until the returned function is GCed.
     
-    Clean this up so that we use the same string on all Linux systems.
-    This is also consistent with golang.org/x/sys/unix.
-    
-    Fixes #71309
-    
-    Change-Id: Ic2ffaf114c85112bc6d0831e43dd5fd2f4237bc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643335
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I2faf397b481d2f693ab3aea8e2981b02adbc7a21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481515
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
 
- src/syscall/zerrors_linux_386.go      | 2 +-
- src/syscall/zerrors_linux_amd64.go    | 2 +-
- src/syscall/zerrors_linux_arm.go      | 2 +-
- src/syscall/zerrors_linux_mips64.go   | 2 +-
- src/syscall/zerrors_linux_mips64le.go | 2 +-
- src/syscall/zerrors_linux_ppc64.go    | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/export_test.go | 18 +----------------
+ src/runtime/mfinal.go      | 21 +++++++++++++++++++
+ src/sync/oncefunc.go       |  5 ++++-
+ src/sync/oncefunc_test.go  | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 76 insertions(+), 18 deletions(-)

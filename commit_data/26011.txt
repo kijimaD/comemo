@@ -1,16 +1,14 @@
-commit 3a880bae918b0f86989aaaecb4d51fdf9459f53e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 2 12:49:37 2016 -0800
+commit 251e50065b99eb6c40b6cc549b3bea9126e96bde
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 10 19:57:46 2015 +0000
 
-    cmd/compile: remove missed int(lineno) conversions
+    syscall: fix duplicated copyright header in mksysnum_plan9.sh
     
-    Follow-up to https://go-review.googlesource.com/20131 .
+    Fixes #13569
     
-    Change-Id: Id8351fa39f24e6ea488cdbfcb855b69a31ffff31
-    Reviewed-on: https://go-review.googlesource.com/20134
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I04c9a44437414177e2fee260518cfe53a67e6364
+    Reviewed-on: https://go-review.googlesource.com/17684
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/syscall/mksysnum_plan9.sh | 2 --
+ 1 file changed, 2 deletions(-)

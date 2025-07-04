@@ -1,22 +1,30 @@
-commit b89ad464510e643c23df28bc5c181ad0a16773bf
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Wed Jan 24 18:10:47 2024 +0100
+commit da47cd6192822daef997df6bbbc0d3a6bdbdae13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 8 16:51:58 2023 -0800
 
-    cmd/link: add DW_AT_go_runtime_type to unsafe.Pointer and fix it for
-    uintptr
+    go/types, types2: simplify unify.inferred signature
     
-    Adds the DW_AT_go_runtime_type attribute to the debug_info entry for
-    unsafe.Pointer (which is special) and fixes the debug_info entry of
-    uintptr so that its DW_AT_go_runtime_type attribute has the proper
-    class (it was accidentally using DW_CLS_ADDRESS instead of
-    DW_CLS_GO_TYPEREF)
+    Rather than referring back to the type parameter list stored with
+    the unifier, return inferred types for a given list of type parameters.
+    This decouples the unifier more and opens the door for inference to
+    consider type parameters from multiple types for inference.
     
-    Change-Id: I52e18593935fbda9bc425e849f4c7f50e9144ad4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558275
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    While at it, introduce an internal flag to control whether
+    inference results of the two inference implementations should
+    be compared or not.
+    
+    Change-Id: I23b254c6c1c750f5bd1360aa2bb088cc466434f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466795
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go   |  1 +
- src/cmd/link/internal/ld/dwarf.go | 13 +++++++------
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/infer.go  | 19 +++++++--------
+ src/cmd/compile/internal/types2/infer2.go | 40 ++++++++++++++++++-------------
+ src/cmd/compile/internal/types2/unify.go  | 25 ++++++++-----------
+ src/go/types/infer.go                     | 19 +++++++--------
+ src/go/types/infer2.go                    | 40 ++++++++++++++++++-------------
+ src/go/types/unify.go                     | 25 ++++++++-----------
+ 6 files changed, 86 insertions(+), 82 deletions(-)

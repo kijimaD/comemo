@@ -1,19 +1,26 @@
-commit ff71ed86b6f7d39368a9a276087477c9cb3f9ff7
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 2 17:27:59 2016 -0500
+commit 691e63b7fe69102c4db83a96cea0e19a4c345841
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 00:31:56 2015 +0000
 
-    runtime: merge {bgMark,assist}StartTime
+    net/http: update bundled copy of http2, enable TestTrailersServerToClient tests
     
-    We used to start background mark workers and assists at different
-    times, so we needed to keep track of these separately. They're now set
-    to exactly the same time, so clean things up by merging them in to one
-    value, markStartTime.
+    This CL updates the bundled copy of x/net/http2 to include
+    https://golang.org/cl/17930 and enables the previously-skipped tests
+    TestTrailersServerToClient_h2 and TestTrailersServerToClient_Flush_h2.
     
-    Change-Id: I17c9843c3ed2d6f07b4c8cd0b2c438fc6de23b53
-    Reviewed-on: https://go-review.googlesource.com/20143
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    It also updates the docs on http.Response.Trailer to describe how to
+    use it. No change in rules. Just documenting the old unwritten rules.
+    (there were tests locking in the behavior, and misc docs and examples
+    scattered about, but not on http.Response.Trailer itself)
+    
+    Updates #13557
+    
+    Change-Id: I6261d439f6c0d17654a1a7928790e8ffed16df6c
+    Reviewed-on: https://go-review.googlesource.com/17931
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
 
- src/runtime/mgc.go | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ src/net/http/clientserver_test.go |  35 ++++---
+ src/net/http/h2_bundle.go         | 208 ++++++++++++++++++++++++++++++++------
+ src/net/http/response.go          |   6 ++
+ 3 files changed, 203 insertions(+), 46 deletions(-)

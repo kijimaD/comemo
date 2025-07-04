@@ -1,18 +1,13 @@
-commit 55dfdb64abe97a838cef38442182ae95199a5714
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 26 00:30:39 2011 -0400
+commit e527d49e550d64732ccb2e24c4b152c3c911fd24
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jul 26 13:28:20 2011 +1000
 
-    build: remove rm dreg
+    http: implement MP4 sniffing.
     
-    Undo CL 4254056 now that enough time has elapsed
-    that people with old trees have all built and removed
-    those files (which are no longer generated in that location).
-    
-    Fixes #1581.
-    
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4802059
+    https://golang.org/cl/4809044
 
- src/Make.pkg | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/sniff.go      | 29 ++++++++++++++++++++++++++++-
+ src/pkg/http/sniff_test.go |  2 ++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

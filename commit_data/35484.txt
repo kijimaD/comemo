@@ -1,50 +1,29 @@
-commit 482d241936deac1e50a77ab340345449f8579886
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri Mar 9 00:14:58 2018 +0100
+commit 41e6abdc61dd23ede4d3509aebf7b5a638f53712
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 4 10:43:11 2017 -0500
 
-    cmd/compile: add wasm stack optimization
+    runtime: replace mlookup and findObject with heapBitsForObject
     
-    Go's SSA instructions only operate on registers. For example, an add
-    instruction would read two registers, do the addition and then write
-    to a register. WebAssembly's instructions, on the other hand, operate
-    on the stack. The add instruction first pops two values from the stack,
-    does the addition, then pushes the result to the stack. To fulfill
-    Go's semantics, one needs to map Go's single add instruction to
-    4 WebAssembly instructions:
-    - Push the value of local variable A to the stack
-    - Push the value of local variable B to the stack
-    - Do addition
-    - Write value from stack to local variable C
+    These functions all serve essentially the same purpose. mlookup is
+    used in only one place and findObject in only three. Use
+    heapBitsForObject instead, which is the most optimized implementation.
     
-    Now consider that B was set to the constant 42 before the addition:
-    - Push constant 42 to the stack
-    - Write value from stack to local variable B
+    (This may seem slightly silly because none of these uses care about
+    the heap bits, but we're about to split up the functionality of
+    heapBitsForObject anyway. At that point, findObject will rise from the
+    ashes.)
     
-    This works, but is inefficient. Instead, the stack is used directly
-    by inlining instructions if possible. With inlining it becomes:
-    - Push the value of local variable A to the stack (add)
-    - Push constant 42 to the stack (constant)
-    - Do addition (add)
-    - Write value from stack to local variable C (add)
-    
-    Note that the two SSA instructions can not be generated sequentially
-    anymore, because their WebAssembly instructions are interleaved.
-    
-    Design doc: https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4
-    
-    Updates #18892
-    
-    Change-Id: Ie35e1c0bebf4985fddda0d6330eb2066f9ad6dec
-    Reviewed-on: https://go-review.googlesource.com/103535
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I906468c972be095dd23cf2404a7d4434e802f250
+    Reviewed-on: https://go-review.googlesource.com/85877
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- logs.txt                                    |  0
- src/cmd/compile/internal/gc/ssa.go          |  3 +
- src/cmd/compile/internal/ssa/regalloc.go    | 72 ++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/sizeof_test.go |  2 +-
- src/cmd/compile/internal/ssa/stackalloc.go  |  2 +-
- src/cmd/compile/internal/ssa/value.go       |  4 ++
- src/cmd/compile/internal/wasm/ssa.go        | 90 +++++++++++++++++++----------
- 7 files changed, 137 insertions(+), 36 deletions(-)
+ src/runtime/malloc_test.go |  2 +-
+ src/runtime/mbitmap.go     |  7 +++---
+ src/runtime/mcache.go      |  1 -
+ src/runtime/mfinal.go      | 46 +++-------------------------------------
+ src/runtime/mheap.go       | 53 ++--------------------------------------------
+ src/runtime/mstats.go      |  4 +---
+ src/runtime/race.go        |  6 +++---
+ 7 files changed, 13 insertions(+), 106 deletions(-)

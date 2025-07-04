@@ -1,15 +1,20 @@
-commit 45ebc064849296cdf51f8e245db30051aaefc744
+commit cf46e561b2be3b15649fe029ffa8dc02fca6459a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 17:39:39 2013 -0400
+Date:   Thu Mar 14 19:42:25 2013 +0000
 
-    runtime: freebsd, netbsd build fixes after reorg
+    runtime, net: fix arm build
     
-    R=golang-dev
+    Bring net/fd_linux.go back (it was deleted this morning)
+    because it is still needed for ARM.
+    
+    Fix a few typos in the runtime reorg.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7826044
+    https://golang.org/cl/7759046
 
- src/pkg/runtime/os_netbsd.c            | 1 +
- src/pkg/runtime/signal_freebsd_386.h   | 2 +-
- src/pkg/runtime/signal_freebsd_amd64.h | 2 +-
- src/pkg/runtime/signal_freebsd_arm.h   | 2 +-
- 4 files changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/net/fd_linux.go            | 194 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/defs_linux_arm.h   |   7 +-
+ src/pkg/runtime/signal_arm.c       |   4 +-
+ src/pkg/runtime/signal_linux_arm.h |   1 +
+ 4 files changed, 201 insertions(+), 5 deletions(-)

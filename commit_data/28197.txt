@@ -1,17 +1,12 @@
-commit 7b5df0c195330d9c776139ffc8caaab2c66bbf2a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Jun 19 14:12:59 2016 -0700
+commit 3747c00923b140847f5d8f7978e672fa79e3ec37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 4 15:13:36 2016 -0700
 
-    cmd/compile: document sinit ctxt and pass/kind arguments
+    cmd/compile: fix debugFormat for new export format
     
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: I1ad467e574fd2ea80ab1459c0c943d9ff66c23ec
-    Reviewed-on: https://go-review.googlesource.com/26755
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ic3415f3ee643636eab4ff7d2351b8ad0dae62895
+    Reviewed-on: https://go-review.googlesource.com/22792
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/sinit.go | 101 ++++++++++++++++++++++-------------
- src/cmd/compile/internal/gc/walk.go  |   6 +--
- 2 files changed, 68 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

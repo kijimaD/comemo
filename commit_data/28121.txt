@@ -1,19 +1,22 @@
-commit fcb45e7ceff09548eb0308909256296086eedf9c
-Author: Terrel Shumway <gopher@shumway.us>
-Date:   Tue Aug 30 07:58:52 2016 -0600
+commit b3579c095e00f89d8c92c2aa4fb4af222a96f429
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 29 10:57:06 2016 -0400
 
-    doc: clarify FAQ wording for float sizes
+    [dev.garbage] runtime: revive sweep fast path
     
-    I was confused by the current wording. This wording
-    answers the question more clearly.
+    sweep used to skip mcental.freeSpan (and its locking) if it didn't
+    find any new free objects. We lost that optimization when the
+    freed-object counting changed in dad83f7 to count total free objects
+    instead of newly freed objects.
     
-    Thanks to Robert Griesemer for suggestions.
+    The previous commit brings back counting of newly freed objects, so we
+    can easily revive this optimization by checking that count (like we
+    used to) instead of the total free objects count.
     
-    Fixes #16916
-    
-    Change-Id: I50187c8df2db661b9581f4b3c5d5c279d2f9af41
-    Reviewed-on: https://go-review.googlesource.com/28052
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I43658707a1c61674d0366124d5976b00d98741a9
+    Reviewed-on: https://go-review.googlesource.com/22596
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go_faq.html | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/runtime/mgcsweep.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,38 +1,30 @@
-commit ad072b3ae6eb8512b0e0fdfcf83e5584b1a8ba0a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 18 13:43:58 2024 +0100
+commit b72bbaebf9035c59806fd8073f2582e2d07764d5
+Author: David Chase <drchase@google.com>
+Date:   Tue May 9 10:34:52 2023 -0400
 
-    crypto/internal/fips: import crypto/internal/fips/check throughout
+    cmd/compile: expand calls cleanup
     
-    The module must do the integrity self-check before any other operation
-    in FIPS mode.
+    Convert expand calls into a smaller number of focused
+    recursive rewrites, and rely on an enhanced version of
+    "decompose" to clean up afterwards.
     
-    For #69536
+    Debugging information seems to emerge intact.
     
-    Change-Id: I8db52ea94e867812008a6e7a86ca2c648a0018c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629056
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic46da4207e3a4da5c8e2c47b637b0e35abbe56bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507295
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/aes/cast.go               |  1 +
- src/crypto/internal/fips/aes/gcm/cast.go           |  1 +
- src/crypto/internal/fips/bigmod/nat.go             |  1 +
- src/crypto/internal/fips/drbg/cast.go              |  1 +
- src/crypto/internal/fips/ecdh/cast.go              |  1 +
- src/crypto/internal/fips/ecdsa/cast.go             |  1 +
- src/crypto/internal/fips/ed25519/cast.go           |  1 +
- .../internal/fips/edwards25519/edwards25519.go     |  1 +
- src/crypto/internal/fips/edwards25519/field/fe.go  |  1 +
- src/crypto/internal/fips/hkdf/cast.go              |  1 +
- src/crypto/internal/fips/mlkem/cast.go             |  1 +
- src/crypto/internal/fips/nistec/fiat/cast.go       |  7 +++
- src/crypto/internal/fips/nistec/nistec.go          |  2 +
- src/crypto/internal/fips/ssh/kdf.go                |  5 ++-
- src/crypto/internal/fips/tls12/cast.go             |  1 +
- src/crypto/internal/fips/tls13/cast.go             |  1 +
- src/crypto/internal/fipsdeps/fipsdeps_test.go      | 50 +++++++++++++++++-----
- src/crypto/sha256/sha256.go                        |  1 -
- src/go/build/deps_test.go                          |  6 +--
- 19 files changed, 69 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/dec.rules  |  106 ++
+ src/cmd/compile/internal/ssa/compile.go      |    4 +-
+ src/cmd/compile/internal/ssa/expand_calls.go | 2425 +++++++++-----------------
+ src/cmd/compile/internal/ssa/op.go           |    2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go   |  654 +++++++
+ src/cmd/compile/internal/ssagen/ssa.go       |    2 +-
+ test/abi/more_intstar_input.go               |    8 +-
+ test/abi/reg_not_ssa.go                      |   40 +
+ test/codegen/condmove.go                     |    2 +-
+ test/codegen/spectre.go                      |    4 +-
+ 10 files changed, 1639 insertions(+), 1608 deletions(-)

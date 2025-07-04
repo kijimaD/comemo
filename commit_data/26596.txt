@@ -1,16 +1,21 @@
-commit d7f7ea6ea894f197928cc728aef257c045e4e916
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Wed Mar 30 16:19:10 2016 +0200
+commit adc8d491c2318b4b9e3b60ea868bd65c82ca13df
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Feb 11 20:43:15 2016 -0600
 
-    cmd/compile: ignore dead phis in fuse
+    [dev.ssa] cmd/compiler: rewrite AND x const as a shift if possible
     
-    Happens occasionally for boolean phis was used as a control.
+    ANDs of constants whose only set bits are leading or trailing can be
+    rewritten as two shifts instead.  This is slightly faster for 32 or
+    64 bit operands.
     
-    Change-Id: Ie0f2483e9004c1706751d8dfb25ee2e5106d917e
-    Reviewed-on: https://go-review.googlesource.com/21310
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: Id5c1ff27e5a4df22fac67b03b9bddb944871145d
+    Reviewed-on: https://go-review.googlesource.com/19485
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/fuse.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 ++
+ src/cmd/compile/internal/ssa/rewrite.go        |  46 +++++++++--
+ src/cmd/compile/internal/ssa/rewrite_test.go   | 102 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 100 ++++++++++++++++++++++++
+ 4 files changed, 251 insertions(+), 5 deletions(-)

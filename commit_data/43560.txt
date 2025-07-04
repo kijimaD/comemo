@@ -1,25 +1,18 @@
-commit 9113d8c37f9f40ab86b12bddb98dee2b1c0a344f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Oct 22 16:30:26 2020 +0100
+commit dc9879e8fde3af804ac310ee54cf67efdae26aab
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 12 17:11:25 2020 -0700
 
-    doc/go1.16: document BuildID in 'go list -export'
+    cmd/compile: convert more AMD64.rules lines to typed aux mode
     
-    This corresponds to the feature in https://golang.org/cl/263542, since
-    this can be a noteworthy change to people writing tools to inspect Go
-    builds.
-    
-    Also amend the wording to clarify that build IDs are for an entire
-    compiled package, not just their export data or object file.
-    
-    Change-Id: I2eb295492807d5d2997a35e5e2371914cb3ad3a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264158
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Idded860128b1a23680520d8c2b9f6d8620dcfcc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228077
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html                  | 10 ++++++++++
- src/cmd/go/alldocs.go            |  2 +-
- src/cmd/go/internal/list/list.go |  2 +-
- src/cmd/go/internal/load/pkg.go  |  2 +-
- 4 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 302 +++++++++---------
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  21 +-
+ src/cmd/compile/internal/ssa/op.go           |   4 +
+ src/cmd/compile/internal/ssa/rewrite.go      |  18 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 448 +++++++++++++--------------
+ 5 files changed, 413 insertions(+), 380 deletions(-)

@@ -1,0 +1,54 @@
+commit 2541a68a7010afcd2970ddc3979432e1a8f08406
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue May 20 15:39:22 2025 +0000
+
+    reflect: add TypeAssert[T]
+    
+    This implementation is zero-alloc when T is a concrete type,
+    allocates when val contains a method or when T is a interface
+    and Value was obtained for example through Elem(), in which case
+    it has to be allocated to avoid sharing the same memory.
+    
+    goos: linux
+    goarch: amd64
+    pkg: reflect
+    cpu: AMD Ryzen 5 4600G with Radeon Graphics
+                                                                             │ /tmp/bench2 │
+                                                                             │   sec/op    │
+    TypeAssert/TypeAssert[int](int)-12                                         2.725n ± 1%
+    TypeAssert/TypeAssert[uint8](int)-12                                       2.599n ± 1%
+    TypeAssert/TypeAssert[fmt.Stringer](reflect_test.testTypeWithMethod)-12    8.470n ± 0%
+    TypeAssert/TypeAssert[fmt.Stringer](*reflect_test.testTypeWithMethod)-12   8.460n ± 1%
+    TypeAssert/TypeAssert[interface_{}](int)-12                                4.181n ± 1%
+    TypeAssert/TypeAssert[interface_{}](reflect_test.testTypeWithMethod)-12    4.178n ± 1%
+    TypeAssert/TypeAssert[time.Time](time.Time)-12                             2.839n ± 0%
+    TypeAssert/TypeAssert[func()_string](func()_string)-12                     151.1n ± 1%
+    geomean                                                                    6.645n
+    
+                                                                             │ /tmp/bench2  │
+                                                                             │     B/op     │
+    TypeAssert/TypeAssert[int](int)-12                                         0.000 ± 0%
+    TypeAssert/TypeAssert[uint8](int)-12                                       0.000 ± 0%
+    TypeAssert/TypeAssert[fmt.Stringer](reflect_test.testTypeWithMethod)-12    0.000 ± 0%
+    TypeAssert/TypeAssert[fmt.Stringer](*reflect_test.testTypeWithMethod)-12   0.000 ± 0%
+    TypeAssert/TypeAssert[interface_{}](int)-12                                0.000 ± 0%
+    TypeAssert/TypeAssert[interface_{}](reflect_test.testTypeWithMethod)-12    0.000 ± 0%
+    TypeAssert/TypeAssert[time.Time](time.Time)-12                             0.000 ± 0%
+    TypeAssert/TypeAssert[func()_string](func()_string)-12                     72.00 ± 0%
+    geomean                                                                               ¹
+    
+    Fixes #62121
+    
+    Change-Id: I0911c70c5966672c930d387438643f94a40441c4
+    GitHub-Last-Rev: ce89a53097b53fc59ff3ce3996917f8484ad3967
+    GitHub-Pull-Request: golang/go#71639
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/62121.txt                          |   1 +
+ doc/next/6-stdlib/99-minor/reflect/62121.md |   3 +
+ src/reflect/all_test.go                     | 129 ++++++++++++++++++++++++++++
+ src/reflect/value.go                        |  98 +++++++++++++++++----
+ 4 files changed, 214 insertions(+), 17 deletions(-)

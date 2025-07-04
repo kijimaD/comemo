@@ -1,34 +1,68 @@
-commit a49b8b9875fd43774e96ed81ce1316c32fb48fa0
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 14 09:58:39 2011 +1100
+commit 6198336bb51c5a176adce5777159509954b211ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 18:45:38 2011 -0400
 
-    html: rewrite the tokenizer to be more consistent.
+    gofix: make fix order explicit
     
-    Previously, the tokenizer made two passes per token. The first pass
-    established the token boundary. The second pass picked out the tag name
-    and attributes inside that boundary. This was problematic when the two
-    passes disagreed. For example, "<p id=can't><p id=won't>" caused an
-    infinite loop because the first pass skipped everything inside the
-    single quotes, and recognized only one token, but the second pass never
-    got past the first '>'.
+    Also test only specific fixes, not all fixes.
+    This means we don't have to keep updating old
+    test cases to match later changes to the library.
     
-    This change rewrites the tokenizer to use one pass, accumulating the
-    boundary points of token text, tag names, attribute keys and attribute
-    values as it looks for the token endpoint.
+    I had to adjust some of the reflect test cases,
+    because they were implicitly testing
+    reflect+oserrorstring, not just reflect.
     
-    It should still be reasonably efficient: text, names, keys and values
-    are not lower-cased or unescaped (and converted from []byte to string)
-    until asked for.
-    
-    One of the token_test test cases was fixed to be consistent with
-    html5lib. Three more test cases were temporarily disabled, and will be
-    re-enabled in a follow-up CL. All the parse_test test cases pass.
-    
-    R=andybalholm, gri
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5244061
+    https://golang.org/cl/5283042
 
- src/pkg/html/escape.go     |  10 ++
- src/pkg/html/token.go      | 439 +++++++++++++++++++++++----------------------
- src/pkg/html/token_test.go |  48 +++--
- 3 files changed, 271 insertions(+), 226 deletions(-)
+ src/cmd/gofix/filepath.go                    | 10 ++++-----
+ src/cmd/gofix/filepath_test.go               |  2 +-
+ src/cmd/gofix/fix.go                         | 31 ++++++++++++++++++++++++----
+ src/cmd/gofix/httpfinalurl.go                |  4 ----
+ src/cmd/gofix/httpfinalurl_test.go           |  2 +-
+ src/cmd/gofix/httpfs.go                      |  4 ----
+ src/cmd/gofix/httpfs_test.go                 |  2 +-
+ src/cmd/gofix/httpheaders.go                 |  4 ----
+ src/cmd/gofix/httpheaders_test.go            |  2 +-
+ src/cmd/gofix/httpserver.go                  |  4 ----
+ src/cmd/gofix/httpserver_test.go             |  2 +-
+ src/cmd/gofix/imagecolor.go                  | 12 +++++------
+ src/cmd/gofix/imagecolor_test.go             |  2 +-
+ src/cmd/gofix/imagenew.go                    |  4 ----
+ src/cmd/gofix/imagenew_test.go               |  2 +-
+ src/cmd/gofix/iocopyn.go                     |  4 ----
+ src/cmd/gofix/iocopyn_test.go                |  2 +-
+ src/cmd/gofix/main_test.go                   | 10 ++++++++-
+ src/cmd/gofix/math.go                        |  4 ----
+ src/cmd/gofix/math_test.go                   |  2 +-
+ src/cmd/gofix/netdial.go                     |  6 ------
+ src/cmd/gofix/netdial_test.go                |  4 +++-
+ src/cmd/gofix/netudpgroup.go                 |  4 ----
+ src/cmd/gofix/netudpgroup_test.go            |  2 +-
+ src/cmd/gofix/oserrorstring.go               |  4 ----
+ src/cmd/gofix/oserrorstring_test.go          |  2 +-
+ src/cmd/gofix/osopen.go                      |  4 ----
+ src/cmd/gofix/osopen_test.go                 |  2 +-
+ src/cmd/gofix/procattr.go                    |  4 ----
+ src/cmd/gofix/procattr_test.go               |  2 +-
+ src/cmd/gofix/reflect.go                     |  4 ----
+ src/cmd/gofix/reflect_test.go                |  2 +-
+ src/cmd/gofix/signal.go                      | 10 ++++-----
+ src/cmd/gofix/signal_test.go                 |  2 +-
+ src/cmd/gofix/sorthelpers.go                 | 10 ++++-----
+ src/cmd/gofix/sorthelpers_test.go            |  2 +-
+ src/cmd/gofix/sortslice.go                   | 10 ++++-----
+ src/cmd/gofix/sortslice_test.go              |  2 +-
+ src/cmd/gofix/stringssplit.go                |  4 ----
+ src/cmd/gofix/stringssplit_test.go           |  2 +-
+ src/cmd/gofix/testdata/reflect.decoder.go.in |  6 +++---
+ src/cmd/gofix/testdata/reflect.encoder.go.in |  2 +-
+ src/cmd/gofix/testdata/reflect.export.go.in  | 12 +++++------
+ src/cmd/gofix/testdata/reflect.print.go.in   |  2 +-
+ src/cmd/gofix/testdata/reflect.read.go.in    |  4 ++--
+ src/cmd/gofix/testdata/reflect.scan.go.in    |  8 +++----
+ src/cmd/gofix/testdata/reflect.type.go.in    |  4 ++--
+ src/cmd/gofix/url.go                         |  4 ----
+ src/cmd/gofix/url_test.go                    |  2 +-
+ 49 files changed, 98 insertions(+), 137 deletions(-)

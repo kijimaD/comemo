@@ -1,18 +1,22 @@
-commit 2e59cc5fb4e81fbd2ee9f662caa707c1138bf5ae
-Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
-Date:   Sat May 29 13:49:51 2021 +0000
+commit 189931296f6b56090d9d7f49b7936b817189d87d
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Nov 10 02:31:28 2020 -0800
 
-    cmd/go: add [-src] to documentation
+    cmd/internal/obj/s390x: fix SYNC instruction encoding
     
-    Change-Id: I554b5021386575af6ff44571a95bb31b38a0547f
-    GitHub-Last-Rev: 20aaec3aa0baee6112fc2e4d72e83f78b72a44ea
-    GitHub-Pull-Request: golang/go#45956
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317109
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    SYNC is supposed to correspond to 'fast-BCR-serialization' which is
+    encoded as 'bcr 14,0'. In CL 197178 I accidentally modified the
+    encoding to 'bcr 7,0' which is a no-op. This CL reverses that change.
+    
+    Fixes #42479.
+    
+    Change-Id: I9918d93d720f5e12acc3014cde20d2d32cc87ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268797
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Trust: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go          | 2 +-
- src/cmd/go/internal/doc/doc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 2 ++
+ src/cmd/internal/obj/s390x/asmz.go        | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

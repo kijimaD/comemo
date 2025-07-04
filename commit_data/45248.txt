@@ -1,20 +1,29 @@
-commit e12b0afa5454c7683cb27bef0b6979f964dd0e96
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 20 15:36:11 2021 -0700
+commit c0417df15664a84c3cc6de8292f78debce111def
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 22 02:12:03 2020 -0700
 
-    cmd/compile: separate out parameter and field export encoding
+    cmd/compile: improve escape analysis of known calls
     
-    These two types of *types.Field encode different concepts, so we
-    encode them separately (and ignore fields that don't matter for
-    each concept).
+    Escape analysis is currently very naive about identifying calls to
+    known functions: it only recognizes direct calls to a declared
+    function, or direct calls to a closure.
     
-    Change-Id: I9d1608413949a109f12a3ebd52cd7af5f476e415
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312130
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This CL adds a new "staticValue" helper function that can trace back
+    through local variables that were initialized and never reassigned
+    based on a similar optimization already used by inlining. (And to be
+    used by inlining in a followup CL.)
+    
+    Updates #41474.
+    
+    Change-Id: I8204fd3b1e150ab77a27f583985cf099a8572b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256458
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++++-
- src/cmd/compile/internal/typecheck/iimport.go | 18 ++++++++++++++++--
- 2 files changed, 25 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/escape.go |  9 ++++---
+ src/cmd/compile/internal/gc/inl.go    | 49 +++++++++++++++++++++++++++++++++++
+ test/escape_closure.go                | 17 ++++++++++--
+ 3 files changed, 69 insertions(+), 6 deletions(-)

@@ -1,25 +1,23 @@
-commit 21b5f2637a37fe2fece7e6bf3d5f97a9520693ba
-Author: Maksym Sobolyev <sobomax@sippysoft.com>
-Date:   Wed Nov 20 19:27:40 2024 +0000
+commit dc12cb179a3fb97bf9a12155c742f1737e858f7c
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 11:28:53 2023 +0800
 
-    runtime: utilize EVFILT_USER more effectively
+    compress: some minor corrections or adjustments for godoc link
     
-    Re-work kqueue_event wakeup logic to use one-shot events. In an
-    event of waking up a wrong thread, simply re-post the event.
-    
-    This saves close to 1 system call per wakeup on average, since
-    chances of non-blocking poller picking it up is pretty low.
-    
-    Change-Id: I202d0d57a31d91ac5354ea075215f647c65790d3
-    GitHub-Last-Rev: e707d4732683702bd2989f07230a2f34354c288b
-    GitHub-Pull-Request: golang/go#70408
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628975
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic1fc777b9a4e8262851e27646d53a0ec4fe55b64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535076
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/netpoll_kqueue.go       |  7 ++++---
- src/runtime/netpoll_kqueue_event.go | 13 +++++--------
- src/runtime/netpoll_kqueue_pipe.go  |  6 +++++-
- 3 files changed, 14 insertions(+), 12 deletions(-)
+ src/compress/bzip2/bit_reader.go | 2 +-
+ src/compress/flate/inflate.go    | 2 +-
+ src/compress/gzip/gunzip.go      | 2 +-
+ src/compress/lzw/writer.go       | 2 +-
+ src/compress/zlib/reader.go      | 6 +++---
+ 5 files changed, 7 insertions(+), 7 deletions(-)

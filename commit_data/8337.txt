@@ -1,14 +1,13 @@
-commit 38d7bcf5e2560492cff53729967719394d322cf3
+commit 121b428a7a56253d3fee252fa846ac5dbbb44158
 Author: Rob Pike <r@golang.org>
-Date:   Sun May 8 14:05:18 2011 -0700
+Date:   Sun May 8 14:04:42 2011 -0700
 
-    go spec: fix up HTML glitches.
+    effective go: update to new Open signature.
+    Fixes #1788.
     
-    Fixes #1786.
-    
-    R=gri, adg
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4517043
+    https://golang.org/cl/4519042
 
- doc/go_spec.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

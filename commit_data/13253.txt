@@ -1,26 +1,12 @@
-commit 192550592a24a8ba1e826d11f0426e5889c1a0af
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jun 2 22:43:11 2012 -0400
+commit e8265f18e6b712aefdaf57f872e6d19a4b170fdc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 3 04:03:09 2012 +0800
 
-    exp/html/atom: faster Lookup with smaller tables
+    runtime: remove unnecessary macros in vlop_arm.s
     
-    Use perfect cuckoo hash, to avoid binary search.
-    Define Atom bits as offset+len in long string instead
-    of enumeration, to avoid string headers.
-    
-    Before: 1909 string bytes + 6060 tables = 7969 total data
-    After: 1406 string bytes + 2048 tables = 3454 total data
-    
-    benchmark          old ns/op    new ns/op    delta
-    BenchmarkLookup        83878        64681  -22.89%
-    
-    R=nigeltao, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6262051
+    https://golang.org/cl/6270045
 
- src/pkg/exp/html/atom/atom.go       |   81 +-
- src/pkg/exp/html/atom/atom_test.go  |   27 +-
- src/pkg/exp/html/atom/gen.go        |  313 +++++--
- src/pkg/exp/html/atom/table.go      | 1559 ++++++++++++++---------------------
- src/pkg/exp/html/atom/table_test.go |  309 +++++++
- 5 files changed, 1212 insertions(+), 1077 deletions(-)
+ src/pkg/runtime/vlop_arm.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

@@ -1,21 +1,16 @@
-commit 6be2639aff73389fce845cd7a6d1c568a5ef5625
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 1 13:45:31 2023 -0400
+commit 9c147cc617ed8d9b22ee2637a7c7f7a28e1ee21c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:08:30 2022 +0800
 
-    runtime: store start PC in pcvalueCache
+    cmd/fix: use strings.Builder
     
-    Currently, pcvalue only returns a valid start PC if cache is nil.
-    We're about to eliminate the cache argument and always use a pcvalue
-    cache, so make sure the cache stores the start PC and always return it
-    from pcvalue.
-    
-    Change-Id: Ie8854af4b7e7ba1c2a17a495d9229320821daa23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515275
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I761766e147202970f82ce804dbaf5d491508995c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428289
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/symtab.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/fix/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

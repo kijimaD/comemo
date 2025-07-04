@@ -1,14 +1,14 @@
-commit 07c9a925644ad2c6f6742be09371c0556f3beb91
+commit 238274ede0ec19e6a8b83334b5c6729afa746beb
 Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 7 16:05:38 2011 +1000
+Date:   Thu Jul 7 14:51:35 2011 +1000
 
-    os: fix documentation for FileInfo.Name.
-    It's the base name, not the full name.
-    Fixes #2047.
+    exp/template: handle pointers and values in empty interfaces.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4680041
+    https://golang.org/cl/4664064
 
- src/pkg/os/types.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/template/exec.go      | 25 ++++++++---
+ src/pkg/exp/template/exec_test.go | 94 ++++++++++++++++++++++++++++++---------
+ src/pkg/exp/template/funcs.go     |  4 ++
+ 3 files changed, 98 insertions(+), 25 deletions(-)

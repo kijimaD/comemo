@@ -1,24 +1,20 @@
-commit dbfdc446fe70a3639ba00eb3d9141ba10783d7cf
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Jan 29 14:40:22 2023 +0800
+commit c6244b59095a74b77c977d250708ba1858ae2388
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 23:57:57 2022 -0500
 
-    all: fix problematic comments
+    runtime/debug: do not require a GOROOT/src prefix in TestStack
     
-    Change-Id: If092ae7c72b66f172ae32fa6c7294a7ac250362e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463995
+    When paths are trimmed, the reported file locations begin with the
+    package import path (not GOROOT/src).
+    
+    Updates #51461.
+    
+    Change-Id: Ia6814f970aee11f3d933e75c75136d679d19e220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391815
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/obj/sym.go                          | 2 +-
- src/cmd/internal/src/pos.go                          | 2 +-
- src/cmd/link/internal/benchmark/bench.go             | 2 +-
- src/cmd/link/internal/ld/lib.go                      | 2 +-
- src/cmd/link/internal/loader/loader.go               | 8 ++++----
- src/cmd/pprof/readlineui.go                          | 2 +-
- src/crypto/internal/edwards25519/field/fe_generic.go | 2 +-
- src/crypto/tls/conn.go                               | 2 +-
- src/encoding/gob/encode.go                           | 2 +-
- src/fmt/scan.go                                      | 2 +-
- 10 files changed, 13 insertions(+), 13 deletions(-)
+ src/runtime/debug/stack_test.go | 82 ++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 69 insertions(+), 13 deletions(-)

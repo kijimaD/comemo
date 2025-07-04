@@ -1,14 +1,12 @@
-commit 2ab9bb6aafe2720c4ea2b30fffc827e9f8883f53
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 8 22:43:31 2011 -0500
+commit 9a358df947580c585f5596d89a2ab2be22fea018
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Dec 8 22:27:14 2011 -0500
 
-    gc: fix export of '\'' and '\\' constants
+    spec: fix typo in example comment
     
-    Fixes Windows build.
-    
-    R=ken2
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5472046
+    https://golang.org/cl/5475046
 
- src/cmd/gc/fmt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

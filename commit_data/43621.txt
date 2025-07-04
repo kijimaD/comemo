@@ -1,24 +1,20 @@
-commit 5cc43c51c9929ce089ce2fc17a0f5631d21cd27d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 28 18:49:10 2020 -0700
+commit d4a70b97dc1a349e02fd7a0c6eee5bd569d4021f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 16 01:01:33 2020 -0400
 
-    cmd/compile: early devirtualization of interface method calls
+    [dev.link] cmd/link: clear lib.Textp2 after use
     
-    After inlining, add a pass that looks for interface calls where we can
-    statically determine the interface value's concrete type. If such a
-    case is found, insert an explicit type assertion to the concrete type
-    so that escape analysis can see it.
+    lib.Textp2 is used to assemble the global Textp2. It is not used
+    after that point. Free some memory.
     
-    Fixes #33160.
+    Slightly reduces allocation: for linking cmd/compile,
+    Linksetup_GC     1.10MB ± 0%    0.84MB ± 0%  -23.43%  (p=0.008 n=5+5)
     
-    Change-Id: I36932c691693f0069e34384086d63133e249b06b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264837
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Iec4572e282655306d5ff3e490f8855d479e45acf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228481
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/inl.go  | 53 +++++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/main.go |  7 +++++
- test/escape_iface.go                | 19 ++++++-------
- 3 files changed, 68 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

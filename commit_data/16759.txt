@@ -1,15 +1,62 @@
-commit aad4720b5193221c000892e73615322698170d68
+commit ccc4553491ea4df4b5b3489811359eadb24899bf
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 12 20:58:38 2013 -0400
+Date:   Fri Jul 12 20:40:30 2013 -0400
 
-    cmd/6l, cmd/8l: use one-byte XCHG forms when possible
+    cmd/go, testing: streamline direct use of test binaries
     
-    Pointed out by khr.
+    Before:
     
-    R=ken2
+            $ go test -c -cover fmt
+            $ ./fmt.test -test.covermode=set
+            PASS
+            coverage: 65.1% of statements in strconv
+            $
+    
+    After:
+    
+            $ go test -c -cover fmt
+            $ ./fmt.test
+            PASS
+            coverage: 65.1% of statements in strconv
+            $
+    
+    In addition to being cumbersome, the old flag didn't make sense:
+    the cover mode cannot be changed after the binary has been built.
+    
+    Another useful effect of this CL is that if you happen to do
+    
+            $ go test -c -covermode=atomic fmt
+    
+    and then forget you did that and run benchmarks,
+    the final line of the output (the coverage summary) reminds you
+    that you are benchmarking with coverage enabled, which might
+    not be what you want.
+    
+            $ ./fmt.test -test.bench .
+            PASS
+            BenchmarkSprintfEmpty   10000000               217 ns/op
+            BenchmarkSprintfString   2000000               755 ns/op
+            BenchmarkSprintfInt      2000000               774 ns/op
+            BenchmarkSprintfIntInt   1000000              1363 ns/op
+            BenchmarkSprintfPrefixedInt      1000000              1501 ns/op
+            BenchmarkSprintfFloat    1000000              1257 ns/op
+            BenchmarkManyArgs         500000              5346 ns/op
+            BenchmarkScanInts           1000           2562402 ns/op
+            BenchmarkScanRecursiveInt            500           3189457 ns/op
+            coverage: 91.4% of statements
+            $
+    
+    As part of passing the new mode setting in via _testmain.go, merge
+    the two registration mechanisms into one extensible mechanism
+    (a struct).
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/11145044
+    https://golang.org/cl/11219043
 
- src/cmd/6l/optab.c | 10 ++++++----
- src/cmd/8l/optab.c |  8 +++++---
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/cmd/go/doc.go          | 11 +++++------
+ src/cmd/go/test.go         | 18 +++++++++++++-----
+ src/cmd/go/testflag.go     | 10 +++-------
+ src/pkg/testing/cover.go   | 35 ++++++++++++++---------------------
+ src/pkg/testing/testing.go |  9 ++++++---
+ 5 files changed, 41 insertions(+), 42 deletions(-)

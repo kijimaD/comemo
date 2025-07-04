@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 21899: 258752079766607682e07834e81e0b69208cece8
+# Index 21899: 1250d2e3742c15054fd94ca43aadae5ef39da539
 
 echo "🚀 Generating explanation for commit 21899..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 21899
-- **コミットハッシュ**: 258752079766607682e07834e81e0b69208cece8
-- **GitHub URL**: https://github.com/golang/go/commit/258752079766607682e07834e81e0b69208cece8
+- **コミットハッシュ**: 1250d2e3742c15054fd94ca43aadae5ef39da539
+- **GitHub URL**: https://github.com/golang/go/commit/1250d2e3742c15054fd94ca43aadae5ef39da539
 
 ### 章構成
 

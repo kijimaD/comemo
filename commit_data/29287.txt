@@ -1,20 +1,23 @@
-commit 3c2f607274b2284826ea887fa9d2ef62817df608
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Nov 1 10:43:34 2016 -0500
+commit 0cff219c1279cb76f042004bffcefba0a169cb67
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Apr 28 17:39:55 2016 +0300
 
-    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm: skip TestObjdumpPowerManual if not ppc64x
+    strings: use AVX2 for Index if available
     
-    Skip TestObjdumpPowerManual if the host system is not ppc64 or ppc64le.
-    This test depends on using the host objdump and comparing output, which
-    does not work as expected if the test is run on another host.
+    IndexHard4-4      1.50ms ± 2%  0.71ms ± 0%  -52.36%  (p=0.000 n=20+19)
     
-    Orignates from golang.org/x/arch/ppc64/ppc64asm commit 8e2d4898.
+    This also fixes a bug, that caused a string of length 16 to use
+    two 8-byte comparisons instead of one 16-byte. And adds a test for
+    cases when partial_match fails.
     
-    Fixes #17698
-    
-    Change-Id: I956b0fb78c5ec33641db752d46a755008403d269
-    Reviewed-on: https://go-review.googlesource.com/32531
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1ee8fc4e068bb36c95c45de78f067c822c0d9df0
+    Reviewed-on: https://go-review.googlesource.com/22551
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/objdumpext_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/bytes/bytes_amd64.go     | 12 +++++++-
+ src/runtime/asm_amd64.s      | 65 ++++++++++++++++++++++++++++++++++++++++++--
+ src/strings/strings_amd64.go | 12 +++++++-
+ src/strings/strings_test.go  | 15 ++++++++++
+ 4 files changed, 99 insertions(+), 5 deletions(-)

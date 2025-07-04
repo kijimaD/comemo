@@ -1,13 +1,31 @@
-commit f934bb8ebaf4695ae08ae1302a1b7f22e3e61902
-Author: Rob Pike <r@golang.org>
-Date:   Sat Sep 22 07:25:41 2012 +1000
+commit 439183eb0a57b815497d6d37f66fc99c4160c349
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 21 14:38:22 2012 -0500
 
-    cgo: set alignment to 1 for unions and classes; avoids crash from divide-by-zero
-    Fixes #4114.
+    doc/talks: remove talks, refer to talks.golang.org instead
     
-    R=golang-dev, iant, rsc, iant, devon.odell
-    CC=golang-dev
-    https://golang.org/cl/6553050
+    These talks have been moved to the go.talks sub-repository:
+            https://code.google.com/p/go.talks
+    
+    R=rsc, r
+    CC=gobot, golang-dev
+    https://golang.org/cl/6529052
 
- src/cmd/cgo/gcc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/docs.html                               |    2 +-
+ doc/talks/go_talk-20091030.pdf              |  Bin 247502 -> 0 bytes
+ doc/talks/go_talk-20100112.html             |  411 ----
+ doc/talks/go_talk-20100121.html             |  453 -----
+ doc/talks/go_talk-20100323.html             |  395 ----
+ doc/talks/gofrontend-gcc-summit-2010.pdf    |  Bin 125185 -> 0 bytes
+ doc/talks/io2010/balance.go                 |  168 --
+ doc/talks/io2010/decrypt.go                 |   85 -
+ doc/talks/io2010/encrypt.go                 |   52 -
+ doc/talks/io2010/eval1.go                   |  227 ---
+ doc/talks/io2010/eval2.go                   |  259 ---
+ doc/talks/io2010/talk.pdf                   |  Bin 1094941 -> 0 bytes
+ doc/talks/io2011/Real_World_Go.pdf          |  Bin 609477 -> 0 bytes
+ doc/talks/io2011/Writing_Web_Apps_in_Go.pdf |  Bin 729499 -> 0 bytes
+ doc/talks/java-typing.png                   |  Bin 19328 -> 0 bytes
+ doc/talks/slidy.css                         |  277 ---
+ doc/talks/slidy.js                          | 2772 ---------------------------
+ 17 files changed, 1 insertion(+), 5100 deletions(-)

@@ -1,12 +1,14 @@
-commit 3f1eb94ef2380e1f100835c3bccb7394d0c6138d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 4 14:06:54 2012 -0800
+commit d5e6b8d016774776d3ca6af72839a9138e2fe996
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 4 14:56:16 2012 -0500
 
-    runtime: fix typo in comment
+    crypto/tls: update generate_cert.go for new time package
     
-    R=golang-dev, dsymonds
+    Fixes #2635.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5511047
+    https://golang.org/cl/5512043
 
- src/pkg/runtime/extern.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/generate_cert.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

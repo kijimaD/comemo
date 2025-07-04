@@ -1,21 +1,16 @@
-commit 9cb79e9536a2f7977f9139a808f912d216094ecc
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 25 14:12:26 2016 -0700
+commit 4112f0f7e68f1fa75965aa010f52aa64739912a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 11 11:57:11 2016 -0800
 
-    runtime: arm5, fix large-offset floating-point stores
+    cmd/compile: improve go.importpath.* docs
     
-    The code sequence for large-offset floating-point stores
-    includes adding the base pointer to r11.  Make sure we
-    can interpret that instruction correctly.
+    While we're here, remove a bit of dead code.
     
-    Fixes build.
-    
-    Fixes #15440
-    
-    Change-Id: I7fe5a4a57e08682967052bf77c54e0ec47fcb53e
-    Reviewed-on: https://go-review.googlesource.com/22440
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I1344bb41e5d368825ca5748189382f9e7023c59a
+    Reviewed-on: https://go-review.googlesource.com/20596
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/softfloat_arm.go | 11 ++++++-----
- src/runtime/vlop_arm_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

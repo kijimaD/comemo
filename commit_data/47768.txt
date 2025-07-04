@@ -1,20 +1,20 @@
-commit 8692bacb6a43d1f65e09d0e581ca8b464fd77664
+commit fcf8a6640b1bfb2444749b558f926321841922fa
 Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 9 13:52:18 2021 -0500
+Date:   Fri Apr 9 13:55:18 2021 -0400
 
-    runtime: run gdb with a timeout for TestGdbBacktrace
+    cmd/compile/abi-internal: declare R14 completely fixed
     
-    This sometimes times out and we don't have any useful output for
-    debugging it. Hopefully this will help.
+    Currently, we allow R14, the current goroutine pointer, to be
+    clobbered in function bodies as long as the function restores it. This
+    is unnecessary complexity and could lead to confusing inconsistencies
+    with other architectures that can't simply restore it from TLS.
     
-    For #37405.
+    Updates #40724.
     
-    Change-Id: I79074e6fbb9bd16a864c651109a0acbfc8aa6cef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370703
+    Change-Id: I4c052f0dd0b31d31afeb0c5aff05c314d7a852f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309009
     Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/runtime-gdb_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/abi-internal.md | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

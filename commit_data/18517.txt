@@ -1,23 +1,18 @@
-commit 91b1f7cb15700f39ca63c4e056b41d9b04100e97
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 22:45:16 2014 -0500
+commit b0db7e870c50a38239c2bd541a862fe544b05350
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 14 12:22:13 2014 +0900
 
-    cmd/gc: handle variable initialization by block move in liveness
+    syscall: fix system calls with misaligned arguments on freebsd/arm
     
-    Any initialization of a variable by a block copy or block zeroing
-    or by multiple assignments (componentwise copying or zeroing
-    of a multiword variable) needs to emit a VARDEF. These cases were not.
+    This CL enables the current tree to work with FreeBSD 10-STABLE
+    on ARM EABI platforms, though there are still a few test fails.
     
-    Fixes #7205.
+    Also updates documentation.
     
-    TBR=iant
+    LGTM=iant
+    R=iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/63650044
+    https://golang.org/cl/61060044
 
- src/cmd/5g/cgen.c  | 12 ++++++++++++
- src/cmd/6g/cgen.c  | 12 ++++++++++++
- src/cmd/8g/cgen.c  | 12 ++++++++++++
- src/cmd/gc/pgen.c  |  4 ++--
- src/cmd/gc/plive.c | 19 +++++++++----------
- test/live.go       | 18 ++++++++++++++++++
- 6 files changed, 65 insertions(+), 12 deletions(-)
+ src/pkg/syscall/asm_freebsd_arm.s | 51 +++++++++++++++++++++------------------
+ 1 file changed, 27 insertions(+), 24 deletions(-)

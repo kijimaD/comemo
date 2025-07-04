@@ -1,22 +1,18 @@
-commit b064eb7e1bb1b138405b9c8da1d90c476a266ef5
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Sep 24 11:26:23 2020 -0400
+commit 26154f31ad6c801d8bad5ef58df1e9263c6beec7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 3 03:45:22 2020 +1100
 
-    cmd/go: update go_windows_test to use test go binary
+    cmd/compile: use NEG/NEGW pseudo-instructions on riscv64
     
-    Most of the cmd/go tests build the cmd/go binary and run that binary to
-    test it, but TestAbsolutePath used the GOROOT's cmd/go instead, which
-    makes debugging confusing and means that make.bash has to be run in each
-    iteration cycle. Update TestAbsolutePath to use the same go binary as
-    the rest of the cmd/go tests.
+    Also rewrite subtraction of zero to NEG/NEGW.
     
-    Change-Id: Ib4e8ae707b66f1f75ceb346b98358f5604fd28c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256979
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I216e286d1860055f2a07fe2f772cd50f366ea097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221691
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_windows_test.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go        |   2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  17 +++-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   2 +
+ src/cmd/compile/internal/ssa/opGen.go          |  28 ++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 123 +++++++++++++------------
+ 5 files changed, 107 insertions(+), 65 deletions(-)

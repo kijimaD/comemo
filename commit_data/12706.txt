@@ -1,13 +1,12 @@
-commit 2ceb653b8b2745879d3da6c9d0829ac942fb00da
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 21 16:19:37 2012 +0800
+commit e5102b35f6afaaf5a829768710d15924c126aeeb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 20 16:50:51 2012 -0700
 
-    build: lengthen timeout for the lengthy runtime test
-            To fix build on (overheated) Linux/ARM builder.
+    doc: remove reference to deleted os.ENOSPC
     
-    R=golang-dev, dave
+    R=golang-dev, gri, r, r
     CC=golang-dev
-    https://golang.org/cl/5865051
+    https://golang.org/cl/5866046
 
- src/run.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

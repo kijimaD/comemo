@@ -1,18 +1,14 @@
-commit 816aa99b9a905c5a1fb1d1853698d87b74099720
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Nov 15 16:33:22 2016 +0100
+commit 404ae84aa220943c85fe04e9d7499087aedb0677
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 21 15:03:52 2016 -0400
 
-    syscall: define bind flags on Plan 9
+    cmd/link: add time stamp to hostlink print in -v mode
     
-    These bind flags were removed by mistake in CL 2167.
-    
-    Fixes #17921.
-    
-    Change-Id: I1e8089dade30a212b8db0b216c8299946d924d4b
-    Reviewed-on: https://go-review.googlesource.com/33271
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I128b142aee5e1b917e7ba63b48512972f053ea0b
+    Reviewed-on: https://go-review.googlesource.com/29531
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/const_plan9.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

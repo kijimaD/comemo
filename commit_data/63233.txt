@@ -1,0 +1,39 @@
+commit 70109eb32625487d9c774d602a4fa2422e218f1b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 21 14:32:21 2025 -0400
+
+    cmd/link: allow linkname reference to a TEXT symbol regardless of size
+    
+    In CL 660696, we made the linker to choose the symbol of the
+    larger size in case there are multiple contentless declarations of
+    the same symbol. We also made it emit an error in the case that
+    there are a contentless declaration of a larger size and a
+    definition with content of a smaller size. In this case, we should
+    choose the definition with content, but the code accesses it
+    through the declaration of the larger size could fall into the
+    next symbol, potentially causing data corruption. So we disallowed
+    it.
+    
+    There is one spcial case, though, that some code uses a linknamed
+    variable declaration to reference a function in assembly, in order
+    to take its address. The variable is often declared as uintptr.
+    The function symbol is the definition, which could sometimes be
+    shorter. This would trigger the error case above, causing existing
+    code failing to build.
+    
+    This CL allows it as a special case. It is still not safe to
+    access the variable's content. But it is actually okay to just
+    take its address, which the existing code often do.
+    
+    Fixes #73617.
+    
+    Change-Id: I467381bc5f6baa16caee6752a0a824c7185422f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676636
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/loader/loader.go         | 61 ++++++++++++++++----------
+ src/cmd/link/link_test.go                      |  5 ++-
+ src/cmd/link/testdata/linkname/textvar/asm.s   |  6 +++
+ src/cmd/link/testdata/linkname/textvar/main.go | 17 +++++++
+ 4 files changed, 66 insertions(+), 23 deletions(-)

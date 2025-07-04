@@ -1,14 +1,13 @@
-commit 231dfd9049a1344fc98ee3cd950473b2f986c28f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jul 10 15:34:24 2013 +1000
+commit d178c016c2b6ae2403986c730d8d11ed95a8211f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 10 13:29:52 2013 +1000
 
-    time: find correct zone abbreviations even on non-English windows systems
+    net/http: in ServeContent, don't seek on content until necessary
     
-    Fixes #5783
-    
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/10956043
+    https://golang.org/cl/11080043
 
- src/pkg/time/zoneinfo_windows.go | 83 +++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 82 insertions(+), 1 deletion(-)
+ src/pkg/net/http/fs.go      | 39 +++++++++++++++++++++++++++------------
+ src/pkg/net/http/fs_test.go | 31 +++++++++++++++++++++++++------
+ 2 files changed, 52 insertions(+), 18 deletions(-)

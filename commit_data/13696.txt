@@ -1,36 +1,23 @@
-commit baf426f10fdcb3c11aa20d5034c05c5ba9b0c239
-Author: Christopher Swenson <cswenson@google.com>
-Date:   Tue Aug 28 09:29:45 2012 -0700
+commit 5e8de365dced2d35975361760c6df9e4357fd6b9
+Author: Tobias Columbus <tobias.columbus@gmail.com>
+Date:   Tue Aug 28 03:59:16 2012 +0800
 
-    math/big: Replace RCLQ + ANDQ with SETCS in unrolled arithmetic assembly.
+    misc/vim: fix for autocompletion
     
-    benchmark             old ns/op    new ns/op    delta
-    BenchmarkAddVW_1              8            8   +0.60%
-    BenchmarkAddVW_2             10            9   -8.64%
-    BenchmarkAddVW_3             10           10   -4.63%
-    BenchmarkAddVW_4             10           11   +3.67%
-    BenchmarkAddVW_5             11           12   +5.98%
-    BenchmarkAddVW_1e1           18           20   +6.38%
-    BenchmarkAddVW_1e2          129          115  -10.85%
-    BenchmarkAddVW_1e3         1270         1089  -14.25%
-    BenchmarkAddVW_1e4        13376        12145   -9.20%
-    BenchmarkAddVW_1e5       130392       125260   -3.94%
+        Vim autocompletion respects the $GOPATH variable and does not
+        ignore dashes ('-'), dots ('.') and underscores ('_') like found
+        in many remote packages.
+        Environment variable $GOROOT is determined by calling
+        'go env GOROOT' instead of relying on the user's environment
+        variables.
     
-    benchmark              old MB/s     new MB/s  speedup
-    BenchmarkAddVW_1        7709.10      7661.92    0.99x
-    BenchmarkAddVW_2       12451.10     13604.00    1.09x
-    BenchmarkAddVW_3       17727.81     18721.54    1.06x
-    BenchmarkAddVW_4       23552.64     22708.81    0.96x
-    BenchmarkAddVW_5       27411.40     25816.22    0.94x
-    BenchmarkAddVW_1e1     34063.19     32023.06    0.94x
-    BenchmarkAddVW_1e2     49529.97     55360.55    1.12x
-    BenchmarkAddVW_1e3     50380.44     58764.18    1.17x
-    BenchmarkAddVW_1e4     47843.59     52696.10    1.10x
-    BenchmarkAddVW_1e5     49082.60     51093.66    1.04x
+        Fixes #3876
+        Fixes #3882
     
-    R=gri, rsc, r
+    R=golang-dev, franciscossouza, dsymonds, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6480063
+    https://golang.org/cl/6443151
 
- src/pkg/math/big/arith_amd64.s | 24 +++++++++++++++++-------
- 1 file changed, 17 insertions(+), 7 deletions(-)
+ misc/vim/autoload/go/complete.vim | 48 ++++++++++++++++++++++++++++-----------
+ misc/vim/plugin/godoc.vim         |  2 +-
+ 2 files changed, 36 insertions(+), 14 deletions(-)

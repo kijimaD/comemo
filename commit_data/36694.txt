@@ -1,26 +1,19 @@
-commit 83dfc3b001245f0b725afdc94c0b540fe1952d21
-Author: Keith Randall <khr@google.com>
-Date:   Mon Sep 17 12:25:36 2018 -0700
+commit 5095e5d8e2cec3d6209e733652ead8ddc20fc7c2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri May 4 12:08:47 2018 +0200
 
-    runtime: ignore races between close and len/cap
+    cmd/go: test that Go binaries can be run on QEMU in user-mode
     
-    They aren't really races, or at least they don't have any
-    observable effect. The spec is silent on whether these are actually
-    races or not.
+    We have a workaround in place in the runtime (see CL 16853 and
+    CL 111176) to keep arm and arm64 Go binaries working under QEMU
+    in user-emulation mode (Issue #13024).
     
-    Fix this problem by not using the address of len (or of cap)
-    as the location where channel operations are recorded to occur.
-    Use a random other field of hchan for that.
+    This change adds a regression test about arm/arm64 QEMU emulation
+    to cmd/go.
     
-    I'm not 100% sure we should in fact fix this. Opinions welcome.
-    
-    Fixes #27070
-    
-    Change-Id: Ib4efd4b62e0d1ef32fa51e373035ef207a655084
-    Reviewed-on: https://go-review.googlesource.com/135698
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ic67f476e7c30a7d7852d9b01834f1dcabfac2ff7
+    Reviewed-on: https://go-review.googlesource.com/111477
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/chan.go                    | 23 ++++++++++++++++-------
- src/runtime/race/testdata/chan_test.go | 30 ++++++++++++++++++++++--------
- src/runtime/select.go                  |  4 ++--
- 3 files changed, 40 insertions(+), 17 deletions(-)
+ src/cmd/go/go_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)

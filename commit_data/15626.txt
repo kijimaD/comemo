@@ -1,17 +1,12 @@
-commit 8aafb44b0bbba85535feb67e7ae0f4f254524c0f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 7 09:18:48 2013 -0500
+commit 48fa4a10fbbc235f334a0a2d34f188799b95a3ae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 7 19:17:18 2013 +0900
 
-    runtime: fix cgo callbacks on windows
+    net: fix typo in skip message
     
-    Fixes #4955.
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, akumar
     CC=golang-dev
-    https://golang.org/cl/7563043
+    https://golang.org/cl/7523044
 
- misc/cgo/test/cthread.go            |  5 +----
- src/pkg/runtime/sys_windows_386.s   | 43 +++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/sys_windows_amd64.s | 32 +++++++++++++++++++++++++++
- src/pkg/runtime/thread_windows.c    | 19 +++-------------
- 4 files changed, 79 insertions(+), 20 deletions(-)
+ src/pkg/net/protoconn_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

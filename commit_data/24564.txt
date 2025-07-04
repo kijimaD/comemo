@@ -1,19 +1,16 @@
-commit 77b1fef27e736764395633413fc13c14d8fed712
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 19 17:01:37 2015 -0700
+commit 0290d51b4ada1615853b2dc368902b2a310392f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 13:39:07 2015 -0400
 
-    cmd/compile, syscall: use go:norace comment for forkAndExecInChild
+    build: clean current tree in clean.bash
     
-    Use a go:norace comment rather than having the compiler know the special
-    name syscall.forkAndExecInChild.
+    Otherwise clean.bash cleans $GOROOT, which might be something else entirely.
     
-    Change-Id: I69bc6aa6fc40feb2148d23f269ff32453696fb28
-    Reviewed-on: https://go-review.googlesource.com/16097
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #12003.
+    
+    Change-Id: I2ad5369017dde6db25f0c0514bc27c33d0a8bf54
+    Reviewed-on: https://go-review.googlesource.com/13251
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 12 +-----------
- src/syscall/exec_bsd.go                 |  1 +
- src/syscall/exec_linux.go               |  1 +
- src/syscall/exec_plan9.go               |  1 +
- src/syscall/exec_solaris.go             |  1 +
- 5 files changed, 5 insertions(+), 11 deletions(-)
+ src/clean.bash | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

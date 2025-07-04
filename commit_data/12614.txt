@@ -1,25 +1,13 @@
-commit 8170d81f4f12db0c5d40bb550639026ee850fe25
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 14 07:03:11 2012 +1100
+commit 5361712ab4f582fda6c098a45d270278b7907404
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Mar 13 10:00:43 2012 -0400
 
-    text/template: fix a couple of parse bugs around identifiers.
-    1) Poor error checking in variable declarations admitted
-    $x=2 or even $x%2.
-    2) Need white space or suitable termination character
-    after identifiers, so $x+2 doesn't parse, in case we want it
-    to mean something one day.
-    Number 2 in particular prevents mistakes that we will have
-    to honor later and so is necessary for Go 1.
-    
-    Fixes #3270.
-    Fixes #3271.
+    go/build: fix match
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5795073
+    https://golang.org/cl/5801043
 
- src/pkg/text/template/multi_test.go       |  2 +-
- src/pkg/text/template/parse/lex.go        | 25 +++++++++++++++++++++++++
- src/pkg/text/template/parse/parse.go      |  2 +-
- src/pkg/text/template/parse/parse_test.go | 15 +++++++++++++++
- 4 files changed, 42 insertions(+), 2 deletions(-)
+ src/pkg/go/build/build.go      | 6 +++---
+ src/pkg/go/build/build_test.go | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

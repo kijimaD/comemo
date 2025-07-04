@@ -1,22 +1,20 @@
-commit 2d4164596f3bd798996732aaa01b95e70f91e8a8
+commit 318309a51f40d31568bd2c9131d1cd25c2ca0214
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 14:39:39 2013 -0500
+Date:   Fri Feb 15 14:27:16 2013 -0500
 
-    cmd/go: reject case-insensitive file name, import collisions
+    runtime/pprof: adjust reported line numbers to show call sites
     
-    To make sure that Go code will work when moved to a
-    system with a case-insensitive file system, like OS X or Windows,
-    reject any package built from files with names differing
-    only in case, and also any package built from imported
-    dependencies with names differing only in case.
+    This is the same logic used in the standard tracebacks.
+    The caller pc is the pc after the call, so except in the
+    fake "call" caused by a panic, back up the pc enough
+    that the lookup will use the previous instruction.
     
-    Fixes #4773.
+    Fixes #4150.
+    Fixes #4151.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7314104
+    https://golang.org/cl/7317047
 
- src/cmd/go/main.go   | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/pkg.go    | 43 ++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/test.bash | 41 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 140 insertions(+), 1 deletion(-)
+ src/pkg/runtime/pprof/pprof.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

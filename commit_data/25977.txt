@@ -1,16 +1,15 @@
-commit eaf5235f984080d592dbc88d6e4ad4e246e2f3b2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 29 10:05:46 2016 -0800
+commit aa487e66f869785837275ee20441a53888a51bb2
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Dec 7 13:45:06 2015 -0800
 
-    misc/cgo/testsanitizers: don't run tsan tests on old clang
+    doc: add heading IDs to Code of Conduct
     
-    Fixes #14570.
+    Fixes #13514
     
-    Change-Id: Ief84a14585bfc209e38cdf15702c2f54ba759714
-    Reviewed-on: https://go-review.googlesource.com/20057
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I3903d3926ed4f5d54cfb77209d93c950b832b933
+    Reviewed-on: https://go-review.googlesource.com/17511
+    Reviewed-by: Francesc Campoy Flores <campoy@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 34 +++++++++++++++++++++++-----------
- 1 file changed, 23 insertions(+), 11 deletions(-)
+ doc/conduct.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

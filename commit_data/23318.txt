@@ -1,15 +1,12 @@
-commit 15c8ab00e88419b584eefd38ec6ddcdbea3e488c
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jun 11 07:50:59 2015 +0200
+commit 6fd387b35b1559b0f125e1d77a23923c12798ded
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 09:30:52 2015 -0700
 
-    cmd/go: remove Stat workaround for Plan 9
+    doc/go1.5.txt: LookupEnv
     
-    This issue was fixed in CL 10900.
-    
-    Change-Id: I88f107cb73c8a515f39e02506ddd2ad1e286b1fb
-    Reviewed-on: https://go-review.googlesource.com/10940
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iff27fa0ca50fe9e41d811d30df41fc2d3057aa1d
+    Reviewed-on: https://go-review.googlesource.com/9792
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,19 +1,22 @@
-commit 10635921e511ef82b5eabe98928e42901fd3f822
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Feb 21 02:50:57 2020 +1100
+commit bd229936cf3873c552ab087232030780dc432067
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 17 01:17:42 2019 -0400
 
-    cmd/asm,cmd/internal/obj/riscv: add atomic memory operation instructions
+    [dev.link] cmd/link: restore export data hash
     
-    Use instructions in place of currently used defines.
+    With the previous CL, the export data will not change whether it
+    is compiled with -dynlink flag or not. Restore the export data
+    hash, and reenable plugin version check.
     
-    Updates #36765
+    TODO: it may be still better to just generate a fingerprint for
+    each package at compile time.
     
-    Change-Id: I00bb59e77b1aace549d7857cc9721ba2cb4ac6ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220541
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1f298ac97c3ab9b8d05d1c95e8be74d10ca7cd0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201720
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/asm/internal/arch/riscv64.go         |  5 ++++-
- src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++++++++++++-
- src/cmd/internal/obj/riscv/obj.go            | 23 +++++++++++++++++++++-
- src/runtime/internal/atomic/atomic_riscv64.s | 29 ++++++++++------------------
- 4 files changed, 57 insertions(+), 22 deletions(-)
+ misc/cgo/testplugin/testdata/host/host.go | 13 ++++++-------
+ src/cmd/link/internal/ld/lib.go           |  2 +-
+ 2 files changed, 7 insertions(+), 8 deletions(-)

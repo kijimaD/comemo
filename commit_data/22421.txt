@@ -1,12 +1,15 @@
-commit 49a5a97eead27517b98c2c8c5bb40e9b69ccee7b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 10 13:19:20 2015 -0700
+commit b10021644145d7148ced74194b0d668a4428cc15
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 3 12:15:53 2015 +0900
 
-    doc/go1.5.txt: time.AppendFormat
+    syscall: add missing Syscall9 for darwin/amd64
     
-    Change-Id: I9e8a0dc152ef9403ff5ece0c161bda3a2f4448a8
-    Reviewed-on: https://go-review.googlesource.com/8760
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10068.
+    
+    Change-Id: I1f12225ee16b0090b87403931c0bc0157f068309
+    Reviewed-on: https://go-review.googlesource.com/6555
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/syscall/asm_darwin_amd64.s      | 40 +++++++++++++++++++++++++++++++++++--
+ src/syscall/syscall_darwin_amd64.go |  2 +-
+ 2 files changed, 39 insertions(+), 3 deletions(-)

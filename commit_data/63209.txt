@@ -1,0 +1,17 @@
+commit c0e149b6b1aa2daca64c00804809bc2279e21eee
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 23 12:44:24 2025 +0200
+
+    net/http: document that ServeMux.Handler can also synthetize a 405
+    
+    Also, fix a minor typo in ServeMux.Handle and ServeMux.HandleFunc.
+    
+    Change-Id: I6a6a46565719104cb8f2484daf0e39f35b55a078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675835
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/server.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

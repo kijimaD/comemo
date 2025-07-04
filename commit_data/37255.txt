@@ -1,12 +1,18 @@
-commit f999576dd8df6e4d09e3c67c23ba4d8dc18d53d3
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Mon Nov 5 22:04:46 2018 +0530
+commit 05e02d77c31ba4c592567de1a05959a3c253218d
+Author: Dmitry Doroginin <doroginin@gmail.com>
+Date:   Fri Jul 13 12:31:01 2018 +0000
 
-    cmd/addr2line: defer closing objfile
+    cmd/go/internal/modload: more aggressive symlink analysis in FindModulePath
     
-    Change-Id: I19ff9d231c4cc779b0737802c3c40ee2e00934dd
-    Reviewed-on: https://go-review.googlesource.com/c/147477
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes golang/go#26217.
+    
+    Change-Id: I0c456047ee31aa78b72acc413446651ca8c3882a
+    GitHub-Last-Rev: b700554d883b43b57c6619e31a5f8fcb22b1d71f
+    GitHub-Pull-Request: golang/vgo#5
+    Reviewed-on: https://go-review.googlesource.com/123755
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/addr2line/main.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/modload/init.go |  12 ++++
+ src/cmd/go/mod_test.go              | 121 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+)

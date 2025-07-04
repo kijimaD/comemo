@@ -1,0 +1,23 @@
+commit 0fc3b127a09ee5f99f4f9f9a83d3364ff2b69a9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 18:06:50 2024 -0700
+
+    go/types, types2: factor type checking of basic literals and generate go/types code
+    
+    Move the code for type checking of basic literals into literals.go.
+    
+    In go/types, the respective code is now generated from the types2 source.
+    
+    Change-Id: Ib21eb7a87e11b77bcb2469985f9844964d35df57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610540
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go     | 58 +-----------------------
+ src/cmd/compile/internal/types2/literals.go | 67 +++++++++++++++++++++++++++-
+ src/go/types/expr.go                        | 58 +-----------------------
+ src/go/types/generate_test.go               |  5 ++-
+ src/go/types/literals.go                    | 68 ++++++++++++++++++++++++++++-
+ 5 files changed, 139 insertions(+), 117 deletions(-)

@@ -1,46 +1,14 @@
-commit 92c8df46c6f398930ba598b1a2eb1248e739cc0b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 14 06:40:55 2012 +0900
+commit 5f7337769c4a09c34d32ca29ffdeb5c5c19aca41
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 13 13:38:36 2012 -0800
 
-    src: make use of runtime.GOOS, GOARCH instead of syscall.OS, ARCH
+    spec: change the wording regarding select statement choice
+    s/pseudo-random fair/uniform pseudo-random/
+    This careful word choice soothes the theoretically inclined.
     
-    R=rsc, r
+    R=golang-dev, rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5545048
+    https://golang.org/cl/5528098
 
- src/buildscript_darwin_386.sh       |  2 +-
- src/buildscript_darwin_amd64.sh     |  2 +-
- src/buildscript_freebsd_386.sh      |  2 +-
- src/buildscript_freebsd_amd64.sh    |  2 +-
- src/buildscript_linux_386.sh        |  2 +-
- src/buildscript_linux_amd64.sh      |  2 +-
- src/buildscript_linux_arm.sh        |  2 +-
- src/buildscript_netbsd_386.sh       |  2 +-
- src/buildscript_netbsd_amd64.sh     |  2 +-
- src/buildscript_openbsd_386.sh      |  2 +-
- src/buildscript_openbsd_amd64.sh    |  2 +-
- src/buildscript_plan9_386.sh        |  2 +-
- src/buildscript_windows_386.sh      |  2 +-
- src/buildscript_windows_amd64.sh    |  2 +-
- src/pkg/debug/gosym/pclntab_test.go |  4 ++--
- src/pkg/net/file_test.go            |  5 ++---
- src/pkg/net/server_test.go          |  7 +++----
- src/pkg/os/os_test.go               | 30 +++++++++++++++---------------
- src/pkg/os/os_unix_test.go          |  3 ++-
- src/pkg/os/path_test.go             |  5 ++---
- src/pkg/syscall/Makefile            |  1 -
- src/pkg/syscall/exec_bsd.go         |  3 ++-
- src/pkg/syscall/exec_unix.go        |  3 ++-
- src/pkg/syscall/syscall_386.go      |  7 -------
- src/pkg/syscall/syscall_amd64.go    |  7 -------
- src/pkg/syscall/syscall_arm.go      |  7 -------
- src/pkg/syscall/syscall_bsd.go      |  7 +++++--
- src/pkg/syscall/syscall_darwin.go   |  2 --
- src/pkg/syscall/syscall_freebsd.go  |  2 --
- src/pkg/syscall/syscall_linux.go    |  2 --
- src/pkg/syscall/syscall_netbsd.go   |  2 --
- src/pkg/syscall/syscall_openbsd.go  |  2 --
- src/pkg/syscall/syscall_plan9.go    |  2 --
- src/pkg/syscall/syscall_unix.go     |  3 ++-
- src/pkg/syscall/syscall_windows.go  |  2 --
- 35 files changed, 51 insertions(+), 83 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

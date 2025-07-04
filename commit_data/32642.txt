@@ -1,17 +1,20 @@
-commit 67da597312556ca8fed27c0ce85ea7a60cb5a783
-Author: Sylvain Zimmer <sylvain@sylvainzimmer.com>
-Date:   Sat Sep 2 17:38:45 2017 +0200
+commit cb83924d5b42a7918ddac1ee2c0d2bf2032c3ab6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed May 10 11:00:03 2017 -0400
 
-    regexp: Remove duplicated function wordRune()
+    cmd/compile/internal/ssa: fix generation of ppc64x rules
     
-    Fixes #21742
+    The files PPC64.rules and rewritePPC64.go were out of sync due to
+    conflicts between CL 41630 and CL 42145 (i.e. running 'go run *.go'
+    in the gen directory resulted in unexpected changes).
     
-    Change-Id: Ib56b092c490c27a4ba7ebdb6391f1511794710b8
-    Reviewed-on: https://go-review.googlesource.com/61034
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I1d409656b66afeab6cb9c6df9b3dcab7859caa75
+    Reviewed-on: https://go-review.googlesource.com/43091
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/regexp/syntax/prog.go | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  8 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 60 ++++++++++++++--------------
+ 2 files changed, 34 insertions(+), 34 deletions(-)

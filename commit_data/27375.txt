@@ -1,17 +1,18 @@
-commit a71584975dedd4f4975d65047ec7660191a49613
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Thu May 12 15:00:10 2016 +0300
+commit babc73547eed0fb75f4b507e02bd8235acdbc8e9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 23 16:43:17 2016 -0700
 
-    reflect: fix vet warnings
+    cmd/compile: remove redundant parameter from finishcompare
     
-    Updated #11041
+    This is follow-up 3 of 3 to CL 20959.
     
-    Change-Id: I4a110ba8fefb367a1049b4a65dd20c39eb890ea2
-    Reviewed-on: https://go-review.googlesource.com/23080
+    Passes toolstash -cmp.
+    
+    Change-Id: I06efded21bbc970cbefa10e8f2cac1ebc6942e1b
+    Reviewed-on: https://go-review.googlesource.com/21054
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/all_test.go | 8 ++++----
- src/reflect/type.go     | 1 -
- 2 files changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

@@ -1,15 +1,50 @@
-commit a7042249abdba39a7c8dce35661b62094eb97117
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Oct 3 14:06:08 2019 -0700
+commit b2f94d3e88775fae4cf19d34c87a61efa814d079
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 3 22:41:48 2019 -0400
 
-    os/exec: simplify doc wording for cmd.StdoutPipe and cmd.StderrPipe
+    cmd/link: mmap output file
     
-    The existing text was hard to parse.
-    Shorten the sentences and simplify the text.
+    Use mmap for writing most of the output file content,
+    specifically, the sections and segments. After layout, we
+    already know the sizes and file offsets for the sections and
+    segments. So we can just write the bytes by copying to a mmap'd
+    backing store.
     
-    Change-Id: Ic16f486925090ea303c04e70969e5a4b27a60896
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198758
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The writing of the output file is split into two parts. The first
+    part writes the sections and segments to the mmap'd region. The
+    second part writes some extra content, for which we don't know
+    the size, so we use direct file IO.
+    
+    This is in preparation for mmap'ing input files read-only.
+    
+    Change-Id: I9f3b4616a9f96bfd5c940d74c50aacd6d330f7d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170738
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/exec/exec.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/amd64/asm.go        |  2 ++
+ src/cmd/link/internal/amd64/obj.go        |  1 +
+ src/cmd/link/internal/arm/asm.go          |  2 ++
+ src/cmd/link/internal/arm/obj.go          |  1 +
+ src/cmd/link/internal/arm64/asm.go        |  2 ++
+ src/cmd/link/internal/arm64/obj.go        |  1 +
+ src/cmd/link/internal/ld/data.go          |  6 +++--
+ src/cmd/link/internal/ld/lib.go           | 15 ++++++++---
+ src/cmd/link/internal/ld/main.go          | 25 ++++++++++++++++--
+ src/cmd/link/internal/ld/outbuf.go        | 43 +++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/outbuf_mmap.go   | 44 +++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/outbuf_nommap.go | 15 +++++++++++
+ src/cmd/link/internal/mips/asm.go         |  2 ++
+ src/cmd/link/internal/mips/obj.go         |  1 +
+ src/cmd/link/internal/mips64/asm.go       |  2 ++
+ src/cmd/link/internal/mips64/obj.go       |  1 +
+ src/cmd/link/internal/ppc64/asm.go        |  2 ++
+ src/cmd/link/internal/ppc64/obj.go        |  1 +
+ src/cmd/link/internal/s390x/asm.go        |  2 ++
+ src/cmd/link/internal/s390x/obj.go        |  3 ++-
+ src/cmd/link/internal/wasm/asm.go         |  4 ++-
+ src/cmd/link/internal/wasm/obj.go         |  1 +
+ src/cmd/link/internal/x86/asm.go          |  2 ++
+ src/cmd/link/internal/x86/obj.go          |  1 +
+ 24 files changed, 165 insertions(+), 14 deletions(-)

@@ -1,20 +1,20 @@
-commit 12ea4f7785f27c322a657aa1ead7efc692a351dd
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Mar 12 15:14:44 2025 -0400
+commit 23ac1599abfc558edce5841323e2c679b094fc26
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 13 14:51:17 2022 -0800
 
-    doc/next: add release note for new toolchain line behavior
+    net: don't return errno from _C_res_nsearch
     
-    The go command will now no longer update the toolchain line implicitly
-    to the local toolchain version when updating the go line. Document that
-    in a release note.
+    We ignore the value anyhow.
     
-    For #65847
-    
-    Change-Id: I4e970d881a43c22292fe9fa65a9835d0214ef7bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657178
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I1b1db7831c42bf852652236212812fd5cf258530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457439
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- doc/next/3-tools.md | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/net/cgo_unix.go          | 2 +-
+ src/net/cgo_unix_cgo_res.go  | 6 +++---
+ src/net/cgo_unix_cgo_resn.go | 6 +++---
+ src/net/cgo_unix_syscall.go  | 5 +++--
+ 4 files changed, 10 insertions(+), 9 deletions(-)

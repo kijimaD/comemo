@@ -1,41 +1,21 @@
-commit 489f65b52ad28c2a6f4f2dc58a3d939e9a77be47
-Author: Tim Ebringer <tim.ebringer@gmail.com>
-Date:   Mon Jan 18 21:33:25 2016 +1100
+commit f5722a81faec8c4e0dafb93a5f8e2479b033eaed
+Author: Ralph Corderoy <ralph@inputplus.co.uk>
+Date:   Thu Nov 12 13:00:57 2015 +0000
 
-    net: improve netsh usage in Windows unit tests
+    A+C: alter email-address description to cover more than two
     
-    The TestInterfaceAddrsWithNetsh Windows unit test parses and compares the
-    output of the "netsh" command against more low level Windows API calls. In
-    at least two cases, some quirks of netsh cause these comparisons to fail.
+    Explictly list the alternative formats in each file.  In AUTHORS, refer
+    to CONTRIBUTORS' definition of multiple email addresses.  Indent with
+    four spaces;  AUTHORS used a tab, but CONTRIBUTORS used four spaces.
+    s/Rietveld/Gerrit/
     
-    One example appears to be wi-fi adapters. After a reboot, before it has
-    been allowed to connect to a network, netsh for IPv4 will not show an
-    address, whereas netsh for IPv6 will. If the interface is allowed to
-    connect, and then disconnected, netsh for IPv4 now shows an address and
-    the test will pass.
+    Change the tab separating Sebastien Binet from his email address,
+    added in 2010's 18b02f6c.
     
-    The fix is to not compare netsh output if the interface is down.
-    
-    A related issue is that the IPv6 version of "netsh" can return an
-    IPv4-embedded IPv6 address where the IPv4 component of the address
-    is in decimal form, whilst the test is expecting hexadecimal form.
-    
-    For example, output might be:
-    
-      Address fe80::5efe:192.168.1.7%6 Parameters
-        ...
-    
-    Whilst this is valid notation, the fix is to recognise this format in the
-    "netsh" output and re-parse the address into the all-hexadecimal
-    representation that the test is expecting.
-    
-    Fixes #13981
-    
-    Change-Id: Ie8366673f4d43d07bad80d6d5d1d6e33f654b6cc
-    Reviewed-on: https://go-review.googlesource.com/18711
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id52228ae6b62dd88ad8098110c22373bf14e068f
+    Reviewed-on: https://go-review.googlesource.com/16826
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/net_windows_test.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ AUTHORS      | 10 ++++++----
+ CONTRIBUTORS |  9 +++++----
+ 2 files changed, 11 insertions(+), 8 deletions(-)

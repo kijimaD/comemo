@@ -1,18 +1,22 @@
-commit 8cb5c55118a8273e1cc605b8ba167297808c4eda
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 9 17:14:30 2023 -0400
+commit 59ba97bf3bc9926ace19f5e6b3be277b801b1fde
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 8 02:18:50 2022 +0000
 
-    cmd/go/internal/web: release the net token when an HTTP request fails due to CheckRedirect
+    cmd/go: record the -buildmode flag in debug.BuildInfo
     
-    Fixes #61877.
+    Fixes #53856
     
-    Change-Id: I38c63565aaf9dc9b0c8085974521daccfbcbc790
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518015
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib533e9fbe063b74c81f6512464a4dac5e2af0ccc
+    GitHub-Last-Rev: c2ae8d6f75badd55ba6cf8e093c496c9bd1baa49
+    GitHub-Pull-Request: golang/go#54218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420937
     Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- src/cmd/go/internal/web/http.go                      | 20 +++++++++++++-------
- .../go/testdata/script/mod_get_insecure_redirect.txt | 19 +++++++++++++++++++
- 2 files changed, 32 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/load/pkg.go                                | 9 +++++++++
+ src/cmd/go/testdata/script/mod_list_command_line_arguments.txt | 2 +-
+ src/cmd/go/testdata/script/version.txt                         | 8 ++++++--
+ 3 files changed, 16 insertions(+), 3 deletions(-)

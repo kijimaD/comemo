@@ -1,12 +1,14 @@
-commit d77eb129981063fec19efc7dd4078c4757fcf997
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 30 09:42:43 2012 -0700
+commit be6afde348db68dfc9f59f57cbb15ed637158ac0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 31 02:24:08 2012 +1100
 
-    exp/gotype: add more test packages
+    misc/dashboard/builder: check http status before processing response
     
-    R=r
+    Occasionally GAE will return a 500 error response, don't treat this as a valid JSON body.
+    
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6822051
+    https://golang.org/cl/6775066
 
- src/pkg/exp/gotype/gotype_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ misc/dashboard/builder/http.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

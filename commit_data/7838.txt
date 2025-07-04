@@ -1,12 +1,14 @@
-commit aad62bf409da1890cff5591954099e7982bd2840
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Mar 23 14:26:28 2011 +1100
+commit 39ffd546bd575789e116f764cab8ee41de61becf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 23 14:24:30 2011 +1100
 
-    misc/vim: remove 'closed' as a builtin function.
+    sync: fix example code
     
-    R=adg, r
+    Fixes #1631.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4285059
+    https://golang.org/cl/4303046
 
- misc/vim/syntax/go.vim | 2 +-
+ src/pkg/sync/waitgroup.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

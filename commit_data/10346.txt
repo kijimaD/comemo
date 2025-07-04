@@ -1,20 +1,14 @@
-commit a6c501e4b1c0bc21e85a51ef62af65c4f284fff1
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Nov 11 14:40:41 2011 -0500
+commit 3199a6ca8d06ef608080f1ef6c0523ebbbeb0025
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Nov 11 14:40:24 2011 -0500
 
-    net, io/ioutil: remove use of os.Time
+    ld: fix .bss for ldpe.
     
-    I had to replace the single use of io/ioutil
-    in the time package with a bytes.Buffer since
-    there would've been a dependency cycle.
+    Fixes #2409.
     
-    There are no other uses of os.Time.
-    
-    R=golang-dev, rsc
+    R=mattn.jp, rsc, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5372054
+    https://golang.org/cl/5334046
 
- src/pkg/io/ioutil/tempfile.go |  4 ++--
- src/pkg/net/hosts.go          |  6 +++---
- src/pkg/time/zoneinfo_unix.go | 12 +++++++++---
- 3 files changed, 14 insertions(+), 8 deletions(-)
+ src/cmd/ld/ldpe.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

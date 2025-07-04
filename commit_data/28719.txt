@@ -1,19 +1,18 @@
-commit 94589054d3ed88c049fbe468d58b995e0e154f1d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 29 11:59:56 2016 -0400
+commit afccfb829f17f85a8d4aa74f1a11a27422437405
+Author: Monty Taylor <mordred@inaugust.com>
+Date:   Fri Jul 1 08:47:41 2016 -0500
 
-    cmd/trace: label mark termination spans as such
+    cmd/go: remove noVCSSuffix check for OpenStack
     
-    Currently these are labeled "MARK", which was accurate in the STW
-    collector, but these really indicate mark termination now, since
-    marking happens for the full duration of the concurrent GC. Re-label
-    them as "MARK TERMINATION" to clarify this.
+    The original intent of the code was to allow both with and without .git
+    suffix for now to allow a transition period. The noVCSSuffix check was a
+    copy pasta error.
     
-    Change-Id: Ie98bd961195acde49598b4fa3f9e7d90d757c0a6
-    Reviewed-on: https://go-review.googlesource.com/30018
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Fixes #15979.
+    
+    Change-Id: I3d39aba8d026b40fc445244d6d01d8bc1979d1e4
+    Reviewed-on: https://go-review.googlesource.com/24645
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/trace.go       | 2 +-
- src/internal/trace/parser.go | 4 ++--
- src/runtime/trace.go         | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/vcs.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,19 +1,16 @@
-commit fcdf444924dcd5dc2fb9e3044e32072460e7c374
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Feb 18 09:36:14 2025 -0800
+commit 3f442ab06242d76c17f909fc7fc2de7908f3fc1c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 16:19:42 2023 -0500
 
-    os: document that OpenRoot follows symlinks
+    doc/go1.22: document archive/tar and archive/zip changes
     
-    OpenRoot is expected to be called with a trusted path,
-    and does not attempt to defend against symlinks in that path.
+    For #61422.
     
-    Fixes #71806
-    
-    Change-Id: Ib8b2e123e323d22d5c23ed9f711d21995139a7ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650355
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Icf56cba0ac40b46caf3072bf2951b07403f47f36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548939
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/root.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.22.html | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

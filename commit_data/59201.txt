@@ -1,32 +1,21 @@
-commit 6d418096b2dfe2a2e47b7aa83b46748fb301e6cb
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Mar 28 16:14:43 2025 -0700
+commit 7b583fd1a1aeda98daa5a9d485b35786c031e941
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Feb 24 11:52:38 2024 +0000
 
-    os: avoid symlink races in RemoveAll on Windows
+    net/http: allow multiple spaces between method and path in mux patterns
     
-    Make the openat-using version of RemoveAll use the appropriate
-    Windows equivalent, via new portable (but internal) functions
-    added for os.Root.
+    Fixes #64910
     
-    We could reimplement everything in terms of os.Root,
-    but this is a bit simpler and keeps the existing code structure.
-    
-    Fixes #52745
-    
-    Change-Id: I0eba0286398b351f2ee9abaa60e1675173988787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661575
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I14fd1e35c95b14591e3ad7b889dc1ab19a008730
+    GitHub-Last-Rev: b8d436cdee93d103703e7e6d4bb28315c5035300
+    GitHub-Pull-Request: golang/go#65868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565916
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/internal/syscall/unix/constants.go      |  2 +-
- src/internal/syscall/unix/nofollow_posix.go |  2 +-
- src/internal/syscall/windows/at_windows.go  |  4 ++--
- src/os/path_windows.go                      | 10 +++++++++
- src/os/removeall_at.go                      | 32 +++++++++--------------------
- src/os/removeall_noat.go                    |  2 +-
- src/os/removeall_unix.go                    | 20 ++++++++++++++++++
- src/os/removeall_windows.go                 | 17 +++++++++++++++
- src/os/root_unix.go                         | 12 +++++++++++
- src/os/root_windows.go                      | 10 ++++++++-
- 10 files changed, 83 insertions(+), 28 deletions(-)
+ doc/next/6-stdlib/99-minor/net/http/64910.md |  2 ++
+ src/net/http/pattern.go                      |  7 +++++--
+ src/net/http/pattern_test.go                 | 17 +++++++++++++++++
+ src/net/http/server.go                       |  2 +-
+ 4 files changed, 25 insertions(+), 3 deletions(-)

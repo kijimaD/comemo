@@ -1,25 +1,18 @@
-commit 738d2d9068492dfb81dc350db005fdd52f2481b6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 22 11:32:20 2023 -0400
+commit ae3abf16e451238a25379f721613e540252e4f30
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 28 09:12:11 2022 +0000
 
-    os: use testenv.Command and os.Executable in tests
+    cmd/compile/internal/base: replace io/ioutil with os package
     
-    On Unix platforms, testenv.Command sends SIGQUIT to stuck commands
-    before the test times out. For subprocesses that are written in Go,
-    that causes the runtime to dump running goroutines, and in other
-    languages it triggers similar behavior (such as a core dump).
-    If the subprocess is stuck due to a bug (such as #57999), that may
-    help to diagnose it.
-    
-    For #57999.
-    
-    Change-Id: I00f381b8052cbbb1a7eea90e7f102a3f68c842d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521817
+    Change-Id: Ide7618b65fcff7947809051d51b993d330e35717
+    GitHub-Last-Rev: 298853a82006655fe4f226cc5bea3bc21613b832
+    GitHub-Pull-Request: golang/go#55914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435537
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/signal/signal_cgo_test.go | 45 +++++++++++++++++++++++++++++++---------
- src/os/signal/signal_test.go     |  2 +-
- 2 files changed, 36 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

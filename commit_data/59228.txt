@@ -1,58 +1,18 @@
-commit 16a6b71f18a5d05dde1a208a317a75fd652597f0
-Author: Alexander Musman <alexander.musman@gmail.com>
-Date:   Tue Apr 1 18:43:38 2025 +0300
+commit 72743ca86c5d8c750f9a0132680bf45fde048429
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Sun Feb 25 12:59:23 2024 +0000
 
-    cmd/compile: improve store-to-load forwarding with compatible types
+    archive/tar: check returned error before use hdr
     
-    Improve the compiler's store-to-load forwarding optimization by relaxing the
-    type comparison condition. Instead of requiring exact type equality (CMPeq),
-    we now use copyCompatibleType which allows forwarding between compatible
-    types where safe.
-    
-    Fix several size comparison bugs in the nested store patterns. Previously,
-    we were comparing the size of the outer store with the load type,
-    rather than comparing with the size of the actual store being forwarded
-    from.
-    
-    Skip OpConvert in dead store elimination to help get rid of dead stores such
-    as zeroing slices. OpConvert, like OpInlMark, doesn't really use the memory.
-    
-    This optimization is particularly beneficial for code that creates slices with
-    computed pointers, such as the runtime's heapBitsSlice function, where
-    intermediate calculations were previously causing the compiler to miss
-    store-to-load forwarding opportunities.
-    
-    Local sweet run result on an x86_64 laptop:
-    
-                           │  Orig.res   │              Hopt.res              │
-                           │   sec/op    │   sec/op     vs base               │
-    BiogoIgor-8               5.303 ± 1%    5.322 ± 1%       ~ (p=0.190 n=10)
-    BiogoKrishna-8            7.894 ± 1%    7.828 ± 2%       ~ (p=0.190 n=10)
-    BleveIndexBatch100-8      2.257 ± 1%    2.248 ± 2%       ~ (p=0.529 n=10)
-    EtcdPut-8                30.12m ± 1%   30.03m ± 1%       ~ (p=0.796 n=10)
-    EtcdSTM-8                127.1m ± 1%   126.2m ± 0%  -0.74% (p=0.023 n=10)
-    GoBuildKubelet-8          52.21 ± 0%    52.05 ± 1%       ~ (p=0.063 n=10)
-    GoBuildKubeletLink-8      4.342 ± 1%    4.305 ± 0%  -0.85% (p=0.000 n=10)
-    GoBuildIstioctl-8         43.33 ± 0%    43.24 ± 0%  -0.22% (p=0.015 n=10)
-    GoBuildIstioctlLink-8     4.604 ± 1%    4.598 ± 0%       ~ (p=0.063 n=10)
-    GoBuildFrontend-8         15.33 ± 0%    15.29 ± 0%       ~ (p=0.143 n=10)
-    GoBuildFrontendLink-8    740.0m ± 1%   737.7m ± 1%       ~ (p=0.912 n=10)
-    GopherLuaKNucleotide-8    9.590 ± 1%    9.656 ± 1%       ~ (p=0.165 n=10)
-    MarkdownRenderXHTML-8    96.97m ± 1%   97.26m ± 2%       ~ (p=0.105 n=10)
-    Tile38QueryLoad-8        335.9µ ± 1%   335.6µ ± 1%       ~ (p=0.481 n=10)
-    geomean                   1.336         1.333       -0.22%
-    
-    Change-Id: I031552623e6d5a3b1b5be8325e6314706e45534f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662075
+    Change-Id: I8c28dac73427e37d58d970b00d8f0f1413bede2e
+    GitHub-Last-Rev: a11a8036028ecf6f811b1470becc924b77a2c734
+    GitHub-Pull-Request: golang/go#65932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules | 14 ++++++-------
- src/cmd/compile/internal/ssa/deadstore.go       |  2 +-
- src/cmd/compile/internal/ssa/rewrite.go         | 26 ++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 16 +++++++-------
- test/codegen/stack.go                           | 28 ++++++++++++++++++++++++-
- 5 files changed, 68 insertions(+), 18 deletions(-)
+ src/archive/tar/writer_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

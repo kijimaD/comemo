@@ -1,15 +1,16 @@
-commit 627af57b5464e025422356dc3f7442465f79991f
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Dec 13 22:57:18 2016 +0100
+commit 2287296dbe43c5dfa9afebf0e03af42318a6a8f0
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Mon Aug 8 02:04:52 2016 +0430
 
-    cmd/dist: enable cgo by default for GOARCH=mips{,le}
+    os: add example for IsNotExist
     
-    Change-Id: I7dd927be1e702e8fd469f4834ab918e0bcd9bafc
-    Reviewed-on: https://go-review.googlesource.com/34318
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Show usage of os.IsNotExist in an example.
+    
+    Change-Id: I5306ea06c370099de5b02668dfa02b87b0c2beac
+    Reviewed-on: https://go-review.googlesource.com/25571
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 4 ++--
- src/cmd/dist/test.go  | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/os/example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,19 +1,25 @@
-commit 42e6b5bce2d027d4fcc4a7358b97a468494855d8
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 2 11:46:25 2021 -0400
+commit 4532467c1854fa16378063bd99defadc4a1e5fb1
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 18 15:50:37 2021 -0500
 
-    go/types: differently named types are not assignable
+    cmd/compile: pass register parameters to called function
     
-    This is a clean port of CL 360274 to go/types.
+    still needs morestack
+    still needs results
+    lots of corner cases also not dealt with.
     
-    Change-Id: Idfa584fab95f7226e10b1a7c5b06d56a0bf9d757
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360759
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    For #40724.
+    
+    Change-Id: I03abdf1e8363d75c52969560b427e488a48cd37a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293889
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/go/types/operand.go                        | 66 ++++++++++++--------------
- src/go/types/testdata/fixedbugs/issue49242.go2 | 27 +++++++++++
- src/go/types/testdata/spec/assignability.go2   | 46 ++++++++++++++----
- 3 files changed, 94 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  3 +-
+ src/cmd/compile/internal/ssa/op.go           | 54 +++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/opGen.go        |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go     | 27 +++++++++++---
+ 4 files changed, 78 insertions(+), 8 deletions(-)

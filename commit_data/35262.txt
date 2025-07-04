@@ -1,30 +1,25 @@
-commit 14f929af91c6096e25b5cfe0549110ccc0e3db7b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu May 3 14:22:05 2018 -0400
+commit e72e69a3f65232b5b8352259d58a31d30e521efa
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 24 16:17:05 2018 +0000
 
-    runtime/internal/atomic: improve ARM atomics
+    os: use the syscall version of Getwd for Plan 9
     
-    This is a follow-up of CL 93637. There, when we redirect sync/atomic
-    to runtime/internal/atomic, a few good implementations of ARM atomics
-    were lost. This CL brings most of them back, with some improvements.
+    In Plan 9, each OS thread has its own independent working directory,
+    so the Go runtime for Plan 9 needs to coordinate Chdir and Getwd
+    operations to keep the working directory consistent for all goroutines.
     
-    - Change atomic Store to a plain store with memory barrier, as we
-      already changed atomic Load to plain load with memory barrier.
+    The function os.Getwd in Plan 9 should always call syscall.Getwd
+    to retrieve the common working directory.  Failure to do this was
+    the cause of (at least some of) the intermittent failures in the
+    Plan 9 builders with a seemingly spurious "file does not exist"
+    message, when a thread's working directory had been removed in
+    another thread.
     
-    - Use native 64-bit atomics on ARMv7, jump to Go implementations
-      on older machines. But drop the kernel helper. In particular,
-      for Load64, just do loads, not using Cas on the address being
-      load from, so it works also for read-only memory (since we have
-      already fixed 32-bit Load).
-    
-    Change-Id: I725cd65cf945ae5200db81a35be3f251c9f7af14
-    Reviewed-on: https://go-review.googlesource.com/111315
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifb834ad025ee39578234ad3b04d08bc98e939291
+    Reviewed-on: https://go-review.googlesource.com/89575
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/internal/atomic/asm_arm.s          | 174 ++++++++++++++++++++++++-
- src/runtime/internal/atomic/atomic_arm.go      |  47 +++----
- src/runtime/internal/atomic/sys_linux_arm.s    |  33 ++++-
- src/runtime/internal/atomic/sys_nonlinux_arm.s |  23 +++-
- 4 files changed, 240 insertions(+), 37 deletions(-)
+ src/os/getwd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

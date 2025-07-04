@@ -1,26 +1,14 @@
-commit ebac0e6f302c52e97a212fab8837a73f31edc884
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 20:12:26 2014 +0400
+commit 523aa932881e72ccc83f25d441b2e535c1048296
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 18 13:26:28 2014 -0700
 
-    runtime: convert async semaphores to Go
+    runtime: move panicindex/panicslice to Go.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/126210046
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/130210043
 
- src/cmd/gc/select.c              |   1 +
- src/pkg/runtime/arch_386.go      |   9 ++
- src/pkg/runtime/arch_amd64.go    |   9 ++
- src/pkg/runtime/arch_amd64p32.go |   9 ++
- src/pkg/runtime/arch_arm.go      |   9 ++
- src/pkg/runtime/chan.go          |   8 +-
- src/pkg/runtime/chan.goc         |  10 +-
- src/pkg/runtime/proc.go          |   4 +-
- src/pkg/runtime/runtime.h        |   5 +-
- src/pkg/runtime/sema.go          | 165 +++++++++++++++++++++++++++++--
- src/pkg/runtime/sema.goc         | 204 ---------------------------------------
- src/pkg/runtime/stubs.go         |   7 +-
- src/pkg/runtime/stubs.goc        |  15 +++
- src/pkg/runtime/thunk.s          |  12 +++
- 14 files changed, 242 insertions(+), 225 deletions(-)
+ src/pkg/runtime/panic.c  | 12 ------------
+ src/pkg/runtime/panic.go | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 12 deletions(-)

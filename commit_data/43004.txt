@@ -1,49 +1,19 @@
-commit b4ef49e527787ec932d0b371bb24c3fc370b1e8d
-Author: David Chase <drchase@google.com>
-Date:   Fri Jun 12 13:48:26 2020 -0400
+commit 33e98326a25d54cef19e94ca73c45eaed8847f56
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 18:34:25 2020 -0800
 
-    cmd/compile: introduce special ssa Aux type for calls
+    net/textproto: pass missing argument to fmt.Sprintf
     
-    This is prerequisite to moving call expansion later into SSA,
-    and probably a good idea anyway.  Passes tests.
+    The vet tool didn't catch this because the fmt.Sprintf format argument
+    was written as an expression.
     
-    This is the first minimal CL that does a 1-for-1 substitution
-    of *ssa.AuxCall for *obj.LSym.  Next step (next CL) is to make
-    this change for all calls so that additional information can
-    be stored in AuxCall.
+    Fixes #37467
     
-    Change-Id: Ia3a7715648fd9fb1a176850767a726e6f5b959eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237680
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I72c20ba45e3f42c195fa5e68adcdb9837c7d7ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/plive.go              |  6 +--
- src/cmd/compile/internal/gc/ssa.go                | 40 ++++++++++-------
- src/cmd/compile/internal/ssa/check.go             | 12 +++++
- src/cmd/compile/internal/ssa/func_test.go         |  7 +++
- src/cmd/compile/internal/ssa/fuse_test.go         |  4 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go        |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go      |  2 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go        |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go     |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPSOps.go       |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go      |  2 +-
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go    |  6 +--
- src/cmd/compile/internal/ssa/gen/S390XOps.go      |  2 +-
- src/cmd/compile/internal/ssa/gen/WasmOps.go       |  2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules    | 12 ++---
- src/cmd/compile/internal/ssa/gen/genericOps.go    |  6 +--
- src/cmd/compile/internal/ssa/gen/rulegen.go       | 10 ++++-
- src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
- src/cmd/compile/internal/ssa/op.go                | 13 ++++++
- src/cmd/compile/internal/ssa/opGen.go             | 53 +++++++++--------------
- src/cmd/compile/internal/ssa/regalloc_test.go     | 12 ++---
- src/cmd/compile/internal/ssa/rewrite.go           | 33 +++++++-------
- src/cmd/compile/internal/ssa/rewritegeneric.go    | 40 ++++++++---------
- src/cmd/compile/internal/ssa/value.go             |  4 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |  4 +-
- src/cmd/compile/internal/wasm/ssa.go              |  5 ++-
- 27 files changed, 164 insertions(+), 123 deletions(-)
+ src/net/textproto/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

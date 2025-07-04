@@ -1,22 +1,41 @@
-commit a6e74454577c68ea96ce6512e3e92beffbe15c5c
-Author: Dimitri John Ledkov <dimitri.ledkov@surgut.co.uk>
-Date:   Tue Jul 19 11:07:00 2022 -0400
+commit a6a5c30d2b1338a8445de2499fbe7e9dda103efb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 22 17:50:44 2024 -0500
 
-    cmd/go/internal/load: join incompatible and dirty build specifiers with .
+    runtime: disable use of runnext on wasm
     
-    Change "+incompatible+dirty" version to be "+incompatible.dirty" such
-    that it is SemVer spec compatible.
+    When readying a goroutine, the scheduler typically places the readied
+    goroutine in pp.runnext, which will typically be the next goroutine to
+    run in the schedule.
     
-    Fixes #71971
+    In order to prevent a set of ping-pong goroutines from simply switching
+    back and forth via runnext and starving the rest of the run queue, a
+    goroutine scheduled via runnext shares a time slice (pp.schedtick) with
+    the previous goroutine.
     
-    Change-Id: I714ffb3f1ad88c793656c3652367db34739a2144
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652955
+    sysmon detects "long-running goroutines", which really means Ps using
+    the same pp.schedtick for too long, and preempts them to allow the rest
+    of the run queue to run. Thus this avoids starvation via runnext.
+    
+    However, wasm has no threads, and thus no sysmon. Without sysmon to
+    preempt, the possibility for starvation returns. Avoid this by disabling
+    runnext entirely on wasm. This means that readied goroutines always go
+    on the end of the run queue and thus cannot starve via runnext.
+    
+    Note that this CL doesn't do anything about single long-running
+    goroutines. Without sysmon to preempt them, a single goroutine that
+    fails to yield will starve the run queue indefinitely.
+    
+    For #65178.
+    
+    Change-Id: I10859d088776125a2af8c9cd862b6e071da628b5
+    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559798
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/load/pkg.go                           |  7 ++++++-
- src/cmd/go/testdata/script/build_version_stamping_git.txt | 13 +++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/net/net_fake.go    | 17 -----------------
+ src/runtime/proc.go    | 23 +++++++++++++++++++++--
+ src/time/sleep_test.go |  5 -----
+ 3 files changed, 21 insertions(+), 24 deletions(-)

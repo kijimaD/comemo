@@ -1,21 +1,16 @@
-commit 43618e62ca387faf2272308a46fed9378fa36a87
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 22 16:27:59 2015 -0400
+commit 297c1d297f4cee55a6aee5eb68583d0139aef076
+Author: Andrei Korzhevskii <a.korzhevskiy@gmail.com>
+Date:   Mon Mar 23 18:23:53 2015 +0300
 
-    log/syslog: make the BUG notes visible on golang.org
+    database/sql: provide stats on number of open connections to the database.
     
-    It was only visible when you run godoc with explicit GOOS=windows,
-    which is less useful for people developing portable application on
-    non-windows platforms.
+    This change provides a convenient way to monitor database connection pool.
     
-    Also added a note that log/syslog is not supported on NaCl.
-    
-    Change-Id: I81650445fb2a5ee161da7e0608c3d3547d5ac2a6
-    Reviewed-on: https://go-review.googlesource.com/9245
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4b3757855b43f3b254acf9312e2a16e2f87840d0
+    Reviewed-on: https://go-review.googlesource.com/7950
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/syslog/doc.go            | 18 ++++++++++++++++++
- src/log/syslog/syslog.go         |  7 -------
- src/log/syslog/syslog_plan9.go   |  8 --------
- src/log/syslog/syslog_windows.go |  8 --------
- 4 files changed, 18 insertions(+), 23 deletions(-)
+ src/database/sql/sql.go      | 16 ++++++++++++++++
+ src/database/sql/sql_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

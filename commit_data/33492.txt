@@ -1,17 +1,20 @@
-commit 2f53fb58a8664c96a770bfb8c8d1b0596fbae481
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Tue Jul 18 22:14:17 2017 +0300
+commit 9f5f51af7cc8d82b46ea12712642f0537ddaae1e
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Aug 18 14:39:53 2017 +0300
 
-    text/template: remove unused lexer field
+    cmd/asm: uncomment tests for amd64 PHADD{SW,W}, PHSUB{D,SW,W}
     
-    The lastPos field used in the past to track the line number of a token.
-    it's irrelevant anymore, and we can remove it.
+    Instructions added in https://golang.org/cl/18853
     
-    Change-Id: I42c0bf55e884b79574a7da4926489f2d77618cd0
-    Reviewed-on: https://go-review.googlesource.com/49591
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    2nd change out of 3 to cover AMD64 SSSE3 instruction set in Go asm.
+    This commit does not actually add any new instructions, only
+    enables some test cases.
+    
+    Change-Id: I9596435b31ee4c19460a51dd6cea4530aac9d198
+    Reviewed-on: https://go-review.googlesource.com/56835
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/text/template/parse/lex.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 80 ++++++++++++++--------------
+ 1 file changed, 40 insertions(+), 40 deletions(-)

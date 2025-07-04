@@ -1,28 +1,25 @@
-commit 0d8aa8cce69f97747e7ce69b8416c1cfca5d939f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 12 15:26:54 2024 -0800
+commit 25867485a748bbefc938e66330912cd88c2f4acb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Oct 28 16:17:02 2023 +0000
 
-    spec: describe representation of values
+    runtime: add the allocation headers GOEXPERIMENT and fork files
     
-    Add a section on the representation of values:
-    distinguish between values that are self-contained
-    and values that contain references while avoiding
-    the notion of "reference types" which is misleading.
+    This change adds the allocation headers GOEXPERIMENT which is a no-op.
+    It forks two runtime files temporarily to make the GOEXPERIMENT easier
+    to maintain. The forked files are mbitmap.go and msize.go.
     
-    Also, use "predeclared identifier nil" rather than
-    "predeclared value nil" because it is the identifier
-    that is predeclared.
-    
-    Fixes #5083.
-    
-    Change-Id: I2235673c6404f2c055f195e879f198c7ab246d58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635801
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I60202c00e614e4517de7dd000029cf80dd0121ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537980
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go_spec.html | 91 +++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 81 insertions(+), 10 deletions(-)
+ src/internal/goexperiment/exp_allocheaders_off.go |   8 +
+ src/internal/goexperiment/exp_allocheaders_on.go  |   8 +
+ src/internal/goexperiment/flags.go                |   7 +
+ src/runtime/mbitmap.go                            | 842 ---------------------
+ src/runtime/mbitmap_allocheaders.go               | 857 ++++++++++++++++++++++
+ src/runtime/mbitmap_noallocheaders.go             | 857 ++++++++++++++++++++++
+ src/runtime/{msize.go => msize_allocheaders.go}   |   2 +
+ src/runtime/msize_noallocheaders.go               |  27 +
+ 8 files changed, 1766 insertions(+), 842 deletions(-)

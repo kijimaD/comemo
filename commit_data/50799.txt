@@ -1,37 +1,18 @@
-commit 500bc6b8056ee2eaf7640610a48ffa00bdd896a5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 30 19:01:09 2022 -0400
+commit 3949faf72e8285622ebfdf3bd573125dcd5453d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 16:06:18 2021 -0800
 
-    runtime: don't jump stack if at entry of systemstack
+    test: add test that was miscompiled by gccgo
     
-    The traceback code has special "jump stack" logic, to trace back
-    stack switches through systemstack. If we're at the entry of
-    systemstack, the stack switch hasn't happened, so don't jump to
-    user stack.
+    For #49512
     
-    The jump stack logic is only used if we're on the g0 stack. It can
-    happen that we're at the entry of a recursive systemstack call on
-    the g0 stack. In we jump stack here, there will be two problems:
-    1. There are frames between entering the g0 stack and this
-       recursive systemstack call. Those frames will be lost.
-    2. Worse, we switched frame.sp but frame.fp calculation will use
-       the entry SP delta (0), which will be wrong, which in turn
-       leads wrong frame.lr and things will go off.
-    
-    For now, don't jump stack if we're at entry of systemstack (SP
-    delta is 0).
-    
-    Using a per-PC SPWRITE marker may be a better fix. If we haven't
-    written the SP, we haven't switched the stack so we can just
-    unwind like a normal function.
-    
-    May fix #55851.
-    
-    Change-Id: I2b624c8c086b235b34d9c7d3cebd4a37264f00f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437299
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic08652a4ec611b27150bf10b1118c1395715e5d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363156
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/traceback.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ test/fixedbugs/issue49512.go | 54 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

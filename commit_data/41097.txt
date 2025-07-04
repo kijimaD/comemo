@@ -1,16 +1,24 @@
-commit 56d6b87972c9852570fe017ac5fa153314c21992
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 9 14:01:41 2020 -0800
+commit 9da7abd2ebd07d32484277adac75c45b66f504c1
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 14 15:04:05 2019 -0400
 
-    runtime: change checkptr to use throw instead of panic
+    debug/dwarf: better handling for DW_FORM_indirect
     
-    Updates #34964.
+    Fix a buglet in abbrev processing related to DW_FORM_indirect. When
+    reading an abbrev entry if we encounter an attribute with form
+    DW_FORM_indirect, leave the class as ClassUnknown, then when the
+    abbrev is walked during the reading of the DIE fill in the class based
+    on the value read at that point (code for handling DW_FORM_indirect
+    seems to be already partially in place in the DIE reader).
     
-    Change-Id: I5afb2c1e77a9a47358a1d0d108c4a787d7172b94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214217
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Updates #33488.
+    
+    Change-Id: I9dc89abf5cc8d7ea96824c0011bef979de0540bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190158
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/checkptr.go | 31 ++++---------------------------
- 1 file changed, 4 insertions(+), 27 deletions(-)
+ src/debug/dwarf/entry.go    | 10 +++++++---
+ src/debug/dwarf/typeunit.go |  2 +-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

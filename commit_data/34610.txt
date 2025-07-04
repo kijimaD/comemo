@@ -1,17 +1,25 @@
-commit 29517daff955b0188f0129b8da1578ae6201e851
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 14 16:53:30 2018 -0700
+commit 923299a6b85d22160dfdacca18f24ac6517ec1de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 30 20:00:54 2017 +1100
 
-    cmd/compile: extract common noding code from func{Decl,Lit}
+    cmd/link: restore windows stack commit size back to 4KB
     
-    Passes toolstash-check.
+    CL 49331 increased windows stack commit size to 2MB by mistake.
+    Revert that change.
     
-    Change-Id: I8290221d6169e077dfa4ea737d685c7fcecf6841
-    Reviewed-on: https://go-review.googlesource.com/100835
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #22439
+    
+    Change-Id: I919e549e87da326f4ba45890b4d32f6d7046186f
+    Reviewed-on: https://go-review.googlesource.com/74490
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/closure.go | 13 +------------
- src/cmd/compile/internal/gc/noder.go   | 34 ++++++++++++++++------------------
- 2 files changed, 17 insertions(+), 30 deletions(-)
+ src/cmd/link/internal/ld/pe.go                    | 11 ++++-
+ src/internal/syscall/windows/mksyscall.go         |  2 +-
+ src/internal/syscall/windows/psapi_windows.go     | 20 +++++++++
+ src/internal/syscall/windows/zsyscall_windows.go  | 14 ++++++
+ src/runtime/crash_cgo_test.go                     | 18 ++++++++
+ src/runtime/syscall_windows_test.go               |  4 ++
+ src/runtime/testdata/testprog/syscall_windows.go  | 45 ++++++++++++++++++-
+ src/runtime/testdata/testprogcgo/stack_windows.go | 54 +++++++++++++++++++++++
+ 8 files changed, 164 insertions(+), 4 deletions(-)

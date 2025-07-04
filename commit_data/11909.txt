@@ -1,19 +1,12 @@
-commit c210ddfe2c881835a283346e8fa498a777ea8af7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 15 11:05:51 2012 +1100
+commit a50315304d58ab73ea8267f940761f1372e21361
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 10:31:28 2012 +1100
 
-    net/http: make strace test more robust
+    doc: grey out line numbers
     
-    Apparently some distros don't let you ptrace attach
-    to your own existing processes.
-    
-    Run strace on the child directly, instead, which
-    reportedly is more often allowed, and makes the
-    code simpler too.
-    
-    R=golang-dev, n13m3y3r
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5675050
+    https://golang.org/cl/5675049
 
- src/pkg/net/http/fs_test.go | 21 +++++----------------
- 1 file changed, 5 insertions(+), 16 deletions(-)
+ doc/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

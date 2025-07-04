@@ -1,21 +1,22 @@
-commit 0909bcd9e4acb01089d588d608d669d69710e50a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 8 15:16:50 2025 -0700
+commit 8a493a667268083a6e33de606fd90e82ddd694f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:56 2024 -0500
 
-    syscall: remove unused windows function
+    runtime: move all timer-locking code into time.go
     
-    It's causing the dependency test to fail.
+    No code changes, only code moves here.
+    Move all code that locks pp.timersLock into time.go
+    so that it is all in one place, for easier abstraction.
     
-    Fixes #73274
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
     
-    Change-Id: I7d80ea4872e360c16ac3b77acf15fa2660d117b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663975
-    Auto-Submit: Keith Randall <khr@google.com>
+    Change-Id: I1b59af7780431ec6479440534579deb1a3d9d7a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564117
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/syscall/zsyscall_windows.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/runtime/proc.go | 123 ++-------------------------------------------------
+ src/runtime/time.go | 124 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+), 119 deletions(-)

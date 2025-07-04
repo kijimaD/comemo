@@ -1,20 +1,31 @@
-commit bacb1b70f77764a1e381645c90b44b5818fd9e28
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Jan 30 19:25:40 2012 -0800
+commit 10498f4d335f6bf0089791b263e795233ff79ec5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jan 31 14:01:53 2012 +1100
 
-    runtime: fix mkasmh.h
+    image: remove image/bmp and image/tiff from std.
     
-    We weren't properly deleting the various header
-    files (that were temporarily renamed) if a $CC
-    for the current $GOARCH didn't exist.  And since
-    the compiler checks the current directory for
-    headers before any -I arguments, this had the
-    unfortunate side effect of including the last
-    generated headers instead of the correct ones.
+    They have moved to the code.google.com/p/go.image subrepo.
     
-    R=r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5581055
+    https://golang.org/cl/5552052
 
- src/pkg/runtime/mkasmh.sh | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/Makefile                                   |   3 -
+ src/pkg/image/bmp/Makefile                         |  11 -
+ src/pkg/image/bmp/reader.go                        | 152 --------
+ src/pkg/image/decode_test.go                       |   9 +-
+ src/pkg/image/testdata/video-001.bmp               | Bin 46610 -> 0 bytes
+ src/pkg/image/testdata/video-001.tiff              | Bin 30810 -> 0 bytes
+ src/pkg/image/tiff/Makefile                        |  14 -
+ src/pkg/image/tiff/buffer.go                       |  54 ---
+ src/pkg/image/tiff/buffer_test.go                  |  36 --
+ src/pkg/image/tiff/compress.go                     |  59 ---
+ src/pkg/image/tiff/consts.go                       | 103 -----
+ src/pkg/image/tiff/reader.go                       | 430 ---------------------
+ src/pkg/image/tiff/reader_test.go                  | 119 ------
+ src/pkg/image/tiff/testdata/bw-deflate.tiff        | Bin 594 -> 0 bytes
+ src/pkg/image/tiff/testdata/bw-packbits.tiff       | Bin 890 -> 0 bytes
+ src/pkg/image/tiff/testdata/bw-uncompressed.tiff   | Bin 1396 -> 0 bytes
+ src/pkg/image/tiff/testdata/no_rps.tiff            | Bin 1294 -> 0 bytes
+ .../tiff/testdata/video-001-uncompressed.tiff      | Bin 46674 -> 0 bytes
+ 18 files changed, 2 insertions(+), 988 deletions(-)

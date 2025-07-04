@@ -1,14 +1,14 @@
-commit 9e112a3fe4c001530184c2edc918a854d0b6d7e4
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Thu May 26 10:54:25 2016 +0200
+commit db9348b866775974b5e04eed04c03de47f1c2d46
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:41:07 2016 -0400
 
-    bytes: use Run method for benchmarks
+    reflect: add s390x support
     
-    Change-Id: I34ab1003099570f0ba511340e697a648de31d08a
-    Reviewed-on: https://go-review.googlesource.com/23427
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I1f975130179cf26af67e82664310b93d43e87a75
+    Reviewed-on: https://go-review.googlesource.com/20944
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bytes/bytes_test.go | 309 ++++++++++++++++++++++--------------------------
- 1 file changed, 143 insertions(+), 166 deletions(-)
+ src/reflect/asm_s390x.s | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

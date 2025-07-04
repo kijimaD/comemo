@@ -1,24 +1,20 @@
-commit 5305bdd86bbe31d61c72e62f4e6729e3562ae178
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Sat Dec 30 01:27:28 2017 -0700
+commit c174e46ae91e966ab05254f739fa1692cf451a3f
+Author: Sam Whited <sam@samwhited.com>
+Date:   Sat Sep 9 10:49:04 2017 -0500
 
-    math: correct result for Pow(x, ±.5)
+    cmd/vet: don't warn on expected space in XML tag
     
-    Fixes #23224
+    The change in https://golang.org/cl/43295 added warning about spaces in
+    struct tags. However, in XML tags it is expected that there will be a
+    space between the namespace and the local name.
     
-    The previous Pow code had an optimization for
-    powers equal to ±0.5 that used Sqrt for
-    increased accuracy/speed.  This caused special
-    cases involving powers of ±0.5 to disagree with
-    the Pow spec.  This change places the Sqrt optimization
-    after all of the special case handling.
-    
-    Change-Id: I6bf757f6248256b29cc21725a84e27705d855369
-    Reviewed-on: https://go-review.googlesource.com/85660
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic31c3bdae30797f406f25c737b83bbe2de1ed1db
+    Reviewed-on: https://go-review.googlesource.com/62570
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/all_test.go | 6 ++++++
- src/math/pow.go      | 8 ++++----
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/vet/all/whitelist/all.txt | 25 -------------------------
+ src/cmd/vet/structtag.go          | 26 +++++++++++++++++++++++++-
+ src/cmd/vet/testdata/structtag.go | 24 +++++++++++++++---------
+ 3 files changed, 40 insertions(+), 35 deletions(-)

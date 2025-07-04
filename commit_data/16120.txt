@@ -1,12 +1,16 @@
-commit 114f20532e5f360a8738bfd7ab58dbd8d9f6ca98
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Sun Apr 7 18:37:32 2013 +1000
+commit 6732ad94c763be17dd5ae86f2dd51f1046026712
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 6 20:18:15 2013 -0700
 
-    runtime: gofmt -s
+    runtime: make CgoMal alloc field void*
     
-    R=golang-dev, iant, dave
+    This makes it an unsafe.Pointer in Go so the garbage collector
+    will treat it as a pointer to untyped data, not a pointer to
+    bytes.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/8253045
+    https://golang.org/cl/8286045
 
- src/pkg/runtime/map_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/runtime.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

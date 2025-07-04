@@ -1,17 +1,16 @@
-commit 4074a67c49b72c846912952c8a511d25c5b3585d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 17 14:54:06 2018 -0700
+commit 3e52f22ecedebc4cdf9671ab7edb22047a02094b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 6 02:47:26 2017 -0500
 
-    go/internal/gcimporter: extract ChanDir and fake FileSet logic
+    [dev.boringcrypto] crypto/internal/boring: add MarshalBinary/UnmarshalBinary to hashes
     
-    This code will be useful for the indexed format importer, so break it
-    out to be easier to reuse separately.
+    Go 1.10 expects hash.Hash implementations to have these. Make it so.
     
-    Change-Id: Ie7e6b2ed89770e1ed9aa1edf11682fe35d6bb373
-    Reviewed-on: https://go-review.googlesource.com/107617
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Tested by src/hash/marshal_test.go.
+    
+    Change-Id: I9df366e31fe20e79385d5dbde7060b01b68c54df
+    Reviewed-on: https://go-review.googlesource.com/82139
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/go/internal/gcimporter/bimport.go | 53 ++++++++++++++++++++++-------------
- 1 file changed, 33 insertions(+), 20 deletions(-)
+ src/crypto/internal/boring/sha.go | 303 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 303 insertions(+)

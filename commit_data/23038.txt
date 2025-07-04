@@ -1,17 +1,24 @@
-commit 3c06cff7d1d7382b74ab39bd3bf0e46264ac845d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 14 17:32:07 2015 -0700
+commit 028f9728473c6e7590ecaa7d30b0288df4a5731a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 13 14:01:16 2015 -0400
 
-    cmd/internal/gc: explicitly set zero bool Val
+    runtime: make gcDrainN in terms of scan work
     
-    This trivial change is a prerequisite to
-    converting Val.U to an interface{}.
+    Currently, the "n" in gcDrainN is in terms of objects to scan. This is
+    used by gchelpwork to perform a limited amount of work on allocation,
+    but is a pretty arbitrary way to bound this amount of work since the
+    number of objects has little relation to how long they take to scan.
     
-    No functional changes. Passes toolstash -cmp.
+    Modify gcDrainN to perform a fixed amount of scan work instead. For
+    now, gchelpwork still performs a fairly arbitrary amount of scan work,
+    but at least this is much more closely related to how long the work
+    will take. Shortly, we'll use this to precisely control the scan work
+    performed by mutator assists during allocation to achieve the heap
+    size goal.
     
-    Change-Id: I17ff036f68d29a9ed0097a8b23ae1c91e6ce8c21
-    Reviewed-on: https://go-review.googlesource.com/10058
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3cd07fe0516304298a0af188d0ccdf621d4651cc
+    Reviewed-on: https://go-review.googlesource.com/8835
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/gen.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgcmark.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

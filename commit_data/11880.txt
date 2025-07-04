@@ -1,16 +1,15 @@
-commit 0603b9e44659220e17254eb4b522f4c460bc0a6b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 23:30:40 2012 -0500
+commit c2a11576802227df0a5b3a507a430420192bef70
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 14 15:26:09 2012 +1100
 
-    net: disable TestDialTimeout on Windows
+    net/http: re-enable test
     
-    Filed issue 3016 to fix this, but I really want
-    to see a "ok" in the Windows column so we
-    know what is and is not working.
+    Now with a bit more paranoia and lower number of requests
+    to keep it under the default OS X 256 fd limit.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5658050
+    https://golang.org/cl/5659051
 
- src/pkg/net/dial_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/http/transport_test.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

@@ -1,22 +1,19 @@
-commit f9cf2c4d0424e352f30d50b89d50eafbfb6fc019
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 5 15:49:07 2023 -0400
+commit 4861475c1a373f2004ef9f95862fb1b370577d91
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 9 12:51:28 2022 -0400
 
-    cmd/compile: use correct type in amd64 late-lower rules
+    net: avoid racing on port reuse in TestListenConfigControl
     
-    The wrong type causes the wrong width spill, which corrupts
-    the value.  I tried to write a test for this and did not
-    succeed, but was able (using gossahash and ssa.html) to
-    isolate to exact change and spill.
+    Fixes #52798.
+    Fixes #51441 (until proven otherwise 😅).
     
-    Fixes #59432.
-    
-    Change-Id: I85ad82c9f8fed7674c69d6a2b0a62e111f690454
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482536
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ic1eadebd0d41c5cbe37340190f8b2bde4b6c5673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405214
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- .../compile/internal/ssa/_gen/AMD64latelower.rules | 10 ++--
- .../compile/internal/ssa/rewriteAMD64latelower.go  | 66 ++++++++++++----------
- 2 files changed, 41 insertions(+), 35 deletions(-)
+ src/net/listen_test.go     | 31 ++-----------------------------
+ src/net/mockserver_test.go | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 29 insertions(+), 33 deletions(-)

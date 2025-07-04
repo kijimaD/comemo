@@ -1,18 +1,12 @@
-commit 7cfa8310c75bfe8534a61f0f64116cb508d6f10d
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Jul 2 17:12:08 2013 +0200
+commit efced7c6e984f26b4c275b19ba61f2c2629d95ea
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Jul 2 15:24:09 2013 +1000
 
-    cmd/gc: fix issue with method wrappers not having escape analysis run on them.
+    misc/vim: Allow multiple GOOS/GOARCH.
     
-    Escape analysis needs the right curfn value on a dclfunc node, otherwise it will not analyze the function.
-    When generating method value wrappers, we forgot to set the curfn correctly.
-    
-    Fixes #5753.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds, dominik.honnef
     CC=golang-dev
-    https://golang.org/cl/10383048
+    https://golang.org/cl/9293043
 
- src/cmd/gc/closure.c        |  7 ++++++-
- test/fixedbugs/issue5753.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ misc/vim/autoload/go/complete.vim | 45 ++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 19 deletions(-)

@@ -1,34 +1,66 @@
-commit 22ff9521daf9478da54efe708d46a62bf928fbf1
-Author: ChrisALiles <caveryliles@gmail.com>
-Date:   Sat Apr 21 17:31:21 2018 +1000
+commit 8396015e80afa4ddd4ea3c3f00373d22c3b45d6c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 8 11:59:29 2018 -0500
 
-    cmd/compile: pass arguments to convt2E/I integer functions by value
+    cmd/link: set runtime.GOROOT default during link
     
-    The motivation is avoid generating a pointer to the data being
-    converted so it can be garbage collected.
-    The change also slightly reduces binary size by shrinking call sites.
+    Suppose you build the Go toolchain in directory A,
+    move the whole thing to directory B, and then use
+    it from B to build a new program hello.exe, and then
+    run hello.exe, and hello.exe crashes with a stack
+    trace into the standard library.
     
-    Fixes #24286
+    Long ago, you'd have seen hello.exe print file names
+    in the A directory tree, even though the files had moved
+    to the B directory tree. About two years ago we changed
+    the compiler to write down these files with the name
+    "$GOROOT" (that literal string) instead of A, so that the
+    final link from B could replace "$GOROOT" with B,
+    so that hello.exe's crash would show the correct source
+    file paths in the stack trace. (golang.org/cl/18200)
     
-    Benchmark results:
-    name                   old time/op  new time/op  delta
-    ConvT2ESmall-4         2.86ns ± 0%  2.80ns ± 1%  -2.12%  (p=0.000 n=29+28)
-    ConvT2EUintptr-4       2.88ns ± 1%  2.88ns ± 0%  -0.20%  (p=0.002 n=28+30)
-    ConvT2ELarge-4         19.6ns ± 0%  20.4ns ± 1%  +4.22%  (p=0.000 n=19+30)
-    ConvT2ISmall-4         3.01ns ± 0%  2.85ns ± 0%  -5.32%  (p=0.000 n=24+28)
-    ConvT2IUintptr-4       3.00ns ± 1%  2.87ns ± 0%  -4.44%  (p=0.000 n=29+25)
-    ConvT2ILarge-4         20.4ns ± 1%  21.3ns ± 1%  +4.41%  (p=0.000 n=30+26)
-    ConvT2Ezero/zero/16-4  2.84ns ± 1%  2.99ns ± 0%  +5.38%  (p=0.000 n=30+25)
-    ConvT2Ezero/zero/32-4  2.83ns ± 2%  3.00ns ± 0%  +5.91%  (p=0.004 n=27+3)
+    Now suppose that you do the same thing but hello.exe
+    doesn't crash: it prints fmt.Println(runtime.GOROOT()).
+    And you run hello.exe after clearing $GOROOT from the
+    environment.
     
-    Change-Id: I65016ec94c53f97c52113121cab582d0c342b7a8
-    Reviewed-on: https://go-review.googlesource.com/102636
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Long ago, you'd have seen hello.exe print A instead of B.
+    Before this CL, you'd still see hello.exe print A instead of B.
+    This case is the one instance where a moved toolchain
+    still divulges its origin. Not anymore. After this CL, hello.exe
+    will print B, because the linker sets runtime/internal/sys.DefaultGoroot
+    with the effective GOROOT from link time.
+    This makes the default result of runtime.GOROOT once again
+    match the file names recorded in the binary, after two years
+    of divergence.
+    
+    With that cleared up, we can reintroduce GOROOT into the
+    link action ID and also reenable TestExecutableGOROOT/RelocatedExe.
+    
+    When $GOROOT_FINAL is set during link, it is used
+    in preference to $GOROOT, as always, but it was easier
+    to explain the behavior above without introducing that
+    complication.
+    
+    Fixes #22155.
+    Fixes #20284.
+    Fixes #22475.
+    
+    Change-Id: Ifdaeb77fd4678fdb337cf59ee25b2cd873ec1016
+    Reviewed-on: https://go-review.googlesource.com/86835
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 12 ++---
- src/cmd/compile/internal/gc/builtin/runtime.go | 12 ++---
- src/cmd/compile/internal/gc/walk.go            | 62 +++++++++++-----------
- src/runtime/iface.go                           | 72 +++++++-------------------
- 4 files changed, 61 insertions(+), 97 deletions(-)
+ src/cmd/dist/buildruntime.go      |  4 ----
+ src/cmd/dist/test.go              | 10 +++++++---
+ src/cmd/go/go_test.go             | 21 +++++----------------
+ src/cmd/go/internal/cfg/cfg.go    | 19 ++++++++++++++-----
+ src/cmd/go/internal/work/exec.go  | 11 ++---------
+ src/cmd/go/internal/work/gc.go    |  5 -----
+ src/cmd/internal/objabi/util.go   |  2 ++
+ src/cmd/link/dwarf_test.go        |  3 +++
+ src/cmd/link/internal/ld/main.go  |  4 ++++
+ src/cmd/link/internal/ld/pcln.go  | 14 +++++++++-----
+ src/runtime/internal/sys/stubs.go |  2 ++
+ 11 files changed, 48 insertions(+), 47 deletions(-)

@@ -1,25 +1,21 @@
-commit a69c45213d7fa18a09e59274e0e18db7766bf5c8
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Feb 23 16:29:33 2021 -0500
+commit 0434d4093458d24db6af1e65fb257cee78512c25
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 30 07:55:16 2020 -0400
 
-    go/types: review of expr.go
+    [dev.link] cmd/compile: mark stmp and stkobj symbols as static
     
-    The changes from the (reviewed) dev.regabi copy of expr.go can be seen
-    by comparing patchset 2 and 7. The actual change is some small
-    improvements to readability and consistency in untyped conversion,
-    adding some missing documentation, and removing the "// REVIEW
-    INCOMPLETE" marker.
+    Mark compiler-generated ".stmp_%d" and "<fn>.stkobj" symbols as
+    AttrStatic, so as to tell the linker that they do not need to be
+    inserted into its name lookup tables.
     
-    Note that expr.go diverges from types2 in its handling of untyped
-    conversion.
-    
-    Change-Id: I13a85f6e08f43343e249818245aa857b1f4bf29c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295729
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I59ffd11659b2c54c2d0ad41275d05c3f919e3b88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240497
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/expr.go | 30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/obj.go   | 4 +---
+ src/cmd/compile/internal/gc/sinit.go | 3 ++-
+ src/cmd/internal/obj/plist.go        | 3 +++
+ src/cmd/internal/obj/sym.go          | 5 +++++
+ 4 files changed, 11 insertions(+), 4 deletions(-)

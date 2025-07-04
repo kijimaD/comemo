@@ -1,22 +1,44 @@
-commit 2b42ed6483a982b7b9683a3b55f3e0febf37d74f
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu May 16 12:58:48 2024 +0000
+commit 2484e1331a6054ffa25e2e6a4146943251171c56
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 14:39:57 2023 -0400
 
-    crypto: use byteorder to simplify consumeUint32 and consumeUint64
+    misc/swig: restructure as a driver
     
-    A follow-up for the recent CL 585017.
+    Currently, the misc/swig tests directly use Swig and C++ and will fail
+    to build if either Swig or a C++ compiler are not present. Typically,
+    we hide this fact from users because dist test itself checks for Swig
+    and a C++ compiler before even attempting to run this test, though
+    users will see this is they try to go test ./... from misc.
     
-    Change-Id: I9faaff7fdf62fc931fc7f64dbe238de277280730
-    GitHub-Last-Rev: 468d60c3960751c1eec81c6ef1a57ab9e32f2eb8
-    GitHub-Pull-Request: golang/go#67425
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586035
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    However, we're about to move the misc/swig tests into the cmd module,
+    where they will be much more visible and much more likely to run
+    unintentionally. To prevent build errors, this CL restructures these
+    tests into a single pure Go test plus two test packages hidden in
+    testdata. This is relatively easy to do for this test because there
+    are only four test cases total. The pure Go test can check for the
+    necessary build tools before trying to build and run the tests in
+    testdata. This also gives us the opportunity to move the LTO variant
+    of these tests out of dist and into the test itself, simplifying dist.
+    
+    For #37486.
+    
+    Change-Id: Ibda089b4069e36866cb31867a7006c790be2d8b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493599
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/sha1/sha1.go     | 9 ++-------
- src/crypto/sha256/sha256.go | 9 ++-------
- src/crypto/sha512/sha512.go | 5 +----
- 3 files changed, 5 insertions(+), 18 deletions(-)
+ misc/swig/callback/callback.go                     |  11 --
+ misc/swig/callback/callback_test.go                |  33 -----
+ misc/swig/nocgo_test.go                            |   7 +
+ misc/swig/stdio/file.go                            |  15 ---
+ misc/swig/stdio/file_test.go                       |  28 ----
+ misc/swig/swig_test.go                             | 149 +++++++++++++++++++++
+ .../callback.cc => testdata/callback/main.cc}      |   2 +-
+ misc/swig/testdata/callback/main.go                |  60 +++++++++
+ .../callback.h => testdata/callback/main.h}        |   0
+ .../callback/main.swigcxx}                         |   4 +-
+ misc/swig/testdata/stdio/main.go                   |  45 +++++++
+ .../{stdio/file.swig => testdata/stdio/main.swig}  |   0
+ src/cmd/dist/test.go                               |  96 +------------
+ 13 files changed, 266 insertions(+), 184 deletions(-)

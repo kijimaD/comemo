@@ -1,23 +1,28 @@
-commit ff2824d4b3391c644b264273f98a47302e2d4ab6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 17 22:13:35 2020 -0500
+commit f8b74eafd5d2019a7a0fcfc21e037ba5f2f84732
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 26 14:56:19 2020 -0400
 
-    cmd/go/internal/modcmd: eliminate a call to modload.LoadedModules
+    [dev.link] cmd/link: set symbol alignments after dynreloc2
     
-    modload.LoadedModules reveals more information than necessary about
-    whether modules have been loaded lazily. The 'vendor' subcommand
-    doesn't actually need that much information: it has all of the
-    information that it needs from prior calls to LoadPackages and
-    ModFile.
+    The symbol alignment is set based on its size. In dynreloc2
+    symbol size may change (e.g. elfdynhash2). So the alignment must
+    be set after dynreloc2.
     
-    For #36460
+    Noticed this while debugging nondeterministic build on Solaris.
     
-    Change-Id: If08733cca930b2b80616b037b63985ecfd6a320b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270979
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Idx Name          Size      VMA               LMA               File off  Algn
+      8 .hash         000000c8  000000000048add2  000000000048add2  0008add2  2**3
+                      CONTENTS, ALLOC, LOAD, READONLY, DATA
+    
+    This doesn't look right, as the section address is not a multiple
+    of its alignment.
+    
+    Change-Id: I23534cbc59695b7bc241838173fcc71dde95b195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230278
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modcmd/vendor.go | 48 ++++++++++++++++++++++--------------
- 1 file changed, 29 insertions(+), 19 deletions(-)
+ src/cmd/link/internal/ld/data.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

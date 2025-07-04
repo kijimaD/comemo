@@ -1,23 +1,20 @@
-commit 8e69d43b32be578cd36eebe491b6e1205dbf32a4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 27 20:50:57 2016 +0000
+commit d1b5d08f341cbc702e1d2a3cd86ab1ad93a90c41
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 6 21:44:24 2016 -0700
 
-    net: add Buffers type, do writev on unix
+    misc/cgo/testsanitizers: don't run some TSAN tests on GCC < 7
     
-    No fast path currently for solaris, windows, nacl, plan9.
+    Before GCC 7 defined __SANITIZE_THREAD__ when using TSAN,
+    runtime/cgo/libcgo.h could not determine reliably whether TSAN was in
+    use when using GCC.
     
-    Fixes #13451
+    Fixes #15983.
     
-    Change-Id: I24b3233a2e3a57fc6445e276a5c0d7b097884007
-    Reviewed-on: https://go-review.googlesource.com/29951
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5581c9f88e1cde1974c280008b2230fe5e971f44
+    Reviewed-on: https://go-review.googlesource.com/23833
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/net/fd_unix.go          |   3 +
- src/net/net.go              |  63 ++++++++++++++++
- src/net/net_test.go         |  35 +++++++++
- src/net/writev_test.go      | 171 ++++++++++++++++++++++++++++++++++++++++++++
- src/net/writev_unix.go      |  91 +++++++++++++++++++++++
- src/syscall/syscall_nacl.go |   2 +
- 6 files changed, 365 insertions(+)
+ misc/cgo/testsanitizers/test.bash | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

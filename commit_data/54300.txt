@@ -1,22 +1,43 @@
-commit 0cd473d97ac9c94431aaece4baae539927d068f1
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Sep 3 00:08:17 2023 +0800
+commit 058f019e45fc1f18842e0339d7d56d804936263b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 30 11:06:06 2022 -0400
 
-    cmd: fix some comments
+    cmd/cgo, cmd/compile, cmd/link: remove old style build tags
     
-    Change-Id: I8b3eb51e31139314d222d796b56ab7d42338797f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525315
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    [Roll-forward of CL 436915 by Tobias Klauser, with builtin and gen
+    directories dropped now that they've been handled separately.]
+    
+    The minimum bootstrap version for Go ≥ 1.20 is Go 1.17. That version
+    supports the new style //go:build lines. Thus the old style //+build
+    lines can be dropped in this part of the tree as well. Leave the
+    //+build lines in cmd/dist which will ensure the minimum Go version
+    during bootstrap.
+    
+    As suggested by Cherry during review of CL 430496
+    
+    For #44505
+    
+    Change-Id: Ifa686656c3e50bf7f92f70747b44d74a7d51bad8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435473
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go | 4 ++--
- src/cmd/compile/internal/ssa/_gen/rulegen.go  | 2 +-
- src/cmd/internal/obj/x86/asm6.go              | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/cgo/ast_go1.go                                 | 1 -
+ src/cmd/cgo/ast_go118.go                               | 1 -
+ src/cmd/compile/internal/base/bootstrap_false.go       | 1 -
+ src/cmd/compile/internal/base/bootstrap_true.go        | 1 -
+ src/cmd/compile/internal/base/mapfile_mmap.go          | 1 -
+ src/cmd/compile/internal/base/mapfile_read.go          | 7 -------
+ src/cmd/compile/internal/ir/mknode.go                  | 1 -
+ src/cmd/compile/internal/ssa/flags_test.go             | 1 -
+ src/cmd/compile/internal/typecheck/_builtin/runtime.go | 1 -
+ src/cmd/compile/internal/typecheck/mkbuiltin.go        | 1 -
+ src/cmd/compile/internal/types2/example_test.go        | 1 -
+ src/cmd/internal/bio/buf_mmap.go                       | 1 -
+ src/cmd/internal/bio/buf_nommap.go                     | 7 -------
+ src/cmd/link/elf_test.go                               | 1 -
+ src/cmd/link/internal/ld/outbuf_mmap.go                | 1 -
+ src/cmd/link/internal/ld/outbuf_nofallocate.go         | 1 -
+ src/cmd/link/internal/ld/outbuf_nommap.go              | 9 ---------
+ 17 files changed, 37 deletions(-)

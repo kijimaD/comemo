@@ -1,23 +1,33 @@
-commit 8cf0a087c00db2e9ba24f763db903adcbffaade4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 28 09:56:38 2021 -0700
+commit d047c91a6c0f22af00d1c1e770a9d85201392656
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 24 03:13:54 2020 +1000
 
-    cmd/compile/internal/types2: add Interface.IsMethodSet, remove Interface.IsContraint
+    cmd/link,runtime: switch openbsd/amd64 to pthreads
     
-    This is a port of CL 352616 from go/types to types2. It also removes
-    Interface.IsConstraint and adjusts all uses to use IsMethodSet. The
-    dual changes are made to the (unexported) type set implementation.
+    This switches openbsd/amd64 to thread creation via pthreads, rather than doing
+    direct system calls.
     
-    Change-Id: I292b741d1f7cdbaefb483eed75faf7b85a8d2792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352872
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Update #36435
+    
+    Change-Id: I1105d5c392aa3e4c445d99c8cb80b927712e3529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250180
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/writer.go     | 2 +-
- src/cmd/compile/internal/types2/call.go      | 2 +-
- src/cmd/compile/internal/types2/decl.go      | 2 +-
- src/cmd/compile/internal/types2/interface.go | 4 ++--
- src/cmd/compile/internal/types2/typeset.go   | 4 ++--
- src/cmd/compile/internal/types2/typexpr.go   | 2 +-
- 6 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/data.go  |   4 +-
+ src/cmd/link/internal/ld/lib.go   |   1 +
+ src/cmd/link/internal/ld/main.go  |   8 ++
+ src/runtime/asm_amd64.s           |   4 +
+ src/runtime/defs_openbsd.go       |   9 ++
+ src/runtime/defs_openbsd_amd64.go |   9 ++
+ src/runtime/os_openbsd.go         |  34 ------
+ src/runtime/os_openbsd_libc.go    |  58 ++++++++++
+ src/runtime/os_openbsd_syscall.go |  45 ++++++++
+ src/runtime/proc.go               |   5 +
+ src/runtime/sys_darwin.go         |  44 --------
+ src/runtime/sys_libc.go           |  53 +++++++++
+ src/runtime/sys_openbsd.go        |  77 +++++++++++++
+ src/runtime/sys_openbsd_amd64.s   | 229 ++++++++++++++++++++++++--------------
+ 14 files changed, 418 insertions(+), 162 deletions(-)

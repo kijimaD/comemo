@@ -1,19 +1,16 @@
-commit d1272a8b5c429ed1f43f2935adcb6366abc80c05
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 14:05:47 2016 -0700
+commit 2e2df78ae9c2c5e96cce99bccebd5a22f30d6a1a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 18 04:50:19 2016 -0400
 
-    go/types: better error message for invalid fallthrough case
+    reflect: test that method name offset is valid
     
-    Now matches the gc compiler.
+    Bug fix went in CL 21396, this is a matching test.
     
-    Fixes #15594.
+    Fixes #15343
     
-    Change-Id: I9f3942367bc0acf883c6216b8ca44820832f5fe3
-    Reviewed-on: https://go-review.googlesource.com/27241
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3670145c7cac45cb4fb3121ffc039cfb7fa7c87a
+    Reviewed-on: https://go-review.googlesource.com/22171
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/stmt.go            | 18 +++++++++++++++---
- src/go/types/testdata/stmt0.src | 12 ++++++++++--
- 2 files changed, 25 insertions(+), 5 deletions(-)
+ src/reflect/all_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

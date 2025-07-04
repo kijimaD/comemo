@@ -1,45 +1,16 @@
-commit d2826d3e068f096f4b5371175afb7e5d8c4aa73c
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Mon Sep 25 15:47:44 2017 +0200
+commit fab47f7b3a9d8ad91b96bf80f0b9dff2feda31d2
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Jun 6 16:13:39 2017 +0200
 
-    all: prefer strings.LastIndexByte over strings.LastIndex
+    net/http: enable TestLinuxSendfile on mips64
     
-    strings.LastIndexByte was introduced in go1.5 and it can be used
-    effectively wherever the second argument to strings.LastIndex is
-    exactly one byte long.
+    The test is passing on a 64bit RFS.
     
-    This avoids generating unnecessary string symbols and saves
-    a few calls to strings.LastIndex.
+    Fixes #18008
     
-    Change-Id: I7b5679d616197b055cffe6882a8675d24a98b574
-    Reviewed-on: https://go-review.googlesource.com/66372
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia4c4f4dde0392c7f6bbe5dbffc97cf848ec5a107
+    Reviewed-on: https://go-review.googlesource.com/44953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/writer.go          | 2 +-
- src/cmd/doc/main.go                | 2 +-
- src/cmd/fix/fix.go                 | 2 +-
- src/cmd/vet/print.go               | 2 +-
- src/crypto/tls/handshake_client.go | 2 +-
- src/crypto/tls/tls.go              | 2 +-
- src/debug/gosym/symtab.go          | 8 ++++----
- src/encoding/xml/marshal.go        | 2 +-
- src/go/build/build.go              | 6 +++---
- src/go/doc/testdata/testing.go     | 2 +-
- src/go/printer/printer.go          | 2 +-
- src/go/types/resolver.go           | 4 ++--
- src/internal/trace/parser.go       | 2 +-
- src/net/http/cookiejar/jar.go      | 6 +++---
- src/net/http/cookiejar/jar_test.go | 2 +-
- src/net/http/http.go               | 2 +-
- src/net/http/request.go            | 4 ++--
- src/net/http/transport.go          | 6 +++---
- src/net/mail/message.go            | 2 +-
- src/net/rpc/server.go              | 2 +-
- src/net/url/url.go                 | 6 +++---
- src/os/exec/lp_windows.go          | 2 +-
- src/path/path.go                   | 4 ++--
- src/testing/testing.go             | 2 +-
- src/time/mono_test.go              | 2 +-
- 25 files changed, 39 insertions(+), 39 deletions(-)
+ src/net/http/fs_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

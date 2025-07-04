@@ -1,25 +1,26 @@
-commit 41dd2ebcee5652571f8cfa924597e67f3ddb6111
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Sat Jun 2 01:09:10 2018 +0300
+commit e2a86b6bd9d0b0a2be2d6de7259f50eae73ff7e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 20 20:14:51 2018 -0800
 
-    cmd/asm/internal/asm: add extra AVX-512 tests
+    cmd/compile/internal/syntax: simpler position base update for line directives (cleanup)
     
-    These tests were meant to be included into https://golang.org/cl/113315,
-    but were lost somewhere in the middle.
+    The existing code was somewhat convoluted and made several assumptions
+    about the encoding of position bases:
     
-    This CL adds hand-written AVX-512 tests that complement
-    auto-generated test suite.
+    1) The position's base for a file contained a position whose base
+       pointed to itself (which is true but an implementation detail
+       of src.Pos).
     
-    It's worth including it, because:
+    2) Updating the position base for a line directive required finding
+       the base of the most recent's base position.
     
-            - It covers every new Z-case explicitly
-            - Does checks every opcode suffix encoding
+    This change simply stores the file's position base and keeps using it
+    directly for each line directive (instead of getting it from the most
+    recently updated base).
     
-    Change-Id: Id6da5f58773e07bef3d532fc3ca5db391d380ebf
-    Reviewed-on: https://go-review.googlesource.com/115858
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4d80da513bededb636eab0ce53257fda73f0dbc0
+    Reviewed-on: https://go-review.googlesource.com/95736
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 678 +++++++++++++++++++++
- 1 file changed, 678 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

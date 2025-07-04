@@ -1,20 +1,32 @@
-commit 3dd509d23d2118c3b4eb093707e184c1a1d330d6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 27 10:47:02 2018 +0100
+commit e7bce08493297c09856d3a14d018bc0f3c0319cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 7 17:53:59 2018 -0700
 
-    lib/time: update tzdata to 2018g
+    go/types: if base type for an alias is known, use it when needed
     
-    Now that the tree has been frozen for some time, update the tzdata
-    database to version 2018g (released 2018-10-26) for Go 1.12.
+    Because methods are type-checked before the receiver base type
+    is "complete" (i.e., they are checked as part of the receiver
+    base type), situations occur where aliases of those base types
+    are used (in those methods) but the alias types are not known
+    yet (even though their base types are known).
     
-    Updates #22487
+    This fix is a temporary work-around that looks syntactically
+    for the base types of alias types and uses those base types
+    when we refer to an "incomplete" alias type. The work-around
+    is completely localized and guarded with a flag so it can be
+    disabled at short notice.
     
-    Change-Id: I9e82bcdaef28d308643c08c9fd3472e4c14a196e
-    Reviewed-on: https://go-review.googlesource.com/c/151299
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The correct fix (slated for 1.12) is to decouple type-checking
+    of methods from their receiver base types. See issue #26854.
+    
+    Fixes #26390.
+    
+    Change-Id: I66cc9d834b220c254ac00e671a137cf8a3da59c1
+    Reviewed-on: https://go-review.googlesource.com/128435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 365101 -> 363811 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/check_test.go           |  1 +
+ src/go/types/decl.go                 | 25 +++++++++++++++++++++++++
+ src/go/types/testdata/issue26390.src | 11 +++++++++++
+ 3 files changed, 37 insertions(+)

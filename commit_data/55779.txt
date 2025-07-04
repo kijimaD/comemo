@@ -1,19 +1,22 @@
-commit bfa116b345b9216fa3dce253864d51dcefb42d0f
-Author: Nicolas Hillegeer <aktau@google.com>
-Date:   Wed Feb 28 15:21:18 2024 -0800
+commit e8543a6fa6e68a9d35178a5bbb71812cfbc2ba05
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 13 16:16:32 2023 -0400
 
-    text/tabwriter: add recovered panic message to rethrow
+    net/http: remove more arbitrary timeouts from server tests
     
-    Without it, there is little information to debug why the original write
-    failed.
+    This change eliminates the easy, arbitrary timouts that should
+    never happen. It leaves in place a couple of more complicated ones
+    that will probably need retry loops for robustness.
     
-    Change-Id: I21615ab7ca402115d02becdbd11bbacde55b98b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567955
-    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    For #49336.
+    For #36179.
+    
+    Change-Id: I657ef223a66461413a915da5ce9150f49acec04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476035
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/text/tabwriter/tabwriter.go      | 3 ++-
- src/text/tabwriter/tabwriter_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 210 +++++++++------------------------------------
+ 1 file changed, 39 insertions(+), 171 deletions(-)

@@ -1,12 +1,22 @@
-commit d77d4f509c61a8e1eaadeabca86ee48710bd8030
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 29 13:30:17 2017 +1000
+commit 164f99e584a352631275dbf6bf7a8b77c336a261
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 1 00:56:09 2017 +0000
 
-    cmd/link: unexport all peSection fields
+    Revert "cmd/link: replace SHIDDEN bit in SymKind with a bit of Attribute"
     
-    Change-Id: I83e168f0d1dd1897a0c02c0f1233e1054e93fb0f
-    Reviewed-on: https://go-review.googlesource.com/59791
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This reverts commit a69222d949bcc2c4453248ee233b63b75d79967e.
+    
+    Reason for revert: broke ppc64le
+    
+    Change-Id: I57d275177e90f036caf7dbade9669b8121dfa437
+    Reviewed-on: https://go-review.googlesource.com/42194
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/link/internal/ld/pe.go | 139 ++++++++++++++++++++---------------------
- 1 file changed, 69 insertions(+), 70 deletions(-)
+ src/cmd/link/internal/arm64/asm.go  | 2 +-
+ src/cmd/link/internal/ld/data.go    | 2 +-
+ src/cmd/link/internal/ld/ldelf.go   | 9 +++++----
+ src/cmd/link/internal/ld/link.go    | 6 ------
+ src/cmd/link/internal/ld/pe.go      | 4 +---
+ src/cmd/link/internal/ld/symkind.go | 1 +
+ src/cmd/link/internal/ld/symtab.go  | 8 ++------
+ 7 files changed, 11 insertions(+), 21 deletions(-)

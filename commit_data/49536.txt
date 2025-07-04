@@ -1,18 +1,18 @@
-commit 416c953960a475b7418b5c6aef0f46dd102b9129
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jun 25 15:40:11 2022 -0700
+commit 1f8d4562debf8310910897ea85705cc067baa52d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 11:29:44 2021 -0700
 
-    test: add test that gofrontend gets wrong
+    cmd/compile: change typecheck.iscmp into ir.Op.IsCmp
     
-    For #52856
-    
-    Change-Id: Iab3e8352f64d774058391f0422cd01c53c3e711d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414235
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If89089cbd79b7ff030d856df3a7e6b7862c0f4ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345412
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- test/fixedbugs/issue52856.dir/a.go    |  9 +++++++++
- test/fixedbugs/issue52856.dir/main.go | 19 +++++++++++++++++++
- test/fixedbugs/issue52856.go          | 10 ++++++++++
- 3 files changed, 38 insertions(+)
+ src/cmd/compile/internal/ir/node.go            | 10 ++++++++++
+ src/cmd/compile/internal/noder/stencil.go      |  2 +-
+ src/cmd/compile/internal/typecheck/expr.go     |  6 +-----
+ src/cmd/compile/internal/typecheck/universe.go |  8 --------
+ 4 files changed, 12 insertions(+), 14 deletions(-)

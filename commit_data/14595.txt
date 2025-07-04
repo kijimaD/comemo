@@ -1,15 +1,18 @@
-commit 9838774622ed18cf449a0e10b1946104e917408d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 10 17:06:30 2012 -0500
+commit 9c9e811bb34dc48abf256aae91af9199fb9f0f71
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 10 11:55:57 2012 -0800
 
-    pprof: fix https URLs and 'profiler in use' errors
+    spec: consistently use "indices" (rather than "indexes")
     
-    Fixes #3666.
-    Fixes #3680.
+    We have been using all three terms "indices", "indexes",
+    and "index expressions" indiscriminatly for index values.
+    With this change, "index" refers to an index value,
+    "indices" is the plural of "index", and "index expression"
+    refers to an array, slice, or map indexed by an index: a[x].
     
-    R=golang-dev, iant
+    R=r, rsc, iant, ken, mtj
     CC=golang-dev
-    https://golang.org/cl/6899054
+    https://golang.org/cl/6912056
 
- misc/pprof | 28 ++++++++++++++++------------
- 1 file changed, 16 insertions(+), 12 deletions(-)
+ doc/go_spec.html | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

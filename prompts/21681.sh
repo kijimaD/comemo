@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 21681: edadffa2f3464c48a234f3cf2fc092a03f91824f
+# Index 21681: 6488b217c2cdda50beea73ce3312da9e853160f8
 
 echo "🚀 Generating explanation for commit 21681..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 21681
-- **コミットハッシュ**: edadffa2f3464c48a234f3cf2fc092a03f91824f
-- **GitHub URL**: https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f
+- **コミットハッシュ**: 6488b217c2cdda50beea73ce3312da9e853160f8
+- **GitHub URL**: https://github.com/golang/go/commit/6488b217c2cdda50beea73ce3312da9e853160f8
 
 ### 章構成
 

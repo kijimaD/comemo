@@ -1,34 +1,24 @@
-commit 4412181e7c8b1bfb14b8907c634d61856b97f2de
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 23 14:22:32 2019 -0700
+commit 0a2f72b8891d7203850cd7d2f52251edeb4dd747
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 18:55:33 2019 -0400
 
-    math/big: normalize unitialized denominators ASAP
+    cmd/link: use standard-syntax struct tags in large-tag test
     
-    A Rat is represented via a quotient a/b where a and b are Int values.
-    To make it possible to use an uninitialized Rat value (with a and b
-    uninitialized and thus == 0), the implementation treats a 0 denominator
-    as 1.
+    These ridiculous tags are testing what happens with very long tags.
+    There is no need for them to be malformed as well.
+    Fix them to make vet happier.
     
-    For each operation we check if the denominator is 0, and then treat
-    it as 1 (if necessary). Operations that create a new Rat result,
-    normalize that value such that a result denominator 1 is represened
-    as 0 again.
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    This CL changes this behavior slightly: 0 denominators are still
-    interpreted as 1, but whenever we (safely) can, we set an uninitialized
-    0 denominator to 1. This simplifies the code overall.
+    For #31916.
     
-    Also: Improved some doc strings.
-    
-    Preparation for addressing issue #33792.
-    
-    Updates #33792.
-    
-    Change-Id: I3040587c8d0dad2e840022f96ca027d8470878a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202997
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I100aed5230fcde41676c79c7074c69c16ea4b96d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176111
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/rat.go | 55 +++++++++++++++++++++++++++--------------------------
- 1 file changed, 28 insertions(+), 27 deletions(-)
+ src/cmd/link/link_test.go         | 18 ++++--------------
+ src/cmd/vet/all/whitelist/all.txt | 11 -----------
+ 2 files changed, 4 insertions(+), 25 deletions(-)

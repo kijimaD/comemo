@@ -1,23 +1,15 @@
-commit ecb7b63820b8c28d8b2ea4ac1df194d19837e48e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 3 15:14:56 2017 -0400
+commit e0a05c274aa5a3917c5e53f72537e38bb05c10d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 16 15:56:05 2016 -0800
 
-    runtime: fix gcpacertrace printing of sweep ratio
+    [dev.typealias] cmd/gofmt: added test cases for alias type declarations
     
-    Commit 44ed88a5a7 moved printing of the "sweep done" gcpacertrace
-    message so that it is printed when the final sweeper finishes.
-    However, by this point some other thread has often already observed
-    that there are no more spans to sweep and zeroed sweepPagesPerByte.
+    For #18130.
     
-    Avoid printing a 0 sweep ratio in the trace when this race happens by
-    getting the value of the sweep ratio upon entry to sweepone and
-    printing that.
-    
-    Change-Id: Iac0c48ae899e12f193267cdfb012c921f8b71c85
-    Reviewed-on: https://go-review.googlesource.com/39492
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I95e84130df40db5241e0cc25c36873c3281199ff
+    Reviewed-on: https://go-review.googlesource.com/34987
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgcsweep.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gofmt/testdata/typealias.golden | 24 ++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/typealias.input  | 24 ++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

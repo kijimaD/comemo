@@ -1,12 +1,15 @@
-commit 4706ce309f9176f7726f824fe88ebae79ccda6e2
+commit 15dcdf751cfd9f075c3071b3ca1d5303334f2694
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 31 16:15:23 2011 -0400
+Date:   Tue May 31 15:52:04 2011 -0400
 
-    net: stop Mac popups
+    gc: fix m[x], _ = y.(T)
     
-    R=golang-dev, bradfitz
+    Fixes #1900.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4559059
+    https://golang.org/cl/4561053
 
- src/pkg/net/server_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug343.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

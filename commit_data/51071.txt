@@ -1,84 +1,20 @@
-commit 3ba3b4893f3630b2bd78ec6f4f366d60e16bd636
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 27 00:38:37 2022 -0400
+commit 94e22fa03eb5eb678689e05b8e309cd23f874698
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 13:48:22 2021 -0500
 
-    math/big: use Montgomery for z.Exp(x, y, m) even for even m
+    doc/go1.18: add Conn.NetConn documentation to crypto/tls section
     
-    Montgomery multiplication can be used for Exp mod even m
-    by splitting it into two steps - Exp mod an odd number and
-    Exp mod a power of two - and then combining the two results
-    using the Chinese Remainder Theorem.
+    Updates #47694
     
-    For more details, see Ç. K. Koç, “Montgomery Reduction with Even Modulus”,
-    IEE Proceedings: Computers and Digital Techniques, 141(5) 314-316, September 1994.
-    http://www.people.vcu.edu/~jwang3/CMSC691/j34monex.pdf
-    
-    Thanks to Guido Vranken for suggesting that we use a faster algorithm.
-    
-    name                   old time/op    new time/op    delta
-    ExpMont/Odd-16            240µs ± 2%     239µs ± 2%      ~     (p=0.853 n=10+10)
-    ExpMont/Even1-16          757µs ± 3%     249µs ± 6%   -67.17%  (p=0.000 n=10+10)
-    ExpMont/Even2-16          755µs ± 1%     244µs ± 4%   -67.64%  (p=0.000 n=8+10)
-    ExpMont/Even3-16          771µs ± 3%     240µs ± 2%   -68.90%  (p=0.000 n=10+10)
-    ExpMont/Even4-16          775µs ± 3%     241µs ± 2%   -68.91%  (p=0.000 n=10+10)
-    ExpMont/Even8-16          779µs ± 2%     241µs ± 3%   -69.06%  (p=0.000 n=9+10)
-    ExpMont/Even32-16         778µs ± 3%     240µs ± 4%   -69.11%  (p=0.000 n=9+9)
-    ExpMont/Even64-16         774µs ± 6%     186µs ± 2%   -76.00%  (p=0.000 n=10+10)
-    ExpMont/Even96-16         776µs ± 4%     186µs ± 6%   -76.09%  (p=0.000 n=9+10)
-    ExpMont/Even128-16        764µs ± 2%     143µs ± 3%   -81.24%  (p=0.000 n=10+10)
-    ExpMont/Even255-16        761µs ± 3%     109µs ± 2%   -85.73%  (p=0.000 n=10+10)
-    ExpMont/SmallEven1-16    45.6µs ± 1%    36.3µs ± 3%   -20.49%  (p=0.000 n=9+10)
-    ExpMont/SmallEven2-16    44.3µs ± 2%    37.5µs ± 2%   -15.26%  (p=0.000 n=9+10)
-    ExpMont/SmallEven3-16    44.1µs ± 5%    37.3µs ± 3%   -15.32%  (p=0.000 n=9+10)
-    ExpMont/SmallEven4-16    47.1µs ± 6%    38.0µs ± 5%   -19.40%  (p=0.000 n=10+9)
-    
-    name                   old alloc/op   new alloc/op   delta
-    ExpMont/Odd-16           2.53kB ± 0%    2.53kB ± 0%      ~     (p=0.137 n=8+10)
-    ExpMont/Even1-16         2.57kB ± 0%    3.31kB ± 0%   +28.90%  (p=0.000 n=8+10)
-    ExpMont/Even2-16         2.57kB ± 0%    3.37kB ± 0%   +31.09%  (p=0.000 n=9+10)
-    ExpMont/Even3-16         2.57kB ± 0%    3.37kB ± 0%   +31.08%  (p=0.000 n=8+8)
-    ExpMont/Even4-16         2.57kB ± 0%    3.37kB ± 0%   +31.09%  (p=0.000 n=9+10)
-    ExpMont/Even8-16         2.57kB ± 0%    3.37kB ± 0%   +31.09%  (p=0.000 n=9+10)
-    ExpMont/Even32-16        2.57kB ± 0%    3.37kB ± 0%   +31.14%  (p=0.000 n=10+10)
-    ExpMont/Even64-16        2.57kB ± 0%    3.16kB ± 0%   +22.99%  (p=0.000 n=9+9)
-    ExpMont/Even96-16        2.57kB ± 0%    3.44kB ± 0%   +33.90%  (p=0.000 n=10+8)
-    ExpMont/Even128-16       2.57kB ± 0%    2.88kB ± 0%   +12.10%  (p=0.000 n=10+10)
-    ExpMont/Even255-16       2.57kB ± 0%    2.54kB ± 0%    -1.30%  (p=0.000 n=9+10)
-    ExpMont/SmallEven1-16      872B ± 0%     1232B ± 0%   +41.28%  (p=0.000 n=10+10)
-    ExpMont/SmallEven2-16      872B ± 0%     1233B ± 0%   +41.40%  (p=0.000 n=10+9)
-    ExpMont/SmallEven3-16      872B ± 0%     1289B ± 0%   +47.82%  (p=0.000 n=10+10)
-    ExpMont/SmallEven4-16      872B ± 0%     1241B ± 0%   +42.32%  (p=0.000 n=10+10)
-    
-    name                   old allocs/op  new allocs/op  delta
-    ExpMont/Odd-16             21.0 ± 0%      21.0 ± 0%      ~     (all equal)
-    ExpMont/Even1-16           24.0 ± 0%      38.0 ± 0%   +58.33%  (p=0.000 n=10+10)
-    ExpMont/Even2-16           24.0 ± 0%      40.0 ± 0%   +66.67%  (p=0.000 n=10+10)
-    ExpMont/Even3-16           24.0 ± 0%      40.0 ± 0%   +66.67%  (p=0.000 n=10+10)
-    ExpMont/Even4-16           24.0 ± 0%      40.0 ± 0%   +66.67%  (p=0.000 n=10+10)
-    ExpMont/Even8-16           24.0 ± 0%      40.0 ± 0%   +66.67%  (p=0.000 n=10+10)
-    ExpMont/Even32-16          24.0 ± 0%      40.0 ± 0%   +66.67%  (p=0.000 n=10+10)
-    ExpMont/Even64-16          24.0 ± 0%      39.0 ± 0%   +62.50%  (p=0.000 n=10+10)
-    ExpMont/Even96-16          24.0 ± 0%      42.0 ± 0%   +75.00%  (p=0.000 n=10+10)
-    ExpMont/Even128-16         24.0 ± 0%      40.0 ± 0%   +66.67%  (p=0.000 n=10+10)
-    ExpMont/Even255-16         24.0 ± 0%      38.0 ± 0%   +58.33%  (p=0.000 n=10+10)
-    ExpMont/SmallEven1-16      16.0 ± 0%      35.0 ± 0%  +118.75%  (p=0.000 n=10+10)
-    ExpMont/SmallEven2-16      16.0 ± 0%      35.0 ± 0%  +118.75%  (p=0.000 n=10+10)
-    ExpMont/SmallEven3-16      16.0 ± 0%      37.0 ± 0%  +131.25%  (p=0.000 n=10+10)
-    ExpMont/SmallEven4-16      16.0 ± 0%      36.0 ± 0%  +125.00%  (p=0.000 n=10+10)
-    
-    Change-Id: Ib7f70290f8f087b78805ec3120baf17dd7737ac3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420897
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Iead44baa8b2a06ecf7b92d343ed9117f0fc0793e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368315
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
 
- src/math/big/arith_test.go |   2 +-
- src/math/big/int.go        |  15 ++-
- src/math/big/nat.go        | 255 +++++++++++++++++++++++++++++++++++++--------
- src/math/big/nat_test.go   |  72 ++++++++++++-
- src/math/big/natconv.go    |   2 +-
- src/math/big/natdiv.go     |  13 +++
- src/math/big/prime.go      |   2 +-
- src/math/big/ratconv.go    |   4 +-
- 8 files changed, 315 insertions(+), 50 deletions(-)
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

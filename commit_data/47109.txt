@@ -1,64 +1,32 @@
-commit a88575d662a7e8e4fbb31bf139bcffc063e2a734
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 29 01:18:24 2021 +0000
+commit bf48163e8f2b604f3b9e83951e331cd11edd8495
+Author: Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
+Date:   Wed Dec 30 18:41:36 2020 +0100
 
-    Revert "cmd/go: remove support for -buildmode=shared"
+    cmd/compile: add rule to coalesce writes
     
-    This reverts CL 359096.
+    The code generated when storing eight bytes loaded from memory created a
+    series of small writes instead of a single, large one. The specific
+    pattern of instructions generated stored 1 byte, then 2 bytes, then 4
+    bytes, and finally 1 byte.
     
-    Updates #47788.
+    The new rules match this specific pattern both for amd64 and for s390x,
+    and convert it into a single instruction to store the 8 bytes. arm64 and
+    ppc64le already generated the right code, but the new codegen test
+    covers also those architectures.
     
-    Reason for revert: -buildmode=shared may have actually been working in a few very specific cases. We should not remove -buildmode=shared until we have implemented an alternative to support those few cases.
+    Fixes #41663
     
-    Change-Id: Ia962b06abacc11f6f29fc29d092773be175e32f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359575
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifb9b464be2d59c2ed5034acf7b9c3e473f344030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280456
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.18.html                                    |    7 -
- misc/cgo/testshared/overlaydir_test.go             |   78 ++
- misc/cgo/testshared/shared_test.go                 | 1080 ++++++++++++++++++++
- misc/cgo/testshared/testdata/dep2/dep2.go          |   15 +
- misc/cgo/testshared/testdata/dep3/dep3.go          |   22 +
- misc/cgo/testshared/testdata/depBase/asm.s         |   10 +
- misc/cgo/testshared/testdata/depBase/dep.go        |   37 +
- misc/cgo/testshared/testdata/depBase/gccgo.go      |    9 +
- misc/cgo/testshared/testdata/depBase/stubs.go      |    9 +
- misc/cgo/testshared/testdata/division/division.go  |   17 +
- misc/cgo/testshared/testdata/exe/exe.go            |   45 +
- misc/cgo/testshared/testdata/exe2/exe2.go          |    8 +
- misc/cgo/testshared/testdata/exe3/exe3.go          |    7 +
- misc/cgo/testshared/testdata/execgo/exe.go         |    8 +
- misc/cgo/testshared/testdata/explicit/explicit.go  |    9 +
- misc/cgo/testshared/testdata/gcdata/main/main.go   |   37 +
- misc/cgo/testshared/testdata/gcdata/p/p.go         |    7 +
- misc/cgo/testshared/testdata/global/main.go        |   71 ++
- misc/cgo/testshared/testdata/globallib/global.go   |   17 +
- misc/cgo/testshared/testdata/iface/main.go         |   17 +
- misc/cgo/testshared/testdata/iface_a/a.go          |   17 +
- misc/cgo/testshared/testdata/iface_b/b.go          |   17 +
- misc/cgo/testshared/testdata/iface_i/i.go          |   17 +
- misc/cgo/testshared/testdata/implicit/implicit.go  |    5 +
- .../testshared/testdata/implicitcmd/implicitcmd.go |   10 +
- misc/cgo/testshared/testdata/issue25065/a.go       |   20 +
- .../testdata/issue30768/issue30768lib/lib.go       |   11 +
- misc/cgo/testshared/testdata/issue30768/x_test.go  |   22 +
- misc/cgo/testshared/testdata/issue39777/a/a.go     |    9 +
- misc/cgo/testshared/testdata/issue39777/b/b.go     |    7 +
- misc/cgo/testshared/testdata/issue44031/a/a.go     |    9 +
- misc/cgo/testshared/testdata/issue44031/b/b.go     |   17 +
- .../testshared/testdata/issue44031/main/main.go    |   20 +
- misc/cgo/testshared/testdata/issue47837/a/a.go     |   19 +
- .../testshared/testdata/issue47837/main/main.go    |   14 +
- misc/cgo/testshared/testdata/trivial/trivial.go    |    9 +
- src/cmd/dist/test.go                               |    9 +
- src/cmd/go/alldocs.go                              |    9 +
- src/cmd/go/internal/help/helpdoc.go                |    5 +
- src/cmd/go/internal/list/list.go                   |    3 +-
- src/cmd/go/internal/work/build.go                  |    3 +
- src/cmd/go/internal/work/init.go                   |   31 +-
- src/cmd/go/testdata/script/list_linkshared.txt     |   16 +
- src/cmd/internal/sys/supported.go                  |    7 +
- 44 files changed, 1786 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 ++++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 10 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 48 ++++++++++++++++++++++++++++
+ test/codegen/memcombine.go                   |  9 ++++++
+ 5 files changed, 125 insertions(+)

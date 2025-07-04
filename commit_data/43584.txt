@@ -1,27 +1,59 @@
-commit d4c1ad882973e407ff85b977f4ce5b9435451190
-Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
-Date:   Mon Aug 24 22:04:17 2020 +0800
+commit 54c050e9ca0bb6f9f53254d1e9c6006ae0a63d9b
+Merge: e77c99ce4c 34e38ac99f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 14 12:08:07 2020 -0400
 
-    database/sql: fix tx stmt deadlock when rollback
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Tx acquires tx.closemu W-lock and then acquires stmt.closemu.W-lock
-    to fully close the transaction and associated prepared statement.
-    Stmt query and execution run in reverse ways - acquires
-    stmt.closemu.R-lock and then acquires tx.closemu.R-lock to grab tx
-    connection, which may cause deadlock.
-    
-    Prevent the lock is held around tx.closePrepared to ensure no
-    deadlock happens.
-    
-    Fixes #40985
-    
-    Change-Id: If53909822b87bce11861a6e3035ecb9476d2cd17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250178
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I31a52b1840ea773d23f5cc60484131ddf898b841
 
- src/database/sql/sql.go      | 14 +++++++-------
- src/database/sql/sql_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 7 deletions(-)
+ doc/debugging_with_gdb.html                    |    4 +-
+ doc/go1.15.html                                |   10 +
+ src/cmd/cgo/gcc.go                             |    5 +-
+ src/cmd/compile/internal/gc/escape.go          |   78 +-
+ src/cmd/compile/internal/gc/inl.go             |   20 +-
+ src/cmd/compile/internal/gc/inl_test.go        |    8 +-
+ src/cmd/compile/internal/gc/ssa.go             |    2 +-
+ src/cmd/compile/internal/gc/walk.go            |   25 +-
+ src/cmd/compile/internal/logopt/log_opts.go    |   80 +-
+ src/cmd/compile/internal/logopt/logopt_test.go |   41 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  465 ++++-----
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |    4 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    |    2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  411 ++++----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   91 +-
+ src/cmd/compile/internal/ssa/op.go             |    4 +
+ src/cmd/compile/internal/ssa/rewrite.go        |  165 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  651 ++++++------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |   22 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |   17 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1251 ++++++++++++------------
+ src/cmd/compile/internal/ssa/shortcircuit.go   |    6 +-
+ src/cmd/link/internal/ld/elf.go                |   33 +
+ src/cmd/trace/annotations.go                   |    7 +-
+ src/crypto/tls/conn.go                         |   17 +-
+ src/crypto/tls/handshake_server_test.go        |    3 +-
+ src/crypto/tls/tls_test.go                     |   71 ++
+ src/crypto/x509/x509.go                        |   28 +-
+ src/crypto/x509/x509_test.go                   |   31 +-
+ src/errors/wrap_test.go                        |   13 +
+ src/go/types/operand.go                        |    2 +-
+ src/internal/cpu/cpu_arm.go                    |    5 +-
+ src/internal/cpu/cpu_arm64.go                  |    4 +-
+ src/internal/cpu/cpu_mips64x.go                |    4 +-
+ src/internal/cpu/cpu_ppc64x.go                 |    4 +-
+ src/io/example_test.go                         |   47 +-
+ src/net/url/example_test.go                    |   15 +
+ src/runtime/pprof/pprof_test.go                |  170 +++-
+ src/runtime/pprof/proto.go                     |    2 +-
+ src/runtime/race/README                        |    2 +-
+ src/runtime/race/race_netbsd_amd64.syso        |  Bin 574896 -> 602384 bytes
+ src/strconv/extfloat.go                        |   24 +-
+ src/time/example_test.go                       |    2 +-
+ src/time/format.go                             |   20 +-
+ src/time/format_test.go                        |    6 +-
+ src/time/time_test.go                          |  135 +--
+ test/devirt.go                                 |    2 +-
+ test/fixedbugs/bug508.go                       |   14 +
+ test/fixedbugs/issue38359.go                   |   19 +
+ 49 files changed, 2371 insertions(+), 1671 deletions(-)

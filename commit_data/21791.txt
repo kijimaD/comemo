@@ -1,12 +1,16 @@
-commit 87a0d395c3d454c6efa560c406b5b3d8ad71c8f6
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Feb 27 19:54:09 2015 -0500
+commit c768a84b38e1fa2c8850d75d75b0fcbfd409e61d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 4 18:00:52 2015 +0900
 
-    os: set TMPDIR on darwin/arm
+    net: remove the dregs of old built-in poll server
     
-    Change-Id: Iee25f4b0a31ece0aae79c68aec809e1e4308f865
-    Reviewed-on: https://go-review.googlesource.com/6311
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    We don't need placeholders for the old built-in poll server any more.
+    
+    Change-Id: I3a510aec6a30bc2ac97676c400177cdfe557b8dc
+    Reviewed-on: https://go-review.googlesource.com/3863
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/os/file_darwin_arm.go | 38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/net/fd_poll_nacl.go    |  9 +--------
+ src/net/fd_poll_runtime.go | 15 ++-------------
+ src/net/fd_unix.go         |  8 +-------
+ 3 files changed, 4 insertions(+), 28 deletions(-)

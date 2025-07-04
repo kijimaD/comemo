@@ -1,38 +1,27 @@
-commit efd206eb40a59e955c12653b1720026244e6c667
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Jun 22 11:20:03 2021 +0000
+commit c519b156fcc5e53a2a91690303cc7502261dc57b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 10:03:22 2020 -0500
 
-    cmd/compile: intrinsify Mul64 on riscv64
+    doc/go1.16: more release notes
     
-    According to RISCV instruction set manual v2.2 Sec 6.1
-    MULHU followed by MUL will be fused into one multiply by microarchitecture
+    Fixes #42899 (flag).
+    Fixes #42900 (io).
+    Fixes #42901 (log).
+    Fixes #42902 (log/syslog).
+    Fixes #42903 (mime/multipart).
+    Fixes #42904 (net).
+    Fixes #42905 (net/http).
+    Fixes #42906 (net/http/httputil).
+    Fixes #42907 (net/smtp).
+    Fixes #42909 (os/signal).
+    Fixes #42913 (syscall).
     
-    Benchstat on Hifive unmatched:
-    name          old time/op    new time/op    delta
-    Hash8Bytes       245ns ± 3%     186ns ± 4%  -23.99%  (p=0.000 n=10+10)
-    Hash320Bytes    1.94µs ± 1%    1.31µs ± 1%  -32.38%  (p=0.000 n=9+10)
-    Hash1K          5.84µs ± 0%    3.84µs ± 0%  -34.20%  (p=0.000 n=10+9)
-    Hash8K          45.3µs ± 0%    29.4µs ± 0%  -35.04%  (p=0.000 n=10+10)
-    
-    name          old speed      new speed      delta
-    Hash8Bytes    32.7MB/s ± 3%  43.0MB/s ± 4%  +31.61%  (p=0.000 n=10+10)
-    Hash320Bytes   165MB/s ± 1%   244MB/s ± 1%  +47.88%  (p=0.000 n=9+10)
-    Hash1K         175MB/s ± 0%   266MB/s ± 0%  +51.98%  (p=0.000 n=10+9)
-    Hash8K         181MB/s ± 0%   279MB/s ± 0%  +53.94%  (p=0.000 n=10+10)
-    
-    Change-Id: I3561495d02a4a0ad8578e9b9819bf0a4eaca5d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329970
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: Id09f038751d61fe0f1ff57b525e49473dd75c95f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275113
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go        | 15 +++++++++++++++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  1 +
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  3 +++
- src/cmd/compile/internal/ssa/opGen.go          | 16 ++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  3 +++
- src/cmd/compile/internal/ssagen/ssa.go         |  6 +++---
- test/codegen/mathbits.go                       |  1 +
- test/run.go                                    |  1 +
- 8 files changed, 43 insertions(+), 3 deletions(-)
+ doc/go1.16.html | 56 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 44 insertions(+), 12 deletions(-)

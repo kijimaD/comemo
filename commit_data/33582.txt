@@ -1,15 +1,14 @@
-commit 734487c929791ab6ea80157ebf958180384fed76
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 11:27:03 2017 -0500
+commit ace6074593e877a416f166ca298b597e588ee321
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Jul 31 17:28:35 2017 -0700
 
-    cmd/vet: shorten diagnostic about suspicious struct tag spaces
+    doc: add go1.9 to golang.org/project
     
-    Change-Id: I112d0164df6abd9ca1df287376cf3605268385df
-    Reviewed-on: https://go-review.googlesource.com/78116
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Pre-emptive. Go 1.9 is expected to be released in August.
+    
+    Change-Id: I0f58c012c4110bf490022dc2c1d69c0988d73bfa
+    Reviewed-on: https://go-review.googlesource.com/52351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/structtag.go          |  2 +-
- src/cmd/vet/testdata/structtag.go | 22 +++++++++++-----------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

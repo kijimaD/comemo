@@ -1,14 +1,13 @@
-commit 3495f39fc49ff7608d52d05a6a15d6d7d183fc56
+commit 4c40558c749744c7c914902b83b58ee55c9ca0c5
 Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 17 13:13:50 2012 -0800
+Date:   Tue Jan 17 13:07:47 2012 -0800
 
-    cmd/go: remove mentions of 'gotest' from the documentation
-    go test runs the tests itself; it does not run the gotest command,
-    so these mentions are confusing.
+    container/heap: better package documentation
+    Fixes #1820.
     
-    R=golang-dev, n13m3y3r
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/5551043
+    https://golang.org/cl/5540073
 
- src/cmd/go/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/container/heap/heap.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

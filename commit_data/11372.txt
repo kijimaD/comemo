@@ -1,15 +1,14 @@
-commit 8eaf38cbdd0ae88c7e89ac2f62d13f2091ba1603
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 25 11:56:31 2012 +1100
+commit 8b60613b921364a3674f3ef4d7a373e87a9fa280
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 24 16:49:03 2012 -0800
 
-    godoc: update metadata upon launch
+    go/scanner: Use explicit scanner.Mode type.
     
-    Without this change it's possible to launch godoc,
-    immediately GET /, and see a directory listing instead of root.html
-    
-    R=gri
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5575054
+    https://golang.org/cl/5574059
 
- src/cmd/godoc/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/go/parser/parser.go        |  2 +-
+ src/pkg/go/scanner/scanner.go      | 12 +++++++-----
+ src/pkg/go/scanner/scanner_test.go |  2 +-
+ 3 files changed, 9 insertions(+), 7 deletions(-)

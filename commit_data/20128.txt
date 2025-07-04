@@ -1,21 +1,17 @@
-commit b2c43438d20bafda5c6fee777342371d1685e5cc
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 23:30:39 2014 +0400
+commit 0fee63351d0a41fc979e4480460e5aa76903bab6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Aug 19 14:24:14 2014 +1000
 
-    runtime: restore scavenger constants
-    Once and for all.
-    Broken in cl/108640043.
-    I've messed it before. To test scavenger-related changes
-    one needs to alter the constants during final testing.
-    And then it's very easy to submit with the altered constants.
+    html/template: don't panic on second execution of unescapable template
     
-    LGTM=rsc
-    R=golang-codereviews
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/136720044
+    Fixes #8431.
+    
+    LGTM=r
+    R=golang-codereviews, r, minux
+    CC=golang-codereviews
+    https://golang.org/cl/130830043
 
- src/pkg/runtime/extern.go | 2 ++
- src/pkg/runtime/proc.c    | 9 +++++++--
- src/pkg/runtime/runtime.c | 2 ++
- src/pkg/runtime/runtime.h | 1 +
- 4 files changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/html/template/escape.go      |  3 ++-
+ src/pkg/html/template/escape_test.go |  5 +++++
+ src/pkg/html/template/template.go    | 36 ++++++++++++++++++++++--------------
+ 3 files changed, 29 insertions(+), 15 deletions(-)

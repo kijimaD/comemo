@@ -1,17 +1,21 @@
-commit 3f0437e175d66a9c3d9ff1b201c4bb1b504dbfa7
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 4 11:11:22 2019 +0700
+commit b2f19dad8bb2b942badcc1ea6f7147b11fed926e
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Mar 28 13:25:21 2019 +0100
 
-    cmd/compile: generalize isfat to handle 1-field structs and 1-element arrays
+    runtime/cgo: remove threadentry functions specialized for android
     
-    After CL 192979, it is safe now to optimize isfat slightly to handle
-    1-field structs and 1-element arrays.
+    The specialized functions set up the g register using the pthread
+    API instead of setg_gcc, but the inittls functions have already
+    made sure setg_gcc works.
     
-    Change-Id: Ie3bc30299abbcef36eee7a0681997cc2f88ed6a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192980
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #29674
+    
+    Change-Id: Ie67c068d638af8b5823978ee839f6b61b2228996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ src/runtime/cgo/gcc_android_386.c   | 23 -----------------------
+ src/runtime/cgo/gcc_android_amd64.c | 23 -----------------------
+ src/runtime/cgo/gcc_linux_386.c     |  8 +-------
+ src/runtime/cgo/gcc_linux_amd64.c   |  7 +------
+ 4 files changed, 2 insertions(+), 59 deletions(-)

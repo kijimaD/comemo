@@ -1,29 +1,12 @@
-commit 53bc19442d570802c0966d9b0c623151e78e5875
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 29 15:08:08 2012 -0700
+commit 253d7f0460e6547788d707a2f4e5e5b0c0301b2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 14:27:07 2012 -0700
 
-    fmt: speed up 10-20%
+    net/http: better comment in hasToken
     
-    The check for Stringer etc. can only fire if the test is not a builtin, so avoid
-    the expensive check if we know there's no chance.
-    Also put in a fast path for pad, which saves a more modest amount.
-    
-    benchmark                      old ns/op    new ns/op    delta
-    BenchmarkSprintfEmpty                148          152   +2.70%
-    BenchmarkSprintfString               585          497  -15.04%
-    BenchmarkSprintfInt                  441          396  -10.20%
-    BenchmarkSprintfIntInt               718          603  -16.02%
-    BenchmarkSprintfPrefixedInt          676          621   -8.14%
-    BenchmarkSprintfFloat               1003          953   -4.99%
-    BenchmarkManyArgs                   2945         2312  -21.49%
-    BenchmarkScanInts                1704152      1734441   +1.78%
-    BenchmarkScanRecursiveInt        1837397      1828920   -0.46%
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6245068
+    https://golang.org/cl/6249065
 
- src/pkg/fmt/fmt_test.go |  8 ++++++++
- src/pkg/fmt/format.go   | 16 ++++++++--------
- src/pkg/fmt/print.go    |  8 ++++----
- 3 files changed, 20 insertions(+), 12 deletions(-)
+ src/pkg/net/http/header.go | 5 +++++
+ 1 file changed, 5 insertions(+)

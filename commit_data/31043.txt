@@ -1,12 +1,17 @@
-commit 94a9bc960cb29867e9ba0d60a82dcc4872702c2d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 22 06:05:31 2017 -0700
+commit e83d5067147ca6e82c1dc178eaeaf175c9f9db8e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 15 20:39:10 2017 -0500
 
-    regexp: document that Longest method is not concurrent-safe
+    vendor/golang_org/x/crypto/poly1305: revendor to pick up fix for #18673
     
-    Change-Id: I9ec137502353e65325087dfb60ee9bd68ffd286d
-    Reviewed-on: https://go-review.googlesource.com/38447
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #18673.
+    
+    Change-Id: Ic827c16ad414733392c348da1c9ed9b308879fef
+    Reviewed-on: https://go-review.googlesource.com/35260
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/regexp.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s | 10 +++++-----
+ src/vendor/golang_org/x/crypto/poly1305/sum_arm.s   | 14 +++++++-------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

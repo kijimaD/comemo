@@ -1,38 +1,19 @@
-commit 15aa6bbd5aa2cc8d7f2de91255f6a331ec5c16d4
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 14 21:31:33 2015 -0400
+commit f3171994e92a7cf70ddb52aff557d22559de9b18
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 22 09:52:36 2015 -0700
 
-    runtime: replace assist sleep loop with park/ready
+    [dev.ssa] cmd/compile: mark LEA and MOV instructions as not clobbering flags
     
-    GC assists must block until the assist can be satisfied (either
-    through stealing credit or doing work) or the GC cycle ends.
-    Currently, this is implemented as a retry loop with a 100 µs delay.
-    This obviously isn't ideal, as it wastes CPU and delays mutator
-    execution. It also has the somewhat peculiar downside that sleeping a
-    G requires allocation, and this requires working around recursive
-    allocation.
+    This further reduces the number of flags spills
+    during make.bash by about 50%.
     
-    Replace this timed delay with a proper scheduling queue. When an
-    assist can't be satisfied immediately, it adds the allocating G to a
-    queue and parks it. Any time background scan credit is flushed, it
-    consults this queue, directly satisfies the debt of queued assists,
-    and wakes up satisfied assists before flushing any remaining credit to
-    the background credit pool.
+    Note that GetG is implemented by one or two MOVs,
+    which is why it does not clobber flags.
     
-    No effect on the go1 benchmarks. Slightly speeds up the garbage
-    benchmark.
-    
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  5.81ms ± 1%  5.72ms ± 4%  -1.65%  (p=0.011 n=20+20)
-    
-    Updates #12041.
-    
-    Change-Id: I8ee3b6274dd097b12b10a8030796a958a4b0e7b7
-    Reviewed-on: https://go-review.googlesource.com/15890
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6fede8c027b7dc340e00d1e15df1b87bf2b2d9ec
+    Reviewed-on: https://go-review.googlesource.com/13843
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go     |  12 ++++
- src/runtime/mgcmark.go | 148 +++++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 137 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 19 ++++++++++---------
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ----------------
+ 2 files changed, 10 insertions(+), 25 deletions(-)

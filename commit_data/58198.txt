@@ -1,35 +1,38 @@
-commit 43d90c6a14e7b3fd1b3b8085b8071a09231c4b62
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Apr 23 11:14:19 2024 -0700
+commit 872d7181f4084461441787c70ffd1354314987af
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 6 20:53:27 2023 -0400
 
-    os: add Root
+    runtime/cgo: avoid taking the address of crosscall2 in code
     
-    Add os.Root, a type which represents a directory and permits performing
-    file operations within that directory.
+    Currently, set_crosscall2 takes the address of crosscall2 without
+    using the GOT, which, on some architectures, results in a
+    PC-relative relocation (e.g. R_AARCH64_ADR_PREL_PG_HI21 on ARM64)
+    to the crosscall2 symbol. But crosscall2 is dynamically exported,
+    so the C linker thinks it may bind to a symbol from a different
+    DSO. Some C linker may not like a PC-relative relocation to such a
+    symbol. Using a local trampoline to avoid taking the address of a
+    dynamically exported symbol.
     
-    For #67002
+    It may be possible to not dynamically export crosscall2. But this
+    CL is safer for backport. Later we may remove the trampolines
+    after unexport crosscall2, if they are not needed.
     
-    Change-Id: I863f4f1bc320a89b1125ae4237761f3e9320a901
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612136
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Fixes #62556.
+    
+    Change-Id: Id28457f65ef121d3f87d8189803abc65ed453283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533535
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/67002.txt                         |   9 +
- doc/next/6-stdlib/1-os-root.md             |  16 +
- doc/next/6-stdlib/99-minor/os/67002.md     |   1 +
- src/internal/syscall/windows/at_windows.go |   4 +-
- src/os/file.go                             |   2 +
- src/os/file_windows.go                     |   5 +-
- src/os/os_test.go                          | 328 ++++++++--
- src/os/root.go                             | 185 ++++++
- src/os/root_js.go                          |  79 +++
- src/os/root_nonwindows.go                  |  11 +
- src/os/root_noopenat.go                    |  86 +++
- src/os/root_openat.go                      | 199 ++++++
- src/os/root_plan9.go                       |  21 +
- src/os/root_test.go                        | 960 +++++++++++++++++++++++++++++
- src/os/root_unix.go                        | 158 +++++
- src/os/root_windows.go                     | 203 ++++++
- src/os/root_windows_test.go                |  46 ++
- 17 files changed, 2243 insertions(+), 70 deletions(-)
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 32 ++++++++++++++++++++++
+ src/runtime/cgo/asm_386.s                          |  7 ++++-
+ src/runtime/cgo/asm_amd64.s                        |  7 ++++-
+ src/runtime/cgo/asm_arm.s                          |  7 ++++-
+ src/runtime/cgo/asm_arm64.s                        |  7 ++++-
+ src/runtime/cgo/asm_loong64.s                      |  7 ++++-
+ src/runtime/cgo/asm_mips64x.s                      |  7 ++++-
+ src/runtime/cgo/asm_mipsx.s                        |  7 ++++-
+ src/runtime/cgo/asm_ppc64x.s                       |  7 ++++-
+ src/runtime/cgo/asm_riscv64.s                      |  7 ++++-
+ src/runtime/cgo/asm_s390x.s                        |  7 ++++-
+ 11 files changed, 92 insertions(+), 10 deletions(-)

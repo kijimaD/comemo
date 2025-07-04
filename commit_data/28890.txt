@@ -1,22 +1,21 @@
-commit 2a85578b0ecd424e95b29d810b7a414a299fd6a7
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Sep 27 13:27:02 2016 -0700
+commit 88858fa58f892ef19c6dbae2af15af41ecae4937
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 30 10:48:54 2016 -0700
 
-    database/sql: support returning query database types
+    container/list: silence vet warnings
     
-    Creates a ColumnType structure that can be extended in to future.
-    Allow drivers to implement what makes sense for the database.
+    container/list/list_test.go:274: self-assignment of e1 to e1
+    container/list/list_test.go:274: self-assignment of e4 to e4
+    container/list/list_test.go:282: self-assignment of e1 to e1
+    container/list/list_test.go:286: self-assignment of e1 to e1
+    container/list/list_test.go:286: self-assignment of e4 to e4
     
-    Fixes #16652
+    Updates #11041
     
-    Change-Id: Ieb1fd64eac1460107b1d3474eba5201fa300a4ec
-    Reviewed-on: https://go-review.googlesource.com/29961
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibd90cf6a924e93497908f437b814c3fc82937f4a
+    Reviewed-on: https://go-review.googlesource.com/27114
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/driver/driver.go |  55 ++++++++++++++++++++
- src/database/sql/fakedb_test.go   |  59 +++++++++++++++++----
- src/database/sql/sql.go           | 106 +++++++++++++++++++++++++++++++++++++-
- src/database/sql/sql_test.go      |  50 ++++++++++++++++++
- 4 files changed, 259 insertions(+), 11 deletions(-)
+ src/container/list/list_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

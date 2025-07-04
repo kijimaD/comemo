@@ -1,15 +1,77 @@
-commit 555eb70db2f7ff4aa22768339425430c1dfdf6ac
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Tue May 29 17:29:31 2018 -0300
+commit 2d0172c3a7f3a4f18d72a10fc367c4dd1de5c250
+Author: philhofer <phofer@umich.edu>
+Date:   Sun Aug 13 22:36:47 2017 +0000
 
-    all: regenerate stringer files
+    cmd/compile/internal/ssa: emit csel on arm64
     
-    Change-Id: I34838320047792c4719837591e848b87ccb7f5ab
-    Reviewed-on: https://go-review.googlesource.com/115058
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Introduce a new SSA pass to generate CondSelect intstrutions,
+    and add CondSelect lowering rules for arm64.
+    
+    In order to make the CSEL instruction easier to optimize,
+    and to simplify the introduction of CSNEG, CSINC, and CSINV
+    in the future, modify the CSEL instruction to accept a condition
+    code in the aux field.
+    
+    Notably, this change makes the go1 Gzip benchmark
+    more than 10% faster.
+    
+    Benchmarks on a Cavium ThunderX:
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-96              15.9s ± 6%     16.0s ± 4%     ~     (p=0.968 n=10+9)
+    Fannkuch11-96                7.17s ± 0%     7.00s ± 0%   -2.43%  (p=0.000 n=8+9)
+    FmtFprintfEmpty-96           208ns ± 1%     207ns ± 0%     ~     (p=0.152 n=10+8)
+    FmtFprintfString-96          379ns ± 0%     375ns ± 0%   -0.95%  (p=0.000 n=10+9)
+    FmtFprintfInt-96             385ns ± 0%     383ns ± 0%   -0.52%  (p=0.000 n=9+10)
+    FmtFprintfIntInt-96          591ns ± 0%     586ns ± 0%   -0.85%  (p=0.006 n=7+9)
+    FmtFprintfPrefixedInt-96     656ns ± 0%     667ns ± 0%   +1.71%  (p=0.000 n=10+10)
+    FmtFprintfFloat-96           967ns ± 0%     984ns ± 0%   +1.78%  (p=0.000 n=10+10)
+    FmtManyArgs-96              2.35µs ± 0%    2.25µs ± 0%   -4.63%  (p=0.000 n=9+8)
+    GobDecode-96                31.0ms ± 0%    30.8ms ± 0%   -0.36%  (p=0.006 n=9+9)
+    GobEncode-96                24.4ms ± 0%    24.5ms ± 0%   +0.30%  (p=0.000 n=9+9)
+    Gzip-96                      1.60s ± 0%     1.43s ± 0%  -10.58%  (p=0.000 n=9+10)
+    Gunzip-96                    167ms ± 0%     169ms ± 0%   +0.83%  (p=0.000 n=8+9)
+    HTTPClientServer-96          311µs ± 1%     308µs ± 0%   -0.75%  (p=0.000 n=10+10)
+    JSONEncode-96               65.0ms ± 0%    64.8ms ± 0%   -0.25%  (p=0.000 n=9+8)
+    JSONDecode-96                262ms ± 1%     261ms ± 1%     ~     (p=0.579 n=10+10)
+    Mandelbrot200-96            18.0ms ± 0%    18.1ms ± 0%   +0.17%  (p=0.000 n=8+10)
+    GoParse-96                  14.0ms ± 0%    14.1ms ± 1%   +0.42%  (p=0.003 n=9+10)
+    RegexpMatchEasy0_32-96       644ns ± 2%     645ns ± 2%     ~     (p=0.836 n=10+10)
+    RegexpMatchEasy0_1K-96      3.70µs ± 0%    3.49µs ± 0%   -5.58%  (p=0.000 n=10+10)
+    RegexpMatchEasy1_32-96       662ns ± 2%     657ns ± 2%     ~     (p=0.137 n=10+10)
+    RegexpMatchEasy1_1K-96      4.47µs ± 0%    4.31µs ± 0%   -3.48%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-96      844ns ± 2%     849ns ± 1%     ~     (p=0.208 n=10+10)
+    RegexpMatchMedium_1K-96      179µs ± 0%     182µs ± 0%   +1.20%  (p=0.000 n=10+10)
+    RegexpMatchHard_32-96       10.0µs ± 0%    10.1µs ± 0%   +0.48%  (p=0.000 n=10+9)
+    RegexpMatchHard_1K-96        297µs ± 0%     297µs ± 0%   -0.14%  (p=0.000 n=10+10)
+    Revcomp-96                   3.08s ± 0%     3.13s ± 0%   +1.56%  (p=0.000 n=9+9)
+    Template-96                  276ms ± 2%     275ms ± 1%     ~     (p=0.393 n=10+10)
+    TimeParse-96                1.37µs ± 0%    1.36µs ± 0%   -0.53%  (p=0.000 n=10+7)
+    TimeFormat-96               1.40µs ± 0%    1.42µs ± 0%   +0.97%  (p=0.000 n=10+10)
+    [Geo mean]                   264µs          262µs        -0.77%
+    
+    Change-Id: Ie54eee4b3092af53e6da3baa6d1755098f57f3a2
+    Reviewed-on: https://go-review.googlesource.com/55670
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/objabi/reloctype_string.go |  4 ++--
- src/debug/macho/reloctype_string.go         | 10 +++++-----
- src/math/big/accuracy_string.go             |  8 ++++----
- src/math/big/roundingmode_string.go         |  8 ++++----
- 4 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go           |   7 +-
+ src/cmd/compile/internal/gc/asm_test.go         |  13 +
+ src/cmd/compile/internal/gc/swt.go              |   2 +-
+ src/cmd/compile/internal/ssa/branchelim.go      | 248 ++++++++++
+ src/cmd/compile/internal/ssa/branchelim_test.go | 138 ++++++
+ src/cmd/compile/internal/ssa/check.go           |   5 +
+ src/cmd/compile/internal/ssa/compile.go         |   1 +
+ src/cmd/compile/internal/ssa/deadcode.go        |   3 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules    | 153 ++++---
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go    |   7 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go  |   5 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go     |   2 +-
+ src/cmd/compile/internal/ssa/op.go              |   1 +
+ src/cmd/compile/internal/ssa/opGen.go           |  24 +-
+ src/cmd/compile/internal/ssa/rewrite.go         | 125 +++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 579 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/value.go           |   2 +
+ 17 files changed, 1025 insertions(+), 290 deletions(-)

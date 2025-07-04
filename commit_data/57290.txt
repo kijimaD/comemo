@@ -1,21 +1,33 @@
-commit 239666cd7343d46c40a5b929c8bec8b532dbe83f
-Author: Wei Fu <fuweid89@gmail.com>
-Date:   Thu Aug 22 16:22:53 2024 +0800
+commit f0894a00f4b756d4b9b4078af2e686b359493583
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jul 13 16:40:49 2023 +0200
 
-    os: dup pidfd if caller sets PidFD manually
+    os: remove 5ms sleep on Windows in (*Process).Wait
     
-    Fixes #68984
-    Change-Id: I16d25777cb38a337cd4204a8147eaf866c3df9e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607695
-    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    The 5ms sleep in (*Process).Wait was added to mitigate errors while
+    removing executable files using os.RemoveAll.
+    
+    Windows 10 1903 implements POSIX semantics for DeleteFile, making the
+    implementation of os.RemoveAll on Windows much more robust. Older
+    Windows 10 versions also made internal improvements to avoid errors
+    when removing files, making it less likely that the 5ms sleep is
+    necessary.
+    
+    Windows 10 is the oldest version that Go supports (see #57004), so it
+    makes sense to unconditionally remove the 5ms sleep now. We have all
+    the Go 1.22 development cycle to see if this causes any regression.
+    
+    Fixes #25965
+    
+    Change-Id: Ie0bbe6dc3e8389fd51a32484d5d20cf59b019451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509335
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/exec_posix.go       |  5 +++--
- src/os/pidfd_linux.go      | 27 ++++++++++++++++++++-------
- src/os/pidfd_linux_test.go | 32 ++++++++++++++++++++++++++++++++
- src/os/pidfd_other.go      |  6 +++---
- 4 files changed, 58 insertions(+), 12 deletions(-)
+ src/os/exec_windows.go      |  6 ----
+ src/os/exec_windows_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 6 deletions(-)

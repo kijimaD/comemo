@@ -1,28 +1,32 @@
-commit f4cbf3477f1456b4d28a7b74b31820ee60b7e6d1
-Author: David Chase <drchase@google.com>
-Date:   Mon Aug 31 14:29:58 2020 -0400
+commit fc8a6336d1ad29acf2c7728ce669df9059169132
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 17 13:54:30 2020 -0500
 
-    cmd/compile: allow directory specification for GOSSAFUNC output
+    cmd/asm, cmd/compile, runtime: add -spectre=ret mode
     
-    This was useful for debugging failures occurring during make.bash.
-    The added flush also ensures that any hints in the GOSSAFUNC output
-    are flushed before fatal exit.
+    This commit extends the -spectre flag to cmd/asm and adds
+    a new Spectre mitigation mode "ret", which enables the use
+    of retpolines.
     
-    The environment variable GOSSADIR specifies where the SSA html debugging
-    files should be placed.  To avoid collisions, each one is written into
-    the [package].[functionOrMethod].html, where [package] is the filepath
-    separator separated package name, function is the function name, and method
-    is either (*Type).Method, or Type.Method, as appropriate.  Directories
-    are created as necessary to make this work.
+    Retpolines prevent speculation about the target of an indirect
+    jump or call and are described in more detail here:
+    https://support.google.com/faqs/answer/7625886
     
-    Change-Id: I420927426b618b633bb1ffc51cf0f223b8f6d49c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252338
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4f2cb982fa94e44d91e49bd98974fd125619c93a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222661
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/main.go     |  1 +
- src/cmd/compile/internal/gc/ssa.go      | 10 +++++++++-
- src/cmd/compile/internal/ssa/compile.go | 10 ++++++++++
- src/cmd/compile/internal/ssa/html.go    | 13 +++++++++----
- 4 files changed, 29 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/flags/flags.go |  2 ++
+ src/cmd/asm/main.go                 | 13 +++++++++++++
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ src/cmd/internal/obj/arm/asm5.go    |  5 +++++
+ src/cmd/internal/obj/arm64/asm7.go  |  5 +++++
+ src/cmd/internal/obj/link.go        |  1 +
+ src/cmd/internal/obj/mips/asm0.go   |  5 +++++
+ src/cmd/internal/obj/riscv/obj.go   |  5 +++++
+ src/cmd/internal/obj/s390x/asmz.go  |  5 +++++
+ src/cmd/internal/obj/x86/asm6.go    | 11 +++++++++++
+ src/runtime/asm_amd64.s             | 34 +++++++++++++++++++++++++++++++++-
+ src/runtime/stubs_amd64.go          | 17 +++++++++++++++++
+ test/codegen/retpoline.go           | 14 ++++++++++++++
+ 13 files changed, 119 insertions(+), 1 deletion(-)

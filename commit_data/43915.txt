@@ -1,23 +1,31 @@
-commit 0433845ad18a355413033bb3495ba3195f4c69ec
-Author: Quey-Liang Kao <s101062801@m101.nthu.edu.tw>
-Date:   Sat Nov 21 22:48:55 2020 +0800
+commit f886ff7b417739cf2269267e7b057a7cfdc85324
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 28 18:59:57 2020 -0400
 
-    cmd/asm, cmd/internal/obj/riscv: fix branch pseudo-instructions
+    [dev.link] cmd/link: free loader memory after LoadFull
     
-    Pseudo branch instructions BGT, BGTU, BLE, and BLEU implemented In
-    CL 226397 were translated inconsistently compared to other ones due
-    to the inversion of registers. For instance, while "BLT a, b" generates
-    "jump if a < b", "BLE a, b" generates "jump if b <= a."
+    After LoadFull, we'll be using sym.Symbols mostly. We still need
+    the loader information for symbol index mappings and name
+    lookups, but not much else. Free some memory.
     
-    This CL fixes the translation in the assembler and the tests.
+    Linking cmd/compile,
     
-    Change-Id: Ia757be73e848734ca5b3a790e081f7c4f98c30f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271911
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    name           old time/op    new time/op    delta
+    Loadlibfull_GC    44.5M ± 0%     35.8M ± 0%    -19.66%  (p=0.008 n=5+5)
+    Archive_GC        46.4M ± 0%     37.6M ± 0%    -18.89%  (p=0.008 n=5+5)
+    
+    Linking cmd/compile with external linking,
+    
+    name           old time/op    new time/op    delta
+    Loadlibfull_GC    82.5M ± 0%     57.4M ± 0%    -30.41%  (p=0.008 n=5+5)
+    Archive_GC        86.8M ± 0%     61.7M ± 0%    -28.90%  (p=0.008 n=5+5)
+    
+    Change-Id: I6859d488172ef8968918b86de527fbfed6832ebf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230300
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s       |  8 ++--
- src/cmd/internal/obj/riscv/obj.go                  |  8 ++--
- .../obj/riscv/testdata/testbranch/branch_test.go   | 49 ++++++++++------------
- 3 files changed, 31 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/ld/pe.go         |  2 +-
+ src/cmd/link/internal/loader/loader.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

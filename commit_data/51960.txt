@@ -1,33 +1,15 @@
-commit d57ebde91ffd9088d7303a8c41079c27f78df0f1
-Author: Akhil Indurti <aindurti@gmail.com>
-Date:   Sat Dec 24 09:22:30 2022 -0500
+commit 26a8cf56e0cfdb555025f60acf2e2ec773a5f492
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 25 19:03:37 2022 -0700
 
-    math: add Compare and Compare32
+    cmd/compile/internal/syntax: fix scanner.{op,prec} docs
     
-    This change introduces the Compare and Compare32 functions
-    based on the total-ordering predicate in IEEE-754, section 5.10.
+    These fields are also valid for _Star.
     
-    In particular,
-    * -NaN is ordered before any other value
-    * +NaN is ordered after any other value
-    * -0 is ordered before +0
-    * All other values are ordered the usual way
-    
-    name         time/op
-    Compare-8    0.24ns ± 1%
-    Compare32-8  0.24ns ± 0%
-    
-    Fixes #56491.
-    
-    Change-Id: I9444fbfefe26741794c4436a26d403b8da97bdaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459435
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2582000ac1737c41416e69f91404f7cac279d718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395916
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/next/56491.txt   |  2 ++
- src/math/all_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/compare.go  | 53 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 114 insertions(+)
+ src/cmd/compile/internal/syntax/scanner.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

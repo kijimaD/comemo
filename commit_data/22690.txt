@@ -1,16 +1,14 @@
-commit e9a89b80b69eb977697455c0a45044b12fc9a197
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Fri Apr 24 14:11:29 2015 -0400
+commit 4da157a7235c790c197912bd1c830d9731c77638
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 13:39:44 2015 -0700
 
-    misc/cgo/testcshared: make test.bash resilient against noise.
+    cmd/dist, cmd/internal/gc: switch gc from math/big to vendored math/big
     
-    Instead of comparing against the entire output that may include
-    verbose warning messages, use the last line of the output and check
-    it includes the expected success message (PASS).
-    
-    Change-Id: Iafd583ee5529a8aef5439b9f1f6ce0185e4b1331
-    Reviewed-on: https://go-review.googlesource.com/9304
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iab9a1f814acd53d5707bfcd6c3f9616c79fa7789
+    Reviewed-on: https://go-review.googlesource.com/7858
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testcshared/test.bash | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go       | 1 +
+ src/cmd/internal/gc/go.go       | 2 +-
+ src/cmd/internal/gc/mparith1.go | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)

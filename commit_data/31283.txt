@@ -1,15 +1,20 @@
-commit b01be13ec376f7fc06be166eb5d26a5e3ed2fc34
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:15:44 2017 -0700
+commit f02dda50e8b4e268987d269e22b6d7410a52587b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 10:06:34 2017 -0800
 
-    cmd/compile: clean up some runtime LSym generation
+    crypto/tls: don't hold lock when closing underlying net.Conn.
     
-    Passes toolstash-check.
+    There's no need to hold the handshake lock across this call and it can
+    lead to deadlocks if the net.Conn calls back into the tls.Conn.
     
-    Change-Id: I9398dd0fd9112d907f838ea911a7724dda5bbaee
-    Reviewed-on: https://go-review.googlesource.com/41400
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #18426.
+    
+    Change-Id: Ib1b2813cce385949d970f8ad2e52cfbd1390e624
+    Reviewed-on: https://go-review.googlesource.com/36561
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ src/crypto/tls/conn.go      |  2 +-
+ src/crypto/tls/conn_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

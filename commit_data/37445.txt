@@ -1,13 +1,30 @@
-commit 552d7b918697e0a5ab1ff22f91abf3e1cfde2e1d
-Author: Santhosh Kumar Tekuri <santhosh.tekuri@gmail.com>
-Date:   Tue Feb 6 12:00:13 2018 +0530
+commit 16962faf998a2f84793c5ca8481f6686ae9e3024
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 25 00:24:13 2018 -0400
 
-    encoding/pem: test getLine does not include trailing whitespace
+    cmd/go: add 'go version' statement in go.mod
     
-    Change-Id: I7a1046f5e0aedbbdd1106a616de410fe4e0cb7d8
-    Reviewed-on: https://go-review.googlesource.com/c/92295
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    We aren't planning to use this or advertise it much yet,
+    but having support for it now will make it easier to start
+    using in the future - older go commands will understand
+    what 'go 1.20' means and that they don't have go 1.20.
+    
+    Fixes #23969.
+    
+    Change-Id: I729130b2690d3c0b794b49201526b53de5093c45
+    Reviewed-on: https://go-review.googlesource.com/125940
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/pem/pem_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/alldocs.go                         |  4 +-
+ src/cmd/go/internal/imports/tags.go           |  1 -
+ src/cmd/go/internal/modcmd/mod.go             |  2 +
+ src/cmd/go/internal/modfile/rule.go           | 37 +++++++++++++---
+ src/cmd/go/internal/modget/get.go             |  2 +-
+ src/cmd/go/internal/modinfo/info.go           | 23 +++++-----
+ src/cmd/go/internal/modload/build.go          | 14 ++++--
+ src/cmd/go/internal/modload/load.go           | 47 +++++++++++++++------
+ src/cmd/go/internal/work/exec.go              | 25 +++++++++++
+ src/cmd/go/testdata/script/mod_go_version.txt | 61 +++++++++++++++++++++++++++
+ 10 files changed, 180 insertions(+), 36 deletions(-)

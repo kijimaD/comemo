@@ -1,20 +1,25 @@
-commit dcc821faf84b147cc8a887cb0e576497cfc6cbfd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 10 19:24:06 2015 -0800
+commit 8dd52cf03a37a8fe0d0db20000036db8ee8cd3d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 12 20:41:40 2015 +0000
 
-    misc/cgo/gmp: change pi.go to use standard Go copyright header
+    net/http: export the "new" error codes from RFC 6585
     
-    This file is not part of the benchmark shootout, and we wrote it, so use
-    the usual copyright header, not a partial version of the shootout
-    license.
+    These were proposed in the RFC over three years ago, then proposed to
+    be added to Go in https://codereview.appspot.com/7678043/ 2 years and
+    7 months ago, and the spec hasn't been updated or retracted the whole
+    time.
     
-    Fixes #13575.
+    Time to export them.
     
-    Change-Id: Ib610e2ad82914b4ef096a2424cfffe3383db2d5b
-    Reviewed-on: https://go-review.googlesource.com/17715
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Of note, HTTP/2 uses code 431 (Request Header Fields Too Large).
+    
+    Updates #12843
+    
+    Change-Id: I78c2fed5fab9540a98e845ace73f21c430a48809
+    Reviewed-on: https://go-review.googlesource.com/15732
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/gmp/pi.go | 41 ++++-------------------------------------
- 1 file changed, 4 insertions(+), 37 deletions(-)
+ src/net/http/status.go | 44 ++++++++++++++++++++------------------------
+ 1 file changed, 20 insertions(+), 24 deletions(-)

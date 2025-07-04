@@ -1,29 +1,16 @@
-commit 4f13a9c5b1bfc9ec2213d9ee7d9df49661b119dd
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Tue Oct 1 01:10:44 2019 +0300
+commit 431b5c69ca214ce4291f008c1ce2a50b22bc2d2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 16 21:39:00 2019 +0000
 
-    text/template/parse: use strings.Builder in String methods
+    crypto/tls, crypto/x509: update spelling of marshal*
     
-    As mentioned in godoc, strings.Builder is more efficient for
-    concatenating and building strings.
-    Running a simple bench test on VariableNode.String() gives:
+    Per https://golang.org/wiki/Spelling and CL 33017.
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkParseLarge-8         25676831      24453285      -4.77%
-    BenchmarkVariableString-8     296           115           -61.15%
-    
-    benchmark                     old allocs     new allocs     delta
-    BenchmarkVariableString-8     8              3              -62.50%
-    
-    benchmark                     old bytes     new bytes     delta
-    BenchmarkVariableString-8     112           72            -35.71%
-    
-    Change-Id: I13c9340080738fcad1edeed859d33ba608e4b05a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198078
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia813a81d25603883114c4e4b6997eb560d6a3690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172457
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/text/template/parse/node.go       | 41 +++++++++++++++++++----------------
- src/text/template/parse/parse_test.go | 16 ++++++++++++++
- 2 files changed, 38 insertions(+), 19 deletions(-)
+ src/crypto/tls/handshake_messages.go | 2 +-
+ src/crypto/x509/pkcs8.go             | 4 ++--
+ src/crypto/x509/pkcs8_test.go        | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

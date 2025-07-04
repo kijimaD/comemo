@@ -1,78 +1,15 @@
-commit f686a2890b34996455c7d7aba9a0efba74b613f5
-Author: Joshua M. Clulow <josh.clulow@joyent.com>
-Date:   Mon Apr 29 13:50:49 2019 +0000
+commit a728b0ba7cf6316e0c2e79f8d725654a40d62081
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Dec 12 17:38:17 2018 -0800
 
-    all: add new GOOS=illumos, split out of GOOS=solaris
+    cmd/link: skip TestRuntimeTypeAttrInternal on windows/arm
     
-    Like GOOS=android which implies the "linux" build tag, GOOS=illumos
-    implies the "solaris" build tag. This lets the existing ecosystem of
-    packages still work on illumos, but still permits packages to start
-    differentiating between solaris and illumos.
+    Updates #26148
     
-    Fixes #20603
-    
-    Change-Id: I8f4eabf1a66060538dca15d7658c1fbc6c826622
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174457
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ide1fe821cc061a08488df9d40878131f37f894c9
+    Reviewed-on: https://go-review.googlesource.com/c/153844
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/sigaltstack.go                       |  2 +-
- misc/cgo/testcarchive/carchive_test.go             |  2 +-
- misc/cgo/testcshared/cshared_test.go               |  2 +-
- src/cmd/dist/build.go                              |  6 ++++--
- src/cmd/dist/main.go                               |  7 +++++--
- src/cmd/go/go_test.go                              |  2 +-
- src/cmd/go/internal/bug/bug.go                     |  4 +++-
- src/cmd/go/internal/imports/build.go               |  1 +
- .../lockedfile/internal/filelock/filelock_test.go  |  9 +++++---
- src/cmd/go/internal/work/buildid.go                |  4 ++--
- src/cmd/go/internal/work/exec.go                   |  2 +-
- src/cmd/go/internal/work/init.go                   |  2 +-
- src/cmd/internal/objabi/head.go                    |  2 +-
- src/cmd/link/internal/ld/dwarf_test.go             | 16 +++++++--------
- .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  |  6 +++---
- src/cmd/vet/all/whitelist/illumos_amd64.txt        |  6 ++++++
- src/debug/gosym/pclntab_test.go                    |  2 +-
- src/go/build/build.go                              |  3 +++
- src/go/build/doc.go                                |  3 +++
- src/go/build/syslist.go                            |  2 +-
- src/net/error_test.go                              |  2 +-
- src/net/fd_unix.go                                 | 12 +++++------
- src/net/interface_test.go                          |  4 ++--
- src/net/listen_test.go                             | 10 ++++-----
- src/net/tcpsock_test.go                            |  2 +-
- src/os/exec/exec_test.go                           |  2 +-
- src/os/os_test.go                                  |  4 ++--
- src/os/removeall_test.go                           |  2 +-
- src/os/user/user_test.go                           |  2 +-
- src/runtime/asm_amd64.s                            |  4 ++++
- src/runtime/cgocall.go                             |  2 +-
- src/runtime/crash_unix_test.go                     |  2 +-
- src/runtime/internal/sys/gengoos.go                |  3 +++
- src/runtime/internal/sys/zgoos_aix.go              |  1 +
- src/runtime/internal/sys/zgoos_android.go          |  1 +
- src/runtime/internal/sys/zgoos_darwin.go           |  1 +
- src/runtime/internal/sys/zgoos_dragonfly.go        |  1 +
- src/runtime/internal/sys/zgoos_freebsd.go          |  1 +
- src/runtime/internal/sys/zgoos_hurd.go             |  1 +
- src/runtime/internal/sys/zgoos_illumos.go          | 24 ++++++++++++++++++++++
- src/runtime/internal/sys/zgoos_js.go               |  1 +
- src/runtime/internal/sys/zgoos_linux.go            |  1 +
- src/runtime/internal/sys/zgoos_nacl.go             |  1 +
- src/runtime/internal/sys/zgoos_netbsd.go           |  1 +
- src/runtime/internal/sys/zgoos_openbsd.go          |  1 +
- src/runtime/internal/sys/zgoos_plan9.go            |  1 +
- src/runtime/internal/sys/zgoos_solaris.go          |  2 ++
- src/runtime/internal/sys/zgoos_windows.go          |  1 +
- src/runtime/internal/sys/zgoos_zos.go              |  1 +
- src/runtime/mem_bsd.go                             |  2 +-
- src/runtime/netpoll.go                             |  4 ++--
- src/runtime/pprof/pprof_test.go                    |  2 +-
- src/runtime/proc.go                                | 14 ++++++-------
- src/runtime/rt0_illumos_amd64.s                    | 11 ++++++++++
- src/syscall/exec_unix.go                           |  4 ++--
- src/syscall/sockcmsg_unix.go                       |  2 +-
- src/syscall/syscall_unix.go                        |  1 +
- 57 files changed, 148 insertions(+), 66 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

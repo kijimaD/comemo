@@ -1,15 +1,18 @@
-commit fbcfa6a532d4e7c555693b549a97adfa3d38aca4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Aug 3 18:38:32 2019 -0400
+commit 8dddf7556ee90e82e02333164644914a2f1af87d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Jul 30 17:03:16 2019 -0400
 
-    encoding/base64: document that Strict mode still ignores newlines
+    net/http: return nil from Header.Clone if the receiver is nil
     
-    An application that wants to reject non-canonical encodings is likely to
-    care about other sources of malleability.
+    Fixes #33141
     
-    Change-Id: I1d3a5b281d2631ca78df3f89b957a02687a534d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188858
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I84a8b3496fc9396fd1c09ba9505697c34bdf7105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188022
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/base64/base64.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/http/header.go      | 6 +++++-
+ src/net/http/header_test.go | 8 ++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,18 +1,54 @@
-commit 7b4ac31cab7480084f45c2890c4ebd877944bc49
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 11 16:50:44 2013 -0400
+commit 5183bfda7590bb14f3be77fdc1852c6b314c0762
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 11 13:38:45 2013 -0700
 
-    cmd/dist: make cc rule match what cmd/go uses
+    go/types: update operand types early
     
-    We added -I$GOROOT/pkg/$GOOS_$GOARCH in cmd/go
-    (I think for use by cgo and swig, primarily) but didn't
-    update cmd/dist. I was testing some other code and
-    found that my changes built with cmd/go but failed
-    during the initial bootstrap. Make them match again.
+    For expressions where the result type is independent
+    of the argument types (comparisons, conversions, rhs
+    of shifts), set the final expression types for those
+    subtrees early.
     
-    R=golang-dev, iant
+    This fixes several bugs where incorrect lhs shift
+    operands where used (say in a comparison), but were
+    not reported.
+    
+    Together with the changes listed below this CL fixes
+    many type-checker bugs.
+    
+    Also:
+    - better documented updateExprType
+    - added larger comment to expr.go explaining
+      the basic expression checking algorithm
+    - use latest definition for indices and make
+      arguments; use the same code to check both
+    - use the same mechanism for cycle detection
+      in constant expressions as for variables
+      (new field Constant.visited)
+    - more tests for complex and make builtins
+    - many more and systematic tests for shifts;
+      moved them into separate testfile
+    - in the testing code, don't compare the
+      expected error pattern against itself
+      (the actual message was always ignored...)
+    - fix affected error patterns in the test files
+    - various cleanups along the way
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7707044
+    https://golang.org/cl/7432051
 
- src/cmd/dist/build.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/go/types/builtins.go           |  26 ++-
+ src/pkg/go/types/check.go              |  44 ++---
+ src/pkg/go/types/check_test.go         |  38 ++--
+ src/pkg/go/types/const.go              |  18 --
+ src/pkg/go/types/conversions.go        |   5 +-
+ src/pkg/go/types/expr.go               | 323 ++++++++++++++++++++++-----------
+ src/pkg/go/types/operand.go            |   5 +-
+ src/pkg/go/types/stmt.go               |   2 +
+ src/pkg/go/types/testdata/builtins.src |  48 +++--
+ src/pkg/go/types/testdata/decls1.src   |  10 +-
+ src/pkg/go/types/testdata/expr3.src    | 216 +++++-----------------
+ src/pkg/go/types/testdata/shifts.src   | 266 +++++++++++++++++++++++++++
+ src/pkg/go/types/testdata/stmt0.src    |   8 +-
+ 13 files changed, 627 insertions(+), 382 deletions(-)

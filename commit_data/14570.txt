@@ -1,24 +1,16 @@
-commit 5cb1ed218944e7ce54384b7af0a7beed3965be56
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Dec 6 07:20:03 2012 +0100
+commit 9d2b0e86c8338d8e8f285926752ecca642ce23da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 6 00:00:20 2012 -0500
 
-    cmd/6c, cmd/8c: add fixjmp step to regopt.
+    cmd/ld: skip 0-length write in cwrite
     
-    The fixjmp step eliminates redundant chains of JMP
-    instructions that are produced by the compiler during
-    code generation.
+    The 0-length part is fine, but some callers that write 0 bytes
+    also pass nil as the data pointer, and the Plan 9 kernel kills the
+    process with 'invalid address in sys call' in that case.
     
-    It is already implemented in gc, and can be adapted to 6c/8c with
-    the exception that JMPs refer to destination by pc instead of by
-    pointer. The algorithm is modified to operate on Regs instead of Progs
-    for this reason. The pcs are already restored later by regopt.
-    
-    R=goalng-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6865046
+    https://golang.org/cl/6862051
 
- src/cmd/6c/list.c |   2 +-
- src/cmd/6c/reg.c  | 131 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/8c/list.c |  11 +++-
- src/cmd/8c/reg.c  | 147 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 288 insertions(+), 3 deletions(-)
+ src/cmd/ld/lib.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,28 +1,21 @@
-commit 41b9d8c75e45636a153c2a31d117196a22a7fc6c
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Tue May 10 12:30:43 2022 +0800
+commit 0b8a9ccb25cd9b8f78eb47b1934522af3fb4108f
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 30 14:00:27 2021 -0700
 
-    time: add Time.ZoneBounds
+    [dev.typeparams] cmd/compile: make all pointer types have the same shape
     
-    The method Location.lookup returns the "start" and "end" times bracketing seconds when that zone is in effect.
+    Except unsafe.Pointer. It has a different Kind, which makes it trickier.
     
-    This CL does these things:
-    
-    1. Exported the "start" and "end" times as time.Time form
-    2. Keep the "Location" of the returned times be the same as underlying time
-    
-    Fixes #50062.
-    
-    Change-Id: I88888a100d0fc68f4984a85c75a85a83aa3e5d80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405374
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I12582afb6e591bea35da9e43ac8d141ed19532a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338749
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- api/next/50062.txt    |  1 +
- src/time/time.go      | 18 +++++++++++++
- src/time/time_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 93 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go |  6 ++++++
+ src/cmd/compile/internal/types/identity.go |  2 +-
+ test/typeparam/shape1.go                   | 19 ++++++++++++++++++-
+ test/typeparam/shape1.out                  |  2 ++
+ 4 files changed, 27 insertions(+), 2 deletions(-)

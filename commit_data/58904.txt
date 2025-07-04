@@ -1,19 +1,21 @@
-commit 64feded8afd7280f533e09138efa31b6772e34ce
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Thu Feb 27 05:56:52 2025 +0000
+commit 41c05ea4b937ceb7b4eb7c3599f144f95da5e04e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 19 19:05:53 2024 -0500
 
-    cmd/covdata: close output meta-data file
+    net: attempt to deflake TestListenCloseListen
     
-    Change-Id: Idd2a324eb51ffa3f40cb3df03a82a1d6d882295a
-    GitHub-Last-Rev: 62e22b309d9f4b31b1fb426e4fdbabd04fcc8371
-    GitHub-Pull-Request: golang/go#71993
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653140
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Also make it flakier in longtest mode by burning through more
+    ephemeral ports. (Burning through the ports raised the failure rate
+    for me locally enough to reliably reproduce the failure in #65175 with
+    -count=10.)
+    
+    Fixes #65175 (I hope).
+    
+    Change-Id: I5f5b68b6bf6a6aa92e66f0288078817041656a3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557177
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/covdata/metamerge.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/net/net_test.go | 82 +++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 64 insertions(+), 18 deletions(-)

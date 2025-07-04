@@ -1,18 +1,57 @@
-commit c040786f37246f40ae29402fbdb6e97031a21713
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Dec 17 17:15:40 2018 -0500
+commit 96dcc4457b9aad418abc0eb4316c21fefdbf08e1
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jun 1 14:30:49 2018 +0200
 
-    doc/go1.12: add notes for syscall/js CLs 141644, 143137, 144384
+    runtime: replace typedmemmmove with bulkBarrierPreWrite and memmove in growslice
     
-    Also update a Go 1 compatibility promise link to canonical URL.
+    A bulkBarrierPreWrite together with a memmove as used in typedslicecopy
+    is faster than a typedmemmove for each element of the old slice that
+    needs to be copied to the new slice.
     
-    Updates #27592
-    Updates #28264
+    typedslicecopy is not used here as runtime functions should not call
+    other instrumented runtime functions and some conditions like dst == src
+    or the destination slice not being large enought that are checked for
+    in typedslicecopy can not happen in growslice.
     
-    Change-Id: I5994a0a63e0870c1795c65016590dfad829d26a7
-    Reviewed-on: https://go-review.googlesource.com/c/154618
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Append                         13.5ns ± 6%  13.3ns ± 3%     ~     (p=0.304 n=10+10)
+    AppendGrowByte                 1.18ms ± 2%  1.19ms ± 1%     ~     (p=0.113 n=10+9)
+    AppendGrowString                123ms ± 1%    73ms ± 1%  -40.39%  (p=0.000 n=9+8)
+    AppendSlice/1Bytes             3.81ns ± 1%  3.78ns ± 1%     ~     (p=0.116 n=10+10)
+    AppendSlice/4Bytes             3.71ns ± 1%  3.70ns ± 0%     ~     (p=0.095 n=10+9)
+    AppendSlice/7Bytes             3.73ns ± 0%  3.75ns ± 1%     ~     (p=0.442 n=10+10)
+    AppendSlice/8Bytes             4.00ns ± 1%  4.01ns ± 1%     ~     (p=0.330 n=10+10)
+    AppendSlice/15Bytes            4.29ns ± 1%  4.28ns ± 1%     ~     (p=0.536 n=10+10)
+    AppendSlice/16Bytes            4.28ns ± 1%  4.31ns ± 1%   +0.75%  (p=0.019 n=10+10)
+    AppendSlice/32Bytes            4.57ns ± 2%  4.58ns ± 2%     ~     (p=0.236 n=10+10)
+    AppendSliceLarge/1024Bytes      305ns ± 2%   306ns ± 1%     ~     (p=0.236 n=10+10)
+    AppendSliceLarge/4096Bytes     1.06µs ± 1%  1.06µs ± 0%     ~     (p=1.000 n=9+10)
+    AppendSliceLarge/16384Bytes    3.12µs ± 2%  3.11µs ± 1%     ~     (p=0.493 n=10+10)
+    AppendSliceLarge/65536Bytes    5.61µs ± 5%  5.36µs ± 2%   -4.58%  (p=0.003 n=10+8)
+    AppendSliceLarge/262144Bytes   21.0µs ± 1%  19.5µs ± 1%   -7.09%  (p=0.000 n=8+10)
+    AppendSliceLarge/1048576Bytes  78.4µs ± 1%  78.7µs ± 2%     ~     (p=0.315 n=8+10)
+    AppendStr/1Bytes               3.96ns ± 6%  3.99ns ± 9%     ~     (p=0.591 n=10+10)
+    AppendStr/4Bytes               3.98ns ± 1%  3.99ns ± 1%     ~     (p=0.515 n=9+9)
+    AppendStr/8Bytes               4.27ns ± 1%  4.27ns ± 1%     ~     (p=0.633 n=10+10)
+    AppendStr/16Bytes              4.56ns ± 2%  4.55ns ± 1%     ~     (p=0.869 n=10+10)
+    AppendStr/32Bytes              4.85ns ± 1%  4.89ns ± 1%   +0.71%  (p=0.003 n=10+8)
+    AppendSpecialCase              18.7ns ± 1%  18.7ns ± 1%     ~     (p=0.144 n=10+10)
+    AppendInPlace/NoGrow/Byte       438ns ± 1%   439ns ± 1%     ~     (p=0.135 n=10+8)
+    AppendInPlace/NoGrow/1Ptr      1.05µs ± 2%  1.05µs ± 1%     ~     (p=0.469 n=10+10)
+    AppendInPlace/NoGrow/2Ptr      1.77µs ± 1%  1.78µs ± 2%     ~     (p=0.469 n=10+10)
+    AppendInPlace/NoGrow/3Ptr      1.94µs ± 1%  1.93µs ± 2%     ~     (p=0.517 n=10+10)
+    AppendInPlace/NoGrow/4Ptr      3.18µs ± 1%  3.17µs ± 0%     ~     (p=0.483 n=10+9)
+    AppendInPlace/Grow/Byte         382ns ± 2%   383ns ± 2%     ~     (p=0.705 n=9+10)
+    AppendInPlace/Grow/1Ptr         383ns ± 1%   384ns ± 1%     ~     (p=0.844 n=10+10)
+    AppendInPlace/Grow/2Ptr         459ns ± 2%   467ns ± 2%   +1.74%  (p=0.001 n=10+10)
+    AppendInPlace/Grow/3Ptr         593ns ± 1%   597ns ± 2%     ~     (p=0.195 n=10+10)
+    AppendInPlace/Grow/4Ptr         583ns ± 2%   589ns ± 2%     ~     (p=0.084 n=10+10)
+    
+    Change-Id: I629872f065a22b29267c1adbfc578aaedd36d365
+    Reviewed-on: https://go-review.googlesource.com/115755
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 26 +++++++++++++++++++++-----
- 1 file changed, 21 insertions(+), 5 deletions(-)
+ src/runtime/mbarrier.go |  2 --
+ src/runtime/slice.go    | 10 +++-------
+ 2 files changed, 3 insertions(+), 9 deletions(-)

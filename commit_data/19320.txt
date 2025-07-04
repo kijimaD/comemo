@@ -1,13 +1,13 @@
-commit 2a7ab1616f861087c6da320f7de360949868384a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon May 12 09:26:05 2014 +1000
+commit 91a576eb0f35c36ce7a63f73c7b3e1a9f0dc134a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 11 14:46:29 2014 -0700
 
-    cmd/nm: do not write to GOROOT testdata directories during TestNM
+    C: add another email address for David Crawshaw
     
-    LGTM=bradfitz
-    R=bradfitz, 0intro
+    LGTM=crawshaw
+    R=crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/95280043
+    https://golang.org/cl/99180043
 
- src/cmd/nm/nm_test.go | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,18 @@
-commit 52c8107a3c68245bccc836a0003fea1dcead450a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Dec 15 16:50:41 2011 -0500
+commit b618f32687ca1f71c5cc137cee735a2811f74a57
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 15 13:44:35 2011 -0800
 
-    exp/ssh: simplify Stdin/out/errPipe methods
+    govet: divide the program into one file per vetting suite
+    Just a rearrangement except for a couple of new functions
+    and names so govet.go can have all the generic walk routines.
     
-    If a Pipe method is called, return the underlying
-    reader/writer from session.clientChan, bypassing the
-    io.Copy and io.Pipe harness.
-    
-    StdoutPipe and StderrPipe now return an io.Reader not
-    an io.ReadCloser as SSH cannot signal the close of the
-    local reader to the remote process.
-    
-    R=rsc, agl, gustav.paul, cw
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5493047
+    https://golang.org/cl/5489058
 
- src/pkg/exp/ssh/session.go | 59 ++++++++++++++++++++++------------------------
- 1 file changed, 28 insertions(+), 31 deletions(-)
+ src/cmd/govet/Makefile     |   3 +
+ src/cmd/govet/govet.go     | 405 ++++-----------------------------------------
+ src/cmd/govet/method.go    | 161 ++++++++++++++++++
+ src/cmd/govet/print.go     | 202 ++++++++++++++++++++++
+ src/cmd/govet/structtag.go |  34 ++++
+ 5 files changed, 432 insertions(+), 373 deletions(-)

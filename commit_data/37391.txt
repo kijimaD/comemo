@@ -1,20 +1,19 @@
-commit 6d620fc42ec2ae61cfedcd37d24afd8cb7654164
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue Nov 13 16:13:42 2018 -0700
+commit 90066bf06a9b10b3b222a289934b93723bb788d6
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Sat Jul 21 01:37:21 2018 +0800
 
-    test: move empty header file in builddir, buildrundir to temp directory
+    cmd/go/internal/modfetch: run git log with "-c log.showsignature=false"
     
-    Move the empty header file created by "builddir", "buildrundir"
-    directives to t.tempDir. The file was accidentally placed in the
-    same directory as the source code and this was a vestige of CL 146999.
+    The old version git not support "--no-show-signature", git add this from
+    v2.10.0.
     
-    Fixes #28781
+    Fixes golang/go#26501.
     
-    Change-Id: I3d2ada5f9e8bf4ce4f015b9bd379b311592fe3ce
-    Reviewed-on: https://go-review.googlesource.com/c/149458
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ia6b54488651e8687b08a4d40e092822bf960c4fe
+    Reviewed-on: https://go-review.googlesource.com/125315
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- test/run.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

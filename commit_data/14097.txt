@@ -1,17 +1,37 @@
-commit d901808869db4236f436e067e4bd957de7d54595
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Oct 10 01:02:49 2012 +0800
+commit cffbfaeb1819bfb6770848c4d57615f0ee1a46ba
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Oct 9 20:51:58 2012 +0400
 
-    cmd/5l: generate FreeBSD compatible ELF
-    1. correctly initialize .plt.got entries (point to the 1st entry)
-    2. add section .rel.plt (FreeBSD insists PLT relocs to be there)
-    3. put relocs of .got.plt into .rel.plt
-    4. set ELFOSABI_FREEBSD in ELF header
+    race: syscall changes
+    This is a part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
+    The purpose of this patch is to provide coarse-grained synchronization
+    between all Read() and Write() calls.
     
-    R=rsc
+    R=rsc, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6643050
+    https://golang.org/cl/6610064
 
- src/cmd/5l/asm.c | 73 +++++++++++++++++++++++++++++++++++++++-----------------
- src/cmd/5l/obj.c |  4 +++-
- 2 files changed, 54 insertions(+), 23 deletions(-)
+ src/pkg/syscall/exec_unix.go              |  2 +-
+ src/pkg/syscall/race.go                   | 22 ++++++++++++++++++++++
+ src/pkg/syscall/race0.go                  | 19 +++++++++++++++++++
+ src/pkg/syscall/syscall_darwin.go         |  8 ++++----
+ src/pkg/syscall/syscall_freebsd.go        |  8 ++++----
+ src/pkg/syscall/syscall_linux.go          |  8 ++++----
+ src/pkg/syscall/syscall_netbsd.go         |  8 ++++----
+ src/pkg/syscall/syscall_openbsd.go        |  8 ++++----
+ src/pkg/syscall/syscall_plan9.go          | 11 ++++++++++-
+ src/pkg/syscall/syscall_unix.go           | 17 +++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |  8 ++++++++
+ src/pkg/syscall/zsyscall_darwin_386.go    |  8 ++++----
+ src/pkg/syscall/zsyscall_darwin_amd64.go  |  8 ++++----
+ src/pkg/syscall/zsyscall_freebsd_386.go   |  8 ++++----
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |  8 ++++----
+ src/pkg/syscall/zsyscall_linux_386.go     |  8 ++++----
+ src/pkg/syscall/zsyscall_linux_amd64.go   |  8 ++++----
+ src/pkg/syscall/zsyscall_linux_arm.go     |  8 ++++----
+ src/pkg/syscall/zsyscall_netbsd_386.go    |  8 ++++----
+ src/pkg/syscall/zsyscall_netbsd_amd64.go  |  8 ++++----
+ src/pkg/syscall/zsyscall_openbsd_386.go   |  8 ++++----
+ src/pkg/syscall/zsyscall_openbsd_amd64.go |  8 ++++----
+ 22 files changed, 141 insertions(+), 66 deletions(-)

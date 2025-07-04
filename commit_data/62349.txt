@@ -1,0 +1,15 @@
+commit 3ff943fce0eff41a2392cfe8b280e87a18a7afac
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Sun Feb 23 10:55:29 2025 +0100
+
+    net: add godoc links for UnixConn, UnixListener
+    
+    Change-Id: I8f332eb14c0ce4f31a2e0f44ddd227769d7b940f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651875
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/unixsock.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

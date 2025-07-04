@@ -1,0 +1,27 @@
+commit 1cf6b502630034980ba7de8156e4d7c1da7a7845
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 5 14:27:15 2025 -0500
+
+    cmd/compile: remove no-longer-necessary recursive inlining checks
+    
+    this does result in a little bit more inlining,
+    cmd/compile text is 0.5% larger,
+    bent-benchmark text geomeans grow by only 0.02%.
+    some of our tests make assumptions about inlining.
+    
+    Change-Id: I999d1798aca5dc64a1928bd434258a61e702951a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655157
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/cgo/internal/test/issue42018_windows.go |  2 +
+ src/cmd/compile/internal/inline/inl.go          | 68 +------------------------
+ src/runtime/pprof/proto_test.go                 |  3 ++
+ test/fixedbugs/issue40954.go                    |  2 +
+ test/fixedbugs/issue52193.go                    |  4 +-
+ test/fixedbugs/issue54159.go                    |  3 +-
+ test/inline.go                                  | 10 ++--
+ test/loopbce.go                                 |  1 +
+ test/newinline.go                               |  6 +--
+ 9 files changed, 21 insertions(+), 78 deletions(-)

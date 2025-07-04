@@ -1,25 +1,32 @@
-commit ea295a4cfbb0641f58c41d3722e7e8fb3b3f493f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 28 11:14:25 2014 -0400
+commit 64bed3f55fdf3628e0bfe75079a8f5f845aa7bb2
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 13 18:35:53 2014 -0700
 
-    cmd/go: add get -f flag
+    crypto/x509: continue to recognise MaxPathLen of zero as "no value".
     
-    get -u now checks that remote repo paths match the
-    ones predicted by the import paths: if you are get -u'ing
-    rsc.io/pdf, it has to be checked out from the right location.
-    This is important in case the rsc.io/pdf redirect changes.
+    In [1] the behaviour of encoding/asn1 with respect to marshaling
+    optional integers was changed. Previously, a zero valued integer would
+    be omitted when marshaling. After the change, if a default value was
+    set then the integer would only be omitted if it was the default value.
     
-    In some cases, people have good reasons to use
-    non-standard remote repos. Add -f flag to allow that.
-    The f can stand for force or fork, as you see fit.
+    This changed the behaviour of crypto/x509 because
+    Certificate.MaxPathLen has a default value of -1 and thus zero valued
+    MaxPathLens would no longer be omitted when marshaling. This is
+    arguably a bug-fix -- a value of zero for MaxPathLen is valid and
+    meaningful and now could be expressed. However it broke users
+    (including Docker) who were not setting MaxPathLen at all.
     
-    Fixes #8850.
+    This change again causes a zero-valued MaxPathLen to be omitted and
+    introduces a ZeroMathPathLen member that indicates that, yes, one
+    really does want a zero. This is ugly, but we value not breaking users.
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/164120043
+    [1] https://code.google.com/p/go/source/detail?r=4218b3544610e8d9771b89126553177e32687adf
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/153420045
 
- src/cmd/go/get.go    | 14 ++++++++++++--
- src/cmd/go/test.bash | 10 ++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/crypto/x509/x509.go      | 15 ++++++++++-
+ src/crypto/x509/x509_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 1 deletion(-)

@@ -1,15 +1,15 @@
-commit 00134fe8ef917f17fc87076badbc54c086f74589
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 7 23:37:05 2012 -0500
+commit 0bd53d2ce09222075ff366b657cbba344fc4581b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 15:26:36 2012 +1100
 
-    fmt: diagnose invalid verb applied to pointer
+    runtime/cgo: silence warning on windows
+    It appears to want a * on an indirect function call (assembly language)
     
-    Fixes #2851.
+    TBR=rsc
     
-    R=golang-dev, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5644048
+    https://golang.org/cl/5643054
 
- src/pkg/fmt/fmt_test.go |  9 +++++++++
- src/pkg/fmt/print.go    | 30 ++++++++++++------------------
- 2 files changed, 21 insertions(+), 18 deletions(-)
+ src/pkg/runtime/cgo/gcc_amd64.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,15 @@
-commit d535bc7af3290c6f09eeb391e0ef00f374f9b743
-Author: Alberto García Hierro <alberto@garciahierro.com>
-Date:   Tue May 14 15:33:46 2013 -0700
+commit 9c945809219d88148a2c83f04f69b88dc86ebc0d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 15 04:40:42 2013 +0800
 
-    net/http: Fix basic authentication with empty password
+    archive/tar: skip NUL-filled unused octal fields
+    Fixes #5290.
     
-            The encoded string must include the : separating the username
-            and the password, even when the latter is empty. See
-            http://www.ietf.org/rfc/rfc2617.txt for more information.
-    
-    R=golang-dev, bradfitz, adg
+    R=golang-dev, dave, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/8475043
+    https://golang.org/cl/8763044
 
- src/pkg/net/http/client.go      | 13 ++++++++++++-
- src/pkg/net/http/client_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 1 deletion(-)
+ src/pkg/archive/tar/reader.go            |  16 +++++++++-------
+ src/pkg/archive/tar/reader_test.go       |  19 +++++++++++++++++++
+ src/pkg/archive/tar/testdata/nil-uid.tar | Bin 0 -> 1024 bytes
+ 3 files changed, 28 insertions(+), 7 deletions(-)

@@ -1,24 +1,13 @@
-commit 4f1aecf2c408da2ddf6fd2b4542b9fe1d239c5e3
+commit 4ffa021965ac5a307cee497feefc834b2a1e041e
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 25 02:56:37 2014 +0900
+Date:   Wed Mar 26 10:21:22 2014 +0900
 
-    net: deflake TestTCPConcurrentAccept
+    runtime: slience warning on 32-bit platforms
     
-    Some platform that implements inp_localgroup-like shared internet
-    protocol control block group looks a bit sensitive about transport
-    layer protocol's address:port reuse. Sometimes it rejects a TCP SYN
-    packet using TCP RST, and sometimes silence.
-    
-    For now, until test case refactoring, we admit few Dial failures on
-    TestTCPConcurrentAccept as a workaround.
-    
-    Update #7400
-    Update #7541
-    
-    LGTM=jsing
-    R=jsing
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/75920043
+    https://golang.org/cl/80250043
 
- src/pkg/net/tcp_test.go | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+ src/pkg/runtime/heapdump.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,16 @@
-commit 91ad2a219445d6df3ddb796d0f44190da24f429d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Dec 9 16:00:02 2016 -0500
+commit 1abefc1ff0ae6a3f3df7affa704cd2c71ab48a05
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 05:45:52 2016 -0700
 
-    runtime/pprof: add definitions of profile label types
+    cmd/compile: clean up rule logging helpers
     
-    This change defines WithLabels, Labels, Label, and ForLabels.
-    This is the first step of the profile labels implemention for go 1.9.
+    Introduced in CLs 29380 and 30011.
     
-    Updates #17280
-    
-    Change-Id: I2dfc9aae90f7a4aa1ff7080d5747f0a1f0728e75
-    Reviewed-on: https://go-review.googlesource.com/34198
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I3d3641e8748ce0adb57b087a1fcd62f295ade665
+    Reviewed-on: https://go-review.googlesource.com/31933
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/build/deps_test.go       |  2 +-
- src/runtime/pprof/label.go      | 77 ++++++++++++++++++++++++++++++++++++++
- src/runtime/pprof/label_test.go | 82 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 160 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

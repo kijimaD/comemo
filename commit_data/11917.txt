@@ -1,16 +1,13 @@
-commit 932cdfbc4ce2cebd52bd3f52813a64c8e94217c0
-Author: Lai Jiangshan <eag0628@gmail.com>
-Date:   Wed Feb 15 13:07:34 2012 +1100
+commit 4853cb9ab0941eeca9ec36628ed3e1a38f790148
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 13:07:12 2012 +1100
 
-    doc: fix codewalk/markov.go
+    A+C: Lai Jiangshan
     
-    When I build it, I got:
-    /home/njubee/work/golang/doc/codewalk/markov.go:124: undefined: time.Nanoseconds
-    time.Nanoseconds() does not exist now, use time.Now().UnixNano() instead
-    
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5668044
+    https://golang.org/cl/5677046
 
- doc/codewalk/markov.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

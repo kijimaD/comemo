@@ -1,15 +1,25 @@
-commit 5f695f7072848e425289ca94bc460da813de66da
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Thu Jun 1 06:11:51 2023 -0700
+commit e3c2e4cb7dc006d4282e6d5c85222006d380d701
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 16 13:36:28 2022 -0700
 
-    doc: add release note for cgo error on methods on C types
+    net/http: make Request.WithContext documentation less prescriptive
     
-    Change-Id: Ibc5f23f37e5bd45034771a0205eadac3072d6870
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499816
-    TryBot-Bypass: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Eli Bendersky <eliben@google.com>
+    WithContext makes a shallow copy of a Request, and Clone makes a
+    deep copy. Both set the context of the new request. The distinction
+    between the two is clear, and it doesn't seem useful or necessary
+    to say that "it's rare to need WithContext".
+    
+    Also update a couple locations that mention WithContext to mention
+    Clone as well.
+    
+    Fixes #53413.
+    
+    Change-Id: I89e6ddebd7d5ca6573e522fe48cd7f50cc645cdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412778
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- doc/go1.21.html | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/net/http/request.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

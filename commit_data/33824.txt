@@ -1,14 +1,15 @@
-commit 31f8ca51fcaa961254ecb580a2fd63c11b43fc2e
-Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
-Date:   Thu Dec 7 14:05:08 2017 +0300
+commit 1a3230f281e2ad7a35f7f81a5e6bae291b8e6245
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 9 22:41:30 2017 +0200
 
-    net/http: use correct method name in Server.ServeTLS docs
+    internal/cpu: add support for x86 FMA cpu feature detection
     
-    Closes #23028
-    
-    Change-Id: I469f1ab2dee9151334b38e0d3a22eb9840c8807b
-    Reviewed-on: https://go-review.googlesource.com/82495
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I88ea39de01b07e6afa1c187c0df6a258da4aa8e4
+    Reviewed-on: https://go-review.googlesource.com/62650
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/cpu/cpu.go     | 1 +
+ src/internal/cpu/cpu_x86.go | 1 +
+ 2 files changed, 2 insertions(+)

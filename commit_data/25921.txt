@@ -1,14 +1,19 @@
-commit ee177279a00398d7a986fbaa1db527845c6a888b
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Sun Aug 16 14:59:23 2015 +0200
+commit 70d558be8ff98c4d4eaa1ee78bf6ce6ad813ea5b
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri Dec 4 00:41:44 2015 +0530
 
-    misc/cgo: fix wrong quote character
+    misc/cgo/testsanitizers: check linux major/minor versions
     
-    Single quotes to not expand variables inside of them.
+    Fix a typo in de5b386; using `$ver` to determine linux major/minor
+    versions would produce those for clang, use `$linuxver` instead.
     
-    Change-Id: I4a0622c0aebfc1c3f9d299f93f7a8253893b5858
-    Reviewed-on: https://go-review.googlesource.com/13661
+    Updates #12898.
+    
+    Change-Id: I2c8e84ad02749fceaa958afd65e558bb0b08dddb
+    Reviewed-on: https://go-review.googlesource.com/17323
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcshared/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testsanitizers/test.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

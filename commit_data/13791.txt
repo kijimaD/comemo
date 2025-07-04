@@ -1,12 +1,16 @@
-commit 4c60f974b1917084773397142cda961a96328589
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Sep 11 14:06:34 2012 +1000
+commit 56e1384aa03d65da705a15d165c34d1c0405a8eb
+Author: Brian Slesinskya <skybrian@google.com>
+Date:   Tue Sep 11 11:38:47 2012 +1000
 
-    misc/cgo/life: disable it temporarily on windows, because go builder fails
+    doc css: topbar sticks to the top of large windows.
+    Rationale: for large screens, the convenience of not having to scroll
+    to the top of the page to do a search outweighs having less vertical
+    space.
+    Tested with Chrome, Firefox, Safari with various window and text sizes.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6506096
+    R=adg
+    CC=gobot, golang-dev
+    https://golang.org/cl/6493071
 
- src/run.bat | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ doc/style.css | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,35 +1,20 @@
-commit 4f915911e84819b69329a224d5b646983ac9fed7
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 26 14:07:35 2020 -0700
+commit 5756808ce8eb6f6af99aa8d3e5a125ce7d1b8544
+Author: martin <martin@zaber.com>
+Date:   Thu Dec 12 16:03:04 2019 -0800
 
-    cmd/compile: allow aliases to go:notinheap types
+    runtime: do not exit(2) if a Go built DLL receives a signal
     
-    The alias doesn't need to be marked go:notinheap. It gets its
-    notinheap-ness from the target type.
+    Fixes #35965
     
-    Without this change, the type alias test in the notinheap.go file
-    generates these two errors:
-    
-    notinheap.go:62: misplaced compiler directive
-    notinheap.go:63: type nih must be go:notinheap
-    
-    The first is a result of go:notinheap pragmas not applying
-    to type alias declarations.
-    The second is the result of then trying to match the notinheap-ness
-    of the alias and the target type.
-    
-    Add a few more go:notinheap tests while we are here.
-    
-    Update #40954
-    
-    Change-Id: I067ec47698df6e9e593e080d67796fd05a1d480f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250939
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I172501fc0b29595e59b058f6e30f31efe5f6d1f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211139
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/notinheap.go                        |  8 ++++++++
- test/notinheap2.go                       | 10 +++++++---
- 3 files changed, 16 insertions(+), 4 deletions(-)
+ src/runtime/os_windows.go                      |  6 +-
+ src/runtime/signal_windows_test.go             | 87 ++++++++++++++++++++++++++
+ src/runtime/testdata/testwinlibsignal/dummy.go | 10 +++
+ src/runtime/testdata/testwinlibsignal/main.c   | 50 +++++++++++++++
+ 4 files changed, 152 insertions(+), 1 deletion(-)

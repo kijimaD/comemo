@@ -1,18 +1,35 @@
-commit d0a978f5b503028bb9c34944edb59e52c4070f6f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 8 11:44:09 2017 +1100
+commit 54ec7b072e017f7351f889f9f5b31bbf53a44119
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 30 20:30:38 2016 -0400
 
-    cmd/link: reorder pe sections
+    runtime: access modules via a slice
     
-    dwarf writing code assumes that dwarf sections follow
-    .data and .bss, not .ctors. Make pe section writing code
-    match that assumption.
+    The introduction of -buildmode=plugin means modules can be added to a
+    Go program while it is running. This means there exists some time
+    while the program is running with the module is on the moduledata
+    linked list, but it has not been initialized to the satisfaction of
+    other parts of the runtime. Notably, the GC.
     
-    For #10776.
+    This CL adds a new way of access modules, an activeModules function.
+    It returns a slice of modules that is built in the background and
+    atomically swapped in. The parts of the runtime that need to wait on
+    module initialization can use this slice instead of the linked list.
     
-    Change-Id: I128c3ad125f7d0db19e922f165704a054b2af7ba
-    Reviewed-on: https://go-review.googlesource.com/36980
+    Fixes #17455
+    
+    Change-Id: I04790fd07e40c7295beb47cea202eb439206d33d
+    Reviewed-on: https://go-review.googlesource.com/32357
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/cgocall.go  |  4 ++--
+ src/runtime/cgocheck.go |  2 +-
+ src/runtime/iface.go    |  4 ++--
+ src/runtime/mbitmap.go  |  6 +++---
+ src/runtime/mgc.go      |  4 ----
+ src/runtime/mgcmark.go  |  8 ++++----
+ src/runtime/plugin.go   |  5 ++---
+ src/runtime/proc.go     |  7 ++++---
+ src/runtime/runtime1.go | 11 ++++++-----
+ src/runtime/symtab.go   | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/type.go     |  7 +++----
+ 11 files changed, 74 insertions(+), 31 deletions(-)

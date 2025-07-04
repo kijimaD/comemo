@@ -1,28 +1,25 @@
-commit d32b4798f844882d20920b7e75e9a889d3d0036c
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Jun 9 22:59:48 2023 +0800
+commit d734203e393745626d2c705aaf433b210d86c241
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Sep 9 08:43:10 2022 +0800
 
-    runtime: improve performance of empty map with interface key type
+    reflect: deprecate SliceHeader and StringHeader
     
-    name                            old time/op    new time/op    delta
-    MegEmptyMapWithInterfaceKey-10    15.5µs ± 0%     0.0µs ± 0%  -99.97%  (p=0.000 n=20+16)
+    As discussed in CL 401434 there are substantial misuses of these in the
+    wild, and they are a potential source of unsafety even for code that
+    does not use them directly.
     
-    name                            old alloc/op   new alloc/op   delta
-    MegEmptyMapWithInterfaceKey-10     0.00B          0.00B          ~     (all equal)
+    Since proposal #53003 has already been implemented, now is the right
+    time to deprecate reflect.{SliceHeader, StringHeader}.
     
-    name                            old allocs/op  new allocs/op  delta
-    MegEmptyMapWithInterfaceKey-10      0.00           0.00          ~     (all equal)
+    For #53003.
     
-    Change-Id: I46248223100e98b7877464da640075d272c14802
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502075
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I724cf46d4b22d2ed3cbf2b948e6aac5ee4bf0f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428757
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/alg.go                |  68 ++++++++++++++++
- src/runtime/map.go                |  12 +--
- src/runtime/map_benchmark_test.go |   9 +++
- src/runtime/map_test.go           | 163 ++++++++++++++++++++++++++++++++++++++
- 4 files changed, 246 insertions(+), 6 deletions(-)
+ src/reflect/value.go | 4 ++++
+ 1 file changed, 4 insertions(+)

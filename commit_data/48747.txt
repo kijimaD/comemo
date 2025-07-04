@@ -1,18 +1,22 @@
-commit ff14e844d26090e09aa335d836f737c09a7a0402
-Author: Maxime Soulé <zeptomax@gmail.com>
-Date:   Thu Mar 17 17:01:24 2022 +0100
+commit db7c868307c87c5e9338e1cb0b5738eb96a929ad
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 09:54:40 2021 -0700
 
-    net/http/httptest: allow multiple fields be present in one Trailer field
+    [dev.typeparams] test: add string quoting support to test/run.go
     
-    Fixes #51761
+    This CL copies go/build's splitQuoted function (used for parsing #cgo
+    directives within `import "C"` preambles) to parse test recipe
+    commands. In particular, this now allows writing "build" and "run"
+    tests that use -gcflags to pass multiple compiler flags.
     
-    Change-Id: Ibaa17076ba51b666e25333e78180b8c7c4c940ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393616
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I0d18a9c13a4ce24bbdfa1da8662c0498c93a6762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327275
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/http/httptest/recorder.go      | 24 +++++++++++++-----------
- src/net/http/httptest/recorder_test.go |  3 +--
- 2 files changed, 14 insertions(+), 13 deletions(-)
+ test/run.go                                  |  68 ++++++++++++++-
+ test/typeparam/dictionaryCapture-noinline.go | 126 +++++++++++++++++++++++++++
+ test/typeparam/dictionaryCapture.go          |   2 -
+ 3 files changed, 193 insertions(+), 3 deletions(-)

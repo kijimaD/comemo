@@ -1,0 +1,15 @@
+commit de9fdc7b7154a1ddd73cb44292cdd65f4f56029a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 13 09:56:13 2025 -0800
+
+    syscall/js: adjust comments to that gofmt does not change them
+    
+    Change-Id: Ic410375987c0f376d0a975e5a6284de10f08b741
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642495
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/js/js.go | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

@@ -1,16 +1,17 @@
-commit e3beabdb8fadf1d2204bfd1c999391d5aa562114
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 3 12:56:53 2018 -0700
+commit 1b69d19a422830a5a2c043df36330f30b3df445e
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Jan 24 12:27:59 2018 -0800
 
-    cmd/compile: regenerate ssa ops
+    database/sql: fix TestConversions when count > 1
     
-    Must have been missed in a previous CL.
+    Provide a fresh conversion table for TestConversions as it gets
+    modified on each test.
     
-    Change-Id: I303736e82585be8d58b330235c76ed4b24a92952
-    Reviewed-on: https://go-review.googlesource.com/111259
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6e2240d0c3455451271a6879e994b82222c3d44c
+    Reviewed-on: https://go-review.googlesource.com/89595
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/opGen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/convert_test.go | 243 ++++++++++++++++++++-------------------
+ 1 file changed, 123 insertions(+), 120 deletions(-)

@@ -1,29 +1,17 @@
-commit 4c55774304e5c6aecae55839ca34981acccebd85
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 17:16:52 2017 -0700
+commit 69182885d9bbb6329be0583ab190521d0d1fc6da
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Apr 17 21:09:56 2017 +0200
 
-    archive/tar: re-implement USTAR path splitting
+    misc/ios: fix the Test386EndToEnd test on iOS
     
-    The logic for USTAR was disabled because a previous implementation of
-    Writer had a wrong understanding of the differences between USTAR and GNU,
-    causing the prefix field is incorrectly be populated in GNU files.
+    Some tests need the src/runtime/textflag.h file. Make sure it is
+    included in iOS test runs.
     
-    Now that this issue has been fixed, we can re-enable the logic for USTAR
-    path splitting, which allows Writer to use the USTAR for a wider range
-    of possible inputs.
-    
-    Updates #9683
-    Updates #12594
-    Updates #17630
-    
-    Change-Id: I9fe34e5df63f99c6dd56fee3a7e7e4d6ec3995c9
-    Reviewed-on: https://go-review.googlesource.com/55574
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I5e0e7ebe85679686ef15a7d336f28ac9b68a587a
+    Reviewed-on: https://go-review.googlesource.com/40915
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/common.go                     |   8 +++++---
- src/archive/tar/testdata/ustar.issue12594.tar | Bin 3072 -> 0 bytes
- src/archive/tar/writer.go                     |  20 +++++++++++++-------
- src/archive/tar/writer_test.go                |  12 +++---------
- 4 files changed, 21 insertions(+), 19 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

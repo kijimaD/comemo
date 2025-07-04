@@ -1,13 +1,15 @@
-commit 538a58bb75ea86be27ba24597c4f45f0e84969ea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 1 13:54:09 2012 -0700
+commit 824b332652b94fea18d1e6cc42e75870b0185f5e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Nov 1 20:52:30 2012 +0100
 
-    misc/cgo/test: changes to pass when using gccgo
+    net: fix race in TestReadWriteDeadline.
     
-    R=golang-dev, rsc
+    Discovered by adding OBLOCK support to race
+    instrumentation.
+    
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6821067
+    https://golang.org/cl/6819067
 
- misc/cgo/test/backdoor/runtime.c       |  2 ++
- misc/cgo/test/backdoor/runtime_gccgo.c | 18 ++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/pkg/net/timeout_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,20 +1,26 @@
-commit 9d1cd0b8816654ac36f2122b52dd8335aae86b26
-Author: Mikhail Mazurskiy <mmazurskiy@gitlab.com>
-Date:   Fri Jun 27 10:52:57 2025 +0000
+commit 16ce8b3925deaeb72541ee96b6ee23a08fc21dea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 28 14:39:56 2024 +0200
 
-    iter: add missing type parameter in doc
+    net: fix lookupHost on Plan 9
     
-    Change-Id: I3816b41227a0c8f8ece77b1e29002df433ccebdb
-    GitHub-Last-Rev: e9e63b4c1b93cde499b15db49c53ff1536fc765c
-    GitHub-Pull-Request: golang/go#74406
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684555
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    CL 532217 added the newDNSError function.
+    
+    However, the implementation was not correct on
+    Plan 9, which lead TestLookupNoSuchHost to fail.
+    
+    This change fixes lookupHost on Plan 9.
+    
+    Fixes #67096.
+    
+    Change-Id: I39271f7d588b19c1b1608f18a24d871460be09cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582236
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/iter/iter.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/lookup_plan9.go | 19 +++++--------------
+ src/net/lookup_test.go  |  4 ++++
+ 2 files changed, 9 insertions(+), 14 deletions(-)

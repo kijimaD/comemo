@@ -1,20 +1,19 @@
-commit 8fb9fa36f5b7cf161d0694fdb418af7c83b946d5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 5 14:32:46 2019 -0400
+commit f7f4eef385f72ee0617bd8b7878c0a71eb4f3d18
+Author: John <johnchristian@hotmail.es>
+Date:   Wed Mar 27 17:30:32 2019 +0000
 
-    cmd/go/internal/get: make the implementation of charsetReader match its comment
+    mime: add javascript module mime type (.mjs)
     
-    The doc comment for charsetReader claims that it supports UTF-8,
-    but in practice it does not: instead, it is never invoked for UTF-8.
+    There are default mime types in this package for handling static content, but there's
+    a new one missing ".mjs"  that is "Content-Type: text/javascript".
     
-    We could update the comment to clarify that fact, but it seems simpler
-    to change the implementation to match the comment.
+    https://developers.google.com/web/fundamentals/primers/modules#mjs
     
-    Change-Id: I39b11395ccef3feff96480b9294e8f2a232728dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189777
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie842ece0cb55770fb6c9eb65f8bfee2ecf7bc624
+    GitHub-Last-Rev: e26d9f76171c987112d5d6db292446819a8393e2
+    GitHub-Pull-Request: golang/go#31071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169502
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/get/discovery.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,27 @@
-commit a5708231ac8ae2a6f8806d2da502608d48bb3d84
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Aug 30 21:11:09 2024 -0700
+commit ee61186b3301bb1c8610c0925fffd89e061909bb
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Jul 29 20:26:00 2023 +0000
 
-    crypto/internal/boring: disable LFS64 interfaces
+    regexp/syntax: accept (?<name>...) syntax as valid capture
     
-    Comment out the definition in the libcrypto I/O code which enables
-    the LFS64 interfaces. We don't use any of the I/O bits and pieces, and
-    it's outside of the FIPS module, and it fixes some breakage in certain
-    scenarios.
+    Currently the only named capture supported by regexp is (?P<name>a).
     
-    Change-Id: Ie6597813726f94e23780b77d907cc1b9ccef36f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609976
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The syntax (?<name>a) is also widely used and there is currently an effort from
+     the Rust regex and RE2 teams to also accept this syntax.
+    
+    Fixes #58458
+    
+    Change-Id: If22d44d3a5c4e8133ec68238ab130c151ca7c5c5
+    GitHub-Last-Rev: 31b50e6ab40cfb0f36df6f570525657d4680017f
+    GitHub-Pull-Request: golang/go#61624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513838
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/boring/build-boring.sh         |   9 +++++++++
- .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2429120 -> 2429120 bytes
- .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 2107832 -> 2107832 bytes
- 3 files changed, 9 insertions(+)
+ src/regexp/syntax/doc.go        |  1 +
+ src/regexp/syntax/parse.go      | 19 ++++++++++++++-----
+ src/regexp/syntax/parse_test.go |  6 ++++++
+ 3 files changed, 21 insertions(+), 5 deletions(-)

@@ -1,20 +1,12 @@
-commit 65983695fb8e3b0ba0859f964ad0a41e3e4ca2c3
-Author: Tyler Bunnell <tylerbunnell@gmail.com>
-Date:   Thu Feb 28 16:09:48 2013 +1100
+commit 062a239046974229a03d13d7e1a7bdedbb247292
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 27 20:55:01 2013 -0800
 
-    misc/dist: handle previous installation
+    cmd/cgo: add implementation comment
     
-    The installer package will now detect a previous installation and warn the user
-    that the previous installation will be deleted. If the user continues, the
-    installer will delete the previous installation and install the package as
-    usual.
-    
-    Fixes #4293.
-    
-    R=adg
+    R=golang-dev, r, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/7427044
+    https://golang.org/cl/7407050
 
- misc/dist/darwin/Distribution       | 8 +++++++-
- misc/dist/darwin/scripts/preinstall | 8 ++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/cgo/doc.go | 263 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 263 insertions(+)

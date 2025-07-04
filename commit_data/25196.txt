@@ -1,15 +1,26 @@
-commit aa487e66f869785837275ee20441a53888a51bb2
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Dec 7 13:45:06 2015 -0800
+commit 50ad3372383a8d47804a213b870eb32e251ca18b
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Oct 5 23:16:51 2015 +0200
 
-    doc: add heading IDs to Code of Conduct
+    runtime: don't use duffcopy on Plan 9
     
-    Fixes #13514
+    In CL 14836, the implementation of duffcopy on amd64
+    was changed to replace the use of the MOVQ instructions
+    by MOVUPS.
     
-    Change-Id: I3903d3926ed4f5d54cfb77209d93c950b832b933
-    Reviewed-on: https://go-review.googlesource.com/17511
-    Reviewed-by: Francesc Campoy Flores <campoy@google.com>
+    However, it broke the build on plan9/amd64, since
+    Plan 9 doesn't allow floating point in note handler.
+    
+    This change disables the use of duffcopy on Plan 9.
+    
+    Fixes #12829.
+    
+    Change-Id: Ifd5b17b17977a1b631b16c3dfe2dc7ab4ad00507
+    Reviewed-on: https://go-review.googlesource.com/15421
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/conduct.html | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/amd64/cgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

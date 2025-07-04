@@ -1,14 +1,15 @@
-commit 6eef2bb5eeb4831a4d61dc2ffb14772e1270e634
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Aug 22 19:50:43 2017 +0900
+commit 3d86d45dd60358636c569e9cf06b23b5e0e04e8a
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Wed Apr 26 23:43:46 2017 +0200
 
-    cmd/link: avoid leaking file in ldshlibsyms
+    build: fail nicely if somebody runs all.bash from a binary tarball package
     
-    Change-Id: If27f7fbf94ede6f9a57f2520aaf75e6506e0b3f8
-    Reviewed-on: https://go-review.googlesource.com/59374
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes golang/go#20008.
+    
+    Change-Id: I7a429490320595fc558a8c5e260ec41bc3a788e2
+    Reviewed-on: https://go-review.googlesource.com/41858
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/all.bash | 4 ++++
+ 1 file changed, 4 insertions(+)

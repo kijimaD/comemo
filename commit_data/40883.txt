@@ -1,17 +1,17 @@
-commit 9f3c2b6d16bd00f77d8c92801425809d4d767baa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 22 13:30:47 2019 -0500
+commit a4c825156d0a3817377a2b7e5b30ab50e11440ab
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Aug 5 10:14:40 2019 -0400
 
-    cmd/go/internal/work: reduce code duplication in buildModeInit by using sys.BuildModeSupported
+    doc/go1.13.html: describe error-value additions
     
-    Updates #34347
+    A brief description at the top the Standard Library section of the
+    changes to support error wrapping.
     
-    Change-Id: I6ea02d4737999bf24f5335508b5ed2352b498122
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208458
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #33365.
+    
+    Change-Id: Id5a3b2fe148d9bfb949f2cfc9e5d8a1613a0e219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188798
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/init.go  | 92 +++++++++++++++------------------------
- src/cmd/internal/sys/supported.go |  5 ---
- 2 files changed, 36 insertions(+), 61 deletions(-)
+ doc/go1.13.html | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

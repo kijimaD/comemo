@@ -1,18 +1,12 @@
-commit 8281f6bd1b02b52c8233fbcc6b54b697896d0155
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Nov 23 09:44:29 2011 -0500
+commit f2c858749a7d5c50c85fad64e7bba2c34ecae3e9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 23 09:38:11 2011 -0500
 
-    crypto/openpgp/packet: fix private key checksum
+    exp/ssh: add simple tcpip.go functional tests
     
-    I misinterpreted http://tools.ietf.org/html/rfc4880#section-5.5.3
-    and implemented the sum of 16-bit values, rather than the 16-bit sum
-    of 8-bit values.
-    
-    Thanks to Szabolcs Nagy for pointing it out.
-    
-    R=bradfitz, r, rsc
+    R=rsc, agl, n13m3y3r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5372091
+    https://golang.org/cl/5385041
 
- src/pkg/crypto/openpgp/packet/private_key.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ src/pkg/exp/ssh/tcpip_func_test.go | 59 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

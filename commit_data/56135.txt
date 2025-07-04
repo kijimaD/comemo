@@ -1,17 +1,35 @@
-commit 7e9894449e8a12157a28a4a14fc9341353a6469c
-Author: Andy Pan <i@andypan.me>
-Date:   Thu Apr 4 16:40:52 2024 +0800
+commit 2fcca5d52dd3d23ec2ca3a81e588e0f9d877ca69
+Author: root <vishwanatha.hd@ibm.com>
+Date:   Sat Apr 1 18:36:57 2023 +0000
 
-    internal/poll: eliminate the redundant conditional branch for isKernelVersionGE53
+    syscall: add a Go directive "go:nocheckptr" to forkAndExecInChild1
     
-    Follow up CL 573755
+    forkAndExecInChild1 func must not acquire any locks in child, because
+    they might have been locked at the time of the fork. This implies to
+    no rescheduling, no malloc calls, and no new stack segments.
     
-    Change-Id: I27c7571d3ef1274cf2c6892e678f946f9b65de33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576416
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    So, doing a "checkptrAlignment" is bad here, because checkptr
+    functions added by the instrumentation could grow the stack, which
+    should not be done between fork and exec calls.
+    
+    Hence using a Go directive "go:nocheckptr" to forkAndExecInChild1
+    func,so that the compiler should not do "checkptrAlignment" when
+    functions marked with "go:norace".
+    
+    This race detection bug was caught in go 1.21 on s390x.
+    Running a "./race.bash" script from "go/src" directory failed and the
+    bug details are provided in issue link mentioned below.
+    
+    Fixes #58785
+    
+    Change-Id: I254091368b0789d886acdf26f8aa8d8f5a986b24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481415
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/copy_file_range_linux.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/syscall/exec_linux.go | 1 +
+ 1 file changed, 1 insertion(+)

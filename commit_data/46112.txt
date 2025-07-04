@@ -1,17 +1,17 @@
-commit 19585826fa52d0580724be91f610db54727c74f0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Aug 22 12:11:02 2021 -0700
+commit 9b8c27255893faf01e82227164a59baad1ff0011
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 2 18:25:19 2020 -0800
 
-    math/big: clarified doc string for SetMantExp
+    reflect: document multiple keys in struct tags
     
-    Fixes #47879.
+    For #40281
+    Fixes #42959
     
-    Change-Id: I35efb5fc65c4f1eb1b45918f95bbe1ff4039950e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344249
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ibc4769fda1592a1373ec720ea30baf319c0a0136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274448
+    Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/math/big/float.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/reflect/type.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

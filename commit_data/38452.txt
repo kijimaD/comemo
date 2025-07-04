@@ -1,40 +1,27 @@
-commit d949d0b9252be1fffeadd65183a6bab3acf3de7a
-Author: Keith Randall <khr@google.com>
-Date:   Tue Feb 5 16:22:38 2019 -0800
+commit db82a1bc12c54f1b6d32a3d41c4422605b16b7e8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 5 18:11:02 2018 +0000
 
-    cmd/compile: reorganize init functions
+    runtime: sysUsed spans after trimming
     
-    Instead of writing an init function per package that does the same
-    thing for every package, just write that implementation once in the
-    runtime. Change the compiler to generate a data structure that encodes
-    the required initialization operations.
+    Currently, we mark a whole span as sysUsed before trimming, but this
+    unnecessarily tells the OS that the trimmed section from the span is
+    used when it may have been scavenged, if s was scavenged. Overall,
+    this just makes invocations of sysUsed a little more fine-grained.
     
-    Reduces cmd/go binary size by 0.3%+.  Most of the init code is gone,
-    including all the corresponding stack map info. The .inittask
-    structures that replace them are quite a bit smaller.
+    It does come with the caveat that now heap_released needs to be managed
+    a little more carefully in allocSpanLocked. In this case, we choose to
+    (like before this change) negate any effect the span has on
+    heap_released before trimming, then add it back if the trimmed part is
+    scavengable.
     
-    Most usefully to me, there is no longer an init function in every -S output.
-    (There is an .inittask global there, but it's much less distracting.)
+    For #14045.
     
-    After this CL we could change the name of the "init.ializers" function
-    back to just "init".
-    
-    Update #6853
-    
-    R=go1.13
-    
-    Change-Id: Iec82b205cc52fe3ade4d36406933c97dbc9c01b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161337
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ifa384d989611398bfad3ca39d3bb595a5962a3ea
+    Reviewed-on: https://go-review.googlesource.com/c/140198
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/init.go  | 236 +++++++----------------------------
- src/cmd/link/internal/ld/data.go     |   2 +-
- src/cmd/link/internal/ld/deadcode.go |   4 +-
- src/plugin/plugin_dlopen.go          |  16 +--
- src/runtime/panic.go                 |   4 -
- src/runtime/proc.go                  |  48 +++++--
- test/fixedbugs/issue29919.dir/a.go   |   4 +-
- test/init.go                         |   4 +-
- 8 files changed, 98 insertions(+), 220 deletions(-)
+ src/runtime/mheap.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

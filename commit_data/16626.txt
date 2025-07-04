@@ -1,14 +1,15 @@
-commit b78aaec22feac690e3327d5153870560d88403ee
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Jun 24 13:18:50 2013 -0700
+commit bd105b2bcafc3b8d4e5a17608da33f31d6486946
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 24 23:51:00 2013 +0400
 
-    net/rpc: call client.Close() when test exit
+    runtime/pprof: disable testing under race detector
+    until we decide what to do with issues 5659/5736.
+    Profiling with race detector is not very useful in general,
+    and now it makes race builders red.
     
-    Fixes #5768.
-    
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10503043
+    https://golang.org/cl/10523043
 
- src/pkg/net/rpc/server_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/runtime/pprof/pprof_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

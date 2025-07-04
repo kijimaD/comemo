@@ -1,18 +1,19 @@
-commit 0df08b955371b7953350a834fd27c594fc45fe73
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:53:41 2022 -0500
+commit 2bb7f6b4f1e5ffd90d7ea00a653d7407f496d639
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 17 17:17:41 2021 -0800
 
-    cmd/vet: use testenv.Command instead of exec.Command in tests
+    doc/go1.18: point to spec in same directory for release notes
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    The release notes explicitly refer to sections updated
+    for generics in the spec but then point to the old spec
+    which is very confusing for beta users.
     
-    Change-Id: I973be280cd0a7f495b491bfb0e04771389562e04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450711
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    For #47694
+    
+    Change-Id: I5b555db3543cc32f088a8b267ec3f1195a52a812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373174
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/vet_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

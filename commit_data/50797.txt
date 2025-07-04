@@ -1,21 +1,21 @@
-commit c318f191e45e3496f8afe0a456337e9f76d7f7b4
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jun 14 16:13:51 2022 -0500
+commit 23f653df963ddf3ae618290edbb0c55530fcf483
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 13:36:23 2021 -0800
 
-    cmd/link: optimize PPC64 inline plt sequences if local
+    cmd/compile/internal/types2: remove structuralString in favor of inlined code
     
-    Indirect branches are much more expensive than direct. If the call is
-    known to be local, we can replace most of the operations with a nop,
-    and call directly.
+    structuralString was used only in one place (for built-in copy).
+    Remove it in favor of custom and more efficient inlined code.
     
-    Updates #53345
+    Follow-up on feedback received for CL 363075.
     
-    Change-Id: Icfff9ec1f6c7f8e4181f0f28976033308d2f53eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412715
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic5857c47255c5c712be7971aae4542fef9960fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363154
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ppc64/asm.go | 70 +++++++++++++++++++++++++++++++-------
- 1 file changed, 58 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 21 ++++++++++++++++++++-
+ src/cmd/compile/internal/types2/type.go     | 24 ------------------------
+ 2 files changed, 20 insertions(+), 25 deletions(-)

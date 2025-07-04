@@ -1,29 +1,26 @@
-commit 1b896bff30c7622e6d26a1fd30a73d964a860481
-Author: jchen038 <mfwinds@gmail.com>
-Date:   Tue Nov 29 00:05:54 2022 -0800
+commit 0750107074c39f7b846515de47c2857cbdb7e3d6
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jun 29 13:08:11 2022 -0400
 
-    cmd/go/internal/modload: replace import error message from goroot to std
+    go/token: use atomics not Mutex for last file cache
     
-    When importing a package that does not exist, it would show goroot error
-    message and path. We would like to replace goroot with std instead.
+    Previously, FileSet would cache the last *File found by a lookup,
+    using a full (exclusive) mutex within FileSet.File, turning a logical
+    read operation into an update. This was one of the largest sources
+    of contention in gopls.  This change uses atomic load/store on the
+    'last' field without a mutex.
     
-    Fixes #56965.
+    Also, in FileSet.AddFile, allocate the File outside the critical
+    section; all the other operations are typically cheap.
     
-    Change-Id: I86f8a7fab6555b68f792a3a4686de20d51eced8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453895
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #53507
+    
+    Change-Id: Ice8641650d8495b25b0428e9b9320837ff2ca7e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411909
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/modload/import.go               |  2 +-
- src/cmd/go/testdata/script/cmd_import_error.txt     |  4 ++--
- src/cmd/go/testdata/script/mod_get_replaced.txt     |  2 +-
- src/cmd/go/testdata/script/mod_goroot_errors.txt    | 10 +++++-----
- src/cmd/go/testdata/script/mod_issue35270.txt       |  2 +-
- src/cmd/go/testdata/script/mod_load_missing_std.txt |  2 +-
- src/cmd/go/testdata/script/mod_tidy_error.txt       |  4 ++--
- src/cmd/go/testdata/script/mod_vendor.txt           |  2 +-
- src/go/build/build_test.go                          |  4 ++--
- 9 files changed, 16 insertions(+), 16 deletions(-)
+ src/go/token/position.go  | 34 +++++++++++++++++++---------------
+ src/go/token/serialize.go |  2 +-
+ 2 files changed, 20 insertions(+), 16 deletions(-)

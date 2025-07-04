@@ -1,25 +1,66 @@
-commit 448246adff7feb868d66cfde82b36fcfd0e66b75
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 18 17:43:15 2016 -0700
+commit 42ad1dc01ef1677131b7a823772faaf40f6109a4
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Mon Mar 21 14:51:28 2016 +0100
 
-    cmd/compile: don't exit early because of hidden error messages
+    compress/flate: add pure huffman deflater
     
-    Non-syntax errors are always counted to determine if to exit
-    early, but then deduplication eliminates them. This can lead
-    to situations which report "too many errors" and only one
-    error is shown.
+    Add a "HuffmanOnly" compression level, where the input is
+    only entropy encoded.
     
-    De-duplicate non-syntax errors early, at least the ones that
-    appear consecutively, and only count the ones actually being
-    shown. This doesn't work perfectly as they may not appear in
-    sequence, but it's cheap and good enough.
+    The output is fully inflate compatible. Typical compression
+    is reduction is about 50% of typical level 1 compression, however
+    the compression time is very stable, and does not vary as much as
+    nearly as much level 1 compression (or Snappy).
     
-    Fixes #14136.
+    This mode is useful for:
+     * HTTP compression in a CPU limited environment.
+     * Entropy encoding Snappy compressed data, for archiving, etc.
+     * Compression where compression time needs to be predictable.
+     * Fast network transfer.
     
-    Change-Id: I7b11ebb2e1e082f0d604b88e544fe5ba967af1d7
-    Reviewed-on: https://go-review.googlesource.com/23259
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Snappy "usually" performs inbetween this and level 1 compression-wise,
+    but at the same speed as "Huffman", so this is not a replacement,
+    but a good supplement for Snappy, since it usually can compress
+    Snappy output further.
+    
+    This is implemented as level -2, since this would be too much of a
+    compression reduction to replace level 1.
+    
+    >go test -bench=Encode -cpu=1
+    BenchmarkEncodeDigitsHuffman1e4            30000             52334 ns/op         191.08 MB/s
+    BenchmarkEncodeDigitsHuffman1e5             3000            518343 ns/op         192.92 MB/s
+    BenchmarkEncodeDigitsHuffman1e6              300           5356884 ns/op         186.68 MB/s
+    BenchmarkEncodeDigitsSpeed1e4               5000            324214 ns/op          30.84 MB/s
+    BenchmarkEncodeDigitsSpeed1e5                500           3952614 ns/op          25.30 MB/s
+    BenchmarkEncodeDigitsSpeed1e6                 30          40760350 ns/op          24.53 MB/s
+    BenchmarkEncodeDigitsDefault1e4             5000            387056 ns/op          25.84 MB/s
+    BenchmarkEncodeDigitsDefault1e5              300           5950614 ns/op          16.80 MB/s
+    BenchmarkEncodeDigitsDefault1e6               20          63842195 ns/op          15.66 MB/s
+    BenchmarkEncodeDigitsCompress1e4            5000            391859 ns/op          25.52 MB/s
+    BenchmarkEncodeDigitsCompress1e5             300           5707112 ns/op          17.52 MB/s
+    BenchmarkEncodeDigitsCompress1e6              20          59839465 ns/op          16.71 MB/s
+    BenchmarkEncodeTwainHuffman1e4             20000             73498 ns/op         136.06 MB/s
+    BenchmarkEncodeTwainHuffman1e5              2000            595892 ns/op         167.82 MB/s
+    BenchmarkEncodeTwainHuffman1e6               200           6059016 ns/op         165.04 MB/s
+    BenchmarkEncodeTwainSpeed1e4                5000            321212 ns/op          31.13 MB/s
+    BenchmarkEncodeTwainSpeed1e5                 500           2823873 ns/op          35.41 MB/s
+    BenchmarkEncodeTwainSpeed1e6                  50          27237864 ns/op          36.71 MB/s
+    BenchmarkEncodeTwainDefault1e4              3000            454634 ns/op          22.00 MB/s
+    BenchmarkEncodeTwainDefault1e5               200           6859537 ns/op          14.58 MB/s
+    BenchmarkEncodeTwainDefault1e6                20          71547405 ns/op          13.98 MB/s
+    BenchmarkEncodeTwainCompress1e4             3000            462307 ns/op          21.63 MB/s
+    BenchmarkEncodeTwainCompress1e5              200           7534992 ns/op          13.27 MB/s
+    BenchmarkEncodeTwainCompress1e6               20          80353365 ns/op          12.45 MB/s
+    PASS
+    ok      compress/flate  55.333s
+    
+    Change-Id: I8e12ad13220e50d4cf7ddba6f292333efad61b0c
+    Reviewed-on: https://go-review.googlesource.com/20982
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 51 +++++++++++++++++++++----------------
- test/fixedbugs/issue14136.go        | 19 ++++++++++++++
- 2 files changed, 48 insertions(+), 22 deletions(-)
+ src/compress/flate/deflate.go      | 29 +++++++++++++++++++++++++----
+ src/compress/flate/deflate_test.go | 12 +++++++-----
+ src/compress/flate/reader_test.go  |  7 +++++++
+ src/compress/flate/writer_test.go  | 27 +++++++++++++++++----------
+ 4 files changed, 56 insertions(+), 19 deletions(-)

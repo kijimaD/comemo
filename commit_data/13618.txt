@@ -1,15 +1,16 @@
-commit a9d0ff6ead470b565b832e2af29b564e9ac28e65
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Aug 11 21:06:40 2012 -0700
+commit 4f308edc864a87ff4f6f9d6c531733cb1bf100f1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Aug 10 10:05:26 2012 +0800
 
-    go/parser: exit early if source file does not contain text
+    runtime: use sched_getaffinity for runtime.NumCPU() on Linux
+            Fixes #3921.
     
-    Partial fix for issue 3943.
-    
-    R=r
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/6458115
+    https://golang.org/cl/6448132
 
- src/pkg/go/parser/interface.go |  9 +++++++++
- src/pkg/go/parser/parser.go    | 13 +++++++++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/runtime/sys_linux_386.s   |  8 ++++++++
+ src/pkg/runtime/sys_linux_amd64.s |  8 ++++++++
+ src/pkg/runtime/sys_linux_arm.s   |  9 +++++++++
+ src/pkg/runtime/thread_linux.c    | 32 +++++++++++---------------------
+ 4 files changed, 36 insertions(+), 21 deletions(-)

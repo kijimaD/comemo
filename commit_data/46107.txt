@@ -1,23 +1,37 @@
-commit 8fff20ffebadfea2c5c3dd58f7007246f3408495
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 17 19:09:33 2021 +1000
+commit 724374f85985d6ce5e5a8a32b4b9aea22ead6dc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 14:53:38 2020 -0500
 
-    cmd/compile: absorb NEG into branch when possible on riscv64
+    [dev.regabi] cmd/compile: rewrite stale format strings
     
-    We can end up with this situation due to our equality tests being based on
-    'SEQZ (SUB x y)' - if x is a zero valued constant, 'SUB x y' can be converted
-    to 'NEG x'. When used with a branch the SEQZ can be absorbed, leading to
-    'BNEZ (NEG x)' where the NEG is redundant.
+    On ir.Node, ir.Nodes, and ir.Op, # is ignored, so %#v is %v.
+    On ir.Node, %S is the same as %v.
     
-    Removes around 1700 instructions from the go binary on riscv64.
+    On types.Type, # is ignored, so %#L is %L, %#v is %v.
+    On types.Type, 0 is ignored, so %0S is %S.
     
-    Change-Id: I947a080d8bf7d2d6378ab114172e2342ce2c51db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342850
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Rewrite all these using go test cmd/compile -r, plus a
+    few multiline formats mentioning %0S on types updated by hand.
+    
+    Now the formats used in the compiler match the documentation
+    for the format methods, a minor miracle.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I3d4a3fae543145a68da13eede91166632c5b1ceb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275782
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 24 ++++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/compile/fmtmap_test.go           |  7 -------
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/escape.go    |  6 +++---
+ src/cmd/compile/internal/gc/iimport.go   |  4 ++--
+ src/cmd/compile/internal/gc/inl.go       |  6 +++---
+ src/cmd/compile/internal/gc/pgen_test.go |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/unsafe.go    |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ src/cmd/compile/internal/ir/fmt.go       | 28 +++++++++++-----------------
+ 11 files changed, 29 insertions(+), 42 deletions(-)

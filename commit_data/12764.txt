@@ -1,14 +1,16 @@
-commit 9031f952e2b17752f4eb716d4d96575026ce5338
+commit 849ad2d0cac9b3ee97b3d331ca6e556a6073d94d
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 27 12:46:46 2012 +1100
+Date:   Tue Mar 27 12:44:17 2012 +1100
 
-    doc: remove cov and prof from /ref/cmd
+    cmd/godoc: canonicalize custom path redirects
     
-    Update #3400
+    For example, /ref and /doc/reference.html now both redirect to /ref/.
     
-    R=golang-dev, r
+    Fixes #3401.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5921044
+    https://golang.org/cl/5916044
 
- doc/reference-cmd.html | 38 ++++++++++++--------------------------
- 1 file changed, 12 insertions(+), 26 deletions(-)
+ src/cmd/godoc/godoc.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

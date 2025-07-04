@@ -1,0 +1,18 @@
+commit 2b1a15152457a27f99f08c01c0272871fad3f2b7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 7 13:32:13 2024 +0100
+
+    crypto/internal/fips/aes/gcm: add CounterKDF
+    
+    Change-Id: I236f9d8c4637793c1bda39f69573481356f8e362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626436
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/fips/aes/gcm/cmac_test.go   |  17 ----
+ src/crypto/internal/fips/aes/gcm/ctrkdf.go      |  49 ++++++++++
+ src/crypto/internal/fips/aes/gcm/ctrkdf_test.go | 120 ++++++++++++++++++++++++
+ 3 files changed, 169 insertions(+), 17 deletions(-)

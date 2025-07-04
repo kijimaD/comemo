@@ -1,34 +1,28 @@
-commit bd4fff63584df61428fac721fb0c9baf08fe27ad
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 27 10:42:55 2015 -0400
+commit f390135733ae20a3c8b6700426cc379f6e145319
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Sat Apr 25 20:50:21 2015 -0400
 
-    cmd/compile: move ODCLFUNC Node.Nname into Node.Func.Nname
+    net: make go DNS use localhost if resolv.conf is missing or empty
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 168
-    $
+    Per resolv.conf man page, "If this file does not exist, only the name
+    server on the local machine will be queried."
     
-    Change-Id: I7decd950fe068c0f294c6c9bff07ef809c394429
-    Reviewed-on: https://go-review.googlesource.com/10534
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    This behavior also occurs if file is present but unreadable,
+    or if no nameservers are listed.
+    
+    Fixes #10566
+    
+    Change-Id: Id5716da0eae534d5ebfafea111bbc657f302e307
+    Reviewed-on: https://go-review.googlesource.com/9380
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/closure.go   | 44 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/dcl.go       |  6 ++---
- src/cmd/compile/internal/gc/esc.go       |  8 +++---
- src/cmd/compile/internal/gc/go.y         | 18 ++++++-------
- src/cmd/compile/internal/gc/init.go      | 10 ++++----
- src/cmd/compile/internal/gc/inl.go       | 16 ++++++------
- src/cmd/compile/internal/gc/obj.go       |  2 +-
- src/cmd/compile/internal/gc/order.go     |  2 +-
- src/cmd/compile/internal/gc/pgen.go      | 14 +++++-----
- src/cmd/compile/internal/gc/plive.go     | 12 ++++-----
- src/cmd/compile/internal/gc/popt.go      |  6 ++---
- src/cmd/compile/internal/gc/racewalk.go  |  8 +++---
- src/cmd/compile/internal/gc/reg.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      | 24 ++++++++---------
- src/cmd/compile/internal/gc/syntax.go    |  1 +
- src/cmd/compile/internal/gc/typecheck.go |  8 +++---
- src/cmd/compile/internal/gc/walk.go      | 22 ++++++++--------
- src/cmd/compile/internal/gc/y.go         | 18 ++++++-------
- 18 files changed, 111 insertions(+), 110 deletions(-)
+ src/net/conf.go                | 13 +++-----
+ src/net/conf_test.go           | 74 ++++++++++++++++++++++++++++++++----------
+ src/net/dnsclient_unix.go      | 27 ++++++---------
+ src/net/dnsclient_unix_test.go | 41 +++++++++++++----------
+ src/net/dnsconfig_unix.go      | 22 +++++++++----
+ src/net/dnsconfig_unix_test.go | 25 ++++++++++++--
+ src/net/error_test.go          |  6 ----
+ src/net/net.go                 |  1 +
+ 8 files changed, 134 insertions(+), 75 deletions(-)

@@ -1,31 +1,15 @@
-commit 3fda3765b8691de51d62ef6d68ce772f4eb0c601
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Sep 19 17:36:57 2017 -0400
+commit 32d42fb6ec5421f0c64fe7f7ffec0b9e7956e1ea
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 8 10:58:20 2017 +1000
 
-    cmd/compile: fix regression in PPC64.rules move zero
+    compress/lzw: don't follow code == hi if last is invalid.
     
-    When a MOVDstorezero (8 bytes) is used the offset field
-    in the instruction must be a multiple of 4. This situation
-    had been corrected in the rules for other types of stores
-    but not for the zero case.
+    Fixes #20597.
     
-    This also removes some of the special MOVDstorezero cases since
-    they can be handled by the general LowerZero case.
-    
-    Updates made to the ssa test for lowering zero moves to
-    include cases where the target is not aligned to at least 4.
-    
-    Fixes #21947
-    
-    Change-Id: I7cceceb1be4898c77cd3b5e78b58dce0a7e28edd
-    Reviewed-on: https://go-review.googlesource.com/64970
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iaa059277c02e80a2fbef59cf8bb3c58d2b90fda0
+    Reviewed-on: https://go-review.googlesource.com/45111
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- .../compile/internal/gc/testdata/gen/zeroGen.go    |  63 ++++++
- src/cmd/compile/internal/gc/testdata/zero.go       | 216 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/PPC64.rules       |  58 ++----
- src/cmd/compile/internal/ssa/rewritePPC64.go       | 172 +++++-----------
- 4 files changed, 350 insertions(+), 159 deletions(-)
+ src/compress/lzw/reader.go      |  2 +-
+ src/compress/lzw/reader_test.go | 71 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)

@@ -1,19 +1,14 @@
-commit 6592456feb7a9f934e82f2fde1ef2b395eaa44f8
+commit a22389ec38dd57df86236feee47404c5b01ce191
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Dec 30 12:01:53 2012 -0500
+Date:   Sat Dec 29 21:48:25 2012 -0500
 
-    cmd/gc: do not generate code for var _ = ... unless necessary
+    runtime: say 'fatal error' instead of 'throw'
     
-    Fixes #2443.
+    Fixes #4597.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/6997048
+    https://golang.org/cl/7032043
 
- src/cmd/gc/go.h    |   1 +
- src/cmd/gc/init.c  |   4 ++
- src/cmd/gc/sinit.c |   7 ++++
- src/cmd/gc/walk.c  | 111 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- test/golden.out    |   6 +--
- test/sinit.go      |  10 +++++
- 6 files changed, 133 insertions(+), 6 deletions(-)
+ src/pkg/runtime/panic.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

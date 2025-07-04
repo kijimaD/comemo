@@ -1,22 +1,20 @@
-commit 0f08dd21831a71292dc306cfc05e28a3a9d73786
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 19:02:52 2016 -0400
+commit 47b04228858e9a4a767acd12a029e59d582f3ba1
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Feb 24 11:58:57 2016 -0800
 
-    runtime: add s390x support (modified files only)
+    os: fix tests on brillo
     
-    Change-Id: Ib79ad4a890994ad64edb1feb79bd242d26b5b08a
-    Reviewed-on: https://go-review.googlesource.com/20945
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Not every Android contains the /system/framework directory, e.g. Brillo.
+    Test against other Android-only system files.
+    
+    Fixes #14489.
+    
+    Change-Id: I6d9ec1c4d4ceba3803798015e6917d59cf515de8
+    Reviewed-on: https://go-review.googlesource.com/19904
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Run-TryBot: Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgocall.go           | 6 +++---
- src/runtime/extern.go            | 2 +-
- src/runtime/gcinfo_test.go       | 2 +-
- src/runtime/hash64.go            | 2 +-
- src/runtime/noasm.go             | 2 +-
- src/runtime/os1_linux_generic.go | 1 +
- src/runtime/os2_linux_generic.go | 1 +
- src/runtime/runtime-gdb_test.go  | 2 +-
- src/runtime/unaligned1.go        | 2 +-
- 9 files changed, 11 insertions(+), 9 deletions(-)
+ src/os/os_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

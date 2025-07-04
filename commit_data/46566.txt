@@ -1,22 +1,29 @@
-commit 24c2ee7b6578c683a608c3d8c41fe626d50e6b61
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Sep 22 09:37:12 2021 -0500
+commit 106aa941dfda45d4aa5235b12317124aaf8941a0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 9 23:12:56 2021 -0800
 
-    cmd/compile: enable reg args and add duffcopy support on ppc64x
+    [dev.typeparams] cmd/compile: refactor DWARF scope marking
     
-    This adds support for duffcopy on ppc64x and updates the
-    ssa/config.go file to enable register args and recognize
-    the duffDevice is available on ppc64x.
+    This CL extracts and simplifies noder's DWARF scope tracking code to
+    make it easier for reuse by irgen.
     
-    Change-Id: Ifc472cc9cc19c9a80e468fb52078c75f7dd44d36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351490
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    The previous code tried to be really clever about avoid recording
+    multiple scope boundaries at the same position (as happens at the end
+    of "if" and "for" statements). I had a really hard time remember how
+    this code worked exactly, so I've reimplemented a simpler algorithm
+    that just tracks all scope marks, and then compacts them at the end
+    before saving them to the ir.Func.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ibeb37997b77dc5179360d7db557c82ae1682e127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282918
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/config.go |   5 +-
- src/cmd/internal/obj/ppc64/a.out.go    |   4 +-
- src/runtime/duff_ppc64x.s              | 518 ++++++++++++++++++++++++---------
- src/runtime/mkduff.go                  |  12 +-
- 4 files changed, 399 insertions(+), 140 deletions(-)
+ src/cmd/compile/internal/dwarfgen/marker.go | 94 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/noder.go     | 79 +++++++++---------------
+ 2 files changed, 123 insertions(+), 50 deletions(-)

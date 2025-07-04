@@ -1,17 +1,64 @@
-commit 8b6ef69e239ac9abbb187915dbd345c0406435ec
+commit 7a7c0ffb478847a0711f6b829a615ef4eea5dc67
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 15 20:00:57 2014 -0500
+Date:   Sat Feb 15 10:58:55 2014 -0500
 
-    cmd/gc: avoid pointer beyond array in range loop
+    cmd/gc: correct liveness for fat variables
     
-    This problem was discovered by reading the code.
-    I have not seen it in practice, nor do I have any ideas
-    on how to trigger it reliably in a test. But it's still worth
-    fixing.
+    The VARDEF placement must be before the initialization
+    but after any final use. If you have something like s = ... using s ...
+    the rhs must be evaluated, then the VARDEF, then the lhs
+    assigned.
     
-    TBR=ken2
+    There is a large comment in pgen.c on gvardef explaining
+    this in more detail.
+    
+    This CL also includes Ian's suggestions from earlier CLs,
+    namely commenting the use of mode in link.h and fixing
+    the precedence of the ~r check in dcl.c.
+    
+    This CL enables the check that if liveness analysis decides
+    a variable is live on entry to the function, that variable must
+    be a function parameter (not a result, and not a local variable).
+    If this check fails, it indicates a bug in the liveness analysis or
+    in the generated code being analyzed.
+    
+    The race detector generates invalid code for append(x, y...).
+    The code declares a temporary t and then uses cap(t) before
+    initializing t. The new liveness check catches this bug and
+    stops the compiler from writing out the buggy code.
+    Consequently, this CL disables the race detector tests in
+    run.bash until the race detector bug can be fixed
+    (golang.org/issue/7334).
+    
+    Except for the race detector bug, the liveness analysis check
+    does not detect any problems (this CL and the previous CLs
+    fixed all the detected problems).
+    
+    The net test still fails with GOGC=0 but the rest of the tests
+    now pass or time out (because GOGC=0 is so slow).
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/64370046
+    https://golang.org/cl/64170043
 
- src/cmd/gc/range.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ include/link.h     |  2 +-
+ src/cmd/5g/cgen.c  | 15 +++++++---
+ src/cmd/5g/ggen.c  | 18 +++++++----
+ src/cmd/5g/peep.c  |  2 ++
+ src/cmd/5g/reg.c   |  2 ++
+ src/cmd/6g/cgen.c  | 18 ++++++++---
+ src/cmd/6g/ggen.c  | 18 +++++++----
+ src/cmd/6g/peep.c  |  4 +++
+ src/cmd/6g/reg.c   |  2 ++
+ src/cmd/8g/cgen.c  | 15 +++++++---
+ src/cmd/8g/ggen.c  | 18 +++++++----
+ src/cmd/8g/peep.c  |  4 +++
+ src/cmd/8g/reg.c   |  2 ++
+ src/cmd/gc/dcl.c   |  2 +-
+ src/cmd/gc/gen.c   | 86 ++++++++++++++++++++++++++++++++++-------------------
+ src/cmd/gc/pgen.c  | 54 +++++++++++++++++++++++++++++++++
+ src/cmd/gc/plive.c | 87 +++++++++++++++++++++---------------------------------
+ src/run.bash       |  3 +-
+ test/live.go       | 12 ++++++++
+ test/live1.go      | 28 ++++++++++++++----
+ 20 files changed, 272 insertions(+), 120 deletions(-)

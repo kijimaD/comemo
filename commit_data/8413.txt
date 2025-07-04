@@ -1,14 +1,12 @@
-commit ff1093852faa2515751880bb98763858f613df97
-Author: Rob Pike <r@golang.org>
-Date:   Mon May 16 15:17:17 2011 -0700
+commit aea17570c08561c3c455ed9f92beb19aa06f97e3
+Author: Gary Burd <gary@beagledreams.com>
+Date:   Mon May 16 17:48:00 2011 -0400
 
-    GIF: support decoding of interlaced images.
+    net: sort records returned by LookupSRV
     
-    R=nigeltao
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4535073
+    https://golang.org/cl/4518061
 
- src/pkg/image/decode_test.go                    |   1 +
- src/pkg/image/gif/reader.go                     |  47 +++++++++++++++++++++---
- src/pkg/image/testdata/video-001.interlaced.gif | Bin 0 -> 14142 bytes
- 3 files changed, 43 insertions(+), 5 deletions(-)
+ src/pkg/net/dnsclient.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 49 insertions(+), 1 deletion(-)

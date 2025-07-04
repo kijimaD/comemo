@@ -1,19 +1,20 @@
-commit 7b296625e478658cfbd43fd09e30dde01992ba6f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 26 12:52:31 2024 -0800
+commit 6f87db509a929026ff48a47180f4ec832afc4a86
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 23 18:45:06 2023 -0400
 
-    doc/next: add notes for new #cgo annotations
+    go/types: fix (*T)(nil)-to-interface conversion bug
     
-    Fixes #56378
+    A nil *gcSizes pointer should be converted to a nil Sizes interface.
     
-    Change-Id: Ibeaa5aa67e017be0da8797e4c87abf2ee0249db8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632015
+    Updates #63701
+    
+    Change-Id: I62e00fecf303ce0ae529f1a75c14c7ef2576a58f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537255
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/next/3-tools.md | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/types2/gcsizes.go | 3 ++-
+ src/cmd/compile/internal/types2/sizes.go   | 6 ++++--
+ src/go/types/gcsizes.go                    | 3 ++-
+ src/go/types/sizes.go                      | 6 ++++--
+ 4 files changed, 12 insertions(+), 6 deletions(-)

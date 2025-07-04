@@ -1,22 +1,28 @@
-commit 526b2f85ce8e4b1b16f3122e0a5700c04b6de199
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Nov 21 18:23:12 2016 -0500
+commit fdc167164ecde259bd356cc8e7ae5ccb0903469c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 27 13:42:28 2016 -0700
 
-    runtime/internal/atomic: crash on unaligned 64-bit ops on 32-bit MIPS
+    runtime: remove sigmask type, use sigset instead
     
-    This check was originally implemented by Vladimir in
-    https://go-review.googlesource.com/c/31489/1/src/runtime/internal/atomic/atomic_mipsx.go#30
-    but removed due to my comment (Sorry!). This CL adds it back.
+    The OS-independent sigmask type was not pulling its weight. Replace it
+    with the OS-dependent sigset type. This requires adding an OS-specific
+    sigaddset function, but permits removing the OS-specific sigmaskToSigset
+    function.
     
-    Fixes #17786.
-    
-    Change-Id: I7ff4c2539fc9e2afd8199964b587a8ccf093b896
-    Reviewed-on: https://go-review.googlesource.com/33431
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I43307b512b0264ec291baadaea902f05ce212305
+    Reviewed-on: https://go-review.googlesource.com/29950
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/internal/atomic/atomic_mipsx.go | 6 +++++-
- src/runtime/internal/atomic/atomic_test.go  | 4 ++--
- src/sync/atomic/atomic_test.go              | 4 ++--
- 3 files changed, 9 insertions(+), 5 deletions(-)
+ src/runtime/os3_solaris.go      |  6 ++----
+ src/runtime/os_darwin.go        |  4 ++--
+ src/runtime/os_dragonfly.go     |  6 ++----
+ src/runtime/os_freebsd.go       |  6 ++----
+ src/runtime/os_linux_generic.go | 10 ++--------
+ src/runtime/os_linux_mips64x.go | 10 ++--------
+ src/runtime/os_linux_s390x.go   |  8 ++------
+ src/runtime/os_netbsd.go        |  6 ++----
+ src/runtime/os_openbsd.go       |  4 ++--
+ src/runtime/signal_unix.go      | 39 ++++++++++++---------------------------
+ 10 files changed, 30 insertions(+), 69 deletions(-)

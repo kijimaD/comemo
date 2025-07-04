@@ -1,31 +1,36 @@
-commit 198c3cb785282ee4c199680ec2d05381805a6f66
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Dec 11 15:42:06 2024 -0500
+commit 4f0408a3a205a88624dced4b188e11dd429bc3ad
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Mar 21 20:39:28 2024 +0000
 
-    std: pass bytes.Buffer and strings.Builder by pointer
+    net/http: use slices to simplify the code
     
-    This CL fixes a number of (all true positive) findings of vet's
-    copylock analyzer patched to treat the Bu{ff,uild}er types
-    as non-copyable after first use.
+    "strSliceContains" is replaced by "slices.Contains".
     
-    This does require imposing an additional indirection
-    between noder.writer and Encoder since the field is
-    embedded by value but its constructor now returns a pointer.
+    Replace "sort.Strings" with "slices.Sort" since it becomes a wrapper
+    of "slices.Sort" from Go 1.22.
     
-    Updates golang/go#25907
-    Updates golang/go#47276
+    "headerSorter" no longer has to implement "sort.Interface".
+    We use "slice.SortFunc" to sort kvs.
     
-    Change-Id: I0b4d77ac12bcecadf06a91709e695365da10766c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635339
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic29b4c3db147c16079575eca7ad6ff6c0f581188
+    GitHub-Last-Rev: 78221d5aa223a259a89860b672f39a34897df253
+    GitHub-Pull-Request: golang/go#66440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573275
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/bytes/buffer_test.go                 |  2 +-
- src/cmd/compile/internal/noder/linker.go | 16 ++++++++--------
- src/cmd/compile/internal/noder/writer.go |  2 +-
- src/compress/flate/inflate_test.go       |  4 ++--
- src/internal/pkgbits/encoder.go          |  6 +++---
- src/runtime/pprof/pprof_test.go          |  4 ++--
- 6 files changed, 17 insertions(+), 17 deletions(-)
+ src/net/http/client.go             |  4 ++--
+ src/net/http/export_test.go        |  8 ++++----
+ src/net/http/header.go             | 12 +++---------
+ src/net/http/main_test.go          |  4 ++--
+ src/net/http/routing_index_test.go |  5 ++---
+ src/net/http/routing_tree_test.go  |  5 ++---
+ src/net/http/server.go             | 17 ++++-------------
+ src/net/http/transfer.go           |  4 ++--
+ 8 files changed, 21 insertions(+), 38 deletions(-)

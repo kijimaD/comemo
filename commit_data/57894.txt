@@ -1,34 +1,38 @@
-commit 72801623cbe4cedcb3334d31fa44ff31914a26d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 30 19:23:47 2024 -0400
+commit d2024a091d545909e53a04ce40c1dbf9513819e6
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 11 12:42:12 2023 -0400
 
-    cmd/link/internal/ld: fix sort comparison
+    cmd/compile/internal/inline: extend flag calculation via export data
     
-    Strictly speaking, the sort comparison was inconsistent
-    (and therefore invalid) for the sort-by-name case, if you had
+    Extend the code that computes various properties and parameter flags
+    to incorporate information from export data in addition to things we
+    can get from the current package. Specifically:
     
-            a size 0
-            b size 1
-            c size 0
-            zerobase
+     - when deciding whether the current function always calls panic/exit,
+       check to see whether it has an unconditional call to some other
+       function that has that flag.
     
-    That would result in the inconsistent comparison ordering:
+     - when computing "parameter feeds" properties, look not just for
+       cases where a parameter feeds an interesting construct (if/switch,
+       indirect/interface call, etc) but where it feeds a call whose
+       corresponding param has that flag.
     
-            a < b (by name)
-            b < c (by name)
-            c < zerobase (by zerobase rule)
-            zerobase < b (by zerobase rule)
+     - when computing return properties, if a given return is always the
+       results of a call to X, then set the return properties to those
+       of X.
     
-    This can't happen today because we only disable size-based
-    sort in a segment that has no zerobase symbol, but it's
-    confusing to reason through that, so clean up the code anyway.
+    Updates #61502.
     
-    Passes golang.org/x/tools/cmd/toolstash/buildall.
-    
-    Change-Id: I21e4159cdedd2053952ba960530d1b0f28c6fb24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625615
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6472fe98759cccad05b8eed58e4fc568201d88ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511563
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/internal/ld/data.go | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  14 ++
+ .../internal/inline/inlheur/analyze_func_flags.go  |   8 +-
+ .../internal/inline/inlheur/analyze_func_params.go | 114 +++++++++++--
+ .../inline/inlheur/analyze_func_returns.go         | 104 +++++++++---
+ .../internal/inline/inlheur/funcprops_test.go      |   8 +-
+ .../inline/inlheur/testdata/props/acrosscall.go    | 189 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/funcflags.go     |   9 +
+ 7 files changed, 398 insertions(+), 48 deletions(-)

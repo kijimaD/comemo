@@ -1,22 +1,16 @@
-commit 5acec489a1987bd2f3d342f63d02e08d546f0fc3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 10:31:03 2020 -0400
+commit 9a2db7c41ba5b1f9498d5354e6c2570610f626fb
+Author: kadern0 <kaderno@gmail.com>
+Date:   Sun Mar 22 17:33:52 2020 +1100
 
-    go/build: add Package.IgnoredOtherFiles
+    cmd/compile: remove unused isIntOrdering method
     
-    Just like it is useful to report ignored .go files,
-    it is also useful to report ignored non-.go files.
+    Fixes #37989
     
-    Also, remove _* and .* files from IgnoredGoFiles.
-    The fact that they were there at all was a mistake.
-    This list is for files being ignored due to build constraints.
-    
-    Change-Id: Ie08252dde9f56bda08647e7ebeab7906e9271c54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240551
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Iabf86529fde3be9a98222b7e8d09ff8301cf8830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224777
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/build.go | 111 +++++++++++++++++++++++++++-----------------------
- 1 file changed, 61 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 10 ----------
+ 1 file changed, 10 deletions(-)

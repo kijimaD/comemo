@@ -1,22 +1,21 @@
-commit 9e7c5030d064395e24a25dd1a81722f5583defcf
-Author: Nick Craig-Wood <nick@craig-wood.com>
-Date:   Wed Oct 19 17:26:33 2022 +0100
+commit d2f4c935f2e247dd9949094c8a4f3ab8df2ba3a0
+Author: Alan Donovan <alan@alandonovan.net>
+Date:   Wed Nov 17 12:54:22 2021 -0500
 
-    math/bits: note that functions here may be compiler intrinsics
+    runtime/cgo: add example of Handle with void* parameter
     
-    It was noted in the go1.9 release notes that functions in math/bits
-    may be implemented by compiler intrinsics, but this never made it to
-    the documentation.
+    Fixes #49633
     
-    This change adapts the wording of the release notes and puts it in the
-    documentation for math/bits.
-    
-    Change-Id: Ibeea88eaf7df10952cbe670885e910ac30b49d55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444035
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I12ca350f7dd6bfc8753a4a169f29b89ef219b035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364774
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/math/bits/bits.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ misc/cgo/test/cgo_test.go |  1 +
+ misc/cgo/test/test.go     |  5 +++++
+ misc/cgo/test/testx.go    | 25 +++++++++++++++++++++++++
+ src/runtime/cgo/handle.go | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 66 insertions(+)

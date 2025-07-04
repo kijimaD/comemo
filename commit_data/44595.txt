@@ -1,28 +1,19 @@
-commit a1a3d33b0dbd42ab91b04ba19bbee48b55427d58
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Mar 1 15:18:12 2021 -0500
+commit 12d40adac46b5c771247a789205f7893bfd808b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 10 12:21:41 2020 -0700
 
-    cmd/go: test remote lookup of packages with leading dots in path elements
+    test: add test for conversion of untyped bool to interface
     
-    Follow-up to CL 297530.
+    gccgo miscompiled this case.
     
-    For #43985
-    For #34992
+    Updates #40152
     
-    Change-Id: I2cfa6c41c013e627c3464c383ca42f5c9ebe521a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297634
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8448c155e802e39d8fc7cda4930ce62cb6363ce5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242000
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- src/cmd/go/internal/modload/query.go               | 18 +++++++-
- src/cmd/go/proxy_test.go                           |  2 +-
- .../go/testdata/mod/example.com_dotname_v1.0.0.txt | 12 +++++
- .../testdata/script/mod_invalid_path_dotname.txt   | 46 +++++++++++++++++++
- .../go/testdata/script/mod_invalid_path_plus.txt   | 14 +++---
- src/cmd/vendor/golang.org/x/mod/module/module.go   | 52 +++++++++++++++-------
- src/cmd/vendor/modules.txt                         |  2 +-
- 9 files changed, 126 insertions(+), 26 deletions(-)
+ test/fixedbugs/issue40152.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,29 +1,17 @@
-commit c7fa66179b51bc90612f564f2cb3afbc1b21d511
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Jan 10 10:57:16 2022 -0600
+commit acb189ea59d7f47e5db075e502dcce5eac6571dc
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Mon Apr 12 17:19:03 2021 +0800
 
-    test: workaround SIGILL on issue11656 on aix
+    net/http: make ReadRequest return an error when requests have multiple Host headers
     
-    For some reason, aix sometimes executes the bogus function body. This
-    should never happen as it lives in a no-execute section. It might be
-    a transient permission blip as the heap grows.
+    Fixes #45513
     
-    Add a small function to cleanup and synchronize the icache before
-    jumping to the bogus function to ensure it causes a panic, not SIGILL.
-    
-    Fixes #44583
-    
-    Change-Id: Iadca62d82bfb70fc62088705dac42a880a1208fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377314
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I59e717a4bbd3e71320deff519e4f9587ee5c8756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308952
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue11656.dir/asm.go         | 10 ++++
- test/fixedbugs/issue11656.dir/asm_generic.go | 11 ++++
- test/fixedbugs/issue11656.dir/asm_ppc64.s    | 13 +++++
- test/fixedbugs/issue11656.dir/asm_ppc64le.s  | 13 +++++
- test/fixedbugs/issue11656.dir/issue11656.go  | 75 ++++++++++++++++++++++++++
- test/fixedbugs/issue11656.go                 | 81 +++-------------------------
- 6 files changed, 129 insertions(+), 74 deletions(-)
+ src/net/http/request.go      | 22 +++++++++++-----------
+ src/net/http/request_test.go |  4 ++++
+ src/net/http/server.go       |  5 +----
+ 3 files changed, 16 insertions(+), 15 deletions(-)

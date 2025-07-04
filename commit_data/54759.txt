@@ -1,17 +1,20 @@
-commit da2d7e92caed6ef7bb33b837bbe4d4934f799ad0
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Oct 17 15:21:15 2023 -0400
+commit f02bc56d299e9cd7c264333488695fa70ddc937b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 9 10:45:50 2022 -0500
 
-    misc: drop old +build lines
+    doc/go1.20: add release notes for cmd/go changes
     
-    This is all there was outside of the src and test top-level directories.
+    Updates #41696.
+    Updates #50332.
+    Updates #41583.
     
-    Change-Id: Id29b1c92cab7087681f89504e861a47dc30ba834
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536238
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I99e96a2996f14da262570a5cb5273dcdce45df2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449075
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- misc/ios/detect.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.20.html | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

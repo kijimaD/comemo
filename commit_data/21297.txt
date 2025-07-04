@@ -1,14 +1,12 @@
-commit e12b1ddc9908602c7307d27a40c5b11529db6200
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Jan 18 20:05:44 2015 -0500
+commit 62eb6fef6ed28d1a967ec7b3f28aa42ecc9770b7
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 18 17:34:19 2014 -0500
 
-    fmt: reword the document for [n].
+    cmd/ld: add fallthrough comment
     
-    Fixes #9632.
-    
-    Change-Id: Ic4d7cad8ff62023c1beecd2d62e48eb9258f5306
-    Reviewed-on: https://go-review.googlesource.com/3013
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia6739c164575751a63cc0d4d41d1f6887fbbaee3
+    Reviewed-on: https://go-review.googlesource.com/1803
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/fmt/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/elf.c | 1 +
+ 1 file changed, 1 insertion(+)

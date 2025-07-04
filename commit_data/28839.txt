@@ -1,23 +1,31 @@
-commit 7a7ea01c65e8366af277b956dc8ccf0601727172
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 15 16:56:51 2016 +0100
+commit 69a755b6020e20b7c424628e9c1ba4e28d311373
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 8 11:26:25 2016 -0700
 
-    syscall, net: make deadline changes affect blocked read/write calls on nacl
+    [dev.ssa] cmd/compile: port SSA backend to amd64p32
     
-    Flesh out nacl's fake network system to match how all the other
-    platforms work: all other systems' SetReadDeadline and
-    SetWriteDeadline affect currently-blocked read & write calls.
-    This was documented in golang.org/cl/30164 because it was the status
-    quo and existing packages relied on it. (notably the net/http package)
+    It's not a new backend, just a PtrSize==4 modification
+    of the existing AMD64 backend.
     
-    And add a test.
-    
-    Change-Id: I074a1054dcabcedc97b173dad5e827f8babf7cfc
-    Reviewed-on: https://go-review.googlesource.com/31178
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icc63521a5cf4ebb379f7430ef3f070894c09afda
+    Reviewed-on: https://go-review.googlesource.com/25586
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/net_test.go     | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/syscall/net_nacl.go | 44 +++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 89 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |   6 +-
+ src/cmd/compile/internal/gc/ssa.go           |   8 +-
+ src/cmd/compile/internal/ssa/config.go       |  11 +
+ src/cmd/compile/internal/ssa/decompose.go    |   4 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  97 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  13 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  31 +
+ src/cmd/compile/internal/ssa/opt.go          |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go     |  10 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 875 ++++++++++++++++++++++++++-
+ test/live.go                                 |   2 +-
+ test/live_ssa.go                             |   2 +-
+ test/nilptr3.go                              |   2 +-
+ test/nilptr3_ssa.go                          |   2 +-
+ test/sliceopt.go                             |   2 +-
+ 15 files changed, 999 insertions(+), 68 deletions(-)

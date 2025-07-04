@@ -1,0 +1,18 @@
+commit eb7ab11aafc6bcffcb49cd4fc51307dfee7a321b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 17 16:16:53 2025 +0100
+
+    crypto/internal/hpke: propagate hkdf error value
+    
+    The hkdf operations done in hpke are not expected to fail given that
+    we control the inputs. However, propagating the error instead of
+    doesn't hurt and makes the code more robust to future changes.
+    
+    Change-Id: I168854593a40f67e2cc275e0dedc3b24b8f1480e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658475
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/internal/hpke/hpke.go | 64 ++++++++++++++++++++++++----------------
+ 1 file changed, 39 insertions(+), 25 deletions(-)

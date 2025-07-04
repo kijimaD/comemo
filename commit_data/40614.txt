@@ -1,20 +1,19 @@
-commit 6dc250f456e078b213cee0f1099e915aa0d4d4d9
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Tue Nov 5 16:31:05 2019 +0100
+commit e9073ef809895740b3e3876148af808c51c016d5
+Author: ng0 <ng0@n0.is>
+Date:   Wed Jun 5 22:01:40 2019 +0000
 
-    cmd/link: fix the size of typerel.* with c-archive buildmode
+    cmd/go: accept -Wl,-R/path/
     
-    With buildmode=c-archive, "runtime.types" type isn't STYPE but
-    STYPERELRO.
-    On AIX, this symbol is present in the symbol table and not under
-    typerel.* outersymbol. Therefore, the size of typerel.* must be adapted.
+    Fixes #32167
     
-    Fixes #35342
-    
-    Change-Id: Ib982c6557d9b41bc3d8775e4825650897f9e0ee6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205338
+    Change-Id: If1277789ac96363430045e73e49d008bdae9be79
+    GitHub-Last-Rev: 71c9435c8417b19faaf66dc2e08740d7a9c22e3b
+    GitHub-Pull-Request: golang/go#32171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178397
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/xcoff.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/security.go      | 4 ++++
+ src/cmd/go/internal/work/security_test.go | 8 ++++++++
+ 2 files changed, 12 insertions(+)

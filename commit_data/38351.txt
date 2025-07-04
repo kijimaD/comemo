@@ -1,28 +1,27 @@
-commit 810809ebc2e2c834da9656e4b52bb3a7d6089502
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sat Mar 9 02:30:35 2019 +0100
+commit b171b281386670713acf3d5a696b1f520b60798e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 16:19:18 2018 +0200
 
-    misc/android: copy less from GOROOT to the device
+    cmd/link: add new loading package for XCOFF files
     
-    The android emulator builders is running out of space after CL 165797
-    copied most of GOROOT to the device.
-    The pkg directory is by far the largest, so only include what seems
-    necessary to build the x/ repositories: pkg/android_$GOARCH and
-    pkg/tool/android_$GOARCH.
+    This commit adds the new package cmd/link/internal/loadxcoff.
     
-    While here, rename the device root directory to match the exec
-    wrapper name and make sure the deferred cleanups actually run before
-    os.Exit.
+    It also adds a new symbol kind in cmd/link/internal/sym package, which
+    aims to represent TOC entries for XCOFF files.
     
-    Hopefully fixes the emulator builders.
+    cmd/dist is updated to add this new package and cmd/internal/xcoff during
+    the bootstrap.
     
-    Updates #23824
+    Updates: #25893
     
-    Change-Id: I4d1e3ab2c89fd1e5818503d323ddb87f073094da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166397
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I42b6578cf0ba4cc28ad4aa98122a91ab1d1bbf6e
+    Reviewed-on: https://go-review.googlesource.com/c/138728
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/android/go_android_exec.go | 147 ++++++++++++++++++++++++++++------------
- 1 file changed, 103 insertions(+), 44 deletions(-)
+ src/cmd/dist/buildtool.go                   |   1 +
+ src/cmd/link/internal/loadxcoff/ldxcoff.go  | 225 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/sym/symkind.go        |   1 +
+ src/cmd/link/internal/sym/symkind_string.go |   4 +-
+ 4 files changed, 229 insertions(+), 2 deletions(-)

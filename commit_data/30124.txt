@@ -1,15 +1,23 @@
-commit e62aab1274c25364fe8c4609c17cb0d8e57b78d0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 6 23:33:21 2017 -0800
+commit 6b0f668044b7a8dd5d2360426cbcf6bd6785374d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 4 16:03:00 2016 -0400
 
-    spec: clarify alignment of arrays
+    runtime: consolidate h_spans and mheap_.spans
     
-    Fixes #18950.
+    Like h_allspans and mheap_.allspans, these were two ways of referring
+    to the spans array from when the runtime was split between C and Go.
+    Clean this up by making mheap_.spans a slice and eliminating h_spans.
     
-    Change-Id: I9f94748f36a896bcadc96f0642eb1f3bff387950
-    Reviewed-on: https://go-review.googlesource.com/36481
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3aa7038d53c3a4252050aa33e468c48dfed0b70e
+    Reviewed-on: https://go-review.googlesource.com/30532
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/cgocheck.go |  2 +-
+ src/runtime/malloc.go   |  4 +--
+ src/runtime/mbitmap.go  |  2 +-
+ src/runtime/mfinal.go   |  2 +-
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/mheap.go    | 65 +++++++++++++++++++++++--------------------------
+ 6 files changed, 37 insertions(+), 40 deletions(-)

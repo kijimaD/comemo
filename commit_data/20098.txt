@@ -1,23 +1,18 @@
-commit 41fc05d02357b8681b7a5adfbaedf315328d309e
-Author: Rob Pike <r@golang.org>
-Date:   Sun Aug 24 11:34:12 2014 -0700
+commit c5e648d684312b979e243077f909a798adbf6e5b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 15 22:36:12 2014 +0400
 
-    cmd/go: add go generate
-    First cut.
+    runtime: fix getgcmask
+    bv.data is an array of uint32s but the code was using
+    offsets computed for an array of bytes.
+    Add a test for stack GC info.
+    Fixes #8531.
     
-    Works well enough to support yacc via
-            https://golang.org/cl/125620044.
-    
-    LGTM=alex.brainman, rsc
-    R=rsc, alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/125580044
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/124450043
 
- src/cmd/go/doc.go                     |  93 +++++++++-
- src/cmd/go/generate.go                | 340 ++++++++++++++++++++++++++++++++++
- src/cmd/go/main.go                    |   1 +
- src/cmd/go/test.bash                  |  27 +++
- src/cmd/go/testdata/generate/test1.go |  13 ++
- src/cmd/go/testdata/generate/test2.go |  10 +
- src/cmd/go/testdata/generate/test3.go |   9 +
- 7 files changed, 491 insertions(+), 2 deletions(-)
+ src/pkg/runtime/gcinfo_test.go | 58 ++++++++++++++++++++++++++++--------------
+ src/pkg/runtime/mgc0.c         |  2 +-
+ 2 files changed, 40 insertions(+), 20 deletions(-)

@@ -1,38 +1,19 @@
-commit 96db8cc49e716caefebb7c556c1505d30cc69743
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Oct 4 14:19:05 2024 -0700
+commit e7a1eb066bf6b2e349eeb875ec46561c6928a284
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 17:06:23 2023 -0400
 
-    internal/syscall/unix: add Mkdirat and Readlinkat
+    cmd/compile: move racewalk comment to walk/race.go
     
-    For #67002
+    This comment got left behind in some refactoring and now refers to
+    code "below" that is no longer below. Move it to be with the code it's
+    referring to.
     
-    Change-Id: I460e02db33799c145c296bcf0668fa555199036e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617376
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I7f7bf0cf8b22c1f6e05ff12b8be71d18fb3359d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521177
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
 
- src/internal/syscall/unix/asm_darwin.s            |  2 +
- src/internal/syscall/unix/asm_openbsd.s           |  4 ++
- src/internal/syscall/unix/at.go                   | 41 ++++++++++++++++
- src/internal/syscall/unix/at_aix.go               |  2 +
- src/internal/syscall/unix/at_darwin.go            | 60 +++++++++++++++++++++++
- src/internal/syscall/unix/at_libc.go              | 47 +++++++++++++++++-
- src/internal/syscall/unix/at_openbsd.go           | 51 +++++++++++++++++++
- src/internal/syscall/unix/at_solaris.go           |  2 +
- src/internal/syscall/unix/at_sysnum_dragonfly.go  |  8 +--
- src/internal/syscall/unix/at_sysnum_freebsd.go    |  2 +
- src/internal/syscall/unix/at_sysnum_linux.go      |  8 ++-
- src/internal/syscall/unix/at_sysnum_netbsd.go     | 10 ++--
- src/internal/syscall/unix/at_sysnum_openbsd.go    | 10 ++--
- src/internal/syscall/unix/at_wasip1.go            | 50 +++++++++++++++++++
- src/internal/syscall/unix/syscall.go              |  8 +++
- src/internal/syscall/unix/sysnum_linux_386.go     |  1 +
- src/internal/syscall/unix/sysnum_linux_amd64.go   |  1 +
- src/internal/syscall/unix/sysnum_linux_arm.go     |  1 +
- src/internal/syscall/unix/sysnum_linux_generic.go |  1 +
- src/internal/syscall/unix/sysnum_linux_mips64x.go |  1 +
- src/internal/syscall/unix/sysnum_linux_mipsx.go   |  1 +
- src/internal/syscall/unix/sysnum_linux_ppc64x.go  |  1 +
- src/internal/syscall/unix/sysnum_linux_s390x.go   |  1 +
- 23 files changed, 301 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/base/base.go | 20 --------------------
+ src/cmd/compile/internal/walk/race.go | 20 ++++++++++++++++++++
+ 2 files changed, 20 insertions(+), 20 deletions(-)

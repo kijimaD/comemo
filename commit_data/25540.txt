@@ -1,12 +1,52 @@
-commit 3dda43c6aa89d72f82e441b83a1d747900e1b12d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 11 11:18:23 2016 -0800
+commit e410a527b208e0a9acd0cded3775b302d8f2b00a
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 7 21:28:21 2015 -0800
 
-    runtime: fix ppc64le cgocallback code
+    runtime: simplify chan ops, take 2
     
-    Change-Id: I5a4a842cab2173357e8d3e349011c0c2b63be4f9
-    Reviewed-on: https://go-review.googlesource.com/18512
+    This change is the same as CL #9345 which was reverted,
+    except for a small bug fix.
+    
+    The only change is to the body of sendDirect and its callsite.
+    Also added a test.
+    
+    The problem was during a channel send operation.  The target
+    of the send was a sleeping goroutine waiting to receive.  We
+    basically do:
+    1) Read the destination pointer out of the sudog structure
+    2) Copy the value we're sending to that destination pointer
+    Unfortunately, the previous change had a goroutine suspend
+    point between 1 & 2 (the call to sendDirect).  At that point
+    the destination goroutine's stack could be copied (shrunk).
+    The pointer we read in step 1 is no longer valid for step 2.
+    
+    Fixed by not allowing any suspension points between 1 & 2.
+    I suspect the old code worked correctly basically by accident.
+    
+    Fixes #13169
+    
+    The original 9345:
+    
+    This change removes the retry mechanism we use for buffered channels.
+    Instead, any sender waking up a receiver or vice versa completes the
+    full protocol with its counterpart.  This means the counterpart does
+    not need to relock the channel when it wakes up.  (Currently
+    buffered channels need to relock on wakeup.)
+    
+    For sends on a channel with waiting receivers, this change replaces
+    two copies (sender->queue, queue->receiver) with one (sender->receiver).
+    For receives on channels with a waiting sender, two copies are still required.
+    
+    This change unifies to a large degree the algorithm for buffered
+    and unbuffered channels, simplifying the overall implementation.
+    
+    Fixes #11506
+    
+    Change-Id: I57dfa3fc219cffa4d48301ee15fe5479299efa09
+    Reviewed-on: https://go-review.googlesource.com/16740
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_ppc64x.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/chan.go          | 500 ++++++++++++++++++++-----------------------
+ src/runtime/select.go        | 118 +++-------
+ test/fixedbugs/issue13169.go |  49 +++++
+ 3 files changed, 318 insertions(+), 349 deletions(-)

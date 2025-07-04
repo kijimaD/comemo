@@ -1,31 +1,31 @@
-commit ca1e509552cab36072016de44234f30072b9e703
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Mar 18 20:15:15 2022 -0400
+commit dc2cb529a8c9e4b771163be1974ef39d76c3f548
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 27 18:07:36 2021 -0400
 
-    cmd/dist: delete special case for release branches without VERSION
+    [dev.typeparams] runtime: mark assembly functions called directly from compiler ABIInternal
     
-    findgoversion has some logic from before the go1 release that only
-    has effect when on a release branch without a VERSION file.
+    For functions such as gcWriteBarrier and panicIndexXXX, the
+    compiler generates ABIInternal calls directly. And they must not
+    use wrappers because it follows a special calling convention or
+    the caller's PC is used. Mark them as ABIInternal.
     
-    Starting with release-branch.go1 and the go1 tag a decade ago,
-    release branch have always had a VERSION file checked in.
-    (The commit that adds/updates the VERSION file is what is tagged.)
+    Note that even though they are marked as ABIInternal, they don't
+    actually use the internal ABI, i.e. regabiargs is not honored for
+    now.
     
-    Since we have no need to support old branches like release-branch.r60,
-    and such scenarios don't come up in modern Go, delete it to simplify
-    this code a bit. Should the VERSION file situation change, we'd need
-    to rework this code anyway.
+    Now all.bash passes with GOEXPERIMENT=regabiwrappers (at least on
+    macOS).
     
-    Fixes #42345.
-    
-    Change-Id: I13f27babd37aaa5cec30fefde1b8e6ccce816461
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393954
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I87e41964e6dc4efae03e8eb636ae9fa1d99285bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323934
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/dist/build.go | 78 +++++++++++----------------------------------------
- 1 file changed, 17 insertions(+), 61 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go |  4 +-
+ src/runtime/asm_arm64.s            | 78 ++++++++++++++++++++------------------
+ src/runtime/duff_arm64.s           |  4 +-
+ src/runtime/mkduff.go              |  4 +-
+ src/runtime/race_arm64.s           | 16 ++++++--
+ 5 files changed, 60 insertions(+), 46 deletions(-)

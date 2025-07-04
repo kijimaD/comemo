@@ -1,27 +1,19 @@
-commit 07d9ea64abf9f98c525155f4f22776512d4d835d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 28 09:32:00 2020 +1000
+commit 995ade86e3900a9d6b983c2669f9b5761fc349bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 10 21:57:14 2019 -0500
 
-    image: guard against NewXxx integer overflow
+    runtime: enable async preemption on darwin/arm64
     
-    Prior to this commit, NewXxx could panic when passed an image.Rectangle
-    with one of width or height being negative. But it might not panic if
-    both were negative, because (bpp * w * h) could still be positive. After
-    this commit, it will panic if both are negative.
+    The problem should be fixed by the previous CL. Reenable async
+    preemption on darwin/arm64.
     
-    With overflow, NewXxx might not have panicked if (bpp * w * h), the
-    length passed to "make([]uint8, length)", was still non-negative (after
-    truncation), but even if w and h were valid (non-negative), the overall
-    byte slice wasn't long enough. Iterating over the pixels would possibly
-    panic later with index out of bounds. This change moves the panic
-    earlier, closer to where the mistake is.
+    Updates #35439.
     
-    Change-Id: I011feb2d53515fc3f0fe72bb6c23b3953772c577
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230220
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I93e8c4702b4d8fe6abaa6fc9c27def5c8aed1b59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206419
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/image/geom.go       | 35 ++++++++++++++++++
- src/image/image.go      | 96 +++++++++++++++++++++++++++++++++----------------
- src/image/image_test.go | 72 +++++++++++++++++++++++++++++++++++++
- src/image/ycbcr.go      | 20 +++++++++++
- 4 files changed, 193 insertions(+), 30 deletions(-)
+ src/runtime/mkpreempt.go    | 6 ++++++
+ src/runtime/preempt_arm64.s | 3 +++
+ src/runtime/signal_arm64.go | 4 +---
+ 3 files changed, 10 insertions(+), 3 deletions(-)

@@ -1,19 +1,42 @@
-commit b0f7eb6c0dee68c91d622cc5fcba1074626753b3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 22 16:57:58 2021 -0700
+commit 474d5f4f4d0547d1c6d7a14f1ba02afffc4725d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 23:41:23 2021 -0500
 
-    cmd/go: update test script for reformatted error message (fix long builds)
+    math: remove most 387 implementations
     
-    TBR=iant
+    The Surface Pro X's 386 simulator is not completely faithful to a real 387.
+    The most egregious problem is that it computes Log2(8) as 2.9999999999999996,
+    but it has some other subtler problems as well. All the problems occur in
+    routines that we don't even bother with assembly for on amd64.
+    If the speed of Go code is OK on amd64 it should be OK on 386 too.
+    Just remove all the 386-only assembly functions.
     
-    Change-Id: Ic72af52e5ff8d28f8102c07b03e4930df61445ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358115
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This leaves Ceil, Floor, Trunc, Hypot, and Sqrt in 386 assembly,
+    all of which are also in assembly on amd64 and all of which pass
+    their tests on Surface Pro X.
+    
+    Compared to amd64, the 386 port omits assembly for Min, Max, and Log.
+    It never had Min and Max, and this CL deletes Log because Log2 wasn't
+    even correct. (None of the other architectures have assembly Log either.)
+    
+    Change-Id: I5eb6c61084467035269d4098a36001447b7a0601
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291229
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/asin_386.s      | 30 -------------------------
+ src/math/atan2_386.s     | 13 -----------
+ src/math/atan_386.s      | 13 -----------
+ src/math/exp2_386.s      | 40 ---------------------------------
+ src/math/expm1_386.s     | 57 ------------------------------------------------
+ src/math/frexp_386.s     | 25 ---------------------
+ src/math/ldexp_386.s     | 14 ------------
+ src/math/log10_386.s     | 21 ------------------
+ src/math/log1p_386.s     | 27 -----------------------
+ src/math/log_386.s       | 13 -----------
+ src/math/mod_386.s       | 17 ---------------
+ src/math/modf_386.s      | 34 -----------------------------
+ src/math/remainder_386.s | 17 ---------------
+ src/math/stubs_386.s     | 45 ++++++++++++++++++++++++++++++++++++++
+ 14 files changed, 45 insertions(+), 321 deletions(-)

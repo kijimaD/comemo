@@ -1,16 +1,20 @@
-commit f7d473dd33e90e28285fcdbf8876ffbe1caed3a7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 31 15:41:25 2012 -0800
+commit d7c04517a031547ec0e66d3b4e619cbd26d77fcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 18:38:33 2012 -0500
 
-    go/doc: added error, rune to list of predeclared types
+    fmt: fix caching bug in Scan
     
-    Don't throw away factory functions returning error or rune.
+    Black box test is too time-consuming, as the bug
+    does not appear until Scan has processed 2 GB of
+    input in total across multiple calls, so no test.
     
-    Fixes #2820.
+    Thanks to Frederick Mayle for the diagnosis and fix.
     
-    R=rsc
+    Fixes #2809.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5604046
+    https://golang.org/cl/5611043
 
- src/pkg/go/doc/reader.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/fmt/scan.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,17 @@
-commit 64939f62aa70c601820fd6e0bbdd0fae9c6883e8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 1 12:38:43 2023 -0700
+commit 8fd2073694412c0670fef582ec940f4f86416fd6
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:17:40 2022 +0800
 
-    net/rpc: use reflect.TypeFor for known types
+    net: use strings.Builder
     
-    For #60088
-    
-    Change-Id: I56586b68d5e38a46560f4ced19214f1d2db2850e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514995
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3861a73d6b9d1d454c42bec50099b916bf30f1cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428266
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/rpc/server.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/net/lookup_test.go         | 7 +++----
+ src/net/lookup_windows_test.go | 5 ++---
+ 2 files changed, 5 insertions(+), 7 deletions(-)

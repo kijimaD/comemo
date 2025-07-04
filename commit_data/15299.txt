@@ -1,28 +1,22 @@
-commit 6ab113531b49621394dbd274c44bb583ded1dc45
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Tue Feb 19 19:12:36 2013 +1100
+commit 95aaca6708f719e03ab71f553981da2451142ec7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 18 14:40:47 2013 -0800
 
-    exp/cookiejar: store cookies under TLD+1 on nil public suffix list
+    go/types: Pkg *Package field for all objects
     
-    The current implementation would store all cookies received from
-    any .com domain under "com" in the entries map if a nil public
-    suffix list is used in constructing the Jar. This is inefficient.
+    The field is nil for predeclared (universe)
+    objects and parameter/result variables.
     
-    This CL uses the TLD+1 of the domain if the public suffix list
-    is nil which has two advantages:
-     - It uses the entries map efficiently.
-     - It prevents a host foo.com to set cookies for bar.com.
-       (It may set the cookie, but it won't be returned to bar.com.)
-    A domain like www.british-library.uk may still set a domain
-    cookie for .british-library.uk in this case.
-    
-    The behavior for a non-nil public suffix list is unchanged, cookies
-    are stored under eTLD+1 in this case.
-    
-    R=nigeltao
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7312105
+    https://golang.org/cl/7312093
 
- src/pkg/exp/cookiejar/jar.go      | 33 +++++++++++++++++++--------------
- src/pkg/exp/cookiejar/jar_test.go | 21 ++++++++++++++++++---
- 2 files changed, 37 insertions(+), 17 deletions(-)
+ src/pkg/go/types/check.go         | 12 ++++++------
+ src/pkg/go/types/check_test.go    |  1 +
+ src/pkg/go/types/gcimporter.go    | 32 ++++++++++++++++++--------------
+ src/pkg/go/types/objects.go       | 22 +++++++++++++++++-----
+ src/pkg/go/types/resolve.go       |  5 +++--
+ src/pkg/go/types/resolver_test.go |  6 +++---
+ src/pkg/go/types/stmt.go          |  2 +-
+ src/pkg/go/types/universe.go      | 17 +++++++++++++----
+ 8 files changed, 62 insertions(+), 35 deletions(-)

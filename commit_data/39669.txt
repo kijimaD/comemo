@@ -1,22 +1,21 @@
-commit 731e6fc34ec1c99a72ac7c66db7a87786d918edf
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Aug 20 09:03:41 2019 +0000
+commit f54b8909ac93637159e2661f25aef5e61e8cd8fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 09:27:27 2019 -0400
 
-    cmd/compile: generate Select on WASM
+    cmd/go/internal/modload: treat a 'std' module outside GOROOT/src as an ordinary module
     
-    This CL performs the branchelim optimization on WASM with its
-    select instruction. And the total size of pkg/js_wasm decreased
-    about 80KB by this optimization.
+    Fixes #30756
     
-    Change-Id: I868eb146120a1cac5c4609c8e9ddb07e4da8a1d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190957
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I046d43df56faac8fc09d53dc1e87a014dd6d530b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167080
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/branchelim.go  |  2 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  2 ++
- src/cmd/compile/internal/ssa/rewriteWasm.go | 19 +++++++++++++++++++
- test/codegen/condmove.go                    | 11 +++++++++++
- 4 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/import.go         | 25 +++++++-------------
+ src/cmd/go/internal/modload/init.go           | 20 ++++++++++++----
+ src/cmd/go/internal/modload/load.go           | 34 ++++++++++++---------------
+ src/cmd/go/internal/modload/query.go          |  2 +-
+ src/cmd/go/internal/modload/search.go         | 16 ++++---------
+ src/cmd/go/testdata/script/mod_alt_goroot.txt | 20 ++++++++++++++++
+ 6 files changed, 65 insertions(+), 52 deletions(-)

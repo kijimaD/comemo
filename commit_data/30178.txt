@@ -1,14 +1,32 @@
-commit 7853b090dd8e9f02147581c4e7bdbb45021e787c
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 8 09:40:14 2017 -0800
+commit 0d176621d925915152b7b0b332e553b6f0d635e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 26 22:05:20 2016 -0700
 
-    crypto/x509: CreateCertificateRequest reads ExtraExtensions, not Extensions.
+    cmd/compile: reuse sort helpers
     
-    Fixes #18899.
+    sort.Sort's argument always escapes.
+    cse generates many calls to sort.Sort.
+    Set up a single escaping variable
+    and re-use it across loops.
     
-    Change-Id: I6a4bf0aad9cf1dbe6691ba4e4c478fcb33c44528
-    Reviewed-on: https://go-review.googlesource.com/36558
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name       old alloc/op     new alloc/op     delta
+    Template       40.7MB ± 0%      40.2MB ± 0%  -1.24%        (p=0.000 n=15+15)
+    Unicode        33.4MB ± 0%      33.3MB ± 0%  -0.09%        (p=0.000 n=15+15)
+    GoTypes         121MB ± 0%       119MB ± 0%  -1.48%        (p=0.000 n=14+15)
+    Compiler        474MB ± 0%       465MB ± 0%  -1.94%        (p=0.000 n=14+15)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         405k ± 0%        394k ± 0%  -2.64%        (p=0.000 n=15+15)
+    Unicode          350k ± 0%        350k ± 0%  -0.14%        (p=0.000 n=14+15)
+    GoTypes         1.21M ± 0%       1.18M ± 0%  -3.07%        (p=0.000 n=15+14)
+    Compiler        4.37M ± 0%       4.18M ± 0%  -4.39%        (p=0.000 n=15+15)
+    
+    
+    Change-Id: I68cf56dafa0f3ea778826eea19908bd761556154
+    Reviewed-on: https://go-review.googlesource.com/32220
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/cse.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

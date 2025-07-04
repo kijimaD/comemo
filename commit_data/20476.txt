@@ -1,16 +1,13 @@
-commit 84f9c42bbbfb67c2ef78d4a4e19417329d7f8f5a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 20:13:07 2014 -0400
+commit 689dc60c14cd63cb258c050542bcfc0cbc05e914
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 10 22:54:07 2014 -0700
 
-    os: skip TestRemoveAllRace on Windows
+    runtime: add timing test for iterate/delete map idiom.
     
-    It's just fundamentally incompatible with
-    Windows' pickiness about removing things
-    that are in use.
-    
-    TBR=brainman
+    LGTM=bradfitz, iant
+    R=iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/142270043
+    https://golang.org/cl/140510043
 
- src/os/os_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ test/maplinear.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

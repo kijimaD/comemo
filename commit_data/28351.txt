@@ -1,24 +1,18 @@
-commit ee3f3a60070ee9edeb3f10fa2e4b90404068cb3a
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Sep 11 17:14:51 2016 -0700
+commit 6de34e6e25732757b7b40e4053c6ac7fb6d00df4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 18 10:54:20 2016 +0900
 
-    crypto/rsa: ensure that generating toy RSA keys doesn't loop.
+    net: deflake TestLookupPort on Android
     
-    If there are too few primes of the given length then it can be
-    impossible to generate an RSA key with n distinct primes.
+    Looks like some version of Android still fails with "servname not
+    supported for ai_socktype". It probably doesn't support
+    ai_socktype=SOCK_STREAM.
     
-    This change approximates the expected number of candidate primes and
-    causes key generation to return an error if it's unlikely to succeed.
+    Updates #14576.
     
-    Fixes #16596.
-    
-    Change-Id: I53b60d0cb90e2d0e6f0662befa64d13f24af51a7
-    Reviewed-on: https://go-review.googlesource.com/28969
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I77ecff147d5b759e3281b3798c60f150a4aab811
+    Reviewed-on: https://go-review.googlesource.com/23194
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rsa/rsa.go      | 16 ++++++++++++++++
- src/crypto/rsa/rsa_test.go | 11 +++++++++++
- 2 files changed, 27 insertions(+)
+ src/net/lookup_test.go | 61 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 31 insertions(+), 30 deletions(-)

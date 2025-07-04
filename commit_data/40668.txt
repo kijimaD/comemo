@@ -1,15 +1,41 @@
-commit 953cc7490a58fa6b6e5086cc7ca2945b041c30ab
-Author: Keith Randall <khr@google.com>
-Date:   Mon Oct 21 15:03:48 2019 -0700
+commit 82cf8bca9cf20297bc0edf481cc530c9b3f4bf1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 11 13:53:12 2019 -0400
 
-    doc: document new math.Fma function
+    cmd/go: add GOPRIVATE environment variable
     
-    This accidentally got committed - please review the whole paragraph
-    as if it was new.
+    It is too confusing to have to set GONOSUMDB and GONOPROXY
+    in common use cases, but one cannot be guaranteed to be a
+    subset of the other.
     
-    Change-Id: I98e1db4670634c6e792d26201ce0cd329a6928b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202579
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL adds GOPRIVATE, which takes the same kind of pattern list
+    but is defined as "these patterns are private (non-public) modules".
+    Today the implication is that GOPRIVATE is the default setting for
+    GONOSUMDB and GONOPROXY. If there are other accommodations
+    to make for private packages in the future or in other tools,
+    having this clear statement of intent will let us do that.
+    (For example maybe an IDE integration would hyperlink an import
+    path to godoc.org; consulting GOPRIVATE would be a reasonable
+    way to decide not to do that for certain imports. In contrast,
+    consulting GONOPROXY or GONOSUMDB clearly would not.)
+    
+    Fixes #32184.
+    
+    Change-Id: If54c12d353c7a0a5c0e0273764140cce3c154a02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181719
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/go/alldocs.go                        | 252 +++++++++++++++------------
+ src/cmd/go/internal/cfg/cfg.go               |  28 +--
+ src/cmd/go/internal/envcmd/env.go            |   1 +
+ src/cmd/go/internal/help/helpdoc.go          |  15 +-
+ src/cmd/go/internal/modfetch/fetch.go        |  56 +++++-
+ src/cmd/go/internal/modfetch/repo.go         |   4 +-
+ src/cmd/go/internal/modload/help.go          |  15 +-
+ src/cmd/go/main.go                           |   3 +-
+ src/cmd/go/script_test.go                    |   1 +
+ src/cmd/go/testdata/script/mod_gonoproxy.txt |  11 +-
+ 10 files changed, 212 insertions(+), 174 deletions(-)

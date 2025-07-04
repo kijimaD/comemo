@@ -1,30 +1,14 @@
-commit ecfa7375e40e3586afbac0ec6f3f9383124b25bc
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Oct 6 16:01:02 2017 -0400
+commit ee4550440afd4f896dbcfe40c04e7fe11abd5a7b
+Author: Lucas Clemente <lclemente@google.com>
+Date:   Thu Jun 29 10:55:48 2017 +0200
 
-    cmd/link: move ELF reader to its own package
+    doc: note quoted cookie value change in Go 1.9 relnotes
     
-    Along the way, switch to using relocation constants from debug/elf.
+    Fixes #20834.
     
-    For #22095
-    
-    Change-Id: I1a64353619f95dde5aa39060c4b9d001af7dc1e4
-    Reviewed-on: https://go-review.googlesource.com/69013
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic60000db6b8ae489a5cedbdc938d9ca1dc34c6d4
+    Reviewed-on: https://go-review.googlesource.com/47151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/buildtool.go                      |   1 +
- src/cmd/link/internal/amd64/asm.go             |  38 +--
- src/cmd/link/internal/arm/asm.go               |  47 +--
- src/cmd/link/internal/arm64/asm.go             |  21 +-
- src/cmd/link/internal/ld/elf.go                | 432 -------------------------
- src/cmd/link/internal/ld/lib.go                |  10 +
- src/cmd/link/internal/ld/util.go               |   9 -
- src/cmd/link/internal/{ld => loadelf}/ldelf.go | 344 ++++++++++----------
- src/cmd/link/internal/mips/asm.go              |  11 +-
- src/cmd/link/internal/mips64/asm.go            |  13 +-
- src/cmd/link/internal/ppc64/asm.go             |  69 ++--
- src/cmd/link/internal/s390x/asm.go             |  90 +++---
- src/cmd/link/internal/x86/asm.go               |  37 +--
- 13 files changed, 351 insertions(+), 771 deletions(-)
+ doc/go1.9.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

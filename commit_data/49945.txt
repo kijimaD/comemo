@@ -1,18 +1,20 @@
-commit 04d8c2327d5a2788757f22fd0e23198f7045c20f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 16:22:13 2022 +0700
+commit 635e49388bf746a2b8c7ab1e9026aede0eb88b31
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Sep 15 14:36:54 2021 +0100
 
-    runtime: convert kqueue netpollWakeSig to atomic type
+    cmd/cgo: add go:notinheap annotation to Windows handle types
     
-    Updates #53821
+    Fixes #42018
     
-    Change-Id: I85d7444be36967e1e7e0ff2ce2f19b73581ecdde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423880
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I6a40f3effe860e67a45fca2e8ab86f3e9887ffee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350070
+    Trust: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/runtime/netpoll_kqueue.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/test/cgo_test.go           |  1 +
+ misc/cgo/test/issue42018.go         | 14 +++++++
+ misc/cgo/test/issue42018_windows.go | 46 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go                  | 73 +++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go                  |  1 +
+ 5 files changed, 135 insertions(+)

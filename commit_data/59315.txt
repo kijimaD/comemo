@@ -1,22 +1,18 @@
-commit 5ab9d9660412be2887ae5adba6198f029bcbb4a9
-Author: Eric Young <eay@pobox.com>
-Date:   Fri Jun 3 02:22:50 2022 +0000
+commit dff3a00ceaf63385bcde984e1ce7013e0d6ab7c3
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Feb 1 09:07:43 2024 +0800
 
-    crypto/tls: fix a testing deadlock that occurs on a TLS protocol error
+    syscall: call internal/runtime/syscall.Syscall6 in RawSyscall6
     
-    A Go routine was, on an error, returning without sending a message on its
-    signaling channel, so the main program was blocking forever waiting for
-    a message that was never sent. Found while breaking crypto/tls.
+    For #65355
     
-    Change-Id: Id0b3c070a27cabd852f74e86bb9eff5c66b86d28
-    GitHub-Last-Rev: 4d84fb8b556589ec98eba6142a553fbd45683b96
-    GitHub-Pull-Request: golang/go#53216
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410274
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Change-Id: I9168d9a767e3b2ece65ac6dcab6827ab6f6b11bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560136
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/handshake_server_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/runtime/syscall/syscall_linux.go | 23 -----------------------
+ src/syscall/syscall_linux.go                  | 22 +++++++++++++---------
+ 2 files changed, 13 insertions(+), 32 deletions(-)

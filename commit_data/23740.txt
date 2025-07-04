@@ -1,14 +1,35 @@
-commit e28a679216ca78f0f3c7cf91e61251933ed8a5fa
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jul 18 08:42:20 2015 +1000
+commit a44becef4a7e3af238a1546670717c78eb0069db
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 8 16:21:50 2015 -0700
 
-    runtime: make the GC message less committal.
+    cmd/compile: use generated temps in bool codegen
     
-    We shouldn't guarantee this behavior, but suggest it's possible.
+    Bool codegen was generating a temp for function calls
+    and other complex expressions, but was not using it.
     
-    Change-Id: I4c2afb48b99be4d91537306d3337171a13c9990a
-    Reviewed-on: https://go-review.googlesource.com/12346
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    This was a refactoring bug introduced by CL 7853.
+    The cmp code used to do (in short):
+    
+            l, r := &n1, &n2
+    
+    It was changed to:
+    
+            l, r := nl, nr
+    
+    But the requisite assignments:
+    
+            nl, nr = &n1, &n2
+    
+    were only introduced on one of two code paths.
+    
+    Fixes #10654.
+    
+    Change-Id: Ie8de0b3a333842a048d4308e02911bb10c6915ce
+    Reviewed-on: https://go-review.googlesource.com/10844
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/cgen.go |  2 ++
+ test/fixedbugs/issue10654.go        | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

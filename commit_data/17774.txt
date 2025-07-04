@@ -1,14 +1,12 @@
-commit 47bb44fd5bee504cd53e1e9e1d1c36e28a15e94f
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Thu Oct 10 16:30:20 2013 -0400
+commit 139cc96a5718f59867e1a4295a29c46bc38a9a29
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 9 13:28:47 2013 -0700
 
-    misc/emacs: don't treat (foo)(bar) as a function call when preceded by a word character.
+    runtime: markfreed's error reports should be prefixed with "markfreed", not "markallocated".
     
-    Fixes #6531.
-    
-    R=adonovan
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14523043
+    https://golang.org/cl/14441055
 
- misc/emacs/go-mode.el | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

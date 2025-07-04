@@ -1,15 +1,21 @@
-commit 2c35def7efab9b8305487c23cb0575751642ce1e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Jan 24 22:15:19 2024 +0100
+commit 677038f86625447de738831b4be9bca23929787a
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Mon Oct 24 15:46:18 2022 +0000
 
-    net/netip: use Addr.appendTo4In6 in Addr.AppendTo
+    crypto/sha1: use math/bits.RotateLeft32
     
-    Change-Id: Ieb1931c40b37b87fc7d0011461d9f583e73aaff9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557778
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Updates #31456
+    
+    Change-Id: I68e0abfb6771c9b1d1bfcbb642db9eb5540f9cab
+    GitHub-Last-Rev: 17ea697c5c0bbfdfb1ad91c2c60e22f6efc78b43
+    GitHub-Pull-Request: golang/go#49051
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356516
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/netip/netip.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/crypto/sha1/sha1block.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

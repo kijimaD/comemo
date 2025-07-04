@@ -1,27 +1,18 @@
-commit 4725c71b735143a138b24f2b0e055c717d8d69ca
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 14 19:52:00 2022 -0400
+commit 0f75a9ecdf3f320a22e52d9493b879c4a6ddc536
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Nov 19 13:56:24 2021 -0500
 
-    cmd/compile: copy blank parameter node when substituting function type
+    [go] doc: add new bufio functionality
     
-    When a function type is copied (e.g. for substituting type
-    parameters), we make copies of its parameter ir.Name nodes, so
-    they are not shared with the old function type. But currently a
-    blank (_) identifier is not copied but shared. The parameter
-    node's frame offset is assigned (in ABI analysis) and then used in
-    the concurrent backend. Shared node can cause a data race. Make a
-    new blank parameter node to avoid sharing. (Unified IR does already
-    not have this problem. This fixes non-unified-IR mode.)
+    cl/345570
+    cl/345569
     
-    This seems to fix #55357.
-    
-    Change-Id: Ie27f08e5589ac7d5d3f0d0d5de1a21e4fd2765c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443158
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Updates: #47694
+    Change-Id: I170af16d5fc9f022d3d29ed0772cfc3d02b8bbcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365317
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/test/race.go      | 64 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/typecheck/subr.go | 10 ++++-
- 2 files changed, 73 insertions(+), 1 deletion(-)
+ doc/go1.18.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

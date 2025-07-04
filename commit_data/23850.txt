@@ -1,17 +1,17 @@
-commit dff9108d988c3bd1ef323db2938631132f2337fe
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 24 15:38:16 2015 -0400
+commit a2aaede366f9bf6d48e6e42be0a86a843f570097
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 16 11:03:19 2015 -0700
 
-    runtime: make notetsleep_internal nowritebarrier
+    misc/cgo/testshared: make sure rebuilds occur as expected
     
-    When notetsleep_internal is called from notetsleepg, notetsleepg has
-    just given up the P, so write barriers are not allowed in
-    notetsleep_internal.
+    Adjust timestamps in TestABIChecking to make sure that the library and
+    executable are rebuilt when expected.
     
-    Change-Id: I1b214fa388b1ea05b8ce2dcfe1c0074c0a3c8870
-    Reviewed-on: https://go-review.googlesource.com/12647
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3288c254ba8201b5b4255347b0cb056fa0908657
+    Reviewed-on: https://go-review.googlesource.com/11128
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Yves Junqueira <yves.junqueira@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/lock_futex.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ misc/cgo/testshared/shared_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

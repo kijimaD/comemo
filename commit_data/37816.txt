@@ -1,27 +1,14 @@
-commit ae68cf4c53f585f3c4519f9415499e2f465a55f8
-Author: David Chase <drchase@google.com>
-Date:   Wed Jan 2 16:52:49 2019 -0500
+commit a2a8396f530a481ef2d2ad289bee1c741bc7f34e
+Author: Dmitry Neverov <dmitry.neverov@gmail.com>
+Date:   Thu Aug 30 20:58:31 2018 +0200
 
-    cmd/compile: Update ssa/debug_test reference files for delve and gdb
+    html/template: add an example for the Delims method
     
-    Recent changes to compiler backtraces perturbed the line
-    number assignment, some better, some worse, probably net
-    worse.  For purposes of passing the long tests, update the
-    reference files (delve's file was also stale).
-    
-    TODO: Figure out a less delicate way to locate statement
-    boundaries for 1.13.
-    
-    Fixes #29511.
-    
-    Change-Id: If0e488341d848ba6012045b126c86b1250408d65
-    Reviewed-on: https://go-review.googlesource.com/c/156021
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I7ba55e3f6ebbaae41188316a66a40f994c037ad9
+    Reviewed-on: https://go-review.googlesource.com/132240
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts   | 14 ++++++++++++++
- src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts   |  4 ++++
- src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts |  2 +-
- src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts |  1 +
- 4 files changed, 20 insertions(+), 1 deletion(-)
+ src/html/template/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

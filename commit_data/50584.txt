@@ -1,32 +1,35 @@
-commit 7c84234142149bd24a4096c6cab691d3593f3431
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Sep 22 13:32:00 2022 -0700
+commit c702f91b38f98c98a12b9933dce42dbd500e21fd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 1 13:45:21 2021 -0700
 
-    net/http/httputil: avoid query parameter smuggling
+    net: add ReadFromUDPAddrPort
     
-    Query parameter smuggling occurs when a proxy's interpretation
-    of query parameters differs from that of a downstream server.
-    Change ReverseProxy to avoid forwarding ignored query parameters.
+    It is now possible to do completely allocation-free UDP.
     
-    Remove unparsable query parameters from the outbound request
+    This is implemented completely separately from ReadFromUDP
+    because ReadFromUDP exists in a delicate balance to allow
+    mid-stack inlining. After performance-sensitive callers have
+    migrated to ReadFromUDPAddrPort, we may be able to simplify
+    ReadFromUDP to call ReadFromUDPAddrPort.
     
-       * if req.Form != nil after calling ReverseProxy.Director; and
-       * before calling ReverseProxy.Rewrite.
+    name                          old time/op    new time/op    delta
+    WriteToReadFromUDPAddrPort-8    4.71µs ± 2%    4.81µs ± 5%    +2.18%  (p=0.000 n=14+14)
     
-    This change preserves the existing behavior of forwarding the
-    raw query untouched if a Director hook does not parse the query
-    by calling Request.ParseForm (possibly indirectly).
+    name                          old alloc/op   new alloc/op   delta
+    WriteToReadFromUDPAddrPort-8     4.00B ± 0%     0.00B       -100.00%  (p=0.000 n=15+15)
     
-    Fixes #54663
-    Fixes CVE-2022-2880
+    name                          old allocs/op  new allocs/op  delta
+    WriteToReadFromUDPAddrPort-8      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=15+15)
     
-    Change-Id: If1621f6b0e73a49d79059dae9e6b256e0ff18ca9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432976
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I37f5ad9416a1d4333ed48d83474b2cf933b2a1be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360600
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 50 ++++++++++++++++
- src/net/http/httputil/reverseproxy_test.go | 95 ++++++++++++++++++++++++++++++
- 2 files changed, 145 insertions(+)
+ src/net/udpsock.go       | 12 ++++++++++++
+ src/net/udpsock_plan9.go | 19 +++++++++++++++++++
+ src/net/udpsock_posix.go | 25 +++++++++++++++++++++++++
+ src/net/udpsock_test.go  |  2 +-
+ 4 files changed, 57 insertions(+), 1 deletion(-)

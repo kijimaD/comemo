@@ -1,0 +1,14 @@
+commit 6dd79d02f8b39639dbf9e2d667722245d7345ba8
+Author: David Chase <drchase@google.com>
+Date:   Wed May 22 15:39:03 2024 -0400
+
+    runtime,cmd/compile: fix wording of rangefunc panic messages
+    
+    Change-Id: I883e7b6554646f32ad44e4ea6583440c33f02b84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587595
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/rangefunc/rangefunc_test.go | 2 +-
+ src/runtime/panic.go                                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

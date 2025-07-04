@@ -1,19 +1,19 @@
-commit 611f18c4e9c63921f6e036a4738542f476b7305a
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Jul 10 18:37:00 2024 -0700
+commit 41bd7f54bc0fc845be38b4771605be3c9fe4c529
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 17:07:49 2023 -0700
 
-    strings: more cross-references in docstrings
+    doc/go1.21: mention maps package
     
-    This amends CL 534775.
+    For #57436
     
-    Change-Id: I25a217da51853ec29106998e19e9386d756902fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597655
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I99e8b0819c76f1ccf12154a894c9c4c9d68124d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498602
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/strings/compare.go | 2 +-
- src/strings/replace.go | 2 +-
- src/strings/strings.go | 8 ++++----
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ doc/go1.21.html | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

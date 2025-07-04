@@ -1,19 +1,19 @@
-commit 54125d191d967da12c5aab957bf6ffcb222df9ed
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Aug 29 13:31:45 2017 +0200
+commit 51995aa434b3d9501cdcff8a1747f669a4168cbb
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Mon May 1 14:49:06 2017 +0100
 
-    runtime: move dynamic makemap checks into cmd/compile
+    cmd/asm: enable CMPPS, CMPPD, CMPSS and CMPSD encoding tests
     
-    Check map invariants, type size and alignments during compile time.
+    The generated test cases had their arguments reversed, putting them back
+    in order makes those tests pass.
     
-    Keep runtime checks for reflect by adding them to reflect_makemap.
+      CMPPS SRC, DEST, CC
     
-    Change-Id: Ia28610626591bf7fafb7d5a1ca318da272e54879
-    Reviewed-on: https://go-review.googlesource.com/59914
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Ie15021edc533d5681a6a78d10d88b665e3de9017
+    Reviewed-on: https://go-review.googlesource.com/42097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 62 ++++++++++++++++++++++++++---
- src/runtime/hashmap.go                 | 72 ++++++++++++++++++----------------
- 2 files changed, 94 insertions(+), 40 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 32 deletions(-)

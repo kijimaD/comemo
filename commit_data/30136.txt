@@ -1,16 +1,12 @@
-commit 8cf1766930269ea09a4234cc42570abcf425355f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 6 18:18:49 2017 -0800
+commit 2481481ff798636907376bfdf7e8c7558b8b930e
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Tue Oct 25 14:37:54 2016 -0700
 
-    cmd/compile/internal/ssa: use *obj.LSym in ExternSymbol
+    runtime: fix comments in time.go
     
-    Change-Id: I713120f90fd1d2df6698c40622ccac6eae907919
-    Reviewed-on: https://go-review.googlesource.com/36423
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5c501f598f41241e6d7b21d98a126827a3c3ad9a
+    Reviewed-on: https://go-review.googlesource.com/32018
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/fmt_test.go           |  1 -
- src/cmd/compile/internal/gc/ssa.go    | 21 +++++++--------------
- src/cmd/compile/internal/ssa/value.go |  5 +++--
- 3 files changed, 10 insertions(+), 17 deletions(-)
+ src/runtime/time.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

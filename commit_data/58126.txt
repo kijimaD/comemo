@@ -1,27 +1,25 @@
-commit d13e6d0b089b72d666d0dd46f4965660ab10b712
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 18 16:37:59 2024 -0800
+commit 9018601ee73fbf45264f05b4346cd7f6adbb4053
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:35:40 2022 +1000
 
-    internal/runtime/maps: hash copy of key instead of key itself
+    syscall: add syscall support for openbsd/riscv64 port
     
-    Hashing the key means we have to take the address of it. That inhibits
-    subsequent optimizations on the key variable.
+    Updates #55999
     
-    By hashing a copy, we incur an extra store at the hash callsite, but
-    we no longer need a load of the key in the inner loop. It can live
-    in a register throughout. (Technically, it gets spilled around
-    the call to the hasher, but it gets restored outside the loop.)
-    
-    Maybe one day we can have special hash functions that take
-    int64/int32/string instead of *int64/*int32/*string.
-    
-    Change-Id: Iba3133f6e82328f53c0abcb5eec13ee47c4969d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629419
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I5b8452207e951e543b9be42ebcb7d62c0c023f08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518627
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/runtime/maps/runtime_fast32_swiss.go  | 12 ++++++++----
- src/internal/runtime/maps/runtime_fast64_swiss.go  | 12 ++++++++----
- src/internal/runtime/maps/runtime_faststr_swiss.go |  9 ++++++---
- 3 files changed, 22 insertions(+), 11 deletions(-)
+ src/syscall/asm_openbsd_riscv64.s       |   32 +
+ src/syscall/mkall.sh                    |   11 +
+ src/syscall/syscall_openbsd_riscv64.go  |   38 +
+ src/syscall/zerrors_openbsd_riscv64.go  | 1693 +++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_riscv64.go | 1932 +++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_riscv64.s  |  237 ++++
+ src/syscall/zsysnum_openbsd_riscv64.go  |  228 ++++
+ src/syscall/ztypes_openbsd_riscv64.go   |  446 +++++++
+ 8 files changed, 4617 insertions(+)

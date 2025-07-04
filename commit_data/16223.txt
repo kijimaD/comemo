@@ -1,15 +1,38 @@
-commit 578dc3a96ce6649b021ee437e089af3a205dff82
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 24 08:13:01 2013 -0700
+commit d33f09bcc0814d900510c23ad5285b3a7c3b2e5c
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Apr 23 16:02:50 2013 -0700
 
-    cmd/5g, cmd/6g, cmd/8g: more nil ptr to large struct checks
+    cmd/dist: fix line numbers in goc2c generated files
     
-    R=r, ken, khr, daniel.morsing
-    CC=dsymonds, golang-dev, rickyz
-    https://golang.org/cl/8925043
+    We have to reset the global lineno variable before
+    processing each file otherwise line numbers will be
+    offset by the number of lines in the previous file.
+    
+    The following examples are from the beginning of the
+    ztime_linux_amd64.c file which is generated from
+    time.goc in the runtime package.
+    
+    Before:
+        #line 2483 "/home/apm/src/go/src/pkg/runtime/time.goc"
+        static Timers timers;
+        static void addtimer ( Timer* ) ;
+        void
+        time·Sleep(int64 ns)
+        {
+        #line 2492 "/home/apm/src/go/src/pkg/runtime/time.goc"
+    
+    After:
+        #line 16 "/home/apm/src/go/src/pkg/runtime/time.goc"
+        static Timers timers;
+        static void addtimer ( Timer* ) ;
+        void
+        time·Sleep(int64 ns)
+        {
+        #line 25 "/home/apm/src/go/src/pkg/runtime/time.goc"
+    
+    R=golang-dev, minux.ma, iant, r, adg
+    CC=golang-dev
+    https://golang.org/cl/8653045
 
- src/cmd/5g/cgen.c | 65 ++++++++++++++++++++++++++++++++-----------------------
- src/cmd/6g/cgen.c | 51 +++++++++++++++++++++++++------------------
- src/cmd/8g/cgen.c | 51 +++++++++++++++++++++++++------------------
- test/nilptr.go    | 22 +++++++++++++++++++
- 4 files changed, 120 insertions(+), 69 deletions(-)
+ src/cmd/dist/goc2c.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

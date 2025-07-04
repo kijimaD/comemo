@@ -1,25 +1,43 @@
-commit 4bd20ec884876816e8f011aea931f7b6846c3a4c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 13 13:22:34 2023 -0400
+commit d81dd1290665aea2de8d4d5284be26ea0bfe4cd2
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon May 16 17:53:36 2022 -0400
 
-    cmd/go: make go line declare minimum required Go version
+    all: update vendored golang.org/x dependencies for Go 1.19 release
     
-    For #57001, enforce the go line as declaring the minimum required
-    version of Go that can compile a module.
+    The Go 1.19 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
     
-    Modules that maintain compatibility with old versions of Go
-    but want to make use of new features in //go:build-constrained files
-    will be able to do so: the //go:build constraint will be interpreted
-    as changing the minimum Go version for that file and will unlock
-    the Go features allowed in that version.
+    This CL updates the rest of the modules with x/build/cmd/updatestd.
     
-    Change-Id: Ibeeb7c93ce7ea2e5187d78af0757cbfac19484a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476279
+    For #36905.
+    
+    Change-Id: I4751ca477365b036a8e5ad6a9256293b44ddcd2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406356
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/work/exec.go              | 11 ++--
- src/cmd/go/testdata/script/mod_go_version.txt | 95 ++-------------------------
- 2 files changed, 10 insertions(+), 96 deletions(-)
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +--
+ .../analysis/passes/httpresponse/httpresponse.go   |  41 ++++-----
+ .../x/tools/go/types/objectpath/objectpath.go      | 100 ++++++++++++++++++++-
+ .../x/tools/internal/typeparams/termlist.go        |   9 --
+ .../x/tools/internal/typeparams/typeterm.go        |   9 +-
+ src/cmd/vendor/modules.txt                         |   6 +-
+ src/go.mod                                         |   6 +-
+ src/go.sum                                         |  12 +--
+ src/net/http/h2_bundle.go                          |  35 ++++++--
+ .../golang.org/x/crypto/chacha20/chacha_s390x.go   |   1 +
+ .../golang.org/x/crypto/cryptobyte/builder.go      |  14 +--
+ .../x/crypto/curve25519/internal/field/fe_amd64.go |   3 +
+ .../x/crypto/internal/poly1305/sum_generic.go      |   5 +-
+ .../x/crypto/internal/poly1305/sum_s390x.go        |   1 +
+ src/vendor/golang.org/x/net/nettest/conntest.go    |   4 +-
+ src/vendor/golang.org/x/text/unicode/bidi/core.go  |  20 ++---
+ .../golang.org/x/text/unicode/norm/forminfo.go     |   9 +-
+ .../golang.org/x/text/unicode/norm/normalize.go    |  11 +--
+ src/vendor/modules.txt                             |   6 +-
+ 20 files changed, 206 insertions(+), 104 deletions(-)

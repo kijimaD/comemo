@@ -1,27 +1,14 @@
-commit e213c72fb9492a409bd0ed9620ca9aaaa96ddebe
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Sep 28 15:59:34 2021 -0400
+commit f22137d785b1861a9e54e57b169b4e18c755352f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 20 20:28:57 2021 +0100
 
-    internal/fuzz: disconnect stdout and stderr from the worker
+    [dev.boringcrypto] misc/boring: add -trust and roland@ to merge.sh and release.sh
     
-    This was useful for debugging while we were developing
-    the feature, but is now causing extraneous prints that
-    make the command output difficult to read.
-    
-    This change also prevents the go command from printing
-    an extraneous "FAIL" when fuzzing is enabled.
-    
-    Fixes #48633
-    Fixes #46631
-    
-    Change-Id: I636e65f305a20f6dcd843e62090ae228741a3725
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352892
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic52948d0a0f353760b186c83df8648650457e965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285032
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go/internal/test/test.go | 18 ++++++++++++++++--
- src/internal/fuzz/worker.go      |  2 --
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ misc/boring/merge.sh   | 2 +-
+ misc/boring/release.sh | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

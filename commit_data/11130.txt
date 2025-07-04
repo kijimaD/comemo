@@ -1,14 +1,16 @@
-commit c356fc74a12d32d7d0764de0160b291117e9dc79
+commit fb036824df95f5d127064b3897e3e74fb9691b29
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 11:06:09 2012 -0800
+Date:   Thu Jan 12 11:05:54 2012 -0800
 
-    dashboard: add deployment comment to app.yaml
+    go/build: allow colon in #cgo flags
     
-    Also update default app and version to be correct.
+    This makes it possible to say -I c:/foo on Windows.
     
-    R=golang-dev, r
+    Fixes #2683 comment #3.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5541044
+    https://golang.org/cl/5540043
 
- misc/dashboard/app/app.yaml | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/go/build/dir.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 1b4f1dc95d221c1e9d0afb9067fd6a09f12dd061
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Jun 11 17:25:06 2024 -0700
+
+    os: improve newFile, rm newDir
+    
+    1. Assuming that CI environments do not use NFS (and if they do,
+       they have TMPDIR set pointing to a local file system), we can
+    
+     - remove localTmp;
+     - remove newDir, replacing calls to it with t.TempDir;
+     - remove repeated comments about NFS.
+    
+    2. Use t.Name, t.Cleanup and t.Helper to improve newFile and simplify
+       its usage. Ensure the cleanup reports all errors.
+    
+    Change-Id: I0a79a6a3d52faa323ed2658ef73f8802847f3c09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592096
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/os_test.go      | 101 +++++++++++++------------------------------------
+ src/os/os_unix_test.go |  30 +++------------
+ 2 files changed, 32 insertions(+), 99 deletions(-)

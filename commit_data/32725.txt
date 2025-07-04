@@ -1,17 +1,16 @@
-commit 2a2e4dad33dfe75c3163ecdae264ec2fecfe5dfb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 13 20:41:45 2017 -0700
+commit 4bf6c566d31ab46c5a9123708fb3585e621b2557
+Author: Rob Phoenix <rob@robphoenix.com>
+Date:   Fri May 19 15:18:17 2017 +0100
 
-    misc/cgo/errors: don't pass -C to compiler
+    net: add examples for ParseIP, IP.DefaultMask & IP.Mask
     
-    It's not needed, and the current expectation is that it will go away
-    in the future.
+    Further examples to support the net package.
     
-    Change-Id: I5f46800e748d9ffa484bda6d1738290c8e00ac2b
-    Reviewed-on: https://go-review.googlesource.com/63751
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #5757
+    
+    Change-Id: I9b65521d211f6c404b9103c1eaf22b0772eb242e
+    Reviewed-on: https://go-review.googlesource.com/43711
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- misc/cgo/errors/errors_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/example_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

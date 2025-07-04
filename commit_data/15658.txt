@@ -1,17 +1,20 @@
-commit 433824d8086e5ab906103d93f58e09a76e3a6b3e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Mar 10 20:46:11 2013 +0400
+commit a8e55f8858da7e79ba3aafbde61a7326b411b3fe
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Sat Mar 9 14:54:56 2013 -0800
 
-    runtime: fix misaligned 64-bit atomic
-    Fixes #4869.
-    Fixes #5007.
-    Update #5005.
+    cmd/8l/obj.c: NetBSD passes the test, Hnetbsd added.
     
-    R=golang-dev, 0xe2.0x9a.0x9b, bradfitz
+    myrtle$ go version
+    go version devel +d533352b414d Sat Mar 09 05:39:15 2013 +0100 netbsd/386
+    myrtle$ time go test -ldflags -hostobj ../misc/cgo/test
+    ok      _/var/project/GoLang/misc/cgo/test      10.962s
+       68.63s real    49.60s user    19.06s system
+    myrtle$ uname -a
+    NetBSD myrtle.plan9.local 6.0_BETA2 NetBSD 6.0_BETA2 (GENERIC) i386
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7534044
+    https://golang.org/cl/7641047
 
- src/pkg/runtime/mgc0.c    | 2 ++
- src/pkg/runtime/parfor.c  | 6 +++++-
- src/pkg/runtime/runtime.h | 1 +
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/8l/obj.c | 1 +
+ 1 file changed, 1 insertion(+)

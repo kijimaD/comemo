@@ -1,20 +1,88 @@
-commit adead1a93f472affa97c494ef19f2f492ee6f34a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Jan 18 07:53:50 2024 +0100
+commit 683b2c4600c368126b8b00468e55e8e38a58ce1f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 15:54:10 2023 -0800
 
-    cmd/cgo/internal/test: skip TestCallbackCallersSEH when internal linking
+    go/types, types2: implement simpler type inference (infer2)
     
-    TestCallbackCallersSEH is flaky when using the internal linker. Skip
-    it for now until the flakiness is resolved.
+    This change implements infer2 which is a drop-in replacement for
+    infer; it can be enabled by setting the useNewTypeInference flag
+    in infer2.go. It is currently disabled (but tested manually).
     
-    Updates #65116
+    infer2 uses the same machinery like infer but in a simpler approach
+    that is more amenable to precise description and future extensions.
     
-    Change-Id: I7628b07eaff8be00757d5604722f30aede25fce5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556635
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The goal of type inference is to determine a set of (missing) type
+    arguments from a set of other given facts. Currently, these other
+    facts are function arguments and type constraints.
+    
+    In the following, when we refer to "type parameters", we mean the
+    type parameters defined by the generic function to which we apply
+    type inference. More precisely, in the algorithm, these are the
+    type parameters recorded with the unifier.
+    
+    The approach is as follows:
+    
+    - A single unifier is set up which tracks all type parameters and
+      corresponding inferred types.
+    
+    - The unifier is then fed all the facts we have. The order is not
+      relevant (*) except that we use default types of untyped constant
+      arguments only as a last resort, at the end.
+    
+    - We start with all function arguments: for each generic function
+      parameter with a typed function argument, we unify the parameter
+      and function type.
+    
+    - We then unify each type parameter with its type constraint.
+      This step is iterated until nothing changes anymore, because
+      each unification may enable further unification.
+    
+    - If there are any type parameters left without inferred types,
+      and which are used as function parameters with untyped constant
+      arguments, unify them with the default types of those arguments.
+    
+    Because of unification with constraints which themselves may contain
+    type parameters, inferred types may contain type parameters. Thus,
+    in a final step we substitute type parameters for their inferred types
+    until there are no type parameters left in the inferred types.
+    
+    All these individual steps are the same as in infer, but there is no
+    need to do constraint type inference twice (all the facts have already
+    been used for inference). Also, we only need a single unifier which
+    serves as the holder for the inferred type parameter types.
+    
+    Type inference fails if any unification step fails or if not all
+    type arguments could be inferred. By always using all available
+    facts (**) we ensure that order doesn't matter.
+    
+    By using more facts, type inference can now be extended to become
+    more powerful.
+    
+    The code can be split up into smaller components that are more
+    easily digestable. Because we forsee more simplifications, we
+    defer such cleanups to later CLs.
+    
+    (*) We currently have a sorting phase in the beginning such that
+        function argument types that are named types are used before
+        any other type. We believe this step can be eliminated by
+        modifying the unifier slightly.
+    
+    (**) When unifying constraints, in some cases we don't report
+        an error if unification fails. We believe we can modify the
+        unifier and then consistently report an inference failure
+        in this case as well.
+    
+    Change-Id: If1640a5461bc102fa7fd31dc6e741be667c97e7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463746
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/test/seh_internal_windows_test.go   | 16 ++++++++++++++++
- .../test/{cgo_windows_test.go => seh_windows_test.go}    |  2 +-
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/infer.go  |   4 +
+ src/cmd/compile/internal/types2/infer2.go | 420 +++++++++++++++++++++++++++++
+ src/go/types/generate_test.go             |   6 +-
+ src/go/types/infer.go                     |   4 +
+ src/go/types/infer2.go                    | 422 ++++++++++++++++++++++++++++++
+ 5 files changed, 854 insertions(+), 2 deletions(-)

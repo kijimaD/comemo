@@ -1,13 +1,16 @@
-commit 03ea8b1c811007bb0c33effb782628e290f914a4
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 24 16:36:40 2012 -0800
+commit e7d513eab0b7a29698eb6057ec93818a10aae2a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 24 16:36:20 2012 -0800
 
-    doc/go1: add more info about hash and net changes, delete reference to html
+    go/parser: Use explicit parser.Mode type.
     
-    R=golang-dev, adg
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5570060
+    https://golang.org/cl/5574058
 
- doc/go1.html | 39 ++++++++++++++++++++++++++++-----------
- doc/go1.tmpl | 39 ++++++++++++++++++++++++++++-----------
- 2 files changed, 56 insertions(+), 22 deletions(-)
+ src/cmd/cgo/ast.go             |  2 +-
+ src/cmd/godoc/parser.go        |  2 +-
+ src/cmd/gofmt/gofmt.go         |  4 ++--
+ src/pkg/go/parser/interface.go | 15 ++++++++++-----
+ src/pkg/go/parser/parser.go    |  4 ++--
+ 5 files changed, 16 insertions(+), 11 deletions(-)

@@ -1,12 +1,12 @@
-commit 76937156ae7231468d70f889a82a72c97fc70617
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 4 11:30:46 2012 -0800
+commit 23ca24018a161ccd60f8c72b39bd66d1660604f1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 4 20:37:19 2012 +0900
 
-    test: add test for invalid nil == nil
+    doc: clear execute bit
     
-    R=gri
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6868059
+    https://golang.org/cl/6871057
 
- test/fixedbugs/issue4283.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ doc/articles/godoc_documenting_go_code.html | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

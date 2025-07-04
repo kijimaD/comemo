@@ -1,39 +1,19 @@
-commit 4c31dfe850165979bbcf0510c35576d022f26eb3
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 20 17:01:40 2023 -0400
+commit a650e399dfc2435eb18efc430a70cba9d87cec73
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Sep 27 12:06:43 2021 +0200
 
-    cmd/go: introduce Shell abstraction
+    testing: fix error message when a parallel Cleanup calls runtime.Goexit
     
-    This CL separates running shell commands and doing shell-like
-    operations out of the Builder type and into their own, new Shell type.
-    Shell is responsible for tracking output streams and the Action that's
-    running commands. Shells form a tree somewhat like Context, where new
-    Shells can be derived from a root shell to adjust their state.
+    Fixes #48502
     
-    The primary intent is to support "go build -json", where we need to
-    flow the current package ID down to the lowest level of command output
-    printing. Shell gives us a way to easily flow that context down.
-    
-    However, this also puts a clear boundary around how we run commands,
-    removing this from the rather large Builder abstraction.
-    
-    For #62067.
-    
-    Change-Id: Ia9ab2a2d7cac0269ca627bbb316dbd9610bcda44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535016
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6054b043ebd2237e19897fdf1234b311d19facc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352350
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/clean/clean.go     |  20 ++-
- src/cmd/go/internal/run/run.go         |   2 +-
- src/cmd/go/internal/test/test.go       |  14 +-
- src/cmd/go/internal/work/action.go     |  13 +-
- src/cmd/go/internal/work/build_test.go |  12 +-
- src/cmd/go/internal/work/buildid.go    |  33 ++---
- src/cmd/go/internal/work/cover.go      |  12 +-
- src/cmd/go/internal/work/exec.go       | 246 ++++++++++++++++++---------------
- src/cmd/go/internal/work/gc.go         |  26 ++--
- src/cmd/go/internal/work/gccgo.go      |  54 ++++----
- src/cmd/go/internal/work/shell.go      |  90 ++++++++++++
- 11 files changed, 321 insertions(+), 201 deletions(-)
+ src/testing/panic_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go    |  6 ++++--
+ 2 files changed, 44 insertions(+), 2 deletions(-)

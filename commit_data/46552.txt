@@ -1,42 +1,21 @@
-commit e128749be88278768c50907ca87270b9d5e96eb5
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Sun Sep 19 23:50:02 2021 -0500
+commit c3b4c7093ac46431b6e15cf1979bd9a251a400da
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 23 17:33:18 2020 -0500
 
-    hash/crc32: improve performance of ppc64SlicingUpdateBy8 on ppc64le
+    cmd/internal/objfile: don't require runtime.symtab symbol for XCOFF
     
-    Reduce the number of instructions in the short loop of
-    ppc64SlicingUpdateBy8 function by combining MOVWZ and SRD into a SRD
-    with appropriate parameters performing the same operation and remove
-    MOVWZ R7,R7 from the loop
-    This change produces the following improvements on POWER9. None of the
-    other tests regress. Improvments on other POWERPC platforms similar.
+    For some reason (that I didn't look into), externally linked
+    AIX binaries don't have runtime.symtab symbol. Since recent Go
+    releases (Go 1.3 maybe?), that symbol is empty and not necessary
+    anyway. Don't require it.
     
-    name                                     old time/op    new time/op
-    delta
+    Fixes #40972.
     
-    CRC32/poly=IEEE/size=15/align=0            80.5ns ± 0%    70.6ns ± 0%
-    -12%
-    CRC32/poly=IEEE/size=15/align=1            80.5ns ± 0%    70.6ns ± 0%
-    -12%
-    CRC32/poly=IEEE/size=512/align=1            151ns ± 0%     139ns ± 0%
-    -7%
-    CRC32/poly=IEEE/size=1kB/align=1            167ns ± 0%     155ns ± 0%
-    -7%
-    CRC32/poly=Castagnoli/size=15/align=0      80.2ns ± 0%    70.5ns ± 0%
-    -12%
-    CRC32/poly=Castagnoli/size=15/align=1      80.2ns ± 0%    70.5ns ± 0%
-    -12%
-    CRC32/poly=Castagnoli/size=512/align=1      150ns ± 0%     139ns ± 0%
-    -7%
-    CRC32/poly=Castagnoli/size=1kB/align=1      166ns ± 0%     155ns ± 0%
-    -6%
-    
-    Change-Id: I424709041c30d1c637b595d0845e3ae78dc3e0a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350989
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I73a1f0142195ea6debdba8a4f6e12cadc3980dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279995
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/hash/crc32/crc32_ppc64le.s | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/internal/objfile/xcoff.go | 4 +---
+ src/cmd/objdump/objdump_test.go   | 5 -----
+ 2 files changed, 1 insertion(+), 8 deletions(-)

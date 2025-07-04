@@ -1,14 +1,20 @@
-commit 9473c044f1d492a6ba49ec695042dec4365d70ca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 2 18:33:31 2019 +0000
+commit 669fa8f36a298cc0e2d1f817ca30c8d613ce7483
+Author: Alexey Naidonov <alexey.naidyonov@gmail.com>
+Date:   Tue Aug 28 00:39:34 2018 +0300
 
-    bufio: document relationship between UnreadByte/UnreadRune and Peek
+    cmd/compile: remove unnecessary nil-check
     
-    Fixes #29387
+    Removes unnecessary nil-check when referencing offset from an
+    address. Suggested by Keith Randall in golang/go#27180.
     
-    Change-Id: I2d9981f63ac16630ed39d6da6692c81396f4e9ea
-    Reviewed-on: https://go-review.googlesource.com/c/155930
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates golang/go#27180
+    
+    Change-Id: I326ed7fda7cfa98b7e4354c811900707fee26021
+    Reviewed-on: https://go-review.googlesource.com/131735
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bufio/bufio.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
+ test/nilptr3.go                          | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

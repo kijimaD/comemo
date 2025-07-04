@@ -1,31 +1,18 @@
-commit d26fc68aa10dc8eda5ccdcc80d790e7df2fd9823
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 14 13:25:31 2021 -0400
+commit e92ce92662172196ebe5099de93ee5bdabaa3f18
+Author: gzdaijie <gzdaijie@gmail.com>
+Date:   Mon Oct 12 05:39:16 2020 +0000
 
-    cmd/internal/objabi,test: use correct GOEXPERIMENT build tags in test/run.go
+    os: call f.Close before t.Fatal to avoid vet unreachable code warnings
     
-    Currently, run.go sets GOEXPERIMENT build tags based on the
-    *difference* from the baseline experiment configuration, rather than
-    the absolute experiment configuration. This differs from cmd/go. As a
-    result, if we set a baseline configuration and don't override it with
-    a GOEXPERIMENT setting, run.go won't set any GOEXPERIMENT build tags,
-    instead of setting the tags corresponding to the baseline
-    configuration.
-    
-    Fix this by making compile -V=goexperiment produce the full
-    GOEXPERIMENT configuration, which run.go can then use to set exactly
-    the right set of build tags.
-    
-    For #40724.
-    
-    Change-Id: Ieda6ea62f1a1fabbe8d749d6d09c198fd5ca8377
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310171
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ic3f756ecf9b4fad8fb8c259e7dad6df894863b0e
+    GitHub-Last-Rev: 303e524029289fb4c0cb114dad7cb03c4fce9637
+    GitHub-Pull-Request: golang/go#41900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261217
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/internal/objabi/exp.go  | 11 ++++++-----
- src/cmd/internal/objabi/flag.go | 14 ++++++++++----
- test/run.go                     | 35 +++++++++++++++++++----------------
- 3 files changed, 35 insertions(+), 25 deletions(-)
+ src/os/os_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

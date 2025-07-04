@@ -1,20 +1,16 @@
-commit de40308ad25310b6d3db14d8afdd4456708c2e43
-Author: Branden J Brown <zephyrtronium@gmail.com>
-Date:   Wed Aug 7 13:35:59 2024 -0500
+commit 3479e1e5439c3c4f5236239ad1ebaba2b945f755
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu Jun 22 16:33:06 2023 +0300
 
-    .github: update language change proposal template
+    internal/fuzz: fix typo in comment
     
-    The language change proposal review process has been adjusted slightly.
-    Update the corresponding issue template to reflect the changes.
-    
-    For #65660.
-    
-    Change-Id: Ic6d3526ab4a7fa09433914fd0b1525eea3a832a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603955
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I04f0aa2730cd7d60027a36a3b81289e4972d4a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505115
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .github/ISSUE_TEMPLATE/11-language-change.yml | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/fuzz/counters_unsupported.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

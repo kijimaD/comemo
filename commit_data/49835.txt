@@ -1,40 +1,32 @@
-commit dfbecc06e73b79aaeee4220b3e760cbd76050ae5
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Wed Aug 10 09:57:51 2022 -0500
+commit 72bb8185b5fb2fe84ee7cfdc8e9605f2c81b32fe
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Aug 25 10:08:07 2021 +0200
 
-    misc/cgo/testsanitizers: fix code to detect gcc version correctly
+    cmd/compile: emit DWARF info about dictionary entries
     
-    The current implementation of compilerVersion incorrectly gives an
-    error message that the compiler version is too old even though the
-    system has a recent compiler. This happens for specifically for the
-    gcc compiler and causes ASAN tests to be skipped.
-    Replacing -v with gcc dump version options seems to fix it. Running
-    ./testsanitizers.test -test.v now shows the ASAN tests being run.
-    --- PASS: TestASAN (16.81s)
-        --- PASS: TestASAN/asan_useAfterReturn (0.60s)
-        --- PASS: TestASAN/asan_global5 (0.61s)
-        --- PASS: TestASAN/asan_unsafe_fail1 (0.73s)
-        --- PASS: TestASAN/asan_unsafe_fail3 (0.73s)
-        --- PASS: TestASAN/asan_unsafe_fail2 (0.74s)
-        --- PASS: TestASAN/asan_global4_fail (0.74s)
-        --- PASS: TestASAN/asan5_fail (0.74s)
-        --- PASS: TestASAN/asan3_fail (0.88s)
-        --- PASS: TestASAN/asan4_fail (0.89s)
-        --- PASS: TestASAN/asan2_fail (0.99s)
-        --- PASS: TestASAN/asan_global3_fail (1.00s)
-        --- PASS: TestASAN/asan_global1_fail (1.01s)
-        --- PASS: TestASAN/asan1_fail (1.01s)
-        --- PASS: TestASAN/asan_global2_fail (1.02s)
-    PASS
+    When emitting the DIE of the instantiation of a generic function also
+    emit one DW_TAG_typedef_type entry for each dictionary entry in use,
+    referencing the shape type and having a custom attribute containing the
+    index inside the dictionary.
     
-    Fixes #54370
+    When emitting the DIE of variables that have an instantiated parametric
+    type, instead of referencing the shape type directly go through the
+    DW_TAG_typedef_type entry emitted for the dictionary entry describing
+    the real type of the variable.
     
-    Change-Id: Iac13a1cf37de54432a6e49555f61e9ec1d781ab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422574
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Change-Id: Ia45d157ecd4c25e2b60300469e43bbb27a663582
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344929
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Jeremy Faller <jeremy@golang.org>
 
- misc/cgo/testsanitizers/cc_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  3 ++
+ src/cmd/compile/internal/ir/name.go        |  1 +
+ src/cmd/compile/internal/noder/stencil.go  | 18 +++++--
+ src/cmd/internal/dwarf/dwarf.go            | 67 +++++++++++++++++++++++-
+ src/cmd/link/internal/ld/dwarf_test.go     | 84 ++++++++++++++++++++++++++++++
+ 5 files changed, 168 insertions(+), 5 deletions(-)

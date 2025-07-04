@@ -1,17 +1,18 @@
-commit 4fbe96adc3908668ec2ae65696941199b7e117f8
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 15:39:25 2016 -0400
+commit 0760023960fc9f1012e6bac277b886cac1c1bae9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 15:18:23 2016 -0800
 
-    cmd/dist: add "s390x" to okgoarch and cgoEnabled
+    runtime: skip TestSignalExitStatus on NetBSD
     
-    Allows the compiler to recognise s390x specific files and s390x
-    build tags.
+    It doesn't work and I don't know why.
     
-    Change-Id: I7c62ab7361cf708181b1d9cfbe9b1fcb01be31e0
-    Reviewed-on: https://go-review.googlesource.com/20872
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Update #14063.
+    
+    Change-Id: I42735012cf6247eca5336f29fcf713e08c8477f8
+    Reviewed-on: https://go-review.googlesource.com/18817
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/crash_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,13 +1,13 @@
-commit edc3126e98d5624d6f2a7d47991db0ba5b2b07d3
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Feb 21 20:06:26 2013 -0800
+commit 6ec551887a8d4bad243cf462c3cfc6aa4fa727a5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 22 12:21:42 2013 +1100
 
-    exp/ssa/interp: fix build for Plan 9
+    runtime: windows callback code to match new func value representation
     
-    R=adonovan, minux.ma, alex.brainman, akumar, rminnich
-    CC=golang-dev, lucio.dere
-    https://golang.org/cl/7300078
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7393048
 
- src/pkg/exp/ssa/interp/external_plan9.go | 26 ++++++++++++++++++++++++++
- src/pkg/exp/ssa/interp/external_unix.go  |  1 -
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/pkg/runtime/callback_windows_386.c   | 2 +-
+ src/pkg/runtime/callback_windows_amd64.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

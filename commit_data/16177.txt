@@ -1,15 +1,12 @@
-commit 9ca4a25f4ba0dcdb17c41374f146668e97183176
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 15 10:35:37 2013 -0700
+commit 03640c58e3dce5a7e6e6dfa8c4171bcf537a4b20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 13 23:09:08 2013 -0700
 
-    cmd/ld: ignore PE sections that are not code or data
+    crypto/ecdsa: doc cleanup
     
-    Update #5106
-    Update #5273
-    
-    R=minux.ma, r
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/8715043
+    https://golang.org/cl/8592044
 
- src/cmd/ld/ldpe.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/crypto/ecdsa/ecdsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

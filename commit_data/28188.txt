@@ -1,21 +1,14 @@
-commit fd41951c2b243a80e7b2b5d28a90839c928cfd2e
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Sep 3 18:39:25 2016 +0200
+commit 04a30025dbc8ff7757a763562d7d4a2b5ff68583
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:58 2016 -0400
 
-    unicode/utf8: reduce bounds checks in EncodeRune
+    test: enable fixedbugs/issue10607.go test on linux/mips64x
     
-    Provide bounds elim hints in EncodeRune.
+    external linking is now supported.
     
-    name                  old time/op  new time/op  delta
-    EncodeASCIIRune-4     2.69ns ± 2%  2.69ns ± 2%    ~     (p=0.193 n=47+46)
-    EncodeJapaneseRune-4  5.97ns ± 2%  5.38ns ± 2%  -9.93%  (p=0.000 n=49+50)
-    
-    Change-Id: I1a6dcffff3bdd64ab93c2130021e3b00981de4c8
-    Reviewed-on: https://go-review.googlesource.com/28492
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I13e90c39dad86e60781adecdbe8e6bc9e522f740
+    Reviewed-on: https://go-review.googlesource.com/19811
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/unicode/utf8/utf8.go | 3 +++
- 1 file changed, 3 insertions(+)
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

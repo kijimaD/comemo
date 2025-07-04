@@ -1,19 +1,20 @@
-commit c6cdfd88c762ee746cd9579ae57e528f56f5dd00
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Nov 18 11:33:53 2022 -0800
+commit e7d5857a5a82551b8a70b6174ec73422442250ce
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 19 15:48:17 2022 -0800
 
-    net/http: direct server logs to test output in tests
+    cmd/compile/internal/importer, gcimporter: use *TypeParam as tparamIndex map value
     
-    Set a logger in newClientServerTest that directs the server
-    log output to the testing.T's log, so log output gets properly
-    associated with the test that caused it.
+    This is a map from identifiers to type parameters, use *TypeParam
+    as map value instead of Type.
     
-    Change-Id: I13686ca35c3e21adae16b2fc37ce36daea3df9d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452075
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ib006393418c6352bcffc1c6796c5e002c33d9f4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379634
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/clientserver_test.go | 13 +++++++++++++
- src/net/http/serve_test.go        | 40 ++++++++++++++++++---------------------
- 2 files changed, 31 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go | 4 ++--
+ src/go/internal/gcimporter/iimport.go        | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

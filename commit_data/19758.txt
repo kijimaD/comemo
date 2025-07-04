@@ -1,14 +1,18 @@
-commit 92c1e720401e07a97670c92b0ac208da8cc4988c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jul 17 21:51:03 2014 +0400
+commit 90870e61b7311a0c2b4d3059368cf75006157a50
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Jul 17 09:55:12 2014 -0700
 
-    runtime: make NumGoroutines faster
-    Resolves TODO for not walking all goroutines in NumGoroutines.
+    strings: remove byteBitmap
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/107290044
+    Previously we had a bitmap to check whether or not a byte
+    appears in a string should be replaced. But we don't actually
+    need a separate bitmap for that purpose. Removing the bitmap
+    makes the code simpler.
+    
+    LGTM=dave, iant, nigeltao
+    R=golang-codereviews, dave, gobot, nigeltao, iant, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/110100043
 
- src/pkg/runtime/proc.c | 33 +++++++++++++++------------------
- 1 file changed, 15 insertions(+), 18 deletions(-)
+ src/pkg/strings/replace.go | 100 ++++++++++++++++-----------------------------
+ 1 file changed, 35 insertions(+), 65 deletions(-)

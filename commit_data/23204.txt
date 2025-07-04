@@ -1,15 +1,12 @@
-commit bbdf631f342585cb316cc0b4823241d45058fe9b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Jun 2 20:52:46 2015 -0400
+commit 433af05a7284c017921e71c6efd08f81f0242364
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 30 07:53:07 2015 +0900
 
-    cmd/dist: enable extlink test on linux/arm64
+    doc: mention net.OpError in go1.5.txt
     
-    It was an oversight (but as linux/arm64 doesn't support internal
-    linking and always use external linking with cgo, no harm is done.)
-    
-    Change-Id: Ie5f2b445cb67a8e63d6b868e63379c68847554f9
-    Reviewed-on: https://go-review.googlesource.com/10636
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6cebaf42f2596c7f8fef3a67afb1e5ccb428d09c
+    Reviewed-on: https://go-review.googlesource.com/9521
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,26 +1,21 @@
-commit a9b92013d2a14d58d8ed7dde1c90599703885e29
+commit 0509727b0d8c4175f3d8957b2066916e889da383
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 21 15:58:05 2011 -0500
+Date:   Wed Dec 21 15:57:47 2011 -0500
 
-    buildscript: make script safer, same output on Windows
+    build: fixes for Windows
     
-    R=golang-dev, r
+    * work around a linker/cgo bug
+    * do not run deps.bash on Windows unless we need it
+      (cuts a full minute off the build time)
+    * add windows to the list of cgo-enabled targets
+    
+    The gopack problem is issue 2601.
+    
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5502062
+    https://golang.org/cl/5504062
 
- src/buildscript.sh               |  12 +-
- src/buildscript_darwin_386.sh    | 602 +++++++++++++++++++-------------------
- src/buildscript_darwin_amd64.sh  | 600 +++++++++++++++++++-------------------
- src/buildscript_freebsd_386.sh   | 602 +++++++++++++++++++-------------------
- src/buildscript_freebsd_amd64.sh | 600 +++++++++++++++++++-------------------
- src/buildscript_linux_386.sh     | 602 +++++++++++++++++++-------------------
- src/buildscript_linux_amd64.sh   | 600 +++++++++++++++++++-------------------
- src/buildscript_linux_arm.sh     | 608 +++++++++++++++++++--------------------
- src/buildscript_netbsd_386.sh    | 602 +++++++++++++++++++-------------------
- src/buildscript_netbsd_amd64.sh  | 600 +++++++++++++++++++-------------------
- src/buildscript_openbsd_386.sh   | 602 +++++++++++++++++++-------------------
- src/buildscript_openbsd_amd64.sh | 600 +++++++++++++++++++-------------------
- src/buildscript_plan9_386.sh     | 604 +++++++++++++++++++-------------------
- src/buildscript_windows_386.sh   | 606 +++++++++++++++++++-------------------
- src/buildscript_windows_amd64.sh | 604 +++++++++++++++++++-------------------
- 15 files changed, 4227 insertions(+), 4217 deletions(-)
+ src/cmd/go/build.go     | 18 +++++++++++++++---
+ src/make.bash           |  1 +
+ src/pkg/go/build/dir.go |  2 ++
+ 3 files changed, 18 insertions(+), 3 deletions(-)

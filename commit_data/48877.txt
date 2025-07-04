@@ -1,36 +1,15 @@
-commit 440c9312c821d1c116746d46cf05655cb2c1bc39
-Author: Bryan Mills <bcmills@google.com>
-Date:   Fri Apr 22 13:20:48 2022 +0000
+commit 107b1fce6401b7f5fa12f6e51746a2d0c86b65ca
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 23 14:39:44 2021 +0700
 
-    Revert "net: permit use of Resolver.PreferGo, netgo on Windows and Plan 9"
+    [dev.typeparams] cmd/compile: explain why expandInline needed
     
-    This reverts CL 400654.
-    
-    Reason for revert: broke net.TestGoLookupIP on the darwin-amd64-nocgo builder.
-    
-    Updates #33097.
-    
-    Change-Id: Idaf94eda88c9d4401e667a4d31c00ce376d91909
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401754
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ica9817675b4eb929a000640f9ae873b75fc5a2e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330290
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/addrselect.go            |   2 +
- src/net/cgo_stub.go              |   2 +
- src/net/conf.go                  |  36 +----
- src/net/dnsclient_unix.go        |  24 +--
- src/net/dnsconfig.go             |  43 -----
- src/net/dnsconfig_unix.go        |  36 ++++-
- src/net/dnsconfig_windows.go     |  58 -------
- src/net/lookup.go                | 226 ---------------------------
- src/net/lookup_plan9.go          |  52 +------
- src/net/lookup_unix.go           | 205 +++++++++++++++++++++++-
- src/net/lookup_windows.go        |  93 ++++-------
- src/net/net.go                   |   9 +-
- src/net/net_fake.go              |   6 -
- src/net/netgo.go                 |   9 --
- src/net/nss.go                   |   2 +
- src/net/resolverdialfunc_test.go | 328 ---------------------------------------
- 16 files changed, 293 insertions(+), 838 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

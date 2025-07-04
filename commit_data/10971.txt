@@ -1,14 +1,14 @@
-commit b5216e2e559a585a424fa3eb28c0e158fe79a75b
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Thu Dec 22 10:05:51 2011 -0800
+commit 86deacc0bc271a7188db6f4413be6491f013f233
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 22 17:31:54 2011 +0100
 
-    testing: compare Log to Println
+    gc: better linenumbers for inlined functions
     
-    Log always adds spaces between operands, like Println but unlike Print
+    Fixes #2580 up to a point.
     
-    R=golang-dev
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5504069
+    https://golang.org/cl/5498068
 
- src/pkg/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/inl.c | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

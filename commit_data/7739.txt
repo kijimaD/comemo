@@ -1,21 +1,19 @@
-commit d3d672998f26b15cf0eebf63f243bf28b3b3943b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 11 11:32:33 2011 -0800
+commit dbff0adaa784ef0f8221e2f999691221c21d29f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 10:27:25 2011 -0800
 
-    http: rename interface Transport to RoundTripper
+    gotype: commandline tool to typecheck go programs
     
-    Transport.Do -> RoundTripper.RoundTrip
+    First version. Handles scope analysis only at the
+    moment.
     
-    This makes way for a subsequent CL to export the
-    currently private RoundTripper implementation
-    as struct Transport.
-    
-    R=rsc, r
+    R=rsc, r, eds
     CC=golang-dev
-    https://golang.org/cl/4286043
+    https://golang.org/cl/4259065
 
- src/pkg/http/client.go         | 34 ++++++++++++++++------------------
- src/pkg/http/client_test.go    |  2 +-
- src/pkg/http/transport.go      |  4 ++--
- src/pkg/http/transport_test.go |  4 ++--
- 4 files changed, 21 insertions(+), 23 deletions(-)
+ src/cmd/Makefile         |   1 +
+ src/cmd/gotype/Makefile  |  11 +++
+ src/cmd/gotype/doc.go    |  57 ++++++++++++++
+ src/cmd/gotype/gotype.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/Makefile         |   2 +
+ 5 files changed, 262 insertions(+)

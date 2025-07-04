@@ -1,15 +1,19 @@
-commit 9cd2c700deccc6dfcc8f264857e406c53bf07859
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 19 06:15:18 2016 +0900
+commit d733cef728e452eb50cc6bcb343cf0f753df57bb
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Sun Mar 20 17:29:56 2016 +0100
 
-    net: deflake TestDialTimeoutMaxDuration
+    mime: fix maximum length of encoded-words
     
-    Fixes #15745.
+    RFC 2047 recommends a maximum length of 75 characters for
+    encoded-words. Due to a bug, encoded-words were limited to 77
+    characters instead of 75.
     
-    Change-Id: I6f9a1dcf0b1d97cb443900c7d8da09ead83d4b6a
-    Reviewed-on: https://go-review.googlesource.com/23243
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2ff9d013ab922df6fd542464ace70b1c46dc7ae7
+    Reviewed-on: https://go-review.googlesource.com/20918
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/timeout_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/encodedword.go      |  2 +-
+ src/mime/encodedword_test.go | 35 ++++++++++++++++++++++++++++++++---
+ 2 files changed, 33 insertions(+), 4 deletions(-)

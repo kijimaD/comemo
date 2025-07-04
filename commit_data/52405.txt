@@ -1,38 +1,36 @@
-commit 5f882d82661db9f2d3d04924f67defe1732f24e2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Mar 23 13:52:36 2023 -0400
+commit 920b9ab57dc6be573e8da705f13cf17ebab65342
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 20 22:19:49 2022 -0700
 
-    runtime: add GODEBUG=dontfreezetheworld=1
+    cmd/compile/internal/syntax: accept all valid type parameter lists
     
-    This GODEBUG flag disables the freezetheworld call during fatal panic.
-    freezetheworld asks the scheduler to stop running goroutines on all Ms.
-    This is normally useful, as it ensures we can collect a traceback from
-    every goroutine. However, it can be frustrating when debugging the
-    scheduler itself, as it significantly changes the scheduler state from
-    when the panic started.
+    Type parameter lists starting with the form [name *T|...] or
+    [name (X)|...] may look like an array length expression [x].
+    Only after parsing the entire initial expression and checking
+    whether the expression contains type elements or is followed
+    by a comma can we make the final decision.
     
-    Setting this flag has some disadvantages. Most notably, running
-    goroutines will not traceback in the standard output (though they may be
-    included in the final SIGQUIT loop). Additionally, we may missing
-    concurrently created goroutines when looping over allgs (CL 270861 made
-    this safe, but still racy). The final state of all goroutines will also
-    be further removed from the time of panic, as they continued to run for
-    a while.
+    This change simplifies the existing parsing strategy: instead
+    of trying to make an upfront decision with limited information
+    (which is insufficient), the parser now parses the start of a
+    type parameter list or array length specification as expression.
+    In a second step, if the expression can be split into a name
+    followed by a type element, or a name followed by an ordinary
+    expression which is succeeded by a comma, we assume a type
+    parameter list (because it can't be an array length).
+    In all other cases we assume an array length specification.
     
-    One unfortunate part of this flag is the final SIGQUIT loop in the
-    runtime leaves every thread in the signal handler at exit. This is a bit
-    frustrating in gdb, which doesn't understand how to step beyond
-    sigtramp. The data is still there, but you must manually walk.
+    Fixes #49482.
     
-    Change-Id: Ie6bd3ac521fcababea668196b60cf225a0be1a00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478975
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I269b6291999bf60dc697d33d24a5635f01e065b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402256
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/extern.go   | 9 +++++++++
- src/runtime/panic.go    | 3 +++
- src/runtime/runtime1.go | 2 ++
- 3 files changed, 14 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go          | 125 ++++++++++++---------
+ src/cmd/compile/internal/syntax/printer.go         |  21 ++--
+ src/cmd/compile/internal/syntax/printer_test.go    |  57 +++++++---
+ .../compile/internal/syntax/testdata/tparams.go    |  22 ++++
+ .../types2/testdata/fixedbugs/issue49482.go        |  21 ++--
+ 5 files changed, 158 insertions(+), 88 deletions(-)

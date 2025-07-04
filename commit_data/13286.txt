@@ -1,20 +1,14 @@
-commit c7be4defe31fbcbae028b382c707361d28d5d7ca
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 5 16:23:30 2012 -0400
+commit a7059cc7933981b89a4de5954ab5a294e77609c9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 5 06:43:15 2012 +0200
 
-    runtime: use OS X vsyscall for gettimeofday (386)
+    cmd/[568]g: correct freeing of allocated Regs.
     
-    amd64 was done in CL 6275056.
-    
-    We don't attempt to handle machines with clock speeds
-    less than 1 GHz. Those will fall back to the system call.
-    
-    benchmark       old ns/op    new ns/op    delta
-    BenchmarkNow          364           38  -89.53%
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/6307045
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6281050
 
- src/pkg/runtime/sys_darwin_386.s | 131 +++++++++++++++++++++++++++++++++------
- 1 file changed, 112 insertions(+), 19 deletions(-)
+ src/cmd/5g/reg.c | 4 ++--
+ src/cmd/6g/reg.c | 4 ++--
+ src/cmd/8g/reg.c | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

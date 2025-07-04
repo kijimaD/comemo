@@ -1,26 +1,51 @@
-commit f41fdd962db3264e62ec6acb4a8f5e40d22bdfed
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Fri Dec 13 17:20:38 2024 +0800
+commit 2dfc5eae2ee177d44f867783e13d7401b9f34a18
+Author: Antonio Ojea <aojea@google.com>
+Date:   Fri Dec 22 18:15:34 2023 +0000
 
-    cmd/internal/obj/loong64: add {V,XV}NEG{B/H/W/V} instructions support
+    net: don't retry truncated TCP responses
     
-    Go asm syntax:
-             VNEG{B/H/W/V}          VJ, VD
-            XVNEG{B/H/W/V}          XJ, XD
+    UDP messages may be truncated:
     
-    Equivalent platform assembler syntax:
-             vneg.{b/h/w/d}         vd, vj
-            xvneg.{b/h/w/d}         xd, xj
+    https://www.rfc-editor.org/rfc/rfc1035#section-4.2.1
     
-    Change-Id: Ie0a82a434b0ffbcb77425a65b96eff56e030028c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635935
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    > Messages carried by UDP are restricted to 512 bytes (not counting
+    > the IP or UDP headers). Longer messages are truncated and the TC
+    > bit is set in the header.
+    
+    However, TCP also have a size limitation of 65535 bytes
+    
+    https://www.rfc-editor.org/rfc/rfc1035#section-4.2.2
+    
+    > The message is prefixed with a two byte length field which gives
+    the message length, excluding the two byte length field.
+    
+    These limitations makes that the maximum possible number of A records
+    per RRSet is ~ 4090.
+    
+    There are environments like Kubernetes that may have larger number of
+    records (5000+) that does not fit in a single message. In this cases,
+    the DNS server sets the Truncated bit on the message to indicate that
+    it could not send the full answer despite is using TCP.
+    
+    We should only retry when the TC bit is set and the connection is UDP,
+    otherwise, we'll never being able to get an answer and the client will
+    receive an errNoAnswerFromDNSServer, that is a different behavior than
+    the existing in the glibc resolver, that returns all the existing
+    addresses in the TCP truncated response.
+    
+    Fixes #64896
+    
+    Signed-off-by: Antonio Ojea <aojea@google.com>
+    Change-Id: I1bc2c85f67668765fa60b5c0378c9e1e1756dff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552418
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Gudger <ian@iangudger.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 ++++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
- src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
- src/cmd/internal/obj/loong64/asm.go             | 24 ++++++++++++++++++++++++
- 4 files changed, 52 insertions(+)
+ src/net/dnsclient_unix.go      |   9 +++-
+ src/net/dnsclient_unix_test.go | 102 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+), 1 deletion(-)

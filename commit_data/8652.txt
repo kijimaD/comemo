@@ -1,14 +1,37 @@
-commit 6998ea2982ad97db0166cbf5e22bab3087063154
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jun 8 10:46:15 2011 +1000
+commit d5c45c541d71af0ead44a46eca9e38272481d5bb
+Author: Michael T. Jones <mtj@google.com>
+Date:   Tue Jun 7 16:02:34 2011 -0700
 
-    gc: alternative clang compatible abort.
+    big.nat: Improved speed of nat-to-string conversion
     
-    Tested on clang 2.9/amd64
+    Three optimizations: First, special-case power of two bases
+    that partion a Word(), bases 2, 4, 16, and 256. These can
+    be moved directly from internal Word() storage to the output
+    without multiprecision operations. Next, same approach for
+    the other power-of-two bases, 8, 32, 64, and 128. These
+    don't fill a Word() evenly, so special handling is needed
+    for those cases where input spans the high-bits of one Word
+    and the low bis of the next one.  Finally, implement the
+    general case for others bases in 2 <= base <= 256 using
+    superbases, the largest power of base representable in a
+    Word(). For base ten, this is 9 digits and a superbase of
+    10^9 for 32-bit Words and 19 digits and 10^19 for 64-bit
+    compiles. This way we do just 1/9th or 1/19th of the expensive
+    multiprecision divisions, unpacking superdigits using fast
+    native machine arithmetic. The resulting code runs 7x to
+    800x the speed of the previous approach, depending on the
+    length of the number to be converted--longer is relatively
+    faster.
     
-    R=rsc, jeff, r
+    Also, extended the tests and benchmarks for string to nat
+    (scan()) and nat to string (string()) functions. A further
+    enhancement awaits the next CL to make general cases about
+    7x faster for long cases.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4517143
+    https://golang.org/cl/4595041
 
- src/cmd/gc/subr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/big/nat.go      | 129 +++++++++++++++++++++++++----
+ src/pkg/big/nat_test.go | 213 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 324 insertions(+), 18 deletions(-)

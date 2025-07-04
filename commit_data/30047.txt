@@ -1,200 +1,22 @@
-commit c682d3239e5aa05a77ad21f2267efc4e2e60c05f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jan 21 13:41:06 2017 -0800
+commit a1813fcb839e21e46208a5294df87097a44bd05a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 15:01:03 2016 -0400
 
-    cmd/compile: convert constants to interfaces without allocating
+    cmd/go: referee another vendor vs symlink fight
     
-    The order pass is responsible for ensuring that
-    values passed to runtime functions, including
-    convT2E/convT2I, are addressable.
+    Avoid crash in the specific case reported in #15201 but also
+    print more useful error message, avoiding slice panic.
     
-    Prior to this CL, this was always accomplished
-    by creating a temp, which frequently escaped to
-    the heap, causing allocations, perhaps most
-    notably in code like:
+    Fixes #15201.
+    Fixes #16167.
+    Fixes #16566.
     
-    fmt.Println(1, 2, 3) // allocates three times
-    
-    None of the runtime routines modify the contents
-    of the pointers they receive, so in the case of
-    constants, instead of creating a temp value,
-    we can create a static value.
-    
-    (Marking the static value as read-only provides
-    protection against accidental attempts by the runtime
-    to modify the constant data.)
-    
-    This improves code generation for code like:
-    
-    panic("abc")
-    c <- 2 // c is a chan int
-    
-    which can now simply refer to "abc" and 2,
-    rather than going by way of a temporary.
-    
-    It also allows us to optimize convT2E/convT2I,
-    by recognizing static readonly values
-    and directly constructing the interface.
-    
-    This CL adds ~0.5% to binary size, despite
-    decreasing the size of many functions,
-    because it also adds many static symbols.
-    
-    This binary size regression could be recovered in
-    future (but currently unplanned) work.
-    
-    There is a lot of content-duplication in these
-    symbols; this statement generates six new symbols,
-    three containing an int 1 and three containing
-    a pointer to the string "a":
-    
-    fmt.Println(1, 1, 1, "a", "a", "a")
-    
-    These symbols could be made content-addressable.
-    
-    Furthermore, these symbols are small, so the
-    alignment and naming overhead is large.
-    As with the go.strings section, these symbols
-    could be hidden and have their alignment reduced.
-    
-    The changes to test/live.go make it impossible
-    (at least with current optimization techniques)
-    to place the values being passed to the runtime
-    in static symbols, preserving autotmp creation.
-    
-    Fixes #18704
-    
-    Benchmarks from fmt and go-kit's logging package:
-    
-    github.com/go-kit/kit/log
-    
-    name                      old time/op    new time/op    delta
-    JSONLoggerSimple-8          1.91µs ± 2%    2.11µs ±22%     ~     (p=1.000 n=9+10)
-    JSONLoggerContextual-8      2.60µs ± 6%    2.43µs ± 2%   -6.29%  (p=0.000 n=9+10)
-    Discard-8                    101ns ± 2%      34ns ±14%  -66.33%  (p=0.000 n=10+9)
-    OneWith-8                    161ns ± 1%     102ns ±16%  -36.78%  (p=0.000 n=10+10)
-    TwoWith-8                    175ns ± 3%     106ns ± 7%  -39.36%  (p=0.000 n=10+9)
-    TenWith-8                    293ns ± 3%     227ns ±15%  -22.44%  (p=0.000 n=9+10)
-    LogfmtLoggerSimple-8         704ns ± 2%     608ns ± 2%  -13.65%  (p=0.000 n=10+9)
-    LogfmtLoggerContextual-8     962ns ± 1%     860ns ±17%  -10.57%  (p=0.003 n=9+10)
-    NopLoggerSimple-8            188ns ± 1%     120ns ± 1%  -36.39%  (p=0.000 n=9+10)
-    NopLoggerContextual-8        379ns ± 1%     243ns ± 0%  -35.77%  (p=0.000 n=9+10)
-    ValueBindingTimestamp-8      577ns ± 1%     499ns ± 1%  -13.51%  (p=0.000 n=10+10)
-    ValueBindingCaller-8         898ns ± 2%     844ns ± 2%   -6.00%  (p=0.000 n=10+10)
-    
-    name                      old alloc/op   new alloc/op   delta
-    JSONLoggerSimple-8            904B ± 0%      872B ± 0%   -3.54%  (p=0.000 n=10+10)
-    JSONLoggerContextual-8      1.20kB ± 0%    1.14kB ± 0%   -5.33%  (p=0.000 n=10+10)
-    Discard-8                    64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
-    OneWith-8                    96.0B ± 0%     64.0B ± 0%  -33.33%  (p=0.000 n=10+10)
-    TwoWith-8                     160B ± 0%      128B ± 0%  -20.00%  (p=0.000 n=10+10)
-    TenWith-8                     672B ± 0%      640B ± 0%   -4.76%  (p=0.000 n=10+10)
-    LogfmtLoggerSimple-8          128B ± 0%       96B ± 0%  -25.00%  (p=0.000 n=10+10)
-    LogfmtLoggerContextual-8      304B ± 0%      240B ± 0%  -21.05%  (p=0.000 n=10+10)
-    NopLoggerSimple-8             128B ± 0%       96B ± 0%  -25.00%  (p=0.000 n=10+10)
-    NopLoggerContextual-8         304B ± 0%      240B ± 0%  -21.05%  (p=0.000 n=10+10)
-    ValueBindingTimestamp-8       159B ± 0%      127B ± 0%  -20.13%  (p=0.000 n=10+10)
-    ValueBindingCaller-8          112B ± 0%       80B ± 0%  -28.57%  (p=0.000 n=10+10)
-    
-    name                      old allocs/op  new allocs/op  delta
-    JSONLoggerSimple-8            19.0 ± 0%      17.0 ± 0%  -10.53%  (p=0.000 n=10+10)
-    JSONLoggerContextual-8        25.0 ± 0%      21.0 ± 0%  -16.00%  (p=0.000 n=10+10)
-    Discard-8                     3.00 ± 0%      1.00 ± 0%  -66.67%  (p=0.000 n=10+10)
-    OneWith-8                     3.00 ± 0%      1.00 ± 0%  -66.67%  (p=0.000 n=10+10)
-    TwoWith-8                     3.00 ± 0%      1.00 ± 0%  -66.67%  (p=0.000 n=10+10)
-    TenWith-8                     3.00 ± 0%      1.00 ± 0%  -66.67%  (p=0.000 n=10+10)
-    LogfmtLoggerSimple-8          4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    LogfmtLoggerContextual-8      7.00 ± 0%      3.00 ± 0%  -57.14%  (p=0.000 n=10+10)
-    NopLoggerSimple-8             4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    NopLoggerContextual-8         7.00 ± 0%      3.00 ± 0%  -57.14%  (p=0.000 n=10+10)
-    ValueBindingTimestamp-8       5.00 ± 0%      3.00 ± 0%  -40.00%  (p=0.000 n=10+10)
-    ValueBindingCaller-8          4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=10+10)
-    
-    fmt
-    
-    name                             old time/op    new time/op    delta
-    SprintfPadding-8                   88.9ns ± 3%    79.1ns ± 1%   -11.09%  (p=0.000 n=10+7)
-    SprintfEmpty-8                     12.6ns ± 3%    12.8ns ± 3%      ~     (p=0.136 n=10+10)
-    SprintfString-8                    38.7ns ± 5%    26.9ns ± 6%   -30.65%  (p=0.000 n=10+10)
-    SprintfTruncateString-8            56.7ns ± 2%    47.0ns ± 3%   -17.05%  (p=0.000 n=10+10)
-    SprintfQuoteString-8                164ns ± 2%     153ns ± 2%    -7.01%  (p=0.000 n=10+10)
-    SprintfInt-8                       38.9ns ±15%    26.5ns ± 2%   -31.93%  (p=0.000 n=10+9)
-    SprintfIntInt-8                    60.3ns ± 9%    38.2ns ± 1%   -36.67%  (p=0.000 n=10+8)
-    SprintfPrefixedInt-8               58.6ns ±13%    51.2ns ±11%   -12.66%  (p=0.001 n=10+10)
-    SprintfFloat-8                     71.4ns ± 3%    64.2ns ± 3%   -10.08%  (p=0.000 n=8+10)
-    SprintfComplex-8                    175ns ± 3%     159ns ± 2%    -9.03%  (p=0.000 n=10+10)
-    SprintfBoolean-8                   33.5ns ± 4%    25.7ns ± 5%   -23.28%  (p=0.000 n=10+10)
-    SprintfHexString-8                 65.3ns ± 3%    51.7ns ± 5%   -20.86%  (p=0.000 n=10+9)
-    SprintfHexBytes-8                  67.2ns ± 5%    67.9ns ± 4%      ~     (p=0.383 n=10+10)
-    SprintfBytes-8                      129ns ± 7%     124ns ± 7%      ~     (p=0.074 n=9+10)
-    SprintfStringer-8                   127ns ± 4%     126ns ± 8%      ~     (p=0.506 n=9+10)
-    SprintfStructure-8                  357ns ± 3%     359ns ± 3%      ~     (p=0.469 n=10+10)
-    ManyArgs-8                          203ns ± 6%     126ns ± 3%   -37.94%  (p=0.000 n=10+10)
-    FprintInt-8                         119ns ±10%      74ns ± 3%   -37.54%  (p=0.000 n=10+10)
-    FprintfBytes-8                      122ns ± 4%     120ns ± 3%      ~     (p=0.124 n=10+10)
-    FprintIntNoAlloc-8                 78.2ns ± 5%    74.1ns ± 3%    -5.28%  (p=0.000 n=10+10)
-    ScanInts-8                          349µs ± 1%     349µs ± 0%      ~     (p=0.606 n=9+8)
-    ScanRecursiveInt-8                 43.8ms ± 7%    40.1ms ± 2%    -8.42%  (p=0.000 n=10+10)
-    ScanRecursiveIntReaderWrapper-8    43.5ms ± 4%    40.4ms ± 2%    -7.16%  (p=0.000 n=10+9)
-    
-    name                             old alloc/op   new alloc/op   delta
-    SprintfPadding-8                    24.0B ± 0%     16.0B ± 0%   -33.33%  (p=0.000 n=10+10)
-    SprintfEmpty-8                      0.00B          0.00B           ~     (all equal)
-    SprintfString-8                     21.0B ± 0%      5.0B ± 0%   -76.19%  (p=0.000 n=10+10)
-    SprintfTruncateString-8             32.0B ± 0%     16.0B ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfQuoteString-8                48.0B ± 0%     32.0B ± 0%   -33.33%  (p=0.000 n=10+10)
-    SprintfInt-8                        16.0B ± 0%      1.0B ± 0%   -93.75%  (p=0.000 n=10+10)
-    SprintfIntInt-8                     24.0B ± 0%      3.0B ± 0%   -87.50%  (p=0.000 n=10+10)
-    SprintfPrefixedInt-8                72.0B ± 0%     64.0B ± 0%   -11.11%  (p=0.000 n=10+10)
-    SprintfFloat-8                      16.0B ± 0%      8.0B ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfComplex-8                    48.0B ± 0%     32.0B ± 0%   -33.33%  (p=0.000 n=10+10)
-    SprintfBoolean-8                    8.00B ± 0%     4.00B ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfHexString-8                  96.0B ± 0%     80.0B ± 0%   -16.67%  (p=0.000 n=10+10)
-    SprintfHexBytes-8                    112B ± 0%      112B ± 0%      ~     (all equal)
-    SprintfBytes-8                      96.0B ± 0%     96.0B ± 0%      ~     (all equal)
-    SprintfStringer-8                   32.0B ± 0%     32.0B ± 0%      ~     (all equal)
-    SprintfStructure-8                   256B ± 0%      256B ± 0%      ~     (all equal)
-    ManyArgs-8                          80.0B ± 0%      0.0B       -100.00%  (p=0.000 n=10+10)
-    FprintInt-8                         8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=10+10)
-    FprintfBytes-8                      32.0B ± 0%     32.0B ± 0%      ~     (all equal)
-    FprintIntNoAlloc-8                  0.00B          0.00B           ~     (all equal)
-    ScanInts-8                         15.2kB ± 0%    15.2kB ± 0%      ~     (p=0.248 n=9+10)
-    ScanRecursiveInt-8                 21.6kB ± 0%    21.6kB ± 0%      ~     (all equal)
-    ScanRecursiveIntReaderWrapper-8    21.7kB ± 0%    21.7kB ± 0%      ~     (all equal)
-    
-    name                             old allocs/op  new allocs/op  delta
-    SprintfPadding-8                     2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfEmpty-8                       0.00           0.00           ~     (all equal)
-    SprintfString-8                      2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfTruncateString-8              2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfQuoteString-8                 2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfInt-8                         2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfIntInt-8                      3.00 ± 0%      1.00 ± 0%   -66.67%  (p=0.000 n=10+10)
-    SprintfPrefixedInt-8                 2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfFloat-8                       2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfComplex-8                     2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfBoolean-8                     2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfHexString-8                   2.00 ± 0%      1.00 ± 0%   -50.00%  (p=0.000 n=10+10)
-    SprintfHexBytes-8                    2.00 ± 0%      2.00 ± 0%      ~     (all equal)
-    SprintfBytes-8                       2.00 ± 0%      2.00 ± 0%      ~     (all equal)
-    SprintfStringer-8                    4.00 ± 0%      4.00 ± 0%      ~     (all equal)
-    SprintfStructure-8                   7.00 ± 0%      7.00 ± 0%      ~     (all equal)
-    ManyArgs-8                           8.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    FprintInt-8                          1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    FprintfBytes-8                       1.00 ± 0%      1.00 ± 0%      ~     (all equal)
-    FprintIntNoAlloc-8                   0.00           0.00           ~     (all equal)
-    ScanInts-8                          1.60k ± 0%     1.60k ± 0%      ~     (all equal)
-    ScanRecursiveInt-8                  1.71k ± 0%     1.71k ± 0%      ~     (all equal)
-    ScanRecursiveIntReaderWrapper-8     1.71k ± 0%     1.71k ± 0%      ~     (all equal)
-    
-    Change-Id: I7ba72a25fea4140a0ba40a9f443103ed87cc69b5
-    Reviewed-on: https://go-review.googlesource.com/35554
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I66499621e9678a05bc9b12b0da77906cd7027bdd
+    Reviewed-on: https://go-review.googlesource.com/31665
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 16 ++++++++++++
- src/cmd/compile/internal/gc/walk.go  | 25 +++++++++++++------
- src/cmd/internal/obj/data.go         |  2 +-
- test/live.go                         | 48 ++++++++++++++++++++----------------
- 4 files changed, 61 insertions(+), 30 deletions(-)
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ src/cmd/go/pkg.go     | 19 ++++++++++++++++---
+ 2 files changed, 37 insertions(+), 3 deletions(-)

@@ -1,18 +1,20 @@
-commit 9dc1cce38db0229e97c1ee8d9929f0457f1af385
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 31 09:49:42 2014 -0700
+commit cfafa9f4cb1a20c4a9490d5bd8e561e650562f54
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 13:10:42 2014 -0400
 
-    database/sql: make TestDrivers not crash on second run
+    cmd/gc: don't use static init to initialize small structs, fields
     
-    Using -test.cpu=1,1 made it crash before.
+    Better to avoid the memory loads and just use immediate constants.
+    This especially applies to zeroing, which was being done by
+    copying zeros from elsewhere in the binary, even if the value
+    was going to be completely initialized with non-zero values.
+    The zero writes were optimized away but the zero loads from
+    the data segment were not.
     
-    Fixes #9024
-    
-    LGTM=iant
-    R=adg, iant
+    LGTM=r
+    R=r, bradfitz, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/169860043
+    https://golang.org/cl/152700045
 
- src/database/sql/fakedb_test.go | 2 ++
- src/database/sql/sql.go         | 5 +++++
- 2 files changed, 7 insertions(+)
+ src/cmd/gc/sinit.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

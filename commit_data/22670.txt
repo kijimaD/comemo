@@ -1,16 +1,18 @@
-commit 77f56af0bc2932b94506f1963228a33c26c8b289
-Author: Rick Hudson <rlh@golang.org>
-Date:   Wed Apr 22 15:06:35 2015 -0400
+commit 919a6fbeab6e4eb73c2cca596ca79ae1a2abda34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 11:49:12 2015 -0700
 
-    runtime: Improve scanning performance
+    math/big: faster Int.Binomial(n, k) for k > n/2
     
-    To achieve a 2% improvement in the garbage benchmark this CL removes
-    an unneeded assert and avoids one hbits.next() call per object
-    being scanned.
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkBinomial     478664        4410          -99.08%
     
-    Change-Id: Ibd542d01e9c23eace42228886f9edc488354df0d
-    Reviewed-on: https://go-review.googlesource.com/9244
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #10084.
+    
+    Change-Id: Ib75034428e32c79c9a660ae9f9bd396afc6a7f11
+    Reviewed-on: https://go-review.googlesource.com/8351
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgcmark.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/math/big/int.go      |  4 ++++
+ src/math/big/int_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

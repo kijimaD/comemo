@@ -1,31 +1,27 @@
-commit 793844207d81bdc41212bc300195469c65c39766
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 8 12:50:39 2021 -0400
+commit 4cba6c703f68a7c1718e589feaeb2530d7812fbf
+Author: Changkun Ou <hi@changkun.us>
+Date:   Sat Sep 19 23:32:12 2020 +0200
 
-    cmd/go: strip GOEXPERIMENT from hash salt
+    testing: send t.signal only if there is no panic
     
-    The go command salts cache hashes using runtime.Version() (the Go
-    version the go command was built with) in order to separate objects
-    built with different versions of Go.
+    If a signal is sent to t.signal before the panic is triggered,
+    a panicking test may end up with "warning: no tests to run" because
+    the tRunner that invokes the test in t.Run calls runtime.Goexit on
+    panic, which causes the panicking test not be recorded in runTests.
     
-    CL 307820 added the active GOEXPERIMENTs to the result of
-    runtime.Version, which affected cmd/go's hash salt. Since dist builds
-    go_bootstrap with all GOEXPERIMENTs disabled, but then go_bootstrap
-    builds the final go binary with the GOEXPERIMENTs passed to make.bash,
-    if any GOEXPERIMENTs were passed, go_bootstrap and the final go binary
-    produce different cache hashes. At the very end of dist, it uses the
-    final go binary to check the hashes of all packages, but these hashes
-    were produced by go_bootstrap, so it concludes everything is stale.
+    Send the signal if and only if there is no panic.
     
-    This should fix the builders that enable GOEXPERIMENTs, including the
-    regabi and staticlockranking builders.
+    Fixes #41479
     
-    Change-Id: Ie389929dff6f7b6eff2b19a2f43507e72be5f32e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308591
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I812f1303bfe02c443a1902732e68d21620d6672e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256098
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/dist/build.go             |  2 +-
- src/cmd/go/internal/cache/hash.go | 17 ++++++++++++++++-
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/test_cleanup_failnow.txt | 14 ++++++++++++++
+ src/testing/testing.go                              | 10 ++++++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

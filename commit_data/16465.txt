@@ -1,12 +1,15 @@
-commit 1a145cd52db21b07406568106f75d89c07af0ce8
+commit 5b097e79511abb83ef04401140d7dab2b42c41a3
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Jun 3 03:09:47 2013 +0800
+Date:   Sun Jun 2 22:46:53 2013 +0800
 
-    doc/go1.2.txt: update for CL 8248043.
+    cmd/cgo: using __typeof__(a->r) instead of putting invalid TYPE in "a->r = (const TYPE)"
+    Thanks kballard for the hint.
+    Fixes #4857.
     
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/9949044
+    https://golang.org/cl/9649045
 
- doc/go1.2.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/cgo/test/issue4857.go | 15 +++++++++++++++
+ src/cmd/cgo/out.go         |  2 +-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

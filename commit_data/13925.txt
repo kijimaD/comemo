@@ -1,12 +1,13 @@
-commit d18cc29f55f383c42b9a138a52c81fc9c734eec7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 24 13:15:33 2012 -0500
+commit 93cf366d50fc3b98f98cfb88c33430077be49724
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 09:49:31 2012 -0700
 
-    tag go1.0.3
+    A+C: Add Shivakumar GN (Individual CLA)
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6543069
+    https://golang.org/cl/6541062
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

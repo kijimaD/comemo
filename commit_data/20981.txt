@@ -1,12 +1,24 @@
-commit 2d02ff278cb8b339df239f5706d2b5b13917e302
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 13 19:47:22 2014 +1100
+commit 40a5b3ecb1578a68b0423b8ef4eaebd5fb4c7869
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 31 13:39:36 2014 -0400
 
-    misc/chrome/gophertool: update URLs from code.google.com to new homes
+    [dev.power64] runtime: fix fastrand1 on power64x
     
-    Change-Id: I46bf9f1b84a331cabce2d3417b2b59ccb83d00fa
-    Reviewed-on: https://go-review.googlesource.com/1532
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    fastrand1 depends on testing the high bit of its uint32 state.
+    For efficiency, all of the architectures implement this as a
+    sign bit test.  However, on power64, fastrand1 was using a
+    64-bit sign test on the zero-extended 32-bit state.  This
+    always failed, causing fastrand1 to have very short periods
+    and often decay to 0 and get stuck.
+    
+    Fix this by using a 32-bit signed compare instead of a 64-bit
+    compare.  This fixes various tests for the randomization of
+    select of map iteration.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/166990043
 
- misc/chrome/gophertool/gopher.js | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/runtime/asm_power64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

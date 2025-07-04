@@ -1,18 +1,19 @@
-commit cc928b7b6e72c367f96fcb1eda0e2d417d83a41d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 11 17:15:28 2011 -0500
+commit 3a43ff1a77d64be009add9eda36ce5ef01081e25
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 11 13:56:47 2011 -0800
 
-    http: fix text displayed in Redirect
+    ld: Fix exported dynamic symbols on Mach-O.
     
-    In the case where r.Method == "POST", was
-    calling Printf with an argument but "" format string,
-    causing a spurious %!EXTRA(...) message.
+    * Avoid confusion between imported and exported symbols.
+    * Record number of imported and exported symbols correctly.
+    * Explictly relocate SMACHOSYM section, since it is not in datap.
     
-    Also escape string properly in HTML generation.
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3923043
+    https://golang.org/cl/3920042
 
- src/pkg/http/server.go | 95 ++++++++++++++++++++++++++------------------------
- 1 file changed, 50 insertions(+), 45 deletions(-)
+ src/cmd/6l/asm.c   | 20 ++++++++++----------
+ src/cmd/ld/go.c    |  1 -
+ src/cmd/ld/lib.h   |  2 ++
+ src/cmd/ld/macho.c | 14 ++++----------
+ 4 files changed, 16 insertions(+), 21 deletions(-)

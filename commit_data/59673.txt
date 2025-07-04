@@ -1,32 +1,23 @@
-commit 88679da4a396de98e975deb0e007b1d888a55676
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Sat May 17 11:33:07 2025 -0400
+commit de3a3c9ebc801c2cd3513a76676f1a26f600b51d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 9 03:56:40 2024 +0000
 
-    crypto/tls: reject duplicate TLS 1.3 EncryptedExtensions
+    runtime: make zeroing of large objects containing pointers preemptible
     
-    When a TLS 1.3 client processes the server's encryptedExtensionsMsg it
-    should reject instances that contain duplicate extension types.
+    This change makes it possible for the runtime to preempt the zeroing of
+    large objects that contain pointers. It turns out this is fairly
+    straightforward with allocation headers, since we can just temporarily
+    tell the GC that there's nothing to scan for a large object with a
+    single pointer write (as opposed to trying to zero a whole bunch of
+    bits, as we would've had to do once upon a time).
     
-    RFC 8446 §4.2 says:
-      There MUST NOT be more than one extension of the same type in a given
-      extension block.
+    Fixes #31222.
     
-    This update matches enforcement done in the client hello unmarshalling,
-    but applied to the TLS 1.3 encrypted extensions message unmarshalling.
-    
-    Making this change also allows enabling the
-    DuplicateExtensionClient-TLS-TLS13 BoGo test.
-    
-    Updates #72006
-    
-    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673757
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I10d0dcfa3938c383282a3eb485a6f00070d07bd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577495
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/tls/bogo_config.json      | 1 -
- src/crypto/tls/handshake_messages.go | 6 ++++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go  | 30 +++++++++++++++++-------------
+ src/runtime/mbitmap.go |  4 ++++
+ 2 files changed, 21 insertions(+), 13 deletions(-)

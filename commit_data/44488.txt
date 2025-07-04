@@ -1,19 +1,34 @@
-commit 593f5bbad7727f57ce452c4aa93604e8dabbba7d
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Nov 4 09:26:28 2020 +0000
+commit 526d99a49ae67bfde15134b96159680988615d2d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 15 23:14:50 2020 -0400
 
-    cmd/compile: adjust stack slot alignment requirements on arm64
+    [dev.link] cmd/internal/obj: handle content-addressable symbols with relocations
     
-    Currently any variable that is spilled onto the stack will occupy at least 8 bytes,
-    because the stack offset is required to be aligned with 8 bytes on linux/arm64.
-    This CL removes this constraint by aligning the stack slot with its actual size.
+    For content-addressable symbols with relocations, we build a
+    content hash based on its content and relocations. Depending on
+    the category of the referenced symbol, we choose different hash
+    algorithms such that the hash is globally consistent.
     
-    Updates #42385
+    For now, we only support content-addressable symbols with
+    relocations when the current package's import path is known, so
+    that the symbol names are fully expanded. Otherwise, if the
+    referenced symbol is a named symbol whose name is not fully
+    expanded, the hash won't be globally consistent, and can cause
+    erroneous collisions. This is fine for now, as the deduplication
+    is just an optimization, not a requirement for correctness (until
+    we get to type descriptors).
     
-    Change-Id: Icbd63dc70cd19852802e43f134355f19ba7e1e29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267999
-    Trust: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I639e4e03dd749b5d71f0a55c2525926575b1ac30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243142
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssagen/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/main.go                  |  3 +-
+ src/cmd/compile/internal/gc/main.go  |  1 +
+ src/cmd/compile/internal/gc/obj.go   |  2 +-
+ src/cmd/internal/obj/link.go         |  1 +
+ src/cmd/internal/obj/objfile2.go     | 77 ++++++++++++++++++++++++++++---
+ src/cmd/internal/obj/objfile_test.go | 87 ++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/sym.go          |  6 ++-
+ 7 files changed, 166 insertions(+), 11 deletions(-)

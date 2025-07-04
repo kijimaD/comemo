@@ -1,25 +1,19 @@
-commit 0c3015191f085fe4941da677d1a7787379bc57d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 22 12:26:15 2023 -0400
+commit b8f4847d6f175d71e0738e944db8e2394846fa36
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 15 14:33:16 2022 -0400
 
-    cmd/go: add mod edit -toolchain and work edit -toolchain
+    runtime: convert gcController.globalsScan to atomic type
     
-    We have added a new toolchain directive in go.mod and go.work.
-    This CL adds support in mod edit and work edit for changing the toolchain line.
+    For #53821.
     
-    For #57001.
-    
-    Change-Id: I36a960796630a359b8a587877cb9548c299d5c87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497296
+    Change-Id: I92bd33e355c868ae229395fd9c98fdb10768d03d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417779
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go                              | 24 ++++---
- src/cmd/go/internal/modcmd/edit.go                 | 76 ++++++++++++++--------
- src/cmd/go/internal/workcmd/edit.go                | 57 ++++++++++------
- src/cmd/go/testdata/script/mod_edit_go.txt         |  5 +-
- src/cmd/go/testdata/script/mod_edit_toolchain.txt  | 18 +++++
- src/cmd/go/testdata/script/work_edit.txt           |  4 ++
- src/cmd/go/testdata/script/work_edit_toolchain.txt | 20 ++++++
- 7 files changed, 147 insertions(+), 57 deletions(-)
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/export_test.go        |  2 +-
+ src/runtime/mgc.go                |  2 +-
+ src/runtime/mgcpacer.go           | 16 +++++++---------
+ 4 files changed, 9 insertions(+), 12 deletions(-)

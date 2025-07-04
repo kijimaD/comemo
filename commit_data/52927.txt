@@ -1,24 +1,16 @@
-commit 59d19ba797d9bf9544f31a1f9f80e8532b244db5
-Author: David Chase <drchase@google.com>
-Date:   Fri May 5 16:29:37 2023 -0400
+commit 0cd0c12f576a3be39f44d20145eba334adce0bba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 15 14:40:13 2022 +0200
 
-    cmd/compile/loopvar: adjust logging messages
+    doc/go1.19: use matching closing tag in unix build constraint heading
     
-    Michael Stapelberg thought the former messages had
-    upside potential, Russ and I agreed.
-    
-    Also slightly tweaked the json logging, not sure if
-    anyone will use it but it should at least be okay.
-    
-    Change-Id: Iaab75114dd5f5d8f011fab22d32b57abc0272815
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493135
+    Change-Id: Idb990eac60e334a5901b2d6cdc2380225d011dd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412294
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/loopvar/loopvar.go      | 28 ++++++++++++++----------
- src/cmd/compile/internal/loopvar/loopvar_test.go |  6 ++---
- 2 files changed, 20 insertions(+), 14 deletions(-)
+ doc/go1.19.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

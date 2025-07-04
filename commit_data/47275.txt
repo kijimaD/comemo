@@ -1,14 +1,25 @@
-commit b68c02e2919aec347438a7ec6512b0d2accd163f
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Nov 5 10:40:31 2021 +0800
+commit e8e425cb231863c1ed1bcf00dd5a517ceeaf6b9c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Mar 9 10:41:16 2021 -0500
 
-    internal/poll: fix the wrong function names in comments
+    runtime: add pollDesc partial edges
     
-    Change-Id: Ib17df2751209129ad6d1c148829625b347b702a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361514
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    gscan is taken during stack growth, which may occur while pollDesc is
+    held.
+    
+    mallocgc may also be called while pollDesc is held. mallocgc may take
+    mheap or mheapSpecial. The former exists, but is out of order; the
+    latter is missing.
+    
+    Fixes #44881
+    
+    Change-Id: Ie25935d9d433e813c11a528ee47255b317a09f41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300009
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/internal/poll/fd_windows.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/lockrank.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

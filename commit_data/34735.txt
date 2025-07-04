@@ -1,24 +1,26 @@
-commit 976a852d4c26b80f4084151c36f3024c180aa3b9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 16 19:08:59 2018 -0800
+commit fafce97ec68a3b5d96edbef5c64b52b94c68a63e
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Mon Nov 13 06:27:06 2017 +0000
 
-    cmd/go: if -race, don't run coverage on runtime packages
+    doc: add a link to the code of conduct
     
-    Don't compile the runtime packages with coverage when using the race
-    detector. The user can, perhaps accidentally, request coverage for the
-    runtime by using -coverpkg=all. If using the race detector, the
-    runtime package coverage will call into the race detector before it
-    has been initialized. This will cause the program to crash
-    mysteriously on startup.
+    GitHub has defined a set of standard meta files to include with projects
+    hosted on GitHub. According to the GitHub Insights Community page for
+    go project the only one missing is the code of conduct.
     
-    Fixes #23882
+    Go has a code of conduct on it's website and we should link to it in the
+    prescribed `.github/CODE_OF_CONDUCT.md` so that people can find it in
+    the standard location on GitHub. This would be consistent with the
+    contribution guidelines that are linked to in `.github/CONTRIBUTING.md`.
     
-    Change-Id: I9a63867a9138797d8b8afb0856ae21079accdb27
-    Reviewed-on: https://go-review.googlesource.com/94898
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Ref: https://help.github.com/articles/adding-a-code-of-conduct-to-your-project/
+    
+    Fixes #22685
+    
+    Change-Id: Ie89aa39d3df741d7d6ed2dba5c8ba3d0e0dbf618
+    Reviewed-on: https://go-review.googlesource.com/77231
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go            | 15 +++++++++++++++
- src/cmd/go/internal/test/test.go |  8 ++++++++
- 2 files changed, 23 insertions(+)
+ .github/CODE_OF_CONDUCT.md | 3 +++
+ 1 file changed, 3 insertions(+)

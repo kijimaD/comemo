@@ -1,18 +1,23 @@
-commit 3fc276ccf8c95a799c240905d35ad187abd34b20
+commit 9f59918cae5eb23fdf0135b77280907365b52069
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Feb 2 16:03:28 2019 -0800
+Date:   Thu Sep 13 12:18:09 2018 -0700
 
-    cmd/cgo: don't copy a simple variable x in &x[0]
+    path/filepath: correct symlink eval for symlink at root
     
-    Fixes #30065
+    For a relative symlink in the root directory, such as /tmp ->
+    private/tmp, we were dropping the leading slash.
     
-    Change-Id: I3d0fb03bab397548653d5f3b386cfe2980ac1030
-    Reviewed-on: https://go-review.googlesource.com/c/160830
+    No test because we can't create a symlink in the root directory.
+    The test TestGZIPFilesHaveZeroMTimes was failing on the Darwin builders.
+    
+    Updates #19922
+    Updates #20506
+    
+    Change-Id: Ic83cb6d97ad0cb628fc551ac772a44fb3e20f038
+    Reviewed-on: https://go-review.googlesource.com/135295
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue30065.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go          | 38 ++++++++++++++++++++++++++++++++------
- 3 files changed, 71 insertions(+), 6 deletions(-)
+ src/path/filepath/symlink.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

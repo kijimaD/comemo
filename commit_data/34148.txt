@@ -1,25 +1,16 @@
-commit 331092c58f35d798ed92b04cb57c503c8ef3ad31
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jan 10 17:31:25 2018 +0100
+commit 97d17fcfd19594afc03ee68e9d74b9db14798c7f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 4 15:32:40 2017 -0700
 
-    math/big: fix %s verbs in Float tests error messages
+    runtime: force the type of specialfinalizer into DWARF
     
-    Fatalf calls in two Float tests use the %s verb with Floats values,
-    which is not allowed and results in failure messages that look like
-    this:
+    The core dump reader wants to know the layout of this type.
+    No variable has this type, so it wasn't previously dumped
+    to DWARF output.
     
-        float_test.go:1385: i = 0, prec = 1, ToZero:
-                         %!s(*big.Float=1) [0]
-                    /    %!s(*big.Float=1) [0]
-                    =    %!s(*big.Float=0.0625)
-                    want %!s(*big.Float=1)
-    
-    Switch to %v.
-    
-    Change-Id: Ifdc80bf19c91ca1b190f6551a6d0a51b42ed5919
-    Reviewed-on: https://go-review.googlesource.com/87199
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I982040b81bff202976743edc7fe53247533a9d81
+    Reviewed-on: https://go-review.googlesource.com/68312
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/float_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/mheap.go | 2 ++
+ 1 file changed, 2 insertions(+)

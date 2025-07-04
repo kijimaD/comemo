@@ -1,16 +1,20 @@
-commit 1d2b71ce83ac66c268985a6a9ddf8f062e71821f
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Apr 16 22:42:09 2014 -0400
+commit 6f2d91a094c78165646ddaa0c139191f6943c7d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 22:30:10 2014 -0400
 
-    cmd/gc: fewer errors for wrong argument count
+    cmd/go: reapply doc change from CL 60590044.
     
-    Fixes #7675
+    https://golang.org/cl/60590044 edited
+    doc.go without editing the file it is generated from.
+    The edit was lost at the next mkdoc.sh.
+    Make the change in help.go and rerun mkdoc.sh.
     
-    LGTM=rsc
-    R=rsc
+    Pointed out in the review of CL 68580043.
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/85040044
+    https://golang.org/cl/88760043
 
- src/cmd/gc/typecheck.c      | 55 +++++++++++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue7675.go | 24 ++++++++++++++++++++
- 2 files changed, 79 insertions(+)
+ src/cmd/go/doc.go  | 4 ++--
+ src/cmd/go/help.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

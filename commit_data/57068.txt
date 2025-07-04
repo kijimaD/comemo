@@ -1,33 +1,32 @@
-commit e50913cefcdb590cdf7d9432455de2847ef93851
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Thu Aug 1 11:15:30 2024 -0700
+commit c3db64c0f45e8f2d75c5b59401e0fc925701b6f4
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Sat Jun 10 11:31:43 2023 -0700
 
-    runtime: avoid futile mark worker acquisition
+    net: fix panic when calling net.Listen or net.Dial on wasip1
     
-    During the GC mark phase, one of the first behaviors of findRunnable is
-    to check if it should execute a GC mark worker. Mark workers often run
-    for many milliseconds in a row, so programs that invoke the scheduler
-    more frequently will see that condition trigger only a tiny fraction of
-    the time.
+    Address a panic that was caused by net.Dial/net.Listen entering the fake
+    network stack and assuming that the addresses would be of type *TCPAddr,
+    where in fact they could have been *UDPAddr or *UnixAddr as well.
     
-    Obtaining a mark worker from the gcBgMarkWorkerPool involves a CAS on a
-    single memory location that's shared across the process. When GOMAXPROCS
-    is large, the resulting contention can waste a significant amount of CPU
-    time. But a sufficiently large GOMAXPROCS also means there's no need for
-    fractional mark workers, making it easier to check ahead of time if we
-    need to run a worker.
+    The fix consist in implementing the fake network facility for udp and
+    unix addresses, preventing the assumed type assertion to TCPAddr from
+    triggering a panic. New tests are added to verify that using the fake
+    network from the exported functions of the net package satisfies the
+    minimal requirement of being able to create a listener and establish a
+    connection for all the supported network types.
     
-    Check, without committing to a particular worker, whether we would even
-    want to run one.
+    Fixes #60012
+    Fixes #60739
     
-    For #68399
-    
-    Change-Id: I5d8578c2101ee20a8a4156a029584356095ea118
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602477
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2688f1a0a7c6c9894ad3d137a5d311192c77a9b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502315
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/mgcpacer.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/net/net_fake.go      | 134 +++++++++++++++++++++++++------
+ src/net/net_fake_test.go | 203 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 312 insertions(+), 25 deletions(-)

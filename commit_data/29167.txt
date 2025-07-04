@@ -1,36 +1,21 @@
-commit 68348394274ee83f5286022d97cfe58b6761321b
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 7 17:25:26 2016 -0400
+commit 298791a94af8b787c38fb95c51cb2dbc94668dad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 01:05:18 2016 +0000
 
-    runtime, cmd/trace: annotate different mark worker types
+    all: use time.Until where applicable
     
-    Currently mark workers are shown in the trace as regular goroutines
-    labeled "runtime.gcBgMarkWorker". That's somewhat unhelpful to an end
-    user because of the opaque label and particularly unhelpful to runtime
-    developers because it doesn't distinguish the different types of mark
-    workers.
+    Updates #14595
     
-    Fix this by introducing a variant of the GoStart event called
-    GoStartLabel that lets the runtime indicate a label for a goroutine
-    execution span and using this to label mark worker executions as "GC
-    (<mode>)" in the trace viewer.
-    
-    Since this bumps the trace version to 1.8, we also add test data for
-    1.7 traces.
-    
-    Change-Id: Id7b9c0536508430c661ffb9e40e436f3901ca121
-    Reviewed-on: https://go-review.googlesource.com/30702
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Idf60b3004c7a0ebb59dd48389ab62c854069e09f
+    Reviewed-on: https://go-review.googlesource.com/28073
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/trace/trace.go                             |   8 ++++--
- src/internal/trace/goroutines.go                   |   2 +-
- src/internal/trace/order.go                        |   2 +-
- src/internal/trace/parser.go                       |  16 +++++++----
- src/internal/trace/testdata/http_1_7_good          | Bin 0 -> 1971 bytes
- src/internal/trace/testdata/stress_1_7_good        | Bin 0 -> 396526 bytes
- .../trace/testdata/stress_start_stop_1_7_good      | Bin 0 -> 2055 bytes
- src/runtime/mgc.go                                 |   8 ++++++
- src/runtime/trace.go                               |  30 +++++++++++++++++----
- 9 files changed, 52 insertions(+), 14 deletions(-)
+ src/context/context.go     | 4 ++--
+ src/crypto/tls/tls.go      | 2 +-
+ src/net/fd_poll_runtime.go | 2 +-
+ src/net/http/client.go     | 2 +-
+ src/net/http/serve_test.go | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

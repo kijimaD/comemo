@@ -1,23 +1,14 @@
-commit 7f96e266ec684943acfc1164a18d2cf005e03ef6
-Author: David Benjamin <davidben@google.com>
-Date:   Mon Jan 4 16:16:28 2016 -0800
+commit c6f280584c61835c0cc9f15222e842d68f500d8d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Sep 3 12:33:06 2015 +1200
 
-    encoding/asn1: fix off-by-one in parseBase128Int.
+    cmd/go: implicitly include math in a shared library on arm
     
-    parseBase128Int compares |shifted| with four, seemingly to ensure the result
-    fits in an int32 on 32-bit platforms where int is 32-bit. However, there is an
-    off-by-one in this logic, so it actually allows five shifts, making the maximum
-    tag number or OID component 2^35-1.
+    In the same manner in which runtime/cgo is included on other architectures.
     
-    Fix this so the maximum is 2^28-1 which should be plenty for OID components and
-    tag numbers while not overflowing on 32-bit platforms.
-    
-    Change-Id: If825b30cc53a0fc08e68ea1a24d265e7eb1a13a4
-    Reviewed-on: https://go-review.googlesource.com/18225
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I90a5ad8585248b2566d763d33994a600508d89cb
+    Reviewed-on: https://go-review.googlesource.com/14221
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/asn1/asn1.go      | 2 +-
- src/encoding/asn1/asn1_test.go | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 41 +++++++++++++++++++++++++++++++++--------
+ 1 file changed, 33 insertions(+), 8 deletions(-)

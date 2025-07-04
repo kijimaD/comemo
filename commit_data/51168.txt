@@ -1,29 +1,21 @@
-commit 27c38142756902c9a2e281ff1dd0f2e0a7273f75
-Author: Daulet Zhanguzin <daulet@zhanguzin.kz>
-Date:   Wed Jul 6 22:29:35 2022 +0000
+commit 9c6e8f63c0e4f24ccf4326164ddbc0f0607343a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 11 19:35:08 2021 -0800
 
-    io: correctly process result of sendfile(2) when src returns 0 bytes
+    net/netip: make AddrPort.MarshalText format 4-in-6 IPs consistently
     
-    Fixes #53658. io.Copy() uses sendfile(2) to avoid allocating extra buffers when src is a file and dst is a TCPConn. However if src returns no bytes current logic treats it as failure and falls back to copying via user space. The following is a benchmark that illustrates the bug.
+    Thanks again to @capnspacehook.
     
-    Benchmark: https://go.dev/play/p/zgZwpjUatSq
+    Fixes #50110
     
-    Before:
-    BenchmarkCopy-16          541006              2137 ns/op            4077 B/op          0 allocs/op
-    
-    After:
-    BenchmarkCopy-16          490383              2365 ns/op             174 B/op          8 allocs/op
-    
-    Change-Id: I703376d53b20e080c6204a73c96867cce16b24cf
-    GitHub-Last-Rev: 3a50be4f169683bf9caea32892c66619a66ad21a
-    GitHub-Pull-Request: golang/go#53659
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415834
+    Change-Id: I1973bdea68eac9842b45f9524f62152e4f5342cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371114
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/sendfile_linux.go | 16 ++++++++++------
- src/net/sendfile_linux.go           |  8 ++++----
- 2 files changed, 14 insertions(+), 10 deletions(-)
+ src/net/netip/netip.go      | 13 +++++++++++--
+ src/net/netip/netip_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

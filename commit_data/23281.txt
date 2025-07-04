@@ -1,15 +1,16 @@
-commit a544a3a6f792dc57c8854b08a9a54cebe9e8a93f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 4 16:09:15 2015 -0700
+commit 8fb55f9d4155f0f4dcbd6e783b8b076d963b4ff2
+Author: Minux Ma <minux@golang.org>
+Date:   Tue May 5 07:35:08 2015 +0000
 
-    cmd/go: use new vet location
+    Revert "cmd/internal: disable OSQRT on GOARM=5"
     
-    Change-Id: I7d96ebcca5954152edb821bb41b6047a1c622949
-    Reviewed-on: https://go-review.googlesource.com/10731
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    I just submitted the real fix for #10641.
+    
+    This reverts commit 3120adc21294829c230005a89e9bb0ad63de606b.
+    
+    Change-Id: I55051515f697e27ca887ed21c2ac985f0b9b062b
+    Reviewed-on: https://go-review.googlesource.com/9720
+    Reviewed-by: Joel Sing <jsing@google.com>
 
- src/cmd/go/pkg.go  | 2 +-
- src/cmd/go/tool.go | 4 ----
- src/cmd/go/vet.go  | 2 +-
- 3 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/internal/gc/walk.go | 5 -----
+ 1 file changed, 5 deletions(-)

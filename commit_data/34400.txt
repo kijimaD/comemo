@@ -1,17 +1,22 @@
-commit c1359db9cc3e3f84e45c5a899e2dac128ea74d50
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 27 15:39:42 2018 -0800
+commit 4a5b99c3a81dab8f389123f6e53ad879bbf6ed42
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 24 21:14:39 2017 -0400
 
-    go/types: fix empty interface optimization (minor performance bug)
+    cmd/link: only adjust pagezero for iOS on darwin/arm64
     
-    The tests checking for empty interfaces so that they can be fast-
-    tracked in the code actually didn't test the right field and the
-    fast track code never executed. Doing it now.
+    The new pagezero_size introduced by CL 72730 breaks
+    on 32-bit systems, since it is 2³². Restrict the change to
+    darwin/arm64, since it is intended for iOS only.
     
-    Change-Id: I58b2951efb3fb40b3366874c79fd653591ae0e99
-    Reviewed-on: https://go-review.googlesource.com/97519
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    We could plausibly allow GOARCH=amd64 as well, but
+    without a compelling reason, changing the zero page size
+    doesn't seem worth the risk.
+    
+    Change-Id: I5d6adcbaff8d0e5b169ff13512f188332cc7ed9a
+    Reviewed-on: https://go-review.googlesource.com/73250
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/types/interfaces.go | 2 +-
- src/go/types/typexpr.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

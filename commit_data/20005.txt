@@ -1,20 +1,16 @@
-commit 0c32bd6262e2ddaead83ea3e8486b48fb6967532
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 14 21:38:24 2014 +0400
+commit 059d089fc0a02c2580b67d271baa269de6c0894c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:43:34 2014 -0400
 
-    runtime: mark objects with non-atomic operations
+    [dev.power64] debug/elf: add power64 support along with relocation test
     
-    On the go.benchmarks/garbage benchmark with GOMAXPROCS=16:
-                       old ns/op     new ns/op     delta
-    time               1392254       1353170       -2.81%
-    cputime            21995751      21373999      -2.83%
-    gc-pause-one       15044812      13050524      -13.26%
-    gc-pause-total     213636        185317        -13.26%
-    
-    LGTM=rlh
-    R=golang-codereviews, rlh
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/123380043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/125910043
 
- src/pkg/runtime/mgc0.c | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ src/pkg/debug/elf/elf.go                           | 178 +++++++++++++++++++++
+ src/pkg/debug/elf/file.go                          |  50 +++++-
+ src/pkg/debug/elf/file_test.go                     |   6 +
+ .../testdata/go-relocation-test-gcc482-ppc64le.obj | Bin 0 -> 3016 bytes
+ 4 files changed, 233 insertions(+), 1 deletion(-)

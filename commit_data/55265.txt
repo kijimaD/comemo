@@ -1,23 +1,24 @@
-commit f4ff0e25054d1159396cc1d9252f1e94021ce46c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 11 16:14:24 2023 -0500
+commit 43f9b826c322d5541ca0260f8b0c9b71db0f7ec8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jan 20 21:53:34 2023 +0000
 
-    net: remove an arbitrary timeout in TestAcceptTimeoutMustReturn
+    encoding/gob: slightly simplify init code
     
-    This probably fixes the failure mode seen in
-    https://build.golang.org/log/e73acfd930cbe82302505cac0041d9883e2360c5.
+    https://go.dev/cl/460543 stopped using the "expect" parameter in
+    bootstrapType, but we forgot to actually remove it.
     
-    If not, allowing the test to deadlock and dump goroutines
-    should produce better debugging information than the existing
-    "didn't return in an expected time" failure message.
+    While here, staticcheck correctly points out that we can use the copy
+    builtin to fill builtinIdToTypeSlice, now that it and idToType are an
+    array and slice respectively.
     
-    For #58901.
-    
-    Change-Id: Ie0bb1887a4329d2f6b0e7348a4820af71385494e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548881
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I48078415ab9bdd5633cf41f33ab4dc78eb30b48a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462301
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/timeout_test.go | 43 +++++++++++++++----------------------------
- 1 file changed, 15 insertions(+), 28 deletions(-)
+ src/encoding/gob/type.go | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

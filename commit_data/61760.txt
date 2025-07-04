@@ -1,0 +1,26 @@
+commit 03c41d2910032b1d07c83d6d18689189339a4f21
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu Nov 21 16:05:43 2024 -0500
+
+    crypto/internal/fipstest: add PBKDF ACVP testing
+    
+    This commit extends the acvp_test.go module wrapper and its described
+    capabilities to included test coverage for PBKDF vectors.
+    
+    Notably this requires using an updated boringssl version to pick up
+    support for PBKDF vectors in acvptool.
+    
+    Updates #69642
+    
+    Change-Id: I17dcf2c19c38773fa9123d8e9b2172522e218a8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ .../internal/fips140test/acvp_capabilities.json    |  4 +-
+ .../internal/fips140test/acvp_test.config.json     |  4 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 65 +++++++++++++++++++++-
+ 3 files changed, 69 insertions(+), 4 deletions(-)

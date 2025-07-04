@@ -1,19 +1,17 @@
-commit 17137fae2e9abed50a1e6499f0a2fffedc6f0256
-Author: David Lazar <lazard@golang.org>
-Date:   Tue Apr 18 11:01:02 2017 -0400
+commit 6ee8c6a7ce30a3c0613617dcc182874d36b2ea94
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 3 14:45:26 2017 -0800
 
-    runtime: fix TestCaller with -l=4
+    cmd/compile/internal/gc: simplify generating static data
     
-    Only the noinline pragma on testCallerFoo is needed to pass the test,
-    but the second pragma makes the test robust to future changes to the
-    inliner.
+    Passes toolstash -cmp.
     
-    Change-Id: I80b384380c598f52e0382f53b59bb47ff196363d
-    Reviewed-on: https://go-review.googlesource.com/40877
-    Run-TryBot: David Lazar <lazard@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a72e3e130c38868ee8ecef32cad58748aa5be52
+    Reviewed-on: https://go-review.googlesource.com/36353
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/symtab_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 39 +++++++++---------------------------
+ src/cmd/compile/internal/gc/ssa.go   |  7 ++++---
+ 2 files changed, 14 insertions(+), 32 deletions(-)

@@ -1,18 +1,18 @@
-commit 2a627afe139b9e7b079da14b30beeb0bb8f5d09e
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Sep 3 14:20:20 2022 +0800
+commit fca46d0b36c10250713ec0f4c9bf13d626f358d1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 20 12:31:53 2021 +0700
 
-    bytes: simplify code using unsafe.SliceData
+    go/types: print assignment operation for invalid operation errors
     
-    Updates #54854
+    This is port of CL 357229 for types2 to go/types.
     
-    Change-Id: I9c14f9fa595f73eae44eb714abc5d486915893c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428155
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I35ed6b784969210a00ea5b36238df7d6b7fa18bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357230
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/bytes/bytes_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/go/types/expr.go                           | 6 +++++-
+ src/go/types/testdata/fixedbugs/issue48472.go2 | 5 +++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

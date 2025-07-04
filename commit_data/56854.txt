@@ -1,23 +1,21 @@
-commit 773767def0e0f29584a69bd760430167b7479d7d
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Jun 26 01:35:13 2024 +0800
+commit cfe8b43b1fd453d06fc32a04746dcc8be6e955fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 24 21:00:22 2023 -0400
 
-    net/http: avoid appending an existing trailing slash to path again
+    cmd/go: show full path name (testdata/script/foo.txt) in script errors
     
-    This CL is similar to CL 562557, and it takes over CL 594175.
+    Showing the full path (relative to the current directory)
+    instead of just foo.txt lets editors that understand file:line
+    jump straight to the file without having to edit it to say
+    testdata/script/ first.
     
-    While here, unrelatedly remove mapKeys function, use slices.Sorted(maps.Keys(ms))
-    to simplify code.
-    
-    Fixes #67657
-    
-    Change-Id: Id8b99216f87a6dcfd6d5fa61407b515324c79112
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594737
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
+    Change-Id: I44177b687249f3c7c724b45d02f5167607369e1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498119
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/routing_tree_test.go |  5 ++---
- src/net/http/serve_test.go        | 16 ++++++++++++++++
- src/net/http/server.go            | 16 ++++------------
- 3 files changed, 22 insertions(+), 15 deletions(-)
+ src/cmd/go/script_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

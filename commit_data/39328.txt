@@ -1,33 +1,25 @@
-commit d32ec38f1cfe69ed2a553272f6c8f425c59577f2
+commit e1a6d1fc08b2701ac9f67353cb52c51d52877669
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 5 19:59:58 2019 -0400
+Date:   Tue Jan 29 22:13:54 2019 -0500
 
-    net: remove non-cgo macOS resolver code
+    fmt: format hex floats and complexes
     
-    The built-in Go resolver works significantly better.
-    In particular, the use of res_search does not support
-    CNAME or PTR queries and may not even be thread-safe.
+    This CL modifies fmt's printer to implement %x and %X
+    for formatting floating-point data (floats and complexes)
+    in standard hexadecimal notation.
     
-    This CL is essentially a revert of CL 166297 plus fixes,
-    including CL 180842.
+    See golang.org/design/19308-number-literals for background.
     
-    See CL 180842 for additional notes about problems
-    with this approach.
+    For #29008.
+    Vet update is #29986.
     
-    Fixes #31705.
-    
-    Change-Id: I0a30a0de2fbd04f6c461520fd34378c84aadf66c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180843
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If2842a11631bc393a1ebcf6914ed07658652af5a
+    Reviewed-on: https://go-review.googlesource.com/c/160245
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/cgo_darwin_stub.go        | 242 --------------------------------------
- src/net/cgo_darwin_stub_test.go   |  80 -------------
- src/net/cgo_stub.go               |   1 -
- src/net/conf.go                   |   5 -
- src/runtime/lookup_darwin.go      |  35 ------
- src/runtime/lookup_darwin_386.s   |  50 --------
- src/runtime/lookup_darwin_amd64.s |  40 -------
- src/runtime/lookup_darwin_arm.s   |  25 ----
- src/runtime/lookup_darwin_arm64.s |  21 ----
- 9 files changed, 499 deletions(-)
+ src/fmt/doc.go      |  2 ++
+ src/fmt/fmt_test.go | 24 ++++++++++++++++++++++++
+ src/fmt/format.go   | 15 +++++++++++----
+ src/fmt/print.go    |  4 ++--
+ 4 files changed, 39 insertions(+), 6 deletions(-)

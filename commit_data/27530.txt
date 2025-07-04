@@ -1,29 +1,25 @@
-commit b92f4238790c590168e7dae03165d75deb89fe41
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 25 20:56:56 2016 -0400
+commit 47c9e139aed3e6d24ee980828835fb03229272ff
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 23 10:20:44 2016 -0700
 
-    runtime: unwind BP in jmpdefer to match SP unwind
+    cmd/compile: extend prove pass to handle constant comparisons
     
-    The irregular calling convention for defers currently incorrectly
-    manages the BP if frame pointers are enabled. Specifically, jmpdefer
-    manipulates the SP as if its own caller, deferreturn, had returned.
-    However, it does not manipulate the BP to match. As a result, when a
-    BP-based traceback happens during a deferred function call, it unwinds
-    to the function that performed the defer and then thinks that function
-    called itself in an infinite regress.
+    Find comparisons to constants and propagate that information
+    down the dominator tree.  Use it to resolve other constant
+    comparisons on the same variable.
     
-    Fix this by making jmpdefer manipulate the BP as if deferreturn had
-    actually returned.
+    So if we know x >= 7, then a x > 4 condition must return true.
     
-    Fixes #12968.
+    This change allows us to use "_ = b[7]" hints to eliminate bounds checks.
     
-    Updates #15840.
+    Fixes #14900
     
-    Change-Id: Ic9cc7c863baeaf977883ed0c25a7e80e592cf066
-    Reviewed-on: https://go-review.googlesource.com/23457
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idbf230bd5b7da43de3ecb48706e21cf01bf812f7
+    Reviewed-on: https://go-review.googlesource.com/21008
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/runtime/asm_amd64.s | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/prove.go | 190 +++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/value.go |   5 +
+ src/encoding/binary/binary.go         |  24 ++---
+ test/prove.go                         | 176 ++++++++++++++++++++++++++++++-
+ 4 files changed, 379 insertions(+), 16 deletions(-)

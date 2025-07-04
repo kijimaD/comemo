@@ -1,21 +1,24 @@
-commit 14a18b7d2538232c6cd6937297c421d5f6b7d92f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 21 18:24:15 2021 -0700
+commit 76a615b20a943b7255ac1cb3944df62a1dbc882c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Oct 17 01:10:06 2020 -0700
 
-    cmd/compile/internal/types2: move a handful of tests
+    cmd/compile: fix defer/go calls to variadic unsafe-uintptr functions
     
-    These tests belong into the fixedbugs directory.
-    This matches the go/types organization.
-    No changes to the code.
+    Before generating wrapper function, turn any f(a, b, []T{c, d, e}...)
+    calls back into f(a, b, c, d, e). This allows the existing code for
+    recognizing and specially handling unsafe.Pointer->uintptr conversions
+    to correctly handle variadic arguments too.
     
-    Change-Id: I36bcf70672d9ea5a40175c445e1d036c603ae76f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312570
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #41460.
+    
+    Change-Id: I0a1255abdd1bd5dafd3e89547aedd4aec878394c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263297
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue23203a.src | 0
- src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue23203b.src | 0
- src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue26390.src  | 0
- src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue28251.src  | 0
- src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue6977.src   | 0
- 5 files changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 10 ++++++++++
+ test/fixedbugs/issue24491a.go       |  3 ---
+ 2 files changed, 10 insertions(+), 3 deletions(-)

@@ -1,13 +1,22 @@
-commit cf52e39ee0e0b1a28a69a67866fea79728335f17
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 19 13:16:47 2012 -0500
+commit 8a4c2b3cc45edb4a263c775683947709e9b4c50d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 11:05:19 2012 -0500
 
-    6l, 8l: fix build for ELF systems
+    runtime: fix another memory leak
     
-    R=rsc
+    morebuf holds a pc/sp from the last stack split or
+    reflect.call or panic/recover.  If the pc is a closure,
+    the reference will keep it from being collected.
+    
+    moreargp holds a pointer to the arguments from the
+    last stack split or reflect.call or panic/recover.
+    Normally it is a stack pointer and thus not of interest,
+    but in the case of reflect.call it is an allocated argument
+    list and holds up the arguments to the call.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5677095
+    https://golang.org/cl/5674109
 
- src/cmd/6l/asm.c | 2 ++
- src/cmd/8l/asm.c | 2 ++
- 2 files changed, 4 insertions(+)
+ src/pkg/runtime/proc.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

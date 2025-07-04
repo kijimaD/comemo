@@ -1,21 +1,26 @@
-commit ed2996bac77725e891699b22bff3789086ea81e6
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Tue May 12 18:49:34 2020 -0700
+commit 3f51350c706c8ff663f12867bcfec98aa9fc46bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 19 23:17:55 2019 -0500
 
-    crypto/x509: document support for leading periods in DNS constraints
+    cmd/go/internal/modfetch/codehost: replace a dubious call to semver.Max
     
-    This change adds a comment to the Verify documentation that indicates
-    that you can use URI and email style name constraints with a leading
-    period for DNS names (and explains what they do). This behavior is
-    not standards compliant, but matches the community application of
-    RFC 5280, so it makes sense to document it.
+    The documentation for RecentTag indicates that it returns an actual
+    tag, not a canonicalized prefix+version blob equivalent to a tag,
+    so the canonicalization due to semver.Max seems like a bug here.
     
-    Fixes #37535
+    Fortunately, RecentTag is not currently ever actually used as a tag,
+    so the removal of metadata does not result in a user-facing bug.
+    Nonetheless, it may be a subtle source of confusion for maintainers
+    in the future.
     
-    Change-Id: Ibd6f039e4fa46d40ad7ae1ab48eab86f13cf8eff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233525
-    Reviewed-by: Ryan Sleevi <sleevi@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Updates #32700
+    
+    Change-Id: I525423c1c0c7ec7c36c09e53b180034474f74e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212202
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/verify.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/internal/modfetch/codehost/git.go | 7 +++++--
+ src/cmd/go/internal/modload/query_test.go    | 3 ++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

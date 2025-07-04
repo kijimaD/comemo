@@ -1,30 +1,21 @@
-commit dfd2ddd6717acb16b43ecde5150a7d8916ac5484
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Tue Jul 5 07:46:07 2022 +0200
+commit d68615f64b0d7c1e886f4b8c1267ecc1c4da76ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 23:38:25 2022 -0500
 
-    encoding/xml: allow overriding by empty namespace
+    cmd/go/internal/test: ensure that build.ToolDir is accurate in tests
     
-    The namespace defined by xmlns="value" can be overridden in every included tag
-    by the empty namespace xmlns="" without a prefix.
+    This fixes a build failure due to inability to locate the "vet" tool
+    when the test binary is built with -trimpath.
     
-    Method to calculate indent of XML handles depth of tag and its associated namespace is
-    still active even when no indent is required.
+    Updates #51461
     
-    An XMLName field in a struct means that namespace must be enforced even if empty.
-    This occurs only on an inner tag as an override of any non-empty namespace of its outer tag.
-    An attribute is added to have the required namespace display.
-    
-    Fixes #7113
-    
-    Change-Id: I57f2308e98c66f04108ab136d350bdc3a6091e98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/108796
+    Change-Id: I81838cc8842e4ff7900cab81af60501ebba86ff1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391808
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/encoding/xml/marshal.go  |  5 +++++
- src/encoding/xml/xml_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ src/cmd/go/internal/cfg/cfg.go            | 50 ++++++++++++++++++++-----------
+ src/cmd/go/internal/test/flagdefs_test.go |  6 ++++
+ 2 files changed, 39 insertions(+), 17 deletions(-)

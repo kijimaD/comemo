@@ -1,30 +1,18 @@
-commit 088209bbe870725f82e44e604e787d7273488bd6
-Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
-Date:   Sat Oct 21 09:36:54 2017 +0300
+commit dabc361847f1daa8dee430fc6cf29c52e6f644cc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 7 11:42:36 2017 -0700
 
-    image/draw: reduce drawPaletted allocations for special source cases
+    runtime: use constants for map string key size
     
-    drawPaletted has to discover R,G,B,A color values of each source image
-    pixel in a given rectangle. Doing that by calling image.Image.At()
-    method returning color.Color interface is quite taxing allocation-wise
-    since interface values go through heap. Introduce special cases for some
-    concrete source types by fetching color values using type-specific
-    methods.
+    It appears that this was just missed
+    by accident in the original implementation.
     
-    name        old time/op    new time/op    delta
-    Paletted-4    7.62ms ± 4%    3.72ms ± 3%   -51.20%  (p=0.008 n=5+5)
-    
-    name        old alloc/op   new alloc/op   delta
-    Paletted-4     480kB ± 0%       0kB ± 0%   -99.99%  (p=0.000 n=4+5)
-    
-    name        old allocs/op  new allocs/op  delta
-    Paletted-4      120k ± 0%        0k ± 0%  -100.00%  (p=0.008 n=5+5)
-    
-    Updates #15759.
-    
-    Change-Id: I0ce1770ff600ac80599541aaad4c2c826855c8fb
-    Reviewed-on: https://go-review.googlesource.com/72370
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Id87147bcb7a685d624eac7034342a305ad644e7a
+    Reviewed-on: https://go-review.googlesource.com/53891
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
 
- src/image/draw/draw.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/runtime/hashmap_fast.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

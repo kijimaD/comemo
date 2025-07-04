@@ -1,21 +1,34 @@
-commit ae024d9daf9b98dfdc5d4449964645cd3d303ac1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 26 15:37:06 2019 +0000
+commit ab2f83c387fcc00efbdcc0a5c249af26c84ff425
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 5 23:06:49 2019 +0200
 
-    Revert "internal/bytealg: add assembly implementation of Compare/CompareString on mips64x"
+    encoding/json: remove a bounds check in readValue
     
-    This reverts CL 196837 (commit 78baea836d9f431297).
+    readValue is a hot function, clocking in at ~13% flat CPU use in
+    CodeDecoder. In particular, looping over the bytes is slow. That's
+    partially because the code contains a bounds check at the start of the
+    loop.
     
-    Reason for revert: broke the mips64le build.
+    The source of the problem is that scanp is a signed integer, and comes
+    from a field, so the compiler doesn't know that it's non-negative. Help
+    it with a simple and comparatively cheap hint.
     
-    Change-Id: I531da60d098cb227659c9977a3d229474325b0a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197538
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    While at it, use scanp as the index variable directly, removing the need
+    for a duplicate index variable which is later added back into scanp.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-8    11.3ms ± 1%    11.2ms ± 1%  -0.98%  (p=0.000 n=9+9)
+    
+    name           old speed      new speed      delta
+    CodeDecoder-8   172MB/s ± 1%   174MB/s ± 1%  +0.99%  (p=0.000 n=9+9)
+    
+    Updates #28923.
+    
+    Change-Id: I138f83babdf316fc97697cc18f595c3403c1ddb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170939
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/bytealg/compare_generic.go |  2 +-
- src/internal/bytealg/compare_mips64x.s  | 92 ---------------------------------
- src/internal/bytealg/compare_native.go  |  2 +-
- 3 files changed, 2 insertions(+), 94 deletions(-)
+ src/encoding/json/stream.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

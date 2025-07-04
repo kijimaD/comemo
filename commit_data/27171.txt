@@ -1,16 +1,39 @@
-commit cad04e7e66d51486b9d3b63bf1b9281a0153dd9f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Apr 28 01:01:15 2016 +0200
+commit 2e9369067bceab8d9c31346b72d7021b6a34075f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 14 01:20:49 2016 -0700
 
-    net/http: skip TestTransportRemovesDeadIdleConnections on Plan 9
+    cmd/compile: replace TFIELD kind with separate Field type
     
-    Updates #15464.
+    Allows removing a bunch of unnecessary fields.
     
-    Change-Id: If3221034bb10751c6fcf1fbeba401a879c18079f
-    Reviewed-on: https://go-review.googlesource.com/22513
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Passes toolstash/buildall.
+    
+    Change-Id: Iec2492920e1c3ef352a9bf4296c74a55d9cc9ad6
+    Reviewed-on: https://go-review.googlesource.com/20677
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/alg.go         |   4 +-
+ src/cmd/compile/internal/gc/align.go       |   6 --
+ src/cmd/compile/internal/gc/bexport.go     |  29 ++---
+ src/cmd/compile/internal/gc/cgen.go        |   6 +-
+ src/cmd/compile/internal/gc/closure.go     |   4 +-
+ src/cmd/compile/internal/gc/dcl.go         |  35 +++---
+ src/cmd/compile/internal/gc/export.go      |  11 +-
+ src/cmd/compile/internal/gc/fmt.go         | 164 ++++++++++++++++-------------
+ src/cmd/compile/internal/gc/gen.go         |   3 -
+ src/cmd/compile/internal/gc/gsubr.go       |  49 +++++----
+ src/cmd/compile/internal/gc/inl.go         |   4 +-
+ src/cmd/compile/internal/gc/reflect.go     |  23 ++--
+ src/cmd/compile/internal/gc/sinit.go       |   6 +-
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/ssa.go         |   3 -
+ src/cmd/compile/internal/gc/subr.go        |  86 ++++++++-------
+ src/cmd/compile/internal/gc/swt.go         |   2 +-
+ src/cmd/compile/internal/gc/syntax.go      |   2 +-
+ src/cmd/compile/internal/gc/type.go        |  98 ++++++++++-------
+ src/cmd/compile/internal/gc/typecheck.go   |  30 +++---
+ src/cmd/compile/internal/gc/universe.go    |  12 +--
+ src/cmd/compile/internal/gc/walk.go        |   8 +-
+ 22 files changed, 295 insertions(+), 292 deletions(-)

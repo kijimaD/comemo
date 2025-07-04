@@ -1,27 +1,42 @@
-commit fa270ad98e77cd0625c97eb01ad01efe11a324e8
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat May 7 07:24:39 2016 +0200
+commit d3253876f20ea39dbd7694ecaa5022e6cc147ccc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 20 13:55:42 2016 -0700
 
-    cmd/go: add -shared to darwin/arm{,64} default build mode
+    cmd/compile: change Mp{int,flt} functions into methods
     
-    Buildmode c-archive now supports position independent code for
-    darwin/arm (in addition to darwin/arm64). Make PIC (-shared) the
-    default for both platforms in the default buildmode.
+    Also give them more idiomatic Go names. Adding godocs is outside the
+    scope of this CL. (Besides, the method names almost all directly
+    parallel an underlying math/big.Int or math/big.Float method.)
     
-    Without this change, gomobile will go install the standard library
-    into its separate package directory without PIC support.
+    CL prepared mechanically with sed (for rewriting mpint.go/mpfloat.go)
+    and gofmt (for rewriting call sites).
     
-    Also add -shared to darwin/arm64 in buildmode c-archive, for
-    symmetry (darwin/arm64 always generates position independent code).
+    Passes toolstash -cmp.
     
-    Fixes #15519
-    
-    Change-Id: If27d2cbea8f40982e14df25da2703cbba572b5c6
-    Reviewed-on: https://go-review.googlesource.com/22920
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Id76f4aee476ba740f48db33162463e7978c2083d
+    Reviewed-on: https://go-review.googlesource.com/20909
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 2 +-
- src/cmd/go/build.go                    | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   |   6 +-
+ src/cmd/compile/internal/gc/bimport.go   |   6 +-
+ src/cmd/compile/internal/gc/cgen.go      |  42 +++---
+ src/cmd/compile/internal/gc/const.go     | 238 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/fmt.go       |   8 +-
+ src/cmd/compile/internal/gc/gen.go       |   8 +-
+ src/cmd/compile/internal/gc/gsubr.go     |   4 +-
+ src/cmd/compile/internal/gc/lex.go       |  16 +--
+ src/cmd/compile/internal/gc/mpfloat.go   |  42 +++---
+ src/cmd/compile/internal/gc/mpint.go     |  96 ++++++-------
+ src/cmd/compile/internal/gc/obj.go       |   6 +-
+ src/cmd/compile/internal/gc/parser.go    |  12 +-
+ src/cmd/compile/internal/gc/sinit.go     |  14 +-
+ src/cmd/compile/internal/gc/ssa.go       |  14 +-
+ src/cmd/compile/internal/gc/subr.go      |  10 +-
+ src/cmd/compile/internal/gc/swt.go       |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go |  30 ++--
+ src/cmd/compile/internal/gc/universe.go  |  34 ++---
+ src/cmd/compile/internal/gc/unsafe.go    |   2 +-
+ src/cmd/compile/internal/gc/walk.go      |  40 +++---
+ 20 files changed, 316 insertions(+), 316 deletions(-)

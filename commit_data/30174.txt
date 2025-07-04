@@ -1,56 +1,21 @@
-commit bd2f7c7c411bdbd75a194e745bec222390c1c99e
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Thu Feb 9 10:44:26 2017 -0500
+commit a7c84668c83c246c142fb4a25a2a6fd52ba0d540
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 26 17:14:35 2016 -0700
 
-    syscall: remove "use" function and calls from generated code.
+    cmd/compile: remove Label type
     
-    Update syscall code generators to set build tags.
+    With the removal of the old backend,
+    a Label is just a Node.
     
-    Regenerate zsyscall files, which makes the following changes:
-    - remove calls to "use"
-    - update build tags, adding missing ones in some cases
-    - "stat" renamed to "st" in some cases
-    - "libc_Utimes" renamed "libc_utimes" in one case
+    Passes toolstash -cmp.
     
-    I'll mirror this change to x/sys/unix once committed.
-    
-    Change-Id: Ic07e0ae1433dd133eb57e8dd2a3b86a62aab4eda
-    Reviewed-on: https://go-review.googlesource.com/36616
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia62cb00fbc551efb75a4ed4dc6ed54fca0831dbf
+    Reviewed-on: https://go-review.googlesource.com/32216
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/mkall.sh                    |  4 ++-
- src/syscall/mksyscall.pl                | 20 ++++++------
- src/syscall/mksyscall_solaris.pl        | 23 ++++++--------
- src/syscall/zsyscall_darwin_386.go      | 37 ++--------------------
- src/syscall/zsyscall_darwin_amd64.go    | 37 ++--------------------
- src/syscall/zsyscall_darwin_arm.go      | 37 ++--------------------
- src/syscall/zsyscall_darwin_arm64.go    | 36 ++-------------------
- src/syscall/zsyscall_dragonfly_amd64.go | 35 ++-------------------
- src/syscall/zsyscall_freebsd_386.go     | 35 ++-------------------
- src/syscall/zsyscall_freebsd_amd64.go   | 35 ++-------------------
- src/syscall/zsyscall_freebsd_arm.go     | 35 ++-------------------
- src/syscall/zsyscall_linux_386.go       | 43 ++-----------------------
- src/syscall/zsyscall_linux_amd64.go     | 44 ++------------------------
- src/syscall/zsyscall_linux_arm.go       | 43 ++-----------------------
- src/syscall/zsyscall_linux_arm64.go     | 42 ++-----------------------
- src/syscall/zsyscall_linux_mips.go      | 43 ++-----------------------
- src/syscall/zsyscall_linux_mips64.go    | 56 ++++++---------------------------
- src/syscall/zsyscall_linux_mips64le.go  | 56 ++++++---------------------------
- src/syscall/zsyscall_linux_mipsle.go    | 43 ++-----------------------
- src/syscall/zsyscall_linux_ppc64.go     | 44 ++------------------------
- src/syscall/zsyscall_linux_ppc64le.go   | 44 ++------------------------
- src/syscall/zsyscall_linux_s390x.go     | 44 ++------------------------
- src/syscall/zsyscall_nacl_386.go        |  4 +--
- src/syscall/zsyscall_nacl_amd64p32.go   |  4 +--
- src/syscall/zsyscall_nacl_arm.go        |  4 +--
- src/syscall/zsyscall_netbsd_386.go      | 32 ++-----------------
- src/syscall/zsyscall_netbsd_amd64.go    | 32 ++-----------------
- src/syscall/zsyscall_netbsd_arm.go      | 32 ++-----------------
- src/syscall/zsyscall_openbsd_386.go     | 34 ++------------------
- src/syscall/zsyscall_openbsd_amd64.go   | 34 ++------------------
- src/syscall/zsyscall_openbsd_arm.go     | 33 ++-----------------
- src/syscall/zsyscall_plan9_386.go       | 14 ++-------
- src/syscall/zsyscall_plan9_amd64.go     | 14 ++-------
- src/syscall/zsyscall_plan9_arm.go       | 14 ++-------
- src/syscall/zsyscall_solaris_amd64.go   | 35 ++++-----------------
- 35 files changed, 109 insertions(+), 1013 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       | 7 ++++---
+ src/cmd/compile/internal/gc/go.go        | 8 ++------
+ src/cmd/compile/internal/gc/typecheck.go | 6 ++----
+ 3 files changed, 8 insertions(+), 13 deletions(-)

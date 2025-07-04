@@ -1,19 +1,20 @@
-commit 7c1f361e253dbc61e2456c9778104da18f61a0a5
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Fri Jun 1 13:14:48 2018 +0300
+commit 804e3e565e98e1ff3a22eb354a473225f6dc7351
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 23 10:34:01 2018 -0800
 
-    test: add comments for all test actions
+    runtime: don't check for String/Error methods in printany
     
-    Every action has a short annotation.
-    The errorCheck function has a comment adapted from errchk script.
+    They have either already been called by preprintpanics, or they can
+    not be called safely because of the various conditions checked at the
+    start of gopanic.
     
-    Removed redundant assigments to tmpDir.
+    Fixes #24059
     
-    Change-Id: Ifdd1284de046a0ce2aad26bd8da8a8e6a7707a8e
-    Reviewed-on: https://go-review.googlesource.com/115856
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a6233d12c9f7aaaee72f343257ea108bae79241
+    Reviewed-on: https://go-review.googlesource.com/96755
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/run.go | 45 +++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 37 insertions(+), 8 deletions(-)
+ src/runtime/error.go | 6 ++----
+ src/runtime/iface.go | 8 ++++++++
+ src/runtime/panic.go | 3 ---
+ 3 files changed, 10 insertions(+), 7 deletions(-)

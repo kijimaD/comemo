@@ -1,49 +1,16 @@
-commit 5a6e511c614a158cb58150fb62bfbc207a33922d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 30 10:12:32 2016 -0700
+commit 48cc3c4b587f9549f7426776d032da99b3ba471b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 14 15:33:15 2016 -0400
 
-    cmd/compile: Use Sreedhar+Gao phi building algorithm
+    syscall: skip TestUnshare if kernel does not support net namespace
     
-    Should be more asymptotically happy.
+    Fixes #16056.
     
-    We process each variable in turn to find all the
-    locations where it needs a phi (the dominance frontier
-    of all of its definitions).  Then we add all those phis.
-    This takes O(n * #variables), although hopefully much less.
-    
-    Then we do a single tree walk to match all the
-    FwdRefs with the nearest definition or phi.
-    This takes O(n) time.
-    
-    The one remaining inefficiency is that we might end up
-    introducing a bunch of dead phis in the first step.
-    A TODO is to introduce phis only where they might be
-    used by a read.
-    
-    The old algorithm is still faster on small functions,
-    so there's a cutover size (currently 500 blocks).
-    
-    This algorithm supercedes the David's sparse phi
-    placement algorithm for large functions.
-    
-    Lowers compile time of example from #14934 from
-    ~10 sec to ~4 sec.
-    Lowers compile time of example from #16361 from
-    ~4.5 sec to ~3 sec.
-    Lowers #16407 from ~20 min to ~30 sec.
-    
-    Update #14934
-    Update #16361
-    Fixes #16407
-    
-    Change-Id: I1cff6364e1623c143190b6a924d7599e309db58f
-    Reviewed-on: https://go-review.googlesource.com/30163
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic3343914742713851b8ae969b101521f25e85e7b
+    Reviewed-on: https://go-review.googlesource.com/24132
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/phi.go                 | 521 +++++++++++++++++++++
- src/cmd/compile/internal/gc/racewalk.go            |   1 +
- .../internal/gc/sparselocatephifunctions.go        | 202 --------
- src/cmd/compile/internal/gc/ssa.go                 | 181 ++-----
- src/cmd/compile/internal/ssa/block.go              |   3 +
- src/cmd/compile/internal/ssa/func.go               |   3 +
- 6 files changed, 575 insertions(+), 336 deletions(-)
+ src/syscall/exec_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

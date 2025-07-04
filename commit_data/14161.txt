@@ -1,15 +1,14 @@
-commit a2659aa6a105e6ae4fd3debcf4f4d8c79a6b4f4d
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Oct 17 17:23:47 2012 +0200
+commit ace9ff4578cb6d3077fbd2c7934b4ac063047145
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Oct 17 14:27:58 2012 +0800
 
-    cmd/go: Dedup package arguments before building.
+    sync/atomic: FreeBSD/ARM support
+    only supports ARMv6K and newer ARM cores.
     
-    Fixes #4104.
-    
-    R=golang-dev, dave, minux.ma
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/6639051
+    https://golang.org/cl/6601064
 
- src/cmd/go/pkg.go    | 5 +++++
- src/cmd/go/test.bash | 6 ++++++
- 2 files changed, 11 insertions(+)
+ .../atomic/{64bit_linux_arm.go => 64bit_arm.go}    |  0
+ src/pkg/sync/atomic/asm_freebsd_arm.s              | 89 ++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

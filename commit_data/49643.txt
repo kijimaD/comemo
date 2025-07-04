@@ -1,21 +1,26 @@
-commit dc00aed6de101700fd02b30f93789b9e9e1fe9a1
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Jul 14 13:00:05 2022 -0700
+commit 1ae7ddc2350b2dd30e1f3ad877c3c70ef745111d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 2 11:06:27 2021 +0700
 
-    go/parser: skip TestParseDepthLimit for short tests
+    test: always run test in unified IR mode regardless of explicit -G flag
     
-    Because it requires a not insignificant amount of memory to run. Also
-    remove the WASM-only skip from TestScopeDepthLimit, which is less
-    intensive.
+    Currently, if a test explicitly specify -G flag, if that flag conflict
+    with compiler default -G flag, the test will be skipped. That's the
+    reason CL 346469 haven't fixed the unified IR stuff, but still make the
+    unified builder passed.
     
-    Fixes #53816
+    This CL makes run.go always run the test in unified IR mode, regardless
+    of the explicit -G flag specified.
     
-    Change-Id: I8463046510ce4dd3d8f6d66938828d5e6963c3be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417657
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Updates #48094
+    
+    Change-Id: I959ecaff6aca07844f0ffcf36caa60cf0747e8ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347271
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/parser/parser_test.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ test/run.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

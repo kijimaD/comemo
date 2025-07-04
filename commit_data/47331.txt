@@ -1,15 +1,73 @@
-commit ab31dbc05b725135ca5f6fd4337a041d8433f153
-Author: smasher164 <aindurti@gmail.com>
-Date:   Sat Nov 6 02:59:00 2021 -0400
+commit 43d5f213e22029039f234edd1ac72c4ff9dd5ae9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 7 19:25:05 2021 -0800
 
-    doc/go1.18: strings,bytes: deprecate Title
+    cmd/compile: optimize multi-register shifts on amd64
     
-    Updates #48367.
+    amd64 can shift in bits from another register instead of filling with 0/1.
+    This pattern is helpful when implementing 128 bit shifts or arbitrary length shifts.
+    In the standard library, it shows up in pure Go math/big.
     
-    Change-Id: Ib8fc6d9dd7c3c6a70fefe077615f51a71d9c42ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361899
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Benchmarks results on amd64 with -tags=math_big_pure_go.
+    
+    name                          old time/op  new time/op  delta
+    NonZeroShifts/1/shrVU-8       4.45ns ± 3%  4.39ns ± 1%   -1.28%  (p=0.000 n=30+27)
+    NonZeroShifts/1/shlVU-8       4.13ns ± 4%  4.10ns ± 2%     ~     (p=0.254 n=29+28)
+    NonZeroShifts/2/shrVU-8       5.55ns ± 1%  5.63ns ± 2%   +1.42%  (p=0.000 n=28+29)
+    NonZeroShifts/2/shlVU-8       5.70ns ± 2%  5.14ns ± 1%   -9.82%  (p=0.000 n=29+28)
+    NonZeroShifts/3/shrVU-8       6.79ns ± 2%  6.35ns ± 2%   -6.46%  (p=0.000 n=28+29)
+    NonZeroShifts/3/shlVU-8       6.69ns ± 1%  6.25ns ± 1%   -6.60%  (p=0.000 n=28+27)
+    NonZeroShifts/4/shrVU-8       7.79ns ± 2%  7.06ns ± 2%   -9.48%  (p=0.000 n=30+30)
+    NonZeroShifts/4/shlVU-8       7.82ns ± 1%  7.24ns ± 1%   -7.37%  (p=0.000 n=28+29)
+    NonZeroShifts/5/shrVU-8       8.90ns ± 3%  7.93ns ± 1%  -10.84%  (p=0.000 n=29+26)
+    NonZeroShifts/5/shlVU-8       8.68ns ± 1%  7.92ns ± 1%   -8.76%  (p=0.000 n=29+29)
+    NonZeroShifts/10/shrVU-8      14.4ns ± 1%  12.3ns ± 2%  -14.79%  (p=0.000 n=28+29)
+    NonZeroShifts/10/shlVU-8      14.1ns ± 1%  11.9ns ± 2%  -15.55%  (p=0.000 n=28+27)
+    NonZeroShifts/100/shrVU-8      118ns ± 1%    96ns ± 3%  -18.82%  (p=0.000 n=30+29)
+    NonZeroShifts/100/shlVU-8      120ns ± 2%    98ns ± 2%  -18.46%  (p=0.000 n=29+28)
+    NonZeroShifts/1000/shrVU-8    1.10µs ± 1%  0.88µs ± 2%  -19.63%  (p=0.000 n=29+30)
+    NonZeroShifts/1000/shlVU-8    1.10µs ± 2%  0.88µs ± 2%  -20.28%  (p=0.000 n=29+28)
+    NonZeroShifts/10000/shrVU-8   10.9µs ± 1%   8.7µs ± 1%  -19.78%  (p=0.000 n=28+27)
+    NonZeroShifts/10000/shlVU-8   10.9µs ± 2%   8.7µs ± 1%  -19.64%  (p=0.000 n=29+27)
+    NonZeroShifts/100000/shrVU-8   111µs ± 2%    90µs ± 2%  -19.39%  (p=0.000 n=28+29)
+    NonZeroShifts/100000/shlVU-8   113µs ± 2%    90µs ± 2%  -20.43%  (p=0.000 n=30+27)
+    
+    The assembly version is still faster, unfortunately, but the gap is narrowing.
+    Speedup from pure Go to assembly:
+    
+    name                          old time/op  new time/op  delta
+    NonZeroShifts/1/shrVU-8       4.39ns ± 1%  3.45ns ± 2%  -21.36%  (p=0.000 n=27+29)
+    NonZeroShifts/1/shlVU-8       4.10ns ± 2%  3.47ns ± 3%  -15.42%  (p=0.000 n=28+30)
+    NonZeroShifts/2/shrVU-8       5.63ns ± 2%  3.97ns ± 0%  -29.40%  (p=0.000 n=29+25)
+    NonZeroShifts/2/shlVU-8       5.14ns ± 1%  3.77ns ± 2%  -26.65%  (p=0.000 n=28+26)
+    NonZeroShifts/3/shrVU-8       6.35ns ± 2%  4.79ns ± 2%  -24.52%  (p=0.000 n=29+29)
+    NonZeroShifts/3/shlVU-8       6.25ns ± 1%  4.42ns ± 1%  -29.29%  (p=0.000 n=27+26)
+    NonZeroShifts/4/shrVU-8       7.06ns ± 2%  5.64ns ± 1%  -20.05%  (p=0.000 n=30+29)
+    NonZeroShifts/4/shlVU-8       7.24ns ± 1%  5.34ns ± 2%  -26.23%  (p=0.000 n=29+29)
+    NonZeroShifts/5/shrVU-8       7.93ns ± 1%  6.56ns ± 2%  -17.26%  (p=0.000 n=26+30)
+    NonZeroShifts/5/shlVU-8       7.92ns ± 1%  6.27ns ± 1%  -20.79%  (p=0.000 n=29+25)
+    NonZeroShifts/10/shrVU-8      12.3ns ± 2%  10.2ns ± 2%  -17.21%  (p=0.000 n=29+29)
+    NonZeroShifts/10/shlVU-8      11.9ns ± 2%  10.5ns ± 2%  -12.45%  (p=0.000 n=27+29)
+    NonZeroShifts/100/shrVU-8     95.9ns ± 3%  77.7ns ± 1%  -19.00%  (p=0.000 n=29+30)
+    NonZeroShifts/100/shlVU-8     97.5ns ± 2%  66.8ns ± 2%  -31.47%  (p=0.000 n=28+30)
+    NonZeroShifts/1000/shrVU-8     884ns ± 2%   705ns ± 1%  -20.17%  (p=0.000 n=30+28)
+    NonZeroShifts/1000/shlVU-8     880ns ± 2%   590ns ± 1%  -32.96%  (p=0.000 n=28+25)
+    NonZeroShifts/10000/shrVU-8   8.74µs ± 1%  7.34µs ± 3%  -15.94%  (p=0.000 n=27+30)
+    NonZeroShifts/10000/shlVU-8   8.73µs ± 1%  6.00µs ± 1%  -31.25%  (p=0.000 n=27+28)
+    NonZeroShifts/100000/shrVU-8  89.6µs ± 2%  75.5µs ± 2%  -15.80%  (p=0.000 n=29+29)
+    NonZeroShifts/100000/shlVU-8  89.6µs ± 2%  68.0µs ± 3%  -24.09%  (p=0.000 n=27+30)
+    
+    Change-Id: I18f58d8f5513d737d9cdf09b8f9d14011ffe3958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297050
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.18.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/amd64/ssa.go        |  9 ++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 +++
+ src/cmd/compile/internal/ssa/opGen.go        | 36 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
+ test/codegen/shift.go                        | 13 ++++++++
+ 6 files changed, 113 insertions(+)

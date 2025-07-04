@@ -1,12 +1,17 @@
-commit 0a851754a0aaf2e3a203393696eb1a3e0c45c4f6
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jan 20 07:17:52 2012 -0800
+commit 1ff1405cc72ad79da50de0339569a61b0132672a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 20 10:32:55 2012 +0400
 
-    misc/xcode/go.xclangspec: fix typo
+    runtime: add type algorithms for zero-sized types
+    BenchmarkChanSem old=127ns new=78.6ns
     
-    R=golang-dev, iant
+    R=golang-dev, bradfitz, sameer, rsc
     CC=golang-dev
-    https://golang.org/cl/5553049
+    https://golang.org/cl/5558049
 
- misc/xcode/go.xclangspec | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/go.h              |  2 ++
+ src/cmd/gc/subr.c            |  2 ++
+ src/pkg/runtime/alg.c        | 19 +++++++++++++++++++
+ src/pkg/runtime/chan_test.go |  9 +++++++++
+ src/pkg/runtime/runtime.h    |  2 ++
+ 5 files changed, 34 insertions(+)

@@ -1,17 +1,19 @@
-commit 0f28c478b25bc2b5d998b18abadd4ea5c6bb230f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 28 18:00:55 2022 +0100
+commit 125c5a3d69c99378b17f50dc3f05e3cf3a8b9d2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 1 08:37:05 2022 -0800
 
-    doc/go1.20: fix missing <code> tag
+    doc/go1.18: document restrictions for real, imag, complex
     
-    Change-Id: I9c6f9ec28dbe038ddc195310a32d97d5b2a28ef5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453695
+    For #47694.
+    For #50912.
+    For #50937.
+    
+    Change-Id: I3fae6c8dbbd61a45e669b8fb0c18ac76f2183963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381967
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.20.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.18.html | 5 +++++
+ 1 file changed, 5 insertions(+)

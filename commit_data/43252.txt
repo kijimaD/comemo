@@ -1,28 +1,16 @@
-commit 1aa43a53be83c3eaa468cae4914a55878fb2dad9
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 10 11:22:14 2020 -0400
+commit 2910c5b4a01a573ebc97744890a07c1a3122c67a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 21 16:57:26 2020 -0700
 
-    cmd/link: only dynamically export necessary symbols on darwin
+    cmd/go: fix function name in comment
     
-    Currently on darwin, when a symbol needs to be exported, we
-    export it both statically and dynamically. The dynamic export is
-    unnecessary for some symbols. Only export the necessary ones.
+    Fixes #37991
     
-    For special runtime C symbols (e.g. crosscall2), they used to be
-    exported dynamically, and we had a special case for pclntab to
-    not include those symbols (otherwise, when the dynamic linker
-    dedup them, the pclntab entries end up pointing out of the
-    module's address space). This CL changes it to not export those
-    symbols, and remove the special case.
-    
-    Change-Id: I2ab40630742d48a09b86ee150aa5f1f7002b134d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261497
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ica58223f8564ec5d501d5b90b4258ffb78c42af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224587
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/link/internal/ld/macho.go | 40 +++++++++++++++++++++++----------------
- src/cmd/link/internal/ld/pcln.go  | 17 -----------------
- 2 files changed, 24 insertions(+), 33 deletions(-)
+ src/cmd/go/internal/str/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

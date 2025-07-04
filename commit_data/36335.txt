@@ -1,16 +1,16 @@
-commit f76eaeb2c840c76c48dc53b834e9a0e005a70421
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jun 20 12:45:48 2018 +1000
+commit d75836365e88e0ea58f1b663b95709ab117b0947
+Author: shogo-ma <Choroma194@gmail.com>
+Date:   Fri Apr 20 17:51:57 2018 +0000
 
-    cmd/go/internal/get: more efficient path prefix checking code
+    os: fix typo in comment
     
-    Splitting the string is unnecessary.
+    fix misspell on code comment.
     
-    Change-Id: I02796cb91602c1b9bf22721b985cd41b18cc92f2
-    Reviewed-on: https://go-review.googlesource.com/119936
-    Run-TryBot: David Symonds <dsymonds@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8280488f71f55616da5543eac0f58cc008354af9
+    GitHub-Last-Rev: ea144718ee5f6dccb3b694100e9edda923e576fc
+    GitHub-Pull-Request: golang/go#24975
+    Reviewed-on: https://go-review.googlesource.com/108458
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/go/internal/get/vcs.go | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/os/os_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

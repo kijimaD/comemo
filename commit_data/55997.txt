@@ -1,23 +1,27 @@
-commit e39af550f8ea57504510dc5d5fa70ba934f16fa0
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Mar 20 05:33:46 2024 +0000
+commit 63ef9059a2e920d22522f9be068df357fab3d1f6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 18:29:10 2023 +0000
 
-    database/sql: fix memory leaks in Stmt.removeClosedStmtLocked
+    Revert "runtime: get a better g0 stack bound in needm"
     
-    Zero out elements before shrinking the slice to avoid memory leaks.
+    This reverts CL 479915.
     
-    Fixes #66410
+    Reason for revert: breaks a lot google internal tests.
     
-    Change-Id: I8f64c21455761f7f7c8b6fee0b6450b98f691d91
-    GitHub-Last-Rev: b15586e801199b9674f5bfcb12a848a55f15a80b
-    GitHub-Pull-Request: golang/go#66419
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572956
+    Change-Id: I13a9422e810af7ba58cbf4a7e6e55f4d8cc0ca51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481055
+    Reviewed-by: Chressie Himpel <chressie@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/database/sql/sql.go | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/cgo/testcarchive/carchive_test.go     | 54 ------------------------------
+ misc/cgo/testcarchive/testdata/libgo9/a.go | 14 --------
+ misc/cgo/testcarchive/testdata/main9.c     | 24 -------------
+ src/runtime/cgo.go                         |  2 --
+ src/runtime/cgo/callbacks.go               |  9 -----
+ src/runtime/cgo/gcc_stack_darwin.c         | 21 ------------
+ src/runtime/cgo/gcc_stack_unix.c           | 32 ------------------
+ src/runtime/cgo/gcc_stack_windows.c        |  7 ----
+ src/runtime/proc.go                        | 22 +++---------
+ src/runtime/signal_unix.go                 |  4 +--
+ 10 files changed, 7 insertions(+), 182 deletions(-)

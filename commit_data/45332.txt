@@ -1,23 +1,21 @@
-commit a6d3dc40c40c8a93e6b8bd641104d7655eb5093b
+commit b1f76f7a220a806d74bf55da374ea89467753e1f
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 16:22:01 2021 -0400
+Date:   Mon Jul 6 11:27:38 2020 -0400
 
-    misc/cgo/testso, misc/cgo/testsovar: fix for Windows
+    os: add DirFS
     
-    At least in mingw-clang it is not permitted to just name a .dll
-    on the command line. You must name the corresponding import
-    library instead, even though the dll is used when the executable
-    is run.
+    It will inevitably be important to be able to pass an operating system
+    directory to code written to expect an fs.FS.
     
-    This fixes misc/cgo/testso and misc/cgo/testsovar on windows/arm64.
+    os.DirFS provides the conversion.
     
-    Change-Id: I516b6ccba2fe3a9ee2c01e710a71850c4df8522f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312046
+    For #41190.
+    
+    Change-Id: Id1a8fcbe4c7a30de2c47dea0504e9481a88b1b39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243911
     Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testso/so_test.go           | 4 ++++
- misc/cgo/testso/testdata/cgoso.go    | 2 +-
- misc/cgo/testsovar/so_test.go        | 4 ++++
- misc/cgo/testsovar/testdata/cgoso.go | 2 +-
- 4 files changed, 10 insertions(+), 2 deletions(-)
+ src/os/file.go    | 19 +++++++++++++++++++
+ src/os/os_test.go |  7 +++++++
+ 2 files changed, 26 insertions(+)

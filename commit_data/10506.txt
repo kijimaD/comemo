@@ -1,13 +1,15 @@
-commit e38a1053a9a0be021d6d93ebbd3deeb81ed28115
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 26 11:01:49 2011 +1100
+commit 5519b5d7165afc39e9d908a3c9ae24f221e38f53
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Nov 25 10:57:10 2011 -0500
 
-    os: fail if Open("") is called on windows
+    exp/sql/driver: Correct package name in comment.
+    
+    IIRC, package sql used to be called db. There was one occurrence
+    of the old name in a comment.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5432071
+    https://golang.org/cl/5431075
 
- src/pkg/os/file_windows.go | 3 +++
- src/pkg/os/os_test.go      | 8 ++++++++
- 2 files changed, 11 insertions(+)
+ src/pkg/exp/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

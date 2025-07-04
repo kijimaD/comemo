@@ -1,39 +1,38 @@
-commit dd21a77bfae041eefe7b02ab5a40a7c4d3403f8d
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sat Mar 25 09:03:15 2023 -0700
+commit 7b314d27ce5dbc31eed2076e28c0af4ea8c24473
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 15 18:00:16 2022 +0700
 
-    internal: add wasip1 support
+    cmd/compile: fix bad order of evaluation for multi-value f()(g()) calls
     
-    For #58141
+    The compiler use to compile f()(g()) as:
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I1488726e5b43cd21c5f83900476afd2fb63d70c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479622
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+            t1, t2 := g()
+            f()(t1, t2)
+    
+    That violates the Go spec, since when "..., all function calls, ... are
+    evaluated in lexical left-to-right order"
+    
+    This PR fixes the bug by compiling f()(g()) as:
+    
+            t0 := f()
+            t1, t2 := g()
+            t0(t1, t2)
+    
+    to make "f()" to be evaluated before "g()".
+    
+    Fixes #50672
+    
+    Change-Id: I6a766f3dfc7347d10f8fa3a151f6a5ea79bcf818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392834
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/dist/test.go                               |   3 +
- src/internal/poll/{fcntl_js.go => fcntl_wasm.go}   |   4 +-
- src/internal/poll/fd_fsync_posix.go                |   2 +-
- .../poll/{fd_poll_js.go => fd_poll_wasm.go}        |   4 +-
- src/internal/poll/fd_posix.go                      |   2 +-
- src/internal/poll/fd_unix.go                       |  62 +------
- src/internal/poll/fd_unixjs.go                     |  68 ++++++++
- src/internal/poll/fd_wasip1.go                     | 186 +++++++++++++++++++++
- src/internal/poll/hook_unix.go                     |   2 +-
- src/internal/poll/sys_cloexec.go                   |   2 +-
- src/internal/syscall/unix/net_wasip1.go            |  44 +++++
- src/internal/syscall/unix/nonblocking_wasip1.go    |  11 ++
- src/internal/testenv/exec.go                       |   2 +-
- src/internal/testenv/testenv.go                    |   9 +-
- src/internal/testenv/testenv_notunix.go            |   2 +-
- src/syscall/syscall_wasip1.go                      |   3 +
- 16 files changed, 334 insertions(+), 72 deletions(-)
+ src/cmd/compile/internal/noder/transform.go     |   1 +
+ src/cmd/compile/internal/typecheck/const.go     |  57 +++++++------
+ src/cmd/compile/internal/typecheck/func.go      |   1 +
+ src/cmd/compile/internal/typecheck/typecheck.go |  38 ++++++++-
+ test/fixedbugs/issue50672.go                    | 105 ++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+), 27 deletions(-)

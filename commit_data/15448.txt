@@ -1,21 +1,19 @@
-commit c8c16cfbb98b717dc6807228e8a6e3553ab63b64
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Feb 26 14:07:03 2013 -0500
+commit 6c2cbdb1428340fcbf7305d82147b87070788b16
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 26 10:36:13 2013 -0800
 
-    exp/ssa: support multiple labels on same statement.
+    cmd/vet: fix printf test for unsafe Pointer
+    And fix test. Pointer to unsafe.Pointer tests nothing important...
+    Also identify the incorrect type: go/types.Type is a Stringer.
     
-    Actually it already worked since the spec only requires that
-    the one immediately preceding a for/switch/... be usable as
-    the target of a break or continue statement.
+    Also fix a couple of incorrect format verbs found by new printf checker,
+    now that we can run it on more files.
     
-    Added a test.
-    Also: allocate Function.lblocks on first use.
-    
-    R=gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7365058
+    https://golang.org/cl/7385051
 
- src/pkg/exp/ssa/builder.go                  |  1 -
- src/pkg/exp/ssa/func.go                     |  4 +++-
- src/pkg/exp/ssa/interp/testdata/coverage.go | 27 +++++++++++++++++++++++++++
- 3 files changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/vet/print.go               | 17 +++++++++++------
+ src/cmd/vet/test_print.go          |  4 ++--
+ src/pkg/sync/atomic/atomic_test.go |  4 ++--
+ 3 files changed, 15 insertions(+), 10 deletions(-)

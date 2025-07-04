@@ -1,17 +1,15 @@
-commit f5cf72d43ed1441d2e80654be5bde4b11f4cbcd1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 30 09:52:06 2018 +0200
+commit d6856036bf2887de51f6408c7e283b66b57f7fa7
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Jan 24 17:48:28 2018 -0500
 
-    cmd/link/internal/ld: drop duplicate copyright comment
+    cmd/trace: extend trace view (/trace) for task-oriented view
     
-    The copyright message already appears at the top of macho.go. Drop the
-    duplicate further down in the file.
+    R=go1.11
     
-    Change-Id: Ib0a69f568c4ef656bab14176223936cd2fe078d1
-    Reviewed-on: https://go-review.googlesource.com/115235
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2d2db148fed96d0fcb228bee414b050fe4e46e2c
+    Reviewed-on: https://go-review.googlesource.com/90217
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/link/internal/ld/macho.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/trace/annotations.go |  51 ++++++++++++++++++
+ src/cmd/trace/trace.go       | 124 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 158 insertions(+), 17 deletions(-)

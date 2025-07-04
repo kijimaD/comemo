@@ -1,22 +1,19 @@
-commit 49e05d4f91771fc6f090238a6a8c5f1796b01afe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 13 12:25:09 2019 -0500
+commit beeb8fea8d06cdc67ff95bf23dbbfa926b4b7123
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 3 15:14:51 2019 -0400
 
-    misc/cgo/testgodefs: convert test from bash to Go
+    cmd/go: update tests for new @upgrade query
     
-    The bash version of the test wrote intermediate files to its testdata directory.
+    This should have been part of CL 184440.
     
-    Updates #28387
-    Updates #30316
-    Fixes #35536
+    Updates #32846
     
-    Change-Id: Ib81b547d3c43e90df713a2172c8f399fefb53c68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206901
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I78a1326f4a67b3b526859bd15cb9653b4a8551a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184920
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testgodefs/test.bash          | 24 ----------
- misc/cgo/testgodefs/testgodefs_test.go | 83 ++++++++++++++++++++++++++++++++++
- src/cmd/dist/test.go                   |  6 +--
- 3 files changed, 85 insertions(+), 28 deletions(-)
+ src/cmd/go/internal/modload/query.go      |  2 +-
+ src/cmd/go/internal/modload/query_test.go | 14 ++++++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

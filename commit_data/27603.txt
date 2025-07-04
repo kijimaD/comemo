@@ -1,17 +1,12 @@
-commit 5db44c17a2391bbdfbc3c04e83e66025ca5dea3d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jun 1 19:16:56 2016 +0200
+commit e8f01e5cae3d72ea78c06d95a5ac622076f455ed
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 5 15:19:27 2016 +1000
 
-    math/big: avoid panic in float.Text with negative prec
+    expvar: document that the Var interface's String method should return a valid JSON value.
     
-    Fixes #15918
-    
-    Change-Id: I4b434aed262960a2e6c659d4c2296fbf662c3a52
-    Reviewed-on: https://go-review.googlesource.com/23633
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If4e740f3dbef4053355542eebdd899b3099d872c
+    Reviewed-on: https://go-review.googlesource.com/21525
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/math/big/floatconv_test.go | 5 +++++
- src/math/big/ftoa.go           | 7 +++++--
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/expvar/expvar.go | 1 +
+ 1 file changed, 1 insertion(+)

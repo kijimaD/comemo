@@ -1,0 +1,23 @@
+commit 77d20838e9cc3ad4f9c167db245752569d7ffc48
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jan 31 15:06:15 2025 +0000
+
+    cmd: update golang.org/x/tools to CL 645697, and revendor
+    
+    go get golang.org/x/tools@9874647 # CL 645697
+    go mod tidy
+    go mod vendor
+    
+    Fixes #71485
+    
+    Change-Id: I72d8f82abd0c6e05f2698d8a372bf9485002d1b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645336
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    TryBot-Bypass: Robert Findley <rfindley@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    | 48 +++++++++++++++-------
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 4 files changed, 38 insertions(+), 18 deletions(-)

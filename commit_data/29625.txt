@@ -1,99 +1,22 @@
-commit f9feaffdf51967bc5cf3c9363db9ddee98c9b3a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Nov 12 23:01:37 2016 -0500
+commit 4d07d3e29c467484801b84dfeb762d2ee00979a9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 28 10:20:24 2016 -0400
 
-    runtime: do not print runtime panic frame at top of user stack
+    cmd/compile: re-enable nilcheck removal for newobject
     
-    The expected default behavior (no explicit GOTRACEBACK setting)
-    is for the stack trace to start in user code, eliding unnecessary runtime
-    frames that led up to the actual trace printing code. The idea was that
-    the first line number printed was the one that crashed.
+    Also add compiler debug ouput and add a test.
     
-    For #5832 we added code to show 'panic' frames so that if code panics
-    and then starts running defers and then we trace from there, the panic
-    frame can help explain why the code seems to have made a call not
-    present in the code. But that's only needed for panics between two different
-    call frames, not the panic at the very top of the stack trace.
-    Fix the fix to again elide the runtime code at the very top of the stack trace.
+    Fixes #15390.
     
-    Simple panic:
-    
-            package main
-    
-            func main() {
-                    var x []int
-                    println(x[1])
-            }
-    
-    Before this CL:
-    
-            panic: runtime error: index out of range
-    
-            goroutine 1 [running]:
-            panic(0x1056980, 0x1091bf0)
-                    /Users/rsc/go/src/runtime/panic.go:531 +0x1cf
-            main.main()
-                    /tmp/x.go:5 +0x5
-    
-    After this CL:
-    
-            panic: runtime error: index out of range
-    
-            goroutine 1 [running]:
-            main.main()
-                    /tmp/x.go:5 +0x5
-    
-    Panic inside defer triggered by panic:
-    
-            package main
-    
-            func main() {
-                    var x []int
-                    defer func() {
-                            println(x[1])
-                    }()
-                    println(x[2])
-            }
-    
-    Before this CL:
-    
-            panic: runtime error: index out of range
-                    panic: runtime error: index out of range
-    
-            goroutine 1 [running]:
-            panic(0x1056aa0, 0x1091bf0)
-                    /Users/rsc/go/src/runtime/panic.go:531 +0x1cf
-            main.main.func1(0x0, 0x0, 0x0)
-                    /tmp/y.go:6 +0x62
-            panic(0x1056aa0, 0x1091bf0)
-                    /Users/rsc/go/src/runtime/panic.go:489 +0x2cf
-            main.main()
-                    /tmp/y.go:8 +0x59
-    
-    The middle panic is important: it explains why main.main ended up calling main.main.func1 on a line that looks like a call to println. The top panic is noise.
-    
-    After this CL:
-    
-            panic: runtime error: index out of range
-                    panic: runtime error: index out of range
-    
-            goroutine 1 [running]:
-            main.main.func1(0x0, 0x0, 0x0)
-                    /tmp/y.go:6 +0x62
-            panic(0x1056ac0, 0x1091bf0)
-                    /Users/rsc/go/src/runtime/panic.go:489 +0x2cf
-            main.main()
-                    /tmp/y.go:8 +0x59
-    
-    Fixes #17901.
-    
-    Change-Id: Id6d7c76373f7a658a537a39ca32b7dc23e1e76aa
-    Reviewed-on: https://go-review.googlesource.com/33165
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iceba1414c29bcc213b87837387bf8ded1f3157f1
+    Reviewed-on: https://go-review.googlesource.com/30011
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_test.go |  2 +-
- src/runtime/traceback.go  | 14 ++++++++------
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/config.go         |  9 ++++
+ src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++-----
+ src/cmd/compile/internal/ssa/rewrite.go        |  9 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
+ test/nilptr3.go                                |  7 ++++
+ 5 files changed, 95 insertions(+), 10 deletions(-)

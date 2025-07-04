@@ -1,18 +1,77 @@
-commit 636c6e350dfc89c164f3e26aee85b241faf06ae0
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 28 13:09:42 2023 -0800
+commit 8a27154bcdb657fd172e77ba19ac0a5dccb996fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 10:39:30 2022 -0500
 
-    doc: release notes for GOARM hardfloat/softfloat change
+    cmd/dist: make toolchain build reproducible
     
-    See CL 514907
+    - Build cmd with CGO_ENABLED=0. Doing so removes the C compiler
+      toolchain from the reproducibility perimeter and also results in
+      cmd/go and cmd/pprof binaries that are statically linked,
+      so that they will run on a wider variety of systems.
+      In particular the Linux versions will run on Alpine and NixOS
+      without needing a simulation of libc.so.6.
     
-    Change-Id: Ieba2d7737115c66990b0ea7629033e787a99be93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545655
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ludi Rehak <ludi317@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+      The potential downside of disabling cgo is that cmd/go and cmd/pprof
+      use the pure Go network resolver instead of the host resolver on
+      Unix systems. This means they will not be able to use non-DNS
+      resolver mechanisms that may be specified in /etc/resolv.conf,
+      such as mDNS. Neither program seems likely to need non-DNS names
+      like those, however.
+    
+      macOS and Windows systems still use the host resolver, which they
+      access without cgo.
+    
+    - Build cmd with -trimpath when building a release.
+      Doing so removes $GOPATH from the file name prefixes stored in the
+      binary, so that the build directory does not leak into the final artifacts.
+    
+    - When CC and CXX are empty, do not pick values to hard-code into
+      the source tree and binaries. Instead, emit code that makes the
+      right decision at runtime. In addition to reproducibility, this
+      makes cross-compiled toolchains work better. A macOS toolchain
+      cross-compiled on Linux will now correctly look for clang,
+      instead of looking for gcc because it was built on Linux.
+    
+    - Convert \ to / in file names stored in .a files.
+      These are converted to / in the final binaries, but the hashes of
+      the .a files affect the final build ID of the binaries. Without this
+      change, builds of a Windows toolchain on Windows and non-Windows
+      machines produce identical binaries except for the input hash part
+      of the build ID.
+    
+    - Due to the conversion of \ to / in .a files, convert back when
+      reading inline bodies on Windows to preserve output file names
+      in error messages.
+    
+    Combined, these four changes (along with Go 1.20's removal of
+    installed pkg/**.a files and conversion of macOS net away from cgo)
+    make the output of make.bash fully reproducible, even when
+    cross-compiling: a released macOS toolchain built on Linux or Windows
+    will contain exactly the same bits as a released macOS toolchain
+    built on macOS.
+    
+    The word "released" in the previous sentence is important.
+    For the build IDs in the binaries to work out the same on
+    both systems, a VERSION file must exist to provide a consistent
+    compiler build ID (instead of using a content hash of the binary).
+    
+    For #24904.
+    Fixes #57007.
+    
+    Change-Id: I665e1ef4ff207d6ff469452347dca5bfc81050e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454836
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go         |  12 ++-
+ src/cmd/compile/internal/ssa/debug_lines_test.go |   2 +-
+ src/cmd/dist/build.go                            | 123 ++++++++++++++++-------
+ src/cmd/dist/buildgo.go                          |  21 +++-
+ src/cmd/dist/main.go                             |   9 --
+ src/cmd/dist/test.go                             |  27 ++---
+ src/cmd/dist/util.go                             |  12 ++-
+ src/cmd/go/testdata/script/slashpath.txt         |  18 ++++
+ src/cmd/internal/objabi/line.go                  |   8 ++
+ 9 files changed, 165 insertions(+), 67 deletions(-)

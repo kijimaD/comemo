@@ -1,40 +1,18 @@
-commit d52679006c8e08875fac92aca1f723fce488d0d2
-Author: Julian Zhu <jz531210@gmail.com>
-Date:   Sat May 17 00:27:37 2025 +0800
+commit 1eee17dc4e796c2fe60e8f9e82b66c00610adc31
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Mar 22 09:04:08 2024 +0000
 
-    cmd/compile: fold negation into addition/subtraction on mipsx
+    path/filepath: use slices to simplify the test code
     
-    Fold negation into addition/subtraction and avoid double negation.
-    
-    file      before    after     Δ       %
-    addr2line 3742022   3741986   -36     -0.001%
-    asm       6668616   6668628   +12     +0.000%
-    buildid   3583786   3583630   -156    -0.004%
-    cgo       6020370   6019634   -736    -0.012%
-    compile   29416016  29417336  +1320   +0.004%
-    cover     6801903   6801675   -228    -0.003%
-    dist      4485916   4485816   -100    -0.002%
-    doc       10652787  10652251  -536    -0.005%
-    fix       4115988   4115560   -428    -0.010%
-    link      9002328   9001616   -712    -0.008%
-    nm        3733148   3732780   -368    -0.010%
-    objdump   6163292   6163068   -224    -0.004%
-    pack      2944768   2944604   -164    -0.006%
-    pprof     18909973  18908773  -1200   -0.006%
-    test2json 3394662   3394778   +116    +0.003%
-    trace     17350911  17349751  -1160   -0.007%
-    vet       10077727  10077527  -200    -0.002%
-    go        19118769  19118609  -160    -0.001%
-    total     166182982 166178022 -4960   -0.003%
-    
-    Change-Id: Id55698800fd70f3cb2ff48393584456b87208921
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673556
+    Change-Id: I020ca2ed8a6af60977f2c492cd742f824906d4ec
+    GitHub-Last-Rev: b27fda463058e86eafbe5bd10e5c99e10dd609a8
+    GitHub-Pull-Request: golang/go#66462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573715
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/_gen/MIPS.rules |  3 +++
- src/cmd/compile/internal/ssa/rewriteMIPS.go  | 34 ++++++++++++++++++++++++++++
- test/codegen/arithmetic.go                   | 10 ++++++++
- 3 files changed, 47 insertions(+)
+ src/path/filepath/match_test.go | 22 ++++++----------------
+ src/path/filepath/path_test.go  |  3 +--
+ 2 files changed, 7 insertions(+), 18 deletions(-)

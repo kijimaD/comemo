@@ -1,56 +1,27 @@
-commit 965845a86d00e618cc03a739a52e986d6901d071
+commit 4a9ebb18f1ff90cbc182648e65cc9071c8920e3c
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 15:54:16 2011 -0400
+Date:   Wed Nov 2 15:53:57 2011 -0400
 
-    all: sort imports
+    gofmt, gofix: sort imports
+    
+    Add ast.SortImports(fset, file) to go/ast, for use by both programs.
+    
+    Fixes #346.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5319072
+    https://golang.org/cl/5330069
 
- src/cmd/godoc/index.go                      | 2 +-
- src/cmd/godoc/snippet.go                    | 2 +-
- src/cmd/govet/govet.go                      | 2 +-
- src/cmd/goyacc/goyacc.go                    | 4 ++--
- src/pkg/archive/zip/reader.go               | 2 +-
- src/pkg/container/heap/heap_test.go         | 2 +-
- src/pkg/crypto/ecdsa/ecdsa_test.go          | 2 +-
- src/pkg/crypto/hmac/hmac_test.go            | 2 +-
- src/pkg/crypto/openpgp/s2k/s2k_test.go      | 2 +-
- src/pkg/crypto/tls/generate_cert.go         | 2 +-
- src/pkg/crypto/x509/pkcs1.go                | 2 +-
- src/pkg/crypto/x509/x509_test.go            | 2 +-
- src/pkg/debug/gosym/pclntab_test.go         | 2 +-
- src/pkg/encoding/binary/binary.go           | 2 +-
- src/pkg/encoding/binary/binary_test.go      | 2 +-
- src/pkg/exec/exec_test.go                   | 2 +-
- src/pkg/exp/inotify/inotify_linux_test.go   | 2 +-
- src/pkg/exp/norm/normregtest.go             | 2 +-
- src/pkg/exp/winfsnotify/winfsnotify_test.go | 2 +-
- src/pkg/exp/wingui/gui.go                   | 2 +-
- src/pkg/exp/wingui/winapi.go                | 2 +-
- src/pkg/http/cgi/host_test.go               | 4 ++--
- src/pkg/http/transfer.go                    | 2 +-
- src/pkg/http/transport_windows.go           | 2 +-
- src/pkg/image/bmp/reader.go                 | 2 +-
- src/pkg/image/jpeg/writer_test.go           | 2 +-
- src/pkg/io/multi_test.go                    | 2 +-
- src/pkg/log/log.go                          | 4 ++--
- src/pkg/net/ip_test.go                      | 2 +-
- src/pkg/net/lookup_windows.go               | 4 ++--
- src/pkg/net/parse_test.go                   | 2 +-
- src/pkg/net/server_test.go                  | 2 +-
- src/pkg/old/netchan/export.go               | 2 +-
- src/pkg/os/env_windows.go                   | 2 +-
- src/pkg/os/path_test.go                     | 2 +-
- src/pkg/os/stat_windows.go                  | 2 +-
- src/pkg/path/filepath/match_test.go         | 2 +-
- src/pkg/rand/rand_test.go                   | 2 +-
- src/pkg/rpc/server.go                       | 2 +-
- src/pkg/runtime/syscall_windows_test.go     | 2 +-
- src/pkg/sync/once_test.go                   | 2 +-
- src/pkg/time/sleep_test.go                  | 2 +-
- src/pkg/time/zoneinfo_windows.go            | 4 ++--
- src/pkg/unicode/maketables.go               | 2 +-
- src/pkg/xml/marshal_test.go                 | 6 +++---
- 45 files changed, 52 insertions(+), 52 deletions(-)
+ src/cmd/gofix/fix.go                         |  21 ++++-
+ src/cmd/gofix/import_test.go                 |  30 ++++++
+ src/cmd/gofix/main.go                        |  21 +++--
+ src/cmd/gofix/main_test.go                   |  13 +--
+ src/cmd/gofix/testdata/reflect.export.go.in  |   2 +-
+ src/cmd/gofix/testdata/reflect.export.go.out |   2 +-
+ src/cmd/gofmt/gofmt.go                       |   2 +
+ src/cmd/gofmt/gofmt_test.go                  |   1 +
+ src/cmd/gofmt/testdata/import.golden         | 108 ++++++++++++++++++++++
+ src/cmd/gofmt/testdata/import.input          | 108 ++++++++++++++++++++++
+ src/pkg/go/ast/Makefile                      |   1 +
+ src/pkg/go/ast/import.go                     | 131 +++++++++++++++++++++++++++
+ 12 files changed, 419 insertions(+), 21 deletions(-)

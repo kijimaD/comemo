@@ -1,18 +1,39 @@
-commit 5361b747b732cf6cf183591b7a66b83fb6fab29f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 23 09:45:11 2014 -0700
+commit 91e8554b8b9edfb4b05b2c04a50daf4df8ffed7b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 8 15:57:20 2014 -0700
 
-    spec: minimal documention of unsafe.Pointer conversions
+    runtime: delay freeing of shrunk stacks until gc is done.
     
-    Per suggestion from rsc as a result of the dicussion of
-    (abandoned) CL 153110044.
+    This change prevents confusion in the garbage collector.
+    The collector wants to make sure that every pointer it finds
+    isn't junk.  Its criteria for junk is (among others) points
+    to a "free" span.
     
-    Fixes #7192.
+    Because the stack shrinker modifies pointers in the heap,
+    there is a race condition between the GC scanner and the
+    shrinker.  The GC scanner can see old pointers (pointers to
+    freed stacks).  In particular this happens with SudoG.elem
+    pointers.
     
-    LGTM=r, rsc, iant
-    R=r, rsc, iant, ken
+    Normally this is not a problem, as pointers into stack spans
+    are ok.  But if the freed stack is the last one in its span,
+    the span is marked as "free" instead of "contains stacks".
+    
+    This change makes sure that even if the GC scanner sees
+    an old pointer, the span into which it points is still
+    marked as "contains stacks", and thus the GC doesn't
+    complain about it.
+    
+    This change will make the GC pause a tiny bit slower, as
+    the stack freeing now happens in serial with the mark pause.
+    We could delay the freeing until the mutators start back up,
+    but this is the simplest change for now.
+    
+    TBR=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/163050043
+    https://golang.org/cl/158750043
 
- doc/go_spec.html | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/mgc0.c    |  2 ++
+ src/runtime/runtime.h |  1 +
+ src/runtime/stack.c   | 38 +++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 40 insertions(+), 1 deletion(-)

@@ -1,15 +1,16 @@
-commit 08ce3c313376b6d600c08b977103d6c51350b3f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 10:12:28 2013 -0400
+commit 39100543ff629ef82bb814a03c6582f7158204a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 18 13:03:26 2013 +1000
 
-    libmach: update for Go 1.2 pcln table
+    io: let SectionReader seek past the end; document Seeker semantics more
     
-    The change to addr2line makes it easy to test by hand.
+    Be consistent with os.File, strings.Reader, bytes.Reader, etc,
+    which all allow seeks past the end.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11485044
+    https://golang.org/cl/11403043
 
- src/cmd/addr2line/main.c |  13 +-
- src/libmach/sym.c        | 357 +++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 357 insertions(+), 13 deletions(-)
+ src/pkg/io/io.go      | 12 ++++++++----
+ src/pkg/io/io_test.go | 42 +++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 43 insertions(+), 11 deletions(-)

@@ -1,24 +1,18 @@
-commit 985d3d307c3669094f77b52caffef60157b7d648
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 29 09:09:14 2016 -0700
+commit a71af25401d68645ca23b2303ac6ae426739aa8b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 31 15:30:52 2016 +1000
 
-    net: make proto and port lookups fall back to baked-in maps on Windows
+    time: warn about correct use of a Timer's Stop/Reset methods
     
-    In https://golang.org/cl/28951 I cleaned up the lookupProtocol and
-    lookupPort paths to be consistently case-insensitive across operating
-    systems and to share the same baked-in maps of port & proto values
-    that can be relied on to exist on any platform.
+    Updates #14038
+    Fixes #14383
     
-    I missed the fallback to the baked-in maps on Windows, though, which
-    broke Windows XP. This should fix it.
-    
-    Fixes #17175
-    
-    Change-Id: Iecd434fb684304137ee27f5521cfaa8c351a1bde
-    Reviewed-on: https://go-review.googlesource.com/29968
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icf6acb7c5d13ff1d3145084544c030a778482a38
+    Reviewed-on: https://go-review.googlesource.com/23575
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/lookup_windows.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/time/sleep.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

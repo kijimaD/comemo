@@ -1,16 +1,13 @@
-commit fdf458436af89b8052489fd9ba53ef16e693d12b
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Oct 24 15:49:17 2014 -0200
+commit e6295210b9abef03d350f5117df228fb21093f84
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Oct 9 11:12:03 2014 +0200
 
-    cmd/go: add bzr support for vcs root checking
+    net/rpc: skip TestGobError on Plan 9
     
-    Complements the logic introduced in CL 147170043.
-    
-    LGTM=rsc
-    R=rsc, gustavo
-    CC=golang-codereviews
-    https://golang.org/cl/147240043
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=aram, golang-codereviews
+    https://golang.org/cl/154140043
 
- src/cmd/go/get.go | 11 +++++++++--
- src/cmd/go/vcs.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 56 insertions(+), 5 deletions(-)
+ src/net/rpc/client_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

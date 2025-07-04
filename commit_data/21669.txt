@@ -1,15 +1,20 @@
-commit 5254b7e9cefb597a9b9ce5137d6e5248a14d8d73
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 19 16:21:42 2015 -0500
+commit f4a2617765273add97fb52c101baaf071fdb9705
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 26 16:08:51 2015 -0800
 
-    runtime: do not unmap work.spans until after checkmark phase
+    math/big: various fixes, enable tests for 32bit platforms
     
-    This is causing crashes.
+    - fixed Float.Add, Float.Sub
+    - fixed Float.PString to be platform independent
+    - fixed Float.Uint64
+    - fixed various test outputs
     
-    Change-Id: I1832f33d114bc29894e491dd2baac45d7ab3a50d
-    Reviewed-on: https://go-review.googlesource.com/5330
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TBR: adonovan
+    
+    Change-Id: I9d273b344d4786f1fed18862198b23285c358a39
+    Reviewed-on: https://go-review.googlesource.com/3321
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgc.go | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/math/big/float.go      | 131 +++++++++++++++++++++++----------------------
+ src/math/big/float_test.go |  47 ++++++----------
+ 2 files changed, 81 insertions(+), 97 deletions(-)

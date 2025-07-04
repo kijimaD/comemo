@@ -1,35 +1,21 @@
-commit 41162be44a099803a870f9b6c147050594598d63
+commit dbd22c72272f7e02e6d5985be83f6bdf785ab733
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 12 15:32:49 2020 -0400
+Date:   Thu Mar 26 12:00:07 2020 -0400
 
-    cmd/go/internal/modload: avoid using the global build list in QueryPattern
+    cmd/dist: skip API check on plan9 builders
     
-    The Query function allows the caller to specify the current version of
-    the requested module, but the QueryPattern function is missing that
-    parameter: instead, it always assumes that the current version is the
-    one selected from the global build list.
+    The plan9-arm builder has a very slow filesystem and frequently times
+    out on this test. The api check verifies the API for all supported
+    GOOS/GOARCH/CGO_ENABLED combination anyway, so if we skip it on one
+    builder (or even most builders) there should be no loss of coverage.
     
-    This change removes that assumption, instead adding a callback
-    function to determine the current version. (The callback is currently
-    invoked once per candidate module, regardless of whether that module
-    exists, but in a future change we can refactor it to invoke the
-    callback only when needed.)
+    Updates #37951
     
-    For #36460
-    For #40775
-    
-    Change-Id: I001a4a8ab24f5b4fcc66a670d9bd305b47e948ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261640
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I86a93df2ec60a6af6d942e3954eef09ce67bb39e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225662
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modget/get.go        |  2 +-
- src/cmd/go/internal/modload/buildlist.go | 15 +++++++++++++++
- src/cmd/go/internal/modload/import.go    |  2 +-
- src/cmd/go/internal/modload/modfile.go   |  2 +-
- src/cmd/go/internal/modload/query.go     | 15 +++------------
- src/cmd/go/internal/work/build.go        |  2 +-
- 6 files changed, 22 insertions(+), 16 deletions(-)
+ src/cmd/dist/test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,40 +1,48 @@
-commit 3f2039e28dca40d231a789c9693195354aaba3f5
-Author: Anit Gandhi <anitgandhi@gmail.com>
-Date:   Wed May 23 22:03:08 2018 +0000
+commit 058bb7ea278d8e073be1e1c73d01fbfd74c170fd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 11 19:40:12 2017 -0500
 
-    crypto/{aes,internal/cipherhw,tls}: use common internal/cpu in place of cipherhw
+    runtime: split object finding out of heapBitsForObject
     
-    When the internal/cpu package was introduced, the AES package still used
-    the custom crypto/internal/cipherhw package for amd64 and s390x. This
-    change removes that package entirely in favor of directly referencing the
-    cpu feature flags set and exposed by the internal/cpu package. In
-    addition, 5 new flags have been added to the internal/cpu s390x struct
-    for detecting various cipher message (KM) features.
+    heapBitsForObject does two things: it finds the base of the object and
+    it creates the heapBits for the base of the object. There are several
+    places where we just care about the base of the object. Furthermore,
+    greyobject only needs the heapBits in the checkmark path and can
+    easily compute them only when needed. Once we eliminate passing the
+    heap bits to grayobject, almost all uses of heapBitsForObject don't
+    need the heap bits.
     
-    Change-Id: I77cdd8bc1b04ab0e483b21bf1879b5801a4ba5f4
-    GitHub-Last-Rev: a611e3ecb1f480dcbfce3cb0c8c9e4058f56c1a4
-    GitHub-Pull-Request: golang/go#24766
-    Reviewed-on: https://go-review.googlesource.com/105695
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Hence, this splits heapBitsForObject into findObject and
+    heapBitsForAddr (the latter already exists), removes the hbits
+    argument to grayobject, and replaces all heapBitsForObject calls with
+    calls to findObject.
+    
+    In addition to making things cleaner overall, heapBitsForAddr is going
+    to get more expensive shortly, so it's important that we don't do it
+    needlessly.
+    
+    Note that there's an interesting performance pitfall here. I had
+    originally moved findObject to mheap.go, since it made more sense
+    there. However, that leads to a ~2% slow down and a whopping 11%
+    increase in L1 icache misses on both the x/garbage and compilebench
+    benchmarks. This suggests we may want to be more principled about
+    this, but, for now, let's just leave findObject in mbitmap.go.
+    
+    (I tried to make findObject small enough to inline by splitting out
+    the error case, but, sadly, wasn't quite able to get it under the
+    inlining budget.)
+    
+    Change-Id: I7bcb92f383ade565d22a9f2494e4c66fd513fb10
+    Reviewed-on: https://go-review.googlesource.com/85878
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/crypto/aes/aes_gcm.go                      |   1 -
- src/crypto/aes/asm_s390x.s                     |  23 ------
- src/crypto/aes/cipher_amd64.go                 |  12 +--
- src/crypto/aes/cipher_ppc64le.go               |   5 --
- src/crypto/aes/cipher_s390x.go                 |  17 +++--
- src/crypto/aes/gcm_amd64.s                     |  14 ----
- src/crypto/aes/gcm_s390x.go                    |  10 +--
- src/crypto/internal/cipherhw/asm_amd64.s       |  17 -----
- src/crypto/internal/cipherhw/asm_s390x.s       |  44 -----------
- src/crypto/internal/cipherhw/cipherhw_amd64.go |  16 ----
- src/crypto/internal/cipherhw/cipherhw_s390x.go |  18 -----
- src/crypto/internal/cipherhw/doc.go            |   7 --
- src/crypto/internal/cipherhw/generic.go        |  11 ---
- src/crypto/tls/common.go                       |  20 ++++-
- src/go/build/deps_test.go                      |   1 -
- src/internal/cpu/cpu.go                        |   7 +-
- src/internal/cpu/cpu_s390x.go                  |  15 ++++
- src/internal/cpu/cpu_s390x.s                   | 101 +++++++++++++++++++++++++
- 18 files changed, 158 insertions(+), 181 deletions(-)
+ src/runtime/cgocall.go |  3 ++-
+ src/runtime/mbitmap.go | 19 +++++++++----------
+ src/runtime/mfinal.go  |  2 +-
+ src/runtime/mgcmark.go | 19 ++++++++++---------
+ src/runtime/mheap.go   |  2 +-
+ src/runtime/mwbbuf.go  |  6 +-----
+ src/runtime/race.go    |  2 +-
+ 7 files changed, 25 insertions(+), 28 deletions(-)

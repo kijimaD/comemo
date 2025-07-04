@@ -1,20 +1,15 @@
-commit 308352936712476f450aaeac13166f2de019de65
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 23 18:00:34 2022 -0400
+commit cc5e3de593afca73cf1b4d732ddceffb2837b390
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat May 8 01:07:30 2021 -0400
 
-    cmd/go: avoid overwriting cached Origin metadata
+    crypto/tls: use cryptobyte.NewFixedBuilder
     
-    Fixes #54631.
-    
-    Change-Id: I17d2fa282642aeb1ae2a6e29a0756b8960bea34b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425255
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ia2a9465680e766336dae34f5d2b3cb412185bf1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318131
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go |  4 +++-
- src/cmd/go/internal/modfetch/codehost/git.go      | 13 +++++++++++--
- src/cmd/go/internal/modload/build.go              | 22 +++++++++++++---------
- src/cmd/go/internal/modload/query.go              | 21 ++++++++++++++++-----
- 4 files changed, 43 insertions(+), 17 deletions(-)
+ src/crypto/tls/handshake_messages.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

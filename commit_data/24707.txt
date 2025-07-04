@@ -1,17 +1,18 @@
-commit ee0305e036a05f1badd1fd4838b0ee3fb170bcbf
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Nov 3 20:00:21 2015 +0100
+commit 8286f18b94fe92d056fe0112b2e48f2409f49628
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 13:59:00 2015 +0000
 
-    runtime: remove dead code
+    debug/elf: map/slice literals janitoring
     
-    runtime.free has long gone.
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    Reformatted some expressions to improve readability.
     
-    Change-Id: I058f69e6481b8fa008e1951c29724731a8a3d081
-    Reviewed-on: https://go-review.googlesource.com/16593
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iaf123e6bd49162ec45c59297ad3b002ca59443bc
+    Reviewed-on: https://go-review.googlesource.com/13850
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgcsweep.go |  2 +-
- src/runtime/mheap.go    |  4 ++--
- src/runtime/mprof.go    | 11 +++--------
- 3 files changed, 6 insertions(+), 11 deletions(-)
+ src/debug/elf/file_test.go | 159 +++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 148 insertions(+), 11 deletions(-)

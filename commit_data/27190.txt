@@ -1,25 +1,19 @@
-commit be730b49ca41e8a7e98a21cf61bb6c9c7fc7857e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 28 09:35:19 2016 +0900
+commit 87151c82b68023e4224b016a6a66ead2c4b8ece7
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Mar 13 17:59:26 2016 -0700
 
-    runtime: drop _SigUnblock for SIGSYS on Linux
+    encoding/base64: correct DecodedLen overestimate for unpadded encodings
     
-    The _SigUnblock flag was appended to SIGSYS slot of runtime signal table
-    for Linux in https://go-review.googlesource.com/22202, but there is
-    still no concrete opinion on whether SIGSYS must be an unblocked signal
-    for runtime.
+    While we're at it, add tests for EncodedLen and DecodedLen.
     
-    This change removes _SigUnblock flag from SIGSYS on Linux for
-    consistency in runtime signal handling and adds a reference to #15204 to
-    runtime signal table for FreeBSD.
+    Fixes #14803.
     
-    Updates #15204.
-    
-    Change-Id: I42992b1d852c2ab5dd37d6dbb481dba46929f665
-    Reviewed-on: https://go-review.googlesource.com/22537
+    Change-Id: I200c72cf11c51669b8d9f70c6e57ece359f7ae61
+    Reviewed-on: https://go-review.googlesource.com/20649
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/signal_freebsd.go       | 2 +-
- src/runtime/sigtab_linux_generic.go | 2 +-
- src/runtime/sigtab_linux_mips64x.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/encoding/base64/base64.go      |  2 +-
+ src/encoding/base64/base64_test.go | 45 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

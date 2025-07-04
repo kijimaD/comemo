@@ -1,13 +1,15 @@
-commit 71ecd16bf5c7a43849b5a3ad874ca8bd0accd302
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Aug 23 21:11:57 2014 +0400
+commit 25bde37af4042d430274895abb9751cb3c786730
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 14 14:34:14 2014 -0400
 
-    runtime: remove unused var
+    [dev.power64] cmd/9c: fix constant truncation in optimizer
     
-    LGTM=bradfitz
-    R=daniel.morsing, bradfitz
+    This is what broke getpopcount, but that code had it coming.
+    
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/130500044
+    https://golang.org/cl/130000044
 
- src/pkg/runtime/proc.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/9c/reg.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

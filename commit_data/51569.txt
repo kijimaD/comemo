@@ -1,20 +1,17 @@
-commit 78fc81070a853d08a71f70fa20b2093f5535e6c5
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Dec 20 15:24:06 2022 +0000
+commit b2cb1bd0f5085adb830e4014142d23d704b71347
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 14 13:14:59 2022 -0500
 
-    net: use correct dns msg size
+    doc/go1.18: remove ppc regabi TODO as it's in the compiler section
     
-    Set bufSize to the actual dns message size, so that the p.Start (below) gets a fully valid dns message.
+    Updates #47694
     
-    Change-Id: I585e8a3d71f88db93e09bd0dbbc0875ee6de9a97
-    GitHub-Last-Rev: 0967be35012d2e28366e6d47eee4968c7e8d5e4a
-    GitHub-Pull-Request: golang/go#57392
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458375
+    Change-Id: I55175988f193fb573339933e9ff0d4c49734b444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385658
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/cgo_unix.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 6 ------
+ 1 file changed, 6 deletions(-)

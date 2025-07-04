@@ -1,20 +1,21 @@
-commit 222ed1b38af0fb6f83f80062092a267dcbd354df
-Author: siddharth <s@ricketyspace.net>
-Date:   Mon Jun 21 21:50:09 2021 -0400
+commit 4f9d54e41d80f06b8806bcbb23c015572b78d9fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 10:25:41 2020 -0500
 
-    os: enable TestFifoEOF on openbsd
+    [dev.regabi] cmd/compile: add OMETHEXPR
     
-    The test successfully runs on currently supported versions (6.8 and
-    6.9) of openbsd.
+    This CL is obviously OK but does not pass toolstash -cmp,
+    because it renumbers the Op codes. In a separate CL so that
+    we can use toolstash -cmp on the CL with real changes
+    related to OMETHEXPR.
     
-    Fixes #25877
-    
-    Change-Id: I2694f08c5596b486453c2ac829f17b8bc455f828
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329732
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1db978e3f2652b3bdf51f7981a3ba5137641c8c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272866
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/fifo_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/gc/op_string.go | 87 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/syntax.go    |  1 +
+ 2 files changed, 45 insertions(+), 43 deletions(-)

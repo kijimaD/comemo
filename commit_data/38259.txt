@@ -1,19 +1,16 @@
-commit 958e212db799e609b2a8df51cdd85c9341e7a404
-Author: Michael Stapelberg <stapelberg@google.com>
-Date:   Thu Jan 17 16:20:51 2019 +0100
+commit 296b7aeae0b3231f2e943859b37108e5f9e130d3
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sun Oct 14 12:07:45 2018 -0700
 
-    syscall: fix hang when using Unshareflags: CLONE_NEWUSER with uid/gid mapping (linux)
+    cmd/compile: fix gdb stepping test
     
-    Note that this particular combination of properties still fails (EPERM), but it
-    no longer hangs.
+    Not sure why this changed behavior, but seems mostly harmless.
     
-    Updates #29789
+    Fixes #28198
     
-    Change-Id: I29b15b85a25a7acd7ae89ffc5fed074bcdfe0a12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/158297
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie25c6e1fcb64912a582c7ae7bf92c4c1642e83cb
+    Reviewed-on: https://go-review.googlesource.com/c/141649
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/syscall/exec_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts | 4 ++++
+ 1 file changed, 4 insertions(+)

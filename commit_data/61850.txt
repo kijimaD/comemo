@@ -1,0 +1,18 @@
+commit 080466fffb47f420456b4a19129ffb271cae5aa6
+Author: Sean Liao <sean@liao.dev>
+Date:   Wed Dec 4 21:56:45 2024 +0000
+
+    embed: document exclusions more explicitly
+    
+    Fixes #45197
+    Fixes #45744
+    
+    Change-Id: Ic221da1b652f693c7aa37287932c0a8726f46765
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633815
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/embed/embed.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,16 +1,115 @@
-commit e0bb5ba52cff479f70d4351d3fafa35e1655839b
-Author: Markus Zimmermann <zimmski@gmail.com>
-Date:   Thu Feb 13 16:43:52 2014 -0800
+commit eae09a59a044670d48bab9209e6afb8c9da4b973
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Feb 13 16:19:38 2014 -0800
 
-    container/list: mark must be an element of the list
+    math/big: Optimise ARM assembler
     
-    The methods MoveAfter and MoveBefore of the container/list package did silently corrupt the interal structure of the list if a mark element is used which is not an element of the list.
+    Tweak the ARM assembler to improve its performance.
+    
+      * Use TEQ instead of CMP which preserves the carry flag.  This means
+        we can avoid saving and restoring CPSR which is very slow.
+    
+      * Use conditional instructions to read the value of the carry flag.
+    
+      * Use 3 argument ARM instructions to save instructions
+    
+      * Improve scheduling for MOVW instructions (LDR)
+    
+      * Use RSB constant to save an instruction in bitLen
+    
+    Results of -test.bench 'VV|VW|VU|WW|Bit' -test.benchtime 3s on Samsung
+    Exynos5 Chromebook.
+    
+    There are a few small regressions in the benchmarks which I believe to
+    be noise, perhaps due to different cacheline alignment.
+    
+    The changes to bitLen are apparently no faster, however less
+    instructions means less I-cache usage which is a win. I suspect it
+    will be a win on older ARM processors.
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkAddVV_1                 48           14  -70.84%
+    BenchmarkAddVV_2                 87           17  -80.25%
+    BenchmarkAddVV_3                126           20  -83.97%
+    BenchmarkAddVV_4                165           23  -86.00%
+    BenchmarkAddVV_5                204           26  -87.21%
+    BenchmarkAddVV_1e1              399           41  -89.72%
+    BenchmarkAddVV_1e2             3921          315  -91.97%
+    BenchmarkAddVV_1e3            39085         2972  -92.40%
+    BenchmarkAddVV_1e4           390330        29623  -92.41%
+    BenchmarkAddVV_1e5          3935366       343431  -91.27%
+    BenchmarkAddVW_1                 20           10  -49.04%
+    BenchmarkAddVW_2                 60           14  -76.53%
+    BenchmarkAddVW_3                 99           16  -83.38%
+    BenchmarkAddVW_4                140           18  -86.50%
+    BenchmarkAddVW_5                179           21  -88.04%
+    BenchmarkAddVW_1e1              376           33  -91.20%
+    BenchmarkAddVW_1e2             3933          256  -93.49%
+    BenchmarkAddVW_1e3            39630         2378  -94.00%
+    BenchmarkAddVW_1e4           396218        23623  -94.04%
+    BenchmarkAddVW_1e5          3972901       238403  -94.00%
+    BenchmarkAddMulVVW_1             11           11   -4.27%
+    BenchmarkAddMulVVW_2             15           15   +0.00%
+    BenchmarkAddMulVVW_3             18           19   +4.37%
+    BenchmarkAddMulVVW_4             21           21   +4.29%
+    BenchmarkAddMulVVW_5             24           24   -0.82%
+    BenchmarkAddMulVVW_1e1           40           39   -2.70%
+    BenchmarkAddMulVVW_1e2          329          326   -0.91%
+    BenchmarkAddMulVVW_1e3         3200         3098   -3.19%
+    BenchmarkAddMulVVW_1e4        38457        40013   +4.05%
+    BenchmarkAddMulVVW_1e5       461880       428580   -7.21%
+    BenchmarkBitLen0                  5            5   -0.19%
+    BenchmarkBitLen1                  5            5   +0.00%
+    BenchmarkBitLen2                  5            5   -0.56%
+    BenchmarkBitLen3                  5            5   +0.38%
+    BenchmarkBitLen4                  5            5   +0.19%
+    BenchmarkBitLen5                  5            5   +0.56%
+    BenchmarkBitLen8                  5            5   -0.19%
+    BenchmarkBitLen9                  5            5   -0.56%
+    BenchmarkBitLen16                 5            5   -0.19%
+    BenchmarkBitLen17                 5            5   -0.37%
+    BenchmarkBitLen31                 5            5   -1.30%
+    BenchmarkBitset                  72           70   -2.49%
+    BenchmarkBitsetNeg             1584          396  -75.00%
+    BenchmarkBitsetOrig            1990         1980   -0.50%
+    BenchmarkBitsetNegOrig         4031         2877  -28.63%
+    
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkAddVV_1             657.71      2251.28    3.42x
+    BenchmarkAddVV_2             730.65      3700.37    5.06x
+    BenchmarkAddVV_3             757.29      4754.30    6.28x
+    BenchmarkAddVV_4             772.95      5541.58    7.17x
+    BenchmarkAddVV_5             781.30      6125.59    7.84x
+    BenchmarkAddVV_1e1           800.33      7814.14    9.76x
+    BenchmarkAddVV_1e2           815.98     10129.62   12.41x
+    BenchmarkAddVV_1e3           818.73     10767.07   13.15x
+    BenchmarkAddVV_1e4           819.82     10802.12   13.18x
+    BenchmarkAddVV_1e5           813.14      9317.73   11.46x
+    BenchmarkAddVW_1            1539.56      3006.13    1.95x
+    BenchmarkAddVW_2            1057.66      4502.20    4.26x
+    BenchmarkAddVW_3             960.67      5797.65    6.04x
+    BenchmarkAddVW_4             913.19      6776.86    7.42x
+    BenchmarkAddVW_5             891.72      7467.82    8.37x
+    BenchmarkAddVW_1e1           850.12      9681.85   11.39x
+    BenchmarkAddVW_1e2           813.48     12494.27   15.36x
+    BenchmarkAddVW_1e3           807.45     13451.80   16.66x
+    BenchmarkAddVW_1e4           807.64     13545.64   16.77x
+    BenchmarkAddVW_1e5           805.46     13422.64   16.66x
+    BenchmarkAddMulVVW_1        2727.29      2847.66    1.04x
+    BenchmarkAddMulVVW_2        4162.30      4158.69    1.00x
+    BenchmarkAddMulVVW_3        5236.91      5015.98    0.96x
+    BenchmarkAddMulVVW_4        6090.27      5837.52    0.96x
+    BenchmarkAddMulVVW_5        6549.86      6598.60    1.01x
+    BenchmarkAddMulVVW_1e1      7850.72      8068.00    1.03x
+    BenchmarkAddMulVVW_1e2      9724.38      9794.40    1.01x
+    BenchmarkAddMulVVW_1e3      9997.18     10328.58    1.03x
+    BenchmarkAddMulVVW_1e4      8320.88      7997.39    0.96x
+    BenchmarkAddMulVVW_1e5      6928.20      7466.50    1.08x
     
     LGTM=gri
-    R=golang-codereviews, gobot, gri
+    R=golang-codereviews, dave, gri
     CC=golang-codereviews
-    https://golang.org/cl/60980043
+    https://golang.org/cl/61290043
 
- src/pkg/container/list/list.go      |  8 ++++----
- src/pkg/container/list/list_test.go | 17 +++++++++++++++++
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/pkg/math/big/arith_arm.s | 109 +++++++++++++++++--------------------------
+ 1 file changed, 43 insertions(+), 66 deletions(-)

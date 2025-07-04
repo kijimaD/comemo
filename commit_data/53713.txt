@@ -1,18 +1,21 @@
-commit 2627d2d1897741d0839fc57047741c3c8ce9ffa4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 25 12:37:52 2023 +0200
+commit 28e388589b48063047dbe7738bc1dfd4ed8e36bd
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 26 10:26:05 2022 +0800
 
-    os: remove unused containsAny
+    runtime: convert workType.cycles to internal atomic types
     
-    It's unused since CL 455716.
+    Note that this changes a non-atomic operation to atomic operation in gcStart().
     
-    Change-Id: I78bf7ad0e546c7dda8e78b911feb6399e1e6e088
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498235
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    For #53821
+    
+    Change-Id: I754d254f6f190855144ff62151b6bae673b47867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425776
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/os/file.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/runtime/mgc.go      | 16 ++++++++--------
+ src/runtime/mgcpacer.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

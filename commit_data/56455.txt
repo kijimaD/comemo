@@ -1,17 +1,18 @@
-commit a949ade59218c2977c12b54c4a75332dbf7f7650
-Author: apocelipes <seve3r@outlook.com>
-Date:   Sat May 11 13:13:19 2024 +0000
+commit a3efb96aafc2e8d8a7c7bfc673d59158b692c355
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue May 9 16:22:09 2023 -0400
 
-    image/gif: use internal/byteorder
+    log/slog: add json struct tags to Source
     
-    Change-Id: Ic00e63aa35bcea4c97a5885d61edb8fc37d84e22
-    GitHub-Last-Rev: 1ad3a5d0edebbd0f0b98ce68ad81ea4c36f5a63d
-    GitHub-Pull-Request: golang/go#67324
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584997
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Add tags to the fields of Source that lower-cases their names for JSON.
+    The implementation still treats Source specially for performance, but
+    now the result would be identical if it did not.
+    
+    Change-Id: I5fd2e500f1a301db62af87be8b877ecd954a26ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494035
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/image/gif/writer.go | 23 +++++++++--------------
- 1 file changed, 9 insertions(+), 14 deletions(-)
+ src/log/slog/record.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

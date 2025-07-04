@@ -1,12 +1,19 @@
-commit 56d1faa8b667c6867c8704c276c1cbedf9c5be6a
+commit 48c1db4003a3d002b8eada06b8b4c451b7d8d40f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 6 16:56:53 2013 -0500
+Date:   Wed Mar 6 16:48:20 2013 -0500
 
-    net/http/httputil: fix build
+    net/http: change user agent string
     
-    TBR=bradfitz
+    Some IDS somewhere thinks "Go http package" is a virus.
+    Make it something else for Go 1.1. Dumb but easy.
+    
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7540043
+    https://golang.org/cl/7532043
 
- src/pkg/net/http/httputil/dump_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/export_test.go       |  2 ++
+ src/pkg/net/http/header_test.go       |  2 +-
+ src/pkg/net/http/request.go           |  2 +-
+ src/pkg/net/http/request_test.go      |  2 +-
+ src/pkg/net/http/requestwrite_test.go | 36 +++++++++++++++++------------------
+ 5 files changed, 23 insertions(+), 21 deletions(-)

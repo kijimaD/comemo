@@ -1,62 +1,23 @@
-commit 8002d283e8dc3d02f087a3885894c2c29fac93fa
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Mon Jun 23 15:48:57 2025 -0400
+commit 5616ab602566b0daa87dfd250a76c61960c4b634
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:41:49 2024 +0200
 
-    crypto/tls: update bogo version
+    os: use filepathlite.VolumeName
     
-    This commit updates the pinned revision of BoringSSL that's used for the
-    BoGo integration test.
+    It is better to have a single implementation of VolumeName, which is
+    quite tricky to get right on Windows.
     
-    Doing this requires a few categories of config changes:
-    
-    * ignoring a few new tests for features crypto/tls doesn't implement
-    * ignoring a few new tests that require further
-      investigation/classification, or that already have an associated
-      tracking issue
-    * updating the error map syntax to accommodate the upstream change that
-      allows a one-to-many mapping
-    
-    One code change is required in the shim test process to adjust how we
-    tear down a connection after an error to account for an upstream change
-    in the test runner.
-    
-    Previously, for error conditions we would immediately close the
-    connection when exiting the shim process. We instead need to do this in
-    a multi-step process:
-    
-    1. Flush any pending TLS writes to surface any alerts the error
-       condition may have generated.
-    2. Close the write side of the TCP connection to signal we're not
-       writing anymore.
-    3. Read and discard any pending data from the peer.
-    4. Close the read side of the TCP connection to fully close the socket.
-    
-    Without doing this unpredictable timing factors may result in spurious
-    test failures where:
-    
-    1. The runner sends us data that produces an error.
-    2. We send an alert, and immediately tear down the connection.
-    3. The runner tries to perform a write, and hits an error because the
-       pipe is closed.
-    4. The runner fails the test with the pipe write error, before it reads
-       from the connection to see the expected alert.
-    
-    With the new code we instead swallow the unrelated writes and the runner
-    sees our alert after its ignored write when it tries to read from the
-    conn. The alert is the expected test outcome, and so the test passes.
-    
-    This was previously not an issue because the runner was discarding the
-    write errors.
-    
-    Updates #72006
-    
-    Change-Id: Ib72a1c5e693aac92144696c8bae888d5f3f6c32f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/683456
-    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ibba82dd71fe10b594cb6f782582430aa422e7078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582499
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/tls/bogo_config.json  | 14 ++++++++++++--
- src/crypto/tls/bogo_shim_test.go | 33 ++++++++++++++++++++++++++++++++-
- 2 files changed, 44 insertions(+), 3 deletions(-)
+ src/os/file_windows.go |  4 ++--
+ src/os/path.go         |  3 ++-
+ src/os/path_plan9.go   |  4 ----
+ src/os/path_unix.go    |  4 ----
+ src/os/path_windows.go | 40 +---------------------------------------
+ 5 files changed, 5 insertions(+), 50 deletions(-)

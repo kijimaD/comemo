@@ -1,35 +1,30 @@
-commit c3e8a20a65c731eac6434a129cdaf5ed02325612
-Author: nikita-vanyasin <nikita.vanyasin@gmail.com>
-Date:   Sat Apr 13 16:42:48 2019 +0300
+commit 45d74aad539c645d4e50a405f55ca46811dd70d6
+Author: Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
+Date:   Sun Mar 10 21:43:45 2019 +0000
 
-    cmd/link/internal: eliminate all ld.Cputime() usages
+    text/template: fix truth handling of typed interface nils in if and with
     
-    Also a similar 'elapsed' function and its usages were deleted.
+    Before this commit, the two logically equivalent conditionals below would
+    produce different output:
     
-    Fixes #19865.
+        {{ if not .NonEmptyInterfaceTypedNil }}OK{{ else }}{{ end }}
+        {{ if .NonEmptyInterfaceTypedNil }}{{ else }}OK{{ end }}
     
-    Change-Id: Ib125365e69cf2eda60de64fa74290c8c7d1fd65a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171730
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    The functions `not`, `or`, and `and` all use the same `truth` function, which
+    unwraps any concrete interface value before passing it to `isTrue`.
+    
+    `if` and `with` also use `isTrue` to establish truth, but was missing the
+    interface indirect call.
+    
+    Fixes #30501
+    
+    Change-Id: I9c49eed41e737d8f162e39bef1c3b82fd5518fed
+    GitHub-Last-Rev: 95fc2c82f26d24a457de4deaa7e5756718fbf07c
+    GitHub-Pull-Request: golang/go#30534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164958
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/amd64/asm.go   | 32 +-------------------------------
- src/cmd/link/internal/arm/asm.go     | 27 +--------------------------
- src/cmd/link/internal/arm64/asm.go   | 23 -----------------------
- src/cmd/link/internal/ld/data.go     | 14 --------------
- src/cmd/link/internal/ld/deadcode.go |  4 ----
- src/cmd/link/internal/ld/dwarf.go    |  4 ----
- src/cmd/link/internal/ld/ld.go       |  4 ++--
- src/cmd/link/internal/ld/lib.go      | 12 ++++++------
- src/cmd/link/internal/ld/main.go     |  1 -
- src/cmd/link/internal/ld/pcln.go     |  2 +-
- src/cmd/link/internal/ld/util.go     | 17 -----------------
- src/cmd/link/internal/mips/asm.go    | 26 --------------------------
- src/cmd/link/internal/mips64/asm.go  | 23 -----------------------
- src/cmd/link/internal/ppc64/asm.go   | 23 -----------------------
- src/cmd/link/internal/s390x/asm.go   | 27 ---------------------------
- src/cmd/link/internal/wasm/asm.go    |  4 ----
- src/cmd/link/internal/x86/asm.go     | 28 +---------------------------
- 17 files changed, 12 insertions(+), 259 deletions(-)
+ src/text/template/exec.go      | 2 +-
+ src/text/template/exec_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

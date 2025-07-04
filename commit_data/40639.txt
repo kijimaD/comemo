@@ -1,22 +1,23 @@
-commit f7d0a4212167bf15d64fbcfb5587f3c5636e1874
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Nov 1 15:59:46 2019 -0400
+commit e0dd927123df2bbaf7af91f50e68710cfc220dfa
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Jun 7 13:07:32 2019 -0400
 
-    cmd/go/internal/modfetch/zip_sum_test: long test for zip sum stability
+    syscall: refer to Proc.Call documentation for LazyProc.Call on Windows
     
-    This CL adds a new test package which downloads specific versions of
-    ~1000 modules in direct mode and verifies that modules have the same
-    sums and the zip files have the same SHA-256 hashes.
+    The documentation comment was duplicated for each of these methods, and
+    the LazyProc.Call documentation incorrectly mentioned that Call accepts
+    only 15 arguments, but it actually accepts 18 now.
     
-    This test takes a long time to run and depends heavily on external
-    data that may disappear. It must be enabled manually with -zipsum.
+    To prevent further documentation drift, refer the reader to the
+    documentation for Proc.Call instead of duplicating it for LazyProc.Call.
     
-    Fixes #35290
+    In addition, note that LazyProc's Addr, Call, and Find methods each
+    trigger a procedure lookup.
     
-    Change-Id: Ic6959e685096e8b09cea291f19d5bd0255432284
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204838
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6756cf7601fba79d1414ff5a5d6eef900aa590e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181199
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../modfetch/zip_sum_test/testdata/zip_sums.csv    | 2124 ++++++++++++++++++++
- .../internal/modfetch/zip_sum_test/zip_sum_test.go |  230 +++
- 2 files changed, 2354 insertions(+)
+ src/syscall/dll_windows.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

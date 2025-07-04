@@ -1,19 +1,33 @@
-commit 235a7c57be4a25a72c631acc8d3401e2f14c419d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jan 15 10:45:05 2020 +0700
+commit c4817f5d4f64f65d65fbd78145fb2bf8e80b6e5f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 15 17:51:32 2019 -0400
 
-    cmd/compile: remove guard for OCOMPLEX in evconst
+    cmd/compile: on Wasm and AIX, let deferred nil function panic at invocation
     
-    After CL 166983, the guard for OCOMPLEX in evconst is not necessary
-    anymore.
+    The Go spec requires
     
-    Passes toolstash-check.
+            If a deferred function value evaluates to nil, execution
+            panics when the function is invoked, not when the "defer"
+            statement is executed.
     
-    Change-Id: I1d4a9b447bad9ba0289fc7f997febc0e0b4167ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214837
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    On Wasm and AIX, currently we actually emit a nil check at the
+    point of defer statement, which will make it panic too early.
+    This CL fixes this.
+    
+    Also, on Wasm, now the nil function will be passed through
+    deferreturn to jmpdefer, which does an explicit nil check and
+    calls sigpanic if it is nil. This sigpanic, being called from
+    assembly, is ABI0. So change the assembler backend to also
+    handle sigpanic in ABI0.
+    
+    Fixes #34926.
+    Updates #8047.
+    
+    Change-Id: I28489a571cee36d2aef041f917b8cfdc31d557d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201297
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go   |  3 ++-
+ src/cmd/internal/obj/wasm/wasmobj.go |  4 +++-
+ test/defernil.go                     | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 2 deletions(-)

@@ -1,16 +1,17 @@
-commit cfc0a59d6e4e11b08b7b7085e6da031643879b0a
-Author: Frithjof Schulze <schulze@math.uni-hannover.de>
-Date:   Tue Dec 4 14:11:33 2012 -0800
+commit 458632a21a7e532e10b7a64daf447e2ccfab97e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 4 13:09:02 2012 -0800
 
-    container/heap: Simplify the example.
+    spec: BuiltinCall syntax must permit "..." for append
     
-    Using append simplifies the code and makes it work if
-    the initial capacity of the slice is smaller than the
-    number of items pushed.
+    Also: fix an incorrect link.
     
-    R=golang-dev, gri
+    Fixes #4479.
+    Fixes #4456.
+    
+    R=rsc, iant, r, ken
     CC=golang-dev
-    https://golang.org/cl/6869060
+    https://golang.org/cl/6868062
 
- src/pkg/container/heap/example_test.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

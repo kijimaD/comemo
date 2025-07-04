@@ -1,21 +1,22 @@
-commit 19e0799ba049bf26e770d150d4c296f247e1de5c
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Fri Oct 11 20:27:33 2019 -0400
+commit 8c1f78524e421ac01e35e8805dd7a45bf98c2a79
+Author: Haosdent Huang <haosdent@gmail.com>
+Date:   Mon Apr 29 02:04:26 2019 +0000
 
-    net/http: fix and lock-in Client.Do docs on request cancelation
+    runtime: support all as parameter in gdb goroutine commands.
     
-    Fixes the docs to correctly match the implementation
-    and also adds a test locking-in the behavior to prevent
-    any accidental future regressions on the docs.
+    For example, can use `goroutine all bt` to dump all goroutines'
+    information.
     
-    Fixes #33545
-    
-    Change-Id: I6fdac6048cce8ac99beaa2db0dfc81d0dccc10f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200798
+    Change-Id: I51b547c2b837913e4bdabf0f45b28f09250a3e34
+    GitHub-Last-Rev: d04dcd4f581f97e35ee45969a864f1270d79e49b
+    GitHub-Pull-Request: golang/go#26283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/122589
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/client.go      |  4 ++--
- src/net/http/client_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 2 deletions(-)
+ doc/debugging_with_gdb.html     |  3 +++
+ src/runtime/runtime-gdb.py      | 21 ++++++++++++++++++---
+ src/runtime/runtime-gdb_test.go |  7 +++++++
+ 3 files changed, 28 insertions(+), 3 deletions(-)

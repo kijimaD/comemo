@@ -1,27 +1,29 @@
-commit 682922908f7e434261cbed8f0019e8415347166b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jan 5 13:14:04 2015 +1100
+commit f4a525452e1442c08e2a973a5871445258ed0054
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 19 14:56:49 2014 -0500
 
-    crypto/x509: split certFiles definition by GOOS
+    [dev.cc] runtime: add explicit siginfo.si_addr field
     
-    This CL splits the (ever growing) list of ca cert locations by major unix
-    platforms (darwin, windows and plan9 are already handled seperately).
-    Although it is clear the unix variants cannot manage to agree on some standard
-    locations, we can avoid to some extent an artificial ranking of priority
-    amongst the supported GOOSs.
+    struct siginfo_t's si_addr field is part of a union.
+    Previously, we represented this union in Go using an opaque
+    byte array and accessed the si_addr field using unsafe (and
+    wrong on 386 and arm!) pointer arithmetic.  Since si_addr is
+    the only field we use from this union, this replaces the
+    opaque byte array with an explicit declaration of the si_addr
+    field and accesses it directly.
     
-    * Split certFiles definition by GOOS
-    * Include NetBSD ca cert location
-    
-    Fixes #9285
-    
-    Change-Id: I6df2a3fddf3866e71033e01fce43c31e51b48a9e
-    Reviewed-on: https://go-review.googlesource.com/2208
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=minux, rsc
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/179970044
 
- src/crypto/x509/root_bsd.go     | 14 ++++++++++++++
- src/crypto/x509/root_linux.go   | 13 +++++++++++++
- src/crypto/x509/root_solaris.go | 10 ++++++++++
- src/crypto/x509/root_unix.go    | 12 ------------
- 4 files changed, 37 insertions(+), 12 deletions(-)
+ src/runtime/defs_linux_386.go        |  9 +++++----
+ src/runtime/defs_linux_amd64.go      | 10 +++++-----
+ src/runtime/defs_linux_arm.go        |  9 +++++----
+ src/runtime/defs_linux_power64.go    | 10 +++++-----
+ src/runtime/defs_linux_power64le.go  | 10 +++++-----
+ src/runtime/signal_linux_386.go      |  2 +-
+ src/runtime/signal_linux_amd64.go    |  2 +-
+ src/runtime/signal_linux_arm.go      |  2 +-
+ src/runtime/signal_linux_power64x.go |  2 +-
+ 9 files changed, 29 insertions(+), 27 deletions(-)

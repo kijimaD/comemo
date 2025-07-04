@@ -1,20 +1,17 @@
-commit da75700a641c7e2bd264dd873d637abfcbfffab1
-Author: David Lazar <lazard@golang.org>
-Date:   Wed Apr 19 12:04:18 2017 -0400
+commit 3f7a35d91c7079269dec5cefef7599148f0279e0
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Tue Dec 13 17:57:06 2016 -0500
 
-    runtime: make test independent of inlining
+    encoding/json: add Valid for checking validity of input bytes
     
-    TestBreakpoint expects to see "runtime.Breakpoint()" in the stack trace.
-    If runtime.Breakpoint() is inlined, then the stack trace prints
-    "runtime.Breakpoint(...)" since the runtime does not have information
-    about arguments (or lack thereof) to inlined functions. This change
-    makes the test independent of inlining by looking for the string
-    "runtime.Breakpoint(". Now TestBreakpoint passes with -l=4.
+    Fixes #18086
     
-    Change-Id: Ia044a8e8a4de2337cb2b393d6fa78c73a2f25926
-    Reviewed-on: https://go-review.googlesource.com/40997
-    Run-TryBot: David Lazar <lazard@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idc501dd37893e04a01c6ed9920147d24c0c1fa18
+    Reviewed-on: https://go-review.googlesource.com/34202
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/crash_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/encoding/json/scanner.go      |  5 +++++
+ src/encoding/json/scanner_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

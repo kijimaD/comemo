@@ -1,12 +1,12 @@
-commit a314c163efbe42ad694c799cfbb3de95bf70c52a
+commit a66ae1d39eecce74f03d6e68a35df2ee932c7572
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 19 14:01:39 2011 +1000
+Date:   Mon Sep 19 12:16:08 2011 +1000
 
-    tag release.r60.1
+    doc: update release.r60.1 notes
     
-    R=golang-dev, dsymonds
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5030045
+    https://golang.org/cl/5045045
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

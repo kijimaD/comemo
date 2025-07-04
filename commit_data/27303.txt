@@ -1,18 +1,17 @@
-commit b90cb3f4716d3fede57bf8e798d27406fba5c294
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 5 17:52:37 2016 -0700
+commit a7a199947a15d48d405be809278a7ea7c6ebf03a
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Mar 18 10:50:00 2016 +0100
 
-    cmd/go: fail with nice error message on bad GOOS/GOARCH pair
+    cmd/compile: add rules to simplify AddPtr
     
-    Fixes #12272
+    Fixes #14849
     
-    Change-Id: I2115ec62ed4061084c482eb385a583a1c1909888
-    Reviewed-on: https://go-review.googlesource.com/22838
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I86e2dc27ca73bb6b24261a68cbf0094a63167414
+    Reviewed-on: https://go-review.googlesource.com/20833
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .gitignore              |  1 +
- src/cmd/dist/build.go   |  2 ++
- src/cmd/dist/buildgo.go | 15 +++++++++++----
- src/cmd/go/build.go     |  6 ++++++
- 4 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 39 ++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

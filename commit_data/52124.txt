@@ -1,21 +1,20 @@
-commit 81cd9ff7dbf46a57710fd72330f2d60e3db959d0
-Author: pgxiaolianzi <gnnu_d13@163.com>
-Date:   Mon Feb 27 06:51:55 2023 +0000
+commit 063f4032f5ea8820d265ee1196ef9b8eba02c63f
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Mar 29 12:51:31 2022 -0700
 
-    all: fix typos
+    sort: add Find function
     
-    Change-Id: Ica8d5e5799a4de532764ae86cdb623508d3a8e18
-    GitHub-Last-Rev: 3e97cca9de3885f2fe0d7deb776e59cc1c73146d
-    GitHub-Pull-Request: golang/go#58689
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471021
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For golang/go#50340
+    
+    Change-Id: I3b4d278affc8e7ec706db8c9777f7a8c8ce7441d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 2 +-
- src/cmd/internal/obj/arm64/asm7.go    | 2 +-
- src/net/http/transport_test.go        | 2 +-
- src/os/exec/exec_test.go              | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ api/next/50340.txt      |   1 +
+ src/sort/search.go      |  41 +++++++++++++++++++
+ src/sort/search_test.go | 106 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 148 insertions(+)

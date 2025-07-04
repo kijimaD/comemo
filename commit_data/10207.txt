@@ -1,13 +1,21 @@
-commit bd43eac30318e062635792d44c185ac037ef98fa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 2 08:30:50 2011 -0700
+commit 29a5ae657fcbd3c673d8c206f4afaa0948538d6b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 2 15:36:33 2011 +0100
 
-    bufio: return nil line from ReadLine on error, as documented
+    gc: small fixes for printing.
     
-    R=golang-dev, adg
+    mark OADDR inserted by typecheck as implicit
+    OCOPY takes ->left and ->right, not ->list
+    OMAKE*'s can all have arguments
+    precedence for OIND was initalized twice
+    
+    fixes #2414
+    
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/5316069
+    https://golang.org/cl/5319065
 
- src/pkg/bufio/bufio.go      |  3 +++
- src/pkg/bufio/bufio_test.go | 11 +++++++++++
- 2 files changed, 14 insertions(+)
+ src/cmd/gc/fmt.c       | 11 ++++-------
+ src/cmd/gc/typecheck.c |  1 +
+ test/escape2.go        |  6 +++---
+ 3 files changed, 8 insertions(+), 10 deletions(-)

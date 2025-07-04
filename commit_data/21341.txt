@@ -1,12 +1,12 @@
-commit e24e299f41fd0198ac2c3391505c01c63c580d0b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Jan 25 19:08:59 2015 -0500
+commit 005ba4db82c93298dbfdf0866c613f86df713b87
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 14:08:39 2014 -0500
 
-    regexp: update URLs in tests
+    cmd/9l: improve R_CALLPOWER error messages
     
-    Change-Id: I06035d949272157bbb7255563b37ac93cbf07f15
-    Reviewed-on: https://go-review.googlesource.com/3272
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8670540a2a9647efbd8b072a54272a04c530e54b
+    Reviewed-on: https://go-review.googlesource.com/2001
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/regexp/exec_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/9l/asm.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

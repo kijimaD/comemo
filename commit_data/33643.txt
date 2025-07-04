@@ -1,20 +1,14 @@
-commit 63ef3cde335e5b46fc3c8027b5e2f474a26717e8
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 14 13:56:18 2017 -0500
+commit 9afec99dc2e354811ea4cf5ba2e2a7f9a5a8f1e4
+Author: Karsten Köhler <karsten.koehler95@gmail.com>
+Date:   Mon Aug 21 21:13:53 2017 +0200
 
-    cmd/compile: ignore RegKill ops for non-phi after phi check
+    sort: add examples for IntsAreSorted, Float64s and Float64sAreSorted
     
-    Relax the 'phi after non-phi' SSA sanity check to allow
-    RegKill ops interspersed with phi ops in a block. This fixes
-    a sanity check failure when -dwarflocationlists is enabled.
-    
-    Updates #22694.
-    
-    Change-Id: Iaae604ab6f1a8b150664dd120003727a6fb2f698
-    Reviewed-on: https://go-review.googlesource.com/77610
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ib4883470bd2271e546daea3156d4a48dd873aaa3
+    Reviewed-on: https://go-review.googlesource.com/57670
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/check.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/sort/example_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

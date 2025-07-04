@@ -1,31 +1,17 @@
-commit 6505b4853196a172cfe4dd161072dfb8afb6b0be
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue Apr 30 19:16:23 2019 +0200
+commit 784d810976e6fce946d8202b19f3e3c33beb89a2
+Author: Evan Klitzke <evan@eklitzke.org>
+Date:   Mon Jun 25 20:27:58 2018 +0000
 
-    syscall: on wasm, do not use typed array asynchronously
+    text/html: escape MIME type "application/ld+json" as JavaScript
     
-    The underlying buffer of a typed array becomes invalid as soon as we
-    grow the WebAssembly memory, which can happen at any time while Go code
-    runs. This is a known limitation, see https://golang.org/cl/155778.
+    Fixes #26053
     
-    As a consequence, using a typed array with one of the asynchronous
-    read/write operations of Node.js' fs module is dangerous, since it may
-    become invalid while the asynchronous operation has not finished yet.
-    The result of this situation is most likely undefined.
-    
-    I am not aware of any nice solution to this issue, so this change adds
-    a workaround of using an additional typed array which is not backed by
-    WebAssembly memory and copying the bytes between the two typed arrays.
-    
-    Maybe WebAssembly will come up with a better solution in the future.
-    
-    Fixes #31702.
-    
-    Change-Id: Iafc2a0fa03c81db414520bd45a1a17c00080b61e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174304
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic2052b1d0d4e0826a217a520c83d7bb0995ea72a
+    GitHub-Last-Rev: 5a3eea3dd22b0a194591ce2294b88cb340df1e8d
+    GitHub-Pull-Request: golang/go#26054
+    Reviewed-on: https://go-review.googlesource.com/c/120835
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/syscall/fs_js.go | 31 +++++++++++++++++++++++--------
- 1 file changed, 23 insertions(+), 8 deletions(-)
+ src/html/template/js.go      | 1 +
+ src/html/template/js_test.go | 1 +
+ 2 files changed, 2 insertions(+)

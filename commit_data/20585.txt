@@ -1,36 +1,17 @@
-commit f13cec9f5732dd09c51f90957c3d888aad782c27
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 29 18:16:15 2014 -0700
+commit 5c795632d658003bdc193b0441137385950bca54
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 13:51:23 2014 -0400
 
-    net/http: make Transport.CloseIdleConnections also close pending dials
+    runtime: add runtime· prefix to some static variables
     
-    See comment 4 of https://code.google.com/p/go/issues/detail?id=8483#c4:
+    Pure renaming. This will make an upcoming CL have smaller diffs.
     
-    "So if a user creates a http.Client, issues a bunch of
-    requests and then wants to shutdown it and all opened connections;
-    what is she intended to do? The report suggests that just waiting for
-    all pending requests and calling CloseIdleConnections won't do, as
-    there can be new racing connections. Obviously she can't do what
-    you've done in the test, as it uses the unexported function.  If this
-    happens periodically, it can lead to serious resource leaks (the
-    transport is also preserved alive).  Am I missing something?"
-    
-    This CL tracks the user's intention to close all idle
-    connections (CloseIdleConnections sets it true; and making a
-    new request sets it false). If a pending dial finishes and
-    nobody wants it, before it's retained for a future caller, the
-    "wantIdle" bool is checked and it's closed if the user has
-    called CloseIdleConnections without a later call to make a new
-    request.
-    
-    Fixes #8483
-    
-    LGTM=adg
-    R=golang-codereviews, dvyukov, adg
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/148970043
+    LGTM=dvyukov, iant
+    R=iant, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/142280043
 
- src/net/http/export_test.go    | 20 ++++++++++++++++++++
- src/net/http/transport.go      | 20 +++++++++++++++-----
- src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 74 insertions(+), 5 deletions(-)
+ src/runtime/mcache.c |  10 ++---
+ src/runtime/mgc0.c   | 112 +++++++++++++++++++++++++--------------------------
+ src/runtime/stack.c  |  30 +++++++-------
+ 3 files changed, 76 insertions(+), 76 deletions(-)

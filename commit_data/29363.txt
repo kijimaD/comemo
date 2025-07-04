@@ -1,20 +1,14 @@
-commit 606f81eef37e5a232f43a208f6eeaddd82dadf34
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 15:01:30 2016 -0400
+commit 675ba53c7671d5506887eec2a65fabb4cbda0d59
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 09:14:26 2016 -0400
 
-    context: adjust tests to avoid importing "testing" in package context
+    cmd/go: internal PIE does not need runtime/cgo
     
-    So that testing can use context in its public API.
+    Part of adding PIE internal linking on linux/amd64.
     
-    For #16221.
-    
-    Change-Id: I6263fa7266c336c9490f20164ce79336df44a57e
-    Reviewed-on: https://go-review.googlesource.com/32648
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I57f0596cb254cbe6569e4d4e39fe4f48437733f2
+    Reviewed-on: https://go-review.googlesource.com/28544
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/context/benchmark_test.go | 44 ++++++++++++++++++++
- src/context/context_test.go   | 95 ++++++++++++++++++-------------------------
- src/context/x_test.go         | 29 +++++++++++++
- 3 files changed, 112 insertions(+), 56 deletions(-)
+ src/cmd/go/pkg.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

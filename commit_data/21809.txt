@@ -1,12 +1,18 @@
-commit 100d64b9206fb1e73c32ea513cedb31320e9c17e
+commit cb4b28e013f06bf4d5b61a3d43d1bf55618dcc11
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 27 22:56:29 2015 -0500
+Date:   Thu Feb 5 10:23:26 2015 +0000
 
-    cmd/go: use Go linker instead of C linker
+    Revert "liblink, cmd/5a: fix reglist parsing/printing after changing REG_R0 to 32"
     
-    Change-Id: I783df66d762b52ad3d74340ad5692790cd0ab544
-    Reviewed-on: https://go-review.googlesource.com/6360
-    Reviewed-by: Rob Pike <r@golang.org>
+    This reverts commit da4abda2a1718c74b39134764ae6f694041a25e4.
+    
+    Change-Id: Ifd09b3dae0af0c7cef5fbbc332c63e78dc90d6b1
+    Reviewed-on: https://go-review.googlesource.com/3960
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/5a/a.y      | 10 +++++-----
+ src/cmd/5a/y.tab.c  | 10 +++++-----
+ src/cmd/5a/y.tab.h  |  2 +-
+ src/liblink/asm5.c  |  4 ++--
+ src/liblink/list5.c |  5 ++---
+ 5 files changed, 15 insertions(+), 16 deletions(-)

@@ -1,14 +1,13 @@
-commit 0b8f1ac802a57ff26927edfefc97bf2348f7b9b0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 25 12:21:10 2011 -0700
+commit a1c92c612f361bfea58fe3ec8b19d05b81841e48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 25 11:16:17 2011 -0700
 
-    net: If we stop polling, remove any pending events for the socket
+    go/scanner: use strconv.QuoteRune now that it is available
     
-    Fixes #1872.
-    
-    R=rsc
-    CC=golang-dev, lars.pensjo
-    https://golang.org/cl/4559046
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4538096
 
- src/pkg/net/fd_linux.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/go/scanner/scanner.go      | 3 +--
+ src/pkg/go/scanner/scanner_test.go | 5 +++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

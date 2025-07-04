@@ -1,32 +1,16 @@
-commit 8b8625a3281b89d10e06398c730700885f13365f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 6 07:57:19 2018 -0800
+commit 7fff1db0605739fee20673475cbc1813fdf7008e
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Fri Oct 27 14:40:59 2017 -0400
 
-    cmd/cover: don't crash on non-gofmt'ed input
+    runtime: remove unnecessary sync from publicationBarrier on s390x
     
-    Without the change to cover.go, the new test fails with
+    Memory accesses on z are at least as ordered as they are on AMD64.
     
-    panic: overlapping edits: [4946,4950)->"", [4947,4947)->"thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest.Count[112]++;"
-    
-    The original code inserts "else{", deletes "else", and then positions
-    a new block just after the "}" that must come before the "else".
-    That works on gofmt'ed code, but fails if the code looks like "}else".
-    When there is no space between the "{" and the "else", the new block
-    is inserted into a location that we are deleting, leading to the
-    "overlapping edits" mentioned above.
-    
-    This CL fixes this case by not deleting the "else" but just using the
-    one that is already there. That requires adjust the block offset to
-    come after the "{" that we insert.
-    
-    Fixes #23927
-    
-    Change-Id: I40ef592490878765bbce6550ddb439e43ac525b2
-    Reviewed-on: https://go-review.googlesource.com/98935
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia515430e571ebd07e9314de05c54dc992ab76b95
+    Reviewed-on: https://go-review.googlesource.com/74010
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/cover/cover.go      | 13 +++++++++----
- src/cmd/cover/cover_test.go | 12 ++++++++++++
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/runtime/asm_s390x.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

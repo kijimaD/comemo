@@ -1,18 +1,19 @@
-commit 0e40889796a1dc9e2393bf4d66997da68692e970
-Author: yuuji.yaginuma <yuuji.yaginuma@gmail.com>
-Date:   Wed Oct 24 05:05:15 2018 +0000
+commit ed333353a02721dc002c0b7a7c3ef5eb99166dfb
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Jun 28 01:41:22 2018 +0000
 
-    cmd/go: fix command name in error messages
+    Revert "crypto/elliptic: implement P256 for arm64"
     
-    `go vendor` is now `go mod vendor`. So it should be unified to use `go mod vendor` in error messages.
+    This reverts commit 0246915fbfcc41870173b7f016dc7fa9437bbc13.
     
-    Change-Id: I9e84b9a4f4500659b183b83040867b12a8d174aa
-    GitHub-Last-Rev: 8516e246d4e7f70bf21311b4cb8cb571a561815b
-    GitHub-Pull-Request: golang/go#28347
-    Reviewed-on: https://go-review.googlesource.com/c/144379
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reason for revert: Broke darwin/arm64 builds.
+    
+    Change-Id: Iead935d345c4776c0f823f4c152e02bdda308401
+    Reviewed-on: https://go-review.googlesource.com/121375
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/modcmd/vendor.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/crypto/elliptic/p256.go                        |    2 +-
+ src/crypto/elliptic/{p256_asm.go => p256_amd64.go} |    2 +-
+ src/crypto/elliptic/p256_asm_arm64.s               | 1522 --------------------
+ src/crypto/elliptic/p256_generic.go                |    2 +-
+ 4 files changed, 3 insertions(+), 1525 deletions(-)

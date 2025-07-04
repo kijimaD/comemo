@@ -1,14 +1,17 @@
-commit c7a64cce654e7206fe3bc220182133751b88a074
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Aug 15 12:13:00 2013 +1000
+commit 727b2b6f7dbec2bed608e3c97129c3bb7bab0547
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 15 10:10:49 2013 +1000
 
-    runtime/race: add end-to-end test on windows
+    time: handle GMT possibly with offset
     
-    whatever "end-to-end" means here
+    Update #3790
+    Handle time zones like GMT-8.
+    The more general time zone-matching problem is not yet resolved.
     
-    R=golang-dev, dvyukov
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12898044
+    https://golang.org/cl/12922043
 
- src/run.bat | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/time/format.go    | 80 ++++++++++++++++++++++++++++++++++++-----------
+ src/pkg/time/time_test.go |  3 ++
+ 2 files changed, 64 insertions(+), 19 deletions(-)

@@ -1,27 +1,19 @@
-commit f5291cf03d58e004eae67eeb904efbf46aba666a
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Apr 18 14:38:09 2020 +0100
+commit 8550a5840227fa21d2eecf67aa1e891bd5753de6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 1 16:42:43 2019 -0400
 
-    cmd/compile: use exported field names in rulegen
+    cmd/go.mod: upgrade x/mod to pull in CL 204821
     
-    The types used while generating code, such as Rule and File, have been
-    exported for a while. This is harmless for a main package, and lets us
-    easily differentiate types from variables and functions, as well as use
-    names like "If" since "if" is a keyword.
+    Updates #34822
     
-    However, the fields remained unexported. This was a bit inconsistent,
-    and also meant that we couldn't use some intuitive names like If.else.
-    Export them.
-    
-    Besides the capitalization, the only change is that the If type now has
-    the fields Then and Else, instead of stmt and alt.
-    
-    Change-Id: I426ff140c6ca186fec394f17b29165861da5fd98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228821
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I189d93ebd3ce6cd1b8f1e29336876fd82a7cfff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/main.go    |   3 +
- src/cmd/compile/internal/ssa/gen/rulegen.go | 296 ++++++++++++++--------------
- 2 files changed, 151 insertions(+), 148 deletions(-)
+ src/cmd/go.mod                                  | 2 +-
+ src/cmd/go.sum                                  | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 2 ++
+ src/cmd/vendor/modules.txt                      | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

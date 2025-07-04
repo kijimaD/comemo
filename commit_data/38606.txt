@@ -1,31 +1,30 @@
-commit ee780d4a780be9d8517583bb7c3598c834b6f775
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Mar 26 20:21:21 2019 -0400
+commit 06be7cbf3c27168172f1f89dd4f55cb07a37ec38
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 6 00:10:33 2018 +0000
 
-    cmd/go: clarify error when package is removed in a module
+    runtime: stop unnecessary span scavenges on free
     
-    If no module in the build list provides an imported package, we
-    try to upgrade to the "@latest" version. If there is a requirement on
-    a version of the module which is newer than the "@latest" version
-    (e.g., a prerelease or pseudoversion), we cannot upgrade further.
+    This change fixes a bug wherein freeing a scavenged span that didn't
+    coalesce with any neighboring spans would result in that span getting
+    scavenged again. This case may actually be a common occurance because
+    "freeing" span trimmings and newly-grown spans end up using the same
+    codepath. On systems where madvise is relatively expensive, this can
+    have a large performance impact.
     
-    We previously reported "looping trying to add package" when we saw the
-    package in "@latest" but it was removed later. The meaning of this is
-    unclear for users, so with this change, we explain the package was
-    removed.
+    This change also cleans up some of this logic in freeSpanLocked since
+    a number of factors made the coalescing code somewhat difficult to
+    reason about with respect to scavenging. Notably, the way the
+    needsScavenge boolean is handled could be better expressed and the
+    inverted conditions (e.g. !after.released) can make things even more
+    confusing.
     
-    Fixes #30394
+    Fixes #28595.
     
-    Change-Id: I1b7fec2c37e762fb600e66ee8a4df4aeaf13e67a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169720
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I75228dba70b6596b90853020b7c24fbe7ab937cf
+    Reviewed-on: https://go-review.googlesource.com/c/147559
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/internal/modload/import.go                   | 17 ++++++++++++++++-
- src/cmd/go/internal/modload/load.go                     |  3 +++
- .../go/testdata/mod/example.com_missingpkg_v1.0.0.txt   | 11 +++++++++++
- .../testdata/mod/example.com_missingpkg_v1.0.1-beta.txt |  8 ++++++++
- .../testdata/mod/example.com_usemissingpre_v1.0.0.txt   | 13 +++++++++++++
- .../go/testdata/script/mod_missingpkg_prerelease.txt    | 12 ++++++++++++
- 6 files changed, 63 insertions(+), 1 deletion(-)
+ src/runtime/mheap.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

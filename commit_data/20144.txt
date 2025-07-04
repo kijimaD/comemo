@@ -1,14 +1,13 @@
-commit 62be54a8c029a85bf06742a19bcdb5e86151559d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 26 14:43:03 2014 -0700
+commit ddce7c35f46ad4644d6f6e48817daf7a92804144
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 20 12:58:01 2014 +0400
 
-    unicode: use go generate instead of make to create tables.go
+    runtime: add atomicor8 for amd64p32
     
-    LGTM=mpvl, rsc
-    R=mpvl, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/135820043
+    LGTM=khr
+    R=golang-codereviews, daniel.morsing, khr, rsc
+    CC=golang-codereviews, khr, rlh
+    https://golang.org/cl/131950043
 
- src/pkg/unicode/Makefile  | 15 ---------------
- src/pkg/unicode/letter.go |  3 +++
- 2 files changed, 3 insertions(+), 15 deletions(-)
+ src/pkg/runtime/asm_amd64p32.s | 8 ++++++++
+ 1 file changed, 8 insertions(+)

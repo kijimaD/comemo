@@ -1,13 +1,14 @@
-commit 7fc47928fc807a0c79c5649d7ee9e10d55f3c360
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Thu Feb 16 20:49:50 2012 +0000
+commit 014568bee123278ae51b0e6f53c909607806568e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 15:23:50 2012 -0500
 
-    make.bat, run.bat: echo newlines
+    syscall: fix bounds check in Error
     
-    R=golang-dev, rsc
+    Fixes #3042.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5671072
+    https://golang.org/cl/5675067
 
- src/make.bat | 9 ++++-----
- src/run.bat  | 8 ++++----
- 2 files changed, 8 insertions(+), 9 deletions(-)
+ src/pkg/syscall/syscall_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

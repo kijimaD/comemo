@@ -1,18 +1,25 @@
-commit d5e3d08b3ad0048c540727b5512f29ecc70ef51a
+commit e4a95b63433cc95c81782713b917b2941e48cb39
 Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 29 15:19:11 2016 -0400
+Date:   Mon Feb 15 17:37:04 2016 -0500
 
-    runtime: use morePointers and isPointer in more places
+    runtime: record channel in sudog
     
-    This makes this code better self-documenting and makes it easier to
-    find these places in the future.
+    Given a G, there's currently no way to find the channel it's blocking
+    on. We'll need this information to fix a (probably theoretical) bug in
+    select and to implement concurrent stack shrinking, so record the
+    channel in the sudog.
     
-    Change-Id: I31dc5598ae67f937fb9ef26df92fd41d01e983c3
-    Reviewed-on: https://go-review.googlesource.com/22631
+    For #12967.
+    
+    Change-Id: If8fb63a140f1d07175818824d08c0ebeec2bdf66
+    Reviewed-on: https://go-review.googlesource.com/20035
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgocall.go | 5 ++---
- src/runtime/mgcmark.go | 5 ++---
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/select.go | 1 +
+ src/runtime/chan.go                   | 4 ++++
+ src/runtime/proc.go                   | 3 +++
+ src/runtime/runtime2.go               | 5 +++--
+ src/runtime/select.go                 | 2 ++
+ 5 files changed, 13 insertions(+), 2 deletions(-)

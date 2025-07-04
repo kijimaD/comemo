@@ -1,32 +1,20 @@
-commit 7181118a851bc22cf7acc604fe24940eb4926288
-Author: wineandchord <guoqizhou19@gmail.com>
-Date:   Tue Feb 20 07:18:11 2024 +0000
+commit f75e1c1460a009ee3feb9fbd34fc17b957644dc5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jan 22 18:02:38 2024 -0500
 
-    net/http: check server shutting down before processing the request
+    net: report timeouts more aggressively in Accept in the fake implementation
     
-    The root cause of issue #65802 is a small race condition that occurs between
-    two events:
+    This ensures that if the listener has already timed out when Accept
+    is called, Accept always returns an error instead of instantaneously
+    accepting a connection that was already pending.
     
-    1. During the HTTP server shutdown, a connection in an idle state is identified
-    and closed.
-    2. The connection, although idle, has just finished reading a complete request
-    before being closed and hasn't yet updated its state to active.
+    For #17948.
     
-    In this scenario, despite the connection being closed, the request continues to
-    be processed. This not only wastes server resources but also prevents the
-    client request from being retried.
-    
-    Fixes #65802
-    
-    Change-Id: Ic22abb4497be04f6c84dff059df00f2c319d8652
-    GitHub-Last-Rev: 426099a3e75f51b80f8ca866938f31417d75ff89
-    GitHub-Pull-Request: golang/go#65805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565277
+    Change-Id: Iabef7121590df3dcc2fe428429d7c2bc2bcb6cd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557438
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
 
- src/net/http/server.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/net_fake.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

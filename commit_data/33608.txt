@@ -1,14 +1,17 @@
-commit 096b195df5b6b29521af3e10ef40f4118164596b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 16 15:41:44 2017 -0500
+commit a45d6859cbeab2e8351eb507bce3423c53b96312
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 24 11:31:58 2017 -0700
 
-    cmd/go: add import config debugging flag
+    cmd/compile: enforce that MOVXconvert is a no-op on 386 and amd64
     
-    Change-Id: I11d83c8841f3de4ed4d9d014dec65d6f20464b11
-    Reviewed-on: https://go-review.googlesource.com/78396
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Follow-up to CL 58371.
+    
+    Change-Id: I3d2aaec84ee6db3ef1bd4fcfcaf46cc297c7176b
+    Reviewed-on: https://go-review.googlesource.com/58610
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/load/icfg.go  | 75 +++++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/load/pkg.go   | 26 ++++++++++----
- src/cmd/go/internal/work/build.go |  1 +
- 3 files changed, 95 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 6 +++++-
+ src/cmd/compile/internal/x86/ssa.go   | 6 +++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

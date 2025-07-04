@@ -1,20 +1,19 @@
-commit ef45945718c2374234879ee184c9af126937cb2c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 18 15:36:04 2018 -0400
+commit 01237b1362db59c583d136289a9a4b0ac8ea5170
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 3 09:06:59 2018 +0000
 
-    cmd/go: scrub go.sum during go mod -sync
+    runtime: parse auxv for page size and executable name on Solaris
     
-    go.sum accumulates cruft as modules are added and removed as
-    direct and indirect dependencies. Instead of exposing all that cruft,
-    let "go mod -sync" clean it out.
+    Decode AT_PAGESZ to determine physPageSize and AT_SUN_EXECNAME for
+    os.Executable.
     
-    Fixes #26381.
-    
-    Change-Id: I7c9534cf7cc4579f7f82646d00ff691c87a13c4a
-    Reviewed-on: https://go-review.googlesource.com/124713
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6ff774ad9d76c68fc61eb307df58217c17fd578d
+    Reviewed-on: https://go-review.googlesource.com/104375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modcmd/mod.go           | 26 ++++++++++++++++++++++-
- src/cmd/go/internal/modfetch/fetch.go       | 18 ++++++++++++++++
- src/cmd/go/testdata/script/mod_sync_sum.txt | 33 +++++++++++++++++++++++++++++
- 3 files changed, 76 insertions(+), 1 deletion(-)
+ src/os/executable_solaris.go | 11 ++++++++---
+ src/runtime/auxv_none.go     |  1 +
+ src/runtime/os3_solaris.go   | 46 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 53 insertions(+), 5 deletions(-)

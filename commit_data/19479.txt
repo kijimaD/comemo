@@ -1,14 +1,23 @@
-commit 189a6494ee5912f7add466bff9e7afbe960a6a2e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 2 08:44:47 2014 +1000
+commit bcfe519d58e0ef99faad76b7d13108cd48d75e32
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 1 13:57:46 2014 -0400
 
-    build: remove goplay from run.bash and run.bat
+    runtime: fix correctness test at end of traceback
     
-    TBR=rsc
-    R=golang-codereviews
-    CC=golang-codereviews
-    https://golang.org/cl/106730043
+    We were requiring that the defer stack and the panic stack
+    be completely processed, thinking that if any were left over
+    the stack scan and the defer stack/panic stack must be out
+    of sync. It turns out that the panic stack may well have
+    leftover entries in some situations, and that's okay.
+    
+    Fixes #8132.
+    
+    LGTM=minux, r
+    R=golang-codereviews, minux, r
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/100900044
 
- src/run.bash | 5 -----
- src/run.bat  | 5 -----
- 2 files changed, 10 deletions(-)
+ src/pkg/runtime/traceback_arm.c | 13 +++++++--
+ src/pkg/runtime/traceback_x86.c | 59 ++++++++++++++++++++++++++++++++++++++++-
+ test/fixedbugs/issue8132.go     | 32 ++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 3 deletions(-)

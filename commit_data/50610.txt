@@ -1,22 +1,22 @@
-commit 17f83e347312ce3e7a0369f1db50d60e6104f4cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 21 13:30:18 2022 -0700
+commit 5f0e5d21bb1f2c1baf15bfd90ad5b090b88e6292
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Oct 29 17:35:30 2021 -0700
 
-    go/types, types2: report "undefined: p.x" instead of "x not declared by package p"
+    runtime/pprof: disable GC during calibration test
     
-    This matches the compiler's long-standing behavior.
+    TestCPUProfileMultithreadMagnitude compares Go's CPU profile against the
+    OS's accounting of the process's execution time, expecting them to be
+    near equal. Background work from the runtime (especially in the garbage
+    collector) can add significant noise to that measurement and flakiness
+    to the test. Disable automatic GC cycles during the test.
     
-    For #55326.
+    Updates #49065
     
-    Change-Id: Icd946b031b1b6e65498fb52bceb4a53807732463
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432556
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie88895bfea17374278c5187f3a83e9f486bd37fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359934
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/call.go      | 8 ++------
- src/go/types/call.go                         | 4 ++--
- src/internal/types/testdata/check/decls1.go  | 2 +-
- src/internal/types/testdata/check/issues0.go | 2 +-
- 4 files changed, 6 insertions(+), 10 deletions(-)
+ src/runtime/pprof/pprof_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

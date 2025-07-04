@@ -1,24 +1,19 @@
-commit 765cc726b64044a55fb37d10a8bec1c153b06be5
-Author: miller <millerresearch@gmail.com>
-Date:   Sun Dec 5 16:39:20 2021 +0000
+commit 8f1099b5850747cf61738606f6a3d1386f4458c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 5 15:48:32 2021 -0700
 
-    src/cmd/go/internal/work: lock Builder output mutex consistently
+    cmd/compile/internal/syntax, types2: move cmpPos to pos.Cmp
     
-    To prevent interleaving of output when 'go build' compiles several
-    packages in parallel, the output mutex in the Builder struct must
-    be locked around any calls to Builder.Print which could generate
-    arbitrary amounts of text (ie more than is guaranteed to be written
-    atomically to a pipe).
+    Make position comparison generally available.
     
-    Fixes #49987
-    For #49338
-    
-    Change-Id: I7947df57667deeff3f03f231824298d823f8a943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369018
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Russ Cox <rsc@golang.org>
+    Change-Id: I94b6f658fa19a15b30574dbb2181879115c131a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307215
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/work/buildid.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/syntax/pos.go     | 39 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/syntax/testing.go |  8 +++---
+ src/cmd/compile/internal/types2/decl.go    | 35 +--------------------------
+ src/cmd/compile/internal/types2/scope.go   |  4 +--
+ src/cmd/compile/internal/types2/stmt.go    |  2 +-
+ 5 files changed, 47 insertions(+), 41 deletions(-)

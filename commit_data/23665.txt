@@ -1,21 +1,18 @@
-commit 1a4e1770f6869a14c93c8e20a2671a2f32351621
-Author: Larz Conwell <larzconwell@gmail.com>
-Date:   Sat May 16 23:01:39 2015 -0400
+commit 73d109c509e4f8c1122187fa406aa0be4ff88608
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 16:49:47 2015 -0400
 
-    encoding/json: Only allow string option for valid types
+    cmd/internal/gc: accept map literals with omitted key type
     
-    The "string" option only applies for strings, floats, integers, and
-    booleans as per the documentation. So when decoding ignore the "string"
-    option if the value is not of one of the types mentioned. This matches
-    the Marshal step which also ignores the "string" option for invalid
-    types.
+    Fixes #10209.
     
-    Fixes #9812
-    
-    Change-Id: I0fb2b43d0668bc0e2985886d989abbf2252070e2
-    Reviewed-on: https://go-review.googlesource.com/10183
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I248434f9195c868befd1ed8a6000a9cac72d1df8
+    Reviewed-on: https://go-review.googlesource.com/10263
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++++
- src/encoding/json/encode.go      | 15 ++++++++++++++-
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.y         |     2 +-
+ src/cmd/compile/internal/gc/typecheck.go |     8 +-
+ src/cmd/compile/internal/gc/y.go         |   766 +--
+ src/cmd/compile/internal/gc/y.output     | 10411 -----------------------------
+ test/complit1.go                         |    14 +
+ 5 files changed, 408 insertions(+), 10793 deletions(-)

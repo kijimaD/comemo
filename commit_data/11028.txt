@@ -1,15 +1,12 @@
-commit 2469a817ba63ad812e6be21aefc796d84172777d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 5 15:18:08 2012 +1100
+commit b682da32b3bd649bca305f3c8709593d27fd05a3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jan 5 14:17:32 2012 +1100
 
-    net: update DialIP comments to mention protocols
+    make.bash: remove old dregs
     
-    Fixes #2637.
-    
-    R=golang-dev, mikioh.mikioh, iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5508043
+    https://golang.org/cl/5522043
 
- src/pkg/net/iprawsock_plan9.go | 4 ++--
- src/pkg/net/iprawsock_posix.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/make.bash | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,15 +1,15 @@
-commit 628a1e7d3ac8390e0c6327acde1ab52ec09f69d6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 15 09:10:20 2022 -0800
+commit 16b1893600b4f367c6503b512832dea565f9621b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 12 14:16:51 2022 -0800
 
-    doc/go1.20: fix typo
+    test: add notinheap test that caused a gofrontend crash
     
-    Change-Id: Icddf980e533b86ca955660ad028f5ad04b6aecbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457916
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: Ie949f2131845f9f9292caff798f6933648779122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385434
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.20.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug515.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,31 +1,102 @@
-commit d80e8de54ec633d018ccef94b67c796dda4e1944
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 24 13:05:10 2016 -0400
+commit 0bc94a8864f0cb8392c094f58dd84d28a06f35d5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 15 15:49:00 2016 -0700
 
-    cmd/compile: avoid truncating fieldname var locations
+    cmd/compile: when inlining ==, don’t take the address of the values
     
-    Don't include package path when creating LSyms for auto and param
-    variables during Prog generation, and update the DWARF emit routine
-    accordingly (remove the code that chops off package path from names in
-    DWARF var location expressions). Implementation suggested by mdempsky@.
+    This CL reworks walkcompare for clarity and concision.
+    It also makes one significant functional change.
+    (The functional change is hard to separate cleanly
+    from the cleanup, so I just did them together.)
+    When inlining and unrolling an equality comparison
+    for a small struct or array, compare the elements like:
     
-    The intent of this change is to have saner location expressions in cases
-    where the variable corresponds to a structure field. For example, the
-    SSA compiler's "decompose" phase can take a slice value and break it
-    apart into three scalar variables corresponding to the fields (slice "X"
-    gets split into "X.len", "X.cap", "X.ptr"). In such cases we want the
-    name in the location expression to omit the package path but preserve
-    the original variable name (e.g. "X").
+    a[0] == b[0] && a[1] == b[1]
     
-    Fixes #16338
+    rather than
     
-    Change-Id: Ibc444e7f3454b70fc500a33f0397e669d127daa1
-    Reviewed-on: https://go-review.googlesource.com/31819
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    pa := &a
+    pb := &b
+    pa[0] == pb[0] && pa[1] == pb[1]
+    
+    The result is the same, but taking the address
+    and working through the indirect
+    forces the backends to generate less efficient code.
+    
+    This is only an improvement with the SSA backend.
+    However, every port but s390x now has a working
+    SSA backend, and switching to the SSA backend
+    by default everywhere is a priority for Go 1.8.
+    It thus seems reasonable to start to prioritize
+    SSA performance over the old backend.
+    
+    Updates #15303
+    
+    
+    Sample code:
+    
+    type T struct {
+            a, b int8
+    }
+    
+    func g(a T) bool {
+            return a == T{1, 2}
+    }
+    
+    
+    SSA before:
+    
+    "".g t=1 size=80 args=0x10 locals=0x8
+            0x0000 00000 (badeq.go:7)       TEXT    "".g(SB), $8-16
+            0x0000 00000 (badeq.go:7)       SUBQ    $8, SP
+            0x0004 00004 (badeq.go:7)       FUNCDATA        $0, gclocals·23e8278e2b69a3a75fa59b23c49ed6ad(SB)
+            0x0004 00004 (badeq.go:7)       FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0004 00004 (badeq.go:8)       MOVBLZX "".a+16(FP), AX
+            0x0009 00009 (badeq.go:8)       MOVB    AL, "".autotmp_0+6(SP)
+            0x000d 00013 (badeq.go:8)       MOVBLZX "".a+17(FP), AX
+            0x0012 00018 (badeq.go:8)       MOVB    AL, "".autotmp_0+7(SP)
+            0x0016 00022 (badeq.go:8)       MOVB    $0, "".autotmp_1+4(SP)
+            0x001b 00027 (badeq.go:8)       MOVB    $1, "".autotmp_1+4(SP)
+            0x0020 00032 (badeq.go:8)       MOVB    $2, "".autotmp_1+5(SP)
+            0x0025 00037 (badeq.go:8)       MOVBLZX "".autotmp_0+6(SP), AX
+            0x002a 00042 (badeq.go:8)       MOVBLZX "".autotmp_1+4(SP), CX
+            0x002f 00047 (badeq.go:8)       CMPB    AL, CL
+            0x0031 00049 (badeq.go:8)       JNE     70
+            0x0033 00051 (badeq.go:8)       MOVBLZX "".autotmp_0+7(SP), AX
+            0x0038 00056 (badeq.go:8)       CMPB    AL, $2
+            0x003a 00058 (badeq.go:8)       SETEQ   AL
+            0x003d 00061 (badeq.go:8)       MOVB    AL, "".~r1+24(FP)
+            0x0041 00065 (badeq.go:8)       ADDQ    $8, SP
+            0x0045 00069 (badeq.go:8)       RET
+            0x0046 00070 (badeq.go:8)       MOVB    $0, AL
+            0x0048 00072 (badeq.go:8)       JMP     61
+    
+    SSA after:
+    
+    "".g t=1 size=32 args=0x10 locals=0x0
+            0x0000 00000 (badeq.go:7)       TEXT    "".g(SB), $0-16
+            0x0000 00000 (badeq.go:7)       NOP
+            0x0000 00000 (badeq.go:7)       NOP
+            0x0000 00000 (badeq.go:7)       FUNCDATA        $0, gclocals·23e8278e2b69a3a75fa59b23c49ed6ad(SB)
+            0x0000 00000 (badeq.go:7)       FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (badeq.go:8)       MOVBLZX "".a+8(FP), AX
+            0x0005 00005 (badeq.go:8)       CMPB    AL, $1
+            0x0007 00007 (badeq.go:8)       JNE     25
+            0x0009 00009 (badeq.go:8)       MOVBLZX "".a+9(FP), CX
+            0x000e 00014 (badeq.go:8)       CMPB    CL, $2
+            0x0011 00017 (badeq.go:8)       SETEQ   AL
+            0x0014 00020 (badeq.go:8)       MOVB    AL, "".~r1+16(FP)
+            0x0018 00024 (badeq.go:8)       RET
+            0x0019 00025 (badeq.go:8)       MOVB    $0, AL
+            0x001b 00027 (badeq.go:8)       JMP     20
+    
+    
+    Change-Id: I120185d58012b7bbcdb1ec01225b5b08d0855d86
+    Reviewed-on: https://go-review.googlesource.com/22277
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/pgen.go |  1 +
- src/cmd/internal/dwarf/dwarf.go     |  5 -----
- src/runtime/runtime-gdb_test.go     | 18 +++++++++++++++++-
- 3 files changed, 18 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 149 +++++++++++++++---------------------
+ test/fixedbugs/issue15303.go        |  24 ++++++
+ 2 files changed, 86 insertions(+), 87 deletions(-)

@@ -1,12 +1,17 @@
-commit bfd441f745d649eba5560eb6a1a862fb2c952c60
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 15 15:03:41 2015 -0400
+commit 3f12d271335abc9d49d419247528cf286a04f9a6
+Author: areski <areski@gmail.com>
+Date:   Mon Dec 22 18:16:15 2014 +0100
 
-    iostest.bash: run detect.go as part of iostest
+    bytes, os/exec, strings: fix a few BUG comments
     
-    Change-Id: I402629b154ae36c879a8d5088cb0f71b075f31dc
-    Reviewed-on: https://go-review.googlesource.com/8958
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Regular expression noteMarker requires the definition of a (who) section
+    when reading note from a sequence of comments.
+    
+    Change-Id: I9635de9b86f00d20ec108097fee4d4a8f76237b2
+    Reviewed-on: https://go-review.googlesource.com/1952
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/iostest.bash | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/bytes/bytes.go     | 2 +-
+ src/os/exec/exec.go    | 2 +-
+ src/strings/strings.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

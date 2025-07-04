@@ -1,0 +1,34 @@
+commit 1cbfe8c482a0ca0eb59daa89b92a10b7052d1a0f
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Tue Sep 19 14:44:08 2023 -0400
+
+    fmt: add more function and allocation tests
+    
+    This is part of a series of CLs that aim to reduce how often interface
+    arguments escape for the print functions in fmt.
+    
+    Currently, method values are one of two reasons reflect.Value.Interface
+    always escapes its reflect.Value.
+    
+    Our later CLs modify behavior around method values, so we add some tests
+    of function formatting (including method values) to help reduce the
+    chances of breaking behavior later.
+    
+    We also add in some allocation tests focused on interface arguments for
+    the print functions. These currently do not show any improvements
+    compared to Go 1.21.
+    
+    These tests were originally in a later CL in our stack (CL 528538),
+    but we split them out into this CL and moved them earlier in the stack.
+    
+    Updates #8618
+    
+    Change-Id: Iec51abc3b7f86a2711e7497fc2fb7a678b9f8f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529575
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/fmt/fmt_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 64 insertions(+), 4 deletions(-)

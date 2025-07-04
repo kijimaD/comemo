@@ -1,26 +1,32 @@
-commit 63a4acba7d19a665f864b929eb8293858d1cee45
-Author: Grégoire Delattre <gregoire.delattre@gmail.com>
-Date:   Tue Dec 19 19:42:12 2017 +0100
+commit 91102bf723c2e0912cbc4621f03827c0c3062128
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Mar 1 16:52:27 2018 -0600
 
-    net: make concurrent resolver lookups independent
+    runtime: use bytes.IndexByte in findnull
     
-    The current resolver uses a global lookupGroup which merges LookupIPAddr
-    calls together for lookups for the same hostname if used concurrently.
-    As a result only one of the resolvers is actually used to perform the
-    DNS lookup but the result is shared by all the resolvers.
+    bytes.IndexByte is heavily optimized. Use it in findnull.
+    This is second attempt, similar to CL97523.
+    In this version we never call IndexByte on region of memory,
+    that crosses page boundary. A bit slower than CL97523,
+    but still fast:
     
-    This commit limits the scope of the lookupGroup to the resolver itself
-    allowing each resolver to make its own requests without sharing the
-    result with other resolvers.
+    name        old time/op  new time/op  delta
+    GoString-6   164ns ± 2%   118ns ± 0%  -28.00%  (p=0.000 n=10+6)
     
-    Fixes #22908
+    findnull is also used in gostringnocopy,
+    which is used in many hot spots in the runtime.
     
-    Change-Id: Ibba896eebb05e59f18ce4132564ea1f2b4b6c6d9
-    Reviewed-on: https://go-review.googlesource.com/80775
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #23830
+    
+    Change-Id: Id843dd4f65a34309d92bdd8df229e484d26b0cb2
+    Reviewed-on: https://go-review.googlesource.com/98015
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup.go      | 22 ++++++++++++-------
- src/net/lookup_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 8 deletions(-)
+ misc/cgo/test/basic.go              | 14 ++++++++++
+ misc/cgo/test/cgo_test.go           |  4 ++-
+ misc/cgo/test/issue24206.go         | 54 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/issue24206_generic.go | 13 +++++++++
+ src/runtime/string.go               | 34 ++++++++++++++++++-----
+ 5 files changed, 112 insertions(+), 7 deletions(-)

@@ -1,15 +1,26 @@
-commit c3c047a6a32ab1f5344e7c0b074fb9d1ce365bbc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 15 14:23:23 2015 -0400
+commit e00e65638ac33c13d39b7b4225354e932256005b
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Tue Jan 27 10:04:11 2015 +0100
 
-    runtime: test and fix heap bitmap for 1-pointer allocation on 32-bit system
+    reflect: use arrayAt consistently
     
-    Change-Id: Ic064fe7c6bd3304dcc8c3f7b3b5393870b5387c2
-    Reviewed-on: https://go-review.googlesource.com/10119
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    This change refactors reflect.Value to consistently use arrayAt when an element
+    of an array of bytes is indexed.
+    
+    This effectively replaces:
+     arr := unsafe.Pointer(...)
+     arri := unsafe.Pointer(uintptr(arr) + uintptr(i)*elementSize)
+    
+    with:
+     arr := unsafe.Pointer(...)
+     arri := arrayAt(arr, i, elementSize)
+    
+    Change-Id: I53ffd0d6de693b43d5c10c0aa4cd6d4f5e95a1e3
+    Reviewed-on: https://go-review.googlesource.com/9183
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go |  2 ++
- src/runtime/gcinfo_test.go | 30 ++++++++++++++++++++++++------
- src/runtime/mbitmap.go     | 27 ++++++++++++++++++++++-----
- 3 files changed, 48 insertions(+), 11 deletions(-)
+ src/reflect/value.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

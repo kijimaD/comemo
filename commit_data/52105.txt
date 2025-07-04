@@ -1,24 +1,32 @@
-commit 0b41b678c2e313b80e1e29695bee26d363fab32a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Feb 8 16:31:15 2023 +0100
+commit 1a955bcdb701d788b048a39d7273621729e257bc
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Thu Dec 2 16:18:29 2021 +0300
 
-    runtime: use explicit NOFRAME on openbsd/amd64
+    reflectdata: unroll a loop in array equal function generation
     
-    This CL marks some openbsd assembly functions as NOFRAME to avoid
-    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
-    without stack were also marked as NOFRAME.
+    As josharian mentioned, a compare function could benefit from
+    unrolling a loop for arrays. This commit introduces such
+    functionality.
     
-    Updates #58378
+    name                     old time/op  new time/op  delta
+    EqArrayOfStrings5-12     12.5ns ± 1%   8.4ns ± 1%  -33.05%  (p=0.008 n=5+5)
+    EqArrayOfStrings64-12    71.7ns ± 1%  64.1ns ± 1%  -10.57%  (p=0.008 n=5+5)
+    EqArrayOfStrings1024-12  1.12µs ± 1%  1.01µs ± 0%   -9.77%  (p=0.008 n=5+5)
+    [Geo mean]                100ns         81ns       -18.56%
     
-    Change-Id: I993549df41a93255fb714357443f8b24c3dfb0a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466455
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    name                    old time/op  new time/op  delta
+    EqArrayOfFloats5-12     4.50ns ± 2%  3.32ns ± 1%  -26.09%  (p=0.008 n=5+5)
+    EqArrayOfFloats64-12    41.3ns ± 1%  35.7ns ± 0%  -13.63%  (p=0.016 n=5+4)
+    EqArrayOfFloats1024-12   619ns ± 1%   557ns ± 1%   -9.95%  (p=0.008 n=5+5)
+    [Geo mean]              48.6ns       40.4ns       -16.85%
+    
+    Change-Id: If1b69c5cf3fb246bb0275a292118b0b93ad9c9a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368614
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go |   2 +-
- src/runtime/sys_openbsd_amd64.s  | 148 +++------------------------------------
- 2 files changed, 12 insertions(+), 138 deletions(-)
+ src/cmd/compile/internal/reflectdata/alg.go      | 92 +++++++++++++++---------
+ src/cmd/compile/internal/reflectdata/alg_test.go | 76 ++++++++++++++++++++
+ 2 files changed, 135 insertions(+), 33 deletions(-)

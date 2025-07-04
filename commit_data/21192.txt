@@ -1,19 +1,37 @@
-commit f1c4444dfcca5967543d43190b6c80c9254b99ac
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 16 17:14:00 2014 -0500
+commit dd26fc3822e474112e388f51d59a7257361fb72f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 5 09:15:38 2014 +0900
 
-    runtime: set up C TLS and save g to it on ppc64
+    cmd/go: avoid use of bufio.Scanner in generate
     
-    Cgo will need this for calls from C to Go and for handling signals
-    that may occur in C code.
+    Scanner can't handle stupid long lines and there are
+    reports of stupid long lines in production.
     
-    Change-Id: I50cc4caf17cd142bff501e7180a1e27721463ada
-    Reviewed-on: https://go-review.googlesource.com/2008
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Note the issue isn't long "//go:generate" lines, but
+    any long line in any Go source file.
+    
+    To be fair, if you're going to have a stupid long line
+    it's not a bad bet you'll want to run it through go
+    generate, because it's some embeddable asset that
+    has been machine generated. (One could ask why
+    that generation process didn't add a newline or two,
+    but we should cope anyway.)
+    
+    Rewrite the file scanner in "go generate" so it can
+    handle arbitrarily long lines, and only stores in memory
+    those lines that start "//go:generate".
+    
+    Also: Adjust the documentation to make clear that it
+    does not parse the file.
+    
+    Fixes #9143.
+    Fixes #9196.
+    
+    LGTM=rsc, dominik.honnef
+    R=rsc, cespare, minux, dominik.honnef
+    CC=golang-codereviews
+    https://golang.org/cl/182970043
 
- src/runtime/arch1_ppc64.go      |  2 +-
- src/runtime/arch1_ppc64le.go    |  2 +-
- src/runtime/asm_ppc64x.s        |  8 ++++++
- src/runtime/rt0_linux_ppc64le.s |  2 ++
- src/runtime/tls_ppc64x.s        | 56 +++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 68 insertions(+), 2 deletions(-)
+ src/cmd/go/doc.go      | 21 ++++++++++-----
+ src/cmd/go/generate.go | 71 +++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 70 insertions(+), 22 deletions(-)

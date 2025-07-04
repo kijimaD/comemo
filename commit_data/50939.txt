@@ -1,23 +1,19 @@
-commit 6b22572e700235fb7303c7fd6aefcc33c743a130
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 19 11:57:15 2022 -0400
+commit f1cc5294290b33889d48a3185b3c3711531881e0
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:45:49 2021 -0500
 
-    go/internal/gcimporter,cmd/compile/internal/importer: skip tests that need 'go list' on js/wasm
+    go/types: better position for invalid slice indices error
     
-    js/wasm doesn't support os.Exec, so it can't run 'go list' to locate
-    export data for packages in the standard library.
+    This is a port of CL 363671 from types2 to go/types. Also adjust the
+    error message to match types2 ("invalid" vs "swapped").
     
-    This fixes js/wasm test failures introduced in CL 442303.
-    
-    For #47257.
-    
-    Change-Id: I39289f376691493aa6fb447b3329f6508ab48d58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444015
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I662a73c915814fea14bfcb1ebde0fbf39589f022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364902
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/importer/gcimporter_test.go | 6 ++++++
- src/go/internal/gcimporter/gcimporter_test.go        | 7 +++++++
- 2 files changed, 13 insertions(+)
+ src/go/types/index.go                 | 10 +++++++---
+ src/go/types/testdata/check/expr3.src | 20 ++++++++++----------
+ 2 files changed, 17 insertions(+), 13 deletions(-)

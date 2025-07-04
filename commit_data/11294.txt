@@ -1,15 +1,21 @@
-commit 541978af0a877232587f5e9cd1c51ecc2cfdb58b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jan 20 13:34:30 2012 -0500
+commit 4ec8fd1cece15967bffe668957e7e43138dd5944
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 20 13:34:25 2012 -0500
 
-    libmach: cross compiling support
-            We already use GOHOSTOS to represent the host OS that the toolchain
-            will be run on, so no need to resort to uname(1) to get that (and
-            use uname(1) will make cross-compiling for another host impossible).
+    A+C: Berengar Lehr (individual CLA)
     
-    R=rsc, golang-dev
+    Was added to CONTRIBUTORS file in:
+    
+    changeset:   7092:638ad4d7d280
+    user:        Berengar Lehr <Berengar.Lehr@gmx.de>
+    date:        Tue Jan 11 20:51:35 2011 -0500
+    summary:     crypto: add twofish package
+    
+    but never added to AUTHORS file.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5530050
+    https://golang.org/cl/5532107
 
- src/libmach/Makefile | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

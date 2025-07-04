@@ -1,36 +1,87 @@
-commit 0d8366e2d66bb56fcda7669837dfeb289e9131e3
-Author: Paul Marks <pmarks@google.com>
-Date:   Fri Apr 10 14:15:54 2015 -0700
+commit feb8a3b6169504040024e22b3eef5959554f9dbd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 4 11:30:10 2015 -0400
 
-    net: add sequential and RFC 6555-compliant TCP dialing.
+    runtime: optimize heapBitsSetType
     
-    dialSerial connects to a list of addresses in sequence.  If a
-    timeout is specified, then each address gets an equal fraction of the
-    remaining time, with a magic constant (2 seconds) to prevent
-    "dial a million addresses" from allotting zero time to each.
+    For the conversion of the heap bitmap from 4-bit to 2-bit fields,
+    I replaced heapBitsSetType with the dumbest thing that could possibly work:
+    two atomic operations (atomicand8+atomicor8) per 2-bit field.
     
-    Normally, net.Dial passes the DNS stub resolver's output to dialSerial.
-    If an error occurs (like destination/port unreachable), it quickly skips
-    to the next address, but a blackhole in the network will cause the
-    connection to hang until the timeout elapses.  This is how UNIXy clients
-    traditionally behave, and is usually sufficient for non-broken networks.
+    This CL replaces that code with a proper implementation that
+    avoids the atomics whenever possible. Benchmarks vs base CL
+    (before the conversion to 2-bit heap bitmap) and vs Go 1.4 below.
     
-    The DualStack flag enables dialParallel, which implements Happy Eyeballs
-    by racing two dialSerial goroutines, giving the preferred family a
-    head start (300ms by default).  This allows clients to avoid long
-    timeouts when the network blackholes IPv4 xor IPv6.
+    Compared to Go 1.4, SetTypePtr (a 1-pointer allocation)
+    is 10ns slower because a race against the concurrent GC requires the
+    use of an atomicor8 that used to be an ordinary write. This slowdown
+    was present even in the base CL.
     
-    Fixes #8453
-    Fixes #8455
-    Fixes #8847
+    Compared to both Go 1.4 and base, SetTypeNode8 (a 10-word allocation)
+    is 10ns slower because it too needs a new atomic, because with the
+    denser representation, the byte on the end of the allocation is now shared
+    with the object next to it; this was not true with the 4-bit representation.
     
-    Change-Id: Ie415809c9226a1f7342b0217dcdd8f224ae19058
-    Reviewed-on: https://go-review.googlesource.com/8768
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Excluding these two (fundamental) slowdowns due to the use of atomics,
+    the new code is noticeably faster than both Go 1.4 and the base CL.
+    
+    The next CL will reintroduce the ``typeDead'' optimization.
+    
+    Stats are from 5 runs on a MacBookPro10,2 (late 2012 Core i5).
+    
+    Compared to base CL (** = new atomic)
+    name                  old mean              new mean              delta
+    SetTypePtr            14.1ns × (0.99,1.02)  14.7ns × (0.93,1.10)     ~    (p=0.175)
+    SetTypePtr8           18.4ns × (1.00,1.01)  18.6ns × (0.81,1.21)     ~    (p=0.866)
+    SetTypePtr16          28.7ns × (1.00,1.00)  22.4ns × (0.90,1.27)  -21.88% (p=0.015)
+    SetTypePtr32          52.3ns × (1.00,1.00)  33.8ns × (0.93,1.24)  -35.37% (p=0.001)
+    SetTypePtr64          79.2ns × (1.00,1.00)  55.1ns × (1.00,1.01)  -30.43% (p=0.000)
+    SetTypePtr126          118ns × (1.00,1.00)   100ns × (1.00,1.00)  -15.97% (p=0.000)
+    SetTypePtr128          130ns × (0.92,1.19)    98ns × (1.00,1.00)  -24.36% (p=0.008)
+    SetTypePtrSlice        726ns × (0.96,1.08)   760ns × (1.00,1.00)     ~    (p=0.152)
+    SetTypeNode1          14.1ns × (0.94,1.15)  12.0ns × (1.00,1.01)  -14.60% (p=0.020)
+    SetTypeNode1Slice      135ns × (0.96,1.07)    88ns × (1.00,1.00)  -34.53% (p=0.000)
+    SetTypeNode8          20.9ns × (1.00,1.01)  32.6ns × (1.00,1.00)  +55.37% (p=0.000) **
+    SetTypeNode8Slice      414ns × (0.99,1.02)   244ns × (1.00,1.00)  -41.09% (p=0.000)
+    SetTypeNode64         80.0ns × (1.00,1.00)  57.4ns × (1.00,1.00)  -28.23% (p=0.000)
+    SetTypeNode64Slice    2.15µs × (1.00,1.01)  1.56µs × (1.00,1.00)  -27.43% (p=0.000)
+    SetTypeNode124         119ns × (0.99,1.00)   100ns × (1.00,1.00)  -16.11% (p=0.000)
+    SetTypeNode124Slice   3.40µs × (1.00,1.00)  2.93µs × (1.00,1.00)  -13.80% (p=0.000)
+    SetTypeNode126         120ns × (1.00,1.01)    98ns × (1.00,1.00)  -18.19% (p=0.000)
+    SetTypeNode126Slice   3.53µs × (0.98,1.08)  3.02µs × (1.00,1.00)  -14.49% (p=0.002)
+    SetTypeNode1024        726ns × (0.97,1.09)   740ns × (1.00,1.00)     ~    (p=0.451)
+    SetTypeNode1024Slice  24.9µs × (0.89,1.37)  23.1µs × (1.00,1.00)     ~    (p=0.476)
+    
+    Compared to Go 1.4 (** = new atomic)
+    name                  old mean               new mean              delta
+    SetTypePtr            5.71ns × (0.89,1.19)  14.68ns × (0.93,1.10)  +157.24% (p=0.000) **
+    SetTypePtr8           19.3ns × (0.96,1.10)   18.6ns × (0.81,1.21)      ~    (p=0.638)
+    SetTypePtr16          30.7ns × (0.99,1.03)   22.4ns × (0.90,1.27)   -26.88% (p=0.005)
+    SetTypePtr32          51.5ns × (1.00,1.00)   33.8ns × (0.93,1.24)   -34.40% (p=0.001)
+    SetTypePtr64          83.6ns × (0.94,1.12)   55.1ns × (1.00,1.01)   -34.12% (p=0.001)
+    SetTypePtr126          137ns × (0.87,1.26)    100ns × (1.00,1.00)   -27.10% (p=0.028)
+    SetTypePtrSlice        865ns × (0.80,1.23)    760ns × (1.00,1.00)      ~    (p=0.243)
+    SetTypeNode1          15.2ns × (0.88,1.12)   12.0ns × (1.00,1.01)   -20.89% (p=0.014)
+    SetTypeNode1Slice      156ns × (0.93,1.16)     88ns × (1.00,1.00)   -43.57% (p=0.001)
+    SetTypeNode8          23.8ns × (0.90,1.18)   32.6ns × (1.00,1.00)   +36.76% (p=0.003) **
+    SetTypeNode8Slice      502ns × (0.92,1.10)    244ns × (1.00,1.00)   -51.46% (p=0.000)
+    SetTypeNode64         85.6ns × (0.94,1.11)   57.4ns × (1.00,1.00)   -32.89% (p=0.001)
+    SetTypeNode64Slice    2.36µs × (0.91,1.14)   1.56µs × (1.00,1.00)   -33.96% (p=0.002)
+    SetTypeNode124         130ns × (0.91,1.12)    100ns × (1.00,1.00)   -23.49% (p=0.004)
+    SetTypeNode124Slice   3.81µs × (0.90,1.22)   2.93µs × (1.00,1.00)   -23.09% (p=0.025)
+    
+    There are fewer benchmarks vs Go 1.4 because unrolling directly
+    into the heap bitmap is not yet implemented, so those would not
+    be meaningful comparisons.
+    
+    These benchmarks were not present in Go 1.4 as distributed.
+    The backport to Go 1.4 is in github.com/rsc/go's go14bench branch,
+    commit 71d5ee5.
+    
+    Change-Id: I95ed05a22bf484b0fc9efad549279e766c98d2b6
+    Reviewed-on: https://go-review.googlesource.com/9704
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/dial.go      | 249 ++++++++++++++++++++++---------
- src/net/dial_test.go | 402 ++++++++++++++++++++++++++++++++++++++++++++++++---
- src/net/hook.go      |   1 +
- src/net/net.go       |   1 +
- 4 files changed, 566 insertions(+), 87 deletions(-)
+ src/runtime/mbitmap.go | 329 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/mgcmark.go |  18 ++-
+ 2 files changed, 314 insertions(+), 33 deletions(-)

@@ -1,41 +1,14 @@
-commit 5bfed7c6c03bf3cc9a0a1d7a0ab056b9dfaae920
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 14 11:18:24 2015 -0500
+commit 8476d4cf2937fc261bbcf2890ba39d815bce3ae5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 13 19:00:48 2014 +1100
 
-    runtime: log all thread stack traces during GODEBUG=crash on Linux and OS X
+    net/http: document Response.Body Read+Close interaction with keep-alive
     
-    Normally, a panic/throw only shows the thread stack for the current thread
-    and all paused goroutines. Goroutines running on other threads, or other threads
-    running on their system stacks, are opaque. Change that when GODEBUG=crash,
-    by passing a SIGQUIT around to all the threads when GODEBUG=crash.
-    If this works out reasonably well, we might make the SIGQUIT relay part of
-    the standard panic/throw death, perhaps eliding idle m's.
+    Fixes #5645
     
-    Change-Id: If7dd354f7f3a6e326d17c254afcf4f7681af2f8b
-    Reviewed-on: https://go-review.googlesource.com/2811
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ifb46d6faf7ac838792920f6fe00912947478e761
+    Reviewed-on: https://go-review.googlesource.com/1531
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/runtime/defs_nacl_386.go      |  1 +
- src/runtime/defs_nacl_amd64p32.go |  1 +
- src/runtime/defs_nacl_arm.go      |  1 +
- src/runtime/defs_windows.go       |  1 -
- src/runtime/defs_windows_386.go   |  1 -
- src/runtime/defs_windows_amd64.go |  1 -
- src/runtime/os1_windows.go        |  8 +++++++
- src/runtime/os2_plan9.go          |  4 ++--
- src/runtime/os3_solaris.go        |  4 ++++
- src/runtime/os_darwin.go          |  1 +
- src/runtime/os_dragonfly.go       |  1 +
- src/runtime/os_freebsd.go         |  1 +
- src/runtime/os_linux.go           |  1 +
- src/runtime/os_nacl.go            |  3 +++
- src/runtime/os_netbsd.go          |  1 +
- src/runtime/os_openbsd.go         |  1 +
- src/runtime/signal_amd64x.go      | 44 ++++++++++++++++++++++++++++++++++-----
- src/runtime/sys_darwin_386.s      |  7 ++++++-
- src/runtime/sys_darwin_amd64.s    |  7 ++++++-
- src/runtime/sys_linux_386.s       |  9 ++++++++
- src/runtime/sys_linux_amd64.s     |  9 ++++++++
- src/runtime/sys_linux_arm.s       | 11 ++++++++++
- src/runtime/sys_linux_ppc64x.s    |  9 ++++++++
- 23 files changed, 115 insertions(+), 12 deletions(-)
+ src/net/http/response.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

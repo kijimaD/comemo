@@ -1,22 +1,12 @@
-commit 8ffe496ae792a1cdc845c1c019323cf6c05fbb32
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Feb 20 22:52:15 2016 -0800
+commit 0e771c72ede28220a26ac8bfe60d88f3a0a5072a
+Author: Carlos Cirello <uldericofilho@gmail.com>
+Date:   Wed Aug 26 22:57:52 2015 +0200
 
-    cmd/compile, runtime: eliminate unnecessary algorithm types
+    unicode: add function level examples
     
-    There's no need for 8 different ways to represent that a type is
-    non-comparable.
-    
-    While here, move AMEM out of the runtime-known algorithm values since
-    it's not needed at run-time, and get rid of the unused AUNK constant.
-    
-    Change-Id: Ie23972b692c6f27fc5f1a908561b3e26ef5a50e9
-    Reviewed-on: https://go-review.googlesource.com/19779
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I9e968c03c6615a539b18701c84f830898242441d
+    Reviewed-on: https://go-review.googlesource.com/13926
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.go   | 13 ++-----------
- src/cmd/compile/internal/gc/subr.go | 22 +++++++---------------
- src/runtime/alg.go                  | 20 ++------------------
- 3 files changed, 11 insertions(+), 44 deletions(-)
+ src/unicode/example_test.go | 196 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 196 insertions(+)

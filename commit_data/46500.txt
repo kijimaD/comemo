@@ -1,21 +1,21 @@
-commit 79159f2e83662dac4089e2f5231ec23de9da10b9
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Sep 19 14:20:56 2021 -0700
+commit cb05a0aa6a05cbef05587f02473dbd7f6740b933
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 09:37:28 2021 -0800
 
-    cmd/compile: fix simplification rules on arm/arm64
+    [dev.regabi] cmd/compile: remove toolstash scaffolding
     
-    Fixes #48473
+    Now that CaptureVars is gone, we can remove the extra code in escape
+    analysis that only served to appease toolstash -cmp.
     
-    Change-Id: Ic1e918f916eae223a3b530a51a58f03031924670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350913
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I8c811834f3d966e76702e2d362e3de414c94bea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281544
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules   |  36 +--
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  54 ++---
- src/cmd/compile/internal/ssa/rewriteARM.go   | 228 ++++++++----------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 340 +++++++++++----------------
- test/fixedbugs/issue48473.go                 |  30 +++
- 5 files changed, 314 insertions(+), 374 deletions(-)
+ src/cmd/compile/internal/escape/escape.go      | 69 ++------------------------
+ src/cmd/compile/internal/logopt/logopt_test.go |  1 -
+ test/chancap.go                                |  1 -
+ test/fixedbugs/issue4085b.go                   |  1 -
+ 4 files changed, 4 insertions(+), 68 deletions(-)

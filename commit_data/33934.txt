@@ -1,16 +1,21 @@
-commit f05c8b48ea2d249965418e76c9151a3d6bde7ed9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 3 12:59:09 2018 -0800
+commit 977578816ea7d0c2b5e00e612e222a8378abf11e
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Wed Sep 20 11:10:26 2017 +0200
 
-    net: set CLOEXEC on sockets used for capability probes
+    bytes: improve test readability
     
-    Fixes #22349
+    This CL improves the readability of the tests in the bytes package by
+    naming the `data` test variable `testString`, using the same convention
+    as its counterpart, `testBytes`.
     
-    Change-Id: I84ec4fa9fa95bac0f26bf4ca3e62a35dff4f7e00
-    Reviewed-on: https://go-review.googlesource.com/86015
+    It additionally removes some type casting which was unnecessary.
+    
+    Change-Id: If38b5606ce8bda0306bae24498f21cb8dbbb6377
+    Reviewed-on: https://go-review.googlesource.com/64931
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/ipsock_posix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/bytes/buffer_test.go | 54 ++++++++++++++++++++++++------------------------
+ src/bytes/reader_test.go |  4 ++--
+ 2 files changed, 29 insertions(+), 29 deletions(-)

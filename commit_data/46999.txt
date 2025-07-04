@@ -1,17 +1,28 @@
-commit 2d205ebb96460b500480d144b99d2d5f5d4c06ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 21 13:29:00 2021 -0700
+commit b445d6ea34661328a7310beda285c64d6823624d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 15 17:02:30 2021 -0500
 
-    cmd/compile/internal/types2: make built-in to accept type sets with single underlying types
+    runtime/pprof: expect tests to pass on macOS
     
-    This generalizes make the same way copy was generalized and eliminates
-    a use of optype.
+    macOS tests have been disabled since CL 12429045 (Aug 2013).
+    At the time, macOS required a kernel patch to get a working profiler
+    (https://research.swtch.com/macpprof), which we didn't want
+    to require, of course.
     
-    Change-Id: I8221abd53d77dde8ead47c0075c13fd2a3221642
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357776
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    macOS has improved - it no longer requires the kernel patch - but
+    we never updated the list of exceptions.
+    
+    As far as I can tell, the builders have no problem passing the pprof test now.
+    (It is possible that the iOS builders have trouble, but that is now a different GOOS.)
+    
+    Remove the exception for macOS. The test should now pass.
+    
+    Fixes #6047.
+    
+    Change-Id: Iab49036cacc1025e56f515bd19d084390c2f5357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292229
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/builtins.go        |  6 +++---
- .../internal/types2/testdata/check/builtins.go2    | 22 +++++++++++++---------
- 2 files changed, 16 insertions(+), 12 deletions(-)
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

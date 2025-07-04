@@ -1,0 +1,20 @@
+commit 4b7aa542ebc5144b2df7ee455ab137eb90de6f00
+Author: Damien Neil <dneil@google.com>
+Date:   Mon May 19 15:51:14 2025 -0700
+
+    os: add Root.ReadFile and Root.WriteFile
+    
+    For #73126
+    
+    Change-Id: Ie69cc274e7b59f958c239520318b89ff0141e26b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674315
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ api/next/73126.txt                     |  2 ++
+ doc/next/6-stdlib/99-minor/os/67002.md |  2 ++
+ doc/next/6-stdlib/99-minor/os/73126.md |  1 +
+ src/os/root.go                         | 25 +++++++++++++++++++++++++
+ src/os/root_test.go                    | 20 ++++++++++++++++++++
+ 5 files changed, 50 insertions(+)

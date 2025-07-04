@@ -1,24 +1,16 @@
-commit fcf8a775259b491de580048df8720be7acb5799c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 16 11:52:27 2014 -0400
+commit d0d425a9872105e8f5c44e6d489ee9088ecf1bdd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 16 01:46:56 2014 -0400
 
-    reflect: correct type descriptor for call of interface method
+    cmd/ld: cast PE32 absolute addend to int32.
+    Didn't manage to find a way to write test cases.
     
-    When preparing a call with an interface method, the argument
-    frame holds the receiver "iword", but funcLayout was being
-    asked to write a descriptor as if the receiver were a complete
-    interface value. This was originally caught by running a large
-    program with Debug=3 in runtime/mgc0.c, but the new panic
-    in funcLayout suffices to catch the mistake with the existing
-    tests.
+    Fixes #7769.
     
-    Fixes #7748.
-    
-    LGTM=bradfitz, iant
-    R=golang-codereviews, bradfitz, iant
-    CC=golang-codereviews, khr
-    https://golang.org/cl/88100048
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/88000045
 
- src/pkg/reflect/type.go  |  5 ++++-
- src/pkg/reflect/value.go | 14 +++++++-------
- 2 files changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/ld/ldpe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,18 @@
-commit b2e9f425b92cd6b986051a55c24dc96b777d9f28
+commit 98cfe6770d8530f6677ecb72a59d939c88504255
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 9 16:27:32 2012 -0800
+Date:   Fri Mar 9 14:45:40 2012 -0800
 
-    net/http: fix crash with Transport.CloseIdleConnections
+    archive/zip: verify CRC32s in non-streamed files
     
-    Thanks Michael Lore for the bug report!
-    
-    Fixes #3266
+    We should check the CRC32s of files on EOF, even if there's no
+    data descriptor (in streamed files), as long as there's a non-zero
+    CRC32 in the file header / TOC.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5754068
+    https://golang.org/cl/5794045
 
- src/pkg/net/http/transport.go      |  2 +-
- src/pkg/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader.go                      |  23 +++---
+ src/pkg/archive/zip/reader_test.go                 |  78 ++++++++++++++++++---
+ .../archive/zip/testdata/crc32-not-streamed.zip    | Bin 0 -> 314 bytes
+ 3 files changed, 84 insertions(+), 17 deletions(-)

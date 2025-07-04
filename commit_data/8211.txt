@@ -1,21 +1,16 @@
-commit 3a1fdc655e40a9b3f27734ca950139ffcfb54e0b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 12:08:48 2011 -0400
+commit 883d68f885750806ca9a244ed1c19db58a971ab7
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 25 12:02:54 2011 -0400
 
-    gc: fix import width bug
+    gc: allow complex types to be receiver types
     
-    Fixes #1705.
+    Fixes #1716.
     
-    R=ken2
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4443060
+    https://golang.org/cl/4439068
 
- src/cmd/5g/cgen.c              |  2 ++
- src/cmd/6g/cgen.c              |  2 ++
- src/cmd/8g/cgen.c              |  2 ++
- src/cmd/gc/dcl.c               |  4 ++++
- src/cmd/gc/walk.c              |  4 +++-
- test/fixedbugs/bug335.dir/a.go |  9 +++++++++
- test/fixedbugs/bug335.dir/b.go | 11 +++++++++++
- test/fixedbugs/bug335.go       | 10 ++++++++++
- 8 files changed, 43 insertions(+), 1 deletion(-)
+ src/cmd/gc/align.c       |  2 +-
+ src/cmd/gc/subr.c        |  2 +-
+ test/fixedbugs/bug334.go | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

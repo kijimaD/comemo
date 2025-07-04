@@ -1,0 +1,25 @@
+commit 4f45b2b7e079fc03d3444642e8a33ce6f959c6a6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Mar 3 20:45:13 2025 +0700
+
+    cmd/compile: fix out of memory when inlining closure
+    
+    CL 629195 strongly favor closure inlining, allowing closures to be
+    inlined more aggressively.
+    
+    However, if the closure body contains a call to a function, which itself
+    is one of the call arguments, it causes the infinite inlining.
+    
+    Fixing this by prevent this kind of functions from being inlinable.
+    
+    Fixes #72063
+    
+    Change-Id: I5fb5723a819b1e2c5aadb57c1023ec84ca9fa53c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654195
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inl.go | 22 +++++++++++++++++++
+ test/fixedbugs/issue72063.go           | 40 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+)

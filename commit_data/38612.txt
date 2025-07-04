@@ -1,25 +1,23 @@
-commit 7b62e984d941c753e7fb20f8b59a49acf62c88a7
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Sun Mar 31 15:23:07 2019 +0100
+commit c5aea7a4941aa9c37ed07e3a252bc81c9c90802f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 17:08:24 2018 -0700
 
-    runtime: always mask shift amount regardless of architecture
+    cmd/go: add go mod edit -go flag
     
-    Currently the shift amount is only masked on x86. Change it so it
-    is masked on all architectures. In the worst case we generate a
-    couple of extra instructions to perform the masking and in the best
-    case we can elide overflow checks.
+    It can be used to set the Go language version used by the module.
     
-    This particular shift could also be replaced with a rotate
-    instruction during optimization which would remove both the masking
-    instructions and overflow checks on all architectures.
+    RELNOTES=yes
     
-    Fixes #31165.
+    Updates #28221
     
-    Change-Id: I16b7a8800b4ba8813dc83735dfc59564e661d3b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170122
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ief0dd185c01195a17be20dff8627c80943c436e7
+    Reviewed-on: https://go-review.googlesource.com/c/147282
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/map.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go                      |  5 ++++-
+ src/cmd/go/internal/modcmd/edit.go         | 26 ++++++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_edit.txt    |  3 ++-
+ src/cmd/go/testdata/script/mod_edit_go.txt | 16 ++++++++++++++++
+ 4 files changed, 44 insertions(+), 6 deletions(-)

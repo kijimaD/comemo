@@ -1,13 +1,15 @@
-commit a4bfe64f00f09b5d98cc7bb680b768af1bebebc9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 13 14:20:07 2015 -0700
+commit 575bdd6753e8c0c722158472ea9275cd463271ee
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 20:45:23 2015 -0800
 
-    math/big: fix minor documentation issue
+    [dev.cc] cmd/internal/obj/ppc64: set Ctxt when allocating Progs
     
-    Change-Id: Ib42f75c03573cec16801b79a6eb9b1b542028f4f
-    Reviewed-on: https://go-review.googlesource.com/7524
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This will get fixed properly upstream, but this will serve for now.
+    
+    Change-Id: I25e5210d190bc7a06a5b9f80724e3360d1a6b10c
+    Reviewed-on: https://go-review.googlesource.com/5121
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float.go      | 2 +-
- src/math/big/float_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go |  2 ++
+ src/cmd/internal/obj/ppc64/obj9.go | 13 ++++++-------
+ 2 files changed, 8 insertions(+), 7 deletions(-)

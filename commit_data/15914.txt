@@ -1,14 +1,25 @@
-commit 80234d5c6bb44a83a5d6abf7c8215411f6f4bcb2
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Sat Mar 23 15:16:58 2013 -0700
+commit bfb32dc6d1b8cbe6f4d2d52d3226e4c31e36b576
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 23 22:32:19 2013 +0900
 
-    misc/kate: fix multiline raw string syntax highlighting error.
-    From VisualFC.
-    Fixes #4862.
+    net: use original raddr if getpeername fails
     
-    R=golang-dev, minux.ma, r
+    This CL updates CL 7511043;
+    - adds new test cases for both UDPConn and UnixConn,
+    - makes sure unnamed UnixAddr handling,
+    - replaces t.Errorf with t.Fatalf in sockname related test cases.
+    
+    Fixes #3721 (again).
+    Fixes #3838 (again).
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7568043
+    https://golang.org/cl/7627048
 
- misc/kate/go.xml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/server_test.go    |   2 +-
+ src/pkg/net/sock_posix.go     |   6 +-
+ src/pkg/net/tcp_test.go       |   6 +-
+ src/pkg/net/udp_test.go       |  44 ++++++++++++--
+ src/pkg/net/unix_test.go      | 132 +++++++++++++++++++++++++++++++++++++-----
+ src/pkg/net/unixsock_posix.go |  25 +++++---
+ 6 files changed, 179 insertions(+), 36 deletions(-)

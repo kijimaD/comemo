@@ -1,22 +1,23 @@
-commit fbe313664664477616bb170903728be74a5f5963
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 14 22:15:21 2023 -0700
+commit c9031a44b2cf734e6d1f64c31d6ee3a34ca1a9cc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 21 00:00:38 2022 +0200
 
-    net: remove max timeout from TestDialTimeout
+    net/netip: fix Addr.Unmap reference in Addr.Is4 godoc comment
     
-    Just rely on the testsuite timeout. If this hangs we will hopefully
-    get some real information.
+    In CL 339309 this was probably copied from the respective godoc comment
+    in package inet.af/netaddr, also see
+    https://pkg.go.dev/inet.af/netaddr#IP.Is4
     
-    Fixes #57475
+    In net/netip the type is named Addr, so adjust the godoc comment
+    accordingly.
     
-    Change-Id: I18dc5cae54ad5d2d8cc472056b8a3b4d5455c8b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476356
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib5ab8054067f8b74119efa4732192a8407189f9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401394
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/timeout_test.go | 57 ++++++++++++++++++++-----------------------------
- 1 file changed, 23 insertions(+), 34 deletions(-)
+ src/net/netip/netip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

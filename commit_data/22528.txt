@@ -1,23 +1,21 @@
-commit 5cc8561333313c4318d980fea9b5c2dab596b503
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 13 15:31:28 2015 -0700
+commit 653426f08f2e34ddcc73f7603d23e5f640b6b1ff
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 19 17:46:18 2015 -0400
 
-    compress/flate: reject invalid Huffman bit sizes
+    runtime: exit getfull barrier if there are partial workbufs
     
-    If the requested coding bit sizes don't result in a full binary tree,
-    then reject the input as invalid.
+    Currently, we only exit the getfull barrier if there is work on the
+    full list, even though the exit path will take work from either the
+    full or partial list. Change this to exit the barrier if there is work
+    on either the full or partial lists.
     
-    Exception: We still need to allow degenerate Huffman codings with a
-    single 1-bit code to be compatible with zlib and files compressed with
-    Go's compress/flate package.
+    I believe it's currently safe to check only the full list, since
+    during mark termination there is no reason to put a workbuf on a
+    partial list. However, checking both is more robust.
     
-    Update #10426.
-    
-    Change-Id: I171b98d12e65b4deb9f4031cd802407ebb5e266c
-    Reviewed-on: https://go-review.googlesource.com/8922
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Icf095b0945c7cad326a87ff2f1dc49b7699df373
+    Reviewed-on: https://go-review.googlesource.com/7840
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/compress/flate/flate_test.go |  75 +++++++++++++++++++++++---
- src/compress/flate/gen.go        | 113 ++++++++++++++++++++++++++++++---------
- src/compress/flate/inflate.go    |  68 +++++++++++------------
- 3 files changed, 188 insertions(+), 68 deletions(-)
+ src/runtime/mgcwork.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

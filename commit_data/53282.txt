@@ -1,27 +1,27 @@
-commit 2a8969cb365a5539b8652d5ac1588aaef78d3e16
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Wed May 24 05:51:09 2023 +0100
+commit d02d5fda653f9e7ca2bb6036ccddc61a869abad5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 6 12:02:03 2022 -0700
 
-    fmt: correct documentation for Formatter
+    test: add test case for type parameter method indexing
     
-    Before this CL, the documentation for Formatter suggested that
-    implementers of Format(f State, verb rune) could use Fprint(f) or
-    Sprint(f) to generate output. The Sprint(f) suggestion however is
-    invalid.
+    When types2 type checks a method expression or method value that
+    selects a type parameter method, the Selection.Index is indexed based
+    on the method's index within the type parameter's constraint
+    interface.
     
-    Fix that by simply suggesting Sprint() alongside Fprint(f).
+    However, with a fully-stenciled implementation, naively using the
+    index would result in picking a method from the corresponding type
+    argument's full method set, which could select a different method.
     
-    Fixes #60358
+    Unified IR currently avoids this because it selects methods based on
+    name, not index; but experimenting with index-based selection revealed
+    that there are no test cases that would have caught this failure case.
     
-    Change-Id: I024e996f6360b812968ef2cd5073cb4c223459e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497379
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
+    Change-Id: Idbc39e1ee741714203d4749e47f5bc015af25020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421815
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/fmt/print.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/typeparam/mdempsky/19.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

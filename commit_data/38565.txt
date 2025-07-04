@@ -1,33 +1,23 @@
-commit c7f7f59368c3a964b8214018dc5100806b243938
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Mar 11 13:58:20 2019 +0700
+commit 95a4f793c077ab7b13fdb7505b65ff19a97a07f9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 6 10:16:17 2018 -0800
 
-    os: reject WriteAt if file opened in append mode
+    cmd/compile: don't deadcode eliminate labels
     
-    WriteAt use pwrite syscall on *nix or WriteFile on Windows.
+    Dead-code eliminating labels is tricky because there might
+    be gotos that can still reach them.
     
-    On Linux/Windows, these system calls always write to end of file in
-    append mode, regardless of offset parameter.
+    Bug probably introduced with CL 91056
     
-    It is hard (maybe impossible) to make WriteAt work portably.
+    Fixes #28616
     
-    Making WriteAt returns an error if file is opened in append mode, we
-    guarantee to get consistent behavior between platforms, also prevent
-    user from accidently corrupting their data.
-    
-    Fixes #30716
-    
-    Change-Id: If83d935a22a29eed2ff8fe53d13d0b4798aa2b81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166578
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6680465134e3486dcb658896f5172606cc51b104
+    Reviewed-on: https://go-review.googlesource.com/c/147817
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/os/export_test.go  |  1 +
- src/os/file.go         | 15 ++++++++++++++-
- src/os/file_plan9.go   |  7 ++++---
- src/os/file_unix.go    |  1 +
- src/os/file_windows.go |  7 ++++---
- src/os/os_test.go      | 15 +++++++++++++++
- 6 files changed, 39 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 12 +++++++++++-
+ test/fixedbugs/issue28616.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

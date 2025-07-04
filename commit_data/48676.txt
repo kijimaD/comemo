@@ -1,23 +1,22 @@
-commit 7fbabe8d57de184c75bc938fa619235711bc4229
-Author: Wayne Zuo <wdvxdr1123@gmail.com>
-Date:   Wed Mar 2 16:32:16 2022 +0800
+commit 201d55e6376365dc5e8c2392e34fdf7ee8a4b63e
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jun 4 18:17:49 2021 -0700
 
-    cmd/compile: use shlx&shrx instruction for GOAMD64>=v3
+    [dev.typeparams] cmd/compile: create .dict Param in the package of the instantiated function
     
-    The SHRX/SHLX instruction can take any general register as the shift count operand, and can read source from memory. This CL introduces some operators to combine load and shift to one instruction.
+    The instantiated functions are created in the source package of the
+    generic function, so all lookups of symbols should be relative to that
+    package, so all symbols are consistently in the source package.
     
-    For #47120
+    Fixes #46575
     
-    Change-Id: I13b48f53c7d30067a72eb2c8382242045dead36a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385174
+    Change-Id: Iba67b2ba8014a630c5d4e032c0f2f2fbaaedce65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325529
     Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go           |  17 ++
- src/cmd/compile/internal/ssa/addressingmodes.go |  16 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules    |   3 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  29 ++-
- src/cmd/compile/internal/ssa/opGen.go           | 272 ++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go    |  88 ++++++++
- test/codegen/bmi.go                             |  16 ++
- 7 files changed, 436 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  2 +-
+ test/typeparam/mutualimp.dir/a.go         | 11 +++++++++++
+ test/typeparam/mutualimp.dir/b.go         | 12 ++++++++++++
+ test/typeparam/mutualimp.go               |  7 +++++++
+ 4 files changed, 31 insertions(+), 1 deletion(-)

@@ -1,21 +1,17 @@
-commit c216ae80c965acb9641d94d5f58c206bd0cf7d66
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 19 14:14:40 2020 -0700
+commit b33b6e857d106697755052d4e021aa3b672727b6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Mar 28 15:26:05 2020 -0400
 
-    cmd/compile: fix ICE in reporting of invalid recursive types
+    [dev.link] cmd/link: use new-style Aux accessors in the loader
     
-    asNode(t.Nod).Name.Param will be nil for builtin types (i.e., the
-    universal predeclared types and unsafe.Pointer). These types can't be
-    part of a cycle anyway, so we can just skip them.
+    And remove the old-style one.
     
-    Fixes #42075.
-    
-    Change-Id: Ic7a44de65c6bfd16936545dee25e36de8850acf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263717
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ia6c84448108dd1da68451df2221c7c1005c45a0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226364
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/align.go |  2 +-
- test/fixedbugs/issue42075.go         | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 77 ++++++++++------------------------
+ 1 file changed, 22 insertions(+), 55 deletions(-)

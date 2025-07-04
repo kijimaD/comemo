@@ -1,17 +1,22 @@
-commit a3765723c60b4cbbec3c8e62e3b2ee9e4080eb0b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun May 8 22:05:21 2016 -0700
+commit 8ad8d7d87edf0aec3b56c2e2d0139bc12531d359
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 21 13:58:22 2016 -0700
 
-    cmd/compile: remove inl escape analysis hack
+    cmd/compile: Use pre-regalloc value ID in lateSpillUse
     
-    Relevant issues: #5056, #9537, and #11053.
-    Their tests all pass.
+    The cached copy's ID is sometimes outside the bounds of the orig array.
     
-    Change-Id: Ibbe05982ed5f332149ffd2cb6a232b8d677c4454
-    Reviewed-on: https://go-review.googlesource.com/27464
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There's no reason to start at the cached copy and work backwards
+    to the original value. We already have the original value ID at
+    all the callsites.
+    
+    Fixes noopt build
+    
+    Change-Id: I313508a1917e838a87e8cc83b2ef3c2e4a8db304
+    Reviewed-on: https://go-review.googlesource.com/22355
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

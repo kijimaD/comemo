@@ -1,26 +1,14 @@
-commit dc12d5b0f5e9c1cfec2a8eb6dd7ff3473c36d45c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 17 11:28:26 2020 +0200
+commit dd0aa799ebbcb42cbc8d15aaa3edf905e8e1d83a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 5 15:34:50 2020 -0800
 
-    all: add empty line between copyright header and package clause
+    doc/go1.14: quote {{ and }} in text/template note
     
-    Makes sure the copyright notice is not interpreted as the package level
-    godoc.
+    Fixes #37070
     
-    Change-Id: I2afce7c9d620f19d51ec1438b1d0db1774b57146
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248760
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I543957df264367e56c71a25bfaea5cf7935d438f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217979
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go         | 1 +
- src/cmd/compile/internal/ssa/passbm_test.go   | 1 +
- src/cmd/go/internal/trace/trace.go            | 1 +
- src/cmd/link/internal/benchmark/bench_test.go | 1 +
- src/cmd/link/internal/ld/errors.go            | 1 +
- src/runtime/closure_test.go                   | 1 +
- src/runtime/map_benchmark_test.go             | 1 +
- src/runtime/slice_test.go                     | 1 +
- src/sync/cond_test.go                         | 1 +
- test/fixedbugs/issue15281.go                  | 1 +
- 10 files changed, 10 insertions(+)
+ doc/go1.14.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

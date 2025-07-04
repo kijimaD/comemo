@@ -1,17 +1,25 @@
-commit d46e133f7491ed2b3550426387a251ec4ceec4b5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 5 11:45:24 2014 -0700
+commit d0e255f259b106ecb6f4663bb179e0cbdc7b96cd
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Aug 5 11:36:20 2014 -0700
 
-    mime/multipart: add Writer data race test
+    crypto/tls: add ALPN support.
     
-    Camlistore uses this pattern to do streaming writes, as do
-    others I imagine, and it was broken by the lazy boundary
-    change.
+    Fixes #6736.
     
-    LGTM=dvyukov, ruiu
-    R=ruiu, dvyukov
-    CC=golang-codereviews, mathieu.lonjaret
-    https://golang.org/cl/116690043
+    LGTM=mikioh.mikioh
+    R=bradfitz, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/108710046
 
- src/pkg/mime/multipart/writer_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/crypto/tls/common.go                       |   1 +
+ src/pkg/crypto/tls/handshake_client.go             |  49 +++++++--
+ src/pkg/crypto/tls/handshake_client_test.go        |  51 +++++++++
+ src/pkg/crypto/tls/handshake_messages.go           |  98 ++++++++++++++++-
+ src/pkg/crypto/tls/handshake_messages_test.go      |   5 +
+ src/pkg/crypto/tls/handshake_server.go             |  22 ++--
+ src/pkg/crypto/tls/handshake_server_test.go        |  61 ++++++++++-
+ src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN     |  97 ++++++++++++++++
+ .../crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  95 ++++++++++++++++
+ src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN     | 122 +++++++++++++++++++++
+ .../crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 121 ++++++++++++++++++++
+ 11 files changed, 701 insertions(+), 21 deletions(-)

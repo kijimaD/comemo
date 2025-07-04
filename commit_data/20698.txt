@@ -1,16 +1,15 @@
-commit 73711533210a3ddc85e092eb06c1373277b65e99
-Author: Casey Marshall <casey.marshall@gmail.com>
-Date:   Mon Oct 13 12:41:14 2014 -0700
+commit e7488b2189c6a0628f7df45bc84c565f185af04d
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Tue Sep 30 13:38:48 2014 -0700
 
-    math/big: Fixes issue 8920
+    x509: Fixed ASN.1 encoding in CRL Distribution Points extension
     
-    (*Rat).SetString checks for denominator.
+    The ASN.1 encoding of the CRL Distribution Points extension showed an invalid false 'IsCompound' which caused a display problem in the Windows certificate viewer.
     
-    LGTM=gri
-    R=golang-codereviews, gri
+    LGTM=agl
+    R=agl
     CC=golang-codereviews
-    https://golang.org/cl/159760043
+    https://golang.org/cl/143320043
 
- src/math/big/rat.go      | 3 +++
- src/math/big/rat_test.go | 1 +
- 2 files changed, 4 insertions(+)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,36 @@
-commit 64de502caa3f89560756f1fa8534c665cca9ea6c
+commit d4d16688641738c2ea8bd69a86ee9c10195c898d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 01:39:28 2015 +0000
+Date:   Mon Oct 19 15:30:21 2015 -0700
 
-    net/http: update Response.Trailer doc
+    net/http: add Transport.TLSNextProto, ErrSkipAltProtocol
     
-    I updated this in the previous commit (https://golang.org/cl/17931)
-    but noticed a typo. and it still wasn't great.
+    This is the start of wiring up the HTTP/2 Transport. It is still
+    disabled in this commit.
     
-    The Go 1.5 text was too brief to know how to use it:
+    This change does two main things:
     
-        // Trailer maps trailer keys to values, in the same
-        // format as the header.
+    1) Transport.RegisterProtocol now permits registering "http" or
+       "https" (they previously paniced), and the semantics of the
+       registered RoundTripper have been extended to say that the new
+       sentinel error value (ErrSkipAltProtocol, added in this CL) means
+       that the Transport's RoundTrip method proceeds as if the alternate
+       protocol had not been registered. This gives us a place to register
+       an alternate "https" RoundTripper which gets first dibs on using
+       HTTP/2 if there's already a cached connection.
     
-    Change-Id: I33c49b6a4a7a3596735a4cc7865ad625809da900
-    Reviewed-on: https://go-review.googlesource.com/17932
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    2) adds Transport.TLSNextProto, a map keyed by TLS NPN/ALPN protocol
+       strings, similar in feel to the existing Server.TLSNextProto map.
+       This map is the glue between the HTTP/1 and HTTP/2 clients, since
+       we don't know which protocol we're going to speak (and thus which
+       Transport type to use) until we've already made the TCP connection.
+    
+    Updates #6891
+    
+    Change-Id: I7328c7ff24f52d9fe4899facabf7ecc5dcb989f3
+    Reviewed-on: https://go-review.googlesource.com/16090
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/response.go | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/net/http/transport.go | 99 +++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 83 insertions(+), 16 deletions(-)

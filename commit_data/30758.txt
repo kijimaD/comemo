@@ -1,19 +1,16 @@
-commit 5c5a10690e56bf127832b98d73c83720e0093eef
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 20 20:18:02 2017 -0700
+commit 612469ab0b57bb53d1f054e37b64a63c08d8c6db
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Dec 1 23:20:03 2016 +0530
 
-    text/template,html/template: state that Funcs must happen before parsing
+    cmd/go: hide the "TERM" environment variable from "go bug"
     
-    Any method that affects the parse must happen before parsing.
-    This obvious point is clear, but it's not clear to some that the
-    set of defined functions affect the parse.
+    Fixes #18128
     
-    Fixes #18971
-    
-    Change-Id: I8b7f8c8cf85b028c18e5ca3b9797de92ea910669
-    Reviewed-on: https://go-review.googlesource.com/38413
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5530c9d774a1e398cd759a05bbf308e6e42f0007
+    Reviewed-on: https://go-review.googlesource.com/33810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/template.go | 1 +
- src/text/template/template.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/go/bug.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

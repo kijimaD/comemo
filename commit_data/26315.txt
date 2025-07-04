@@ -1,28 +1,44 @@
-commit 42cd69f5d1a222a2e794d19e0b287dde2ee9a112
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Mar 8 20:13:58 2016 +0100
+commit 21b4f234c716cb35ca0c7e02f81b760cce8f7f37
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 26 09:51:59 2015 -0800
 
-    fmt: reuse buffer and add range checks for %c and %q
+    runtime: for c-archive/c-shared, install signal handlers synchronously
     
-    Use The fmt internal buffer for character formatting instead of
-    the pp Printer rune decoding buffer.
+    The previous behaviour of installing the signal handlers in a separate
+    thread meant that Go initialization raced with non-Go initialization if
+    the non-Go initialization also wanted to install signal handlers.  Make
+    installing signal handlers synchronous so that the process-wide behavior
+    is predictable.
     
-    Uses an uint64 instead of int64 argument to fmt_c and fmt_qc for easier
-    range checks since no valid runes are represented by negative numbers or
-    are above 0x10ffff.
+    Update #9896.
     
-    Add range checks to fmt_c and fmt_qc to guarantee that a RuneError
-    character is returned by the functions for any invalid code point
-    in range uint64. For invalid code points in range utf8.MaxRune
-    the used utf8 and strconv functions already return a RuneError.
-    
-    Change-Id: I9772f804dfcd79c3826fa7f6c5ebfbf4b5304a51
-    Reviewed-on: https://go-review.googlesource.com/20373
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: Ice24299877ec46f8518b072a381932d273096a32
+    Reviewed-on: https://go-review.googlesource.com/18150
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/fmt/fmt_test.go | 54 ++++++++++++++++++++++++++++++++++++-----------------
- src/fmt/format.go   | 24 ++++++++++++++++++++----
- src/fmt/print.go    | 19 ++++---------------
- 3 files changed, 61 insertions(+), 36 deletions(-)
+ misc/cgo/testcarchive/main.c   | 39 +++++++++++++++++++++++++++++++++++++++
+ src/os/signal/doc.go           |  5 ++++-
+ src/runtime/os1_darwin.go      | 17 +++++++++++++++++
+ src/runtime/os1_dragonfly.go   |  8 ++++++++
+ src/runtime/os1_freebsd.go     |  8 ++++++++
+ src/runtime/os1_linux.go       | 22 ++++++++++++++++++----
+ src/runtime/os1_nacl.go        |  2 +-
+ src/runtime/os1_netbsd.go      |  8 ++++++++
+ src/runtime/os1_openbsd.go     |  8 ++++++++
+ src/runtime/os1_plan9.go       |  2 +-
+ src/runtime/os3_solaris.go     | 13 +++++++++++++
+ src/runtime/proc.go            |  2 +-
+ src/runtime/rt0_darwin_386.s   |  4 ++++
+ src/runtime/rt0_darwin_amd64.s |  4 ++++
+ src/runtime/rt0_darwin_arm.s   |  4 ++++
+ src/runtime/rt0_darwin_arm64.s |  5 +++++
+ src/runtime/rt0_linux_386.s    |  4 ++++
+ src/runtime/rt0_linux_amd64.s  |  4 ++++
+ src/runtime/rt0_linux_arm.s    |  4 ++++
+ src/runtime/rt0_linux_arm64.s  |  4 ++++
+ src/runtime/signal1_unix.go    | 29 ++++++++++++++++++++++++++---
+ src/runtime/signal2_unix.go    | 14 ++++++++++++++
+ src/runtime/signal_windows.go  |  2 +-
+ 23 files changed, 200 insertions(+), 12 deletions(-)

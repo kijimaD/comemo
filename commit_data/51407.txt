@@ -1,25 +1,30 @@
-commit f60c77026bb47db984c5da7e6f0590010e7e1a6f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 21 12:10:12 2022 -0800
+commit 84eefdc933410907495e42aac872036403851ffa
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Jan 24 15:42:52 2022 -0500
 
-    go/types, types2: report empty type sets in operand descriptions
+    go/types, types2: pass the seen map through _TypeSet.IsComparable
     
-    This leads to better error messages where operations are not
-    permitted because of empty type sets.
+    While checking comparability of type parameters, we recurse through
+    _TypeSet.IsComparable, but do not pass the cycle-tracking seen map,
+    resulting in infinite recursion in some cases.
     
-    Fixes #51525.
+    Refactor to pass the seen map through this recursion.
     
-    Change-Id: I8d15645e2aff5145e458bdf9aaa4d2bee28d37fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452535
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #50782
+    
+    Change-Id: I2c2bcfed3398c11eb9aa0c871da59e348bfba5f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380504
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/operand.go          |  4 ++++
- src/cmd/compile/internal/types2/predicates.go       | 12 ++++++++++++
- src/go/types/operand.go                             |  4 ++++
- src/go/types/predicates.go                          | 12 ++++++++++++
- src/internal/types/testdata/fixedbugs/issue51525.go |  4 ++++
- 5 files changed, 36 insertions(+)
+ src/cmd/compile/internal/types2/interface.go       |  2 +-
+ src/cmd/compile/internal/types2/predicates.go      |  2 +-
+ .../types2/testdata/fixedbugs/issue50782.go2       | 40 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         |  4 +--
+ src/go/types/interface.go                          |  2 +-
+ src/go/types/predicates.go                         |  2 +-
+ src/go/types/testdata/fixedbugs/issue50782.go2     | 40 ++++++++++++++++++++++
+ src/go/types/typeset.go                            |  4 +--
+ 8 files changed, 88 insertions(+), 8 deletions(-)

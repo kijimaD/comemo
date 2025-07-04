@@ -1,15 +1,23 @@
-commit 456b7f5a974f229e0ef7ad5a1925fa72fc4182e2
-Author: Gyu-Ho Lee <gyuhox@gmail.com>
-Date:   Sat Jun 4 23:20:45 2016 -0700
+commit a6dbfc12c640c90e8dc552443d3ece04cbae4a9c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jul 16 23:56:45 2016 +0000
 
-    runtime/pprof: preallocate slice in pprof.go
+    net: demote TestDialerDualStack to a flaky test
     
-    To prevent slice growth when appending.
+    Only run TestDialerDualStack on the builders, as to not annoy or
+    otherwise distract users when it's not their fault.
     
-    Change-Id: I2cdb9b09bc33f63188b19573c8b9a77601e63801
-    Reviewed-on: https://go-review.googlesource.com/23783
+    Even though the intention is to only run this on the builders, very
+    few of the builders have IPv6 support. Oh well. We'll get some
+    coverage.
+    
+    Updates #13324
+    
+    Change-Id: I13e7e3bca77ac990d290cabec88984cc3d24fb67
+    Reviewed-on: https://go-review.googlesource.com/24985
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/runtime/pprof/pprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/dial_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

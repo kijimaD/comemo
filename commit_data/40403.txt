@@ -1,17 +1,32 @@
-commit b36f22bff04cf62f77d42d9584a050afffa2d723
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 23 16:43:55 2019 -0400
+commit 924c161de4ad263142478f33113e53690b8d32c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 15:30:33 2019 -0400
 
-    cmd/go: populate available module information for packages in vendor mode
+    runtime: fix vet complaints for all freebsd, netbsd, openbsd
     
-    Updates #33848
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    Change-Id: I10b4c79faef8bc3dee2ceba14d496fa049e84fb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202977
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOSes,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    
+    For #31916.
+    
+    Change-Id: I63c4805bdd44b301072da66c77086940e2a2765e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176105
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/build.go              | 30 +++++++++++++----------
- src/cmd/go/testdata/script/mod_vendor_replace.txt |  7 +++++-
- 2 files changed, 23 insertions(+), 14 deletions(-)
+ src/cmd/vet/all/whitelist/freebsd_386.txt  |  8 --------
+ src/cmd/vet/all/whitelist/netbsd_386.txt   |  9 ---------
+ src/cmd/vet/all/whitelist/netbsd_arm64.txt |  1 -
+ src/cmd/vet/all/whitelist/openbsd_386.txt  |  5 -----
+ src/runtime/sys_freebsd_386.s              | 18 +++++++++++-------
+ src/runtime/sys_netbsd_386.s               | 12 +++++++-----
+ src/runtime/sys_netbsd_amd64.s             |  4 ++--
+ src/runtime/sys_netbsd_arm.s               |  4 ++--
+ src/runtime/sys_netbsd_arm64.s             |  4 ++--
+ src/runtime/sys_openbsd_386.s              |  8 +++++---
+ 10 files changed, 29 insertions(+), 44 deletions(-)

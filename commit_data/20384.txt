@@ -1,13 +1,13 @@
-commit 689dc60c14cd63cb258c050542bcfc0cbc05e914
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 10 22:54:07 2014 -0700
+commit fa9f3058e0c0ff1fc05ea76544f9e9a23fce51d8
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Thu Sep 4 13:39:51 2014 -0400
 
-    runtime: add timing test for iterate/delete map idiom.
+    androidtest.bash: drop noisy adb sync output
     
-    LGTM=bradfitz, iant
-    R=iant, bradfitz
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/140510043
+    https://golang.org/cl/138070043
 
- test/maplinear.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/androidtest.bash | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

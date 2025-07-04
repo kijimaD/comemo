@@ -1,29 +1,19 @@
-commit 1dc0f9696b743b10bf0b7b49780bee7f4756499b
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 8 22:31:41 2017 -0400
+commit a047f72dcfee7504a4dadc5e4c392dda761a3738
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Wed Mar 1 13:21:29 2017 -0800
 
-    runtime/pprof: clean up call/return PCs in memory profiles
+    cmd/vendor/github.com/google/pprof: refresh from upstream
     
-    Proto profile conversion is inconsistent about call vs return PCs in
-    profile locations. The proto defines locations to be call PCs. This is
-    what we do when proto-izing CPU profiles, but we fail to convert the
-    return PCs in memory and count profile stacks to call PCs when
-    converting them to proto locations.
+    Updating to commit dec22b42d9eee442222c36c8da24ddc9905e7ee6
+    from github.com/google/pprof
     
-    Fix this in the heap and count profile conversion functions.
-    TestConvertMemProfile also hard-codes this failure to convert from
-    return PCs to call PCs, so fix up the addresses in the synthesized
-    profile to be return PCs while checking that we get call PCs out of
-    the conversion.
+    Fixes #19322.
     
-    Change-Id: If1fc028b86fceac6d71a2d9fa6c41ff442c89296
-    Reviewed-on: https://go-review.googlesource.com/42951
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I1bc3fcd381f22d52557f61c6fb694f54fc64470c
+    Reviewed-on: https://go-review.googlesource.com/37652
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go         | 9 +++++----
- src/runtime/pprof/proto.go         | 1 +
- src/runtime/pprof/protomem.go      | 9 +++++----
- src/runtime/pprof/protomem_test.go | 6 +++++-
- 4 files changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go | 4 ++--
+ src/cmd/vendor/vendor.json                                           | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,13 +1,19 @@
-commit 73d741fd5b767f671dc3bb466ae28c51b0222f8c
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Jun 23 10:11:33 2011 -0700
+commit d847467041ab93c108b932c25f6ccaa37bfccc47
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Jun 23 09:32:29 2011 -0400
 
-    mime/multipart: remove newline at top of the multipart.
+    libmach: fix disassembly of FCMOVcc and FCOMI
     
-    R=golang-dev, bradfitz, arctanofyourface
+    The optable for 0xDB is handled specially.
+    
+    This was the cause of a really weird bug
+    when using cov (386!) on the math package.
+    
+    A real head-scratcher.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4635063
+    https://golang.org/cl/4639066
 
- src/pkg/mime/multipart/writer.go      | 6 +++++-
- src/pkg/mime/multipart/writer_test.go | 7 +++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/libmach/8db.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 48 insertions(+), 6 deletions(-)

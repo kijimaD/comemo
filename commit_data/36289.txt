@@ -1,19 +1,17 @@
-commit bf80e3b5640447d213f68e0423ad37f34bf7a222
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 18 00:42:58 2018 -0400
+commit 7457767876645b543af84eeb091779610a715348
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 17 09:48:05 2018 +0000
 
-    cmd/go: fix module get -insecure
+    debug/elf: enable TestNoSectionOverlaps on *bsd and solaris
     
-    Need to actually use the flag for it to take effect.
+    cmd/link produces ELF executables on all these geese, so enable
+    TestNoSectionOverlaps for them as well. Also add a skip message.
     
-    Fixes #27049.
-    
-    Change-Id: I57227b45f46f9dd67ecbf87c11bb2d08124bcfa0
-    Reviewed-on: https://go-review.googlesource.com/129801
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I374651dde3679271ef8c0c375c9cabd1adbca310
+    Reviewed-on: https://go-review.googlesource.com/107535
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                | 45 +++++++++++++++++++++++++-----------
- src/cmd/go/internal/modfetch/repo.go | 12 ++++++++--
- 2 files changed, 42 insertions(+), 15 deletions(-)
+ src/debug/elf/file_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

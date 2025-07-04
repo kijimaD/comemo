@@ -1,18 +1,42 @@
-commit 096c900f9edbe7138e1683c8740e5e94b97d6b83
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 14 12:41:54 2016 -0700
+commit def1e7276a7636c1eafafdee7e32f2bcbd27d685
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 3 15:49:04 2016 -0800
 
-    crypto/aes: fix vet warnings in gcm_amd64.s
+    cmd/compile: remove unnecessary conversions
     
-    Notably, this fixes two incorrect argument sizes.
+    Automated CL prepared by github.com/mdempsky/unconvert, except for
+    reverting changes to ssa/rewritegeneric.go (generated file) and
+    package big (vendored copy of math/big).
     
-    Update #11041
-    
-    Change-Id: Ie4a3b1a59cd6a6707f6d2f4d3be978fc70322b46
-    Reviewed-on: https://go-review.googlesource.com/22091
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I64dc4199f14077c7b6a2f334b12249d4a785eadd
+    Reviewed-on: https://go-review.googlesource.com/20089
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/crypto/aes/gcm_amd64.s | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/amd64/peep.go   | 46 +++++++++++++-------------
+ src/cmd/compile/internal/arm/cgen.go     |  2 +-
+ src/cmd/compile/internal/arm/peep.go     | 56 ++++++++++++++++----------------
+ src/cmd/compile/internal/arm64/cgen.go   |  2 +-
+ src/cmd/compile/internal/arm64/ggen.go   | 24 +++++++-------
+ src/cmd/compile/internal/arm64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/arm64/peep.go   | 22 ++++++-------
+ src/cmd/compile/internal/arm64/reg.go    |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  2 +-
+ src/cmd/compile/internal/gc/parser.go    |  4 +--
+ src/cmd/compile/internal/gc/pgen.go      |  4 +--
+ src/cmd/compile/internal/gc/plive.go     | 26 +++++++--------
+ src/cmd/compile/internal/gc/reg.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 +--
+ src/cmd/compile/internal/gc/type.go      |  2 +-
+ src/cmd/compile/internal/mips64/cgen.go  |  2 +-
+ src/cmd/compile/internal/mips64/ggen.go  | 22 ++++++-------
+ src/cmd/compile/internal/mips64/gsubr.go |  2 +-
+ src/cmd/compile/internal/mips64/peep.go  | 20 ++++++------
+ src/cmd/compile/internal/mips64/reg.go   |  2 +-
+ src/cmd/compile/internal/ppc64/cgen.go   |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   | 24 +++++++-------
+ src/cmd/compile/internal/ppc64/gsubr.go  | 16 ++++-----
+ src/cmd/compile/internal/ppc64/peep.go   | 22 ++++++-------
+ src/cmd/compile/internal/ppc64/reg.go    |  2 +-
+ src/cmd/compile/internal/x86/cgen.go     |  2 +-
+ 26 files changed, 158 insertions(+), 158 deletions(-)

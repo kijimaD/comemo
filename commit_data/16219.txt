@@ -1,12 +1,13 @@
-commit e680710d0e3e8c335f6cf7c63f205bf569a3ef5a
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Apr 23 13:13:51 2013 -0700
+commit ed19ab47c358c53d62bf108dfa0955367d40535c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 24 03:51:31 2013 +0800
 
-    doc/code.html: remove doubled word; modify the tab to space.
+    doc/effective_go.html: fix syntax error in code example
+    Fixes #5333.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/8919043
+    https://golang.org/cl/8698046
 
- doc/code.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

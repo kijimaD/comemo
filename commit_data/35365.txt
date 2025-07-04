@@ -1,30 +1,23 @@
-commit 903f095c1ae3cafc40855662c69722121c42e3a7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 10 13:33:47 2018 -0700
+commit 1e0ef6601da8ee0a14def5c82eb298fcdab97cf6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 21 09:25:29 2017 -0500
 
-    go/types: adopt spec terminology, use 'embedded' rather then 'anonyous' field
+    cmd/internal/obj/mips: use LR as temporary register in RET
     
-    Commit f8b4123613a (https://go-review.googlesource.com/35108) adjusted
-    the spec to uniformly use 'embedded' rather than 'anonymous' for struct
-    embedded fields. Adjust go/types' internal terminology.
+    On mips/mips64, for non-leaf function, RET is assembled as
+            MOV (SP), R4       // load saved LR
+            ADD $framesize, SP
+            JMP (R4)
     
-    Provide an additional accessor Var.IsEmbedded().
+    This clobbers R4 unnecessarily. Use the link register as
+    temporary instead.
     
-    This is essentially a rename of an internal field and adjustments of
-    documentation.
+    Probably for Go 1.11.
     
-    Change-Id: Icd07aa192bc5df7a2ee103185fa7e9c55e8f1ac3
-    Reviewed-on: https://go-review.googlesource.com/112716
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2209db7be11074ed2e0e0829cace95ebfb709e9f
+    Reviewed-on: https://go-review.googlesource.com/79016
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/types/api.go              |  6 +++---
- src/go/types/lookup.go           |  4 ++--
- src/go/types/methodset.go        |  2 +-
- src/go/types/object.go           | 24 ++++++++++++++----------
- src/go/types/predicates.go       |  4 ++--
- src/go/types/testdata/decls0.src |  2 +-
- src/go/types/type.go             |  2 +-
- src/go/types/typestring.go       |  4 ++--
- src/go/types/typexpr.go          | 22 +++++++++++-----------
- 9 files changed, 37 insertions(+), 33 deletions(-)
+ src/cmd/internal/obj/mips/obj0.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

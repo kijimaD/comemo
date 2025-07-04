@@ -1,19 +1,19 @@
-commit 55567d37e9c0543347239df69888f5f321fc9d08
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 16 13:28:32 2016 +1100
+commit 73c2080ace5d7bd2d7905fd2ea7237823e291521
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 6 16:07:27 2016 -0800
 
-    path: fix up bizarre test
+    go/types: provide Importer2 supporting the Go 1.5 vendor experiment
     
-    The Join test was doing something remarkable and unnecessary instead of
-    just using ... on a slice. Maybe it was an editing relic.
+    Fixes #13688.
     
-    Fix it by deleting the monstrosity.
-    
-    Change-Id: I5b90c6d539d334a9c27e57d26dacd831721cfcfe
-    Reviewed-on: https://go-review.googlesource.com/20727
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I53363aeeeba4560211d56d4571a8e058d5dbbd8a
+    Reviewed-on: https://go-review.googlesource.com/18308
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/path/path_test.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/go/importer/importer.go                   | 47 +++++++++++++++++-------
+ src/go/internal/gcimporter/gcimporter.go      | 17 +++------
+ src/go/internal/gcimporter/gcimporter_test.go | 18 +++++-----
+ src/go/types/api.go                           | 42 ++++++++++++++++++----
+ src/go/types/resolver.go                      | 51 ++++++++++++++++++++++++---
+ src/go/types/resolver_test.go                 | 15 +++++---
+ 6 files changed, 139 insertions(+), 51 deletions(-)

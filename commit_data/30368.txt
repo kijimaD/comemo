@@ -1,14 +1,41 @@
-commit 2b2870fff8ebf712c05ed46ae63cc6174ed72ed1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 22 22:23:35 2017 +0000
+commit c56cc9b3b5727647c2afb3d57f5793151558a0a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 19:27:26 2016 -0400
 
-    doc: fix broken link in go1.8.html
+    testing: introduce testing/internal/testdeps for holding testmain dependencies
     
-    Fixes #19244
+    Currently, we don't have package testing to import package regexp directly,
+    because then regexp can't have internal tests (or at least they become more
+    difficult to write), for fear of an import cycle. The solution we've been using
+    is for the generated test main package (pseudo-import path "testmain", package main)
+    to import regexp and pass in a matchString function for use by testing when
+    implementing the -run flags. This lets testing use regexp but without depending
+    on regexp and creating unnecessary cycles.
     
-    Change-Id: Ia6332941b229c83d6fd082af49f31003a66b90db
-    Reviewed-on: https://go-review.googlesource.com/37388
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    We want to add a few dependencies to runtime/pprof, notably regexp
+    but also compress/gzip, without causing those packages to have to work
+    hard to write internal tests.
+    
+    Restructure the (dare I say it) dependency injection of regexp.MatchString
+    to be more general, and use it for the runtime/pprof functionality in addition
+    to the regexp functionality. The new package testing/internal/testdeps is
+    the root for the testing dependencies handled this way.
+    
+    Code using testing.MainStart will have to change from passing in a matchString
+    implementation to passing in testdeps.TestDeps{}. Users of 'go test' don't do this,
+    but other build systems that have recreated 'go test' (for example, Blaze/Bazel)
+    may need to be updated. The new testdeps setup should make future updates
+    unnecessary, but even so we keep the comment about MainStart not being
+    subject to Go 1 compatibility.
+    
+    Change-Id: Iec821d2afde10c79f95f3b23de5e71b219f47b92
+    Reviewed-on: https://go-review.googlesource.com/32455
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt                        |  1 +
+ src/cmd/go/pkg.go                     |  8 +++
+ src/cmd/go/test.go                    | 24 ++-------
+ src/go/build/deps_test.go             | 93 ++++++++++++++++++-----------------
+ src/testing/internal/testdeps/deps.go | 51 +++++++++++++++++++
+ src/testing/testing.go                | 80 ++++++++++++++++++++----------
+ 6 files changed, 166 insertions(+), 91 deletions(-)

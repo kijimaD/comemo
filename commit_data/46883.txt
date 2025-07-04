@@ -1,21 +1,44 @@
-commit 2feb2cc450e1925b9359957c90bae27e01662171
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 13 16:30:12 2021 +0200
+commit c0aa7bd7602257dd7d5be4db13dd10284bd5f826
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 10 15:26:40 2021 -0800
 
-    syscall: add support for SysProcAttr.Pdeathsig on FreeBSD
+    [dev.typeparams] cmd/compile: small fixes for stenciling
     
-    Fixes #46258
+     - Create the stencil name using targ.Type.String(), which handles cases
+       where, for example, a type argument is a pointer to a named type,
+       etc. *obj.
     
-    Change-Id: I63f70e67274a9df39c757243b99b12e50a9e4784
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355570
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+     - Set name.Def properly for a new stenciled func (have the symbol point
+       back to the associated function node).  Will be required when exporting.
+    
+     - Add missing copying of Func field when making copies of Name nodes.
+       (On purpose (it seems), Name nodes don't have a copy() function, so
+       we have to copy all the needed fields explicitly.)
+    
+     - Deal with nil type in subster.node(), which is the type of the return
+       value for a function that doesn't return anything.
+    
+     - Fix min to match standard want/go form, and add in float tests.  Changed
+       Got -> got in bunch of other typeparam tests.
+    
+     - Add new tests index.go, settable.go, and smallest.go (similar to
+       examples in the type param proposal), some of which need the above
+       changes.
+    
+    Change-Id: I09a72302bc1fd3635a326da92405222afa222e85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291109
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/exec_freebsd.go         |  38 +++++++++-
- src/syscall/exec_linux.go           |   2 +-
- src/syscall/exec_pdeathsig_test.go  | 135 ++++++++++++++++++++++++++++++++++++
- src/syscall/syscall_freebsd_test.go |  11 +++
- src/syscall/syscall_linux_test.go   | 117 -------------------------------
- 5 files changed, 184 insertions(+), 119 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 16 +++++++++--
+ test/typeparam/index.go                   | 46 +++++++++++++++++++++++++++++++
+ test/typeparam/map.go                     |  4 +--
+ test/typeparam/min.go                     | 25 +++++++++++------
+ test/typeparam/settable.go                | 38 +++++++++++++++++++++++++
+ test/typeparam/smallest.go                | 42 ++++++++++++++++++++++++++++
+ test/typeparam/stringer.go                |  6 ++--
+ test/typeparam/sum.go                     |  8 +++---
+ 8 files changed, 166 insertions(+), 19 deletions(-)

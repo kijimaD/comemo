@@ -1,28 +1,21 @@
-commit 62654dfd4f8d7ac2309232dc3c09c33b1741ce95
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Jul 23 22:31:35 2022 +0700
+commit f53b61d38793dfa8987378cbb6754365569c261b
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Sep 14 15:47:41 2021 -0400
 
-    cmd/compile: fix wrong typeparams for selector expr with embedded generic type
+    [dev.fuzz] internal: fuzzing output adjustments
     
-    For selector expression "x.M" where "M" is a promoted method, irgen is using
-    the type of receiver "x" for determining the typeparams for instantiation.
-    However, because M is a promoted method, so its associated receiver is
-    not "x", but "x.T" where "T" is the embedded field of "x". That casues a
-    mismatch when converting non-shape types arguments.
+    Print the elapsed time as a nicely formatted duration, and
+    make small adjustments to the command line output while fuzzing.
     
-    Fixing it by using the actual receiver which has the method, instead of
-    using the base receiver.
+    Fixes golang/go#48132
     
-    Fixes #53982
-    
-    Change-Id: I1836fc422d734df14e9e6664d4bd014503960bfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419294
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Id95f84c0939171a777448c444d9b87d7af26b654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349970
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/noder/stencil.go |  7 ++-----
- test/fixedbugs/issue53982.go              | 25 +++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt |  6 +++---
+ src/internal/fuzz/fuzz.go                         | 24 +++++++++++++----------
+ 2 files changed, 17 insertions(+), 13 deletions(-)

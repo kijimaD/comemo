@@ -1,28 +1,23 @@
-commit 7861cd6082993becfedeaab75567eaba0c9a03f8
-Author: Carlos Castillo <cookieo9@gmail.com>
-Date:   Thu Feb 13 10:11:44 2014 -0800
+commit eea28f6701ac888d5613470a88d09b634efc1d75
+Author: Michael T. Jones <mtj@google.com>
+Date:   Thu Feb 13 08:42:19 2014 -0800
 
-    cmd/go, go/build: support .m files
+    math/big: add support for general encoding interfaces
+    TextMarshaller and TextUnmarshaller to ease transport of
+    unlimited precision rational numbers.
     
-    go/build is changed to list the .m files in a package, and match them for build constraints, adding them to a new field: Package.MFiles.
+    Fixes #7287.
     
-    The go tool is changed to support building .m files and linking in the results during CGO and SWIG builds. This means packages that create a C interface to calls Objective-C code from go are now go-gettable without producing and distributing .syso files. This change is analogous to the one in Go 1.2 made to support C++ built code.
+    Consists of encode and decode functions and two test
+    functions, one using JSON and one using XML. Each
+    verifies round trips for integers (rationals with
+    denominator == 1) and for fractional vaues.
     
-    This change doesn't support .mm files (Objective C++).
-    
-    Also added support for these MFiles to go list's -json mode.
-    
-    Fixes #6536.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=gri
+    R=gri, cookieo9, bradfitz, mtj
     CC=golang-codereviews
-    https://golang.org/cl/60590044
+    https://golang.org/cl/61180043
 
- doc/go1.3.txt             |  1 +
- src/cmd/go/build.go       | 46 +++++++++++++++++++++++++++++++++++++++++-----
- src/cmd/go/doc.go         |  4 ++--
- src/cmd/go/list.go        |  1 +
- src/cmd/go/pkg.go         |  5 ++++-
- src/pkg/go/build/build.go |  6 +++++-
- 6 files changed, 54 insertions(+), 9 deletions(-)
+ src/pkg/math/big/rat.go      | 13 +++++++++
+ src/pkg/math/big/rat_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

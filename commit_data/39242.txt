@@ -1,16 +1,24 @@
-commit b84e0bc61a1742309f57deace17e5b8748c33fd7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 23 14:01:16 2019 +0000
+commit 95e5b07cf5fdf3352f04f5557df38f22c55ce8e8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Feb 4 18:08:43 2019 -0500
 
-    SECURITY.md: add security file
+    crypto/x509: consider parents by Subject if AKID has no match
     
-    This is now recognized and recommended by GitHub.
+    If a certificate somehow has an AKID, it should still chain successfully
+    to a parent without a SKID, even if the latter is invalid according to
+    RFC 5280, because only the Subject is authoritative.
     
-    Fixes #32201
+    This reverts to the behavior before #29233 was fixed in 770130659. Roots
+    with the right subject will still be shadowed by roots with the right
+    SKID and the wrong subject, but that's been the case for a long time, and
+    is left for a more complete fix in Go 1.13.
     
-    Change-Id: Iafb5ef1b2bee5f021a711b0b758aaf6a74758c5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178697
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #30079
+    
+    Change-Id: If8ab0179aca86cb74caa926d1ef93fb5e416b4bb
+    Reviewed-on: https://go-review.googlesource.com/c/161097
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- SECURITY.md | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/crypto/x509/cert_pool.go   |   9 +++-
+ src/crypto/x509/verify_test.go | 116 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 123 insertions(+), 2 deletions(-)

@@ -1,24 +1,18 @@
-commit 7575811c2b7c4a4a06a1e4b93c2473dffbb8bdcf
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 08:00:55 2022 -0400
+commit 62e32dd386103b5ee8dfe921eb791b14277843b5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 01:10:56 2021 -0700
 
-    go/doc/comment: add low-level parsing helpers
+    [dev.typeparams] cmd/compile: extract SetBaseTypeIndex function
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    The unified IR importer requires a way to set symbol indices for
+    imported types, so provide an exported API for this.
     
-    Implement helpers to recognize old-style headings,
-    plain text (not marked up) URLs, and Go identifiers.
-    
-    For #51082.
-    
-    Change-Id: Ibabce72ef3ffd79a9d33366091f8c76ef27d0182
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397277
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2f088628f56d5b9f1097196dc1aa23f0a8b8d496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327050
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/doc/comment/old_test.go |  80 +++++++++++
- src/go/doc/comment/parse.go    | 294 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 374 insertions(+)
+ src/cmd/compile/internal/typecheck/iimport.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,26 +1,29 @@
-commit 85a2c19b328081c3fbcd1fa3db9a56d708a25c68
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 21 11:32:39 2022 -0800
+commit 16d6a5233a183be7264295c66167d35c689f9372
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jan 24 14:38:01 2022 -0800
 
-    archive/tar, archive/zip: disable insecure file name checks with GODEBUG
+    cmd/compile: new absdiff.go test, fix problem with g.curDecl
     
-    Add GODEBUG=tarinsecurepath=1 and GODEBUG=zipinsecurepath=1 settings
-    to disable file name validation.
+    Added a new absdiff2.go test case, which works fully without using a
+    typeparam on the right-hand-side of a type declaration (which is
+    disallowed). Fixed an issue that the test revealed, which is that we
+    need to set g.curDecl properly for the "later" functions which are
+    deferred until after all declarations are initially processed. Also,
+    g.curDecl may be non-nil in typeDecl for local type declaration. So, we
+    adjust the associate assertion, and save/restore g.curDecl
+    appropriately.
     
-    For #55356.
+    Fixes #50790
     
-    Change-Id: Iaacdc629189493e7ea3537a81660215a59dd40a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452495
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ieed76a7ad0a83bccb99cbad4bf98a7bfafbcbbd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380594
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- doc/go1.20.html                |  8 ++++++++
- src/archive/tar/common.go      |  3 +++
- src/archive/tar/reader.go      |  2 +-
- src/archive/tar/reader_test.go | 20 ++++++++++++++++++++
- src/archive/zip/reader.go      |  6 ++++++
- src/archive/zip/reader_test.go | 26 ++++++++++++++++++++++++++
- 6 files changed, 64 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/decl.go |  21 +++++--
+ test/run.go                            |   2 +
+ test/typeparam/absdiff2.go             | 102 +++++++++++++++++++++++++++++++++
+ test/typeparam/absdiffimp2.dir/a.go    |  80 ++++++++++++++++++++++++++
+ test/typeparam/absdiffimp2.dir/main.go |  29 ++++++++++
+ test/typeparam/absdiffimp2.go          |   7 +++
+ 6 files changed, 235 insertions(+), 6 deletions(-)

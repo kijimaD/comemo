@@ -1,23 +1,24 @@
-commit 3c29aca43630da1604c3378d2351050f23655268
-Author: Derek Parker <parkerderek86@gmail.com>
-Date:   Thu Apr 21 23:26:16 2022 +0000
+commit 5bd09e5efccf0d3df89085c9f214f94017f6e969
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 21 22:20:11 2021 -0700
 
-    cmd/compile: Unify & improve struct comparisons
+    spec: unsafe.Add/Slice are not permitted in statement context
     
-    Partially fixes https://github.com/golang/go/issues/38674
+    Add unsafe.Add and unsafe.Slice to the list of built-in functions
+    which are not permitted in statement context. The compiler and
+    type checker already enforce this restriction, this just fixes
+    a documentation oversight.
     
-    The first commit has the actual unification, the second commit just cleans things up by moving shared code into its own package for clarity.
+    For #19367.
+    For #40481.
     
-    Change-Id: I85067f8b247df02f94684ec1297a1a42263bba0c
-    GitHub-Last-Rev: 370a4ecad315f945b62195f8daddca693345a0c7
-    GitHub-Pull-Request: golang/go#52315
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399542
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iabc63a8db048eaf40a5f5b5573fdf00b79d54119
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329925
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/compare/compare.go     | 272 ++++++++++++++++++++++++
- src/cmd/compile/internal/reflectdata/alg.go     | 262 +----------------------
- src/cmd/compile/internal/reflectdata/reflect.go |   3 +-
- src/cmd/compile/internal/walk/compare.go        |  35 +--
- 4 files changed, 303 insertions(+), 269 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

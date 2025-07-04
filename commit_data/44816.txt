@@ -1,21 +1,25 @@
-commit 0fc595ec9999df08f25c2a981b8c9bf006079939
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 23 12:11:26 2021 -0700
+commit e6583dc95375c4e266bffab6f8888e8e557b6355
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Mon Aug 3 15:33:47 2020 +0800
 
-    cmd/compile/internal/types2: review of check.go
+    runtime: add file copyright header declaration
     
-    The changes between (equivalent, and reviewed) go/types/check.go
-    and check.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker.
+    Some files have no copyright notice.
+    The copyright time is the earliest modification record of the file.
     
-    The primary differences to go/types/check.go are:
-    - use of syntax instead of go/ast package
-    - tracing is controlled via flag not the "trace" constant
-    
-    Change-Id: I1c9998afb3e0b7e29f5b169d3a4054cf22841490
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304109
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I5698bae16b6b73543e074415877a03348f792951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246378
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/types2/check.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/defs_linux_arm.go        | 4 ++++
+ src/runtime/defs_linux_mips64x.go    | 4 ++++
+ src/runtime/defs_openbsd_arm64.go    | 4 ++++
+ src/runtime/defs_plan9_386.go        | 4 ++++
+ src/runtime/defs_plan9_amd64.go      | 4 ++++
+ src/runtime/rt0_linux_ppc64.s        | 4 ++++
+ src/runtime/rt0_linux_ppc64le.s      | 4 ++++
+ src/runtime/trace/annotation.go      | 4 ++++
+ src/runtime/trace/annotation_test.go | 4 ++++
+ 9 files changed, 36 insertions(+)

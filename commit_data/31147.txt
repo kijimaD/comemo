@@ -1,31 +1,20 @@
-commit bc2931372243043842161c0a60bd2f86ef9696ee
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Mar 29 15:04:40 2017 -0700
+commit f395e878887df1a28966353f32f5ee70973c8f3f
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Jan 27 15:24:48 2017 -0500
 
-    testing: add TB.Helper to better support test helpers
+    io: fix test when MultiReader is inlined with -l=3
     
-    This CL implements the proposal at
-    https://github.com/golang/proposal/blob/master/design/4899-testing-helper.md.
+    This ensures there isn't a live reference to buf1 on our stack
+    when MultiReader is inlined.
     
-    It's based on Josh's CL 79890043 from a few years ago:
-    https://codereview.appspot.com/79890043 but makes several changes,
-    most notably by using the new CallersFrames API so that it works with
-    mid-stack inlining.
+    Fixes #18819.
     
-    Another detail came up while I was working on this: I didn't want the
-    user to be able to call t.Helper from inside their TestXxx function
-    directly (which would mean we'd print a file:line from inside the
-    testing package itself), so I explicitly prevented this from working.
-    
-    Fixes #4899.
-    
-    Change-Id: I37493edcfb63307f950442bbaf993d1589515310
-    Reviewed-on: https://go-review.googlesource.com/38796
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Change-Id: I96a8cdc1ffad8f8a10c0ddcbf0299005f3176b61
+    Reviewed-on: https://go-review.googlesource.com/35931
+    Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/testing/helper_test.go      | 70 +++++++++++++++++++++++++++++
- src/testing/helperfuncs_test.go | 67 ++++++++++++++++++++++++++++
- src/testing/testing.go          | 99 +++++++++++++++++++++++++++++++++++------
- 3 files changed, 222 insertions(+), 14 deletions(-)
+ src/io/multi_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

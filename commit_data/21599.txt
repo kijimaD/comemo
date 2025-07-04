@@ -1,16 +1,30 @@
-commit f59f9b85276b6f80b6e55ea747a5df64bb83ecce
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Feb 13 17:14:48 2015 +0300
+commit 4e7f06511ae6e5116be5223a865a3cfd2ebc6b9f
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jan 5 11:19:50 2015 +0000
 
-    runtime: fix stack corruption in race mode
+    crypto/x509: Authority Key Identifier must be included in all CRLs issued
     
-    MOVQ RARG0, 0(SP) smashes exactly what was saved by PUSHQ R15.
-    This code managed to work somehow with the current race runtime,
-    but corrupts caller arguments with new race runtime that I am testing.
+    According to RFC5280 the authority key identifier extension MUST included in all
+    CRLs issued. This patch includes the authority key identifier extension when the
+    Subject Key Identifier is present in the signing certificate.
     
-    Change-Id: I9ffe8b5eee86451db36e99dbf4d11f320192e576
-    Reviewed-on: https://go-review.googlesource.com/4810
-    Reviewed-by: Keith Randall <khr@golang.org>
+    RFC5280 states:
+    
+    "The authority key identifier extension provides a means of identifying the
+    public key corresponding to the private key used to sign a CRL.  The
+    identification can be based on either the key identifier (the subject key
+    identifier in the CRL signer's certificate) or the issuer name and serial
+    number.  This extension is especially useful where an issuer has more than one
+    signing key, either due to multiple concurrent key pairs or due to changeover."
+    
+    Conforming CRL issuers MUST use the key identifier method, and MUST include this
+    extension in all CRLs issued."
+    
+    This CL has been discussed at: http://golang.org/cl/177760043
+    
+    Change-Id: I9bf50521908bfe777ea2398f154c13e8c90d14ad
+    Reviewed-on: https://go-review.googlesource.com/2258
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/race_amd64.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

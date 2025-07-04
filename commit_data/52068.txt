@@ -1,25 +1,19 @@
-commit f60a2a9c9423222b52ecb5f6463787f913195127
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Feb 22 17:50:20 2023 -0500
+commit 01c83be7932e7f51333c813460752f09f78ec2c4
+Author: Zach Collier <zamicol@gmail.com>
+Date:   Fri Apr 1 23:42:12 2022 +0000
 
-    cmd/compile: adjust inlined DW_AT_call_line by //line
+    doc: add illegal octal over 255 example
     
-    insertInlCall mistakenly uses the absolute line number of the call
-    rather than the relative line number (adjusted by //line). Switch to the
-    correct line number.
+    Octal values over 255, like \400 or \777, are illegal.  It wasn't clear if the expected behavior was a compile error, encoding the value as two characters, or if the value would be capped at 255.
     
-    The call filename was already correct.
+    This example explicitly shows that octal values over 255 are illegal.
     
-    Fixes #58648
-    
-    Change-Id: Id8d1848895233e972d8cfe9c5789a88e62d06556
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470876
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I45d94680107029c5f083e5d434e6270cc5b258c1
+    GitHub-Last-Rev: f6bef0379f547ca6204c837279d67ad87c2b69c7
+    GitHub-Pull-Request: golang/go#52111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397555
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/dwarfgen/dwinl.go |   6 +-
- src/cmd/link/internal/ld/dwarf_test.go     | 166 ++++++++++++++++-------------
- 2 files changed, 97 insertions(+), 75 deletions(-)
+ doc/go_spec.html | 1 +
+ 1 file changed, 1 insertion(+)

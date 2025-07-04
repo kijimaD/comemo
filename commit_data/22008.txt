@@ -1,13 +1,27 @@
-commit f6580319e4045e19304eccd8c37cd36a7cfef73b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 13 12:59:56 2015 -0700
+commit 345350bf07f1b584bde03b7031c15511b1801d25
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 18:30:27 2015 -0800
 
-    math/big: fix silly bug in Int64 accessor
+    [dev.cc] cmd/asm: make 4(SP) illegal except on 386
     
-    Change-Id: If335d45ea1ab6c8aeeb47515f97680e2c1d651f3
-    Reviewed-on: https://go-review.googlesource.com/7522
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Require a name to be specified when referencing the pseudo-stack.
+    If you want a real stack offset, use the hardware stack pointer (e.g.,
+    R13 on arm), not SP.
+    
+    Fix affected assembly files.
+    
+    Change-Id: If3545f187a43cdda4acc892000038ec25901132a
+    Reviewed-on: https://go-review.googlesource.com/5120
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/math/big/float.go      | 2 +-
- src/math/big/float_test.go | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/parse.go |   4 ++
+ src/crypto/md5/md5block_arm.s     |  18 ++---
+ src/crypto/rc4/rc4_arm.s          |  12 ++--
+ src/crypto/sha1/sha1block_arm.s   |   6 +-
+ src/runtime/asm_arm.s             |  20 +++---
+ src/runtime/sys_linux_arm.s       | 142 +++++++++++++++++++-------------------
+ src/runtime/vlop_arm.s            |   8 +--
+ src/sync/atomic/asm_linux_arm.s   |   6 +-
+ 8 files changed, 110 insertions(+), 106 deletions(-)

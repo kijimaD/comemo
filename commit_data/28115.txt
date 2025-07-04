@@ -1,21 +1,20 @@
-commit 298791a94af8b787c38fb95c51cb2dbc94668dad
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 30 01:05:18 2016 +0000
+commit 94e523cb522959f10b345bf27a32bf087c094108
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 27 18:03:49 2016 -0400
 
-    all: use time.Until where applicable
+    misc/cgo/testcarchive: fix C include path for darwin/arm
     
-    Updates #14595
+    After CL 22461, c-archive build on darwin/arm is by default compiled
+    with -shared and installed in pkg/darwin_arm_shared.
     
-    Change-Id: Idf60b3004c7a0ebb59dd48389ab62c854069e09f
-    Reviewed-on: https://go-review.googlesource.com/28073
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fix build (2nd time...)
+    
+    Change-Id: Ia2bb09bb6e1ebc9bc74f7570dd80c81d05eaf744
+    Reviewed-on: https://go-review.googlesource.com/22534
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context.go     | 4 ++--
- src/crypto/tls/tls.go      | 2 +-
- src/net/fd_poll_runtime.go | 2 +-
- src/net/http/client.go     | 2 +-
- src/net/http/serve_test.go | 2 +-
- 5 files changed, 6 insertions(+), 6 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

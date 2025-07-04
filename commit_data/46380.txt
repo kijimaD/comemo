@@ -1,17 +1,32 @@
-commit 6edc57983a39b3cb911ea88b75a7ad39664383ec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 8 16:21:33 2021 -0700
+commit 082cc8b7d9daf88db8779262aca8ab5692a00dfb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Dec 24 18:16:44 2020 +0700
 
-    internal/poll: report open fds when TestSplicePipePool fails
+    [dev.regabi] cmd/compile: change ir.IsAssignable -> ir.IsAddressable
     
-    For #48066
+    ir.IsAssignable does not include map index expression, so it should be
+    named ir.IsAddressable instead.
     
-    Change-Id: I1152a1c15756df35b71b27d3e7025d97da9e70b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348579
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    [git-generate]
+    
+    cd src/cmd/compile/internal/ir
+    rf '
+      mv IsAssignable IsAddressable
+    '
+    
+    Change-Id: Ief6188e7b784ba9592d7b0cbec33b5f70d78f638
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279436
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/poll/splice_linux_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/ir/expr.go             | 6 +++---
+ src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
+ src/cmd/compile/internal/typecheck/expr.go      | 2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 ++--
+ src/cmd/compile/internal/walk/compare.go        | 2 +-
+ src/cmd/compile/internal/walk/convert.go        | 2 +-
+ src/cmd/compile/internal/walk/expr.go           | 2 +-
+ src/cmd/compile/internal/walk/order.go          | 2 +-
+ 8 files changed, 11 insertions(+), 11 deletions(-)

@@ -1,21 +1,15 @@
-commit 9a15c2186c59544d4587487f075ccee385373823
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 10:38:07 2012 -0500
+commit 6f428f097915ab40fc417713ac613a7fda46b713
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jan 31 10:37:21 2012 -0500
 
-    build: move goapi, quietgcc, cgo, gotype, ebnflint into go-tool
+    cmd/go: clean test directories as they complete
     
-    R=golang-dev, r
+    A go build currently generates around 400MB of test output prior to
+    cleaning up. With this change we use a maximum of ~15MB.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5552054
+    https://golang.org/cl/5588044
 
- src/Make.inc                                          |  4 ++--
- src/cmd/{goapi => api}/goapi.go                       |  2 +-
- src/cmd/{goapi => api}/goapi_test.go                  |  0
- src/cmd/{goapi => api}/testdata/src/pkg/p1/golden.txt |  0
- src/cmd/{goapi => api}/testdata/src/pkg/p1/p1.go      |  0
- src/cmd/{goapi => api}/testdata/src/pkg/p2/golden.txt |  0
- src/cmd/{goapi => api}/testdata/src/pkg/p2/p2.go      |  0
- src/cmd/go/pkg.go                                     | 10 +++++++---
- src/make.bash                                         |  5 +++--
- src/pkg/runtime/autogen.sh                            |  4 ++--
- 10 files changed, 15 insertions(+), 10 deletions(-)
+ src/cmd/go/test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

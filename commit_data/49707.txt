@@ -1,14 +1,43 @@
-commit 399f50c9d773e17221e0c80ba1d739c5575c8460
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 13:18:54 2022 -0400
+commit 80783558b06741beaf41dbd198013fe3a13c9ad2
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Sep 6 16:25:43 2021 -0700
 
-    runtime: tricky replacements of g in traceback.go
+    cmd/compile: make sure imported instantiated types have their methods created
     
-    Change-Id: I80e847451b697de049a01df051a73b5976b39d4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418589
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    We should be putting a newly instantiated imported type in
+    Instantiate/doInst onto the instTypeList, so its methods/dictionaries
+    are instantiated. To do this, we needed a more general way to add a
+    type to instTypeList, so add NeedInstType(), analogous to
+    NeedRuntimeType(). This has the extra advantage that now all types
+    created by the type substituter are added to instTypeList without any
+    extra code, which was easy to forget. doInst() now correctly calls
+    NeedInstType().
+    
+    This is a bit aggressive, since a fully instantiated type in a generic
+    function/method may never be used, if the generic method is never
+    instantiated in the local package. But it should be fairly uncommon for
+    a generic method to mention a fully instantiated type (but it does
+    happen in this bug).
+    
+    Fixes both cases mentioned in the bug.
+    
+    Fixed #48185
+    
+    Change-Id: I19b5012dfac17e306c8005f8595a648b0ab280d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347909
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/traceback.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/expr.go        |  1 -
+ src/cmd/compile/internal/noder/irgen.go       |  3 --
+ src/cmd/compile/internal/noder/stencil.go     | 68 +++++++++++++--------------
+ src/cmd/compile/internal/noder/types.go       |  6 +--
+ src/cmd/compile/internal/typecheck/iimport.go |  4 ++
+ src/cmd/compile/internal/typecheck/subr.go    | 21 +++++++--
+ test/typeparam/issue48185b.dir/a.go           | 37 +++++++++++++++
+ test/typeparam/issue48185b.dir/main.go        | 18 +++++++
+ test/typeparam/issue48185b.go                 |  7 +++
+ 9 files changed, 118 insertions(+), 47 deletions(-)

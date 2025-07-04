@@ -1,20 +1,17 @@
-commit cb945ba6ba23772336bf02fd2364c3df9e9233e0
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 7 21:39:59 2013 +0400
+commit 8aafb44b0bbba85535feb67e7ae0f4f254524c0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 09:18:48 2013 -0500
 
-    runtime: fix deadlock
-    The deadlock episodically occurs on misc/cgo/test/TestCthread.
-    The problem is that starttheworld() leaves some P's with local work
-    without M's. Then all active M's enter into syscalls, but reject to
-    wake another M's due to the following check (both in entersyscallblock() and in retake()):
-    if(p->runqhead == p->runqtail &&
-            runtime·atomicload(&runtime·sched.nmspinning) +
-            runtime·atomicload(&runtime·sched.npidle) > 0)
-            continue;
+    runtime: fix cgo callbacks on windows
     
-    R=rsc
+    Fixes #4955.
+    
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7424054
+    https://golang.org/cl/7563043
 
- src/pkg/runtime/proc.c | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ misc/cgo/test/cthread.go            |  5 +----
+ src/pkg/runtime/sys_windows_386.s   | 43 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/sys_windows_amd64.s | 32 +++++++++++++++++++++++++++
+ src/pkg/runtime/thread_windows.c    | 19 +++-------------
+ 4 files changed, 79 insertions(+), 20 deletions(-)

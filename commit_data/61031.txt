@@ -1,0 +1,20 @@
+commit 944a2ac3c7995b25944e00efc907f2410cb1f024
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu Sep 19 11:16:19 2024 -0700
+
+    cmd/compile: small cleanups to rewrite rule helpers
+    
+    Change-Id: I50a19bd971176598bf8e4ef86ec98f008abe245c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615198
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  6 +++---
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  8 ++++----
+ src/cmd/compile/internal/ssa/rewrite.go         | 10 ----------
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 24 ++++++++++++------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 16 ++++++++--------
+ 5 files changed, 27 insertions(+), 37 deletions(-)

@@ -1,19 +1,27 @@
-commit 018b78cc5b4b08447076f143271c249c0dde1297
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 26 12:21:36 2022 -0700
+commit cdcd02842da7c004efd023881e3719105209c908
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu May 27 10:40:06 2021 -0700
 
-    test: fix inline test on noopt builder
+    net: verify results from Lookup* are valid domain names
     
-    CL 394074 broke the noopt builder. Something about time.After's inlining
-    depends on the build flags to make.bash, not the build flags that run.go
-    passes.
+    For the methods LookupCNAME, LookupSRV, LookupMX, LookupNS, and
+    LookupAddr check that the returned domain names are in fact valid DNS
+    names using the existing isDomainName function.
     
-    Change-Id: Ib284c66ea2008a4d32829c055d57c54a34ec3fb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396037
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Thanks to Philipp Jeitner and Haya Shulman from Fraunhofer SIT for
+    reporting this issue.
+    
+    Fixes #46241
+    Fixes CVE-2021-33195
+    
+    Change-Id: I47a4f58c031cb752f732e88bbdae7f819f0af4f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323131
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- test/inline.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/net/dnsclient_unix_test.go | 157 +++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go              | 111 +++++++++++++++++++++++++----
+ 2 files changed, 255 insertions(+), 13 deletions(-)

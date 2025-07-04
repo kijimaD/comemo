@@ -1,17 +1,22 @@
-commit 00cf88e2c60076b5e5e2e07272cd1d188c183ea1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 23 02:19:57 2015 -0400
+commit 6428a8b437a36f07b5f0d1b6f0d06e3ee6fc57c1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 16 15:36:06 2015 +1000
 
-    cmd/go: use hg repo for code.google.com shutdown check
+    cmd/dist: add new misc/cgo/testsovar test
     
-    svn dies due to not being able to validate the googlecode.com certificate.
-    hg does not even attempt to validate it.
+    This change reintroduces CL 8523. CL 8523 was reverted because
+    it broke darwin and netbsd builds. Now that this test is part
+    of "go tool dist test" command we could skip OSes that fail.
     
-    Fixes #11806.
+    Updates #10360
     
-    Change-Id: I84ced5aa84bb1e4a4cdb2254f2d08a64a1ef23f6
-    Reviewed-on: https://go-review.googlesource.com/12558
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaaeb5b800126492f36415a439c333a218fe4ab67
+    Reviewed-on: https://go-review.googlesource.com/11119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testsovar/cgoso.go  | 43 +++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/testsovar/cgoso_c.c |  7 +++++++
+ misc/cgo/testsovar/cgoso_c.h | 17 +++++++++++++++++
+ misc/cgo/testsovar/main.go   | 13 +++++++++++++
+ src/cmd/dist/test.go         | 20 +++++++++++++++++---
+ 5 files changed, 97 insertions(+), 3 deletions(-)

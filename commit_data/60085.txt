@@ -1,0 +1,44 @@
+commit d881ed6384ae58154d99682f1e20160c64e7c3c2
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon May 13 13:00:52 2024 -0700
+
+    runtime: double-link list of waiting Ms
+    
+    When an M unlocks a contended mutex, it needs to consult a list of the
+    Ms that had to wait during its critical section. This allows the M to
+    attribute the appropriate amount of blame to the unlocking call stack.
+    
+    Mirroring the implementation for users' sync.Mutex contention (via
+    sudog), we can (in a future commit) use the time that the head and tail
+    of the wait list started waiting, and the number of waiters, to estimate
+    the sum of the Ms' delays.
+    
+    When an M acquires the mutex, it needs to remove itself from the list of
+    waiters. Since the futex-based lock implementation leaves the OS in
+    control of the order of M wakeups, we need to be prepared for quickly
+    (constant time) removing any M from the list.
+    
+    First, have each M add itself to a singly-linked wait list when it finds
+    that its lock call will need to sleep. This case is safe against
+    live-lock, since any delay to one M adding itself to the list would be
+    due to another M making durable progress.
+    
+    Second, have the M that holds the lock (either right before releasing,
+    or right after acquiring) update metadata on the list of waiting Ms to
+    double-link the list and maintain a tail pointer and waiter count. That
+    work is amortized-constant: we'll avoid contended locks becoming
+    proportionally more contended and undergoing performance collapse.
+    
+    For #66999
+    
+    Change-Id: If75cdea915afb59ccec47294e0b52c466aac8736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585637
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+
+ src/runtime/lock_futex.go |  63 +++++++++++--
+ src/runtime/lock_sema.go  |  56 +++++++++--
+ src/runtime/mprof.go      | 230 ++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 324 insertions(+), 25 deletions(-)

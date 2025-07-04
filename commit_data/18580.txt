@@ -1,16 +1,14 @@
-commit 3e37720bcebefe87459a7dd8f41164c0e2cfa4bc
+commit 00b76713a7ba9182e9dfc29dcc37e94d000703b8
 Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 19 17:17:36 2014 -0800
+Date:   Wed Feb 19 16:12:05 2014 -0800
 
-    syscall: terminate error string in exec package on Plan 9
-    Try to prevent messages like this:
-            './pack' file does not exist����������������������������������������������������������������������������������������������������
-    TBR=adonovan
+    cmd/pack: another attempt to fix the build for TestHello
+    Plan 9 uses single quotes, not double quotes. I should have known.
     
-    LGTM=adonovan
-    R=adonovan
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/66270043
+    https://golang.org/cl/66240043
 
- src/pkg/syscall/exec_plan9.go | 2 +-
+ src/cmd/pack/pack_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

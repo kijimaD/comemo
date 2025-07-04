@@ -1,13 +1,21 @@
-commit 5d2cfc2faa193a81f4a03aee03c60ef26ba8ed19
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Jun 20 01:22:03 2012 +0800
+commit a5aa91b9a2a013be9ced9ae05474e1dce2fe16d4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 19 09:20:41 2012 -0700
 
-    doc/articles/slices_usage_and_internals: fix typo
-            Fixes #3753.
+    net/http: make client await response concurrently with writing request
     
-    R=golang-dev, adg
+    If the server replies with an HTTP response before we're done
+    writing our body (for instance "401 Unauthorized" response), we
+    were previously ignoring that, since we returned our write
+    error ("broken pipe", etc) before ever reading the response.
+    Now we read and write at the same time.
+    
+    Fixes #3595
+    
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/6304097
+    https://golang.org/cl/6238043
 
- doc/articles/slices_usage_and_internals.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/transport.go      | 72 ++++++++++++++++++++++++++++++++------
+ src/pkg/net/http/transport_test.go | 24 +++++++++++++
+ 2 files changed, 86 insertions(+), 10 deletions(-)

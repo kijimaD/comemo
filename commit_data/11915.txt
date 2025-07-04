@@ -1,14 +1,13 @@
-commit 3509687d6a98ca492d4e64a0cd093c5644266740
+commit dd91d83d2427e5a076aa92342b70dda63dd1cbb6
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 15 12:59:50 2012 +1100
+Date:   Wed Feb 15 12:58:40 2012 +1100
 
-    doc: add playground.js
+    doc: add App Engine docs to 'learn' and 'reference' pages
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5649087
+    https://golang.org/cl/5672048
 
- doc/play/playground.js | 197 ++++++++++++++++++++++++++++++++++++++++++++++++-
- doc/root.html          |  77 +++++++++++--------
- doc/style.css          |   1 +
- 3 files changed, 240 insertions(+), 35 deletions(-)
+ doc/docs.html      | 6 ++++++
+ doc/reference.html | 6 ++++++
+ 2 files changed, 12 insertions(+)

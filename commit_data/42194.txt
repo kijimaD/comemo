@@ -1,22 +1,16 @@
-commit 202c43b2ad3fca2cdcaff0d0720de5c99030b638
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Apr 24 11:55:21 2020 -0400
+commit 759c5d8ba6a5da7ce2896a44ba27887532ee0a46
+Author: ZYunH <zyunhjob@163.com>
+Date:   Wed Nov 13 10:05:37 2019 +0000
 
-    crypto/x509/pkix: improve docs and Name.String()
+    runtime: fix typo in deferprocStack's comments
     
-    Previously, non-standard attributes in Name.Names were being
-    omitted when printed using Name.String(). Now, any non-standard
-    attributes that would not already be printed in Name.String()
-    are being added temporarily to Name.ExtraNames to be printed.
+    change "fp" to "fd".
     
-    Fixes #33094
-    Fixes #23069
-    
-    Change-Id: Id9829c20968e16db7194549f69c0eb5985044944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229864
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I00e5fafcb68891356d508c49aa89969bfed7ed10
+    GitHub-Last-Rev: b06f976a3bacc6fc6f1fd0e4fc8c50da9764f736
+    GitHub-Pull-Request: golang/go#35557
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207038
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 44 ++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 40 insertions(+), 4 deletions(-)
+ src/runtime/panic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

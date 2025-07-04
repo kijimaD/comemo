@@ -1,18 +1,17 @@
-commit 2556df0ac0bf7ddb39ece91856ad94f5676b1b07
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Jul 30 22:37:50 2018 +0200
+commit 581331e75bae9655ce03d0c121ba8d9625ef43dd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 18 08:48:04 2018 -0700
 
-    internal/cpu: remove parentheses from arm64 feature constants
+    cmd/compile: fix race in SSA construction
     
-    The parentheses are not required for the definitions and it brings
-    the declaration style in line with other architectures feature bits
-    defined in internal/cpu.
+    syslook cannot be called safely during SSA construction.
     
-    Change-Id: I86cc3812c1488216779e0d1f0e7481687502e592
-    Reviewed-on: https://go-review.googlesource.com/126775
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Ief173babd2e964fd5016578073dd3ba12e5731c5
+    Reviewed-on: https://go-review.googlesource.com/107815
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/cpu/cpu_arm64.go | 48 +++++++++++++++++++++----------------------
- 1 file changed, 24 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/go.go  | 4 +++-
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++----
+ 2 files changed, 7 insertions(+), 5 deletions(-)

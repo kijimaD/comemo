@@ -1,15 +1,18 @@
-commit 640d818f2ada4997c6cea1ab435de625f5ef944a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Oct 31 03:51:59 2012 +1100
+commit 78a6f7524109d5c183e09767e44037ae7e5b0c96
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 30 23:58:43 2012 +0800
 
-    archive/zip: handle corrupt extra data records
+    cmd/ld: handle weak symbols
+    compiler_rt introduces a weak and hidden symbol compilerrt_abort_impl
+    into our pre-linked _all.o object, we have to handle it.
     
-    Fixes #4302.
+    Fixes #4273.
     
-    R=golang-dev, bradfitz, adg
+    R=iant, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6811048
+    https://golang.org/cl/6783050
 
- src/pkg/archive/zip/reader.go   |  3 +++
- src/pkg/archive/zip/zip_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ misc/cgo/test/issue4273.c  | 10 ++++++++++
+ misc/cgo/test/issue4273b.c | 11 +++++++++++
+ src/cmd/ld/ldelf.c         |  7 +++++++
+ 3 files changed, 28 insertions(+)

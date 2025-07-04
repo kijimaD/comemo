@@ -1,15 +1,19 @@
-commit 47e6042f73b07c5eaf28b978711605025c3d0df6
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Mon Jul 18 16:15:01 2011 -0400
+commit bd77619142f6eb9212fb99ca17aade47afc001e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 18 15:50:55 2011 -0400
 
-    runtime: fix select pass 3
+    runtime: track running goroutine count
     
-    Fixes #2075
+    Used to use mcpu+msyscall but that's
+    problematic for packing into a single
+    atomic word.  The running goroutine count
+    (where running == Go code or syscall)
+    can be maintained separately, always
+    manipulated under lock.
     
-    R=rsc, ken, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4748045
+    https://golang.org/cl/4767041
 
- src/pkg/runtime/chan.c |  9 ++++++---
- test/chan/select6.go   | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,29 +1,13 @@
-commit 3d01f28e4729b77fa528b349e1eb434c169ffa8b
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 12 12:42:28 2016 -0800
+commit e6ceb92e1ce8cd722922abeef7f350273692ccc9
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Jul 5 21:49:11 2015 +1200
 
-    cmd/compile: stop using fucomi* ops for 387 builds
+    cmd/internal/obj/arm: access global data via GOT on arm when -dynlink
     
-    The fucomi* opcodes were only introduced for the Pentium Pro.
-    They do not exist for an MMX Pentium.  Use the fucom* instructions
-    instead and move the condition codes from the fp flags register to
-    the integer flags register explicitly.
-    
-    The use of fucomi* opcodes in ggen.go was introduced in 1.5 (CL 8738).
-    The bad ops were generated for 64-bit floating-point comparisons.
-    
-    The use of fucomi* opcodes in gsubr.go dates back to at least 1.1.
-    The bad ops were generated for float{32,64} to uint64 conversions.
-    
-    Fixes #13923
-    
-    Change-Id: I5290599f5edea8abf8fb18036f44fa78bd1fc9e6
-    Reviewed-on: https://go-review.googlesource.com/18590
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I88034611f56cc06bb47b0c431075cc78ca8dbb09
+    Reviewed-on: https://go-review.googlesource.com/14188
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/float_test.go | 102 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/x86/ggen.go      |   8 +--
- src/cmd/compile/internal/x86/gsubr.go     |  13 ++--
- src/cmd/compile/internal/x86/prog.go      |   8 ++-
- 4 files changed, 120 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go |  11 +++-
+ src/cmd/internal/obj/arm/obj5.go | 117 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 126 insertions(+), 2 deletions(-)

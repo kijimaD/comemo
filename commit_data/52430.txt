@@ -1,22 +1,22 @@
-commit 1cfc87e6db5896e84472ca356e6344bc7d61a580
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sun Mar 26 08:35:12 2023 +0000
+commit 209942fa88ef49e98a0f36dbbfa74c936a8d0fad
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Mon Feb 14 12:16:22 2022 -0800
 
-    net: support forceCgoDNS and forceGoDns on windows
+    runtime/pprof: add race annotations for goroutine profiles
     
-    Windows is able to use the go resolver now, so let the forceCgoDNS and forceGoDns work.
+    The race annotations for goroutine label maps covered the special type
+    of read necessary to create CPU profiles. Extend that to include
+    goroutine profiles. Annotate the copy involved in creating new
+    goroutines.
     
-    Change-Id: Ice3d9fda9530ec88a2a22077c9a729dd940aba6d
-    GitHub-Last-Rev: e0b6e39870b147e6a1b4db920fd39920fe9c2bfc
-    GitHub-Pull-Request: golang/go#59250
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479455
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #50292
+    
+    Change-Id: I10f69314e4f4eba85c506590fe4781f4d6b8ec2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385660
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/main_conf_test.go   | 2 +-
- src/net/main_noconf_test.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mprof.go            |  4 +++
+ src/runtime/pprof/pprof_test.go | 59 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/proc.go             |  5 ++++
+ 3 files changed, 67 insertions(+), 1 deletion(-)

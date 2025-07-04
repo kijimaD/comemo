@@ -1,25 +1,17 @@
-commit f7404974daaf8f58af4d9c1fd504e81e7f0db0a2
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 23 11:30:58 2018 -0400
+commit a10884838aabb854e3a6595791c663bb16ca32ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 20:38:11 2017 -0500
 
-    cmd/compile: finish GOEXPERIMENT=preemptibleloops repair
+    cmd/vendor/.../pprof: do not run test that opens web browser
     
-    A newish check for branch-likely on single-successor blocks
-    caught a case where the preemption-check inserter was
-    setting "likely" on an unconditional branch.
+    Obviously not OK.
     
-    Fixed by checking for that case before setting likely.
+    For #22651.
     
-    Also removed an overconservative restriction on parallel
-    compilation for GOEXPERIMENT=preemptibleloops; it works
-    fine, it is just another control-flow transformation.
-    
-    Change-Id: I8e786e6281e0631cac8d80cff67bfb6402b4d225
-    Reviewed-on: https://go-review.googlesource.com/102317
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4238045bec6e50788daaa27a7fbc1d547e72cde9
+    Reviewed-on: https://go-review.googlesource.com/76870
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/main.go               | 2 +-
- src/cmd/compile/internal/ssa/loopreschedchecks.go | 4 +++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ .../github.com/google/pprof/internal/driver/webui_test.go   | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,14 +1,19 @@
-commit 06ff4772ab1731742c2b2fbf715231264ede7e34
-Author: Michael Henderson <mdhender@users.noreply.github.com>
-Date:   Wed Oct 3 02:08:58 2018 +0000
+commit b9ecac03cb8084bb24c9a75e0f02e164292bb427
+Author: teague <tnc1443@gmail.com>
+Date:   Wed May 30 11:35:11 2018 -0400
 
-    net/http: add missing words to SameSite doc/comments
+    net/http/httputil: reduced log verbosity in reverseproxy_test.go
     
-    Change-Id: Ie7f6592d726eba73a5e6b3203e083bff55ff8e4e
-    GitHub-Last-Rev: 4e317b39dd337f95aa7b7f321906e69a2c14b84e
-    GitHub-Pull-Request: golang/go#27977
-    Reviewed-on: https://go-review.googlesource.com/c/139100
+    For functions TestClonesRequestHeaders and TestReverseProxy_PanicBodyError,
+    I made changes to update the log verbosity.
+    
+    Fixes #25634
+    
+    Change-Id: I2a0ef70a8191cfb1a0005949345be722fb4ab62e
+    Reviewed-on: https://go-review.googlesource.com/115296
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/cookie.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/httputil/reverseproxy_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

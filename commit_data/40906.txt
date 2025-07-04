@@ -1,21 +1,26 @@
-commit 95c9a656ae2e690c82ca339605a79f88f407fa9b
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Wed Nov 27 00:10:47 2019 +0000
+commit 5f45a3337ec78f303fbbcadd89d459af56183724
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 14 09:50:51 2019 -0400
 
-    doc: clarify interaction of ioutil.WriteFile with umask
+    reflect: align first argument in callMethod
     
-    Note that ioutil.WriteFile's perm argument is the value before the
-    umask is applied.
+    When calling a function obtained from reflect.Value.Method (or
+    MethodByName), we copy the arguments from the caller frame, which
+    does not include the receiver, to a new frame to call the actual
+    method, which does include the receiver. Here we need to align
+    the first (non-receiver) argument. As the receiver is pointer
+    sized, it is generally naturally aligned, except on amd64p32,
+    where the argument can have larger alignment, and this aligning
+    becomes necessary.
     
-    Fixes #35835
+    Fixes #33628.
     
-    Change-Id: I61cd9c88bced3be52b616d86e060cd3fd912ab1f
-    
-    Change-Id: I61cd9c88bced3be52b616d86e060cd3fd912ab1f
-    GitHub-Last-Rev: 0069abb7c5d904fb11448148f44db023dbcf74aa
-    GitHub-Pull-Request: golang/go#35836
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208838
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5bea0e20173f06d1602c5666d4f334e3d0de5c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190297
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/io/ioutil/ioutil.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 21 +++++++++++++++++++++
+ src/reflect/value.go    | 16 +++++++++++-----
+ 2 files changed, 32 insertions(+), 5 deletions(-)

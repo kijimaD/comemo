@@ -1,32 +1,26 @@
-commit 2cf49a76b674ee5075f3ed6ff857c5b3e7a8109a
-Author: darmiel <71837281+darmiel@users.noreply.github.com>
-Date:   Wed May 4 12:39:49 2022 +0000
+commit c894b442d1e5e150ad33fa3ce13dbfab1c037b3a
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Sep 14 15:02:55 2021 -0700
 
-    net/http: trim cookie names
+    net/rpc: remove warnings on incompatible methods at registration
     
-    The current implementation ignores cookies where the
-    cookie name starts or ends with a space. For example,
+    When registering an RPC server, the type being registered may
+    have additional methods that are not meant to be exposed as
+    RPC endpoints. Remove the warnings net/rpc produces in
+    this case. The functionality to report warnings is kept in the code
+    with a compile-time constant that can be enabled for debugging.
     
-    name =value
+    The documentation of net/rpc states that only methods
+    satisfying a set of criteria will be made available, while other
+    methods will be ignored.
     
-    is ignored.
+    Fixes #19957
     
-    I have come across pages that send cookies in this weird format.
-    I tested with the latest versions of Firefox, Safari and Chrome,
-    all of which accept cookies in this format.
-    
-    To do this, I remove leading and trailing spaces from the
-    cookie name after cutting at '='.
-    
-    Change-Id: I8fd0c37a2113b6ce75712dd43607d1ea55e86c68
-    GitHub-Last-Rev: 368f50fcb4c7537b90249c3c497e61dc81038f6e
-    GitHub-Pull-Request: golang/go#52121
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397734
+    Change-Id: I5f8a148b4be1fdfffb2cd2029871193eaf24b751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350009
+    Reviewed-by: Daniel Lublin <daniel@lublin.se>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Trust: Carlos Amedee <carlos@golang.org>
 
- src/net/http/cookie.go      | 2 ++
- src/net/http/cookie_test.go | 6 ++++++
- 2 files changed, 8 insertions(+)
+ src/net/rpc/server.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

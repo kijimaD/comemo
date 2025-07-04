@@ -1,0 +1,26 @@
+commit 17fce6323988d20d104b92c110b8be0ceb526051
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 8 23:29:50 2023 +1100
+
+    cmd/dist,internal/platform: temporarily disable race detector on openbsd/amd64
+    
+    Unfortunately, LLVM TSAN decided to remove OpenBSD support, which
+    means that the syso files cannot currently be regenerated (see #52090).
+    The race_openbsd.syso contains a reference to the syscall symbol,
+    which has been removed from OpenBSD's libc in 7.5. As such, this
+    means that the race detector no longer works on openbsd/amd64 (at
+    least until LLVM TSAN support is reinstated for OpenBSD).
+    
+    Updates #63900
+    
+    Change-Id: I3474fc43a94e5197815862b7dc420b71d5e08815
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582255
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/test.go               | 2 +-
+ src/internal/platform/supported.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,39 +1,22 @@
-commit 7a8caf7d43886f2b546c4b3b5439dee93f006918
-Author: Eric Engestrom <eric@engestrom.ch>
-Date:   Sun Apr 3 12:43:27 2016 +0100
+commit 5609a48931593a0ba88cab4a54ea5c426b292c3e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 21:36:12 2016 -0800
 
-    all: fix spelling mistakes
+    cmd/compile: make cmpstackvarlt properly asymmetric
     
-    Signed-off-by: Eric Engestrom <eric@engestrom.ch>
+    Previously, given two Nodes n1 and n2 of different non-PAUTO classes
+    (e.g., PPARAM and PPARAMOUT), cmpstackvarlt(n1, n2) and
+    cmpstackvarlt(n2, n1) both returned true, which is nonsense.
     
-    Change-Id: I91873aaebf79bdf1c00d38aacc1a1fb8d79656a7
-    Reviewed-on: https://go-review.googlesource.com/21433
+    This doesn't seem to cause any visible miscompilation problems, but
+    notably fixing it does cause toolstash/buildall to fail.
+    
+    Change-Id: I33b2c66e902c5eced875d8fbf18b7cfdc81e8aed
+    Reviewed-on: https://go-review.googlesource.com/19778
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcshared/test.bash                   | 2 +-
- misc/cgo/testshared/shared_test.go               | 2 +-
- src/cmd/compile/internal/gc/cgen.go              | 2 +-
- src/cmd/compile/internal/gc/const.go             | 2 +-
- src/cmd/compile/internal/gc/ssa.go               | 2 +-
- src/cmd/compile/internal/gc/swt.go               | 2 +-
- src/cmd/compile/internal/gc/walk.go              | 2 +-
- src/cmd/compile/internal/ssa/dom.go              | 2 +-
- src/cmd/compile/internal/ssa/dom_test.go         | 4 ++--
- src/cmd/compile/internal/ssa/loopbce.go          | 2 +-
- src/cmd/compile/internal/ssa/nilcheck_test.go    | 2 +-
- src/cmd/compile/internal/ssa/prove.go            | 2 +-
- src/cmd/internal/goobj/read.go                   | 2 +-
- src/cmd/internal/obj/arm64/obj7.go               | 4 ++--
- src/cmd/internal/obj/mips/obj0.go                | 6 +++---
- src/cmd/internal/obj/ppc64/asm9.go               | 4 ++--
- src/cmd/internal/obj/ppc64/obj9.go               | 4 ++--
- src/cmd/internal/obj/s390x/objz.go               | 4 ++--
- src/cmd/link/internal/ld/deadcode.go             | 2 +-
- src/crypto/elliptic/p256_amd64.go                | 2 +-
- src/debug/elf/elf.go                             | 2 +-
- src/runtime/signal_solaris.go                    | 2 +-
- src/vendor/golang.org/x/net/http2/hpack/hpack.go | 2 +-
- test/ken/embed.go                                | 2 +-
- 24 files changed, 31 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go      | 22 +++++-----------------
+ src/cmd/compile/internal/gc/pgen_test.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 17 deletions(-)

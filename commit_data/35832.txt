@@ -1,20 +1,36 @@
-commit c07f2b0099583c9e8715944c75dfd5c2d95d12f2
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Wed Jun 27 20:19:30 2018 +0200
+commit 5e5247176174c1ce98665e07c30b556e50a5e8e7
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Sat Mar 10 05:57:43 2018 +0000
 
-    syscall/js: rename Callback.Close to Release and expose Callback.Value
+    all: fix non-standard "DO NOT EDIT" comments for generated files
     
-    This makes Callback more in line with TypedArray. The name "Release" is
-    better than "Close" because the function does not implement io.Closer.
+    I found files to change with this command:
     
-    Change-Id: I23829a14b1c969ceb04608afd9505fd5b4b0df2e
-    Reviewed-on: https://go-review.googlesource.com/121216
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+        git grep 'DO NOT EDIT' | grep -v 'Code generated .* DO NOT'
+    
+    There are more files that match that grep, but I do not intend on fixing
+    them.
+    
+    Change-Id: I4b474f1c29ca3135560d414785b0dbe0d1a4e52c
+    GitHub-Last-Rev: 65804b02634abd85bf113788b38354d48801241f
+    GitHub-Pull-Request: golang/go#24334
+    Reviewed-on: https://go-review.googlesource.com/99955
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/roundtrip_js.go | 12 ++++++------
- src/syscall/js/callback.go   | 18 ++++++++++--------
- src/syscall/js/js.go         |  2 +-
- src/syscall/js/js_test.go    |  8 ++++----
- 4 files changed, 21 insertions(+), 19 deletions(-)
+ src/crypto/md5/gen.go                | 3 +--
+ src/crypto/md5/md5block.go           | 3 +--
+ src/encoding/gob/dec_helpers.go      | 2 +-
+ src/encoding/gob/decgen.go           | 2 +-
+ src/encoding/gob/enc_helpers.go      | 2 +-
+ src/encoding/gob/encgen.go           | 2 +-
+ src/image/color/palette/gen.go       | 2 +-
+ src/image/color/palette/palette.go   | 2 +-
+ src/image/internal/imageutil/gen.go  | 2 +-
+ src/image/internal/imageutil/impl.go | 2 +-
+ src/sort/genzfunc.go                 | 2 +-
+ src/sort/zfuncversion.go             | 2 +-
+ src/strconv/isprint.go               | 3 +--
+ src/strconv/makeisprint.go           | 3 +--
+ 14 files changed, 14 insertions(+), 18 deletions(-)

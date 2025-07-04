@@ -1,20 +1,31 @@
-commit 1ca84deeb048ac8ab850f68eb84ee7811d957676
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Wed Dec 12 11:28:46 2018 -0800
+commit 39e59da76debbe98efdf6e2faa045b8c3804d742
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Aug 21 14:50:48 2018 -0500
 
-    runtime: pass LR to sigprof on windows/arm
+    net: use internal/bytealg insetad of linkname tricks
     
-    TestCPUProfileLabel was failing on windows/arm because the link register
-    was not being passed to sigprof(). The link register is required to
-    generate a correct traceback. With this change, all tests in runtime.pprof
-    are now passing.
+    We are currently using go:linkname for some algorithms from
+    strings/bytes packages, to avoid importing strings/bytes.
+    But strings/bytes are just wrappers around internal/bytealg, so
+    we should use internal/bytealg directly.
     
-    Updates #26148
-    
-    Change-Id: Ia693b34278dc08a98023751ff1a922d9eee8fdd6
-    Reviewed-on: https://go-review.googlesource.com/c/153839
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2836f779b88bf8876d5fa725043a6042bdda0390
+    Reviewed-on: https://go-review.googlesource.com/130515
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/conf.go           |  5 +++--
+ src/net/dnsconfig_unix.go |  3 ++-
+ src/net/hosts.go          |  3 ++-
+ src/net/ip.go             | 16 ++++++----------
+ src/net/ipsock.go         | 11 ++++++-----
+ src/net/ipsock_plan9.go   |  3 ++-
+ src/net/lookup_plan9.go   |  9 +++++----
+ src/net/lookup_unix.go    |  3 ++-
+ src/net/nss.go            |  9 +++++----
+ src/net/parse.go          | 24 ++++++------------------
+ src/net/port_unix.go      |  7 +++++--
+ src/net/sockopt_posix.go  |  3 ++-
+ 12 files changed, 46 insertions(+), 50 deletions(-)

@@ -1,14 +1,37 @@
-commit fa904420f2d09df1a95b0e1bef098951a30af279
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Dec 14 10:48:53 2017 +0100
+commit a72e26f246a50b2d5226262420874b143d9d8b5a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Sep 14 19:12:26 2017 -0600
 
-    doc/go1.10: fix formatting of 'go tool fix' examples
+    runtime: return deltimer early if timer.timersBucket is unset
     
-    Also remove a superfluous </p>
+    Return early from deltimer, with false as the result,
+    to indicate that we couldn't delete the timer since its
+    timersBucket was nil(not set) in the first place.
     
-    Change-Id: Idca51cdfbd8abc6669f00c80ca3fb7f225ee445c
-    Reviewed-on: https://go-review.googlesource.com/84015
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    That happens in such a case where a user created
+    the timer from a Ticker with:
+    
+      t := time.Ticker{C: c}
+    
+    The above usage skips the entire setup of assigning
+    the appropriate underlying runtimeTimer and timersBucket,
+    steps that are done for us by time.NewTicker.
+    
+    CL 34784 introduced this bug with an optimization, by changing
+    stopTimer to retrieve the timersBucket from the timer itself
+    (which is unset with the mentioned usage pattern above),
+    whereas the old  behavior relied on indexing
+    by goroutine ID into the global slice of runtime
+    timers, to retrieve the appropriate timersBucket.
+    
+    Fixes #21874
+    
+    Change-Id: Ie9ccc6bdee685414b2430dc4aa74ef618cea2b33
+    Reviewed-on: https://go-review.googlesource.com/63970
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.10.html | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/time.go   | 9 +++++++++
+ src/time/tick_test.go | 7 +++++++
+ 2 files changed, 16 insertions(+)

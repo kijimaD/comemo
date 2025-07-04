@@ -1,16 +1,12 @@
-commit e547393fcc9986104440cc70f2a5803da02341db
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 19 15:00:27 2012 +1100
+commit 1de49311135e8e07e16f065f5c03fab9d7dae5e8
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Jan 19 14:45:59 2012 +1100
 
-    godoc: remove "need more packages?" link
+    doc/codewalk: update urlpoll to use time.Duration.
     
-    Its need will be addressed in another way by the redesign.
-    
-    Fixes #2719.
-    
-    R=golang-dev, bradfitz
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5536062
+    https://golang.org/cl/5545061
 
- lib/godoc/package.html | 5 -----
- 1 file changed, 5 deletions(-)
+ doc/codewalk/urlpoll.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

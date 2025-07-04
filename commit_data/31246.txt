@@ -1,27 +1,22 @@
-commit 8aa31d5dae9644b3e8f6950af58c0cb83e8fc062
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Tue Apr 18 13:12:58 2017 +0300
+commit 87ad863f359de3760578acb7f7a4d7e333c9cdc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 21:13:30 2017 -0800
 
-    sync: align poolLocal to CPU cache line size
+    runtime: use atomic ops for fwdSig, make sigtable immutable
     
-    Make poolLocal size multiple of 128, so it aligns to CPU cache line
-    on the most common architectures.
+    The fwdSig array is accessed by the signal handler, which may run in
+    parallel with other threads manipulating it via the os/signal package.
+    Use atomic accesses to ensure that there are no problems.
     
-    This also has the following benefits:
+    Move the _SigHandling flag out of the sigtable array. This makes sigtable
+    immutable and safe to read from the signal handler.
     
-    - It may help compiler substituting integer multiplication
-      by bit shift inside indexLocal.
-    - It shrinks poolLocal size from 176 bytes to 128 bytes on amd64,
-      so now it fits two cache lines (or a single cache line on certain
-      Intel CPUs - see https://software.intel.com/en-us/articles/optimizing-application-performance-on-intel-coret-microarchitecture-using-hardware-implemented-prefetchers).
-    
-    No measurable performance changes on linux/amd64 and linux/386.
-    
-    Change-Id: I11df0f064718a662e77a85d88b8a15a8919f25e9
-    Reviewed-on: https://go-review.googlesource.com/40918
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Icfa407518c4ebe1da38580920ced764898dfc9ad
+    Reviewed-on: https://go-review.googlesource.com/36321
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/pool.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/runtime/runtime2.go    |  1 -
+ src/runtime/signal_unix.go | 55 +++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 40 insertions(+), 16 deletions(-)

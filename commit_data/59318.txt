@@ -1,15 +1,21 @@
-commit 3cefe69c5a5ad687f220696d4f8a2fe4d59241dd
-Author: Sean Liao <sean@liao.dev>
-Date:   Sun Apr 13 17:48:48 2025 +0100
+commit ff35c382eb118565778fbf247e04e76730cdfc6c
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sat Feb 3 09:06:30 2024 +0100
 
-    crypto/rand: add and update examples
+    cmd/compile: remove bug workarounds in prove's loop inversion
     
-    Change-Id: I77406c22b82c9f8bc57323c783f63c4897486e7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/665096
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    I wrote theses checks because I got bad panics on some innocent functions,
+    turns out I was working around #63955 but I was not aware of that at the time.
+    
+    The proper fix was included in CL 539977 this is now doing nothing.
+    
+    Change-Id: I89329329933527b6f3cb817dc1e039a38f58da9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560975
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/rand/example_test.go | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 21 ++-------------------
+ 1 file changed, 2 insertions(+), 19 deletions(-)

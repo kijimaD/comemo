@@ -1,16 +1,13 @@
-commit bcb495b39aebd55dd3e4502807646eec7023c5f3
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Mon Dec 17 10:45:33 2012 -0500
+commit a89aaad195a186c5946edb9eb953c1d87f1c7d59
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 17 23:32:08 2012 +0800
 
-    net/smtp: remove data race from TestSendMail.
+    net/http/pprof: fix doc for /debug/pprof/
+    Fixes #4548.
     
-    A data race was found in TestSendMail by the race detector.
-    
-    Fixes #4559.
-    
-    R=golang-dev, bradfitz, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6944057
+    https://golang.org/cl/6944053
 
- src/pkg/net/smtp/smtp_test.go | 53 ++++++++++++++++++++++++-------------------
- 1 file changed, 30 insertions(+), 23 deletions(-)
+ src/pkg/net/http/pprof/pprof.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

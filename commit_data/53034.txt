@@ -1,23 +1,18 @@
-commit 91b8cc0dfaae12af1a89e2b7ad3da10728883ee1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 27 13:23:10 2023 -0400
+commit e6c0546c54f6f3fa7c6cb5002ecc839bc89d5d20
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Jun 27 18:04:56 2022 -0700
 
-    cmd/go/internal/modindex: update index_format.txt
+    crypto/x509/pkix: move crl deprecation message
     
-    This incorporates the changes from CL 453603 and CL 416178.
+    There was a deprecation message on RevokedCertificate which was
+    intended to be on CertificateList.
     
-    Please review carefully: I did my best to read through the CLs, but
-    I'm not entirely confident I haven't made a mistake.
-    
-    Fixes #59770.
-    
-    Change-Id: Ib8937e55dcd11e3f75c16b28519d3d91df1d4da3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492596
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia378935afc75c36702e64cf33ea5c8a24c1488ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414754
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
 
- src/cmd/go/internal/modindex/index_format.txt | 20 +++++++++++++-------
- src/cmd/go/internal/modindex/read.go          |  2 +-
- 2 files changed, 14 insertions(+), 8 deletions(-)
+ src/crypto/x509/pkix/pkix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

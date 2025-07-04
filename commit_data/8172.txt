@@ -1,13 +1,13 @@
-commit 22a2f42cefc81dc0296ca3a67a3966b99d032838
+commit f10a7882c6d2876592bb73a27e7e595caad5c376
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 21 10:09:53 2011 -0400
+Date:   Thu Apr 21 08:20:29 2011 -0400
 
-    A+C: Vincent Vanackere (individual CLA)
+    gc: another pointer to interface message
     
-    R=golang-dev, brainman
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4437065
+    https://golang.org/cl/4444056
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/gc/subr.c         | 13 +++++++------
+ test/interface/pointer.go |  1 +
+ 2 files changed, 8 insertions(+), 6 deletions(-)

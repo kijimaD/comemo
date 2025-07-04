@@ -1,14 +1,16 @@
-commit 827be89a69534cca8245df9c435d13387eea9667
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Thu Jun 15 22:18:24 2017 +0200
+commit cce4c319d6aa2fbcf16fbab6a3dc74baf482ce51
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 15:52:26 2017 -0800
 
-    path/filepath: fix TestGlobError
+    cmd/internal/obj: remove unneeded AVARFOO ops
     
-    Change-Id: I7776547332066e1d7651e9aa06eec301dfaf38bc
-    Reviewed-on: https://go-review.googlesource.com/45892
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I10e36046ebce8a8741ef019cfe266b9ac9fa322d
+    Reviewed-on: https://go-review.googlesource.com/38088
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/path/filepath/match_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/link.go     | 3 ---
+ src/cmd/internal/obj/util.go     | 3 ---
+ src/cmd/internal/obj/x86/asm6.go | 2 --
+ 3 files changed, 8 deletions(-)

@@ -1,26 +1,60 @@
-commit d0c9142ce3b6fac83dadcc76ecfb85311431e743
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jan 9 12:22:53 2025 -0500
+commit fdc21f3eafe94490e55e0bf018490b3aa9ba2383
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 15 09:45:16 2023 -0800
 
-    runtime/pprof: hide map runtime frames from heap profiles
+    net/http: don't set length for non-range encoded content requests
     
-    Heap profiles hide "runtime" frames like runtime.mapassign. This broke
-    in 1.24 because the map implementation moved to internal/runtime/maps,
-    and runtime/pprof only considered literal "runtime." when looking for
-    runtime frames.
+    Historically, serveContent has not set Content-Length
+    when the user provides Content-Encoding.
     
-    It would be nice to use cmd/internal/objabi.PkgSpecial to find runtime
-    packages, but that is hidden away in cmd.
+    This causes broken responses when the user sets both Content-Length
+    and Content-Encoding, and the request is a range request,
+    because the returned data doesn't match the declared length.
     
-    Fixes #71174.
+    CL 381956 fixed this case by changing serveContent to always set
+    a Content-Length header.
     
-    Change-Id: I6a6a636cb42aa17539e47da16854bd3fd8cb1bfe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641775
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Unfortunately, I've discovered multiple cases in the wild of
+    users setting Content-Encoding: gzip and passing serveContent
+    a ResponseWriter wrapper that gzips the data written to it.
+    
+    This breaks serveContent in a number of ways. In particular,
+    there's no way for it to respond to Range requests properly,
+    because it doesn't know the recipient's view of the content.
+    
+    What the user should be doing in this case is just using
+    io.Copy to send the gzipped data to the response.
+    Or possibly setting Transfer-Encoding: gzip.
+    But whatever they should be doing, what they are doing has
+    mostly worked for non-Range requests, and setting
+    Content-Length makes it stop working because the length
+    of the file being served doesn't match the number of bytes
+    being sent.
+    
+    So in the interests of not breaking users (even if they're
+    misusing serveContent in ways that are already broken),
+    partially revert CL 381956.
+    
+    For non-Range requests, don't set Content-Length when
+    the user has set Content-Encoding. This matches our previous
+    behavior and causes minimal harm in cases where we could
+    have set Content-Length. (We will send using chunked
+    encoding rather than identity, but that's fine.)
+    
+    For Range requests, set Content-Length unconditionally.
+    Either the user isn't mangling the data in the ResponseWriter,
+    in which case the length is correct, or they are, in which
+    case the response isn't going to contain the right bytes anyway.
+    (Note that a Range request for a Content-Length: gzip file
+    is requesting a range of *gzipped* bytes, not a range from
+    the uncompressed file.)
+    
+    Change-Id: I5e788e6756f34cee520aa7c456826f462a59f7eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542595
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/runtime/pprof/pprof.go         |  2 +-
- src/runtime/pprof/protomem.go      |  2 +-
- src/runtime/pprof/protomem_test.go | 60 +++++++++++++++++++++++++++++++++++++-
- 3 files changed, 61 insertions(+), 3 deletions(-)
+ src/net/http/fs.go      | 29 ++++++++++++++++++++++-
+ src/net/http/fs_test.go | 63 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 89 insertions(+), 3 deletions(-)

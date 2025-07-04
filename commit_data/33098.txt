@@ -1,29 +1,30 @@
-commit bf237f534cc2a5ed23ae7ffa7deb38cbee64cae6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 13 13:51:23 2017 +0200
+commit a1e7fb4eed7fbb002d2fabbd6a809a1a49dca711
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 7 13:09:20 2017 -1000
 
-    syscall: correct type for timeout argument to Select on linux/{arm64,mips64x}
+    test: deflake chan/select3.go
     
-    syscall.Select uses SYS_PSELECT6 on arm64 and mipx64x, however this
-    syscall expects its 5th argument to be of type Timespec (with seconds
-    and nanoseconds) instead of type Timeval (with seconds and microseconds)
-    This leads to the timeout being too short by a factor of 1000.
+    On a slow or distracted machine, 0.1s is sometimes
+    not long enough for a non-blocking function call to complete.
+    This causes rare test flakes.
+    They can be easily reproduced by reducing the wait time to (say) 100ns.
     
-    This CL fixes this by adjusting the timeout argument accordingly,
-    similarly to how glibc does it for architectures where neither
-    SYS_SELECT nor SYS__NEWSELECT are available.
+    For non-blocking functions, increase the window from 100ms to 10s.
+    Using different windows for block and non-blocking functions,
+    allows us to reduce the time for blocking functions.
+    The risk here is false negatives, but that risk is low;
+    this test is run repeatedly on many fast machines,
+    for which 10ms is ample time.
+    This reduces the time required to run the test by a factor of 10,
+    from ~1s to ~100ms.
     
-    Fixes #22246
+    Fixes #20299
     
-    Change-Id: I33a183b0b87c2dae4a77a2d00f8615169fad48dd
-    Reviewed-on: https://go-review.googlesource.com/70590
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ice9a641a66c6c101d738a2ebe1bcb144ae3c9916
+    Reviewed-on: https://go-review.googlesource.com/47812
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_linux_arm64.go     | 12 +++++++++++-
- src/syscall/syscall_linux_mips64x.go   | 12 +++++++++++-
- src/syscall/zsyscall_linux_arm64.go    | 22 +++++++++++-----------
- src/syscall/zsyscall_linux_mips64.go   | 22 +++++++++++-----------
- src/syscall/zsyscall_linux_mips64le.go | 22 +++++++++++-----------
- 5 files changed, 55 insertions(+), 35 deletions(-)
+ test/chan/select3.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

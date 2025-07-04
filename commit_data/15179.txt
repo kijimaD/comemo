@@ -1,12 +1,13 @@
-commit 705b4544d61fb103a5900e6c099b3c7aafeb91f7
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Feb 9 08:19:09 2013 +0800
+commit 482f3e8481465bccefea2a0093e5fbeefb30bb29
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Fri Feb 8 16:00:59 2013 -0500
 
-    log/syslog: remove socket files after tests
+    cmd/go: indicate that flags unrecognized by 'go test' must follow package specification
     
-    R=golang-dev, iant
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7305065
+    https://golang.org/cl/7300063
 
- src/pkg/log/syslog/syslog_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/doc.go  | 2 ++
+ src/cmd/go/test.go | 2 ++
+ 2 files changed, 4 insertions(+)

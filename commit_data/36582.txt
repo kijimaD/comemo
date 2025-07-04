@@ -1,15 +1,19 @@
-commit 55ef446026748bea0e9bd5aa35132a07297ff734
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Tue Aug 28 13:10:31 2018 +0530
+commit b00f72e08a574297827d27779cb3aabf3b49524c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 12:36:52 2018 +0100
 
-    cmd/go/internal/modcmd: remove non-existent -dir flag
+    math, math/big: add wasm architecture
     
-    Fixes #27243
+    This commit adds the wasm architecture to the math package.
     
-    Change-Id: If9230244938dabd03b9afaa6600310df8f97fe92
-    Reviewed-on: https://go-review.googlesource.com/131775
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Updates #18892
+    
+    Change-Id: I5cc38552a31b193d35fb81ae87600a76b8b9e9b5
+    Reviewed-on: https://go-review.googlesource.com/106996
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go                  | 2 +-
- src/cmd/go/internal/modcmd/download.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/math/big/arith_wasm.s |  40 ++++++++++++++++++
+ src/math/floor_wasm.s     |  26 ++++++++++++
+ src/math/sqrt_wasm.s      |  12 ++++++
+ src/math/stubs_wasm.s     | 101 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 179 insertions(+)

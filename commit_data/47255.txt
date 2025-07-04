@@ -1,24 +1,33 @@
-commit 99699d14fe538f6886948ee6d3cc57f7f2a9bff7
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Nov 4 11:59:17 2021 -0700
+commit f901ea701ddac5a4d600d49007e54caa32b4c9b5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 8 11:27:53 2020 -0500
 
-    cmd/compile: fix TypeDefn to deal with node with no Ntype set
+    cmd/internal/goobj: store relocation type as uint16
     
-    Adjust TypeDefn(), which is used by reportTypeLoop(), to work for nodes
-    with no Ntype set (which are all nodes in -G=3 mode). Normally,
-    reportTypeLoop() would not be called, because the types2 typechecker
-    would have already caught it. This is a possible way to report an
-    unusual type loop involving type params, which is not being caught by
-    the types2 type checker.
+    Currently, relocation type is stored as uint8 in object files, as
+    Go relocations do not exceed 255. In the linker, however, it is
+    used as a 16-bit type, because external relocations can exceed
+    255. The linker has to store the extra byte in a side table. This
+    complicates many things.
     
-    Updates #48962
+    Just store it as uint16 in object files. This simplifies things,
+    with a small cost of increasing the object file sizes.
     
-    Change-Id: I55edee46026eece2e8647c5b5b4d8dfb39eeb5f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361398
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+                   before      after
+    hello.o         1672        1678
+    runtime.a    7927784     8056194
+    
+    Change-Id: I313cf44ad0b8b3b76e35055ae55d911ff35e3158
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268477
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ir/name.go |  5 ++++-
- test/typeparam/issue48962.go        | 15 +++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/objfile.go             | 34 ++++++++---------
+ src/cmd/internal/goobj/objfile_test.go        |  4 +-
+ src/cmd/internal/obj/objfile.go               |  2 +-
+ src/cmd/link/internal/loader/loader.go        | 53 ++++++++-------------------
+ src/cmd/link/internal/loader/loader_test.go   |  3 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |  8 +---
+ 6 files changed, 40 insertions(+), 64 deletions(-)

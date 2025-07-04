@@ -1,12 +1,12 @@
-commit 21327e1970921152297394cc96ee145c7e25e65c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Feb 16 14:32:04 2013 +1100
+commit c92d3552e5de31a5195aef5ff04979d61dcbf1a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 17:11:13 2013 -0500
 
-    runtime: fix unused variable warning
+    os: point users of ProcessState.SysUsage to getrusage(2)
     
-    R=rsc, dvyukov
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7312103
+    https://golang.org/cl/7352044
 
- src/pkg/runtime/race.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

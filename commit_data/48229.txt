@@ -1,17 +1,28 @@
-commit 21998413ad82655fef1f31316db31e23e0684b21
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 1 17:41:46 2022 -0800
+commit 30674ae91b7fa20b9f68e1e79d8d7cd8ead495cd
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Apr 30 10:21:18 2021 -0500
 
-    cmd/compile: unified IR support for implicit interfaces
+    cmd/dist: disable misc/cgo/testsanitizers on ppc64le
     
-    Change-Id: Ibdaa0750f7bc47b513c047fdf4b7145ebba9e870
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386001
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    A while back in this release the sanitizer tests were enabled
+    for ppc64le, where previously they were never run. This
+    uncovered some errors in these tests on ppc64le. One linker
+    fix was made but there are still bugs in how tsan is made to
+    work within the code, especially in how signals are enabled
+    with cgo.
+    
+    Some attempts were made to make this work but intermittent
+    failures continue to happen with the Trybots so I am just
+    going to disable this test for ppc64le within cmd/dist.
+    
+    Updates #45040
+    
+    Change-Id: I5392368ccecd4079ef568d0c645c9f7c94016d99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315430
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/reader.go  | 2 ++
- src/cmd/compile/internal/noder/reader2.go | 7 ++++++-
- src/cmd/compile/internal/noder/writer.go  | 9 +++++++++
- 3 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

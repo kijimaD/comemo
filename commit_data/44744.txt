@@ -1,26 +1,20 @@
-commit 196b104bc172c8ba7e0565293722de319071ade3
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:03 2021 -0600
+commit 8d31ca255bd6b00d04f1673d26110b702e96662b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 25 18:01:27 2020 +0000
 
-    cmd/internal/obj/ppc64: consolidate memory classifications
+    Revert "net/http: fix data race due to writeLoop goroutine left running"
     
-    Several classifications exist only to help disambiguate an
-    implied register (i.e $0/R0 as the implied second register
-    argument when loading constants, or pseudo-registers used
-    exclusively by the assembler front-end).
+    This reverts CL 232799.
     
-    The register determination is folded into getimpliedreg. The
-    classifications and their related optab entries are removed
-    or updated.
+    Reason for revert: net/http test is failing on all longtest builders.
     
-    Change-Id: Iffb167aa9fa57fbc1a537c79fbdfb36cb38f9d95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301789
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4694e34f35419bab2d0b45fa6d8c3ac2aa1f51a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250597
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go   |   8 +--
- src/cmd/internal/obj/ppc64/anames9.go |   4 --
- src/cmd/internal/obj/ppc64/asm9.go    | 114 ++++++++++------------------------
- 3 files changed, 35 insertions(+), 91 deletions(-)
+ src/net/http/transport.go      | 10 +----
+ src/net/http/transport_test.go | 92 ------------------------------------------
+ 2 files changed, 1 insertion(+), 101 deletions(-)

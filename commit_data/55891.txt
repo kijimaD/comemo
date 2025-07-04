@@ -1,20 +1,23 @@
-commit 47d4295f924bca6f1852622aabc3d3876a3f06d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 8 19:29:27 2024 -0500
+commit 48d61a46e28076bf0e41f50459fe0875ec5f4010
+Author: Huang Qiqi <huangqiqi@loongson.cn>
+Date:   Mon Mar 13 18:52:43 2023 +0800
 
-    cmd/go: respect GODEBUG in test cache
+    runtime: save and restore fcc registers in async preempt on loong64
     
-    GODEBUG affects test execution but was not being tracked.
+    During the context switch of goroutine scheduling, the value of the
+    fcc0 register needs to be saved on the stack.
     
-    Fixes #66213.
-    Fixes #65436.
+    Fixs #59000.
     
-    Change-Id: I3ac3c397f0c6fa46cd9be0d22d03020d0632f64f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570259
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ie80dbae738f60df6c11a3fe31fc57de817d76afc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475577
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/cmd/go/internal/test/test.go                 | 2 ++
- src/cmd/go/testdata/script/test_cache_inputs.txt | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ src/runtime/mkpreempt.go      |  6 ++++++
+ src/runtime/preempt_loong64.s | 12 ++++++++----
+ 2 files changed, 14 insertions(+), 4 deletions(-)

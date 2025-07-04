@@ -1,27 +1,24 @@
-commit 98b17892a080a42378c9c3551dc5bb273e7ec2d3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 08:15:40 2022 -0400
+commit 61888d47c4c49afc2e4ac3aeea42e83cda84d37b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 03:47:07 2021 -0700
 
-    go/doc/comment: add paragraph parsing and test framework
+    [dev.typeparams] cmd/compile: allow embedding Type.Vargen into Sym.Name
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    Unified IR currently works by hoisting local type definitions to
+    package scope, which requires giving them a unique name. Its current
+    solution is to directly embed the ·N suffix in Sym.Name, rather than
+    set Type.Vargen. This CL extends types/fmt.go to support trimming this
+    suffix again when appropriate.
     
-    Implement parsing of plain text doc paragraphs,
-    as well as a txtar-based test framework. Subsequent CLs will
-    implement the rest of the possible markup.
+    Longer term, I want to revisit this hack, but this seemed like the
+    least invasive solution while also handling generics and local types.
     
-    For #51082.
-    
-    Change-Id: I449aac69b44089f241fde8050ac134e17cb25116
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397278
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If99fcdcc1e19e37d5887de3b021c256a3fe46b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327052
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- api/next/51082.txt                    |   5 +
- src/go/doc/comment/parse.go           | 167 +++++++++++++++++++++++++++++++++
- src/go/doc/comment/testdata/hello.txt |  16 ++++
- src/go/doc/comment/testdata_test.go   | 168 ++++++++++++++++++++++++++++++++++
- 4 files changed, 356 insertions(+)
+ src/cmd/compile/internal/types/fmt.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

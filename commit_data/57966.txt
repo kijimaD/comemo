@@ -1,19 +1,27 @@
-commit 8b0ac33da8574b74ba50ad727b59fa8679d93e4b
-Author: Flavio Castelli <flavio@castelli.me>
-Date:   Thu Nov 14 09:47:36 2024 +0000
+commit f7f266c88598398dcf32b448bcea2100e1702630
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 12:02:52 2023 -0400
 
-    syscall: define EBADFD for wasip1 target
+    os/exec: avoid calling LookPath in cmd.Start for resolved paths
     
-    Fixes #60998
+    This reapplies CL 512155, which was previously reverted in CL 527337.
+    The race that prompted the revert should be fixed by CL 527820,
+    which will be submitted before this one.
     
-    Change-Id: I7e899708c7e0406bd9927eb411b57fc3240b7f18
-    GitHub-Last-Rev: c1a20aee0e559e8a27a3c59acfd244fdbf885a80
-    GitHub-Pull-Request: golang/go#60999
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506175
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #36768.
+    Updates #62596.
+    
+    Change-Id: I3c3cd92470254072901b6ef91c0ac52c8071e0a2
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528038
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/syscall/tables_wasip1.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/os/exec/exec.go            | 31 +-------------------------
+ src/os/exec/lp_plan9.go        |  6 ++++++
+ src/os/exec/lp_unix.go         |  6 ++++++
+ src/os/exec/lp_wasm.go         |  6 ++++++
+ src/os/exec/lp_windows.go      | 49 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/exec/lp_windows_test.go | 25 ++++++++++++---------
+ 6 files changed, 83 insertions(+), 40 deletions(-)

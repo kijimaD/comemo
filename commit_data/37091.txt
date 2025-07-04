@@ -1,26 +1,27 @@
-commit 269e5319172bfb8774d19538e8dfc8ae0650ffec
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 17:02:16 2018 +0200
+commit b749845067a2f59d3ffa215b83286272d38398ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 27 07:08:41 2018 -0700
 
-    cmd/link: add AIX operating system
+    net: limit concurrent threads to limit on file descriptors
     
-    This commit adds AIX operating system to cmd/link package for ppc64
-    architecture.
+    At least on Darwin, if getaddrinfo can't open a file descriptor it
+    returns EAI_NONAME ("no such host") rather than a meaningful error.
+    Limit the number of concurrent getaddrinfo calls to the number of file
+    descriptors we can open, to make that meaningless error less likely.
     
-    Updates: #25893
+    We don't apply the same limit to Go lookups, because for that we will
+    return a meaningful "too many open files" error.
     
-    Change-Id: I349e0a2658c31919b72117b62c4c9935c9af07c0
-    Reviewed-on: https://go-review.googlesource.com/c/138730
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #25694
+    
+    Change-Id: I601857190aeb64f11e22b4a834c1c6a722a0788d
+    Reviewed-on: https://go-review.googlesource.com/121176
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go   |   25 +
- src/cmd/link/internal/ld/go.go     |    7 +-
- src/cmd/link/internal/ld/lib.go    |   15 +-
- src/cmd/link/internal/ld/main.go   |    4 +
- src/cmd/link/internal/ld/sym.go    |    2 +-
- src/cmd/link/internal/ld/xcoff.go  | 1232 ++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ppc64/asm.go |   29 +
- src/cmd/link/internal/ppc64/obj.go |    4 +
- 8 files changed, 1315 insertions(+), 3 deletions(-)
+ src/net/lookup_fake.go    |  6 ++++++
+ src/net/lookup_plan9.go   |  6 ++++++
+ src/net/lookup_unix.go    | 25 +++++++++++++++++++++++++
+ src/net/lookup_windows.go |  6 ++++++
+ src/net/net.go            |  8 +++++++-
+ 5 files changed, 50 insertions(+), 1 deletion(-)

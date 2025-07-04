@@ -1,27 +1,14 @@
-commit 9741d83ceaf046e55077d68719cc2781cd96d5f1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 18 13:27:11 2016 -0700
+commit 87bca88c703c1f14fe8473dc2f07dc521cf2b989
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 26 18:54:12 2016 -0700
 
-    cmd/asm, go/build: invoke cmd/asm only once per package
+    context: fix doc typo
     
-    Prior to this CL, cmd/go invoked cmd/asm once
-    for every assembly file.
-    The exec and cmd/asm startup overhead dwarfed
-    the actual time spent assembling.
-    This CL adds support to cmd/asm to process
-    multiple input files and uses it in cmd/go.
+    Fixes #15449
     
-    This cuts 10% off the wall time for 'go build -a math'.
-    
-    Fixes #15680
-    
-    Change-Id: I12d2ee2c817207954961dc8f37b8f2b09f835550
-    Reviewed-on: https://go-review.googlesource.com/27636
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8d84d076a05c56694b48f7b84f572b1a6524f522
+    Reviewed-on: https://go-review.googlesource.com/22493
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/asm/internal/flags/flags.go |  9 ++++--
- src/cmd/asm/main.go                 | 30 +++++++++++++-------
- src/cmd/go/build.go                 | 55 ++++++++++++++++++++++---------------
- 3 files changed, 59 insertions(+), 35 deletions(-)
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

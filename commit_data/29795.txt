@@ -1,17 +1,17 @@
-commit c06b10ae9df81ea3ffdfe118a92410da4e153fea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 12 16:53:12 2016 -0800
+commit 9a8832f1422f7fa72e4855757e4a951957cc62ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:44:53 2016 -0400
 
-    os/exec: fix race in TestStdinCloseRace
+    math/big: move exhaustive tests behind -long flag
     
-    The test for the race detector itself had a race of a sort not
-    detected by the race detector.
+    This way you can still run 'go test' or 'go bench -run Foo'
+    without wondering why it is taking so very long.
     
-    Fixes #18286.
-    
-    Change-Id: I3265eae275aaa2869a6b6d3e8675b0d88b25831b
-    Reviewed-on: https://go-review.googlesource.com/34287
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icfa097a6deb1d6682acb7be9f34729215c29eabb
+    Reviewed-on: https://go-review.googlesource.com/30707
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec_test.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/math/big/float_test.go   |  9 ++++++---
+ src/math/big/rat_test.go     | 10 +++++-----
+ src/math/big/ratconv_test.go |  6 +++---
+ 3 files changed, 14 insertions(+), 11 deletions(-)

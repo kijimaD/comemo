@@ -1,12 +1,21 @@
-commit 751eef83e0c0a28879cdcdc384d6810dad915e90
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 25 16:20:27 2015 +1000
+commit 79986e24e0152ba448fd41d65eeb24ebdb6c7ec7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 19:38:56 2015 +0000
 
-    doc: first cut at prose for big changes in go1.5.html
+    runtime/pprof: write heap statistics to heap profile always
     
-    Change-Id: Ie2aba3d5069d88548414f7d76b9b6efb9acf0393
-    Reviewed-on: https://go-review.googlesource.com/11477
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is a duplicate of CL 9491.
+    That CL broke the build due to pprof shortcomings
+    and was reverted in CL 9565.
+    
+    CL 9623 fixed pprof, so this can go in again.
+    
+    Fixes #10659.
+    
+    Change-Id: If470fc90b3db2ade1d161b4417abd2f5c6c330b8
+    Reviewed-on: https://go-review.googlesource.com/10212
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.5.html | 488 ++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 410 insertions(+), 78 deletions(-)
+ doc/go1.5.txt              |  1 +
+ src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++------------------------
+ 2 files changed, 28 insertions(+), 29 deletions(-)

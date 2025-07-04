@@ -1,15 +1,16 @@
-commit f422242065dbbaa2cff85b17de9f23b9d603464e
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Mar 10 09:42:34 2011 -0500
+commit f8f3145a080b18b35c2fa7f245a4a474cc3043d4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 9 17:30:27 2011 -0800
 
-    crypto/ecdsa: add package.
+    gob: turn two panics into errors because they can be triggered
+    by bogus data, or are in any case recoverable.
     
-    R=rsc, cw
+    Fixes #1598.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4253073
+    https://golang.org/cl/4240101
 
- src/pkg/Makefile                   |   1 +
- src/pkg/crypto/ecdsa/Makefile      |  11 ++
- src/pkg/crypto/ecdsa/ecdsa.go      | 128 ++++++++++++++++++++++
- src/pkg/crypto/ecdsa/ecdsa_test.go | 218 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 358 insertions(+)
+ src/pkg/gob/decode.go | 6 +++---
+ src/pkg/gob/encode.go | 5 +++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

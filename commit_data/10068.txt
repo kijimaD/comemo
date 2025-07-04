@@ -1,23 +1,31 @@
-commit 8bfb2171233d5738fe592f001f318969f8228c97
+commit 792a55f5db30c7280b2910a9621ea78ec6bd2c1c
 Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Oct 21 11:04:28 2011 -0400
+Date:   Thu Oct 20 15:44:45 2011 -0400
 
-    exp/ssh: server cleanups
+    exp/ssh: add experimental ssh client
     
-    server.go/channel.go:
-    * rename Server to ServerConfig to match Client.
-    * rename ServerConnection to ServeConn to match Client.
-    * add Listen/Listener.
-    * ServerConn.Handshake(), general cleanups.
+    Requires CL 5285044
     
     client.go:
-    * fix bug where fmt.Error was not assigned to err
+    * add Dial, ClientConn, ClientChan, ClientConfig and Cmd.
     
-    R=rsc, agl
+    doc.go:
+    * add Client documentation.
+    
+    server.go:
+    * adjust for readVersion change.
+    
+    transport.go:
+    * return an os.Error not a bool from readVersion.
+    
+    R=rsc, agl, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5265049
+    https://golang.org/cl/5162047
 
- src/pkg/exp/ssh/channel.go |   2 +-
- src/pkg/exp/ssh/client.go  |   2 +-
- src/pkg/exp/ssh/server.go  | 147 ++++++++++++++++++++++++++++++---------------
- 3 files changed, 102 insertions(+), 49 deletions(-)
+ src/pkg/exp/ssh/Makefile          |   1 +
+ src/pkg/exp/ssh/client.go         | 628 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/doc.go            |  24 +-
+ src/pkg/exp/ssh/server.go         |   6 +-
+ src/pkg/exp/ssh/transport.go      |  17 +-
+ src/pkg/exp/ssh/transport_test.go |  10 +-
+ 6 files changed, 668 insertions(+), 18 deletions(-)

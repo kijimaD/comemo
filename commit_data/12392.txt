@@ -1,15 +1,18 @@
-commit aa1aaee7fd96a76e595add58b9889b4cd6703d3a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 5 16:40:27 2012 -0500
+commit 610b5b2fd8a31ac3855088a0ea2aece8d88d7521
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 5 13:36:05 2012 -0800
 
-    runtime: wait for main goroutine before setting GOMAXPROCS.
+    net: remove all direct fmt and bytes imports
     
-    Fixes #3182.
+    Once dnsMsg stops using reflect, we lose even more
+    indirect dependencies.
     
-    R=golang-dev, dvyukov, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5732057
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5751043
 
- src/pkg/runtime/proc.c | 6 +++++-
- src/run.bash           | 4 ++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/net/dnsclient.go       | 20 ++++++++++----------
+ src/pkg/net/interface_linux.go | 10 ++++++----
+ src/pkg/net/sockopt.go         |  3 +--
+ src/pkg/net/tcpsock_posix.go   |  3 +--
+ 4 files changed, 18 insertions(+), 18 deletions(-)

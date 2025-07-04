@@ -1,32 +1,16 @@
-commit 2f8798ed071072dbb6801c5dbc5a4368cb5984e9
-Author: diaxu01 <dianhong.xu@arm.com>
-Date:   Fri Sep 6 09:55:54 2019 +0000
+commit 432ca0ea83d12519004c6f7f7c1728410923987f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 22:07:21 2019 -0700
 
-    cmd/internal/obj/arm64: add support of PCALIGN directive
+    runtime: add new runtimer function
     
-    Recently, we get requirements of instructions and functions alignment
-    from the gVisor project. To fit the alignment requirement of interrupt
-    table, they require an instruction's address to be aligned 128 bytes
-    and a function's entry address to be aligned 2K bytes. Thus we add
-    support for PCALIGN directive first. Below is a discussion about this
-    topic. https://groups.google.com/forum/m/#!topic/golang-dev/RPj90l5x86I
+    Updates #27707
     
-    Functions in Go are aligned to 16 bytes on arm64, thus now we only
-    support 8 and 16 bytes alignment.
-    
-    This patch adds support for PCALIGN directive. This directive can be
-    used within Go asm to align instruction by padding NOOP directives.
-    
-    This patch also adds a test to verify the correnctness of the PCALIGN
-    directive. The test is contributed by Fannie Zhang <Fannie.Zhang@arm.com>.
-    
-    Change-Id: I709e6b94847fe9e1824f42f4155355f90c63d523
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207117
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1e65effb708911c727d126c51e0f50fe219f42ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171878
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go     | 70 +++++++++++++++++++++++++++++-----
- src/cmd/internal/obj/arm64/asm_test.go | 49 ++++++++++++++++++++++++
- 2 files changed, 109 insertions(+), 10 deletions(-)
+ src/runtime/time.go | 108 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 105 insertions(+), 3 deletions(-)

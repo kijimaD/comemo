@@ -1,17 +1,27 @@
-commit 7666ec1c99b2f8c88b42fb5462510cafce120a6f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jul 14 17:29:29 2022 -0400
+commit 14e812bfc575400a02e9e7536344a3f78a6cba08
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Sep 16 16:11:19 2021 -0600
 
-    runtime: convert runningPanicDefers to atomic type
+    syscall: do not use handle lists on windows when NoInheritHandles is true
     
-    For #53821.
+    If NoInheritHandles is passed, then we shouldn't attempt to do anything
+    with handle lists. Otherwise CreateProcess fails with invalid param,
+    because it's being told both to not inherit handles and to inherit
+    certain handles.
     
-    Change-Id: Ib48a1f2ff85d667c86dbd0b7662efab5a0abd837
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419437
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    This commit fixes that by using the same logic for handle lists as it
+    does for enabling or disabling handle inheritance. It also adds a test
+    to make sure this doesn't regress again.
+    
+    Fixes #48040
+    
+    Change-Id: I507261baeec263091738ab90157a991d917dc92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350411
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/panic.go | 9 ++++-----
- src/runtime/proc.go  | 4 ++--
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/os/exec/exec_windows_test.go | 14 ++++++++++++++
+ src/syscall/exec_windows.go      |  8 +++++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)

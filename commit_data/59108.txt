@@ -1,19 +1,25 @@
-commit 011b7ce8d12c14e9bd9b95a2519a6513a407bfc9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 19 09:38:51 2025 -0700
+commit 185f31bf303b265b3a7b573a5fca613ca40bf503
+Author: Jin Lin <jinl@uber.com>
+Date:   Thu Feb 8 12:52:07 2024 -0800
 
-    go/types, types2: fix silly logic error in commonUnder
+    cmd/compile: update the incorrect assignment of call site offset.
     
-    Fixes #72936.
+    The call site calculation in the previous version is incorrect. For
+    the PGO preprocess file, the compiler should directly use the call
+    site offset value. Additionly, this change refactors the preprocess
+    tool to clean up unused fields including startline, the flat and the
+    cum.
     
-    Change-Id: I79ed8d559c8565fa960b974f8c1207ee442f4c26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659256
+    Change-Id: I7bffed3215d4c016d9a9e4034bfd373bf50ab43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562795
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/under.go           | 10 ++++++----
- src/go/types/under.go                              | 10 ++++++----
- .../types/testdata/fixedbugs/issue72936.go         | 23 ++++++++++++++++++++++
- 3 files changed, 35 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go            | 12 ++--
+ .../compile/internal/test/pgo_devirtualize_test.go | 78 ++++++++++++++++++++--
+ src/cmd/compile/internal/test/pgo_inl_test.go      | 48 ++++++-------
+ .../pgo/devirtualize/devirt.pprof.node_map         | 52 +++++++++++++++
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |  8 +--
+ src/cmd/preprofile/main.go                         | 55 +++------------
+ 6 files changed, 162 insertions(+), 91 deletions(-)

@@ -1,23 +1,13 @@
-commit 32316bba5b7c198c320681104c9bfcbc622e31df
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 9 15:29:43 2012 -0700
+commit 24ab448c69f383cd23a2b88a5a240dd28269e6e2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Oct 10 01:30:34 2012 +0800
 
-    cmd/ld: add -B option to set build ID
+    misc/cgo/test: add -ldl to LDFLAGS on Linux, ignore issue4029 on windows (fix build)
     
-    Background on build ID:
-    http://fedoraproject.org/wiki/RolandMcGrath/BuildID
-    
-    R=rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6625072
+    https://golang.org/cl/6631054
 
- src/cmd/5l/asm.c  | 30 +++++++++++++++++++----
- src/cmd/5l/obj.c  |  4 +++
- src/cmd/6l/asm.c  | 30 +++++++++++++++++++----
- src/cmd/6l/obj.c  |  4 +++
- src/cmd/8l/asm.c  | 30 +++++++++++++++++++----
- src/cmd/8l/obj.c  |  4 +++
- src/cmd/ld/doc.go |  3 +++
- src/cmd/ld/elf.c  | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/ld/elf.h  |  4 +++
- 9 files changed, 167 insertions(+), 15 deletions(-)
+ misc/cgo/test/issue4029.go  |  3 +++
+ misc/cgo/test/issue4029w.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

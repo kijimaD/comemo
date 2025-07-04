@@ -1,21 +1,30 @@
-commit 2bacae815b853522d8f6bbd82156f1e1c20482cb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 14 15:38:12 2015 -0500
+commit dab143c8820151538fea908efe54e9625d1bc795
+Author: Yasuharu Goto <matope.ono@gmail.com>
+Date:   Fri May 15 00:44:34 2015 +0900
 
-    runtime: update triggerRatio in setGCPercent
+    net/http: Client support for Expect: 100-continue
     
-    Currently, runtime/debug.SetGCPercent does not adjust the controller
-    trigger ratio. As a result, runtime reductions of GOGC don't take full
-    effect until after one more concurrent cycle has happened, which
-    adjusts the trigger ratio to account for the new gcpercent.
+    Current http client doesn't support Expect: 100-continue request
+    header(RFC2616-8/RFC7231-5.1.1). So even if the client have the header,
+    the head of the request body is consumed prematurely.
     
-    Fix this by lowering the trigger ratio if necessary in setGCPercent.
+    Those are my intentions to avoid premature consuming body in this change.
+    - If http.Request header contains body and Expect: 100-continue
+      header, it blocks sending body until it gets the first response.
+    - If the first status code to the request were 100, the request
+      starts sending body. Otherwise, sending body will be cancelled.
+    - Tranport.ExpectContinueTimeout specifies the amount of the time to
+      wait for the first response.
     
-    Change-Id: I4d23e0c58d91939b86ac60fa5d53ef91d0d89e0c
-    Reviewed-on: https://go-review.googlesource.com/17813
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #3665
+    
+    Change-Id: I4c04f7d88573b08cabd146c4e822061764a7cd1f
+    Reviewed-on: https://go-review.googlesource.com/10091
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/http/request.go        | 22 +++++++++--
+ src/net/http/transport.go      | 72 ++++++++++++++++++++++++++++------
+ src/net/http/transport_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 168 insertions(+), 14 deletions(-)

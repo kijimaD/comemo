@@ -1,42 +1,27 @@
-commit 986b04c0f12efa1c57293f147a9e734ec71f0363
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Feb 15 16:59:59 2022 -0800
+commit 86e42c2fbfe14c41746fe5cfc5c8bda94bb4bc4e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 9 23:27:48 2021 -0500
 
-    encoding/binary: add AppendByteOrder
+    cmd/go: suppress SSH password prompts when fetching modules or repos
     
-    AppendByteOrder specifies new methods for LittleEndian and BigEndian
-    for appending an unsigned integer to a byte slice.
+    We were already setting GIT_SSH_COMMAND (if unset) to explicitly
+    include 'ControlMaster=no' in order to disable connection pooling.
+    Now we also set 'BatchMode=yes' to suppress password prompts for
+    password-protected keys.
     
-    The performance of AppendXXX methods are slower than PutXXX methods
-    since the former needs to do a few slice operations,
-    while the latter is essentially a single integer store.
-    In practice, existing usages of PutXXX performed slicing operations
-    around the call such that this cost was present, regardless.
+    While we're here, we also set GCM_INTERACTIVE=never to suppress
+    similar prompts from the Git Credential Manager for Windows.
     
-    name                           time/op
-    PutUint16-24                   0.48ns ± 2%
-    AppendUint16-24                1.54ns ± 1%
-    PutUint32-24                   0.46ns ± 2%
-    AppendUint32-24                0.89ns ± 1%
-    PutUint64-24                   0.46ns ± 2%
-    AppendUint64-24                0.89ns ± 1%
-    LittleEndianPutUint16-24       0.47ns ± 2%
-    LittleEndianAppendUint16-24    1.54ns ± 1%
-    LittleEndianPutUint32-24       0.45ns ± 3%
-    LittleEndianAppendUint32-24    0.92ns ± 2%
-    LittleEndianPutUint64-24       0.46ns ± 3%
-    LittleEndianAppendUint64-24    0.95ns ± 4%
+    Fixes #44904
     
-    Fixes #50601
-    
-    Change-Id: I33d2bbc93a3ce01a9269feac33a2432bc1166ead
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386017
-    Trust: Joseph Tsai <joetsai@digital-static.net>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iebb050079ff7dd54d5b944c459ae212e9e6f2579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300157
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/encoding/binary/binary.go      |  73 +++++++++++++++++++++++-
- src/encoding/binary/binary_test.go | 114 +++++++++++++++++++++++++++++++++++--
- 2 files changed, 178 insertions(+), 9 deletions(-)
+ doc/go1.17.html                     | 11 +++++++++++
+ src/cmd/go/internal/get/get.go      | 16 +++++++++++++---
+ src/cmd/go/internal/modload/init.go |  6 +++++-
+ 3 files changed, 29 insertions(+), 4 deletions(-)

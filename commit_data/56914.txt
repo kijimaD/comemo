@@ -1,33 +1,18 @@
-commit f0de94ff127db9b53f3f5877088d28afe1a85692
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jul 18 14:51:34 2024 -0400
+commit 4406e8ef4695fbe5c04b615d18704e83dc57ffc5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 11:51:28 2023 -0700
 
-    cmd/compile: don't inline runtime functions in -d=checkptr build
+    doc/go1.21: mention upgrade to Unicode 15.0.0
     
-    Runtime functions, e.g. internal/abi.NoEscape, should not be
-    instrumented with checkptr. But if they are inlined into a
-    checkptr-enabled function, they will be instrumented, and may
-    result in a check failure.
+    For #48621
+    For #55079
     
-    Let the compiler not inline runtime functions into checkptr-
-    enabled functions.
-    
-    Also undo the change in the strings package in CL 598295, as the
-    compiler handles it now.
-    
-    Fixes #68511.
-    Updates #68415.
-    
-    Change-Id: I78eb380855ac9dd53c1a1a628ec0da75c3e5a1a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599435
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I279b4fbf07d2fa9de9577559a4e17a57f5692aa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499618
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inl.go |  9 +++++++++
- src/cmd/compile/internal/types/type.go |  5 +++++
- src/cmd/internal/objabi/pkgspecial.go  |  2 ++
- src/strings/builder.go                 | 14 +-------------
- test/fixedbugs/issue68415.go           |  6 +++++-
- 5 files changed, 22 insertions(+), 14 deletions(-)
+ doc/go1.21.html | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

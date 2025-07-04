@@ -1,17 +1,17 @@
-commit e45c384b73bdf9b8b57f6319c2db763187a1da4f
-Author: Nicolas Owens <mischief@offblast.org>
-Date:   Fri Jul 18 11:04:29 2014 -0700
+commit 0b2da60fb8a5f883ee29fe794e4976df55fe902c
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Jul 18 09:25:59 2014 -0700
 
-    os: broaden the range of errors understood by IsNotExist on Plan 9
+    bufio: fix UnreadSlice followed by UnreadRune
     
-    Ken's standalone file server and its derivatives, like cwfs, return
-    error strings different from fossil when the user opens non-existent
-    files.
+    Also, fix a write check in writeBuf and make some bounds checks simpler.
     
-    LGTM=aram, 0intro, r
-    R=0intro, aram, r
-    CC=golang-codereviews, ken
-    https://golang.org/cl/112420045
+    LGTM=gri
+    R=golang-codereviews, adg, gri, r, minux
+    CC=golang-codereviews
+    https://golang.org/cl/113060043
 
- src/pkg/os/error_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/bufio/bufio.go      | 32 ++++++++++++++++----------------
+ src/pkg/bufio/bufio_test.go | 12 ++++++++++++
+ src/pkg/bufio/scan.go       |  5 +++--
+ 3 files changed, 31 insertions(+), 18 deletions(-)

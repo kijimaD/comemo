@@ -1,23 +1,19 @@
-commit 6f445a9db55f65e55c5be29d3c506ecf3be37915
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Sep 21 15:51:27 2022 -0400
+commit fda92615040c831bdcd812fd20ddb0da9dcef70b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 13:57:48 2021 -0800
 
-    test: update test/run.go and some tests to use importcfg
+    cmd/compile/internal/types2: better position for invalid slice indices error
     
-    Using importcfg instead of depending on the existence of .a files for
-    standard library packages will enable us to remove the .a files in a
-    future cl.
+    Report the error at the first place (which is to say, latest index)
+    causing the error.
     
-    Change-Id: I6108384224508bc37d82fd990fc4a8649222502c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440222
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I31cf0a4d243fc66cfab84b7fec98055f4eb60ddf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363671
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/fixedbugs/bug369.go     | 13 ++++---
- test/fixedbugs/issue21317.go |  2 +-
- test/linkmain_run.go         | 23 +++++++-----
- test/linkobj.go              | 16 ++++++---
- test/run.go                  | 84 ++++++++++++++++++++++++++++++++++++--------
- 5 files changed, 106 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/types2/index.go               |  9 ++++++---
+ .../compile/internal/types2/testdata/check/expr3.src   | 18 +++++++++---------
+ 2 files changed, 15 insertions(+), 12 deletions(-)

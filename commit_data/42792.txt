@@ -1,18 +1,16 @@
-commit ffbd8524ac4777e164ac20d80c1d8bd6a4ad5ccc
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue May 12 19:47:23 2020 +0800
+commit c4c73ce0e3a7b5c3a61678325c61b09783f76220
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 17 16:53:37 2018 -0700
 
-    cmd/compile: convert typed aux to CCop for ARM64 rules
+    go/importer: remove support for defunct binary export format
     
-    Add a new conversion function to convert aux type to Op type.
+    Fixes #27999.
     
-    Passes toolstash-check -all.
-    
-    Change-Id: I25d649a5296f6f178d64320dfc5d291e0a597e24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233739
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I488681eff4fb8e2580cf97a2d7631110d66ab19e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/143023
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 102 +++++++++++-----------
- src/cmd/compile/internal/ssa/rewrite.go      |   7 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 126 +++++++++++++--------------
- 3 files changed, 119 insertions(+), 116 deletions(-)
+ src/go/internal/gcimporter/bimport.go         | 896 --------------------------
+ src/go/internal/gcimporter/gcimporter.go      |   6 +-
+ src/go/internal/gcimporter/gcimporter_test.go |  14 +-
+ 3 files changed, 15 insertions(+), 901 deletions(-)

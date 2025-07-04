@@ -1,72 +1,16 @@
-commit c5dff7282e27c640c192edb34b92c5c6459aa804
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 22:05:51 2015 -0400
+commit 703166ea14e510a4aee805f956475570130f2df2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 16:50:49 2015 +0200
 
-    cmd/compile, runtime: fix placement of map bucket overflow pointer on nacl
+    net/url: validate ports in URLs and bytes after IPv6 literals
     
-    On most systems, a pointer is the worst case alignment, so adding
-    a pointer field at the end of a struct guarantees there will be no
-    padding added after that field (to satisfy overall struct alignment
-    due to some more-aligned field also present).
+    Fixes #11208
     
-    In the runtime, the map implementation needs a quick way to
-    get to the overflow pointer, which is last in the bucket struct,
-    so it uses size - sizeof(pointer) as the offset.
-    
-    NaCl/amd64p32 is the exception, as always.
-    The worst case alignment is 64 bits but pointers are 32 bits.
-    There's a long history that is not worth going into, but when
-    we moved the overflow pointer to the end of the struct,
-    we didn't get the padding computation right.
-    The compiler computed the regular struct size and then
-    on amd64p32 added another 32-bit field.
-    And the runtime assumed it could step back two 32-bit fields
-    (one 64-bit register size) to get to the overflow pointer.
-    But in fact if the struct needed 64-bit alignment, the computation
-    of the regular struct size would have added a 32-bit pad already,
-    and then the code unconditionally added a second 32-bit pad.
-    This placed the overflow pointer three words from the end, not two.
-    The last two were padding, and since the runtime was consistent
-    about using the second-to-last word as the overflow pointer,
-    no harm done in the sense of overwriting useful memory.
-    But writing the overflow pointer to a non-pointer word of memory
-    means that the GC can't see the overflow blocks, so it will
-    collect them prematurely. Then bad things happen.
-    
-    Correct all this in a few steps:
-    
-    1. Add an explicit check at the end of the bucket layout in the
-    compiler that the overflow field is last in the struct, never
-    followed by padding.
-    
-    2. When padding is needed on nacl (not always, just when needed),
-    insert it before the overflow pointer, to preserve the "last in the struct"
-    property.
-    
-    3. Let the compiler have the final word on the width of the struct,
-    by inserting an explicit padding field instead of overwriting the
-    results of the width computation it does.
-    
-    4. For the same reason (tell the truth to the compiler), set the type
-    of the overflow field when we're trying to pretend its not a pointer
-    (in this case the runtime maintains a list of the overflow blocks
-    elsewhere).
-    
-    5. Make the runtime use "last in the struct" as its location algorithm.
-    
-    This fixes TestTraceStress on nacl/amd64p32.
-    The 'bad map state' and 'invalid free list' failures no longer occur.
-    
-    Fixes #11838.
-    
-    Change-Id: If918887f8f252d988db0a35159944d2b36512f92
-    Reviewed-on: https://go-review.googlesource.com/12971
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I35cc94129577b2a977fd35aafb0a5fb02c534a7c
+    Reviewed-on: https://go-review.googlesource.com/11414
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 57 +++++++++++++++++++++++---------
- src/reflect/all_test.go                | 59 ++++++++++++++++++++++++++++------
- src/reflect/export_test.go             |  9 ++++++
- src/reflect/type.go                    | 29 ++++++++++++++---
- src/runtime/hashmap.go                 |  4 +--
- 5 files changed, 128 insertions(+), 30 deletions(-)
+ src/net/http/readrequest_test.go |  8 +++++++
+ src/net/url/url.go               | 46 ++++++++++++++++++++++++++++++++--------
+ src/net/url/url_test.go          | 33 ++++++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+), 9 deletions(-)

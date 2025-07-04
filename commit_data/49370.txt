@@ -1,26 +1,19 @@
-commit ee87cd1dd95fe46099e393143d9a6dcccf0a6db0
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 5 18:47:23 2022 -0400
+commit c2b4ec8f49184e02ea4832b4e495f206d4fc4b88
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:28:30 2021 -0400
 
-    cmd/go: changes to use modindex
+    go/types: add defined type to term/termlist tests
     
-    This CL makes the changes to actually use the module index when loading
-    packages and instead of scanning their directories to see if they
-    contain go files or to extract imports.
+    This is a port of CL 339905 to go/types.
     
-    Change-Id: I70106181cf64d6fd5a416644ba518b6b90030e0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403778
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I9afac9e84bde6f34bb65c7e3d726986d2c648a91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342436
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/load/pkg.go       | 10 ++++++
- src/cmd/go/internal/modindex/read.go  |  2 +-
- src/cmd/go/internal/modindex/scan.go  |  2 +-
- src/cmd/go/internal/modload/build.go  | 20 ++++++++++++
- src/cmd/go/internal/modload/import.go | 59 ++++++++++++++++++++++-------------
- src/cmd/go/internal/modload/load.go   | 22 +++++++++----
- src/cmd/go/internal/modload/search.go |  4 +--
- src/cmd/go/script_test.go             |  1 +
- 8 files changed, 89 insertions(+), 31 deletions(-)
+ src/go/types/termlist_test.go | 53 +++++++++++++++++++++++++++++++++++--------
+ src/go/types/typeterm.go      |  3 +++
+ src/go/types/typeterm_test.go | 37 +++++++++++++++++++++++++++++-
+ 3 files changed, 83 insertions(+), 10 deletions(-)

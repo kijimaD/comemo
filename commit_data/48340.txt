@@ -1,30 +1,32 @@
-commit e189b5e06d4831025758c0b152838fa1a0375525
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Mar 9 11:35:10 2022 -0500
+commit 287025925f66f90ad9b30aea2e533928026a8376
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 9 11:06:17 2021 -0700
 
-    go/types, types2: clarify documentation with respect to generic types
+    cmd/compile,reflect: allow longer type names
     
-    Address several areas where documentation was inaccurate or unclear
-    regarding generic types. Also prefer the use of the word 'generic' over
-    'parameterized', and add additional documentation for the use of
-    SetConstraint.
+    Encode the length of type names and tags in a varint encoding
+    instead of a fixed 2-byte encoding. This allows lengths longer
+    than 65535 (which can happen for large unnamed structs).
     
-    For #49593
+    Removed the alignment check for #14962, it isn't relevant any more
+    since we're no longer reading pointers directly out of this data
+    (it is encoded as an offset which is copied out bytewise).
     
-    Change-Id: Iccac60d1b3e2c45a57a3d03b3c10984293af57dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391154
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #44155
+    Update #14962
+    
+    Change-Id: I6084f6027e5955dc16777c87b0dd5ea2baa49629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318249
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/api.go         |  6 +++---
- src/cmd/compile/internal/types2/instantiate.go |  8 ++++----
- src/cmd/compile/internal/types2/named.go       | 12 ++++++++----
- src/cmd/compile/internal/types2/typeparam.go   |  9 ++++++---
- src/go/types/api.go                            |  6 +++---
- src/go/types/eval.go                           |  4 ++--
- src/go/types/instantiate.go                    |  8 ++++----
- src/go/types/named.go                          | 12 ++++++++----
- src/go/types/typeparam.go                      |  9 ++++++---
- 9 files changed, 44 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  29 ++++---
+ src/cmd/link/internal/ld/decodesym.go           |   5 +-
+ src/internal/reflectlite/all_test.go            |  13 ---
+ src/internal/reflectlite/type.go                |  52 ++++++-----
+ src/reflect/all_test.go                         |  13 ---
+ src/reflect/type.go                             | 111 +++++++++++++++---------
+ src/runtime/type.go                             |  53 ++++++-----
+ 7 files changed, 143 insertions(+), 133 deletions(-)

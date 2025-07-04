@@ -1,17 +1,30 @@
-commit 13576e3b6587dcde0f5df3d04449ca16c88dcda2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 7 09:48:14 2012 -0700
+commit 51310d832027f0660098f5f809dc587f0a8b8f9c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 00:21:53 2012 +0800
 
-    net/http/httptest: mimic the normal HTTP server's ResponseWriter more closely
+    testing: fix extra tabs when t.Log("string")
     
-    Also adds tests, which didn't exist before.
+    t.Log("line 1\nline 2\nline 3")
     
-    Fixes #4188
+    Old output:
+    === RUN TestLine3
+    --- PASS: TestLine3 (0.00 seconds)
+    testing_test.go:25:     line 1
+                    line 2
+                    line 3
+                    PASS
+    
+    New output:
+    === RUN TestLine3
+    --- PASS: TestLine3 (0.00 seconds)
+    testing_test.go:24:     line 1
+                    line 2
+                    line 3
+    PASS
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6613062
+    https://golang.org/cl/6613069
 
- src/pkg/net/http/httptest/recorder.go      | 24 ++++++--
- src/pkg/net/http/httptest/recorder_test.go | 90 ++++++++++++++++++++++++++++++
- 2 files changed, 109 insertions(+), 5 deletions(-)
+ src/pkg/testing/testing.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,24 +1,33 @@
-commit 627d6d6d5542a1ccf956a16608b0bc820568c09b
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Mar 18 11:36:21 2022 -0400
+commit 4fb10b2118cb16445f2d089f79beb3d32db3db12
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon May 10 18:10:18 2021 -0400
 
-    debug/dwarf: better error detection in parseUnits
+    cmd/go: in 'go mod download' without args, don't save module zip sums
     
-    Tweak the (*Data).parseUnits method to check a bit more carefully for
-    buffer read errors, so as to avoid infinite looping on malformed
-    inputs.
+    'go mod download' without arguments is frequently used to populate the
+    module cache. It tends to fetch a lot of extra files (for modules in
+    the build list that aren't needed to build packages in the main
+    module). It's annoying when sums are written for these extra files.
     
-    Fixes #51758.
-    Updates #47653.
+    'go mod download mod@version' will still write sums for specific
+    modules in the build list. 'go mod download all' still has the
+    previous behavior.
     
-    Change-Id: I6d67fcb53392acf651ceec636789ab9e49ad5a5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393874
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For now, all invocations of 'go mod download' still update go.mod and
+    go.sum with changes needed to load the build list (1.15 behavior).
+    
+    Fixes #45332
+    
+    Change-Id: I9e17d18a7466ac7271a0e1a2b663f6b3cb168c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318629
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/debug/dwarf/buf.go        |   2 +-
- src/debug/dwarf/entry_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++
- src/debug/dwarf/unit.go       |   3 ++
- 3 files changed, 125 insertions(+), 1 deletion(-)
+ doc/go1.17.html                                    | 11 +++++++
+ src/cmd/go/internal/modcmd/download.go             | 29 ++++++++++++++---
+ src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_download.txt        | 37 +++++++++++++++++++---
+ .../go/testdata/script/mod_get_trailing_slash.txt  | 10 ++++--
+ src/cmd/go/testdata/script/mod_query.txt           |  5 +--
+ src/cmd/go/testdata/script/mod_retract.txt         |  8 +++--
+ 7 files changed, 85 insertions(+), 17 deletions(-)

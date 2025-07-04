@@ -1,29 +1,18 @@
-commit e67d881bc3708d38fbe485d2264f38a699ce11fd
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 24 14:03:15 2017 -0700
+commit c586630d993f6136d3166837669b26f4210a79d5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Dec 8 23:21:48 2016 -0800
 
-    cmd/compile: simplify efaceeq and ifaceeq
+    doc: update go1.8.html
     
-    Clean up code that does interface equality. Avoid doing checks
-    in efaceeq/ifaceeq that we already did before calling those routines.
+    Made many minor changes so that the document is consistent with itself.
     
-    No noticeable performance changes for existing benchmarks.
+    Some more noticeable changes:
+    * CL/34141: Revert "testing: add T.Context method"
+    * CL/33630: net/http: document restrictions on ETag as expected by ServeContent
     
-    name            old time/op  new time/op  delta
-    EfaceCmpDiff-8   604ns ± 1%   553ns ± 1%  -8.41%  (p=0.000 n=9+10)
-    
-    Fixes #18618
-    
-    Change-Id: I3bd46db82b96494873045bc3300c56400bc582eb
-    Reviewed-on: https://go-review.googlesource.com/38606
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I39ae5e55c56e374895c115e6852998c940beae35
+    Reviewed-on: https://go-review.googlesource.com/34243
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 249 +++++++++++++------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   6 +-
- src/cmd/compile/internal/gc/walk.go            |  33 ++--
- src/runtime/alg.go                             |  32 ++--
- src/runtime/runtime_test.go                    |  17 ++
- 5 files changed, 179 insertions(+), 158 deletions(-)
+ doc/go1.8.html | 260 +++++++++++++++++++++++++++------------------------------
+ 1 file changed, 125 insertions(+), 135 deletions(-)

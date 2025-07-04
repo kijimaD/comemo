@@ -1,25 +1,16 @@
-commit 5e47b779905ce87faac1bea3b0774b50ddf1ceba
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Sep 24 13:22:03 2012 +0900
+commit 3cd890dd5a8e5be33ce6f65ab7690ba0e1c235ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 00:06:31 2012 -0400
 
-    exp/locale/collate/tools/colcmp: implementation of colcmp tool used for comparing
-    various implementation of collation.  The tool provides commands for soring,
-    regressing one implementation against another, and benchmarking.
-    Currently it includes collation implementations for the Go collator, ICU,
-    and one using Darwin's CoreFoundation framework.
-    To avoid building this tool in the default build, the colcmp tag has been
-    added to all files. This allows other tools/colcmp in this directory (e.g. it may make
-    sense to move maketables here) to be put in this directory as well.
+    test: minor fixes in run and testlib
     
-    R=r, rsc, mpvl
+    Can tell this doesn't get run very often, but it is still important
+    for when you've broken everything else.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6496118
+    https://golang.org/cl/6547065
 
- src/pkg/exp/locale/collate/tools/colcmp/Makefile  |   7 +
- src/pkg/exp/locale/collate/tools/colcmp/chars.go  | 937 ++++++++++++++++++++++
- src/pkg/exp/locale/collate/tools/colcmp/col.go    |  95 +++
- src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 528 ++++++++++++
- src/pkg/exp/locale/collate/tools/colcmp/darwin.go | 111 +++
- src/pkg/exp/locale/collate/tools/colcmp/gen.go    | 179 +++++
- src/pkg/exp/locale/collate/tools/colcmp/icu.go    | 209 +++++
- 7 files changed, 2066 insertions(+)
+ test/run     | 2 ++
+ test/testlib | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

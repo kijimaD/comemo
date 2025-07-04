@@ -1,32 +1,26 @@
-commit c1b32acefb3b1438981ba9dc4f5259999e9fc2ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 16 14:11:01 2016 -0700
+commit 6b0688f7421aeef904d40a374bae75c37ba0b8b4
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Mar 24 17:42:01 2016 +0100
 
-    runtime: yield after raising signal that should kill process
+    runtime: speed up growslice by avoiding divisions 2
     
-    Issue #15613 points out that the darwin builders have been getting
-    regular failures in which a process that should exit with a SIGPIPE
-    signal is instead exiting with exit status 2. The code calls
-    runtime.raise. On most systems runtime.raise is the equivalent of
-    pthread_kill(gettid(), sig); that is, it kills the thread with the
-    signal, which should ensure that the program does not keep going. On
-    darwin, however, runtime.raise is actually kill(getpid(), sig); that is,
-    it sends a signal to the entire process. If the process decides to
-    deliver the signal to a different thread, then it is possible that in
-    some cases the thread that calls raise is able to execute the next
-    system call before the signal is actually delivered. That would cause
-    the observed error.
+    This is a follow-up of https://go-review.googlesource.com/#/c/20653/
     
-    I have not been able to recreate the problem myself, so I don't know
-    whether this actually fixes it. But, optimistically:
+    Special case computation for slices with elements of byte size or
+    pointer size.
     
-    Fixed #15613.
+    name                      old time/op  new time/op  delta
+    GrowSliceBytes-4          86.2ns ± 3%  75.4ns ± 2%  -12.50%  (p=0.000 n=20+20)
+    GrowSliceInts-4            161ns ± 3%   136ns ± 3%  -15.59%  (p=0.000 n=19+19)
+    GrowSlicePtr-4             239ns ± 2%   233ns ± 2%   -2.52%  (p=0.000 n=20+20)
+    GrowSliceStruct24Bytes-4   258ns ± 3%   256ns ± 3%     ~     (p=0.134 n=20+20)
     
-    Change-Id: I60c0a9912aae2f46143ca1388fd85e9c3fa9df1f
-    Reviewed-on: https://go-review.googlesource.com/23152
+    Change-Id: Ice5fa648058fe9d7fa89dee97ca359966f671128
+    Reviewed-on: https://go-review.googlesource.com/21101
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/signal1_unix.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/runtime/append_test.go | 24 ++++++++++++++++++++++--
+ src/runtime/slice.go       | 32 ++++++++++++++++++++------------
+ 2 files changed, 42 insertions(+), 14 deletions(-)

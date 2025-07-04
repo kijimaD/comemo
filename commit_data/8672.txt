@@ -1,27 +1,25 @@
-commit 2ac375b2df85ccf6d2712272bba4d1487e275810
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Jun 10 00:02:34 2011 +0200
+commit fc41e621e875838bb62a111ac8ad97fa39f2bb2b
+Author: Fan Hongjian <fan.howard@gmail.com>
+Date:   Thu Jun 9 17:19:08 2011 -0400
 
-    gc: compact stackframe
+    math: add sqrt_arm.s and sqrtGoC.go as fallback to soft fp emulation
+    5a: add SQRTF and SQRTD
+    5l: add ASQRTF and ASQRTD
     
-    After allocparams and walk, remove unused auto variables
-    and re-layout the remaining in reverse alignment order.
+    Use ARMv7 VFP VSQRT instruction to speed up math.Sqrt
     
-    R=rsc
+    R=rsc, dave, m
     CC=golang-dev
-    https://golang.org/cl/4568068
+    https://golang.org/cl/4551082
 
- src/cmd/5g/gg.h    |   1 +
- src/cmd/5g/gsubr.c |   3 ++
- src/cmd/5g/reg.c   |   4 +-
- src/cmd/6g/gg.h    |   1 +
- src/cmd/6g/gsubr.c |   4 +-
- src/cmd/6g/reg.c   |   2 +
- src/cmd/8g/gg.h    |   1 +
- src/cmd/8g/gsubr.c |   3 ++
- src/cmd/8g/reg.c   |   2 +
- src/cmd/gc/gen.c   |  17 ++++++--
- src/cmd/gc/go.h    |   5 ++-
- src/cmd/gc/pgen.c  | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/gc/subr.c  |  88 ++++++++++++++++++++++++++++++++++++++---
- 13 files changed, 231 insertions(+), 14 deletions(-)
+ src/cmd/5a/lex.c                |  2 ++
+ src/cmd/5l/5.out.h              |  2 ++
+ src/cmd/5l/asm.c                |  4 +++-
+ src/cmd/5l/obj.c                |  1 +
+ src/cmd/5l/softfloat.c          |  2 ++
+ src/cmd/5l/span.c               |  2 ++
+ src/pkg/math/Makefile           |  3 +++
+ src/pkg/math/sqrt_arm.s         | 10 ++++++++++
+ src/pkg/math/sqrt_port.go       |  4 ++++
+ src/pkg/runtime/arm/softfloat.c |  9 +++++++++
+ 10 files changed, 38 insertions(+), 1 deletion(-)

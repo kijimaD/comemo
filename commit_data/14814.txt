@@ -1,15 +1,12 @@
-commit 41f32e0dffc3d72d223525d95a6be35dce5ffa9a
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Sun Jan 6 22:44:16 2013 -0500
+commit 8cf45909b59dbc9edf856b129c6b84603438973b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 6 22:43:32 2013 -0500
 
-          doc: two minor edits to contribute.html
+    bytes: Change Compare example to be consistent with sort.Search's.
     
-    - Missing parenthesis
-    - Fix bad phrasing
-    
-    R=golang-dev, rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/7063048
+    https://golang.org/cl/7057049
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/bytes/example_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

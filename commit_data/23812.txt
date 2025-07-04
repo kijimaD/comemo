@@ -1,20 +1,50 @@
-commit 731dcdae6dd215b853daf9b40f61aefb79333c67
-Author: David Chase <drchase@google.com>
-Date:   Thu Jul 23 14:17:07 2015 -0400
+commit 4dab6d01f12591f256d36b32cd6480ef679458f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 23:47:01 2015 -0400
 
-    cmd/compile: prepend captured args to called-closure params
+    cmd/go: make -a apply to the standard library, like in Go 1.3
     
-    Old code appended, did not play well with a closure
-    with a ... param.
+    This CL adds a very long comment explaining how isStale and
+    the new build IDs work. As part of writing the comment I realized:
     
-    Fixes #11075.
+    // When the go command makes the wrong build decision and does not
+    // rebuild something it should, users fall back to adding the -a flag.
+    // Any common use of the -a flag should be considered prima facie evidence
+    // that isStale is returning an incorrect false result in some important case.
+    // Bugs reported in the behavior of -a itself should prompt the question
+    // ``Why is -a being used at all? What bug does that indicate?''
     
-    Change-Id: Ib7c8590c5c4e576e798837e7499e00f3494efb4a
-    Reviewed-on: https://go-review.googlesource.com/12580
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    The two uses of -a that are most commonly mentioned in bugs filed
+    against the go command are:
+    
+            go install -a ./...
+            go build -tags netgo -a myprog
+    
+    Both of these commands now do the right thing without needing -a.
+    
+    The -a exception we introduced in Go 1.4 was for the first form, and
+    it broke the second form. Again, neither needs -a anymore, so restore
+    the old, simpler, easier to explain, less surprising meaning used in Go 1.3:
+    if -a is given, rebuild EVERYTHING.
+    
+    See the comment for more justification and history.
+    
+    Summary of recent CLs (to link bugs to this one):
+    
+    Fixes #3036. Now 'go install ./...' works.
+    Fixes #6534. Now 'go install ./...' works.
+    Fixes #8290. Now 'go install ./...' works.
+    Fixes #9369. Now 'go build -tags netgo myprog' works.
+    Fixes #10702. Now using one GOPATH with Go 1.5 and Go 1.6 works.
+      (Each time you switch, everything needed gets rebuilt.
+      Switching from Go 1.4 to Go 1.5 will rebuild properly.
+      Switching from Go 1.5 back to Go 1.4 still needs -a when
+      invoking the Go 1.4 go command.)
+    
+    Change-Id: I19f9eb5286efaa50de7c8326602e94604ab572eb
+    Reviewed-on: https://go-review.googlesource.com/10761
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 15 +++++++++------
- src/cmd/compile/internal/gc/walk.go    |  4 ++--
- test/fixedbugs/issue11750.go           | 20 ++++++++++++++++++++
- 3 files changed, 31 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go |   2 +-
+ src/cmd/go/pkg.go     | 425 +++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 354 insertions(+), 73 deletions(-)

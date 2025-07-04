@@ -1,15 +1,29 @@
-commit 7e4d1a05e577d630f9b7f51ce31d2a5d7f52568e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 29 08:06:22 2017 -0700
+commit 2ebe1bdd894a4bbd71408ae5c49d906f52320d2e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 25 10:44:21 2017 -0700
 
-    reflect: document that value.NumMethod counts exported methods
+    cmd/internal/obj: make x86's asmbuf a local variable
     
-    Updates #17686
-    Fixes #20848
+    The x86 assembler requires a buffer to build
+    variable-length instructions.
+    It used to be an obj.Link field.
+    That doesn't play nicely with concurrent assembly.
+    Move the AsmBuf type to the x86 package,
+    where it belongs anyway,
+    and make it a local variable.
     
-    Change-Id: I35d58c7d1aa74d3e7867124070e27c787d444b04
-    Reviewed-on: https://go-review.googlesource.com/47210
+    Passes toolstash-check -all.
+    No compiler performance impact.
+    
+    Updates #15756
+    
+    Change-Id: I8014e52145380bfd378ee374a0c971ee5bada917
+    Reviewed-on: https://go-review.googlesource.com/38663
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go      |  94 ------
+ src/cmd/internal/obj/x86/asm6.go  | 671 ++++++++++++++++++++++----------------
+ src/cmd/vet/all/whitelist/all.txt |   1 -
+ 3 files changed, 383 insertions(+), 383 deletions(-)

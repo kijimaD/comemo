@@ -1,31 +1,14 @@
-commit 33c246ff9250ea07b5e0178e0638cb703f90fba3
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Nov 7 04:40:56 2017 -0500
+commit 2efded1cd2df8f6afea54acc6b06e083a3ba2f70
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 15 19:23:26 2017 -0400
 
-    cmd/compile: fix SSA immediate sign extension on s390x
+    [dev.boringcrypto] crypto/tls: use TLS-specific AES-GCM mode if available
     
-    The CMPWUconst op (32-bit unsigned comparison with immediate) takes
-    an unsigned immediate value. In SSA this should be sign extended to
-    64-bits to match the Int32 type given in the op and then zero
-    extended when producing the final assembly. Before this CL we were
-    zero extending in SSA which caused ssacheck to fail.
-    
-    While we are here also ensure other 32-bit immediates are sign
-    extended in SSA.
-    
-    Passes toolstash -cmp on std on s390x.
-    
-    Fixes #22611.
-    
-    Change-Id: I5c061a76a710b10ecb0650c9c42efd9fa1c123cc
-    Reviewed-on: https://go-review.googlesource.com/76336
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ide00c40c0ca8d486f3bd8968e1d301c8b0ed6d05
+    Reviewed-on: https://go-review.googlesource.com/56011
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/s390x/ssa.go        |  8 +++-
- src/cmd/compile/internal/ssa/gen/S390X.rules | 26 +++++-----
- src/cmd/compile/internal/ssa/gen/S390XOps.go | 10 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 10 ++--
- src/cmd/compile/internal/ssa/rewriteS390X.go | 72 ++++++++++++++--------------
- 5 files changed, 66 insertions(+), 60 deletions(-)
+ src/crypto/tls/cipher_suites.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

@@ -1,19 +1,22 @@
-commit 349d398ea3d2f12b09791a1946e3d8d5baecd0c4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 14 10:00:57 2022 +0100
+commit fa4df6597eb7ed07a9a835a8b68c37282709f79e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 12 14:01:44 2022 -0800
 
-    cmd/compile/internal/base, cmd/internal/bio: use syscall.Mmap on aix
+    go/types, types2: avoid field/method lookup error on invalid types
     
-    Change-Id: Ic28612952eb9abf14425f0bb14043b10f6050d94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450195
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #49541.
+    
+    Change-Id: I27a52d0722a7408758682e7ddcd608c0a6c4881b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378175
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
- src/cmd/compile/internal/base/mapfile_read.go | 2 +-
- src/cmd/internal/bio/buf_mmap.go              | 2 +-
- src/cmd/internal/bio/buf_nommap.go            | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/call.go            |  5 +++
+ src/cmd/compile/internal/types2/instantiate.go     |  5 ++-
+ .../types2/testdata/fixedbugs/issue49541.go2       | 44 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         |  2 +-
+ src/go/types/call.go                               |  5 +++
+ src/go/types/instantiate.go                        |  5 ++-
+ src/go/types/testdata/fixedbugs/issue49541.go2     | 44 ++++++++++++++++++++++
+ src/go/types/typeset.go                            |  2 +-
+ 8 files changed, 108 insertions(+), 4 deletions(-)

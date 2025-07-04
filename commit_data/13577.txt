@@ -1,13 +1,23 @@
-commit 8efb70f92e258d458c183232b985c83b477ed3de
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Sun Aug 5 17:02:41 2012 -0400
+commit ab058b35402aded8579e3e9653c0d78c5c4e9e5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 5 14:35:35 2012 -0400
 
-    syscall: add some new syscall numbers from NetBSD-current
+    misc/dashboard/codereview: show first line of last message in thread
     
-    R=golang-dev
+    This line helps me to tell whether the CL is waiting for me or I'm waiting for the author.
+    
+    Also:
+     - vertical-align table cells so buttons are always aligned with CL headers.
+     - add email= to show front page for someone else.
+    
+     Demo at http://rsc.gocodereview.appspot.com/.
+     Until this is deployed for real, some recently changed CLs may be
+     missing the 'first line of last message' part.
+    
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/6454100
+    https://golang.org/cl/6446065
 
- src/pkg/syscall/zsysnum_netbsd_386.go   | 4 ++++
- src/pkg/syscall/zsysnum_netbsd_amd64.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ misc/dashboard/codereview/dashboard/cl.go    | 129 ++++++++++++++++++++++-----
+ misc/dashboard/codereview/dashboard/front.go |  47 +++++++---
+ 2 files changed, 142 insertions(+), 34 deletions(-)

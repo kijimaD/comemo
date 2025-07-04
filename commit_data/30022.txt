@@ -1,23 +1,17 @@
-commit ade6bcf1d5d0fdddb7ce779e7aa3f1479e1e77a3
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Feb 1 08:57:46 2017 +0100
+commit 23173fc025f769aaa9e19f10aa0f69c851ca2f3b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 12:14:36 2016 +0100
 
-    misc/ios: ignore stderr from iOS tools
+    net/http/httptrace: clarify ClientTrace docs
     
-    On (at least) macOS 10.12, the `security cms` subcommand used by the
-    iOS detection script will output an error to stderr. The command
-    otherwise succeeds, but the extra line confuses a later parsing step.
+    The old wording over-promised.
     
-    To fix it, use only stdout and ignore stderr from every command run
-    by detect.go.
+    Fixes #16957
     
-    For the new iOS builders.
-    
-    Change-Id: Iee426da7926d7f987ba1be061fa92ebb853ef53d
-    Reviewed-on: https://go-review.googlesource.com/36059
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iaac04de0d24eb17a0db66beeeab9de70d0f6d391
+    Reviewed-on: https://go-review.googlesource.com/31735
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- misc/ios/detect.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/httptrace/trace.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

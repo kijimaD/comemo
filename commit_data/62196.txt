@@ -1,0 +1,34 @@
+commit 2e8973aeea66f01d9770e1d307330a2d188b27cc
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Fri Jan 3 14:30:02 2025 -0500
+
+    crypto/internal/fips140test: add feedback KDF ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-108r1 KDF feedback mode algorithm
+    based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html
+    
+    The HKDF-based implementation in our FIPS module fixes some parameters,
+    requiring tailoring of the advertised capability to match. Notably:
+    
+    * We only support fixedDataOrder "after fixed data"
+    * We only support a counter length of 8 bits
+    * We only support empty IVs
+    
+    No acvp_test.config.json update accompanies this support because the
+    ACVP tests for this algorithm aren't amenable to fixed data testing.
+    
+    Updates #69642
+    
+    Change-Id: I729e899377a64d2b613d6435241aebabeef93bca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640016
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ .../internal/fips140test/acvp_capabilities.json    |  2 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 60 ++++++++++++++++++++--
+ 2 files changed, 57 insertions(+), 5 deletions(-)

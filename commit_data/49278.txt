@@ -1,21 +1,20 @@
-commit a6c75aa5c3009e6c4179ef9429b3efbd708499bf
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 18 22:07:46 2022 +0000
+commit 0811108670a178eb3d1403da81bfed20a7ffe1d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 18:01:41 2021 -0700
 
-    runtime: use correct heap goal in GC traces
+    [dev.typeparams] cmd/compile/internal/types2: fix make with type parameter argument
     
-    Currently gctrace and gcpacertrace recompute the heap goal for
-    end-of-cycle information but this is incorrect.
+    For make with a type parameter argument, the structural type of
+    the type parameter's constraint determines what make is making.
     
-    Because both of these traces are printing stats from the previous cycle
-    in this case, they should print the heap goal at the end of the previous
-    cycle.
-    
-    Change-Id: I967621cbaff9f331cd3e361de8850ddfe0cfc099
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407138
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3b48f8ce3236b7624e0638b5f5be208c5915c987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339899
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/mgc.go      | 2 +-
- src/runtime/mgcpacer.go | 3 +--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 42 ++++--------
+ .../internal/types2/testdata/check/builtins.go2    | 79 ++++++++++------------
+ test/typeparam/builtins.go                         | 71 +++++++++----------
+ 3 files changed, 80 insertions(+), 112 deletions(-)

@@ -1,17 +1,15 @@
-commit e39eda1366384cdef21f04c5c964ae93e2ea9ce3
-Author: Alberto García Hierro <alberto@garciahierro.com>
-Date:   Thu Oct 17 09:02:32 2013 -0700
+commit e5babeff8a2096a5404aed68a1e26b9cba317ae3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 16 16:30:39 2013 -0700
 
-    database/sql: make tests repeatable with -cpu=n,n
+    database/sql: fix some test fmt verbs
     
-    New test added in CL 14611045 causes a deadlock when
-    running the tests with -cpu=n,n because the fakedb
-    driver always waits when opening a new connection after
-    running TestConnectionLeak.  Reset its state after.
+    Found by vet.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14780043
+    https://golang.org/cl/14762044
 
- src/pkg/database/sql/fakedb_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/database/sql/convert_test.go      | 4 ++--
+ src/pkg/database/sql/driver/types_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

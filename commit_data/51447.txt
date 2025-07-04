@@ -1,26 +1,19 @@
-commit 2c7c98c3ad719aa9d6d2594827a6894ff9950042
-Author: Rongrong <rongrong@oss.cipunited.com>
-Date:   Mon Nov 21 14:05:40 2022 +0800
+commit d3f5cf9d285d39258b2e6f9002c44aaab3e77c42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 15:17:46 2022 -0800
 
-    syscall, runtime/internal/syscall: zero r2 before mips linux syscalls
+    cmd/go: update go work edit -json types to final version
     
-    All mips variant perform syscalls similarly. R2 (v0) holds r1 and R3
-    (v1) holds r2 of a syscall. The latter is only used by 2-ret syscalls.
-    A 1-ret syscall would not touch R3 but keeps it as is, making r2 be a
-    random value. Always reset it to 0 before SYSCALL to fix the issue.
+    For #45713
     
-    Fixes #56426
-    
-    Change-Id: Ie49965c0c3c224c4a895703ac659205cd040ff56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452975
+    Change-Id: Ia55a96702b99cccaf5d96c2125ee513700658444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381874
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Matloob <matloob@golang.org>
 
- src/runtime/internal/syscall/asm_linux_mips64x.s | 1 +
- src/runtime/internal/syscall/asm_linux_mipsx.s   | 1 +
- src/syscall/asm_linux_mips64x.s                  | 5 +++--
- src/syscall/asm_linux_mipsx.s                    | 2 ++
- 4 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go               | 18 +++++++++---------
+ src/cmd/go/internal/workcmd/edit.go | 18 +++++++++---------
+ 2 files changed, 18 insertions(+), 18 deletions(-)

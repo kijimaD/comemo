@@ -1,24 +1,32 @@
-commit 48e3d924548ce6b96f55ff74e40f9a16449ac659
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 20 21:50:13 2021 +0000
+commit cced777026e1fc094ed21d99ae1efa4cf19146d2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 21 21:24:00 2020 -0700
 
-    Revert "runtime: implement runqdrain() for GC mark worker goroutines"
+    cmd/compile: set n.Name.Defn for inlined parameters
     
-    This reverts CL 310149.
+    Normally, when variables are declared and initialized using ":=", we
+    set the variable's n.Name.Defn to point to the initialization
+    assignment node (i.e., OAS or OAS2). Further, some frontend
+    optimizations look for variables that are initialized but never
+    reassigned.
     
-    Reason for revert: Breaks longtest builders:
+    However, when inl.go inlines calls, it was declaring the inlined
+    variables, and then separately assigning to them. This CL changes
+    inl.go tweaks the AST to fit the combined declaration+initialization
+    pattern.
     
-    https://build.golang.org/log/6af9fb147fa3101154db10e7ce055e8267cd4c93
-    https://build.golang.org/log/172ed6e1ec3bb503370333ee421c590fd2a72d0a
+    This isn't terribly useful by itself, but it allows further followup
+    optimizations.
     
-    Change-Id: Iaf5a8b9eec51d0517311e050d0b0f7569759d292
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312129
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #41474.
+    
+    Change-Id: I62a9752c60414305679e0ed15a6563baa0224efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256457
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mgc.go      | 12 ++++++++----
- src/runtime/proc.go     | 38 --------------------------------------
- src/runtime/runtime2.go |  3 ---
- 3 files changed, 8 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/gc/inl.go             | 74 +++++++++++---------------
+ src/cmd/compile/internal/logopt/logopt_test.go |  2 +-
+ 2 files changed, 33 insertions(+), 43 deletions(-)

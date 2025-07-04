@@ -1,22 +1,20 @@
-commit 2177bfb343c4950be88536044bb38c90f05ad3ed
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 26 11:46:26 2019 -0700
+commit ba69df63ebbf9101a35fb11a0df1e1912d285da4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 10 17:06:40 2018 -0500
 
-    database/sql: add NullInt32
+    cmd/go/internal/modfetch: update TestCodeRepo for gopkg.in/yaml.v2 v2.2.2
     
-    It is common for database integers to be represented as int32
-    internally. Although NullInt64 is already defined,
-    this should remove some type casts and make working with those eaiser.
+    I think we ought to make these tests hermetic, but in the meantime we
+    should at least make them pass.
     
-    For #31231
+    Fixes #27692
+    Updates #28856
     
-    Change-Id: Ia0c37ecef035fee0734c1d1fb6f58aef6905cf5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174178
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Ia78fa60e998dea3c871f640ffa2ece67b054f866
+    Reviewed-on: https://go-review.googlesource.com/c/153460
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/database/sql/fakedb_test.go |  4 ++++
- src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
- src/database/sql/sql_test.go    | 13 +++++++++++++
- 3 files changed, 43 insertions(+)
+ src/cmd/go/internal/modfetch/coderepo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

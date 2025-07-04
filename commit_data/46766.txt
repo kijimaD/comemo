@@ -1,26 +1,38 @@
-commit 8e36ab055162efa6f67f3b9ee62f625ac8874901
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 21 10:59:16 2021 -0400
+commit 8634a234df2a9e93ed1de58bf59d2eb843d8f464
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 16 04:47:56 2020 +1100
 
-    bytes, strings: add Cut
+    runtime,syscall: convert syscall on openbsd/amd64 to libc
     
-    Using Cut is a clearer way to write the vast majority (>70%)
-    of existing code that calls Index, IndexByte, IndexRune, and SplitN.
-    There is more discussion on https://golang.org/issue/46336.
+    Convert the syscall package on openbsd/amd64 to use libc rather than performing
+    direct system calls.
     
-    Fixes #46336.
+    Updates #36435
     
-    Change-Id: Ia418ed7c3706c65bf61e1b2c5baf534cb783e4d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351710
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ieb5926a91ed34f7c722e3667004ec484c86804ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270380
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go          |  13 +++++
- src/bytes/bytes_test.go     |  23 ++++++++
- src/bytes/example_test.go   | 138 ++++++++++++++++++++++----------------------
- src/strings/example_test.go |  58 ++++++++++++-------
- src/strings/strings.go      |  11 ++++
- src/strings/strings_test.go |  25 +++++++-
- 6 files changed, 178 insertions(+), 90 deletions(-)
+ src/runtime/sys_openbsd3.go                       | 113 +++
+ src/runtime/sys_openbsd_amd64.s                   | 333 ++++++++
+ src/syscall/asm9_unix1_amd64.s                    |   4 +-
+ src/syscall/asm_openbsd_amd64.s                   |  32 +
+ src/syscall/asm_unix_amd64.s                      |   2 +-
+ src/syscall/exec_bsd.go                           |   2 +-
+ src/syscall/{exec_darwin.go => exec_libc2.go}     |   2 +
+ src/syscall/exec_unix.go                          |   4 +
+ src/syscall/mkall.sh                              |   9 +-
+ src/syscall/mkasm.go                              |  64 ++
+ src/syscall/{mkasm_darwin.go => mkasm_openbsd.go} |  25 +-
+ src/syscall/mksyscall.pl                          |  30 +-
+ src/syscall/syscall_openbsd.go                    |   5 -
+ src/syscall/syscall_openbsd1.go                   |  13 +
+ src/syscall/syscall_openbsd_libc.go               |  93 +++
+ src/syscall/zsyscall_darwin_amd64.s               |   2 +-
+ src/syscall/zsyscall_darwin_arm64.s               |   2 +-
+ src/syscall/zsyscall_openbsd_amd64.go             | 967 ++++++++++++++++++----
+ src/syscall/zsyscall_openbsd_amd64.s              | 233 ++++++
+ 19 files changed, 1762 insertions(+), 173 deletions(-)

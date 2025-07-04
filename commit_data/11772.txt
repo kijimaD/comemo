@@ -1,15 +1,21 @@
-commit 13443ccc2aa102cb57cdefd8a44d03257ae1777b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 15:56:51 2012 +1100
+commit ee3e24f2d7da60d28c1f6321fa6faddff9b26eec
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 23:46:48 2012 -0500
 
-    math: fix gamma doc, link to OEIS
+    dashboard: add gobuilder -fail mode
     
-    Fixes #2940.
+    This is for filling a column with "fail", like I just did for
+    Windows, when the builder would get stuck running that
+    build.  (We have safeguards against the tests getting stuck
+    but this was the bootstrap build getting stuck.)
     
-    R=golang-dev, dsymonds
+    I usually use -cmd=/bin/false, but this avoids the Mercurial
+    checkouts, which means it runs instantly instead of requiring
+    ~1 minute per "fail".
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5645078
+    https://golang.org/cl/5649049
 
- src/pkg/math/const.go | 2 +-
- src/pkg/math/gamma.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/dashboard/builder/main.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

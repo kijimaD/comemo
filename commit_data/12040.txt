@@ -1,18 +1,16 @@
-commit ad17a9c0a9e758a584f3d5992bc75fbde9512122
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 18 21:02:41 2012 -0500
+commit e91bf2e9d1c3bf5e03340eb86bc6e34f82bb205f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 19 10:50:03 2012 +0900
 
-    time: use Go distribution zoneinfo if system copy not found
+    net: make LocalAddr on multicast return group address
     
-    Fixes #2964.
+    Fixes #3067.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc, rsc
     CC=golang-dev
-    https://golang.org/cl/5656101
+    https://golang.org/cl/5656098
 
- src/pkg/time/zoneinfo.go         |  22 ++++-
- src/pkg/time/zoneinfo_plan9.go   |  24 ++---
- src/pkg/time/zoneinfo_read.go    | 203 +++++++++++++++++++++++++++++++++++++++
- src/pkg/time/zoneinfo_unix.go    | 199 ++------------------------------------
- src/pkg/time/zoneinfo_windows.go |   5 +-
- 5 files changed, 243 insertions(+), 210 deletions(-)
+ src/pkg/net/multicast_test.go |  6 ++++++
+ src/pkg/net/sock.go           | 12 +++++++++---
+ src/pkg/net/udpsock_posix.go  |  2 +-
+ 3 files changed, 16 insertions(+), 4 deletions(-)

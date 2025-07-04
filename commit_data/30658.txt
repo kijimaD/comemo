@@ -1,28 +1,22 @@
-commit 691755304ce49887f65f8f84e18cda3814b46e5c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 9 14:46:43 2017 -0800
+commit 1368de3db23ed51992a57cc828c5f14558b4b49f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 19:09:42 2016 +0000
 
-    cmd/compile/internal/ssa: populate SymEffects for SSA Ops
+    archive/zip: skip large concurrent tests in race mode
     
-    Changes to ${GOARCH}Ops.go files were mechanically produced using
-    github.com/mdempsky/ssa-symops, a one-off tool that inserts
-    "SymEffect: X" elements by pattern matching against the Op names.
+    We recently added these large zip64 tests. They're slow-ish already,
+    but fast enough in non-race mode with t.Parallel. But in race mode,
+    the concurrency makes them much slower than the normal
+    non-race-to-race multiplier.
     
-    Change-Id: Ibf3e481ffd588647f2a31662d72114b740ccbfcf
-    Reviewed-on: https://go-review.googlesource.com/38084
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    They're taking so long now that it's causing test failures when it
+    sometimes is over the test timeout threshold.
+    
+    Change-Id: I02f4ceaa9d6cab826708eb3860f47a57b05bdfee
+    Reviewed-on: https://go-review.googlesource.com/33423
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go     |  94 +--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 176 ++---
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  48 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |  31 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  48 +-
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  40 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  72 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   | 208 +++---
- src/cmd/compile/internal/ssa/gen/genericOps.go |  36 +-
- src/cmd/compile/internal/ssa/gen/main.go       |   5 +-
- src/cmd/compile/internal/ssa/opGen.go          | 894 +++++++++++++++++--------
- 11 files changed, 985 insertions(+), 667 deletions(-)
+ src/archive/zip/zip_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

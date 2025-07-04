@@ -1,15 +1,32 @@
-commit b8d4d0218bae8881db2e1e2ea1de7b9f43d6c14d
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Fri Jun 22 05:31:06 2018 +0000
+commit 8b8625a3281b89d10e06398c730700885f13365f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 6 07:57:19 2018 -0800
 
-    runtime: fix comments style typo
+    cmd/cover: don't crash on non-gofmt'ed input
     
-    Code comments should have a space between comments characters and
-    actual words.
+    Without the change to cover.go, the new test fails with
     
-    Change-Id: I6274baf1fc09b37a32ec6c69ddbb8edca9eb5469
-    Reviewed-on: https://go-review.googlesource.com/120475
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    panic: overlapping edits: [4946,4950)->"", [4947,4947)->"thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest.Count[112]++;"
+    
+    The original code inserts "else{", deletes "else", and then positions
+    a new block just after the "}" that must come before the "else".
+    That works on gofmt'ed code, but fails if the code looks like "}else".
+    When there is no space between the "{" and the "else", the new block
+    is inserted into a location that we are deleting, leading to the
+    "overlapping edits" mentioned above.
+    
+    This CL fixes this case by not deleting the "else" but just using the
+    one that is already there. That requires adjust the block offset to
+    come after the "{" that we insert.
+    
+    Fixes #23927
+    
+    Change-Id: I40ef592490878765bbce6550ddb439e43ac525b2
+    Reviewed-on: https://go-review.googlesource.com/98935
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/iface.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cover/cover.go      | 13 +++++++++----
+ src/cmd/cover/cover_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

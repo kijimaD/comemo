@@ -1,22 +1,14 @@
-commit bac8f180352213e7fcbe92cc97c96f625e23d2ab
+commit f813702f6de54b2cde8df73e5a06bfb5de20b930
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 26 00:57:03 2011 -0400
+Date:   Tue Apr 26 00:16:12 2011 -0400
 
-    gc: fix order of operations for f() < g().
+    all-qemu.bash: remove DISABLE_NET_TESTS
     
-    Also, 6g was passing uninitialized
-    Node &n2 to regalloc, causing non-deterministic
-    register collisions (but only when both left and
-    right hand side of comparison had function calls).
+    It's no longer used.
     
-    Fixes #1728.
-    
-    R=ken2
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4425070
+    https://golang.org/cl/4426061
 
- src/cmd/5g/cgen.c | 16 ++++++++--------
- src/cmd/6g/cgen.c | 16 ++++++++--------
- src/cmd/8g/cgen.c |  4 ++--
- test/func7.go     | 29 +++++++++++++++++++++++++++++
- 4 files changed, 47 insertions(+), 18 deletions(-)
+ src/all-qemu.bash | 1 -
+ 1 file changed, 1 deletion(-)

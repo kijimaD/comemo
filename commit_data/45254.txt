@@ -1,24 +1,29 @@
-commit c33ced6d8a2bb4db6896ff36cfcaac2bbdf123d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 20 17:02:37 2021 -0700
+commit 21e441c461a79be41de20a99e6001098142946e6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Oct 14 16:21:39 2020 -0400
 
-    runtime: don't test sig.inuse in sigsend
+    cmd/go: rewrite paths for overlaid files using -trimpath
     
-    Signals can be delivered on a different thread. There is no necessary
-    happens-before relationship between setting sig.inuse in signal_enable
-    and checking it in sigsend. It is theoretically possible, if unlikely,
-    that sig.inuse is set by thread 1, thread 2 receives a signal, does not
-    see that sig.inuse is set, and discards the signal. This could happen
-    if the signal is received immediately after the first call to signal_enable.
+    Pass the trimpath flag to cmd/compile to use the correct file paths
+    for files that are overlaid: that is, the "destination" path in the
+    overlay's Replace mapping rather than the "source" path.
     
-    For #33174
+    Also fix paths to go source files provided to the gccgo compiler.
     
-    Change-Id: Idb0f1c77847b7d4d418bd139e801c0c4460531d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312131
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #39958
+    
+    Change-Id: I3741aeb2272bd0d5aa32cb28133b61e58264fd39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257198
+    Trust: Michael Matloob <matloob@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/sigqueue.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go              |  2 +
+ src/cmd/go/internal/work/gc.go                | 25 ++++++++----
+ src/cmd/go/internal/work/gccgo.go             | 33 +++++++++++++--
+ src/cmd/go/testdata/script/build_overlay.txt  | 58 +++++++++++++++++++++++----
+ src/cmd/go/testdata/script/build_trimpath.txt | 28 ++++++++++++-
+ 5 files changed, 125 insertions(+), 21 deletions(-)

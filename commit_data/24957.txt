@@ -1,23 +1,26 @@
-commit cb0393866a3da53e9455459b1daafcd278731afe
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Nov 18 12:14:07 2015 +1300
+commit 5e89acb580dcb09e41c56b638753d7a9467d8614
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 10 15:48:23 2015 -0700
 
-    cmd/internal/obj/x86: position independent access to global data on 386 when -shared
+    cmd/asm: fix some fuzz bugs
     
-    This works by adding a call to __x86.get_pc_thunk.cx immediately before any
-    instruction that accesses global data and then assembling the instruction to
-    use the appropriate offset from CX instead of the absolute address. Some forms
-    cannot be assembled that way and are rewritten to load the address into CX
-    first.
+    One (12466) was an actual logic error, backing up when there was
+    nothing there. The others were due to continuing to process an
+    instruction when it cannot work.
     
-    -buildmode=pie works now, but is not yet tested.
+    Methodically stop assembling an instruction when it's not going to
+    succeed.
     
-    Fixes #13201 (I think)
+    Fixes #12466.
+    Fixes #12467.
+    Fixes #12468.
     
-    Change-Id: I32a8561e7fc9dd4ca6ae3b0e57ad78a6c50bf1f5
-    Reviewed-on: https://go-review.googlesource.com/17014
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I88c568f2b9c1a8408043b2ac5a78f5e2ffd62abd
+    Reviewed-on: https://go-review.googlesource.com/14498
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 40 +++++++++++++++++--------
- src/cmd/internal/obj/x86/obj6.go | 65 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/asm.go          | 23 +++++++++++++++++++----
+ src/cmd/asm/internal/asm/operand_test.go |  1 +
+ src/cmd/asm/internal/asm/parse.go        | 17 ++++++++++++++---
+ src/cmd/asm/internal/asm/pseudo_test.go  |  2 ++
+ 4 files changed, 36 insertions(+), 7 deletions(-)

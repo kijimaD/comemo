@@ -1,26 +1,76 @@
-commit b7b44b3173f151a2313da7072afd25de80511605
-Author: David Chase <drchase@google.com>
-Date:   Thu Jan 27 11:26:59 2022 -0500
+commit 537cde0b4b411f1dc3016cac430b9494cf91caf0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 15 17:58:41 2021 -0500
 
-    cmd/compile: remove incorrect arm,arm64 CMP->CMN transformations
+    cmd/compile, runtime: add metadata for argument printing in traceback
     
-    These can go wrong when one of the operands is the minimum integer value.
+    Currently, when the runtime printing a stack track (at panic, or
+    when runtime.Stack is called), it prints the function arguments
+    as words in memory. With a register-based calling convention,
+    the layout of argument area of the memory changes, so the
+    printing also needs to change. In particular, the memory order
+    and the syntax order of the arguments may differ. To address
+    that, this CL lets the compiler to emit some metadata about the
+    memory layout of the arguments, and the runtime will use this
+    information to print arguments in syntax order.
     
-    Fixes #50854.
+    Previously we print the memory contents of the results along with
+    the arguments. The results are likely uninitialized when the
+    traceback is taken, so that information is rarely useful. Also,
+    with a register-based calling convention the results may not
+    have corresponding locations in memory. This CL changes it to not
+    print results.
     
-    Change-Id: I238fe284f60c7ee5aeb9dc9a18e8b1578cdb77d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381318
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Previously the runtime simply prints the memory contents as
+    pointer-sized words. With a register-based calling convention,
+    as the layout changes, arguments that were packed in one word
+    may no longer be in one word. Also, as the spill slots are not
+    always initialized, it is possible that some part of a word
+    contains useful informationwhile the rest contains garbage.
+    Instead of letting the runtime recreating the ABI0 layout and
+    print them as words, we now print each component separately.
+    Aggregate-typed argument/component is surrounded by "{}".
+    
+    For example, for a function
+    
+    F(int, [3]byte, byte) int
+    
+    when called as F(1, [3]byte{2, 3, 4}, 5), it used to print
+    
+    F(0x1, 0x5040302, 0xXXXXXXXX) // assuming little endian, 0xXXXXXXXX is uninitilized result
+    
+    Now prints
+    
+    F(0x1, {0x2, 0x3, 0x4}, 0x5).
+    
+    Note: the liveness tracking of the spill splots has not been
+    implemented in this CL. Currently the runtime just assumes all
+    the slots are live and print them all.
+    
+    Increase binary sizes by ~1.5%.
+    
+                         old          new
+    hello (println)    1171328      1187712 (+1.4%)
+    hello (fmt)        1877024      1901600 (+1.3%)
+    cmd/compile       22326928     22662800 (+1.5%)
+    cmd/go            13505024     13726208 (+1.6%)
+    
+    Updates #40724.
+    
+    Change-Id: I351e0bf497f99bdbb3f91df2fb17e3c2c5c316dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304470
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules   |   4 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   4 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go   |   2 +-
- src/cmd/compile/internal/ssa/rewriteARM.go   | 144 ------------------------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 160 ---------------------------
- test/fixedbugs/issue50854.go                 |  38 +++++++
- 7 files changed, 45 insertions(+), 317 deletions(-)
+ src/cmd/compile/internal/gc/obj.go        |   5 +
+ src/cmd/compile/internal/ssagen/ssa.go    | 158 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/link.go              |   1 +
+ src/cmd/internal/objabi/funcdata.go       |   1 +
+ src/cmd/link/internal/ld/deadcode_test.go |   4 +-
+ src/runtime/funcdata.h                    |   1 +
+ src/runtime/symtab.go                     |   1 +
+ src/runtime/traceback.go                  |  89 ++++++++++++++---
+ src/runtime/traceback_test.go             | 121 +++++++++++++++++++++++
+ 9 files changed, 368 insertions(+), 13 deletions(-)

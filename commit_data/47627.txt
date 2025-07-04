@@ -1,14 +1,24 @@
-commit 78af02e8b5c5c9d3c6d5026fd72f57026a14952a
-Author: Bharath Kumar Uppala <uppala.bharath@gmail.com>
-Date:   Thu Nov 25 10:09:47 2021 +0530
+commit 759116b3ace07f431103d65a7ce6cf4f314203bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 1 19:22:12 2021 -0400
 
-    A+C: add Bharath Kumar Uppala (individual CLA)
+    syscall: delete asm_windows.s
     
-    Change-Id: I4943e943892bd29bca2afafddb62f3060bc153e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367074
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    asm_windows.s contains dummy references of syscall.loadlibrary
+    and syscall.getprocaddress, to trigger ABI wrapper/alias
+    generation to get ABI0 symbols for them. The comment says they
+    are called from assembly in other packages, but I couldn't find
+    where. They are defined in Go and only referenced in Go.
+    
+    CL 179862 removed dummy references in the runtime. This CL
+    is similar, for the syscall package.
+    
+    Also, with CL 306609, they will have ABI0 definitions anyway.
+    
+    Change-Id: I5c7b0efb9762e4ad9c94f0beea8d053d8c8b2cd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306709
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/syscall/asm_windows.s | 11 -----------
+ 1 file changed, 11 deletions(-)

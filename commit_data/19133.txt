@@ -1,15 +1,49 @@
-commit 3f529f8e43e3b9b78a399a1b0bdc789117dd96a7
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Apr 14 22:01:27 2014 +0200
+commit 8d39e55c6516be5ee3267b8ce101b324a4f09986
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 15:54:20 2014 -0400
 
-    cmd/go: do not miss an error if import path contains "cmd/something"
+    liblink: remove arch-specific constants from file format
     
-    Fixes #7638
+    The relocation and automatic variable types were using
+    arch-specific numbers. Introduce portable enumerations
+    instead.
     
-    LGTM=rsc
-    R=rsc
+    To the best of my knowledge, these are the only arch-specific
+    bits left in the new object file format.
+    
+    Remove now, before Go 1.3, because file formats are forever.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/87300043
+    https://golang.org/cl/87670044
 
- src/cmd/go/get.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ include/link.h                      |  26 ++++++++++++++++--
+ src/cmd/5l/5.out.h                  |  10 -------
+ src/cmd/5l/asm.c                    |  52 ++++++++++++++++++------------------
+ src/cmd/6l/6.out.h                  |   4 ---
+ src/cmd/6l/asm.c                    |  34 +++++++++++------------
+ src/cmd/8l/8.out.h                  |   5 ----
+ src/cmd/8l/asm.c                    |  44 +++++++++++++++---------------
+ src/cmd/ld/data.c                   |  14 +++++-----
+ src/cmd/ld/dwarf.c                  |   6 ++---
+ src/cmd/ld/ldmacho.c                |   2 +-
+ src/cmd/ld/ldpe.c                   |   6 ++---
+ src/cmd/ld/lib.c                    |   4 +--
+ src/cmd/link/load.go                |  18 +++++--------
+ src/cmd/link/pclntab.go             |   2 +-
+ src/cmd/link/testdata/autosection.6 | Bin 912 -> 888 bytes
+ src/cmd/link/testdata/autoweak.6    | Bin 431 -> 425 bytes
+ src/cmd/link/testdata/dead.6        | Bin 1065 -> 1054 bytes
+ src/cmd/link/testdata/hello.6       | Bin 272 -> 271 bytes
+ src/cmd/link/testdata/layout.6      | Bin 434 -> 429 bytes
+ src/cmd/link/testdata/pclntab.6     | Bin 4607 -> 4603 bytes
+ src/liblink/asm5.c                  |  12 ++++-----
+ src/liblink/asm6.c                  |  12 ++++-----
+ src/liblink/asm8.c                  |  10 +++----
+ src/liblink/data.c                  |  16 +++++------
+ src/liblink/obj5.c                  |   4 +--
+ src/liblink/obj6.c                  |   8 +++---
+ src/liblink/obj8.c                  |   4 +--
+ src/liblink/objfile.c               |  12 +++++----
+ 28 files changed, 151 insertions(+), 154 deletions(-)

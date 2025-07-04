@@ -1,22 +1,86 @@
-commit 38f0a829aa041cbe5f694da52d733352aa5b70bc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Aug 1 10:17:14 2024 -0400
+commit 8ffc931eae8bb7a4654695be39d95b62d369ee5c
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Tue Jun 13 23:01:11 2023 +0000
 
-    debug/buildid: treat too large string as "not a Go executable"
+    all: fix spelling errors
     
-    If the length does not fit in int, saferio.ReadDataAt returns
-    io.ErrUnexpectedEOF. Treat is as an invalid format.
+    Fix spelling errors discovered using https://github.com/codespell-project/codespell. Errors in data files and vendored packages are ignored.
     
-    Fixes #68692.
-    For #68592.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest
-    Change-Id: Ie856f29c907fd10e6d9b7dfbb6f0d8008a75a1c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602435
+    Change-Id: I83c7818222f2eea69afbd270c15b7897678131dc
+    GitHub-Last-Rev: 3491615b1b82832cc0064f535786546e89aa6184
+    GitHub-Pull-Request: golang/go#60758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502576
     Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/debug/buildinfo/buildinfo.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/asm/internal/asm/parse.go                              | 2 +-
+ src/cmd/asm/internal/asm/testdata/amd64error.s                 | 2 +-
+ src/cmd/cgo/internal/test/test.go                              | 2 +-
+ src/cmd/compile/internal/base/timings.go                       | 2 +-
+ src/cmd/compile/internal/escape/call.go                        | 2 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules                  | 2 +-
+ src/cmd/compile/internal/ssa/config.go                         | 2 +-
+ src/cmd/compile/internal/ssa/debug.go                          | 2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go                   | 2 +-
+ src/cmd/compile/internal/ssa/poset.go                          | 4 ++--
+ src/cmd/compile/internal/ssa/prove.go                          | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go                        | 4 ++--
+ src/cmd/compile/internal/ssa/schedule.go                       | 2 +-
+ src/cmd/compile/internal/walk/range.go                         | 2 +-
+ src/cmd/compile/internal/walk/temp.go                          | 2 +-
+ src/cmd/covdata/metamerge.go                                   | 2 +-
+ src/cmd/covdata/tool_test.go                                   | 2 +-
+ src/cmd/go/internal/load/pkg.go                                | 2 +-
+ src/cmd/go/internal/modget/get.go                              | 4 ++--
+ src/cmd/go/internal/modget/query.go                            | 2 +-
+ src/cmd/go/internal/modindex/read.go                           | 2 +-
+ src/cmd/go/internal/vcweb/vcweb.go                             | 2 +-
+ src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt | 2 +-
+ src/cmd/go/testdata/script/env_cross_build.txt                 | 2 +-
+ src/cmd/go/testdata/script/mod_deprecate_message.txt           | 2 +-
+ src/cmd/go/testdata/script/mod_get_moved.txt                   | 2 +-
+ src/cmd/go/testdata/script/mod_get_split.txt                   | 2 +-
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt         | 2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat_added.txt           | 4 ++--
+ src/cmd/internal/cov/readcovdata.go                            | 2 +-
+ src/cmd/internal/obj/arm64/a.out.go                            | 4 ++--
+ src/cmd/internal/obj/wasm/wasmobj.go                           | 2 +-
+ src/cmd/internal/objabi/reloctype.go                           | 4 ++--
+ src/cmd/internal/testdir/testdir_test.go                       | 2 +-
+ src/cmd/link/internal/ld/dwarf.go                              | 2 +-
+ src/cmd/link/internal/ld/pe.go                                 | 2 +-
+ src/cmd/link/internal/loader/loader.go                         | 2 +-
+ src/cmd/trace/main.go                                          | 2 +-
+ src/compress/flate/deflate_test.go                             | 2 +-
+ src/crypto/sha256/sha256block_amd64.s                          | 2 +-
+ src/crypto/x509/verify_test.go                                 | 4 ++--
+ src/crypto/x509/x509_test.go                                   | 2 +-
+ src/go/parser/parser_test.go                                   | 2 +-
+ src/hash/maphash/maphash_test.go                               | 2 +-
+ src/math/pow_s390x.s                                           | 2 +-
+ src/mime/multipart/formdata.go                                 | 2 +-
+ src/os/os_test.go                                              | 2 +-
+ src/os/timeout_test.go                                         | 2 +-
+ src/runtime/asm_386.s                                          | 2 +-
+ src/runtime/asm_amd64.s                                        | 2 +-
+ src/runtime/asm_arm.s                                          | 2 +-
+ src/runtime/asm_arm64.s                                        | 2 +-
+ src/runtime/asm_loong64.s                                      | 2 +-
+ src/runtime/asm_mips64x.s                                      | 2 +-
+ src/runtime/asm_mipsx.s                                        | 2 +-
+ src/runtime/asm_ppc64x.s                                       | 2 +-
+ src/runtime/asm_riscv64.s                                      | 4 ++--
+ src/runtime/asm_s390x.s                                        | 2 +-
+ src/runtime/iface.go                                           | 2 +-
+ src/runtime/malloc.go                                          | 2 +-
+ src/runtime/map_fast64.go                                      | 2 +-
+ src/runtime/netpoll_kqueue.go                                  | 2 +-
+ src/runtime/proc_test.go                                       | 6 +++---
+ src/runtime/stack_test.go                                      | 2 +-
+ src/runtime/time.go                                            | 2 +-
+ src/syscall/exec_linux_test.go                                 | 2 +-
+ src/syscall/syscall_linux.go                                   | 2 +-
+ 67 files changed, 77 insertions(+), 77 deletions(-)

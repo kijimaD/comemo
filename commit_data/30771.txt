@@ -1,17 +1,17 @@
-commit 051cbf3f3720086ec6d3fd159a234bae3ffd12ef
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 21 12:38:23 2017 -0700
+commit fd483b6f62d3d7af915d71df6e654e5edcbc188c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 14:27:06 2016 -0800
 
-    cmd/compile: add regress test for issue 19632
+    cmd/go: check MustHaveExternalNetwork before `go get` tests
     
-    Updates #19632.
+    Also change a couple of `go get` tests to use MustHaveExternalNetwork
+    rather than checking testing.Short.
     
-    Change-Id: I1411dd997c8c6a789d17d0dcc0bfbd2281447b16
-    Reviewed-on: https://go-review.googlesource.com/38401
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I98ccc05b8b0354f1b7486e28dac5f8341c342a07
+    Reviewed-on: https://go-review.googlesource.com/33802
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue19632.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/go/go_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

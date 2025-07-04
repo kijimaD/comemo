@@ -1,14 +1,12 @@
-commit 12bdb29bdf080af43ba7688ae5af4053eb4f7288
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 10 15:39:08 2011 -0500
+commit 4774a195307acf2660847fc5a819e625fc67b782
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 11 06:56:31 2011 +1100
 
-    runtime: complete windows SysReserve
+    encoding/binary: update package doc string to be more comprehensive
     
-    Should fix windows/386 build.
-    
-    R=brainman
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4170041
+    https://golang.org/cl/4128060
 
- src/pkg/runtime/windows/mem.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/encoding/binary/binary.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

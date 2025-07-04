@@ -1,27 +1,40 @@
-commit 029c7bbdfeeccd537a78796f5095157b6eb5f454
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sat Apr 18 08:14:08 2015 +1200
+commit a1bb3030c8d8256c5c45c0caad25f171bd15031a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 12 15:20:33 2015 -0700
 
-    cmd/internal/gc, cmd/internal/ld, cmd/internal/obj: teach compiler about local symbols
+    cmd/yacc: generate arrays instead of slices where possible
     
-    This lets us avoid loading string constants via the GOT and (together with
-    http://golang.org/cl/9102) results in the fannkuch benchmark having very similar
-    register usage with -dynlink as without.
+    Yacc generates a bunch of global variables of the form
     
-    Change-Id: Ic3892b399074982b76773c3e547cfbba5dabb6f9
-    Reviewed-on: https://go-review.googlesource.com/9103
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+        var yyFoo = []int{...}
+    
+    where yyFoo is never subsequently modified to point to a different
+    slice.  Since these variables are implicitly compiled as
+    
+        var yyFoo = ([...]int{...})[:]
+    
+    anyway, by simply converting them all to
+    
+        var yyFoo = [...]int{...}
+    
+    we save sizeof(sliceStruct) bytes of data memory for each variable and
+    also make len(yyFoo) into compile-time constant expressions, which
+    shaves some bytes off text size:
+    
+        $ size 6g.before 6g.after
+           text        data     bss     dec     hex filename
+        4598019      605968  342700 5546687  54a2bf 6g.before
+        4597810      605552  342700 5546062  54a04e 6g.after
+    
+    Change-Id: I53c7aa6efdb2d52738013e9d337a59afbfcb2494
+    Reviewed-on: https://go-review.googlesource.com/7520
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/6g/prog.go               |  2 +-
- src/cmd/internal/gc/gsubr.go     |  6 +++++-
- src/cmd/internal/gc/obj.go       |  4 ++--
- src/cmd/internal/gc/pgen.go      |  2 +-
- src/cmd/internal/gc/reflect.go   |  6 +++---
- src/cmd/internal/ld/objfile.go   |  9 +++++++--
- src/cmd/internal/ld/symtab.go    | 10 +---------
- src/cmd/internal/obj/link.go     | 32 ++++++++++++++++++++------------
- src/cmd/internal/obj/objfile.go  |  6 +++++-
- src/cmd/internal/obj/textflag.go |  3 +++
- src/cmd/internal/obj/x86/obj6.go | 12 +++++++-----
- 11 files changed, 55 insertions(+), 37 deletions(-)
+ src/cmd/internal/gc/go.y |  2 --
+ src/cmd/internal/gc/y.go | 26 +++++++++++++-------------
+ src/cmd/yacc/yacc.go     | 10 +++++-----
+ 3 files changed, 18 insertions(+), 20 deletions(-)

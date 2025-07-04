@@ -1,0 +1,41 @@
+commit 3ed007d754b685cd8f6011a8e96a3c9303c785db
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 23 09:05:04 2024 -0700
+
+    net/http: remove TestTransportDialCancelRace
+    
+    This test was added to cover a specific race condition
+    in request cancellation, applying only to the deprecated
+    Transport.CancelRequest cancellation path. The test
+    assumes that canceling a request at the moment
+    persistConn.RoundTrip begins guarantees that it will
+    be canceled before being sent.
+    
+    This does not apply to the newer forms of canceling
+    a request: Request.Cancel and context-based cancellation
+    both send the cancel signal on a channel, and do not
+    check for cancellation before sending a request.
+    
+    A recent refactoring unified the implementation
+    of cancellation, so the Transport.CancelRequest
+    path now translates into context-based cancellation
+    internally. This makes this test flaky, since
+    sometimes the request completes before we read
+    from the context's done channel.
+    
+    Drop the test entirely. It's verifying the fix
+    for a bug in a code path which no longer exists,
+    and the property that it's testing for (canceling
+    a request at a very specific point in the internal
+    request flow) is not interesting.
+    
+    Fixes #67533
+    
+    Change-Id: I8d71540f1b44a64e0621d31a1c545c9351ae897c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587935
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/transport_test.go | 24 ------------------------
+ 1 file changed, 24 deletions(-)

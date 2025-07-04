@@ -1,19 +1,20 @@
-commit f3ae135604ef03886d6ebbc2ede2d4d58d175b49
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 4 16:29:30 2024 -0700
+commit 8b51eb5199031f64f1de811deeab2979f59ad7dc
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 12:30:43 2023 +0200
 
-    doc: document GOEXPERIMENT=aliastypeparams in release notes
+    runtime/metrics: add /gc/scan/stack:bytes
     
-    For #65614.
+    For #56857
     
-    Change-Id: I05b20a80b1163e1d3927c2f763ef6b7d20e6a937
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590617
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I58187d7c4112b35951014ab14f2969bed7f4c8e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497319
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/2-language.md                       |  4 ++++
- doc/next/6-stdlib/99-minor/go/types/46477.md | 14 +-------------
- 2 files changed, 5 insertions(+), 13 deletions(-)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ 3 files changed, 14 insertions(+)

@@ -1,18 +1,16 @@
-commit 450f3f608d409e2b3d76af071ec726efacbdd17b
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 19 23:28:54 2024 +0100
+commit 2e6387cbec924dbd01007421d7442125037c66b2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 30 21:02:24 2023 +0000
 
-    net/http/httptest: match net/http ContentLength behavior for http.NoBody
+    doc: add release notes about bootstrap toolchain version
     
-    Fixes #68476
+    For #61422.
     
-    Change-Id: I05122e5ec5e6b290eec93f3db444fcf1de19c030
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599815
+    Change-Id: Ie0d3c05752d29aa65983add85935d2505560ec55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546029
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/httptest/httptest.go      |  9 ++++++---
- src/net/http/httptest/httptest_test.go | 18 ++++++++++++++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ doc/go1.22.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

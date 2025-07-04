@@ -1,27 +1,15 @@
-commit 644d14ea0f3d99863a033f66543ce0346bf20831
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Mar 14 21:02:20 2018 +0000
+commit 41d860cf0e7cb63003d55839b59949752b7fdecc
+Author: mattyw <gh@mattyw.net>
+Date:   Thu Sep 28 11:12:16 2017 -0400
 
-    Revert "cmd/compile: implement CMOV on amd64"
+    net/http: remove unused named return variables
     
-    This reverts commit 080187f4f72bd6594e3c2efc35cf51bf61378552.
+    The existing implementation names a c net.Conn return which is
+    never user. Leaving the returns unamed is marginally clearer.
     
-    It broke build of golang.org/x/exp/shiny/iconvg
-    See issue 24395 for details
-    
-    Change-Id: Ifd6134f6214e6cee40bd3c63c32941d5fc96ae8b
-    Reviewed-on: https://go-review.googlesource.com/100755
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If9a411c9235b78c116a8ffb21fef71f7a4a4ce8f
+    Reviewed-on: https://go-review.googlesource.com/66890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go           |    78 +-
- src/cmd/compile/internal/ssa/branchelim.go      |    27 +-
- src/cmd/compile/internal/ssa/branchelim_test.go |   244 +-
- src/cmd/compile/internal/ssa/export_test.go     |     2 -
- src/cmd/compile/internal/ssa/gen/AMD64.rules    |    50 -
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |    57 +-
- src/cmd/compile/internal/ssa/opGen.go           |   641 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go    | 14480 +++++++++-------------
- test/codegen/condmove.go                        |   178 -
- 9 files changed, 6068 insertions(+), 9689 deletions(-)
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

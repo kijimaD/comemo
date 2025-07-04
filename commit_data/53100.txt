@@ -1,19 +1,19 @@
-commit 33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 18 00:13:11 2023 -0400
+commit d3d7998756c33f69706488cade1cd2b9b10a4c7f
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 11 09:49:14 2022 -0700
 
-    doc/go1.21: fix HTML formatting
+    net/http: clarify that MaxBytesReader returns *MaxBytesError
     
-    Fix formatting mistakes in my previous CLs -- a missing code tag
-    and a broken comment tag.
+    A MaxBytesReader returns a *MaxBytesError when reading beyond
+    its limit, not a MaxBytesError.
     
-    Change-Id: I7f558f59b4e8fe9cb398d0093e5389b968d89eb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496115
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Fixes #53764.
+    
+    Change-Id: Icac3aeac96fd8b172f951241f8f111cda633752c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416914
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/go1.21.html | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

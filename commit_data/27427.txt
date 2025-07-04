@@ -1,18 +1,20 @@
-commit 6de34e6e25732757b7b40e4053c6ac7fb6d00df4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 18 10:54:20 2016 +0900
+commit ad391c908b8e4532937ee912caf8ddb8f3891ef8
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Mar 17 23:18:14 2016 +0100
 
-    net: deflake TestLookupPort on Android
+    fmt: split doPrint into two specialized functions
     
-    Looks like some version of Android still fails with "servname not
-    supported for ai_socktype". It probably doesn't support
-    ai_socktype=SOCK_STREAM.
+    Remove format flag reset from doPrint. Flags will not be set in
+    doPrint and printArg will not return with flags modified.
     
-    Updates #14576.
+    Remove the extra arguments addspace and addnewline and split up
+    doPrint into two simpler and specialized functions.
     
-    Change-Id: I77ecff147d5b759e3281b3798c60f150a4aab811
-    Reviewed-on: https://go-review.googlesource.com/23194
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib884d027abfbb31c6f01b008f51d6d76fc0c1a17
+    Reviewed-on: https://go-review.googlesource.com/21181
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/lookup_test.go | 61 +++++++++++++++++++++++++-------------------------
- 1 file changed, 31 insertions(+), 30 deletions(-)
+ src/fmt/print.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

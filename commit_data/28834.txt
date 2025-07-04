@@ -1,18 +1,14 @@
-commit 1bcfca0563ce21dce69b2652859d6f0f800c39af
+commit 219ca602ab3f9d7d857bc1640e2b9e01475cdc3d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 15 15:52:57 2016 +0100
+Date:   Sat Aug 6 10:12:03 2016 -0700
 
-    net: enable a test on nacl
+    doc: fix required OS X version inconsistency for binary downloads
     
-    No need to skip it. It passes.
+    Updates #16625
     
-    Maybe it was fixed at some point.
-    
-    Change-Id: I9848924aefda44f9b3a574a8705fa549d657f28d
-    Reviewed-on: https://go-review.googlesource.com/31177
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Icac6705828bd9b29379596ba64b34d922b9002c3
+    Reviewed-on: https://go-review.googlesource.com/25548
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/net_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

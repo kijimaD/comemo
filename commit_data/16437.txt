@@ -1,16 +1,24 @@
-commit 0b88587d229d737a27f2dd0f8f75f5df41a11cf7
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Thu May 30 15:02:10 2013 +1000
+commit 037a1a9f3183e92a930e25ce66dba99df3786fb0
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Wed May 29 17:16:57 2013 -0700
 
-    cmd/[568]l/obj.c: NULL is not recognised in Plan 9 build, use nil instead.
+    cmd/ld, runtime: emit pointer maps for nosplits identified by the linker
     
-    Fixes #5591.
+    A nosplits was assumed to have no argument information and no
+    pointer map.  However, nosplits created by the linker often
+    have both.  This change uses the pointer map size as an
+    alternate source of argument size when processing a nosplit.
     
-    R=golang-dev, dave, minux.ma, cshapiro
-    CC=carl shapiro <cshapiro, golang-dev
-    https://golang.org/cl/9839046
+    In addition, the symbol table construction pointer map size
+    and argument size consistency check is strengthened.  If a
+    nptrs is greater than 0 it must be equal to the number of
+    argument words.
+    
+    R=golang-dev, khr, khr
+    CC=golang-dev
+    https://golang.org/cl/9666047
 
- src/cmd/5l/obj.c | 2 +-
- src/cmd/6l/obj.c | 2 +-
- src/cmd/8l/obj.c | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/pgen.c        | 22 ++++++++--------------
+ src/cmd/ld/lib.c         |  6 +++++-
+ src/pkg/runtime/symtab.c |  4 ++--
+ 3 files changed, 15 insertions(+), 17 deletions(-)

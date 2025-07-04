@@ -1,18 +1,13 @@
-commit ce69666273bab23b5b4597acb4dbd1c18aba7270
+commit c44768cb1c6403bb2cf90c49f4bbfcdf37f5bf2f
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 24 14:50:36 2012 -0400
+Date:   Thu May 24 14:01:39 2012 -0400
 
-    exp/locale/collate: avoid 16-bit math
+    cmd/gc: fix small integer bounds check bug
     
-    There's no need for the 16-bit arithmetic here,
-    and it tickles a long-standing compiler bug.
-    Fix the exp code not to use 16-bit math and
-    create an explicit test for the compiler bug.
-    
-    R=golang-dev, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6256048
+    https://golang.org/cl/6254046
 
- src/pkg/exp/locale/collate/colelem.go |  2 +-
- test/bugs/bug440.go                   | 21 +++++++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/gc/walk.c |  2 ++
+ test/index.go     | 73 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 61 insertions(+), 14 deletions(-)

@@ -1,20 +1,23 @@
-commit c1b6e392f56a35d4e59e1e938c68e4c5db4fd919
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Oct 30 12:47:24 2015 +1300
+commit ec8a597cd24e72d9213f439f7c9ee51567c0621d
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Aug 30 21:19:20 2015 -0500
 
-    cmd/internal/obj, cmd/link, runtime: increase stack limit to accommodate larger frames on ppc64x
+    [dev.ssa] cmd/compile: rewrite user nil check as OpIsNonNil
     
-    Larger stack frames mean nosplit functions use more stack and so the limit
-    needs to increase.
+    Rewite user nil checks as OpIsNonNil so our nil check elimination pass
+    can take advantage and remove redundant checks.
     
-    The change to test/nosplit.go is a bit ugly but I can't really think of a
-    way to make it nicer.
+    With make.bash this removes 10% more nilchecks (34110 vs 31088).
     
-    Change-Id: I2616b58015f0b62abbd62951575fcd0d2d8643c2
-    Reviewed-on: https://go-review.googlesource.com/16504
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifb01d1b6d2d759f5e2a5aaa0470e1d5a2a680212
+    Reviewed-on: https://go-review.googlesource.com/14321
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/stack.go |  2 +-
- src/runtime/stack.go          |  2 +-
- test/nosplit.go               | 64 ++++++++++++++++++++++++++-----------------
- 3 files changed, 41 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go        |  2 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  6 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       | 11 ++--
+ src/cmd/compile/internal/ssa/nilcheck_test.go  | 40 +++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 80 ++++++++++++++++++++++++++
+ 6 files changed, 136 insertions(+), 9 deletions(-)

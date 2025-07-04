@@ -1,14 +1,18 @@
-commit a84ac5b507f5d895ca2ee300275beb73d2327f99
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 12 21:11:34 2015 -0700
+commit c6688b7b1ff5537177d54322559e1207434c7088
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 7 11:22:43 2015 -0700
 
-    go/types: exclude some example tests for arm64, nacl (fix build)
+    fmt: fix panic with large precision
     
-    TBR: bradfitz, adonovan
+    The code already handled high widths but not high precisions.
+    Also make sure it handles the harder cases of %U.
     
-    Change-Id: Ifc8574494848503c979d11e2766ba8da0f374068
-    Reviewed-on: https://go-review.googlesource.com/11043
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #10745.
+    
+    Change-Id: Ib4d394d49a9941eeeaff866dc59d80483e312a98
+    Reviewed-on: https://go-review.googlesource.com/9769
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/example_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/fmt/fmt_test.go |  5 +++++
+ src/fmt/format.go   | 12 ++++++++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

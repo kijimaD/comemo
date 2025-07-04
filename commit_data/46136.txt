@@ -1,29 +1,33 @@
-commit be1a6934776a3c7f636932918e756b44b6510214
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Aug 22 11:50:58 2021 -0700
+commit 837b35cc55c258bb57ac9fa337ed0783a6fcc617
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 09:14:44 2020 -0500
 
-    cmd/compile: fixes for non-constant Sizeof/Alignof/Offsetof
+    [dev.regabi] cmd/compile: adjust IR representations
     
-    Includes Robert's suggested fix in validate.go to not fail on
-    non-constant alignof/offsetof/sizeof calls. Further changes to wait on
-    transforming these calls until stenciling time, when we can call
-    EvalConst() to evaluate them once all the relevant types are known.
+    Based on actually using the IR when prototyping adding
+    type assertions, a few changes to improve it:
     
-    Added a bunch of new tests for non-constant Sizeof/Alignof/Offsetof.
+    - Merge DeferStmt and GoStmt, since they are variants of one thing.
+    - Introduce LogicalExpr for && and ||, since they (alone) need an init list before Y.
+    - Add an explicit op to various constructors to make them easier to use.
+    - Add separate StructKeyExpr - it stores Value in a different abstract location (Left) than KeyExpr (Right).
+    - Export all fields for use by rewrites (and later reflection).
     
-    Fixes #47716
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: I469af888eb9ce3a853124d919eda753971009b3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344250
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Iefbff2386d2bb9ef511ce53b7f92ff6c709dc991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275883
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/helpers.go   | 10 ++++-
- src/cmd/compile/internal/noder/stencil.go   |  2 +-
- src/cmd/compile/internal/noder/transform.go |  5 ++-
- src/cmd/compile/internal/noder/validate.go  | 11 ++++-
- src/cmd/compile/internal/typecheck/const.go |  4 +-
- test/typeparam/issue47716.go                | 68 +++++++++++++++++++++++++++++
- 6 files changed, 95 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  17 +--
+ src/cmd/compile/internal/gc/universe.go  |   3 +-
+ src/cmd/compile/internal/ir/expr.go      | 186 ++++++++++++++++++-------------
+ src/cmd/compile/internal/ir/name.go      |   8 ++
+ src/cmd/compile/internal/ir/node.go      |  51 +++++----
+ src/cmd/compile/internal/ir/node_gen.go  |  76 ++++++++-----
+ src/cmd/compile/internal/ir/stmt.go      | 139 +++++++++++------------
+ src/cmd/compile/internal/ir/val.go       |   2 +-
+ 8 files changed, 266 insertions(+), 216 deletions(-)

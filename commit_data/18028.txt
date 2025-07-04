@@ -1,22 +1,20 @@
-commit 9aae6c1a8b61af33f766e9a735c04b6afa255160
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 17 15:23:31 2013 -0800
+commit 0a6ad46b4f59f38fd1b55d0f46134133d74bd376
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Tue Dec 17 14:49:51 2013 -0800
 
-    runtime: don't store evacuate bit as low bit of hashtable overflow pointer.
+    reflect: Add tests for Call with functions taking and returning structs.
     
-    Hash tables currently store an evacuated bit in the low bit
-    of the overflow pointer.  That's probably not sustainable in the
-    long term as GC wants correctly typed & aligned pointers.  It is
-    also a pain to move any of this code to Go in the current state.
+    gccgo has problems using reflect.Call with functions that take and
+    return structs with no members.  Prior to fixing that problem there, I
+    thought it sensible to add some tests of this situation.
     
-    This change moves the evacuated bit into the tophash entries.
+    Update #6761
     
-    Performance change is negligable.
+    First contribution to Go, apologies in advance if I'm doing it wrong.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, minux.ma, iant, khr, bradfitz
     CC=golang-dev
-    https://golang.org/cl/14412043
+    https://golang.org/cl/26570046
 
- src/pkg/runtime/hashmap.c      | 120 +++++++++++++++++++++--------------------
- src/pkg/runtime/hashmap_fast.c |  16 +++---
- 2 files changed, 70 insertions(+), 66 deletions(-)
+ src/pkg/reflect/all_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

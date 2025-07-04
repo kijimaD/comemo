@@ -1,12 +1,12 @@
-commit 89f890f266f0cf0d6fa8dc0935139265c0879858
+commit aef4e1c3492908425d4cefd78ae8dd8a765988b9
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 4 16:28:27 2011 +1100
+Date:   Fri Mar 4 13:11:07 2011 +1100
 
-    doc: there's no such thing as a .cgo file
+    doc: add "implements" question to FAQ
     
-    R=rsc
+    R=r, fw, gri, r2, yiyus
     CC=golang-dev
-    https://golang.org/cl/4264043
+    https://golang.org/cl/4248051
 
- doc/code.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_faq.html | 65 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

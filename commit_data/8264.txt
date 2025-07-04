@@ -1,15 +1,15 @@
-commit 1801972b306c0750138a9a4c83c2097f6ea83ad9
-Author: Ross Light <rlight2@gmail.com>
-Date:   Thu Apr 28 13:11:37 2011 -0700
+commit 6f88288a13c6d02e528b86ae662b6af616b34951
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 28 15:43:42 2011 -0400
 
-    http/spdy: new package
+    xml: fix reflect error
     
-    R=bradfitz, agl1, rsc
+    Fixes #1749.
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4435055
+    https://golang.org/cl/4431075
 
- src/pkg/Makefile                   |   1 +
- src/pkg/http/spdy/Makefile         |  11 ++
- src/pkg/http/spdy/protocol.go      | 367 +++++++++++++++++++++++++++++++++++++
- src/pkg/http/spdy/protocol_test.go | 259 ++++++++++++++++++++++++++
- 4 files changed, 638 insertions(+)
+ src/pkg/xml/read.go     |  9 ++----
+ src/pkg/xml/xml_test.go | 81 ++++++++++++++++++++++++++-----------------------
+ 2 files changed, 46 insertions(+), 44 deletions(-)

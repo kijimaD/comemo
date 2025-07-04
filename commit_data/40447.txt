@@ -1,50 +1,20 @@
-commit 0f559941fbd17acace0f7ce307d50c85d6941e19
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Oct 25 22:36:55 2019 -0700
+commit 1956b28ae3cf5e75fd8ad193d3ceec183581844b
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Feb 25 09:44:33 2019 +0100
 
-    crypto/tls: move a defer out of a loop
+    runtime: call atomic.Storeuintptr in noteclear on AIX
     
-    Rhys Hiltner noted in #14939 that this defer was
-    syntactically inside a loop, but was only ever
+    The memory might not be synchronized in a thread being woken up after a
+    semasleep. Using atomic instructions in noteclear function will force
+    this synchronisation.
     
-    executed once. Now that defer in a loop
-    is significantly slower, pull this one out.
+    Fixes #30189
     
-    name                                    old time/op   new time/op   delta
-    Throughput/MaxPacket/1MB/TLSv12-8        3.94ms ± 8%   3.93ms ±13%    ~     (p=0.967 n=15+15)
-    Throughput/MaxPacket/1MB/TLSv13-8        4.33ms ± 3%   4.51ms ± 7%  +4.00%  (p=0.000 n=14+14)
-    Throughput/MaxPacket/2MB/TLSv12-8        6.80ms ± 6%   7.01ms ± 4%  +3.15%  (p=0.000 n=14+14)
-    Throughput/MaxPacket/2MB/TLSv13-8        6.96ms ± 5%   6.80ms ± 5%  -2.43%  (p=0.006 n=15+14)
-    Throughput/MaxPacket/4MB/TLSv12-8        12.0ms ± 3%   11.7ms ± 2%  -2.88%  (p=0.000 n=15+13)
-    Throughput/MaxPacket/4MB/TLSv13-8        12.1ms ± 3%   11.7ms ± 2%  -3.54%  (p=0.000 n=13+13)
-    Throughput/MaxPacket/8MB/TLSv12-8        22.2ms ± 3%   21.6ms ± 3%  -2.97%  (p=0.000 n=15+15)
-    Throughput/MaxPacket/8MB/TLSv13-8        22.5ms ± 5%   22.0ms ± 3%  -2.34%  (p=0.004 n=15+15)
-    Throughput/MaxPacket/16MB/TLSv12-8       42.4ms ± 3%   41.3ms ± 3%  -2.49%  (p=0.001 n=15+15)
-    Throughput/MaxPacket/16MB/TLSv13-8       43.4ms ± 5%   42.3ms ± 3%  -2.33%  (p=0.006 n=15+14)
-    Throughput/MaxPacket/32MB/TLSv12-8       83.1ms ± 4%   80.6ms ± 3%  -2.98%  (p=0.000 n=15+15)
-    Throughput/MaxPacket/32MB/TLSv13-8       85.2ms ± 8%   82.6ms ± 4%  -3.02%  (p=0.005 n=15+15)
-    Throughput/MaxPacket/64MB/TLSv12-8        167ms ± 7%    158ms ± 2%  -5.21%  (p=0.000 n=15+15)
-    Throughput/MaxPacket/64MB/TLSv13-8        170ms ± 4%    162ms ± 3%  -4.83%  (p=0.000 n=15+15)
-    Throughput/DynamicPacket/1MB/TLSv12-8    4.13ms ± 7%   4.00ms ± 8%    ~     (p=0.061 n=15+15)
-    Throughput/DynamicPacket/1MB/TLSv13-8    4.72ms ± 6%   4.64ms ± 7%    ~     (p=0.377 n=14+15)
-    Throughput/DynamicPacket/2MB/TLSv12-8    7.29ms ± 7%   7.09ms ± 7%    ~     (p=0.070 n=15+14)
-    Throughput/DynamicPacket/2MB/TLSv13-8    7.18ms ± 5%   6.59ms ± 4%  -8.34%  (p=0.000 n=15+15)
-    Throughput/DynamicPacket/4MB/TLSv12-8    12.3ms ± 3%   11.9ms ± 4%  -3.31%  (p=0.000 n=15+14)
-    Throughput/DynamicPacket/4MB/TLSv13-8    12.2ms ± 4%   12.0ms ± 4%  -1.91%  (p=0.019 n=15+15)
-    Throughput/DynamicPacket/8MB/TLSv12-8    22.4ms ± 3%   21.9ms ± 3%  -2.18%  (p=0.000 n=15+15)
-    Throughput/DynamicPacket/8MB/TLSv13-8    22.7ms ± 3%   22.2ms ± 3%  -2.35%  (p=0.000 n=15+15)
-    Throughput/DynamicPacket/16MB/TLSv12-8   42.3ms ± 3%   42.1ms ± 3%    ~     (p=0.505 n=14+15)
-    Throughput/DynamicPacket/16MB/TLSv13-8   42.7ms ± 3%   43.3ms ± 7%    ~     (p=0.123 n=15+14)
-    Throughput/DynamicPacket/32MB/TLSv12-8   82.8ms ± 3%   81.9ms ± 3%    ~     (p=0.112 n=14+15)
-    Throughput/DynamicPacket/32MB/TLSv13-8   84.6ms ± 6%   83.9ms ± 4%    ~     (p=0.624 n=15+15)
-    Throughput/DynamicPacket/64MB/TLSv12-8    166ms ± 4%    163ms ± 6%    ~     (p=0.081 n=15+15)
-    Throughput/DynamicPacket/64MB/TLSv13-8    165ms ± 3%    168ms ± 3%  +1.56%  (p=0.029 n=15+15)
-    
-    Change-Id: I22409b05afe761b8ed1912b15c67fc03f88d3d1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203481
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If7432f29b2a1a56288231822db52f3f8d1d6dbfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163624
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/conn.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/lock_sema.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

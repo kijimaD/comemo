@@ -1,20 +1,22 @@
-commit 41fa42b4475fda8b0c4205827ce0e2388608cb72
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Sep 30 10:35:03 2016 +0200
+commit 837984f37291f4fc48f9c99b65b0ab3f050bf4b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 1 21:32:47 2016 -0700
 
-    cmd/compile: delete unused Convconst function
+    cmd/cgo: use function arg type for _cgoCheckPointerN function
     
-    Convconst is not used in the new backend, and all its callers
-    were deleted in CL 29168 (cmd/compile: delete lots of the legacy
-    backend). iconv was an helper function for Convconst.
+    When cgo writes a _cgoCheckPointerN function to handle unsafe.Pointer,
+    use the function's argument type rather than interface{}. This permits
+    type errors to be detected at build time rather than run time.
     
-    Updates #16357
+    Fixes #13830.
     
-    Change-Id: I65c7345586d7af81cdc2fb09c68f744ffb161a17
-    Reviewed-on: https://go-review.googlesource.com/30090
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic7090905e16b977e2379670e0f83640dc192b565
+    Reviewed-on: https://go-review.googlesource.com/23675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/const.go | 90 +-----------------------------------
- 1 file changed, 1 insertion(+), 89 deletions(-)
+ misc/cgo/errors/issue13830.go | 26 ++++++++++++++++++++++++++
+ misc/cgo/errors/test.bash     |  7 ++++---
+ src/cmd/cgo/out.go            |  2 +-
+ 3 files changed, 31 insertions(+), 4 deletions(-)

@@ -1,22 +1,23 @@
-commit f4755fc7333f524666f6ba3140cee0d180bce8b3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 3 13:32:54 2022 -0700
+commit d384ebde60a7e720f83fb10e6fa9cbf989a8866f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 30 16:00:53 2021 +0200
 
-    cmd/dist: use purego tag when building the bootstrap binaries
+    net: enable multicast listener tests on solaris/illumos
     
-    This is in addition to the current math_big_pure_go tag.
-    Using purego ensures that we can build the cmd binaries with gccgo.
+    It seems everything is in place for these tests to pass on solaris and
+    illumos, so enable them.
     
-    For #53662
+    Fixes #7399
     
-    Change-Id: Ib82f8bf10659b5f94935f2b427ae8b2da875cd3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415934
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: If6defb651ef9c5059c1aeccbc4fc13a12a86b682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346149
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/dist/buildtool.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/listen_test.go    | 4 ----
+ src/net/sockoptip_stub.go | 6 ------
+ 2 files changed, 10 deletions(-)

@@ -1,16 +1,22 @@
-commit ca8bf6380910274c4f0d9ac913fdc5d432063ac0
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Sat Feb 8 10:41:30 2020 +0000
+commit e70e0a6cbc4004f2449bdeb345dcf68278aaf8fe
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 18 17:13:46 2019 +0100
 
-    doc/go1.14: add link to TempFile in io/ioutil
+    all: remove trailing whitespace from HTML files
     
-    For convenience, TempFile in io/ioutil now has a link to the document.
+    I noticed lots of trailing whitespace in one of cmd/trace's HTML files.
+    While at it, remove a few others from still-maintained files. Leave old
+    documents alone, such as doc/devel/weekly.html.
     
-    Updates #36878
-    
-    Change-Id: I5c22f57c886badd8ca423e34527c4b4bb029847b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218637
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I7de7bbb6dd3fe6403bbb1f1178a8d3640c1e537b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196178
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.14.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/articles/wiki/index.html      |  2 +-
+ doc/gccgo_contribute.html         |  2 +-
+ doc/gccgo_install.html            |  2 +-
+ doc/go_faq.html                   |  4 ++--
+ misc/trace/trace_viewer_full.html | 20 ++++++++++----------
+ 5 files changed, 15 insertions(+), 15 deletions(-)

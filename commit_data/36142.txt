@@ -1,21 +1,17 @@
-commit 5ad0a524d23b9b69c8c3caddbdf2dfe235c4d725
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Jul 28 10:16:40 2018 +0200
+commit 27493187ed98cbf4f7679a5480fb84a63ece3e40
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 6 09:44:29 2018 -0700
 
-    cmd/go: uses SID of group Guests to test ACL
+    cmd/compile: change cmplx{mpy,div} into Mpcplx methods
     
-    The test TestACL failed when ran on a Windows set
-    up in another language as the "Guest" account
-    name is translated. The SID of the group of Guests
-    always exist and is used instead.
+    Passes toolstash-check.
     
-    Fixes #26658
-    
-    Change-Id: Ia885d08a9e50563787e389c2d2dc2547881a2943
-    Reviewed-on: https://go-review.googlesource.com/126598
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Icae55fe4fa1bb8e4f2f83b7c69e08d30a5559d9e
+    Reviewed-on: https://go-review.googlesource.com/105047
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go   | 96 +---------------------------------
+ src/cmd/compile/internal/gc/mpfloat.go | 71 +++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 94 deletions(-)

@@ -1,15 +1,16 @@
-commit 90352972660db161a04c80ea1bc5f832613592a9
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Jun 20 12:14:16 2013 -0400
+commit 2f70ac19d29480c2e22bd0a9eca18a215c32db6f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 20 10:29:38 2013 +1000
 
-    crypto/x509: add function to marshal EC private keys.
+    cmd/go: document that files beginning with . or _ are ignored
     
-    This complements the parsing function that we already have.
+    Fixes #5655.
     
-    R=golang-dev, r
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/10426043
+    https://golang.org/cl/10410045
 
- src/pkg/crypto/x509/sec1.go      | 14 ++++++++++++++
- src/pkg/crypto/x509/sec1_test.go | 10 +++++++++-
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/doc.go  | 10 +++++++---
+ src/cmd/go/help.go |  2 ++
+ src/cmd/go/test.go |  8 +++++---
+ 3 files changed, 14 insertions(+), 6 deletions(-)

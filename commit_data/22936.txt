@@ -1,23 +1,17 @@
-commit e8fc93ea45ca0147f24f61f5ed48e68b57d473df
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 7 12:58:43 2015 -0700
+commit 69d9247705f0e9c7e4e6f11ab731ee6870291455
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 15 16:46:58 2015 -0700
 
-    cmd/cgo: wrap generated exports with extern "C" for C++
+    compress/flate: add optional runtime sanity checks
     
-    This will make it possible for C++ code to #include the export header
-    file and see the correct declarations.
+    This code's test coverage is ad hoc at best, and it's easy to make
+    changes that accidentally regress invariants.  This CL adds a "sanity"
+    constant that can be changed to "true" during development to add extra
+    runtime checking that the Huffman decoder tables are sane.
     
-    The preamble remains the user's responsibility.  It would not be
-    appropriate to wrap the preamble in extern "C", because it might
-    include header files that work with both C and C++.  Putting those
-    header files in an extern "C" block would break them.
-    
-    Change-Id: Ifb40879d709d26596d5c80b1307a49f1bd70932a
-    Reviewed-on: https://go-review.googlesource.com/9850
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0d0ca53ad7c9566be18046d9b255e1a30059f28b
+    Reviewed-on: https://go-review.googlesource.com/8974
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/cgo/out.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/compress/flate/inflate.go | 55 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 54 insertions(+), 1 deletion(-)

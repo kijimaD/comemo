@@ -1,15 +1,13 @@
-commit 4383e4387b30ffbd8f85f053e399d53d7eef9330
-Author: Antonio Murdaca <runcom@redhat.com>
-Date:   Sun Jun 26 12:14:41 2016 +0200
+commit ad074e205e4aa4c7762e223df65695d5157b0c4e
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu May 26 11:46:19 2016 +0200
 
-    net/url: avoid if statement
+    regexp: use Run for benchmark
     
-    Change-Id: I894a8f49d29dbb6f9265e4b3df5767318b225460
-    Signed-off-by: Antonio Murdaca <runcom@redhat.com>
-    Reviewed-on: https://go-review.googlesource.com/24492
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4d19e3221d3789d4c460b421b2d1484253778068
+    Reviewed-on: https://go-review.googlesource.com/23429
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
 
- src/net/url/url.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/regexp/exec_test.go | 77 ++++++++++++++++++++-----------------------------
+ 1 file changed, 31 insertions(+), 46 deletions(-)

@@ -1,15 +1,23 @@
-commit fea18f5a341e442783f84703a78924b882aceb5e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jun 29 16:22:54 2015 +1000
+commit 05d8f1d1664e6413756ed4e18392310b75501ff4
+Author: David Chase <drchase@google.com>
+Date:   Fri May 22 22:01:01 2015 -0400
 
-    compress/lzw: return the partial decoding for a truncated input.
+    cmd/compile: propagate correct line numbers in treecopy
     
-    This is needed by issue #9856.
+    Added a lineno parameter to treecopy and listtreecopy
+    (ignored if = 0).  When nodes are copied the copy is
+    assigned the non-zero lineno (normally this would be
+    the destination).
     
-    Change-Id: Idad570a7e55ad903aab55372d390bc746c4e19cf
-    Reviewed-on: https://go-review.googlesource.com/11661
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #8183
+    
+    Change-Id: Iffb767a745093fb89aa08bf8a7692c2f0122be98
+    Reviewed-on: https://go-review.googlesource.com/10334
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/compress/lzw/reader.go      | 2 ++
- src/compress/lzw/reader_test.go | 9 ++++++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go      |  5 +++--
+ src/cmd/compile/internal/gc/order.go    |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go     | 23 +++++++++++++++++------
+ test/fixedbugs/issue8183.go             | 23 +++++++++++++++++++++++
+ 5 files changed, 45 insertions(+), 10 deletions(-)

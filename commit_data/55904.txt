@@ -1,18 +1,18 @@
-commit b4b9746e5170d50475b9c0d60073ce5e74b7aae1
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 11 17:41:43 2024 +0000
+commit d633f4b996dadb6b72c2c43d35092738b7c19e7f
+Author: Michał Matczuk <mmatczuk@gmail.com>
+Date:   Thu Mar 23 13:52:59 2023 +0000
 
-    strconv: use slices.BinarySearch to simplify makeisprint.go
+    net/http: fix typo
     
-    Change-Id: I9886a99f730b7616f6f8a5e6154e1beb7d3c79e6
-    GitHub-Last-Rev: 3f9dc7707377f79968e2dfcd206b83db21e60e60
-    GitHub-Pull-Request: golang/go#66242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I6e39f14df65685451d3d98c6def1e0665da20590
+    GitHub-Last-Rev: d9de237bd24ab3deebdbdf1f75a1835169670c1d
+    GitHub-Pull-Request: golang/go#59200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478855
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strconv/makeisprint.go | 43 +++++++------------------------------------
- 1 file changed, 7 insertions(+), 36 deletions(-)
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

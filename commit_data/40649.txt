@@ -1,25 +1,35 @@
-commit 39e8cb0faac7785f89b21246a45e8cf8d5bc7d95
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 14 16:32:12 2019 +0000
+commit 8f296f59de0703b0559474beb434a265e277bdca
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 8 17:20:57 2019 +0000
 
-    runtime: add new page allocator core
+    Revert "Revert "cmd/compile,runtime: allocate defer records on the stack""
     
-    This change adds a new bitmap-based allocator to the runtime with tests.
-    It does not yet integrate the page allocator into the runtime and thus
-    this change is almost purely additive.
+    This reverts CL 180761
     
-    Updates #35112.
+    Reason for revert: Reinstate the stack-allocated defer CL.
     
-    Change-Id: Ic3d024c28abee8be8797d3918116a80f901cc2bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190622
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    There was nothing wrong with the CL proper, but stack allocation of defers exposed two other issues.
+    
+    Issue #32477: Fix has been submitted as CL 181258.
+    Issue #32498: Possible fix is CL 181377 (not submitted yet).
+    
+    Change-Id: I32b3365d5026600069291b068bbba6cb15295eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_test.go      |  84 +++++
- src/runtime/mpagealloc.go       | 764 +++++++++++++++++++++++++++++++++++++++-
- src/runtime/mpagealloc_32bit.go |  86 +++++
- src/runtime/mpagealloc_64bit.go | 122 +++++++
- src/runtime/mpagealloc_test.go  | 658 ++++++++++++++++++++++++++++++++++
- src/runtime/mpallocbits_test.go |   4 +-
- 6 files changed, 1716 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go     |   1 +
+ src/cmd/compile/internal/gc/escape.go  |   1 +
+ src/cmd/compile/internal/gc/go.go      |   1 +
+ src/cmd/compile/internal/gc/reflect.go |  42 +++++++
+ src/cmd/compile/internal/gc/ssa.go     | 196 +++++++++++++++++++++++----------
+ src/runtime/mgcmark.go                 |  20 +++-
+ src/runtime/panic.go                   |  44 ++++++++
+ src/runtime/runtime2.go                |   9 +-
+ src/runtime/stack.go                   |  13 ++-
+ src/runtime/stack_test.go              |  55 +++++++++
+ src/runtime/stubs.go                   |   3 -
+ src/runtime/syscall_windows.go         |   2 +-
+ src/runtime/traceback.go               |  42 ++-----
+ test/codegen/stack.go                  |   5 +
+ test/live.go                           |   2 +-
+ 15 files changed, 328 insertions(+), 108 deletions(-)

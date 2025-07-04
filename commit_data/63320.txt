@@ -1,0 +1,21 @@
+commit 1cf6386b5ee1ba7d367b6456c2c6888ab68c3ec8
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Jun 23 07:04:06 2025 -0700
+
+    Revert "go/types, types2: don't register interface methods in Info.Types map"
+    
+    This reverts commit 4ac729283c807cdbe0f6c7041f21606019b722cf.
+    
+    Reason for revert: changes semantics of types.Info.TypeOf; introduces new inconsistency around FieldList types.
+    
+    For #74303
+    
+    Change-Id: Ib99558c95f1b615fa9a02b028500ed230c8bb185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683297
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/interface.go | 18 ++++++++----------
+ src/go/types/interface.go                    | 18 ++++++++----------
+ 2 files changed, 16 insertions(+), 20 deletions(-)

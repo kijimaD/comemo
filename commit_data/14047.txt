@@ -1,12 +1,22 @@
-commit 9224b4c873f09c310787b12830acdb5577a099c9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Oct 7 14:14:46 2012 +0800
+commit a45777fe9975583cac3ef7ee5d61937f5a003c5a
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sun Oct 7 06:53:57 2012 +0200
 
-    cmd/gc: fix output filename generation on Windows
+    cmd/gc: Don't export embedded builtins
     
-    R=golang-dev, rsc
+    Fixes #4124.
+    
+    R=golang-dev, dave, minux.ma, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6610060
+    https://golang.org/cl/6543057
 
- src/cmd/gc/lex.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/gc/align.c             |  2 +-
+ src/cmd/gc/dcl.c               |  2 +-
+ src/cmd/gc/fmt.c               |  2 +-
+ src/cmd/gc/lex.c               |  4 ++--
+ src/cmd/gc/reflect.c           |  5 ++++-
+ test/fixedbugs/bug460.dir/a.go |  9 +++++++++
+ test/fixedbugs/bug460.dir/b.go | 14 ++++++++++++++
+ test/fixedbugs/bug460.go       | 10 ++++++++++
+ test/fixedbugs/bug461.go       | 23 +++++++++++++++++++++++
+ 9 files changed, 65 insertions(+), 6 deletions(-)

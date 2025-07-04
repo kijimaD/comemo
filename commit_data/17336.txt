@@ -1,18 +1,14 @@
-commit e82614e5bea67448ffed0cb5146df61f176325b2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Aug 20 16:57:30 2013 +0900
+commit 94b42fb14a0ceda1763f842e52c55020e96705ad
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 20 14:45:46 2013 +1000
 
-    runtime: integrated network pollster for freebsd/arm
+    os: fix windows build
+    The os windows source uses file as the receiver, not f.
+    TBR=golang-dev@googlegroups.com
     
-    Update #6146
-    
-    R=golang-dev, r
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/12927047
+    https://golang.org/cl/12922044
 
- src/pkg/runtime/defs_freebsd_arm.h | 23 +++++++++++++++++++++--
- src/pkg/runtime/netpoll.goc        |  2 +-
- src/pkg/runtime/netpoll_kqueue.c   |  2 +-
- src/pkg/runtime/netpoll_stub.c     |  2 +-
- src/pkg/runtime/sys_freebsd_arm.s  | 30 ++++++++++++++++++++++++++++++
- 5 files changed, 54 insertions(+), 5 deletions(-)
+ src/pkg/os/file_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

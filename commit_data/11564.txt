@@ -1,12 +1,14 @@
-commit 7dca24ee7e5c0c5acba35a1a0b9a23f1761098e3
+commit 69a5b23dc58a589f491e5524d3e32019a5de69b5
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 2 11:53:28 2012 -0800
+Date:   Thu Feb 2 11:49:28 2012 -0800
 
-    codereview: explain how to get hgpatch in error message
+    test: make map nan timing test more robust
     
-    R=golang-dev, rsc
+    take 2
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5623045
+    https://golang.org/cl/5617045
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/map.go | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)

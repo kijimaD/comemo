@@ -1,23 +1,17 @@
-commit 9b55088d6b49fd4bb4832589a1b7e8629de2800c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 6 21:59:10 2021 -0500
+commit fee06a6bda8e7ca5a35b13c7b5befc1d73e93c35
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue May 5 12:34:10 2020 -0400
 
-    doc/go1.16: add release note for disallowing non-ASCII import paths
+    [dev.link] cmd/link: convert ppc64 archreloc over to Loader
     
-    golang.org/cl/251878 disallowed non-ASCII characters in import paths,
-    in module mode. They were already disallowed in module paths, so this
-    change just extended the restriction to the package subdirectory of
-    the module. Update the release notes to alert users of this change.
-    
-    Fixes #43052
-    
-    Change-Id: I1caf9ef978dd3ac599a3f82c5c376ad62e6fc436
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282194
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I68945a8284fb3dd9ceb5a9cd774b5b4b91e63ce0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230917
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/ld/data.go   |  11 +--
+ src/cmd/link/internal/ld/main.go   |   2 +-
+ src/cmd/link/internal/ld/xcoff.go  |   2 +-
+ src/cmd/link/internal/ppc64/asm.go | 156 ++++++++++++++++++-------------------
+ src/cmd/link/internal/ppc64/obj.go |  24 +++---
+ 5 files changed, 96 insertions(+), 99 deletions(-)

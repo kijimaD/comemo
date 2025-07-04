@@ -1,0 +1,22 @@
+commit 7ad9a2c65fbffead70474465f5a0f1ad67fe5703
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 22 10:13:29 2024 -0700
+
+    go/types, types2: rename kindString to compositeKind and simplify function
+    
+    Simplify functionality of compositeKind (formerly: kindString) by
+    giving it a smaller scope. Move it into operand.go for future use
+    in that file. Adjust existing uses.
+    
+    Change-Id: I73d04a8c0be44d9604e56bd4c0289afdcdd32238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621457
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/compile/internal/types2/expr.go    | 36 ++++++------------------------
+ src/cmd/compile/internal/types2/operand.go | 32 ++++++++++++++++++++++++++
+ src/go/types/expr.go                       | 36 ++++++------------------------
+ src/go/types/operand.go                    | 32 ++++++++++++++++++++++++++
+ 4 files changed, 78 insertions(+), 58 deletions(-)

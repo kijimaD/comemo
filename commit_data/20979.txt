@@ -1,14 +1,18 @@
-commit 0e4ee0c9bfc8d4048fd49a1061080a92c0dc0804
+commit 9dc1cce38db0229e97c1ee8d9929f0457f1af385
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 13 18:19:05 2014 +1100
+Date:   Fri Oct 31 09:49:42 2014 -0700
 
-    net/http: fix timer leak in Transport when using ResponseHeaderTimeout
+    database/sql: make TestDrivers not crash on second run
     
-    Fixes #9104
+    Using -test.cpu=1,1 made it crash before.
     
-    Change-Id: Ide5ac70215d73278e6910f5b9c7687ad7734c0be
-    Reviewed-on: https://go-review.googlesource.com/1530
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Fixes #9024
+    
+    LGTM=iant
+    R=adg, iant
+    CC=golang-codereviews
+    https://golang.org/cl/169860043
 
- src/net/http/transport.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/database/sql/fakedb_test.go | 2 ++
+ src/database/sql/sql.go         | 5 +++++
+ 2 files changed, 7 insertions(+)

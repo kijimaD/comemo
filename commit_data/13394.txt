@@ -1,17 +1,13 @@
-commit baaa08eab072aee3e00203aab6b91e5e49a76929
-Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Mon Jun 25 17:20:48 2012 -0400
+commit c08ff027c42807ecf3fdab75e13dca5caab96323
+Author: Thomas Alan Copeland <talan.copeland@gmail.com>
+Date:   Mon Jun 25 17:18:50 2012 -0400
 
-    go/build: fix doc typo
-    
-    go/build section "Build Constraints", first paragraph said:
-      "... they must be appear near the top of the file ..."
-    fixed to:
-      "... they must appear near the top of the file ..."
+    encoding/base32, encoding/base64: removed unneeded break label
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6329060
+    https://golang.org/cl/6305086
 
- src/pkg/go/build/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/base32/base32.go | 3 +--
+ src/pkg/encoding/base64/base64.go | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

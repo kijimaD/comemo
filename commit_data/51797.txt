@@ -1,15 +1,21 @@
-commit 4e3abee245755d741987132fb22c442af2dab1de
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 26 14:43:12 2023 -0800
+commit b4428325e266d8ffdd1131d71862f0767c616e27
+Author: Bryan Mills <bcmills@google.com>
+Date:   Tue Mar 15 17:49:01 2022 +0000
 
-    cmd/compile: remove go119UseJumpTables flag
+    Revert "os: raise open file rlimit at startup"
     
-    Change-Id: Iaaac46e96b74289096ce0c6186c73000d1fc6faa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463224
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This reverts CL 392415.
+    
+    Reason for revert: new test is failing on at least darwin-amd64-10_14, darwin-amd64-10_15, and openbsd-arm64-jsing.
+    
+    Updates #46279.
+    
+    Change-Id: I2890b72f8ee74f31000d65f7d47b5bb0ed5d6007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393016
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/walk/switch.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/os/rlimit.go      | 31 -------------------------------
+ src/os/rlimit_test.go | 32 --------------------------------
+ 2 files changed, 63 deletions(-)

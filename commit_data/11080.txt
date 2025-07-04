@@ -1,25 +1,17 @@
-commit a6c49098bcddd3af21640b512257289c47f5e724
+commit 4bcc9c6b5e91eca8de1329ea2151610e2f3e3ada
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 10 11:19:22 2012 +0100
+Date:   Tue Jan 10 11:18:56 2012 +0100
 
-    gc: Nicer errors before miscompiling.
+    gc: disallow declaration of variables outside package.
     
-    This fixes issue 2444.
+    Fixes #2231.
     
-    A big cleanup of all 31/32bit size boundaries i'll leave for another cl though.  (see also issue 1700).
+    Declaring main.i in package main in the same way already triggers syntax errors.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5484058
+    https://golang.org/cl/5483078
 
- src/cmd/5g/cgen.c           | 13 ++++++++-----
- src/cmd/5g/gg.h             |  2 +-
- src/cmd/6g/cgen.c           |  6 +++---
- src/cmd/6g/gg.h             |  2 +-
- src/cmd/8g/cgen.c           |  8 ++++----
- src/cmd/8g/gg.h             |  2 +-
- src/cmd/gc/align.c          |  3 +++
- src/cmd/gc/pgen.c           |  4 ++++
- test/fixedbugs/bug385_32.go | 14 ++++++++++++++
- test/fixedbugs/bug385_64.go | 15 +++++++++++++++
- 10 files changed, 54 insertions(+), 15 deletions(-)
+ src/cmd/gc/dcl.c         |  5 +++++
+ test/fixedbugs/bug388.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

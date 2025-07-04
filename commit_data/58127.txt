@@ -1,36 +1,18 @@
-commit 9935dd99da40eea305685a32dbaebc4b9273593b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 14 14:09:54 2024 -0500
+commit a1eb658d18b1f594e133aa71d3e29d33ed523106
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 01:51:53 2023 +1000
 
-    cmd/go: add basic GOFIPS140 support
+    cmd/go/testdata/mod: add golang toolchain test data for openbsd/riscv64
     
-    GOFIPS140 does two things: (1) control whether to build binaries that
-    run in FIPS-140 mode by default, and (2) control which version of the
-    crypto/internal/fips source tree to use during a build.
+    Updates #55999
     
-    This CL implements part (1). It recognizes the GOFIPS140 settings
-    "off" and "latest" and uses them to set the default GODEBUG=fips140
-    setting to "off" or "on" accordingly.
-    
-    The documentation for GOFIPS140 is in a follow-up CL.
-    
-    See cmd/go/internal/fips/fips.go for an overview.
-    
-    For #70200.
-    
-    Change-Id: I045f8ae0f19778a1e72a5cd2b6a7b0c88934fc30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629198
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I65e3bfb08ed2dd1602531902c7df8232e5151aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518628
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go      |   1 +
- src/cmd/go/internal/envcmd/env.go   |   1 +
- src/cmd/go/internal/fips/fips.go    | 124 ++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/load/godebug.go |  14 ++++
- src/cmd/go/internal/load/pkg.go     |   4 ++
- src/cmd/go/internal/modload/init.go |   4 ++
- src/cmd/go/internal/work/buildid.go |  16 ++++-
- src/cmd/go/internal/work/gc.go      |   4 ++
- src/cmd/go/testdata/script/fips.txt |  53 +++++++++++++++
- 9 files changed, 220 insertions(+), 1 deletion(-)
+ ...org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

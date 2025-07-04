@@ -1,24 +1,15 @@
-commit 2f072a427a9ac20bd6deda18d95e4abb25ea6297
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 31 09:57:38 2017 -0700
+commit af7bc070490fb2024102ac9a2c8f598bcb481bc7
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Jan 2 13:19:31 2017 -0800
 
-    cmd/compile: clean up methodsym
+    database/sql: fix typo and wording
     
-    Convert yyerrors into Fatals.
-    Remove the goto.
-    Move variable declaration closer to use.
-    Unify printing strings a bit.
-    Convert an int param into a bool.
+    Clean up the phrasing a little bit, make the comment fit in 80
+    characters, and fix the spelling of "guard."
     
-    Passes toolstash-check. No compiler performance impact.
-    
-    Change-Id: I9017681417b785cf8693d18b124ac4f1ff37f2b5
-    Reviewed-on: https://go-review.googlesource.com/39170
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I688a3e760b8d67ea83830635f64dff04dd9a5911
+    Reviewed-on: https://go-review.googlesource.com/34792
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go       | 54 ++++++++++++--------------------
- src/cmd/compile/internal/gc/reflect.go   |  6 ++--
- src/cmd/compile/internal/gc/subr.go      |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  6 ++--
- 4 files changed, 27 insertions(+), 41 deletions(-)
+ src/database/sql/sql_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

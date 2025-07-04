@@ -1,33 +1,18 @@
-commit 47d0b0f2bf9d507d5bc9ea8f456cc821829fe21c
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Sat Dec 14 14:36:21 2024 -0500
+commit 94d6267060a619ef89ef296ed4691734e6be8de2
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Nov 23 09:17:56 2023 +0100
 
-    crypto/internal/fips140test: add TLS-v1.3 ACVP tests
+    text/template: more godoc links
     
-    Adds ACVP test coverage for the SP 800-56Crev2 IG 2.4.B TLS v1.3 KDF
-    based on the NIST spec:
-    
-      https://pages.nist.gov/ACVP/draft-hammett-acvp-kdf-tls-v1.3.html
-    
-    Only SHA2-256 and SHA2-384 are valid hash algorithms for the TLS1.3 KDF
-    algorithm.
-    
-    The BoringSSL acvptool "lowers" the more complicated TLS 1.3 KDF ACVP
-    test cases into simple invocations of our module wrapper's pre-existing
-    HKDF commands, and the new "HKDFExtract/$HASH" and
-    "HKDFExpandLabel/$HASH" commands added in this branch.
-    
-    Updates #69642
-    
-    Change-Id: I5fb1af5b5b33c1845b27cf8968e6523e89bcc589
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636117
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I4f3684ea6cbdcc09985c93fef5107d3bd006699e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544735
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- .../internal/fips140test/acvp_capabilities.json    |  3 +-
- .../internal/fips140test/acvp_test.config.json     |  3 +-
- src/crypto/internal/fips140test/acvp_test.go       | 34 ++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 2 deletions(-)
+ src/text/template/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,13 +1,22 @@
-commit 482f3e8481465bccefea2a0093e5fbeefb30bb29
-Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Fri Feb 8 16:00:59 2013 -0500
+commit cccc96b8e9f2e526d7b22cfc4af17569c47e8c31
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Feb 9 07:04:07 2013 +1100
 
-    cmd/go: indicate that flags unrecognized by 'go test' must follow package specification
+    net/http: add BenchmarkReadRequest
     
-    R=rsc, minux.ma
+    Add benchmark for request parsing. Fixture data is taken from https://github.com/felixge/node-http-perf
+    
+    % go version
+    go version devel +28966b7b2f0c Thu Feb 07 20:26:12 2013 -0800 linux/amd64
+    
+    % go test -run=nil -bench=ReadRequest -benchtime=10s
+    PASS
+    BenchmarkReadRequest     2000000   9900 ns/op   61.71 MB/s   3148 B/op   32 allocs/op
+    ok      net/http        12.180s
+    
+    R=golang-dev, bradfitz, minux.ma, haimuiba
     CC=golang-dev
-    https://golang.org/cl/7300063
+    https://golang.org/cl/7313048
 
- src/cmd/go/doc.go  | 2 ++
- src/cmd/go/test.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/pkg/net/http/request_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

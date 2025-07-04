@@ -1,15 +1,14 @@
-commit 7cc0581f86e3f77de44700a0a56c384d9d3677a4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 2 18:59:39 2013 -0700
+commit 3a32367040a06b55fa93baddba2b57371079af90
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 2 13:02:00 2013 +1000
 
-    regexp: doc fix
+    cmd/ld: fix SDYNIMPORT symbol test
     
-    This must have been from when "error" was a good variable
-    name for an "os.Error". But we use "err" these days.
+    As advised by iant. Fixes windows build.
     
-    R=golang-dev, dsymonds, r
-    CC=golang-dev
-    https://golang.org/cl/9132045
+    R=golang-dev, r
+    CC=golang-dev, iant
+    https://golang.org/cl/9110044
 
- src/pkg/regexp/regexp.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/ld/lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

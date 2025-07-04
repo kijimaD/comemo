@@ -1,23 +1,28 @@
-commit de95dca32fb196d5f09bf5db4a6ba592907559c3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Aug 6 16:08:41 2022 -0700
+commit 2da3375e9b4980e368a8641f54cc53c4af4d1a12
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 20 16:55:04 2021 -0700
 
-    cmd/compile/internal/noder: explicit receiver expression handling
+    runtime: in adjustTimers back up as far as necessary
     
-    This CL adds a helper expression code for receiver addressing; i.e.,
-    the implicit addressing, dereferencing, and field selections involved
-    in changing the `x` in `x.M()` into an appropriate expression to pass
-    as an argument to the method.
+    When the adjustTimers function removed a timer it assumed it was
+    sufficient to continue the heap traversal at that position.
+    However, in some cases a timer will be moved to an earlier
+    position in the heap. If that timer is timerModifiedEarlier,
+    that can leave timerModifiedEarliest not correctly representing
+    the earlier such timer.
     
-    Change-Id: I9be933e2a38c8f94f6a85d95b54f34164e5efb0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421820
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fix the problem by restarting the heap traversal at the earliest
+    changed position.
+    
+    Fixes #47762
+    
+    Change-Id: I152bbe62793ee40a680baf49967bcb89b1f94764
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343882
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/noder/codes.go  |  1 +
- src/cmd/compile/internal/noder/reader.go | 13 +++++++++++
- src/cmd/compile/internal/noder/writer.go | 38 ++++++++++++++++++++++++++++++--
- 3 files changed, 50 insertions(+), 2 deletions(-)
+ src/runtime/time.go    | 30 ++++++++++++++--------
+ src/time/sleep_test.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 10 deletions(-)

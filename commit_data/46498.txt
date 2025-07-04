@@ -1,20 +1,39 @@
-commit 9ebe7c8ec6e95b73a7b0e480fe10f2188ef4928a
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Sep 16 09:42:06 2021 -0700
+commit fd43831f4476dc9a3ba83aa3a2e4117ed0b8596e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 4 18:05:34 2021 -0800
 
-    go/test: add a test for issue 48344
+    [dev.regabi] cmd/compile: reimplement capture analysis
     
-    This was fixed by https://go-review.googlesource.com/c/go/+/349613
-    and https://go-review.googlesource.com/c/go/+/349614
+    Currently we rely on the type-checker to do some basic data-flow
+    analysis to help decide whether function literals should capture
+    variables by value or reference. However, this analysis isn't done by
+    go/types, and escape analysis already has a better framework for doing
+    this more precisely.
     
-    Fixes #48344
+    This CL extends escape analysis to recalculate the same "byval" as
+    CaptureVars and check that it matches. A future CL will remove
+    CaptureVars in favor of escape analysis's calculation.
     
-    Change-Id: I4c62109fd34b20566b07fcca87fb3946a5702fef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350309
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Notably, escape analysis happens after deadcode removes obviously
+    unreachable code, so it sees the AST without any unreachable
+    assignments. (Also without unreachable addrtakens, but
+    ComputeAddrtaken already happens after deadcode too.) There are two
+    test cases where a variable is only reassigned on certain CPUs. This
+    CL changes them to reassign the variables unconditionally (as no-op
+    reassignments that avoid triggering cmd/vet's self-assignment check),
+    at least until we remove CaptureVars.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I7162619739fedaf861b478fb8d506f96a6ac21f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281535
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- test/typeparam/issue48344.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/compile/internal/escape/escape.go      | 250 ++++++++++++++++++++-----
+ src/cmd/compile/internal/logopt/logopt_test.go |   1 +
+ test/chancap.go                                |   1 +
+ test/fixedbugs/issue4085b.go                   |   1 +
+ 4 files changed, 202 insertions(+), 51 deletions(-)

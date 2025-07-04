@@ -1,22 +1,23 @@
-commit a9cf0b1e1e2a66db547fcabb7188465e4ac54700
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 30 21:11:26 2016 -0700
+commit 3e54ca9a4624fda0bcd76192aa529e826ef12b4f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 16 18:22:58 2016 -0400
 
-    net/http: provide access to the listener address an HTTP request arrived on
+    cmd/compile: omit write barrier when assigning global function
     
-    This adds a context key named LocalAddrContextKey (for now, see #15229) to
-    let users access the net.Addr of the net.Listener that accepted the connection
-    that sent an HTTP request. This is similar to ServerContextKey which provides
-    access to the *Server. (A Server may have multiple Listeners)
+    Currently we generate write barriers when the right side of an
+    assignment is a global function. This doesn't fall into the existing
+    case of storing an address of a global because we haven't lowered the
+    function to a pointer yet.
     
-    Fixes #6732
+    This write barrier is unnecessary, so eliminate it.
     
-    Change-Id: I74296307b68aaaab8df7ad4a143e11b5227b5e62
-    Reviewed-on: https://go-review.googlesource.com/22672
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13901.
+    
+    Change-Id: Ibc10e00a8803db0fd75224b66ab94c3737842a79
+    Reviewed-on: https://go-review.googlesource.com/20772
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 7 ++++++-
- src/net/http/server.go     | 7 +++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go |  6 ++++++
+ test/writebarrier.go                | 10 ++++++++++
+ 2 files changed, 16 insertions(+)

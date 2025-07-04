@@ -1,29 +1,19 @@
-commit 3aa71c12eacd68ec16e7172d92aa5c6af32f0c3b
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Mon Oct 7 20:53:01 2024 +0000
+commit d1593b7a4a8cd60e30bfc41df83fb22ab8393d51
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 19 22:32:08 2023 -0700
 
-    cmd/compile, internal/runtime/atomic: add Xchg8 for arm64
+    cmd/compile: do some TODOs about Fatalf
     
-    For #69735
+    Separate CL in case I'm mistaken.
     
-    Change-Id: I61a2e561684c538eea705e60c8ebda6be3ef31a7
-    GitHub-Last-Rev: 3c7f4ec845182d3ef1a007319d91027433163db3
-    GitHub-Pull-Request: golang/go#69751
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617595
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6b5fa0efb27a6b4fb4c133698bd7e2f01b4cccdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521195
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/arm64/ssa.go              | 27 ++++++++++----
- src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  4 +-
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go      |  2 +
- src/cmd/compile/internal/ssa/_gen/genericOps.go    |  1 +
- src/cmd/compile/internal/ssa/opGen.go              | 43 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go       |  6 +++
- src/cmd/compile/internal/ssagen/intrinsics.go      |  3 ++
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  1 +
- src/internal/runtime/atomic/atomic_arm64.go        |  3 ++
- src/internal/runtime/atomic/atomic_arm64.s         | 24 ++++++++++++
- src/internal/runtime/atomic/xchg8_test.go          |  2 +-
- 11 files changed, 106 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/devirtualize/devirtualize.go |  6 +-----
+ src/cmd/compile/internal/typecheck/expr.go            | 12 +++++++++---
+ 2 files changed, 10 insertions(+), 8 deletions(-)

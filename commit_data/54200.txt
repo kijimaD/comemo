@@ -1,29 +1,18 @@
-commit 88cb17e1069bef854ead49c703262abdf93c9458
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 24 03:04:01 2023 -0700
+commit ea2a2c0c2233a3aad73c4ba53cec315fb28d7a48
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:34:01 2022 +0800
 
-    cmd/compile: create "init" function during noding
+    cmd/cgo: delete unused code
     
-    This CL arranges for package-scope initialization statements to be
-    constructed directly into their eventual "init" function, so we can
-    eliminate the roundabout solution of using InitTodoFunc.
-    
-    While here, somewhat simplify and generalize the logic for outlining
-    map initialization statements.
-    
-    Change-Id: I8aff042e6b266f7024de436424ec6711b8b69129
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522318
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6007cc6363e22ffa5f9a8f0441a642fd85127397
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435945
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/main.go             |  7 +-
- src/cmd/compile/internal/ir/package.go          |  4 --
- src/cmd/compile/internal/noder/reader.go        | 77 +++++++++-----------
- src/cmd/compile/internal/noder/writer.go        |  9 ++-
- src/cmd/compile/internal/pkginit/init.go        | 59 ---------------
- src/cmd/compile/internal/staticinit/sched.go    | 96 ++++++++++++-------------
- src/cmd/compile/internal/typecheck/typecheck.go | 27 -------
- 7 files changed, 86 insertions(+), 193 deletions(-)
+ src/cmd/cgo/util.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

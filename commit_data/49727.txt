@@ -1,21 +1,23 @@
-commit 91d5ce3def7c967b23de37546439bb4714e26e8a
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Aug 4 10:12:20 2022 +0800
+commit 73a062c3e765aa953a84b128aa765a607b2df083
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 7 13:58:49 2021 -0700
 
-    all: clean up TODO after fixing issue 44505
+    cmd/compile/internal/types2: handle recursive type parameter constraints
     
-    For #44505
+    Check type constraints after the respective type parameter list
+    has been associated with a parameterized type so that recursive
+    type parameter constraints "see" a parameterized type.
     
-    Change-Id: I89220be02372b5340cb987bf2ac870a9346a8c8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421079
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #45550.
+    Fixes #47796.
+    
+    Change-Id: Iac74610ca017a78013820624230c857395506aff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348090
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/asm/internal/lex/tokenizer.go         | 4 ++--
- src/cmd/compile/internal/noder/unified.go     | 4 ++--
- src/cmd/compile/internal/typecheck/iimport.go | 5 ++---
- src/internal/pkgbits/decoder.go               | 7 +++----
- src/internal/pkgbits/encoder.go               | 3 ++-
- 5 files changed, 11 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/types2/decl.go            | 19 +++++++++----
+ src/cmd/compile/internal/types2/signature.go       |  2 +-
+ .../types2/testdata/fixedbugs/issue45550.go2       | 10 +++++++
+ .../types2/testdata/fixedbugs/issue47796.go2       | 33 ++++++++++++++++++++++
+ 4 files changed, 58 insertions(+), 6 deletions(-)

@@ -1,34 +1,17 @@
-commit 68a12a80235fae67dc64fa2d232186a2e85c05f5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Oct 4 10:21:39 2023 -0400
+commit 7ddbadb397b18ffadd308fea84884ae363e87b58
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Nov 4 10:48:39 2022 +0800
 
-    runtime: unlock OS thread after cgocallbackg1
+    api: add newline to 55301.txt
     
-    For cgo callbacks, currently cgocallbackg locks the OS thread and
-    then call cgocallbackg1, which invokes the actual callback, and
-    then unlocks the OS thread in a deferred call. cgocallback then
-    continues assuming we are on the same M. This assumes there is no
-    preemption point between the deferred unlockOSThread and returning
-    to the caller (cgocallbackg). But this is not always true. E.g.
-    when open defer is not used (e.g. PIE or shared build mode on 386),
-    there is a preemption point in deferreturn after invoking the
-    deferred function (when it checks whether there are still defers
-    to run).
-    
-    Instead of relying on and requiring the defer implementation has
-    no preemption point, we move the unlockOSThread to the caller, and
-    ensuring no preemption by setting incgo to true before unlocking.
-    This doesn't cover the panicking path, so we also adds an
-    unlockOSThread there. There we don't need to worry about preemption,
-    because we're panicking out of the callback and we have unwound the
-    g0 stack, instead of reentering cgo.
-    
-    Fixes #62102.
-    
-    Change-Id: I0e0b9f9091be88d01675c0acb7339b81402545be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9bcaba0ca9c30b204bf126dbfec4cd48d9ebe2ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447896
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/cgocall.go | 24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
+ api/next/55301.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

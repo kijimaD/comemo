@@ -1,18 +1,13 @@
-commit 16d1a8e6e3701a8ed2e9b16f7c9b8e70a7b1fc8d
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 30 19:55:41 2018 -0700
+commit 594668a5a96267a46282ce3007a584ec07adf705
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Jan 11 11:30:49 2018 -0500
 
-    runtime: move open/close/read/write from syscall to libc on Darwin
+    doc, api: add type Srcset string change to go1.10 notes and API
     
-    Update #17490
-    
-    Change-Id: Ia0bb0ba10dc0bbb299290a60b8228275d55125d7
-    Reviewed-on: https://go-review.googlesource.com/110438
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I13afaa894292bd566510b40a5e4bbbe4d72d4d08
+    Reviewed-on: https://go-review.googlesource.com/87395
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_darwin.go      |  5 +++
- src/runtime/sys_darwin_386.s   | 72 ++++++++++++++++++++++++++++++------------
- src/runtime/sys_darwin_amd64.s | 48 ++++++++++++++++------------
- 3 files changed, 85 insertions(+), 40 deletions(-)
+ api/go1.10.txt  | 1 +
+ doc/go1.10.html | 6 ++++++
+ 2 files changed, 7 insertions(+)

@@ -1,15 +1,12 @@
-commit f005fedfa94bb2da726024953996bde40fc1e0fd
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 17 10:41:47 2012 -0700
+commit a1a414e6f12f759adde426a5bdd8985d0ee7067d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 17 01:26:57 2012 +0800
 
-    misc/dashboard/builder: add timeout to all external command invocations
+    run.bash: fix a typo (fix build)
     
-    Fixes #4083.
-    
-    R=golang-dev, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6498136
+    https://golang.org/cl/6506121
 
- misc/dashboard/builder/exec.go | 28 ++++++++++++++++++++++++----
- misc/dashboard/builder/main.go | 32 ++++++++++++++------------------
- 2 files changed, 38 insertions(+), 22 deletions(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

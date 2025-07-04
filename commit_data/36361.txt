@@ -1,28 +1,23 @@
-commit fc5107c27011e1c1b70eb35a6fb7b3efd0cf3cea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 3 19:21:11 2018 +0000
+commit d292f77e95fd9afdbfcfa12c9552d5926cdde8b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 23 13:49:51 2018 -0700
 
-    go/doc: compile regexps lazily
+    cmd/compile: rewrite 2*x+c into LEAx1 on amd64
     
-    Compile go/doc's 4 regexps lazily, on demand.
+    Rewrite x<<1+c into x+x+c, which can be expressed as a single LEAQ/LEAL.
     
-    Also, add a test for the one that had no test coverage.
+    Bit of a special case, but the single-instruction
+    LEA is both shorter and faster than SHL then ADD.
     
-    This reduces init-time CPU as well as heap by ~20KB when they're not
-    used, which seems to be common enough. As an example, cmd/doc only
-    seems to use 1 of them. (as noted by temporary print statements)
+    Triggers 293 times during make.bash.
     
-    Updates #26775
-    
-    Change-Id: I85df89b836327a53fb8e1ace3f92480374270368
-    Reviewed-on: https://go-review.googlesource.com/127875
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3f09c8e9a8f3859d1eeed336f095fc3ada79c2c1
+    Reviewed-on: https://go-review.googlesource.com/108938
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/build/deps_test.go |  2 +-
- src/go/doc/comment.go     |  5 ++---
- src/go/doc/doc_test.go    |  9 +++++++++
- src/go/doc/lazyre.go      | 51 +++++++++++++++++++++++++++++++++++++++++++++++
- src/go/doc/reader.go      |  7 +++----
- 5 files changed, 66 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 43 +++++++++++++++++++++++++++-
+ test/codegen/arithmetic.go                   |  5 ++++
+ 3 files changed, 48 insertions(+), 1 deletion(-)

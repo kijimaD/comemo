@@ -1,25 +1,40 @@
-commit a731955f0f48b9d1e74ea3aa65f8485388a2849e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 21 14:29:26 2025 +0200
+commit 8121604559035734c9677d5281bbdac8b1c17a1e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Mar 26 12:45:36 2024 -0400
 
-    crypto/sha1: use cryptotest.TestAllImplementations and impl.Register
+    go/types: don't fail fast on Go version errors
     
-    Not running TryBots on s390x because the new LUCI builder is broken.
+    Many tools (especially in the IDE) rely on type information
+    being computed even for packages that have some type errors.
+    Previously, there were two early (error) exits in checkFiles
+    that violated this invariant, one related to FakeImportC
+    and one related to a too-new Config.GoVersion.
+    (The FakeImportC one is rarely encountered in practice,
+    but the GoVersion one, which was recently downgraded from
+    a panic by CL 507975, was a source of crashes
+    due to incomplete type information.)
     
-    Change-Id: I6a6a4656a8d52fa5ace9effa67a88fbfd7d19b04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674915
-    Reviewed-by: David Chase <drchase@google.com>
+    This change moves both of those errors out of checkFiles
+    so that they report localized errors and don't obstruct
+    type checking. A test exercises the errors, and that
+    type annotations are produced.
+    
+    Also, we restructure and document checkFiles to make clear
+    that it is never supposed to stop early.
+    
+    Updates #66525
+    
+    Change-Id: I9c6210e30bbf619f32a21157f17864b09cfb5cf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574495
+    Reviewed-by: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/sha1/fallback_test.go   | 34 ----------------------------------
- src/crypto/sha1/issue15617_test.go | 25 ++++++++++++++-----------
- src/crypto/sha1/sha1_test.go       | 32 ++++++++++++--------------------
- src/crypto/sha1/sha1block_amd64.go | 10 +++++++++-
- src/crypto/sha1/sha1block_arm64.go | 17 +++++++++++++----
- src/crypto/sha1/sha1block_decl.go  |  2 +-
- src/crypto/sha1/sha1block_s390x.go | 24 ++++++++++++++++++++++--
- src/crypto/sha1/sha1block_s390x.s  |  9 ++-------
- 8 files changed, 73 insertions(+), 80 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 48 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/check.go    | 51 ++++++++++++++++++-----------
+ src/cmd/compile/internal/types2/resolver.go |  3 ++
+ src/go/types/api_test.go                    | 48 +++++++++++++++++++++++++++
+ src/go/types/check.go                       | 51 ++++++++++++++++++-----------
+ src/go/types/resolver.go                    |  3 ++
+ src/internal/types/errors/code_string.go    |  7 ++--
+ src/internal/types/errors/codes.go          | 10 +++++-
+ 8 files changed, 177 insertions(+), 44 deletions(-)

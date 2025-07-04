@@ -1,16 +1,16 @@
-commit 16c3838cf6b0f4020f3ca3f8ca9415ee7aff5422
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 17 21:32:40 2015 -0400
+commit 9b2d84efc896b50b5d143fed4fe128237a864a72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 29 11:37:13 2015 -0700
 
-    doc/go1.5.html: refer to ppc64 as 64-bit PowerPC, not Power 64
+    net/http/httptest: increase test Server's key size
     
-    Saying "Power 64" was wrong for reasons I don't remember.
-    (Those reasons are why we stopped using GOARCH=power64.)
+    Fixes #10725
     
-    Change-Id: Ifaac78d5733bfc780df01b1a66da766af0b17726
-    Reviewed-on: https://go-review.googlesource.com/13675
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic8685dc238a0ffc95fafb512a8587d2eb5fe9d5f
+    Reviewed-on: https://go-review.googlesource.com/11720
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/asm.html   | 4 ++--
- doc/go1.5.html | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/http/httptest/server.go | 42 +++++++++++++++++++++++++----------------
+ 1 file changed, 26 insertions(+), 16 deletions(-)

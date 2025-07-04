@@ -1,29 +1,13 @@
-commit 053840dc00d9ccca93f8e44dd622c08235fece5e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 28 12:57:52 2017 -0700
+commit 642a1cc7563953bf2be39eca461325bfa9735cde
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 28 11:07:16 2017 +1000
 
-    cmd/compile: avoid generating large offsets
+    compress/lzw: fix hi code overflow.
     
-    The assembler barfs on large offsets. Make sure that all the
-    instructions that need to have their offsets in an int32
-      1) check on any rule that computes offsets for such instructions
-      2) change their aux fields so the check builder checks it.
-    
-    The assembler also silently misassembled offsets between 1<<31
-    and 1<<32. Add a check in the assembler to barf on those as well.
-    
-    Fixes #21655
-    
-    Change-Id: Iebf24bf10f9f37b3ea819ceb7d588251c0f46d7d
-    Reviewed-on: https://go-review.googlesource.com/59630
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2d3c3c715d857305944cd96c45554a16cb7967e9
+    Reviewed-on: https://go-review.googlesource.com/42032
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 140 +++++------
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  17 +-
- src/cmd/compile/internal/ssa/opGen.go        |  16 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 362 +++++++++++++++++++++------
- src/cmd/internal/obj/x86/asm6.go             |   7 +
- test/fixedbugs/issue21655.go                 |  40 +++
- 6 files changed, 414 insertions(+), 168 deletions(-)
+ src/compress/lzw/reader.go      | 12 +++++++++++-
+ src/compress/lzw/reader_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 1 deletion(-)

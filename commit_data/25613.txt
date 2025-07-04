@@ -1,28 +1,23 @@
-commit e8e1928bd22339dcdbfde17778cfd976184bb377
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 20 22:41:52 2016 +0000
+commit 15676b51a54f0284355a8866fa5520fdd74b76cc
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Mon Sep 28 17:30:32 2015 -0400
 
-    net/http: update http2 to check header values, move from vendor to internal
+    test: fix nosplit.go, fixedbugs/issue11656.go and skip two tests for mips64{,le}
     
-    Updates x/net/http2 to git rev b2ed34f for https://golang.org/cl/18727
+    Skip fixedbugs/issue10607.go because external linking is not supported
+    yet.
     
-    Updates #14029 (fixes it enough for Go 1.6)
-    Fixes #13961
+    Skip nilptr3.go because of issue #9058 (same as ppc64).
     
-    Change-Id: Id301247545507671f4e79df0e7c6ec9c421d5a7c
-    Reviewed-on: https://go-review.googlesource.com/18728
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib3dfbd9a03ee4052871cf57c74b3cc5e745e1f80
+    Reviewed-on: https://go-review.googlesource.com/14461
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/build/build_test.go                         |   1 +
- src/go/build/deps_test.go                          |   2 +-
- .../golang.org/x/net/http2/hpack/encode.go         |   0
- .../golang.org/x/net/http2/hpack/encode_test.go    |   0
- .../golang.org/x/net/http2/hpack/hpack.go          |   0
- .../golang.org/x/net/http2/hpack/hpack_test.go     |   0
- .../golang.org/x/net/http2/hpack/huffman.go        |   0
- .../golang.org/x/net/http2/hpack/tables.go         |   0
- src/net/http/h2_bundle.go                          | 151 +++++++++++++++++++--
- src/vendor/README                                  |   8 ++
- 10 files changed, 151 insertions(+), 11 deletions(-)
+ test/fixedbugs/issue10607.go | 2 +-
+ test/fixedbugs/issue11656.go | 4 ++++
+ test/nilptr3.go              | 3 ++-
+ test/nosplit.go              | 3 +++
+ 4 files changed, 10 insertions(+), 2 deletions(-)

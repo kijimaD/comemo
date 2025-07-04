@@ -1,20 +1,24 @@
-commit d5b5ab929bf49403de3e2b61e9e771e775893d01
-Author: Quan Tong <quantonganh@gmail.com>
-Date:   Wed Nov 1 18:08:23 2023 +0700
+commit 8893da7c724cf5df859a3c4ef6f32d94f0b39a00
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Nov 17 18:10:00 2022 +0800
 
-    cmd/go: handle '@' in local path when running 'go mod edit -replace'
+    cmd/compile: fix wrong optimization for eliding Not in Phi
     
-    The existing implementation considers everything after '@' as a version.
+    The previous rule may move the phi value into a wrong block.
+    This CL make it only rewrite the phi value not the If block,
+    so that the phi value will stay in old block.
     
-    Fixes #61500
+    Fixes #56777
     
-    Change-Id: I72c32529c2726c2b59c089f5ffd6a2e361ef2c65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538916
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9479a5c7f28529786968413d35b82a16181bb1f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modcmd/edit.go      |  7 ++++---
- src/cmd/go/testdata/script/mod_edit.txt | 19 +++++++++++++++++++
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 58 ++++++++++++-------------
+ test/fixedbugs/issue56777.go                    | 56 ++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 30 deletions(-)

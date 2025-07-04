@@ -1,33 +1,15 @@
-commit 133cdb6707ba88f83746db1efd15c4cb3034ff62
-Author: Adam Langley <agl@golang.org>
-Date:   Wed May 15 10:03:22 2013 -0400
+commit e69012ce2a366e54bc86cd17f2fb1d73fc567a89
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 15 11:10:26 2013 +0400
 
-    math/big: save some copies in binaryGCD.
+    runtime: use enums instead static vars for debugging
+    Compiler can detect and delete dead code with enums,
+    but can not with static vars.
     
-    This patch resulted from a bit of quick optimisation in response to a
-    golang-nuts post. It looks like one could save a couple other copies in
-    this function, but this addresses the inner loop and is fairly simple.
-    
-    benchmark                    old ns/op    new ns/op    delta
-    BenchmarkGCD10x10                 1964         1711  -12.88%
-    BenchmarkGCD10x100                2019         1736  -14.02%
-    BenchmarkGCD10x1000               2471         2171  -12.14%
-    BenchmarkGCD10x10000              6040         5778   -4.34%
-    BenchmarkGCD10x100000            43204        43025   -0.41%
-    BenchmarkGCD100x100              11004         8520  -22.57%
-    BenchmarkGCD100x1000             11820         9446  -20.08%
-    BenchmarkGCD100x10000            23846        21382  -10.33%
-    BenchmarkGCD100x100000          133691       131505   -1.64%
-    BenchmarkGCD1000x1000           120041        95591  -20.37%
-    BenchmarkGCD1000x10000          136887       113600  -17.01%
-    BenchmarkGCD1000x100000         295370       273912   -7.26%
-    BenchmarkGCD10000x10000        2556126      2205198  -13.73%
-    BenchmarkGCD10000x100000       3159512      2808038  -11.12%
-    BenchmarkGCD100000x100000    150543094    139986045   -7.01%
-    
-    R=gri, remyoudompheng
-    CC=bradfitz, gobot, golang-dev, gri
-    https://golang.org/cl/9424043
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/9377043
 
- src/pkg/math/big/int.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/runtime/chan.c  | 4 ++--
+ src/pkg/runtime/slice.c | 5 ++++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

@@ -1,12 +1,18 @@
-commit 6f6bbdf9b7de15b68b52649be35cd8b62a2edb9d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 15 13:29:46 2012 -0700
+commit 03e1d4bc2262de4d50e0fe9ebcf743f1f1aef479
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 15 12:21:21 2012 -0700
 
-    test: add bug439, valid code that caused a gccgo crash
+    go/printer: don't print newlines for empty statements
     
-    R=golang-dev, bradfitz
+    Fixes #3466.
+    
+    gofmt -w src misc causes no changes.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6198075
+    https://golang.org/cl/6206073
 
- test/fixedbugs/bug439.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/pkg/go/printer/nodes.go                   | 30 +++++++++++++++------------
+ src/pkg/go/printer/testdata/statements.golden | 26 +++++++++++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 24 +++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 13 deletions(-)

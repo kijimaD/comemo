@@ -1,17 +1,28 @@
-commit 4933da68b5c36d0a9c2a02fe9ed2f5ce2c9c3239
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Aug 18 13:38:09 2017 -0700
+commit 3b5637ff2bd5c03479780995e7a35c48222157c1
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 11 15:28:39 2017 -0400
 
-    crypto/x509: store names in signatureAlgorithmDetails.
+    runtime: doubly fix "double wakeup" panic
     
-    There is already a table of signature algorithm details so the code
-    should use it for the name too. This avoids mismatches.
+    runtime.gchelper depends on the non-atomic load of work.ndone
+    happening strictly before the atomic add of work.nwait. Until very
+    recently (commit 978af9c2db, fixing #20334), the compiler reordered
+    these operations. This created a race since work.ndone can change as
+    soon as work.nwait is equal to work.ndone. If that happened, more than
+    one gchelper could attempt to wake up the work.alldone note, causing a
+    "double wakeup" panic.
     
-    Change-Id: I0d4befbae721ec43db9f87cd93173ec12749e4c8
-    Reviewed-on: https://go-review.googlesource.com/57210
-    Run-TryBot: Adam Langley <agl@golang.org>
+    This was fixed in the compiler, but to make this code less subtle,
+    make the load of work.ndone atomic. This clearly forces the order of
+    these operations, ensuring the race doesn't happen.
+    
+    Fixes #19305 (though really 978af9c2db fixed it).
+    
+    Change-Id: Ieb1a84e1e5044c33ac612c8a5ab6297e7db4c57d
+    Reviewed-on: https://go-review.googlesource.com/43311
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/x509/x509.go | 57 ++++++++++++++++++-------------------------------
- 1 file changed, 21 insertions(+), 36 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

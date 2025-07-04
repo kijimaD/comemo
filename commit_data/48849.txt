@@ -1,28 +1,17 @@
-commit 1de1c0d10df18f4fda46aff82aadd9edfba2b751
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Feb 28 13:41:33 2022 -0500
+commit 7a5e7047a4606e1deab7d4adcf9f057c7f8ce88c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 15 10:59:58 2021 -0400
 
-    syscall: move Syscall declarations to OS files
+    doc/go1.17: add Go 1.18 pre-announcements
     
-    Future CLs will be changing the provenance of these functions. Move the
-    declarations to the individual OS files now so that future CLs can
-    change only 1 OS at a time rather than changing all at once.
+    Updates #41682
+    Updates #45428
     
-    For #51087
-    
-    Change-Id: I5e1bca71e670263d8c0faa586c1b6b4de1a114b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388474
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia31d454284f0e114bd29ba398a2858fc90454032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327811
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/syscall/syscall_aix.go       | 5 +++++
- src/syscall/syscall_darwin.go    | 5 +++++
- src/syscall/syscall_dragonfly.go | 5 +++++
- src/syscall/syscall_freebsd.go   | 5 +++++
- src/syscall/syscall_linux.go     | 5 +++++
- src/syscall/syscall_netbsd.go    | 8 ++++++--
- src/syscall/syscall_openbsd.go   | 8 ++++++--
- src/syscall/syscall_solaris.go   | 5 +++++
- src/syscall/syscall_unix.go      | 5 -----
- 9 files changed, 42 insertions(+), 9 deletions(-)
+ doc/go1.17.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

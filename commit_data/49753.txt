@@ -1,21 +1,22 @@
-commit dd59088193cc040aa16165dc29b907c6f0d9fe31
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Aug 3 13:40:34 2022 +0000
+commit d62866ef793872779c9011161e51b9c805fcb73d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 27 20:07:00 2021 +0700
 
-    crypto/tls: delete unnecessary line of return
+    cmd/compile: move checkptr alignment to SSA generation
     
-    Fixes #53198
+    This is followup of CL 343972, moving the checkptr alignment
+    instrumentation during SSA generation instead of walk.
     
-    Change-Id: I0c35fb278543bd487d19ae15c8175e88c45e2c1e
-    GitHub-Last-Rev: a3e29d2332ad444cfa83c3412857952203738a2c
-    GitHub-Pull-Request: golang/go#54216
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420935
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I29b2953e4eb8631277fe2e0f44b9d987dd7a69f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345430
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/generate_cert.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ir/expr.go      |  9 +++---
+ src/cmd/compile/internal/ir/symtab.go    | 55 ++++++++++++++++----------------
+ src/cmd/compile/internal/ssagen/ssa.go   | 51 +++++++++++++++++++++++++----
+ src/cmd/compile/internal/walk/convert.go | 38 ----------------------
+ src/cmd/compile/internal/walk/expr.go    | 13 +-------
+ 5 files changed, 77 insertions(+), 89 deletions(-)

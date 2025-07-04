@@ -1,12 +1,13 @@
-commit a941491b4eb3e877f64ba5dba24c1c3550e9d872
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 2 15:01:31 2013 -0400
+commit d727d147c0c724e9d6489db86925dc61a5ddfd91
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 1 17:00:21 2013 -0700
 
-    doc: only U+FEFF is a byte-order mark; U+FFFE is not
+    cmd/ld: fix another unsigned value causing bugs on Plan 9
+    "The usual conversions" bite again.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/9103046
+    https://golang.org/cl/9103044
 
- doc/go1.1.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/ld/data.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,20 +1,20 @@
-commit 78e5288b5c720d996ea5132f1fa0348968ff0513
-Author: Andrew Medvedev <andrew.y.medvedev@gmail.com>
-Date:   Sat Sep 21 12:47:34 2019 +0000
+commit 7331edcef567bb9fdc848f3b8e18dd0da0987372
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 19:53:30 2019 +0200
 
-    strings, bytes: clarify usage of EqualFolds
+    os/exec: skip unsupported test on Android
     
-    This clarifies meaning of "case folding" Unicode equality with more familiar "case insensitive" wording.
-    For case folding properties see ftp://ftp.unicode.org/Public/UNIDATA/CaseFolding.txt.
+    The underlying system call tested by TestCredentialNoSetGroups
+    is blocked on Android.
     
-    Fixes #33447
+    Discovered while running all.bash from an Android device; the syscall
+    is only blocked in an app context.
     
-    Change-Id: I6ee85ab398679bf2a0b7d18693985ff0979d6c5a
-    GitHub-Last-Rev: accc9159330c61e046d77f77beac62b38bf72c19
-    GitHub-Pull-Request: golang/go#34434
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196717
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I16fd2e64636a0958b0ec86820723c0577b8f8f24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170945
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/bytes.go     | 3 ++-
- src/strings/strings.go | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/os/exec/exec_posix_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

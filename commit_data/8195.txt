@@ -1,28 +1,12 @@
-commit 555685e26cb0c83843724778510575b61c6bc91e
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Apr 22 15:33:41 2011 -0400
+commit 781df132f9332d30e788057fd9037627ae798d0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 22 15:22:11 2011 -0400
 
-    crypto/rsa: support > 3 primes.
+    runtime: stop deadlock test properly (fix arm5 build)
     
-    With full multi-prime support we can support version 1 PKCS#1 private
-    keys. This means exporting all the members of rsa.PrivateKey, thus
-    making the API a little messy. However there has already been another
-    request to export this so it seems to be something that's needed.
-    
-    Over time, rsa.GenerateMultiPrimeKey will replace rsa.GenerateKey, but
-    I need to work on the prime balance first because we're no longer
-    generating primes which are a multiples of 8 bits.
-    
-    Fixes #987.
-    
-    R=rsc
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/4378046
+    https://golang.org/cl/4446058
 
- src/pkg/crypto/openpgp/packet/private_key.go |   6 +-
- src/pkg/crypto/rsa/rsa.go                    | 288 ++++++++++++---------------
- src/pkg/crypto/rsa/rsa_test.go               |  36 +++-
- src/pkg/crypto/tls/handshake_server_test.go  |   6 +-
- src/pkg/crypto/x509/x509.go                  |  77 ++++++-
- src/pkg/crypto/x509/x509_test.go             |  49 ++++-
- 6 files changed, 275 insertions(+), 187 deletions(-)
+ src/pkg/runtime/proc_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,19 +1,24 @@
-commit 51104cd4d2dab6bdd8bda694c0a9a5613cec3b84
-Author: Andrew Poydence <apoydence@pivotal.io>
-Date:   Thu Oct 25 23:14:15 2018 +0000
+commit 62d270e0a424dddd54571a6a119fc4e3d4b1b901
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 29 17:46:17 2018 +0100
 
-    log: add Logger.Writer method
+    strings: add note for new Go developers to TrimLeft and TrimRight
     
-    Writer method returns the underlying io.Writer used by the given Logger
-    object.
+    If one quickly looks at the strings package godoc, reading the name
+    TrimLeft, one might think it removes a prefix from the string.
     
-    Fixes #28327
+    The function's godoc does explain its purpose, but it's apparent that it
+    is not clear enough, as there have been numerous raised issues about
+    this confusion: #12771 #14657 #18160 #19371 #20085 #25328 #26119. These
+    questions are also frequent elsewhere on the internet.
     
-    Change-Id: I6347913d8be8d3222b98967b136cf03d00f446d1
-    GitHub-Last-Rev: 2db0c5c7416436f99852592d2f258ca93da96712
-    GitHub-Pull-Request: golang/go#28399
-    Reviewed-on: https://go-review.googlesource.com/c/144757
-    Reviewed-by: Rob Pike <r@golang.org>
+    Add a very short paragraph to the godoc, to hopefully point new Go
+    developers in the right direction faster. Do the same thing for
+    TrimRight and TrimSuffix.
+    
+    Change-Id: I4dee5ed8dd9fba565b4755bad12ae1ee6d277959
+    Reviewed-on: https://go-review.googlesource.com/121637
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/log.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/strings/strings.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,18 +1,23 @@
-commit 2c4c189bba57a4a72c371afa7e544c16abd76ffa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 18 20:20:12 2021 -0500
+commit 2ca0f5a1e2e637cd15b50f3c625cbb8d169575ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 26 18:29:34 2020 +0000
 
-    cmd/go/internal/mvs: add test cases for downgrade interaction with hidden versions
+    Revert "encoding/xml: fix reserved namespace check to be case-insensitive"
     
-    For #36460
+    This reverts CL 203417.
     
-    Change-Id: I889c4ece0d2caff7528cf437f89f7446dbd83955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294292
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reason for revert: This change changes uses of tags like "XMLSchema-instance" without any recourse.
+    
+    For #35151
+    Fixes #39876
+    
+    Change-Id: I4c85c8267a46b3748664b5078794dafffb42aa26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240179
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/mvs/mvs_test.go | 53 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 53 insertions(+)
+ src/encoding/xml/marshal.go      |  7 ++-----
+ src/encoding/xml/marshal_test.go | 24 ------------------------
+ 2 files changed, 2 insertions(+), 29 deletions(-)

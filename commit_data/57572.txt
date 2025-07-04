@@ -1,21 +1,20 @@
-commit 846fc6345d7121911376ab336e6b46fef2dd240f
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Sep 30 18:47:34 2024 +0200
+commit 51fd0cb3c0d8a7cb3fa5b897d74c5083577c6543
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 17 00:03:13 2023 +0200
 
-    runtime: use canonical wireguard-go repo for procyield() linkname usage
+    syscall: don't check non-existent return code in GetStartupInfo
     
-    The source code quoted tailscale's development fork, which is only a
-    development fork. The canonical github url is actually
-    github.com/wireguard/wireguard-go, but that's really just a mirror of
-    git.zx2c4.com/wireguard-go, and in any case, the proper go package name
-    is golang.zx2c4.com/wireguard, so just use that.
+    Fixes #31316
     
-    Change-Id: Ifa63c1c538989b3fcebcf06d1c238469bc73724d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616736
-    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1ca5968836e7bcad91496e4ed3cf1a0caf1375f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520275
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/stubs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/syscall_windows.go      | 7 ++++++-
+ src/syscall/syscall_windows_test.go | 9 +++++++++
+ src/syscall/zsyscall_windows.go     | 7 ++-----
+ 3 files changed, 17 insertions(+), 6 deletions(-)

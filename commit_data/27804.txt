@@ -1,47 +1,42 @@
-commit 664c4a1f87fb48d7af6880fd9e4b504049c37b9b
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Aug 15 01:39:00 2016 +0900
+commit 3ea7cfabbb0549d62d524e4ad30cb464af250fde
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Apr 13 08:51:46 2016 -0400
 
-    os: consolidate files
+    cmd/compile: sort partitions by dom to speed up cse
     
-    Code movement only.
+    We do two O(n) scans of all values in an eqclass when computing
+    substitutions for CSE.
     
-    If someone finds function 'foo' in "foo_linux.go",
-    they will expect that the Window version of 'foo' exists in "foo_windows.go".
+    In unfortunate cases, like those found in #15112, we can have a large
+    eqclass composed of values found in blocks none of whom dominate the
+    other.  This leads to O(n^2) behavior. The elements are removed one at a
+    time, with O(n) scans each time.
     
-    Current code doesn't follow this manner.
+    This CL removes the linear scan by sorting the eqclass so that dominant
+    values will be sorted first.  As long as we also ensure we don't disturb
+    the sort order, then we no longer need to scan for the maximally
+    dominant value.
     
-    For example, 'sameFile' exists in "file_unix.go",
-    "stat_plan9.go" and "types_windows.go".
+    For the code in issue #15112:
     
-    The CL address that problem by following rules:
+    Before:
+    real    1m26.094s
+    user    1m30.776s
+    sys     0m1.125s
     
-    * readdir family => dir.go, dir_$GOOS.go
-    * stat family => stat.go, stat_$GOOS.go
-    * path-functions => path_$GOOS.go
-    * sameFile => types.go, types_$GOOS.go
-    * process-functions => exec.go, exec_$GOOS.go
-    * hostname => sys.go, sys_$GOOS.go
+    Aefter:
+    real    0m52.099s
+    user    0m56.829s
+    sys     0m1.092s
     
-    Change-Id: Ic3c64663ce0b2a364d7a414351cd3c772e70187b
-    Reviewed-on: https://go-review.googlesource.com/27035
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15112
+    
+    Change-Id: Ic4f8680ed172e716232436d31963209c146ef850
+    Reviewed-on: https://go-review.googlesource.com/21981
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/dir.go          |  46 ++++++++++++++++
- src/os/dir_unix.go     |  22 ++++++++
- src/os/dir_windows.go  |  64 +++++++++++++++++++++++
- src/os/doc.go          | 139 -------------------------------------------------
- src/os/exec.go         |  87 +++++++++++++++++++++++++++++++
- src/os/file_unix.go    |  85 ------------------------------
- src/os/file_windows.go |  98 ----------------------------------
- src/os/path_unix.go    |  18 +++++++
- src/os/path_windows.go | 113 ++++++++++++++++++++++++++++++++++++++++
- src/os/stat_plan9.go   |   6 ---
- src/os/stat_unix.go    |  52 ++++++++++++++++++
- src/os/stat_windows.go |  74 --------------------------
- src/os/sys.go          |  10 ++++
- src/os/types_plan9.go  |  11 +++-
- src/os/types_unix.go   |   4 ++
- 15 files changed, 426 insertions(+), 403 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go        | 32 ++++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/sparsetree.go | 12 +++++++++++
+ 2 files changed, 33 insertions(+), 11 deletions(-)

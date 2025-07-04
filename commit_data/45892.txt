@@ -1,15 +1,19 @@
-commit 9d65578b83f0d52f0d2f526212dd3b4ee1a5f031
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Wed Jun 30 10:51:54 2021 +0800
+commit 4d0d9c2c5c35377b0662f2fd0995867919552251
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 00:37:36 2020 -0500
 
-    cmd/compile: fix typos in document
+    [dev.regabi] cmd/compile: introduce ir.INode interface for *ir.Node
     
-    Correct "a2Spill" to "a3Spill"
+    Define the interface for an IR node.
+    The next CL will shuffle the names and leave us with ir.Node being the interface.
     
-    Change-Id: I6ac4c45973dfaeb16d3a90d835589b6af1aefe1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331850
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ifc40f7846d522cf99efa6b4e558bebb6db5218f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272934
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/abi-internal.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/fmt.go  |   8 ++-
+ src/cmd/compile/internal/ir/node.go | 126 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 125 insertions(+), 9 deletions(-)

@@ -1,48 +1,24 @@
-commit 555d8c455a420df4a2bd024a5cafdaa60ac3ae55
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 8 17:43:26 2018 -0700
+commit 92f8acd192dc2dc9191cc633666c26137c12a6cd
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jun 11 22:34:03 2018 +0200
 
-    cmd/compile: remove some inl budget hacks
+    cmd/nm: fix TestGoExec on Plan 9
     
-    Prior to stack tracing, inlining could cause
-    dead pointers to be kept alive in some loops.
-    See #18336 and CL 31674.
+    CL 115975 changed TestGoExec to check symbol types.
+    However, this test is failing on Plan 9, because
+    there is no read-only data segment symbol on Plan 9.
     
-    The adjustment removed by this change preserved the inlining status quo
-    in the face of Node structure changes, to avoid creating new problems.
-    Now that stack tracing provides precision, these hacks can be removed.
+    This change fixes TestGoExec to replace the check
+    of read-only data segment symbol (R) by data segment
+    symbol (D) on Plan 9.
     
-    Of course, our inlining code model is already hacky (#17566),
-    but at least now there will be fewer epicyclical hacks.
+    Fixes #25820.
     
-    Newly inline-able functions in std cmd as a result of this change:
-    
-    hash/adler32/adler32.go:65:6: can inline (*digest).UnmarshalBinary
-    hash/fnv/fnv.go:281:6: can inline (*sum32).UnmarshalBinary
-    hash/fnv/fnv.go:292:6: can inline (*sum32a).UnmarshalBinary
-    reflect/value.go:1298:6: can inline Value.OverflowComplex
-    compress/bzip2/bit_reader.go:25:6: can inline newBitReader
-    encoding/xml/xml.go:365:6: can inline (*Decoder).switchToReader
-    vendor/golang_org/x/crypto/cryptobyte/builder.go:77:6: can inline (*Builder).AddUint16
-    crypto/x509/x509.go:1851:58: can inline buildExtensions.func2.1.1
-    crypto/x509/x509.go:1871:58: can inline buildExtensions.func2.3.1
-    crypto/x509/x509.go:1883:58: can inline buildExtensions.func2.4.1
-    cmd/vet/internal/cfg/builder.go:463:6: can inline (*builder).labeledBlock
-    crypto/tls/handshake_messages.go:1450:6: can inline (*newSessionTicketMsg).marshal
-    crypto/tls/handshake_server.go:769:6: can inline (*serverHandshakeState).clientHelloInfo
-    crypto/tls/handshake_messages.go:1171:6: can inline (*nextProtoMsg).unmarshal
-    cmd/link/internal/amd64/obj.go:40:6: can inline Init
-    cmd/link/internal/ppc64/obj.go:40:6: can inline Init
-    net/http/httputil/persist.go:54:6: can inline NewServerConn
-    net/http/fcgi/child.go:83:6: can inline newResponse
-    cmd/compile/internal/ssa/poset.go:245:6: can inline (*poset).newnode
-    
-    Change-Id: I19e8e383a6273849673d35189a9358870665f82f
-    Reviewed-on: https://go-review.googlesource.com/c/141117
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7164cd9056fa1dfcd1dc1b0f87653290c14c85fa
+    Reviewed-on: https://go-review.googlesource.com/118035
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/nm/nm_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

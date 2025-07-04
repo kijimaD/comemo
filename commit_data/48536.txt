@@ -1,21 +1,36 @@
-commit 7d3b64a2e372b0e7c550bf9152fe215605e448e4
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 26 10:03:06 2022 -0700
+commit 2fed6926a152d67b5d001d68899edc5e97d599f1
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue May 25 11:10:25 2021 -0400
 
-    cmd/compile: optimize BSRQ with nonzero input
+    [dev.fuzz] cmd/go/internal: instrument imports of the test
     
-    Same as BSFQ, if the input is known to be nonzero we don't need a CMOV
-    to correct for the weird all-zero behavior of the BSRQ instruction.
+    Previously, the packages that were imported by the
+    test were not instrumented for coverage. This meant
+    that a fuzz target in a stand-alone test file would
+    not be able to perform coverage-guided fuzzing.
     
-    Fixes #51964
+    The fix uses all of the imports, including those
+    from the test files, when determining which packages
+    to instrument. However, certain package should
+    be ignored when walking the import graph. Otherwise,
+    packages like internal/fuzz, and its imports, may be
+    instrumented, which could lead to false positives for
+    "interesting" corpus values.
     
-    Change-Id: Ic1d14fdf3e7e698ff2f47efecfd761d8a036012a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396034
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    There was an additional bug which needed to be fixed
+    in order for this to work. The bug was in the fact that
+    the GcFlags which held `-d=libfuzzer` were being
+    overwritten in some cases. The fix updates the way these
+    flags are set in order to prevent this behavior.
+    
+    Change-Id: I21d336c29a33db1181bbae0fd23678d127fe52a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321960
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/flag.go |  5 +++--
+ src/cmd/go/internal/load/pkg.go  | 25 +++++++++++++------------
+ src/cmd/go/internal/test/test.go | 16 +++++++++++++---
+ 3 files changed, 29 insertions(+), 17 deletions(-)

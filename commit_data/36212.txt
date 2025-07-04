@@ -1,22 +1,16 @@
-commit 65fa2b615b72c1fa61a718f2e3a756833f153cc3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 3 14:52:54 2018 -0700
+commit 2b7cfc515bae4c1d84265bef1feaea2f2f6896eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 11 14:32:29 2018 -0700
 
-    cmd/internal/objfile: only consider executable segments for load address
+    go/types: update internal (now incorrect) comment on deps field
     
-    Reportedly on some new Fedora systems the linker is producing extra
-    load segments, basically making the dynamic section non-executable.
-    We were assuming that the first load segment could be used to
-    determine the program's load offset, but that is no longer true.
-    Use the first executable load segment instead.
+    The file ordering.go referred to in the comment was removed
+    with commit dd44895. There's no duplicate use of the deps
+    field anymore.
     
-    Fixes #26369
-    
-    Change-Id: I5ee31ddeef2e8caeed3112edc5149065a6448456
-    Reviewed-on: https://go-review.googlesource.com/127895
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia6490e9f0839d4f755e8063758819e29b3d3b248
+    Reviewed-on: https://go-review.googlesource.com/106459
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/objfile/elf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/resolver.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,21 +1,25 @@
-commit e5be6432a8c7b4295281635b9bcb30e21946d22d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 16 19:03:09 2015 -0400
+commit 634049dbe64e39ffe7becfaf9629e409ce62b2dc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 20 10:06:44 2015 -0800
 
-    cmd/internal/gc: mv builtins builtin
+    [dev.cc] cmd/asm: add end-to-end test
     
-    This directory is processed by mkbuiltin.go and generates builtin.go.
-    It should be named builtin too, not builtins, both for consistency
-    and because file and directory names in general are singular unless
-    forced otherwise.
+    Add trivial golden test that verifies output matches expectation.
+    The input is based on the old grammar and is intended to cover
+    the space of the input language.
     
-    Commented on CL 6233 too.
+    PPC64 and ARM only for now; others to follow.
     
-    Change-Id: Ic5d3671443ae9292b69fda118f61a11c88d823fa
-    Reviewed-on: https://go-review.googlesource.com/7660
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ib5957822bcafd5b9d4c1dea1c03cc6ee1238f7ef
+    Reviewed-on: https://go-review.googlesource.com/5421
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/{builtins => builtin}/runtime.go | 0
- src/cmd/internal/gc/{builtins => builtin}/unsafe.go  | 0
- src/cmd/internal/gc/mkbuiltin.go                     | 2 +-
- 3 files changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/asm.go             |   6 +
+ src/cmd/asm/internal/asm/endtoend_test.go   |  77 +++
+ src/cmd/asm/internal/asm/operand_test.go    |  11 +-
+ src/cmd/asm/internal/asm/testdata/arm.out   |  54 +++
+ src/cmd/asm/internal/asm/testdata/arm.s     | 276 +++++++++++
+ src/cmd/asm/internal/asm/testdata/ppc64.out | 110 +++++
+ src/cmd/asm/internal/asm/testdata/ppc64.s   | 709 ++++++++++++++++++++++++++++
+ src/cmd/asm/internal/lex/lex.go             |   5 +
+ 8 files changed, 1246 insertions(+), 2 deletions(-)

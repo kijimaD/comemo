@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 7838: aad62bf409da1890cff5591954099e7982bd2840
+# Index 7838: 39ffd546bd575789e116f764cab8ee41de61becf
 
 echo "🚀 Generating explanation for commit 7838..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 7838
-- **コミットハッシュ**: aad62bf409da1890cff5591954099e7982bd2840
-- **GitHub URL**: https://github.com/golang/go/commit/aad62bf409da1890cff5591954099e7982bd2840
+- **コミットハッシュ**: 39ffd546bd575789e116f764cab8ee41de61becf
+- **GitHub URL**: https://github.com/golang/go/commit/39ffd546bd575789e116f764cab8ee41de61becf
 
 ### 章構成
 

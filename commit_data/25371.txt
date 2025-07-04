@@ -1,17 +1,41 @@
-commit 2cf5f04ffd4b00821fd0aed40ae8836f6ce8f161
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Dec 19 17:42:16 2015 +1100
+commit f75f2f3fcc0bf4becde65dc23297e081a8d35d1f
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Fri Aug 28 17:36:35 2015 +0000
 
-    net: adjust TestInterfaceHardwareAddrWithGetmac
+    regexp: fix slice bounds out of range panics
     
-    CL skips interfaces that are not listed on getmac output.
+    Regular expressions involving a (x){0} term are
+    simplified by removing this term from the
+    expression, just before the expression is compiled.
     
-    Fixes #13606
+    The number of subexpressions is evaluated before
+    the simplification. The number of capture instructions
+    in the compiled expressions is not necessarily in line
+    with the number of subexpressions.
     
-    Change-Id: Ic25c9dc95e8eeff4d84b78e99131a4f97020164c
-    Reviewed-on: https://go-review.googlesource.com/17994
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    When the ReplaceAll(String) methods are used, a number
+    of capture slots (nmatch) is evaluated as 2*(s+1)
+    (s being the number of subexpressions).
+    
+    In some case, it can be higher than the number of capture
+    instructions evaluated at compile time, resulting in a
+    panic when the internal slices of regexp.machine
+    are resized to this value.
+    
+    Fixed by capping the number of capture slots to the number
+    of capture instructions.
+    
+    I must say I do not really see the benefits of setting
+    nmatch lower than re.prog.NumCap using this 2*(s+1) formula,
+    so perhaps this can be further simplified.
+    
+    Fixes #11178
+    Fixes #11176
+    
+    Change-Id: I21415e8ef2dd5f2721218e9a679f7f6bfb76ae9b
+    Reviewed-on: https://go-review.googlesource.com/14013
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/net_windows_test.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ src/regexp/all_test.go | 6 ++++++
+ src/regexp/regexp.go   | 4 ++++
+ 2 files changed, 10 insertions(+)

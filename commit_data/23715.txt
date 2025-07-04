@@ -1,20 +1,16 @@
-commit 88fc3587ec24bf9890f9fbc1be33e313c5d99bbc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jul 5 09:15:11 2015 -0700
+commit 11b992818549aa169c96363c9242fe66b4073d34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 13:14:06 2015 -0700
 
-    net/http: don't reuse conns after incomplete 100-continue requests
+    cmd/go: update documentation: use 'go doc' rather than 'godoc'
     
-    If we receive an HTTP request with "Expect: 100-continue" and the
-    Handler never read to EOF, the conn is in an unknown state.
-    Don't reuse that connection.
-    
-    Fixes #11549
-    
-    Change-Id: I5be93e7a54e899d615b05f72bdcf12b25304bc60
-    Reviewed-on: https://go-review.googlesource.com/12262
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I318c1ef75b18d4687f13499ac225dde2d053505e
+    Reviewed-on: https://go-review.googlesource.com/10776
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/serve_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 23 ++++++++++++++++++++++-
- 2 files changed, 65 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go | 12 ++++++------
+ src/cmd/go/fix.go     |  2 +-
+ src/cmd/go/fmt.go     |  2 +-
+ src/cmd/go/help.go    |  2 +-
+ src/cmd/go/test.go    |  4 ++--
+ 5 files changed, 11 insertions(+), 11 deletions(-)

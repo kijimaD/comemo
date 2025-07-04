@@ -1,17 +1,33 @@
-commit 5f69e739d3b01e657e27547641e8db74d2c2a862
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Apr 23 02:43:10 2015 -0400
+commit fae4a128cb5570c6caccf4b4f2b92d118db1c775
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 29 21:59:00 2015 +0000
 
-    runtime: adjust traceTickDiv for non-x86 architectures
+    runtime, reflect: support multiple moduledata objects
     
-    Fixes #10554.
-    Fixes #10623.
+    This changes all the places that consult themoduledata to consult a
+    linked list of moduledata objects, as will be necessary for
+    -linkshared to work.
     
-    Change-Id: I90fbaa34e3d55c8758178f8d2e7fa41ff1194a1b
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/9247
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Obviously, as there is as yet no way of adding moduledata objects to
+    this list, all this change achieves right now is wasting a few
+    instructions here and there.
+    
+    Change-Id: I397af7f60d0849b76aaccedf72238fe664867051
+    Reviewed-on: https://go-review.googlesource.com/8231
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/trace.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/internal/ld/symtab.go |  4 ++
+ src/reflect/type.go           | 57 +++++++++++++++------------
+ src/runtime/heapdump.go       |  9 +++--
+ src/runtime/mbarrier.go       | 91 +++++++++++++++++++++++--------------------
+ src/runtime/mbitmap.go        | 42 ++++++++++----------
+ src/runtime/mfinal.go         | 12 +++---
+ src/runtime/mgc.go            |  9 ++---
+ src/runtime/mgcmark.go        |  8 +++-
+ src/runtime/mheap.go          |  7 ++--
+ src/runtime/runtime1.go       |  8 +++-
+ src/runtime/signal_windows.go |  1 +
+ src/runtime/symtab.go         | 46 ++++++++++++++++------
+ 12 files changed, 174 insertions(+), 120 deletions(-)

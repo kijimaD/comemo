@@ -1,23 +1,24 @@
-commit fbfbf03b2811eb3611e4677da6cdb7c099922e6e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue May 8 16:30:48 2018 +0100
+commit 574fc66b17e25d34d59d69c01978e7cd32cb8f30
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 8 15:55:27 2017 -0800
 
-    cmd/compile: fix Zero-to-Load forwarding rules
+    go/types: add lookup method to context and factor out LookupParent calls
     
-    Avoid using values that do not dominate the block the Zero op is in.
-    Should fix the SSA check builder.
+    R=go1.11
     
-    The additional OffPtr ops inserted by these rules should always be
-    optimized away when the Load is replaced with a const zero.
+    Also: Moved Checker.pos field into context where it belongs.
     
-    Fixes #25288.
+    This is a cleanup/code factoring.
     
-    Change-Id: I4163b58e60364f77c8a206ba084073a58ca6320a
-    Reviewed-on: https://go-review.googlesource.com/112136
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    For #22992.
+    
+    Change-Id: If9d4f0af537cb181f73735e709ebc8258b2a1378
+    Reviewed-on: https://go-review.googlesource.com/83017
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 12 ++++---
- src/cmd/compile/internal/ssa/rewritegeneric.go | 46 +++++++++++++++++---------
- 2 files changed, 38 insertions(+), 20 deletions(-)
+ src/go/types/call.go       | 2 +-
+ src/go/types/check.go      | 8 +++++++-
+ src/go/types/interfaces.go | 4 ++--
+ src/go/types/stmt.go       | 2 +-
+ src/go/types/typexpr.go    | 2 ++
+ 5 files changed, 13 insertions(+), 5 deletions(-)

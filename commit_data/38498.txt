@@ -1,20 +1,30 @@
-commit 6249ea2f39958764b88ab1b03cd55cf99dae6bbd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 20 14:09:51 2019 -0700
+commit fc3f8d43f1b7da3ee3fb9a5181f2a86841620273
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 17:36:51 2018 +0100
 
-    os/exec: add Cmd.String
+    time: speed up Since and Until
     
-    The initial implementation is intentionally simple.
-    Let's see how far it gets us.
+    time.now is somewhat expensive (much more expensive than nanotime),
+    in the common case when Time has monotonic time we don't actually
+    need to call time.now in Since/Until as we can do calculation
+    based purely on monotonic times.
     
-    Fixes #30638
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.0µs ± 0%  17.1µs ± 1%     ~     (p=0.151 n=5+5)
+    SetReadDeadline-6      261ns ± 0%   234ns ± 1%  -10.35%  (p=0.008 n=5+5)
     
-    Change-Id: I240afae2b401744ab2ff2a69952c4eb0fd3feb56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168518
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Benchmark that only calls Until:
+    
+    benchmark            old ns/op     new ns/op     delta
+    BenchmarkUntil       54.0          29.5          -45.37%
+    
+    Update #25729
+    
+    Change-Id: I5ac5af3eb1fe9f583cf79299f10b84501b1a0d7d
+    Reviewed-on: https://go-review.googlesource.com/c/146341
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec.go      | 19 +++++++++++++++++++
- src/os/exec/exec_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
+ src/time/time.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

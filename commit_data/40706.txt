@@ -1,15 +1,31 @@
-commit 7a5e0fec099f19ae095609b08eb090b2e07998b5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 8 19:18:17 2019 +0000
+commit 26954bde4443c4bfbfe7608f35584b6b810f3f2c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 19 13:33:33 2019 -0400
 
-    net/http: relax TestLinuxSendfile, trace all system calls, match n64:sendfile
+    cmd/link: macos: set initial protection of 0 for __DWARF segment
     
-    Fixes #35423
+    For later versions of MacOS, the dynamic loader is more picky about
+    enforcing restrictions on __DWARF MachO load commands/segments,
+    triggering aborts of the form
     
-    Change-Id: Idb254d6a2c4b147d20e290411e4380df5cdcb306
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206178
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+      dyld: malformed mach-o image: segment __DWARF has vmsize < filesize
+    
+    for Go programs that use cgo on Darwin. The error is being triggered
+    because the Go linker is setting "vmsize" in the DWARF segment entry
+    to zero as a way to signal that the DWARF doesn't need to be mapped
+    into memory at runtime (which we need to continue to do).
+    
+    This patch changes the initial protection on the __DWARF segment to
+    zero, which dyld seems to be happy with (this is used for other similar
+    non-loadable sections such as __LLVM).
+    
+    Fixes #32673
+    
+    Change-Id: I9a73449c6d26c172f3d70361719943af381f37e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182958
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/fs_test.go | 14 +++-----------
- 1 file changed, 3 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
+ 1 file changed, 1 insertion(+)

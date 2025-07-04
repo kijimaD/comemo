@@ -1,12 +1,19 @@
-commit 4d7d3f532896e70489bae7c9dc54ca88ccef91bc
-Author: Sanjay Menakuru <balasanjay@gmail.com>
-Date:   Fri Mar 2 11:29:09 2012 -0500
+commit d08a8848bb0833cfe0dcf6f0fcc3e9f0c1b05e10
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 2 11:27:36 2012 -0500
 
-    doc: fix some HTML errors in code.html
+    cmd/go: fix test import dependency bug
     
-    R=golang-dev, rsc
-    CC=adg, golang-dev
-    https://golang.org/cl/5720050
+    Fixes a problem Rob is having with goprotobuf.
+    Cannot add a test because the same case is more broken
+    when using ./ imports.  That still needs to be fixed,
+    and is one aspect of issue 3169.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5725043
 
- doc/code.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/build.go |  2 +-
+ src/cmd/go/pkg.go   |  6 +++---
+ src/cmd/go/test.go  | 22 ++++++++++++++++------
+ 3 files changed, 20 insertions(+), 10 deletions(-)

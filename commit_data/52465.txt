@@ -1,46 +1,20 @@
-commit f80e270babcddd28e29a52c1cb834ffed427bd8a
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 25 12:04:59 2023 +0000
+commit 73fb829f5969c8370ca81bbbf67ad1ffa4c46b98
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 17:13:50 2022 -0700
 
-    encoding/gob: avoid pointers to fieldType
+    cmd/compile: remove ir.NewField's ntyp parameter
     
-    fieldType is a struct with only a string and an integer,
-    so its size will barely be three times that of a pointer.
+    ir.NewField is always called with ntyp as nil.
     
-    The indirection doesn't save us any memory or append/grow cost,
-    but it does cause a significant amount of allocations at init time.
-    
-            goos: linux
-            goarch: amd64
-            pkg: encoding/gob
-            cpu: AMD Ryzen 7 PRO 5850U with Radeon Graphics
-                                            │     old     │                new                 │
-                                            │   sec/op    │   sec/op     vs base               │
-            EndToEndPipe-16   730.9n ± 5%   741.6n ± 5%       ~ (p=0.529 n=10)
-            EncodingGob       173.7µ ± 0%   171.1µ ± 0%  -1.46% (p=0.000 n=10)
-            geomean           11.27µ        11.26µ       -0.01%
-    
-                                            │     old      │                  new                   │
-                                            │     B/op     │     B/op      vs base                  │
-            EndToEndPipe-16   1.766Ki ± 0%   1.766Ki ± 0%        ~ (p=1.000 n=10) ¹
-            EncodingGob       38.27Ki ± 0%   34.30Ki ± 0%  -10.38% (p=0.000 n=10)
-            geomean           8.221Ki        7.782Ki        -5.33%
-            ¹ all samples are equal
-    
-                                            │    old     │                 new                 │
-                                            │ allocs/op  │ allocs/op   vs base                 │
-            EndToEndPipe-16   2.000 ± 0%   2.000 ± 0%       ~ (p=1.000 n=10) ¹
-            EncodingGob       642.0 ± 0%   615.0 ± 0%  -4.21% (p=0.000 n=10)
-            geomean           35.83        35.07       -2.13%
-            ¹ all samples are equal
-    
-    Change-Id: I852a799834d2e9b7b915da74e871a4052d13892e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479400
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iccab4ce20ae70d056370a6469278e68774e685f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403834
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/gob/type.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/type.go             |  4 ++--
+ src/cmd/compile/internal/reflectdata/alg.go     | 10 +++++-----
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  2 +-
+ 4 files changed, 9 insertions(+), 9 deletions(-)

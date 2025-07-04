@@ -1,15 +1,17 @@
-commit 386b66f5bda20d2d0863faad37cf8922c102b588
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Dec 13 22:03:18 2016 +0100
+commit 943f5afe22c1a07da8954756a3701ac765bbf3c1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 11 10:23:14 2016 -0700
 
-    cmd/cgo: add required gcc flags for GOARCH=mips{,le}
+    cmd/compile: refactor stackmap dumping code
     
-    Change-Id: I1d6a2120a444d1ab9b9ecfdf27464325ad741d55
-    Reviewed-on: https://go-review.googlesource.com/34315
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also, fix a byte-ordering problem with stack maps for assembly
+    function signatures on big-endian targets.
+    
+    Change-Id: I6e8698f5fbb04b31771a65f4a8f3f9c045ff3c98
+    Reviewed-on: https://go-review.googlesource.com/30816
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/cgo/gcc.go  | 2 ++
- src/cmd/go/build.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/obj.go   | 13 +++++++++++++
+ src/cmd/compile/internal/gc/pgen.go  |  8 ++------
+ src/cmd/compile/internal/gc/plive.go | 13 ++-----------
+ 3 files changed, 17 insertions(+), 17 deletions(-)

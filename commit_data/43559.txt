@@ -1,18 +1,17 @@
-commit de2d1c3fe242aed10ad374abf784cca89fecac45
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Oct 27 14:04:10 2020 +0100
+commit 6aeaf4a0f45bfd9215488aa3acb1fce4f45c2731
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 13 07:31:19 2020 -0400
 
-    cmd/compile: replace int32(b2i(x)) with b2i32(x) in rules
+    [dev.link] cmd/link: fix funcfunctab crash with darwin + plugin
     
-    Change-Id: I7fbb0c1ead6e29a7445c8ab43f7050947597f3e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265497
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fix a bug in findfunctab when building plugin on Darwin (this is
+    a regression introduced by CL 227842).
+    
+    Change-Id: Ic610168e45a750c0a2f2b8611d5d9154e6c2622f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228137
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules   | 2 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 2 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules  | 2 +-
- src/cmd/compile/internal/ssa/rewrite386.go   | 4 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 4 ++--
- src/cmd/compile/internal/ssa/rewriteMIPS.go  | 4 ++--
- 6 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

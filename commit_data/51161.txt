@@ -1,32 +1,27 @@
-commit 9944ba757b0f8005cfb7715d41592c7e13c0a2b8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 17 16:57:07 2022 -0700
+commit ece493eb831a7797d03d60b44b817caf1c63a0ab
+Author: Jason7602 <jansonzhe@gmail.com>
+Date:   Tue Nov 9 23:46:41 2021 +0800
 
-    cmd/compile: fix transitive inlining of generic functions
+    cmd/compile: fix type error reported on the wrong line
     
-    If an imported, non-generic function F transitively calls a generic
-    function G[T], we may need to call CanInline on G[T].
+    The 'Does not match' type error shoud be reported where
+    the function is called, not where the function is declared.
     
-    While here, we can also take advantage of the fact that we know G[T]
-    was already seen and compiled in an imported package, so we don't need
-    to call InlineCalls or add it to typecheck.Target.Decls. This saves us
-    from wasting compile time re-creating DUPOK symbols that we know
-    already exist in the imported package's link objects.
+    And fix the todo by gri of issue45985
     
-    Fixes #56280.
+    Fixes #45985
+    Fixes #49800
     
-    Change-Id: I3336786bee01616ee9f2b18908738e4ca41c8102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443535
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I15aac44dd44f2a57c485a1c273fcd79db912c389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362634
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/inline/inl.go    | 23 +++++++++++-------
- src/cmd/compile/internal/noder/reader.go  |  2 +-
- src/cmd/compile/internal/noder/unified.go | 40 ++++++++++++++++++++++++++++---
- test/fixedbugs/issue56280.dir/a.go        | 11 +++++++++
- test/fixedbugs/issue56280.dir/main.go     | 11 +++++++++
- test/fixedbugs/issue56280.go              |  7 ++++++
- test/run.go                               |  1 +
- 7 files changed, 83 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/types2/infer.go                       | 10 +++++-----
+ .../compile/internal/types2/testdata/fixedbugs/issue45985.go2  |  5 ++---
+ src/go/types/infer.go                                          | 10 +++++-----
+ src/go/types/testdata/fixedbugs/issue45985.go2                 |  5 ++---
+ 4 files changed, 14 insertions(+), 16 deletions(-)

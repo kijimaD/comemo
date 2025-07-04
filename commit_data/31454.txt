@@ -1,19 +1,15 @@
-commit cee5cd5a02a981271c8ea406b036708db22b25d0
-Author: Todd Neal <todd@tneal.org>
-Date:   Sun Apr 30 12:06:27 2017 -0500
+commit 7603aa7907fa92336fd9f7702b709e559ee0191b
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Feb 21 11:23:04 2017 -0800
 
-    cmd/compile: fix error when typeswitching on untyped
+    doc: use appropriate type to describe return value
     
-    Fixes #20185
-    Fixes #19977
+    Fixes #19223.
     
-    Change-Id: I8434713d20616ff0c0bc8f33f017e2548a5cccfa
-    Reviewed-on: https://go-review.googlesource.com/42210
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I4cc8e81559a1313e1477ee36902e1b653155a888
+    Reviewed-on: https://go-review.googlesource.com/37374
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/swt.go |  9 ++++++++-
- test/fixedbugs/issue19977.go       | 16 ++++++++++++++++
- test/fixedbugs/issue20185.go       | 25 +++++++++++++++++++++++++
- 3 files changed, 49 insertions(+), 1 deletion(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

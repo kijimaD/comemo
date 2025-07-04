@@ -1,21 +1,20 @@
-commit bd5616991b9310b95262c2dfea9a6590187c05ee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 7 23:15:24 2017 +0000
+commit f9027d61ab48154e4cb29c50e356a3f462840e01
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 25 19:19:39 2016 -0700
 
-    time: bound file reads and validate LoadLocation argument
+    all: freeze net/rpc and reword the 'frozen' message in other frozen packages
     
-    Fixes #18985
+    Make the messages grammatically korrect and consistent.
     
-    Change-Id: I956117f47d1d2b453b4786c7b78c1c944defeca0
-    Reviewed-on: https://go-review.googlesource.com/36551
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #16844
+    
+    Change-Id: I7c137b4dc25c0c875ed07b0c64c67ae984c39cbc
+    Reviewed-on: https://go-review.googlesource.com/32112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/export_test.go   |  2 ++
- src/time/sys_plan9.go     |  4 ++++
- src/time/sys_unix.go      |  4 ++++
- src/time/sys_windows.go   |  4 ++++
- src/time/time_test.go     | 13 +++++++++++++
- src/time/zoneinfo.go      | 21 +++++++++++++++++++++
- src/time/zoneinfo_read.go | 11 +++++++++++
- src/time/zoneinfo_test.go | 24 ++++++++++++++++++++++--
- 8 files changed, 81 insertions(+), 2 deletions(-)
+ src/log/syslog/doc.go           | 2 +-
+ src/net/rpc/server.go           | 2 ++
+ src/net/smtp/smtp.go            | 2 +-
+ src/testing/quick/quick.go      | 2 +-
+ src/text/tabwriter/tabwriter.go | 2 +-
+ 5 files changed, 6 insertions(+), 4 deletions(-)

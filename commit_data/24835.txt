@@ -1,16 +1,23 @@
-commit 704f83184f91dc4c67e23429a7f4c6129f556c8e
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 10:16:45 2015 -0400
+commit 37025536c343642a196f058065f6e3ac121e5473
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 16:05:04 2015 -0700
 
-    cmd/dist: added support for GOARCH=mips64{,le}
+    net/rpc: don't exit if Accept gets an error
     
-    Change-Id: I22ea3352ad0794fc611334c2f2ec5f1e894985ce
-    Reviewed-on: https://go-review.googlesource.com/14460
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The default implementation of Accept, which spins up a new server
+    for every new connection, calls log.Fatal if the listener is closed,
+    stopping any outstanding work. Change that to a non-fatal log
+    call so work can continue.
+    
+    There is no programmatic signaling of the problem, just the log,
+    but that should be enough.
+    
+    Fixes #11221.
+    
+    Change-Id: I7c7f6164a0a0143236729eb778d7638c51c34ed1
+    Reviewed-on: https://go-review.googlesource.com/14185
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go     |  2 ++
- src/cmd/dist/buildtool.go |  3 +++
- src/cmd/dist/test.go      |  4 ++++
- src/cmd/dist/util.go      | 12 ++++++++++++
- 4 files changed, 21 insertions(+)
+ src/net/rpc/server.go      |  8 +++++---
+ src/net/rpc/server_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

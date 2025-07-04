@@ -1,12 +1,18 @@
-commit 4aa6d353063aff777a9bdd3d3cedea5ca3fed2a4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 18 10:10:10 2013 +1000
+commit 58ce655fd2efe2270ee852790eede952e179735e
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Jul 17 18:16:44 2013 -0400
 
-    net/http: document NewRequest treating Reader as ReadCloser
+    misc/emacs: Add godef-jump-other-window
     
-    R=golang-dev, dsymonds, rogpeppe
+    This will behave like similar "*-other-window" functions in Emacs.
+    
+    Default key bind is C-x 4 C-c C-j – while awkward, it follows both
+    the convention for other-window functions and the convention for
+    not using user- or emacs-reserved keys.
+    
+    R=golang-dev, adonovan
     CC=golang-dev
-    https://golang.org/cl/11432044
+    https://golang.org/cl/10707045
 
- src/pkg/net/http/request.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ misc/emacs/go-mode.el | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

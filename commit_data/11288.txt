@@ -1,17 +1,12 @@
-commit 1ff1405cc72ad79da50de0339569a61b0132672a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jan 20 10:32:55 2012 +0400
+commit 43b4db194a40670bdd2505a81beab0196ed17356
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jan 20 17:01:55 2012 +1100
 
-    runtime: add type algorithms for zero-sized types
-    BenchmarkChanSem old=127ns new=78.6ns
+    tag weekly.2012-01-20
     
-    R=golang-dev, bradfitz, sameer, rsc
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5558049
+    https://golang.org/cl/5558059
 
- src/cmd/gc/go.h              |  2 ++
- src/cmd/gc/subr.c            |  2 ++
- src/pkg/runtime/alg.c        | 19 +++++++++++++++++++
- src/pkg/runtime/chan_test.go |  9 +++++++++
- src/pkg/runtime/runtime.h    |  2 ++
- 5 files changed, 34 insertions(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

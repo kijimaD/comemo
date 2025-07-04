@@ -1,19 +1,18 @@
-commit dc49aba8e41350ab039a23890fa987cfe6ddaa9c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Mar 18 20:28:34 2025 +0100
+commit 74abbdfe62af117fef9514c7f9fa7317dc3a6298
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Feb 16 09:52:40 2024 +0000
 
-    net/smtp: make test certificate FIPS 140-3 compliant
+    crypto/subtle: remove unused code
     
-    The key was too small and was getting rejected by crypto/tls if running
-    tests in FIPS 140-3 mode.
-    
-    Change-Id: I6a6a4656374b942aeeca55d5c0464c965db0f6de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658935
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: I4e360e643d101a8f2188a2318557b0430a89d5cd
+    GitHub-Last-Rev: 046943ff482ff8e5665a50f62fcb63fa3bcf868e
+    GitHub-Pull-Request: golang/go#65747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564736
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/smtp/smtp_test.go | 70 +++++++++++++++++++++++++++++------------------
- 1 file changed, 44 insertions(+), 26 deletions(-)
+ src/crypto/subtle/xor_test.go | 8 --------
+ 1 file changed, 8 deletions(-)

@@ -1,15 +1,16 @@
-commit cf875b8af8fcb1f4bbc106c2d9cdb1a8ed46b878
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Feb 22 21:56:36 2025 +0100
+commit 1d4b0b6236febe0646d8d7b0103da5d169f185cc
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Dec 18 13:07:07 2023 -0500
 
-    syscall: use sync.OnceFunc for copyenv
+    doc/go1.22.html: release notes for slog, testing/slogtest and net/http.ServeMux
     
-    Change-Id: I64f658c1962878685ba7736f19d58e10fbdcb94a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651835
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #61422.
+    
+    Change-Id: I8f2dfe92405f409c46465bbb5714eff662ce9b49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550776
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/env_unix.go | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ doc/go1.22.html | 61 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 46 insertions(+), 15 deletions(-)

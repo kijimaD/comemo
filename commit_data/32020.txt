@@ -1,16 +1,31 @@
-commit dd81c37f91304c2827f17dab8de661a5020c28c0
-Author: mapeiqi <mapeiqi2017@gmail.com>
-Date:   Sat Jul 15 12:15:35 2017 +0800
+commit c5ddc558baa9884050ddf26dd93c91e9297509b8
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Jan 23 09:14:35 2017 +0000
 
-    log: fix comment
+    cmd/internal/obj/arm: support more ARMv5/ARMv6/ARMv7 instructions
     
-    I just want to experience the whole Gerrit Flow, so I make this simple commit
-    as my first commit to golang src repo.
+    REV/REV16/REVSH were introduced in ARMv6, they offered more efficient
+    byte reverse operatons.
     
-    Change-Id: Ie744573beac7a8b9361f898fac269c9d88010493
-    Reviewed-on: https://go-review.googlesource.com/48630
-    Reviewed-by: Ma Peiqi <mapeiqi2017@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    MMUL/MMULA/MMULS were introduced in ARMv6, they simplified
+    a serial of mul->shift->add/sub operations into a single instruction.
+    
+    RBIT was introduced in ARMv7, it inversed a 32-bit word's bit order.
+    
+    MULS was introduced in ARMv7, it corresponded to MULA.
+    
+    MULBB/MULABB were introduced in ARMv5TE, they performed 16-bit
+    multiplication (and accumulation).
+    
+    Change-Id: I6365b17b3c4eaf382a657c210bb0094b423b11b8
+    Reviewed-on: https://go-review.googlesource.com/35565
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/log/log.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arm.go        |  4 ++--
+ src/cmd/asm/internal/asm/testdata/arm.s | 20 +++++++++++++++++
+ src/cmd/internal/obj/arm/a.out.go       | 10 +++++++++
+ src/cmd/internal/obj/arm/anames.go      | 10 +++++++++
+ src/cmd/internal/obj/arm/asm5.go        | 39 ++++++++++++++++++++++++++++++++-
+ 5 files changed, 80 insertions(+), 3 deletions(-)

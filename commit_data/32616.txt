@@ -1,28 +1,18 @@
-commit 4074e4e5be5988a0c168eeba6417e7aceac7d9a5
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Aug 18 13:33:00 2017 +0300
+commit 716761b8b13926ef4a82dcb4ffc324066779239c
+Author: Rob Phoenix <rob@robphoenix.com>
+Date:   Mon May 8 22:08:42 2017 +0100
 
-    cmd/asm: add amd64 CLFLUSH instruction
+    net: add examples for IPv4, ParseCIDR & IPv4Mask
     
-    This is the last instruction I found missing in SSE2 set.
+    Further examples to support the net package.
     
-    It does not reuse 'yprefetch' ytabs due to differences in
-    operands SRC/DST roles:
-    - PREFETCHx: ModRM:r/m(r) -> FROM
-    - CLFLUSH:   ModRM:r/m(w) -> TO
+    See issue #5757
     
-    unaryDst map is extended accordingly.
-    
-    Change-Id: I89e34ebb81cc0ee5f9ebbb1301bad417f7ee437f
-    Reviewed-on: https://go-review.googlesource.com/56833
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I839fd97a468c8d9195e8f4a0ee886ba50ca3f382
+    Reviewed-on: https://go-review.googlesource.com/42912
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 4 ++--
- src/cmd/internal/obj/x86/a.out.go            | 1 +
- src/cmd/internal/obj/x86/anames.go           | 1 +
- src/cmd/internal/obj/x86/asm6.go             | 5 +++++
- src/cmd/internal/obj/x86/obj6.go             | 1 +
- 5 files changed, 10 insertions(+), 2 deletions(-)
+ src/net/example_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

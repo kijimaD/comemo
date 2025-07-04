@@ -1,34 +1,24 @@
-commit f3b5a2bc1983ddb83d72e741b176993d9b800faf
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 6 11:55:39 2017 -0400
+commit 3c0072e0567c55d7172f137389cbfdfe0c428888
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 28 15:13:19 2017 -0700
 
-    runtime: prevent descheduling while holding rwmutex read lock
+    cmd/compile/internal/gc: use anonfield and namedfield
     
-    Currently only the rwmutex write lock prevents descheduling. The read
-    lock does not. This leads to the following situation:
+    Automated refactoring using gofmt.
     
-    1. A reader acquires the lock and gets descheduled.
+    Passes toolstash-check.
     
-    2. GOMAXPROCS writers attempt to acquire the lock (or at least one
-    writer does, followed by readers). This blocks all of the Ps.
-    
-    3. There is no 3. The descheduled reader never gets to run again
-    because there are no Ps, so it never releases the lock and the system
-    deadlocks.
-    
-    Fix this by preventing descheduling while holding the read lock. This
-    requires also rewriting TestParallelRWMutexReaders to always create
-    enough GOMAXPROCS and to use non-blocking operations for
-    synchronization.
-    
-    Fixes #20903.
-    
-    Change-Id: Ibd460663a7e5a555be5490e13b2eaaa295fac39f
-    Reviewed-on: https://go-review.googlesource.com/47632
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I8624e1c231dc736e1bb4cc800acaf629a0af91d7
+    Reviewed-on: https://go-review.googlesource.com/38740
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/rwmutex.go      |  8 +++++++-
- src/runtime/rwmutex_test.go | 25 ++++++++++++-------------
- 2 files changed, 19 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/alg.go     | 18 +++++++++---------
+ src/cmd/compile/internal/gc/closure.go |  6 +++---
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/cmd/compile/internal/gc/select.go  | 20 ++++++++++----------
+ src/cmd/compile/internal/gc/subr.go    | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go    |  8 ++++----
+ 7 files changed, 34 insertions(+), 34 deletions(-)

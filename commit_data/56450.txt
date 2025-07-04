@@ -1,22 +1,17 @@
-commit 59003b6d8795f337c8916e814343182116183491
-Author: lifubang <lifubang@acmcoder.com>
-Date:   Fri May 10 03:29:45 2024 +0000
+commit fffddce55c8acdf8a834f064f7e8fab9880ecf08
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 9 13:02:26 2023 +0200
 
-    syscall: don't change local limit if prlimit used for another process
+    cmd/go: fix cgo prefix mapping for non-vendored modules
     
-    Fixes: #67184
+    Regression introduced in CL 478455.
     
-    Change-Id: Ibdf3810cbba30ae29f466f7f95f357e8512f228b
-    GitHub-Last-Rev: 5eabc760be6b89ae85629627da37b517e8ec356f
-    GitHub-Pull-Request: golang/go#67185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583299
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8083a0accb047188dde1a3d408df2aafaf4a5356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/syscall/export_linux_test.go  |  1 +
- src/syscall/export_rlimit_test.go |  6 ++++
- src/syscall/syscall_linux.go      |  2 +-
- src/syscall/syscall_linux_test.go | 66 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 74 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,18 @@
-commit 7ef0eb1cba873c0d3d1da6df9b6c98ab2882d35d
+commit f374dd30a05ed11a994d312ae4e128e731ee55a0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 20 13:38:45 2014 -0400
+Date:   Tue May 20 11:42:25 2014 -0400
 
-    doc/go1.3.html: mention cgo [0]byte bug fix fallout
+    test: test issue 7884 (already fixed)
     
-    Fixes #7958.
+    I don't know when the bug was fixed, but empirically it was.
+    Make sure it stays fixed by adding a test.
     
-    LGTM=r
-    R=r
+    Fixes #7884.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/91590044
+    https://golang.org/cl/93500043
 
- doc/go1.3.html | 73 ++++++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 53 insertions(+), 20 deletions(-)
+ test/fixedbugs/issue7884.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,12 +1,14 @@
-commit e7fe1944acb96de2fce832c11a1577a9e8e7a80a
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Feb 5 15:39:55 2013 +1100
+commit a60ffed9e73a5956b6400ae8863856967982c779
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 4 22:59:30 2013 -0500
 
-    archive/tar: small simplification using FileMode.
+    path/filepath: document that Walk does not follow symlinks
+    
+    Fixes #4759.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7305043
+    https://golang.org/cl/7304043
 
- src/pkg/archive/tar/common.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/path/filepath/path.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,16 +1,12 @@
-commit ad477e4e2091f9b26114a176e9e722895e7a52fe
+commit 549802c776aa7c2b18246aece26e40486228fbae
 Author: Adam Langley <agl@golang.org>
-Date:   Tue Jul 16 19:34:21 2013 -0400
+Date:   Tue Jul 16 17:37:22 2013 -0400
 
-    crypto/rsa: remove obsolete TODO.
+    CONTRIBUTORS: add Drew Hintz (Google CLA)
     
-    (PSS support is complete.)
-    
-    Thanks to Frithjof Schulze for noting this.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10871046
+    https://golang.org/cl/11386043
 
- src/pkg/crypto/rsa/rsa.go | 2 --
- 1 file changed, 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

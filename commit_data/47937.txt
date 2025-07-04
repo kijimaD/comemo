@@ -1,21 +1,21 @@
-commit 3ff12a019f00bc81996c453e5cb4729a9278f65a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 10 12:58:20 2022 -0500
+commit b05903a9f6408065c390ea6c62e523d9f51853a5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 16 16:46:33 2021 -0400
 
-    cmd/go: run go install in workspace mode
+    cmd/link: fix defaultGOROOT package
     
-    It's too confusing to users to run go install in module mode, so run
-    it in workspace mode instead.
+    CL 310731 moved cmd/internal/objabi.defaultGOROOT to
+    internal/buildcfg.defaultGOROOT, but didn't update the place in the
+    linker that sets its value.
     
-    Fixes #50036
+    Fixes the failing reboot test on the GOEXPERIMENT builders.
     
-    Change-Id: Ia99927bd98f54be4c42224a247543892045e3464
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377334
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I135b6bfc0fdadbe6cfc144d7aa55ca13519ba004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310869
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/work/build.go                  |  1 +
- .../go/testdata/script/work_install_submodule.txt  | 36 ++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/cmd/link/internal/ld/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

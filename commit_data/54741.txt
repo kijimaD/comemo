@@ -1,18 +1,26 @@
-commit d1cb2483b70827f8f2f839fe7b0f140c910fc5b7
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Oct 13 13:07:28 2023 +0800
+commit fcd14bdcbdfbb5b0c79cfecff95291837836a76d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 10 17:00:18 2022 -0500
 
-    database: add available godoc link
+    cmd/go/internal/vcweb: fix a data race in the overview handler
     
-    Change-Id: I6150858f1186edc6cebd38ff166d57287fa430f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535078
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    I forgot to lock the scriptResult in the overview handler, and
+    apparently a cmd/go test is incidentally fetching the overview page at
+    some point during test execution, triggering the race.
+    
+    This race was caught almost immediately by the new
+    linux-amd64-longtest-race builder (see
+    https://build.golang.org/log/85ab78169a6382a73b1a26c89e64138b387da217).
+    
+    Updates #27494.
+    
+    Change-Id: I06ee8d54dba400800284401428ba4a59809983b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449517
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/database/sql/driver/driver.go | 156 +++++++++----------
- src/database/sql/driver/types.go  |  41 ++---
- src/database/sql/sql.go           | 308 +++++++++++++++++++-------------------
- 3 files changed, 253 insertions(+), 252 deletions(-)
+ src/cmd/go/internal/vcweb/vcstest/vcstest_test.go | 19 +++++++++++++++++++
+ src/cmd/go/internal/vcweb/vcweb.go                |  3 +++
+ 2 files changed, 22 insertions(+)

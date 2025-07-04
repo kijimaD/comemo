@@ -1,17 +1,22 @@
-commit 81322b919198ce17d990762a8823e8db46435792
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Fri Nov 6 18:37:01 2020 +1100
+commit 080a3ee8b26c8e324d40bcd832e9668ecda9af0b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 23 11:37:33 2020 -0700
 
-    runtime/race: remove race from TestNoRaceAfterFunc2
+    cmd/compile: remove ODDDARG
     
-    For #14119
+    No longer needed after the last CL. Separate commit because
+    renumbering Ops causes toolstash to complain.
     
-    Change-Id: I2a9ae43da228cf5c3e38d1f0d1b0768145b6548f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267998
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6223a790cc341f8184eccb503f95a1dfc32a81e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229760
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/race/testdata/sync_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go       |  3 ---
+ src/cmd/compile/internal/gc/iimport.go   |  3 ---
+ src/cmd/compile/internal/gc/op_string.go | 39 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/order.go     |  3 ---
+ src/cmd/compile/internal/gc/syntax.go    |  1 -
+ 5 files changed, 19 insertions(+), 30 deletions(-)

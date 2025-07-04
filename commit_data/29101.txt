@@ -1,14 +1,33 @@
-commit 6d9c8c926da3abd33e3ec229a8ccd028c7610dc3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Oct 27 02:58:09 2016 +0900
+commit e71e1fe87e144ec10287a10b6a41a543762dabff
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Aug 22 12:25:23 2016 -0400
 
-    net/http: gofmt -w -s
+    cmd/compile: get MIPS64 SSA working
     
-    Change-Id: I6815a8560dd9fe0a0ebd485a0693f7044ba09848
-    Reviewed-on: https://go-review.googlesource.com/32137
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    - implement *, /, %, shifts, Zero, Move.
+    - fix mistakes in comparison.
+    - fix floating point rounding.
+    - handle RetJmp in assembler (which was not handled, as a consequence
+      Duff's device was disabled in the old backend.)
+    
+    all.bash now passes with SSA on.
+    
+    Updates #16359.
+    
+    Change-Id: Ia14eed0ed1176b5d800592080c8f53dded7fe73f
+    Reviewed-on: https://go-review.googlesource.com/27592
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client_test.go | 40 ++++++++++++++++++++--------------------
- 1 file changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/mips64/ssa.go        |  192 +-
+ src/cmd/compile/internal/ssa/config.go        |    2 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  255 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |   98 +-
+ src/cmd/compile/internal/ssa/gen/main.go      |    2 +
+ src/cmd/compile/internal/ssa/opGen.go         |   71 +-
+ src/cmd/compile/internal/ssa/regalloc.go      |    4 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 3655 +++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/schedule.go      |    2 +-
+ src/cmd/internal/obj/mips/obj0.go             |   50 +-
+ 10 files changed, 4003 insertions(+), 328 deletions(-)

@@ -1,25 +1,17 @@
-commit a61729b880f731bf89f40c5c0366cdeb61108753
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 16 16:26:04 2024 -0700
+commit cecf8b93283dd9fddacdf05db583644a2f3b0bbb
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri May 12 11:31:28 2023 -0400
 
-    net/http: return correct error when reading from a canceled request body
+    go/types: minor refactoring of missingMethod following CL 494615
     
-    CL 546676 inadvertently changed the error returned when reading
-    from the body of a canceled request. Fix it.
+    Make the refactoring suggested by gri@ in that CL.
     
-    Rework various request cancelation tests to exercise all three ways
-    of canceling a request.
-    
-    Fixes #67439
-    
-    Change-Id: I14ecaf8bff9452eca4a05df923d57d768127a90c
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586315
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6c363f3ba5aaa3c616d3982d998b989de7046a86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494617
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/transport.go      |   2 +-
- src/net/http/transport_test.go | 266 ++++++++++++++++++++++-------------------
- 2 files changed, 144 insertions(+), 124 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go | 11 +++++++----
+ src/go/types/lookup.go                    | 11 +++++++----
+ 2 files changed, 14 insertions(+), 8 deletions(-)

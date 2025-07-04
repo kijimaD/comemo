@@ -1,18 +1,23 @@
-commit 3b0fc5a51f16f15934a6445ac88e5694fba6abfd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 11 13:24:54 2023 -0700
+commit 9ff2a6677fd34084295172aff0848ab9a4f5b76e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 13:08:52 2022 -0400
 
-    net: clear malloc'ed memory in cgoResSearch
+    crypto/x509: allow BoringCrypto to use 4096-bit keys
     
-    For #61666
+    FIPS-140 has been updated to allow 4096-bit RSA keys.
+    Allow them in certificate processing.
     
-    Change-Id: I7a0a849fba0abebe28804bdd6d364b154456e399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534516
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #41147.
+    
+    Change-Id: I4c6bcb1b137a200dfe70cebc605ae57f49871184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447655
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/net/cgo_unix.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/crypto/tls/boring_test.go                   | 99 +++++++++++++------------
+ src/crypto/x509/boring.go                       |  5 +-
+ src/crypto/x509/boring_test.go                  |  6 +-
+ src/internal/obscuretestdata/obscuretestdata.go | 15 ++++
+ 4 files changed, 73 insertions(+), 52 deletions(-)

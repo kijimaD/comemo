@@ -1,30 +1,25 @@
-commit 71d29086486e4f5333e4cf29e973bfd71cf8bdfe
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 12 19:12:38 2018 +0000
+commit f7404974daaf8f58af4d9c1fd504e81e7f0db0a2
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 23 11:30:58 2018 -0400
 
-    net/http: update bundled http2
+    cmd/compile: finish GOEXPERIMENT=preemptibleloops repair
     
-    Updates bundled x/net/http2 to git rev d0887baf81f4 for:
+    A newish check for branch-likely on single-successor blocks
+    caught a case where the preemption-check inserter was
+    setting "likely" on an unconditional branch.
     
-        http2: ignore unknown 1xx responses like HTTP/1
-        https://golang.org/cl/123615
+    Fixed by checking for that case before setting likely.
     
-        http2: fix bug in earlier CL 123615
-        https://golang.org/cl/123675
+    Also removed an overconservative restriction on parallel
+    compilation for GOEXPERIMENT=preemptibleloops; it works
+    fine, it is just another control-flow transformation.
     
-    Also along for the ride, but without any effect:
-    
-        http2: export a field of an internal type for use by net/http
-        https://golang.org/cl/123656
-    
-    Fixes #26189
-    Updates #17739
-    
-    Change-Id: I1955d844d74113efbcbbdaa7d7a7faebb2225b45
-    Reviewed-on: https://go-review.googlesource.com/123676
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8e786e6281e0631cac8d80cff67bfb6402b4d225
+    Reviewed-on: https://go-review.googlesource.com/102317
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/h2_bundle.go | 66 +++++++++++++++++++++++++++++++++++------------
- 1 file changed, 49 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/main.go               | 2 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

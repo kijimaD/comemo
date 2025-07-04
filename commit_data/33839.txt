@@ -1,17 +1,39 @@
-commit d42826a0f41c18aeb88b6288c27fa27c62dbe384
-Author: Samuel Tan <samueltan@google.com>
-Date:   Thu Dec 7 22:18:50 2017 -0800
+commit fa3fe2e3c6b90c66d60fadce59169f7a6360f001
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 29 11:49:08 2017 -0400
 
-    html/template: fix typo in TestOrphanedTemplate error message
+    cmd/compile, math/bits: add rotate rules to PPC64.rules
     
-    This error message should reference t2, not t1.
+    This adds rules to match the code in math/bits RotateLeft,
+    RotateLeft32, and RotateLef64 to allow them to be inlined.
     
-    Change-Id: I2e42b8335ca9367a1fb7f76c38a1bcf8f32a2bf3
-    Reviewed-on: https://go-review.googlesource.com/82816
-    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    The rules are complicated because the code in these function
+    use different types, and the non-const version of these
+    shifts generate Mask and Carry instructions that become
+    subexpressions during the match process.
+    
+    Also adds a testcase to asm_test.go.
+    
+    Improvement in math/bits:
+    
+    BenchmarkRotateLeft-16       1.57     1.32      -15.92%
+    BenchmarkRotateLeft32-16     1.60     1.37      -14.37%
+    BenchmarkRotateLeft64-16     1.57     1.32      -15.92%
+    
+    Updates #21390
+    
+    Change-Id: Ib6f17669ecc9cab54f18d690be27e2225ca654a4
+    Reviewed-on: https://go-review.googlesource.com/59932
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/html/template/escape_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go      |   19 +-
+ src/cmd/compile/internal/gc/ssa.go           |    1 +
+ src/cmd/compile/internal/ppc64/ssa.go        |    1 +
+ src/cmd/compile/internal/ssa/config.go       |    1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   41 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    3 +
+ src/cmd/compile/internal/ssa/opGen.go        |   30 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 2360 +++++++++++++++++++++++---
+ 8 files changed, 2187 insertions(+), 269 deletions(-)

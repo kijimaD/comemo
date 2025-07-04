@@ -1,16 +1,17 @@
-commit 933d521a7aa5defc46d3336bcb71a2f3f2b8172d
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 13 11:47:25 2016 -0700
+commit fcb23249b2ac65a882fdbbeeb907fdbb5dffdb79
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Mar 2 18:12:30 2016 -0800
 
-    fmt: clarify that for %g precision determines number of significant digits
+    net: skip TestLookupPort on android with netgo
     
-    Documentation change only.
+    /etc/services is not available on Android. The pure Go implementation
+    of LookupPort will never succeed on Android. Skipping the test.
     
-    Fixes #15178.
+    Updates #14576.
     
-    Change-Id: I3c7d80ce9e668ac7515f7ebb9da80f3bd8e534d6
-    Reviewed-on: https://go-review.googlesource.com/22006
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I707ac24aea3f988656b95b1816ee5c9690106985
+    Reviewed-on: https://go-review.googlesource.com/20154
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/doc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/lookup_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

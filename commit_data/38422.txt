@@ -1,13 +1,23 @@
-commit 032acb3a1fdaff2899273c49e1b89ef3d56d80b7
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Mar 14 16:44:38 2019 -0400
+commit 15c45752935a13fcb9f8f9528ac062da3a9d6cdb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 25 09:49:53 2018 -0700
 
-    doc: add minor revisions header for 1.12
+    cmd/compile: convert arguments as needed
     
-    Change-Id: I0d4a55af0bee754ab1ee817780027e9f72475afb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167711
-    Reviewed-by: Katie Hockman <katiehockman@google.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    CL 114797 reworked how arguments get written to the stack.
+    Some type conversions got lost in the process. Restore them.
+    
+    Fixes #28390
+    Updates #28430
+    
+    Change-Id: Ia0d37428d7d615c865500bbd1a7a4167554ee34f
+    Reviewed-on: https://go-review.googlesource.com/c/144598
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 16 +++++++++++++--
+ test/fixedbugs/issue28390.go        | 39 +++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue28390.out       |  2 ++
+ test/fixedbugs/issue28430.go        | 17 ++++++++++++++++
+ 4 files changed, 72 insertions(+), 2 deletions(-)

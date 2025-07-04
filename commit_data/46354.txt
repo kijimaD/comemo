@@ -1,23 +1,90 @@
-commit 73a062c3e765aa953a84b128aa765a607b2df083
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 7 13:58:49 2021 -0700
+commit e4895ab4c0eb44de6ddc5dc8d860a827b20d2781
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 01:05:16 2020 -0500
 
-    cmd/compile/internal/types2: handle recursive type parameter constraints
+    [dev.regabi] cmd/compile: split out package walk [generated]
     
-    Check type constraints after the respective type parameter list
-    has been associated with a parameterized type so that recursive
-    type parameter constraints "see" a parameterized type.
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            # Late addition to package ir.
+            mv closuredebugruntimecheck ClosureDebugRuntimeCheck
+            mv hasemptycvars IsTrivialClosure
+            mv ClosureDebugRuntimeCheck IsTrivialClosure func.go
+            mv func.go cmd/compile/internal/ir
     
-    Fixes #45550.
-    Fixes #47796.
+            # Late addition to package reflectdata.
+            mv markTypeUsedInInterface MarkTypeUsedInInterface
+            mv markUsedIfaceMethod MarkUsedIfaceMethod
+            mv MarkTypeUsedInInterface MarkUsedIfaceMethod reflect.go
+            mv reflect.go cmd/compile/internal/reflectdata
     
-    Change-Id: Iac74610ca017a78013820624230c857395506aff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348090
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+            # Late addition to package staticdata.
+            mv litsym InitConst
+            mv InitConst data.go
+            mv data.go cmd/compile/internal/staticdata
+    
+            # Extract staticinit out of walk into its own package.
+            mv InitEntry InitPlan InitSchedule InitSchedule.append InitSchedule.staticInit \
+                    InitSchedule.tryStaticInit InitSchedule.staticcopy \
+                    InitSchedule.staticassign InitSchedule.initplan InitSchedule.addvalue \
+                    statuniqgen staticname stataddr anySideEffects getlit isvaluelit \
+                    sched.go
+            mv InitSchedule.initplans InitSchedule.Plans
+            mv InitSchedule.inittemps InitSchedule.Temps
+            mv InitSchedule.out InitSchedule.Out
+            mv InitSchedule.staticInit InitSchedule.StaticInit
+            mv InitSchedule.staticassign InitSchedule.StaticAssign
+            mv InitSchedule Schedule
+            mv InitPlan Plan
+            mv InitEntry Entry
+            mv anySideEffects AnySideEffects
+            mv staticname StaticName
+            mv stataddr StaticLoc
+            mv sched.go cmd/compile/internal/staticinit
+    
+            # Export API and unexport non-API.
+            mv transformclosure Closure
+            mv walk Walk
+    
+            mv Order orderState
+    
+            mv swt.go switch.go
+            mv racewalk.go race.go
+    
+            mv closure.go order.go range.go select.go switch.go race.go \
+                    sinit.go subr.go walk.go \
+                    cmd/compile/internal/walk
+    '
+    
+    : # Update format test.
+    cd ../../
+    go install cmd/compile/... cmd/internal/archive
+    go test -u || go test -u
+    rm -rf ../../../pkg/darwin_amd64/cmd
+    
+    Change-Id: I11c7a45f74d4a9e963da15c080e1018caaa99c05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279478
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/decl.go            | 19 +++++++++----
- src/cmd/compile/internal/types2/signature.go       |  2 +-
- .../types2/testdata/fixedbugs/issue45550.go2       | 10 +++++++
- .../types2/testdata/fixedbugs/issue47796.go2       | 33 ++++++++++++++++++++++
- 4 files changed, 58 insertions(+), 6 deletions(-)
+ src/cmd/compile/fmtmap_test.go                     |   2 +-
+ src/cmd/compile/internal/gc/compile.go             |   3 +-
+ src/cmd/compile/internal/gc/initorder.go           |  11 +-
+ src/cmd/compile/internal/gc/main.go                |   3 +-
+ src/cmd/compile/internal/gc/obj.go                 |  57 --
+ src/cmd/compile/internal/ir/func.go                |  21 +
+ src/cmd/compile/internal/reflectdata/reflect.go    |  26 +
+ src/cmd/compile/internal/staticdata/data.go        |  57 ++
+ src/cmd/compile/internal/staticinit/sched.go       | 596 +++++++++++++++++++++
+ src/cmd/compile/internal/{gc => walk}/closure.go   |  31 +-
+ src/cmd/compile/internal/{gc => walk}/order.go     |  80 +--
+ .../internal/{gc/racewalk.go => walk/race.go}      |   2 +-
+ src/cmd/compile/internal/{gc => walk}/range.go     |   5 +-
+ src/cmd/compile/internal/{gc => walk}/select.go    |   2 +-
+ src/cmd/compile/internal/{gc => walk}/sinit.go     | 509 +-----------------
+ src/cmd/compile/internal/{gc => walk}/subr.go      |   5 +-
+ .../compile/internal/{gc/swt.go => walk/switch.go} |   9 +-
+ src/cmd/compile/internal/{gc => walk}/walk.go      | 135 +----
+ 18 files changed, 790 insertions(+), 764 deletions(-)

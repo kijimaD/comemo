@@ -1,22 +1,31 @@
-commit cf9adf4a3e60f12c86b767a23f434cae1b771c27
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 13:39:58 2023 -0800
+commit 27ec2bf0dd67a11036626cef26899df7280b0000
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 5 08:55:55 2022 -0500
 
-    cmd/compile/internal/types2: remove useConstraintTypeInference flg (cleanup)
+    crypto/ed25519/internal/edwards25519: sync with filippo.io/edwards25519
     
-    This useConstraintTypeInference flag was debugging purposes only and
-    is not needed anymore. It's already gone in go/types.
+    Import the following commits (and minor comment fixes):
     
-    Also, adjust/fix some comments.
+        * 17a0e59 - field: fix heap escape in SqrtRatio <Filippo Valsorda>
+        * edec5b9 - field: fix SqrtRatio when arguments and receiver alias <Filippo Valsorda>
+        * 26ce6fc - edwards25519: expand the SetUniformBytes docs <Filippo Valsorda>
+        * c1c1311 - edwards25519: make Scalar and field.Element setters return errors <Filippo Valsorda>
     
-    Change-Id: I713be5759f05c618fcf26e16cf53dfb3626bba93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461690
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I102eb04818a2bed43467f3eda6fd4c46b09878fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373077
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/types2/call.go  |  2 +-
- src/cmd/compile/internal/types2/infer.go | 33 ++++++++++++++------------------
- 2 files changed, 15 insertions(+), 20 deletions(-)
+ src/crypto/ed25519/ed25519.go                      | 25 +++++++++++---
+ .../ed25519/internal/edwards25519/edwards25519.go  |  6 ++--
+ .../ed25519/internal/edwards25519/field/fe.go      | 40 ++++++++++++----------
+ .../internal/edwards25519/field/fe_alias_test.go   | 18 ++++++++--
+ .../internal/edwards25519/field/fe_generic.go      |  2 ++
+ .../ed25519/internal/edwards25519/field/fe_test.go | 16 +++++----
+ src/crypto/ed25519/internal/edwards25519/scalar.go | 25 ++++++++------
+ .../ed25519/internal/edwards25519/scalar_test.go   |  6 ++--
+ 8 files changed, 90 insertions(+), 48 deletions(-)

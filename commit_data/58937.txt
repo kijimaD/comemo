@@ -1,16 +1,103 @@
-commit a1889554fc3e0c15b4a9870b49bf3a0252f80688
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Mar 4 15:39:42 2025 -0800
+commit 8b23b7b04234424791e26b8d2d26f61ef1311a9f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Nov 15 09:50:01 2023 -0500
 
-    context: skip allocs test with -asan
+    src/cmd/relnote, doc/next: add release note check
     
-    Allocates more with -asan after CL 653795.
+    Add a test that every file in api/next has corresponding
+    release note fragments.
     
-    Change-Id: Ib8cc1de1d649623713b6fc123c1c59a47528857b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654876
+    Vendor in golang.org/x/build/relnote, which brings along some other
+    things.
+    
+    Modify dist/test.go to configure the test to run on some trybots.
+    
+    For #64169.
+    
+    Change-Id: If87d11350ea6b2605bc3ab31c491fa28f1d6ee7d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556995
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/context/x_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/dist/test.go                               |    3 +
+ src/cmd/go.mod                                     |    7 +-
+ src/cmd/go.sum                                     |   10 +
+ src/cmd/relnote/relnote_test.go                    |   39 +
+ src/cmd/vendor/golang.org/x/build/LICENSE          |   27 +
+ src/cmd/vendor/golang.org/x/build/PATENTS          |   22 +
+ .../vendor/golang.org/x/build/relnote/relnote.go   |  420 ++
+ src/cmd/vendor/golang.org/x/text/LICENSE           |   27 +
+ src/cmd/vendor/golang.org/x/text/PATENTS           |   22 +
+ src/cmd/vendor/golang.org/x/text/cases/cases.go    |  162 +
+ src/cmd/vendor/golang.org/x/text/cases/context.go  |  376 +
+ src/cmd/vendor/golang.org/x/text/cases/fold.go     |   34 +
+ src/cmd/vendor/golang.org/x/text/cases/icu.go      |   61 +
+ src/cmd/vendor/golang.org/x/text/cases/info.go     |   82 +
+ src/cmd/vendor/golang.org/x/text/cases/map.go      |  816 ++
+ .../vendor/golang.org/x/text/cases/tables10.0.0.go | 2255 ++++++
+ .../vendor/golang.org/x/text/cases/tables11.0.0.go | 2316 ++++++
+ .../vendor/golang.org/x/text/cases/tables12.0.0.go | 2359 ++++++
+ .../vendor/golang.org/x/text/cases/tables13.0.0.go | 2399 ++++++
+ .../vendor/golang.org/x/text/cases/tables15.0.0.go | 2527 +++++++
+ .../vendor/golang.org/x/text/cases/tables9.0.0.go  | 2215 ++++++
+ src/cmd/vendor/golang.org/x/text/cases/trieval.go  |  217 +
+ .../vendor/golang.org/x/text/internal/internal.go  |   49 +
+ .../golang.org/x/text/internal/language/common.go  |   16 +
+ .../golang.org/x/text/internal/language/compact.go |   29 +
+ .../x/text/internal/language/compact/compact.go    |   61 +
+ .../x/text/internal/language/compact/language.go   |  260 +
+ .../x/text/internal/language/compact/parents.go    |  120 +
+ .../x/text/internal/language/compact/tables.go     | 1015 +++
+ .../x/text/internal/language/compact/tags.go       |   91 +
+ .../golang.org/x/text/internal/language/compose.go |  167 +
+ .../x/text/internal/language/coverage.go           |   28 +
+ .../x/text/internal/language/language.go           |  627 ++
+ .../golang.org/x/text/internal/language/lookup.go  |  412 +
+ .../golang.org/x/text/internal/language/match.go   |  226 +
+ .../golang.org/x/text/internal/language/parse.go   |  608 ++
+ .../golang.org/x/text/internal/language/tables.go  | 3494 +++++++++
+ .../golang.org/x/text/internal/language/tags.go    |   48 +
+ src/cmd/vendor/golang.org/x/text/internal/match.go |   67 +
+ .../vendor/golang.org/x/text/internal/tag/tag.go   |  100 +
+ .../vendor/golang.org/x/text/language/coverage.go  |  187 +
+ src/cmd/vendor/golang.org/x/text/language/doc.go   |   98 +
+ .../vendor/golang.org/x/text/language/language.go  |  605 ++
+ src/cmd/vendor/golang.org/x/text/language/match.go |  735 ++
+ src/cmd/vendor/golang.org/x/text/language/parse.go |  256 +
+ .../vendor/golang.org/x/text/language/tables.go    |  298 +
+ src/cmd/vendor/golang.org/x/text/language/tags.go  |  145 +
+ .../golang.org/x/text/transform/transform.go       |  709 ++
+ .../golang.org/x/text/unicode/norm/composition.go  |  512 ++
+ .../golang.org/x/text/unicode/norm/forminfo.go     |  279 +
+ .../vendor/golang.org/x/text/unicode/norm/input.go |  109 +
+ .../vendor/golang.org/x/text/unicode/norm/iter.go  |  458 ++
+ .../golang.org/x/text/unicode/norm/normalize.go    |  610 ++
+ .../golang.org/x/text/unicode/norm/readwriter.go   |  125 +
+ .../golang.org/x/text/unicode/norm/tables10.0.0.go | 7657 +++++++++++++++++++
+ .../golang.org/x/text/unicode/norm/tables11.0.0.go | 7693 +++++++++++++++++++
+ .../golang.org/x/text/unicode/norm/tables12.0.0.go | 7710 +++++++++++++++++++
+ .../golang.org/x/text/unicode/norm/tables13.0.0.go | 7760 +++++++++++++++++++
+ .../golang.org/x/text/unicode/norm/tables15.0.0.go | 7907 ++++++++++++++++++++
+ .../golang.org/x/text/unicode/norm/tables9.0.0.go  | 7637 +++++++++++++++++++
+ .../golang.org/x/text/unicode/norm/transform.go    |   88 +
+ .../vendor/golang.org/x/text/unicode/norm/trie.go  |   54 +
+ src/cmd/vendor/modules.txt                         |   16 +
+ src/cmd/vendor/rsc.io/markdown/LICENSE             |   27 +
+ src/cmd/vendor/rsc.io/markdown/README.md           |    5 +
+ src/cmd/vendor/rsc.io/markdown/break.go            |   99 +
+ src/cmd/vendor/rsc.io/markdown/code.go             |  218 +
+ src/cmd/vendor/rsc.io/markdown/emoji.go            | 1868 +++++
+ src/cmd/vendor/rsc.io/markdown/entity.go           | 2136 ++++++
+ src/cmd/vendor/rsc.io/markdown/heading.go          |  161 +
+ src/cmd/vendor/rsc.io/markdown/html.go             |  507 ++
+ src/cmd/vendor/rsc.io/markdown/inline.go           |  930 +++
+ src/cmd/vendor/rsc.io/markdown/link.go             |  861 +++
+ src/cmd/vendor/rsc.io/markdown/list.go             |  364 +
+ src/cmd/vendor/rsc.io/markdown/para.go             |  120 +
+ src/cmd/vendor/rsc.io/markdown/parse.go            |  713 ++
+ src/cmd/vendor/rsc.io/markdown/quote.go            |   55 +
+ src/cmd/vendor/rsc.io/markdown/table.go            |  254 +
+ src/cmd/vendor/rsc.io/markdown/tables.go           |  263 +
+ 79 files changed, 84042 insertions(+), 1 deletion(-)

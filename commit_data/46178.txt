@@ -1,22 +1,32 @@
-commit af80af22b507ae23ae04372f30b98f7720c85f8a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 26 12:27:06 2021 -0700
+commit a58be734eacd832be27a021b8ffac323061212f2
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Wed Dec 9 13:55:37 2020 -0800
 
-    cmd/compile/internal/types2: do not declare new methods on instantiated types
+    cmd/compile: fix incorrect shift count type with s390x rules
     
-    Report an error if an alias is used to declare a method on an
-    instantiated type.
+    The type of the shift count must be an unsigned integer. Some s390x
+    rules for shift have their auxint type being int8. This results in a
+    compilation failure on s390x with an invalid operation when running
+    make.bash using older versions of go (e.g: go1.10.4).
     
-    Also, when resolving the receiver type, don't use asNamed to
-    avoid premature expansion of the type.
+    This CL adds an auxint type of uint8 and changes the ops for shift and
+    rotate to use auxint with type uint8. The related rules are also
+    modified to address this change.
     
-    Fixes #47968.
+    Fixes #43090
     
-    Change-Id: Ie5acc4cfb1944deaaeeaee98707f31e256f8ef5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345472
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I594274b6e3d9b23092fc9e9f4b354870164f2f19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277078
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/types2/signature.go        |  8 +++++++-
- .../types2/testdata/fixedbugs/issue47968.go2        | 21 +++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go        |   5 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  24 +--
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  30 +--
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   4 +-
+ src/cmd/compile/internal/ssa/op.go           |   1 +
+ src/cmd/compile/internal/ssa/opGen.go        |  14 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 290 +++++++++++++--------------
+ src/cmd/internal/obj/s390x/rotate.go         |  14 +-
+ src/cmd/internal/obj/s390x/rotate_test.go    |   2 +-
+ 9 files changed, 196 insertions(+), 188 deletions(-)

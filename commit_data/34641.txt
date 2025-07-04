@@ -1,19 +1,84 @@
-commit 1101a902fe7dba7285e88c94d73489cc2b7b2511
-Author: jimmyfrasche <soapboxcicero@gmail.com>
-Date:   Sun Mar 18 12:15:55 2018 -0700
+commit c4b65fa4cc4b799cad461779564af30dbf232f13
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Sat Oct 21 15:58:37 2017 -0700
 
-    go/format: move example to external test file
+    cmd/compile: inline closures with captures
     
-    Per #11257 all examples should be in external test files.
+    When inlining a closure with captured variables, walk up the
+    param chain to find the one that is defined inside the scope
+    into which the function is being inlined, and map occurrences
+    of the captures to temporary inlvars, similarly to what is
+    done for function parameters.
     
-    Additionally, doing so makes this example playable.
+    No noticeable impact on compilation speed and binary size.
     
-    Updates #24352. (Albeit tangentially).
+    Minor improvements to go1 benchmarks on darwin/amd64
     
-    Change-Id: I77ab4655107f61db2e9d21a608b73ace3a230fb2
-    Reviewed-on: https://go-review.googlesource.com/101285
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              2.59s ± 3%     2.58s ± 1%    ~     (p=0.470 n=19+19)
+    Fannkuch11-4                3.15s ± 2%     3.15s ± 1%    ~     (p=0.647 n=20+19)
+    FmtFprintfEmpty-4          43.7ns ± 3%    43.4ns ± 4%    ~     (p=0.178 n=18+20)
+    FmtFprintfString-4         74.0ns ± 2%    77.1ns ± 7%  +4.13%  (p=0.000 n=20+20)
+    FmtFprintfInt-4            77.2ns ± 3%    79.2ns ± 6%  +2.53%  (p=0.000 n=20+20)
+    FmtFprintfIntInt-4          112ns ± 4%     112ns ± 2%    ~     (p=0.672 n=20+19)
+    FmtFprintfPrefixedInt-4     136ns ± 1%     135ns ± 2%    ~     (p=0.827 n=16+20)
+    FmtFprintfFloat-4           232ns ± 2%     233ns ± 1%    ~     (p=0.194 n=20+20)
+    FmtManyArgs-4               490ns ± 2%     484ns ± 2%  -1.28%  (p=0.001 n=20+20)
+    GobDecode-4                6.68ms ± 2%    6.72ms ± 2%    ~     (p=0.113 n=20+19)
+    GobEncode-4                5.62ms ± 2%    5.71ms ± 2%  +1.64%  (p=0.000 n=20+19)
+    Gzip-4                      235ms ± 3%     236ms ± 2%    ~     (p=0.607 n=20+19)
+    Gunzip-4                   37.1ms ± 2%    36.8ms ± 3%    ~     (p=0.060 n=20+20)
+    HTTPClientServer-4         61.9µs ± 2%    62.7µs ± 4%  +1.24%  (p=0.007 n=18+19)
+    JSONEncode-4               12.5ms ± 2%    12.4ms ± 3%    ~     (p=0.192 n=20+20)
+    JSONDecode-4               51.6ms ± 3%    51.0ms ± 3%  -1.19%  (p=0.008 n=20+19)
+    Mandelbrot200-4            4.12ms ± 6%    4.06ms ± 5%    ~     (p=0.063 n=20+20)
+    GoParse-4                  3.12ms ± 5%    3.10ms ± 2%    ~     (p=0.402 n=19+19)
+    RegexpMatchEasy0_32-4      80.7ns ± 2%    75.1ns ± 9%  -6.94%  (p=0.000 n=17+20)
+    RegexpMatchEasy0_1K-4       197ns ± 2%     186ns ± 2%  -5.43%  (p=0.000 n=20+20)
+    RegexpMatchEasy1_32-4      77.5ns ± 4%    71.9ns ± 7%  -7.25%  (p=0.000 n=20+18)
+    RegexpMatchEasy1_1K-4       341ns ± 3%     341ns ± 3%    ~     (p=0.732 n=20+20)
+    RegexpMatchMedium_32-4      113ns ± 2%     112ns ± 3%    ~     (p=0.102 n=20+20)
+    RegexpMatchMedium_1K-4     36.6µs ± 2%    35.8µs ± 2%  -2.26%  (p=0.000 n=18+20)
+    RegexpMatchHard_32-4       1.75µs ± 3%    1.74µs ± 2%    ~     (p=0.473 n=20+19)
+    RegexpMatchHard_1K-4       52.6µs ± 2%    52.0µs ± 3%  -1.15%  (p=0.005 n=20+20)
+    Revcomp-4                   381ms ± 4%     377ms ± 2%    ~     (p=0.067 n=20+18)
+    Template-4                 57.3ms ± 2%    57.7ms ± 2%    ~     (p=0.108 n=20+20)
+    TimeParse-4                 291ns ± 3%     292ns ± 2%    ~     (p=0.585 n=20+20)
+    TimeFormat-4                314ns ± 3%     315ns ± 1%    ~     (p=0.681 n=20+20)
+    [Geo mean]                 47.4µs         47.1µs       -0.73%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4               115MB/s ± 2%   114MB/s ± 2%    ~     (p=0.115 n=20+19)
+    GobEncode-4               137MB/s ± 2%   134MB/s ± 2%  -1.63%  (p=0.000 n=20+19)
+    Gzip-4                   82.5MB/s ± 3%  82.4MB/s ± 2%    ~     (p=0.612 n=20+19)
+    Gunzip-4                  523MB/s ± 2%   528MB/s ± 3%    ~     (p=0.060 n=20+20)
+    JSONEncode-4              155MB/s ± 2%   156MB/s ± 3%    ~     (p=0.192 n=20+20)
+    JSONDecode-4             37.6MB/s ± 3%  38.1MB/s ± 3%  +1.21%  (p=0.007 n=20+19)
+    GoParse-4                18.6MB/s ± 4%  18.7MB/s ± 2%    ~     (p=0.405 n=19+19)
+    RegexpMatchEasy0_32-4     396MB/s ± 2%   426MB/s ± 8%  +7.56%  (p=0.000 n=17+20)
+    RegexpMatchEasy0_1K-4    5.18GB/s ± 2%  5.48GB/s ± 2%  +5.79%  (p=0.000 n=20+20)
+    RegexpMatchEasy1_32-4     413MB/s ± 4%   444MB/s ± 6%  +7.46%  (p=0.000 n=20+19)
+    RegexpMatchEasy1_1K-4    3.00GB/s ± 3%  3.00GB/s ± 3%    ~     (p=0.678 n=20+20)
+    RegexpMatchMedium_32-4   8.82MB/s ± 2%  8.90MB/s ± 3%  +0.99%  (p=0.044 n=20+20)
+    RegexpMatchMedium_1K-4   28.0MB/s ± 2%  28.6MB/s ± 2%  +2.32%  (p=0.000 n=18+20)
+    RegexpMatchHard_32-4     18.3MB/s ± 3%  18.4MB/s ± 2%    ~     (p=0.482 n=20+19)
+    RegexpMatchHard_1K-4     19.5MB/s ± 2%  19.7MB/s ± 3%  +1.18%  (p=0.004 n=20+20)
+    Revcomp-4                 668MB/s ± 4%   674MB/s ± 2%    ~     (p=0.066 n=20+18)
+    Template-4               33.8MB/s ± 2%  33.6MB/s ± 2%    ~     (p=0.104 n=20+20)
+    [Geo mean]                124MB/s        126MB/s       +1.54%
+    
+    Updates #15561
+    Updates #18270
+    
+    Change-Id: I980086efe28b36aa27f81577065e2a729ff03d4e
+    Reviewed-on: https://go-review.googlesource.com/72490
+    Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/format/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- src/go/format/format_test.go  | 27 ---------------------------
- 2 files changed, 39 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  77 +++++++++++++++++++++-----
+ test/closure3.dir/main.go          | 110 +++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue20250.go       |   2 +-
+ test/inline.go                     |  33 +++++++++++
+ 4 files changed, 208 insertions(+), 14 deletions(-)

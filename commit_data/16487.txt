@@ -1,12 +1,16 @@
-commit 61f5fd6f668fe6e2043361d312ec8c418702b9b3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 5 09:11:49 2013 +1000
+commit 2449909d816de46bc43065e6e93fe801c7770055
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 15:18:02 2013 -0700
 
-    C: add Will Norris (Google CLA)
+    cmd/5c, cmd/6c, cmd/8c: isolate textflag and dataflag
     
-    R=golang-dev
+    Fixes #5419.
+    
+    R=golang-dev, dave, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/10019045
+    https://golang.org/cl/9241044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5c/txt.c | 11 ++++++++---
+ src/cmd/6c/txt.c | 14 ++++++++++----
+ src/cmd/8c/txt.c | 14 ++++++++++----
+ 3 files changed, 28 insertions(+), 11 deletions(-)

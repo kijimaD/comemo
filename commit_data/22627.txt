@@ -1,30 +1,15 @@
-commit af060c3086941299c399604fe0dc29388f4a6302
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 23 18:15:14 2015 -0400
+commit 8205bfb5667967ce04e54e365093e57362c3fd0b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Mar 28 17:08:53 2015 +0300
 
-    runtime: generally allow preemption during concurrent GC phases
+    test: fix build
     
-    Currently, the entire GC process runs with g.m.preemptoff set. In the
-    concurrent phases, the parts that actually need preemption disabled
-    are run on a system stack and there's no overall need to stay on the
-    same M or P during the concurrent phases. Hence, move the setting of
-    g.m.preemptoff to when we start mark termination, at which point we
-    really do need preemption disabled.
+    Fix build after http://golang.org/cl/5297
+    The compiler was changed to not print implicit map capacity in error messages.
     
-    This dramatically changes the scheduling behavior of the concurrent
-    mark phase. Currently, since this is non-preemptible, concurrent mark
-    gets one dedicated P (so 1/GOMAXPROCS utilization). With this change,
-    the GC goroutine is scheduled like any other goroutine during
-    concurrent mark, so it gets 1/<runnable goroutines> utilization.
-    
-    You might think it's not even necessary to set g.m.preemptoff at that
-    point since the world is stopped, but stackalloc/stackfree use this as
-    a signal that the per-P pools are not safe to access without
-    synchronization.
-    
-    Change-Id: I08aebe8179a7d304650fb8449ff36262b3771099
-    Reviewed-on: https://go-review.googlesource.com/8839
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I852f668680c3c69c5eecc7964e46202a97014d6a
+    Reviewed-on: https://go-review.googlesource.com/8212
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/mgc.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ test/escape_map.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

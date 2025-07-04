@@ -1,22 +1,25 @@
-commit b40dc30d24afe877f4b7d80c69b827765531cdc7
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 15 14:30:34 2024 -0700
+commit fde1b139be35c655437a8df668dddf0367c3a67c
+Author: Stefan Dombrowski <sdo451@gmail.com>
+Date:   Mon Jun 6 08:23:37 2022 +0000
 
-    cmd/compile: compute ptrBytes during CalcSize instead of on demand
+    os: don't check for IsExist in MkdirAll example
     
-    Compute ptrBytes while computing the size of a type.
-    Requires an extra field on the type, but means that we don't
-    have potentially exponential behavior in the PtrDataSize computation.
+    If a directory already exists, then MkdirAll returns nil. Therefore the
+    check with IsExist is not necessary.
     
-    For #65540.
-    
-    Change-Id: Ia23c72bbd996730baddd32d9ed46cfc00c3472ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571543
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Idf83c056f64bb56f49eb2b649af7827b759bcd7c
+    GitHub-Last-Rev: 1f29873d0cd852642938cbd899549b9bf04301da
+    GitHub-Pull-Request: golang/go#53242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410434
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types/size.go        | 102 +++++++++-----------------
- src/cmd/compile/internal/types/sizeof_test.go |   2 +-
- src/cmd/compile/internal/types/type.go        |  29 +++++++-
- 3 files changed, 65 insertions(+), 68 deletions(-)
+ src/os/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

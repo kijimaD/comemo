@@ -1,23 +1,16 @@
-commit ca2d32b46d7ac60efe63cc310a0261292afffe20
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Aug 19 14:16:55 2013 -0700
+commit dccf651b24831a3f3f2657cf211129bb03c18ed4
+Author: Aaron France <aaron.l.france@gmail.com>
+Date:   Mon Aug 19 16:32:00 2013 -0400
 
-    undo CL 12785045 / 71ce80dc4195
+    misc/emacs: Detect stale coverage reports
     
-    This has broken the 32-bit builds.
+    When the coverage report file is older than the file we're
+    showing the coverage report for, then we show a simple message
+    to state this fact.
     
-    ««« original CL description
-    cmd/gc, runtime: use type information to scan interface values
-    
-    R=golang-dev, rsc, dvyukov
+    R=adonovan, dominik.honnef, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12785045
-    »»»
-    
-    R=khr, golang-dev, khr
-    CC=golang-dev
-    https://golang.org/cl/13010045
+    https://golang.org/cl/12919044
 
- src/cmd/gc/pgen.c      |  1 +
- src/pkg/runtime/mgc0.c | 54 ++++++++++----------------------------------------
- 2 files changed, 12 insertions(+), 43 deletions(-)
+ misc/emacs/go-mode.el | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

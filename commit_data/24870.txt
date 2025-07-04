@@ -1,14 +1,20 @@
-commit 37ac54dc2b01cd020f72b664f07c85ed1a91bd78
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Nov 5 09:56:32 2015 +1300
+commit 6b9b618787156dea53d14dde924b71639548da33
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 4 08:50:28 2015 -0700
 
-    cmd/dist: run testshared on linux/ppc64le
+    [dev.ssa] cmd/compile: run std tests with SSA codegen as part of all.bash
     
-    Change-Id: I4d079d29408e5344701056c88882cfd3b3857478
-    Reviewed-on: https://go-review.googlesource.com/15973
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Todd Neal has made all the stdlib tests pass.
+    Now the trybots and build dashboard can
+    help us keep them passing.
+    
+    All of this code will be unwound bit by bit
+    as SSA matures and then becomes the default.
+    
+    Change-Id: I52ac7e72a87d329ccce974d6671c054374828d11
+    Reviewed-on: https://go-review.googlesource.com/14294
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

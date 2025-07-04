@@ -1,20 +1,17 @@
-commit 36f25a7e7ba3d5527cee8f4ef645827085243e59
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Feb 28 17:58:57 2016 -0900
+commit 715f63778db01260a09ae8caa4fce2ece309c3ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 3 15:51:03 2015 -0800
 
-    cmd/link: allocate small []byte reads together
+    cmd/compile: avoid converting huge floats to integers
     
-    Reduces number of memory allocations by 12%:
+    Fixes #13471.
     
-    Before: 1816664
-    After:  1581591
-    
-    Small speed improvement.
-    
-    Change-Id: I61281fb852e8e31851a350e3ae756676705024a4
-    Reviewed-on: https://go-review.googlesource.com/20027
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I232ad1729343d020254e313cfff182695ad6fc54
+    Reviewed-on: https://go-review.googlesource.com/17401
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go    |  9 +++++++--
+ src/cmd/compile/internal/gc/mparith2.go |  6 ++++++
+ src/go/types/stdlib_test.go             |  1 +
+ test/fixedbugs/issue13471.go            | 25 +++++++++++++++++++++++++
+ 4 files changed, 39 insertions(+), 2 deletions(-)

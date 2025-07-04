@@ -1,19 +1,50 @@
-commit 5e48d2b62a4bf6f9ee11905f1c5f93da648df42f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 5 16:31:24 2017 -0500
+commit 39d4693bac5ed85765a05f25ac68b2d4771ee470
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 1 19:30:57 2017 -0400
 
-    cmd/go: ignore stderr from tool version checks
+    misc/cgo/testsanitizers: convert test.bash to Go
     
-    There are multiple valid reasons a tool might print to stderr.
-    As long as we get the expected output on stdout, that's fine.
+    This makes it much easier to run individual failing subtests.
     
-    Fixes #22588.
+    Use $(go env CC) instead of always defaulting to clang; this makes it
+    easier to test with other compilers.
     
-    Change-Id: I9c5d32da08288cb26dd575530a8257cd5f375367
-    Reviewed-on: https://go-review.googlesource.com/76017
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run C binaries to detect incompatible compiler/kernel pairings instead
+    of sniffing versions.
+    
+    updates #21196
+    
+    Change-Id: I0debb3cc4a4244df44b825157ffdc97b5c09338d
+    Reviewed-on: https://go-review.googlesource.com/52910
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go               | 15 +++++++++++++++
- src/cmd/go/internal/work/buildid.go | 11 +++++++----
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ misc/cgo/testsanitizers/cc_test.go               | 441 +++++++++++++++++++++++
+ misc/cgo/testsanitizers/cshared_test.go          |  74 ++++
+ misc/cgo/testsanitizers/msan_test.go             |  55 +++
+ misc/cgo/testsanitizers/{ => src}/msan.go        |   0
+ misc/cgo/testsanitizers/{ => src}/msan2.go       |   0
+ misc/cgo/testsanitizers/src/msan2_cmsan.go       |  38 ++
+ misc/cgo/testsanitizers/{ => src}/msan3.go       |   0
+ misc/cgo/testsanitizers/{ => src}/msan4.go       |   0
+ misc/cgo/testsanitizers/{ => src}/msan5.go       |   0
+ misc/cgo/testsanitizers/{ => src}/msan_fail.go   |   0
+ misc/cgo/testsanitizers/{ => src}/msan_shared.go |   0
+ misc/cgo/testsanitizers/{ => src}/tsan.go        |   0
+ misc/cgo/testsanitizers/{ => src}/tsan10.go      |   0
+ misc/cgo/testsanitizers/{ => src}/tsan11.go      |   0
+ misc/cgo/testsanitizers/{ => src}/tsan12.go      |   0
+ misc/cgo/testsanitizers/{ => src}/tsan2.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan3.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan4.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan5.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan6.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan7.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan8.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan9.go       |   0
+ misc/cgo/testsanitizers/{ => src}/tsan_shared.go |   0
+ misc/cgo/testsanitizers/test.bash                | 233 ------------
+ misc/cgo/testsanitizers/tsan_test.go             |  56 +++
+ src/cmd/dist/test.go                             |   2 +-
+ 27 files changed, 665 insertions(+), 234 deletions(-)

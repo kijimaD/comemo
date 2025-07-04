@@ -1,0 +1,20 @@
+commit a55f9d93e31c885f104896dc7c03fa14ec1a1b29
+Author: Julian Dax <julian.dax@posteo.de>
+Date:   Mon Jul 15 16:36:07 2024 +0200
+
+    cmd/go/internal/test: update documentation for the "go test" command
+    
+    The documentation referred to the package's source root as $GOPATH, which is no longer correct.
+    
+    Fixes #64303
+    
+    Change-Id: I2ea113497975726468d4ee4f85e2cfcbea9a76d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598235
+    Reviewed-by: Julian Dax <julian.dax@posteo.de>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go            | 8 ++++----
+ src/cmd/go/internal/test/test.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

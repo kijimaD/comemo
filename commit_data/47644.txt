@@ -1,34 +1,52 @@
-commit f463b20789c89f0d22e56663a34e57a942f945cf
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Nov 29 15:07:04 2021 -0500
+commit 9e7bc80b31088dc62faf4776ffdb1a2e27afa94e
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Tue Mar 16 12:35:35 2021 +1030
 
-    runtime: keep //go:cgo_unsafe_args arguments alive to prevent GC
+    os: reuse readdir buffers on unix with a sync.Pool
     
-    When syscall's DLL.FindProc calls into syscall_getprocaddress with a
-    byte slice pointer, we need to keep those bytes alive. Otherwise the GC
-    will collect the allocation, and we wind up calling `GetProcAddress` on
-    garbage, which showed up as various flakes in the builders. It turns out
-    that this problem extends to many uses of //go:cgo_unsafe_args
-    throughout, on all platforms. So this patch fixes the issue by keeping
-    non-integer pointer arguments alive through their invocation in
-    //go:cgo_unsafe_args functions.
+    (*File).readdir allocates a fixed-size 8KiB buffer on unix systems that
+    cannot be reused. While it accounts for just a single allocation, it's
+    more than large enough to show up in profiles and make things quite a
+    bit slower.
     
-    Fixes #49731.
+    Instead of allocating so often, use a sync.Pool to allow these buffers to
+    be reused. This has a large impact on readdir heavy workloads.
     
-    Change-Id: I93e4fbc2e8e210cb3fc53149708758bb33f2f9c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367654
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Package os benchmarks:
+    
+    name            old time/op    new time/op    delta
+    Readdirname-12    35.6µs ± 5%    18.1µs ± 4%  -49.00%  (p=0.000 n=10+10)
+    Readdir-12         142µs ± 1%     121µs ± 0%  -14.87%  (p=0.000 n=10+9)
+    ReadDir-12        44.0µs ± 6%    28.4µs ± 8%  -35.58%  (p=0.000 n=9+10)
+    
+    name            old alloc/op   new alloc/op   delta
+    Readdirname-12    14.4kB ± 0%     6.2kB ± 0%  -57.08%  (p=0.000 n=10+10)
+    Readdir-12        41.6kB ± 0%    33.4kB ± 0%  -19.77%  (p=0.000 n=10+9)
+    ReadDir-12        21.9kB ± 0%    13.7kB ± 0%  -37.39%  (p=0.000 n=10+10)
+    
+    name            old allocs/op  new allocs/op  delta
+    Readdirname-12       131 ± 0%       130 ± 0%   -0.76%  (p=0.000 n=10+10)
+    Readdir-12           367 ± 0%       366 ± 0%   -0.27%  (p=0.000 n=10+10)
+    ReadDir-12           249 ± 0%       248 ± 0%   -0.40%  (p=0.000 n=10+10)
+    
+    A clunky benchmark I threw together that calls filepath.WalkDir on $GOMODCACHE:
+    
+    name        old time/op    new time/op    delta
+    WalkDir-12    91.2ms ±19%    48.7ms ± 0%  -46.54%  (p=0.000 n=10+10)
+    
+    name        old alloc/op   new alloc/op   delta
+    WalkDir-12    54.0MB ± 0%     7.6MB ± 0%  -85.92%  (p=0.000 n=8+9)
+    
+    name        old allocs/op  new allocs/op  delta
+    WalkDir-12      136k ± 0%      130k ± 0%   -4.15%  (p=0.000 n=8+8)
+    
+    Change-Id: I00e4d48726da0e46c528ab205409afd03127b844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302169
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/sys_darwin.go       | 94 +++++++++++++++++++++++++++++++++--------
- src/runtime/sys_darwin_arm64.go |  4 +-
- src/runtime/sys_openbsd.go      | 22 +++++++---
- src/runtime/sys_openbsd1.go     |  5 ++-
- src/runtime/sys_openbsd2.go     | 36 +++++++++++++---
- src/runtime/syscall_solaris.go  |  2 +
- src/runtime/syscall_windows.go  |  4 ++
- 7 files changed, 138 insertions(+), 29 deletions(-)
+ src/os/dir_unix.go  | 29 +++++++++++++++++++++--------
+ src/os/file_unix.go |  1 +
+ 2 files changed, 22 insertions(+), 8 deletions(-)

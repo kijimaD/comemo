@@ -1,18 +1,15 @@
-commit cd133abc5b5cd37f4ac796d86f9e9dbb913903d8
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Dec 1 09:26:18 2022 +0000
+commit 56a539724809122ecee26acddc3b8a7b775afed6
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Feb 4 17:11:18 2022 -0500
 
-    net: acquire thread in resSearch
+    testing: remove TODO and link to fuzz docs
     
-    Change-Id: I042906d8eee8defafbd98f671fd30c2a68281705
-    GitHub-Last-Rev: 0660c9a989600eeb8652d1228777488d28397731
-    GitHub-Pull-Request: golang/go#57021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454396
+    Change-Id: I3f5ee9629b0b0f3f29a021a656dbf3bca27e582d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383415
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/cgo_unix.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/testing/testing.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

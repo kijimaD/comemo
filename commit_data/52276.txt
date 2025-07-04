@@ -1,31 +1,21 @@
-commit b37c0602cdc9b7f13b3d539663e68b12f10b44b1
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 13 14:34:38 2023 +0100
+commit 347534343b114d9183efeefcb1d49458e1e8e34f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 21 14:48:58 2022 -0400
 
-    cmd/link: store COFF symbol complex type in the LSB instead of the MSB
+    Revert "runtime/internal/syscall: use ABIInternal for Syscall6 on amd64"
     
-    Microsoft's PE documentation is contradictory. It says that the
-    symbol's complex type [1] is stored in the pesym.Type most significant
-    byte (MSB), but MSVC, LLVM, and mingw store it in the 4 high bits of
-    the less significant byte (LSB). dumpbin understands both encoding.
+    This reverts CL 401096. Grandparent CL 388477 breaks cmd/go
+    TestScript/cover_pkgall_runtime.
     
-    Previous to CL 475355 the Go compiler mixed MSB and LSB encoding.
-    CL 475355 updated to compiler to use the MSB, but this causes problems
-    with mingw, which emits a warning when MSB is used.
+    For #51087.
+    For #52472.
     
-    For reference, LLVM also hit this issue long time ago:
-    https://github.com/llvm/llvm-project/issues/8692
-    
-    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#type-representation
-    
-    Change-Id: I7e750bde9c20e2c4c1c023203d7abd6fb26d9d30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475855
+    Change-Id: Ie82fe5f50975f66eb91fb0d01cd8bbbd0265eb4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401634
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/internal/ld/pe.go       | 14 ++++++++++----
- src/cmd/link/internal/loadpe/ldpe.go |  5 ++++-
- 2 files changed, 14 insertions(+), 5 deletions(-)
+ src/runtime/internal/syscall/asm_linux_amd64.s | 44 +++++++++-----------------
+ 1 file changed, 15 insertions(+), 29 deletions(-)

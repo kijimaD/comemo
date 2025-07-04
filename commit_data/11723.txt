@@ -1,12 +1,12 @@
-commit 073aeff785c8fc2e187e48842f795012addfdf49
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 9 09:25:10 2012 +1100
+commit c59dc485cdbd6e70ab5e8ed1b8e2d9a7e316dbe5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 08:58:40 2012 +1100
 
-    runtime: fix "SysReserve returned unaligned address" bug on 32-bit systems
+    bytes.Buffer: return error in WriteTo if buffer is not drained
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5642064
+    https://golang.org/cl/5642065
 
- src/pkg/runtime/malloc.goc | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/bytes/buffer.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,16 +1,35 @@
-commit d6f2f833c93a41ec1c68e49804b8387a06b131c5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 31 20:13:50 2019 +0000
+commit 02fe6ba95867b3858d62958ce487a47798bef1b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 08:24:27 2019 -0400
 
-    strings: remove a redundant and flaky part of a test
+    all: remove PEM-encoded private keys from tests
     
-    Fixes #35280
+    Gerrit is complaining about pushes that affect these files
+    and forcing people to use -o nokeycheck, which defeats
+    the point of the check. Hide the keys from this kind of scan
+    by marking them explicitly as testing keys.
     
-    Change-Id: I6fa3747ff7b92c6fcabdf8692d85e103de55859f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204598
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This is a little annoying but better than training everyone
+    who ever edits one of these test files to reflexively override
+    the Gerrit check.
+    
+    The only remaining keys explicitly marked as private instead
+    of testing are in examples, and there's not much to do
+    about those. Hopefully they are not edited as much.
+    
+    Change-Id: I4431592b5266cb39fe6a80b40e742d97da803a0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178178
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/builder_test.go | 15 ---------------
- 1 file changed, 15 deletions(-)
+ src/crypto/rsa/pkcs1v15_test.go         |  6 ++---
+ src/crypto/tls/handshake_server_test.go | 22 ++++++++---------
+ src/crypto/tls/tls_test.go              | 22 +++++++++--------
+ src/crypto/x509/pem_decrypt_test.go     | 44 +++++++++++++++++----------------
+ src/crypto/x509/x509_test.go            | 12 ++++-----
+ src/crypto/x509/x509_test_import.go     |  9 ++++---
+ src/encoding/pem/pem_test.go            | 36 ++++++++++++++-------------
+ src/net/http/internal/testcert.go       |  8 ++++--
+ src/net/smtp/smtp_test.go               |  8 +++---
+ 9 files changed, 91 insertions(+), 76 deletions(-)

@@ -1,25 +1,19 @@
-commit d941b07558882439fa38a0beda68bd1041856c77
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 22 18:10:08 2017 -0400
+commit 7d80a2ea18f48d309115bbe950422c54e31a14e8
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jul 19 00:09:35 2017 +0200
 
-    runtime: eliminate write barriers from persistentalloc
+    runtime: allow crash() to raise SIGABRT on darwin/arm64
     
-    We're about to start tracking nowritebarrierrec through systemstack
-    calls, which will reveal write barriers in persistentalloc prohibited
-    by various callers.
+    To avoid gigantic core dumps, the runtime avoids raising SIGABRT
+    on crashes on 64-bit Darwin systems. Mobile OS'es (probably) don't
+    generate huge core dumps, so to aid crash reporters, allow SIGABRT
+    on crashes on darwin/arm64.
     
-    The pointers manipulated by persistentalloc are always to off-heap
-    memory, so this removes these write barriers statically by introducing
-    a new go:notinheap type to represent generic off-heap memory.
-    
-    Updates #22384.
-    For #22460.
-    
-    Change-Id: Id449d9ebf145b14d55476a833e7f076b0d261d57
-    Reviewed-on: https://go-review.googlesource.com/72771
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I4a29608f400967d76f9bd0643fea22244c2da9df
+    Reviewed-on: https://go-review.googlesource.com/49770
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go | 30 +++++++++++++++++++++++-------
- 1 file changed, 23 insertions(+), 7 deletions(-)
+ src/runtime/signal_unix.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

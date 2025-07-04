@@ -1,16 +1,62 @@
-commit 3dd029aa7e5b3e770e21bd8b03981c3ef0b59c23
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 24 14:13:47 2015 +0900
+commit bd043d862962ec844994a658d8b4f8ab89b6d80e
+Author: Evan Phoenix <evan@phx.io>
+Date:   Wed Jan 28 09:16:44 2015 -0800
 
-    net: enable TestTCPReadWriteAllocs in short mode
+    expvar: Use sync/atomic to manipulate Int for better perf
     
-    The change 2096 removed unwanted allocations and a few noises in test
-    using AllocsPerRun. Now it's safe to enable this canary test on netpoll
-    hotpaths.
+    Using a mutex to protect a single int operation is quite heavyweight.
+    Using sync/atomic provides much better performance. This change was
+    benchmarked as such:
     
-    Change-Id: Icdbee813d81c1410a48ea9960d46447042976905
-    Reviewed-on: https://go-review.googlesource.com/5713
+    BenchmarkSync   10000000       139 ns/op
+    BenchmarkAtomic 200000000      9.90 ns/op
+    
+    package blah
+    
+    import (
+            "sync"
+            "sync/atomic"
+            "testing"
+    )
+    
+    type Int struct {
+            mu sync.RWMutex
+            i  int64
+    }
+    
+    func (v *Int) Add(delta int64) {
+            v.mu.Lock()
+            defer v.mu.Unlock()
+            v.i += delta
+    }
+    
+    type AtomicInt struct {
+            i int64
+    }
+    
+    func (v *AtomicInt) Add(delta int64) {
+            atomic.AddInt64(&v.i, delta)
+    }
+    
+    func BenchmarkSync(b *testing.B) {
+            s := new(Int)
+    
+            for i := 0; i < b.N; i++ {
+                    s.Add(1)
+            }
+    }
+    
+    func BenchmarkAtomic(b *testing.B) {
+            s := new(AtomicInt)
+    
+            for i := 0; i < b.N; i++ {
+                    s.Add(1)
+            }
+    }
+    
+    Change-Id: I6998239c785967647351bbfe8533c38e4894543b
+    Reviewed-on: https://go-review.googlesource.com/3430
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/tcp_test.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/expvar/expvar.go | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)

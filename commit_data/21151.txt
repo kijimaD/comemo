@@ -1,49 +1,29 @@
-commit e6d351126475dd55d9f2094c22a11c63919ab106
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 5 16:29:21 2015 +0000
+commit 2b3f37908060837f8715c61af110b01b8a590c7c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 20 09:51:02 2014 -0500
 
-    Revert "liblink, cmd/ld, runtime: remove stackguard1"
+    runtime: fix atomic operations on non-heap addresses
+    Race detector runtime does not tolerate operations on addresses
+    that was not previously declared with __tsan_map_shadow
+    (namely, data, bss and heap). The corresponding address
+    checks for atomic operations were removed in
+    https://golang.org/cl/111310044
+    Restore these checks.
+    It's tricker than just not calling into race runtime,
+    because it is the race runtime that makes the atomic
+    operations themselves (if we do not call into race runtime
+    we skip the atomic operation itself as well). So instead we call
+    __tsan_go_ignore_sync_start/end around the atomic operation.
+    This forces race runtime to skip all other processing
+    except than doing the atomic operation itself.
+    Fixes #9136.
     
-    This reverts commit ab0535ae3fb45ba734d47542cc4845f27f708d1b.
-    
-    I think it will remain useful to distinguish code that must
-    run on a system stack from code that can run on either stack,
-    even if that distinction is no
-    longer based on the implementation language.
-    
-    That is, I expect to add a //go:systemstack comment that,
-    in terms of the old implementation, tells the compiler,
-    to pretend this function was written in C.
-    
-    Change-Id: I33d2ebb2f99ae12496484c6ec8ed07233d693275
-    Reviewed-on: https://go-review.googlesource.com/2275
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/179030043
 
- include/link.h                  |  1 +
- src/cmd/ld/lib.c                | 53 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/ld/lib.h                |  1 +
- src/cmd/ld/pobj.c               |  1 +
- src/liblink/obj5.c              | 11 ++++++---
- src/liblink/obj6.c              | 19 +++++++++++----
- src/liblink/obj8.c              | 19 +++++++++++----
- src/liblink/obj9.c              | 11 ++++++---
- src/liblink/objfile.c           |  7 +++++-
- src/runtime/asm_386.s           |  6 +++--
- src/runtime/asm_amd64.s         |  6 +++--
- src/runtime/asm_amd64p32.s      |  3 ++-
- src/runtime/asm_arm.s           |  6 +++--
- src/runtime/asm_ppc64x.s        |  3 ++-
- src/runtime/lock_futex.go       |  2 +-
- src/runtime/lock_sema.go        |  2 +-
- src/runtime/malloc.go           |  6 ++---
- src/runtime/proc1.go            | 49 ++++++++++++++++++++-----------------
- src/runtime/runtime1.go         |  2 +-
- src/runtime/runtime2.go         | 12 ++++++----
- src/runtime/stack1.go           | 21 ++++++++++------
- src/runtime/stack2.go           |  2 +-
- src/runtime/sys_plan9_386.s     |  3 ++-
- src/runtime/sys_plan9_amd64.s   |  3 ++-
- src/runtime/sys_solaris_amd64.s |  3 ++-
- src/runtime/sys_windows_386.s   |  6 +++--
- src/runtime/sys_windows_amd64.s |  6 +++--
- 27 files changed, 192 insertions(+), 72 deletions(-)
+ src/runtime/race.c                 | 13 ++++++------
+ src/runtime/race/race_unix_test.go | 30 ++++++++++++++++++++++++++
+ src/runtime/race_amd64.s           | 43 ++++++++++++++++++++++++++++++++------
+ 3 files changed, 73 insertions(+), 13 deletions(-)

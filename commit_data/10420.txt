@@ -1,12 +1,12 @@
-commit d0b9a84ab3da756fdd5cc89f0342ded96a2855c4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 16 13:41:26 2011 -0800
+commit 293059ad85e95749f937fff04a96a8ec9b31136f
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Nov 16 16:23:50 2011 -0500
 
-    go/ast: remove unused receiver names (cleanup)
+    cov: fix for Plan 9 build
     
-    R=iant, iant
-    CC=golang-dev
-    https://golang.org/cl/5393047
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5374086
 
- src/pkg/go/ast/ast.go | 100 +++++++++++++++++++++++++-------------------------
- 1 file changed, 50 insertions(+), 50 deletions(-)
+ src/cmd/cov/main.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

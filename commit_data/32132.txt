@@ -1,16 +1,16 @@
-commit 6b53dd4f2b3a30b010f3c0cc5dabc8a7ad896c15
+commit 9eddc3a3561eed1f735491f89cf935cb5189a897
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jul 29 07:25:39 2017 -0700
+Date:   Fri Apr 7 08:28:00 2017 -0700
 
-    math/rand: use t.Helper in tests
+    cmd/vet/all: add countBytes exemption to amd64 whitelist
     
-    Change-Id: Iece39e6412c0f6c63f563eed1621b8cca02de835
-    Reviewed-on: https://go-review.googlesource.com/51890
+    Fixes vetall build broken by CL 38693.
+    
+    Change-Id: I5c98f2164e0c7bb43f022c363b3b7c0650c4bcbe
+    Reviewed-on: https://go-review.googlesource.com/39916
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/rand/rand_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/vet/all/whitelist/amd64.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

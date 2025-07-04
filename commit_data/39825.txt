@@ -1,17 +1,20 @@
-commit 112a72a020f8976876ea7644f9220dbfb0f85464
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Sep 7 04:40:38 2019 +1000
+commit 869620bbeaef7698ef6210c896f913257fe2e43b
+Author: Petr Jediný <petr.jediny@gmail.com>
+Date:   Sat Mar 23 00:00:48 2019 +0000
 
-    cmd/asm/internal/arch: consolidate LinkArch handling
+    log: expose Writer() method of the standard logger
     
-    Rather than manually setting the LinkArch for each case, pass the correct
-    *obj.LinkArch to the arch* function, as is already done for archX86().
+    The Go 1.12 introduced Writer() method for logger objects, but
+    it was not exposed as log package function for standard logger.
+    This commit adds such Writer() function.
     
-    Change-Id: I4cf950780aa30a1385e785fb1d26edacb99bda79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193818
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia81b1524839fe05c152ecb5eaef047a076349fea
+    GitHub-Last-Rev: dc152ea641dd928178dbd921e2d0f6361661a0d6
+    GitHub-Pull-Request: golang/go#31009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168920
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/asm/internal/arch/arch.go | 40 +++++++++++++--------------------------
- 1 file changed, 13 insertions(+), 27 deletions(-)
+ src/log/log.go | 5 +++++
+ 1 file changed, 5 insertions(+)

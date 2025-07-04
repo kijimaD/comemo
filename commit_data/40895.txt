@@ -1,25 +1,38 @@
-commit 6d5f8b11d57e1896caebd5cc551f6d0d4a05a2f1
+commit 2b8b34aa30b69d66d48aedc5ffb4a9f26f37988f
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 22 10:34:55 2019 -0500
+Date:   Thu Aug 8 18:09:54 2019 -0400
 
-    misc/cgo/testshared: do not write to GOROOT
+    cmd/go: query each path only once in 'go get'
     
-    Instead of installing shared libraries to GOROOT/pkg, clone the
-    necessary files into a new GOROOT and run there.
+    If we don't know whether a path is a module path or a package path,
+    previously we would first try a module query for it, then fall back to
+    a package query.
     
-    Given that we now have a build cache, ideally we should not need to
-    install into GOROOT/pkg at all, but we can't fix that during the 1.14
-    code freeze.
+    If we are using a sequence of proxies with fallback (as will be the
+    default in Go 1.13), and the path is not actually a module path, that
+    initial module query will fail against the first proxy, then
+    immediately fall back to the next proxy in the sequence — even if the
+    query could have been satisfied by some other (prefix) module
+    available from the first proxy.
     
-    Updates #28387
-    Updates #28553
-    Updates #30316
+    Instead, we now query the requested path as only one kind of path.
+    If we query it as a package path but it turns out to only exist as a
+    module, we can detect that as a PackageNotInModuleError with an
+    appropriate module path — we do not need to issue a second query to
+    classify it.
     
-    Change-Id: I83084a8ca29a5dffcd586c7fccc3f172cac57cc6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208482
+    Fixes #31785
+    
+    Change-Id: I581d44279196e41d1fed27ec25489e75d62654e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189517
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/testshared/shared_test.go | 176 ++++++++++++++++++++++++++-----------
- 1 file changed, 127 insertions(+), 49 deletions(-)
+ src/cmd/go/internal/modfetch/repo.go            |  2 +-
+ src/cmd/go/internal/modget/get.go               | 43 +++++++++++++---------
+ src/cmd/go/internal/modload/query.go            | 47 +++++++++++++------------
+ src/cmd/go/testdata/script/mod_get_fallback.txt | 10 ++++++
+ src/cmd/go/testdata/script/mod_get_newcycle.txt |  2 ++
+ src/cmd/go/testdata/script/mod_sumdb.txt        |  4 +--
+ 6 files changed, 66 insertions(+), 42 deletions(-)

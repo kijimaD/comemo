@@ -1,17 +1,25 @@
-commit b7cdc277e15eb2fc63f8377fd5a8e0b922db8532
-Author: Park Zhou <ideapark@139.com>
-Date:   Tue Nov 14 16:17:05 2023 +0800
+commit c85848a4a62f839427bb56cb2772e008e405cf1f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 24 12:43:22 2022 +0700
 
-    cmd/compile/internal/ir: fix doc
+    cmd/compile: fix inline static init with derived types
     
-    Signed-off-by: Park Zhou <ideapark@139.com>
-    Change-Id: I5e42ca6c714b9c1b50241c9d738db366bf1ca1fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542175
+    CL 450136 added handling for simple calls in staticinit. If there's any
+    derived types conversion in the body of generic function called, that
+    conversion will require runtime dictionary, thus the optimization could
+    not happen.
+    
+    Fixes #56923
+    
+    Change-Id: I498cee9f8ab4397812ef79a6c2ab6c55e0ee4aef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Gabriel Morency (Amgc63spaming) <morencyvincent8@gmail.com>
 
- src/cmd/compile/internal/ir/expr.go | 2 +-
- src/cmd/compile/internal/ir/func.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/staticinit/sched.go |  5 +++++
+ test/fixedbugs/issue56923.go                 | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

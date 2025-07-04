@@ -1,15 +1,13 @@
-commit 696a7e1595e30c1d05c4556b1bcf3107eae5609a
+commit a60b91d5ad7522813ecc2b67df0b321723dffc9b
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 5 14:31:26 2014 -0700
+Date:   Mon May 5 10:45:56 2014 -0700
 
-    doc: refer to wiki page for downloads
+    tag go1.2.2
     
-    We will serve downloads from here until we work out a better plan.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/95980044
+    https://golang.org/cl/96000043
 
- doc/install.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,21 +1,17 @@
-commit 97b49f660cbb37ff6789dbb92b1a6ded394d3d7d
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Nov 3 14:57:05 2016 +0100
+commit cfc0d6d8847eb959da2b6bd1c0fe1c0c7a19873e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 9 11:28:07 2016 -0700
 
-    net: fix Dial(":80") on Plan 9
+    cmd/compile/internal/syntax: remove strbyteseql
     
-    CL 32101 fixed Dial(":80") on Windows and added TestDialLocal,
-    which was failing on Plan 9, because it wasn't implemented
-    on Plan 9.
+    cmd/compile already optimizes "string(b) == s" to avoid allocating a
+    temporary string.
     
-    This change implements Dial(":80") by connecting to 127.0.0.1
-    or ::1 (depending on network), so it works as documented.
-    
-    Fixes #17760.
-    
-    Change-Id: If0ff769299e09bebce11fc3708639c1d8c96c280
-    Reviewed-on: https://go-review.googlesource.com/32593
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4244fbeae8d350261494135c357f9a6e2ab7ace3
+    Reviewed-on: https://go-review.googlesource.com/28931
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/ipsock_plan9.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/cmd/compile/internal/syntax/scanner.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

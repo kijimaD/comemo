@@ -1,20 +1,15 @@
-commit 0e10196982e81be38c46b77572837ccf90cb3366
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 21 14:58:08 2013 -0700
+commit 6f5af9c0b1c242ac74f415a3ce9f9a8437c54324
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue May 21 18:35:47 2013 +0200
 
-    database/sql: remove extra RemoveDep call
+    cmd/gc: fix confusing error with broken types and defer/go
     
-    This should have been removed in 45c12efb4635. Not a correctness
-    issue, but unnecessary work.
+    Fixes #5172.
     
-    This CL also adds paranoia checks in removeDep so this doesn't
-    happen again.
-    
-    Fixes #5502
-    
-    R=adg
-    CC=gobot, golang-dev, google
-    https://golang.org/cl/9543043
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/9614044
 
- src/pkg/database/sql/sql.go | 27 ++++++++++++++++-----------
- 1 file changed, 16 insertions(+), 11 deletions(-)
+ src/cmd/gc/typecheck.c      |  5 +++++
+ test/fixedbugs/issue5172.go | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+)

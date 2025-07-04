@@ -1,23 +1,25 @@
-commit f7ef5ca54a103ed67425e1efe6d39d3bc8067bad
-Author: Pantelis Sampaziotis <psampaz@gmail.com>
-Date:   Wed Oct 14 19:42:13 2020 +0000
+commit 12579009b3f7eb6d137863d5ca87e295c9d88641
+Author: Colin <me@colinking.co>
+Date:   Wed Apr 22 15:53:52 2020 +0000
 
-    crypto/x509: add Unwrap to SystemRootsError
+    database/sql: count connections expired in foreground with MaxLifetimeClosed
     
-    This change modifies Go to add the Unwrap method to SystemRootsError
+    Previously the connection pool would only count connections
+    expired in the background connectionCleaner goroutine towards the
+    MaxLifetimeClosed stat.
     
-    Updates #30322
+    This change increments the stat correctly when checking for
+    expiry in when acquiring and releasing a connection.
     
-    Change-Id: Ibe63d1d0bc832fc0607f09053908d55275a6f350
-    GitHub-Last-Rev: 9a95bc66019d25f02a0a5f92a87e9405a52802e4
-    GitHub-Pull-Request: golang/go#41981
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262343
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #38058
+    
+    Change-Id: Id707ddd40a42a4c38658d5f2931da131647d6c29
+    GitHub-Last-Rev: 0f205ede439efa355a628b6112450f2ca9ced005
+    GitHub-Pull-Request: golang/go#38263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227278
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/crypto/x509/verify.go      | 2 ++
- src/crypto/x509/verify_test.go | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ src/database/sql/sql.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

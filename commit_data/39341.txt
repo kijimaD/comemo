@@ -1,47 +1,28 @@
-commit b33652642286cf4c3fc8b10cdda97bd58059ba3e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jun 7 10:39:21 2019 +0100
+commit e3d99a3f8608e308eedc201b83eeb2f0e0d9dc81
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Feb 24 15:18:02 2019 +0100
 
-    os: change UserConfigDir on Darwin to ~/Library/Application Support
+    misc/android,cmd/dist: move $GOROOT copying to the exec wrapper
     
-    The old code used ~/Library/Preferences, which is documented by
-    Apple as:
+    To run the standard library tests on Android, the androidtest.bash
+    script copies GOROOT to the device. Move that logic to the android
+    exec wrapper, thereby making androidtest.bash obsolete.
     
-            This directory contains app-specific preference files. You
-            should not create files in this directory yourself. Instead, use
-            the NSUserDefaults class or CFPreferences API to get and set
-            preference values for your app.
+    Apart from making Android less special, the sharded builder
+    infrastructure should now be able to run (emulated) Android builders
+    and trybots without special treatment.
     
-    It looks like we missed everything after the first sentence; it's
-    definitely not the right choice for files that Go programs and users
-    should be touching directly.
+    Updates #23824
     
-    Instead, use ~/Library/Application Support, which is documented as:
-    
-            Use this directory to store all app data files except those
-            associated with the user’s documents. For example, you might use
-            this directory to store app-created data files, configuration
-            files, templates, or other fixed or modifiable resources that
-            are managed by the app. An app might use this directory to store
-            a modifiable copy of resources contained initially in the app’s
-            bundle. A game might use this directory to store new levels
-            purchased by the user and downloaded from a server.
-    
-    This seems in line with what UserConfigDir is for, so use it.
-    
-    The documentation quotes above are obtained from the surprisingly long
-    link below:
-    
-    https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html
-    
-    Fixes #32475.
-    
-    Change-Id: Ic27a6c92d76a5d7a4d4b8eac5cd8472f67a533a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181177
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I41591fea9a15b38c6dcf84046ea57f1e9165eaa5
+    Reviewed-on: https://go-review.googlesource.com/c/163619
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/env_write.txt | 2 +-
- src/os/file.go                           | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ misc/android/README             | 16 ++++++-------
+ misc/android/cleaner.go         | 41 --------------------------------
+ misc/android/go_android_exec.go | 46 ++++++++++++++++++++++++++++++++++++
+ src/androidtest.bash            | 52 ++---------------------------------------
+ src/cmd/dist/build.go           |  6 ++++-
+ 5 files changed, 61 insertions(+), 100 deletions(-)

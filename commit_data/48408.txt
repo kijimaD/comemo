@@ -1,28 +1,41 @@
-commit 1cfe1007cdf17ee381443cd0d8ae31962805f96e
+commit f3fc8b5779314bae827b868deb916c7a8e748907
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 15 22:44:31 2022 -0700
+Date:   Mon May 17 11:40:02 2021 -0700
 
-    cmd/compile: remove typecheckdef and Name.Walkdef
+    [dev.typeparams] cmd/compile: simplify type alias handling for export
     
-    The only remaining use for typecheckdef after CL 393256 is to
-    typecheck the ONAME node that represents function names, so we might
-    as well just move that code into tcFunc instead.
+    Currently the exporter uses types.IsDotAlias(n.Sym()) to recognize
+    that n is a type alias, but IsDotAlias is actually meant for
+    recognizing aliases introduced by dot imports. Translated to go/types,
+    the current logic amounts recognizing type aliases as if by:
     
-    Updates #51691.
+            var n *types.TypeName
+            typ, ok := n.Pkg().Scope().Lookup(n.Name()).Type().(*types.Named)
+            isAlias := !ok || typ.Obj().Pkg() != n.Pkg() || typ.Obj().Name() != n.Name()
     
-    Change-Id: Icbca51d4b0fb33c90faa95f16254c7171b171d8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393367
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    But we can instead just check n.Alias() (eqv. n.IsAlias() in
+    go/types). In addition to being much simpler, this is also actually
+    correct for recognizing function-scoped type declarations (though we
+    don't currently support those anyway, nor would they go through this
+    exact code path).
+    
+    To avoid possible future misuse of IsDotAlias, this CL also inlines
+    its trivial definition into its only call site.
+    
+    Passes toolstash -cmp, also w/ -gcflags=all=-G=3.
+    
+    Change-Id: I7c6283f4b58d5311aa683f8229bbf62f8bab2ff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320613
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ir/mini.go             |  5 +--
- src/cmd/compile/internal/ir/name.go             |  7 ---
- src/cmd/compile/internal/noder/expr.go          |  1 -
- src/cmd/compile/internal/noder/object.go        |  1 -
- src/cmd/compile/internal/noder/reader.go        |  1 -
- src/cmd/compile/internal/typecheck/func.go      |  8 +++-
- src/cmd/compile/internal/typecheck/stmt.go      |  1 -
- src/cmd/compile/internal/typecheck/typecheck.go | 60 -------------------------
- 8 files changed, 9 insertions(+), 75 deletions(-)
+ src/cmd/compile/internal/noder/decl.go          | 8 +-------
+ src/cmd/compile/internal/noder/import.go        | 2 +-
+ src/cmd/compile/internal/noder/object.go        | 1 +
+ src/cmd/compile/internal/typecheck/iexport.go   | 2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go | 5 -----
+ src/cmd/compile/internal/types/pkg.go           | 4 ----
+ 6 files changed, 4 insertions(+), 18 deletions(-)

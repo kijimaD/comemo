@@ -1,15 +1,12 @@
-commit 9c643bb3fab4457c1a789e9aad75b5aaf7090753
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 26 18:23:21 2011 -0700
+commit aeaa8171407675611b3d08f1d0950f72c0929ad1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 19:52:34 2011 -0400
 
-    exp/norm: fix benchmark bug
+    websocket: remove use of container/vector
     
-    - don't use range over string to copy string bytes
-    - some code simplification
-    
-    R=mpvl
-    CC=golang-dev
-    https://golang.org/cl/5144044
+    R=golang-dev, r
+    CC=golang-dev, ukai
+    https://golang.org/cl/5140046
 
- src/pkg/exp/norm/normalize_test.go | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ src/pkg/websocket/hixie.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

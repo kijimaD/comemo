@@ -1,21 +1,14 @@
-commit 9e66ee456210024ad05ba95f3b245cdc974aba43
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 26 00:43:31 2013 +0100
+commit 4692711d7f172ab69a9576ffbe753314755f780a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 26 06:33:59 2013 +0800
 
-    cmd/gc: fix corruption in export of &T{} literals.
+    strconv, fmt: clarify behavior of CanBackquote and "%#q".
+    Fixes #4858.
     
-    Composite literals using the &T{} form were incorrectly
-    exported, leading to weird errors at import time.
-    
-    Fixes #4879.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
-    https://golang.org/cl/7395054
+    https://golang.org/cl/7387044
 
- src/cmd/gc/fmt.c                  |  8 ++++++--
- src/cmd/gc/typecheck.c            |  6 ++++--
- test/fixedbugs/issue4879.dir/a.go | 33 +++++++++++++++++++++++++++++++++
- test/fixedbugs/issue4879.dir/b.go |  9 +++++++++
- test/fixedbugs/issue4879.go       | 10 ++++++++++
- 5 files changed, 62 insertions(+), 4 deletions(-)
+ src/pkg/fmt/doc.go       | 3 ++-
+ src/pkg/strconv/quote.go | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

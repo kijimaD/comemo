@@ -1,14 +1,16 @@
-commit 3b015616f7623571cde190965c15bd60fd83ef72
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 4 13:41:05 2014 -0800
+commit b38320bffbc2239b5825566676004f4dc45d5444
+Author: Matt Aimonetti <mattaimonetti@gmail.com>
+Date:   Tue Mar 4 11:58:21 2014 -0800
 
-    net/http: improve Client.Timeout docs, quiet test
+    net/http: make Request.ParseForm parse form-urlencoded for method PATCH too
     
-    LGTM=adg
-    R=adg
+    Fixes #7454
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/70930043
+    https://golang.org/cl/70990044
 
- src/pkg/net/http/client.go      | 11 +++++------
- src/pkg/net/http/client_test.go |  2 +-
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/pkg/net/http/request.go      |  2 +-
+ src/pkg/net/http/request_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

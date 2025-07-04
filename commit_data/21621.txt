@@ -1,15 +1,38 @@
-commit a809dc7adb8065368c73900a8256048c55cde79b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 12 15:09:56 2015 -0800
+commit 4ca2fc4d8b3579dc719e7d6e79c2283bfb026a4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 12:01:38 2015 -0500
 
-    math/big: don't scan past a binary exponent if not accepted syntactically
+    [dev.cc] cmd/new5a etc, cmd/internal/asm: edit to produce working Go code
     
-    TBR adonovan
+    These assemblers produce byte-for-byte identical output
+    to the ones written in C.
     
-    Change-Id: I842cbc855dbd560f65e76c9a557dff1a22c5d610
-    Reviewed-on: https://go-review.googlesource.com/4882
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    They are primarily a proof that cmd/internal/obj can be used
+    standalone to produce working object files. (The use via objwriter
+    starts by deserializing an already-constructed internal representation,
+    so objwriter does not exercise the code in cmd/internal/obj that
+    creates such a representation from scratch.)
+    
+    Change-Id: I1793d8d010046cfb9d8b4d2d4469e7f47a3d3ac7
+    Reviewed-on: https://go-review.googlesource.com/3143
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/floatconv.go |  7 ++++---
- src/math/big/ratconv.go   | 23 ++++++++++++++++++-----
- 2 files changed, 22 insertions(+), 8 deletions(-)
+ .gitignore                      |    4 +-
+ src/cmd/go/pkg.go               |    4 +
+ src/cmd/internal/asm/asm.go     | 1179 +++++----------------------
+ src/cmd/internal/asm/lexbody.go |  820 +++++++++----------
+ src/cmd/internal/asm/macbody.go |  399 ++++-----
+ src/cmd/new5a/a.y               |  296 +++----
+ src/cmd/new5a/lex.go            |  231 ++----
+ src/cmd/new5a/y.go              | 1315 ++++++++++++++++++++++++++++++
+ src/cmd/new6a/a.y               |  303 +++----
+ src/cmd/new6a/lex.go            |  233 ++----
+ src/cmd/new6a/y.go              | 1313 ++++++++++++++++++++++++++++++
+ src/cmd/new8a/a.y               |  313 ++++----
+ src/cmd/new8a/lex.go            |  226 ++----
+ src/cmd/new8a/y.go              | 1306 ++++++++++++++++++++++++++++++
+ src/cmd/new9a/a.y               |  489 +++++------
+ src/cmd/new9a/lex.go            |  248 ++----
+ src/cmd/new9a/y.go              | 1694 +++++++++++++++++++++++++++++++++++++++
+ 17 files changed, 7298 insertions(+), 3075 deletions(-)

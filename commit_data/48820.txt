@@ -1,32 +1,45 @@
-commit d68a8d0f27bb3599b49cacd119d7ac3202248050
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Dec 10 17:23:08 2021 +0100
+commit 46e1e74a86ddffa394f8311b0a17d1839403bb04
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 21:57:58 2021 +0000
 
-    crypto/rand: batch and buffer calls to getrandom/getentropy
+    [dev.typeparams] runtime: replace Goarch* constants with internal/goarch versions [generated]
     
-    We're using bufio to batch reads of /dev/urandom to 4k, but we weren't
-    doing the same on newer platforms with getrandom/getentropy. Since the
-    overhead is the same for these -- one syscall -- we should batch reads
-    of these into the same 4k buffer. While we're at it, we can simplify a
-    lot of the constant dispersal.
+    [git-generate]
+    cd src/runtime
+    gofmt -w -r "sys.Goarch386         -> goarch.Is386" .
+    gofmt -w -r "sys.GoarchAmd64       -> goarch.IsAmd64" .
+    gofmt -w -r "sys.GoarchAmd64p32    -> goarch.IsAmd64p32" .
+    gofmt -w -r "sys.GoarchArm         -> goarch.IsArm" .
+    gofmt -w -r "sys.GoarchArmbe       -> goarch.IsArmbe" .
+    gofmt -w -r "sys.GoarchArm64       -> goarch.IsArm64" .
+    gofmt -w -r "sys.GoarchArm64be     -> goarch.IsArm64be" .
+    gofmt -w -r "sys.GoarchPpc64       -> goarch.IsPpc64" .
+    gofmt -w -r "sys.GoarchPpc64le     -> goarch.IsPpc64le" .
+    gofmt -w -r "sys.GoarchMips        -> goarch.IsMips" .
+    gofmt -w -r "sys.GoarchMipsle      -> goarch.IsMipsle" .
+    gofmt -w -r "sys.GoarchMips64      -> goarch.IsMips64" .
+    gofmt -w -r "sys.GoarchMips64le    -> goarch.IsMips64le" .
+    gofmt -w -r "sys.GoarchMips64p32   -> goarch.IsMips64p32" .
+    gofmt -w -r "sys.GoarchMips64p32le -> goarch.IsMips64p32le" .
+    gofmt -w -r "sys.GoarchPpc         -> goarch.IsPpc" .
+    gofmt -w -r "sys.GoarchRiscv       -> goarch.IsRiscv" .
+    gofmt -w -r "sys.GoarchRiscv64     -> goarch.IsRiscv64" .
+    gofmt -w -r "sys.GoarchS390        -> goarch.IsS390" .
+    gofmt -w -r "sys.GoarchS390x       -> goarch.IsS390x" .
+    gofmt -w -r "sys.GoarchSparc       -> goarch.IsSparc" .
+    gofmt -w -r "sys.GoarchSparc64     -> goarch.IsSparc64" .
+    gofmt -w -r "sys.GoarchWasm        -> goarch.IsWasm" .
+    goimports -w *.go
     
-    This also adds a new test case to make sure the buffering works as
-    desired.
-    
-    Change-Id: I7297d4aa795c00712e6484b841cef8650c2be4ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370894
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
-    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9d88e1284efabaeb0ee3733cba6286247d078c85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328345
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/rand/rand_batched_test.go               | 50 ++++++++++++++++---
- src/crypto/rand/rand_dragonfly.go                  |  9 ----
- src/crypto/rand/rand_freebsd.go                    |  9 ----
- src/crypto/rand/rand_getentropy.go                 | 20 +-------
- .../rand/{rand_batched.go => rand_getrandom.go}    | 40 ++++++++-------
- src/crypto/rand/rand_linux.go                      | 14 ------
- src/crypto/rand/rand_solaris.go                    | 10 ----
- src/crypto/rand/rand_unix.go                       | 57 ++++++++++++++++++++--
- 8 files changed, 120 insertions(+), 89 deletions(-)
+ src/runtime/malloc.go | 6 +++---
+ src/runtime/panic.go  | 3 ++-
+ src/runtime/stack.go  | 2 +-
+ src/runtime/trace.go  | 2 +-
+ 4 files changed, 7 insertions(+), 6 deletions(-)

@@ -1,16 +1,13 @@
-commit edc7b4739d750b7954a588a2a6b359db90861da3
+commit df623d03ab2518e691d198b51380a005332d251d
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 7 11:12:54 2012 +0800
+Date:   Tue Aug 7 10:00:58 2012 +0800
 
-    doc: fix some HTML syntax errors
+    cmd/go: remove $WORK paths in generated binaries
+            Fixes #3748.
     
-    R=adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6458043
+    https://golang.org/cl/6357064
 
- doc/articles/concurrency_patterns.html        | 2 +-
- doc/articles/image_package.html               | 8 ++++----
- doc/articles/json_rpc_tale_of_interfaces.html | 2 +-
- doc/code.html                                 | 2 +-
- doc/install.html                              | 6 +++---
- 5 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

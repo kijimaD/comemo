@@ -1,30 +1,16 @@
-commit 88a36c9e9a511ec6ad218633bce1e82f25e54d35
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 1 16:44:21 2023 -0500
+commit 38707059ab76a28a4d156797deada7626b9bd13c
+Author: Ben Shi <ben.shi@streamcomputing.com>
+Date:   Tue Mar 22 14:29:39 2022 +0000
 
-    cmd/go/internal/test: scale the WaitDelay for test subprocesses
+    A+C: change email of Ben Shi (individual CLA)
     
-    Prior to CL 456116 we had an arbitrary 5-second delay after a test
-    times out before we kill the test. In CL 456116, I reused that
-    arbitrary 5-second delay as the WaitDelay as well, but on slower
-    builders it does not seem to be generous enough.
-    
-    Instead of hard-coding the delay, for tests with a finite timout we
-    now use a hard-coded fraction of the overall timeout. That will
-    probably give delays that are longer than strictly necessary for very
-    long timeouts, but if the user is willing to wait for a very long
-    timeout they can probably wait a little longer for I/O too.
-    
-    Fixes #58230.
-    Updates #24050.
-    
-    Change-Id: Ifbf3e576c034c721aa00cd17bf88563474b09955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464555
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Icff75d5fbbeae7aa5003a848ea49b79ddde9933a
+    GitHub-Last-Rev: 489a69fc6bb02a57689a43ae8fb718e5e0177ae6
+    GitHub-Pull-Request: golang/go#51869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394595
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/test/test.go                  | 36 +++++++++++++++++++++--
- src/cmd/go/testdata/script/test_timeout_stdin.txt |  4 +--
- 2 files changed, 35 insertions(+), 5 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

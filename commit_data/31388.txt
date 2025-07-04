@@ -1,24 +1,16 @@
-commit 35cbc3b55b9d5d159a5a7a160ea680b32f043bf8
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Apr 27 11:38:10 2017 +1000
+commit 862fde81fc015720741fcb4ba9593bcc511f9aaf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 14 10:28:40 2017 -0800
 
-    image/jpeg: fix extended sequential Huffman table selector (Th).
+    cmd/compile/internal/gc: document (*state).checkgoto
     
-    Previously, the package did not distinguish between baseline and
-    extended sequential images. Both are non-progressive images, but the Th
-    range differs between the two, as per Annex B of
-    https://www.w3.org/Graphics/JPEG/itu-t81.pdf
+    No behavior change.
     
-    Extended sequential images are often emitted by the Guetzli encoder.
-    
-    Fixes #19913
-    
-    Change-Id: I3d0f9e16d5d374ee1c65e3a8fb87519de61cff94
-    Reviewed-on: https://go-review.googlesource.com/41831
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: I595c15ee976adf21bdbabdf24edf203c9e446185
+    Reviewed-on: https://go-review.googlesource.com/36958
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/image/jpeg/huffman.go |  3 ++-
- src/image/jpeg/reader.go  | 17 +++++++++++++----
- src/image/jpeg/scan.go    | 10 ++++++----
- src/image/jpeg/writer.go  |  2 +-
- 4 files changed, 22 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 105 +++++++++++++++++++++++--------------
+ 1 file changed, 66 insertions(+), 39 deletions(-)

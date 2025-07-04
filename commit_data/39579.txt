@@ -1,19 +1,17 @@
-commit 46f99ce7ea97d11b0a1a079da8dda0f51df2a2d2
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Aug 6 13:12:23 2019 -0400
+commit a6436a5655f56bb904871fece7db43a3ad3bf415
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 6 17:31:04 2019 -0800
 
-    cmd/go: look for __go_buildinfo section when looking for Mach-O version
+    cmd/cgo: use explicit type for arg with bad pointer typedef
     
-    This mirrors the ELF fix in CL 188957. TestScript/version failed on
-    darwin after that change.
+    Fixes #30646
     
-    Fixes #31861
-    
-    Change-Id: I4ce953ebec8dd5fa47e26d373c59d7e290b75a34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189159
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5b7e986b0588e87b9781cce01445e3c55c06b6fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165897
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/version/exe.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go  | 6 +++++-
+ src/cmd/cgo/main.go | 1 +
+ 2 files changed, 6 insertions(+), 1 deletion(-)

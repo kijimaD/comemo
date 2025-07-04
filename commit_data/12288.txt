@@ -1,17 +1,18 @@
-commit 7301065fcc8afbf4f5feb38c0460c0796642f4aa
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 1 07:39:03 2012 +0900
+commit 564a1f3358c2d4f6d1f04ef5acef4057d4421360
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Feb 29 13:55:50 2012 -0800
 
-    net: make -external flag for tests default to true
+    gc: fix string comparisons for new bool rules
     
-    go test -short # like in the build; no external stuff
-    go test # long tests, + external
-    go test -external=false # long tests, no external
+    The two string comparison optimizations were
+    missing the implicit cast from ideal bool.
+    
+    Fixes #3119.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5696079
+    https://golang.org/cl/5696071
 
- src/pkg/net/dialgoogle_test.go | 15 ++++++---------
- src/pkg/net/lookup_test.go     |  2 +-
- 2 files changed, 7 insertions(+), 10 deletions(-)
+ src/cmd/gc/walk.c        |  2 ++
+ test/fixedbugs/bug425.go | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

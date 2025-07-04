@@ -1,18 +1,23 @@
-commit 173dce8d2029cc3797537431b93d9ab04e135289
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 27 11:08:30 2020 -0800
+commit ee3f768d3861e00dbc6a81392a711209f66e235c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 27 16:38:14 2019 +0700
 
-    cmd/compile: check rune type bounds as int32, not uint32
+    internal/reflectlite: updates reflectlite to match runtime rtype/mapType
     
-    Also, avoid string(i) where i has type int.
+    CL 191198 updated runtime rtype and mapType without adopting the changes
+    to reflectlite, causing mismatch between them.
     
-    Updates #32479
+    This CL updates those changes to reflectlite.
     
-    Change-Id: If3c6edc8523860082726e034ef9e887b5f7fabd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221382
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #34486
+    
+    Change-Id: I2bb043673d997f97bb0b12c4ad471474803b2160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197559
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/internal/reflectlite/set_test.go |  9 ++++++++
+ src/internal/reflectlite/type.go     | 41 ++++++++++++++++++------------------
+ 2 files changed, 29 insertions(+), 21 deletions(-)

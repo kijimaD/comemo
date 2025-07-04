@@ -1,34 +1,26 @@
-commit 8cd550a2327e921ddc202e960df6db8bfe4ef222
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Sep 5 14:14:59 2024 -0700
+commit 9fc3feb441d660d63409c83574803d8efe01b351
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 4 21:27:20 2023 +1000
 
-    internal/syscall/unix: Eaccess: return ENOSYS on Android
+    runtime,syscall: invert openbsd architecture tests
     
-    On Android, faccessat2 syscall (which supports flags like AT_EACCESS) is
-    not allowed, so syscall.Faccessat tries to emulate AT_EACCESS check in
-    userspace using os.Stat, os.Geteuid etc.
+    Rather than testing for architectures that use libc-based system calls,
+    test that it is not the single architecture that Go is still using direct
+    system calls. This reduces the number of changes needed for new openbsd
+    ports.
     
-    Also, according to [1],
+    Updates #36435
+    Updates #61546
     
-    > Android doesn't have setuid programs, and never runs code with euid!=uid.
-    
-    This means on Android the proper AT_EACCESS check is neither possible
-    nor really needed.
-    
-    Let's skip the syscall.Faccessat userspace emulation of AT_EACCESS
-    check and return ENOSYS, so the callers can use a fallback.
-    
-    This should speed up exec.LookPath on Android.
-    
-    [1]: https://android.googlesource.com/platform/bionic/+/508b2f6e5cba4bdadf1e47a4ff27e25ce66c40e3/libc/bionic/faccessat.cpp#50
-    
-    Change-Id: If7b529fa314480b70e9ae9cdd8c7ce82cd55d233
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611298
+    Change-Id: I79c4597c629b8b372e9efcda79e8f6ff778b9e8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516016
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/unix/eaccess.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/runtime/proc.go      | 7 ++-----
+ src/syscall/exec_unix.go | 2 +-
+ 2 files changed, 3 insertions(+), 6 deletions(-)

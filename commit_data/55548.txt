@@ -1,18 +1,23 @@
-commit 151362cf7c94bab5baa33af47249c850fbb941b0
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Feb 8 05:39:07 2024 +0000
+commit dd87e33d88eadaf5302895fb91b0a0e2e16b136e
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 18 14:06:56 2022 +0800
 
-    internal/pprof: remove unused code
+    os: use testenv.Command instead of exec.Command in tests
     
-    Change-Id: I47e98122668960321124e426b345d36f6916b738
-    GitHub-Last-Rev: b72c9ab33e1c9c49b3b44dc8782344d1ed481123
-    GitHub-Pull-Request: golang/go#65594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562324
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: I84d469d12ca1f39175b713ca41e7cd2202d11d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451895
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/profile/filter.go  | 104 ----------------------------------------
- src/internal/profile/profile.go |   1 -
- 2 files changed, 105 deletions(-)
+ src/os/exec/exec_test.go             |  2 +-
+ src/os/exec/exec_windows_test.go     |  3 ++-
+ src/os/exec/lp_windows_test.go       |  4 ++--
+ src/os/signal/signal_test.go         | 12 ++++++------
+ src/os/signal/signal_windows_test.go |  5 ++---
+ 5 files changed, 13 insertions(+), 13 deletions(-)

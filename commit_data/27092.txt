@@ -1,14 +1,19 @@
-commit ba966f5d891191450f286859c35bf8a7fa49cde2
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Fri Apr 22 16:27:34 2016 -0700
+commit e4571d33ac54cac5336a560a1c8ef224b86f3bda
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 14:18:37 2016 -0800
 
-    doc: mention security from contribution guidelines
+    cmd/compile: simplify parser.compound_stmt
     
-    Fixes #15413
+    Eliminate "else_clause" parameter and move error messages about bad if
+    statements into the if_stmt parsing method.
     
-    Change-Id: I837a391276eed565cf66d3715ec68b7b959ce143
-    Reviewed-on: https://go-review.googlesource.com/22390
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ibc31619bdb2e7e0cf28712b14640f7d9b6124a40
+    Reviewed-on: https://go-review.googlesource.com/20543
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/contribute.html | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/parser.go | 34 +++++++++++++---------------------
+ 1 file changed, 13 insertions(+), 21 deletions(-)

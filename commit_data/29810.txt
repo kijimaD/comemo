@@ -1,14 +1,14 @@
-commit afb350811e926c7521b766946976cf88dd7d29f2
-Author: Euan Kemp <euank@euank.com>
-Date:   Tue Dec 13 21:49:57 2016 -0800
+commit 460d112f6c3716a45e99651ed769e7d8d74aca41
+Author: Gleb Stepanov <glebstepanov1992@gmail.com>
+Date:   Mon Jul 25 15:53:15 2016 +0300
 
-    runtime: correct writebarrier typos
+    runtime: fix typo in comments
     
-    Change-Id: I7d67c3d64be915f0be5932d2c068606d74f93c29
-    Reviewed-on: https://go-review.googlesource.com/34378
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fix typo in word synchronization in comments.
+    
+    Change-Id: I453b4e799301e758799c93df1e32f5244ca2fb84
+    Reviewed-on: https://go-review.googlesource.com/25174
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os_windows.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

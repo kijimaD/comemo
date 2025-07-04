@@ -1,27 +1,29 @@
-commit ebdc24c3d334132542daa7c57246389e0b259227
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Feb 2 11:40:55 2019 +0000
+commit 8e0aea162b5ed27b444a2a54aa16152022483141
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 2 20:45:45 2018 -0400
 
-    os: add UserConfigDir
+    testing: implement -benchtime=100x
     
-    After UserCacheDir and UserHomeDir, the only remaining piece which is
-    commonly needed and portable is a per-user directory to store persistent
-    files.
+    When running benchmarks with profilers and trying to
+    compare one run against another, it is very useful to be
+    able to force each run to execute exactly the same number
+    of iterations.
     
-    For that purpose, UserCacheDir is wrong, as it's meant only for
-    temporary files. UserHomeDir is also far from ideal, as that clutters
-    the user's home directory.
+    Discussion on the proposal issue #24735 led to the decision
+    to overload -benchtime, so that instead of saying
+    -benchtime 10s to run a benchmark for 10 seconds,
+    you say -benchtime 100x to run a benchmark 100 times.
     
-    Add UserConfigDir, which is implemented in a similar manner to
-    UserConfigDir.
+    Fixes #24735.
     
-    Fixes #29960.
-    
-    Change-Id: I7d7a56615103cf76e2b5e2bab2029a6b09d19f0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160877
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id17c5bd18bd09987bb48ed12420d61ae9e200fd7
+    Reviewed-on: https://go-review.googlesource.com/c/139258
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/file.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ src/cmd/go/alldocs.go            |  2 ++
+ src/cmd/go/internal/test/test.go |  2 ++
+ src/testing/benchmark.go         | 75 ++++++++++++++++++++++++++++++----------
+ src/testing/sub_test.go          |  4 +--
+ 4 files changed, 63 insertions(+), 20 deletions(-)

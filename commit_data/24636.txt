@@ -1,23 +1,28 @@
-commit e6ccfc1ad14d1078428fe5f408498f925ab69670
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 23 16:01:09 2015 -0700
+commit 997a9f32b01eb73ee3086e8c9141c1ed30c7ac8d
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 12 16:38:11 2015 -0400
 
-    cmd/compile/internal/gc: escape binary export data so it contains no '$'
+    [dev.ssa] cmd/compile: first unoptimized cut at adding FP support
     
-    Necessary to ensure that subsequent tools can continue to find
-    then end of the export data section simply by searching for "$$".
+    Added F32 and F64 load, store, and addition.
+    Added F32 and F64 multiply.
+    Added F32 and F64 subtraction and division.
+    Added X15 to "clobber" for FP sub/div
+    Added FP constants
+    Added separate FP test in gc/testdata
     
-    Adjusted gcimporter used by go/types accordingly.
-    
-    Also, fixed a bug in gcimporter related to reading export data
-    in debug format.
-    
-    Change-Id: Iaea4ed05edd8a5bab28ebe5b19a4740f5e537d35
-    Reviewed-on: https://go-review.googlesource.com/16283
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: Ifa60dbad948a40011b478d9605862c4b0cc9134c
+    Reviewed-on: https://go-review.googlesource.com/13612
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  41 +++++++++----
- src/cmd/compile/internal/gc/bimport.go |  41 +++++++++----
- src/cmd/compile/internal/gc/export.go  |  10 +---
- src/go/internal/gcimporter/bimport.go  | 106 ++++++++++++++++++++++-----------
- 4 files changed, 131 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 242 ++++++---
+ src/cmd/compile/internal/gc/ssa_test.go        |   3 +
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 164 ++++++
+ src/cmd/compile/internal/ssa/func.go           |  10 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  46 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  39 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  16 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 294 +++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go        |   8 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 700 +++++++++++++++++++++++++
+ 10 files changed, 1444 insertions(+), 78 deletions(-)

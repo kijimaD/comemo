@@ -1,13 +1,32 @@
-commit f627215bab022893466788417c6f70d0b496d77b
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Mon Aug 29 10:40:28 2011 +1000
+commit db5f9da4256084db2f78db0e26b7b794af3ec7d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 28 12:05:00 2011 -0400
 
-    runtime: go interface to cdecl calbacks
-    cdecl calbacks have been implemented in C/ASM code, just Go function is missing
+    gc: tweak and enable escape analysis
     
-    R=golang-dev, alex.brainman
+    -s now means *disable* escape analysis.
+    
+    Fix escape leaks for struct/slice/map literals.
+    Add ... tracking.
+    Rewrite new(T) and slice literal into stack allocation when safe.
+    
+    Add annotations to reflect.
+    Reflect is too chummy with the compiler,
+    so changes like these affect it more than they should.
+    
+    R=lvd, dave, gustavo
     CC=golang-dev
-    https://golang.org/cl/4969047
+    https://golang.org/cl/4954043
 
- src/pkg/runtime/windows/syscall.goc | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/gc/doc.go        |   2 -
+ src/cmd/gc/esc.c         | 231 ++++++++++++++++-------
+ src/cmd/gc/gen.c         |   8 +-
+ src/cmd/gc/go.h          |  48 +++--
+ src/cmd/gc/lex.c         |  10 +-
+ src/cmd/gc/sinit.c       |  13 +-
+ src/cmd/gc/subr.c        |  11 ++
+ src/cmd/gc/typecheck.c   |   4 +-
+ src/cmd/gc/walk.c        |  53 ++++--
+ src/pkg/reflect/value.go |  31 ++++
+ test/escape2.go          | 467 +++++++++++++++++++++++++++--------------------
+ 11 files changed, 562 insertions(+), 316 deletions(-)

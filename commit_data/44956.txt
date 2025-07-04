@@ -1,25 +1,28 @@
-commit 27015152ec769aeed2ab92533772b97c0ef96b11
-Author: James Fennell <jpfennell@google.com>
-Date:   Mon Apr 5 18:21:59 2021 +0000
+commit ddd35f8d71120b0d0508dd0d8f3a727ba681dfb3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 17 21:38:42 2020 -0700
 
-    flag: use strings.Builder instead of concatenating strings
+    cmd/compile: more comprehensive tests for #24991
     
-    There is a single function in the flag package whose implementation
-    uses string concatenation instead of the recommended strings.Builder.
-    The function was last touched before strings.Builder was introduced
-    in Go 1.10, which explains the old style code. This PR updates
-    the implementation.
+    The revised test now checks that unsafe-uintptr correctly works for
+    variadic uintptr parameters too, and the CL corrects the code so this
+    code compiles again.
     
-    Fixes #45392
+    The pointers are still not kept alive properly. That will be fixed by
+    a followup CL. But this CL at least allows programs not affected by
+    that to build again.
     
-    Change-Id: Id2d8f1788765a0c4faaeb1e6870914f72b3c8442
-    GitHub-Last-Rev: 0e12fe304593afc627fc4f1597670efd354809b0
-    GitHub-Pull-Request: golang/go#45393
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307329
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #24991.
+    Updates #41460.
+    
+    Change-Id: If4c39167b6055e602213fb7522c4f527c43ebda9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255877
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/flag/flag.go | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go   |  1 +
+ test/fixedbugs/issue24491a.go         | 26 ++++++++++++++++++++------
+ 3 files changed, 22 insertions(+), 7 deletions(-)

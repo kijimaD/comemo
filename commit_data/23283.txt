@@ -1,37 +1,15 @@
-commit 2774b37306616380c00a4fde7f46bde1a8668ece
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 3 14:59:27 2015 -0400
+commit e8c0d0f2f3d1e7b1ccc8f057cff24a490b2dc2a7
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 11:17:08 2015 -0700
 
-    all: use RET instead of RETURN on ppc64
+    os: add LookupEnv, like Getenv but reports presence
     
-    All of the architectures except ppc64 have only "RET" for the return
-    mnemonic. ppc64 used to have only "RETURN", but commit cf06ea6
-    introduced RET as a synonym for RETURN to make ppc64 consistent with
-    the other architectures. However, that commit was never followed up to
-    make the code itself consistent by eliminating uses of RETURN.
+    Fixes #9676.
     
-    This commit replaces all uses of RETURN in the ppc64 assembly with
-    RET.
-    
-    This was done with
-        sed -i 's/\<RETURN\>/RET/' **/*_ppc64x.s
-    plus one manual change to syscall/asm.s.
-    
-    Change-Id: I3f6c8d2be157df8841d48de988ee43f3e3087995
-    Reviewed-on: https://go-review.googlesource.com/10672
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I32fe474cdfa09aff91daa4b10ac4df28ffdaa649
+    Reviewed-on: https://go-review.googlesource.com/9741
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/abs_ppc64x.s          |  2 +-
- src/reflect/asm_ppc64x.s       |  4 +-
- src/runtime/asm_ppc64x.s       | 90 +++++++++++++++++++++---------------------
- src/runtime/atomic_ppc64x.s    |  6 +--
- src/runtime/duff_ppc64x.s      |  2 +-
- src/runtime/memclr_ppc64x.s    |  2 +-
- src/runtime/memmove_ppc64x.s   |  6 +--
- src/runtime/sys_linux_ppc64x.s | 62 ++++++++++++++---------------
- src/sync/atomic/asm_ppc64x.s   | 24 +++++------
- src/syscall/asm.s              |  7 ----
- src/syscall/asm_linux_ppc64x.s | 16 ++++----
- 11 files changed, 107 insertions(+), 114 deletions(-)
+ src/os/env.go      |  9 +++++++++
+ src/os/env_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+)

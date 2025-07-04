@@ -1,19 +1,18 @@
-commit a5ff8ad9db409bfa35322c8887b2bae964fec210
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Feb 17 10:45:30 2011 +1100
+commit 3a2d64789bb661bc5d2e27df30c3e3560bad6a03
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Feb 16 17:57:15 2011 -0500
 
-    html: tokenize HTML comments.
+    gc: make string const comparison unsigned
     
-    I'm not sure if it's 100% correct wrt the HTML5 specification,
-    but the test suite has plenty of HTML comment test cases, and
-    we'll shake out any tokenization bugs as the parser improves its
-    coverage.
+    Make compile-time string const comparison match semantics
+    of runtime.cmpstring.
     
-    R=gri
-    CC=golang-dev
-    https://golang.org/cl/4186055
+    Fixes #1515.
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/4172049
 
- src/pkg/html/doc.go        |   3 ++
- src/pkg/html/token.go      | 117 +++++++++++++++++++++++++++++++++++----------
- src/pkg/html/token_test.go |  86 +++++++++++++++++++++------------
- 3 files changed, 152 insertions(+), 54 deletions(-)
+ src/cmd/gc/const.c        |  6 +++---
+ test/fixedbugs/bug1515.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

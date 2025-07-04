@@ -1,20 +1,27 @@
-commit 6f7c9ea855b1ae97871837abf33b85aaa6731eae
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sun Apr 24 12:14:13 2022 +0800
+commit 4fefd439a4087ec4a4cb7a61cfe15801115321d2
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Oct 22 12:36:00 2021 +1100
 
-    runtime: set userForced while holding gcsema
+    cmd/go: fix recognition of Fossil checkout directories
     
-    Fixes #52515
+    Use ".fslckout" or "_FOSSIL_" files to correctly identify the root of
+    Fossil checkout directories.
     
-    Change-Id: If10068a97733daf61aba72da5ed3935db8eed8b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401776
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Previously, Go has assumed VCS checkouts are indicated by a dot-file
+    named after the VCS command (eg, .git, .hg, .fossil). This is not
+    normally true for Fossil, but has worked so far since Go downloads
+    repositories into a ".fossil" file before opening (checking out).
+    
+    Using the incorrect path prevents Go identifying Fossil checkouts and
+    correctly tagging with -buildvcs (to be added in a follow up CL).
+    
+    Change-Id: I3c030a0b600dfe7f4b3fcf1551b1d7cb84629b81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/mgc.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go      | 53 +++++++++++++++++++++++++++----------
+ src/cmd/go/internal/vcs/vcs_test.go | 48 ++++++++++++++++++---------------
+ 2 files changed, 65 insertions(+), 36 deletions(-)

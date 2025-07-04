@@ -1,14 +1,14 @@
-commit c739dd229986d3f1560a3962ad5a9bafc7530364
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 10:30:52 2012 -0500
+commit 1493bf58f3afbd4f27926c442daad76abcafc93d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 07:19:25 2012 -0800
 
-    spec: 9 only looks prime
+    test: add test for receiver named _
     
-    Fixes #2870.
+    Was miscompiled by gccgo.
     
-    R=golang-dev, agl, lvd
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5618050
+    https://golang.org/cl/5622054
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug405.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

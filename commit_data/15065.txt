@@ -1,18 +1,18 @@
-commit 739aa6b1ba6f643a37370d569c5f67827f5c370c
+commit 4085426f7dcfdcb7eff86fe1fd0879e02398926b
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 13:52:27 2013 -0800
+Date:   Thu Jan 31 13:45:43 2013 -0800
 
-    cmd/vet: check for misplaced and malformed build tags
+    net/url: normalize scheme to lower case (http not HTTP)
     
-    Fixes #4184.
+    Also document %2f vs / ambiguity in URL.Path.
     
-    R=golang-dev, bradfitz, minux.ma, cookieo9
+    Fixes #3913.
+    Fixes #3659.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7251044
+    https://golang.org/cl/7225076
 
- src/cmd/vet/Makefile        |  3 +-
- src/cmd/vet/buildtag.go     | 96 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/vet/buildtag_bad.go | 11 ++++++
- src/cmd/vet/main.go         | 23 +++++++++--
- src/cmd/vet/taglit.go       |  2 +-
- 5 files changed, 130 insertions(+), 5 deletions(-)
+ src/pkg/net/url/url.go      | 7 +++++++
+ src/pkg/net/url/url_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+)

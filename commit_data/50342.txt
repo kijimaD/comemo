@@ -1,19 +1,20 @@
-commit e1e88d636badf57a66a573dd9f8c990df3573950
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 5 15:38:57 2022 +0200
+commit 99fad12e4788fdf67e49dadd16571238f935b408
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 18 17:42:21 2021 -0700
 
-    net: mark withTCPConnPair as test helper
+    cmd/compile/internal/types2: delay expansion of underlying in typeDecl
     
-    Noticed while analyzing test failures on go.dev/cl/427714 that were
-    pointing to withTCPConnPair instead of the failing tests.
+    This is a clean port of CL 356533 from go/types to types2.
     
-    Change-Id: Ie2366962c2253e0c2a6546d3b7f43a96390bc7bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428456
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #49043.
+    
+    Change-Id: If389b94ece28042b0c8b436959dd21f26147a144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356517
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/net_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/types2/decl.go            | 24 +++++++---------------
+ src/cmd/compile/internal/types2/named.go           | 17 ++++++++++++++-
+ .../internal/types2/testdata/check/typeinst.go2    |  2 +-
+ .../types2/testdata/fixedbugs/issue49043.go2       | 24 ++++++++++++++++++++++
+ 4 files changed, 48 insertions(+), 19 deletions(-)

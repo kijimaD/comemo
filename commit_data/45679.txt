@@ -1,23 +1,28 @@
-commit cca23a73733ff166722c69359f0bb45e12ccaa2b
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 21 10:53:10 2021 -0400
+commit f42bd50779dea8d8e46de14e2f00cfe716f52d6d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Oct 20 19:52:21 2020 +0200
 
-    cmd/compile: revert CL/316890
+    [dev.boringcrypto] crypto/internal/boring: update BoringCrypto module to certificate 3678
     
-    This is a revert of https://go-review.googlesource.com/c/go/+/316890,
-    which has positive effects on debugging + DWARF variable locations
-    for register parameters when the reg abi is in effect, but also
-    turns out to interact badly with the register allocator.
+    Replace the chroot scaffolding with Docker, which brings its own caching
+    and works on macOS.
     
-    Fixes #46304.
+    Fixes #40188
     
-    Change-Id: I624bd980493411a9cde45d44fcd3c46cad796909
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321830
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I5c96417932e952cbaf1e2991d131c1d5dd7d9921
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263997
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 16 ------
- test/fixedbugs/issue46304.go                 | 76 ++++++++++++++++++++++++++++
- 2 files changed, 76 insertions(+), 16 deletions(-)
+ README.boringcrypto.md                             |   4 +-
+ misc/boring/VERSION                                |   2 +-
+ src/crypto/internal/boring/Dockerfile              |  42 ++++++++++++++
+ src/crypto/internal/boring/LICENSE                 |   2 +-
+ .../boring/{build/build_in_chroot.sh => build.sh}  |  63 ++++++++++----------
+ src/crypto/internal/boring/build/README            |   6 --
+ src/crypto/internal/boring/build/build.sh          |  64 ---------------------
+ .../internal/boring/build/root_setup_in_chroot.sh  |  13 -----
+ src/crypto/internal/boring/build/sources.list      |  10 ----
+ src/crypto/internal/boring/goboringcrypto.h        |   4 +-
+ .../boring/goboringcrypto_linux_amd64.syso         | Bin 9713384 -> 10865904 bytes
+ 11 files changed, 78 insertions(+), 132 deletions(-)

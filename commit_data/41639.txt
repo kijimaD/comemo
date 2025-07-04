@@ -1,36 +1,19 @@
-commit 4ad643d2089b73fbcfc2c0e3f61cb63dcb217ec5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 8 11:07:52 2020 -0700
+commit 00ea8e1c673eb2b72c4520c688a414831e871ad2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 17 09:45:54 2019 -0400
 
-    cmd/compile: remove loop in shortcircuit
+    os/exec: preserve the process environment when invoking TestHelperProcess
     
-    shortcircuitBlock contained a loop to handle blocks like
+    Also log errors from the lsof command on failure.
+    (That's how the missing environment was discovered.)
     
-    b: <- p q
-      v = Phi true false
-    If v -> t u
+    Updates #25628
     
-    in a single execution.
-    This change makes shortcircuitBlock do it in two instead,
-    one for each constant phi arg.
-    
-    Motivation: Upcoming changes will expand the range of
-    blocks that the shortcircuit pass can handle.
-    Those changes need to understand what the CFG
-    will look like after the rewrite in shortcircuitBlock.
-    Making shortcircuitBlock do only a single CFG
-    modification at a time significantly simplifies that code.
-    
-    In theory, this is less efficient, but not measurably so.
-    There is minor, unimportant churn in the generated code.
-    
-    Updates #37608
-    
-    Change-Id: Ia6dce7011e3e19b546ed1e176bd407575a0ab837
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222918
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I71594f60c15d0d254d5d4a86deec7431314c92ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201717
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/shortcircuit.go | 92 ++++++++++++++--------------
- 1 file changed, 45 insertions(+), 47 deletions(-)
+ src/os/exec/exec_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

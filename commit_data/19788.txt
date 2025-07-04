@@ -1,20 +1,15 @@
-commit 783bc895ae541e4b6c68ce6a38ddfdd8279e3990
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 21 12:18:14 2014 -0700
+commit 2ac289c4a095e3133b375ae65c115ff23327a1c4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 21 11:23:29 2014 -0700
 
-    net/http: create internal pkg, unify two chunked.go files
+    runtime: add Benchmark[Clear|Copy]Fat[8|12]
     
-    LGTM=rsc
-    R=rsc, dan.kortschak
-    CC=golang-codereviews, r
-    https://golang.org/cl/115840046
+    These correspond to 2 and 3 word fat copies/clears on 8g, which dominate usage in the stdlib. (70% of copies and 46% of clears are for 2 or 3 words.) I missed these in CL 111350043, which added 2 and 3 word benchmarks for 6g. A follow-up CL will optimize these cases.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/115160043
 
- src/pkg/go/build/deps_test.go                   |   3 +-
- src/pkg/net/http/httputil/chunked.go            | 203 ------------------------
- src/pkg/net/http/httputil/chunked_test.go       | 159 -------------------
- src/pkg/net/http/httputil/httputil.go           |  13 +-
- src/pkg/net/http/{ => internal}/chunked.go      |  19 ++-
- src/pkg/net/http/{ => internal}/chunked_test.go |  23 ++-
- src/pkg/net/http/response_test.go               |   3 +-
- src/pkg/net/http/transfer.go                    |   9 +-
- 8 files changed, 40 insertions(+), 392 deletions(-)
+ src/pkg/runtime/memmove_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

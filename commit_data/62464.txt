@@ -1,0 +1,31 @@
+commit 39d7a4973604d816ee0757a46e7525deeb25b37c
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Dec 19 21:07:42 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}{ADD/SUB}.{B,H,W,D,Q} and {V,XV}{ADD/SUB}.{B,H,W,D}Uinstructions support
+    
+    Go asm syntax:
+             V{ADD/SUB}{B,H,W,V,Q}          VK, VJ, VD
+            XV{ADD/SUB}{B,H,W,V,Q}          XK, XJ, XD
+             V{ADD/SUB}{B,H,W,V}U           $1, VJ, VD
+            XV{ADD/SUB}{B,H,W,V}U           $1, XJ, XD
+    
+    Equivalent platform assembler syntax:
+             v{add/sub}.{b,h,w,d,q}         vd, vj, vk
+            xv{add/sub}.{b,h,w,d,q}         xd, xj, xk
+             v{add/sub}i.{b,h,w,d}u         vd, vj, $1
+            xv{add/sub}i.{b,h,w,d}u         xd, xj, $1
+    
+    Change-Id: Ia1ef0bc062f4403bb0b1514c2cf1c0264f5d22ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637795
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  40 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  38 ++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  36 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 115 ++++++++++++++++++++++++
+ 4 files changed, 229 insertions(+)

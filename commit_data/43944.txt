@@ -1,15 +1,20 @@
-commit cc386bd05ad8076f1d7e5a4d9a13c1276fd26ac6
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Fri Dec 4 01:09:13 2020 +0100
+commit eda6fe3572b2fb02c2a8c87892744d04fea87691
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 30 01:40:37 2020 +0000
 
-    doc/go1.16: fix broken <code> tag
+    Revert "cmd/compile: omit file:pos for non-existent, permission errors"
     
-    For #40700
+    This reverts commit 4f7053c87f9ebf3acab7669d380f53bdfba0566b.
     
-    Change-Id: I0083db494284d6142e1b8b981fca4ac30af2012a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275312
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
+    Reason for revert: Newly added test is failing on several builders.
+    
+    Change-Id: I22dcbfebf2f57735b2f479886bbeb623f95b132f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231043
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.16.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/subr.go |  8 +----
+ test/fixedbugs/issue36437.go        | 69 -------------------------------------
+ 2 files changed, 1 insertion(+), 76 deletions(-)

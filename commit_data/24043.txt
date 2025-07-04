@@ -1,19 +1,12 @@
-commit db5eb2a2c3290fa2bd26bd8da2356edbdb32a75a
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Thu Aug 13 09:05:22 2015 -0400
+commit 19b8aa3b5ddbc3937d9acab64fcfad581a73773d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jun 30 13:58:54 2015 +0200
 
-    runtime/cgo: remove __stack_chk_fail_local
+    cmd/compile/internal/gc: give OASWB name
     
-    I cannot find where it's being used.
-    
-    This addresses a duplicate symbol issue encountered in golang/go#9327.
-    
-    Change-Id: I8efda45a006ad3e19423748210c78bd5831215e0
-    Reviewed-on: https://go-review.googlesource.com/13615
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iacb84421215ca80c7add2818118b2af1a650fd58
+    Reviewed-on: https://go-review.googlesource.com/11639
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/gcc_386.S    | 5 -----
- src/runtime/cgo/gcc_arm.S    | 4 ----
- src/runtime/cgo/gcc_arm64.S  | 4 ----
- src/runtime/cgo/gcc_ppc64x.S | 5 -----
- 4 files changed, 18 deletions(-)
+ src/cmd/compile/internal/gc/opnames.go | 1 +
+ 1 file changed, 1 insertion(+)

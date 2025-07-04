@@ -1,24 +1,16 @@
-commit e2f9c733918f08e07ce9557ed5124a8e6453fddb
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 26 08:25:40 2011 -0400
+commit b1deb3be7f7ff9ec43b65b1adc25fdaf7dce56bb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 26 18:09:46 2011 +1000
 
-    runtime: more graceful out-of-memory crash
+    os: fix race in ReadAt/WriteAt on Windows
     
-    Used to fault trying to access l->list->next
-    when l->list == nil after MCentral_AllocList.
-    Now prints
-    
-    runtime: out of memory: no room in arena for 65536-byte allocation (536870912 in use)
-    throw: out of memory
-    
-    followed by stack trace.
-    
-    Fixes #1650.
-    
-    R=r, dfc
+    R=bradfitzgo, rsc, peterGo
     CC=golang-dev
-    https://golang.org/cl/4446062
+    https://golang.org/cl/4441051
 
- src/pkg/runtime/mcache.c | 2 ++
- src/pkg/runtime/mheap.c  | 8 ++++++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/os/file.go                 | 18 +++++-----
+ src/pkg/os/file_plan9.go           | 33 ++++++++++++++++++
+ src/pkg/os/file_unix.go            | 33 ++++++++++++++++++
+ src/pkg/os/file_windows.go         | 71 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go | 38 --------------------
+ 5 files changed, 147 insertions(+), 46 deletions(-)

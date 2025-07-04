@@ -1,27 +1,16 @@
-commit b21e936f3e88377a41f9a4216453665eed1fe9ca
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 18 01:08:09 2014 -0500
+commit 2d0db8e591513a1123057b8c330c946ddcb4fbc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 22:50:24 2014 -0500
 
-    liblink: generate correct code for MOVD $-n(Rm), x on ppc64
+    bufio: fix reading of many blank lines in a row
     
-    On ppc64, liblink rewrites MOVD's of >32-bit constants by putting the
-    constant in memory and rewriting the MOVD to load from that memory
-    address.  However, there were two bugs in the condition:
+    Fixes #9020.
     
-    a) owing to an incorrect sign extension, it triggered for all negative
-       constants, and
-    
-    b) it could trigger for constant offsets from registers (addresses of
-       the form $n(Rm) in assembly)
-    
-    Together, these meant instructions of the form MOVD $-n(Rm), x were
-    compiled by putting -n in memory and rewriting the MOVD to load this
-    constant from memory (completely dropping Rm).
-    
-    Change-Id: I1f6cc980efa3e3d6f164b46c985b2c3b55971cca
-    Reviewed-on: https://go-review.googlesource.com/1752
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/170030043
 
- src/cmd/9l/9.out.h | 4 ++--
- src/liblink/obj9.c | 3 ++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/bufio/scan.go      |  3 ++-
+ src/bufio/scan_test.go | 12 ++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

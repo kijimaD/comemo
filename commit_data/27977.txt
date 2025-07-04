@@ -1,17 +1,20 @@
-commit cf20525bf414c8268d8fe111460767d52f03df44
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 31 15:02:40 2016 -0700
+commit eee20b7244586da70b2bca6fe6346da7dac6be78
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 10:17:06 2016 -0700
 
-    cmd/compile: set correct line number for multiple defaults in switch error
+    cmd/dist: skip misc/cgo/test with internal linking on ppc64le
     
-    Fixes #15911.
+    CL 22372 changed ppc64le to use normal cgo initialization on ppc64le.
+    Doing this uncovered a cmd/link error using internal linking.
+    Opened issue 15409 for the problem.  This CL disables the test.
     
-    Change-Id: I500533484de61aa09abe4cecb010445e3176324e
-    Reviewed-on: https://go-review.googlesource.com/26760
+    Update #15409.
+    
+    Change-Id: Ia1bb6b874c1b5a4df1a0436c8841c145142c30f7
+    Reviewed-on: https://go-review.googlesource.com/22379
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/swt.go | 1 +
- test/switch6.go                    | 8 ++++----
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

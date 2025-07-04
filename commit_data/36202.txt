@@ -1,12 +1,14 @@
-commit 4cc09cd5320a2bea4f27a1db59970d4b715f6522
-Author: Frédéric Guillot <frederic.guillot@gmail.com>
-Date:   Wed Jul 25 16:36:11 2018 -0700
+commit 2b239969390553726d5042e723b344f897bf810d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 10 17:02:07 2018 -0700
 
-    database/sql: fix driverStmt.Close() comment typo
+    cmd/compile: use existing flag bits to record 'used' property of Names (cleanup)
     
-    Change-Id: I2256c850e071882b00c362da03abc8b021c1ec2a
-    Reviewed-on: https://go-review.googlesource.com/126015
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I804d5ab111e33bd2c2554e2bac75b5273b0b4160
+    Reviewed-on: https://go-review.googlesource.com/106121
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/syntax.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

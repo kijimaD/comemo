@@ -1,12 +1,20 @@
-commit f6dfe1679867e9d2ac1ca4975a15e320113e9ae5
+commit 7bcc6a1615c8265eb64d44e6c066ab699577db18
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 29 18:25:30 2015 -0400
+Date:   Tue Jun 9 12:08:59 2015 -0700
 
-    runtime: fix darwin/amd64 assembly frame sizes
+    cmd/compile: add -importmap option
     
-    Change-Id: I2f0ecdc02ce275feadf07e402b54f988513e9b49
-    Reviewed-on: https://go-review.googlesource.com/12855
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The -importmap option takes an argument of the form old=new
+    and specifies that import "old" should be interpreted as if it said
+    import "new". The option may be repeated to specify multiple mappings.
+    
+    This option is here to support the go command's new -vendor flag.
+    
+    Change-Id: I31b4ed4249b549982a720bf61bb230462b33c59b
+    Reviewed-on: https://go-review.googlesource.com/10922
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_darwin_arm64.s | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/doc.go             |  3 +++
+ src/cmd/compile/internal/gc/lex.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

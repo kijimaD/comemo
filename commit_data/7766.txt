@@ -1,20 +1,19 @@
-commit a34f1bbb2201c0e66ebd172ac4a533bfeb7e9957
+commit 66f09fd459cc7477c1c2f0de5a296ab84920f473
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 15 14:15:41 2011 -0400
+Date:   Tue Mar 15 14:05:37 2011 -0400
 
-    gofix: new command for updating code to new release
+    gc: diagnose unused labels
     
-    R=bradfitzgo, dsymonds, r, gri, adg
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4282044
+    https://golang.org/cl/4287047
 
- src/cmd/Makefile                 |   1 +
- src/cmd/gofix/Makefile           |  16 +++
- src/cmd/gofix/doc.go             |  34 +++++
- src/cmd/gofix/fix.go             | 297 +++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/httpserver.go      | 125 ++++++++++++++++
- src/cmd/gofix/httpserver_test.go |  46 ++++++
- src/cmd/gofix/main.go            | 179 +++++++++++++++++++++++
- src/cmd/gofix/main_test.go       | 102 ++++++++++++++
- src/pkg/Makefile                 |   1 +
- 9 files changed, 801 insertions(+)
+ src/cmd/5g/ggen.c |   2 +-
+ src/cmd/6g/ggen.c |   2 +-
+ src/cmd/8g/ggen.c |   2 +-
+ src/cmd/gc/dcl.c  |   1 -
+ src/cmd/gc/gen.c  | 157 +++++++++++++++++++++++++++++++++---------------------
+ src/cmd/gc/go.h   |   9 +++-
+ test/label.go     |  60 +++++++++++++++++++++
+ test/label1.go    |  85 +++++++++++++++++++++++++++++
+ 8 files changed, 251 insertions(+), 67 deletions(-)

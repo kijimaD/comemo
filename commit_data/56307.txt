@@ -1,23 +1,16 @@
-commit deeebf5655eeb91e93e60dbda5c3df294b4d5130
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 26 13:10:36 2024 +0000
+commit 527745c4d55d07279125e1ad5442a86d2a631250
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 26 15:54:28 2023 -0400
 
-    cmd/link/internal/ld: more fixes to TestElfBindNow readonly .got check
+    misc/wasm: default to /tmp if TMPDIR is unset
     
-    Second try at fixing the TestElfBindNow testpoint: don't try to check
-    for readonly ".got" section when using the external linker, since
-    there is code in some linkers (BFD in particular) that will skip
-    placing ".got" in relro if the section is below a specific size
-    threshold. Revised version of the test checks only for readonly
-    ".dynamic" in the external linking case.
-    
-    Fixes #67063.
-    
-    Change-Id: Idb6b82ec7893baddf171654775587f6050fc6258
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581995
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibf460d86ced08687099725bcd8ea8f38d7e8484c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489435
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/elf_test.go | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ misc/wasm/go_wasip1_wasm_exec | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

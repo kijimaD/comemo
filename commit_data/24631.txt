@@ -1,17 +1,41 @@
-commit 34f04a675c204dc00f2ae1bc412e474b9a4c087d
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Aug 28 10:21:45 2015 +0200
+commit d4cc51d4118027464f61034179908abd0005fab6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 14 21:47:20 2015 -0700
 
-    encoding/xml: check for exported fields in embedded structs
+    [dev.ssa] cmd/compile/internal/ssa: Use explicit size for store ops
     
-    Addresses issue #12367.
+    Using the type of the store argument is not safe, it may change
+    during rewriting, giving us the wrong store width.
     
-    Must be checked in before CL 14010.
+    (Store ptr (Trunc32to16 val) mem)
     
-    Change-Id: I4523a1de112ed02371504e27882659bce8028a9f
-    Reviewed-on: https://go-review.googlesource.com/14012
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This should be a 2-byte store.  But we have the rule:
+    
+    (Trunc32to16 x) -> x
+    
+    So if the Trunc rewrite happens before the Store -> MOVW rewrite,
+    then the Store thinks that the value it is storing is 4 bytes
+    in size and uses a MOVL.  Bad things ensue.
+    
+    Fix this by encoding the store width explicitly in the auxint field.
+    
+    In general, we can't rely on the type of arguments, as they may
+    change during rewrites.  The type of the op itself (as used by
+    the Load rules) is still ok to use.
+    
+    Change-Id: I9e2359e4f657bb0ea0e40038969628bf0f84e584
+    Reviewed-on: https://go-review.googlesource.com/13636
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/encoding/xml/marshal_test.go | 10 ++++++++++
- src/encoding/xml/typeinfo.go     |  2 +-
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 16 ++++-
+ .../compile/internal/gc/testdata/loadstore_ssa.go  | 29 +++++++++
+ src/cmd/compile/internal/ssa/deadstore_test.go     | 14 ++--
+ src/cmd/compile/internal/ssa/func.go               | 15 +++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  9 ++-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |  3 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 76 ++++++++--------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 22 +++----
+ src/cmd/compile/internal/ssa/schedule_test.go      |  6 +-
+ src/cmd/compile/internal/ssa/shift_test.go         |  2 +-
+ 11 files changed, 113 insertions(+), 81 deletions(-)

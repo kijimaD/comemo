@@ -1,22 +1,53 @@
-commit f53a95fe393b0a23592a54cf83e3d25cfa4bdbdb
-Author: David Bendory <bendory@users.noreply.github.com>
-Date:   Fri Mar 17 14:04:01 2023 +0000
+commit e1b5f347e78c733bb0743df04c990e20f74bf188
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 16 15:47:57 2022 +0000
 
-    errors: clarify Join documentation
+    runtime: reduce max idle mark workers during periodic GC cycles
     
-    The previous documentation used a double-negative in describing Join behavior; this use of language could be confusing.
+    This change reduces the maximum number of idle mark workers during
+    periodic (currently every 2 minutes) GC cycles to 1.
     
-    This update removes the double-negative.
+    Idle mark workers soak up all available and unused Ps, up to GOMAXPROCS.
+    While this provides some throughput and latency benefit in general, it
+    can cause what appear to be massive CPU utilization spikes in otherwise
+    idle applications. This is mostly an issue for *very* idle applications,
+    ones idle enough to trigger periodic GC cycles. This spike also tends to
+    interact poorly with auto-scaling systems, as the system might assume
+    the load average is very low and suddenly see a massive burst in
+    activity.
     
-    Change-Id: If13e88682e865314a556e7d381143a97fa5486d9
-    GitHub-Last-Rev: 92b3f88a5d49229e71adafcfa7b1d01dcb7646f3
-    GitHub-Pull-Request: golang/go#59082
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477095
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The result of this change is not to bring down this 100% (of GOMAXPROCS)
+    CPU utilization spike to 0%, but rather
+    
+      min(25% + 1/GOMAXPROCS*100%, 100%)
+    
+    Idle mark workers also do incur a small latency penalty as they must be
+    descheduled for other work that might pop up. Luckily the runtime is
+    pretty good about getting idle mark workers off of Ps, so in general
+    the latency benefit from shorter GC cycles outweighs this cost. But, the
+    cost is still non-zero and may be more significant in idle applications
+    that aren't invoking assists and write barriers quite as often.
+    
+    We can't completely eliminate idle mark workers because they're
+    currently necessary for GC progress in some circumstances. Namely,
+    they're critical for progress when all we have is fractional workers. If
+    a fractional worker meets its quota, and all user goroutines are blocked
+    directly or indirectly on a GC cycle (via runtime.GOMAXPROCS, or
+    runtime.GC), the program may deadlock without GC workers, since the
+    fractional worker will go to sleep with nothing to wake it.
+    
+    Fixes #37116.
+    For #44163.
+    
+    Change-Id: Ib74793bb6b88d1765c52d445831310b0d11ef423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393394
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/errors/join.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/export_test.go   |  18 +++++-
+ src/runtime/mgc.go           |   6 +-
+ src/runtime/mgcpacer.go      | 132 +++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/mgcpacer_test.go |  64 +++++++++++++++++++++
+ src/runtime/proc.go          |  20 ++++---
+ 5 files changed, 223 insertions(+), 17 deletions(-)

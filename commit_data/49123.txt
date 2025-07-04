@@ -1,27 +1,113 @@
-commit 4d716e4d4a25526ba963a7cfb2b5208eb52e71c0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 24 16:12:34 2022 -0500
+commit e4994e71fb1809d8ce7df89e471586e05797e171
+Merge: c6d3d0b0ad c8f4e6152d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 20 12:46:13 2021 -0700
 
-    cmd/go/internal/modfetch: simplify handling of weird version tags
+    [dev.typeparams] all: merge master (c8f4e61) into dev.typeparams
     
-    This fixes an obscure bug in 'go list -versions' if the repo contains
-    a tag with an explicit "+incompatible" suffix. However, I've never
-    seen such a repo in the wild; mostly it's an attempt to wrap my brain
-    around the code and simplify things a bit for the future.
+    Conflicts:
     
-    Updates #51324
-    Updates #51312
+    - src/runtime/internal/sys/zgoarch_386.go
+    - src/runtime/internal/sys/zgoarch_amd64.go
+    - src/runtime/internal/sys/zgoarch_arm.go
+    - src/runtime/internal/sys/zgoarch_arm64.go
+    - src/runtime/internal/sys/zgoarch_arm64be.go
+    - src/runtime/internal/sys/zgoarch_armbe.go
+    - src/runtime/internal/sys/zgoarch_mips.go
+    - src/runtime/internal/sys/zgoarch_mips64.go
+    - src/runtime/internal/sys/zgoarch_mips64le.go
+    - src/runtime/internal/sys/zgoarch_mips64p32.go
+    - src/runtime/internal/sys/zgoarch_mips64p32le.go
+    - src/runtime/internal/sys/zgoarch_mipsle.go
+    - src/runtime/internal/sys/zgoarch_ppc.go
+    - src/runtime/internal/sys/zgoarch_ppc64.go
+    - src/runtime/internal/sys/zgoarch_ppc64le.go
+    - src/runtime/internal/sys/zgoarch_riscv.go
+    - src/runtime/internal/sys/zgoarch_riscv64.go
+    - src/runtime/internal/sys/zgoarch_s390.go
+    - src/runtime/internal/sys/zgoarch_s390x.go
+    - src/runtime/internal/sys/zgoarch_sparc.go
+    - src/runtime/internal/sys/zgoarch_sparc64.go
+    - src/runtime/internal/sys/zgoarch_wasm.go
     
-    Change-Id: I1b078b5db36470cf61aaa85b5244c99b5ee2c842
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387917
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+      On dev.typeparams, CL 328336 moved these files to internal/goarch;
+      whereas on master, CL 333909 reserved GOARCH=loong64. For this CL,
+      I resolved the conflict by simply running "go generate internal/goarch".
+    
+    Merge List:
+    
+    + 2021-07-19 c8f4e6152d spec: correct example comment in Conversions from slice to array
+    + 2021-07-19 1d91551b73 time: correct typo in documentation for UnixMicro
+    + 2021-07-19 404127c30f cmd/compile: fix off-by-one error in traceback argument counting
+    + 2021-07-19 6298cfe672 cmd/compile: fix typo in fatal message of builtinCall
+    + 2021-07-19 49402bee36 cmd/{compile,link}: fix bug in map.zero handling
+    + 2021-07-18 a66190ecee test/bench/go1: fix size for RegexpMatchMedium_32
+    + 2021-07-18 650fc2117a text/scanner: use Go convention in Position doc comment
+    + 2021-07-16 aa4e0f528e net/http:  correct capitalization in cancelTimeBody comment
+    + 2021-07-15 0941dbca6a testing: clarify in docs that TestMain is advanced
+    + 2021-07-15 69728ead87 cmd/go: update error messages in tests to match CL 332573
+    + 2021-07-15 c1cc9f9c3d cmd/compile: fix lookup package of redeclared dot import symbol
+    + 2021-07-15 21a04e3335 doc/go1.17: mention GOARCH=loong64
+    + 2021-07-14 2b00a54baf go/build, runtime/internal/sys: reserve GOARCH=loong64
+    + 2021-07-14 60ddf42b46 cmd/go: change link in error message from /wiki to /doc.
+    + 2021-07-13 d8f348a589 cmd/go: remove a duplicated word from 'go help mod graph'
+    + 2021-07-12 a98589711d crypto/tls: test key type when casting
+    + 2021-07-12 cfbd73ba33 doc/go1.17: editing pass over the "Compiler" section
+    + 2021-07-09 ab4085ce84 runtime/pprof: call runtime.GC twice in memory profile test
+    
+    Change-Id: I1490a4c7e4c560659c21a4eb67d243f35d1f908e
 
- src/cmd/go/internal/modfetch/codehost/codehost.go |  2 +-
- src/cmd/go/internal/modfetch/codehost/git.go      | 12 ++--
- src/cmd/go/internal/modfetch/coderepo.go          | 41 +++++++++-----
- src/cmd/go/internal/modfetch/coderepo_test.go     | 68 +++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_list_odd_tags.txt  | 13 +++++
- 5 files changed, 113 insertions(+), 23 deletions(-)
+ doc/go1.17.html                                    |  73 ++++++---
+ doc/go_spec.html                                   |   2 +-
+ src/cmd/compile/internal/gc/obj.go                 |   2 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |  43 ++---
+ src/cmd/compile/internal/typecheck/dcl.go          |  12 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   2 +-
+ src/cmd/go/alldocs.go                              |   2 +-
+ src/cmd/go/internal/modcmd/graph.go                |   2 +-
+ src/cmd/go/internal/modload/load.go                |   2 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |   2 +-
+ .../go/testdata/script/mod_tidy_compat_deleted.txt |   2 +-
+ .../testdata/script/mod_tidy_compat_implicit.txt   |   2 +-
+ .../script/mod_tidy_compat_incompatible.txt        |   2 +-
+ src/cmd/link/internal/loader/loader.go             |   9 ++
+ src/crypto/tls/key_agreement.go                    |   6 +-
+ src/go/build/syslist.go                            |   2 +-
+ src/internal/goarch/zgoarch_386.go                 |   1 +
+ src/internal/goarch/zgoarch_amd64.go               |   1 +
+ src/internal/goarch/zgoarch_arm.go                 |   1 +
+ src/internal/goarch/zgoarch_arm64.go               |   1 +
+ src/internal/goarch/zgoarch_arm64be.go             |   1 +
+ src/internal/goarch/zgoarch_armbe.go               |   1 +
+ src/internal/goarch/zgoarch_loong64.go             |  33 ++++
+ src/internal/goarch/zgoarch_mips.go                |   1 +
+ src/internal/goarch/zgoarch_mips64.go              |   1 +
+ src/internal/goarch/zgoarch_mips64le.go            |   1 +
+ src/internal/goarch/zgoarch_mips64p32.go           |   1 +
+ src/internal/goarch/zgoarch_mips64p32le.go         |   1 +
+ src/internal/goarch/zgoarch_mipsle.go              |   1 +
+ src/internal/goarch/zgoarch_ppc.go                 |   1 +
+ src/internal/goarch/zgoarch_ppc64.go               |   1 +
+ src/internal/goarch/zgoarch_ppc64le.go             |   1 +
+ src/internal/goarch/zgoarch_riscv.go               |   1 +
+ src/internal/goarch/zgoarch_riscv64.go             |   1 +
+ src/internal/goarch/zgoarch_s390.go                |   1 +
+ src/internal/goarch/zgoarch_s390x.go               |   1 +
+ src/internal/goarch/zgoarch_sparc.go               |   1 +
+ src/internal/goarch/zgoarch_sparc64.go             |   1 +
+ src/internal/goarch/zgoarch_wasm.go                |   1 +
+ src/net/http/client.go                             |   2 +-
+ src/runtime/pprof/mprof_test.go                    |  11 ++
+ src/runtime/traceback_test.go                      | 179 ++++++++++++++++++++-
+ src/testing/testing.go                             |   2 +
+ src/text/scanner/scanner.go                        |   2 +-
+ src/time/time.go                                   |   2 +-
+ test/bench/go1/regexp_test.go                      |   2 +-
+ test/fixedbugs/issue47185.dir/bad/bad.go           |  72 +++++++++
+ test/fixedbugs/issue47185.dir/main.go              |  28 ++++
+ test/fixedbugs/issue47185.go                       |  11 ++
+ test/fixedbugs/issue47201.dir/a.go                 |  13 ++
+ test/fixedbugs/issue47201.dir/b.go                 |   9 ++
+ test/fixedbugs/issue47201.go                       |   7 +
+ test/run.go                                        |   1 +
+ 53 files changed, 486 insertions(+), 75 deletions(-)

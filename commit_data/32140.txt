@@ -1,38 +1,20 @@
-commit bd74fd3abb27b9b857ca77c9ee648299045ce963
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Aug 2 18:22:21 2017 +0200
+commit fd44d872dea87af38228f8e50803b319017268b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 6 20:57:46 2017 -0700
 
-    testing: explain how SkipNow and FailNow stop execution
+    cmd/compile: factor out dcl stack ops into package types
     
-    SkipNow and FailNow must be called from the goroutine running the
-    test. This is already documented, but it's easy to call them by
-    mistake when writing subtests. In the following:
-    
-      func TestPanic(t *testing.T) {
-        t.Run("", func(t2 *testing.T) {
-              t.FailNow()    // BAD: should be t2.FailNow()
-            })
-      }
-    
-    the FailNow call on the outer t *testing.T correctly triggers a panic
-    
-      panic: test executed panic(nil) or runtime.Goexit
-    
-    The error message confuses users (see issues #17421, #21175) because
-    there is no way to trace back the relevant part of the message ("test
-    executed ... runtime.Goexit") to a bad FailNow call without checking
-    the testing package source code and finding out that FailNow calls
-    runtime.Goexit.
-    
-    To help users debug the panic message, mention in the SkipNow and
-    FailNow documentation that they stop execution by calling
-    runtime.Goexit.
-    
-    Fixes #21175
-    
-    Change-Id: I0a3e5f768e72b464474380cfffbf2b67396ac1b5
-    Reviewed-on: https://go-review.googlesource.com/52770
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I000bb530e00d0f0bc59e0f1366b5fb586adf4f37
+    Reviewed-on: https://go-review.googlesource.com/39912
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/testing.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/alg.go      |   8 +--
+ src/cmd/compile/internal/gc/bimport.go  |  26 ++++----
+ src/cmd/compile/internal/gc/dcl.go      | 107 +++-----------------------------
+ src/cmd/compile/internal/gc/main.go     |   3 +-
+ src/cmd/compile/internal/gc/noder.go    |  36 +++++------
+ src/cmd/compile/internal/gc/subr.go     |   4 +-
+ src/cmd/compile/internal/types/scope.go | 105 +++++++++++++++++++++++++++++++
+ 7 files changed, 153 insertions(+), 136 deletions(-)

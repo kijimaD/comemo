@@ -1,34 +1,40 @@
-commit 2a74b9e81405e34c67880866552b5d7bcab74de1
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Jan 31 14:09:14 2017 -0500
+commit 4951c793633a55c5d1e4d94283fa82cff31cee48
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 27 16:19:15 2016 +1100
 
-    cmd/trace: Record mark assists in execution traces
+    image/png: implement truecolor transparency.
     
-    During the mark phase of garbage collection, goroutines that allocate
-    may be recruited to assist. This change creates trace events for mark
-    assists and displays them similarly to sweep assists in the trace
-    viewer.
-    
-    Mark assists are different than sweeps in that they can be preempted, so
-    displaying them in the trace viewer is a little tricky -- we may need to
-    synthesize multiple slices for one mark assist. This could have been
-    done in the parser instead, but I thought it might be preferable to keep
-    the parser as true to the event stream as possible.
-    
-    Change-Id: I381dcb1027a187a354b1858537851fa68a620ea7
-    Reviewed-on: https://go-review.googlesource.com/36015
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I99b9a51db29d514ebaa9c1cfde65c0b5184c0f42
+    Reviewed-on: https://go-review.googlesource.com/32140
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/trace/trace.go                             |  85 +++++++--
- src/cmd/trace/trace_test.go                        |  41 +++++
- src/internal/trace/parser.go                       | 204 +++++++++++----------
- src/internal/trace/testdata/http_1_9_good          | Bin 0 -> 2368 bytes
- src/internal/trace/testdata/stress_1_9_good        | Bin 0 -> 594085 bytes
- .../trace/testdata/stress_start_stop_1_9_good      | Bin 0 -> 5615 bytes
- src/internal/trace/writer.go                       |   2 +-
- src/runtime/mgcmark.go                             |  10 +
- src/runtime/trace.go                               | 100 +++++-----
- 9 files changed, 286 insertions(+), 156 deletions(-)
+ src/image/png/reader.go                       | 126 ++++++++---
+ src/image/png/reader_test.go                  | 133 ++++++++++--
+ src/image/png/testdata/pngsuite/README        |  21 +-
+ src/image/png/testdata/pngsuite/ftbbn0g01.png | Bin 0 -> 176 bytes
+ src/image/png/testdata/pngsuite/ftbbn0g02.png | Bin 0 -> 197 bytes
+ src/image/png/testdata/pngsuite/ftbbn0g04.png | Bin 0 -> 429 bytes
+ src/image/png/testdata/pngsuite/ftbbn2c16.png | Bin 0 -> 2041 bytes
+ src/image/png/testdata/pngsuite/ftbbn2c16.sng |  45 ++++
+ src/image/png/testdata/pngsuite/ftbbn3p08.png | Bin 0 -> 1499 bytes
+ src/image/png/testdata/pngsuite/ftbbn3p08.sng | 292 ++++++++++++++++++++++++++
+ src/image/png/testdata/pngsuite/ftbgn2c16.png | Bin 0 -> 2041 bytes
+ src/image/png/testdata/pngsuite/ftbgn2c16.sng |  45 ++++
+ src/image/png/testdata/pngsuite/ftbgn3p08.png | Bin 0 -> 1499 bytes
+ src/image/png/testdata/pngsuite/ftbgn3p08.sng | 292 ++++++++++++++++++++++++++
+ src/image/png/testdata/pngsuite/ftbrn2c08.png | Bin 0 -> 1633 bytes
+ src/image/png/testdata/pngsuite/ftbrn2c08.sng |  45 ++++
+ src/image/png/testdata/pngsuite/ftbwn0g16.png | Bin 0 -> 1313 bytes
+ src/image/png/testdata/pngsuite/ftbwn3p08.png | Bin 0 -> 1496 bytes
+ src/image/png/testdata/pngsuite/ftbwn3p08.sng | 291 +++++++++++++++++++++++++
+ src/image/png/testdata/pngsuite/ftbyn3p08.png | Bin 0 -> 1499 bytes
+ src/image/png/testdata/pngsuite/ftbyn3p08.sng | 292 ++++++++++++++++++++++++++
+ src/image/png/testdata/pngsuite/ftp0n0g08.png | Bin 0 -> 719 bytes
+ src/image/png/testdata/pngsuite/ftp0n0g08.sng |  41 ++++
+ src/image/png/testdata/pngsuite/ftp0n2c08.png | Bin 0 -> 1594 bytes
+ src/image/png/testdata/pngsuite/ftp0n2c08.sng |  41 ++++
+ src/image/png/testdata/pngsuite/ftp0n3p08.png | Bin 0 -> 1476 bytes
+ src/image/png/testdata/pngsuite/ftp0n3p08.sng | 288 +++++++++++++++++++++++++
+ src/image/png/testdata/pngsuite/ftp1n3p08.png | Bin 0 -> 1483 bytes
+ src/image/png/testdata/pngsuite/ftp1n3p08.sng | 290 +++++++++++++++++++++++++
+ 29 files changed, 2185 insertions(+), 57 deletions(-)

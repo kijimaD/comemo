@@ -1,12 +1,56 @@
-commit c633f85f65ece7bb063bd5dd7b06aff167ba5f59
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed May 30 17:47:56 2012 +0200
+commit de96df1b029af554886f6d83a08deb812b0416b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 10:22:33 2012 -0400
 
-    exp/locale/collate: avoid double building in maketables.go.  Also added check.
+    cmd/6g: change sbop swap logic
     
-    R=r
+    I added the nl->op == OLITERAL case during the recent
+    performance round, and while it helps for small integer constants,
+    it hurts for floating point constants.  In the Mandelbrot benchmark
+    it causes 2*Zr*Zi to compile like Zr*2*Zi:
+    
+            0x000000000042663d <+249>:      movsd  %xmm6,%xmm0
+            0x0000000000426641 <+253>:      movsd  $2,%xmm1
+            0x000000000042664a <+262>:      mulsd  %xmm1,%xmm0
+            0x000000000042664e <+266>:      mulsd  %xmm5,%xmm0
+    
+    instead of:
+    
+            0x0000000000426835 <+276>:      movsd  $2,%xmm0
+            0x000000000042683e <+285>:      mulsd  %xmm6,%xmm0
+            0x0000000000426842 <+289>:      mulsd  %xmm5,%xmm0
+    
+    It is unclear why that has such a dramatic performance effect
+    in a tight loop, but it's obviously slightly better code, so go with it.
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17    5957470000   5973924000   +0.28%
+    BenchmarkFannkuch11      3811295000   3869128000   +1.52%
+    BenchmarkGobDecode         26001900     25670500   -1.27%
+    BenchmarkGobEncode         12051430     11948590   -0.85%
+    BenchmarkGzip                177432       174821   -1.47%
+    BenchmarkGunzip               10967        10756   -1.92%
+    BenchmarkJSONEncode        78924750     79746900   +1.04%
+    BenchmarkJSONDecode       313606400    307081600   -2.08%
+    BenchmarkMandelbrot200     13670860      8200725  -40.01%  !!!
+    BenchmarkRevcomp25M      1179194000   1206539000   +2.32%
+    BenchmarkTemplate         447931200    443948200   -0.89%
+    BenchmarkMD5Hash1K             2856         2873   +0.60%
+    BenchmarkMD5Hash8K            22083        22029   -0.24%
+    
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkGobDecode            29.52        29.90    1.01x
+    BenchmarkGobEncode            63.69        64.24    1.01x
+    BenchmarkJSONEncode           24.59        24.33    0.99x
+    BenchmarkJSONDecode            6.19         6.32    1.02x
+    BenchmarkRevcomp25M          215.54       210.66    0.98x
+    BenchmarkTemplate              4.33         4.37    1.01x
+    BenchmarkMD5Hash1K           358.54       356.31    0.99x
+    BenchmarkMD5Hash8K           370.95       371.86    1.00x
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6202063
+    https://golang.org/cl/6261051
 
- src/pkg/exp/locale/collate/build/builder.go | 23 +++++++++++++++--------
- 1 file changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/6g/cgen.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

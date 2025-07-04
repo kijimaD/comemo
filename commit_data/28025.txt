@@ -1,33 +1,16 @@
-commit 3e270ab80bbbc259402f0ae22b5eb36f4daec426
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 23 10:43:47 2016 -0700
+commit 6e4a8615f652a2020471622354be6d890404020c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 25 18:31:36 2016 -0400
 
-    cmd/compile: clean up ctz ops
+    gc: use AbsFileLine for deterministic binary export data
     
-    Now that we have ops that can return 2 results, have BSF return a result
-    and flags.  We can then get rid of the redundant comparison and use CMOV
-    instead of CMOVconst ops.
+    This version of the file name honors the -trimprefix flag,
+    which strips off variable parts like $WORK or $PWD.
+    The TestCgoConsistentResults test now passes.
     
-    Get rid of a bunch of the ops we don't use.  Ctz{8,16}, plus all the Clzs,
-    and CMOVNEs.  I don't think we'll ever use them, and they would be easy
-    to add back if needed.
-    
-    Change-Id: I8858a1d017903474ea7e4002fc76a6a86e7bd487
-    Reviewed-on: https://go-review.googlesource.com/27630
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If93980b054f9b13582dd314f9d082c26eaac4f41
+    Reviewed-on: https://go-review.googlesource.com/22444
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |  25 +-
- src/cmd/compile/internal/gc/ssa.go             |   4 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  31 +--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  24 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
- src/cmd/compile/internal/ssa/opGen.go          | 200 ++------------
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 348 ++-----------------------
- src/runtime/internal/sys/intrinsics.go         |  33 ---
- src/runtime/internal/sys/intrinsics_386.s      |  16 --
- src/runtime/internal/sys/intrinsics_stubs.go   |   2 -
- src/runtime/internal/sys/intrinsics_test.go    |  16 --
- test/intrinsic.dir/main.go                     |  15 --
- 12 files changed, 71 insertions(+), 650 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

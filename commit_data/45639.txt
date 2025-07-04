@@ -1,31 +1,15 @@
-commit a938e529861215d9721f5e2590d5166bfbf2d271
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Thu May 13 16:08:59 2021 +0200
+commit 4fcb5068f6aa907166535531862cfd4a3dec6be7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 11:43:50 2020 -0500
 
-    cmd/go: fix a portability issue in the cd script command
+    doc/go1.16: document switch to MADV_DONTNEED
     
-    Currently all script tests use the UNIX path separator with the cd
-    command, causing the PWD environment variable to have the incorrect path
-    separator on Windows.
+    Updates #42330.
     
-    Call filepath.FromSlash on the cd command argument.
-    Update the testdata/script/README to document that the cd argument must
-    use slashes.
-    
-    Add a regression test.
-    
-    To reproduce this issue, a test must use the cd command followed by a
-    stdout or stderr command containing the pattern $PWD.
-    
-    Change-Id: Ib2dc5f185cc2476451402787996d14df91f7dddb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319311
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ifda10a5c3dca30acf1258e9e0af202e9beffc68e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267137
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/script_test.go                        |  2 +-
- src/cmd/go/testdata/script/README                |  1 +
- src/cmd/go/testdata/script/test_script_cmdcd.txt | 13 +++++++++++++
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ doc/go1.16.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

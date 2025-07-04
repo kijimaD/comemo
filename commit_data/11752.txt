@@ -1,17 +1,17 @@
-commit 6bdd791dec9de4f8e8c9e1d70cb0609177459f7d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 10:20:49 2012 +1100
+commit 44fa114dc6493d6baeae5661b7030ab1e1289ead
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 10:07:55 2012 +1100
 
-    database/sql: remove Into from ScannerInto/ScanInto
+    container/heap: add example
+    godoc doesn't have the fu to present the example well, but this gives
+    us an example of an example to develop example fu.
     
-    Also fix a doc error.
+    Fixes #2840.
     
-    Fixes #2843
-    
-    R=golang-dev, r, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5653050
+    https://golang.org/cl/5645063
 
- src/pkg/database/sql/convert.go |  4 ++--
- src/pkg/database/sql/sql.go     | 38 ++++++++++++++++++++------------------
- 2 files changed, 22 insertions(+), 20 deletions(-)
+ src/pkg/container/heap/example_test.go | 105 +++++++++++++++++++++++++++++++++
+ src/pkg/container/heap/heap.go         |   5 +-
+ 2 files changed, 108 insertions(+), 2 deletions(-)

@@ -1,20 +1,22 @@
-commit f95ff37cb06652b5b4dd244e72b939a36258c273
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Mar 24 13:33:46 2020 -0400
+commit 48eb79ec2197aeea0eb43597b00cad1ebcad61d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:04:36 2019 -0700
 
-    cmd/go: clarify behavior with no arguments in 'go help mod download'
+    runtime: add new modtimer function
     
-    'go mod download' is equivalent to 'go mod download all'.
+    This adds a new field to P, adjustTimers, that tells the P that one of
+    its existing timers was modified to be earlier, and that it therefore
+    needs to resort them.
     
-    Fixes #38031
+    Updates #27707
     
-    Change-Id: I7aec7e5a1370a3e248eba6daad9a75ec21f33a83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225201
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4c5f5b51ed116f1d898d3f87cdddfa1b552337f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171832
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/alldocs.go                  | 3 ++-
- src/cmd/go/internal/modcmd/download.go | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/proc.go     |   1 +
+ src/runtime/runtime2.go |   6 +++
+ src/runtime/time.go     | 101 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 107 insertions(+), 1 deletion(-)

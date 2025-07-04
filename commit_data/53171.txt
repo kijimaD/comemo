@@ -1,45 +1,21 @@
-commit 3afbca5c5ff91b1b577b77cde6aecbfaac5881e5
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue Apr 4 01:10:55 2023 +0200
+commit 24dc27a3c084b901ee456637541ea818495888b0
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jul 24 09:48:56 2022 -0700
 
-    runtime: rename getcallerfp to getfp
+    cmd/compile: fix blank label code
     
-    The previous name was wrong due to the mistaken assumption that calling
-    f->g->getcallerpc and f->g->getcallersp would respectively return the
-    pc/sp at g. However, they are actually referring to their caller's
-    caller, i.e. f.
+    When checkEnabled is forced true, the 52278 test fails. Be a bit
+    more careful about processing blank labels.
     
-    Rename getcallerfp to getfp in order to stay consistent with this
-    naming convention.
+    Update #52278
     
-    Also see discussion on CL 463835.
-    
-    For #16638
-    
-    This is a redo of CL 481617 that became necessary because CL 461738
-    added another call site for getcallerfp().
-    
-    Change-Id: If0b536e85a6c26061b65e7b5c2859fc31385d025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494857
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I48aa89e2c9e3715d8efe599bc4363b5b5879d8a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419318
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/asm_amd64.s            | 2 +-
- src/runtime/asm_arm64.s            | 2 +-
- src/runtime/export_test.go         | 2 +-
- src/runtime/export_windows_test.go | 2 +-
- src/runtime/os_wasm.go             | 5 +++--
- src/runtime/stubs_386.go           | 5 +++--
- src/runtime/stubs_amd64.go         | 4 ++--
- src/runtime/stubs_arm.go           | 5 +++--
- src/runtime/stubs_arm64.go         | 4 ++--
- src/runtime/stubs_loong64.go       | 5 +++--
- src/runtime/stubs_mips64x.go       | 5 +++--
- src/runtime/stubs_mipsx.go         | 5 +++--
- src/runtime/stubs_ppc64x.go        | 5 +++--
- src/runtime/stubs_riscv64.go       | 5 +++--
- src/runtime/stubs_s390x.go         | 5 +++--
- src/runtime/trace.go               | 2 +-
- 16 files changed, 36 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 4 ++++
+ test/fixedbugs/issue52278.go           | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

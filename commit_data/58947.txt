@@ -1,24 +1,37 @@
-commit 061efaa8a761458eaa41119ffd59033738cf141c
-Author: Grégoire Lodi <pro@lodi.me>
-Date:   Wed Mar 5 09:44:46 2025 +0000
+commit 700edbf73e16e2c55d59a917233662bad88623bc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 24 22:14:49 2024 +0100
 
-    net/http: make http.FileServer return 404 when a path is invalid/unsafe
+    net/netip: optimize Addr.MarshalText allocation for 4in6 addresses
     
-    This PR adds error handling in net/http toHTTPError to return a 404
-    instead of a 500 when net/http fs.Dir.Open throws the error http:
-    invalid or unsafe file path.
+    name                           old time/op    new time/op    delta
+    AddrMarshalText/v4-8             18.5ns ± 1%    18.8ns ± 1%   +1.40%  (p=0.000 n=9+10)
+    AddrMarshalText/v6-8             58.0ns ± 0%    57.5ns ± 0%   -0.93%  (p=0.000 n=9+10)
+    AddrMarshalText/v6_ellipsis-8    61.4ns ± 0%    60.4ns ± 0%   -1.65%  (p=0.000 n=10+9)
+    AddrMarshalText/v6_v4-8          25.7ns ± 0%    26.2ns ± 1%   +1.86%  (p=0.000 n=10+10)
+    AddrMarshalText/v6_zone-8        61.8ns ± 0%    60.8ns ± 0%   -1.63%  (p=0.000 n=10+9)
     
-    Fixes #72091
+    name                           old alloc/op   new alloc/op   delta
+    AddrMarshalText/v4-8              16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    AddrMarshalText/v6-8              48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    AddrMarshalText/v6_ellipsis-8     48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    AddrMarshalText/v6_v4-8           48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=10+10)
+    AddrMarshalText/v6_zone-8         48.0B ± 0%     48.0B ± 0%     ~     (all equal)
     
-    Change-Id: I7941c8fca5160a4a82732dc1d05b9b95eac84fbf
-    GitHub-Last-Rev: 04b5019dfb629820621f3776d6f22fd754171565
-    GitHub-Pull-Request: golang/go#72108
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654975
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    name                           old allocs/op  new allocs/op  delta
+    AddrMarshalText/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrMarshalText/v6-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrMarshalText/v6_ellipsis-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrMarshalText/v6_v4-8            1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrMarshalText/v6_zone-8          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    
+    Change-Id: Ib298a0fb9ec6b55e37d0559dad387242dc82aab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557776
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/fs.go      | 10 +++++++++-
- src/net/http/fs_test.go | 21 +++++++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/net/netip/netip.go      |  7 ++++---
+ src/net/netip/netip_test.go | 14 +++++++++-----
+ 2 files changed, 13 insertions(+), 8 deletions(-)

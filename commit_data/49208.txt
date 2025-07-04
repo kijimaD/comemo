@@ -1,39 +1,45 @@
-commit 08d6c4c2b96eb3e5012af9b346dc5b325e956844
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 13 15:30:03 2022 +0000
+commit 27552e9172c5a9f7bbd8428c6e30eac14bb5e0b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 28 15:29:19 2021 -0700
 
-    runtime: account for idle mark time in the GC CPU limiter
+    [dev.typeparams] cmd/compile: set type parameter indices when they are bound
     
-    Currently the GC CPU limiter doesn't account for idle application time
-    at all. This means that the GC could start thrashing, for example if the
-    live heap exceeds the max heap set by the memory limit, but the limiter
-    will fail to kick in when there's a lot of available idle time. User
-    goroutines will still be assisting at a really high rate because of
-    assist pacing rules, but the GC CPU limiter will fail to kick in because
-    the actual fraction of GC CPU time will be low if there's a lot of
-    otherwise idle time (for example, on an overprovisioned system).
+    This is a port of CL 336249 with adjustments due to slightly
+    different handling of type parameter declaration in types2.
     
-    Luckily, that idle time is usually eaten up entirely by idle mark
-    workers, at least during the GC cycle. And in these cases where we're
-    GCing continuously, that's all of our idle time. So we can take idle
-    mark work time and subtract it from the mutator time accumulated in the
-    GC CPU limiter, and that will give us a more accurate picture of how
-    much CPU is being spent by user goroutines on GC. This will allow the GC
-    CPU limiter to kick in, and reduce the impact of the thrashing.
+    The CL also contains adjustments to the compiler front-end.
     
-    There is a corner case here if the idle mark workers are disabled, for
-    example for the periodic GC, but in the case of the periodic GC, I don't
-    think it's possible for us to be thrashing at all, so it doesn't really
-    matter.
+    With this change it is not necessary to export type parameter
+    indices. Filed issue #47451 so we don't forget.
     
-    Fixes #52890.
-    
-    Change-Id: Ie133a7d1f89b603434b415d51eb8733c2708a858
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405898
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2834f7be313fcb4763dff2a9058f1983ee6a81b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338192
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/mgc.go      |  7 ++++++-
- src/runtime/mgclimit.go | 38 +++++++++++++++++++++++++++++++++++++-
- 2 files changed, 43 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go   |  7 ++--
+ src/cmd/compile/internal/noder/decl.go         |  6 ++--
+ src/cmd/compile/internal/noder/expr.go         |  2 +-
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/noder/types.go        | 10 +++---
+ src/cmd/compile/internal/noder/writer.go       | 26 +++++++++------
+ src/cmd/compile/internal/types2/api_test.go    |  2 +-
+ src/cmd/compile/internal/types2/assignments.go |  2 +-
+ src/cmd/compile/internal/types2/builtins.go    |  3 +-
+ src/cmd/compile/internal/types2/call.go        | 20 +++++------
+ src/cmd/compile/internal/types2/decl.go        | 12 +++----
+ src/cmd/compile/internal/types2/index.go       |  2 +-
+ src/cmd/compile/internal/types2/instance.go    |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 10 +++---
+ src/cmd/compile/internal/types2/lookup.go      | 22 ++++++------
+ src/cmd/compile/internal/types2/named.go       | 12 +++----
+ src/cmd/compile/internal/types2/object.go      |  4 +--
+ src/cmd/compile/internal/types2/predicates.go  |  2 +-
+ src/cmd/compile/internal/types2/signature.go   | 31 ++++++++---------
+ src/cmd/compile/internal/types2/sizeof_test.go |  4 +--
+ src/cmd/compile/internal/types2/subst.go       |  4 +--
+ src/cmd/compile/internal/types2/typeparam.go   | 46 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/types2/typestring.go  |  4 +--
+ 23 files changed, 142 insertions(+), 93 deletions(-)

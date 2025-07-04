@@ -1,16 +1,16 @@
-commit 3218b1aa6fffef560147bcbbcb313a5c8a5e0d76
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Apr 13 10:42:16 2017 +0200
+commit 14c2849c3ebe498971413ee5e8c9780fabc8578e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Feb 7 17:35:51 2017 -0500
 
-    cmd/compile: only print one error for bad-type literal in assignment
+    runtime: update android time_now call
     
-    Fixes #8438
+    This was broken in https://golang.org/cl/36255
     
-    Change-Id: Ib43cdcdc962a8d9e14faf984bc859a92ba1eb517
-    Reviewed-on: https://go-review.googlesource.com/40531
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib23323a745a650ac51b0ead161076f97efe6d7b7
+    Reviewed-on: https://go-review.googlesource.com/36543
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/subr.go |  4 +++-
- test/fixedbugs/issue8438.go         | 17 +++++++++++++++++
- test/interface/explicit.go          |  3 +--
- 3 files changed, 21 insertions(+), 3 deletions(-)
+ src/runtime/write_err_android.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

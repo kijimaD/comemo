@@ -1,26 +1,32 @@
-commit 415f15b66746d8e0cd6f01e89dceed41e617be5f
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Jan 11 12:35:05 2012 +1100
+commit cbdbdc4f616f65906e6e6d7c958368c033add4e8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 11 09:53:32 2012 +0900
 
-    image: rename image.Tiled to image.Repeated.
+    net: add IP-level socket option helpers for Unix variants
     
-    What package image currently provides is a larger image consisting
-    of many copies of a smaller image.
+    Also reorganize socket options stuff but there are no API behavioral
+    changes.
     
-    More generally, a tiled image could be a quilt consisting of different
-    smaller images (like Google Maps), or a technique to view a portion of
-    enormous images without requiring the whole thing in memory.
-    
-    This richer construct might not ever belong in the standard library (and
-    is definitely out of scope for Go 1), but I would like the option for
-    image.Tiled to be its name.
-    
-    R=r, rsc
+    R=rsc, fullung
     CC=golang-dev
-    https://golang.org/cl/5530062
+    https://golang.org/cl/5494067
 
- src/cmd/gofix/Makefile           |  1 +
- src/cmd/gofix/imagetiled.go      | 40 +++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/imagetiled_test.go | 41 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/image/names.go           | 22 ++++++++++-----------
- 4 files changed, 93 insertions(+), 11 deletions(-)
+ src/pkg/net/Makefile                               |  34 +++-
+ src/pkg/net/interface.go                           |  20 ++-
+ src/pkg/net/multicast_test.go                      |  87 +++++++++-
+ src/pkg/net/sock.go                                |  86 ----------
+ src/pkg/net/sockopt.go                             | 171 +++++++++++++++++++
+ src/pkg/net/{sock_bsd.go => sockopt_bsd.go}        |   2 +-
+ src/pkg/net/{sock_linux.go => sockopt_linux.go}    |   2 +-
+ .../net/{sock_windows.go => sockopt_windows.go}    |   2 +-
+ src/pkg/net/sockoptip.go                           | 187 +++++++++++++++++++++
+ src/pkg/net/sockoptip_bsd.go                       |  54 ++++++
+ src/pkg/net/sockoptip_darwin.go                    |  78 +++++++++
+ src/pkg/net/sockoptip_freebsd.go                   |  80 +++++++++
+ src/pkg/net/sockoptip_linux.go                     | 120 +++++++++++++
+ src/pkg/net/sockoptip_openbsd.go                   |  78 +++++++++
+ src/pkg/net/sockoptip_windows.go                   |  61 +++++++
+ src/pkg/net/udpsock_posix.go                       |  51 +-----
+ src/pkg/net/unicast_test.go                        |  99 +++++++++++
+ src/pkg/syscall/syscall_windows.go                 |  12 ++
+ 18 files changed, 1071 insertions(+), 153 deletions(-)

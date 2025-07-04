@@ -1,23 +1,16 @@
-commit 6a9da69147a3b32e48f8dfea8c82f5975af9cc62
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 9 22:52:22 2018 -0400
+commit 415873409770455b526f905fd4b509c651b5b9d9
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Oct 17 10:24:28 2018 +0000
 
-    time: add support for day-of-year in Format and Parse
+    test/codegen: add more combined load/store test cases
     
-    Day of year is 002 or __2, in contrast to day-in-month 2 or 02 or _2.
-    This means there is no way to print a variable-width day-of-year,
-    but that's probably OK.
+    This CL adds more combined load/store test cases for 386/amd64.
     
-    Fixes #25689.
-    
-    Change-Id: I1425d412cb7d2d360e9b3bf74e89566714e2477a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/122876
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I0a483a6ed0212b65c5e84d67ed8c9f50c389ce2d
+    Reviewed-on: https://go-review.googlesource.com/c/142878
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/export_test.go |  57 ++++++++++++++++++++++++++
- src/time/format.go      | 105 +++++++++++++++++++++++++++++++++++++++++++-----
- src/time/format_test.go |  66 ++++++++++++++++++++++++++++++
- src/time/time_test.go   |  21 ++++++++--
- 4 files changed, 237 insertions(+), 12 deletions(-)
+ test/codegen/memcombine.go | 62 ++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 52 insertions(+), 10 deletions(-)

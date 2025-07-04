@@ -1,23 +1,31 @@
-commit 47f3e1e02c8737fd06397d957506f3724737cae0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 8 13:45:16 2021 -0700
+commit d1d64e4cea41bf908152e6a9c45980946e7825a2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 06:06:31 2020 -0800
 
-    cmd/compile/internal/types2: move NewTypeParam off of Checker
+    [dev.regabi] cmd/compile: split SliceExpr.List into separate fields
     
-    This is a port of CL 347561.
+    Passes toolstash -cmp.
     
-    A comment was corrected both in types2 and go/types, and the
-    compiler adjusted for the updated NewTypeParameter function.
-    
-    Change-Id: I4381f0dd8e43228e1d037c5d997d421b7838f905
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348574
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I4e31154d04d99f2b80bec6a2c571a2a4a3f2ec99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279959
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/importer/iimport.go |  2 +-
- src/cmd/compile/internal/noder/reader2.go    |  2 +-
- src/cmd/compile/internal/types2/builtins.go  |  2 +-
- src/cmd/compile/internal/types2/decl.go      |  2 +-
- src/cmd/compile/internal/types2/typeparam.go | 10 +++++++---
- src/go/types/typeparam.go                    |  2 +-
- 6 files changed, 12 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     |  7 ++-
+ src/cmd/compile/internal/ir/expr.go           | 63 +++------------------------
+ src/cmd/compile/internal/ir/fmt.go            | 13 +++---
+ src/cmd/compile/internal/ir/node_gen.go       |  9 ++--
+ src/cmd/compile/internal/noder/noder.go       | 11 +++--
+ src/cmd/compile/internal/ssagen/ssa.go        | 24 +++++-----
+ src/cmd/compile/internal/typecheck/expr.go    | 22 ++++------
+ src/cmd/compile/internal/typecheck/iexport.go |  8 ++--
+ src/cmd/compile/internal/typecheck/iimport.go |  7 ++-
+ src/cmd/compile/internal/walk/assign.go       | 12 ++---
+ src/cmd/compile/internal/walk/builtin.go      |  8 ++--
+ src/cmd/compile/internal/walk/complit.go      |  2 +-
+ src/cmd/compile/internal/walk/convert.go      |  2 +-
+ src/cmd/compile/internal/walk/expr.go         | 24 +++++-----
+ src/cmd/compile/internal/walk/order.go        | 11 ++---
+ 15 files changed, 72 insertions(+), 151 deletions(-)

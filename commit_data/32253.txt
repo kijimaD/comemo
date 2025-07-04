@@ -1,23 +1,21 @@
-commit 67b39859ec19d1ac6d5ba64d22955b0456e590bd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 14 09:56:51 2017 -0700
+commit 0e4824aacca9da713a7d43024ad2ab14ae27f0c6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 05:47:24 2017 -0700
 
-    runtime: remove unused global variable emptystring
+    cmd/compile: remove flag_largemodel
     
-    Last runtime use was removed in https://golang.org/cl/133700043,
-    September 2014.
+    It was added in 2013 in CL 7064048.
+    All uses of it in the compiler disappeared with
+    (or possibly before) the SSA backend.
+    Several releases have gone by without it,
+    from which I conclude that it is now not needed.
     
-    Replace plan9 syscall uses with plan9-specific variable.
-    
-    Change-Id: Ifb910c021c1419a7c782959f90b054ed600d9e19
-    Reviewed-on: https://go-review.googlesource.com/55450
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I2095f4ac05d4d7ab998168993a7fd5d954aeee88
+    Reviewed-on: https://go-review.googlesource.com/40856
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime2.go       | 17 ++++++++---------
- src/syscall/asm_plan9_386.s   |  6 +++---
- src/syscall/asm_plan9_amd64.s |  6 +++---
- src/syscall/asm_plan9_arm.s   |  2 +-
- src/syscall/syscall_plan9.go  |  2 ++
- 5 files changed, 17 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/go.go   | 2 --
+ src/cmd/compile/internal/gc/main.go | 6 ------
+ 2 files changed, 8 deletions(-)

@@ -1,19 +1,36 @@
-commit 0f4bb9627ebc27d4e669e41d7f58396e063abb70
-Author: Ethan Hur <ethan0311@gmail.com>
-Date:   Sun Mar 14 13:43:26 2021 +0000
+commit 26407b22129e2e54db269c1a92826521addd8d56
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Aug 12 19:26:53 2020 -0400
 
-    cmd/compile: fix outdated comment
+    [dev.link] cmd/{compile,link}: remove pcdata tables from pclntab_old
     
-    variable xtop has removed and refactored after go 1.16, but there are comments referring xtop.
+    Move the pctables out of pclntab_old. Creates a new generator symbol,
+    runtime.pctab, which holds all the deduplicated pctables. Also, tightens
+    up some of the types in runtime.
     
-    It may mislead new contributors to be confused.
+    Darwin, cmd/compile statistics:
     
-    Change-Id: Id79c747d8daef14049b29e70a4ecd34054a28a5e
-    GitHub-Last-Rev: 94b55208862fdc9fa0de39aacf2c9ef9987cef56
-    GitHub-Pull-Request: golang/go#44995
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301629
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Keith Randall <khr@golang.org>
+    alloc/op
+    Pclntab_GC                   26.4MB ± 0%    13.8MB ± 0%
+    allocs/op
+    Pclntab_GC                    89.9k ± 0%     86.4k ± 0%
+    liveB
+    Pclntab_GC                    25.5M ± 0%     24.2M ± 0%
+    
+    No significant change in binary size.
+    
+    Change-Id: I1560fd4421f8a210f8d4b508fbc54e1780e338f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248332
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/func.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go              |   2 +
+ src/cmd/link/internal/ld/pcln.go              | 143 +++++++++++++++++---------
+ src/cmd/link/internal/ld/symtab.go            |   4 +
+ src/cmd/link/internal/loader/symbolbuilder.go |   9 ++
+ src/cmd/link/internal/sym/symbol.go           |   4 -
+ src/debug/gosym/pclntab.go                    |  10 +-
+ src/runtime/runtime2.go                       |   8 +-
+ src/runtime/symtab.go                         |  28 ++---
+ 8 files changed, 136 insertions(+), 72 deletions(-)

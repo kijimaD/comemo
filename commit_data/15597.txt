@@ -1,36 +1,17 @@
-commit ce8341554caa8be64aeafd9bf2077a98db462fda
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 5 18:47:27 2013 -0800
+commit a22361d68d6d93ab2b06e4b608e19796e033218b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 6 09:55:04 2013 +1100
 
-    net/http: close TCP connection on Response.Body.Close
+    vet: check for useless assignments.
     
-    Previously the HTTP client's (*Response).Body.Close would try
-    to keep reading until EOF, hoping to reuse the keep-alive HTTP
-    connection, but the EOF might never come, or it might take a
-    long time. Now we immediately close the TCP connection if we
-    haven't seen EOF.
+    The only check so far is for self-assignments of the form "expr = expr",
+    but even that found one instance in the standard library.
     
-    This shifts the burden onto clients to read their whole response
-    bodies if they want the advantage of reusing TCP connections.
-    
-    In the future maybe we could decide on heuristics to read some
-    number of bytes for some max amount of time before forcefully
-    closing, but I'd rather not for now.
-    
-    Statistically, touching this code makes things regress, so I
-    wouldn't be surprised if this introduces new bugs, but all the
-    tests pass, and I think the code is simpler now too. Maybe.
-    
-    Please test your HTTP client code before Go 1.1.
-    
-    Fixes #3672
-    
-    R=golang-dev, adg
+    R=r, adg, mtj, rsc
     CC=golang-dev
-    https://golang.org/cl/7419050
+    https://golang.org/cl/7455048
 
- src/pkg/net/http/response_test.go  |  2 +-
- src/pkg/net/http/sniff_test.go     | 11 +++++-
- src/pkg/net/http/transport.go      | 73 ++++++++++++--------------------------
- src/pkg/net/http/transport_test.go | 64 +++++++++++++++++++++++++++++++++
- 4 files changed, 98 insertions(+), 52 deletions(-)
+ src/cmd/vet/assign.go      | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/main.go        |  2 ++
+ src/cmd/vet/test_assign.go | 20 ++++++++++++++++++++
+ 3 files changed, 66 insertions(+)

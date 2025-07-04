@@ -1,12 +1,14 @@
-commit dd4423292ea7a475ef9db9fac8221e3c06bdc90f
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 11 08:48:19 2011 +1000
+commit 1b7142d15729861669a1ed5491263a693707e141
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Sun Apr 10 11:23:23 2011 +1000
 
-    misc/vim: update type highlighting for new reflect package
+    archive/zip: add new type ReadCloser, make OpenReader return it.
+    Fixes #1678.
     
-    R=adg
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4385051
+    https://golang.org/cl/4372047
 
- misc/vim/syntax/go.vim | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/archive/zip/reader.go      | 46 ++++++++++++++++++++++++++++----------
+ src/pkg/archive/zip/reader_test.go |  6 +++++
+ 2 files changed, 40 insertions(+), 12 deletions(-)

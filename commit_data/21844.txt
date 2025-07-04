@@ -1,19 +1,35 @@
-commit d460b6e5c6c998ebc862e541a1779b8d6595d127
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Mar 1 13:47:54 2015 -0500
+commit d5d4ab78195aac74bf1824c0b13cb91d2d7d3f07
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jan 22 23:38:29 2015 +0100
 
-    misc/ios: add go_darwin_arm_exec script
+    os/signal, runtime: implement notes on Plan 9
     
-    This script is getting very close to complete, and is complex enough
-    that I'd like to get what's there so far reviewed. With it the builder
-    is left failing on eight packages. Two of those involve correcting
-    GOROOT which may need modifications to this script, the others are
-    either a unix sockets bug I have to hunt down or are caused by lldb
-    getting stuck on SIGSEGV, a TODO.
+    This change is an implementation of the signal
+    runtime and os/signal package on Plan 9.
     
-    Change-Id: I5ff933800167b6764b51ad195da7dcda61d59ff8
-    Reviewed-on: https://go-review.googlesource.com/6404
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Contrary to Unix, on Plan 9 a signal is called
+    a note and is represented by a string.
+    
+    For this reason, the sigsend and signal_recv
+    functions had to be reimplemented specifically
+    for Plan 9.
+    
+    In order to reuse most of the code and internal
+    interface of the os/signal package, the note
+    strings are mapped to integers.
+    
+    Thanks to Russ Cox for the early review.
+    
+    Change-Id: I95836645efe21942bb1939f43f87fb3c0eaaef1a
+    Reviewed-on: https://go-review.googlesource.com/2164
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 505 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 505 insertions(+)
+ src/os/signal/signal.go            |   2 -
+ src/os/signal/signal_plan9.go      |  55 +++++++++++
+ src/os/signal/signal_plan9_test.go | 181 +++++++++++++++++++++++++++++++++++++
+ src/os/signal/signal_stub.go       |  17 ----
+ src/runtime/os3_plan9.go           |   6 +-
+ src/runtime/sigqueue.go            |   2 +
+ src/runtime/sigqueue_plan9.go      | 115 +++++++++++++++++++++++
+ 7 files changed, 356 insertions(+), 22 deletions(-)

@@ -1,12 +1,18 @@
-commit 21f5057639a1ca81b705307c1ed8c0af1249a308
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 9 08:12:26 2011 -0800
+commit d5a5855ba19fad0e3b237c5c77c5575af1690d92
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 9 11:27:27 2011 +0100
 
-    http: add a disabled failing test for Issue 2357
+    gc: Preserve original blank name for .anon substitution on out params.
     
-    R=golang-dev, rsc
+    Fixes #1802.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5372044
+    https://golang.org/cl/5364043
 
- src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/cmd/gc/dcl.c                 |  9 +++++----
+ src/cmd/gc/fmt.c                 | 28 +++++++++++++++++++++-------
+ test/fixedbugs/bug377.dir/one.go |  6 ++++++
+ test/fixedbugs/bug377.dir/two.go |  4 ++++
+ test/fixedbugs/bug377.go         |  9 +++++++++
+ 5 files changed, 45 insertions(+), 11 deletions(-)

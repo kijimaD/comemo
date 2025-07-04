@@ -1,19 +1,30 @@
-commit 58035ec8ee68b288d9a0680919e2f4e4a9f28824
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 11 10:35:30 2015 -0400
+commit 1bab3a16db964e331097e314ef4c57e1ac44cc4a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 26 20:51:13 2015 -0700
 
-    cmd/go: run test binaries in original environment
+    net/http: fix now-flaky TransportAndServerSharedBodyRace test
     
-    Fixes #12096.
-    Followup to CL 12483, which fixed #11709 and #11449.
+    TestTransportAndServerSharedBodyRace got flaky after
+    issue #9662 was fixed by https://golang.org/cl/11412, which made
+    servers hang up on clients when a Handler stopped reading its body
+    early.
     
-    Change-Id: I9031ea36cc60685f4d6f65c39f770c89b3e3395a
-    Reviewed-on: https://go-review.googlesource.com/13449
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This test was affected by a race between the the two goroutines in the
+    test both only reading part of the request, which was an unnecessary
+    detail for what the test was trying to test (concurrent Read/Close
+    races on an *http.body)
+    
+    Also remove an unused remnant from an old test from which this one was
+    derived. And make the test not deadlock when it fails. (which was why
+    the test was showing up as 2m timeouts on the dashboard)
+    
+    Fixes #11418
+    
+    Change-Id: Ic83d18aef7e09a9cd56ac15e22ebed75713026cb
+    Reviewed-on: https://go-review.googlesource.com/11610
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/build.go   |  2 +-
- src/cmd/go/go_test.go | 15 +++++++++++++++
- src/cmd/go/main.go    |  5 ++---
- src/cmd/go/test.go    |  2 +-
- src/cmd/go/vcs.go     |  2 +-
- 5 files changed, 20 insertions(+), 6 deletions(-)
+ src/net/http/serve_test.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

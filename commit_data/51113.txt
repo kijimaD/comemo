@@ -1,21 +1,18 @@
-commit b725622ceb3d537334e1a3bb1723b1e939a40823
-Author: David Chase <drchase@google.com>
-Date:   Wed Nov 2 17:21:09 2022 -0400
+commit 870f33f6efcbb5db7b556cbe3438aa7925270825
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:26:51 2021 -0500
 
-    cmd/compile: tweak compiler concurrency
+    doc/go1.18: add changes to strconv.Unquote to release notes
     
-    Default concurrency is now GOMAXPROCS, though this is normally
-    reduced to 4 by the go build commmand.
+    CL 343877
     
-    If compiler flags don't permit concurrency, silently
-    turn it down instead of failing the compilation.
+    Updates #47694
     
-    Change-Id: Id26cc3214e0ca402d60f915e98276a58d809e097
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447358
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I37a0a0d1f7ab937b12812981ecddc89eb8c99c24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368796
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/base/flag.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,15 +1,26 @@
-commit 28b40f3528bf1f45e68da85b1d338a89e61f91b8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 2 11:16:47 2018 -0700
+commit cebc7064dfa8c0888f919cfa3310b1608bffb67b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 12 15:54:09 2018 -0800
 
-    go/types: add doc strings to various undocumented exported objects
+    cmd/go: apply "go vet" to test files
     
-    Fixes #22747.
+    In earlier versions of Go the "go vet" command would run on regular
+    source files and test files. That was lost in CL74750.  Bring it back.
     
-    Change-Id: I498cb29f18bd9b59b13dc2ddc3a613cc12ac2a14
-    Reviewed-on: https://go-review.googlesource.com/110975
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This required moving a chunk of code from internal/test to
+    internal/load. The diff looks big but the code is unchanged.
+    
+    Fixes #23395
+    
+    Change-Id: Ie9ec183337e8db81c5fc421d118a22b351b5409e
+    Reviewed-on: https://go-review.googlesource.com/87636
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/object.go   | 38 +++++++++++++++++++++++++++++---------
- src/go/types/universe.go | 10 ++++++++--
- 2 files changed, 37 insertions(+), 11 deletions(-)
+ src/cmd/go/go_test.go            |  10 +++
+ src/cmd/go/internal/load/pkg.go  | 144 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go | 154 +++------------------------------------
+ src/cmd/go/internal/vet/vet.go   |  16 +++-
+ 4 files changed, 181 insertions(+), 143 deletions(-)

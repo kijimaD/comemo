@@ -1,0 +1,26 @@
+commit 0afcf9192ca27cb35249cfd1728858517371a382
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 20 11:16:23 2025 -0700
+
+    runtime: record synctest bubble ownership in hchan
+    
+    Replace the hchan.synctest bool with an hchan.bubble reference
+    to the synctest bubble that created the chan. I originally used
+    a bool to avoid increasing the size of hchan, but we have space
+    in hchan's current size class for another pointer.
+    
+    This lets us detect one bubble operating on a chan created
+    in a different bubble.
+    
+    For #67434
+    
+    Change-Id: If6cf9ffcb372fe7fb3f8f4ef27b664848578ba5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674515
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/internal/synctest/synctest_test.go | 40 +++++++++++++++++++++++++---------
+ src/runtime/chan.go                    | 20 ++++++++---------
+ src/runtime/select.go                  |  4 ++--
+ 3 files changed, 42 insertions(+), 22 deletions(-)

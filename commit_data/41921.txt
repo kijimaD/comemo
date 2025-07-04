@@ -1,23 +1,34 @@
-commit 2f84caebe3fff7f62de1f80bec6bfeed30012f49
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 11 19:51:09 2020 -0700
+commit 617b4168b8c6b11269a22646f0743ce43fb5a321
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 1 12:06:24 2019 -0400
 
-    cmd/compile: rewrite some AMD64 rules to use typed aux fields
+    cmd/go: adjust module-related logging
     
-    Surprisingly many rules needed no modification.
+    Suppress “finding” messages unless they are unusually slow, and
+    “extracting” messages always (they almost always occur conjunction
+    with “downloading”, which is already logged).
     
-    Use wrapper functions for aux like we did for auxint.
-    Simplifies things a bit.
+    Log “found” messages for module dependencies added to satisfy missing
+    import paths.
     
-    Change-Id: I2e852e77f1585dcb306a976ab9335f1ac5b4a770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227961
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Log top-level version changes in 'go get' when the selected version
+    is not identical to the version requested on the command line.
+    
+    Updates #26152
+    Updates #33284
+    
+    Change-Id: I4d0de60fab58d7cc7df8a2aff05c8b5b2220e626
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204777
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules   | 147 +++----
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  42 +-
- src/cmd/compile/internal/ssa/rewrite.go        |  18 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 136 ++++---
- src/cmd/compile/internal/ssa/rewritegeneric.go | 512 +++++++++----------------
- 5 files changed, 336 insertions(+), 519 deletions(-)
+ src/cmd/go/internal/modfetch/cache.go             | 22 +++++++++++++-----
+ src/cmd/go/internal/modfetch/fetch.go             |  4 ----
+ src/cmd/go/internal/modget/get.go                 | 28 +++++++++++++++++++++--
+ src/cmd/go/internal/modload/load.go               |  1 +
+ src/cmd/go/internal/modload/query.go              | 15 ++++++++++++
+ src/cmd/go/testdata/script/mod_get_newcycle.txt   |  1 -
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt |  2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt  |  4 ++++
+ 8 files changed, 63 insertions(+), 14 deletions(-)

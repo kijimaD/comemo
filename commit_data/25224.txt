@@ -1,19 +1,22 @@
-commit 8233ecd1b284170695d1d1b501dfab03921f3e20
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 10 10:24:03 2015 -0800
+commit c18b163c1590d43d78a1a7386d624d4aab234f40
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 22:47:27 2015 -0400
 
-    net/http: make NewRequest with empty method mean GET
+    runtime: control background scan credit flushing with flag
     
-    Until recently, we always permitted an empty string to NewRequest.
-    Keep that property, since it broke tests within in Google when trying
-    out Go 1.6, and probably would've broken others too.
+    Currently callers of gcDrain control whether it flushes scan work
+    credit to gcController.bgScanCredit by passing a value other than -1
+    for the flush threshold. Shortly we're going to make this always flush
+    scan work to gcController.scanWork and optionally also flush scan work
+    to gcController.bgScanCredit. This will be much easier if the flush
+    threshold is simply a constant (which it is in practice) and callers
+    merely control whether or not the flush includes the background
+    credit. Hence, replace the flush threshold argument with a flag.
     
-    Change-Id: Idddab1ae7b9423d5caac00af2c897fe1065b600b
-    Reviewed-on: https://go-review.googlesource.com/17699
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia27db17de8a3f1e462a5d7137d4b5dc72f99a04e
+    Reviewed-on: https://go-review.googlesource.com/15406
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/request.go      | 6 ++++++
- src/net/http/request_test.go | 7 +++++++
- 2 files changed, 13 insertions(+)
+ src/runtime/mgc.go     |  8 ++++----
+ src/runtime/mgcmark.go | 18 ++++++++++--------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

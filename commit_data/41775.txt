@@ -1,16 +1,23 @@
-commit 33357270f1e0673641c9eb28498c9c6e2b9bac72
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Dec 25 03:33:14 2019 +0000
+commit fb066098171c349355f2ad1e8d40d56d64673dc9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 18 17:08:35 2019 -0400
 
-    runtime: refine netpollunblock by removing unreachable 'if' condition
+    [dev.link] cmd/link: assign special indices for builtin functions
     
-    Change-Id: I58ac10013cadd78618124cb7ff134384d158ea4f
-    GitHub-Last-Rev: 2dfff0d3d3d18ecb196d5357cdfec196424d9e3b
-    GitHub-Pull-Request: golang/go#36276
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212557
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Compiler-generated function references (e.g. call to
+    runtime.newobject) appear frequently. We assign special indices
+    for them, so they don't need to be referenced by name.
+    
+    Change-Id: I2072594cbc56c9e1037a26e4aae12e68c2436e9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202085
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/netpoll.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/goobj/readnew.go      |   3 +-
+ src/cmd/internal/goobj2/builtin.go     |  45 ++++++++
+ src/cmd/internal/goobj2/builtinlist.go | 194 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/goobj2/mkbuiltin.go   | 124 +++++++++++++++++++++
+ src/cmd/internal/obj/sym.go            |  11 ++
+ src/cmd/link/internal/loader/loader.go |  21 +++-
+ 6 files changed, 391 insertions(+), 7 deletions(-)

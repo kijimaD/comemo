@@ -1,62 +1,22 @@
-commit 7f9f70e5b65d116539b5c6ee586ea12988682a4f
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Thu Jun 11 16:49:38 2015 +0300
+commit 7165c9b30e36959dcf8d0a038c803b4d2d8be445
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 6 09:32:11 2015 -0700
 
-    all: fix misprints in comments
+    net: always use cgo for DNS on Android
     
-    These were found by grepping the comments from the go code and feeding
-    the output to aspell.
+    Android has (had?) its own local DNS resolver daemon, also my fault:
     
-    Change-Id: Id734d6c8d1938ec3c36bd94a4dbbad577e3ad395
-    Reviewed-on: https://go-review.googlesource.com/10941
-    Reviewed-by: Aamir Khan <syst3m.w0rm@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    https://android.googlesource.com/platform/system/netd/+/007e987fee7e815e0c4bc820f434a632b7a69a9d
+    
+    And you access that via libc, not DNS.
+    
+    Fixes #10714
+    
+    Change-Id: Iaff752872ce19bb5c7771ab048fd50e3f72cb73c
+    Reviewed-on: https://go-review.googlesource.com/9793
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/weekly.html                          | 2 +-
- doc/go1.1.html                                 | 2 +-
- src/cmd/asm/internal/asm/parse.go              | 2 +-
- src/cmd/compile/internal/gc/inl.go             | 2 +-
- src/cmd/compile/internal/gc/order.go           | 2 +-
- src/cmd/compile/internal/gc/plive.go           | 2 +-
- src/cmd/compile/internal/gc/reflect.go         | 4 ++--
- src/cmd/compile/internal/gc/typecheck.go       | 2 +-
- src/cmd/go/build.go                            | 2 +-
- src/cmd/internal/obj/arm/asm5.go               | 2 +-
- src/cmd/internal/rsc.io/arm/armasm/ext_test.go | 2 +-
- src/cmd/internal/rsc.io/x86/x86asm/ext_test.go | 2 +-
- src/cmd/link/internal/arm/asm.go               | 2 +-
- src/cmd/objdump/objdump_test.go                | 2 +-
- src/cmd/pprof/internal/profile/encode.go       | 2 +-
- src/cmd/pprof/internal/svg/svg.go              | 2 +-
- src/cmd/yacc/testdata/expr/main.go             | 2 +-
- src/crypto/rsa/rsa.go                          | 2 +-
- src/crypto/tls/key_agreement.go                | 2 +-
- src/debug/dwarf/entry.go                       | 2 +-
- src/encoding/csv/writer.go                     | 2 +-
- src/internal/trace/parser.go                   | 4 ++--
- src/net/file_test.go                           | 2 +-
- src/net/http/client_test.go                    | 2 +-
- src/net/http/transport_test.go                 | 2 +-
- src/net/internal/socktest/sys_windows.go       | 4 ++--
- src/net/sock_posix.go                          | 2 +-
- src/net/url/example_test.go                    | 2 +-
- src/os/exec/lp_windows_test.go                 | 2 +-
- src/runtime/lfstack_test.go                    | 2 +-
- src/runtime/mbitmap.go                         | 2 +-
- src/runtime/mgc.go                             | 2 +-
- src/runtime/mgcmark.go                         | 2 +-
- src/runtime/mgcwork.go                         | 4 ++--
- src/runtime/mheap.go                           | 2 +-
- src/runtime/netpoll.go                         | 2 +-
- src/runtime/netpoll_solaris.go                 | 2 +-
- src/runtime/panic.go                           | 2 +-
- src/runtime/proc1.go                           | 6 +++---
- src/runtime/race/testdata/select_test.go       | 2 +-
- src/runtime/runtime2.go                        | 4 ++--
- src/runtime/slice.go                           | 2 +-
- src/runtime/sqrt_test.go                       | 2 +-
- src/runtime/sys_nacl_386.s                     | 2 +-
- src/syscall/dll_windows.go                     | 2 +-
- src/syscall/mksyscall_windows.go               | 2 +-
- src/syscall/route_bsd.go                       | 2 +-
- 47 files changed, 54 insertions(+), 54 deletions(-)
+ src/net/conf.go      |  2 +-
+ src/net/conf_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

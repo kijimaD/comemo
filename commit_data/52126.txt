@@ -1,31 +1,16 @@
-commit 41e8679611fdee738065b91588b7016880ffde61
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Jan 13 06:22:34 2023 +0000
+commit 79619c3c7eb2ba3f3512410e1808c95cd1b6abf8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 4 11:40:44 2022 -0700
 
-    cmd/asm: remove the incorrect check of LDADDx-like instructions
+    test: extend issue52124.go to also test #52139
     
-    According to the ARM Architecture Reference Manual, LDADDx-like
-    instructions can take rt as zr when the encode A bit is 0. They
-    are used by the alias STADDx-like instructions. The current
-    assembler adds incorrect constraints for them, which is rt can't
-    be zr when field.enc A is 0. This patch removes it.
-    
-    Add test cases.
-    
-    Reported by Matt Horsnell <matt.horsnell@arm.com>
-    
-    The reference:
-    https://developer.arm.com/documentation/ddi0602/2022-12/Base-Instructions
-    
-    Change-Id: Ia2487a5e3900e32994fc14edaf03deeb245e70c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462295
-    Reviewed-by: Matt Horsnell <matthew.horsnell@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7da79d52d50d96536a8175ba08e9da551d07fadd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398094
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      | 32 ++++++++++++++++++++++++++
- src/cmd/asm/internal/asm/testdata/arm64error.s | 32 --------------------------
- src/cmd/internal/obj/arm64/asm7.go             | 13 ++---------
- 3 files changed, 34 insertions(+), 43 deletions(-)
+ test/typeparam/issue52124.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

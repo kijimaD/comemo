@@ -1,20 +1,40 @@
-commit 73e862eced80553479b7f19d572e9ca4e07bf585
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 4 15:42:32 2018 -0500
+commit 811b187a4f1e8052eb84a03b5fb399af1eefbdbe
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 18 18:31:05 2018 +0100
 
-    cmd/go/internal/get: use a strings.Replacer in expand
+    encoding/base64: slight decoding speed-up
     
-    This should be a no-op, but produces deterministic (and more correct)
-    behavior if we have accidentally failed to sanitize one of the inputs.
+    First, use a dummy slice access on decode64 and decode32 to ensure that
+    there is a single bounds check for src.
     
-    Updates #29231
+    Second, move the PutUint64/PutUint32 calls out of these functions,
+    meaning that they are simpler and smaller. This may also open the door
+    to inlineability in the future, but for now, they both go past the
+    budget.
     
-    Change-Id: I1271d0ffd01a691ec8c84906c4e02d9e2be19c72
-    Reviewed-on: https://team-review.git.corp.google.com/c/370575
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/154103
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    While at it, get rid of the ilen and olen variables, which have no
+    impact whatsoever on performance. At least, not measurable by any of the
+    benchmarks.
+    
+    name                 old time/op    new time/op    delta
+    DecodeString/2-4       54.3ns ± 1%    55.2ns ± 2%   +1.60%  (p=0.017 n=5+6)
+    DecodeString/4-4       66.6ns ± 1%    66.8ns ± 2%     ~     (p=0.903 n=6+6)
+    DecodeString/8-4       79.3ns ± 2%    79.6ns ± 1%     ~     (p=0.448 n=6+6)
+    DecodeString/64-4       300ns ± 1%     281ns ± 3%   -6.54%  (p=0.002 n=6+6)
+    DecodeString/8192-4    27.4µs ± 1%    23.7µs ± 2%  -13.47%  (p=0.002 n=6+6)
+    
+    name                 old speed      new speed      delta
+    DecodeString/2-4     73.7MB/s ± 1%  72.5MB/s ± 2%   -1.55%  (p=0.026 n=5+6)
+    DecodeString/4-4      120MB/s ± 1%   120MB/s ± 2%     ~     (p=0.851 n=6+6)
+    DecodeString/8-4      151MB/s ± 2%   151MB/s ± 1%     ~     (p=0.485 n=6+6)
+    DecodeString/64-4     292MB/s ± 1%   313MB/s ± 3%   +7.03%  (p=0.002 n=6+6)
+    DecodeString/8192-4   399MB/s ± 1%   461MB/s ± 2%  +15.58%  (p=0.002 n=6+6)
+    
+    For #19636.
+    
+    Change-Id: I0dfbdafa2a41dc4c582f63aef94b90b8e473731c
+    Reviewed-on: https://go-review.googlesource.com/113776
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/get/vcs.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/encoding/base64/base64.go | 66 +++++++++++++++++++++----------------------
+ 1 file changed, 32 insertions(+), 34 deletions(-)

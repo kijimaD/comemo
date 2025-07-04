@@ -1,41 +1,17 @@
-commit 4f74de1e4d8ac8382d866d9918059144218da069
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Wed Aug 26 15:24:41 2015 -0700
+commit b2cb3b416c538406c52e8c83a8f833fae812b9fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 00:27:59 2015 -0400
 
-    cmd/go: fix Go buildid reading on Solaris
+    cmd/go: add -pkgdir build flag
     
-    TestNoteReading fails on Solaris with linkmode=external due to some
-    assumptions made about how ELF .note sections are written by some
-    linkers.
+    Fixes #10210.
     
-    On current versions of Solaris and older derivatives, SHF_ALLOC is
-    intentionally ignored for .note sections unless the .note section is
-    assigned to the text segment via a mapfile.  Also, if .note sections
-    are assigned to the text segment, no PT_NOTE program header will be
-    created thwarting Go's attempts at attempting to quickly find the
-    .note.
-    
-    Furthermore, Go assumes that the relevant note segment will be placed
-    early in the file while the Solaris linker currently places the note
-    segment last in the file, additionally thwarting Go's optimisation
-    attempts that read only the first 16KB of the file to find the
-    buildid.
-    
-    The fix is to detect when the note section is outside of the first
-    16KB of the file and then fallback to additionally reading that
-    section of the file.  This way, in future versions of Solaris when
-    this linking behaviour is changed, the fast path will always succeed
-    and we'll only be slower if it fails; likewise, any other linker that
-    does this will also just work.
-    
-    Fixes #12178
-    
-    Change-Id: I61c1dc3f744ae3ad63938386d2ace8a432c0efe1
-    Reviewed-on: https://go-review.googlesource.com/14210
-    Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: I82ddd665bca31773b1fb1b056338c04818ef68f5
+    Reviewed-on: https://go-review.googlesource.com/12171
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/note.go              | 32 ++++++++++++++++++++++++++------
- src/cmd/go/note_test.go         |  3 ---
- src/cmd/link/internal/ld/elf.go |  4 ----
- 3 files changed, 26 insertions(+), 13 deletions(-)
+ src/cmd/go/alldocs.go | 14 +++++++++-----
+ src/cmd/go/build.go   | 26 ++++++++++++++++----------
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ src/cmd/go/pkg.go     |  7 +++++++
+ 4 files changed, 44 insertions(+), 15 deletions(-)

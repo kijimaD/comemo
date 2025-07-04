@@ -1,24 +1,24 @@
-commit 9a9dd72d5c2b2f808a0a7ef204e307bc1dbee78c
+commit 994eca4883b613ee845abb101ed4c3ffef80e428
 Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 17 19:59:31 2024 -0400
+Date:   Mon Oct 10 18:05:16 2022 -0400
 
-    cmd/link: add runtime.text.N symbols to macho symbol table in dynlink mode
+    test: add escape test for reflect.Value operations
     
-    In dynamic linking mode (e.g. when using plugins) on darwin, the
-    marker symbols runtime.text and runtime.etext are added to Textp
-    in an early stage, so when adding symbols to the symbol table we
-    don't need to explicitly add them. However, when splitting text
-    sections, the runtime.text.N marker symbols for the addtional
-    sections are not added to Textp. So we do need to add them
-    explicitly to the symbol table.
+    With CL 408826 reflect.Value does not always escape. We need to
+    make sure Value operations does (or does not) escape the Value
+    correctly. This CL adds a test.
     
-    Fixes #66993.
+    There are still a few unfortunate cases, where some Value
+    operations escape more than necessary (comparing to a non-reflect
+    version of the code), but hard to fix. These are mostly that a
+    Value would escape conditionally (mostly on the type of the Value),
+    but currently we don't have a good way to express that.
     
-    Change-Id: Ic718d03cd71fc0bfb931cff82640b1f4c53b89be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I9fdfc7584670aa09c5a01f6b2803f2043aaddb65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441938
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/cgo/internal/testplugin/plugin_test.go | 19 +++++++++++++++
- src/cmd/link/internal/ld/macho.go              | 32 +++++++++++++++-----------
- 2 files changed, 37 insertions(+), 14 deletions(-)
+ test/escape_reflect.go | 462 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 462 insertions(+)

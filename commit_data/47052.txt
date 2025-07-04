@@ -1,19 +1,20 @@
-commit cfb532158fc5b5cd6b9c35bbc2ff7c203fe5f09b
-Author: Cholerae Hu <choleraehyq@gmail.com>
-Date:   Wed Oct 27 11:41:47 2021 +0800
+commit 86deb459de6a309503aa445a7d686bd139354e5e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 17 11:38:14 2021 +0700
 
-    cmd/go: add darwin/arm64 in the list of supported systems in help message
+    cmd/compile: remove selectnbrecv2
     
-    Fixes #49173.
+    Previous CL did remove selectnbrecv2 in runtime, the compiler now only
+    call selectnbrecv, so remove this. Make this as separated CL because it
+    adds much of noise to git stat.
     
-    Change-Id: I71270b4ff7e9ede3cdfa5946b73142a731752adf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358901
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I06e89c823c0403e9bd66f2633409c455a46d6e79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292891
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go             | 2 +-
- src/cmd/go/internal/work/build.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin.go      | 197 ++++++++++-----------
+ .../compile/internal/typecheck/builtin/runtime.go  |   1 -
+ 2 files changed, 97 insertions(+), 101 deletions(-)

@@ -1,29 +1,18 @@
-commit 4521782514725fb4ac904c545e58ba0959148925
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Feb 8 23:50:14 2011 -0500
+commit 2aaabfc828268c93d7d242f570f2dade1397b6f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 8 20:35:02 2011 -0800
 
-    cgo: fix handling of signed enumerations
+    http: handle unchunked, un-lengthed HTTP/1.1 responses
     
-    Structs defined in C as containing a field with
-    an enum type are currently translated to Go as
-    a struct with an unsigned integer field, even if
-    some of the values contained in the enum are
-    negative.
+    Fixes #716
     
-    This modification takes in consideration the values
-    defined in the enum, and conditionally defines the
-    Go type as signed if necessary.
+    This CL simply resumes the previous CL in-flight at
+    https://golang.org/cl/906042/
     
-    The logic introduced was tested with gcc, which
-    will increase the type size if it contains both
-    negative numbers and values greater than 2^b/2-1,
-    and refuses to compile values which would be
-    problematic (2^64-1, but in fact the ISO C
-    restricts the range to the size of int).
-    
-    R=rsc
+    R=rsc, petar-m, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4119058
+    https://golang.org/cl/4157042
 
- src/cmd/cgo/gcc.go | 32 +++++++++++++++++++++++---------
- 1 file changed, 23 insertions(+), 9 deletions(-)
+ src/pkg/http/response_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/transfer.go      | 27 +++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

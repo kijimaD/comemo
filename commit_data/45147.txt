@@ -1,30 +1,27 @@
-commit 23f8c203f026814ddc4ba4538f900d8151eb6840
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 11 12:42:49 2021 -0400
+commit 0941dc446e6b3028c77158728432086b5c06acf6
+Author: Eugene Kalinin <e.v.kalinin@gmail.com>
+Date:   Tue Aug 25 01:49:39 2020 +0300
 
-    cmd/compile: rework/reduce partially lived argument spilling
+    cmd/go: env -w validates GOTMPDIR value
     
-    In CL 307909 we generate code that spills pointer-typed argument
-    registers if it is part of an SSA-able aggregate. The current
-    code spill the register unconditionally. Sometimes it is
-    unnecessary, because it is already spilled, or it is never live.
+    This change makes go env -w check if GOTMPDIR is an absolute path.
     
-    This CL reworks the spill generation. We move it to the end of
-    compilation, after liveness analysis, so we have information about
-    if a spill is necessary, and only generate spills for the
-    necessary ones.
+    If GOTMPDIR is not an absolute and not existing path there will be an
+    error at every `work.Builder.Init()`. If `go env` has `-u/-w` as
+    argument `work.Builder.Init()` is not called.
     
-    Change-Id: I8d60be9b2c47651aeda14f5e2d1bbd207c134b26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309331
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    `go env -w GOTMPDIR=` work in the same way as `go env -u GOTMPDIR`.
+    
+    Fixes #40932
+    
+    Change-Id: I6b0662302eeace7f20460b6d26c6e59af1111da2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250198
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/amd64/galign.go   |  1 +
- src/cmd/compile/internal/amd64/ssa.go      |  8 ++++
- src/cmd/compile/internal/liveness/plive.go | 20 ++++++++--
- src/cmd/compile/internal/ssagen/arch.go    |  5 +++
- src/cmd/compile/internal/ssagen/ssa.go     | 63 ++++++++++++++++++++++++++----
- 5 files changed, 87 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/envcmd/env.go        | 24 ++++++++++++++++++++----
+ src/cmd/go/testdata/script/env_write.txt | 26 ++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 4 deletions(-)

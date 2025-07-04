@@ -1,86 +1,15 @@
-commit b2a950bb7343a46ff3edd8502fe2f02fc051a308
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Dec 27 20:58:00 2014 -0800
+commit 9d6825edee770f856cfdabb9e87c1a13e6feb4c8
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Nov 14 14:25:49 2014 +0100
 
-    runtime: rename gothrow to throw
+    [dev.cc] runtime: fix nil pointer crash handler bug on Solaris
     
-    Rename "gothrow" to "throw" now that the C version of "throw"
-    is no longer needed.
+    This change fixes the Solaris port.
     
-    This change is purely mechanical except in panic.go where the
-    old version of "throw" has been deleted.
-    
-    sed -i "" 's/[[:<:]]gothrow[[:>:]]/throw/g' runtime/*.go
-    
-    Change-Id: Icf0752299c35958b92870a97111c67bcd9159dc3
-    Reviewed-on: https://go-review.googlesource.com/2150
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=brad, golang-codereviews
+    https://golang.org/cl/168600045
 
- src/runtime/cgocall.go         |  14 ++---
- src/runtime/chan.go            |  16 ++---
- src/runtime/env_posix.go       |   2 +-
- src/runtime/hashmap.go         |  28 ++++-----
- src/runtime/heapdump.go        |   8 +--
- src/runtime/iface.go           |   4 +-
- src/runtime/lfstack.go         |   2 +-
- src/runtime/lock_futex.go      |  14 ++---
- src/runtime/lock_sema.go       |  20 +++---
- src/runtime/malloc.go          |  44 ++++++-------
- src/runtime/malloc1.go         |  14 ++---
- src/runtime/mcache.go          |   6 +-
- src/runtime/mcentral.go        |  12 ++--
- src/runtime/mem.go             |   2 +-
- src/runtime/mem_bsd.go         |   8 +--
- src/runtime/mem_darwin.go      |   4 +-
- src/runtime/mem_linux.go       |   8 +--
- src/runtime/mem_windows.go     |  10 +--
- src/runtime/mfixalloc.go       |   2 +-
- src/runtime/mgc.go             | 134 ++++++++++++++++++++--------------------
- src/runtime/mgc0.go            |   2 +-
- src/runtime/mheap.go           |  34 +++++------
- src/runtime/mprof.go           |   8 +--
- src/runtime/msize.go           |   8 +--
- src/runtime/netpoll.go         |  20 +++---
- src/runtime/netpoll_epoll.go   |   4 +-
- src/runtime/netpoll_kqueue.go  |   4 +-
- src/runtime/netpoll_solaris.go |   6 +-
- src/runtime/netpoll_windows.go |  12 ++--
- src/runtime/os1_darwin.go      |  10 +--
- src/runtime/os1_dragonfly.go   |   2 +-
- src/runtime/os1_freebsd.go     |   2 +-
- src/runtime/os1_linux.go       |  10 +--
- src/runtime/os1_nacl.go        |  16 ++---
- src/runtime/os1_netbsd.go      |   4 +-
- src/runtime/os1_openbsd.go     |   4 +-
- src/runtime/os1_plan9.go       |   2 +-
- src/runtime/os1_windows.go     |   4 +-
- src/runtime/os3_solaris.go     |  20 +++---
- src/runtime/os_nacl.go         |   4 +-
- src/runtime/os_plan9.go        |   8 +--
- src/runtime/os_windows.go      |   8 +--
- src/runtime/panic.go           |  44 +++++--------
- src/runtime/panic1.go          |   2 +-
- src/runtime/parfor.go          |   8 +--
- src/runtime/proc.go            |  38 ++++++------
- src/runtime/proc1.go           | 136 ++++++++++++++++++++---------------------
- src/runtime/race0.go           |  38 ++++++------
- src/runtime/race1.go           |   2 +-
- src/runtime/runtime1.go        |  90 +++++++++++++--------------
- src/runtime/select.go          |  12 ++--
- src/runtime/sema.go            |   4 +-
- src/runtime/signal1_unix.go    |   2 +-
- src/runtime/sigpanic_unix.go   |   8 +--
- src/runtime/sigqueue.go        |   4 +-
- src/runtime/softfloat_arm.go   |   2 +-
- src/runtime/stack1.go          |  60 +++++++++---------
- src/runtime/stack_test.go      |  18 ++++++
- src/runtime/string.go          |   4 +-
- src/runtime/stubs.go           |   2 +-
- src/runtime/symtab.go          |   8 +--
- src/runtime/sys_arm.go         |   4 +-
- src/runtime/sys_ppc64x.go      |   4 +-
- src/runtime/sys_x86.go         |   2 +-
- src/runtime/syscall_windows.go |   2 +-
- src/runtime/traceback.go       |  16 ++---
- 66 files changed, 530 insertions(+), 524 deletions(-)
+ src/runtime/signal_solaris_amd64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

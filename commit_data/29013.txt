@@ -1,28 +1,41 @@
-commit 212d2f82e05018f1ebb5e40e2c328865201da356
-Author: Dan Caddigan <goldcaddy77@gmail.com>
-Date:   Fri Oct 7 00:46:56 2016 -0400
+commit 4af1148079f00b461c9ae79df22aa647aa7ff5ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 17:10:57 2016 -0700
 
-    os: add ErrClosed, return for use of closed File
+    cmd/vet: improve asmdecl parameter handling
     
-    This is clearer than syscall.EBADF.
+    The asmdecl check had hand-rolled code that
+    calculated the size and offset of parameters
+    based only on the AST.
+    It included a list of known named types.
     
-    Fixes #17320.
+    This CL changes asmdecl to use go/types instead.
+    This allows us to easily handle named types.
+    It also adds support for structs, arrays,
+    and complex parameters.
     
-    Change-Id: I14c6a362f9a6044c9b07cd7965499f4a83d2a860
-    Reviewed-on: https://go-review.googlesource.com/30614
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    It improves the default names given to unnamed
+    parameters. Previously, all anonymous arguments were
+    called "unnamed", and the first anonymous return
+    argument was called "ret".
+    Anonymous arguments are now called arg, arg1, arg2,
+    etc., depending on the index in the argument list.
+    Return arguments are ret, ret1, ret2.
+    
+    This CL also fixes a bug in the printing of
+    composite data type sizes.
+    
+    Updates #11041
+    
+    Change-Id: I1085116a26fe6199480b680eff659eb9ab31769b
+    Reviewed-on: https://go-review.googlesource.com/27150
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/error.go        |  1 +
- src/os/error_test.go   |  2 ++
- src/os/file.go         | 39 ++++++++++++++++++++++++---------------
- src/os/file_plan9.go   |  8 ++++----
- src/os/file_posix.go   | 18 +++++++++---------
- src/os/file_unix.go    |  2 +-
- src/os/file_windows.go |  4 +++-
- src/os/os_test.go      | 22 ++++++++++++++++++++++
- src/os/types_plan9.go  |  2 ++
- src/os/types_unix.go   |  2 ++
- 10 files changed, 70 insertions(+), 30 deletions(-)
+ src/cmd/vet/asmdecl.go       | 386 +++++++++++++++++++++----------------------
+ src/cmd/vet/testdata/asm.go  |   9 +
+ src/cmd/vet/testdata/asm1.s  |  43 +++++
+ src/runtime/sys_darwin_arm.s |   2 +-
+ src/runtime/sys_plan9_arm.s  |   2 +-
+ 5 files changed, 243 insertions(+), 199 deletions(-)

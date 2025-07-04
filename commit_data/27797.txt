@@ -1,37 +1,53 @@
-commit 7a622740655bb5fcbd160eb96887032314842e6e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 8 17:14:01 2016 +0000
+commit c4807d4cc759025854e354fee99ac20d125f0d79
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 13 08:58:10 2016 -0500
 
-    net/http: make Transport use new connection if over HTTP/2 concurrency limit
+    runtime: improve memmove performance ppc64,ppc64le
     
-    The Go HTTP/1 client will make as many new TCP connections as the user requests.
+    This change improves the performance of memmove
+    on ppc64 & ppc64le mainly for moves >=32 bytes.
+    In addition, the test to detect backward moves
+     was enhanced to avoid backward moves if source
+    and dest were in different types of storage, since
+    backward moves might not always be efficient.
     
-    The HTTP/2 client tried to have that behavior, but the policy of
-    whether a connection is re-usable didn't take into account the extra 1
-    stream counting against SETTINGS_MAX_CONCURRENT_STREAMS so in practice
-    users were getting errors.
+    Fixes #14507
     
-    For example, if the server's advertised max concurrent streams is 100
-    and 200 concurrrent Go HTTP requests ask for a connection at once, all
-    200 will think they can reuse that TCP connection, but then 100 will
-    fail later when the number of concurrent streams exceeds 100.
+    The following shows some of the improvements from the test
+    in the runtime package:
     
-    Instead, recognize the "no cached connections" error value in the
-    shouldRetryRequest method, so those 100 will retry a new connection.
+    BenchmarkMemmove32                   4229.56      4717.13      1.12x
+    BenchmarkMemmove64                   6156.03      7810.42      1.27x
+    BenchmarkMemmove128                  7521.69      12468.54     1.66x
+    BenchmarkMemmove256                  6729.90      18260.33     2.71x
+    BenchmarkMemmove512                  8521.59      18033.81     2.12x
+    BenchmarkMemmove1024                 9760.92      25762.61     2.64x
+    BenchmarkMemmove2048                 10241.00     29584.94     2.89x
+    BenchmarkMemmove4096                 10399.37     31882.31     3.07x
     
-    This is the conservative fix for Go 1.7 so users don't get errors, and
-    to match the HTTP/1 behavior. Issues #13957 and #13774 are the more
-    involved bugs for Go 1.8.
+    BenchmarkMemmoveUnalignedDst16       1943.69      2258.33      1.16x
+    BenchmarkMemmoveUnalignedDst32       3885.08      3965.81      1.02x
+    BenchmarkMemmoveUnalignedDst64       5121.63      6965.54      1.36x
+    BenchmarkMemmoveUnalignedDst128      7212.34      11372.68     1.58x
+    BenchmarkMemmoveUnalignedDst256      6564.52      16913.59     2.58x
+    BenchmarkMemmoveUnalignedDst512      8364.35      17782.57     2.13x
+    BenchmarkMemmoveUnalignedDst1024     9539.87      24914.72     2.61x
+    BenchmarkMemmoveUnalignedDst2048     9199.23      21235.11     2.31x
+    BenchmarkMemmoveUnalignedDst4096     10077.39     25231.99     2.50x
     
-    Updates #16582
-    Updates #13957
+    BenchmarkMemmoveUnalignedSrc32       3249.83      3742.52      1.15x
+    BenchmarkMemmoveUnalignedSrc64       5562.35      6627.96      1.19x
+    BenchmarkMemmoveUnalignedSrc128      6023.98      10200.84     1.69x
+    BenchmarkMemmoveUnalignedSrc256      6921.83      15258.43     2.20x
+    BenchmarkMemmoveUnalignedSrc512      8593.13      16541.97     1.93x
+    BenchmarkMemmoveUnalignedSrc1024     9730.95      22927.84     2.36x
+    BenchmarkMemmoveUnalignedSrc2048     9793.28      21537.73     2.20x
+    BenchmarkMemmoveUnalignedSrc4096     10132.96     26295.06     2.60x
     
-    Change-Id: I1f15a7ce60c07a4baebca87675836d6fe03993e8
-    Reviewed-on: https://go-review.googlesource.com/25580
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I73af59970d4c97c728deabb9708b31ec7e01bdf2
+    Reviewed-on: https://go-review.googlesource.com/21990
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/memmove_ppc64x.s | 117 +++++++++++++++++++++++++++----------------
+ 1 file changed, 74 insertions(+), 43 deletions(-)

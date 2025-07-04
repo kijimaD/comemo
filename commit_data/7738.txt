@@ -1,19 +1,15 @@
-commit dbff0adaa784ef0f8221e2f999691221c21d29f9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 11 10:27:25 2011 -0800
+commit 9554e67188f222c8cf45b7521c8e5830881e4aff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 11 09:54:31 2011 -0800
 
-    gotype: commandline tool to typecheck go programs
+    http: fix transport crash when request URL is nil
     
-    First version. Handles scope analysis only at the
-    moment.
+    Fixes #1602
     
-    R=rsc, r, eds
+    R=rsc, petar-m
     CC=golang-dev
-    https://golang.org/cl/4259065
+    https://golang.org/cl/4284043
 
- src/cmd/Makefile         |   1 +
- src/cmd/gotype/Makefile  |  11 +++
- src/cmd/gotype/doc.go    |  57 ++++++++++++++
- src/cmd/gotype/gotype.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/Makefile         |   2 +
- 5 files changed, 262 insertions(+)
+ src/pkg/http/transport.go      |  5 +++++
+ src/pkg/http/transport_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

@@ -1,15 +1,22 @@
-commit f3d3328988a547cd21bcd398b7155ec390b642d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 4 14:19:08 2015 -0800
+commit 3be158d6ab73090a74df6bc3b7cfa062d896483a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Sat Jan 10 14:00:21 2015 +0000
 
-    math/big: move "bits" operations used for Float tests into separate file
+    encoding/xml: encoding name spaces correctly
     
-    This is a pure code move without any semantic change.
+    The current XML printer does not understand the xmlns
+    attribute. This change changes it so that it interprets the
+    xmlns attributes in the tokens being printed, and uses
+    appropriate prefixes.
     
-    Change-Id: I2c18efc858955d07949b1241e793232f2cf1deb9
-    Reviewed-on: https://go-review.googlesource.com/6821
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #7535.
+    
+    Change-Id: I20fae291d20602d37deb41ed42fab4c9a50ec85d
+    Reviewed-on: https://go-review.googlesource.com/2660
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/math/big/bits_test.go  | 207 +++++++++++++++++++++++++++++++++++++++++++++
- src/math/big/float_test.go | 197 ------------------------------------------
- 2 files changed, 207 insertions(+), 197 deletions(-)
+ src/encoding/xml/marshal.go      | 318 +++++++++++++++++++++++++++++++--------
+ src/encoding/xml/marshal_test.go |  44 +++---
+ src/encoding/xml/read_test.go    |  32 +++-
+ src/encoding/xml/xml.go          |  37 ++++-
+ 4 files changed, 344 insertions(+), 87 deletions(-)

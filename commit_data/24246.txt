@@ -1,26 +1,12 @@
-commit 5e89acb580dcb09e41c56b638753d7a9467d8614
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 10 15:48:23 2015 -0700
+commit 60315002f3642f25437548e597e684b88a54e78f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 17 09:25:45 2015 -0700
 
-    cmd/asm: fix some fuzz bugs
+    doc: document GODEBUG=netdns=X and netcgo in go1.5.txt
     
-    One (12466) was an actual logic error, backing up when there was
-    nothing there. The others were due to continuing to process an
-    instruction when it cannot work.
-    
-    Methodically stop assembling an instruction when it's not going to
-    succeed.
-    
-    Fixes #12466.
-    Fixes #12467.
-    Fixes #12468.
-    
-    Change-Id: I88c568f2b9c1a8408043b2ac5a78f5e2ffd62abd
-    Reviewed-on: https://go-review.googlesource.com/14498
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I720aeb1511e407750617e23c4cba1edcddf745bb
+    Reviewed-on: https://go-review.googlesource.com/12326
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/asm/internal/asm/asm.go          | 23 +++++++++++++++++++----
- src/cmd/asm/internal/asm/operand_test.go |  1 +
- src/cmd/asm/internal/asm/parse.go        | 17 ++++++++++++++---
- src/cmd/asm/internal/asm/pseudo_test.go  |  2 ++
- 4 files changed, 36 insertions(+), 7 deletions(-)
+ doc/go1.5.html | 5 +++++
+ 1 file changed, 5 insertions(+)

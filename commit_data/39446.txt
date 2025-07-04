@@ -1,17 +1,18 @@
-commit 6d1aaf143c879ae7acbd20a1e60bf74681bf6055
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 25 10:58:47 2019 -0700
+commit 72d24a7484063d1ca1113badb481f725382e39b8
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Feb 28 15:20:59 2019 +0100
 
-    misc/cgo/test: use char, not int, so test works on big-endian systems
+    cmd/compile: simplify zero ext operations on wasm
     
-    Updates #32579
-    Fixes #32770
+    On wasm every integer is stored with 64 bits. We can do zero
+    extension by simply zeroing the upper bits.
     
-    Change-Id: I32d1dea7505e8ad22e11a9806e10d096924b729b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183778
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02c54a38b3b2b7654fff96055edab1b92d48ff32
+    Reviewed-on: https://go-review.googlesource.com/c/164461
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  6 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 90 ++++++++++-------------------
+ 2 files changed, 33 insertions(+), 63 deletions(-)

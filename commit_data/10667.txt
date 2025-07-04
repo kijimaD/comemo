@@ -1,21 +1,15 @@
-commit 60f564fc3759a2d4cb2216ed643a65aa963f06b3
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Dec 8 16:46:19 2011 -0500
+commit 9d59c40eabae6ae1c4f11aa9227a9fd69156599a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 8 11:35:28 2011 -0800
 
-    crypto/dsa: don't truncate input hashes.
+    doc/go1: document rearranged package hierarchy
+    Some exciting HTML and CSS here.
     
-    Although FIPS 186-3 says that we should truncate the hashes, at least
-    one other library (libgcrypt) doesn't. This means that it's impossible
-    to interoperate with code using gcrypt if we enforce the truncation
-    inside of crypto/dsa.
-    
-    This change shouldn't actually affect anything because nearly
-    everybody pairs DSA with SHA1, which doesn't need to be truncated in
-    either case.
-    
-    R=golang-dev, bradfitz, rsc
+    R=remyoudompheng, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5471043
+    https://golang.org/cl/5460047
 
- src/pkg/crypto/dsa/dsa.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ doc/all.css  |   6 ++++
+ doc/go1.html | 115 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ doc/go1.tmpl | 111 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 212 insertions(+), 20 deletions(-)

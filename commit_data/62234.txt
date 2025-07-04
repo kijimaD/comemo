@@ -1,0 +1,26 @@
+commit f91ac1b61eb7c18773ff01be58a39f49de436585
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu Feb 13 10:31:53 2025 -0500
+
+    crypto/internal/fips140test: fix TestACVP env vars
+    
+    Fix TestACVP environment construction to include both ACVP_WRAPPER and
+    GODEBUG.
+    
+    Previously we were accidentally overwriting the cmd.Env, stomping the
+    ACVP_WRAPPER env var and replacing it with just the GODEBUG env var.
+    This in turn makes the tests start to fail when the test binary
+    subprocess is invoked without knowing it's fulfilling the role of the
+    wrapper, and not the test driver.
+    
+    Change-Id: Ie6ee30c8b93b2051a671e12aaa63d2116c5eb8c8
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips140test/acvp_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

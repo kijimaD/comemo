@@ -1,35 +1,21 @@
-commit ca8b6270724026fb7697e9f9510d1e6865ed7045
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 16 09:35:32 2016 -0700
+commit 5a34472d74637c84752d2c13ace78e4e6ab756b7
+Author: James Bardin <j.bardin@gmail.com>
+Date:   Wed Mar 16 13:53:53 2016 -0400
 
-    net/http: add Response.Uncompressed bool
+    cmd/cgo: add C.CBytes
     
-    The Transport's automatic gzip uncompression lost information in the
-    process (the compressed Content-Length, if known). Normally that's
-    okay, but it's not okay for reverse proxies which have to be able to
-    generate a valid HTTP response from the Transport's provided
-    *Response.
+    Add a C.CBytes function to copy a Go byte slice into C memory. This
+    returns an unsafe.Pointer, since that is what needs to be passed to
+    C.free, and the data is often opaque bytes anyway.
     
-    Reverse proxies should normally be disabling compression anyway and
-    just piping the compressed pipes though and not wasting CPU cycles
-    decompressing them. So also document that on the new Uncompressed
-    field.
+    Fixes #14838
     
-    Then, using the new field, fix Response.Write to not inject a bogus
-    "Connection: close" header when it doesn't see a transfer encoding or
-    content-length.
-    
-    Updates #15366 (the http2 side remains, once this is submitted)
-    
-    Change-Id: I476f40aa14cfa7aa7b3bf99021bebba4639f9640
-    Reviewed-on: https://go-review.googlesource.com/22671
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic7bc29637eb6f1f5ee409b3898c702a59833a85a
+    Reviewed-on: https://go-review.googlesource.com/20762
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/clientserver_test.go | 57 ++++++++++++++++++++++++++++++++++++---
- src/net/http/httputil/dump.go     | 13 ++++-----
- src/net/http/response.go          | 11 +++++++-
- src/net/http/response_test.go     | 26 ++++++++++++++++++
- src/net/http/transport.go         |  1 +
- 5 files changed, 97 insertions(+), 11 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue14838.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/doc.go          |  7 +++++++
+ src/cmd/cgo/out.go          | 18 ++++++++++++++++++
+ 4 files changed, 63 insertions(+)

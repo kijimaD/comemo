@@ -1,12 +1,15 @@
-commit 31d908baaf480db25db3d1fa2c229410fa0e76c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 11:20:34 2012 -0500
+commit 8efb304440474a4c168c30fc07f2787eaf16cfbf
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 31 11:00:16 2012 -0500
 
-    net: fix windows build
+    crypto/x509: use case-insensitive hostname matching.
     
-    TBR=mikioh
+    Fixes #2792.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5588048
+    https://golang.org/cl/5590045
 
- src/pkg/net/fd_windows.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/crypto/x509/verify.go      | 39 ++++++++++++++++++++++++++++++++++++--
+ src/pkg/crypto/x509/verify_test.go | 11 +++++++++++
+ 2 files changed, 48 insertions(+), 2 deletions(-)

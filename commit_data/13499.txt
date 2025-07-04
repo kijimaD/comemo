@@ -1,15 +1,15 @@
-commit 899be50991b71b0eb32fcbff5a7eb151dcb995f6
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Jul 26 10:32:24 2012 +1000
+commit fba47dc3b10e7649e3ad0129b357d83cc2db228e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 25 10:49:50 2012 -0700
 
-    exp/html: don't insert empty text nodes
+    cmd/godoc: delete -path flag
     
-    Pass 1 additional test.
+    Fixes #3453.
     
-    R=nigeltao
+    R=golang-dev, gri, jeff, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6443048
+    https://golang.org/cl/6350086
 
- src/pkg/exp/html/parse.go                           | 3 +++
- src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/godoc/doc.go   | 18 ++----------------
+ src/cmd/godoc/godoc.go | 11 -----------
+ 2 files changed, 2 insertions(+), 27 deletions(-)

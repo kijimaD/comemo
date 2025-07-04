@@ -1,24 +1,26 @@
-commit 7bfac4c3ddde3dd906b344f141a9d09a5f855c77
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sat Mar 28 23:25:18 2020 -0400
+commit 3c25e5ec38bdee9fd1e21e2d328f2802b2e86275
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Oct 23 22:27:29 2019 +0200
 
-    net/http: use DOMException.message property in error text
+    internal/syscall/windows/registry: allow for non-null terminated strings
     
-    Previously, details about the underlying fetch error
-    were not visible in the net/http error text:
+    According to MSDN, "If the data has the REG_SZ, REG_MULTI_SZ or
+    REG_EXPAND_SZ type, this size includes any terminating null character or
+    characters unless the data was stored without them. [...] If the data
+    has the REG_SZ, REG_MULTI_SZ or REG_EXPAND_SZ type, the string may not
+    have been stored with the proper terminating null characters. Therefore,
+    even if the function returns ERROR_SUCCESS, the application should
+    ensure that the string is properly terminated before using it;
+    otherwise, it may overwrite a buffer."
     
-            net/http: fetch() failed: <object>
+    It's therefore dangerous to pass it off unbounded as we do, and in fact
+    this led to crashes on real systems.
     
-    When using the message property, they are:
-    
-            net/http: fetch() failed: Failed to fetch
-            net/http: fetch() failed: The user aborted a request.
-    
-    Reference: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/message.
-    
-    Change-Id: Iecf7c6bac01abb164731a4d5c9af6582c250a1a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226205
-    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Change-Id: I6d786211814656f036b87fd78631466634cd764a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202937
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/roundtrip_js.go | 2 +-
+ src/internal/syscall/windows/registry/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

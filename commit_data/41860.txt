@@ -1,40 +1,14 @@
-commit 7ee8467b276fbe442df8c84c3d13a99e80519c24
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 4 19:22:28 2020 -0700
+commit a0c1e8d1ab07068e14b5abcd02099dbfb932188b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 06:39:01 2019 -0700
 
-    cmd/compile: use MOVBQZX for OpAMD64LoweredHasCPUFeature
+    context: mark testDeadline as a testing helper method
     
-    In the commit message of CL 212360, I wrote:
-    
-    > This new intrinsic ... generates MOVB+TESTB+NE.
-    > (It is possible that MOVBQZX+TESTQ+NE would be better.)
-    
-    I should have tested. MOVBQZX+TESTQ+NE does in fact appear to be better.
-    
-    For the benchmark in #36196, on my machine:
-    
-    name      old time/op  new time/op  delta
-    FMA-8     0.86ns ± 6%  0.70ns ± 5%  -18.79%  (p=0.000 n=98+97)
-    NonFMA-8  0.61ns ± 5%  0.60ns ± 4%   -0.74%  (p=0.001 n=100+97)
-    
-    Interestingly, these are both considerably faster than
-    the measurements I took a couple of months ago (1.4ns/2ns).
-    It appears that CL 219131 (clearing VZEROUPPER in asyncPreempt) helped a lot.
-    And FMA is now once again slower than NonFMA, although this change
-    helps it regain some ground.
-    
-    Updates #15808
-    Updates #36351
-    Updates #36196
-    
-    Change-Id: I8a326289a963b1939aaa7eaa2fab2ec536467c7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227238
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie6fc3e9789aea6e5949e66186db6f2b071b6fdff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 ++++++++++++++++++--
- 4 files changed, 22 insertions(+), 5 deletions(-)
+ src/context/context_test.go | 1 +
+ 1 file changed, 1 insertion(+)

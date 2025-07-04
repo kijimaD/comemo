@@ -1,54 +1,38 @@
-commit b26c3927bd9b250715a7f8652b3cd5c16475ff07
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 5 13:52:31 2023 -0400
+commit 666d736ecb8afbe1aeb1d15f3958b70af2173510
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 19:11:52 2022 -0700
 
-    cmd/dist: drop host test support
+    cmd/compile: do branch/label checks only once
     
-    Host tests are used for emulated builders that use cross-compilation.
-    Today, this is the android-{386,amd64}-emu builders and all wasm
-    builders. These builders run all.bash on a linux/amd64 host to build
-    all packages and most tests for the emulated guest, and then run the
-    resulting test binaries inside the emulated guest. A small number of
-    test packages are “host tests”: these run on the host rather than the
-    guest because they invoke the Go toolchain themselves (which only
-    lives on the host) and run the resulting binaries in the guest.
+    The previous change implemented the missing fallthrough checking
+    in the parser. Therefore we can now disable the duplicate check
+    in the type checker:
     
-    However, this host test mechanism is barely used today, despite being
-    quite complex. This complexity is also causing significant friction to
-    implementing structured all.bash output.
+    - rename (types2.Config.)IngoreLabels to IgnoreBranches to more
+      accurately reflect its functionality
     
-    As of this CL, the whole host test mechanism runs a total of 10 test
-    cases on a total of two builders (android-{386,amd64}-emu). There are
-    clearly several tests that are incorrectly being skipped, so we could
-    expand it to cover more test cases, but it would still apply to only
-    two builders. Furthermore, the two other Android builders
-    (android-{arm,arm64}-corellium) build the Go toolchain directly inside
-    Android and also have access to a C toolchain, so they are able to get
-    significantly better test coverage without the use of host tests. This
-    suggests that the android-*-emu builders could do the same. All of
-    these tests are cgo-related, so they don't run on the wasm hosts
-    anyway.
+    - now also ignore break/continue/fallthroughs, not just labels
     
-    Given the incredibly low value of host tests today, they are not worth
-    their implementation complexity and the friction they cause. Hence,
-    this CL drops support for host tests. (This was also the last use of
-    rtSequential, so we drop support for sequential tests, too.)
+    The IgnoreBranches flag only exists for types2, for use with
+    the compiler. There's no need to port this code to go/types.
     
-    Fixes #59999.
+    Note: An alternative (and perhaps better) approach would be
+    to not use the the parser's CheckBranches mode and instead
+    enable (i.e. not disable) the branch/label checking in the
+    type checker. However, this requires a bit more work because
+    the type checker's error messages about goto's jumping over
+    variables don't have access to the variable names, which are
+    desired in the error messages.
     
-    Change-Id: I3eaca853a8907abc8247709f15a0d19a872dd22d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492986
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #51456.
+    
+    Change-Id: Ib2e71e811d4e84e4895b729646e879fd43b12dcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414135
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/cgo/internal/testcarchive/carchive_test.go |  13 +++
- src/cmd/cgo/internal/testerrors/errors_test.go     |   4 +
- src/cmd/cgo/internal/testfortran/fortran_test.go   |   3 +
- src/cmd/cgo/internal/testgodefs/testgodefs_test.go |   3 +
- src/cmd/cgo/internal/testlife/life_test.go         |   2 +
- src/cmd/cgo/internal/teststdio/stdio_test.go       |   2 +
- src/cmd/dist/test.go                               | 126 +++------------------
- 7 files changed, 42 insertions(+), 111 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go |  2 +-
+ src/cmd/compile/internal/noder/noder.go |  4 +---
+ src/cmd/compile/internal/types2/api.go  |  5 ++---
+ src/cmd/compile/internal/types2/stmt.go | 17 ++++++-----------
+ 4 files changed, 10 insertions(+), 18 deletions(-)

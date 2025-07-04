@@ -1,19 +1,15 @@
-commit f19b24a182c445ceb3d998b2ebc20f1d8718df9b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 11 07:25:45 2011 -0700
+commit d366c369450991ad9d942fc5aa3ea7e6c99e40a0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 18:06:24 2011 +1000
 
-    strconv: handle [-+]Infinity in atof
+    exp/template: fix bug in argument evaluation.
+    Must keep dot and the receiver separate - variables broke that symmetry.
+    Also clean up function invocation and rename "data" to "dot" for clarity.
     
-    This is the form as returned by Postgres, as well
-    as JavaScript.
-    
-    I've tried and failed to find authorative docs online
-    about the proper string serialization, if any.
-    
-    R=golang-dev, gri, r, r, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4650077
+    https://golang.org/cl/4678048
 
- src/pkg/strconv/atof.go      | 10 ++++++----
- src/pkg/strconv/atof_test.go |  3 +++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/pkg/exp/template/exec.go      | 123 +++++++++++++++++++-------------------
+ src/pkg/exp/template/exec_test.go |   4 ++
+ 2 files changed, 66 insertions(+), 61 deletions(-)

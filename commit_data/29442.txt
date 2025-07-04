@@ -1,17 +1,23 @@
-commit f4c997578ad962074b8e3aaf28dcfaa2f48a8593
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:44 2016 +0200
+commit 896ac677b5e3e80278cc1ce179d8a077ac3a6d2f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 14:51:41 2016 -0700
 
-    cmd/compile: add support for GOARCH=mips{,le}
+    cmd/go: make bug subcommand open the browser
     
-    Change-Id: Ib489dc847787aaab7ba1be96792f885469e346ae
-    Reviewed-on: https://go-review.googlesource.com/31479
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Instead of dumping information for the use
+    to copy/paste into the issue tracker,
+    open the issue tracker directly with a pre-filled
+    template.
+    
+    Change-Id: I370d0063b609200497014ccda35244fa4314a662
+    Reviewed-on: https://go-review.googlesource.com/29210
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/mips/galign.go |  26 +
- src/cmd/compile/internal/mips/ggen.go   | 101 ++++
- src/cmd/compile/internal/mips/prog.go   | 157 ++++++
- src/cmd/compile/internal/mips/ssa.go    | 907 ++++++++++++++++++++++++++++++++
- 4 files changed, 1191 insertions(+)
+ src/cmd/go/bootstrap.go |  3 +++
+ src/cmd/go/bug.go       | 69 ++++++++++++++++++++++++++++++++++---------------
+ src/cmd/go/http.go      |  4 +++
+ 3 files changed, 55 insertions(+), 21 deletions(-)

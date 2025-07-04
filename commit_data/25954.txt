@@ -1,33 +1,21 @@
-commit 3cb870d47b5611465c46c6a6512b7f059584c66f
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Fri Feb 26 16:36:50 2016 -0300
+commit d2ca451873f6548f43d272c675d1b114165c394d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 4 17:54:21 2015 +0900
 
-    testing: make failure in benchmark cause non-zero exit status
+    net: adjust Lookup API test cases
     
-    Moves the implementation of RunBenchmarks to a non-exported function
-    that returns whether the execution was OK, and uses that to identify
-    failure in benchmarks.The exported function is kept for compatibility.
+    This change makes existing Lookup API test cases conform to the new
+    return value form that all the Lookup APIs except LookupTXT must return
+    a single or multiple absolute domain names.
     
-    Like before, benchmarks will only be executed if tests and examples
-    pass. The PASS message will not be printed if there was a failure in
-    a benchmark.
+    Updates #12189.
+    Fixes #12193.
     
-    Example output
-    
-            BenchmarkThatCallsFatal-8       --- FAIL: BenchmarkThatCallsFatal-8
-                    x_test.go:6: called by benchmark
-            FAIL
-            exit status 1
-            FAIL    _/.../src/cmd/go/testdata/src/benchfatal        0.009s
-    
-    Fixes #14307.
-    
-    Change-Id: I6f3ddadc7da8a250763168cc099ae8b325a79602
-    Reviewed-on: https://go-review.googlesource.com/19889
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I03ca09be5bff80e818fbcdc26039daa33d5440a8
+    Reviewed-on: https://go-review.googlesource.com/17411
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                        | 8 ++++++++
- src/cmd/go/testdata/src/benchfatal/x_test.go | 7 +++++++
- src/testing/benchmark.go                     | 9 ++++++++-
- src/testing/testing.go                       | 3 +--
- 4 files changed, 24 insertions(+), 3 deletions(-)
+ src/net/lookup_test.go | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

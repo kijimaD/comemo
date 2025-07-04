@@ -1,22 +1,26 @@
-commit 83bfe3b1bf25021d0a33352bed12696f5abe420a
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sat Apr 11 15:38:51 2020 -0700
+commit 8d45e612f1255619e8637acff5546c09f0aa3e67
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 1 11:24:17 2019 +0100
 
-    doc/go1.15, net/url: document new method URL.Redacted
+    syscall: add support for linux/riscv64
     
-    Adds an entry in the Go1.15 release notes, but also
-    adds an example test for URL.Redacted.
+    Based on the riscv-go port and the linux/riscv64 files in x/sys/unix.
     
-    Follow-up of CL 207082.
+    Updates #27532
     
-    Updates #37419
-    
-    Change-Id: Ibf81989778907511a3a3a3e4a03d1802b5dd9762
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227997
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib33a59a61f6b2721b12292c18f1fc9f9d0509cd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204659
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html             | 10 ++++++++++
- src/net/url/example_test.go | 15 +++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/syscall/asm_linux_riscv64.s       |  115 ++
+ src/syscall/endian_little.go          |    2 +-
+ src/syscall/mkall.sh                  |    9 +
+ src/syscall/syscall_linux_riscv64.go  |  203 ++++
+ src/syscall/types_linux.go            |    6 +-
+ src/syscall/zerrors_linux_riscv64.go  | 1878 +++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_riscv64.go | 1624 ++++++++++++++++++++++++++++
+ src/syscall/zsysnum_linux_riscv64.go  |  273 +++++
+ src/syscall/ztypes_linux_riscv64.go   |  631 +++++++++++
+ 9 files changed, 4737 insertions(+), 4 deletions(-)

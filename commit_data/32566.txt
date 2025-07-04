@@ -1,21 +1,25 @@
-commit 782ee23884b7f812ab3191b9d839955493d27c73
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Aug 23 11:08:56 2017 -0500
+commit 1f85d3ad09152e09d5f4e9b6d9dcec72dbb4ad9b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 27 11:56:42 2017 +1200
 
-    cmd/compile/internal/ssa: remove redundant zeroextensions on amd64
+    cmd/internal/obj/x86: use LEAx rather than ADDx when calling DUFFxxxx via GOT
     
-    Some instructions operating on <= 32 bits also zero out upper 32bits.
-    Remove zeroextensions of such values. Triggers a few times during
-    all.bash. Also removes ugly code like:
-    MOVL CX,CX
+    DUFFZERO on 386 is not marked as clobbering flags, but rewriteToUseGot rewrote
+    "ADUFFZERO $offset" to "MOVL runtime.duffxxx@GOT, CX; ADDL $offset, CX; CALL CX"
+    which does. Luckily the fix is easier than figuring out what the problem was:
+    replace the ADDL $offset, CX with LEAL $offset(CX), CX.
     
-    Change-Id: I66a46c190dd6929b7e3c52f3fe6b967768d00638
-    Reviewed-on: https://go-review.googlesource.com/58090
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    On amd64 DUFFZERO clobbers flags, on arm, arm64 and ppc64 ADD does not clobber
+    flags and s390x does not use the duff functions, so I'm fairly confident this
+    is the only fix required.
+    
+    I don't know how to write a test though.
+    
+    Change-Id: I69b0958f5f45771d61db5f5ecb4ded94e8960d4d
+    Reviewed-on: https://go-review.googlesource.com/41821
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewrite.go      | 32 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 13 +++++++++++
- 3 files changed, 47 insertions(+)
+ src/cmd/internal/obj/x86/obj6.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

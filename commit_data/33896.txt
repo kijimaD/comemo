@@ -1,17 +1,27 @@
-commit 67295d6eb0b9ef8d40fcddf052d18ebaa03566e4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 13 22:49:23 2017 -0800
+commit 8fa8f42cb37648a3c0754552c7397aeb3f36d921
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 7 12:14:31 2017 -0400
 
-    go/types: collect methods with parenthesized receiver types
+    [dev.boringcrypto] crypto/internal/boring: allow hmac operations after Sum
     
-    The existing code simply dropped them on the floor. Don't do that.
+    hmac.New returns a hash.Hash, which defines Sum as:
     
-    Fixes #23130.
+            // Sum appends the current hash to b and returns the resulting slice.
+            // It does not change the underlying hash state.
+            Sum(b []byte) []byte
     
-    Change-Id: I10f20e41f2c466a76519983253f87af7cf6d5e70
-    Reviewed-on: https://go-review.googlesource.com/83918
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    I've now seen two different pieces of code that make
+    use of the assumption that Sum has no effect on the
+    internal state, so make it so.
+    
+    Test in next CL in stack, so that it can be cherry-picked
+    to master.
+    
+    Change-Id: Iad84ab3e2cc12dbecef25c3fc8f2662d157b0d0b
+    Reviewed-on: https://go-review.googlesource.com/63910
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/go/types/resolver.go          |  4 ++--
- src/go/types/testdata/decls2b.src | 10 ++++++++++
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/crypto/internal/boring/goboringcrypto.h        |   1 +
+ .../boring/goboringcrypto_linux_amd64.syso         | Bin 7576080 -> 7576096 bytes
+ src/crypto/internal/boring/hmac.go                 |  36 +++++++--------------
+ 3 files changed, 13 insertions(+), 24 deletions(-)

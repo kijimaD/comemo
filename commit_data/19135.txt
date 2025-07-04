@@ -1,21 +1,15 @@
-commit 3f32a51242c2567d79681b2d4e002684f21d4a5c
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Apr 14 13:23:58 2014 -0700
+commit 3f529f8e43e3b9b78a399a1b0bdc789117dd96a7
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Apr 14 22:01:27 2014 +0200
 
-    crypto/x509: fix Windows build.
+    cmd/go: do not miss an error if import path contains "cmd/something"
     
-    Windows is building a chain to the AddTrust root which is different
-    from the native Go code and causing a build failure.
+    Fixes #7638
     
-    This change alters the test so that both should build to the AddTrust
-    root.
-    
-    R=bradfitz
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/87570044
+    https://golang.org/cl/87300043
 
- src/pkg/crypto/x509/verify_test.go | 33 ++++++++++++++++++++++++++++++---
- 1 file changed, 30 insertions(+), 3 deletions(-)
+ src/cmd/go/get.go | 4 ++++
+ 1 file changed, 4 insertions(+)

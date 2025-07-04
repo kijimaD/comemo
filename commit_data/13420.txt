@@ -1,14 +1,16 @@
-commit 33d2b495c5656b060d835bd395a5c736bd7f1e6a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Jun 30 12:40:07 2012 +0800
+commit fa6f9b4a3e2c1cd5b3da7786250f3c49c1f40325
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 07:44:04 2012 -0700
 
-    cmd/cgo: generate definitions for GoSlice
-            Fixes #3741.
+    net/http: support multiple byte ranges in ServeContent
     
-    R=golang-dev, rsc
+    Fixes #3784
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6308076
+    https://golang.org/cl/6351052
 
- misc/cgo/test/issue3741.go | 22 ++++++++++++++++++++++
- src/cmd/cgo/out.go         |  1 +
- 2 files changed, 23 insertions(+)
+ src/pkg/net/http/fs.go         | 107 ++++++++++++++++++++++++++++++-----
+ src/pkg/net/http/fs_test.go    | 123 ++++++++++++++++++++++++++++-------------
+ src/pkg/net/http/range_test.go |  22 ++++++++
+ 3 files changed, 199 insertions(+), 53 deletions(-)

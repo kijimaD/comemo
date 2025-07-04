@@ -1,36 +1,24 @@
-commit d317ba5d4489c1ef53d3077afbff30eb72d7d3b0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Oct 9 23:26:30 2020 +0700
+commit 673a02a235a92c3078b78a41f09ad09b0c8c81a4
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 16 08:13:16 2020 -0400
 
-    cmd/compile: remove NewPtr/NewSlice calls with untyped string
+    [dev.link] cmd/compile, cmd/link: move DWARF info sym to anonymous aux data
     
-    This is follow up of CL 260699, NewPtr/NewSlice should not be called
-    with untyped string.
+    Switch the primary subprogram die DWARF symbol emitted by the compiler
+    from named+dupOK to anonymous aux. This should help performance wise
+    by not having to add these symbols to the linker's symbol name lookup
+    tables.
     
-    No significal change in performance.
-    
-    name          old time/op       new time/op       delta
-    Template            167ms ± 5%        168ms ± 6%    ~     (p=0.549 n=9+10)
-    Unicode            73.9ms ±21%       69.5ms ± 5%    ~     (p=0.182 n=10+9)
-    GoTypes             611ms ± 4%        603ms ± 2%    ~     (p=0.356 n=10+9)
-    Compiler            3.07s ± 4%        3.05s ± 2%    ~     (p=0.356 n=9+10)
-    SSA                 7.61s ± 3%        7.49s ± 1%  -1.67%  (p=0.017 n=10+9)
-    Flate               114ms ±10%        110ms ±12%    ~     (p=0.165 n=10+10)
-    GoParser            148ms ±23%        138ms ±13%    ~     (p=0.436 n=9+9)
-    Reflect             377ms ± 9%        364ms ± 8%    ~     (p=0.105 n=10+10)
-    Tar                 149ms ±12%        151ms ±12%    ~     (p=0.315 n=10+10)
-    XML                 201ms ± 3%        206ms ± 8%    ~     (p=0.237 n=8+10)
-    LinkCompiler        308ms ± 3%        325ms ± 9%  +5.38%  (p=0.017 n=9+10)
-    [Geo mean]          352ms             348ms       -1.19%
-    
-    Passes toolstash-check.
-    
-    Change-Id: I1ca8e9635f1926e53e457bc06648fa08a5473bf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260859
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idf66662b8bf60b3dee9a55e6cd5137b24a9f5ab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223669
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/internal/obj/objfile.go        |  4 +++-
+ src/cmd/internal/obj/objfile2.go       |  6 +++---
+ src/cmd/internal/obj/plist.go          |  5 +----
+ src/cmd/internal/obj/sym.go            |  2 +-
+ src/cmd/link/internal/ld/dwarf.go      |  3 +++
+ src/cmd/link/internal/loader/loader.go | 10 ++++++++--
+ 6 files changed, 19 insertions(+), 11 deletions(-)

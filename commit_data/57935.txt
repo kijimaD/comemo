@@ -1,22 +1,19 @@
-commit 745ec75719b8364867e1f5f5c9a711217513800c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Nov 8 16:07:58 2024 -0600
+commit e8ba0579e2913f96c65b96e0696d64ff5f1599c5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 13:35:15 2023 -0400
 
-    cmd/compile/internal/ssa: improve carry addition rules on PPC64
+    runtime: set _XOPEN_SOURCE_EXTENDED for netbsd
     
-    Fold constant int16 addends for usages of math/bits.Add64(x,const,0)
-    on PPC64. This usage shows up in a few crypto implementations;
-    notably the go wrapper for CL 626176.
+    If _XOPEN_SOURCE is defined, then netbsd also requires
+    _XOPEN_SOURCE_EXTENDED to define stack_t.
     
-    Change-Id: I6963163330487d04e0479b4fdac235f97bb96889
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625899
+    For #62440.
+    
+    Change-Id: Ib05658c3ca7fae1f6b051566e713ce7bc7c037a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527775
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 27 +++++++++++++++++++++++++++
- test/codegen/bits.go                          |  1 +
- 3 files changed, 29 insertions(+)
+ src/runtime/testdata/testprogcgo/stackswitch.c | 2 ++
+ 1 file changed, 2 insertions(+)

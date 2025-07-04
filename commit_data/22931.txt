@@ -1,19 +1,19 @@
-commit b6e178ed7ee4781020b5e2d2dbc5346e8de42ee2
-Author: Rick Hudson <rlh@golang.org>
-Date:   Wed May 6 15:58:20 2015 -0400
+commit f616af23e0977cda63a0771d726d1529e70f17a4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 1 14:17:43 2015 +1300
 
-    runtime: set heap minimum default based on GOGC
+    cmd/6l: call runtime.addmoduledata from .init_array
     
-    Currently the heap minimum is set to 4MB which prevents our ability to
-    collect at every allocation by setting GOGC=0. This adjust the
-    heap minimum to 4MB*GOGC/100 thus reenabling collecting at every allocation.
-    Fixes #10681
-    
-    Change-Id: I912d027dac4b14ae535597e8beefa9ac3fb8ad94
-    Reviewed-on: https://go-review.googlesource.com/9814
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I09e84161d106960a69972f5fc845a1e40c28e58f
+    Reviewed-on: https://go-review.googlesource.com/8331
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go      | 17 ++++++++++++++++-
- src/runtime/runtime1.go | 12 ------------
- 2 files changed, 16 insertions(+), 13 deletions(-)
+ src/cmd/6l/asm.go             | 54 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/ld/data.go   |  7 +++++-
+ src/cmd/internal/ld/elf.go    |  8 ++++++-
+ src/cmd/internal/ld/symtab.go |  7 ++++++
+ src/runtime/asm_amd64.s       |  7 ++++++
+ src/runtime/symtab.go         |  3 ++-
+ 6 files changed, 83 insertions(+), 3 deletions(-)

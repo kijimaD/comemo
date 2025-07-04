@@ -1,23 +1,28 @@
-commit 04e1176fd288f1ceba987d8d2fd9040e45157b38
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Apr 13 18:00:09 2021 -0400
+commit 1aa43a53be83c3eaa468cae4914a55878fb2dad9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 10 11:22:14 2020 -0400
 
-    cmd/go: support 'go run cmd@version'
+    cmd/link: only dynamically export necessary symbols on darwin
     
-    'go run' can now build a command at a specific version in module-aware
-    mode, ignoring the go.mod file in the current directory if there is one.
+    Currently on darwin, when a symbol needs to be exported, we
+    export it both statically and dynamically. The dynamic export is
+    unnecessary for some symbols. Only export the necessary ones.
     
-    For #42088
+    For special runtime C symbols (e.g. crosscall2), they used to be
+    exported dynamically, and we had a special case for pclntab to
+    not include those symbols (otherwise, when the dynamic linker
+    dedup them, the pclntab entries end up pointing out of the
+    module's address space). This CL changes it to not export those
+    symbols, and remove the special case.
     
-    Change-Id: I0bd9bcbe40c0442a268cd1cc315a8a2cbb5adeee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310074
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I2ab40630742d48a09b86ee150aa5f1f7002b134d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261497
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/alldocs.go                              | 15 +++-
- src/cmd/go/internal/run/run.go                     | 74 ++++++++++++++--
- src/cmd/go/testdata/mod/example.com_cmd_v1.0.0.txt |  8 +-
- src/cmd/go/testdata/script/mod_run_pkg_version.txt | 98 ++++++++++++++++++++++
- 4 files changed, 184 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 40 +++++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/pcln.go  | 17 -----------------
+ 2 files changed, 24 insertions(+), 33 deletions(-)

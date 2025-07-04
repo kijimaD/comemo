@@ -1,33 +1,27 @@
-commit 3f8f929d60a90c4e4e2b07c8d1972166c1a783b1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 1 16:11:07 2023 +0000
+commit d6320f1a58f1f7820daee06a086c83a0274a777f
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Apr 8 16:44:13 2022 +0800
 
-    cmd/link/internal/ld: move more of mustLinkExternal into internal/platform
+    cmd/compile: add SARX instruction for GOAMD64>=3
     
-    internal/platform.MustLinkExternal is used in various places to
-    determine whether external linking is required. It should always
-    match what the linker actually requires, but today does not match
-    because the linker imposes additional constraints.
+    name                    old time/op  new time/op  delta
+    ShiftArithmeticRight-8  0.68ns ± 5%  0.30ns ± 6%  -56.14%  (p=0.000 n=10+10)
     
-    Updates #31544.
-    
-    Change-Id: I0cc6ad587e95c607329dea5d60d29a5fb2a9e722
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472515
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I052a0d7b9e6526d526276444e588b0cc288beff4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399055
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/build.go                  | 33 +++++++++++++++++++++++++--
- src/cmd/dist/build_test.go             | 10 +++++----
- src/cmd/go/internal/work/gc.go         |  2 +-
- src/cmd/link/internal/ld/config.go     | 28 +++--------------------
- src/cmd/link/internal/ld/dwarf_test.go |  6 ++---
- src/cmd/link/internal/ld/ld_test.go    |  2 +-
- src/cmd/link/link_test.go              | 18 +++------------
- src/cmd/nm/nm_cgo_test.go              | 41 +++++-----------------------------
- src/internal/platform/supported.go     | 41 +++++++++++++++++++++++++++++-----
- src/internal/testenv/testenv.go        | 11 +++++----
- src/os/exec/exec_test.go               |  2 +-
- src/runtime/crash_test.go              | 14 ++++++------
- src/runtime/time_test.go               |  2 +-
- 13 files changed, 105 insertions(+), 105 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go           |   4 +
+ src/cmd/compile/internal/amd64/versions_test.go |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |  44 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   3 +
+ src/cmd/compile/internal/ssa/opGen.go           |  30 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 422 ++++++++++++++++++++++++
+ src/cmd/compile/internal/test/shift_test.go     |  10 +
+ test/codegen/bmi.go                             |  10 +
+ 8 files changed, 504 insertions(+), 20 deletions(-)

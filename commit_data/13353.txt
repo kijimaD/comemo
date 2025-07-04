@@ -1,13 +1,12 @@
-commit 985261429162edc07e0e97741f425c5aded55641
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jun 15 02:52:18 2012 +0800
+commit 71a1673c0aad7bb8fb05e9f17557e0e510d75d58
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 14 13:18:10 2012 +1000
 
-    exp/types: clean up objects after test
-            Fixes #3739.
+    tag go1.0.2
     
-    R=bradfitz, rsc
+    R=golang-dev, rsc, dsymonds, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6295083
+    https://golang.org/cl/6305089
 
- src/pkg/exp/types/gcimporter_test.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

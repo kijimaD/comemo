@@ -1,16 +1,27 @@
-commit eb033b1d22eaf4dc9dbdb2839c4174d905529eb5
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Fri Mar 25 10:06:19 2016 -0700
+commit c87a62f32bc5080c6656d3f80e2da8d5c63ed55b
+Author: David Chase <drchase@google.com>
+Date:   Sat Jan 30 17:37:38 2016 -0500
 
-    compress/gzip: clean up zero-mtimes test
+    [dev.ssa] cmd/compile: reducing alloc footprint of dominator calc
     
-    - Fix a typo.
-    - Skip this test on -short on non-builders.
+    Converted working slices of pointer into slices of pointer
+    index.  Half the size (on 64-bit machine) and no pointers
+    to trace if GC occurs while they're live.
     
-    Change-Id: Id102eceb59451694bf92b618e02ccee6603b6852
-    Reviewed-on: https://go-review.googlesource.com/21113
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TODO - could expose slice mapping ID->*Block; some dom
+    clients also construct these.
+    
+    Minor optimization in regalloc that cuts allocation count.
+    
+    Minor optimization in compile.go that cuts calls to Sprintf.
+    
+    Change-Id: I28f0bfed422b7344af333dc52ea272441e28e463
+    Reviewed-on: https://go-review.googlesource.com/19104
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/compress/gzip/issue14937_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go  |  31 +++++-----
+ src/cmd/compile/internal/ssa/dom.go      | 103 +++++++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go |   3 +
+ 3 files changed, 74 insertions(+), 63 deletions(-)

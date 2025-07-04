@@ -1,26 +1,17 @@
-commit 8f4be42b37469d7c392c330ac13599a88d5c9ea2
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Thu May 7 22:34:25 2020 +0000
+commit bf3ee57d27f7542808f8a153c7b547efaba355b0
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Mon Dec 2 09:38:30 2019 +0800
 
-    runtime: use first line of cpuset output on FreeBSD
+    cmd/compile: declare with type for fmtMode constant
     
-    Fix TestFreeBSDNumCPU on newer versions of FreeBSD which have multi line
-    output from cpuset e.g.
+    Like FmtFlag constant in fmt.go
     
-    cpuset -g -p 4141
-    pid 4141 mask: 0, 1, 2, 3, 4, 5, 6, 7, 8
-    pid 4141 domain policy: first-touch mask: 0, 1
-    
-    The test now uses just the first line of output.
-    
-    Fixes #38937
-    Fixes #25924
-    
-    Change-Id: If082ee6b82120ebde4dc437e58343b3dad69c65f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232801
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I351bcb27095549cf19db531f532ea72d5c682610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209497
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/testdata/testprog/numcpu_freebsd.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go  | 2 +-
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,24 @@
-commit a62a62d5b419b534553f293bc129f44489f1e58f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 9 03:45:06 2016 +0900
+commit 10c075376183a6c5d586df8e0f5e702ae9b99e84
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Nov 6 10:10:07 2015 +1300
 
-    runtime/testdata: gofmt
+    cmd/internal/obj/ppc64: fix assembly of SRADCC with immediate
     
-    Change-Id: I728d4c709c4122fe4b96e1350be73696ac6fb1f7
-    Reviewed-on: https://go-review.googlesource.com/18422
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    sradi and sradi. hide the top bit of their immediate argument apart from the
+    rest of it, but the code only handled the sradi case.
+    
+    I'm pretty sure this is the only instruction missing (a couple of the rotate
+    instructions encode their immediate the same way but their handling looks OK).
+    
+    This fixes the failure of "GOARCH=amd64 ~/go/bin/go install -v runtime" as
+    reported in the bug.
+    
+    Fixes #11987
+    
+    Change-Id: I0cdefcd7a04e0e8fce45827e7054ffde9a83f589
+    Reviewed-on: https://go-review.googlesource.com/16710
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/testdata/testprog/main.go    | 2 +-
- src/runtime/testdata/testprogcgo/main.go | 2 +-
- src/runtime/testdata/testprognet/main.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go |  2 +-
+ test/fixedbugs/issue11987.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

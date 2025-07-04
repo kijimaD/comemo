@@ -1,24 +1,27 @@
-commit 7ecef2e3448db347901826c2b58049e73391d631
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Feb 10 18:52:27 2024 +0000
+commit b611b3a8cc8c4cab3853853a135d5c29e807f513
+Author: Maksadbek Akhmedov <a.maksadbek@gmail.com>
+Date:   Wed Feb 8 14:58:04 2023 +0100
 
-    net: move go/cgo resolver forcing functions to one file
+    cmd/go: make go test build multiple executables
     
-    The forceGoDNS/forceCgoDNS functions currently return nil
-    or an empty func on plan9, but they don't have to, because
-    we already support go resolver there (Dial field required).
+    If -c is set while testing multiple packages, then allow
+    to build testing binary executables to the current directory
+    or to the directory that -o refers to.
     
-    Change-Id: Iba6211ca0235874f39e5fcacb3932bb16768c702
-    GitHub-Last-Rev: 4072ad4a05366a03749e8cfcf27efb9f198aacec
-    GitHub-Pull-Request: golang/go#63545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534938
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    $ go test -c -o /tmp ./pkg1 ./pkg2 ./pkg2
+    $ ls /tmp
+    pkg1.test pkg2.test pkg3.test
+    
+    Fixes #15513.
+    
+    Change-Id: I3aba01bebfa90e61e59276f2832d99c0d323b82e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466397
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/lookup_test.go      | 16 ---------------
- src/net/main_conf_test.go   | 48 ++++++++++++++++++++++++++++++++++++++++-----
- src/net/main_noconf_test.go | 22 ---------------------
- 3 files changed, 43 insertions(+), 43 deletions(-)
+ src/cmd/go/internal/test/test.go                   | 91 +++++++++++++++++-----
+ .../go/testdata/script/test_compile_multi_pkg.txt  | 46 +++++++++++
+ 2 files changed, 116 insertions(+), 21 deletions(-)

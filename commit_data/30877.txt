@@ -1,28 +1,12 @@
-commit 8ee2d5bc00c5cc2313d87e001961294907cee133
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 23 11:40:47 2017 -0700
+commit fe07091f9eb9a1dcedc6eab1762de5383f520a00
+Author: Euan Kemp <euank@euank.com>
+Date:   Tue Dec 13 21:49:09 2016 -0800
 
-    cmd/compile: strengthen SetFields/Width safety guarantee
+    crypto/aes: correct 'noescape' typo in s390x
     
-    It is currently possible in the compiler to create a struct type,
-    calculate the widths of types that depend on it,
-    and then alter the struct type.
-    
-    transformclosure has local protection against this.
-    Protect against it at a deeper level.
-    
-    This is preparation to call dowidth automatically,
-    rather than explicitly.
-    
-    This is a re-roll of CL 38469.
-    
-    Change-Id: Ic5b4baa250618504611fc57cbf51ab01d1eddf80
-    Reviewed-on: https://go-review.googlesource.com/38534
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9e24a28b4daee5d6e1e4769547922a1a253b4ffc
+    Reviewed-on: https://go-review.googlesource.com/34377
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/cmd/compile/internal/gc/closure.go | 4 ----
- src/cmd/compile/internal/gc/type.go    | 9 +++++++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/crypto/aes/cipher_s390x.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

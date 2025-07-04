@@ -1,28 +1,15 @@
-commit 0e4de78d132677268d307f307c33831e17703195
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Oct 12 11:57:36 2017 +0100
+commit 58ae050055ef00b97f1119e042fe7b459b20e839
+Author: Costin Chirvasuta <ctin@google.com>
+Date:   Fri Jul 7 21:26:45 2017 +0100
 
-    net: fix data race in TestClosingListener
+    runtime: simplify description of FuncForPC behavior in case of inlining
     
-    In https://golang.org/cl/66334, the test was changed so that the second
-    Listen would also be closed. However, it shouldn't have reused the same
-    ln variable, as that can lead to a data race with the background loop
-    that accepts connections.
+    The current description refers to the outermost "frame" which can be
+    misleading. A user reading it can think it means a stack frame.
     
-    Simply define a new Listener, since we don't need to overwrite the first
-    variable.
-    
-    I was able to reproduce the data race report locally about 10% of the
-    time by reducing the sleep from a millisecond to a nanosecond. After the
-    fix, it's entirely gone after 1000 runs.
-    
-    Fixes #22226.
-    
-    Change-Id: I7c639f9f2ee5098eac951a45f42f97758654eacd
-    Reviewed-on: https://go-review.googlesource.com/70230
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie2c7cb4b4db8f41572df206478ce3b46a0245a5d
+    Reviewed-on: https://go-review.googlesource.com/47850
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/listen_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

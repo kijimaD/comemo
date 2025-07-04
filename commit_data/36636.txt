@@ -1,13 +1,73 @@
-commit 1a1c45b32e987544d4c23f6df5108bf747d44c31
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 9 17:54:43 2018 -0400
+commit 4122319e5a6e5fd4e1f1fcab3b2981df91bc05ad
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri May 11 17:46:00 2018 +0200
 
-    cmd/go/testdata/script: fix typos in test comments
+    misc/ios: forward SIGQUIT to the iOS program
     
-    Change-Id: I2a55cda76f1074b997349dfd6e001dc7277faade
-    Reviewed-on: https://go-review.googlesource.com/134655
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    When running tests that fails to complete within the test timeout,
+    the go tool sends the test program a SIGQUIT signal to print
+    backtraces. However, for tests running with an exec wrapper, the
+    resulting backtraces will come from the exec wrapper process and
+    not the test program.
+    
+    Change the iOS exec wrapper to forward SIGQUIT signals to the lldb
+    python driver and change the driver to forward the signals to the
+    running test on the device.
+    
+    Before:
+    
+    $ GOARCH=arm64 go test forever_test.go
+    lldb: running program
+    SIGQUIT: quit
+    PC=0x10816fe m=0 sigcode=0
+    
+    goroutine 54 [syscall]:
+    syscall.Syscall6(0x7, 0x16ab, 0xc000033dfc, 0x0, 0xc000116f30, 0x0, 0x0, 0xc000116f30, 0x0, 0x1328820)
+            /Users/elias/go-tip/src/syscall/asm_darwin_amd64.s:41 +0x5 fp=0xc000033d48 sp=0xc000033d40 pc=0x10816d5
+    syscall.wait4(0x16ab, 0xc000033dfc, 0x0, 0xc000116f30, 0x90, 0x1200e00, 0x1)
+            /Users/elias/go-tip/src/syscall/zsyscall_darwin_amd64.go:34 +0x7b fp=0xc000033dc0 sp=0xc000033d48 pc=0x107e4eb
+    syscall.Wait4(0x16ab, 0xc000033e4c, 0x0, 0xc000116f30, 0xc0000fd518, 0x0, 0x0)
+            /Users/elias/go-tip/src/syscall/syscall_bsd.go:129 +0x51 fp=0xc000033e10 sp=0xc000033dc0 pc=0x107b7b1
+    os.(*Process).wait(0xc00008d440, 0x1095e2e, 0xc0000fd518, 0x0)
+            /Users/elias/go-tip/src/os/exec_unix.go:38 +0x7b fp=0xc000033e80 sp=0xc000033e10 pc=0x109af2b
+    os.(*Process).Wait(0xc00008d440, 0xc000033fb0, 0x10, 0x11d1f00)
+            /Users/elias/go-tip/src/os/exec.go:125 +0x2b fp=0xc000033eb0 sp=0xc000033e80 pc=0x109a47b
+    os/exec.(*Cmd).Wait(0xc0000b1ce0, 0xc000033f90, 0x11394df)
+            /Users/elias/go-tip/src/os/exec/exec.go:463 +0x5b fp=0xc000033f28 sp=0xc000033eb0 pc=0x1136f0b
+    main.startDebugBridge.func1(0xc0000b1ce0, 0xc0000b8ae0, 0xc0000e2a80)
+            /Users/elias/go-tip/misc/ios/go_darwin_arm_exec.go:314 +0x40 fp=0xc000033fc8 sp=0xc000033f28 pc=0x11a1980
+    runtime.goexit()
+            /Users/elias/go-tip/src/runtime/asm_amd64.s:1360 +0x1 fp=0xc000033fd0 sp=0xc000033fc8 pc=0x10565a1
+    created by main.startDebugBridge
+            /Users/elias/go-tip/misc/ios/go_darwin_arm_exec.go:313 +0x15f
+    
+    ...
+    
+    After:
+    
+    $ GOARCH=arm64 go test forever_test.go
+    lldb: running program
+    === RUN   TestForever
+    SIGQUIT: quit
+    PC=0x100144e24 m=0 sigcode=0
+    
+    ...
+    
+    goroutine 19 [select (no cases)]:
+    command-line-arguments.TestForever(0x1300b60f0)
+            /Users/elias/go-tip/src/forever_test.go:6 +0x18
+    testing.tRunner(0x1300b60f0, 0x100211aa0)
+            /Users/elias/go-tip/src/testing/testing.go:795 +0xa8
+    created by testing.(*T).Run
+            /Users/elias/go-tip/src/testing/testing.go:840 +0x22c
+    
+    ...
+    
+    Change-Id: I6b3cf1662d07a43ade0530842733b0944bee1ace
+    Reviewed-on: https://go-review.googlesource.com/112676
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/testdata/script/list_bad_import.txt     | 2 +-
- src/cmd/go/testdata/script/mod_list_bad_import.txt | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)

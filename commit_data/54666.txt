@@ -1,17 +1,16 @@
-commit aa8e4c5e610145af682d48b064fa0d28ed9a91e4
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Oct 9 16:41:24 2023 +0000
+commit 26b2c9a62043c40f3cdfd294ad2cea11edeea658
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 8 14:07:46 2022 +0100
 
-    runtime: fix some comments
+    reflect: use unsafe.String in name.name and name.tag
     
-    Change-Id: I06403cf217a4d2645e13115e7ca358b7f3d3f2ef
-    GitHub-Last-Rev: e2b4e5326a6c68d066b637c6add86723e0cefd3b
-    GitHub-Pull-Request: golang/go#63474
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533875
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I9f54f1463b0682d0d76cd57e5fef318565883a87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448675
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/mgc.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/reflect/type.go | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)

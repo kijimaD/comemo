@@ -1,28 +1,22 @@
-commit 3b5637ff2bd5c03479780995e7a35c48222157c1
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 11 15:28:39 2017 -0400
+commit 3123df3464ff8df1d15452b51360e1b7f05dbcd3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 1 05:42:32 2017 +0000
 
-    runtime: doubly fix "double wakeup" panic
+    net/http: fix flaky TestClientRedirect308NoLocation
     
-    runtime.gchelper depends on the non-atomic load of work.ndone
-    happening strictly before the atomic add of work.nwait. Until very
-    recently (commit 978af9c2db, fixing #20334), the compiler reordered
-    these operations. This created a race since work.ndone can change as
-    soon as work.nwait is equal to work.ndone. If that happened, more than
-    one gchelper could attempt to wake up the work.alldone note, causing a
-    "double wakeup" panic.
+    This was a t.Parallel test but it was using the global DefaultTransport
+    via the global Get func.
     
-    This was fixed in the compiler, but to make this code less subtle,
-    make the load of work.ndone atomic. This clearly forces the order of
-    these operations, ensuring the race doesn't happen.
+    Use a private Transport that won't have its CloseIdleConnections etc
+    methods called by other tests.
     
-    Fixes #19305 (though really 978af9c2db fixed it).
+    (I hit this flake myself while testing a different change.)
     
-    Change-Id: Ieb1a84e1e5044c33ac612c8a5ab6297e7db4c57d
-    Reviewed-on: https://go-review.googlesource.com/43311
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If0665e3e8580ee198f8e5f3079bfaea55f036eca
+    Reviewed-on: https://go-review.googlesource.com/37624
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/client_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

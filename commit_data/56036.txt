@@ -1,17 +1,21 @@
-commit 3ede9415944a55242a1888598c4bda00cc05d4ab
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 22 13:39:13 2024 +0100
+commit 508f445a28b08ed8c881572652c47139e669c19d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 4 14:43:46 2023 -0700
 
-    internal/poll: use sync.OnceValue to determine kernel version ≥ 5.3 in CopyFileRange
+    cmd/dist: skip static linking tests for linux boringcrypto
     
-    Change-Id: I13fdf86c3f46bf3c83cb116e9dd3bc4ab1a949d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573755
+    Otherwise we get warnings from the C linker.
+    
+    Fixes #59422
+    
+    Change-Id: I61843dbe5245da0185b0f23dc4b774767fffed40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/poll/copy_file_range_linux.go | 26 +++++++++++---------------
- 1 file changed, 11 insertions(+), 15 deletions(-)
+ src/cmd/dist/test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

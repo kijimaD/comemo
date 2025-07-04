@@ -1,12 +1,14 @@
-commit 5028f8c98d85032020ec670a4727987ba6d29f32
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Feb 27 07:06:34 2015 -0500
+commit 16e933c26697a884834f7f5f86c86f14e51e4fae
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 3 14:09:53 2015 -0800
 
-    cmd/objdump: skip fork test on darwin/arm
+    cmd/dist: fix whitespace and comment typo in arm vfp detection
     
-    Change-Id: I1d1eb71014381452d1ef368431cb2556245a35ab
-    Reviewed-on: https://go-review.googlesource.com/6250
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Follow-up to cl 2682.
+    
+    Change-Id: I06a589e782af821e4fa46a7c34d9a549de47fa60
+    Reviewed-on: https://go-review.googlesource.com/3830
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/objdump/objdump_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/dist/vfp_arm.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

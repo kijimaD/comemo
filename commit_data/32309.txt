@@ -1,12 +1,20 @@
-commit 29186526608b10d04a67ce250d4df11bcd8dc661
-Author: Michael Stapelberg <stapelberg@google.com>
-Date:   Wed Aug 16 05:33:36 2017 -0700
+commit 17d497feaabfee336e9eaec91803a5e9aff77bdb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 06:27:24 2017 -0700
 
-    go/internal/gcimporter: fix typo: cmd/compiler → cmd/compile
+    runtime: add bmap.setoverflow
     
-    Change-Id: I087980d30308353c4a450636122f7e87c8310090
-    Reviewed-on: https://go-review.googlesource.com/56090
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    bmap already has a overflow (getter) method.
+    Add a setoverflow (setter) method, for readability.
+    
+    Updates #19931
+    Updates #19992
+    
+    Change-Id: I00b3d94037c0d75508a7ebd51085c5c3857fb764
+    Reviewed-on: https://go-review.googlesource.com/40977
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/internal/gcimporter/bimport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/hashmap.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

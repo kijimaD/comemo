@@ -1,25 +1,14 @@
-commit 6a3d4be3b80054b1d802b73d5a519e252e0f82ed
-Author: Troels Thomsen <troels@thomsen.io>
-Date:   Tue Nov 14 23:22:19 2017 +0100
+commit d1351fbc316a92bd76f3928d16365399b308ca21
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 22 22:52:15 2017 -0400
 
-    net: Forget lookups for canceled contexts
+    [dev.boringcrypto] cmd/link: allow internal linking for crypto/internal/boring
     
-    A sequential lookup using any non-canceled context has a risk of
-    returning the result of the previous lookup for a canceled context (i.e.
-    an error).
-    
-    This is already prevented for timed out context by forgetting the host
-    immediately and extending this to also compare the error to
-    `context.Canceled` resolves this issue.
-    
-    Fixes #22724
-    
-    Change-Id: I7aafa1459a0de4dc5c4332988fbea23cbf4dba07
-    Reviewed-on: https://go-review.googlesource.com/77670
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b122ad23f75296dab8cec89a4e50dcca7fa9b3f
+    Reviewed-on: https://go-review.googlesource.com/57944
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup.go      |  2 +-
- src/net/lookup_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/go_boring_test.go    | 20 ++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go |  1 +
+ 2 files changed, 21 insertions(+)

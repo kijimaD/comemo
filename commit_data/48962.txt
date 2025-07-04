@@ -1,97 +1,15 @@
-commit 8375b54d441c9123c8d2b7343ea6cc7233b746d9
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Apr 11 15:21:03 2022 -0500
+commit 4711bf30e5fec4cf290964785871deba5955c29a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 30 11:54:46 2021 -0400
 
-    internal/bytealg: improve PPC64 equal
+    doc/go1.17: linkify "language changes" in the runtime section
     
-    Rewrite the vector loop to process 64B per iteration,
-    this greatly improves performance on POWER9/POWER10 for
-    large sizes.
-    
-    Likewise, use a similar tricks for sizes >= 8 and <= 64.
-    
-    And, rewrite small comparisons, it's a little slower for 1 byte,
-    but constant time for 1-7 bytes. Thus, it is increasingly faster
-    for 2-7B.
-    
-    Benchmarks results below are from P8/P9 ppc64le (in that order),
-    several additional testcases have been added to test interesting
-    sizes. Likewise, the old variant was padded to the same code
-    size of the new variant to minimize layout related noise:
-    
-    POWER8/ppc64le/linux:
-    name       old speed      new speed       delta
-    Equal/1     110MB/s ± 0%    106MB/s ± 0%    -3.26%
-    Equal/2     202MB/s ± 0%    203MB/s ± 0%    +0.18%
-    Equal/3     280MB/s ± 0%    319MB/s ± 0%   +13.89%
-    Equal/4     350MB/s ± 0%    414MB/s ± 0%   +18.27%
-    Equal/5     412MB/s ± 0%    533MB/s ± 0%   +29.19%
-    Equal/6     462MB/s ± 0%    620MB/s ± 0%   +34.11%
-    Equal/7     507MB/s ± 0%    745MB/s ± 0%   +47.02%
-    Equal/8     913MB/s ± 0%    994MB/s ± 0%    +8.84%
-    Equal/9     909MB/s ± 0%   1117MB/s ± 0%   +22.85%
-    Equal/10    937MB/s ± 0%   1242MB/s ± 0%   +32.59%
-    Equal/11    962MB/s ± 0%   1370MB/s ± 0%   +42.37%
-    Equal/12    989MB/s ± 0%   1490MB/s ± 0%   +50.60%
-    Equal/13   1.01GB/s ± 0%   1.61GB/s ± 0%   +60.27%
-    Equal/14   1.02GB/s ± 0%   1.74GB/s ± 0%   +71.22%
-    Equal/15   1.03GB/s ± 0%   1.86GB/s ± 0%   +81.45%
-    Equal/16   1.60GB/s ± 0%   1.99GB/s ± 0%   +24.21%
-    Equal/17   1.54GB/s ± 0%   2.04GB/s ± 0%   +32.28%
-    Equal/20   1.48GB/s ± 0%   2.40GB/s ± 0%   +62.64%
-    Equal/32   3.58GB/s ± 0%   3.84GB/s ± 0%    +7.18%
-    Equal/63   3.74GB/s ± 0%   7.17GB/s ± 0%   +91.79%
-    Equal/64   6.35GB/s ± 0%   7.29GB/s ± 0%   +14.75%
-    Equal/65   5.85GB/s ± 0%   7.00GB/s ± 0%   +19.66%
-    Equal/127  6.74GB/s ± 0%  13.74GB/s ± 0%  +103.77%
-    Equal/128  10.6GB/s ± 0%   12.9GB/s ± 0%   +21.98%
-    Equal/129  9.66GB/s ± 0%  11.96GB/s ± 0%   +23.85%
-    Equal/191  9.12GB/s ± 0%  17.80GB/s ± 0%   +95.26%
-    Equal/192  13.4GB/s ± 0%   17.2GB/s ± 0%   +28.66%
-    Equal/4K   29.5GB/s ± 0%   37.3GB/s ± 0%   +26.39%
-    Equal/4M   22.6GB/s ± 0%   23.1GB/s ± 0%    +2.40%
-    Equal/64M  10.6GB/s ± 0%   11.2GB/s ± 0%    +5.83%
-    
-    POWER9/ppc64le/linux:
-    name       old speed      new speed       delta
-    Equal/1     122MB/s ± 0%    121MB/s ± 0%    -0.94%
-    Equal/2     223MB/s ± 0%    241MB/s ± 0%    +8.29%
-    Equal/3     289MB/s ± 0%    362MB/s ± 0%   +24.90%
-    Equal/4     366MB/s ± 0%    483MB/s ± 0%   +31.82%
-    Equal/5     427MB/s ± 0%    603MB/s ± 0%   +41.28%
-    Equal/6     462MB/s ± 0%    723MB/s ± 0%   +56.65%
-    Equal/7     509MB/s ± 0%    843MB/s ± 0%   +65.57%
-    Equal/8     974MB/s ± 0%   1066MB/s ± 0%    +9.46%
-    Equal/9    1.00GB/s ± 0%   1.20GB/s ± 0%   +19.53%
-    Equal/10   1.00GB/s ± 0%   1.33GB/s ± 0%   +32.81%
-    Equal/11   1.01GB/s ± 0%   1.47GB/s ± 0%   +45.28%
-    Equal/12   1.04GB/s ± 0%   1.60GB/s ± 0%   +53.46%
-    Equal/13   1.05GB/s ± 0%   1.73GB/s ± 0%   +64.67%
-    Equal/14   1.02GB/s ± 0%   1.87GB/s ± 0%   +82.93%
-    Equal/15   1.04GB/s ± 0%   2.00GB/s ± 0%   +92.07%
-    Equal/16   1.83GB/s ± 0%   2.13GB/s ± 0%   +16.58%
-    Equal/17   1.78GB/s ± 0%   2.18GB/s ± 0%   +22.65%
-    Equal/20   1.72GB/s ± 0%   2.57GB/s ± 0%   +49.24%
-    Equal/32   3.89GB/s ± 0%   4.10GB/s ± 0%    +5.53%
-    Equal/63   3.63GB/s ± 0%   7.63GB/s ± 0%  +110.45%
-    Equal/64   6.69GB/s ± 0%   7.75GB/s ± 0%   +15.84%
-    Equal/65   6.28GB/s ± 0%   7.07GB/s ± 0%   +12.46%
-    Equal/127  6.41GB/s ± 0%  13.65GB/s ± 0%  +112.95%
-    Equal/128  11.1GB/s ± 0%   14.1GB/s ± 0%   +26.56%
-    Equal/129  10.2GB/s ± 0%   11.2GB/s ± 0%    +9.44%
-    Equal/191  8.64GB/s ± 0%  16.39GB/s ± 0%   +89.75%
-    Equal/192  15.3GB/s ± 0%   17.8GB/s ± 0%   +16.31%
-    Equal/4K   24.6GB/s ± 0%   27.8GB/s ± 0%   +13.12%
-    Equal/4M   21.1GB/s ± 0%   22.7GB/s ± 0%    +7.66%
-    Equal/64M  20.8GB/s ± 0%   22.4GB/s ± 0%    +8.06%
-    
-    Change-Id: Ie3c582133d526cc14e8846ef364c44c93eb7b9a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399976
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I82bd3954bfc5da59c7952eba2a28ff0e3b41427f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331969
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/bytealg/equal_ppc64x.s | 225 ++++++++++++++++++++++++++----------
- 1 file changed, 166 insertions(+), 59 deletions(-)
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

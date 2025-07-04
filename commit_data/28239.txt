@@ -1,17 +1,17 @@
-commit 614dfe9b02d69f96f4b222d818ec5ff47f26cb31
+commit 131231b8db26b38c9c2fdc52fb788241f5c2de51
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 5 21:13:24 2016 +0000
+Date:   Fri May 6 16:07:11 2016 +0000
 
-    io: add test that MultiReader zeros exhausted Readers
+    os: rename remaining four os1_*.go files to os_*.go
     
-    Updates #16983
-    Updates #16996
-    
-    Change-Id: I76390766385b2668632c95e172b2d243d7f66651
-    Reviewed-on: https://go-review.googlesource.com/28771
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ice9c234960adc7857c8370b777a0b18e29d59281
+    Reviewed-on: https://go-review.googlesource.com/22853
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/io/multi_test.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/runtime/{os1_freebsd.go => os_freebsd.go} | 0
+ src/runtime/{os1_nacl.go => os_nacl.go}       | 0
+ src/runtime/{os1_openbsd.go => os_openbsd.go} | 0
+ src/runtime/{os1_plan9.go => os_plan9.go}     | 0
+ 4 files changed, 0 insertions(+), 0 deletions(-)

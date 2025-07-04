@@ -1,14 +1,15 @@
-commit c9089e64be4b3b020425a29f5ec17400bac40b50
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Mar 12 22:13:21 2015 +1300
+commit 0f3f2c4110fc177b9a37998cb6c426647110d98f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 09:49:57 2015 -0800
 
-    cmd/asm/internal/asm: report arch if assembly fails
+    [dev.cc] runtime/cgo: change PC to R15 in asm_arm.s
     
-    Just a trivial thing I noticed in passing.
+    R15 is the real register. PC is a pseudo-register that we are making
+    illegal in this context as part of the grand assembly unification.
     
-    Change-Id: I875069ceffd623f9e430d07feb5042ab9e69917e
-    Reviewed-on: https://go-review.googlesource.com/7472
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie0ea38ce7ef4d2cf4fcbe23b851a570fd312ce8d
+    Reviewed-on: https://go-review.googlesource.com/4966
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgo/asm_arm.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

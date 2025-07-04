@@ -1,24 +1,13 @@
-commit 58e21ddaf9498462acb5c552c48e0c52073e1db3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 15 13:55:50 2013 -0700
+commit 99021b767f991bba547c282f173f63cf997b58c3
+Author: Herbert Georg Fischer <herbert.fischer@gmail.com>
+Date:   Fri Mar 15 13:43:10 2013 -0700
 
-    spec: remove special int rule for shifts
+    doc: explain why cmd/go uses https for repositories and how to work around it
+    Fixes #3418.
     
-    The rule is not concistently followed by gc.
-    It appears that gccgo is ignoring it. go/types
-    does not implement this rule. However, both
-    gccgo and now go/types can compile/type-check
-    the entire std library (and thus all the shift
-    expressions occuring in it) w/o errors. For
-    more details see the discussion in issue 4883.
-    
-    Fixes #4880.
-    Fixes #4881.
-    Fixes #4883.
-    
-    R=rsc, r, iant, ken, ken, mtj, rogpeppe
-    CC=golang-dev
-    https://golang.org/cl/7707043
+    R=golang-dev, r
+    CC=adg, golang-dev
+    https://golang.org/cl/7712045
 
- doc/go_spec.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/go_faq.html | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

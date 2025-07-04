@@ -1,31 +1,15 @@
-commit e7d7ea21d4f0bcb9b90921f4a2d694657cbe4fff
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 13 11:14:20 2012 +1000
+commit d09afc2efb50eeb3a1e55cbe05f42307ca0369b1
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Sep 12 12:08:27 2012 -0400
 
-          undo CL 6493071 / 56c7453d488f
+    gc: generate garbage collection info for types
     
-    This change messes with anchor links. It obscures the item being linked to.
-    I don't see a way around it. Undoing for now.
-    
-          Fixes #4071.
-    
-          ««« original CL description
-          doc css: topbar sticks to the top of large windows.
-          Rationale: for large screens, the convenience of not having to scroll
-          to the top of the page to do a search outweighs having less vertical
-          space.
-          Tested with Chrome, Firefox, Safari with various window and text sizes.
-    
-          R=adg
-          CC=gobot, golang-dev
-          https://golang.org/cl/6493071
-    
-          Committer: Andrew Gerrand <adg@golang.org>
-          »»»
-    
-    R=golang-dev, r, dsymonds
+    R=rsc, nigeltao, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6488121
+    https://golang.org/cl/6290043
 
- doc/style.css | 18 ------------------
- 1 file changed, 18 deletions(-)
+ src/cmd/gc/go.h            |   1 +
+ src/cmd/gc/reflect.c       | 178 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/gc_test.go |  16 ++++
+ src/pkg/runtime/mgc0.h     |  42 +++++++++++
+ 4 files changed, 236 insertions(+), 1 deletion(-)

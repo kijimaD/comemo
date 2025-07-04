@@ -1,14 +1,25 @@
-commit 96acfaaefae3378dcde009a184d3f4e5795ee5cc
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 19 14:14:45 2016 -0400
+commit 2c1791b13b27dfc69adf2d19ecf9a180d089cd22
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 31 19:24:30 2016 +1200
 
-    cmd/go: enable -buildmode=plugin on darwin/amd64
+    cmd/link: suppress PIE whenever externally linking with a sanitizer
     
-    Change-Id: I8e594e059448879a9f451801064729186ac7c11b
-    Reviewed-on: https://go-review.googlesource.com/29395
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    golang.org/issue/15443 complained that a race-enabled PIE binary crashed at
+    startup, but other ways of linking in tsan (or other sanitizers) such as
+    
+     #cgo CFLAGS: -fsanitize=thread
+     #cgo LDFLAGS: -fsanitize=thread
+    
+    have the same problem. Pass -no-pie to the host linker (if supported) if any
+    -fsanitizer=foo cgo LDFLAG is seen when linking.
+    
+    Fixes #15887
+    
+    Change-Id: Id799770f8d045f6f40fa8c463563937a5748d1a8
+    Reviewed-on: https://go-review.googlesource.com/23535
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

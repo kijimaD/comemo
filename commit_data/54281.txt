@@ -1,21 +1,24 @@
-commit 9dea791a7aa4046ef5411e0c8c8b9ae228f606c2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 31 12:56:34 2023 +0200
+commit 4585bf96b4025f18682122bbd66d4f2a010b3ac9
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Sep 30 10:29:30 2022 +0800
 
-    net: remove unused errTimedout
+    all: use time.Since instead of time.Now().Sub
     
-    It's unused since CL 524055.
-    
-    Change-Id: I767eac6a66379e67337e24051e5f79aa027e9fad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524715
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ifaa73b64e5b6a1d37c753e2440b642478d7dfbce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436957
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/error_plan9_test.go   | 1 -
- src/net/error_unix_test.go    | 1 -
- src/net/error_windows_test.go | 1 -
- 3 files changed, 3 deletions(-)
+ src/go/doc/testdata/benchmark.go    | 2 +-
+ src/go/doc/testdata/example.go      | 2 +-
+ src/go/doc/testdata/testing.go      | 2 +-
+ src/net/dial_test.go                | 4 ++--
+ src/runtime/gc_test.go              | 2 +-
+ src/runtime/metrics_test.go         | 2 +-
+ src/runtime/runtime_test.go         | 2 +-
+ src/runtime/testdata/testprog/gc.go | 2 +-
+ 8 files changed, 9 insertions(+), 9 deletions(-)

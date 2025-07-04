@@ -1,14 +1,16 @@
-commit aa45e52e74f37e39a5a8234071742d50b87b7b2c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 11 03:09:14 2012 +0800
+commit 5374ded1f3c35a9c98f4a80e35b4b11fa3caa1c7
+Author: Joel Sing <jsing@google.com>
+Date:   Fri May 11 03:48:43 2012 +1000
 
-    runtime: fix complex division benchmarks
-    we can't add the division result to n during iteration, because it might
-    turn n into NaN or Inf.
+    runtime: fix syscalls for netbsd
     
-    R=golang-dev, rsc, iant, iant
+    Use correct syscall numbers and arguments for NetBSD.
+    Provide a trampoline for signal returns (using signal API 3).
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6197045
+    https://golang.org/cl/6209048
 
- src/pkg/runtime/complex_test.go | 30 ++++++++++++++++++++----------
- 1 file changed, 20 insertions(+), 10 deletions(-)
+ src/pkg/runtime/sys_netbsd_386.s   | 27 +++++++++++++++++++++++----
+ src/pkg/runtime/sys_netbsd_amd64.s | 18 +++++++++++++++---
+ 2 files changed, 38 insertions(+), 7 deletions(-)

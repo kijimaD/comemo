@@ -1,12 +1,12 @@
-commit cb6c09a75adc4ad315d4ddf3db2582c3bfa3d226
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 1 14:54:35 2012 +0800
+commit 289a1638aa2af9b0cd633480c426285a10861c42
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Mar 1 17:52:05 2012 +1100
 
-    doc: update link to self-hosted "The Laws of Reflection" article
+    html/template: encoding/json does more escaping now, so update the html/template test that uses it.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5717046
+    https://golang.org/cl/5714052
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/template/escape_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,16 +1,23 @@
-commit 655da9962769e5dd1a3c6247bc74cb1eac6f8c78
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Wed Jan 19 14:30:57 2011 -0500
+commit 13c2e629669c03b440fc1406aff14f72b9450a48
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Wed Jan 19 14:23:59 2011 -0500
 
-    cgo: add complex float, complex double
+    math: handle denormals in Frexp, Ilogb, Ldexp, and Logb
+    
+    Also:
+    * document special cases for Frexp and Ldexp
+    * handle ±Inf in Ldexp
+    * correctly return -0 on underflow in Ldexp
+    * test special cases for Ldexp
+    * test boundary cases for Frexp, Ilogb, Ldexp, and Logb
     
     R=rsc
-    CC=binet, golang-dev
-    https://golang.org/cl/3906041
+    CC=golang-dev
+    https://golang.org/cl/3676041
 
- src/cmd/cgo/gcc.go                         |  34 +++++++++++++++++++++++------
- src/pkg/debug/dwarf/testdata/typedef.c     |   7 ++++++
- src/pkg/debug/dwarf/testdata/typedef.elf   | Bin 11546 -> 10837 bytes
- src/pkg/debug/dwarf/testdata/typedef.macho | Bin 4608 -> 5256 bytes
- src/pkg/debug/dwarf/type_test.go           |  33 +++++++++++++++-------------
- 5 files changed, 52 insertions(+), 22 deletions(-)
+ src/pkg/math/all_test.go | 116 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/bits.go     |  10 ++++
+ src/pkg/math/frexp.go    |   8 +++-
+ src/pkg/math/ldexp.go    |  28 ++++++++----
+ src/pkg/math/logb.go     |  15 ++++--
+ 5 files changed, 164 insertions(+), 13 deletions(-)

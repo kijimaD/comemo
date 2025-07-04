@@ -1,14 +1,29 @@
-commit 60801c48530f5fc0555d8156006c1a41fdf53571
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Dec 23 13:19:59 2014 -0800
+commit e04c8b063fd7d7aaded8e1ff549dbb520038c61e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 5 09:24:01 2014 -0500
 
-    test: delete testlib
+    [dev.cc] liblink: don't patch jumps to jumps to symbols
     
-    It is unused as of e7173dfd.
+    When liblink sees something like
     
-    Change-Id: I3e4ea3fc66cf0a768ff28172a151b244952eefc9
-    Reviewed-on: https://go-review.googlesource.com/2093
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+           JMP x
+           ...
+        x: JMP y
+    
+    it rewrites the first jump to jump directly to y.  This is
+    fine if y is a resolved label.  However, it *also* does this
+    if y is a function symbol, but fails to carry over the
+    relocation that would later patch in that symbol's value.  As
+    a result, the original jump becomes either a self-jump (if
+    relative) or a jump to PC 0 (if absolute).
+    
+    Fix this by disabling this optimization if the jump being
+    patched in is a jump to a symbol.
+    
+    LGTM=minux
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/185890044
 
- test/testlib | 170 -----------------------------------------------------------
- 1 file changed, 170 deletions(-)
+ src/liblink/pass.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

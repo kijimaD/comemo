@@ -1,22 +1,21 @@
-commit 14ad23d1f599199f89ba32cc4bc20049277ce9c1
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Mar 29 14:21:12 2020 +0200
+commit fc8eb264bba88b9e4eb85fa7560817abb25767f4
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 15 21:46:43 2019 -0400
 
-    cmd/compile: avoid zero extensions after 32-bit shifts
+    runtime: ensure _Grunning Gs have a valid g.m and g.m.p
     
-    zeroUpper32Bits wasn't checking for shift-extension ops. This would not
-    check shifts that were marking as bounded by prove (normally, shifts
-    are wrapped in a sequence that ends with an ANDL, and zeroUpper32Bits
-    would see the ANDL).
+    We already claim on the documentation for _Grunning that this is case,
+    but execute transitions to _Grunning before assigning g.m. Fix this
+    and make the documentation even more explicit.
     
-    This produces no changes on generated output right now, but will be
-    important once CL196679 lands because many shifts will be marked
-    as bounded, and lower will stop generating the masking code sequence
-    around them.
+    For #10958, #24543, but also a good cleanup.
     
-    Change-Id: Iaea94acc5b60bb9a5021c9fb7e4a1e2e5244435e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226338
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1eb0108e7762f55cfb0282aca624af1c0a15fe56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201440
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/proc.go     | 6 ++++--
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

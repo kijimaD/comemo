@@ -1,14 +1,18 @@
-commit 844bf11ecd362e50e62a81c93aa2ac602de59adc
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Tue Jun 16 21:48:43 2020 +0300
+commit 49e94f19f0e0575fc14f6f83e5586762b263b864
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jan 6 20:37:50 2020 -0500
 
-    doc/go1.15: fix two typos
+    [dev.link] cmd/link: propagate gotype symbol info in cloneToExternal
     
-    Updates #37419.
+    This patch fixes a problem with the loader's cloneToExternal method,
+    specifically that the new external clone created did not get
+    the proper Gotype value from its orginal symbol.
     
-    Change-Id: I9ecc706d44950b7de3e8fe4dde8cfab1904eee58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238139
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9978140d285104d407bf55649fb6ed94959933f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213639
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

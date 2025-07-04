@@ -1,18 +1,23 @@
-commit 30b87bb9aa0c6658830f3d111920e2f366476644
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 17:09:26 2015 +0000
+commit d96a3a2d113909a470d2fd039018e1852a8d72b8
+Author: Burcu Dogan <jbd@google.com>
+Date:   Thu Oct 1 15:01:50 2015 -0400
 
-    Revert "sort: improve average quicksort performance"
+    net: make /etc/hosts lookups case-insensitive
     
-    Broke the build: http://build.golang.org/log/8159de7e0d6f3832da394c310975ddd4c4c74627
-    (cmd/gofmt TestRewrite)
+    The native Go host resolver was behaving differently than libc
+    and the entries in the /etc/hosts were handled in a case sensitive
+    way. In order to be compatible with libc's resolver, /etc/hosts
+    lookups must be case-insensitive.
     
-    This reverts commit 6f6b2f04b5c342edf70944e60c9c9a30eef5a9eb.
+    Fixes #12806.
     
-    Change-Id: Ifd46b0b76c30b0a568521eaaf5ef8968a9549bf5
-    Reviewed-on: https://go-review.googlesource.com/17383
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3c14001abffadf7458fd1a027c91e6438a87f285
+    Reviewed-on: https://go-review.googlesource.com/15321
+    Run-TryBot: Burcu Dogan <jbd@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/example_multi_test.go |   4 +-
- src/sort/sort.go               | 112 +++++++++++++++--------------------------
- 2 files changed, 43 insertions(+), 73 deletions(-)
+ src/net/hosts.go       | 14 ++++++++++----
+ src/net/hosts_test.go  |  1 +
+ src/net/testdata/hosts |  2 ++
+ 3 files changed, 13 insertions(+), 4 deletions(-)

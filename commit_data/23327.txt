@@ -1,17 +1,17 @@
-commit 117506aab6ea27885491bc7ca50f0a462bf1bfbb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 11 12:20:42 2015 +1000
+commit da4fc529d924e796976ea22b928533c8973fdb71
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 13:45:03 2015 -0700
 
-    cmd/go: clean up after 'go build' even on windows
+    cmd/doc: add type-bound vars to global vars list
     
-    This CL makes CL 10682 work on windows.
+    Already done for constants and funcs, but I didn't realize that some
+    global vars were also not in the global list. This fixes
     
-    Fixes #9645 (again)
+            go doc build.Default
     
-    Change-Id: Ie9b9af8b041c483a236b46adad4a50aa6e598c92
-    Reviewed-on: https://go-review.googlesource.com/10930
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I768bde13a400259df3e46dddc9f58c8f0e993c72
+    Reviewed-on: https://go-review.googlesource.com/9764
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/build.go   | 6 ++++--
- src/cmd/go/go_test.go | 8 ++------
- 2 files changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/doc/pkg.go | 1 +
+ 1 file changed, 1 insertion(+)

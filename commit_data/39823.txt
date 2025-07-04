@@ -1,54 +1,22 @@
-commit 581526ce963f54b01eef95d2a76ecb6fc08ed91c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 5 13:33:06 2019 -0700
+commit 7722f6d228da78a03ff233713cd5856db124ce3d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Mar 24 15:49:45 2019 +1100
 
-    cmd/compile: rewrite untyped constant conversion logic
+    cmd/go: keep WINDIR during TestScript
     
-    This CL detangles the hairy mess that was convlit+defaultlit. In
-    particular, it makes the following changes:
+    TestScript executes PowerShell. And PowerShell appears to require
+    WINDIR environment variable to exists on windows-arm.
     
-    1. convlit1 now follows the standard typecheck behavior of setting
-    "n.Type = nil" if there's an error. Notably, this means for a lot of
-    test cases, we now avoid reporting useless follow-on error messages.
-    For example, after reporting that "1 << s + 1.0" has an invalid shift,
-    we no longer also report that it can't be assigned to string.
+    So keep WINDIR environment variable when running PowerShell.
     
-    2. Previously, assignconvfn had some extra logic for trying to
-    suppress errors from convlit/defaultlit so that it could provide its
-    own errors with better context information. Instead, this extra
-    context information is now passed down into convlit1 directly.
+    Fixes #30711
     
-    3. Relatedly, this CL also removes redundant calls to defaultlit prior
-    to assignconv. As a consequence, when an expression doesn't make sense
-    for a particular assignment (e.g., assigning an untyped string to an
-    integer), the error messages now say "untyped string" instead of just
-    "string". This is more consistent with go/types behavior.
-    
-    4. defaultlit2 is now smarter about only trying to convert pairs of
-    untyped constants when it's likely to succeed. This allows us to
-    report better error messages for things like 3+"x"; instead of "cannot
-    convert 3 to string" we now report "mismatched types untyped number
-    and untyped string".
-    
-    Passes toolstash-check.
-    
-    Change-Id: I26822a02dc35855bd0ac774907b1cf5737e91882
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187657
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I14dde6614347325a8f3caf994ea8ab05294450a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168859
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 472 ++++++++++++-------------------
- src/cmd/compile/internal/gc/ssa.go       |  18 +-
- src/cmd/compile/internal/gc/subr.go      |  13 +-
- src/cmd/compile/internal/gc/typecheck.go |  22 +-
- src/cmd/compile/internal/types/type.go   |   9 +
- test/convlit.go                          |   4 +-
- test/ddd1.go                             |   2 +-
- test/fixedbugs/issue17645.go             |   3 +-
- test/fixedbugs/issue7153.go              |   2 +-
- test/fixedbugs/issue7310.go              |   2 +-
- test/fixedbugs/issue8438.go              |   6 +-
- test/rename1.go                          |   2 +-
- test/shift1.go                           |   7 +-
- 13 files changed, 237 insertions(+), 325 deletions(-)
+ src/cmd/go/script_test.go                        | 1 +
+ src/cmd/go/testdata/script/build_acl_windows.txt | 1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)

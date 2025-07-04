@@ -1,13 +1,13 @@
-commit 6b112c24db0a3c6ddd373c2001129f11f7d9e7f1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 21 17:53:45 2014 +0900
+commit 392bc8985e6b4b33603bfb9b546d301d3857a3cb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 13 23:20:39 2014 +1000
 
-    net: fix typo
+    doc: remove the "the" in "the the" in the release notes
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/128500043
+    https://golang.org/cl/128170043
 
- src/pkg/net/sockopt_bsd.go | 2 +-
+ doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

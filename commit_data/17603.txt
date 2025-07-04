@@ -1,12 +1,25 @@
-commit d445b76331aa342711b79dd6796cd832e9766c26
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 16 11:19:39 2013 +1000
+commit 1fba73de45884012f9f632160b8985029ab0e5a8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 10:26:23 2013 +1000
 
-    cmd/gofmt: document -s transformations
+    encoding/gob: ignore chan and func fields of structures
     
-    R=golang-dev, dsymonds
+    Previously, fields of type chan or func caused an error.
+    Now we just treat them like unexported fields and ignore them.
+    This makes it easier to guarantee long-term compatibilty since
+    a substructure from another package cannot break gob
+    encoding by adding a func or chan field.
+    
+    Fixes #6071
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13721043
+    https://golang.org/cl/13693043
 
- src/cmd/gofmt/doc.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/pkg/encoding/gob/codec_test.go   | 18 ----------------
+ src/pkg/encoding/gob/doc.go          |  5 +++--
+ src/pkg/encoding/gob/encode.go       |  5 ++---
+ src/pkg/encoding/gob/encoder.go      |  8 +------
+ src/pkg/encoding/gob/encoder_test.go | 42 +++++++++++++++++++++++++-----------
+ src/pkg/encoding/gob/type.go         | 21 +++++++++++++++++-
+ 6 files changed, 55 insertions(+), 44 deletions(-)

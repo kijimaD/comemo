@@ -1,15 +1,18 @@
-commit 461f82526a0535e6a63a5c87aec50ab6bc558fe5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 1 15:09:18 2013 +1000
+commit cba880e04a074806f0e948fbdee8e2fe31705f14
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 00:16:31 2013 -0400
 
-    doc: remove godocs.js and playground.js from core repo
+    runtime: fix arm preemption
     
-    These are moved to code.google.com/p/go.tools/cmd/godoc.
+    Preemption during the software floating point code
+    could cause m (R9) to change, so that when the
+    original registers were restored at the end of the
+    floating point handler, the changed and correct m
+    would be replaced by the old and incorrect m.
     
-    R=golang-dev, r
+    TBR=dvyukov
     CC=golang-dev
-    https://golang.org/cl/12220043
+    https://golang.org/cl/11883045
 
- doc/godocs.js          | 266 ------------------------------
- doc/play/playground.js | 428 -------------------------------------------------
- 2 files changed, 694 deletions(-)
+ src/pkg/runtime/vlop_arm.s | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

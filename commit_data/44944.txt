@@ -1,19 +1,37 @@
-commit 411860251eb91b284efb901264a9c46d26b588e3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 4 12:15:13 2021 -0400
+commit 22053790fa2c0944df53ea95df476ad2f855424f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 17 09:55:23 2020 -0700
 
-    cmd/compile: reference ABIInternal memequal_varlen
+    cmd/compile: propagate go:notinheap implicitly
     
-    memequal_varlen is put into a closure and is called in internal
-    ABI in the runtime. Emit an ABIInternal reference.
+    //go:notinheap
+    type T int
     
-    Updates #40724.
+    type U T
     
-    Change-Id: I914555f8188561882625e008b595389e50a3a167
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307233
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    We already correctly propagate the notinheap-ness of T to U.  But we
+    have an assertion in the typechecker that if there's no explicit
+    //go:notinheap associated with U, then report an error. Get rid of
+    that error so that implicit propagation is allowed.
+    
+    Adjust the tests so that we make sure that uses of types like U
+    do correctly report an error when U is used in a context that might
+    cause a Go heap allocation.
+    
+    Fixes #41451
+    
+    Update #40954
+    Update #41432
+    
+    Change-Id: I1692bc7cceff21ebb3f557f3748812a40887118d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255637
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/reflectdata/alg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go |  6 ------
+ test/notinheap.go                        | 20 --------------------
+ test/notinheap2.go                       | 26 ++++++++++++++++++++++++++
+ 3 files changed, 26 insertions(+), 26 deletions(-)

@@ -1,14 +1,20 @@
-commit df5cfe7c1f86865cbda41dc7b1c4dbd732e0e8fb
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 23 15:48:09 2015 -0800
+commit ea2f3f9e7afef112069aaf647c8e2bd5c0c2bc2f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jan 30 16:20:46 2015 +1100
 
-    cmd/asm: add end to end test for 386
+    liblink: fix arm build again
     
-    Change-Id: I6514f69b979d064b6a3c4b5d0828cc94f485cac2
-    Reviewed-on: https://go-review.googlesource.com/5694
+    Another attempt to fix the arm build by moving the include of signal.h
+    to cmd/lex.c, unless we are building on plan9.
+    
+    Obviously if we had a plan9/arm builder this would probably not work, but
+    this is only a temporary measure until the c2go transition is complete.
+    
+    Change-Id: I7f8ae27349b2e7a09c55db03e02a01939159a268
+    Reviewed-on: https://go-review.googlesource.com/3566
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go |  4 ++
- src/cmd/asm/internal/asm/testdata/386.out | 48 ++++++++++++++++++
- src/cmd/asm/internal/asm/testdata/386.s   | 82 +++++++++++++++++++++++++++++++
- 3 files changed, 134 insertions(+)
+ include/u.h        |  5 ++++-
+ src/cmd/5l/5.out.h | 34 ----------------------------------
+ src/cmd/gc/lex.c   |  6 +++++-
+ 3 files changed, 9 insertions(+), 36 deletions(-)

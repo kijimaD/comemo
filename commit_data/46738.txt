@@ -1,20 +1,24 @@
-commit cbd7200167292b62792272bda46887bdf1b62fb0
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 28 13:23:08 2021 -0700
+commit 8ee3d398383170e21ba2a63b3a45e1577f97c329
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 24 12:26:47 2021 -0800
 
-    cmd/compile: test to ensure we guard GOAMD64>v1 instructions
+    [dev.regabi] cmd/go: workaround -race issue on ppc64le
     
-    When compiling with GOAMD64=v1, clobber all the >v1 instructions
-    with faulting instructions. Run the binary with the corresponding
-    feature flags off. We shouldn't try to execute any of the clobbered
-    instructions.
+    The race detector on ppc64le corrupts command-line arguments lists if
+    they contain an empty string, and cmd/go often generates compiler
+    argument lists containing `-D ""`. Since this is equivalent to not
+    specifying the `-D` flag at all, just do that. This allows using a
+    race-detector-enabled cmd/compile on ppc64le.
     
-    Change-Id: I295acaf9fd0eafd037192aa6f933365c794cc76e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352831
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Updates #43883.
+    
+    Change-Id: Ifac5cd9a44932129438b9b0b3ecc6101ad3716b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286173
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/amd64/versions_test.go | 335 ++++++++++++++++++++++++
- 1 file changed, 335 insertions(+)
+ src/cmd/go/internal/work/gc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

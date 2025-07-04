@@ -1,30 +1,19 @@
-commit 9ee78af806954e90ba8c9947b66742d210200002
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Feb 23 10:40:12 2018 +0100
+commit ddc64def0f3e8cfdd5e6705e5f1c454a8d5e24d4
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 17 13:38:10 2017 -0700
 
-    cmd/compile: intrinsify math.Sqrt on 386
+    spec: explicitly state the import path for package unsafe
     
-    It seems like all the pieces were already there, it only needed the
-    final plumbing.
+    Nowhere in the spec did we mention the import path for package
+    unsafe. Now we do.
     
-    Before:
+    Fixes #22308.
     
-            0x001b 00027 (test.go:9)        MOVSD   X0, (SP)
-            0x0020 00032 (test.go:9)        CALL    math.Sqrt(SB)
-            0x0025 00037 (test.go:9)        MOVSD   8(SP), X0
-    
-    After:
-    
-            0x0018 00024 (test.go:9)        SQRTSD  X0, X0
-    
-    name    old time/op  new time/op  delta
-    Sqrt-4  4.60ns ± 2%  0.45ns ± 1%  -90.33%  (p=0.000 n=10+10)
-    
-    Change-Id: I0f623958e19e726840140bf9b495d3f3a9184b9d
-    Reviewed-on: https://go-review.googlesource.com/96615
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifd42c873188e898c597cdee4284e7a9d234a9282
+    Reviewed-on: https://go-review.googlesource.com/71373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

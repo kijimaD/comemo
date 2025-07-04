@@ -1,32 +1,17 @@
-commit 618f88d847af9a060a14794859d4f1ea51a08006
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Dec 17 22:32:15 2017 +0000
+commit 8ec188975b5541df3e6b4aae25dadfca20c31d37
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 05:00:58 2017 -0400
 
-    text/template: never call reflect.Zero(nil)
+    cmd/go/internal/work: pass *Action to toolchain methods
     
-    It makes no sense to try to get the zero value of a nil type, hence the
-    panic. When we have a nil type, use reflect.ValueOf(nil) instead.
+    This shortens the args lists but also sets up better for
+    the content-based staleness changes.
     
-    This was showing itself if one used a missing field on the data between
-    parentheses, when the data was a nil interface:
+    While we're here, delete the now-unused Pkgpath method.
     
-            t := template.Must(template.New("test").Parse(`{{ (.).foo }}`))
-            var v interface{}
-            t.Execute(os.Stdout, v)
-    
-    Resulting in:
-    
-            panic: reflect: Zero(nil) [recovered]
-                    panic: reflect: Zero(nil)
-    
-    Fixes #21171.
-    
-    Change-Id: Ifcc4a0c67e6df425b65bc9f82fde6fcf03828579
-    Reviewed-on: https://go-review.googlesource.com/84482
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic60fa03efbc37a7c7fe9758a1cfa5dddef1a4151
+    Reviewed-on: https://go-review.googlesource.com/68335
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/text/template/exec.go      | 6 +++++-
- src/text/template/exec_test.go | 4 ++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/build.go | 86 ++++++++++++++++++---------------------
+ 1 file changed, 40 insertions(+), 46 deletions(-)

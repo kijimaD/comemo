@@ -1,14 +1,14 @@
-commit efa2246e423a2fdbd833e0103def8c6a4cbd5042
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 21 01:24:57 2011 -0500
+commit 9754d61552d6f1b1c6b4f7a02d2b33c016c06f92
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 17:24:42 2011 +1100
 
-    build: rewrite to use bash time builtin
+    dashboard: cache todo responses
     
-    Should help windows/amd64
-    
-    R=adg
+    R=golang-dev, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/5500058
+    https://golang.org/cl/5500057
 
- src/run.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/dashboard/app/build/cache.go   | 125 ++++++++++++++++++++++++++++++++++++
+ misc/dashboard/app/build/handler.go |  37 ++++++-----
+ misc/dashboard/app/build/ui.go      |   5 --
+ 3 files changed, 145 insertions(+), 22 deletions(-)

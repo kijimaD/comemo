@@ -1,17 +1,14 @@
-commit a07218385ce652f55547dc06e664eaab6a47be43
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 13:42:23 2013 -0400
+commit 92254d4463efb5c3a91ccd6d62abe3f7587a145a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 12 21:36:33 2013 +0400
 
-    cmd/5g: factor out prog information
+    runtime: fix ARM assembly formatting
     
-    Like CL 12637051, but for 5g instead of 6g.
-    
-    R=ken2
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12779043
+    https://golang.org/cl/12702048
 
- src/cmd/5g/opt.h  |  52 ++++++++++++++++++
- src/cmd/5g/peep.c |  84 ++++++++--------------------
- src/cmd/5g/prog.c | 135 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/5g/reg.c  | 160 ++++++++----------------------------------------------
- 4 files changed, 231 insertions(+), 200 deletions(-)
+ src/pkg/runtime/asm_arm.s           | 24 ++++++++++++------------
+ src/pkg/runtime/sys_linux_arm.s     |  6 +++---
+ src/pkg/sync/atomic/asm_linux_arm.s |  8 ++++----
+ 3 files changed, 19 insertions(+), 19 deletions(-)

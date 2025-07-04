@@ -1,21 +1,17 @@
-commit 5ac3e7d6a7717bf2f722803e1852ba991af4e724
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Nov 3 11:50:45 2016 +0100
+commit d817c4ec6d458777537aae3a04201b7182a5f78a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 9 11:29:33 2016 -0700
 
-    net: disallow dialing and listening on port > 65535 on Plan 9
+    cmd/compile: use regular rather than indexed format string
     
-    Since Dial(":80") was implemented on Plan 9 (CL 32593),
-    TestProtocolDialError is failing because dialing a port
-    superior to 65535 is supported on Plan 9.
+    This enables the format test to process this file (the format
+    test doesn't handle indexed formats, and this is the only place
+    in the compiler where they occur).
     
-    This change disallows dialing and listening on ports
-    superior to 65535.
-    
-    Fixes #17761.
-    
-    Change-Id: I95e8a163eeacf1ccd8ece7b650f16a0531c59709
-    Reviewed-on: https://go-review.googlesource.com/32594
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I99743f20c463f181a589b210365f70162227d4e0
+    Reviewed-on: https://go-review.googlesource.com/28932
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/ipsock_plan9.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/ssa/html.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

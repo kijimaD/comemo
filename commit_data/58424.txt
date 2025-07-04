@@ -1,15 +1,16 @@
-commit 87dbfb9fa73c335fd0014445bd34135365c21b84
-Author: Michal Bohuslávek <mbohuslavek@gmail.com>
-Date:   Wed Dec 18 13:32:37 2024 +0100
+commit 9d3b3416a4a1fe6778370d7ec050355cbaf30dfe
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 20 12:37:28 2023 -0400
 
-    weak: improve grammar in doc comments
+    cmd/compile/internal/inl: remove some spurious debugging code
     
-    Change-Id: I577b8a6bf2b7d899cc7ff7211c73549c90db9d94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637355
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Remove a bit of debugging code accidentally left in as
+    part of CL 521819.
+    
+    Change-Id: I5c8aa490a00136360fb52d72f3f92d72e150ec0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530577
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/weak/pointer.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go | 3 ---
+ 1 file changed, 3 deletions(-)

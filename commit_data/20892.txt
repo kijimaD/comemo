@@ -1,13 +1,26 @@
-commit 59439f8ea343ad79f289910d71d98dd6e6af8661
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Fri Nov 14 14:05:14 2014 +1100
+commit 6184f46ea359bd6d4da92cb80ba20d219222aa00
+Author: Rick Hudson <rlh@golang.org>
+Date:   Fri Oct 24 11:07:16 2014 -0400
 
-    doc: fix small typo in doc
+    [dev.garbage] runtime: Concurrent scan code
+    Routines and logic to preform a concurrent stack scan of go-routines.
+    This CL excersizes most of the functionality needed. The
+    major exception being that it does not scan running goroutines.
+    After doing the scans it relies on a STW to finish the GC, including
+    rescanning the stacks. It is intended to achieve correctness,
+    performance will follow.
     
-    LGTM=adg
-    R=golang-codereviews, adg
-    CC=golang-codereviews
-    https://golang.org/cl/170660043
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/156580043
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go |   8 ++
+ src/runtime/malloc.h  |   5 -
+ src/runtime/mcache.c  |   2 +-
+ src/runtime/mgc0.c    | 308 ++++++++++++++++++++++++++++++++++----------------
+ src/runtime/proc.c    |  19 ++--
+ src/runtime/runtime.h |   2 +
+ src/runtime/stack.c   |  35 +++---
+ src/runtime/stubs.go  |   2 +
+ 8 files changed, 254 insertions(+), 127 deletions(-)

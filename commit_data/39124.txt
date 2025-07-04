@@ -1,17 +1,19 @@
-commit c583104ee6331a6d006b493e85e0881d35164c93
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri May 10 15:32:24 2019 +0700
+commit 23c22ca42c60194c32cf9692604fb25ca38d6f30
+Author: Jason LeBrun <jblebrun@gmail.com>
+Date:   Fri Jan 4 00:21:15 2019 +0000
 
-    errors: remove useless condition checking in Is
+    crypto/sha512: fix casting of d.nx in UnmarshalBinary
     
-    golang.org/cl/175260 fixed Is panics if target is uncomparable. It did
-    add an useless condition checking whether target is comparable. Just
-    remove that condition.
+    Fixes #29541
     
-    Change-Id: I0a317056479638d209b0a0cbc7010c153558c087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176497
-    Reviewed-by: Joan Lopez de la Franca Beltran <joanjan14@gmail.com>
+    Change-Id: I006915b020b6e710298c32c05e3de77a7f9b54f3
+    GitHub-Last-Rev: c7a90a4bbe17fd1904c0942e8b343264fb85cba1
+    GitHub-Pull-Request: golang/go#29542
+    Reviewed-on: https://go-review.googlesource.com/c/156277
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/errors/wrap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/sha512/sha512.go      |  2 +-
+ src/crypto/sha512/sha512_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

@@ -1,19 +1,34 @@
-commit 38729cff96ad38b2d5b530c1009ff0403ebff903
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 24 17:49:11 2022 -0800
+commit 6639bb894d8770290f1860a4cad8f8726079b870
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 21 20:45:44 2021 +0000
 
-    go/types, types2: all interfaces implement comparable (add tests)
+    runtime: call nanotimeQPC from nanotime1 normally
     
-    For #50646.
+    Currently we call runtimeQPC as ABIInternal because it shaves off 24
+    bytes by not having an extra wrapper, and at the time we were exceeding
+    the nosplit stack limit in some cases.
     
-    Change-Id: I7420545556e0df2659836364a62ce2c32ad7a8b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380654
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    However, this code was written before we had the regabiargs GOEXPERIMENT
+    flag, and wasn't properly flagged. Naturally, with regabiargs enabled,
+    it leads to garbage being returned, because it needs to store
+    runtimeQPC's result to the stack.
+    
+    We didn't notice this because today runtimeQPC is only used in Wine, not
+    on any native Windows platform.
+    
+    Back when I wrote this code, it appeared to be necessary on even native
+    Windows, but it turns out that's not true anymore. Turn it back into a
+    native call through a wrapper.
+    
+    For #40724.
+    
+    Change-Id: Ia2e5901965ef46c5f299daccef49952026854fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312429
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go     | 27 +++++++++++++++
- .../types2/testdata/fixedbugs/issue50646.go2       | 29 ++++++++++++++++
- src/go/types/issues_test.go                        | 27 +++++++++++++++
- src/go/types/testdata/fixedbugs/issue50646.go2     | 29 ++++++++++++++++
- test/typeparam/issue50646.go                       | 39 ++++++++++++++++++++++
- 5 files changed, 151 insertions(+)
+ src/runtime/sys_windows_amd64.s | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

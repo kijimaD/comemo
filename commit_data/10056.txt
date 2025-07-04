@@ -1,12 +1,16 @@
-commit bb8c4ed22abc40a93a31ef4c3c59841773d75e88
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 12:49:01 2011 -0400
+commit ec0b5533c9cb77bac948171c49e62ab8c7500f18
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 19 12:19:13 2011 -0400
 
-    exp/types: fix crash in parseBasicType on unknown type
+    crypto/x509: fix names in certificate generation.
     
-    R=gri
+    I had a brain fart in af84b15fbae2 and messed up the names in
+    generated certificates.
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5302044
+    https://golang.org/cl/5315046
 
- src/pkg/exp/types/gcimporter.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/crypto/x509/x509.go      |  4 ++--
+ src/pkg/crypto/x509/x509_test.go | 11 ++++++++++-
+ 2 files changed, 12 insertions(+), 3 deletions(-)

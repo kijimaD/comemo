@@ -1,22 +1,31 @@
-commit 649f341e95626afa56ca67c5595c8f35780b29a8
+commit a0787f7bcc210e3f9dd725807cfa12895f90f29b
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 5 16:09:50 2019 -0500
+Date:   Tue Jun 4 16:50:59 2019 -0400
 
-    cmd: update x/mod to CL 205497
+    cmd/go: replace uses of ioutil.ReadFile with renameio.ReadFile
     
-    Also revert an incidental 'gofmt' of a vendored file from CL 205240.
+    Windows does not have atomic renames; instead, it produces one of a
+    handful of errors in case a read races with a rename.
     
-    Updates #34822
+    CL 180219 added a utility function that retries those errors in most
+    cases; this change updates the locations that use renameio for writes
+    to also use the new renameio.ReadFile function for reads.
     
-    Change-Id: I82a015d865db4d865b4776a8013312f25dbb9181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205539
+    It remains possible for a renameio.ReadFile to fail with a spurious
+    ERROR_FILE_NOT_FOUND, but with retries in place for the other errors
+    (and practical limits on write concurrency) such failures are unlikely
+    in practice.
+    
+    Fixes #32188
+    
+    Change-Id: I78c81051cc871325c1e3229e696b921b0fcd865a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180517
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  2 ++
- src/cmd/vendor/golang.org/x/mod/modfile/read.go    | 41 +++++++++++++++++++++-
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  6 +++-
- .../x/tools/go/analysis/internal/facts/facts.go    |  1 +
- src/cmd/vendor/modules.txt                         |  2 +-
- 6 files changed, 50 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/cache/cache.go    |  2 +-
+ src/cmd/go/internal/modfetch/cache.go |  4 ++--
+ src/cmd/go/internal/modfetch/fetch.go | 10 +++++-----
+ src/cmd/go/internal/modload/init.go   |  4 ++--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

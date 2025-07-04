@@ -1,23 +1,15 @@
-commit 0f3ea75020cf7dda64805fe9aeef26be60cf16cd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 23 19:57:19 2013 -0700
+commit 2be62360b2748636a2849e959dede7359383b200
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Sep 23 22:33:42 2013 -0400
 
-    encoding/json: don't cache value addressability when building first encoder
+    net: fix Close of autobind unix listener
     
-    newTypeEncoder (called once per type and then cached) was
-    looking at the first value seen of that type's addressability
-    and caching the encoder decision.  If the first value seen was
-    addressable and a future one wasn't, it would panic.
+    Fixes #6455.
     
-    Instead, introduce a new wrapper encoder type that checks
-    CanAddr at runtime.
-    
-    Fixes #6458
-    
-    R=golang-dev, rsc
+    R=mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/13839045
+    https://golang.org/cl/13457058
 
- src/pkg/encoding/json/encode.go      | 117 ++++++++++++++++++++---------------
- src/pkg/encoding/json/encode_test.go |  24 +++++++
- 2 files changed, 90 insertions(+), 51 deletions(-)
+ src/pkg/net/unix_test.go      | 14 +++++++++++++-
+ src/pkg/net/unixsock_posix.go |  2 +-
+ 2 files changed, 14 insertions(+), 2 deletions(-)

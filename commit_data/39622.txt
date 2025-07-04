@@ -1,20 +1,26 @@
-commit 78f6856ddf855a457bd33af27089cb3f6e1b2a2d
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Aug 26 01:25:41 2019 +0000
+commit 3cf89e509b21d0f469c4e0a78179b9d2d961c864
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:29:00 2019 +0100
 
-    Revert "errors: add example showing a custom error with Unwrap"
+    cmd/link: enable DWARF with external linker on aix/ppc64
     
-    This reverts commit 739123c3a36f30af06c294741f74a26e54ee21ad.
+    In order to allow DWARF with ld, the symbol table is adapted.
+    In internal linkmode, each package is considered as a .FILE. However,
+    current version of ld is crashing on a few programs because of
+    relocations between DWARF symbols. Considering all packages as part of
+    one .FILE seems to bypass this bug.
+    As it might be fixed in a future release, the size of each package
+    in DWARF sections is still retrieved and can be used when it's fixed.
+    Moreover, it's improving internal linkmode which should have done it
+    anyway.
     
-    Reason for revert: broke Windows and Plan 9 builders
-    
-    Fixes #33828
-    
-    Change-Id: I1d85c81549b1b34924fdd0ade8bf9406e5cf6555
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191742
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: If3d023fe118b24b9f0f46d201a4849eee8d5e333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164006
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/errors/example_unwrap_test.go | 56 ---------------------------------------
- 1 file changed, 56 deletions(-)
+ src/cmd/link/internal/ld/data.go  |  6 ++++
+ src/cmd/link/internal/ld/dwarf.go | 34 +++++++++++++++---
+ src/cmd/link/internal/ld/xcoff.go | 76 ++++++++++++++++++++++++++++++---------
+ 3 files changed, 95 insertions(+), 21 deletions(-)

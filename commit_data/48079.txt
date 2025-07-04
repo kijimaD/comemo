@@ -1,18 +1,21 @@
-commit 02224c8ce471b9618081c69d952fb8597f71b7e6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 4 12:22:19 2022 -0800
+commit 903b25178e51fa96d37a91b020747ce236ba04f0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 27 00:11:00 2021 +0200
 
-    cmd/go: accept "-F dir" in compiler flags
+    syscall: on linux use accept4 in Accept, fall back to accept
     
-    Fixes #51008
+    Android seems to block the accept syscall in newer versions. Use accept4
+    instead on kernel versions that support it (Linux 2.6.28 and newer) and
+    fall back to accept on ENOSYS.
     
-    Change-Id: I5e47c7be59d4aae1d5059d99231422212cffa23a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383217
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #45767
+    
+    Change-Id: If190ace0e0213207fdaf6eeb79a5543ef18456de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313769
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/work/security.go      | 1 +
- src/cmd/go/internal/work/security_test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/syscall/syscall_linux.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

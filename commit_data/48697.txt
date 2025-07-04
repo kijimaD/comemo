@@ -1,27 +1,25 @@
-commit 9e16cc1541d42cb081d359339e3f45b4b9b2a372
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 14 12:31:33 2022 -0400
+commit 12b37b713fddcee366d286a858c452f3bfdfa794
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 4 17:04:46 2021 -0400
 
-    hash/maphash: add Bytes and String
+    [dev.typeparams] runtime: remove variadic defer/go calls
     
-    For very small inputs, h.Reset+h.Write+h.Sum64 is fundamentally
-    slower than a single operation, by about a factor of two, because
-    Write must copy the data into h's buffer, just in case there is another
-    Write before the Sum64.
+    Now that defer/go wrapping is used, deferred/go'd functions are
+    always argumentless. Remove the code handling arguments.
     
-    A single function doing the whole sequence knows there is no extra
-    write that will happen, so it doesn't need the buffer, so it avoids the copy.
+    This CL is mostly removing the fallback code path. There are more
+    cleanups to be done, in later CLs.
     
-    Fixes #42710.
-    
-    Change-Id: Icc79c68ccb10827f6640071d026df86b4940fcc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392494
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I87bfd3fb2d759fbeb6487b8125c0f6992863d6e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325915
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- api/next/42710.txt               |  2 ++
- src/hash/maphash/maphash.go      | 48 ++++++++++++++++++++++++++++++++
- src/hash/maphash/maphash_test.go | 60 ++++++++++++++++++++++++++--------------
- 3 files changed, 90 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |   1 -
+ src/cmd/internal/objabi/funcid.go         |   1 -
+ src/runtime/panic.go                      | 113 +++---------------------------
+ src/runtime/proc.go                       |  34 +--------
+ src/runtime/traceback.go                  |   9 +--
+ 5 files changed, 16 insertions(+), 142 deletions(-)

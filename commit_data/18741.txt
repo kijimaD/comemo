@@ -1,16 +1,20 @@
-commit 77720904a8e4ceb772ebe5e3029f4d7887f2ca37
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 4 14:59:08 2014 -0500
+commit a5166a9512215483dae4e2963435cb3803a9f330
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 11:55:35 2014 -0800
 
-    liblink: fix arm build
+    net/http: fix test failure on some Windows machines
     
-    The arm puts the text flags in a different place
-    than the other architectures. This needs to be
-    cleaned up.
+    The network connection dies differently from the server's
+    perspective on (some) Windows when the client goes away. Match
+    on the common prefix (common to Unix and Windows) instead of
+    the network error part.
     
-    TBR=minux
-    CC=golang-codereviews
-    https://golang.org/cl/71260043
+    Fixes #7456
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=alex.brainman, golang-codereviews, iant
+    https://golang.org/cl/70010050
 
- src/liblink/obj5.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/client_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,31 +1,68 @@
-commit 63daa774b566d7fe58b3aa82cda9e595929bb777
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Jun 21 20:16:37 2021 -0400
+commit 742c05e3bce2cf2f4631762cb5fb733d2a92bc91
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 23 13:42:43 2020 -0800
 
-    go/types: guard against checking instantiation when generics is disabled
+    [dev.regabi] cmd/compile: prep refactoring for switching to go/constant
     
-    When type checking t[_], where t is a type name, it was possible to leak
-    an error message related to generics. Fix this by guarding on
-    typeparams.Enabled.
+    This CL replaces gc.Ctype (along with its CTINT, etc. constants) with
+    constant.Kind; renames Val.Ctype to Val.Kind; and replaces a handful
+    of abstraction-violating patterns that can be readily expressed
+    differently.
     
-    In order to test this fix, we need to be able to run the new go/types
-    test only if type parameters are disabled. Introduce the .go1 test data
-    suffix (similar to .go2) to control this behavior.
+    The next commit will actually replace Val with constant.Value.
     
-    Originally found via fuzzing, though the test case was manually
-    simplified.
+    Passes toolstash-check.
     
-    Updates #46404
+    [git-generate]
+    cd src/cmd/compile/internal/gc
     
-    Change-Id: Ib1e2c27cf974c2a5ca5b9d6d01b84a30ba4d583b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329793
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    sed -i 's/type Ctype uint8/type Ctype = constant.Kind/' const.go
+    goimports -w const.go
+    
+    rf '
+    inline -rm Ctype
+    mv Val.Ctype Val.Kind
+    
+    ex import "go/constant"; \
+      CTxxx  -> constant.Unknown; \
+      CTINT  -> constant.Int; \
+      CTFLT  -> constant.Float; \
+      CTCPLX -> constant.Complex; \
+      CTBOOL -> constant.Bool; \
+      CTSTR  -> constant.String
+    
+    rm CTxxx CTINT CTFLT CTCPLX CTBOOL CTSTR
+    
+    ex import "cmd/compile/internal/types"; \
+      var t *types.Type; \
+      var v, v2 Val; \
+      v.U.(*Mpint).Cmp(maxintval[TINT]) > 0 -> doesoverflow(v, types.Types[TINT]); \
+      v.U.(*Mpint).Cmp(v2.U.(*Mpint)) > 0 -> compareOp(v, OGT, v2); \
+      maxintval[t.Etype].Cmp(maxintval[TUINT]) <= 0 -> t.Size() <= types.Types[TUINT].Size(); \
+      maxintval[t.Etype].Cmp(maxintval[TUINT]) >  0 -> t.Size() >  types.Types[TUINT].Size();
+    '
+    
+    go test cmd/compile -u
+    
+    Change-Id: I6c22ec0597508845f88eee639a0d76cbaa66d08f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272653
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/check_test.go                     | 13 ++++++++-----
- src/go/types/testdata/fixedbugs/issue46404.go1 |  8 ++++++++
- src/go/types/typexpr.go                        |  8 ++++++--
- 3 files changed, 22 insertions(+), 7 deletions(-)
+ src/cmd/compile/fmtmap_test.go           |   4 +-
+ src/cmd/compile/internal/gc/const.go     | 130 ++++++++++++++-----------------
+ src/cmd/compile/internal/gc/dcl.go       |   3 +-
+ src/cmd/compile/internal/gc/export.go    |   5 +-
+ src/cmd/compile/internal/gc/fmt.go       |   2 +-
+ src/cmd/compile/internal/gc/iexport.go   |  29 +++----
+ src/cmd/compile/internal/gc/iimport.go   |  11 +--
+ src/cmd/compile/internal/gc/inl.go       |   3 +-
+ src/cmd/compile/internal/gc/noder.go     |   5 +-
+ src/cmd/compile/internal/gc/obj.go       |   3 +-
+ src/cmd/compile/internal/gc/ssa.go       |  11 +--
+ src/cmd/compile/internal/gc/swt.go       |   3 +-
+ src/cmd/compile/internal/gc/typecheck.go |  47 +++++------
+ src/cmd/compile/internal/gc/walk.go      |  51 ++++++------
+ 14 files changed, 153 insertions(+), 154 deletions(-)

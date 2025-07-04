@@ -1,23 +1,37 @@
-commit 12e65dbdb112ac03049362bf8c0dbeeeb0392c0e
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Mar 15 13:09:10 2023 -0500
+commit 845a95b1ae0f80d2b30ab6277e31b6d6164f0a90
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu Nov 25 14:20:39 2021 +0800
 
-    runtime: cleanup ppc64le/linux library startup code
+    cmd/compile/internal: fix test error on loong64
     
-    Fix the argument passing to runtime.newosproc0, the ABI0 argument
-    storing must account for the fixed frame size.
+    For TestLogOpt test case, add loong64 support to test the host
+    architecture and os.
     
-    Cleanup the _rt0_ppc64le_linux_lib definition, the assembler
-    should not generate a stack frame.  And convert it to use the
-    new ABI wrappers.
+    The Ctz64 is not intrinsified on loong64 for TestIntendedInlining.
     
-    Change-Id: Ibc0be8b37f6522900781a19980fa018dd89ba7b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479796
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I42280e89a337dbfde55a01a134820f8ae94f6b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400237
     Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/rt0_linux_ppc64le.s | 103 ++++------------------------------------
- 1 file changed, 10 insertions(+), 93 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ src/cmd/compile/internal/test/inl_test.go      | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

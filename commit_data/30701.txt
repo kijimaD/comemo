@@ -1,24 +1,15 @@
-commit be04da8f0c5cb57e2736cfac8c76971d7d8cfc6f
-Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
-Date:   Fri Mar 3 15:57:19 2017 +0300
+commit d0d8466aca634e30be22d4f1d809ab4c73b4a81e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 28 21:00:29 2016 +0000
 
-    cmd/go: fix race libraries rebuilding by `go test -i`
+    net/http, net/http/httptest: cross-reference the two NewRequest funcs
     
-    `go test -i -race` adds the "sync/atomic" package to every package dependency tree
-    that makes buildIDs different from packages installed with `go install -race`
-    and causes cache rebuilding.
+    Updates #18082
     
-    Fixes #19133
-    Fixes #19151
-    
-    Change-Id: I0536c6fa41b0d20fe361b5d35b3c0937b146d07d
-    Reviewed-on: https://go-review.googlesource.com/37598
+    Change-Id: I2e65b115b809c1e1bf813f538989d1a1f96b2876
+    Reviewed-on: https://go-review.googlesource.com/33636
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go       |  3 ---
- src/cmd/go/internal/load/pkg.go      |  4 ----
- src/cmd/go/internal/test/test.go     | 34 ++++++++++++++++++++++++++++------
- src/cmd/go/internal/test/testflag.go |  8 ++++----
- 4 files changed, 32 insertions(+), 17 deletions(-)
+ src/net/http/httptest/httptest.go |  3 +++
+ src/net/http/request.go           | 10 +++++-----
+ 2 files changed, 8 insertions(+), 5 deletions(-)

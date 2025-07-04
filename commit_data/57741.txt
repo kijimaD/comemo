@@ -1,20 +1,18 @@
-commit fdf6605109167e8093ee27d246c8b35678146eb6
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Sep 29 10:01:45 2024 +0200
+commit 7e7dd4dcd9a73ed9e832cd873b8fad7b87ddf029
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Aug 26 11:56:38 2023 +0000
 
-    crypto/hmac: move implementation to crypto/internal/fips
+    cmd/compile/internal/ir: remove redundant not in doc
     
-    For #69536
-    
-    Change-Id: I38508a8de4ac321554a2c12ac70bcf9e25fad1aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616636
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ia4fc2ceafa92f38742d3a017e37350875fdcc25e
+    GitHub-Last-Rev: 482f5e4fe626bfe97058ea052324cca68b91263d
+    GitHub-Pull-Request: golang/go#62299
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522940
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/hmac/hmac.go               | 132 +-------------------------
- src/crypto/internal/fips/hash.go      |  32 +++++++
- src/crypto/internal/fips/hmac/hmac.go | 168 ++++++++++++++++++++++++++++++++++
- src/go/build/deps_test.go             |   4 +-
- 4 files changed, 206 insertions(+), 130 deletions(-)
+ src/cmd/compile/internal/ir/stmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

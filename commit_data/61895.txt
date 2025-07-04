@@ -1,0 +1,22 @@
+commit fafd4477f3d19f2c11a628e6e407ecf9924309c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 10 20:05:06 2024 -0800
+
+    cmd/cgo: use full prototype for main in C code
+    
+    Avoids pedantic errors from modern C compilers.
+    
+    Fixes #70769
+    
+    Change-Id: Ibe0d9960e998eb0346b97d7bd69eb7de0d0e6c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635095
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/doc.go | 2 +-
+ src/cmd/cgo/out.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

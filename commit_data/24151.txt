@@ -1,57 +1,15 @@
-commit df37c4b987640849ad2b4033b4f94d7398eceba6
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Wed Aug 26 14:27:19 2015 +0000
+commit c218a075beedef729307359969f8c76f410dac10
+Author: Ross Light <light@google.com>
+Date:   Thu Jun 25 13:14:28 2015 -0700
 
-    cmd/asm: fix several panics with erroneous input
+    cmd/go: mark ssh:// URLs as secure
     
-    The parser tries to read as much information as possible,
-    issuing some errors when needed. Errors generally do not
-    stop the parsing.
+    Add tests for isSecure function.
     
-    With some pathological input, it may result in various
-    panics when the error message itself is built, or when the
-    next operand is parsed. It happens while parsing
-    pseudo-instructions.
-    
-    For instance, the following lines all generate a panic:
-    
-            TEXT
-            TEXT%
-            TEXT 1,1
-            TEXT $"toto", 0, $1
-            FUNCDATA
-            DATA 0
-            DATA(0),1
-            FUNCDATA(SB
-            GLOBL 0, 1
-            PCDATA 1
-    
-    Added corresponding tests.
-    
-    Introduced a writer in the parser to capture error messages
-    for testing purpose. It defaults to os.Stderr.
-    
-    Added an explicit check when symbol names cannot be displayed.
-    
-    Interrupted parsing early when the number of operands is wrong for
-    pseudo-instructions.
-    
-    Note that the last point is a change of behavior, because some
-    operands will not get parsed anymore in case of early error.
-    
-    IMO, it is acceptable, because only the first error of the line
-    is considered anyway. If it is not acceptable, it can probably
-    be improved at the price of a more verbose CL.
-    
-    Fixes #11765
-    Fixes #11760
-    Fixes #11759
-    
-    Change-Id: I9602a848132e358a1bccad794d7555e0823970dd
-    Reviewed-on: https://go-review.googlesource.com/13925
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I49de9d2846b75d4c7be745484f85d351a6fd851d
+    Reviewed-on: https://go-review.googlesource.com/11514
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/asm.go         | 22 ++++++++--
- src/cmd/asm/internal/asm/parse.go       | 23 ++++++-----
- src/cmd/asm/internal/asm/pseudo_test.go | 71 +++++++++++++++++++++++++++++++++
- 3 files changed, 103 insertions(+), 13 deletions(-)
+ src/cmd/go/vcs.go      |  1 +
+ src/cmd/go/vcs_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

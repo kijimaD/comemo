@@ -1,26 +1,17 @@
-commit ec3ebf7bc31271b52c82b3fac193139b2788ed68
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 6 11:08:37 2019 -0400
+commit acf786f4fb08bd75e4f40b8e89e60878b1f47de3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jan 22 21:27:43 2019 +0000
 
-    cmd/go/internal/web: support file:// URLs
+    cmd/compile: remove unused func eqtypenoname
     
-    Fixes #27698
-    Fixes #32227
+    Its only use was removed in golang.org/cl/114797, committed in October
+    2018.
     
-    Change-Id: I2416408b3de2f9f1ae1af2911cc327a65d2c0170
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181037
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6560ccfb10d7c763f6470b20c853716779c18cee
+    Reviewed-on: https://go-review.googlesource.com/c/158897
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/internal/get/vcs.go                     |  3 +
- src/cmd/go/internal/modfetch/proxy.go              | 15 ----
- src/cmd/go/internal/web/file_test.go               | 58 +++++++++++++
- src/cmd/go/internal/web/http.go                    | 42 ++++++++++
- src/cmd/go/internal/web/url.go                     | 95 ++++++++++++++++++++++
- src/cmd/go/internal/web/url_other.go               | 21 +++++
- src/cmd/go/internal/web/url_other_test.go          | 36 ++++++++
- src/cmd/go/internal/web/url_test.go                | 77 ++++++++++++++++++
- src/cmd/go/internal/web/url_windows.go             | 43 ++++++++++
- src/cmd/go/internal/web/url_windows_test.go        | 94 +++++++++++++++++++++
- src/cmd/go/testdata/script/mod_file_proxy.txt      |  7 +-
- src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 41 ++++++++++
- 12 files changed, 514 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

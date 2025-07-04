@@ -1,23 +1,25 @@
-commit 910e6b5fae7cbf84e4a3fcfa6739e20239080bcd
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jul 24 10:29:13 2024 -0700
+commit 0a68767864f622c5b4334a6369f611446e64d4ae
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 1 17:55:06 2023 -0400
 
-    os: document CopyFS behavior for symlinks in destination
+    cmd/api: make check even pickier about api/next/*.txt
     
-    Also clarify the permissions of created files,
-    and note that CopyFS will not overwrite files.
+    As spotted in CL 499981, 3 out of 51 of the api/next/*.txt files
+    ended up with a blank line at the end. It's possible it would've
+    been more if human reviewers didn't catch them.
     
-    Update a few places in documentation to use 0oXXX for octal consts.
+    Since there's no formatter for these files, the only way to help
+    catch things is to make the check pickier (as done in CL 431335).
+    It can be loosened to let in useful blank lines if needed in the
+    future.
     
-    For #62484
-    
-    Change-Id: I208ed2bde250304bc7fac2b93963ba57037e791e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600775
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iae7ee8e782b32707c576150914539ac4cc0faec4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500115
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/os/dir.go          | 18 ++++++++++--------
- src/os/example_test.go |  2 +-
- src/os/file.go         |  8 ++++----
- 3 files changed, 15 insertions(+), 13 deletions(-)
+ src/cmd/api/api.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

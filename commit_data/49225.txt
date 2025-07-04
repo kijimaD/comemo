@@ -1,28 +1,117 @@
-commit 053b63cfb56f574fd216166020066f3b48d5d878
-Author: Rob Pike <r@golang.org>
-Date:   Sun May 15 13:14:49 2022 +1000
+commit 8e2ab05dd39cdf8eea2546b220cc5f48afd39c97
+Merge: 52e970b1c8 47cdfa95ae
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Fri Jul 30 21:29:29 2021 +0000
 
-    text/template/parse: make atTerminator more efficient
-    
-    The change https://go.dev/cl/398475 was too complicated and expensive.
-    Since the whole string is always available, all that's needed
-    is a call to strings.HasPrefix.
-    
-    While we're here, change the way lexer.backup works
-    so it can be called repeatedly to back up more than one
-    rune, in case that becomes necessary. This change also
-    requires less state to maintain, as lexer.width was only
-    there for backup, and prevented multiple steps.
-    
-    Fixes #52191
-    
-    Change-Id: I43b64fc66edeb8ba73ba5aa72f3b727c377dc067
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406476
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Merge "[dev.cmdgo] all: merge master (9eee0ed) into dev.cmdgo" into dev.cmdgo
 
- src/text/template/parse/lex.go | 41 ++++++++++++-----------------------------
- 1 file changed, 12 insertions(+), 29 deletions(-)
+ api/go1.17.txt                                     |   1 +
+ doc/asm.html                                       |   4 -
+ doc/go1.17.html                                    | 100 +++++++---
+ doc/go_spec.html                                   |  11 +-
+ src/cmd/compile/internal/abi/abiutils.go           |  21 +-
+ src/cmd/compile/internal/gc/obj.go                 |   2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |   2 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |  54 ++---
+ src/cmd/compile/internal/typecheck/dcl.go          |  12 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   2 +-
+ src/cmd/compile/internal/types/fmt.go              |  57 +++---
+ src/cmd/go/alldocs.go                              |   6 +-
+ src/cmd/go/go_test.go                              |  32 +++
+ .../go/internal/lockedfile/lockedfile_filelock.go  |   3 +-
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |   6 +-
+ src/cmd/go/internal/modcmd/edit.go                 |   2 +-
+ src/cmd/go/internal/modcmd/graph.go                |   2 +-
+ src/cmd/go/internal/modcmd/init.go                 |   2 +-
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  49 +++--
+ src/cmd/go/internal/modfetch/coderepo.go           |  23 ++-
+ src/cmd/go/internal/modfetch/fetch.go              |  17 +-
+ src/cmd/go/internal/modload/init.go                |   9 +-
+ src/cmd/go/internal/modload/load.go                |  39 +---
+ src/cmd/go/internal/modload/modfile.go             |  78 +++++---
+ src/cmd/go/internal/modload/query.go               |  34 +++-
+ src/cmd/go/internal/work/exec.go                   |  11 +-
+ src/cmd/go/testdata/script/mod_overlay.txt         |  10 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |   2 +-
+ .../go/testdata/script/mod_tidy_compat_deleted.txt |   2 +-
+ .../testdata/script/mod_tidy_compat_implicit.txt   |   2 +-
+ .../script/mod_tidy_compat_incompatible.txt        |   2 +-
+ .../go/testdata/script/mod_update_sum_readonly.txt |  34 ++++
+ src/cmd/link/internal/ld/decodesym.go              |   4 +-
+ src/cmd/link/internal/loader/loader.go             |   9 +
+ src/cmd/vet/main.go                                |   4 +
+ src/cmd/vet/testdata/copylock/copylock.go          |   4 +
+ src/cmd/vet/testdata/httpresponse/httpresponse.go  |   4 +
+ src/cmd/vet/testdata/testingpkg/tests.go           |   4 +
+ src/cmd/vet/testdata/testingpkg/tests_test.go      |   4 +
+ src/crypto/tls/key_agreement.go                    |   6 +-
+ src/crypto/x509/root.go                            |   2 +-
+ src/crypto/x509/root_ios.go                        |  37 +++-
+ src/go/build/syslist.go                            |   2 +-
+ src/go/types/api_test.go                           |  12 ++
+ src/go/types/check_test.go                         |   7 +
+ src/go/types/expr.go                               |  34 +++-
+ src/internal/reflectlite/type.go                   |   4 +-
+ src/net/dnsclient_unix_test.go                     | 222 ++++++++++++++++-----
+ src/net/http/client.go                             |   2 +-
+ src/net/lookup.go                                  |  74 +++++--
+ src/reflect/all_test.go                            |   9 +
+ src/reflect/type.go                                |  10 +-
+ src/reflect/value.go                               |  20 ++
+ src/reflect/visiblefields.go                       |   4 +
+ src/reflect/visiblefields_test.go                  |   4 +
+ src/runtime/checkptr.go                            |  11 +-
+ src/runtime/checkptr_test.go                       |   1 +
+ src/runtime/debug/panic_test.go                    |   3 +
+ src/runtime/internal/sys/zgoarch_386.go            |   1 +
+ src/runtime/internal/sys/zgoarch_amd64.go          |   1 +
+ src/runtime/internal/sys/zgoarch_arm.go            |   1 +
+ src/runtime/internal/sys/zgoarch_arm64.go          |   1 +
+ src/runtime/internal/sys/zgoarch_arm64be.go        |   1 +
+ src/runtime/internal/sys/zgoarch_armbe.go          |   1 +
+ src/runtime/internal/sys/zgoarch_loong64.go        |  33 +++
+ src/runtime/internal/sys/zgoarch_mips.go           |   1 +
+ src/runtime/internal/sys/zgoarch_mips64.go         |   1 +
+ src/runtime/internal/sys/zgoarch_mips64le.go       |   1 +
+ src/runtime/internal/sys/zgoarch_mips64p32.go      |   1 +
+ src/runtime/internal/sys/zgoarch_mips64p32le.go    |   1 +
+ src/runtime/internal/sys/zgoarch_mipsle.go         |   1 +
+ src/runtime/internal/sys/zgoarch_ppc.go            |   1 +
+ src/runtime/internal/sys/zgoarch_ppc64.go          |   1 +
+ src/runtime/internal/sys/zgoarch_ppc64le.go        |   1 +
+ src/runtime/internal/sys/zgoarch_riscv.go          |   1 +
+ src/runtime/internal/sys/zgoarch_riscv64.go        |   1 +
+ src/runtime/internal/sys/zgoarch_s390.go           |   1 +
+ src/runtime/internal/sys/zgoarch_s390x.go          |   1 +
+ src/runtime/internal/sys/zgoarch_sparc.go          |   1 +
+ src/runtime/internal/sys/zgoarch_sparc64.go        |   1 +
+ src/runtime/internal/sys/zgoarch_wasm.go           |   1 +
+ src/runtime/malloc.go                              |  20 +-
+ src/runtime/pprof/mprof_test.go                    |  11 +
+ src/runtime/proc.go                                |   1 -
+ src/runtime/race.go                                |   2 +-
+ src/runtime/runtime2.go                            |  12 +-
+ src/runtime/select.go                              |   2 +-
+ src/runtime/testdata/testprog/checkptr.go          |  36 +++-
+ src/runtime/time.go                                |  58 +-----
+ src/runtime/traceback_test.go                      | 179 ++++++++++++++++-
+ src/runtime/type.go                                |   6 +-
+ src/testing/testing.go                             |   8 +-
+ src/text/scanner/scanner.go                        |   2 +-
+ src/time/sleep_test.go                             |  34 ++++
+ src/time/time.go                                   |   2 +-
+ test/bench/go1/regexp_test.go                      |   2 +-
+ test/fixedbugs/issue47087.dir/a.go                 |   9 +
+ test/fixedbugs/issue47087.dir/b.go                 |   9 +
+ test/fixedbugs/issue47087.dir/main.go              |  19 ++
+ test/fixedbugs/issue47087.go                       |   7 +
+ test/fixedbugs/issue47185.dir/bad/bad.go           |  72 +++++++
+ test/fixedbugs/issue47185.dir/main.go              |  28 +++
+ test/fixedbugs/issue47185.go                       |  11 +
+ test/fixedbugs/issue47201.dir/a.go                 |  13 ++
+ test/fixedbugs/issue47201.dir/b.go                 |   9 +
+ test/fixedbugs/issue47201.go                       |   7 +
+ test/fixedbugs/issue47317.dir/a.s                  |   6 +
+ test/fixedbugs/issue47317.dir/x.go                 |  17 ++
+ test/fixedbugs/issue47317.go                       |   7 +
+ 109 files changed, 1332 insertions(+), 440 deletions(-)

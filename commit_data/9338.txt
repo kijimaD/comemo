@@ -1,18 +1,14 @@
-commit bca65e395e1786f321266da81fb3ed46f5d4e854
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Aug 11 18:49:09 2011 +1000
+commit 6ca968c791587cd70a1c0fcc5ddc21cdc7be60ad
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 11 14:36:51 2011 +1000
 
-    html: parse more malformed tags.
+    exp/template: find the String method by taking the address if we need to.
+    Also simplify nil handling in printing.
     
-    This continues the work in revision 914a659b44ff, now passing more test
-    cases. As before, the new tokenization tests match html5lib's behavior.
-    
-    Fixes #2124.
-    
-    R=dsymonds, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4867042
+    https://golang.org/cl/4869042
 
- src/pkg/html/token.go      |  2 +-
- src/pkg/html/token_test.go | 12 +++++++++++-
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/exp/template/exec.go      | 13 +++++++------
+ src/pkg/exp/template/exec_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 6 deletions(-)

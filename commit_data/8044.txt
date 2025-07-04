@@ -1,15 +1,13 @@
-commit fe3dcfee274a41456187970f6059d091f9dbb525
-Author: Luit van Drongelen <luitvd@gmail.com>
-Date:   Mon Apr 11 10:28:34 2011 -0400
+commit 69a9bf4195af3a4537bf4e1c23a99599cdc7b163
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 11 10:20:42 2011 -0400
 
-    asn1: Implement correct marshalling of length octets
-    
-    Fixes #1683
+    A+C: Luit van Drongelen (individual CLA)
     
     R=agl1
-    CC=golang-dev, rsc
-    https://golang.org/cl/4367049
+    CC=golang-dev
+    https://golang.org/cl/4367051
 
- src/pkg/asn1/marshal.go      | 26 ++++++++++++++++++++++++--
- src/pkg/asn1/marshal_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

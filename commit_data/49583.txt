@@ -1,22 +1,18 @@
-commit ceda93ed673294f0ce5eb3a723d563091bff0a39
-Author: Cristian Greco <sacrogemini@gmail.com>
-Date:   Sun Jul 3 11:04:04 2022 +0000
+commit 8250141c9a506dee883b53473867b27e68ac10a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 28 17:11:51 2021 -0700
 
-    build/constraint: update doc to mention a feature added in Go 1.17
+    cmd/compile/internal/types2: don't print instance markers for type hashes
     
-    The pkg documentation mentions that the "//go:build" syntax "will be"
-    added in Go 1.17. In fact, it has been added in that Go release, so the
-    documentation can now be updated.
+    Since we know whether we are printing a type string used as
+    instance hash, don't print instance markers, so that we don't
+    need to remove them afterwards either.
     
-    Change-Id: I72f24063c3be62d97ca78bf724d56599f5f19460
-    GitHub-Last-Rev: 4371886f6ce9f2c2a370df047a5baa1f122c681f
-    GitHub-Pull-Request: golang/go#53647
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415774
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib01627b6da989ef89d51e734810a3377eb466925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345891
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/build/constraint/expr.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/subst.go      | 19 +++++++------------
+ src/cmd/compile/internal/types2/typestring.go |  6 +++++-
+ 2 files changed, 12 insertions(+), 13 deletions(-)

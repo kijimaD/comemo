@@ -1,15 +1,14 @@
-commit c93b6a1756be708ba2d6c8c91c4dabdbbd653cbe
+commit c8ad1a4dc4d0384d963df749cfc3c373e27d6a17
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:49:33 2011 -0400
+Date:   Tue Nov 1 21:49:22 2011 -0400
 
-    exp/ebnf: manual fixup for error
-    
-    (The definition of ErrorList is in another file, so gofix
-    has no hope of getting this right.)
+    cgo, gotest: use error instead of os.Error in generated code
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5330043
+    https://golang.org/cl/5319057
 
- src/pkg/exp/ebnf/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/doc.go       | 2 +-
+ src/cmd/cgo/out.go       | 8 ++++----
+ src/cmd/gotest/gotest.go | 3 +--
+ 3 files changed, 6 insertions(+), 7 deletions(-)

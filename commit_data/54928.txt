@@ -1,22 +1,26 @@
-commit 7a1fce8751b04f66f758c7aac0efd5937bc670dc
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Nov 9 01:53:45 2023 +0000
+commit f41fdc126786ced31e58649d2a1f5ec8da13c439
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 15 11:30:55 2022 -0500
 
-    slices: update doc for Delete and Replace
+    doc/go1.20: document changes to the loopclosure vet analysis
     
-    Fixes #64013
+    Address the release notes TODO regarding the loopclosure analyzer,
+    documenting the new warning for parallel subtests.
     
-    Change-Id: Ibaeaad6120bff041bf6ab80fd4cd613f7d4ac5a7
-    GitHub-Last-Rev: 647ed646ec7c2e4ce93c5d3847d0b9e3627d7497
-    GitHub-Pull-Request: golang/go#64024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540955
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    In doing so, choose a structure for the vet section, opting for h4
+    headings. In recent years, we have used either h4 headings or simple
+    paragraphs to document vet changes. This year, I thought it worthwhile
+    to put the timeformat and loopclosure changes into separate sections.
+    
+    Also document the improvements to reference capture detection introduced
+    in CL 452615.
+    
+    Change-Id: I05886f7025d66bb7f2609f787f69d1a769ca6f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450735
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
 
- src/slices/slices.go      |  7 ++++---
- src/slices/slices_test.go | 10 ++++++++++
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ doc/go1.20.html | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

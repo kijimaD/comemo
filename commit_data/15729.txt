@@ -1,12 +1,16 @@
-commit 4e6e9f9b28bf7f76a8164efdf812c23923558df5
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue Mar 12 22:25:15 2013 +0100
+commit bfe80e21e4c0076fb75b14b04b9c9a1c3c4ee419
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 12 16:42:25 2013 -0400
 
-    test/bench/garbage: fix parser benchmark
+    encoding/xml: reject > chain with non-element
     
-    R=golang-dev, bradfitz
+    Fixes #5033.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7762046
+    https://golang.org/cl/7764044
 
- test/bench/garbage/parser.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/encoding/xml/marshal.go      |  2 +-
+ src/pkg/encoding/xml/marshal_test.go | 26 ++++++++++++++++++++++++--
+ src/pkg/encoding/xml/typeinfo.go     | 17 ++++++++++-------
+ 3 files changed, 35 insertions(+), 10 deletions(-)

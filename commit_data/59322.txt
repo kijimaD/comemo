@@ -1,35 +1,25 @@
-commit 8a8efafa8835b646955dd46f4f466d3126e56200
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Apr 17 07:49:35 2025 +0000
+commit 6dfd7a543517db868ef4f31e91fe56aba5bc8ea0
+Author: Mitar <mitar.git@tnode.com>
+Date:   Fri Mar 1 23:43:04 2024 +0000
 
-    cmd/compile: use the builtin clear
+    fmt: allow padding and minus flags at the same time
     
-    To simplify the code a bit.
+    Existing implementation did not allow setting both padding and minus flags at the same time because standard formatting does not allow that. But custom Formatter interface implementations might have use of it. This change moves the check from the place flags are parsed to where they are used in standard formatting.
     
-    Change-Id: Ia72f576de59ff161ec389a4992bb635f89783540
-    GitHub-Last-Rev: eaec8216be964418a085649fcca53a042f28ce1a
-    GitHub-Pull-Request: golang/go#73411
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666117
+    Fixes #61784
+    
+    Change-Id: If5909d45dc929ddf911453e1056a4661abe76e52
+    GitHub-Last-Rev: d99ec55d3bbd9b2a8f14c8ade2fb25d6e0c174c3
+    GitHub-Pull-Request: golang/go#61836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516975
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/bitvec/bv.go           |  4 +---
- src/cmd/compile/internal/liveness/plive.go      |  4 +---
- src/cmd/compile/internal/objw/prog.go           |  5 +----
- src/cmd/compile/internal/reflectdata/reflect.go |  4 +---
- src/cmd/compile/internal/ssa/_gen/allocators.go |  4 ++--
- src/cmd/compile/internal/ssa/allocators.go      |  8 ++------
- src/cmd/compile/internal/ssa/block.go           |  5 +----
- src/cmd/compile/internal/ssa/cache.go           | 19 ++++---------------
- src/cmd/compile/internal/ssa/deadcode.go        | 10 ++--------
- src/cmd/compile/internal/ssa/debug.go           | 24 +++++-------------------
- src/cmd/compile/internal/ssa/poset.go           |  4 +---
- src/cmd/compile/internal/ssa/regalloc.go        |  4 +---
- src/cmd/compile/internal/ssa/stackalloc.go      | 12 +++---------
- src/cmd/compile/internal/ssa/tighten.go         |  4 +---
- src/cmd/compile/internal/ssa/trim.go            |  5 +----
- src/cmd/compile/internal/ssagen/ssa.go          |  4 +---
- 16 files changed, 28 insertions(+), 92 deletions(-)
+ src/fmt/fmt_test.go | 5 +++++
+ src/fmt/format.go   | 8 +++++---
+ src/fmt/print.go    | 3 +--
+ 3 files changed, 11 insertions(+), 5 deletions(-)

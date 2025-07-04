@@ -1,25 +1,20 @@
-commit 524210bbb2866156892bbc8d2da24e00a6544f95
-Author: John Bampton <jbampton@gmail.com>
-Date:   Tue May 17 22:33:02 2022 +0000
+commit b2253c8041511fad5fdcf7514131f972f63a01a0
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Aug 12 15:03:45 2021 -0400
 
-    doc: lint Markdown for trailing spaces and code blocks
+    cmd/compile/internal/types2: remove targs from substMap
     
-    MD009 Trailing spaces.
-    MD031 Fenced code blocks should be surrounded by blank lines.
+    Now that we always capture targs when constructing an instance, we no
+    longer need to pass them via the substMap. This simplifies the code and
+    resolves a TODO.
     
-    https://github.com/markdownlint/markdownlint/blob/master/docs/RULES.md
-    
-    Change-Id: I6a2fff4afa8224442d90b30f84444b4a888fcef2
-    GitHub-Last-Rev: 67cf146b8501096949faf0155239770d4f6a73b4
-    GitHub-Pull-Request: golang/go#44285
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292409
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Alex Rakoczy <alex@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I592dccaeb89c7cc31ac037d919137bb762820365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341859
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/README.md | 4 ++--
- src/cmd/trace/static/README.md         | 3 ++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       | 85 +++++++++++---------------
+ 2 files changed, 35 insertions(+), 52 deletions(-)

@@ -1,15 +1,18 @@
-commit f8f34c330c651b16ef8c54e60f4862b4a66b4a41
+commit 32dffef0980eb810b97f48eb9dfabb33602a0472
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 17 01:40:04 2014 -0400
+Date:   Wed Apr 16 23:12:06 2014 -0400
 
-    doc/effective_go: mention that b.Write is a shorthand for (&b).Write when b is addressable.
+    cmd/gc: fix segfault in isgoconst.
     
-    The rewrite is due to Rob.
+    Variables declared with 'var' have no sym->def.
     
-    LGTM=r, bradfitz, josharian
-    R=golang-codereviews, bradfitz, r, josharian
+    Fixes #7794.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/87410043
+    https://golang.org/cl/88360043
 
- doc/effective_go.html | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/gc/const.c          |  2 +-
+ test/fixedbugs/issue7794.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,35 +1,18 @@
-commit 5fee159bc2e60736ce967560ee5be738fe5d5bd2
+commit e95982fe306da84ef6e9b90293d4adb95cbfec26
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 21 23:02:51 2024 -0400
+Date:   Thu May 18 21:24:07 2023 -0400
 
-    all: document legacy //go:linkname for modules with ≥50,000 dependents
+    cmd/api: skip TestIssue21181
     
-    Note that this depends on the revert of CL 581395 to move zeroVal back.
+    It is incredibly slow, taking half as long as the regular cmd/api checks
+    and over 5 minutes on plan9-arm. Leave it for the longtest builders.
     
-    For #67401.
-    
-    Change-Id: I507c27c2404ad1348aabf1ffa3740e6b1957495b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587217
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic8bd420f174268d0b6a13d84e7bd364f6c13cf41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496375
     Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/cpu/badlinkname_linux_arm64.go | 15 ------
- src/internal/cpu/cpu_arm64_hwcap.go         | 11 ++++
- src/reflect/badlinkname.go                  | 25 ++++++---
- src/reflect/type.go                         | 26 ++++++---
- src/reflect/value.go                        |  1 +
- src/runtime/badlinkname.go                  |  7 ---
- src/runtime/malloc.go                       | 22 ++++++++
- src/runtime/map.go                          | 84 +++++++++++++++++++++++++++++
- src/runtime/map_fast32.go                   | 27 ++++++++++
- src/runtime/map_fast64.go                   | 27 ++++++++++
- src/runtime/map_faststr.go                  | 18 +++++++
- src/runtime/mbarrier.go                     | 10 ++++
- src/runtime/runtime.go                      |  8 +++
- src/runtime/runtime1.go                     |  1 +
- src/runtime/slice.go                        | 10 ++++
- src/runtime/stubs.go                        | 15 ++++--
- src/runtime/trace.go                        |  4 ++
- src/runtime/tracetime.go                    |  8 ++-
- 18 files changed, 277 insertions(+), 42 deletions(-)
+ src/cmd/api/api_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

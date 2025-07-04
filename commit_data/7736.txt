@@ -1,15 +1,15 @@
-commit e6c9bccd33581bbe8ec291f6c9a7ef608e5e0861
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 11 10:08:49 2011 -0500
+commit 08ceb870f2eef31fb75059e2553c1e9ae2fa2708
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 11 18:04:18 2011 +1100
 
-    gopack: omit time stamps
+    .hgtags: s/release/weekly/
+    .hgtags, release.html: tag current weekly as release.r56
     
-    This makes it possible to build a package twice
-    and get the same bytes both times.
-    
-    R=r, dsymonds, r2
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4248077
+    https://golang.org/cl/4281041
 
- src/cmd/gopack/ar.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ .hgtags                | 114 +++++++++++++++++++++++++------------------------
+ doc/devel/release.html |   2 +-
+ src/version.bash       |   5 ++-
+ 3 files changed, 63 insertions(+), 58 deletions(-)

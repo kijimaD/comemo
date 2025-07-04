@@ -1,30 +1,17 @@
-commit dab143c8820151538fea908efe54e9625d1bc795
-Author: Yasuharu Goto <matope.ono@gmail.com>
-Date:   Fri May 15 00:44:34 2015 +0900
+commit c2ef8e752f77899bb6dd8579e3de45730826d70d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 3 12:49:00 2015 -0700
 
-    net/http: Client support for Expect: 100-continue
+    cmd/go: fix documentation for exported functions
     
-    Current http client doesn't support Expect: 100-continue request
-    header(RFC2616-8/RFC7231-5.1.1). So even if the client have the header,
-    the head of the request body is consumed prematurely.
+    I accidentally submitted https://golang.org/cl/13080 too early.
     
-    Those are my intentions to avoid premature consuming body in this change.
-    - If http.Request header contains body and Expect: 100-continue
-      header, it blocks sending body until it gets the first response.
-    - If the first status code to the request were 100, the request
-      starts sending body. Otherwise, sending body will be cancelled.
-    - Tranport.ExpectContinueTimeout specifies the amount of the time to
-      wait for the first response.
+    Update #11955.
     
-    Fixes #3665
-    
-    Change-Id: I4c04f7d88573b08cabd146c4e822061764a7cd1f
-    Reviewed-on: https://go-review.googlesource.com/10091
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1a5a6860bb46bc4bc6fd278f8a867d2dd9e411e1
+    Reviewed-on: https://go-review.googlesource.com/13096
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/request.go        | 22 +++++++++--
- src/net/http/transport.go      | 72 ++++++++++++++++++++++++++++------
- src/net/http/transport_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 168 insertions(+), 14 deletions(-)
+ src/cmd/go/alldocs.go | 8 ++++----
+ src/cmd/go/help.go    | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

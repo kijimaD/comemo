@@ -1,19 +1,19 @@
-commit 40ff393e4c2a5f069f3d1bf27741b6f2b3c501ed
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 2 13:55:13 2015 -0800
+commit 8f02df76f962e5ea2daf27108a0c8efed2c8d905
+Author: Brian Smith <ohohvi@gmail.com>
+Date:   Sat Feb 7 03:51:13 2015 +0000
 
-    cmd/internal/obj: delete Rconv from LinkArch
+    encoding/xml: avoid an allocation for tags without attributes
     
-    It is unused and should have been deleted when Rconv was made
-    a global function.
+    Before, an array of size 4 would always be allocated even if a tag
+    doesn't have any attributes. Now that array is allocated only if
+    needed.
     
-    Change-Id: Id745dcee6f0769604cabde04887c6d0c94855405
-    Reviewed-on: https://go-review.googlesource.com/6521
+    benchmark              old allocs     new allocs     delta
+    BenchmarkUnmarshal     191            176            -8.5%
+    
+    Change-Id: I4d214b228883d0a6e892c0d6eb00dfe2da84c116
+    Reviewed-on: https://go-review.googlesource.com/4160
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 1 -
- src/cmd/internal/obj/i386/obj8.go  | 1 -
- src/cmd/internal/obj/link.go       | 1 -
- src/cmd/internal/obj/ppc64/obj9.go | 2 --
- src/cmd/internal/obj/x86/obj6.go   | 2 --
- 5 files changed, 7 deletions(-)
+ src/encoding/xml/xml.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

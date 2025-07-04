@@ -1,13 +1,12 @@
-commit ed19ab47c358c53d62bf108dfa0955367d40535c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 24 03:51:31 2013 +0800
+commit 237cee783417945dce96815ca4a0cc3d223acc19
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Mon Apr 22 22:09:11 2013 -0700
 
-    doc/effective_go.html: fix syntax error in code example
-    Fixes #5333.
+    time: fix typo in comment
     
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/8698046
+    https://golang.org/cl/8889045
 
- doc/effective_go.html | 2 +-
+ src/pkg/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,26 +1,20 @@
-commit 850b276a6765d20bf01c44d6126386e8fb7d8a76
-Author: thekuwayama <thekuwayama@gmail.com>
-Date:   Mon Dec 30 19:28:35 2024 +0000
+commit 7a6ddbb425218b2f4866478d0c673ba82c8438e6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 13 13:33:50 2023 -0500
 
-    crypto/tls: send illegal_parameter on invalid ECHClientHello.type
+    runtime: remove work.pauseStart
     
-    The spec indicates that if a client sends an invalid ECHClientHello.type
-    in ClientHelloOuter, the server will abort the handshake with a
-    decode_error alert.
+    Most of the uses of work.pauseStart are completely useless, it could
+    simply be a local variable. One use passes a parameter from gcMarkDone
+    to gcMarkTermination, but that could simply be an argument.
     
-    Define errInvalidECHExt for invalid ECHClientHello.type. If parseECHExt
-    returns an errInvalidECHExt error, Conn now sends an illegal_parameter
-    alert.
+    Keeping this field in workType makes it seems more important than it
+    really is, so just drop it.
     
-    Fixes #71061.
-    
-    Change-Id: I240241fe8bbe3e77d6ad1af989794647bfa2ff87
-    GitHub-Last-Rev: 3d6c233ccd401453bfb1a4fc97fa5deeb5b2fbc8
-    GitHub-Pull-Request: golang/go#71062
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639235
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I2fdc0b21f8844e5e7be47148c3e10f13e49815c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542075
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/tls/ech.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

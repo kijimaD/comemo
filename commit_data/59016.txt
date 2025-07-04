@@ -1,18 +1,36 @@
-commit 817218a26c39911176c0d67258c637459f8d2fca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 8 18:32:14 2025 -0800
+commit 829f2ce3ba33a09a7975139a0a33d462bb3114db
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 1 05:10:32 2024 +0000
 
-    net/http: document Redirect behavior for non-ASCII characters
+    runtime: clear trace map without write barriers
     
-    For #4385
-    For #72745
+    Currently the trace map is cleared with an assignment, but this ends up
+    invoking write barriers. Theoretically, write barriers could try to
+    write a trace event and eventually try to acquire the same lock. The
+    static lock ranking expresses this constraint.
     
-    Change-Id: Ibd54fc03467eb948001299001bb2e2529512a7c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656135
+    This change replaces the assignment with a call to memclrNoHeapPointer
+    to clear the map, removing the write barriers.
+    
+    Note that technically this problem is purely theoretical. The way the
+    trace maps are used today is such that reset is only ever called when
+    the tracer is no longer writing events that could emit data into a map.
+    Furthermore, reset is never called from an event-writing context.
+    
+    Therefore another way to resolve this is to simply not hold the trace
+    map lock over the reset operation. However, this makes the trace map
+    implementation less robust because it needs to be used in a very
+    specific way. Furthermore, the rest of the trace map code avoids write
+    barriers already since its internal structures are all notinheap, so
+    it's actually more consistent to just avoid write barriers in the reset
+    method.
+    
+    Fixes #56554.
+    
+    Change-Id: Icd86472e75e25161b2c10c1c8aaae2c2fed4f67f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560216
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/trace2map.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,31 +1,29 @@
-commit 7be9158ce50e8f9f9a9a624874b8e4f3ceb07f44
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Oct 27 14:18:13 2020 +0800
+commit 796475ce1f7c4be3b7171cacea225cc313083c6d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 7 12:12:44 2020 -0400
 
-    cmd/link: remove all constants of elf
+    runtime/pprof: try to use real stack in TestTryAdd
     
-    Use debug/elf instead.
+    TestTryAdd is particularly brittle because it tests some real cases by
+    constructing fake sample stack frames. If those frames don't correctly
+    represent what the runtime would generate then they may fail to catch
+    regressions.
     
-    Related:
-    CL 252478
-    CL 265317
+    Instead, call runtime.Callers at the bottom of real function calls to
+    generate real frames as a base for truncation, etc in tests. Several of
+    these tests still have to fake parts of the frames to test the right
+    thing, but this is a bit less fragile.
     
-    Change-Id: If63b0458d9a6e825b40616bfb7a5a2c2e32402b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265318
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change is equivalent to the original
+    0dfb0513ec6a0e97db166bd91a2dc0a1ceb154f7 (golang.org/cl/227484), except
+    that the test skips if the test functions aren't inline (e.g., noopt
+    builders).
+    
+    Change-Id: Ie9e32b5660cfe28a924f9cfcddcd887ea2effd66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227922
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/amd64/asm.go |    4 +-
- src/cmd/link/internal/arm/asm.go   |    4 +-
- src/cmd/link/internal/arm64/asm.go |    4 +-
- src/cmd/link/internal/ld/elf.go    | 1142 +++++++++++++-----------------------
- src/cmd/link/internal/ld/go.go     |    3 +-
- src/cmd/link/internal/ld/lib.go    |    8 +-
- src/cmd/link/internal/ld/symtab.go |   67 +--
- src/cmd/link/internal/ppc64/asm.go |    6 +-
- src/cmd/link/internal/s390x/asm.go |    2 +-
- src/cmd/link/internal/x86/asm.go   |    4 +-
- 10 files changed, 455 insertions(+), 789 deletions(-)
+ src/runtime/pprof/pprof_test.go | 95 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 70 insertions(+), 25 deletions(-)

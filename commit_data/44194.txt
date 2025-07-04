@@ -1,38 +1,40 @@
-commit 8634a234df2a9e93ed1de58bf59d2eb843d8f464
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 16 04:47:56 2020 +1100
+commit 96ec09da4885f0c09f0b1bb94d0a1e2b483495ca
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 20 13:51:59 2020 -0400
 
-    runtime,syscall: convert syscall on openbsd/amd64 to libc
+    [dev.link] cmd/{compile,link}: split SDWARFINFO symtype into sub-types
     
-    Convert the syscall package on openbsd/amd64 to use libc rather than performing
-    direct system calls.
+    This change splits the SDWARFINFO symbol type (a generic container of
+    DWARF content) into separate sub-classes. The new symbol types are
     
-    Updates #36435
+     SDWARFCUINFO    comp unit DIE, also CU info and CU packagename syms
+     SDWARFCONST     constant DIE
+     SDWARFFCN       subprogram DIE (default and concrete)
+     SDWARFABSFCN    abstract function DIE
+     SDWARFTYPE      type DIE
+     SDWARFVAR       global variable DIE
     
-    Change-Id: Ieb5926a91ed34f7c722e3667004ec484c86804ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270380
-    Trust: Joel Sing <joel@sing.id.au>
+    Advantage of doing this: in the linker there are several places where
+    we have to iterate over a symbol's relocations to pick out references
+    to specific classes of DWARF sub-symbols (for example, looking for all
+    abstract function DIEs referenced by a subprogram DIE, or looking at
+    all the type DIEs used in a subprogram DIE). By splitting SDWARFINFO
+    into parts clients can now look only at the relocation target's sym
+    type as opposed to having to materialize the target sym name, or do a
+    lookup.
+    
+    Change-Id: I4e0ee3216d3c8f1a78bec3d296c01e95b3d025b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234684
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/sys_openbsd3.go                       | 113 +++
- src/runtime/sys_openbsd_amd64.s                   | 333 ++++++++
- src/syscall/asm9_unix1_amd64.s                    |   4 +-
- src/syscall/asm_openbsd_amd64.s                   |  32 +
- src/syscall/asm_unix_amd64.s                      |   2 +-
- src/syscall/exec_bsd.go                           |   2 +-
- src/syscall/{exec_darwin.go => exec_libc2.go}     |   2 +
- src/syscall/exec_unix.go                          |   4 +
- src/syscall/mkall.sh                              |   9 +-
- src/syscall/mkasm.go                              |  64 ++
- src/syscall/{mkasm_darwin.go => mkasm_openbsd.go} |  25 +-
- src/syscall/mksyscall.pl                          |  30 +-
- src/syscall/syscall_openbsd.go                    |   5 -
- src/syscall/syscall_openbsd1.go                   |  13 +
- src/syscall/syscall_openbsd_libc.go               |  93 +++
- src/syscall/zsyscall_darwin_amd64.s               |   2 +-
- src/syscall/zsyscall_darwin_arm64.s               |   2 +-
- src/syscall/zsyscall_openbsd_amd64.go             | 967 ++++++++++++++++++----
- src/syscall/zsyscall_openbsd_amd64.s              | 233 ++++++
- 19 files changed, 1762 insertions(+), 173 deletions(-)
+ src/cmd/compile/internal/gc/main.go         |  4 +-
+ src/cmd/internal/obj/objfile.go             |  6 +--
+ src/cmd/internal/obj/objfile2.go            |  3 +-
+ src/cmd/internal/objabi/symkind.go          |  7 ++-
+ src/cmd/internal/objabi/symkind_string.go   | 21 +++++----
+ src/cmd/link/internal/ld/dwarf.go           | 68 +++++++++++++++++------------
+ src/cmd/link/internal/loader/loader.go      |  4 +-
+ src/cmd/link/internal/sym/symkind.go        | 15 ++++++-
+ src/cmd/link/internal/sym/symkind_string.go | 21 +++++----
+ 9 files changed, 95 insertions(+), 54 deletions(-)

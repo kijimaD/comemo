@@ -1,29 +1,31 @@
-commit 39de58bad70b2aca9f7c874b64a8180307503ee4
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu Nov 2 20:17:59 2017 +0300
+commit 250a9610a41aa0fec6f020d2c31efe8fcd1f2941
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 24 16:06:10 2017 -0400
 
-    cmd/internal/obj/x86: add most missing AVX1/2 insts
+    runtime: make STW duration more accurate
     
-    This change applies x86avxgen output.
-    https://go-review.googlesource.com/c/arch/+/66972
-    As an effect, many new AVX instructions are now available.
+    Currently, GC captures the start-the-world time stamp after
+    startTheWorldWithSema returns. This is problematic for two reasons:
     
-    One of the side-effects of this patch is
-    sorted AXXX (A-enum) constants.
+    1. It's possible to get preempted between startTheWorldWithSema
+    starting the world and calling nanotime.
     
-    Some AVX1/2 instructions still not added due to:
-    1. x86.csv V0.2 does not list them;
-    2. partially because of (1), test suite does not contain tests for
-       these instructions.
+    2. startTheWorldWithSema does several clean-up tasks after the world
+    is up and running that on rare occasions can take upwards of 10ms.
     
-    Change-Id: I90430d773974ca5c995d6950d90e2c62ec88ef47
-    Reviewed-on: https://go-review.googlesource.com/75490
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Since the runtime uses the start-the-world time stamp to compute the
+    STW duration, both of these can significantly inflate the reported STW
+    duration.
+    
+    Fix this by having startTheWorldWithSema itself call nanotime once the
+    world is started.
+    
+    Change-Id: I114630234fb73c9dabae50a2ef1884661f2459db
+    Reviewed-on: https://go-review.googlesource.com/55410
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 8410 +++++++++++++-------------
- src/cmd/internal/obj/x86/aenum.go            | 1297 ++--
- src/cmd/internal/obj/x86/anames.go           | 1271 ++--
- src/cmd/internal/obj/x86/vex_optabs.go       |  435 +-
- 4 files changed, 6167 insertions(+), 5246 deletions(-)
+ src/runtime/mgc.go  | 7 ++++---
+ src/runtime/proc.go | 9 +++++++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

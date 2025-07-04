@@ -1,18 +1,26 @@
-commit 891682c8250e53e62d5ffe027d5ab63d21f6cd5c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Oct 29 13:49:32 2018 -0400
+commit 9fa988547a778540eebfe0358536b7433efe6748
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Jul 4 16:43:19 2018 +0100
 
-    bufio: suggest io.ReadFull at (*Reader).Read
+    cmd/internal/obj/s390x: increase maximum number of loop iterations
     
-    Many times when using bufio.Reader I imagine, incorrectly, that it
-    implements the retry loop itself, being a high-level buffered wrapper
-    around, say, a file descriptor prone to short reads. This comment
-    would have saved me much time.
+    The maximum number of 'spanz' iterations that the s390x assembler
+    performs to reach a fixed point for relative offsets was 10. This
+    turned out to be too aggressive for one example of auto-generated
+    fuzzing code. Increase the number of iterations by 10x to reduce
+    the likelihood that the limit will be hit again. This limit only
+    exists to help find bugs in the assembler.
     
-    Change-Id: I34c790e0d7c1515430a76d02ce4739b586a36ba7
-    Reviewed-on: https://go-review.googlesource.com/c/145577
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    master at tip does not fail with the example code in the issue, I
+    have therefore not submitted it as a test (it is also quite large).
+    I tested this change with the example code at the commit given and
+    it fixes the issue.
+    
+    Fixes #25269.
+    
+    Change-Id: I0e44948957a7faff51c7d27c0b7746ed6e2d47bb
+    Reviewed-on: https://go-review.googlesource.com/122235
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bufio/bufio.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/internal/obj/s390x/asmz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

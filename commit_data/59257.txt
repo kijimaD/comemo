@@ -1,16 +1,20 @@
-commit 3acd4402195aadc581aa68977154ac3b3403f8af
-Author: cuishuang <imcusg@gmail.com>
-Date:   Tue Apr 1 11:46:17 2025 +0800
+commit f8654408d65cc9dd839df9589d7d01c1af9d51f0
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Feb 15 08:13:43 2024 -0500
 
-    time: add examples for AppendBinary and AppendText
+    go/build: add check for allowed vendor packages
     
-    Change-Id: I61529b5162f8a77d3bbffcbbac98c834a7626e3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661935
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Add a test that checks that all vendored packages in both src/ and
+    src/cmd are on an allowlist.
+    
+    For #65678.
+    
+    Change-Id: Ie9982f8b69c9c0fc6fef41c9dadeb464ecd7781a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564355
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/time/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ src/go/build/vendor_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

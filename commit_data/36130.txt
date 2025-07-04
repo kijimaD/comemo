@@ -1,21 +1,14 @@
-commit 9dab3847785fe16bd050dc53c96f9d2312e51c68
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Thu Jul 26 16:01:34 2018 +0200
+commit fd9d2898bd3983baa94fd2100602b06d8c487466
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 5 22:46:36 2018 -0700
 
-    cmd/link: added test of availability of gcc
+    cmd/compile: eliminate unused Sig.offset field
     
-    The test RuntimeTypeAttr always failed when gcc
-    was unavailable. The test is duplicated for internal
-    and external linking. The usual verification
-    of host linker is added at the beginning of the
-    external link test.
-    
-    Fixes #26621
-    
-    Change-Id: I076d661f854c8a6de8fa5e7b069942a471445047
-    Reviewed-on: https://go-review.googlesource.com/126075
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: If498d1fc6e8c0c4e8cf7ed38c4997adf05e003a6
+    Reviewed-on: https://go-review.googlesource.com/105043
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/link/internal/ld/dwarf_test.go | 25 ++++++++++++++++---------
- 1 file changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

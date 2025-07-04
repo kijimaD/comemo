@@ -1,21 +1,27 @@
-commit 71c84d4b4149bebc2abcc495ef744e1a010a18e7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Mar 3 01:23:59 2023 +1100
+commit e704ef2b8529119a11694b4cb15215d3dd6b0a9f
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Apr 15 22:02:21 2022 +0000
 
-    internal/bytealg: remove aix and linux build tags from ppc64 index code
+    go/doc: fix incorrect identifier parsing in comments
     
-    This code is generic to ppc64/ppc64le - there is no need to limit it to
-    aix or linux.
+    This code was trying to iterate codepoints, but didn't reslice the string,
+    so it was reading the first codepoint over and over, if the string length was
+    not a multiple of the first codepoint length, this would cause to overshoot
+    past the end of the string.
     
-    Updates #56001
+    This was a latent bug introduced in CL 384265 but was revealed to
+    Ngolo-fuzzing in OSS-Fuzz in CL 397277.
     
-    Change-Id: I613964a90f9c5ca637720219a0260d65427f4be0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473697
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #52353
+    
+    Change-Id: I13f0352e6ad13a42878927f3b1c18c58360dd40c
+    GitHub-Last-Rev: 424f6cfad1bc7d66314911e6b4b4ce6751330435
+    GitHub-Pull-Request: golang/go#52356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400240
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/internal/bytealg/index_ppc64x.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/comment/parse.go      |  2 +-
+ src/go/doc/comment/parse_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

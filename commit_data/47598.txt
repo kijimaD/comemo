@@ -1,17 +1,15 @@
-commit e883005d2ae5c9de0f3a072af53968da299bb8a8
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Nov 24 11:05:51 2021 -0500
+commit 1d8abb3417af401ff6938c557ce30a8234bd2ce5
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Mar 22 22:31:28 2021 -0400
 
-    doc/go1.18: document that iOS 12 or newer is required
+    go/parser: remove redundant list argument to Parser.shortVarDecl
     
-    For #47694.
-    Updates #49616.
-    Updates #48076.
-    
-    Change-Id: I570564c3a54d3cd9cfc9b8267df9fbee3363b650
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366914
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I75d089a7c1c3cdd50e5d2dafdb3386620efff4c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304454
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.18.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/go/parser/parser.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

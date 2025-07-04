@@ -1,33 +1,13 @@
-commit fd38dbc8a1d8e9ccfbea66ce35e7eb16a0cf826a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 16 16:46:25 2015 -0400
+commit c651fdc0cf2ba7986ce0a0a23b4dbb44b6ecdae3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 24 11:24:27 2015 -0800
 
-    cmd/internal/gc: cache ProgInfo in Prog
+    math/big: change Float.SetMantExp to always multiply mant by 2**exp
     
-    The ProgInfo is loaded many times during each analysis pass.
-    Load it once at the beginning (in Flowstart if using that, or explicitly,
-    as in plive.go) and then refer to the cached copy.
-    
-    Removes many calls to proginfo.
-    
-    Makes Prog a little bigger, but the previous CL more than compensates.
-    
-    Change-Id: If90a12fc6729878fdae10444f9c3bedc8d85026e
-    Reviewed-on: https://go-review.googlesource.com/7745
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If840e647376a2141f8c17729f7ef251bfff13f5f
+    Reviewed-on: https://go-review.googlesource.com/5810
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/5g/peep.go           |  15 +-
- src/cmd/5g/prog.go           | 179 +++++++++---------
- src/cmd/6g/peep.go           |  19 +-
- src/cmd/6g/prog.go           | 407 ++++++++++++++++++++--------------------
- src/cmd/7g/prog.go           | 174 +++++++++--------
- src/cmd/8g/peep.go           |  27 +--
- src/cmd/8g/prog.go           | 431 +++++++++++++++++++++----------------------
- src/cmd/9g/peep.go           |   6 +-
- src/cmd/9g/prog.go           | 138 +++++++-------
- src/cmd/internal/gc/go.go    |   8 +-
- src/cmd/internal/gc/plive.go |  14 +-
- src/cmd/internal/gc/popt.go  |  71 +++----
- src/cmd/internal/gc/reg.go   |  56 +++---
- src/cmd/internal/obj/link.go |  12 ++
- 14 files changed, 759 insertions(+), 798 deletions(-)
+ src/math/big/float.go      | 12 +++++++-----
+ src/math/big/float_test.go | 14 ++++++++++++--
+ 2 files changed, 19 insertions(+), 7 deletions(-)

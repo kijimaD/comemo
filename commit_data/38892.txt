@@ -1,46 +1,23 @@
-commit 44343c777ca8c02262d1d381a2cc24866b3c5414
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Tue Apr 23 22:04:38 2019 -0600
+commit 9536c5fa69d619395015fcd526a979e17320b4b1
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Mon Aug 6 18:38:38 2018 -0400
 
-    cmd/compile: add signed divisibility by power of 2 rules
+    crypto/x509: re-enable TestSystemRoots
     
-    For powers of two (c=1<<k), the divisibility check x%c == 0 can be made
-    just by checking the trailing zeroes via a mask x&(c-1) == 0 even for signed
-    integers. This avoids division fix-ups when just divisibility check is needed.
+    Now that the cgo and no-cgo paths should be correct and equivalent,
+    re-enable the TestSystemRoots test without any margin of error (which
+    was tripping anyway when users had too many of a certain edge-case).
     
-    To apply this rule, we match on the fixed-up version of the division. This is
-    neccessary because the mod and division rewrite rules are already applied
-    during the initial opt pass.
+    As a last quirk, the verify-cert invocation will validate certificates
+    that aren't roots, but are signed by valid roots. Ignore them.
     
-    The speed up on amd64 due to elimination of unneccessary fix-up code is ~55%:
+    Fixes #24652
     
-    name                     old time/op  new time/op  delta
-    DivconstI64-4            2.08ns ± 0%  2.09ns ± 1%     ~     (p=0.730 n=5+5)
-    DivisiblePow2constI64-4  1.78ns ± 1%  0.81ns ± 1%  -54.66%  (p=0.008 n=5+5)
-    DivconstU64-4            2.08ns ± 0%  2.08ns ± 0%     ~     (p=0.683 n=5+5)
-    DivconstI32-4            1.53ns ± 0%  1.53ns ± 1%     ~     (p=0.968 n=4+5)
-    DivisiblePow2constI32-4  1.79ns ± 1%  0.81ns ± 1%  -54.97%  (p=0.008 n=5+5)
-    DivconstU32-4            1.78ns ± 1%  1.80ns ± 2%     ~     (p=0.206 n=5+5)
-    DivconstI16-4            1.54ns ± 2%  1.54ns ± 0%     ~     (p=0.238 n=5+4)
-    DivisiblePow2constI16-4  1.78ns ± 0%  0.81ns ± 1%  -54.72%  (p=0.000 n=4+5)
-    DivconstU16-4            1.00ns ± 5%  1.01ns ± 1%     ~     (p=0.119 n=5+5)
-    DivconstI8-4             1.54ns ± 0%  1.54ns ± 2%     ~     (p=0.571 n=4+5)
-    DivisiblePow2constI8-4   1.78ns ± 0%  0.82ns ± 8%  -53.71%  (p=0.008 n=5+5)
-    DivconstU8-4             0.93ns ± 1%  0.93ns ± 1%     ~     (p=0.643 n=5+5)
-    
-    A follow-up CL will address the general case of x%c == 0 for signed integers.
-    
-    Updates #15806
-    
-    Change-Id: Iabadbbe369b6e0998c8ce85d038ebc236142e42a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173557
-    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
+    Change-Id: I6a8ff3c2282136d7122a4e7e387eb8014da0d28a
+    Reviewed-on: https://go-review.googlesource.com/c/128117
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/testdata/arith_test.go |  291 ++++
- src/cmd/compile/internal/ssa/gen/generic.rules     |   35 +
- src/cmd/compile/internal/ssa/rewritegeneric.go     | 1546 +++++++++++++++++++-
- src/cmd/compile/internal/test/divconst_test.go     |   26 +
- test/codegen/arithmetic.go                         |   21 +-
- 5 files changed, 1910 insertions(+), 9 deletions(-)
+ src/crypto/x509/root_darwin_test.go | 108 ++++++++++++++++++++++++------------
+ 1 file changed, 74 insertions(+), 34 deletions(-)

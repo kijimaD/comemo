@@ -1,22 +1,14 @@
-commit dd731478b862b70f0f028e31408973b340fcabc3
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Fri Nov 18 19:05:53 2011 -0600
+commit 6c864210fc726e2eb27a4ce3ec1ff47f8671378e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Nov 19 10:54:44 2011 +1100
 
-    misc/osx: Add scripts to create OS X package and disk image
+    html/template: fix documentation formatting
     
-    Fixes #2327.
+    See http://weekly.golang.org/pkg/html/template/
     
-    R=golang-dev, rsc, roberto, jdpoirier
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5375049
+    https://golang.org/cl/5413055
 
- .hgignore                    |  2 ++
- misc/osx/README              |  9 ++++++++
- misc/osx/ReadMe.txt          |  4 ++++
- misc/osx/etc/paths.d/go      |  1 +
- misc/osx/etc/profile.go      | 15 +++++++++++++
- misc/osx/image.bash          | 38 +++++++++++++++++++++++++++++++++
- misc/osx/package.bash        | 51 ++++++++++++++++++++++++++++++++++++++++++++
- misc/osx/scripts/postinstall | 28 ++++++++++++++++++++++++
- misc/osx/utils.bash          | 31 +++++++++++++++++++++++++++
- 9 files changed, 179 insertions(+)
+ src/pkg/html/template/doc.go | 68 ++++++++++++++++++++++----------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

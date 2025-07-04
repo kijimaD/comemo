@@ -1,21 +1,23 @@
-commit 9d3718e834fcf5b602b84539364606445cfc8a1a
-Author: David Chase <drchase@google.com>
-Date:   Thu Mar 4 16:38:20 2021 -0500
+commit 2369e01234d97e85e9919ef7d30bc0f8f4111f69
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 28 13:33:47 2020 -0400
 
-    cmd/compile: remove I-saw-a-register-pragma chatter
+    [dev.link] cmd/link: fix accidental escape in extreloc
     
-    It is not multithreaded-compilation-safe, and also seems
-    to cause problems on the noopt-builder.
+    We accidentally passed the address of a local to a function
+    pointer, where we should pass the address of a global.
     
-    Change-Id: I52dbcd507d256990f1ec7c8040ec7b76595aae4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298850
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Linking cmd/compile with external linking:
+    
+    Asmb2_GC       32.5ms ± 5%    21.6ms ± 3%  -33.57%  (p=0.016 n=5+4)
+    Asmb2_GC       29.2MB ± 0%     6.4MB ± 0%  -78.20%  (p=0.008 n=5+5)
+    Asmb2_GC        1.43M ± 0%     0.00M ± 4%  -99.98%  (p=0.008 n=5+5)
+    
+    Change-Id: I4754189bcc20f824627d95858ba35285d53c614d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245337
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go |  4 ----
- test/abi/regabipragma.dir/main.go      | 36 ----------------------------------
- test/abi/regabipragma.dir/tmp/foo.go   | 19 ------------------
- test/abi/regabipragma.go               | 13 ------------
- test/abi/regabipragma.out              |  6 ------
- 5 files changed, 78 deletions(-)
+ src/cmd/link/internal/ld/data.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

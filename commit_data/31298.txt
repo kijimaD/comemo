@@ -1,19 +1,14 @@
-commit 5280dfbfad0fbae717a92b6698ba17eede8a2205
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 21 18:11:15 2017 -0700
+commit 4fafc843a27940c76f43d0d897d918dab2efd529
+Author: Tuo Shan <shantuo@google.com>
+Date:   Mon Feb 6 18:06:40 2017 -0800
 
-    cmd/compile/internal/types: eliminate FieldName
+    encoding/json: clarify documention for Unmarshal into a pointer.
     
-    This functionality can be implemented in package types without a
-    trampoline back to gc.
+    Fixes #18730.
     
-    Change-Id: Iaff7169fece35482e654553bf16b07dc67d1991a
-    Reviewed-on: https://go-review.googlesource.com/41416
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If3ef28e62f7e449d4c8dc1dfd78f7d6f5a87ed26
+    Reviewed-on: https://go-review.googlesource.com/36478
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/main.go     | 3 ---
- src/cmd/compile/internal/types/type.go  | 2 +-
- src/cmd/compile/internal/types/utils.go | 1 -
- 3 files changed, 1 insertion(+), 5 deletions(-)
+ src/encoding/json/decode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

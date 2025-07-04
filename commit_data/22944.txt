@@ -1,22 +1,17 @@
-commit 2320b56af1b26e4c945c282a89c53e599596b86c
-Author: Patrick Mezard <patrick@mezard.eu>
-Date:   Fri May 8 14:57:30 2015 +0200
+commit 828de09f8bfb64fc7d3eee728e7292055fd25364
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 22:16:11 2015 -0400
 
-    internal/syscall/windows: increase registry.ExpandString buffer
+    runtime/cgo: darwin/arm64 support
     
-    ExpandString correctly loops on the syscall until it reaches the
-    required buffer size but truncates it before converting it back to
-    string. The truncation limit is increased to 2^15 bytes which is the
-    documented maximum ExpandEnvironmentStrings output size.
+    Fixes #10116.
     
-    This fixes TestExpandString on systems where len($PATH) > 1024.
-    
-    Change-Id: I2a6f184eeca939121b458bcffe1a436a50f3298e
-    Reviewed-on: https://go-review.googlesource.com/9805
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f05
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8784
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/internal/syscall/windows/registry/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgo/cgo.go             |   3 +-
+ src/runtime/cgo/gcc_arm64.S        |   4 +
+ src/runtime/cgo/gcc_darwin_arm64.c | 152 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 158 insertions(+), 1 deletion(-)

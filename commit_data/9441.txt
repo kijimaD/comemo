@@ -1,12 +1,13 @@
-commit 93134e06ba7bd3629a56d11f3bf05f8259d9be76
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 22 22:43:49 2011 +1000
+commit d9c9c487975023f4b9d6a1bda66ef1aeea47be58
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 22 12:52:04 2011 +0200
 
-    gob: explain that Debug isn't useful unless it's compiled in.
+    exp/norm: added implemenation for []byte versions of methods.
     
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4930044
+    https://golang.org/cl/4925041
 
- src/pkg/gob/debug.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/norm/normalize.go      | 337 +++++++++++++++++++--
+ src/pkg/exp/norm/normalize_test.go | 578 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 894 insertions(+), 21 deletions(-)

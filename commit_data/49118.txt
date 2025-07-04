@@ -1,19 +1,18 @@
-commit 482669db62bc5b6537727d621555a46eccb6173d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 10 15:18:21 2022 +0000
+commit c8f4e6152d5f0b767a8177b7d09884cf2279d8e6
+Author: Piers <helloPiers@users.noreply.github.com>
+Date:   Mon Jul 19 20:11:29 2021 +0000
 
-    runtime: add lock partial order edge for trace and wbufSpans and mheap
+    spec: correct example comment in Conversions from slice to array
     
-    This edge represents the case of executing a write barrier under the
-    trace lock: we might use the wbufSpans lock to get a new trace buffer,
-    or mheap to allocate a totally new one.
+    Fixes #47280
     
-    Fixes #52794.
-    
-    Change-Id: Ia1ac2c744b8284ae29f4745373df3f9675ab1168
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405476
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I78a8d235949b4878c7f075ac4ca37700e7e6c31c
+    GitHub-Last-Rev: 067f96eeb2c918eb4f775c428edc945c75af44d8
+    GitHub-Pull-Request: golang/go#47282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335470
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/runtime/lockrank.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,18 @@
-commit 0d71234ee4cfcac4a6664d8fef4be575cca1d7c7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 15 13:36:10 2022 -0400
+commit ce92a2023ccd77ca609126aa8a6e881c9def57f0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 13 09:48:40 2021 -0400
 
-    reflect: avoid panic in reflect.Kind.String for negative Kind
+    cmd/go: error out of 'go mod tidy' if the go version is newer than supported
     
-    Kind(-1).String() used to panic; let's not.
+    Fixes #46142
     
-    Change-Id: I1dfc0e3298beb37d77713d8327579bbde90dd156
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393015
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib7a0a159e53cbe476be6aa9a050add10cc750dec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319669
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/reflect/all_test.go | 9 +++++++++
- src/reflect/type.go     | 4 ++--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/load.go             |  8 +++-
+ src/cmd/go/testdata/script/mod_tidy_too_new.txt | 57 +++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+), 1 deletion(-)

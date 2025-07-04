@@ -1,21 +1,26 @@
-commit 02cffcde177bf3fbb36e75d749d0cb338b4f7566
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Oct 28 13:46:32 2022 -0400
+commit 2c5d2083e41371aa4f5aab9e86921002c1f9b504
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Mon Nov 29 16:48:34 2021 -0800
 
-    cmd/cover: fix buglet causing differences in -m output
+    runtime: fix riscv64 sigaction mask field offset
     
-    Use a slightly different line number pragma when emitting instrumented
-    code, so as to ensure that we don't get any changes in the
-    "-gcflags=-m" output for coverage vs non-coverage.
+    The Linux kernel for riscv64 does not include an sa_restorer field on
+    its sigaction struct, and expects sa_mask to come immediately after the
+    sa_flags field. Arrange the fields of the sigaction struct that are
+    known to the kernel so they appear at the correct byte offsets, and so
+    they agree with the output of "go tool cgo -godefs".
     
-    Fixes #56475.
+    Follow the example set by the mips/mipsle port to leave the sa_restorer
+    field in place, but at an offset where it won't hurt anything.
     
-    Change-Id: I3079171fdf83c0434ed6ea0ce3eb2797c2280c55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446259
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Fixes #49709
+    
+    Change-Id: I9bb0d7dbd7439d07e3a204461c7d790f33fd4977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367635
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cover/cover.go                     |  2 +-
- src/cmd/go/testdata/script/cover_error.txt | 33 ++----------------------------
- 2 files changed, 3 insertions(+), 32 deletions(-)
+ src/runtime/defs_linux_riscv64.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

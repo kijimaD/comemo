@@ -1,15 +1,21 @@
-commit f68244e6660d86b3d0be9258a5d35c109abc749f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 13 13:15:10 2019 -0700
+commit 649294d0a5a647517eba7f91afef2e635b92a0da
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 3 10:00:49 2019 -0700
 
-    cmd/objdump: ensure that test executable files are distinct
+    math: fix ternary correction statement in Log1p
     
-    This fixes test failures introduced by CL 176901.
+    The original port of Log1p incorrectly translated a ternary statement
+    so that a correction was only applied to one of the branches.
     
-    Change-Id: I133299ba3be3a15ced076c95e4833ba6070d7eb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176903
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #29488
+    
+    Change-Id: I035b2fc741f76fe7c0154c63da6e298b575e08a4
+    Reviewed-on: https://go-review.googlesource.com/c/156120
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/objdump/objdump_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/math/all_test.go | 2 ++
+ src/math/log1p.go    | 5 +++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

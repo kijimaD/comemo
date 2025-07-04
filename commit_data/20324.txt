@@ -1,22 +1,22 @@
-commit 9c721aedd572c00d1a91549dda910ce74fe17d44
+commit 0bb14d74f1550dca916251ddb6e1703f95be7325
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 6 15:27:52 2014 -0400
+Date:   Sun Aug 31 22:49:14 2014 -0400
 
-    cmd/yacc: move cmd/yacc/expr to cmd/yacc/testdata/expr
+    cmd/ld: diagnose Go calling C
     
-    This will keep the go command from trying to build it
-    when the cmd/ tree is no longer a special case.
+    For example:
+    go build -ldflags -C cmd/go 2>&1 | awk '{print $NF}' | sort | uniq -c | sort -nr
     
-    Also update doc.go to refer to the correct location.
-    (It was incorrect even before this CL.)
-    
-    LGTM=r
-    R=iant, r
+    LGTM=khr
+    R=khr, josharian
     CC=golang-codereviews
-    https://golang.org/cl/134560043
+    https://golang.org/cl/135170044
 
- src/cmd/yacc/doc.go                      | 5 +++--
- src/cmd/yacc/{ => testdata}/expr/README  | 0
- src/cmd/yacc/{ => testdata}/expr/expr.y  | 0
- src/cmd/yacc/{ => testdata}/expr/main.go | 0
- 4 files changed, 3 insertions(+), 2 deletions(-)
+ include/link.h              |  1 +
+ src/cmd/cc/pgen.c           |  1 +
+ src/cmd/ld/lib.c            | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.h            |  1 +
+ src/cmd/ld/pobj.c           |  2 ++
+ src/liblink/objfile.c       | 18 +++++++++++----
+ src/pkg/debug/goobj/read.go |  6 +++--
+ 7 files changed, 76 insertions(+), 6 deletions(-)

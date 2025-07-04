@@ -1,19 +1,14 @@
-commit 12ec54724bcb016a70bcafa1bfc1d8f411fbfe74
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 15 12:23:09 2017 -0400
+commit e6d9eda2fc13786c55292429b510128252ad8817
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 28 10:50:31 2017 -0700
 
-    runtime: make m.nextwaitm an muintptr
+    cmd/vet/all: fix print statement, add platform information
     
-    This field is really a *m (modulo its bottom bit). Change it from
-    uintptr to muintptr to document this fact.
-    
-    Change-Id: I2d181a955ef1d2c1a268edf20091b440d85726c9
-    Reviewed-on: https://go-review.googlesource.com/46034
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ibbb89c01f3e812a0602961f959672fcb6523449b
+    Reviewed-on: https://go-review.googlesource.com/47031
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/lock_sema.go | 6 +++---
- src/runtime/runtime2.go  | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/vet/all/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,27 +1,29 @@
-commit 88adc33827f1e01953a6a3f40d927a2b7efcce3e
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed Feb 27 15:27:42 2019 -0500
+commit 3053788cac0343c2fd29806ebc358d2f63976695
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 24 11:37:59 2017 -0400
 
-    context: remove dependency on reflect
+    cmd/trace: add minimum mutator utilization (MMU) plot
     
-    Make context depend on reflectlite instead of reflect in effort to
-    eventually make net no longer depend on unicode tables.
+    This adds an endpoint to the trace tool that plots the minimum mutator
+    utilization curve using information on mark assists and GC pauses from
+    the trace.
     
-    With this CL we're down to just:
+    This commit implements a fairly straightforward O(nm) algorithm for
+    computing the MMU (and tests against an even more direct but slower
+    algorithm). Future commits will extend and optimize this algorithm.
     
-        net -> context -> fmt -> unicode tables
+    This should be useful for debugging and understanding mutator
+    utilization issues like #14951, #14812, #18155. #18534, #21107,
+    particularly once follow-up CLs add trace cross-referencing.
     
-    The next CL can remove context -> fmt.
-    
-    Updates #30440
-    
-    Change-Id: I7f5df15f975d9dc862c59aa8477c1cfd6ff4967e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164239
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic2866869e7da1e6c56ba3e809abbcb2eb9c4923a
+    Reviewed-on: https://go-review.googlesource.com/c/60790
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/context/context.go           | 4 ++--
- src/go/build/deps_test.go        | 4 ++--
- src/internal/reflectlite/type.go | 7 +++++++
- 3 files changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/trace/main.go               |   1 +
+ src/cmd/trace/mmu.go                | 160 +++++++++++++++++++++++
+ src/internal/traceparser/gc.go      | 248 ++++++++++++++++++++++++++++++++++++
+ src/internal/traceparser/gc_test.go | 158 +++++++++++++++++++++++
+ 4 files changed, 567 insertions(+)

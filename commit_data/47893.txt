@@ -1,17 +1,35 @@
-commit 11b28e7e98bce0d92d8b49c6d222fb66858994ff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 6 20:06:40 2022 -0800
+commit 7ad496b6f5300131d6f1fbafe44ac882897889e4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 13 23:30:19 2021 -0400
 
-    test/typeparam: adjust test preamble (fix longtests)
+    runtime: unify C->Go ABI transitions
     
-    For #50481.
+    The previous CL introduced macros for transitions from the Windows ABI
+    to the Go ABI. This CL does the same for SysV and uses them in almost
+    all places where we transition from the C ABI to the Go ABI.
     
-    Change-Id: I27e6c6499d6abfea6e215d8aedbdd5074ff88291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376216
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Compared to Windows, this transition is much simpler and I didn't find
+    any places that were getting it wrong. But this does let us unify a
+    lot of code nicely and introduces some degree of abstraction around
+    these ABI transitions.
+    
+    Change-Id: Ib6bdecafce587ce18fca4c8300fcf401284a2bcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309930
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- test/typeparam/issue50481.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_amd64.s           | 21 +++++---------
+ src/runtime/cgo/abi_amd64.h       | 32 +++++++++++++++++++-
+ src/runtime/cgo/asm_amd64.s       | 30 ++++---------------
+ src/runtime/os_linux.go           |  2 +-
+ src/runtime/race_amd64.s          | 25 ++++------------
+ src/runtime/sys_darwin_amd64.s    | 59 ++++++++++---------------------------
+ src/runtime/sys_dragonfly_amd64.s | 38 ++++++++++--------------
+ src/runtime/sys_freebsd_amd64.s   | 38 ++++++++++--------------
+ src/runtime/sys_linux_386.s       |  7 +++--
+ src/runtime/sys_linux_amd64.s     | 39 ++++++++++---------------
+ src/runtime/sys_netbsd_amd64.s    | 38 ++++++++++--------------
+ src/runtime/sys_openbsd_amd64.s   | 61 ++++++++++++---------------------------
+ 12 files changed, 152 insertions(+), 238 deletions(-)

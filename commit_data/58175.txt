@@ -1,16 +1,24 @@
-commit 30b09bccfd2446de566f9dfd0592cb4406e639b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 20 10:08:18 2024 -0500
+commit fce6be15cc2f41f98edad3750c18f904de6520c5
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Mon Oct 9 15:49:44 2023 +0200
 
-    crypto/internal/fipstest: fix TestACVP not to write to module cache
+    cmd/compile: regenerate rewriteRISCV64.go to match cl 528975
     
-    Not sure how this ever worked; the module cache is read-only.
+    The final revision of
     
-    Change-Id: I22e4945fa0bac101995ab9101d22dcfdcee40776
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629976
+    https://go-review.googlesource.com/c/go/+/528975
+    
+    made a small change to the RISCV64.rules file but neglected to update
+    the regenerated rewriteRISCV64.go file.
+    
+    Change-Id: I04599f4e3b0dac7102c54166c9bae6fc9b6621d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533815
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/internal/fipstest/acvp_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

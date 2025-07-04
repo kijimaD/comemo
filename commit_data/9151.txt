@@ -1,15 +1,20 @@
-commit 4c03bf9c594779efe451feeae6d05447ecb8a7a2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 20 16:22:13 2011 -0700
+commit 816c972ff04c3975b29605a6cb9b16382460e47c
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Jul 21 09:10:49 2011 +1000
 
-    godoc: fix zip file directory lookup
+    html: handle character entities without semicolons
     
-    Also: remove left-over println calls.
+    Fix the TODO: unescape("&notit;") should be "¬it;"
     
-    R=bradfitz
-    CC=golang-dev
-    https://golang.org/cl/4807042
+    Also accept digits in entity names.
+    
+    R=nigeltao
+    CC=golang-dev, rsc
+    https://golang.org/cl/4781042
 
- src/cmd/godoc/httpzip.go |  9 ++++-----
- src/cmd/godoc/zip.go     | 39 ++++++++++++++++++++++++++-------------
- 2 files changed, 30 insertions(+), 18 deletions(-)
+ src/pkg/html/entity.go      |  3 +++
+ src/pkg/html/entity_test.go |  3 +++
+ src/pkg/html/escape.go      | 28 +++++++++++++++++++++-------
+ src/pkg/html/token.go       |  2 +-
+ src/pkg/html/token_test.go  | 10 ++++++++++
+ 5 files changed, 38 insertions(+), 8 deletions(-)

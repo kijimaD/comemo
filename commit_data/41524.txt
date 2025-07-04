@@ -1,27 +1,94 @@
-commit e44cda3aa97ba0870806e65fc66641eb2cf6682a
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 1 17:01:58 2020 +0100
+commit 4c7a8d63e4042d16f87bf63720e3814683b0cb4b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Oct 8 23:06:30 2019 +0200
 
-    syscall: fix Fchdir on js/wasm
+    cmd/go/internal/modfile: remove preceding empty lines when setting require
     
-    NodeJS does not support fchdir so it has to be emulated with chdir by
-    saving the path when opening a directory.
+    When rewriting a go.mod file, we currently sort all of the require
+    lines in a block. The way the parser works is that it considers
+    preceding blank lines to be empty comment lines, and preceding empty
+    comment lines are "owned" by their adjoining line. So when we go to sort
+    them, the empty lines follow around each sorted entry, which doesn't
+    make a whole lot of sense, since usually vertical space is inserted to
+    show sections, and if things get moved around by sorting, those sections
+    are no longer meaningful. This all results in one especially troublesome
+    edge case: blank lines between a block opening ("require (") and the
+    first block line ("golang.org/x/sys ...") are not treated the same way
+    and are rewritten out of existence.
     
-    However, if the path opened is relative, saving this path is not
-    sufficient, because after changing the working directory the path
-    does not resolve correctly any more, thus a subsequent fd.Chdir() fails.
+    Here's an example of the behavior this fixes.
     
-    This change fixes the issue by resolving a relative path when
-    opening the directory and saving the absolute path instead.
+    Starting input file:
     
-    Fixes #37448
+        require (
+            golang.zx2c4.com/wireguard master
     
-    Change-Id: Id6bc8c4232b0019fc11e850599a526336608ce54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221717
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+            golang.org/x/crypto latest
+            golang.org/x/net latest
+            golang.org/x/sys latest
+            golang.org/x/text latest
+    
+            github.com/lxn/walk latest
+            github.com/lxn/win latest
+        )
+    
+    Now we run this through `GOPROXY=direct go get -d`:
+    
+        require (
+    
+            github.com/lxn/walk v0.0.0-20190619151032-86d8802c197a
+            github.com/lxn/win v0.0.0-20190716185335-d1d36f0e4f48
+    
+            golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+            golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+            golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
+            golang.org/x/text v0.3.2
+            golang.zx2c4.com/wireguard v0.0.20190806-0.20190822065259-3cedc22d7b49
+        )
+    
+    Notice how the blank lines before lxn/walk and x/crypto were preserved.
+    
+    Finally, we have this be rewritten yet again with a call to `go build`:
+    
+        require (
+            github.com/lxn/walk v0.0.0-20190619151032-86d8802c197a
+            github.com/lxn/win v0.0.0-20190716185335-d1d36f0e4f48
+    
+            golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+            golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+            golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
+            golang.org/x/text v0.3.2
+            golang.zx2c4.com/wireguard v0.0.20190806-0.20190822065259-3cedc22d7b49
+        )
+    
+    In this final resting point, the first blank line has been removed.
+    
+    The discrepancy between those two last stages are especially bothersome,
+    because it makes for lots of dirty git commits and file contents
+    bouncing back and forth.
+    
+    This commit fixes the problem as mentioned above, getting rid of those
+    preceding blank lines. The output in all cases looks as it should, like
+    this:
+    
+        require (
+            github.com/lxn/walk v0.0.0-20190619151032-86d8802c197a
+            github.com/lxn/win v0.0.0-20190716185335-d1d36f0e4f48
+            golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+            golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+            golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
+            golang.org/x/text v0.3.2
+            golang.zx2c4.com/wireguard v0.0.20190806-0.20190822065259-3cedc22d7b49
+        )
+    
+    Fixes #33779
+    
+    Change-Id: I11c894440bd35f343ee62db3e06a50fa871f2599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199917
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/os_test.go    | 35 +++++++++++++++++++++++++++++++++++
- src/syscall/fs_js.go |  4 ++++
- 2 files changed, 39 insertions(+)
+ src/cmd/go/internal/modfile/rule.go      |  3 ++
+ src/cmd/go/internal/modfile/rule_test.go | 73 ++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+)

@@ -1,27 +1,19 @@
-commit b749845067a2f59d3ffa215b83286272d38398ca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 27 07:08:41 2018 -0700
+commit 031f71efdf1fd72322247a92c2d1a56eac16fd45
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 9 08:24:10 2018 -0800
 
-    net: limit concurrent threads to limit on file descriptors
+    runtime: add TestSizeof
     
-    At least on Darwin, if getaddrinfo can't open a file descriptor it
-    returns EAI_NONAME ("no such host") rather than a meaningful error.
-    Limit the number of concurrent getaddrinfo calls to the number of file
-    descriptors we can open, to make that meaningless error less likely.
+    Borrowed from cmd/compile, TestSizeof ensures
+    that the size of important types doesn't change unexpectedly.
+    It also helps reviewers see the impact of intended changes.
     
-    We don't apply the same limit to Go lookups, because for that we will
-    return a meaningful "too many open files" error.
-    
-    Fixes #25694
-    
-    Change-Id: I601857190aeb64f11e22b4a834c1c6a722a0788d
-    Reviewed-on: https://go-review.googlesource.com/121176
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If57955f0c3e66054de3f40c6bba585b88694c7be
+    Reviewed-on: https://go-review.googlesource.com/99837
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_fake.go    |  6 ++++++
- src/net/lookup_plan9.go   |  6 ++++++
- src/net/lookup_unix.go    | 25 +++++++++++++++++++++++++
- src/net/lookup_windows.go |  6 ++++++
- src/net/net.go            |  8 +++++++-
- 5 files changed, 50 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go |  2 ++
+ src/runtime/sizeof_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

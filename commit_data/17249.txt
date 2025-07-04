@@ -1,12 +1,12 @@
-commit 89ecedab26f2250eb4ffc4a7fcaef0583db5b9d9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 15 08:13:38 2013 +1000
+commit 88411547d4d8fca47403ce6518e0c170d8cc8282
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 05:53:53 2013 +0900
 
-    doc: update go1.2.txt
+    net: simplify dial
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12957044
+    https://golang.org/cl/12884044
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/dial.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

@@ -1,26 +1,15 @@
-commit 32a1736d2416363cea43a297632acc7414e77032
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 07:02:26 2017 -0800
+commit 8a2a999311c22079c3b9f2e6fac2bbd38435a7ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 7 15:56:41 2016 -0800
 
-    go/types: add a compiler param to SizesFor
+    go/types: document that selectors are not recorded in Info.Types
     
-    The current StdSizes most closely matches
-    the gc compiler, and the uses I know of that care
-    which compiler the sizes are for are all for
-    the gc compiler, so call the existing
-    implementation "gc".
+    Fixes #11944.
     
-    Updates #17586
-    Fixes #19351
-    
-    Change-Id: I2bdd694518fbe233473896321a1f9758b46ed79b
-    Reviewed-on: https://go-review.googlesource.com/37666
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I424ba93725f22fd599e052eb182f9ba2fca8e8bd
+    Reviewed-on: https://go-review.googlesource.com/32881
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/internal/srcimporter/srcimporter.go |  2 +-
- src/go/types/api.go                        |  2 +-
- src/go/types/gotype.go                     |  2 +-
- src/go/types/sizes.go                      | 17 +++++++++++------
- 4 files changed, 14 insertions(+), 9 deletions(-)
+ src/go/types/api.go   | 13 +++++++++----
+ src/go/types/check.go |  1 -
+ 2 files changed, 9 insertions(+), 5 deletions(-)

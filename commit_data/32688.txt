@@ -1,25 +1,17 @@
-commit 2d69e9e259ec0f5d5fbeb3498fbd9fed135fe869
-Author: Adam Langley <agl@golang.org>
-Date:   Wed May 3 18:20:12 2017 -0700
+commit acc56909f2330d057ed415b2bfc59ed957ad6320
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 15 16:54:38 2017 -0700
 
-    crypto/elliptic: fix incomplete addition used in CombinedMult.
+    cmd/go: fix TestExecutableGOROOT if GOROOT is a symlink
     
-    The optimised P-256 includes a CombinedMult function, which doesn't do
-    dual-scalar multiplication, but does avoid an affine conversion for
-    ECDSA verification.
+    Fixes #20365.
     
-    However, it currently uses an assembly point addition function that
-    doesn't handle exceptional cases.
-    
-    Fixes #20215.
-    
-    Change-Id: I4ba2ca1a546d883364a9bb6bf0bdbc7f7b44c94a
-    Reviewed-on: https://go-review.googlesource.com/42611
-    Run-TryBot: Adam Langley <agl@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: If1a4866193cff3bc836d8bbf18b6a1f5deb9808d
+    Reviewed-on: https://go-review.googlesource.com/43550
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
 
- src/crypto/ecdsa/ecdsa_test.go       | 22 +++++++++++++
- src/crypto/elliptic/elliptic_test.go | 63 ++++++++++++++++++++++++++++++++++++
- src/crypto/elliptic/p256_amd64.go    | 48 ++++++++++++++++++++++++---
- src/crypto/elliptic/p256_asm_amd64.s | 44 +++++++++++++++++++++++--
- 4 files changed, 171 insertions(+), 6 deletions(-)
+ src/cmd/go/go_test.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

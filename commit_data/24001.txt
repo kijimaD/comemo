@@ -1,25 +1,17 @@
-commit 3ae17043f7f29f0d745aa35b340f8cab80219068
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 7 13:34:56 2015 -0400
+commit 3b7841b3aff9204f054ffabbe4dd39d3e3dd3e91
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 29 10:14:24 2015 +1000
 
-    runtime: make sure heapBitsBulkBarrier cannot be preempted
+    cmd/go: reset read-only flag during TestIssue10952
     
-    Changes the torture test in #12068 from failing about 1/10 times
-    to not failing in almost 2,000 runs.
+    git sets read-only flag on all its repo files on Windows.
+    os.Remove cannot delete these files.
     
-    This was only happening in -race mode because functions are
-    bigger in -race mode, so a few of the helpers for heapBitsBulkBarrier
-    were not being inlined, and they were not marked nosplit,
-    so (only in -race mode) the write barrier was being preempted by GC,
-    causing missed pointer updates.
+    Fixes windows build
     
-    Filed issue #12069 for diagnosis of any other similar errors.
-    
-    Fixes #12068.
-    
-    Change-Id: Ic174d9b050ba278b18b08ab0d85a73c33bd5b175
-    Reviewed-on: https://go-review.googlesource.com/13364
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Icaf72470456b88a1c26295caecd4e0d3dc22a1b6
+    Reviewed-on: https://go-review.googlesource.com/11602
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/mbitmap.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

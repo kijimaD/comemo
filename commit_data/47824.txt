@@ -1,42 +1,23 @@
-commit 33a1a93a92804205eca89e2bb113ca68c1de5a4f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 8 20:32:29 2021 -0800
+commit 13a4e8c41cd1d242a435d44e7f66f370e5306a8c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 12 19:05:01 2021 -0700
 
-    cmd/compile/internal/syntax: fix parsing of type parameter lists
+    all: simplify the spelling of Linux
     
-    The parser cannot distinguish a type parameter list of the form
+    The prefix didn't help clarify anything.
     
-    [P *T ] or
-    [P (T)]
-    
-    where T is not a type literal from an array length specification
-    P*T (product) or P(T) (constant-valued function call) and thus
-    interprets these forms as the start of array types.
-    
-    This ambiguity must be resolved explicitly by placing *T inside
-    an interface, adding a trailing comma, or by leaving parentheses
-    away where possible.
-    
-    This CL adjusts the parser such that these forms are
-    interpreted as (the beginning) of type parameter lists
-    if the token after P*T or P(T) is a comma, or if T is
-    a type literal.
-    
-    This CL also adjusts the printer to print a comma if
-    necessary to avoid this ambiguity, and adds additional
-    printer tests.
-    
-    Fixes #49482
-    
-    Change-Id: I36328e2a7d9439c39ba0349837c445542549e84e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370774
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I897fd4022ce9df42a548b15714e4b592618ca547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309573
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go          | 149 ++++++++++++++++-----
- src/cmd/compile/internal/syntax/printer.go         |  55 ++++----
- src/cmd/compile/internal/syntax/printer_test.go    |  77 +++++++----
- .../internal/syntax/testdata/issue49482.go2        |  31 +++++
- 4 files changed, 227 insertions(+), 85 deletions(-)
+ misc/cgo/test/setgid_linux.go          | 2 +-
+ misc/cgo/testcarchive/carchive_test.go | 2 +-
+ src/debug/elf/elf.go                   | 4 ++--
+ src/os/file_unix.go                    | 2 +-
+ src/os/signal/doc.go                   | 4 ++--
+ src/os/wait_waitid.go                  | 2 +-
+ src/runtime/cgo/gcc_sigaction.c        | 2 +-
+ src/runtime/os_linux_be64.go           | 2 +-
+ 8 files changed, 10 insertions(+), 10 deletions(-)

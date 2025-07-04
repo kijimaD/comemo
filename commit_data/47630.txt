@@ -1,33 +1,24 @@
-commit 4325c37d6789aff6f24b05526080b011dda86477
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 23 12:34:04 2021 -0800
+commit 254948a50e12aac1059816a1575ccef1b3892723
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 2 12:33:23 2021 -0400
 
-    vendor: update golang.org/x/net to tip
+    cmd/compile: mark unused values as invalid to prevent problems in expandCalls
     
-    This brings in a fix for OpenBSD that lets it correctly gather network
-    interface information.
+    Leftover values that have been replaced can cause problems in later
+    passes (within expandCalls).  For example, a struct select that
+    itself yields a struct will have a problematic rewrite, if the chance
+    is presented.
     
-    For #42064
+    Updates #40724.
     
-    Change-Id: Ib88fd2f494bb2ee86fd2725d8375b2df1404c4ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366756
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1b445c47c301c3705f7fc0a9d39f1f5c84f4e190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306869
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 +-
- src/net/http/h2_bundle.go                          | 76 ++++++++++++++--------
- src/vendor/golang.org/x/net/lif/address.go         |  1 +
- src/vendor/golang.org/x/net/lif/binary.go          |  1 +
- src/vendor/golang.org/x/net/lif/lif.go             |  1 +
- src/vendor/golang.org/x/net/lif/link.go            |  1 +
- src/vendor/golang.org/x/net/lif/sys.go             |  1 +
- src/vendor/golang.org/x/net/lif/syscall.go         |  1 +
- src/vendor/golang.org/x/net/route/syscall.go       | 26 ++------
- .../x/net/route/syscall_go1_12_darwin.go           | 13 ----
- src/vendor/modules.txt                             |  2 +-
- 12 files changed, 63 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 25 ++++++++++++++++++-
+ test/abi/zombie_struct_select.go             | 36 ++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 1 deletion(-)

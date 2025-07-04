@@ -1,20 +1,16 @@
-commit 98858c438016bbafd161b502a148558987aa44d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 25 20:23:15 2020 -0800
+commit e0a5fae676370e1a68925d338629c40240b1ff9b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 4 11:53:17 2019 +0200
 
-    runtime: don't panic on racy use of timers
+    cmd/link/internal/arm64: add support for freebsd/arm64
     
-    If we see a racy use of timers, as in concurrent calls to Timer.Reset,
-    do the operations in an unpredictable order, rather than crashing.
+    Updates #24715
     
-    Fixes #37400
-    
-    Change-Id: Idbac295df2dfd551b6d762909d5040fc532c1b34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221077
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If5d9591a820f6e921e69e722d46bf91d2ae738cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198543
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/time.go   | 216 ++++++++++++++++----------------------------------
- src/time/time_test.go |  40 ++++++----
- 2 files changed, 92 insertions(+), 164 deletions(-)
+ src/cmd/link/internal/arm64/obj.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit a8e2ecc8b188f4f6c8529477392e344243ce40bd
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Oct 17 12:57:26 2024 +0000
+
+    internal/runtime/atomic: add Xchg8 for 386
+    
+    For #69735
+    
+    Change-Id: I5b9f57315d693d613dc88dc02c10bee39aeeef76
+    GitHub-Last-Rev: 690337e5b81a48bdcb808526d0c5f4837e8912b7
+    GitHub-Pull-Request: golang/go#69923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620756
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/runtime/atomic/atomic_386.go | 3 +++
+ src/internal/runtime/atomic/atomic_386.s  | 8 ++++++++
+ src/internal/runtime/atomic/xchg8_test.go | 2 +-
+ 3 files changed, 12 insertions(+), 1 deletion(-)

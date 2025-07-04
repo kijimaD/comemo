@@ -1,22 +1,18 @@
-commit 38fb09b4122ed6f6bfac02f9d0b82723c17988ad
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Thu Oct 13 13:59:13 2011 -0400
+commit 604bd70085868ad22545ae6b3f7c14cd5f3fd5d3
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Oct 13 12:25:25 2011 -0400
 
-    crypto/tls: fetch root certificates using Mac OS API
+    make.bash: more robustly detect gold 2.20
     
-    Fixes #1009.
+    On recent Debian systems the gold 2.20 check triggers though
+    Debian doesn't have version 2.20 but rather has:
     
-    R=adg, rsc
+            GNU gold (GNU Binutils for Debian 2.21.52.20110606) 1.11
+                                                    ^^^^
+    
+    R=rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5262041
+    https://golang.org/cl/5252055
 
- src/pkg/crypto/tls/Makefile                 | 18 ++++++
- src/pkg/crypto/tls/common.go                | 37 ++++-------
- src/pkg/crypto/tls/handshake_client.go      |  6 +-
- src/pkg/crypto/tls/handshake_server_test.go |  1 +
- src/pkg/crypto/tls/root_darwin.go           | 95 +++++++++++++++++++++++++++++
- src/pkg/crypto/tls/root_stub.go             |  8 +++
- src/pkg/crypto/tls/root_test.go             | 36 +++++++++++
- src/pkg/crypto/tls/root_unix.go             | 27 ++++++++
- src/pkg/http/serve_test.go                  | 11 +++-
- 9 files changed, 208 insertions(+), 31 deletions(-)
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

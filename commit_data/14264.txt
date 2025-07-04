@@ -1,13 +1,14 @@
-commit 3ead7fb5dceedceeb978e05f9c742d0b4b5a3f67
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 31 15:52:15 2012 -0700
+commit 5176481f16d2e7f32df41924582a0a36073f7063
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 31 16:37:26 2012 -0400
 
-    A+C: adding Dan Callahan (individual CLA)
+    crypto/cipher: add examples
     
-    R=golang-dev, bradfitz
+    Fixes #1390.
+    
+    R=golang-dev, minux.ma, adg, agl
     CC=golang-dev
-    https://golang.org/cl/6815062
+    https://golang.org/cl/6631044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/crypto/cipher/example_test.go | 283 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 283 insertions(+)

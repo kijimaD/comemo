@@ -1,27 +1,42 @@
-commit 14e812bfc575400a02e9e7536344a3f78a6cba08
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Sep 16 16:11:19 2021 -0600
+commit 2f2d4b4e68ab2fc448a1c2daf793b11ccde2fb16
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 2 01:04:19 2021 -0800
 
-    syscall: do not use handle lists on windows when NoInheritHandles is true
+    [dev.regabi] cmd/compile: remove {Ptr,Set}Init from Node interface
     
-    If NoInheritHandles is passed, then we shouldn't attempt to do anything
-    with handle lists. Otherwise CreateProcess fails with invalid param,
-    because it's being told both to not inherit handles and to inherit
-    certain handles.
+    This CL separates out PtrInit and SetInit into a new InitNode
+    extension interface, and adds a new TakeInit helper function for
+    taking and clearing the Init list (if any) from a Node.
     
-    This commit fixes that by using the same logic for handle lists as it
-    does for enabling or disabling handle inheritance. It also adds a test
-    to make sure this doesn't regress again.
+    This allows removing miniNode.SetInit and miniNode.PtrInit, which in
+    turn allow getting rid of immutableEmptyNodes, and will allow
+    simplification of the Nodes API.
     
-    Fixes #48040
+    It would be nice to get rid of the default Init method too, but
+    there's way more code that expects to be able to call that at the
+    moment, so that'll have to wait.
     
-    Change-Id: I507261baeec263091738ab90157a991d917dc92f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350411
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ia8c18fab9555b774376f7f43eeecfde4f07b5946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281001
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/os/exec/exec_windows_test.go | 14 ++++++++++++++
- src/syscall/exec_windows.go      |  8 +++++---
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go   |  4 +-
+ src/cmd/compile/internal/inline/inl.go          |  4 +-
+ src/cmd/compile/internal/ir/mini.go             |  8 +---
+ src/cmd/compile/internal/ir/node.go             | 52 +++++++++++--------------
+ src/cmd/compile/internal/noder/noder.go         |  2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ src/cmd/compile/internal/walk/assign.go         | 10 ++---
+ src/cmd/compile/internal/walk/builtin.go        |  2 +-
+ src/cmd/compile/internal/walk/expr.go           |  6 +--
+ src/cmd/compile/internal/walk/order.go          |  9 ++---
+ src/cmd/compile/internal/walk/range.go          |  2 +-
+ src/cmd/compile/internal/walk/select.go         |  9 ++---
+ src/cmd/compile/internal/walk/stmt.go           | 12 +++---
+ src/cmd/compile/internal/walk/walk.go           |  3 +-
+ 14 files changed, 52 insertions(+), 73 deletions(-)

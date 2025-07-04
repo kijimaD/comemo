@@ -1,19 +1,16 @@
-commit 9db0583007e1f644b16d957c2e567ad5e5922338
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 18 09:52:39 2013 -0700
+commit b7b4783622b4e21e7fb515b614bc651fe6210d7c
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Mar 18 08:56:38 2013 +1100
 
-    os/exec: fix fd leak with Std*Pipe + LookPath
+    misc/dist: fix Windows breakage
     
-    If LookPath in Command fails, sets a sticky error, and then
-    StdinPipe, StdoutPipe, or StderrPipe were called, those pipe
-    fds were never cleaned up.
+    The files could use some attention on the
+    Windows side but better to wait until after
+    the upcoming release.
     
-    Fixes #5071
-    
-    R=golang-dev, rogpeppe
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7799046
+    https://golang.org/cl/7621044
 
- src/pkg/os/exec/exec.go      |  2 ++
- src/pkg/os/exec/exec_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ misc/dist/bindist.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

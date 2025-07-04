@@ -1,26 +1,17 @@
-commit 415f0a33750a7cb4ad282fc5aa664d3fde244f84
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Oct 6 12:39:41 2021 -0400
+commit 210f70e298cf7e45a2b2638545228a44c78740de
+Author: Ryuji Iwata <qt.luigi@gmail.com>
+Date:   Tue Jan 26 12:53:08 2021 +0000
 
-    cmd/link: keep go.buildid alive on AIX external linking
+    doc/go1.16: fix closing brace in .Export format
     
-    As we use relative addressing for text symbols in functab, it is
-    important that the offsets we computed stay unchanged by the
-    external linker, i.e. all symbols in Textp should not be removed
-    by the external linker. Most of them are actually referenced (our
-    deadcode pass ensures that), except go.buildid which is generated
-    late and not used by the program. Keep it alive.
+    A parenthesis of go list "-f" flag format is double curly braces.
     
-    Should fix AIX builder.
-    
-    Change-Id: Ibc4a8951be997b9d8d870d75c54754977d9b8333
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354369
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ifd38e0b0ae3c46272a4acd65584818228168b7c6
+    GitHub-Last-Rev: b46030492b5caf18fe127621fdf92cbec4c03ad5
+    GitHub-Pull-Request: golang/go#43924
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286752
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/link/internal/ld/symtab.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

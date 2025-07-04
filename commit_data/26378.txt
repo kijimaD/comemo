@@ -1,17 +1,28 @@
-commit b2dc1f82a5b2aa3132cb1fb0135efe1202a1e837
-Author: Todd Neal <todd@tneal.org>
-Date:   Fri Mar 18 07:05:58 2016 -0500
+commit efd93a412eb5941d767b70097e93a589747de34f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 12 15:34:03 2016 -0800
 
-    cmd/compile: perform minimal phi elimination during critical
+    runtime: minimize time between lockextra/unlockextra
     
-    Phi splitting sometimes leads to a phi with only a single predecessor.
-    This must be replaced with a copy to maintain a valid SSA form.
+    This doesn't fix a bug, but may improve performance in programs that
+    have many concurrent calls from C to Go.  The old code made several
+    system calls between lockextra and unlockextra.  That could be happening
+    while another thread is spinning acquiring lockextra.  This changes the
+    code to not make any system calls while holding the lock.
     
-    Fixes #14857
-    
-    Change-Id: I5ab2423fb6c85a061928e3206b02185ea8c79cd7
-    Reviewed-on: https://go-review.googlesource.com/20826
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I50576478e478670c3d6429ad4e1b7d80f98a19d8
+    Reviewed-on: https://go-review.googlesource.com/18548
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/critical.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/os1_darwin.go    |  4 ++--
+ src/runtime/os1_dragonfly.go |  4 ++--
+ src/runtime/os1_freebsd.go   |  4 ++--
+ src/runtime/os1_linux.go     |  5 ++---
+ src/runtime/os1_nacl.go      |  2 +-
+ src/runtime/os1_netbsd.go    |  4 ++--
+ src/runtime/os1_openbsd.go   |  4 ++--
+ src/runtime/os1_plan9.go     |  2 +-
+ src/runtime/os1_windows.go   |  2 +-
+ src/runtime/os3_solaris.go   |  5 +++--
+ src/runtime/proc.go          | 10 +++++++---
+ 11 files changed, 25 insertions(+), 21 deletions(-)

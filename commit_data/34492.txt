@@ -1,20 +1,22 @@
-commit b75e8a2a3baf71ab39bd584c4c0c24edbaf91e3e
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sun Mar 4 06:14:42 2018 +0900
+commit 164e1b84777082d83d659a16fad8e1d0456a8638
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 25 13:46:54 2017 -0400
 
-    cmd/compile: prevent detection of wrong duplicates
+    runtime: eliminate remaining recordspan write barriers
     
-    by including *types.Type in typeVal.
+    recordspan has two remaining write barriers from writing to the
+    pointer to the backing store of h.allspans. However, h.allspans is
+    always backed by off-heap memory, so let the compiler know this.
+    Unfortunately, this isn't quite as clean as most go:notinheap uses
+    because we can't directly name the backing store of a slice, but we
+    can get it done with some judicious casting.
     
-    Updates #21866
-    Fixes #24159
+    For #22460.
     
-    Change-Id: I2f8cac252d88d43e723124f2867b1410b7abab7b
-    Reviewed-on: https://go-review.googlesource.com/98476
-    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I296f92fa41cf2cb6ae572b35749af23967533877
+    Reviewed-on: https://go-review.googlesource.com/73414
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/swt.go | 27 +++++++++++++++++++++++----
- test/fixedbugs/issue24159.go       | 20 ++++++++++++++++++++
- 2 files changed, 43 insertions(+), 4 deletions(-)
+ src/runtime/mheap.go | 16 ++++++++++++++--
+ src/runtime/slice.go |  7 +++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,14 +1,22 @@
-commit 723605e9183314e977542fdca208f4ddeb5425f7
-Author: Benjamin Prosnitz <bprosnitz@google.com>
-Date:   Wed Dec 2 11:02:04 2015 +0800
+commit be16001187f17e9c312e69c353be743cc7d9e260
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Aug 30 10:23:30 2015 -0700
 
-    net: fix failing TestGoLookupIPOrderFallbackToFile
+    crypto/tls: better error messages when PEM inputs are switched.
     
-    Change-Id: I17ef4e221e5cd0fb8dc553785248ccac59380c6f
-    Reviewed-on: https://go-review.googlesource.com/17321
+    This change causes the types of skipped PEM blocks to be recorded when
+    no certificate or private-key data is found in a PEM input. This allows
+    for better error messages to be return in the case of common errors like
+    switching the certifiate and key inputs to X509KeyPair.
+    
+    Fixes #11092
+    
+    Change-Id: Ifc155a811cdcddd93b5787fe16a84c972011f2f7
+    Reviewed-on: https://go-review.googlesource.com/14054
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dnsclient_unix.go      | 2 +-
- src/net/dnsclient_unix_test.go | 6 +++++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/crypto/tls/tls.go      | 27 +++++++++++++++++++++++----
+ src/crypto/tls/tls_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 4 deletions(-)

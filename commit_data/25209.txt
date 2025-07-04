@@ -1,22 +1,20 @@
-commit 1b7a2273e5ec693ac4e148a58a26087d80c2e72b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 8 15:13:19 2015 +1100
+commit 8824dccc282884919e6747396d7ff704825b5076
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 8 12:39:56 2015 -0400
 
-    net: add TestInterfaceAddrsWithNetsh
+    [dev.ssa] cmd/compile: fixed heap-escaped-paramout
     
-    Use windows netsh command to verify interface
-    addresses and netmasks net package returns.
+    Changed tree generation to correctly use PARAMOUT instead
+    of PARAM.
     
-    The test is to be enabled once issue #12811
-    is fixed.
+    Emit Func.Exit before any returns.
     
-    Updates #12811
-    
-    Change-Id: I191e350a1403e5133791d4ec59561fefa24f5c61
-    Reviewed-on: https://go-review.googlesource.com/17478
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2fa53cc7fad05fb4eea21081ba33d1f66db4ed49
+    Reviewed-on: https://go-review.googlesource.com/15610
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/net/net_windows_test.go | 137 ++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 132 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go | 15 ++++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go   | 15 +++++++++++++--
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 3 files changed, 28 insertions(+), 4 deletions(-)

@@ -1,21 +1,36 @@
-commit 21898524f66c075d7cfb64a38f17684140e57675
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri May 1 01:14:04 2020 -0400
+commit 3922c006ad57f042238e48bb2cd13e5d88499a6c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 20 14:39:19 2019 -0500
 
-    net/http: use ASCII space trimming throughout
+    misc/cgo/testcshared: avoid writing to GOROOT in tests
     
-    Security hardening against HTTP request smuggling. Thank you to ZeddYu
-    for reporting this issue.
+    The tests in this package invoked 'go install -i -buildmode=c-shared'
+    in order to generate an archive as well as multiple C header files.
     
-    Change-Id: I98bd9f8ffe58360fc3bca9dc5d9a106773e55373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231419
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Unfortunately, the behavior of the '-i' flag is inappropriately broad
+    for this use-case: it not only generates the library and header files
+    (as desired), but also attempts to install a number of (unnecessary)
+    archive files for transitive dependencies to
+    GOROOT/pkg/$GOOS_$GOARCH_testcshared_shared, which may not be writable
+    — for example, if GOROOT is owned by the root user but the test is
+    being run by a non-root user.
+    
+    Instead, for now we generate the header files for transitive dependencies
+    separately by running 'go tool cgo -exportheader'.
+    
+    In the future, we should consider how to improve the ergonomics for
+    generating transitive header files without coupling that to
+    unnecessary library installation.
+    
+    Updates #28387
+    Updates #30316
+    Updates #35715
+    
+    Change-Id: I622426a860828020d98f7040636f374e5c766d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208119
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/cgi/host.go              |  5 +++--
- src/net/http/cookie.go                | 11 ++++++-----
- src/net/http/fs.go                    |  4 ++--
- src/net/http/httptest/recorder.go     |  3 ++-
- src/net/http/httputil/reverseproxy.go |  3 ++-
- src/net/http/transfer.go              |  8 ++++----
- 6 files changed, 19 insertions(+), 15 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 43 +++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 15 deletions(-)

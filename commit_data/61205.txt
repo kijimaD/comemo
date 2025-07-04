@@ -1,0 +1,24 @@
+commit 8df6413e116eb471c69e0722ea4319a228efafa2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 3 18:22:46 2024 +0000
+
+    runtime: recompute assistG before and after malloc
+    
+    This change stops tracking assistG across malloc to reduce number of
+    slots the compiler must keep track of in mallocgc, which adds to
+    register pressure. It also makes the call to deductAssistCredit only
+    happen if the GC is running.
+    
+    This is a microoptimization that on its own changes very little, but
+    together with other optimizations and a breaking up of the various
+    malloc paths will matter all together ("death by a thousand cuts").
+    
+    Change-Id: I4cfac7f3e8e873ba66ff3b553072737a4707e2c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617876
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go | 53 +++++++++++++++++++++++----------------------------
+ 1 file changed, 24 insertions(+), 29 deletions(-)

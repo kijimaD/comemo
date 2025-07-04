@@ -1,12 +1,12 @@
-commit 418e2f6aaeb686c67d7ffc993f7137ed61426c29
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Sat Aug 10 11:38:42 2013 +1000
+commit e486cefec270e56204ae3f3e57ca422c5a4c166e
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Sat Aug 10 09:48:43 2013 +1000
 
-    strconv: fix typo in docs
+    doc/go1.2.txt: Added missing changes since 1st of August
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12709044
+    https://golang.org/cl/12714043
 
- src/pkg/strconv/quote.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.2.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

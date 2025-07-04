@@ -1,13 +1,13 @@
-commit 9a53fb571d3ce9846252b38ad8991e48a48ebc15
+commit 65a643ba47726b690ab03e940ec7811979c8f377
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 9 13:02:56 2013 -0500
+Date:   Mon Dec 9 12:56:23 2013 -0500
 
-    cmd/gc: fix windows build, probably
+    cmd/dist, cmd/go: pass -fmessage-length always
     
-    TBR=iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/39540043
+    https://golang.org/cl/36300044
 
- src/cmd/gc/go.h  | 1 -
- src/cmd/gc/lex.c | 5 ++---
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.c | 4 ++--
+ src/cmd/go/build.go  | 5 +++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)

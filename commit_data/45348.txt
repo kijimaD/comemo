@@ -1,20 +1,20 @@
-commit 40254ec0db6d02118df141dbe7fcb6a95aec6560
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Apr 25 15:46:30 2021 +0700
+commit 3ca3ca51d70aac890fb023786db1fcbbeea139f1
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Sep 24 21:44:32 2020 +0200
 
-    cmd/compile: fix wrong package path for unsafe.Pointer
+    cmd/compile: enforce strongly typed rules for ARM (to32)
     
-    It's not a predeclared type, but a type defined in "unsafe" package.
+    Type casting changed to 32 from 64.
+    L1055-L1056
+    L1193-L1194, L1197-L1198
     
-    Fixes #44830
+    toolstash-check successful.
     
-    Change-Id: If39815b1070059b608be8231dfac9b7f3307cb15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313349
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icdb9985673292294bc4549afaaa6cf4fcf92ffa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257640
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- test/fixedbugs/issue44830.go                    | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 12 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 48 +++++++++++++++---------------
+ 2 files changed, 30 insertions(+), 30 deletions(-)

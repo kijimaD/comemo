@@ -1,14 +1,14 @@
-commit 5a50e003067672ff13bc2ea0464f0cf83a943b2d
-Author: Austin Clements <austin@google.com>
-Date:   Wed Feb 17 13:43:19 2016 -0500
+commit e9fc522100e3e3109de96ddb5e0063a5124b97ba
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 7 10:53:07 2016 +1100
 
-    runtime: improve comment on selectgo
+    doc: show relevant test instructions on install page
     
-    In particular, document that *sel is on the stack no matter what.
+    Fixes golang/go#12490
     
-    Change-Id: I1c264215e026c27721b13eedae73ec845066cdec
-    Reviewed-on: https://go-review.googlesource.com/20032
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I0861e62aaa589fc63217c83e9c227c17e35cda75
+    Reviewed-on: https://go-review.googlesource.com/18277
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/select.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ doc/install.html | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

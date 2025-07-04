@@ -1,29 +1,19 @@
-commit 1ba7341cb21d9edb2a04eb0b24b3af71899b35fc
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Dec 21 16:35:57 2022 -0500
+commit d199ceffa89335efe0e314f07e6ac508834f8004
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 15 14:23:45 2022 -0500
 
-    cmd/link, runtime: use a different section for Go libfuzzer counters
+    cmd/go: in workspace mode, resolve replacements relative to their go.mod files
     
-    Currently in libfuzzer mode, we put our counters in section
-    __sancov_cntrs. When linking with C/C++ code that also has fuzzer
-    counters, apparently the C linker combines our counters and their
-    counters and registers them together. But in the Go runtime we
-    also have code to register our counters. So the Go counters ended
-    up registered twice, causing problems.
+    Fixes #51204
     
-    Since we already have code to register our counters, put them in
-    a Go-specific section so it won't be combined with the C counters.
-    
-    Fixes #57449.
-    
-    Change-Id: If3d41735124e7e301572d4b7aecf7d057ac134c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459055
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I41106b7d04120be5ba68573bd25fd33e985688de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385994
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/ld/data.go | 12 ++++++------
- src/cmd/link/internal/ld/elf.go  |  2 +-
- src/runtime/libfuzzer.go         |  9 ++-------
- 3 files changed, 9 insertions(+), 14 deletions(-)
+ src/cmd/go/internal/modload/init.go                | 20 ++++++--
+ src/cmd/go/testdata/script/work_issue51204.txt     | 57 ++++++++++++++++++++++
+ .../go/testdata/script/work_replace_conflict.txt   |  6 +--
+ 3 files changed, 77 insertions(+), 6 deletions(-)

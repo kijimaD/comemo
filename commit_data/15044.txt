@@ -1,12 +1,14 @@
-commit e7ef3b6dafd1bd8d460029880d559a403d46d20c
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Jan 30 15:06:35 2013 -0800
+commit 7e9f00c80c56fe325d0c0e11c4a8ce4bc368b06e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 30 12:30:26 2013 -0800
 
-    cmd/gc: support GNU Bison 2.7 in bisonerrors
+    cmd/godoc: fix buggy use of strings.HasSuffix
     
-    R=golang-dev, minux.ma, rsc
+    This code never worked. Maybe it's not necessary?
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7235064
+    https://golang.org/cl/7225070
 
- src/cmd/gc/bisonerrors | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/godoc/godoc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

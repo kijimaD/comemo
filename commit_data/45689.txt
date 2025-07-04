@@ -1,27 +1,44 @@
-commit c89f1224a544cde464fcb86e78ebb0cc97eedba2
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon May 17 10:06:51 2021 -0700
+commit 5736eb0013cb8c9b67432c98b08f68e9f370810c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 29 01:13:16 2020 -0700
 
-    net: verify results from Lookup* are valid domain names
+    cmd/compile: support inlining of type switches
     
-    For the methods LookupCNAME, LookupSRV, LookupMX, LookupNS, and
-    LookupAddr check that the returned domain names are in fact valid DNS
-    names using the existing isDomainName function.
+    This CL adds support for inlining type switches, including exporting
+    and importing them.
     
-    Thanks to Philipp Jeitner and Haya Shulman from Fraunhofer SIT for
-    reporting this issue.
+    Type switches are represented mostly the same as expression switches.
+    However, if the type switch guard includes a short variable
+    declaration, then there are two differences: (1) there's an ONONAME
+    (in the OTYPESW's Left) to represent the overall pseudo declaration;
+    and (2) there's an ONAME (in each OCASE's Rlist) to represent the
+    per-case variables.
     
-    Fixes #46241
-    Fixes CVE-2021-33195
+    For simplicity, this CL simply writes out each variable separately
+    using iimport/iiexport's normal Vargen mechanism for disambiguating
+    identically named variables within a function. This could be improved
+    somewhat, but inlinable type switches are probably too uncommon to
+    merit the complexity.
     
-    Change-Id: Icf231acd93178a3b6aec3f178cff7e693f74ef8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320949
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    While here, remove "case OCASE" from typecheck1. We only type check
+    "case" clauses as part of a "select" or "switch" statement, never as
+    standalone statements.
+    
+    Fixes #37837
+    
+    Change-Id: I8f42f6c9afdd821d6202af4a6bf1dbcbba0ef424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266203
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dnsclient_unix_test.go | 121 +++++++++++++++++++++++++++++++++++++++++
- src/net/lookup.go              |  98 ++++++++++++++++++++++++++++++---
- 2 files changed, 211 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go   | 40 ++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/iimport.go   | 41 +++++++++++++++++++++++++-------
+ src/cmd/compile/internal/gc/inl.go       |  4 ----
+ src/cmd/compile/internal/gc/typecheck.go |  5 ----
+ test/fixedbugs/issue37837.dir/a.go       | 33 +++++++++++++++++++++++++
+ test/fixedbugs/issue37837.dir/b.go       | 32 +++++++++++++++++++++++++
+ test/fixedbugs/issue37837.go             |  7 ++++++
+ test/inline.go                           |  3 +--
+ 8 files changed, 140 insertions(+), 25 deletions(-)

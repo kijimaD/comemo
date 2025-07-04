@@ -1,14 +1,25 @@
-commit 891547e2d4bc2a23973e2c9f972ce69b2b48478e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 6 21:10:31 2021 -0400
+commit dd4a52c2a588c57edc76cb0a414ae6f2e5bf5d52
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Dec 1 11:10:40 2020 -0500
 
-    doc/go1.17: fix a typo introduced in CL 335135
+    doc/go1.16: add multiple release notes for the go command
     
-    Change-Id: I62388bcb6d6f910ffa95d3db856ea29838573256
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340590
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Added notes for:
+    
+    * go test -c and -i flags used with unknown flags
+    * GO111MODULE=on by default
+    * GOVCS
+    * Dropped requirements on excluded versions
+    
+    Removed TODOs for documentation on the retract directive and
+    'go install pkg@version'. These pages will be written after the beta.
+    
+    Change-Id: Ic9877a62f908be177a6035a039b72e969e7b7f22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274438
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.16.html | 55 ++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 40 insertions(+), 15 deletions(-)

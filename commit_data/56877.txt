@@ -1,37 +1,22 @@
-commit 183a40db6def2780478053b3cd14f3f5c355d999
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Tue Jul 2 12:53:36 2024 -0400
+commit 7ad92e95b56019083824492fbec5bb07926d8ebd
+Author: Enrico Candino <enrico.candino@gmail.com>
+Date:   Fri May 26 00:52:57 2023 +0200
 
-    runtime: avoid multiple records with identical stacks from MutexProfile
+    cmd/go: update cover flag documentation
     
-    When using frame pointer unwinding, we defer frame skipping and inline
-    expansion for call stacks until profile reporting time. We can end up
-    with records which have different stacks if no frames are skipped, but
-    identical stacks once skipping is taken into account. Returning multiple
-    records with the same stack (but different values) has broken programs
-    which rely on the records already being fully aggregated by call stack
-    when returned from runtime.MutexProfile. This CL addresses the problem
-    by handling skipping at recording time. We do full inline expansion to
-    correctly skip the desired number of frames when recording the call
-    stack, and then handle the rest of inline expansion when reporting the
-    profile.
+    Cover flag documentation was not up to date, and the -covermode flag
+    documentation was missing.
     
-    The regression test in this CL is adapted from the reproducer in
-    https://github.com/grafana/pyroscope-go/issues/103, authored by Tolya
-    Korniltsev.
+    Fixes #60438
     
-    Fixes #67548
-    
-    Co-Authored-By: Tolya Korniltsev <korniltsev.anatoly@gmail.com>
-    Change-Id: I6a42ce612377f235b2c8c0cec9ba8e9331224b84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595966
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Change-Id: I11e769fa2a32d074de7a748aa534afdfe2ca4e78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/mprof.go            | 105 +++++++++++++++++++++++++++++++++++-----
- src/runtime/pprof/pprof.go      |  23 ++++++++-
- src/runtime/pprof/pprof_test.go |  78 +++++++++++++++++++++++++++++
- 3 files changed, 192 insertions(+), 14 deletions(-)
+ src/cmd/go/alldocs.go             | 14 +++++++++++---
+ src/cmd/go/internal/work/build.go | 14 +++++++++++---
+ 2 files changed, 22 insertions(+), 6 deletions(-)

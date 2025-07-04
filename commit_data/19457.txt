@@ -1,19 +1,16 @@
-commit ef25861222ec3f3d960061962c349bd37f29a388
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 28 08:16:09 2014 -0700
+commit 4895f0dc5edb8c7f8721f9e9eec15524a283cf4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 28 01:01:08 2014 -0400
 
-    mime: sort attributes in FormatMediaType
+    test/run: limit parallelism to 1 for cross-exec builds
     
-    Map iteration order issue. Go 1.2 and earlier had stable results
-    for small maps.
+    This matters for NaCl, which seems to swamp my 4-core MacBook Pro otherwise.
+    It's not a correctness problem, just a usability problem.
     
-    Fixes #8115
-    
-    LGTM=r, rsc
-    R=golang-codereviews, r
-    CC=dsymonds, golang-codereviews, iant, rsc
-    https://golang.org/cl/98580047
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/98600046
 
- src/pkg/mime/mediatype.go      | 10 +++++++++-
- src/pkg/mime/mediatype_test.go |  1 +
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ test/run.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,12 +1,12 @@
-commit ec1769ba7b864c1523093958d7b107137ca1bf0a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jun 3 11:47:42 2013 +1000
+commit 85046d3e52aeb3e083a06cb02c6a1dda87d199ca
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jun 3 03:11:57 2013 +0800
 
-    doc: update linux tarball version for Go 1.1
+    api: update next.txt
     
-    R=adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9819044
+    https://golang.org/cl/9950043
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next.txt | 295 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 295 insertions(+)

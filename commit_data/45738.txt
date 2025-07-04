@@ -1,21 +1,110 @@
-commit 1c6a2ea2ea4b04416f7344ee5effe81816c7200b
-Author: Uddeshya Singh <singhuddeshyaofficial@gmail.com>
-Date:   Fri May 7 13:18:05 2021 +0530
+commit f2e186b87754d3f84a692876501c923eb58f2ee4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Oct 31 00:28:53 2020 -0400
 
-    doc/go1.17: document time changes for Go1.17
+    all: update vendored dependencies for Go 1.16 release
     
-    Documents the newly implemented changes of
-    - Time.IsDST() method
-    - Addition of Time.UnixMilli, Time.UnixMicro and to-Time helpers UnixMicro, UnixMilli methods
-    - Addition of comma "," support as separator for fraction seconds
+    The Go 1.16 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
     
-    For #44513
-    Fixes #46026
+    Those versions have already gone through code review, and now they
+    will undergo additional testing during the upcoming freeze period.
+    If new issues in these dependencies are discovered, we have the freeze
+    period to address them. By the end of the freeze period, we will have
+    confidence that the Go 1.16 release and the dependency versions it has
+    selected are robust.
     
-    Change-Id: Ib8d3449d3b061f013112d33362b50e68ad6ddffa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317913
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The dependency module versions that are selected in this commit are:
+    
+            github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7
+            github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340
+            golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+            golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+            golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
+            golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d
+            golang.org/x/sys v0.0.0-20201110211018-35f3e6cf4a65
+            golang.org/x/text v0.3.4
+            golang.org/x/tools v0.0.0-20201110201400-7099162a900a
+            golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+    
+    This change was created with a program from CL 256357 patch set 3
+    (which updates golang.org/x modules only) and the latest bundle tool,
+    but replacing golang.org/x/net version with a slightly older commit
+    golang/net@28c70e62bb1d140c3f2579fb7bb5095134d9cb1e due to #42498:
+    
+            $ updatestd -goroot=$HOME/gotip -branch=master
+            > go version
+            go version devel +ecc3f5112e Thu Nov 5 23:21:33 2020 +0000 darwin/amd64
+            > go env GOROOT
+            /Users/dmitshur/gotip
+            > go version -m /Users/dmitshur/go/bin/bundle
+            /Users/dmitshur/go/bin/bundle: go1.15.4
+                    path    golang.org/x/tools/cmd/bundle
+                    mod     golang.org/x/tools      v0.0.0-20201110201400-7099162a900a      h1:5E6TPwSBG74zT8xSrVc8W59K4ch4NFobVTnh2BYzHyU=
+                    dep     golang.org/x/mod        v0.3.0  h1:RM4zey1++hCTbCVQfnWeKs9/IEsaBLA8vTkd0WVtmH4=
+                    dep     golang.org/x/xerrors    v0.0.0-20200804184101-5ec99f83aff1      h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+    
+            updating module cmd in /Users/dmitshur/gotip/src/cmd
+            skipping github.com/chzyer/logex (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/chzyer/readline (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/chzyer/test (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/google/pprof (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/ianlancetaylor/demangle (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/yuin/goldmark (out of scope, it's not a golang.org/x dependency)
+            skipping rsc.io/pdf (out of scope, it's not a golang.org/x dependency)
+            > go mod edit -go=1.16
+            > go get -d golang.org/x/arch@52c3e6f60cffa0133a3f9b2fc7f6862504a6cba0 golang.org/x/crypto@9e8e0b390897c84cad53ebe9ed2d1d331a5394d9 golang.org/x/mod@ce943fd02449f621243c9ea6e64098e84752b92b golang.org/x/net@28c70e62bb1d140c3f2579fb7bb5095134d9cb1e golang.org/x/sync@67f06af15bc961c363a7260195bcd53487529a21 golang.org/x/sys@35f3e6cf4a65a85bc280e5fe63faed8ac8b25721 golang.org/x/text@22f1617af38ed4cd65b3b96e02bab267e560155c golang.org/x/tools@7099162a900ae8260c5b97cfaf5f374243dfa742 golang.org/x/xerrors@5ec99f83aff198f5fbd629d6c8d8eb38a04218ca
+            > go mod tidy
+            > go mod vendor
+    
+            updating module std in /Users/dmitshur/gotip/src
+            > go mod edit -go=1.16
+            > go get -d golang.org/x/crypto@9e8e0b390897c84cad53ebe9ed2d1d331a5394d9 golang.org/x/net@28c70e62bb1d140c3f2579fb7bb5095134d9cb1e golang.org/x/sys@35f3e6cf4a65a85bc280e5fe63faed8ac8b25721 golang.org/x/text@22f1617af38ed4cd65b3b96e02bab267e560155c golang.org/x/tools@7099162a900ae8260c5b97cfaf5f374243dfa742
+            > go mod tidy
+            > go mod vendor
+    
+            updating bundles in /Users/dmitshur/gotip/src
+            > go generate -run=bundle std cmd
+    
+    golang.org/x/net will be updated further later, after #42498 is fixed.
+    
+    github.com/google/pprof and github.com/ianlancetaylor/demangle
+    contribute packages but are out of scope for this generated CL.
+    
+    Also rename http2configureTransport in net/http to follow the internal
+    rename that happened in CL 264017 to fix the build.
+    
+    For #36905.
+    Updates #41721.
+    Updates #42498.
+    
+    Change-Id: Ifcd2e76f0406e389b6db88041ca51cd0a2115152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266898
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.17.html | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/go.mod                                     |    6 +-
+ src/cmd/go.sum                                     |   20 +-
+ .../golang.org/x/sys/windows/memory_windows.go     |   20 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |    7 +-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   13 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |    3 +-
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      |  122 +-
+ src/cmd/vendor/modules.txt                         |    6 +-
+ src/go.mod                                         |    8 +-
+ src/go.sum                                         |   19 +-
+ src/net/http/export_test.go                        |    2 +-
+ src/net/http/h2_bundle.go                          |   23 +-
+ src/net/http/omithttp2.go                          |    2 +-
+ src/net/http/transport.go                          |    4 +-
+ .../golang.org/x/net/http/httpproxy/proxy.go       |    6 +-
+ .../x/net/idna/{tables12.00.go => tables12.0.0.go} |    2 +-
+ src/vendor/golang.org/x/net/idna/tables13.0.0.go   | 4839 ++++++++++++++++++++
+ src/vendor/golang.org/x/net/nettest/nettest.go     |    2 +-
+ .../golang.org/x/net/nettest/nettest_stub.go       |    2 +-
+ .../golang.org/x/net/nettest/nettest_unix.go       |    2 +-
+ src/vendor/modules.txt                             |    8 +-
+ 21 files changed, 5017 insertions(+), 99 deletions(-)

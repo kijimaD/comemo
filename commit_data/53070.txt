@@ -1,19 +1,24 @@
-commit c890d40d0db00a6a91fd48acee024f0478f10ce4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 10 03:14:22 2023 +0000
+commit d602380f58e2a2ab4b262c7d69b78ff634cba5e8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 28 14:47:49 2022 -0400
 
-    runtime: factor our oneNewExtraM trace code
+    cmd/compile: drop "buildcfg" from no instrument packages
     
-    In the interest of further cleaning up the trace.go API, move the trace
-    logic in oneNewExtraM into its own function.
+    Package buildcfg was added to this list by CL 403851, but package
+    buildcfg does not exist.
     
-    Change-Id: I5cf478cb8cd0d301ee3b068347ed48ce768b8882
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494186
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    This was probably intended to refer to internal/buildcfg, but
+    internal/buildcfg is only used by the compiler so it is not clear why it
+    couldn't be instrumented.
+    
+    For #44853.
+    
+    Change-Id: Iad2517358be79c3eabf240376156bcff0c4bcefc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414516
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/runtime/proc.go  |  7 +------
- src/runtime/trace.go | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/base/base.go | 1 -
+ 1 file changed, 1 deletion(-)

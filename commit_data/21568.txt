@@ -1,15 +1,18 @@
-commit 7c3eeda66f46ed12a4f1472ef4878904fe5a8e33
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 10 22:22:33 2015 -0500
+commit 36f456c789da341df496f161672df618b7410d58
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 16 10:34:07 2015 -0500
 
-    cmd/gc: use go.builtin as package prefix, not go%2ebuiltin
+    misc/cgo: skip testso on ppc64
     
-    This matches all the other pseudo-packages.
-    The line was simply forgotten.
+    This test requires external linking, but we don't yet implement
+    external linking on ppc64 (tracked in issue #8912).  Disable the test
+    on ppc64 until external linking is implemented.
     
-    Change-Id: I278f6cbcfc883ea7efad07f99fc8c853b9b5d274
-    Reviewed-on: https://go-review.googlesource.com/4591
-    Reviewed-by: Austin Clements <austin@google.com>
+    This makes all.bash pass on ppc64le.
+    
+    Change-Id: I741498d4d9321607e7a65792a33faf8187bd18e4
+    Reviewed-on: https://go-review.googlesource.com/2908
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/lex.c | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testso/test.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

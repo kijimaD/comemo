@@ -1,0 +1,18 @@
+commit 2ab210bc7416ff16da95c46c97ede2272f42f718
+Author: Mark Freeman <mark@golang.org>
+Date:   Fri May 16 10:42:06 2025 -0400
+
+    cmd/compile/internal/noder: document the PosBase section
+    
+    Positions mostly borrow their representation from package syntax. Of
+    note, constants (such as the zero value for positions) are not encoded
+    directly. Rather, a flag typically signals such values.
+    
+    Change-Id: I6b4bafc6e96bb21902dd2d6e164031e7dd5aabdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673535
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+
+ src/cmd/compile/internal/noder/doc.go | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

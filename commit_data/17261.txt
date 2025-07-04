@@ -1,25 +1,13 @@
-commit a454d2fd2e6a60648728ca6c959a7c0b24119fec
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 15 16:42:54 2013 +1000
+commit 35d8bb39bd7953dddead3d97db32af77d8941563
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 14 23:21:32 2013 -0700
 
-    time: expand acceptance of time zones when parsing
-    I tried to make it absolutely correct but there are too many
-    conflicting definitions for the official list of time zones.
-    Since when we're parsing we know when to expect
-    a time zone and we know what they look like if not exactly
-    what the definitive set is, we compromise. We accept any
-    three-character sequence of upper case letters, possibly
-    followed by a capital T (all four-letter zones end in T).
+    testing: add TB, an interface common to T and B
     
-    There is one crazy special case (ChST) and the possibility
-    of a signed hour offset for GMT.
-    
-    Fixes #3790
-    I hope forever, but I doubt that very much.
-    
-    R=golang-dev, adg
+    R=golang-dev, kevlar, rsc, adg, r
     CC=golang-dev
-    https://golang.org/cl/12969043
+    https://golang.org/cl/12962043
 
- src/pkg/time/format.go | 37 +++++++++++++++++++++++--------------
- 1 file changed, 23 insertions(+), 14 deletions(-)
+ src/pkg/database/sql/sql_test.go | 16 ++++------------
+ src/pkg/testing/testing.go       | 27 +++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 12 deletions(-)

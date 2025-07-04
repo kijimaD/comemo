@@ -1,14 +1,18 @@
-commit 1325732ab955f84a8cc8a6dbb8c39c8e0c3d7c30
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 19 15:20:39 2013 -0700
+commit 381b72a7a3cc4c7182319f84297d40bb7b459dc4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 19 09:23:04 2013 +0200
 
-    test: add a test that causes gccgo to get a failure at link time
+    cmd/gc: cleanup SWITCH nodes after walk.
     
-    R=golang-dev, r
+    Keeping pointers from the pre-walk phase confuses
+    the race detection instrumentation.
+    
+    Fixes #6418.
+    
+    R=golang-dev, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/13788043
+    https://golang.org/cl/13368057
 
- test/fixedbugs/bug479.dir/a.go | 15 +++++++++++++++
- test/fixedbugs/bug479.dir/b.go | 16 ++++++++++++++++
- test/fixedbugs/bug479.go       | 10 ++++++++++
- 3 files changed, 41 insertions(+)
+ src/cmd/gc/swt.c                          |  3 +++
+ src/pkg/runtime/race/testdata/mop_test.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

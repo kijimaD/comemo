@@ -1,24 +1,30 @@
-commit f81c885819cfca1b92ee64abb0b932e4f73b5049
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 12 08:48:32 2023 -0400
+commit 5e8d261918e1cd9a731ec8688cc969cebcc9ff39
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 9 15:48:41 2021 -0500
 
-    cmd/go,testing: re-implement testing.Coverage
+    runtime: rename _p_ to pp
     
-    This patch revives the testing.Coverage() function, which takes a
-    snapshot of the coverage counters within an executing "go test -cover"
-    test binary and returns a percentage approximating the percent of
-    statements covered so far.
+    _g_, _p_, and _m_ are primarily vestiges of the C version of the
+    runtime, while today we prefer Go-style variable names (generally gp,
+    pp, and mp).
     
-    Fixes #59590.
+    This change replaces all remaining uses of _p_ with pp. These are all
+    trivial replacements (i.e., no conflicts). That said, there are several
+    functions that refer to two different Ps at once. There the naming
+    convention is generally that pp refers to the local P, and p2 refers to
+    the other P we are accessing.
     
-    Change-Id: I541d47a42d71c8fb2edc473d86c8951fa80f4ab0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495450
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I205b801be839216972e7644b1fbeacdbf2612859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306674
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/load/test.go                |  7 ++-
- src/cmd/go/testdata/script/testing_coverage.txt | 57 +++++++++++++++++++++++++
- src/testing/cover.go                            |  3 ++
- src/testing/newcover.go                         | 17 ++++++--
- 4 files changed, 79 insertions(+), 5 deletions(-)
+ src/runtime/export_test.go |  14 +-
+ src/runtime/mgc.go         |  14 +-
+ src/runtime/mgcmark.go     |  12 +-
+ src/runtime/mgcpacer.go    |  12 +-
+ src/runtime/mwbbuf.go      |  16 +-
+ src/runtime/proc.go        | 556 ++++++++++++++++++++++-----------------------
+ src/runtime/trace.go       |  40 ++--
+ 7 files changed, 332 insertions(+), 332 deletions(-)

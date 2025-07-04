@@ -1,26 +1,16 @@
-commit 647bef6c59e201792688d88cdc50ea0c6a68990b
+commit a20021227e987a24d3dbac5118a9dee4d90a96ff
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 24 09:28:43 2021 -0700
+Date:   Wed Dec 9 17:09:14 2020 -0800
 
-    go/types: implement NewTypeList and use it instead of composite literals
+    [dev.typeparams] cmd/compile/internal/types2: bring over subst.go changes from go/types
     
-    Also, simplify a bit of code in predicates.go.
+    This CL make this code match closely with the go/types version
+    (see https://golang.org/cl/276253).
     
-    This is a backport of changes in CL 344615 that were made in addition
-    to the changes of the original CL 343933; it brings go/types in sync
-    with types2.
-    
-    Change-Id: I14cd4d4704d29894d0fbb8d129744d65e332ad22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344570
+    Change-Id: I2b7841309fdbda7e2c9533768bd98317729b13b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276814
     Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/check.go       | 2 +-
- src/go/types/instantiate.go | 2 +-
- src/go/types/predicates.go  | 8 +++-----
- src/go/types/subst.go       | 2 +-
- src/go/types/typelists.go   | 8 ++++++++
- 5 files changed, 14 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/subst.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

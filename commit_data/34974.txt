@@ -1,27 +1,20 @@
-commit e511f153752ab1f17b2862aa47bb149c0ed79990
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 12 07:42:20 2018 -0700
+commit 4fb0af5d5391e5e5f8b47f425b5ceb17c3521a72
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 10:45:49 2017 -0500
 
-    debug/gosym: intern LineTable strings
+    cmd/go: fix -x output for test build failure
     
-    This cuts the allocated space while executing
+    If the build of the test binary failed, the go command correctly
+    avoided running the binary, but the -x output indicated otherwise.
     
-    go tool objdump -S `go tool -n compile`
+    Fixes #22659.
     
-    by over 10%.
-    
-    It also speeds it up slightly:
-    
-    name              old time/op       new time/op       delta
-    ObjdumpSCompiler        9.03s ± 1%        8.88s ± 1%  -1.59%  (p=0.000 n=20+20)
-    
-    Updates #24725
-    
-    Change-Id: Ic6ef8e273ede589334ab6e07099ac2e5bdf990c9
-    Reviewed-on: https://go-review.googlesource.com/106798
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ib4d262bf1735f057c994a45fc23c499d4ebe3246
+    Reviewed-on: https://go-review.googlesource.com/81495
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/gosym/pclntab.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go            | 11 +++++++++++
+ src/cmd/go/internal/test/test.go | 17 +++++++++--------
+ 2 files changed, 20 insertions(+), 8 deletions(-)

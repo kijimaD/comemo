@@ -1,21 +1,58 @@
-commit 8993f79eaccbb27455e2280fa2275fe80b75bde6
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Oct 24 13:28:00 2015 +0200
+commit d931716cde778a3a4c9ab14410f791e9e8b72785
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 11 23:22:57 2015 +0300
 
-    syscall: define common notes on Plan 9
+    net/http: fix races cloning TLS config
     
-    There is no signal list on Plan 9, since notes
-    are strings. However, some programs expect
-    signals to be defined in the syscall package.
-    Hence, we define a list of the most common notes.
+    Found in a Google program running under the race detector.
+    No test, but verified that this fixes the race with go run -race of:
     
-    Updates #11975.
+            package main
     
-    Change-Id: I852e14fd98777c9595a406e04125be1cbebed0fb
-    Reviewed-on: https://go-review.googlesource.com/16301
+            import (
+                    "crypto/tls"
+                    "fmt"
+                    "net"
+                    "net/http"
+                    "net/http/httptest"
+            )
+    
+            func main() {
+                    for {
+                            ts := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {}))
+                            conf := &tls.Config{} // non-nil
+                            a, b := net.Pipe()
+                            go func() {
+                                    sconn := tls.Server(a, conf)
+                                    sconn.Handshake()
+                            }()
+                            tr := &http.Transport{
+                                    TLSClientConfig: conf,
+                            }
+                            req, _ := http.NewRequest("GET", ts.URL, nil)
+                            _, err := tr.RoundTrip(req)
+                            println(fmt.Sprint(err))
+                            a.Close()
+                            b.Close()
+                            ts.Close()
+                    }
+            }
+    
+    Also modified cmd/vet to report the copy-of-mutex bug statically
+    in CL 13646, and fixed two other instances in the code found by vet.
+    But vet could not have told us about cloneTLSConfig vs cloneTLSClientConfig.
+    
+    Confirmed that original report is also fixed by this.
+    
+    Fixes #12099.
+    
+    Change-Id: Iba0171549e01852a5ec3438c25a1951c98524dec
+    Reviewed-on: https://go-review.googlesource.com/13453
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/syscall/errors_plan9.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/net/http/server.go    |  7 ++---
+ src/net/http/transport.go | 80 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 72 insertions(+), 15 deletions(-)

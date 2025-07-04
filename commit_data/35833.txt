@@ -1,23 +1,16 @@
-commit b71ea0b7dd3009d1fd0a3edd1b80f605c727aa03
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Jun 27 17:37:38 2018 -0500
+commit 8f406af8e8a9c594cf40fcfbeaa78f589ed0ad27
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Mar 11 04:07:58 2018 +0900
 
-    cmd/compile: mark CMOVLEQF, CMOVWEQF as cloberring AX
+    net: avoid unnecessary type conversions
     
-    Code generation for OpAMD64CMOV[WLQ]EQF uses AX as a scratch register,
-    but only CMOVQEQF, correctly lets compiler know. Mark other 2 as
-    clobbering AX.
+    CL generated mechanically with github.com/mdempsky/unconvert.
     
-    Fixes #26097
-    
-    Change-Id: I2a65bd67bf18a540898b4a0ae6c8766e0b767b19
-    Reviewed-on: https://go-review.googlesource.com/121336
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I6c555da5972618dca4302ef8be8d93c765f95db3
+    Reviewed-on: https://go-review.googlesource.com/100035
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 +--
- src/cmd/compile/internal/ssa/opGen.go        | 10 +++---
- test/fixedbugs/issue26097.go                 | 47 ++++++++++++++++++++++++++++
- 3 files changed, 55 insertions(+), 6 deletions(-)
+ src/net/ip.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

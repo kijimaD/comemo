@@ -1,18 +1,13 @@
-commit 5bf57c1b416ec5031f48cbc3300beebdffaacc70
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 2 12:58:26 2011 -0700
+commit 2a8ea0d1b598938d344edec9428acc4a2d2e8e4e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 2 12:00:26 2011 -0700
 
-    big: remove some unnecessary conversions
+    http: catch panics
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4529110
+    https://golang.org/cl/4559067
 
- src/pkg/big/arith.go      |  4 ++--
- src/pkg/big/arith_386.s   |  8 ++++----
- src/pkg/big/arith_amd64.s | 12 ++++++------
- src/pkg/big/arith_arm.s   | 12 +++++++++---
- src/pkg/big/arith_decl.go |  4 ++--
- src/pkg/big/arith_test.go | 19 +++++++++++++++----
- src/pkg/big/nat.go        | 43 ++++++++++++++++++++++---------------------
- 7 files changed, 60 insertions(+), 42 deletions(-)
+ src/pkg/http/serve_test.go | 18 ++++++++++++++++++
+ src/pkg/http/server.go     | 30 +++++++++++++++++++++++++++++-
+ 2 files changed, 47 insertions(+), 1 deletion(-)

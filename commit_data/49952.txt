@@ -1,36 +1,18 @@
-commit 90466e1ddf0e4305bc56f6eac61a690704e6fab8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 16 10:50:35 2022 -0400
+commit 333f3de2a10f22269b567d82144ab3528a3e6c07
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 22 14:05:49 2021 -0500
 
-    crypto/internal/subtle: rename to crypto/internal/alias
+    cmd/compile: update PPC64 CALL* ops for register ABI
     
-    This avoids an import conflict with crypto/subtle.
-    CL 424175 does the same for x/crypto.
+    Allow the CALL ops to take variable number of arguments.
     
-    Change-Id: Id4a319b3283b8affaaf769062388325b31fe1715
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424194
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6753c2fcb434ce2ebbce51dd595fbcbb39a60bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351589
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/crypto/aes/aes_gcm.go                          |  6 ++--
- src/crypto/aes/cbc_ppc64x.go                       |  4 +--
- src/crypto/aes/cbc_s390x.go                        |  4 +--
- src/crypto/aes/cipher.go                           |  6 ++--
- src/crypto/aes/cipher_asm.go                       |  6 ++--
- src/crypto/aes/cipher_s390x.go                     |  6 ++--
- src/crypto/aes/ctr_s390x.go                        |  4 +--
- src/crypto/aes/gcm_s390x.go                        | 10 +++---
- src/crypto/cipher/cbc.go                           |  6 ++--
- src/crypto/cipher/cfb.go                           |  4 +--
- src/crypto/cipher/ctr.go                           |  4 +--
- src/crypto/cipher/gcm.go                           |  6 ++--
- src/crypto/cipher/ofb.go                           |  4 +--
- src/crypto/des/cipher.go                           | 10 +++---
- .../{subtle/aliasing.go => alias/alias.go}         | 10 ++----
- .../aliasing_test.go => alias/alias_test.go}       | 12 +++----
- src/crypto/internal/subtle/aliasing_appengine.go   | 37 ----------------------
- src/crypto/rc4/rc4.go                              |  4 +--
- src/go/build/deps_test.go                          |  3 +-
- 19 files changed, 51 insertions(+), 95 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
+ src/cmd/compile/internal/ssa/opGen.go        | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

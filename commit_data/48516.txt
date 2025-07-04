@@ -1,20 +1,26 @@
-commit cccfb8ffdb97224aed5cc718d4bac3f3df9e55ed
+commit 4bb927f82e7d4661d287ec5e975ba6cbdee2ae90
 Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Mar 23 18:57:16 2022 -0400
+Date:   Tue May 25 11:53:04 2021 -0400
 
-    cmd/link: do not add label symbols for DWARF on Windows/ARM64
+    [dev.typeparams] cmd/compile: define ARM64 parameter registers
     
-    Label symbols are only useful for relocations from text. No need
-    to do it for DWARF. And the PE symbol table doesn't like them.
+    Define the registers.
     
-    May fix #51903.
+    They are not really enabled for now. Otherwise the compiler will
+    start using them for go:registerparams functions and it is not
+    fully working. Some test will fail.
     
-    Change-Id: Ibe6ea880d8533ba1dcc017030072c7dffee0e9e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395215
+    Now we can compile a simple Add function with registerparams
+    (with registers enabled).
+    
+    Change-Id: Ifdfac931052c0196096a1dd8b0687b5fdedb14d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322850
     Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/arm64/asm.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/arm64/ssa.go        | 3 +++
+ src/cmd/compile/internal/ssa/config.go       | 4 ++++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 4 ++--
+ 4 files changed, 11 insertions(+), 2 deletions(-)

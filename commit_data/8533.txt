@@ -1,12 +1,15 @@
-commit 5d5d84f3df7f735563a411b5dc940bcf731bc771
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon May 30 10:48:08 2011 +1000
+commit da32ed7bf18919f5397e620b794afe30a7c1dd37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 29 09:32:36 2011 -0700
 
-    gob: fix documentation on Decoder.Decode.
+    http: let Transport use a custom net.Dial function
     
-    R=r, adg
+    Permits the use of SOCKS proxy dialer with
+    the transport.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4515159
+    https://golang.org/cl/4536091
 
- src/pkg/gob/decoder.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/transport.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

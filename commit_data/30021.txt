@@ -1,26 +1,19 @@
-commit 3f45916433c7e868c75b7a23c9288f8c67447acc
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Dec 5 10:24:30 2016 -0800
+commit f0e347b1a8161c41be9dbcfe5db5e4e4dae57cfd
+Author: Joe Tsai <joetsai@google.com>
+Date:   Fri Oct 21 19:43:33 2016 +0000
 
-    crypto/tls: reject SNI values with a trailing dot.
+    Revert "cmd/compile: cleanup toolstash hacks from previous CL"
     
-    SNI values may not include a trailing dot according to
-    https://tools.ietf.org/html/rfc6066#section-3. Although crypto/tls
-    handled this correctly as a client, it didn't reject this as a server.
+    This partially reverts commit 01bf5cc21912ff8642171d8255a7fff87f1da00b.
     
-    This change makes sending an SNI value with a trailing dot a fatal
-    error.
+    For unknown reasons, this CL was causing an internal test to allocate
+    1.2GB when it used to allocate less than 300MB.
     
-    Updates #18114.
-    
-    Change-Id: Ib7897ab40e98d4a7a4646ff8469a55233621f631
-    Reviewed-on: https://go-review.googlesource.com/33904
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I41d767781e0ae9e43bf670e2a186ee074821eca4
+    Reviewed-on: https://go-review.googlesource.com/31674
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/handshake_client.go        |  2 +-
- src/crypto/tls/handshake_messages.go      | 11 ++++++++++-
- src/crypto/tls/handshake_messages_test.go |  4 ++++
- src/crypto/tls/handshake_server_test.go   |  4 ++++
- 4 files changed, 19 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

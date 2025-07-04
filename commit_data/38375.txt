@@ -1,19 +1,21 @@
-commit 01d1dc4172793edfc597f7abe5da38f7f232b69a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 16:43:45 2019 -0400
+commit 5dc2e2f7c44a0b33dc34f5e47d9ca095d331c87b
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Oct 24 15:27:35 2018 +0200
 
-    cmd/go: fix typo in GoGetInsecure to actually set GOPROXY
+    misc/ios: remove note from output of detect.go
     
-    I typo'd this variable in CL 165745, and neither I, the reviewer, nor the TryBots noticed.
-    But the longtest builder noticed, and it's not happy about it.
+    If no GOIOS_DEV_ID is set, iostest.bash will eval the output of
+    detect.go. Prepend the note output by detect.go with # to make
+    the shell ignore it.
     
-    Updates #30571
+    Went undetected for so long because the iOS builders usually run
+    with GOIOS_DEV_ID set.
     
-    Change-Id: I5e3d267346407855ec0d1f340a72dc2c521ecc63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167086
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I308eac94803851620ca91593f9a1aef79825187f
+    Reviewed-on: https://go-review.googlesource.com/c/144109
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/ios/detect.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

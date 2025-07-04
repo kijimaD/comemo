@@ -1,34 +1,22 @@
-commit 2e93fe0a9f55aaa2a762e7fb454d76b2ee3a4e4f
-Author: David Chase <drchase@google.com>
-Date:   Tue Apr 25 19:14:05 2023 -0400
+commit aca37d16a5a5c1d24e374245f0e5b6404379db96
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 22 15:19:54 2022 -0400
 
-    runtime: move per-type types to internal/abi
+    cmd/go: avoid indexing modules in GOROOT
     
-    Change-Id: I1f031f0f83a94bebe41d3978a91a903dc5bcda66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489276
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Scanning GOROOT modules for changes appears to be causing Windows
+    builders to time out in x/tools tests. We may try a per-package index
+    instead, but for now just skip GOROOT modules (as we do for main
+    modules).
+    
+    Fixes #53493.
+    
+    Change-Id: Ic5bb90b4ce173a24fc6564e85fcde96e1f9b975f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413634
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go      |  12 +-
- src/cmd/link/internal/ld/dwarf_test.go |  20 +--
- src/runtime/alg.go                     |   8 +-
- src/runtime/arena.go                   |  10 +-
- src/runtime/cgocall.go                 |  18 +-
- src/runtime/cgocheck.go                |  14 +-
- src/runtime/export_debug_test.go       |   2 +-
- src/runtime/export_test.go             |   8 +-
- src/runtime/heapdump.go                |   4 +-
- src/runtime/iface.go                   |  38 ++---
- src/runtime/map.go                     | 304 ++++++++++++++++-----------------
- src/runtime/map_fast32.go              |  68 ++++----
- src/runtime/map_fast64.go              |  70 ++++----
- src/runtime/map_faststr.go             |  68 ++++----
- src/runtime/mbitmap.go                 |   6 +-
- src/runtime/mfinal.go                  |  20 +--
- src/runtime/plugin.go                  |   2 +-
- src/runtime/runtime1.go                |   4 +-
- src/runtime/syscall_windows.go         |  16 +-
- src/runtime/type.go                    | 223 +++++-------------------
- 20 files changed, 392 insertions(+), 523 deletions(-)
+ src/cmd/go/go_test.go                | 14 ---------
+ src/cmd/go/internal/modindex/read.go | 58 +++++++-----------------------------
+ 2 files changed, 11 insertions(+), 61 deletions(-)

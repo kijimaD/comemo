@@ -1,20 +1,19 @@
-commit 774d001d178569283cb719bd062cf5d18de51f47
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Oct 4 03:23:54 2023 +0000
+commit c1c6b0ca79233c8b7612957291c2d47d337cc2de
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Jul 4 10:16:12 2022 +0800
 
-    bufio: use max/min func
+    cmd/compile: remove the resultInArg0 register checks on linux/loong64
     
-    Change-Id: I52875f8dd4bbdc9296ba8e4f801356047ee14e62
-    GitHub-Last-Rev: dfb2a343e60f0994a5741e1b4534e464a80ba2ef
-    GitHub-Pull-Request: golang/go#63344
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532216
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    The automatic resultInArg0 register check has been implemented by CL 296010.
+    
+    Change-Id: Id0e085ded9aa097bd02593c359a750d938a3aaa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416034
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/bufio/bufio.go | 5 +----
- src/bufio/scan.go  | 4 +---
- 2 files changed, 2 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/loong64/ssa.go | 3 ---
+ 1 file changed, 3 deletions(-)

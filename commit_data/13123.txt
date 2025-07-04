@@ -1,73 +1,13 @@
-commit 845aa1fc2c86d761a96d31de5e168d2a0f76f0da
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 22 13:35:52 2012 -0400
+commit 581e7c2a78bcb3833bc23ac47f77c1b62dab4f40
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 10:30:35 2012 -0700
 
-    runtime: faster GC sweep phase
-    benchmark                              old ns/op    new ns/op    delta
+    go/ast: document CommentGroup.Text and add test case.
     
-    garbage.BenchmarkParser               3731065750   3715543750   -0.41%
-    garbage.BenchmarkParser-2             3631299750   3495248500   -3.75%
-    garbage.BenchmarkParser-4             3386486000   3339353000   -1.39%
-    garbage.BenchmarkParser-8             3267632000   3286422500   +0.58%
-    garbage.BenchmarkParser-16            3299203000   3316081750   +0.51%
-    
-    garbage.BenchmarkTree                  977532888    919453833   -5.94%
-    garbage.BenchmarkTree-2                919948555    853478000   -7.23%
-    garbage.BenchmarkTree-4                841329000    790207000   -6.08%
-    garbage.BenchmarkTree-8                787792777    740380666   -6.01%
-    garbage.BenchmarkTree-16               899257166    846594555   -5.86%
-    
-    garbage.BenchmarkTree2                 574876300    571885800   -0.52%
-    garbage.BenchmarkTree2-2               348162700    345888900   -0.65%
-    garbage.BenchmarkTree2-4               184912500    179137000   -3.22%
-    garbage.BenchmarkTree2-8               104243900    103485600   -0.73%
-    garbage.BenchmarkTree2-16               97269500     85137100  -14.25%
-    
-    garbage.BenchmarkParserPause           141101976    157746974  +11.80%
-    garbage.BenchmarkParserPause-2         103096051     83043048  -19.45%
-    garbage.BenchmarkParserPause-4          52153133     45951111  -11.89%
-    garbage.BenchmarkParserPause-8          36730190     38901024   +5.91%
-    garbage.BenchmarkParserPause-16         32678875     29578585   -9.49%
-    
-    garbage.BenchmarkTreePause              29487065     29648439   +0.55%
-    garbage.BenchmarkTreePause-2            22443494     21306159   -5.07%
-    garbage.BenchmarkTreePause-4            15799691     14985647   -5.15%
-    garbage.BenchmarkTreePause-8            10768112     9531420   -12.97%
-    garbage.BenchmarkTreePause-16           16329891     15205158   -6.89%
-    
-    garbage.BenchmarkTree2Pause           2586957240   2577533200   -0.36%
-    garbage.BenchmarkTree2Pause-2         1683383760   1673923800   -0.56%
-    garbage.BenchmarkTree2Pause-4         1102860320   1074040280   -2.68%
-    garbage.BenchmarkTree2Pause-8          902627920    886122400   -1.86%
-    garbage.BenchmarkTree2Pause-16         856470920    804152320   -6.50%
-    
-    garbage.BenchmarkParserLastPause       277316000    280839000   +1.25%
-    garbage.BenchmarkParserLastPause-2     179446000    163687000   -8.78%
-    garbage.BenchmarkParserLastPause-4     106752000     94144000  -11.81%
-    garbage.BenchmarkParserLastPause-8      57758000     61640000   +6.72%
-    garbage.BenchmarkParserLastPause-16     51235000     42552000  -16.95%
-    
-    garbage.BenchmarkTreeLastPause          45244000     50786000  +12.25%
-    garbage.BenchmarkTreeLastPause-2        37163000     34654000   -6.75%
-    garbage.BenchmarkTreeLastPause-4        24178000     21967000   -9.14%
-    garbage.BenchmarkTreeLastPause-8        20390000     15648000  -30.30%
-    garbage.BenchmarkTreeLastPause-16       22398000     20180000   -9.90%
-    
-    garbage.BenchmarkTree2LastPause       5748706000   5718809000   -0.52%
-    garbage.BenchmarkTree2LastPause-2     3481570000   3458844000   -0.65%
-    garbage.BenchmarkTree2LastPause-4     1849073000   1791330000   -3.22%
-    garbage.BenchmarkTree2LastPause-8     1042375000   1034811000   -0.73%
-    garbage.BenchmarkTree2LastPause-16     972637000    851323000  -14.25%
-    
-    There is also visible improvement in consumed CPU time:
-    tree2 -heapsize=8000000000 -cpus=12
-    before: 248.74user 6.36system 0:52.74elapsed 483%CPU
-    after:  229.86user 6.33system 0:51.08elapsed 462%CPU
-    -1.66s of real time, but -18.91s of consumed CPU time
-    
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6215065
+    https://golang.org/cl/6206096
 
- src/pkg/runtime/mgc0.c | 97 +++++++++++++++++++++-----------------------------
- 1 file changed, 40 insertions(+), 57 deletions(-)
+ src/pkg/go/ast/ast.go      | 14 +++++++------
+ src/pkg/go/ast/ast_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 6 deletions(-)

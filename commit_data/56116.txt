@@ -1,21 +1,18 @@
-commit d08a957298c961a26436d3991028f68ff36cfbfc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 8 12:58:33 2023 +0700
+commit 267b50a8349790afaff6649b719331fc89ef8825
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 11 14:15:36 2023 +0000
 
-    all: add reflect.SliceAt function
+    Revert "go/printer: reuse go/token.FileSet.PositionFor calls in setPos"
     
-    Fixes #61308
+    This reverts commit http://go.dev/cl/461739
     
-    Change-Id: Ic17d737fda055a60779985d5da497745c80d5cfa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516597
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reason for revert: Causes longtest failures due to odd formatting.
+    
+    Change-Id: I7e31ff107e730b6d667866ea7718bc8632760422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483676
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/61308.txt                          |  1 +
- doc/next/6-stdlib/99-minor/reflect/61308.md |  3 +++
- src/reflect/all_test.go                     | 41 +++++++++++++++++++++++++++++
- src/reflect/value.go                        | 13 +++++++++
- src/runtime/unsafe.go                       |  5 ++++
- 5 files changed, 63 insertions(+)
+ src/go/printer/printer.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

@@ -1,18 +1,14 @@
-commit 4f1e7be51f401a5374c0def2df0773abc924b03c
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Oct 26 13:51:44 2016 -0700
+commit e022dcd35f3047134c661ef27cafdf1d845df447
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 25 17:19:28 2016 -0700
 
-    crypto/x509: use Certificate.Equals and CertPool.contains.
+    syscall: fix plan9/386 RawSyscall6
     
-    By using these utility functions, the code can be made a little shorter.
-    Thanks to Omar Shafie for pointing this out in
-    https://golang.org/cl/27393/.
+    Fixes the build.
     
-    Change-Id: I33fd97cf7d60a31d0844ec16c12bba530dcc6f6d
-    Reviewed-on: https://go-review.googlesource.com/32120
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I34bcae08cfb43257aeb9086336966ef85f15fe1d
+    Reviewed-on: https://go-review.googlesource.com/27815
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/crypto/x509/cert_pool.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ src/syscall/asm_plan9_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

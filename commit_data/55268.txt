@@ -1,16 +1,25 @@
-commit 3f442ab06242d76c17f909fc7fc2de7908f3fc1c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 11 16:19:42 2023 -0500
+commit a37672bb7bef3d0163dd18f9f6914e2f829f1148
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jan 18 15:20:15 2023 -0600
 
-    doc/go1.22: document archive/tar and archive/zip changes
+    test/codegen: accept ppc64x as alias for ppc64le and ppc64 arches
     
-    For #61422.
+    This helps simplify the noise when adding ppc codegen tests. ppc64x
+    is used in other places to indicate something which runs on either
+    endian.
     
-    Change-Id: Icf56cba0ac40b46caf3072bf2951b07403f47f36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548939
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This helps cleanup existing codegen tests which are mostly
+    identical between endian variants.
+    
+    condmove tests are converted as an example.
+    
+    Change-Id: I2b2d98a9a1859015f62db38d62d9d5d7593435b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- doc/go1.22.html | 20 ++++++--------------
- 1 file changed, 6 insertions(+), 14 deletions(-)
+ test/codegen/condmove.go | 41 ++++++++++++++---------------------------
+ test/run.go              | 24 ++++++++++++++++--------
+ 2 files changed, 30 insertions(+), 35 deletions(-)

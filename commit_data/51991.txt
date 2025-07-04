@@ -1,27 +1,24 @@
-commit 790f25052d829578ffc3eabc29e90175e28aeb80
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Feb 13 10:13:57 2023 -0500
+commit 83327b4ae41cf1ef17fb4df4dc395cf17efc6375
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Mar 29 18:30:06 2022 -0400
 
-    cmd/link/internal/ld: fix text section splitting for ARM
+    go/types: clarify that contexts do not guarantee deduplication
     
-    Fix a problem with trampoline generation for ARM that was causing link
-    failures when building selected k8s targets. Representative error
-    (this is coming from the external linker):
+    Documentation around the use of types.Context is unclear about whether
+    contexts guarantee deduplication of identical instances. Add explicit
+    disclaimers that this is not the case.
     
-      go.go:(.text+...): relocation truncated to fit: R_ARM_CALL against `runtime.duffcopy'
+    Fixes golang/go#51680
     
-    The Go linker is supposed to be limiting text section size for ARM to
-    0x1c00000 bytes, however due to a problem in the tramp generation
-    phase this limit wasn't being enforced.
-    
-    Updates #58428.
-    Fixes #58425.
-    
-    Change-Id: I4e778bdcbebeab607a6e626b354ca5109e52a1aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467715
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6651587315d3cbf9e8d70a69d3e2ec5cedd00da5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396536
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/data.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/context.go     | 7 ++++---
+ src/cmd/compile/internal/types2/instantiate.go | 3 ++-
+ src/go/types/context.go                        | 7 ++++---
+ src/go/types/instantiate.go                    | 3 ++-
+ 4 files changed, 12 insertions(+), 8 deletions(-)

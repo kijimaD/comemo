@@ -1,21 +1,15 @@
-commit f00c54146ca0d9663f16f8ef2ea87862dc936ce3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 10 13:59:12 2023 +0000
+commit 2bea43b0e7f3e636ffc8239f9d3fccdd5d763c8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 16:21:45 2022 -0700
 
-    net: avoid opening an external port in TestDialListenerAddr
+    spec: state that variable names must be unique in short var decls
     
-    The behavior in #18806 can be tested with a localhost-only port,
-    provided that we're willing to assume what format the listener would
-    report for an external dual-stack port.
+    Fixes #45652.
     
-    Fixes #59497.
-    
-    Change-Id: I171fb03eb46aee8e85480e04626a23f4f3b923e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482163
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I5e1434480c12815369a6ce204f3729eb63139125
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405757
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dial_test.go | 40 ++++++++++++++++++++++++++++++++++++----
- 1 file changed, 36 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

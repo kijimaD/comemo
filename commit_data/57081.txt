@@ -1,24 +1,21 @@
-commit aac7106cb9b6e59cb16f1c0a1123a67669a4ed2d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Aug 1 23:41:13 2024 +0200
+commit 65db95d0ed69b047b54b2dea28406b2764a62bbe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 14:31:21 2023 -0700
 
-    crypto/tls: fix testHandshake close flakes
+    math: document that Min/Max differ from min/max
     
-    The flakes were introduced by me in CL 586655. It's unclear why only
-    FreeBSD seems affected, maybe other TCP stacks handle sending on a
-    half-closed connection differently, or aren't as quick to propagate the
-    RST over localhost.
+    For #59488
+    Fixes #60616
     
-    Fixes #68155
-    
-    Change-Id: I32a1b474a7d6531dbab93910c23568b867629e8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602615
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Idf9f42d7d868999664652dd7b478684a474f1d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501355
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/handshake_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/math/dim.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

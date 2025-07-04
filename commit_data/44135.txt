@@ -1,20 +1,35 @@
-commit 9f83418b83a43029ce8801ef10162dd94fdba81d
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jan 15 13:19:31 2021 -0500
+commit f073395b73e2e5926a7bb996094a3e49ebc1d4dc
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed May 13 16:46:16 2020 +0100
 
-    cmd/link: remove GOROOT write in TestBuildForTvOS
+    cmd/compile: fix tuple selector bug in CSE pass
     
-    Tests should avoid writing to GOROOT when possible. Such writes
-    would fail if GOROOT is non-writeable, and it can interfere with
-    other tests that don't expect GOROOT to change during test execution.
+    When tuple generators and selectors are eliminated as part of the
+    CSE pass we may end up with tuple selectors that are in different
+    blocks to the tuple generators that they correspond to. This breaks
+    the invariant that tuple generators and their corresponding
+    selectors must be in the same block. Therefore after CSE this
+    situation must be corrected.
     
-    Updates #28387.
+    Unfortunately the fixup code did not take into account that selectors
+    could be eliminated by CSE. It assumed that only the tuple generators
+    could be eliminated. In some situations this meant that it got into
+    a state where it was replacing references to selectors with references
+    to dead selectors in the wrong block.
     
-    Change-Id: I7d72614f218df3375540f5c2f9c9f8c11034f602
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284293
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    To fix this we move the fixup code after the CSE rewrites have been
+    applied. This removes any difficult-to-reason-about interactions
+    with the CSE rewriter.
+    
+    Fixes #38916.
+    
+    Change-Id: I2211982dcdba399d03299f0a819945b3eb93b291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233857
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/link_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/cse.go | 92 ++++++++++++++++++++++---------------
+ test/fixedbugs/issue38916.go        | 14 ++++++
+ 2 files changed, 69 insertions(+), 37 deletions(-)

@@ -1,18 +1,23 @@
-commit 5d80f8a82b1fc3261bb4279f1426a9767b654e92
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Sun Apr 11 13:13:11 2021 +0300
+commit bb9b319228760f9e4b2517114b6eecc6fe0cef30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 23 16:32:59 2020 -0400
 
-    runtime: replace outdated documentation link in Windows' nanotime
+    cmd/go: add yet another test case for ambiguous arguments to 'go get'
     
-    Fixes #45498
+    For #37438
     
-    Change-Id: I89365f3517bc84376f0f580c64a57f38aaba0cbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308997
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie40971ff677d36ddadbf9834bba2d366a0fc34d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256922
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/sys_windows_386.s   | 4 +++-
- src/runtime/sys_windows_amd64.s | 4 +++-
- src/runtime/sys_windows_arm.s   | 4 +++-
- src/runtime/sys_windows_arm64.s | 4 +++-
- 4 files changed, 12 insertions(+), 4 deletions(-)
+ .../mod/example.net_ambiguous_nested_v0.1.0.txt    |  19 ++++
+ .../testdata/mod/example.net_ambiguous_v0.1.0.txt  |  19 ++++
+ .../testdata/mod/example.net_ambiguous_v0.2.0.txt  |  18 ++++
+ .../go/testdata/script/mod_get_ambiguous_arg.txt   |   8 +-
+ .../go/testdata/script/mod_get_ambiguous_pkg.txt   | 101 +++++++++++++++++++++
+ 5 files changed, 161 insertions(+), 4 deletions(-)

@@ -1,58 +1,13 @@
-commit 56069f0333ea5464a5d6688c55a03b607b01ad11
+commit c560a0742b2b91d6cb7bb890cf33d55beb68680d
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 17 10:04:29 2012 +1100
+Date:   Fri Feb 17 09:56:14 2012 +1100
 
-    os: delete os.EINVAL and so on
-    The set of errors forwarded by the os package varied with system and
-    was therefore non-portable.
-    Three helpers added for portable error checking: IsExist, IsNotExist, and IsPermission.
-    One or two more may need to come, but let's keep the set very small to discourage
-    thinking about errors that way.
+    path/filepath: fix test on darwin
+    /tmp being itself a symlink causes problems for the test, so use / as the absolute path.
     
-    R=mikioh.mikioh, gustavo, r, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5672047
+    https://golang.org/cl/5675070
 
- doc/go1.html                         | 21 ++++++++++-
- doc/go1.tmpl                         | 17 ++++++++-
- doc/go_tutorial.html                 |  8 ++---
- doc/go_tutorial.tmpl                 |  2 +-
- doc/progs/file.go                    |  6 ++--
- doc/progs/file_windows.go            |  6 ++--
- doc/progs/go1.go                     | 11 ++++++
- src/pkg/io/ioutil/tempfile.go        |  4 +--
- src/pkg/net/fd.go                    |  2 +-
- src/pkg/net/fd_windows.go            | 20 ++++++-----
- src/pkg/net/file.go                  |  8 ++---
- src/pkg/net/http/fs_test.go          |  3 +-
- src/pkg/net/http/httputil/persist.go |  4 +--
- src/pkg/net/iprawsock_posix.go       | 24 ++++++-------
- src/pkg/net/ipsock_plan9.go          |  8 ++---
- src/pkg/net/tcpsock_plan9.go         |  4 +--
- src/pkg/net/tcpsock_posix.go         | 32 ++++++++---------
- src/pkg/net/udpsock_plan9.go         | 10 +++---
- src/pkg/net/udpsock_posix.go         | 26 +++++++-------
- src/pkg/net/unixsock_posix.go        | 40 ++++++++++-----------
- src/pkg/os/dir_plan9.go              | 11 +++---
- src/pkg/os/env.go                    |  2 +-
- src/pkg/os/error.go                  | 12 +++++++
- src/pkg/os/error_plan9.go            | 60 +++++++++++++++++---------------
- src/pkg/os/error_posix.go            | 67 ++++++++++++++----------------------
- src/pkg/os/exec/lp_unix.go           |  2 +-
- src/pkg/os/exec/lp_windows.go        |  4 +--
- src/pkg/os/exec_plan9.go             |  2 +-
- src/pkg/os/exec_unix.go              |  2 +-
- src/pkg/os/exec_windows.go           |  2 +-
- src/pkg/os/file.go                   | 10 +++---
- src/pkg/os/file_plan9.go             | 19 +++++-----
- src/pkg/os/file_posix.go             |  2 +-
- src/pkg/os/file_unix.go              |  2 +-
- src/pkg/os/file_windows.go           |  8 ++---
- src/pkg/os/getwd.go                  |  4 +--
- src/pkg/os/os_test.go                |  9 ++---
- src/pkg/os/path.go                   |  9 +++--
- src/pkg/os/path_test.go              |  3 +-
- src/pkg/os/stat_plan9.go             |  4 +--
- src/pkg/os/stat_windows.go           |  2 +-
- test/fixedbugs/bug262.go             |  4 +--
- 42 files changed, 278 insertions(+), 218 deletions(-)
+ src/pkg/path/filepath/path_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

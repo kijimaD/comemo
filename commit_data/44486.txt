@@ -1,24 +1,15 @@
-commit 726d704c32acf99a9ed44d81c99adb22d4759241
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu Nov 19 07:18:41 2020 +0000
+commit 0951939fd9e4a6bc83f23c42e8ddff02b29c997e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Jul 15 22:04:57 2020 -0600
 
-    cmd/asm: add arm64 instructions VUMAX and VUMIN
+    doc/go1.15: add release notes for math/cmplx
     
-    This CL adds support for arm64 fp&simd instructions VUMAX and VUMIN.
-    Fixes #42326
+    Updates #37419
     
-    Change-Id: I3757ba165dc31ce1ce70f3b06a9e5b94c14d2ab9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271497
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id7c9aba518c826c1a6fccbbf82210072bd3346f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242903
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      | 12 ++++++++++++
- src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
- src/cmd/internal/obj/arm64/a.out.go            |  2 ++
- src/cmd/internal/obj/arm64/anames.go           |  2 ++
- src/cmd/internal/obj/arm64/asm7.go             | 12 ++++++++++++
- 5 files changed, 32 insertions(+)
+ doc/go1.15.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,20 +1,14 @@
-commit b83350a2e05d63eaae8da9ff4f957ab44e4cb9d9
+commit e7191479ec57e89aa1967e75a87f9da4d1d8b734
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 14 22:23:10 2016 +0000
+Date:   Tue Sep 20 21:52:11 2016 +0000
 
-    Revert "text/template: efficient reporting of line numbers"
+    doc: add some missing HTML tags in the FAQ
     
-    This reverts commit 794fb71d9c1018c4beae1657baca5229e6a02ad0.
+    Fixes #17170
     
-    Reason for revert: submitted without TryBots and it broke all three race builders.
-    
-    Change-Id: I80a1e566616f0ee8fa3529d4eeee04268f8a713b
-    Reviewed-on: https://go-review.googlesource.com/33232
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I939f087df133710495fdf6f09040051cb9b176d7
+    Reviewed-on: https://go-review.googlesource.com/29442
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/exec_test.go        |   2 +-
- src/text/template/parse/lex.go        |  36 ++---
- src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
- src/text/template/parse/parse.go      |  22 ++-
- src/text/template/parse/parse_test.go |  34 -----
- 5 files changed, 149 insertions(+), 204 deletions(-)
+ doc/go_faq.html | 3 +++
+ 1 file changed, 3 insertions(+)

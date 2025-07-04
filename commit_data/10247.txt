@@ -1,12 +1,12 @@
-commit cb2040b2ab68ab7d2863e65920749ed1266f7acd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 4 07:24:39 2011 -0400
+commit ed925490710adedc36d1273cf7d01f3b8dd19946
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 4 17:55:21 2011 +1100
 
-    runtime: fix openbsd nanotime?
+    bytes: fix typo and resolve to be less idiotic next time
     
-    TBR=r
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5353041
+    https://golang.org/cl/5340044
 
- src/pkg/runtime/openbsd/amd64/sys.s | 2 +-
+ src/pkg/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

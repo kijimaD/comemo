@@ -1,20 +1,20 @@
-commit 95f18757a0fa283c4237ca03b48049980fe9b9c3
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Fri Mar 29 12:13:02 2019 +0100
+commit 2b534f28ce4b7d9bd1fb09ab1bfcbf36f720bc01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 9 17:27:39 2018 +0000
 
-    runtime/cgo: use free TLS slot on Android Q
+    Revert "cmd/vet: lostcancel: suppress the check in the main.main function"
     
-    Android assumes pthread tls keys correspond to some offset from the
-    TLS base. This is about to change in a future version of Android.
-    Fortunately, Android Q leaves a slot open for use to use, TLS_SLOT_APP.
+    This reverts CL 148758 (commit 5e17ce22ece18571597ef9a214cdfcd461894e9c)
     
-    Fixes #29674
+    Reason for revert: breaks the build.
     
-    Change-Id: Id6ba19afacdfed9b262453714715435e2544185f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170117
+    Change-Id: I6ed15b7b8f6b74d84edab9402ddf7ae87a0d0387
+    Reviewed-on: https://go-review.googlesource.com/c/148817
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/gcc_android.c | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/vet/lostcancel.go          | 5 -----
+ src/cmd/vet/testdata/lostcancel.go | 8 +-------
+ 2 files changed, 1 insertion(+), 12 deletions(-)

@@ -1,14 +1,15 @@
-commit a1c9e103719289b4f291fcb631ad324a0e331aed
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 5 00:20:45 2015 -0500
+commit 361199749d81d06cc1007db9f7da5818b6f830b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 20:52:58 2014 -0500
 
-    reflect: document that Values can't be compared directly
+    build: disable race external linking test on OS X 10.6 and earlier
     
-    Fixes #9504.
+    External linking doesn't work there at all.
     
-    Change-Id: I148f407ace3d1b4db3f19fbb8561d1ee6c4c13b3
-    Reviewed-on: https://go-review.googlesource.com/2273
-    Reviewed-by: Rob Pike <r@golang.org>
+    LGTM=bradfitz
+    R=adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/176070043
 
- src/reflect/value.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/run.bash | 37 ++++++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

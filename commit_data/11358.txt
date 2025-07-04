@@ -1,30 +1,12 @@
-commit 0da89b3964d7b9f44d5180b147791c57312ddd0f
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Tue Jan 24 14:48:15 2012 -0500
+commit fce2416b135b47119ceb9171aa5ddc3326346206
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 11:24:55 2012 -0800
 
-    test: Add the usual Copyright notice.
+    go/build: typo
     
-    Fixes #2759.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5570053
+    https://golang.org/cl/5575049
 
- misc/cgo/test/align.go                | 4 ++++
- misc/cgo/test/callback.go             | 4 ++++
- src/cmd/gofix/netdial_test.go         | 4 ++++
- src/cmd/gofix/reflect_test.go         | 4 ++++
- test/chan/select4.go                  | 4 ++++
- test/fixedbugs/bug222.dir/chanbug.go  | 4 ++++
- test/fixedbugs/bug222.dir/chanbug2.go | 4 ++++
- test/fixedbugs/bug248.dir/bug0.go     | 4 ++++
- test/fixedbugs/bug248.dir/bug1.go     | 4 ++++
- test/fixedbugs/bug248.dir/bug2.go     | 4 ++++
- test/fixedbugs/bug248.dir/bug3.go     | 4 ++++
- test/fixedbugs/bug260.go              | 4 ++++
- test/fixedbugs/bug367.dir/main.go     | 4 ++++
- test/fixedbugs/bug367.dir/p.go        | 4 ++++
- test/fixedbugs/bug377.dir/one.go      | 4 ++++
- test/fixedbugs/bug377.dir/two.go      | 4 ++++
- test/fixedbugs/bug382.go              | 4 ++++
- 17 files changed, 68 insertions(+)
+ src/pkg/go/build/dir.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

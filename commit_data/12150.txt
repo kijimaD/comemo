@@ -1,21 +1,12 @@
-commit a5bc16d619657a243ea55c2ebefc9a2f672ab2de
+commit 37decab5a31f6418ae52d4548d06b2022d99c72f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 22 16:29:14 2012 -0500
+Date:   Wed Feb 22 16:29:05 2012 -0500
 
-    5c, 5g, 5l: fix arm bug
-    
-    Using reg as the flag word was unfortunate, since the
-    default value is not 0 but NREG (==16), which happens
-    to be the bit NOPTR now.  Clear it.
-    
-    If I say this will fix the build, it won't.
+    cmd/dist: fix install cmd/5g on non-arm system
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5690072
+    https://golang.org/cl/5689072
 
- src/cmd/5c/txt.c   | 3 ++-
- src/cmd/5g/gsubr.c | 4 +++-
- src/cmd/5g/list.c  | 2 +-
- src/cmd/5l/list.c  | 2 +-
- 4 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

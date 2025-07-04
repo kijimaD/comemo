@@ -1,35 +1,16 @@
-commit c96e94e69d5b29787589385d93eb4452af05c6f3
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 30 16:15:32 2016 -0800
+commit 316f93f7164d015ce82f341bd58657cc84f2cc69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:32:11 2016 -0700
 
-    cmd/compile: generate frame pointers for otherwise frameless functions
+    go/types: minimal support for alias declarations: don't crash
     
-    func f() {
-        g()
-    }
+    For #16339
     
-    We mistakenly don't add a frame pointer for f.  This means f
-    isn't seen when walking the frame pointer linked list.  That
-    matters for kernel-gathered profiles, and is an impediment for
-    issues like #16638.
-    
-    To fix, allocate a stack frame even for otherwise frameless functions
-    like f.  It is a bit tricky because we need to avoid some runtime
-    internals that really, really don't want one.
-    
-    No test at the moment, as only kernel CPU profiles would catch it.
-    Tests will come with the implementation of #16638.
-    
-    Fixes #18103
-    
-    Change-Id: I411206cc9de4c8fdd265bee2e4fa61d161ad1847
-    Reviewed-on: https://go-review.googlesource.com/33754
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8927f40e0fd166795f41c784ad92449743f73af5
+    Reviewed-on: https://go-review.googlesource.com/30213
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/pgen.go   |  3 +++
- src/cmd/compile/internal/gc/subr.go   |  2 ++
- src/cmd/compile/internal/gc/syntax.go |  1 +
- src/cmd/internal/obj/x86/obj6.go      | 24 ++++++++++++++++++++----
- 4 files changed, 26 insertions(+), 4 deletions(-)
+ src/go/types/check_test.go          |  1 +
+ src/go/types/resolver.go            |  3 +++
+ src/go/types/testdata/aliasdecl.src | 10 ++++++++++
+ 3 files changed, 14 insertions(+)

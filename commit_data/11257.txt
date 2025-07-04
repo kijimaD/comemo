@@ -1,30 +1,13 @@
-commit b4829c1de6ffd8581c40932da7a57dcfdd0610fb
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jan 19 17:41:10 2012 +1100
+commit d4fe9c6a9d8232b9d925dfd1f0e11f4891a5ad27
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 15:33:29 2012 +0900
 
-    html: in foreign content, check for HTML integration points in breakout
-    elements.
+    encoding/json: fix comments, tweak tests for tag names
     
-    Pass tests10.dat, test 33:
-    <!DOCTYPE html><svg><desc><svg><ul>a
-    
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <svg svg>
-    |       <svg desc>
-    |         <svg svg>
-    |         <ul>
-    |           "a"
-    
-    Also pass test 34:
-    <!DOCTYPE html><p><svg><desc><p>
-    
-    R=andybalholm, dsymonds
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5536048
+    https://golang.org/cl/5558047
 
- src/pkg/html/parse.go      | 4 ++--
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/encoding/json/encode.go      | 3 ++-
+ src/pkg/encoding/json/tagkey_test.go | 6 +++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

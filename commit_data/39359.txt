@@ -1,12 +1,22 @@
-commit f2a4c139c1e0cff35f89e4b5a531d5dedc5ed8e0
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Jun 8 07:43:40 2019 -0400
+commit c63dc6d45956ba471cc88658df4674df3f679a70
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 26 11:56:19 2019 -0800
 
-    errors: clarify doc for As
+    cmd/compile: remove badgerbadgerbadger optimization
     
-    Change-Id: I389d140e8fd2849e4dc438246add47819f6b25a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181300
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    As discussed in #29242, this optimization is for a bash-ism.
+    No one writes Go code like this.
+    
+    In this repo, it triggers only in test/fixedbugs/bug425.go
+    and that appears to be accidental.
+    
+    Fixes #29242
+    
+    Change-Id: I257e6ecc73f24680f7282c6ab28729de4e8b27af
+    Reviewed-on: https://go-review.googlesource.com/c/163728
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/errors/wrap.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 6 ------
+ 1 file changed, 6 deletions(-)

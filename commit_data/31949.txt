@@ -1,14 +1,21 @@
-commit 773504aee53eb8229f5e78db36258cc6bb389199
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 28 15:04:47 2017 -0700
+commit 34396adac1949438e8f059a199d813ac4619f158
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Fri Mar 17 23:03:34 2017 +0000
 
-    go/importer: don't return packages that are not fully type-checked
+    net/http: Fix TestLinuxSendfile without strace permissions
     
-    Fixes #20837.
+    If go doesn't have permission to run strace, this test hangs while
+    waiting for strace to run. Instead try invoking strace with
+    Run() first - on fail skip and report error, otherwise run
+    the test normally using strace.
     
-    Change-Id: I266519c26c8849da267b77e11abe7734d8275112
-    Reviewed-on: https://go-review.googlesource.com/47074
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Also fix link to open mips64 issue in same test.
+    
+    Fixes #9711
+    
+    Change-Id: Ibbc5fbb143ea6d0f8b6cfdca4b385ef4c8960b3d
+    Reviewed-on: https://go-review.googlesource.com/38633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/srcimporter/srcimporter.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/net/http/fs_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

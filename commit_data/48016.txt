@@ -1,20 +1,36 @@
-commit 8cfbb58bc70b9f9126a3310ac564344cc08c604b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jan 25 16:49:59 2022 -0800
+commit a71528ad317bdeeac515dcd3d35d7adad5ebc7c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 21 17:26:25 2021 -0700
 
-    cmd/compile/internal/types2: remove (*Signature).SetRecvTypeParams
+    cmd/compile/internal/types2: review fixedbugs tests
     
-    This method isn't available in go/types, and its use by unified IR is
-    non-essential. This CL refactors reader2.go to avoid using it and then
-    removes the method.
+    These tests match the corresponding tests for go/types
+    which have been reviewed.
+    This CL simply removes the UNREVIEWED disclaimer.
     
-    Change-Id: I813c93a062c43292bb6760686ef91df5219534a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380834
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I4dfe2aedc1341ebb9ba206aac1a072f32cbe1f78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312569
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/reader2.go    | 16 +++++++---------
- src/cmd/compile/internal/types2/signature.go |  3 ---
- 2 files changed, 7 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/types2/fixedbugs/issue39634.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39664.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39680.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39693.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39699.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39711.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39723.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39725.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39755.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39768.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39938.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39948.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39976.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue39982.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue40038.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue40056.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue40057.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue40301.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue40684.go2 | 1 -
+ src/cmd/compile/internal/types2/fixedbugs/issue41124.go2 | 1 -
+ 20 files changed, 20 deletions(-)

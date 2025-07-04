@@ -1,14 +1,27 @@
-commit a7276742e69a9d9a34834d13fcf5867051bea3f1
-Author: David Lazar <lazard@golang.org>
-Date:   Thu Apr 13 09:35:31 2017 -0400
+commit 73f92f9b0405e98427bbb445f24cffb5d3c4d01b
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Nov 27 11:43:08 2016 -0800
 
-    runtime/trace: better output when test fails
+    cmd/compile: use len(s)<=cap(s) to remove more bounds checks
     
-    Change-Id: I108d15eb4cd25904bb76de4ed7548c039c69d1a3
-    Reviewed-on: https://go-review.googlesource.com/40590
-    Run-TryBot: David Lazar <lazard@golang.org>
+    When we discover a relation x <= len(s), also discover the relation
+    x <= cap(s).  That way, in situations like:
+    
+    a := s[x:]  // tests 0 <= x <= len(s)
+    b := s[:x]  // tests 0 <= x <= cap(s)
+    
+    the second check can be eliminated.
+    
+    Fixes #16813
+    
+    Change-Id: Ifc037920b6955e43bac1a1eaf6bac63a89cfbd44
+    Reviewed-on: https://go-review.googlesource.com/33633
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/trace/trace_stack_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 65 ++++++++++++++++++++++++++++++++---
+ test/checkbce.go                      |  2 +-
+ test/prove.go                         | 12 +++++++
+ 3 files changed, 74 insertions(+), 5 deletions(-)

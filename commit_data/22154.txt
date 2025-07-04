@@ -1,20 +1,32 @@
-commit 04642e92aca42076662edd3eedc57873bb1568dd
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Mar 9 03:05:40 2015 -0400
+commit 59e546633d5b41f69971bd9f019f5e54c600fa17
+Author: Carlos Castillo <cookieo9@gmail.com>
+Date:   Tue Feb 24 02:35:55 2015 -0800
 
-    cmd/internal/ld, cmd/8l: external linking for windows/386
+    os: Use GetComputerNameEx to get Hostname on win32
     
-    Update #4069: this CL fixes the issue on windows/386.
+    The existing Hostname function uses the GetComputerName system
+    function in windows to determine the hostname. It has some downsides:
     
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2e
-    Reviewed-on: https://go-review.googlesource.com/7283
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+      - The name is limited to 15 characters.
+      - The name returned is for NetBIOS, other OS's return a DNS name
+    
+    This change adds to the internal/syscall/windows package a
+    GetComputerNameEx function, and related enum constants. They are used
+    instead of the syscall.ComputerName function to implement os.Hostname
+    on windows.
+    
+    Fixes #9982
+    
+    Change-Id: Idc8782785eb1eea37e64022bd201699ce9c4b39c
+    Reviewed-on: https://go-review.googlesource.com/5852
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Carlos Castillo <cookieo9@gmail.com>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
 
- src/cmd/8l/asm.go           |  35 ++++++
- src/cmd/8l/obj.go           |   4 +-
- src/cmd/internal/ld/data.go |   6 +-
- src/cmd/internal/ld/go.go   |   5 -
- src/cmd/internal/ld/lib.go  |  18 +++
- src/cmd/internal/ld/pe.go   | 282 ++++++++++++++++++++++++++++++++++++++------
- 6 files changed, 309 insertions(+), 41 deletions(-)
+ src/cmd/dist/build.go                            |  1 +
+ src/go/build/deps_test.go                        |  2 +-
+ src/internal/syscall/windows/syscall_windows.go  | 18 ++++++++++++---
+ src/internal/syscall/windows/zsyscall_windows.go | 16 ++++++++++++++
+ src/os/sys_windows.go                            | 28 +++++++++++++++++++-----
+ 5 files changed, 56 insertions(+), 9 deletions(-)

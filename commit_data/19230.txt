@@ -1,15 +1,15 @@
-commit 75ba181841aea2218d614bd9d30f1a570b4bcc1b
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Fri Apr 25 20:09:04 2014 -0700
+commit e419ab6452a9973025f95d3a9702abe1c7a6df04
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 26 06:52:37 2014 +0900
 
-    doc/contribute.html: link to wiki for more code review information
+    net: make WriteMsg{IP,UDP,Unix} return the correct number of bytes transferred
     
-    (from the discussions on CL 89650044)
+    Fixes #7645
     
-    LGTM=minux.ma, iant
-    R=iant, minux.ma
+    LGTM=iant, bradfitz
+    R=iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/97770043
+    https://golang.org/cl/90170046
 
- doc/contribute.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/net/fd_unix.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

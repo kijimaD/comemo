@@ -1,23 +1,21 @@
-commit 413f1ef4de98f2e98853c3753f785871bfc32e5d
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Sep 27 10:29:43 2016 -0400
+commit 853cd1f4a61396cccb91522ed59af52d61aa8371
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Fri May 27 15:02:31 2016 -0700
 
-    cmd/asm: fix parsing of the s390x VLE{G,F,H,B} instructions
+    syscall: call setgroups for no groups on GNU/Linux
     
-    This commit makes the assembler frontend reorder the operands so that
-    they are in the order the backend expects. The index should be first
-    for consistency with the other vector instructions.
+    Skip setgroups only for one particular case: GidMappings != nil and
+    GidMappingsEnableSetgroup == false and list of supplementary groups is
+    empty.
+    This patch returns pre-1.5 behavior for simple exec and still allows to
+    use GidMappings with non-empty Credential.
     
-    Before this commit no operand order would have been accepted so this
-    isn't a breaking change.
-    
-    Change-Id: I188d57eeb338d27fa1fa6845de0d6d1521b7a6c3
-    Reviewed-on: https://go-review.googlesource.com/29855
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: Ia91c77e76ec5efab7a7f78134ffb529910108fc1
+    Reviewed-on: https://go-review.googlesource.com/23524
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/s390x.go        | 2 ++
- src/cmd/asm/internal/asm/testdata/s390x.s | 5 +++++
- 2 files changed, 7 insertions(+)
+ src/syscall/exec_linux.go      | 10 +++++--
+ src/syscall/exec_linux_test.go | 61 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 68 insertions(+), 3 deletions(-)

@@ -1,17 +1,38 @@
-commit 8401b19e7e6bf60d66b2d71cd3fa2215c4649d31
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 20 13:26:02 2015 -0700
+commit ce502b063cd810aa5897e6ce72d545591e9368a0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 17:44:36 2015 -0400
 
-    cmd/doc: fix handling of paths like ./fmt
+    runtime: use park/ready to wake up GC at end of concurrent mark
     
-    An error in string slice offsets caused the loop to run forever if the
-    first character in the argument was a period.
+    Currently, the main GC goroutine sleeps on a note during concurrent
+    mark and the first background mark worker or assist to finish marking
+    use wakes up that note to let the main goroutine proceed into mark
+    termination. Unfortunately, the latency of this wakeup can be quite
+    high, since the GC goroutine will typically have lost its P while in
+    the futex sleep, meaning it will be placed on the global run queue and
+    will wait there until some P is kind enough to pick it up. This delay
+    gives the mutator more time to allocate and create floating garbage,
+    growing the heap unnecessarily. Worse, it's likely that background
+    marking has stopped at this point (unless GOMAXPROCS>4), so anything
+    that's allocated and published to the heap during this window will
+    have to be scanned during mark termination while the world is stopped.
     
-    Fixes #10833.
+    This change replaces the note sleep/wakeup with a gopark/ready
+    scheme. This keeps the wakeup inside the Go scheduler and lets the
+    garbage collector take advantage of the new scheduler semantics that
+    run the ready()d goroutine immediately when the ready()ing goroutine
+    sleeps.
     
-    Change-Id: Iefb6aac5cff8864fe93d08e2600cb07d82c6f6df
-    Reviewed-on: https://go-review.googlesource.com/10285
+    For the json benchmark from x/benchmarks with GOMAXPROCS=4, this
+    reduces the delay in waking up the GC goroutine and entering mark
+    termination once concurrent marking is done from ~100ms to typically
+    <100µs.
+    
+    Change-Id: Ib11f8b581b8914f2d68e0094f121e49bac3bb384
+    Reviewed-on: https://go-review.googlesource.com/9291
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/doc/main.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go     | 48 +++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/mgcmark.go |  6 ++----
+ 2 files changed, 43 insertions(+), 11 deletions(-)

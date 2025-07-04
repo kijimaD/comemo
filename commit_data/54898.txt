@@ -1,59 +1,31 @@
-commit cae35cd2582878341452547378ffdc14fdb0a022
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Sep 1 11:17:19 2023 -0700
+commit ee5ccc9d4a41df1a1c6d339fa2624b0ee8e26045
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 23 14:22:22 2022 +0200
 
-    path/filepath: fix various issues in parsing Windows paths
+    crypto/rsa: deprecate and de-optimize multi-prime RSA
     
-    On Windows, A root local device path is a path which begins with
-    \\?\ or \??\.  A root local device path accesses the DosDevices
-    object directory, and permits access to any file or device on the
-    system. For example \??\C:\foo is equivalent to common C:\foo.
+    I have never encountered multi-prime RSA in the wild. A GitHub-wide
+    search reveals exactly two explicit uses of it (and a couple of tools
+    that leave the number configurable but defaulting to two).
     
-    The Clean, IsAbs, IsLocal, and VolumeName functions did not
-    recognize root local device paths beginning with \??\.
+    https://github.com/decred/tumblebit/blob/31898baea/puzzle/puzzlekey.go#L38
+    https://github.com/carl-mastrangelo/pixur/blob/95d4a4208/tools/genkeys/genkeys.go#L13
     
-    Clean could convert a rooted path such as \a\..\??\b into
-    the root local device path \??\b. It will now convert this
-    path into .\??\b.
+    Multi-prime RSA has a slight performance advantage, but has limited
+    compatibility and the number of primes must be chosen carefully based on
+    the key size to avoid security issues. It also requires a completely
+    separate and rarely used private key operation code path, which if buggy
+    or incorrect would leak the private key.
     
-    IsAbs now correctly reports paths beginning with \??\
-    as absolute.
+    Mark it as deprecated, and remove the dedicated CRT optimization,
+    falling back instead to the slower but safer non-CRT fallback.
     
-    IsLocal now correctly reports paths beginning with \??\
-    as non-local.
-    
-    VolumeName now reports the \??\ prefix as a volume name.
-    
-    Join(`\`, `??`, `b`) could convert a seemingly innocent
-    sequence of path elements into the root local device path
-    \??\b. It will now convert this to \.\??\b.
-    
-    In addition, the IsLocal function did not correctly
-    detect reserved names in some cases:
-    
-      - reserved names followed by spaces, such as "COM1 ".
-      - "COM" or "LPT" followed by a superscript 1, 2, or 3.
-    
-    IsLocal now correctly reports these names as non-local.
-    
-    Fixes #63713
-    Fixes CVE-2023-45283
-    Fixes CVE-2023-45284
-    
-    Change-Id: I446674a58977adfa54de7267d716ac23ab496c54
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2040691
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540277
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Change-Id: Iba95edc044fcf9b37bc1f4bb59c6ea273975837f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445017
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- src/go/build/deps_test.go                 |   2 +-
- src/internal/safefilepath/path_windows.go |  98 +++++++++++----
- src/path/filepath/path.go                 |  17 +--
- src/path/filepath/path_nonwindows.go      |   9 ++
- src/path/filepath/path_test.go            |  67 ++++++++++-
- src/path/filepath/path_windows.go         | 194 +++++++++++++++++++-----------
- 6 files changed, 269 insertions(+), 118 deletions(-)
+ src/crypto/rsa/rsa.go | 46 ++++++++++++++++++++++------------------------
+ 1 file changed, 22 insertions(+), 24 deletions(-)

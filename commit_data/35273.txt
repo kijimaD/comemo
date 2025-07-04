@@ -1,21 +1,29 @@
-commit 51bda1ff0823ead841642ee9820b0949579d30a9
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri May 4 10:17:30 2018 +0200
+commit 8c1f21d9a2674dd9a410e0af94adf6fa7d2877d2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 30 13:49:48 2018 +1100
 
-    compress/gzip: skip builder-only test on iOS
+    cmd/vet: disable complaint about 0 flag in print
     
-    The new iOS test harness forwards environment variables to the
-    test program, which means that it runs builder-only tests that were
-    previously skipped because GO_BUILDER_NAME was missing.
+    The problem is that vet complains about 0 as a Printf flag in some
+    situations where fmt allows it but probably shouldn't. The two
+    need to be brought in line, but it's too late in the release cycle.
     
-    Skip one such unblocked test, TestGZIPFilesHaveZeroMTimes, which
-    assumes a valid GOROOT.
+    The situation is messy and should be resolved properly in 1.11. This
+    CL is a simple fix to disable a spurious complaint for 1.10 that will be
+    resolved in a more thorough way in 1.11.
     
-    Change-Id: I5daf0f4c1897afbeb8b1a380669a1d2aa47e764a
-    Reviewed-on: https://go-review.googlesource.com/111475
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    The workaround is just to be silent about flag 0, as suggested in
+    issue 23605.
+    
+    Fixes #23605
+    Update #23498
+    
+    Change-Id: Ice1a4f4d86845d70c1340a0a6430d74e5de9afd4
+    Reviewed-on: https://go-review.googlesource.com/90695
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/compress/gzip/issue14937_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/vet/print.go          | 5 +++++
+ src/cmd/vet/testdata/print.go | 6 ++++++
+ 2 files changed, 11 insertions(+)

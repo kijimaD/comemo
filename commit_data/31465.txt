@@ -1,25 +1,14 @@
-commit 1f85d3ad09152e09d5f4e9b6d9dcec72dbb4ad9b
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Apr 27 11:56:42 2017 +1200
+commit c804fd8927dabe1484b52e31f752136b7c0b32b7
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Feb 22 21:24:44 2017 +0200
 
-    cmd/internal/obj/x86: use LEAx rather than ADDx when calling DUFFxxxx via GOT
+    net: update IP.MarshalText documentation regarding len(ip) == 0
     
-    DUFFZERO on 386 is not marked as clobbering flags, but rewriteToUseGot rewrote
-    "ADUFFZERO $offset" to "MOVL runtime.duffxxx@GOT, CX; ADDL $offset, CX; CALL CX"
-    which does. Luckily the fix is easier than figuring out what the problem was:
-    replace the ADDL $offset, CX with LEAL $offset(CX), CX.
+    Describe the difference from String encoding when len(ip) is zero.
     
-    On amd64 DUFFZERO clobbers flags, on arm, arm64 and ppc64 ADD does not clobber
-    flags and s390x does not use the duff functions, so I'm fairly confident this
-    is the only fix required.
-    
-    I don't know how to write a test though.
-    
-    Change-Id: I69b0958f5f45771d61db5f5ecb4ded94e8960d4d
-    Reviewed-on: https://go-review.googlesource.com/41821
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia9b36b405d4fec3fee9a77498a839b6d90c2ec0d
+    Reviewed-on: https://go-review.googlesource.com/37379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/net/ip.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

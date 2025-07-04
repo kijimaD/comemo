@@ -1,20 +1,17 @@
-commit 2fe43cec8b4628c8f802e1ecd60155f6e09649a5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:33:23 2017 -0700
+commit 23df52747d5bd8a0b74f7da7c0c2002b7141f32b
+Author: Paulo Flabiano Smorigo <pfsmorigo@linux.vnet.ibm.com>
+Date:   Thu Feb 9 18:28:08 2017 -0200
 
-    cmd/compile: bubble out some Linksym calls
+    crypto/aes: fix build failure by changing VORL to VOR
     
-    Change a few functions so that instead of
-    accepting a *types.Sym and calling Linksym
-    themselves, they accept an *obj.LSym.
-    Adapt the callsites.
+    Recently, a commit (85ecc51c) changed the instruction from VORL to VOR.
     
-    Passes toolstash-check.
+    Fixes #19014
     
-    Change-Id: Ic5d3f306f2fdd3913281215a1f54d893a966bb1f
-    Reviewed-on: https://go-review.googlesource.com/41404
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9a7e0b5771842b1abb5afc73dc41d5e7960cf390
+    Reviewed-on: https://go-review.googlesource.com/36625
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 89 +++++++++++++++++-----------------
- 1 file changed, 44 insertions(+), 45 deletions(-)
+ src/crypto/aes/asm_ppc64le.s | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

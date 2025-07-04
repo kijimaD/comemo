@@ -1,16 +1,14 @@
-commit 2a031e6a2a4f7d83b80f9333bbd4f5d80a4873cf
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Nov 12 21:23:21 2015 -0500
+commit 60f0345667b8752f0a0f576f319dbfb495b36081
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 16:04:01 2015 +1000
 
-    cmd/internal/obj/arm64: rewrite branches that are too far
+    cmd/dist: fix mkzversion to produce gofmt'd output
     
-    Fixes #12540.
+    Fix mkzversion to produce correctly formatted runtime/zversion.go.
     
-    Change-Id: I7893fdc023145b0aca4b4c7df7e08e47edcf5bba
-    Reviewed-on: https://go-review.googlesource.com/16902
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie6bcd361a2f2e390b7f6c4980fcae2c41bb7e52f
+    Reviewed-on: https://go-review.googlesource.com/14355
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 62 +++++++++++++++++++-------------------
- 1 file changed, 31 insertions(+), 31 deletions(-)
+ src/cmd/dist/buildruntime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

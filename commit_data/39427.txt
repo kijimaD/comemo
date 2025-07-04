@@ -1,14 +1,23 @@
-commit 122a4fb7b038af1407a8b1c5ffe370bae70a5c69
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 24 10:02:41 2019 -0700
+commit 37f84817247d3b8e687a701ccb0d6bc7ffe3cb78
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 22 23:41:38 2019 +0100
 
-    doc/go1.13: mention {NetBSD,OpenBSD}/arm64 ports
+    errors: add Frame and Formatter/Printer interfaces
     
-    Also alphabetize port listing.
+    errors.New now implements Formatter and includes Frame
+    information that is reported when detail is requested.
     
-    Change-Id: I4cc552a74856c9955571d721deb6223438c7d856
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183637
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Partly implements proposal Issue #29934.
+    
+    Change-Id: Id76888d246d7d862595b5e92d517b9c03f23a7a6
+    Reviewed-on: https://go-review.googlesource.com/c/163557
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- doc/go1.13.html | 23 +++++++++++++++++------
- 1 file changed, 17 insertions(+), 6 deletions(-)
+ src/errors/errors.go      | 14 ++++++++++--
+ src/errors/format.go      | 34 ++++++++++++++++++++++++++++
+ src/errors/frame.go       | 56 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/errors/frame_test.go  | 43 ++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go |  2 +-
+ 5 files changed, 146 insertions(+), 3 deletions(-)

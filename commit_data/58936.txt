@@ -1,21 +1,50 @@
-commit 3705a6f1f0a66e70916bb09f50f4fcd1c520df53
-Author: Junyang Shao <shaojunyang@google.com>
-Date:   Tue Mar 4 19:45:29 2025 +0000
+commit b4e7d630bc6fbf654a20a4bebda94a8150811bea
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Tue Nov 7 10:09:49 2023 +0100
 
-    all: update golang.org/x/net
+    cmd/go: add GORISCV64 environment variable
     
-    For #71984
+    The variable represents the RISC-V user-mode application profile for
+    which to compile.  Valid values are rva20u64 (the default) and
+    rva22u64.
     
-    Change-Id: Ic15826f09ea818f8833bd3d979bffaede24d49df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654717
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Setting GORISCV64=rva20u64 defines the riscv64.rva20u64 build tag,
+    sets the internal variable buildcfg.GORISCV64 to 20 and defines the
+    macro GORISCV64_rva20u64 for use in assembly language code.
+    
+    Setting GORISCV64=rva22u64 defines the riscv64.rva20u64 and
+    riscv64.rva22u64 build tags, sets the internal variable
+    buildcfg.GORISCV64 to 22 and defines the macro GORISCV64_rva22u64
+    for use in assembly language code.
+    
+    This patch only provides a mechanism for the compiler and hand-coded
+    assembly language functions to take advantage of the RISC-V
+    extensions mandated by the application profiles.  Further patches
+    will be required to get the compiler/assembler and assembly language
+    functions to actually generate and use these extensions.
+    
+    Fixes #61476
+    
+    Change-Id: I9195ae6ee71703cd2112160e89157ab63b8391af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541135
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go.mod                                         |   4 +-
- src/go.sum                                         |   8 +-
- src/net/http/h2_bundle.go                          | 131 +++++++--------------
- src/net/http/internal/httpcommon/httpcommon.go     |  86 ++++++++++++++
- .../golang.org/x/net/http/httpproxy/proxy.go       |  10 +-
- src/vendor/modules.txt                             |   8 +-
- 6 files changed, 149 insertions(+), 98 deletions(-)
+ src/cmd/dist/build.go                    | 15 ++++++++++
+ src/cmd/dist/buildruntime.go             |  1 +
+ src/cmd/go/alldocs.go                    |  9 +++++-
+ src/cmd/go/internal/cfg/cfg.go           | 17 ++++++-----
+ src/cmd/go/internal/help/helpdoc.go      |  9 +++++-
+ src/cmd/go/internal/work/gc.go           |  5 ++++
+ src/cmd/go/testdata/script/tooltags.txt  | 20 +++++++++++++
+ src/cmd/internal/testdir/testdir_test.go |  2 +-
+ src/internal/buildcfg/cfg.go             | 49 +++++++++++++++++++++++---------
+ src/internal/buildcfg/cfg_test.go        | 14 +++++++++
+ src/internal/cfg/cfg.go                  |  1 +
+ 11 files changed, 119 insertions(+), 23 deletions(-)

@@ -1,38 +1,22 @@
-commit 1ff0554b5318d5a39e2b26a9c84330e6aa47b1c6
+commit 810957b1555358fd22e6dfd75cdceb2117362f91
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 23 18:29:38 2021 -0700
+Date:   Tue Dec 8 17:48:39 2020 -0800
 
-    cmd/compile/internal/types2: use []*TypeParam rather than []*TypeName for type param lists
+    [dev.typeparams] cmd/compile/internal/types2: adjusted array error message for compiler
     
-    This is a port of CL 343932 from go/types, with the necessary adjustments
-    to the compiler.
-    
-    This change improves type safety slightly, avoids many internal type
-    assertions, and simplifies some code paths.
-    
-    Change-Id: Ie9c4734814f49cd248927152d7b3264d3578428c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344614
+    Also: Triaged/adjusted some more test/fixedbugs tests.
+    Change-Id: Idaba1875273d6da6ef82dd8de8edd8daa885d32c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276472
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/importer/iimport.go       | 14 +++++-----
- src/cmd/compile/internal/noder/decl.go             |  2 +-
- src/cmd/compile/internal/noder/reader2.go          | 11 ++++----
- .../compile/internal/noder/syncmarker_string.go    |  5 ++--
- src/cmd/compile/internal/noder/types.go            |  4 +--
- src/cmd/compile/internal/noder/writer.go           |  6 ++--
- src/cmd/compile/internal/types2/decl.go            | 12 ++++----
- src/cmd/compile/internal/types2/infer.go           | 32 +++++++++++-----------
- src/cmd/compile/internal/types2/instantiate.go     | 10 +++----
- src/cmd/compile/internal/types2/named.go           |  4 +--
- src/cmd/compile/internal/types2/object.go          |  2 +-
- src/cmd/compile/internal/types2/predicates.go      |  4 +--
- src/cmd/compile/internal/types2/signature.go       | 18 ++++++------
- src/cmd/compile/internal/types2/subst.go           |  4 +--
- src/cmd/compile/internal/types2/typeparam.go       | 11 ++++----
- src/cmd/compile/internal/types2/typestring.go      |  7 ++---
- src/cmd/compile/internal/types2/unify.go           | 14 +++++-----
- 17 files changed, 79 insertions(+), 81 deletions(-)
+ src/cmd/compile/internal/types2/expr.go |  6 +++++-
+ test/fixedbugs/issue6750.go             |  2 +-
+ test/fixedbugs/issue6772.go             |  4 ++--
+ test/fixedbugs/issue7129.go             |  6 +++---
+ test/fixedbugs/issue7150.go             |  2 +-
+ test/fixedbugs/issue7153.go             |  2 +-
+ test/fixedbugs/issue7223.go             | 10 +++++-----
+ test/fixedbugs/issue7310.go             |  6 +++---
+ test/run.go                             | 19 ++++++-------------
+ 9 files changed, 27 insertions(+), 30 deletions(-)

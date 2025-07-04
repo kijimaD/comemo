@@ -1,12 +1,19 @@
-commit 0202aa8ec79bf700732812624eedcec3e6e300ad
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Sep 6 16:17:11 2017 -0400
+commit 86f5f7fdfae8ce24e1a47b326d9a1eee88a55248
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 28 10:32:31 2017 -0700
 
-    doc: update DWARF version
+    spec: clarify unsafe.Pointer conversions
     
-    Change-Id: I0d02e5e44053f02fee3d84c782995ea4ce209a80
-    Reviewed-on: https://go-review.googlesource.com/62070
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    A pointer type of underlying type unsafe.Pointer can be used in
+    unsafe conversions. Document unfortunate status quo.
+    
+    Fixes #19306.
+    
+    Change-Id: I28172508a200561f8df366bbf2c2807ef3b48c97
+    Reviewed-on: https://go-review.googlesource.com/42132
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/debugging_with_gdb.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

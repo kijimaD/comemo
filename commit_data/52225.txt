@@ -1,29 +1,18 @@
-commit 7dbd6de7d45da622e532e149de616e159286e1d4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Mar 8 16:38:32 2023 -0500
+commit e8d9fd707f4914bdd298f5dcdd14d3b6035e278b
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Wed Mar 30 09:53:58 2022 -0400
 
-    cmd/link: use label symbols for Duff's devices on darwin/arm64
+    crypto/x509: move sha1 removal to unspecified future release
     
-    On darwin, the external linker generally supports CALL relocations
-    with addend. One exception is that for a very large binary when it
-    decides to insert a trampoline, instead of applying the addend to
-    the call target (in the trampoline), it applies the addend to the
-    CALL instruction in the caller, i.e. generating a call to
-    trampoline+addend, which is not the correct address and usually
-    points to unreloated functions.
+    Updates #41682
     
-    To work around this, we use label symbols so the CALL is targeting
-    a label symbol without addend. To make things simple we always use
-    label symbols for CALLs with addend (in external linking mode on
-    darwin/arm64), even for small binaries.
-    
-    Fixes #58935.
-    
-    Change-Id: I38aed6b62a0496c277c589b5accbbef6aace8dd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474620
+    Change-Id: I3a2d6eedf4030cdc7308001aef549eb20eeb11c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396774
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Run-TryBot: Filippo Valsorda <valsorda@google.com>
+    Auto-Submit: Filippo Valsorda <valsorda@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/arm64/asm.go | 66 +++++++++++++++++++++-----------------
- 1 file changed, 36 insertions(+), 30 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

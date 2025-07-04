@@ -1,28 +1,23 @@
-commit 97c13cfb254763dc4c06d21a32883acae3ece537
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 3 22:17:31 2024 +0000
+commit 2f5f231ac12af61b43d508f46ebe10cf0ebe2730
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Apr 19 14:56:58 2023 -0400
 
-    runtime: delete pagetrace GOEXPERIMENT
+    log/slog: Group takes ...any
     
-    The page tracer's functionality is now captured by the regular execution
-    tracer as an experimental GODEBUG variable. This is a lot more usable
-    and maintainable than the page tracer, which is likely to have bitrotted
-    by this point. There's also no tooling available for the page tracer.
+    The Group function takes a key and a ...any, which is converted
+    into attrs.
     
-    Change-Id: I2408394555e01dde75a522e9a489b7e55cf12c8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583379
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #59204.
+    
+    Change-Id: Ib714365dcda2eda37863ce433f3dd8cf5eeda610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487855
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/goexperiment/exp_pagetrace_off.go |   8 -
- src/internal/goexperiment/exp_pagetrace_on.go  |   8 -
- src/internal/goexperiment/flags.go             |   6 -
- src/runtime/exithook.go                        |   1 -
- src/runtime/mgcscavenge.go                     |   2 -
- src/runtime/mheap.go                           |   6 -
- src/runtime/pagetrace_off.go                   |  28 --
- src/runtime/pagetrace_on.go                    | 358 -------------------------
- src/runtime/proc.go                            |   7 +-
- src/runtime/runtime2.go                        |   5 -
- 10 files changed, 3 insertions(+), 426 deletions(-)
+ api/next/56345.txt     |  1 -
+ api/next/59204.txt     |  1 +
+ src/log/slog/attr.go   | 22 +++++++++++++++++-----
+ src/log/slog/doc.go    |  6 +++---
+ src/log/slog/logger.go | 10 +---------
+ 5 files changed, 22 insertions(+), 18 deletions(-)

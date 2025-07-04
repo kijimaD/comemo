@@ -1,22 +1,21 @@
-commit 805305e24f762887a10eb5c410683aa541d1b3c3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 27 16:33:36 2022 -0400
+commit fa5c5043bca5264fabbdc47d780cfb53b1f5d9a3
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 11 06:50:06 2021 -0700
 
-    cmd/go: stamp VCS information in test binaries when -buildvcs=true
+    encoding/xml: truncate generic type names
     
-    (But still not when -buildvcs=auto, the default.)
+    xml names can't have any of '[],' in them, which might appear in
+    generic type names. Truncate at the first '[' so the names are still valid.
     
-    Fixes #52648.
+    Fixes #48318
     
-    Change-Id: I87a87d4ea84e8bf9635a4f7c8674c9311c3e21be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409177
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I110ff4269f763089467e7cf84b0f0c5075fb44b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349349
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/list/list.go             |  2 +-
- src/cmd/go/internal/load/pkg.go              | 23 ++++++++++++++++++-----
- src/cmd/go/internal/work/build.go            |  4 ++--
- src/cmd/go/testdata/script/test_buildvcs.txt | 24 +++++++++++++++++-------
- 4 files changed, 38 insertions(+), 15 deletions(-)
+ src/encoding/xml/marshal.go  |  4 ++++
+ test/typeparam/issue48318.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

@@ -1,24 +1,42 @@
-commit 8da180f6cac51f6cb8a316b962f797dbaf7ee96f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 24 15:49:43 2018 +0000
+commit 65fbf0e834e85997f137c46cc1677ed3e2c8ff4e
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Nov 8 09:15:53 2017 +0530
 
-    all: remove some unused return parameters
+    strings: optimize ToLower
     
-    As found by unparam. Picked the low-hanging fruit, consisting only of
-    errors that were always nil and results that were never used. Left out
-    those that were useful for consistency with other func signatures.
+    Handling the ASCII case inline and call unicode.ToLower only
+    for non-ASCII cases.
     
-    Change-Id: I06b52bbd3541f8a5d66659c909bd93cb3e172018
-    Reviewed-on: https://go-review.googlesource.com/102418
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Gives good improvements for the ASCII case and minor perf
+    degrade for non-ASCII case
+    
+    name                                     old time/op    new time/op    delta
+    ToLower/#00                                10.8ns ± 1%     9.0ns ± 1%  -16.83%  (p=0.008 n=5+5)
+    ToLower/abc                                23.3ns ± 4%    12.6ns ± 1%  -46.01%  (p=0.008 n=5+5)
+    ToLower/AbC123                             91.0ns ± 2%    70.4ns ± 0%  -22.59%  (p=0.008 n=5+5)
+    ToLower/azAZ09_                             104ns ± 3%      75ns ± 1%  -28.35%  (p=0.008 n=5+5)
+    ToLower/longStrinGwitHmixofsmaLLandcAps     254ns ± 4%     157ns ± 0%  -38.19%  (p=0.016 n=5+4)
+    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS     446ns ± 1%     451ns ± 1%     ~     (p=0.056 n=5+5)
+    ToLower/ⱭⱭⱭⱭⱭ                               345ns ± 1%     348ns ± 0%   +0.93%  (p=0.016 n=5+5)
+    
+    name                                     old alloc/op   new alloc/op   delta
+    ToLower/#00                                 0.00B          0.00B          ~     (all equal)
+    ToLower/abc                                 0.00B          0.00B          ~     (all equal)
+    ToLower/AbC123                              16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    ToLower/azAZ09_                             24.0B ± 0%     16.0B ± 0%  -33.33%  (p=0.008 n=5+5)
+    ToLower/longStrinGwitHmixofsmaLLandcAps     80.0B ± 0%     64.0B ± 0%  -20.00%  (p=0.008 n=5+5)
+    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS     96.0B ± 0%     96.0B ± 0%     ~     (all equal)
+    ToLower/ⱭⱭⱭⱭⱭ                               48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    
+    Ran on a machine with Intel(R) Core(TM) i5-5200U CPU @ 2.20GHz
+    
+    Fixes #17859
+    
+    Change-Id: Iacc1e6b77e1aedba9447a6e94352606f131ea597
+    Reviewed-on: https://go-review.googlesource.com/76470
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/encoding/gob/decode.go   |  8 ++++----
- src/internal/trace/parser.go |  9 +++------
- src/regexp/syntax/prog.go    | 14 ++++++--------
- src/runtime/pprof/proto.go   |  3 +--
- src/time/format.go           |  2 +-
- src/time/time.go             | 14 +++++++-------
- src/time/zoneinfo.go         |  8 ++------
- 7 files changed, 24 insertions(+), 34 deletions(-)
+ src/strings/strings.go      | 28 +++++++++++++++++++++++++++-
+ src/strings/strings_test.go | 15 +++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

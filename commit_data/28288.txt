@@ -1,16 +1,19 @@
-commit 7b269195d30195f29080e17114aeec7821851870
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Thu Sep 8 11:21:20 2016 -0700
+commit 20e362dae73b84e7b9dba9959444e5bc9d513ff1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 11 09:37:46 2016 -0700
 
-    cmd/go: organize test profiling flags into their own sub-section
+    cmd/cgo: remove //extern for check functions in gccgo Go prologue
     
-    Fixes #17020.
+    The //extern comments are incorrect and cause undefined symbol
+    errorswhen building cgo code with -compiler=gccgo. The code is already
+    designed to use weak references, and that support relies on the cgo
+    check functions being treated as local functions.
     
-    Change-Id: Ice21bd8eb4dbc208f244b275c3be604bc8e3efe7
-    Reviewed-on: https://go-review.googlesource.com/28783
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
+    Change-Id: Ib38a640cc4ce6eba74cfbf41ba7147ec88769ec0
+    Reviewed-on: https://go-review.googlesource.com/23014
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go | 87 ++++++++++++++++++++++++++-------------------------
- src/cmd/go/test.go    | 87 ++++++++++++++++++++++++++-------------------------
- 2 files changed, 90 insertions(+), 84 deletions(-)
+ src/cmd/cgo/out.go | 2 --
+ 1 file changed, 2 deletions(-)

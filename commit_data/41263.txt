@@ -1,76 +1,24 @@
-commit d0050e2871cf3916d99b11e67a4bf34ef025ec19
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Feb 9 19:51:22 2020 -0500
+commit 09824ccfe5dce385e4f02894883b635a52a30cac
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Wed Jun 19 18:02:09 2019 -0600
 
-    go/build: populate partial package information in importGo
+    reflect: give type hints in error messages
     
-    This is a followup to CL 199840 and CL 203820. Cumulatively, they caused
-    a previously known bug to trigger more often while also nearly fixing it.
+    Currently, if you call various reflect methods you might get a panic with a
+    message like, "reflect: Field of non-struct type". Sometimes it's easy to
+    grok what's going on, but other times you need to laboriously go perform
+    reflect.ValueOf(myType).Kind().
     
-    This change is a small fixup to CL 199840 that resolves the known bug
-    and prevents it from causing an additional regression in Go 1.14.
+    This CL just adds that detail to the error message, saving debuggers the
+    extra step and making the error message more clear.
     
-    Part 1
-    
-    The intention in CL 199840 was to return the same error that 'go list'
-    reported when the package wasn't located, so an early return was added.
-    However, to determine whether the package was located or not, p.Dir was
-    unintentionally checked instead of dir.
-    
-    p is initialized to &Package{ImportPath: path} at top of Context.Import,
-    and its Dir field is never set before that line in importGo is reached.
-    So return errors.New(errStr) was always executed whenever errStr != "".
-    
-    Originally, in CL 125296, the "go list" invocation did not include an
-    '-e' flag, so it would return a non-zero exit code on packages where
-    build constraints exclude all Go files, and importGo would return an
-    error like "go/build: importGo import/path: unexpected output: ...".
-    
-    CL 199840 added an '-e' flag to the "go list" invocation, but checking
-    the wrong dir variable caused partial package information to never get
-    populated, and thus issue #31603 continued to occur, although with a
-    different error message (which ironically included the location of the
-    package that was supposedly "not found").
-    
-    Now that the right dir is checked, issue #31603 is fixed.
-    
-    Part 2
-    
-    importGo checks whether it can use the go command to find the directory
-    of a package. In Go 1.13.x and earlier, one of the conditions to use the
-    go command was that the source directory must be provided.
-    
-    CL 203820 made a change such that knowing the source directory was
-    no longer required:
-    
-             // To invoke the go command,
-            -// we must know the source directory,
-             // ...
-    
-    That meant build.Import invocations where srcDir is the empty string:
-    
-            build.Import(path, "", build.FindOnly)
-    
-    Started using the go command to find the directory of the package, and
-    started to run into issue #31603 as well. That's the #37153 regression.
-    
-    Since this change fixes issue #31603, it also fixes issue #37153.
-    
-    Part 3
-    
-    There is one more thing. Delete the debugImportGo constant, it's unused.
-    
-    Updates #26504 (CL 125296)
-    Updates #34752 (CL 199840)
-    Updates #34860 (CL 203820)
-    Fixes #31603
-    Fixes #37153
-    
-    Change-Id: Iaa7dcc45ba0f708a978950c75fa4c836b87006f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218817
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7e0c211a3001e6b217b828cbcf50518080b5cb1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183097
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/script/mod_gobuild_import.txt | 59 ++++++++++++++++++-----
- src/go/build/build.go                             | 14 +++---
- 2 files changed, 54 insertions(+), 19 deletions(-)
+ src/reflect/type.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

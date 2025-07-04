@@ -1,19 +1,18 @@
-commit ecfff58fb8c3aabbce7b15c850210485c1f09d61
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sun Aug 29 14:36:20 2021 +0800
+commit e02a007ffdd374f38bc9a1cbf1b80a81b666df5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 15:31:58 2020 -0500
 
-    cmd/compile: fix delay transformation in *subster.node()
+    [dev.typeparams] codereview.cfg: add config for dev.typeparams
     
-    Add OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, ODYNAMICDOTTYPE transformations to the CALL check switch statement.
+    The codereview command will start using this to figure out
+    the origin branch for commands like "git pending",
+    and it will use the parent setting for the new "git branch-sync" (merge).
     
-    Fixes #48042
-    
-    Change-Id: Ied93efd979c5b2c56b72fad26fccfd9f887361d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345949
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Ia74af18ae5a437fb45ea81d7d69e2ffe41987b64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279523
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  3 ++
- test/typeparam/issue48042.go              | 77 +++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+)
+ codereview.cfg | 2 ++
+ 1 file changed, 2 insertions(+)

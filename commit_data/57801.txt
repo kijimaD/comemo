@@ -1,19 +1,18 @@
-commit 775837f51f03245bcba333094b4b3742f8fbfca3
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Aug 21 16:17:16 2024 -0400
+commit bb74a53c215a9e3ebf2c2b22bd60b06ce45f0b3b
+Author: Dominique Lefevre <domingolefevre@gmail.com>
+Date:   Thu Aug 24 10:17:36 2023 +0300
 
-    internal/runtime/maps: avoid passing unused key return
+    cmd/link: add testcases for MethodByName(string literal).
     
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: Idee1e021e3cef8f0c031e8f06efbcf6e88918d8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622376
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I96ea268ecceea75a24303526ed2f17c8a5e142c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522438
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/internal/runtime/maps/map.go   | 15 +++++++++++++--
- src/internal/runtime/maps/table.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/deadcode_test.go          |  3 ++
+ .../internal/ld/testdata/deadcode/ifacemethod5.go  | 33 ++++++++++++++
+ .../internal/ld/testdata/deadcode/ifacemethod6.go  | 31 +++++++++++++
+ .../ld/testdata/deadcode/structof_funcof.go        | 52 ++++++++++++++++++++++
+ 4 files changed, 119 insertions(+)

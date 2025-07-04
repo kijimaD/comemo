@@ -1,36 +1,96 @@
-commit 895b7c85addfffe19b66d8ca71c31799d6e55990
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 21 16:50:56 2020 -0800
+commit 0efbd1015774a2d894138519f1efcf7704bb2d95
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Sun Sep 8 19:36:13 2019 +0300
 
-    runtime: don't skip checkTimers if we would clear deleted timers
+    all: fix typos
     
-    The timers code used to have a problem: if code started and stopped a
-    lot of timers, as would happen with, for example, lots of calls to
-    context.WithTimeout, then it would steadily use memory holding timers
-    that had stopped but not been removed from the timer heap.
-    That problem was fixed by CL 214299, which would remove all deleted
-    timers whenever they got to be more than 1/4 of the total number of
-    timers on the heap.
+    Use the following (suboptimal) script to obtain a list of possible
+    typos:
     
-    The timers code had a different problem: if there were some idle P's,
-    the running P's would have lock contention trying to steal their timers.
-    That problem was fixed by CL 214185, which only acquired the timer lock
-    if the next timer was ready to run or there were some timers to adjust.
+      #!/usr/bin/env sh
     
-    Unfortunately, CL 214185 partially undid 214299, in that we could now
-    accumulate an increasing number of deleted timers while there were no
-    timers ready to run. This CL restores the 214299 behavior, by checking
-    whether there are lots of deleted timers without acquiring the lock.
+      set -x
     
-    This is a performance issue to consider for the 1.14 release.
+      git ls-files |\
+        grep -e '\.\(c\|cc\|go\)$' |\
+        xargs -n 1\
+        awk\
+        '/\/\// { gsub(/.*\/\//, ""); print; } /\/\*/, /\*\// { gsub(/.*\/\*/, ""); gsub(/\*\/.*/, ""); }' |\
+        hunspell -d en_US -l |\
+        grep '^[[:upper:]]\{0,1\}[[:lower:]]\{1,\}$' |\
+        grep -v -e '^.\{1,4\}$' -e '^.\{16,\}$' |\
+        sort -f |\
+        uniq -c |\
+        awk '$1 == 1 { print $2; }'
     
-    Change-Id: I13c980efdcc2a46eb84882750c39e3f7c5b2e7c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215722
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Then, go through the results manually and fix the most obvious typos in
+    the non-vendored code.
+    
+    Change-Id: I3cb5830a176850e1a0584b8a40b47bde7b260eae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193848
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc.go     |  9 ++++++++-
- src/runtime/runtime2.go |  6 +++++-
- src/runtime/time.go     | 32 +++++++++++++++++++++-----------
- 3 files changed, 34 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/const.go           | 2 +-
+ src/cmd/compile/internal/gc/escape.go          | 6 +++---
+ src/cmd/compile/internal/gc/main.go            | 2 +-
+ src/cmd/compile/internal/gc/sinit.go           | 2 +-
+ src/cmd/compile/internal/gc/ssa.go             | 2 +-
+ src/cmd/compile/internal/gc/syntax.go          | 2 +-
+ src/cmd/compile/internal/gc/walk.go            | 2 +-
+ src/cmd/compile/internal/ssa/branchelim.go     | 2 +-
+ src/cmd/compile/internal/ssa/deadstore.go      | 2 +-
+ src/cmd/compile/internal/ssa/debug_test.go     | 2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ src/cmd/compile/internal/ssa/gen/main.go       | 4 ++--
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
+ src/cmd/compile/internal/ssa/loopbce.go        | 2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       | 4 ++--
+ src/cmd/compile/internal/ssa/sparsetree.go     | 2 +-
+ src/cmd/go/go_test.go                          | 2 +-
+ src/cmd/go/internal/modfetch/coderepo.go       | 2 +-
+ src/cmd/go/internal/search/search.go           | 2 +-
+ src/cmd/go/internal/search/search_test.go      | 2 +-
+ src/cmd/go/internal/sumweb/client.go           | 2 +-
+ src/cmd/go/internal/tlog/tlog.go               | 4 ++--
+ src/cmd/go/internal/work/action.go             | 2 +-
+ src/cmd/go/internal/work/gccgo.go              | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go             | 2 +-
+ src/cmd/internal/obj/objfile.go                | 2 +-
+ src/cmd/internal/obj/x86/asm6.go               | 2 +-
+ src/cmd/link/internal/ld/pe.go                 | 2 +-
+ src/cmd/link/internal/ld/xcoff.go              | 6 +++---
+ src/crypto/tls/handshake_client.go             | 2 +-
+ src/crypto/tls/prf.go                          | 2 +-
+ src/crypto/x509/name_constraints_test.go       | 6 +++---
+ src/database/sql/convert.go                    | 2 +-
+ src/database/sql/convert_test.go               | 4 ++--
+ src/database/sql/sql.go                        | 2 +-
+ src/database/sql/sql_test.go                   | 2 +-
+ src/debug/pe/file_test.go                      | 2 +-
+ src/encoding/base32/base32.go                  | 2 +-
+ src/go/build/build.go                          | 2 +-
+ src/go/types/builtins.go                       | 2 +-
+ src/go/types/call.go                           | 2 +-
+ src/image/gif/writer_test.go                   | 2 +-
+ src/internal/bytealg/count_ppc64x.s            | 2 +-
+ src/internal/cpu/cpu.go                        | 2 +-
+ src/math/big/int.go                            | 2 +-
+ src/net/http/transport.go                      | 4 ++--
+ src/net/interface_unix_test.go                 | 4 ++--
+ src/net/url/url.go                             | 2 +-
+ src/os/file.go                                 | 2 +-
+ src/runtime/map_benchmark_test.go              | 2 +-
+ src/runtime/mgcscavenge.go                     | 2 +-
+ src/runtime/os2_aix.go                         | 2 +-
+ src/runtime/os_windows.go                      | 2 +-
+ src/runtime/pprof/label_test.go                | 2 +-
+ test/closure2.go                               | 6 +++---
+ test/finprofiled.go                            | 4 ++--
+ test/fixedbugs/issue24339.go                   | 2 +-
+ test/index.go                                  | 2 +-
+ test/ken/modconst.go                           | 2 +-
+ test/opt_branchlikely.go                       | 2 +-
+ test/strength.go                               | 2 +-
+ 63 files changed, 78 insertions(+), 78 deletions(-)

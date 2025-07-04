@@ -1,12 +1,21 @@
-commit e84409ac95d5ed4a9113128c72d8f930f034aebf
-Author: Venil Noronha <veniln@vmware.com>
-Date:   Thu Aug 30 12:44:54 2018 -0600
+commit 51bda1ff0823ead841642ee9820b0949579d30a9
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri May 4 10:17:30 2018 +0200
 
-    time: add example for LoadLocation
+    compress/gzip: skip builder-only test on iOS
     
-    Change-Id: I8e55e9397eb6844b5856f8bde9c26185c446a80e
-    Reviewed-on: https://go-review.googlesource.com/132238
+    The new iOS test harness forwards environment variables to the
+    test program, which means that it runs builder-only tests that were
+    previously skipped because GO_BUILDER_NAME was missing.
+    
+    Skip one such unblocked test, TestGZIPFilesHaveZeroMTimes, which
+    assumes a valid GOROOT.
+    
+    Change-Id: I5daf0f4c1897afbeb8b1a380669a1d2aa47e764a
+    Reviewed-on: https://go-review.googlesource.com/111475
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/example_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/compress/gzip/issue14937_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

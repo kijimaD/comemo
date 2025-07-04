@@ -1,21 +1,16 @@
-commit bc0b198bd75a8eef45d0965531ba6fa127d0e8ec
-Author: Tiwei Bie <tiwei.btw@antgroup.com>
-Date:   Thu Oct 15 01:43:51 2020 +0000
+commit 79b6900cc721b41da0fab67ba706bb3f81190005
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 3 09:23:19 2020 -0400
 
-    runtime: dump the status of lockedg on error
+    doc: remove darwin/386, darwin/arm from ports list
     
-    The dumpgstatus() will dump current g's status anyway. When lockedg's
-    status is bad, it's more helpful to dump lockedg's status as well than
-    dumping current g's status twice.
+    Updates #37611.
     
-    Change-Id: If5248cb94b9cdcbf4ceea07562237e1d6ee28489
-    GitHub-Last-Rev: da814c51ff42f56fb28582f088f4d72b500061fe
-    GitHub-Pull-Request: golang/go#40248
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243097
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I7ae5a61d2e2189fd48ac3548e370e0de1dd79832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227343
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/proc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/install-source.html | 6 ------
+ 1 file changed, 6 deletions(-)

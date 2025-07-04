@@ -1,15 +1,24 @@
-commit 90590a0cd210686a34bd4b645e0ef3ae468795e4
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 24 11:00:07 2015 -0800
+commit 8e2bb7bb4ab8c15204a995e976ce7d023d0e37bf
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 15:25:05 2015 -0500
 
-    cmd/asm: add alias for MOVOA=MOVO on amd64
+    runtime: use threads slice in parfor instead of unsafe pointer math
     
-    The alias should exist for both 386 and amd64.
-    There were a few others missing as well. Add them.
+    parfor originally used a tail array for its thread array.  This got
+    replaced with a slice allocation in the conversion to Go, but many of
+    its gnarlier effects remained.  Instead of keeping track of the
+    pointer to the first element of the slice and using unsafe pointer
+    math to get at the ith element, just keep the slice around and use
+    regular slice indexing.  There is no longer any need for padding to
+    64-bit align the tail array (there hasn't been since the Go
+    conversion), so remove this unnecessary padding from the parfor
+    struct.  Finally, since the slice tracks its own length, replace the
+    nthrmax field with len(thr).
     
-    Change-Id: Ia0c3e71abc79f67a7a66941c0d932a8d5d6e9989
-    Reviewed-on: https://go-review.googlesource.com/5800
+    Change-Id: I0020a1815849bca53e3613a8fa46ae4fbae67576
+    Reviewed-on: https://go-review.googlesource.com/3394
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/arch/arch.go | 45 +++++++++++++++++++++++----------------
- 1 file changed, 27 insertions(+), 18 deletions(-)
+ src/runtime/export_test.go | 17 ++++++++---------
+ src/runtime/parfor.go      | 41 ++++++++++++++++-------------------------
+ 2 files changed, 24 insertions(+), 34 deletions(-)

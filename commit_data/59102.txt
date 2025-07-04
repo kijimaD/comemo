@@ -1,22 +1,32 @@
-commit 2e749a645a6d03c7ac11bb172c4591564061b29e
-Author: Jordan Liggitt <liggitt@google.com>
-Date:   Tue Mar 18 20:27:07 2025 -0400
+commit 1de46564a766f9647b22ebab0f35bccd14291460
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 8 08:46:24 2024 +0100
 
-    internal/godebugs: fix changed version for winsymlink and winreadlinkvolume to 1.23
+    runtime: make netpoll events sources identifiable on Windows
     
-    https://go.dev/doc/godebug#go-123 documents changes to winsymlink and
-    winreadlinkvolume in Go 1.23.
+    This is another attempt at CL 558895, but without adding stale pollDescs
+    protection, which deviates from the original goal of the CL and adds
+    complexity without proper testing.
     
-    This fixes the registered "changed" minor version to Go 1.23,
-    so that defaults when building a Go 1.22 module are correct.
+    It is currently not possible to distinguish between a netpollBreak,
+    an internal/poll WSA operation, and an external WSA operation (as
+    in #58870). This can cause spurious wakeups when external WSA operations
+    are retrieved from the queue, as they are treated as netpollBreak
+    events.
     
-    Fixes #72935
+    This CL makes use of completion keys to identify the source of the
+    event.
     
-    Change-Id: I5d5bf31ca04f9e95208fb0fdaad2232f9db653ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659035
+    While here, fix TestWSASocketConflict, which was not properly
+    exercising the "external WSA operation" case.
+    
+    Change-Id: I91f746d300d32eb7fed3c8f27266fef379360d98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561895
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/internal/godebugs/table.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/poll/fd_windows_test.go |  25 +++------
+ src/runtime/netpoll_windows.go       | 101 ++++++++++++++++++++++++++++++-----
+ 2 files changed, 93 insertions(+), 33 deletions(-)

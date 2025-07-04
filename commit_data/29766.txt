@@ -1,14 +1,33 @@
-commit d4b46aa1b8c2e62b1e13de15741c7330fd2e9e3a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 7 17:13:35 2016 -0800
+commit 0db9518ab30f35c7c185aed337037e8305a98b34
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 6 17:08:44 2016 -0400
 
-    os: document that Rename does not replace an existing directory
+    fmt: document and adjust Scanf space handling to eliminate a few paradoxes
     
-    Fixes #18240.
+    This CL makes minor adjustment to the handling of spaces and newlines
+    and then documents the result.
     
-    Change-Id: Ife951e2c1320b3f1362c85642615b24fd4291189
-    Reviewed-on: https://go-review.googlesource.com/34135
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The semantic adjustment mainly concerns the handling of a run of
+    spaces following a newline in the format, like in "\n ".
+    Previously, that run of spaces was ignored entirely, leading to paradoxes
+    like the format "1 \n 2" not matching itself as input.
+    Now, spaces following a newline in the format match zero or more
+    spaces following the corresponding newline in the input.
+    
+    The changes to the test suite show how minor the semantic adjustments are
+    and how they make the behavior more regular than previously.
+    
+    This CL also updates the documentation to explain the handling of
+    spaces more precisely, incorporating the draft from CL 17723 but
+    describing the newly introduced behavior.
+    
+    Fixes #13565.
+    
+    Change-Id: I129666e9ba42de3c28b67f75cb47488e9a4c1867
+    Reviewed-on: https://go-review.googlesource.com/30611
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/doc.go       | 62 ++++++++++++++++++++-------------
+ src/fmt/scan.go      | 96 +++++++++++++++++++++++++++++-----------------------
+ src/fmt/scan_test.go | 24 ++++++-------
+ 3 files changed, 104 insertions(+), 78 deletions(-)

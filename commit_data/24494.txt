@@ -1,22 +1,14 @@
-commit 6f772787f97720aeeb98d37b2c63b1a3155588d1
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sat Oct 10 16:53:09 2015 +0000
+commit b63fb59de89aef5e8f41969bee8a851ac3946c63
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 31 12:03:48 2015 +1000
 
-    net/textproto: properly trim continued lines in MIME headers
+    test/bench/shootout: clean up binaries after run
     
-    A MIME header can include values defined on several lines.
-    Only the first line of each value was trimmed.
+    Update #11943
     
-    Make sure all the lines are trimmed before being aggregated.
-    
-    Fixes #11204
-    
-    Change-Id: Id92f384044bc6c4ca836e5dba2081fe82c82dc85
-    Reviewed-on: https://go-review.googlesource.com/15683
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3e6592876bf16d2f9129995b723ecf69c069653d
+    Reviewed-on: https://go-review.googlesource.com/12913
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/textproto/reader.go      |  2 +-
- src/net/textproto/reader_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ test/bench/shootout/timing.sh | 3 +++
+ 1 file changed, 3 insertions(+)

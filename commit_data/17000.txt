@@ -1,14 +1,21 @@
-commit b8c8cb85092aba7dda9b5f27b1a6c940aaf3c985
+commit 2ddb672ddcbb050521a2c031630c6dc884a78314
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 2 15:20:42 2013 -0400
+Date:   Fri Aug 2 14:58:27 2013 -0400
 
-    cmd/dist: fix build again
+    build: on OS X 10.8 and later, use clang instead of gcc
     
-    I am really bad at this. Didn't hg add this file.
+    Fixes #5822.
+    Will no doubt cause other problems, but Apple has forced our hand.
     
-    TBR=bradfitz
+    R=golang-dev, bradfitz, khr
     CC=golang-dev
-    https://golang.org/cl/12372043
+    https://golang.org/cl/12350044
 
- src/cmd/dist/buildgo.c | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ src/cmd/cgo/gcc.go   | 28 ++++++++++++++--------------
+ src/cmd/cgo/out.go   |  2 +-
+ src/cmd/dist/a.h     |  5 +++++
+ src/cmd/dist/build.c | 29 +++++++++++++++++++++++------
+ src/cmd/dist/unix.c  | 21 ++++++++++++++-------
+ src/cmd/go/build.go  |  5 +++--
+ src/run.bash         |  5 ++++-
+ 7 files changed, 64 insertions(+), 31 deletions(-)

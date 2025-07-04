@@ -1,23 +1,25 @@
-commit bf869c65d1a96da5db78a891430ea3acd7ddf1ab
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Apr 13 16:33:28 2020 -0400
+commit cf6739caad1869ec3a022802d53a4de098cb0533
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 3 13:40:14 2020 -0500
 
-    cmd/go: update vendored golang.org/x/mod
+    cmd/go: add a regression test for package import cycles guarded by build tags
     
-    This CL vendors go.mod parser changes for the retract directive.
+    I've been thinking about the relationship between the package import
+    graph and the module import graph, and realized that the package
+    import graph is not always acyclic. (The package import graph must be
+    acyclic given a specific set of build tags, but the 'mod' subcommands
+    intentionally ignore build tags.)
     
-    For #24031
+    I'm not sure whether we have any existing regression tests that cover
+    this sort of cycle, so I'm adding one now. Thankfully, it passes!
     
-    Change-Id: Ief19b0eca4c7956eceadc893bb209da7e9ecf22c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228377
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Updates #36460
+    
+    Change-Id: I7679320994ee169855241efa51cd45f71315f7f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217557
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go.mod                                  |   2 +-
- src/cmd/go.sum                                  |   5 +-
- src/cmd/vendor/golang.org/x/mod/modfile/read.go |   8 +
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 243 ++++++++++++++++++++++--
- src/cmd/vendor/modules.txt                      |   2 +-
- 5 files changed, 235 insertions(+), 25 deletions(-)
+ .../go/testdata/script/mod_tagged_import_cycle.txt | 106 +++++++++++++++++++++
+ 1 file changed, 106 insertions(+)

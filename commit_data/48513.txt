@@ -1,25 +1,21 @@
-commit 209521c3e34820887c9d221f8f09d8f586c72419
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon May 24 12:15:17 2021 +0700
+commit 1d5298d46a695219ab4622ae5aa59898459fd0f5
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 11:28:01 2021 -0700
 
-    cmd/compile: refactor walkIndexMap
+    doc/go1.17: document net/... changes
     
-    So all runtime map functions will use the same code path, make it easier
-    for future CL to handle stack object for map key.
+    For #44513.
+    Fixes #46014.
+    Fixes #46015.
+    Fixes #46016.
+    Fixes #46017.
     
-    Passes toolstash -cmp.
-    
-    For #43753
-    
-    Change-Id: I374fa4e351c1eba079e2ccb637b1ef5adad1488f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321713
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I356483d68d07159281dfe2ea1e49430ddf200973
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322891
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/walk/assign.go  |  2 +-
- src/cmd/compile/internal/walk/builtin.go |  2 +-
- src/cmd/compile/internal/walk/expr.go    | 57 +++++++++++++++-----------------
- 3 files changed, 28 insertions(+), 33 deletions(-)
+ doc/go1.17.html     | 23 +++++++++++++++++------
+ src/os/pipe_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 7 deletions(-)

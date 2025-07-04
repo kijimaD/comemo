@@ -1,30 +1,22 @@
-commit 2707d42966f8985a6663c93e943b9a44b9399fca
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Sep 2 17:36:12 2024 +0800
+commit fb6f38dda15d4155b500f6b3e1a311a951a22b69
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 1 13:43:08 2023 -0400
 
-    runtime: use regabi for riscv64 cputicks
+    cmd/distpack: test for .DS_Store files in all directories
     
-    goos: linux
-    goarch: riscv64
-    pkg: runtime
-    cpu: Spacemit(R) X60
-                         │ select.old.log │           select.new.log           │
-                         │     sec/op     │   sec/op     vs base               │
-    SelectUncontended         490.5n ± 0%   486.8n ± 0%  -0.77% (p=0.000 n=10)
-    SelectSyncContended       2.754µ ± 0%   2.726µ ± 0%  -1.02% (p=0.000 n=10)
-    SelectAsyncContended      488.2n ± 0%   484.2n ± 0%  -0.84% (p=0.000 n=10)
-    SelectNonblock            112.2n ± 0%   111.5n ± 0%  -0.58% (p=0.000 n=10)
-    SelectProdCons            1.420µ ± 0%   1.417µ ± 0%       ~ (p=0.069 n=10)
-    GoroutineSelect           10.79m ± 3%   10.74m ± 3%       ~ (p=0.529 n=10)
-    geomean                   3.228µ        3.208µ       -0.63%
+    macOS may write a .DS_Store file to any directory at any time in
+    the general case, unfortunately. Expand test rules to catch them
+    no matter where they may appear.
     
-    Change-Id: Idb519ef8b2872284dca6dbf1cf94c3fff65bfd37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610095
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #24904.
+    
+    Change-Id: I98a2bb5d0ae2ab3a191ff87b33d6f8048ca39aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514898
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/asm_riscv64.s | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/distpack/test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

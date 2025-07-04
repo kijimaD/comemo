@@ -1,38 +1,19 @@
-commit f9ce1dddc264cb30e68bfedbabf159b32bb6a719
-Author: Julien Cretel <jub0bsinthecloud@gmail.com>
-Date:   Tue Apr 22 16:49:42 2025 +0000
+commit 69583738eb73ef928a07a1e215b719823fd27aa9
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Mar 8 07:34:10 2024 +0800
 
-    mime: speed up ParseMediaType
+    unicode/utf8: update doc for RuneLen
     
-    Add benchmarks for ParseMediaType.
+    As CL 569755 did, for consistency, this CL slightly improves
+    the documentation for RuneLen.
     
-    Eschew UTF-8 decoding and strings.IndexFunc where possible, and rely
-    on 128-bit bitmaps instead. Eliminate some bounds checks.
-    
-    Some benchmark results (no changes to allocations):
-    
-    goos: darwin
-    goarch: amd64
-    pkg: mime
-    cpu: Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
-                          │     old     │                 new                 │
-                          │   sec/op    │   sec/op     vs base                │
-    ParseMediaType-8        71.75µ ± 0%   55.53µ ± 0%  -22.60% (p=0.000 n=20)
-    ParseMediaTypeBogus-8   5.330µ ± 0%   3.603µ ± 0%  -32.41% (p=0.000 n=20)
-    geomean                 19.56µ        14.14µ       -27.67%
-    
-    Change-Id: I324c9990fe43581484916ecff61ca6c708467a89
-    GitHub-Last-Rev: e2293d64b3852722bef920169eaa44e7ded3111c
-    GitHub-Pull-Request: golang/go#73436
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666655
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ic9776648baf2809af36cd16a94d1313938bb0e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569816
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
 
- src/mime/grammar.go        | 73 +++++++++++++++++++++++++++++++++++++++-------
- src/mime/mediatype.go      | 20 +++++--------
- src/mime/mediatype_test.go | 27 +++++++++++++++--
- 3 files changed, 93 insertions(+), 27 deletions(-)
+ src/unicode/utf8/utf8.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

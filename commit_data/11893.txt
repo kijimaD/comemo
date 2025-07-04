@@ -1,15 +1,25 @@
-commit db93edfc286e05b6f1a1a8e0973a1dfa1ba8046d
+commit 1707a9977f2272333b86853c2ac09a3bdba9915e
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 14 01:23:25 2012 -0500
+Date:   Tue Feb 14 01:23:15 2012 -0500
 
-    builder: fix windows environment
+    runtime: on 386, fix FP control word on all threads, not just initial thread
     
-    Not causing problems yet, but no need to
-    keep using cygwin paths now that we're off cygwin.
+    It is possible that Linux and Windows copy the FP control word
+    from the parent thread when creating a new thread.  Empirically,
+    Darwin does not.  Reset the FP control world in all cases.
     
-    R=alex.brainman
+    Enable the floating-point strconv test.
+    
+    Fixes #2917 (again).
+    
+    R=golang-dev, r, iant
     CC=golang-dev
-    https://golang.org/cl/5656053
+    https://golang.org/cl/5660047
 
- misc/dashboard/builder/main.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/runtime/asm_386.s    | 18 ++++++++++--------
+ src/pkg/runtime/asm_amd64.s  |  4 ++++
+ src/pkg/runtime/asm_arm.s    |  4 ++++
+ src/pkg/runtime/proc.c       |  1 +
+ src/pkg/runtime/runtime.h    |  1 +
+ src/pkg/strconv/atof_test.go | 11 +++++------
+ 6 files changed, 25 insertions(+), 14 deletions(-)

@@ -1,13 +1,22 @@
-commit e656a184cb32e07cd91bde3f3bcc72a1ac2dd6e8
+commit cde06f541ff65ca2e2afaebb3a0bacd39db21ca2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 23 16:03:42 2011 -0700
+Date:   Tue Aug 23 14:17:18 2011 -0700
 
-    go/ast cleanup: base File/PackageExports on FilterFile/FilterPackage code
+    go/ast: adjustments to filter function
+    
+    CL 4938041 made some incorrect changes to the filter
+    function which caused a different doc/codelab/wiki/index.html
+    file to be generated.
+    
+    Added FilterFileExports and FilterPackageExports function.
+    Same as the existing FileExpors/PackageExports functions
+    but using shared code. The old functions will be removed
+    in the next CL.
     
     R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4927046
+    https://golang.org/cl/4932048
 
- src/pkg/go/ast/filter.go         | 190 +++------------------------------------
- src/pkg/go/parser/filter_test.go |  91 -------------------
- 2 files changed, 14 insertions(+), 267 deletions(-)
+ src/pkg/go/ast/filter.go         | 76 +++++++++++++++++++++++++++++-----------
+ src/pkg/go/parser/filter_test.go |  4 +--
+ 2 files changed, 57 insertions(+), 23 deletions(-)

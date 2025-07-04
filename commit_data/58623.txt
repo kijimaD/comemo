@@ -1,32 +1,32 @@
-commit 478ad013f90fe1dbb199d22f41b93c920ae0d5e9
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jan 31 15:03:15 2025 -0800
+commit 5dde69fd404cb6d0de89b0109a7f7b03e44c26f7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 17 17:56:27 2023 +0000
 
-    runtime: don't duplicate reraised panic values in printpanics
+    internal/trace/v2: redefine NoTask and add BackgroundTask
     
-    Change the output printed when crashing with a reraised panic value
-    to not duplicate that value.
+    The v2 trace parser currently handles task inheritance and region task
+    association incorrectly. It assumes that a TaskID of 0 means that there
+    is no task. However, this is only true for task events. A TaskID of 0
+    means that a region gets assigned to the "background task." The parser
+    currently has no concept of a "background task."
     
-    Changes output of panicking with "PANIC", recovering, and reraising
-    from:
+    Fix this by defining the background task as task ID 0 and redefining
+    NoTask to ^uint64(0). This aligns the TaskID values more closely with
+    other IDs in the parser and also enables disambiguating these two cases.
     
-      panic: PANIC [recovered]
-        panic: PANIC
+    For #60773.
+    For #63960.
     
-    to:
-    
-      panic: PANIC [recovered, reraised]
-    
-    Fixes #71517
-    
-    Change-Id: Id59938c4ea0df555b851ffc650fe6f94c0845499
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645916
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I09c8217b33b87c8f8f8ea3b0203ed83fd3b61e11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543019
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
 
- doc/next/4-runtime.md                  | 17 +++++++++++
- src/runtime/crash_test.go              | 31 ++++++++++++++++++++
- src/runtime/panic.go                   | 14 ++++++++-
- src/runtime/runtime2.go                |  1 +
- src/runtime/testdata/testprog/crash.go | 52 ++++++++++++++++++++++++++++++++++
- 5 files changed, 114 insertions(+), 1 deletion(-)
+ src/internal/trace/goroutinesv2.go                             |  4 +---
+ src/internal/trace/v2/event.go                                 | 10 ++++++++--
+ src/internal/trace/v2/order.go                                 |  7 +++++++
+ .../v2/testdata/generators/go122-task-across-generations.go    |  2 +-
+ src/internal/trace/v2/testtrace/validation.go                  |  7 ++++++-
+ src/internal/trace/v2/trace_test.go                            |  2 +-
+ 6 files changed, 24 insertions(+), 8 deletions(-)

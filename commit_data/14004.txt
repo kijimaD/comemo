@@ -1,14 +1,14 @@
-commit 5f7f9062dbebd68978b449e241e66873320186ca
-Author: Shivakumar GN <shivakumar.gn@gmail.com>
-Date:   Wed Oct 3 10:33:09 2012 +1000
+commit 10ea3254a87f1bed2f9519c3349ddaa2fef86d7f
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Oct 3 06:58:24 2012 +1000
 
-    os/user : use username as fullname if all else fails (on windows)
+    codereview.py: suggest installing Mercurial from official website
     
-    Fixes #4113.
+    Continuation of https://golang.org/cl/6499053/
     
-    R=golang-dev, alex.brainman
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6545054
+    https://golang.org/cl/6584059
 
- src/pkg/os/user/lookup_windows.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ lib/codereview/codereview.py | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

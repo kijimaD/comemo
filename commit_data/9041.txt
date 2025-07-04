@@ -1,23 +1,19 @@
-commit c1c8d46d20638feed689cc2b3e8475e54fc9451e
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 13 13:20:05 2011 +1000
+commit f1df07bf6a37bc291f293fd5cdfc9203dd22b31f
+Author: David Anderson <danderson@google.com>
+Date:   Tue Jul 12 17:49:55 2011 -0700
 
-    go_tutorial: change the way it's generated.
-    No longer do we generate HTML from it; instead the input
-    file is already in HTML but has template invocations to
-    extract programs from other files.
-    Delete htmlgen, which is no longer needed.
-    Add tmpltohtml, which runs the templating code.
+    5l, 6l, 8l: Add a PT_LOAD PHDR entry for the PHDR.
     
-    R=golang-dev, dsymonds, adg
-    CC=golang-dev
-    https://golang.org/cl/4699041
+    Per the TIS ELF spec, if a PHDR entry is present in the
+    program header table, it must be part of the memory image of
+    the program. Failure to do this makes elflint complain, and
+    causes some tools that manipulate ELF to crash.
+    
+    R=iant, rsc
+    CC=dave, golang-dev
+    https://golang.org/cl/4650067
 
- doc/Makefile         |   4 +-
- doc/go_tutorial.html | 100 +++---
- doc/go_tutorial.tmpl | 990 +++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go_tutorial.txt  | 932 ------------------------------------------------
- doc/htmlgen.go       | 312 ----------------
- doc/makehtml         |   6 +-
- doc/tmpltohtml.go    | 176 +++++++++
- 7 files changed, 1221 insertions(+), 1299 deletions(-)
+ src/cmd/5l/asm.c | 12 ++++++++++++
+ src/cmd/6l/asm.c | 12 ++++++++++++
+ src/cmd/8l/asm.c | 12 ++++++++++++
+ 3 files changed, 36 insertions(+)

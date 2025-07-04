@@ -1,19 +1,20 @@
-commit b77d9fe0ead35a30cbe449ae805bc4a8770b4a68
-Author: griesemer <gri@golang.org>
-Date:   Thu Oct 5 14:20:51 2017 -0700
+commit e25fa61bb236a12b8d0ae033f05cc8f59557a782
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:22:34 2017 +0900
 
-    cmd/compile: better error message for assignment mismatches
+    net: update documentation on Listen{TCP,UDP,MulticastUDP,IP,Unix,Unixgram}
     
-    Keep left-to-right order when referring to the number of
-    variables and values involved.
+    This change clarifies the documentation on
+    Listen{TCP,UDP,MulticastUDP,IP,Unix,Unixgram} to avoid unnecessary
+    confusion about how the arguments for the connection setup functions
+    are used to make connections.
     
-    Fixes #22159.
-    
-    Change-Id: Iccca12d3222f9d5e049939a9ccec07513c393faa
-    Reviewed-on: https://go-review.googlesource.com/68690
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie269453ef49ec2db893391dc3ed2f7b641c14249
+    Reviewed-on: https://go-review.googlesource.com/34878
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 2 +-
- test/fixedbugs/bug289.go                 | 4 ++--
- test/fixedbugs/bug487.go                 | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/iprawsock.go | 17 ++++++++++-------
+ src/net/tcpsock.go   | 23 ++++++++++++++---------
+ src/net/udpsock.go   | 42 +++++++++++++++++++++++++-----------------
+ src/net/unixsock.go  | 36 ++++++++++++++++++------------------
+ 4 files changed, 67 insertions(+), 51 deletions(-)

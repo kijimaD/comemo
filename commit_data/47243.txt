@@ -1,29 +1,20 @@
-commit 6ba68a0581d537edfd6eb2e5675c408f18eb4eed
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Nov 3 14:47:04 2021 -0700
+commit 51d8d351c1bb2cac74e1bbf8545245cdbc8914c3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 20:56:01 2021 +0700
 
-    cmd/compile: don't inline fn with no shape params, but passed a shape arg
+    cmd/compile: do not set type for OTYPESW
     
-    Don't inline a function fn that has no shape parameters, but is passed
-    at least one shape arg. This means we must be inlining a non-generic
-    function fn that was passed into a generic function, and can be called
-    with a shape arg because it matches an appropriate type parameter. But
-    fn may include an interface conversion (that may be applied to a shape
-    arg) that was not apparent when we first created the instantiation of
-    the generic function. We can't handle this if we actually do the
-    inlining, since we want to know all interface conversions immediately
-    after stenciling.  So, we avoid inlining in this case.
+    Same as CL 294031, but for OTYPESW.
     
-    Fixes #49309.
+    Updates #43311
     
-    Change-Id: I7b8ab7b13e58fdb0111db91bc92a91d313f7c2c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361260
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I996f5938835baff1d830c17ed75652315106bdfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298712
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 21 +++++++++++++++++++++
- test/typeparam/issue49309.go           | 25 +++++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ test/fixedbugs/issue24470.go                    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,15 +1,19 @@
-commit fd56942fe3725feaa53bed67daf7412742e4f2ab
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 30 17:16:51 2020 -0400
+commit ea52c78a66562b70eeb180610922b3077e2ce1e4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 20 11:09:16 2020 +0700
 
-    runtime: add a comment about thread pointer alignment on darwin/arm64
+    cmd/compile: remove useless nil check in symfmt
     
-    Address a review comment in CL 266373.
+    This is followup of CL 228861, which remove another un-necessary nil
+    check for s.Pkg.
     
-    Change-Id: Ic21bd5c4f87fd0c7dc594155a10fe23602698187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266777
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: Ide750beddd2594199af21b56ec6af734dfa55b9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228862
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/race_arm64.s | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

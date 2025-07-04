@@ -1,13 +1,13 @@
-commit 026b5bbc8bf865324aed7a7746937e2dc3fa4903
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Dec 8 22:27:29 2014 -0500
+commit f9c4c16dce621f1834943f3ccda0d0a079f7b1a4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 30 10:24:37 2014 +1100
 
-    misc/cgo/test: skip test8694 on ARM.
+    runtime: make TestCgoExternalThreadPanic run on windows
     
-    LGTM=dave, bradfitz, rsc
-    R=golang-codereviews, dave, bradfitz, rsc
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/185130043
+    https://golang.org/cl/163540043
 
- misc/cgo/test/issue8694.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

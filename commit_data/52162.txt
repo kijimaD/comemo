@@ -1,18 +1,18 @@
-commit 4eb3aea2b5c53a66ae5dddc26afaea36e6c18878
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 21:26:46 2023 -0800
+commit ff14e844d26090e09aa335d836f737c09a7a0402
+Author: Maxime Soulé <zeptomax@gmail.com>
+Date:   Thu Mar 17 17:01:24 2022 +0100
 
-    go/types, types2: better internal comment, added suitable test case
+    net/http/httptest: allow multiple fields be present in one Trailer field
     
-    Change-Id: If55cd001ab3d274cd9c61c06f73bb98162aa12a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471019
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #51761
+    
+    Change-Id: Ibaa17076ba51b666e25333e78180b8c7c4c940ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393616
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go           | 21 +++++++++++++++++++--
- src/go/types/infer.go                              | 21 +++++++++++++++++++--
- src/internal/types/testdata/check/funcinference.go |  8 ++++++++
- 3 files changed, 46 insertions(+), 4 deletions(-)
+ src/net/http/httptest/recorder.go      | 24 +++++++++++++-----------
+ src/net/http/httptest/recorder_test.go |  3 +--
+ 2 files changed, 14 insertions(+), 13 deletions(-)

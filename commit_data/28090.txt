@@ -1,24 +1,34 @@
-commit 0c6c3d1de7bfe40d3589109bf2adb1726d6caca8
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Aug 28 11:17:37 2016 -0700
+commit 5fe1b35ed214a8ece13449f5788dd9f5c927379f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 28 11:31:59 2016 -0700
 
-    cmd/compile: fix noopt build
+    net: ensure dnsConfig search list is rooted
     
-    Atomic add rules were depending on CSE to combine duplicate atomic ops.
-    With -N, CSE doesn't run.
+    Avoids some extra work and string concatenation at query time.
     
-    Redo the rules for atomic add so there's only one atomic op.
-    Introduce an add-to-first-part-of-tuple pseudo-ops to make the atomic add result correct.
+    benchmark                                      old allocs     new allocs     delta
+    BenchmarkGoLookupIP-32                         154            150            -2.60%
+    BenchmarkGoLookupIPNoSuchHost-32               446            442            -0.90%
+    BenchmarkGoLookupIPWithBrokenNameServer-32     564            568            +0.71%
     
-    Change-Id: Ib132247051abe5f80fefad6c197db8df8ee06427
-    Reviewed-on: https://go-review.googlesource.com/27991
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    benchmark                                      old bytes     new bytes     delta
+    BenchmarkGoLookupIP-32                         10824         10704         -1.11%
+    BenchmarkGoLookupIPNoSuchHost-32               43140         42992         -0.34%
+    BenchmarkGoLookupIPWithBrokenNameServer-32     46616         46680         +0.14%
+    
+    BenchmarkGoLookupIPWithBrokenNameServer's regression appears to be
+    because it's actually only performing 1 LookupIP call, so the extra
+    work done parsing the DNS config file doesn't amortize as well as for
+    BenchmarkGoLookupIP or BenchmarkGoLOokupIPNoSuchHost, which perform
+    2000+ LookupIP calls per run.
+    
+    Update #15473.
+    
+    Change-Id: I98c8072f2f39e2f2ccd6c55e9e9bd309f5ad68f8
+    Reviewed-on: https://go-review.googlesource.com/22571
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |   2 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  10 ++-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
- src/cmd/compile/internal/ssa/opGen.go        |  12 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 110 ++++++++++++++++-----------
- 5 files changed, 88 insertions(+), 48 deletions(-)
+ src/net/dnsclient_unix.go      | 18 +++++++++---------
+ src/net/dnsconfig_unix.go      | 15 +++++++++++----
+ src/net/dnsconfig_unix_test.go | 14 +++++++-------
+ 3 files changed, 27 insertions(+), 20 deletions(-)

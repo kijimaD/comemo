@@ -1,33 +1,20 @@
-commit 0db9518ab30f35c7c185aed337037e8305a98b34
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 6 17:08:44 2016 -0400
+commit b5aae1a2845f157a2565b856fb2d7773a0f7af25
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 30 22:11:22 2016 +0000
 
-    fmt: document and adjust Scanf space handling to eliminate a few paradoxes
+    net/http: update bundled http2
     
-    This CL makes minor adjustment to the handling of spaces and newlines
-    and then documents the result.
+    Updates x/net/http2 to git rev b400c2e for https://golang.org/cl/24214,
+    "http2: add additional blacklisted ciphersuites"
     
-    The semantic adjustment mainly concerns the handling of a run of
-    spaces following a newline in the format, like in "\n ".
-    Previously, that run of spaces was ignored entirely, leading to paradoxes
-    like the format "1 \n 2" not matching itself as input.
-    Now, spaces following a newline in the format match zero or more
-    spaces following the corresponding newline in the input.
+    Both TLS_RSA_WITH_AES_128_GCM_SHA256 & TLS_RSA_WITH_AES_256_GCM_SHA384
+    are now blacklisted, per http://httpwg.org/specs/rfc7540.html#BadCipherSuites
     
-    The changes to the test suite show how minor the semantic adjustments are
-    and how they make the behavior more regular than previously.
-    
-    This CL also updates the documentation to explain the handling of
-    spaces more precisely, incorporating the draft from CL 17723 but
-    describing the newly introduced behavior.
-    
-    Fixes #13565.
-    
-    Change-Id: I129666e9ba42de3c28b67f75cb47488e9a4c1867
-    Reviewed-on: https://go-review.googlesource.com/30611
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8b9a7f4dc3c152d0675e196523ddd36111744984
+    Reviewed-on: https://go-review.googlesource.com/24684
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/doc.go       | 62 ++++++++++++++++++++-------------
- src/fmt/scan.go      | 96 +++++++++++++++++++++++++++++-----------------------
- src/fmt/scan_test.go | 24 ++++++-------
- 3 files changed, 104 insertions(+), 78 deletions(-)
+ src/net/http/h2_bundle.go | 44 +++++++++++++++++++++++---------------------
+ 1 file changed, 23 insertions(+), 21 deletions(-)

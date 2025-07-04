@@ -1,17 +1,44 @@
-commit 16822a2bc45fa276f16c046795320d3b55b6f7bd
-Author: Chris Le Roy <brompwnie@users.noreply.github.com>
-Date:   Thu Mar 19 21:31:23 2020 +0000
+commit 93a601dd2acc7401564eae59b5e6927da4146e22
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Wed Aug 1 23:22:46 2018 -0400
 
-    crypto/tls: update the MITM reference to "machine-in-the-middle"
+    math: add guaranteed-precision FMA implementation
     
-    Changing "man-in-the-middle" references to "machine-in-the-middle",
-    it's a more inclusive term and still aligns with the MITM acronym.
+    Currently, the precision of the float64 multiply-add operation
+    (x * y) + z varies across architectures. While generated code for
+    ppc64, s390x, and arm64 can guarantee that there is no intermediate
+    rounding on those platforms, other architectures like x86, mips, and
+    arm will exhibit different behavior depending on available instruction
+    set. Consequently, applications cannot rely on results being identical
+    across GOARCH-dependent codepaths.
     
-    Change-Id: I81f954cff3d252433443f159ff9edaf59a28ab9d
-    GitHub-Last-Rev: 3e8f91424a207233b537984747ae90cbc1f03755
-    GitHub-Pull-Request: golang/go#37918
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223897
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    This CL introduces a software implementation that performs an IEEE 754
+    double-precision fused-multiply-add operation. The only supported
+    rounding mode is round-to-nearest ties-to-even. Separate CLs include
+    hardware implementations when available. Otherwise, this software
+    fallback is given as the default implementation.
+    
+    Specifically,
+        - arm64, ppc64, s390x: Uses the FMA instruction provided by all
+          of these ISAs.
+        - mips[64][le]: Falls back to this software implementation. Only
+          release 6 of the ISA includes a strict FMA instruction with
+          MADDF.D (not implementation defined). Because the number of R6
+          processors in the wild is scarce, the assembly implementation
+          is left as a future optimization.
+        - x86: Guards the use of VFMADD213SD by checking cpu.X86.HasFMA.
+        - arm: Guards the use of VFMA by checking cpu.ARM.HasVFPv4.
+        - software fallback: Uses mostly integer arithmetic except
+          for input that involves Inf, NaN, or zero.
+    
+    Updates #25819.
+    
+    Change-Id: Iadadff2219638bacc9fec78d3ab885393fea4a08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/127458
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/tls/common.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/all_test.go |  75 +++++++++++++++++++++++
+ src/math/fma.go      | 169 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 244 insertions(+)

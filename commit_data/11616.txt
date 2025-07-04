@@ -1,15 +1,28 @@
-commit b8b2253ac78ac76aa5ef171171005b8214e44fec
+commit 961f96b5d273647c02247d8d20fda4199dd134d9
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 4 01:23:54 2012 -0500
+Date:   Sat Feb 4 00:54:26 2012 -0500
 
-    cmd/dist: fix build
+    build: delete buildscripts, runtime scripts
     
-    TBR=golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5630049
+    https://golang.org/cl/5620059
 
- src/cmd/dist/build.c   | 15 +++++++++------
- src/cmd/dist/unix.c    |  8 ++------
- src/cmd/dist/windows.c |  6 +++---
- src/make.bash          |  3 ++-
- 4 files changed, 16 insertions(+), 16 deletions(-)
+ src/buildscript.sh               |  44 ----
+ src/buildscript/darwin_386.sh    | 498 --------------------------------------
+ src/buildscript/darwin_amd64.sh  | 497 --------------------------------------
+ src/buildscript/freebsd_386.sh   | 498 --------------------------------------
+ src/buildscript/freebsd_amd64.sh | 497 --------------------------------------
+ src/buildscript/linux_386.sh     | 498 --------------------------------------
+ src/buildscript/linux_amd64.sh   | 497 --------------------------------------
+ src/buildscript/linux_arm.sh     | 501 ---------------------------------------
+ src/buildscript/netbsd_386.sh    | 498 --------------------------------------
+ src/buildscript/netbsd_amd64.sh  | 497 --------------------------------------
+ src/buildscript/openbsd_386.sh   | 498 --------------------------------------
+ src/buildscript/openbsd_amd64.sh | 497 --------------------------------------
+ src/buildscript/plan9_386.sh     | 498 --------------------------------------
+ src/buildscript/windows_386.sh   | 500 --------------------------------------
+ src/buildscript/windows_amd64.sh | 499 --------------------------------------
+ src/pkg/runtime/autogen.sh       |  82 -------
+ src/pkg/runtime/mkgodefs.sh      |  67 ------
+ 17 files changed, 7166 deletions(-)

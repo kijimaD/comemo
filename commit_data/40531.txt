@@ -1,17 +1,36 @@
-commit d0160bc32defcb054b59b8501bfadc8ec5b64073
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 1 15:10:25 2019 +0000
+commit 3e9d8e2e1bb94c3e302da8121f9cc018d86d1e71
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri May 17 17:25:07 2019 +0700
 
-    make.bash: show bootstrap version
+    test/fixedbugs: fix some tests will not be run
     
-    For debugging. (The "go1.4" can be misleading since it might actually
-    be go1.4.3 or go1.11 or go1.12 or master)
+    Currently, some tests under test/fixedbugs never run:
     
-    Change-Id: I27520b931a2be018de577a299592d082260aa467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204757
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+            $ for d in test/fixedbugs/*.dir; do
+              ! test -f "${d%.dir}.go" && echo "$d"
+            done
+            test/fixedbugs/issue15071.dir
+            test/fixedbugs/issue15609.dir
+            test/fixedbugs/issue29612.dir
+    
+    Because they missed the corresponding ".go" file, so "go run run.go"
+    will skip them.
+    
+    Add missing ".go" files for those tests to make sure they will be
+    collected and run.
+    
+    While at it, add another action "runindir", which does "go run ."
+    inside the t.goDirName then check the output.
+    
+    Change-Id: I88000b3663a6a615d90c1cf11844ea0377403e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177798
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/make.bash | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue15071.dir/{exp => }/exp.go |  0
+ test/fixedbugs/issue15071.go                   |  7 ++++++
+ test/fixedbugs/issue15609.go                   |  7 ++++++
+ test/fixedbugs/issue29612.go                   |  7 ++++++
+ test/run.go                                    | 31 +++++++++++++++++++++++---
+ 5 files changed, 49 insertions(+), 3 deletions(-)

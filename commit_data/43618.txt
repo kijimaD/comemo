@@ -1,22 +1,16 @@
-commit 2e6f50020cacd68f24e413d24d4c3e92e0c9e69f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Oct 30 04:32:18 2020 +1100
+commit c7c72378a3b698fb9cb8a8145c8ebd11b8259541
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 15 21:55:35 2020 -0400
 
-    Revert "cmd/compile,cmd/internal/sys: enable additional build modes on linux/riscv64"
+    [dev.link] cmd/link: fix buglet in dodata
     
-    This reverts CL 263457.
+    Fix AIX build.
     
-    It turns out that this still missed changes to cmd/link/internal/ld/config.go
-    and some of these build modes also fail once cgo is enabled. Disable again for
-    now.
-    
-    Change-Id: Iaf40d44e1551afd5b040d357f04af134f55a64a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266317
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: I5c0f1390a62c684bb0b162c3309902566cc6b025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228477
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/main.go | 2 +-
- src/cmd/dist/test.go                | 8 ++++----
- src/cmd/go/go_test.go               | 2 +-
- src/cmd/internal/sys/supported.go   | 6 +++---
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/data.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

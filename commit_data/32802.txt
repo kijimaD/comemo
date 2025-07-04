@@ -1,38 +1,14 @@
-commit 3d741349f5c7bf198a1c85acd374d1bee215f30e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 14 15:51:18 2017 +0100
+commit 29469d2406d213187ee91bd256bb60e98e451324
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jun 2 17:07:33 2017 +0200
 
-    cmd/compile: collect reasons in inlining test
+    bytes: note that NewBuffer take ownership of its argument
     
-    If we use -gcflags='-m -m', the compiler should give us a reason why a
-    func couldn't be inlined. Add the extra -m necessary for that extra info
-    and use it to give better test failures. For example, for the func in
-    the TODO:
+    Fixes #19383
     
-            --- FAIL: TestIntendedInlining (1.53s)
-                    inl_test.go:104: runtime.nextFreeFast was not inlined: function too complex
-    
-    We might increase the number of -m flags to get more information at some
-    later point, such as getting details on how close the func was to the
-    inlining budget.
-    
-    Also started using regexes, as the output parsing is getting a bit too
-    complex for manual string handling.
-    
-    While at it, also refactored the test to not buffer the entire output
-    into memory. This is fine in practice, but it won't scale well as we add
-    more packages or we depend more on the compiler's debugging output.
-    
-    For example, "go build -a -gcflags='-m -m' std" prints nearly 40MB of
-    plaintext - and we only need to see the output line by line anyway.
-    
-    Updates #21851.
-    
-    Change-Id: I00986ff360eb56e4e9737b65a6be749ef8540643
-    Reviewed-on: https://go-review.googlesource.com/63810
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic84517053ced7794006f6fc65e6f249e97d6cf35
+    Reviewed-on: https://go-review.googlesource.com/44691
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 63 ++++++++++++++++++++++-----------
- 1 file changed, 43 insertions(+), 20 deletions(-)
+ src/bytes/buffer.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

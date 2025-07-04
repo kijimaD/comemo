@@ -1,44 +1,24 @@
-commit 33da4ce4579d4e04a1daa6122abbf669e51ee6ba
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Oct 19 16:43:22 2022 +1100
+commit e7a2014fac885392e14205c93fff3fd8db84fa8d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 13 10:54:07 2022 -0700
 
-    cmd/compile: sign or zero extend for 32 bit equality on riscv64
+    time: move RFC 3339 optimizations to separate file
     
-    For 32 bit equality (Eq32), rather than always zero extending to 64 bits,
-    sign extend for signed types and zero extend for unsigned types. This makes
-    no difference to the equality test (via SUB), however it increases the
-    likelihood of avoiding unnecessary sign or zero extension simply for the
-    purpose of equality testing.
+    The optimizations were added in CL 425197 and CL 421877.
+    Move this functionality to a separate file to keep format.go smaller
+    and to document the justification for why this optimization exists.
     
-    While here, replace the Neq* rules with (Not (Eq*)) - this makes no
-    difference to the generated code (as the intermediates get expanded and
-    eliminated), however it means that changes to the equality rules also
-    reflect in the inequality rules.
-    
-    As an example, the following:
-    
-       lw      t0,956(t0)
-       slli    t0,t0,0x20
-       srli    t0,t0,0x20
-       li      t1,1
-       bne     t1,t0,278fc
-    
-    Becomes:
-    
-       lw      t0,1024(t0)
-       li      t1,1
-       bne     t1,t0,278b0
-    
-    Removes almost 1000 instructions from the Go binary on riscv64.
-    
-    Change-Id: Iac60635f494f6db87faa47752bd1cc16e6b5967f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516595
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I1e4e1ace19f9d596d8c0cf49ab6062f63a87b5bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430675
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  13 +--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 101 ++++++++++++++----------
- 2 files changed, 67 insertions(+), 47 deletions(-)
+ src/time/format.go         | 117 ----------------------------------------
+ src/time/format_rfc3339.go | 131 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 117 deletions(-)

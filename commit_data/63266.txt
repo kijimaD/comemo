@@ -1,0 +1,31 @@
+commit 3bd0eab96f581daafa3045de0c5877254e19054c
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 29 11:48:06 2025 -0700
+
+    runtime: randomize order of timers at the same instant in bubbles
+    
+    In synctest bubbles, fire timers scheduled for the same instant
+    in a randomized order.
+    
+    Pending timers are added to a heap ordered by the timer's wakeup time.
+    Add a per-timer random value, set when the timer is added to a heap,
+    to break ties between timers scheduled for the same instant.
+    
+    Only inject this randomness in synctest bubbles. We could do so
+    for all timers at the cost of one cheaprand call per timer,
+    but given that it's effectively impossible to create two timers
+    scheduled for the same instant outside of a fake-time environment,
+    don't bother.
+    
+    Fixes #73876
+    For #73850
+    
+    Change-Id: Ie96c86a816f548d4c31e4e014bf9293639155bd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677276
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/synctest/synctest_test.go | 60 ++++++++++++++++++++++++++++++++++
+ src/runtime/time.go                    | 38 ++++++++++++++++-----
+ 2 files changed, 89 insertions(+), 9 deletions(-)

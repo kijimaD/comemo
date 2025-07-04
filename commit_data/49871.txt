@@ -1,22 +1,22 @@
-commit 54cf1b107d24e135990314b56b02264dba8620fc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 29 14:48:48 2022 -0400
+commit 07b30a4f77cf89a283c45c338f0cfcb68e15aab1
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Sep 2 08:47:40 2021 -0700
 
-    runtime: convert prof.hz to atomic type
+    cmd/compile: delay transformAssign if lhs/rhs have typeparam
     
-    This converts several unsynchronized reads (reads without holding
-    prof.signalLock) into atomic reads.
+    This also requires that we sometimes delay transformSelect(), if the
+    assignments in the Comm part of the select have not been transformed.
     
-    For #53821.
-    For #52912.
+    Fixes #48137
     
-    Change-Id: I421b96a22fbe26d699bcc21010c8a9e0f4efc276
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420196
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I163aa1f999d1e63616280dca807561b12b2aa779
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347915
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/cpuprof.go     |  2 +-
- src/runtime/proc.go        | 13 ++++++++-----
- src/runtime/signal_unix.go |  4 ++--
- 3 files changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ src/cmd/compile/internal/noder/stmt.go    | 20 ++++++++++++++++----
+ test/typeparam/issue48137.go              | 25 +++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 4 deletions(-)

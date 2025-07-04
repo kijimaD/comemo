@@ -1,18 +1,15 @@
-commit 73d109c509e4f8c1122187fa406aa0be4ff88608
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 19 16:49:47 2015 -0400
+commit bc44b818a6c3ce69e2cb7a4b942d42c41e764af1
+Author: David Chase <drchase@google.com>
+Date:   Fri May 1 11:16:35 2015 -0400
 
-    cmd/internal/gc: accept map literals with omitted key type
+    cmd/internal/gc: Toughen escape analysis against some bugs.
     
-    Fixes #10209.
+    Ensures that parameter flow bits are not set for tags EscScope, EscHeap, EscNever;
+    crash the compiler earl to expose faulty logic, rather than flake out silently downstream.
     
-    Change-Id: I248434f9195c868befd1ed8a6000a9cac72d1df8
-    Reviewed-on: https://go-review.googlesource.com/10263
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1428129980ae047d02975f033d56cbbd04f49579
+    Reviewed-on: https://go-review.googlesource.com/9601
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.y         |     2 +-
- src/cmd/compile/internal/gc/typecheck.go |     8 +-
- src/cmd/compile/internal/gc/y.go         |   766 +--
- src/cmd/compile/internal/gc/y.output     | 10411 -----------------------------
- test/complit1.go                         |    14 +
- 5 files changed, 408 insertions(+), 10793 deletions(-)
+ src/cmd/internal/gc/esc.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

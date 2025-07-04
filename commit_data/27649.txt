@@ -1,23 +1,18 @@
-commit 2f088884aeab7f34ca69c0b8ab21c9694c628e19
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 6 10:56:42 2016 -0700
+commit 5176a4b39b4595e5d9025e7aaf19146c29b7e349
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 6 15:01:50 2016 +0200
 
-    cmd/compile: use fake package for allocating autos
+    testing: fix flakey test on plan9
     
-    Make sure auto names don't conflict with function names. Before this CL,
-    we confused name a.len (the len field of the slice a) with a.len (the function
-    len declared on a).
+    allow for more than 0.00s.
     
-    Fixes #15961
+    Fixes #15149
     
-    Change-Id: I14913de697b521fb35db9a1b10ba201f25d552bb
-    Reviewed-on: https://go-review.googlesource.com/23789
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1d428a9b3c9bb3d1db8682c53b86e44cecc1dde1
+    Reviewed-on: https://go-review.googlesource.com/21602
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go   |  2 ++
- src/cmd/compile/internal/gc/main.go |  2 ++
- src/cmd/compile/internal/gc/ssa.go  |  2 +-
- test/fixedbugs/issue15961.go        | 21 +++++++++++++++++++++
- 4 files changed, 26 insertions(+), 1 deletion(-)
+ src/testing/sub_test.go | 59 ++++++++++++++++++++++---------------------------
+ 1 file changed, 27 insertions(+), 32 deletions(-)

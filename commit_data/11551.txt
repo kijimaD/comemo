@@ -1,15 +1,20 @@
-commit 5cc07af675901380a62eb23a2cb643db41dd4f7e
+commit b53ce1e66221be41a0b869869ceba73b795c8c3e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 1 18:25:51 2012 -0500
+Date:   Wed Feb 1 18:25:40 2012 -0500
 
-    syscall: fix build directive in types_linux.go
-    
-    The rule is that build directives can be preceded only
-    by blank lines and other line comments, not /* */ comments.
+    lib9: make safe for automatic builds
     
     R=golang-dev, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5619045
+    https://golang.org/cl/5615046
 
- src/pkg/syscall/types_linux.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/lib9/Makefile               |  2 +-
+ src/lib9/await.c                |  2 ++
+ src/lib9/fmt/errfmt.c           | 30 ---------------------------
+ src/lib9/fork.c                 | 46 -----------------------------------------
+ src/lib9/getuser.c              |  2 ++
+ src/lib9/jmp.c                  |  2 ++
+ src/lib9/notify.c               |  2 ++
+ src/lib9/rfork.c                |  2 ++
+ src/lib9/{win32.c => windows.c} |  0
+ 9 files changed, 11 insertions(+), 77 deletions(-)

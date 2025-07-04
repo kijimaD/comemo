@@ -1,53 +1,23 @@
-commit ddd8bc1b074f51aa6fc73a94053f394e4bf25525
-Author: Robert Findley <rfindley@google.com>
-Date:   Sat Aug 13 12:35:57 2022 -0400
+commit e08aae2ee443ba8bb16b8ce9c5d3d8d4d3cfa82b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 14 11:29:45 2021 -0800
 
-    go/types, types2: optimize instance lookup in LookupFieldOrMethod
+    cmd/compile/internal/types2: implement Checker.implements
     
-    LookupFieldOrMethod appears as a hotspot when benchmarking gopls'
-    auto-completion. In particular, instanceLookup.add was allocating in the
-    common case of structs with no embedding.
+    Checker.implements implements the complete interface
+    "implements" predicate. Use it instead of Checker.satisfies.
+    This is mostly a refactoring of the code but the constraint
+    types have already been instatiated with the respective type
+    arguments as needed before calling "implements".
+    Future CLs will address the various TODOs.
     
-    This is easily fixed, by using a small array in front of the map inside
-    of instanceLookup. Do this, and additionally add a microbenchmark.
-    
-    The benchmark improvement is significant:
-    
-    name                    old time/op    new time/op    delta
-    LookupFieldOrMethod-12     388µs ± 6%     154µs ± 3%  -60.36%  (p=0.000 n=10+10)
-    
-    name                    old alloc/op   new alloc/op   delta
-    LookupFieldOrMethod-12     152kB ± 0%       2kB ± 0%  -98.77%  (p=0.000 n=9+10)
-    
-    name                    old allocs/op  new allocs/op  delta
-    LookupFieldOrMethod-12     1.41k ± 0%     0.07k ± 0%  -95.38%  (p=0.000 n=10+10)
-    
-    It should also be noted that instanceLookup is used elsewhere, in
-    particular by validType. In those contexts, the scope is not just the
-    current type but the entire package, and so the newly added buffer is
-    likely to simply cause extra Identical checks. Nevertheless, those
-    checks are cheap, and on balance the improved LookupFieldOrMethod
-    performance leads overall to improved type-checking performance.
-    Standard library benchmark results varied by package, but type checking
-    speed for many packages improved by ~5%, with allocations improved by
-    ~10%. If this weren't the case we could let the caller control the
-    buffer size, but that optimization doesn't seem necessary at this time.
-    
-    For example:
-    
-    Check/http/funcbodies/noinfo-12            71.5ms ± 4%    67.3ms ± 2%   -5.90%  (p=0.000 n=20+20)
-    Check/http/funcbodies/noinfo-12              244k ± 0%      219k ± 0%  -10.36%  (p=0.000 n=19+19)
-    
-    Updates golang/go#53992
-    
-    Change-Id: I10b6deb3819ab562dbbe1913f12b977cf956dd50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423935
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: If530cca36643a561282361348f1526157a7182de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363837
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/lookup.go      | 16 ++++++-
- src/cmd/compile/internal/types2/lookup_test.go | 55 ++++++++++++++++++++++++
- src/go/types/lookup.go                         | 16 ++++++-
- src/go/types/lookup_test.go                    | 58 ++++++++++++++++++++++++++
- 4 files changed, 143 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go     | 121 +++++++++++----------
+ .../types2/testdata/fixedbugs/issue45920.go2       |   4 +-
+ 2 files changed, 67 insertions(+), 58 deletions(-)

@@ -1,0 +1,22 @@
+commit fbdd994166007349920592822e659d98b2d94ab6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 12 16:36:08 2025 +0100
+
+    crypto/tls: allow P-521 in FIPS 140-3 mode and Go+BoringCrypto
+    
+    Partially reverts CL 587296, restoring the Go+BoringCrypto 1.23 behavior
+    in terms of supported curves.
+    
+    Updates #71757
+    
+    Change-Id: I6a6a465651a8407056fd0fae091d10a945b37997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/defaults.go  | 6 ++++--
+ src/crypto/tls/fips_test.go | 3 ++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

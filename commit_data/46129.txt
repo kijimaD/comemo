@@ -1,28 +1,26 @@
-commit 8486ced8b09f4425bfd85e09b021dc78f93aea08
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 20 10:19:28 2021 -0700
+commit 854a2f8e01a554d8052445563863775406a04b71
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Dec 2 17:07:27 2020 -0700
 
-    cmd/compile: copy captured dictionary var to local var
+    net/http: add connections back that haven't been canceled
     
-    When starting a closure that needs a dictionary, copy the closure
-    variable to a local variable. This lets child closures capture that
-    dictionary variable correctly.
+    Issue #41600 fixed the issue when a second request canceled a connection
+    while the first request was still in roundTrip.
+    This uncovered a second issue where a request was being canceled (in
+    roundtrip) but the connection was put back into the idle pool for a
+    subsequent request.
+    The fix is the similar except its now in readLoop instead of roundTrip.
+    A persistent connection is only added back if it successfully removed
+    the cancel function; otherwise we know the roundTrip has started
+    cancelRequest.
     
-    This is a better fix for #47684, which does not cause problems
-    like #47723.
+    Fixes #42942
     
-    Fixes #47723
-    Update #47684
-    
-    Change-Id: Ib5d9ffc68a5142e28daa7d0d75683e7a35508540
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343871
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Ia56add20880ccd0c1ab812d380d8628e45f6f44c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274973
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ir/name.go       |  4 +---
- src/cmd/compile/internal/noder/stencil.go | 16 ++++++++++++++--
- test/typeparam/issue47723.go              | 23 +++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 5 deletions(-)
+ src/net/http/transport.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

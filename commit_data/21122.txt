@@ -1,17 +1,13 @@
-commit 76b2f06ee54f92b104412bdf9fefd8e7915969d3
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Dec 30 19:48:26 2014 -0500
+commit 7001fad55bdb27aed039ceead10fd54dc4b248aa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 17 11:20:53 2014 +1100
 
-    cmd/gc: fix filename output format verb for -s
+    tag go1.4rc1
     
-    %lL will prepend the current directory to the filename, which is not
-    what we want here (as the file name is already absolute).
-    
-    Fixes #9150.
-    
-    Change-Id: I4c9386be6baf421393b92d9401a264b4692986d0
-    Reviewed-on: https://go-review.googlesource.com/2231
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=dsymonds
+    R=rsc, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/175840043
 
- src/cmd/gc/typecheck.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

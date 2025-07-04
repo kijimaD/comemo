@@ -1,28 +1,22 @@
-commit 1319b1476ea6f55c780936d133a005054fa81234
-Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
-Date:   Wed Aug 11 13:47:07 2021 -0700
+commit 3e1a87ac2a9dbf7754be4feb8681af3b1881eda7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 9 23:36:13 2021 -0800
 
-    cmd/go/internal/test: pass only analysis flags to vet
+    [dev.typeparams] cmd/compile: extract posMap from noder
     
-    In go test vet=x, x should be off, all, or one of the analyses supported
-    by vet. All other flags should not be passed to vet. This CL maintains a
-    list of supported vet analyzers by running go tool vet -flags and
-    parsing the flag info to figure out the names of the supported analyzers
-    and their aliases.
+    This CL extracts the position mapping logic from noder and moves it
+    into a new posMap type, which can be more easily reused.
     
-    Fixes #47309
+    Passes toolstash -cmp.
     
-    Change-Id: I16ade8024301ad4aee5ad45aa92cf63b63dbc2d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341334
-    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
-    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Change-Id: I87dec3a3d27779c5bcc838f2e36c3aa8fabad155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282916
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/test/flagdefs.go               | 34 +++++++++++
- src/cmd/go/internal/test/flagdefs_test.go          | 19 ++++++
- src/cmd/go/internal/test/genflags.go               | 21 ++++++-
- .../go/internal/test/internal/genflags/vetflag.go  | 68 ++++++++++++++++++++++
- src/cmd/go/internal/test/testflag.go               | 10 +++-
- src/cmd/go/testdata/script/test_vet.txt            | 11 ++++
- 6 files changed, 160 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/noder.go  | 60 +++---------------------
+ src/cmd/compile/internal/noder/posmap.go | 79 ++++++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+), 53 deletions(-)

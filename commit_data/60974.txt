@@ -1,0 +1,24 @@
+commit 0a2cc74f5a12b5cb7945e620a871b073b95ebee7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 13 13:48:33 2024 +0000
+
+    cmd: make use of maps.{Copy, Clone}
+    
+    Change-Id: I8a38b4c71c34d3544ee32be9c6e767bb1099a720
+    GitHub-Last-Rev: ff4cb4e91be3936465635f99d061f02999640ed9
+    GitHub-Pull-Request: golang/go#69424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612735
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/cgo/main.go                       | 9 +++------
+ src/cmd/compile/internal/pgoir/irgraph.go | 6 ++----
+ src/cmd/fix/typecheck.go                  | 7 ++++---
+ src/cmd/go/internal/load/godebug.go       | 5 ++---
+ src/cmd/go/internal/load/test.go          | 5 ++---
+ 5 files changed, 13 insertions(+), 19 deletions(-)

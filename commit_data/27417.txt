@@ -1,18 +1,15 @@
-commit 495e3c60aa61615dd603050ac47f86468f8222b6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue May 17 12:20:16 2016 +0900
+commit b88147c303f7b2b52ca0191a96fa1a3249e46297
+Author: David Benjamin <davidben@google.com>
+Date:   Mon Feb 15 11:56:18 2016 -0500
 
-    net: use IPv4/IPv6 reserved address blocks for documentation
+    crypto/tls: Update references to draft-ietf-tls-downgrade-scsv-00.
     
-    Also replaces google.com with golang.org in package documentation.
+    It's RFC 7507 now.
     
-    Updates #15228.
-    
-    Change-Id: I554fa960878fa44557a522635ed412d8d7548d3f
-    Reviewed-on: https://go-review.googlesource.com/23126
+    Change-Id: Iccd6c65f9d4b1f4d17ee068dee4576a512ba8405
+    Reviewed-on: https://go-review.googlesource.com/21154
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial.go |  8 ++++----
- src/net/ip.go   | 18 +++++++++---------
- src/net/net.go  |  2 +-
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/crypto/tls/cipher_suites.go    | 2 +-
+ src/crypto/tls/handshake_server.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

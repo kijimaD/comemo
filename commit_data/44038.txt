@@ -1,26 +1,20 @@
-commit 740851bacafd8e47b9a6ce0cd8fa8e05506a7382
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Dec 14 13:03:06 2020 -0500
+commit d75ee813b50e1ff2fec72d501b7b77bc868a3228
+Author: Alex Gaynor <alex@alloy.us>
+Date:   Tue Apr 28 01:18:29 2020 +0000
 
-    cmd/link: avoid use of -T when linking with lld
+    encoding/csv: optimize Write by giving fieldNeedsQuotes a fast path for when Comma is ascii
     
-    When doing external linking on Windows, auto-detect the linker flavor
-    (bfd vs gold vs lld) and when linking with "lld", avoid the use of
-    "-T" (linker script), since this option is not supported by lld.
-    [Note: the Go linker currently employs -T to ensure proper placement
-    of the .debug_gdb_scripts section, to work around issues in older
-    versions of binutils; LLD recognizes this section and does place it
-    properly].
+    name     old time/op  new time/op  delta
+    Write-4  2.37µs ±20%  1.90µs ±19%  -19.54%  (p=0.015 n=6+6)
     
-    Updates #39326.
-    
-    Change-Id: I3ea79cdceef2316bf86eccdb60188ac3655264ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278932
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iadfd9a43c958704c49ceb540b44d145220f9a72f
+    GitHub-Last-Rev: e7d8b0bd69870a24fdd800401d721e4c5bda7750
+    GitHub-Pull-Request: golang/go#34507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197078
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/encoding/csv/writer.go      | 16 +++++++++++++++-
+ src/encoding/csv/writer_test.go | 17 +++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

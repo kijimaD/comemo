@@ -1,26 +1,22 @@
-commit 91e2e3b9030440713b59dcc7dd9deae71b18d9fc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 8 19:28:45 2021 +0700
+commit d90b199e9c3d6673b1951ddb6a78addd7e0dda26
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 3 14:00:19 2020 -0800
 
-    cmd/compile: prevent duplicated works in WriteRuntimeTypes
+    [dev.regabi] cmd/compile: silence errors about missing blank methods
     
-    While processing signatset, the entry is deleted immediately after being
-    pushed to signatslice. Then calling writeType may add the same type
-    to signatset again. That would add more works, though not a big impact
-    to the performace, since when writeType is guarded by s.Siggen() check.
+    If an interface contains a blank method, that's already an error. No
+    need for useless follow-up error messages about not implementing them.
     
-    Instead, we should keep the entry in signatset, so written type will
-    never be added again.
+    Fixes #42964.
     
-    This change does not affect compiler performace, but help debugging
-    issue like one in #46386 easier.
-    
-    Change-Id: Iddafe773885fa21cb7003ba27ddf9554fc3f297d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326029
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5bf53a8f27d75d4c86c61588c5e2e3e95563d320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275294
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go   | 12 ------------
+ src/cmd/compile/internal/gc/noder.go |  5 ++++-
+ test/interface/explicit.go           |  7 ++++---
+ 3 files changed, 8 insertions(+), 16 deletions(-)

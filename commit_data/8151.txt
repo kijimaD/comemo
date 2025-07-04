@@ -1,23 +1,17 @@
-commit b8df1465ccd8a45f8c7da66757ef18ad71c115fe
+commit 90d3837193fd8224bb44e979ff250cfb76a0710a
 Author: Adam Langley <agl@golang.org>
-Date:   Tue Apr 19 11:00:35 2011 -0400
+Date:   Tue Apr 19 10:11:37 2011 -0400
 
-    crypto/openpgp: better handling of keyrings.
+    crypto/x509: fix build
     
-      * Accept armored private key blocks
-      * If an armored block is missing, return an InvalidArgumentError,
-        rather than ignoring it.
-      * If every key in a block is skipped due to being unsupported,
-        return the last unsupported error.
-      * Include the numeric type of unsupported public keys.
-      * Don't assume that the self-signature comes immediately after the
-        user id packet.
+    This pulls in changes that should have been in 3faf9d0c10c0, but
+    weren't because x509.go was part of another changelist.
+    
+    TBR=bradfitzgo
     
     R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4434048
+    https://golang.org/cl/4433056
 
- src/pkg/crypto/openpgp/keys.go              | 63 +++++++++++++++++++----------
- src/pkg/crypto/openpgp/packet/public_key.go |  3 +-
- src/pkg/crypto/openpgp/read_test.go         | 51 +++++++++++++++++++++++
- 3 files changed, 94 insertions(+), 23 deletions(-)
+ src/pkg/crypto/x509/x509.go | 58 ---------------------------------------------
+ 1 file changed, 58 deletions(-)

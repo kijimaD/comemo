@@ -1,25 +1,38 @@
-commit f776d51bf7fe90926f8b929aee65d802a9091d5e
+commit 30a63ecee351c029ea99dce388a5953a150b4e02
 Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Sep 26 10:43:15 2018 -0400
+Date:   Fri Jun 8 11:07:18 2018 -0400
 
-    cmd/internal/obj/ppc64: generate float 0 more efficiently on ppc64x
+    runtime: restore r2 when restoring state from gobuf in gogo on ppc64x
     
-    This change makes use of a VSX instruction to generate the
-    float 0 value instead of generating a constant in memory and
-    loading it from there.
+    When using plugins with goroutines calling cgo, we hit a case where
+    an intermittent SIGSEGV occurs when referencing an address that is based
+    on r2 (TOC address). When the failure can be generated in gdb, the
+    contents of r2 is wrong even though the value in the current stack's
+    slot for r2 is correct. So that means it somehow switched to start
+    running the code in this function without passing through the beginning
+    of the function which had the correct value of r2 and stored it there.
     
-    This uses 1 instruction instead of 2 and avoids a memory reference.
-    in the +0 case, uses 2 instructions in the -0 case but avoids
-    the memory reference.
+    It was noted that in runtime.gogo when the state is restored from
+    gobuf, r2 is not restored from its slot on the stack. Adding the
+    instruction to restore r2 prevents the SIGSEGV.
     
-    Since this is done in the assembler for ppc64x, an update has
-    been made to the assembler test.
+    This adds a testcase under testplugin which reproduces the problem if
+    the program is run multiple times. The team who reported this problem
+    has verified it fixes the issue on their larger, more complex
+    application.
     
-    Change-Id: Ief7dddcb057bfb602f78215f6947664e8c841464
-    Reviewed-on: https://go-review.googlesource.com/c/139420
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Fixes #25756
+    
+    Change-Id: I6028b6f1f8775d5c23f4ebb57ae273330a28eb8f
+    Reviewed-on: https://go-review.googlesource.com/117515
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64enc.s |  3 +++
- src/cmd/internal/obj/ppc64/asm9.go           | 22 ++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/obj9.go           | 11 +++++++----
- 3 files changed, 32 insertions(+), 4 deletions(-)
+ misc/cgo/testplugin/src/issue25756/main.go         | 52 ++++++++++++++++++++
+ misc/cgo/testplugin/src/issue25756/plugin/c-life.c | 56 ++++++++++++++++++++++
+ misc/cgo/testplugin/src/issue25756/plugin/life.go  | 39 +++++++++++++++
+ misc/cgo/testplugin/src/issue25756/plugin/life.h   |  7 +++
+ misc/cgo/testplugin/test.bash                      | 11 ++++-
+ src/runtime/asm_ppc64x.s                           |  1 +
+ 6 files changed, 165 insertions(+), 1 deletion(-)

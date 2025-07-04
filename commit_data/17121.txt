@@ -1,13 +1,15 @@
-commit ef86beb4453bc7675b21480bf9bfdb1c6d2dca23
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 9 23:23:34 2013 +1000
+commit b0a1b82ec133d08505d69a064b0dac0d807817e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 09:03:25 2013 -0400
 
-    encoding/binary: fix 32-bit build
-    Sigh.
+    cmd/go: cgo programs depend on syscall
     
-    R=golang-dev
+    Fixes #5048.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12491045
+    https://golang.org/cl/12651044
 
- src/pkg/encoding/binary/binary_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/pkg.go    | 32 +++++++++++++++++++++++++++-----
+ src/cmd/go/test.bash | 44 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 56 insertions(+), 20 deletions(-)

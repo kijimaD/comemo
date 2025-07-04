@@ -1,14 +1,17 @@
-commit a84e3baf9a4008aea78babca18048c96ec46d598
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 20 14:16:34 2012 -0700
+commit 65dc7dc90bece08e9810de12acf06f82cc6a6384
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 20 11:40:41 2012 -0700
 
-    doc: general update of gccgo_install
+    sort: document two undocumented functions
     
-    Fixes #3325.
+    They looked out of place in godoc.
+    Includes documenting sort stability.
     
-    R=golang-dev, bradfitz, minux.ma, r
+    Fixes #3356
+    
+    R=golang-dev, gri, trolleriprofessorn
     CC=golang-dev
-    https://golang.org/cl/5858043
+    https://golang.org/cl/5855044
 
- doc/gccgo_install.html | 327 ++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 213 insertions(+), 114 deletions(-)
+ src/pkg/sort/sort.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,19 +1,14 @@
-commit 5c659d736241f4904eb3d513f9f585397a3ed8af
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Jan 31 12:54:37 2013 -0500
+commit 87c3c1b0020280fe216933501c96a913eaaafb2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 07:53:38 2013 -0800
 
-    crypto/x509: test for negative RSA parameters.
+    cmd/vet: handle added string constants in printf format check
     
-    Someone found software that generates negative numbers for the RSA
-    modulus in an X.509 certificate. Our error messages were very poor in
-    this case so this change improves that.
+    Fixes #4599.
     
-    Update #4728
-    Return more helpful errors when RSA parameters are negative or zero.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7228072
+    https://golang.org/cl/7226067
 
- src/pkg/crypto/x509/x509.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/vet/print.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

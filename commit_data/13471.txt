@@ -1,18 +1,28 @@
-commit 8c777066cb7d4ef8a39bd03f3d76b45e0a4810f4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jul 14 15:46:53 2012 +0400
+commit 882b6ef4542e7055c7dcd262b22c434b957195df
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Jul 13 11:38:22 2012 +0200
 
-    build: add few tests with GOMAXPROCS=32 to run.bash
-    Some class of bugs (data races, runtime bugs) can be found
-    only with real parallelism.
-    Note that GOMAXPROCS=32 is somewhat different from go test -cpu=32,
-    this intentionally uses GOMAXPROCS to stress program bootstrap,
-    testing code, garbage collections, etc.
-    Package selection is mostly random.
+    exp/locale/collate: This CL includes the following changes:
+    - Changed the representation of colElem to support a few cases
+      for some languages not supported by the current format.
+    - Changed offsets for implicit primary values. This makes the
+      values both easier to read and debug (last 4 nibbles are identical to
+      implicit primary value) and also results in better packing.
+    - Fixed bug in weight conversion code that did not pop up yet by
+      sheer luck.
+    Note that tables.go also includes changes to the contraction trie
+    from CL 6346092.
     
-    R=golang-dev, dave, r
+    R=r, mpvl
     CC=golang-dev
-    https://golang.org/cl/6346070
+    https://golang.org/cl/6392060
 
- src/run.bash | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/exp/locale/collate/build/builder.go      |    49 +-
+ src/pkg/exp/locale/collate/build/builder_test.go |     6 +-
+ src/pkg/exp/locale/collate/build/colelem.go      |    85 +-
+ src/pkg/exp/locale/collate/build/colelem_test.go |    33 +-
+ src/pkg/exp/locale/collate/colelem.go            |    87 +-
+ src/pkg/exp/locale/collate/colelem_test.go       |    66 +-
+ src/pkg/exp/locale/collate/table_test.go         |     4 +-
+ src/pkg/exp/locale/collate/tables.go             | 13178 ++++++++++-----------
+ 8 files changed, 6780 insertions(+), 6728 deletions(-)

@@ -1,25 +1,17 @@
-commit 4cef0e980a5d4fca2b7d26ec26eb1de954cecc21
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 4 15:02:09 2015 -0700
+commit 5526d95019f893412a4039187fc9f8eeca8f18c6
+Author: dvyukov <dvyukov@google.com>
+Date:   Wed Oct 28 17:49:17 2015 +0800
 
-    cmd/compile: don't generate algs for [0]T and [1]T
+    runtime/race: add tests for channels
     
-    All [0]T values are equal.
-    [1]T values are equal iff their sole components are.
+    These tests were failing on one of the versions of cl/9345
+    ("runtime: simplify buffered channels").
     
-    This types show up most frequently as a by-product of variadic
-    function calls, such as fmt.Printf("abc") or fmt.Printf("%v", x).
-    
-    Cuts 12k off cmd/go and 22k off golang.org/x/tools/cmd/godoc, approx 0.1% each.
-    
-    For #6853 and #9930
-    
-    Change-Id: Ic9b7aeb8cc945804246340f6f5e67bbf6008773e
-    Reviewed-on: https://go-review.googlesource.com/19766
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I920ffcd28de428bcb7c2d5a300068644260e1017
+    Reviewed-on: https://go-review.googlesource.com/16416
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/subr.go |  9 +++++++++
- src/cmd/compile/internal/gc/walk.go | 15 +++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/runtime/race/testdata/chan_test.go | 39 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

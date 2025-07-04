@@ -1,15 +1,28 @@
-commit 7694da1f3bd5cd62cf656bbe0b4b7123e29bbc08
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Mar 15 16:38:27 2012 -0700
+commit 3211b2cca98936e94dc2e819dbe474337ecdd24e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 15 23:50:25 2012 +0100
 
-    cmd/gofmt: show ascii in usage.
-    windows cmd.exe can't show utf-8 correctly basically.
-    chcp 65001 may make it show, but most people don't have fonts which can
-    show it.
+    cmd/cgo: add support for function export for gccgo.
     
-    R=golang-dev, rsc, adg, gri, r
+    A "gccgoprefix" flag is added and used by the go tool,
+    to mirror the -fgo-prefix flag for gccgo, whose value
+    is required to know how to access functions from C.
+    
+    Trying to export Go methods or unexported Go functions
+    will not work.
+    
+    Also fix go test on "main" packages.
+    
+    Updates #2313.
+    Fixes #3262.
+    
+    R=mpimenov, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5820060
+    https://golang.org/cl/5797046
 
- src/cmd/gofmt/gofmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/main.go |  1 +
+ src/cmd/cgo/out.go  | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/build.go | 23 ++++++++++-----
+ src/cmd/go/pkg.go   | 21 +++++++-------
+ src/cmd/go/test.go  |  3 +-
+ 5 files changed, 112 insertions(+), 19 deletions(-)

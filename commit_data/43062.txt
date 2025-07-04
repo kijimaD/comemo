@@ -1,30 +1,20 @@
-commit 53c9b9588a3a811bdf8d7ac2ff371bc2f95ed261
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Aug 21 11:49:56 2020 -0400
+commit 7d8aef689ddc89fd212cffe59ee0edc8b5d3e57c
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 21:07:26 2020 -0500
 
-    runtime: check held locks with staticlockranking
+    [dev.link] cmd/link: remove *Link from relocsym
     
-    When lock ranking is enabled, we can now assert that lock preconditions
-    are met by checking that the caller holds required locks on function
-    entry.
+    This is the last step requried before relocsym can go parallel.
     
-    This change adds the infrastructure to add assertions. Actual assertions
-    will be added for various locks in subsequent changes.
-    
-    Some functions are protected by locks that are not directly accessible
-    in the function. In that case, we can use assertRankHeld to check that
-    any lock with the rank is held. This is less precise, but it avoids
-    requiring passing the lock into the functions.
-    
-    Updates #40677
-    
-    Change-Id: I843c6874867f975e90a063f087b6e2ffc147877b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/245484
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id1c1c530c2b9277917208c3767eeb29e02c17a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220841
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/lockrank_off.go |  8 ++++++
- src/runtime/lockrank_on.go  | 70 +++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 75 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 38 +++++++++++++++++++++++---------------
+ src/cmd/link/internal/ld/errors.go |  9 +++++----
+ src/cmd/link/internal/ld/lib.go    |  4 ++++
+ src/cmd/link/internal/ld/link.go   |  2 --
+ 4 files changed, 32 insertions(+), 21 deletions(-)

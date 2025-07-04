@@ -1,20 +1,18 @@
-commit 08770a5b944ba1cf4f62f075bfd94cd36a061bdb
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Dec 13 15:05:27 2024 -0500
+commit 954a9630c96ab2f9987b1952508962be4b06ec72
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 16:42:48 2023 +0800
 
-    cmd/link: make dwarf name slice index self-describing
+    unicode: add available godoc link
     
-    cmd/compile/internal/dwarfgen.createComplexVar does it this way, which
-    has the nice property of documenting the expected prefix.
-    
-    This is primarily for newtype, since defgotype checks for the prefix
-    immediately prior, but I changed both for consistency.
-    
-    Change-Id: I49fa7c6166bdcbd19aaf91fe3dc20537080afcfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635177
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I2273274249f05b0492950c27dc5a654422cefc79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/unicode/graphic.go   | 20 ++++++++++----------
+ src/unicode/letter.go    |  6 +++---
+ src/unicode/utf8/utf8.go | 18 +++++++++---------
+ 3 files changed, 22 insertions(+), 22 deletions(-)

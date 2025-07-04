@@ -1,28 +1,35 @@
-commit 082afccebfc068207328fcaeb4b01e540784ff24
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 1 08:26:58 2022 -0400
+commit d34051bf16d86a88e6c5764aa076219069702045
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Dec 1 10:53:17 2021 -0800
 
-    internal/testenv: adjust timeout calculations in CommandContext
+    cmd/compile: fix case where g.curDecl should be saved/restored
     
-    I noticed some test failures in the build dashboard after CL 445597
-    that made me realize the grace period should be based on the test
-    timeout, not the Context timeout: if the test itself sets a short
-    timeout for a command, we still want to give the test process enough
-    time to consume and log its output.
+    When we set g.curDecl for the type params created during fillinMethods
+    for an instantiated type, we need to save/restore its value, because
+    fillinMethods() may be called while processing a typeDecl. We want the
+    value of g.curDecl to continue to be correct for type params created in
+    the typeDecl. Because of ordering issues, not restoring g.curDecl
+    happens to cause problems (which don't always show up visibly) exactly
+    when a type param is not actually used in a type declaration.
     
-    I also put some more thought into how one might debug a test hang, and
-    realized that in that case we don't want to set a WaitDelay at all:
-    instead, we want to leave the processes in their stuck state so that
-    they can be investigated with tools like `ps` and 'lsof'.
+    Cleared g.curDecl to "" at the later points in typeDecl() and
+    funcDecl(). This allows adding asserts that g.curDecl is always empty
+    ("") when we set it in typeDecl() and funcDecl(), and always non-empty
+    when we use it in typ0().
     
-    Updates #50436.
+    Fixes #49893
     
-    Change-Id: I65421084f44eeaaaec5dd2741cd836e9e68dd380
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446875
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic2fb1df791585bd257f2b86ffaae0453c31705c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368454
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/testenv/exec.go | 76 +++++++++++++++++++++++---------------------
- 1 file changed, 39 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/noder/decl.go  |  6 ++++++
+ src/cmd/compile/internal/noder/types.go |  7 ++++++-
+ test/typeparam/issue49893.dir/a.go      | 15 +++++++++++++++
+ test/typeparam/issue49893.dir/b.go      | 15 +++++++++++++++
+ test/typeparam/issue49893.dir/main.go   | 15 +++++++++++++++
+ test/typeparam/issue49893.go            |  7 +++++++
+ 6 files changed, 64 insertions(+), 1 deletion(-)

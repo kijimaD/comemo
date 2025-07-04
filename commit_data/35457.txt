@@ -1,21 +1,19 @@
-commit 402dd10a99b0d5a5f83e83ca0bdd073848cc4da3
-Author: David Chase <drchase@google.com>
-Date:   Mon May 21 13:11:50 2018 -0400
+commit 1a2273874953517cc38f7005e985c91d16ebf33c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 14 16:57:28 2018 -0800
 
-    cmd/link: revert DWARF version to 2 for .debug_lines
+    cmd/compile/internal/syntax: more tolerant handling of missing function invocation in go/defer
     
-    On OSX 10.12 and earlier, paired with XCode 9.0,
-    specifying DWARF version 3 causes dsymutil to misbehave.
-    Version 2 appears to be good enough to allow processing
-    of the prologue_end opcode on (at least one version of)
-    Linux and OSX 10.13.
+    Assume that an expression that is not a function call in a defer/go
+    statement is indeed a function that is just missing its invocation.
+    Report the error but continue with a sane syntax tree.
     
-    Fixes #25451.
+    Fixes #23586.
     
-    Change-Id: Ic760e34248393a5386be96351c8e492da1d3413b
-    Reviewed-on: https://go-review.googlesource.com/114015
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib45ebac57c83b3e39ae4a1b137ffa291dec5b50d
+    Reviewed-on: https://go-review.googlesource.com/94156
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go |  2 +-
+ test/fixedbugs/issue23586.go              | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

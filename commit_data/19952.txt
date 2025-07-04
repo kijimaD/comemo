@@ -1,14 +1,15 @@
-commit 750bf48a5a5d2f7d0e00752544800ac09453b65f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 7 15:05:20 2014 -0700
+commit fad69a7b77a7996b0308bdbcd559b78b32046bb3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 7 23:24:32 2014 +1000
 
-    cmd/go: don't pass --buildid=none on OpenBSD
+    cmd/fix: mention -help instead of the non-existent -? flag
     
-    According to the OpenBSD builder, it doesn't work.
+    Update #8314
     
-    TBR=bradfitz
+    TBR=r
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/126830043
+    https://golang.org/cl/123890043
 
- src/cmd/go/build.go | 2 +-
+ src/cmd/fix/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

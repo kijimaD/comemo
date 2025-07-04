@@ -1,67 +1,25 @@
-commit 4662029264e79f144eef4323631b3356624e884f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 11 15:45:52 2021 -0800
+commit a26d687ebb23fa14b777ef5bf69b56556124ff3b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 17 18:18:23 2020 -0400
 
-    runtime: simplify divmagic for span calculations
+    cmd/go: propagate context into Action.Func calls
     
-    It's both simpler and faster to just unconditionally do two 32-bit
-    multiplies rather than a bunch of branching to try to avoid them.
-    This is safe thanks to the tight bounds derived in [1] and verified
-    during mksizeclasses.go.
+    Action.Func is now a func(*Builder, context.Context, *Action), so that
+    contexts can be propagated into the action funcs. While context
+    is traditionally the first parameter of a function, it's the second
+    parameter of Action.Func's type to continue to allow for methods
+    on Builder to be used as functions taking a *Builder as the first
+    parameter. context.Context is instead the first parameter on
+    those functions.
     
-    Benchstat results below for compilebench benchmarks on my P920. See
-    also [2] for micro benchmarks comparing the new functions against the
-    originals (as well as several basic attempts at optimizing them).
-    
-    name                      old time/op       new time/op       delta
-    Template                        295ms ± 3%        290ms ± 1%  -1.95%  (p=0.000 n=20+20)
-    Unicode                         113ms ± 3%        110ms ± 2%  -2.32%  (p=0.000 n=21+17)
-    GoTypes                         1.78s ± 1%        1.76s ± 1%  -1.23%  (p=0.000 n=21+20)
-    Compiler                        119ms ± 2%        117ms ± 4%  -1.53%  (p=0.007 n=20+20)
-    SSA                             14.3s ± 1%        13.8s ± 1%  -3.12%  (p=0.000 n=17+20)
-    Flate                           173ms ± 2%        170ms ± 1%  -1.64%  (p=0.000 n=20+19)
-    GoParser                        278ms ± 2%        273ms ± 2%  -1.92%  (p=0.000 n=20+19)
-    Reflect                         686ms ± 3%        671ms ± 3%  -2.18%  (p=0.000 n=19+20)
-    Tar                             255ms ± 2%        248ms ± 2%  -2.90%  (p=0.000 n=20+20)
-    XML                             335ms ± 3%        327ms ± 2%  -2.34%  (p=0.000 n=20+20)
-    LinkCompiler                    799ms ± 1%        799ms ± 1%    ~     (p=0.925 n=20+20)
-    ExternalLinkCompiler            1.90s ± 1%        1.90s ± 0%    ~     (p=0.327 n=20+20)
-    LinkWithoutDebugCompiler        385ms ± 1%        386ms ± 1%    ~     (p=0.251 n=18+20)
-    [Geo mean]                      512ms             504ms       -1.61%
-    
-    name                      old user-time/op  new user-time/op  delta
-    Template                        286ms ± 4%        282ms ± 4%  -1.42%  (p=0.025 n=21+20)
-    Unicode                         104ms ± 9%        102ms ±14%    ~     (p=0.294 n=21+20)
-    GoTypes                         1.75s ± 3%        1.72s ± 2%  -1.36%  (p=0.000 n=21+20)
-    Compiler                        109ms ±11%        108ms ± 8%    ~     (p=0.187 n=21+19)
-    SSA                             14.0s ± 1%        13.5s ± 2%  -3.25%  (p=0.000 n=16+20)
-    Flate                           166ms ± 4%        164ms ± 4%  -1.34%  (p=0.032 n=19+19)
-    GoParser                        268ms ± 4%        263ms ± 4%  -1.71%  (p=0.011 n=18+20)
-    Reflect                         666ms ± 3%        654ms ± 4%  -1.77%  (p=0.002 n=18+20)
-    Tar                             245ms ± 5%        236ms ± 6%  -3.34%  (p=0.000 n=20+20)
-    XML                             320ms ± 4%        314ms ± 3%  -2.01%  (p=0.001 n=19+18)
-    LinkCompiler                    744ms ± 4%        747ms ± 3%    ~     (p=0.627 n=20+19)
-    ExternalLinkCompiler            1.71s ± 3%        1.72s ± 2%    ~     (p=0.149 n=20+20)
-    LinkWithoutDebugCompiler        345ms ± 6%        342ms ± 8%    ~     (p=0.355 n=20+20)
-    [Geo mean]                      484ms             477ms       -1.50%
-    
-    [1] Daniel Lemire, Owen Kaser, Nathan Kurz. 2019. "Faster Remainder by
-    Direct Computation: Applications to Compilers and Software Libraries."
-    https://arxiv.org/abs/1902.01961
-    
-    [2] https://github.com/mdempsky/benchdivmagic
-    
-    Change-Id: Ie4d214e7a908b0d979c878f2d404bd56bdf374f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300994
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I5f058d6a99a1e96fe2025f2e8ce30a033d12e935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248321
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mbitmap.go       |  48 ++++++++----------
- src/runtime/mcentral.go      |   2 +-
- src/runtime/mheap.go         |  16 +-----
- src/runtime/mksizeclasses.go | 118 ++++++++++++++++++++-----------------------
- src/runtime/sizeclasses.go   |  10 +---
- 5 files changed, 80 insertions(+), 114 deletions(-)
+ src/cmd/go/internal/run/run.go     |  2 +-
+ src/cmd/go/internal/test/test.go   | 10 +++++-----
+ src/cmd/go/internal/work/action.go | 15 ++++++++-------
+ src/cmd/go/internal/work/exec.go   | 17 ++++++++---------
+ 4 files changed, 22 insertions(+), 22 deletions(-)

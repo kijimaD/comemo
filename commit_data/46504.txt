@@ -1,31 +1,29 @@
-commit 6acac8b6856b2531f4ac7ee0eb37048d588d98c7
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Sep 6 17:46:50 2021 -0700
+commit 196102d046b2579fedc11435b541b9f9ffcac93d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 5 09:46:23 2021 -0800
 
-    cmd/compile: delay all transforms for generic funcs/methods
+    [dev.typeparams] cmd/compile/internal/types2: review of typexpr.go
     
-    This change cleans up the code, by just delaying all transforms on
-    generic function methods/functions until stenciling time. That way, we
-    don't have extra code to decide whether to delay, or an extra value for
-    the typecheck flag. We are already doing all possible transforms at
-    stencil time anyway, so no changes to the stenciling code.
+    This code matches go/types/typexpr but for the necessary adjustments
+    because of the use of package syntax rather than go/ast, and for the
+    code being part of cmd/compile/internal/types2 rather than go/types.
     
-    transform.go includes a change for one case where we check for shape
-    rather than tparam, now that we only apply transforms to stenciled
-    functions, not generic functions. This change is to allow CONVIFACE node
-    to be correctly inserted (needed for dictionaries), even with this
-    strange code that doesn't add the CONVIFACE node if the concrete type is
-    NOT huge...
+    Primary differences to go.types/typexpr.go:
+    - syntax.FuncType doesn't carry type parameters
+    - type instantiations are represented using syntax.IndexExpr
+      nodes
+    - there's an explicit syntax.SliceType
+    - *x is expressed as a unary operation, not a StarExpr
+    - grouped fields are identified by identical pointer types
     
-    Change-Id: I5f1e71fab11b53385902074915b3ad85f8e753fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350736
-    Run-TryBot: Dan Scales <danscales@google.com>
+    To see the changes copied from recent go/types changes, compare Patchsets 1 and 2.
+    
+    Change-Id: I8aa9452882d1f5e9529c52a30c7c8e65f3fcbb43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281545
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ir/mini.go         |  2 +-
- src/cmd/compile/internal/noder/helpers.go   | 60 +++++++++---------------
- src/cmd/compile/internal/noder/stmt.go      | 71 ++++++-----------------------
- src/cmd/compile/internal/noder/transform.go |  2 +-
- 4 files changed, 37 insertions(+), 98 deletions(-)
+ src/cmd/compile/internal/types2/typexpr.go | 32 +++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

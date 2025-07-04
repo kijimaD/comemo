@@ -1,34 +1,33 @@
-commit d66fc90a0daf879ca0b4d9be43c123b13ed59853
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 13 12:50:17 2023 -0400
+commit 4a164a44de3c67da878403504d948dfbd4fc6f7d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 19 14:09:54 2022 -0400
 
-    cmd/link: round up default start address to alignment
+    go/internal/gcimporter,cmd/compile/internal/importer: use testenv.MustHaveGoBuild directly
     
-    If the -R flag (the segment alignment) is specified but the -T
-    flag (start address) is not, currently the default start address
-    may be under-aligned, and some math in the linker may be broken.
-    Round up the start address to align it.
+    These tests previously had a “skipSpecialPlatforms” function, added in
+    CL 8611 to skip tests on (apparently) NaCL and iOS. The iOS builders
+    no longer match the condition (GOOS=ios is its own thing now), and the
+    NaCL port no longer exists.
     
-    Fixes #62064.
+    The name of the function also isn't very evocative, since it doesn't
+    say what is “special” about the platforms to cause them to be
+    skipped.m
     
-    Change-Id: I3b98c9d0cf7d3cd944b9436a36808899d2e52572
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527822
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Since the check is intending to run the tests only on platforms where
+    gc export data is available, and to a first approximation
+    “gc export data is available” on exactly the platforms that can run
+    “go build” to produce that export data, we can use the testenv function
+    instead of a one-off.
+    
+    Updates #38485.
+    
+    Change-Id: I8f38b9604300d165147f8942e945ab762419fad7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444155
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/elf_test.go             | 25 +++++++++++++++++++++++++
- src/cmd/link/internal/amd64/obj.go   | 15 +++++++--------
- src/cmd/link/internal/arm/obj.go     | 13 ++++++-------
- src/cmd/link/internal/arm64/obj.go   | 19 +++++++++----------
- src/cmd/link/internal/ld/main.go     |  2 +-
- src/cmd/link/internal/ld/pe.go       |  8 ++++----
- src/cmd/link/internal/ld/xcoff.go    | 11 +++++------
- src/cmd/link/internal/loong64/obj.go |  6 +++---
- src/cmd/link/internal/mips/obj.go    |  6 +++---
- src/cmd/link/internal/mips64/obj.go  | 13 ++++++-------
- src/cmd/link/internal/ppc64/obj.go   | 13 ++++++-------
- src/cmd/link/internal/riscv64/obj.go |  6 +++---
- src/cmd/link/internal/s390x/obj.go   |  6 +++---
- src/cmd/link/internal/x86/obj.go     | 18 ++++--------------
- 14 files changed, 85 insertions(+), 76 deletions(-)
+ .../compile/internal/importer/gcimporter_test.go   | 40 +++++++-------------
+ src/go/internal/gcimporter/gcimporter_test.go      | 43 ++++++++--------------
+ 2 files changed, 28 insertions(+), 55 deletions(-)

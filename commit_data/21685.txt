@@ -1,14 +1,20 @@
-commit 57cefa657d6e7ca0b1a286d6b0b0eb68037a2ec8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 23 15:24:49 2015 +0900
+commit 92e5120c772fd92432fd05e271f6a6b380f22550
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 27 11:43:33 2015 -0800
 
-    runtime: remove unneeded C header files
+    [dev.cc] cmd/asm: rewrite parsing of TEXT $3-2
     
-    Change-Id: I239ae86cfebfece607dce39a96d9123cbacbee7d
-    Reviewed-on: https://go-review.googlesource.com/5562
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    It was too complicated, assuming the syntax is more general than reality.
+    It must be a possibly negative integer followed by an optional minus sign
+    and positive integer. Literals only, no expresssions.
+    
+    Also put in a TODO about address parsing and clean up a couple of types.
+    
+    Change-Id: If8652249c742e42771ccf2e3024f77307b2e5d9a
+    Reviewed-on: https://go-review.googlesource.com/3370
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cgocall.h     | 13 -------------
- src/runtime/signal_unix.h | 14 --------------
- 2 files changed, 27 deletions(-)
+ src/cmd/asm/internal/arch/arch.go |  4 +-
+ src/cmd/asm/internal/asm/asm.go   | 98 +++++++++++++++++++++++----------------
+ src/cmd/asm/internal/asm/parse.go | 28 +++++++----
+ 3 files changed, 79 insertions(+), 51 deletions(-)

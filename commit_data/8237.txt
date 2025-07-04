@@ -1,35 +1,12 @@
-commit ca8a055f5cc7c1dfa0eb542c60071c7a24350f76
+commit 50e65ab30d013955ba46dc6b6c32a6181f3c53b0
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Apr 27 11:00:34 2011 +1000
+Date:   Wed Apr 27 10:12:10 2011 +1000
 
-    goinstall: support GOPATH; building and installing outside the Go tree
+    builder: build multiple targets in parallel
     
-    For example, with GOPATH set like so
-            GOPATH=/home/adg/gocode
-    And after creating some subdirectories
-            mkdir /home/adg/gocode/{bin,pkg,src}
-    
-    I can use goinstall to install the github.com/nf/goto web server,
-    which depends on the github.com/nf/stat package, with
-            goinstall github.com/nf/goto
-    
-    This downloads and installs all dependencies (that aren't already
-    installed) like so
-            /home/adg/gocode/bin/goto
-            /home/adg/gocode/pkg/darwin_amd64/github.com/nf/stat.a
-            /home/adg/gocode/src/github.com/nf/goto/...
-            /home/adg/gocode/src/github.com/nf/stat/...
-    
-    R=rsc, niemeyer
+    R=rsc, dfc
     CC=golang-dev
-    https://golang.org/cl/4438043
+    https://golang.org/cl/4452047
 
- src/Make.cmd                  |  18 ++++---
- src/Make.pkg                  |  24 +++++----
- src/cmd/goinstall/Makefile    |   1 +
- src/cmd/goinstall/download.go |  36 ++++++-------
- src/cmd/goinstall/main.go     |   8 +--
- src/cmd/goinstall/make.go     |  24 ++++++---
- src/cmd/goinstall/parse.go    |   3 ++
- src/cmd/goinstall/path.go     | 117 ++++++++++++++++++++++++++++++++++++++++++
- 8 files changed, 185 insertions(+), 46 deletions(-)
+ misc/dashboard/builder/main.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

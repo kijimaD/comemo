@@ -1,19 +1,17 @@
-commit b9ecac03cb8084bb24c9a75e0f02e164292bb427
-Author: teague <tnc1443@gmail.com>
-Date:   Wed May 30 11:35:11 2018 -0400
+commit 0cacc4d0e2a7bde8c50b5ef47ef65679226a1592
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 18 20:02:17 2018 +0100
 
-    net/http/httputil: reduced log verbosity in reverseproxy_test.go
+    cmd/compile: fold LEAQ/ADDQconst into SETx ops
     
-    For functions TestClonesRequestHeaders and TestReverseProxy_PanicBodyError,
-    I made changes to update the log verbosity.
+    This saves an instruction and a register. The new rules
+    match ~4900 times during all.bash.
     
-    Fixes #25634
-    
-    Change-Id: I2a0ef70a8191cfb1a0005949345be722fb4ab62e
-    Reviewed-on: https://go-review.googlesource.com/115296
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2f867c5e70262004e31f545f3bb89e939c45b718
+    Reviewed-on: https://go-review.googlesource.com/94767
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httputil/reverseproxy_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/asm_test.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   5 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 544 ++++++++++++++++++++++++++-
+ 3 files changed, 548 insertions(+), 3 deletions(-)

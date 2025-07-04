@@ -1,27 +1,39 @@
-commit 630fff76f9f5f52735fc34745d39c85671fe800c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 14 18:15:47 2023 +0200
+commit 6f7e9e23074d771c6adfce84d74fa11dbd8b7619
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 12 09:45:59 2022 -0500
 
-    syscall: remove unused ptracePtr on openbsd
+    crypto/sha256, cmd/internal/notsha256: improve PPC64 sha256
     
-    ptracePtr was introduced in CL 470299 for openbsd but it's not used on
-    this platform.
+    This minimizes addi usage inside vector heavy loops. This
+    results in a small performance uptick on P9 ppc64le/linux.
+    Likewise, cleanup some minor whitespace issues around comments.
     
-    For #58387
+    The implementation from crypto/sha256 is also shared with notsha256.
+    It is copied, but preserves notsha256's go:build directives. They are
+    otherwise identical now. Previously, bootstrap restrictions required
+    workarounds to support XXLOR on older toolchains. This is not needed
+    anymore as the minimum bootstrap (1.17) compiler will support XXLOR.
     
-    Change-Id: I27901c3f4497e18dc407a9248b66e2691c9a6abb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    name               old speed      new speed      delta
+    Hash8Bytes/New     28.8MB/s ± 0%  30.5MB/s ± 0%  +5.98%
+    Hash8Bytes/Sum224  29.5MB/s ± 0%  31.3MB/s ± 0%  +6.17%
+    Hash8Bytes/Sum256  29.5MB/s ± 0%  31.2MB/s ± 0%  +5.80%
+    Hash1K/New          287MB/s ± 0%   312MB/s ± 0%  +8.60%
+    Hash1K/Sum224       289MB/s ± 0%   312MB/s ± 0%  +7.99%
+    Hash1K/Sum256       289MB/s ± 0%   312MB/s ± 0%  +7.98%
+    Hash8K/New          313MB/s ± 0%   338MB/s ± 0%  +8.12%
+    Hash8K/Sum224       313MB/s ± 0%   338MB/s ± 0%  +8.20%
+    Hash8K/Sum256       313MB/s ± 0%   338MB/s ± 0%  +8.12%
+    
+    Change-Id: Ib386d6306673b4e6553ee745ec2e1b53a9722df1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441815
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/syscall/syscall_openbsd_libc.go   |  1 -
- src/syscall/zsyscall_openbsd_386.go   | 11 -----------
- src/syscall/zsyscall_openbsd_amd64.go | 11 -----------
- src/syscall/zsyscall_openbsd_arm.go   | 11 -----------
- src/syscall/zsyscall_openbsd_arm64.go | 11 -----------
- src/syscall/zsyscall_openbsd_ppc64.go | 11 -----------
- 6 files changed, 56 deletions(-)
+ src/cmd/internal/notsha256/sha256block_ppc64x.s | 214 ++++++++++++++----------
+ src/crypto/sha256/sha256block_ppc64x.s          | 176 +++++++++++--------
+ 2 files changed, 225 insertions(+), 165 deletions(-)

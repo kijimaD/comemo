@@ -1,22 +1,25 @@
-commit 798ec73519a7226d6d436e42498a54aed23b8468
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 21 19:57:56 2021 -0700
+commit 7f688d18c0ae6df3e895d21799b8ece7d5941293
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 27 00:42:41 2020 -0500
 
-    runtime: don't clear timerModifiedEarliest if adjustTimers is 0
+    runtime: mlock signal stack on macOS/ARM64
     
-    This avoids a race when a new timerModifiedEarlier timer is created by
-    a different goroutine.
+    Apparently, the macOS ARM64 kernel has a bug where when a signal
+    arrives and the signal stack is not currently faulted in, it may
+    kill the program with a SIGILL. Work around it by mlock the
+    signal stacks.
     
-    Fixes #47329
+    Fixes #42774.
     
-    Change-Id: I6f6c87b4a9b5491b201c725c10bc98e23e0ed9d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336432
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I99a4b3fdb6d8af1c945725ddc2c25568d81c510a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273686
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/runtime2.go |  2 +-
- src/runtime/time.go     |  5 -----
- src/time/sleep_test.go  | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 35 insertions(+), 6 deletions(-)
+ src/runtime/os_darwin.go       | 6 ++++++
+ src/runtime/sys_darwin.go      | 8 ++++++++
+ src/runtime/sys_darwin_amd64.s | 3 +++
+ src/runtime/sys_darwin_arm64.s | 6 ++++++
+ 4 files changed, 23 insertions(+)

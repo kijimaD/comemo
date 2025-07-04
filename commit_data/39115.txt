@@ -1,21 +1,16 @@
-commit 5833aa507bd25df20b2aecf9e2334dccfa2dac76
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Fri May 10 20:29:24 2019 +0300
+commit 30c0a0d33faee0355db2cb91e8599d6fd85fae76
+Author: Stepan Shabalin <neverliberty@gmail.com>
+Date:   Thu Jan 3 17:55:15 2019 +0700
 
-    cmd/vendor: import vet fixes from x/tools
+    runtime: remove redundant slicing
     
-    Vet help prints only to stdout.
+    In the twoNonZero function in hash_test, the buffer is sliced as [:] three times. This change deletes them.
     
-    Fixes #31885
-    
-    Change-Id: If6089a371fa8e21828eba2e23cddd2d19fb69e8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176617
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0701d0c810b4f3e267f80133a0dcdb4ed81fe356
+    Reviewed-on: https://go-review.googlesource.com/c/156138
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go.mod                                                         | 2 +-
- src/cmd/go.sum                                                         | 2 ++
- .../golang.org/x/tools/go/analysis/internal/analysisflags/help.go      | 3 +++
- src/cmd/vendor/modules.txt                                             | 2 +-
- 4 files changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/hash_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

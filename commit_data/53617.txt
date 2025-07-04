@@ -1,22 +1,21 @@
-commit 3619255777ca544a08e1051ee641a1c1e2d0a903
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jun 23 12:07:19 2023 -0700
+commit 2fc21b50e4c19d60ad7c91bcfe6488e0f13abde3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 24 10:10:12 2022 -0400
 
-    crypto/x509: rename duplicated test
+    cmd/go: skip link_syso tests in short mode
     
-    Rename the old TestPlatformVerifier to TestPlatformVerifierLegacy, and
-    add TODO about removing it once the synthetic root is widely deployed on
-    builders.
+    These tests invoke the system C compiler and linker.
+    Skipping them saves a little over half a second of time in short mode.
     
-    Updates #52108
+    Updates #54423.
     
-    Change-Id: I6cdba268e4738804c7f76ea18c354470b3e0318c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505755
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I3e8aa7b53c0c91f7d1e001ec2cd5f7b4954de52d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425206
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/crypto/x509/root_darwin_test.go  | 4 +++-
- src/crypto/x509/root_windows_test.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/link_syso_deps.txt       | 3 ++-
+ src/cmd/go/testdata/script/link_syso_issue33139.txt | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

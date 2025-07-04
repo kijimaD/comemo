@@ -1,31 +1,30 @@
-commit 3108366214bb1fc15b0f261ba27f448e3bd0e685
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Mar 14 11:56:20 2025 +0100
+commit d068c2cb620c1daeedc8b9cce488af45a6c2c889
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Feb 2 11:22:57 2024 +0800
 
-    runtime: deduplicate context call injection on Windows
+    runtime: use eventfd as the event wait/notify mechanism for epoll
     
-    Injecting a call to a thread context is complex enough to warrant
-    a dedicated function so that we don't repeat the same code in multiple
-    places. Note that the unix sigctxt struct also follows the
-    same approach.
+    Fixes #65443
     
-    The behavior is unchanged, but the implementation semantics are now
-    clearer by using goarch.StackAlign instead of a mix of goarch.PtrSize,
-    goarch.StackAlign and hardcoded values.
-    
-    While here, fix #68552.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
-    Change-Id: Ic29cd2bf322b520127fecccafd61577076945758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657815
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I9ad4689b36e87ee930d35a38322a8797896483b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560615
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/defs_windows_386.go   | 12 ++++++++++++
- src/runtime/defs_windows_amd64.go | 12 ++++++++++++
- src/runtime/defs_windows_arm.go   | 17 +++++++++++++++++
- src/runtime/defs_windows_arm64.go | 17 +++++++++++++++++
- src/runtime/os_windows.go         | 39 ++-------------------------------------
- src/runtime/signal_windows.go     | 16 ++++------------
- 6 files changed, 64 insertions(+), 49 deletions(-)
+ src/runtime/internal/syscall/defs_linux.go         |  9 ++++
+ src/runtime/internal/syscall/defs_linux_386.go     |  2 +
+ src/runtime/internal/syscall/defs_linux_amd64.go   |  2 +
+ src/runtime/internal/syscall/defs_linux_arm.go     |  2 +
+ src/runtime/internal/syscall/defs_linux_arm64.go   |  2 +
+ src/runtime/internal/syscall/defs_linux_loong64.go |  2 +
+ src/runtime/internal/syscall/defs_linux_mips64x.go |  2 +
+ src/runtime/internal/syscall/defs_linux_mipsx.go   |  2 +
+ src/runtime/internal/syscall/defs_linux_ppc64x.go  |  2 +
+ src/runtime/internal/syscall/defs_linux_riscv64.go |  2 +
+ src/runtime/internal/syscall/defs_linux_s390x.go   |  2 +
+ src/runtime/internal/syscall/syscall_linux.go      |  5 +++
+ src/runtime/netpoll_epoll.go                       | 48 +++++++++++-----------
+ 13 files changed, 58 insertions(+), 24 deletions(-)

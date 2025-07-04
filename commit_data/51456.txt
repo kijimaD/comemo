@@ -1,19 +1,15 @@
-commit 61f5a672edd6cce959a47e20dcfb59eaaa5ebd56
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 28 10:33:04 2022 -0800
+commit e22a14b7eb1e4a172d0c20d14a0d2433fdf20e5c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 1 10:16:48 2022 -0500
 
-    context: add lock in Cause to avoid race
+    cmd/go: add missing newlines in TestScript '? cmp' output
     
-    Change-Id: I8d970e8db859bdd17390cfbc22cc2ba0d326ed0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453735
+    Change-Id: I0314c2e9073b162119060a23c5eee9a78ca08ebf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382239
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/context/context.go      |  2 ++
- src/context/context_test.go | 20 ++++++++++++++++++++
- src/context/x_test.go       |  1 +
- 3 files changed, 23 insertions(+)
+ src/cmd/go/script_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

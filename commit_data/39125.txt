@@ -1,16 +1,17 @@
-commit 2fd97ee25e8a623e460aff26b4c422dec9532654
-Author: Nikita Kryuchkov <nkryuchkov10@gmail.com>
-Date:   Sun May 12 22:03:24 2019 +0000
+commit d15ffca108b81f15e9042993b80e8b91c56968c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 18:22:42 2019 +0000
 
-    time: fix a typo in comments
+    doc/go1.12: mention Conn.SetDeadline improvements, GODEBUG=madvdontneed=1
     
-    Change-Id: I407d7215d077176678a714ff1446e987bb818f7c
-    GitHub-Last-Rev: 22012adb3a8dada5b19eba6d6a9b067295a306a7
-    GitHub-Pull-Request: golang/go#31988
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176797
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #29439
+    Updates #28466
+    
+    Change-Id: Ifa0779a089a969f99f1a47127e23565f31eec24f
+    Reviewed-on: https://go-review.googlesource.com/c/155929
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/time/time.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.12.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

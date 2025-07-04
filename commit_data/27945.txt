@@ -1,33 +1,20 @@
-commit 64f5023e6f4d1bcb7f293d29cdaf259a80864920
-Author: Michael Matloob <matloob@golang.org>
-Date:   Sun Aug 21 13:52:23 2016 -0400
+commit 7c6b48ffba9e0ea8ed846d194fe30189863f17f0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 18 12:21:51 2016 -0400
 
-    cmd/link: remove global Bso variable
+    cmd/compile/internal/arm: fix comparison & conditional branch for SSA on ARM
     
-    Bso is already a member on ld.Link. Use that instead of
-    the global.
+    Progress on SSA for ARM. Still not complete. Now Fibonacci function compiles
+    and runs correctly.
     
-    Updates #16818
+    The old backend swaps the operands for CMP instruction. This CL does the same
+    on SSA backend, and uses conditional branch accordingly.
     
-    Change-Id: Icfc0f6cb1ff551e8129253fb6b5e0d6a94479f51
-    Reviewed-on: https://go-review.googlesource.com/27470
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #15365.
+    
+    Change-Id: I117e17feb22f03d936608bd232f76970e4bbe21a
+    Reviewed-on: https://go-review.googlesource.com/22187
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  | 28 +++++++++----------
- src/cmd/link/internal/arm/asm.go    | 22 +++++++--------
- src/cmd/link/internal/arm64/asm.go  | 22 +++++++--------
- src/cmd/link/internal/ld/ar.go      |  2 +-
- src/cmd/link/internal/ld/data.go    | 54 ++++++++++++++++++-------------------
- src/cmd/link/internal/ld/dwarf.go   |  2 +-
- src/cmd/link/internal/ld/ldelf.go   | 12 ++++-----
- src/cmd/link/internal/ld/ldpe.go    |  2 +-
- src/cmd/link/internal/ld/lib.go     | 46 +++++++++++++++----------------
- src/cmd/link/internal/ld/pcln.go    |  2 +-
- src/cmd/link/internal/ld/pobj.go    | 20 +++++++-------
- src/cmd/link/internal/mips64/asm.go | 22 +++++++--------
- src/cmd/link/internal/ppc64/asm.go  | 22 +++++++--------
- src/cmd/link/internal/s390x/asm.go  | 24 ++++++++---------
- src/cmd/link/internal/x86/asm.go    | 24 ++++++++---------
- 15 files changed, 150 insertions(+), 154 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

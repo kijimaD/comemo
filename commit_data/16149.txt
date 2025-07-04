@@ -1,12 +1,14 @@
-commit 8691f90cc53f1ebcd27d82c71432ca873a3744ca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 9 10:17:35 2013 -0700
+commit 81063812b4e6923d079dd15bdede237072d4842f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 9 18:17:55 2013 +1000
 
-    io: document non-guarantees of io.Closer
+    dist: add .exe extension to tour.exe
     
-    R=r, golang-dev
+    Fixes #5246.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8575043
+    https://golang.org/cl/8558044
 
- src/pkg/io/io.go | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/dist/bindist.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

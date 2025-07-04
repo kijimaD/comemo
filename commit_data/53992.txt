@@ -1,19 +1,21 @@
-commit 133cea5cba354cca6540728334ddb1ed253e941e
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Aug 14 10:51:57 2023 -0400
+commit 5231ba2f054f2ecb1387bad00b8745d6fe532ea4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 14 19:50:00 2022 -0400
 
-    cmd/go: skip gotoolchain_net script test for new-ish go experiments
+    cmd/link: stop passing -pagezero_size to darwin linker
     
-    Skip the gotoolchain_net script test if any new-ish GOEXPERIMENT is
-    set, since it will fail under these circumstances.
+    We added -pagezero_size in CL 72730, where it was intented for iOS.
+    The current code passes it only on macOS/AMD64 instead. It is not
+    really necessary there. Also, the new darwin linker starts to emit
+    a warning about deprecation of the flag. Stop passing it.
     
-    Updates #62106.
+    For #54482.
     
-    Change-Id: Idfef8af7246a3fbe6481347872a94fe64bbaed7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519195
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: If9db7a1645c37d4284e48f075856912df8d8c1a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430936
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/testdata/script/gotoolchain_net.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 1 -
+ 1 file changed, 1 deletion(-)

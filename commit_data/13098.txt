@@ -1,16 +1,14 @@
-commit 4973c1fc7e050da54c3d741ceb57619a0a1ff1f7
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sun May 20 14:26:20 2012 +1000
+commit ba57c8800318d3378b438f5bf79ac276960c03e7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 19 10:42:54 2012 +0900
 
-    exp/html: adjust inRowIM to match spec
+    net: fix leak in test
     
-    Delete cases that just fall down to "anything else" action.
+    Also change the Listner variable name from l to ln.
     
-    Handle </tbody>, </tfoot>, and </thead>.
-    
-    R=golang-dev, nigeltao
+    R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/6203061
+    https://golang.org/cl/5918046
 
- src/pkg/exp/html/parse.go | 22 +++++++---------------
- 1 file changed, 7 insertions(+), 15 deletions(-)
+ src/pkg/net/net_test.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

@@ -1,13 +1,11 @@
-commit a326d1d00c5dcba06dc591f6a5f7b7774f9d7410
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Sep 26 10:53:09 2014 +1000
+commit a883f117a9dda5f218bb08dc1c4e181ab1679e11
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 17 08:39:18 2014 -0700
 
-    tag go1.3.2
+    doc/go1.4.txt: reduced stack size
     
-    LGTM=r
-    R=r, rsc
     CC=golang-codereviews
-    https://golang.org/cl/150100044
+    https://golang.org/cl/144050043
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

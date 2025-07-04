@@ -1,23 +1,28 @@
-commit 8854be4180fe1fb59c56c645ef8978788eb40170
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 14 13:08:34 2023 +0000
+commit 053b63cfb56f574fd216166020066f3b48d5d878
+Author: Rob Pike <r@golang.org>
+Date:   Sun May 15 13:14:49 2022 +1000
 
-    Revert "cmd/compile: allow more inlining of functions that construct closures"
+    text/template/parse: make atTerminator more efficient
     
-    This reverts commit http://go.dev/cl/c/482356.
+    The change https://go.dev/cl/398475 was too complicated and expensive.
+    Since the whole string is always available, all that's needed
+    is a call to strings.HasPrefix.
     
-    Reason for revert: Reverting this change again, since it is causing additional failures in google-internal testing.
+    While we're here, change the way lexer.backup works
+    so it can be called repeatedly to back up more than one
+    rune, in case that becomes necessary. This change also
+    requires less state to maintain, as lexer.width was only
+    there for backup, and prevented multiple steps.
     
-    Change-Id: I9234946f62e5bb18c2f873a65e8b298d04af0809
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484735
-    Reviewed-by: Florian Zenker <floriank@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #52191
+    
+    Change-Id: I43b64fc66edeb8ba73ba5aa72f3b727c377dc067
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406476
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inl.go    | 11 ++++++-----
- src/cmd/compile/internal/test/inl_test.go | 22 +++++++++++++---------
- test/closure3.dir/main.go                 | 26 +++++++++++---------------
- 3 files changed, 30 insertions(+), 29 deletions(-)
+ src/text/template/parse/lex.go | 41 ++++++++++++-----------------------------
+ 1 file changed, 12 insertions(+), 29 deletions(-)

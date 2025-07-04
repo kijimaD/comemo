@@ -1,14 +1,17 @@
-commit f91e677e121649ee78af1892679bacf80e39a2f9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 21 14:18:12 2011 +1100
+commit 126911dcd2478ccd6756079d4e73830142e719e7
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 21 00:07:22 2011 -0300
 
-    goinstall: add -clean flag to docs
+    rpc: increase server_test timeout
     
-    Fixes #1629.
+    These timeouts are breaking tests in very slow
+    systems every once in a while.  I've noticed
+    problems when compiling the Ubuntu packages for
+    arm, specifically.
     
-    R=rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4291057
+    https://golang.org/cl/4291058
 
- src/cmd/goinstall/doc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/rpc/server_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

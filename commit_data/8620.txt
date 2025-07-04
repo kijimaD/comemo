@@ -1,21 +1,19 @@
-commit b47a38dedb92fd9b2aa28a10de0f4ea3964904c9
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Jun 5 14:27:38 2011 +1000
+commit c2cea4418a0f2cdf90f232581dd60dd7975d73c3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jun 4 12:45:09 2011 +1000
 
-    image/draw: move exp/draw to image/draw and exp/gui.
+    go/build: new package for building go programs
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4515191
+    https://golang.org/cl/4433047
 
- src/pkg/Makefile                          |  8 +++++---
- src/pkg/exp/gui/Makefile                  | 11 +++++++++++
- src/pkg/exp/{draw/event.go => gui/gui.go} |  6 ++++--
- src/pkg/exp/{draw => gui}/x11/Makefile    |  2 +-
- src/pkg/exp/{draw => gui}/x11/auth.go     |  0
- src/pkg/exp/{draw => gui}/x11/conn.go     | 27 ++++++++++++++-------------
- src/pkg/{exp => image}/draw/Makefile      |  3 +--
- src/pkg/{exp => image}/draw/clip_test.go  |  0
- src/pkg/{exp => image}/draw/draw.go       |  4 ++--
- src/pkg/{exp => image}/draw/draw_test.go  |  0
- 10 files changed, 38 insertions(+), 23 deletions(-)
+ src/pkg/Makefile                 |   1 +
+ src/pkg/go/build/Makefile        |  22 ++++
+ src/pkg/go/build/build.go        | 268 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/build/build_test.go   |  52 ++++++++
+ src/pkg/go/build/cgotest/file.go |  44 +++++++
+ src/pkg/go/build/dir.go          | 173 +++++++++++++++++++++++++
+ src/pkg/go/build/path.go         | 163 ++++++++++++++++++++++++
+ src/pkg/go/build/syslist_test.go |  62 +++++++++
+ 8 files changed, 785 insertions(+)

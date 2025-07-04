@@ -1,15 +1,29 @@
-commit 8a2a999311c22079c3b9f2e6fac2bbd38435a7ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 7 15:56:41 2016 -0800
+commit 150de948eeceac0ace02a0f93a9a7a1f7421d744
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Sep 10 22:44:00 2016 +0200
 
-    go/types: document that selectors are not recorded in Info.Types
+    cmd/compile: intrinsify slicebytetostringtmp when not instrumenting
     
-    Fixes #11944.
+    when not instrumenting:
+    - Intrinsify uses of slicebytetostringtmp within the runtime package
+      in the ssa backend.
+    - Pass OARRAYBYTESTRTMP nodes to the compiler backends for lowering
+      instead of generating calls to slicebytetostringtmp.
     
-    Change-Id: I424ba93725f22fd599e052eb182f9ba2fca8e8bd
-    Reviewed-on: https://go-review.googlesource.com/32881
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    name                    old time/op  new time/op  delta
+    ConcatStringAndBytes-4  27.9ns ± 2%  24.7ns ± 2%  -11.52%  (p=0.000 n=43+43)
+    
+    Fixes #17044
+    
+    Change-Id: I51ce9c3b93284ce526edd0234f094e98580faf2d
+    Reviewed-on: https://go-review.googlesource.com/29017
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/api.go   | 13 +++++++++----
- src/go/types/check.go |  1 -
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go |  6 +++++-
+ src/cmd/compile/internal/gc/ssa.go  | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go |  8 ++++++++
+ src/runtime/string.go               | 23 +++++++++++++----------
+ src/runtime/string_test.go          |  7 +++++++
+ 5 files changed, 67 insertions(+), 11 deletions(-)

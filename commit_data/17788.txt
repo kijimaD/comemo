@@ -1,14 +1,15 @@
-commit 89ebc28b587228c6ce90b78db33925e19aeba7d5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Oct 14 00:18:46 2013 -0400
+commit 7f168f9ccf716183ea849f6d86250aecd5d4d0b4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 11 16:39:40 2013 -0700
 
-    cmd/api: make it work even when cgo is disabled
-    make use of $USER or %USERNAME% to determine the current user.
-    Fixes #6578.
+    doc/effective_go.html: fix unescaped less-than character
+    Why doesn't tidy complain about these?
+    Found by manlio.perillo.
+    Fixes #6571
     
-    R=golang-dev, bradfitz, alex.brainman
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/14649043
+    https://golang.org/cl/14608044
 
- src/cmd/api/run.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

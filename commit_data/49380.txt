@@ -1,25 +1,20 @@
-commit 865911424d509184d95d3f9fc6a8301927117fdc
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 26 16:42:05 2022 -0500
+commit 5c7a460a1c108e5bf7a99817b86ebded7ce81812
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Wed Jul 21 16:03:34 2021 -0400
 
-    doc: update Go memory model
+    syscall: hoist Getsockname out of NetlinkRIB loops
     
-    Following discussion on #47141, make the following changes:
+    Calling Getsockname once to fetch the Pid field from the *SockaddrNetlink
+    is necessary, but this data will remain static for the rest of the netlink
+    socket's lifetime. Moving this call and type assertion outside of the inner
+    loops will remove a number of unnecessary system calls.
     
-    - Document Go's overall approach.
-    - Document that multiword races can cause crashes.
-    - Document happens-before for runtime.SetFinalizer.
-    - Document (or link to) happens-before for more sync types.
-    - Document happens-before for sync/atomic.
-    - Document disallowed compiler optimizations.
-    
-    See also https://research.swtch.com/gomm for background.
-    
-    Fixes #50859.
-    
-    Change-Id: I17d837756a77f4d8569f263489c2c45de20a8778
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381315
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7e7e81866af1a31fccdaaf7531efd6cc4cbb8926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336369
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/go_mem.html | 575 +++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 486 insertions(+), 89 deletions(-)
+ src/syscall/netlink_linux.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

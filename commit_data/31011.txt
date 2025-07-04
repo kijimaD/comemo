@@ -1,17 +1,18 @@
-commit 4e7724b2db4163f88a542fa0ff0dc72dfc5698de
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 6 13:18:45 2017 +0100
+commit 5ceec42dc0db9342bc4f37503844b46cf2689c65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 14:42:05 2016 -0800
 
-    runtime: remove unused parameter from bestFitTreap
+    [dev.typealias] go/types: export TypeName.IsAlias so clients can use it
     
-    This code was added recently, and it doesn't seem like the parameter
-    will be useful in the near future.
+    For #18130.
     
-    Change-Id: I5d64dadb6820c159b588262ab90df2461b5fdf04
-    Reviewed-on: https://go-review.googlesource.com/39692
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I634eaaeaa11e92fc31219d70419fdb4a7aa6e0b4
+    Reviewed-on: https://go-review.googlesource.com/35099
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mheap.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/object.go      | 6 +++---
+ src/go/types/object_test.go | 4 ++--
+ src/go/types/predicates.go  | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

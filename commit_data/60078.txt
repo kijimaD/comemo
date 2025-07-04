@@ -1,0 +1,23 @@
+commit 66cc2b7ca760d62294584d6680df65892cf7a8cf
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Sat Apr 27 13:41:05 2024 +0200
+
+    runtime: make profstackdepth a GODEBUG option
+    
+    Allow users to decrease the profiling stack depth back to 32 in case
+    they experience any problems with the new default of 128.
+    
+    Users may also use this option to increase the depth up to 1024.
+    
+    Change-Id: Ieaab2513024915a223239278dd97a6e161dde1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581917
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/extern.go     |  7 +++++++
+ src/runtime/mprof.go      | 46 +++++++++++++++++++++++-----------------------
+ src/runtime/proc.go       | 12 ++++++++++--
+ src/runtime/runtime1.go   |  3 +++
+ src/runtime/tracestack.go |  4 +++-
+ 5 files changed, 46 insertions(+), 26 deletions(-)

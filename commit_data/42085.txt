@@ -1,20 +1,27 @@
-commit 939379ffb6175c8f86dbf99a28741b4318a964eb
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Apr 22 14:28:51 2020 -0700
+commit 17722c21e754f25b7694b350cdae044b9729776c
+Author: Than McIntosh <thanm@google.com>
+Date:   Sat Nov 2 09:36:28 2019 -0400
 
-    runtime: fix TestDeferWithRepeatedRepanics and TestIssue37688 to be less chatty
+    [dev.link] cmd/link/internal/loader: reduce ABI alias postprocessing overhead
     
-    Converted some Println() statements (used to make sure that certain variables were
-    kept alive and not optimized out) to assignments into global variables, so the
-    tests don't produce extraneous output when there is a failure.
+    In loadObjFull when populating the sym.Reloc vector for live symbols,
+    avoid using the loader.SymType() method to determine if a relocation
+    targets an ABI alias; since invoking loader.SymType requires a
+    global-to-local index translation and a read from the object file.
+    Instead just look at the target symbol itself, which has already been
+    created at this point.
     
-    Fixes #38594
+    Hyperkube performance numbers for this change:
     
-    Change-Id: I7eb41bb02b2b1e78afd7849676b5c85bc11c759c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229538
-    Run-TryBot: Dan Scales <danscales@google.com>
+    name                         old time/op  new time/op  delta
+    RelinkHyperkube               29.9s ± 2%   29.2s ± 3%  -2.42%  (p=0.000 n=20+20)
+    RelinkWithoutDebugHyperkube   22.0s ± 3%   21.4s ± 3%  -2.58%  (p=0.000 n=20+20)
+    
+    Change-Id: Ib7696d8760dd0485240246d6d640668fbf451d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205257
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/defer_test.go | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

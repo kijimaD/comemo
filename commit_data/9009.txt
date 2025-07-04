@@ -1,15 +1,15 @@
-commit d53385fd0c986c33c60e4d6fce6b39b6bd779a72
+commit d1f4e0d14e4a86ca7d35d569e3d20555b14da4ab
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 11 15:47:42 2011 -0700
+Date:   Mon Jul 11 14:46:46 2011 -0700
 
-    os: don't permit Process.Signal after a successful Wait
+    exec: closeAfterWait append bug
     
-    R=dsymonds, rsc
+    Wasn't actually eager closing the fds as a result of the
+    copy/paste bug. (GC was doing it instead)
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4689043
+    https://golang.org/cl/4671057
 
- src/pkg/os/exec.go         | 3 ++-
- src/pkg/os/exec_unix.go    | 6 ++++++
- src/pkg/os/exec_windows.go | 4 ++++
- src/pkg/os/os_test.go      | 9 ++++++++-
- 4 files changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/exec/exec.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

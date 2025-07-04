@@ -1,27 +1,18 @@
-commit 333e90448a0e55f2e1161853caecf3d30ef3a74a
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Dec 5 18:48:21 2019 +0100
+commit b78109e80e1dd5ff79001b2cefb2a0eff819422d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Apr 11 21:49:10 2020 +0700
 
-    crypto/rand: generate random numbers using RtlGenRandom on Windows
+    cmd/compile: correct comment for len check when make slice
     
-    CryptGenRandom appears to be unfavorable these days, whereas the classic
-    RtlGenRandom is still going strong.
+    CL 226737 optimizes len check when make slice. The comment that cap is
+    constrainted to [0, 2^31) is not quite true, it's 31 or 63 depends on
+    whether it's 32/64-bit systems.
     
-    This commit also moves the warnBlocked function into rand_unix, rather
-    than rand, because it's now only used on unix.
-    
-    Fixes #33542
-    
-    Change-Id: I5c02a5917572f54079d627972401efb6e1ce4057
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210057
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I6f54e41827ffe4d0b67a44975da3ce07b2fabbad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227803
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/rand/rand.go         |  6 +-----
- src/crypto/rand/rand_unix.go    |  4 ++++
- src/crypto/rand/rand_windows.go | 40 ++++++++--------------------------------
- src/syscall/syscall_windows.go  |  1 +
- src/syscall/zsyscall_windows.go | 13 +++++++++++++
- 5 files changed, 27 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

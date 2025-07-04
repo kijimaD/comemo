@@ -1,29 +1,114 @@
-commit d14cf8f91b1b9ab5009737b03e6e23cc201cbc22
-Author: Nuno Gonçalves <nunomrgoncalves@tecnico.ulisboa.pt>
-Date:   Mon Mar 18 20:06:17 2024 +0000
+commit 3dd221a94d044cb4371ec20266817a703b2fe683
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Mon Mar 13 10:18:36 2023 +0100
 
-    net/mail: enhance address parser to include support for domain literals
+    runtime/trace: use regular unwinding for cgo callbacks
     
-    The existing implementation of the mail package conforms to RFC 5322
-    for parsing mail messages, but it lacks support for domain literals. This
-    patch addresses this limitation by adding support for domain literals in
-    the address parser.
+    Introduce a new m.incgocallback field that is true while C code calls
+    into Go code. Use it in the tracer in order to fallback to the default
+    unwinder instead of frame pointer unwinding for this scenario. The
+    existing fields (incgo, ncgo) were not sufficient to detect the case
+    where a thread created in C calls into Go code.
     
-    The Addr-Spec Specification, defined in RFC 5322 Section 3.4.1,
-    outlines the format for email addresses:
-    https://datatracker.ietf.org/doc/html/rfc5322\#section-3.4.1
+    Motivation:
     
-    Fixes #60206
+    1. Take advantage of a cgo symbolizer, if registered, to unwind through
+       C stacks without frame pointers.
+    2. Reduce the chance of crashes. It seems unsafe to follow frame
+       pointers when there could be C code that was compiled without frame
+       pointers.
     
-    Change-Id: Ic901418325bd1da69e70800d70b87d658b953738
-    GitHub-Last-Rev: bdda66f3fe098df3a62d803b1f69e63fef6281e3
-    GitHub-Pull-Request: golang/go#66075
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567777
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Removing the curgp.m.incgocallback check in traceStackID shows the
+    following minor differences between frame pointer unwinding and the
+    default unwinder when there is no cgo symbolizer involved.
+    
+        trace_test.go:60: "goCalledFromCThread": got stack:
+            main.goCalledFromCThread
+                    /src/runtime/testdata/testprogcgo/trace.go:58
+            _cgoexp_45c15a3efb3a_goCalledFromCThread
+                    _cgo_gotypes.go:694
+            runtime.cgocallbackg1
+                    /src/runtime/cgocall.go:318
+            runtime.cgocallbackg
+                    /src/runtime/cgocall.go:236
+            runtime.cgocallback
+                    /src/runtime/asm_amd64.s:998
+            crosscall2
+                    /src/runtime/cgo/asm_amd64.s:30
+    
+            want stack:
+            main.goCalledFromCThread
+                    /src/runtime/testdata/testprogcgo/trace.go:58
+            _cgoexp_45c15a3efb3a_goCalledFromCThread
+                    _cgo_gotypes.go:694
+            runtime.cgocallbackg1
+                    /src/runtime/cgocall.go:318
+            runtime.cgocallbackg
+                    /src/runtime/cgocall.go:236
+            runtime.cgocallback
+                    /src/runtime/asm_amd64.s:998
+    
+        trace_test.go:60: "goCalledFromC": got stack:
+            main.goCalledFromC
+                    /src/runtime/testdata/testprogcgo/trace.go:51
+            _cgoexp_45c15a3efb3a_goCalledFromC
+                    _cgo_gotypes.go:687
+            runtime.cgocallbackg1
+                    /src/runtime/cgocall.go:318
+            runtime.cgocallbackg
+                    /src/runtime/cgocall.go:236
+            runtime.cgocallback
+                    /src/runtime/asm_amd64.s:998
+            crosscall2
+                    /src/runtime/cgo/asm_amd64.s:30
+            runtime.asmcgocall
+                    /src/runtime/asm_amd64.s:848
+            main._Cfunc_cCalledFromGo
+                    _cgo_gotypes.go:263
+            main.goCalledFromGo
+                    /src/runtime/testdata/testprogcgo/trace.go:46
+            main.Trace
+                    /src/runtime/testdata/testprogcgo/trace.go:37
+            main.main
+                    /src/runtime/testdata/testprogcgo/main.go:34
+    
+            want stack:
+            main.goCalledFromC
+                    /src/runtime/testdata/testprogcgo/trace.go:51
+            _cgoexp_45c15a3efb3a_goCalledFromC
+                    _cgo_gotypes.go:687
+            runtime.cgocallbackg1
+                    /src/runtime/cgocall.go:318
+            runtime.cgocallbackg
+                    /src/runtime/cgocall.go:236
+            runtime.cgocallback
+                    /src/runtime/asm_amd64.s:998
+            runtime.systemstack_switch
+                    /src/runtime/asm_amd64.s:463
+            runtime.cgocall
+                    /src/runtime/cgocall.go:168
+            main._Cfunc_cCalledFromGo
+                    _cgo_gotypes.go:263
+            main.goCalledFromGo
+                    /src/runtime/testdata/testprogcgo/trace.go:46
+            main.Trace
+                    /src/runtime/testdata/testprogcgo/trace.go:37
+            main.main
+                    /src/runtime/testdata/testprogcgo/main.go:34
+    
+    For #16638
+    
+    Change-Id: I95fa27a3170c5abd923afc6eadab4eae777ced31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474916
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
 
- src/net/mail/message.go      | 69 +++++++++++++++++++++++++++++++++++++++++---
- src/net/mail/message_test.go | 42 +++++++++++++++++++++++++++
- 2 files changed, 107 insertions(+), 4 deletions(-)
+ src/runtime/proc.go                              |   4 +
+ src/runtime/testdata/testprogcgo/trace.go        |  60 +++++++++++++
+ src/runtime/testdata/testprogcgo/trace_unix.c    |  27 ++++++
+ src/runtime/testdata/testprogcgo/trace_windows.c |  29 +++++++
+ src/runtime/trace.go                             |   8 +-
+ src/runtime/trace_cgo_test.go                    | 105 +++++++++++++++++++++++
+ 6 files changed, 231 insertions(+), 2 deletions(-)

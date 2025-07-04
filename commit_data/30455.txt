@@ -1,17 +1,18 @@
-commit aada49038c683d048fd0a146366d7ce52dc17e97
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 8 12:30:30 2017 +1100
+commit 276c29ff6da13ef7089075d8cd2172fe3d3956fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 5 00:21:59 2016 +0000
 
-    cmd/link: write dwarf relocations
+    net/http: deflake TestClientRedirectTypes and maybe some similar ones
     
-    For #10776.
+    A few tests were using the global DefaultTransport implicitly.
+    Be explicit instead. And then make some parallel while I'm there.
     
-    Change-Id: I11dd441d8e5d6316889ffa8418df8b58c57c677d
-    Reviewed-on: https://go-review.googlesource.com/36982
+    Change-Id: I3c617e75429ecc8f6d23567d1470f5e5d0cb7cfd
+    Reviewed-on: https://go-review.googlesource.com/32758
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/amd64/asm.go |  3 +++
- src/cmd/link/internal/ld/data.go   |  9 ++++++++-
- src/cmd/link/internal/ld/pe.go     | 23 ++++++++++++++++++-----
- src/cmd/link/internal/x86/asm.go   |  3 +++
- 4 files changed, 32 insertions(+), 6 deletions(-)
+ src/net/http/client_test.go | 64 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 46 insertions(+), 18 deletions(-)

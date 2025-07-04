@@ -1,18 +1,53 @@
-commit 1bd39e79dbc146ae953284f82febf7d1fb461f4e
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 28 17:18:36 2016 -0400
+commit 44f1854c9dc82d8dba415ef102e93896d57c2c0d
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Apr 28 17:34:24 2016 +0300
 
-    runtime: fix SP adjustment on amd64p32
+    bytes: Use the same algorithm as strings for Index
     
-    On amd64p32, rt0_go attempts to reserve 128 bytes of scratch space on
-    the stack, but due to a register mixup this ends up being a no-op. Fix
-    this so we actually reserve the stack space.
+    name                     old time/op    new time/op      delta
+    IndexByte32-48             9.05ns ± 7%      9.59ns ±11%     +5.93%  (p=0.001 n=19+20)
+    IndexByte4K-48              118ns ± 4%       122ns ± 8%     +3.52%  (p=0.002 n=19+19)
+    IndexByte4M-48              172µs ±13%       188µs ±12%     +9.49%  (p=0.000 n=20+20)
+    IndexByte64M-48            8.00ms ±14%      8.05ms ±23%       ~     (p=0.799 n=20+20)
+    IndexBytePortable32-48     41.7ns ±15%      42.5ns ±12%       ~     (p=0.372 n=20+20)
+    IndexBytePortable4K-48     3.08µs ±16%      3.26µs ±10%     +5.77%  (p=0.018 n=20+20)
+    IndexBytePortable4M-48     3.12ms ±17%      3.20ms ±10%       ~     (p=0.157 n=20+20)
+    IndexBytePortable64M-48    54.0ms ±14%      55.3ms ±14%       ~     (p=0.640 n=20+20)
+    Index32-48                  230ns ±12%        46ns ± 6%    -79.87%  (p=0.000 n=20+19)
+    Index4K-48                 43.2µs ± 9%       3.2µs ±12%    -92.58%  (p=0.000 n=19+20)
+    Index4M-48                 44.4ms ± 7%       3.3ms ±13%    -92.59%  (p=0.000 n=19+20)
+    Index64M-48                 714ms ±10%        56ms ± 8%    -92.22%  (p=0.000 n=19+19)
+    IndexEasy32-48             52.7ns ±10%      31.0ns ±11%    -41.21%  (p=0.000 n=20+20)
+    IndexEasy4K-48              139ns ± 5%      1598ns ± 6%  +1046.37%  (p=0.000 n=19+19)
+    IndexEasy4M-48              179µs ± 8%      1674µs ±10%   +834.31%  (p=0.000 n=19+20)
+    IndexEasy64M-48            8.56ms ±10%     27.82ms ±16%   +225.14%  (p=0.000 n=19+20)
     
-    Change-Id: I04dbfbeb44f3109528c8ec74e1136bc00d7e1faa
-    Reviewed-on: https://go-review.googlesource.com/32331
-    Run-TryBot: Austin Clements <austin@google.com>
+    name                     old speed      new speed        delta
+    IndexByte32-48           3.52GB/s ± 7%    3.35GB/s ±11%     -4.99%  (p=0.001 n=20+20)
+    IndexByte4K-48           34.5GB/s ± 7%    33.2GB/s ±10%     -3.67%  (p=0.002 n=20+20)
+    IndexByte4M-48           24.6GB/s ±14%    22.4GB/s ±14%     -8.73%  (p=0.000 n=20+20)
+    IndexByte64M-48          8.42GB/s ±16%    8.42GB/s ±19%       ~     (p=0.799 n=20+20)
+    IndexBytePortable32-48    770MB/s ±13%     756MB/s ±11%       ~     (p=0.383 n=20+20)
+    IndexBytePortable4K-48   1.34GB/s ±14%    1.26GB/s ±10%     -5.76%  (p=0.018 n=20+20)
+    IndexBytePortable4M-48   1.35GB/s ±15%    1.31GB/s ±11%       ~     (p=0.157 n=20+20)
+    IndexBytePortable64M-48  1.25GB/s ±16%    1.22GB/s ±13%       ~     (p=0.640 n=20+20)
+    Index32-48                138MB/s ± 8%     687MB/s ± 8%   +398.57%  (p=0.000 n=19+20)
+    Index4K-48               94.9MB/s ± 9%  1280.5MB/s ±11%  +1249.11%  (p=0.000 n=19+20)
+    Index4M-48               94.6MB/s ± 7%  1278.5MB/s ±12%  +1250.99%  (p=0.000 n=19+20)
+    Index64M-48              94.2MB/s ±10%  1210.9MB/s ± 8%  +1185.04%  (p=0.000 n=19+19)
+    IndexEasy32-48            608MB/s ±10%    1035MB/s ±10%    +70.15%  (p=0.000 n=20+20)
+    IndexEasy4K-48           29.3GB/s ± 6%     2.6GB/s ± 6%    -91.24%  (p=0.000 n=19+19)
+    IndexEasy4M-48           23.3GB/s ±10%     2.5GB/s ± 9%    -89.23%  (p=0.000 n=20+20)
+    IndexEasy64M-48          7.86GB/s ±11%    2.42GB/s ±14%    -69.18%  (p=0.000 n=19+20)
+    
+    Change-Id: Ia191f0a6ca80e113397d9ed98d25f195768b65bc
+    Reviewed-on: https://go-review.googlesource.com/22550
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/asm_amd64p32.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/bytes.go         | 31 ---------------------
+ src/bytes/bytes_amd64.go   | 69 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/bytes/bytes_generic.go | 41 +++++++++++++++++++++++++++
+ src/runtime/asm_amd64.s    | 26 ++++++++++++++---
+ 4 files changed, 132 insertions(+), 35 deletions(-)

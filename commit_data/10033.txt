@@ -1,13 +1,15 @@
-commit 565793996c2b646dfa31c6660d79a57a7ae8312e
-Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Tue Oct 18 14:51:40 2011 -0400
+commit 48bb3e8f2883609ca56ea8afc0c11f141f4ec227
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 13:57:04 2011 -0400
 
-    net: remove duplicate error information in Dial
+    net: allow LookupSRV on non-standard DNS names
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5293045
+    https://golang.org/cl/5313043
 
- src/pkg/net/dial.go     | 4 ++--
- src/pkg/net/net_test.go | 6 ++++++
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/net/lookup_plan9.go   | 19 ++++++++++++++-----
+ src/pkg/net/lookup_test.go    |  9 +++++++++
+ src/pkg/net/lookup_unix.go    | 19 ++++++++++++++-----
+ src/pkg/net/lookup_windows.go | 16 +++++++++++++++-
+ 4 files changed, 52 insertions(+), 11 deletions(-)

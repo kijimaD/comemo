@@ -1,17 +1,29 @@
-commit c5a9c8d067d4695eaf5f6ce94a464f7fcdc07584
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Aug 19 17:29:19 2024 -0700
+commit da7b4b01bdb6127ed78203d6f7015a454bd26c2f
+Author: Philip Silva <philip.silva@protonmail.com>
+Date:   Mon Jul 10 22:22:15 2023 +0200
 
-    syscall: add O_DIRECTORY for wasip1
+    internal/bytealg: use generic IndexByte on plan9/amd64
     
-    Change-Id: Iadd69360fb09714a280c4dae26639834df28a7dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606659
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Use generic implementation of IndexByte/IndexByteString
+    on plan9/amd64 since the assembly implementation
+    uses SSE instructions which are classified as floating
+    point instructions and cannot be used in a note handler.
+    A similar issue was fixed in CL 100577.
+    
+    This fixes runtime.TestBreakpoint.
+    
+    Fixes #61087.
+    
+    Change-Id: Id0c085e47da449be405ea04ab9b93518c4e2fde8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508400
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/syscall/fs_wasip1.go      |  8 ++++++++
- src/syscall/syscall_wasip1.go | 13 +++++++------
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/internal/bytealg/indexbyte_amd64.s    | 2 ++
+ src/internal/bytealg/indexbyte_generic.go | 6 +++++-
+ src/internal/bytealg/indexbyte_native.go  | 2 +-
+ 3 files changed, 8 insertions(+), 2 deletions(-)

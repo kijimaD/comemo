@@ -1,13 +1,15 @@
-commit a2ba34d37463cacc6c7fd2a1882d6aadc0102a2c
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Wed Dec 7 11:50:39 2011 -0500
+commit 0c64972dd1175a32d11793e5b7b6d455194db3d4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 7 11:45:30 2011 -0500
 
-    ld: fix memory leaks
+    gc: more accurate description of -w and -W switches.
+    
+    The -w switch actually prints steps of the syntax tree walks
+    while -W prints a summary before and after the walk.
     
     R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5434068
+    CC=golang-dev, remy
+    https://golang.org/cl/5444049
 
- src/cmd/ld/go.c  |  7 +++++--
- src/cmd/ld/lib.c | 12 +++++++++++-
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/gc/lex.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

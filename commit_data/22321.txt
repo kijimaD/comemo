@@ -1,22 +1,21 @@
-commit ad49c7bb6223b64da5a4dfae2150cd5396955b49
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Mar 17 16:28:30 2015 +1300
+commit 845c4ff52a624a61be5a0669ec315b6f3a651b51
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 21:04:11 2015 -0800
 
-    cmd/internal/obj: remove dead fields and code
+    cmd/asm: update to use new encoding for x86 instructions
     
-    A quick pass through link.go, mostly removing fields that are not
-    used on the "creating a single object file" side of the fence.
+    Support the old syntax for AX:DX by rewriting into the new form,
+    AX, DX. Delete now-unnecessary hacks for some special cases.
     
-    Change-Id: I35ba41378c2c418f7df2f2f88dce65bc64a1a45d
-    Reviewed-on: https://go-review.googlesource.com/7672
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icd42697c7617f8a50864ca8b0c69469321a2296e
+    Reviewed-on: https://go-review.googlesource.com/6901
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go |   2 +-
- src/cmd/internal/obj/arm/obj5.go |   2 -
- src/cmd/internal/obj/data.go     |   6 --
- src/cmd/internal/obj/link.go     | 129 +++++++++------------------------------
- src/cmd/internal/obj/sym.go      |   8 ---
- src/cmd/internal/obj/x86/obj6.go |   2 -
- 6 files changed, 30 insertions(+), 119 deletions(-)
+ src/cmd/asm/internal/asm/asm.go             |  28 +------
+ src/cmd/asm/internal/asm/endtoend_test.go   |   2 -
+ src/cmd/asm/internal/asm/operand_test.go    |  34 ---------
+ src/cmd/asm/internal/asm/parse.go           |  46 +++++------
+ src/cmd/asm/internal/asm/testdata/386.out   |  98 ++++++++++++------------
+ src/cmd/asm/internal/asm/testdata/amd64.out | 114 ++++++++++++++--------------
+ src/cmd/asm/internal/asm/testdata/amd64.s   |   2 +-
+ 7 files changed, 134 insertions(+), 190 deletions(-)

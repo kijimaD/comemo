@@ -1,12 +1,18 @@
-commit 3fe9b11cbb70b86951a5a73109df021ecb585939
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Wed Aug 14 16:03:44 2013 -0700
+commit 3ec0427a074ccb31e2e4824f27aee9c8fe6de65d
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Wed Aug 14 15:21:53 2013 -0700
 
-    misc/emacs: Allow go-coverage to work in existing coverage buffers by reusing previous arguments
+    cmd/go, runtime/cgo: explicitly target ARMv5T
     
-    R=golang-dev, adonovan, bradfitz
+    The baseline architecture had been left to the GCC configured
+    default which can be more accomodating than the rest of the Go
+    toolchain.  This prevented instructions used by the 5g compiler,
+    like BLX, from being used in GCC compiled assembler code.
+    
+    R=golang-dev, dave, rsc, elias.naur, cshapiro
     CC=golang-dev
-    https://golang.org/cl/12721043
+    https://golang.org/cl/12954043
 
- misc/emacs/go-mode.el | 46 ++++++++++++++++++++++++++++++++++------------
- 1 file changed, 34 insertions(+), 12 deletions(-)
+ src/cmd/go/build.go           | 2 +-
+ src/pkg/runtime/cgo/gcc_arm.S | 8 ++------
+ 2 files changed, 3 insertions(+), 7 deletions(-)

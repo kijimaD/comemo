@@ -1,18 +1,37 @@
-commit 4909ecc46266b5afa121ef5f29382172188dbc36
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 26 12:47:20 2017 -0700
+commit 48a5d9938ce7add3636beab3882a990a0e79f98b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 13 00:18:52 2016 +0000
 
-    cmd/internal/obj/x86: change AsmBuf.Lock to bool
+    A+C: automated update
     
-    Follow-up to CL 38668.
+    Add Alexander Menzhinsky (individual CLA)
+    Add Anthony Woods (individual CLA)
+    Add Chris Stockton (individual CLA)
+    Add David Lazar (corporate CLA for Google Inc.)
+    Add Elliot Morrison-Reed (individual CLA)
+    Add Igor Bernstein (corporate CLA for Google Inc.)
+    Add Jesse Szwedko (individual CLA)
+    Add Jordan Lewis (individual CLA)
+    Add Kaviraj Kanagaraj (individual CLA)
+    Add Keegan Carruthers-Smith (individual CLA)
+    Add Marcel Edmund Franke (individual CLA)
+    Add Marin Bašić (individual CLA)
+    Add Martin Kreichgauer (corporate CLA for Google Inc.)
+    Add Max Riveiro (individual CLA)
+    Add Odin Ugedal (individual CLA)
+    Add Patrick Lee (individual CLA)
+    Add Rebecca Stambler (corporate CLA for Google Inc.)
+    Add Ryuzo Yamamoto (individual CLA)
+    Add Takuya Ueda (individual CLA)
+    Add Thordur Bjornsson (individual CLA)
+    Add Zac Bergquist (individual CLA)
     
-    Passes toolstash-check -all.
+    Updates #12042
     
-    Change-Id: I78a62509c610b5184b5e7ef2c4aa146fc8038840
-    Reviewed-on: https://go-review.googlesource.com/38670
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Idb5ffe526b26437eb7612f0b60bde62162af5abb
+    Reviewed-on: https://go-review.googlesource.com/34286
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ AUTHORS      | 17 +++++++++++++++++
+ CONTRIBUTORS | 21 +++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

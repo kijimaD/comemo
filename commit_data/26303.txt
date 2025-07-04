@@ -1,20 +1,15 @@
-commit a9d0244c334c6d8ac99eb59710d49bb85c707b29
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Mar 10 16:11:35 2016 +0100
+commit ca4ea81d86b0857c45a67e87004522beb060d9f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 8 07:36:35 2016 -0800
 
-    fmt: replace variables for type bit sizes with constants
+    runtime: save callee-saved regs in darwin-amd64 library init
     
-    Use constants instead of dynamically computed values to determine
-    the bit sizes of types similar to how strconv and other packages
-    directly compute these sizes. Move these constants near the code
-    that uses them.
+    We're only getting away with it today by luck.
     
-    Change-Id: I78d113b7e697466097e32653975df5990380c2c1
-    Reviewed-on: https://go-review.googlesource.com/20514
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I24d1cceee4d20c5181ca64fceda152e875f6ad81
+    Reviewed-on: https://go-review.googlesource.com/18440
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/fmt/print.go | 5 -----
- src/fmt/scan.go  | 9 +++++++--
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/rt0_darwin_amd64.s | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

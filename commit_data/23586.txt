@@ -1,19 +1,30 @@
-commit fc2eee87edd1ffbe6afd3b742760d29ac3983d3b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 29 17:56:20 2015 -0700
+commit 3ba6387bd09d8dd67d04e16725a9a0ffab78756b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 11:09:29 2015 -0700
 
-    database/sql: make Register safe for concurrent use
+    test: re-enable rotate tests
     
-    Adding a mutex was easier than documenting it, and is consistent with
-    gob.
+    Memory usage has been reduced.
+    The tests are still slow,
+    but that is issue #10571.
     
-    Fixes #9847
+    /usr/bin/time shows significant variation
+    in the peak memory usage compiling with tip.
+    This is unsurprising, given GC.
     
-    Change-Id: Ifa94c17e7c11643add81b35431ef840b794d78b1
-    Reviewed-on: https://go-review.googlesource.com/11682
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Using Go 1.4.2, memory is stable at 410mb.
+    Using tip at d2ee09298,
+    memory ranges from 470mb (+15%) to 534mb (+30%),
+    with a mean of 504mb (+23%), with n=50.
+    
+    Fixes #9933.
+    
+    Change-Id: Id31f3ae086ec324abf70e8f1a8044c4a0c27e274
+    Reviewed-on: https://go-review.googlesource.com/10211
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ test/rotate0.go | 2 --
+ test/rotate1.go | 2 --
+ test/rotate2.go | 2 --
+ test/rotate3.go | 2 --
+ 4 files changed, 8 deletions(-)

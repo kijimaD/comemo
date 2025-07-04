@@ -1,48 +1,18 @@
-commit ff05cdbd2bdc28ab545a5964f7f772e2ea4c5fd1
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 13 00:58:20 2023 -0700
+commit 643f463186c0bc158ddfbeefc816544048cd2d37
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 13 10:31:21 2023 -0500
 
-    internal/syscall/unix: add PidFDSendSignal for Linux
+    cmd/cover: remove go.mod from testdata subdir
     
-    CL 520266 added pidfd_send_signal linux syscall numbers to the
-    syscall package for the sake of a unit test.
+    Remove a superfluous go.mod file in one of the testdata subdirs; test
+    runs ok without it, no need for it to be there (can confuse tooling).
     
-    As pidfd_send_signal will be used from the os package, let's revert the
-    changes to syscall package, add the pidfd_send_signal syscall numbers
-    and the implementation to internal/syscall/unix, and change the above
-    test to use it.
-    
-    Updates #51246.
-    For #62654.
-    
-    Change-Id: I862174c3c1a64baf1080792bdb3a1c1d1b417bb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528436
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3c43dd8ca557fdd32ce2f84cdb2427326a2dd35e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461945
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/unix/pidfd_linux.go          | 15 +++++++++++++++
- src/internal/syscall/unix/sysnum_linux_386.go     |  5 +++--
- src/internal/syscall/unix/sysnum_linux_amd64.go   |  5 +++--
- src/internal/syscall/unix/sysnum_linux_arm.go     |  5 +++--
- src/internal/syscall/unix/sysnum_linux_generic.go |  5 +++--
- src/internal/syscall/unix/sysnum_linux_mips64x.go |  5 +++--
- src/internal/syscall/unix/sysnum_linux_mipsx.go   |  5 +++--
- src/internal/syscall/unix/sysnum_linux_ppc64x.go  |  5 +++--
- src/internal/syscall/unix/sysnum_linux_s390x.go   |  5 +++--
- src/syscall/exec_linux_test.go                    |  9 +++++----
- src/syscall/export_linux_test.go                  |  3 +--
- src/syscall/syscall_linux_386.go                  |  9 ++++-----
- src/syscall/syscall_linux_amd64.go                |  9 ++++-----
- src/syscall/syscall_linux_arm.go                  |  9 ++++-----
- src/syscall/syscall_linux_arm64.go                |  9 ++++-----
- src/syscall/syscall_linux_loong64.go              |  9 ++++-----
- src/syscall/syscall_linux_mips64x.go              |  9 ++++-----
- src/syscall/syscall_linux_mipsx.go                |  9 ++++-----
- src/syscall/syscall_linux_ppc64x.go               |  9 ++++-----
- src/syscall/syscall_linux_riscv64.go              |  9 ++++-----
- src/syscall/syscall_linux_s390x.go                |  9 ++++-----
- 21 files changed, 85 insertions(+), 72 deletions(-)
+ src/cmd/cover/testdata/pkgcfg/go.mod | 3 ---
+ 1 file changed, 3 deletions(-)

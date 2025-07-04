@@ -1,33 +1,14 @@
-commit 9439fa107829b6626eb6cef2a3549b1fc9a6f974
-Author: Rick Hudson <rlh@golang.org>
-Date:   Wed Jan 6 17:07:58 2016 -0500
+commit bb20266c9d94818358dce64607df35fa829f5da7
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Sat Nov 7 19:30:25 2015 -0500
 
-    runtime: eagerly share GC work buffers
+    cmd/internal/ld: skip dwarf output if dsymutil no-ops
     
-    Currently, due to an oversight, we only balance work buffers
-    in background and idle workers and not in assists. As a
-    result, in assist-heavy workloads, assists are likely to tie
-    up large work buffers in per-P caches increasing the
-    likelihood that the global list will be empty. This increases
-    the likelihood that other GC workers will exit and assists
-    will block, slowing down the system as a whole. Fix this by
-    eagerly balancing work buffers as soon as the assists notice
-    that the global buffers are empty. This makes it much more
-    likely that work will be immediately available to other
-    workers and assists.
+    Fixes #11994.
     
-    This change reduces the garbage benchmark time by 39% and
-    fixes the regresssion seen at CL 15893 golang.org/cl/15893.
-    
-    Garbage benchmark times before and after this CL.
-    Before GOPERF-METRIC:time=4427020
-    After  GOPERF-METRIC:time=2721645
-    
-    Fixes #13827
-    
-    Change-Id: I9cb531fb873bab4b69ce9c1617e30df6c49cdcfe
-    Reviewed-on: https://go-review.googlesource.com/18341
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Icee6ffa6e3a9d15b68b4ae9b2716d65ecbdba73a
+    Reviewed-on: https://go-review.googlesource.com/16702
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcmark.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,22 +1,27 @@
-commit ed18d85ad798441e13d3b428678defb5bb0fb176
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Dec 9 05:50:59 2023 +0000
+commit a96487613e2703d1eb7e12c51647e36973df9fd0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 13:47:48 2023 -0800
 
-    internal/reflectlite: delete TODO pass safe to packEface don't need to copy if safe==true
+    maps: new package
     
-    reflect on the https://go-review.googlesource.com/c/go/+/548436
-    delete TODO the same.
+    This copies x/exp/maps into the standard library (except for the Clear
+    function which is now available as the clear builtin.)
     
-    Change-Id: I5b278cbfcb4108e5ffb332ba82dafb1eaa2bd6b2
-    GitHub-Last-Rev: cfc39509085477e9cba8e8ba1698653837a12301
-    GitHub-Pull-Request: golang/go#64628
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548615
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #57436
+    
+    Change-Id: I30dd470c2f7ae34c7c82b4c1025a7582d61fabaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464343
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/reflectlite/value.go | 3 ---
- 1 file changed, 3 deletions(-)
+ api/next/57436.txt        |   7 ++
+ src/go/build/deps_test.go |   2 +-
+ src/go/doc/comment/std.go |   1 +
+ src/maps/maps.go          |  87 ++++++++++++++++++++++
+ src/maps/maps_test.go     | 181 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 277 insertions(+), 1 deletion(-)

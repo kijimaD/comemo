@@ -1,16 +1,19 @@
-commit 3d2645f337091e8cd3f6f0979716fa6cd124ffaa
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Dec 5 12:30:19 2023 -0500
+commit f33e8f66980dc6d09f54e032266043beb2dbb75e
+Author: fangguizhen <1297394526@qq.com>
+Date:   Mon Jan 16 17:46:20 2023 +0000
 
-    doc/go1.22: document enabling PIE by default on darwin/amd64
+    time: no need to wrap error with errors.New
     
-    Updates #61229.
-    For #61422.
-    
-    Change-Id: I6cf8169c1e310e0de734250dbe04fb36e14728d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547455
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibd519ed6419f8f21c89a111a0326d0788aca9d19
+    GitHub-Last-Rev: 45e3224f9afef57f49eebf3cbdf6b1d01cfd7346
+    GitHub-Pull-Request: golang/go#57819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462046
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/go1.22.html | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/time/tick.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

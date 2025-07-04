@@ -1,18 +1,24 @@
-commit b7e0adfee28b516a0dcceb5ecf0e5a695b38c61f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Nov 5 16:41:32 2020 +1100
+commit 245a2f5780ebc956a84964c25804b50f27c2d984
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 21 19:54:37 2020 -0400
 
-    cmd/dist: remove openbsd/mips64 from incomplete ports
+    [dev.link] cmd/link: delete ctxt.Reachparent
     
-    Remove openbsd/mips64 from incomplete ports lists - all of the necessary code
-    has landed and we want to run tests so we can see/deal with remaining failures.
+    It is no longer needed as we have converted the fieldtrack pass
+    to using the loader.
     
-    Update #40995
+    Also free loader.Reachparent after we are done with it.
     
-    Change-Id: I5d4f89af82ff3abe57570a9a8abf889498093d32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267606
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ibc4b29f282e1e4aea363a1b549755e31f84b0295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229322
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/dist/build.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go   | 4 ++--
+ src/cmd/link/internal/ld/go.go         | 1 +
+ src/cmd/link/internal/ld/lib.go        | 2 +-
+ src/cmd/link/internal/ld/link.go       | 3 ---
+ src/cmd/link/internal/ld/main.go       | 4 ----
+ src/cmd/link/internal/loader/loader.go | 9 +--------
+ 6 files changed, 5 insertions(+), 18 deletions(-)

@@ -1,27 +1,21 @@
-commit 272df158ac431cc253b87a713735df70155ed456
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 27 17:57:42 2016 -0700
+commit aebf6611dfba195d15c5119e14d6f5b708adbdfb
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 29 21:57:57 2016 -0800
 
-    cmd/compile: clean up ... Bound marker
+    [dev.ssa] cmd/compile: reorg write barriers a bit
     
-    This mostly a mechanical change.
-    However, the change in assignop (subr.go) is a bug fix.
-    The code didn’t match the comment,
-    and the comment was correct.
-    Nevertheless, this CL passes toolstash -cmp.
+    Use just a single write barrier flag test, even if there
+    are multiple pointer fields in a struct.
     
-    The last direct reference to dddBound outside
-    type.go (in typecheck.go) will go away
-    in a future CL.
+    This helps move more of the wb-specific code (like the LEA
+    needed to materialize the write address) into the unlikely path.
     
-    Change-Id: Ifb1691e0a07f906712c18c4a4cd23060807a5da5
-    Reviewed-on: https://go-review.googlesource.com/21235
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic7a67145904369c4ff031e464d51267d71281c8f
+    Reviewed-on: https://go-review.googlesource.com/19085
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/align.go     | 2 +-
- src/cmd/compile/internal/gc/bexport.go   | 6 ++++--
- src/cmd/compile/internal/gc/fmt.go       | 2 +-
- src/cmd/compile/internal/gc/subr.go      | 2 +-
- src/cmd/compile/internal/gc/type.go      | 9 +++++++++
- src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
- 6 files changed, 20 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 129 +++++++++++++++++++++++--------------
+ src/cmd/compile/internal/ssa/TODO  |   2 -
+ 2 files changed, 81 insertions(+), 50 deletions(-)

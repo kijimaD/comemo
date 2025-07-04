@@ -1,29 +1,17 @@
-commit d6597ade89b03a5bd5b6732506c23de741cccd53
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 2 12:35:32 2018 -0700
+commit 51533fdac6157c4abb546619bf05530821557539
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 11 10:50:09 2018 +0200
 
-    go/scanner: continue adding directory to file name
+    cmd/go: document GOTOOLDIR environment variable
     
-    Before CL 97795, when go/scanner saw a //line comment, it would clean
-    the path and, if the path was relative, prepend the directory from the
-    file name. This was not the best API because it meant that the
-    behavior changed based on whether the code was running on Windows or
-    not, and it meant that information from the //line directive was lost.
-    So in CL 97795, among other changes, go/scanner was changed to simply
-    return the filename given in the //line comment.
+    Also, make the variables list sorted.
     
-    Unfortunately existing tools such as unparam and unconvert expected
-    the old behavior. In order to avoid breaking those tools, revert that
-    part of the change.
+    Fixes #24794
     
-    Fixes #26671
-    
-    Change-Id: Ifa06542bd19cda9d682ac33766ab9080444ba050
-    Reviewed-on: https://go-review.googlesource.com/127658
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I55f77004b00391875d26df8e55e54d79cef168dc
+    Reviewed-on: https://go-review.googlesource.com/106255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/scanner/scanner.go      |  8 ++++++++
- src/go/scanner/scanner_test.go | 34 ++++++++++++++++++++++++++++++----
- 2 files changed, 38 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go               | 10 +++++++---
+ src/cmd/go/internal/help/helpdoc.go | 10 +++++++---
+ 2 files changed, 14 insertions(+), 6 deletions(-)

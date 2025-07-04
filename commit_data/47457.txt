@@ -1,20 +1,23 @@
-commit c893a85f21d0e5448c687254e50cc6936b36548e
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 10 16:58:45 2021 -0500
+commit 67048432026062a98a3937a865aeb05a398148c5
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Thu Mar 18 00:10:38 2021 +0000
 
-    go/types: rename types.context to types.environment
+    testing: update helperNames just before checking it
     
-    Now that we have a Context type the context (unexported) type is
-    particularly confusing. Rename it to environment.
+    parent's helperNames has not been set when frameSkip called, moving
+    helperNames initilazing to frameSkip.
     
-    Change-Id: I7d280439b8263d9ebfd561fc4d59c6d43c8d3e3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363176
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #44887
+    
+    Change-Id: I5107c5951033e5e47d1ac441eac3ba5344a7bdc0
+    GitHub-Last-Rev: 44b90b2e2eeca8e2bb4a2084ec6fdd279c88f76d
+    GitHub-Pull-Request: golang/go#45071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302469
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/check.go | 17 +++++++++--------
- src/go/types/decl.go  | 16 ++++++++--------
- src/go/types/stmt.go  | 10 +++++-----
- 3 files changed, 22 insertions(+), 21 deletions(-)
+ src/testing/helper_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/testing/testing.go     | 15 +++++++--------
+ 2 files changed, 39 insertions(+), 8 deletions(-)

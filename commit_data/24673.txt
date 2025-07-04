@@ -1,14 +1,24 @@
-commit fc1514c1db35ed39636bd47b34f49e9330de9dc8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 30 02:20:29 2015 +0000
+commit 13b5dc885b8dfd550b5f8cac0e9c0a9463f30fd7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Aug 21 19:17:18 2015 +0200
 
-    doc: some go1.6.txt additions
+    math/big: correctly handle large exponent in SetString
     
-    Many remain.
+    Even though the umul/uquo functions expect two valid, finite big.Floats
+    arguments, SetString was calling them with possibly Inf values, which
+    resulted in bogus return values.
     
-    Change-Id: Icfe190c145a34f8aaa4d78e853dbc708962ba5ce
-    Reviewed-on: https://go-review.googlesource.com/16447
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Replace umul and udiv calls with Mul and Quo calls to fix this. Also,
+    fix two wrong tests.
+    
+    See relevant issue on issue tracker for a detailed explanation.
+    
+    Fixes #11341
+    
+    Change-Id: Ie35222763a57a2d712a5f5f7baec75cab8189a53
+    Reviewed-on: https://go-review.googlesource.com/13778
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.6.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/math/big/floatconv.go      | 4 ++--
+ src/math/big/floatconv_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

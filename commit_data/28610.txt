@@ -1,16 +1,23 @@
-commit d166a369a89ef2d81efdc5d49fa782ee1c0186c4
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Sat Oct 1 10:13:52 2016 -0400
+commit e3a6d00876488c70b6ecc641954ed5cecb918cac
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 8 10:12:30 2016 -0400
 
-    bufio: remove redundant Writer.flush method
+    [dev.ssa] cmd/compile: ensure OffPtr has pointer type
     
-    Fixes #17232
+    SSA treats SP as constant throughout a function, so as OffPtr [off] SP.
+    When the stack moves, spilled OffPtr values become invalid, if they are
+    not pointer-typed.
     
-    Change-Id: I34df86f79b643dce9f054c6df6782e6037c06910
-    Reviewed-on: https://go-review.googlesource.com/30158
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    (Currently it is fine because of the optimization rules that folds OffPtr
+    into Load/Store. But it'd better be "optimization", not requirement.)
+    
+    Updates #15365.
+    
+    Change-Id: I76cf4008dfdc169e1cb5a55a2605b6678efc915d
+    Reviewed-on: https://go-review.googlesource.com/23941
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/bufio/bufio.go | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

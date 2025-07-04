@@ -1,32 +1,21 @@
-commit 7f5af094f83957680114e3fd357cfd4b7a5b34c1
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sat Mar 25 08:50:19 2023 -0700
+commit 8d074f61b709047fcc365a4556838f7ad7d80fec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 29 22:02:45 2021 -0800
 
-    cmd: add wasip1 support
+    archive/zip: error if using io/fs on zip with duplicate entries
     
-    For #58141
+    Fixes #50390
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I530ea78a3cd142f3a745f650b21c30e7f10ce981
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479621
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: I92787cdb3fa198ff88dcaadeccfcb49a3a6a88cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374954
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/example_test.go       |  2 +-
- src/cmd/dist/test.go                                  | 16 ++++++++++++----
- src/cmd/go/internal/base/signal_unix.go               |  2 +-
- src/cmd/go/internal/cache/cache_test.go               |  5 ++---
- .../lockedfile/internal/filelock/filelock_test.go     |  2 +-
- src/cmd/go/internal/lockedfile/lockedfile_test.go     |  4 ++--
- src/cmd/go/internal/lockedfile/transform_test.go      |  4 ++--
- src/cmd/go/internal/mmap/mmap_other.go                |  2 +-
- src/cmd/go/internal/work/build_test.go                | 19 ++++++++++++-------
- src/cmd/internal/osinfo/os_wasip1.go                  | 17 +++++++++++++++++
- src/cmd/test2json/signal_unix.go                      |  2 +-
- 11 files changed, 52 insertions(+), 23 deletions(-)
+ src/archive/zip/reader.go           |  60 ++++++++++++++++++++------
+ src/archive/zip/reader_test.go      |  84 ++++++++++++++++++++++++++++++++++++
+ src/archive/zip/testdata/dupdir.zip | Bin 0 -> 458 bytes
+ 3 files changed, 131 insertions(+), 13 deletions(-)

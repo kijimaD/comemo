@@ -1,17 +1,21 @@
-commit 3cea9e688100aa4db2f459dc77f6ce22dacf1d87
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 31 11:47:14 2023 -0700
+commit 03fb5d7574eaceb26e99586dec20691663fe6b82
+Author: Mike Faraponov <mikefaraponov@gmail.com>
+Date:   Wed Apr 13 12:58:29 2022 +0000
 
-    doc/go1.21: document new bytes.Buffer methods
+    crypto/tls: remove unused hashForClientCertificate param
     
-    For #53685
-    
-    Change-Id: I237297d19afeb36ad738074d0c61caa7012f65ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499617
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I86af2508a31ea1e79d362c22ff4fac8900536761
+    GitHub-Last-Rev: d2a1ddccbd32499d7c379941daff528e7f2017c3
+    GitHub-Pull-Request: golang/go#52328
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399829
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- doc/go1.21.html | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/crypto/tls/handshake_client.go | 2 +-
+ src/crypto/tls/handshake_server.go | 2 +-
+ src/crypto/tls/prf.go              | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

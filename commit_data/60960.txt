@@ -1,0 +1,31 @@
+commit 751fbf9e5a73991fad24a48f1f523e446eb78291
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 13 00:48:11 2024 +0700
+
+    unicode/utf8: use range loop in RuneCountInString
+    
+    CL 28490 speeded up non-ASCII rune decoding, and ASCII rune is also
+    decoded faster now.
+    
+    Benchmark using:
+    
+        perflock -governor 70% go test -run=NONE -bench=BenchmarkRuneCountInString -count=10
+    
+    Result:
+    
+    name                                 old time/op  new time/op  delta
+    RuneCountInStringTenASCIIChars-8     10.2ns ± 0%   7.1ns ± 1%  -30.53%  (p=0.000 n=8+9)
+    RuneCountInStringTenJapaneseChars-8  49.3ns ± 2%  38.5ns ± 2%  -21.84%  (p=0.000 n=8+8)
+    
+    Fixes #13162
+    
+    Change-Id: Ifb01f3799c5c93e7f7c7af13a95becfde85ae807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612617
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tim King <taking@google.com>
+
+ src/unicode/utf8/utf8.go | 31 ++-----------------------------
+ 1 file changed, 2 insertions(+), 29 deletions(-)

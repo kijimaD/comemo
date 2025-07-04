@@ -1,34 +1,17 @@
-commit 95c5ec67ea2c2760c15ffd771e52f5e31f3e116f
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Apr 30 21:24:25 2020 -0400
+commit 4a378d712d4a089e2242fe49de6547d493f52bf5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 25 13:46:32 2019 -0500
 
-    crypto/x509: treat certificate names with trailing dots as invalid
+    doc: add section on GOPROXY protocol to module reference doc
     
-    Trailing dots are not allowed in certificate fields like CN and SANs
-    (while they are allowed and ignored as inputs to verification APIs).
-    Move to considering names with trailing dots in certificates as invalid
-    hostnames.
+    Based on 'go help goproxy'.
     
-    Following the rule of CL 231378, these invalid names lose wildcard
-    processing, but can still match if there is a 1:1 match, trailing dot
-    included, with the VerifyHostname input.
+    Updates #33637
     
-    They also become ignored Common Name values regardless of the
-    GODEBUG=x509ignoreCN=X value, because we have to ignore invalid
-    hostnames in Common Name for #24151. The error message automatically
-    accounts for this, and doesn't suggest the environment variable. You
-    don't get to use a legacy deprecated field AND invalid hostnames.
-    
-    (While at it, also consider wildcards in VerifyHostname inputs as
-    invalid hostnames, not that it should change any observed behavior.)
-    
-    Change-Id: Iecdee8927df50c1d9daf904776b051de9f5e76ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231380
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2f3477cfc8f6fb53515604a28a5bc01eb4fe8f48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208777
     Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/x509/verify.go      | 24 ++++++++++++++----------
- src/crypto/x509/verify_test.go | 39 ++++++++++++++++++++++-----------------
- src/crypto/x509/x509_test.go   |  8 ++++----
- 3 files changed, 40 insertions(+), 31 deletions(-)
+ doc/modules.md | 159 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 158 insertions(+), 1 deletion(-)

@@ -1,44 +1,14 @@
-commit 6e3e3809231c71fc30b6d0cdcb1f60c5e6e816ef
+commit c69d6345daf277b947341ba958458b0a500effe1
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 12:30:02 2011 -0500
+Date:   Tue Nov 22 12:22:28 2011 -0500
 
-    allow direct conversion between string and named []byte, []rune
+    os: make ReadAt comment clearer
     
-    The allowed conversions before and after are:
-            type Tstring string
-            type Tbyte []byte
-            type Trune []rune
+    Fixes #2486.
     
-            string <-> string  // ok
-            string <-> []byte  // ok
-            string <-> []rune // ok
-            string <-> Tstring // ok
-            string <-> Tbyte // was illegal, now ok
-            string <-> Trune // was illegal, now ok
-    
-            Tstring <-> string  // ok
-            Tstring <-> []byte  // ok
-            Tstring <-> []rune // ok
-            Tstring <-> Tstring // ok
-            Tstring <-> Tbyte // was illegal, now ok
-            Tstring <-> Trune // was illegal, now ok
-    
-    Update spec, compiler, tests.  Use in a few packages.
-    
-    We agreed on this a few months ago but never implemented it.
-    
-    Fixes #1707.
-    
-    R=golang-dev, gri, r
+    R=golang-dev, hanwen
     CC=golang-dev
-    https://golang.org/cl/5421057
+    https://golang.org/cl/5417064
 
- doc/go_spec.html                 |  24 ++++++---
- src/cmd/gc/subr.c                |  12 ++---
- src/pkg/encoding/xml/xml_test.go | 102 +++++++++++++++++++--------------------
- src/pkg/net/http/sniff.go        |  34 ++++++-------
- src/pkg/net/mail/message.go      |   2 +-
- test/convert1.go                 |  96 ++++++++++++++++++++++++++++++++++++
- test/convlit.go                  |   6 +--
- test/named1.go                   |   4 +-
- 8 files changed, 191 insertions(+), 89 deletions(-)
+ src/pkg/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

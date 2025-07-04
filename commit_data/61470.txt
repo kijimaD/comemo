@@ -1,0 +1,17 @@
+commit 26e1010372216d013a0279be6b453fd680130881
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 6 11:29:54 2024 -0500
+
+    cmd/dist: add more pie tests, fips tests
+    
+    Check the various pie combinations with the new FIPS code.
+    
+    For #69536.
+    
+    Change-Id: I8fc771eab465c4af46a0ec8154d550c1bf95f7d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625999
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 48 insertions(+), 4 deletions(-)

@@ -1,17 +1,17 @@
-commit e55475ca3b6652d2d24b7bf48bcaf3e216c3ed68
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 1 18:22:56 2018 +0000
+commit c32626a4ce9293979c407c4e6a799d1bec37aa18
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu May 25 08:57:03 2017 +0900
 
-    Revert "net: mark tests with retry as parallel"
+    encoding/asn1: add MarshalWithParams
     
-    This reverts commit CL 103975 (a9b799a229787).
+    Fixes #18873
     
-    Reason for revert: adds data race, breaks race builders, and Brad forgot
-    to run the Trybots.
-    
-    Change-Id: Id227dad7069560dbb3ea978a1dcd77ce1979034e
-    Reviewed-on: https://go-review.googlesource.com/104015
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idb9750f739f91ebca34efcbc177254d412b4d90d
+    Reviewed-on: https://go-review.googlesource.com/44111
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/lookup_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/encoding/asn1/marshal.go      |  8 +++++++-
+ src/encoding/asn1/marshal_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

@@ -1,19 +1,22 @@
-commit 33b76920ec3bde98e58e0a6cb0816eb7be28bb4e
+commit 2c1d2e06afee98d0770427d8b6c29bd9971a0999
 Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 22 12:35:30 2018 -0500
+Date:   Tue Oct 17 17:09:54 2017 -0400
 
-    runtime: rename "arena index" to "arena map"
+    cmd/compile, cmd/link: record compiler flags in DW_AT_producer
     
-    There are too many places where I want to talk about "indexing into
-    the arena index". Make this less awkward and ambiguous by calling it
-    the "arena map" instead.
+    This adds a whitelisted subset of compiler flags to the DW_AT_producer
+    DWARF attribute of each package compilation unit DIE. This is common
+    practice in DWARF and can help debuggers determine the quality of the
+    produced debugging information.
     
-    Change-Id: I726b0667bb2139dbc006175a0ec09a871cdf73f9
-    Reviewed-on: https://go-review.googlesource.com/96777
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #22168.
+    
+    Change-Id: I1b994ef2262aa9b88b68eb6e883695d1103acc58
+    Reviewed-on: https://go-review.googlesource.com/71430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go  | 14 +++++++-------
- src/runtime/mbitmap.go |  2 +-
- src/runtime/mheap.go   |  4 ++--
- 3 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 58 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/dwarf/dwarf.go     |  6 +++-
+ src/cmd/internal/objabi/flag.go     |  8 +++++
+ src/cmd/link/internal/ld/dwarf.go   | 10 +++++++
+ 4 files changed, 81 insertions(+), 1 deletion(-)

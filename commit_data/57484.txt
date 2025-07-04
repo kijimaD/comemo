@@ -1,21 +1,26 @@
-commit 3dc146da7f31883fddc4bd227dd373398b08667e
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Sep 17 11:59:49 2024 +0800
+commit 33cdafed5213a17d23baa92568ede4bb16e7af0c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jul 26 14:09:06 2023 -0400
 
-    go/types, types2: better error message when type argument cannot use operator
+    cmd/go: enter vendor mode depending on new modules.txt workspace line
     
-    Fixes #63524
+    modules.txt gets a new ## workspace line at the start of the file if
+    it's generated in workspace mode. Then, when deciding whether the go
+    command runs in mod=vendor, we only do so if we're in the same mode
+    (workspace or not) as the modules.txt specifies.
     
-    Change-Id: Id33936b9bcfb6a7333c6d084247044bba2f29219
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613756
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #60056
+    
+    Change-Id: If478a9891a7135614326fcb80c4c33a431e4e531
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513756
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/expr.go             |  2 +-
- src/go/types/expr.go                                |  2 +-
- src/internal/types/testdata/check/typeparams.go     |  6 +++---
- src/internal/types/testdata/fixedbugs/issue48712.go |  8 ++++----
- src/internal/types/testdata/spec/comparisons.go     | 18 +++++++++---------
- 5 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/modcmd/vendor.go               |  4 ++
+ src/cmd/go/internal/modload/init.go                | 64 ++++++++++++++++++----
+ .../script/work_vendor_modules_txt_conditional.txt | 62 +++++++++++++++++++++
+ .../script/work_vendor_modules_txt_consistent.txt  |  6 ++
+ src/cmd/go/testdata/script/work_vendor_prune.txt   |  1 +
+ .../go/testdata/script/work_vendor_prune_all.txt   |  1 +
+ 6 files changed, 128 insertions(+), 10 deletions(-)

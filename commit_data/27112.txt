@@ -1,23 +1,23 @@
-commit 0436a89a2c5afad41356dc1dff7c745cd30636a7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 22 16:35:29 2016 -0700
+commit afdb8cff3ef267ecddb5ce807b850b8664ca9387
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Fri Mar 11 12:23:11 2016 +0100
 
-    spec: be more explicit about equivalence of empty string and absent field tags
+    compress/flate: test if results are deterministic
     
-    Note that the spec already makes that point with a comment in the very first
-    example for struct field tags. This change is simply stating this explicitly
-    in the actual spec prose.
+    This will test if deflate output is deterministic between two runs
+    of the deflater, when write sizes differ.
     
-    - gccgo and go/types already follow this rule
-    - the current reflect package API doesn't distinguish between absent tags
-      and empty tags (i.e., there is no discoverable difference)
+    The deflater makes no official promises that results are
+    deterministic between runs, but this is a good test to determine
+    unintentional randomness.
     
-    Fixes #15412.
+    Note that this does not guarantee that results are deterministic
+    across platforms nor that results will be deterministic between
+    Go versions. This is also not guarantees we should imply.
     
-    Change-Id: I92f9c283064137b4c8651630cee0343720717a02
-    Reviewed-on: https://go-review.googlesource.com/22391
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id7dd89fe276060fd83a43d0b34ac35d50fcd32d9
+    Reviewed-on: https://go-review.googlesource.com/20573
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/compress/flate/writer_test.go | 66 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

@@ -1,14 +1,12 @@
-commit b2fcdfa5fd7d0bba1933c1c6f6c478549bb4cd82
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 6 07:18:06 2013 -0700
+commit 429a67e30033935d45e368d32b56dedb8c010fee
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 6 14:43:36 2013 +0400
 
-    net: detect bad F_DUPFD_CLOEXEC on OS X 10.6
+    net: fix intentional build breakage introduced in 12413043
     
-    On 10.6, OS X's fcntl returns EBADF instead of EINVAL.
-    
-    R=golang-dev, iant, dave
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12493043
+    https://golang.org/cl/12502044
 
- src/pkg/net/fd_unix.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/pkg/net/tcp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

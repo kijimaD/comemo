@@ -1,32 +1,24 @@
-commit e63716bc76d3264f669843434bc365a78f2141d2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 23 21:10:29 2020 +0000
+commit 0a18cbc2e61a124b8fa142c4be288ec0c45ccb5d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 8 13:51:25 2020 -0700
 
-    runtime: make nlargealloc and largealloc mcache fields
+    cmd/compile: remove gdata layer in slicesym
     
-    This change makes nlargealloc and largealloc into mcache fields just
-    like nlargefree and largefree. These local fields become the new
-    source-of-truth. This change also moves the accounting for these fields
-    out of allocSpan (which is an inappropriate place for it -- this
-    accounting generally happens much closer to the point of allocation) and
-    into largeAlloc. This move is partially possible now that we can call
-    gcController.revise at that point.
+    The previous change moved code around to create slicesym.
+    This change simplifies slicesym and its callsites
+    by accepting an int64 for lencap instead of a node,
+    and by removing all the calls to gdata.
+    It also stops modifying n,
+    which avoids the need to make a copy of it.
     
-    Furthermore, this change moves largeAlloc into mcache.go and makes it a
-    method of mcache. While there's a little bit of a mismatch here because
-    largeAlloc barely interacts with the mcache, it helps solidify the
-    mcache as the first allocation layer and provides a clear place to
-    aggregate and manage statistics.
+    Passes toolstash-check.
     
-    Change-Id: I37b5e648710733bb4c04430b71e96700e438587a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246965
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I4d25454d11b4bb8941000244443e3c99eef4bdd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227550
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/malloc.go | 33 +------------------------------
- src/runtime/mcache.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++---
- src/runtime/mheap.go  | 18 +----------------
- src/runtime/mstats.go |  4 ++--
- 4 files changed, 55 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/gc/obj.go   | 15 +++++++++------
+ src/cmd/compile/internal/gc/sinit.go | 14 +++-----------
+ 2 files changed, 12 insertions(+), 17 deletions(-)

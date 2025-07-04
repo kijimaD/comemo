@@ -1,14 +1,79 @@
-commit 673bd18805aab1d4c7c301129d329e68a2511fd7
+commit 5451fff47520033c2139cbe9a6e352fbfc5b23a9
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 27 16:50:05 2015 -0700
+Date:   Thu Apr 2 08:53:27 2015 -0700
 
-    test: gofmt run.go
+    doc/progs: rewrite test driver in Go
     
-    Clean up after CL 5310.
+    The tests in doc/progs appear to have been originally written
+    for use with the old test driver. At some later point,
+    they acquired their own test driver.
+    Both ran tests in serial.
     
-    Change-Id: Ib870e7b9d26eb118eefdaa3e76dcec4a4d459584
-    Reviewed-on: https://go-review.googlesource.com/9398
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL rewrites the current test driver in Go,
+    runs tests concurrently, and cleans up
+    historical artifacts from the old drivers.
+    
+    The primary motivation is to speed up all.bash.
+    On my laptop, using tip, this CL reduces doc/progs test
+    wall time from 26s to 7s. The savings will remain
+    even when the compiler gets faster. Using Go 1.4,
+    this CL reduces test wall time from 15s to 4s.
+    
+    Change-Id: Iae945a8490222beee76e8a2118a0d7956092f543
+    Reviewed-on: https://go-review.googlesource.com/8410
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/run.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/progs/cgo1.go            |   3 +-
+ doc/progs/cgo2.go            |   3 +-
+ doc/progs/cgo3.go            |   3 +-
+ doc/progs/cgo4.go            |   3 +-
+ doc/progs/defer.go           |   2 -
+ doc/progs/defer.out          |   3 -
+ doc/progs/defer2.go          |   2 -
+ doc/progs/defer2.out         |  12 ---
+ doc/progs/eff_bytesize.go    |   2 -
+ doc/progs/eff_bytesize.out   |   1 -
+ doc/progs/eff_qr.go          |   2 -
+ doc/progs/eff_sequence.go    |   2 -
+ doc/progs/eff_sequence.out   |   1 -
+ doc/progs/eff_unused1.go     |   2 -
+ doc/progs/eff_unused2.go     |   2 -
+ doc/progs/error.go           |   2 -
+ doc/progs/error2.go          |   2 -
+ doc/progs/error3.go          |   2 -
+ doc/progs/error4.go          |   2 -
+ doc/progs/go1.go             |   3 -
+ doc/progs/gobs1.go           |   2 -
+ doc/progs/gobs2.go           |   2 -
+ doc/progs/image_draw.go      |   2 -
+ doc/progs/image_package1.go  |   2 -
+ doc/progs/image_package1.out |   1 -
+ doc/progs/image_package2.go  |   2 -
+ doc/progs/image_package2.out |   1 -
+ doc/progs/image_package3.go  |   2 -
+ doc/progs/image_package3.out |   1 -
+ doc/progs/image_package4.go  |   2 -
+ doc/progs/image_package4.out |   1 -
+ doc/progs/image_package5.go  |   2 -
+ doc/progs/image_package5.out |   1 -
+ doc/progs/image_package6.go  |   2 -
+ doc/progs/image_package6.out |   2 -
+ doc/progs/interface.go       |   2 -
+ doc/progs/interface2.go      |   2 -
+ doc/progs/interface2.out     |   1 -
+ doc/progs/json1.go           |   2 -
+ doc/progs/json2.go           |   2 -
+ doc/progs/json2.out          |   2 -
+ doc/progs/json3.go           |   2 -
+ doc/progs/json4.go           |   2 -
+ doc/progs/json5.go           |   2 -
+ doc/progs/run                | 125 ------------------------
+ doc/progs/run.go             | 220 +++++++++++++++++++++++++++++++++++++++++++
+ doc/progs/slices.go          |   2 -
+ doc/progs/timeout1.go        |   3 +-
+ doc/progs/timeout2.go        |   3 +-
+ doc/progs/update.bash        |  15 ---
+ src/cmd/dist/test.go         |   4 +-
+ 51 files changed, 228 insertions(+), 240 deletions(-)

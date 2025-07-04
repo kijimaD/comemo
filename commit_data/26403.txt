@@ -1,25 +1,12 @@
-commit 3504945081db0188ce1c7ec72c2ede669ee1b86f
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Sat Mar 19 23:27:41 2016 +0200
+commit d9b32f0c7d327f4fc165eb1fb9e76ac97b314c95
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 19 13:52:51 2016 -0800
 
-    cmd/link: optimize int parsing
+    cmd/compile: add VARLIVE to opnames list
     
-    Speeds up linking cmd/go by ~1.5%:
-    
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.58 ± 6%  0.57 ± 5%  -1.21%  (p=0.000 n=98+99)
-    
-    Less noisy benchmark, with garbage collection off:
-    
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.49 ± 2%  0.49 ± 2%  -1.79%  (p=0.000 n=98+99)
-    
-    Change-Id: I0123bcb66a87cbc4d703356e4c5a4035032012ec
-    Reviewed-on: https://go-review.googlesource.com/20916
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie8cb7c7428ae9026c11643b22f9ecf7977e25f5f
+    Reviewed-on: https://go-review.googlesource.com/18737
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/util.go        |  2 ++
- src/cmd/link/internal/ld/objfile.go | 12 +++++++-----
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/opnames.go | 1 +
+ 1 file changed, 1 insertion(+)

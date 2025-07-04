@@ -1,27 +1,34 @@
-commit 014f3dcc837cb6789076cff4fccaa3bd221f823e
+commit 9b0560ea2f0f2d2de97e71881ce3514e236b25e8
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 14 11:10:56 2014 -0800
+Date:   Tue Jan 14 09:46:40 2014 -0800
 
-    cmd/gofmt: remove -tabwidth and -tabs flags
+    net/http: fix another data race when sharing Request.Body
     
-    Having these flags misleads people into thinking they're acceptable
-    for code that "must be gofmt'd".
+    Fix another issue (similar to Issue 6995) where there was a
+    data race when sharing a server handler's Request.Body with
+    another goroutine that out-lived the Handler's goroutine.
     
-    If an organization wishes to use gofmt internally with
-    different settings, they can fork gofmt trivially. But "gofmt"
-    as used by the community with open source Go code should not
-    support these old knobs.
+    In some cases we were not closing the incoming Request.Body
+    (which would've required reading it until the end) if we
+    thought it we thought we were going to be forcibly closing the
+    underlying net.Conn later anyway. But that optimization
+    largely moved to the transfer.go *body later, and locking was
+    added to *body which then detected read-after-close, so now
+    calling the (*body).Close always is both cheap and correct.
     
-    Also removes the -comments flag.
+    No new test because TestTransportAndServerSharedBodyRace caught it,
+    albeit only sometimes. Running:
     
-    Fixes #7101
+    while ./http.test -test.cpu=8 -test.run=TestTransportAndServerSharedBodyRace; do true; done
     
-    R=r, gri
+    ... would reliably cause a race before, but not now.
+    
+    Update #6995
+    Fixes #7092
+    
+    R=golang-codereviews, khr
     CC=golang-codereviews
-    https://golang.org/cl/52170043
+    https://golang.org/cl/51700043
 
- src/cmd/gofmt/doc.go        | 11 ++++-------
- src/cmd/gofmt/gofmt.go      | 39 +++++++++++----------------------------
- src/cmd/gofmt/gofmt_test.go |  1 -
- src/cmd/gofmt/long_test.go  |  2 +-
- 4 files changed, 16 insertions(+), 37 deletions(-)
+ src/pkg/net/http/server.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

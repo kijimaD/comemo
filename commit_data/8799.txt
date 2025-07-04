@@ -1,21 +1,12 @@
-commit 10f1436bad73f48bfc759e37c34f5165b92926b7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jun 20 14:51:34 2011 -0400
+commit 58ff8c1dfd3659ec4ce8ed35a92583b375f30fe4
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Jun 20 14:50:00 2011 -0400
 
-    syscall: add LSF support for linux
+    codereview.py: note that hg change -d abandons a change list
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4626041
+    https://golang.org/cl/4644043
 
- src/pkg/syscall/Makefile               |   1 +
- src/pkg/syscall/lsf_linux.go           |  78 ++++++++++++++++++++++++
- src/pkg/syscall/mkerrors.sh            |   4 +-
- src/pkg/syscall/types_linux.c          |  11 ++++
- src/pkg/syscall/zerrors_linux_386.go   | 102 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_amd64.go | 102 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_arm.go   | 105 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/ztypes_linux_386.go    |  15 +++++
- src/pkg/syscall/ztypes_linux_amd64.go  |  15 +++++
- src/pkg/syscall/ztypes_linux_arm.go    |  15 +++++
- 10 files changed, 447 insertions(+), 1 deletion(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

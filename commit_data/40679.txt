@@ -1,32 +1,26 @@
-commit ae4534e6598fe905d3ebefae44afef07e853b1d0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 18 15:03:50 2019 +0000
+commit 6a9b22ce9d04993d3297ace5ec531292edb120f2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Jun 11 15:21:51 2019 -0400
 
-    runtime: ensure heap memstats are updated atomically
+    vendor: go get -u golang.org/x/crypto && go mod vendor
     
-    For the most part, heap memstats are already updated atomically when
-    passed down to OS-level memory functions (e.g. sysMap). Elsewhere,
-    however, they're updated with the heap lock.
+    Pick up asm ppc64le implementations for internal/chacha20 and
+    poly1305.
     
-    In order to facilitate holding the heap lock for less time during
-    allocation paths, this change more consistently makes the update of
-    these statistics atomic by calling mSysStat{Inc,Dec} appropriately
-    instead of simply adding or subtracting. It also ensures these values
-    are loaded atomically.
-    
-    Furthermore, an undocumented but safe update condition for these
-    memstats is during STW, at which point using atomics is unnecessary.
-    This change also documents this condition in mstats.go.
-    
-    Updates #35112.
-    
-    Change-Id: I87d0b6c27b98c88099acd2563ea23f8da1239b66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196638
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ide6fc91da3b10d1c3d9e8e00957c52be06a3cf93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181877
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/runtime/mgcscavenge.go |  7 +++----
- src/runtime/mheap.go       | 22 ++++++++++++----------
- src/runtime/mstats.go      |  8 ++++----
- 3 files changed, 19 insertions(+), 18 deletions(-)
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   8 +-
+ .../x/crypto/internal/chacha20/asm_ppc64le.s       | 668 +++++++++++++++++++++
+ .../x/crypto/internal/chacha20/chacha_noasm.go     |   2 +-
+ .../x/crypto/internal/chacha20/chacha_ppc64le.go   |  52 ++
+ .../golang.org/x/crypto/poly1305/mac_noasm.go      |   2 +-
+ .../golang.org/x/crypto/poly1305/sum_noasm.go      |   2 +-
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.go    |  68 +++
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.s     | 247 ++++++++
+ src/vendor/modules.txt                             |   2 +-
+ 10 files changed, 1042 insertions(+), 11 deletions(-)

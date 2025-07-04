@@ -1,25 +1,22 @@
-commit 5e4000ad7ff153d90e77c97d7f29d3a2fa6c7de0
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jul 11 09:07:43 2023 -0500
+commit 63e129ba1c458db23f0752d106ed088a2cf38360
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 19 16:01:33 2022 +1000
 
-    cmd/compile: on PPC64, fix sign/zero extension when masking
+    image/png: allow both PLTE and tRNS chunks for TrueColor
     
-    (ANDCCconst [y] (MOV.*reg x)) should only be merged when zero
-    extending. Otherwise, sign bits are lost on negative values.
+    Prior to this commit, png.Decode would allow TrueColor PNG images that
+    have one but not both of PLTE and tRNS chunks.
     
-    (ANDCCconst [0xFF] (MOVBreg x)) should be simplified to a zero
-    extension of x. Likewise for the MOVHreg variant.
+    Fixes #54142
     
-    Fixes #61297
-    
-    Change-Id: I04e4fd7dc6a826e870681f37506620d48393698b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508775
+    Change-Id: I259c1fff86a0aa5640dbadf7ad834e05fbd1430c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424916
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules | 10 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 77 +++++----------------------
- test/codegen/bits.go                          | 20 +++++++
- 3 files changed, 37 insertions(+), 70 deletions(-)
+ src/image/png/reader.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

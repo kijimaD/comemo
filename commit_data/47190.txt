@@ -1,22 +1,31 @@
-commit 1011e26b9cec8b5e7b0b827805b2fe079904521a
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 2 11:52:36 2021 -0700
+commit 6db80d74200675e20c562684c0bcc6d12a5631eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 2 21:52:09 2021 -0800
 
-    net/http: deflake TestServerKeepAlivesEnabled_h{1,2}
+    cmd/compile/internal/types2: use correct recv for parameterized embedded methods
     
-    This test assumes that two successive TCP connections will use different
-    source ports. This does not appear to be a universally safe assumption.
+    Methods of generic types are instantiated lazily (upon use). Thus,
+    when we encounter a method of such a type, we need to instantiate
+    the method signature with the receiver type arguments. We infer
+    those type arguments from the method receiver. If the method is
+    embedded, we must use the actual embedded receiver type, otherwise
+    the receiver type declared with the method doesn't match up and
+    inference will fail.
     
-    Rewrite the test to use httptrace to detect connection reuse instead.
+    (Note that there's no type inference in the source code here, it's
+    only the implementation which uses the existing inference mechanism
+    to easily identify the actual type arguments. If the implementation
+    is correct, the inference will always succeed.)
     
-    Fixes #46707
+    Updates #44688.
     
-    Change-Id: Iebfbdfdeb77a1e6663a0c654dc847cc270c5d54d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360854
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie35b62bebaeaf42037f2ca00cf8bd34fec2ddd9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298129
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/serve_test.go | 42 +++++++++++++++++++++++++++++-------------
- 1 file changed, 29 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/call.go            | 33 +++++----
+ .../internal/types2/fixedbugs/issue44688.go2       | 83 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/selection.go       |  4 +-
+ 3 files changed, 106 insertions(+), 14 deletions(-)

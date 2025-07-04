@@ -1,30 +1,37 @@
-commit fb75f856df0c3ad5f4df861ab6ff3cab8a73a129
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 26 22:41:33 2015 +0100
+commit 3ac37c72ae56a229bdc75986a4071b29bd7298c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 19:42:01 2015 -0500
 
-    runtime: fix memory allocator on Plan 9
+    liblink: place DATA size in from3.offset always
     
-    Previously, the memory allocator on Plan 9 did
-    not free memory properly. It was only able to
-    free the last allocated block.
+    Like the TEXT/GLOBL flags, this was split between from.scale and reg,
+    neither of which is appropriate.
     
-    This change implements a variant of the
-    Kernighan & Ritchie memory allocator with
-    coalescing and splitting.
-    
-    The most notable differences are:
-    
-    - no header is prefixing the allocated blocks, since
-      the size is always specified when calling sysFree,
-    - the free list is nil-terminated instead of circular.
-    
-    Fixes #9736.
-    Fixes #9803.
-    Fixes #9952.
-    
-    Change-Id: I00d533714e4144a0012f69820d31cbb0253031a3
-    Reviewed-on: https://go-review.googlesource.com/5524
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I2a16ef066a53b6edb7afb16cce108c0d1d26389c
+    Reviewed-on: https://go-review.googlesource.com/3576
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mem_plan9.go | 126 ++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 113 insertions(+), 13 deletions(-)
+ include/link.h      |   1 -
+ src/cmd/5a/a.y      |   6 +-
+ src/cmd/5a/y.tab.c  | 182 +++++++++----------
+ src/cmd/5g/gobj.c   |  33 ++--
+ src/cmd/6a/a.y      |  17 +-
+ src/cmd/6a/y.tab.c  | 502 +++++++++++++++++++++++++--------------------------
+ src/cmd/6g/gobj.c   |  27 ++-
+ src/cmd/8a/a.y      |  17 +-
+ src/cmd/8a/y.tab.c  | 504 ++++++++++++++++++++++++++--------------------------
+ src/cmd/8g/gobj.c   |  33 ++--
+ src/cmd/9a/a.y      |  18 +-
+ src/cmd/9a/y.tab.c  | 140 ++++++++-------
+ src/cmd/9g/gobj.c   |  27 ++-
+ src/liblink/data.c  |   2 +-
+ src/liblink/list5.c |   2 +-
+ src/liblink/list6.c |   4 +-
+ src/liblink/list8.c |   4 +-
+ src/liblink/list9.c |   2 +-
+ src/liblink/obj5.c  |   7 -
+ src/liblink/obj6.c  |   8 -
+ src/liblink/obj8.c  |   7 -
+ src/liblink/obj9.c  |   8 -
+ 22 files changed, 800 insertions(+), 751 deletions(-)

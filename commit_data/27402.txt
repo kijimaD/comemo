@@ -1,27 +1,16 @@
-commit a101b85e00f302706d8b1de1d2173a154d5f54cc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun May 15 17:24:51 2016 +0900
+commit 2e79d7fbee7d635f93940c482cd366ad4ae551a1
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 23 17:22:09 2016 +0100
 
-    syscall: fix missing use of use function in sysctl
+    cmd/go: update alldocs.go
     
-    Updates #13372.
+    Also added go:generate directive.
     
-    Change-Id: Id2402a781474e9d0bb0901c5844adbd899f76cbd
-    Reviewed-on: https://go-review.googlesource.com/23123
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib1f0eddc75e3c47a4d904786a29b964a35b18456
+    Reviewed-on: https://go-review.googlesource.com/21042
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
 
- src/syscall/zsyscall_darwin_386.go      | 1 +
- src/syscall/zsyscall_darwin_amd64.go    | 1 +
- src/syscall/zsyscall_darwin_arm.go      | 1 +
- src/syscall/zsyscall_dragonfly_amd64.go | 1 +
- src/syscall/zsyscall_freebsd_386.go     | 1 +
- src/syscall/zsyscall_freebsd_amd64.go   | 1 +
- src/syscall/zsyscall_freebsd_arm.go     | 1 +
- src/syscall/zsyscall_netbsd_386.go      | 1 +
- src/syscall/zsyscall_netbsd_amd64.go    | 1 +
- src/syscall/zsyscall_netbsd_arm.go      | 1 +
- src/syscall/zsyscall_openbsd_386.go     | 1 +
- src/syscall/zsyscall_openbsd_amd64.go   | 1 +
- 12 files changed, 12 insertions(+)
+ src/cmd/go/doc.go       | 2 ++
+ src/cmd/go/mkalldocs.sh | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

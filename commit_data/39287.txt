@@ -1,23 +1,29 @@
-commit 48a53d6eafaa80560629836939a8d0ee06569e6e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 31 15:24:49 2019 -0400
+commit f8abdd6c8a6bb4882e708f87d1e83ba5f897aeff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 13 16:38:01 2019 -0800
 
-    cmd/go/internal/modfetch: use the resolved version to search for tags in (*codeRepo).convert
+    cmd/gofmt: normalize integer imaginary literals starting with 0
     
-    Previously, we used the passed-in statVers as the basis for tag search,
-    but it is not always valid.
-    Instead, use info.Name, which (by precondition) must be valid.
+    An 'i' suffix on an integer literal marks the integer literal as
+    a decimal integer imaginary value, even if the literal without the
+    suffix starts with a 0 and thus looks like an octal value:
     
-    Updates #32161
-    Updates #27171
+            0123i == 123i // != 0123 * 1i
     
-    Change-Id: Iaecb5043bdf2fefd26fbe3f8e3714b07d22f580f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179857
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This is at best confusing, and at worst a potential source of bugs.
+    It is always safe to rewrite such literals into the equivalent
+    literal without the leading 0.
+    
+    This CL implements this normalization.
+    
+    Change-Id: Ib77ad535f98b5be912ecbdec20ca1b472c1b4973
+    Reviewed-on: https://go-review.googlesource.com/c/162538
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modconv/convert_test.go   | 10 +++++-----
- src/cmd/go/internal/modfetch/coderepo.go      |  7 ++++++-
- src/cmd/go/testdata/script/mod_init_glide.txt |  8 +++++---
- 3 files changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/gofmt/gofmt.go                   | 51 ++++++++++++++++++++++++--------
+ src/cmd/gofmt/testdata/go2numbers.golden | 14 ++++++++-
+ src/cmd/gofmt/testdata/go2numbers.input  | 12 ++++++++
+ 3 files changed, 63 insertions(+), 14 deletions(-)

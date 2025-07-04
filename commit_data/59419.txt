@@ -1,50 +1,18 @@
-commit 0028532118eed355d0ac6337c63b01219cdc4c17
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Feb 18 03:19:06 2025 +0000
+commit a18aa0e3d14271659398648a49e54683ded4456c
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Mon Mar 11 23:28:30 2024 +0900
 
-    unique: use a bespoke canonicalization map and runtime.AddCleanup
+    all: gofmt
     
-    This change moves the unique package away from using a concurrent map
-    and instead toward a bespoke concurrent canonicalization map. The map
-    holds all its keys weakly, though keys may be looked up by value. The
-    result is the strong pointer for the canonical value. Entries in the map
-    are automatically cleaned up once the canonical reference no longer
-    exists.
+    These files are not formatted by gofmt. Thus, run gofmt to format them.
     
-    Why do this? There's a problem with the current implementation when it
-    comes to chains of unique.Handle: because the unique map will have a
-    unique.Handle stored in its keys, each nested handle must be cleaned up
-    1 GC at a time. It takes N GC cycles, at minimum, to clean up a nested
-    chain of N handles. This implementation, where the *only* value in the
-    set is weakly-held, does not have this problem. The entire chain is
-    dropped at once.
-    
-    The canon map implementation is a stripped-down version of HashTrieMap.
-    The weak set implementation also has lower memory overheads by virtue of
-    the fact that keys are all stored weakly. Whereas the previous map had
-    both a T and a weak.Pointer[T], this *only* has a weak.Pointer[T].
-    
-    The canonicalization map is a better abstraction overall and
-    dramatically simplifies the unique.Make code.
-    
-    While we're here, delete the background goroutine and switch to
-    runtime.AddCleanup. This is a step toward fixing #71772. We still need
-    some kind of back-pressure mechanism, which will be implemented in a
-    follow-up CL.
-    
-    For #71772.
-    Fixes #71846.
-    
-    Change-Id: I5b2ee04ebfc7f6dd24c2c4a959dd0f6a8af24ca4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650256
+    Change-Id: Iea9650e64b1f47cf82739f3a8a34f47740a96455
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570398
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/mfinal.go       |   7 +-
- src/runtime/mgc.go          |  27 +---
- src/unique/canonmap.go      | 385 ++++++++++++++++++++++++++++++++++++++++++++
- src/unique/canonmap_test.go | 179 ++++++++++++++++++++
- src/unique/handle.go        | 149 +++--------------
- src/unique/handle_test.go   |  70 ++++----
- 6 files changed, 636 insertions(+), 181 deletions(-)
+ src/html/template/transition.go | 2 +-
+ src/net/netip/slow_test.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

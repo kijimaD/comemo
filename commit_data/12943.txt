@@ -1,22 +1,15 @@
-commit 87eaa4cd0c3e33c75bb53d9ea082030cef4da923
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 23 22:26:48 2012 -0700
+commit 5fc2af1f777f0544c2813e67ba92a26b0c8be4f2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 24 13:17:05 2012 +1000
 
-    mime/multipart: report io.EOF correctly on part ending without newlines
+    path: document that Clean deletes trailing slashes.
     
-    If a part ends with "--boundary--", without a final "\r\n",
-    that's also a graceful EOF, and we should return io.EOF instead
-    of the fmt-wrapped io.EOF from bufio.Reader.ReadSlice.
+    Fixes #3492.
     
-    I found this bug parsing an image attachment from gmail.
-    Minimal test case stripped down from the original
-    gmail-generated attachment included.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6118043
+    https://golang.org/cl/6112044
 
- src/pkg/mime/multipart/multipart.go         |  8 +++++
- src/pkg/mime/multipart/multipart_test.go    | 50 +++++++++++++++++++++++++++++
- src/pkg/mime/multipart/testdata/nested-mime | 29 +++++++++++++++++
- 3 files changed, 87 insertions(+)
+ src/pkg/path/filepath/path.go | 3 +++
+ src/pkg/path/path.go          | 2 ++
+ 2 files changed, 5 insertions(+)

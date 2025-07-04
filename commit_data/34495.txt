@@ -1,42 +1,27 @@
-commit e83601b4356f92f2f4d05f302d5654754ff05a6d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Jan 7 12:12:25 2018 +1100
+commit 58de9f358375e87f07605852530383fee0a4b671
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Oct 27 10:06:40 2017 -0400
 
-    os: use WIN32_FIND_DATA.Reserved0 to identify symlinks
+    runtime: use -buildmode=pie in testCgoPprofPIE  instead of -extldflags=-pie
     
-    os.Stat implementation uses instructions described at
-    https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
-    to distinguish symlinks. In particular, it calls
-    GetFileAttributesEx or FindFirstFile and checks
-    either WIN32_FILE_ATTRIBUTE_DATA.dwFileAttributes
-    or WIN32_FIND_DATA.dwFileAttributes to see if
-    FILE_ATTRIBUTES_REPARSE_POINT flag is set.
-    And that seems to worked fine so far.
+    Errors occur in runtime test testCgoPprofPIE when the test
+    is built by passing -pie to the external linker with code
+    that was not built as PIC. This occurs on ppc64le because
+    non-PIC is the default, and fails only on newer distros
+    where the address range used for programs is high enough
+    to cause relocation overflow. This test should be built
+    with -buildmode=pie since that correctly generates PIC
+    with -pie.
     
-    But now we discovered that OneDrive root folder
-    is determined as directory:
+    Related issues are #21954 and #22126.
     
-    c:\>dir C:\Users\Alex | grep OneDrive
-    30/11/2017  07:25 PM    <DIR>          OneDrive
-    c:\>
+    Updates #22459
     
-    while Go identified it as symlink.
-    
-    But we did not follow Microsoft's advice to the letter - we never
-    checked WIN32_FIND_DATA.Reserved0. And adding that extra check
-    makes Go treat OneDrive as symlink. So use FindFirstFile and
-    WIN32_FIND_DATA.Reserved0 to determine symlinks.
-    
-    Fixes #22579
-    
-    Change-Id: I0cb88929eb8b47b1d24efaf1907ad5a0e20de83f
-    Reviewed-on: https://go-review.googlesource.com/86556
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib641440bc9f94ad2b97efcda14a4b482647be8f7
+    Reviewed-on: https://go-review.googlesource.com/73970
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/dir_windows.go     |  17 ++----
- src/os/os_windows_test.go |  86 +++++++++++++++++++++++++++
- src/os/stat_windows.go    | 138 ++++++++------------------------------------
- src/os/types_windows.go   | 144 +++++++++++++++++++++++++++++++++++++++++++---
- 4 files changed, 250 insertions(+), 135 deletions(-)
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

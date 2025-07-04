@@ -1,17 +1,25 @@
-commit 25ca686a0bef5da90367964236fec49ce45626e3
-Author: Mark Freeman <mark@golang.org>
-Date:   Thu May 29 16:06:27 2025 -0400
+commit ad87d4404782d816f7a4497113b6b983b45aa442
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 18 08:51:27 2024 -0700
 
-    cmd/compile/internal/noder: begin filling in SectionObj
+    go/types, types2: use correct predicate when asserting comma-ok types
     
-    SectionObj has to encode the definition information for each object
-    type, so it will be a bit long.
+    While at it and unrelated, up-date testdata/manual.go sample file so
+    we can just copy its contents into a test file after debugging, without
+    fixing the date.
     
-    Change-Id: I9b9514d58a284a4e64020f99fd1b2a92f7752338
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677377
+    Fixes #66878.
+    
+    Change-Id: Ie49a341b78d99bdc0f1a0ba1ca42fa2d3a807bd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580075
+    Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/noder/doc.go | 19 ++++++++++++++++++-
- 1 file changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check.go            |  2 +-
+ src/cmd/compile/internal/types2/testdata/manual.go  |  2 +-
+ src/go/types/check.go                               |  2 +-
+ src/go/types/testdata/manual.go                     |  2 +-
+ src/internal/types/testdata/fixedbugs/issue66878.go | 21 +++++++++++++++++++++
+ 5 files changed, 25 insertions(+), 4 deletions(-)

@@ -1,26 +1,23 @@
-commit db423dde85ad4923c2c4addb1cd96f119c7b6dc6
-Author: Wang Yaduo <wangyaduo@linux.alibaba.com>
-Date:   Wed Jan 31 10:37:35 2024 +0800
+commit e72cd86b360aa523ca7af552b7ad9d3e57b28e35
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 19:03:42 2023 +0000
 
-    cmd/internal/obj: support Zba, Zbb, Zbs extensions in riscv64 assembler
+    Revert "runtime: consolidate function descriptor definitions on PPC64"
     
-    Add assembler support for Zba, Zbb, Zbs extensions, which are
-    mandatory in the rva22u64 profile. These can be used to accelerate
-    address computation and bit manipulation.
+    This reverts CL 478917.
     
-    Change-Id: Ie90fe6b76b1382cf69984a0e71a72d3cba0e750a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559655
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reason for revert: need to revert CL 392854, and this caused a conflict.
+    
+    Change-Id: I02c3285de5635b431a99adc8790c8310d1c4e6a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481059
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s | 96 +++++++++++++++++++++++------
- src/cmd/internal/obj/riscv/anames.go        | 46 ++++++++++++--
- src/cmd/internal/obj/riscv/cpu.go           | 58 +++++++++++++++--
- src/cmd/internal/obj/riscv/inst.go          | 84 ++++++++++++++++++++++++-
- src/cmd/internal/obj/riscv/obj.go           | 90 +++++++++++++++++++++++++--
- 5 files changed, 336 insertions(+), 38 deletions(-)
+ src/runtime/asm_ppc64x.h       | 20 ++------------------
+ src/runtime/asm_ppc64x.s       | 21 ++++++++++++++++++---
+ src/runtime/cgo/asm_ppc64x.s   | 25 +++++++++++++------------
+ src/runtime/rt0_aix_ppc64.s    | 17 +++++++++++++----
+ src/runtime/rt0_linux_ppc64.s  | 13 ++++++++++---
+ src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++++------
+ 6 files changed, 73 insertions(+), 46 deletions(-)

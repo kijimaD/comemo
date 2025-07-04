@@ -1,15 +1,24 @@
-commit b28b263a91e4fd4af6900e045cd35c2ed1d6e3ff
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 17 15:02:04 2024 +0200
+commit bf2a6d1957915530c73bbc8c863bb29da6c2714e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 9 15:49:48 2023 -0700
 
-    os/signal: use slices.Delete
+    cmd/compile: ensure write barrier branches get marked uninterruptible
     
-    Change-Id: I212a0f4f97e1c938f56981f278464081cfd75e85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613875
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The branch itself can't be marked, so we ensure we mark the last
+    ssa.Value in the block as uninterruptible, because that's where the
+    branch ends up getting its uninterruptibility from.
+    
+    This is somewhat conservative, as we're marking an instruction as
+    uninterruptible that doesn't need to be. But it is an easy fix.
+    
+    TODO: figure out a test
+    
+    Change-Id: Icd314f0bbdce8f80019bafb9e861baca4e7ecbb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518055
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/signal/signal.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/liveness/plive.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

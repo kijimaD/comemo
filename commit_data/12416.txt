@@ -1,12 +1,17 @@
-commit f35fa85a3fa52b954a057ad7057a74c169e13103
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 6 16:56:30 2012 +1100
+commit 347cc981f043193dc9b29e92b485b158aa6c85f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 6 00:36:24 2012 -0500
 
-    doc/gopher: flip frontpage gopher's eyes
+    cmd/go: add -compiler
+    go/build: add Context.Compiler
     
-    R=r, r
+    Fixes #3157.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5759045
+    https://golang.org/cl/5756047
 
- doc/gopher/frontpage.png | Bin 31610 -> 17668 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/go/build.go       | 127 +++++++++++++++++++++++++++++++++++-----------
+ src/cmd/go/testflag.go    |   3 ++
+ src/pkg/go/build/build.go |  26 ++++++----
+ 3 files changed, 116 insertions(+), 40 deletions(-)

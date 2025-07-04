@@ -1,12 +1,14 @@
-commit ae4dc8facb0e22508c4fbd27fe380e1ad86100e7
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 20 11:46:05 2015 +1000
+commit ab9c25f2de06e74cade453876835b3c1533a39de
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 30 15:35:01 2015 +1000
 
-    doc: fix typo in release notes
+    cmd/go: use GOOS and GOARCH from build context for "go generate"
     
-    Change-Id: I5310cef72e714b22bcf2ae9e6fd85dbb7e8a15a2
-    Reviewed-on: https://go-review.googlesource.com/13787
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11438
+    
+    Change-Id: Iedd31918aa5187fc3fdaed71c8dad82075559084
+    Reviewed-on: https://go-review.googlesource.com/11667
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/generate.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

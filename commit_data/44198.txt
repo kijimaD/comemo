@@ -1,22 +1,17 @@
-commit 6c8fbfbdcfa48ca29926097b20767fe83409b3ed
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jan 26 17:52:19 2021 +1100
+commit c551318046115104ee4edddf2c5b0e459711bbb2
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 16:12:44 2020 -0400
 
-    runtime: convert openbsd/arm64 locking to libc
+    [dev.link] cmd/link: move macho asmb2 support to generic functions
     
-    Switch openbsd/arm64 to locking via libc, rather than performing direct
-    system calls.
-    
-    Update #36435
-    
-    Change-Id: I2f30432c4bc232224cf87dca750665b8c40c7b72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286813
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: Ic360af7c0e8de3446aa8d26d70f95f87690087ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234883
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/os_openbsd_syscall1.go |  2 +-
- src/runtime/sys_openbsd1.go        |  2 +-
- src/runtime/sys_openbsd_arm64.s    | 43 +++++++++++++++++---------------------
- 3 files changed, 21 insertions(+), 26 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 19 ++-----------------
+ src/cmd/link/internal/arm64/asm.go | 15 ++-------------
+ src/cmd/link/internal/ld/asmb.go   | 22 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/main.go   |  4 +++-
+ src/cmd/link/internal/x86/asm.go   | 16 ++--------------
+ 5 files changed, 31 insertions(+), 45 deletions(-)

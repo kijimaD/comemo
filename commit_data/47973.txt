@@ -1,21 +1,25 @@
-commit 1efc5815dd316953a8f37e58f7e3542a6aac3adf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 18 17:52:16 2022 -0800
+commit dbade774c379393f76105242e69cdcf2ad32e5c3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 7 09:58:18 2021 -0400
 
-    go/types, types2: use orig. compiler error message for a shift error
+    runtime: refactor findrunnable spinning recheck
     
-    Slightly better for cases such as string(1 << s).
-    Leaves type-checker tests alone for now because
-    there are multiple dozens.
+    Break the main components of the findrunnable spinning -> non-spinning
+    recheck out into their own functions, which simplifies both findrunnable
+    and the new functions, which can make use of fancy features like early
+    returns.
     
-    For #45117.
+    This CL should have no functional changes.
     
-    Change-Id: I47b314c713fabe424c2158674bf965416a8a6f5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379274
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #43997
+    For #44313
+    
+    Change-Id: I6d3060fcecda9920a3471ff338f73d53b1d848a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307914
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/expr.go | 23 +++++++++++++++--------
- src/go/types/expr.go                    | 21 ++++++++++++++-------
- test/fixedbugs/issue28079c.go           |  2 +-
- 3 files changed, 30 insertions(+), 16 deletions(-)
+ src/runtime/proc.go | 177 ++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 110 insertions(+), 67 deletions(-)

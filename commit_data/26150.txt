@@ -1,12 +1,19 @@
-commit 1afacd0e329a08279a6b417a4f92c97967eeed5e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Feb 26 14:35:42 2016 +1100
+commit 57337da16995e7dc31da724d0789f2801aa8c959
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 11:24:55 2015 -0500
 
-    doc: update issue template
+    testing: use debug.SetTraceback("all") to show all goroutines at test timeout
     
-    Change-Id: Iaa23d27043e6a050075b40072e466623418ba977
-    Reviewed-on: https://go-review.googlesource.com/19878
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #13681.
+    
+    Change-Id: I308930f4d9200fbe0f09cd08c38392ca1bb0db67
+    Reviewed-on: https://go-review.googlesource.com/18044
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- .github/ISSUE_TEMPLATE | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go          | 2 +-
+ src/runtime/debug/garbage_test.go  | 3 ++-
+ src/runtime/debug/heapdump_test.go | 3 ++-
+ src/runtime/debug/stack_test.go    | 9 +++++----
+ src/testing/testing.go             | 2 ++
+ 5 files changed, 12 insertions(+), 7 deletions(-)

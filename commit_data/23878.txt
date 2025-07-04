@@ -1,18 +1,14 @@
-commit 68117a91ae3ca306007d89440c8d6e71ffc5bdd5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Jul 28 20:48:10 2015 +0200
+commit e6d2112ba9fb4823aa14bec5e32c57533d135787
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 18 17:33:29 2015 +1000
 
-    runtime: fix x86 stack trace for call to heap memory on Plan 9
+    internal/testenv: skip network tests only when -short is specified
     
-    Russ Cox fixed this issue for other systems
-    in CL 12026, but the Plan 9 part was forgotten.
-    
-    Fixes #11656.
-    
-    Change-Id: I91c033687987ba43d13ad8f42e3fe4c7a78e6075
-    Reviewed-on: https://go-review.googlesource.com/12762
+    Change-Id: I157879f5204d543eb3fc81c212d563b146473ba8
+    Reviewed-on: https://go-review.googlesource.com/11232
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os3_plan9.go     | 17 ++++++++++++++---
- test/fixedbugs/issue11656.go |  3 +--
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/internal/testenv/testenv.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

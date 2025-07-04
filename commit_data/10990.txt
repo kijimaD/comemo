@@ -1,15 +1,15 @@
-commit 0f14ebf99350fd8e87653129c5e1337cb8de3957
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Dec 23 13:21:25 2011 +1100
+commit 416afcb411d7b2fe59d38257bcfe0df3a903919e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 22 17:17:19 2011 -0800
 
-    dashboard: Don't highlight first heading row.
+    testing: add wrapper methods so the godoc output lists all methods
+    To be deleted when godoc catches up.
     
-    The two heading rows were previously a little hard to pick out,
-    because they were alternately shaded like the commit rows.
-    
-    R=adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5500074
+    https://golang.org/cl/5504079
 
- misc/dashboard/app/build/ui.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/testing/Makefile   |   5 ++-
+ src/pkg/testing/testing.go |   2 +-
+ src/pkg/testing/wrapper.go | 105 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 109 insertions(+), 3 deletions(-)

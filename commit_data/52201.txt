@@ -1,22 +1,25 @@
-commit a4cf4fde466035e6a485c29bd12450d51bc7d4e1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 7 18:23:40 2023 +0000
+commit 01b9ae22ed3c0f9c9ea29adbcd23bd97de6d18dd
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 6 23:25:04 2022 -0800
 
-    Revert "cmd/compile: enable address folding for global symbols of shared library"
+    cmd/compile: constant-fold switches early in compilation
     
-    This reverts CL 445535.
+    So that the inliner knows all the other cases are dead and doesn't
+    accumulate any cost for them.
     
-    Reason for revert: see issue #58826. It doesn't handle large offset well.
+    The canonical case for this is switching on runtime.GOOS, which occurs
+    several places in the stdlib.
     
-    Fixes #58826.
+    Fixes #50253
     
-    Change-Id: Ic4a33f4c510c88628ea7e16207a60977a04cf798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474175
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I44823aaebb6c1b03c9b0c12d10086db81954350f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399694
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 132 ++++++++++------
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 209 +++++++++++++++-----------
- 2 files changed, 209 insertions(+), 132 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go | 80 +++++++++++++++++++++++++++
+ test/inline.go                                | 45 +++++++++++++++
+ 2 files changed, 125 insertions(+)

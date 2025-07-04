@@ -1,36 +1,18 @@
-commit 034666442168ce1ce3f9136dbd5657ca360913fc
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Sep 30 15:06:44 2017 +0000
+commit e7c650bca5fc7a8161527924bc7cb889fb8ab5e0
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Jun 14 20:11:21 2017 -0700
 
-    cmd/link: convert symbol Add* functions to methods
+    testing: clarify -timeout flag
     
-    Also reduce the passed context from *Link to *sys.Arch, so fewer
-    data dependencies need to be wired through all the code dealing
-    with symbols.
+    Fixes #20090
     
-    For #22095
-    
-    Change-Id: I50969405d6562c5152bd1a3c443b72413e9b70bc
-    Reviewed-on: https://go-review.googlesource.com/67313
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I881607e55cd946a703e74a7d8ae2bbde67546510
+    Reviewed-on: https://go-review.googlesource.com/45816
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  |  82 +++++------
- src/cmd/link/internal/arm/asm.go    |  54 ++++----
- src/cmd/link/internal/arm64/asm.go  |   8 +-
- src/cmd/link/internal/ld/data.go    | 229 +++----------------------------
- src/cmd/link/internal/ld/dwarf.go   | 156 ++++++++++-----------
- src/cmd/link/internal/ld/elf.go     | 104 +++++++-------
- src/cmd/link/internal/ld/lib.go     |   8 +-
- src/cmd/link/internal/ld/link.go    |  55 --------
- src/cmd/link/internal/ld/macho.go   |  30 ++--
- src/cmd/link/internal/ld/objfile.go |   4 +-
- src/cmd/link/internal/ld/pcln.go    |  62 ++++-----
- src/cmd/link/internal/ld/pe.go      |   4 +-
- src/cmd/link/internal/ld/symbol.go  | 265 ++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/symtab.go  | 132 +++++++++---------
- src/cmd/link/internal/ppc64/asm.go  |  72 +++++-----
- src/cmd/link/internal/s390x/asm.go  | 146 ++++++++++----------
- src/cmd/link/internal/x86/asm.go    |  80 +++++------
- 17 files changed, 752 insertions(+), 739 deletions(-)
+ src/cmd/go/alldocs.go            | 5 +++--
+ src/cmd/go/internal/test/test.go | 5 +++--
+ src/testing/testing.go           | 2 +-
+ 3 files changed, 7 insertions(+), 5 deletions(-)

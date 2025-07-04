@@ -1,0 +1,17 @@
+commit 8e714281e441f93d2865adb3c5a507fd161314e9
+Author: lugen4ro <54658759+lugen4ro@users.noreply.github.com>
+Date:   Thu Nov 14 09:24:52 2024 +0000
+
+    embed: remove incorrect slash in comment
+    
+    Change-Id: Ida74e8127c29d3e6f0a4322f86c7963fa2ef8244
+    GitHub-Last-Rev: ae479155d64cee7d8c342516bece756b149bb303
+    GitHub-Pull-Request: golang/go#70330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627815
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/embed/embed.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

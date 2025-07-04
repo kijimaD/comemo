@@ -1,18 +1,13 @@
-commit b26d325cb1fda20129deaef6e6a666efdc8f0140
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 14 13:18:40 2021 -0700
+commit 178c667db2858f52965609b24857d5448dfb12c4
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 29 10:07:38 2020 -0800
 
-    cmd/compile/internal/types2: remove some unnecessary loading/expansion of Named types
+    [dev.regabi] cmd/compile: fix OSLICEARR comments
     
-    This is a clean port of CL 349409 from go/types to types2.
-    
-    Change-Id: I2deb9ce46e6dcda736fda2169912c02163930d7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349991
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ia6e734977a2cd80c91c28f4525be403f062dccc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280651
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/predicates.go | 3 ---
- src/cmd/compile/internal/types2/unify.go      | 3 ---
- 2 files changed, 6 deletions(-)
+ src/cmd/compile/internal/ir/node.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

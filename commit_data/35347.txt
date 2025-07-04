@@ -1,46 +1,23 @@
-commit 46047e64479c30602f0fb42c6915638006d7335d
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed May 9 09:49:58 2018 +0800
+commit 7ac393a3f208ab72263a245b80e22ad62abae565
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 16:17:54 2018 -0800
 
-    cmd/vendor/.../pprof: update to 520140b6bf47519c766e8380e5f094576347b016
+    go/parser: improved error message for unexpected literals
     
-    Change-Id: If431dfa59496b86f58f2ba2a83ca544a28a2a972
-    Reviewed-on: https://go-review.googlesource.com/112435
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    R=go1.11
+    
+    This is a follow up for #11377 which reported that an error like
+    
+    /tmp/xx.go:9:6: expected '(', found 'IDENT' F1
+    
+    shouldn't print 'IDENT', as it's just an internal detail.
+    The relevant change wasn't made in the original fix, so here it is.
+    
+    For #11377.
+    
+    Change-Id: Ib76957d86b88e3e63646fbe4abf03a3b9d045139
+    Reviewed-on: https://go-review.googlesource.com/87900
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/vendor/github.com/google/pprof/README.md   |    6 +-
- .../google/pprof/doc/{pprof.md => README.md}       |    2 +
- .../google/pprof/doc/developer/pprof.dev.md        |   14 -
- .../github.com/google/pprof/internal/driver/cli.go |    2 +-
- .../google/pprof/internal/driver/commands.go       |   13 +-
- .../google/pprof/internal/driver/driver.go         |   27 +-
- .../google/pprof/internal/driver/driver_focus.go   |    4 +
- .../google/pprof/internal/driver/driver_test.go    |    4 +
- .../google/pprof/internal/driver/fetch.go          |    2 +-
- .../google/pprof/internal/driver/flamegraph.go     |   22 +-
- .../pprof/internal/driver/flamegraph_test.go       |   46 +
- .../testdata/pprof.cpu.cum.lines.tree.show_from    |   16 +
- .../google/pprof/internal/driver/webhtml.go        |   38 +-
- .../google/pprof/internal/driver/webui_test.go     |    4 +-
- .../google/pprof/internal/elfexec/elfexec.go       |    4 +-
- .../google/pprof/internal/elfexec/elfexec_test.go  |    4 +-
- .../google/pprof/internal/report/report.go         |   41 +-
- .../google/pprof/internal/report/report_test.go    |    4 +-
- .../google/pprof/internal/report/source.go         |   79 +-
- .../google/pprof/internal/report/source_test.go    |   50 +-
- .../google/pprof/internal/symbolz/symbolz.go       |   15 +-
- src/cmd/vendor/github.com/google/pprof/pprof.go    |   77 +-
- .../github.com/google/pprof/profile/filter.go      |   68 +
- .../github.com/google/pprof/profile/filter_test.go |  599 +++++++++
- .../github.com/google/pprof/profile/merge.go       |   58 +-
- .../github.com/google/pprof/profile/merge_test.go  |  167 +++
- .../google/pprof/profile/profile_test.go           |   96 --
- .../developer/profile.proto.md => proto/README.md} |    0
- .../third_party/d3flamegraph/d3_flame_graph.go     | 1304 ++++++++++++--------
- .../google/pprof/third_party/d3tip/LICENSE         |    8 -
- .../google/pprof/third_party/d3tip/d3_tip.go       |  328 -----
- .../pprof/third_party/update_d3flamegraph.sh       |   46 +
- src/cmd/vendor/vendor.json                         |    4 +-
- 33 files changed, 2039 insertions(+), 1113 deletions(-)
+ src/go/parser/parser.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

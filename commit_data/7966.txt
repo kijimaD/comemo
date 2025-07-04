@@ -1,12 +1,15 @@
-commit 36c009d4659b2f30429d2729530770ace447ee4c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 4 15:47:32 2011 -0400
+commit 492039ae7fd4ac034b4d47b26b438762d59b53b9
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Apr 4 15:45:03 2011 -0400
 
-    codereview: only retry on HTTP 500 error
+    os: Fix MkdirAll("/thisdoesnotexist").
     
-    R=r
+    Fixes #1637.
+    
+    R=rsc, rh, msolo
     CC=golang-dev
-    https://golang.org/cl/4353047
+    https://golang.org/cl/4317049
 
- lib/codereview/codereview.py | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/path.go      |  2 +-
+ src/pkg/os/path_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

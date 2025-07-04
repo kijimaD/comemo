@@ -1,29 +1,24 @@
-commit 3d81d4adc9419e2fcba5888ab074d3f17eb5eb03
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 31 13:32:34 2016 -0700
+commit bc942823069fd004166360164e13821ded38f11c
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Apr 4 22:36:43 2016 +0300
 
-    spec: document that duplicate types are invalid in type switches
+    cmd/link: grow rdBuf lazily
     
-    Both compilers and also go/types don't permit duplicate types in
-    type switches; i.e., this spec change is documenting a status quo
-    that has existed for some time.
+    Counting the final buffer size usually doesn't result in the buffer growing,
+    so assume that it doesn't need to grow and only grow if necessary.
     
-    Furthermore, duplicate nils are not accepted by gccgo or go/types;
-    and more recently started causing a compiler error in gc. Permitting
-    them is inconsistent with the existing status quo.
+    name       old secs    new secs    delta
+    LinkCmdGo   0.49 ± 4%   0.48 ± 3%  -1.31%   (p=0.000 n=95+95)
     
-    Rather than making it an implementation restriction (as we have for
-    expression switches), this is a hard requirement since it was enforced
-    from the beginning (except for duplicate nils); it is also a well
-    specified requirement that does not pose a significant burden for
-    an implementation.
+    name       old MaxRSS  new MaxRSS  delta
+    LinkCmdGo   122k ± 4%   121k ± 5%    ~     (p=0.065 n=96+100)
     
-    Fixes #15896.
-    
-    Change-Id: If12db5bafa87598b323ea84418cb05421e657dd8
-    Reviewed-on: https://go-review.googlesource.com/23584
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I85e7f5688a61ef5ef2b1b7afe56507e71c5bd5b1
+    Reviewed-on: https://go-review.googlesource.com/21509
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go_spec.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/objfile.go | 19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)

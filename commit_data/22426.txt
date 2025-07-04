@@ -1,17 +1,16 @@
-commit 1d1c61ba7de586d5fcbdcbfe3543adb660ef73d1
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 30 01:54:49 2015 +0000
+commit 5158147e24a4626d14971fdda38d71db4a975a04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 13 18:08:33 2015 -0700
 
-    cmd/6g: call duffcopy, duffzero via got when dynamically linking go
+    debug/elf: support reading debug info from 32-bit PPC objects
     
-    Jumping to an offset past a symbol isn't something that is really
-    supported by dynamic linkers, so do it by hand.
+    Fixes #10118.
     
-    Change-Id: Ifff8834c6cdfa3d521ebd8479d2e93906df9b258
-    Reviewed-on: https://go-review.googlesource.com/8238
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4a2e6748db609c6eed1d68c824b81c59bd7b875c
+    Reviewed-on: https://go-review.googlesource.com/7590
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go |  4 ++++
- src/cmd/internal/obj/x86/obj6.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/debug/elf/file.go                              |  42 +++++++++++++++++++++
+ src/debug/elf/file_test.go                         |   6 +++
+ .../elf/testdata/go-relocation-test-gcc5-ppc.obj   | Bin 0 -> 2356 bytes
+ 3 files changed, 48 insertions(+)

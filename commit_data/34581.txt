@@ -1,31 +1,22 @@
-commit 518e6f0893a5d8dd12bc03ced6b22a989e350e57
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Mar 12 19:28:21 2018 -0400
+commit 21e6612d6fc29742024132f7f081e558c6807737
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 16:12:40 2017 -0400
 
-    cmd/internal/obj/arm64: support logical instructions targeting RSP
+    go/build: fix ImportDir to report PkgTarget for directories in GOROOT/GOPATH
     
-    Logical instructions can have RSP as its destination. Support it.
+    This makes ImportDir("$GOROOT/src/math", 0)
+    and Import("math", "", 0) equivalent. It was an
+    oversight that they were not before.
     
-    Note that the two-operand form, like "AND $1, RSP", which is
-    equivalent to the three-operand form "AND $1, RSP, RSP", is
-    invalid, because the source register is not allowed to be RSP.
+    An upcoming change to the go command relies on
+    the two returning the same results.
     
-    Also note that instructions that set the conditional flags, like
-    ANDS, cannot target RSP. Because of this, we split out the optab
-    entries of AND et al. and ANDS et al.
-    
-    Merge the optab entries of BIC et al. to AND et al., because they
-    are same.
-    
-    Fixes #24332.
-    
-    Change-Id: I3584d6f2e7cea98a659a1ed9fdf67c353e090637
-    Reviewed-on: https://go-review.googlesource.com/100217
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I187da4830fae85f8dde673c22836ff2da6801047
+    Reviewed-on: https://go-review.googlesource.com/75290
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      |  7 ++++
- src/cmd/asm/internal/asm/testdata/arm64error.s |  3 ++
- src/cmd/internal/obj/arm64/asm7.go             | 46 ++++++++++++--------------
- 3 files changed, 32 insertions(+), 24 deletions(-)
+ src/go/build/build.go      |  2 ++
+ src/go/build/build_test.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+)

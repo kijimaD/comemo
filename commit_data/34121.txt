@@ -1,18 +1,38 @@
-commit ef175731ffd2eee6b0da5c2eb8dc2590f2641f2f
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Jan 16 15:21:34 2018 -0500
+commit 1900d34a1042834712c04b4492e573421d965df2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 4 13:24:49 2017 -0400
 
-    runtime: remove hardcoded runtime consts from gdb script
+    [release-branch.go1.9] net/smtp: fix PlainAuth to refuse to send passwords to non-TLS servers
     
-    Instead evaluate and read the runtime internal constants
-    defined in runtime2.go
+    PlainAuth originally refused to send passwords to non-TLS servers
+    and was documented as such.
     
-    R=go1.11
+    In 2013, issue #5184 was filed objecting to the TLS requirement,
+    despite the fact that it is spelled out clearly in RFC 4954.
+    The only possibly legitimate use case raised was using PLAIN auth
+    for connections to localhost, and the suggested fix was to let the
+    server decide: if it advertises that PLAIN auth is OK, believe it.
+    That approach was adopted in CL 8279043 and released in Go 1.1.
     
-    Change-Id: If2f4b87e5b3f62f0c0ff1e86a90db8e37a78abb6
-    Reviewed-on: https://go-review.googlesource.com/87877
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Unfortunately, this is exactly wrong. The whole point of the TLS
+    requirement is to make sure not to send the password to the wrong
+    server or to a man-in-the-middle. Instead of implementing this rule,
+    CL 8279043 blindly trusts the server, so that if a man-in-the-middle
+    says "it's OK, you can send me your password," PlainAuth does.
+    And the documentation was not updated to reflect any of this.
+    
+    This CL restores the original TLS check, as required by RFC 4954
+    and as promised in the documentation for PlainAuth.
+    It then carves out a documented exception for connections made
+    to localhost (defined as "localhost", "127.0.0.1", or "::1").
+    
+    Cherry-pick of CL 68170.
+    
+    Change-Id: I1d3729bbd33aa2f11a03f4c000e6bb473164957b
+    Reviewed-on: https://go-review.googlesource.com/68210
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/runtime/runtime-gdb.py | 53 ++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 47 insertions(+), 6 deletions(-)
+ src/net/smtp/auth.go      | 33 ++++++++++++++++++---------------
+ src/net/smtp/smtp_test.go | 32 ++++++++++++++++++++++----------
+ 2 files changed, 40 insertions(+), 25 deletions(-)

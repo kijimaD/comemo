@@ -1,21 +1,19 @@
-commit 0df9fa2ebec975359c8ee1150ecf7f28f12b39ee
-Author: David Url <david@urld.io>
-Date:   Thu Aug 23 17:28:59 2018 +0200
+commit cc6e568c818053ddc16b80b0406a87d19de7a120
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 30 15:07:04 2018 -0700
 
-    net/http: log call site which causes multiple header writes
+    cmd/go: accept more safe CFLAGS/LDFLAGS
     
-    If an illegal header write is detected, find the first caller outside of
-    net/http using runtime.CallersFrames and include the call site in the log
-    message.
+    Fixes #23749
+    Fixes #24703
+    Fixes #24858
     
-    Fixes #18761
-    
-    Change-Id: I92be00ac206c6ebdd60344ad7bf40a7c4c188547
-    Reviewed-on: https://go-review.googlesource.com/c/130997
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib32d8efee294004c70fdd602087df2da0867f099
+    Reviewed-on: https://go-review.googlesource.com/115415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/clientserver_test.go |  6 +++---
- src/net/http/server.go            | 28 +++++++++++++++++++++++++---
- 2 files changed, 28 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/security.go      | 37 +++++++++++++++++++++++++++----
+ src/cmd/go/internal/work/security_test.go |  5 +++++
+ 2 files changed, 38 insertions(+), 4 deletions(-)

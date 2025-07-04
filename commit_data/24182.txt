@@ -1,22 +1,15 @@
-commit 703bd8362350a0c1742d6eb9017ebbf13fcbbbdd
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Sep 3 17:07:00 2015 +1000
+commit f849f6b7fd77fb1dccaf283121f4161b41f8a9b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 01:56:51 2015 -0400
 
-    cmd/compile: use []*Node instead of NodeList in sinit
+    cmd/go: give full import stack for errors in dependencies of test dependencies
     
-    This is a first of a set of changes to make the transition away from NodeList
-    easier by removing cases in which NodeList doesn't act semi-trivially like a
-    []*Node.
+    Fixes #9558.
     
-    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
-    
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: Iad10b75e42b5b24e1694407841282fa3bab2dc9f
-    Reviewed-on: https://go-review.googlesource.com/14232
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I68506af58088155d38d492b49b19c5fc2048b087
+    Reviewed-on: https://go-review.googlesource.com/12176
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 125 +++++++++++++++--------------------
- test/initloop.go                     |  17 +++++
- 2 files changed, 71 insertions(+), 71 deletions(-)
+ src/cmd/go/go_test.go | 14 ++++++++++++++
+ src/cmd/go/test.go    | 10 ++++++++++
+ 2 files changed, 24 insertions(+)

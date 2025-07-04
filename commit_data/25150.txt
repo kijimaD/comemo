@@ -1,18 +1,13 @@
-commit c4135dac630d093e01f95ea651d7d4330f616cfb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 25 11:34:41 2015 -0500
+commit f1b25c4ccfdd72745407f846e55399b194a23c90
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Oct 1 15:06:20 2015 -0400
 
-    encoding/json: streamline, unexport valid Number checking
+    go/types: fix incorrect comment at Info.Implicits.
     
-    Followup to CL 12250.
-    
-    For #10281.
-    
-    Change-Id: If25d9cac92f10327bb355f2d11b00c625b464661
-    Reviewed-on: https://go-review.googlesource.com/17199
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibd24e1567cb03f7f00f3cbe381bedd6c5215af35
+    Reviewed-on: https://go-review.googlesource.com/15320
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/json/decode.go      | 120 ++++++++++-----------------------------
- src/encoding/json/encode.go      |   5 +-
- src/encoding/json/number_test.go |  20 +++----
- 3 files changed, 44 insertions(+), 101 deletions(-)
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

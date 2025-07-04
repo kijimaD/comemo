@@ -1,22 +1,18 @@
-commit c1df5187d007f205c31d96c8cb9c173a634a102a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 15 13:09:00 2019 -0700
+commit 14a58d65e387481a326193840bce5787096a150e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 11 15:18:05 2019 +0100
 
-    runtime: simplify some pointer conversions
+    internal/bytealg: share code for equal functions on arm
     
-    Use efaceOf to safely convert from *interface{} to *_eface, and to
-    make it clearer what the pointer arithmetic is computing.
+    Move the shared code into byteal.memeqbody. This will allow to implement
+    optimizations (e.g. for #29001) in a single function.
     
-    Incidentally, remove a spurious unsafe.Pointer->*uint8->unsafe.Pointer
-    round trip conversion in newproc.
-    
-    No behavior change.
-    
-    Change-Id: I2ad9d791d35d8bd008ef43b03dad1589713c5fd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190457
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iaa34ddeb7068d92c35a8b4e581b7fd92da56535c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166677
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/proc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/vet/all/whitelist/arm.txt |  1 +
+ src/internal/bytealg/equal_arm.s  | 82 +++++++++++++++++++--------------------
+ 2 files changed, 40 insertions(+), 43 deletions(-)

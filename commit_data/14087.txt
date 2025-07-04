@@ -1,20 +1,15 @@
-commit 4fb89c9d6a686780037ad9e49998fe8e46402b80
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Oct 9 09:57:51 2012 +1100
+commit 05e4e805e0367ef9688c95bcecad4b8d3efc0584
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 9 08:56:34 2012 +1100
 
-    godoc: support Playground examples on App Engine
+    encoding/base{32,64}: add examples.
     
-    Updates setup-godoc-app.bash to produce a working godoc app
-    by substituting the go1.0.x go/... packages with those from tip.
+    Fixes #4136.
     
-    R=gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6587080
+    https://golang.org/cl/6615061
 
- src/cmd/godoc/appinit.go           |  2 ++
- src/cmd/godoc/main.go              | 31 +---------------
- src/cmd/godoc/play-appengine.go    | 35 ++++++++++++++++++
- src/cmd/godoc/play-local.go        | 41 +++++++++++++++++++++
- src/cmd/godoc/play.go              | 73 ++++++++++++++++++++++++++++++++++++++
- src/cmd/godoc/setup-godoc-app.bash | 63 ++++++++++++++++++++------------
- 6 files changed, 193 insertions(+), 52 deletions(-)
+ src/pkg/encoding/base32/example_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/encoding/base64/example_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)

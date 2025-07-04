@@ -1,23 +1,12 @@
-commit 250b96a7bfa5b9ac0f31e70e768173f57a61d2f7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 19 12:26:22 2019 -0700
+commit 3f485e14b2ca9d6e74471f2c3c9aa0b732971d51
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 24 17:59:25 2018 -0400
 
-    cmd/compile: slightly optimize adding 128
+    cmd/compile: document Sym flags
     
-    'SUBQ $-0x80, r' is shorter to encode than 'ADDQ $0x80, r',
-    and functionally equivalent. Use it instead.
-    
-    Shaves off a few bytes here and there:
-    
-    file    before    after     Δ       %
-    compile 25935856  25927664  -8192   -0.032%
-    nm      4251840   4247744   -4096   -0.096%
-    
-    Change-Id: Ia9e02ea38cbded6a52a613b92e3a914f878d931e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168344
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id14b417095628c7a1dc7a8e47bc28cfa392b5262
+    Reviewed-on: https://go-review.googlesource.com/c/146498
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 20 +++++++++++++++++---
- test/codegen/arithmetic.go            | 10 ++++++++++
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types/sym.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,17 +1,15 @@
-commit 8884fa747658a0d08675d22aa30636f7a0645cb3
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Jun 30 14:09:41 2015 +0200
+commit 8b186df7311c53a06b98e375b987f0a3b3672798
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 27 12:33:43 2015 -0700
 
-    cmd/trace: sort procs
+    test: remove arch char from nosplit
     
-    If you have more than 10 procs, then currently they are sorted alphabetically as
-    0, 10, 11, ..., 19, 2, 20, ...
-    Assign explicit order to procs so that they are sorted numerically.
+    This is dead code that was missed
+    during the 'go tool compile' migration.
     
-    Change-Id: I6d978d2cd439aa2fcbcf147842a643f9073eef75
-    Reviewed-on: https://go-review.googlesource.com/11750
+    Change-Id: Ice2af8a9ef72f8fd5f82225ee261854d93b659f1
+    Reviewed-on: https://go-review.googlesource.com/10430
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/trace/trace.go | 1 +
- 1 file changed, 1 insertion(+)
+ test/nosplit.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

@@ -1,16 +1,12 @@
-commit ad54a16b1583bf3102c5d087de587e7144a0bf11
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 22 10:43:16 2015 -0800
+commit 11779ef420a78e4b4ea5d585577b83d4b8e60854
+Author: Joe Shaw <joe@joeshaw.org>
+Date:   Mon Dec 22 15:27:46 2014 -0500
 
-    go/printer, cmd/gofmt: print import paths in double quotes
+    syscall: update go.sys doc reference to golang.org/x/sys
     
-    Fixes #9644.
-    
-    Change-Id: Ia2e42befa20233107ac5409e79f9dce794983a3f
-    Reviewed-on: https://go-review.googlesource.com/3200
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ie5a36dbcd809fc165f4198d47641d5a95878460c
+    Reviewed-on: https://go-review.googlesource.com/2000
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/printer/nodes.go                     | 48 ++++++++++++++++++++++++++++-
- src/go/printer/testdata/declarations.golden |  6 ++++
- src/go/printer/testdata/declarations.input  |  9 ++++++
- 3 files changed, 62 insertions(+), 1 deletion(-)
+ src/syscall/syscall.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

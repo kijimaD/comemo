@@ -1,16 +1,20 @@
-commit ee09a8cd9fee2f38fd100bd27451c4284f7e9d96
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jan 20 09:26:17 2012 +1100
+commit bb7eca177a8b23f85a143f987b02c377a78cefe7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 19 14:19:59 2012 -0800
 
-    gc: don't emit pkgpath for error type.
+    net/http: log handler panic before closing HTTP connection
     
-    Fixes #2660.
+    Fix originally from rogpeppe in 5414048 but was rolled
+    back due to test breakage.
     
-    R=golang-dev, rsc
+    This CL makes the test more robust to order of operations.
+    
+    Fixes #2480 again.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5557060
+    https://golang.org/cl/5536072
 
- src/cmd/gc/reflect.c        |  2 +-
- src/pkg/reflect/all_test.go | 15 +++++++++++++--
- src/pkg/reflect/type.go     |  2 +-
- 3 files changed, 15 insertions(+), 4 deletions(-)
+ src/pkg/net/http/serve_test.go | 14 ++++++++------
+ src/pkg/net/http/server.go     |  7 ++++---
+ 2 files changed, 12 insertions(+), 9 deletions(-)

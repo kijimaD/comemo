@@ -1,16 +1,42 @@
-commit ba31d662fe52921b8035f4c5d7895d780d66a481
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 29 12:33:13 2012 -0500
+commit 79dc34413e4ad93cc8c590e9f3cc97538c7f8266
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 29 09:19:05 2012 -0800
 
-    codereview: die if initialized twice
+    cmd/go: first piece of tool rearrangement
+    1) create go-tool dir in make.bash
+    2) clean up stale binaries in make.bash
+    3) add 'tool' command to go
+    4) convert goyacc->yacc as a first test tool
+    Since goyacc stands alone, it's a safe trial.
     
-    If this happens, something is misconfigured.
-    If we don't test for this explicitly, MatchAt ends
-    up calling itself recursively forever.
-    
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5576066
+    https://golang.org/cl/5576061
 
- lib/codereview/codereview.py | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/Make.tool                              |  49 ++++++++++++++
+ src/buildscript/darwin_386.sh              |   2 +-
+ src/buildscript/darwin_amd64.sh            |   2 +-
+ src/buildscript/freebsd_386.sh             |   2 +-
+ src/buildscript/freebsd_amd64.sh           |   2 +-
+ src/buildscript/linux_386.sh               |   2 +-
+ src/buildscript/linux_amd64.sh             |   2 +-
+ src/buildscript/linux_arm.sh               |   2 +-
+ src/buildscript/netbsd_386.sh              |   2 +-
+ src/buildscript/netbsd_amd64.sh            |   2 +-
+ src/buildscript/openbsd_386.sh             |   2 +-
+ src/buildscript/openbsd_amd64.sh           |   2 +-
+ src/buildscript/plan9_386.sh               |   2 +-
+ src/buildscript/windows_386.sh             |   2 +-
+ src/buildscript/windows_amd64.sh           |   2 +-
+ src/cmd/Makefile                           |   2 +-
+ src/cmd/go/Makefile                        |   1 +
+ src/cmd/go/main.go                         |   1 +
+ src/cmd/go/tool.go                         | 100 +++++++++++++++++++++++++++++
+ src/cmd/{goyacc => yacc}/Makefile          |  10 +--
+ src/cmd/{goyacc => yacc}/doc.go            |  10 +--
+ src/cmd/{goyacc => yacc}/units.txt         |   0
+ src/cmd/{goyacc => yacc}/units.y           |  10 +--
+ src/cmd/{goyacc/goyacc.go => yacc/yacc.go} |   2 +-
+ src/make.bash                              |  16 ++++-
+ src/pkg/Makefile                           |   4 +-
+ 26 files changed, 198 insertions(+), 35 deletions(-)

@@ -1,21 +1,18 @@
-commit 205d62d58b16afbb4e6232a0591e3e8f4153a591
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Feb 21 10:14:46 2019 +0100
+commit 84b96c21bf226e80e46d5c22c5e42815bb392af3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 24 13:33:14 2018 +1100
 
-    runtime: disable pprof test with cgo on aix/ppc64
+    cmd/doc: allow -all to apply to individual items
     
-    This commit disables new cgo pprof tests and adds an handler in sigtramp
-    to refuse SIGPROF signal.
+    It really only matters for types, and the code already worked but was
+    blocked by a usage check.
     
-    Updates #28555
+    Fixes #25595
     
-    Change-Id: I152a871f8636e93328d411329104c6f023bd1691
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164013
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I823f313b682b37616ea555aee079e2fe39f914c2
+    Reviewed-on: https://go-review.googlesource.com/c/144357
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_cgo_test.go   |  3 +++
- src/runtime/pprof/proto_test.go |  4 ++++
- src/runtime/sys_aix_ppc64.s     | 17 +++++++++++++++++
- 3 files changed, 24 insertions(+)
+ src/cmd/doc/doc_test.go | 20 ++++++++++++++++++++
+ src/cmd/doc/main.go     |  5 +----
+ 2 files changed, 21 insertions(+), 4 deletions(-)

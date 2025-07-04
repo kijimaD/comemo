@@ -1,15 +1,34 @@
-commit 8aee0b8b32c103da416369ebd16e2c07ad99badf
-Author: Michael Stapelberg <stapelberg@google.com>
-Date:   Wed May 17 02:05:32 2017 -0700
+commit 34975095d0fbf61e1c22c0adf71ca1568106862f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 20:27:54 2017 -0700
 
-    syscall: add AmbientCaps to linux SysProcAttr
+    cmd/compile: provide pos and curfn to temp
     
-    Fixes #19713
+    Concurrent compilation requires providing an
+    explicit position and curfn to temp.
+    This implementation of tempAt temporarily
+    continues to use the globals lineno and Curfn,
+    so as not to collide with mdempsky's
+    work for #19683 eliminating the Curfn dependency
+    from func nod.
     
-    Change-Id: Id1ca61b35bca2a4bea23dd64c7fb001a3a14fd88
-    Reviewed-on: https://go-review.googlesource.com/43512
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #15756
+    Updates #19683
+    
+    Change-Id: Ib3149ca4b0740e9f6eea44babc6f34cdd63028a9
+    Reviewed-on: https://go-review.googlesource.com/38592
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/exec_linux.go      |  22 ++++++
- src/syscall/exec_linux_test.go | 159 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 181 insertions(+)
+ src/cmd/compile/internal/gc/gen.go            |  8 ++++++++
+ src/cmd/compile/internal/gc/pgen.go           |  3 ++-
+ src/cmd/compile/internal/gc/ssa.go            | 10 +++++++---
+ src/cmd/compile/internal/ssa/config.go        |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go   |  2 +-
+ src/cmd/compile/internal/ssa/loop_test.go     |  3 ++-
+ src/cmd/compile/internal/ssa/regalloc.go      | 13 ++++++-------
+ src/cmd/compile/internal/ssa/regalloc_test.go |  9 ++++++---
+ src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go  |  2 +-
+ 10 files changed, 35 insertions(+), 19 deletions(-)

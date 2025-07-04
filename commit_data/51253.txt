@@ -1,23 +1,16 @@
-commit 998c11d2187d8afaa315f58f29f80b6882d2701c
-Author: Alexander Scheel <alex.scheel@hashicorp.com>
-Date:   Wed Nov 2 11:44:41 2022 +0000
+commit 90fb5a4f97a11bb3aa4a6143ec687d20b35ef010
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 14:44:27 2021 -0800
 
-    crypto/x509: remove unused member Raw from certificate
+    doc/go1.18: document {text,html}/template {break,continue} commands
     
-    As noticed in the review of the CRL RawIssuer updates (https://go-review.googlesource.com/c/go/+/418834), the Raw field on the internal type certificate of crypto/x509 is unused and could be removed.
+    For #20531
+    For #47694
     
-    From looking at encoding/asn1's implementation, it appears this field would be set on unmarshal but not during marshaling. However, we unmarshal into the x509.Certificate class directly, avoiding this internal class entirely.
-    
-    Change-Id: I1ab592eb939b6fe701206ba77b6727763deaeaf0
-    GitHub-Last-Rev: 5272e0d369ae1b9fee350c2731a6084f41011724
-    GitHub-Pull-Request: golang/go#56524
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447215
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: Iaefaa0a8982eabf59cd6a53120c8af9124d60d1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373915
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/crypto/x509/x509.go | 2 --
- 1 file changed, 2 deletions(-)
+ doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

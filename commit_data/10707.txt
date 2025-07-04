@@ -1,12 +1,17 @@
-commit 68ec347c16a7dd0b05bcc60ba683c219c60a47a6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 12 10:40:15 2011 -0800
+commit a620f2b73ab1642fcd53fcc9cc5ada31ebdae455
+Author: Taru Karttunen <taruti@taruti.net>
+Date:   Mon Dec 12 09:58:04 2011 -0500
 
-    net/http: make test remove temporary file and directory
+    crypto/aes: Made faster by eliminating some indirection
     
-    R=golang-dev, bradfitz
+    Made te and td arrays into variables te0-3 and td0-3,
+    which improves performance from 7000ns/op to 5800.
+    
+    R=rsc, rogpeppe, agl
     CC=golang-dev
-    https://golang.org/cl/5486044
+    https://golang.org/cl/5449077
 
- src/pkg/net/http/filetransport_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/crypto/aes/aes_test.go |   2 +
+ src/pkg/crypto/aes/block.go    |  18 +-
+ src/pkg/crypto/aes/const.go    | 544 ++++++++++++++++++++---------------------
+ 3 files changed, 281 insertions(+), 283 deletions(-)

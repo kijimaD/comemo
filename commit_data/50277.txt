@@ -1,23 +1,25 @@
-commit 553f02c6ae9d9dc124559b6711a47cb3e99c6348
+commit 1349c6eb1e3faf8b83db9a1ea30764d56b40c7dc
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 1 10:48:58 2022 +0200
+Date:   Wed Oct 13 15:42:31 2021 +0200
 
-    debug/macho: use saferio to allocate load command slice
+    syscall: separate ProcSysAttr and forkAndExecInChild for FreeBSD
     
-    Avoid allocating large amounts of memory for corrupt input.
+    To allow adding fields to ProcSysAttr which are supported on FreeBSD but
+    not on other BSDs.
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
+    For now exec_freebsd.go is an exact copy of exec_bsd.go with adjusted
+    build tags and copyright year.
     
-    Fixes #54780
+    For #46258
+    For #46259
     
-    Change-Id: Icdacb16bef7d29ef431da52e6d1da4e883a3e050
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427434
+    Change-Id: I7667a0cdf1ca86ef64a147b77c06db70c5f8eb90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355569
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/macho/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/exec_bsd.go     |   4 +-
+ src/syscall/exec_freebsd.go | 263 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 265 insertions(+), 2 deletions(-)

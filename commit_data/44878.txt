@@ -1,29 +1,25 @@
-commit 6d2a557a4d09b6f60e2522fb740b5d7d1d8dc8e2
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Mar 30 16:03:26 2021 -0700
+commit ffd95aadcddc34ec2c83971346f04cf7234e0fca
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 3 12:59:09 2020 -0400
 
-    cmd/compile: deal with call.Use correctly for noder2, allow inlining of stenciled functions
+    cmd/link: put read-only data in __DATA_CONST segment
     
-    The setting of n.Use for a call node in transformCall() (and previously
-    in Call()), was not corrrect, since it was trying to use the number of
-    results of the call, rather than whether the call result was actually
-    used. We are already setting n.Use to ir.CallUseStmt if the call node is
-    directly a statement, so we just need to initialize n.Use to
-    ir.CallExprStmt in Call(), which will get changed to ir.CallUseStmt at
-    the statement level if it's used as a statement.
+    On darwin, we put read-only data in __TEXT segment on AMD64 in
+    exe (non-PIE) buildmode, and in __DATA on everywhere else. This
+    is not ideal: things in __DATA segment are not read-only, and
+    being mapped R/W may use more run-time resources.
     
-    Enable inlining of stenciled functions (just disabled for testing,
-    easier debugging). The above n.Use fix was required for the inlining
-    to work for two cases.
+    In fact, newer darwin systems support a __DATA_CONST segment,
+    which the dynamic linker will map it read-only after applying
+    relocations. Use that.
     
-    Change-Id: Ie4ef6cd53fd4b20a4f3be31e629280909a545b7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305913
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #38830.
+    
+    Change-Id: Ic281e6c6ca8ef5fec4bb7c5b71c50dd5393e78ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253919
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/helpers.go   | 3 +++
- src/cmd/compile/internal/noder/stencil.go   | 2 --
- src/cmd/compile/internal/noder/transform.go | 5 -----
- 3 files changed, 3 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 20 ++++++++++++-------
+ src/cmd/link/internal/ld/macho.go  | 41 +++++++++++++++++++++++---------------
+ src/cmd/link/internal/ld/target.go |  6 +++++-
+ 3 files changed, 43 insertions(+), 24 deletions(-)

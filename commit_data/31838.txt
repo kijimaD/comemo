@@ -1,12 +1,18 @@
-commit 58ce43baaa9c6c41f16c7eabec022fcb2174f2dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 15 02:17:31 2017 +0000
+commit 07af21308c88c754fa2cd69a6d34d2b40b40c191
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 02:21:50 2017 -0700
 
-    doc: fix typo in Go 1.9 release notes
+    cmd/compile/internal/gc: eliminate two uses of Type.Pos
     
-    Change-Id: I78443d5874a7667fbac78eac188d402227373da3
-    Reviewed-on: https://go-review.googlesource.com/45813
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Instead we can use t.nod.Pos.
+    
+    Change-Id: I643ee3226e402e38d4c77e8f328cbe83e55eac5c
+    Reviewed-on: https://go-review.googlesource.com/38309
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.9.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go     | 7 +++++--
+ src/cmd/compile/internal/gc/typecheck.go | 1 +
+ 2 files changed, 6 insertions(+), 2 deletions(-)

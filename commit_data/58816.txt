@@ -1,18 +1,27 @@
-commit 64d82cd72c222caa93b2f71c5970a00ec4e7929a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Feb 20 18:31:42 2025 +0100
+commit f8170cc01722a562eec7cf00836ee008b490c534
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 14 16:29:50 2023 -0800
 
-    os: don't log the entire environment in tests
+    cmd/asm: for arm, rewrite argument shifted right by 0 to left by 0.
     
-    TestEnvironConsistency logs the values of all the environment variables,
-    which can be quite large on some environments. This change limits the
-    output to just the variables that caused the test to fail.
+    Right shift by 0 has bad semantics. Make sure if we try to right shift by 0,
+    do a left shift by 0 instead.
     
-    Change-Id: Ie796b57ac2cc845093c73298058b720df344fa28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650581
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    CL 549955 handled full instructions with this strange no-op encoding.
+    This CL handles the shift done to instruction register inputs.
+    (The former is implemented using the latter, but not until deep
+    inside the assembler.)
+    
+    Update #64715
+    
+    Change-Id: Ibfabb4b13e2595551e58b977162fe005aaaa0ad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550335
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/os/env_test.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm.s | 14 ++++++++++++++
+ src/cmd/internal/obj/arm/asm5.go        | 18 ++++++++++++++++++
+ 2 files changed, 32 insertions(+)

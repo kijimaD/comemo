@@ -1,16 +1,20 @@
-commit 3f9521b2f00b2dba9781c52ed489372a8b5960fe
-Author: David Chase <drchase@google.com>
-Date:   Mon Feb 13 18:52:16 2023 -0500
+commit f70775ff22f4658d6ee65d9ec314687cffe57a84
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 14 16:11:17 2022 -0700
 
-    internal/abi: common up some offset/size functions
+    [dev.unified] cmd/compile: refactor reflectdata.{TypePtr,ITabAddr}
     
-    Change-Id: I92eeed20af35c7dec309457a80b8fd44eb70b57f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467876
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Minor refactoring to decouple from base.Pos and deduplicate some
+    common code paths.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8c0724cf821d28b0ede3b0e8e4b2d02302d9af3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413355
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 15 ++++++++-------
- src/cmd/link/internal/ld/decodesym.go           | 10 +++++-----
- 2 files changed, 13 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 23 +++++++++++++++++------
+ src/cmd/compile/internal/typecheck/subr.go      |  8 ++++++++
+ 2 files changed, 25 insertions(+), 6 deletions(-)

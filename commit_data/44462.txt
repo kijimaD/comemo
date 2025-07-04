@@ -1,26 +1,19 @@
-commit ebb92dfed96fadb3c563ff11cead85bbb7536793
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Mar 1 19:55:22 2021 +0100
+commit 076dc2111bd15476e03ee39d153bdd5a1fb0a3e8
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 8 18:32:36 2020 -0400
 
-    internal/poll, runtime: handle netpollopen error in poll_runtime_pollOpen
+    [dev.link] cmd/compile: make compiler-generated ppc64 TOC symbols static
     
-    When netpollopen in poll_runtime_pollOpen returns an error, the work in
-    runtime_pollUnblock and runtime_pollClose can be avoided since the
-    underlying system call to set up the poller failed.
+    Set the AttrStatic flag on compiler-emitted TOC symbols for ppc64; these
+    symbols don't need to go into the final symbol table in Go binaries.
+    This fixes a buglet introduced by CL 240539 that was causing failures
+    on the aix builder.
     
-    E.g. on linux, this avoids calling netpollclose and thus epoll_ctl(fd,
-    EPOLL_CTL_DEL, ...) in case the file does not support epoll, i.e.
-    epoll_ctl(fd, EPOLL_CTL_ADD, ...) in netpollopen failed.
-    
-    Fixes #44552
-    
-    Change-Id: I564d90340fd1ab3a6490526353616a447ae0cfb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297392
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If8b63bcf6d2791f1ec5a0c371d2d11e806202fd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241637
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_poll_runtime.go | 4 ----
- src/runtime/netpoll.go               | 9 ++++++---
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/ppc64/obj9.go | 2 ++
+ 1 file changed, 2 insertions(+)

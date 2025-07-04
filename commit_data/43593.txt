@@ -1,18 +1,20 @@
-commit 07d206f7698f4d45544a2f9b6051ede594ba04cc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 28 10:44:24 2020 -0400
+commit f5439d4c68e14d1f7758ec0e50cc8fe192ad2f5b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 23:28:32 2020 -0700
 
-    cmd/go: use internal/testenv instead of computing canRun and skipExternal ad-hoc
+    cmd/compile: make type switch case positions consistent
     
-    Fixes #42223
+    CL 228106 moved the position at which we
+    checked whether a type switch variable had a particular type
+    from the type switch to the case statement, but only for
+    single, concrete types. This is a better position,
+    so this change changes the rest.
     
-    Change-Id: Icf9bb61d48f0a6c7fd6f74e80e333a4837aa52ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265781
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I601d4a5c4a0d9400e7804b9f1e729af948349a8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228220
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/go_test.go           | 71 +++++++----------------------------------
- src/cmd/go/script_test.go       |  4 +--
- src/internal/testenv/testenv.go | 20 ++++++++++++
- 3 files changed, 32 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

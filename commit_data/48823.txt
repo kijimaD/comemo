@@ -1,28 +1,16 @@
-commit 302f5ed21dad2cb99f3f63fd99228dc3ab480772
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 18 18:43:22 2022 -0700
+commit bfd9b63f125aebfbe2de3b6fa0b329cae2120b20
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 23:26:39 2021 +0000
 
-    cmd/compile/internal/types2: don't crash in overflow check
+    [dev.typeparams] reflect: delete unused ptrSize and PtrSize
     
-    Be careful before accessing an operand's expr field (which may
-    be nil in some rare cases).
-    
-    While at it, factor out position information so that it's only
-    computed when there's an error, which is almost never.
-    
-    In go/types, remove an unnecessary argument to Checker.overflow.
-    The code is otherwise ok as it's structured slightly differently
-    due to the way positions are recorded in AST nodes.
-    
-    Fixes #52401.
-    
-    Change-Id: I447ebd9bb0c33eb6bff5e7b4d5aee37ceb0a4b14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400798
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I522263eb5112b78639340b83d92e80a13f738bd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328811
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/expr.go            | 51 ++++++++++++----------
- .../types2/testdata/fixedbugs/issue52401.go        | 11 +++++
- src/go/types/expr.go                               | 12 ++---
- src/go/types/testdata/fixedbugs/issue52401.go      | 11 +++++
- 4 files changed, 56 insertions(+), 29 deletions(-)
+ src/reflect/export_test.go | 2 --
+ src/reflect/value.go       | 2 --
+ 2 files changed, 4 deletions(-)

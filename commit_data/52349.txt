@@ -1,23 +1,46 @@
-commit 6f2ef5ec98e1a14ee7a2805f68241cfa5feff8bd
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Mon Mar 13 16:20:50 2023 +0800
+commit 29bbca5c2c1ad41b2a9747890d183b6dd3a4ace4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Mar 4 13:24:04 2022 -0500
 
-    cmd/asm, runtime: remove the RSB register from loong64
+    runtime: differentiate "user" and "system" throws
     
-    It was carryover from the mips64 port (where it represented the platform
-    GP register) but LoongArch platform ABI doesn't have the GP concept.
+    "User" throws are throws due to some invariant broken by the application.
+    "System" throws are due to some invariant broken by the runtime,
+    environment, etc (i.e., not the fault of the application).
     
-    Change-Id: Iea326ae13676e95b040b52aaadc08d311b507bd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475815
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    This CL sends "user" throws through the new fatal. Currently this
+    function is identical to throw, but with a different name to clearly
+    differentiate the throw type in the stack trace, and hopefully be a bit
+    more clear to users what it means.
+    
+    This CL changes a few categories of throw to fatal:
+    
+    1. Concurrent map read/write.
+    2. Deadlock detection.
+    3. Unlock of unlocked sync.Mutex.
+    4. Inconsistent results from syscall.AllThreadsSyscall.
+    
+    "Thread exhaustion" and "out of memory" (usually address space full)
+    throws are additional throws that are arguably the fault of user code,
+    but I've left off for now because there is no specific invariant that
+    they have broken to get into these states.
+    
+    For #51485
+    
+    Change-Id: I713276a6c290fd34a6563e6e9ef378669d74ae32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390420
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/asm/internal/arch/arch.go        | 1 -
- src/cmd/asm/internal/asm/operand_test.go | 4 ++--
- src/runtime/mkpreempt.go                 | 8 +++-----
- src/runtime/preempt_loong64.s            | 4 ++--
- src/runtime/signal_loong64.go            | 4 +---
- 5 files changed, 8 insertions(+), 13 deletions(-)
+ src/runtime/HACKING.md     |  3 +++
+ src/runtime/map.go         | 18 +++++++++---------
+ src/runtime/map_fast32.go  | 16 ++++++++--------
+ src/runtime/map_fast64.go  | 16 ++++++++--------
+ src/runtime/map_faststr.go | 12 ++++++------
+ src/runtime/os_linux.go    |  2 +-
+ src/runtime/panic.go       | 39 ++++++++++++++++++++++++++++++++-------
+ src/runtime/proc.go        |  6 +++---
+ src/sync/mutex.go          |  6 ++++--
+ src/sync/rwmutex.go        |  4 ++--
+ 10 files changed, 76 insertions(+), 46 deletions(-)

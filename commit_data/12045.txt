@@ -1,31 +1,44 @@
-commit 03f2289f7e3b419df36cdf97f4c49911c56b7b66
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 19 00:11:44 2012 -0500
+commit 83976e3ac8a4b6da1782ca850ba9806b63b65c38
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 14:28:53 2012 +1100
 
-    runtime: API
+    test: explanatory comments [c-g]*
     
-    Delete Alloc, Free, Lookup, Semacquire, Semrelease
-    
-    Fixes #2955.
-    
-    R=golang-dev, r, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5675093
+    https://golang.org/cl/5656103
 
- src/pkg/runtime/debug.go                               | 12 ------------
- src/pkg/runtime/extern.go                              | 11 -----------
- src/pkg/runtime/malloc.goc                             | 12 ------------
- {test => src/pkg/runtime}/malloc1.go                   |  4 ++--
- {test => src/pkg/runtime}/mallocrand.go                |  4 ++--
- {test => src/pkg/runtime}/mallocrep.go                 |  4 ++--
- {test => src/pkg/runtime}/mallocrep1.go                |  4 ++--
- src/pkg/runtime/sema.goc                               |  6 +++---
- src/pkg/sync/cond.go                                   | 10 ++++------
- src/pkg/sync/export_test.go                            |  9 +++++++++
- src/pkg/sync/mutex.go                                  |  9 +++------
- src/pkg/sync/mutex_test.go                             |  4 ++--
- src/pkg/sync/runtime.go                                | 18 ++++++++++++++++++
- .../sema_test.go => sync/runtime_sema_test.go}         | 15 ++++++++-------
- src/pkg/sync/rwmutex.go                                | 13 +++++--------
- src/pkg/sync/waitgroup.go                              |  9 +++------
- 16 files changed, 63 insertions(+), 81 deletions(-)
+ test/ddd.go        | 2 ++
+ test/ddd1.go       | 3 +++
+ test/ddd2.go       | 2 ++
+ test/ddd3.go       | 2 ++
+ test/decl.go       | 2 +-
+ test/declbad.go    | 3 ++-
+ test/defer.go      | 2 ++
+ test/deferprint.go | 5 ++++-
+ test/divide.go     | 2 +-
+ test/empty.go      | 3 +++
+ test/env.go        | 3 +++
+ test/eof.go        | 3 +++
+ test/eof1.go       | 3 +++
+ test/escape.go     | 4 ++--
+ test/escape2.go    | 3 +++
+ test/escape3.go    | 2 +-
+ test/float_lit.go  | 2 ++
+ test/floatcmp.go   | 2 ++
+ test/for.go        | 2 ++
+ test/func.go       | 1 +
+ test/func1.go      | 5 +++--
+ test/func2.go      | 5 ++++-
+ test/func3.go      | 3 +++
+ test/func4.go      | 3 +++
+ test/func5.go      | 2 ++
+ test/func6.go      | 4 +++-
+ test/func7.go      | 2 ++
+ test/func8.go      | 2 ++
+ test/gc.go         | 2 ++
+ test/gc1.go        | 2 ++
+ test/gc2.go        | 2 +-
+ test/goprint.go    | 2 ++
+ test/goto.go       | 3 +++
+ 33 files changed, 76 insertions(+), 12 deletions(-)

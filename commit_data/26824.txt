@@ -1,20 +1,19 @@
-commit ad7448fe982d83de15deec9c55c56d0cd9261c6c
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Apr 10 17:32:35 2016 +0200
+commit 922ce58de0181c114c09e6fbd6ab28f1d477898d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 17:03:58 2016 -0800
 
-    runtime: speed up makeslice by avoiding divisions
+    cmd/compile: change Func.Cvars to the new Nodes type
     
-    Only compute the number of maximum allowed elements per slice once.
+    Update #14473.
     
-    name         old time/op  new time/op  delta
-    MakeSlice-2  55.5ns ± 1%  45.6ns ± 2%  -17.88%  (p=0.000 n=99+100)
-    
-    Change-Id: I951feffda5d11910a75e55d7e978d306d14da2c5
-    Reviewed-on: https://go-review.googlesource.com/21801
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iba1ecf42d9ab5a93144941439d5cc6b0b4f4a3ac
+    Reviewed-on: https://go-review.googlesource.com/19992
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/append_test.go |  8 ++++++++
- src/runtime/slice.go       | 14 +++++++++++---
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/esc.go     |  2 +-
+ src/cmd/compile/internal/gc/order.go   |  2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/syntax.go  | 23 +----------------------
+ 6 files changed, 12 insertions(+), 33 deletions(-)

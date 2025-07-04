@@ -1,14 +1,12 @@
-commit a84056dabe8ce3178879db7416365a2d841bff0a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 2 18:46:24 2012 +0800
+commit 28ac033b2ec29a86cd6b7b0f804272abee6d5f94
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Apr 2 16:34:11 2012 +1000
 
-    gobuilder: work with codereview plugin enabled in .hgrc
-            Fixes #3312.
+    dist: make sure OS X packages follow symlinks when installing
     
-    R=golang-dev, adg
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5907065
+    https://golang.org/cl/5970061
 
- misc/dashboard/builder/Makefile |  4 ++--
- misc/dashboard/builder/main.go  | 30 +++++++++++++++++-------------
- 2 files changed, 19 insertions(+), 15 deletions(-)
+ misc/dist/bindist.go | 37 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 3 deletions(-)

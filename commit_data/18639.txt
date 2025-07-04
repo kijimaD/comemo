@@ -1,168 +1,21 @@
-commit 7c8280c9efcd24b882e441d359b6880c1a456ad8
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Feb 25 09:47:42 2014 -0500
+commit b05f3de56f018370ce347c2e565ce16cd724f7c3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 25 23:02:19 2014 +0900
 
-    all: merge NaCl branch (part 1)
+    syscall: add mmap test
     
-    See golang.org/s/go13nacl for design overview.
+    This CL adds a test that calls Mmap and Munmap through Syscall9
+    as the canary that detects assembly fragment breakage. For now
+    there is no package test that uses Syscall9 in the standard
+    library across all Unix-like systems.
     
-    This CL is the mostly mechanical changes from rsc's Go 1.2 based NaCl branch, specifically 39cb35750369 to 500771b477cf from https://code.google.com/r/rsc-go13nacl. This CL does not include working NaCl support, there are probably two or three more large merges to come.
+    Note that the package runtime owns its assembly fragments, so
+    this canary never works for runtime breakage.
     
-    CL 15750044 is not included as it involves more invasive changes to the linker which will need to be merged separately.
-    
-    The exact change lists included are
-    
-    15050047: syscall: support for Native Client
-    15360044: syscall: unzip implementation for Native Client
-    15370044: syscall: Native Client SRPC implementation
-    15400047: cmd/dist, cmd/go, go/build, test: support for Native Client
-    15410048: runtime: support for Native Client
-    15410049: syscall: file descriptor table for Native Client
-    15410050: syscall: in-memory file system for Native Client
-    15440048: all: update +build lines for Native Client port
-    15540045: cmd/6g, cmd/8g, cmd/gc: support for Native Client
-    15570045: os: support for Native Client
-    15680044: crypto/..., hash/crc32, reflect, sync/atomic: support for amd64p32
-    15690044: net: support for Native Client
-    15690048: runtime: support for fake time like on Go Playground
-    15690051: build: disable various tests on Native Client
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=iant, bradfitz
+    R=iant, minux.ma, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68150047
+    https://golang.org/cl/61520049
 
- src/cmd/5g/galign.c                                |   1 +
- src/cmd/6g/cgen.c                                  |  18 +-
- src/cmd/6g/galign.c                                |  20 +
- src/cmd/6g/gg.h                                    |   6 +
- src/cmd/6g/ggen.c                                  |  48 +-
- src/cmd/6g/gsubr.c                                 |  37 +-
- src/cmd/6g/prog.c                                  |   1 +
- src/cmd/6g/reg.c                                   |   7 +-
- src/cmd/8g/galign.c                                |   1 +
- src/cmd/8g/gg.h                                    |   1 +
- src/cmd/8g/ggen.c                                  |  12 +
- src/cmd/dist/build.c                               |   4 +-
- src/cmd/gc/align.c                                 |  10 +-
- src/cmd/gc/builtin.c                               |   1 +
- src/cmd/gc/go.h                                    |   3 +
- src/cmd/gc/lex.c                                   |  14 +-
- src/cmd/gc/obj.c                                   |   2 +-
- src/cmd/gc/pgen.c                                  |   2 +-
- src/cmd/gc/reflect.c                               |   5 +
- src/cmd/gc/runtime.go                              |   1 +
- src/cmd/gc/walk.c                                  |   2 +-
- src/cmd/go/build.go                                |   3 +
- src/cmd/go/run.go                                  |  27 +-
- src/cmd/go/signal_unix.go                          |   2 +-
- src/cmd/go/test.go                                 |   4 +-
- src/cmd/go/testflag.go                             |   6 +
- src/pkg/crypto/md5/md5block_amd64p32.s             | 184 +++++
- src/pkg/crypto/md5/md5block_decl.go                |   2 +-
- src/pkg/crypto/rand/rand_unix.go                   |   2 +-
- src/pkg/crypto/rc4/rc4_amd64p32.s                  | 192 +++++
- src/pkg/crypto/rc4/rc4_asm.go                      |   2 +-
- src/pkg/crypto/rc4/rc4_ref.go                      |   2 +-
- src/pkg/crypto/sha1/sha1block_amd64p32.s           | 216 ++++++
- src/pkg/crypto/sha1/sha1block_decl.go              |   2 +-
- src/pkg/crypto/x509/root_unix.go                   |   2 +-
- src/pkg/go/build/build.go                          |   2 +-
- src/pkg/go/build/deps_test.go                      |  11 +-
- src/pkg/go/build/syslist.go                        |   4 +-
- src/pkg/hash/crc32/crc32_amd64p32.s                |  64 ++
- .../hash/crc32/{crc32_amd64.go => crc32_amd64x.go} |   2 +
- src/pkg/log/syslog/syslog.go                       |   2 +-
- src/pkg/log/syslog/syslog_test.go                  |   2 +-
- src/pkg/log/syslog/syslog_unix.go                  |   2 +-
- src/pkg/mime/type_unix.go                          |   2 +-
- src/pkg/net/conn_test.go                           |   2 +-
- src/pkg/net/dnsclient_unix.go                      |   2 +-
- src/pkg/net/dnsconfig_unix.go                      |   2 +-
- src/pkg/net/fd_poll_nacl.go                        |  94 +++
- src/pkg/net/fd_unix.go                             |   2 +-
- src/pkg/net/file_test.go                           |   2 +-
- src/pkg/net/file_unix.go                           |   3 +-
- src/pkg/net/interface_stub.go                      |   2 +-
- src/pkg/net/ipraw_test.go                          |   2 +-
- src/pkg/net/iprawsock_posix.go                     |   2 +-
- src/pkg/net/ipsock_posix.go                        |   2 +-
- src/pkg/net/lookup_unix.go                         |   2 +-
- src/pkg/net/multicast_test.go                      |   2 +-
- src/pkg/net/net_test.go                            |   2 +-
- src/pkg/net/port_unix.go                           |   2 +-
- src/pkg/net/sendfile_stub.go                       |   2 +-
- src/pkg/net/sock_bsd.go                            |   2 +-
- src/pkg/net/sock_posix.go                          |   2 +-
- src/pkg/net/sockopt_bsd.go                         |   2 +-
- src/pkg/net/sockopt_posix.go                       |   2 +-
- src/pkg/net/sockoptip_bsd.go                       |   2 +-
- src/pkg/net/sockoptip_posix.go                     |   2 +-
- src/pkg/net/sys_cloexec.go                         |   2 +-
- src/pkg/net/tcpsock_posix.go                       |   2 +-
- src/pkg/net/tcpsockopt_posix.go                    |   2 +-
- src/pkg/net/tcpsockopt_unix.go                     |   2 +-
- src/pkg/net/udpsock_posix.go                       |   2 +-
- src/pkg/net/unixsock_posix.go                      |   2 +-
- src/pkg/os/dir_unix.go                             |   2 +-
- src/pkg/os/error_unix.go                           |   2 +-
- src/pkg/os/exec/lp_unix.go                         |   2 +-
- src/pkg/os/exec_posix.go                           |   2 +-
- src/pkg/os/exec_unix.go                            |   2 +-
- src/pkg/os/file_posix.go                           |   2 +-
- src/pkg/os/file_unix.go                            |   2 +-
- src/pkg/os/path_unix.go                            |   2 +-
- src/pkg/os/pipe_bsd.go                             |   2 +-
- src/pkg/os/signal/sig.s                            |   2 +-
- src/pkg/os/signal/signal_unix.go                   |   2 +-
- src/pkg/os/stat_nacl.go                            |  62 ++
- src/pkg/os/sys_bsd.go                              |   2 +-
- src/pkg/path/filepath/path_unix.go                 |   2 +-
- src/pkg/reflect/asm_amd64p32.s                     |  27 +
- src/pkg/reflect/type.go                            |   5 +
- src/pkg/runtime/arch_386.h                         |   5 +
- src/pkg/runtime/arch_amd64.h                       |   5 +
- src/pkg/runtime/arch_amd64p32.h                    |  20 +
- src/pkg/runtime/arch_arm.h                         |   1 +
- src/pkg/runtime/mem_linux.c                        |   1 +
- src/pkg/runtime/mem_nacl.c                         | 109 +++
- src/pkg/runtime/mgc0.c                             |   1 +
- src/pkg/runtime/mheap.c                            |   2 +-
- src/pkg/runtime/mknacl.sh                          |  15 +
- src/pkg/runtime/netpoll.goc                        |   2 +-
- src/pkg/runtime/netpoll_nacl.c                     |  37 +
- src/pkg/runtime/os_nacl.c                          | 275 +++++++
- src/pkg/runtime/os_nacl.h                          | 162 ++++
- src/pkg/runtime/runtime.h                          |  40 +-
- src/pkg/runtime/signal_386.c                       |   2 +-
- src/pkg/runtime/signal_nacl_386.h                  |  23 +
- src/pkg/runtime/signal_nacl_amd64p32.h             |  31 +
- src/pkg/runtime/signals_nacl.h                     |  50 ++
- src/pkg/runtime/sys_x86.c                          |   4 +-
- src/pkg/runtime/syscall_nacl.h                     |  71 ++
- src/pkg/runtime/traceback_x86.c                    |  10 +-
- src/pkg/runtime/vlrt_386.c                         |  12 +
- src/pkg/runtime/vlrt_arm.c                         |   6 -
- src/pkg/sync/atomic/asm_amd64p32.s                 | 159 ++++
- src/pkg/sync/atomic/atomic_test.go                 |   4 +-
- src/pkg/syscall/asm_nacl_386.s                     |  43 ++
- src/pkg/syscall/asm_nacl_amd64p32.s                |  41 +
- src/pkg/syscall/env_unix.go                        |   2 +-
- src/pkg/syscall/fd_nacl.go                         | 320 ++++++++
- src/pkg/syscall/fs_nacl.go                         | 815 ++++++++++++++++++++
- src/pkg/syscall/mkall.sh                           |  12 +
- src/pkg/syscall/mksyscall.pl                       |  10 +-
- src/pkg/syscall/srpc_nacl.go                       | 822 +++++++++++++++++++++
- src/pkg/syscall/syscall_nacl.go                    | 311 ++++++++
- src/pkg/syscall/syscall_nacl_386.go                |  32 +
- src/pkg/syscall/syscall_nacl_amd64p32.go           |  32 +
- src/pkg/syscall/tables_nacl.go                     | 324 ++++++++
- src/pkg/syscall/time_nacl_386.s                    |  11 +
- src/pkg/syscall/time_nacl_amd64p32.s               |  11 +
- src/pkg/syscall/unzip_nacl.go                      | 685 +++++++++++++++++
- src/pkg/syscall/zsyscall_nacl_386.go               |  63 ++
- src/pkg/syscall/zsyscall_nacl_amd64p32.go          |  63 ++
- src/pkg/time/sys_unix.go                           |   2 +-
- src/pkg/time/zoneinfo_unix.go                      |   2 +-
- test/run.go                                        |  39 +-
- 133 files changed, 5747 insertions(+), 142 deletions(-)
+ src/pkg/syscall/syscall_unix_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

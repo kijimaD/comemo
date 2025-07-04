@@ -1,18 +1,15 @@
-commit d4b704e110dea8395d107f5fd3be9f3cf2e8d161
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 30 15:46:37 2016 -0800
+commit f239196b9e1c0d58ab2067630bd1db7210eb7f6a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 4 09:49:33 2016 -0700
 
-    cmd/cgo: fix cgo checking when fetching errno value
+    cmd/compile: remove duplicate statement list function
     
-    Fixes #18126.
+    Probably a holdover from linked list vs. slice.
     
-    Change-Id: I7ae090945ef203673b06eb94817cc5c894b5eadc
-    Reviewed-on: https://go-review.googlesource.com/33752
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib2540b08ef0ae48707d44a5d57bc23f8d65c760d
+    Reviewed-on: https://go-review.googlesource.com/30256
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue18126.go | 26 +++++++++++++++++++++++
- src/cmd/cgo/gcc.go          | 51 +++++++++++++++++++++++++++++----------------
- 3 files changed, 60 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)

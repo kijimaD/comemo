@@ -1,17 +1,19 @@
-commit 24b2f48a4a5abc4a35e0ddf104e1d22e6ba1cdaa
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed May 18 18:55:06 2011 -0700
+commit 4ffff35abd9562007b0cf4ee8034ded8760e5e2a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 17:17:26 2011 -0700
 
-    crypto/rand: add utility functions for number generation
+    http: Client.Do should follow redirects for GET and HEAD
     
-    This code is extracted from crypto/rsa with
-    a few variables renamed and a comment fixed.
+    It's documented as such, but it was never wired up
+    after Transport went in and Head was fixed.
     
-    R=agl, rsc, agl
+    If people don't want redirects, that's what RoundTripper/
+    Transport are for.  Or a custom redirect policy.
+    
+    R=golang-dev, kevlar
     CC=golang-dev
-    https://golang.org/cl/4446068
+    https://golang.org/cl/4526065
 
- src/pkg/crypto/rand/Makefile |  1 +
- src/pkg/crypto/rand/util.go  | 80 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/rsa/rsa.go    | 86 +++++++-------------------------------------
- 3 files changed, 93 insertions(+), 74 deletions(-)
+ src/pkg/http/client.go      | 58 +++++++++++++++++++++++++++------------------
+ src/pkg/http/client_test.go | 11 +++++++--
+ 2 files changed, 44 insertions(+), 25 deletions(-)

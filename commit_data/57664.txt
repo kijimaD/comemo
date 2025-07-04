@@ -1,23 +1,31 @@
-commit 48849e0866f64a40d04a9151e44e5a73acdfc17b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 14 11:46:17 2024 -0700
+commit 72946ae8674a295e7485982fe57c65c7142b2c14
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 16:33:49 2023 -0400
 
-    runtime: don't frob isSending for tickers
+    cmd/asm,cmd/dist,cmd/go: remove asm -compiling-runtime flag
     
-    The Ticker Stop and Reset methods don't report a value,
-    so we don't need to track whether they are interrupting a send.
+    Currently, dist and go pass a -compiling-runtime flag to asm if
+    they're compiling a runtime package. However, now that we always pass
+    the package path to asm, it can make that determination just as well
+    as its callers can. This CL moves that check into asm and drops the
+    flag.
     
-    This includes a test that used to fail about 2% of the time on
-    my laptop when run under x/tools/cmd/stress.
+    This in turn makes dist's copy of IsRuntimePackagePath unnecessary, so
+    we delete it.
     
-    Change-Id: Ic6d14b344594149dd3c24b37bbe4e42e83f9a9ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620136
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6ecf2d50b5b83965012af34dbe5f9a973ba0778b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521697
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/time.go    | 17 +++++++++++------
- src/time/sleep_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go |  4 ++--
+ src/cmd/asm/internal/flags/flags.go       | 21 ++++++++++-----------
+ src/cmd/asm/internal/lex/input.go         |  8 ++++----
+ src/cmd/asm/internal/lex/lex.go           |  4 ++--
+ src/cmd/asm/internal/lex/lex_test.go      |  4 ++--
+ src/cmd/asm/main.go                       |  5 +++--
+ src/cmd/dist/build.go                     | 26 --------------------------
+ src/cmd/go/internal/work/gc.go            |  4 ----
+ src/cmd/internal/objabi/path.go           |  2 --
+ 9 files changed, 23 insertions(+), 55 deletions(-)

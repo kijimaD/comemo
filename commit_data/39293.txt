@@ -1,24 +1,20 @@
-commit 98100c56da0da1503e7612921eff821409aa6cce
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri May 31 16:58:44 2019 +1000
+commit c3b49186a6781de58a07bc49ae289354ae98e3be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 14 17:53:14 2019 -0800
 
-    cmd/cover: fix counting of blocks split by goto statements
+    go/scanner: accept 'i' suffix orthogonally on all numbers
     
-    When adding coverage counters to a block, the block's statement list is
-    mutated. CL 77150 removed the part where the mutated list is assigned
-    back to its parent node; this was confusing ast.Walk, which would then
-    lose its place and stop walking the current block, dropping counters in
-    the process.
+    This change accepts the 'i' suffix on binary and octal integer
+    literals as well as hexadecimal floats. The suffix was already
+    accepted on decimal integers and floats.
     
-    This change has addCounters make a copy of the list before mutating
-    it, so that the original list doesn't change under Walk's feet.
+    See also the respective language in the spec change:
+    https://golang.org/cl/161098
     
-    Fix #32200
-    
-    Change-Id: Ia3b67d8cee860ceb7caf8748cb7a80ff9c6276e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179581
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0c182bdf58f8fd1f70090e581b3ccb2f5e2e4e79
+    Reviewed-on: https://go-review.googlesource.com/c/162880
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cover/cover.go         | 3 +++
- src/cmd/cover/testdata/test.go | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/go/scanner/scanner.go      |  3 ---
+ src/go/scanner/scanner_test.go | 20 ++++++++++++--------
+ 2 files changed, 12 insertions(+), 11 deletions(-)

@@ -1,14 +1,19 @@
-commit b027a0f11857636314e3e149fc785feb79420e9e
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 11 14:21:16 2012 +1100
+commit ca5da31f83517780893423e46665d48149e545ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 22:19:34 2012 -0500
 
-    text/template/parse: deep Copy method for nodes
-    This will help html/template copy templates.
+    6g: fix out of registers bug
     
-    R=golang-dev, gri, nigeltao, r
+    Fix it twice: reuse registers more aggressively in cgen abop,
+    and also release R14 and R15, which are no longer m and g.
+    
+    Fixes #2669.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5653062
+    https://golang.org/cl/5655056
 
- src/pkg/text/template/parse/node.go       | 112 ++++++++++++++++++++++++++++++
- src/pkg/text/template/parse/parse_test.go |  18 ++++-
- 2 files changed, 128 insertions(+), 2 deletions(-)
+ src/cmd/6g/cgen.c        |  4 ++--
+ src/cmd/6g/gsubr.c       | 24 +++++++++++++-----------
+ test/fixedbugs/bug410.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 13 deletions(-)

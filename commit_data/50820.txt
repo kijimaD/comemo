@@ -1,28 +1,18 @@
-commit cabf9fe4f2d7e5adfa7007e11f508b111d07a2f6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 3 20:00:43 2022 +0200
+commit eb68e3367bf8d55bb98eb002cef35455f5be3c5f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Nov 11 07:10:52 2021 +0000
 
-    internal/poll, net, syscall: enable writev on aix
+    runtime: fix typo
     
-    aix supports iovec read/write, see
-    https://www.ibm.com/docs/en/aix/7.2?topic=w-write-writex-write64x-writev-writevx-ewrite-ewritev-pwrite-pwritev-subroutine
+    Change filepath reference from cmd/internal/ld/symtab.go to
+    cmd/link/internal/ld/symtab.go.
     
-    Define an unexported writev wrapper in package syscall (like on openbsd
-    and darwin) and linkname it from internal/poll.
-    
-    Change-Id: I8f9695ceac72ae861afa3692207c154d86d4e690
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435260
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icb207a2e2c82d3976787d2d5cfb0f8005696f738
+    GitHub-Last-Rev: 428d99c6ca97db79b7d8cdf24843df3492a9aeb0
+    GitHub-Pull-Request: golang/go#49518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363276
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/poll/fd_writev_libc.go |  2 +-
- src/internal/poll/iovec_unix.go     |  2 +-
- src/internal/poll/writev.go         |  6 +++---
- src/net/writev_test.go              |  2 +-
- src/net/writev_unix.go              |  2 +-
- src/syscall/syscall_aix.go          |  1 +
- src/syscall/zsyscall_aix_ppc64.go   | 18 ++++++++++++++++++
- 7 files changed, 26 insertions(+), 7 deletions(-)
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

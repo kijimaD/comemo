@@ -1,12 +1,19 @@
-commit 593a6285729160d3ce4dc1c440e6a6be0fa87242
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Oct 4 15:14:20 2012 +0800
+commit 65dbe6786d3c97deb534d024f21301c445fad7ac
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 4 15:31:25 2012 +1000
 
-    lib/godoc/godoc.html: try Google hosted jQuery first, fallback to locally hosted one
+    godoc: add jQuery to Go repository, rewrite godocs.js to use jQuery
     
-    R=golang-dev, adg
+    For golang.org I intend to rewrite the jquery link in godoc.html
+    to point to the Google-hosted jquery.js.
+    
+    R=dsymonds, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6593078
+    https://golang.org/cl/6589071
 
- lib/godoc/godoc.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/godocs.js        | 251 ++++++++++++++++++---------------------------------
+ doc/jquery.js        |   2 +
+ doc/popups.js        |  24 -----
+ doc/root.html        |   1 -
+ lib/godoc/godoc.html |   3 +-
+ 5 files changed, 94 insertions(+), 187 deletions(-)

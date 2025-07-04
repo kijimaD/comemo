@@ -1,15 +1,19 @@
-commit ec7d955abf8bbaa6fdc65b460d957767e13e6378
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Mon May 5 14:05:53 2025 -0700
+commit 418e6d559e80e9d53e4a4c94656e8fb4bf72b343
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 11 18:16:16 2024 +0100
 
-    cmd/compile/internal/test: verify inlining for mutex fast paths
+    os,internal/godebugs: add missing IncNonDefault calls
     
-    Change-Id: I17568a898ea8514c7b32d2f48c44365ae37cf898
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670195
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #66215
+    
+    Change-Id: Id7de15feabe08f66c048dc114c09494813c9febc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570695
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/test/inl_test.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/internal/godebugs/table.go |  4 ++--
+ src/os/file_windows.go         |  1 +
+ src/os/types_windows.go        | 13 +++++++++++--
+ src/runtime/metrics/doc.go     |  8 ++++++++
+ 4 files changed, 22 insertions(+), 4 deletions(-)

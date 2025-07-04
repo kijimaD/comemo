@@ -1,21 +1,22 @@
-commit 3ca78afb3bf4f28af1ca76875c0a15d6b87a5c50
-Author: Austin Clements <austin@google.com>
-Date:   Sun Nov 17 22:41:03 2024 -0500
+commit 30886b1b1ea0ff0282419e4deefdd35a51b2c9fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 18 16:49:41 2023 -0400
 
-    cmd/go: temporarily disable build JSON in test output
+    cmd/go: in TestScript/gotoolchain_path, remove the user's PATH
     
-    Unfortunately, this is tripping up the LUCI test output processor, so
-    we need to disable it until we can figure that out.
+    This test checks a behavior of GOTOOLCHAIN when an appropriate
+    toolchain is found in PATH. That requires it to exclude any suitable
+    toolchain binaries from the user's $PATH, which may otherwise
+    interfere.
     
-    For #70402.
-    Updates #62067.
+    Fixes #62709.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_13,gotip-linux-amd64-longtest
-    Change-Id: I9ae722218e98b8060b8b4c46358f23381ac8537a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628955
+    Change-Id: Ie9161e52d33a65be0b5265cb49e9f2bc8473e057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529217
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/test/testflag.go           | 4 ++--
- src/cmd/go/testdata/script/test_json_build.txt | 3 +++
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/gotoolchain_path.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

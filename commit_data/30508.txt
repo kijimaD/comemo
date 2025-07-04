@@ -1,19 +1,22 @@
-commit 9b480521d84654c90f6030675e1e10655b180274
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Mar 3 13:53:13 2017 -0500
+commit 9e2c3f4c7e78b01d635e16287789913d02807569
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Jun 22 10:00:31 2016 -0700
 
-    cmd/compile: fix optimization of Zero newobject on amd64p32
+    sync: add example for Pool
     
-    On amd64p32, PtrSize and RegSize don't agree, and function return
-    value is aligned with RegSize. Fix this rule. Other architectures
-    are not affected, where PtrSize and RegSize are the same.
+    It was a little tricky to figure out how to go from the documentation
+    to figuring out the best way to implement a Pool, so I thought I'd
+    try to provide a simple example. The implementation is mostly taken
+    from the fmt package.
     
-    Change-Id: If187d3dfde3dc3b931b8e97db5eeff49a781551b
-    Reviewed-on: https://go-review.googlesource.com/37720
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    I'm not happy with the verbosity of the calls to WriteString() etc,
+    but I wanted to provide a non-trivial example.
+    
+    Change-Id: Id33a8b6cbf8eb278f71e1f78e20205b436578606
+    Reviewed-on: https://go-review.googlesource.com/24371
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/sync/example_pool_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

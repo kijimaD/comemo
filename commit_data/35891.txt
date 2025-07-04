@@ -1,14 +1,30 @@
-commit d32b305e7b480aaff0951aab24b65e5f6affc4a9
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Jul 6 09:56:04 2018 +0100
+commit 61f92ee56abbc6c6af317e4b867b4214c31ae4c7
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Mar 14 21:27:25 2018 -0400
 
-    CONTRIBUTORS: replace old e-mail address
+    internal/trace: fix GC time computation of short goroutines
     
-    I don't have access to this e-mail inbox anymore.
+    Goroutine analysis reports the sum of all overlapping GC intervals as
+    the GCTime of a goroutine. The computation is done by adding the length
+    of a completed GC interval to 'active' goroutines when processing the
+    corresponding EvGCDone event. This change fixes the two corner cases
+    the current implementation ignores:
     
-    Change-Id: Ia3dff6a56c7f6c782be74a998a622ef0611eca7e
-    Reviewed-on: https://go-review.googlesource.com/122456
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    1) Goroutine that ends during GC. Previously, this goroutine was ignored
+    and GC time was undercounted. We handle this case by setting the
+    gcStartTime only when GC is active and handling non-zero gcStartTime
+    when processing EvGoStop and EvGoStart.
+    
+    2) Goroutine that starts during GC. Previously, the entire GC interval
+    length was added to the Goroutine's GCTime which resulted in overcount
+    of GC time. We handle this case by computing the length of overlapped
+    period precisely.
+    
+    Change-Id: Ifa8e82672ec341b5ff87837209f4311fa7262b7f
+    Reviewed-on: https://go-review.googlesource.com/100842
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/trace/goroutines.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

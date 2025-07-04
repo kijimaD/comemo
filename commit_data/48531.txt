@@ -1,39 +1,22 @@
-commit f326964824a4001ea3964c256e70d61e7f663afa
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Feb 11 12:58:37 2022 -0800
+commit 6b8c94b6c524710bc3290546176a0da2f7c8c9db
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 27 12:35:01 2021 -0400
 
-    cmd/compile: use method expression closures to implement bound method calls
+    go/types: guard against check==nil in newNamed
     
-    When we have x.M(args) where x is a value of type parameter type, we
-    currently cast x to the bound of that type parameter (which is an interface)
-    and then invoke the method on that interface. That's pretty inefficient
-    because:
-     1) We need to convert x to an interface, which often requires allocation.
-        With CL 378178 it is at least stack allocation, but allocation nontheless.
-     2) We need to call through wrapper functions to unpack the interface
-        into the right argument locations for the callee.
+    When importing generic named types, it is possible for Checker.newNamed
+    to be called during type instantiation when the Checker is nil.
     
-    Instead, let's just call the target directly. The previous CL to this one
-    added method expression closures to the dictionary, which is a simple
-    captureless closure that implements T.M for type parameter T and method M.
-    So to implement x.M(args) for x of type T, we use methodexpr(T,M)(x, args).
-    We just need to move x from the receiver slot to the first argument, and
-    use the dictionary entry to implement the polymorphism. This works because
-    we stencil by shape, so we know how to marshal x for the call even though
-    we don't know its exact type.
+    In this case we should be able to safely skip this delayed expansion.
     
-    We should be able to revert CL 378178 after this one, as that optimization
-    will no longer be necssary as we're not converting values to interfaces
-    to implement this language construct anymore.
+    Updates #45580
     
-    Update #50182
-    
-    Change-Id: I813de4510e41ab63626e58bd1167f9ae93016202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385274
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I75422100464d57eba24642c93e06e8b47d904fc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322974
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 44 +++++++++++++++++++++++++++++--
- 1 file changed, 42 insertions(+), 2 deletions(-)
+ src/go/types/type.go | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)

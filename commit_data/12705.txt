@@ -1,12 +1,12 @@
-commit e5102b35f6afaaf5a829768710d15924c126aeeb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 20 16:50:51 2012 -0700
+commit 4a59be00917f2da069f272053d70a8563f717b22
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 21 10:10:44 2012 +1100
 
-    doc: remove reference to deleted os.ENOSPC
+    html/template: fix typo and make grammar consistent in comments.
     
-    R=golang-dev, gri, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5866046
+    https://golang.org/cl/5866044
 
- doc/effective_go.html | 4 ++--
+ src/pkg/html/template/content.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

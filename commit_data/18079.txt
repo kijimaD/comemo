@@ -1,15 +1,12 @@
-commit efd1d050230606b4383f5ddb6ea3df7853fc4ce7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 19 13:02:06 2013 +0900
+commit f18e2a327126904170a7d6a20b8b957b185f3954
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 19 14:15:57 2013 +1100
 
-    net: rename TestReadConfig to TestDNSReadConfig
-    
-    To make it possible to type "go test -run=DNS".
-    Also removes unnecessary parens.
+    runtime/pprof: skip tests that fail on windows-amd64-race builder
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/43470051
+    https://golang.org/cl/44180043
 
- src/pkg/net/dnsconfig_unix_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/runtime/pprof/pprof_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

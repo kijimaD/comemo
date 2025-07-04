@@ -1,15 +1,49 @@
-commit 7ae41e80103674f5cbc3e76724729c248e62d65f
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 28 13:32:36 2013 -0800
+commit f8d49b509bb081dbf7fc1e1f4a1403e3ab8ce56e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 28 16:24:38 2013 -0500
 
-    doc: correct some minor HTML errors found by tidy
+    runtime/cgo: make symbol naming consistent
     
-    R=golang-dev, bradfitz
+    The naming in this package is a disaster.
+    Make it all consistent.
+    
+    Remove some 'static' from functions that will
+    be referred to from other files soon.
+    
+    This CL is purely renames using global search and replace.
+    
+    Submitting separately so that real changes will not
+    be drowned out by these renames in future CLs.
+    
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/7439046
+    https://golang.org/cl/7416046
 
- doc/contribute.html         | 2 +-
- doc/debugging_with_gdb.html | 2 +-
- doc/go1.1.html              | 4 ++--
- doc/go_spec.html            | 2 +-
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/runtime/asm_386.s               |  8 ++++----
+ src/pkg/runtime/asm_amd64.s             |  6 +++---
+ src/pkg/runtime/asm_arm.s               | 16 ++++++++--------
+ src/pkg/runtime/cgo/gcc_darwin_386.c    | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_darwin_amd64.c  |  8 ++++----
+ src/pkg/runtime/cgo/gcc_freebsd_386.c   | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c   | 24 ++++++++++++------------
+ src/pkg/runtime/cgo/gcc_linux_386.c     | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_linux_amd64.c   |  8 ++++----
+ src/pkg/runtime/cgo/gcc_linux_arm.c     | 24 ++++++++++++------------
+ src/pkg/runtime/cgo/gcc_netbsd_386.c    | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c  | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c    | 24 ++++++++++++------------
+ src/pkg/runtime/cgo/gcc_openbsd_386.c   | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_openbsd_amd64.c | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_setenv.c        |  6 +++---
+ src/pkg/runtime/cgo/gcc_util.c          | 12 ++++++------
+ src/pkg/runtime/cgo/gcc_windows_386.c   |  8 ++++----
+ src/pkg/runtime/cgo/gcc_windows_amd64.c |  8 ++++----
+ src/pkg/runtime/cgo/libcgo.h            |  8 ++++----
+ src/pkg/runtime/cgocall.c               |  6 +++---
+ src/pkg/runtime/env_posix.c             |  6 +++---
+ src/pkg/runtime/proc.c                  | 13 +++++++------
+ src/pkg/runtime/sys_freebsd_arm.s       |  4 ++--
+ src/pkg/runtime/sys_linux_arm.s         |  4 ++--
+ src/pkg/runtime/sys_netbsd_arm.s        |  4 ++--
+ 27 files changed, 139 insertions(+), 138 deletions(-)

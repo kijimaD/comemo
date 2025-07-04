@@ -1,31 +1,21 @@
-commit 3409ce39bfd7584523b7a8c150a310cea92d879d
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Oct 21 15:30:13 2019 -0400
+commit ba9bc8e5fefcc62216f7bf2f85923d226e8906e2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat May 4 11:36:13 2019 +0200
 
-    net/http: remove parseURL variable
+    syscall: support generating netbsd/arm64 files in mkall.sh
     
-    The parseURL variable was introduced in CL 49930 in order to work
-    around the fact that the name "url" was shadowed by a parameter of
-    exported functions, and couldn't be renamed without sacrificing
-    documentation readability. Documentation readability takes higher
-    priority than internal implementation details.
+    CL 155739 added the generated files but didn't update mkall.sh. Do so
+    now.
     
-    Back then, I considered renaming the net/url import but saw that it
-    would be too disruptive of a change to the large net/http package.
+    Updates #30824
     
-    Now I see a better way: it's possible to import net/url both as url
-    and as urlpkg (the package is still imported just once, but it becomes
-    available via two names). This way we eliminate the need for wasting
-    (a little) memory on the parseURL variable, improve code readability
-    slightly, and delete some lines of code and comments.
-    
-    Updates #21077
-    
-    Change-Id: I42cd9833afdcf4a5f5874fb7ee9c8c11eae557dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202482
+    Change-Id: I642bbff6afbc976091a0dc291fa2beff5e245246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175237
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/request.go | 3 ++-
- src/net/http/server.go  | 8 ++------
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ src/syscall/mkall.sh | 6 ++++++
+ 1 file changed, 6 insertions(+)

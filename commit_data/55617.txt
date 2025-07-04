@@ -1,31 +1,24 @@
-commit 35fa852d6dda69ce367e449fff78b3fc09834c97
+commit 0b41b678c2e313b80e1e29695bee26d363fab32a
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Feb 12 12:38:37 2024 +0100
+Date:   Wed Feb 8 16:31:15 2023 +0100
 
-    runtime: use the right number of parameters in syscall_SyscallX on Windows
+    runtime: use explicit NOFRAME on openbsd/amd64
     
-    The syscall_SyscallX functions currently discard the nargs parameter
-    when calling syscall_SyscallN. This precludes some optimizations
-    down the line. For example, on amd64, a syscall that takes 0 arguments
-    don't need to set any of the params passing registers (CX, DX, R8, and
-    R9).
+    This CL marks some openbsd assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    This CL updates all syscall_SyscallX functions so they call
-    syscall_SyscallN with an argument slice of the right length.
+    Updates #58378
     
-    While here, remove the hack in syscall_SyscallN to support less than 4
-    arguments, and update instead asmstdcall on amd64 to properly handle
-    this case.
-    
-    Change-Id: I0328e14f34c2b000fde06cc6a579b09e8c32f2b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563315
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I993549df41a93255fb714357443f8b24c3dfb0a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466455
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/sys_windows_amd64.s | 33 ++++++++-------
- src/runtime/syscall_windows.go  | 93 +++++++++++++++--------------------------
- 2 files changed, 51 insertions(+), 75 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go |   2 +-
+ src/runtime/sys_openbsd_amd64.s  | 148 +++------------------------------------
+ 2 files changed, 12 insertions(+), 138 deletions(-)

@@ -1,14 +1,12 @@
-commit 80e2472f87a00c0278da3a94c610ed284a16f7bb
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 13 14:34:30 2012 +1100
+commit 97235a769f14db07eee47dbbd1abfacd440bfdbb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 13 14:32:45 2012 +1100
 
-    godoc: static ids should be #lowercase
-    so they don't collide with names like #Index.
-    Fixes #2970.
+    builder: really set $GOBUILDEXIT for Windows
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5655066
+    https://golang.org/cl/5649074
 
- lib/godoc/package.html | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ misc/dashboard/builder/main.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

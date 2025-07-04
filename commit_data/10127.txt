@@ -1,15 +1,13 @@
-commit b7ef3c9a5465762a19cec6bc925ddeda1a6b441a
+commit fd31d9fd7beaac218899c5bdb74004152b076d82
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 12:22:45 2011 -0700
+Date:   Thu Oct 27 12:22:06 2011 -0700
 
-    spec: define that initialization is sequential
+    go/parser: test and fix := scoping bug
     
-    This is true of the existing implementations, and I think
-    it is an important property to guarantee.
-    
-    R=golang-dev, r, borman, r
-    CC=golang-dev
-    https://golang.org/cl/5321058
+    R=iant
+    CC=golang-dev, gri
+    https://golang.org/cl/5327048
 
- doc/go_spec.html | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/go/parser/parser.go      | 10 ++++++++-
+ src/pkg/go/parser/parser_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 1 deletion(-)

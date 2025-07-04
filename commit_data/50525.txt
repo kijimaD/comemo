@@ -1,15 +1,23 @@
-commit 63d05642d48ec81637481518df962f2b3be435a3
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sat Aug 27 12:49:25 2022 +0930
+commit 5d6d9f5610066584374c2dfe7624fa9f251089a0
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Oct 27 19:16:27 2021 -0700
 
-    debug/pe: be careful to avoid potential uint32 overflow
+    cmd/compile: use Structure() to get single underlying type of typeparam.
     
-    Change-Id: Ic3c1c972bec39e14ea1af50ab2b5d887dac29eab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426114
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Dan Kortschak <dan@kortschak.io>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Use types2.Structure() to get single underlying type of typeparams, to
+    handle some unusual cases where a type param is constrained to a single
+    underlying struct or map type.
+    
+    Fixes #48538
+    
+    Change-Id: I289fb7b31d489f7586f2b04aeb1df74e15a9f965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359335
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/debug/pe/file.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/expr.go |  2 +-
+ test/run.go                            |  1 +
+ test/typeparam/issue48538.go           | 60 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 1 deletion(-)

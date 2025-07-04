@@ -1,16 +1,18 @@
-commit bce1e25b717e07e05174117af6907999b3f51285
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Apr 27 12:23:26 2020 +1000
+commit 696c41488a2e3c0f86b01e420701c9aa05951228
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Aug 10 08:00:55 2019 +0200
 
-    image/png: fix some 32-bit int overflows
+    cmd/go: error out of 'go mod download' if the main module is passed as argument
     
-    Fixes #38435
+    Test added.
     
-    Change-Id: Ib9ae3cf7f338b2860a5688e448a125f257fe624e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230219
-    Reviewed-by: Andrew Ekstedt <andrew.ekstedt@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #28338
+    
+    Change-Id: Iab72ba5646360ae91671261161d8fda451f7a717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189797
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/image/png/reader.go      |  10 +++-
- src/image/png/reader_test.go | 134 ++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 127 insertions(+), 17 deletions(-)
+ src/cmd/go/internal/modcmd/download.go      | 16 ++++++++++++++--
+ src/cmd/go/testdata/script/mod_download.txt |  6 ++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

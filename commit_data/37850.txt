@@ -1,19 +1,16 @@
-commit a1d5e8adfa4d2f1043f4617fe20994ddbb7cc25c
-Author: Mark Rushakoff <mark.rushakoff@gmail.com>
-Date:   Tue Jan 8 01:13:01 2019 +0000
+commit 5ed30d82b7ad4d5be12db588f088c34f8c1c0a86
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Mon Sep 3 16:24:12 2018 +0000
 
-    cmd/go: fix typo in output of go help importpath
+    database/sql: fix Rows.Columns() documentation
     
-    The output refers to 'go help modules-get' but the actual command is 'go
-    help module-get', singular.
+    Fixes #27202
     
-    Change-Id: Ie001f4181d80d3bf1995af2f257bf789dad5b33f
-    GitHub-Last-Rev: ce9b90e9a656fbab097d440458e93ab29ba014af
-    GitHub-Pull-Request: golang/go#29605
-    Reviewed-on: https://go-review.googlesource.com/c/156737
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I83620748a81500e433795c7b2b7f13399d17f777
+    GitHub-Last-Rev: 64457e12ceaa408efc7f75091f1b30c35b8e5d44
+    GitHub-Pull-Request: golang/go#27472
+    Reviewed-on: https://go-review.googlesource.com/133057
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/help/helpdoc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/database/sql/sql.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

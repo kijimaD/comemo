@@ -1,12 +1,26 @@
-commit ea53e61c6c7ba2c7528b3e0a8d4680475897d679
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 5 18:35:06 2017 +0000
+commit 9a97c3bfe41d1ed768ea3bd3d8f0f52b8a51bb62
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 13:45:31 2016 -0400
 
-    doc: add go get -insecure change to go1.8.html
+    cmd/go: accept plain file for .vcs (instead of directory)
     
-    Change-Id: I184c86edaaaa71c26bc7360c8b995015f30fe137
-    Reviewed-on: https://go-review.googlesource.com/34819
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Sometimes .git is a plain file; maybe others will follow.
+    This CL matches CL 21430, made in x/tools/go/vcs.
+    
+    The change in the Swift test case makes the test case
+    pass by changing the test to match current behavior,
+    which I assume is better than the reverse.
+    (The test only runs locally and without -short, so the
+    builders are not seeing this particular failure.)
+    
+    For #10322.
+    
+    Change-Id: Iccd08819a01c5609a2880b9d8a99af936e20faff
+    Reviewed-on: https://go-review.googlesource.com/30948
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/vcs.go      |  2 +-
+ src/cmd/go/vcs_test.go | 22 +++++++++++++++++-----
+ 2 files changed, 18 insertions(+), 6 deletions(-)

@@ -1,17 +1,14 @@
-commit 39f7561e1b38e46d24b62e7dcc772ba87f8a802b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 10 15:35:21 2019 -0400
+commit 8d72e59853de42cb50a5aa172cedcc9010345184
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jan 22 16:21:32 2019 -0500
 
-    cmd/go/internal/load: remove unused hasSubdir function
+    crypto/tls: remove superfluous for label
     
-    No references to this function remain; remove it to avoid confusion
-    and reduce build overhead.
-    
-    The last reference was removed in CL 167748.
-    
-    Change-Id: I9d023c5d8904800edd3898fed79aa9f824dfb46a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181548
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I8ea3043fcbaf7a5f73b2a796171a7f1cb3cb3693
+    Reviewed-on: https://go-review.googlesource.com/c/158818
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/load/path.go | 24 ------------------------
- 1 file changed, 24 deletions(-)
+ src/crypto/tls/handshake_client.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

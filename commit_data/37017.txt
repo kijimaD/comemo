@@ -1,21 +1,14 @@
-commit 4bea6c65947caf815ad4dde8bf50c43dcca539be
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 17 14:15:54 2018 -0700
+commit 187c3a65a6293e6b9821bf3da49430e5d7bf77f8
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Sun Jun 17 19:42:03 2018 +0200
 
-    go/internal/gccgoimporter: backport from x/tools to ensure identical code
+    doc: update more stale pprof links
     
-    This change backports a minor modification of the x/tools version of this
-    code back into the std library. It simply ensures that both versions of
-    the code are the same and will simplify keeping them in sync down the
-    road.
+    Related to #25477.
     
-    While this is an API change, this is an internal package, so we're ok.
-    
-    Updates #27891.
-    
-    Change-Id: Ib153141382f727a2692ca80179ae09c4a383ba4f
-    Reviewed-on: https://go-review.googlesource.com/c/142894
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I11261c6055b446ceca1b3acc538ab00fec4b47ca
+    Reviewed-on: https://go-review.googlesource.com/119321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/gccgoinstallation.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/diagnostics.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,28 +1,15 @@
-commit 2422c5eae5dc6539b4b7657ef7bfe58a65acb61d
-Author: Colin Arnott <colin@urandom.co.uk>
-Date:   Thu Jul 9 07:06:46 2020 +0000
+commit 5d3666e1a48d0976718c75dddc2ef0232be835d8
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Wed Oct 21 10:59:22 2020 -0700
 
-    sync/atomic: add (*Value).Swap and (*Value).CompareAndSwap
+    crypto/tls: document the ClientAuthType consts
     
-    The functions SwapPointer and CompareAndSwapPointer can be used to
-    interact with unsafe.Pointer, however generally it is prefered to work
-    with Value, due to its safer interface. As such, they have been added
-    along with glue logic to maintain invariants Value guarantees.
+    Fixes #34023
     
-    To meet these guarantees, the current implementation duplicates much of
-    the Store function. Some of this is due to inexperience with concurrency
-    and desire for correctness, but the lack of generic programming
-    functionality does not help.
-    
-    Fixes #39351
-    
-    Change-Id: I1aa394b1e70944736ac1e19de49fe861e1e46fba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241678
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib7552a8873a79a91e8d971f906c6d7283da7a80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264027
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/sync/atomic/value.go      | 129 +++++++++++++++++++++++++++++++++++----
- src/sync/atomic/value_test.go | 139 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 257 insertions(+), 11 deletions(-)
+ src/crypto/tls/common.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

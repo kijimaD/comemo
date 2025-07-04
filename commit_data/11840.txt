@@ -1,36 +1,16 @@
-commit dbec42104f5a7b177ed04098ca4cfb7a1659b9b1
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sun Feb 12 23:07:31 2012 -0800
+commit c53b73455bdc2ca7ae6bc9f5e92984ba6682dc45
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 12 21:53:33 2012 -0800
 
-    gc, 8g, 8l: fix a handful of warnings
+    sync/atomic: disable hammer pointer tests on wrong size system
     
-    8g/cgen.c
-            print format type mismatch
+    hammerCompareAndSwapPointer64 was only passing on
+    little-endian systems.  hammerCompareAndSwapPointer32 was
+    writing 8 bytes to a uint32 value on the heap.
     
-    8l/asm.c
-            resoff set and not used
-    
-    gc/pgen.c
-            misleading comparison INT > 0x80000000
-    
-    gc/reflect.c
-            dalgsym must be static to match forward declaration
-    
-    gc/subr.c
-            assumed_equal set and not used
-            hashmem's second argument is not used
-    
-    gc/walk.c
-            duplicated (unreachable) code
-    
-    R=rsc
+    R=rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/5651079
+    https://golang.org/cl/5654065
 
- src/cmd/8g/cgen.c    | 2 +-
- src/cmd/8l/asm.c     | 3 +++
- src/cmd/gc/pgen.c    | 2 +-
- src/cmd/gc/reflect.c | 2 +-
- src/cmd/gc/subr.c    | 8 +++-----
- src/cmd/gc/walk.c    | 4 ----
- 6 files changed, 9 insertions(+), 12 deletions(-)
+ src/pkg/sync/atomic/atomic_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

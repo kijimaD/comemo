@@ -1,30 +1,29 @@
-commit 455775dae63eb1277227cbde9e99dc67a3fdb0ea
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Aug 12 14:37:19 2017 +0200
+commit 565807566e08907d8b37569c8d044c0ef220b45b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 19 15:39:04 2017 -0700
 
-    runtime: improve makechan memory checks and allocation calls
+    runtime: improve ExampleFrames
     
-    Use mallogc instead of newarray to save some overhead since
-    makechan already checks for _MaxMem constraints.
+    CL 40876 changed ExampleFrames so that the output
+    was stable with and without mid-stack inlining.
     
-    Flattens the if else construct that determines if buf and hchan struct
-    should be allocated in one mallocgc call and where buf should point to.
+    However, that change lost some of the
+    pedagogical and copy/paste value of the example.
+    It was unclear why both more and i were being tracked,
+    and whether the 5 in i < 5 is related to len(pc),
+    and if so, why and how.
     
-    Uses maxSliceCap to avoid divisions similar to makeslice.
+    This CL rewrites the example with lots more comments,
+    and such that the core structure more closely matches
+    normal usage, and such that it is obvious
+    which lines of code should be deleted when copying.
+    As a bonus, it also now illustrates Frame.File.
     
-    name                old time/op  new time/op  delta
-    MakeChan/Byte       82.0ns ± 8%  81.4ns ± 7%    ~     (p=0.643 n=10+10)
-    MakeChan/Int        97.9ns ± 2%  96.6ns ± 2%  -1.40%  (p=0.009 n=10+10)
-    MakeChan/Ptr         128ns ± 3%   120ns ± 1%  -6.63%  (p=0.000 n=10+10)
-    MakeChan/Struct/0   66.7ns ± 4%  66.4ns ± 2%    ~     (p=0.697 n=10+10)
-    MakeChan/Struct/32   136ns ± 1%   130ns ± 0%  -4.42%  (p=0.000 n=10+10)
-    MakeChan/Struct/40   150ns ± 1%   150ns ± 1%    ~     (p=0.725 n=10+10)
-    
-    Change-Id: Ibb5675d0843a072aae2bfa58ecd39cf4cd926533
-    Reviewed-on: https://go-review.googlesource.com/55132
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Iab73541dd096657ddf79c5795337e8b596d89740
+    Reviewed-on: https://go-review.googlesource.com/41136
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/chan.go | 36 ++++++++++++++++++++----------------
- 1 file changed, 20 insertions(+), 16 deletions(-)
+ src/runtime/example_test.go | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

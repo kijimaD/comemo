@@ -1,12 +1,13 @@
-commit a63262b6c0576e11bb45a3ba090b7666ed92d022
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 20:37:58 2011 -0500
+commit 15782bbfaf13b92e9d06e30278a05e7ab61914fa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 12:13:27 2011 +1100
 
-    build: fix for freebsd, openbsd
+    dashboard: fix log recording and output
     
-    TBR=r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5505052
+    https://golang.org/cl/5503054
 
- src/make.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/app/build/build.go | 9 +++++----
+ misc/dashboard/app/build/test.go  | 4 ++--
+ 2 files changed, 7 insertions(+), 6 deletions(-)

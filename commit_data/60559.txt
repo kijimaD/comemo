@@ -1,0 +1,21 @@
+commit 7dac9898c3d34378de8f523a77a01bcc86033562
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jun 24 17:17:13 2024 -0400
+
+    reflect: add flag tests for MapOf
+    
+    Add two tests that verify that MapOf sets the map NeedsKeyUpdate and
+    HashMightPanic flags in the created map. Missing these flags would cause
+    correctness issues not otherwise caught in the reflect tests.
+    
+    For #54766.
+    
+    Change-Id: Icd5f117e0794e7b4d1b70fa94e5afbe97c4543e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594656
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

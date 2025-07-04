@@ -1,34 +1,28 @@
-commit 820ad17303e42665fbe9d38d79f07ed218e86302
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 20 15:15:18 2019 -0800
+commit 04dc1b2443f3cec9d3babff1046eb36f41236224
+Author: Igor Zhilianin <igor.zhilianin@gmail.com>
+Date:   Mon Oct 8 01:19:51 2018 +0000
 
-    cmd/go: remove work directory on usage error
+    all: fix a bunch of misspellings
     
-    Ensure that cmd/go consistently calls base.Exit rather than os.Exit,
-    so that we don't incorrectly leave the work directory around on exit.
-    
-    Test this by modifying the testsuite to run all the tests with TMPDIR
-    set to a temporary directory, and then check that no files are left
-    behind in that temporary directory. Adjust a couple of tests to make
-    this approach work.
-    
-    Updates #30500
-    Updates https://gcc.gnu.org/PR89406
-    
-    Change-Id: Ib6a5fc8a288a6cf4713022baa2b8dfefad62ba34
-    Reviewed-on: https://go-review.googlesource.com/c/163237
+    Change-Id: I94cebca86706e072fbe3be782d3edbe0e22b9432
+    GitHub-Last-Rev: 8e15a40545704fb21b41a8768079f2da19341ef3
+    GitHub-Pull-Request: golang/go#28067
+    Reviewed-on: https://go-review.googlesource.com/c/140437
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go               | 39 +++++++++++++++++++++++++++++++++++--
- src/cmd/go/internal/base/base.go    |  3 ++-
- src/cmd/go/internal/cmdflag/flag.go |  3 ++-
- src/cmd/go/internal/help/help.go    |  6 ++++--
- src/cmd/go/internal/vet/vetflag.go  | 12 ++++++++----
- src/cmd/go/internal/work/action.go  |  6 ++++--
- src/cmd/go/internal/work/exec.go    |  2 +-
- src/cmd/go/internal/work/gccgo.go   |  3 ++-
- src/cmd/go/internal/work/init.go    | 15 +++++++++-----
- src/cmd/go/script_test.go           |  1 +
- 10 files changed, 71 insertions(+), 19 deletions(-)
+ src/archive/zip/writer.go                          | 2 +-
+ src/cmd/asm/internal/asm/testdata/386enc.s         | 2 +-
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 +-
+ src/cmd/compile/internal/gc/esc.go                 | 3 ++-
+ src/cmd/compile/internal/ppc64/ssa.go              | 2 +-
+ src/cmd/internal/obj/x86/evex.go                   | 2 +-
+ src/cmd/link/internal/ld/lib.go                    | 2 +-
+ src/cmd/vet/vet_test.go                            | 4 ++--
+ src/database/sql/sql_test.go                       | 2 +-
+ src/net/http/transfer.go                           | 2 +-
+ src/runtime/mheap.go                               | 2 +-
+ src/runtime/sys_linux_ppc64x.s                     | 2 +-
+ test/run.go                                        | 4 ++--
+ 13 files changed, 16 insertions(+), 15 deletions(-)

@@ -1,29 +1,19 @@
-commit c4cdd35e6ef3f01ddace59630b9077d2048cdd94
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Aug 17 12:11:29 2013 +0900
+commit 665feeedcbef8a1c968d6da5be052e9fd9678380
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 16 22:25:26 2013 -0400
 
-    runtime: integrated network pollster for netbsd/amd64,386,arm
+    runtime: impose thread count limit
     
-    Original CL by minux (9545044).
+    Actually working to stay within the limit could cause subtle deadlocks.
+    Crashing avoids the subtlety.
     
-    Update #6146
+    Fixes #4056.
     
-    R=golang-dev, rsc
-    CC=golang-dev, minux.ma
-    https://golang.org/cl/12949045
+    R=golang-dev, r, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13037043
 
- src/pkg/runtime/defs_netbsd.go      | 16 ++++++++++++++--
- src/pkg/runtime/defs_netbsd_386.h   | 23 +++++++++++++++++++++--
- src/pkg/runtime/defs_netbsd_amd64.h | 24 ++++++++++++++++++++++--
- src/pkg/runtime/defs_netbsd_arm.h   | 24 ++++++++++++++++++++++--
- src/pkg/runtime/netpoll.goc         |  2 +-
- src/pkg/runtime/netpoll_kqueue.c    |  5 +++--
- src/pkg/runtime/netpoll_stub.c      |  2 +-
- src/pkg/runtime/os_darwin.h         |  2 ++
- src/pkg/runtime/os_freebsd.h        |  2 ++
- src/pkg/runtime/os_netbsd.h         |  2 ++
- src/pkg/runtime/os_openbsd.h        |  2 ++
- src/pkg/runtime/sys_netbsd_386.s    | 29 +++++++++++++++++++++++++++++
- src/pkg/runtime/sys_netbsd_amd64.s  | 31 +++++++++++++++++++++++++++++++
- src/pkg/runtime/sys_netbsd_arm.s    | 30 ++++++++++++++++++++++++++++++
- 14 files changed, 182 insertions(+), 12 deletions(-)
+ src/pkg/runtime/crash_test.go    | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/debug/garbage.go | 19 +++++++++++++++++++
+ src/pkg/runtime/proc.c           | 26 +++++++++++++++++++++++++-
+ 3 files changed, 74 insertions(+), 1 deletion(-)

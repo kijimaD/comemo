@@ -1,29 +1,67 @@
-commit 676f0a45edd6b9be824f21530a13a695466880bf
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Oct 30 17:11:36 2020 -0400
+commit c9591d73ef7a661ffaea9495694dc737829bb088
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 25 18:14:42 2020 -0700
 
-    cmd/go: support overlaying go.mod files
+    cmd/compile: eliminate some array equality alg loops
     
-    This change updates the lockedfile package to open files using the
-    new fsys.OpenFile function. The logic of fsys.Open has been moved into
-    fsys.OpenFile, and fsys.Open is now just a light wrapper around it.
+    type T [3]string
     
-    For #39958
+    Prior to this change, we generated this equality alg for T:
     
-    Change-Id: I552f1a45ac00ac06b5812008d17a61e610b4b113
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266797
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    func eqT(p, q *T) (r bool) {
+        for i := range *p {
+            if len(p[i]) == len(q[i]) {
+            } else {
+                return
+            }
+        }
+        for j := range *p {
+            if runtime.memeq(p[j].ptr, q[j].ptr, len(p[j])) {
+            } else {
+                return
+            }
+        }
+        return true
+    }
+    
+    That first loop can be profitably eliminated;
+    it's cheaper to spell out 3 length equality checks.
+    
+    We now generate:
+    
+    func eqT(p, q *T) (r bool) {
+        if len(p[0]) == len(q[0]) &&
+            len(p[1]) == len(q[1]) &&
+            len(p[2]) == len(q[2]) {
+        } else {
+            return
+        }
+        for i := 0; i < len(p); i++ {
+            if runtime.memeq(p[j].ptr, q[j].ptr, len(p[j])) {
+            } else {
+                return
+            }
+        }
+        return true
+    }
+    
+    We now also eliminate loops for small float arrays as well,
+    and for any array of size 1.
+    
+    These cutoffs were selected to minimize code size on amd64
+    at this moment, for lack of a more compelling methodology.
+    Any smallish number would do.
+    
+    The switch from range loops to plain for loops allowed me
+    to use a temp instead of a named var, which eliminated
+    a pointless argument to checkAll.
+    The code to construct them is also a bit clearer, in my opinion.
+    
+    Change-Id: I1bdd8ee4a2739d00806e66b17a4e76b46e71231a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230210
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/fsys/fsys.go                   |  16 +-
- .../go/internal/lockedfile/lockedfile_filelock.go  |   3 +-
- src/cmd/go/internal/lockedfile/lockedfile_plan9.go |   6 +-
- src/cmd/go/internal/modcmd/vendor.go               |   3 +-
- src/cmd/go/internal/modload/import.go              |   4 +-
- src/cmd/go/internal/modload/init.go                |  10 +-
- src/cmd/go/internal/search/search.go               |   2 +-
- src/cmd/go/testdata/script/mod_overlay.txt         | 248 +++++++++++++++++++++
- 8 files changed, 277 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/alg.go | 108 ++++++++++++++++++++++++-------------
+ 1 file changed, 72 insertions(+), 36 deletions(-)

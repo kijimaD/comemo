@@ -1,18 +1,15 @@
-commit 42c51debe824bd9b1fd93b3d50ff7187530754d3
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Jun 1 22:51:30 2016 +0200
+commit 5e1b7bdecf7a8b5b5d06633758bf53e475902414
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 4 10:58:21 2016 -0700
 
-    misc/cgo/test,cmd/dist: enable (more) Cgo tests on iOS
+    cmd/compile: pull ssa OAPPEND expression handing into its own function
     
-    For #15919
+    Pure code movement.
     
-    Change-Id: I9fc38d9c8a9cc9406b551315e1599750fe212d0d
-    Reviewed-on: https://go-review.googlesource.com/23635
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia07ee0b0041c931b08adf090f262a6f74a6fdb01
+    Reviewed-on: https://go-review.googlesource.com/21546
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/cthread.go   |  4 ++++
- misc/cgo/test/issue7978.go |  2 +-
- src/cmd/dist/test.go       | 12 +-----------
- 3 files changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 181 +++++++++++++++++++------------------
+ 1 file changed, 93 insertions(+), 88 deletions(-)

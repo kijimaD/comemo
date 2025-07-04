@@ -1,16 +1,25 @@
-commit fad10f9c1cba2aef54ef3822d6c3688eb1c25483
+commit 9984a5bca403ec14340a05c6fd57fcbefd96f4df
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 22:46:04 2012 -0500
+Date:   Thu Feb 23 22:45:55 2012 -0500
 
-    spec: allow disallow of \uFFFD in import path
+    cmd/cc: grow some global arrays
     
-    Turns out U+FFFD is a graphic character too.
+    Avoids global array buffer overflows if they are
+    indexed using some of the values between NTYPE
+    and NALLTYPE.  It is entirely likely that not all of these
+    are necessary, but this is the C compiler and not worth
+    worrying much about.  This change takes up only a
+    few more bytes of memory and makes the behavior
+    deterministic.
     
-    http://play.golang.org/p/YblCfKAfko
+    Fixes #3078.
     
-    R=gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5699052
+    https://golang.org/cl/5693052
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/cc/cc.h    |  4 ++--
+ src/cmd/cc/com64.c |  2 +-
+ src/cmd/cc/funct.c |  4 ++--
+ src/cmd/cc/sub.c   | 48 ++++++++++++++++++++++++------------------------
+ 4 files changed, 29 insertions(+), 29 deletions(-)

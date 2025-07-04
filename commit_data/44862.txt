@@ -1,18 +1,17 @@
-commit a81b5e4d0a843e6ef28c8b933904a03fd8666f3e
-Author: chenjie <chenjie@chenjie.info>
-Date:   Tue Mar 30 07:23:53 2021 +0000
+commit 363fb4bcc814069e3d80e22bd022599179ec1c62
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 1 22:38:45 2020 -0400
 
-    crypto/elliptic: fix some typos
+    cmd/go/internal/modload: consolidate buildList and associated functions into one file
     
-    Change-Id: I1c2900d4e1c0b6108f13c4060d994d966f3e18f3
-    GitHub-Last-Rev: 3fde453686ab3fdeb77d2f73c09e4a679056adf3
-    GitHub-Pull-Request: golang/go#45295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305773
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I310c37c7f0ce5581f07cf6e27d1f6361d03b92ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244077
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/elliptic/p256.go            | 2 +-
- src/crypto/elliptic/p256_asm_ppc64le.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modget/get.go        |   4 ++
+ src/cmd/go/internal/modload/buildlist.go | 117 +++++++++++++++++++++++++++++++
+ src/cmd/go/internal/modload/load.go      | 103 ---------------------------
+ 3 files changed, 121 insertions(+), 103 deletions(-)

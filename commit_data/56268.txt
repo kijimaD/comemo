@@ -1,25 +1,22 @@
-commit 9f9dd2bfd8a09083b21767d13df38ff67d7236d8
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 22 10:04:03 2024 -0700
+commit 6328e445c3a87d64a32b6203af3f39d43d874f9f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 21 11:42:20 2023 -0400
 
-    cmd/compile: fix cmpstring rewrite rule
+    log: avoid leaking goroutines in TestOutputRace
     
-    We need to ensure that the Select0 lives in the same block as
-    its argument. Divide up the rule into 2 so that we can put the
-    parts in the right places.
+    Leaked goroutines are the only explanation I can think of for excess
+    allocs in TestDiscard, and TestOutputRace is the only place I can see
+    where the log package leaks goroutines. Let's fix that leak and see if
+    it eliminates the TestDiscard flakes.
     
-    (This would be simpler if we could use @block syntax mid-rule, but
-    that feature currently only works at the top level.)
+    Fixes #58797 (maybe).
     
-    This fixes the ssacheck builder after CL 578835
-    
-    Change-Id: Id26a01d9fac0684e0b732d35d0f7999f6de07825
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580815
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I2d54dcba3eb52bd10a62cd1c380131add6a2f651
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487356
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  8 ++-
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 80 +++++++++++++++----------
- 2 files changed, 56 insertions(+), 32 deletions(-)
+ src/log/log_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

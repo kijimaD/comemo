@@ -1,40 +1,22 @@
-commit be910bf2fd6dee75bfb15aab567dc94b126bde29
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 15 17:25:08 2023 -0400
+commit 3fbcf05d40ed870d8b7a08c7fff9623a201c1567
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Aug 25 03:27:02 2022 +0800
 
-    cmd/link: always use symbol-targeted relocations on Mach-O
+    runtime: convert g.atomicstatus to internal atomic type
     
-    In Mach-O object files, there are two kinds of relocations:
-    "external" relocation, which targets a symbol, and "non-external"
-    relocation, which targets a section. For targeting symbols not in
-    the current object, we must use symbol-targeted relocations. For
-    targeting symbols defined in the current object, for some
-    relocation types, both kinds can be used. We currently use
-    section-targeted relocations for R_ADDR targeting locally defined
-    symbols.
+    Note that this changes some unsynchronized operations of g.atomicstatus to synchronized operations.
     
-    Modern Apple toolchain seems to prefer symbol-targeted relocations.
-    Also, Apple's new linker, ld-prime, seems to not handle section-
-    targeted relocations well in some cases. So this CL switches to
-    always generate symbol-targeted relocations. This also simplifies
-    the code.
+    Updates #53821
     
-    One exception is that DWARF tools seem to handle only section-
-    targeted relocations. So generate those in DWARF sections.
-    
-    This CL supersedes CL 502616.
-    
-    Fixes #60694.
-    For #61229.
-    
-    Change-Id: I3b74df64f21114635061bcd89114392b3a2d588b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503935
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: If249d62420ea09fbec39b570942f96c63669c333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425363
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/link/internal/amd64/asm.go   |  2 +-
- src/cmd/link/internal/arm64/asm.go   | 10 ++++------
- src/cmd/link/internal/ld/data.go     |  8 +++++---
- src/cmd/link/internal/sym/symkind.go |  4 ++++
- 4 files changed, 14 insertions(+), 10 deletions(-)
+ src/runtime/export_debug_test.go |  2 +-
+ src/runtime/proc.go              | 18 +++++++++---------
+ src/runtime/runtime-gdb.py       |  8 ++++----
+ src/runtime/runtime2.go          |  2 +-
+ 4 files changed, 15 insertions(+), 15 deletions(-)

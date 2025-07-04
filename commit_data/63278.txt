@@ -1,0 +1,31 @@
+commit 1aa336209363d9715e145244c7b22620ac0f0584
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 3 15:44:32 2025 -0400
+
+    Revert "cmd/compile: Enable inlining of tail calls"
+    
+    This reverts CL 650455 and CL 655816.
+    
+    Reason for revert: it causes #73747. Properly fixing it gets into
+    trickiness with defer/recover, wrapper, and inlining. We're late
+    in the Go 1.25 release cycle.
+    
+    Fixes #73747.
+    
+    Change-Id: Ifb343d522b18fec3fec73a7c886678032ac8e4df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678575
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go             |  2 +-
+ .../internal/inline/interleaved/interleaved.go     | 28 +++++++---------------
+ src/cmd/compile/internal/ir/expr.go                |  1 +
+ src/cmd/compile/internal/ir/node_gen.go            |  4 ++--
+ src/cmd/compile/internal/ir/stmt.go                |  2 +-
+ src/cmd/compile/internal/noder/reader.go           |  3 ++-
+ src/cmd/compile/internal/ssagen/ssa.go             |  2 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |  2 +-
+ src/cmd/compile/internal/walk/stmt.go              |  3 +--
+ test/tailcall.go                                   | 10 ++++----
+ 10 files changed, 25 insertions(+), 32 deletions(-)

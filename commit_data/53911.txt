@@ -1,29 +1,19 @@
-commit 023668638298d0abf81090dd44464d3c8b724aa7
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Jul 29 08:27:21 2023 +0000
+commit 2c45feb4d7b8d214d10ca7a34f0986b4e3d00ca1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 7 02:04:13 2022 -0700
 
-    os: fix test failure when Workstation service is not enabled
+    test: fix typo in escape_unsafe.go
     
-    TestNetworkSymbolicLink needs to enable the Workstation service, otherwise it will fail.
+    The toStringData test was meant to test reflect.StringHeader, not
+    reflect.SliceHeader. It's not supported to convert *string to
+    *reflect.SliceHeader anyway.
     
-    This CL avoids failure by skipping testing when the Workstation service is not enabled.
-    
-    Fixes #61467
-    
-    Change-Id: I395952fc18329e0b0dfdec55c8a18f4007ea91de
-    
-    Change-Id: I395952fc18329e0b0dfdec55c8a18f4007ea91de
-    GitHub-Last-Rev: 7f089d1dff3ca939915fc8b3e49eba3908f15180
-    GitHub-Pull-Request: golang/go#61564
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512736
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: Iaa4912eafd241886c6337bd7607cdf2412a15ead
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428995
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/windows/syscall_windows.go  | 19 ++++++++++++++++
- src/internal/syscall/windows/zsyscall_windows.go | 29 ++++++++++++++++++++++++
- src/os/os_windows_test.go                        | 23 +++++++++++++++++++
- 3 files changed, 71 insertions(+)
+ test/escape_unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,14 @@
-commit 3bab4ef68da5334a1aac558ec7bee53f6bf15cfc
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 17:48:49 2015 -0400
+commit 7d48237f7f6cb4fe9a47d9e2f0f3c5df481ea775
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 15 12:52:07 2015 +1000
 
-    cmd/pprof: fix race between viewer and web command
+    doc/articles/wiki: don't run tests when 'patch' command unavailable
     
-    Fixes #11729.
-    
-    Change-Id: I6e5e23169ac1368afcbd016ed544a710aa045326
-    Reviewed-on: https://go-review.googlesource.com/12553
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I21cfea3eadb37904252900324c23e2664b121bbb
+    Reviewed-on: https://go-review.googlesource.com/11099
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/pprof/internal/commands/commands.go | 6 ++++++
+ doc/articles/wiki/test.bash | 6 ++++++
  1 file changed, 6 insertions(+)

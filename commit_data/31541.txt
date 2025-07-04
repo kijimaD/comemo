@@ -1,20 +1,18 @@
-commit cb83924d5b42a7918ddac1ee2c0d2bf2032c3ab6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed May 10 11:00:03 2017 -0400
+commit 45055f21ab4b6005446e8d680f315ece410e75b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 13:18:55 2017 -0800
 
-    cmd/compile/internal/ssa: fix generation of ppc64x rules
+    go/types: implement SizesFor convenience function
     
-    The files PPC64.rules and rewritePPC64.go were out of sync due to
-    conflicts between CL 41630 and CL 42145 (i.e. running 'go run *.go'
-    in the gen directory resulted in unexpected changes).
+    SizesFor returns a Sizes implementation for a supported architecture.
+    Use functionality in srcimporter.
     
-    Change-Id: I1d409656b66afeab6cb9c6df9b3dcab7859caa75
-    Reviewed-on: https://go-review.googlesource.com/43091
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I197e641b419c678030dfaab5c5b8c569fd0410f3
+    Reviewed-on: https://go-review.googlesource.com/37583
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  8 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 60 ++++++++++++++--------------
- 2 files changed, 34 insertions(+), 34 deletions(-)
+ src/go/internal/srcimporter/srcimporter.go | 19 +------------------
+ src/go/types/api.go                        |  2 +-
+ src/go/types/sizes.go                      | 28 +++++++++++++++++++++++++++-
+ 3 files changed, 29 insertions(+), 20 deletions(-)

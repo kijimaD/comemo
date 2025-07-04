@@ -1,17 +1,30 @@
-commit 849b7911293c3cb11d76ff2778ed560100f987d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 24 16:53:02 2021 -0700
+commit b7f67b75d2fe94098afb618adc1badc12ce6e21c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 21:11:07 2020 -0500
 
-    spec: use consistent capitalization for rune literal hex constants
+    [dev.regabi] cmd/compile: clean up in preparation for expression Nodes
     
-    Fixes #47368
+    Using expression nodes restricts the set of valid SetOp operations,
+    because you can't SetOp across representation. Rewrite various code
+    to avoid crossing those as-yet-unintroduced boundaries.
     
-    Change-Id: I2f65c0008658532123f04d08e99e5d083f33461a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337234
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This also includes choosing a single representation for any given Op.
+    For example, OCLOSE starts out as an OCALL, so it starts with a List
+    of one node and then moves that node to Left. That's no good with
+    real data structures, so the code picks a single canonical implementation
+    and prepares it during the conversion from one Op to the next.
+    In this case, the conversion of an OCALL to an OCLOSE now creates
+    a new node with Left initialized from the start. This pattern repeats.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I55a0872c614d883cac9d64976c46aeeaa639e25d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274107
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go     |   8 +-
+ src/cmd/compile/internal/gc/subr.go      |   2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 185 +++++++++++++------------------
+ src/cmd/compile/internal/gc/walk.go      |   7 +-
+ 4 files changed, 85 insertions(+), 117 deletions(-)

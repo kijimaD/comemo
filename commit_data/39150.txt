@@ -1,23 +1,14 @@
-commit a5cea062b305c8502bdc959c0eec279dbcd4391f
-Author: Jonathon Lacher <jonathon.lacher@gmail.com>
-Date:   Tue May 14 15:11:30 2019 +0000
+commit 9473c044f1d492a6ba49ec695042dec4365d70ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 18:33:31 2019 +0000
 
-    net/http/httputil: remove all fields in Connection header
+    bufio: document relationship between UnreadByte/UnreadRune and Peek
     
-    In the reverseproxy, replace use (Header).Get, which returns only one value
-    of a multiple value header, with using the Header map directly. Also fixes
-    corresponding tests which hid the bug, and adds more tests.
+    Fixes #29387
     
-    Fixes #30303
-    
-    Change-Id: Ic9094b5983043460697748759f6dfd95fc111db7
-    GitHub-Last-Rev: b41038143f602d4286cb46c542d40de02e6e639d
-    GitHub-Pull-Request: golang/go#30687
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166298
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2d9981f63ac16630ed39d6da6692c81396f4e9ea
+    Reviewed-on: https://go-review.googlesource.com/c/155930
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httputil/reverseproxy.go      |  8 +++----
- src/net/http/httputil/reverseproxy_test.go | 37 ++++++++++++++++++++++++++----
- 2 files changed, 36 insertions(+), 9 deletions(-)
+ src/bufio/bufio.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

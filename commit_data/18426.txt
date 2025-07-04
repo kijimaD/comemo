@@ -1,13 +1,18 @@
-commit a747adf798d7f919772aeeac9378480387f0d336
+commit aac872e11806b7a66ab51f5efab7496a36e4f3da
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Feb 7 16:58:45 2014 +1100
+Date:   Fri Feb 7 12:30:30 2014 +1100
 
-    net: remove superfluous type conversion
+    os/exec: use filepath.Base in Command
     
-    LGTM=minux.ma, dvyukov
-    R=golang-codereviews, minux.ma, dvyukov
+    filepath.Base covers all scenarios
+    (for example paths like d:hello.txt)
+    on windows
+    
+    LGTM=iant, bradfitz
+    R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/60900043
+    https://golang.org/cl/59740050
 
- src/pkg/net/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/build/deps_test.go |  2 +-
+ src/pkg/os/exec/exec.go       | 12 ++----------
+ 2 files changed, 3 insertions(+), 11 deletions(-)

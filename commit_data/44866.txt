@@ -1,21 +1,25 @@
-commit 43afb1a22016ec537915ed8ade0039ad8c6559ce
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Sun Mar 28 23:04:33 2021 +0700
+commit dfdc3880b01d46d1d8125ab9eea0606b2fa5b819
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Aug 20 17:02:18 2020 +0800
 
-    cmd/go: fix documentation on how to create new go.mod file
+    cmd/internal/obj/arm64: enable some SIMD instructions
     
-    The correct command to create new go.mod file should be 'go mod init',
-    not 'go help init'.
+    Enable VBSL, VBIT, VCMTST, VUXTL VUXTL2 and FMOVQ SIMD
+    instructions required by the issue #40725. And FMOVQ
+    instrucion is used to move a large constant to a Vn
+    register.
     
-    Change-Id: I1150621987d989997f8b75e6a13fe96423a11cf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305289
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Add test cases.
+    
+    Fixes #40725
+    
+    Change-Id: I1cac1922a0a0165d698a4b73a41f7a5f0a0ad549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249758
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/modload/help.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  15 +++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |   5 +
+ src/cmd/internal/obj/arm64/a.out.go            |   6 ++
+ src/cmd/internal/obj/arm64/anames.go           |   6 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 121 ++++++++++++++++++++++---
+ 5 files changed, 139 insertions(+), 14 deletions(-)

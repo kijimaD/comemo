@@ -1,13 +1,13 @@
-commit 3bf3ba2d8179cfbc73f535d3ccc28bc8f46dc45e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 30 09:10:58 2013 +1100
+commit ec1948a44d93b76692188df3a9d1dc45c8ee390e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 13:12:50 2013 -0800
 
-    go/build: clean up after rollback
+    runtime: clear up lr comments
     
-    R=rsc
+    R=cshapiro
     CC=golang-dev
-    https://golang.org/cl/7237049
+    https://golang.org/cl/7230052
 
- src/pkg/go/build/build.go      |  8 +-------
- src/pkg/go/build/build_test.go | 12 ------------
- 2 files changed, 1 insertion(+), 19 deletions(-)
+ src/pkg/runtime/traceback_arm.c | 2 +-
+ src/pkg/runtime/traceback_x86.c | 9 +--------
+ 2 files changed, 2 insertions(+), 9 deletions(-)

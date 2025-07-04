@@ -1,33 +1,19 @@
-commit bde905af5b11e3e34bc1f5d4846d7767f7197236
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 21 23:24:47 2024 -0400
+commit 0bbb54a02d38d067b9a39d85cfc425f0ddc2962e
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed May 17 11:35:52 2023 +0200
 
-    all: document legacy //go:linkname for modules with ≥20,000 dependents
+    cmd/link: add ReflectMethod flag to -dumpdep output
     
-    For #67401.
+    Adds ReflectMethod flag to the output of -dumpdep.
     
-    Change-Id: Icc10ede72547d8020c0ba45e89d954822a4b2455
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587218
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Fixes #60221
+    
+    Change-Id: I631d72ee21b819a3a629780317ff4d962cc121e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/encoding/json/decode.go | 10 ++++++++++
- src/encoding/json/encode.go | 21 +++++++++++++++++++++
- src/runtime/alg.go          | 10 ++++++++++
- src/runtime/checkptr.go     | 10 ++++++++++
- src/runtime/iface.go        | 36 ++++++++++++++++++++++++++++++++++++
- src/runtime/linkname.go     |  1 -
- src/runtime/malloc.go       |  2 ++
- src/runtime/map.go          | 13 +++++++++++++
- src/runtime/map_fast32.go   |  1 +
- src/runtime/map_fast64.go   |  2 ++
- src/runtime/map_faststr.go  |  1 +
- src/runtime/mbarrier.go     |  9 +++++++++
- src/runtime/mbitmap.go      |  9 +++++++++
- src/runtime/mgc.go          | 10 ++++++++++
- src/runtime/panic.go        |  9 +++++++++
- src/runtime/proc.go         | 24 ++++++++++++++++++++++++
- src/runtime/slice.go        | 10 ++++++++++
- src/runtime/stubs.go        | 30 ++++++++++++++++++++++++++++++
- 18 files changed, 207 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/deadcode.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

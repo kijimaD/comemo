@@ -1,26 +1,16 @@
-commit fe1daf2e439ec1d650ea1193f10f52525f83f8a7
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 5 16:21:19 2023 -0400
+commit 2c3187cd4295605033740ff0522b1457a702d84d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 7 14:32:22 2022 -0700
 
-    cmd/compile: use new for loop semantics for Go 1.22+ compilations
+    spec: describe slice-to-array conversions
     
-    This includes version-dependent support for GOEXPERIMENT and
-    -d=loopvar, -d=loopvarhash, to allow testing/porting of old code.
+    For #46505.
     
-    Includes tests of downgrade (1.22 -> 1.21) and upgrade (1.21 -> 1.22)
-    based on //go:build lines (while running a 1.22 build/compiler).
-    
-    Change-Id: Idd3be61a2b46acec33c7e7edac0924158cc726b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508819
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1a30fd895496befd16626afb48717ac837ed5778
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429315
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/loopvar/loopvar.go        |   2 +-
- src/cmd/compile/internal/loopvar/loopvar_test.go   | 133 +++++++++++++++++++--
- .../compile/internal/loopvar/testdata/opt-121.go   |  44 +++++++
- .../compile/internal/loopvar/testdata/opt-122.go   |  44 +++++++
- src/cmd/compile/internal/noder/irgen.go            |   1 +
- src/cmd/compile/internal/noder/reader.go           |   4 +-
- src/cmd/compile/internal/noder/writer.go           |  21 +++-
- 7 files changed, 238 insertions(+), 11 deletions(-)
+ doc/go_spec.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

@@ -1,45 +1,14 @@
-commit 817afe83578d869b36e8697344bb2d557c86b264
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 20 17:12:38 2019 -0500
+commit ea2fb678c0c0af7be23e0149532f1cd9c8858cdf
+Author: Andrew <andybons@golang.org>
+Date:   Mon Sep 2 16:33:07 2019 -0400
 
-    cmd/go: adjust heuristics for skipping +incompatible versions
+    doc: document Go 1.13
     
-    We know of at least one module (github.com/stripe/stripe-go) that has
-    a run of +incompatible versions, followed by a run of versions with
-    go.mod files, followed by another run of +incompatible versions.
-    
-    We want the heuristics for showing +incompatible versions to reflect
-    the authors' current intent, and it seems clear that the current
-    intent of the authors of that module is for users of the unversioned
-    import path to still be on +incompatible versions.
-    
-    To respect that intent, we need to keep checking for +incompatible
-    versions even after we have seen a lower major version with an
-    explicit go.mod file.
-    
-    However, we still don't want to download every single version of the
-    module to check it. A given major version should have a consistent,
-    canonical import path, so the path (as inferred by the presence or
-    absence of a go.mod file) should be the same for every release across
-    that major version.
-    
-    To avoid unnecessary overhead — and to allow module authors to correct
-    accidental changes to a major version's import path — we check only
-    the most recent release of each major version. If a release
-    accidentally changes the import path in either direction (by deleting
-    or adding a go.mod file), it can be corrected by issuing a single
-    subsequent release of that major version to restore the correct path.
-    
-    I manually verified that, with this change,
-    github.com/stripe/stripe-go@latest reverts to v68.7.0+incompatible
-    as it was in Go 1.13.
-    The other regression tests for #34165 continue to pass.
-    
-    Updates #34165
-    
-    Change-Id: I5daff3cd2123f94c7c49519babf4eecd509f169e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212317
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Icf7e1dab82aa48cc693eb4da8a564dff23312741
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192745
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go | 67 ++++++++++++++------------------
- 1 file changed, 30 insertions(+), 37 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

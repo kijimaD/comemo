@@ -1,14 +1,16 @@
-commit 87b7b667e566403c2ccc5801b94aadae471f5738
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 27 16:50:39 2018 +0000
+commit 8e427a38786e9a35ef8e417edc5566d5989f7ea8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 7 12:54:28 2018 +0100
 
-    net/http/httptrace: add clarification never added to CL 67430
+    test/codegen: add README file for the codegen test harness
     
-    Updates #19761
+    This change adds a README file inside the test/codegen directory,
+    explaining how to run the codegen tests and the syntax of the regexps
+    comments used to match assembly instructions.
     
-    Change-Id: Iac3bd4c40002f8e348452b50bff54dee3210d447
-    Reviewed-on: https://go-review.googlesource.com/121236
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ica4eb3ffa9c6975371538cc8ae0ac3c1a3a03baf
+    Reviewed-on: https://go-review.googlesource.com/99156
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httptrace/trace.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ test/codegen/README | 129 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 129 insertions(+)

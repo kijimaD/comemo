@@ -1,20 +1,50 @@
-commit 66a67ee6b4831816ee86f1ea9e5bd555d3a13e16
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun May 13 22:58:31 2018 +0200
+commit 20101894078199a3a9014ca99ec4e2a0a16a0869
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 15 12:27:17 2018 -0500
 
-    net: implement cancellable lookup on Plan 9
+    runtime: remove legacy eager write barrier
     
-    This change implements cancellable lookup
-    on Plan 9. The query function has been modified
-    to return when the ctx.Done channel is closed.
+    Now that the buffered write barrier is implemented for all
+    architectures, we can remove the old eager write barrier
+    implementation. This CL removes the implementation from the runtime,
+    support in the compiler for calling it, and updates some compiler
+    tests that relied on the old eager barrier support. It also makes sure
+    that all of the useful comments from the old write barrier
+    implementation still have a place to live.
     
-    Fixes #25361.
+    Fixes #22460.
     
-    Change-Id: I544b779ceec8d69975bc7363045849c21cbfd59e
-    Reviewed-on: https://go-review.googlesource.com/112981
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Updates #21640 since this fixes the layering concerns of the write
+    barrier (but not the other things in that issue).
+    
+    Change-Id: I580f93c152e89607e0a72fe43370237ba97bae74
+    Reviewed-on: https://go-review.googlesource.com/92705
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_plan9.go | 70 +++++++++++++++++++++++++++++++++----------------
- 1 file changed, 47 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go        |   2 +-
+ src/cmd/compile/internal/gc/builtin.go         | 144 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 -
+ src/cmd/compile/internal/gc/go.go              |   1 -
+ src/cmd/compile/internal/gc/main.go            |  10 --
+ src/cmd/compile/internal/gc/ssa.go             |   7 --
+ src/cmd/compile/internal/ssa/config.go         |   1 -
+ src/cmd/compile/internal/ssa/export_test.go    |   1 -
+ src/cmd/compile/internal/ssa/writebarrier.go   |  19 ++--
+ src/cmd/vet/all/whitelist/386.txt              |   2 -
+ src/cmd/vet/all/whitelist/all.txt              |   3 +
+ src/cmd/vet/all/whitelist/amd64.txt            |   1 -
+ src/cmd/vet/all/whitelist/arm.txt              |   2 -
+ src/cmd/vet/all/whitelist/arm64.txt            |   2 -
+ src/cmd/vet/all/whitelist/mips64x.txt          |   2 -
+ src/cmd/vet/all/whitelist/mipsx.txt            |   2 -
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt    |   2 -
+ src/cmd/vet/all/whitelist/ppc64x.txt           |   2 -
+ src/cmd/vet/all/whitelist/s390x.txt            |   2 -
+ src/runtime/asm_amd64.s                        |   8 +-
+ src/runtime/mbarrier.go                        | 121 +++------------------
+ src/runtime/mwbbuf.go                          |  22 +++-
+ test/fixedbugs/issue15747.go                   |  14 +--
+ test/fixedbugs/issue20250.go                   |   8 +-
+ 24 files changed, 129 insertions(+), 251 deletions(-)

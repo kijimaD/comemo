@@ -1,34 +1,22 @@
-commit 5f5c018ca46b6634da9372f5af759cb36fcaed5f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jul 19 11:09:01 2022 -0700
+commit 74abcabf3045d2c893a517c872ace719f0e9d88f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 8 12:19:57 2021 -0700
 
-    cmd/compile: redo mknode.go
+    cmd/internal/obj: rename MOVBE{LL,QQ,WW} to just MOVBE{L,Q,W}
     
-    The current mknode has a few problems:
-    1) It tends not to run successfully if the tree is in a broken state.
-    2) It requires that it be run by the go tool in the tree (somewhat related to 1)
-    3) It requires setting GOROOT
-    4) It imports code outside the tree (x/packages)
+    The double suffix doesn't seem to serve any purpose, and we can keep
+    the old spelling as a backwards compatible alias in cmd/asm.
     
-    This makes mknode.go very fragile. In particular, I've spent lots of
-    time fighting mknode when adding or removing code, related to 1.
-    
-    Rewrite to just use go/ast and friends. No typechecking, no importing,
-    etc. It can run with any go version, it doesn't need to be the one
-    corresponding to the code in which it is run. (e.g. you can use go
-    1.16 to run mknode). It will work as long as the ir package is parseable.
-    
-    When run, it generates identical output to the old mknode.
-    
-    Fixes #53959
-    
-    Change-Id: I5ce0b55572ebcd2fcd11af57a5f29bbf9fa4ed33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418375
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3f01fc7249fb093ac1b25bd75c1cb9f39b8f62a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354700
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ir/mini.go   |   3 +-
- src/cmd/compile/internal/ir/mknode.go | 442 +++++++++++++++++++++-------------
- 2 files changed, 277 insertions(+), 168 deletions(-)
+ src/cmd/asm/internal/arch/arch.go            |  4 +++
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 48 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/aenum.go            |  6 ++--
+ src/cmd/internal/obj/x86/anames.go           |  6 ++--
+ src/cmd/internal/obj/x86/asm6.go             |  6 ++--
+ 5 files changed, 37 insertions(+), 33 deletions(-)

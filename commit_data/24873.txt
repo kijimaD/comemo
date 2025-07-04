@@ -1,18 +1,24 @@
-commit 940d41e386d92bda0f4fb39541df89ed424a012d
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Nov 10 11:23:41 2015 +0900
+commit 95bb89f6dd4d92747bed1fe451379cd2b99ec5b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 6 15:04:46 2015 -0700
 
-    net: make TestInterfaceList work on non-English Windows
+    [dev.ssa] cmd/compile: fix build
     
-    Fixes #13198
+    CL 14337 made SSA support fixedbugs/issue9604b.go.
+    That test contains > 40k blocks.
+    This made the O(n^2) dom algorithm fail to terminate
+    in a reasonable length of time, breaking the build.
     
-    The output of netsh is encoded with ANSI encoding. So doesn't match with UTF-8 strings.
-    Write output as UTF-8 using powershell.
+    For the moment, cap the number of blocks
+    to fix the build.
     
-    Change-Id: I6c7e93c590ed407f24ae847601d71df9523e028c
-    Reviewed-on: https://go-review.googlesource.com/16756
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    This will be reverted when a more efficient
+    dom algorithm is put in place,
+    which will be soon.
+    
+    Change-Id: Ia66c2629481d29d06655ec54d1deff076b0422c6
+    Reviewed-on: https://go-review.googlesource.com/14342
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/net_windows_test.go | 34 ++++++++++++++++++++++++++++++++--
- 1 file changed, 32 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 5 +++++
+ 1 file changed, 5 insertions(+)

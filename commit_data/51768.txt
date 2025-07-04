@@ -1,24 +1,17 @@
-commit 1f29f39795e736238200840c368c4e0c6edbfbae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 27 14:58:58 2022 -0700
+commit ef7d0413c204f69f8179b50de869acf7bd1e1731
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 17:21:40 2022 -0500
 
-    cmd/link: don't export all symbols for ELF external linking
+    cmd/go: use the correct gofmt binary in TestScript/fmt_load_errors
     
-    Since this may add a large number of --export-dynamic-symbol options,
-    use a response file if the command line gets large.
+    Otherwise, this test may fail when GOROOT/bin is not in $PATH.
     
-    Fixes #53579
-    
-    Change-Id: Ic226bf372bf1e177a3dae886d1c48f4ce3569c0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414654
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Id744f365f6604716207184c9ea49436ab2e3a835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391802
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go        | 93 +++++++++++++++++++++++++++-------
- src/cmd/link/internal/loader/loader.go |  8 +++
- src/cmd/link/link_test.go              | 45 ++++++++++++++++
- 3 files changed, 129 insertions(+), 17 deletions(-)
+ src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

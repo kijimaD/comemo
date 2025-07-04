@@ -1,16 +1,21 @@
-commit b54d31320566ffc617b6c22f0ece7331b2d29c3c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Feb 25 16:11:53 2015 -0500
+commit 187cccbde167f6979fb026524eea1004ec1d625a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Feb 2 17:40:47 2015 +0100
 
-    runtime/cgo: set the initial working directory
+    os: fix TestMkdirAllAtSlash on Plan 9
     
-    Gives tests a way to find the bundle that contains their testdata, and
-    is generally useful for finding resources.
+    Since CL 3676, the TestMkdirAllAtSlash test
+    depends on syscall.EROFS, which isn't defined
+    on Plan 9.
     
-    Change-Id: Idfa03e8543af927c17bc8ec8aadc5014ec82df28
-    Reviewed-on: https://go-review.googlesource.com/6000
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    This change works around this issue by
+    defining a system dependent isReadonlyError
+    function.
+    
+    Change-Id: If972fd2fe4828ee3bcb8537ea7f4ba29f7a87619
+    Reviewed-on: https://go-review.googlesource.com/3696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/cgo.go           |  1 +
- src/runtime/cgo/gcc_darwin_arm.c | 49 ++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ src/os/os_unix_test.go | 4 ++++
+ src/os/path_test.go    | 4 +++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

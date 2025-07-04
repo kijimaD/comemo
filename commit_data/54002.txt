@@ -1,22 +1,22 @@
-commit 36dc84ca5738e5aa03814dba4c439a0d823a1fa9
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Aug 14 11:53:26 2023 +0000
+commit 95ec579eb68fcc01975462a74676e3bacd9814b0
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Sep 12 09:27:11 2022 +0000
 
-    encoding/json: declare hex as a const
+    strconv: add a test case when base is illegal
     
-    hex is in fact immutable, declare it as a const to avoid accidental
-    modification, also for consistency with other packages.
+    Increase unit test coverage of strconv/itoa.go from 83.8% to 85%
     
-    Change-Id: I99f292e98c82d4c4526e46c9897d154d0c073da5
-    GitHub-Last-Rev: d2f06965e7e03df470d8c3c8882619187abf1609
-    GitHub-Pull-Request: golang/go#62011
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519155
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I0abdfc70a3f06251106f229c12ffb105eeb43fc8
+    GitHub-Last-Rev: da9755368b5db41123c8f945fecedd135e9f894a
+    GitHub-Pull-Request: golang/go#55014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430137
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
 
- src/encoding/json/encode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/strconv/itoa_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

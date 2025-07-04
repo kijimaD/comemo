@@ -1,30 +1,28 @@
-commit f9271e4f853eacded38fd6d626948e035cfd608c
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Sep 9 09:26:40 2021 -0400
+commit 0de8eafd98e7431a46c60dd8ea4d3f3a47691049
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 18:02:33 2020 -0800
 
-    go/types, types2: rename RParams -> RecvTypeParams
+    [dev.regabi] cmd/compile: remove SelectorExpr.Offset field
     
-    To be consistent with CL 348376, spell out 'RecvTypeParams' in go/types
-    and types2 API.
+    Now that the previous CL ensures we always set SelectorExpr.Selection,
+    we can replace the SelectorExpr.Offset field with a helper method that
+    simply returns SelectorExpr.Selection.Offset.
     
-    Updates #47916
+    Passes toolstash -cmp.
     
-    Change-Id: If8b3fd4274ccb944bd0ff04d7007e94e5fba61c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348810
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Id0f22b8b1980397b668f6860d27cb197b90ff52a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280433
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/importer/iimport.go |  2 +-
- src/cmd/compile/internal/noder/reader2.go    |  2 +-
- src/cmd/compile/internal/noder/types.go      |  2 +-
- src/cmd/compile/internal/noder/writer.go     |  6 +++---
- src/cmd/compile/internal/types2/call.go      |  6 +++---
- src/cmd/compile/internal/types2/lookup.go    |  8 ++++----
- src/cmd/compile/internal/types2/signature.go | 18 +++++++++---------
- src/go/internal/gcimporter/iimport.go        |  2 +-
- src/go/types/call.go                         |  6 +++---
- src/go/types/lookup.go                       |  6 +++---
- src/go/types/signature.go                    | 18 +++++++++---------
- 11 files changed, 38 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             |  3 +--
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go          | 24 ++++++++++--------------
+ src/cmd/compile/internal/staticinit/sched.go    |  2 +-
+ src/cmd/compile/internal/typecheck/const.go     |  2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  6 ++----
+ src/cmd/compile/internal/walk/expr.go           | 13 ++-----------
+ src/cmd/compile/internal/walk/walk.go           |  1 -
+ 8 files changed, 18 insertions(+), 35 deletions(-)

@@ -1,34 +1,16 @@
-commit 7430266af4f951df3c113f2c817bc600650e2295
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Nov 21 21:33:18 2020 -0500
+commit 03efd426316a0a1cde419d5ad200b683766bbc84
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 29 14:55:07 2020 +1000
 
-    cmd/internal/codesign: new package
+    image: add a NewUniform doc comment
     
-    On macOS/ARM64, the kernel requires that binaries must have a
-    valid code signature to run. The C toolchain code-signs the
-    binary at link time. We do the same.
+    Fixes #38739
     
-    It is more subtle for Go because we stamp the buildid after
-    linking. As the signature contains hashes of the entire file
-    (except the signature itself), we must (re)generate the signature
-    after stamping the buildid.
-    
-    This CL adds a new codesign package, which provides
-    functionality to generate the code signature. It is a separate
-    internal package so it can be used both in the linker and by the
-    go command. The next CLs will add code-signing to the linker and
-    the go command.
-    
-    Updates #38485, #42684.
-    
-    Change-Id: Id46801a6665beebaab0eb413ff2e64c5b9467059
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272254
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I42b9b601e63ab8df69a0e5ce9bcabf75bb98d83e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230777
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/buildtool.go             |   1 +
- src/cmd/internal/codesign/codesign.go | 268 ++++++++++++++++++++++++++++++++++
- 2 files changed, 269 insertions(+)
+ src/image/names.go | 1 +
+ 1 file changed, 1 insertion(+)

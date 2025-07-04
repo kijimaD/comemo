@@ -1,17 +1,18 @@
-commit 769274bf14f318f186ae1f89fd0fccb18241aaee
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Mon Feb 10 21:06:02 2025 +0000
+commit 5214949d41dda9d02490526d4e92a6cfa91a2b4a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 4 10:00:41 2023 -0800
 
-    cmd/go: do not apply kill timeout to go test with -bench
+    crypto/x509: revert Policies marshaling behavior
     
-    The testing package already does this. go test should do the same thing.
+    Don't marshal Policies field.
     
-    Fixes: #69181
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I942bd09c5832b48d498a2eb1f1500e1d294d0a2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648236
+    Updates #64248
+    
+    Change-Id: I7e6d8b9ff1b3698bb4f585fa82fc4050eff3ae4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546915
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/test/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/x509.go      | 30 +++---------------------------
+ src/crypto/x509/x509_test.go | 27 ---------------------------
+ 2 files changed, 3 insertions(+), 54 deletions(-)

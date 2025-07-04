@@ -1,37 +1,46 @@
-commit d29f5247b8cbf5f2cb7b0e325a5eb1c7c5c1a91f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Feb 10 00:49:44 2022 +0000
+commit d1916e5e843d0341c2d82edf08335ac181c41bd8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 23 22:06:50 2021 -0400
 
-    runtime: refactor the scavenger and make it testable
+    go/types: in TestCheck/issues.src, import regexp/syntax instead of cmd/compile/internal/syntax
     
-    This change refactors the scavenger into a type whose methods represent
-    the actual function and scheduling of the scavenger. It also stubs out
-    access to global state in order to make it testable.
+    TestCheck/issues.src was failing after running
+            rm -r $(go env GOROOT)/pkg/*/cmd
+    as the builders do when building binary releases.
     
-    This change thus also adds a test for the scavenger. In writing this
-    test, I discovered the lack of a behavior I expected: if the
-    pageAlloc.scavenge returns < the bytes requested scavenged, that means
-    the heap is exhausted. This has been true this whole time, but was not
-    documented or explicitly relied upon. This change rectifies that. In
-    theory this means the scavenger could spin in run() indefinitely (as
-    happened in the test) if shouldStop never told it to stop. In practice,
-    shouldStop fires long before the heap is exhausted, but for future
-    changes it may be important. At the very least it's good to be
-    intentional about these things.
+    For users who write programs that depend on go/types, it should be
+    reasonable for end users to run the tests for go/types as part of 'go
+    test all', and those tests should pass even if they installed Go from
+    a binary release.
     
-    While we're here, I also moved the call to stopTimer out of wake and
-    into sleep. There's no reason to add more operations to a context that's
-    already precarious (running without a P on sysmon).
+    The test case in issues.src was importing cmd/compile/internal/syntax
+    in order to check the reported package name.
     
-    Change-Id: Ib31b86379fd9df84f25ae282734437afc540da5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384734
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    I tried to fix the problem by having the test import from source
+    instead of from export data. Unfortunately, that changed the behavior
+    under test: the go/types.Package.Imports reports (and is documented to
+    report) a different set of imported packages when loading from source
+    as compared to when loading from export data.
+    
+    For this particular test, after CL 313035 that difference resulted in
+    go/types treating the "syntax" name as ambiguous when importing from
+    source, because a transitive dependency on "regexp/syntax" is found
+    when loading from source but omitted when loading from export data.
+    
+    The simple fix to make the package unambiguous again is to adapt the
+    test to import regexp/syntax directly. That not only makes the package
+    unambiguous with all importers, but also avoids depending on a
+    cmd-internal package that cannot be loaded from export data in binary
+    distributions of the Go toolchain.
+    
+    For #43232
+    
+    Change-Id: Iba45a680ea20d26daa86ac538fd8f1938e8b73ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330431
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/export_test.go      | 104 +++++++
- src/runtime/mgcscavenge.go      | 584 +++++++++++++++++++++++++---------------
- src/runtime/mgcscavenge_test.go | 112 ++++++++
- src/runtime/mgcsweep.go         |   7 +-
- src/runtime/proc.go             |   4 +-
- 5 files changed, 580 insertions(+), 231 deletions(-)
+ src/go/types/testdata/check/issues.src | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

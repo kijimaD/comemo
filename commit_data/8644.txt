@@ -1,31 +1,12 @@
-commit c5030e5f4b5553b1deade2dd0107990d8449c16c
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jun 7 14:26:16 2011 -0400
+commit 35b74d69033b0fb51b464547aaedce234c0e6661
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 7 10:07:50 2011 -0700
 
-    ld: fix and simplify ELF symbol generation
+    C+A: added Michael T. Jones (Google)
     
-    I started looking at this code because the nm in GNU
-    binutils was ignoring the first symbol in the .symtab
-    section.  Apparently, the System V ABI reserves the
-    first entry and requires all fields inside to be set
-    to zero.
-    
-    The list of changes is as follows:
-    
-      · reserve the first symbol entry (as noted above)
-      · fix the section indices for .data and .bss symbols
-      · factor out common code for Elf32 and Elf64
-      · remove the special case for elfsymo in [568]l/asm.c:/^asmb
-      · add the "etext" symbol in 6l
-      · add static symbols
-    
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4524075
+    https://golang.org/cl/4528126
 
- src/cmd/5l/asm.c    | 30 +++++++--------------
- src/cmd/6l/asm.c    | 43 +++++++----------------------
- src/cmd/8l/asm.c    | 27 +++++++------------
- src/cmd/ld/lib.h    |  3 +--
- src/cmd/ld/symtab.c | 78 ++++++++++++++++++++++-------------------------------
- 5 files changed, 61 insertions(+), 120 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

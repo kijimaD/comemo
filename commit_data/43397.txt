@@ -1,26 +1,31 @@
-commit 7211694a1e3f9eaebff7074944feead968e00e72
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 7 09:51:45 2020 -0400
+commit 6edd7971bb3e83356544b2cd6e7a93fdabff1246
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 1 05:27:49 2020 +0700
 
-    net/http: add FS to convert fs.FS to FileSystem
+    cmd/compile: optimize len check when make slice
     
-    Two different functions in the http API expect a FileSystem:
-    http.FileSystem and http.NewFileTransport.
-    Add a general converter http.FS to turn an fs.FS into an http.FileSystem
-    for use with either of these functions.
+    In CL 226278, we did:
     
-    (The original plan was to add http.HandlerFS taking an fs.FS directly,
-    but that doesn't help with NewFileTransport.)
+            if len < 0 { panicmakeslicelen }
+            if len > cap { panicmakeslicecap }
     
-    For #41190.
+    But due to the fact that cap is constrained to [0,2^31), so it is safe
+    to do:
     
-    Change-Id: I5f242eafe9b963f4387419a2615bdb487c358f16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243939
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+            if uint64(len) > cap {
+                if len < 0 { panicmakeslicelen() }
+                panicmakeslicecap()
+            }
+    
+    save us a comparison in common case when len is within range.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0ebd52914ccde4cbb45f16c9e020b0c8f42e0663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226737
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/fs.go      | 133 +++++++++++++++++++++++++++++++++++++++++++++---
- src/net/http/fs_test.go |  37 ++++++++++++++
- 2 files changed, 162 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

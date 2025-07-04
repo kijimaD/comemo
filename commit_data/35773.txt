@@ -1,16 +1,19 @@
-commit 1507502ff2a9d18c90a293728773015804992752
+commit 709da95513a64499c6974aadc563b9638fe9f49d
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 21 12:01:54 2018 -0700
+Date:   Wed Mar 7 07:03:46 2018 -0800
 
-    cmd/go: re-enable a couple of tests of gccgo
+    cmd/go: run vet on packages with only cgo files
     
-    Updates #22472
+    CgoFiles is not included in GoFiles, so we need to check both.
     
-    Change-Id: I526d131f2ef8e0200f7a5634c75b31e0ee083f93
-    Reviewed-on: https://go-review.googlesource.com/120375
+    Fixes #24193
+    
+    Change-Id: I6a67bd912e3d9a4be0eae8fa8db6fa8a07fb5df3
+    Reviewed-on: https://go-review.googlesource.com/99175
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/go_test.go          | 10 ++++++++++
+ src/cmd/go/internal/vet/vet.go |  4 ++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

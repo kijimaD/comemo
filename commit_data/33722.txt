@@ -1,17 +1,20 @@
-commit 07a2ffaf0b2961c76e69e3ca910b6a08a687626b
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Sat Nov 4 20:54:30 2017 +0000
+commit 4d269ad1754afa177a590b0dfaff48d8adce2619
+Author: Chris Ball <chris@printf.net>
+Date:   Thu May 25 15:48:02 2017 -0400
 
-    doc: move single change workflow note in contribution guide
+    runtime: add symbols for Linux syscall numbers on 386/amd64
     
-    The note about the single change workflow is included in the
-    git-codereview installation instructions, but it has nothing to do with
-    installing git-codereview. This note is more relevant for when a change
-    is actually being made.
+    Matches other architectures by using names for syscalls instead of
+    numbers directly.
     
-    Change-Id: Iccb90f3b7da87fab863fa4808438cd69a21a2fce
-    Reviewed-on: https://go-review.googlesource.com/76317
-    Reviewed-by: Steve Francia <spf@golang.org>
+    Fixes #20499.
+    
+    Change-Id: I63d606b0b1fe6fb517fd994a7542a3f38d80dd54
+    Reviewed-on: https://go-review.googlesource.com/44213
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/contribute.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/sys_linux_386.s   | 114 +++++++++++++++++++++++++++---------------
+ src/runtime/sys_linux_amd64.s | 112 +++++++++++++++++++++++++++--------------
+ 2 files changed, 149 insertions(+), 77 deletions(-)

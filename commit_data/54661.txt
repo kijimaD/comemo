@@ -1,58 +1,22 @@
-commit 51bdd3bdcc016fe85add6ce912a0c3075e3a6d47
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Oct 8 10:51:45 2023 +0800
+commit a1c31d6803dac891b200b3598aa00224ab80c0bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 7 11:45:57 2022 -0500
 
-    os: use strings.EqualFold in os_test.go
+    cmd/go: replace Action.Func with Action.Actor
     
-    strings.EqualFold has no memory overhead and has better performance than strings.ToLower.
+    The interface will let us store actor-specific state in the
+    interface implementation instead of continuing to grow
+    the Action struct. In the long term we should remove fields
+    from the struct that are not used by all Actions.
     
-    This is a performance test:
-    
-    package bench
-    
-    import (
-            "strings"
-            "testing"
-    )
-    
-    func BenchmarkToLower(b *testing.B) {
-    
-            str1 := "Windows"
-            str2 := "windows"
-    
-            for i := 0; i < b.N; i++ {
-                    if strings.ToLower(str1) == strings.ToLower(str2) {
-                    }
-            }
-    }
-    
-    func BenchmarkEqualFold(b *testing.B) {
-    
-            str1 := "Windows"
-            str2 := "windows"
-    
-            for i := 0; i < b.N; i++ {
-                    if strings.EqualFold(str1, str2) {
-                    }
-            }
-    }
-    
-    The result:
-    
-    goos: darwin
-    goarch: arm64
-    BenchmarkToLower-8      31404808                36.99 ns/op            8 B/op          1 allocs/op
-    BenchmarkEqualFold-8    194780793                5.989 ns/op           0 B/op          0 allocs/op
-    PASS
-    
-    Change-Id: Id3d92534942d3eb0bdc1d01359324030ad0e434f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533635
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I8ac89eda7a91d742cee547a1f779e9f254dfd2f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448356
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/os/os_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/run/run.go     |  2 +-
+ src/cmd/go/internal/test/test.go   | 12 ++++-----
+ src/cmd/go/internal/work/action.go | 52 +++++++++++++++++++++++---------------
+ src/cmd/go/internal/work/exec.go   |  4 +--
+ 4 files changed, 41 insertions(+), 29 deletions(-)

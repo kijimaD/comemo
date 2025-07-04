@@ -1,25 +1,42 @@
-commit f89badf6b448974296d7d05bd7d140d3e5ba4683
-Author: Kevin Parsons <kevpar@microsoft.com>
-Date:   Thu Jan 19 07:40:12 2023 +0000
+commit 986b04c0f12efa1c57293f147a9e734ec71f0363
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Feb 15 16:59:59 2022 -0800
 
-    make.bat: support existing toolchain paths with spaces
+    encoding/binary: add AppendByteOrder
     
-    Previously if the default go toolchain (from "where go") contained spaces, then running make.bat would fail.
+    AppendByteOrder specifies new methods for LittleEndian and BigEndian
+    for appending an unsigned integer to a byte slice.
     
-    Fixes it to correctly treat paths with spaces. This is especially useful given that the default Go install path is under "C:\Program Files".
+    The performance of AppendXXX methods are slower than PutXXX methods
+    since the former needs to do a few slice operations,
+    while the latter is essentially a single integer store.
+    In practice, existing usages of PutXXX performed slicing operations
+    around the call such that this cost was present, regardless.
     
-    Fixes #57918
+    name                           time/op
+    PutUint16-24                   0.48ns ± 2%
+    AppendUint16-24                1.54ns ± 1%
+    PutUint32-24                   0.46ns ± 2%
+    AppendUint32-24                0.89ns ± 1%
+    PutUint64-24                   0.46ns ± 2%
+    AppendUint64-24                0.89ns ± 1%
+    LittleEndianPutUint16-24       0.47ns ± 2%
+    LittleEndianAppendUint16-24    1.54ns ± 1%
+    LittleEndianPutUint32-24       0.45ns ± 3%
+    LittleEndianAppendUint32-24    0.92ns ± 2%
+    LittleEndianPutUint64-24       0.46ns ± 3%
+    LittleEndianAppendUint64-24    0.95ns ± 4%
     
-    Change-Id: Icacf8dd5178b608225f02e4a11a8753d78bed262
-    GitHub-Last-Rev: 4cd8a790e41353bb6bb2bfc36db1013ab0dcae6d
-    GitHub-Pull-Request: golang/go#57836
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462275
+    Fixes #50601
+    
+    Change-Id: I33d2bbc93a3ce01a9269feac33a2432bc1166ead
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386017
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/binary/binary.go      |  73 +++++++++++++++++++++++-
+ src/encoding/binary/binary_test.go | 114 +++++++++++++++++++++++++++++++++++--
+ 2 files changed, 178 insertions(+), 9 deletions(-)

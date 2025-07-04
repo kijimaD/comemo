@@ -1,35 +1,24 @@
-commit 1f9dce749db804a8cce767adde3701378db1461c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 20 14:02:24 2021 -0400
+commit 414fa8c35e7c2f65e2c767d6db2f25791e53b5c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 8 11:50:10 2020 -0500
 
-    cmd/go: download fewer dependencies in 'go mod download'
+    cmd/internal/objabi: use a separate bit to mark weak relocation
     
-    In modules that specify 'go 1.17' or higher, the go.mod file
-    explicitly requires modules for all packages transitively imported by
-    the main module. Users tend to use 'go mod download' to prepare for
-    testing the main module itself, so we should only download those
-    relevant modules.
+    Instead of using two relocation types R_XXX and R_WEAKXXX, use a
+    separate bit, R_WEAK, to mark weak relocations. This makes it
+    easier to add more weak relocation types.
     
-    In 'go 1.16' and earlier modules, we continue to download all modules
-    in the module graph (because we cannot in general tell which ones are
-    relevant without loading the full package import graph).
-    
-    'go mod download all' continues to download every module in
-    'go list all', as it did before.
-    
-    Fixes #44435
-    
-    Change-Id: I3f286c0e2549d6688b3832ff116e6cd77a19401c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357310
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iec4195c2aefa65f59e464c83018246e17cd08173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268478
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html                             | 13 ++++++
- src/cmd/go/alldocs.go                       |  7 +++-
- src/cmd/go/internal/modcmd/download.go      | 61 ++++++++++++++++++++++-------
- src/cmd/go/internal/modload/buildlist.go    |  2 +-
- src/cmd/go/internal/modload/modfile.go      |  6 +--
- src/cmd/go/testdata/script/mod_download.txt | 44 +++++++++++++++++++++
- 6 files changed, 113 insertions(+), 20 deletions(-)
+ src/cmd/internal/objabi/reloctype.go        |  13 ++--
+ src/cmd/internal/objabi/reloctype_string.go | 113 ++++++++++++++--------------
+ src/cmd/link/internal/ld/data.go            |  29 +++----
+ src/cmd/link/internal/ld/deadcode.go        |   5 +-
+ src/cmd/link/internal/loader/loader.go      |   3 +-
+ 5 files changed, 85 insertions(+), 78 deletions(-)

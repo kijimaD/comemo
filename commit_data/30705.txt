@@ -1,45 +1,18 @@
-commit aea44109cf23946332319ba51a4a373a9de432e6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 16 21:13:29 2017 -0700
+commit 0c5c7c3446a0917d830579b2f3f7582b759695a3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 29 05:19:47 2016 +0000
 
-    strconv: replace small int string table with constant string
+    doc: update go1.8.html after feedback from Russ
     
-    This reduces memory use yet still provides the significant
-    performance gain seen when using a fast path for small integers.
+    Address Russ's feedback from https://golang.org/cl/33244
     
-    Improvement of this CL comparing to code without fast path:
+    TBR=See https://golang.org/cl/33244
     
-    name              old time/op  new time/op  delta
-    FormatIntSmall-8  35.6ns ± 1%   4.5ns ± 1%  -87.30%  (p=0.008 n=5+5)
-    AppendIntSmall-8  17.4ns ± 1%   9.4ns ± 3%  -45.70%  (p=0.008 n=5+5)
+    Updates #17929
     
-    For comparison, here's the improvement before this CL to code without
-    fast path (1% better for FormatIntSmall):
-    
-    name              old time/op  new time/op  delta
-    FormatIntSmall-8  35.6ns ± 1%   4.0ns ± 3%  -88.64%  (p=0.008 n=5+5)
-    AppendIntSmall-8  17.4ns ± 1%   8.2ns ± 1%  -52.80%  (p=0.008 n=5+5)
-    
-    Thus, the code in this CL performs slower for small integers using fast
-    path then the prior version, but this is relative to an already very fast
-    version:
-    
-    name              old time/op  new time/op  delta
-    FormatIntSmall-8  4.05ns ± 3%  4.52ns ± 1%  +11.81%  (p=0.008 n=5+5)
-    AppendIntSmall-8  8.21ns ± 1%  9.45ns ± 3%  +15.05%  (p=0.008 n=5+5)
-    
-    Measured on 2.3 GHz Intel Core i7 running macOS Sierra 10.12.3.
-    
-    Overall, it's still ~88% faster than without fast path for small integers,
-    so probably worth it as it removes 100 global string slices in favor of
-    a single string.
-    
-    Credits: This is based on the original (but cleaned up) version of the
-    code by Aliaksandr Valialkin (https://go-review.googlesource.com/c/37963/).
-    
-    Change-Id: Icda78679c8c14666d46257894e9fa3d7f35e58b8
-    Reviewed-on: https://go-review.googlesource.com/38319
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I708d71f519f6414ecec629d3c273d9e737d8ed50
+    Reviewed-on: https://go-review.googlesource.com/33656
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strconv/itoa.go | 53 ++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 32 insertions(+), 21 deletions(-)
+ doc/go1.8.html | 281 ++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 197 insertions(+), 84 deletions(-)

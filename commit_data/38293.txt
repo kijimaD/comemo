@@ -1,79 +1,17 @@
-commit 6ebfbbaadf391048ffe987404497d5d6409ff1ef
-Author: Chris Marchesi <chrism@vancluevertech.com>
-Date:   Thu Mar 7 20:01:21 2019 +0000
+commit 19b264e7bfb47526607d68dd5e1adc2b9f7d058f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 16 18:18:40 2018 -0700
 
-    net/http: let Transport request body writes use sendfile
+    cmd/cgo: mangle names before rewriting calls
     
-    net.TCPConn has the ability to send data out using system calls such as
-    sendfile when the source data comes from an *os.File. However, the way
-    that I/O has been laid out in the transport means that the File is
-    actually wrapped behind two outer io.Readers, and as such the TCP stack
-    cannot properly type-assert the reader, ensuring that it falls back to
-    genericReadFrom.
+    Move name mangling before rewriting calls rather than after.
+    This is in preparation for later changes.
     
-    This commit does the following:
-    
-    * Removes transferBodyReader and moves its functionality to a new
-    doBodyCopy helper. This is not an io.Reader implementation, but no
-    functionality is lost this way, and it allows us to unwrap one layer
-    from the body.
-    
-    * The second layer of the body is unwrapped if the original reader
-    was wrapped with ioutil.NopCloser, which is what NewRequest wraps the
-    body in if it's not a ReadCloser on its own. The unwrap operation
-    passes through the existing body if there's no nopCloser.
-    
-    Note that this depends on change https://golang.org/cl/163737 to
-    properly function, as the lack of ReaderFrom implementation otherwise
-    means that this functionality is essentially walled off.
-    
-    Benchmarks between this commit and https://golang.org/cl/163862,
-    incorporating https://golang.org/cl/163737:
-    
-    linux/amd64:
-    name                        old time/op    new time/op    delta
-    FileAndServer_1KB/NoTLS-4     53.2µs ± 0%    53.3µs ± 0%      ~     (p=0.075 n=10+9)
-    FileAndServer_1KB/TLS-4       61.2µs ± 0%    60.7µs ± 0%    -0.77%  (p=0.000 n=10+9)
-    FileAndServer_16MB/NoTLS-4    25.3ms ± 5%     3.8ms ± 6%   -84.95%  (p=0.000 n=10+10)
-    FileAndServer_16MB/TLS-4      33.2ms ± 2%    13.4ms ± 2%   -59.57%  (p=0.000 n=10+10)
-    FileAndServer_64MB/NoTLS-4     106ms ± 4%      16ms ± 2%   -84.45%  (p=0.000 n=10+10)
-    FileAndServer_64MB/TLS-4       129ms ± 1%      54ms ± 3%   -58.32%  (p=0.000 n=8+10)
-    
-    name                        old speed      new speed      delta
-    FileAndServer_1KB/NoTLS-4   19.2MB/s ± 0%  19.2MB/s ± 0%      ~     (p=0.095 n=10+9)
-    FileAndServer_1KB/TLS-4     16.7MB/s ± 0%  16.9MB/s ± 0%    +0.78%  (p=0.000 n=10+9)
-    FileAndServer_16MB/NoTLS-4   664MB/s ± 5%  4415MB/s ± 6%  +565.27%  (p=0.000 n=10+10)
-    FileAndServer_16MB/TLS-4     505MB/s ± 2%  1250MB/s ± 2%  +147.32%  (p=0.000 n=10+10)
-    FileAndServer_64MB/NoTLS-4   636MB/s ± 4%  4090MB/s ± 2%  +542.81%  (p=0.000 n=10+10)
-    FileAndServer_64MB/TLS-4     522MB/s ± 1%  1251MB/s ± 3%  +139.95%  (p=0.000 n=8+10)
-    
-    darwin/amd64:
-    name                        old time/op    new time/op     delta
-    FileAndServer_1KB/NoTLS-8     93.0µs ± 5%     96.6µs ±11%      ~     (p=0.190 n=10+10)
-    FileAndServer_1KB/TLS-8        105µs ± 7%      100µs ± 5%    -5.14%  (p=0.002 n=10+9)
-    FileAndServer_16MB/NoTLS-8    87.5ms ±19%     10.0ms ± 6%   -88.57%  (p=0.000 n=10+10)
-    FileAndServer_16MB/TLS-8      52.7ms ±11%     17.4ms ± 5%   -66.92%  (p=0.000 n=10+10)
-    FileAndServer_64MB/NoTLS-8     363ms ±54%       39ms ± 7%   -89.24%  (p=0.000 n=10+10)
-    FileAndServer_64MB/TLS-8       209ms ±13%       73ms ± 5%   -65.37%  (p=0.000 n=9+10)
-    
-    name                        old speed      new speed       delta
-    FileAndServer_1KB/NoTLS-8   11.0MB/s ± 5%   10.6MB/s ±10%      ~     (p=0.184 n=10+10)
-    FileAndServer_1KB/TLS-8     9.75MB/s ± 7%  10.27MB/s ± 5%    +5.26%  (p=0.003 n=10+9)
-    FileAndServer_16MB/NoTLS-8   194MB/s ±16%   1680MB/s ± 6%  +767.83%  (p=0.000 n=10+10)
-    FileAndServer_16MB/TLS-8     319MB/s ±10%    963MB/s ± 4%  +201.36%  (p=0.000 n=10+10)
-    FileAndServer_64MB/NoTLS-8   180MB/s ±31%   1719MB/s ± 7%  +853.61%  (p=0.000 n=9+10)
-    FileAndServer_64MB/TLS-8     321MB/s ±12%    926MB/s ± 5%  +188.24%  (p=0.000 n=9+10)
-    
-    Updates #30377.
-    
-    Change-Id: I631a73cea75371dfbb418c9cd487c4aa35e73fcd
-    GitHub-Last-Rev: 4a77dd1b80140274bf3ed20ad7465ff3cc06febf
-    GitHub-Pull-Request: golang/go#30378
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163599
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I74bc351f4290dad7ebf6d0d361bb684087786053
+    Reviewed-on: https://go-review.googlesource.com/c/142881
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transfer.go      |  53 +++++++-----
- src/net/http/transfer_test.go | 188 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 222 insertions(+), 19 deletions(-)
+ src/cmd/cgo/gcc.go | 39 ++++++++++++++++++++++-----------------
+ 1 file changed, 22 insertions(+), 17 deletions(-)

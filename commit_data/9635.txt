@@ -1,16 +1,17 @@
-commit 72dcab1c40f5160e6bbcc5f26887c8f08b2f5d28
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 8 10:37:26 2011 -0700
+commit 7df4322114561f11040779c2a3be270da73f947e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 8 10:09:25 2011 -0400
 
-    godoc: fix local link for factory functions
+    exp/regexp: leftmost-longest matching
     
-    - fix suggested by rodrigo.moraes
+    Not exposed in the API yet, but passes tests.
     
-    Fixes #1755.
-    
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4977057
+    https://golang.org/cl/4967059
 
- lib/godoc/package.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/regexp/exec.go      |  33 ++++++++------
+ src/pkg/exp/regexp/exec_test.go |  92 +++++++++++++++++++++++++++++++---------
+ src/pkg/exp/regexp/re2.txt.gz   | Bin 764518 -> 960863 bytes
+ src/pkg/exp/regexp/regexp.go    |   1 +
+ 4 files changed, 93 insertions(+), 33 deletions(-)

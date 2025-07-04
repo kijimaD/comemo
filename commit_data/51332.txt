@@ -1,26 +1,18 @@
-commit b7662047aedc5f2c512911eb59d514ce75b16e18
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 16 14:19:47 2022 -0800
+commit 83bfdb6561c06bd890446af01b0f0c735360a8df
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Jan 12 09:54:19 2022 -0500
 
-    net: change resolverConfig.dnsConfig to an atomic.Pointer
+    go/ast: mention that FieldLists can now be enclosed by brackets
     
-    We were using a RWMutex RLock around a single memory load,
-    which is not a good use of a RWMutex--it introduces extra work
-    for the RLock but contention around a single memory load is unlikely.
-    And, the tryUpdate method was not acquiring the mutex anyhow.
+    Type parameter lists are stored using ast.FieldLists. Update the
+    documentation to reflect that the enclosing delimiter may be a bracket.
     
-    The new atomic.Pointer type is type-safe and easy to use correctly
-    for a simple use-case like this.
-    
-    Change-Id: Ib3859c03414c44d2e897f6d15c92c8e4b5c81a11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451416
+    Change-Id: Id103e7b38975e94a1b521f75695edc10408ad3dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378014
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/net/dnsclient_unix.go      | 19 +++++++------------
- src/net/dnsclient_unix_test.go | 13 +++----------
- 2 files changed, 10 insertions(+), 22 deletions(-)
+ src/go/ast/ast.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

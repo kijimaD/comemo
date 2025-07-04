@@ -1,136 +1,24 @@
-commit 9a8c69539cbd052e2c4b55496d72ec8407c0af52
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 20 03:16:22 2016 -0700
+commit f42f20ad391c510ef394bc66cf3cf5bedef48e1e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 04:08:10 2016 +0000
 
-    bytes, strings: optimize for ASCII sets
+    net/http: fix ordering & data race in TestTransportEventTrace_h2
     
-    In a large codebase within Google, there are thousands of uses of:
-            ContainsAny|IndexAny|LastIndexAny|Trim|TrimLeft|TrimRight
+    Ordering fix: this CL swaps the order of the log write and the channel close
+    in WroteRequest. I could reproduce the bug by putting a sleep between the two
+    when the channel close was first. It needs to happen after the log.
     
-    An analysis of their usage shows that over 97% of them only use character
-    sets consisting of only ASCII symbols.
+    Data race: use the log buffer's mutex when reading too. Not really
+    important once the ordering fix above is fixed (since nobody is
+    concurrently writing anymore), but for consistency.
     
-    Uses of ContainsAny|IndexAny|LastIndexAny:
-             6% are 1   character  (e.g., "\n" or " ")
-            58% are 2-4 characters (e.g., "<>" or "\r\n\t ")
-            24% are 5-9 characters (e.g., "()[]*^$")
-            10% are 10+ characters (e.g., "+-=&|><!(){}[]^\"~*?:\\/ ")
-    We optimize for ASCII sets, which are commonly used to search for
-    "control" characters in some string. We don't optimize for the
-    single character scenario since IndexRune or IndexByte could be used.
+    Fixes #16414
     
-    Uses of Trim|TrimLeft|TrimRight:
-            71% are 1   character  (e.g., "\n" or " ")
-            14% are 2   characters (e.g., "\r\n")
-            10% are 3-4 characters (e.g., " \t\r\n")
-             5% are 10+ characters (e.g., "0123456789abcdefABCDEF")
-    We optimize for the single character case with a simple closured function
-    that only checks for that character's value. We optimize for the medium
-    and larger sets using a 16-byte bit-map representing a set of ASCII characters.
-    
-    The benchmarks below have the following suffix name "%d:%d" where the first
-    number is the length of the input and the second number is the length
-    of the charset.
-    
-    == bytes package ==
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkIndexAnyASCII/1:1-4         5.09          5.23          +2.75%
-    BenchmarkIndexAnyASCII/1:2-4         5.81          5.85          +0.69%
-    BenchmarkIndexAnyASCII/1:4-4         7.22          7.50          +3.88%
-    BenchmarkIndexAnyASCII/1:8-4         11.0          11.1          +0.91%
-    BenchmarkIndexAnyASCII/1:16-4        17.5          17.8          +1.71%
-    BenchmarkIndexAnyASCII/16:1-4        36.0          34.0          -5.56%
-    BenchmarkIndexAnyASCII/16:2-4        46.6          36.5          -21.67%
-    BenchmarkIndexAnyASCII/16:4-4        78.0          40.4          -48.21%
-    BenchmarkIndexAnyASCII/16:8-4        136           47.4          -65.15%
-    BenchmarkIndexAnyASCII/16:16-4       254           61.5          -75.79%
-    BenchmarkIndexAnyASCII/256:1-4       542           388           -28.41%
-    BenchmarkIndexAnyASCII/256:2-4       705           382           -45.82%
-    BenchmarkIndexAnyASCII/256:4-4       1089          386           -64.55%
-    BenchmarkIndexAnyASCII/256:8-4       1994          394           -80.24%
-    BenchmarkIndexAnyASCII/256:16-4      3843          411           -89.31%
-    BenchmarkIndexAnyASCII/4096:1-4      8522          5873          -31.08%
-    BenchmarkIndexAnyASCII/4096:2-4      11253         5861          -47.92%
-    BenchmarkIndexAnyASCII/4096:4-4      17824         5883          -66.99%
-    BenchmarkIndexAnyASCII/4096:8-4      32053         5871          -81.68%
-    BenchmarkIndexAnyASCII/4096:16-4     60512         5888          -90.27%
-    BenchmarkTrimASCII/1:1-4             79.5          70.8          -10.94%
-    BenchmarkTrimASCII/1:2-4             79.0          105           +32.91%
-    BenchmarkTrimASCII/1:4-4             79.6          109           +36.93%
-    BenchmarkTrimASCII/1:8-4             78.8          118           +49.75%
-    BenchmarkTrimASCII/1:16-4            80.2          132           +64.59%
-    BenchmarkTrimASCII/16:1-4            243           116           -52.26%
-    BenchmarkTrimASCII/16:2-4            243           171           -29.63%
-    BenchmarkTrimASCII/16:4-4            243           176           -27.57%
-    BenchmarkTrimASCII/16:8-4            241           184           -23.65%
-    BenchmarkTrimASCII/16:16-4           238           199           -16.39%
-    BenchmarkTrimASCII/256:1-4           2580          840           -67.44%
-    BenchmarkTrimASCII/256:2-4           2603          1175          -54.86%
-    BenchmarkTrimASCII/256:4-4           2572          1188          -53.81%
-    BenchmarkTrimASCII/256:8-4           2550          1191          -53.29%
-    BenchmarkTrimASCII/256:16-4          2585          1208          -53.27%
-    BenchmarkTrimASCII/4096:1-4          39773         12181         -69.37%
-    BenchmarkTrimASCII/4096:2-4          39946         17231         -56.86%
-    BenchmarkTrimASCII/4096:4-4          39641         17179         -56.66%
-    BenchmarkTrimASCII/4096:8-4          39835         17175         -56.88%
-    BenchmarkTrimASCII/4096:16-4         40229         17215         -57.21%
-    
-    == strings package ==
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkIndexAnyASCII/1:1-4         5.94          4.97          -16.33%
-    BenchmarkIndexAnyASCII/1:2-4         5.94          5.55          -6.57%
-    BenchmarkIndexAnyASCII/1:4-4         7.45          7.21          -3.22%
-    BenchmarkIndexAnyASCII/1:8-4         10.8          10.6          -1.85%
-    BenchmarkIndexAnyASCII/1:16-4        17.4          17.2          -1.15%
-    BenchmarkIndexAnyASCII/16:1-4        36.4          32.2          -11.54%
-    BenchmarkIndexAnyASCII/16:2-4        49.6          34.6          -30.24%
-    BenchmarkIndexAnyASCII/16:4-4        77.5          37.9          -51.10%
-    BenchmarkIndexAnyASCII/16:8-4        138           45.5          -67.03%
-    BenchmarkIndexAnyASCII/16:16-4       241           59.1          -75.48%
-    BenchmarkIndexAnyASCII/256:1-4       509           378           -25.74%
-    BenchmarkIndexAnyASCII/256:2-4       720           381           -47.08%
-    BenchmarkIndexAnyASCII/256:4-4       1142          384           -66.37%
-    BenchmarkIndexAnyASCII/256:8-4       1999          391           -80.44%
-    BenchmarkIndexAnyASCII/256:16-4      3735          403           -89.21%
-    BenchmarkIndexAnyASCII/4096:1-4      7973          5824          -26.95%
-    BenchmarkIndexAnyASCII/4096:2-4      11432         5809          -49.19%
-    BenchmarkIndexAnyASCII/4096:4-4      18327         5819          -68.25%
-    BenchmarkIndexAnyASCII/4096:8-4      33059         5828          -82.37%
-    BenchmarkIndexAnyASCII/4096:16-4     59703         5817          -90.26%
-    BenchmarkTrimASCII/1:1-4             71.9          71.8          -0.14%
-    BenchmarkTrimASCII/1:2-4             73.3          103           +40.52%
-    BenchmarkTrimASCII/1:4-4             71.8          106           +47.63%
-    BenchmarkTrimASCII/1:8-4             71.2          113           +58.71%
-    BenchmarkTrimASCII/1:16-4            71.6          128           +78.77%
-    BenchmarkTrimASCII/16:1-4            152           116           -23.68%
-    BenchmarkTrimASCII/16:2-4            160           168           +5.00%
-    BenchmarkTrimASCII/16:4-4            172           170           -1.16%
-    BenchmarkTrimASCII/16:8-4            200           177           -11.50%
-    BenchmarkTrimASCII/16:16-4           254           193           -24.02%
-    BenchmarkTrimASCII/256:1-4           1438          864           -39.92%
-    BenchmarkTrimASCII/256:2-4           1551          1195          -22.95%
-    BenchmarkTrimASCII/256:4-4           1770          1200          -32.20%
-    BenchmarkTrimASCII/256:8-4           2195          1216          -44.60%
-    BenchmarkTrimASCII/256:16-4          3054          1224          -59.92%
-    BenchmarkTrimASCII/4096:1-4          21726         12557         -42.20%
-    BenchmarkTrimASCII/4096:2-4          23586         17508         -25.77%
-    BenchmarkTrimASCII/4096:4-4          26898         17510         -34.90%
-    BenchmarkTrimASCII/4096:8-4          33714         17595         -47.81%
-    BenchmarkTrimASCII/4096:16-4         47429         17700         -62.68%
-    
-    The benchmarks added test the worst case. For IndexAny, that is when the
-    charset matches none of the input. For Trim, it is when the charset matches
-    all of the input.
-    
-    Change-Id: I970874d101a96b33528fc99b165379abe58cf6ea
-    Reviewed-on: https://go-review.googlesource.com/31593
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: If6657884e67be90b4455c8f5a6f7bc6981999ee4
+    Reviewed-on: https://go-review.googlesource.com/28078
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go          | 65 +++++++++++++++++++++++++++++++++++++++++----
- src/bytes/bytes_test.go     | 41 +++++++++++++++++++++++++++-
- src/strings/strings.go      | 62 +++++++++++++++++++++++++++++++++++++++---
- src/strings/strings_test.go | 44 ++++++++++++++++++++++++++++--
- 4 files changed, 201 insertions(+), 11 deletions(-)
+ src/net/http/transport_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,14 +1,26 @@
-commit 4b05dc91b0fe99724721e3545807f3b8f1310c52
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 26 06:31:21 2019 -0800
+commit ecc365960ba7ff72f650b32190f40a1f1b6ff992
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 14 17:04:04 2018 -0400
 
-    os: clarify that mode argument is only used if file is created
+    runtime: avoid using STW GC mechanism for checkmarks mode
     
-    Fixes #30400
+    Currently, checkmarks mode uses the full STW GC infrastructure to
+    perform mark checking. We're about to remove that infrastructure and,
+    furthermore, since checkmarks is about doing the simplest thing
+    possible to check concurrent GC, it's valuable for it to be simpler.
     
-    Change-Id: Icbd1dda29562afa80c8e37657133a6fe48070ac0
-    Reviewed-on: https://go-review.googlesource.com/c/163744
-    Reviewed-by: Rob Pike <r@golang.org>
+    Hence, this CL makes checkmarks even simpler by making it non-parallel
+    and divorcing it from the STW GC infrastructure (including the
+    gchelper mechanism).
+    
+    Updates #26903. This is preparation for unifying STW GC and concurrent
+    GC.
+    
+    Change-Id: Iad21158123e025e3f97d7986d577315e994bd43e
+    Reviewed-on: https://go-review.googlesource.com/c/134776
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/os/file.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

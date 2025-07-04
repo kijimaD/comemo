@@ -1,16 +1,16 @@
-commit 6519aa955dd765072ac25881b127796d43de2b9a
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Sep 4 12:30:47 2024 -0400
+commit 3d2645f337091e8cd3f6f0979716fa6cd124ffaa
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 5 12:30:19 2023 -0500
 
-    vet: add regression test for printf checker regression
+    doc/go1.22: document enabling PIE by default on darwin/amd64
     
-    Updates golang/go#68796
+    Updates #61229.
+    For #61422.
     
-    Change-Id: I5bfa80216deff76fd9aabe9882f93fbfaebef957
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610737
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: I6cf8169c1e310e0de734250dbe04fb36e14728d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547455
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/vet/testdata/print/print.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ doc/go1.22.html | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

@@ -1,14 +1,27 @@
-commit f674537cc9dccb0e28ae58277c139d0fb2c5c09f
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jan 16 12:25:33 2017 +0100
+commit 75fef5a0f60bcace88a8d7470df2d85d8eee048f
+Author: Quentin Smith <quentin@golang.org>
+Date:   Mon Oct 17 18:40:18 2016 -0400
 
-    README.md: update and simplify
+    cmd/go: print more env variables in "go env"
     
-    Fixes #18675
+    "go env" previously only printed a subset of the documented environment
+    variables; now it includes everything, such as GO386 and CGO_*.
     
-    Change-Id: I82e63e8ee3fe4a998b01d9397c3045912588e2f5
-    Reviewed-on: https://go-review.googlesource.com/35183
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This also fixes the CGO_CFLAGS environment variable to always have the
+    same default. According to iant@ and confirmed by testing, cgo can now
+    understand the default value of CGO_CFLAGS.
+    
+    Fixes #17191.
+    
+    Change-Id: Icf75055446dd250b6256ef1139e9ce848f4a9d3b
+    Reviewed-on: https://go-review.googlesource.com/31330
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- README.md | 46 ++++++++++++++++++++++------------------------
- 1 file changed, 22 insertions(+), 24 deletions(-)
+ src/cmd/go/alldocs.go |  3 +++
+ src/cmd/go/build.go   | 14 +++++---------
+ src/cmd/go/env.go     | 26 ++++++++++++++++++++++++++
+ src/cmd/go/go_test.go | 18 ++++++++++++++++++
+ src/cmd/go/help.go    |  3 +++
+ 5 files changed, 55 insertions(+), 9 deletions(-)

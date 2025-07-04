@@ -1,19 +1,17 @@
-commit 6c136493012b8a1f96f3edc9fa56aed70d34291a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 30 08:22:27 2016 -0700
+commit 7cbe7b1e867db9001db35ca41ee3e4a3b0de31c7
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:13:59 2016 -0400
 
-    syscall: accept more variants of id output when testing as root
+    runtime/internal/atomic: add s390x atomic operations
     
-    This should fix the report at #16224, and also fixes running the test as
-    root on my Ubuntu Trusty system.
+    Load and store instructions are atomic on the s390x.
     
-    Fixes #16224.
-    
-    Change-Id: I4e3b5527aa63366afb33a7e30efab088d34fb302
-    Reviewed-on: https://go-review.googlesource.com/24670
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0031ed2fba43f33863bca114d0fdec2e7d1ce807
+    Reviewed-on: https://go-review.googlesource.com/20938
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux_test.go | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ src/runtime/internal/atomic/asm_s390x.s     | 174 ++++++++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_s390x.go |  73 ++++++++++++
+ 2 files changed, 247 insertions(+)

@@ -1,16 +1,14 @@
-commit d6a203ecabe5965c55f036c8c0479bdcd2a51683
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 18 14:21:41 2015 -0800
+commit 7f34a2dac888785c4f16e00059023a2b7702d43c
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Thu Oct 22 21:50:06 2015 -0400
 
-    cmd/compile: const name and label name may match
+    database/sql: use RWMutex for driver registration
     
-    Fixes #13684.
-    
-    Change-Id: I3977119b6eb1d6b7dc2ea1e7d6656a8f0d421bc1
-    Reviewed-on: https://go-review.googlesource.com/18060
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0f494c9f17cb6bb0cf5e7214cf033fdbd48f27f7
+    Reviewed-on: https://go-review.googlesource.com/16240
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/parser.go |  4 ++--
- test/fixedbugs/issue13684.go          | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/database/sql/sql.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

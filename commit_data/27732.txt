@@ -1,16 +1,14 @@
-commit c0e5d445066a4c6417aa9e54fde4a3cb9d9c2c05
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Mon Jun 27 09:43:14 2016 -0700
+commit 00681eec6aec03b8b2822c9220fba27c18923c01
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Mon Apr 11 11:15:00 2016 -0300
 
-    runtime/pprof: update comments to point to new pprof
+    net/http: document Error does not end the request
     
-    In the comments for this file there is a reference to gperftools
-    for more info on pprof. pprof now live on its own repo on github,
-    and the version in gperftools is deprecated.
+    Fixes #15205
     
-    Change-Id: I8a188f129534f73edd132ef4e5a2d566e69df7e9
-    Reviewed-on: https://go-review.googlesource.com/24502
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia650806756758ca8ed2272b1696e59b809b16c61
+    Reviewed-on: https://go-review.googlesource.com/21836
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

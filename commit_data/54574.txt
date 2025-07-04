@@ -1,26 +1,28 @@
-commit a57658171fb6db2d3c3681d6173ffa59ab94fc65
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Sep 27 23:53:37 2023 +0000
+commit 082afccebfc068207328fcaeb4b01e540784ff24
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 1 08:26:58 2022 -0400
 
-    internal/zstd: allow zero dictionary id
+    internal/testenv: adjust timeout calculations in CommandContext
     
-    A value of 0 has same meaning as no Dictionary_ID,
-    in which case the frame may or may not need a dictionary to be decoded,
-    and the ID of such a dictionary is not specified.
+    I noticed some test failures in the build dashboard after CL 445597
+    that made me realize the grace period should be based on the test
+    timeout, not the Context timeout: if the test itself sets a short
+    timeout for a command, we still want to give the test process enough
+    time to consume and log its output.
     
-    See https://github.com/facebook/zstd/issues/2172
+    I also put some more thought into how one might debug a test hang, and
+    realized that in that case we don't want to set a WaitDelay at all:
+    instead, we want to leave the processes in their stuck state so that
+    they can be investigated with tools like `ps` and 'lsof'.
     
-    For #62513
+    Updates #50436.
     
-    Change-Id: If0eafcbc5d2188576f0cb687234e30c9eb4037a6
-    GitHub-Last-Rev: 9cf12dcf194a90367a74b808bbe464815f71f42a
-    GitHub-Pull-Request: golang/go#63268
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531515
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I65421084f44eeaaaec5dd2741cd836e9e68dd380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446875
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../zstd/testdata/fcf30b99.zero-dictionary-ids.zst | Bin 0 -> 64 bytes
- src/internal/zstd/zstd.go                          |  23 ++++++++++++++++-----
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ src/internal/testenv/exec.go | 76 +++++++++++++++++++++++---------------------
+ 1 file changed, 39 insertions(+), 37 deletions(-)

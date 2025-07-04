@@ -1,17 +1,26 @@
-commit ad10fbd3c4ec7413775028213f4d5089b18926f7
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Fri Apr 5 07:38:52 2024 +0200
+commit 91a716a043f01334e7e6d28af4863d2188ffb336
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 3 13:40:02 2023 -0400
 
-    image/png: remove go-fuzz test
+    runtime/coverage: fix problematic test from issue 59563
     
-    An identical go1.18 test exists at `src/image/png/fuzz_test.go`.
+    Fix up the coverage testpoint TestIssue59563TruncatedCoverPkgAll
+    to avoid spurious failures due to racy behavior. Specifically,
+    we are only interested in verifying coverage for the larger
+    function of the two in the test package (the smaller one is only
+    there to trigger additional function registrations while the
+    test is finalizing the cov data).
     
-    Change-Id: I3e4db46296fb6a56655f849da8c0689aa5a1c28c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576795
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #59867.
+    Updates #59563.
+    
+    Change-Id: Ibfbbcbf68e0ad7a4d9606cbcfc69d140375c7b87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492175
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/image/png/fuzz.go | 52 ---------------------------------------------------
- 1 file changed, 52 deletions(-)
+ src/runtime/coverage/emitdata_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

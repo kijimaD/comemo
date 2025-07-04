@@ -1,24 +1,16 @@
-commit 584e631023e1edd49862c20a952608a5518a810e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 3 18:06:48 2025 -0800
+commit 8081c08449395df58185449943d7bec7cd7d231f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jan 25 16:11:15 2024 -0800
 
-    go/types, types2: better error messages for invalid calls
+    net/mail: remove obsolete comment
     
-    Rather than reporting "non-function" for an invalid type parameter,
-    report which type in the type parameter's type set is not a function.
+    Forgot to remove this in CL 555596.
     
-    Change-Id: I8beec25cc337bae8e03d23e62d97aa82db46bab4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654475
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I903a6d1c02ee38b676e3e5860376d8d9509f0e03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558675
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/types2/call.go             | 16 ++++++++--------
- src/go/types/call.go                                | 16 ++++++++--------
- src/internal/types/testdata/check/lookup1.go        |  8 ++++----
- src/internal/types/testdata/fixedbugs/issue49482.go |  2 +-
- test/fixedbugs/issue17038.go                        |  2 +-
- test/fixedbugs/issue22822.go                        |  4 ++--
- test/fixedbugs/issue27356.go                        |  4 ++--
- 7 files changed, 26 insertions(+), 26 deletions(-)
+ src/net/mail/message.go | 1 -
+ 1 file changed, 1 deletion(-)

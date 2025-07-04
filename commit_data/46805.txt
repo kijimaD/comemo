@@ -1,28 +1,114 @@
-commit 0f52292e72ebbb79b2d41c8dca8e23ef9597e17d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Oct 7 09:55:43 2021 +0200
+commit 23b0c1f76e647a615fd0911df26f2ddf241607a1
+Merge: ca6999e27c fca94ab3ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 2 10:27:02 2021 -0800
 
-    os: don't use wait6 on netbsd
+    [dev.regabi] all: merge master (fca94ab) into dev.regabi
     
-    CL 315281 changed the os package use wait6 on netbsd. This seems to be
-    causing frequent test failures as reported in #48789. Revert that change
-    using wait6 on netbsd for now.
+    Conflicts:
     
-    Updates #13987
-    Updates #16028
-    For #48789
+    - src/syscall/mksyscall.pl
     
-    Change-Id: Ieddffc65611c7f449971eaa8ed6f4299a5f742c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354249
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Merge List:
+    
+    + 2021-02-02 fca94ab3ab spec: improve the example in Type assertions section
+    + 2021-02-02 98f8454a73 cmd/link: don't decode type symbol in shared library in deadcode
+    + 2021-02-02 1426a571b7 cmd/link: fix off-by-1 error in findShlibSection
+    + 2021-02-01 32e789f4fb test: fix incorrectly laid out instructions in issue11656.go
+    + 2021-02-01 0b6cfea634 doc/go1.16: document that on OpenBSD syscalls are now made through libc
+    + 2021-02-01 26e29aa15a cmd/link: disable TestPIESize if CGO isn't enabled
+    + 2021-02-01 6ac91e460c doc/go1.16: minor markup fixes
+    + 2021-01-29 44361140c0 embed: update docs for proposal tweaks
+    + 2021-01-29 68058edc39 runtime: document pointer write atomicity for memclrNoHeapPointers
+    + 2021-01-28 c8bd8010ff syscall: generate readlen/writelen for openbsd libc
+    + 2021-01-28 41bb49b878 cmd/go: revert TestScript/build_trimpath to use ioutil.ReadFile
+    + 2021-01-28 725a642c2d runtime: correct syscall10/syscall10X on openbsd/amd64
+    + 2021-01-28 4b068cafb5 doc/go1.16: document go/build/constraint package
+    + 2021-01-28 376518d77f runtime,syscall: convert syscall on openbsd/arm64 to libc
+    + 2021-01-27 00f2ff5c94 api/go1.16: add go/build/constraint APIs
+    + 2021-01-27 35334caf18 crypto/x509: remove leftover CertificateRequest field
+    + 2021-01-27 a5a5e2c968 runtime: make sure to remove open-coded defer entries in all cases after a recover
+    + 2021-01-27 8cfa01943a runtime: block console ctrlhandler when the signal is handled
+    + 2021-01-27 ff9e8364c6 cmd/go: skip issue33139 when the 'cc' script command is unavailable
+    + 2021-01-27 cd176b3615 runtime: switch runtime to libc for openbsd/arm64
+    + 2021-01-27 6c8fbfbdcf runtime: convert openbsd/arm64 locking to libc
+    + 2021-01-27 5cdf0da1bf syscall: clean up mkasm related changes
+    + 2021-01-27 210f70e298 doc/go1.16: fix closing brace in .Export format
+    + 2021-01-27 0f797f168d math: fix typo in sqrt.go code comment
+    + 2021-01-26 8634a234df runtime,syscall: convert syscall on openbsd/amd64 to libc
+    + 2021-01-26 1d5e14632e os: further document limitations around naked file descriptors
+    + 2021-01-26 cf263e9f77 os: correct names in CreateTemp and MkdirTemp doc comments
+    + 2021-01-26 ce8b318624 net/http/fcgi: remove locking added to prevent a test-only race
+    
+    Change-Id: I9e89df040dfbbeb50f4ce653a8da437cb72b3ef9
 
- src/os/wait_unimp.go | 12 +++++++++---
- src/os/wait_wait6.go |  4 ++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ api/go1.16.txt                                     |  29 +
+ doc/go1.16.html                                    |  37 +-
+ doc/go_spec.html                                   |   4 +-
+ misc/cgo/testshared/shared_test.go                 |   8 +
+ misc/cgo/testshared/testdata/issue44031/a/a.go     |   9 +
+ misc/cgo/testshared/testdata/issue44031/b/b.go     |  17 +
+ .../testshared/testdata/issue44031/main/main.go    |  20 +
+ src/cmd/go/testdata/script/build_trimpath.txt      |   3 +-
+ .../go/testdata/script/link_syso_issue33139.txt    |   2 +-
+ src/cmd/link/elf_test.go                           |   6 +
+ src/cmd/link/internal/ld/deadcode.go               |  16 +-
+ src/cmd/link/internal/ld/decodesym.go              |   2 +-
+ src/crypto/x509/x509.go                            |  24 -
+ src/crypto/x509/x509_test.go                       |   4 -
+ src/embed/embed.go                                 |  22 +-
+ src/math/sqrt.go                                   |   2 +-
+ src/net/http/fcgi/child.go                         |   3 -
+ src/net/http/fcgi/fcgi_test.go                     |  12 +-
+ src/os/file_unix.go                                |   8 +
+ src/os/tempfile.go                                 |   4 +-
+ src/runtime/crash_test.go                          |  12 +
+ src/runtime/defer_test.go                          |  28 +
+ src/runtime/defs_openbsd_arm64.go                  |   5 +
+ src/runtime/memclr_386.s                           |   2 +
+ src/runtime/memclr_amd64.s                         |   2 +
+ src/runtime/memclr_arm.s                           |   2 +
+ src/runtime/memclr_arm64.s                         |   2 +
+ src/runtime/memclr_mips64x.s                       |   2 +
+ src/runtime/memclr_mipsx.s                         |   2 +
+ src/runtime/memclr_plan9_386.s                     |   2 +
+ src/runtime/memclr_plan9_amd64.s                   |   2 +
+ src/runtime/memclr_ppc64x.s                        |   2 +
+ src/runtime/memclr_riscv64.s                       |   2 +
+ src/runtime/memclr_s390x.s                         |   2 +
+ src/runtime/memclr_wasm.s                          |   2 +
+ src/runtime/os_openbsd_syscall1.go                 |   2 +-
+ src/runtime/os_openbsd_syscall2.go                 |   2 +-
+ src/runtime/os_windows.go                          |   7 +
+ src/runtime/panic.go                               |  63 +-
+ src/runtime/proc.go                                |   2 +-
+ src/runtime/signal_windows_test.go                 |  64 ++
+ src/runtime/stubs.go                               |   8 +
+ src/runtime/sys_openbsd1.go                        |   2 +-
+ src/runtime/sys_openbsd2.go                        |   2 +-
+ src/runtime/sys_openbsd3.go                        | 113 +++
+ src/runtime/sys_openbsd_amd64.s                    | 341 +++++++
+ src/runtime/sys_openbsd_arm64.s                    | 821 ++++++++++-------
+ src/runtime/testdata/testprog/deadlock.go          |  39 +
+ src/runtime/testdata/testwinsignal/main.go         |  19 +
+ src/syscall/asm9_unix1_amd64.s                     |   4 +-
+ src/syscall/asm_openbsd_amd64.s                    |  32 +
+ src/syscall/asm_openbsd_arm64.s                    | 140 +--
+ src/syscall/asm_unix_amd64.s                       |   2 +-
+ src/syscall/exec_bsd.go                            |   2 +-
+ src/syscall/{exec_darwin.go => exec_libc2.go}      |   2 +
+ src/syscall/exec_unix.go                           |   4 +
+ src/syscall/mkall.sh                               |  18 +-
+ src/syscall/{mkasm_darwin.go => mkasm.go}          |  31 +-
+ src/syscall/mksyscall.pl                           |  28 +-
+ src/syscall/syscall_openbsd.go                     |   5 -
+ src/syscall/syscall_openbsd1.go                    |  13 +
+ src/syscall/syscall_openbsd_libc.go                |  77 ++
+ src/syscall/zsyscall_darwin_amd64.s                |   2 +-
+ src/syscall/zsyscall_darwin_arm64.s                |   2 +-
+ src/syscall/zsyscall_openbsd_amd64.go              | 981 ++++++++++++++++++---
+ src/syscall/zsyscall_openbsd_amd64.s               | 233 +++++
+ src/syscall/zsyscall_openbsd_arm64.go              | 955 +++++++++++++++++---
+ src/syscall/zsyscall_openbsd_arm64.s               | 233 +++++
+ test/fixedbugs/issue11656.go                       |   8 +-
+ 69 files changed, 3733 insertions(+), 825 deletions(-)

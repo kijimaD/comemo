@@ -1,27 +1,17 @@
-commit 1e0819101b476f807bf8ef3fd50f1ee26691f33e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed May 31 08:30:25 2017 -0400
+commit 2bd6360e3b0bda74b637ad37536b2f95f5b8574f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Mar 8 07:47:31 2017 +0900
 
-    cmd/compile: fix subword store/load elision for MIPS
+    net/mail: fix wrong error message in consumePhrase
     
-    Apply the fix in CL 44355 to MIPS.
+    Fixes #19415
     
-    ARM64 has these rules but commented out for performance reason.
-    Fix the commented rules, in case they are enabled in the future.
-    
-    Enhance the test so it triggers the failure on ARM and MIPS without
-    the fix.
-    
-    Updates #20530.
-    
-    Change-Id: I82d77448e3939a545fe519d0a29a164f8fa5417c
-    Reviewed-on: https://go-review.googlesource.com/44430
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6414f82e42bd09f1793156befce326aeac919ea2
+    Reviewed-on: https://go-review.googlesource.com/37911
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 14 +++++------
- src/cmd/compile/internal/ssa/gen/MIPS.rules  | 10 ++++----
- src/cmd/compile/internal/ssa/rewriteMIPS.go  | 36 +++++++++++++---------------
- test/fixedbugs/issue20530.go                 | 18 +++++++++++++-
- 4 files changed, 45 insertions(+), 33 deletions(-)
+ src/net/mail/message.go      | 2 +-
+ src/net/mail/message_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

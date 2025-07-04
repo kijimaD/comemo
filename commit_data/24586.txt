@@ -1,24 +1,14 @@
-commit 28f458ce5b5ea5649afdc60c143cc54d6ea3d179
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 18 11:53:18 2015 -0400
+commit 4b145d42e9bb7a1474091b21cf897e28e7b15ef0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 6 16:05:56 2015 -0400
 
-    runtime: eliminate unnecessary ragged barrier
+    doc: do not call WaitGroup a function
     
-    The ragged barrier after entering the concurrent mark phase is
-    vestigial. This used to be the point where we enabled write barriers,
-    so it was necessary to synchronize all Ps to ensure write barriers
-    were enabled before any marking occurred. However, we've long since
-    switched to enabling write barriers during the concurrent scan phase,
-    so the start-the-world at the beginning of the concurrent scan phase
-    ensures that all Ps have enabled the write barrier.
+    Fixes #12060.
     
-    Hence, we can eliminate the old "install write barrier" phase.
-    
-    Fixes #11971.
-    
-    Change-Id: I8cdcb84b5525cef19927d51ea11ba0a4db991ea8
-    Reviewed-on: https://go-review.googlesource.com/16044
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ie2fd10bedded1a4f4e0daa0c0c77ecd898480767
+    Reviewed-on: https://go-review.googlesource.com/13324
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 59 ++++++++++++++++++++++++++----------------------------
- 1 file changed, 28 insertions(+), 31 deletions(-)
+ doc/go1.5.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

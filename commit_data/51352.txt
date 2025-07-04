@@ -1,25 +1,27 @@
-commit 3f1bcc58b32dbbf7f27fbe0984b95036ddb249b9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 15 13:32:32 2022 -0500
+commit 07b995e5bba0c3fe04d6ba399c16abec485bcdaa
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 14 15:22:10 2022 -0500
 
-    cmd/compile: simplify PGO hot caller/callee computation
+    Revert "cmd/dist: log OS version when testing"
     
-    Currently, we use CDF to compute a weight threshold and then use
-    the weight threshold to determine whether a call site is hot. As
-    when we compute the CDF we already have a list of hot call sites
-    that make up the given percentage of the CDF, just use that list.
+    Fails TestAllDependencies.
     
-    Also, when computing the CDF threshold, include the very last node
-    that makes it to go over the threshold. (I.e. if the CDF threshold
-    is 50% and one hot node takes 60% of weight, we should include that
-    node instead of excluding it. In practice it rarely matters,
-    probably only for testing and micro-benchmarks.)
+    This reverts CL 371475.
     
-    Change-Id: I535ae9cd6b679609e247c3d0d9ee572c1a1187cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450737
-    Reviewed-by: Austin Clements <austin@google.com>
+    For #50146.
+    
+    Change-Id: I1feccd772d92d80e57c6327a4ac7b8af753a8c05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378586
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 59 ++++++++++++++++------------------
- 1 file changed, 28 insertions(+), 31 deletions(-)
+ src/cmd/dist/metadata.go              |  9 ---------
+ src/cmd/internal/osinfo/doc.go        |  6 ------
+ src/cmd/internal/osinfo/os_js.go      | 18 ------------------
+ src/cmd/internal/osinfo/os_plan9.go   | 21 --------------------
+ src/cmd/internal/osinfo/os_unix.go    | 36 -----------------------------------
+ src/cmd/internal/osinfo/os_windows.go | 19 ------------------
+ 6 files changed, 109 deletions(-)

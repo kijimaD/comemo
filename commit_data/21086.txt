@@ -1,30 +1,13 @@
-commit 76cc881ef09e0358dd72106860d5da5e4c517f2a
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Dec 23 20:44:10 2014 +0100
+commit 8c060d9392d44916588780fe976c888f3ba8a60e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 12 17:19:02 2014 -0500
 
-    sort: simplify rotate and reduce calls to it
+    [dev.power64] liblink: improve documentation of struct Prog
     
-    Move the checks for empty rotate changes
-    from the beginning of rotate to the callers.
-    
-    Remove additional variable p used instead of existing m with same value.
-    
-    Remove special casing of equal ranges (i==j) to exit early as no
-    work is saved vs checking (i!=j) and  making a single
-    swapRange call if this is false.
-    
-    benchmark                   old ns/op      new ns/op      delta
-    BenchmarkStableString1K     417195         425218         +1.92%
-    BenchmarkStableInt1K        126661         124498         -1.71%
-    BenchmarkStableInt64K       10365014       10417438       +0.51%
-    BenchmarkStable1e2          132151         130648         -1.14%
-    BenchmarkStable1e4          42027428       40812649       -2.89%
-    BenchmarkStable1e6          8524772364     8430192391     -1.11%
-    
-    Change-Id: Ia7642e9d31408496970c700f5843d53cc3ebe817
-    Reviewed-on: https://go-review.googlesource.com/2100
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/169460043
 
- src/sort/sort.go | 24 ++++++++----------------
- 1 file changed, 8 insertions(+), 16 deletions(-)
+ include/link.h | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

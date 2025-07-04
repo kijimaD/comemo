@@ -1,22 +1,12 @@
-commit 4b536a550f1a9edd7be5c777dfb5eb906320eb89
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jun 28 18:37:06 2013 +0400
+commit ab1270bcfc2410c8b4637a2e3b530a8f51494de1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 27 22:43:30 2013 -0700
 
-    runtime: introduce GODEBUG env var
-    Currently it replaces GOGCTRACE env var (GODEBUG=gctrace=1).
-    The plan is to extend it with other type of debug tracing,
-    e.g. GODEBUG=gctrace=1,schedtrace=100.
+    runtime: remove declaration of function that does not exist
     
-    R=rsc
-    CC=bradfitz, daniel.morsing, gobot, golang-dev
-    https://golang.org/cl/10026045
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/10730045
 
- src/pkg/runtime/crash_test.go     |  4 ++--
- src/pkg/runtime/extern.go         |  7 ++++---
- src/pkg/runtime/mgc0.c            | 13 +++----------
- src/pkg/runtime/mheap.c           | 11 ++---------
- src/pkg/runtime/proc.c            |  1 +
- src/pkg/runtime/race/race_test.go |  2 +-
- src/pkg/runtime/runtime.c         | 31 +++++++++++++++++++++++++++++++
- src/pkg/runtime/runtime.h         |  9 +++++++++
- 8 files changed, 53 insertions(+), 25 deletions(-)
+ src/pkg/runtime/proc.c | 1 -
+ 1 file changed, 1 deletion(-)

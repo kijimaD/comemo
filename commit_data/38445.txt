@@ -1,18 +1,34 @@
-commit 3496ff1d1905fca857e009584f4c9a15481739d6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Mar 17 22:39:42 2019 +0100
+commit 7bada2cf4676938be46cde13e2b8e11e42b5441c
+Author: Pontus Leitzler <leitzler@users.noreply.github.com>
+Date:   Tue Oct 30 07:58:59 2018 +0000
 
-    internal/bytealg: share code for IndexByte functions on arm
+    crypto/tls: clarify documentation on tls.Config.NextProtos
     
-    Move the shared code of IndexByte and IndexByteString into
-    indexbytebody. This will allow to implement optimizations (e.g.
-    for #29001) in a single function.
+    This change will aid users to make less mistakes where you, for example, define both HTTP/1.1 and H2, but in the wrong order.
     
-    Change-Id: I1d550da8eb65f95e492a460a12058cc35b1162b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167939
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+        package main
+    
+        import (
+            "crypto/tls"
+            "net"
+        )
+    
+        func main() {
+            srv := &http.Server{
+                TLSConfig: &tls.Config{
+                    NextProtos: []string{"http/1.1", "h2"},
+                },
+            }
+            srv.ListenAndServeTLS("server.crt", "server.key")
+        }
+    
+    When using major browsers or curl, they will never be served H2 since they also support HTTP/1.0 and the list is processed in order.
+    
+    Change-Id: Id14098b5e48f624ca308137917874d475c2f22a0
+    GitHub-Last-Rev: f3594a6411bf7dde71c850f3e85a2b5a21974129
+    GitHub-Pull-Request: golang/go#28367
+    Reviewed-on: https://go-review.googlesource.com/c/144387
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/internal/bytealg/indexbyte_arm.s | 42 +++++++++++++++---------------------
- 1 file changed, 17 insertions(+), 25 deletions(-)
+ src/crypto/tls/common.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

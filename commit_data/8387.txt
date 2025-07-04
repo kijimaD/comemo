@@ -1,18 +1,13 @@
-commit 32b822f29a7e0ceaee9d393da8fa85e6d2e9c9f1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 13 12:54:51 2011 -0700
+commit 5236814edd14d072a0ee32071d2a008b360b1964
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 13 10:58:41 2011 -0700
 
-    go spec: fix error in production syntax
+    timing: update numbers for regex-dna
+    After improved compilation of append, regexps improve and regex-dna is 35% faster.
     
-    Fix analoguous error in ebnf.go which already
-    correctly accepted an empty production.
-    
-    Fixes #1821.
-    
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4526056
+    https://golang.org/cl/4518062
 
- doc/go_spec.html     | 4 ++--
- src/pkg/ebnf/ebnf.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ test/bench/timing.log | 8 ++++++++
+ 1 file changed, 8 insertions(+)

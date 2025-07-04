@@ -1,14 +1,28 @@
-commit 242d02dd5e9bddc3392237752abe7dfe1f9cb300
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 23 21:47:45 2021 -0700
+commit c1370e918fd88a13f77a133f8e431197cd3a1fc6
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 28 17:42:30 2020 -0400
 
-    cmd/compile/internal/types2: assume generic code for std lib
+    [dev.regabi] cmd/compile: add code to support register ABI spills around morestack calls
     
-    Change-Id: Ib24890af8caa02af61358cadac6637574d62ff52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351792
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This is a selected copy from the register ABI experiment CL, focused
+    on the files and data structures that handle spilling around morestack.
+    Unnecessary code from the experiment was removed, other code was adapted.
+    
+    Would it make sense to leave comments in the experiment as pieces are
+    brought over?
+    
+    Experiment CL (for comparison purposes)
+    https://go-review.googlesource.com/c/go/+/28832
+    
+    Change-Id: I92136f070351d4fcca1407b52ecf9b80898fed95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279520
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/func.go     |  3 +++
+ src/cmd/compile/internal/ssa/location.go | 26 +++++++++++++++++++
+ src/cmd/internal/obj/link.go             | 44 +++++++++++++++++++++++++++++---
+ src/cmd/internal/obj/x86/obj6.go         | 10 +++++---
+ 4 files changed, 76 insertions(+), 7 deletions(-)

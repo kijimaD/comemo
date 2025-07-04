@@ -1,25 +1,28 @@
-commit 0826b9017254b8b3ba2b84799f4c0de6107a043f
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Jul 15 10:04:42 2024 -0700
+commit c9faf3126e7521aadd45673961f9842abfc84926
+Author: Zhiyuan Zheng <zhzy0077@hotmail.com>
+Date:   Thu Oct 13 03:28:10 2022 +0000
 
-    internal/cpu: add DIT detection on arm64
+    net: filter disabled interfaces in Windows DNS client
     
-    Add support for detecting the DIT feature on ARM64 processors. This
-    mirrors https://go.dev/cl/597377, but using the platform specific
-    semantics.
+    The Go DNS resolver on Windows should filter disabled
+    interfaces. Otherwise disabled TUN devices, VPNs will be also
+    considered as valid nameservers and finally timedout.
     
-    Updates #66450
+    Fixes #56160
     
-    Change-Id: Ia107e3e3369de7825af70823b485afe2f587358e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598335
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (Originally from Zhiyuan Zheng <zhzy0077@hotmail.com>
+     in https://go.dev/cl/442375)
+    
+    Co-authored-by: Zhiyuan Zheng <zhzy0077@hotmail.com>
+    GitHub-Last-Rev: db158625bb46692cbbc09e3fe4dfa023c733f4e6
+    GitHub-Pull-Request: golang/go#56161
+    Change-Id: I7becebc55c8ac612c670c533855f7e6ca397a496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500375
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/cpu/cpu.go               | 1 +
- src/internal/cpu/cpu_arm64.go         | 9 ++++++++-
- src/internal/cpu/cpu_arm64.s          | 7 +++++++
- src/internal/cpu/cpu_arm64_darwin.go  | 1 +
- src/internal/cpu/cpu_arm64_freebsd.go | 3 ++-
- src/internal/cpu/cpu_arm64_hwcap.go   | 2 ++
- src/internal/cpu/cpu_arm64_openbsd.go | 9 ++++++++-
- 7 files changed, 29 insertions(+), 3 deletions(-)
+ src/net/dnsconfig_windows.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,42 +1,21 @@
-commit 58631ba54f45506f2f178bb01d22273e7dfba674
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 9 17:19:23 2022 -0500
+commit 468efd5e2fb05860430c0bdede4e1cd0f8c07f65
+Author: Dan Scales <danscales@google.com>
+Date:   Thu May 20 15:35:55 2021 -0700
 
-    internal/testenv: add GOROOT and use it to fix tests broken with -trimpath
+    [dev.typeparams] cmd/compile:  change method instantiations back to being functions
     
-    This fixes many (but not all) of the tests that currently fail
-    (due to a bogus path reported by runtime.GOROOT) when run with
-    'go test -trimpath std cmd'.
+    Change all instantiated methods to being functions again. We found that
+    this is easier for adding the dictionary argument consistently. A method
+    wrapper will usually be added around the instantiation call, so that
+    eliminate the inconsistency in the type of the top-level method and the
+    the associated function node type.
     
-    Updates #51461
-    
-    Change-Id: Ia2cc05705529c4859e7928f32eeceed647f2e986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391806
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9034a0c5cc901e7a89e60756bff574c1346adbc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321609
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/api/goapi.go                               |  12 ++-
- src/cmd/api/goapi_test.go                          |   2 +
- .../compile/internal/importer/gcimporter_test.go   |   8 +-
- src/cmd/compile/internal/syntax/parser_test.go     |   7 +-
- src/cmd/compile/internal/types2/main_test.go       |  17 ++++
- src/cmd/compile/internal/types2/stdlib_test.go     |  26 +++---
- src/cmd/doc/doc_test.go                            |   8 ++
- src/cmd/go/internal/imports/scan_test.go           |   3 +-
- src/cmd/gofmt/long_test.go                         |   7 +-
- src/cmd/internal/moddeps/moddeps_test.go           |  23 +++--
- src/cmd/link/internal/ld/nooptcgolink_test.go      |   3 +-
- src/cmd/nm/nm_test.go                              |   2 +-
- src/go/importer/importer_test.go                   |   9 +-
- src/go/internal/gcimporter/gcimporter_test.go      |  10 +-
- src/go/internal/srcimporter/srcimporter_test.go    |   9 +-
- src/go/types/main_test.go                          |  17 ++++
- src/go/types/stdlib_test.go                        |  31 +++----
- src/internal/testenv/testenv.go                    | 101 ++++++++++++++++++++-
- src/net/netip/inlining_test.go                     |   7 +-
- src/path/filepath/path_test.go                     |   2 +-
- src/runtime/runtime-gdb_test.go                    |  18 ++--
- src/time/zoneinfo_test.go                          |   3 +-
- 22 files changed, 242 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 52 ++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 29 deletions(-)

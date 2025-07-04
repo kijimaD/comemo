@@ -1,46 +1,13 @@
-commit bf9240681dec2664f6acc1695e517e985d2b85d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 3 17:50:02 2018 -0700
+commit bbf4a3024b1001ef2f01a8d12b5d7469915e4a8d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 5 17:10:29 2018 -0400
 
-    go/types: prepare for delayed type-checking of methods to when they are used
+    doc: document Go 1.9.7
     
-    Remove assumption that methods associated to concrete (non-interface)
-    types have a fully set up signature. Such methods are found through
-    LookupFieldOrMethod or lookupMethod, or indexed method access from
-    a Named type. Make sure that the method's signature is type-checked
-    before use in those cases.
-    
-    (MethodSets also hold methods but the type checker is not using
-    them but for internal verification. API clients will be using it
-    after all methods have been type-checked.)
-    
-    Some functions such as MissingMethod may now have to type-check a
-    method and for that they need a *Checker. Add helper functions as
-    necessary to provide the additional (receiver) parameter but permit
-    it to be nil if the respective functions are invoked through the API
-    (at which point we know that all methods have a proper signature and
-    thus we don't need the delayed type-check).
-    
-    Since all package-level objects eventually are type-checked through
-    the top-level loop in Checker.packageObjects we are guaranteed that
-    all methods will be type-checked as well.
-    
-    Updates #23203.
-    Updates #26854.
-    
-    Change-Id: I6e48f0016cefd498aa70b776e84a48215a9042c5
-    Reviewed-on: https://go-review.googlesource.com/c/139425
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I10dededb41162a99dbc42792a9d314c6dabddcca
+    Reviewed-on: https://go-review.googlesource.com/116362
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/api.go         |  6 +++---
- src/go/types/assignments.go |  2 +-
- src/go/types/builtins.go    |  4 ++--
- src/go/types/call.go        |  5 +++++
- src/go/types/conversions.go | 11 +++++++----
- src/go/types/decl.go        |  4 ++++
- src/go/types/expr.go        | 17 +++++++++++++----
- src/go/types/lookup.go      | 27 ++++++++++++++++++++++++---
- src/go/types/operand.go     |  8 +++++---
- src/go/types/type.go        |  2 +-
- src/go/types/typexpr.go     |  2 +-
- 11 files changed, 66 insertions(+), 22 deletions(-)
+ doc/devel/release.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,19 +1,21 @@
-commit 4aa28896b7703dcb153f0effae4007dd098b6c06
-Author: Adam Thomason <athomason@gmail.com>
-Date:   Wed Oct 25 14:36:23 2017 -0700
+commit bd3dc9d6da5f3ede9001ca3f4493d48c4e48de0f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Aug 8 03:06:02 2017 +0200
 
-    cmd/go: add -shift to go vet's flag whitelist
+    net: fix LookupCNAME on Plan 9
     
-    CL 40112 intended to allow full flag processing in go vet, but missed
-    vet's -shift flag; this corrects the omission.
+    Looking up a nonexistent CNAME record on an existing
+    domain on Plan 9 can return either a "dns failure"
+    error or a "resource does not exist" error.
     
-    Fixes #22442
+    Fixes #21335.
     
-    Change-Id: I47525018306bd8b9aa452fb378d0d45319f8cf11
-    Reviewed-on: https://go-review.googlesource.com/73553
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iead8ed4fe3167db06adb4ab7797c52c7efc3ff89
+    Reviewed-on: https://go-review.googlesource.com/53670
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
 
- src/cmd/go/internal/vet/vetflag.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 27737: 0ce100dc9646eb9015e31502e184e45605df1393
+# Index 27737: cabb1402568ae7d05d9d5adf56953a4792085a81
 
 echo "🚀 Generating explanation for commit 27737..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 27737
-- **コミットハッシュ**: 0ce100dc9646eb9015e31502e184e45605df1393
-- **GitHub URL**: https://github.com/golang/go/commit/0ce100dc9646eb9015e31502e184e45605df1393
+- **コミットハッシュ**: cabb1402568ae7d05d9d5adf56953a4792085a81
+- **GitHub URL**: https://github.com/golang/go/commit/cabb1402568ae7d05d9d5adf56953a4792085a81
 
 ### 章構成
 

@@ -1,19 +1,25 @@
-commit e2b5e6038ba35b964edae155bd74764fd4d9ade5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 27 14:02:09 2018 -0800
+commit e7fed7fa353fa8a54759229a0adfe04c02fd7b5a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Oct 23 14:43:51 2017 -0700
 
-    go/types: fix incorrect context when type-checking interfaces
+    encoding/csv: forbid certain Comma and Comment runes
     
-    Regression, introduced by https://go-review.googlesource.com/c/go/+/79575
-    which meant to be more conservative but ended up destroying an important
-    context.
+    The record delimiter (not configurable by user) is "\r\n" or "\n".
+    It is insensible for the user to set Comma or Comment delimiters
+    to be some character that conflicts with the record delimiter.
+    Furthermore, it is insensible for Comma or Comment to be the same rune.
+    Allowing this leaks implementation details to the user in regards to
+    the evaluation order of which rune is checked for first.
     
-    Fixes #24140.
+    Fixes #22404
     
-    Change-Id: Id428dbb295ce9f11ab7cd54ec5ab51ef4291ac3f
-    Reviewed-on: https://go-review.googlesource.com/97535
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I31e86abc9b3a8fb4584e090477795587740970ae
+    Reviewed-on: https://go-review.googlesource.com/72793
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/testdata/issues.src | 11 +++++++++++
- src/go/types/typexpr.go          | 15 +++++++++++++--
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/encoding/csv/reader.go      | 10 ++++++++++
+ src/encoding/csv/reader_test.go | 30 ++++++++++++++++++++++++++++++
+ src/encoding/csv/writer.go      |  4 ++++
+ 3 files changed, 44 insertions(+)

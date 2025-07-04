@@ -1,17 +1,14 @@
-commit 6fbe80572e96745fc360c74f2f1c6e878afe436b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 15 01:59:18 2012 +0900
+commit 60e4d5668e80457023a3432752b2889fb73b89bf
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 14 11:24:41 2012 -0500
 
-    net: prefer an IPv4 listen if no address given
+    cmd/vet: give warning for construct 'Println(os.Stderr, ...)'
+            also fixes this bug in net/http/httptest.
     
-    This CL avoids net.Listen("tcp", ":80"), http.ListenAdnServe(":80")
-    prefer an IPv6 listen.
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5669043
+    https://golang.org/cl/5654083
 
- src/pkg/net/dial.go         |  2 +-
- src/pkg/net/ipsock_posix.go | 15 +++++++++------
- src/pkg/net/server_test.go  |  5 +----
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/vet/print.go                | 11 +++++++++++
+ src/pkg/net/http/httptest/server.go |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit aa2e8b9ce2a344f46dfc6346f5ea83c573784464
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 20 19:12:19 2024 -0400
+
+    cmd/dist: update tryDirs list to match make scripts
+    
+    The $HOME/sdk/go1.17 and $HOME/go1.17 paths were initially added as
+    places to look for a bootstrap toolchain to make.{bash,bat,rc} scripts
+    and in cmd/dist (CL 370274). Those two go1.17 directories have since
+    been updated in the make scripts to go1.20.6 (CL 512275) and later on
+    to go1.22.6 (CL 606156), but the same list in cmd/dist was missed.
+    
+    Fix the inconsistency now. But maybe cmd/dist doesn't need to maintain
+    this logic, if it's required to be invoked via one of the make scripts,
+    since they're responsible for setting GOROOT_BOOTSTRAP?
+    
+    For #64751.
+    
+    Change-Id: I0988005c559014791363138f2f722cc1f9a78bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607821
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/buildtool.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

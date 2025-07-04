@@ -1,21 +1,42 @@
-commit 6f2b8347b148bb7aab1a89423d18ec0cbca6ffb4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Dec 11 11:44:08 2019 -0500
+commit 3d48ae355b64957c184e220161f5efb1fe51f5ad
+Author: Sam Arnold <sarnold64@bloomberg.net>
+Date:   Sat Aug 10 12:06:50 2019 -0400
 
-    test: add a test for gccgo compiler bug of missing type descriptor
+    strconv: Speed improvement to number parsing
     
-    The gccgo compiler did not generate type descriptor for a pointer
-    to a type alias defined in another package, causing linking error.
-    The fix is CL 210787. This CL adds a test.
+    Run underscore validation only if we have seen underscores.
     
-    Updates #36085.
+    Some performance results on my laptop:
+    name                   old time/op  new time/op  delta
+    Atof64Decimal-12       30.5ns ± 0%  23.8ns ± 0%  -22.02%  (p=0.016 n=5+4)
+    Atof64Float-12         39.0ns ± 0%  28.7ns ± 0%  -26.39%  (p=0.002 n=6+6)
+    Atof64FloatExp-12      64.4ns ± 1%  54.4ns ± 1%  -15.65%  (p=0.002 n=6+6)
+    Atof64Big-12            115ns ± 1%    87ns ± 1%  -24.45%  (p=0.002 n=6+6)
+    Atof64RandomBits-12     187ns ±14%   156ns ±19%  -16.46%  (p=0.032 n=6+6)
+    Atof64RandomFloats-12   126ns ± 0%   105ns ± 1%  -16.65%  (p=0.000 n=6+5)
+    Atof32Decimal-12       32.0ns ± 1%  24.0ns ± 1%  -24.97%  (p=0.002 n=6+6)
+    Atof32Float-12         37.1ns ± 1%  27.0ns ± 1%  -27.42%  (p=0.002 n=6+6)
+    Atof32FloatExp-12      68.4ns ± 1%  54.2ns ± 1%  -20.77%  (p=0.002 n=6+6)
+    Atof32Random-12        92.0ns ± 1%  77.4ns ± 0%  -15.81%  (p=0.000 n=6+5)
+    ParseInt/Pos/7bit-12   19.4ns ± 1%  13.8ns ±10%  -28.94%  (p=0.002 n=6+6)
+    ParseInt/Pos/26bit-12  29.1ns ± 1%  19.8ns ± 2%  -31.92%  (p=0.002 n=6+6)
+    ParseInt/Pos/31bit-12  33.1ns ± 0%  22.3ns ± 3%  -32.62%  (p=0.004 n=5+6)
+    ParseInt/Pos/56bit-12  47.8ns ± 1%  30.7ns ± 1%  -35.78%  (p=0.004 n=6+5)
+    ParseInt/Pos/63bit-12  51.9ns ± 1%  33.4ns ± 2%  -35.49%  (p=0.002 n=6+6)
+    ParseInt/Neg/7bit-12   18.5ns ± 4%  13.4ns ± 3%  -27.88%  (p=0.002 n=6+6)
+    ParseInt/Neg/26bit-12  28.4ns ± 3%  19.7ns ± 3%  -30.38%  (p=0.002 n=6+6)
+    ParseInt/Neg/31bit-12  31.9ns ± 1%  21.8ns ± 2%  -31.56%  (p=0.002 n=6+6)
+    ParseInt/Neg/56bit-12  46.2ns ± 0%  30.6ns ± 1%  -33.73%  (p=0.004 n=5+6)
+    ParseInt/Neg/63bit-12  50.2ns ± 1%  33.2ns ± 1%  -33.96%  (p=0.002 n=6+6)
     
-    Change-Id: I3237c7fedb4d92fb2dc610ee2b88087f96dc2a1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210858
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #33330
+    
+    Change-Id: I119da66457c2fbaf6e88bb90cf56417a16df8f0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187957
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/fixedbugs/issue36085.dir/a.go |  3 +++
- test/fixedbugs/issue36085.dir/b.go |  8 ++++++++
- test/fixedbugs/issue36085.go       | 11 +++++++++++
- 3 files changed, 22 insertions(+)
+ src/strconv/atof.go | 37 ++++++++++++++++++++++++-------------
+ src/strconv/atoi.go |  9 +++++++--
+ 2 files changed, 31 insertions(+), 15 deletions(-)

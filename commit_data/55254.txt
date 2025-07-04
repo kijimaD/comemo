@@ -1,19 +1,42 @@
-commit 59275e266a222564fc1a39f17b913a74838478f4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 8 17:01:43 2023 -0500
+commit 1951857ec07c1d491e1836770a647d3902934a67
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Nov 22 18:46:35 2022 +0100
 
-    doc: document os/exec changes on Windows
+    os: use handle based APIs to read directories on windows
     
-    For #61422.
-    Updates #62596.
-    Updates #61493.
+    This CL updates File.readdir() on windows so it uses
+    GetFileInformationByHandleEx with FILE_ID_BOTH_DIR_INFO
+    instead of Find* APIs. The former is more performant because
+    it allows us to buffer IO calls and reduces the number of system calls,
+    passing from 1 per file to 1 every ~100 files
+    (depending on the size of the file name and the size of the buffer).
     
-    Change-Id: I5c910f9961da24d90b3618ee53540118db06ff91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548481
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    This change improve performance of File.ReadDir by 20-30%.
+    
+    name        old time/op    new time/op    delta
+    ReadDir-12     562µs ±14%     385µs ± 9%  -31.60%  (p=0.000 n=9+9)
+    
+    name        old alloc/op   new alloc/op   delta
+    ReadDir-12    29.7kB ± 0%    29.5kB ± 0%   -0.88%  (p=0.000 n=8+10)
+    
+    name        old allocs/op  new allocs/op  delta
+    ReadDir-12       399 ± 0%       397 ± 0%   -0.50%  (p=0.000 n=10+10)
+    
+    This change also speeds up calls to os.SameFile when using FileStats
+    returned from File.readdir(), as their file ID can be inferred while
+    reading the directory.
+    
+    Change-Id: Id56a338ee66c39656b564105cac131099218fb5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go1.22.html | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go  |  20 ++++
+ src/internal/syscall/windows/zsyscall_windows.go |  73 ++++++++------
+ src/os/dir_windows.go                            | 121 ++++++++++++++++++-----
+ src/os/file_windows.go                           |  69 -------------
+ src/os/types_windows.go                          |  41 +++++---
+ 5 files changed, 182 insertions(+), 142 deletions(-)

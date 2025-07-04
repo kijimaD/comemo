@@ -1,22 +1,17 @@
-commit 96b6e78ea906001a31d03d0acbfc4a4f20eb7db9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 24 11:58:58 2023 +0200
+commit 09daf313b255b84e1a8e5323a4b40c1099b7ceb0
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:28:18 2022 +0800
 
-    cmd/compile/internal/syntax: use strings.LastIndexByte in trailingDigits
+    cmd/asm: use strings.TrimSuffix
     
-    Previously, strings.LastIndexByte couldn't be used because it was only
-    added in Go 1.5 but Go 1.4 was required for bootstrapping. In Go 1.18,
-    the bootstrap toolchain was bumped to Go 1.17 (see #44505), thus
-    strings.LastIndexByte can be used now.
-    
-    Change-Id: I01a70a59dbfc853cf03d49747a2dd62d21ba74e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522197
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: If08ce3f8534f5fb7ce97ec124bfeff937e65f63b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435943
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/syntax/parser.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

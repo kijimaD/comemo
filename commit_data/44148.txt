@@ -1,34 +1,25 @@
-commit 6e243ce71d910876839d1bad4adf9b259c3a8e21
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 13 20:58:00 2021 -0500
+commit bb59a1360a9e6c2d32a59461da56e9bc3a5703ef
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Mon May 18 09:34:17 2020 +0100
 
-    cmd/go: have go mod vendor copy embedded files in subdirs
+    runtime: don't enable notes (=signals) too early in Plan 9
     
-    If a package vendored with go mod vendor depends on embedded
-    files contained in subdirectories, copy them into the the
-    corresponding place in the module's vendor tree. (Embeds in
-    parent directories are disallowed by the embed pattern rules, and
-    embeds in the same directory are copied because go mod vendor
-    already copies the non-go files in the package's own directory).
+    The Plan 9 runtime startup was enabling notes (like Unix signals)
+    before the gsignal stack was allocated. This left a small window
+    of time where an interrupt (eg by the parent killing a subprocess
+    quickly after exec) would cause a null pointer dereference in
+    sigtramp. This would leave the interrupted process suspended in
+    'broken' state instead of exiting. We've observed this on the
+    builders, where it can make a test time out waiting for the broken
+    process to terminate.
     
-    Export the vendor pattern expansion code in internal/load so
-    internal/modcmd's vendor code can use it.
+    Updates #38772
     
-    Fixes #43077
-    
-    Change-Id: I61edb344d73df590574a6498ffb6069e8d72a147
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283641
-    Trust: Michael Matloob <matloob@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I54584069fd3109595f06c78724c1f6419e028aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234397
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/go/internal/list/list.go                |   2 -
- src/cmd/go/internal/load/pkg.go                 |  26 ++--
- src/cmd/go/internal/load/test.go                |   4 +-
- src/cmd/go/internal/modcmd/vendor.go            |  76 +++++++++-
- src/cmd/go/testdata/script/embed.txt            |  26 ++++
- src/cmd/go/testdata/script/mod_vendor_embed.txt | 179 ++++++++++++++++++++++++
- 6 files changed, 292 insertions(+), 21 deletions(-)
+ src/runtime/os_plan9.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

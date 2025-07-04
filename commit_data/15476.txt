@@ -1,12 +1,12 @@
-commit 25c99300b9316e5a983af421d4d1a180b7aabf3a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 27 15:22:14 2013 -0800
+commit e97aa82c2f05dcce6a875d69ea2d88dff04f000a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 15:19:59 2013 -0800
 
-    go/types: don't crash if there are no hints
+    api: update next.txt
     
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7375060
+    https://golang.org/cl/7420043
 
- src/pkg/go/types/expr.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ api/next.txt | 154 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 154 insertions(+)

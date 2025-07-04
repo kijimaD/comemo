@@ -1,17 +1,14 @@
-commit 2c4b029b752a5aa8315e56b9563b2052fe8dd3fe
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu May 30 08:32:00 2013 +0200
+commit 77d4347bf26b61bf95a842ff25c579d86b78d4c3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 30 12:11:17 2013 +1000
 
-    cmd/gc: use escape analysis result for make([]T, constant
+    misc/dist: remove lingering ~ file
     
-    Escape analysis already gives that the underlying array
-    does not escape but the result was ignored.
+    Fixes #5405.
     
-    Fixes #5484.
-    
-    R=golang-dev, dave, daniel.morsing
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/9662046
+    https://golang.org/cl/9856043
 
- src/cmd/gc/walk.c | 31 ++++++++++++++++++++++++-------
- 1 file changed, 24 insertions(+), 7 deletions(-)
+ misc/dist/bindist.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

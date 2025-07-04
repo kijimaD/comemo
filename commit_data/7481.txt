@@ -1,15 +1,17 @@
-commit acad4e0cf9adecc1aaf4e3c0bc9529737b60bf4d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 16 15:02:08 2011 -0500
+commit 05b1dbd0a6994f6ba9ab3505fce1abff93606d9e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 16 14:11:07 2011 -0500
 
-    A+C: Olivier Antoine (individual CLA)
+    sync: add Cond
     
-    Also sort name lists.
-    
-    R=r, r2
+    R=rsc, rog, r
     CC=golang-dev
-    https://golang.org/cl/4191044
+    https://golang.org/cl/3775048
 
- AUTHORS      | 3 ++-
- CONTRIBUTORS | 9 +++++----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/pkg/sync/Makefile        |  1 +
+ src/pkg/sync/cond.go         | 89 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/cond_test.go    | 99 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/mutex.go        |  6 +++
+ src/pkg/sync/rwmutex.go      | 11 +++++
+ src/pkg/sync/rwmutex_test.go | 35 ++++++++++++++++
+ 6 files changed, 241 insertions(+)

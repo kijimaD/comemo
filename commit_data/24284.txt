@@ -1,47 +1,15 @@
-commit 7c61d24f9738204688b1f4b880b0a8415d0833e3
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Sep 13 23:57:28 2015 +0200
+commit 8fb635815355fe74fa0df1f096e8169504bd4f3e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 21 07:10:56 2015 -0700
 
-    cmd/compile/internal/gc: remove dead code
+    [dev.ssa] cmd/compile: don't generate zero values for ssa ops
     
-    Found with https://github.com/remyoudompheng/go-misc/deadcode:
+    Shorter code, easier to read, no pointless empty slices.
     
-    deadcode: walk.go:2228:1: applywritebarrier_bv is unused
-    deadcode: subr.go:355:1: gethunk is unused
-    deadcode: subr.go:1991:1: localexpr is unused
-    deadcode: dcl.go:82:1: poptodcl is unused
-    deadcode: swt.go:810:1: dumpcase is unused
-    deadcode: esc.go:251:1: satAdd8 is unused
-    deadcode: esc.go:387:1: outputsPerTag is unused
-    deadcode: obj.go:190:1: duint64 is unused
-    deadcode: obj.go:287:1: dstringptr is unused
-    deadcode: plive.go:95:1: xmalloc is unused
-    deadcode: plive.go:119:1: freeblock is unused
-    
-    followed by
-    
-    deadcode: go.go:633:1: hunk is unused
-    deadcode: go.go:635:1: nhunk is unused
-    deadcode: go.go:637:1: thunk is unused
-    
-    after 'gethunk' was removed.
-    
-    Some dead code in bv.go, mparith3.go, and dcl.go was left as is.
-    
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
-    
-    Change-Id: Ia63519adedc8650d7095572ddd454fd923d3204d
-    Reviewed-on: https://go-review.googlesource.com/14610
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id410364b4f6924b5665188af3373a5e914117c38
+    Reviewed-on: https://go-review.googlesource.com/12480
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go   | 10 ---------
- src/cmd/compile/internal/gc/esc.go   | 18 +++-------------
- src/cmd/compile/internal/gc/go.go    |  6 ------
- src/cmd/compile/internal/gc/obj.go   | 23 --------------------
- src/cmd/compile/internal/gc/plive.go | 15 -------------
- src/cmd/compile/internal/gc/subr.go  | 30 --------------------------
- src/cmd/compile/internal/gc/swt.go   | 41 ------------------------------------
- src/cmd/compile/internal/gc/walk.go  |  2 --
- 8 files changed, 3 insertions(+), 142 deletions(-)
+ src/cmd/compile/internal/ssa/gen/main.go |  37 +-
+ src/cmd/compile/internal/ssa/opGen.go    | 813 ++++---------------------------
+ 2 files changed, 131 insertions(+), 719 deletions(-)

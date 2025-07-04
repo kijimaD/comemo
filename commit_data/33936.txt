@@ -1,19 +1,29 @@
-commit 1a9f27d5034056c1adf53a39939973c4495370f4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 3 17:50:47 2018 -0800
+commit 36e1c7ab73591388ba1a7246ada21e0baefd2ce1
+Author: Albert Nigmatzianov <albertnigma@gmail.com>
+Date:   Wed Sep 20 19:23:11 2017 +0500
 
-    encoding/gob: avoid race on idToType
+    io: Add benchmarks for CopyN
     
-    Fixes #23328
+    Copied from CL 60630
     
-    Change-Id: Ie4864d7f388d363860318fe41431d8a9719e9a75
-    Reviewed-on: https://go-review.googlesource.com/86075
+    Current results:
+    name          time/op
+    CopyNSmall-4  2.20µs ±90%
+    CopyNLarge-4   136µs ±56%
+    
+    name          alloc/op
+    CopyNSmall-4  1.84kB ±21%
+    CopyNLarge-4   128kB ±10%
+    
+    name          allocs/op
+    CopyNSmall-4    1.00 ± 0%
+    CopyNLarge-4    1.00 ± 0%
+    
+    Change-Id: If08c0132a773e936c9f61bff96e0aabf58006d31
+    Reviewed-on: https://go-review.googlesource.com/64932
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go          |  2 +-
- src/encoding/gob/decode.go    |  2 ++
- src/encoding/gob/type_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+), 1 deletion(-)
+ src/io/io_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

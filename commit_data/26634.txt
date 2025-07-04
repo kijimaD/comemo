@@ -1,16 +1,22 @@
-commit f5bd3556f51ce607daa0996bacd1d22563d65ea4
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Mar 30 17:54:11 2016 +0300
+commit 9a184b22eef79ac0570330a17cf81a15a58bbf76
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 18 16:44:06 2016 -0800
 
-    hash/crc64: Add tests for ECMA polynomial
+    cmd/compile: refresh builtin.go
     
-    Currently we test crc64 only with ISO polynomial.
+    The export data format was augmented with a new "unsafe-uintptr" tag
+    in https://golang.org/cl/18584, but builtin.go was not regenerated.
     
-    Change-Id: Ibc5e202db3b960369cbbb18e31eb0fea07b54dba
-    Reviewed-on: https://go-review.googlesource.com/21309
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    While here, add a test to make sure builtin.go stays up to date in the
+    future.
+    
+    Change-Id: I4ae17da29f0855bef6ec0fcc10e7082c8427d39c
+    Reviewed-on: https://go-review.googlesource.com/19681
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/hash/crc64/crc64_test.go | 89 ++++++++++++++++++++++++--------------------
- 1 file changed, 49 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go      | 72 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/builtin_test.go | 31 +++++++++++++
+ src/cmd/compile/internal/gc/mkbuiltin.go    | 13 +++++-
+ 3 files changed, 79 insertions(+), 37 deletions(-)

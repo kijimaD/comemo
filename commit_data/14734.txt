@@ -1,12 +1,21 @@
-commit 3fc3597c9b0b1e5d4887771004320add2d0570f4
+commit 1b3244e0dbbe547a0703d0380708f480a8f3c228
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 17:04:56 2012 -0500
+Date:   Sat Dec 22 16:46:01 2012 -0500
 
-    cmd/go: remove debugging flag introduced in CL 6996054
+    cmd/gc: fix eval order in select
     
-    R=remyoudompheng
+    Ordinary variable load was assumed to be not worth saving,
+    but not if one of the function calls later might change
+    its value.
+    
+    Fixes #4313.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7002052
+    https://golang.org/cl/6997047
 
- src/cmd/go/build.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/gc/order.c          |  6 +++---
+ src/cmd/gc/select.c         | 14 +++++++-------
+ src/cmd/gc/subr.c           |  4 +++-
+ test/fixedbugs/issue4313.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 11 deletions(-)

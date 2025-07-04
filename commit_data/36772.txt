@@ -1,19 +1,45 @@
-commit d3dcd89130674ee56a3ae55021e4b14ef989cf8a
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Fri Sep 28 09:26:20 2018 +0100
+commit 88756931d0a6e23aeaf61caa6a7363ac04be2063
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri May 25 08:30:26 2018 +0200
 
-    all: remove repeated "the" from comments
+    cmd/vendor/golang.org/x: pick up fixes for broken android and linux tests
     
-    A simple grep over the codebase for "the the" which is often
-    missed by humans.
+    While fixing some failing tests, CL 114416 also picked up the newly
+    added TestXattr from golang.org/x/sys/unix which fails on android. Pick
+    up CL 114535 to fix it as well.
     
-    Change-Id: Ie4b4f07abfc24c73dcd51c8ef1edf4f73514a21c
-    Reviewed-on: https://go-review.googlesource.com/138335
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Also pick up CL 114616 to fix TestStatx occasionally failing on linux.
+    
+    Change-Id: I6ebebd7761fa7a086d96ee0447dbbc5c6b94131d
+    Reviewed-on: https://go-review.googlesource.com/114575
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/query.go | 2 +-
- src/crypto/x509/cert_pool.go         | 2 +-
- src/net/http/transport.go            | 2 +-
- src/net/http/transport_test.go       | 4 ++--
- src/os/os_unix_test.go               | 2 +-
- 5 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   2 +
+ .../golang.org/x/sys/unix/syscall_linux_test.go    |   8 -
+ src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go |  11 +-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  29 ++
+ .../x/sys/unix/zerrors_linux_mips64le.go           |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  29 ++
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  29 ++
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  | 458 +++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    | 458 +++++++++++++++++++++
+ src/cmd/vendor/vendor.json                         |  30 +-
+ 26 files changed, 5380 insertions(+), 28 deletions(-)

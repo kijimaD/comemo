@@ -1,18 +1,22 @@
-commit dbb591d8da7e1958c40bc5ed631590029b94f764
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Nov 20 21:56:17 2011 +1100
+commit e2467f047b0d22b79aed86157064abfa5e205859
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Sat Nov 19 15:17:40 2011 +0900
 
-    exp/gui: delete exp/gui and exp/gui/x11. They are moving to
-    x-go-binding.googlecode.com.
+    syscall: add SUSv3 RLIMIT/RUSAGE constants
     
-    R=rsc, rogpeppe
+    R=golang-dev, mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/5406041
+    https://golang.org/cl/5369092
 
- src/pkg/Makefile             |   4 -
- src/pkg/exp/gui/Makefile     |  11 -
- src/pkg/exp/gui/gui.go       |  57 ----
- src/pkg/exp/gui/x11/Makefile |  12 -
- src/pkg/exp/gui/x11/auth.go  |  96 -------
- src/pkg/exp/gui/x11/conn.go  | 631 -------------------------------------------
- 6 files changed, 811 deletions(-)
+ src/pkg/syscall/mkerrors.sh              |  3 +++
+ src/pkg/syscall/zerrors_freebsd_386.go   | 11 +++++++++++
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 11 +++++++++++
+ src/pkg/syscall/zerrors_linux_386.go     | 15 +++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go   | 15 +++++++++++++++
+ src/pkg/syscall/zsysnum_freebsd_386.go   | 18 +++++++++++++++++-
+ src/pkg/syscall/zsysnum_freebsd_amd64.go | 18 +++++++++++++++++-
+ src/pkg/syscall/zsysnum_linux_386.go     |  6 ++++++
+ src/pkg/syscall/zsysnum_linux_amd64.go   |  6 ++++++
+ src/pkg/syscall/ztypes_linux_386.go      |  2 +-
+ src/pkg/syscall/ztypes_linux_amd64.go    |  2 +-
+ 11 files changed, 103 insertions(+), 4 deletions(-)

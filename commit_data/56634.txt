@@ -1,23 +1,19 @@
-commit 587c3847da81aa7cfc3b3db2677c8586c94df13a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 22 20:47:31 2024 +0200
+commit 408f7a4663fdb19357e2c0967eb442a1e5679b2d
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 15:10:51 2023 -0400
 
-    math/rand/v2: add ChaCha8.Read
+    cmd/dist: don't pass -linkmode=auto
     
-    Fixes #67059
-    Closes #67452
-    Closes #67498
+    This is the default value of this flag, so passing it clutters up
+    debugging output. This also makes it clearer which tests are running
+    with a default configuration.
     
-    Change-Id: I84eba2ed787a17e9d6aaad2a8a78596e3944909a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587280
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If793934829c79f087c7a6e3fa8f64dc33959c213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496176
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/67059.txt                               |   1 +
- doc/next/6-stdlib/99-minor/math/rand/v2/67059.md |   1 +
- src/math/rand/rand.go                            |   1 +
- src/math/rand/v2/chacha8.go                      |  66 +++++++++-
- src/math/rand/v2/chacha8_test.go                 | 161 ++++++++++++++++++++++-
- 5 files changed, 228 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

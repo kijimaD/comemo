@@ -1,17 +1,19 @@
-commit 951be1b58d4e8049b8a1f95ef99f6505cc4850b5
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Sep 27 13:26:47 2017 +0200
+commit d55d7b93978e1a10b6588962f999d3ebd6d65a3d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 8 20:35:02 2017 +0000
 
-    cmd/go/internal/work: skip TestRespectSetgidDir on iOS
+    net/http: simplify recently added TestServeTLS
     
-    Attempting to set the SetGID bit on iOS 11 fails with a permission
-    error. Skip the test.
+    TestServeTLS was added in CL 44074, merged today.
+    This cleans up the test a little.
     
-    Change-Id: Idac59750447d668091c44fe7cc5ee178014e0e1d
-    Reviewed-on: https://go-review.googlesource.com/66490
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Updates #13228
+    
+    Change-Id: I6efd798fe5fa015a34addbf60ae26919a1ed283e
+    Reviewed-on: https://go-review.googlesource.com/45152
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 58 +++++++++++++++++++---------------------------
+ 1 file changed, 24 insertions(+), 34 deletions(-)

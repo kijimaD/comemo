@@ -1,23 +1,22 @@
-commit 95dde3f0290b0df797770afc899ae977ed89833e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed May 5 09:23:52 2021 +0700
+commit d8044a6744f9570e964c6e35e12827473ff12cde
+Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
+Date:   Thu Oct 29 06:03:08 2020 +0800
 
-    cmd/compile: do not substitute OGOTO inside a closure when inlining
+    database/sql: fix TestTxStmtDeadlock test
     
-    The inlsubst already does the same thing for OLABEL, so we must do the
-    same thing for OGOTO. Otherwise, new inlined OGOTO node will be
-    associated with non-existed label.
+    Drop error check because errors can be
+    not only ErrTxDone for tx stmt executions,
+    and the purpose of the test is just reproducing
+    deadlock.
     
-    Fixes #45947
+    Fixes #42259
     
-    Change-Id: I40eef095f57fd3438c38a0b5d9751d5d7ebf759e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316931
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I9e7105ada1403ec7064dcc1c3385b36893a1c195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266097
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/inline/inl.go |  4 ++++
- test/fixedbugs/issue45947.go           | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/database/sql/sql_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,15 +1,14 @@
-commit a54dca8357af66023067c68fc0a395444dd6db33
+commit 38d7bcf5e2560492cff53729967719394d322cf3
 Author: Rob Pike <r@golang.org>
-Date:   Sun May 8 17:26:16 2011 -0700
+Date:   Sun May 8 14:05:18 2011 -0700
 
-    image/gif: implement transparency.
+    go spec: fix up HTML glitches.
     
-    At least, as I understand it. The spec is unclear about what happens
-    with a local color map.
+    Fixes #1786.
     
-    R=nigeltao, r2
+    R=gri, adg
     CC=golang-dev
-    https://golang.org/cl/4515045
+    https://golang.org/cl/4517043
 
- src/pkg/image/gif/reader.go | 24 +++++++++++++++---------
- 1 file changed, 15 insertions(+), 9 deletions(-)
+ doc/go_spec.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

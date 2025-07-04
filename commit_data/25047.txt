@@ -1,18 +1,19 @@
-commit 3cac3b5fca48dbd5715bb05936252eba1bb51c26
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 24 14:49:10 2015 -0800
+commit 49065cbfe41877747f4e0bb67e2dd0833ec01b7a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 13:46:46 2015 -0700
 
-    cmd/compile: remove references to go.y and update documentation
+    asm: handle EOF better
     
-    This is a comment/documentation change only but for a minor
-    code change in the file and package_ methods (move recognition
-    of semi to match grammar better).
+    Add some error catches to prevent looping at EOF.
+    Also give better diagnostics.
+    Also add tests for these cases.
     
-    Per request from r.
+    Fixes #12656.
     
-    Change-Id: I81ec985cc5831074d9eb5e8ffbf7e59466284819
-    Reviewed-on: https://go-review.googlesource.com/17202
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1355fc149b71c868e740bfa53de29c25d160777d
+    Reviewed-on: https://go-review.googlesource.com/14710
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 259 ++++++++++++++++++++--------------
- 1 file changed, 150 insertions(+), 109 deletions(-)
+ src/cmd/asm/internal/lex/input.go    | 12 ++++++
+ src/cmd/asm/internal/lex/lex_test.go | 73 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+)

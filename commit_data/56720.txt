@@ -1,90 +1,52 @@
-commit cc95d85fe452e2556efe29631421bac4c13f0160
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 29 14:19:14 2024 -0700
+commit 6c024a4cf13f66b9a65616491340b33e0f7b099d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 20 16:53:13 2023 -0400
 
-    cmd/compile: remove quoting in favor of clearer prose in error messages
+    cmd/go/internal/gover: add new Go version package
     
-    In an attempt to address issue #65790 (confusing error messages),
-    quoting of names was introduced for some (but not all) names used
-    in error messages.
+    Clean up Go version comparison.
     
-    That CL solved the issue at hand at the cost of extra punctuation
-    (the quotes) plus some inconsistency (not all names were quoted).
+    CL 494436 added an ad hoc version comparison for the toolchain switch.
     
-    This CL removes the quoting again in favor or adding a qualifying noun
-    (such as "name", "label", "package", "built-in" etc.) before a user-
-    specified name where needed.
+    There are also other version comparisons scattered throughout the code,
+    assuming that using semver.Compare with a "v" prefix gives the right answer.
+    As we start to allow versions like "go 1.21rc1" in the go.mod file,
+    those comparisons will not work properly.
     
-    For instance, instead of
+    A future CL will need to inject Go versions into semver for use with MVS,
+    so do what Bryan suggested in the review of CL 494436 and rewrite the
+    comparison in terms of that conversion.
     
-            invalid argument to `max'
+    For #57001.
     
-    we now say
-    
-            invalid argument to built-in max
-    
-    There's still a chance for confusion. For instance, before an error
-    might have been
-    
-            `sadly' not exported by package X
-    
-    and now it would be
-    
-            name sadly not exported by package X
-    
-    but adverbs (such as "sadly") seem unlikely names in programs.
-    
-    This change touches a lot of files but only affects error messages.
-    
-    Fixes #67685.
-    
-    Change-Id: I95435b388f92cade316e2844d59ecf6953b178bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589118
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ia1d441f1bc259874c6c1b3b9349bdf9823a707d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496735
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/syntax/parser.go          |  2 +-
- .../compile/internal/syntax/testdata/issue20789.go |  2 +-
- .../compile/internal/syntax/testdata/issue47704.go |  2 +-
- .../compile/internal/syntax/testdata/issue49205.go |  8 ++--
- .../compile/internal/syntax/testdata/issue52391.go |  2 +-
- .../compile/internal/syntax/testdata/issue65790.go |  2 +-
- src/cmd/compile/internal/types2/builtins.go        | 12 ++---
- src/cmd/compile/internal/types2/call.go            |  2 +-
- src/cmd/compile/internal/types2/check.go           |  2 +-
- src/cmd/compile/internal/types2/decl.go            |  2 +-
- src/cmd/compile/internal/types2/format.go          | 33 -------------
- src/cmd/compile/internal/types2/issues_test.go     | 10 ++--
- src/cmd/compile/internal/types2/labels.go          | 12 ++---
- src/cmd/compile/internal/types2/stmt.go            |  4 +-
- src/cmd/compile/internal/types2/typeset.go         |  8 ++--
- src/cmd/compile/internal/types2/typexpr.go         |  4 +-
- src/go/types/builtins.go                           | 12 ++---
- src/go/types/call.go                               |  2 +-
- src/go/types/check.go                              |  2 +-
- src/go/types/decl.go                               |  2 +-
- src/go/types/format.go                             | 33 -------------
- src/go/types/issues_test.go                        | 10 ++--
- src/go/types/labels.go                             | 12 ++---
- src/go/types/stmt.go                               |  4 +-
- src/go/types/typeset.go                            |  8 ++--
- src/go/types/typexpr.go                            |  4 +-
- src/internal/types/testdata/check/builtins0.go     |  4 +-
- src/internal/types/testdata/check/decls0.go        |  2 +-
- .../types/testdata/check/decls2/decls2a.go         |  4 +-
- src/internal/types/testdata/check/go1_13.go        |  4 +-
- .../testdata/check/importdecl0/importdecl0a.go     |  2 +-
- src/internal/types/testdata/check/labels.go        | 56 +++++++++++-----------
- src/internal/types/testdata/check/stmt0.go         |  4 +-
- .../types/testdata/fixedbugs/issue50779.go         |  2 +-
- .../types/testdata/fixedbugs/issue66285.go         |  6 +--
- test/fixedbugs/issue11361.go                       |  2 +-
- test/fixedbugs/issue20789.go                       |  2 +-
- test/fixedbugs/issue21317.go                       |  4 +-
- test/fixedbugs/issue23664.go                       |  6 +--
- test/fixedbugs/issue28268.go                       |  4 +-
- test/fixedbugs/issue29870b.go                      |  2 +-
- test/fixedbugs/issue34329.go                       |  4 +-
- 42 files changed, 117 insertions(+), 187 deletions(-)
+ src/cmd/go/go_test.go                              |   8 +-
+ src/cmd/go/gotoolchain.go                          |  38 ++--
+ src/cmd/go/gotoolchain_port.go                     | 117 -----------
+ src/cmd/go/gotoolchain_test.go                     |  49 -----
+ src/cmd/go/internal/gover/gomod.go                 |  43 ++++
+ src/cmd/go/internal/gover/gover.go                 | 225 +++++++++++++++++++++
+ src/cmd/go/internal/gover/gover_test.go            | 137 +++++++++++++
+ src/cmd/go/internal/gover/latest.go                |  30 +++
+ src/cmd/go/internal/gover/mod.go                   |  75 +++++++
+ src/cmd/go/internal/gover/mod_test.go              |  71 +++++++
+ src/cmd/go/internal/modcmd/download.go             |   4 +-
+ src/cmd/go/internal/modcmd/edit.go                 |   3 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |   6 +-
+ src/cmd/go/internal/modcmd/vendor.go               |   8 +-
+ src/cmd/go/internal/modload/init.go                |  55 +----
+ src/cmd/go/internal/modload/load.go                |  18 +-
+ src/cmd/go/internal/modload/modfile.go             |  35 ++--
+ src/cmd/go/internal/modload/vendor.go              |   3 +-
+ src/cmd/go/internal/work/build.go                  |   2 -
+ src/cmd/go/internal/work/gc.go                     |   7 +-
+ src/cmd/go/internal/workcmd/edit.go                |   3 +-
+ .../go/testdata/script/mod_load_missing_std.txt    |   1 +
+ src/cmd/go/testdata/script/mod_tidy_too_new.txt    |   2 +
+ 23 files changed, 662 insertions(+), 278 deletions(-)

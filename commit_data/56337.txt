@@ -1,22 +1,23 @@
-commit 8f71c7633fd70fffc5fa65e7865e763238fa6f46
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 2 14:27:26 2024 -0400
+commit d1f0552892b555ed6edeb58d4793396dd2b7ce62
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 28 14:51:18 2023 -0400
 
-    runtime: remove note about goid reuse
+    misc/android: rename to misc/go_android_exec, make go build work
     
-    Goids are designed to be big enough that they will never be reused:
-    a uint64 is enough to generate a new goroutine every nanosecond
-    for 500+ years before wrapping around, and after 500 years you
-    should probably stop and pick up some security updates.
+    This makes it reasonable to "go build" from this directory by changing
+    the name of the directory to a more reasonable name for the binary and
+    dropping the unnecessary "ignore" build tag. The resulting binary
+    doesn't *quite* have the necessary name for a Go exec wrapper because
+    that needs to have the form, go_android_$GOARCH_exec, but it's close.
     
-    This note was added in CL 70993 and appears to have just been
-    a misunderstanding by the CL author.
-    
-    Change-Id: Ida7099b5191a4e5dbb1e3e9e44b4b86d7779fd6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582895
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I036cb1af9c034462a952b176a794526fa3ffd1ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490495
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/extern.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ misc/{android => go_android_exec}/README                     | 0
+ misc/{android/go_android_exec.go => go_android_exec/main.go} | 3 ---
+ src/cmd/dist/build.go                                        | 2 +-
+ 3 files changed, 1 insertion(+), 4 deletions(-)

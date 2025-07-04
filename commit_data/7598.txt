@@ -1,19 +1,25 @@
-commit 60f193781de8d0b4e96ca92952915de3f21abfca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 1 14:07:28 2011 -0800
+commit 966bf71366019dc608d22128400483bf44c1055c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 1 13:54:22 2011 -0800
 
-    http: expose Client's Transport
+    docs: make "runtime" a word only as a name for the package.
     
-    This is again an intentionally minimal change.
+    Computer people have an agglutinating streak that I like to resist.
+    As a time of execution: run time.
+    As an adjective: run-time.
+    As a noun: run-time support/code/library.
     
-    The plan is to keep Client's zero value be a usable
-    client, with optional fields being added over time
-    (e.g. cookie manager, redirect policy, auth)
+    Signed,
+    Mr. Pedant.
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4239044
+    https://golang.org/cl/4252048
 
- src/pkg/http/client.go      | 37 +++++++++++++++++++++----------------
- src/pkg/http/client_test.go |  2 +-
- 2 files changed, 22 insertions(+), 17 deletions(-)
+ doc/gccgo_contribute.html       |  2 +-
+ doc/gccgo_install.html          |  2 +-
+ doc/go_faq.html                 | 18 +++++++++---------
+ doc/go_for_cpp_programmers.html |  4 ++--
+ doc/go_spec.html                |  2 +-
+ doc/install.html                |  6 +++---
+ 6 files changed, 17 insertions(+), 17 deletions(-)

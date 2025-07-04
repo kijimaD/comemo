@@ -1,16 +1,18 @@
-commit e1fb8e429158124a65139e28674ad8bb43a7eeb8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 16 13:28:35 2019 -0400
+commit 006a5e7d00992cfae6ac406959512d680025f75c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 11 14:06:45 2019 -0800
 
-    cmd/go: include "gccgo stdlib" in lost build action check
+    testing: report the failing test in a late log panic
     
-    Fixes #32060
+    Updates #29388
     
-    Change-Id: I49ab48a9bdd64a7ed777a045e2d92d28a37b5c0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177600
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icb0e6048d05fde7a5486b923ff62147edb5c8dac
+    Reviewed-on: https://go-review.googlesource.com/c/157617
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/work/action.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/sub_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go  | 23 +++++++++++++----------
+ 2 files changed, 62 insertions(+), 10 deletions(-)

@@ -1,21 +1,22 @@
-commit 293d43e17eaae8ccb83364e401538d51c035b8a4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 5 18:47:23 2022 -0400
+commit 3d679c6554d5b282154caa717567ad8353a8bc71
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun May 30 01:46:19 2021 +1000
 
-    cmd/go: add index creation methods
+    syscall: use correct type for TIOCSPGRP/TIOCGPGRP
     
-    This change functions to scan modules and packages into an intermediate
-    RawPackage struct and also functions to write them out to and index.
+    These ioctls take a pid_t (generally a C integer aka int32) and not an int64 - we
+    currently get away with this on little endian 64 bit platforms, since the bytes
+    fall into the correct place, however this breaks on big endian 64 bit platforms
+    (like openbsd/mips64).
     
-    Change-Id: Ia1a3b58b992e9be52c5d1397e85c642f902011cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398415
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    This is the same fix as CL 267605, however for libc based exec.
+    
+    Updates #36435
+    
+    Change-Id: I01ae4905cba5e1f8725fa6cb8c35403c511534b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334881
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modindex/build.go         |   8 +-
- src/cmd/go/internal/modindex/index_format.txt |  47 +++++
- src/cmd/go/internal/modindex/scan.go          | 246 ++++++++++++++++++++++++++
- src/cmd/go/internal/modindex/write.go         | 155 ++++++++++++++++
- 4 files changed, 452 insertions(+), 4 deletions(-)
+ src/syscall/exec_libc2.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

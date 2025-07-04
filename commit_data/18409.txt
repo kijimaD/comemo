@@ -1,21 +1,23 @@
-commit c2d02b3b9fd6847535ac18b24582a8bb98a3eb30
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Feb 4 10:51:37 2014 -0500
+commit 9ed5995cfe4c217c1291ced9c4a70334383df226
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Feb 3 14:49:57 2014 -0800
 
-    crypto/tls: do not send the current time in hello messages
+    liblink, cmd/5l: restore flag_shared
     
-    This reduces the ability to fingerprint TLS connections.
+    CL 56120043 fixed and cleaned up TLS on ARM after introducing liblink, but
+    left flag_shared broken. This CL restores the (unsupported) flag_shared
+    behaviour by simply rewriting access to $runtime.tlsgm(SB) with
+    runtime.tlsgm(SB), to compensate for the extra indirection when going from
+    the R_ARM_TLS_LE32 relocation to the R_ARM_TLS_IE32 relocation.
     
-    The impeteus for this change was a recent change to OpenSSL
-    by Nick Mathewson:
+    Also, remove unnecessary symbol lookup left after 56120043.
     
-    http://git.openssl.org/gitweb/?p=openssl.git;a=commit;h=2016265dfb
-    
-    LGTM=agl
-    R=agl
+    LGTM=iant
+    R=iant, rsc
     CC=golang-codereviews
-    https://golang.org/cl/57230043
+    https://golang.org/cl/57000043
 
- src/pkg/crypto/tls/handshake_client.go | 7 +------
- src/pkg/crypto/tls/handshake_server.go | 9 ++-------
- 2 files changed, 3 insertions(+), 13 deletions(-)
+ src/cmd/5l/5.out.h |  2 +-
+ src/liblink/asm5.c |  3 +--
+ src/liblink/obj5.c | 18 +++++++++++++++---
+ 3 files changed, 17 insertions(+), 6 deletions(-)

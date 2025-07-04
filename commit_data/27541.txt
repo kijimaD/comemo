@@ -1,21 +1,29 @@
-commit 9369f22b8444d4e4afd791273ae13121d2ec7a6d
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 24 14:09:02 2016 -0700
+commit 92bb694a493723d901a253bc88be53a207c8d550
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 31 13:58:33 2016 -0700
 
-    cmd/compile: testing harness for checking generated assembly
+    cmd/compile: s.f aliases itself
     
-    Add a test which compiles a function and checks the
-    generated assembly to make sure certain patterns are present.
-    This test allows us to do white box tests of the compiler
-    to make sure optimizations don't regress.
+    The change in 20907 fixed varexpr but broke aliased.  After that change,
+    a reference to a field in a struct would not be seen as aliasing itself.
+    Before that change, it would, but only because all fields in a struct
+    aliased everything.
     
-    Added a few simple tests for now.  More to come.
+    This CL changes the compiler to consider all references to a field as
+    aliasing all other fields in that struct.  This is imperfect--a
+    reference to one field does not alias another field--but is a simple fix
+    for the immediate problem.  A better fix would require tracking the
+    specific fields as well.
     
-    Change-Id: I4ab5ce5d95b9e04e7d0d9328ffae47b8d1f95e74
-    Reviewed-on: https://go-review.googlesource.com/23403
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #15042.
+    
+    Change-Id: I5c95c0dd7b0699e53022fce9bae2e8f50d6d1d04
+    Reviewed-on: https://go-review.googlesource.com/21390
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 105 ++++++++++++++++++++++++++++++++
- 1 file changed, 105 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 14 +++++++++++++-
+ test/fixedbugs/issue15042.go        | 27 +++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

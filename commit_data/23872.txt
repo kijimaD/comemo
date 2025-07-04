@@ -1,13 +1,29 @@
-commit 80abe2fc59b8689413e906ad803ebc176389b926
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 28 12:28:09 2015 +0900
+commit 1e0760354c8a929d9d84575106ae264fa6395132
+Author: Davies Liu <davies.liu@gmail.com>
+Date:   Thu Dec 18 22:45:55 2014 -0800
 
-    net: make spuriousENOTAVAIL to be able to parse EADDRNOTAVAIL correctly
+    hash/crc32: speedup crc32 of IEEE using slicingBy8
     
-    Change-Id: I82e3aadbd18fccb98a76d1c36876510f5e1c3089
-    Reviewed-on: https://go-review.googlesource.com/12750
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The Slicing-By-8 [1] algorithm has much performance improvements than
+    current approach. This patch only uses it for IEEE, which is the most
+    common case in practice.
+    
+    There is the benchmark on Mac OS X 10.9:
+    
+    benchmark                     old MB/s     new MB/s     speedup
+    BenchmarkIEEECrc1KB           349.40       353.03       1.01x
+    BenchmarkIEEECrc4KB           351.55       934.35       2.66x
+    BenchmarkCastagnoliCrc1KB     7037.58      7392.63      1.05x
+    
+    This algorithm need 8K lookup table, so it's enabled only for block
+    larger than 4K.
+    
+    We can see about 2.6x improvement for IEEE.
+    
+    Change-Id: I7f786d20f0949245e4aa101d7921669f496ed0f7
+    Reviewed-on: https://go-review.googlesource.com/1863
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/error_posix_test.go | 27 ++++++++++++++++++++++++++-
- src/net/tcpsock_posix.go    |  9 +++++++--
- 2 files changed, 33 insertions(+), 3 deletions(-)
+ src/hash/crc32/crc32.go      | 44 +++++++++++++++++++++++++++++++++++++++++++-
+ src/hash/crc32/crc32_test.go | 36 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 78 insertions(+), 2 deletions(-)

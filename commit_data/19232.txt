@@ -1,16 +1,15 @@
-commit 7faf72bd0d2124b799e397b08d37a11ed627bed3
-Author: Jonathan Allie <jonallie@google.com>
-Date:   Sat Apr 26 10:25:16 2014 -0600
+commit 75ba181841aea2218d614bd9d30f1a570b4bcc1b
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Apr 25 20:09:04 2014 -0700
 
-          encoding/gob: handle interface types in isZero() by returning true for nil interfaces.
+    doc/contribute.html: link to wiki for more code review information
     
-    Fixes #7741.
+    (from the discussions on CL 89650044)
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=minux.ma, iant
+    R=iant, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/96830044
+    https://golang.org/cl/97770043
 
- src/pkg/encoding/gob/encode.go         |  2 +-
- src/pkg/encoding/gob/gobencdec_test.go | 19 ++++++++++++++++---
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ doc/contribute.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

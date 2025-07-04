@@ -1,22 +1,13 @@
-commit 3abf1177042e9015bcaba96860513c282263126f
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 13 10:52:35 2017 -0800
+commit b3a17812867ad746fb13fbede06e9055fb17c2fb
+Author: Ryuji IWATA <qt.luigi@gmail.com>
+Date:   Sun Aug 20 23:58:59 2017 +0900
 
-    cmd/compile: add test for array decomposition
+    doc/go1.9: fix typo in crypto/x509 of "Minor changes to the library".
     
-    This test fails on 1.9.2, but is ok on tip.
-    CL 77331 has both the 1.9.2 fix and this test, and is on the 1.9 release branch.
-    This CL is just the test, and is on HEAD.  The buggy code doesn't exist on tip.
-    
-    Update #22683
-    
-    Change-Id: I04a24bd6c2d3068e18ca81da3347e2c1366f4447
-    Reviewed-on: https://go-review.googlesource.com/77332
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I79fee40370dc6758ca1869227f076c61d07f21a5
+    Reviewed-on: https://go-review.googlesource.com/57390
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue22683.go  | 30 ++++++++++++++++++++++++++++++
- test/fixedbugs/issue22683.out |  1 +
- 2 files changed, 31 insertions(+)
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

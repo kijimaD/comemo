@@ -1,17 +1,58 @@
-commit f0a8101d34b396c4dc9ea6581c03ce16419192ab
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Apr 20 23:10:09 2021 -0400
+commit a2eb53c571607bb0e64cb2996ca2bd402ad6e347
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 9 23:18:05 2020 +1100
 
-    go/types: combine two loops (cleanup of TODO)
+    strconv: use the Eisel-Lemire ParseFloat algorithm
     
-    This is an exact port of CL 307949 to go/types.
+    Also fix BenchmarkAtof64Random* to initialize the test data when none
+    of the TestAtof* tests are run.
     
-    Change-Id: I796f3030a86d76deb80e58bb547460b586480911
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312096
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Passing "go test -test.count=5 -test.run=xxx -test.bench=Atof64" on to
+    benchstat:
+    
+    name                  old time/op  new time/op  delta
+    Atof64Decimal-4       47.9ns ± 0%  48.3ns ± 1%     ~     (p=0.238 n=4+5)
+    Atof64Float-4         58.3ns ± 3%  57.7ns ± 0%     ~     (p=0.151 n=5+5)
+    Atof64FloatExp-4       107ns ± 0%    71ns ± 1%  -33.89%  (p=0.016 n=4+5)
+    Atof64Big-4            163ns ± 0%   166ns ± 2%     ~     (p=0.159 n=4+5)
+    Atof64RandomBits-4     299ns ± 1%   166ns ± 1%  -44.41%  (p=0.008 n=5+5)
+    Atof64RandomFloats-4   188ns ± 1%   144ns ± 0%  -23.03%  (p=0.008 n=5+5)
+    
+    The canada.json file from github.com/miloyip/nativejson-benchmark is
+    full of geospatial coordinates (i.e. numbers). With this program:
+    
+        src, _ := ioutil.ReadFile("canada.json")
+        for i := 0; i < 5; i++ {
+            now := time.Now()
+            for j := 0; j < 10; j++ {
+                dst := interface{}(nil)
+                if err := json.Unmarshal(src, &dst); err != nil {
+                    log.Fatal(err)
+                }
+            }
+            fmt.Println(time.Since(now))
+        }
+    
+    Median of the 5 printed numbers, lower is better.
+    Before: 760.819549ms
+    After:  702.651646ms
+    Ratio:  1.08x
+    
+    The new detailedPowersOfTen table weighs in at 596 * 16 = 9536 bytes,
+    but some of that weight gain can be clawed back, in a follow-up commit,
+    that folds in the existing powersOfTen table in extfloat.go.
+    
+    RELNOTE=yes
+    
+    Change-Id: I3953110deaa1f5f6941e88e8417c4665b649ed80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260858
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
 
- src/go/types/infer.go | 32 +++++++++++---------------------
- 1 file changed, 11 insertions(+), 21 deletions(-)
+ doc/go1.16.html             |  13 +
+ src/strconv/atof.go         |   5 +-
+ src/strconv/atof_test.go    |   4 +
+ src/strconv/eisel_lemire.go | 691 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 712 insertions(+), 1 deletion(-)

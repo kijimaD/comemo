@@ -1,28 +1,25 @@
-commit 7d1b82dbf108d6cf80f959bb1558f365cee0ec0e
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Jan 3 04:18:15 2024 +0000
+commit cb61585e870e2967d965d673c98f9d9a45b6e855
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 11 17:27:56 2023 -0500
 
-    net/http: make Request.Clone create fresh copies for matches and otherValues
+    cmd/dist: skip building std for the host when cross-compiling
     
-    This change fixes Request.Clone to correctly work with SetPathValue
-    by creating fresh copies for matches and otherValues so that
-    SetPathValue for cloned requests doesn't pollute the original request.
+    The purpose of building the host toolchain is so that we can use it to
+    build and test the target configuration.
     
-    While here, also added a doc for Request.SetPathValue.
+    The host configuration should already be tested separately (with its
+    own builder), so we do not need to build the parts of that
+    configuration that are not relevant to the task of building and
+    testing the target configuration.
     
-    Fixes #64911
+    Updates #47257.
     
-    Change-Id: I2831b38e135935dfaea2b939bb9db554c75b65ef
-    GitHub-Last-Rev: 1981db16475a49fe8d4b874a6bceec64d28a1332
-    GitHub-Pull-Request: golang/go#64913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553375
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I814778d2d65b1f2887c9419232b5bfd4068f58af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461676
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/request.go      | 16 ++++++++++++++++
- src/net/http/request_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ src/cmd/dist/build.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

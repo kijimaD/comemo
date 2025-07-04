@@ -1,22 +1,20 @@
-commit 2d8181e7b5ffe685847a6bb922170c4bbe1c97f6
-Author: Austin Clements <austin@google.com>
-Date:   Sun Mar 25 12:20:57 2018 -0400
+commit 5d0cab036712539d50435904ded466bf6b7b0884
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Thu Nov 2 14:23:32 2017 +0800
 
-    cmd/compile: clarify unsigned interpretation of AuxInt
+    net/textproto: ignore initial lines with leading whitespaces in ReadMIMEHeader
     
-    The way Value.AuxInt represents unsigned numbers is currently
-    documented in genericOps.go, which is not the most obvious place for
-    it. Move that documentation to Value.AuxInt. Furthermore, to make it
-    harder to use incorrectly, introduce a Value.AuxUnsigned accessor that
-    returns the zero-extended value of Value.AuxInt.
+    A header line with leading whitespaces is not valid in HTTP as per
+    RFC7230. This change ignores these invalid lines in ReadMIMEHeader.
     
-    Change-Id: I85030c3c68761404058a430e0b1c7464591b2f42
-    Reviewed-on: https://go-review.googlesource.com/102597
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #22464
+    
+    Change-Id: Iff9f00380d28a9617a55ff7888a76fba82001402
+    Reviewed-on: https://go-review.googlesource.com/75350
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go |  2 --
- src/cmd/compile/internal/ssa/prove.go          | 14 ++------------
- src/cmd/compile/internal/ssa/value.go          | 23 +++++++++++++++++++++++
- 3 files changed, 25 insertions(+), 14 deletions(-)
+ src/net/http/readrequest_test.go | 20 ++++++++++++++++++++
+ src/net/http/response_test.go    | 22 ++++++++++++++++++++++
+ src/net/textproto/reader.go      |  8 ++++++++
+ src/net/textproto/reader_test.go | 19 +++++++++++++++++++
+ 4 files changed, 69 insertions(+)

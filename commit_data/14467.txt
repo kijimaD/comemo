@@ -1,14 +1,12 @@
-commit 1fbe3090d8382176d1f5075cecd2fa578fe363a4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Nov 25 18:46:41 2012 +0900
+commit be5c445909ca872a67683a3f1720df8f99593656
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 24 16:53:08 2012 -0800
 
-    runtime: fix madvise for freebsd/amd64
+    test: add bug469, a case where gccgo gaves an incorrect error
     
-    Make use of carry clear condition instead of low or same.
-    
-    R=minux.ma, jsing, dave
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6844080
+    https://golang.org/cl/6856084
 
- src/pkg/runtime/sys_freebsd_amd64.s | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ test/fixedbugs/bug469.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

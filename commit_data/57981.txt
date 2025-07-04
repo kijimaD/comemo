@@ -1,28 +1,27 @@
-commit 534551d55a8adff53a506a8fcea387c3ade346f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 14 12:56:46 2024 +0100
+commit 630fff76f9f5f52735fc34745d39c85671fe800c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 14 18:15:47 2023 +0200
 
-    crypto/internal/fips/check: fix for ASAN builds
+    syscall: remove unused ptracePtr on openbsd
     
-    For now, FIPS does not work with ASAN: ASAN detects reads
-    it doesn't like during the scans of memory done by verification.
-    It could be made to work if there was a way to disable ASAN
-    during verification, but that doesn't appear to be possible.
+    ptracePtr was introduced in CL 470299 for openbsd but it's not used on
+    this platform.
     
-    Instead of a cryptic ASAN message, panic with a clear error.
-    And disable the test during ASAN.
+    For #58387
     
-    Fixes #70321.
-    
-    Change-Id: Ibc3876836abb83248a23c18c3b44c4cbb4a0c600
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627603
+    Change-Id: I27901c3f4497e18dc407a9248b66e2691c9a6abb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527535
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/check/check.go          | 12 ++++++++++++
- src/crypto/internal/fips/check/check_test.go     |  6 ++++++
- src/crypto/internal/fips/check/checktest/asm.s   |  4 ++--
- src/crypto/internal/fips/check/checktest/test.go |  9 ++++++++-
- 4 files changed, 28 insertions(+), 3 deletions(-)
+ src/syscall/syscall_openbsd_libc.go   |  1 -
+ src/syscall/zsyscall_openbsd_386.go   | 11 -----------
+ src/syscall/zsyscall_openbsd_amd64.go | 11 -----------
+ src/syscall/zsyscall_openbsd_arm.go   | 11 -----------
+ src/syscall/zsyscall_openbsd_arm64.go | 11 -----------
+ src/syscall/zsyscall_openbsd_ppc64.go | 11 -----------
+ 6 files changed, 56 deletions(-)

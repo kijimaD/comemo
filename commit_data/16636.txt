@@ -1,17 +1,16 @@
-commit 3d513faa6f41cb6a02a69a0729beef6ccc594d0e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jun 25 17:20:14 2013 +1000
+commit 3a3b53da8837563e7315785919b43943c3a6d5c3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 25 15:29:02 2013 +1000
 
-    runtime: do not mark os memory as executable on windows
+    libmach: trivial: resolve unused parameter warnings
     
-    Resubmit 3c2cddfbdaec now that windows callbacks
-    are not generated during runtime.
+    Fix a bunch of warnings detected by https://golang.org/cl/8090044.
     
-    Fixes #5494
+    Same as CL 10483044, but for FreeBSD.
     
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10487043
+    https://golang.org/cl/10498044
 
- src/pkg/runtime/mem_windows.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/libmach/freebsd.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

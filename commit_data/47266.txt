@@ -1,15 +1,20 @@
-commit 76c48e9346bba98689e059aaee5952c17d45a48c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Nov 4 11:33:39 2021 -0700
+commit a08adda12c2af7f597dad9d280282c7e70d4a2dc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 3 08:04:40 2021 -0800
 
-    net: add UDP allocs test
+    os/signal: remove comments about SA_RESTART
     
-    Change-Id: Ibefd1ca0236d17d57fc5aa5938a56ae92272ca60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361396
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    It's no longer necessary for non-Go signal handlers to use SA_RESTART.
+    
+    For #20400
+    Fixes #44761
+    
+    Change-Id: Ie3c7fecc631a4a2822331754296ea09b308e1391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298269
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/udpsock_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 53 insertions(+)
+ src/os/signal/doc.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

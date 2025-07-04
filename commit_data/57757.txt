@@ -1,22 +1,22 @@
-commit 76f320836720635b30896d91493c02c1f9578cca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 23 17:27:44 2024 -0700
+commit f7f1c4f86d72bac49cfd30fc94ec62756d951245
+Author: shuang cui <imcusg@gmail.com>
+Date:   Tue Aug 29 00:43:43 2023 +0000
 
-    runtime: support cgo index into pointer-to-array
+    Revert "cmd/compile/internal/liveness: remove repetitive word"
     
-    We were missing a case for calling a C function with an index
-    into a pointer-to-array.
+    This reverts commit 50bd17205fd9540615c03461a0047e59d29e6efd.
     
-    Fixes #70016
+    Reason for revert: The first being the English word, the second being the name of the 3rd parameter.
     
-    Change-Id: I9c74d629e58722813c1aaa0f0dc225a5a64d111b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621576
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iabca436b93ecc5481874e1eac0a1768292447431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523835
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
 
- src/cmd/cgo/internal/testerrors/ptr_test.go | 17 +++++++++++++++++
- src/runtime/cgocall.go                      | 11 +++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/compile/internal/liveness/plive.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

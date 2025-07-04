@@ -1,12 +1,14 @@
-commit 1a7ce9dd59f03d8ad44026d8b19c4466b6ffc420
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 21 08:21:11 2017 +0100
+commit c875cea7ae174f723aed10ea31911cd7013ee261
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Sun Aug 27 11:30:19 2017 +0300
 
-    net: fix typo in parsePort documentation
+    net/http: mention RegisterOnShutdown in Server.Shutdown docs
     
-    Change-Id: Ia302d9018690cd26890f874c70bd0c429a4b51f0
-    Reviewed-on: https://go-review.googlesource.com/78975
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Closes #21637
+    
+    Change-Id: Icc3528572ea2a25e62757cc8fbbb9c3fa96a78b2
+    Reviewed-on: https://go-review.googlesource.com/59350
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/net/port.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/server.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

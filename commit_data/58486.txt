@@ -1,24 +1,58 @@
-commit b50ccef67a5cd4a2919131cfeb6f3a21d6742385
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 6 11:10:02 2025 -0500
+commit c06beb9eff441271bedf34ea9777a92db8018f9d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 22:46:47 2023 +0000
 
-    cmd/go/internal/modindex: don't write index entry if file open
+    internal/trace/v2: resolve syscall parsing ambiguity
     
-    On Windows, we can't open a file that's already been opened. Before this
-    change, we'd try to write an index entry if mmapping the entry failed.
-    But that could happen either if the file doesn't exist or if there was a
-    problem mmapping an already opened file. Pass through information about
-    whether the file was actually opened so that we don't try to write to an
-    already opened file.
+    After landing the new execution tracer, the Windows builders failed with
+    some new errors.
     
-    For #71059
+    Currently the GoSyscallBegin event has no indicator that its the target
+    of a ProcSteal event. This can lead to an ambiguous situation that is
+    unresolvable if timestamps are broken. For instance, if the tracer sees
+    the ProcSteal event while a goroutine has been observed to be in a
+    syscall (one that, for instance, did not actually lose its P), it will
+    proceed with the ProcSteal incorrectly.
     
-    Change-Id: I6adabe1093fed9ec37e7fafb13384c102786cbce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640577
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    This is a little abstract. For a more concrete example, see the
+    go122-syscall-steal-proc-ambiguous test.
+    
+    This change resolves this ambiguity by interleaving GoSyscallBegin
+    events into how Ps are sequenced. Because a ProcSteal has a sequence
+    number (it has to, it's stopping a P from a distance) it necessarily
+    has to synchronize with a precise ProcStart event. This change basically
+    just extends this synchronization to GoSyscallBegin, so the ProcSteal
+    can't advance until _exactly the right_ syscall has been entered.
+    
+    This change removes the test skip, since it and CL 541695 fix the two
+    main issues observed on Windows platforms.
+    
+    For #60773.
+    Fixes #64061.
+    
+    Change-Id: I069389cd7fe1ea903edf42d79912f6e2bcc23f62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541696
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/internal/cache/cache.go   | 12 ++++++------
- src/cmd/go/internal/mmap/mmap.go     |  7 ++++---
- src/cmd/go/internal/modindex/read.go | 22 ++++++++++++++++------
- 3 files changed, 26 insertions(+), 15 deletions(-)
+ src/internal/trace/goroutinesv2_test.go            |    5 +-
+ src/internal/trace/v2/event/go122/event.go         |    6 +-
+ .../trace/v2/internal/testgen/go122/trace.go       |   32 +-
+ src/internal/trace/v2/order.go                     |   47 +-
+ .../go122-syscall-steal-proc-ambiguous.go          |   46 +
+ ...syscall-steal-proc-reacquire-new-proc-bare-m.go |    4 +-
+ .../go122-syscall-steal-proc-reacquire-new-proc.go |    4 +-
+ .../go122-syscall-steal-proc-simple-bare-m.go      |    4 +-
+ .../generators/go122-syscall-steal-proc-simple.go  |    4 +-
+ .../trace/v2/testdata/tests/go122-annotations.test |  294 +-
+ .../trace/v2/testdata/tests/go122-gc-stress.test   | 6369 +++++++++++++-------
+ .../tests/go122-syscall-steal-proc-ambiguous.test  |   21 +
+ ...scall-steal-proc-reacquire-new-proc-bare-m.test |    6 +-
+ ...o122-syscall-steal-proc-reacquire-new-proc.test |    6 +-
+ .../go122-syscall-steal-proc-simple-bare-m.test    |    6 +-
+ .../tests/go122-syscall-steal-proc-simple.test     |    6 +-
+ src/internal/trace/v2/trace_test.go                |    4 -
+ src/runtime/trace2event.go                         |    2 +-
+ src/runtime/trace2runtime.go                       |    5 +-
+ 19 files changed, 4373 insertions(+), 2498 deletions(-)

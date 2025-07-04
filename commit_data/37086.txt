@@ -1,41 +1,15 @@
-commit 202e9031444cef93c16a97cf076e5f8a9d9c3a75
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Oct 18 10:53:44 2018 +0100
+commit 6dd789fdea8e45280caecac7fca85c76673ad3c8
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 26 13:48:05 2018 +0700
 
-    text/template: recover panics during function calls
+    cmd/link: document limitation of -X
     
-    There's precedent in handling panics that happen in functions called
-    from the standard library. For example, if a fmt.Formatter
-    implementation fails, fmt will absorb the panic into the output text.
+    Fixes #26042
     
-    Recovering panics is useful, because otherwise one would have to wrap
-    some Template.Execute calls with a recover. For example, if there's a
-    chance that the callbacks may panic, or if part of the input data is nil
-    when it shouldn't be.
-    
-    In particular, it's a common confusion amongst new Go developers that
-    one can call a method on a nil receiver. Expecting text/template to
-    error on such a call, they encounter a long and confusing panic if the
-    method expects the receiver to be non-nil.
-    
-    To achieve this, introduce safeCall, which takes care of handling error
-    returns as well as recovering panics. Handling panics in the "call"
-    function isn't strictly necessary, as that func itself is run via
-    evalCall. However, this makes the code more consistent, and can allow
-    for better context in panics via the "call" function.
-    
-    Finally, add some test cases with a mix of funcs, methods, and func
-    fields that panic.
-    
-    Fixes #28242.
-    
-    Change-Id: Id67be22cc9ebaedeb4b17fa84e677b4b6e09ec67
-    Reviewed-on: https://go-review.googlesource.com/c/143097
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ica16f14a65c03659a19926852cca5e554c99baf1
+    Reviewed-on: https://go-review.googlesource.com/120935
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/exec.go      | 10 +++----
- src/text/template/exec_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++
- src/text/template/funcs.go     | 23 +++++++++++++---
- 3 files changed, 83 insertions(+), 9 deletions(-)
+ src/cmd/link/doc.go              | 4 +++-
+ src/cmd/link/internal/ld/data.go | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

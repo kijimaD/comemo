@@ -1,75 +1,25 @@
-commit 8a958bb8a6336eb5b56934a7d129b6e4d1e82164
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Apr 29 14:57:30 2018 +0200
+commit b6c871a2af7c916f3c862e38816713aa8bf824a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:26:21 2018 -0500
 
-    cmd/compile: better formatting for ssa phases options doc
+    doc: s/tool chain/toolchain/
     
-    Change the help doc of
+    We were not being consistent.
+    Standardize on toolchain.
     
-      go tool compile -d=ssa/help
-    
-    from this:
-    
-      compile: GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
-      <phase> is one of:
-      check, all, build, intrinsics, early_phielim, early_copyelim
-      early_deadcode, short_circuit, decompose_user, opt, zero_arg_cse
-      opt_deadcode, generic_cse, phiopt, nilcheckelim, prove, loopbce
-      decompose_builtin, softfloat, late_opt, generic_deadcode, check_bce
-      fuse, dse, writebarrier, insert_resched_checks, tighten, lower
-      lowered_cse, elim_unread_autos, lowered_deadcode, checkLower
-      late_phielim, late_copyelim, phi_tighten, late_deadcode, critical
-      likelyadjust, layout, schedule, late_nilcheck, flagalloc, regalloc
-      loop_rotate, stackframe, trim
-      <flag> is one of on, off, debug, mem, time, test, stats, dump
-      <value> defaults to 1
-      <function_name> is required for "dump", specifies name of function to dump after <phase>
-      Except for dump, output is directed to standard out; dump appears in a file.
-      Phase "all" supports flags "time", "mem", and "dump".
-      Phases "intrinsics" supports flags "on", "off", and "debug".
-      Interpretation of the "debug" value depends on the phase.
-      Dump files are named <phase>__<function_name>_<seq>.dump.
-    
-    To this:
-    
-      compile: PhaseOptions usage:
-    
-          go tool compile -d=ssa/<phase>/<flag>[=<value>|<function_name>]
-    
-      where:
-    
-      - <phase> is one of:
-          check, all, build, intrinsics, early_phielim, early_copyelim
-          early_deadcode, short_circuit, decompose_user, opt, zero_arg_cse
-          opt_deadcode, generic_cse, phiopt, nilcheckelim, prove
-          decompose_builtin, softfloat, late_opt, generic_deadcode, check_bce
-          branchelim, fuse, dse, writebarrier, insert_resched_checks, lower
-          lowered_cse, elim_unread_autos, lowered_deadcode, checkLower
-          late_phielim, late_copyelim, tighten, phi_tighten, late_deadcode
-          critical, likelyadjust, layout, schedule, late_nilcheck, flagalloc
-          regalloc, loop_rotate, stackframe, trim
-    
-      - <flag> is one of:
-          on, off, debug, mem, time, test, stats, dump
-    
-      - <value> defaults to 1
-    
-      - <function_name> is required for the "dump" flag, and specifies the
-        name of function to dump after <phase>
-    
-      Phase "all" supports flags "time", "mem", and "dump".
-      Phase "intrinsics" supports flags "on", "off", and "debug".
-    
-      If the "dump" flag is specified, the output is written on a file named
-      <phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
-    
-    Also add a few examples at the bottom.
-    
-    Fixes #20349
-    
-    Change-Id: I334799e951e7b27855b3ace5d2d966c4d6ec4cff
-    Reviewed-on: https://go-review.googlesource.com/110062
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id0e756b5214ce4a1341f733634ed95263f03a61c
+    Reviewed-on: https://go-review.googlesource.com/87017
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 50 +++++++++++++++++++++++++--------
- 1 file changed, 38 insertions(+), 12 deletions(-)
+ doc/articles/go_command.html |  2 +-
+ doc/asm.html                 |  4 ++--
+ doc/debugging_with_gdb.html  |  4 ++--
+ doc/go1.1.html               |  8 ++++----
+ doc/go1.2.html               |  2 +-
+ doc/go1.3.html               |  4 ++--
+ doc/go1compat.html           |  4 ++--
+ doc/go_faq.html              |  2 +-
+ doc/install-source.html      | 16 ++++++++--------
+ 9 files changed, 23 insertions(+), 23 deletions(-)

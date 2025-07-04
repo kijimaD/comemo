@@ -1,13 +1,15 @@
-commit 96e0c0c7648bc4dbdf433d14c43f6f31d4f13472
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Mar 12 11:24:24 2013 +1100
+commit 05403fa8fbfe1c6e44e1b015a6e990af11c81dfd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 11 17:17:25 2013 -0700
 
-    encoding/base32, encoding/base64: a small stack-space optimization.
+    go/test/bench/go1: add printf and time format tests
+    Also rename the go parser test to GoParse so it doesn't grab the globally useful Parse name.
     
-    R=dsymonds, dave
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7568045
+    https://golang.org/cl/7732044
 
- src/pkg/encoding/base32/base32.go | 12 ++++++------
- src/pkg/encoding/base64/base64.go | 10 +++++-----
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ test/bench/go1/fmt_test.go    | 68 +++++++++++++++++++++++++++++++++++++++++++
+ test/bench/go1/parser_test.go |  2 +-
+ test/bench/go1/time_test.go   | 25 ++++++++++++++++
+ 3 files changed, 94 insertions(+), 1 deletion(-)

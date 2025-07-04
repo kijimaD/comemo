@@ -1,0 +1,19 @@
+commit 9d21ef3bd43acedfe5317184e63cc6b3dd19cbdf
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Jan 21 11:52:41 2025 -0500
+
+    runtime: fix the equality check in AddCleanup
+    
+    This fixes the check that ensures that arg is not equal to ptr in
+    AddCleanup. This also changes any use of throw to panic in AddCleanup.
+    
+    Fixes #71316
+    
+    Change-Id: Ie5a3e0163b254dff44b7fefedf75207ba587b771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643655
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mcleanup.go      | 14 +++++++-------
+ src/runtime/mcleanup_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 7 deletions(-)

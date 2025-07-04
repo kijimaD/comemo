@@ -1,35 +1,22 @@
-commit f4e37b8afc01253567fddbdd68ec35632df86b62
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 8 19:03:37 2025 +0000
+commit 0159150a4aa0b10f9845af94726cd67ffee93b75
+Author: Kévin Dunglas <kevin@dunglas.fr>
+Date:   Tue Mar 12 21:33:55 2024 +0000
 
-    crypto/tls: use runtime.Gosched instead of time.After in TestCertCache
+    cmd/go: update docs for go test -benchmem
     
-    I noticed a failure of this test on a linux/amd64 builder and reproduced
-    it locally. I can only really reproduce it in a stress test when I
-    overload my system (`stress2 ./tls.test -test.run=TestCertCache`) but
-    this points to the root of the problem: it's possible for a timer to get
-    delayed and the timeout fires before we ever get the chance to check.
+    Mention that the allocation counter doesn't count allocations made using
+    C.malloc (cgo) or in C.
     
-    After copious debugging printlns, this is essentially what I'd observed.
-    There would only be one failed check of the reference count from before
-    it was updated.
-    
-    Change the test to be a busy-loop again, but call runtime.Gosched. This
-    is also what we do for the os.Root tests, and in hindsight should've
-    been my go-to. This has a much higher likelihood of executing promptly.
-    
-    We may want to go back and understand why the 1 ms timer would fire so
-    hilariously late the second time. This might be a real bug. For now,
-    this change makes the test more stable. It no longer fails when it's
-    hammered under `stress2`.
-    
-    Fixes #73637.
-    
-    Change-Id: I316bd9e30946f4c055e61d179c4efc5fe029c608
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671175
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I03c23b6d8cfde68c04a75732a0d3c05eedae2276
+    GitHub-Last-Rev: 2d805b3322327b73076a197628987ac874311664
+    GitHub-Pull-Request: golang/go#65430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560397
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/tls/cache_test.go | 21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ src/cmd/go/alldocs.go            | 1 +
+ src/cmd/go/internal/test/test.go | 1 +
+ 2 files changed, 2 insertions(+)

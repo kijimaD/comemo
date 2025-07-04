@@ -1,22 +1,20 @@
-commit 6da300b196df5fc3b33dd3bc87c477d46473abde
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 15 17:48:25 2019 +0000
+commit 858064fb01c52e2c8a703854333ea25dff26ee33
+Author: Romain Baugue <romain.baugue@elwinar.com>
+Date:   Tue Apr 30 15:41:26 2019 +0200
 
-    net/http: remove references to old NPN support
+    encoding/csv: add a Fuzz function
     
-    We now only support ALPN.
+    Adds a sample Fuzz test function to package encoding/csv based on
+    https://github.com/dvyukov/go-fuzz-corpus/blob/master/csv/main.go
     
-    Updates #28362
+    Updates #19109
+    Updates #31309
     
-    Change-Id: I8d9461c7a91315ee92e712448d0bf5c4070d09ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201202
+    Change-Id: Ieb0cb6caa1df72dbb7e29df4bdeed0bfa91187d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174302
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/{npn_test.go => alpn_test.go} |  0
- src/net/http/server.go                     | 27 +++++++++++++--------------
- src/net/http/transport.go                  |  2 +-
- 3 files changed, 14 insertions(+), 15 deletions(-)
+ src/encoding/csv/fuzz.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)

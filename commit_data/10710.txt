@@ -1,16 +1,14 @@
-commit ecda0fa5d4a448806bdea15e506b11bb71798d8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 12 15:41:54 2011 -0500
+commit ebdcbf1cdc3309c6cd234d93ae033937ce89a1fb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 12 12:26:56 2011 -0800
 
-    gc: allow colon in //line file name
+    doc/go1: the simpler package changes
     
-    Assume last colon introduces line number.
-    
-    Fixes #2543.
-    
-    R=ken2
+    R=golang-dev, fullung, dsymonds, r, adg
     CC=golang-dev
-    https://golang.org/cl/5485047
+    https://golang.org/cl/5477056
 
- src/cmd/gc/lex.c | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ doc/go1.html     | 178 ++++++++++++++++++++++++++++++++++++++++++++++---------
+ doc/go1.tmpl     | 166 ++++++++++++++++++++++++++++++++++++++++++---------
+ doc/progs/go1.go |  26 ++++++++
+ 3 files changed, 312 insertions(+), 58 deletions(-)

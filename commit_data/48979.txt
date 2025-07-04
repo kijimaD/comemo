@@ -1,34 +1,22 @@
-commit 375d696ddf102d64729a21f931f4e1d8bfa82ce5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Apr 1 22:34:45 2022 +0000
+commit 03761ede028d811dd7d7cf8a2690d4bfa2771d85
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jun 30 14:28:18 2021 -0700
 
-    runtime: move inconsistent memstats into gcController
+    net: don't reject null mx records
     
-    Fundamentally, all of these memstats exist to serve the runtime in
-    managing memory. For the sake of simpler testing, couple these stats
-    more tightly with the GC.
+    Bypass hostname validity checking when a null mx record is returned as,
+    defined in RFC 7505.
     
-    This CL was mostly done automatically. The fields had to be moved
-    manually, but the references to the fields were updated via
+    Updates #46979
     
-        gofmt -w -r 'memstats.<field> -> gcController.<field>' *.go
-    
-    For #48409.
-    
-    Change-Id: Ic036e875c98138d9a11e1c35f8c61b784c376134
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397678
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibe683bd6b47333a8ff30909fb2680ec8e10696ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332094
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/export_test.go |  2 +-
- src/runtime/malloc.go      |  2 +-
- src/runtime/mcache.go      |  6 ++---
- src/runtime/mem.go         | 10 ++++-----
- src/runtime/mgc.go         |  2 +-
- src/runtime/mgcpacer.go    | 14 ++++++++++++
- src/runtime/mgcscavenge.go | 10 ++++-----
- src/runtime/mgcsweep.go    |  4 ++--
- src/runtime/mheap.go       | 16 ++++++-------
- src/runtime/mstats.go      | 56 +++++++++++++---------------------------------
- 10 files changed, 56 insertions(+), 66 deletions(-)
+ src/net/dnsclient_unix_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go              |  4 +++-
+ 2 files changed, 43 insertions(+), 1 deletion(-)

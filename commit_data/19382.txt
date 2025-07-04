@@ -1,14 +1,14 @@
-commit 86bf6324c14bedbd96eabb70134b93a9e4228400
+commit 4cf79eb80c37dcc6aa2a22ebd242a9db0d28d2c3
 Author: Rob Pike <r@golang.org>
-Date:   Fri May 16 13:18:28 2014 -0700
+Date:   Fri May 16 09:30:28 2014 -0700
 
-    encoding/xml: fix format in test message
-    Found by go vet.
+    syscall: fix linux amd64 build
+    TBR=rsc
     
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
+    TBR=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/100510044
+    https://golang.org/cl/100500047
 
- src/pkg/encoding/xml/marshal_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/syscall_linux_amd64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

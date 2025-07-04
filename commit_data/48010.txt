@@ -1,19 +1,18 @@
-commit 5b1b80beb1a2a9a353738e80777d1e25cfdfa095
-Author: Ethan Anderson <eanderson@atlassian.com>
-Date:   Tue Dec 14 10:59:06 2021 -0600
+commit 0636d88f6d79827e0acdc8e53b8f249652061d2d
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Apr 19 10:40:20 2021 +0800
 
-    cmd/go: remove mercurial from bitbucket vcs options
+    cmd/compile: add restrictions on the shift amount range of arm64 various instructions
     
-    Mercurial was deprecated as of July 1, 2020 as per https://bitbucket.org/blog/sunsetting-mercurial-support-in-bitbucket
+    For arm64 constant shift instructions, e.g., LSL(immediate), they use
+    only the low 6 bits. To conform the semantics of the hardware instructions,
+    this CL comments in ARM64OPS.go about restricted AuxInt ranges for the
+    various instructions involved.
     
-    Fixes #50810.
-    
-    Change-Id: I0d40f84aaa393905cae7c4bed8919b15de9a5f6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371720
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Bryan Mills <bcmills@google.com>
+    Change-Id: I2b6560d6580e22ba7cbfa744a02b046dd5714b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303569
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/vcs/vcs.go      | 54 ++-----------------------------------
- src/cmd/go/internal/vcs/vcs_test.go |  7 +++++
- 2 files changed, 9 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 93 ++++++++++++++--------------
+ 1 file changed, 47 insertions(+), 46 deletions(-)

@@ -1,53 +1,29 @@
-commit 859b63cc0964d9e6edb0e586b156f85b79fa8dab
-Author: Michel Lespinasse <walken@google.com>
-Date:   Fri Mar 18 17:21:33 2016 -0700
+commit 58cfa40419f2ef1c58f58015eb8421a5a1b94129
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 8 12:07:39 2016 -0500
 
-    cmd/compile: optimize remaining convT2I calls
+    [dev.ssa] cmd/compile: fix for bug in cse speed improvements
     
-    See #14874
-    Updates #6853
+    Problem was caused by use of Args[].Aux differences
+    in early partitioning.  This artificially separated
+    two equivalent expressions because sort ignores the
+    Aux field, hence things can end with equal things
+    separated by unequal things and thus the equal things
+    are split into more than one partition.  For example:
+    SliceLen(a), SliceLen(b), SliceLen(a).
     
-    This change adds a compiler optimization for non pointer shaped convT2I.
-    Since itab symbols are now emitted by the compiler, the itab address can
-    be passed directly to convT2I instead of passing the iface type and a
-    cache pointer argument.
+    Fix: don't use Args[].Aux in initial partitioning.
     
-    Compilebench results for the 5-commits series ending here:
+    Left in a debugging flag and some debugging Fprintf's;
+    not sure if that is house style or not.  We'll probably
+    want to be more systematic in our naming conventions,
+    e.g. ssa.cse, ssa.scc, etc.
     
-    name       old time/op     new time/op     delta
-    Template       336ms ± 4%      344ms ± 4%   +2.61%          (p=0.027 n=9+8)
-    Unicode        165ms ± 6%      173ms ± 7%   +5.11%          (p=0.014 n=9+9)
-    GoTypes        1.09s ± 1%      1.06s ± 2%   -3.29%          (p=0.000 n=9+9)
-    Compiler       5.09s ±10%      4.75s ±10%   -6.64%        (p=0.011 n=10+10)
-    MakeBash       31.1s ± 5%      30.3s ± 3%     ~           (p=0.089 n=10+10)
-    
-    name       old text-bytes  new text-bytes  delta
-    HelloSize       558k ± 0%       558k ± 0%   +0.02%        (p=0.000 n=10+10)
-    CmdGoSize      6.24M ± 0%      6.11M ± 0%   -2.11%        (p=0.000 n=10+10)
-    
-    name       old data-bytes  new data-bytes  delta
-    HelloSize      3.66k ± 0%      3.74k ± 0%   +2.41%        (p=0.000 n=10+10)
-    CmdGoSize       134k ± 0%       162k ± 0%  +20.76%        (p=0.000 n=10+10)
-    
-    name       old bss-bytes   new bss-bytes   delta
-    HelloSize       126k ± 0%       126k ± 0%     ~     (all samples are equal)
-    CmdGoSize       149k ± 0%       146k ± 0%   -2.17%        (p=0.000 n=10+10)
-    
-    name       old exe-bytes   new exe-bytes   delta
-    HelloSize       924k ± 0%       924k ± 0%   +0.05%        (p=0.000 n=10+10)
-    CmdGoSize      9.77M ± 0%      9.62M ± 0%   -1.47%        (p=0.000 n=10+10)
-    
-    Change-Id: Ib230ddc04988824035c32287ae544a965fedd344
-    Reviewed-on: https://go-review.googlesource.com/20902
+    Change-Id: Ib1412539cc30d91ea542c0ac7b2f9b504108ca7f
+    Reviewed-on: https://go-review.googlesource.com/19316
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Michel Lespinasse <walken@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         |  3 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
- src/cmd/compile/internal/gc/go.go              |  4 +-
- src/cmd/compile/internal/gc/main.go            |  9 ----
- src/cmd/compile/internal/gc/reflect.go         |  2 +-
- src/cmd/compile/internal/gc/walk.go            | 64 ++++----------------------
- src/runtime/iface.go                           | 14 +-----
- 7 files changed, 14 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/gc/lex.go      |  2 ++
+ src/cmd/compile/internal/ssa/compile.go |  2 ++
+ src/cmd/compile/internal/ssa/cse.go     | 35 +++++++++++++++++++++++++++------
+ 3 files changed, 33 insertions(+), 6 deletions(-)

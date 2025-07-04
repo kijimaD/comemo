@@ -1,17 +1,18 @@
-commit 211618c26ebe5fe931d7366b94e15fbd92584555
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 12 23:38:35 2014 -0400
+commit 92440fb5bd43912e363f32409bba5d6880356d60
+Author: Jason Del Ponte <delpontej@gmail.com>
+Date:   Mon May 12 23:35:56 2014 -0400
 
-    io: copy slice argument in MultiReader and MultiWriter
+    encoding/xml: fix to allow xml declaration with EncodeToken
     
-    Replaces CL 91240045.
-    Fixes #7809.
+    This changes allows the first token encoded to be a xml declaration. A ProcInst with target of xml. Any other ProcInst after that with a target of xml will fail
     
-    LGTM=bradfitz
-    R=golang-codereviews, minux.ma
-    CC=adg, bradfitz, golang-codereviews, iant, r
-    https://golang.org/cl/94380043
+    Fixes #7380.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72410043
 
- src/pkg/io/multi.go      |  8 ++++++--
- src/pkg/io/multi_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ src/pkg/encoding/xml/marshal.go      | 11 +++++++++--
+ src/pkg/encoding/xml/marshal_test.go | 36 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 3 deletions(-)

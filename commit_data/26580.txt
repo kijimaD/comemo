@@ -1,20 +1,20 @@
-commit d175a85c5cef41b7f9ad8e7a9e2ebf84546a216e
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Mar 27 11:50:25 2016 +0200
+commit 7ebf653fcc8510f260a1afbc3fb9e3de157dfe04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 9 12:58:35 2016 -0800
 
-    fmt: improve handling of zero padding
+    go/internal/gcimporter: interpret relative srcDir relative to cwd
     
-    Simplify the handling of zero padding in fmt_integer and
-    fmt_float to not require any adjustment of the format flags.
+    1) go/types.dir: Correctly return "." if there is no path.
+    2) go/internal/gcimporter.FindPkg: work-around for build.Import
+       (build.Import doesn't produce expected result if srcDir is
+       relative). See also issue 14282.
     
-    Note that f.zero can only be true when padding to the left
-    and f.wid is always greater than or equal to 0.
+    Fixes #14215.
     
-    Change-Id: I204b57d103c0eac13d86995992f2b26209196925
-    Reviewed-on: https://go-review.googlesource.com/21185
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia3721f9ad8a1115d2595fe99b04baaf30d5765f2
+    Reviewed-on: https://go-review.googlesource.com/19393
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/fmt/format.go | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go |  6 +++++-
+ src/go/types/resolver.go                 | 10 ++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

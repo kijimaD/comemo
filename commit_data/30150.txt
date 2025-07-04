@@ -1,19 +1,18 @@
-commit 0c9325e13d5d9e2ab7459522e3556f6f44cbcb10
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 8 09:47:34 2017 -0800
+commit f46324cffbf87b0a6334e09f72e5f73fb79f5a73
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 25 20:38:20 2016 -0400
 
-    crypto/tls: document that only tickets are supported.
+    cmd/compile: remove unused writebarrierptr, typedmemmove Nodes
     
-    This change clarifies that only ticket-based resumption is supported by
-    crypto/tls. It's not clear where to document this for a server,
-    although perhaps it's obvious there because there's nowhere to plug in
-    the storage that would be needed by SessionID-based resumption.
+    Now that SSA's write barrier pass is generating calls to these,
+    compile doesn't need to look them up.
     
-    Fixes #18607
-    
-    Change-Id: Iaaed53e8d8f2f45c2f24c0683052df4be6340922
-    Reviewed-on: https://go-review.googlesource.com/36560
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib50e5f2c67b247ca280d467c399e23877988bc12
+    Reviewed-on: https://go-review.googlesource.com/32170
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/tls/common.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go   | 3 ---
+ src/cmd/compile/internal/gc/pgen.go | 2 --
+ 2 files changed, 5 deletions(-)

@@ -1,23 +1,16 @@
-commit 9a3ee2d217ef573426b57da1e4309900db140e76
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Wed Mar 4 14:20:32 2015 +0100
+commit 0fe6b1293a9b65bc8b23be41d111bc9e4914684a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Mar 2 14:53:07 2015 +1100
 
-    cmd/gofmt, go/format: refactor common pieces into internal/format
+    image/jpeg: when following component selectors, only consider valid
+    components.
     
-    cmd/gofmt and go/format had 3 functions (parse, format and isSpace)
-    that had to be kept in-sync.
+    This fixes decoding JPEG images where the component selector is 0. Such
+    images are rare, but not impossible.
     
-    This CL extracts these 3 functions and refactors them into a new
-    internal/format package.
-    This CL is just code reorganization with no behavior nor semantic
-    change.
-    
-    Change-Id: I593f24e9d3cadbbd9559a67e3b1d2ff190b4fd90
-    Reviewed-on: https://go-review.googlesource.com/6760
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I6d221bce01cce8cc0440e117543233371782ca22
+    Reviewed-on: https://go-review.googlesource.com/6421
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/gofmt/gofmt.go        | 156 +---------------------------------------
- src/cmd/gofmt/long_test.go    |   5 +-
- src/go/format/format.go       | 157 +---------------------------------------
- src/internal/format/format.go | 161 ++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 170 insertions(+), 309 deletions(-)
+ src/image/jpeg/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

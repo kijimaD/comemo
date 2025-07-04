@@ -1,19 +1,24 @@
-commit 722ecf34474a33663f69220838af8c715185b5b7
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 3 09:34:42 2024 +0200
+commit 569def31fae0bc5f6a6868a50160da77e6e5c27a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:04:49 2023 -0700
 
-    archive/tar: use hash/crc32 instead of crypto/md5 for test checksums
+    cmd/compile: prune some deadcode around ODCLFUNC
     
-    Using MD5 for checksums in tests is an overkill, as MD5 is designed for
-    cryptographic purposes. Use hash/crc32 instead, which is designed for
-    detecting random data corruptions, aka checksums.
+    An *ir.Func is always ODCLFUNC, so no need to double-check this
+    anymore. The type system statically ensures we have the right Op.
     
-    Change-Id: I03b30ed7f38fba2a2e59d06bd4133b495f64a013
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Also, pkginit.initRequiredForCoverage appears to be unused, so we can
+    get rid of it completely.
+    
+    Change-Id: If1abb35672b40f705f23c365ad2a828c2661e9c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520603
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/archive/tar/reader_test.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/escape/escape.go |  6 ------
+ src/cmd/compile/internal/pkginit/init.go  | 15 ---------------
+ src/cmd/compile/internal/ssagen/nowb.go   |  3 ---
+ 3 files changed, 24 deletions(-)

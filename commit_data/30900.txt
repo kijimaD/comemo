@@ -1,43 +1,12 @@
-commit 68da265c8e6b32753fb5788716953bac16b374c0
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 29 18:06:04 2017 +0000
+commit 9cd3c0662aa63eea8e7fae80f558fda9d646ba98
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Dec 15 12:02:20 2016 -0800
 
-    Revert "cmd/compile: automatically handle commuting ops in rewrite rules"
+    api: add openbsd syscall constants
     
-    This reverts commit 041ecb697f0e867a2bb0bf219cc2fd5f77057c2e.
-    
-    Reason for revert: Not working on S390x and some 386 archs.
-    I have a guess why the S390x is failing.  No clue on the 386 yet.
-    Revert until I can figure it out.
-    
-    Change-Id: I64f1ce78fa6d1037ebe7ee2a8a8107cb4c1db70c
-    Reviewed-on: https://go-review.googlesource.com/38790
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3ec00dac5e7d0e6dcafb7d65851bc53e0661c2b6
+    Reviewed-on: https://go-review.googlesource.com/34500
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules     |    90 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go     |    34 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   816 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   102 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules     |    56 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   188 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |    12 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |     6 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |     8 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |     2 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   744 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |    60 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |   109 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |    29 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   190 +-
- src/cmd/compile/internal/ssa/opGen.go          |   388 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 10069 +--
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 81406 ++---------------------
- src/cmd/compile/internal/ssa/rewriteARM.go     |   800 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  2535 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |   579 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   358 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go   |   396 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 26146 ++------
- src/cmd/compile/internal/ssa/rewritedec.go     |     6 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go |  9910 +--
- 26 files changed, 19042 insertions(+), 115997 deletions(-)
+ api/go1.8.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

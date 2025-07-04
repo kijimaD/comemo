@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43081: 4d7abd7ae6711d1bc453da368cbf153b0f42a211
+# Index 43081: 5ea58c63468bbc7e8705ee13d0bddbf3693785fe
 
 echo "🚀 Generating explanation for commit 43081..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 43081
-- **コミットハッシュ**: 4d7abd7ae6711d1bc453da368cbf153b0f42a211
-- **GitHub URL**: https://github.com/golang/go/commit/4d7abd7ae6711d1bc453da368cbf153b0f42a211
+- **コミットハッシュ**: 5ea58c63468bbc7e8705ee13d0bddbf3693785fe
+- **GitHub URL**: https://github.com/golang/go/commit/5ea58c63468bbc7e8705ee13d0bddbf3693785fe
 
 ### 章構成
 

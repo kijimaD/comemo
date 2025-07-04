@@ -1,17 +1,16 @@
-commit 0fee63351d0a41fc979e4480460e5aa76903bab6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Aug 19 14:24:14 2014 +1000
+commit 3763a395b227baba3a82d07c33c0a0ffd233f86f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 12 19:52:04 2014 -0400
 
-    html/template: don't panic on second execution of unescapable template
+    cmd/go: adjust import comment error
     
-    Fixes #8431.
+    Fixes #7453.
     
     LGTM=r
-    R=golang-codereviews, r, minux
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/130830043
+    https://golang.org/cl/127210043
 
- src/pkg/html/template/escape.go      |  3 ++-
- src/pkg/html/template/escape_test.go |  5 +++++
- src/pkg/html/template/template.go    | 36 ++++++++++++++++++++++--------------
- 3 files changed, 29 insertions(+), 15 deletions(-)
+ src/cmd/go/pkg.go    | 2 +-
+ src/cmd/go/test.bash | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,18 @@
-commit 0227c45edec55aa05c8546f06edf24530241aee5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 25 09:26:13 2011 -0400
+commit 8511ed454a40f861e1b2aac6acbe6d6aa8325bf3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 25 14:00:00 2011 +0400
 
-    gc: fix some spurious leaks
+    http: return 413 instead of 400 when the request body is too large
     
-    Probably will spark some discussion.  ☺
+    RFC2616 says servers should return this status code when
+    rejecting requests that are too large.
     
-    R=lvd
+    http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.14
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4948041
+    https://golang.org/cl/4962041
 
- src/cmd/gc/esc.c | 143 ++++++++++++++++++++++---------------------------------
- test/escape2.go  |  86 +++++++++++++++++++++++++++++++++
- 2 files changed, 144 insertions(+), 85 deletions(-)
+ src/pkg/http/serve_test.go | 4 ++--
+ src/pkg/http/server.go     | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

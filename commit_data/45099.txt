@@ -1,17 +1,34 @@
-commit 10f883deb7462baad0c889d93fe867782c023bbe
-Author: Austin Clements <austin@google.com>
-Date:   Sun Apr 11 17:19:59 2021 -0400
+commit 507a88c39bb1089b9d44facb7dd3449a9b5a3e10
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 1 13:37:06 2020 -0400
 
-    cmd/cgo: document generated cgo directives
+    cmd/go/internal/modfetch: always extract module directories in place
     
-    This took me a while to figure out. Save the next person some trouble.
+    Previously by default, we extracted modules to a temporary directory,
+    then renamed it into place. This failed with ERROR_ACCESS_DENIED on
+    Windows if another process (usually an anti-virus scanner) opened
+    files in the temporary directory.
     
-    Change-Id: Ifab2d426f67c21b08ef225c79125805a9008e578
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309336
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Since Go 1.15, users have been able to set
+    GODEBUG=modcacheunzipinplace=1 to opt into new behavior: we extract
+    modules at their final location, and we create and later delete a
+    .partial file to prevent the directory from being used if we crash.
+    .partial files are recognized by Go 1.14.2 and later.
+    
+    With this change, the new behavior is the only behavior.
+    modcacheunzipinplace is no longer recognized.
+    
+    Fixes #36568
+    
+    Change-Id: Iff19fca5cd6eaa3597975a69fa05c4cb1b834bd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258798
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/cgo/out.go | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go              | 105 ++++++---------------
+ .../script/mod_concurrent_unzipinplace.txt         |  17 ----
+ .../script/mod_download_concurrent_read.txt        |  23 ++---
+ .../go/testdata/script/mod_download_partial.txt    |   1 -
+ 4 files changed, 38 insertions(+), 108 deletions(-)

@@ -1,19 +1,21 @@
-commit 4b2248527ffec97ab0706470e5654bd1aacaa6ab
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Feb 26 22:27:13 2017 +0000
+commit a35decf5a7a722acb32642b6a096271d10545376
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:18:54 2016 -0400
 
-    os: skip atime-going-backwards test on NetBSD for now
+    cmd/go: fix TestIssue11457
     
-    That failing test is preventing other tests from running.
-    Let's see what else is broken.
+    The goal of the test is to provoke a custom import path check error,
+    which will contain the current repo path, to see that it says ssh:// in it.
     
-    Updates #19293
+    But the fix to #16471 made the test no longer provoke that error.
+    Provoke the error by checking out from rsc.io instead of github.com/rsc.
     
-    Change-Id: I4c5784be94103ef882f29dec9db08d76a48aff28
-    Reviewed-on: https://go-review.googlesource.com/37492
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Fixes #17701.
+    
+    Change-Id: I750ffda2ff59c2be8e111d26160997214a73fd9a
+    Reviewed-on: https://go-review.googlesource.com/32641
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

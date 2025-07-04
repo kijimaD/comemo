@@ -1,19 +1,23 @@
-commit d84cbec8908a04aa56889919942a3210963abaef
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 10 14:08:40 2020 -0700
+commit 8011051361d85ca0c062f7226e80afbad21341c8
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 16 09:13:59 2019 -0400
 
-    cmd/compile: convert 386 port to use addressing modes pass
+    [dev.link] cmd: add flag to mark gotype symbols
     
-    Update #36468
+    Add a flag bit to mark symbols in the new object file as containing Go
+    type information. The use of a flag eliminates the need to do symbol
+    name matching as part of the new dead code elimination pass, which
+    should produce a minor speedup.
     
-    Change-Id: Idfdb845d097994689be450d6e8a57fa9adb57166
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222782
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Iec8700e1139e2c4e310644c0766379865d2d6f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201399
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/addressingmodes.go |   83 +-
- src/cmd/compile/internal/ssa/gen/386.rules      |  289 +-
- src/cmd/compile/internal/ssa/rewrite386.go      | 7170 ++++++-----------------
- test/codegen/memops.go                          |   78 +-
- 4 files changed, 1898 insertions(+), 5722 deletions(-)
+ src/cmd/internal/goobj2/objfile.go     | 2 ++
+ src/cmd/internal/obj/objfile2.go       | 3 +++
+ src/cmd/link/internal/ld/deadcode2.go  | 4 +---
+ src/cmd/link/internal/loader/loader.go | 5 +++++
+ 4 files changed, 11 insertions(+), 3 deletions(-)

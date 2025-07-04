@@ -1,22 +1,27 @@
-commit 74f898360d2ea74d885544473cc60943771b36d4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 29 07:07:56 2020 -0800
+commit 421d35cf69f4a18edf96004ba99c01e629a0f79f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 8 14:23:43 2019 -0400
 
-    cmd/compile: constant fold SSA bool to int conversions
+    cmd/go: suppress more errors in package-to-module loading
     
-    Shaves off a few instructions here and there.
+    In CL 197059, I suppressed errors if the target package was already found.
+    However, that does not cover the case of passing a '/v2' module path to
+    'go get' when the module does not contain a package at its root.
     
-    file                        before   after    Δ       %
-    go/types.s                  322118   321851   -267    -0.083%
-    go/internal/gcimporter.s    34937    34909    -28     -0.080%
-    go/internal/gccgoimporter.s 56493    56474    -19     -0.034%
-    cmd/compile/internal/ssa.s  3926994  3927177  +183    +0.005%
-    total                       18862670 18862539 -131    -0.001%
+    This CL is a minimal fix for that case, intended to be backportable to 1.13.
     
-    Change-Id: I724f32317b946b5138224808f85709d9c097a247
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221428
-    Reviewed-by: Keith Randall <khr@golang.org>
+    (Longer term, I intend to rework the version-validation check to treat
+    all mismatched paths as ErrNotExist.)
+    
+    Fixes #34746
+    Updates #34383
+    
+    Change-Id: Ia963c2ea00fae424812b8f46a4d6c2c668252147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199839
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+)
+ src/cmd/go/internal/modload/query.go         | 8 ++++----
+ src/cmd/go/testdata/script/mod_get_major.txt | 5 +++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

@@ -1,17 +1,24 @@
-commit 9bffcf382b4f484876782a35bdff7297a60ab814
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 13 21:57:31 2016 -0700
+commit b50b24837d34f78dc933027bcc6492df8b963b50
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 6 14:02:50 2016 -0500
 
-    cmd/compile: minor cleanup in sinit.go
+    runtime: don't ignore success of cgo profiling tracebacks
     
-    Passes toolstash -cmp.
+    If a sigprof happens during a cgo call, we traceback from the entry
+    point of the cgo call. However, if the SP is outside of the G's stack,
+    we'll then ignore this traceback, even if it was successful, and
+    overwrite it with just _ExternalCode.
     
-    Change-Id: Id16009ef3ef1173eafe0f0c578dbf325b61aab3c
-    Reviewed-on: https://go-review.googlesource.com/20674
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fix this by accepting any successful traceback, regardless of whether
+    we got it from a cgo entry point or from regular Go code.
+    
+    Fixes #13466.
+    
+    Change-Id: I5da9684361fc5964f44985d74a8cdf02ffefd213
+    Reviewed-on: https://go-review.googlesource.com/18327
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 42 ++++++------------------------------
- 1 file changed, 7 insertions(+), 35 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

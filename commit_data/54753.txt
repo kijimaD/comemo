@@ -1,30 +1,62 @@
-commit eabf3bf6887a16c33ba6039d2ed98ff8f261de96
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 19 10:51:07 2023 -0400
+commit ea4631cc0cf301c824bd665a7980c13289ab5c9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 12:36:31 2022 -0500
 
-    cmd/go: serialize access to scriptDir with output
+    internal/godebug: define more efficient API
     
-    Currently, Builder.fmtcmd can read scriptDir without taking the output
-    lock. This introduces a potential data race between the read in fmtcmd
-    and the write in Showcmd. There's also a logical race here: because
-    fmtcmd doesn't know when its output is going to be printed, Showcmd
-    may print a "cd" command between when fmtcmd is called and when its
-    output is printed. As a result, it doesn't make sense to just lock
-    around the access in fmtcmd.
+    We have been expanding our use of GODEBUG for compatibility,
+    and the current implementation forces a tradeoff between
+    freshness and efficiency. It parses the environment variable
+    in full each time it is called, which is expensive. But if clients
+    cache the result, they won't respond to run-time GODEBUG
+    changes, as happened with x509sha1 (#56436).
     
-    Instead, move the entire scriptDir substitution to Showcmd. This will
-    generally result in the same output. In the cases where Builder.run is
-    called with a non-empty desc, it means we may print a full path in the
-    comment line above output rather than substituting the script
-    directory. I think this is okay.
+    This CL changes the GODEBUG API to provide efficient,
+    up-to-date results. Instead of a single Get function,
+    New returns a *godebug.Setting that itself has a Get method.
+    Clients can save the result of New, which is no more expensive
+    than errors.New, in a global variable, and then call that
+    variable's Get method to get the value. Get costs only two
+    atomic loads in the case where the variable hasn't changed
+    since the last call.
     
-    This lets us undo the workaround in CL 536355.
+    Unfortunately, these changes do require importing sync
+    from godebug, which will mean that sync itself will never
+    be able to use a GODEBUG setting. That doesn't seem like
+    such a hardship. If it was really necessary, the runtime could
+    pass a setting to package sync itself at startup, with the
+    caveat that that setting, like the ones used by runtime itself,
+    would not respond to run-time GODEBUG changes.
     
-    Change-Id: I617fe136eaafcc9bbb7e701b427d956aeab8a2b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536376
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I99a3acfa24fb2a692610af26a5d14bbc62c966ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449504
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go | 45 ++++++++++++++++++++--------------------
- 1 file changed, 23 insertions(+), 22 deletions(-)
+ src/cmd/go/go_test.go                |  12 +--
+ src/cmd/go/internal/fsys/fsys.go     |  20 +++--
+ src/cmd/go/internal/modindex/read.go |   6 +-
+ src/crypto/x509/x509.go              |   4 +-
+ src/go/build/build.go                |   4 +-
+ src/go/build/deps_test.go            |   6 +-
+ src/internal/cpu/cpu_test.go         |   2 +-
+ src/internal/cpu/cpu_x86_test.go     |   2 +-
+ src/internal/fuzz/fuzz.go            |   9 +-
+ src/internal/godebug/export_test.go  |   7 --
+ src/internal/godebug/godebug.go      | 169 ++++++++++++++++++++++++++++++-----
+ src/internal/godebug/godebug_test.go |  32 +++----
+ src/internal/intern/intern.go        |   4 +-
+ src/math/rand/rand.go                |   4 +-
+ src/net/conf.go                      |   4 +-
+ src/net/http/server.go               |   4 +-
+ src/net/http/transport.go            |   4 +-
+ src/os/exec/exec.go                  |   7 +-
+ src/os/exec/lp_plan9.go              |   3 +-
+ src/os/exec/lp_unix.go               |   3 +-
+ src/os/exec/lp_windows.go            |   5 +-
+ src/runtime/runtime.go               |  30 +++++--
+ src/runtime/runtime1.go              |   2 +-
+ 23 files changed, 245 insertions(+), 98 deletions(-)

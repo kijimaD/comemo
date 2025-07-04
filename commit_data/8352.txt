@@ -1,15 +1,12 @@
-commit 51e6aa1e885fc159343f980a0a709f660e27c2fa
+commit 67992cae53f18b4064803baaf10c451ebfe09421
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed May 11 11:12:45 2011 -0700
+Date:   Wed May 11 11:11:25 2011 -0700
 
-    image/bmp: implement a BMP decoder.
+    image/gif: minor fixes.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4521054
+    https://golang.org/cl/4523054
 
- src/pkg/Makefile             |   2 +
- src/pkg/image/bmp/Makefile   |  11 ++++
- src/pkg/image/bmp/reader.go  | 148 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/image/decode_test.go |   4 +-
- 4 files changed, 163 insertions(+), 2 deletions(-)
+ src/pkg/image/gif/reader.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

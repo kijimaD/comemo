@@ -1,21 +1,21 @@
-commit 634363e3cab412ae7c40b46fde9f29034251c35c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 4 13:31:19 2024 +0200
+commit ce5e37ec21442c6eb13a43e68ca20129102ebac0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 1 15:48:17 2023 -0700
 
-    cmd/cgo: use slices.Index
+    go/types, types2: move posVers field into group of package-specific fields (cleanup)
     
-    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
-    the slices package (introduced in Go 1.21) can be used in packages built
-    using the bootstrap toolchain.
+    posVers exists once for an entire package. Move it into the group
+    of fields related to the entire package (and out from the group
+    of fields that are specific to each batch of files).
     
-    For #64751
-    
-    Change-Id: Ife0daa37c0982d9ec1afab07b9d40a1dfee9b7d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610575
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I40ea722578408bdf2b85db91b65680e720c0c502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514998
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cgo/util.go | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/check.go | 18 +++++++++++-------
+ src/go/types/check.go                    | 18 +++++++++++-------
+ 2 files changed, 22 insertions(+), 14 deletions(-)

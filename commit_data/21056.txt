@@ -1,12 +1,27 @@
-commit 11779ef420a78e4b4ea5d585577b83d4b8e60854
-Author: Joe Shaw <joe@joeshaw.org>
-Date:   Mon Dec 22 15:27:46 2014 -0500
+commit 9eded54fa3e7c3d1bc593f83e5c448b908299d0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 16:54:50 2014 -0500
 
-    syscall: update go.sys doc reference to golang.org/x/sys
+    [dev.garbage] runtime:  concurrent mark fixes
     
-    Change-Id: Ie5a36dbcd809fc165f4198d47641d5a95878460c
-    Reviewed-on: https://go-review.googlesource.com/2000
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Add missing write barrier when initializing state
+    for newly created goroutine. Add write barrier for
+    same slot when preempting a goroutine.
+    
+    Disable write barrier during goroutine death,
+    because dopanic does pointer writes.
+    
+    With concurrent mark enabled (not in this CL), all.bash passed once.
+    The second time, TestGoexitCrash-2 failed.
+    
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/167610043
 
- src/syscall/syscall.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc0.c    | 3 +--
+ src/runtime/mgc0.go   | 2 +-
+ src/runtime/runtime.h | 2 ++
+ src/runtime/stack.c   | 8 ++++++++
+ src/runtime/sys_x86.c | 1 +
+ 5 files changed, 13 insertions(+), 3 deletions(-)

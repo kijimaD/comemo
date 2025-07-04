@@ -1,23 +1,15 @@
-commit 7aa68756c5518e0fc2e2f65cab6b933c1c48534a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 8 21:43:47 2015 -0500
+commit 7de910dccf96f01720f7d783cf7ea2145a876535
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 21 21:18:03 2015 +0100
 
-    doc/asm: document that assembly function must use short name
+    include: declare runcmd on Plan 9
     
-    e.g. ·Name instead of package·Name for automatic stack map to
-    be applied from its Go prototype.
+    The function runcmd was declared in
+    include/libc.h in CL 7523043.
     
-    The underlying reason is that liblink look up name with suffix
-    ".args_stackmap" for the stackmap coming from its Go prototype,
-    but all the Go functions are named "".Name as this stage. Thus
-    an assembly function named package·Name will never find its
-    stackmap, which is named "".package.Name.args_stackmap.
-    
-    Perhaps cmd/vet should give a warning for this.
-    
-    Change-Id: I10d154a73ec969d574d20af877f747424350fbd1
-    Reviewed-on: https://go-review.googlesource.com/2588
+    Change-Id: I3839b96b2ac0d63e5c2eb4c216710442d0962119
+    Reviewed-on: https://go-review.googlesource.com/3125
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/asm.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ include/plan9/libc.h | 2 ++
+ 1 file changed, 2 insertions(+)

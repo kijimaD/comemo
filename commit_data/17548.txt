@@ -1,21 +1,14 @@
-commit 71ed6eb25ac970c4641a1cafb74d9d6574fa28be
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 09:56:38 2013 -0400
+commit b34ec90e1945af8ed22bf96254deb4c637c0bfbc
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Sep 11 10:50:56 2013 +1000
 
-    misc/cgo/test: test of issue 4339
+    cmd/api: make api check directory per-user
     
-    This is not quite what that issue reports,
-    because this does not involve a DLL.
-    But I wanted to make sure this much was working.
+    Fixes #6353.
     
-    Update #4339
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/13653043
+    https://golang.org/cl/13652043
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/issue4339.c  | 18 ++++++++++++++++++
- misc/cgo/test/issue4339.go | 16 ++++++++++++++++
- misc/cgo/test/issue4339.h  |  9 +++++++++
- 4 files changed, 44 insertions(+)
+ src/cmd/api/run.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

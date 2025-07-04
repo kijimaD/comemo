@@ -1,20 +1,21 @@
-commit c4311a47a0cb97f85e045a6d8f7c284cb6866da9
-Author: Than McIntosh <thanm@google.com>
-Date:   Sat May 7 09:24:05 2022 -0400
+commit 9e147c55b7a08b487efff3a87a27ed8c463cf347
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 19:01:16 2021 -0400
 
-    internal/cpu: revise test to make it work properly with -cover
+    [dev.typeparams] go/types: update TypeParam APIs to match types2
     
-    Fix up a test to insure that it does the right thing when
-    "go test -cover" is in effect.
+    This is a partial port of CL 323029, consisting only of changes to
+    go/types. Changes to the importer will be made in a separate CL.
     
-    Fixes #52761.
-    
-    Change-Id: I0c141181e2dcaefd592fb04813f812f2800511da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404715
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I3b300f5e8f4df36c2c87e3f164705cd3c36218ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335145
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/cpu/cpu_test.go | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ src/go/types/builtins.go  |  8 +++++---
+ src/go/types/decl.go      |  2 +-
+ src/go/types/type.go      | 12 +++++++-----
+ src/go/types/typeparam.go | 19 +++++++++----------
+ 4 files changed, 22 insertions(+), 19 deletions(-)

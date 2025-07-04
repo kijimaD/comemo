@@ -1,17 +1,25 @@
-commit 80157f4cff014abb418004c0892f4fe48ee8db2e
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Mon Mar 11 11:09:50 2024 +0000
+commit 10c2348602a3bc44b9b352fe95a18b83b025e367
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Mon Feb 15 15:55:28 2021 +0200
 
-    io: close PipeReader in test
+    net/http: continue using referer header if it's present
     
-    Change-Id: I33858efc00dff02432f28f1e5a94aeea261a5bad
-    GitHub-Last-Rev: 98861f8d6e187a03330a0947ff651826024fcad2
-    GitHub-Pull-Request: golang/go#66230
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570357
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Currently, net/http replaces the Referer header with the URL of the
+    previous request, regardless of its status. This CL changes this
+    behavior, respecting the Referer header for secure connections, if it is
+    set.
+    
+    Fixes #44160
+    
+    Change-Id: I2d7fe37dd681549136329e832188294691584870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291636
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Nick Craig-Wood <nickcw@gmail.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/io/pipe_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/client.go      |  9 +++++++--
+ src/net/http/client_test.go | 30 +++++++++++++++++++-----------
+ 2 files changed, 26 insertions(+), 13 deletions(-)

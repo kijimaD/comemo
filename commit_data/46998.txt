@@ -1,23 +1,18 @@
-commit 3cd28baffd2c97d53cbc703a8787365e68050466
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 20 15:06:35 2021 -0700
+commit b110a43628526787f73db44e11829520d92e5b2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 15 11:26:58 2021 -0500
 
-    cmd/compile/internal/types2: factor out slice elem computation for copy built-in
+    runtime: delete gosave (dead code)
     
-    Implement singleUnder[String] which determines a single underlying type
-    for a given type: either the underlying type, or the single underlying
-    type for a type parameter, if it exists. Use singleUnder[String] instead
-    of optype for copy built-in.
-    
-    This CL removes a dependency on optype and also makes the copy built-in
-    slighty more general for generic arguments (the source argument may be
-    constrained by a slice or string simultaneously).
-    
-    Change-Id: Ia329e96afc69a09d2ca3b1f82fe712d4f7ba1d9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357413
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie811526534df8622d89c5b1b81dbe19ece1c962b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292110
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        | 59 ++++++++++++++++------
- .../internal/types2/testdata/check/builtins.go2    | 10 +++-
- 2 files changed, 52 insertions(+), 17 deletions(-)
+ src/runtime/proc.go     | 2 +-
+ src/runtime/stack.go    | 2 +-
+ src/runtime/stubs.go    | 1 +
+ src/runtime/sys_wasm.go | 2 +-
+ src/runtime/sys_x86.go  | 2 +-
+ 5 files changed, 5 insertions(+), 4 deletions(-)

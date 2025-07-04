@@ -1,26 +1,23 @@
-commit ee714947c511715c752179fe738a45045ffa205c
-Author: Michael Steinert <mike.steinert@gmail.com>
-Date:   Mon Jul 17 11:14:23 2017 -0500
+commit 39a132cb2fe448079324db3c77f15c46a43c8d86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 11:32:09 2017 -0700
 
-    cmd/cgo: unify cgo output for gc and gccgo
+    cmd/compile/internal/types: unexport PkgMap, remove PkgList
     
-    When calling a Go function that returns multiple values from C, cgo
-    generates a structure to hold the values. According to the documentation
-    this structure is called `struct <function-name>_return`. When compiling
-    for gccgo the generated structure name is `struct <function-name>_result`.
-    This change updates the output for gccgo to match the documentation and
-    output for gc.
+    - PkgMap was only needed to test import/export in a "cleanroom"
+      environment, with debugFormat set. Provided helper function
+      instead.
     
-    Fixes #20910
+    - PkgList was only used to identify directly imported packages.
+      Instead, compute that list explicitly from the package map.
+      It happens only once, the list is small, and it's more robust
+      than keeping two data structures in sync.
     
-    Change-Id: Iaea8030a695a7aaf9d9f317447fc05615d8e4adc
-    Reviewed-on: https://go-review.googlesource.com/49350
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I82dce3c0b5cb816faae58708e877799359c20fcb
+    Reviewed-on: https://go-review.googlesource.com/41078
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue20910.c  | 19 +++++++++++++++++++
- misc/cgo/test/issue20910.go | 19 +++++++++++++++++++
- src/cmd/cgo/out.go          |  6 +++---
- 4 files changed, 42 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/export.go  | 10 +++------
+ src/cmd/compile/internal/gc/reflect.go |  6 ++---
+ src/cmd/compile/internal/types/pkg.go  | 40 +++++++++++++++++++++++++++++-----
+ 3 files changed, 39 insertions(+), 17 deletions(-)

@@ -1,16 +1,22 @@
-commit dcee007aad6cca16cec0383a394dd7db92cd6790
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jul 16 02:36:52 2021 +1000
+commit 6ea2b8c54cbc2d3a03d5dd174bc7526d33459d37
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 14:15:09 2020 -0500
 
-    cmd/compile: sort regalloc switch by architecture
+    [dev.regabi] cmd/compile: clean up and document formatting
     
-    Also tweak comment for the arm64 case.
+    Some cleanup left over from moving the Type and Sym formatting to types.
+    And then document what the type formats are, now that it's clear.
     
-    Change-Id: I073405bd2acf901dcaaf33a034a84b6a09dd4a83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334869
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I35cb8978f1627db1056cb8ab343ce6ba6c99afad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275780
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/main.go         |   1 -
+ src/cmd/compile/internal/ir/fmt.go          |  35 ++++++-
+ src/cmd/compile/internal/ssa/export_test.go |   1 -
+ src/cmd/compile/internal/types/fmt.go       | 141 +++++++++++-----------------
+ src/cmd/compile/internal/types/utils.go     |  45 +--------
+ 5 files changed, 87 insertions(+), 136 deletions(-)

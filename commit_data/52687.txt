@@ -1,22 +1,23 @@
-commit ce10e9d84574112b224eae88dc4e0f43710808de
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Mon Apr 17 21:21:41 2023 +0000
+commit c6965ad63fc66e02f37c9dcfc381c898983cec16
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 17 17:52:43 2022 -0400
 
-    Revert "cmd/compile: allow more inlining of functions that construct closures"
+    runtime: deflake TestCgoPprofThread
     
-    This reverts commit f8162a0e726f4b3a9df60a37e8ca7883dde61914.
+    In TestCgoPprofThread, the (fake) cgo traceback function pretends
+    all C CPU samples are in cpuHogThread. But if a profiling signal
+    lands in C code but outside of that thread, e.g. before/when the
+    thread is created, we will get a sample which looks like Go calls
+    into cpuHogThread. This CL makes the cgo traceback function only
+    return cpuHogThread PCs when a signal lands on that thread.
     
-    Reason for revert: https://github.com/golang/go/issues/59680
+    May fix #52726.
     
-    Change-Id: I91821c691a2d019ff0ad5b69509e32f3d56b8f67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485498
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I21c40f974d1882508626faf3ac45e8347fec31c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406934
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inl.go    | 11 ++++++-----
- src/cmd/compile/internal/test/inl_test.go | 22 +++++++++++++---------
- test/closure3.dir/main.go                 | 26 +++++++++++---------------
- 3 files changed, 30 insertions(+), 29 deletions(-)
+ src/runtime/testdata/testprogcgo/threadpprof.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

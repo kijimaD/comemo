@@ -1,24 +1,16 @@
-commit db3255536cdbdba9d6f38da9c3bb1faf55f63277
-Author: Martin Sucha <anty.sk+git@gmail.com>
-Date:   Thu May 23 20:34:17 2019 +0200
+commit ca7c12d4c9eb4a19ca5103ec5763537cccbcc13b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 7 16:55:17 2019 -0800
 
-    strings: clarify example of ContainsAny
+    sync/atomic: add 32-bit MIPS to the 64-bit alignment requirement
     
-    I have seen code that literally copied the example like this:
+    runtime/internal/atomic/atomic_mipsx.go enforces 64-bit alignment.
     
-        if strings.ContainsAny(s, "1 & 2 & 3") {
-    
-    The developer apparently thought that this is the way to
-    specify multiple characters and I noticed this pattern
-    being used in the example. Let's update the example so
-    that it's clear how multiple Unicode code points should
-    be specified.
-    
-    Change-Id: Id4d780555e521af62fb787a7950be1e60848cd95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178737
+    Change-Id: Ifdc36e1c0322827711425054d10f1c52425a13fa
+    Reviewed-on: https://go-review.googlesource.com/c/161697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/example_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/sync/atomic/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

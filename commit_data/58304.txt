@@ -1,26 +1,19 @@
-commit 22b5c145fb85771cdc5d16cd6aa8294bcf010d46
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Nov 27 18:17:28 2024 +0100
+commit e7908ab9a266da09a247480cb45dab213fb3e00e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 13 16:43:39 2023 -0400
 
-    crypto/internal/fips140/rsa: add Miller-Rabin test
+    cmd/go: allow suffixed toolchains to satisfy toolchain lines for the same base version
     
-    A following CL will move key generation to crypto/internal/fips140/rsa.
+    Fixes #63357.
     
-    Updates #69799
-    For #69536
-    
-    Change-Id: Icdf9b8424da20453939c6587af7dc922aad9e0ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632215
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I8380cf0d3965d6aef84a91a515d3e0e8aae9344b
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/internal/fips140/bigmod/nat.go          | 101 +++++-
- src/crypto/internal/fips140/bigmod/nat_test.go     | 100 ++++++
- src/crypto/internal/fips140/rsa/keygen.go          | 161 ++++++++++
- src/crypto/internal/fips140/rsa/keygen_test.go     |  93 ++++++
- .../fips140/rsa/testdata/miller_rabin_tests.txt    | 344 +++++++++++++++++++++
- src/crypto/rsa/rsa.go                              |  19 +-
- 6 files changed, 799 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/toolchain/select.go          |  6 ++++--
+ src/cmd/go/testdata/script/gotoolchain_local.txt | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

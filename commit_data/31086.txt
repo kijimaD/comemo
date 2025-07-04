@@ -1,17 +1,18 @@
-commit 927f8a04cce3960f1415c4efe246eb64bdb945fa
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Apr 8 15:12:17 2017 +0900
+commit 9ecc3ee2523f2db87b5b2d79efdd04abda93fb6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 26 09:00:56 2017 -0800
 
-    encoding/asn1: document "utc" and "generalized" tags
+    [dev.typealias] cmd/compile: avoid false positive cycles from type aliases
     
-    Also reformat tables.
+    For #18130.
+    Fixes #18640.
     
-    Fixes #19889
-    
-    Change-Id: I05083d2bab8bca46c4e22a415eb9b73513df6994
-    Reviewed-on: https://go-review.googlesource.com/40071
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I26cf1d1b78cca6ef207cc4333f30a9011ef347c9
+    Reviewed-on: https://go-review.googlesource.com/35831
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/asn1/asn1.go    | 12 ++++++------
- src/encoding/asn1/marshal.go | 10 ++++++----
- 2 files changed, 12 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  6 ++++--
+ test/fixedbugs/issue18640.go        | 26 ++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

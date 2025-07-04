@@ -1,29 +1,13 @@
-commit b992c391d4aae64e147fc64c77ad41d61be8e2e7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 22 09:47:05 2016 -0700
+commit c10f8700e065338dcacda0f4659339e86c402358
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Aug 19 10:46:49 2016 -0700
 
-    net/http: add NoBody, don't return nil from NewRequest on zero bodies
+    net/http/httptrace: test the order of hooks when ctx has multi ClientTraces
     
-    This is an alternate solution to https://golang.org/cl/31445
-    
-    Instead of making NewRequest return a request with Request.Body == nil
-    to signal a zero byte body, add a well-known variable that means
-    explicitly zero.
-    
-    Too many tests inside Google (and presumably the outside world)
-    broke.
-    
-    Change-Id: I78f6ecca8e8aa1e12179c234ccfb6bcf0ee29ba8
-    Reviewed-on: https://go-review.googlesource.com/31726
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I95cae14bb5561947ada9577fb05053f93321a4a8
+    Reviewed-on: https://go-review.googlesource.com/27400
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/http.go             | 19 +++++++++++++++++++
- src/net/http/readrequest_test.go | 26 +++++++++++++-------------
- src/net/http/request.go          | 12 ++++++++----
- src/net/http/request_test.go     |  2 +-
- src/net/http/response.go         |  2 +-
- src/net/http/server.go           | 22 ++--------------------
- src/net/http/transfer.go         |  6 +++---
- 7 files changed, 47 insertions(+), 42 deletions(-)
+ src/net/http/httptrace/trace_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

@@ -1,98 +1,22 @@
-commit 8a57cc8e3749f05134c82d7750b4ed1831f4d846
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Feb 6 13:32:39 2024 +0100
+commit 1d06667bc40160d909897470948bb3fc6ad4da96
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 15 15:17:11 2023 +0100
 
-    crypto: use and test purego tag consistently
+    net: skip tests if creating a socket is disallowed
     
-    Fixes #58636
-    Updates #23172
+    In a container environment, creating a socket may be disallowed. Try to
+    detect these cases and skip the tests instead of failing them.
     
-    Change-Id: I578a5597f467be45a7d6fb7582b24855b2e6512b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561935
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #58114
+    
+    Change-Id: I681d19107e946d2508e2d1704956360f13c7335b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476217
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/test.go                               |  8 +++
- src/crypto/aes/aes_gcm.go                          |  2 +-
- src/crypto/aes/asm_amd64.s                         |  2 +
- src/crypto/aes/asm_arm64.s                         |  2 +
- src/crypto/aes/asm_ppc64x.s                        |  2 +-
- src/crypto/aes/asm_s390x.s                         |  2 +
- src/crypto/aes/cbc_ppc64x.go                       |  2 +-
- src/crypto/aes/cbc_s390x.go                        |  2 +
- src/crypto/aes/cipher_asm.go                       |  2 +-
- src/crypto/aes/cipher_generic.go                   |  2 +-
- src/crypto/aes/cipher_s390x.go                     |  2 +
- src/crypto/aes/ctr_s390x.go                        |  2 +
- src/crypto/aes/gcm_amd64.s                         |  2 +
- src/crypto/aes/gcm_arm64.s                         |  2 +
- src/crypto/aes/gcm_ppc64x.go                       |  2 +-
- src/crypto/aes/gcm_ppc64x.s                        |  2 +-
- src/crypto/aes/gcm_s390x.go                        |  2 +
- src/crypto/ecdsa/ecdsa_noasm.go                    |  2 +-
- src/crypto/ecdsa/ecdsa_s390x.go                    |  2 +
- src/crypto/ecdsa/ecdsa_s390x.s                     |  2 +
- src/crypto/ecdsa/ecdsa_s390x_test.go               |  2 +-
- .../edwards25519/field/_asm/fe_amd64_asm.go        |  2 +-
- src/crypto/internal/edwards25519/field/fe_amd64.go |  2 +-
- src/crypto/internal/edwards25519/field/fe_amd64.s  |  2 +-
- .../internal/edwards25519/field/fe_amd64_noasm.go  |  2 +-
- src/crypto/internal/edwards25519/field/fe_arm64.go |  2 +-
- src/crypto/internal/edwards25519/field/fe_arm64.s  |  2 +-
- .../internal/edwards25519/field/fe_arm64_noasm.go  |  2 +-
- src/crypto/internal/nistec/generate.go             |  2 +-
- src/crypto/internal/nistec/p256.go                 |  2 +-
- src/crypto/internal/nistec/p256_asm.go             |  2 +-
- src/crypto/internal/nistec/p256_asm_amd64.s        |  2 +
- src/crypto/internal/nistec/p256_asm_arm64.s        |  2 +
- src/crypto/internal/nistec/p256_asm_ppc64le.s      |  2 +
- src/crypto/internal/nistec/p256_asm_s390x.s        |  2 +
- src/crypto/internal/nistec/p256_asm_table_test.go  |  2 +-
- src/crypto/internal/nistec/p256_ordinv.go          |  2 +-
- src/crypto/internal/nistec/p256_ordinv_noasm.go    |  2 +-
- src/crypto/internal/nistec/p256_ordinv_test.go     |  2 +-
- src/crypto/md5/md5block_386.s                      |  2 +
- src/crypto/md5/md5block_amd64.s                    |  2 +
- src/crypto/md5/md5block_arm.s                      |  2 +
- src/crypto/md5/md5block_arm64.s                    |  2 +
- src/crypto/md5/md5block_decl.go                    |  2 +-
- src/crypto/md5/md5block_generic.go                 |  2 +-
- src/crypto/md5/md5block_ppc64x.s                   |  2 +-
- src/crypto/md5/md5block_s390x.s                    |  2 +
- src/crypto/purego_test.go                          | 67 ++++++++++++++++++++++
- src/crypto/sha1/fallback_test.go                   |  2 +-
- src/crypto/sha1/sha1block_386.s                    |  2 +
- src/crypto/sha1/sha1block_amd64.go                 |  2 +
- src/crypto/sha1/sha1block_amd64.s                  |  1 +
- src/crypto/sha1/sha1block_arm.s                    |  2 +
- src/crypto/sha1/sha1block_arm64.go                 |  2 +
- src/crypto/sha1/sha1block_arm64.s                  |  2 +
- src/crypto/sha1/sha1block_decl.go                  |  2 +-
- src/crypto/sha1/sha1block_generic.go               |  2 +-
- src/crypto/sha1/sha1block_s390x.go                 |  2 +
- src/crypto/sha1/sha1block_s390x.s                  |  2 +
- src/crypto/sha256/fallback_test.go                 |  2 +-
- src/crypto/sha256/sha256block_386.s                |  2 +
- src/crypto/sha256/sha256block_amd64.go             |  2 +
- src/crypto/sha256/sha256block_amd64.s              |  2 +
- src/crypto/sha256/sha256block_arm64.go             |  2 +
- src/crypto/sha256/sha256block_arm64.s              |  2 +
- src/crypto/sha256/sha256block_decl.go              |  2 +-
- src/crypto/sha256/sha256block_generic.go           |  2 +-
- src/crypto/sha256/sha256block_ppc64x.s             |  2 +-
- src/crypto/sha256/sha256block_s390x.go             |  2 +
- src/crypto/sha256/sha256block_s390x.s              |  2 +
- src/crypto/sha512/fallback_test.go                 |  2 +-
- src/crypto/sha512/sha512block_amd64.go             |  2 +-
- src/crypto/sha512/sha512block_amd64.s              |  2 +
- src/crypto/sha512/sha512block_arm64.go             |  2 +
- src/crypto/sha512/sha512block_arm64.s              |  2 +
- src/crypto/sha512/sha512block_decl.go              |  2 +-
- src/crypto/sha512/sha512block_generic.go           |  2 +-
- src/crypto/sha512/sha512block_ppc64x.s             |  2 +-
- src/crypto/sha512/sha512block_riscv64.s            |  2 +
- src/crypto/sha512/sha512block_s390x.go             |  2 +
- src/crypto/sha512/sha512block_s390x.s              |  2 +
- 81 files changed, 194 insertions(+), 38 deletions(-)
+ src/net/iprawsock_test.go | 19 ++++++++++++++-----
+ src/net/protoconn_test.go | 10 +++++-----
+ 2 files changed, 19 insertions(+), 10 deletions(-)

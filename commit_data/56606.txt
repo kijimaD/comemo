@@ -1,30 +1,26 @@
-commit cbd8f16adc4cbe0480687e52d40c486b69c8dff4
-Author: Damien Neil <dneil@google.com>
-Date:   Sun Oct 22 16:31:59 2023 -0400
+commit 956d31ecd50fa11b66e4ad39a30677acb5616476
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 17 12:26:05 2023 -0700
 
-    crypto/tls: improved 0-RTT QUIC API
+    cmd/compile: enable more lenient type inference for untyped arguments
     
-    Add synchronous management of stored sessions to QUICConn.
+    This enables the implementation for proposal #58671, which is
+    a likely accept. By enabling it early we get a bit extra soak
+    time for this feature. The change can be reverted trivially, if
+    need be.
     
-    This adds QUICStoreSession and QUICResumeSession events,
-    permitting a QUIC implementation to handle session resumption
-    as part of its regular event loop processing.
+    For #58671.
     
-    Fixes #63691
-    
-    Change-Id: I9fe16207cc1986eac084869675bc36e227cbf3f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536935
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Id6c27515e45ff79f4f1d2fc1706f3f672ccdd1ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495955
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/63691.txt                             |   8 ++
- doc/next/6-stdlib/99-minor/crypto/tls/63691.md |   3 +
- src/crypto/tls/handshake_client.go             |  13 ++-
- src/crypto/tls/handshake_client_test.go        |   6 +-
- src/crypto/tls/handshake_client_tls13.go       |   8 +-
- src/crypto/tls/handshake_server_tls13.go       |  11 +-
- src/crypto/tls/quic.go                         |  91 +++++++++++++++-
- src/crypto/tls/quic_test.go                    | 145 +++++++++++++++++++++++--
- src/crypto/tls/ticket.go                       |  10 +-
- 9 files changed, 265 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go        |  5 +++--
+ src/cmd/compile/internal/types2/stdlib_test.go |  5 +++--
+ src/go/types/stdlib_test.go                    |  1 +
+ test/fixedbugs/issue58671.go                   | 19 +++++++++++++++++++
+ 4 files changed, 26 insertions(+), 4 deletions(-)

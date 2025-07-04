@@ -1,16 +1,14 @@
-commit e1b1a5fea2c5da007b3fd883a781071928e84164
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Dec 13 09:09:10 2011 +0100
+commit 5fa18e10618d609ce2c272026e460c47ec864250
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 12 21:08:03 2011 -0800
 
-    gc: fix use of stackallocated AST node in generation of static initialisation code.
+    doc/go1: time
     
-    Fixes #2529
-    
-    R=rsc, rogpeppe
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5483048
+    https://golang.org/cl/5477077
 
- src/cmd/gc/sinit.c               | 27 +++++++++++++--------------
- test/fixedbugs/bug382.dir/pkg.go |  7 +++++++
- test/fixedbugs/bug382.go         | 10 ++++++++++
- 3 files changed, 30 insertions(+), 14 deletions(-)
+ doc/go1.html     | 94 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ doc/go1.tmpl     | 61 ++++++++++++++++++++++++++++++++++++
+ doc/progs/go1.go | 42 +++++++++++++++++--------
+ 3 files changed, 173 insertions(+), 24 deletions(-)

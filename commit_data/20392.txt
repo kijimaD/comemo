@@ -1,20 +1,37 @@
-commit 00365b13b45a7a0cbfd0752c44ef84dc4961ce76
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 11 13:46:58 2014 -0700
+commit db58ab96fa4767ca6144678d63203be5381709d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 21:12:31 2014 -0400
 
-    runtime: get rid of copyable check - all G frames are copyable.
+    runtime: more C to Go conversion adjustments
     
-    Just go ahead and do it, if something is wrong we'll throw.
+    Mostly NOSPLIT additions.
+    Had to rewrite atomic_arm.c in Go because it calls lock,
+    and lock is too complex.
     
-    Also rip out cc-generated arg ptr maps, they are useless now.
+    With this CL, I find no Go -> C calls that can split the stack
+    on any system except Solaris and Windows.
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/133690045
+    Solaris and Windows need more work and will be done separately.
+    
+    LGTM=iant, dave
+    R=golang-codereviews, bradfitz, iant, dave
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/137160043
 
- src/cmd/cc/bv.c     |  45 -------------
- src/cmd/cc/cc.h     |   6 --
- src/cmd/cc/pgen.c   | 163 ---------------------------------------------
- src/runtime/stack.c | 187 +++++++++-------------------------------------------
- 4 files changed, 31 insertions(+), 370 deletions(-)
+ src/cmd/api/goapi.go            |   1 +
+ src/pkg/runtime/asm_arm.s       |  48 ++++++----
+ src/pkg/runtime/atomic.go       |  51 +++++++++++
+ src/pkg/runtime/atomic_arm.c    | 192 ----------------------------------------
+ src/pkg/runtime/atomic_arm.go   | 155 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/malloc.c        |   1 +
+ src/pkg/runtime/os_dragonfly.c  |  25 ++++++
+ src/pkg/runtime/os_freebsd.c    |  25 ++++++
+ src/pkg/runtime/os_netbsd.c     |  70 +++++++++++++--
+ src/pkg/runtime/os_openbsd.c    |  38 +++++++-
+ src/pkg/runtime/os_plan9.c      |  23 +++++
+ src/pkg/runtime/proc.c          |  14 ---
+ src/pkg/runtime/proc.go         |   9 ++
+ src/pkg/runtime/softfloat_arm.c |  29 +++++-
+ src/pkg/runtime/stubs.go        |  44 +--------
+ src/pkg/runtime/vlrt.c          |  33 +++++++
+ 16 files changed, 478 insertions(+), 280 deletions(-)

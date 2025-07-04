@@ -1,37 +1,28 @@
-commit 2ea9376266b71e8a0752b8b3663bbf5b9ed48c4d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 30 12:19:24 2022 -0700
+commit 97cb0113a358a24931bc91c956da0cb023f2776c
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jun 2 00:03:25 2021 -0700
 
-    go/types, types2: better error message for invalid type parameter term
+    [dev.typeparams] cmd/compile: fix export/import of constants with typeparam type
     
-    The spec says "In a union, a term cannot be a type parameter,...",
-    but it's really the type in a term that cannot be a type parameter.
-    (Also, for the spec's purposes, a single term is still a union.)
+    A constant will have a TYPEPARAM type if it appears in a place where it
+    must match that typeparam type (e.g. in a binary operation with a
+    variable of that typeparam type). If so, then we must write out its
+    actual constant kind as well, so its constant val can be read in
+    properly during import.
     
-    This CL changes the current error message from:
+    Fixed some export/import tests which were casting some untyped constants
+    to avoid this problem.
     
-            "cannot use type parameter in typeset"
-    
-    to one of two messages:
-    
-            "term cannot be a type parameter"           (for term of form P)
-            "type in term ~P cannot be a type parameter (for term of form ~P)
-    
-    which are more specific and match the spec more closely.
-    
-    Fixes #50420.
-    
-    Change-Id: Id48503efc8416cabc03d5c40d8e64d5b3a7f078e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396874
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I285ad8f1c8febbe526769c96e6b27acbd23050f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324189
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- .../types2/testdata/examples/constraints.go        |  6 ++--
- .../types2/testdata/fixedbugs/issue39948.go        |  2 +-
- .../types2/testdata/fixedbugs/issue47127.go        | 32 +++++++++++-----------
- src/cmd/compile/internal/types2/union.go           |  6 +++-
- src/go/types/testdata/examples/constraints.go      |  6 ++--
- src/go/types/testdata/fixedbugs/issue39948.go      |  2 +-
- src/go/types/testdata/fixedbugs/issue47127.go      | 32 +++++++++++-----------
- src/go/types/union.go                              |  6 +++-
- 8 files changed, 50 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 44 +++++++++++++++++++++------
+ src/cmd/compile/internal/typecheck/iimport.go | 28 ++++++++++++++---
+ test/typeparam/fact.go                        |  6 ++--
+ test/typeparam/factimp.dir/a.go               |  6 ++--
+ test/typeparam/listimp.dir/a.go               |  3 +-
+ 5 files changed, 65 insertions(+), 22 deletions(-)

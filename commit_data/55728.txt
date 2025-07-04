@@ -1,26 +1,21 @@
-commit 234390e741dd43b1ce54b0cfd91dc591c0b190f7
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Mon Feb 5 14:20:10 2024 -0500
+commit 71c84d4b4149bebc2abcc495ef744e1a010a18e7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 3 01:23:59 2023 +1100
 
-    runtime: don't clobber saved frame pointer during arm64 racecall
+    internal/bytealg: remove aix and linux build tags from ppc64 index code
     
-    During calls to the race detector on arm64, we switch to the g0 stack if
-    we aren't already on it. If we are already on the g0 stack, the race
-    detector library code can then create a stack frame using the stack
-    pointer coming from Go code. The race detector library can go on to
-    write values to the top of its stack frame. But the Go ABI for arm64
-    saves the caller's frame pointer in the word below the current stack
-    frame. So, the saved frame pointer on the stack can be clobbered by the
-    race detector. Decrement the stack pointer to account for where the
-    frame pointer is saved, like we do for asmcgocall.
+    This code is generic to ppc64/ppc64le - there is no need to limit it to
+    aix or linux.
     
-    Change-Id: I66e5e4a671c3befc10776bac6869810ecf71790d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561515
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Updates #56001
+    
+    Change-Id: I613964a90f9c5ca637720219a0260d65427f4be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473697
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/race_arm64.s | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/internal/bytealg/index_ppc64x.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

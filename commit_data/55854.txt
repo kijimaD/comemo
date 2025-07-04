@@ -1,19 +1,24 @@
-commit 8d3703ed77af699db9d28ace26081b84dc3706e7
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Mar 7 11:16:17 2024 +0800
+commit c7f5b3595be77dc86ff99aa170bd40e55961e05f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 12:53:22 2023 -0700
 
-    all: remove redundant string conversions when formatting []byte with %s
+    cmd/go: import runtime/cgo when externally linking
     
-    Change-Id: I1285ee047fd465f48028186ae04d4de60cc9969e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569715
+    Restore CL 477195, which was reverted in CL 477795.
+    This version includes CL 477397, which fixes the test problems
+    with CL 477195. CL 477397 was not submitted because it had an
+    unrelated failure on darwin-amd64. That failure is fixed by CL 477736.
+    
+    Fixes #31544
+    
+    Change-Id: I3a2258cd0ca295cede3511ab212e56fd0114f94a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477839
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/covdata/tool_test.go | 2 +-
- src/cmd/dist/testjson.go     | 2 +-
- src/net/http/cgi/host.go     | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/load/pkg.go             | 29 ++++++++++++++++---
+ src/cmd/go/testdata/script/build_static.txt | 44 +++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 4 deletions(-)

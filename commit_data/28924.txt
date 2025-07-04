@@ -1,17 +1,14 @@
-commit f2f8d58b92cd7fd9616c98fb012467656de5a3cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 08:48:25 2016 -0400
+commit 5dc7525b3e04dc7384e11b986ed13ac130afa748
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Jul 26 04:13:15 2016 +0900
 
-    reflect: update FieldByNameFunc comment
+    syscall: mksyscall_windows.go: put path separator in suffix for matching GOROOT
     
-    This was supposed to be in CL 31354
-    but was dropped due to a Git usage error.
+    fixes #16493
     
-    For #16573.
-    
-    Change-Id: I3d99087c8efc8cbc016c55e8365d0005f79d1b2f
-    Reviewed-on: https://go-review.googlesource.com/31461
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I86bec2f9bd7965449c43e94733791f7cb18c5c4c
+    Reviewed-on: https://go-review.googlesource.com/25165
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/reflect/type.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/syscall/mksyscall_windows.go | 4 ++++
+ 1 file changed, 4 insertions(+)

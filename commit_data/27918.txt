@@ -1,15 +1,21 @@
-commit 4e8c11379345f08ccf47239f7e0ea192917f602a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 17 14:32:49 2016 +0000
+commit 731531980a36f1fa6434c947c54daf8ba530a65f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 20 13:02:41 2016 +1000
 
-    log/syslog: document that Dial uses net.Dial parameters, add example
+    debug/pe: move some code into section.go and symbol.go
     
-    Fixes #16761
+    Just moving code. No code changes.
     
-    Change-Id: I709daa87926a31e5f8fd46a4c5ef69718ae349b1
-    Reviewed-on: https://go-review.googlesource.com/27209
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Updates #15345
+    
+    Change-Id: I89c257b7aae4fbd78ce59a42909ecb3ff493659d
+    Reviewed-on: https://go-review.googlesource.com/22300
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/log/syslog/example_test.go | 23 +++++++++++++++++++++++
- src/log/syslog/syslog.go       |  2 ++
- 2 files changed, 25 insertions(+)
+ src/debug/pe/file.go    | 47 -------------------------------------
+ src/debug/pe/pe.go      | 24 -------------------
+ src/debug/pe/section.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/debug/pe/symbol.go  | 24 +++++++++++++++++++
+ 4 files changed, 85 insertions(+), 71 deletions(-)

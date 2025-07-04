@@ -1,23 +1,18 @@
-commit ae60636ab14e1bd49a8e5d818a5da8a526e59969
-Author: Austin Clements <austin@google.com>
-Date:   Wed Feb 9 09:38:01 2022 -0500
+commit 6c36c332fefdd433cfe6e6468a2542fc310e9f8a
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Nov 15 10:14:04 2021 +0100
 
-    cmd/dist: drop support for pre-compiled test binaries
+    debug/pe,debug/macho: add support for DWARF5 sections
     
-    We haven't used this in a while and it's going to complicate later
-    changes to dist, so drop support. This was primarily for supporting
-    slow QEMU-based builders, but an alternative and simpler way to do
-    that if we need to in the future is to supply a go_exec wrapper to run
-    tests in QEMU, like we do for other emulated platforms.
+    Adds the same logic used in debug/elf to load DWARF5 sections.
     
-    Simplification for #37486.
+    Fixes #49590
     
-    Change-Id: Idc0383f59c61d8546ea3b4d2eede4acdaf30d9b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431256
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iee05b9927a6f521842b330eab8942ade3fc2bd86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/test.go | 60 ----------------------------------------------------
- 1 file changed, 60 deletions(-)
+ src/debug/macho/file.go | 14 +++++++++++---
+ src/debug/pe/file.go    | 14 +++++++++++---
+ 2 files changed, 22 insertions(+), 6 deletions(-)

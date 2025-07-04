@@ -1,26 +1,27 @@
-commit c4f18d537428aa61fdcf41498518cc3cc7885d38
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 16 16:25:44 2015 -0700
+commit c72b8aa3b36632f7bf96111346a554667dd08f7f
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 8 14:24:18 2015 -0700
 
-    cmd/go: ignore import of "C" when fetching dependencies
+    crypto/tls: don't require an explicit client-auth EKU.
     
-    The change https://golang.org/cl/12192 changed the get code to use the
-    list of package imports, not the computed list of dependencies, as the
-    computed list could be out of date if the package changed when using
-    go get -u.  Computing the dependency list would skip an import of "C",
-    but that would still be on the package import list.  This changes the
-    code to skip "C" when walking the import list.
+    Previously we enforced both that the extended key usages of a client
+    certificate chain allowed for client authentication, and that the
+    client-auth EKU was in the leaf certificate.
     
-    No test--the best test would be to add an import of "C" to
-    github.com/rsc/go-get-issue-9224-cmd for TestGoGetUpdate.
+    This change removes the latter requirement. It's still the case that the
+    chain must be compatible with the client-auth EKU (i.e. that a parent
+    certificate isn't limited to another usage, like S/MIME), but we'll now
+    accept a leaf certificate with no EKUs for client-auth.
     
-    Fixes #11738.
+    While it would be nice if all client certificates were explicit in their
+    intended purpose, I no longer feel that this battle is worthwhile.
     
-    Change-Id: Id89ddafeade2391d15688bfd142fafd67844a941
-    Reviewed-on: https://go-review.googlesource.com/12322
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #11087.
+    
+    Change-Id: I777e695101cbeba069b730163533e2977f4dc1fc
+    Reviewed-on: https://go-review.googlesource.com/10806
     Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/go/get.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/crypto/tls/handshake_server.go | 12 ------------
+ 1 file changed, 12 deletions(-)

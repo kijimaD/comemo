@@ -1,23 +1,19 @@
-commit 983fca55c0c43ef8cc663e3c0770d62032eac495
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Fri Apr 6 16:47:48 2018 -0500
+commit 2e5011d8029e29f37bae359f2b1d398212a961ee
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 1 15:15:42 2017 -0500
 
-    cmd/compile/internal/ssa: prefer non-indexed stores on amd64
+    runtime: even more TestStackGrowth timeout debugging
     
-    We sometimes generate code like this:
+    This adds logging for the expected duration of a growStack, plus
+    progress information on the growStack that timed out.
     
-    v473 = MOVQconst <uintptr> // constant..
-    v580 = MOVBstoreidx1 <mem> v1056 v473 v819 v491 // ..only used as an index
+    Updates #19381.
     
-    Rewrite indexed stores to non-indexed version, where possible.
-    This allows to eliminate  const->register move, reducing codesize and lowering register pressure.
-    
-    Change-Id: Id5fed801dffe3f1a80876b8d8bd43775a7c942b2
-    Reviewed-on: https://go-review.googlesource.com/105295
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ic358f8350f499ff22dd213b658aece7d1aa62675
+    Reviewed-on: https://go-review.googlesource.com/81556
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  26 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 705 ++++++++++++++++++++++++++-
- 2 files changed, 728 insertions(+), 3 deletions(-)
+ src/runtime/stack_test.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

@@ -1,22 +1,12 @@
-commit d5a9fbd556c441fa537c730681d6f8e7673b6e47
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 13 11:19:47 2017 +1100
+commit e0942b76c735a69df18d24a23fa16da1e5db8c2e
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Nov 17 12:26:36 2016 -0500
 
-    cmd/go/internal/get: remove unused tag selection code
+    cmd/asm/internal/asm: fix copy/paste errors in comment
     
-    selectTag has been hard coded to only understand the tag `go1` since
-    CL 6112060 which landed in 2012. The commit message asserted;
-    
-      Right now (before go1.0.1) there is only one possible tag,
-      "go1", and I'd like to keep it that way.
-    
-    Remove goTag and the unused matching code in selectTag.
-    
-    Change-Id: I85f7c10f95704e22f8e8681266afd72bbcbe8fbd
-    Reviewed-on: https://go-review.googlesource.com/38112
+    Change-Id: I0249b60e340710bea7b6671c9b7405c278b037bd
+    Reviewed-on: https://go-review.googlesource.com/33351
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/get/get.go | 62 ------------------------------------------
- 1 file changed, 62 deletions(-)
+ src/cmd/asm/internal/arch/amd64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,22 +1,15 @@
-commit 95e1ea4598175a3461f40d00ce47a51e5fa6e5ea
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 5 14:39:48 2019 -0400
+commit 697f4183e6815beacbd254942160e71a2e0cde60
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Mar 25 10:33:49 2019 +0100
 
-    cmd/go/internal/get: propagate parse errors in parseMetaGoImports
+    cmd/link: allow buildmode c-archive for aix/ppc64
     
-    The signature of parseMetaGoImports implies that it can return an error,
-    but it has not done so since CL 119675. Restore the missing error check,
-    and remove the named return-values to avoid reintroducing this bug in the
-    future.
-    
-    Updates #30748
-    Updates #21291
-    
-    Change-Id: Iab19ade5b1c23c282f3c385a55ed277465526515
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189778
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ia268b0d64dc89866aa09bfffcaa109741088a904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169119
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/get/discovery.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/ld/data.go   | 9 ++++++++-
+ src/cmd/link/internal/ld/lib.go    | 6 +++++-
+ 3 files changed, 14 insertions(+), 3 deletions(-)

@@ -1,17 +1,27 @@
-commit f238049a0073538caecfad1c60238a271426f43c
+commit 24699fb05c897dbaec3fe4f1d565c3c9da5078fc
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 3 14:27:08 2013 -0800
+Date:   Tue Dec 3 10:39:19 2013 -0800
 
-    cmd/gc: fix special-casing of the printed names of map internal structures.
-    Shaves 1% off of binary size.
+    runtime: get rid of concatstring's vararg C argument.
     
-    update #6853
+    Pass as a slice of strings instead.  For 2-5 strings, implement
+    dedicated routines so no slices are needed.
     
-    R=golang-dev, rsc
+    static call counts in the go binary:
+     2 strings: 342 occurrences
+     3 strings:  98
+     4 strings:  30
+     5 strings:  13
+    6+ strings:  14
+    
+    Why?  C varags, bad for stack scanning and copying.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/35940047
+    https://golang.org/cl/36380043
 
- src/cmd/gc/fmt.c     | 18 +++++++++++-------
- src/cmd/gc/go.h      |  1 +
- src/cmd/gc/reflect.c |  5 +++--
- 3 files changed, 15 insertions(+), 9 deletions(-)
+ src/cmd/gc/builtin.c       |  6 +++++-
+ src/cmd/gc/runtime.go      |  7 +++++--
+ src/cmd/gc/walk.c          | 38 ++++++++++++++++++++++----------------
+ src/pkg/runtime/string.goc | 35 ++++++++++++++++++++++++++++-------
+ 4 files changed, 60 insertions(+), 26 deletions(-)

@@ -1,25 +1,28 @@
-commit 2622235a99800d1d7add47c5c138f5efbe51361c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Oct 31 17:58:34 2021 +1100
+commit 67b9ecb23b16ed63f974e6741e1f229eab023ff5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 17 12:28:40 2020 -0500
 
-    runtime: do not generate crash dump on Windows 7
+    runtime: update paniclk ordering
     
-    It appears Windows 7 ignores WER_FAULT_REPORTING_NO_UI WerSetFlags
-    API flag.
+    Now that allglock is no longer taken in throw, paniclk can move to the
+    bottom of the lock order where it belongs.
     
-    And now after CL 307372, runtime will display WER GUI dialogue.
+    There is no fundamental reason that we really need to skip checks on
+    paniclk in lockWithRank (despite the recursive throws that could be
+    caused by lock rank checking, startpanic_m would still allow the crash
+    to complete). However, the partial order of lockRankPanic should be
+    every single lock that may be held before a throw, nil dereference,
+    out-of-bounds access, which our partial order doesn't cover.
     
-    We don't want to introduce random GUI dialogues during Go program
-    execution. So disable dump crash creation on Windows 7 altogether.
+    Updates #42669
     
-    Updates #20498
-    
-    Change-Id: Ie268a7d4609f8a0eba4fe9ecf250856b0a61b331
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360617
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ic3efaea873dc2dd9fd5b0d6ccdd5319730b29a22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270862
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/signal_windows.go | 21 +++++++++++++++++----
- 1 file changed, 17 insertions(+), 4 deletions(-)
+ src/runtime/lockrank.go    |  8 ++++----
+ src/runtime/lockrank_on.go | 11 +++++------
+ 2 files changed, 9 insertions(+), 10 deletions(-)

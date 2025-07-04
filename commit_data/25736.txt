@@ -1,26 +1,14 @@
-commit 79d9f48c73124eb21db99efa4b97cee044f52700
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 9 20:05:10 2016 +0000
+commit 6bf794a36dc3bb4d5dca471c85233e6cc84a9e74
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 15:45:12 2015 -0500
 
-    net/http: be more conservative about enabling http2 on Transports
+    cmd/link: link go.o first
     
-    For now, don't enable http2 when Transport.TLSConfig != nil.
-    See background in #14275.
+    Does not fix #12327 but nicer anyway.
     
-    Also don't enable http2 when ExpectContinueTimeout is specified for
-    now, in case somebody depends on that functionality. (It is not yet
-    implemented in http2, and was only just added to net/http too in Go
-    1.6, so nobody would be setting it yet).
-    
-    Updates #14275
-    Updates #13851
-    
-    Change-Id: I192d555f5fb0a567bd89b6ad87175bbdd7891ae3
-    Reviewed-on: https://go-review.googlesource.com/19424
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4ad730a4ca833d76957b7571895b3a08a6a530d4
+    Reviewed-on: https://go-review.googlesource.com/16964
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go      | 16 ++++++++++++++++
- src/net/http/transport_test.go | 37 ++++++++++++++++++++++++-------------
- 2 files changed, 40 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

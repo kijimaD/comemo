@@ -1,15 +1,19 @@
-commit 995fb0319eda217242fac8f2e11b576b7b7f79a9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 25 21:11:33 2016 -0700
+commit 91911e39f0fdfecc5453f9eca7ff74215ffb28a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 3 21:35:03 2016 +0000
 
-    cmd/compile: fix stringtoslicebytetmp optimization
+    net/http/httputil: also remove non-standard Proxy-Connection hop-by-hop header
     
-    Fixes #14973.
+    libcurl sends this (despite never being standardized), and the Google
+    GFE rejects it with a 400 bad request (but only when over http2?).
     
-    Change-Id: Iea68c9deca9429bde465c9ae05639209fe0ccf72
-    Reviewed-on: https://go-review.googlesource.com/21175
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    So nuke it.
+    
+    Change-Id: I3fc95523d50f33a0e23bb26b9195f70ab0aed0f4
+    Reviewed-on: https://go-review.googlesource.com/19184
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 43 ++++++++++++++++++------------------
- src/runtime/string_test.go           |  8 +++++--
- 2 files changed, 28 insertions(+), 23 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 1 +
+ src/net/http/httputil/reverseproxy_test.go | 4 ++++
+ 2 files changed, 5 insertions(+)

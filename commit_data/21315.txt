@@ -1,15 +1,17 @@
-commit 8bf6e09f4cbb0242039dd4602f1f2d58e30e0f26
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jan 21 00:39:53 2015 +0000
+commit bc611a31a5b3003ba6c05d337093f9b83e898209
+Author: Michalis Kargakis <michaliskargakis@gmail.com>
+Date:   Sun Dec 21 23:03:11 2014 +0100
 
-    Revert "crypto/x509: implement crypto.Signer"
+    flag: Check for Set error
     
-    This reverts commit cef15faafe5d15ba6242bad3504a52d287f78b88.
+    Check for Set error when a boolean flag isn't explicitly given a value.
     
-    Change-Id: I6df3e9ea48cd58893892587dd5cd28c1eb759c48
-    Reviewed-on: https://go-review.googlesource.com/3090
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Fixes #9345
+    
+    Change-Id: I97a1289f8cf27567d1a726ebe5ef167c800f357c
+    Reviewed-on: https://go-review.googlesource.com/1897
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/x509/x509.go      | 106 +++++++++++++++++++++++++++++--------------
- src/crypto/x509/x509_test.go |  12 ++---
- 2 files changed, 77 insertions(+), 41 deletions(-)
+ src/flag/flag.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

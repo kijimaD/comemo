@@ -1,18 +1,14 @@
-commit 4f3dd833e397cc16b3170b486a9239f369e03620
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 10 01:42:10 2012 -0500
+commit 10d14b63c2c2693cd2132859c34342c5f4b398f6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Dec 9 19:27:23 2012 +0100
 
-    net/http: fix text for ErrBodyReadAfterClose
+    cmd/gc: prevent ngotype from allocating.
     
-    Can happen in both request and response.
-    Also use it in one place that wasn't.
-    
-    Fixes #3997.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6903057
+    https://golang.org/cl/6904061
 
- src/pkg/net/http/server.go   | 2 +-
- src/pkg/net/http/transfer.go | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/go.h      |  1 +
+ src/cmd/gc/reflect.c | 13 +++++++++++--
+ src/cmd/gc/subr.c    |  2 +-
+ 3 files changed, 13 insertions(+), 3 deletions(-)

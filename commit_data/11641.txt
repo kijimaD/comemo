@@ -1,15 +1,14 @@
-commit fb86bbe2397453aaf793ec00a7233b858f17bd2c
-Author: Patrick Mylund Nielsen <patrick@patrickmn.com>
-Date:   Mon Feb 6 17:55:47 2012 +1100
+commit f2d2b38c92f65c738c0c6cda4c34c7db34026a3e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 6 17:54:56 2012 +1100
 
-    net/http: Don't set Content-Type header for HEAD requests by default
-    since the real type is not inferred.
-    Fixes #2885.
+    A+C: Patrick Mylund Nielsen (individual CLA)
     
-    R=golang-dev, dsymonds, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/5633045
+    R=golang-dev
+    TBR=adg
+    CC=golang-dev, patrick
+    https://golang.org/cl/5616070
 
- src/pkg/net/http/serve_test.go | 9 +++++++--
- src/pkg/net/http/server.go     | 2 +-
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

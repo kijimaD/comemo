@@ -1,22 +1,14 @@
-commit adcf0a2aa06ec1424b4d51d2b7ce043a60d29361
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Sep 20 08:11:07 2012 +1000
+commit 93195e1f314a0c3595e4d0c477f6b0dbcc96f944
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 19 10:11:24 2012 -0700
 
-    misc/vim: fix Drop for imports after the first group.
+    encoding/gob: fix comment
     
-    Previously, an import block such as
-            import (
-                    "net"
+    Fixes #4100.
     
-                    "stack"
-            )
-    would not permit ":Drop stack" to work because we were aborting
-    the scan early, which is only correct when Import is in operation.
-    
-    R=golang-dev, franciscossouza
+    R=adg, r, dave
     CC=golang-dev
-    https://golang.org/cl/6532053
+    https://golang.org/cl/6535055
 
- misc/vim/ftplugin/go/import.vim |  2 +-
- misc/vim/ftplugin/go/test.sh    | 43 ++++++++++++++++++++++++++++-------------
- 2 files changed, 31 insertions(+), 14 deletions(-)
+ src/pkg/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

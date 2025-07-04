@@ -1,18 +1,12 @@
-commit 1eea5caa30b33c4222f24f3cce995e2bae42659a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 6 15:49:33 2014 -0400
+commit 706efdb12c2c176b441e4c479ccc4d98b909c293
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 26 11:00:49 2014 +1000
 
-    os: recomment MkdirAll
-    
-    The internal comments are not completely precise about
-    what is going on, and they are causing confusion.
-    
-    Fixes #8283.
+    doc: document Go 1.3.2
     
     LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/151460043
+    R=r, rsc, iant, agl
+    https://golang.org/cl/142650045
 
- src/os/path.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/devel/release.html | 5 +++++
+ 1 file changed, 5 insertions(+)

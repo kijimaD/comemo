@@ -1,20 +1,20 @@
-commit 1116f74e08a8ccd551830c239c3ee20668ad2c5f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 5 23:06:34 2013 -0400
+commit 28bbc6c27a2be9f6af9786394acb22ed4f8b81d3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 12:55:21 2013 -0700
 
-    test/nilptr: add more tests
+    cmd/ld: emit relocations for .debug_frame in external link mode
     
-    These tests were suggested in golang.org/issue/6080.
-    They were fixed as part of the new nil pointer checks
-    that I added a few weeks ago.
+    This should have been part of revision 16731:cdedb129e020, but
+    I missed it.  This fixes printing local variables when doing
+    an external link.
     
-    Recording the tests as part of marking the issue closed.
+    No test because we aren't doing any debug info testing yet.
     
-    Fixes #6080.
+    Fixes #5719.
     
-    R=golang-dev, r, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13255049
+    https://golang.org/cl/13464046
 
- test/nilptr.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/cmd/ld/dwarf.c | 41 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 38 insertions(+), 3 deletions(-)

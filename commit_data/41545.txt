@@ -1,17 +1,19 @@
-commit 2001685ec01c240eda84762a3bc612ddd3ca93fe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 28 22:25:39 2020 -0800
+commit e44dfa1f2b322537ce3ee1f589af1082748accc5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 9 15:37:46 2019 -0400
 
-    cmd/compile/internal/syntax: add -skip flag to exclude files from TestStdLib
+    [dev.link] cmd/link: escape package path in objByPkg map
     
-    TestStdLib reports parsed lines and lines/s information. To make
-    it easier to compare apples to apples when making changes in the
-    std lib, a regular expression provided via the -skip flag filters
-    files we don't want to process.
+    The package references recorded in the object file, which are
+    obtained from the compiler, are escaped. We should also use the
+    escaped package paths in the linker for resolving package
+    references.
     
-    Change-Id: I27d9c32032eac4e78581205892e4f26947c91bd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221600
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I42eb12df6ff24330e6dc7bed1dc8224bb3b8a106
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200158
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/syntax/parser_test.go | 25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/objfile/objfile2.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

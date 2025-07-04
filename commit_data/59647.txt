@@ -1,95 +1,17 @@
-commit c3bb27bbc77ac02ad709e77a7fcca0a5d3176304
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Wed Feb 12 18:45:42 2025 -0500
+commit 7e9894449e8a12157a28a4a14fc9341353a6469c
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Apr 4 16:40:52 2024 +0800
 
-    cmd/compile/internal/walk: use global zeroVal in interface conversions for zero values
+    internal/poll: eliminate the redundant conditional branch for isKernelVersionGE53
     
-    This is a small-ish adjustment to the change earlier in our
-    stack in CL 649555, which started creating read-only global storage
-    for a composite literal used in an interface conversion and setting
-    the interface data pointer to point to that global storage.
+    Follow up CL 573755
     
-    In some cases, there are execution-time performance benefits to point
-    to runtime.zeroVal in particular. In reflect, pointer checks against
-    the runtime.zeroVal memory address are used to side-step some work,
-    such as in reflect.Value.Set and reflect.Value.IsZero.
-    
-    In this CL, we therefore dig up the zeroVal symbol, and we use the
-    machinery from earlier in our stack to use a pointer to zeroVal for
-    the interface data pointer if we see examples like:
-    
-        sink = S{}
-    or:
-        s := S{}
-        sink = s
-    
-    CL 649076 (also earlier in our stack) added most of the tests
-    along with debug diagnostics in convert.go to make it easier
-    to test this change.
-    
-    We add a benchmark in reflect to show examples of performance benefit.
-    The left column is our immediately prior CL 649555, and the right is
-    this CL. (The arrays of structs here do not seem to benefit, which
-    we attempt to address in our next CL).
-    
-    goos: linux
-    goarch: amd64
-    pkg: reflect
-    cpu: Intel(R) Xeon(R) CPU @ 2.80GHz
-                                              │  cl-649555   │           new                       │
-                                              │    sec/op    │   sec/op     vs base                │
-    Zero/IsZero/ByteArray/size=16-4              4.176n ± 0%   4.171n ± 0%        ~ (p=0.151 n=20)
-    Zero/IsZero/ByteArray/size=64-4              6.921n ± 0%   3.864n ± 0%  -44.16% (p=0.000 n=20)
-    Zero/IsZero/ByteArray/size=1024-4           21.210n ± 0%   3.878n ± 0%  -81.72% (p=0.000 n=20)
-    Zero/IsZero/BigStruct/size=1024-4           25.505n ± 0%   5.061n ± 0%  -80.15% (p=0.000 n=20)
-    Zero/IsZero/SmallStruct/size=16-4            4.188n ± 0%   4.191n ± 0%        ~ (p=0.106 n=20)
-    Zero/IsZero/SmallStructArray/size=64-4       8.639n ± 0%   8.636n ± 0%        ~ (p=0.973 n=20)
-    Zero/IsZero/SmallStructArray/size=1024-4     79.99n ± 0%   80.06n ± 0%        ~ (p=0.213 n=20)
-    Zero/IsZero/Time/size=24-4                   7.232n ± 0%   3.865n ± 0%  -46.56% (p=0.000 n=20)
-    Zero/SetZero/ByteArray/size=16-4             13.47n ± 0%   13.09n ± 0%   -2.78% (p=0.000 n=20)
-    Zero/SetZero/ByteArray/size=64-4             14.14n ± 0%   13.70n ± 0%   -3.15% (p=0.000 n=20)
-    Zero/SetZero/ByteArray/size=1024-4           24.22n ± 0%   20.18n ± 0%  -16.68% (p=0.000 n=20)
-    Zero/SetZero/BigStruct/size=1024-4           24.24n ± 0%   20.18n ± 0%  -16.73% (p=0.000 n=20)
-    Zero/SetZero/SmallStruct/size=16-4           13.45n ± 0%   13.10n ± 0%   -2.60% (p=0.000 n=20)
-    Zero/SetZero/SmallStructArray/size=64-4      14.12n ± 0%   13.69n ± 0%   -3.05% (p=0.000 n=20)
-    Zero/SetZero/SmallStructArray/size=1024-4    24.62n ± 0%   21.61n ± 0%  -12.26% (p=0.000 n=20)
-    Zero/SetZero/Time/size=24-4                  13.59n ± 0%   13.40n ± 0%   -1.40% (p=0.000 n=20)
-    geomean                                      14.06n        10.19n       -27.54%
-    
-    Finally, here are results from the benchmark example from #71323.
-    Note however that almost all the benefit shown here is from our earlier
-    CL 649555, which is a more general purpose change and eliminates
-    the allocation using a different read-only global than this CL.
-    
-                 │   go1.24       │               new                    │
-                 │     sec/op     │    sec/op     vs base                │
-    InterfaceAny   112.6000n ± 5%   0.8078n ± 3%  -99.28% (p=0.000 n=20)
-    ReflectValue      11.63n ± 2%    11.59n ± 0%        ~ (p=0.330 n=20)
-    
-                 │  go1.24.out  │                 new.out                 │
-                 │     B/op     │    B/op     vs base                     │
-    InterfaceAny   224.0 ± 0%       0.0 ± 0%  -100.00% (p=0.000 n=20)
-    ReflectValue   0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=20) ¹
-    
-                 │  go1.24.out  │                 new.out                 │
-                 │  allocs/op   │ allocs/op   vs base                     │
-    InterfaceAny   1.000 ± 0%     0.000 ± 0%  -100.00% (p=0.000 n=20)
-    ReflectValue   0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=20) ¹
-    
-    Updates #71359
-    Updates #71323
-    
-    Change-Id: I64d8cf1a7900f011d2ec59b948388aeda1150676
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649078
+    Change-Id: I27c7571d3ef1274cf2c6892e678f946f9b65de33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576416
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/ir/symtab.go    |  1 +
- src/cmd/compile/internal/ssagen/ssa.go   |  1 +
- src/cmd/compile/internal/walk/convert.go |  5 +++
- src/cmd/compile/internal/walk/order.go   | 26 ++++++++++------
- src/reflect/benchmark_test.go            | 52 ++++++++++++++++++++++++++++++++
- test/escape_iface_data.go                |  4 +--
- 6 files changed, 78 insertions(+), 11 deletions(-)
+ src/internal/poll/copy_file_range_linux.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

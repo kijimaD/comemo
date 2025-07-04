@@ -1,14 +1,28 @@
-commit 4c1995f95b9786006c71537e34609e356efafb4b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 11:01:54 2016 -0400
+commit 507144c011c64fd6f18cee6592e79461817e3791
+Author: Florian Uekermann <florian@uekermann.me>
+Date:   Tue Apr 19 16:06:37 2016 +0200
 
-    reflect: document DeepEqual(nil map, empty non-nil map) behavior
+    math/rand: Document origin of cooked pseudo-random numbers
     
-    Fixes #16531.
+    The Source provided by math/rand relies on an array of cooked
+    pseudo-random 63bit integers for seeding. The origin of these
+    numbers is undocumented.
     
-    Change-Id: I41ec8123f2d3fbe063fd3b09a9366e69722793e5
-    Reviewed-on: https://go-review.googlesource.com/31355
+    Add a standalone program in math/rand folder that generates
+    the 63bit integer array as well as a 64bit version supporting
+    extension of the Source to 64bit pseudo-random number
+    generation while maintaining the current sequence in the
+    lower 63bit.
+    
+    The code is largely based on the initial implementation of the
+    random number generator in the go repository by Ken Thompson
+    (revision 399).
+    
+    Change-Id: Ib4192aea8127595027116a0f5a7be53f11dc110b
+    Reviewed-on: https://go-review.googlesource.com/22230
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/deepequal.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/math/rand/gen_cooked.go | 89 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 89 insertions(+)

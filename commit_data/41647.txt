@@ -1,17 +1,23 @@
-commit dad94e7c39e748a4134efc67ff9256a5addf34b7
-Author: Robert Kuska <rkuska@gmail.com>
-Date:   Fri Mar 13 19:21:19 2020 +0100
+commit dc72a2f95feebcfe5ccbd50636b8f8db05587d5f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 12:06:53 2019 -0700
 
-    net/http: use atomicBool for inShutdown
+    cmd/compile: detect unsafe conversions from smaller to larger types
     
-    This removes the TODO leftover by replacing the original int32 for
-    atomicBool that mimicks atomic operations for boolean.
+    This CL extends the runtime instrumentation for (*T)(ptr) to also
+    check that the first and last bytes of *(*T)(ptr) are part of the same
+    heap object.
     
-    Change-Id: I1b2cac0c9573c890c7315e9906ce6bfccee3d770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223357
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #22218.
+    Updates #34959.
+    
+    Change-Id: I2c8063fe1b7fe6e6145e41c5654cb64dd1c9dd41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201778
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  2 +-
+ src/runtime/checkptr.go             | 12 +++++++++---
+ 2 files changed, 10 insertions(+), 4 deletions(-)

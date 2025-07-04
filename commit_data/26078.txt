@@ -1,24 +1,20 @@
-commit 00da3a6ec30bbad224d483a8d23a3b8a516c8e97
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Mar 3 17:06:43 2016 +0100
+commit 0abf443513a1399141a2fdac109c63630abf4d4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 02:49:16 2015 -0500
 
-    fmt: optimize byte slice and array formatting for %v and %d
+    runtime: remove incorrect TODO added in CL 16035
     
-    Instead of calling printArg in fmtBytes to format each byte call
-    the byte formatting functions directly since it is known each
-    element is of type byte.
+    I've already turned away one attempt to remove this field.
+    As the comment above the struct says, many tools know the layout.
+    The field cannot simply be removed.
     
-    Add more tests for byte slice and array formatting.
+    It was one thing to remove the fields name, but the TODO should
+    not have been added.
     
-    name            old time/op  new time/op  delta
-    SprintfBytes-2   843ns ±16%   417ns ±11%  -50.58%  (p=0.000 n=20+20)
-    
-    Change-Id: I5b907dbf52091e3de9710b09d67649c76f4c17e9
-    Reviewed-on: https://go-review.googlesource.com/20176
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If40eacf0eb35835082055e129e2b88333a0731b9
+    Reviewed-on: https://go-review.googlesource.com/17741
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/fmt_test.go | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/fmt/print.go    | 50 +++++++++++++++------------------------
- 2 files changed, 86 insertions(+), 32 deletions(-)
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

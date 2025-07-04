@@ -1,16 +1,33 @@
-commit b86527ec0566deac64eb28e71a8603aea62c4e7b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 14 12:49:39 2024 -0400
+commit a8515119474b621ae39ad8af9a2ad4c8a7732a6c
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 7 17:43:34 2023 -0500
 
-    cmd/compile/internal/ssa: print output on failure in TestFmaHash
+    internal/abi: common up ArrayType
     
-    When the test fails to run the command, print the error message
-    to help debug.
+    This refactoring is more problematic because the client
+    package wrap abi.Type, thus the self-referential fields
+    within ArrayType need to be downcast to the client wrappers
+    in several places.  It's not clear to me this is worthwhile;
+    this CL is for additional comment, before I attempt similar
+    changes for other self-referential types.
     
-    Change-Id: I443579a622ba1bf67ef27071f141e945303d4c2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585357
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I41e517e6d851b32560c41676b91b76d7eb17c951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466236
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/fmahash_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go      |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go |  4 ++--
+ src/internal/reflectlite/type.go       | 11 +++--------
+ src/internal/reflectlite/value.go      |  2 +-
+ src/reflect/abi.go                     |  4 ++--
+ src/reflect/type.go                    | 33 ++++++++++++++-------------------
+ src/reflect/value.go                   | 16 ++++++++--------
+ src/runtime/alg.go                     |  4 ++--
+ src/runtime/cgocall.go                 | 10 +++++-----
+ src/runtime/cgocheck.go                | 14 +++++++-------
+ src/runtime/syscall_windows.go         |  4 ++--
+ src/runtime/type.go                    |  9 ++-------
+ 12 files changed, 49 insertions(+), 64 deletions(-)

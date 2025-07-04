@@ -1,13 +1,19 @@
-commit f0023cf1d57aabd8c0aa30a65eef9ec7de041eb6
+commit af545660d59edeffb52b8b72bec08f8c7b33cf23
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 14 00:43:43 2014 -0500
+Date:   Fri Feb 14 00:38:24 2014 -0500
 
-    cmd/gc: fix build for 'default unsigned char' compilers
+    cmd/gc: correct liveness for various non-returning functions
+    
+    When the liveness code doesn't know a function doesn't return
+    (but the generated code understands that), the liveness analysis
+    invents a control flow edge that is not really there, which can cause
+    variables to seem spuriously live. This is particularly bad when the
+    variables are uninitialized.
     
     TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/63680045
+    https://golang.org/cl/63720043
 
- src/cmd/gc/plive.c | 2 +-
- src/cmd/gc/popt.c  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/popt.c |  3 +++
+ test/live.go      | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

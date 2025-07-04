@@ -1,19 +1,19 @@
-commit 97920373fa07d4dbc24cbb587399586cf1e22961
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 10 16:19:49 2017 -0400
+commit 23ae7a70f9f28fe34547d2857e5efa789625052a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 6 17:56:21 2017 +0000
 
-    cmd/link: generate PC ranges for compilation unit DIEs
+    os/exec: clarify Cmd.Wait documentation a bit more explicitly
     
-    When we split separate packages into separate compilation units, we
-    lost PC range information because it was no longer contiguous. This
-    brings it back by constructing proper per-package PC range tables.
+    It already implied that Cmd.Wait is more than os.Process.Wait, but say
+    so explicitly.
     
-    Change-Id: Id0ab5187e08ac5d13b3d3794977bfc857a56224f
-    Reviewed-on: https://go-review.googlesource.com/69974
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    See https://github.com/golang/go/issues/18874#issuecomment-309921486
+    
+    Updates #18874
+    
+    Change-Id: Iaa46defd776ae0be817d9f4466a99ac78cfd672b
+    Reviewed-on: https://go-review.googlesource.com/47650
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go   | 33 +++++++++++++++++++++-------
- src/cmd/link/internal/ld/dwarf.go | 46 ++++++++++++++++++++++++++++-----------
- 2 files changed, 58 insertions(+), 21 deletions(-)
+ src/os/exec/exec.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

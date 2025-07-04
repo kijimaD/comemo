@@ -1,60 +1,15 @@
-commit 2bf5ae0c28a28244c3e20ef65b75e9e90adb5251
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 9 14:16:05 2022 -0800
+commit becb9a278fdeccfb562dd1232f052050f00a4aaa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 28 11:24:24 2021 -0400
 
-    go/types, types2: rename structuralType/String to coreType/String
+    test: do not run fuse test in noopt mode
     
-    This is a pure rename of the respective Go functions/methods
-    with corresponding adjustments to error messages and tests.
-    A couple of comments were manually rephrased.
-    
-    With this change, the implementation and error messages match
-    the latest spec.
-    
-    No functionality change.
-    
-    Change-Id: Iaa92a08b64756356fb2c5abdaca5c943c9105c96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384618
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iad8ac2253ce28fd0a331bde36836d1b7f25797bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314632
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/expr.go                 |  4 ++--
- src/cmd/compile/internal/noder/writer.go               |  4 ++--
- src/cmd/compile/internal/types2/builtins.go            | 18 +++++++++---------
- src/cmd/compile/internal/types2/call.go                |  2 +-
- src/cmd/compile/internal/types2/compilersupport.go     |  8 ++++----
- src/cmd/compile/internal/types2/expr.go                |  8 ++++----
- src/cmd/compile/internal/types2/index.go               |  4 ++--
- src/cmd/compile/internal/types2/infer.go               | 12 ++++++------
- src/cmd/compile/internal/types2/lookup.go              | 10 +++++-----
- src/cmd/compile/internal/types2/predicates.go          |  4 ++--
- src/cmd/compile/internal/types2/stmt.go                | 10 +++++-----
- .../internal/types2/testdata/check/builtins.go2        |  6 +++---
- .../internal/types2/testdata/check/typeparams.go2      | 12 ++++++------
- .../internal/types2/testdata/examples/inference.go2    |  2 +-
- .../internal/types2/testdata/examples/types.go2        |  4 ++--
- .../internal/types2/testdata/fixedbugs/issue43671.go2  |  4 ++--
- .../internal/types2/testdata/fixedbugs/issue47115.go2  |  4 ++--
- .../internal/types2/testdata/fixedbugs/issue49735.go2  |  4 ++--
- .../internal/types2/testdata/fixedbugs/issue50417.go2  |  2 +-
- src/cmd/compile/internal/types2/type.go                | 10 +++++-----
- src/go/types/builtins.go                               | 18 +++++++++---------
- src/go/types/call.go                                   |  2 +-
- src/go/types/expr.go                                   |  8 ++++----
- src/go/types/index.go                                  |  4 ++--
- src/go/types/infer.go                                  | 12 ++++++------
- src/go/types/lookup.go                                 | 10 +++++-----
- src/go/types/predicates.go                             |  4 ++--
- src/go/types/stmt.go                                   | 10 +++++-----
- src/go/types/testdata/check/builtins.go2               |  6 +++---
- src/go/types/testdata/check/typeparams.go2             | 12 ++++++------
- src/go/types/testdata/examples/inference.go2           |  2 +-
- src/go/types/testdata/examples/types.go2               |  4 ++--
- src/go/types/testdata/fixedbugs/issue43671.go2         |  4 ++--
- src/go/types/testdata/fixedbugs/issue47115.go2         |  4 ++--
- src/go/types/testdata/fixedbugs/issue49735.go2         |  4 ++--
- src/go/types/testdata/fixedbugs/issue50417.go2         |  2 +-
- src/go/types/type.go                                   | 10 +++++-----
- test/typeparam/issue50417.go                           |  4 ++--
- test/typeparam/typelist.go                             | 18 ++++++++++--------
- 39 files changed, 136 insertions(+), 134 deletions(-)
+ test/fuse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

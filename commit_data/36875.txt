@@ -1,19 +1,27 @@
-commit 71d40c492fa92e710f9a3b2f26881a86f877ae95
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 4 17:16:33 2018 -0700
+commit ebb8a1f8e6bf14ce4773e930870985571aaff932
+Author: Dennis Kuhnert <mail.kuhnert@gmail.com>
+Date:   Tue May 29 17:39:00 2018 +0200
 
-    go/types: remove work-around for issue #26390
+    cmd/go: output coverage report even if there are no test files
     
-    This work-around is not needed anymore now that method
-    signatures are type-checked separately from their receiver
-    base types: no artificial cycles are introduced anymore
-    and so there is no need to artificially cut them.
+    When using test -cover or -coverprofile the output for "no test files"
+    is the same format as for "no tests to run".
     
-    Fixes #26854.
+    Fixes #24570
     
-    Change-Id: I2ef15ceeaa0b486f65f6cdc466d0cf06246c74d7
-    Reviewed-on: https://go-review.googlesource.com/c/139900
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If05609411676d42d94c1feac4bc839974fae2cc1
+    Reviewed-on: https://go-review.googlesource.com/115095
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/decl.go | 25 -------------------------
- 1 file changed, 25 deletions(-)
+ src/cmd/go/go_test.go                        | 37 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/load/test.go             |  3 ---
+ src/cmd/go/internal/test/test.go             | 28 +++++----------------
+ src/cmd/go/testdata/testcover/pkg1/a.go      |  7 ++++++
+ src/cmd/go/testdata/testcover/pkg2/a.go      |  7 ++++++
+ src/cmd/go/testdata/testcover/pkg2/a_test.go |  1 +
+ src/cmd/go/testdata/testcover/pkg3/a.go      |  7 ++++++
+ src/cmd/go/testdata/testcover/pkg3/a_test.go |  7 ++++++
+ src/cmd/internal/test2json/test2json.go      |  4 +--
+ 9 files changed, 74 insertions(+), 27 deletions(-)

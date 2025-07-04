@@ -1,13 +1,28 @@
-commit ccc951637be806e6e7a3c2c922bf4746b60e7395
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Aug 13 12:56:57 2020 +0200
+commit a864cc756083632c543f2ad582cddd81bd2f3840
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 5 05:23:42 2020 -0500
 
-    cmd/link: move comma outside quotes
+    doc: rename HTML element IDs to avoid duplicates
     
-    Change-Id: I2ecf8976a6289924ac7bfe7ace129a462537e11d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248339
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    These 3 release notes have had an element ID collision because both
+    the runtime changes and changes to the package "runtime" used the
+    same ID. Fix it by using a "pkg-" prefix for the runtime package.
+    
+    Move the "runtime-again" ID from CL 129635 to a nearby <dt> element
+    so that existing links to https://golang.org/doc/go1.11#runtime-again
+    don't break.
+    
+    Fixes #37036
+    Updates #36878
+    
+    Change-Id: Ib68d93acfac802fd84c0a57485937e45dea2064a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217797
+    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.11.html | 2 +-
+ doc/go1.13.html | 2 +-
+ doc/go1.14.html | 2 +-
+ doc/go1.9.html  | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

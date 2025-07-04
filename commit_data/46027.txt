@@ -1,23 +1,18 @@
-commit 9ff61acbd76733ec065cb1185608aa5564f2685a
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 09:36:49 2021 -0400
+commit 7f5a3196c92c9fbe6d691d022202cbbda6e7a431
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 3 11:09:07 2020 -0500
 
-    go/types,types2: superficial changes to align types and types2
+    cmd/go/internal/modload: rename constants to reflect that lazy loading is not yet implemented
     
-    This CL contains an assortment of superficial fixes noticed while
-    self-reviewing the most recent stack of ports. It also makes a couple
-    adjustments to termlist_test.go, in both go/types and
-    cmd/compile/internal/types2.
+    Updates #36460
+    Updates #42288
     
-    Change-Id: I64c8cda5e1704e86ac11c6ffc86d55248f44ef79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342490
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I82a3b7e97a8e2f83bae2318ca9fb5c38c0c811cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275172
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/termlist_test.go | 4 ++--
- src/go/types/builtins.go                         | 1 -
- src/go/types/termlist_test.go                    | 6 +++---
- src/go/types/typestring.go                       | 2 +-
- 4 files changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/modload/modfile.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

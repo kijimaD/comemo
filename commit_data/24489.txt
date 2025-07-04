@@ -1,28 +1,44 @@
-commit 2d5601d85cff9b11acc622833ccefa808e1cdf08
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Sep 22 01:33:11 2015 -0700
+commit 2d9378c7f6dfbbe82d1bbd806093c2dfe57d7e17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 27 13:30:16 2015 -0700
 
-    compress/flate: deprecate ReadError and WriteError
+    spec: document existing expression switch restrictions
     
-    A vast majority of the time, ReadError isn't even returned during
-    IO operations. Instead, an unwrapped error will be returned because
-    of the ReadByte call on L705. Because DEFLATE streams are primarily
-    compressed and require byte for byte Huffman decoding, most of the
-    data read from a data stream will go through ReadByte.
+    The spec didn't specify several aspects of expression switches:
     
-    Although this is technically an API change, any user reliant on
-    this error would not have worked properly anyways due to the fact
-    that most IO error are not wrapped. We might as well deprecate
-    ReadError. It is useless and actually makes clients that do
-    depend on catching IO errors more difficult.
+    - The switch expression is evaluated exactly once.
     
-    Fixes #11856
-    Fixes #12724
+    - Switch expressions evaluating to an untyped value are converted
+      to the respective default type before use.
     
-    Change-Id: Ib5fec5ae215e977c4e85de5701ce6a473d400af8
-    Reviewed-on: https://go-review.googlesource.com/14834
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    - An (untyped) nil value is not permitted as expression switch
+      value. (We could permit it relatively easily, but gc doesn't,
+      and disallowing it is in symmetry with the rules for var decls
+      without explicit type and untyped initializer expressions.)
+    
+    - The comparison x == t between each case expression x and
+      switch expression value t must be valid.
+    
+    - (Some) duplicate constant case expressions are not permitted.
+    
+    This change also clarifies the following issues:
+    
+     4524: mult. equal int const switch case values should be illegal
+                                             -> spec issue fixed
+     6398: switch w/ no value uses bool rather than untyped bool
+                                             -> spec issue fixed
+    11578: allows duplicate switch cases     -> go/types bug
+    11667: int overflow in switch expression -> go/types bug
+    11668: use of untyped nil in switch      -> not a gc bug
+    
+    Fixes #4524.
+    Fixes #6398.
+    Fixes #11668.
+    
+    Change-Id: Iae4ab3e714575a5d11c92c9b8fbf027aa706b370
+    Reviewed-on: https://go-review.googlesource.com/12711
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/compress/flate/flate_test.go | 3 ---
- src/compress/flate/inflate.go    | 8 ++++++--
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 39 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 34 insertions(+), 5 deletions(-)

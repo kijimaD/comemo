@@ -1,14 +1,20 @@
-commit 83da7d15a3520e18361b488b803bf38804b86350
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Feb 23 11:32:29 2011 -0500
+commit bf6939829d84e8cbe7469c1664ec8dc4038a21b9
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 23 10:23:28 2011 -0500
 
-    json: use base64 to encode []byte
+    compress/bzip2: add package.
     
-    R=rsc
+    This code implements bzip2 decompression only.
+    
+    R=bradfitzgo, r2, nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/4160058
+    https://golang.org/cl/4176051
 
- src/pkg/json/decode.go      | 58 +++++++++++++++++++++++++++++++++++++++------
- src/pkg/json/decode_test.go | 27 ++++++++++++++++-----
- src/pkg/json/encode.go      | 26 ++++++++++++++++++--
- 3 files changed, 96 insertions(+), 15 deletions(-)
+ src/pkg/Makefile                        |   1 +
+ src/pkg/compress/bzip2/Makefile         |  14 ++
+ src/pkg/compress/bzip2/bit_reader.go    |  88 ++++++++
+ src/pkg/compress/bzip2/bzip2.go         | 371 ++++++++++++++++++++++++++++++++
+ src/pkg/compress/bzip2/bzip2_test.go    | 137 ++++++++++++
+ src/pkg/compress/bzip2/huffman.go       | 223 +++++++++++++++++++
+ src/pkg/compress/bzip2/move_to_front.go | 101 +++++++++
+ 7 files changed, 935 insertions(+)

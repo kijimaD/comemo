@@ -1,15 +1,12 @@
-commit c0927a6797e0b21775fcc5181698574da638a205
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Dec 18 23:17:39 2012 +0800
+commit 5b46fc417fdc908fd41d1e88a909d8e92a29504c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Dec 18 12:19:04 2012 +1100
 
-    cmd/5l, cmd/6l, cmd/8l: fix function symbol generation from gcc compiled source code
-    For CL 6853059.
+    go/doc: add "hdr-" prefix to headers generated from package overviews.
     
-    R=jsing, rsc
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/6938076
+    https://golang.org/cl/6935071
 
- src/cmd/5l/asm.c | 2 +-
- src/cmd/6l/asm.c | 2 +-
- src/cmd/8l/asm.c | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/go/doc/comment.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

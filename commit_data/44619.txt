@@ -1,20 +1,26 @@
-commit b3896fc331c36a539f825f1f656cef3f9cdffd3f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 11 15:04:16 2021 -0500
+commit dc12d5b0f5e9c1cfec2a8eb6dd7ff3473c36d45c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 17 11:28:26 2020 +0200
 
-    net/http: revert change to generated file from CL 296152
+    all: add empty line between copyright header and package clause
     
-    This file is generated, so the fix needs to happen upstream.
-    The file can then be regenerated using 'go generate net/http'.
+    Makes sure the copyright notice is not interpreted as the package level
+    godoc.
     
-    Updates #44143
-    
-    Change-Id: I13a1e7677470ba84a06976e5bbe24f4ce1e7cfb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301069
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I2afce7c9d620f19d51ec1438b1d0db1774b57146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248760
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/http/socks_bundle.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go         | 1 +
+ src/cmd/compile/internal/ssa/passbm_test.go   | 1 +
+ src/cmd/go/internal/trace/trace.go            | 1 +
+ src/cmd/link/internal/benchmark/bench_test.go | 1 +
+ src/cmd/link/internal/ld/errors.go            | 1 +
+ src/runtime/closure_test.go                   | 1 +
+ src/runtime/map_benchmark_test.go             | 1 +
+ src/runtime/slice_test.go                     | 1 +
+ src/sync/cond_test.go                         | 1 +
+ test/fixedbugs/issue15281.go                  | 1 +
+ 10 files changed, 10 insertions(+)

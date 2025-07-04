@@ -1,15 +1,23 @@
-commit b1b3243a1b98121911c351bc16cb95489024dc1d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 6 13:55:19 2015 -0700
+commit 143822585e32449860e624cace9d2e521deee62e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 7 13:19:44 2015 -0600
 
-    go/types: check for duplicate values in expression switches
+    net/http: revert overly-strict part of earlier smuggling defense
     
-    Fixes #11578.
+    The recent https://golang.org/cl/11810 is reportedly a bit too
+    aggressive.
     
-    Change-Id: I29a542be247127f470ba6c39aac0d0f6a18de553
-    Reviewed-on: https://go-review.googlesource.com/13285
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Apparently some HTTP requests in the wild do contain both a
+    Transfer-Encoding along with a bogus Content-Length. Instead of
+    returning a 400 Bad Request error, we should just ignore the
+    Content-Length like we did before.
+    
+    Change-Id: I0001be90d09f8293a34f04691f608342875ff5c4
+    Reviewed-on: https://go-review.googlesource.com/11962
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/stmt.go            | 91 ++++++++++++++++++++++++++++++++++++-----
- src/go/types/testdata/stmt0.src | 79 +++++++++++++++++++++++++++++++++--
- 2 files changed, 155 insertions(+), 15 deletions(-)
+ src/net/http/readrequest_test.go | 35 ++++++++++++++++++++++++++++++-----
+ src/net/http/transfer.go         | 21 ++++++++++++++-------
+ 2 files changed, 44 insertions(+), 12 deletions(-)

@@ -1,13 +1,12 @@
-commit 9e25eccf48338902740bae65a2e40f68a2b8a842
-Author: Rob Pike <r@golang.org>
-Date:   Sun Mar 6 10:50:07 2011 -0800
+commit 255b538152aa4e28eaaca7bf41ea2a5368d77ac9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 6 11:23:47 2011 -0500
 
-    gob: clean up getTypeInfo (address a TODO)
-    also fix a caching bug.
+    http/cgi: skip test if perl or CGI.pm not available
     
-    R=rsc
+    R=bradfitzgo, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4261049
+    https://golang.org/cl/4264047
 
- src/pkg/gob/type.go | 66 +++++++++++++++++++++++------------------------------
- 1 file changed, 29 insertions(+), 37 deletions(-)
+ src/pkg/http/cgi/cgi_test.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

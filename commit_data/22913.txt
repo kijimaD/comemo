@@ -1,17 +1,24 @@
-commit da4fc529d924e796976ea22b928533c8973fdb71
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 6 13:45:03 2015 -0700
+commit 9402e49450d57eb608f03980e7541602a346e5ae
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 14 10:48:05 2015 +1000
 
-    cmd/doc: add type-bound vars to global vars list
+    runtime: really pass return value to Windows in externalthreadhandler
     
-    Already done for constants and funcs, but I didn't realize that some
-    global vars were also not in the global list. This fixes
+    When Windows calls externalthreadhandler it expects to receive
+    return value in AX. We don't set AX anywhere. Change that.
+    Store ctrlhandler1 and profileloop1 return values into AX before
+    returning from externalthreadhandler.
     
-            go doc build.Default
+    Fixes #10215.
     
-    Change-Id: I768bde13a400259df3e46dddc9f58c8f0e993c72
-    Reviewed-on: https://go-review.googlesource.com/9764
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ied04542cc3ebe7d4a26660e970f9f78098143591
+    Reviewed-on: https://go-review.googlesource.com/8901
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/doc/pkg.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/os/signal/signal_windows_test.go | 4 ----
+ src/runtime/os1_windows.go           | 2 +-
+ src/runtime/sys_windows_386.s        | 2 ++
+ src/runtime/sys_windows_amd64.s      | 2 ++
+ 4 files changed, 5 insertions(+), 5 deletions(-)

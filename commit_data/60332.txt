@@ -1,0 +1,21 @@
+commit 477ad7dd5151a2cb54fb68aa84ccbe9bb96ffbee
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 20 22:58:24 2024 +0700
+
+    cmd/compile: support generic alias type
+    
+    Type parameters on aliases are now allowed after #46477 accepted.
+    
+    Updates #46477
+    Fixes #68054
+    
+    Change-Id: Ic2e3b6f960a898163f47666e3a6bfe43b8cc22e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593715
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/writer.go | 13 ++++++++++++-
+ test/fixedbugs/issue68054.go             | 23 +++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

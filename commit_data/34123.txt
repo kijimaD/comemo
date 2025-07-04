@@ -1,25 +1,20 @@
-commit 25d22d9abae4345c24cd2ae7f26de1846888faa4
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Feb 10 20:10:26 2018 -0800
+commit 815cad3ed026c904b5b54a45c5e044b9a1f4538c
+Author: Tom Bergan <tombergan@google.com>
+Date:   Mon Aug 28 11:09:37 2017 -0700
 
-    cmd/compile: report the struct type in invalid number of initializer values
+    [release-branch.go1.9] doc/1.9: add mention of net/http.LocalAddrContextKey
     
-    Fixes #23732
+    Fixes #21603
     
-    Disambiguate "too few" or "too many" values in struct
-    initializer messages by reporting the name of the literal.
+    Reviewed-on: https://go-review.googlesource.com/59530
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/59670
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
     
-    After:
-    issue23732.go:27:3: too few values in Foo literal
-    issue23732.go:34:12: too many values in Bar literal
-    issue23732.go:40:6: too few values in Foo literal
-    issue23732.go:40:12: too many values in Bar literal
-    
-    Change-Id: Ieca37298441d907ac78ffe960c5ab55741a362ef
-    Reviewed-on: https://go-review.googlesource.com/93277
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie9732d57948593dc0306a4a649664eedb3de370c
+    Reviewed-on: https://go-review.googlesource.com/68232
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  4 +--
- test/fixedbugs/issue23732.go             | 42 ++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 2 deletions(-)
+ doc/go1.9.html | 5 +++++
+ 1 file changed, 5 insertions(+)

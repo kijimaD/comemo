@@ -1,47 +1,20 @@
-commit 39bcbb353c6bf2e13eb0d3585fe82d3cab6df78d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 5 23:01:48 2014 -0500
+commit 0edafefc36b39dd456d3b6410f81dfcecfef6a3b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Oct 20 15:59:10 2014 +0100
 
-    runtime: avoid gentraceback of self on user goroutine stack
+    cmd/gc: emit code for extern = <N>
     
-    Gentraceback may grow the stack.
-    One of the gentraceback wrappers may grow the stack.
-    One of the gentraceback callback calls may grow the stack.
-    Various stack pointers are stored in various stack locations
-    as type uintptr during the execution of these calls.
-    If the stack does grow, these stack pointers will not be
-    updated and will start trying to decode stack memory that
-    is no longer valid.
+    https://golang.org/cl/152700045/ made it possible for struct literals assigned to globals to use <N> as the RHS. Normally, this is to zero out variables on first use. Because globals are already zero (or their linker initialized value), we just ignored this.
     
-    It may be possible to change the type of the stack pointer
-    variables to be unsafe.Pointer, but that's pretty subtle and
-    may still have problems, even if we catch every last one.
-    An easier, more obviously correct fix is to require that
-    gentraceback of the currently running goroutine must run
-    on the g0 stack, not on the goroutine's own stack.
+    Now that <N> can occur from non-initialization code, we need to emit this code. We don't use <N> for initialization of globals any more, so this shouldn't cause any excessive zeroing.
     
-    Not doing this causes faults when you set
-            StackFromSystem = 1
-            StackFaultOnFree = 1
+    Fixes #8961.
     
-    The new check in gentraceback will catch future lapses.
-    
-    The more general problem is calling getcallersp but then
-    calling a function that might relocate the stack, which would
-    invalidate the result of getcallersp. Add note to stubs.go
-    declaration of getcallersp explaining the problem, and
-    check all existing calls to getcallersp. Most needed fixes.
-    
-    This affects Callers, Stack, and nearly all the runtime
-    profiling routines. It does not affect stack copying directly
-    nor garbage collection.
-    
-    LGTM=khr
-    R=khr, bradfitz
-    CC=golang-codereviews, r
-    https://golang.org/cl/167060043
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/154540044
 
- src/runtime/mprof.go     | 43 ++++++++++++++++++++++++++++---------------
- src/runtime/stubs.go     | 28 ++++++++++++++++++++++++++++
- src/runtime/traceback.go | 22 +++++++++++++++++++++-
- 3 files changed, 77 insertions(+), 16 deletions(-)
+ src/cmd/gc/gen.c            | 10 +++-------
+ test/fixedbugs/issue8961.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 7 deletions(-)

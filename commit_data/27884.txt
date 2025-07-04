@@ -1,24 +1,22 @@
-commit 752e16158751165c53538a564ca0a8bd7ba84f1f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 18 17:33:05 2016 -0700
+commit a3c92c9db137413b17447a72c334c3e560bace06
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 18 07:24:48 2016 -0400
 
-    cmd/vet: allow ^& uintptr arithmetic
+    cmd/link: use gold when dynamic linking on arm64
     
-    The unsafe.Pointer check allows adding to
-    and subtracting from uintptrs in order to do
-    arithmetic.
+    The GNU linker follows the letter of -znocopyreloc by refusing to
+    generate COPY relocations on arm64. Unfortunately it generates an
+    error instead of finding another way. The gold linker works, so
+    switch to it.
     
-    Some code needs to round uintptrs.
-    Allow &^ for that purpose.
+    Fixes linux/arm64 build.
     
-    Updates #11041
-    
-    Change-Id: Ib90dd2954bb6c78427058271e13f2ce4c4af38fb
-    Reviewed-on: https://go-review.googlesource.com/27156
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1f7119d999c8f9f1f2d0c1e06b6462cea9c02a71
+    Reviewed-on: https://go-review.googlesource.com/22185
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/testdata/unsafeptr.go | 4 +++-
- src/cmd/vet/unsafeptr.go          | 2 +-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ misc/cgo/testshared/shared_test.go | 10 +++++-----
+ src/cmd/link/internal/ld/lib.go    | 11 ++++++++---
+ 2 files changed, 13 insertions(+), 8 deletions(-)

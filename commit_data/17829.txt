@@ -1,14 +1,15 @@
-commit d220c9957ccc4f2985849ee2e8c7e49fb20f04fe
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Oct 22 18:33:05 2013 -0400
+commit 089bc25ae2be117310ae7e19d79d40e1ed69fc6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 22 10:37:33 2013 -0400
 
-    time: fix ParseDuration overflow when given more than 9 digits on 32-bit arch
-    Fixes #6617.
+    math: remove unnecessary source file
     
-    R=golang-dev, rsc, r
+    The routines in this file are dregs from a very early copy of the math API.
+    There are no Go prototypes and no non-amd64 implementations.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/15080043
+    https://golang.org/cl/15750046
 
- src/pkg/time/format.go    | 4 ++--
- src/pkg/time/time_test.go | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/math/fltasm_amd64.s | 69 ---------------------------------------------
+ 1 file changed, 69 deletions(-)

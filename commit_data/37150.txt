@@ -1,25 +1,24 @@
-commit d76b1cdf286551a81fd4c1012cbf8686d344cc32
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 10 16:37:00 2018 -0400
+commit 2ee6bfbd7ef0d8183035f8d8a47af7fcb7554a05
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 3 09:36:35 2018 +0200
 
-    cmd/go: support background processes in TestScript
+    cmd/internal/obj: follow convention for generated code comment
     
-    This will be used to test fixes for bugs in concurrent 'go' command
-    invocations, such as #26794.
+    Follow the convertion (https://golang.org/s/generatedcode) for generated
+    code in stringer.go.
     
-    See the README changes for a description of the semantics.
-    
-    Updates #26794
-    
-    Change-Id: I897e7b2d11ff4549a4711002eadd6a54f033ce0b
-    Reviewed-on: https://go-review.googlesource.com/c/141218
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7b5fbb04ba03e8ac77a9a0a402088669469de858
+    Reviewed-on: https://go-review.googlesource.com/122015
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go                      |  21 +++
- src/cmd/go/script_test.go                  | 203 ++++++++++++++++++++++++-----
- src/cmd/go/testdata/script/README          |  22 +++-
- src/cmd/go/testdata/script/script_wait.txt |  22 ++++
- 4 files changed, 233 insertions(+), 35 deletions(-)
+ src/cmd/internal/obj/arm/anames.go   | 3 +--
+ src/cmd/internal/obj/arm64/anames.go | 3 +--
+ src/cmd/internal/obj/mips/anames.go  | 3 +--
+ src/cmd/internal/obj/ppc64/anames.go | 3 +--
+ src/cmd/internal/obj/s390x/anames.go | 3 +--
+ src/cmd/internal/obj/stringer.go     | 3 +--
+ src/cmd/internal/obj/wasm/anames.go  | 3 +--
+ src/cmd/internal/obj/x86/anames.go   | 3 +--
+ 8 files changed, 8 insertions(+), 16 deletions(-)

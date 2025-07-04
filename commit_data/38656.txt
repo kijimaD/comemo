@@ -1,18 +1,19 @@
-commit ead895688def46f4c74c2a4c7ee560fc46663000
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Apr 4 12:46:50 2019 -0400
+commit ee55f0856a3f1fed5d8c15af54c40e4799c2d32f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 29 23:21:40 2018 +0000
 
-    math/big: do not panic in Exp when y < 0 and x doesn't have an inverse
+    net/http/httputil: make ReverseProxy automatically proxy WebSocket requests
     
-    If x does not have an inverse modulo m, and a negative exponent is used,
-    return nil just like ModInverse does now.
+    Fixes #26937
     
-    Change-Id: I8fa72f7a851e8cf77c5fab529ede88408740626f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170757
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I6cdc1bad4cf476cd2ea1462b53444eccd8841e14
+    Reviewed-on: https://go-review.googlesource.com/c/146437
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/math/big/int.go      |  9 +++++++--
- src/math/big/int_test.go | 18 +++++++++++++-----
- 2 files changed, 20 insertions(+), 7 deletions(-)
+ src/go/build/deps_test.go                  |  2 +-
+ src/net/http/httputil/reverseproxy.go      | 81 +++++++++++++++++++++++++++
+ src/net/http/httputil/reverseproxy_test.go | 88 ++++++++++++++++++++++++++----
+ src/net/http/transport.go                  |  2 +-
+ 4 files changed, 161 insertions(+), 12 deletions(-)

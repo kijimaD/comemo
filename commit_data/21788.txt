@@ -1,25 +1,27 @@
-commit 2b417dc3e1814c1c251d2141dfb6438cf612b847
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 27 12:36:15 2015 -0800
+commit 805907115352801a54f987fc9079251b478cce3f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 08:58:04 2015 +0300
 
-    cmd/internal/obj: make ppc64's CR subregisters print as CRn rather than Cn
+    runtime: bound defer pools
     
-    These 8 registers are windows into the CR register. They are officially CR0
-    through CR7 and that is what the assembler accepts, but for some reason
-    they have always printed as C0 through C7. Fix the naming and printing.
+    The unbounded list-based defer pool can grow infinitely.
+    This can happen if a goroutine routinely allocates a defer;
+    then blocks on one P; and then unblocked, scheduled and
+    frees the defer on another P.
+    The scenario was reported on golang-nuts list.
     
-    Change-Id: I55822c0322c29d3e01a1f2776b3b210ebf9ded21
-    Reviewed-on: https://go-review.googlesource.com/6290
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    We've been here several times. Any unbounded local caches
+    are bad and grow to infinite size. This change introduces
+    central defer pool; local pools become fixed-size
+    with the only purpose of amortizing accesses to the
+    central pool.
+    
+    Change-Id: Iadcfb113ccecf912e1b64afc07926f0de9de2248
+    Reviewed-on: https://go-review.googlesource.com/3741
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/9a/a.y                              |  2 +-
- src/cmd/9a/lex.go                           | 16 ++++++++--------
- src/cmd/9a/y.go                             |  2 +-
- src/cmd/asm/internal/arch/arch.go           |  5 ++---
- src/cmd/asm/internal/arch/ppc64.go          |  2 +-
- src/cmd/asm/internal/asm/operand_test.go    |  2 +-
- src/cmd/asm/internal/asm/testdata/ppc64.out | 16 ++++++++--------
- src/cmd/internal/obj/ppc64/9.out.go         | 16 ++++++++--------
- src/cmd/internal/obj/ppc64/asm9.go          |  8 ++++----
- src/cmd/internal/obj/ppc64/list9.go         |  4 ++--
- 10 files changed, 36 insertions(+), 37 deletions(-)
+ src/runtime/mgc0.go     | 27 +++++++++++++++------------
+ src/runtime/panic.go    | 40 +++++++++++++++++++++++++++++++++++-----
+ src/runtime/proc1.go    | 10 ++++++++++
+ src/runtime/runtime2.go |  7 ++++++-
+ 4 files changed, 66 insertions(+), 18 deletions(-)

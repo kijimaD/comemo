@@ -1,22 +1,30 @@
-commit f93b668842ae3d6e96d7348dbd05592811ce3990
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 8 22:00:09 2022 -0700
+commit ac40c9872f6e8ef095dcc6ee556236782eee4f76
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 13 09:17:22 2021 -0700
 
-    test: add test for package-scope method value GC
+    reflect: fix _faststr optimization
     
-    The Go 1.18 frontend handles package-scope generic method values by
-    spilling the receiver value to a global temporary variable, which pins
-    it into memory. This issue isn't present in unified IR, which uses
-    OMETHVALUE when the receiver type is statically known.
+    CL 345486 introduced an optimization to reflect's map accesses
+    which is not quite correct. We can't use the optimized code if the
+    value type is >128 bytes.
     
-    Updates #54343.
+    See cmd/compile/internal/walk/walk.go:mapfast
     
-    Change-Id: I2c4ffeb125a3cf338f949a93b0baac75fff6cd31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422198
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #48357
+    
+    Change-Id: I8e3c7858693083dd4393a8de48ca5fa47bab66f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349593
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- test/fixedbugs/issue54343.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
- test/run.go                  |  1 +
- 2 files changed, 46 insertions(+)
+ src/reflect/value.go         |  4 ++--
+ test/fixedbugs/issue48357.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

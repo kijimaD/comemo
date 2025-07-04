@@ -1,12 +1,30 @@
-commit 5d1828269540fa7ba1dee60ce6b4a938463a696f
+commit 975c82fd9b58b5ff4cab4fff2327308e1fcaf427
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 24 12:14:29 2015 -0500
+Date:   Tue Feb 3 11:48:50 2015 -0500
 
-    cmd/internal/gc: factor bottom-up visiting out of escape analysis
+    [dev.cc] cmd/6a, etc: fix line number accounting during #ifdef
     
-    Change-Id: Id217fb6d8faf045a1a4fbda43b102ba989a02c17
-    Reviewed-on: https://go-review.googlesource.com/5951
-    Reviewed-by: Austin Clements <austin@google.com>
+    Lines beginning with #ifdef, #else, #endif were not incrementing
+    the line number, resulting in bad line number information for
+    assembly files with #ifdefs.
+    
+    Example:
+    
+            #ifndef GOARCH_ppc64
+            #endif
+            #ifdef GOARCH_ppc64le
+            #endif
+    
+            TEXT ·use(SB),7,$0
+                    RET
+    
+    Before this change, the line number recorded for use in 6a -S output
+    (and in the runtime information in the binary) was 4 too low.
+    
+    Change-Id: I23e599112ec9919f72e53ac82d9bebbbae3439ed
+    Reviewed-on: https://go-review.googlesource.com/3783
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/esc.go | 118 +++++++++++++++++++++++++++------------------
- 1 file changed, 71 insertions(+), 47 deletions(-)
+ src/cmd/cc/lexbody              | 4 +++-
+ src/cmd/internal/asm/lexbody.go | 4 ++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

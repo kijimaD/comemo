@@ -1,22 +1,22 @@
-commit 6db272d2dd65202e97058cb0c4909151eed05ae6
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed May 22 18:38:37 2024 +0000
+commit 38ae922b9baca192bd750d0bc9089a9aecea7082
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu May 18 17:44:16 2023 -0400
 
-    crypto/x509: properly pouplate the RevocationList.AuthorityKeyId field
+    doc: add TODOs to go1.21
     
-    This looks like a oversight in CL 416354.
+    Generated with relnote. I did my best to put things where they made
+    sense, but some weren't obvious, like the Unicode upgrade and backward
+    compatibility stuff.
     
-    Fixes #67571
-    Fixes #57461
+    For #58645.
     
-    Change-Id: I564c008989fecf84b437e123d27121ac907642fa
-    GitHub-Last-Rev: fec88bbf39a397cc43ff650db9bf0b7ad28e42a0
-    GitHub-Pull-Request: golang/go#67576
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587455
+    Change-Id: Ic3cd9ef32cec7591ace4d2df1da40e4afd97d083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496316
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
 
- src/crypto/x509/parser.go    | 43 +++++++++++++++++++++++++++----------------
- src/crypto/x509/x509_test.go |  6 +++---
- 2 files changed, 30 insertions(+), 19 deletions(-)
+ doc/go1.21.html | 602 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 601 insertions(+), 1 deletion(-)

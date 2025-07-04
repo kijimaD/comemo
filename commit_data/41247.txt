@@ -1,14 +1,13 @@
-commit 153a9e80332ca165d9d00149e9d8b9747d486c18
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Dec 6 18:24:29 2019 -0500
+commit d55cf5b80cf3232bdc2793a8362f9acd8a6f8442
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 17 18:37:47 2019 -0700
 
-    doc: add section on go.mod file syntax
+    cmd/compile: remove toolstash bandage
     
-    Updates #33637
-    
-    Change-Id: I265e4fda863b871a3ce0ca7b6c926081dadbf5a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210799
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic33dfccf06681470bec19f66653fda67d9901095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196118
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/modules.md | 392 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 381 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/op_string.go | 99 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/syntax.go    |  1 -
+ 2 files changed, 44 insertions(+), 56 deletions(-)

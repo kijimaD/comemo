@@ -1,18 +1,16 @@
-commit 782cf560db4c919790fdb476d1bbe18e5ddf5ffd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 13 11:05:37 2020 -0800
+commit 052b3c99b22c508d2a3ed44b3dcd0ca6c159ba5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 19:46:49 2020 -0700
 
-    cmd/go: permit CGO_LDFLAGS to appear in //go:ldflag
+    cmd/compile: convert reassociation optimizations to typed aux
     
-    Fixes #42565
+    Passes toolstash-check.
     
-    Change-Id: If7cf39905d124dbd54dfac6a53ee38270498efed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269818
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I85a161c4e1c29e06e3f7e6ad4a59ff8cc51c7296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229683
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go      | 15 ++++++++++++
- src/cmd/go/testdata/script/ldflag.txt | 44 +++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 64 +++++++++++++-------------
+ 1 file changed, 32 insertions(+), 32 deletions(-)

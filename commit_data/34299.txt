@@ -1,20 +1,14 @@
-commit 6aeddb1b5751136d1b2c1e28c4026fb57a832c18
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Feb 21 17:48:33 2018 +0100
+commit 001fe1d57a357225316d67f1516fde9e2c378bb0
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Mon Oct 16 14:40:10 2017 +0900
 
-    cmd/compile: intrinsify math.Sqrt on mips64
+    net/http/httputil: extract duplicate code as removeConnectionHeaders
     
-    Fixes #24006
-    
-    Change-Id: Ic1438b121fe705f9a6e3ed8340882e9dfd26ecf7
-    Reviewed-on: https://go-review.googlesource.com/95916
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I50389752dcbf5d058ce11256a414be7955cdb77f
+    Reviewed-on: https://go-review.googlesource.com/71070
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/compile/internal/gc/ssa.go            |  2 +-
- src/cmd/compile/internal/mips64/ssa.go        |  3 ++-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 ++
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  7 ++++---
- src/cmd/compile/internal/ssa/opGen.go         | 14 ++++++++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 13 +++++++++++++
- 6 files changed, 36 insertions(+), 5 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)

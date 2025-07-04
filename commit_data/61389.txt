@@ -1,0 +1,22 @@
+commit bea9b91f0f4be730c880edbe496ab25c9b742cad
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Nov 4 17:36:26 2024 -0500
+
+    time: accept "+01" in TestLoadFixed on OpenBSD
+    
+    This stops the test from failing with a known failure mode, and
+    creates time to look into what the next steps should be, if any.
+    
+    For #69840.
+    
+    Change-Id: I060903d256ed65c5dfcd70ae76eb361cab63186f
+    Cq-Include-Trybots: luci.golang.try:gotip-openbsd-amd64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625197
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eric Grosse <grosse@gmail.com>
+
+ src/time/time_test.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

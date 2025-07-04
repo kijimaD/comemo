@@ -1,25 +1,30 @@
-commit 2d683807135d8179d292a4f6f03be3cf7e4d30d3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 8 11:24:29 2019 -0500
+commit 571236543f222e9fcb8ddfaa3151505a7de4d6f0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 1 14:34:21 2018 -0400
 
-    cmd/go/internal/web2: make netrc parsing more robust
+    debug/gosym: use "go build" instead of hand-running asm and link
     
-    - Respect the NETRC environment variable if set.
+    Currently, TestPCLine manually invokes asm and link on its test data.
+    Once we introduce symbol ABIs this is going to become problematic
+    because the test program defines main.main and main.init in assembly
+    so they use ABI0, but the runtime expects to find them with the
+    internal ABI.
     
-    - Ignore lines that contain macro definitions.
+    There are various ways we could solve this. This CL moves main.main
+    and main.init into Go code and switches to using "go build" to compile
+    and link the test binary. This has the added advantage of simplifying
+    this test.
     
-    - Associate the 'machine' token with only the tokens that follow (not
-      precede) it.
+    For #27539.
     
-    Updates #29888
-    Updates #26232
-    
-    Change-Id: I3128b7d6da2d6492df7c864e165eea1a27384f0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161698
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4c0cf6467f7a39e6b1500eca6ad2620b5ef2b73c
+    Reviewed-on: https://go-review.googlesource.com/c/146857
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/web2/web.go      | 78 ++++++++++++++++++++++++++++--------
- src/cmd/go/internal/web2/web_test.go | 25 +++++++++++-
- 2 files changed, 86 insertions(+), 17 deletions(-)
+ src/debug/gosym/pclntab_test.go                    | 38 ++++------------------
+ src/debug/gosym/testdata/main.go                   | 10 ++++++
+ src/debug/gosym/{ => testdata}/pclinetest.h        |  0
+ .../{pclinetest.asm => testdata/pclinetest.s}      | 14 ++------
+ 4 files changed, 19 insertions(+), 43 deletions(-)

@@ -1,19 +1,15 @@
-commit 9852b4b093163c3d7bc28a2917f90eb297bbaa2e
-Author: Eric Rutherford <erutherford@gmail.com>
-Date:   Mon Nov 18 20:35:33 2019 -0600
+commit fe8a86646478b11db5697108a4db0deeaca29595
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Jul 30 17:46:36 2019 -0400
 
-    path: minor changes to improve documentation for Join
+    doc/go1.12: document change in syscall.Setrlimit behavior
     
-    Reworking the comments in path to call out how leading
-    empty elements are treated. Also updating filepath.Join
-    since it shared much of the wording from path.Join.
+    Fixes #30401
     
-    Updates #35655
-    
-    Change-Id: I5b15c5d36e9d19831ed39e6bcc7f2fd6c1330033
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207797
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I7b5035ffc7333c746d4e31563df26ff4f934dfc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/path/filepath/path.go | 12 +++++++-----
- src/path/path.go          |  9 +++++----
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ doc/go1.12.html | 4 ++++
+ 1 file changed, 4 insertions(+)

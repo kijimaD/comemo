@@ -1,37 +1,18 @@
-commit a41ebe6e259af020d4ce7029544439b39d07936b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jul 16 20:36:33 2019 +0000
+commit c7408a87757f94ed72e3e2b7886880dcca946b28
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 11:56:06 2019 +1100
 
-    runtime: add physHugePageShift
+    doc: sort map output in Effective Go
     
-    This change adds physHugePageShift which is defined such that
-    1 << physHugePageShift == physHugePageSize. The purpose of this variable
-    is to avoid doing expensive divisions in key functions, such as
-    (*mspan).hugePages.
+    And explain that it does this. A minor change probably worth mentioning,
+    although (#28782) I'd still like to freeze this document against any substantial
+    changes.
     
-    This change also does a sweep of any place we might do a division or mod
-    operation with physHugePageSize and turns it into bit shifts and other
-    bitwise operations.
+    Fix #30568.
     
-    Finally, this change adds a check to mallocinit which ensures that
-    physHugePageSize is always a power of two. osinit might choose to ignore
-    non-powers-of-two for the value and replace it with zero, but mallocinit
-    will fail if it's not a power of two (or zero). It also derives
-    physHugePageShift from physHugePageSize.
-    
-    This change helps improve the performance of most applications because
-    of how often (*mspan).hugePages is called.
-    
-    Updates #32828.
-    
-    Change-Id: I1a6db113d52d563f59ae8fd4f0e130858859e68f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186598
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I74c56744871cfaf00dc52a9b480ca61d3ed19a6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165597
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go      | 24 ++++++++++++++++++++++--
- src/runtime/mem_linux.go   |  4 ++--
- src/runtime/mgcscavenge.go |  8 ++++----
- src/runtime/mheap.go       |  2 +-
- 4 files changed, 29 insertions(+), 9 deletions(-)
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

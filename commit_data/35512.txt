@@ -1,26 +1,22 @@
-commit 68de5508d374c910cc0bf066b8f65cd5395115b1
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Tue May 22 22:37:40 2018 +0300
+commit 284a4a734662b3c1a93f993ef55c8c2f42513c06
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Jan 21 10:25:07 2018 +0100
 
-    cmd/vet: eliminate use of Perl in tests
+    cmd/compile: replace misleading variable name
     
-    This change uses errorCheck and wantedErrors functions copied from
-    the test/run.go to eliminate use of the test/errchk perl script.
+    One of the variables declared in cleantempnopop named 'kill'
+    does not hold a OVARKILL node but an OVARLIVE node.
+    Rename that variable to 'live' to differentiate it from the other
+    variable named kill that holds a OVARKILL node.
     
-    Tests' error messages that contained full filenames were changed to
-    have base filenames because the errorCheck function processes output
-    from "go vet" in the same way.
+    Passes toolstash -cmp.
     
-    Fixes #20032.
-    
-    Change-Id: Ieb7be67c2d7281b9648171c698398449b7e2d4dd
-    Reviewed-on: https://go-review.googlesource.com/114176
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Change-Id: I34c8729e5c303b8cdabe44c9af980d4f16000e4b
+    Reviewed-on: https://go-review.googlesource.com/88816
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/vet/testdata/atomic.go    |   2 +-
- src/cmd/vet/testdata/shadow.go    |   8 +-
- src/cmd/vet/testdata/structtag.go |  18 +--
- src/cmd/vet/vet_test.go           | 285 ++++++++++++++++++++++++++++++++------
- 4 files changed, 255 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

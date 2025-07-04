@@ -1,14 +1,15 @@
-commit dc48e9516c3b46f061af16f595a7c7dcb46434d1
+commit 48c0d8b6e22a6372cd7772e65246803cc56566ff
 Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Aug 14 13:50:12 2013 -0400
+Date:   Wed Aug 14 13:18:32 2013 -0400
 
-    runtime: Fix build on older ARM
+    runtime: Fix netbsd/arm and freebsd/arm build
     
-            The ARM external linking CL used BLX instructions in gcc assembler. Replace with BL to retain support on older ARM processors.
+            The ARM external linking CL left missed changes to sys_freebsd_arm.s and sys_netbsd_arm.s already done to sys_linux_arm.s.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/12938043
+    https://golang.org/cl/12842044
 
- src/pkg/runtime/cgo/gcc_arm.S | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/sys_freebsd_arm.s | 6 +++---
+ src/pkg/runtime/sys_netbsd_arm.s  | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

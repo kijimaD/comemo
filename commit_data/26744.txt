@@ -1,25 +1,21 @@
-commit 309144b7f1090cbc7c3a90eb252d20a939caf398
+commit a5325761cd42f2a10566fd421f8c8b0189bedc18
 Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 1 11:05:30 2016 -0700
+Date:   Wed Feb 24 12:58:47 2016 -0800
 
-    cmd/compile: fix x=x assignments
+    [dev.ssa] cmd/compile: identical values are the same pointer
     
-    No point in doing anything for x=x assignments.
-    In addition, skipping these assignments prevents generating:
-        VARDEF x
-        COPY x -> x
-    which is bad because x is incorrectly considered
-    dead before the vardef.
+    Forgot the obvious case.  Allows us to remove the load in:
     
-    Fixes #14904
+    func f(p *int, x int) int {
+            *p = x + 5
+            return *p
+    }
     
-    Change-Id: I6817055ec20bcc34a9648617e0439505ee355f82
-    Reviewed-on: https://go-review.googlesource.com/21470
+    Change-Id: I93686d8240bab3a1d166b88e224cf71e3d947aef
+    Reviewed-on: https://go-review.googlesource.com/19905
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                 |  11 +++
- src/cmd/compile/internal/gc/ssa_test.go            |   2 +
- .../compile/internal/gc/testdata/namedReturn.go    | 101 +++++++++++++++++++++
- test/live_ssa.go                                   |  13 ++-
- 4 files changed, 120 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 3 +++
+ 1 file changed, 3 insertions(+)

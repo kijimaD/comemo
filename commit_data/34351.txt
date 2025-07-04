@@ -1,31 +1,20 @@
-commit 144bf04a2b0dea43e17fc9e745d3fa8885de11f7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Feb 26 14:58:05 2018 +0000
+commit 916ad62d5182bf2ecc006edf5d7fac874f4e5fa7
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Oct 20 10:21:05 2017 -0400
 
-    net, internal/poll, net/internal/socktest: use SOCK_{CLOEXEC,NONBLOCK} accept4/socket flags on OpenBSD
+    cmd/go: skip gold-specific part of TestNoteReading if gold is unavailable
     
-    The SOCK_CLOEXEC and SOCK_NONBLOCK flags to the socket syscall and the
-    accept4 syscall are supported since OpenBSD 5.7.
+    The test already contained logic to do this however it did not match
+    the error "cannot find 'ld'" which appears to be how gcc fails when
+    ld.gold is missing.
     
-    Follows CL 40895 and CL 94295
+    Fixes #22340.
     
-    Change-Id: Icaf35ace2ef5e73279a70d4f1a9fbf3be9371e6c
-    Reviewed-on: https://go-review.googlesource.com/97196
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I841248cc489b8fa72bc00a95000ad405f9ef8a4f
+    Reviewed-on: https://go-review.googlesource.com/72111
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/hook_cloexec.go        |  2 +-
- src/internal/poll/sock_cloexec.go        |  2 +-
- src/internal/poll/sys_cloexec.go         |  2 +-
- src/net/internal/socktest/sys_cloexec.go |  2 +-
- src/net/main_cloexec_test.go             |  2 +-
- src/net/sock_cloexec.go                  |  2 +-
- src/net/sys_cloexec.go                   |  2 +-
- src/syscall/syscall_openbsd.go           | 19 +++++++++++++++++++
- src/syscall/zerrors_openbsd_386.go       |  2 ++
- src/syscall/zerrors_openbsd_amd64.go     |  2 ++
- src/syscall/zsyscall_openbsd_386.go      | 11 +++++++++++
- src/syscall/zsyscall_openbsd_amd64.go    | 11 +++++++++++
- src/syscall/zsyscall_openbsd_arm.go      | 11 +++++++++++
- src/syscall/zsysnum_openbsd_386.go       |  1 +
- src/syscall/zsysnum_openbsd_amd64.go     |  1 +
- 15 files changed, 65 insertions(+), 7 deletions(-)
+ src/cmd/go/note_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

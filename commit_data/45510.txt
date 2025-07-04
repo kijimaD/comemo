@@ -1,44 +1,25 @@
-commit 9f347035ef46c5f275fedf23893e0883b3b24035
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Apr 29 16:44:58 2021 -0400
+commit 9113d8c37f9f40ab86b12bddb98dee2b1c0a344f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 22 16:30:26 2020 +0100
 
-    cmd/api: disallow silent API additions after api/go1.n.txt is created
+    doc/go1.16: document BuildID in 'go list -export'
     
-    At this time, the golang.org/s/release process arranges such that the
-    api/go1.n.txt file is created when a Go 1.N Beta 1 release is being cut.
-    The API check is currently configured so that tests don't fail visibly
-    even if api/go1.n.txt becomes a subset of the actual API additions in
-    the upcoming Go 1.N release as long as 'go version' has "devel" in it.
-    The first time that 'go version' output drops the "devel" substring
-    during testing is after the release-branch.go1.N branch is created
-    as part of the process to cut a Go 1.N Release Candidate 1 release.
+    This corresponds to the feature in https://golang.org/cl/263542, since
+    this can be a noteworthy change to people writing tools to inspect Go
+    builds.
     
-    The month or so between Beta 1 and RC 1 is well into the freeze and
-    deliberate API changes are rare and very intentional. There seems to
-    be agreement that it's healthy to make the API check stricter during
-    that time period. Doing so will ensure that api/go1.n.txt cannot get
-    stale after creation without anyone noticing, and may catch CLs that
-    don't have the intended diff on the API.
+    Also amend the wording to clarify that build IDs are for an entire
+    compiled package, not just their export data or object file.
     
-    This CL changes behavior to be simple and clear: from the moment
-    an api/go1.n.txt file corresponding to the current Go version in
-    development is added to the tree, silent API additions stop being
-    permitted.
-    
-    This CL also moves the magical "override the value of -allow_new flag
-    if runtime.Version() contains 'devel' string" behavior from cmd/api
-    command to the run.go script that calls it, making the CLI of cmd/api
-    itself less surprising.
-    
-    Fixes #43956.
-    
-    Change-Id: I89468207573f7ccdbc9f12625dcdd3ef2bcf8f10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315350
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Change-Id: I2eb295492807d5d2997a35e5e2371914cb3ad3a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264158
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/api/goapi.go |  3 +--
- src/cmd/api/run.go   | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ doc/go1.16.html                  | 10 ++++++++++
+ src/cmd/go/alldocs.go            |  2 +-
+ src/cmd/go/internal/list/list.go |  2 +-
+ src/cmd/go/internal/load/pkg.go  |  2 +-
+ 4 files changed, 13 insertions(+), 3 deletions(-)

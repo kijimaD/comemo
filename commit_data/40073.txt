@@ -1,23 +1,15 @@
-commit 2c47caa900cb4aca9ab9e802289fa0671ad843a4
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Sep 28 14:33:10 2019 +0200
+commit 1eed2a5ab299807341af05eca2a829d95f08c6e8
+Author: Fedor Korotkiy <dartslon@gmail.com>
+Date:   Thu Feb 28 15:35:30 2019 +0300
 
-    cmd/compile: use %v for Node formatting
+    cmd/go: PackageVetx in vet.cfg should list only immediate dependencies.
     
-    CL 197817 replaced a use of n.Rlist with n.Right in a Fprintf call,
-    but it left the corresponding format as %.v, which broke the
-    TestFormats test on the longtest builder.
+    Updates #30296
     
-    Since with n.Right is custom to use %v (and not %.v), replace the
-    format with %v.
-    
-    Fixes the longtest builder.
-    
-    Change-Id: Icf5bf820a936c51e633c25ada1a71a1ffb6d28c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197837
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ifea1a4c82c1c5b31fdc2e96fdbb1274748c8f50e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164459
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/action.go      |  2 +-
+ src/cmd/go/testdata/script/vet_deps.txt | 34 +++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

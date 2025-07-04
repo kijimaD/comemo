@@ -1,27 +1,31 @@
-commit 639a20da908c2646de46b93ca2933651363ec22a
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Fri Apr 29 17:39:33 2016 +0100
+commit 3eaa3046295b9a5bdff0428060c5ffd46347651a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Mar 19 17:51:17 2016 -0700
 
-    syscall: simplify closing of extra fds in plan9 StartProcess
+    cmd/compile: ignore receiver name when checking duplicate methods
     
-    Reviving earlier work by @ality in https://golang.org/cl/57890043
-    to make the closing of extra file descriptors in syscall.StartProcess
-    less race-prone. Instead of making a list of open fds in the parent
-    before forking, the child can read through the list of open fds and
-    close the ones not explicitly requested.  Also eliminate the
-    complication of keeping open any extra fds which were inherited by
-    the parent when it started.
+    In golang.org/cl/20602, I changed the semantics of Eqtype to stop
+    checking the receiver parameters for type equality, and pushed this
+    responsibility to addmethod (the only Eqtype caller that cared).
+    However, I accidentally made the check stricter by making it start
+    requiring that receiver names were identical.
     
-    This CL will be followed by one to eliminate the ForkLock in plan9,
-    which is now redundant.
+    In general, this is a non-problem because the receiver names in export
+    data will always match the original source. But running
+    GO_GCFLAGS=-newexport ./all.bash at one point tries to load both old
+    and new format export data for package sync, which reveals the
+    problem. (See golang.org/issue/14877 for details.)
     
-    Fixes #5605
+    Easy fix: just check the receiver type for type equality in addmethod,
+    instead of the entire receiver parameter list.
     
-    Change-Id: I6b4b942001baa54248b656c52dced3b62021c486
-    Reviewed-on: https://go-review.googlesource.com/22610
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Fixes #14877.
+    
+    Change-Id: If10b79f66ba58a1b7774622b4fbad1916aba32f1
+    Reviewed-on: https://go-review.googlesource.com/20906
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/exec_plan9.go    | 158 +++++++++++++++++++++++++------------------
- src/syscall/syscall_plan9.go |   1 +
- 2 files changed, 95 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,31 +1,45 @@
-commit 536282763f7357edd81d85993c12fd977fecd378
-Author: Charlie Vieth <charlie.vieth@gmail.com>
-Date:   Sat Mar 12 17:27:42 2022 -0500
+commit 6f57139c7a6bc776f1335aca13d276d36343cf7c
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jul 21 10:21:23 2021 -0400
 
-    go/build: replace ioutil.ReadDir with os.ReadDir
+    [dev.typeparams] go/types: set type parameter indices when they are bound
     
-    Change go/build.readDir to use os.ReadDir instead of ioutil.ReadDir.
-    This addresses a TODO and improves performance on Darwin and Linux.
+    It is invalid to use a type parameter for more than one type, so we can
+    avoid passing the type parameter index to NewTypeParam and just set it
+    when type parameters are bound to a type via SetTParams or during type
+    checking.
     
-    Darwin: Apple M1
-    name              old time/op    new time/op    delta
-    ImportVendor-10     39.8µs ± 1%    37.0µs ± 1%  -6.91%  (p=0.000 n=10+10)
+    In order to enforce the correctness of this change, introduce a
+    TypeParams type to represent a list of type parameters that have been
+    associated with a type. For now, expose this new type as the API for
+    type parameters, but this is of course not necessarily a final API.
     
-    Linux: Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz
-    name              old time/op    new time/op    delta
-    ImportVendor-16     22.9µs ±11%    21.2µs ± 5%  -7.47%  (p=0.001 n=10+9)
+    Allowing *TypeParams to be nil also decreases the size of Named and
+    Signature, which is good as most instances of these types will not be
+    parameterized.
     
-    Updates #45557
-    
-    Change-Id: Ib1bd2e66210e714e499a035847d6261b61b7e2c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392074
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia1e39ba51edb05bb535eb5f41c34e9dd02d39c38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336249
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/build.go      | 21 ++++++++++++++-------
- src/go/build/build_test.go | 21 +++++++++++++++++++++
- 2 files changed, 35 insertions(+), 7 deletions(-)
+ src/go/types/api_test.go    |  2 +-
+ src/go/types/assignments.go |  2 +-
+ src/go/types/builtins.go    |  3 ++-
+ src/go/types/call.go        | 20 +++++++++---------
+ src/go/types/decl.go        |  8 ++++----
+ src/go/types/index.go       |  2 +-
+ src/go/types/instance.go    |  2 +-
+ src/go/types/instantiate.go | 10 ++++-----
+ src/go/types/lookup.go      | 18 ++++++++--------
+ src/go/types/named.go       | 16 +++++++--------
+ src/go/types/object.go      |  4 ++--
+ src/go/types/predicates.go  |  2 +-
+ src/go/types/signature.go   | 25 +++++++++++++----------
+ src/go/types/sizeof_test.go |  4 ++--
+ src/go/types/subst.go       |  4 ++--
+ src/go/types/typeparam.go   | 50 +++++++++++++++++++++++++++++++++++++++++----
+ src/go/types/typestring.go  |  4 ++--
+ 17 files changed, 111 insertions(+), 65 deletions(-)

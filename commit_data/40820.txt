@@ -1,29 +1,30 @@
-commit afac2c0508208ce0baf0cf2f0ba9b86ee7b60469
+commit 24a6ca09d0151f2dc6a524217b8523abd33403bb
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 13:58:58 2019 +0000
+Date:   Mon Jul 15 14:06:58 2019 -0400
 
-    test: avoid writing temporary files to GOROOT
+    cmd/go/internal/modfetch: always check for a go.mod file when fetching from version control
     
-    This reverts CL 207477, restoring CL 207352 with a fix for the
-    regression observed in the Windows builders.
+    If the module path declared in the go.mod file does not match the path
+    we are trying to resolve, a build using that module is doomed to fail.
+    Since we know that the module path does not match in the underlying
+    repo, we also know that the requested module does not exist at the
+    requested version.
     
-    cmd/compile evidently does not fully support NUL as an output on
-    Windows, so this time we write ignored 'compile' outputs
-    to temporary files (instead of os.DevNull as in CL 207352).
+    Therefore, we should reject that version in Stat with a “not exist”
+    error — sooner rather than later — so that modload.Query will continue
+    to check other candidate paths (for example, with a major-version
+    suffix added or removed).
     
-    Updates #28387
-    Fixes #35619
+    Fixes #33099
     
-    Change-Id: I2edc5727c3738fa1bccb4b74e50d114cf2a7fcff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207602
+    Change-Id: I43c980f78ed75fa6ace90f237cc3aad46c22d83a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186237
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/test.go        | 14 +++++++++-----
- test/fixedbugs/bug302.go    | 24 ++++++++++++++++++------
- test/fixedbugs/bug369.go    | 22 +++++++++++++---------
- test/fixedbugs/issue9355.go | 12 ++++++++++--
- test/linkmain_run.go        | 44 +++++++++++++++++++++++++++-----------------
- test/sinit_run.go           | 16 ++++++++++++++--
- 6 files changed, 91 insertions(+), 41 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go       | 37 ++++++++-----
+ src/cmd/go/internal/modfetch/coderepo_test.go  | 75 +++++++++++++++-----------
+ src/cmd/go/internal/modload/query_test.go      | 10 +++-
+ src/cmd/go/testdata/script/mod_list_direct.txt | 24 +++++++++
+ 4 files changed, 100 insertions(+), 46 deletions(-)

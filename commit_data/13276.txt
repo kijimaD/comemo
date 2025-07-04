@@ -1,21 +1,18 @@
-commit cc1890cbe3053953a5967474c8fad5005aba4165
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 4 09:48:27 2012 -0700
+commit 6b4ae1d28e7a33c84e049c65c4fe658a6956d11d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 5 00:14:39 2012 +0800
 
-    math/big: improved karatsuba calibration code, better mul benchmark
+    test/bench/go1: fix gzip test
+          We can't depend on init() order, and certainly we don't want to
+    register all future benchmarks that use jsonbytes or jsondata to init()
+    in json_test.go, so we use a more general solution: make generation of
+    jsonbytes and jsondata their own function so that the compiler will take
+    care of the order.
     
-    An attempt to profit from CL 6176043 (fix to superpolinomial
-    runtime of karatsuba multiplication) and determine a better
-    karatsuba threshold. The result indicates that 32 is still
-    a reasonable value. Left the threshold as is (== 32), but
-    made some minor changes to the calibrate code which are
-    worthwhile saving (use of existing benchmarking code for
-    better results, better use of package time).
-    
-    R=golang-dev, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6260062
+    https://golang.org/cl/6282046
 
- src/pkg/math/big/calibrate_test.go | 42 +++++++++++++++++++-------------------
- src/pkg/math/big/nat_test.go       | 23 +++++++++------------
- 2 files changed, 31 insertions(+), 34 deletions(-)
+ test/bench/go1/gob_test.go  |  4 +---
+ test/bench/go1/json_test.go | 15 +++++++++------
+ 2 files changed, 10 insertions(+), 9 deletions(-)

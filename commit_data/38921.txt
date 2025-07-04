@@ -1,38 +1,18 @@
-commit 8ef45cf60b347abb1a08416fca1b6d19d317b26e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 23 11:34:58 2019 -0400
+commit 8c5976f8b33a4378ea18dd963317bcbd39fc309b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 16:02:10 2018 -0800
 
-    cmd/link: reduce the size of Reloc struct
+    cmd/cgo: don't pass CGO_CFLAGS -g options to debug info generation
     
-    For linking large binaries, the slice of Relocs consumes a large
-    amount of memory. We can reduce this memory consumption by
-    shrinking the size of the Reloc struct. This CL moves the fields
-    used only in external linking or only on PPC64 and S390X to a
-    lazily initialized side struct.
+    Fixes #26144
     
-    Linking k8s.io/kubernetes/cmd/kube-apiserver on Linux/AMD64,
-    before:
-    inuse_space 1240.25MB total
-    438.11MB 35.32% 35.32%   438.11MB 35.32%  cmd/link/internal/objfile.(*objReader).readSlices
-    
-    after:
-    inuse_space 1123.39MB total
-    306.85MB 27.31% 55.03%   306.85MB 27.31%  cmd/link/internal/objfile.(*objReader).readSlices
-    
-    Under GOGC=5 (to simulate system under memory pressure), the max
-    RSS reduces from ~2.05G to ~1.83G. Even with external linking the
-    max RSS doesn't increase.
-    
-    Change-Id: I9bb8a8effaed24a8b3c4b1cfb93e6992b8740f91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173437
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie69dab1bd819eaf158be11769903b2636bbcf516
+    Reviewed-on: https://go-review.googlesource.com/c/152165
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Nikhil Benesch <nikhil.benesch@gmail.com>
 
- src/cmd/internal/objabi/reloctype.go |  2 +-
- src/cmd/link/internal/ld/data.go     | 13 +++++++++++--
- src/cmd/link/internal/ppc64/asm.go   |  1 +
- src/cmd/link/internal/s390x/asm.go   |  1 +
- src/cmd/link/internal/sym/reloc.go   | 30 +++++++++++++++++++++---------
- src/cmd/link/internal/sym/symbol.go  |  3 +++
- 6 files changed, 38 insertions(+), 12 deletions(-)
+ src/cmd/cgo/gcc.go   | 8 +++++++-
+ src/cmd/dist/test.go | 5 ++++-
+ 2 files changed, 11 insertions(+), 2 deletions(-)

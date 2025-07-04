@@ -1,57 +1,24 @@
-commit 4dffdd797b69d9423b4a492e2d832e1023326b1b
+commit b6753baaedf6ae932c3ad4af1451163045e7ff84
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Apr 5 14:29:00 2025 -0400
+Date:   Thu Feb 15 15:30:16 2024 -0500
 
-    math/big: replace addMulVVW with addMulVVWW
+    cmd/compile: compile len(ch) as call to runtime.chanlen
     
-    addMulVVW is an unnecessarily special case.
-    All other assembly routines taking []Word (V as in vector) arguments
-    take separate source and destination. For example:
+    An upcoming CL will give this call more to do.
+    For now, separate out the compiler change that
+    stops inlining the computation.
     
-            addVV: z = x+y
-            mulAddVWW: z = x*m+a
-    
-    addMulVVW uses the z parameter as both destination and source:
-    
-            addMulVVW: z = z+x*m
-    
-    Even looking at the signatures is confusing: all the VV routines take
-    two input vectors x and y, but addMulVVW takes only x: where is y?
-    (The answer is that the two inputs are z and x.)
-    
-    It would be nice to fix this, both for understandability and regularity,
-    and to simplify a future assembly generator.
-    
-    We cannot remove or redefine addMulVVW, because it has been used
-    in linknames. Instead, the CL adds a new final addend argument ‘a’
-    like in mulAddVWW, making the natural name addMulVVWW
-    (two input vectors, two input words):
-    
-            addMulVVWW: z = x+y*m+a
-    
-    This CL updates all the assembly implementations to rename the
-    inputs z, x, y -> x, y, m, and then introduces a separate destination z.
-    
-    Change-Id: Ib76c80b53f6d1f4a901f663566e9c4764bb20488
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664895
+    Change-Id: I4c5cbd84a0694b306191bff38cc6ea2d69458d7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564556
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/arith.go           |   7 ++-
- src/math/big/arith_386.s        |  26 +++++----
- src/math/big/arith_amd64.s      |  61 ++++++++++----------
- src/math/big/arith_arm.s        |  25 +++++----
- src/math/big/arith_arm64.s      |  39 +++++++------
- src/math/big/arith_decl.go      |  12 +++-
- src/math/big/arith_decl_pure.go |   4 +-
- src/math/big/arith_loong64.s    |   4 +-
- src/math/big/arith_mips64x.s    |   4 +-
- src/math/big/arith_mipsx.s      |   4 +-
- src/math/big/arith_ppc64x.s     |  69 ++++++++++++-----------
- src/math/big/arith_riscv64.s    | 121 ++++++++++++++++++++--------------------
- src/math/big/arith_s390x.s      |  27 ++++-----
- src/math/big/arith_test.go      |  12 ++--
- src/math/big/arith_wasm.s       |   4 +-
- src/math/big/nat.go             |   4 +-
- src/math/big/natmul.go          |   4 +-
- 17 files changed, 227 insertions(+), 200 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go             |   3 +
+ .../internal/typecheck/_builtin/coverage.go        |   1 +
+ .../compile/internal/typecheck/_builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/typecheck/builtin.go      | 267 +++++++++++----------
+ src/cmd/compile/internal/walk/builtin.go           |  17 +-
+ src/runtime/chan.go                                |  13 +-
+ 6 files changed, 163 insertions(+), 142 deletions(-)

@@ -1,32 +1,18 @@
-commit 9d89a5eb64f25ce0e7cc6086d44b6f327cbb302c
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Nov 9 17:13:36 2021 -0500
+commit a5df88355cb8998856a5dbd3550b98e5de1f6009
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Mar 12 19:40:46 2021 +0800
 
-    all: update terminology for fuzzing
+    time: check int64 overflow in Time.addSec
     
-    This change doesn't modify any functionality.
-    It also doesn't update all of the comments and
-    variable names of the internal code, but everything
-    user facing should be correct.
-    
-    Updates #49185
-    
-    Change-Id: Ia8b2c94b89ba45897c4085ea0c17a3d8896f7ec7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362794
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: Ibbed54239228e7ea31ef5978d427425899c3b943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300890
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Baokun Lee <bk@golangcn.org>
 
- src/cmd/go/alldocs.go                              |  31 +++--
- src/cmd/go/internal/test/test.go                   |  43 ++++---
- src/cmd/go/testdata/script/test_fuzz.txt           |  10 +-
- src/cmd/go/testdata/script/test_fuzz_match.txt     |   4 +-
- src/cmd/go/testdata/script/test_fuzz_multiple.txt  |   2 +-
- .../testdata/script/test_fuzz_mutator_repeat.txt   |   2 +-
- .../go/testdata/script/test_fuzz_seed_corpus.txt   |  22 ++--
- src/go/doc/example.go                              |   6 +-
- src/internal/fuzz/fuzz.go                          |   4 +-
- src/testing/fuzz.go                                | 138 +++++++++++----------
- src/testing/testing.go                             |  57 ++++-----
- 11 files changed, 160 insertions(+), 159 deletions(-)
+ src/time/export_test.go   |  1 +
+ src/time/internal_test.go |  2 ++
+ src/time/time.go          | 11 +++++++++--
+ src/time/time_test.go     | 27 ++++++++++++++++++++++++++-
+ 4 files changed, 38 insertions(+), 3 deletions(-)

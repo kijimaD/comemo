@@ -1,31 +1,25 @@
-commit ae9cd1299cd927dca511344eec1ca16cf91ca758
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Dec 16 20:22:58 2020 -0800
+commit f979d072d339a24e4938d46588c153587d61af19
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun May 3 16:26:05 2020 +0200
 
-    hash/maphash: manually inline setSeed
+    runtime: avoid memclr call for keys in mapdelete_fast
     
-    Provides a minor performance win.
+    Replace memclrHasPointers calls for keys in mapdelete_fast*
+    functions with direct writes since the key sizes are known
+    at compile time.
     
-    name            old time/op    new time/op    delta
-    Hash8Bytes-8      16.5ns ± 2%    16.5ns ± 4%    ~     (p=0.407 n=27+29)
-    Hash320Bytes-8    58.5ns ± 2%    55.0ns ± 2%  -6.01%  (p=0.000 n=29+28)
-    Hash1K-8           195ns ± 1%     190ns ± 2%  -2.23%  (p=0.000 n=30+30)
-    Hash8K-8          1.59µs ± 2%    1.57µs ± 2%  -0.88%  (p=0.002 n=30+30)
+    name                     old time/op  new time/op  delta
+    MapDelete/Pointer/100    33.7ns ± 1%  23.7ns ± 2%  -29.68%  (p=0.000 n=7+9)
+    MapDelete/Pointer/1000   41.6ns ± 5%  34.9ns ± 4%  -16.01%  (p=0.000 n=9+10)
+    MapDelete/Pointer/10000  45.6ns ± 1%  38.2ns ± 2%  -16.34%  (p=0.000 n=8+10)
     
-    name            old speed      new speed      delta
-    Hash8Bytes-8     484MB/s ± 2%   485MB/s ± 4%    ~     (p=0.417 n=27+29)
-    Hash320Bytes-8  5.47GB/s ± 2%  5.82GB/s ± 2%  +6.39%  (p=0.000 n=29+28)
-    Hash1K-8        5.26GB/s ± 1%  5.39GB/s ± 2%  +2.29%  (p=0.000 n=30+30)
-    Hash8K-8        5.16GB/s ± 2%  5.21GB/s ± 2%  +0.89%  (p=0.002 n=30+30)
-    
-    Updates #42710
-    
-    Change-Id: Ia0d7264b648f96099202de21c6b69a9c1776f6c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278759
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icaac43b520b93c2cf9fd192b822fae7203a7bbf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231737
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/hash/maphash/maphash.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/runtime/map_fast32.go |  8 ++++++--
+ src/runtime/map_fast64.go |  8 +++++++-
+ src/runtime/map_test.go   | 22 ++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)

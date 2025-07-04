@@ -1,38 +1,22 @@
-commit 4f3604d3f2b25905907742f48cd0feeec5b458e1
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 8 10:34:19 2018 -0500
+commit d286d4b1415de23464e0d6a38ce31c72bafb24fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 17 22:35:10 2018 -0400
 
-    runtime, reflect: access runtime.reflectcall directly
+    cmd/go: convert module tests to scripts
     
-    Currently, package runtime contains the definition of reflect.call,
-    even though it's just a jump to runtime.reflectcall. This "push"
-    symbol is confusing, since it's not clear where the definition of
-    reflect.call comes from when you're in the reflect package.
-    
-    Replace this with a "pull" symbol: the runtime now defines only
-    runtime.reflectcall and package reflect uses a go:linkname to access
-    this symbol directly. This makes it clear where reflect.call is coming
-    from without any spooky action at a distance and eliminates all of the
-    definitions of reflect.call in the runtime.
-    
-    Change-Id: I3ec73cd394efe9df8d3061a57c73aece2e7048dd
-    Reviewed-on: https://go-review.googlesource.com/c/148657
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If0976d15027db795f1383ef709c49c838cbb6953
+    Reviewed-on: https://go-review.googlesource.com/124696
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/vet/all/whitelist/all.txt | 1 -
- src/reflect/value.go              | 2 ++
- src/runtime/asm_386.s             | 3 ---
- src/runtime/asm_amd64.s           | 3 ---
- src/runtime/asm_amd64p32.s        | 3 ---
- src/runtime/asm_arm.s             | 3 ---
- src/runtime/asm_arm64.s           | 3 ---
- src/runtime/asm_mips64x.s         | 3 ---
- src/runtime/asm_mipsx.s           | 3 ---
- src/runtime/asm_ppc64x.s          | 3 ---
- src/runtime/asm_s390x.s           | 3 ---
- src/runtime/asm_wasm.s            | 3 ---
- src/runtime/stubs.go              | 2 ++
- 13 files changed, 4 insertions(+), 31 deletions(-)
+ src/cmd/go/mod_test.go                           | 172 -----------------------
+ src/cmd/go/script_test.go                        |   6 +-
+ src/cmd/go/testdata/script/README                |  10 +-
+ src/cmd/go/testdata/script/mod_build_tags.txt    |  30 ++++
+ src/cmd/go/testdata/script/mod_enabled.txt       |  67 +++++++++
+ src/cmd/go/testdata/script/mod_fs_patterns.txt   |  54 +++++++
+ src/cmd/go/testdata/script/mod_import_mod.txt    |   7 +
+ src/cmd/go/testdata/script/mod_local_replace.txt |  23 +++
+ src/cmd/go/testdata/script/mod_versions.txt      |  14 ++
+ 9 files changed, 205 insertions(+), 178 deletions(-)

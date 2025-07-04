@@ -1,0 +1,18 @@
+commit ca3b1b13de4a6e66f0bd8e4678963e221a32b940
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sun Sep 22 03:41:38 2024 +0000
+
+    cmd/cgo: add missing args for fatalf
+    
+    Change-Id: I56b40a9d2ff85fdbc0d170aec686f1868176e068
+    GitHub-Last-Rev: 9424faf0f8e1fa7c63ae3195f255e7f112444871
+    GitHub-Pull-Request: golang/go#69578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614556
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Zxilly Chou <zxilly@outlook.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

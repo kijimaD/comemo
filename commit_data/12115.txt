@@ -1,12 +1,12 @@
-commit 5ba08f4215fbe453796969cd413c267a5d3bbd78
+commit 89fd4dd766780214ebe7b3074da0c58d2565281d
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 22 09:37:38 2012 +1100
+Date:   Wed Feb 22 09:25:56 2012 +1100
 
-    misc/goplay: remove redundant chdir
+    godoc: support flat directory view again
     
-    R=ajstarks, r
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5687070
+    https://golang.org/cl/5690058
 
- misc/goplay/goplay.go | 6 ------
- 1 file changed, 6 deletions(-)
+ lib/godoc/package.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

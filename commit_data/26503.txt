@@ -1,16 +1,12 @@
-commit 098b62644f9388a8afba90d3e74ea7d7497def4c
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Mar 23 23:14:35 2016 -0700
+commit f5e309012b2dc4d60b324e8d805345002bcdaec1
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Thu Jan 28 16:33:35 2016 -0800
 
-    encoding/json: add (*Encoder).Indent
+    unsafe: fix typo in documentation of valid Pointer->uintptr->Pointer conversions
     
-    Fixes #6492.
-    
-    Change-Id: Ibc633c43a6d134bb140addb59780a5758b35a5c5
-    Reviewed-on: https://go-review.googlesource.com/21057
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib669d5241372326a46361ee096570e960b7a957f
+    Reviewed-on: https://go-review.googlesource.com/19082
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/stream.go      | 22 +++++++++++++++++++++-
- src/encoding/json/stream_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ src/unsafe/unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

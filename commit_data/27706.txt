@@ -1,19 +1,17 @@
-commit d28242724872c6ab82d53a71fc775095d1171ee7
-Author: qeed <qeed.quan@gmail.com>
-Date:   Mon Jun 20 21:11:53 2016 -0400
+commit 3598d4b8387a9e1c9afd522e0d18201f855f613b
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Apr 9 00:34:18 2016 -0700
 
-    cmd/cgo: error, not panic, if not enough arguments to function
+    net/http/httputil: DumpRequest dumps Content-Length if set in header
     
-    Fixes #16116.
+    Fixes #7215
     
-    Change-Id: Ic3cb0b95382bb683368743bda49b4eb5fdcc35c0
-    Reviewed-on: https://go-review.googlesource.com/24286
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I108171ef18cac66d0dc11ce3553c26fc49529807
+    Reviewed-on: https://go-review.googlesource.com/21790
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/errors/issue16116.go | 12 ++++++++++++
- misc/cgo/errors/test.bash     |  1 +
- src/cmd/cgo/gcc.go            | 12 +++++++-----
- 3 files changed, 20 insertions(+), 5 deletions(-)
+ src/net/http/httputil/dump.go         |  1 -
+ src/net/http/httputil/dump_test.go    | 40 +++++++++++++++++++++++++++++++++++
+ src/net/http/httputil/example_test.go |  2 +-
+ 3 files changed, 41 insertions(+), 2 deletions(-)

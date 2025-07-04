@@ -1,14 +1,23 @@
-commit 7fcf9893f71c75f6b2fd53bea326d5061f705208
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Feb 25 09:58:05 2021 -0800
+commit d7553d9af916682e9f68d1a1aa585a12293ed1f8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 30 18:41:24 2020 -0400
 
-    cmd/internal/obj: fix typo in docs
+    cmd/link: mark special symbols reachable
     
-    Change-Id: I5a3d26a4cc59b327d46ca24bcb01ef594758c230
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296531
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The special symbols are linker-created symbols for special
+    purposes, therefore reachable (otherwise the linker won't create
+    them). Mark them so, so they get converted to sym.Symbols when we
+    convert to old symbol representation.
+    
+    In particular, the failure for building shared library on PPC64
+    is due to .TOC. symbol not being converted to sym.Symbol, but
+    referenced in addmoduledata.
+    
+    Change-Id: Iaf5d145ffa5d15122e86a6e6983514e56dd5d456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240620
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/obj/link.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 2 ++
+ 1 file changed, 2 insertions(+)

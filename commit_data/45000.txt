@@ -1,27 +1,21 @@
-commit 0c4a08cb74abe026260a224a2b553c1f77a1172a
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 6 10:17:28 2021 -0400
+commit d2bd93a01096ac6dc8061112e7a9ac62ec239627
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri May 15 20:35:00 2020 +0200
 
-    cmd/asm,runtime: reduce spellings of GOEXPERIMENTs
+    cmd/compile: enforce strongly typed rules for ARM (6)
     
-    Currently, the objabi.Experiment fields use Go-standard CamelCase, the
-    GOEXPERIMENT environment variable flags and build tags use all
-    lowercase, and the asm macros use upper-case with underscores.
+    End of "constant folding in *shift ops" until EOF
+    (L1070-)
+    Toolstash-check is successful.
     
-    This CL makes asm use the lowercase names for macros so there is one
-    less spelling, e.g., GOEXPERIMENT_regabiargs. This also makes them
-    consistent with the GOOS_* and GOARCH_* macros, which also use lower
-    case.
-    
-    Change-Id: I305cd89af5e8cd1a89cc148746c034bcfd76db3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307816
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I55846a459aca5238f831750f04132e13a0baeed7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234198
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/asm/internal/lex/input.go | 10 +++++-----
- src/runtime/asm_amd64.s           | 10 +++++-----
- src/runtime/race_amd64.s          | 18 +++++++++---------
- src/runtime/sys_linux_amd64.s     |  8 ++++----
- 4 files changed, 23 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  704 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go | 1386 ++++++++++++++--------------
+ 2 files changed, 1045 insertions(+), 1045 deletions(-)

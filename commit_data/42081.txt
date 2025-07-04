@@ -1,18 +1,25 @@
-commit e7c187369149741f96c445c153be4fc6475bc365
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 00:21:59 2020 -0700
+commit 814c5058bbbd70e706b0305d823e83aa0112d5a4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 14:11:28 2019 +0000
 
-    cmd/compile: optimize x & 1 != 0 to x & 1 on amd64
+    runtime: remove useless heap_objects accounting
     
-    Triggers a handful of times in std+cmd.
+    This change removes useless additional heap_objects accounting for large
+    objects. heap_objects is computed from scratch at ReadMemStats time
+    (which stops the world) by using nlargealloc and nlargefree, so mutating
+    heap_objects turns out to be pointless.
     
-    Change-Id: I9bb8ce9a5f8bae2547cb61157cd8f256e1b63e76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229602
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    As a result, the "large" parameter on "mheap_.freeSpan" is no longer
+    necessary and so this change cleans that up too.
+    
+    Change-Id: I7d6b486d9b57c018e3db46221d81b55fe4c1b021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196637
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
- test/codegen/bool.go                         | 33 +++++++++++++++++++
- 3 files changed, 85 insertions(+)
+ src/runtime/mcentral.go |  2 +-
+ src/runtime/mgcsweep.go |  2 +-
+ src/runtime/mheap.go    | 10 +---------
+ src/runtime/mstats.go   |  5 ++++-
+ 4 files changed, 7 insertions(+), 12 deletions(-)

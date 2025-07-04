@@ -1,12 +1,19 @@
-commit cfa3eda58726aa79aa68b94abd99a1416779ca5f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 17 13:56:03 2015 -0400
+commit f85a05581eadda1512a9bb5ae63098f3e1772f54
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 12 18:20:04 2015 +0200
 
-    runtime: fix race in scanvalid assertion
+    runtime: fix signal handling on Plan 9
     
-    Change-Id: I389b2e10fe667eaa55f87b71b1e004994694d4a3
-    Reviewed-on: https://go-review.googlesource.com/11173
-    Reviewed-by: Austin Clements <austin@google.com>
+    Once added to the signal queue, the pointer passed to the
+    signal handler could no longer be valid. Instead of passing
+    the pointer to the note string, we recopy the value of the
+    note string to a static array in the signal queue.
+    
+    Fixes #10784.
+    
+    Change-Id: Iddd6837b58a14dfaa16b069308ae28a7b8e0965b
+    Reviewed-on: https://go-review.googlesource.com/9950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc1.go | 25 +++++++++++++++++++++----
- 1 file changed, 21 insertions(+), 4 deletions(-)
+ src/runtime/sigqueue_plan9.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

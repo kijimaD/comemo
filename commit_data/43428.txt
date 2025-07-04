@@ -1,24 +1,21 @@
-commit 9c28a50fd18b2e69c43dec9b871e96bab6ec4ede
-Author: hitzhangjie <hit.zhangjie@gmail.com>
-Date:   Wed Oct 21 05:09:26 2020 +0000
+commit 888a0c8ef6afb752aafd147eda40d62796d87cb3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 1 10:43:57 2020 -0700
 
-    cmd/go: when module enabled, `go clean` removes built binary
+    testing: add TB.TempDir
     
-    Now "go clean" can remove binary as expected, when module enabled and the module name isn't  "main" or the name of folder.
+    Fixes #35998
     
-    Fixes issue #41656
-    
-    Change-Id: I54b9435ece045e03a12dc230efe84c8dd381a07c
-    GitHub-Last-Rev: f4ea2d8c765a6e3a2b89fe2c9fb5b2c80551efa5
-    GitHub-Pull-Request: golang/go#41999
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262677
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I87c6bf4e34e832be68862ca16ecfa6ea12048d31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226877
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/clean/clean.go          | 18 ++++++-
- src/cmd/go/testdata/script/clean_binary.txt | 78 +++++++++++++++++++++++++++++
- 2 files changed, 94 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go      |  2 +-
+ src/io/ioutil/export_test.go   |  7 ++++++
+ src/io/ioutil/ioutil_test.go   |  3 ++-
+ src/io/ioutil/tempfile_test.go | 11 +++++-----
+ src/testing/testing.go         | 30 ++++++++++++++++++++++++++
+ src/testing/testing_test.go    | 48 ++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 94 insertions(+), 7 deletions(-)

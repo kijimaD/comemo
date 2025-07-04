@@ -1,24 +1,27 @@
-commit 0a5be12f5c1288a090329d9f540d6a0aad90b6e6
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Fri Feb 16 15:54:55 2018 +0200
+commit 6e9960ea632cae58e6f8f494876f45fe05cc10b6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 12 16:55:11 2017 +0000
 
-    cmd/internal/obj/arm: add DMB instruction
+    cmd/compile: use stringer on types.EType
     
-    Change-Id: Ib67a61d5b37af210ff15d60d72bd5238b9c2d0ca
-    Reviewed-on: https://go-review.googlesource.com/94815
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Another one that is possible thanks to the new -trimprefix stringer
+    flag.
+    
+    The only subtle difference is that, in the previous version, some values
+    such as TUNSAFEPTR were stringified as "TUNSAFEPTR" instead of
+    "UNSAFEPTR". The new String method is always consistent in removing the
+    "T" prefix.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I68407f391795403dfcbbfa68c813018c0235bbb5
+    Reviewed-on: https://go-review.googlesource.com/77250
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/arch/arch.go     | 10 +++++++
- src/cmd/internal/obj/arm/a.out.go     | 20 +++++++++++++-
- src/cmd/internal/obj/arm/anames.go    |  1 +
- src/cmd/internal/obj/arm/anames5.go   |  1 +
- src/cmd/internal/obj/arm/asm5.go      | 50 +++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/arm/list5.go     | 17 ++++++++++++
- src/runtime/asm_arm.s                 |  2 +-
- src/runtime/internal/atomic/asm_arm.s |  4 +--
- src/sync/atomic/asm_arm.s             |  4 +--
- src/sync/atomic/asm_darwin_arm.s      | 14 +++-------
- src/sync/atomic/asm_plan9_arm.s       |  2 +-
- 11 files changed, 108 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types/etype_string.go | 16 +++++++++
+ src/cmd/compile/internal/types/type.go         |  4 ++-
+ src/cmd/compile/internal/types/utils.go        | 48 --------------------------
+ 3 files changed, 19 insertions(+), 49 deletions(-)

@@ -1,15 +1,29 @@
-commit ec4c9db21015cf53661661b95b19110ed71dd49d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Feb 21 11:48:13 2020 +0100
+commit c729116332ffb66a21dd587e3ee003cb8d0b16fe
+Author: Mohit Verma <vmohit.93@gmail.com>
+Date:   Fri Sep 27 15:59:03 2019 -0700
 
-    hash/maphash: add package-level example
+    cmd/compile: use Node.Right for OAS2* nodes (cleanup)
     
-    Change-Id: I05c7ca644410822a527e94a7a8b883a0f8b0a4ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220420
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    This CL changes cmd/compile to use Node.Right instead of
+    Node.Rlist for OAS2FUNC/OAS2RECV/OAS2MAPR/OAS2DOTTYPE nodes.
+    Fixes #32293
+    
+    Change-Id: I4c9d9100be2d98d15e016797f934f64d385f5faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/hash/maphash/example_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ src/cmd/compile/internal/gc/escape.go    | 10 +++++-----
+ src/cmd/compile/internal/gc/fmt.go       |  3 +--
+ src/cmd/compile/internal/gc/iexport.go   |  8 +++++++-
+ src/cmd/compile/internal/gc/initorder.go |  2 +-
+ src/cmd/compile/internal/gc/inl.go       | 27 +++++++++++++--------------
+ src/cmd/compile/internal/gc/order.go     | 14 +++++++-------
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/select.go    |  4 +---
+ src/cmd/compile/internal/gc/ssa.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go |  7 ++++---
+ src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
+ 12 files changed, 55 insertions(+), 52 deletions(-)

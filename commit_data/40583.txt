@@ -1,23 +1,16 @@
-commit 0f992b994813c3ebd6fdc3335d6b48becac8a6f5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 25 00:50:00 2019 -0400
+commit d53f380e620c59cb3f30736584879c3c104ee488
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 18:32:27 2019 -0400
 
-    cmd/compile: not use REGTMP in ZeroRange on ARM64
+    misc/cgo/errors: limit number of parallel executions
     
-    For async preemption, we will be using REGTMP as a temporary
-    register in injected call on ARM64, which will clobber it. So any
-    code that uses REGTMP is not safe for async preemption.
+    Fixes #32328
     
-    For ZeroRange, which is inserted at the function entry where
-    there is no register live, we could just use a different register
-    and avoid REGTMP.
-    
-    Change-Id: I3db763828df6846908c9843a9912597efb9efcdf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203458
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iee71ecb247f2c439804c2ff03a6ed7b7f5a8b562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179603
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/arm64/ggen.go | 12 ++++++++----
- src/cmd/compile/internal/gc/go.go      |  8 ++++++--
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ misc/cgo/errors/ptr_test.go | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)

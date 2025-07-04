@@ -1,19 +1,29 @@
-commit 33e5da48d5d22a722f2363b15e2d53061fb71cf4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 16 15:52:05 2019 -0700
+commit 1cac3e84f5dabe211a32538e2e60ebd31da19661
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 27 20:46:29 2018 +1100
 
-    internal/poll: avoid unnecessary memory allocation in Writev
+    plugin: skip building tests on linux/arm64
     
-    Writev was allocating a new []syscall.Iovec every call, rather than
-    reusing the cached copy available at *fd.iovec.
+    It appears that linux/arm64
     
-    Fixes #26663.
+    https://build.golang.org/log/6808dbded6aebadf68cb65a0e30e4d1a62cd687b
     
-    Change-Id: I5967b0d82dc671ce0eaf4ec36cc2a0e46eadde02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172419
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    fails with
+    
+    /workdir/go/pkg/tool/linux_arm64/link: running gcc failed: exit status 1
+    /usr/bin/ld.gold: internal error in global, at ../../gold/aarch64.cc:4973
+    collect2: error: ld returned 1 exit status
+    FAIL plugin [build failed]
+    
+    error. So stop building these tests on linux/arm64.
+    
+    Fixes linux/arm64 build
+    
+    Change-Id: I41eb3d9659f7967d80136513899a5203bbf03fb1
+    Reviewed-on: https://go-review.googlesource.com/c/151478
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/poll/writev.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/plugin/plugin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

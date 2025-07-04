@@ -1,18 +1,36 @@
-commit f6fea0f31de094f43a4e7f659342de02585964ac
-Author: Austin Clements <austin@google.com>
-Date:   Sun Aug 26 21:30:19 2018 -0400
+commit e57cdd81e25a8351a868679d0d7252928b6e5be4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 24 15:39:21 2018 -0700
 
-    runtime: skip debug call injection tests under a debugger
+    go/types: initial framework for marking-based cycle detection
     
-    The debug call injection tests will freeze when run under a debugger
-    because they depend on catching SIGTRAP, which is usually swallowed by
-    a debugger.
+    The existing code explicitly passes a (type name) path around
+    to determine cycles; it also restarts the path for types that
+    "break" a cycle (such as a pointer, function, etc.). This does
+    not work for alias types (whose cycles are broken in a different
+    way). Furthermore, because the path is not passed through all
+    type checker functions that need it, we can't see the path or
+    use it for detection of some cycles (e.g. cycles involving array
+    lengths), which required ad-hoc solutions in those cases.
     
-    Change-Id: If6b86ca279b0489182990dd513444ca3062973f1
-    Reviewed-on: https://go-review.googlesource.com/c/139437
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This change introduces an explicit marking scheme for any kind
+    of object; an object is painted in various colors indicating
+    its state. It also introduces an object path (a stack) main-
+    tained with the Checker state, which is available in all type
+    checker functions that need access to it.
+    
+    The change only introduces these mechanisms and exercises the
+    basic functionality, with no effect on the existing code for
+    now.
+    
+    For #25141.
+    
+    Change-Id: I7c28714bdafe6c8d9afedf12a8a887554237337c
+    Reviewed-on: https://go-review.googlesource.com/114517
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/debug_test.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/go/types/check.go    | 16 ++++++++++
+ src/go/types/decl.go     | 78 ++++++++++++++++++++++++++++++++++++++++++++++--
+ src/go/types/object.go   | 58 +++++++++++++++++++++++++++++------
+ src/go/types/universe.go |  3 +-
+ 4 files changed, 143 insertions(+), 12 deletions(-)

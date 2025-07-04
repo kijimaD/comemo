@@ -1,25 +1,22 @@
-commit c85848a4a62f839427bb56cb2772e008e405cf1f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Nov 24 12:43:22 2022 +0700
+commit b00447038a50e0923b12cb0bc3c28f6b842a7f54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 18:55:29 2022 -0800
 
-    cmd/compile: fix inline static init with derived types
+    go/types, types2: shorter list for 2nd phase of function type inference
     
-    CL 450136 added handling for simple calls in staticinit. If there's any
-    derived types conversion in the body of generic function called, that
-    conversion will require runtime dictionary, thus the optimization could
-    not happen.
+    In the 2nd phase of function argument type inference we only
+    consider parameters with types that are single type parameters.
+    Thus there is no need to collect anything else in the first
+    phase.
     
-    Fixes #56923
+    This matches the algorithm description in the forthcoming spec
+    more closely.
     
-    Change-Id: I498cee9f8ab4397812ef79a6c2ab6c55e0ee4aef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453315
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Gabriel Morency (Amgc63spaming) <morencyvincent8@gmail.com>
+    Change-Id: Ie5c29f30ff43b1e37d719ecbe1688b50ed2177f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381554
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/staticinit/sched.go |  5 +++++
- test/fixedbugs/issue56923.go                 | 28 ++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/cmd/compile/internal/types2/infer.go | 24 +++++++++++++-----------
+ src/go/types/infer.go                    | 24 +++++++++++++-----------
+ 2 files changed, 26 insertions(+), 22 deletions(-)

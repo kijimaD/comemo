@@ -1,24 +1,18 @@
-commit 7eee5127735ab9b3cd1f231c5f0dcf7d1e5dd9fd
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Sun Dec 18 19:25:37 2016 -0800
+commit 347259cbae30f876be11fe5e71710969afa24374
+Author: Xia Bin <snyh@snyh.org>
+Date:   Sun Jan 24 14:22:54 2016 +0800
 
-    cmd/cover: retain un-attached compiler directives
+    misc/cgo/test: add test that gccgo fails
     
-    Parser doesn't attach some compiler directives to anything in the tree.
-    We have to explicitely retain them in the generated code. This change,
-    makes cover explicitely print out any compiler directive that wasn't
-    handled in the ast.Visitor.
+    Gccgo isn't locking the OS thread properly during calls.
     
-    Fixes #18285.
-    
-    Change-Id: Ib60f253815e92d7fc85051a7f663a61116e40a91
-    Reviewed-on: https://go-review.googlesource.com/34563
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: Idb2475291405e390cbb83abb27a402fd0381d0c4
+    Reviewed-on: https://go-review.googlesource.com/18882
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cover/cover.go         | 52 +++++++++++++++++++++++++++++++++---------
- src/cmd/cover/cover_test.go    |  5 ++++
- src/cmd/cover/testdata/test.go |  4 ++++
- 3 files changed, 50 insertions(+), 11 deletions(-)
+ misc/cgo/test/basic.go           |  3 +++
+ misc/cgo/test/cgo_test.go        |  1 +
+ misc/cgo/test/cgo_thread_lock.go | 53 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)

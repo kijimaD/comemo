@@ -1,19 +1,19 @@
-commit e7537157a53de8683167a512a67218bd3ea44e39
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 19 02:47:04 2013 +0800
+commit 9db0583007e1f644b16d957c2e567ad5e5922338
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 09:52:39 2013 -0700
 
-    runtime: fix build for NetBSD/ARM
+    os/exec: fix fd leak with Std*Pipe + LookPath
     
-    R=golang-dev, jsing
+    If LookPath in Command fails, sets a sticky error, and then
+    StdinPipe, StdoutPipe, or StderrPipe were called, those pipe
+    fds were never cleaned up.
+    
+    Fixes #5071
+    
+    R=golang-dev, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/7597046
+    https://golang.org/cl/7799046
 
- src/pkg/runtime/defs_netbsd.go       |  1 +
- src/pkg/runtime/defs_netbsd_386.go   |  1 -
- src/pkg/runtime/defs_netbsd_amd64.go |  1 -
- src/pkg/runtime/defs_netbsd_arm.go   | 39 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/defs_netbsd_arm.h    | 26 +++++++++++++++++++++++-
- src/pkg/runtime/os_netbsd_arm.c      | 11 +++++-----
- src/pkg/runtime/signal_netbsd_arm.h  | 37 ++++++++++++++++++----------------
- src/pkg/runtime/sys_netbsd_arm.s     | 19 ++++++++++++++++++
- 8 files changed, 110 insertions(+), 25 deletions(-)
+ src/pkg/os/exec/exec.go      |  2 ++
+ src/pkg/os/exec/exec_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

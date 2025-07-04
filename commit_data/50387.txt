@@ -1,18 +1,19 @@
-commit 2e1f98e3a17510c73d71bc4fc61a2bdbf20f92aa
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Sep 7 04:06:46 2022 +0000
+commit 76dd01f45786757a08f1e070245d174cd64559be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 20 13:12:43 2021 -0700
 
-    go/parser: use strings.Builder
+    cmd/compile/internal/types2: reduce output when describing type parameters
     
-    Change-Id: Ic8078543eb80470505a3cc2da8ea9fb8fb1369aa
-    GitHub-Last-Rev: 7b358c685aec10afcdb98eb7de703e8e46ff0ecf
-    GitHub-Pull-Request: golang/go#54919
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428922
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    There's no need to say "type parameter" for a type parameter. The
+    name is sufficient (they are always named), and the prose is followed
+    by "constrained by".
+    
+    Change-Id: I98df8caa1432b8b7a874e58da6e3ed6be102b4a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357410
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/parser/parser_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/operand.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

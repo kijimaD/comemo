@@ -1,30 +1,18 @@
-commit d75cc4b9c6e2acb4d0ed3d90c9a8b38094af281b
-Author: Ruinan <Ruinan.Sun@arm.com>
-Date:   Thu May 4 12:31:36 2023 +0800
+commit 9fcc8b2c1eeb2333751d80626e4204d304c8b3c6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jul 21 12:18:51 2022 +0200
 
-    cmd/asm: encode instructions like SHA1SU0 with a separate case for arm64
+    runtime: fix runtime.Breakpoint() on windows/arm64
     
-    Before this CL, instructions such as SHA1SU0, AESD and AESE are encoded
-    in case 1 together with FMOV/ADD, and some error checking is missing,
-    for example:
+    Fixes #53837
     
-      SHA1SU0       V1.B16, V2.B16, V3.B16   // wrong data arrangement
-      SHA1SU0       V1.4S, V2.S4, V3.S4      // correct
-    
-    Both will be accepted by the assembler, but the first one is totally
-    incorrect.
-    
-    This CL fixes these potential encoding issues by moving them into
-    separate cases, adds some error tests, and also fixes a wrong encoding
-    operand for ASHA1C.
-    
-    Change-Id: Ic778321a567735d48bc34a1247ee005c4ed9e11f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493195
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I4219fe35aac1a88aae2905998fbb1d7db87bbfb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418734
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/arm64error.s | 11 ++++
- src/cmd/internal/obj/arm64/asm7.go             | 72 ++++++++++++++++++++++----
- 2 files changed, 72 insertions(+), 11 deletions(-)
+ src/runtime/asm_arm64.s | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

@@ -1,31 +1,18 @@
-commit 8beb4be8500cdc1276ce870eba6a3de96fa15b1c
+commit 7c616b3809724874c15be762ab9dd15d9ee86406
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 25 10:36:46 2011 -0700
+Date:   Fri Mar 25 10:36:22 2011 -0700
 
-    test: match gccgo error messages for label.go and label1.go.
+    runtime: always set *received in chanrecv.
     
-    label.go:30:1: error: label ‘L6’ already defined
-    label.go:28:1: note: previous definition of ‘L6’ was here
-    label.go:23:1: error: label ‘L4’ defined and not used
-    label.go:52:2: error: label ‘defalt’ defined and not used
-    label.go:17:1: error: label ‘L2’ defined and not used
-    label.go:26:1: error: label ‘L5’ defined and not used
-    label.go:20:1: error: label ‘L3’ defined and not used
-    label.go:14:1: error: label ‘L1’ defined and not used
+    Also fix comment.
     
-    label1.go:32:13: error: invalid continue label ‘L2’
-    label1.go:44:13: error: invalid continue label ‘L3’
-    label1.go:52:10: error: invalid break label ‘L4’
-    label1.go:55:13: error: invalid continue label ‘L4’
-    label1.go:65:9: error: invalid break label ‘L5’
-    label1.go:68:12: error: invalid continue label ‘L5’
-    label1.go:76:10: error: invalid break label ‘L1’
-    label1.go:79:13: error: invalid continue label ‘L1’
+    The only caller of chanrecv initializes the value to false, so
+    this patch makes no difference at present.  But it seems like
+    the right thing to do.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4275078
+    https://golang.org/cl/4312053
 
- test/label.go  | 16 ++++++++--------
- test/label1.go | 16 ++++++++--------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/pkg/runtime/chan.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

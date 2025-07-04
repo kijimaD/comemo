@@ -1,12 +1,13 @@
-commit 9c9754409dc079278631b16a5866ec86d458eac5
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Jun 18 17:43:05 2012 -0700
+commit f34748908fcfffb510b644dabd8b4480968233a4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 18 11:08:31 2012 -0400
 
-    bytes: fixed typo.
+    A+C: Christine Hansmann (individual CLA)
     
-    R=r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6301096
+    https://golang.org/cl/6312045
 
- src/pkg/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,27 +1,17 @@
-commit 21af0c1699909454baa4fc6890fe9a1d337faf9c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Aug 26 08:35:24 2018 -0600
+commit 2f2e8f9c81d899d8eefb1f2f98ce5c90976c4f61
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 30 23:05:41 2018 -0700
 
-    encoding/json: get rid of the stream_test.go TODOs
+    runtime: use staticbytes in intstring for small v
     
-    TestRawMessage now passes without the need for the RawMessage field to
-    be a pointer. The TODO dates all the way back to 2010, so I presume the
-    issue has since been fixed.
+    Triggers 21 times during make.bash.
     
-    TestNullRawMessage tested the decoding of a JSON null into a
-    *RawMessage. The existing behavior was correct, but for the sake of
-    completeness a non-pointer RawMessage field has been added too. The
-    non-pointer field behaves differently, as one can read in the docs:
-    
-            To unmarshal JSON into a value implementing the Unmarshaler
-            interface, Unmarshal calls that value's UnmarshalJSON method,
-            including when the input is a JSON null.
-    
-    Change-Id: Iabaed75d4ed10ea427d135ee1b80c6e6b83b2e6e
-    Reviewed-on: https://go-review.googlesource.com/131377
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I7efb34200439256151304bb66cd309913f7c9c9e
+    Reviewed-on: https://go-review.googlesource.com/110557
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/stream_test.go | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/runtime/string.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

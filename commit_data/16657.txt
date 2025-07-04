@@ -1,12 +1,12 @@
-commit 4f2278d4db7eaa732ff0bddea7c90e0e6526eb77
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 27 09:20:02 2013 -0700
+commit 2546a54148ba91b48c4a5ea4b288976b40eda58f
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Thu Jun 27 20:51:46 2013 +1000
 
-    doc/go1.2.txt: cmd/go and coverage; simple hash Sum functions
+    crypto/sha512: update comment for the Sum512 function.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10631043
+    https://golang.org/cl/10660043
 
- doc/go1.2.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/crypto/sha512/sha512.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,13 @@
-commit afde71cfbdb1032cce8fefc6bc665b816b3276e6
-Author: Olivier Saingre <osaingre@gmail.com>
-Date:   Wed Feb 20 14:41:23 2013 -0800
+commit 35367cc64129f1dfcf764ed6ba3461db9bb54343
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 14:34:03 2013 -0800
 
-    encoding/xml: make sure Encoder.Encode reports Write errors.
+    mime: use Scanner to read mime files during init
+    Also close the file when we're done.
     
-    Fixes #4112.
-    
-    R=remyoudompheng, daniel.morsing, dave, rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7085053
+    https://golang.org/cl/7363045
 
- src/pkg/encoding/xml/marshal.go      | 27 ++++++++++++++++++---------
- src/pkg/encoding/xml/marshal_test.go | 10 ++++++++++
- src/pkg/encoding/xml/xml.go          | 24 +++++++++++++++++++-----
- src/pkg/encoding/xml/xml_test.go     | 14 ++++++++++++++
- 4 files changed, 61 insertions(+), 14 deletions(-)
+ src/pkg/mime/type_unix.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

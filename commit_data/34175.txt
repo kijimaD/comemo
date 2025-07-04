@@ -1,18 +1,20 @@
-commit 9c4fd4626caefa0566e2d853c02912d559c01f62
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Mon Jan 29 19:21:25 2018 -0500
+commit da4d740fc84bfbbfe24956725f864fecdc89002d
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Oct 6 18:04:10 2017 +0200
 
-    cmd/compile/internal: pass LocalSlot values, not pointers
+    cmd/link/internal/loadmacho: reduce scope of local declarations
     
-    Because getStackOffset is a function pointer, the compiler assumes that
-    its arguments escape. Pass a value instead to avoid heap allocations.
+    Move some local declarations closer to their use, reducing their
+    respective lifetimes, also improve few error messages.
+    Follow up of CL 67370.
     
-    Change-Id: Ib94e5941847f134cd00e873040a4d7fcf15ced26
-    Reviewed-on: https://go-review.googlesource.com/92397
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Updates #22095
+    
+    Change-Id: I6131159ae8de571015ef5459b33d5c186e543a37
+    Reviewed-on: https://go-review.googlesource.com/69110
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/pgen.go   |  4 ++--
- src/cmd/compile/internal/ssa/debug.go | 12 ++++++------
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/loadmacho/ldmacho.go | 137 ++++++++++++-----------------
+ 1 file changed, 56 insertions(+), 81 deletions(-)

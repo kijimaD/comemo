@@ -1,28 +1,48 @@
-commit 33b648c0e9428c8775043db75fdff5864a64219a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 27 22:03:33 2020 -0700
+commit 9d032026d69288c840131e3c83f4f2fd79f4ed23
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 12 18:35:49 2019 -0400
 
-    cmd/compile: fix ephemeral pointer problem on amd64
+    cmd/internal/obj/x86: correct pcsp for ADJSP
     
-    Make sure we don't use the rewrite ptr + (c + x) -> c + (ptr + x), as
-    that may create an ephemeral out-of-bounds pointer.
+    The x86 assembler supports an "ADJSP" pseudo-op that compiles to an
+    ADD/SUB from SP. Unfortunately, while this seems perfect for an
+    instruction that would allow obj to continue to track the SP/FP delta,
+    obj currently doesn't do that. As a result, FP-relative references
+    won't work and, perhaps worse, the pcsp table will have the wrong
+    frame size.
     
-    I have not seen an actual bug caused by this yet, but we've seen
-    them in the 386 port so I'm fixing this issue for amd64 as well.
+    We don't currently use this instruction in any assembly or generate it
+    in the compiler, but this is a perfect instruction for solving a
+    problem in #24543.
     
-    The load-combining rules needed to be reworked somewhat to still
-    work without the above broken rule.
+    This CL makes ADJSP useful by incorporating it into the SP delta
+    logic.
     
-    Update #37881
+    One subtlety is that we do generate ADJSP in obj itself to open a
+    function's stack frame. Currently, when preprocess enters the loop to
+    compute the SP delta, it may or may not start at this ADJSP
+    instruction depending on various factors. We clean this up by instead
+    always starting the SP delta at 0 and always starting this loop at the
+    entry to the function.
     
-    Change-Id: I8046d170e89e2035195f261535e34ca7d8aca68a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226437
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Why not just recognize ADD/SUB of SP? The danger is that could change
+    the meaning of existing code. For example, walltime1 in
+    sys_linux_amd64.s saves SP, SUBs from it, and aligns it. Later, it
+    restores the saved copy and then does a few FP-relative references.
+    Currently obj doesn't know any of this is happening, but that's fine
+    once it gets to the FP-relative references. If we taught obj to
+    recognize the SUB, it would start to miscompile this code. An
+    alternative would be to recognize unknown instructions that write to
+    SP and refuse subsequent FP-relative references, but that's kind of
+    annoying.
+    
+    This passes toolstash -cmp for std on both amd64 and 386.
+    
+    Change-Id: Ic6c6a7cbf980bca904576676c07b44c0aaa9c82d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200877
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  420 ++--
- src/cmd/compile/internal/ssa/rewrite.go      |   45 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 2760 +++++++++++++++-----------
- test/codegen/memcombine.go                   |    8 +-
- 4 files changed, 1835 insertions(+), 1398 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

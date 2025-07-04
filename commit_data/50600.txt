@@ -1,27 +1,26 @@
-commit f951f697c45ace2f00dccd8d2533463b6538dc36
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 29 16:41:49 2021 -0400
+commit 32d27527a6dfb45a98d47a4a9ac5341028d79aa1
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:25:21 2021 -0400
 
-    internal/coverage: add coverage meta-data encoder
+    go/types: fix conversions of constants to type parameter
     
-    Add a new package with APIs for encoding coverage meta-data. This
-    provides support for accumulating information about each function
-    during the compilation process, and then encoding and emitting a
-    payload for a coverage meta-data symbol.  Not yet connected to the
-    rest of the coverage machinery (that will appear in a later patch).
+    This is a port of both CL 360396 and CL 360796 to go/types. The latter
+    is added to avoid introducing an intermediate bug.
     
-    Updates #51430.
+    An error message was adjusted in issue49296.go2, with a TODO to switch
+    to the types2 error.
     
-    Change-Id: I61054ce87f205b25fb1bfedaa740fd7425c34de4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353453
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iede294b69b4e097e53876498f039ee18667568c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360934
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/deps_test.go                      |  10 +-
- src/internal/coverage/defs.go                  | 374 +++++++++++++++++++++++++
- src/internal/coverage/encodemeta/encode.go     | 215 ++++++++++++++
- src/internal/coverage/encodemeta/encodefile.go | 132 +++++++++
- src/internal/coverage/stringtab/stringtab.go   |  89 ++++++
- src/internal/coverage/uleb128/uleb128.go       |  20 ++
- 6 files changed, 839 insertions(+), 1 deletion(-)
+ src/go/types/conversions.go                    | 41 +++++++++++++++++++-------
+ src/go/types/expr.go                           |  1 +
+ src/go/types/predicates.go                     |  6 ++++
+ src/go/types/testdata/fixedbugs/issue49247.go2 | 20 +++++++++++++
+ src/go/types/testdata/fixedbugs/issue49296.go2 | 21 +++++++++++++
+ src/go/types/testdata/spec/conversions.go2     | 21 +++++++++++++
+ 6 files changed, 100 insertions(+), 10 deletions(-)

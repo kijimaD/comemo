@@ -1,22 +1,15 @@
-commit 023d4973851a25e2a47b1ebaf96833c9209efd7c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jun 17 18:05:16 2020 -0400
+commit c7c525a79d224382ff59e238dbf1d129f26e9e2f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 15:46:34 2020 -0500
 
-    cmd/go: add trace events for each action
+    doc: add section on module paths to module documentation
     
-    This change adds a trace event for each action and also
-    annotates each of the action execution goroutines with trace.Goroutine
-    so that the actions eaxecuted by each goroutine appear on different threads in
-    the chrome trace viewer.
+    Updates #33637
     
-    Updates #38714
-    
-    Change-Id: I2e58dc5606b2e3f7f87076a61e1cc6a2014255c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248320
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2197b20c2da2a5f57aacd40cc14611c5e6e25c5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214377
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
 
- src/cmd/go/internal/trace/trace.go |  4 ++--
- src/cmd/go/internal/work/exec.go   | 13 +++++++++++--
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ doc/modules.md | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

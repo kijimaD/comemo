@@ -1,20 +1,13 @@
-commit 86a3a542844a8c6040656006697e16b207c1d3f6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 28 00:26:56 2014 +0400
+commit ea86752206fd8801bce46cc21a0faf97d8d7cd01
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 27 11:17:12 2014 -0800
 
-    runtime: fix windows build
-    Currently windows crashes because early allocs in schedinit
-    try to allocate tiny memory blocks, but m->p is not yet setup.
-    I've considered calling procresize(1) earlier in schedinit,
-    but this refactoring is better and must fix the issue as well.
-    Fixes #7218.
+    cmd/6a: include MOVQL opcode.
     
+    LGTM=r
     R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/54570045
+    https://golang.org/cl/54660046
 
- src/pkg/runtime/malloc.goc | 16 +++++++---------
- src/pkg/runtime/malloc.h   |  4 ++++
- src/pkg/runtime/mgc0.c     |  8 ++++++--
- src/pkg/runtime/runtime.h  |  5 -----
- 4 files changed, 17 insertions(+), 16 deletions(-)
+ src/cmd/6a/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

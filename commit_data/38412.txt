@@ -1,27 +1,26 @@
-commit 259de39375d39a1ba32de640cde5d112b7b80acf
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Thu Jan 31 11:22:21 2019 -0600
+commit 9f291d1fc38c25726c683becf8844fb8f81fb81b
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Oct 26 10:52:59 2018 -0700
 
-    cmd/internal/obj/ppc64: fix wrong register encoding in XX1-Form instructions
+    cmd/compile: fix rule for combining loads with compares
     
-    A bug in the encoding of XX1-Form is flipping bit 31 of such instructions.
-    This may result in register clobering when using VSX instructions.
+    Unlike normal load+op opcodes, the load+compare opcode does
+    not clobber its non-load argument. Allow the load+compare merge
+    to happen even if the non-load argument is used elsewhere.
     
-    This was not exposed before because we currently don't generate these
-    instructions in SSA, and the asm files in which they are present aren't
-    affected by register clobbering.
+    Noticed when investigating issue #28417.
     
-    This change fixes the bug and adds a testcase for the problem.
-    
-    Fixes #30112
-    
-    Change-Id: I77b606159ae1efea33d2ba3e1c74b7fae8d5d2e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163759
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibc48d1f2e06ae76034c59f453815d263e8ec7288
+    Reviewed-on: https://go-review.googlesource.com/c/145097
+    Reviewed-by: Ainar Garipov <gugl.zadolbal@gmail.com>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  6 ++++++
- src/cmd/internal/obj/ppc64/asm9.go        | 12 ++++++------
- 2 files changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules   |  12 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++----
+ src/cmd/compile/internal/ssa/rewrite.go      |  34 ++--
+ src/cmd/compile/internal/ssa/rewrite386.go   | 160 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 152 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 252 +++++++++++++--------------
+ test/codegen/memops.go                       |   9 +
+ 8 files changed, 355 insertions(+), 342 deletions(-)

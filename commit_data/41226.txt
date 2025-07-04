@@ -1,15 +1,22 @@
-commit 334ab8311c8c6d48985a523f4a936ff20a7a5e7a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Feb 3 19:55:12 2020 -0500
+commit 7f907b9ceecfecb6dfe03878490bd3ae97ba8f2f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 16 11:28:05 2019 -0700
 
-    doc/go1.14: note that all changes to the standard library are minor
+    cmd/compile: require -lang=go1.14 for overlapping interfaces
     
-    Updates #36878
+    Support for overlapping interfaces is a new (proposed) Go language
+    feature to be supported in Go 1.14, so it shouldn't be supported under
+    -lang=go1.13 or earlier.
     
-    Change-Id: I1b83ff174a139734fae75f6e1e4caa9958222a18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217640
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Fixes #34329.
+    
+    Change-Id: I5fea5716b7d135476980bc40b4f6e8c611b67735
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195678
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.14.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go |  2 +-
+ src/go/types/stdlib_test.go          |  1 +
+ test/fixedbugs/issue34329.go         | 14 ++++++++++++++
+ 3 files changed, 16 insertions(+), 1 deletion(-)

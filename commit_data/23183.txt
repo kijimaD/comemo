@@ -1,21 +1,17 @@
-commit e15f89c526ec464a78b5e76279090cba785c1326
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Sun May 17 12:07:04 2015 +0800
+commit ea426dcae194cc796a8054d0c4cca5f488a3e857
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 29 10:59:22 2015 -0400
 
-    cmd/doc: try better when looking for package dir
+    cmd/internal/ld: use a simpler cout writer
     
-    When go doc is invoked with a single package name argument (e.g. go doc pkgname)
-    it needs to find the directory of the requested package sources in GOPATH.
+    Removes the unused *bufio.Reader from the object controlling the
+    linker's primary output.
     
-    GOPATH might contain directories with the same name as the requested package
-    that do no contain any *.go files. This change makes "go doc" ignore such
-    directories when looking for possible package directories.
-    
-    This fixes #10882
-    
-    Change-Id: Ib3d4ea69a25801c34cbe7b044de9870ba12f9aa8
-    Reviewed-on: https://go-review.googlesource.com/10190
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If91d9f60752f3dc4b280f35d6eb441f3c47574b2
+    Reviewed-on: https://go-review.googlesource.com/9362
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/main.go | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/internal/ld/elf.go |  2 +-
+ src/cmd/internal/ld/lib.go | 56 +++++++++++++++++++++++++++++++---------------
+ src/cmd/internal/ld/pe.go  |  2 +-
+ 3 files changed, 40 insertions(+), 20 deletions(-)

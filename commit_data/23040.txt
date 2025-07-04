@@ -1,31 +1,18 @@
-commit 76ec0ee53a5619b4ead4772c075105bf66c0ac67
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 3 17:43:38 2015 -0700
+commit 100da60979087cac50c186b4928ee695ace2db62
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 17 12:17:47 2015 -0400
 
-    cmd/internal/gc: separate Name-only Node fields
+    runtime: track time spent in mutator assists
     
-    Name will be converted from an anonymous to a
-    named field in a subsequent, automated CL.
+    This time is tracked per P and periodically flushed to the global
+    controller state. This will be used to compute mutator assist
+    utilization in order to schedule background GC work.
     
-    No functional changes. Passes toolstash -cmp.
-    
-    This reduces the size of gc.Node from 424 to 400 bytes.
-    This in turn reduces the permanent (pprof -inuse_space)
-    memory usage while compiling the test/rotate?.go tests:
-    
-    test    old(MB) new(MB) change
-    rotate0 379.49  367.30  -3.21%
-    rotate1 373.42  361.59  -3.16%
-    rotate2 381.17  368.77  -3.25%
-    rotate3 374.30  362.48  -3.15%
-    
-    Updates #9933.
-    
-    Change-Id: I21479527c136add4f1efb9342774e3be3e276e83
-    Reviewed-on: https://go-review.googlesource.com/10120
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib94f90903d426a02cf488bf0e2ef67a068eb3eec
+    Reviewed-on: https://go-review.googlesource.com/8837
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/subr.go      |  3 ++-
- src/cmd/internal/gc/syntax.go    | 33 ++++++++++++++++++---------------
- src/cmd/internal/gc/typecheck.go |  3 +++
- 3 files changed, 23 insertions(+), 16 deletions(-)
+ src/runtime/mgc.go      | 23 ++++++++++++++++++++++-
+ src/runtime/mgcmark.go  | 13 +++++++++++++
+ src/runtime/runtime2.go |  3 +++
+ 3 files changed, 38 insertions(+), 1 deletion(-)

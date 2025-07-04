@@ -1,0 +1,25 @@
+commit d69ab99f3f1765ebd496591fd8ca3f798e105d94
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 26 14:14:38 2025 +0100
+
+    net: run unix socket stream tests on Windows
+    
+    The net package supports Unix domain sockets on Windows, but most of
+    the tests related to them are skipped.
+    
+    This CL unskip the SOCK_STREAM tests. SOCK_DGRAM probablye can also
+    make to work, but that will come in a follow-up CL.
+    
+    Change-Id: If9506a8af57e9bfe58bd7b48a98fc39335627a61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/platform_plan9_test.go   |  9 +++++++++
+ src/net/platform_test.go         | 29 ++++++-----------------------
+ src/net/platform_unix_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/platform_windows_test.go | 11 +++++++++++
+ src/net/rawconn_windows_test.go  |  5 +++++
+ src/net/unixsock_test.go         | 13 +++++++++++--
+ 6 files changed, 82 insertions(+), 25 deletions(-)

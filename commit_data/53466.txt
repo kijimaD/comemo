@@ -1,19 +1,18 @@
-commit 38e2376f35907ebbb98419f1f4b8f28125bf6aaf
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jun 5 16:36:38 2023 -0400
+commit c7f870ebc41029e07e7ffd8ff2d96b91fd83cd40
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 17 12:51:10 2022 -0400
 
-    cmd/compile: adjust PGO devirtualization diagnostic message
+    cmd/go: skip test cases that depend on gopkg.in
     
-    Make it more consistent with the static devirtualization
-    diagnostic message. Keep the print of concrete callee's method
-    name, as it is clearer.
+    Updates #54503.
     
-    Change-Id: Ibe9b40253eaff2c0071353a2b388177213488822
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500960
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ie13d028b09260d2d316c343b3ea812bb9cce4e6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424594
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/devirtualize/pgo.go           | 2 +-
- src/cmd/compile/internal/test/pgo_devirtualize_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo_test.go     | 10 +++++++++-
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt |  2 ++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

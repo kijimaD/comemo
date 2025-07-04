@@ -1,15 +1,20 @@
-commit 3eed422fd13b56b978c610a0b9e69cf4a2c21b24
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 29 12:01:55 2015 -0700
+commit a814c05ebac9409caed705900c8c06c09e36cba2
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Mon Feb 2 21:37:52 2015 +0900
 
-    src: add buildall.bash
+    io: clarify Copy docs regarding error handling
     
-    For new compile-only builder.
+    "returns ... the first error" was misleading or at least confusing:
+    in case a Read results in an error with non-zero bytes read, and the
+    subsequent Write also results in an error, the error from Write is
+    returned, which is the second one (in the temporal dimension).
     
-    Change-Id: Ic374c582fcada761386fc852fdbdba814b4ac9e2
-    Reviewed-on: https://go-review.googlesource.com/9438
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #9744
+    
+    Change-Id: If8925a701e4fae820cd9df7446503403fc0785d4
+    Reviewed-on: https://go-review.googlesource.com/3686
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/buildall.bash | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ src/io/io.go      |  5 +++--
+ src/io/io_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

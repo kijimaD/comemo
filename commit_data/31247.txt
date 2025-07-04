@@ -1,26 +1,22 @@
-commit 7bd1c210858f308ee9a73b6a3b953c477ebb294e
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 20 15:18:13 2017 -0700
+commit e410d2a81ef26d7dcef0c712b584d2345b15148e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 7 15:29:18 2017 -0800
 
-    cmd/vendor/arch/x86: pull new version from x repo
+    cmd/gofmt: clear pattern match map at the correct time
     
-    Copied by hand.
+    We need to clear the pattern match map after the recursive rewrite
+    applications, otherwise there might be lingering entries that cause
+    match to fail.
     
-    Update #17410
-    Update #19142
-    Fixes #19986
+    Fixes #18987.
     
-    Change-Id: I21d16d254161c75466b31c670f3b2c8c463abd66
-    Reviewed-on: https://go-review.googlesource.com/41205
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7913951c455c98932bda790861db6a860ebad032
+    Reviewed-on: https://go-review.googlesource.com/36546
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../vendor/golang.org/x/arch/x86/x86asm/decode.go  |   90 +-
- src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go |    4 +-
- .../vendor/golang.org/x/arch/x86/x86asm/inst.go    |   16 +-
- .../vendor/golang.org/x/arch/x86/x86asm/intel.go   |   16 +-
- .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |   22 +-
- .../vendor/golang.org/x/arch/x86/x86asm/tables.go  | 6408 ++++++++++----------
- .../x/arch/x86/x86asm/testdata/decode.txt          |  338 +-
- src/cmd/vendor/vendor.json                         |    4 +-
- 8 files changed, 3595 insertions(+), 3303 deletions(-)
+ src/cmd/gofmt/rewrite.go               |  2 +-
+ src/cmd/gofmt/testdata/rewrite9.golden | 11 +++++++++++
+ src/cmd/gofmt/testdata/rewrite9.input  | 11 +++++++++++
+ 3 files changed, 23 insertions(+), 1 deletion(-)

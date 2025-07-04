@@ -1,14 +1,30 @@
-commit 015873c15348628ee871af7ab8f79c941870d6e2
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Sun Aug 12 16:00:58 2018 -0400
+commit 284ba47b4916e3cf4f206494ad5a3577e20db9bf
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 19:00:27 2018 +0200
 
-    doc: update the primary security coordinator to filippo@
+    test: run codegen tests on all supported architecture variants
     
-    Fixes #26876
+    This CL makes the codegen testsuite automatically test all
+    architecture variants for architecture specified in tests. For
+    instance, if a test file specifies a "arm" test, it will be
+    automatically run on all GOARM variants (5,6,7), to increase
+    the coverage.
     
-    Change-Id: Ibef4e305bead1432c6a02bc2507f8000c2f4b892
-    Reviewed-on: https://go-review.googlesource.com/129064
+    The CL also introduces a syntax to specify only a specific
+    variant (eg: "arm/7") in case the test makes sense only there.
+    The same syntax also allows to specify the operating system
+    in case it matters (eg: "plan9/386/sse2").
+    
+    Fixes #24658
+    
+    Change-Id: I2eba8b918f51bb6a77a8431a309f8b71af07ea22
+    Reviewed-on: https://go-review.googlesource.com/107315
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/security.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/codegen/README    |  18 +++++++
+ test/codegen/floats.go |  20 +++++---
+ test/codegen/math.go   |   5 +-
+ test/run.go            | 135 +++++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 137 insertions(+), 41 deletions(-)

@@ -1,23 +1,17 @@
-commit f077505d9a50d3fbeef2656a6f805fd75c65dd5d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 2 23:11:39 2015 +0900
+commit b0d545201e1d1c29dc0d96c4ab27547373dbd41e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 21:58:20 2015 -0800
 
-    net: fix tester goroutine leakage in tests
+    cmd/asm: fix (printing of) TEXT flags
     
-    This change tries to stop various tester goroutines at the end of each
-    scope for avoiding interference between test cases including benchmarks.
-    Not yet finished completely but enough to land upcoming changes to Dial
-    functions. The rest will be fixed later.
+    With the new unificiation, the flag must be TYPE_CONST to print
+    properly.
     
-    Change-Id: Ic38b8681a3a2ddbcd69ba3696f24a61d418a0346
-    Reviewed-on: https://go-review.googlesource.com/8398
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7cd1c56355724f08cbe9afc6ab7a66904031adc9
+    Reviewed-on: https://go-review.googlesource.com/6903
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/conn_test.go       |  50 +++++++--------------
- src/net/dial_test.go       |  76 ++++++++++++++++----------------
- src/net/mockserver_test.go | 105 +++++++++++++++++++++++++++++++++++++-------
- src/net/protoconn_test.go  |  18 ++++----
- src/net/tcp_test.go        |  17 ++++---
- src/net/timeout_test.go    | 107 +++++++++++++++++++++++++++++++--------------
- src/net/unix_test.go       |  18 ++++----
- 7 files changed, 247 insertions(+), 144 deletions(-)
+ src/cmd/asm/internal/asm/asm.go             | 1 +
+ src/cmd/asm/internal/asm/testdata/386.out   | 2 +-
+ src/cmd/asm/internal/asm/testdata/amd64.out | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)

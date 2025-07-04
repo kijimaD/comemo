@@ -1,17 +1,15 @@
-commit f3c3130685e3b457c356156b8b7de2b41e496f10
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 16 09:44:01 2012 +1100
+commit 9578839d60fb0d49130d6689091573aa390f85a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 16 09:27:26 2012 +1100
 
-    godoc: support for package examples, display example suffixes
+    net/http: fix race in sendfile test
     
-    Fixes #2896.
+    Whoops. Consume the body of the first request
+    before making the subsequent /quit request.
     
-    R=golang-dev, gri
+    R=golang-dev, untheoretic
     CC=golang-dev
-    https://golang.org/cl/5677047
+    https://golang.org/cl/5674054
 
- lib/godoc/example.html                 |  4 ++--
- lib/godoc/package.html                 |  3 ++-
- src/cmd/godoc/godoc.go                 | 38 ++++++++++++++++++++++++++++++++--
- src/pkg/container/heap/example_test.go |  5 +----
- 4 files changed, 41 insertions(+), 9 deletions(-)
+ src/pkg/net/http/fs_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

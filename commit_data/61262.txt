@@ -1,0 +1,18 @@
+commit bfc8c5b85a8b749b6bf3c8004b30acb598cdc962
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 23 09:19:57 2024 -0700
+
+    go/types, types2: simplify cycle reporting code (minor cleanup)
+    
+    Change-Id: I49c7107d9624c9a8aa97dcc87e2d4722b9ba0a20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/decl.go      | 23 ++++++++++-------------
+ src/cmd/compile/internal/types2/initorder.go |  7 ++++---
+ src/go/types/decl.go                         | 24 ++++++++++--------------
+ src/go/types/initorder.go                    |  7 ++++---
+ 4 files changed, 28 insertions(+), 33 deletions(-)

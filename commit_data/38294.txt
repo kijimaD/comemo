@@ -1,27 +1,16 @@
-commit 2dd066d4a7ab6eb7828cbba8cb29158dcaedcc78
-Author: Raul Silvera <rauls5382@gmail.com>
-Date:   Fri Jan 18 19:06:16 2019 +0000
+commit af95199421acb319b0b1e549cf7f4345f474f75e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 16 18:32:35 2018 -0700
 
-    test: improve test coverage for heap sampling
+    cmd/cgo: split name rewriting out of rewriteRef
     
-    Update the test in test/heapsampling.go to more thoroughly validate heap sampling.
-    Lower the sampling rate on the test to ensure allocations both smaller and
-    larger than the sampling rate are tested.
+    This is in preparation for later changes.
     
-    Tighten up the validation check to a 10% difference between the unsampled and correct value.
-    Because of the nature of random sampling, it is possible that the unsampled value fluctuates
-    over that range. To avoid flakes, run the experiment three times and only report an issue if the
-    same location consistently falls out of range on all experiments.
-    
-    This tests the sampling fix in cl/158337.
-    
-    Change-Id: I54a709e5c75827b8b1c2d87cdfb425ab09759677
-    GitHub-Last-Rev: 7c04f126034f9e323efc220c896d75e7984ffd39
-    GitHub-Pull-Request: golang/go#26944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/129117
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I2b9b77a782cf65a2fcec5e700ec6bb8b1476f6b5
+    Reviewed-on: https://go-review.googlesource.com/c/142882
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/heapsampling.go | 228 ++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 182 insertions(+), 46 deletions(-)
+ src/cmd/cgo/gcc.go | 201 ++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 107 insertions(+), 94 deletions(-)

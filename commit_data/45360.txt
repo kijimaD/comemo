@@ -1,21 +1,87 @@
-commit 7d22c2181b4343b58e40962cefd52af1284b4294
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 26 17:27:58 2021 -0700
+commit 15ead857dbc638b9d83a7686acf0dc746fc45918
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Sep 9 17:24:23 2020 -0500
 
-    syscall: restore signal mask after setting foreground process group
+    cmd/compiler,cmd/go,sync: add internal {LoadAcq,StoreRel}64 on ppc64
     
-    Fixes #37217
+    Add an internal atomic intrinsic for load with acquire semantics
+    (extending LoadAcq to 64b) and add LoadAcquintptr for internal
+    use within the sync package.  For other arches, this remaps to the
+    appropriate atomic.Load{,64} intrinsic which should not alter code
+    generation.
     
-    Change-Id: I0151bb77fc4c4552d1b19c31d784943b72f84b80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313653
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Similarly, add StoreRel{uintptr,64} for consistency, and inline.
+    
+    Finally, add an exception to allow sync to directly use the
+    runtime/internal/atomic package which avoids more convoluted
+    workarounds (contributed by Lynn Boger).
+    
+    In an extreme example, sync.(*Pool).pin consumes 20% of wall time
+    during fmt tests.  This is reduced to 5% on ppc64le/power9.
+    
+    From the fmt benchmarks on ppc64le:
+    
+    name                           old time/op  new time/op  delta
+    SprintfPadding                  468ns ± 0%   451ns ± 0%   -3.63%
+    SprintfEmpty                   73.3ns ± 0%  51.9ns ± 0%  -29.20%
+    SprintfString                   135ns ± 0%   122ns ± 0%   -9.63%
+    SprintfTruncateString           232ns ± 0%   214ns ± 0%   -7.76%
+    SprintfTruncateBytes            216ns ± 0%   202ns ± 0%   -6.48%
+    SprintfSlowParsingPath          162ns ± 0%   142ns ± 0%  -12.35%
+    SprintfQuoteString             1.00µs ± 0%  0.99µs ± 0%   -1.39%
+    SprintfInt                      117ns ± 0%   104ns ± 0%  -11.11%
+    SprintfIntInt                   190ns ± 0%   175ns ± 0%   -7.89%
+    SprintfPrefixedInt              232ns ± 0%   212ns ± 0%   -8.62%
+    SprintfFloat                    270ns ± 0%   255ns ± 0%   -5.56%
+    SprintfComplex                 1.01µs ± 0%  0.99µs ± 0%   -1.68%
+    SprintfBoolean                  127ns ± 0%   111ns ± 0%  -12.60%
+    SprintfHexString                220ns ± 0%   198ns ± 0%  -10.00%
+    SprintfHexBytes                 261ns ± 0%   252ns ± 0%   -3.45%
+    SprintfBytes                    600ns ± 0%   590ns ± 0%   -1.67%
+    SprintfStringer                 684ns ± 0%   658ns ± 0%   -3.80%
+    SprintfStructure               2.57µs ± 0%  2.57µs ± 0%   -0.12%
+    ManyArgs                        669ns ± 0%   646ns ± 0%   -3.44%
+    FprintInt                       140ns ± 0%   136ns ± 0%   -2.86%
+    FprintfBytes                    184ns ± 0%   181ns ± 0%   -1.63%
+    FprintIntNoAlloc                140ns ± 0%   136ns ± 0%   -2.86%
+    ScanInts                        929µs ± 0%   921µs ± 0%   -0.79%
+    ScanRecursiveInt                122ms ± 0%   121ms ± 0%   -0.11%
+    ScanRecursiveIntReaderWrapper   122ms ± 0%   122ms ± 0%   -0.18%
+    
+    Change-Id: I4d66780261b57b06ef600229e475462e7313f0d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253748
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/syscall/exec_bsd.go       |  6 ++++--
- src/syscall/exec_libc.go      |  6 ++++--
- src/syscall/exec_libc2.go     |  6 ++++--
- src/syscall/exec_linux.go     |  6 ++++--
- src/syscall/exec_unix_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
- 5 files changed, 56 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 19 ++++++++++++++
+ src/cmd/compile/internal/ssa/branchelim.go     |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 +--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 13 ++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 34 ++++++++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go                |  5 ++++
+ src/runtime/internal/atomic/asm_386.s          |  3 +++
+ src/runtime/internal/atomic/asm_amd64.s        |  6 +++++
+ src/runtime/internal/atomic/asm_arm.s          |  6 +++++
+ src/runtime/internal/atomic/asm_mips64x.s      |  6 +++++
+ src/runtime/internal/atomic/asm_mipsx.s        |  3 +++
+ src/runtime/internal/atomic/asm_ppc64x.s       | 13 ++++++++++
+ src/runtime/internal/atomic/atomic_386.go      |  9 +++++++
+ src/runtime/internal/atomic/atomic_amd64.go    | 18 ++++++++++++++
+ src/runtime/internal/atomic/atomic_arm.go      |  6 +++++
+ src/runtime/internal/atomic/atomic_arm64.go    | 12 +++++++++
+ src/runtime/internal/atomic/atomic_arm64.s     | 14 +++++++++++
+ src/runtime/internal/atomic/atomic_mips64x.go  | 12 +++++++++
+ src/runtime/internal/atomic/atomic_mips64x.s   |  8 ++++++
+ src/runtime/internal/atomic/atomic_mipsx.go    |  6 +++++
+ src/runtime/internal/atomic/atomic_ppc64x.go   | 12 +++++++++
+ src/runtime/internal/atomic/atomic_ppc64x.s    | 20 +++++++++++++++
+ src/runtime/internal/atomic/atomic_riscv64.go  | 12 +++++++++
+ src/runtime/internal/atomic/atomic_riscv64.s   | 12 +++++++++
+ src/runtime/internal/atomic/atomic_s390x.go    | 24 ++++++++++++++++++
+ src/runtime/internal/atomic/atomic_wasm.go     | 24 ++++++++++++++++++
+ src/sync/pool.go                               | 15 ++++++------
+ 28 files changed, 310 insertions(+), 10 deletions(-)

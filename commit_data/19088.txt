@@ -1,31 +1,27 @@
-commit 4abbd4a468ded765fc23cf4a4de3ff48f32b354b
-Author: Preetam Jinka <pj@preet.am>
-Date:   Thu Apr 10 13:58:03 2014 +1000
+commit 34a21dcae425a9353b7d763958c5039a0e767531
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 9 18:23:53 2014 -0700
 
-    syscall: fix Getfsstat() for BSD
+    undo CL 86220044 / 41388e58be65
     
-    The buffer length should be the size in bytes
-    instead of the number of structs.
+    bufio: undo incorrect bug fix
     
-    Fixes #6588.
+    ««« original CL description
+    bufio: fix potential endless loop in ReadByte
     
-    LGTM=mikioh.mikioh
-    R=golang-codereviews, mikioh.mikioh, adg
+    Fixes #7745.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/84830043
+    https://golang.org/cl/86220044
+    »»»
+    
+    LGTM=adg
+    R=r, adg
+    CC=golang-codereviews
+    https://golang.org/cl/85550045
 
- src/pkg/syscall/syscall_bsd_test.go         | 34 +++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_darwin.go           | 16 +++++++++++++-
- src/pkg/syscall/syscall_dragonfly.go        | 16 +++++++++++++-
- src/pkg/syscall/syscall_freebsd.go          | 16 +++++++++++++-
- src/pkg/syscall/syscall_openbsd.go          | 16 +++++++++++++-
- src/pkg/syscall/zsyscall_darwin_386.go      | 17 ---------------
- src/pkg/syscall/zsyscall_darwin_amd64.go    | 17 ---------------
- src/pkg/syscall/zsyscall_dragonfly_386.go   | 17 ---------------
- src/pkg/syscall/zsyscall_dragonfly_amd64.go | 17 ---------------
- src/pkg/syscall/zsyscall_freebsd_386.go     | 17 ---------------
- src/pkg/syscall/zsyscall_freebsd_amd64.go   | 17 ---------------
- src/pkg/syscall/zsyscall_freebsd_arm.go     | 17 ---------------
- src/pkg/syscall/zsyscall_openbsd_386.go     | 17 ---------------
- src/pkg/syscall/zsyscall_openbsd_amd64.go   | 17 ---------------
- 14 files changed, 94 insertions(+), 157 deletions(-)
+ src/pkg/bufio/bufio.go      | 26 ++++++++------------------
+ src/pkg/bufio/bufio_test.go | 29 -----------------------------
+ 2 files changed, 8 insertions(+), 47 deletions(-)

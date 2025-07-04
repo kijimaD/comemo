@@ -1,21 +1,39 @@
-commit 903b25178e51fa96d37a91b020747ce236ba04f0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 27 00:11:00 2021 +0200
+commit b7a2d413a3f710f14accedf185c93bfb63d24fd0
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 20 09:56:14 2020 +0200
 
-    syscall: on linux use accept4 in Accept, fall back to accept
+    testing: print cpu type as label for benchmarks
     
-    Android seems to block the accept syscall in newer versions. Use accept4
-    instead on kernel versions that support it (Linux 2.6.28 and newer) and
-    fall back to accept on ENOSYS.
+    Supports 386 and amd64 architectures on all operating systems.
     
-    Fixes #45767
+    Example output:
+    $ go test -bench=.*
+    goos: darwin
+    goarch: amd64
+    pkg: strconv
+    cpu: Intel(R) Core(TM) i7-3520M CPU @ 2.90GHz
+    BenchmarkAtof64Decimal-4                24431032                46.8 ns/op
+    ...
     
-    Change-Id: If190ace0e0213207fdaf6eeb79a5543ef18456de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313769
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    As the displayed CPU information is only used for information
+    purposes it is lazily initialized when needed using the new
+    internal/sysinfo package.
+    
+    This allows internal/cpu to stay without dependencies and avoid
+    initialization costs when the CPU information is not needed as
+    the new code to query the CPU name in internal/cpu can be
+    dead code eliminated if not used.
+    
+    Fixes #39214
+    
+    Change-Id: I77ae5c5d2fed6b28fa78dd45075f9f0a6a7f1bfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263804
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/syscall_linux.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go       |  6 ++++-
+ src/internal/cpu/cpu_no_name.go | 19 ++++++++++++++++
+ src/internal/cpu/cpu_x86.go     | 49 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/sysinfo/sysinfo.go | 31 ++++++++++++++++++++++++++
+ src/testing/benchmark.go        |  7 ++++++
+ 5 files changed, 111 insertions(+), 1 deletion(-)

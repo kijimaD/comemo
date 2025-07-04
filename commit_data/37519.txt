@@ -1,22 +1,18 @@
-commit 70a684cf44cc3398c44afcd69387d7938d90f063
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 28 10:50:54 2018 -0500
+commit a0127c1921fdba2b4384d599407a3eedfe547803
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 9 17:25:13 2018 +0100
 
-    go/internal/gccgoimporter: additional V3 export data changes
+    runtime: fix TestGdbPythonCgo failure with ld.gold
     
-    This patch merges in support for reading the most recent
-    incarnation of V3 export data (initial inline function bodies),
-    from the importer portions of https://golang.org/cl/150061 and
-    https://golang.org/cl/150067.
+    See the added comment for the reasoning behind the workaround.
     
-    Updates #28961.
+    Fixes #26868.
     
-    Change-Id: I34e837acbf48b8fd1a4896a1a977d2241adfb28d
-    Reviewed-on: https://go-review.googlesource.com/c/151557
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Idede020ec88a49595dc233d9a1346b12691186f4
+    Reviewed-on: https://go-review.googlesource.com/128815
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/internal/gccgoimporter/parser.go | 72 ++++++++++++++++++++++++++++++---
- 1 file changed, 66 insertions(+), 6 deletions(-)
+ src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

@@ -1,24 +1,26 @@
-commit 204c618f0a0b175d840bfeb50cb5356deb165f51
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jul 11 12:30:05 2018 -0400
+commit 49325dc1d23b74eed40ea414c015f080acf21a32
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Mar 26 10:41:11 2018 +0200
 
-    cmd/link: eliminate a couple of unused DWARF attrs
+    os: fix TestDevNullFile on Plan 9
     
-    The linker's DWARF generation occasionally computes and attaches an
-    attribute X to a type even though the type's abbrev doesn't have the
-    specified attr. For example, the DW_TAG_subroutine_type abbrev entry
-    has no type attribute, but a type attr is given to it (wasting
-    memory). Similarly there are some places where a byte size attr is
-    added to a DIE whose abbrev lacks that attr. This patch trims away a
-    few of these not-needed attrs, saving some very tiny amount of memory.
+    CL 102457 added TestDevNullFile. However, this
+    test is failing on Plan 9, because it checks
+    that /dev/null is a character device while there
+    are no special files on Plan 9.
     
-    Updates #26186
+    We fix this issue by changing Stat to consider
+    all files served by the console device (#c)
+    as character devices.
     
-    Change-Id: I69e853df468ac54b07772a614b4106d7c4dae01d
-    Reviewed-on: https://go-review.googlesource.com/123296
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #24534.
+    
+    Change-Id: I1c60cdf25770358b908790b3fb71910fa914dec0
+    Reviewed-on: https://go-review.googlesource.com/102424
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/os/stat_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

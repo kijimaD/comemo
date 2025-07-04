@@ -1,45 +1,28 @@
-commit 242ef7cb05a6d406912389b6b3b6ad3bda1f7484
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Dec 28 22:32:59 2024 +0100
+commit b11d19e03b57d6cec1142002a22c3df732118847
+Author: Ruinan <ruinan.sun@arm.com>
+Date:   Thu Nov 30 15:54:06 2023 +0800
 
-    crypto/rsa: normalize GenerateKey benchmark
+    cmd/asm: print absolute PC for all patterns "off(PC)" in testEndToEnd
     
-    Benchmarking key generation is a pain. The number of random candidates
-    explored before finding a prime varies greatly, and on top of that some
-    rejections happen in the trial divisions step and some in the
-    Miller-Rabin step.
+    Before this CL, testEndToEnd only turns the relative PC to absolute PC
+    when pattern "off(PC)" is the suffix of an instruction. But there are
+    some instructions like:
     
-    However, we can calculate on average how many candidates we should
-    reject before finding a prime, and of those how many should be divisible
-    by small primes. (And even the number of multiplications in a
-    Miller-Rabin iteration.) The new checked in sequence of candidates is
-    normalized to represent the average case.
+      ADR 10(PC), R10
     
-    It doesn't normalize the runtime of GCD, but running the benchmark with
-    20 different randomly generated "average cases" produces very consistent
-    results, so it must not matter much.
+    it's also acceptable for the assembler while the pattern "off(PC)" is
+    not a suffix, which makes the test fail.
     
-    goos: darwin
-    goarch: arm64
-    pkg: crypto/rsa
-    cpu: Apple M2
-                       │  regen.txt  │
-                       │   sec/op    │
-    GenerateKey/2048-8   136.4m ± 0%
+    This CL fixes this issue by searching the pattern in the whole string
+    instead of only in the suffix.
     
-    Changed slightly the excess masking in keygen.go to make it easier to
-    feed fixed candidates. This might also make it easier to share test
-    vectors in the future.
-    
-    Change-Id: I66696c693f35da7bda27db537aa3bf3b991e970e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639335
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0cffedeb7b3c63abca7697671088cf993aff71ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547235
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ruinan Sun <Ruinan.Sun@arm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/crypto/internal/fips140/rsa/keygen.go |  17 +-
- src/crypto/rsa/rsa_test.go                |  59 ++-
- src/crypto/rsa/testdata/keygen2048.txt    | 719 ++++++++++++++++++++++++++++++
- 3 files changed, 781 insertions(+), 14 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go | 14 ++++++++++----
+ src/cmd/asm/internal/asm/testdata/arm64.s |  8 ++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

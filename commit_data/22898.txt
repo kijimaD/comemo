@@ -1,14 +1,16 @@
-commit 9d0a2e4d6ef6bb97e9780f2def181e5d5edca718
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 6 21:34:29 2015 +0900
+commit 8b27d28ed4e74498f04df56bfc25e9feb0422744
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 13 18:04:02 2015 -0500
 
-    net: fix inconsistent error values on Read for solaris
+    cmd/5g, etc: remove outdated float type alias comment
     
-    Updates #4856.
-    
-    Change-Id: Ia04e24fb1fe57e244d7b1cd417f7f419ad610acd
-    Reviewed-on: https://go-review.googlesource.com/9776
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: Ie5fe5cf3e2926ba4f91271bd47f3f998c26e003e
+    Reviewed-on: https://go-review.googlesource.com/8914
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/sendfile_solaris.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/5g/galign.go | 3 +--
+ src/cmd/6g/galign.go | 2 +-
+ src/cmd/7g/galign.go | 2 +-
+ src/cmd/8g/galign.go | 3 +--
+ src/cmd/9g/galign.go | 3 +--
+ 5 files changed, 5 insertions(+), 8 deletions(-)

@@ -1,16 +1,16 @@
-commit 69b7fe1a9035d197e5f8040262e8ac335b66f9f8
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Oct 28 06:20:44 2016 +0900
+commit fe5619b479859f199a244929770a11cc4cbd1911
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 1 10:13:11 2016 -0700
 
-    net: deflake TestLookupNonLDH
+    cmd/compile: be more aggressive in tighten pass for booleans
     
-    Fixes #17623.
+    Fixes #15509
     
-    Change-Id: I4717e8399f955c9be7ba19108bb0bcc108187c04
-    Reviewed-on: https://go-review.googlesource.com/32147
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I44073533f02d38795f9ba9b255db4d1ee426d70e
+    Reviewed-on: https://go-review.googlesource.com/28390
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/lookup_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/tighten.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,103 +1,25 @@
-commit 3792db518327c685da17ca6c6faa4e1d2da4c33c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 10 14:59:38 2017 -0800
+commit a475a38a3dcd48541f60e40b1dac3c84ab72d0e5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 25 13:56:37 2016 -0400
 
-    net: refactor poller into new internal/poll package
+    runtime: parallelize STW mcache flushing
     
-    This will make it possible to use the poller with the os package.
+    Currently all mcaches are flushed in a single STW root job. This takes
+    about 5 µs per P, but since it's done sequentially it adds about
+    5*GOMAXPROCS µs to the STW.
     
-    This is a lot of code movement but the behavior is intended to be
-    unchanged.
+    Fix this by parallelizing the job. Since there are exactly GOMAXPROCS
+    mcaches to flush, this parallelizes quite nicely and brings the STW
+    latency cost down to a constant 5 µs (assuming GOMAXPROCS actually
+    reflects the number of CPUs).
     
-    Update #6817.
-    Update #7903.
-    Update #15021.
-    Update #18507.
+    Updates #17503.
     
-    Change-Id: I1413685928017c32df5654ded73a2643820977ae
-    Reviewed-on: https://go-review.googlesource.com/36799
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibefeb1c2229975d5137c6e67fac3b6c92103742d
+    Reviewed-on: https://go-review.googlesource.com/32033
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/dist/deps.go                          |  95 +--
- src/cmd/go/internal/work/build.go             |   2 +-
- src/go/build/deps_test.go                     |   5 +-
- src/internal/poll/export_test.go              |  39 ++
- src/internal/poll/fd.go                       |  44 ++
- src/{net => internal/poll}/fd_io_plan9.go     |  14 +-
- src/{net => internal/poll}/fd_mutex.go        |  27 +-
- src/{net => internal/poll}/fd_mutex_test.go   |  85 +--
- src/internal/poll/fd_plan9.go                 | 180 ++++++
- src/{net => internal/poll}/fd_poll_nacl.go    |  32 +-
- src/{net => internal/poll}/fd_poll_runtime.go |  37 +-
- src/internal/poll/fd_posix.go                 |  57 ++
- src/internal/poll/fd_posix_test.go            |  43 ++
- src/internal/poll/fd_unix.go                  | 398 +++++++++++++
- src/internal/poll/fd_windows.go               | 816 ++++++++++++++++++++++++++
- src/{net => internal/poll}/hook_cloexec.go    |   8 +-
- src/internal/poll/hook_unix.go                |  17 +
- src/internal/poll/hook_windows.go             |  18 +
- src/internal/poll/sendfile_bsd.go             |  51 ++
- src/internal/poll/sendfile_linux.go           |  48 ++
- src/internal/poll/sendfile_solaris.go         |  64 ++
- src/internal/poll/sendfile_windows.go         |  23 +
- src/internal/poll/sock_cloexec.go             |  52 ++
- src/internal/poll/sockopt.go                  |  38 ++
- src/internal/poll/sockopt_linux.go            |  18 +
- src/internal/poll/sockopt_unix.go             |  18 +
- src/internal/poll/sockopt_windows.go          |  27 +
- src/internal/poll/sockoptip.go                |  27 +
- src/internal/poll/str.go                      |  39 ++
- src/internal/poll/sys_cloexec.go              |  36 ++
- src/internal/poll/writev.go                   |  81 +++
- src/internal/poll/writev_test.go              |  62 ++
- src/net/dial.go                               |   3 +-
- src/net/dial_test.go                          |   7 +-
- src/net/dnsclient_unix_test.go                |   3 +-
- src/net/error_posix.go                        |  21 +
- src/net/error_test.go                         |  17 +-
- src/net/fd_plan9.go                           | 144 +----
- src/net/fd_posix.go                           |  21 -
- src/net/fd_posix_test.go                      |  57 --
- src/net/fd_unix.go                            | 310 ++--------
- src/net/fd_windows.go                         | 550 ++---------------
- src/net/file_unix.go                          |   9 +-
- src/net/hook_unix.go                          |  10 +-
- src/net/hook_windows.go                       |   9 +-
- src/net/ipsock_plan9.go                       |   4 +-
- src/net/ipsock_posix.go                       |   5 +-
- src/net/main_cloexec_test.go                  |   8 +-
- src/net/main_unix_test.go                     |  16 +-
- src/net/main_windows_test.go                  |  22 +-
- src/net/net.go                                |  23 +-
- src/net/sendfile_bsd.go                       |  51 +-
- src/net/sendfile_linux.go                     |  46 +-
- src/net/sendfile_solaris.go                   |  62 +-
- src/net/sendfile_windows.go                   |  14 +-
- src/net/sock_cloexec.go                       |  41 +-
- src/net/sock_posix.go                         |  25 +-
- src/net/sockopt_posix.go                      |  34 +-
- src/net/sockoptip_bsd.go                      |  20 +-
- src/net/sockoptip_linux.go                    |  18 +-
- src/net/sockoptip_posix.go                    |  34 +-
- src/net/sockoptip_windows.go                  |  17 +-
- src/net/sys_cloexec.go                        |  25 +-
- src/net/tcpsock.go                            |   2 +-
- src/net/tcpsockopt_darwin.go                  |  14 +-
- src/net/tcpsockopt_posix.go                   |  10 +-
- src/net/tcpsockopt_solaris.go                 |  10 +-
- src/net/tcpsockopt_unix.go                    |  14 +-
- src/net/tcpsockopt_windows.go                 |   8 +-
- src/net/timeout_test.go                       |  21 +-
- src/net/unixsock.go                           |   2 +-
- src/net/writev_test.go                        |   7 +-
- src/net/writev_unix.go                        |  74 +--
- src/runtime/net_plan9.go                      |   4 +-
- src/runtime/netpoll.go                        |  32 +-
- src/runtime/netpoll_windows.go                |   3 +-
- src/runtime/sema.go                           |   8 +-
- src/runtime/time.go                           |   4 +-
- src/runtime/trace/trace_stack_test.go         |   1 +
- 79 files changed, 2722 insertions(+), 1619 deletions(-)
+ src/runtime/mgc.go     |  1 +
+ src/runtime/mgcmark.go | 20 ++++++++++++--------
+ src/runtime/mstats.go  | 35 ++++++++++++++++++++++++-----------
+ 3 files changed, 37 insertions(+), 19 deletions(-)

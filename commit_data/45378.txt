@@ -1,17 +1,20 @@
-commit b9dfaf77f55fb00173ae18b0dac9d43e7e5855c1
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Tue Apr 27 08:50:06 2021 +0000
+commit 61313dab524f2c82add8442e15d87fca5b7103de
+Author: Xiangdong Ji <xiangdong.ji@gmail.com>
+Date:   Sun Oct 18 11:43:23 2020 -0700
 
-    cmd/compile/internal/walk: merge operations
+    cmd/go: use the last -linkmode flag to determine external linking
     
-    Change-Id: I018872da519dfb4aa6c252ea28fc09289c2d9711
-    GitHub-Last-Rev: 5969776197003cae317f6b45f88ac4ced10beaf3
-    GitHub-Pull-Request: golang/go#45795
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313550
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Current linkmode checking in determining package dependencies doesn't
+    take multiple -linkmode options into consideration, may lead to redundant
+    dependency on 'runtime/cgo'.
+    
+    Fixes the problem and adds a testcase.
+    
+    Change-Id: Iac5ea9fb3ca5ef931201afd0f3441f41f946c919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263497
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/walk/range.go | 32 ++++++++++----------------------
- 1 file changed, 10 insertions(+), 22 deletions(-)
+ src/cmd/go/internal/load/pkg.go                 | 14 +++++++++-----
+ src/cmd/go/testdata/script/gcflags_patterns.txt |  4 ++++
+ 2 files changed, 13 insertions(+), 5 deletions(-)

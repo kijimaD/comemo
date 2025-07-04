@@ -1,15 +1,12 @@
-commit 7b5af511a51e5ca4ed751c8ce4c8eb40f5292e35
-Author: Rob Pike <r@golang.org>
-Date:   Sat Sep 19 11:39:22 2015 -0700
+commit b1177d390cf0c3733836e5941f77b828e21c8a09
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jul 23 12:07:58 2015 -0400
 
-    bufio: fix overflow calculation in Scan
+    bytes: document that Buffer values must not be copied
     
-    I was being too clever, as usual. Write the obvious code to make sure
-    that when we grow the buffer we don't overflow.
-    
-    Change-Id: I1641831177b0bb8a89ab6e9bcabccf6c2fcfe1d2
-    Reviewed-on: https://go-review.googlesource.com/14781
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: If0821a2af987b78ed8024b40d9ffa68032518b22
+    Reviewed-on: https://go-review.googlesource.com/12572
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bufio/scan.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/bytes/buffer.go | 1 +
+ 1 file changed, 1 insertion(+)

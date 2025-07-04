@@ -1,19 +1,19 @@
-commit a1c622dfea65416c024c570727e101ecc1479ea8
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Nov 7 11:57:34 2011 -0500
+commit 986ad31b2dad78d2238a426904fcf9fbf120d2c8
+Author: Ron Minnich <rminnich@gmail.com>
+Date:   Mon Nov 7 11:42:13 2011 -0500
 
-    runtime: fix prototype for openbsd thrsleep
+    gc: use HEADER_IO macro from gopack
     
-    - Fix function prototype for thrsleep().
-    - Provide enums for clock identifiers.
-    - Provide timespec structure for use with thrsleep().
+    Use HEADER_IO macro from gopack to read archive header
+    The HEADER_IO macro portably reads archive headers. The
+    current arsize code fails in the case of archive headers produced
+    on plan 9 6c and read on other systems (it's not portable).
+    Modify lex.c to use the portable macro
+    Build tested (including tests) on OSX.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5360042
+    https://golang.org/cl/5323072
 
- src/pkg/runtime/openbsd/386/defs.h   |  6 ++++++
- src/pkg/runtime/openbsd/amd64/defs.h |  7 +++++++
- src/pkg/runtime/openbsd/defs.c       |  1 +
- src/pkg/runtime/openbsd/thread.c     | 12 +++++++++---
- 4 files changed, 23 insertions(+), 3 deletions(-)
+ src/cmd/gc/lex.c | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

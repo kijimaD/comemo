@@ -1,43 +1,19 @@
-commit f0e97546962736fe4aa73b7c7ed590f0134515e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 8 11:23:42 2019 -0400
+commit cef41e0d4b121ed31173a613039c32f5dd2e07f5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 11:23:15 2018 -0800
 
-    cmd/go: add env -w and env -u to set and unset default env vars
+    misc/cgo/testcshared: don't run TestGo2C2Go on Darwin
     
-    Setting environment variables for go command configuration
-    is too difficult and system-specific. This CL adds go env -w,
-    to change the default settings more easily, in a portable way.
-    It also adds go env -u, to unset those changes.
+    Darwin doesn't support the multiple copies of the runtime package
+    implied by linking a c-shared library into a Go program.
     
-    See https://golang.org/design/30411-env for details.
+    Updates #29061
     
-    Fixes #30411.
-    
-    Change-Id: I36e83f55b666459f8f7f482432a4a6ee015da71d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171137
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6cf5d00babf82f1de05689c1345aaa5ae0b0659c
+    Reviewed-on: https://go-review.googlesource.com/c/152159
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                    |  57 ++++---
- src/cmd/go/go_test.go                    |  13 +-
- src/cmd/go/internal/base/goflags.go      |   3 +-
- src/cmd/go/internal/cache/default.go     |   3 +-
- src/cmd/go/internal/cfg/cfg.go           | 254 ++++++++++++++++++++++++++++---
- src/cmd/go/internal/envcmd/env.go        | 240 ++++++++++++++++++++++++++---
- src/cmd/go/internal/help/helpdoc.go      |  47 +++---
- src/cmd/go/internal/modfetch/notary.go   |   4 +-
- src/cmd/go/internal/modfetch/proxy.go    |   4 +-
- src/cmd/go/internal/modload/init.go      |  27 ++--
- src/cmd/go/internal/work/action.go       |   2 +-
- src/cmd/go/internal/work/exec.go         |  35 +++--
- src/cmd/go/internal/work/gccgo.go        |   6 +-
- src/cmd/go/internal/work/security.go     |   9 +-
- src/cmd/go/main.go                       |  10 +-
- src/cmd/go/testdata/script/env_write.txt |  87 +++++++++++
- src/cmd/internal/objabi/util.go          |   2 +-
- src/make.bash                            |   1 +
- src/make.bat                             |   3 +-
- src/make.rc                              |   1 +
- src/runtime/extern.go                    |   3 +
- 21 files changed, 671 insertions(+), 140 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,30 +1,31 @@
-commit 009ca22fe2936c9a7a5a9e5364fe061688b27697
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 18 17:43:15 2023 -0700
+commit 84f95aa811ed4fdb316f787fe2af80b30d531abf
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 29 16:42:55 2021 -0400
 
-    cmd/compile/internal/typecheck: refactor and simplify DeclFunc
+    internal/coverage: add coverage meta-data decoder
     
-    This CL refactors typecheck.DeclFunc to require the caller to have
-    already constructed the ir.Func and signature type using ir.NewFunc
-    and types.NewSignature, and simplifies typecheck.DeclFunc to simply
-    return the slices of param and results ONAMEs.
+    Add a coverage meta-data decoder, which provides APIs for reading
+    encoded coverage meta-data and expanding it usable form. This package
+    is intended to be used in the coverage tooling that reads data files
+    emitted from coverage runs. Along with the new decoding package is a
+    unit test that runs the encode/decode paths together to check to make
+    sure that "decode(encode(X)) == X".
     
-    typecheck.DeclFunc was the last reason that ir.Field still exists, so
-    this CL also gets rid of that.
+    Updates #51430.
     
-    Change-Id: Ib398420bac2fd135a235810b8af1635fa754965c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520977
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I81d27d8da0b2fcfa5039114a6e35a4b463d19b3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353454
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/type.go          | 21 --------
- src/cmd/compile/internal/pkginit/init.go     | 19 ++++---
- src/cmd/compile/internal/reflectdata/alg.go  | 48 ++++++++++-------
- src/cmd/compile/internal/ssagen/abi.go       | 11 ++--
- src/cmd/compile/internal/staticinit/sched.go |  4 +-
- src/cmd/compile/internal/typecheck/dcl.go    | 78 +++++++++++-----------------
- src/cmd/compile/internal/typecheck/subr.go   | 22 ++++----
- 7 files changed, 93 insertions(+), 110 deletions(-)
+ src/go/build/deps_test.go                        |  12 +-
+ src/internal/coverage/decodemeta/decode.go       | 130 +++++++++++
+ src/internal/coverage/decodemeta/decodefile.go   | 223 ++++++++++++++++++
+ src/internal/coverage/slicereader/slicereader.go | 105 +++++++++
+ src/internal/coverage/slicereader/slr_test.go    |  92 ++++++++
+ src/internal/coverage/slicewriter/slicewriter.go |  80 +++++++
+ src/internal/coverage/slicewriter/slw_test.go    | 131 +++++++++++
+ src/internal/coverage/stringtab/stringtab.go     |  37 ++-
+ src/internal/coverage/test/roundtrip_test.go     | 275 +++++++++++++++++++++++
+ 9 files changed, 1082 insertions(+), 3 deletions(-)

@@ -1,14 +1,12 @@
-commit 5201bf7ad184cac07466016a78b80aed5e472be4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 20 22:16:29 2015 -0400
+commit ea5cd68646102e5de58eb6c5917cb1f4a6c04a84
+Author: Michael Matloob <matloob@google.com>
+Date:   Sun Jun 14 10:27:50 2015 -0700
 
-    net: do not look up abc by default
+    [dev.ssa] cmd/compile/internal/gc: fix call to newValue1
     
-    Fixes #11665.
-    
-    Change-Id: I0897e8cf695434e77d14dcb1d96f21747edfe37c
-    Reviewed-on: https://go-review.googlesource.com/12523
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I235a759e4688358adc088cf5a80f8ce7ad12d2f2
+    Reviewed-on: https://go-review.googlesource.com/11093
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/ip_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

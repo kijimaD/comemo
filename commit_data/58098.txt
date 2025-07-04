@@ -1,21 +1,28 @@
-commit 69c3cb8d1b882743c4de7118ddfb2d1a62c57be4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Nov 9 18:25:19 2024 +0100
+commit deb8e29000ebecbd788e0e86e239d52c26707457
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Sep 20 15:45:08 2023 -0400
 
-    crypto/internal/fips/ssh: implement SSH KDF
+    log/slog: JSONHandler elides empty groups even with replacement
     
-    For #69536
+    Previously, the built-in handlers assumed a group was empty if and
+    only if it had no attributes. But a ReplaceAttr function that
+    returned an empty Attr could produce an empty group even if the group
+    had attrs prior to replacement.
     
-    Change-Id: I0788469400de6a39cb22a6936a74d71066c476b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626875
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    The obvious solution, doing the replacement first and then checking,
+    would require allocating storage to hold the replaced Attrs.  Instead,
+    we write to the buffer, and if no attributes were written, we back up
+    to before the group name.
+    
+    Fixes #62512.
+    
+    Change-Id: I140e0901f4b157e36594d8d476f1ab326f8f2c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529855
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/ssh/kdf.go      | 52 +++++++++++++++++++++++++++
- src/crypto/internal/fips/ssh/kdf_test.go | 60 ++++++++++++++++++++++++++++++++
- src/go/build/deps_test.go                |  1 +
- 3 files changed, 113 insertions(+)
+ src/log/slog/handler.go                | 59 +++++++++++++++++++++++++++-------
+ src/log/slog/handler_test.go           | 31 ++++++++++++++++--
+ src/log/slog/internal/buffer/buffer.go | 10 +++++-
+ 3 files changed, 84 insertions(+), 16 deletions(-)

@@ -1,30 +1,27 @@
-commit 70546f6404c5927a9868a80ccbf4c6c2beaea671
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Aug 5 13:37:29 2021 +0200
+commit f37aa5e4e26a7212b6300e2021b8e6ea7000979b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 01:42:47 2020 -0800
 
-    runtime: allow arm64 SEH to be called if illegal instruction
+    [dev.regabi] cmd/compile: add NewNamed
     
-    DLLs built with recent Microsoft toolchains for ARM64 test for ARMv8.1
-    atomics by potentially calling an illegal instruction, and then trapping
-    the exception to disable use of them by way of a structured exception
-    handler. However, vectored exception handlers are always called before
-    structured exception handlers. When LoadLibrary-ing DLLs that do this
-    probing during initialization, our lastcontinuehandler winds up being
-    called, and then crashing, but actually it should give execution back to
-    the library to handle the exception and fix up the state. So special
-    case this for arm64 with illegal instructions, and hope that we're not
-    masking other things in external DLLs that might more fatally trigger an
-    illegal instruction exception.
+    The start of abstracting away Type fields. This adds a new constructor
+    for named types, styled after go/types.NewNamed. Along with helper
+    methods for SetNod and Pos, this allows hiding Nod.
     
-    Updates #47576.
-    
-    Change-Id: I341ab99cd8d513ae999b75596749d49779072022
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340070
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ica107034b6346c7b523bf6ae2a34009e350a9aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274434
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/signal_windows.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/fmtmap_test.go           |  1 +
+ src/cmd/compile/internal/gc/align.go     |  6 ++--
+ src/cmd/compile/internal/gc/export.go    |  4 +--
+ src/cmd/compile/internal/gc/iexport.go   |  2 +-
+ src/cmd/compile/internal/gc/iimport.go   |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  8 ++---
+ src/cmd/compile/internal/gc/typecheck.go | 14 ++-------
+ src/cmd/compile/internal/gc/universe.go  | 13 ++++----
+ src/cmd/compile/internal/ir/expr.go      |  8 ++---
+ src/cmd/compile/internal/ir/type.go      | 29 +++++-------------
+ src/cmd/compile/internal/types/type.go   | 51 ++++++++++++++++++++++++++++----
+ 11 files changed, 75 insertions(+), 63 deletions(-)

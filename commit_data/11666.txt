@@ -1,14 +1,12 @@
-commit 668418d1227aeb01782ba0ee05ac4ba657c0b5a2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 6 17:41:19 2012 -0800
+commit 1f133e2b8ecfc2d26ed480eba266f1b86647dc5c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 7 12:05:59 2012 +1100
 
-    go/token: remove dependency on encoding/gob
+    net: run TestDialTimeout on windows
     
-    R=dsymonds
-    CC=golang-dev
-    https://golang.org/cl/5636053
+    R=golang-dev, rsc
+    CC=bradfitz, golang-dev, mikioh.mikioh
+    https://golang.org/cl/5616066
 
- src/cmd/godoc/index.go             | 10 ++++++++--
- src/pkg/go/token/serialize.go      | 26 ++++++--------------------
- src/pkg/go/token/serialize_test.go | 11 +++++++++--
- 3 files changed, 23 insertions(+), 24 deletions(-)
+ src/pkg/net/dial_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

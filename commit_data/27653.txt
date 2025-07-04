@@ -1,20 +1,17 @@
-commit d1b5d08f341cbc702e1d2a3cd86ab1ad93a90c41
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 6 21:44:24 2016 -0700
+commit cdc0ebbebe64d8fa601914945112db306c85c426
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Feb 3 23:41:55 2016 +0100
 
-    misc/cgo/testsanitizers: don't run some TSAN tests on GCC < 7
+    encoding/json: respect json.Marshaler when encoding byte kind slices
     
-    Before GCC 7 defined __SANITIZE_THREAD__ when using TSAN,
-    runtime/cgo/libcgo.h could not determine reliably whether TSAN was in
-    use when using GCC.
+    Fixes #13783.
     
-    Fixes #15983.
-    
-    Change-Id: I5581c9f88e1cde1974c280008b2230fe5e971f44
-    Reviewed-on: https://go-review.googlesource.com/23833
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0122c1f0cf4075acabf5f58241bded1835699dc1
+    Reviewed-on: https://go-review.googlesource.com/19725
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- misc/cgo/testsanitizers/test.bash | 25 +++++++++++++++++++++----
- 1 file changed, 21 insertions(+), 4 deletions(-)
+ src/encoding/json/encode.go      |  4 ++-
+ src/encoding/json/encode_test.go | 55 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

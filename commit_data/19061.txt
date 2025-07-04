@@ -1,20 +1,16 @@
-commit 9610b616c6936edde5aa54312c8dc5e182aebf73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 8 13:51:44 2014 -0700
+commit 4b42ad2559db444b6a0d4c76aa08f063085485d5
+Author: Alexander Zhavnerchik <alex.vizor@gmail.com>
+Date:   Tue Apr 8 11:12:51 2014 -0400
 
-    go/doc: fix URL matched in ToHTML
+    encoding/xml: Makes XML Marshaler take into account XMLName field from anonymous field
     
-    Permit paired parentheses in URLs such as:
-    
-    http://en.wikipedia.org/wiki/Camellia_(cipher)
-    
-    Fixes #5043.
+    Fixes #7614.
     
     LGTM=rsc
-    R=rsc
+    R=golang-codereviews, r, rsc, dan.kortschak, applezinc
     CC=golang-codereviews
-    https://golang.org/cl/85610043
+    https://golang.org/cl/79210044
 
- src/pkg/go/doc/comment.go      | 45 +++++++++++++++++++++++++++++++++++-------
- src/pkg/go/doc/comment_test.go | 38 +++++++++++++++++++++++++++++++++--
- 2 files changed, 74 insertions(+), 9 deletions(-)
+ src/pkg/encoding/xml/marshal_test.go | 41 ++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/xml/typeinfo.go     |  3 +++
+ 2 files changed, 44 insertions(+)

@@ -1,15 +1,20 @@
-commit 8518aac3147da163ac5accfacbf0c30f684177e2
-Author: ian woolf <btw515wolf2@gmail.com>
-Date:   Thu Apr 8 20:42:47 2021 +0800
+commit 8266570ba71fd6af9c07d8fac945b3710010dfc7
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Sun Sep 13 14:40:51 2020 +0000
 
-    crypto/x509: replace os.MkdirTemp with T.TempDir
+    encoding/json: added docs to UnsupportedValueError
     
-    Updates #45402
+    Added godoc to UnsupportedValueError.
     
-    Change-Id: Ifb1fa5232a0fa1be62e886643cec9deaa3b312ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308409
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I5fc13bac0b6e14b3a6eba27c9d3331ff5c5269aa
+    GitHub-Last-Rev: 516cd7a92903e1048caa4d560abf5d66339e5a8f
+    GitHub-Pull-Request: golang/go#41364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254540
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/x509/root_unix_test.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/encoding/json/encode.go | 2 ++
+ 1 file changed, 2 insertions(+)

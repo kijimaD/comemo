@@ -1,22 +1,47 @@
-commit 4c2465d47d8c706832bbc57668680a3ffc4d800f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 15 14:33:50 2015 -0700
+commit 4dcf8ea1a44cd1c566cb492560ee44b9e81a6d9e
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Jul 14 16:26:38 2015 -0500
 
-    runtime: use unsafe.Pointer(x) instead of (unsafe.Pointer)(x)
+    [dev.ssa] cmd/compile/ssa: speed up nilcheck
     
-    This isn't C anymore.  No binary change to pkg/linux_amd64/runtime.a.
+    Reworks nilcheck to be performed by a depth first traversal of the
+    dominator tree, keeping an updated map of the values that have been
+    nil-checked during the traversal.
     
-    Change-Id: I24d66b0f5ac888f432b874aac684b1395e7c8345
-    Reviewed-on: https://go-review.googlesource.com/15903
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark                           old ns/op     new ns/op     delta
+    BenchmarkNilCheckDeep1-8            1242          1825          +46.94%
+    BenchmarkNilCheckDeep10-8           2397          3942          +64.46%
+    BenchmarkNilCheckDeep100-8          29105         24873         -14.54%
+    BenchmarkNilCheckDeep1000-8         2742563       265760        -90.31%
+    BenchmarkNilCheckDeep10000-8        335690119     3157995       -99.06%
+    
+    benchmark                           old MB/s     new MB/s     speedup
+    BenchmarkNilCheckDeep1-8            0.81         0.55         0.68x
+    BenchmarkNilCheckDeep10-8           4.17         2.54         0.61x
+    BenchmarkNilCheckDeep100-8          3.44         4.02         1.17x
+    BenchmarkNilCheckDeep1000-8         0.36         3.76         10.44x
+    BenchmarkNilCheckDeep10000-8        0.03         3.17         105.67x
+    
+    benchmark                        old allocs     new allocs     delta
+    BenchmarkNilCheckDeep1-8         9              14             +55.56%
+    BenchmarkNilCheckDeep10-8        9              23             +155.56%
+    BenchmarkNilCheckDeep100-8       9              113            +1155.56%
+    BenchmarkNilCheckDeep1000-8      9              1015
+    +11177.78%
+    BenchmarkNilCheckDeep10000-8     9              10024
+    +111277.78%
+    
+    benchmark                        old bytes     new bytes     delta
+    BenchmarkNilCheckDeep1-8         432           608           +40.74%
+    BenchmarkNilCheckDeep10-8        1008          1496          +48.41%
+    BenchmarkNilCheckDeep100-8       8064          11656         +44.54%
+    BenchmarkNilCheckDeep1000-8      73728         145240        +96.99%
+    BenchmarkNilCheckDeep10000-8     737280        2144411       +190.85%
+    
+    Change-Id: I0f86010e9823aec04aac744fdb589b65ec8acefc
+    Reviewed-on: https://go-review.googlesource.com/12332
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/heapdump.go   |  4 ++--
- src/runtime/lock_sema.go  |  2 +-
- src/runtime/malloc.go     | 16 ++++++++--------
- src/runtime/mem_darwin.go |  6 +++---
- src/runtime/mfixalloc.go  |  2 +-
- src/runtime/mheap.go      | 16 ++++++++--------
- src/runtime/os1_plan9.go  |  2 +-
- src/runtime/panic.go      |  2 +-
- src/runtime/stack1.go     | 28 ++++++++++++++--------------
- 9 files changed, 39 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go      | 116 ++++++++++++--
+ src/cmd/compile/internal/ssa/nilcheck_test.go | 211 ++++++++++++++++++++++++++
+ 2 files changed, 316 insertions(+), 11 deletions(-)

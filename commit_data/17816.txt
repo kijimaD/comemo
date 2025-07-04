@@ -1,14 +1,14 @@
-commit f5d25fd695471065a474b7940ef11e006d683aac
+commit 04e95a1a56c35f63e3ac51c9d9973297a57c2b10
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 18 15:03:41 2013 +0900
+Date:   Fri Oct 18 13:36:59 2013 +0900
 
-    misc/dist: build race packages when os suffix present
+    api: add go1.2.txt, use in tests
     
-    The "darwin-amd64-osx10.8" target was not matching "darwin-amd64".
-    
-    R=golang-dev
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14930043
+    https://golang.org/cl/14860043
 
- misc/dist/bindist.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/go1.2.txt      | 32484 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 32479 --------------------------------------------------
+ src/cmd/api/run.go |     2 +-
+ 3 files changed, 32485 insertions(+), 32480 deletions(-)

@@ -1,18 +1,27 @@
-commit 10b3e310e2cd1fcdab8185cac78f7506e5c6b118
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Dec 14 13:40:59 2012 +0400
+commit 04f0d148e9946d4ec20d8d8a521560b091877665
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 14 17:33:59 2012 +1100
 
-    runtime/race: update runtime to r170112.
-    This includes GORACE history_size and log_path flags.
+    cmd/go: handle os signals
     
-    This change is actually an addition to:
-    https://golang.org/cl/6947046
+    Ignore signals during "go run" and wait for running child
+    process to exit. Stop executing further tests during "go test",
+    wait for running tests to exit and report error exit code.
     
-    race_linux_amd64.syso somehow fall out of it.
+    Original CL 6351053 by dfc.
     
-    R=minux.ma
+    Fixes #3572.
+    Fixes #3581.
+    
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6946051
+    https://golang.org/cl/6903061
 
- src/pkg/runtime/race/race_linux_amd64.syso | Bin 147064 -> 149080 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/dist/build.c         |  1 +
+ src/cmd/go/build.go          | 31 +++++++++++++++++++++----------
+ src/cmd/go/run.go            |  1 +
+ src/cmd/go/signal.go         | 31 +++++++++++++++++++++++++++++++
+ src/cmd/go/signal_notunix.go | 13 +++++++++++++
+ src/cmd/go/signal_unix.go    | 14 ++++++++++++++
+ src/cmd/go/test.go           |  1 +
+ 7 files changed, 82 insertions(+), 10 deletions(-)

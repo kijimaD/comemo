@@ -1,19 +1,30 @@
-commit e48a83f077e47bd015d4b57e63e9b6fb5e77dc8b
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Fri Feb 28 20:14:18 2020 +0800
+commit 2197321db1dd997165c0091ba2bcb3b6be7633d0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 8 14:21:17 2019 -0700
 
-    internal/cpu: add MIPS64x feature detection
+    cmd/compile: split n.Noescape() into separate uses
     
-    Change-Id: Iacdad1758aa15e4703fccef38c08ecb338b95fd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200579
-    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    n.Noescape() was overloaded for two uses: (1) to indicate a function
+    was annotated with //go:noescape, and (2) to indicate that certain
+    temporary allocations don't outlive the current statement.
+    
+    The first use case is redundant with n.Func.Pragma&Noescape!=0, which
+    is the convention we use for checking other function-level pragmas.
+    
+    The second use case is better served by renaming "Noescape" to
+    "Transient".
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0f09d2d5767513894b7bf49da9cdabd04aa4a05e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199822
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/cpu/cpu.go          |  8 ++++++++
- src/internal/cpu/cpu_mips64.go   |  7 -------
- src/internal/cpu/cpu_mips64le.go |  7 -------
- src/internal/cpu/cpu_mips64x.go  | 32 ++++++++++++++++++++++++++++++++
- src/internal/cpu/cpu_no_init.go  |  2 ++
- src/runtime/os_linux_mips64x.go  |  6 ++++++
- 6 files changed, 48 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/esc.go    | 2 +-
+ src/cmd/compile/internal/gc/escape.go | 2 +-
+ src/cmd/compile/internal/gc/noder.go  | 3 +--
+ src/cmd/compile/internal/gc/order.go  | 6 +++---
+ src/cmd/compile/internal/gc/syntax.go | 6 +++---
+ 5 files changed, 9 insertions(+), 10 deletions(-)

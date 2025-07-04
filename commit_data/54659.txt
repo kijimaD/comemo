@@ -1,20 +1,38 @@
-commit 1ce8a3f08170c81085a26165d6c4e1a058d1e0d6
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Fri Sep 8 08:21:58 2023 +0900
+commit 5b42f89e394a9e9fbd28fa93cc8a09186db0f233
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Thu Jan 6 13:57:05 2022 -0500
 
-    io: add (*SectionReader).Outer()
+    context: add APIs for writing and reading cancelation cause
     
-    Fixes #61870
-    Updates #61727
+    Extend the context package to allow users to specify why a context was
+    canceled in the form of an error, the "cause". Users write the cause
+    by calling WithCancelCause to construct a derived context, then
+    calling cancel(cause) to cancel the context with the provided cause.
+    Users retrieve the cause by calling context.Cause(ctx), which returns
+    the cause of the first cancelation for ctx or any of its parents.
     
-    Change-Id: Iaef9b59c402d68f6bf64be212db2b6746abe8900
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526855
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    The cause is implemented as a field of cancelCtx, since only cancelCtx
+    can be canceled. Calling cancel copies the cause to all derived (child)
+    cancelCtxs. Calling Cause(ctx) finds the nearest parent cancelCtx by
+    looking up the context value keyed by cancelCtxKey.
+    
+    API changes:
+    +pkg context, func Cause(Context) error
+    +pkg context, func WithCancelCause(Context) (Context, CancelCauseFunc)
+    +pkg context, type CancelCauseFunc func(error)
+    
+    Fixes #26356
+    Fixes #51365
+    
+    Change-Id: I15b62bd454c014db3f4f1498b35204451509e641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375977
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
+    Auto-Submit: Sameer Ajmani <sameer@golang.org>
 
- api/next/61870.txt |  1 +
- src/io/io.go       | 17 +++++++++++++----
- src/io/io_test.go  |  6 ++++++
- 3 files changed, 20 insertions(+), 4 deletions(-)
+ api/next/51365.txt          |   3 +
+ src/context/context.go      |  94 +++++++++++++++++++++------
+ src/context/context_test.go | 153 +++++++++++++++++++++++++++++++++++++++++++-
+ src/context/x_test.go       |   1 +
+ 4 files changed, 231 insertions(+), 20 deletions(-)

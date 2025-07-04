@@ -1,33 +1,22 @@
-commit 0a0de0fc4241c7531860e3c1a03ab4a4643ec37f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 4 09:18:02 2023 -0500
+commit 78e99761fc4bf1f5370f912b8a4594789c2f09f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 23 14:26:07 2022 -0800
 
-    runtime: revert use of __fork to work around Apple atfork bugs
+    go/types, types2: don't crash if comp. literal element type has no core type
     
-    An Apple engineer suggests that since __fork is not public API,
-    it would be better to use a different fix. With the benefit of source code,
-    they suggest using xpc_date_create_from_current instead of
-    xpc_atfork_child. The latter sets some flags that disable certain
-    functionality for the remainder of the process lifetime (expecting exec),
-    while the former should do the necessary setup.
+    Instead, report a suitable error.
     
-    Reverting the __fork fix in order to prepare a clean fix based
-    on CL 451735 using xpc_date_create_from_current.
+    Fixes #51335.
     
-    This reverts commit c61d322d5f9e3fcffa4c523892af432dca030c12.
-    
-    Change-Id: I2da293ff537237ffd2d40ad756d827c95c84635b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460475
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ifce90cb7487b1e99c6b4221c0d43bacc0c39dca8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387676
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/syscall/exec_libc2.go            |  4 ++--
- src/syscall/syscall_darwin.go        | 32 ++------------------------------
- src/syscall/syscall_openbsd_libc.go  |  6 +-----
- src/syscall/zsyscall_darwin_amd64.go | 22 ++++------------------
- src/syscall/zsyscall_darwin_amd64.s  |  6 ++----
- src/syscall/zsyscall_darwin_arm64.go | 22 ++++------------------
- src/syscall/zsyscall_darwin_arm64.s  |  6 ++----
- 7 files changed, 17 insertions(+), 81 deletions(-)
+ src/cmd/compile/internal/types2/expr.go                  |  4 ++++
+ .../internal/types2/testdata/fixedbugs/issue51335.go2    | 16 ++++++++++++++++
+ src/go/types/expr.go                                     |  4 ++++
+ src/go/types/testdata/fixedbugs/issue51335.go2           | 16 ++++++++++++++++
+ 4 files changed, 40 insertions(+)

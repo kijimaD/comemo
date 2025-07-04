@@ -1,17 +1,15 @@
-commit 3ef07c412f068144554648c0d209bef444a2ee27
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Oct 23 16:11:13 2016 -0400
+commit 643b9ec07c3a0e440a2b1669896d7a4b4d4dd64b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 25 14:10:01 2016 -0700
 
-    cmd, runtime: remove s390x 3 operand immediate logical ops
+    cmd/compile: tidy up switch case expansion
     
-    These are emulated by the assembler and we don't need them.
+    No functional changes.
     
-    Change-Id: I2b07c5315a5b642fdb5e50b468453260ae121164
-    Reviewed-on: https://go-review.googlesource.com/31758
+    Change-Id: I0961227e8a7be2d7c611452896843b6955303fa6
+    Reviewed-on: https://go-review.googlesource.com/26768
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/s390x/ssa.go   | 11 +++--
- src/cmd/internal/obj/s390x/asmz.go      | 77 ++++++++++++---------------------
- src/runtime/asm_s390x.s                 |  9 ++--
- src/runtime/internal/atomic/asm_s390x.s |  6 ++-
- 4 files changed, 43 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

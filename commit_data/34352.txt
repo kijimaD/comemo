@@ -1,17 +1,16 @@
-commit 9cae3aaf47de8c79c31ef53c1ed4e2db46214aea
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Dec 16 10:04:03 2017 +1100
+commit 2f40dc79e5febf2c27303285ef853a5dd064f777
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Oct 19 17:47:07 2017 -0400
 
-    os: do not forget to set ModeDevice when using ModeCharDevice
+    cmd/trace: fix a javascript bug in handling import error
     
-    Fixes #23123
+    When traceviewer encounters a failure of json trace import
+    due to data error, onImportFail tried to access an error variable
+    which was not yet defined.
     
-    Change-Id: Ia4ac947cc49ef3d150ef60a095b86552dcef397d
-    Reviewed-on: https://go-review.googlesource.com/84435
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I431be03f179aafacaf1fd3c62a6337e8b5bd18fb
+    Reviewed-on: https://go-review.googlesource.com/71970
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/os_test.go       | 2 +-
- src/os/types_windows.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/trace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

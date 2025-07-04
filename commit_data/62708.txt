@@ -1,0 +1,17 @@
+commit 391dde29a37f3fd450f7d61e3f220930e0164b89
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 20 22:53:51 2025 +1100
+
+    cmd/internal/obj/arm64: factor out constant classification code
+    
+    This will allow for further improvements and deduplication.
+    
+    Change-Id: I9374fc2d16168ced06f3fcc9e558a9c85e24fd01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650936
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 107 +++++++++++++++++++------------------
+ 1 file changed, 56 insertions(+), 51 deletions(-)

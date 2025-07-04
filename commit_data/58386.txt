@@ -1,17 +1,20 @@
-commit fb764cdad03ae2e500100b691f77cbd0d22b7d9c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 12 13:03:49 2024 -0500
+commit d72f4542fea6c2724a253a8322bc8aeed637021e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 30 10:06:00 2023 -0400
 
-    cmd/link: block new standard library linknames
+    cmd/go: allow 'go mod download' to switch toolchains if called with explicit arguments
     
-    In Go 1.24 we added a number of new linknames for standard library
-    internal uses. Add them to the linker's blocklist to keep them
-    internal.
+    Fixes #62054.
     
-    Change-Id: Ibb7fa095506c161604e978ae196a7cf248475b2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635676
+    Change-Id: I4ea24070f7d9aa4964c2f215836602068058f718
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537480
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/loader/loader.go | 39 ++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/cmd/go/internal/modcmd/download.go             |  81 ++++++++++++----
+ src/cmd/go/testdata/script/gotoolchain_modcmds.txt |   8 --
+ .../script/mod_download_exec_toolchain.txt         | 106 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_future.txt      |   3 +-
+ 4 files changed, 173 insertions(+), 25 deletions(-)

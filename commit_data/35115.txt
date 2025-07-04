@@ -1,12 +1,16 @@
-commit a5f19812cf0a8be6df68b9f90a8b80d734b6e862
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 24 16:25:45 2018 -0700
+commit bfb8f2a765d6097c82b30ae2c19c99fa1082add3
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Dec 14 16:11:03 2017 -0500
 
-    go/types: fix lhs/rhs mixup in docs
+    doc/debugging_with_gdb: update -gcflags usage
     
-    Change-Id: Ifd51636c9254de51b8a21371d7507a9481bcca0a
-    Reviewed-on: https://go-review.googlesource.com/109142
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    After go1.10, compiler/linker option flags apply only to the packages
+    listed directly on the command line unless the matching pattern is
+    specified. For debugging, we want to apply the flags to all packages.
+    
+    Change-Id: Ic69eee1491b1080fc140592f200c59a6e03d87ac
+    Reviewed-on: https://go-review.googlesource.com/84135
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/api.go | 2 +-
+ doc/debugging_with_gdb.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

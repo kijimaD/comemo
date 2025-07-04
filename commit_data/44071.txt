@@ -1,16 +1,24 @@
-commit 780b4de16b5ba03f2f2ebee35281217552578d50
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Dec 29 21:37:06 2020 +0000
+commit 14ae846f54c105f4d48f1afa5aa5446e4b9e7cdc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 6 19:18:07 2020 +0000
 
-    misc/ios: fix wording for command line instructions
+    runtime: avoid overflow in (*mheap).grow
     
-    A typo was made, which I noticed while looking through the recent master
-    commits.
+    Currently when checking if we can grow the heap into the current arena,
+    we do an addition which may overflow. This is particularly likely on
+    32-bit systems.
     
-    Change-Id: Ieed5d6664a1f3ff5892d59abf194963b44ef0e55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280454
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Avoid this situation by explicitly checking for overflow, and adding in
+    some comments about when overflow is possible, when it isn't, and why.
+    
+    For #35954.
+    
+    Change-Id: I2d4ecbb1ccbd43da55979cc721f0cd8d1757add2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231337
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/ios/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mheap.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

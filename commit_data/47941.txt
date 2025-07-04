@@ -1,17 +1,18 @@
-commit 4f6f68ee4b50162d3bd01efb9b8a5f6a10dc54af
-Author: Patrik Nyblom <pnyb@google.com>
-Date:   Wed Jan 12 17:50:55 2022 -0800
+commit 43466399cbce877273c8dad2697772cdb443f32b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 16 15:26:57 2021 -0400
 
-    testing: skip flaky TestRaiseException on windows-amd64-2012
+    internal/buildcfg: make regabi enable regabiargs
     
-    This is in relation to #49681
+    For #40724.
     
-    Change-Id: I32ad8b506cf8fb0a94b15c3cc8b1eaf5af728c59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378254
-    Run-TryBot: Patrik Nyblom <pnyb@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Patrik Nyblom <pnyb@google.com>
+    Change-Id: I6e9d7eb91883857479699972a974a39ce3d9d2cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310849
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/syscall_windows_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/internal/buildcfg/exp.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

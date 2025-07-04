@@ -1,31 +1,20 @@
-commit c6531fae589cf3f9475f3567a5beffb4336fe1d6
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Oct 21 18:14:24 2024 +0000
+commit 43559aa9a5a550ba7dac224a174130e42f93de99
+Author: crozzy <joseph.crosland@gmail.com>
+Date:   Thu Aug 24 22:14:44 2023 +0000
 
-    go/types,types2: avoid data race to object.color_ through dot imports
+    runtime/debug: fix minor BuildSetting doc typos
     
-    As described in issue #69912, type checking dot-imported identifiers can
-    result in a call to objDecl on an imported object, which leads to a data
-    race to the color_ field.
+    Corrects a couple of defined key descriptions.
     
-    There are multiple potential fixes for this race. Opt for avoiding the
-    call to objDecl altogether, rather than setting color_ during import.
-    The color_ field is an internal property of objects that should only be
-    valid during the type checking of their package. We should not be
-    calling objDecl on imported objects.
-    
-    Fixes #69912
-    
-    Change-Id: I55eb652479715f2a7ac84104db2f448091c4e7ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621637
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8c5c0e3aca5431086076d19792291aee96f5d1d5
+    GitHub-Last-Rev: e722d0a923f6c556cbc7fd52f21862844538d75b
+    GitHub-Pull-Request: golang/go#62273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522875
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../compile/internal/importer/gcimporter_test.go   | 65 +++++++++++++++++++++
- .../internal/importer/testdata/issue69912.go       |  9 +++
- src/cmd/compile/internal/types2/typexpr.go         | 15 +++--
- src/go/internal/gcimporter/gcimporter_test.go      | 66 ++++++++++++++++++++++
- src/go/internal/gcimporter/testdata/issue69912.go  |  9 +++
- src/go/types/typexpr.go                            | 15 +++--
- 6 files changed, 167 insertions(+), 12 deletions(-)
+ src/runtime/debug/mod.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

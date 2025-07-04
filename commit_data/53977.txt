@@ -1,25 +1,19 @@
-commit 446783960277251fcb837f3672f377469d204918
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 10 11:56:53 2023 -0400
+commit 5bbee7a095435e52322b3a7c1e028b19c22e86e5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 9 10:49:50 2022 +0700
 
-    time: make time.Since a few nanoseconds faster
+    reflect: move benchmarks to its own file
     
-    time.Since(base) is an idiom that can be used to read the system
-    monotonic time as efficiently as possible, when that matters.
-    The current code structure adds a few nanoseconds on top of
-    the 15-20ns the time read already takes. Remove those few.
+    all_test.go is quite big, so let it contain tests only.
     
-    After this CL, there is no reason at all for anyone to
-    //go:linkname runtime.nanotime1 instead.
-    
-    Came up while investigating #61765.
-    
-    Change-Id: Ic9e688af039babfc2a5a8e67dcbb02847a5eb686
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518336
+    Change-Id: I5003db4a8b1e2384ea8470f5e89e1c26d61d10ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429759
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/time/time.go | 29 ++++++++++++++---------------
- 1 file changed, 14 insertions(+), 15 deletions(-)
+ src/reflect/all_test.go       | 385 ----------------------------------------
+ src/reflect/benchmark_test.go | 397 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 397 insertions(+), 385 deletions(-)

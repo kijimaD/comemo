@@ -1,12 +1,15 @@
-commit c088ebef16c3510677153581a53a262b7c9200ea
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jan 20 15:48:01 2012 -0500
+commit 46e7cb57c951724630a722c55cda684889a7123b
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Fri Jan 20 13:34:38 2012 -0500
 
-    go run: correctly handle -n and -x flags
+    gc: do not try to add a key with incorrect type to a hash
     
-    R=golang-dev, rsc
+    Fixes #2623.
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5557069
+    https://golang.org/cl/5533043
 
- src/cmd/go/run.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c   |  3 ++-
+ test/fixedbugs/bug397.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

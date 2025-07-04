@@ -1,26 +1,15 @@
-commit b2a3b54b9520ce869d79ac8bce836a540ba45d09
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 13 21:43:56 2017 +0000
+commit a431bdc712c7a404307f38228271d970d9d2c023
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 23:19:10 2016 -0400
 
-    net/http: make sure Hijack's bufio.Reader includes pre-read background byte
+    testing: document that Skip cannot undo Error
     
-    Previously, if the Hijack called stopped the background read call
-    which read a byte, that byte was sitting in memory, buffered, ready to
-    be Read by Hijack's returned bufio.Reader, but it wasn't yet in the
-    bufio.Reader's buffer itself, so bufio.Reader.Buffered() reported 1
-    byte fewer.
+    Fixes #16502.
     
-    This matters for callers who wanted to stitch together any buffered
-    data (with bufio.Reader.Peek(bufio.Reader.Buffered())) with Hijack's
-    returned net.Conn. Otherwise there was no way for callers to know a
-    byte was read.
-    
-    Change-Id: Id7cb0a0a33fe2f33d79250e13dbaa9c0f7abba13
-    Reviewed-on: https://go-review.googlesource.com/35232
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Id8e117a724d73cd51844c06d47bbeba61f8dc827
+    Reviewed-on: https://go-review.googlesource.com/31324
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/net/http/serve_test.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 10 ++++++-
- 2 files changed, 76 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 1 +
+ 1 file changed, 1 insertion(+)

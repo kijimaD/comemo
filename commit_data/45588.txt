@@ -1,44 +1,37 @@
-commit b211fe005860db3ceff5fd56af9951d6d1f44325
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 7 14:14:39 2021 -0700
+commit 60f42ea61cb7e1de8d54432d8fb9ab028b8a575d
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Fri Aug 14 22:58:49 2020 +1200
 
-    cmd/compile: remove bit operations that modify memory directly
+    strconv: fix incorrect bit size in ParseComplex; add tests
     
-    These operations (BT{S,R,C}{Q,L}modify) are quite a bit slower than
-    other ways of doing the same thing.
+    In ParseComplex, the "size" passed to parseFloatPrefix should be 64 for
+    complex128, not 128. It still works because of how parseFloatPrefix
+    is forgiving about the size if it's not 32, but worth fixing anyway.
     
-    Without the BTxmodify operations, there are two fallback ways the compiler
-    performs these operations: AND/OR/XOR operations directly on memory, or
-    load-BTx-write sequences. The compiler kinda chooses one arbitrarily
-    depending on rewrite rule application order. Currently, it uses
-    load-BTx-write for the Const benchmarks and AND/OR/XOR directly to memory
-    for the non-Const benchmarks. TBD, someone might investigate which of
-    the two fallback strategies is really better. For now, they are both
-    better than BTx ops.
+    Make ParseComplex and ParseFloat return a bit size error for anything
+    other than 128 or 64 (for ParseComplex), or 64 or 32 (for ParseFloat).
+    Add "InvalidBitSize" tests for these cases.
     
-    name              old time/op  new time/op  delta
-    BitSet-8          1.09µs ± 2%  0.64µs ± 5%  -41.60%  (p=0.000 n=9+10)
-    BitClear-8        1.15µs ± 3%  0.68µs ± 6%  -41.00%  (p=0.000 n=10+10)
-    BitToggle-8       1.18µs ± 4%  0.73µs ± 2%  -38.36%  (p=0.000 n=10+8)
-    BitSetConst-8     37.0ns ± 7%  25.8ns ± 2%  -30.24%  (p=0.000 n=10+10)
-    BitClearConst-8   30.7ns ± 2%  25.0ns ±12%  -18.46%  (p=0.000 n=10+10)
-    BitToggleConst-8  36.9ns ± 1%  23.8ns ± 3%  -35.46%  (p=0.000 n=9+10)
+    Add tests for ParseComplex with bitSize==64: this is done in a similar
+    way to how the ParseFloat 32-bit tests work, re-using the tests for the
+    larger bit size.
     
-    Fixes #45790
-    Update #45242
+    Add tests for FormatComplex -- there were none before.
     
-    Change-Id: Ie33a72dc139f261af82db15d446cd0855afb4e59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318149
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #40706
+    
+    Change-Id: I16ddd546e5237207cc3b8c2181dd708eca42b04f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248219
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Trust: Minux Ma <minux@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |    4 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   56 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   19 -
- src/cmd/compile/internal/ssa/opGen.go        |  186 ----
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1221 +-------------------------
- src/cmd/compile/internal/test/bench_test.go  |   60 ++
- test/codegen/bits.go                         |   12 -
- 7 files changed, 127 insertions(+), 1431 deletions(-)
+ src/strconv/atoc.go      |  6 +++---
+ src/strconv/atoc_test.go | 22 ++++++++++++++++++++
+ src/strconv/atof.go      |  3 +++
+ src/strconv/atof_test.go | 11 ++++++++++
+ src/strconv/ctoa_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/strconv/ftoa_test.go |  9 ++++++++
+ 6 files changed, 101 insertions(+), 3 deletions(-)

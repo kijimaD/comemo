@@ -1,17 +1,17 @@
-commit 633b742ae084df018c802c97bdbe91cf5f598605
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 21 13:52:42 2023 -0700
+commit ab8a2c5e4467f55417f4ade4f8e3f9a867946e40
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Jun 8 23:27:05 2022 +0200
 
-    test: add test that caused a gofrontend crash
+    cmd/compile: generic constant folding: Floor Ceil Trunc RoundToEven
     
-    Change-Id: Idd872c5b90dbca564ed8a37bb3683e642142ae63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505015
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I553a6d0bd3ae45e5bf62191411e71102b3f44cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411215
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- test/fixedbugs/bug516.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 68 ++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+)

@@ -1,12 +1,20 @@
-commit d74680ea1cf3f1f52098eb293bd7198750f2193f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 21 22:50:00 2012 -0800
+commit c2cd0d09c2e784fb818aea47557269a3bac9d8b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 01:30:04 2012 -0500
 
-    godoc: fix potential index out-of-bounds error
+    ld: get symbol table letters right
     
-    R=golang-dev, bradfitz, dsymonds
+    Have to assign them before we create the symbol table.
+    ARM debugging.
+    
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5683072
+    https://golang.org/cl/5689067
 
- src/cmd/godoc/mapping.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/5l/asm.c    |  4 ++++
+ src/cmd/6l/asm.c    |  4 ++++
+ src/cmd/8l/asm.c    |  2 ++
+ src/cmd/ld/data.c   | 40 +++++++++++++++++++++++++---------------
+ src/cmd/ld/lib.h    |  1 +
+ src/cmd/ld/symtab.c | 14 ++++++++------
+ 6 files changed, 44 insertions(+), 21 deletions(-)

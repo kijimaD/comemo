@@ -1,15 +1,19 @@
-commit f2c3122307fc91b792226facbe1da1f48eec9be5
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Feb 14 18:43:54 2013 -0800
+commit ea0292c61bfe85d85ef6f81fe1874227c5fc674a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 15 10:44:29 2013 +1100
 
-    cmd/ld: fix -s flag for ELF executables
+    misc/dashboard/builder: record build result on dashboard
     
-    This fixes a regression introduced in changeset 98034d036d03
-    which added support for producing host object files.
+    This is part one of two changes intended to make it easier to debug builder failures.
     
-    R=rsc, minux.ma
-    CC=dave, golang-dev
-    https://golang.org/cl/7307107
+    runOutput allows us to control the io.Writer passed to a subcommand. The intention is to add additional debugging information before and after the build which will then be capture and sent to the dashboard.
+    
+    In this proposal, the only additional information is the build status. See http://build.golang.org/log/e7b5bf435b4de1913fc61781b3295fb3f03aeb6e
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/7303090
 
- src/cmd/ld/elf.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ misc/dashboard/builder/exec.go | 44 +++++++++++++++++++-----------------------
+ misc/dashboard/builder/main.go | 42 +++++++++++++++++++++++++++-------------
+ 2 files changed, 49 insertions(+), 37 deletions(-)

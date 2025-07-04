@@ -1,19 +1,18 @@
-commit af12dc5cd5bd0f81f4473207343771ed61b0bcb0
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Thu Aug 28 08:22:54 2014 -0700
+commit 3d3d5390834629a73b745900eb1a0aeda94d927d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 22 22:21:41 2014 +1000
 
-    mime: Make filename extensions case-insensitive
+    path, path/filepath: remove dead code
     
-    Fixes #8350.
+    Fixes #8503.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, dave
+    Thanks to no.smile.face for the original report.
+    
+    LGTM=bradfitz, r, ruiu
+    R=bradfitz, ruiu, r
     CC=golang-codereviews
-    https://golang.org/cl/127380043
+    https://golang.org/cl/132730043
 
- src/pkg/mime/type.go         | 52 ++++++++++++++++++++++++++++++--------------
- src/pkg/mime/type_plan9.go   |  2 +-
- src/pkg/mime/type_test.go    | 16 +++++++++-----
- src/pkg/mime/type_unix.go    |  2 +-
- src/pkg/mime/type_windows.go |  2 +-
- 5 files changed, 50 insertions(+), 24 deletions(-)
+ src/pkg/path/filepath/path.go |  7 -------
+ src/pkg/path/path.go          | 10 +---------
+ 2 files changed, 1 insertion(+), 16 deletions(-)

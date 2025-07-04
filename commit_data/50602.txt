@@ -1,31 +1,18 @@
-commit 4c5a6f9555558cd2809270c907ffb52a698a6a3b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 22 17:38:17 2022 -0700
+commit 2b81b863a258decaaca26ab4c01bfd070cc01ebe
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:36:36 2021 -0400
 
-    go/types, types2: provide error codes where they were missing
+    go/types: fix indexing of generic types
     
-    We need a better approach eventually, but this is ok for now.
-    In go/types, always use _UnsupportedFeature for unavailable
-    version-specific features.
+    This is a clean port of CL 360603 to go/types.
     
-    Change-Id: I15b47e34eda167db3133bd481aa2f55cf3662c31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433195
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iadb312f07e509ff83339d5525765b7b7987bf233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360936
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go | 1 +
- src/cmd/compile/internal/types2/call.go        | 1 +
- src/cmd/compile/internal/types2/conversions.go | 1 +
- src/cmd/compile/internal/types2/decl.go        | 1 +
- src/cmd/compile/internal/types2/initorder.go   | 1 +
- src/cmd/compile/internal/types2/labels.go      | 1 +
- src/cmd/compile/internal/types2/mono.go        | 1 +
- src/cmd/compile/internal/types2/resolver.go    | 1 +
- src/cmd/compile/internal/types2/signature.go   | 1 +
- src/cmd/compile/internal/types2/stmt.go        | 4 ++++
- src/cmd/compile/internal/types2/struct.go      | 1 +
- src/cmd/compile/internal/types2/typeset.go     | 2 ++
- src/go/types/errors.go                         | 4 ++--
- src/go/types/stmt.go                           | 1 +
- src/go/types/typexpr.go                        | 2 +-
- 15 files changed, 20 insertions(+), 3 deletions(-)
+ src/go/types/index.go                      | 87 +++++++++++++++---------------
+ src/go/types/testdata/check/typeparams.go2 |  8 +++
+ 2 files changed, 53 insertions(+), 42 deletions(-)

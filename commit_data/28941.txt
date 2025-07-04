@@ -1,44 +1,16 @@
-commit a16954b8a7d66169760fb60dd7f3d4e400a5e98c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 14 14:53:59 2016 -0700
+commit c3f05d95932c0d3d2b8461099ce82fa917c7b8a3
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Wed Aug 17 13:27:17 2016 -0700
 
-    cmd/cgo: always use a function literal for pointer checking
+    text/template: remove unused Tree.parse return value
     
-    The pointer checking code needs to know the exact type of the parameter
-    expected by the C function, so that it can use a type assertion to
-    convert the empty interface returned by cgoCheckPointer to the correct
-    type. Previously this was done by using a type conversion, but that
-    meant that the code accepted arguments that were convertible to the
-    parameter type, rather than arguments that were assignable as in a
-    normal function call. In other words, some code that should not have
-    passed type checking was accepted.
+    Fixes #13993
     
-    This CL changes cgo to always use a function literal for pointer
-    checking. Now the argument is passed to the function literal, which has
-    the correct argument type, so type checking is performed just as for a
-    function call as it should be.
-    
-    Since we now always use a function literal, simplify the checking code
-    to run as a statement by itself. It now no longer needs to return a
-    value, and we no longer need a type assertion.
-    
-    This does have the cost of introducing another function call into any
-    call to a C function that requires pointer checking, but the cost of the
-    additional call should be minimal compared to the cost of pointer
-    checking.
-    
-    Fixes #16591.
-    
-    Change-Id: I220165564cf69db9fd5f746532d7f977a5b2c989
-    Reviewed-on: https://go-review.googlesource.com/31233
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic61b2bcd9f4f71457d3a8581574633d505d5750e
+    Reviewed-on: https://go-review.googlesource.com/27240
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/errors/issue16591.go |  17 +++++
- misc/cgo/errors/test.bash     |   1 +
- misc/cgo/test/callback.go     |   1 +
- src/cmd/cgo/gcc.go            | 164 ++++++++++++++++++++++--------------------
- src/cmd/cgo/out.go            |  13 ++--
- src/runtime/cgocall.go        |  11 ++-
- 6 files changed, 117 insertions(+), 90 deletions(-)
+ src/text/template/parse/parse.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

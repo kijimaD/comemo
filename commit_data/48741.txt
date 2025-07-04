@@ -1,32 +1,40 @@
-commit 27b7b1fa19b5d8c8855859ca64b52f960a446ce7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 7 17:24:40 2022 -0500
+commit c93d5d1a5245d4baa6824a2c88a6b79e3d895e4d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 9 14:29:20 2021 -0400
 
-    go/doc: use go/doc/comment
+    [dev.typeparams] all: always enable regabig on AMD64
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    Always enable regabig on AMD64, which enables the G register and
+    the X15 zero register. Remove the fallback path.
     
-    Use go/doc/comment to implement the existing go/doc comment APIs,
-    as well as adding new APIs more tailored to the new world.
+    Also remove the regabig GOEXPERIMENT. On AMD64 it is always
+    enabled (this CL). Other architectures already have a G register,
+    except for 386, where there are too few registers and it is
+    unlikely that we will reserve one. (If we really do, we can just
+    add a new experiment).
     
-    For #51082.
-    
-    Change-Id: I05b97ecedbf7cf7b8dede7ace6736ed6d89204a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384265
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I229cac0060f48fe58c9fdaabd38d6fa16b8a0855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327272
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- api/next/51082.txt                |   6 +
- src/go/build/deps_test.go         |   2 +-
- src/go/doc/comment.go             | 543 ++++----------------------------------
- src/go/doc/comment_test.go        | 274 ++++---------------
- src/go/doc/doc.go                 | 132 ++++++++-
- src/go/doc/doc_test.go            |   9 -
- src/go/doc/reader.go              |  95 ++++++-
- src/go/doc/synopsis.go            |  91 +++----
- src/go/doc/synopsis_test.go       |  14 +-
- src/go/doc/testdata/pkgdoc/doc.go |  19 ++
- 10 files changed, 390 insertions(+), 795 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go       | 10 ----------
+ src/cmd/compile/internal/amd64/ssa.go        | 12 ++++++------
+ src/cmd/compile/internal/ssa/config.go       |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 ++---
+ src/cmd/internal/obj/x86/obj6.go             |  4 +---
+ src/internal/buildcfg/exp.go                 | 10 ++--------
+ src/internal/goexperiment/exp_regabig_off.go |  9 ---------
+ src/internal/goexperiment/exp_regabig_on.go  |  9 ---------
+ src/internal/goexperiment/flags.go           |  5 -----
+ src/runtime/asm_amd64.s                      | 16 ----------------
+ src/runtime/memclr_amd64.s                   |  3 ---
+ src/runtime/memmove_amd64.s                  |  4 ----
+ src/runtime/race_amd64.s                     | 24 ------------------------
+ src/runtime/sys_linux_amd64.s                | 10 ----------
+ src/runtime/time_linux_amd64.s               | 10 ----------
+ 16 files changed, 13 insertions(+), 122 deletions(-)

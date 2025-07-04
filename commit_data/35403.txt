@@ -1,18 +1,17 @@
-commit 594a6bde3336cc6f0cd14256e980370c56c72a90
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 16 19:29:59 2018 +0000
+commit 1091b50cc0e4316588aeff5146f667c56296f658
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed Jan 31 11:58:03 2018 -0500
 
-    cmd/dist: add support for disabling test -short mode
+    database/sql: remove duplicate validation
     
-    So we can have builders running go test -short=false.
+    Since https://golang.org/cl/38533, this validation is performed in
+    driverArgs.
     
-    Updates golang/go#12508
-    
-    Change-Id: If90f0f6d9f89268c33b1d1876139ad551fecd3d8
-    Reviewed-on: https://go-review.googlesource.com/113435
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I13a3ca46a1aa3197370de1095fb46ab83ea4628c
+    Reviewed-on: https://go-review.googlesource.com/91115
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 26 +++++++++++++++++++++++---
- 1 file changed, 23 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 14 --------------
+ 1 file changed, 14 deletions(-)

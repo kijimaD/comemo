@@ -1,29 +1,47 @@
-commit 0c942e8f2c6aeedfe672fdd0c2549ac39505cd75
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 19 22:43:38 2016 -0500
+commit 1af769da8260b277bd5aa92b5074b3400b1f8d9d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 21 11:19:36 2016 +1000
 
-    runtime: avoid incorrect panic when a signal arrives during STW
+    os: make readConsole handle its input and output correctly
     
-    Stop-the-world and freeze-the-world (used for unhandled panics) are
-    currently not safe to do at the same time. While a regular unhandled
-    panic can't happen concurrently with STW (if the P hasn't been
-    stopped, then the panic blocks the STW), a panic from a _SigThrow
-    signal can happen on an already-stopped P, racing with STW. When this
-    happens, freezetheworld sets sched.stopwait to 0x7fffffff and
-    stopTheWorldWithSema panics because sched.stopwait != 0.
+    This CL introduces first test for readConsole. And new test
+    discovered couple of problems with readConsole.
     
-    Fix this by detecting when freeze-the-world happens before
-    stop-the-world has completely stopped the world and freeze the STW
-    operation rather than panicking.
+    Console characters consist of multiple bytes each, but byte blocks
+    returned by syscall.ReadFile have no character boundaries. Some
+    multi-byte characters might start at the end of one block, and end
+    at the start of next block. readConsole feeds these blocks to
+    syscall.MultiByteToWideChar to convert them into utf16, but if some
+    multi-byte characters have no ending or starting bytes, the
+    syscall.MultiByteToWideChar might get confused. Current version of
+    syscall.MultiByteToWideChar call will make
+    syscall.MultiByteToWideChar ignore all these not complete
+    multi-byte characters.
     
-    Fixes #17442.
+    The CL solves this issue by changing processing from "randomly
+    sized block of bytes at a time" to "one multi-byte character at a
+    time". New readConsole code calls syscall.ReadFile to get 1 byte
+    first. Then it feeds this byte to syscall.MultiByteToWideChar.
+    The new syscall.MultiByteToWideChar call uses MB_ERR_INVALID_CHARS
+    flag to make syscall.MultiByteToWideChar return error if input is
+    not complete character. If syscall.MultiByteToWideChar returns
+    correspondent error, we read another byte and pass 2 byte buffer
+    into syscall.MultiByteToWideChar, and so on until success.
     
-    Change-Id: I646a7341221dd6d33ea21d818c2f7218e2cb7e20
-    Reviewed-on: https://go-review.googlesource.com/34611
-    Run-TryBot: Austin Clements <austin@google.com>
+    Old readConsole code would also sometimes return no data if user
+    buffer was smaller then uint16 size, which would confuse callers
+    that supply 1 byte buffer. This CL fixes that problem too.
+    
+    Fixes #17097
+    
+    Change-Id: I88136cdf6a7bf3aed5fbb9ad2c759b6c0304ce30
+    Reviewed-on: https://go-review.googlesource.com/29493
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 32 ++++++++++++++++++++++++++------
- 1 file changed, 26 insertions(+), 6 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go |   6 +
+ src/os/export_windows_test.go                   |  14 +++
+ src/os/file_windows.go                          | 145 ++++++++++++++++--------
+ src/os/os_windows_test.go                       |  85 ++++++++++++++
+ 4 files changed, 203 insertions(+), 47 deletions(-)

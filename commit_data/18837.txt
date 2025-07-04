@@ -1,18 +1,18 @@
-commit 00e6fc1e9e709a5c29b79d9aed8ae135cd54a445
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Mar 12 10:20:58 2014 +0400
+commit d53251d4aba2820eb8f788be75a1832c6f14213b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 11 22:55:15 2014 -0700
 
-    runtime: temporary weaken a check in test
-    Currently the test fails as:
-    $ go test -v -cpu 1,1,1,1 runtime -test.run=TestStack
-    stack_test.go:1584: Stack inuse: want 4194304, got 18446744073709547520
+    net/http/cgi: serve 500, not 200, on invalid responses from child processes
     
-    Update #7468
+    Per RFC 3875 section 6 rules.
     
-    LGTM=rsc
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/74010043
+    Fixes #7198
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/68960049
 
- src/pkg/runtime/stack_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/http/cgi/host.go            | 15 +++++++++++++++
+ src/pkg/net/http/cgi/matryoshka_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

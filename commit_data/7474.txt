@@ -1,19 +1,16 @@
-commit 677935034962a5a89eb92fdfe5d96b41cf5e6b71
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 16 13:21:13 2011 -0500
+commit e881d42f8731f64c18098119454e4ae9dbc88360
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Feb 16 13:19:31 2011 -0500
 
-    runtime: minor cleanup
+    os: add ENODATA and ENOTCONN
+    syscall: add MCL_* flags for mlockall
     
-    implement runtime.casp on amd64.
-    keep simultaneous panic messages separate.
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4188053
+    https://golang.org/cl/4177044
 
- src/pkg/runtime/amd64/asm.s | 20 ++++++++++++++++++++
- src/pkg/runtime/mfinal.c    |  4 +++-
- src/pkg/runtime/proc.c      | 17 +++++++++--------
- src/pkg/runtime/runtime.c   | 39 ++++++++++++++++++++++++++++++++-------
- src/pkg/runtime/runtime.h   |  4 +++-
- 5 files changed, 67 insertions(+), 17 deletions(-)
+ src/pkg/os/error.go                    | 2 ++
+ src/pkg/syscall/mkerrors.sh            | 2 +-
+ src/pkg/syscall/zerrors_linux_386.go   | 2 ++
+ src/pkg/syscall/zerrors_linux_amd64.go | 2 ++
+ 4 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,18 +1,12 @@
-commit d2fe44d56834b132f3759cef4bcd5dcc1bfeaa5c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Dec 29 15:25:34 2013 +1100
+commit 872f5ffa095c483a506a639f1960f6778328d83e
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sat Dec 28 20:33:05 2013 +1100
 
-    runtime: load runtime.goarm as a byte, not a word
+    bytes: add test for Contains
     
-    Fixes #6952.
-    
-    runtime.asminit was incorrectly loading runtime.goarm as a word, not a uint8 which made it subject to alignment issues on arm5 platforms.
-    
-    Alignment aside, this also meant that the top 3 bytes in R11 would have been garbage and could not be assumed to be setting up the FPU reliably.
-    
-    R=iant, minux.ma
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/46240043
+    https://golang.org/cl/46140043
 
- src/pkg/runtime/asm_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/bytes/bytes_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

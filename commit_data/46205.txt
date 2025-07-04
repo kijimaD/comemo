@@ -1,22 +1,33 @@
-commit 6df3aac4ae8d0ca695751ef828a500cd438b00f9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 28 15:27:55 2021 +0700
+commit 9f16620f46fc51ff1c8182b440bd60f97eb35278
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 13 20:17:09 2020 -0800
 
-    cmd/compile: fix offset-generator for storeOneLoad
+    [dev.regabi] cmd/compile: fix latent Sym.SetPkgDef issue
     
-    storeOneLoad decompose Load that is then stored, the offset value must
-    be created on the same block with the Load to be dominated, otherwise,
-    it's unsafe if one does not dominate the other.
+    Sym.pkgDefPtr is supposed to return a pointer to the types.Object
+    variable currently holding the Sym's package-scope
+    definition. However, in the case of identifiers that were shadowed in
+    the current scope, it was incorrectly returning a pointer to a stack
+    copy of the dclstack variable, rather than a pointer into the dclstack
+    itself.
     
-    Fixes #48026
+    This doesn't affect PkgDef, because it only reads from the variable,
+    so it got the same result anyway. It also happens to not affect our
+    usage of SetPkgDef today, because we currently only call SetPkgDef for
+    the builtin/runtime.go symbols, and those are never shadowed.
     
-    Change-Id: Iee5e6c5d3e1b09862afe4e65f7bcd771b4c57367
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345434
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    However, it does affect my upcoming CL to lazily create the ir.Names
+    for imported objects, as that depends on the ability to use SetPkgDef
+    to set shadowed identifiers.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I54fc48b33da0670d31725faa1df1170a8730750a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277712
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
- test/fixedbugs/issue48026.go                 | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types/scope.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

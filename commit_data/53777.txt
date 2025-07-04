@@ -1,26 +1,19 @@
-commit 4918490962ebda2b055bd1d160af9e9daa529522
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Tue Jul 25 15:54:16 2023 -0700
+commit 8e35910640bd190103d99d994d54b738e619c858
+Author: Jonathan FOng <jonathanfong098@gmail.com>
+Date:   Fri Aug 26 12:10:32 2022 -0700
 
-    misc/wasm: switch default WASI runtime
+    math/rand: document that Source returned by NewSource implements Source64
     
-    The default WASI runtime was originally set to Wazero, because it was
-    the first runtime used to test the Go implementation and because we
-    could easily find and fix issues in our implementation and theirs.
+    Fixes #44488
     
-    In CL 498675 we switched the default wasip1 runner to Wasmtime as it
-    runs faster and is a more established and mature runtime. We should
-    switch the default runtime to Wasmtime to consistently promote
-    Wasmtime as the primary tested and approved runtime.
-    
-    Change-Id: Ic6c064142321af90f015e02b7fe0e71444d8842c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513235
+    Change-Id: I570950799788678b9dc6e9ddad894973b4611e09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425974
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/wasm/go_wasip1_wasm_exec | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/math/rand/rand.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,20 +1,17 @@
-commit fccd0b9b70255099691deca5dc1d577efcfc889b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 11 16:43:20 2023 -0700
+commit 4b5558ef01adc0916729499c3d5ce96b82bedb86
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 4 15:03:26 2022 +0100
 
-    context: support non-standard Context in Cause
+    go/build: remove stale reference to ioutil.ReadDir
     
-    If Cause is called on a non-standard Context, call ctx.Err.
+    The package moved away from the deprecated ioutil API some time ago.
     
-    Fixes #62582
-    
-    Change-Id: Iac4ed93203eb5529f8839eb479b6ee2ee5ff6cbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527277
+    Change-Id: Iecb1baa9285af1f721a04eb40f8dafdd72474c4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438515
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/context/context.go |   7 ++-
- src/context/x_test.go  | 120 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 126 insertions(+), 1 deletion(-)
+ src/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

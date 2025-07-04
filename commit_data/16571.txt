@@ -1,12 +1,20 @@
-commit 39613054af49086b96b2e0a059a300b2430c3185
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 14 10:00:07 2013 -0700
+commit 3be794cdc2c7fc78a43b6a619ddf281b7271b520
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jun 14 11:14:45 2013 +0200
 
-    api: update next.txt
+    cmd/gc: instrument arrays properly in race detector.
     
-    R=golang-dev, r
+    The previous implementation would only record access to
+    the address of the array but the memory access to the whole
+    memory range must be recorded instead.
+    
+    R=golang-dev, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/10283043
+    https://golang.org/cl/8053044
 
- api/next.txt | 101 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 101 insertions(+)
+ src/cmd/gc/builtin.c                      |  2 ++
+ src/cmd/gc/racewalk.c                     | 37 ++++++-------------------------
+ src/cmd/gc/runtime.go                     |  2 ++
+ src/pkg/runtime/race.c                    | 22 ++++++++++++++++++
+ src/pkg/runtime/race/testdata/mop_test.go | 21 ++++++++++++++++--
+ 5 files changed, 52 insertions(+), 32 deletions(-)

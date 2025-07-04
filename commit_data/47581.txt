@@ -1,16 +1,31 @@
-commit 100d7ea50dbe601164f428f5e4203be7727093f9
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 22 15:37:29 2021 -0500
+commit e4a4161f1f3157550846e1b6bd4fe83aae15778e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Mar 11 12:28:45 2021 -0500
 
-    cmd/go: correct an inaccuracy in the 'go help work' docs
+    runtime: non-strict InlTreeIndex lookup in Frames.Next
     
-    Change-Id: If2c6586b5ad212214b8041f8768fe7d26b877207
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366314
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    When using cgo, some of the frames can be provided by cgoTraceback, a
+    cgo-provided function to generate C tracebacks. Unlike Go tracebacks,
+    cgoTraceback has no particular guarantees that it produces valid
+    tracebacks.
+    
+    If one of the (invalid) frames happens to put the PC in the alignment
+    region at the end of a function (filled with int 3's on amd64), then
+    Frames.Next will find a valid funcInfo for the PC, but pcdatavalue will
+    panic because PCDATA doesn't cover this PC.
+    
+    Tolerate this case by doing a non-strict PCDATA lookup. We'll still show
+    a bogus frame, but at least avoid throwing.
+    
+    Fixes #44971
+    
+    Change-Id: I9eed728470d6f264179a7615bd19845c941db78c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301369
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/workcmd/work.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/symtab.go      |  4 ++-
+ src/runtime/symtab_test.go | 85 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 1 deletion(-)

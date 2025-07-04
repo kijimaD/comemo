@@ -1,32 +1,28 @@
-commit d480b5c790196c615213f2308d6b7b975eb99ff9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 8 13:10:08 2021 -0400
+commit 120b819f45d1c109a1c2ef380edde9e826862a5c
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 4 11:16:25 2021 -0500
 
-    cmd/link: put gcprog symbols along with gcbits
+    [dev.regabi] go/types: report error for invalid main function signature
     
-    A stack object record may refer to the object's type's GC mask or
-    GC program (for very large types). For the latter, currently the GC
-    program symbol is named "type..gcprog.XXX" which is then laid out
-    along with type symbols at link time. When relro is used, the type
-    symbols end up in a different section.
+    This is a port of CL 279424, which didn't make it into master in time
+    for go1.16. Move it to dev.regabi so that it may be merged.
     
-    As we now use relative addressing for stack object records to refer
-    to GC masks or GC programs, it is important that it is laid out in
-    the rodata section (not rodata.rel.ro). Move GC program symbols to
-    be along with GC masks, as they are similar and accessed the same
-    way. They don't have relocations so they don't need to be laid to a
-    relro section.
+    Notably, this port no longer removes the _InvalidInitSig error code,
+    instead opting to deprecate it. Now that error codes are 'locked in' for
+    go1.16, even if their API may not yet be exposed, we should follow the
+    practice of not changing their values. In the future, code generation
+    can make it easier to keep error code values constant.
     
-    This fixes flaky failures like
-    https://build.golang.org/log/3bdbaaf786ec831b4393a64a959d2130edb5e050
+    For #43308
     
-    Change-Id: I97aeac1234869da5b0f3a73a3010513d6a3156c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354793
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I5260b93fd063393d38d6458e45a67e7f9b7426ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289714
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/types/decl.go           | 8 ++++++--
+ src/go/types/errorcodes.go     | 7 +++++--
+ src/go/types/testdata/main.src | 9 +++++++++
+ 3 files changed, 20 insertions(+), 4 deletions(-)

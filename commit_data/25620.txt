@@ -1,29 +1,17 @@
-commit 123510bf8302ecacc1cc73e4255f6b72e7fcb9a7
+commit d54c35675c1f4d4ca9b5a6de568e977c513f364a
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 12:43:34 2016 -0800
+Date:   Wed Nov 11 23:13:14 2015 -0800
 
-    runtime: save context value in NetBSD sigtramp
+    cmd/go: subdirs of runtime other than runtime/internal do depend on runtime
     
-    On NetBSD a signal handler returns to the kernel by calling the
-    setcontext system call with the context passed to the signal handler.
-    The implementation of runtime·sigreturn_tramp for amd64, copied from the
-    NetBSD libc, expects that context address to be in r15.  That works in
-    the NetBSD libc because r15 is preserved across the call to the signal
-    handler.  It fails in the Go library because r15 is not preserved.
-    There are various ways to fix this; this one uses the simple approach,
-    essentially identical to the one in the NetBSD libc, of preserving r15
-    across the signal handler proper.
+    Correct an error in the last change: it caused runtime/cgo and
+    runtime/race to not depend on runtime.
     
-    Looking at the code for 386 and arm suggests that they are OK.  However,
-    I have not actually tested them.
+    Fixes #13214.
     
-    Update #14052.
-    
-    Change-Id: I2b516b1d05fe5d3b8911e65ca761d621dc37fa1b
-    Reviewed-on: https://go-review.googlesource.com/18815
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib48b3b5e9a74567ddfaccb7ab4a897ee2aedc2b8
+    Reviewed-on: https://go-review.googlesource.com/16837
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/sys_netbsd_amd64.s | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/pkg.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

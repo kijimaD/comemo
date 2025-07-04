@@ -1,15 +1,8 @@
-commit e1922febbec63414db8f756775d4369797775264
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 8 16:19:02 2013 +1000
+commit a155a5a68fdfb809016295a27444be9bf7441782
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 6 17:34:17 2013 -0700
 
-    net: fix dial race on plan9 and windows
-    
-    Fixes #5349.
-    
-    R=golang-dev, lucio.dere, dsymonds, bradfitz, iant, adg, dave, r
-    CC=golang-dev
-    https://golang.org/cl/9159043
+    tag go1.1rc2
 
- src/pkg/net/dial_gen.go      | 18 +++++++++++++++---
- src/pkg/net/dial_gen_test.go | 11 +++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

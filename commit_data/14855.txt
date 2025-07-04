@@ -1,13 +1,17 @@
-commit 9ae7f340845f3cffd53859577644aa0099798cc4
+commit d5d4ee47ed3e76ec707a44095d5da11415b0a8bf
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jan 11 12:35:58 2013 +0800
+Date:   Fri Jan 11 12:24:28 2013 +0800
 
-    cmd/gc, cmd/ld: update doc.go for -race
+    cmd/5l: support -Z (zero stack frame at function entry)
+    also added appropriate docs to cmd/ld/doc.go
+    (largely copied from Russ's CL 6938073).
     
-    R=golang-dev, dave, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7066052
+    https://golang.org/cl/7004049
 
- src/cmd/gc/doc.go | 2 +-
- src/cmd/ld/doc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5l/l.h    |  3 ++-
+ src/cmd/5l/obj.c  |  7 +++++-
+ src/cmd/5l/pass.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/doc.go |  8 +++++++
+ 4 files changed, 83 insertions(+), 2 deletions(-)

@@ -1,13 +1,24 @@
-commit fa9f3058e0c0ff1fc05ea76544f9e9a23fce51d8
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Thu Sep 4 13:39:51 2014 -0400
+commit 9f38b6c9e574c672d646a366c1933c3ff88b8781
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 29 18:44:38 2014 +0400
 
-    androidtest.bash: drop noisy adb sync output
+    runtime: clean up GC code
+    Remove C version of GC.
+    Convert freeOSMemory to Go.
+    Restore g0 check in GC.
+    Remove unknownGCPercent check in GC,
+    it's initialized explicitly now.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/138070043
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/139910043
 
- src/androidtest.bash | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.go | 26 ++++------------
+ src/pkg/runtime/malloc.h  |  1 -
+ src/pkg/runtime/mgc0.c    | 78 +----------------------------------------------
+ src/pkg/runtime/mgc0.go   |  5 +++
+ src/pkg/runtime/mheap.c   | 13 ++------
+ src/pkg/runtime/stubs.go  |  4 +--
+ src/pkg/runtime/thunk.s   |  3 ++
+ 7 files changed, 19 insertions(+), 111 deletions(-)

@@ -1,16 +1,19 @@
-commit 3c9488edff40f9837dfef94554ac638433708a65
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 15 14:48:26 2020 +0200
+commit dd66786029f9d53554dd78ab02a75ff448c051b4
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 18 13:26:38 2020 -0400
 
-    cmd/compile: clean up C->Go translation artifacts in badtype
+    [dev.link] cmd/link: add loader.Sym equivalents to ArchSyms
     
-    Change-Id: I576a596ed8e9ce14e3750031d0e338e9276eff1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262537
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Populate ArchSyms with loader.Sym versions of important symbols,
+    so as to be able to convert the code that uses ArchSyms to the
+    new loader interfaces.
+    
+    Change-Id: If6766f7164642a9dc2e31fcf7f9280a6e95e5d23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224383
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 42 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 33 insertions(+), 9 deletions(-)

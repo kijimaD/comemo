@@ -1,23 +1,22 @@
-commit 6e248b8ff2f387b5e4dd16a5b57f7487a2e18c94
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 26 16:03:32 2023 -0700
+commit cc8bac88353d8067244a196f70b2fe9475f4336e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 21 15:53:25 2022 -0400
 
-    doc/go1.21: mention os package changes
+    runtime: move trace locks to the leaf of the lock graph
     
-    Also mention WTF-8 support in the syscall package.
+    Now that trace.lock cannot be held over a stack split, we can move
+    that lock and traceStackTab to the leaf of the lock graph. We add a
+    couple edges to STACKGROW that were previously passing through trace.
     
-    For #32558
-    For #58977
-    For #59971
+    Fixes #53979.
     
-    Change-Id: Id1627889b5e498add498748d9bfc69fb58030b35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498600
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Change-Id: Ie664ff7bb33973745f991f7516dc6106e60f5892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418957
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 41 ++++++++++++++++++++++++-----------------
- 1 file changed, 24 insertions(+), 17 deletions(-)
+ src/runtime/lockrank.go   | 24 ++++++++++++------------
+ src/runtime/mklockrank.go | 27 ++++++++++++++-------------
+ 2 files changed, 26 insertions(+), 25 deletions(-)

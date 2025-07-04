@@ -1,17 +1,22 @@
-commit 8d6d367c6e4dd5dce33038f096dbbce10ea4828a
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Mon Mar 4 02:30:21 2024 +0000
+commit 3128edfe59d3f0d677ae9ad24bf2c7474056787a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 15 19:26:33 2023 +0100
 
-    internal/xcoff: fix typo in comment
+    syscall: let EPLAN9 and EWINDOWS implement errors.ErrUnsupported
     
-    Change-Id: I72f73016d0d1ba4f686bafd4ee62a43e4e38aead
-    GitHub-Last-Rev: 8c824caa3c7c5ac38fd59a1070d0f11d7e5fecfd
-    GitHub-Pull-Request: golang/go#66082
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568655
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    As suggested by Bryan. This should fix the failing
+    TestIPConnSpecificMethods on plan9 after CL 476217 was submitted.
+    
+    For #41198
+    
+    Change-Id: I18e87b3aa7c9f7d48a1bd9c2819340acd1d2ca4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476578
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/xcoff/ar.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/syscall_plan9.go   | 3 +++
+ src/syscall/syscall_windows.go | 2 ++
+ 2 files changed, 5 insertions(+)

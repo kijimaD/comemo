@@ -1,16 +1,19 @@
-commit f8555ea6fdbbfc32e26f351ac16138fad31a2d62
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 13:14:30 2016 -0700
+commit 6b019e216b4521c2375572a4edf2e08c1d9bc754
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon May 2 17:32:14 2016 -0400
 
-    spec: update language on type switches to match implementations
+    cmd/link: bump object file version number
     
-    See the issue below for details.
+    The format has been tweaked several times in the latest cycle, so
+    replace go13ld with go17ld.
     
-    Fixes #16794.
-    
-    Change-Id: I7e338089fd80ddcb634fa80bfc658dee2772361c
-    Reviewed-on: https://go-review.googlesource.com/27356
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I343c49b02b7516fd781bc96ad46640579da68c59
+    Reviewed-on: https://go-review.googlesource.com/22708
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/goobj/read.go      | 4 ++--
+ src/cmd/internal/obj/objfile.go     | 8 ++++----
+ src/cmd/link/internal/ld/objfile.go | 8 ++++----
+ 3 files changed, 10 insertions(+), 10 deletions(-)

@@ -1,22 +1,22 @@
-commit 65e2b6f8474f032be3dbc17a7f8ffe60c2ca6b15
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 22 12:10:18 2014 +0400
+commit 064acace5b39308e19419e9f0e5b8a2e68f14a85
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 21 20:56:44 2014 -0700
 
-    cmd/ld: mark hostobj sections as containing no pointers
-    Currently they are scanned conservatively.
-    But there is no reason to scan them. C world must not contain
-    pointers into Go heap. Moreover, we don't have enough information
-    to emit write barriers nor update pointers there in future.
-    The immediate need is that it breaks the new GC because
-    these are weird symbols as if with pointers but not necessary
-    pointer aligned.
+    cmd/gc: in the runtime package, don't promote any decls to the heap.
+    
+    In the runtime, we want to control where allocations happen.
+    In particular, we don't want the code implementing malloc to
+    itself trigger a malloc.  This change prevents the compiler
+    from inserting mallocs on our behalf (due to escaping declarations).
+    
+    This check does not trigger on the current runtime code.
+    
+    Note: Composite literals are still allowed.
     
     LGTM=rsc
-    R=golang-codereviews, rlh, rsc
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/117000043
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/105280047
 
- src/cmd/ld/ldelf.c   | 4 ++--
- src/cmd/ld/ldmacho.c | 4 ++--
- src/cmd/ld/ldpe.c    | 6 +++---
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/gc/gen.c | 2 ++
+ 1 file changed, 2 insertions(+)

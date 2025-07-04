@@ -1,14 +1,17 @@
-commit ea2c0cd88f830a1f8af9ee5f9a9cfb643f3cbd30
+commit 9b571a31200ffccad327cefb48944a3b88494bcd
 Author: Joel Sing <jsing@google.com>
-Date:   Fri Nov 18 01:53:07 2011 +1100
+Date:   Fri Nov 18 01:52:39 2011 +1100
 
-    os: re-enable hostname test on openbsd
+    syscall: hostname/domainname fix for openbsd
     
-    Now that Sysctl() works, re-enable the hostname test.
+    Work around a bug that was fixed after OpenBSD 5.0 - a request for
+    kern.hostname or kern.domainname with a nil value for oldp will result
+    in a length of zero being returned. If we hit this case use a length
+    of MAXHOSTNAMELEN (256).
     
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5408042
+    https://golang.org/cl/5408041
 
- src/pkg/os/os_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/syscall/syscall_bsd.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

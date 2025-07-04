@@ -1,19 +1,14 @@
-commit e67f19851624aef42749f188462ded2776ce2d57
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Mar 15 11:43:43 2013 -0400
+commit 2924638d2631bf30f490e30ed120c4089c716b71
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 15 09:02:36 2013 +0100
 
-    runtime: unbreak netbsd builds
+    runtime: replace lock() with casp() in the GC
     
-    Fix signal handling so that Go builds on NetBSD.
+    Note: BitTarget will be removed by a forthcoming changeset.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/7759048
+    R=golang-dev, dvyukov
+    CC=golang-dev, rsc
+    https://golang.org/cl/7837044
 
- src/pkg/runtime/signal_386.c          | 4 ++--
- src/pkg/runtime/signal_amd64.c        | 4 ++--
- src/pkg/runtime/signal_arm.c          | 4 ++--
- src/pkg/runtime/signal_netbsd_386.h   | 6 +++---
- src/pkg/runtime/signal_netbsd_amd64.h | 2 +-
- src/pkg/runtime/signal_netbsd_arm.h   | 2 +-
- 6 files changed, 11 insertions(+), 11 deletions(-)
+ src/pkg/runtime/mgc0.c | 60 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 31 deletions(-)

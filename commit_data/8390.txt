@@ -1,13 +1,14 @@
-commit cd4d0004fadd61a860fbb9ef70e42bcf956e0b49
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 13 15:43:46 2011 -0700
+commit 36cec789cd2c3631419cc2a46693590965952bf7
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sat May 14 00:35:10 2011 +0200
 
-    http: add Request.SetBasicAuth method
+    gc: generalize dst = append(src,...) inlining to arbitrary src and dst arguments.
     
-    R=golang-dev, dsymonds, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4543050
+    https://golang.org/cl/4517057
 
- src/pkg/http/request.go      | 13 +++++++++++++
- src/pkg/http/request_test.go |  8 ++++++++
- 2 files changed, 21 insertions(+)
+ src/cmd/gc/builtin.c.boot |   1 -
+ src/cmd/gc/walk.c         | 100 ++++++++++++++--------------------------------
+ src/pkg/runtime/slice.c   |  14 -------
+ 3 files changed, 31 insertions(+), 84 deletions(-)

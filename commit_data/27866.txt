@@ -1,21 +1,15 @@
-commit f50ced6d734038b7231bef3c674d541f95b2f23b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 16 16:43:34 2016 -0700
+commit d6b177d1eb7849375e246b97c58406aed7350c86
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 15:08:24 2016 -0400
 
-    cmd/compile: remove encoding of safemode bit from export data
+    runtime: remove empty 386 archauxv
     
-    Removes the encoding of this bit which was ignored but left behind
-    for 1.7 to minimize pre-1.7 export format changes. See the issue
-    for more details.
+    archauxv no longer does anything on 386, so remove it.
     
-    Fixes #15772.
-    
-    Change-Id: I46cd7a66ad4c6003b78c64295cf3bda503ebf2dd
-    Reviewed-on: https://go-review.googlesource.com/27201
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I94545238e40fa6a6832a7c3b40aedfc6c1f6a97b
+    Reviewed-on: https://go-review.googlesource.com/22063
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 1 -
- src/cmd/compile/internal/gc/bimport.go | 3 ---
- src/cmd/compile/internal/gc/builtin.go | 6 +++---
- 3 files changed, 3 insertions(+), 7 deletions(-)
+ src/runtime/os_linux_386.go    | 12 ------------
+ src/runtime/os_linux_noauxv.go |  2 +-
+ 2 files changed, 1 insertion(+), 13 deletions(-)

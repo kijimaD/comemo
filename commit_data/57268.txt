@@ -1,52 +1,15 @@
-commit 54fe0fd43fcf8609666c16ae6d15ed92873b1564
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 27 15:34:10 2024 +0000
+commit 3bb51a680505776e8545c10dbf6f5f180609cb2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 20 16:36:08 2023 -0700
 
-    runtime: store bp on cgocallback as unsafe.Pointer
+    spec: fix a couple of minor mistakes in type inference section
     
-    As of CL 580255, the runtime tracks the frame pointer (or base pointer,
-    bp) when entering syscalls, so that we can use fpTracebackPCs on
-    goroutines that are sitting in syscalls. That CL mostly got things
-    right, but missed one very subtle detail.
-    
-    When calling from Go->C->Go, the goroutine stack performing the calls
-    when returning to Go is free to move around in memory due to growth,
-    shrinking, etc. But upon returning back to C, it needs to restore
-    gp.syscall*, including gp.syscallsp and gp.syscallbp. The way syscallsp
-    currently gets updated is automagically: it's stored as an
-    unsafe.Pointer on the stack so that it shows up in a stack map. If the
-    stack ever moves, it'll get updated correctly. But gp.syscallbp isn't
-    saved to the stack as an unsafe.Pointer, but rather as a uintptr, so it
-    never gets updated! As a result, in rare circumstances, fpTracebackPCs
-    can correctly try to use gp.syscallbp as the starting point for the
-    traceback, but the value is stale.
-    
-    This change fixes the problem by just storing gp.syscallbp to the stack
-    on cgocallback as an unsafe.Pointer, like gp.syscallsp. It also adds a
-    comment documenting this subtlety; the lack of explanation for the
-    unsafe.Pointer type on syscallsp meant this detail was missed -- let's
-    not miss it again in the future.
-    
-    Now, we have a fix, what about a test? Unfortunately, testing this is
-    going to be incredibly annoying because the circumstances under which
-    gp.syscallbp are actually used for traceback are non-deterministic and
-    hard to arrange, especially from within testprogcgo where we don't have
-    export_test.go and can't reach into the runtime.
-    
-    So, instead, add a gp.syscallbp check to reentersyscall and
-    entersyscallblock that mirrors the gp.syscallbp consistency check. This
-    probably causes some miniscule slowdown to the syscall path, but it'll
-    catch the issue without having to actually perform a traceback.
-    
-    Fixes #69085.
-    
-    Change-Id: Iaf771758f1666024b854f5fbe2b2c63cbe35b201
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608775
-    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I9cdb301163b67add39928c8fc7df2b7f3893f45e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511836
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/cgocall.go |  9 +++++++--
- src/runtime/proc.go    | 18 +++++++++++++++---
- 2 files changed, 22 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

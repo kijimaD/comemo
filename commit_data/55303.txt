@@ -1,23 +1,24 @@
-commit 3313bbb4055f38f53cd43c6c5782a229f445f230
-Author: David Chase <drchase@google.com>
-Date:   Thu Dec 14 14:20:12 2023 -0500
+commit 6f6276ce366f0f9cd9748d9c910310e0bc7dc8e5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 3 12:11:44 2023 -0800
 
-    runtime: add race annotations in IncNonDefault
+    cmd/compile/internal/inline: adjust isBigFunc to recognize unified IR codegen
     
-    Also use CompareAndSwap to make the code actually less racy.
+    Unified IR generates uniform IR for "a, b = f()" to be able to insert
+    implicit conversion expressions, but the result is somewhat more
+    verbose and trips up the inliner's naive cost metrics.
     
-    Added a test which will be meaningful when run under the race
-    detector (tested it -race with broken fix in runtime, it failed).
+    The hairyVisitor.doNode method was already adjusted to account for
+    this, but isBigFunc needs the same adjustment.
     
-    Fixes #64649
+    Fixes #57563.
     
-    Change-Id: I5972e08901d1adc8ba74858edad7eba91be1b0ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549796
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia8d86a6e314ec60190c78f40ace4fb30dadc4413
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460395
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/godebug/godebug_test.go | 31 +++++++++++++++++++++++++++++++
- src/runtime/runtime.go               | 10 +++++++++-
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

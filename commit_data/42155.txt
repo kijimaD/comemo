@@ -1,23 +1,14 @@
-commit d1798d5aa01501a6c7d0508441532321c90a7378
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Feb 13 21:13:40 2020 +0000
+commit ee706cfe83ec1bbb95e7ebe29c640544510c732b
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Tue Nov 5 16:19:42 2019 +0000
 
-    runtime: manage a pool of spanSetBlocks and free them eagerly
+    net/smtp: add missing error check in test
     
-    This change adds a global pool of spanSetBlocks to the spanSet data
-    structure and adds support for eagerly freeing these blocks back to the
-    pool if the block goes empty.
-    
-    This change prepares us to use this data structure in more places in the
-    runtime by allowing reuse of spanSetBlock.
-    
-    Updates #37487.
-    
-    Change-Id: I0752226e3667a9e3e1d87c9b66edaedeae1ac23f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221180
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ifcbd9d2961073a18a250f052180248d9bf223e97
+    GitHub-Last-Rev: 67f97d1ca07665979504264986e25522ed6799f8
+    GitHub-Pull-Request: golang/go#30018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160442
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mspanset.go | 59 ++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 53 insertions(+), 6 deletions(-)
+ src/net/smtp/smtp_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

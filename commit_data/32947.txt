@@ -1,19 +1,12 @@
-commit e59fe206e7aeaa8adad28f602d4361f8db2925a6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 27 12:55:23 2017 -0700
+commit a9fc249f5f5c2485847c63fef226067002408ce4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 15 19:32:36 2017 +0000
 
-    cmd/compile: mark closure structs as Noalg
+    net/http: add a known goroutine, don't check goroutine leaks in benchmark mode
     
-    Avoids generating useless equality and hash functions.
-    
-    Shrinks cmd/go executable size on linux/amd64 by ~17kB.
-    
-    Change-Id: Ifde5315cc5cbceb3a7260195c8803cace952359f
-    Reviewed-on: https://go-review.googlesource.com/66650
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8aa070f8093e80ba19f0546d7447caf847a2b388
+    Reviewed-on: https://go-review.googlesource.com/45912
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 30 +++++++++++++++++-------------
- src/cmd/compile/internal/gc/dcl.go     |  6 +++++-
- 2 files changed, 22 insertions(+), 14 deletions(-)
+ src/net/http/main_test.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

@@ -1,15 +1,18 @@
-commit 39acba55eeedb50d927ce2ed8cf2662eeaa59447
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 28 11:00:31 2011 -0700
+commit a026d0fc767dd701d681635dfd99da6eb40396c7
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Jun 28 12:04:50 2011 -0400
 
-    fmt: rename errno and error to err for doc consistency
+    runtime/cgo: check for errors from pthread_create
     
-    The public godoc looked confused. I imagine these were
-    written before current conventions were established.
-    
-    R=golang-dev, rsc
+    R=rsc, iant, dvyukov
     CC=golang-dev
-    https://golang.org/cl/4662060
+    https://golang.org/cl/4643057
 
- src/pkg/fmt/print.go | 33 +++++++++++++++------------------
- 1 file changed, 15 insertions(+), 18 deletions(-)
+ src/libmach/darwin.c                | 13 +++++++++++--
+ src/pkg/runtime/cgo/darwin_386.c    |  7 ++++++-
+ src/pkg/runtime/cgo/darwin_amd64.c  |  7 ++++++-
+ src/pkg/runtime/cgo/freebsd_386.c   |  7 ++++++-
+ src/pkg/runtime/cgo/freebsd_amd64.c |  7 ++++++-
+ src/pkg/runtime/cgo/linux_386.c     |  7 ++++++-
+ src/pkg/runtime/cgo/linux_amd64.c   |  7 ++++++-
+ 7 files changed, 47 insertions(+), 8 deletions(-)

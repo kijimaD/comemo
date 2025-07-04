@@ -1,13 +1,13 @@
-commit ce2b0c0bcb5187cf8b15fca771eaba6e97f30440
+commit a937bff52ca4b0d2389e88915272029f3bc141d5
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 23 08:49:30 2012 -0800
+Date:   Mon Jan 23 08:40:34 2012 -0800
 
-    CONTRIBUTORS: add Alexandru Moșoi <brtzsnr@gmail.com>
-    Google contributor.
+    gob: annotate debug.go so it's not normally built
+    So it's not included in the package by the go tool.
     
-    R=golang-dev, iant
+    R=iant, fullung, rsc
     CC=golang-dev
-    https://golang.org/cl/5554084
+    https://golang.org/cl/5563049
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/gob/debug.go | 3 +++
+ 1 file changed, 3 insertions(+)

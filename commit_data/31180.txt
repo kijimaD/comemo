@@ -1,20 +1,29 @@
-commit 33c34770398af5b4de54f5a0922763bd10dc2915
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 18 05:08:35 2017 +0900
+commit cc03ba3289eb1a3bd4b6454fff24646912f5bf12
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:36:46 2017 -0500
 
-    net, internal/poll, net/internal/socktest: use accept4 and SOCK_{CLOEXEC,NONBLOCK} on dragonfly
+    cmd/go: split out cmd/go/internal/web
     
-    Fixes #14222
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    Change-Id: I026fc9499fdefc33b8bb58b5963e2290adacbf63
-    Reviewed-on: https://go-review.googlesource.com/40895
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I2f349150659b6ddf6be4c675abba38dfe57ff652
+    Reviewed-on: https://go-review.googlesource.com/36201
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/internal/poll/hook_cloexec.go        | 2 +-
- src/internal/poll/sock_cloexec.go        | 2 +-
- src/internal/poll/sys_cloexec.go         | 2 +-
- src/net/internal/socktest/sys_cloexec.go | 2 +-
- src/net/main_cloexec_test.go             | 2 +-
- src/net/sock_cloexec.go                  | 2 +-
- src/net/sys_cloexec.go                   | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go/bug.go                          |  7 ++++---
+ src/cmd/go/get.go                          | 16 ++++++++-------
+ src/cmd/go/{ => internal/web}/bootstrap.go | 20 ++++++++----------
+ src/cmd/go/{ => internal/web}/http.go      | 33 +++++++++++++++---------------
+ src/cmd/go/internal/web/security.go        | 16 +++++++++++++++
+ src/cmd/go/vcs.go                          | 33 +++++++++++-------------------
+ src/cmd/go/vcs_test.go                     |  4 +++-
+ 7 files changed, 69 insertions(+), 60 deletions(-)

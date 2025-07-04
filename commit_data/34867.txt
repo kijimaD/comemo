@@ -1,18 +1,17 @@
-commit 84b784a84f89f94ceae952743aa447a6a9c95f32
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Apr 5 12:20:12 2018 +0200
+commit 1e679ae2aafc3bc16417da4851c36c4a0722a3aa
+Author: Florin Patan <florinpatan@gmail.com>
+Date:   Wed Nov 22 01:10:59 2017 +0000
 
-    net: use same sendFile for freebsd/dragonfly and solaris
+    doc: rename Gogland to GoLand
     
-    FreeBSD/Dragonfly and Solaris have identical implementations of
-    sendFile. Keep one and adjust the comments accordingly.
+    This updates the name of the IDE and the capability it has.
     
-    Change-Id: I77b0f88a4816dd6e40f5cb33919c44606401ac6b
-    Reviewed-on: https://go-review.googlesource.com/104915
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #22784
+    
+    Change-Id: Ief261324c86bc77a03071629f496f4d4d9df1b44
+    Reviewed-on: https://go-review.googlesource.com/79255
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/sendfile_solaris.go                       | 63 -----------------------
- src/net/{sendfile_bsd.go => sendfile_unix_alt.go} |  6 +--
- 2 files changed, 3 insertions(+), 66 deletions(-)
+ doc/editors.html                        |   8 ++++----
+ doc/editors/{gogland.png => goland.png} | Bin
+ 2 files changed, 4 insertions(+), 4 deletions(-)

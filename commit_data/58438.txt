@@ -1,15 +1,21 @@
-commit 772f024c615ec13c6cd28bf024e9d6be852201b6
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 23 20:42:42 2024 +0000
+commit 15d985a67529c45dcaad07461611e9a029c662f6
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Nov 7 20:37:26 2023 +0000
 
-    weak: fix typo in warning about tiny allocator optimization
+    slices: make Insert panic if index is out of range and there are no values
     
-    Fixes #70972.
+    Fixes #63913
     
-    Change-Id: Ib04c2a3129a1da651a0b4674b372aec73966115a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638377
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I514190b104a2c4bd5a6b0d96659b52904185e91f
+    GitHub-Last-Rev: 90e7195193b8e50009fc0d9dcbda953b1ec509b4
+    GitHub-Pull-Request: golang/go#63965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540155
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/weak/pointer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/slices/slices.go      |  5 ++++-
+ src/slices/slices_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

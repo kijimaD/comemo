@@ -1,16 +1,12 @@
-commit eb1c03eacbbd1e3a8000972f338122dc9d5748b9
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jul 12 10:14:07 2012 +1000
+commit 2b4cc6ccb5f86d856eca2fb069b10b11aaa278bd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jul 11 20:26:51 2012 +0200
 
-    cmd/pack: remove unused paging logic
+    spec: correct typo in string conversion examples.
     
-    This is the remainder of https://golang.org/cl/4601051.
-    
-    Partially addresses issue 2705.
-    
-    R=golang-dev, r, bradfitz, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6354066
+    R=golang-dev, dave, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6378046
 
- src/cmd/pack/ar.c | 65 ++++++-------------------------------------------------
- 1 file changed, 7 insertions(+), 58 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

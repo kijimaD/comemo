@@ -1,20 +1,12 @@
-commit 042200145fbf994e3fcbfa87e75b10d042867b3a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 30 12:11:35 2015 -0700
+commit d13f479de37264a738e430e15f6c626ad3fac672
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 9 13:11:53 2015 -0700
 
-    text/template: allow newlines in raw quotes
+    math/big: better doc strings for ErrNaN functionality
     
-    This was disallowed for error-checking reasons but people ask for
-    it, it's easy, and it's clear what it all means.
-    
-    Fixes #7323.
-    
-    Change-Id: I26542f5ac6519e45b335ad789713a4d9e356279b
-    Reviewed-on: https://go-review.googlesource.com/9537
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia0944e7b47193465d3ec37fc8dc46dea9b5dcc6b
+    Reviewed-on: https://go-review.googlesource.com/8710
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/doc.go            |  4 ++--
- src/text/template/exec_test.go      | 13 +++++++++++++
- src/text/template/parse/lex.go      |  2 +-
- src/text/template/parse/lex_test.go | 29 ++++++++++++++++-------------
- 4 files changed, 32 insertions(+), 16 deletions(-)
+ src/math/big/float.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

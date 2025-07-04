@@ -1,31 +1,20 @@
-commit efa3f1749fabe3b3062edff7651baa8cb1f574ab
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Oct 28 12:24:31 2021 -0400
+commit a4b2c579e92c001287fd7b549bc9f67bcf2bfe7b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 2 14:12:05 2021 -0700
 
-    internal/coverage: add apis for reading/writing counter data
+    runtime: install sigPreempt signal handler for c-archive/c-shared
     
-    Add utilities for reading and writing of counter data files as part of
-    the new code coverage implementation.
+    Fixes #49288
     
-    Trivia note: currently the contents of counter data files are emitted
-    in little-endian form, which for the counters is somewhat painful in
-    that we need to visit each counter value and properly encode it. It
-    might be better to instead emit counters in native endianity and then
-    teach the tools to decode properly in the case of an endianity
-    mismatch.
-    
-    Updates #51430.
-    
-    Change-Id: I124fdcb40fc339a48b64b35264bf24c3be50ddd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359403
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I7bfcbecbefa68871a3e556935a73f241fff44c0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360861
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/go/build/deps_test.go                          |   8 +
- .../coverage/decodecounter/decodecounterfile.go    | 385 +++++++++++++++++++++
- src/internal/coverage/encodecounter/encode.go      | 284 +++++++++++++++
- src/internal/coverage/stringtab/stringtab.go       |  35 +-
- src/internal/coverage/test/counter_test.go         | 231 +++++++++++++
- src/internal/coverage/test/roundtrip_test.go       |   2 +-
- 6 files changed, 935 insertions(+), 10 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go     | 52 ++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/testdata/libgo8/a.go | 36 +++++++++++++++++++++
+ misc/cgo/testcarchive/testdata/main8.c     | 16 +++++++++
+ src/runtime/signal_unix.go                 |  4 +--
+ 4 files changed, 106 insertions(+), 2 deletions(-)

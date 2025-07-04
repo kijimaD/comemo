@@ -1,26 +1,15 @@
-commit 02c1a9d87d22a50aed71c57368bfbdd2d7260196
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:16:29 2015 +0100
+commit f60fb5c5ad794aaa7fb7331a88a271cb6b6f0fdb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 12:57:33 2015 -0800
 
-    cmd/7g: add ARM64 Go compiler, based on 9g
+    [dev.cc] cmd/asm: accept #define A /* nothing */
     
-    No peep optimizer yet.
+    Was rejected but should be legal.
     
-    Change-Id: Ifa5f993cd6ac5e34783c0df41faf772fbce96ae2
-    Reviewed-on: https://go-review.googlesource.com/7049
+    Change-Id: I0189e3bef6b67c6ba390c75a48a8d9d8f39b7636
+    Reviewed-on: https://go-review.googlesource.com/5286
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/7g/cgen.go           | 103 ++---
- src/cmd/7g/galign.go         |  21 +-
- src/cmd/7g/gg.go             |   4 +-
- src/cmd/7g/ggen.go           | 185 ++++----
- src/cmd/7g/gsubr.go          | 601 ++++++++++++--------------
- src/cmd/7g/opt.go            |  12 -
- src/cmd/7g/peep.go           | 980 +------------------------------------------
- src/cmd/7g/prog.go           | 315 ++++----------
- src/cmd/7g/reg.go            |  22 +-
- src/cmd/internal/gc/gsubr.go |  10 +-
- src/cmd/internal/gc/pgen.go  |   4 +-
- src/cmd/internal/gc/reg.go   |   4 +-
- src/cmd/internal/gc/walk.go  |   4 +-
- 13 files changed, 515 insertions(+), 1750 deletions(-)
+ src/cmd/asm/internal/lex/input.go    | 2 +-
+ src/cmd/asm/internal/lex/lex_test.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

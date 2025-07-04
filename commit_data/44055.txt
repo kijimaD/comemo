@@ -1,51 +1,14 @@
-commit c9fb4eb0a22131cc9922fa96afba01d4e21d4fd4
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Nov 8 11:57:42 2020 +0100
+commit 9e8157805fed930c292d5593aab3016ce6d9c8ed
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu May 7 10:17:08 2020 +0800
 
-    cmd/link: handle grouped resource sections
+    cmd/internal/obj/arm64: fix typos in document
     
-    The Go PE linker does not support enough generalized PE logic to
-    properly handle .rsrc sections gracefully. Instead a few things are
-    special cased for these. The linker also does not support PE's "grouped
-    sections" features, in which input objects have several named sections
-    that are sorted, merged, and renamed in the output file. In the past,
-    more sophisticated support for resources or for PE features like grouped
-    sections have not been necessary, as Go's own object formats are pretty
-    vanilla, and GNU binutils also produces pretty vanilla objects where all
-    sections are already merged.
+    Correct "PCALING" to "PCALIGN".
     
-    However, GNU binutils is lagging with arm support, and here LLVM has
-    picked up the slack. In particular, LLVM has its own rc/cvtres combo,
-    which are glued together in mingw LLVM distributions as windres, a
-    command line compatible tool with binutils' windres, which supports arm
-    and arm64. But there's a key difference between binutils' windres and
-    LLVM's windres: the LLVM one uses proper grouped sections.
-    
-    So, this commit adds grouped sections support for resource sections to
-    the linker. We don't attempt to plumb generic support for grouped
-    sections, just as there isn't generic support already for what resources
-    require. Instead we augment the resource handling logic to deal with
-    standard two-section resource objects.
-    
-    We also add a test for this, akin to the current test for more vanilla
-    binutils resource objects, and make sure that the rsrc tests are always
-    performed.
-    
-    Fixes #42866.
-    Fixes #43182.
-    
-    Change-Id: I059450021405cdf2ef1c195ddbab3960764ad711
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268337
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: Id80728142febd2a42e112dc06a6c1bc0759687e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232697
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go                    |   2 +-
- src/cmd/link/internal/ld/pe.go                     |  60 ++++++++++++---------
- src/cmd/link/internal/loadpe/ldpe.go               |  49 +++++++++--------
- src/cmd/link/link_test.go                          |  19 +++++++
- src/cmd/link/testdata/testPErsrc-complex/main.go   |  43 +++++++++++++++
- src/cmd/link/testdata/testPErsrc-complex/rsrc.syso | Bin 0 -> 352 bytes
- 6 files changed, 124 insertions(+), 49 deletions(-)
+ src/cmd/internal/obj/arm64/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

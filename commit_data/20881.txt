@@ -1,18 +1,18 @@
-commit f6661675729bcd9d2dd0149bbcbfccd3facb22f6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Nov 9 18:55:36 2014 -0800
+commit 977fba763a5e45e5527e45619ed0712ca09d910d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 22 14:02:04 2014 -0400
 
-    cmd/5g: fix bit mask for div/mod routines clobbering R12
+    [dev.power64] runtime: Fix broken merge of noasm.go
     
-    This patch is based only on reading the code.  I have not
-    tried to construct a test case.
+    The earlier dev.power64 merge missed the port of
+    runtime/noasm.goc to runtime/noasm_arm.go.  This CL fixes this
+    by moving noasm_arm.go to noasm.go and adding a +build to
+    share the file between arm and power64.
     
-    Fixes #9077.
-    
-    LGTM=minux
-    R=minux
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/172110043
+    https://golang.org/cl/158350043
 
- src/cmd/5g/reg.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/{noasm_arm.go => noasm.go} | 2 ++
+ 1 file changed, 2 insertions(+)

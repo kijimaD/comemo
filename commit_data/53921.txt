@@ -1,17 +1,21 @@
-commit 2bf8b3985ff25a62d14e0b105c1b4d0637add51a
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Aug 4 14:39:48 2023 -0400
+commit 2b6ff90851b08d4595a55602e25265f596ac3b5b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 8 15:58:04 2022 -0500
 
-    testing/slogtest: reword a confusing explanation
+    debug/elf: define additional PPC64 ELFv2 relocations
     
-    Updates #61758.
+    The PPC64 ELFv2 supplement version 1.5 defines a handful of
+    new relocation types, similarly some were not added.
     
-    Change-Id: I4ce0359f676b6832e40203e1034ba1c4f6d2b2ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516155
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Patrick Ohly <patrick.ohly@googlemail.com>
+    Fixes #54345
+    
+    Change-Id: Id39b29d404298fca4a10ccf1e96b5964dc452c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/testing/slogtest/slogtest.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next/54345.txt   | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/debug/elf/elf.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 216 insertions(+)

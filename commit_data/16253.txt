@@ -1,17 +1,17 @@
-commit a555758909530b36d5b7fc5b2897698924222d14
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 1 14:30:19 2013 -0700
+commit ca6b1f3eeb8f8bd658b6bd5b425184b65d42bc8c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 30 17:47:39 2013 -0700
 
-    cmd/ld: fix syms that are both cgo_import_static & cgo_import_dynamic
+    net: do not call syscall.Bind twice on windows
     
-    This is needed for SWIG when linking in internal mode.  In
-    internal mode if a symbol was cgo_import_static we used to
-    forget that it was also cgo_import_dynamic.
+    Fixes #5355.
     
-    R=rsc, r
+    R=golang-dev, mikioh.mikioh, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/9080043
+    https://golang.org/cl/8966046
 
- src/cmd/ld/go.c  |  5 +++--
- src/cmd/ld/lib.c | 12 ++++++++++--
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ src/pkg/net/dial_test.go  | 35 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/fd_unix.go    |  2 +-
+ src/pkg/net/fd_windows.go | 25 +++++++++++++------------
+ src/pkg/net/sock_posix.go |  2 +-
+ 4 files changed, 50 insertions(+), 14 deletions(-)

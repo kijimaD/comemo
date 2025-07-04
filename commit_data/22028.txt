@@ -1,12 +1,41 @@
-commit dcf1ab316760e362f3ae52107510b9d9a151155d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Mar 15 17:23:02 2015 -0400
+commit 02dcdba7c8d2c180ce2f4aa9e7bf805967b9d74d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 17 10:53:31 2015 -0500
 
-    doc/go1.5: correct archive/zip change
+    runtime: switch to gcWork abstraction
     
-    Change-Id: I7bac7b659b7ff425c6f896c286d0f89f05eff6bd
-    Reviewed-on: https://go-review.googlesource.com/7601
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This converts the garbage collector from directly manipulating work
+    buffers to using the new gcWork abstraction.
+    
+    The previous management of work buffers was rather ad hoc.  As a
+    result, switching to the gcWork abstraction changes many details of
+    work buffer management.
+    
+    If greyobject fills a work buffer, it can now pull from work.partial
+    in addition to work.empty.
+    
+    Previously, gcDrain started with a partial or empty work buffer and
+    fetched an empty work buffer if it filled its current buffer (in
+    greyobject).  Now, gcDrain starts with a full work buffer and fetches
+    an partial or empty work buffer if it fills its current buffer (in
+    greyobject).  The original behavior was bad because gcDrain would
+    immediately drop the empty work buffer returned by greyobject and
+    fetch a full work buffer, which greyobject was likely to immediately
+    overflow, fetching another empty work buffer, etc.  The new behavior
+    isn't great at the start because greyobject is likely to immediately
+    overflow the full buffer, but the steady-state behavior should be more
+    stable.  Both before and after this change, gcDrain fetches a full
+    work buffer if it drains its current buffer.  Basically all of these
+    choices are bad; the right answer is to use a dual work buffer scheme.
+    
+    Previously, shade always fetched a work buffer (though usually from
+    m.currentwbuf), even if the object was already marked.  Now it only
+    fetches a work buffer if it actually greys an object.
+    
+    Change-Id: I8b880ed660eb63135236fa5d5678f0c1c041881f
+    Reviewed-on: https://go-review.googlesource.com/5232
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.5.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go | 190 ++++++++++++++++++++---------------------------------
+ 1 file changed, 72 insertions(+), 118 deletions(-)

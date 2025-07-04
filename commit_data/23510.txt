@@ -1,17 +1,12 @@
-commit 9139089ee5d3e0724157ca79e7cc2f23a0c750a7
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Sat Jun 13 11:25:17 2015 -0400
+commit d6bbcea22a3d4cbcf8350b4b861f0d73ab142ac2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 19 18:25:22 2015 -0400
 
-    net/http: add comment to exported ErrNoCookie and ErrNoLocation values
+    cmd/go: fix build
     
-    All other exported errors in net/http are commented.  This change adds
-    documentation to ErrNoCookie and ErrNoLocation to explain where they are
-    returned, and why.
-    
-    Change-Id: I21fa0d070dd35256681ad0714000f238477d4af1
-    Reviewed-on: https://go-review.googlesource.com/11044
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib6c121414c74f8a40eb87a52af8737502ce7216d
+    Reviewed-on: https://go-review.googlesource.com/10265
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/request.go  | 1 +
- src/net/http/response.go | 2 ++
- 2 files changed, 3 insertions(+)
+ src/cmd/go/fmt.go | 1 -
+ 1 file changed, 1 deletion(-)

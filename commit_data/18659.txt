@@ -1,13 +1,19 @@
-commit deaf89b8f1b62239cacfc9102b6ef27fb9a52951
+commit fa6375ea47ce054d5f1d93a4a1fe7efe2e293991
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 26 08:28:26 2014 -0800
+Date:   Wed Feb 26 07:37:10 2014 -0800
 
-    runtime: remove unnecessary cast in alg.goc
+    cmd/6g, cmd/8g: simplify calls to gvardef
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    The gvardef function does nothing if n->class == PEXTERN, so
+    we don't need to test for that before calling it.  This makes
+    the 6g/8g code more like the 5g code and clarifies that the
+    cases that do not test for n->class != PEXTERN are not buggy.
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/68650045
+    https://golang.org/cl/68900044
 
- src/pkg/runtime/alg.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6g/cgen.c | 12 ++++++------
+ src/cmd/8g/cgen.c |  6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)

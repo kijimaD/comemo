@@ -1,15 +1,16 @@
-commit 410974497365b2e6e23811dbc58475b00c69d0db
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 21 15:25:22 2016 -0700
+commit f71a13da93b6ec2da88e2568deacdb6ef002b36c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Apr 12 20:50:59 2016 +0200
 
-    syscall: delete unreachable code
+    cmd/trace: generate new pprof profiles
     
-    Change-Id: Iacedb792c73591b7fd75e836aab8e0e117c8e738
-    Reviewed-on: https://go-review.googlesource.com/27494
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Generate new protobuf pprof profiles with embed symbol info.
+    This makes program binary unnecessary.
+    
+    Change-Id: Ie628439c13c5e34199782031138102c83ea50621
+    Reviewed-on: https://go-review.googlesource.com/21873
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/syscall/dll_windows.go  | 1 -
- src/syscall/exec_plan9.go   | 5 -----
- src/syscall/exec_windows.go | 2 --
- 3 files changed, 8 deletions(-)
+ src/cmd/trace/pprof.go | 78 +++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 62 insertions(+), 16 deletions(-)

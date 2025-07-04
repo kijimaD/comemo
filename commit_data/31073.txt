@@ -1,23 +1,20 @@
-commit 6c6f455f880ea560707348fcea9d4188782706e8
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 7 13:49:51 2017 -0400
+commit ea73649343b5d199d7f3d8525399e7a07a608543
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 09:32:29 2017 -0800
 
-    runtime: consolidate changes to arena_used
+    doc: update gccgo docs
     
-    Changing mheap_.arena_used requires several steps that are currently
-    repeated multiple times in mheap_.sysAlloc. Consolidate these into a
-    single function.
+    Update docs on correspondence between Go releases and GCC releases.
     
-    In the future, this will also make it easier to add other auxiliary VM
-    structures.
+    Update C type that corresponds to Go type `int`.
     
-    Change-Id: Ie68837d2612e1f4ba4904acb1b6b832b15431d56
-    Reviewed-on: https://go-review.googlesource.com/40151
-    Run-TryBot: Austin Clements <austin@google.com>
+    Drop out of date comments about Ubuntu and RTEMS.
+    
+    Change-Id: Ic1b5ce9f242789af23ec3b7e7a64c9d257d6913e
+    Reviewed-on: https://go-review.googlesource.com/35631
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go  | 26 +++++++++++---------------
- src/runtime/mbitmap.go | 10 +++-------
- src/runtime/mheap.go   | 35 ++++++++++++++++++++++++++++-------
- 3 files changed, 42 insertions(+), 29 deletions(-)
+ doc/gccgo_install.html | 63 ++++++++++++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 38 deletions(-)

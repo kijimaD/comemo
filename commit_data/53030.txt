@@ -1,24 +1,27 @@
-commit 719e2b6f0991f89702a86d46bead2b23efc82aa7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 17 13:30:22 2023 -0700
+commit 160414ca6a30a210b82fb09abbd3541802a51017
+Author: eric fang <eric.fang@arm.com>
+Date:   Sun Jun 26 09:39:09 2022 +0000
 
-    os, runtime: remove unused implementations of os.sigpipe
+    cmd/internal/obj/arm64: fix BITCON constant printing error
     
-    Clean up instances that are unused since CL 6450058.
+    For some 32-bit instructions whose first operand is a constant, we
+    copy the lower 32 bits of the constant into the upper 32 bits in progedit,
+    which leads to the wrong value being printed in -S output.
     
-    Change-Id: I0e9ae28cfa83fcc8abda8f5eca9c7dfc2c1c4ad1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477396
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    The purpose of this is that we don't need to distinguish between 32-bit
+    and 64-bit constants when checking C_BITCON, this CL puts the modified
+    value in a temporary variable, so that the constant operand of the
+    instruction will not be modified.
+    
+    Fixes #53551
+    
+    Change-Id: I40ee9223b4187bff1c0a1bab7eb508fcb30325f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414374
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/os/file_posix.go      | 2 --
- src/os/file_unix.go       | 2 ++
- src/runtime/os_plan9.go   | 5 -----
- src/runtime/os_windows.go | 5 -----
- 4 files changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 21 ++++++++++++++++-----
+ src/cmd/internal/obj/arm64/obj7.go | 13 -------------
+ 2 files changed, 16 insertions(+), 18 deletions(-)

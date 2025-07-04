@@ -1,16 +1,13 @@
-commit 8bc30e07338d8a8d4a972261e4ff25fa85cec921
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jan 28 16:17:36 2015 +0300
+commit 958e0792b5a3cbbc4a633bbf829441d51a299e28
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 19 00:36:26 2014 -0500
 
-    net/http: fix goroutine leak in benchmark
+    test/fixedbugs/issue9355: fix build on arm and power64
     
-    Race builders report goroutine leaks after addition of this benchmark:
-    http://build.golang.org/log/18e47f4cbc18ee8db125e1f1157573dd1e333c41
-    Close idle connection in default transport.
-    
-    Change-Id: I86ff7b2e0972ed47c5ebcb9fce19e7f39d3ff530
-    Reviewed-on: https://go-review.googlesource.com/3412
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1ef770184ad1d42bcb58714d559f2cc866a919ab
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1880
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ test/fixedbugs/issue9355.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

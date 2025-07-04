@@ -1,20 +1,24 @@
-commit e39480f4fb5e7314daef012b58cf05e3c9ceea1a
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Feb 29 16:50:23 2024 +0800
+commit e64e000f5561a37cbfae1e9e48d516d93934c91b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 15 15:16:45 2023 +0100
 
-    doc: close HTML tags
+    internal/testenv, syscall: move isNotSupported to internal/testenv
     
-    Add unclosed HTML tags and remove redundant </a> tags.
+    This allows to use this helper function in packages other than syscall,
+    namely package net.
     
-    Change-Id: I3fffbcfd640001c9cc4f6085150344daa0c4369b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568155
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    For #58114
+    
+    Change-Id: I72c59ab013e9195801ff1315019ae1aef4396287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476216
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go_mem.html  | 16 ++++++++--------
- doc/go_spec.html |  3 ++-
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/internal/testenv/testenv.go         |  6 ++++
+ src/internal/testenv/testenv_notunix.go |  9 ++++-
+ src/internal/testenv/testenv_unix.go    | 37 +++++++++++++++++++-
+ src/syscall/exec_linux_test.go          | 61 +++++++--------------------------
+ 4 files changed, 63 insertions(+), 50 deletions(-)

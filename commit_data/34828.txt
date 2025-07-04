@@ -1,64 +1,20 @@
-commit 4ed94ef1a831e43585b9be6a6b9a625eeb85b57d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 4 11:57:03 2018 +0200
+commit 3a395e22832774ff56d6b82cb8d91bc31167bd8e
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 13 15:36:01 2017 -0700
 
-    cmd/compile: stack-allocate 2 worklists in order, dom passes
+    crypto/x509: always emit a critical SAN extension if the Subject is empty.
     
-    Allocate two more ssa local worklists on the stack. The initial sizes
-    are chosen to cover >99% of the calls.
+    The RFC is a little ambiguous here: “the subject field contains an empty
+    sequence” could mean that it's a non-empty sequence where one of the
+    sets contains an empty sequence. But, in context, I think it means “the
+    subject field is an empty sequence”.
     
-    name      old time/op       new time/op       delta
-    Template        281ms ± 2%        283ms ± 5%    ~     (p=0.443 n=18+19)
-    Unicode         136ms ± 4%        135ms ± 7%    ~     (p=0.277 n=20+20)
-    GoTypes         886ms ± 2%        885ms ± 2%    ~     (p=0.862 n=20+20)
-    Compiler        4.03s ± 2%        4.02s ± 1%    ~     (p=0.270 n=19+20)
-    SSA             9.66s ± 1%        9.64s ± 2%    ~     (p=0.253 n=20+20)
-    Flate           186ms ± 5%        183ms ± 6%    ~     (p=0.174 n=20+20)
-    GoParser        222ms ± 4%        219ms ± 4%    ~     (p=0.081 n=20+20)
-    Reflect         569ms ± 2%        568ms ± 2%    ~     (p=0.686 n=19+19)
-    Tar             258ms ± 4%        256ms ± 3%    ~     (p=0.211 n=20+20)
-    XML             319ms ± 2%        317ms ± 3%    ~     (p=0.158 n=18+20)
+    Fixes #22249
     
-    name      old user-time/op  new user-time/op  delta
-    Template        396ms ± 6%        392ms ± 6%    ~     (p=0.211 n=20+20)
-    Unicode         212ms ±10%        211ms ± 9%    ~     (p=0.904 n=20+20)
-    GoTypes         1.21s ± 3%        1.21s ± 2%    ~     (p=0.183 n=20+20)
-    Compiler        5.60s ± 2%        5.62s ± 2%    ~     (p=0.355 n=18+18)
-    SSA             14.0s ± 6%        13.9s ± 5%    ~     (p=0.678 n=20+20)
-    Flate           250ms ± 8%        245ms ± 6%    ~     (p=0.166 n=19+20)
-    GoParser        305ms ± 6%        304ms ± 5%    ~     (p=0.659 n=20+20)
-    Reflect         760ms ± 3%        758ms ± 4%    ~     (p=0.758 n=20+20)
-    Tar             362ms ± 6%        357ms ± 5%    ~     (p=0.108 n=20+20)
-    XML             429ms ± 4%        429ms ± 4%    ~     (p=0.799 n=20+20)
-    
-    name      old alloc/op      new alloc/op      delta
-    Template       39.0MB ± 0%       38.8MB ± 0%  -0.55%  (p=0.000 n=20+20)
-    Unicode        29.1MB ± 0%       29.1MB ± 0%  -0.06%  (p=0.000 n=20+20)
-    GoTypes         116MB ± 0%        115MB ± 0%  -0.50%  (p=0.000 n=20+20)
-    Compiler        493MB ± 0%        491MB ± 0%  -0.46%  (p=0.000 n=19+20)
-    SSA            1.40GB ± 0%       1.40GB ± 0%  -0.31%  (p=0.000 n=19+20)
-    Flate          25.0MB ± 0%       24.9MB ± 0%  -0.60%  (p=0.000 n=19+19)
-    GoParser       30.9MB ± 0%       30.7MB ± 0%  -0.66%  (p=0.000 n=20+20)
-    Reflect        77.5MB ± 0%       77.1MB ± 0%  -0.52%  (p=0.000 n=20+20)
-    Tar            39.2MB ± 0%       39.0MB ± 0%  -0.47%  (p=0.000 n=20+20)
-    XML            44.8MB ± 0%       44.6MB ± 0%  -0.45%  (p=0.000 n=20+19)
-    
-    name      old allocs/op     new allocs/op     delta
-    Template         382k ± 0%         379k ± 0%  -0.69%  (p=0.000 n=20+19)
-    Unicode          337k ± 0%         336k ± 0%  -0.09%  (p=0.000 n=20+20)
-    GoTypes         1.19M ± 0%        1.18M ± 0%  -0.64%  (p=0.000 n=20+20)
-    Compiler        4.60M ± 0%        4.58M ± 0%  -0.57%  (p=0.000 n=20+20)
-    SSA             11.5M ± 0%        11.4M ± 0%  -0.42%  (p=0.000 n=19+20)
-    Flate            235k ± 0%         233k ± 0%  -0.74%  (p=0.000 n=20+19)
-    GoParser         316k ± 0%         313k ± 0%  -0.69%  (p=0.000 n=20+20)
-    Reflect          953k ± 0%         946k ± 0%  -0.81%  (p=0.000 n=20+20)
-    Tar              391k ± 0%         388k ± 0%  -0.61%  (p=0.000 n=20+19)
-    XML              413k ± 0%         411k ± 0%  -0.56%  (p=0.000 n=20+20)
-    
-    Change-Id: I7378174e3550b47df4368b24cf24c8ce1b85c906
-    Reviewed-on: https://go-review.googlesource.com/104656
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Idfe1592411573f6e871b5fb997e7d545597a0937
+    Reviewed-on: https://go-review.googlesource.com/70852
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/dom.go      | 4 +++-
- src/cmd/compile/internal/ssa/schedule.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/crypto/x509/x509.go      | 12 ++++++++++--
+ src/crypto/x509/x509_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 2 deletions(-)

@@ -1,15 +1,14 @@
-commit de4317cbd705b3dc53bc0ca0b5831568d57b621a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 11 03:25:00 2016 -0800
+commit 17ce03725cc549fc24e8972780d18ffd673f6b6c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 5 16:56:16 2016 +0000
 
-    cmd/compile: eliminate uses of Type.Down in bexport.go
+    crypto/hmac: update link to FIPS HMAC spec
     
-    Change-Id: I298b9d389ac33a24365f4c06a122c3af989906c0
-    Reviewed-on: https://go-review.googlesource.com/20594
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Thanks to Kevin Kirsche (github kkirsche).
+    
+    Change-Id: Ia0017371f56065a5e88d1ebb800a6489136ee9b1
+    Reviewed-on: https://go-review.googlesource.com/18280
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 29 ++++++++++++++---------------
- 1 file changed, 14 insertions(+), 15 deletions(-)
+ src/crypto/hmac/hmac.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

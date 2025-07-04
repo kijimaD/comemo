@@ -1,22 +1,19 @@
-commit 75cc05fa557b26336bc8e3f0a6c9f03b904a85eb
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Feb 27 12:19:49 2016 +0100
+commit 51a112fefc26fe557bab46abbc3b50565e56c570
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 5 14:29:39 2015 +1100
 
-    fmt: fix formatting of numbers with f.space and f.plus specified
+    path/filepath: handle c: as first parameter in Join properly
     
-    Do not replace the sign in front of a number with a space if both
-    f.space and f.plus are both specified for number formatting.
-    This was already the case for integers but not for floats
-    and complex numbers.
+    This is CL 11882 brought back to life.
     
-    Updates: #14543.
+    Fixes #11551
     
-    Change-Id: I07ddeb505003db84a8a7d2c743dc19fc427a00bd
-    Reviewed-on: https://go-review.googlesource.com/19974
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I29810183957745442d1e9937f56a66fc9c6cc82a
+    Reviewed-on: https://go-review.googlesource.com/17470
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/fmt_test.go | 18 +++++++++++++++++-
- src/fmt/format.go   |  5 +++--
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/path/filepath/path_test.go    | 7 ++++++-
+ src/path/filepath/path_windows.go | 5 +++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

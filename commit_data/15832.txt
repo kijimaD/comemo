@@ -1,14 +1,37 @@
-commit 6e69df6102d167344a74d720b5ef080cdf04a8d7
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue Mar 19 19:51:03 2013 +0100
+commit 5268119f26728ddd2ee9f8eebcbfcec83ac5bd69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 19 11:14:35 2013 -0700
 
-    cmd/gc: support channel types in the garbage collector
+    go/doc, godoc: improved note reading
     
-    R=golang-dev, dvyukov, rsc
-    CC=golang-dev
-    https://golang.org/cl/7473044
+    - A note doesn't have to be in the first
+    comment of a comment group anymore, and
+    several notes may appear in the same comment
+    group (e.g., it is fairly common to have a
+    TODO(uid) note immediately following another
+    comment).
+    
+    - Define a doc.Note type which also contains
+    note uid and position info.
+    
+    - Better formatting in godoc output. The position
+    information is not yet used, but could be used to
+    locate the note in the source text if desired.
+    
+    Fixes #4843.
+    
+    R=r, cnicolaou
+    CC=gobot, golang-dev
+    https://golang.org/cl/7496048
 
- src/cmd/gc/reflect.c   | 11 ++++++++++-
- src/pkg/runtime/mgc0.c | 32 ++++++++++++++++++++++++++++----
- src/pkg/runtime/mgc0.h |  1 +
- 3 files changed, 39 insertions(+), 5 deletions(-)
+ lib/godoc/package.html               |  4 +-
+ lib/godoc/package.txt                |  2 +-
+ src/cmd/godoc/godoc.go               | 14 +++----
+ src/pkg/go/doc/doc.go                | 20 +++++----
+ src/pkg/go/doc/reader.go             | 80 ++++++++++++++++++++++++++----------
+ src/pkg/go/doc/testdata/a.0.golden   | 22 ++++++----
+ src/pkg/go/doc/testdata/a.1.golden   | 22 ++++++----
+ src/pkg/go/doc/testdata/a.2.golden   | 22 ++++++----
+ src/pkg/go/doc/testdata/a0.go        | 23 +++++++++++
+ src/pkg/go/doc/testdata/template.txt |  2 +-
+ 10 files changed, 150 insertions(+), 61 deletions(-)

@@ -1,65 +1,31 @@
-commit 2c9689ab0e7ebfbcd875ac3c54740a8295c43d42
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Tue Apr 8 07:35:11 2025 -0400
+commit 6f5d77454e31be8af11a7e2bcda36d200fda07c5
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 29 15:02:44 2024 -0500
 
-    cmd/compile/internal/escape: add hash for bisecting stack allocation of variable-sized makeslice
+    cmd/compile: add 0-sized-value simplification to copyelim
     
-    CL 653856 enabled stack allocation of variable-sized makeslice results.
+    The problem was caused by faulty handling of unSSA-able
+    operations on zero-sized data in expand calls, but there
+    is no point to operations on zero-sized data.  This CL adds
+    a simplify step to the first place in SSA where all values
+    are processed and replaces anything producing a 0-sized
+    struct/array with the corresponding Struct/Array Make0
+    operation (of the appropriate type).
     
-    This CL adds debug hashing of that change, plus a debug flag
-    to control the byte threshold used.
+    I attempted not generating them in ssagen, but that was a
+    larger change, and also had bugs. This is simple and obvious.
+    The only question is whether it would be worthwhile to do it
+    earlier (in numberlines or phielem).
     
-    The debug hashing machinery means we also now have a way to disable just
-    the CL 653856 optimization by doing -gcflags='all=-d=variablemakehash=n'
-    or similar, though the stderr output will then typically have many
-    lines of debug hash output.
+    Fixes #65808.
     
-    Using this CL plus the bisect command, I was able to retroactively
-    find one of the lines of code responsible for #73199:
-    
-      $ bisect -compile=variablemake go test -skip TestListWireGuardDrivers
-      [...]
-      bisect: FOUND failing change set
-      --- change set #1 (enabling changes causes failure)
-      ./security_windows.go:1321:38 (variablemake)
-      ./security_windows.go:1321:38 (variablemake)
-      ---
-    
-    Previously, I had tracked down those lines by diffing '-gcflags=-m=1'
-    output and brief code inspection, but seeing the bisect was very nice.
-    
-    This CL also adds a compiler debug flag to control the threshold for
-    stack allocation of variably sized make results. This can help
-    us identify more code that is relying on certain stack allocations.
-    This might be a temporary flag that we delete prior to Go 1.25
-    (given we would not want people to rely on it), or maybe it
-    might make sense to keep it for some period of time beyond the release
-    of Go 1.25 to help the ecosystem shake out other bugs.
-    
-    Using these two flags together (and picking a threshold of 64 rather
-    than the default of 32), it looks for example like this
-    x/sys/windows code might be relying on stack allocation of
-    a byte slice:
-    
-      $ bisect -compile=variablemake go test -gcflags=-d=variablemakethreshold=64 -skip TestListWireGuardDrivers
-      [...]
-      bisect: FOUND failing change set
-      --- change set #1 (enabling changes causes failure)
-      ./syscall_windows_test.go:1178:16 (variablemake)
-    
-    Updates #73199
-    Fixes #73253
-    
-    Change-Id: I160179a0e3c148c3ea86be5c9b6cea8a52c3e5b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663795
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I0a596b3d272798015e7bb6b1a20411241759fe0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568258
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/base/debug.go     | 2 ++
- src/cmd/compile/internal/base/flag.go      | 6 +++++-
- src/cmd/compile/internal/base/hashdebug.go | 9 +++++----
- src/cmd/compile/internal/walk/builtin.go   | 5 +++--
- 4 files changed, 15 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/copyelim.go | 11 +++++++++++
+ test/fixedbugs/issue65808.go             | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

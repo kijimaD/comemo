@@ -1,52 +1,18 @@
-commit 40818cfe1c3601a8b88d6935e255064aab07679b
+commit 5361b747b732cf6cf183591b7a66b83fb6fab29f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 11 13:19:47 2014 -0800
+Date:   Thu Oct 23 09:45:11 2014 -0700
 
-    spec: method selectors don't auto-deref named pointer types
+    spec: minimal documention of unsafe.Pointer conversions
     
-    Language clarification.
+    Per suggestion from rsc as a result of the dicussion of
+    (abandoned) CL 153110044.
     
-    The existing rules for selector expressions imply
-    automatic dereferencing of pointers to struct fields.
-    They also implied automatic dereferencing of selectors
-    denoting methods. In almost all cases, such automatic
-    dereferencing does indeed take place for methods but the
-    reason is not the selector rules but the fact that method
-    sets include both methods with T and *T receivers; so for
-    a *T actual receiver, a method expecting a formal T
-    receiver, also accepts a *T (and the invocation or method
-    value expression is the reason for the auto-derefering).
+    Fixes #7192.
     
-    However, the rules as stated so far implied that even in
-    case of a variable p of named pointer type P, a selector
-    expression p.f would always be shorthand for (*p).f. This
-    is true for field selectors f, but cannot be true for
-    method selectors since a named pointer type always has an
-    empty method set.
-    
-    Named pointer types may never appear as anonymous field
-    types (and method receivers, for that matter), so this
-    only applies to variables declared of a named pointer
-    type. This is exceedingly rare and perhaps shouldn't be
-    permitted in the first place (but we cannot change that).
-    
-    Amended the selector rules to make auto-deref of values
-    of named pointer types an exception to the general rules
-    and added corresponding examples with explanations.
-    
-    Both gc and gccgo have a bug where they do auto-deref
-    pointers of named types in method selectors where they
-    should not:
-    
-    See http://play.golang.org/p/c6VhjcIVdM , line 45.
-    
-    Fixes #5769.
-    Fixes #8989.
-    
-    LGTM=r, rsc
+    LGTM=r, rsc, iant
     R=r, rsc, iant, ken
     CC=golang-codereviews
-    https://golang.org/cl/168790043
+    https://golang.org/cl/163050043
 
- doc/go_spec.html | 68 ++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 42 insertions(+), 26 deletions(-)
+ doc/go_spec.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

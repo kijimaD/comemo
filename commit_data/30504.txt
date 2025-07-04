@@ -1,29 +1,17 @@
-commit f1ba75f8c577e1471f646ef3715fc2f41dd423ef
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 31 11:46:36 2017 -0500
+commit 2f2b57853eeccf854e8e47e5f77ff043d34b2a34
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 9 21:35:37 2016 +0000
 
-    runtime: don't rescan finalizers queue during mark termination
+    net/http: deflake TestIdleConnH2Crash
     
-    Currently we scan the finalizers queue both during concurrent mark and
-    during mark termination. This costs roughly 20ns per queued finalizer
-    and about 1ns per unused finalizer queue slot (allocated queue length
-    never decreases), which can drive up STW time if there are many
-    finalizers.
+    Fixes #17838
     
-    However, we only add finalizers to this queue during sweeping, which
-    means that the second scan will never find anything new. Hence, we can
-    fix this by simply not scanning the finalizers queue during mark
-    termination. This brings the STW time under the 100µs goal even with
-    1,000,000 queued finalizers.
-    
-    Fixes #18869.
-    
-    Change-Id: I4ce5620c66fb7f13ebeb39ca313ce57047d1d0fb
-    Reviewed-on: https://go-review.googlesource.com/36013
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ifafb4542a0ed6f2e29c9a83e30842e2fc18d6546
+    Reviewed-on: https://go-review.googlesource.com/33015
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/runtime/mfinal.go  | 16 +++++++++++++++-
- src/runtime/mgcmark.go |  5 +++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/net/http/transport_test.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

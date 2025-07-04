@@ -1,20 +1,20 @@
-commit b67b72da4337a16088c1780245a9fa1c45b4bca4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 18 10:38:08 2011 +1000
+commit 0f801ff81e9a9f8d88a7d63e7951f2c61f5d449b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 16:38:58 2011 -0700
 
-    doc/codelab: use new template package
+    godoc: template cleanup
     
-    R=golang-dev, r
+    Use naming convention for template variables
+    to indicate "escaped-ness" for easier reviewing.
+    (per suggestion from bradfitz)
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4897048
+    https://golang.org/cl/4914041
 
- doc/codelab/wiki/edit.html          |  6 ++--
- doc/codelab/wiki/final-noclosure.go |  4 +--
- doc/codelab/wiki/final-noerror.go   |  6 ++--
- doc/codelab/wiki/final.go           |  5 +--
- doc/codelab/wiki/htmlify.go         |  4 +--
- doc/codelab/wiki/index.html         | 68 +++++++++++++++++++------------------
- doc/codelab/wiki/srcextract.go      |  2 +-
- doc/codelab/wiki/view.html          |  6 ++--
- doc/codelab/wiki/wiki.html          | 49 +++++++++++++-------------
- 9 files changed, 77 insertions(+), 73 deletions(-)
+ lib/godoc/codewalkdir.html |  4 ++--
+ lib/godoc/dirlist.html     |  6 +++---
+ lib/godoc/package.html     | 16 ++++++++--------
+ lib/godoc/search.html      | 26 +++++++++++++-------------
+ lib/godoc/search.txt       |  4 ++--
+ 5 files changed, 28 insertions(+), 28 deletions(-)

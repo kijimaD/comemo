@@ -1,17 +1,14 @@
-commit c4c37547b12f113d07b987881a81c1dbc754cd66
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Oct 23 17:50:22 2019 -0400
+commit b8d5150f4a81c82ae7ebeb750f568055b7e8b212
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 9 21:04:39 2019 +0000
 
-    cmd/go/internal/modload: remove cwd global
+    os/user: make Current return better error w/o cgo & complete environment
     
-    base.Cwd should be used instead.
+    Fixes #31949
     
-    Change-Id: I3dbdecf745b0823160984cc942c883dc04c91d7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203037
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib96a43e4c56a00c5ba04e4d213255a063058ae08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176337
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/init.go | 39 +++++++++++++++++--------------------
- src/cmd/go/internal/modload/load.go |  4 ++--
- 2 files changed, 20 insertions(+), 23 deletions(-)
+ src/os/user/lookup_stubs.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

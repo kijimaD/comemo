@@ -1,21 +1,24 @@
-commit 1b79afe460c329c1db75456c3278600a4b451b41
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 27 12:31:33 2019 -0400
+commit db2bf154cc06fe67c79164f225592b06660fa02c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 6 23:03:36 2019 +0000
 
-    runtime: remove old stack scanning code
+    mime: update .mjs MIME type from text/ to application/javascript
     
-    This removes scang and preemptscan, since the stack scanning code now
-    uses suspendG.
+    .mjs should be the same MIME type as .js, and RFC 4329 says that
+    text/javascript is obsolete, even back in 2006:
     
-    For #10958, #24543.
+        https://tools.ietf.org/html/rfc4329#section-7.1
     
-    Change-Id: Ic868bf5d6dcce40662a82cb27bb996cb74d0720e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201138
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    I didn't notice this when I recently reviewed CL 169502.
+    
+    Also, re-sort it.
+    
+    Updates #30547
+    
+    Change-Id: I8ed8ddaf06c8a08b010423ebd071f39ef3a325e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175459
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/proc.go     | 113 ------------------------------------------------
- src/runtime/runtime2.go |   1 -
- src/runtime/stack.go    |  29 +------------
- 3 files changed, 1 insertion(+), 142 deletions(-)
+ src/mime/type.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,29 +1,35 @@
-commit fb4f4f4e96058165c0e7be32aa9ce493515c22a3
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Sep 30 14:20:42 2016 -0400
+commit 5e43dc943a9265ec65690242eb8076727c18a958
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Thu Jun 23 19:46:13 2016 -0400
 
-    crypto/{aes,cipher}: add optimized implementation of AES-GCM for s390x
+    math/big: special-case a 0 mantissa during Rat parsing
     
-    Also adds two tests: one to exercise the counter incrementing code
-    and one which checks the output of the optimized implementation
-    against that of the generic implementation for large/unaligned data
-    sizes.
+    Previously, a 0 mantissa was special-cased during big.Float
+    parsing, but not during big.Rat parsing. This meant that a value
+    like 0e9999999999 would parse successfully in big.Float.SetString,
+    but would hang in big.Rat.SetString. This discrepancy became an
+    issue in https://golang.org/src/go/constant/value.go?#L250,
+    where the big.Float would report an exponent of 0, so
+    big.Rat.SetString would be used and would subsequently hang.
     
-    Uses the KIMD instruction for GHASH and the KMCTR instruction for AES
-    in counter mode.
+    A Go Playground example of this is https://play.golang.org/p/3fy28eUJuF
     
-    AESGCMSeal1K  75.0MB/s ± 2%  1008.7MB/s ± 1%  +1245.71%  (p=0.000 n=10+10)
-    AESGCMOpen1K  75.3MB/s ± 1%  1006.0MB/s ± 1%  +1235.59%   (p=0.000 n=10+9)
-    AESGCMSeal8K  78.5MB/s ± 1%  1748.4MB/s ± 1%  +2127.34%   (p=0.000 n=9+10)
-    AESGCMOpen8K  78.5MB/s ± 0%  1752.7MB/s ± 0%  +2134.07%   (p=0.000 n=10+9)
+    The solution is to special-case a zero mantissa during big.Rat
+    parsing as well, so that neither big.Rat nor big.Float will hang when
+    parsing a value with 0 mantissa but a large exponent.
     
-    Change-Id: I88dbcfcb5988104bfd290ae15a60a2721c1338be
-    Reviewed-on: https://go-review.googlesource.com/30361
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This was discovered using go-fuzz on CockroachDB:
+    https://github.com/cockroachdb/go-fuzz/blob/master/examples/parser/main.go
+    
+    Fixes #16176
+    
+    Change-Id: I775558a8682adbeba1cc9d20ba10f8ed26259c56
+    Reviewed-on: https://go-review.googlesource.com/24430
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/aes/asm_s390x.s    |  96 +++++++++++++++
- src/crypto/aes/gcm_s390x.go   | 270 ++++++++++++++++++++++++++++++++++++++++++
- src/crypto/cipher/gcm_test.go | 158 ++++++++++++++++++++++++
- 3 files changed, 524 insertions(+)
+ src/go/constant/value_test.go | 1 +
+ src/math/big/ratconv.go       | 6 ++++++
+ src/math/big/ratconv_test.go  | 1 +
+ 3 files changed, 8 insertions(+)

@@ -1,47 +1,23 @@
-commit ac45cb9aa0154a84a63d18d87161dd39a2885449
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 3 15:52:22 2018 -0800
+commit f47c8f130e4f5642cda5ee98741c2de25fde8b7e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 2 16:40:38 2017 -0400
 
-    cmd/compile/internal/syntax: permit /*line file:line:col*/ directives
+    runtime: skip test that intermittently hangs on ppc64le
     
-    R=go1.11
+    A new testcase TestSelectFairness was recently added, and
+    since then the ppc64le build tests have intermittently failed.
     
-    This implements parsing of /*line file:line*/ and /*line file:line:col*/
-    directives and also extends the optional column format to regular //line
-    directives, per #22662.
+    This adds a change to skip this test on ppc64le using
+    SkipFlaky to help determine if the problem is with the
+    test or something else with that commit.
     
-    For a line directive to be recognized, its comment text must start with
-    the prefix "line " which is followed by one of the following:
+    Updates #22047
     
-    :line
-    :line:col
-    filename:line
-    filename:line:col
-    
-    with at least one : present. The line and col values must be unsigned
-    decimal integers; everything before is considered part of the filename.
-    
-    Valid line directives are:
-    
-    //line :123
-    //line :123:8
-    //line foo.go:123
-    //line C:foo.go:123     (filename is "C:foo.go")
-    //line C:foo.go:123:8   (filename is "C:foo.go")
-    /*line ::123*/          (filename is ":")
-    
-    No matter the comment format, at the moment all directives act as if
-    they were in //line comments, and column information is ignored.
-    To be addressed in subsequent CLs.
-    
-    For #22662.
-    
-    Change-Id: I1a2dc54bacc94bc6cdedc5229ee13278971f314e
-    Reviewed-on: https://go-review.googlesource.com/86037
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idfef72ed791c5bd45c42ff180947fea3df280ea7
+    Reviewed-on: https://go-review.googlesource.com/67631
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go       |  54 +++++++++---
- src/cmd/compile/internal/syntax/parser_test.go  | 110 ++++++++++++++++++++----
- src/cmd/compile/internal/syntax/scanner.go      |  38 ++++++--
- src/cmd/compile/internal/syntax/scanner_test.go |   9 +-
- 4 files changed, 172 insertions(+), 39 deletions(-)
+ src/runtime/chan_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

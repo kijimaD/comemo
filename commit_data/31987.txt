@@ -1,27 +1,16 @@
-commit d1340ee2e91a873d689cf11b74022f60476cd729
-Author: Gustav Westling <zegl@westling.xyz>
-Date:   Thu Jul 6 20:30:26 2017 +0200
+commit 9f232c1786f57051d34848db48ece398ad0329db
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 29 10:55:46 2017 +1100
 
-    encoding/base32: make NoPadding Encoding's DecodedLen return exact size
+    cmd/compile/internal/gc: remove unused state.placeholder field
     
-    CL 47341 added support for decoding non-padded messages. But DecodedLen
-    still returned a multiple of 5 for messages without a padding, even
-    though it is possible to calculate the len exactly when using NoPadding.
+    gc.state.placeholder was added in 5a6e511c61 but never used.
     
-    This change makes DecodedLen return the exact number of bytes that
-    will be written. A change to the decoding logic is also made so that it
-    can handle this case.
-    
-    DecodedLen now has the same behaviour as DecodedLen in encoding/base64.
-    
-    Fixes #20854
-    
-    Change-Id: I729e0b1c0946c866fb675c854f835f366dd4b5a4
-    Reviewed-on: https://go-review.googlesource.com/47710
+    Change-Id: I5a621507279d5bb1f3991b7a412d9a63039c464e
+    Reviewed-on: https://go-review.googlesource.com/38755
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/base32/base32.go      |  9 ++++++---
- src/encoding/base32/base32_test.go | 10 +++++-----
- 2 files changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 3 ---
+ 1 file changed, 3 deletions(-)

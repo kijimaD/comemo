@@ -1,14 +1,39 @@
-commit f9ec929aafeec42eea7234c1fa6c6c817c7a6548
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 18 11:18:58 2015 -0700
+commit ac1cdd13e04607abb862d508312c64180ad142da
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 22 12:41:14 2015 +1200
 
-    spec: fix typo
+    cmd/5g, etc, cmd/internal/gc, cmd/internal/obj, etc: coalesce bool2int implementations
     
-    Fixes #10893.
+    There were 10 implementations of the trivial bool2int function, 9 of which
+    were the only thing in their file.  Remove all of them in favor of one in
+    cmd/internal/obj.
     
-    Change-Id: I8afeb55acda1e1c8e181379dbaf443716d63ded1
-    Reviewed-on: https://go-review.googlesource.com/10201
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9c51d30716239df51186860b9842a5e9b27264d3
+    Reviewed-on: https://go-review.googlesource.com/9230
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5g/util.go                 | 12 ------------
+ src/cmd/6g/util.go                 | 12 ------------
+ src/cmd/7g/gsubr.go                |  2 +-
+ src/cmd/7g/util.go                 | 12 ------------
+ src/cmd/8g/util.go                 | 12 ------------
+ src/cmd/9g/gsubr.go                |  2 +-
+ src/cmd/9g/util.go                 | 12 ------------
+ src/cmd/internal/gc/const.go       |  2 +-
+ src/cmd/internal/gc/gsubr.go       |  4 ++--
+ src/cmd/internal/gc/pgen.go        | 10 +++++-----
+ src/cmd/internal/gc/reflect.go     |  6 +++---
+ src/cmd/internal/gc/typecheck.go   |  8 ++++----
+ src/cmd/internal/gc/util.go        |  7 -------
+ src/cmd/internal/obj/arm/obj5.go   |  2 +-
+ src/cmd/internal/obj/arm/util.go   | 12 ------------
+ src/cmd/internal/obj/arm64/asm7.go |  8 ++++----
+ src/cmd/internal/obj/arm64/obj7.go |  2 +-
+ src/cmd/internal/obj/arm64/util.go | 12 ------------
+ src/cmd/internal/obj/ppc64/obj9.go |  2 +-
+ src/cmd/internal/obj/ppc64/util.go | 12 ------------
+ src/cmd/internal/obj/util.go       |  7 +++++++
+ src/cmd/internal/obj/x86/asm6.go   |  2 +-
+ src/cmd/internal/obj/x86/obj6.go   |  2 +-
+ src/cmd/internal/obj/x86/util.go   | 12 ------------
+ 24 files changed, 33 insertions(+), 141 deletions(-)

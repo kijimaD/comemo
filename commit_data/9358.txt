@@ -1,30 +1,23 @@
-commit e3df71f50bfd7e2d0706a6fa8d3ff56b3d7c4b0a
+commit e3f3a5411a3f60d8ab52fb335ee4eff6eb531fd9
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Aug 15 00:56:01 2011 -0300
+Date:   Mon Aug 15 00:22:28 2011 -0300
 
-    exp/template: support field syntax on maps
+    exp/template: don't panic on range of nil interface
     
-    While using exp/template in practice, the syntax for
-    indexing values using the "index" action was found to be
-    very inconvenient for frequent use when handling dynamic
-    data from maps such as the ones used with json and yaml,
-    that use a type like map[string]interface{}.
+    This avoids a non-obvious panic when range is used on a
+    nil interface, and fixes it by behaving as if the range
+    was empty.
     
-    For these kinds of maps, the default handling of fields as
-    {{.Field}} makes the task of handling the several references
-    significantly more pleasant and elegant, and is equivalent
-    to what's currently done in the "template" package and in
-    other external packages (e.g. mustache).
-    
-    Even with this change, the index action is still relevant
-    as it allows indexing maps in other scenarios where keys
-    wouldn't be valid field names.
+    The new behavior is equivalent to the outcome of iterating
+    on a nil map or slice, and is useful because it allows
+    generic structures such as used in json (map[string]interface{})
+    to behave correctly if a key generally set to a list or map
+    isn't present.
     
     R=golang-dev, r, gustavo
     CC=golang-dev
-    https://golang.org/cl/4898043
+    https://golang.org/cl/4876046
 
- src/pkg/exp/template/doc.go       | 15 +++++++++++++--
- src/pkg/exp/template/exec.go      | 13 ++++++++++++-
- src/pkg/exp/template/exec_test.go | 12 ++++++++++++
- 3 files changed, 37 insertions(+), 3 deletions(-)
+ src/pkg/exp/template/exec.go      | 4 +++-
+ src/pkg/exp/template/exec_test.go | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

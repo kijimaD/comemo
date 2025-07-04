@@ -1,14 +1,37 @@
-commit c6a5b3602a87b2d1321ad11aa64b7f588bbb683b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 17 18:07:07 2016 -0700
+commit 688840593bf7e5a7de89e4f60e4414bd857dbdbc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 26 08:17:43 2016 -0700
 
-    doc/effective_go: clarify backward function reference
+    cmd/compile: don’t generate a new Node for convas
     
-    Fixes #14656.
+    This removes about 3% of the Nodes allocated
+    while compiling std+cmd.
     
-    Change-Id: I37a9aa51705ae18bd034f2cc6dbf06a55f969197
-    Reviewed-on: https://go-review.googlesource.com/23202
-    Reviewed-by: Rob Pike <r@golang.org>
+    Passes toolstash -cmp.
+    
+    name       old time/op     new time/op     delta
+    Template       320ms ± 3%      316ms ± 5%    ~           (p=0.063 n=21+23)
+    Unicode        162ms ± 9%      161ms ± 6%    ~           (p=0.788 n=25+25)
+    GoTypes        1.03s ± 4%      1.03s ± 4%    ~           (p=0.929 n=24+25)
+    Compiler       4.99s ± 3%      4.95s ± 2%  -0.84%        (p=0.011 n=25+23)
+    MakeBash       40.3s ± 1%      40.3s ± 1%    ~           (p=0.468 n=24+24)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      57.3MB ± 0%     57.0MB ± 0%  -0.51%        (p=0.000 n=25+23)
+    Unicode       41.1MB ± 0%     41.0MB ± 0%  -0.27%        (p=0.000 n=25+24)
+    GoTypes        191MB ± 0%      190MB ± 0%  -0.46%        (p=0.000 n=25+25)
+    Compiler       839MB ± 0%      834MB ± 0%  -0.62%        (p=0.000 n=24+24)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        500k ± 0%       498k ± 0%  -0.42%        (p=0.000 n=25+25)
+    Unicode         400k ± 0%       399k ± 0%  -0.22%        (p=0.000 n=24+25)
+    GoTypes        1.50M ± 0%      1.49M ± 0%  -0.41%        (p=0.000 n=23+25)
+    Compiler       6.04M ± 0%      6.00M ± 0%  -0.59%        (p=0.000 n=25+25)
+    
+    Change-Id: I7d3f177d1ab4a75a4c047fa465f2eee38747603f
+    Reviewed-on: https://go-review.googlesource.com/21178
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

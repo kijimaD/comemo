@@ -1,15 +1,36 @@
-commit ef544b64d7417aa58d41b50ec7f9b1134ca1d638
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 5 13:24:45 2017 -0800
+commit 4e2ef7f7f9a3351c3774148c40fe0d7f12403da5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 2 10:31:52 2017 -0400
 
-    flag: clarify comment to avoid shell syntax confusion
+    cmd/go: add source file contents to plugin hash
     
-    Updates #22961
+    It is common to have multiple plugins built from ephemeral
+    source files all with the same name:
     
-    Change-Id: Ib2f41aefb4f6470598d8637611da5491156ea840
-    Reviewed-on: https://go-review.googlesource.com/82015
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            # generate main.go
+            go build -buildmode=plugin -o=p1.so main.go
+            # rm main.go, generate new main.go
+            go build -buildmode=plugin -o=p2.so main.go
+            ...
+    
+    These different plugins currently have the same build ID,
+    and hence the same package path. This means only one can be
+    loaded.
+    
+    To remove this restriction, this commit adds the contents of the
+    main package source files to the plugin hash.
+    
+    Fixes #19358
+    
+    Change-Id: Icd42024b085feb29c09c2771aaecb85f8b528dd3
+    Reviewed-on: https://go-review.googlesource.com/61170
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/flag/flag.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ misc/cgo/testplugin/test.bash                      |  4 +-
+ .../testplugin/{unnamed1.go => unnamed1/main.go}   |  0
+ .../testplugin/{unnamed2.go => unnamed2/main.go}   |  0
+ src/cmd/go/internal/load/pkg.go                    | 45 +++++++++++++++++-----
+ src/cmd/go/internal/work/build.go                  | 10 +----
+ 5 files changed, 40 insertions(+), 19 deletions(-)

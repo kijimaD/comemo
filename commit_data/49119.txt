@@ -1,22 +1,37 @@
-commit 7a574ff23f9cda0967fd63a55c897e7598b60ad2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon May 9 14:56:14 2022 -0400
+commit 2a0825d01f2cd68f5d82b3335f943bcf6f565f09
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jul 12 15:39:43 2021 -0700
 
-    cmd/compile: fix boolean comparison on PPC64
+    [dev.fuzz] internal/fuzz: avoid marshaling input before calling fuzz function
     
-    Following CL 405114, for PPC64.
+    Previously, before each call to the fuzz function, the worker process
+    marshalled the mutated input into shared memory. If the worker process
+    terminates unexpectedly, it's important that the coordinator can find
+    the crashing input in shared memory.
     
-    Should fix PPC64 builds.
+    Profiling shows this marshalling is very expensive though. This change
+    takes another strategy. Instead of marshaling each mutated input, the
+    worker process no longer modifies the input in shared memory at
+    all. Instead, it saves its PRNG state in shared memory and increments
+    a counter before each fuzz function call. If the worker process
+    terminates, the coordinator can reconstruct the crashing value using
+    this information.
     
-    Updates #52788.
+    This change gives a ~10x increase in execs/s for a trivial fuzz
+    function with -parallel=1.
     
-    Change-Id: I193ac31cfba18b4f907dd2523b51368251fd6fad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405116
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I18cf326c252727385dc53ea2518922b1f6ae36b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334149
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  22 +++---
- src/cmd/compile/internal/ssa/rewritePPC64.go | 108 +++++++++++++++++++--------
- src/cmd/objdump/objdump_test.go              |   2 +-
- 3 files changed, 88 insertions(+), 44 deletions(-)
+ .../testdata/script/test_fuzz_mutator_repeat.txt   |  66 +++++++++++++
+ src/internal/fuzz/mem.go                           |   3 +
+ src/internal/fuzz/mutators_byteslice_test.go       |   8 ++
+ src/internal/fuzz/pcg.go                           |  13 +++
+ src/internal/fuzz/worker.go                        | 107 +++++++++++++--------
+ src/internal/fuzz/worker_test.go                   |   5 +-
+ 6 files changed, 158 insertions(+), 44 deletions(-)

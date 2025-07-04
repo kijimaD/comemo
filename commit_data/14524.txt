@@ -1,14 +1,20 @@
-commit 85e451e2fe3aae0c5d066cd0ee5f178877139188
+commit 25dd00295c54fa23a545bfdd27824ac403ceba84
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 29 14:47:47 2012 -0800
+Date:   Thu Nov 29 11:46:25 2012 -0800
 
-    go spec: receiver, parameter, and result names must always be unique
+    spec: clarify use of built-ins in go/defer statements
     
-    Fixes #4450.
+    1) Built-ins are restricted like for expression statements.
+       This documents the status quo.
     
-    R=rsc, iant
+    2) Calls cannot be parenthesized. The spec is not clear. gccgo
+       permits it already, gc doesn't. Be explicit in the spec.
+    
+     Fixes #4462.
+    
+    R=rsc, iant, r, ken, lvd
     CC=golang-dev
-    https://golang.org/cl/6845104
+    https://golang.org/cl/6861043
 
- doc/go_spec.html | 30 +++++++++++++++++-------------
- 1 file changed, 17 insertions(+), 13 deletions(-)
+ doc/go_spec.html | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

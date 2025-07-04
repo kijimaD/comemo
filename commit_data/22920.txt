@@ -1,21 +1,12 @@
-commit f963cb707ec375f36851f0a2c00a0f85474c03b6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 7 08:20:42 2015 +0900
+commit 40db92f288aede5e0372776802df6a9d689e8dfa
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 09:01:38 2015 -0700
 
-    net: don't run IP stack required tests on IP stack disabled kernels
+    doc/go1.5.txt: io.CopyBuffer and new reflect.Value handling in fmt
     
-    This change doesn't work perfectly on IPv6-only kernels including CLAT
-    enabled kernels, but works enough on IPv4-only kernels.
-    
-    Fixes #10721.
-    Updates #10729.
-    
-    Change-Id: I7db0e572e252aa0a9f9f54c8e557955077b72e44
-    Reviewed-on: https://go-review.googlesource.com/9777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia0d7c2f08f8f124bcd62c7f9744227812d68903d
+    Reviewed-on: https://go-review.googlesource.com/8941
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/dial_test.go     |  4 ++--
- src/net/ipsock_test.go   |  2 +-
- src/net/listen_test.go   |  8 ++++++++
- src/net/platform_test.go | 17 ++++++++++++++---
- 4 files changed, 25 insertions(+), 6 deletions(-)
+ doc/go1.5.txt | 2 ++
+ 1 file changed, 2 insertions(+)

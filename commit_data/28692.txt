@@ -1,26 +1,14 @@
-commit e5421e21effb5b1db4e565babbddffeb4103d40e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 5 07:31:11 2016 -0700
+commit 3001334e7752af67036a6d9c30c919cbfea81a7c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jun 27 23:27:54 2016 -0700
 
-    runtime: add threadprof tag for test that starts busy thread
+    doc/go1.7.html: mention recent changes to Rand.Read
     
-    The CgoExternalThreadSIGPROF test starts a thread at constructor time
-    that does a busy loop. That can throw off some other tests. So only
-    build that code if testprogcgo is built with the tag threadprof, and
-    adjust the tests that use that code to pass that build tag.
+    Updates #16124
     
-    This revealed that the CgoPprofThread test was not testing what it
-    should have, as it never actually started the cpuHog thread. It was
-    passing because of the busy loop thread. Fix it to start the thread as
-    intended.
-    
-    Change-Id: I087a9e4fc734a86be16a287456441afac5676beb
-    Reviewed-on: https://go-review.googlesource.com/30362
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib58f2bb37fd1559efc512a2e3cba976f09b939a0
+    Reviewed-on: https://go-review.googlesource.com/24520
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/crash_cgo_test.go                   | 31 ++++++++++++++++++++-----
- src/runtime/testdata/testprogcgo/threadpprof.go | 14 +++++++++++
- src/runtime/testdata/testprogcgo/threadprof.go  |  5 ++++
- 3 files changed, 44 insertions(+), 6 deletions(-)
+ doc/go1.7.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

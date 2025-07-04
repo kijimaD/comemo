@@ -1,14 +1,21 @@
-commit 363a5da3b86c2f90c0b2055c37617e8b3bc85fd8
-Author: Laurent Voisin <lpvoisin@gmail.com>
-Date:   Sun Nov 19 19:25:47 2017 +0100
+commit eb07028289f39b9cd4016081fc05c50507ea3340
+Author: Ulrich Kunitz <uli.kunitz@gmail.com>
+Date:   Sun Aug 27 11:27:45 2017 +0200
 
-    cmd/go: fix typo in error message
+    crypto/rsa: fix URL for the PKCS #1 v2.2 document in pss.go
     
-    Change-Id: I9b618de68a5f2c89caae06d35a153cda2f466b6a
-    Reviewed-on: https://go-review.googlesource.com/78678
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The PKCS #1 v2.2 document has been moved to an EMC
+    website with a new URL. This CL updates the reference to the document to
+    the new URL.
+    
+    The new URL is referenced under https://en.wikipedia.org/wiki/PKCS_1
+    
+    Fixes #21642
+    
+    Change-Id: Ib8738b0c4c3bb9ec427bebea20c4aacd607ba0db
+    Reviewed-on: https://go-review.googlesource.com/59351
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/generate/generate.go | 2 +-
+ src/crypto/rsa/pss.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

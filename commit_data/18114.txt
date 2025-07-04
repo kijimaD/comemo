@@ -1,14 +1,12 @@
-commit 1fa0206024e543b78e2ffea7997a0ac676cec708
+commit 499d2167fc8ae6fde73e78ed31f3762683fd29a2
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 26 12:16:11 2013 -0800
+Date:   Thu Dec 26 11:52:04 2013 -0800
 
-    net/http: fix data race in benchmark
-    
-    Fixes #7006
+    C: add John Newlin (Google CLA)
     
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/44940044
+    https://golang.org/cl/45830043
 
- src/pkg/net/http/serve_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

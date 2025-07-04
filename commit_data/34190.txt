@@ -1,19 +1,22 @@
-commit 1a2273874953517cc38f7005e985c91d16ebf33c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 14 16:57:28 2018 -0800
+commit 7830a19a4fcbb79c7a3a27e80449a3b15cb26e31
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Oct 9 10:08:54 2017 -0700
 
-    cmd/compile/internal/syntax: more tolerant handling of missing function invocation in go/defer
+    cmd/compile: add ideal int constants to dwarf
     
-    Assume that an expression that is not a function call in a defer/go
-    statement is indeed a function that is just missing its invocation.
-    Report the error but continue with a sane syntax tree.
+    The core dump reader would like a bunch of ideal int
+    constants to be available in dwarf.
     
-    Fixes #23586.
+    Makes the go binary 0.9% bigger.
     
-    Change-Id: Ib45ebac57c83b3e39ae4a1b137ffa291dec5b50d
-    Reviewed-on: https://go-review.googlesource.com/94156
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Update #14517
+    
+    Change-Id: I00cdfc7f53bcdc56fccba576c1d33010f03bdd95
+    Reviewed-on: https://go-review.googlesource.com/69270
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/syntax/parser.go |  2 +-
- test/fixedbugs/issue23586.go              | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go | 17 ++++++++++++++---
+ src/runtime/runtime-gdb_test.go    |  3 ++-
+ 2 files changed, 16 insertions(+), 4 deletions(-)

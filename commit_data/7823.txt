@@ -1,13 +1,21 @@
-commit 45aeca47278d6188e72d8d633b27865108c27c4e
+commit 319a8c45accc9319f9cedf8a4cf2bdda627cf8c6
 Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 21 13:48:31 2011 -0700
+Date:   Mon Mar 21 13:02:10 2011 -0700
 
-    time: give a helpful message when we can't set the time zone for testing.
-    Fixes #1625.
+    syscall: rename from .sh to .pl, because these files are in Perl.
+    Also delete references to nacl.
     
-    R=bradfitzgo, bradfitzwork, r2
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4295060
+    https://golang.org/cl/4275060
 
- src/pkg/time/time_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/syscall/mkall.sh                           | 37 ++++++++--------------
+ src/pkg/syscall/{mksyscall.sh => mksyscall.pl}     |  4 +--
+ .../{mksyscall_windows.sh => mksyscall_windows.pl} |  4 +--
+ .../{mksysnum_darwin.sh => mksysnum_darwin.pl}     |  2 +-
+ .../{mksysnum_freebsd.sh => mksysnum_freebsd.pl}   |  2 +-
+ .../{mksysnum_linux.sh => mksysnum_linux.pl}       |  2 +-
+ src/pkg/syscall/zsyscall_darwin_amd64.go           |  2 +-
+ src/pkg/syscall/zsysnum_darwin_amd64.go            |  2 +-
+ src/pkg/syscall/ztypes_darwin_amd64.go             |  2 +-
+ 9 files changed, 24 insertions(+), 33 deletions(-)

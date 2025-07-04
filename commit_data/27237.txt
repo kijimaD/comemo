@@ -1,13 +1,21 @@
-commit 24c05e7e695767a46ce6e48d2492c29ba7adffc4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun May 1 15:18:13 2016 +0000
+commit fb950cd7786d28a239c64f0799913eeea10acbc2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 16 14:10:51 2016 -0700
 
-    net/http: fix typo in comment
+    cmd/internal/obj: convert Symgrow to a method
     
-    Change-Id: I753e62879a56582a9511e3f34fdeac929202efbf
-    Reviewed-on: https://go-review.googlesource.com/22680
-    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Passes toolstash -cmp.
+    
+    Change-Id: I77a415a4e5d8de7eb902fb0866aaf8783259485a
+    Reviewed-on: https://go-review.googlesource.com/20770
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm/asm5.go   | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go | 2 +-
+ src/cmd/internal/obj/data.go       | 9 +++++----
+ src/cmd/internal/obj/mips/asm0.go  | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go | 2 +-
+ src/cmd/internal/obj/x86/asm6.go   | 8 ++++----
+ 6 files changed, 13 insertions(+), 12 deletions(-)

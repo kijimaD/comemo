@@ -1,14 +1,15 @@
-commit 89a7c87e664580b7281b6eabeb1bffefa716e906
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 8 12:15:19 2013 -0800
+commit 548e58781bd5d1201d3095351ec819bc447c0c47
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 8 17:23:46 2013 +1100
 
-    all: use io.ByteWriter now that it exists
+    net/http/cgi: make it work without REQUEST_URI environment variable
     
-    R=golang-dev, minux.ma
+    Fixes #4367.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7079043
+    https://golang.org/cl/7062052
 
- src/pkg/compress/lzw/writer.go | 2 +-
- src/pkg/exp/html/render.go     | 2 +-
- src/pkg/image/jpeg/writer.go   | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/http/cgi/child.go      | 12 ++++++++++--
+ src/pkg/net/http/cgi/child_test.go | 24 +++++++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 3 deletions(-)

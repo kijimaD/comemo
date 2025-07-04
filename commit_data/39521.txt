@@ -1,21 +1,40 @@
-commit 0cadf40f4c3613c0170120f4b902cb153338db15
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jul 16 12:51:34 2019 -0400
+commit a1f7dbf0aa5c9c7bd6677c53d68aa991e4b18797
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Sun Jan 13 18:10:19 2019 +0100
 
-    cmd/go: tweak wording of module path mismatch error message
+    strconv: simplify (*extFloat).Multiply using math/bits.Mul64
     
-    Changes "was loaded as" to "was required as". This is slightly more
-    precise, since it hints at a requirement edge in the module version
-    graph.
+    This method was using a handwritten long multiplication of uint64s.
+    Since implementation of #24813 we can remove it and replace it
+    by Mul64 from math/bits.
     
-    Updates #28489
+    This brings a small speedup for 64-bit platforms.
     
-    Change-Id: I636268c33f1ea9858c214fe275f271538186ed6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186377
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Benchmarks on Haswell Celeron 2955U.
+    
+    benchmark                                  old ns/op     new ns/op     delta
+    BenchmarkAppendFloat/Decimal-2             127           127           +0.00%
+    BenchmarkAppendFloat/Float-2               340           317           -6.76%
+    BenchmarkAppendFloat/Exp-2                 258           233           -9.69%
+    BenchmarkAppendFloat/NegExp-2              256           231           -9.77%
+    BenchmarkAppendFloat/Big-2                 402           375           -6.72%
+    BenchmarkAppendFloat/BinaryExp-2           113           114           +0.88%
+    BenchmarkAppendFloat/32Integer-2           125           125           +0.00%
+    BenchmarkAppendFloat/32ExactFraction-2     274           249           -9.12%
+    BenchmarkAppendFloat/32Point-2             339           317           -6.49%
+    BenchmarkAppendFloat/32Exp-2               255           229           -10.20%
+    BenchmarkAppendFloat/32NegExp-2            254           229           -9.84%
+    BenchmarkAppendFloat/64Fixed1-2            165           154           -6.67%
+    BenchmarkAppendFloat/64Fixed2-2            184           176           -4.35%
+    BenchmarkAppendFloat/64Fixed3-2            168           158           -5.95%
+    BenchmarkAppendFloat/64Fixed4-2            187           177           -5.35%
+    BenchmarkAppendFloat/Slowpath64-2          84977         84883         -0.11%
+    
+    Change-Id: If05784e856289b3b7bf136567882e7ee10234756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157717
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/load.go              |  2 +-
- src/cmd/go/testdata/script/mod_load_badchain.txt | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/strconv/extfloat.go | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)

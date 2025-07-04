@@ -1,18 +1,15 @@
-commit 71c02bed6797d7844434d6044019b97332dd72e6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 9 04:31:47 2023 +1100
+commit 9d6c711e3c7f16fd4dd2e812d855e881c6692f3e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 15:55:27 2022 -0700
 
-    cmd/internal/obj/arm64: remove spurious assignments with OR
+    runtime: use correct parameter name in comment
     
-    Use = rather than |= when assigning to an op variable.
-    
-    Change-Id: I142c9fb3aa6f4b48875710100c05ab640e21933a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461135
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: If8713aca9d6b1f1c218e85f09c9ee016833b3faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396515
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/mbarrier.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

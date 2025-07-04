@@ -1,18 +1,15 @@
-commit 17211b64b6a601ff14cb714362c054434aa86f5a
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Nov 6 14:18:43 2023 -0500
+commit f263d9cd93bd713b44b54a3c943b23be0e2c73b9
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 18 10:44:55 2022 -0800
 
-    cmd/link/internal/loadpe: allocate comdat definitions map lazily
+    net: fix typo in ControlContext parameter names
     
-    Switch the "comdatDefinitions" map to lazy allocation; we only need it
-    for loading PE objects, no point doing an allocation during package
-    init if we don't need it.
-    
-    Change-Id: Ie33f2c56e964f35ac2e137840ac021cfaaa897c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540255
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I35fcfb2d8cafadca36cffeebe0858973895946d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451419
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/link/internal/loadpe/ldpe.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

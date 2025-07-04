@@ -1,19 +1,13 @@
-commit 408f0b1f7459ebcbc74ad5936950072796fe449a
+commit 109a9763550aac3071e30f6e13cb5ec1172aa017
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 26 16:25:07 2012 -0500
+Date:   Thu Jan 26 16:23:29 2012 -0500
 
-    gc, runtime: handle floating point map keys
-    
-    Fixes #2609.
+    6c, 8c: make floating point code NaN-safe
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/5572069
+    https://golang.org/cl/5569071
 
- src/cmd/gc/go.h           |   4 ++
- src/cmd/gc/subr.c         |  43 +++++++++++--
- src/pkg/runtime/alg.c     | 104 ++++++++++++++++++++++++++++++
- src/pkg/runtime/runtime.c |  28 ++++++++-
- src/pkg/runtime/runtime.h |   4 ++
- test/map.go               | 157 ++++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 332 insertions(+), 8 deletions(-)
+ src/cmd/6c/cgen.c | 48 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/8c/cgen.c | 35 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 79 insertions(+), 4 deletions(-)

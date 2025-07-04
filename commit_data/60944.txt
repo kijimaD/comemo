@@ -1,0 +1,26 @@
+commit 820329508aa55ccbb90996e8840acb5859f84557
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 11 13:33:42 2024 +0700
+
+    runtime: Goexit on C-created thread report more useful error message
+    
+    This reverts CL 609296, with the fix for failing builders.
+    
+    Fixes #68275
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-nocgo,gotip-darwin-amd64-nocgo,gotip-linux-ppc64_power10,gotip-linux-ppc64_power8
+    Change-Id: I0f539ee7b0be720642eee8885946edccd9c6e04e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612335
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+
+ src/runtime/crash_cgo_test.go                | 10 ++++++++++
+ src/runtime/panic.go                         |  2 ++
+ src/runtime/proc.go                          |  3 +++
+ src/runtime/testdata/testprogcgo/callback.go | 11 +++++++++++
+ 4 files changed, 26 insertions(+)

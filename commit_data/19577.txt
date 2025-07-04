@@ -1,19 +1,19 @@
-commit cc81712190ba438097e4e0262ec8d29f8d468dcf
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 19 22:04:10 2014 -0700
+commit 24f8919aafa476a4730184bd4dc743a7a76e62ff
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Jun 19 12:04:59 2014 -0700
 
-    runtime: remove obsolete afterprologue check
-    Afterprologue check was required when did not know
-    about return arguments of functions and/or they were not zeroed.
-    Now 100% precision is required for stacks due to stack copying,
-    so it must work w/o afterprologue one way or another.
-    I can limit this change for 1.3 to merely adding a TODO,
-    but this check is super confusing so I don't want this knowledge to get lost.
+    encoding/base64, encoding/base32: speed up Encode
+    Avoid unnecessary bitwise-OR operations.
     
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc, khr
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/96580045
+    benchmark                      old MB/s     new MB/s  speedup
+    BenchmarkEncodeToStringBase64  179.02       205.74    1.15x
+    BenchmarkEncodeToStringBase32  155.86       167.82    1.08x
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/109090043
 
- src/pkg/runtime/mgc0.c | 64 +++++++++++++++++++++++---------------------------
- 1 file changed, 30 insertions(+), 34 deletions(-)
+ src/pkg/encoding/base32/base32.go | 16 ++++++++--------
+ src/pkg/encoding/base64/base64.go |  8 ++++----
+ 2 files changed, 12 insertions(+), 12 deletions(-)

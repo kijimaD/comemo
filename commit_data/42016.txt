@@ -1,19 +1,21 @@
-commit c9af5523f324a031b23c6f1dcf448c051c994c00
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Jan 24 07:29:56 2020 -0800
+commit 0c5d545ccdd01403d6ce865fb03774a6aff6032c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Oct 22 14:55:17 2019 +0200
 
-    database/sql: on Tx rollback, retain connection if driver can reset session
+    test: add tests for runtime.itab.init
     
-    Previously the Tx would drop the connection after rolling back from
-    a context cancel. Now if the driver can reset the session,
-    keep the connection.
+    We seem to lack any tests for some corner cases of itab.init
+    (multiple methods with the same name, breaking itab.init doesn't
+    seem to fail any tests). We also lack tests that fix text of panics.
+    Add more tests for itab.init.
     
-    Change-Id: Ie6a3124275632787629844d91a06bb2e70cc060b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216241
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Id6b536179ba6b0d45c3cb9dc1c66b9311d0ab85e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202451
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go      | 27 ++++++++++++++++++++-------
- src/database/sql/sql_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 7 deletions(-)
+ test/interface/embed3.dir/embed0.go | 21 ++++++++++
+ test/interface/embed3.dir/embed1.go | 78 +++++++++++++++++++++++++++++++++++++
+ test/interface/embed3.go            |  7 ++++
+ 3 files changed, 106 insertions(+)

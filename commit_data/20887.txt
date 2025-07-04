@@ -1,13 +1,16 @@
-commit 04c7b68b4a0394405c5a927f639902965663f1a2
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Tue Nov 11 18:52:07 2014 -0800
+commit 62a4359e2e479dc7392b645faecf7cdc5ff4cda0
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Oct 23 15:51:17 2014 -0400
 
-    regexp/syntax: Clarify comment of OpAnyCharNotNL.
+    [dev.garbage] runtime: simplifiy lfstack.c due to undiagnosed buffer corruption.
+    The changes got rid of the problems we were seeing.
+    We suspect the pushcnt field has a race.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=rsc
+    R=dvyukov, rsc
     CC=golang-codereviews
-    https://golang.org/cl/171560043
+    https://golang.org/cl/159330043
 
- src/regexp/syntax/regexp.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/lfstack.c | 14 ++++++--------
+ src/runtime/runtime.h |  2 +-
+ 2 files changed, 7 insertions(+), 9 deletions(-)

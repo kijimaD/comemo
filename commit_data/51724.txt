@@ -1,24 +1,22 @@
-commit ba913774543d7388b7bb1843fc7c1b935aebedda
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 20 13:54:36 2023 -0800
+commit 0043c1efbb53e72cbd1b41c32812ca3c78d8e169
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Mar 8 00:08:49 2022 +0000
 
-    test: test that we schedule OpArgIntReg early
+    fmt: use tabs for indentation
     
-    If OpArgIntReg is incorrectly scheduled, that causes it to be spilled
-    incorrectly, which causes the argument to not be considered live
-    at the start of the function.
+    Replace 24 spaces added in CL 389434 with 3 tabs,
+    so the new line is indented like other lines around it.
     
-    This is the test for CL 462858
+    Updates #51419.
     
-    Add a brief mention of why CL 462858 is needed in the scheduling code.
-    
-    Change-Id: Id199456f88d9ee5ca46d7b0353a3c2049709880e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462899
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ic3e50023a01f233c52dda53c36de2c461222d95c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390674
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Adam Shannon <adamkshannon@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go |  6 ++++--
- test/live_regabi.go                      | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

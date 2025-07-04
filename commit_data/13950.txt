@@ -1,40 +1,17 @@
-commit f5483fb801044eb50185d6630020575e70f454ba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 25 17:38:22 2012 -0700
+commit 0e6f927108dc785812b6e5ce94cea2ff4ca395cc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 25 17:06:39 2012 +1000
 
-    exp/types/staging: operands, constants, and error handling
+    syscall: do not use int to test network syscall results (on windows)
     
-    More pieces of the typechecker code:
+    Fixes #4147.
     
-    - Operands are temporary objects representing an expressions's
-    type and value (for constants). An operand is the equivalent of
-    an "attribute" in attribute grammars except that it's not stored
-    but only passed around during type checking.
-    
-    - Constant operations are implemented in const.go. Constants are
-    represented as bool (booleans), int64 and *big.Int (integers),
-    *big.Rat (floats), complex (complex numbers), and string (strings).
-    
-    - Error reporting is consolidated in errors.go. Only the first
-    dozen of lines is new code, the rest of the file contains the
-    exprString and typeString functions formerly in two separate
-    files (which have been removed).
-    
-    This is a replacement CL for 6492101 (which was created without
-    proper use of hg).
-    
-    R=rsc, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6500114
+    https://golang.org/cl/6569050
 
- src/pkg/exp/types/staging/check.go      | 322 ++++++++++++++++
- src/pkg/exp/types/staging/const.go      | 646 ++++++++++++++++++++++++++++++++
- src/pkg/exp/types/staging/errors.go     | 298 +++++++++++++++
- src/pkg/exp/types/staging/exprstring.go |  98 -----
- src/pkg/exp/types/staging/operand.go    | 201 ++++++++++
- src/pkg/exp/types/staging/predicates.go |  60 ++-
- src/pkg/exp/types/staging/stubs.go      |  55 +++
- src/pkg/exp/types/staging/types.go      |  13 +-
- src/pkg/exp/types/staging/typestring.go | 148 --------
- src/pkg/exp/types/staging/universe.go   | 102 ++---
- 10 files changed, 1623 insertions(+), 320 deletions(-)
+ src/pkg/syscall/mksyscall_windows.pl      |   2 +-
+ src/pkg/syscall/syscall_windows.go        |  32 ++++---
+ src/pkg/syscall/zsyscall_windows_386.go   | 146 +++++++++++++++---------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 146 +++++++++++++++---------------
+ 4 files changed, 164 insertions(+), 162 deletions(-)

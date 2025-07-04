@@ -1,26 +1,30 @@
-commit 762ef81a5670da99a4b060fd3afe4134c9e82017
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 8 18:44:27 2021 -0800
+commit 813b6bbaf9e24e6e11accca0cb4e7b7e8fb8db8d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 11 18:37:44 2020 -0400
 
-    cmd/link/internal/ld: deflake TestWindowsIssue36495
+    internal/goversion: update Version to 1.16
     
-    Over a dozen of the ld tests were missing closes. That was less
-    obvious before CL 299670 started using T.TempDir instead, which fails
-    a test when the tempdir can't be cleaned up (as it can't on Windows
-    when things are still open), insteading of leaving tempdirs around on
-    disk after the test.
+    This is the start of the Go 1.16 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that
+    will soon open up for development (and eventually become released).
     
-    Most of the missing closes were fixed in CL 299670, but the builders
-    helpfully pointed out that I missed at least this one.
+    Historically, we used to bump this at an arbitrary time throughout
+    the development cycle, but it's better to be more predictable about
+    updating it. The start of a development cycle should be the most
+    appropriate time: it clearly marks the boundary between 1.15 and
+    1.16 development, and doing it early can help catch issues in other
+    tooling. See issue #38704 for more background.
     
-    Change-Id: I35f695bb7cbfba31e16311c5af965c148f9d7943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299929
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    There is no longer a need to update the list of Go versions in
+    src/go/build/doc.go because it does not exist as of CL 232981.
+    
+    For #40705.
+    Updates #38704.
+    Updates #37018.
+    
+    Change-Id: Id8ee733b5e79c53b6cd03509c6560614d8743833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248038
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/goversion/goversion.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

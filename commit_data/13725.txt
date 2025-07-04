@@ -1,13 +1,13 @@
-commit de7b8c50077ca0bfdcd59de488453df983f92ab3
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 31 18:10:40 2012 -0400
+commit a11b748fa2e4d3244b0a3f28d4ce1647f2ef9997
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Aug 31 18:09:31 2012 -0400
 
-    A+C: 0/2 on spelling email addresses correctly
+    encoding/xml: parse comments in DOCTYPE
     
-    TBR=r
+    R=rsc, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/6497067
+    https://golang.org/cl/6330061
 
- AUTHORS      | 4 ++--
- CONTRIBUTORS | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/encoding/xml/xml.go      | 31 ++++++++++++++++++++++++++++++-
+ src/pkg/encoding/xml/xml_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

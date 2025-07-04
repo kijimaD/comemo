@@ -1,28 +1,22 @@
-commit a79b55bb9a5f459fd8d518223022a6d307354a27
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 1 15:37:50 2022 -0500
+commit 1d6051380c1faa3e515db73c4cfe14f807e2c686
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sat Feb 5 17:23:26 2022 +0100
 
-    go/internal/gcimporter: in short tests, avoid creating export data for all of std
+    cmd/dist: skip internal linking tests on arm64
     
-    gcimporter.TestImportTypeparamTests still needs to create full export
-    data because it loads lots of source files from GOROOT/test that
-    expect to be able to import arbitrary subsets of the standard library,
-    so we now skip it in short mode.
+    The previous workaround for issue #39466 only disabled this test for
+    Linux. However, the issue manifests for all arm64 systems with gcc 9.4
+    and above. The new netbsd-arm64 builder uses NetBSD-current with gcc
+    10.3, so it fails in the same way.
     
-    On a clean build cache, this reduces
-    'go test -short cmd/compile/internal/importer go/internal/gcimporter'
-    on my machine from 21–28s per test to <6s per test.
+    Updates #39466
     
-    Updates #56967.
-    Updates #47257.
-    
-    Change-Id: I8fd80293ab135e0d2d213529b74e0ca6429cdfc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454498
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I276a99a5e60914e5c22f74a680e461bea17cfe92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383554
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../compile/internal/importer/gcimporter_test.go   | 39 +++++++++++++++--
- src/go/internal/gcimporter/gcimporter_test.go      | 49 +++++++++++++++++++---
- 2 files changed, 79 insertions(+), 9 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

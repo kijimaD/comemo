@@ -1,14 +1,12 @@
-commit f14c29a3117e3ab78359a60e35c08e74f8dd31e6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 15 11:33:12 2011 -0800
+commit ec487e3d759a73006a1a456a08f395b42c362919
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 16 03:02:55 2011 +1100
 
-    go spec: minor clarification on channel types
+    tag release.2011-02-15
     
-    No language change.
-    
-    R=r, rsc, iant, ken2, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4168050
+    https://golang.org/cl/4184046
 
- doc/go_spec.html | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

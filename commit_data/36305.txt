@@ -1,80 +1,30 @@
-commit 556971316f363233755283518dfda4b1cf5980d8
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sun Jul 29 12:50:50 2018 +0000
+commit 0a4b962c17a9584a177c06b3c0c3119f250bbbaa
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Thu Feb 15 12:21:48 2018 +0200
 
-    cmd/compile: optimize 386's comparison
+    runtime/internal/atomic: don't use Cas in atomic.Load on ARM
     
-    CMPL/CMPW/CMPB can take a memory operand on 386, and this CL
-    implements that optimization.
+    Instead issue a memory barrier on ARMv7 after reading the address.
     
-    1. The total size of pkg/linux_386 decreases about 45KB, excluding
-    cmd/compile.
+    Fixes #23777
     
-    2. The go1 benchmark shows a little improvement.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              3.36s ± 2%     3.37s ± 3%    ~     (p=0.537 n=40+40)
-    Fannkuch11-4                3.59s ± 1%     3.53s ± 2%  -1.58%  (p=0.000 n=40+40)
-    FmtFprintfEmpty-4          46.0ns ± 3%    45.8ns ± 3%    ~     (p=0.249 n=40+40)
-    FmtFprintfString-4         80.0ns ± 4%    78.8ns ± 3%  -1.49%  (p=0.001 n=40+40)
-    FmtFprintfInt-4            89.7ns ± 2%    90.3ns ± 2%  +0.74%  (p=0.003 n=40+40)
-    FmtFprintfIntInt-4          144ns ± 3%     143ns ± 3%  -0.95%  (p=0.003 n=40+40)
-    FmtFprintfPrefixedInt-4     181ns ± 4%     180ns ± 2%    ~     (p=0.103 n=40+40)
-    FmtFprintfFloat-4           412ns ± 3%     408ns ± 4%  -0.97%  (p=0.018 n=40+40)
-    FmtManyArgs-4               607ns ± 4%     605ns ± 4%    ~     (p=0.148 n=40+40)
-    GobDecode-4                7.19ms ± 4%    7.24ms ± 5%    ~     (p=0.340 n=40+40)
-    GobEncode-4                7.04ms ± 9%    6.99ms ± 9%    ~     (p=0.289 n=40+40)
-    Gzip-4                      400ms ± 6%     398ms ± 5%    ~     (p=0.168 n=40+40)
-    Gunzip-4                   41.2ms ± 3%    41.7ms ± 3%  +1.40%  (p=0.001 n=40+40)
-    HTTPClientServer-4         62.5µs ± 1%    62.1µs ± 2%  -0.61%  (p=0.000 n=37+37)
-    JSONEncode-4               20.7ms ± 4%    20.4ms ± 3%  -1.60%  (p=0.000 n=40+40)
-    JSONDecode-4               69.4ms ± 4%    69.2ms ± 6%    ~     (p=0.177 n=40+40)
-    Mandelbrot200-4            5.22ms ± 6%    5.21ms ± 3%    ~     (p=0.531 n=40+40)
-    GoParse-4                  3.29ms ± 3%    3.28ms ± 3%    ~     (p=0.321 n=40+39)
-    RegexpMatchEasy0_32-4       104ns ± 4%     103ns ± 7%  -0.89%  (p=0.040 n=40+40)
-    RegexpMatchEasy0_1K-4       852ns ± 3%     853ns ± 2%    ~     (p=0.357 n=40+40)
-    RegexpMatchEasy1_32-4       113ns ± 8%     113ns ± 3%    ~     (p=0.906 n=40+40)
-    RegexpMatchEasy1_1K-4      1.03µs ± 4%    1.03µs ± 5%    ~     (p=0.326 n=40+40)
-    RegexpMatchMedium_32-4      136ns ± 3%     133ns ± 3%  -2.31%  (p=0.000 n=40+40)
-    RegexpMatchMedium_1K-4     44.0µs ± 3%    43.7µs ± 3%    ~     (p=0.053 n=40+40)
-    RegexpMatchHard_32-4       2.27µs ± 3%    2.26µs ± 4%    ~     (p=0.391 n=40+40)
-    RegexpMatchHard_1K-4       68.0µs ± 3%    68.9µs ± 3%  +1.28%  (p=0.000 n=40+40)
-    Revcomp-4                   1.86s ± 5%     1.86s ± 2%    ~     (p=0.950 n=40+40)
-    Template-4                 73.4ms ± 4%    69.9ms ± 7%  -4.78%  (p=0.000 n=40+40)
-    TimeParse-4                 449ns ± 4%     441ns ± 5%  -1.76%  (p=0.000 n=40+40)
-    TimeFormat-4                416ns ± 3%     417ns ± 4%    ~     (p=0.304 n=40+40)
-    [Geo mean]                 67.7µs         67.3µs       -0.55%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4               107MB/s ± 4%   106MB/s ± 5%    ~     (p=0.336 n=40+40)
-    GobEncode-4               109MB/s ± 5%   110MB/s ± 9%    ~     (p=0.142 n=38+40)
-    Gzip-4                   48.5MB/s ± 5%  48.8MB/s ± 5%    ~     (p=0.172 n=40+40)
-    Gunzip-4                  472MB/s ± 3%   465MB/s ± 3%  -1.39%  (p=0.001 n=40+40)
-    JSONEncode-4             93.6MB/s ± 4%  95.1MB/s ± 3%  +1.61%  (p=0.000 n=40+40)
-    JSONDecode-4             28.0MB/s ± 3%  28.1MB/s ± 6%    ~     (p=0.181 n=40+40)
-    GoParse-4                17.6MB/s ± 3%  17.7MB/s ± 3%    ~     (p=0.350 n=40+39)
-    RegexpMatchEasy0_32-4     308MB/s ± 4%   311MB/s ± 6%  +0.96%  (p=0.025 n=40+40)
-    RegexpMatchEasy0_1K-4    1.20GB/s ± 3%  1.20GB/s ± 2%    ~     (p=0.317 n=40+40)
-    RegexpMatchEasy1_32-4     282MB/s ± 7%   282MB/s ± 3%    ~     (p=0.516 n=40+40)
-    RegexpMatchEasy1_1K-4     994MB/s ± 4%   991MB/s ± 5%    ~     (p=0.319 n=40+40)
-    RegexpMatchMedium_32-4   7.31MB/s ± 3%  7.49MB/s ± 3%  +2.46%  (p=0.000 n=40+40)
-    RegexpMatchMedium_1K-4   23.3MB/s ± 3%  23.4MB/s ± 3%    ~     (p=0.052 n=40+40)
-    RegexpMatchHard_32-4     14.1MB/s ± 3%  14.1MB/s ± 4%    ~     (p=0.391 n=40+40)
-    RegexpMatchHard_1K-4     15.1MB/s ± 3%  14.9MB/s ± 3%  -1.27%  (p=0.000 n=40+40)
-    Revcomp-4                 137MB/s ± 5%   137MB/s ± 2%    ~     (p=0.942 n=40+40)
-    Template-4               26.5MB/s ± 4%  27.8MB/s ± 7%  +5.03%  (p=0.000 n=40+40)
-    [Geo mean]               78.6MB/s       79.0MB/s       +0.57%
-    
-    Change-Id: Idcacc6881ef57cd7dc33aa87b711282842b72a53
-    Reviewed-on: https://go-review.googlesource.com/126618
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I7aff2ab0246af64b437ebe0b31d4b30d351890d8
+    Reviewed-on: https://go-review.googlesource.com/94275
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/flagalloc.go  |  68 ++++--
- src/cmd/compile/internal/ssa/gen/386.rules |  13 ++
- src/cmd/compile/internal/ssa/gen/386Ops.go |  18 +-
- src/cmd/compile/internal/ssa/opGen.go      |  87 ++++++++
- src/cmd/compile/internal/ssa/rewrite386.go | 341 ++++++++++++++++++++++++++++-
- src/cmd/compile/internal/x86/ssa.go        |  15 ++
- test/codegen/comparisons.go                |  10 +
- 7 files changed, 526 insertions(+), 26 deletions(-)
+ src/runtime/internal/atomic/asm_arm.s          |  3 +++
+ src/runtime/internal/atomic/atomic_arm.go      | 22 ++++++----------------
+ src/runtime/internal/atomic/sys_linux_arm.s    | 20 ++++++++++++++++++++
+ src/runtime/internal/atomic/sys_nonlinux_arm.s | 12 ++++++++++++
+ src/sync/atomic/asm_arm.s                      |  3 +++
+ src/sync/atomic/asm_darwin_arm.s               | 12 ------------
+ src/sync/atomic/asm_freebsd_arm.s              | 10 ----------
+ src/sync/atomic/asm_linux_arm.s                | 10 ----------
+ src/sync/atomic/asm_nacl_arm.s                 | 10 ----------
+ src/sync/atomic/asm_netbsd_arm.s               | 10 ----------
+ src/sync/atomic/asm_openbsd_arm.s              | 10 ----------
+ src/sync/atomic/asm_plan9_arm.s                | 11 -----------
+ 12 files changed, 44 insertions(+), 89 deletions(-)

@@ -1,12 +1,12 @@
-commit eaa082f69121cb8dcb33a2edfe9ca2eed6a69943
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jun 17 15:55:54 2011 +1000
+commit e5105f55dc7f5dc74ad1bc3a8bcdd1d0bebf04bd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 17 11:35:57 2011 +1000
 
-    8l: minor fix discovered by lucio
+    tag weekly.2011-06-16
     
-    R=lucio.dere, vcc.163, bradfitz
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4645044
+    https://golang.org/cl/4648041
 
- src/cmd/ld/ldpe.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

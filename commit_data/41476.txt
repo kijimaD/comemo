@@ -1,81 +1,31 @@
-commit ea3bfba87cfd7141870f975102029e2e341b4af3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Dec 20 13:42:39 2019 -0800
+commit 80fb18e3c0136150965f0bc01c9ef1e6dc4039ac
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Oct 5 15:08:07 2019 +0100
 
-    cmd/compile: handle more cases in isNonNegative
+    cmd/go: avoid ssh known_hosts prompts on test
     
-    The gains from this aren't particularly impressive.
-    Still, it is cheap and easy, and
-    it will keep me from wondering about whether it
-    might help to add X every time I look at this function.
+    TestScripts/mod_get_svn would stop with the following prompt if the real
+    user didn't have vcs-test.golang.org in their known_hosts file:
     
-    This updated function is pretty exhaustive;
-    I examined every op encountered in a call to isNonNegative
-    when compiling all the stuff hanging around in my GOPATH,
-    for both 386 and amd64.
+            The authenticity of host 'vcs-test.golang.org (35.184.38.56)' can't be established.
+            ECDSA key fingerprint is SHA256:[...]
+            Are you sure you want to continue connecting (yes/no/[fingerprint])?
     
-    (32 bit architectures were somewhat neglected before.)
+    This was bad because it relied on the user's real ssh known_hosts file.
+    Worse even, if the user didn't expert or notice the prompt, it could
+    hang a 'go test' run for quite a while.
     
-    Object file size impact, 64 bit:
+    Work around that by forcing svn to not use ssh at all. Other potentially
+    better approaches were tried, but none worked on svn 1.12.2 with openssh
+    8.0p1.
     
-    file                       before    after     Δ       %
-    archive/zip.a              359352    359284    -68     -0.019%
-    cmd/compile/internal/ssa.a 30715960  30717526  +1566   +0.005%
-    cmd/internal/obj/arm64.a   2972532   2972440   -92     -0.003%
-    cmd/internal/obj/riscv.a   297714    297672    -42     -0.014%
-    debug/dwarf.a              656336    655346    -990    -0.151%
-    debug/gosym.a              183352    183122    -230    -0.125%
-    encoding/gob.a             901130    900798    -332    -0.037%
-    image/gif.a                171884    171890    +6      +0.003%
-    internal/trace.a           506930    507270    +340    +0.067%
-    math.a                     233506    233490    -16     -0.007%
-    reflect.a                  1431740   1431476   -264    -0.018%
-    runtime.a                  3854480   3854332   -148    -0.004%
-    unicode/utf16.a            8920      8980      +60     +0.673%
-    total                      133000610 133000400 -210    -0.000%
+    Fixes #33883.
     
-    Object file size impact, 32 bit:
-    
-    file                                          before    after     Δ       %
-    archive/zip.a                                 330794    329640    -1154   -0.349%
-    cmd/compile/internal/gc.a                     8090204   8090026   -178    -0.002%
-    cmd/compile/internal/ssa.a                    29392460  29393890  +1430   +0.005%
-    cmd/internal/goobj2.a                         189512    189492    -20     -0.011%
-    cmd/internal/obj/arm64.a                      2444942   2444860   -82     -0.003%
-    cmd/internal/obj/riscv.a                      272848    272806    -42     -0.015%
-    cmd/link/internal/loader.a                    388548    388544    -4      -0.001%
-    cmd/link/internal/loadpe.a                    158776    158684    -92     -0.058%
-    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm.a 511824    511316    -508    -0.099%
-    cmd/vendor/golang.org/x/arch/x86/x86asm.a     512812    512704    -108    -0.021%
-    cmd/vendor/golang.org/x/sys/unix.a            942422    942218    -204    -0.022%
-    compress/bzip2.a                              88768     88680     -88     -0.099%
-    crypto/tls.a                                  1655542   1655396   -146    -0.009%
-    debug/dwarf.a                                 608520    605822    -2698   -0.443%
-    debug/gosym.a                                 168282    168276    -6      -0.004%
-    debug/pe.a                                    173146    173108    -38     -0.022%
-    encoding/gob.a                                797978    797724    -254    -0.032%
-    encoding/hex.a                                44080     44020     -60     -0.136%
-    image/gif.a                                   152142    152148    +6      +0.004%
-    internal/xcoff.a                              186480    185834    -646    -0.346%
-    math.a                                        257866    257854    -12     -0.005%
-    net/http.a                                    3588246   3588150   -96     -0.003%
-    net/textproto.a                               162384    162120    -264    -0.163%
-    reflect.a                                     1316204   1316058   -146    -0.011%
-    regexp.a                                      373346    373248    -98     -0.026%
-    runtime/pprof.a                               345318    345088    -230    -0.067%
-    runtime.a                                     3513902   3513714   -188    -0.005%
-    syscall.a                                     781406    781018    -388    -0.050%
-    time.a                                        483814    483750    -64     -0.013%
-    unicode/utf16.a                               8394      8364      -30     -0.357%
-    vendor/golang.org/x/crypto/cryptobyte.a       287100    286706    -394    -0.137%
-    vendor/golang.org/x/net/route.a               175042    174724    -318    -0.182%
-    total                                         121677354 121670234 -7120   -0.006%
-    
-    Change-Id: Ie672752feb5e94dd151836f852181980710e820d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212777
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I2f925fa892f2fa53c77d86b0034141162517ee69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199142
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 34 +++++++++++++++++++++++++++++++---
- 1 file changed, 31 insertions(+), 3 deletions(-)
+ src/cmd/go/testdata/script/mod_get_svn.txt | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

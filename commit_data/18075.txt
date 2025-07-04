@@ -1,25 +1,16 @@
-commit 2d20c0d6257f5dfc57bb8a78f4e2824803bd6d0e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 18 17:13:59 2013 -0800
+commit b682f6de5a9d645a92792e2ffad1956c64b7840f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 18 16:43:19 2013 -0800
 
-    runtime: mark objects in free lists as allocated and unscannable.
+    regexp: use sync.Pool
     
-    On the plus side, we don't need to change the bits when mallocing
-    pointerless objects.  On the other hand, we need to mark objects in the
-    free lists during GC.  But the free lists are small at GC time, so it
-    should be a net win.
+    For machines, not threads.
     
-    benchmark                    old ns/op    new ns/op    delta
-    BenchmarkMalloc8                    40           33  -17.65%
-    BenchmarkMalloc16                   45           38  -15.72%
-    BenchmarkMallocTypeInfo8            58           59   +0.85%
-    BenchmarkMallocTypeInfo16           63           64   +1.10%
+    Update #4720
     
-    R=golang-dev, rsc, dvyukov
-    CC=cshapiro, golang-dev
-    https://golang.org/cl/41040043
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/44150043
 
- src/pkg/runtime/malloc.goc |   6 ++-
- src/pkg/runtime/malloc.h   |   3 +-
- src/pkg/runtime/mgc0.c     | 111 +++++++++++++++++++++++++++++++++++----------
- 3 files changed, 94 insertions(+), 26 deletions(-)
+ src/pkg/regexp/regexp.go | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

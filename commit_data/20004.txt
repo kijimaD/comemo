@@ -1,26 +1,17 @@
-commit ba30c082c026b5ef029e5d855a90ea56ef9487ec
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 14 09:21:58 2014 -0700
+commit 5cb7da754773de4fcc104d0263efb0661fb7574d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:43:15 2014 -0400
 
-    cmd/cgo: check for compiler errors in the C preamble
+    [dev.power64] syscall: remove duplicated constants
     
-    E.g., here's the new "go build" output:
+    Without this CL, simply running mkall.sh for Linux will generate duplicated constants
+    for termios. I verified that after this CL, mkall.sh will generate almost identical
+    z* files for linux/amd64.
     
-    $ go build misc/cgo/errors/issue8442.go
-    # command-line-arguments
-    could not determine kind of name for C.issue8442foo
-    
-    gcc errors for preamble:
-    misc/cgo/errors/issue8442.go:11:19: error: unknown type name 'UNDEF'
-    
-    Fixes #8442.
-    
-    LGTM=iant
-    R=iant, alex.brainman
+    LGTM=rsc
+    R=rsc, iant, r
     CC=golang-codereviews
-    https://golang.org/cl/129160043
+    https://golang.org/cl/124990043
 
- misc/cgo/errors/issue8442.go | 17 +++++++++++++++++
- misc/cgo/errors/test.bash    |  1 +
- src/cmd/cgo/gcc.go           | 15 ++++++++++++---
- 3 files changed, 30 insertions(+), 3 deletions(-)
+ src/pkg/syscall/types_linux.go | 104 ++---------------------------------------
+ 1 file changed, 5 insertions(+), 99 deletions(-)

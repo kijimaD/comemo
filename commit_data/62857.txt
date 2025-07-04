@@ -1,0 +1,31 @@
+commit 7a177114df3e26f4362378e907a869c4fbbf38b7
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Fri Mar 14 12:38:34 2025 -0700
+
+    runtime: commit to spinbitmutex GOEXPERIMENT
+    
+    Use the "spinbit" mutex implementation always (including on platforms
+    that need to emulate atomic.Xchg8), and delete the prior "tristate"
+    implementations.
+    
+    The exception is GOARCH=wasm, where the Go runtime does not use multiple
+    threads.
+    
+    For #68578
+    
+    Change-Id: Ifc29bbfa05071d776c23a19ae185891a03a82417
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658456
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/buildcfg/exp.go                      |   3 -
+ src/internal/goexperiment/exp_spinbitmutex_off.go |   8 --
+ src/internal/goexperiment/exp_spinbitmutex_on.go  |   8 --
+ src/internal/goexperiment/flags.go                |   4 -
+ src/runtime/lock_futex_tristate.go                | 138 --------------------
+ src/runtime/lock_sema_tristate.go                 | 148 ----------------------
+ src/runtime/lock_spinbit.go                       |   2 +-
+ src/runtime/runtime2.go                           |   7 +-
+ 8 files changed, 4 insertions(+), 314 deletions(-)

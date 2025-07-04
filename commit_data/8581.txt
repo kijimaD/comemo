@@ -1,20 +1,15 @@
-commit 17bfa32fde692b3d299ced5e1879b4f6bfefbfac
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Jun 1 20:30:42 2011 -0300
+commit 158b427ea5692d180fd5b60c9093a29749c5a2f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 1 16:28:17 2011 -0700
 
-    sync: always wake up previously sleeping goroutines on Cond.Signal
+    big: fix broken overflow test
     
-    This changes the internal implementation of Cond so that
-    it uses two generations of waiters.  This enables Signal
-    to guarantee that it will only wake up waiters that are
-    currently sleeping at the call time.
+    - tested with GOARCH=386
+    - tested with GOARCH=amd64
     
-    Fixes #1648.
-    
-    R=dvyukov, gustavo, rsc
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4524083
+    https://golang.org/cl/4526100
 
- src/pkg/sync/cond.go      | 69 +++++++++++++++++++++++++++++++----------------
- src/pkg/sync/cond_test.go | 27 +++++++++++++++++++
- 2 files changed, 73 insertions(+), 23 deletions(-)
+ src/pkg/big/nat.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

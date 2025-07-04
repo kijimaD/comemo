@@ -1,13 +1,12 @@
-commit ec2460a3149d24e9611adc7544b5c0d67ba266b6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 23 20:30:03 2012 -0800
+commit f142deee959dbc753b23efc23f60bd755498ec3d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Nov 23 19:29:22 2012 +0800
 
-    A+C: Add John Graham-Cumming (Individual CLA)
+    cmd/go: show -race if necessary when giving "go test -i" hint
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6846095
+    https://golang.org/cl/6851100
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/go/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,24 +1,23 @@
-commit 4c0a47a8ff74c5fe4366e1016250607943562569
-Author: Than McIntosh <thanm@golang.org>
-Date:   Wed Dec 11 19:20:58 2024 -0500
+commit 704401ffa06c60e059c9e6e4048045b4ff42530a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 14 15:34:49 2024 +1100
 
-    cmd/compile,cmd/link: move to DWARF5-style range lists
+    fmt: don't pad strings with zeros
     
-    This patch updates the compiler to generate DWARF5-style range lists
-    (e.g. entries that feed into .debug_rnglists) as opposed to
-    DWARF4-style range lists (which wind up in .debug_ranges). The DWARF5
-    format is much more compact, and can make indirect references to text
-    address via the .debug_addr section for further space savings.
+    It's what the documentation says, and oddly it already behaves correctly
+    for right padding, not left. (We never pad with zeros on the right.)
     
-    Updates #26379.
+    Just don't do it.
     
-    Change-Id: I273a6283484b7fe33d79d5412e31c5155b22a7c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635345
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #56486
+    
+    Change-Id: I2465edea93c69084e33bee0d945d5a1b85e6cd14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555776
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/dwarf/dwarf.go      |  29 ++++++++
- src/cmd/internal/dwarf/dwarf_defs.go |  13 ++++
- src/cmd/link/internal/ld/dwarf.go    | 136 +++++++++++++++++++++++++----------
- 3 files changed, 139 insertions(+), 39 deletions(-)
+ src/fmt/fmt_test.go | 4 ++--
+ src/fmt/print.go    | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

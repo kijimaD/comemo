@@ -1,20 +1,15 @@
-commit caf45cde1873360d326af974575bd254b8011901
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 19 17:07:00 2019 +0200
+commit 607493bed678cbf3a456e9de8e7e74622ec83da8
+Author: smileeye <franksnolf@gmail.com>
+Date:   Tue Apr 9 22:47:38 2019 +0800
 
-    cmd/compile: add documentation for isfat
+    cmd/asm/internal/arch: improve the comment of function IsMIPSMUL
     
-    In CL 192980, I tend to think that canSSAType can be used as replacement
-    for isfat. It is not the truth as @khr points me out that isfat has very
-    different purpose.
+    The check of MADD&MSUB was added to the function IsMIPSMUL in
+    a previous commit, and the comments should also be updated.
     
-    So this CL adds documentation for isfat, also remove outdated TODO.
-    
-    Change-Id: I15954d638759bd9f6b28a6aa04c1a51129d9ae7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196499
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2d3da055d55b459b908714c542dff99ab5c6cf99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171102
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/mips.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

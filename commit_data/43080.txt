@@ -1,19 +1,16 @@
-commit 150bd4ffd4ea10ce18038c3efb2d792c73fd4b0c
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Jul 4 11:29:40 2020 +0200
+commit bf3aa8741b5a1fd6297134047d5603487ddd17ec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 5 15:05:17 2020 -0500
 
-    cmd/compile: enforce strongly typed rules for ARM (4)
+    [dev.link] cmd/link: iterate over Textp2 in stack check pass
     
-    "mul by constant" until "div by constant"
-    L547-L609
+    Implement a TODO in CL 220059, now that CL 220985 is in.
     
-    Change-Id: I19ebb5694e383878f505d34df2591a51fe38431a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254662
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I7273a7b9e1e7c0b916780571c9c954da21366429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222239
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 118 ++++----
- src/cmd/compile/internal/ssa/rewriteARM.go | 464 ++++++++++++++---------------
- 2 files changed, 291 insertions(+), 291 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

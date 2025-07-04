@@ -1,19 +1,23 @@
-commit e9c57bea11c75810225ee1abf24a0daeed2bfb64
-Author: unknown <geon0250@gmail.com>
-Date:   Mon Feb 26 04:41:20 2018 +0000
+commit 12c9d753f83ab4755151c8a72c212358dd85bc83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 19 11:23:12 2017 -0700
 
-    net/http,doc: use HTTP status code constants where applicable
+    cmd/compile: refactor generic AST walking code
     
-    There are a few places where the integer value is used.
-    Use the equivalent constants to aid with readability.
+    racewalk's "foreach" function applies a function to all of a Node's
+    immediate children, but with a non-idiomatic signature.
     
-    Change-Id: I023b1dbe605340544c056d0e0d9d6d5a7d7d0edc
-    GitHub-Last-Rev: c1c90bcd251901f9f2a305ce5ddd0d85009a3d49
-    GitHub-Pull-Request: golang/go#24123
-    Reviewed-on: https://go-review.googlesource.com/96984
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This CL reworks it to recursively iterate over the entire subtree
+    rooted at Node and provides a way to short-circuit iteration.
+    
+    Passes toolstash -cmp for std cmd with -race.
+    
+    Change-Id: I738b73953d608709802c97945b7e0f4e4940d3f4
+    Reviewed-on: https://go-review.googlesource.com/71911
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/progs/error2.go  | 4 ++--
- doc/progs/error3.go  | 2 +-
- src/net/http/triv.go | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go | 40 ++++++++-------------------------
+ src/cmd/compile/internal/gc/syntax.go   | 20 +++++++++++++++++
+ 2 files changed, 29 insertions(+), 31 deletions(-)

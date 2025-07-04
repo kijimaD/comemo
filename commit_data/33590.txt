@@ -1,17 +1,20 @@
-commit c09ee9d1ce63300d97ea1a102e9917dabbe87803
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 15 13:45:31 2017 -0500
+commit a164a2f5357ed5635cbda1fd4e8dacb835248cd0
+Author: Wei Congrui <crvv.mail@gmail.com>
+Date:   Tue Aug 22 13:36:19 2017 +0800
 
-    cmd/compile: fix buglet/typo in DWARF x86 setup
+    build: add `go env GOROOT` as default GOROOT_BOOTSTRAP value
     
-    Fix typo in DWARF register config for GOOARCH=x86; was
-    picking up the AMD64 set, should have been selecting
-    x86 set.
+    This change also added the same check in make.bash to make.rc,
+    which makes sure $GOROOT_BOOTSTRAP != $GOROOT.
     
-    Change-Id: I9a4c6f1378baf3cb2f0ad8d60f3ee2f24cd5dc91
-    Reviewed-on: https://go-review.googlesource.com/77990
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Fixes #14339
+    
+    Change-Id: I2758f4a845bae42ace02492fc6a911f6d6247d26
+    Reviewed-on: https://go-review.googlesource.com/57753
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/make.bash | 10 +++++++++-
+ src/make.rc   | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

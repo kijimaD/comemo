@@ -1,18 +1,18 @@
-commit f7becfc7f1e514ee658eae3997ae09cab9edb123
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Dec 14 11:03:27 2024 +0000
+commit 01dfae914bb4658d096c3ab8f5210bcf3f665171
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 5 13:40:45 2023 -0800
 
-    go/types: use documented version of gotypesalias GODEBUG
+    doc: add release notes for changes to encoding packages
     
-    This way the code would panic, in case it does not exist.
+    For #53693.
     
-    Change-Id: I95de7460c0386afdc5d3f6a847e9fcbd22446010
-    GitHub-Last-Rev: 9ae0502a091feed45169f5c1a7e2761f8ffa2841
-    GitHub-Pull-Request: golang/go#70845
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636097
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I360f5cb9caf5fa77267a100eebcc282955677abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547755
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/go/types/eval_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.22.html | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

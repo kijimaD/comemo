@@ -1,14 +1,15 @@
-commit 6fe9c4a7bd7e7054071586c9e90f901fa6043ba9
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 1 08:48:19 2015 +1000
+commit ccc037699e2966b7c79ba84c67471cef5e67a3b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 11:58:42 2015 -0700
 
-    doc: more library in go1.5.html
+    go/types: fix error message for embedded non-interface types in interfaces
     
-    Everything in the library but crypto and net.
+    Fixes #10979.
     
-    Change-Id: I89b21b9621e6d338fa1891da0eabba5d7d2fe349
-    Reviewed-on: https://go-review.googlesource.com/11820
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iac25645ba8181a56a75ddfcd29ff6d64c15c4f57
+    Reviewed-on: https://go-review.googlesource.com/10466
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.5.html | 109 +++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 94 insertions(+), 15 deletions(-)
+ src/go/types/testdata/issues.src | 24 ++++++++++++++++++++++++
+ src/go/types/typexpr.go          | 18 ++++++------------
+ 2 files changed, 30 insertions(+), 12 deletions(-)

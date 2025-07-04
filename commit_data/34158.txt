@@ -1,17 +1,19 @@
-commit 9dba56ba40aa2d7fd101c095314c370db13b5c2a
-Author: Nate Wilkinson <nathanwilk7@gmail.com>
-Date:   Mon Feb 12 10:33:27 2018 -0700
+commit 07e36af7d6a34d2d70fa794dda44ad2b087c21e1
+Author: Afanasev Stanislav <phpprogger@gmail.com>
+Date:   Tue Oct 3 22:40:28 2017 +0300
 
-    cmd/go: put "go help" list in the right order, take 2
+    bytes: panic in ReadFrom with more information with negative Read counts
     
-    The previous fix had "bug" and "build" in the wrong order.
+    This is only to aid in human debugging, and for that reason we maintain a panic, and not return an error.
     
-    Fixes #23791
+    Fixes #22097
     
-    Change-Id: I4897428516b159966c13c1054574c4f6fbf0fbac
-    Reviewed-on: https://go-review.googlesource.com/94017
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If72e4d1e47ec9125ca7bc97d5fe4cedb7f76ae72
+    Reviewed-on: https://go-review.googlesource.com/67970
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go | 22 +++++++++++-----------
- src/cmd/go/main.go    |  2 +-
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/bytes/buffer.go      |  5 +++++
+ src/bytes/buffer_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

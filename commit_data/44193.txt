@@ -1,30 +1,33 @@
-commit 1d5e14632edc2ba76156c8a771a2a1a5c5387326
-Author: Victor Michel <victor@optimyze.cloud>
-Date:   Sun Jan 24 05:53:36 2021 +0000
+commit 20160b37c6b7d12e25987baf2d95ba861b327a3b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 20 02:13:57 2020 +1000
 
-    os: further document limitations around naked file descriptors
+    runtime, syscall: correct openbsd/arm and openbsd/arm64 syscalls for OpenBSD 6.7
     
-    NewFile requires the file descriptor to be either closed
-    through the returned File instance, or to stay valid at least
-    until the finalizer runs during garbage collection.
+    Add two no op instructions following svc on openbsd/arm64 and swi on openbsd/arm.
     
-    These requirements are easily violated when file descriptors
-    are closed via unix.Close, or when the *File returned by
-    NewFile is garbage collected while the underlying file descriptor is
-    still in use.
+    All except some of the most recent arm64 processors have a speculative execution
+    flaw that occurs across a syscall boundary, which cannot be mitigated in the
+    kernel. In order to protect against this leak a speculation barrier needs to be
+    placed after an svc or swi instruction.
     
-    This commit adds further documentation for NewFile and Fd, making it
-    explicit that using naked file descriptors is subject to constraints
-    due to garbage collection of File objects.
+    In order to avoid the performance impact of these instructions, the OpenBSD 6.7
+    kernel returns execution two instructions past the svc or swi call. For now two
+    hardware no ops are added, which allows syscalls to work with both 6.6 and 6.7.
+    These should be replaced with real speculation barriers once OpenBSD 6.8 is
+    released.
     
-    Fixes #43863
+    Updates #36435
     
-    Change-Id: I49ea1f0054eb2d2a72b616450c8e83476f4d07fb
-    GitHub-Last-Rev: 180d0130ae9009456914fb265b4bafa0e599de0e
-    GitHub-Pull-Request: golang/go#43867
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286032
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I06153cb0998199242cca8761450e53599c3e7de4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234381
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_unix.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/rt0_openbsd_arm64.s |  8 ++++-
+ src/runtime/sys_openbsd_arm.s   | 80 +++++++++++++++++++++++------------------
+ src/runtime/sys_openbsd_arm64.s | 75 +++++++++++++++++++++-----------------
+ src/syscall/asm_openbsd_arm.s   | 17 ++++++---
+ src/syscall/asm_openbsd_arm64.s | 16 ++++++---
+ 5 files changed, 119 insertions(+), 77 deletions(-)

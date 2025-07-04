@@ -1,24 +1,19 @@
-commit ab3332eea9cff20b465193a3ef3a8f6ce796da2f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 14 14:21:53 2023 -0700
+commit 441223050335590875581275cd538034111f28d8
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Sep 21 08:11:40 2022 -0700
 
-    spec: fix unification rule for inexact interface unification
+    net/http: add tracing to TestTransportReuseConnection_Gzip_*
     
-    Irrespective of whether unification is exact or inexact, method
-    signatures of interfaces must always match exactly: a type never
-    satisfies/implements an interface if relevant method signatures
-    are different (i.e., not identical, possibly after substitution).
+    These tests are flaky; add some additional logging in hopes
+    it will aid in debugging.
     
-    This change matches the fix https://go.dev/cl/519435.
+    For #53373
     
-    For #61879.
-    
-    Change-Id: I28b0a32d32626d85afd32e107efce141235a923d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519455
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I971a2815f50932a9700ef8c2f684c5416951e6de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432375
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/transport_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

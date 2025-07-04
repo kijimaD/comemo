@@ -1,26 +1,20 @@
-commit 00073c25f65947dc4a331dcc6b20cb215fb03341
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Aug 17 15:30:23 2023 -0400
+commit 7e72d384d66f48a78289edc6a7d1dc6ab878f990
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Oct 17 17:38:50 2022 +0800
 
-    cmd/compile/internal/inline/inlheur: rescore callsites based on result use
+    internal/abi, internal/buildcfg: always enable register ABI on riscv64
     
-    Add a post-processing pass that updates the scores on callsites based
-    on how their results are used. This is similar to the "param feeds
-    unmodified into <XXX>" heuristics, but applies to returned results
-    instead: if we know that function F always returns a constant, and we
-    can see that the result from a given call feeds unmodified into an
-    if/switch, then decrease the score on the call to encourage inlining.
+    In Go 1.19, we develop register ABI for riscv64, enabled by default as a
+    GOEXPERIMENT. We can turn it on all the time in Go 1.20.
     
-    Change-Id: If513765c79d868cbdf672facbff9d92ad24f909e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521819
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie8e2ac8b8bd3ebddb0dc6d58a5599547fb440e03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443555
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inlheur/analyze.go |   8 +-
- .../inline/inlheur/analyze_func_callsites.go       |  14 +-
- .../internal/inline/inlheur/funcprops_test.go      |   2 +-
- .../inline/inlheur/score_callresult_uses.go        | 423 +++++++++++++++++++++
- .../inline/inlheur/scoreadjusttyp_string.go        |  10 +-
- src/cmd/compile/internal/inline/inlheur/scoring.go |   4 +-
- .../inline/inlheur/testdata/props/returns2.go      | 228 +++++++++++
- 7 files changed, 674 insertions(+), 15 deletions(-)
+ src/internal/abi/abi_generic.go | 2 +-
+ src/internal/abi/abi_riscv64.go | 2 --
+ src/internal/buildcfg/exp.go    | 4 +---
+ 3 files changed, 2 insertions(+), 6 deletions(-)

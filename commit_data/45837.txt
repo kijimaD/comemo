@@ -1,28 +1,25 @@
-commit 86743e7d8652c316b5f77a84ffc83244ee10a41b
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Apr 18 13:38:34 2021 +1000
+commit c754f25241134eaa68c8f26ed5372cadeb49ef89
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 22 20:45:42 2020 -0800
 
-    image: add RGBA64Image interface
+    [dev.regabi] cmd/compile/internal/types: remove Func.Nname
     
-    The new RGBA64At method is equivalent to the existing At method (and the
-    new SetRGBA64 method is equivalent to the existing Set method in the
-    image/draw package), but they can avoid allocations from converting
-    concrete color types to the color.Color interface type.
+    Now that there's no code remaining that uses Func.Nname, we can get
+    rid of it along with the remaining code that uselessly assigns to it.
     
-    Also update api/go1.17.txt and doc/go1.17.html
+    Passes toolstash-check.
     
-    Fixes #44808
-    
-    Change-Id: I8671f3144512b1200fa373840ed6729a5d61bc35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311129
-    Trust: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I104ab3bb5122fb824c741bc6e4d9d54fefe5646e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272390
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/go1.17.txt          |  34 ++++++++-
- doc/go1.17.html         |  13 ++++
- src/image/draw/draw.go  |  10 +++
- src/image/image.go      | 197 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/image/image_test.go |  75 ++++++++++++++++++
- src/image/ycbcr.go      |  10 +++
- 6 files changed, 338 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/export.go         |  1 -
+ src/cmd/compile/internal/gc/inl.go            |  4 ----
+ src/cmd/compile/internal/gc/reflect.go        |  8 +-------
+ src/cmd/compile/internal/gc/typecheck.go      |  1 -
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 23 +----------------------
+ 6 files changed, 3 insertions(+), 36 deletions(-)

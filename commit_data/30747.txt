@@ -1,33 +1,14 @@
-commit 8ada52228cac7ef265915cf95d8a0e515069fe9d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 10 15:03:25 2017 -0800
+commit 41908a54530120b68a79e0fd22b5e709d33cced0
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Nov 30 18:43:28 2016 -0800
 
-    cmd/compile: remove ProgInfo tables
+    api: promote next.txt to go1.8.txt, update go tool
     
-    Change-Id: Id807c702ad71edddd23f2eb6f5e69e9a62e60bcd
-    Reviewed-on: https://go-review.googlesource.com/38089
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I37f2893ce14009efe095aac3bc811d650c66bf2a
+    Reviewed-on: https://go-review.googlesource.com/33761
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/fmt_test.go               |   1 -
- src/cmd/compile/internal/amd64/galign.go  |   1 -
- src/cmd/compile/internal/amd64/prog.go    | 287 ---------------------------
- src/cmd/compile/internal/arm/galign.go    |   1 -
- src/cmd/compile/internal/arm/prog.go      | 157 ---------------
- src/cmd/compile/internal/arm64/galign.go  |   1 -
- src/cmd/compile/internal/arm64/prog.go    | 182 -----------------
- src/cmd/compile/internal/gc/go.go         |  60 ------
- src/cmd/compile/internal/gc/plive.go      |   8 -
- src/cmd/compile/internal/mips/galign.go   |   1 -
- src/cmd/compile/internal/mips/prog.go     | 155 ---------------
- src/cmd/compile/internal/mips64/galign.go |   1 -
- src/cmd/compile/internal/mips64/prog.go   | 152 --------------
- src/cmd/compile/internal/ppc64/galign.go  |   4 -
- src/cmd/compile/internal/ppc64/prog.go    | 319 ------------------------------
- src/cmd/compile/internal/s390x/galign.go  |   1 -
- src/cmd/compile/internal/s390x/prog.go    | 198 -------------------
- src/cmd/compile/internal/x86/galign.go    |   1 -
- src/cmd/compile/internal/x86/prog.go      | 268 -------------------------
- 19 files changed, 1798 deletions(-)
+ api/go1.8.txt      | 259 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 259 -----------------------------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 260 insertions(+), 260 deletions(-)

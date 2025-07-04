@@ -1,25 +1,16 @@
-commit 4a305be9469f340404f63298fce2575326ceaf99
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 6 11:39:22 2023 -0800
+commit 1f11660f54db8674223127be6ef9c1081ad55437
+Author: Dmitri Shuralyov <dmitshur@google.com>
+Date:   Wed Apr 13 18:23:08 2022 +0000
 
-    debug/buildinfo: use saferio in ReadData methods
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    This avoids a very large memory allocation if corrupt data says that
-    we need to read a very long string.
-    
-    No test case because the problem can only happen for invalid data. Let
-    the fuzzer find cases like this.
-    
-    For #47653
-    Fixes #58886
-    
-    Change-Id: I4e80ba62a6416d010c8804e4f49ae81bdafaadb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473657
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I5d2d64acd501bae90e2027f55ac6398f71dafca3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400157
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/debug/buildinfo/buildinfo.go | 36 ++++++------------------------------
- 1 file changed, 6 insertions(+), 30 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

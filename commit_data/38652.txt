@@ -1,23 +1,24 @@
-commit bead358611e36fe0991c171a8a4a4924f4f0e584
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 4 11:01:22 2019 -0400
+commit 70e3b1df4a5d5b91f6c0e7bd4f7879d6ae95fc12
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 12 16:04:07 2018 -0500
 
-    math/bits: add gccgo-friendly code for compiler bootstrap
+    crypto/tls: don't modify Config.Certificates in BuildNameToCertificate
     
-    When building as part of the bootstrap process, avoid
-    use of "go:linkname" applied to variables, since this
-    feature is ill-defined/unsupported for gccgo.
+    The Config does not own the memory pointed to by the Certificate slice.
+    Instead, opportunistically use Certificate.Leaf and let the application
+    set it if it desires the performance gain.
     
-    Updates #30771.
+    This is a partial rollback of CL 107627. See the linked issue for the
+    full explanation.
     
-    Change-Id: Id44d01b5c98d292702e5075674117518cb59e2d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170737
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #28744
+    
+    Change-Id: I33ce9e6712e3f87939d9d0932a06d24e48ba4567
+    Reviewed-on: https://go-review.googlesource.com/c/149098
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/bits/bits.go                  |  8 --------
- src/math/bits/bits_errors.go           | 15 +++++++++++++++
- src/math/bits/bits_errors_bootstrap.go | 22 ++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 8 deletions(-)
+ src/crypto/tls/common.go   |  8 ++++----
+ src/crypto/tls/tls_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 4 deletions(-)

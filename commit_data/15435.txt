@@ -1,24 +1,22 @@
-commit d6a057c90ed0746ae394efc0345b53f97d781b64
-Author: Cosmos Nicolaou <cnicolaou@google.com>
-Date:   Mon Feb 25 20:34:09 2013 -0800
+commit d2326febd5164e5b8123f6507c34e800a57ce851
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Feb 26 01:56:08 2013 +0100
 
-    cmd/godoc: add support for display Notes parsed by pkg/go/doc
-    pkg/go/doc: move BUG notes from Package.Bugs to the general Package.Notes field.
-    Removing .Bugs would break existing code so it's left in for now.
+    syscall, runtime: Plan 9: use nanotime syscall on amd64
     
-    R=gri, gri, gary.burd, dsymonds, rsc, kevlar
+    Separates the implementation of nanotime on 64-bit
+    version of Plan 9 from that on the 32-bit version.
+    The former uses a syscall.
+    
+    R=rsc, rminnich, ality
     CC=golang-dev
-    https://golang.org/cl/7341053
+    https://golang.org/cl/7379051
 
- lib/godoc/package.html               | 19 +++++--------------
- lib/godoc/package.txt                |  8 ++------
- src/cmd/godoc/godoc.go               | 29 ++++++++++++++++++++++++-----
- src/cmd/godoc/main.go                |  7 +++++++
- src/pkg/go/doc/doc.go                |  5 ++++-
- src/pkg/go/doc/reader.go             |  6 +-----
- src/pkg/go/doc/testdata/a.0.golden   |  8 ++++++--
- src/pkg/go/doc/testdata/a.1.golden   |  8 ++++++--
- src/pkg/go/doc/testdata/a.2.golden   |  8 ++++++--
- src/pkg/go/doc/testdata/a0.go        |  4 ++++
- src/pkg/go/doc/testdata/template.txt |  4 ++--
- 11 files changed, 67 insertions(+), 39 deletions(-)
+ src/pkg/runtime/sys_plan9_amd64.s      |  6 ++++++
+ src/pkg/runtime/thread_plan9.c         | 28 ----------------------------
+ src/pkg/runtime/time_plan9_386.c       | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_plan9.go       | 21 ++-------------------
+ src/pkg/syscall/syscall_plan9_386.go   | 25 +++++++++++++++++++++++++
+ src/pkg/syscall/syscall_plan9_amd64.go |  7 +++++++
+ src/pkg/syscall/zsysnum_plan9_amd64.go |  1 +
+ 7 files changed, 75 insertions(+), 47 deletions(-)

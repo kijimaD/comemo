@@ -1,20 +1,20 @@
-commit e1fd51e0765a5d7b2dd72b2f82b9c3eed2764035
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 14:56:18 2022 +0700
+commit 41bb7446dcc5179047512aa10c5e6d01eb870b54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 13:38:05 2021 -0700
 
-    runtime: convert p.timer0When to atomic type
+    cmd/compile/internal/types2: don't panic if targs don't match tparams when substituting
     
-    Updates #53821
+    This is a clean port of CL 351337 from go/types to types2.
     
-    Change-Id: I523ec61116d290ecf7b7e3eb96e468695766cb4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424396
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I974bf79fcc1ec0016c38e4c0b361d05f7b44e649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351466
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/proc.go     |  4 ++--
- src/runtime/runtime2.go |  3 +--
- src/runtime/time.go     | 10 +++++-----
- 3 files changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/types2/named.go                      |  2 +-
+ src/cmd/compile/internal/types2/subst.go                      |  4 +++-
+ .../compile/internal/types2/testdata/fixedbugs/issue46461.go2 | 11 +++++++++++
+ .../compile/internal/types2/testdata/fixedbugs/issue48529.go2 | 11 +++++++++++
+ 4 files changed, 26 insertions(+), 2 deletions(-)

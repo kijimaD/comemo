@@ -1,28 +1,16 @@
-commit 080e00d55d37be67be30e2723233594e64097edf
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 9 18:33:57 2013 -0400
+commit e3dbb1a31059994de2b20fedca0a8061cc90a7dd
+Author: Taru Karttunen <taruti@taruti.net>
+Date:   Fri Aug 9 15:11:03 2013 -0700
 
-    encoding/json: escape & always
+    net/http: Make ReadResponse work with a nil Request parameter
     
-    There are a few different places in the code that escape
-    possibly-problematic characters like < > and &.
-    This one was the only one missing &, so add it.
+    Fixes #5583
     
-    This means that if you Marshal a string, you get the
-    same answer you do if you Marshal a string and
-    pass it through the compactor. (Ironically, the
-    compaction makes the string longer.)
-    
-    Because html/template invokes json.Marshal to
-    prepare escaped strings for JavaScript, this changes
-    the form of some of the escaped strings, but not
-    their meaning.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12708044
+    https://golang.org/cl/9821043
 
- src/pkg/encoding/json/encode.go       |  2 +-
- src/pkg/html/template/content_test.go | 12 ++++++------
- src/pkg/html/template/escape_test.go  |  2 +-
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/net/http/response.go      | 21 ++++++++++-----------
+ src/pkg/net/http/response_test.go | 23 +++++++++++++++++++++++
+ src/pkg/net/http/transfer.go      |  7 ++++---
+ 3 files changed, 37 insertions(+), 14 deletions(-)

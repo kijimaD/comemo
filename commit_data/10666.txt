@@ -1,15 +1,16 @@
-commit 9d59c40eabae6ae1c4f11aa9227a9fd69156599a
+commit 1ddedbae316b90a50f17d8d7e8e726755a5dd26a
 Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 8 11:35:28 2011 -0800
+Date:   Thu Dec 8 11:26:49 2011 -0800
 
-    doc/go1: document rearranged package hierarchy
-    Some exciting HTML and CSS here.
+    tmpltohtml: put a DO NOT EDIT mark automatically in the output
     
-    R=remyoudompheng, rsc, r
+    R=r, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5460047
+    https://golang.org/cl/5469045
 
- doc/all.css  |   6 ++++
- doc/go1.html | 115 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
- doc/go1.tmpl | 111 ++++++++++++++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 212 insertions(+), 20 deletions(-)
+ doc/effective_go.html |  5 +++++
+ doc/effective_go.tmpl |  1 +
+ doc/go_tutorial.html  |  6 ++++++
+ doc/go_tutorial.tmpl  |  2 ++
+ doc/tmpltohtml.go     | 12 +++++++++++-
+ 5 files changed, 25 insertions(+), 1 deletion(-)

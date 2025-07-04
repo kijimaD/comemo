@@ -1,16 +1,15 @@
-commit f96fa06d14dfb41d987ae5372084e593ac535b13
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 3 12:32:40 2015 -0700
+commit bd95412d23e80d779062abe0798b8e7d85fcc138
+Author: Michael Matloob <matloob@google.com>
+Date:   Sat May 30 13:17:12 2015 -0400
 
-    net/http/fcgi: fix race between serveRequest and cleanUp
+    [dev.ssa] cmd/compile/internal/ssa: add a String() method to Func
     
-    Fixes #11552
+    The string method has the same output as printFunc.
     
-    Change-Id: I87904e9e3fb4bd1fb4c7075a4e2d0151e5bd37df
-    Reviewed-on: https://go-review.googlesource.com/11890
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iab2ebc17a3d6418edfeb7b585e4f251e7a11f399
+    Reviewed-on: https://go-review.googlesource.com/10552
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/fcgi/child.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/ssa/func_test.go | 16 +++++-------
+ src/cmd/compile/internal/ssa/print.go     | 41 +++++++++++++++++++++----------
+ 2 files changed, 34 insertions(+), 23 deletions(-)

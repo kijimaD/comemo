@@ -1,12 +1,18 @@
-commit dabe51065c6d77bb975b5aff639bfb4598d6401a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 22 12:57:34 2013 -0400
+commit 87700cf75d660597e70d2eb7e3760f12232562ff
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Fri Mar 22 09:30:31 2013 -0700
 
-    crypto/cipher: fix vet warning
+    image/gif: reject a GIF image if frame bounds larger than image bounds
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/7973043
+    The GIF89a spec says: "Each image must fit within the
+    boundaries of the Logical Screen, as defined in the
+    Logical Screen Descriptor." Also, do not accept
+    GIFs which have too much data for the image size.
+    
+    R=nigeltao, jra, r
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/7602045
 
- src/pkg/crypto/cipher/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/image/gif/reader.go      | 10 +++++++-
+ src/pkg/image/gif/reader_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

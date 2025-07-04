@@ -1,12 +1,15 @@
-commit cf1f542420415826040be93bc2a252ec605a1196
-Author: Vega Garcia Luis Alfonso <vegacom@gmail.com>
-Date:   Mon Jan 28 12:54:27 2013 -0500
+commit a8e0a75726c07cdbb8ce5f2e72a1bc54e392ad13
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 28 12:49:26 2013 -0500
 
-    xml: differentiate between float32 and float64 for marshalSimple
+    go/build: undo CL 7129048
     
-    R=golang-dev, rsc
+    This broke 'godoc net/http'.
+    
+    TBR=adg
     CC=golang-dev
-    https://golang.org/cl/7235045
+    https://golang.org/cl/7235052
 
- src/pkg/encoding/xml/marshal.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/build/build.go      | 4 +++-
+ src/pkg/go/build/build_test.go | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

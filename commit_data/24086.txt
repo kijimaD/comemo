@@ -1,26 +1,16 @@
-commit cba1528ceb0a386e889d0dfbf549c8055ff10018
-Author: Daniel Johansson <dajo2002@gmail.com>
-Date:   Sun Aug 23 22:08:27 2015 +0200
+commit 0409158cd04fea7ea2ec4ee8b5206a3016319c14
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 22 10:59:24 2015 -0700
 
-    time: handle localized time zone names
+    cmd/go: ignore volume name case when checking vendor path
     
-    The existing implementation fails to determine the correct time zone
-    abbreviations when the display language is non-English. This change adds
-    support for localized time zone names (standard- and daylightname)
-    by using the function RegLoadMUIString.
+    Fixes #11409
     
-    Fixes #12015
-    
-    Change-Id: Ic0dc89c50993af8f292b199c20bc5932903e7e87
-    Reviewed-on: https://go-review.googlesource.com/13854
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic1610e124b2d8b2b12310fc9538d5078cc7302a0
+    Reviewed-on: https://go-review.googlesource.com/11316
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- .../syscall/windows/registry/registry_test.go      | 72 ++++++++++++++++++++++
- src/internal/syscall/windows/registry/syscall.go   |  5 ++
- src/internal/syscall/windows/registry/value.go     | 47 ++++++++++++++
- .../syscall/windows/registry/zsyscall_windows.go   |  9 +++
- src/time/zoneinfo_windows.go                       | 32 ++++++----
- src/time/zoneinfo_windows_test.go                  | 22 +++++--
- 6 files changed, 170 insertions(+), 17 deletions(-)
+ src/cmd/go/main.go        | 22 ++++++++++++++++++++++
+ src/cmd/go/pkg.go         |  2 +-
+ src/cmd/go/vendor_test.go | 16 ++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

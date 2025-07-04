@@ -1,22 +1,16 @@
-commit 23c16cf216488430ae60dfdbf89ecf7fe8d6f9b6
+commit a1368a6ad0f413c57b2487806c7058146b21678b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 22 17:25:10 2011 -0800
+Date:   Tue Feb 22 15:31:57 2011 -0800
 
-    go/ast, parser: condition in if statement is mandatory
+    go spec: make condition mandatory in if statements
     
-    As a result, parsing a "control clause" is now sufficiently
-    different for if, switch, and for statements that the code
-    is not factored out anymore. The code is a bit longer but
-    clearer in each individual case.
+    Plus a few minor HTML fixes.
     
-    Reflect the changes in AST.
+    Fixes #1535.
     
-    R=r, r2
+    R=r, rsc, ken2, iant, r2
     CC=golang-dev
-    https://golang.org/cl/4173075
+    https://golang.org/cl/4185065
 
- src/pkg/go/ast/ast.go            |  2 +-
- src/pkg/go/ast/walk.go           |  4 +-
- src/pkg/go/parser/parser.go      | 88 +++++++++++++++++++++++++---------------
- src/pkg/go/parser/parser_test.go |  1 +
- 4 files changed, 59 insertions(+), 36 deletions(-)
+ doc/go_spec.html | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

@@ -1,17 +1,31 @@
-commit 6f74c0774cf4fd906292bf0a733cb596f0849780
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 11 11:18:17 2016 -0700
+commit 77d374940e87935a2cc46a60591ec8213003e99a
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Apr 14 19:09:57 2016 -0400
 
-    runtime: move printing of extra newline
+    cmd/compile: speed up dom checking in cse
     
-    No functional changes, makes vet happy.
+    Process a slice of equivalent values by setting replaced values to nil
+    instead of removing them from the slice to eliminate copying.  Also take
+    advantage of the entry number sort to break early once we reach a value
+    in a block that is not dominated.
     
-    Updates #11041
+    For the code in issue #15112:
     
-    Change-Id: I59f3aba46d19b86d605508978652d76a1fe7ac7b
-    Reviewed-on: https://go-review.googlesource.com/27125
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Before:
+    real    0m52.603s
+    user    0m56.957s
+    sys     0m1.213s
+    
+    After:
+    real    0m22.048s
+    user    0m26.445s
+    sys     0m0.939s
+    
+    Updates #15112
+    
+    Change-Id: I06d9e1e1f1ad85d7fa196c5d51f0dc163907376d
+    Reviewed-on: https://go-review.googlesource.com/22068
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/testdata/testprogcgo/threadprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

@@ -1,25 +1,39 @@
-commit 2b33434287be85917ba8edc4a73f0a6ebaaea63e
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Nov 7 10:17:18 2024 +0800
+commit dfb2e4265bf7654001c77925dfbbb9c38c0d1a95
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Sep 9 00:58:21 2023 +0000
 
-    cmd/asm: use single-instruction forms for all loong64 sign and zero extensions
+    cmd/go: cache results of exec.LookPath
     
-    8-bit and 16-bit sign extensions and 32-bit zero extensions were realized
-    with left and right shifts before this change. We now support assembling
-    EXTWB, EXTWH and BSTRPICKV, so all three can be done with a single insn
-    respectively.
+    This CL package exec.LookPath to internal/cfg.LookPath and adds cache.
     
-    This patch is a copy of CL 479496.
-    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    BenchmarkLookPath-4     24149096                50.48 ns/op            0 B/op          0 allocs/op
     
-    Change-Id: Iee5741dd9ebb25746f51008f3f6c86704339d615
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626195
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #36768
+    
+    Change-Id: I199a780d1eab9bd5397bb3759bb42191fff716e9
+    
+    Change-Id: I199a780d1eab9bd5397bb3759bb42191fff716e9
+    GitHub-Last-Rev: d67aa826f431affe829c23d1fdf2241fbb611303
+    GitHub-Pull-Request: golang/go#61464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511458
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  3 ++
- src/cmd/asm/internal/asm/testdata/loong64enc2.s |  3 --
- src/cmd/internal/obj/loong64/asm.go             | 38 ++++++++++---------------
- 3 files changed, 18 insertions(+), 26 deletions(-)
+ src/cmd/go/internal/cfg/bench_test.go               | 21 +++++++++++++++++++++
+ src/cmd/go/internal/cfg/cfg.go                      |  3 +--
+ src/cmd/go/internal/cfg/lookpath.go                 | 21 +++++++++++++++++++++
+ src/cmd/go/internal/generate/generate.go            |  2 +-
+ src/cmd/go/internal/load/pkg.go                     |  3 +--
+ src/cmd/go/internal/script/cmds.go                  |  3 ++-
+ src/cmd/go/internal/script/scripttest/scripttest.go |  4 ++--
+ src/cmd/go/internal/toolchain/select.go             |  3 +--
+ src/cmd/go/internal/vcs/vcs.go                      |  2 +-
+ src/cmd/go/internal/work/build.go                   |  3 +--
+ src/cmd/go/internal/work/buildid.go                 |  2 +-
+ src/cmd/go/internal/work/exec.go                    | 10 +++++++---
+ src/cmd/go/internal/work/gccgo.go                   |  2 +-
+ 13 files changed, 61 insertions(+), 18 deletions(-)

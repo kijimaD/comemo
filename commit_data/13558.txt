@@ -1,15 +1,24 @@
-commit b9b29ce2ba9e45de8372d81292b52f8623237220
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 3 14:25:35 2012 +1000
+commit 593c51cff13339c10e9e767209b699eb4ba56c44
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 2 17:05:51 2012 -0700
 
-    os: test that IsExist and IsNotExist handle PathError and LinkError
+    go/ast: ast.Print must not crash with unexported fields
     
-    R=golang-dev, r
+    Don't print unexported struct fields; their values are
+    not accessible via reflection.
+    
+    Fixes #3898.
+    
+    Also:
+    - added support for arrays
+    - print empty maps, arrays, slices, structs on one line
+      for a denser output
+    - added respective test cases
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6442080
+    https://golang.org/cl/6454089
 
- src/pkg/os/error_plan9.go   | 24 +++++++++++++++---------
- src/pkg/os/error_posix.go   | 21 ++++++++++++++++++---
- src/pkg/os/error_test.go    | 27 +++++++++++++++++++++++++++
- src/pkg/os/error_windows.go | 22 +++++++++++++++++-----
- 4 files changed, 77 insertions(+), 17 deletions(-)
+ src/pkg/go/ast/print.go      | 73 +++++++++++++++++++++++++++++++-------------
+ src/pkg/go/ast/print_test.go | 21 +++++++++++++
+ 2 files changed, 72 insertions(+), 22 deletions(-)

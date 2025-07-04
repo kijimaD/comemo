@@ -1,15 +1,14 @@
-commit b0a1b82ec133d08505d69a064b0dac0d807817e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 9 09:03:25 2013 -0400
+commit e0405b73187fddbcd685490550681d4fb742105d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 9 17:08:02 2013 +1000
 
-    cmd/go: cgo programs depend on syscall
+    encoding/binary: document its goals better
+    It's a modest package with modest goals and limitations.
+    Make that clear.
     
-    Fixes #5048.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12651044
+    https://golang.org/cl/12694043
 
- src/cmd/go/pkg.go    | 32 +++++++++++++++++++++++++++-----
- src/cmd/go/test.bash | 44 +++++++++++++++++++++++++++++---------------
- 2 files changed, 56 insertions(+), 20 deletions(-)
+ src/pkg/encoding/binary/binary.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

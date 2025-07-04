@@ -1,28 +1,17 @@
-commit 66da885594b6dbf61d93b627f5f2d5cd34cf9023
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 10 19:46:48 2016 +0000
+commit 79048df2ccc2d4c2ccc4e15d481f7888d48cf440
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 6 07:11:24 2016 -0400
 
-    syscall: test Gettimeofday everywhere, not just on Darwin
+    cmd/link: handle long symbol names
     
-    The Darwin-only restriction was because we were late in the Go 1.7
-    cycle when the test was added.
+    Fixes #15104.
     
-    In the process, I noticed Gettimeofday wasn't in the "unimplemented
-    midden heap" section of syscall_nacl.go, despite this line in the
-    original go1.txt:
-    
-    pkg syscall, func Gettimeofday(*Timeval) error
-    
-    So, add it, returning ENOSYS like the others.
-    
-    Change-Id: Id7e02e857b753f8d079bee335c22368734e92254
-    Reviewed-on: https://go-review.googlesource.com/26772
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9ddfbbf39ef0a873b703ee3e04fbb7d1192f5f39
+    Reviewed-on: https://go-review.googlesource.com/21581
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/syscall/syscall_darwin_test.go | 23 -----------------------
- src/syscall/syscall_nacl.go        |  1 +
- src/syscall/syscall_test.go        | 14 ++++++++++++++
- 3 files changed, 15 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/ld/objfile.go | 17 ++++++++++++-----
+ src/cmd/link/link_test.go           | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 5 deletions(-)

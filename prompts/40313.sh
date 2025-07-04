@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40313: 504fce98ba3052135ec1f9564e06819f42cdbc86
+# Index 40313: 0a338f75d4c64ba72cf586a28ec1a674c8b4bb77
 
 echo "🚀 Generating explanation for commit 40313..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40313
-- **コミットハッシュ**: 504fce98ba3052135ec1f9564e06819f42cdbc86
-- **GitHub URL**: https://github.com/golang/go/commit/504fce98ba3052135ec1f9564e06819f42cdbc86
+- **コミットハッシュ**: 0a338f75d4c64ba72cf586a28ec1a674c8b4bb77
+- **GitHub URL**: https://github.com/golang/go/commit/0a338f75d4c64ba72cf586a28ec1a674c8b4bb77
 
 ### 章構成
 

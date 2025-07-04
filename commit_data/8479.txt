@@ -1,26 +1,13 @@
-commit 0b209b36b6ae03f81d93f07bcbbdcb8fa8a1aebe
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue May 24 19:48:19 2011 -0400
+commit 3857747dce065b3cfae3e9df38ea90dd84661f19
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 24 15:00:42 2011 -0700
 
-    gc: relax assignability of method receivers
+    go/scanner: remove some code
     
-    The spec was adjusted in commit df410d6a4842 to allow the
-    implicit assignment of strutures with unexported fields in
-    method receivers.  This change updates the compiler.
-    
-    Also moved bug322 into fixedbugs and updated golden.out
-    to reflect the removal of the last known bug.
-    
-    Fixes #1402.
-    
-    R=golang-dev, gri, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4526069
+    https://golang.org/cl/4550077
 
- src/cmd/gc/typecheck.c                      | 8 +++++++-
- test/fixedbugs/bug226.dir/y.go              | 2 +-
- test/{bugs => fixedbugs}/bug322.dir/lib.go  | 0
- test/{bugs => fixedbugs}/bug322.dir/main.go | 7 -------
- test/{bugs => fixedbugs}/bug322.go          | 0
- test/golden.out                             | 5 -----
- 6 files changed, 8 insertions(+), 14 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 33 ++-------------------------------
+ src/pkg/go/scanner/scanner_test.go |  3 ++-
+ 2 files changed, 4 insertions(+), 32 deletions(-)

@@ -1,14 +1,14 @@
-commit cb47edc0c404aa6944976b27406bd927f8836f07
-Author: Visweswara R <r.visweswara@gmail.com>
-Date:   Wed Nov 28 07:32:08 2018 +0530
+commit 18107ed9fbdb0d2ae1006857e21a8a66882e12dd
+Author: Michael Brandenburg <mcbrande@gmail.com>
+Date:   Tue Jun 18 22:16:05 2019 -0700
 
-    net: improve IPMask docs
+    math: add examples for Log, Log2, Mod, and Abs
     
-    Fixes #28957
-    
-    Change-Id: Ie8ba841bd4ee71766bcfbbfbdc9173b9be867ed1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/151479
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5f57acd5e970b3fec5f33cfceee179235cbf739f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182877
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/ip.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/math/example_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

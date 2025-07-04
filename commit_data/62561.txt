@@ -1,0 +1,22 @@
+commit af92bb594d6daaacdd2d03549911fbec8ae65900
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Mar 12 23:11:30 2025 +1100
+
+    test/codegen: remove plan9/amd64 specific array zeroing/copying tests
+    
+    The compiler previously avoided the use of MOVUPS on plan9/amd64. This
+    was changed in CL 655875, however the codegen tests were not updated
+    and now fail (seemingly the full codegen tests do not run anywhere,
+    not even on the longtest builders).
+    
+    Change-Id: I388b60e7b0911048d4949c5029347f9801c018a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656997
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+
+ test/codegen/floats.go | 6 ------
+ 1 file changed, 6 deletions(-)

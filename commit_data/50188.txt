@@ -1,22 +1,30 @@
-commit c22865fcfa1ec434e5655c652c6376fa2d0eb821
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Aug 26 15:11:40 2022 +0800
+commit 375a1fba0eb733676698ac3a9fdd12e6a8dd6602
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 5 22:59:49 2021 +0700
 
-    cmd/go: go clean should not accept flags like -modcache with packages
+    cmd/compile: better error message for invalid untyped nil conversion
     
-    For #53725
+    In case of an invalid untyped nil conversion, the compiler's original
+    type checker leaves it to the caller to report a suitable error message.
+    But types2 does not, it always reports the invalid conversion.
     
-    Change-Id: I99a85b437d5f918dba74c4eccefcf8087193646a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425874
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    CL 328053 made types2 report a better error message, and match the
+    original compiler behavior. But it ignored the case of untyped nil.
+    
+    This CL adds that missing case, by checking whether the two operands can
+    be mixed when untyped nil is present.
+    
+    Fixes #48784
+    
+    Change-Id: Idc7d86eb0245aa18ca428e278f4416d6b3679058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354049
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/clean/clean.go             | 17 +++++++++++++++++
- src/cmd/go/testdata/script/clean_cache_n.txt   |  3 +++
- src/cmd/go/testdata/script/clean_testcache.txt |  2 ++
- src/cmd/go/testdata/script/mod_clean_cache.txt |  3 +++
- src/cmd/go/testdata/script/test_fuzz_cache.txt |  3 +++
- 5 files changed, 28 insertions(+)
+ src/cmd/compile/internal/types2/expr.go            |  6 ++++++
+ .../internal/types2/testdata/check/expr2.src       |  4 ++--
+ test/fixedbugs/issue48784.go                       | 23 ++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 2 deletions(-)

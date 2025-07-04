@@ -1,26 +1,12 @@
-commit 670933048822c65559e370d6a5c0464980025479
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Dec 21 11:11:55 2011 +0900
+commit a63262b6c0576e11bb45a3ba090b7666ed92d022
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 20:37:58 2011 -0500
 
-    build: make use of env
+    build: fix for freebsd, openbsd
     
-    R=rsc, golang-dev
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5504053
+    https://golang.org/cl/5505052
 
- src/buildscript.sh               | 2 +-
- src/buildscript_darwin_386.sh    | 2 +-
- src/buildscript_darwin_amd64.sh  | 2 +-
- src/buildscript_freebsd_386.sh   | 2 +-
- src/buildscript_freebsd_amd64.sh | 2 +-
- src/buildscript_linux_386.sh     | 2 +-
- src/buildscript_linux_amd64.sh   | 2 +-
- src/buildscript_linux_arm.sh     | 2 +-
- src/buildscript_netbsd_386.sh    | 2 +-
- src/buildscript_netbsd_amd64.sh  | 2 +-
- src/buildscript_openbsd_386.sh   | 2 +-
- src/buildscript_openbsd_amd64.sh | 2 +-
- src/buildscript_plan9_386.sh     | 2 +-
- src/buildscript_windows_386.sh   | 2 +-
- src/buildscript_windows_amd64.sh | 2 +-
- 15 files changed, 15 insertions(+), 15 deletions(-)
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

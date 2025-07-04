@@ -1,14 +1,13 @@
-commit 2a5879d1e2f397d71097b27eda74c7867f48094a
+commit c58163c572bec64b5a7a658a2b658e6de412cd0c
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 20 13:50:05 2012 +1100
+Date:   Tue Mar 20 13:35:31 2012 +1100
 
-    doc: replace mentions of 6g with gc or the go command
+    misc/dashboard: remove remnants of package dashboard
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5846070
+    https://golang.org/cl/5847070
 
- doc/codewalk/markov.xml     | 13 ++++++-------
- doc/debugging_with_gdb.html |  6 +++---
- doc/go_faq.html             | 10 +++++-----
- 3 files changed, 14 insertions(+), 15 deletions(-)
+ misc/dashboard/godashboard/project.html | 1 +
+ misc/dashboard/godashboard/project.py   | 6 ------
+ 2 files changed, 1 insertion(+), 6 deletions(-)

@@ -1,12 +1,15 @@
-commit 2d489e67dc14942e62820cb6b521b4e40b831f0f
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Tue Aug 30 08:00:07 2011 -0400
+commit ae891b55289c4147d2c6271759f97ea00246bf17
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Tue Aug 30 14:43:54 2011 +1000
 
-    gc: fix for Plan 9 build
+    windows/386: clean stack after syscall (it is necessary after call cdecl functions and does not have an effect after stdcall)
     
-    R=golang-dev
-    CC=golang-dev, rsc
-    https://golang.org/cl/4975044
+    Result of discussion here: http://groups.google.com/group/golang-nuts/browse_thread/thread/357c806cbb57ca62
+    
+    R=golang-dev, bradfitz, alex.brainman, hectorchu, rsc
+    CC=golang-dev
+    https://golang.org/cl/4961045
 
- src/cmd/gc/esc.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/runtime/syscall_windows_test.go | 61 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/windows/386/sys.s       |  5 ++-
+ 2 files changed, 65 insertions(+), 1 deletion(-)

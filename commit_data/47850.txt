@@ -1,16 +1,33 @@
-commit 90fb5a4f97a11bb3aa4a6143ec687d20b35ef010
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 21 14:44:27 2021 -0800
+commit 2d4ba2601b91e2e69712861c654e4ddaf4355f49
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 17:56:32 2021 +0000
 
-    doc/go1.18: document {text,html}/template {break,continue} commands
+    runtime: move gcPercent and heapMinimum into gcControllerState
     
-    For #20531
-    For #47694
+    These variables are core to the pacer, and will be need to be non-global
+    for testing later.
     
-    Change-Id: Iaefaa0a8982eabf59cd6a53120c8af9124d60d1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373915
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Partially generated via
+    
+    rf '
+        ex . {
+            gcPercent -> gcController.gcPercent
+            heapMinimum -> gcController.heapMinimum
+        }
+    '
+    
+    The only exception to this generation is usage of these variables
+    in gcControllerState methods.
+    
+    For #44167.
+    
+    Change-Id: I8b620b3061114f3a3c4b65006f715fd977b180a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306600
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ src/runtime/mgc.go      |  5 +++--
+ src/runtime/mgcpacer.go | 58 ++++++++++++++++++++++++-------------------------
+ 2 files changed, 32 insertions(+), 31 deletions(-)

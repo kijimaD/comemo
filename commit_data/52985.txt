@@ -1,24 +1,22 @@
-commit d740b365b7c1ecefb91b2e2fed5719c8ec49d155
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu May 11 14:27:25 2023 -0400
+commit 5f5422a2ddcfcec8282bc2fde0729083eeeb2926
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 07:07:41 2022 -0700
 
-    cmd/compile/internal/pgo: move pprof graph to internal package
+    [dev.unified] cmd/compile/internal/noder: start writing implicit conversions
     
-    graph.go is a simplified fork of github.com/google/pprof/internal/graph,
-    which is used as an intermediate data structure to construct the final
-    graph exported by package pgo (IRGraph).
+    This CL adds support for implicit conversions to the unified IR export
+    data format, and starts inserting them in a few low-hanging
+    places (send statements, index expressions).
     
-    Exporting both is a bit confusing as the former is unused outside of the
-    package. Since the naming is also similar, move graph.go to its own
-    package entirely.
+    Subsequentl CLs will handle the remaining trickier cases.
     
-    Change-Id: I2bccb3ddb6c3f63afb869ea9cf34d2a261cad058
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494437
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Iaea9d1c5df8432b61bd82578ab2ef02adaf26367
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413396
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/pgo/{ => internal/graph}/graph.go | 12 ++++++------
- src/cmd/compile/internal/pgo/irgraph.go                    |  5 +++--
- 2 files changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/noder/reader.go |  7 +++-
+ src/cmd/compile/internal/noder/writer.go | 58 ++++++++++++++++++++++++++------
+ 2 files changed, 54 insertions(+), 11 deletions(-)

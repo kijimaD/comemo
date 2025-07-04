@@ -1,23 +1,22 @@
-commit 1d3d6ae725697c5b224b26cb3aa1325ac37f72d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 22 00:14:42 2024 -0400
+commit 78df00dd6f47eb13ff2873fb92223d8b64323d32
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 19 15:56:07 2023 +0000
 
-    all: document legacy //go:linkname for modules with ≥1,000 dependents
+    runtime: fix lockrank ordering for pinner implementation
     
-    For #67401.
+    The new Pinner API's implementation imposes some partial-orders that are
+    safe but previously did not exist between a mspanSpecial, mheapSpecial,
+    and mheap. Fix that up in the lock ranking.
     
-    Change-Id: If23a2c07e3dd042a3c439da7088437a330b9caa4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587222
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #46787.
+    
+    Change-Id: I51cc8f7f069240caeb44d749bed43515634f4814
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496193
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/badlinkname.go    |  3 ---
- src/runtime/chan.go           | 10 ++++++++++
- src/runtime/malloc.go         |  2 ++
- src/runtime/map.go            |  4 ++++
- src/runtime/mbarrier.go       | 19 +++++++++++++++++++
- src/runtime/stubs.go          |  3 ++-
- src/runtime/sys_darwin.go     |  7 +++++++
- src/syscall/syscall_darwin.go |  9 +++++++++
- 8 files changed, 53 insertions(+), 4 deletions(-)
+ src/runtime/lockrank.go   | 22 +++++++++++-----------
+ src/runtime/mklockrank.go |  8 ++++++--
+ 2 files changed, 17 insertions(+), 13 deletions(-)

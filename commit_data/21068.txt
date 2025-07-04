@@ -1,47 +1,30 @@
-commit 675eb72c285cd0dd44a5f280bb3fa456ddf6de16
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 19 16:16:17 2014 -0500
+commit b2cdf30eb6c4a76504956aaaad47df969274296b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:08:33 2014 -0500
 
-    runtime: run libc SIGSETXID and SIGCANCEL handlers on signal stack
+    [dev.cc] runtime: convert scheduler from C to Go
     
-    These signals are used by glibc to broadcast setuid/setgid to all
-    threads and to send pthread cancellations.  Unlike other signals, the
-    Go runtime does not intercept these because they must invoke the libc
-    handlers (see issues #3871 and #6997).  However, because 1) these
-    signals may be issued asynchronously by a thread running C code to
-    another thread running Go code and 2) glibc does not set SA_ONSTACK
-    for its handlers, glibc's signal handler may be run on a Go stack.
-    Signal frames range from 1.5K on amd64 to many kilobytes on ppc64, so
-    this may overflow the Go stack and corrupt heap (or other stack) data.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Fix this by ensuring that these signal handlers have the SA_ONSTACK
-    flag (but not otherwise taking over the handler).
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    This has been a problem since Go 1.1, but it's likely that people
-    haven't encountered it because it only affects setuid/setgid and
-    pthread_cancel.
-    
-    Fixes #9600.
-    
-    Change-Id: I6cf5f5c2d3aa48998d632f61f1ddc2778dcfd300
-    Reviewed-on: https://go-review.googlesource.com/1887
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=r
+    R=r, daniel.morsing
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/172260043
 
- misc/cgo/test/cgo_linux_test.go      |  1 +
- misc/cgo/test/issue9400/asm_386.s    | 20 +++++++++++++
- misc/cgo/test/issue9400/asm_amd64x.s | 22 ++++++++++++++
- misc/cgo/test/issue9400/asm_arm.s    | 33 ++++++++++++++++++++
- misc/cgo/test/issue9400/asm_ppc64x.s | 27 +++++++++++++++++
- misc/cgo/test/issue9400/stubs.go     |  9 ++++++
- misc/cgo/test/issue9400_linux.go     | 58 ++++++++++++++++++++++++++++++++++++
- src/runtime/os1_darwin.go            |  4 +++
- src/runtime/os1_dragonfly.go         |  4 +++
- src/runtime/os1_freebsd.go           |  5 ++++
- src/runtime/os1_linux.go             | 14 +++++++++
- src/runtime/os1_netbsd.go            |  4 +++
- src/runtime/os1_openbsd.go           |  4 +++
- src/runtime/os3_solaris.go           |  4 +++
- src/runtime/runtime2.go              |  1 +
- src/runtime/signal1_unix.go          |  5 ++++
- src/runtime/signal_linux.go          |  4 +--
- 17 files changed, 217 insertions(+), 2 deletions(-)
+ src/runtime/cpuprof.go          |    2 -
+ src/runtime/debug.go            |   14 -
+ src/runtime/futex_test.go       |    4 +-
+ src/runtime/lock_futex.go       |    7 +-
+ src/runtime/lock_sema.go        |    8 +-
+ src/runtime/netpoll.go          |    3 +-
+ src/runtime/pprof/pprof_test.go |    2 +-
+ src/runtime/proc.c              | 3489 ---------------------------------------
+ src/runtime/proc.go             |   40 +-
+ src/runtime/proc1.go            | 3175 +++++++++++++++++++++++++++++++++++
+ src/runtime/rdebug.go           |   18 -
+ src/runtime/select.go           |    6 +-
+ 12 files changed, 3215 insertions(+), 3553 deletions(-)

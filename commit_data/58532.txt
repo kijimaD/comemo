@@ -1,21 +1,20 @@
-commit 6fc23a3cff5e38ff72923fee50f51254dcdc6e93
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Jan 21 16:03:14 2025 -0800
+commit b34059032e27fac58fba44c4bf9a30f67f3af142
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 16 16:04:17 2023 -0800
 
-    crypto/internal/fips140/nistec: make p256NegCond constant time on ppc64le
+    go/types, types2: avoid type inference error if arguments are invalid
     
-    Remove the branching instruction from p256NegCond which made it variable
-    time. The technique used matches that used in p256MovCond.
+    Fixes #60434.
     
-    Fixes #71383
-    Fixes CVE-2025-22866
-    
-    Change-Id: Ibc2a46814d856cbbdaf6cc0c5a415ed5d42ca793
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643735
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6eca4c508fa96fe81c4ee8a12b76c3de405fee7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543176
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../internal/fips140/nistec/p256_asm_ppc64le.s       | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/infer.go            |  8 ++++++++
+ src/go/types/infer.go                               |  8 ++++++++
+ src/internal/types/testdata/fixedbugs/issue60434.go | 17 +++++++++++++++++
+ 3 files changed, 33 insertions(+)

@@ -1,16 +1,24 @@
-commit 14eba969d88d2d5af8443acc9450f0b31f1bcf55
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Jul 21 03:48:56 2011 -0300
+commit 8cdee891d70c9e66dd22dffa1aa804721f07aacf
+Author: Michael T. Jones <mtj@google.com>
+Date:   Thu Jul 21 16:46:51 2011 +1000
 
-    ld: fix freebsd build reverting .interp move
+    fmt: handle precision 0 format stings in standard way
     
-    R=golang-dev, r
+    The C-stdlib heritage of printf/fprintf/sprintf has two odd
+    aspects for precisions of zero with integers. First, the zero
+    can be specified in any of these ways, "%4.0d", "%.0d" and
+    "%.d" which was not previously supported here. Secondly, the
+    seemingly universal interpretation of precision for integers
+    is that precision==0 and value==0 means print nothing at all.
+    The code here now handles this for integers just as the code
+    in big/int.c does the same for the Int type. New tests are
+    added to fmt_test.go to verify these changes.
+    
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/4794046
+    https://golang.org/cl/4717045
 
- src/cmd/5l/asm.c  | 14 ++++----------
- src/cmd/6l/asm.c  | 20 ++------------------
- src/cmd/8l/asm.c  | 30 ++++++++++++------------------
- src/cmd/ld/data.c |  2 +-
- src/cmd/ld/elf.c  | 27 +++++++++++++++++++++++++++
- 5 files changed, 46 insertions(+), 47 deletions(-)
+ src/pkg/fmt/fmt_test.go | 2 ++
+ src/pkg/fmt/format.go   | 5 +++++
+ src/pkg/fmt/print.go    | 4 ++++
+ 3 files changed, 11 insertions(+)

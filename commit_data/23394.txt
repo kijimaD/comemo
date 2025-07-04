@@ -1,17 +1,23 @@
-commit a2aaede366f9bf6d48e6e42be0a86a843f570097
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 16 11:03:19 2015 -0700
+commit 51021cc83f54964aa5e6a71cdf2206ae169acbb8
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Tue May 12 08:19:00 2015 +0200
 
-    misc/cgo/testshared: make sure rebuilds occur as expected
+    time: fix registry zone info lookup on Windows
     
-    Adjust timestamps in TestABIChecking to make sure that the library and
-    executable are rebuilt when expected.
+    registry.ReadSubKeyNames requires QUERY access right in addition to
+    ENUMERATE_SUB_KEYS.
     
-    Change-Id: I3288c254ba8201b5b4255347b0cb056fa0908657
-    Reviewed-on: https://go-review.googlesource.com/11128
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Yves Junqueira <yves.junqueira@gmail.com>
+    This was making TestLocalZoneAbbr fail on Windows 7 in Paris/Madrid
+    timezone. It succeeded on Windows 8 because timezone name changed from
+    "Paris/Madrid" to "Romance Standard Time", the latter being matched by
+    an abbrs entry.
+    
+    Change-Id: I791287ba9d1b3556246fa4e9e1604a1fbba1f5e6
+    Reviewed-on: https://go-review.googlesource.com/9809
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/time/export_windows_test.go   |  4 ++++
+ src/time/zoneinfo_windows.go      |  2 +-
+ src/time/zoneinfo_windows_test.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 1 deletion(-)

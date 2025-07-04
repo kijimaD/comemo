@@ -1,23 +1,36 @@
-commit f2b79cadfde436a824a12b40e096b4fe6c8249d7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 8 14:58:41 2017 +1100
+commit 7e5b2e0ec144d5f5b2923a7d5db0b9143f79a35a
+Author: Quentin Smith <quentin@golang.org>
+Date:   Wed Nov 30 15:16:37 2016 -0500
 
-    runtime: import os package in BenchmarkRunningGoProgram
+    crypto/x509: read Darwin trust settings for root CAs
     
-    I would like to use BenchmarkRunningGoProgram to measure
-    changes for issue #15588. So the program in the benchmark
-    should import "os" package.
+    Darwin separately stores bits indicating whether a root certificate
+    should be trusted; this changes Go to read and use those when
+    initializing SystemCertPool.
     
-    It is also reasonable that basic Go program includes
-    "os" package.
+    Unfortunately, the trust API is very slow. To avoid a delay of up to
+    0.5s in initializing the system cert pool, we assume that
+    the trust settings found in kSecTrustSettingsDomainSystem will always
+    indicate trust. (That is, all root certs Apple distributes are trusted.)
+    This is not guaranteed by the API but is true in practice.
     
-    For #15588.
+    In the non-cgo codepath, we do not have that benefit, so we must check
+    the trust status of every certificate. This causes about 0.5s of delay
+    in initializing the SystemCertPool.
     
-    Change-Id: Ida6712eab22c2e79fbe91b6fdd492eaf31756852
-    Reviewed-on: https://go-review.googlesource.com/37914
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    On OS X 10.11 and older, the "security" command requires a certificate
+    to be provided in a file and not on stdin, so the non-cgo codepath
+    creates temporary files for each certificate, further slowing initialization.
+    
+    Updates #18141.
+    
+    Change-Id: If681c514047afe5e1a68de6c9d40ceabbce54755
+    Reviewed-on: https://go-review.googlesource.com/33721
+    Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/syscall_windows_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/crypto/x509/root_cgo_darwin.go  |  81 ++++++++++++++++++++++---
+ src/crypto/x509/root_darwin.go      | 114 +++++++++++++++++++++++++++++++++++-
+ src/crypto/x509/root_darwin_test.go |   1 +
+ 3 files changed, 185 insertions(+), 11 deletions(-)

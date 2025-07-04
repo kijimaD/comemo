@@ -1,14 +1,16 @@
-commit 604fbab3f113d37fcbc84ec2f80e57569af71361
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Sep 22 02:18:57 2015 -0400
+commit 7e74e43366d58844cb30f382374e6447b93ac706
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 24 11:55:52 2015 -0700
 
-    runtime: fix incomplete sentence in comment
+    [dev.ssa] cmd/compile: minor cleanup
     
-    Fixes #12709.
+    Cull dead code. Add TODOs.
     
-    Change-Id: If5a2536458fcd26d6f003dde1bfc02f86b09fa94
-    Reviewed-on: https://go-review.googlesource.com/14793
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I81d24371de47f5a27d3a3a0ec0ef5baaf6814c06
+    Reviewed-on: https://go-review.googlesource.com/12659
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 5 ++---
+ src/cmd/compile/internal/ssa/TODO              | 4 ++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ 3 files changed, 7 insertions(+), 4 deletions(-)

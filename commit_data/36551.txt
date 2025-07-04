@@ -1,34 +1,21 @@
-commit 770e37d24915f481a8ee79d24121eae170a2214d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 21 16:02:51 2018 -0700
+commit d0ed8d6ea161f89880e057fe54fa4825df4097b9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 4 10:10:59 2018 +0700
 
-    go/types: better names for internal helper functions (cleanup)
+    cmd/vet: %T is a formatting directive too
     
-    Internal helper functions for type-checking type expressions were
-    renamed to make it clearer when they should be used:
+    Some warnings were being missed, because vet's regex that finds
+    formatting directives was missing the 'T' verb.
     
-            typExpr (w/o def) -> typ
-            typExpr (w/  def) -> definedType
-            typ               -> indirectType
-            typExprInternal   -> typInternal
+    Fixes #24646.
     
-    The rename emphasizes that in most cases Checker.typ should be used
-    to compute the types.Type from an ast.Type. If the type is defined,
-    definedType should be used. For composite type elements which are
-    not "inlined" in memory, indirectType should be used.
-    
-    In the process, implicitly changed several uses of indirectType
-    (old: typ) to typ (old: typExpr) by not changing the respective
-    function call source. These implicit changes are ok in those
-    places because either call is fine where we are not concerned
-    about composite type elements. But using typ (old: typExpr) is
-    more efficient than using indirectType (old: typ).
-    
-    Change-Id: I4ad14d5357c5f94b6f1c33173de575c4cd05c703
-    Reviewed-on: https://go-review.googlesource.com/130595
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2f6f9ed19e7daf9a07175199f428a62e94799ea9
+    Reviewed-on: https://go-review.googlesource.com/111357
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/types/decl.go    |  8 +++----
- src/go/types/expr.go    |  4 ++--
- src/go/types/typexpr.go | 55 ++++++++++++++++++++++++++-----------------------
- 3 files changed, 35 insertions(+), 32 deletions(-)
+ src/cmd/vet/print.go          | 2 +-
+ src/cmd/vet/testdata/print.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,20 +1,24 @@
-commit 9f66636c93affa363f59196cacd160fa17deeb96
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 31 14:09:04 2016 -0700
+commit fb2af2b35b8d2ad832f2398e981ea78c64b0663b
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 19 12:06:31 2016 -0500
 
-    cmd/compile: don't put SP in index slot
+    cmd/compile: don't walk field-name syntax in esc.go
     
-    For idx1 ops, SP can appear in the index slot.
-    Swap SP into the base register slot so we can encode
-    the instruction.
+    Walking the field name as if it were an expression
+    caused a called to haspointers with a TFIELD, which panics.
+    Trigger was a field at a large offset within a large struct,
+    combined with a struct literal expression mentioning that
+    field.
     
-    Fixes #15053
+    Fixes #14405
     
-    Change-Id: I19000cc9d6c86c7611743481e6e2cb78b1ef04eb
-    Reviewed-on: https://go-review.googlesource.com/21384
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: I4589badae27cf3d7cf365f3a66c13447512f41f9
+    Reviewed-on: https://go-review.googlesource.com/19699
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 40 ++++++++++++++++++++++++++---------
- 1 file changed, 30 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 13 ++++++++++---
+ src/cmd/compile/internal/gc/fmt.go |  2 +-
+ test/fixedbugs/issue14405.go       | 17 +++++++++++++++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

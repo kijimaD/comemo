@@ -1,17 +1,15 @@
-commit 13d6f8f7f324a5dba5e5c3c1f72d7f09b07846e9
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Fri Apr 5 08:04:02 2013 +1100
+commit d97157d3825f12e7b9702474136085276f7ef0a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 4 13:40:15 2013 -0700
 
-    godoc: enable visibility of element linked from URL hash
+    net/http: better stand-alone FileServer doc example
     
-    Expands the example when visiting a URL such as
-    http://golang.org/pkg/net/http/#example_Hijacker
+    Motivated by a deletion in the wiki, which had a better
+    example.
     
-    Fixes #5212.
-    
-    R=golang-dev, bradfitz, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8378043
+    https://golang.org/cl/8288045
 
- doc/godocs.js | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/net/http/example_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

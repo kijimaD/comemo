@@ -1,23 +1,14 @@
-commit e2662835b8dd3ca4aa69997afe3774467a677df8
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 22 02:14:44 2012 +0800
+commit 3a3c5aad4e6ccef38a1e6d56652523c3258da6a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 21 10:38:58 2012 -0700
 
-    test: use testlib in a few more cases
-            Introduce a new skip cmd.
+    cmd/cgo: fix handling of errno for gccgo
     
-    R=golang-dev, bradfitz, iant, iant
+    Fixes #3332.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5868048
+    https://golang.org/cl/5868047
 
- test/cmplxdivide.c           | 1 +
- test/cmplxdivide1.go         | 1 +
- test/ddd2.go                 | 2 +-
- test/fixedbugs/bug223.go     | 4 ++--
- test/import2.go              | 2 +-
- test/interface/embed0.go     | 2 +-
- test/interface/private1.go   | 2 +-
- test/interface/recursive1.go | 2 +-
- test/method4a.go             | 2 +-
- test/run.go                  | 7 +++++--
- test/testlib                 | 4 ++++
- 11 files changed, 19 insertions(+), 10 deletions(-)
+ src/cmd/cgo/out.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

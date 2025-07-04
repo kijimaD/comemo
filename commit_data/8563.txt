@@ -1,17 +1,15 @@
-commit fecab4058655c14887b4109b508c7fc640b3b563
-Author: William Chan <willchan@chromium.org>
-Date:   Tue May 31 14:05:35 2011 -0700
+commit f4349f7368ae46cf7aa34119a6c930ae7be113a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 31 13:16:51 2011 -0700
 
-    http/spdy: fix data race in header decompression.
+    gophertool: also permit typing "go [whatever]" in omnibox
     
-    flate's reader greedily reads from the shared io.Reader in Framer. This leads to a data race on Framer.r. Fix this by providing a corkedReader to zlib.NewReaderDict(). We uncork the reader and allow it to read the number of bytes in the compressed payload.
-    
-    Fixes #1884.
-    
-    R=bradfitz, rsc, go.peter.90
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4530089
+    https://golang.org/cl/4560056
 
- src/pkg/http/spdy/framer.go      | 31 ++++++++++++++++++++++++++-----
- src/pkg/http/spdy/framer_test.go | 12 ------------
- 2 files changed, 26 insertions(+), 17 deletions(-)
+ misc/chrome/gophertool/background.html | 24 +++++++++++++++++++
+ misc/chrome/gophertool/gopher.js       | 34 +++++++++++++++++++++++++++
+ misc/chrome/gophertool/manifest.json   |  5 ++++
+ misc/chrome/gophertool/popup.html      | 42 +++++++++++-----------------------
+ 4 files changed, 76 insertions(+), 29 deletions(-)

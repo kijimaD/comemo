@@ -1,15 +1,22 @@
-commit 49f29c9c22f15120811719f4f451c3469e9e174a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Aug 26 11:17:55 2012 -0700
+commit a85fa33ece194e5b8709330e85575575c1c3b2e2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Aug 25 10:16:02 2012 +0200
 
-    net/http: send an explicit zero Content-Length when Handler never Writes
+    test: use run.go for more tests.
     
-    Fixes #4004
-    
-    R=golang-dev, r
+    R=golang-dev, alex.brainman, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6472055
+    https://golang.org/cl/6443110
 
- src/pkg/net/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go     | 12 ++++++++++--
- 2 files changed, 42 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug206.go                        |  2 +-
+ test/fixedbugs/bug206.out                       |  2 ++
+ test/fixedbugs/bug222.go                        |  2 +-
+ test/fixedbugs/bug335.dir/a.go                  |  6 ++++--
+ test/fixedbugs/bug335.dir/b.go                  |  6 ++----
+ test/fixedbugs/bug335.go                        |  5 ++---
+ test/fixedbugs/bug392.dir/{two.go => pkg2.go}   |  2 +-
+ test/fixedbugs/bug392.dir/{three.go => pkg3.go} | 10 +++++-----
+ test/fixedbugs/bug392.go                        |  2 +-
+ test/fixedbugs/bug415.dir/{main.go => prog.go}  |  0
+ test/fixedbugs/bug415.go                        |  2 +-
+ 11 files changed, 20 insertions(+), 19 deletions(-)

@@ -1,32 +1,29 @@
-commit f2b1cde544d190e1f4642ef6f4ac8ef9ce31a0c3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun May 15 08:05:41 2022 +0700
+commit b3b53e1dad8681e3c21522513e4539813a5a3de7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Sun Jul 4 13:27:18 2021 -0400
 
-    cmd/compile: tighten the condition for inlining shape/non-shape function
+    [dev.cmdgo] cmd/go: thread through modroots providing replacements
     
-    CL 395854 made inline pass to not inlining function with shape params,
-    but pass no shape arguments. This is intended to be the reverse case of
-    CL 361260.
+    modload.Replacement and modload.resolveReplacement now also return
+    the modroot of the module providing a replacement so that we can
+    correctly construct the path of a replaced module (because the
+    path in the module.Version is relative to the modroot).
     
-    However, CL 361260 is using wider condition than necessary. Though it
-    only needs to check against function parameters, it checks whether the
-    function type has no shape. It does not cause any issue, because
-    !fn.Type().HasShape() implies !fn.Type().Params().HasShape().
-    
-    But for the reverse case, it's not true. Function may have shape type,
-    but has no shape arguments. Thus, we must tighten the condition to
-    explicitly check against the function parameters only.
-    
-    Fixes #52907
-    
-    Change-Id: Ib87e87ff767c31d99d5b36aa4a6c1d8baf32746d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406475
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    For #45713
+    Change-Id: I8c69ccbcc1f40201071e35fcf93d6b5d0ed4cdf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334941
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 10 ++++++----
- test/fixedbugs/issue52907.go           |  7 +++++++
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modcmd/vendor.go   |  3 +-
+ src/cmd/go/internal/modget/get.go      |  4 +-
+ src/cmd/go/internal/modload/build.go   | 14 +++----
+ src/cmd/go/internal/modload/import.go  |  5 ++-
+ src/cmd/go/internal/modload/init.go    | 14 ++++---
+ src/cmd/go/internal/modload/load.go    |  4 +-
+ src/cmd/go/internal/modload/modfile.go | 72 ++++++++++++++++++++--------------
+ src/cmd/go/internal/modload/query.go   | 10 +++--
+ src/cmd/go/internal/modload/vendor.go  |  2 +-
+ 9 files changed, 74 insertions(+), 54 deletions(-)

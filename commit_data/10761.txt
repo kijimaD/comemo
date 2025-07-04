@@ -1,13 +1,22 @@
-commit f4b430c90a001fdca0dd3219f8c8d1e5203c1419
+commit 2572803899485e6d07490ae04b1eb5aa5c758699
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 17:44:44 2011 -0500
+Date:   Tue Dec 13 17:08:56 2011 -0500
 
-    A+C: Florian Weimer (individual CLA)
+    math: delete non-Sqrt-based Hypot
     
-    R=golang-dev, gri
+    I was confused by the existence of two portable Hypot
+    routines in the tree when I cleaned things up, and I made
+    ARM use the wrong (imprecise) one.  Use the right one,
+    and delete the wrong one.
+    
+    Fixes arm build.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5486056
+    https://golang.org/cl/5485065
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/math/all_test.go    | 34 +++++++---------------------------
+ src/pkg/math/export_test.go |  3 +--
+ src/pkg/math/hypot.go       | 45 +--------------------------------------------
+ src/pkg/math/hypot_arm.s    |  2 +-
+ 4 files changed, 10 insertions(+), 74 deletions(-)

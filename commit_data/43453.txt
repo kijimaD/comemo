@@ -1,23 +1,24 @@
-commit cdb19b4dba58c0e3cabde8b728156dfe273707b3
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 16 16:34:52 2020 -0400
+commit 6636b3f2fc87f33d46d80d1e4611b44fd4b31180
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 1 15:57:46 2020 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on ARM64
+    [dev.link] cmd/link/internal/loader: support 'variant' relocations
     
-    These are identical to And8 and Or8, just using LDAXRW/STLXRW instead of
-    LDAXRB/STLXRB.
+    Add support to the loader for getting/setting the 'variant' property
+    of a symbol relocation. The variant property handles unusual or
+    infrequently used relocations that have both a type and a variant of
+    that type (this is needed for S390).
     
-    Change-Id: I5308832ae165064550bee4bb245809ab952f4cc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263148
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
+    In the sym.Symbol world, a relocation variant is a field on the
+    'relocExt' extension that is part of sym.Reloc. In this new
+    implementation for the loader, reloc variants are stored in a side
+    table (a map) in the loader, and accessed via loader methods.
+    
+    Change-Id: I62bf54ae7ff6d500c0ea8d2dbe759b2431087378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227018
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/arm64/ssa.go        | 18 ++++++++----
- src/cmd/compile/internal/gc/ssa.go           |  4 +--
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 38 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 42 ++++++++++++++++++++++++++++
- 6 files changed, 103 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/loader/loader.go        | 47 ++++++++++++++++++++++++---
+ src/cmd/link/internal/loader/symbolbuilder.go |  7 +++-
+ 2 files changed, 49 insertions(+), 5 deletions(-)

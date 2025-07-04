@@ -1,21 +1,19 @@
-commit 4f122e82fecb135e6b56dbaf907b132401cf1f9f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 26 07:53:06 2017 -0700
+commit 9fe2291efdfd6257b97a3271b1145b67a3e7089d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 9 00:13:43 2016 -0500
 
-    cmd/internal/obj: move fields from obj.Link to x86.AsmBuf
+    cmd/internal/obj/mips: replace MOVD with MOVF on 32-bit to avoid unaligned memory access
     
-    These fields are used to encode a single instruction.
-    Add them to AsmBuf, which is also per-instruction,
-    and which is not global.
+    This is the simplest CL that I can make for Go 1.8. For Go 1.9, we can revisit it
+    and optimize the redundant address generation instructions or just fix #599 instead.
     
-    Updates #15756
+    Fixes #18140.
     
-    Change-Id: I0e5ea22ffa641b07291e27de6e2ff23b6dc534bd
-    Reviewed-on: https://go-review.googlesource.com/38668
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie4804ab0e00dc6bb318da2bece8035c7c71caac3
+    Reviewed-on: https://go-review.googlesource.com/34193
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/link.go     |  5 ---
- src/cmd/internal/obj/x86/asm6.go | 92 +++++++++++++++++++++-------------------
- 2 files changed, 49 insertions(+), 48 deletions(-)
+ src/cmd/internal/obj/mips/obj0.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

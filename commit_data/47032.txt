@@ -1,28 +1,19 @@
-commit adfb85b3150d5ebe36440f82d83be88403951319
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Jan 4 17:53:37 2021 +0800
+commit 5aacd47c002c39b481c4c7a0663e851758da372a
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Feb 22 13:25:07 2021 -0500
 
-    runtime, runtime/asan: add asan runtime support
+    [dev.fuzz] internal/fuzz: updating version incoding
     
-    These are the runtime support functions for letting Go code interoperate
-    with the C/C++ address sanitizer. Calls to asanread/asanwrite are now
-    inserted by the compiler with the -asan option.  Calls to
-    asanunpoison/asanpoison will be from other runtime functions in a
-    subsequent CL.
+    Based on feedback from rsc@, update the version
+    encoding to more clearly indicate that this is
+    about fuzzing with Go.
     
-    Updates #44853.
-    
-    Change-Id: I9e8fc0ce937828bc7f4a8b6637453ddc3862c47b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298613
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id95dec8283608779b157bf662e7147f9a9c8dba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295110
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/build/deps_test.go |  2 +-
- src/runtime/asan.go       | 43 +++++++++++++++++++++++++++
- src/runtime/asan/asan.go  | 52 ++++++++++++++++++++++++++++++++
- src/runtime/asan0.go      | 23 ++++++++++++++
- src/runtime/asan_amd64.s  | 76 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/asan_arm64.s  | 63 +++++++++++++++++++++++++++++++++++++++
- 6 files changed, 258 insertions(+), 1 deletion(-)
+ src/internal/fuzz/encoding.go      |  2 +-
+ src/internal/fuzz/encoding_test.go | 22 +++++++++++-----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

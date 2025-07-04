@@ -1,16 +1,28 @@
-commit 553506d39a44a4f56f4f801b15e82fea7f542403
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 17 12:40:25 2023 -0700
+commit 79db59ded9dab276507f3a045e42b76eef5a35b4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 10 22:59:26 2022 +0000
 
-    cmd/go: use platform.MustLinkExternal in externalLinkingForced
+    runtime: make alloc count metrics truly monotonic
     
-    Change-Id: If5613ae73d03c196f26340fd6293e37c78c29bd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477395
+    Right now we export alloc count metrics via the runtime/metrics package
+    and mark them as monotonic, but that's not actually true. As an
+    optimization, the runtime assumes a span is always fully allocated
+    before being uncached, and updates the accounting as such. In the rare
+    case that it's wrong, the span has enough information to back out what
+    did not get allocated.
+    
+    This change uses 16 bits of padding in the mspan to house another field
+    that represents the amount of mspan slots filled just as the mspan is
+    cached. This is information is enough to get an exact count, allowing us
+    to make the metrics truly monotonic.
+    
+    Change-Id: Iaff3ca43f8745dc1bbb0232372423e014b89b920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377516
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/load/pkg.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/runtime/mcache.go       | 63 +++++++++++++++------------------
+ src/runtime/metrics_test.go | 86 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go        | 21 +++++------
+ 3 files changed, 125 insertions(+), 45 deletions(-)

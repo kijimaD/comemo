@@ -1,13 +1,13 @@
-commit fb0b923f6731a029b30a91f8ff74f88cc8e96f67
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 15 20:51:44 2014 +0400
+commit 552d8b79dde79dac269b124337765bb7993ec922
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:44:38 2014 -0400
 
-    misc/nacl: add debugging instructions
+    [dev.power64] cmd/9l/9.out.h: introduce NFREG, REGG, REGRT1 and REGRT2
     
-    LGTM=dave, minux
-    R=golang-codereviews, dave, minux
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/122570043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/125990043
 
- misc/nacl/README | 34 +++++++++++++++++++++++++++++++---
- 1 file changed, 31 insertions(+), 3 deletions(-)
+ src/cmd/9l/9.out.h | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

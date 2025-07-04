@@ -1,12 +1,17 @@
-commit f41ab6c7c80ab4d854b84308fc370b92b1312b30
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 15 19:26:12 2011 +1000
+commit d76c4a52e7bf584b5a32807da7e76e621a800149
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 14 20:46:03 2011 -0700
 
-    doc: release.r60.1
+    godoc: support for complete index serialization
     
-    R=r
+    - now fulltext index information is saved/restored
+    - minor updates to appinit.go
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5002041
+    https://golang.org/cl/5024043
 
- doc/devel/release.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/godoc/appinit.go | 13 +++++++------
+ src/cmd/godoc/index.go   | 26 +++++++++++++++++++++-----
+ src/cmd/godoc/main.go    |  5 -----
+ 3 files changed, 28 insertions(+), 16 deletions(-)

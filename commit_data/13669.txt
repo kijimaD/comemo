@@ -1,19 +1,13 @@
-commit 7802080962dcbffea09894c9864bb4c30fdd6ce3
-Author: Carlos Castillo <cookieo9@gmail.com>
-Date:   Wed Aug 22 20:49:16 2012 -0700
+commit 84a5a9b558fbe1a4d20d1be822eefa1fd504d8df
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 22 14:36:23 2012 -0700
 
-    time: add YearDay method for time.Time structs
+    time: avoid data race in abs
+    Fixes #3967.
     
-    YearDay provides the day in the year represented by a given time.Time
-    object. This value is normally computed as part of other date calculations,
-    but not exported.
-    
-    Fixes #3932.
-    
-    R=golang-dev, r, remyoudompheng
-    CC=golang-dev, rsc
-    https://golang.org/cl/6460069
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6460115
 
- src/pkg/time/time.go      |  9 ++++-
- src/pkg/time/time_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 105 insertions(+), 1 deletion(-)
+ src/pkg/time/time.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

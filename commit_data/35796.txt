@@ -1,15 +1,17 @@
-commit 4f172e7a75d6deef4441c96e1e01c31159f54a6c
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Jun 25 13:48:59 2018 -0400
+commit 491f409a32b19e7c2a70b25d7a7cfb1e187f28d0
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 9 14:40:54 2018 -0500
 
-    doc/go1.11: add note about package versioning
+    cmd/compile: minor comment improvements/corrections
     
-    It will not be present in go1.11beta1 but will be present
-    in subsequent releases.
-    
-    Change-Id: I298fb682945345bb4a34ec83802fd644f75bdd98
-    Reviewed-on: https://go-review.googlesource.com/120756
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie0934f1528d58d4971cdef726d3e2d23cf3935d3
+    Reviewed-on: https://go-review.googlesource.com/87475
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- doc/go1.11.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/ssa/func.go  |  2 +-
+ src/cmd/compile/internal/ssa/prove.go | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 3 deletions(-)

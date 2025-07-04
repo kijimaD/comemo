@@ -1,22 +1,20 @@
-commit 98f95b80482d044f5e653a01851f39b6c9a4b8ec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 16 08:55:53 2011 -0700
+commit 95963e6294ce3e2e700dea4055fb62b73f23aa95
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 11:10:31 2011 -0400
 
-    mime/multipart: convert Reader from interface to struct
+    runtime/cgo: fix for OS X 10.7
     
-    It was always a weird interface but I didn't know what I
-    was doing at the time.  rsc questioned me about it then
-    but didn't press on it during review.  Then adg bugged me
-    about it too recently.
+    Correct a few error messages (libcgo -> runtime/cgo)
+    and delete old nacl_386.c file too.
     
-    So clean it up. It parallels the Writer struct too.
+    Fixes #1657.
     
-    R=golang-dev, r, rsc
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4602063
+    https://golang.org/cl/4603057
 
- src/pkg/http/request.go                  |  4 ++--
- src/pkg/mime/multipart/formdata.go       |  2 +-
- src/pkg/mime/multipart/multipart.go      | 36 +++++++++++---------------------
- src/pkg/mime/multipart/multipart_test.go |  2 +-
- 4 files changed, 16 insertions(+), 28 deletions(-)
+ src/pkg/runtime/cgo/darwin_386.c   | 72 +++++++++++++++++++-------------------
+ src/pkg/runtime/cgo/darwin_amd64.c | 65 ++++++++++++++--------------------
+ src/pkg/runtime/cgo/nacl_386.c     | 19 ----------
+ src/pkg/runtime/cgo/util.c         |  2 +-
+ 4 files changed, 64 insertions(+), 94 deletions(-)

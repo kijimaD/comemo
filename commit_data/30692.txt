@@ -1,20 +1,13 @@
-commit faeda66c60dbc080720b30d42acbf67c4541e053
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 16 17:29:14 2017 -0700
+commit a2bd5c5563261309cb14a7f233d9fc89a2873c8a
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Nov 23 15:51:45 2016 -0800
 
-    go/types: better error for assignment count mismatches
+    doc: add database/sql and os changes to go1.8 release notes
     
-    This matches the error message of cmd/compile (for assignments).
-    
-    Change-Id: I42a428f5d72f034e7b7e97b090a929e317e812af
-    Reviewed-on: https://go-review.googlesource.com/38315
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ib936539946f43556a7dd501f8127054f6a27861f
+    Reviewed-on: https://go-review.googlesource.com/33553
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/assignments.go       |  4 ++--
- src/go/types/testdata/decls1.src  |  2 +-
- src/go/types/testdata/issues.src  |  4 ++--
- src/go/types/testdata/stmt0.src   | 20 ++++++++++----------
- src/go/types/testdata/vardecl.src | 18 +++++++++---------
- 5 files changed, 24 insertions(+), 24 deletions(-)
+ doc/go1.8.html | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.8.txt  | 19 ++++++++--------
+ 2 files changed, 78 insertions(+), 10 deletions(-)

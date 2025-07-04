@@ -1,21 +1,22 @@
-commit 25c39e4fb5e5fc7c3840228158cd6f2345c9dc07
-Author: Pantonshire <tom@tomandtally.co.uk>
-Date:   Mon Jan 18 17:41:36 2021 +0000
+commit 567556d78657326c99b8fa84ec2a5ee511a0941b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 19 20:23:58 2020 -0700
 
-    io/ioutil: fix example test for WriteFile to allow it to run in the playground
+    syscall: preserve Windows file permissions for O_CREAT|O_TRUNC
     
-    The example for WriteFile assumed the existence of a testdata/ directory, which is not present on the playground. The example now writes the file to the current working directory, rather than to testdata/.
+    On Windows, calling syscall.Open(file, O_CREAT|O_TRUNC, 0) for a file
+    that already exists would change the file to be read-only.
+    That is not how the Unix syscall.Open behaves, so avoid it on
+    Windows by calling CreateFile twice if necessary.
     
-    Fixes #32916
+    Fixes #38225
     
-    Change-Id: I577caac7e67ba9d9941b2dd19346ad5ff61e78d9
-    GitHub-Last-Rev: 40f14e0adc4ebc00fb2946fe0cbaf8e0cb99f62c
-    GitHub-Pull-Request: golang/go#43757
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284452
+    Change-Id: I70097fca8863df427cc8a97b9376a9ffc69c6318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234534
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/io/ioutil/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/os_test.go              | 31 +++++++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go | 20 ++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

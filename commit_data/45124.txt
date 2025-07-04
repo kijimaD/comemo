@@ -1,20 +1,32 @@
-commit 58fdac04e4534e53fd9ca7df0455efb4f1ddb82b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 13 11:01:13 2021 +0200
+commit 56284f9d29d17869cd70847693c51319408710b3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Sep 25 17:10:24 2020 -0400
 
-    syscall: don't defer close raw Socketpair fds in tests
+    src/buildall.bash: remove mobile filter
     
-    The raw fds are successively wrapped using os.NewFile and will be closed
-    by (*os.File).Close. Avoids a double close, in the worst case closing an
-    unrelated fd.
+    Mobile targets are not supported by misc-compile trybots, as tracked in
+    golang.org/issue/25963, and need to be filtered out. The buildall.bash
+    script was created in CL 9438, back when it was a single all-compile
+    builder, and it was easier to filter out mobile targets in the script
+    than to come up with a pattern that matches all non-mobile targets.
     
-    Change-Id: I86aabe5ed865eff43d264ddae1fb07c935868e97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309353
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    As of CL 254740, all mobile targets (Android and iOS) have unique GOOS
+    values. That makes it it easy to filter them out in x/build/dashboard.
+    This was done in CL 258057. As a result, it's now viable to simplify
+    this script and perform all misc-compile target selection in x/build,
+    rather than having it spread it across two places.
+    
+    Also, as of CL 10750, the all-compile builder has turned into multiple
+    misc-compile builders, so update the script description accordingly.
+    
+    Updates #41610.
+    
+    Change-Id: I1e33260ac18cf0a70bb68cd8e3db5587100c7e87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257962
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/syscall/creds_test.go        | 9 +++++----
- src/syscall/syscall_unix_test.go | 2 --
- 2 files changed, 5 insertions(+), 6 deletions(-)
+ src/buildall.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

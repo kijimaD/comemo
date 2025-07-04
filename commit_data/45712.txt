@@ -1,27 +1,40 @@
-commit cdcd02842da7c004efd023881e3719105209c908
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu May 27 10:40:06 2021 -0700
+commit a07e4360a80b3ff2490879e4b4065ecc7b1b9098
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 5 12:59:16 2020 -0500
 
-    net: verify results from Lookup* are valid domain names
+    cmd/go: prefer 'go get -d' instead of 'go get' in script tests
     
-    For the methods LookupCNAME, LookupSRV, LookupMX, LookupNS, and
-    LookupAddr check that the returned domain names are in fact valid DNS
-    names using the existing isDomainName function.
+    'get -d' has somewhat narrower semantics and is generally faster.
+    We're deprecating the non-'-d' mode in CL 266360.
     
-    Thanks to Philipp Jeitner and Haya Shulman from Fraunhofer SIT for
-    reporting this issue.
+    For #26472
     
-    Fixes #46241
-    Fixes CVE-2021-33195
-    
-    Change-Id: I47a4f58c031cb752f732e88bbdae7f819f0af4f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323131
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: Id4a324771f77b83e5f47043fd50b74e1c062390b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267883
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/dnsclient_unix_test.go | 157 +++++++++++++++++++++++++++++++++++++++++
- src/net/lookup.go              | 111 +++++++++++++++++++++++++----
- 2 files changed, 255 insertions(+), 13 deletions(-)
+ src/cmd/go/testdata/script/get_go_file.txt             | 18 +++++++++---------
+ src/cmd/go/testdata/script/mod_case.txt                |  2 +-
+ src/cmd/go/testdata/script/mod_case_cgo.txt            |  4 +++-
+ src/cmd/go/testdata/script/mod_get_commit.txt          |  4 ++--
+ src/cmd/go/testdata/script/mod_get_downgrade.txt       | 14 ++++++++------
+ .../go/testdata/script/mod_get_downgrade_missing.txt   |  8 ++++----
+ src/cmd/go/testdata/script/mod_get_incompatible.txt    |  4 ++--
+ src/cmd/go/testdata/script/mod_get_moved.txt           |  4 ++--
+ src/cmd/go/testdata/script/mod_get_none.txt            |  4 ++--
+ src/cmd/go/testdata/script/mod_get_sum_noroot.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_get_test.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_get_upgrade.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt           | 14 +++++++-------
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_issue35317.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_proxy_list.txt          | 14 +++++++-------
+ src/cmd/go/testdata/script/mod_readonly.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_replace.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_build.txt        |  2 +-
+ src/cmd/go/testdata/script/vendor_list_issue11977.txt  |  2 +-
+ 21 files changed, 57 insertions(+), 53 deletions(-)

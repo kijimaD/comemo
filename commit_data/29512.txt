@@ -1,51 +1,17 @@
-commit adb384ad2cfbd742fb106b7ec2a65d4ad844c35e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Nov 11 20:49:11 2016 +0100
+commit 50644f2e67e846c3641d5a907733ccc4ca5e60d2
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Sep 19 07:13:27 2016 +1200
 
-    net: implement asynchonous cancelable I/O on Plan 9
+    cmd/link: move comment somewhere more appropriate
     
-    This change is an experimental implementation of asynchronous
-    cancelable I/O operations on Plan 9, which are required to
-    implement deadlines.
+    At least, I assume it's meant to be here. It makes no sense at all where it
+    currently is.
     
-    There are no asynchronous syscalls on Plan 9. I/O operations
-    are performed with blocking pread and pwrite syscalls.
-    
-    Implementing deadlines in Go requires a way to interrupt
-    I/O operations.
-    
-    It is possible to interrupt reads and writes on a TCP connection
-    by forcing the closure of the TCP connection. This approach
-    has been used successfully in CL 31390.
-    
-    However, we can't implement deadlines with this method, since
-    we require to be able to reuse the connection after the timeout.
-    
-    On Plan 9, I/O operations are interrupted when the process
-    receives a note. We can rely on this behavior to implement
-    a more generic approach.
-    
-    When doing an I/O operation (read or write), we start the I/O in
-    its own process, then wait for the result asynchronously. The
-    process is able to handle the "hangup" note. When receiving the
-    "hangup" note, the currently running I/O operation is canceled
-    and the process returns.
-    
-    This way, deadlines can be implemented by sending an "hangup"
-    note to the process running the blocking I/O operation, after
-    the expiration of a timer.
-    
-    Fixes #11932.
-    Fixes #17498.
-    
-    Change-Id: I414f72c7a9a4f9b8f9c09ed3b6c269f899d9b430
-    Reviewed-on: https://go-review.googlesource.com/31521
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic6a6c112c3dcf1318256d7d602168c3446b55412
+    Reviewed-on: https://go-review.googlesource.com/29339
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/fd_io_plan9.go   |  93 +++++++++++++++++++++++++++++++++++++++++
- src/net/fd_plan9.go      | 105 ++++++++++++++++++++++++++++++++++++++++++++---
- src/net/tcpsock_test.go  |   5 +++
- src/runtime/net_plan9.go |  29 +++++++++++++
- src/runtime/os3_plan9.go |   3 ++
- src/runtime/os_plan9.go  |   1 +
- 6 files changed, 231 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

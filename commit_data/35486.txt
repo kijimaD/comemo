@@ -1,16 +1,20 @@
-commit 1a5d0f83c99dbc88c276310313576627295c7f03
-Author: Alexander Döring <email@alexd.ch>
-Date:   Thu May 24 00:25:12 2018 +0200
+commit a90f9a00ca34251dcee80eacff241871c43ac18f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 4 10:58:15 2017 -0500
 
-    math/big: reduce allocations in Karatsuba case of sqr
+    runtime: consolidate mheap.lookup* and spanOf*
     
-    For #23221.
+    I think we'd forgotten about the mheap.lookup APIs when we introduced
+    spanOf*, but, at any rate, the spanOf* functions are used far more
+    widely at this point, so this CL eliminates the mheap.lookup*
+    functions in favor of spanOf*.
     
-    Change-Id: If55dcf2e0706d6658f4a0863e3740437e008706c
-    Reviewed-on: https://go-review.googlesource.com/114335
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I15facd0856e238bb75d990e838a092b5bef5bdfc
+    Reviewed-on: https://go-review.googlesource.com/85879
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/math/big/nat.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mheap.go | 52 +++++++++++++++++++++-------------------------------
+ src/runtime/stack.go |  4 ++--
+ 2 files changed, 23 insertions(+), 33 deletions(-)

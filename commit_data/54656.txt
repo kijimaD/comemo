@@ -1,21 +1,19 @@
-commit 262b8050daf588cd298527114cb377753f0a2c39
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 24 16:48:14 2023 -0400
+commit e6f662d7b071c659f4146408e31671cb32e2104c
+Author: tk <tk103331@gmail.com>
+Date:   Fri Sep 9 03:02:56 2022 +0000
 
-    cmd/go: remove unnecessary b.Print setting
+    net/http: remove redundant code
     
-    The Builder returned by work.NewBuilder is already setup to print to
-    os.Stderr, so it's not necessary for runRun to set b.Print to a
-    different function that does exactly the same thing.
+    Remove redundant code at line 365, `oldCtx := req.Context()`,  because it's the same as line 349.
     
-    This b.Print assignment was introduced in CL 5591045. At the time, the
-    builder type defaulted to printing to os.Stdout, so this was necessary
-    to make "go run" print build errors to stderr.
-    
-    Change-Id: I0c07984616c5efc37ba681f4cf69e83542566bab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522796
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I9b028e8c8740c22945708b143e4e86a0baa40f64
+    GitHub-Last-Rev: 4ad0f3871b1d473246af7cf27c158140c7248cf1
+    GitHub-Pull-Request: golang/go#54925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428977
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/run/run.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/net/http/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

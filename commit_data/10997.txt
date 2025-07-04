@@ -1,16 +1,12 @@
-commit 5a65cbacd3112f017d224196027e1ac1b358fa7a
+commit 9c2e0b75c9db0e7932c7d4fb97d97ccf9be00980
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 23 14:44:56 2011 +1100
+Date:   Fri Dec 23 14:34:15 2011 +1100
 
-    dashboard: cache packages, introduce caching helpers
+    tag weekly.2011-12-22
     
-    R=rsc, gary.burd, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5498067
+    https://golang.org/cl/5504081
 
- misc/dashboard/app/build/build.go   |   5 +-
- misc/dashboard/app/build/cache.go   | 122 ------------------------------------
- misc/dashboard/app/build/handler.go |  41 +++++++-----
- misc/dashboard/app/build/ui.go      |  31 ++++-----
- misc/dashboard/app/cache/cache.go   |  82 ++++++++++++++++++++++++
- 5 files changed, 124 insertions(+), 157 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

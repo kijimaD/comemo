@@ -1,16 +1,21 @@
-commit 581a63c93c4a239913b574d1bfa1a4d3d02c2788
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Thu May 26 05:46:58 2022 -0700
+commit bad1fc126536f14fd6f00a93e1b76320c1510bf2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 9 14:59:56 2021 -0700
 
-    doc/go1.19: add pdqsort change to release notes
+    test: add test case for CL 340609
     
-    Change-Id: I4a36491e561f3b2112f980ff580fa4f85d501b6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408834
-    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    The first version of CL 340609 for gofrontend passed all existing tests,
+    but not this one.
+    
+    For #42076
+    
+    Change-Id: I6491e2f186091bdae140b7f7befa511806a6478a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340950
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.19.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ test/fixedbugs/bug514.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

@@ -1,18 +1,16 @@
-commit ef694a01104168ef4e48579ebdd0d840445d7fd7
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Thu Aug 11 09:05:54 2016 +0300
+commit 70d95a488da89d268d0a61171ec389982a62184d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 26 15:28:17 2016 -0400
 
-    website: recreate 16px and 32px favicon
+    regexp: add a harder regexp to the benchmarks
     
-    Recreated original favicon with svg. Note, the rasterizations are hand
-    tweaked for crispness and straight export will not give the same results.
+    This regexp has many parallel alternations
     
-    Fixes #6938
-    
-    Change-Id: I9bf7b59028711361c29365b145932d90af419b69
-    Reviewed-on: https://go-review.googlesource.com/26850
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I8044f460aa7d18f20cb0452e9470557b87facd6d
+    Reviewed-on: https://go-review.googlesource.com/22471
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/gopher/favicon.svg | 238 +++++++++++++++++++++++++++++++++++++++++++++++++
- favicon.ico            | Bin 1150 -> 5686 bytes
- 2 files changed, 238 insertions(+)
+ src/regexp/exec_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

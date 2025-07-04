@@ -1,0 +1,20 @@
+commit a5708231ac8ae2a6f8806d2da502608d48bb3d84
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Aug 30 21:11:09 2024 -0700
+
+    crypto/internal/boring: disable LFS64 interfaces
+    
+    Comment out the definition in the libcrypto I/O code which enables
+    the LFS64 interfaces. We don't use any of the I/O bits and pieces, and
+    it's outside of the FIPS module, and it fixes some breakage in certain
+    scenarios.
+    
+    Change-Id: Ie6597813726f94e23780b77d907cc1b9ccef36f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/internal/boring/build-boring.sh         |   9 +++++++++
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2429120 -> 2429120 bytes
+ .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 2107832 -> 2107832 bytes
+ 3 files changed, 9 insertions(+)

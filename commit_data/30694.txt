@@ -1,22 +1,24 @@
-commit 0cfb23135c67314dbb9fc2e78fd0f364b6882f25
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 15 22:55:21 2017 -0700
+commit 111064925b34bfd60949c09f0d0b06c8f34430f2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 16 12:26:23 2016 +0000
 
-    cmd/compile: move hasdefer to Func
+    testing: comment out flag.Parse from example
     
-    Passes toolstash -cmp.
+    The TestMain docs explain that flag.Parse() should be called if TestMain
+    itself depends on command-line flags.
     
-    Updates #15756
+    The issue here is that the example implementation does not use any
+    flags, and thus the flag.Parse call is unnecessary. This leads to people
+    who use this example as a starting point for their own implementations
+    to forget that the call is not necessary in most cases.
     
-    Change-Id: Ia071dbbd7f2ee0f8433d8c37af4f7b588016244e
-    Reviewed-on: https://go-review.googlesource.com/38231
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Comment it out instead of removing the line to keep it as a reminder, as
+    suggested by Minux Ma.
+    
+    Change-Id: I6ffc5413e7036366ae3cf0f069b7065e832a3b45
+    Reviewed-on: https://go-review.googlesource.com/33273
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/go.go     | 2 --
- src/cmd/compile/internal/gc/pgen.go   | 1 -
- src/cmd/compile/internal/gc/plive.go  | 2 +-
- src/cmd/compile/internal/gc/ssa.go    | 6 ++++--
- src/cmd/compile/internal/gc/syntax.go | 3 +++
- src/cmd/compile/internal/gc/walk.go   | 2 +-
- 6 files changed, 9 insertions(+), 7 deletions(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

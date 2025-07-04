@@ -1,19 +1,26 @@
-commit 673a8fdfe60929f61657dbfbdf5534eabe8cd6f5
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 27 11:36:37 2017 -0500
+commit 09c411da1dd2c02c8f6ed5bc147ac779d55a2ce6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 21 03:24:08 2016 +0000
 
-    runtime: diagram flow of stats through heap profile
+    Revert "cmd/go: note when some Go files were ignored on no-Go-files errors"
     
-    Every time I modify heap profiling, I find myself redrawing this
-    diagram, so add it to the comments. This shows how allocations and
-    frees are accounted, how we arrive at consistent profile snapshots,
-    and when those snapshots are published to the user.
+    This reverts commit eee727d0855b9e78f9df87e08d57b1d7f264876c
+    (https://golang.org/cl/29113)
     
-    Change-Id: I106aba1200af3c773b46e24e5f50205e808e2c69
-    Reviewed-on: https://go-review.googlesource.com/37514
-    Run-TryBot: Austin Clements <austin@google.com>
+    The " (.go files ignored due to build tags)" error message is not
+    always accurate.
+    
+    Fixes #18396
+    Updates #17008
+    
+    Change-Id: I609653120603a7f6094bc1dc3a83856f4b259241
+    Reviewed-on: https://go-review.googlesource.com/34662
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mprof.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ api/go1.8.txt                            |  1 -
+ src/go/build/build.go                    | 11 +++--------
+ src/go/build/build_test.go               | 11 -----------
+ src/go/build/testdata/ignored/ignored.go |  3 ---
+ 4 files changed, 3 insertions(+), 23 deletions(-)

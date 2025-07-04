@@ -1,19 +1,19 @@
-commit 10d855198cb57154301aecd02f0c195cad2483b9
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 16 11:16:37 2017 -0400
+commit 346d5883eb53d3e3a5bac7ee37beaa3db5c01fd8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 17 16:05:31 2017 +0000
 
-    cmd/go: clarify test -run and -bench pattern matching
+    go/build: remove unused returnImports parameter
     
-    Make it clearer that -test=X/Y runs all the tests matching X,
-    even if they don't have sub-tests matching Y.
+    The code uses the filename suffix instead of the bool parameter to
+    determine what to do.
     
-    Fixes #20589.
+    Fixes #19474.
     
-    Change-Id: Ic27e89e748d60f67b50c68445ec0480066bdf207
-    Reviewed-on: https://go-review.googlesource.com/46030
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic552a54e50194592a4b4ae7f74d3109af54e6d36
+    Reviewed-on: https://go-review.googlesource.com/38265
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/alldocs.go            | 27 ++++++++++++++++++---------
- src/cmd/go/internal/test/test.go | 27 ++++++++++++++++++---------
- 2 files changed, 36 insertions(+), 18 deletions(-)
+ src/go/build/build.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

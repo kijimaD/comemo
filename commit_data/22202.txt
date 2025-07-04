@@ -1,50 +1,29 @@
-commit dde5b56c91e9fc40a61f2f84684c2f7a8f3088c6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 27 10:08:19 2015 +0100
+commit 05ca0f3370ce335fc69a85a837655b821a68a706
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 28 20:31:32 2015 +0000
 
-    syscall: apply the errno allocation fix to other operating systems
+    cmd/internal/gc, cmd/internal/obj: remove pointless fmt.Sprintf calls
     
-    The previously-submitted https://go-review.googlesource.com/#/c/6701
-    didn't include dragonfly, freebsd, nacl, netbsd, openbsd, or solaris.
-    (or things like darwin/arm or ppc64 or arm64)
+    This is a follow-up to CL 6265. No behavior changes.
+    The diff was generated with eg, using template:
     
-    So do them all.
+    package p
     
-    Note I had to copy the function into tables_nacl.go. I found that
-    preferable to creating a new file just to have suitable build
-    tags. It's likely this function will be mirrored to plan9 and windows
-    later too, each of the 4 with their own policy of which error values
-    are common.
+    import "fmt"
     
-    The corresponding x/sys CL for this CL is https://golang.org/cl/8190
-    but it excludes nacl (not in x/sys) and solaris (already broken).
+    func before(a string) string { return fmt.Sprintf(a) }
+    func after(a string) string  { return a }
     
-    Update Issue #8859
-    
-    Change-Id: I91902615692b29b69c905edd9e126a26337294f6
-    Reviewed-on: https://go-review.googlesource.com/8192
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7b3bebf31be5cd1ae2233da06cb4502a3d73f092
+    Reviewed-on: https://go-review.googlesource.com/6269
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/mksyscall_solaris.pl        |   2 +-
- src/syscall/tables_nacl.go              |  24 +++
- src/syscall/zsyscall_darwin_arm.go      | 206 ++++++++++++-------------
- src/syscall/zsyscall_dragonfly_amd64.go | 192 +++++++++++------------
- src/syscall/zsyscall_freebsd_386.go     | 194 +++++++++++------------
- src/syscall/zsyscall_freebsd_amd64.go   | 194 +++++++++++------------
- src/syscall/zsyscall_freebsd_arm.go     | 194 +++++++++++------------
- src/syscall/zsyscall_linux_arm64.go     | 254 +++++++++++++++----------------
- src/syscall/zsyscall_linux_ppc64.go     | 262 ++++++++++++++++----------------
- src/syscall/zsyscall_linux_ppc64le.go   | 262 ++++++++++++++++----------------
- src/syscall/zsyscall_nacl_386.go        |  12 +-
- src/syscall/zsyscall_nacl_amd64p32.go   |  12 +-
- src/syscall/zsyscall_nacl_arm.go        |  12 +-
- src/syscall/zsyscall_netbsd_386.go      | 184 +++++++++++-----------
- src/syscall/zsyscall_netbsd_amd64.go    | 184 +++++++++++-----------
- src/syscall/zsyscall_netbsd_arm.go      | 184 +++++++++++-----------
- src/syscall/zsyscall_openbsd_386.go     | 190 +++++++++++------------
- src/syscall/zsyscall_openbsd_amd64.go   | 190 +++++++++++------------
- src/syscall/zsyscall_openbsd_arm.go     | 190 +++++++++++------------
- src/syscall/zsyscall_solaris_amd64.go   | 144 +++++++++---------
- 20 files changed, 1555 insertions(+), 1531 deletions(-)
+ src/cmd/internal/gc/bits.go     |  2 +-
+ src/cmd/internal/gc/fmt.go      | 30 +++++++++++++++---------------
+ src/cmd/internal/gc/init.go     |  4 ++--
+ src/cmd/internal/gc/mparith1.go |  8 ++++----
+ src/cmd/internal/gc/plive.go    |  4 ++--
+ src/cmd/internal/gc/subr.go     |  4 ++--
+ src/cmd/internal/gc/walk.go     |  8 ++++----
+ src/cmd/internal/obj/util.go    |  2 +-
+ 8 files changed, 31 insertions(+), 31 deletions(-)

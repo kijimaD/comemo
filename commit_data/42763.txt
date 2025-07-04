@@ -1,17 +1,19 @@
-commit 8d91d736e2eb518e0a95eb47ae463c0dd80827c4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Aug 18 12:01:41 2020 -0400
+commit 0119933477e51f8ece875aca9419cace74b5fe9d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:45:04 2020 -0500
 
-    cmd/dist: ignore _test.s files in bootstrap
+    cmd/go: convert TestGoGetNonPkg to the script framework
     
-    Ignore all _test.s files in bootstrap, not only the ARM64 one.
-    They are for testing only.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #40855.
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I00e6b4ab5349e317c9ad3a503997de85aed49373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249018
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ieaddc20aebd0b71189f2ebc8f8e2758f1117bbed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213826
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/buildtool.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                      | 17 -----------------
+ src/cmd/go/testdata/script/get_non_pkg.txt | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 17 deletions(-)

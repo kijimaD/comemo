@@ -1,19 +1,17 @@
-commit 212c0bf24c299616f24880401a621a31c9099b8c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Jan 29 05:30:19 2020 +1100
+commit 6f1667ea3e6a9c2bee8b5aea9859be1a677ee24e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 8 17:08:19 2019 -0400
 
-    test: disable the live test on riscv64
+    cmd/go/internal/modload: propagate errors from Query for missing imports
     
-    This test expects that open-coded defers are enabled, which is not currently
-    the case on riscv64.
+    Updates #30748
+    Updates #28459
     
-    Updates issue #27532 and #36786.
-    
-    Change-Id: I94bb558c5b0734b4cfe5ae12873be81026009bcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1c34b3dae0bf9361dba0dae66bb868901ecafe29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189780
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- test/live.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/import.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

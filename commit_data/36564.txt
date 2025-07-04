@@ -1,23 +1,16 @@
-commit c9cc20bd3ad7ab68f620cb650376f1c01dc1167e
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Sat Sep 1 15:43:20 2018 +0000
+commit d474f582fed7c9b6bc78deee3d09f77b4c8af9ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 7 11:25:28 2018 -0400
 
-    crypto/x509: revert change of article in SystemCertPool docs
+    compress/flate: do not rename math/bits import
     
-    The words 'the returned' were changed to 'a returned' in
-    8201b92aae7ba51ed2e2645c1f7815bfe845db72 when referring to the value
-    returned by SystemCertPool. Brad Fitz pointed out after that commit was
-    merged that it makes the wording of this function doc inconsistent with
-    rest of the stdlib since 'a returned' is not used anywhere, but 'the
-    returned' is frequently used.
+    Makes compress/flate work better with cmd/dist bootstrap.
     
-    Fixes #27385
-    
-    Change-Id: I289b533a5a0b5c63eaf0abb6dec0085388ecf76b
-    GitHub-Last-Rev: 6c83b8025704e291ebe5b15dd2ac3fa65b1b48ff
-    GitHub-Pull-Request: golang/go#27438
-    Reviewed-on: https://go-review.googlesource.com/132776
+    Change-Id: Ifc7d74027367008e82c1d14ec77141830583ba82
+    Reviewed-on: https://go-review.googlesource.com/111815
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/cert_pool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/flate/inflate.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,19 +1,23 @@
-commit 660feea72f64d9d6d619529f10afd8c042299c65
-Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
-Date:   Tue Aug 29 14:34:40 2023 -0700
+commit 17622b891a478a68fba9001db4be901689611351
+Author: miller <millerresearch@gmail.com>
+Date:   Sat Oct 1 14:39:47 2022 +0100
 
-    runtime/pprof: print stderr on test failure
+    runtime/coverage: recognise Plan 9 error message in emitToNonexistentDir
     
-    Print Stderr on test failure to track down the intermittent
-    test failure reported in issue #62352.
+    In TestCoverageApis/emitToNonexistentDir there is a list of error
+    messages to match when a nonexistent directory is opened. The list
+    has message text only for Unix and Windows. Add the corresponding
+    text for Plan 9.
     
-    Change-Id: I547a3220dc07d05578dac093d6c028a9103b552a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524156
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #55983
+    
+    Change-Id: Id32130300cb02394b319e1aeb1229ee147b4afb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437557
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/pprof/vminfo_darwin_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/coverage/testdata/harness.go | 1 +
+ 1 file changed, 1 insertion(+)

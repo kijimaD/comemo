@@ -1,27 +1,27 @@
-commit 87e930f7289136fad1310d4b63dd4127e409bac5
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Tue May 14 14:44:37 2024 -0700
+commit 882cc4d596ef179afecb920138419e694654589a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 12 20:23:57 2023 -0700
 
-    runtime: remove GODEBUG=runtimecontentionstacks
+    slices: handle aliasing cases in Insert/Replace
     
-    Go 1.22 promised to remove the setting in a future release once the
-    semantics of runtime-internal lock contention matched that of
-    sync.Mutex. That work is done, remove the setting.
+    Handle cases where the inserted slice is actually part of the slice
+    that is being inserted into.
     
-    For #66999
+    Requires a bit more work, but no more allocations. (Compare to #494536.)
     
-    Change-Id: I3c4894148385adf2756d8754e44d7317305ad758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585639
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Not entirely sure this is worth the complication.
+    
+    Fixes #60138
+    
+    Change-Id: Ia72c872b04309b99025e6ca5a4a326ebed2abb69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/godebug.md                                    |  3 +++
- doc/next/6-stdlib/99-minor/runtime/pprof/66999.md |  5 +++++
- src/runtime/extern.go                             |  9 ---------
- src/runtime/metrics_test.go                       | 18 +++---------------
- src/runtime/mprof.go                              |  5 -----
- src/runtime/pprof/pprof.go                        |  6 ------
- src/runtime/runtime1.go                           |  2 --
- 7 files changed, 11 insertions(+), 37 deletions(-)
+ src/go/build/deps_test.go |   6 +-
+ src/slices/slices.go      | 265 ++++++++++++++++++++++++++++++++++++++++++----
+ src/slices/slices_test.go |  71 +++++++++++++
+ 3 files changed, 320 insertions(+), 22 deletions(-)

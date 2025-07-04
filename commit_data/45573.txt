@@ -1,24 +1,22 @@
-commit f39997b2bebd54416bfb437fa1484fd8a5f43abb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 6 12:24:32 2021 -0400
+commit 4fb429138881e3fe171e4c2e958ed0da26ddfd9c
+Author: Branden J Brown <zephyrtronium@gmail.com>
+Date:   Sun Oct 25 14:26:19 2020 -0400
 
-    cmd/link: split large text sections on Darwin/ARM64 when external linking
+    cmd/compile: inline functions evaluated in go and defer statements
     
-    The Darwin linker does not like text sections that are larger
-    than the jump limit (even if we already inserted trampolines).
-    Split the text section to multiple smaller sections.
+    The inlining pass previously bailed upon encountering a go or defer statement, so it would not inline functions e.g. used to provide arguments to the deferred function. This change preserves the behavior of not inlining the
+    deferred function itself, but it allows the inlining walk to proceed into its arguments.
     
-    Now external linking very large binaries works on Darwin/ARM64.
+    Fixes #42194
     
-    Updates #40492.
-    
-    Change-Id: I584f1ec673170c5e4d2dc1e00c701964d6f14333
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316050
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I4e82029d8dcbe69019cc83ae63a4b29af45ec777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264997
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/link/internal/ld/data.go    | 63 ++++++++++++++++++++++++-------------
- src/cmd/link/internal/ld/ld_test.go | 22 ++++++++-----
- src/cmd/link/internal/ld/macho.go   |  6 +++-
- src/cmd/link/internal/ld/main.go    |  2 +-
- 4 files changed, 61 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  2 --
+ test/inline.go                     | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

@@ -1,16 +1,24 @@
-commit fd7d5a6e6c56c79059b5ce4bb9f38897ad752b3c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 26 13:26:12 2024 -0400
+commit ea51e92c8a76ef476d99973468d755df5ab5ee0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 6 18:46:29 2023 -0700
 
-    debug/buildinfo: add test for malformed strings
+    go/types, types2: don't crash when using trace with an invalid argument
     
-    Updates #68592.
+    This only affects tests, typically manual tests, but when using trace
+    we're debugging and we don't want to crash because of trace itself.
     
-    Change-Id: I00c6c740ca0bdd19af24e08a219ec3c90196097e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601458
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    No test because a test would cause trace output. Manually verified.
+    
+    Fixes #60649.
+    
+    Change-Id: I97abdb94db05774801ec5da56171f4a1aff35615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/debug/buildinfo/buildinfo_test.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go | 3 +++
+ src/go/types/builtins.go                    | 3 +++
+ 2 files changed, 6 insertions(+)

@@ -1,22 +1,29 @@
-commit 1493dd3cfc34dbf18d30ff551bfaf3996430c38a
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 10 12:18:43 2023 -0400
+commit 41be62e168fa7de2cf3357ad32f7105377bfd758
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Nov 4 09:50:09 2022 +0100
 
-    cmd/compile: get rid of zero-sized values in call expansion
+    cmd/go: fix svn vctest on Windows and make them timezone agnostic
     
-    Do this by removing all stores of zero-sized anything.
+    This CL updates svn vctest so they work on Windows.
     
-    Fixes #63433.
+    Side effect is that svn logs are no longer timezone dependant, as this
+    updated the `svn log` command to format logs using XML, which contain
+    UTC dates instead of local dates. Therefore it supersedes
+    https://go-review.googlesource.com/c/go/+/447795.
     
-    Change-Id: I5d8271edab992d15d02005fa3fe31835f2eff8fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534296
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fixes #56555
+    Fixes #56527
+    
+    Change-Id: I5a654fd0a0f741e0a8a6ca7021ad699c07b974d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447935
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/compile/internal/ssa/_gen/dec.rules |  2 ++
- src/cmd/compile/internal/ssa/rewritedec.go  | 12 ++++++++++
- test/fixedbugs/issue63490.go                | 36 +++++++++++++++++++++++++++++
- 3 files changed, 50 insertions(+)
+ src/cmd/go/internal/vcweb/script.go               |  1 +
+ src/cmd/go/testdata/vcstest/svn/hello.txt         | 28 ++++++----
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 65 ++++++++++++++---------
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 45 ++++++++++------
+ 4 files changed, 89 insertions(+), 50 deletions(-)

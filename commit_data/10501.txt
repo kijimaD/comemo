@@ -1,15 +1,15 @@
-commit 49dfaad870208969ff3129ed1e1bda8f12302c03
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Nov 25 12:53:05 2011 +1100
+commit 0197cc49ae3bfabc0edbeb0ae7534036d130dd71
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 24 16:07:19 2011 -0800
 
-    dashboard: builder-facing implementation and tests
+    text/template: fix bug in Clone
+    Cloned template copied the root template incorrectly.
+    Add test of self-consistency.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5431048
+    https://golang.org/cl/5436063
 
- misc/dashboard/app/app.yaml       |   5 +
- misc/dashboard/app/build/build.go | 327 ++++++++++++++++++++++++++++++++++++--
- misc/dashboard/app/build/key.go   |  16 ++
- misc/dashboard/app/build/test.go  | 141 ++++++++++++++++
- 4 files changed, 473 insertions(+), 16 deletions(-)
+ src/pkg/text/template/multi_test.go |  9 +++++++++
+ src/pkg/text/template/template.go   | 14 +++++++++-----
+ 2 files changed, 18 insertions(+), 5 deletions(-)

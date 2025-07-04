@@ -1,16 +1,13 @@
-commit 3d552700ce71fe9671c383bd2718ba9d9b5c40c1
+commit f0d8af200c897fd6f7a67dd8f37026a705a1eccb
 Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 22 17:58:38 2011 +1000
+Date:   Fri Jul 22 17:52:46 2011 +1000
 
-    goyacc: cleanups
-    - remove calls to print
-    - make units compile again
-    - make units.y closer to gofmt style
+    exp/template: trivial cleanup in test
+    Clean up glitch created by flurry of editing.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4802052
+    https://golang.org/cl/4808052
 
- src/cmd/goyacc/goyacc.go |  20 +++---
- src/cmd/goyacc/units.y   | 154 ++++++++++++++++++++++++-----------------------
- 2 files changed, 89 insertions(+), 85 deletions(-)
+ src/pkg/exp/template/set_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

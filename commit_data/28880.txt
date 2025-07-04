@@ -1,15 +1,21 @@
-commit 5a0d50f4eb7e35a57364ed5d2f7b79c0b1a80b36
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 18 10:43:47 2016 +1100
+commit 6fd2d2cf161ec933f206ef57b8ca6062815545d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 16 05:05:00 2016 +0000
 
-    cmd/vet: fix formatting of headings in doc.go.
+    net/http: make Transport retry non-idempotent requests if no bytes written
     
-    This will cause godoc to correctly render these docs,
-    since go/doc.ToHTML requires no punctuation for headings.
+    If the server failed on us before we even tried to write any bytes,
+    it's safe to retry the request on a new connection, regardless of the
+    HTTP method/idempotence.
     
-    Change-Id: Ic95245147d3585f2ccc59d4424fcab17d2a5617b
-    Reviewed-on: https://go-review.googlesource.com/31319
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #15723
+    
+    Change-Id: I25360f82aac530d12d2b3eef02c43ced86e62906
+    Reviewed-on: https://go-review.googlesource.com/27117
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/doc.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/net/http/transport.go               | 14 +++----
+ src/net/http/transport_internal_test.go | 67 +++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 9 deletions(-)

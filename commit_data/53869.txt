@@ -1,21 +1,17 @@
-commit 3ca90ed8669fc467ca7627f0e690040971233d8b
-Author: Anit Gandhi <agandhi@digitalocean.com>
-Date:   Tue Jun 27 16:55:45 2023 +0000
+commit 812fd2fe70112209557c4f6392ab8eaee6f68dda
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Sep 6 18:39:52 2022 +0800
 
-    doc/go1.21: document changes in crypto/tls related to client authentication alerts
+    cmd/compile: gofmt comments
     
-    For #52113
-    For #58645
-    
-    Change-Id: Id7dff2570132588da95fb4216a86faf34fa2cbdc
-    GitHub-Last-Rev: 94eabfe82f189b7a5fb7f1ee32ac3074aa58088f
-    GitHub-Pull-Request: golang/go#60972
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505436
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I79634efbd8d0189afdfe22e147d63c889e8047ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427964
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.21.html | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/compile/internal/walk/builtin.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

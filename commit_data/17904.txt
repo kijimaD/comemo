@@ -1,73 +1,18 @@
-commit 0368a7ceb6e741a641a07e3ae381bdc9fc160a15
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Dec 3 14:12:55 2013 -0800
+commit c0f229457731daa170fea3c8eb2c4f4c363266d3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 2 18:03:25 2013 -0800
 
-    runtime: move stack scanning into the parallel mark phase
+    runtime: fix race detector when map keys/values are passed by pointer.
     
-    This change reduces the cost of the stack scanning by frames.
-    It moves the stack scanning from the serial root enumeration
-    phase to the parallel tracing phase.  The output that follows
-    are timings for the issue 6482 benchmark
+    Now that the map implementation is reading the keys and values from
+    arbitrary memory (instead of from stack slots), it needs to tell the
+    race detector when it does so.
     
-    Baseline
+    Fixes #6875.
     
-    BenchmarkGoroutineSelect              50         108027405 ns/op
-    BenchmarkGoroutineBlocking            50          89573332 ns/op
-    BenchmarkGoroutineForRange            20          95614116 ns/op
-    BenchmarkGoroutineIdle                20         122809512 ns/op
-    
-    Stack scan by frames, non-parallel
-    
-    BenchmarkGoroutineSelect              20         297138929 ns/op
-    BenchmarkGoroutineBlocking            20         301137599 ns/op
-    BenchmarkGoroutineForRange            10         312499469 ns/op
-    BenchmarkGoroutineIdle                10         209428876 ns/op
-    
-    Stack scan by frames, parallel
-    
-    BenchmarkGoroutineSelect              20         183938431 ns/op
-    BenchmarkGoroutineBlocking            20         170109999 ns/op
-    BenchmarkGoroutineForRange            20         179628882 ns/op
-    BenchmarkGoroutineIdle                20         157541498 ns/op
-    
-    The remaining performance disparity is due to inefficiencies
-    in gentraceback and its callees.  The effect was isolated by
-    using a parallel stack scan where scanstack was modified to do
-    a conservative scan of the stack segments without gentraceback
-    followed by a call of gentrackback with a no-op callback.
-    
-    The output that follows are the top-10 most frequent tops of
-    stacks as determined by the Linux perf record facility.
-    
-    Baseline
-    
-    +  25.19%  gc.test  gc.test            [.] runtime.xchg
-    +  19.00%  gc.test  gc.test            [.] scanblock
-    +   8.53%  gc.test  gc.test            [.] scanstack
-    +   8.46%  gc.test  gc.test            [.] flushptrbuf
-    +   5.08%  gc.test  gc.test            [.] procresize
-    +   3.57%  gc.test  gc.test            [.] runtime.chanrecv
-    +   2.94%  gc.test  gc.test            [.] dequeue
-    +   2.74%  gc.test  gc.test            [.] addroots
-    +   2.25%  gc.test  gc.test            [.] runtime.ready
-    +   1.33%  gc.test  gc.test            [.] runtime.cas64
-    
-    Gentraceback
-    
-    +  18.12%  gc.test  gc.test             [.] runtime.xchg
-    +  14.68%  gc.test  gc.test             [.] scanblock
-    +   8.20%  gc.test  gc.test             [.] runtime.gentraceback
-    +   7.38%  gc.test  gc.test             [.] flushptrbuf
-    +   6.84%  gc.test  gc.test             [.] scanstack
-    +   5.92%  gc.test  gc.test             [.] runtime.findfunc
-    +   3.62%  gc.test  gc.test             [.] procresize
-    +   3.15%  gc.test  gc.test             [.] readvarint
-    +   1.92%  gc.test  gc.test             [.] addroots
-    +   1.87%  gc.test  gc.test             [.] runtime.chanrecv
-    
-    R=golang-dev, dvyukov, rsc
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/17410043
+    https://golang.org/cl/36360043
 
- src/pkg/runtime/mgc0.c | 322 +++++++++++++++++++++++++++++--------------------
- 1 file changed, 190 insertions(+), 132 deletions(-)
+ src/pkg/runtime/hashmap.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

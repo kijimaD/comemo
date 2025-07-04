@@ -1,22 +1,29 @@
-commit 51be44bfafb43e034fae09f259b53b48c395f89b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 4 12:43:50 2019 -0400
+commit d47db6dc0ce72d1371c81a677b45d7bdba39ff46
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 23 01:43:06 2019 +0700
 
-    cmd/go/internal/web: log complete URLs
+    cmd/compile: fix literal struct interface {} lost passing by value
     
-    Incoming URLs may omit the scheme to indicate “either HTTP or HTTPS”.
-    For such URLs, log the scheme actually used instead of leaving it out.
+    CL 135377 introduces pass strings and slices to convT2{E,I} by value.
+    Before that CL, all types, except interface will be allocated temporary
+    address. The CL changes the logic that only constant and type which
+    needs address (determine by convFuncName) will be allocated.
     
-    (This issue was noticed while triaging #34075.)
+    It fails to cover the case where type is static composite literal.
+    Adding condition to check that case fixes the issue.
     
-    Updates #34075
+    Also, static composite literal node implies constant type, so consttype
+    checking can be removed.
     
-    Change-Id: I39e5ca83543dd780258d41d5c2c4ba907cd20e5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193262
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #30956
+    
+    Change-Id: Ifc750a029fb4889c2d06e73e44bf85e6ef4ce881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168858
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/web/http.go         |  8 ++++----
- src/cmd/go/testdata/script/mod_getx.txt | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/order.go |  6 +++---
+ test/fixedbugs/issue30956.go         | 32 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue30956.out        |  1 +
+ 3 files changed, 36 insertions(+), 3 deletions(-)

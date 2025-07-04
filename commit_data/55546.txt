@@ -1,21 +1,47 @@
-commit 210f051d6b585e9a5f0cb4b983038d83c44e992b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 7 13:58:38 2024 -0800
+commit 481a6beba5a76403cd1c4be2fe7a6662439984c7
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Nov 8 15:39:27 2022 +0800
 
-    go/types, types2: document deterministic method index order and add test
+    cmd/internal/obj/riscv: optimize loading large immediate with trailing zeros
     
-    Fixes #61298.
+    This CL can avoid a memory load for some immediate.
+    Reduce binary size slightly.
     
-    Change-Id: Ie2f930752867710884ace3990447866e785ebf1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562347
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    compilecmp HEAD~1 -> HEAD
+    HEAD~1 (9860faa512): math/big: remove underscores from Binomial docs
+    HEAD (ac85312f10): cmd/internal/obj/riscv: optimize loading large immediate with many trailing zeros
+    platform: linux/riscv64
+    
+    file      before    after     Δ       %
+    addr2line 3892904   3889844   -3060   -0.079%
+    api       5558527   5555073   -3454   -0.062%
+    asm       5191725   5187853   -3872   -0.075%
+    buildid   2631958   2629356   -2602   -0.099%
+    cgo       4722642   4718516   -4126   -0.087%
+    compile   25579930  25564496  -15434  -0.060%
+    cover     4989560   4985580   -3980   -0.080%
+    dist      3538991   3536299   -2692   -0.076%
+    doc       3990845   3987605   -3240   -0.081%
+    fix       3410945   3407097   -3848   -0.113%
+    link      6701702   6697926   -3776   -0.056%
+    nm        3802030   3798664   -3366   -0.089%
+    objdump   4211373   4207651   -3722   -0.088%
+    pack      2423248   2421048   -2200   -0.091%
+    pprof     14302052  14296714  -5338   -0.037%
+    test2json 2724359   2721881   -2478   -0.091%
+    trace     13598607  13590879  -7728   -0.057%
+    vet       7612108   7607722   -4386   -0.058%
+    go        15092773  15087323  -5450   -0.036%
+    total     133976279 133891527 -84752  -0.063%
+    
+    Change-Id: I8615c7830ebfee0386f95d0c0fc4d29dc0b4c7fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/types2/named.go      |  6 ++++
- src/cmd/compile/internal/types2/named_test.go | 48 +++++++++++++++++++++++++++
- src/go/types/named.go                         |  6 ++++
- src/go/types/named_test.go                    | 48 +++++++++++++++++++++++++++
- 4 files changed, 108 insertions(+)
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  4 +++-
+ src/cmd/internal/obj/riscv/obj.go           | 32 ++++++++++++++++++++++++++++-
+ 2 files changed, 34 insertions(+), 2 deletions(-)

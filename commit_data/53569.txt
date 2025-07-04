@@ -1,21 +1,18 @@
-commit 65db95d0ed69b047b54b2dea28406b2764a62bbe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 6 14:31:21 2023 -0700
+commit ae303ff282feed715de0374890737ccdaee1e053
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 21 22:52:36 2022 +0700
 
-    math: document that Min/Max differ from min/max
+    cmd/compile: fix missing typecheck when rewriting abi.FuncPCABIxxx
     
-    For #59488
-    Fixes #60616
+    Discover when running "go test -run=TestNewOSProc0 -gcflags=-d=checkptr"
     
-    Change-Id: Idf9f42d7d868999664652dd7b478684a474f1d96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501355
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I988da56fd3122a21673e86d7dd327ed05914ab72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425040
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/math/dim.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/walk/expr.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

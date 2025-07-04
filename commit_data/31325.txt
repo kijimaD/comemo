@@ -1,39 +1,33 @@
-commit 4ee934ad27dcd2fb0c28798cb329841a2a444fb1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 22 18:59:11 2017 -0700
+commit 93a18acf1e32c37c73e450319b78b5f9f4e11fe7
+Author: Cezar Sa Espinola <cezarsa@gmail.com>
+Date:   Wed Dec 7 22:45:06 2016 -0200
 
-    cmd/compile: remove references to *os.File from ssa package
+    image/png: reduce memory allocs encoding images by reusing buffers
     
-    This reduces the size of the ssa export data
-    by 10%, from 76154 to 67886.
+    This change allows greatly reducing memory allocations with a slightly
+    performance improvement as well.
     
-    It doesn't appear that #20084, which would do this automatically,
-    is going to be fixed soon. Do it manually for now.
+    Instances of (*png).Encoder can have a optional BufferPool attached to
+    them. This allows reusing temporary buffers used when encoding a new
+    image. This buffers include instances to zlib.Writer and bufio.Writer.
     
-    This speeds up compiling cmd/compile/internal/amd64
-    and presumably its comrades as well:
+    Also, buffers for current and previous rows are saved in the encoder
+    instance and reused as long as their cap() is enough to fit the current
+    image row.
     
-    name          old time/op       new time/op       delta
-    CompileAMD64       89.6ms ± 6%       86.7ms ± 5%  -3.29%  (p=0.000 n=49+47)
+    A new benchmark was added to demonstrate the performance improvement
+    when setting a BufferPool to an Encoder instance:
     
-    name          old user-time/op  new user-time/op  delta
-    CompileAMD64        116ms ± 5%        112ms ± 5%  -3.51%  (p=0.000 n=45+42)
+    $ go test -bench BenchmarkEncodeGray -benchmem
+    BenchmarkEncodeGray-4                       1000           2349584 ns/op         130.75 MB/s      852230 B/op         32 allocs/op
+    BenchmarkEncodeGrayWithBufferPool-4         1000           2241650 ns/op         137.04 MB/s         900 B/op          3 allocs/op
     
-    name          old alloc/op      new alloc/op      delta
-    CompileAMD64       26.7MB ± 0%       25.8MB ± 0%  -3.26%  (p=0.008 n=5+5)
-    
-    name          old allocs/op     new allocs/op     delta
-    CompileAMD64         223k ± 0%         213k ± 0%  -4.46%  (p=0.008 n=5+5)
-    
-    Updates #20084
-    
-    Change-Id: I49e8951c5bfce63ad2b7f4fc3bfa0868c53114f9
-    Reviewed-on: https://go-review.googlesource.com/41493
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I4488201ae53cb2ad010c68c1e0118ee12beae14e
+    Reviewed-on: https://go-review.googlesource.com/34150
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/func.go    | 13 +++++++++----
- src/cmd/compile/internal/ssa/html.go    | 18 +++++++++---------
- src/cmd/compile/internal/ssa/rewrite.go |  3 ++-
- 3 files changed, 20 insertions(+), 14 deletions(-)
+ src/image/png/writer.go      | 106 +++++++++++++++++++++++++++++++++----------
+ src/image/png/writer_test.go |  25 ++++++++++
+ 2 files changed, 107 insertions(+), 24 deletions(-)

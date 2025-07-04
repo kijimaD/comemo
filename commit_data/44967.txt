@@ -1,21 +1,27 @@
-commit b345a306a0258085b65081cf2dadc238dc7e26ee
+commit 7e54aa2c25690f5a7f5baad112d231b6ff8d4e5e
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 5 20:41:56 2021 -0400
+Date:   Fri Sep 18 11:56:43 2020 -0400
 
-    cmd/compile: when GOSSAFUNC is set, dump the current pass on crash
+    cmd/link: don't mark a symbol's GoType reachable when -linkshared
     
-    When an SSA pass ICEs, it calls f.Fatalf, which terminates the
-    compiler. When GOSSAFUNC is set, the current pass is not written
-    to ssa.html. This CL makes it write ssa.html when it calls Fatalf,
-    for the ease of debugging.
+    In CL 231397, we stopped marking symbols' GoType reachable in
+    general, but not when -linkshared. It was left as a TODO. This CL
+    addresses it.
     
-    Change-Id: I5d55e4258f0693d89c48c0a84984f2f893b0811d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307509
+    The problem was that the type names are mangled in the shared
+    library, so we need to mangle the name consistently in the
+    executable as well (regardless of whether the symbol is reachable
+    or not), so that the GCProg generation code can find the
+    corresponding symbol from the shared library.
+    
+    Change-Id: I1040747402929a983ec581109f1681a77893682e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255964
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/func.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/deadcode.go | 6 +-----
+ src/cmd/link/internal/ld/lib.go      | 7 ++++++-
+ 2 files changed, 7 insertions(+), 6 deletions(-)

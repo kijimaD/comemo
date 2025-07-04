@@ -1,23 +1,30 @@
-commit 2ff89341f643920f827e4c45db8e4b507fedd9f0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 2 19:27:21 2024 -0800
+commit 598cf5e6ac1deb87f4931af195dad66f2b3f1672
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 11 16:40:12 2023 -0400
 
-    reflect: omit anonymous field name from StructOf type string
+    cmd/compile: expose ir.Func to ssa
     
-    This makes the reflect package match the compiler for StructOf
-    with an embedded field.
+    ssagen.ssafn already holds the ir.Func, and ssa.Frontend.SetWBPos and
+    ssa.Frontend.Lsym are simple wrappers around parts of the ir.Func.
     
-    Fixes #24781
+    Expose the ir.Func through ssa.Frontend, allowing us to remove these
+    wrapper methods and allowing future access to additional features of the
+    ir.Func if needed.
     
-    Change-Id: Ice64b167cbe0b9d30a953c5d8e2a86f3ad1158bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567897
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    While we're here, drop ssa.Frontend.Line, which is unused.
+    
+    For #58298.
+    
+    Change-Id: I30c4cbd2743e9ad991d8c6b388484a7d1e95f3ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484215
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/reflect/all_test.go | 14 ++++++++++++++
- src/reflect/type.go     |  5 +++--
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/config.go       | 16 +++++-----------
+ src/cmd/compile/internal/ssa/export_test.go  | 25 ++++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewrite.go      |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
+ src/cmd/compile/internal/ssagen/ssa.go       | 12 ++----------
+ 5 files changed, 27 insertions(+), 34 deletions(-)

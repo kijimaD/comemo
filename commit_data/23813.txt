@@ -1,18 +1,19 @@
-commit 3f4d5a550095b384de8e63bd09cf278e7c57fee3
-Author: Damian Gryski <dgryski@gmail.com>
-Date:   Thu Jul 23 22:12:24 2015 +0200
+commit 6f0e427298fc38d3402a4771ff730adf29818a90
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 15 11:35:56 2015 -0700
 
-    go/types: fix suspect or
+    syscall: fix TestCloneNEWUSERAndRemapNoRootDisableSetgroups the right way
     
-    In https://go-review.googlesource.com/#/c/8611/ , these tests were
-    supposed to be skipped only for linux and darwin, as the comment says.
-    This patch fixes the logic in the if test.
+    The problem was not the kernel version as I thought before, it was
+    that the test used the same number for both the UID and the GID.
+    Thanks to Chris Siebenmann for debugging this.
     
-    Change-Id: Iff0a32186267457a414912c4c3ee4495650891a2
-    Reviewed-on: https://go-review.googlesource.com/12517
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #11220.
+    
+    Change-Id: Ib5077e182497155e84044683209590ee0f7c9dde
+    Reviewed-on: https://go-review.googlesource.com/11124
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/types/stdlib_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/exec_linux_test.go | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

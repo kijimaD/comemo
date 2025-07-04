@@ -1,20 +1,18 @@
-commit 6e59c73a9fe4eab3e09c6287f69c48837580dbb4
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sun Mar 25 17:19:47 2018 -0700
+commit c19abe30a00058dbf0950f30d5b7c2e451e676a3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 12:21:44 2017 +1000
 
-    database/sql: check to see if ctx is cancelable before await
+    net: ignore duplicate interfaces in TestInterfaceHardwareAddrWithGetmac
     
-    Prevent queries from starting a goroutine if the context is
-    not able to be canceled.
+    Sometimes getmac lists many interfaces for the same MAC address,
+    while Interfaces returns only single name for that address. Adjust
+    the test to ignore the names that are not returned by the Interfaces.
     
-    Fixes #23879
+    Fixes #21027
     
-    Change-Id: I392047bd53d7f796219dd12ee11b07303658fdaf
-    Reviewed-on: https://go-review.googlesource.com/102478
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I08d98746a7c669f2d730dba2da36e07451a6f405
+    Reviewed-on: https://go-review.googlesource.com/59411
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/database/sql/sql.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/net_windows_test.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

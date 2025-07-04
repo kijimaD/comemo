@@ -1,18 +1,18 @@
-commit 27cf81e1b48efe6a6387f34c7114766c7b0d4d73
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 1 09:54:30 2019 +1000
+commit 13b7c04d3f15e5b3bc767057de148d8bf116dcf4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 16 11:59:05 2019 -0700
 
-    text/template: further simplify building the vars list
+    runtime/internal/atomic: fix s390x's StorepNoWB implementation
     
-    Followup to https://golang.org/cl/197997
+    Same as CL 170323, but for s390x instead of wasm.
     
-    If you know the number of elements, you don't need append at all.
-    Either use append to grow, or allocate and index. Here we choose
-    number 2.
+    Fixes #31495.
     
-    Change-Id: Ic58637231789640ff7b293ece04a95a8de7ccf8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198097
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie39f649f5e33690375a8bcb1bc3b92d912ca4398
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172417
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/parse/node.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/internal/atomic/atomic_s390x.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,26 +1,52 @@
-commit 9fa988547a778540eebfe0358536b7433efe6748
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed Jul 4 16:43:19 2018 +0100
+commit cd2cb6e3f57e4820d66dbefd7577048c38ee9e04
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Mar 5 10:46:44 2018 +0000
 
-    cmd/internal/obj/s390x: increase maximum number of loop iterations
+    cmd/compile: cache sparse maps across ssa passes
     
-    The maximum number of 'spanz' iterations that the s390x assembler
-    performs to reach a fixed point for relative offsets was 10. This
-    turned out to be too aggressive for one example of auto-generated
-    fuzzing code. Increase the number of iterations by 10x to reduce
-    the likelihood that the limit will be hit again. This limit only
-    exists to help find bugs in the assembler.
+    This is done for sparse sets already, but it was missing for sparse
+    maps. Only affects deadstore and regalloc, as they're the only ones that
+    use sparse maps.
     
-    master at tip does not fail with the example code in the issue, I
-    have therefore not submitted it as a test (it is also quite large).
-    I tested this change with the example code at the commit given and
-    it fixes the issue.
+    name                 old time/op    new time/op    delta
+    DSEPass-4               247µs ± 0%     216µs ± 0%  -12.75%  (p=0.008 n=5+5)
+    DSEPassBlock-4         3.05ms ± 1%    2.87ms ± 1%   -6.02%  (p=0.002 n=6+6)
+    CSEPass-4              2.30ms ± 0%    2.32ms ± 0%   +0.53%  (p=0.026 n=6+6)
+    CSEPassBlock-4         23.8ms ± 0%    23.8ms ± 0%     ~     (p=0.931 n=6+5)
+    DeadcodePass-4         51.7µs ± 1%    51.5µs ± 2%     ~     (p=0.429 n=5+6)
+    DeadcodePassBlock-4     734µs ± 1%     742µs ± 3%     ~     (p=0.394 n=6+6)
+    MultiPass-4             152µs ± 0%     149µs ± 2%     ~     (p=0.082 n=5+6)
+    MultiPassBlock-4       2.67ms ± 1%    2.41ms ± 2%   -9.77%  (p=0.008 n=5+5)
     
-    Fixes #25269.
+    name                 old alloc/op   new alloc/op   delta
+    DSEPass-4              41.2kB ± 0%     0.1kB ± 0%  -99.68%  (p=0.002 n=6+6)
+    DSEPassBlock-4          560kB ± 0%       4kB ± 0%  -99.34%  (p=0.026 n=5+6)
+    CSEPass-4               189kB ± 0%     189kB ± 0%     ~     (all equal)
+    CSEPassBlock-4         3.10MB ± 0%    3.10MB ± 0%     ~     (p=0.444 n=5+5)
+    DeadcodePass-4         10.5kB ± 0%    10.5kB ± 0%     ~     (all equal)
+    DeadcodePassBlock-4     164kB ± 0%     164kB ± 0%     ~     (all equal)
+    MultiPass-4             240kB ± 0%     199kB ± 0%  -17.06%  (p=0.002 n=6+6)
+    MultiPassBlock-4       3.60MB ± 0%    2.99MB ± 0%  -17.06%  (p=0.002 n=6+6)
     
-    Change-Id: I0e44948957a7faff51c7d27c0b7746ed6e2d47bb
-    Reviewed-on: https://go-review.googlesource.com/122235
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name                 old allocs/op  new allocs/op  delta
+    DSEPass-4                8.00 ± 0%      4.00 ± 0%  -50.00%  (p=0.002 n=6+6)
+    DSEPassBlock-4            240 ± 0%       120 ± 0%  -50.00%  (p=0.002 n=6+6)
+    CSEPass-4                9.00 ± 0%      9.00 ± 0%     ~     (all equal)
+    CSEPassBlock-4          1.35k ± 0%     1.35k ± 0%     ~     (all equal)
+    DeadcodePass-4           3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    DeadcodePassBlock-4      9.00 ± 0%      9.00 ± 0%     ~     (all equal)
+    MultiPass-4              11.0 ± 0%      10.0 ± 0%   -9.09%  (p=0.002 n=6+6)
+    MultiPassBlock-4          165 ± 0%       150 ± 0%   -9.09%  (p=0.002 n=6+6)
+    
+    Change-Id: I43860687c88f33605eb1415f36473c5cfe8fde4a
+    Reviewed-on: https://go-review.googlesource.com/98449
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/s390x/asmz.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/cache.go     |  3 ++-
+ src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
+ src/cmd/compile/internal/ssa/func.go      | 37 ++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/regalloc.go  |  6 +++--
+ src/cmd/compile/internal/ssa/sparsemap.go |  4 ++++
+ 5 files changed, 43 insertions(+), 10 deletions(-)

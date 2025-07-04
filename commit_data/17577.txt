@@ -1,14 +1,15 @@
-commit 28a8e9ba2f27326efcef7a1f5085ac19120f7216
+commit fe62a1f1feadabf6de15e524090c8010449890ff
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 12 15:12:40 2013 +0900
+Date:   Thu Sep 12 11:59:18 2013 +0900
 
-    doc/go1.2.html: happy eyeballs on net
+    net: move mock ICMP into separate file
     
-    Also fix trivial nits.
+    This is in prepartion for fixing issue 6320.
     
-    R=golang-dev, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/13532046
+    https://golang.org/cl/13611043
 
- doc/go1.2.html | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/pkg/net/ipraw_test.go    | 110 ----------------------------------------
+ src/pkg/net/mockicmp_test.go | 116 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 116 insertions(+), 110 deletions(-)

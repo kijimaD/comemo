@@ -1,28 +1,40 @@
-commit 496d7c691481966fd6ea806205aa025698a172af
+commit b4b014465216790e01aa66f9120d03230e4aff46
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 3 16:32:52 2021 -0700
+Date:   Tue Sep 29 17:01:33 2020 -0700
 
-    text/template: add lock for Template.tmpl to fix data race
+    runtime: don't always adjust timers
     
-    This adds a new lock protecting "tmpl".
+    Some programs have a lot of timers that they adjust both forward and
+    backward in time. This can cause a large number of timerModifiedEarlier
+    timers. In practice these timers are used for I/O deadlines and are
+    rarely reached. The effect is that the runtime spends a lot of time
+    in adjusttimers making sure that there are no timerModifiedEarlier
+    timers, but the effort is wasted because none of the adjusted timers
+    are near the top of the timer heap anyhow.
     
-    This is a copy of https://golang.org/cl/257817 by Andreas Fleig,
-    updated for current tip, and updated to start running the
-    html/template TestEscapeRace test.
+    Avoid much of this extra work by keeping track of the earliest known
+    timerModifiedEarlier timer. This lets us skip adjusttimers if we know
+    that none of the timers will be ready to run anyhow. We will still
+    eventually run it, when we reach the deadline of the earliest known
+    timerModifiedEarlier, although in practice that timer has likely
+    been removed. When we do run adjusttimers, we will reset all of the
+    timerModifiedEarlier timers, and clear our notion of when we need
+    to run adjusttimers again.
     
-    Thanks to @bep for providing the test case.
+    This effect should be to significantly reduce the number of times we
+    walk through the timer list in adjusttimers.
     
-    Fixes #39807
+    Fixes #41699
     
-    Change-Id: Ic8874484290283a49116812eeaffb8608346dc70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316669
+    Change-Id: I38eb2be611fb34e3017bb33d0a9ed40d75fb414f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258303
     Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/html/template/exec_test.go |  2 --
- src/text/template/exec.go      |  9 ++++-----
- src/text/template/exec_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/text/template/template.go  |  9 +++++++++
- 4 files changed, 51 insertions(+), 7 deletions(-)
+ src/runtime/proc.go     | 52 +++++++++++++-------------
+ src/runtime/runtime2.go |  7 ++++
+ src/runtime/time.go     | 99 +++++++++++++++++++++++++++----------------------
+ 3 files changed, 88 insertions(+), 70 deletions(-)

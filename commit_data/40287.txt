@@ -1,23 +1,19 @@
-commit dc72a2f95feebcfe5ccbd50636b8f8db05587d5f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 17 12:06:53 2019 -0700
+commit 43b9fcf6fe9feb0ec67a7ddb01e5b542542b47c8
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Oct 6 13:32:19 2018 -0400
 
-    cmd/compile: detect unsafe conversions from smaller to larger types
+    net/http: make Transport.MaxConnsPerHost work for HTTP/2
     
-    This CL extends the runtime instrumentation for (*T)(ptr) to also
-    check that the first and last bytes of *(*T)(ptr) are part of the same
-    heap object.
+    Treat HTTP/2 connections as an ongoing persistent connection. When we
+    are told there is no cached connections, cleanup the associated
+    connection and host connection count.
     
-    Updates #22218.
-    Updates #34959.
+    Fixes #27753
     
-    Change-Id: I2c8063fe1b7fe6e6145e41c5654cb64dd1c9dd41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201778
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6b7bd915fc7819617cb5d3b35e46e225c75eda29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/140357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  2 +-
- src/runtime/checkptr.go             | 12 +++++++++---
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/net/http/transport.go      |  19 ++++----
+ src/net/http/transport_test.go | 101 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 8 deletions(-)

@@ -1,28 +1,30 @@
-commit 25922c06582a91ae02ca8a632b2a75aeb7cdc887
+commit dcc46388df62fafe81426b8dd888ed786f7db9fa
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 4 17:07:59 2012 -0400
+Date:   Mon Jun 4 13:09:19 2012 -0400
 
-    cmd/gc: introduce hidden closure functions earlier
+    time: accept .999 in Parse
     
-    The original implementation of closures created the
-    underlying top-level function during walk, which is fairly
-    late in the compilation process and caused ordering-based
-    complications due to earlier stages that had to be repeated
-    any number of times.
+    The recent shuffle in parsing formats exposed probably unintentional
+    behavior in time.Parse, namely that it was mostly ignoring ".99999"
+    in the format, producing the following behavior:
     
-    Create the underlying function during typecheck, much
-    earlier, so that later stages can be run just once.
+    fmt.Println(time.Parse("03:04:05.999 MST", "12:00:00.888 PDT")) // error (.888 unexpected)
+    fmt.Println(time.Parse("03:04:05.999", "12:00:00")) // error (input too short)
+    fmt.Println(time.Parse("03:04:05.999 MST", "12:00:00 PDT"))  // ok (extra bytes on input make it ok)
     
-    The result is a simpler compilation sequence.
+    http://play.golang.org/p/ESJ1UYXzq2
     
-    R=ken2
+    API CHANGE:
+    
+    This CL makes all three examples valid: ".999" can match an
+    empty string or else a fractional second with at most nine digits.
+    
+    Fixes #3701.
+    
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/6279049
+    https://golang.org/cl/6267045
 
- src/cmd/gc/closure.c | 38 +++++++++++++++++++------------
- src/cmd/gc/esc.c     | 63 ++++++++++++++++++++++------------------------------
- src/cmd/gc/fmt.c     |  4 +++-
- src/cmd/gc/inl.c     |  4 ++--
- src/cmd/gc/lex.c     | 25 +++++----------------
- src/cmd/gc/sinit.c   |  3 +++
- 6 files changed, 64 insertions(+), 73 deletions(-)
+ src/pkg/time/format.go    | 16 +++++++++++++++-
+ src/pkg/time/time_test.go | 10 ++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

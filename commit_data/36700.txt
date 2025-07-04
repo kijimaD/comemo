@@ -1,78 +1,33 @@
-commit c6bf9a81095bdbd3631cedc66ce690fa070d1a38
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Sep 17 02:05:22 2018 +0000
+commit 87a18c61094debb31ebf4d1b80067bae302dacbe
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 27 12:13:17 2018 -0400
 
-    cmd/compile: optimize AMD64's bit wise operation
+    cmd/compile: refactor inlining parameters; inline panic
     
-    Currently "arr[idx] |= 0x80" is compiled to MOVLload->BTSL->MOVLstore.
-    And this CL optimizes it to a single BTSLconstmodify. Other bit wise
-    operations with a direct memory operand are also implemented.
+    Inlining was refactored to perform tuning experiments,
+    with the "knobs" now set to also inline functions/methods
+    that include panic(), and -l=4 (inline calls) now expressed
+    as a change to costs, rather than scattered if-thens.
     
-    1. The size of the executable bin/go decreases about 4KB, and the total size
-    of pkg/linux_amd64 (excluding cmd/compile) decreases about 0.6KB.
+    The -l=4 inline-calls penalty is chosen to be the best
+    found during experiments; it makes some programs much
+    larger and slower (notably, the compiler itself) and is
+    believed to be risky for machine-generated code in general,
+    which is why it is not the default.  It is also not
+    well-tested with the debugger and DWARF output.
     
-    2. There a little improvement in the go1 benchmark test (excluding noise).
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              2.66s ± 4%     2.66s ± 3%    ~     (p=0.596 n=49+49)
-    Fannkuch11-4                2.38s ± 2%     2.32s ± 2%  -2.69%  (p=0.000 n=50+50)
-    FmtFprintfEmpty-4          42.7ns ± 4%    43.2ns ± 7%  +1.31%  (p=0.009 n=50+50)
-    FmtFprintfString-4         71.0ns ± 5%    72.0ns ± 3%  +1.33%  (p=0.000 n=50+50)
-    FmtFprintfInt-4            80.7ns ± 4%    80.6ns ± 3%    ~     (p=0.931 n=50+50)
-    FmtFprintfIntInt-4          125ns ± 3%     126ns ± 4%    ~     (p=0.051 n=50+50)
-    FmtFprintfPrefixedInt-4     158ns ± 1%     142ns ± 3%  -9.84%  (p=0.000 n=36+50)
-    FmtFprintfFloat-4           215ns ± 4%     212ns ± 4%  -1.23%  (p=0.002 n=50+50)
-    FmtManyArgs-4               519ns ± 3%     510ns ± 3%  -1.77%  (p=0.000 n=50+50)
-    GobDecode-4                6.49ms ± 6%    6.52ms ± 5%    ~     (p=0.866 n=50+50)
-    GobEncode-4                5.93ms ± 8%    6.01ms ± 7%    ~     (p=0.076 n=50+50)
-    Gzip-4                      222ms ± 4%     224ms ± 8%  +0.80%  (p=0.001 n=50+50)
-    Gunzip-4                   36.6ms ± 5%    36.4ms ± 4%    ~     (p=0.093 n=50+50)
-    HTTPClientServer-4         59.1µs ± 1%    58.9µs ± 2%  -0.24%  (p=0.039 n=49+48)
-    JSONEncode-4               9.23ms ± 4%    9.21ms ± 5%    ~     (p=0.244 n=50+50)
-    JSONDecode-4               48.8ms ± 4%    48.7ms ± 4%    ~     (p=0.653 n=50+50)
-    Mandelbrot200-4            3.81ms ± 4%    3.80ms ± 3%    ~     (p=0.834 n=50+50)
-    GoParse-4                  3.20ms ± 5%    3.19ms ± 5%    ~     (p=0.494 n=50+50)
-    RegexpMatchEasy0_32-4      78.1ns ± 2%    77.4ns ± 3%  -0.86%  (p=0.005 n=50+50)
-    RegexpMatchEasy0_1K-4       233ns ± 3%     233ns ± 3%    ~     (p=0.074 n=50+50)
-    RegexpMatchEasy1_32-4      74.2ns ± 3%    73.4ns ± 3%  -1.06%  (p=0.000 n=50+50)
-    RegexpMatchEasy1_1K-4       369ns ± 2%     364ns ± 4%  -1.41%  (p=0.000 n=36+50)
-    RegexpMatchMedium_32-4      109ns ± 4%     107ns ± 3%  -2.06%  (p=0.001 n=50+50)
-    RegexpMatchMedium_1K-4     31.5µs ± 3%    30.8µs ± 3%  -2.20%  (p=0.000 n=50+50)
-    RegexpMatchHard_32-4       1.57µs ± 3%    1.56µs ± 2%  -0.57%  (p=0.016 n=50+50)
-    RegexpMatchHard_1K-4       47.4µs ± 4%    47.0µs ± 3%  -0.82%  (p=0.008 n=50+50)
-    Revcomp-4                   414ms ± 7%     412ms ± 7%    ~     (p=0.285 n=50+50)
-    Template-4                 64.3ms ± 4%    62.7ms ± 3%  -2.44%  (p=0.000 n=50+50)
-    TimeParse-4                 316ns ± 3%     313ns ± 3%    ~     (p=0.122 n=50+50)
-    TimeFormat-4                291ns ± 3%     293ns ± 3%  +0.80%  (p=0.001 n=50+50)
-    [Geo mean]                 46.5µs         46.2µs       -0.81%
+    This change includes an explicit go:noinline applied to the
+    method that is the largest cause of compiler binary growth
+    and slowdown for midstack inlining; there are others,
+    ideally whatever heuristic eventually appears will make
+    this unnecessary.
     
-    name                     old speed      new speed      delta
-    GobDecode-4               118MB/s ± 6%   118MB/s ± 5%    ~     (p=0.863 n=50+50)
-    GobEncode-4               130MB/s ± 9%   128MB/s ± 8%    ~     (p=0.076 n=50+50)
-    Gzip-4                   87.4MB/s ± 4%  86.8MB/s ± 7%  -0.78%  (p=0.002 n=50+50)
-    Gunzip-4                  531MB/s ± 5%   533MB/s ± 4%    ~     (p=0.093 n=50+50)
-    JSONEncode-4              210MB/s ± 4%   211MB/s ± 5%    ~     (p=0.247 n=50+50)
-    JSONDecode-4             39.8MB/s ± 4%  39.9MB/s ± 4%    ~     (p=0.654 n=50+50)
-    GoParse-4                18.1MB/s ± 5%  18.2MB/s ± 5%    ~     (p=0.493 n=50+50)
-    RegexpMatchEasy0_32-4     410MB/s ± 2%   413MB/s ± 3%  +0.86%  (p=0.004 n=50+50)
-    RegexpMatchEasy0_1K-4    4.39GB/s ± 3%  4.38GB/s ± 3%    ~     (p=0.063 n=50+50)
-    RegexpMatchEasy1_32-4     432MB/s ± 3%   436MB/s ± 3%  +1.07%  (p=0.000 n=50+50)
-    RegexpMatchEasy1_1K-4    2.77GB/s ± 2%  2.81GB/s ± 4%  +1.46%  (p=0.000 n=36+50)
-    RegexpMatchMedium_32-4   9.16MB/s ± 3%  9.35MB/s ± 4%  +2.09%  (p=0.001 n=50+50)
-    RegexpMatchMedium_1K-4   32.5MB/s ± 3%  33.2MB/s ± 3%  +2.25%  (p=0.000 n=50+50)
-    RegexpMatchHard_32-4     20.4MB/s ± 3%  20.5MB/s ± 2%  +0.56%  (p=0.017 n=50+50)
-    RegexpMatchHard_1K-4     21.6MB/s ± 4%  21.8MB/s ± 3%  +0.83%  (p=0.008 n=50+50)
-    Revcomp-4                 613MB/s ± 4%   618MB/s ± 7%    ~     (p=0.152 n=48+50)
-    Template-4               30.2MB/s ± 4%  30.9MB/s ± 3%  +2.49%  (p=0.000 n=50+50)
-    [Geo mean]                127MB/s        128MB/s       +0.64%
-    
-    Change-Id: If405198283855d75697f66cf894b2bef458f620e
-    Reviewed-on: https://go-review.googlesource.com/135422
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Idf7056ed2f961472cf49d2fd154ee98bef9421e2
+    Reviewed-on: https://go-review.googlesource.com/109918
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go        |    4 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   68 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   14 +
- src/cmd/compile/internal/ssa/opGen.go        |  186 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1793 ++++++++++++++++++++++++--
- test/codegen/bits.go                         |    6 +
- 6 files changed, 1938 insertions(+), 133 deletions(-)
+ src/cmd/compile/internal/gc/inl.go    | 61 +++++++++++++++++++++++------------
+ src/cmd/compile/internal/ssa/value.go |  3 ++
+ 2 files changed, 44 insertions(+), 20 deletions(-)

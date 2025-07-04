@@ -1,20 +1,15 @@
-commit 95ff296a11606cec32fb697c74aee520f23498b0
-Author: David Chase <drchase@google.com>
-Date:   Wed Feb 17 18:01:52 2021 -0500
+commit 936a2d696674fb714a0b0ed3d2de5dd9c2ea0025
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 17 17:05:22 2020 -0400
 
-    cmd/compile: pass arguments as register parameters to StaticCall.
+    [dev.link] cmd/link: stream external relocations on 386 ELF
     
-    Additional register-parameter plumbing, not all the way to the end;
-    if you test register parameter-passing, it fails mid-compilation.
-    
-    For #40724.
-    
-    Change-Id: Ibb675022c9156779a451726329890e52fca1cb33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293398
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I17ff3ac82c8ac313f3a3c8e8129800ec9c05b991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243643
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 49 ++++++++++++++--------------
- 1 file changed, 25 insertions(+), 24 deletions(-)
+ src/cmd/link/internal/ld/asmb.go   | 2 +-
+ src/cmd/link/internal/ld/data.go   | 6 +++---
+ src/cmd/link/internal/ld/elf.go    | 2 +-
+ src/cmd/link/internal/ld/target.go | 5 +++++
+ 4 files changed, 10 insertions(+), 5 deletions(-)

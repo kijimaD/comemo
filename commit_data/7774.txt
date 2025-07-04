@@ -1,18 +1,16 @@
-commit d7106f280d349c4a34ac5cc4d9de627f23d4ae9c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 15 22:33:57 2011 -0400
+commit bcd6c733b2f0f83d72b938150ea67bde0af97e4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 15 17:45:16 2011 -0700
 
-    gofix: procattr
+    go/printer: output tuning for gofix
     
-    R=adg
+    If braces don't have position information for a composite
+    literal, don't assume alignment of key:value pairs under
+    the (wrong) assumption that there may be multiple lines.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4274059
+    https://golang.org/cl/4297043
 
- src/cmd/gofix/Makefile           |  1 +
- src/cmd/gofix/fix.go             |  5 +++
- src/cmd/gofix/httpserver_test.go |  4 +++
- src/cmd/gofix/main.go            |  2 +-
- src/cmd/gofix/main_test.go       | 49 ++++++++++++++++++++++++++
- src/cmd/gofix/procattr.go        | 61 ++++++++++++++++++++++++++++++++
- src/cmd/gofix/procattr_test.go   | 75 ++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 196 insertions(+), 1 deletion(-)
+ src/pkg/go/printer/nodes.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

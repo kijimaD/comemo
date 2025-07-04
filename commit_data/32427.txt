@@ -1,20 +1,15 @@
-commit 645ecf5d4806bfef470da2ac1fad8df40c73beb8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 18 17:43:33 2017 -0700
+commit cf3a28124b199d15b7e968327ba07d45f2f24a88
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 4 17:09:17 2017 +1000
 
-    cmd/dist: rearrange a couple of tests
+    archive/tar: extend TestFileInfoHeaderSymlink
     
-    Run "cmd/go terminal test" after standard library tests.
-    Run "testing race detector" before cgo tests, not in the middle of them.
+    For #17541.
     
-    Fixes #21524
-    
-    Change-Id: I32964ec6377dd070242138ec452bd8ab1821dcc5
-    Reviewed-on: https://go-review.googlesource.com/57230
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Change-Id: I524ab194f32b8b061ce1c9c3e0cd34cc5539358e
+    Reviewed-on: https://go-review.googlesource.com/39410
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 58 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 29 insertions(+), 29 deletions(-)
+ src/archive/tar/tar_test.go | 43 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

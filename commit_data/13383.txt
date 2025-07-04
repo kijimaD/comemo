@@ -1,17 +1,18 @@
-commit 3a50bc1a246418f5983c13fe76799e918d03779d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jun 25 23:01:34 2012 +1000
+commit bca01cd0bfdb9bfda3f076697bda4fae27d4e768
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 24 19:47:50 2012 -0400
 
-    runtime: remove memset/memclr shim
+    runtime: detect hash map collision problems
     
-    This CL resolves https://golang.org/cl/6300043/#msg3
-    by renaming memset_arm.s to memclr_arm.s and merging the function
-    of the same name from asm_arm.s.
+    This can only happen if the hash function we're using is getting
+    far more than it's fair share of collisions, but that has happened
+    to us repeatedly as we've expanded the allowed use cases for
+    hash tables (issue 1544, issue 2609, issue 2630, issue 2883, issue 3695).
+    Maybe this will help the next time we try something new.
     
-    R=minux.ma, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6336054
+    https://golang.org/cl/6306083
 
- src/pkg/runtime/asm_arm.s                      | 7 -------
- src/pkg/runtime/{memset_arm.s => memclr_arm.s} | 8 ++++----
- 2 files changed, 4 insertions(+), 11 deletions(-)
+ src/pkg/runtime/hashmap.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

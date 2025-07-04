@@ -1,14 +1,19 @@
-commit a2edc469a0d4f744c26d3245a6600a02b4ebf426
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 13 11:39:04 2014 -0500
+commit f40dd8f1d9a1c2ed2e7160702b7466df5d9ccb5b
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 13 11:25:48 2014 +1100
 
-    runtime: remove redundant 0x prefix in error print
+    syscall: include mmap constants in openbsd zerror* files
     
-    %x already adds the prefix unconditionally
+    Include the <sys/mman.h> header for OpenBSD mkerrors.sh. This brings
+    in constants used with madvise(2), mmap(2), msync(2) and mlockall(2).
     
-    R=golang-codereviews, bradfitz
+    Fixes #4929
+    
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/51550043
+    https://golang.org/cl/50930043
 
- src/pkg/runtime/symtab.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/mkerrors.sh              |  1 +
+ src/pkg/syscall/zerrors_openbsd_386.go   | 33 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_openbsd_amd64.go | 33 ++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)

@@ -1,22 +1,22 @@
-commit 4b3726e99bec62e4a8b8e9cecc478b51ce0d4636
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Jan 25 11:22:29 2023 +0800
+commit 1a2f72619510f944289587d41fcb86cad9026f7d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 10:41:54 2022 -0500
 
-    encoding/binary: add var NativeEndian
+    runtime/pprof: do not require a GOROOT/src prefix in tests
     
-    Updates #57237
+    When paths are trimmed, the reported file locations begin with the
+    package import path (not GOROOT/src).
     
-    Change-Id: I149c8b7eeac91b87b5810250f96d48ca87135807
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463218
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Updates #51461
+    
+    Change-Id: Idbd408a02e8d03329d10e30b0b08263e69e66285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391812
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/57237.txt                          |  1 +
- src/encoding/binary/binary_test.go          | 10 ++++++++++
- src/encoding/binary/native_endian_big.go    | 14 ++++++++++++++
- src/encoding/binary/native_endian_little.go | 14 ++++++++++++++
- 4 files changed, 39 insertions(+)
+ src/runtime/pprof/mprof_test.go | 18 +++++++++---------
+ src/runtime/pprof/pprof_test.go | 42 ++++++++++++++++++++---------------------
+ 2 files changed, 30 insertions(+), 30 deletions(-)

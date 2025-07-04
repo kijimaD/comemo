@@ -1,0 +1,16 @@
+commit 3bf1eecbd30f48851c35f608aa265c978b2cf301
+Author: cuishuang <imcusg@gmail.com>
+Date:   Sat Jun 14 19:37:47 2025 +0800
+
+    runtime: fix struct comment
+    
+    Change-Id: I0c33830b13c8a187ac82504c7653abb8f8cf7530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681655
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+
+ src/runtime/mheap.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

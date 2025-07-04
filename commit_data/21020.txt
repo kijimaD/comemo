@@ -1,12 +1,16 @@
-commit 62eb6fef6ed28d1a967ec7b3f28aa42ecc9770b7
+commit e156f0e9971ca77ed6f9cb34e36ed73145bfa177
 Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 18 17:34:19 2014 -0500
+Date:   Thu Nov 6 15:35:53 2014 -0500
 
-    cmd/ld: add fallthrough comment
+    [dev.power64] 5g: fix etype and width of itable Addrs
     
-    Change-Id: Ia6739c164575751a63cc0d4d41d1f6887fbbaee3
-    Reviewed-on: https://go-review.googlesource.com/1803
-    Reviewed-by: Minux Ma <minux@golang.org>
+    For OITAB nodes, 5g's naddr was setting the wrong etype and
+    failing to set the width of the resulting Addr.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/171220043
 
- src/cmd/ld/elf.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5g/gsubr.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

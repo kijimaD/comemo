@@ -1,15 +1,16 @@
-commit 916eea04f8109a9ef8383341d00b884a9d687399
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jan 29 12:46:26 2012 -0500
+commit ba31d662fe52921b8035f4c5d7895d780d66a481
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 29 12:33:13 2012 -0500
 
-    5l, 6l, 8l, ld: remove memory leaks
+    codereview: die if initialized twice
     
-    R=golang-dev, rsc
+    If this happens, something is misconfigured.
+    If we don't test for this explicitly, MatchAt ends
+    up calling itself recursively forever.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5569085
+    https://golang.org/cl/5576066
 
- src/cmd/5l/asm.c | 1 +
- src/cmd/6l/asm.c | 1 +
- src/cmd/8l/asm.c | 1 +
- src/cmd/ld/go.c  | 1 +
- 4 files changed, 4 insertions(+)
+ lib/codereview/codereview.py | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

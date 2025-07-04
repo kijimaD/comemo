@@ -1,16 +1,15 @@
-commit 9d51cd0fee3cf8bf779ba23a34b7fb2ec311cfe1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 15 17:51:12 2014 +0200
+commit bc89e8c575be08ef261a4d76db14f7f65a6da923
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 16:44:52 2014 -0700
 
-    net/http: don't reuse a server connection after any Write errors
+    time: A Timer must be properly created before use (documentation).
     
-    Fixes #8534
+    Fixes #8776.
     
-    LGTM=adg
-    R=adg
+    LGTM=bradfitz
+    R=rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/149340044
+    https://golang.org/cl/145710043
 
- src/net/http/serve_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 32 +++++++++++++--
- 2 files changed, 126 insertions(+), 3 deletions(-)
+ src/time/sleep.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,17 +1,24 @@
-commit 7e71c9c3edbf5b7a8608d6f739c20420a618e0ab
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sun Nov 3 23:40:44 2019 -0500
+commit 003dbc4cda6a1418fc419461799320521d64f4e5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 4 21:21:33 2019 +0000
 
-    cmd/go/internal/modget: synchronize writes to modOnly map in runGet
+    net/http: roll back "clean the path of the stripped URL by StripPrefix"
     
-    Fixes #35317
+    Roll back CL 161738. That fix changed StripPrefix behavior in the
+    general case, not just in the situation where where stripping the
+    prefix from path resulted in the empty string, causing issue #31622.
     
-    Change-Id: Id858a25dc16a1bbff1802d25bcd4aca31c1133bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205067
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    That kind of change to StripPrefix behavior is not backwards compatible,
+    and there can be a smaller, more targeted fix for the original issue.
+    
+    Fixes #31622
+    Updates #30165
+    
+    Change-Id: Ie2fcfe6787a32e44f71d564d8f9c9d580fc6f704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180498
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modget/get.go             | 3 +++
- src/cmd/go/testdata/script/mod_issue35317.txt | 8 ++++++++
- 2 files changed, 11 insertions(+)
+ src/net/http/serve_test.go | 9 ---------
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 1 insertion(+), 10 deletions(-)

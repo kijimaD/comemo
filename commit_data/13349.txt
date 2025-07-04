@@ -1,50 +1,17 @@
-commit 8f84328fdc6f625359c8fc8498cfc48689673ea3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jun 14 10:43:20 2012 +1000
+commit 45969825b5e502a99615fc296bc1acca1881170a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 13 14:53:05 2012 -0700
 
-    cmd/gc: inline convT2E when T is uintptr-shaped.
+    net/http: use index.html modtime (not directory) for If-Modified-Since
     
-    GOARCH=amd64 benchmarks
+    Thanks to Håvid Falch for finding the problem.
     
-    src/pkg/runtime
-    benchmark                  old ns/op    new ns/op    delta
-    BenchmarkConvT2ESmall             10           10   +1.00%
-    BenchmarkConvT2EUintptr            9            0  -92.07%
-    BenchmarkConvT2EBig               74           74   -0.27%
-    BenchmarkConvT2I                  27           26   -3.62%
-    BenchmarkConvI2E                   4            4   -7.05%
-    BenchmarkConvI2I                  20           19   -2.99%
+    Fixes #3414
     
-    test/bench/go1
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    5930908000   5937260000   +0.11%
-    BenchmarkFannkuch11      3927057000   3933556000   +0.17%
-    BenchmarkGobDecode         21998090     21870620   -0.58%
-    BenchmarkGobEncode         12725310     12734480   +0.07%
-    BenchmarkGzip             567617600    567892800   +0.05%
-    BenchmarkGunzip           178284100    178706900   +0.24%
-    BenchmarkJSONEncode        87693550     86794300   -1.03%
-    BenchmarkJSONDecode       314212600    324115000   +3.15%
-    BenchmarkMandelbrot200      7016640      7073766   +0.81%
-    BenchmarkParse              7852100      7892085   +0.51%
-    BenchmarkRevcomp         1285663000   1286147000   +0.04%
-    BenchmarkTemplate         566823800    567606200   +0.14%
-    
-    I'm not entirely sure why the JSON* numbers have changed, but
-    eyeballing the profile suggests that it could be spending less
-    and more time in runtime.{new,old}stack, so it could simply be
-    stack-split boundary noise.
-    
-    R=rsc, dave, bsiegert, dsymonds
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/6280049
+    https://golang.org/cl/6300081
 
- src/cmd/5g/cgen.c             |  14 ++++++
- src/cmd/6g/cgen.c             |  14 ++++++
- src/cmd/8g/cgen.c             |  14 ++++++
- src/cmd/gc/gen.c              |  19 +++++--
- src/cmd/gc/go.h               |   2 +
- src/cmd/gc/walk.c             |  19 ++++++-
- src/pkg/runtime/iface_test.go |  12 +++--
- test/convT2E.go               | 114 ++++++++++++++++++++++++++++++++++++++++++
- 8 files changed, 201 insertions(+), 7 deletions(-)
+ src/pkg/net/http/fs.go      |   8 +--
+ src/pkg/net/http/fs_test.go | 117 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 122 insertions(+), 3 deletions(-)

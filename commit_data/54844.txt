@@ -1,52 +1,26 @@
-commit 23711f8ef73b4dabd76b5339addaac2e176e63fb
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Nov 1 11:36:55 2023 +0000
+commit b7662047aedc5f2c512911eb59d514ce75b16e18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 16 14:19:47 2022 -0800
 
-    internal/bytealg: optimize indexbyte in amd64
+    net: change resolverConfig.dnsConfig to an atomic.Pointer
     
-    goos: windows
-    goarch: amd64
-    pkg: bytes
-    cpu: AMD Ryzen 7 7840HS w/ Radeon 780M Graphics
-                             │   old.txt   │               new.txt               │
-                             │   sec/op    │   sec/op     vs base                │
-    IndexByte/10-16            2.613n ± 1%   2.558n ± 1%   -2.09% (p=0.014 n=10)
-    IndexByte/32-16            3.034n ± 1%   3.010n ± 2%        ~ (p=0.305 n=10)
-    IndexByte/4K-16            57.20n ± 2%   39.58n ± 2%  -30.81% (p=0.000 n=10)
-    IndexByte/4M-16            34.48µ ± 1%   33.83µ ± 2%   -1.87% (p=0.023 n=10)
-    IndexByte/64M-16           1.493m ± 2%   1.450m ± 2%   -2.89% (p=0.000 n=10)
-    IndexBytePortable/10-16    3.172n ± 4%   3.163n ± 2%        ~ (p=0.684 n=10)
-    IndexBytePortable/32-16    8.465n ± 2%   8.375n ± 3%        ~ (p=0.631 n=10)
-    IndexBytePortable/4K-16    852.0n ± 1%   846.6n ± 3%        ~ (p=0.971 n=10)
-    IndexBytePortable/4M-16    868.2µ ± 2%   856.6µ ± 2%        ~ (p=0.393 n=10)
-    IndexBytePortable/64M-16   13.81m ± 2%   13.88m ± 3%        ~ (p=0.684 n=10)
-    geomean                    1.204µ        1.148µ        -4.63%
+    We were using a RWMutex RLock around a single memory load,
+    which is not a good use of a RWMutex--it introduces extra work
+    for the RLock but contention around a single memory load is unlikely.
+    And, the tryUpdate method was not acquiring the mutex anyhow.
     
-                             │   old.txt    │               new.txt                │
-                             │     B/s      │     B/s       vs base                │
-    IndexByte/10-16            3.565Gi ± 1%   3.641Gi ± 1%   +2.15% (p=0.015 n=10)
-    IndexByte/32-16            9.821Gi ± 1%   9.899Gi ± 2%        ~ (p=0.315 n=10)
-    IndexByte/4K-16            66.70Gi ± 2%   96.39Gi ± 2%  +44.52% (p=0.000 n=10)
-    IndexByte/4M-16            113.3Gi ± 1%   115.5Gi ± 2%   +1.91% (p=0.023 n=10)
-    IndexByte/64M-16           41.85Gi ± 2%   43.10Gi ± 2%   +2.98% (p=0.000 n=10)
-    IndexBytePortable/10-16    2.936Gi ± 4%   2.945Gi ± 2%        ~ (p=0.684 n=10)
-    IndexBytePortable/32-16    3.521Gi ± 2%   3.559Gi ± 3%        ~ (p=0.631 n=10)
-    IndexBytePortable/4K-16    4.477Gi ± 1%   4.506Gi ± 3%        ~ (p=0.971 n=10)
-    IndexBytePortable/4M-16    4.499Gi ± 2%   4.560Gi ± 2%        ~ (p=0.393 n=10)
-    IndexBytePortable/64M-16   4.525Gi ± 2%   4.504Gi ± 3%        ~ (p=0.684 n=10)
-    geomean                    10.04Gi        10.53Gi        +4.86%
+    The new atomic.Pointer type is type-safe and easy to use correctly
+    for a simple use-case like this.
     
-    For #63678
-    
-    Change-Id: I0571c2b540a816d57bd6ed8bb1df4191c7992d92
-    GitHub-Last-Rev: 7e95b8bfb035b53175f5a1b7d8750113933a7e17
-    GitHub-Pull-Request: golang/go#63847
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538715
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: Ib3859c03414c44d2e897f6d15c92c8e4b5c81a11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451416
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/internal/bytealg/indexbyte_amd64.s | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/dnsclient_unix.go      | 19 +++++++------------
+ src/net/dnsclient_unix_test.go | 13 +++----------
+ 2 files changed, 10 insertions(+), 22 deletions(-)

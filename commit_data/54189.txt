@@ -1,42 +1,23 @@
-commit d5c5808534f0ad97333b1fd5fff81998f44986fe
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 23 13:52:25 2023 -0700
+commit 8c29881dd189bac1a3f34750c1c3fc071626b660
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 14:42:16 2022 -0700
 
-    cmd/compile/internal/syntax: add Unparen and UnpackListExpr helpers
+    cmd/compile: use "shifted operand %s (type %s) must be integer" for some shift errors
     
-    We've added Unparen to go/ast, so add syntax.Unparen to be
-    consistent (and because it's similarly useful).
+    This matches what go/types and types2 report and it also matches
+    the compiler errors reported for some related shift problems.
     
-    Also, types2 and noder both have similar functions for unpacking
-    ListExprs, so might as well add a common implementation in package
-    syntax too.
+    For #55326.
     
-    Finally, addressing the TODO: UnpackListExpr is small enough to be
-    inlined (when default optimizations are enabled), and for typical uses
-    of UnpackListExpr (e.g., "range UnpackListExpr(x)") the single-element
-    slice result is stack allocated in the caller. This CL adds a test
-    using testing.AllocsPerRun to ensure this remains so in the future.
-    
-    Change-Id: I96a5591d202193ed5bf1ce6f290919107e3dc01b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522336
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iee40e8d988d5a7f9ff2c49f019884d02485c9fdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436177
+    Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/expr.go         | 21 ---------------
- src/cmd/compile/internal/noder/quirks.go       |  2 +-
- src/cmd/compile/internal/noder/writer.go       | 36 +++++++++++++-------------
- src/cmd/compile/internal/syntax/parser.go      | 22 ++++++++++++----
- src/cmd/compile/internal/syntax/parser_test.go | 19 ++++++++++++++
- src/cmd/compile/internal/syntax/printer.go     |  2 +-
- src/cmd/compile/internal/types2/assignments.go | 23 +++-------------
- src/cmd/compile/internal/types2/builtins.go    |  2 +-
- src/cmd/compile/internal/types2/call.go        |  6 ++---
- src/cmd/compile/internal/types2/decl.go        |  4 +--
- src/cmd/compile/internal/types2/expr.go        |  2 +-
- src/cmd/compile/internal/types2/resolver.go    |  8 +++---
- src/cmd/compile/internal/types2/return.go      |  2 +-
- src/cmd/compile/internal/types2/stmt.go        | 14 +++++-----
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- 15 files changed, 80 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/types2/expr.go | 6 +-----
+ src/go/types/expr.go                    | 6 +-----
+ test/fixedbugs/issue28079c.go           | 2 +-
+ 3 files changed, 3 insertions(+), 11 deletions(-)

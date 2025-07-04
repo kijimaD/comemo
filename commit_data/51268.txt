@@ -1,21 +1,20 @@
-commit 80d487111ba8fe1d0ddcd04972046070e2e4bbe9
-Author: Changkun Ou <hi@changkun.de>
-Date:   Mon Jul 26 14:23:26 2021 +0200
+commit a893d0f464e15f72d5f01937bed5011098adbb7b
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Dec 17 10:30:51 2021 -0500
 
-    runtime: clarify finalizer semantics for tiny objects
+    go/doc: use subtests
     
-    This change clarifies that a finalizer is not guaranteed to run,
-    not only for zero bytes objects but also tiny objects (< 16bytes).
+    Change the Test function to use sub-tests for each doc mode and
+    package.
     
-    Fixes #46827
+    This will allow more fine-grained test execution.
     
-    Change-Id: I193e77f6f024c79110604f86bcb1a28b16cf98ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337391
-    Run-TryBot: Changkun Ou <mail@changkun.de>
+    Change-Id: Ie3dda5791bda2781a60776886dd39fd18e670e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375094
+    Trust: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/mfinal.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/go/doc/doc_test.go | 82 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 40 insertions(+), 42 deletions(-)

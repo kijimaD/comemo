@@ -1,20 +1,15 @@
-commit 1de332996c25bf99bb31c82393dc018e6cec18ae
-Author: Rob Findley <rfindley@google.com>
-Date:   Thu Jun 17 12:28:53 2021 -0400
+commit 5fd949e4bd18ec2068e614c17be0a74969dc13b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 17:16:50 2020 -0500
 
-    doc/go1.17: document go/parser.SkipObjectResolution
+    [dev.regabi] cmd/compile: initialize importMap lazily
     
-    Documents the mode added in CL 306149 to skip object resolution.
+    This sets up the next CL, moving importMap to a global zeroed struct.
     
-    Fixes #46298
-    
-    Change-Id: I6a14aaa00790f9f7e4e4ba17033355f5e878d74b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329009
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1acc91b440d3da6e28fb32bd275fb3cd36db4e97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272046
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/main.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

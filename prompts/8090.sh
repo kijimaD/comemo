@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8090: bd77eedacf67a220dc69afa42ba9abab29aec362
+# Index 8090: dd93df35b95c8db2227d2f27a6abfb2fe81d1958
 
 echo "🚀 Generating explanation for commit 8090..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8090
-- **コミットハッシュ**: bd77eedacf67a220dc69afa42ba9abab29aec362
-- **GitHub URL**: https://github.com/golang/go/commit/bd77eedacf67a220dc69afa42ba9abab29aec362
+- **コミットハッシュ**: dd93df35b95c8db2227d2f27a6abfb2fe81d1958
+- **GitHub URL**: https://github.com/golang/go/commit/dd93df35b95c8db2227d2f27a6abfb2fe81d1958
 
 ### 章構成
 

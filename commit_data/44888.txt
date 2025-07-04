@@ -1,19 +1,23 @@
-commit cb42e3e979830ccaac72d02512f522a820c6a5e7
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 31 10:27:06 2021 -0400
+commit b3ef90ec7304a28b89f616ced20b09f56be30cc4
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Fri Sep 11 22:16:47 2020 +0000
 
-    cmd/compile: schedule in-register OpArg first
+    encoding/json: implement Is on SyntaxError
     
-    OpArgXXXReg values must be scheduled at the very top, as their
-    registers need to be live at the beginning before any other use
-    of the register.
+    Allows users to check:
     
-    Change-Id: Ic76768bb74da402adbe61db3b2d174ecd3f9fffc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306329
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+          errors.Is(err, &json.SyntaxError{})
+    
+    which is the recommended way of checking for kinds of errors.
+    
+    Change-Id: I20dc805f20212765e9936a82d9cb7822e73ec4ef
+    GitHub-Last-Rev: e2627ccf8e2a00cc3459bb9fee86c3c8675a33af
+    GitHub-Pull-Request: golang/go#41210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253037
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/encoding/json/scanner.go      | 6 ++++++
+ src/encoding/json/scanner_test.go | 9 +++++++++
+ 2 files changed, 15 insertions(+)

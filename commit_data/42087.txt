@@ -1,16 +1,24 @@
-commit d9d88dd27f31936e11dfa621937f09db9a23af36
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 00:30:14 2020 -0700
+commit 7f574e476ac4a6e8c2719b9674ee7b3786bb8401
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 15:15:59 2019 +0000
 
-    cmd/compile: allow named values on RHS of rewrite rules
+    runtime: remove unnecessary large parameter to mheap_.alloc
     
-    Fixes #38621
+    mheap_.alloc currently accepts both a spanClass and a "large" parameter
+    indicating whether the allocation is large. These are redundant, since
+    spanClass.sizeclass() == 0 is an equivalent way to determine this and is
+    already used in mheap_.alloc. There are no places in the runtime where
+    the size class could be non-zero and large == true.
     
-    Change-Id: Idbffdcc70903290dc58e5abb4867718bd5449fe1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229701
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #35112.
+    
+    Change-Id: Ie66facf8f0faca6f4cd3d20a8ac4bc259e11823d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196639
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go   |  2 +-
+ src/runtime/mcentral.go |  2 +-
+ src/runtime/mheap.go    | 21 ++++++++++-----------
+ 3 files changed, 12 insertions(+), 13 deletions(-)

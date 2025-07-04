@@ -1,14 +1,12 @@
-commit 66410bac3d01253af9e1e1cbec65f7a90b2007ec
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 6 08:40:16 2011 -0800
+commit 972b98c135e271065b5938464d3b1bfe216d1c84
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Dec 6 08:16:39 2011 -0800
 
-    fmt: benchmark floating point.
-    mallocs per Sprintf("%x"): 1
-    mallocs per Sprintf("%g"): 4
+    cgo: fix typo in the documentation
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5449106
+    https://golang.org/cl/5448115
 
- src/pkg/fmt/fmt_test.go | 43 +++++++++++++++++++++++++++++--------------
- 1 file changed, 29 insertions(+), 14 deletions(-)
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

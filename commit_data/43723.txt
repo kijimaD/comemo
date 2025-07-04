@@ -1,48 +1,21 @@
-commit 2822bae168fa5d7b14c87d2b2ee22cb85fc90cce
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Oct 26 22:44:54 2020 -0400
+commit a45ea55da732198dca2457ecb7cabe4ab4a7a162
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Apr 21 16:56:22 2020 -0400
 
-    go/types: add unexported start and end positions to type checker errors
+    cmd/internal: allow ADDE to work with memory location on s390x
     
-    Tools often need to associate errors not with a single position, but
-    with a span of source code. For example, gopls currently estimates
-    diagnostic spans using heuristics to expand the positions reported by
-    the type checker to surrounding source code. Unfortunately this is often
-    inaccurate.
+    Originally on s390x, ADDE does not work when adding numbers from a memory location.
+    For example: ADDE (R3), R4 will result in a failure.
     
-    This CL lays the groundwork to solve this within go/types by adding a
-    start and end position to type checker errors. This is an experimental
-    API, both because we are uncertain of the ideal representation for these
-    spans and because their initial positioning is naive. In most cases this
-    CL simply expands errors to the surrounding ast.Node being typechecked,
-    if available. This might not be the best error span to present to the
-    user. For these reasons the API is unexported -- gopls can read these
-    positions using reflection, allowing us to gain experience and improve
-    them during the next development cycle.
+    Since ADDC, ADD and ADDW already supports adding from memory location,
+    let's support that for ADDE as well.
     
-    For golang/go#42290
-    
-    Change-Id: I39a04d70ea2bb2134b4d4c937f32b2ddb4456430
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265250
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I7cbe112ea154733a621b948c6a21bbee63fb0c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229304
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/api.go         |   4 +-
- src/go/types/assignments.go |  28 +++++-----
- src/go/types/builtins.go    |  50 +++++++++---------
- src/go/types/call.go        |  34 ++++++------
- src/go/types/check.go       |  16 +++---
- src/go/types/conversions.go |   2 +-
- src/go/types/decl.go        |  26 ++++-----
- src/go/types/errors.go      | 115 +++++++++++++++++++++++++++++++---------
- src/go/types/expr.go        | 126 +++++++++++++++++++++++---------------------
- src/go/types/initorder.go   |   6 +--
- src/go/types/labels.go      |  14 ++---
- src/go/types/operand.go     |   4 +-
- src/go/types/resolver.go    |  34 ++++++------
- src/go/types/stmt.go        | 104 ++++++++++++++++++------------------
- src/go/types/typexpr.go     |  70 ++++++++++++------------
- 15 files changed, 353 insertions(+), 280 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 4 ++++
+ src/cmd/internal/obj/s390x/asmz.go        | 4 +++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

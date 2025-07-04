@@ -1,16 +1,22 @@
-commit 0e60019a42b6c5c98ddb6b6418481133e3c42854
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 18 15:02:08 2012 -0400
+commit 8c058b32d1838e67d67277564b6cb9b0bccd1e75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 18 11:25:53 2012 -0700
 
-    bytes, strings: add Fields benchmarks
+    spec: clarify expression statements
     
-    The performance changes will be a few different CLs.
-    Start with benchmarks as a baseline.
+    Function and method calls are valid expression statements,
+    but calling certain built-in functions is not permitted.
+    Enumerate the built-ins.
     
-    R=golang-dev, r
+    Also: unsafe.Offsetof permits parenthesized selectors as
+    arguments.
+    
+    This is simply documenting existing compiler behavior
+    (both gc and gccgo agree).
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6537043
+    https://golang.org/cl/6498138
 
- src/pkg/bytes/bytes_test.go     | 45 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/strings/strings_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 89 insertions(+)
+ doc/go_spec.html | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

@@ -1,19 +1,23 @@
-commit 565f457e81a97f80412c9979fc3510c17849381e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 4 16:22:49 2021 -0700
+commit bbf79793bdeda04d520377406024d7bb66aa62dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 09:32:38 2021 -0800
 
-    cmd/compile/internal/types2: always parse tests assuming generic code
+    io/fs: clarify additional File interface docs
     
-    We don't need to distinguish anymore as this is the new default.
-    This removes the need to prefix test package names with "generic_".
+    Emphasize ReadDirFile. It isn't really optional,
+    and all filesystems have at least one directory (".").
     
-    Change-Id: If9eaa0a5cffcd19deb529aca6798206f2d396ca1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361408
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    The remaining two additional interfaces are optimizations.
+    Call them that.
+    
+    Fully qualify package package io identifiers.
+    
+    Change-Id: Ibc425a5dfd27e08c2c10c353f780e4a6304cfd87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296390
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go        | 99 ++++++++++------------
- .../compile/internal/types2/instantiate_test.go    |  8 +-
- 2 files changed, 50 insertions(+), 57 deletions(-)
+ src/io/fs/fs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

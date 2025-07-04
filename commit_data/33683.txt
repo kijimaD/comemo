@@ -1,24 +1,19 @@
-commit be589f8d2b721aa86fd5e406733f61a5ed245d3a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Nov 24 10:12:44 2017 -0500
+commit 3124439b3a5903bdbf29c9d560493d2f1bcc9f11
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 28 13:02:58 2017 -0700
 
-    runtime: fix final stack split in exitsyscall
+    cmd/compile: make more use of exported position information
     
-    exitsyscall should be recursively nosplit, but we don't have a way to
-    annotate that right now (see #21314). There's exactly one remaining
-    place where this is violated right now: exitsyscall -> casgstatus ->
-    print. The other prints in casgstatus are wrapped in systemstack
-    calls. This fixes the remaining print.
+    Updates #19683.
     
-    Updates #21431 (in theory could fix it, but that would just indicate
-    that we have a different G status-related crash and we've *never* seen
-    that failure on the dashboard.)
-    
-    Change-Id: I9a5e8d942adce4a5c78cfc6b306ea5bda90dbd33
-    Reviewed-on: https://go-review.googlesource.com/79815
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I64b3b93a3ab14518a5376e1270bdd2a94bdd67ef
+    Reviewed-on: https://go-review.googlesource.com/59611
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 32 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dcl.go     | 14 ++++++++++++--
+ src/cmd/compile/internal/gc/export.go  | 13 +++++++------
+ src/cmd/compile/internal/gc/main.go    |  2 +-
+ 4 files changed, 36 insertions(+), 25 deletions(-)

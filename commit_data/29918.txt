@@ -1,21 +1,22 @@
-commit 116da1c64a2db0387f38f8d062378b62bf0f377e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jan 6 12:25:32 2017 -0800
+commit 984753b665875cd62f6144a42f6df58cb5f159a8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 10 12:18:00 2016 -0400
 
-    net: disable RFC 6724 Rule 9 for IPv4 addresses
+    runtime: fix GC assist retry path
     
-    Rule 9 arguably doesn't make sense for IPv4 addresses, and so far it
-    has only caused problems (#13283, #18518). Disable it until we hear
-    from users that actually want/need it.
+    GC assists retry if preempted or if they fail to park. However, on the
+    retry path they currently use stale statistics. In particular, the
+    retry can use "debtBytes", but debtBytes isn't updated when the debt
+    changes (since other than retries it is only used once). Also, though
+    less of a problem, the if the assist ratio has changed while the
+    assist was blocked, the retry will still use the old assist ratio.
     
-    Fixes #18518.
+    Fix all of this by simply making the retry jump back to where we
+    compute these statistics, rather than just after.
     
-    Change-Id: I7b0dd75d03819cab8e0cd4c29f0c1dc8d2e9c179
-    Reviewed-on: https://go-review.googlesource.com/34914
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2ed8b4f0fc9f008ff060aa926f4334b662ac7d3f
+    Reviewed-on: https://go-review.googlesource.com/30701
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/addrselect.go      | 51 +++-------------------------
- src/net/addrselect_test.go | 85 ----------------------------------------------
- 2 files changed, 5 insertions(+), 131 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

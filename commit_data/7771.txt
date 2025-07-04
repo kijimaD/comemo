@@ -1,15 +1,12 @@
-commit b04209ca97613174bf6e77e0f6d5401665c44167
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 15 19:39:50 2011 -0400
+commit bc34cda74225601b2f8c19c04d9668f83216960f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 15 14:20:30 2011 -0700
 
-    debug/proc: fix build
+    rpc: add the ability to write out a memory profile during testing.
     
-    R=r
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4273060
+    https://golang.org/cl/4290047
 
- src/pkg/debug/proc/proc_darwin.go  | 2 +-
- src/pkg/debug/proc/proc_freebsd.go | 2 +-
- src/pkg/debug/proc/proc_windows.go | 2 +-
- src/pkg/exp/ogle/cmd.go            | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/rpc/server_test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

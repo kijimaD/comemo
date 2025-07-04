@@ -1,23 +1,17 @@
-commit 0932dc21180642ce1ff095b9b3e68b06c6f440b3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Nov 13 21:08:26 2020 -0500
+commit 4799955004ccc99bd7d50ebfdc4e42d726ec32a9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:41:18 2020 -0700
 
-    runtime: declare arg size/map for race version of sync/atomic functions
+    cmd/compile: convert inlineable memmove rules to typed aux
     
-    The argument size and map are used in stack scanning if those
-    functions are deferred. Declare the right argument size and map
-    so they can be scanned correctly.
+    Passes toolstash-check.
     
-    Fixes #42599.
-    
-    Change-Id: I74f9409d574cf7c383f4d8f83e38521026b48861
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270079
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0190c5403040f930895a083181da2092a5c297e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229688
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/race/testdata/atomic_test.go | 24 ++++++++++
- src/runtime/race_amd64.s                 | 78 +++++++++++++++++++++-----------
- src/runtime/race_arm64.s                 | 52 ++++++++++-----------
- src/runtime/race_ppc64le.s               | 78 +++++++++++++++++++++-----------
- 4 files changed, 154 insertions(+), 78 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 16 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 64 +++++++++++++-------------
+ 2 files changed, 40 insertions(+), 40 deletions(-)

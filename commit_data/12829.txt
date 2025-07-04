@@ -1,16 +1,17 @@
-commit a8197456b1ac5802ff6c73e54e52aefd9e28a387
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 4 07:24:13 2012 -0700
+commit ac51c1384ab1a9a46247428d1d5d158d4cbc40b0
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Wed Apr 4 09:52:42 2012 -0400
 
-    cmd/go: in go get, don't try to perform discovery on non-hosts
+    encoding/ascii85: fix panic caused by special case
     
-    Before, "go get -v foo/bar" was assuming "foo" was a hostname
-    and trying to perform discovery on it. Now, require a dot in
-    the first path component (the hostname).
+    Special case for encoding 4 zeros as 'z' didn't
+    update source slice, causing 'index out of bounds'
+    panic in destination slice.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5981057
+    https://golang.org/cl/5970078
 
- src/cmd/go/vcs.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/encoding/ascii85/ascii85.go      | 1 +
+ src/pkg/encoding/ascii85/ascii85_test.go | 5 +++++
+ 2 files changed, 6 insertions(+)

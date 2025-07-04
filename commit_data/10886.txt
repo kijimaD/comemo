@@ -1,12 +1,14 @@
-commit b7e9d22528abec3529d2a28fd59beaae5e21023c
+commit 796a2c19ea0f8be23022b234667b06abbab20030
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 20 11:53:24 2011 +1100
+Date:   Tue Dec 20 11:52:20 2011 +1100
 
-    net/http: test should not leave tmp files behind on windows
+    os: make sure Remove returns correct error on windows
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bsiegert, rsc
     CC=golang-dev
-    https://golang.org/cl/5496067
+    https://golang.org/cl/5493078
 
- src/pkg/net/http/request_test.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/pkg/os/file_posix.go   | 33 ---------------------------------
+ src/pkg/os/file_unix.go    | 30 ++++++++++++++++++++++++++++++
+ src/pkg/os/file_windows.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 33 deletions(-)

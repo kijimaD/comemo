@@ -1,17 +1,15 @@
-commit 6a003d7589e9f820bd94140ca151d5bb6b8e1a41
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 22:41:00 2013 -0500
+commit bc9999337b0c54a8035c4f9e6ea13b1fe3f34706
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 4 13:05:20 2013 +1100
 
-    time: handle zone file with no transitions
+    net: prevent races during windows lookup calls
     
-    Code fix by Alex Bramley.
+    This only affects code (with exception of lookupProtocol)
+    that is only executed on older versions of Windows.
     
-    Fixes #4064.
-    
-    R=golang-dev, adg
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7289049
+    https://golang.org/cl/7293043
 
- src/pkg/time/time_test.go     | 16 ++++++++++++++++
- src/pkg/time/zoneinfo_read.go |  6 ++++++
- 2 files changed, 22 insertions(+)
+ src/pkg/net/lookup_windows.go | 76 +++++++++++++++++++++++++++++++++----------
+ 1 file changed, 59 insertions(+), 17 deletions(-)

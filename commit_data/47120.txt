@@ -1,19 +1,19 @@
-commit 459293388ceb74d9cf61c930f02325645cd0cb7d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 28 20:54:45 2021 -0400
+commit 666ad85df450e3a54a77954f97423980b6ac064f
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Thu Feb 25 03:03:45 2021 +0000
 
-    cmd/go: document that tests must not write to their source modules
+    cmd/compile: fix typo in rewrite_test.go
     
-    Fixes #28386
-    Updates #48495
+    insted -> instead
     
-    Change-Id: I76186077c7bbe3f8f608026ee1865de83fe169b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359574
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib8a0423cf99f615976f058468873fb576dd96db6
+    GitHub-Last-Rev: 8e1a1d08807a35c55d65a2e3f8bb28418a43b3a8
+    GitHub-Pull-Request: golang/go#44598
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296309
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/alldocs.go            | 6 +++++-
- src/cmd/go/internal/test/test.go | 6 +++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

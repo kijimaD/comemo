@@ -1,18 +1,19 @@
-commit d9712aa82af7192469d75802c6dc1734ea9858b2
+commit d7cdf66978935664d783ff02d06c6c0856ef4bec
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 13 11:31:24 2016 -0700
+Date:   Wed Mar 2 14:29:44 2016 -0800
 
-    runtime: merge the darwin os*.go files together
+    cmd/link: stop generating garbage in elfhash
     
-    Merge them together into os1_darwin.go. A future CL will rename it.
+    All callers already had strings. No need to generate byte slice copies
+    to work on bytes.
     
-    Change-Id: Ia4380d3296ebd5ce210908ce3582ff184566f692
-    Reviewed-on: https://go-review.googlesource.com/22004
+    Performance not measured, but probably helps at least a bit.
+    
+    Change-Id: Iec3230b69724fac68caae7aad46f2ce1504e82e5
+    Reviewed-on: https://go-review.googlesource.com/20136
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os1_darwin.go | 50 ++++++++++++++++++++++++++++++++++++++++++++---
- src/runtime/os2_darwin.go | 14 -------------
- src/runtime/os_darwin.go  | 42 ---------------------------------------
- 3 files changed, 47 insertions(+), 59 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

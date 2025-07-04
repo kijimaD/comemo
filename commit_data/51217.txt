@@ -1,35 +1,26 @@
-commit 14018c8becc385f79f62f9cdf24cab93fe3e0cdc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 1 16:04:50 2022 -0700
+commit d107aa2cd1fdc596b9275a127e6c35cc5f8d32bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 15 13:04:54 2021 -0800
 
-    runtime: retry thread creation on EAGAIN
+    cmd/compile: upgrade ssa to do (int or float) -> complex
     
-    This copies the logic we use in runtime/cgo, when calling pthread_create,
-    into runtime proper, when calling newosproc.
+    Generic instantiations can produce conversions from constant
+    literal ints or floats to complex values. We could constant literals
+    during instantiation, but it is just as easy to upgrade the code
+    generator to do the conversions.
     
-    We only do this in newosproc, not newosproc0, because in newosproc0 we
-    need a nosplit function literal, and we need to pass arguments to it through
-    newosproc, which is a pain. Also newosproc0 is only called at process
-    startup, when thread creation is less likely to fail anyhow.
+    Fixes #50193
     
-    Fixes #49438
-    
-    Change-Id: Ia26813952fdbae8aaad5904c9102269900a07ba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447175
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I24bdc09226c8e868f6282e0e4057ba6c3ad5c41a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372514
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/os3_solaris.go        |  6 ++++--
- src/runtime/os_aix.go             | 13 +++----------
- src/runtime/os_darwin.go          |  4 +++-
- src/runtime/os_dragonfly.go       |  5 ++++-
- src/runtime/os_freebsd.go         | 10 +++++++---
- src/runtime/os_linux.go           | 16 ++++++++++++----
- src/runtime/os_netbsd.go          | 12 ++++++++----
- src/runtime/os_openbsd_libc.go    |  4 +++-
- src/runtime/os_openbsd_syscall.go | 12 ++++++++----
- src/runtime/retry.go              | 23 +++++++++++++++++++++++
- 10 files changed, 75 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 57 +++++++++++++++++++---------------
+ test/typeparam/issue50193.go           | 32 +++++++++++++++++++
+ test/typeparam/issue50193.out          |  6 ++++
+ 3 files changed, 70 insertions(+), 25 deletions(-)

@@ -1,31 +1,28 @@
-commit 0e67ce3d28320e816dd8e7cf7d701c1804fb977e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 15 12:05:01 2021 -0400
+commit f7342596daa892400e91a407cac5843bc43dcdd0
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 13 15:48:05 2020 +0100
 
-    cmd/go: in lazy modules, add transitive imports for 'go get' arguments
+    syscall: add DLLError.Unwrap function
     
-    I needed to also update TestScript/mod_sumdb_golang.
-    It had been relying on 'go list -mod=mod' to add both the go.mod and
-    go.sum entries for the named package, but when 'go get' actually adds
-    all of the needed dependencies, lazy loading kicks in and 'go list'
-    doesn't end up needing the checksums for go.mod files.
-    We didn't detect the skew before because the 'go list' command was
-    (unexpectedly) also adding the missing dependencies, which triggered a
-    deep scan of the complete module graph.
+    Because we're expecting for future functions to be unavailable, we
+    should add an Unwrap() function to the DLLError struct, so that people
+    can test for this situation easily via:
     
-    For #45979
+        if errors.Is(err, syscall.ERROR_PROC_NOT_FOUND) { ... }
     
-    Change-Id: Ica917dee22c83ffa71c6ad0f2e189f911b73edf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328231
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    DLLError already was wrapping the underlying Errno error, but never got
+    the Go 1.13 helper method.
+    
+    Fixes golang/go#42584
+    
+    Change-Id: I0f32a5146946b1b37a30897ba825a56faefc792c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269761
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/go/internal/modget/get.go                  |  1 +
- src/cmd/go/internal/modload/buildlist.go           | 12 +++++---
- src/cmd/go/internal/modload/init.go                |  2 +-
- src/cmd/go/internal/modload/load.go                | 25 +++++++++++++--
- .../go/testdata/script/mod_get_lazy_indirect.txt   | 26 +++++++++-------
- src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 36 +++++++++++++++++++---
- 6 files changed, 79 insertions(+), 23 deletions(-)
+ doc/go1.16.html            | 4 ++++
+ src/syscall/dll_windows.go | 2 ++
+ 2 files changed, 6 insertions(+)

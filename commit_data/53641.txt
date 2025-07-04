@@ -1,24 +1,20 @@
-commit 2db31efdba131a411474608ebcf96cc964f8032b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 29 09:48:52 2023 -0700
+commit d7a3fa120db1f8ab9e02ea8fccd0cc8699bf9382
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Aug 25 14:41:23 2022 +0800
 
-    cmd/compile/internal/types2: make TestIssue43124 match the go/types version
+    reflect: FuncOf support more than 50 arguments
     
-    Replace the (flaky) types2.TestIssue43124 with the code of the
-    (stable) go/types version of this test.
+    Fixes #54669
     
-    While at it, replace a handful of syntax.Pos{} with the equivalent
-    nopos, to further reduce differences between the two versions of
-    the issues_test.go file.
-    
-    For #61064.
-    
-    Change-Id: I69f3e4627a48c9928e335d67736cb875ba3835fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507215
+    Change-Id: I34cbe729d187437ddeafbaa910af6ed001b2603f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425461
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/issues_test.go | 81 ++++++++++++++++++--------
- 1 file changed, 56 insertions(+), 25 deletions(-)
+ src/reflect/all_test.go | 7 +++++++
+ src/reflect/type.go     | 4 +---
+ 2 files changed, 8 insertions(+), 3 deletions(-)

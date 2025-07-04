@@ -1,0 +1,20 @@
+commit d682a9dfbe14d86c0d4c5b7841bfd2509cdd478f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Sep 14 10:09:58 2024 +0000
+
+    net/netip: use const for max address length
+    
+    Makes it consistent with other code in net/netip, also constants
+    are visible through LSP hover, which makes it easier to see the size.
+    
+    Change-Id: I3d02c860ac3c61cc037eaca5418297f78698c3f8
+    GitHub-Last-Rev: 785a8d58c372f5e1faa2e43dd1991d7040e36603
+    GitHub-Pull-Request: golang/go#69468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613356
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/netip.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

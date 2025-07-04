@@ -1,14 +1,16 @@
-commit 6cab8aa4e44c83be20a1b6cb1681a1bcbc43aa86
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Oct 9 19:54:14 2012 +0400
+commit e855fcc3073ccb4dc3fa7a3b7dc2b076e5bb54cf
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 9 11:56:38 2012 +1100
 
-    cmd/go: fix handling of build tags for standard commands
-    Otherwise if I add '+build !race' to e.g. src/cmd/fix/reflect_test.go,
-    it does not work.
+    encoding/gob: fix data race in Register
+    Fixes #4214.
     
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6642044
+    https://golang.org/cl/6637047
 
- src/cmd/go/pkg.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/encoding/gob/decode.go    | 2 ++
+ src/pkg/encoding/gob/encode.go    | 2 ++
+ src/pkg/encoding/gob/type.go      | 3 +++
+ src/pkg/encoding/gob/type_test.go | 5 ++++-
+ 4 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,20 +1,14 @@
-commit 688aa748579f07552a50d2534eccb16afda4174b
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Nov 22 14:31:13 2019 -0500
+commit 0ed86cda677f04a9ca01498dfa9722f234f984d2
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 5 17:57:29 2019 +0200
 
-    cmd/link: add new linker testpoint for "ld -r" host object
+    doc: mention Unicode update in release notes
     
-    This adds a new test that builds a small Go program with linked
-    against a *.syso file that is the result of an "ld -r" link. The
-    sysobj in question has multiple static symbols in the same section
-    with the same name, which triggered a bug in the loader in -newobj
-    mode.
+    Fixes #33472
     
-    Updates #35779.
-    
-    Change-Id: Ibe1a75662dc1d49c4347279e55646ee65a81508e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208478
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iab69e69589f2e017f4cf9770858884b1a570c89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188799
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/link/elf_test.go | 124 +++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 108 insertions(+), 16 deletions(-)
+ doc/go1.13.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

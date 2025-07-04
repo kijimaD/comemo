@@ -1,26 +1,21 @@
-commit 13075ed416bda45d5fcdf4722baec5c940a2ec0c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 5 04:23:37 2013 +0800
+commit 6dc3c9cfddc48a0668e99a641d877488b32aa1ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 4 11:23:17 2013 -0500
 
-    test/bench/go1: use raw string instead of string addition
-    to reduce compile time memory/stack usage.
-    Update #4970
-    $ go test -c ../test/bench/go1
-    before:
-    0.36user 0.07system 0:00.44elapsed 100%CPU
-    (0avgtext+0avgdata 540720maxresident)k
-    0inputs+19840outputs (0major+56451minor)pagefaults 0swaps
-    after:
-    0.33user 0.05system 0:00.39elapsed 100%CPU
-    (0avgtext+0avgdata 289936maxresident)k
-    0inputs+19864outputs (0major+29615minor)pagefaults 0swaps
+    cmd/cgo: use explicit flag to emit dynamic linker path
     
-    And stack usage is reduced to below 1MiB.
+    Using -import_runtime_cgo would have worked great except
+    that it doesn't get passed to the second invocation of cgo,
+    and that's the one that writes the relevant file.
     
-    R=golang-dev, r, dave
+    Fixes ARM build on systems with a different dynamic linker
+    than the one 5l assumes (like Gentoo).
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7436050
+    https://golang.org/cl/7432048
 
- test/bench/go1/json_test.go     |    4 +-
- test/bench/go1/jsondata_test.go | 3607 ++++++++++++++++++++-------------------
- 2 files changed, 1806 insertions(+), 1805 deletions(-)
+ src/cmd/cgo/main.go | 1 +
+ src/cmd/cgo/out.go  | 4 ++--
+ src/cmd/go/build.go | 6 +++++-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

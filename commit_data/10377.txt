@@ -1,14 +1,12 @@
-commit 6687e52ab16a5af31f4e861e4f43773a534e04d4
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Nov 14 07:52:36 2011 -0800
+commit 946647fb452dc32b08d9b028298ab5ad24f0ecfe
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Nov 14 20:54:47 2011 +1100
 
-    doc/install: add openbsd
+    runtime: fix syscall test to satisfy new error
     
-    Add openbsd to the $GOOS list.
-    
-    R=golang-dev, r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4964053
+    https://golang.org/cl/5369103
 
- doc/install.html | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/pkg/runtime/syscall_windows_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,29 +1,14 @@
-commit 9006d1f85f51c41f84be5ef11f5b36479778e4b4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 13 14:39:40 2017 -0500
+commit de25b12d9f1aeea5fda59d98fb1084aeda2967a1
+Author: Andrzej Żeżel <andrii.zhezhel@gmail.com>
+Date:   Sat Sep 16 16:58:10 2017 +0200
 
-    cmd/go: vet support for upcoming cmd/vet fixes
+    bytes: add example for Len function of Reader
     
-    Two minor changes to allow fixes in cmd/vet's printf checking.
-    
-    1. Pass package import path in vet config, so that vet knows
-    whether it is, for example, vetting "fmt".
-    
-    2. Add new, but undocumented and for now unsupported
-    flag -vettool to control which vet binary is invoked during go vet.
-    This lets the cmd/vet tests build and test a throwaway vet.exe
-    using cmd/go to ensure type checking information, all without
-    installing a potentially buggy cmd/vet.
-    
-    For #22936.
-    
-    Change-Id: I18df7c796ebc711361c847c63eb3ee17fb041ff7
-    Reviewed-on: https://go-review.googlesource.com/83837
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If7ecdc57f190f647bfc673bde8e66b4ef12aa906
+    Reviewed-on: https://go-review.googlesource.com/64190
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/vet/vet.go     |  8 ++++++++
- src/cmd/go/internal/vet/vetflag.go | 12 ++++++++++--
- src/cmd/go/internal/work/exec.go   | 12 +++++++++++-
- 3 files changed, 29 insertions(+), 3 deletions(-)
+ src/bytes/example_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

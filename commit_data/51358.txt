@@ -1,24 +1,23 @@
-commit a8f9d3f0afa793b5496a5881c74fcd218c130dbc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 17 14:25:50 2022 -0800
+commit d54f6630703900948d9757487a1bffd87b7d36e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 14 11:23:59 2022 -0500
 
-    go/types, types2: replace (internal) writePackage with packagePrefix
+    cmd/go: remove the -buildinfo flag
     
-    This makes it easier to use the package string prefix in some cases
-    (cleanup).
+    Fixes #50501
+    (in a sense, by removing a flag that looks like it should do something
+    it does not)
     
-    Change-Id: I0ae74bf8770999110e7d6e49eac4e42962e78596
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451795
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I69ae4862706a6283cda4016fd43b361bb21557f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378576
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/decl.go       |  6 +-----
- src/cmd/compile/internal/types2/object.go     | 12 ++++++------
- src/cmd/compile/internal/types2/typestring.go |  4 +---
- src/go/types/decl.go                          |  6 +-----
- src/go/types/object.go                        | 12 ++++++------
- src/go/types/typestring.go                    |  4 +---
- 6 files changed, 16 insertions(+), 28 deletions(-)
+ src/cmd/go/alldocs.go             | 7 +------
+ src/cmd/go/go_test.go             | 2 +-
+ src/cmd/go/internal/cfg/cfg.go    | 1 -
+ src/cmd/go/internal/load/pkg.go   | 2 +-
+ src/cmd/go/internal/work/build.go | 8 +-------
+ 5 files changed, 4 insertions(+), 16 deletions(-)

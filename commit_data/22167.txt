@@ -1,12 +1,16 @@
-commit 0e55f201d618b082b725c1792715d723b0783b5f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 24 13:16:03 2015 -0700
+commit 79c12958c7dab8903791476746687fa643976c67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 13:23:02 2015 -0800
 
-    cmd/dist: add test to usage message's list of commands
+    math/big: export Float.MinPrec
     
-    Change-Id: Id1edbed38c94e7c1c13a0200c44edf2b9ae5f087
-    Reviewed-on: https://go-review.googlesource.com/8040
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    MinPrec returns the minimum precision required to represent a Float
+    without loss of precision. Added test.
+    
+    Change-Id: I466c8e492dcdd59fae854fc4e71ef9b1add7d817
+    Reviewed-on: https://go-review.googlesource.com/6010
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/dist/build.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/big/float.go      | 24 ++++++++++++------------
+ src/math/big/float_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 12 deletions(-)

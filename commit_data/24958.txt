@@ -1,14 +1,31 @@
-commit 342f17eaf75210cf0992f1f2fc1cc15c2780d97c
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Nov 18 12:30:23 2015 +1300
+commit f5c53e0deb37b6f108e73bdb8b9a5955b2db5315
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 9 18:03:41 2015 -0700
 
-    cmd/internal/obj/x86, cmd/link: enable access to global data via GOT when -dynlink on 386
+    [dev.ssa] cmd/compile/internal/ssa: simplify how exit blocks are used
     
-    Change-Id: I97504a11291ee60e656efb7704e37387e864d74f
-    Reviewed-on: https://go-review.googlesource.com/16385
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Move to implicit (mostly) instead of explicit exit blocks.
+    RET and RETJMP have no outgoing edges - they implicitly exit.
+    CALL only has one outgoing edge, as its exception edge is
+    implicit as well.
+    Exit blocks are only used for unconditionally panicking code,
+    like the failed branches of nil and bounds checks.
+    
+    There may now be more than one exit block.  No merges happen
+    at exit blocks.
+    
+    The only downside is it is harder to find all the places code
+    can exit the method.  See the reverse dominator code for an
+    example.
+    
+    Change-Id: I42e2fd809a4bf81301ab993e29ad9f203ce48eb0
+    Reviewed-on: https://go-review.googlesource.com/14462
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/x86/asm6.go |   5 ++
- src/cmd/internal/obj/x86/obj6.go | 119 ++++++++++++++++++++++++++++++---------
- src/cmd/link/internal/x86/asm.go |  25 +++++++-
- 3 files changed, 120 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 44 +++--------------
+ src/cmd/compile/internal/ssa/check.go          | 18 +++----
+ src/cmd/compile/internal/ssa/critical.go       |  2 +-
+ src/cmd/compile/internal/ssa/dom.go            | 67 ++++++++++++++------------
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 25 +++++-----
+ src/cmd/compile/internal/ssa/opGen.go          | 12 ++---
+ 6 files changed, 71 insertions(+), 97 deletions(-)

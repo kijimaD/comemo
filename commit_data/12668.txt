@@ -1,12 +1,14 @@
-commit 4aaf03aa74fbecdf3558d232f49a438700eb0ff8
+commit 9b70c70ffb3f42d6f413bbff894621f8f1e4de05
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 17 00:32:48 2012 +0800
+Date:   Fri Mar 16 12:05:09 2012 -0400
 
-    make.bat: don't show error message if old generated files do not exist
+    cmd/go: add -fno-common by default on Darwin
+            Fixes part of issue 3253.
+            We still need to support scattered relocations though.
     
-    R=golang-dev, alex.brainman, mattn.jp
+    R=golang-dev, bsiegert, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5843045
+    https://golang.org/cl/5822050
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

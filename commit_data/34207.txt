@@ -1,14 +1,14 @@
-commit e057680542bd5a31a024ec1f321c439571086d42
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Feb 15 12:28:48 2018 -0500
+commit 39edffb6b1632e6d22d8e1b399e57cbba7456b9d
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 10 16:12:52 2017 -0700
 
-    cmd/compile: convert untyped bool for OIF and OFOR
+    cmd/compile/internal/syntax: factor out parsing of func bodies (cleanup)
     
-    Updates #23834.
-    
-    Change-Id: I92aca9108590a0c7de774f4fad7ded97105e3cb8
-    Reviewed-on: https://go-review.googlesource.com/94475
+    Change-Id: If6481a5401940a923fc9a104981dfb90eed0d1ac
+    Reviewed-on: https://go-review.googlesource.com/69750
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

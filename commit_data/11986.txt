@@ -1,14 +1,14 @@
-commit a15f59ef1da4c3ac23e46eef2fa679e0f41205bb
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 17 12:47:56 2012 +1100
+commit 91672686da0af0d2e21b022c36b9977a78ec490f
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Fri Feb 17 12:45:55 2012 +1100
 
-    debug/dwarf: address TODO in doc comment for New
+    doc: provide example filepath.Walk for go1
     
-    Fixes #2844.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5675072
+    https://golang.org/cl/5674067
 
- src/pkg/debug/dwarf/open.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.html     | 20 ++++++++++++++++----
+ doc/go1.tmpl     |  6 ++----
+ doc/progs/go1.go | 21 +++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 8 deletions(-)

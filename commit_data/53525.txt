@@ -1,20 +1,27 @@
-commit ee46f0b5084461978432aa20df003ac52500b0f0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jun 10 17:42:54 2023 -0700
+commit fe196a064e588d33922c1898bb3b688c5fbf3e2d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 10 11:37:22 2022 +0200
 
-    net/url: correct field name in Redacted doc comment
+    syscall: remove cloexecSocket fallback path
     
-    Fixes #60716
+    Support for Linux kernel versions requiring the fallback to CloseOnExec
+    was dropped from recent Go versions. The minimum Linux kernel version is
+    2.6.32 as of Go 1.18. The SOCK_CLOEXEC flag for the socket syscall is
+    supported since kernel version 2.6.27.
     
-    Change-Id: I86037784d6c12fd22bd03c3efabef379fa0646aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502355
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Follows a similar change for net.sysSocket in CL 403634.
+    
+    For #45964
+    
+    Change-Id: I8b6311f07c4ed7900a9af3ecb2e146c49db08665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422374
+    Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/url/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/lsf_linux.go          |  2 +-
+ src/syscall/netlink_linux.go      |  2 +-
+ src/syscall/sock_cloexec_linux.go | 29 -----------------------------
+ 3 files changed, 2 insertions(+), 31 deletions(-)

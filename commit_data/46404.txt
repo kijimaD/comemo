@@ -1,28 +1,22 @@
-commit 96ab854ab03f6a21c676c2a7aa9c4ad933892a42
-Author: Zheng Xu <zheng.xu@arm.com>
-Date:   Wed Sep 1 13:48:48 2021 +0800
+commit 5f3bd59a0d8a8d6feadc918078f153cc5d0447a8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 23:09:54 2020 -0800
 
-    cmd/compile/internal: better AST line highlight in ssa.html
+    [dev.regabi] cmd/compile: remove some unneeded code in package ir
     
-    We tend to set div class with the line number in HTML AST nodes. So that
-    the AST nodes can be highlighted with corresponding source and ssa ir.
+    The deepCopy functions haven't been needed since we switched to using
+    Edit everywhere, and AddStringExpr no longer has an Alloc field that
+    needs special casing.
     
-    The pure AST text dump is created first. And then it is parsed and
-    written to the HTML file.
+    Passes toolstash -cmp.
     
-    CL 275785 changed the format of the line information in AST node dump,
-    which makes the HTMLWriter fail to parse the line information.
-    
-    This CL updates the code in HTMLWriter to align with the format of AST
-    node dump.
-    
-    Fix #48133
-    
-    Change-Id: I2b56fc5e3e9771456d91f22caf23a427c235eb12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347269
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: I5bcc8c73d5cb784f7e57fb3162ae6e288e6c9392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280445
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/fmt.go   |  1 +
- src/cmd/compile/internal/ssa/html.go | 15 ++++++---------
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ir/mknode.go |  4 ----
+ src/cmd/compile/internal/ir/type.go   | 28 ----------------------------
+ 2 files changed, 32 deletions(-)

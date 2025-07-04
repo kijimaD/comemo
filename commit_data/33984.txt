@@ -1,39 +1,21 @@
-commit 5e1dcb7a04ba989483761fc4e14da8e75efa2847
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jan 9 21:20:10 2018 -0500
+commit 354fa9a84f7b88fe6b9ebf578e6671c2b511a402
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 12 14:24:16 2017 -0400
 
-    cmd/compile: workaround for inconsistent receiver param srcpos
+    runtime: simplify stack walk in panicwrap
     
-    Given an inlinable method M in package P:
+    panicwrap currently uses runtime.Callers and runtime.CallersFrames to
+    find the name of its caller. Simplify this by using getcallerpc.
     
-       func (r *MyStruct) M(...) {
+    This will be important for #16723, since to fix that we're going to
+    make CallersFrames skip the wrapper method, which is exactly what
+    panicwrap needs to see.
     
-    When M is compiled within its home package, the source position that
-    the compiler records for 'r' (receiver parameter variable) is
-    accurate, whereas if M is built as part of the compilation of some
-    other package (body read from export data), the declaration line
-    assigned to 'r' will be the line number of the 'import' directive, not
-    the source line from M's source file.
-    
-    This inconsistency can cause differences in the size of abstract
-    parameter DIEs (due to variable-length encoding), which can then in
-    turn result in bad abstract origin offsets, which in turn triggers
-    build failures on iOS (dsymutil crashes when it encounters an
-    incorrect abstract origin reference).
-    
-    Work around the problem by removing the "declaration line number"
-    attribute within the abstract parameter abbreviation table entry. The
-    decl line attribute doesn't contribute a whole lot to the debugging
-    experience, and it gets rid of the inconsistencies that trigger the
-    dsymutil crashes.
-    
-    Updates #23374.
-    
-    Change-Id: I0fdc8e19a48db0ccd938ceadf85103936f89ce9f
-    Reviewed-on: https://go-review.googlesource.com/87055
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Icb0776d399966e31595f3ee44f980290827e32a6
+    Reviewed-on: https://go-review.googlesource.com/45411
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/error.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

@@ -1,21 +1,26 @@
-commit 29fdbcfea37f3bf519f678b1426277b70406c029
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 27 10:46:12 2017 -0500
+commit f419b56354aee87c5173253e2d19cc51cc269f3c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Dec 22 18:31:17 2016 +0100
 
-    runtime: track forced GCs independent of gcMode
+    runtime: skip floating point hardware check on Android
     
-    Currently gcMode != gcBackgroundMode implies this was a user-forced GC
-    cycle. This is no longer going to be true when we make runtime.GC()
-    trigger a concurrent GC, so replace this with an explicit
-    work.userForced bit.
+    CL 33652 removed the fake auxv for Android, and replaced it with
+    a /proc/self/auxv fallback. When /proc/self/auxv is unreadable,
+    however, hardware capabilities detection won't work and the runtime
+    will mistakenly think that floating point hardware is unavailable.
     
-    For #18216.
+    Fix this by always assuming floating point hardware on Android.
     
-    Change-Id: If7d71bbca78b5f0b35641b070f9d457f5c9a52bd
-    Reviewed-on: https://go-review.googlesource.com/37519
-    Run-TryBot: Austin Clements <austin@google.com>
+    Manually tested on a Nexus 5 running Android 6.0.1. I suspect the
+    android/arm builder has a readable /proc/self/auxv and therefore
+    does not trigger the failure mode.
+    
+    Change-Id: I95c3873803f9e17333c6cb8b9ff2016723104085
+    Reviewed-on: https://go-review.googlesource.com/34641
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/runtime/os_linux_arm.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

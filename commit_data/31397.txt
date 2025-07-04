@@ -1,21 +1,71 @@
-commit 26e126d6e6a06a589fdcab2fecb4d555e38e4826
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 06:41:50 2017 -0700
+commit 990124da2a6ca5a54b38733b51018e2f8758cfae
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 13:19:02 2017 -0500
 
-    cmd/compile: move nodarg to walk.go
+    runtime: use balanced tree for addr lookup in semaphore implementation
     
-    Its sole use is in walk.go. 100% code movement.
+    CL 36792 fixed #17953, a linear scan caused by n goroutines piling into
+    two different locks that hashed to the same bucket in the semaphore table.
+    In that CL, n goroutines contending for 2 unfortunately chosen locks
+    went from O(n²) to O(n).
     
-    gsubr.go increasingly contains backend-y things.
-    With a few more relocations, it could probably be
-    fruitfully renamed progs.go.
+    This CL fixes a different linear scan, when n goroutines are contending for
+    n/2 different locks that all hash to the same bucket in the semaphore table.
+    In this CL, n goroutines contending for n/2 unfortunately chosen locks
+    goes from O(n²) to O(n log n). This case is much less likely, but any linear
+    scan eventually hurts, so we might as well fix it while the problem is fresh
+    in our minds.
     
-    Change-Id: I61ec5c2bc1f8cfdda64c6d6f580952c154ff60e0
-    Reviewed-on: https://go-review.googlesource.com/41972
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    The new test in this CL checks for both linear scans.
+    
+    The effect of this CL on the sync benchmarks is negligible
+    (but it fixes the new test).
+    
+    name                      old time/op    new time/op    delta
+    Cond1-48                     576ns ±10%     575ns ±13%     ~     (p=0.679 n=71+71)
+    Cond2-48                    1.59µs ± 8%    1.61µs ± 9%     ~     (p=0.107 n=73+69)
+    Cond4-48                    4.56µs ± 7%    4.55µs ± 7%     ~     (p=0.670 n=74+72)
+    Cond8-48                    9.87µs ± 9%    9.90µs ± 7%     ~     (p=0.507 n=69+73)
+    Cond16-48                   20.4µs ± 7%    20.4µs ±10%     ~     (p=0.588 n=69+71)
+    Cond32-48                   45.4µs ±10%    45.4µs ±14%     ~     (p=0.944 n=73+73)
+    UncontendedSemaphore-48     19.7ns ±12%    19.7ns ± 8%     ~     (p=0.589 n=65+63)
+    ContendedSemaphore-48       55.4ns ±26%    54.9ns ±32%     ~     (p=0.441 n=75+75)
+    MutexUncontended-48         0.63ns ± 0%    0.63ns ± 0%     ~     (all equal)
+    Mutex-48                     210ns ± 6%     213ns ±10%   +1.30%  (p=0.035 n=70+74)
+    MutexSlack-48                210ns ± 7%     211ns ± 9%     ~     (p=0.184 n=71+72)
+    MutexWork-48                 299ns ± 5%     300ns ± 5%     ~     (p=0.678 n=73+75)
+    MutexWorkSlack-48            302ns ± 6%     300ns ± 5%     ~     (p=0.149 n=74+72)
+    MutexNoSpin-48               135ns ± 6%     135ns ±10%     ~     (p=0.788 n=67+75)
+    MutexSpin-48                 693ns ± 5%     689ns ± 6%     ~     (p=0.092 n=65+74)
+    Once-48                     0.22ns ±25%    0.22ns ±24%     ~     (p=0.882 n=74+73)
+    Pool-48                     5.88ns ±36%    5.79ns ±24%     ~     (p=0.655 n=69+69)
+    PoolOverflow-48             4.79µs ±18%    4.87µs ±20%     ~     (p=0.233 n=75+75)
+    SemaUncontended-48          0.80ns ± 1%    0.82ns ± 8%   +2.46%  (p=0.000 n=60+74)
+    SemaSyntNonblock-48          103ns ± 4%     102ns ± 5%   -1.11%  (p=0.003 n=75+75)
+    SemaSyntBlock-48             104ns ± 4%     104ns ± 5%     ~     (p=0.231 n=71+75)
+    SemaWorkNonblock-48          128ns ± 4%     129ns ± 6%   +1.51%  (p=0.000 n=63+75)
+    SemaWorkBlock-48             129ns ± 8%     130ns ± 7%     ~     (p=0.072 n=75+74)
+    RWMutexUncontended-48       2.35ns ± 1%    2.35ns ± 0%     ~     (p=0.144 n=70+55)
+    RWMutexWrite100-48           139ns ±18%     141ns ±21%     ~     (p=0.071 n=75+73)
+    RWMutexWrite10-48            145ns ± 9%     145ns ± 8%     ~     (p=0.553 n=75+75)
+    RWMutexWorkWrite100-48       297ns ±13%     297ns ±15%     ~     (p=0.519 n=75+74)
+    RWMutexWorkWrite10-48        588ns ± 7%     585ns ± 5%     ~     (p=0.173 n=73+70)
+    WaitGroupUncontended-48     0.87ns ± 0%    0.87ns ± 0%     ~     (all equal)
+    WaitGroupAddDone-48         63.2ns ± 4%    62.7ns ± 4%   -0.82%  (p=0.027 n=72+75)
+    WaitGroupAddDoneWork-48      109ns ± 5%     109ns ± 4%     ~     (p=0.233 n=75+75)
+    WaitGroupWait-48            0.17ns ± 0%    0.16ns ±16%   -8.55%  (p=0.000 n=56+75)
+    WaitGroupWaitWork-48        1.78ns ± 1%    2.08ns ± 5%  +16.92%  (p=0.000 n=74+70)
+    WaitGroupActuallyWait-48    52.0ns ± 3%    50.6ns ± 5%   -2.70%  (p=0.000 n=71+69)
+    
+    https://perf.golang.org/search?q=upload:20170215.1
+    
+    Change-Id: Ia29a8bd006c089e401ec4297c3038cca656bcd0a
+    Reviewed-on: https://go-review.googlesource.com/37103
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go | 113 -----------------------------------
- src/cmd/compile/internal/gc/walk.go  | 113 +++++++++++++++++++++++++++++++++++
- 2 files changed, 113 insertions(+), 113 deletions(-)
+ src/runtime/runtime2.go |   1 +
+ src/runtime/sema.go     | 196 ++++++++++++++++++++++++++++++++++++++----------
+ test/locklinear.go      | 139 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 296 insertions(+), 40 deletions(-)

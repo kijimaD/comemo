@@ -1,25 +1,17 @@
-commit c18f398f32c45afe2e9a81a6d885a4e0183cd649
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Mar 10 11:43:43 2022 -0500
+commit dc8b55895166c808b02e93ef4a778c6648c10bf3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 3 14:15:12 2021 -0700
 
-    crypto/rand: make Prime not deterministic for a fixed input stream
+    cmd/dist: pass -Wno-lto-type-mismatch in swig_callback_lto
     
-    rand.Prime does not guarantee the precise prime selection algorithm as
-    part of its contract. For example, it changed slightly in CL 387554. We
-    want to ensure that no tests come to rely on it staying the same, so
-    just like other cryptographic functions that use randomness in an
-    unspecified way (ECDSA signing, RSA PKCS #1 v1.5 encryption, RSA key
-    generation), make it randomly read an extra byte or not.
+    Fixes #46557
     
-    Change-Id: Ib9079c03360812d412b7c21d5a06caadabb4a8bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391554
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I95200ddd60e2879db15dd7353c2152b515c89020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324909
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/rand/util.go      |  3 +++
- src/crypto/rand/util_test.go | 19 +++++++++++++++++++
- src/go/build/deps_test.go    |  2 +-
- 3 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

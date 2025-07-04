@@ -1,58 +1,22 @@
-commit 47a0d467161c10f80bc3fcf7b0385b80d1194c7a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sat May 14 22:45:05 2022 -0400
+commit 86371b0360302b68c29f5eb39b02b82a52e0e341
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 1 16:30:46 2022 -0600
 
-    cmd/compile/internal/ssa: generate code via a //go:generate directive
+    cmd/asm,cmd/compile: generate preferred nop on PPC64
     
-    The standard way to generate code in a Go package is via //go:generate
-    directives, which are invoked by the developer explicitly running:
+    The preferred form of nop is ori 0,0,0. What was being generated was
+    or 0,0,0.
     
-            go generate import/path/of/said/package
+    Fix a quirk in the assembler which effectively treats OR $0,Rx,Ry as
+    OR R0,Rx,Ry, and update the compiler to generate the preferred form.
     
-    Switch to using that approach here.
-    
-    This way, developers don't need to learn and remember a custom way that
-    each particular Go package may choose to implement its code generation.
-    It also enables conveniences such as 'go generate -n' to discover how
-    code is generated without running anything (this works on all packages
-    that rely on //go:generate directives), being able to generate multiple
-    packages at once and from any directory, and so on.
-    
-    Change-Id: I0e5b6a1edeff670a8e588befeef0c445613803c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460135
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I5ac4bf0258cff05b9eba516a767daebfc9e31bc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388974
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/README.md                  |  4 ++--
- src/cmd/compile/internal/ssa/_gen/README                | 10 +++++++---
- src/cmd/compile/internal/ssa/_gen/allocators.go         |  2 +-
- src/cmd/compile/internal/ssa/_gen/main.go               |  2 +-
- src/cmd/compile/internal/ssa/_gen/rulegen.go            |  3 +--
- src/cmd/compile/internal/ssa/allocators.go              |  2 +-
- src/cmd/compile/internal/ssa/generate.go                |  9 +++++++++
- src/cmd/compile/internal/ssa/opGen.go                   |  2 +-
- src/cmd/compile/internal/ssa/rewrite386.go              |  3 +--
- src/cmd/compile/internal/ssa/rewrite386splitload.go     |  3 +--
- src/cmd/compile/internal/ssa/rewriteAMD64.go            |  3 +--
- src/cmd/compile/internal/ssa/rewriteAMD64latelower.go   |  3 +--
- src/cmd/compile/internal/ssa/rewriteAMD64splitload.go   |  3 +--
- src/cmd/compile/internal/ssa/rewriteARM.go              |  3 +--
- src/cmd/compile/internal/ssa/rewriteARM64.go            |  3 +--
- src/cmd/compile/internal/ssa/rewriteARM64latelower.go   |  3 +--
- src/cmd/compile/internal/ssa/rewriteLOONG64.go          |  3 +--
- src/cmd/compile/internal/ssa/rewriteMIPS.go             |  3 +--
- src/cmd/compile/internal/ssa/rewriteMIPS64.go           |  3 +--
- src/cmd/compile/internal/ssa/rewritePPC64.go            |  3 +--
- src/cmd/compile/internal/ssa/rewritePPC64latelower.go   |  3 +--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go          |  3 +--
- src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go |  3 +--
- src/cmd/compile/internal/ssa/rewriteS390X.go            |  3 +--
- src/cmd/compile/internal/ssa/rewriteWasm.go             |  3 +--
- src/cmd/compile/internal/ssa/rewritedec.go              |  3 +--
- src/cmd/compile/internal/ssa/rewritedec64.go            |  3 +--
- src/cmd/compile/internal/ssa/rewritegeneric.go          |  3 +--
- 28 files changed, 43 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/ppc64/ggen.go | 7 +++----
+ src/cmd/internal/obj/ppc64/asm9.go     | 8 +++++++-
+ 2 files changed, 10 insertions(+), 5 deletions(-)

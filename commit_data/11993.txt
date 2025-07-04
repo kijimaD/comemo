@@ -1,12 +1,15 @@
-commit d8e715cab4f790e033c8d22ad07e9ca5ff9d343b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 17 15:31:07 2012 +1100
+commit a52027a491c27a057ed7413607393f5f0a256c8d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 17 14:39:50 2012 +1100
 
-    net/url: spell the package name correctly.
+    fix: walk ast.Ellipsis values.
     
-    R=bradfitz
+    Fixes #2583.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5676076
+    https://golang.org/cl/5671078
 
- src/pkg/net/url/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/fix/error_test.go | 8 ++++++++
+ src/cmd/fix/fix.go        | 1 +
+ 2 files changed, 9 insertions(+)

@@ -1,14 +1,23 @@
-commit dc0455225acdc98685064964defc6df7cd3d4c40
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Fri Feb 22 15:51:40 2019 +0000
+commit 918ed88e475d39e40baf9cd6539b618e05d12e5e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 13 16:14:19 2018 -0400
 
-    net: explain why we ignore the first line of Plan 9 interface-status files
+    runtime: remove gcStart's mode argument
     
-    Change-Id: Ia0847790a597c35ebb572db6fc1b7534ecf8f006
-    GitHub-Last-Rev: 03f039d0abbce0e2a2bf15201948e46354950a22
-    GitHub-Pull-Request: golang/go#30022
-    Reviewed-on: https://go-review.googlesource.com/c/160446
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This argument is always gcBackgroundMode since only
+    debug.gcstoptheworld can trigger a STW GC at this point. Remove the
+    unnecessary argument.
+    
+    Updates #26903. This is preparation for unifying STW GC and concurrent
+    GC.
+    
+    Change-Id: Icb4ba8f10f80c2b69cf51a21e04fa2c761b71c94
+    Reviewed-on: https://go-review.googlesource.com/c/134775
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/interface_plan9.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc.go    | 21 ++++++++++-----------
+ src/runtime/proc.go   |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)

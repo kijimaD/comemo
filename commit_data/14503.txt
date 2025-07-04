@@ -1,28 +1,18 @@
-commit 908e1b5ea1fa09227b52c9818b6abb6c21ae3261
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 27 15:04:48 2012 +0400
+commit 478aff3d4d7eea7f9980f960957eb21ae77aa2c2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 27 18:20:44 2012 +1100
 
-    runtime/race: add unit tests for race detector
+    exp/cookiejar: new package.
     
-    R=golang-dev, remyoudompheng, rsc
+    This CL defines the API. Implementation will come in follow-up CLs.
+    
+    Update #1960.
+    
+    R=bradfitz, dr.volker.dobler, rsc
     CC=golang-dev
-    https://golang.org/cl/6525052
+    https://golang.org/cl/6849092
 
- src/pkg/runtime/race/race_test.go                |  152 +++
- src/pkg/runtime/race/testdata/atomic_test.go     |  271 +++++
- src/pkg/runtime/race/testdata/cgo_test.go        |   20 +
- src/pkg/runtime/race/testdata/cgo_test_main.go   |   40 +
- src/pkg/runtime/race/testdata/chan_test.go       |  457 ++++++++
- src/pkg/runtime/race/testdata/comp_test.go       |  132 +++
- src/pkg/runtime/race/testdata/finalizer_test.go  |   67 ++
- src/pkg/runtime/race/testdata/io_test.go         |   69 ++
- src/pkg/runtime/race/testdata/map_test.go        |  151 +++
- src/pkg/runtime/race/testdata/mop_test.go        | 1363 ++++++++++++++++++++++
- src/pkg/runtime/race/testdata/mutex_test.go      |  138 +++
- src/pkg/runtime/race/testdata/regression_test.go |  123 ++
- src/pkg/runtime/race/testdata/rwmutex_test.go    |  134 +++
- src/pkg/runtime/race/testdata/select_test.go     |  286 +++++
- src/pkg/runtime/race/testdata/slice_test.go      |  445 +++++++
- src/pkg/runtime/race/testdata/sync_test.go       |  197 ++++
- src/pkg/runtime/race/testdata/waitgroup_test.go  |  232 ++++
- 17 files changed, 4277 insertions(+)
+ src/pkg/exp/cookiejar/jar.go          |  89 ++++++++++++++++++++++++++++++
+ src/pkg/exp/cookiejar/storage.go      | 101 ++++++++++++++++++++++++++++++++++
+ src/pkg/exp/cookiejar/storage_test.go |  48 ++++++++++++++++
+ 3 files changed, 238 insertions(+)

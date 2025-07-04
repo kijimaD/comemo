@@ -1,26 +1,20 @@
-commit ca5fc8de65bfd30f6eb66a7bd45945956c3812e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 20:41:33 2024 -0400
+commit 3d33532d1cb25955d2bb236394a0afa99899a35c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 10 12:47:06 2023 -0700
 
-    cmd/vendor: pull in x/mod/modfile godebug changes
+    net/http: let ErrNotSupported match errors.ErrUnsupported
     
-            go get golang.org/x/mod@c0bdc7bd
-            go mod tidy
-            go mod vendor
+    For #41198
     
-    Pulls in CL 584300.
-    
-    For #65573.
-    
-    Change-Id: Ia8ec86e2ee049b911fcf09d57f83972786b0470d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584475
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ibb030e94618a1f594cfd98ddea214ad7a88d2e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494122
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                  |   2 +-
- src/cmd/go.sum                                  |   4 +-
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 106 +++++++++++++++++++++++-
- src/cmd/vendor/golang.org/x/mod/modfile/work.go |  52 +++++++++++-
- src/cmd/vendor/modules.txt                      |   2 +-
- 5 files changed, 158 insertions(+), 8 deletions(-)
+ api/next/41198.txt           | 1 +
+ src/net/http/request.go      | 5 +++++
+ src/net/http/request_test.go | 7 +++++++
+ 3 files changed, 13 insertions(+)

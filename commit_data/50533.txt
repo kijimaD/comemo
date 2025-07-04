@@ -1,25 +1,18 @@
-commit 73c38f226e15e218411d87a05c878f087ad89455
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jun 15 14:24:12 2022 -0400
+commit 243c5ae019bab96caf55dd443a0ecd128f079d9c
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Oct 30 20:54:39 2021 -0400
 
-    cmd/go: clear GOPATH from build context when importing from module
+    go/parser: simplify parsing of array or slice constraint types
     
-    In module mode, we shouldn't handle packages under GOPATH any
-    differently from other packages. Clear GOPATH from the build context
-    before Importing to ensure that.
+    Simplify the parsing of array or slice constraint types added in CL
+    359134, following the port in CL 360135.
     
-    Fixes #37015.
-    
-    Change-Id: I0203e25013716bca346fd4a67d80f1d05bbaea77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412476
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia86d4b0149a222423d3b19623dd39d4aeb23857d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360115
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.20.html                                    | 11 ++++
- src/cmd/go/internal/load/pkg.go                    |  5 +-
- src/cmd/go/internal/modindex/read.go               | 71 ++++++++--------------
- .../go/testdata/script/mod_go_version_missing.txt  |  2 +-
- 4 files changed, 42 insertions(+), 47 deletions(-)
+ src/go/parser/parser.go | 98 +++++++++++++++++++++++--------------------------
+ 1 file changed, 46 insertions(+), 52 deletions(-)

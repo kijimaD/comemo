@@ -1,23 +1,21 @@
-commit 9db7db54b0e84d6b3ace94cb1f2a42e065575f17
-Author: Colin Arnott <colin@urandom.co.uk>
-Date:   Thu Oct 22 22:16:01 2020 +0000
+commit 5072c166a11f053a63c501c527e267a20b5176e1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 6 20:56:34 2020 -0400
 
-    log: expose std via new Default function
+    [dev.link] cmd/link: return package path in SymFile
     
-    To allow passing around the package level *Logger, it is now exposed to
-    callers of the Default function. We considered exposing std, however at
-    this time there is no need to allow callers to replace std only pass and
-    call methods directly.
+    SymFile, derived from sym.Symbol.File, is supposed to return the
+    package path, instead of the file name (arguably the name is
+    confusing). Make it so, and rename it to SymPkg.
     
-    Fixes #39057
-    
-    Change-Id: I710b16a3aa5e4e878870561dbf59560f98d8d09a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264460
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I67bcd12f67cea271f2a2ce3c5724e5d228f5b2f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227481
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/log/log.go      | 3 +++
- src/log/log_test.go | 6 ++++++
- 2 files changed, 9 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go      |  2 +-
+ src/cmd/link/internal/ld/lib.go        |  2 +-
+ src/cmd/link/internal/loader/loader.go | 40 +++++++++++++++++-----------------
+ 3 files changed, 22 insertions(+), 22 deletions(-)

@@ -1,21 +1,44 @@
-commit 3da6c94d5ed62bf0c7fe682dcf46a1e53b72c2d9
-Author: Andy Pan <i@andypan.me>
-Date:   Thu Aug 29 13:01:12 2024 +0800
+commit 3afa5daabd6245be0c03b6e666f93835e32d7f7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 21 13:31:10 2023 -0400
 
-    internal/poll: check return value instead of errno for copy_file_range(2)
+    cmd/distpack: sort files in standard walk order
     
-    There is one special case of (0, nil) indicating EOF where the updates
-    of zero to remain and written are redundant.
+    The code was sorting files in the archives entirely by path string,
+    but that's not what fs.WalkDir would do. In a directory with
+    subdirectory foo/bar and file foo/bar.go, foo/bar gets visited
+    first, so foo/bar/baz appears before foo/bar.go, even though
+    "foo/bar/baz" > "foo/bar.go".
     
-    Change-Id: I017471657a9424fab88c72d14d3eb66d14a7e5c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609297
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This CL replaces the string comparison with a path-aware
+    comparison that places foo/bar/baz before foo/bar.go,
+    so that if the tar file is extracted and then repacked using
+    fs.WalkDir, the files will remain in the same order.
+    
+    This will make it easier to compare the pristine distpack-produced
+    tgz for darwin against the rebuilt tgz with signed binaries.
+    
+    Before:
+    % tar tzvf /tmp/cmddist.tgz | grep -C1 runtime/cgo.go
+    -rw-r--r--  0 0      0       11122 Jul 13 15:00 go/src/runtime/callers_test.go
+    -rw-r--r--  0 0      0        2416 Jul 13 15:00 go/src/runtime/cgo.go
+    -rw-r--r--  0 0      0        2795 Jul 13 15:00 go/src/runtime/cgo/abi_amd64.h
+    
+    After:
+    % tar tzvf pkg/distpack/go1.21rsc.src.tar.gz | grep -C1 runtime/cgo.go
+    -rw-r--r--  0 0      0        1848 Dec 31  1969 go/src/runtime/cgo/signal_ios_arm64.s
+    -rw-r--r--  0 0      0        2416 Dec 31  1969 go/src/runtime/cgo.go
+    -rw-r--r--  0 0      0        2479 Dec 31  1969 go/src/runtime/cgo_mmap.go
+    
+    For #24904.
+    For #61513.
+    
+    Change-Id: Ib7374bc0d6324377f81c561bef57fd87b2111b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511977
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/copy_file_range_freebsd.go | 2 +-
- src/internal/poll/copy_file_range_unix.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/distpack/archive.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

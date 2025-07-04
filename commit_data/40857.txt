@@ -1,19 +1,18 @@
-commit 91bb1d734ecb44f687f3549ace10ee8f70e977a8
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 18 20:07:11 2019 -0500
+commit 5f8d8161e66bda5fa9559648f7793e96885c89e3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 30 14:51:26 2019 -0400
 
-    runtime: move m.thread to mOS
+    cmd/go/internal/cache: verify that timestamp is positive
     
-    This field is only used on Windows.
+    An apparent typo caused us to re-check size instead.
     
-    Change-Id: I12d4df09261f8e7ad54c2abd7beda669af28c8e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207778
-    Run-TryBot: Austin Clements <austin@google.com>
+    Updates #29667
+    
+    Change-Id: Icc1fb9cef1ba77b8490c8fbe6c343be06ff48d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188020
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/os_windows.go | 2 ++
- src/runtime/runtime2.go   | 3 +--
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/cache/cache.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

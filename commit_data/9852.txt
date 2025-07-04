@@ -1,15 +1,22 @@
-commit 934c76801938aaaa9f2d66513a3c0c1652783586
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 3 16:18:47 2011 -0700
+commit bba7396fbd4c3245dbedd3cc2a1fb25137331ebb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 3 15:19:04 2011 -0700
 
-    doc: update tutorial.
-    Fix for new regexp library ($ isn't end of line any more).
-    Don't assume . is in PATH.
+    strings: implement a faster byte->string Replacer
     
-    R=golang-dev, dsymonds
+    This implements a replacer for when all old strings are single
+    bytes, but new values are not.
+    
+    BenchmarkHTMLEscapeNew   1000000   1090 ns/op
+    BenchmarkHTMLEscapeOld   1000000   2049 ns/op
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5175052
+    https://golang.org/cl/5176043
 
- doc/go_tutorial.html | 5 ++---
- doc/go_tutorial.tmpl | 4 ++--
- 2 files changed, 4 insertions(+), 5 deletions(-)
+ src/pkg/http/header.go           |   5 +-
+ src/pkg/http/server.go           |  15 +++---
+ src/pkg/mime/multipart/writer.go |   6 +--
+ src/pkg/strings/replace.go       | 110 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/strings/replace_test.go  |  32 +++++++++++-
+ 5 files changed, 154 insertions(+), 14 deletions(-)

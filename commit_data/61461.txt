@@ -1,0 +1,15 @@
+commit 6e9c56e26b1ed26cb0dc81a6aeb974e675a9ce9e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 11 16:07:58 2024 -0500
+
+    runtime: add benchmark of iteration over map with low load
+    
+    Change-Id: I3a3b7da6245a18bf1db0c595008f0eea853ce544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627155
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/map_benchmark_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

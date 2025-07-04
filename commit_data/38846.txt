@@ -1,16 +1,25 @@
-commit 744fcfec4e94d9585d2be6f9efae8480a2f2fc8d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 19 15:56:37 2019 -0400
+commit f70bd914353b2331a48eedb84aceb458982eaac0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 30 14:21:33 2018 -0800
 
-    runtime: improve mstart comments
+    cmd/cgo: use preprocessor macros to avoid prolog redefinitions
     
-    Some of the comments were unclear or outdated.
+    Avoid redefinition errors when a Go file uses a cgo comment to
+    There is no particularly good reason to do this, but there is also no
+    particularly good reason that it should fail.
     
-    Change-Id: I02e01bf60def0074c1fa760e94aa992e9e4969b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172987
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #27019
+    
+    Change-Id: Icd6f8197a89be4ee6b03ddae675667998a8b4189
+    Reviewed-on: https://go-review.googlesource.com/c/152079
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ misc/cgo/testcshared/cshared_test.go         | 43 ++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/go2c2go/go/shlib.go | 12 ++++++++
+ misc/cgo/testcshared/src/go2c2go/m1/c.c      |  9 ++++++
+ misc/cgo/testcshared/src/go2c2go/m1/main.go  | 22 ++++++++++++++
+ misc/cgo/testcshared/src/go2c2go/m2/main.go  | 22 ++++++++++++++
+ src/cmd/cgo/out.go                           | 23 ++++++++++++++-
+ 6 files changed, 130 insertions(+), 1 deletion(-)

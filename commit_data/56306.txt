@@ -1,23 +1,17 @@
-commit 2dd82d97b67a538700e30d808122a521e3207c3e
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Apr 24 09:59:02 2024 +0000
+commit ffa663c9b3c942cbde590bb792179dcca52224b7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 26 15:38:08 2023 -0400
 
-    compress: reordering fields to reduce struct sizes
+    net/http/cgi: propagate LD_LIBRARY_PATH on Android
     
-    Overall, there are 32 bytes reduced.
+    Android is functionally a variant on linux, and should be
+    treated as such.
     
-    Change-Id: I455bf0874b33fa47719f42618e4800c7ff2a9e88
-    GitHub-Last-Rev: 7670344c4a643afdec0fdae3d34fdb8ccd81205f
-    GitHub-Pull-Request: golang/go#67010
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581355
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I08056f00bf98c1935c8cc3c859a6c72fe1a48efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489395
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/compress/bzip2/bzip2.go   | 2 +-
- src/compress/flate/deflate.go | 3 ++-
- src/compress/gzip/gzip.go     | 4 ++--
- src/compress/lzw/writer.go    | 6 +++---
- 4 files changed, 8 insertions(+), 7 deletions(-)
+ src/net/http/cgi/host.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

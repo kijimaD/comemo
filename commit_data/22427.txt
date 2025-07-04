@@ -1,20 +1,12 @@
-commit efb9bd5bb12a7c848dc4af708dd216e5cd3c2b0e
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 10 13:33:03 2015 -0700
+commit facd79e4bea28f3ca0bc5dc51c9069fcb0bd9d0f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 13 19:36:09 2015 -0700
 
-    log: add flag LUTC, to use UTC time zone for time stamp
+    encoding/binary: cull dead code
     
-    Issue 9483 suggests several approaches to correlating logs from
-    machines in different time zones. This approach is the simplest and
-    really should be sufficient: provide a way to clamp the time stamps
-    to UTC.
-    
-    Fixes #9483.
-    
-    Change-Id: If540b991d758c4d845a719779f8255ece7c452e7
-    Reviewed-on: https://go-review.googlesource.com/8761
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I91f9b5280e08e005f5a891aaa249267c211d814b
+    Reviewed-on: https://go-review.googlesource.com/7592
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/log/log.go      |  8 ++++++--
- src/log/log_test.go | 28 +++++++++++++++++++++++++++-
- 2 files changed, 33 insertions(+), 3 deletions(-)
+ src/encoding/binary/binary.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

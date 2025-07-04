@@ -1,32 +1,45 @@
-commit f422bea498b138022135060050bbbc249589a945
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jun 21 16:12:17 2018 -0700
+commit 3d69ef37b8b3f7db8162689c88180781612b83c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 7 22:46:48 2018 -0800
 
-    cmd/compile: fix compile failure for lazily resolved shadowed types
+    runtime: use systemstack around throw in sysSigaction
     
-    If expanding an inline function body required lazily expanding a
-    package-scoped type whose identifier was shadowed within the function
-    body, the lazy expansion would instead overwrite the local symbol
-    definition instead of the package-scoped symbol. This was due to
-    importsym using s.Def instead of s.PkgDef.
+    Try to fix the build on ppc64-linux and ppc64le-linux, avoiding:
     
-    Unfortunately, this is yet another consequence of the current awkward
-    scope handling code.
+    --- FAIL: TestInlinedRoutineRecords (2.12s)
+            dwarf_test.go:97: build: # command-line-arguments
+                    runtime.systemstack: nosplit stack overflow
+                            752     assumed on entry to runtime.sigtrampgo (nosplit)
+                            480     after runtime.sigtrampgo (nosplit) uses 272
+                            400     after runtime.sigfwdgo (nosplit) uses 80
+                            264     after runtime.setsig (nosplit) uses 136
+                            208     after runtime.sigaction (nosplit) uses 56
+                            136     after runtime.sysSigaction (nosplit) uses 72
+                            88      after runtime.throw (nosplit) uses 48
+                            16      after runtime.dopanic (nosplit) uses 72
+                            -16     after runtime.systemstack (nosplit) uses 32
     
-    Passes toolstash-check.
+            dwarf_test.go:98: build error: exit status 2
+    --- FAIL: TestAbstractOriginSanity (10.22s)
+            dwarf_test.go:97: build: # command-line-arguments
+                    runtime.systemstack: nosplit stack overflow
+                            752     assumed on entry to runtime.sigtrampgo (nosplit)
+                            480     after runtime.sigtrampgo (nosplit) uses 272
+                            400     after runtime.sigfwdgo (nosplit) uses 80
+                            264     after runtime.setsig (nosplit) uses 136
+                            208     after runtime.sigaction (nosplit) uses 56
+                            136     after runtime.sysSigaction (nosplit) uses 72
+                            88      after runtime.throw (nosplit) uses 48
+                            16      after runtime.dopanic (nosplit) uses 72
+                            -16     after runtime.systemstack (nosplit) uses 32
     
-    Fixes #25984.
+            dwarf_test.go:98: build error: exit status 2
+    FAIL
+    FAIL    cmd/link/internal/ld    13.404s
     
-    Change-Id: Ia7033e1749a883e6e979c854d4b12b0b28083dd8
-    Reviewed-on: https://go-review.googlesource.com/120456
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I4840604adb0e9f68a8d8e24f2f2a1a17d1634a58
+    Reviewed-on: https://go-review.googlesource.com/99415
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/export.go   |  4 ++--
- src/cmd/compile/internal/types/scope.go | 13 +++++++++++--
- test/fixedbugs/issue25984.dir/p.go      | 15 +++++++++++++++
- test/fixedbugs/issue25984.dir/q.go      | 11 +++++++++++
- test/fixedbugs/issue25984.go            |  7 +++++++
- 5 files changed, 46 insertions(+), 4 deletions(-)
+ src/runtime/os_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

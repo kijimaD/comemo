@@ -1,13 +1,15 @@
-commit 9b73ecc32719a2a6e3c733d87aefd9ef5a0bf804
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Mar 4 17:42:39 2015 +1100
+commit 7c3eeda66f46ed12a4f1472ef4878904fe5a8e33
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 22:22:33 2015 -0500
 
-    image/jpeg: check for component uniqueness and total sampling factors.
+    cmd/gc: use go.builtin as package prefix, not go%2ebuiltin
     
-    Change-Id: I83de9d83708edc8d196bbcfdc7d2ba7ffaff50d2
-    Reviewed-on: https://go-review.googlesource.com/6586
-    Reviewed-by: Rob Pike <r@golang.org>
+    This matches all the other pseudo-packages.
+    The line was simply forgotten.
+    
+    Change-Id: I278f6cbcfc883ea7efad07f99fc8c853b9b5d274
+    Reviewed-on: https://go-review.googlesource.com/4591
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/image/jpeg/reader.go |  9 +++++++++
- src/image/jpeg/scan.go   | 18 ++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ src/cmd/gc/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

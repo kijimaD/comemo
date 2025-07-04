@@ -1,15 +1,26 @@
-commit 71f0fb77602701bf3e3f6efd3aa1be5d42a64458
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 21 10:49:35 2011 -0800
+commit 97853b46a08e984048e65f1d9c359bb48b8f22e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 21 08:45:00 2011 -0800
 
-    crypto/x509: don't crash with nil receiver in accessor method
+    go/doc: steps towards collecting methods of embedded types
     
-    Fixes #2600
+    No visible external changes yet. The current approach is
+    a stop-gap approach: For methods of anonymous fields to be
+    seen, the anonymous field's types must be exported.
     
-    R=golang-dev, agl, rsc
+    Missing: computing the actual MethodDocs and displaying them.
+    
+    (Depending on the operation mode of godoc, the input to go/doc
+    is a pre-filtered AST with all non-exported nodes removed. Non-
+    exported anonymous fields are not even seen by go/doc in this
+    case, and it is impossible to collect associated (even exported)
+    methods. A correct fix will require some more significant re-
+    engineering; AST filtering will have to happen later, possibly
+    inside go/doc.)
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5500064
+    https://golang.org/cl/5500055
 
- src/pkg/crypto/x509/cert_pool.go   |  3 +++
- src/pkg/crypto/x509/verify_test.go | 12 ++++++++++++
- 2 files changed, 15 insertions(+)
+ src/pkg/go/doc/doc.go | 101 +++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 68 insertions(+), 33 deletions(-)

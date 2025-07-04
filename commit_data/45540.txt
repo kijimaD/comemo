@@ -1,24 +1,26 @@
-commit 62a87f64b97d27e79d53a84e9006425aa234d7e6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 4 16:41:13 2021 -0400
+commit 421d4e72de802ed65cb38317660654771cfb13e9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 28 13:44:53 2020 +0100
 
-    cmd/go/internal/modload: only check root-promotion during tidy for lazy modules
+    cmd/go/internal/modfetch: drop gopkg.in/russross/blackfriday.v2 from TestCodeRepoVersions
     
-    In a lazy module, it is important that tidyRoots does not add any new
-    roots because the dependencies of non-roots are pruned out.
+    Follow-up for CL 265819.
     
-    In an eager module, that property is not important (and does not hold
-    in general) because no dependencies are ever pruned out.
+    Given the -pre tag added recently, a new stable version is likely
+    tagged soon. This would break TestCodeRepoVersions on the longtest
+    builders again. Since the other test cases in codeRepoVersionsTests
+    already provide enough coverage, drop gopkg.in/russross/blackfriday.v2
+    to avoid breaking TestCodeRepoVersions once the release happens.
     
-    Fixes #45952
+    Updates #28856
     
-    Change-Id: I5c95b5696b7112b9219e38af04e0dece7fb6e202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316754
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: If86a637b5e47f59faf9048fc1cbbae6e8f1dcc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265917
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modload/load.go             | 18 +++++++++++-------
- src/cmd/go/testdata/script/mod_tidy_newroot.txt | 20 ++++++++++++++++++--
- 2 files changed, 29 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

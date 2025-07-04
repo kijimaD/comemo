@@ -1,18 +1,29 @@
-commit d92bc7a55aa11777bdb4605eda6536c64defb0d3
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 23 07:27:07 2019 -0400
+commit 13e40c76dfdc87071d9a609906d3a842ae636d6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 3 13:46:14 2018 -0800
 
-    encoding/json: document HTML escaping in Compact
+    go/types: fix interface receiver type for incremental type-checking
     
-    Make explicit that Compact does HTML escaping.
+    The type checker may be called incrementally (by repeatedly calling
+    Checker.Files), for instance when adding _test.go files to a set of
+    already checked files.
     
-    Fixes #30357.
+    The existing code reset a cache of (already computed) interface
+    information with each Checker.Files call, causing interfaces to be
+    recomputed in some cases, albeit with different receiver information
+    (see comments in this CL for details).
     
-    Change-Id: I4648f8f3e907d659db977d07253f716df6e07d7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173417
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Don't reset the interface cache to avoid this problem.
+    
+    While adding a test case, also factor out some common testing logic.
+    
+    Fixes #29029.
+    
+    Change-Id: I2e2d6d6bb839b3a76522fbc4ba7355c71d3bb80b
+    Reviewed-on: https://go-review.googlesource.com/c/152259
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/encoding/json/encode.go | 11 ++++++-----
- src/encoding/json/indent.go |  3 +++
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/go/types/check.go       |  15 ++++--
+ src/go/types/interfaces.go  |   8 ++++
+ src/go/types/issues_test.go | 111 ++++++++++++++++++++++++++------------------
+ 3 files changed, 86 insertions(+), 48 deletions(-)

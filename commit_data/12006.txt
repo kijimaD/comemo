@@ -1,12 +1,12 @@
-commit a2bdb5c04f19e19c4b965b8497a3666e22aebfe9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Feb 17 11:21:32 2012 -0500
+commit ebc40077088dcc546824ba2a7b4d5adf3ba33a46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 17 05:59:15 2012 -0800
 
-    .hgignore: add src/cmd/dist/dist.dSYM
+    doc: clarify gccgo support for segmented stacks
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5677076
+    https://golang.org/cl/5671081
 
- .hgignore | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

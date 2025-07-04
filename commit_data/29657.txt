@@ -1,17 +1,63 @@
-commit 8fa0d85b385b549fed163fe67342dfcd092e02c4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 28 22:34:50 2016 -0800
+commit eca4e446115be5653a3963c37459a263569390c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 2 18:42:58 2016 -0700
 
-    cmd/compile: don't panic on syntax error in select statement
+    cmd/doc: perform type grouping for constants and variables
     
-    Fixes #18092.
+    In golang.org/cl/22354, we added functionality to group functions under the
+    type that they construct to. In this CL, we extend the same concept to
+    constants and variables. This makes the doc tool more consistent with what
+    the godoc website does.
     
-    Change-Id: I54e2da2e0f168c068f5e4a1b22ba508d78259168
-    Reviewed-on: https://go-review.googlesource.com/33658
+    $ go doc reflect | egrep "ChanDir|Kind|SelectDir"
+    <<<
+    // Before:
+    const RecvDir ChanDir = 1 << iota ...
+    const Invalid Kind = iota ...
+    type ChanDir int
+    type Kind uint
+    type SelectDir int
+        func ChanOf(dir ChanDir, t Type) Type
+    
+    // After:
+    type ChanDir int
+        const RecvDir ChanDir = 1 << iota ...
+    type Kind uint
+        const Invalid Kind = iota ...
+    type SelectDir int
+        const SelectSend SelectDir ...
+        func ChanOf(dir ChanDir, t Type) Type
+    >>>
+    
+    Furthermore, a fix was made to ensure that the type was printed in constant
+    blocks when the iota was applied on an unexported field.
+    
+    $ go doc reflect SelectSend
+    <<<
+    // Before:
+    const (
+            SelectSend    // case Chan <- Send
+            SelectRecv    // case <-Chan:
+            SelectDefault // default
+    )
+    
+    // After:
+    const (
+            SelectSend    SelectDir // case Chan <- Send
+            SelectRecv              // case <-Chan:
+            SelectDefault           // default
+    )
+    >>>
+    
+    Fixes #16569
+    
+    Change-Id: I26124c3d19e50caf9742bb936803a665e0fa6512
+    Reviewed-on: https://go-review.googlesource.com/25419
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/parser.go | 29 ++++++++++++-----------------
- test/fixedbugs/issue18092.go              | 15 +++++++++++++++
- 2 files changed, 27 insertions(+), 17 deletions(-)
+ src/cmd/doc/doc_test.go     | 27 ++++++++++++++
+ src/cmd/doc/pkg.go          | 85 ++++++++++++++++++++++++++++++++++++---------
+ src/cmd/doc/testdata/pkg.go | 16 +++++++++
+ 3 files changed, 111 insertions(+), 17 deletions(-)

@@ -1,20 +1,25 @@
-commit 5647d01ab724a19793ac7002776b0dec03fa35f5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 19 18:03:51 2020 +0000
+commit f095b570fe5b7dd6bca22681b5ff315895bbdbb6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Mar 28 14:58:28 2020 -0400
 
-    Revert "net/http: test that ParseMultipartForm returns an error for int overflow"
+    [dev.link] cmd/link: use new-style relocation accessors in LoadFull
     
-    This reverts CL 254977.
+    This gives some small speedup:
     
-    Reason for revert: introduced test failures on longtest builders.
+    (linking cmd/compile)
+    Loadlibfull     77.8ms ± 6%    68.6ms ± 5%  -11.88%  (p=0.008 n=5+5)
     
-    Change-Id: I75e868245f980189ad85dd4103d9178989e06ecf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263658
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Also convert some Relocs.At to At2, which should have been done
+    earlier.
+    
+    Change-Id: I2a66aeb5857234c6e645e1b23380149cffc8221f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226363
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/http/request_test.go | 36 ------------------------------------
- 1 file changed, 36 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go  |  2 +-
+ src/cmd/link/internal/ld/pe.go         |  6 +++---
+ src/cmd/link/internal/loader/loader.go | 29 +++++++++++++----------------
+ 3 files changed, 17 insertions(+), 20 deletions(-)

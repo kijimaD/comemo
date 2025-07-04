@@ -1,12 +1,30 @@
-commit 5e59e8537c6154862214bffb787a68f24ae58252
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 19 18:56:17 2012 -0800
+commit 8d6958fc041eee42e78ba3c20569c71c35795b8b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jan 20 12:59:44 2012 +1100
 
-    net: fix linux build
+    misc/cgo/test: make tests run on windows
     
-    R=golang-dev, bradfitz
+    - use proper Win64 gcc calling convention when
+      calling initcgo on amd64
+    - increase g0 stack size to 64K on amd64 to make
+      it the same as 386
+    - implement C.sleep
+    - do not use C.stat, since it is renamed to C._stat by mingw
+    - use fopen to implement TestErrno, since C.strtol
+      always succeeds on windows
+    - skip TestSetEnv on windows, because os.Setenv
+      sets windows process environment, while C.getenv
+      inspects internal C runtime variable instead
+    
+    R=golang-dev, vcc.163, rsc
     CC=golang-dev
-    https://golang.org/cl/5558056
+    https://golang.org/cl/5500094
 
- src/pkg/net/unicast_test.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ misc/cgo/test/Makefile         | 17 +++++++++++++++++
+ misc/cgo/test/basic.go         | 25 +++++++++++--------------
+ misc/cgo/test/env.go           |  9 +++++++++
+ misc/cgo/test/issue1560.go     |  2 ++
+ misc/cgo/test/sleep_windows.go | 16 ++++++++++++++++
+ src/pkg/runtime/asm_amd64.s    |  6 ++++--
+ src/run.bash                   |  1 -
+ 7 files changed, 59 insertions(+), 17 deletions(-)

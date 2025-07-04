@@ -1,40 +1,82 @@
-commit 180ea45566d19e60aa2d660f6139b7f6e18ff56b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 16:06:23 2024 -0400
+commit a094a82452ea4f1242ec9f3b1c0f9f230c2b2a6d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 18 17:35:45 2022 -0500
 
-    runtime/coverage: remove uses of //go:linkname
+    cmd/go: prune more dependencies in 'go get'
     
-    Move code to internal/coverage/cfile, making it possible to
-    access directly from testing/internal/testdeps, so that we can
-    avoid needing //go:linkname hacks.
+    Prior to this change, 'go get' pulled in every version of each module
+    whose path is explicitly listed in the go.mod file. When graph pruning
+    is enabled (that is, when the main module is at 'go 1.17' or higher),
+    that pulled in transitive dependencies of older-than-selected versions
+    of dependencies, which are normally pruned out by other 'go' commands
+    (including 'go mod tidy' and 'go mod graph').
     
-    For #67401.
+    To make matters worse, different parts of `go get` were making
+    different assumptions about which kinds of conflicts would be
+    reported: the modget package assumed that any conflict is necessarily
+    due to some explicit constraint, but 'go get' was imposing an
+    additional constraint that modules could not be incidentally upgraded
+    in the course of a downgrade. When that additional constraint failed,
+    the modload package reported the failure as though it were a real
+    (caller-supplied) constraint, confusing the caller (which couldn't
+    identify any specific package or argument that caused the failure).
     
-    Change-Id: I10b23a9970164afd2165e718ef3b2d9e86783883
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585820
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This change fixes both of those problems by replacing the
+    modload.EditRequirements algorithm with a different one.
+    
+    The new algorithm is, roughly, as follows.
+    
+    1. Propose a list of “root requirements” to be written to the updated
+       go.mod file.
+    
+    2. Load the module graph from those requirements mostly as usual, but
+       if any root is upgraded due to transitive dependencies, retain the
+       original roots and the paths leading from those roots to the
+       upgrades. (This forms an “extended graph”, in which we can trace a
+       path from to each version that appears in the graph starting at one
+       or more of the original roots.)
+    
+    3. Identify which roots caused any module path to be upgraded above
+       its passed-in version constraint. For each such root, either report
+       an unresolvable conflict (if the root itself is constrained to a
+       specific version) or identify an updated version to propose: either
+       a downgrade to the next-highest version, or an upgrade to the
+       actually-selected version of the root (if that version is allowed).
+       To avoid looping forever or devolving into an NP-complete search,
+       we never propose a version that was already rejected previously,
+       regardless of what other roots were present alongside it at the
+       time.
+    
+    4. If the version of any root was changed, repeat from (1).
+    
+    This algorithm is guaranteed to terminate, because there are finitely
+    many root versions and we permanently reject at least one each time we
+    downgrade its path to a lower version.
+    
+    In addition, this change implements support for the '-v' flag to log
+    more information about version changes at each iteration.
+    
+    Fixes #56494.
+    Fixes #55955.
+    
+    Change-Id: Iebc17dd7586594d5732e228043c3c4c6da230f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/load/test.go                   | 42 ++------------
- src/go/build/deps_test.go                          |  7 ++-
- .../coverage => internal/coverage/cfile}/apis.go   | 37 ++----------
- .../coverage => internal/coverage/cfile}/emit.go   | 21 ++++---
- .../coverage/cfile}/emitdata_test.go               |  8 +--
- .../coverage => internal/coverage/cfile}/hooks.go  | 10 ++--
- .../coverage/cfile}/testdata/harness.go            |  0
- .../coverage/cfile}/testdata/issue56006/repro.go   |  0
- .../cfile}/testdata/issue56006/repro_test.go       |  0
- .../coverage/cfile}/testdata/issue59563/repro.go   |  0
- .../cfile}/testdata/issue59563/repro_test.go       |  0
- .../coverage/cfile}/testsupport.go                 | 22 ++------
- .../coverage/cfile}/ts_test.go                     | 12 ++--
- src/runtime/coverage/coverage.go                   | 66 ++++++++++++++++++++++
- src/runtime/coverage/dummy.s                       |  8 ---
- src/runtime/covercounter.go                        |  4 +-
- src/runtime/covermeta.go                           |  8 +--
- src/testing/internal/testdeps/deps.go              | 31 ++++++++++
- src/testing/newcover.go                            | 10 ++--
- src/testing/testing.go                             |  6 ++
- 20 files changed, 160 insertions(+), 132 deletions(-)
+ src/cmd/go/internal/modget/get.go                  |   23 +-
+ src/cmd/go/internal/modload/buildlist.go           |  110 +-
+ src/cmd/go/internal/modload/edit.go                | 1148 +++++++++++---------
+ src/cmd/go/internal/modload/modfile.go             |   14 +-
+ src/cmd/go/internal/modload/mvs.go                 |    9 +-
+ src/cmd/go/testdata/script/mod_get_boost.txt       |   96 ++
+ .../go/testdata/script/mod_get_downup_indirect.txt |   54 +-
+ .../script/mod_get_downup_indirect_pruned.txt      |  154 +++
+ src/cmd/go/testdata/script/mod_get_issue56494.txt  |    4 +-
+ src/cmd/go/testdata/script/mod_get_newcycle.txt    |    2 +-
+ src/cmd/go/testdata/script/mod_get_patchcycle.txt  |    2 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |    2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   19 +-
+ 13 files changed, 1100 insertions(+), 537 deletions(-)

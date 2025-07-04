@@ -1,37 +1,17 @@
-commit 7a2f3273c5598bf53e37d0c8a4cb8a8caf7c4ca4
-Author: David Chase <drchase@google.com>
-Date:   Thu Jan 21 12:04:46 2021 -0500
+commit 334752dc8207d6d19d9fb1a99d2e97f7d326c82a
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Jun 25 01:15:42 2020 -0400
 
-    cmd/compile: plumb abi info into ssagen/ssa
+    os: return *PathError error in File.Sync on Plan 9
     
-    Plumb abi information into ssa/ssagen for plain calls
-    and plain functions (not methods).  Does not extend all the
-    way through the compiler (yet).
+    File.Sync was returning *SyscallError instead of *PathError on Plan 9.
+    Adjust the error type to match other systems.
     
-    One test disabled because it extends far enough to break the test.
+    Fixes #39800
     
-    Normalized all the compiler's register args TODOs to
-    // TODO(register args) ...
-    
-    For #40724.
-    
-    Change-Id: I0173a4579f032ac3c9db3aef1749d40da5ea01ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293389
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I844e716eb61c193ef78d29cb0b4a3ef790bb3320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239857
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/compile/internal/abi/abiutils.go          |  11 +-
- src/cmd/compile/internal/ir/node.go               |   2 +-
- src/cmd/compile/internal/noder/lex.go             |   4 +-
- src/cmd/compile/internal/ssa/func.go              |   5 +
- src/cmd/compile/internal/ssa/loopreschedchecks.go |   3 +-
- src/cmd/compile/internal/ssa/op.go                |  17 ++-
- src/cmd/compile/internal/ssa/rewrite.go           |   2 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |   3 +-
- src/cmd/compile/internal/ssagen/ssa.go            | 134 ++++++++++++++++------
- src/cmd/compile/internal/typecheck/iexport.go     |   2 +-
- src/cmd/compile/internal/typecheck/iimport.go     |   2 +-
- test/abi/regabipragma.go                          |   4 +-
- 12 files changed, 137 insertions(+), 52 deletions(-)
+ src/os/file_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

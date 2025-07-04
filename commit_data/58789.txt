@@ -1,27 +1,17 @@
-commit 3f46587fe05f745a0bf91b74c2834f1317acba24
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Feb 18 15:31:14 2025 -0500
+commit 4daf924f6323c735ae4ff3d731c5e825fc632c2d
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 12 10:52:57 2023 -0800
 
-    cmd/go: explicitly reject overlays affecting GOMODCACHE
+    doc/go1.22: remove reference to #60107
     
-    The go command assumes that GOMODCACHE is immutable. As an example of
-    one place the assumption is made, the modindex won't stat the files in
-    GOMODCACHE when getting the cache key for the index entry and just uses
-    the path of the module in the modcache (basically the module's name and
-    version). Explicitly reject overlays affecting GOMODCACHE to avoid
-    surprising and incorrect behavior.
+    This was implemented in Go 1.21.
     
-    For #71783
-    For #71075
-    
-    Change-Id: I21dd5d39d71037de473b09ac8482a1867864e11f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650475
+    Change-Id: Ic434670938589f10f367b1f893c4427e6f0b991c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549196
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/cmd/go/alldocs.go             |  7 ++++---
- src/cmd/go/internal/fsys/fsys.go  | 26 ++++++++++++++++++++++++++
- src/cmd/go/internal/work/build.go |  7 ++++---
- src/cmd/go/internal/work/init.go  |  3 +++
- 4 files changed, 37 insertions(+), 6 deletions(-)
+ doc/go1.22.html | 4 ----
+ 1 file changed, 4 deletions(-)

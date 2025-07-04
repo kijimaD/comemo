@@ -1,13 +1,14 @@
-commit 971459e826e705fc7c0ce4cd65609a19876627b1
+commit 27a3dcd0d2320e171203294724def784a1ddead6
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 20 11:41:41 2011 -0400
+Date:   Wed Jul 20 11:11:57 2011 -0400
 
-    net/textproto: fix build
+    net/textproto: avoid 1 copy in ReadLine, ReadContinuedLine
     
-    R=bradfitz
+    Fixes #2083.
+    
+    R=msolo, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4815041
+    https://golang.org/cl/4812042
 
- src/pkg/mime/multipart/multipart_test.go | 12 ++++++------
- src/pkg/net/textproto/reader.go          | 15 ++++++++++++---
- 2 files changed, 18 insertions(+), 9 deletions(-)
+ src/pkg/net/textproto/reader.go | 44 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 14 deletions(-)

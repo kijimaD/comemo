@@ -1,16 +1,15 @@
-commit 827e98d4fdbb470adf4dd5caafe88ea14e902047
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 2 13:42:15 2011 -0800
+commit fdb46fb470a1e77d585d3d5445c014ea9069095e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:39:31 2011 -0500
 
-    io: rename interfaces
+    codereview: record repository, base revision
     
-    ReadByter -> ByteReader
-    ReadRuner -> RuneReader
+    Include repository URL in initial mail.
+    Record repository and base revision in patch description.
     
-    R=r, r2, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4023062
+    https://golang.org/cl/4126052
 
- src/pkg/io/io.go   | 8 ++++----
- src/pkg/xml/xml.go | 4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ lib/codereview/codereview.py | 38 ++++++++++++++++++++++++++++----------
+ 1 file changed, 28 insertions(+), 10 deletions(-)

@@ -1,17 +1,18 @@
-commit 62dafbb4c6cd51332b2e0519eb4267c7a03da446
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 2 19:02:43 2016 -0700
+commit e273a2794639692a216c46a0043e5e6929e0a959
+Author: bogem <albertnigma@gmail.com>
+Date:   Fri Sep 9 23:23:32 2016 +0500
 
-    runtime: fix s390x asm frame sizes
+    flag: use strconv instead of fmt in values' String funcs
     
-    Found by vet.
+    The existing implementation of flag values with fmt package uses
+    more memory and works slower than the implementation with strconv
+    package.
     
-    Change-Id: I1d78454facdd3522509ecfe7c73b21c4602ced8a
-    Reviewed-on: https://go-review.googlesource.com/32670
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9e749179f66d5c50cafe98186641bcdbc546d2db
+    Reviewed-on: https://go-review.googlesource.com/28914
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/runtime/asm_s390x.s                 | 2 +-
- src/runtime/internal/atomic/asm_s390x.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/flag/flag.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

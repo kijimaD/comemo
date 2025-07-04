@@ -1,14 +1,15 @@
-commit 72bd1a7e36cad230ecc8b07fdfaea86158d9ec60
+commit 08ce3c313376b6d600c08b977103d6c51350b3f6
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 11:01:58 2013 -0400
+Date:   Thu Jul 18 10:12:28 2013 -0400
 
-    debug/gosym: avoid test failure on Windows
+    libmach: update for Go 1.2 pcln table
     
-    Would fix build if build hadn't already been broken with something else.
+    The change to addr2line makes it easy to test by hand.
     
-    TBR=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11525043
+    https://golang.org/cl/11485044
 
- src/pkg/debug/gosym/pclntab_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/addr2line/main.c |  13 +-
+ src/libmach/sym.c        | 357 +++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 357 insertions(+), 13 deletions(-)

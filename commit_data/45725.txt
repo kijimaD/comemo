@@ -1,15 +1,66 @@
-commit 79bda650410c8617f0ae20dc552c6d5b8f8dcfc8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 28 17:32:15 2021 -0700
+commit 9f39a43e0d728721d5a9e2586ce47a57585591c5
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Thu Oct 15 18:32:20 2020 -0700
 
-    doc/go1.17: mention time.Layout
+    crypto/tls: de-prioritize AES-GCM ciphers when lacking hardware support
     
-    For #44513
+    When either the server or client are lacking hardware support for
+    AES-GCM ciphers, indicated by the server lacking the relevant
+    instructions and by the client not putting AES-GCM ciphers at the top
+    of its preference list, reorder the preference list to de-prioritize
+    AES-GCM based ciphers when they are adjacent to other AEAD ciphers.
     
-    Change-Id: Id4624e977654f7e8c489508a9dce98c9fab621a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323490
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Also updates a number of recorded openssl TLS tests which previously
+    only specified TLS 1.2 cipher preferences (using -cipher), but not
+    TLS 1.3 cipher preferences (using -ciphersuites), to specify both
+    preferences, making these tests more predictable.
+    
+    Fixes #41181.
+    
+    Change-Id: Ied896c96c095481e755aaff9ff0746fb4cb9568e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262857
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- doc/go1.17.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go1.16.html                                    |  11 +
+ src/crypto/tls/common.go                           |  74 ++++-
+ src/crypto/tls/handshake_server.go                 |  14 +
+ src/crypto/tls/handshake_server_test.go            | 308 ++++++++++++++++--
+ src/crypto/tls/handshake_server_tls13.go           |  13 +
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  84 +++--
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  84 +++--
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven | 170 +++++-----
+ ...erver-TLSv12-ClientAuthRequestedAndEd25519Given | 171 +++++-----
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      | 170 +++++-----
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given | 170 +++++-----
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      | 152 +++++----
+ src/crypto/tls/testdata/Server-TLSv12-Ed25519      |  61 ++--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  81 +++--
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  66 ++--
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  66 ++--
+ .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     |  63 ++--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  48 ++-
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  60 ++--
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 167 +++++-----
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 186 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch | 186 ++++++-----
+ .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 345 ++++++++++-----------
+ ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 285 +++++++++--------
+ .../Server-TLSv13-ClientAuthRequestedAndGiven      | 339 ++++++++++----------
+ .../Server-TLSv13-ClientAuthRequestedNotGiven      | 195 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 139 ++++-----
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 184 ++++++-----
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 218 +++++++------
+ src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 184 ++++++-----
+ .../testdata/Server-TLSv13-IssueTicketPreDisable   | 184 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 186 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 109 ++++++-
+ .../tls/testdata/Server-TLSv13-RSA-RSAPSS-TooSmall |  25 +-
+ src/crypto/tls/testdata/Server-TLSv13-Resume       | 106 +++----
+ .../Server-TLSv13-Resume-HelloRetryRequest         | 168 +++++-----
+ .../tls/testdata/Server-TLSv13-ResumeDisabled      | 185 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 182 ++++++-----
+ 38 files changed, 2890 insertions(+), 2549 deletions(-)

@@ -1,27 +1,27 @@
-commit db875f4d1b125e41a3999e3dd5c30d6b1bce235c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 16 11:41:12 2022 -0400
+commit 3a69cef65a856afd1f8b9d5c22e6729d0f4d84ac
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 14 15:37:06 2021 -0700
 
-    runtime/pprof: eliminate arbitrary deadline in testCPUProfile
+    [dev.cmdgo] cmd/internal/str: add utilities for quoting and splitting args
     
-    The testCPUProfile helper function iterates until the profile contains
-    enough samples. However, in general very slow builders may need longer
-    to complete tests, and may have less-responsive schedulers (leading to
-    longer durations required to collect profiles with enough samples).
-    To compensate, slower builders generally run tests with longer timeouts.
+    JoinAndQuoteFields does the inverse of SplitQuotedFields: it joins a
+    list of arguments with spaces into one string, quoting arguments that
+    contain spaces or quotes.
     
-    Since this test helper already dynamically scales the profile duration
-    based on the collected samples, allow it to continue to retry and
-    rescale until it would exceed the test's deadline.
+    QuotedStringListFlag uses SplitQuotedFields and JoinAndQuoteFields
+    together to define new flags that accept lists of arguments.
     
-    Fixes #52656 (hopefully).
+    For golang/go#41400
     
-    Change-Id: I4561e721927503f33a6d23336efa979bb9d3221f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406614
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I4986b753cb5e6fabb5b489bf26aedab889f853f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334731
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/pprof/pprof_test.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/internal/str/str.go      | 72 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/str/str_test.go | 83 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 154 insertions(+), 1 deletion(-)

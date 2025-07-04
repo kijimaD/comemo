@@ -1,16 +1,29 @@
-commit 566ebbc3ae97741e9419e2668833ac297d63ba54
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 28 21:40:08 2020 +0000
+commit 04867cd89121d9738fb16e8f299a9263a91282eb
+Author: Aofei Sheng <aofei@aofeisheng.com>
+Date:   Thu Aug 22 05:23:41 2019 +0800
 
-    doc/go1.14: document RISC-V support
+    cmd/go/internal/modconv: use modules to examine instead of using only direct source control entries
     
-    Fixes #36708
-    Updates #27532
+    Since modules now support parsing multiple forms of versions (including
+    commit hash and source control tag), I think modconv.ConvertLegacyConfig
+    no longer needs modfetch.ImportRepoRev. So I suggest that we use modules
+    to convert legacy config instead of using VCS directly. By doing this,
+    we can make the module proxy participate in the conversion process and
+    benefit from it (such as speeding up "go mod init" or breaking through
+    the firewall).
     
-    Change-Id: I9e3bb92d15825e2c4a505e1aea41b2897f18e0ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216757
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    And since modconv.ConvertLegacyConfig is the only caller of
+    modfetch.ImportRepoRev, I think modfetch.ImportRepoRev can be removed.
+    
+    Fixes #33767
+    
+    Change-Id: Ic79b14fa805ed297ca1735a8498cfed2a5ddeec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191218
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.14.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/internal/modconv/convert.go      | 11 +++---
+ src/cmd/go/internal/modfetch/repo.go        | 56 -----------------------------
+ src/cmd/go/testdata/script/mod_init_dep.txt | 11 +++---
+ 3 files changed, 14 insertions(+), 64 deletions(-)

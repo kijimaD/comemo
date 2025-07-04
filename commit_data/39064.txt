@@ -1,19 +1,14 @@
-commit dc0388c56513c9ddfa0d84260bbed758a392fc01
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 6 16:26:15 2019 -0700
+commit 6a5c5f848606f8a63ed65e0203a8fade0a75c12d
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Dec 20 11:16:23 2018 -0700
 
-    cmd/compile: avoid compiler crash for recursive interface type
+    doc/go1.12: correct types for math/bits
     
-    This change is a simple work-around to avoid a compiler crash
-    and provide a reasonable error message. A future change should
-    fix the root cause for this problem.
+    Extended precision math/bits functions are unsigned.
     
-    Fixes #23823.
-    
-    Change-Id: Ifc80d9f4d35e063c378e54d5cd8d1cf4c0d2ec6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175518
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic1633e9c367fc3d5a80bc503008f035db4e78945
+    Reviewed-on: https://go-review.googlesource.com/c/155379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/align.go | 11 ++++++++++-
- test/fixedbugs/issue23823.go         |  8 ++------
- 2 files changed, 12 insertions(+), 7 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

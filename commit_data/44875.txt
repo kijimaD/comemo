@@ -1,22 +1,38 @@
-commit c3ec79bca953627a51e5eb32adb5039d1e488997
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Mar 22 22:27:25 2021 -0400
+commit 6e3df749b1058ecfaf5f6601f6f8678c0971da8e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 9 16:35:56 2020 -0400
 
-    go/parser: resolve the type name when parsing a composite lit value
+    cmd/go: refactor -mod flag parsing
     
-    parsePrimaryExpr has to be careful to resolve identifiers used in
-    composite expressions when parsing in LHS mode. It missed the literal
-    type name.
+    Keep track of whether the -mod flag was set explicitly. When
+    -mod=readonly is the default, we'll want to adjust our error messages
+    if it's set explicitly.
     
-    Fixes #45136
+    Also, register the -mod, -modcacherw, and -modfile flags in functions
+    in internal/base instead of internal/work. 'go mod' commands that
+    don't load packages shouldn't depend on internal/work.
     
-    Change-Id: I3e12f91e3ef5fdb43faa436cdf1240eb3293fe1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304451
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For #40728
+    
+    Change-Id: I272aea9e19908ba37e151baac4ea8630e90f241f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253744
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/parser/parser.go                          |  5 +++++
- src/go/parser/testdata/resolution/issue45136.src | 10 ++++------
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/base/flag.go       | 35 +++++++++++++++++++++++++++++++---
+ src/cmd/go/internal/cfg/cfg.go         |  3 ++-
+ src/cmd/go/internal/fmtcmd/fmt.go      |  3 ++-
+ src/cmd/go/internal/modcmd/download.go |  3 +--
+ src/cmd/go/internal/modcmd/edit.go     |  3 +--
+ src/cmd/go/internal/modcmd/graph.go    |  3 +--
+ src/cmd/go/internal/modcmd/init.go     |  3 +--
+ src/cmd/go/internal/modcmd/tidy.go     |  3 +--
+ src/cmd/go/internal/modcmd/vendor.go   |  3 +--
+ src/cmd/go/internal/modcmd/verify.go   |  3 +--
+ src/cmd/go/internal/modcmd/why.go      |  3 +--
+ src/cmd/go/internal/modload/init.go    | 23 ++++++++++++----------
+ src/cmd/go/internal/work/build.go      | 14 +++-----------
+ src/cmd/go/internal/work/init.go       |  2 +-
+ 14 files changed, 61 insertions(+), 43 deletions(-)

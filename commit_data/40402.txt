@@ -1,21 +1,29 @@
-commit 05ee5065d0fa9d8dbb043f2099e11e1809de1133
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 24 17:00:57 2019 +0700
+commit b4a472b1c3b7ae48cf6128e5f0594439dc20d081
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 15:10:29 2019 -0400
 
-    syscall: correct comment in testGetdirentries
+    syscall: fix vet complaints for all dragonfly, freebsd, netbsd, openbsd
     
-    Correct comment about allocating big enough slice to copy result of
-    Getdirentries.
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    While at it, also convert from Dirent directly to slice of byte.
+    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOSes,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
     
-    Updates #35092
+    For #31916.
     
-    Change-Id: I892de7953120622882e1561728e1e56b009a2351
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202880
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id2e1223497bd0cd6e880cd81f3ece6363e58219f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176104
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/syscall/getdirentries_test.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/cmd/vet/all/whitelist/dragonfly_amd64.txt |  6 ------
+ src/cmd/vet/all/whitelist/freebsd_386.txt     | 10 ----------
+ src/cmd/vet/all/whitelist/freebsd_amd64.txt   |  5 -----
+ src/cmd/vet/all/whitelist/netbsd_386.txt      | 10 ----------
+ src/cmd/vet/all/whitelist/netbsd_arm.txt      |  3 ---
+ src/cmd/vet/all/whitelist/openbsd_386.txt     | 10 ----------
+ src/syscall/asm9_unix2_amd64.s                |  8 +++++---
+ src/syscall/asm_netbsd_arm.s                  |  2 +-
+ src/syscall/asm_unix_386.s                    | 20 ++++++++++----------
+ 9 files changed, 16 insertions(+), 58 deletions(-)

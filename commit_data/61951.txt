@@ -1,0 +1,26 @@
+commit cce75da30b6a1a58f7265401279cab707d403dcf
+Author: Alec Bakholdin <alecbakholdin@gmail.com>
+Date:   Sun Dec 22 20:36:59 2024 -0500
+
+    crypto/mlkem: swap order of return values of Encapsulate
+    
+    Per FIPS 203 (https://csrc.nist.gov/pubs/fips/203/final), the order of return values should be sharedKey, ciphertext. This commit simply swaps those return values and updates any consumers of the Encapsulate() method to respect the new order.
+    
+    Fixes #70950
+    
+    Change-Id: I2a0d605e3baf7fe69510d60d3d35bbac18f883c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/internal/fips140/mlkem/cast.go      |  2 +-
+ src/crypto/internal/fips140/mlkem/mlkem1024.go | 12 ++++++------
+ src/crypto/internal/fips140/mlkem/mlkem768.go  | 12 ++++++------
+ src/crypto/mlkem/mlkem1024.go                  |  2 +-
+ src/crypto/mlkem/mlkem768.go                   |  2 +-
+ src/crypto/mlkem/mlkem_test.go                 | 18 +++++++++---------
+ src/crypto/tls/handshake_server_tls13.go       |  2 +-
+ 7 files changed, 25 insertions(+), 25 deletions(-)

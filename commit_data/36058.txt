@@ -1,12 +1,17 @@
-commit e954bdb021e075696b93a229863cbbcbade11b0a
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Jul 18 16:44:07 2018 -0400
+commit e55475ca3b6652d2d24b7bf48bcaf3e216c3ed68
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 1 18:22:56 2018 +0000
 
-    doc: update go1.11 release notes
+    Revert "net: mark tests with retry as parallel"
     
-    Change-Id: Ib488a78802ad730e7c6b3618eab24c259f4bebd1
-    Reviewed-on: https://go-review.googlesource.com/124798
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This reverts commit CL 103975 (a9b799a229787).
+    
+    Reason for revert: adds data race, breaks race builders, and Brad forgot
+    to run the Trybots.
+    
+    Change-Id: Id227dad7069560dbb3ea978a1dcd77ce1979034e
+    Reviewed-on: https://go-review.googlesource.com/104015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/net/lookup_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

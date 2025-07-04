@@ -1,18 +1,19 @@
-commit 7a35d39b56dacf9ef248d3e77bc2f9e8147d6b75
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 7 12:03:31 2020 -0700
+commit 1d4369fa219a2cf6d6f84860e02f0cb3e6afb77a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 28 11:37:24 2019 -0400
 
-    runtime/race: update ppc64 .syso file
+    go/build: use the main module's root when locating module sources
     
-    Update #14881
-    Update #37355
+    Previously, we were using srcDir, which would apply the wrong module
+    dependencies (including the wrong 'replace' and 'exclude' directives)
+    when locating an import path within a module.
     
-    Change-Id: I5edd53b7532836cfe6037fb668b1b8fe8f7a32f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227443
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Fixes #34860
+    
+    Change-Id: Ie59dcc2075a7b51ba40f7cd2f62dae27bf58c9b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203820
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/race/README                  |   2 +-
- src/runtime/race/race_linux_ppc64le.syso | Bin 570032 -> 618664 bytes
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/build.go      | 83 ++++++++++++++++++++++++++++++++--------------
+ src/go/build/build_test.go | 16 +++++++--
+ 2 files changed, 73 insertions(+), 26 deletions(-)

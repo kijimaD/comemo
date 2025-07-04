@@ -1,15 +1,19 @@
-commit 88a8a2705684e693082cabaec18b76615cf0b4f0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 27 13:51:45 2021 +0200
+commit 214136b7412d56151d5443741feb0ed873facf2e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 21 10:07:02 2020 -0400
 
-    os: don't check non-nil err twice in Symlink on windows
+    cmd/go/internal/fsys: use a root other than "." in Walk tests
     
-    Change-Id: I398d324723025b559fdca783fc334de9be68f2d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314030
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #42115
+    
+    Change-Id: Icf4c9eac5ed3295acbc8377c7a06f82c6bddc747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264177
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/os/file_windows.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/fsys/fsys_test.go | 74 +++++++++++++++++++----------------
+ 1 file changed, 40 insertions(+), 34 deletions(-)

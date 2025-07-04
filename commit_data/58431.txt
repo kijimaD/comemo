@@ -1,17 +1,29 @@
-commit 110ab1aaf4b0055027b86ff564b66a47e0f37b58
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Dec 20 09:28:55 2024 -0500
+commit eebeca803d6df0d3434106d7f6ebb87229c54fd7
+Author: Richard Wang <richardwa@google.com>
+Date:   Thu Sep 14 05:13:40 2023 +0000
 
-    slices: document two oddities
+    runtime: clarify error when returning unpinned pointers
     
-    Fixes #70935
+    With the introduction of runtime.Pinner, returning a pointer to a pinned
+    struct that then points to an unpinned Go pointer is correctly caught.
     
-    Change-Id: Idf4a38a05ba595d616b6469a14419ff873bbd354
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638095
-    Reviewed-by: Keith Randall <khr@golang.org>
+    However, the error message remained as "cgo result has Go pointer",
+    which should be updated to acknowledge that Go pointers to pinned
+    memory are allowed.
+    
+    This also updates the comments for cgoCheckArg and cgoCheckResult
+    to similarly clarify.
+    
+    Updates #46787
+    
+    Change-Id: I147bb09e87dfb70a24d6d43e4cf84e8bcc2aff48
+    GitHub-Last-Rev: 706facb9f2bf28e1f6e575b7626f8feeca1187cf
+    GitHub-Pull-Request: golang/go#62606
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527702
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/slices/slices.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/cgocall.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

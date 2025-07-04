@@ -1,23 +1,21 @@
-commit adf220a5d5ecaa407401e5f46a8460e97bbca64d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Sep 9 12:47:33 2024 -0400
+commit a04f5adc3c748a4bb33d83363b08648d5ba6d79f
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Aug 4 03:15:12 2023 +0000
 
-    cmd/go/testdata/script: skip part of test on unsupported platforms
+    encoding/xml, image/jpeg, image/png: use the builtin min function
     
-    The telemetry script test checks for the existence of telemetry data as
-    a baseline before checking that the act of setting telemtetry to off
-    while in local mode doesn't produce telemetry data. Of course, when
-    we're running on platforms where telemetry is not supported, telemetry
-    data won't be produced on disk either way. Only check for the existence
-    of telemetry data on supported platforms.
-    
-    For #69269
-    
-    Change-Id: I3a06bbc3d3ca0cf0203b84883f632ecfd9445aae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611876
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Change-Id: I9bafc7aa4e20e7cd994b75e7576156ca68f4fc8b
+    GitHub-Last-Rev: e037f689bddd0ef03a6ad38982fe98b4c26aaede
+    GitHub-Pull-Request: golang/go#61746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515855
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/testdata/script/telemetry.txt | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/encoding/xml/typeinfo.go | 7 -------
+ src/image/jpeg/writer.go     | 8 --------
+ src/image/png/reader.go      | 7 -------
+ 3 files changed, 22 deletions(-)

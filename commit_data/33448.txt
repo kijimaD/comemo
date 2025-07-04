@@ -1,18 +1,19 @@
-commit da109c6075e135bae4b8681e0c53c725e62a354c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Nov 6 10:47:02 2017 -0500
+commit 064ae118c1b8db9a5704be2529675cdab05109db
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 07:26:07 2017 +0900
 
-    cmd/compile: enable ssacheck for tests in ssa_test.go
+    cmd/link: correct runtime/cgo detection for -linkshared
     
-    I thought SSA check was enabled for those tests, but in fact it
-    was not. Enable it. So we have SSA check on for at least some
-    tests on all architectures.
+    Current code detect runtime/cgo iff the package or sub packages imports
+    runtime/cgo directly. However, when we are using linkshared, imported
+    shared libraries might have already included runtime/cgo.
+    This CL handles later case by looking an actual runtime/cgo symbol.
     
-    Updates #22499.
-    
-    Change-Id: I51fcdda3af7faab5aeb33bf46c6db309285ce42c
-    Reviewed-on: https://go-review.googlesource.com/76024
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I35e7dfdb5e1a939eafc95a0259ee1af9782bc864
+    Reviewed-on: https://go-review.googlesource.com/56310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go | 32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

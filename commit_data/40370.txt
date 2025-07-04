@@ -1,17 +1,15 @@
-commit b12703e052feb46faa3a5e4efd3d68837682717e
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Oct 16 19:15:39 2019 +0800
+commit bef15341e1e0e691cd6699e8ab767c1d67681bff
+Author: Lorenz Nickel <mail@lorenznickel.de>
+Date:   Wed May 8 16:29:27 2019 +0000
 
-    cmd/compile: remove amd64p32 related SSA rules
+    doc: fixed some links
     
-    Updates golang/go#30439
-    
-    Change-Id: Iadc737e4c6bb05bb576fe4bb344ad92403697352
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201380
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8563a20a4ba43cee7d4b73377c405a6ff12636e5
+    GitHub-Last-Rev: 0dae408845c7cf42667a65fff6f7d1a382e2d320
+    GitHub-Pull-Request: golang/go#31914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176017
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ---
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 --------------------------
- 2 files changed, 29 deletions(-)
+ src/crypto/elliptic/p256_asm_s390x.s | 2 +-
+ src/runtime/write_err_android.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

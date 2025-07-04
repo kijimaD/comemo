@@ -1,13 +1,12 @@
-commit 3e6b7f35de96414a3a393f0ad25326f411101776
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 15 13:49:32 2015 -0400
+commit 4f35ad608869a70377951426ad4641bb2d433d18
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Mar 17 22:55:40 2015 +1100
 
-    fmt: add a few more reflect.Value tests
+    runtime: fix return values for open/read/write/close on openbsd/arm
     
-    Change-Id: I86530a4fd240f3e056e3277355d2965f6863b852
-    Reviewed-on: https://go-review.googlesource.com/8951
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5b057d16eed1b364e608ff0fd74de323da6492bc
+    Reviewed-on: https://go-review.googlesource.com/7679
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/fmt/fmt_test.go | 8 ++++++++
- src/fmt/print.go    | 2 ++
- 2 files changed, 10 insertions(+)
+ src/runtime/sys_openbsd_arm.s | 4 ++++
+ 1 file changed, 4 insertions(+)

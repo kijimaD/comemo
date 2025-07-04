@@ -1,19 +1,20 @@
-commit 36facaa1f9a24175f0fbe4fe5f479bbfb67d05e9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 13 09:58:17 2023 -0400
+commit 1f068f0dc7bc997446a7aac44cfc70746ad918e0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 18 12:11:43 2022 -0400
 
-    os/exec: avoid writing to Cmd.Path in Cmd.Start on Windows
+    runtime: throw in unreachable exitThread
     
-    Fixes #62596.
+    Several OSes don't ever reach exitThread, On AIX, Plan9, Solaris, and
+    Windows, we throw if this function is accidentally reached. Do the same
+    on Darwin and OpenBSD for consistency.
     
-    Change-Id: I9003318ac1c4e3036f32383e62e9ba08c383d5c2
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527820
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icd189b11179755a28b3ec48b267349c57facbf24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443717
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/os/exec/exec.go            | 44 ++++++++++++++++++++++++++++++++++++++----
- src/os/exec/exec_test.go       | 16 +++++++++++++++
- src/os/exec/lp_windows_test.go | 29 ++++++++++++++++++++++------
- 3 files changed, 79 insertions(+), 10 deletions(-)
+ src/runtime/sys_darwin.go   | 1 +
+ src/runtime/sys_openbsd2.go | 1 +
+ 2 files changed, 2 insertions(+)

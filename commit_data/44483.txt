@@ -1,31 +1,27 @@
-commit 6db80d74200675e20c562684c0bcc6d12a5631eb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 2 21:52:09 2021 -0800
+commit 4469f5446ad754d87afb340f59c213aec2dc4fb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 16 16:56:53 2020 -0400
 
-    cmd/compile/internal/types2: use correct recv for parameterized embedded methods
+    compress/flate: fix another deflate Reset inconsistency
     
-    Methods of generic types are instantiated lazily (upon use). Thus,
-    when we encounter a method of such a type, we need to instantiate
-    the method signature with the receiver type arguments. We infer
-    those type arguments from the method receiver. If the method is
-    embedded, we must use the actual embedded receiver type, otherwise
-    the receiver type declared with the method doesn't match up and
-    inference will fail.
+    While investigating #34121, fixed by CL 193605,
+    I discovered another case where Reset was not quite
+    resetting enough.
     
-    (Note that there's no type inference in the source code here, it's
-    only the implementation which uses the existing inference mechanism
-    to easily identify the actual type arguments. If the implementation
-    is correct, the inference will always succeed.)
+    This specific case is not a problem in Reset itself but
+    rather that the Huffman bit writer in one code path
+    is using uninitialized memory left over from a previous
+    block, making the compression not choose the optimal
+    compression method.
     
-    Updates #44688.
+    Fixes #34121.
     
-    Change-Id: Ie35b62bebaeaf42037f2ca00cf8bd34fec2ddd9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298129
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I29245b28214d924e382f91e2c56b4b8a9b7da13d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243140
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/types2/call.go            | 33 +++++----
- .../internal/types2/fixedbugs/issue44688.go2       | 83 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/selection.go       |  4 +-
- 3 files changed, 106 insertions(+), 14 deletions(-)
+ src/compress/flate/deflate_test.go       | 56 +++++++++++++++++++++++---------
+ src/compress/flate/huffman_bit_writer.go |  1 +
+ 2 files changed, 41 insertions(+), 16 deletions(-)

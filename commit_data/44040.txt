@@ -1,24 +1,17 @@
-commit 2de786647019d8a48bb776660f861995721c88c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 17 14:57:20 2020 -0800
+commit 0f47c12a29e6277c8139e8d4f5a45272e437fe6e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 28 00:41:02 2020 +0700
 
-    os: remove dependency on strings package
+    cmd/compile: do not emit code for discardable blank fields
     
-    Historically the os package has not imported the strings package.
-    That was enforced by go/build.TestDependencies, but that test
-    was accidentally broken (#43249). A dependency of os on strings
-    was accidentally added by CL 266364; remove it.
+    Fixes #38690
     
-    For #42026
-    For #43249
-    
-    Change-Id: If932308f30561fdcc5c608d7563e849c0d2870d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279072
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I3544daf617fddc0f89636265c113001178d16b0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230121
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/file_plan9.go | 10 ----------
- src/os/tempfile.go   | 17 ++++++++++++-----
- 2 files changed, 12 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go |  3 ++
+ test/fixedbugs/issue38690.go         | 65 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

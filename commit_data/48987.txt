@@ -1,16 +1,18 @@
-commit e7508598bb8007ec2a04cb25a6076643af05c033
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 3 15:40:40 2022 +0000
+commit 743f03eeb0bdcb596b46fae51d23c0fcf0db0474
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 1 16:52:59 2021 -0700
 
-    runtime: use Escape instead of escape in export_test.go
+    spec, unsafe: clarify unsafe.Slice docs
     
-    I landed the bottom CL of my stack without rebasing or retrying trybots,
-    but in the rebase "escape" was removed in favor of "Escape."
+    For #19367
     
-    Change-Id: Icdc4d8de8b6ebc782215f2836cd191377cc211df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403755
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If0ff8ddba3b6b48e2e198cf3653e73284c7572a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332409
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/export_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html     | 8 +++++---
+ src/unsafe/unsafe.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

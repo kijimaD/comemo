@@ -1,109 +1,24 @@
-commit ab636b899cbfe40ad310d7b50d1a443724f5970a
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Fri Mar 17 03:31:09 2017 +0000
+commit e56be943753d454b3eeb938c30de812266a8549e
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 14 14:10:26 2016 -0800
 
-    hash/crc32: optimize arm64 crc32 implementation
+    crypto/x509: add test for v1 intermediates.
     
-    ARMv8 defines crc32 instruction.
+    X.509v1 certificates are ancient and should be dead. (They are even
+    prohibited by the Baseline requirements, section 7.1.1.)
     
-    Comparing to the original crc32 calculation, this patch makes use of
-    crc32 instructions to do crc32 calculation instead of the multiple
-    lookup table algorithms.
+    However, there are a number of v1 roots from the 1990's that are still
+    in operation. Thus crypto/x509.Certificate.CheckSignatureFrom allows
+    X.509v1 certificates to sign other certificates.
     
-    ARMv8 provides IEEE and Castagnoli polynomials for crc32 calculation
-    so that the perfomance of these two types of crc32 get significant
-    improved.
+    The chain building code, however, only allows v1 certificates to sign
+    others if they're a root. This change adds a test to check that.
     
-    name                                        old time/op   new time/op    delta
-    CRC32/poly=IEEE/size=15/align=0-32            117ns ± 0%      38ns ± 0%   -67.44%
-    CRC32/poly=IEEE/size=15/align=1-32            117ns ± 0%      38ns ± 0%   -67.52%
-    CRC32/poly=IEEE/size=40/align=0-32            129ns ± 0%      41ns ± 0%   -68.37%
-    CRC32/poly=IEEE/size=40/align=1-32            129ns ± 0%      41ns ± 0%   -68.29%
-    CRC32/poly=IEEE/size=512/align=0-32           828ns ± 0%     246ns ± 0%   -70.29%
-    CRC32/poly=IEEE/size=512/align=1-32           828ns ± 0%     132ns ± 0%   -84.06%
-    CRC32/poly=IEEE/size=1kB/align=0-32          1.58µs ± 0%    0.46µs ± 0%   -70.98%
-    CRC32/poly=IEEE/size=1kB/align=1-32          1.58µs ± 0%    0.46µs ± 0%   -70.92%
-    CRC32/poly=IEEE/size=4kB/align=0-32          6.06µs ± 0%    1.74µs ± 0%   -71.27%
-    CRC32/poly=IEEE/size=4kB/align=1-32          6.10µs ± 0%    1.74µs ± 0%   -71.44%
-    CRC32/poly=IEEE/size=32kB/align=0-32         48.3µs ± 0%    13.7µs ± 0%   -71.61%
-    CRC32/poly=IEEE/size=32kB/align=1-32         48.3µs ± 0%    13.7µs ± 0%   -71.60%
-    CRC32/poly=Castagnoli/size=15/align=0-32      116ns ± 0%      38ns ± 0%   -67.07%
-    CRC32/poly=Castagnoli/size=15/align=1-32      116ns ± 0%      38ns ± 0%   -66.90%
-    CRC32/poly=Castagnoli/size=40/align=0-32      127ns ± 0%      40ns ± 0%   -68.11%
-    CRC32/poly=Castagnoli/size=40/align=1-32      127ns ± 0%      40ns ± 0%   -68.11%
-    CRC32/poly=Castagnoli/size=512/align=0-32     828ns ± 0%     132ns ± 0%   -84.06%
-    CRC32/poly=Castagnoli/size=512/align=1-32     827ns ± 0%     132ns ± 0%   -84.04%
-    CRC32/poly=Castagnoli/size=1kB/align=0-32    1.59µs ± 0%    0.22µs ± 0%   -85.89%
-    CRC32/poly=Castagnoli/size=1kB/align=1-32    1.58µs ± 0%    0.22µs ± 0%   -85.79%
-    CRC32/poly=Castagnoli/size=4kB/align=0-32    6.14µs ± 0%    0.77µs ± 0%   -87.40%
-    CRC32/poly=Castagnoli/size=4kB/align=1-32    6.06µs ± 0%    0.77µs ± 0%   -87.25%
-    CRC32/poly=Castagnoli/size=32kB/align=0-32   48.3µs ± 0%     5.9µs ± 0%   -87.71%
-    CRC32/poly=Castagnoli/size=32kB/align=1-32   48.4µs ± 0%     6.0µs ± 0%   -87.69%
-    CRC32/poly=Koopman/size=15/align=0-32         104ns ± 0%     104ns ± 0%    +0.00%
-    CRC32/poly=Koopman/size=15/align=1-32         104ns ± 0%     104ns ± 0%    +0.00%
-    CRC32/poly=Koopman/size=40/align=0-32         235ns ± 0%     235ns ± 0%    +0.00%
-    CRC32/poly=Koopman/size=40/align=1-32         235ns ± 0%     235ns ± 0%    +0.00%
-    CRC32/poly=Koopman/size=512/align=0-32       2.71µs ± 0%    2.71µs ± 0%    -0.07%
-    CRC32/poly=Koopman/size=512/align=1-32       2.71µs ± 0%    2.71µs ± 0%    -0.04%
-    CRC32/poly=Koopman/size=1kB/align=0-32       5.40µs ± 0%    5.39µs ± 0%    -0.06%
-    CRC32/poly=Koopman/size=1kB/align=1-32       5.40µs ± 0%    5.40µs ± 0%    +0.02%
-    CRC32/poly=Koopman/size=4kB/align=0-32       21.5µs ± 0%    21.5µs ± 0%    -0.16%
-    CRC32/poly=Koopman/size=4kB/align=1-32       21.5µs ± 0%    21.5µs ± 0%    -0.05%
-    CRC32/poly=Koopman/size=32kB/align=0-32       172µs ± 0%     172µs ± 0%    -0.07%
-    CRC32/poly=Koopman/size=32kB/align=1-32       172µs ± 0%     172µs ± 0%    -0.01%
-    
-    name                                        old speed     new speed      delta
-    CRC32/poly=IEEE/size=15/align=0-32          128MB/s ± 0%   394MB/s ± 0%  +207.95%
-    CRC32/poly=IEEE/size=15/align=1-32          128MB/s ± 0%   394MB/s ± 0%  +208.09%
-    CRC32/poly=IEEE/size=40/align=0-32          310MB/s ± 0%   979MB/s ± 0%  +216.07%
-    CRC32/poly=IEEE/size=40/align=1-32          310MB/s ± 0%   979MB/s ± 0%  +216.16%
-    CRC32/poly=IEEE/size=512/align=0-32         618MB/s ± 0%  2074MB/s ± 0%  +235.72%
-    CRC32/poly=IEEE/size=512/align=1-32         618MB/s ± 0%  3852MB/s ± 0%  +523.55%
-    CRC32/poly=IEEE/size=1kB/align=0-32         646MB/s ± 0%  2225MB/s ± 0%  +244.57%
-    CRC32/poly=IEEE/size=1kB/align=1-32         647MB/s ± 0%  2225MB/s ± 0%  +243.87%
-    CRC32/poly=IEEE/size=4kB/align=0-32         676MB/s ± 0%  2352MB/s ± 0%  +248.02%
-    CRC32/poly=IEEE/size=4kB/align=1-32         672MB/s ± 0%  2352MB/s ± 0%  +250.15%
-    CRC32/poly=IEEE/size=32kB/align=0-32        678MB/s ± 0%  2387MB/s ± 0%  +252.17%
-    CRC32/poly=IEEE/size=32kB/align=1-32        678MB/s ± 0%  2388MB/s ± 0%  +252.11%
-    CRC32/poly=Castagnoli/size=15/align=0-32    129MB/s ± 0%   393MB/s ± 0%  +205.51%
-    CRC32/poly=Castagnoli/size=15/align=1-32    129MB/s ± 0%   390MB/s ± 0%  +203.41%
-    CRC32/poly=Castagnoli/size=40/align=0-32    314MB/s ± 0%   988MB/s ± 0%  +215.04%
-    CRC32/poly=Castagnoli/size=40/align=1-32    314MB/s ± 0%   987MB/s ± 0%  +214.68%
-    CRC32/poly=Castagnoli/size=512/align=0-32   618MB/s ± 0%  3860MB/s ± 0%  +524.32%
-    CRC32/poly=Castagnoli/size=512/align=1-32   619MB/s ± 0%  3859MB/s ± 0%  +523.66%
-    CRC32/poly=Castagnoli/size=1kB/align=0-32   645MB/s ± 0%  4568MB/s ± 0%  +608.56%
-    CRC32/poly=Castagnoli/size=1kB/align=1-32   650MB/s ± 0%  4567MB/s ± 0%  +602.94%
-    CRC32/poly=Castagnoli/size=4kB/align=0-32   667MB/s ± 0%  5297MB/s ± 0%  +693.81%
-    CRC32/poly=Castagnoli/size=4kB/align=1-32   676MB/s ± 0%  5297MB/s ± 0%  +684.00%
-    CRC32/poly=Castagnoli/size=32kB/align=0-32  678MB/s ± 0%  5519MB/s ± 0%  +713.83%
-    CRC32/poly=Castagnoli/size=32kB/align=1-32  677MB/s ± 0%  5497MB/s ± 0%  +712.04%
-    CRC32/poly=Koopman/size=15/align=0-32       143MB/s ± 0%   144MB/s ± 0%    +0.27%
-    CRC32/poly=Koopman/size=15/align=1-32       143MB/s ± 0%   144MB/s ± 0%    +0.33%
-    CRC32/poly=Koopman/size=40/align=0-32       169MB/s ± 0%   170MB/s ± 0%    +0.12%
-    CRC32/poly=Koopman/size=40/align=1-32       170MB/s ± 0%   170MB/s ± 0%    +0.08%
-    CRC32/poly=Koopman/size=512/align=0-32      189MB/s ± 0%   189MB/s ± 0%    +0.07%
-    CRC32/poly=Koopman/size=512/align=1-32      189MB/s ± 0%   189MB/s ± 0%    +0.04%
-    CRC32/poly=Koopman/size=1kB/align=0-32      190MB/s ± 0%   190MB/s ± 0%    +0.05%
-    CRC32/poly=Koopman/size=1kB/align=1-32      190MB/s ± 0%   190MB/s ± 0%    -0.01%
-    CRC32/poly=Koopman/size=4kB/align=0-32      190MB/s ± 0%   190MB/s ± 0%    +0.15%
-    CRC32/poly=Koopman/size=4kB/align=1-32      190MB/s ± 0%   191MB/s ± 0%    +0.05%
-    CRC32/poly=Koopman/size=32kB/align=0-32     191MB/s ± 0%   191MB/s ± 0%    +0.06%
-    CRC32/poly=Koopman/size=32kB/align=1-32     191MB/s ± 0%   191MB/s ± 0%    +0.02%
-    
-    Also fix a bug of arm64 assembler
-    
-    The optimization is mainly contributed by Fangming.Fang <fangming.fang@arm.com>
-    
-    Change-Id: I900678c2e445d7e8ad9e2a9ab3305d649230905f
-    Reviewed-on: https://go-review.googlesource.com/40074
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib8d81e522f30d41932b89bdf3b19ef3782d8ec12
+    Reviewed-on: https://go-review.googlesource.com/34383
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go |  2 +-
- src/hash/crc32/crc32_arm64.go      | 51 ++++++++++++++++++++
- src/hash/crc32/crc32_arm64.s       | 97 ++++++++++++++++++++++++++++++++++++++
- src/hash/crc32/crc32_otherarch.go  |  2 +-
- src/runtime/os_darwin_arm64.go     |  2 +
- src/runtime/os_linux_arm64.go      |  7 +++
- 6 files changed, 159 insertions(+), 2 deletions(-)
+ src/crypto/x509/verify_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

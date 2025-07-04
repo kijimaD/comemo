@@ -1,12 +1,15 @@
-commit 9ded2b34516fa30ee7e79255ca8eeb5572364c19
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 27 19:07:22 2011 -0400
+commit ac213ab834654c76af18e0dc6f04c0f6ff7dbe2a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 15:53:48 2011 -0700
 
-    CONTRIBUTORS: update Rietveld address for Kyle Lemons
+    http: respect Handlers setting Connection: close in their response
     
-    R=golang-dev, bradfitz, r
+    Fixes #2011
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4634101
+    https://golang.org/cl/4667043
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/serve_test.go | 30 ++++++++++++++++++++++++------
+ src/pkg/http/server.go     |  4 ++++
+ 2 files changed, 28 insertions(+), 6 deletions(-)

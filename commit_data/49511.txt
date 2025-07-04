@@ -1,27 +1,17 @@
-commit f5715181392c68d928c3152f8cf90fa9d4ee9e4e
-Author: kkHAIKE <kkhaike@gmail.com>
-Date:   Wed May 11 02:27:21 2022 +0000
+commit d37b8dedf7f96d88c7280f6afadb09b100380f93
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 21 12:40:25 2021 -0700
 
-    cmd/cgo: dont override declared struct type
+    test: add test case that gofrontend miscompiled
     
-    Fixes #52611
+    For #47771
     
-    Change-Id: I835df8d6a98a37482446ec00af768c96fd8ee4fe
-    GitHub-Last-Rev: ea54dd69eef90eaf1641889039344fff70158ece
-    GitHub-Pull-Request: golang/go#52733
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404497
+    Change-Id: I99dfdd48def756bde68445b50741afd6d86b6cf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344169
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/cgo/test/testdata/issue52611.go    | 13 +++++++++++++
- misc/cgo/test/testdata/issue52611a/a.go | 16 ++++++++++++++++
- misc/cgo/test/testdata/issue52611a/b.go | 11 +++++++++++
- misc/cgo/test/testdata/issue52611b/a.go | 11 +++++++++++
- misc/cgo/test/testdata/issue52611b/b.go | 16 ++++++++++++++++
- src/cmd/cgo/gcc.go                      |  5 +++++
- 6 files changed, 72 insertions(+)
+ test/fixedbugs/issue47771.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

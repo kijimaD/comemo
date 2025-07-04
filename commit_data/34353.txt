@@ -1,20 +1,19 @@
-commit ad9814de612bbee6c7657ac3e27bcba9b853335e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Feb 26 14:06:01 2018 +0100
+commit a607b3b437291db4699c48f5b86ac04b38ff5e8a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 20 09:51:45 2017 -0700
 
-    os: unify supportsCloseOnExec definition
+    cmd/go: look for "unknown" when checking supported compiler flags
     
-    On Darwin and FreeBSD, supportsCloseOnExec is defined in its own file,
-    even though it is set to true as on other Unices. Drop the separate
-    definitions but keep the accompanying comments.
+    Where GCC says "unrecognized command line option", clang says "unknown
+    argument". This distinction usually doesn't matter because the
+    compiler will also exit with a non-zero status, but clang 3.4
+    reportedly exits with a zero status after reporting an unknown argument.
     
-    Change-Id: Iab1d20e1b2590800f141d54b55a099c9cd7ae57e
-    Reviewed-on: https://go-review.googlesource.com/97155
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ieb69ea352a8de0cd4171a1c26708dfe523421cfa
+    Reviewed-on: https://go-review.googlesource.com/72151
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/os/sys_darwin.go  | 11 -----------
- src/os/sys_freebsd.go | 10 ----------
- src/os/sys_unix.go    |  5 ++++-
- 3 files changed, 4 insertions(+), 22 deletions(-)
+ src/cmd/go/internal/work/build.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

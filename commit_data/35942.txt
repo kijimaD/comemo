@@ -1,14 +1,13 @@
-commit 9776d025b3375f35920707757d9f5a450195c69f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 9 22:05:34 2018 +0000
+commit 50921bfa2e154f2e9346ebefba073c15c8afc453
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 22 11:18:24 2018 -0700
 
-    net/http: clarify when it's allowed to reuse a Request
+    cmd/compile: change unsafeUintptrTag from var to const
     
-    Fixes #21780
-    
-    Change-Id: Ic6fb6a536fff800a05be2d25309f72092604a785
-    Reviewed-on: https://go-review.googlesource.com/122817
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Ie30878199e24cce5b75428e6b602c017ebd16642
+    Reviewed-on: https://go-review.googlesource.com/102175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/http/client.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

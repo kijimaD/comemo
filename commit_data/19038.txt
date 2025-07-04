@@ -1,20 +1,20 @@
-commit c6a41a35590121a7bbcaa26c44d69dcc7991089b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Apr 4 08:42:35 2014 +0200
+commit df8ec65b3abcdc8566176d6dae756273d8641706
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 4 16:26:15 2014 +1100
 
-    cmd/6g, cmd/8g: disable Duff's device on NaCl.
+    os/exec: always try appropriate command extensions during Cmd.Start on windows
     
-    Native Client forbids jumps/calls to arbitrary locations and
-    enforces a particular alignement, which makes the Duff's device
-    ineffective.
+    Update #7362
+    Fixes #7377
+    Fixes #7570
     
-    LGTM=khr
-    R=rsc, dave, khr
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/84400043
+    https://golang.org/cl/83020043
 
- src/cmd/6g/cgen.c | 2 +-
- src/cmd/6g/ggen.c | 4 ++--
- src/cmd/8g/cgen.c | 2 +-
- src/cmd/8g/ggen.c | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/pack/pack_test.go          |   2 +-
+ src/pkg/os/exec/exec.go            |  37 +++
+ src/pkg/os/exec/exec_test.go       |  18 ++
+ src/pkg/os/exec/lp_windows_test.go | 474 +++++++++++++++++++++++++------------
+ 4 files changed, 384 insertions(+), 147 deletions(-)

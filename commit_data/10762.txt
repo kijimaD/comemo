@@ -1,14 +1,13 @@
-commit b1175bebd0d2aef604825287b60798fce448a5c4
-Author: Florian Weimer <fw@deneb.enyo.de>
-Date:   Tue Dec 13 17:45:01 2011 -0500
+commit f4b430c90a001fdca0dd3219f8c8d1e5203c1419
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 17:44:44 2011 -0500
 
-    contribute.html: do not fill in the reviewer field
+    A+C: Florian Weimer (individual CLA)
     
-    The golang-dev mailing list is added automatically.
-    
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5482060
+    https://golang.org/cl/5486056
 
- doc/contribute.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

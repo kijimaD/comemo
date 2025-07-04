@@ -1,19 +1,46 @@
-commit 91911e39f0fdfecc5453f9eca7ff74215ffb28a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 3 21:35:03 2016 +0000
+commit 7db77271e423604c3b58b4c4da60ddc3c3eecc0d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Nov 17 11:41:06 2015 +0100
 
-    net/http/httputil: also remove non-standard Proxy-Connection hop-by-hop header
+    runtime: use a proper type, sigset, for m.sigmask
     
-    libcurl sends this (despite never being standardized), and the Google
-    GFE rejects it with a 400 bad request (but only when over http2?).
+    Replace the cross platform but unsafe [4]uintptr type with a OS
+    specific type, sigset. Most OSes already define sigset, and this
+    change defines a suitable sigset for the OSes that don't (darwin,
+    openbsd). The OSes that don't use m.sigmask (windows, plan9, nacl)
+    now defines sigset as the empty type, struct{}.
     
-    So nuke it.
+    The gain is strongly typed access to m.sigmask, saving a dynamic
+    size sanity check and unsafe.Pointer casting. Also, some storage is
+    saved for each M, since [4]uinptr was conservative for most OSes.
     
-    Change-Id: I3fc95523d50f33a0e23bb26b9195f70ab0aed0f4
-    Reviewed-on: https://go-review.googlesource.com/19184
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The cost is that OSes that don't need m.sigmask has to define sigset.
+    
+    completes ./all.bash with GOOS linux, on amd64
+    completes ./make.bash with GOOSes openbsd, android, plan9, windows,
+    darwin, solaris, netbsd, freebsd, dragonfly, all amd64.
+    
+    With GOOS=nacl ./make.bash failed with a seemingly unrelated error.
+    
+    R=go1.7
+    
+    Change-Id: Ib460379f063eb83d393e1c5efe7333a643c1595e
+    Reviewed-on: https://go-review.googlesource.com/16942
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 1 +
- src/net/http/httputil/reverseproxy_test.go | 4 ++++
- 2 files changed, 5 insertions(+)
+ src/runtime/os1_darwin.go    | 24 +++++++++++-------------
+ src/runtime/os1_dragonfly.go | 11 +++--------
+ src/runtime/os1_freebsd.go   | 11 +++--------
+ src/runtime/os1_linux.go     |  9 +++------
+ src/runtime/os1_nacl.go      |  2 ++
+ src/runtime/os1_netbsd.go    | 11 +++--------
+ src/runtime/os1_openbsd.go   | 23 ++++++++++-------------
+ src/runtime/os1_plan9.go     |  2 ++
+ src/runtime/os1_windows.go   |  2 ++
+ src/runtime/os3_solaris.go   | 11 +++--------
+ src/runtime/os_darwin.go     |  2 +-
+ src/runtime/os_openbsd.go    |  2 +-
+ src/runtime/runtime2.go      |  2 +-
+ 13 files changed, 45 insertions(+), 67 deletions(-)

@@ -1,17 +1,14 @@
-commit 90f9beca15c951ef2cefa9942f87b71ae125ccd2
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Dec 28 02:35:04 2012 +0800
+commit 3e8304b377c3aa34f6747c5ada6d6ffc83c1a9a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 26 14:04:50 2012 -0800
 
-    reflect: declare slice as *[]unsafe.Pointer instead of *[]byte
+    exp/types: some comment fixes
     
-    The new garbage collector (CL 6114046) may find the fake *[]byte value
-    and interpret its contents as bytes rather than as potential pointers.
-    This may lead the garbage collector to free memory blocks that
-    shouldn't be freed.
-    
-    R=dvyukov, rsc, dave, minux.ma, remyoudompheng, iant
+    R=adonovan, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7000059
+    https://golang.org/cl/7018046
 
- src/pkg/reflect/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/gotype/gotype_test.go | 4 ++--
+ src/pkg/exp/types/expr.go         | 8 ++++++++
+ src/pkg/go/parser/parser.go       | 8 ++++++--
+ 3 files changed, 16 insertions(+), 4 deletions(-)

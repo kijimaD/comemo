@@ -1,25 +1,23 @@
-commit d6c2f1e90ed2eb25ca5b00fef9a4d13b01a4a1c5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 18 16:35:00 2019 -0400
+commit 57bb7be4b171a0c7ebf80467306c91e5ed8b2e84
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 1 14:54:00 2019 -0500
 
-    cmd/go/internal/modload: use a structured error for 'ambiguous import'
+    sync: internal dynamically sized lock-free queue for sync.Pool
     
-    This consolidates the construction of 'ambiguous import' errors to a
-    single location, ensuring consistency, and lays the groundwork for
-    automatic resolution in the future.
+    This adds a dynamically sized, lock-free, single-producer,
+    multi-consumer queue that will be used in the new Pool stealing
+    implementation. It's built on top of the fixed-size queue added in the
+    previous CL.
     
-    While we're at it, change "found" to "found package" to try to make
-    the cause of the error clearer.
+    For #22950, #22331.
     
-    Updates #32128
-    Updates #27899
-    
-    Change-Id: I14a93593320e5c60d20b0eb686d0d5355763c30c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196298
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifc0ca3895bec7e7f9289ba9fb7dd0332bf96ba5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166958
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modload/import.go              | 49 ++++++++++++++++------
- .../go/testdata/script/mod_ambiguous_import.txt    | 49 ++++++++++++++++++++++
- 2 files changed, 86 insertions(+), 12 deletions(-)
+ src/sync/export_test.go |  17 +++++++
+ src/sync/pool_test.go   |   9 +++-
+ src/sync/poolqueue.go   | 132 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 153 insertions(+), 5 deletions(-)

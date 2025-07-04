@@ -1,15 +1,14 @@
-commit b41a920792e1fda6c3f5ca666c5e702a06a1bf9c
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Fri Oct 30 18:16:47 2015 +0100
+commit e288271773d128c2eff80317ffa532f22ee990a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 21 11:30:19 2015 -0700
 
-    syscall: correct parameter name of Setgid on linux
+    math/big: fix TestBytes test
     
-    Change parameter name from uid to gid, to fix an obvious copy-paste
-    error.
+    Fixes #12231.
     
-    Change-Id: Iba13a45c87fde9625b82976a7d7901af4b705230
-    Reviewed-on: https://go-review.googlesource.com/16474
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1f07c444623cd864667e21b2fee534eacdc193bb
+    Reviewed-on: https://go-review.googlesource.com/13814
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/int_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

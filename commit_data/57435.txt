@@ -1,58 +1,20 @@
-commit 69827b5c8ddf93be65bfc8b17d331bb3ff7b704c
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue Jun 4 13:03:06 2024 +0800
+commit 64c1be144fdf804c5cfc6cb06eb68cc9496eedba
+Author: montag451 <montag451@laposte.net>
+Date:   Fri Aug 4 22:04:10 2023 +0000
 
-    crypto/subtle: implement xorBytes in hardware on loong64
+    testing: improve the usage message of -benchtime
     
-    goos: linux
-    goarch: loong64
-    pkg: crypto/subtle
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                        │  bench.old   │              bench.new              │
-                        │    sec/op    │   sec/op     vs base                │
-    XORBytes/8Bytes       11.250n ± 0%   6.403n ± 0%  -43.08% (p=0.000 n=20)
-    XORBytes/128Bytes      24.61n ± 0%   12.21n ± 0%  -50.39% (p=0.000 n=20)
-    XORBytes/2048Bytes     216.7n ± 0%   108.3n ± 0%  -50.02% (p=0.000 n=20)
-    XORBytes/32768Bytes    3.657µ ± 0%   1.683µ ± 0%  -53.98% (p=0.000 n=20)
-    geomean                121.7n        61.44n       -49.52%
+    Specify that -benchtime can take the form Nx.
     
-                        │  bench.old   │               bench.new                │
-                        │     B/s      │      B/s       vs base                 │
-    XORBytes/8Bytes       678.1Mi ± 0%   1191.5Mi ± 0%   +75.72% (p=0.000 n=20)
-    XORBytes/128Bytes     4.844Gi ± 0%    9.766Gi ± 0%  +101.63% (p=0.000 n=20)
-    XORBytes/2048Bytes    8.801Gi ± 0%   17.619Gi ± 0%  +100.18% (p=0.000 n=20)
-    XORBytes/32768Bytes   8.346Gi ± 0%   18.137Gi ± 0%  +117.32% (p=0.000 n=20)
-    geomean               3.918Gi         7.763Gi        +98.14%
-    
-    goos: linux
-    goarch: loong64
-    pkg: crypto/subtle
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                        │  bench.old   │              bench.new              │
-                        │    sec/op    │   sec/op     vs base                │
-    XORBytes/8Bytes       16.420n ± 0%   8.806n ± 0%  -46.37% (p=0.000 n=20)
-    XORBytes/128Bytes      35.84n ± 0%   16.42n ± 0%  -54.19% (p=0.000 n=20)
-    XORBytes/2048Bytes     332.0n ± 0%   160.5n ± 0%  -51.64% (p=0.000 n=20)
-    XORBytes/32768Bytes    4.944µ ± 0%   2.474µ ± 0%  -49.96% (p=0.000 n=20)
-    geomean                176.3n        87.05n       -50.62%
-    
-                        │  bench.old   │               bench.new                │
-                        │     B/s      │      B/s       vs base                 │
-    XORBytes/8Bytes       464.7Mi ± 0%    866.4Mi ± 0%   +86.45% (p=0.000 n=20)
-    XORBytes/128Bytes     3.326Gi ± 0%    7.261Gi ± 0%  +118.31% (p=0.000 n=20)
-    XORBytes/2048Bytes    5.745Gi ± 0%   11.880Gi ± 0%  +106.80% (p=0.000 n=20)
-    XORBytes/32768Bytes   6.172Gi ± 0%   12.334Gi ± 0%   +99.83% (p=0.000 n=20)
-    geomean               2.705Gi         5.477Gi       +102.52%
-    
-    Change-Id: Id404f9023a57025f78b6922659cfa8870881d646
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590175
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tim King <taking@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Change-Id: I1e711cdb2e19e3ff5eb2cea4e7c8843bc58696b1
+    GitHub-Last-Rev: 1cb13f7dba829497c5cbb3d4c578f4984e1cbd28
+    GitHub-Pull-Request: golang/go#61756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515801
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/subtle/xor_generic.go |   2 +-
- src/crypto/subtle/xor_loong64.go |  10 +++
- src/crypto/subtle/xor_loong64.s  | 166 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 177 insertions(+), 1 deletion(-)
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

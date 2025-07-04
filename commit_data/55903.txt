@@ -1,26 +1,25 @@
-commit edbb5a13b4d89adcfdce3704615e2d33b5991794
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Mar 11 13:53:40 2024 -0400
+commit e0c69587c4b7cfa7e6aada6f63c196d75588ddf5
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Mar 23 21:50:21 2023 +0000
 
-    cmd/go: provide a better error message when there's no go directive
+    Revert "os/user: lookup Linux users and groups via systemd userdb"
     
-    On Go 1.21+ it's an error for a workspace to contain a module with a
-    version newer than the workspace's stated go version. If the workspace
-    doesn't explicitly have a go version it's explicitly 1.18. So if a
-    workspace without a go directive contains a module whose go directive
-    is newer on it's always an error for 1.21+. In the error, before this
-    CL the error would read "module <path> listed in go.work requires go
-    >= <version>, but go.work lists go 1.18". After this change the second
-    clause would read "but go.work implicitly requires go 1.18.
+    This reverts CL 459455.
     
-    Fixes #66207
+    Reason for revert: breaks tests on various platforms, see https://go-review.googlesource.com/c/go/+/459455/74#message-3d9462b24872f6e0b12b4abf5ea3983e1588f91a
     
-    Change-Id: I44680880162a82e5cee9cfc8655d6774add6f762
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570735
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4c79b28f750c2369909688f86616d76d7eaf0ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479135
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/init.go                    | 10 ++++++++--
- .../testdata/script/work_implicit_go_requirement.txt   | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ src/os/user/listgroups_unix.go         |   9 -
+ src/os/user/lookup_unix.go             |  30 --
+ src/os/user/user.go                    |   4 -
+ src/os/user/userdbclient.go            |  22 -
+ src/os/user/userdbclient_linux.go      | 772 ---------------------------------
+ src/os/user/userdbclient_linux_test.go | 504 ---------------------
+ src/os/user/userdbclient_stub.go       |  29 --
+ 7 files changed, 1370 deletions(-)

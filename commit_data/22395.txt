@@ -1,23 +1,20 @@
-commit b9ba4ed22b2f6237042bafcfa697593a73281f36
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Dec 30 06:14:55 2014 -0800
+commit de573f87484df3278d9b7412da1964313aaeb90a
+Author: Geert-Johan Riemer <gjr19912@gmail.com>
+Date:   Mon Jan 19 14:39:33 2015 +0100
 
-    syscall: reduce the set of architecture-dependent files on Plan 9
+    archive/zip: add NewWriterWithOptions
     
-    Change-Id: I98b172181c2fd85aa385341e28bc661dbc274252
-    Reviewed-on: https://go-review.googlesource.com/2167
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    When appending zip data to existing data such as a binary file the
+    zip headers must use the correct offset. NewWriterWithOptions
+    allows creating a Writer that uses the provided offset in the zip
+    headers.
+    
+    Fixes #8669
+    
+    Change-Id: I6ec64f1e816cc57b6fc8bb9e8a0918e586fc56b0
+    Reviewed-on: https://go-review.googlesource.com/2978
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/syscall/const_plan9.go                         |  59 +++++++++++
- .../{zerrors_plan9_386.go => errors_plan9.go}      |   0
- src/syscall/syscall_plan9.go                       |   4 +-
- src/syscall/types_plan9.c                          | 115 ---------------------
- src/syscall/zerrors_plan9_amd64.go                 |  48 ---------
- src/syscall/zsyscall_plan9_386.go                  |   2 +-
- src/syscall/zsyscall_plan9_amd64.go                |   2 +-
- .../{zsysnum_plan9_386.go => zsysnum_plan9.go}     |   0
- src/syscall/zsysnum_plan9_amd64.go                 |  49 ---------
- src/syscall/ztypes_plan9_386.go                    |  75 --------------
- src/syscall/ztypes_plan9_amd64.go                  |  75 --------------
- 11 files changed, 63 insertions(+), 366 deletions(-)
+ src/archive/zip/writer.go      | 22 +++++++++++++++++++++-
+ src/archive/zip/writer_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

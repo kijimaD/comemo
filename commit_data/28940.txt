@@ -1,35 +1,19 @@
-commit e32ac7978df02fae0cbbd92bb65d0d50ea4d2df5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 19 12:47:59 2016 -0700
+commit d1272a8b5c429ed1f43f2935adcb6366abc80c05
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 14:05:47 2016 -0700
 
-    cmd/link, cmd/internal/obj: stop exporting various names
+    go/types: better error message for invalid fallthrough case
     
-    Just happened to notice that these names (funcAlign and friends) are
-    never referenced outside their package, so no need to export them.
+    Now matches the gc compiler.
     
-    Change-Id: I4bbdaa4b0ef330c3c3ef50a2ca39593977a83545
-    Reviewed-on: https://go-review.googlesource.com/31496
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #15594.
+    
+    Change-Id: I9f3942367bc0acf883c6216b8ca44820832f5fe3
+    Reviewed-on: https://go-review.googlesource.com/27241
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go  |  6 +++---
- src/cmd/internal/obj/mips/asm0.go   |  4 ++--
- src/cmd/internal/obj/ppc64/asm9.go  |  4 ++--
- src/cmd/internal/obj/s390x/asmz.go  |  6 +++---
- src/cmd/internal/obj/x86/asm6.go    |  2 +-
- src/cmd/link/internal/amd64/l.go    | 10 +++++-----
- src/cmd/link/internal/amd64/obj.go  | 10 +++++-----
- src/cmd/link/internal/arm/l.go      | 10 +++++-----
- src/cmd/link/internal/arm/obj.go    | 10 +++++-----
- src/cmd/link/internal/arm64/l.go    | 10 +++++-----
- src/cmd/link/internal/arm64/obj.go  | 10 +++++-----
- src/cmd/link/internal/mips64/l.go   | 10 +++++-----
- src/cmd/link/internal/mips64/obj.go | 10 +++++-----
- src/cmd/link/internal/ppc64/l.go    | 10 +++++-----
- src/cmd/link/internal/ppc64/obj.go  | 10 +++++-----
- src/cmd/link/internal/s390x/l.go    | 10 +++++-----
- src/cmd/link/internal/s390x/obj.go  | 10 +++++-----
- src/cmd/link/internal/x86/l.go      | 10 +++++-----
- src/cmd/link/internal/x86/obj.go    | 10 +++++-----
- 19 files changed, 81 insertions(+), 81 deletions(-)
+ src/go/types/stmt.go            | 18 +++++++++++++++---
+ src/go/types/testdata/stmt0.src | 12 ++++++++++--
+ 2 files changed, 25 insertions(+), 5 deletions(-)

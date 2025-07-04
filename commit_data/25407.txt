@@ -1,25 +1,20 @@
-commit dc5315c34108016c0c833f4262da8c72108a826b
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sat Jan 2 14:26:13 2016 +0000
+commit d3f88ce06c80a066cebf7239d6189424b1ae20cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 27 18:30:20 2015 +0000
 
-    build: prevent the entire repo to be wiped out by cgo test scripts
+    net/http/httptest: close conns in StateNew on Server close
     
-    Following the parallelization of some tests, a race condition can
-    occur in testcarchive, testshared and testcshared.
+    This part got dropped when we were debating between two solutions
+    in https://golang.org/cl/15151
     
-    In some cases, it can result in the go env GOROOT command returning
-    corrupted data, which are then passed to a rm command.
+    Fixes #13032
     
-    Make the shell script more robust by not trusting the result of
-    the go env GOROOT command. It does not really fix the issue, but
-    at least prevent the entire repository to be deleted.
-    
-    Updates #13789
-    
-    Change-Id: Iaf04a7bd078ed3a82e724e35c4b86e6f756f2a2f
-    Reviewed-on: https://go-review.googlesource.com/18173
+    Change-Id: I820b94f6c0c102ccf9342abf957328ea01f49a26
+    Reviewed-on: https://go-review.googlesource.com/16313
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testcshared/test.bash | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/net/http/httptest/server.go      | 20 +++++++++++++++++++-
+ src/net/http/httptest/server_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

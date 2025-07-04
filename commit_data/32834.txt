@@ -1,23 +1,19 @@
-commit 0168fdb5520c0a77e9a27822caf307e739d4142a
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Sep 23 19:39:08 2017 +0100
+commit b5a0f7156845302040746ebcb71304f6cb03ba40
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 17:31:57 2017 -0700
 
-    cmd/compile: refactor some more gotos away
+    runtime: deflake TestPanicRace
     
-    The ones in racewalk.go are almost all useless, since they were just
-    breaks.
+    The test is inherently racy, and for me fails about 0.05% of the time.
+    So only fail the test if it fails ten times in a row.
     
-    typecheck.go wasn't trivial, but still doable with an if/else chain.
+    Fixes #20594
     
-    Also remove a single silly goto in const.go, while at it.
-    
-    Change-Id: I776a78df6bb3b6bd4f7e5feec546c772baf4e02e
-    Reviewed-on: https://go-review.googlesource.com/65652
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I3b3f7598f2196f7406f1a3937f38f21ff0c0e4b5
+    Reviewed-on: https://go-review.googlesource.com/45020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go     |  2 --
- src/cmd/compile/internal/gc/racewalk.go  | 37 +-------------------------------
- src/cmd/compile/internal/gc/typecheck.go | 15 +++++--------
- 3 files changed, 6 insertions(+), 48 deletions(-)
+ src/runtime/crash_test.go | 43 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 13 deletions(-)

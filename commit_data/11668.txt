@@ -1,22 +1,12 @@
-commit c2fe6634db08902f078093f3ad9c7fa9cf7bb330
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Feb 7 00:38:15 2012 -0200
+commit 4151183e94a9268b639485a35cc15c86377da81e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 6 17:54:20 2012 -0800
 
-    cmd/dist: prevent race on VERSION creation
+    fix build: wrong godoc code submitted before
     
-    Commands such as "dist version > VERSION" will cause
-    the shell to create an empty VERSION file and set dist's
-    stdout to its fd. dist in turn looks at VERSION and uses
-    its content if available, which is empty at this point.
-    
-    Fix that by ignoring VERSION if it's empty.
-    
-    Also prevent cmdversion from running findgoversion a
-    second time. It was already loaded by init.
-    
-    R=adg, gustavo, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5639044
+    https://golang.org/cl/5644044
 
- src/cmd/dist/build.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/godoc/index.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

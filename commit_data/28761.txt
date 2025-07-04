@@ -1,20 +1,19 @@
-commit 56b5546b9138f80bb0b20aebcc1fa551096e87df
-Author: Gustav Westling <gustav@westling.xyz>
-Date:   Fri Aug 5 16:13:23 2016 +0200
+commit 2b6eb276517ecba08985d59b6b1928e29743d3e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 14 08:50:44 2016 -0700
 
-    cmd/gofmt: simplify map key literals
+    doc/go1.7.html: remove erroneous note about ppc64 and power8
     
-    Simplify map key literals in "gofmt -s"
+    We decided that ppc64 should maintain power5 compatibility.
+    ppc64le requires power8.
     
-    Fixes #16461.
+    Fixes #16372.
     
-    Change-Id: Ia61739b34a30ac27f6696f94a98809109a8a7b61
-    Reviewed-on: https://go-review.googlesource.com/25530
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If5b309a0563f55a3c1fe9c853d29a463f5b71101
+    Reviewed-on: https://go-review.googlesource.com/24915
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/gofmt/simplify.go                | 60 +++++++++++++++++++-------------
- src/cmd/gofmt/testdata/composites.golden | 14 ++++++++
- src/cmd/gofmt/testdata/composites.input  | 14 ++++++++
- 3 files changed, 64 insertions(+), 24 deletions(-)
+ doc/go1.7.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

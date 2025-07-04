@@ -1,13 +1,18 @@
-commit b44dbff8c8ba9296ca567af08ab5319429d56332
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Apr 6 14:52:42 2011 +1000
+commit 360ab50a9b2ae5eb11b0dbd9df73d68b95864a8a
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 5 18:07:01 2011 -0400
 
-    http: allow override of Content-Type for ServeFile
+    crypto/rsa: add support for precomputing CRT values.
     
-    R=bradfitz, bradfitzwork
+    This speeds up private key operations by 3.5x (for a 2048-bit
+    modulus).
+    
+    R=golang-dev, r, rsc1
     CC=golang-dev
-    https://golang.org/cl/4368041
+    https://golang.org/cl/4348053
 
- src/pkg/http/fs.go      | 30 ++++++++++++++++--------------
- src/pkg/http/fs_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 14 deletions(-)
+ src/pkg/crypto/rsa/rsa.go        | 49 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/crypto/rsa/rsa_test.go   | 44 ++++++++++++++++++++++++++++++------
+ src/pkg/crypto/x509/x509.go      | 17 +++++++-------
+ src/pkg/crypto/x509/x509_test.go |  7 ++++--
+ 4 files changed, 98 insertions(+), 19 deletions(-)

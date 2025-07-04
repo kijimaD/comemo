@@ -1,19 +1,31 @@
-commit b6a3c0273eac570d8993f348d1db35323442af13
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 10 03:32:21 2023 +1000
+commit 0266671e3d829c216e10e1a5ad6b4647ea5e39c4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 4 14:58:40 2022 -0400
 
-    cmd/dist,internal/platform: enable openbsd/ppc64 port
+    cmd/dist: add curiously missing GOOS/GOARCH combinations
     
-    Updates #56001
+    The cmd/dist cgo_test enumerates a large number of platforms in
+    various special cases. Some combinations are suspiciously absent. This
+    CL completes the combinations.
     
-    Change-Id: I16440114ecf661e9fc17d304ab3b16bc97ef82f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517935
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    I've confirmed using trybots that the newly-enabled tests pass on
+    android/* (this is not surprising because the gohostos is never
+    "android" anyway), windows/arm64, linux/ppc64 (no cgo), linux/loong64
+    (except for one test, filed #56623), linux/mips*, netbsd/arm (except
+    for one test, filed #56629), and netbsd/arm64. The windows/arm builder
+    is out to lunch, so I'm assuming that works. Since netbsd/arm and
+    arm64 mostly passed these tests, I've also enabled them on netbsd/386
+    and netbsd/amd64, where they seem to work fine as well.
+    
+    Preparation for #37486.
+    
+    Change-Id: I04c3348e4f422d74d51e714647ca3db379e6e919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448016
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/build.go            | 1 -
- src/internal/platform/zosarch.go | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/dist/test.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

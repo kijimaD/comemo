@@ -1,15 +1,15 @@
-commit 655a3b5a55a641962f4ff875490f90af8a2d7ea0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 1 18:13:54 2016 +0000
+commit b6f44923c0f88eb36816d90fb8fff2fd78422df5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 10 19:01:06 2016 +0200
 
-    strings: ignore allocation test in cover mode
+    go/format: add format.Node example
     
-    Fixes #17699
+    Updates #16360
     
-    Change-Id: I7ea29a3fc2ca13d9d7e3044cbb8ea22e3435d423
-    Reviewed-on: https://go-review.googlesource.com/32484
+    Change-Id: I5927cffa961cd85539a3ba9606b116c5996d1096
+    Reviewed-on: https://go-review.googlesource.com/26696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/strings/strings_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/format/format_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

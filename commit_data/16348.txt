@@ -1,30 +1,42 @@
-commit b419e2b57cb7bfa48cd04826f1b63ccb16ebe098
-Author: Adam Langley <agl@golang.org>
-Date:   Mon May 20 14:20:26 2013 -0400
+commit 27f7427995782bf60195ca65fd9b44aa34913b75
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 20 07:23:59 2013 -0700
 
-    crypto/x509: provide better error messages for X.509 verify failures.
+    net/http: simplify transfer body; reduces allocations too
     
-    Failures caused by errors like invalid signatures or missing hash
-    functions cause rather generic, unhelpful error messages because no
-    trust chain can be constructed: "x509: certificate signed by unknown
-    authority."
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnNoKeepAlive              14431        14247   -1.28%
+    BenchmarkServerFakeConnWithKeepAlive            11618        11357   -2.25%
+    BenchmarkServerFakeConnWithKeepAliveLite         6735         6427   -4.57%
+    BenchmarkServerHandlerTypeLen                    8842         8740   -1.15%
+    BenchmarkServerHandlerNoLen                      8001         7828   -2.16%
+    BenchmarkServerHandlerNoType                     8270         8227   -0.52%
+    BenchmarkServerHandlerNoHeader                   6148         5920   -3.71%
     
-    With this change, authority errors may contain the reason why an
-    arbitary candidate step in the chain was rejected. For example, in the
-    event of a missing hash function the error looks like:
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnNoKeepAlive                 30           29   -3.33%
+    BenchmarkServerFakeConnWithKeepAlive               25           24   -4.00%
+    BenchmarkServerFakeConnWithKeepAliveLite           10            9  -10.00%
+    BenchmarkServerHandlerTypeLen                      18           17   -5.56%
+    BenchmarkServerHandlerNoLen                        15           14   -6.67%
+    BenchmarkServerHandlerNoType                       16           15   -6.25%
+    BenchmarkServerHandlerNoHeader                     10            9  -10.00%
     
-    x509: certificate signed by unknown authority (possibly because of
-    "crypto/x509: cannot verify signature: algorithm unimplemented" while
-    trying to verify candidate authority certificate 'Thawte SGC CA')
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnNoKeepAlive               2557         2492   -2.54%
+    BenchmarkServerFakeConnWithKeepAlive             2260         2194   -2.92%
+    BenchmarkServerFakeConnWithKeepAliveLite         1092         1026   -6.04%
+    BenchmarkServerHandlerTypeLen                    1941         1875   -3.40%
+    BenchmarkServerHandlerNoLen                      1898         1832   -3.48%
+    BenchmarkServerHandlerNoType                     1906         1840   -3.46%
+    BenchmarkServerHandlerNoHeader                   1092         1026   -6.04%
     
-    Fixes 5058.
+    Update #5195
     
-    R=golang-dev, r
+    R=golang-dev, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/9104051
+    https://golang.org/cl/9492044
 
- src/pkg/crypto/x509/cert_pool.go    | 11 +++--
- src/pkg/crypto/x509/root_windows.go |  6 +--
- src/pkg/crypto/x509/verify.go       | 34 ++++++++++++--
- src/pkg/crypto/x509/verify_test.go  | 90 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 130 insertions(+), 11 deletions(-)
+ src/pkg/net/http/server.go   | 10 +++++++++-
+ src/pkg/net/http/transfer.go | 16 +++-------------
+ 2 files changed, 12 insertions(+), 14 deletions(-)

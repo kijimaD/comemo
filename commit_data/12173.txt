@@ -1,12 +1,12 @@
-commit 999c77d78a7f179ec1ef13b4ab6b07853f21deb2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 12:23:17 2012 -0800
+commit 3a6a1f9e7ecbbb33e7d20be621e1b41ce750b30d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 14:44:53 2012 -0500
 
-    godoc: don't show testdata directories
+    go/parser: expand test cases for bad import
     
-    R=golang-dev, bradfitz, dsymonds, minux.ma, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5700043
+    https://golang.org/cl/5697047
 
- src/cmd/godoc/dirtrees.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/go/parser/parser_test.go | 44 +++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 14 deletions(-)

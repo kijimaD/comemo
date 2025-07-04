@@ -1,34 +1,16 @@
-commit bccbf59046b9d1289f3cbf0240d02b8ae550e0ac
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Jun 28 20:22:13 2018 +0200
+commit 4907c62f99fbfc8608a79a17c20d89f50956d9fc
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Wed Mar 28 18:09:17 2018 -0700
 
-    doc/go1.11: explain new vet typechecking behaviour in release notes
+    testing: document -race goroutine limits
     
-    Since Go1.10, go test runs vet on the tests before executing them.
+    -race sets a hard cap of 8,192, which is easily hit while testing.
     
-    Moreover, the vet tool typechecks the package under analysis with
-    go/types before running. In Go1.10, a typechecking failure just caused
-    a warning to be printed. In Go1.11, a typechecking failure will cause
-    vet to exit with a fatal error (see Issue #21287).
+    Fixes #23611
     
-    This means that starting with Go1.11, tests that don't typecheck will
-    fail immediately. This would not normally be an issue, since a test
-    that doesn't typecheck shouldn't even compile, and it should already
-    be broken.
-    
-    Unfortunately, there's a bug in gc that makes it accept programs with
-    unused variables inside a closure (Issue #3059). This means that a
-    test with an unused variable inside a closure, that compiled and
-    passed in Go1.10, will fail in the typechecking step of vet starting
-    with Go1.11.
-    
-    Explain this in the 1.11 release notes.
-    
-    Fixes #26109
-    
-    Change-Id: I970c1033ab6bc985d8c64bd24f56e854af155f96
-    Reviewed-on: https://go-review.googlesource.com/121455
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0f720ec39c82c2194a485d437d6373f4bdc8a9c1
+    Reviewed-on: https://go-review.googlesource.com/103160
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.11.html | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/testing/testing.go | 3 +++
+ 1 file changed, 3 insertions(+)

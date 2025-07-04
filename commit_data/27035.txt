@@ -1,29 +1,25 @@
-commit 0fec75f5ca6a75962fb5037f59a1743659ac3bf3
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Apr 20 08:15:07 2016 -0500
+commit e806cd9f95ccf14163623792425db2b066d4198e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 22:05:49 2016 -0800
 
-    crypto/md5: add assembly implementation on ppc64le
+    cmd/compile: cleanup compile function
     
-    This change improves the performance of the block
-    function used within crypto/md5 on ppc64le.  The following
-    improvement was seen:
+    Make more idiomatic with a defer cleanup, which allows declaring
+    variables closer to their first use, rather than up front before the
+    first goto statement.
     
-    BenchmarkHash8Bytes              8.39         26.04        3.10x
-    BenchmarkHash1K                  99.41        407.84       4.10x
-    BenchmarkHash8K                  108.87       460.00       4.23x
-    BenchmarkHash8BytesUnaligned     8.39         25.80        3.08x
-    BenchmarkHash1KUnaligned         89.94        407.81       4.53x
-    BenchmarkHash8KUnaligned         96.57        459.22       4.76x
+    Also, split the legacy code generation code path into a separate
+    genlegacy function, analogous to the new genssa.
     
-    Fixes #15385
+    Passes toolstash -cmp.
     
-    Change-Id: I8af5af089cc3e3740c33c662003d104de5fe1d1b
-    Reviewed-on: https://go-review.googlesource.com/22294
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I86c22838704f6861b75716ae64ba103b0e73b12f
+    Reviewed-on: https://go-review.googlesource.com/20353
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/md5/md5block_decl.go    |   2 +-
- src/crypto/md5/md5block_generic.go |   2 +-
- src/crypto/md5/md5block_ppc64le.s  | 192 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 194 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 65 +++++++++++++++++--------------------
+ 1 file changed, 29 insertions(+), 36 deletions(-)

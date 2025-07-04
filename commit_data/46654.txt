@@ -1,19 +1,19 @@
-commit b8a601756abdb6f1503e41d86c122c4e7c7409ff
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Sep 21 09:36:40 2021 -0500
+commit 3c0a39c964bb149f0a272c396ae3e7b3c4d36e30
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 15 14:37:35 2021 -0800
 
-    internal/bytealg: port bytealg functions to reg ABI on ppc64x
+    [dev.typeparams] cmd/compile/internal/types: minor fixes/cleanups around testing
     
-    This adds support for the reg ABI to the bytes functions for
-    ppc64/ppc64le. These are initially under control of the
-    GOEXPERIMENT macro until all changes are in.
+    Also, implemented isConstType predicate in terms of "is" predicate.
     
-    Change-Id: Id82f31056af8caa8541e27c6735f6b815a5dbf5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351190
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib3b311f52196dba974802348bc6d63307530d915
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284217
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/bytealg/compare_ppc64x.s   | 75 +++++++++++++++++++++++++++------
- src/internal/bytealg/equal_ppc64x.s     | 21 ++++++---
- src/internal/bytealg/indexbyte_ppc64x.s | 19 +++++++--
- 3 files changed, 95 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      | 14 +++++++++++---
+ src/cmd/compile/internal/types2/predicates.go      |  8 ++------
+ src/cmd/compile/internal/types2/testdata/expr3.src |  4 ----
+ 3 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,19 +1,34 @@
-commit 55c0ad4b62289e243e37d86e9cc16ae8289bd8b0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 11 13:25:29 2019 +0700
+commit 9f6b21caeaba3362f3385e635054f94d7f0499f3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 27 12:15:47 2019 -0700
 
-    cmd/compile: allow iota inside function in a ConstSpec
+    cmd/compile: fix ICE from invalid operations on float/complex constants
     
-    Fixes #22344
+    Typechecking treats all untyped numbers as integers for the purposes
+    of validating operators. However, when I refactoring constant
+    operation evalution in golang.org/cl/139901, I mistakenly interpreted
+    that the only invalid case that needed to be preserved was % (modulo)
+    on floating-point values.
     
-    Change-Id: I7c400d9d4ebcab279d08a8c190508d82cbd20899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194717
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This CL restores the other remaining cases that were dropped from that
+    CL. It also uses the phrasing "invalid operation" instead of "illegal
+    constant expression" for better consistency with the rest of
+    cmd/compile and with go/types.
+    
+    Lastly, this CL extends setconst to recognize failed constant folding
+    (e.g., division by zero) so that we can properly mark those
+    expressions as broken rather than continuing forward with bogus values
+    that might lead to further spurious errors.
+    
+    Fixes #31060.
+    
+    Change-Id: I1ab6491371925e22bc8b95649f1a0eed010abca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169719
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/closure.go   |  6 +++
- src/cmd/compile/internal/gc/syntax.go    |  1 +
- src/cmd/compile/internal/gc/typecheck.go | 22 +++++++--
- test/fixedbugs/issue22344.go             | 83 ++++++++++++++++++++++++++++++++
- 4 files changed, 108 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 63 +++++++++++++++++++++++-------------
+ test/const1.go                       |  2 +-
+ test/fixedbugs/issue31060.go         | 30 +++++++++++++++++
+ 3 files changed, 72 insertions(+), 23 deletions(-)

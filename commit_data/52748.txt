@@ -1,18 +1,18 @@
-commit e7d238aaf44b420dc65c39f16733d57de8e9bbd1
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Mon Apr 17 12:39:37 2023 +0300
+commit 654b03167f7d887d09a2d25bb3d1b4db9c8ae4f8
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon May 23 08:32:35 2022 +0800
 
-    cmd/go/internal/vcweb: replace ioutil with os and io
+    cmd/internal/obj: add FuncInfo SPWRITE flag for linux/loong64
     
-    Change-Id: I251788cbbb6d740ef24e7561cc4bee880b7bdff8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485017
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Co-authored-by: limeidan <limeidan@loongson.cn>
+    Change-Id: Iac4f706fc9ff1047f1fa02f7178ebfbe38ad1ec3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407754
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/vcweb/auth.go   | 4 ++--
- src/cmd/go/internal/vcweb/fossil.go | 3 +--
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/loong64/obj.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

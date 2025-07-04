@@ -1,16 +1,24 @@
-commit 805654077252b0f34fb4323a519618ffad5a611e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 14 21:39:30 2024 -0400
+commit 1d92e0e3fa6bb79d0679f3dbb47877f4a693deb9
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 21 13:40:58 2023 -0400
 
-    cmd/internal/obj: print symbol index at -S=3
+    reflect: change rtype so that it (not *rtype) implements Type
     
-    When the compiler or assembler's -S flag is set to 3 or higher,
-    print the symbol index, for debugging.
+    The abi.Type field was changed to *abi.Type, thus the
+    bitwise representation is the same, many casts are now
+    avoided and replace by either rtype{afoo} or rfoo.Type.
     
-    Change-Id: Ia7a42b0c017105ef12fd97b3e52de0e155b0cf2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585655
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie7643edc714a0e56027c2875498a4dfe989cf7dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487558
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/objfile.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/reflect/all_test.go       |   6 +-
+ src/reflect/benchmark_test.go |   5 +-
+ src/reflect/export_test.go    |  12 +--
+ src/reflect/makefunc.go       |   2 +-
+ src/reflect/type.go           | 233 ++++++++++++++++++++++--------------------
+ src/reflect/value.go          |  24 ++---
+ 6 files changed, 145 insertions(+), 137 deletions(-)

@@ -1,15 +1,24 @@
-commit 2b3ad827a6c45395db669aeec3313ac134582a56
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 19 07:40:10 2013 +0900
+commit 17dc712c18fdba4bc88fe5adf56c3ace86c765ad
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Dec 18 15:38:53 2013 -0500
 
-    net: add test cases for the both of netgo, cgo DNS lookups
+    math/rand: Float32/64 must only return values in [0,1)
     
-    Update #4078
+    Float32 and Float64 are now both created by taking the ratio
+    of two integers which are chosen to fit entirely into the
+    precision of the desired float type. The previous code
+    could cast a Float64 with more than 23 bits of ".99999"
+    into a Float32 of 1.0, which is not in [0,1).
     
-    R=golang-dev, rsc
+    Float32 went from 15 to 21 ns/op (but is now correct).
+    
+    Fixes #6721.
+    
+    R=golang-dev, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/14638043
+    https://golang.org/cl/22730043
 
- src/pkg/net/cgo_unix_test.go   | 24 ++++++++++++++++++++++++
- src/pkg/net/netgo_unix_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/pkg/math/rand/example_test.go |  4 ++--
+ src/pkg/math/rand/rand.go         |  4 ++--
+ src/pkg/math/rand/rand_test.go    | 18 ++++++++++++++++++
+ 3 files changed, 22 insertions(+), 4 deletions(-)

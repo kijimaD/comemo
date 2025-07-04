@@ -1,25 +1,41 @@
-commit 01b9ae22ed3c0f9c9ea29adbcd23bd97de6d18dd
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Feb 6 23:25:04 2022 -0800
+commit 132ea56d292eac0226eef4bc32d784b0300c3bce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 14 19:21:14 2021 -0700
 
-    cmd/compile: constant-fold switches early in compilation
+    [dev.typeparams] cmd/compile: fix crawling of embeddable types
     
-    So that the inliner knows all the other cases are dead and doesn't
-    accumulate any cost for them.
+    In reflectdata, we have a hack to only apply inlining for (*T).M
+    wrappers generated around T.M. This was a hack because I didn't
+    understand at the time why other cases were failing.
     
-    The canonical case for this is switching on runtime.GOOS, which occurs
-    several places in the stdlib.
+    But I understand now: during export, we generally skip exporting the
+    inline bodies for unexported methods (unless they're reachable through
+    some other exported method). But it doesn't take into account that
+    embedding a type requires generating wrappers for promoted methods,
+    including imported, unexported methods.
     
-    Fixes #50253
+    For example:
     
-    Change-Id: I44823aaebb6c1b03c9b0c12d10086db81954350f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399694
-    Run-TryBot: Keith Randall <khr@golang.org>
+            package a
+            type T struct{}
+            func (T) m() {} // previously omitted by exported
+    
+            package b
+            import "./a"
+            type U struct { a.T } // needs U.m -> T.m wrapper
+    
+    This CL adds extra logic to the crawler to recognize that T is an
+    exported type directly reachable by the user, so *all* of its methods
+    need to be re-exported.
+    
+    This finally allows simplifying reflectdata.methodWrapper to always
+    call inline.InlineCalls.
+    
+    Change-Id: I25031d41fd6b6cd69d31c6a864b5329cdb5780e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327872
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/deadcode/deadcode.go | 80 +++++++++++++++++++++++++++
- test/inline.go                                | 45 +++++++++++++++
- 2 files changed, 125 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 41 ++++++++++-------
+ src/cmd/compile/internal/typecheck/crawler.go   | 58 +++++++++++++++++++++++--
+ 2 files changed, 81 insertions(+), 18 deletions(-)

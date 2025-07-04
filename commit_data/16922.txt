@@ -1,19 +1,12 @@
-commit 27d17255dbe5c620dba1a427c2fd5e2d46cb03f7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 30 10:27:08 2013 -0400
+commit 8f32df5455c08d8bffd17e0bd69aab9386a97b29
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 30 16:29:51 2013 +0900
 
-    cmd/gc: insert \n at end of every input file
+    net: add missing SetKeepAlivePeriod for Plan 9
     
-    Not just the first one.
-    
-    Fixes #5433.
-    Fixes #5913.
-    
-    R=ken2
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12028049
+    https://golang.org/cl/12082045
 
- src/cmd/gc/go.h          | 1 +
- src/cmd/gc/lex.c         | 5 ++++-
- test/fixedbugs/bug435.go | 2 +-
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/net/tcpsock_plan9.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,29 +1,18 @@
-commit bd901af30bcc8b92c5ce708b5b7d6352b17b54e8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 8 12:40:49 2022 -0700
+commit bced369a50acf50358f52e5c9c0a30d8bdb707ef
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 1 09:27:46 2021 -0400
 
-    cmd/compile/internal/ir: prevent NewClosureVar misuse
+    cmd/link: minor code cleanup in dwarf gen
     
-    NewClosureVar should only be called to capture locally declared
-    variables in the enclosing function scope. This CL adds a check to
-    make sure it's used that way, in particular to make sure it's not
-    called to capture global variables.
+    Minor code cleanup to get rid of a few unused parameters and return
+    values in the linker's dwarf generation code. No functional changes.
     
-    This came up because for generic method values, we desugar the method
-    value into a function literal that captures the receiver value after
-    evaluating it. However, due to compiler backend limitations, for
-    package-scope generic method values we spill the receiver value into a
-    global variable rather than capturing it normally.
-    
-    To prevent confusing backend issues when misusing NewClosureVar with
-    global variables, this CL adds an extra check.
-    
-    Change-Id: I80f0f083dc80f70c7f0298020efe56dba00b67d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422195
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1a68ebe0f08d8d32ca7adfdd2fb9db573a4fd5f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332070
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/name.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go | 133 ++++++++++++++++++--------------------
+ 1 file changed, 62 insertions(+), 71 deletions(-)

@@ -1,22 +1,16 @@
-commit 40cf4ad0ef2232d65a85d35897ea11aab95e9ef4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 7 15:32:49 2016 -0700
+commit 98b6febcef8f6d7411a77e9e828df681871a28ad
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 10:28:35 2016 -0700
 
-    all: fix "result not used" vet warnings
+    runtime/internal/sys: better fallback algorithms for intrinsics
     
-    For tests, assign to _.
-    For benchmarks, assign to a sink.
+    Use deBruijn sequences to count low-order zeros.
+    Reorg bswap to not use &^, it takes another instruction on x86.
     
-    Updates #11041
-    
-    Change-Id: I87c5543245c7bc74dceb38902f4551768dd37948
-    Reviewed-on: https://go-review.googlesource.com/27116
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4a5ed9fd16ee6a279d88c067e8a2ba11de821156
+    Reviewed-on: https://go-review.googlesource.com/22084
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/big/decimal_test.go | 4 +++-
- src/net/dnsmsg_test.go       | 4 ++--
- src/net/ip_test.go           | 6 ++++--
- src/time/time_test.go        | 2 +-
- 4 files changed, 10 insertions(+), 6 deletions(-)
+ src/runtime/internal/sys/intrinsics.go      | 135 +++++++++++++++-------------
+ src/runtime/internal/sys/intrinsics_test.go |  54 +++++++++++
+ 2 files changed, 126 insertions(+), 63 deletions(-)

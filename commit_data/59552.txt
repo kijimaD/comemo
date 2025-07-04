@@ -1,21 +1,21 @@
-commit 2cde950049dd46cae3ae91cde3e270825793ba0f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon May 19 16:20:47 2025 -0400
+commit 25aa45afcf40ff6c699b47bad0cb609bba84da12
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 24 12:06:41 2024 +0000
 
-    runtime: disable TestSegv in race mode
+    os: fix typo in test
     
-    This was just enabled in CL 643897. It seems to work fine on Linux, but
-    there are traceback issues on Darwin. We could disable just on Darwin,
-    but I'm not sure SIGSEGV inside of TSAN is something we care to support.
-    
-    Fixes #73784.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64-race
-    Change-Id: I6a6a636cb15d7affaeb22c4c13d8f2a5c9bb31fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674276
+    Change-Id: Ib445940f0f24385dde1b62277c8083e6369d0645
+    GitHub-Last-Rev: 02c18c27773e966145e379933e4e01d4531e7ec3
+    GitHub-Pull-Request: golang/go#66503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574016
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/crash_cgo_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/readfrom_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,26 +1,15 @@
-commit 5d06d165ff36010b3828161401aa425f8e8506a6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 5 23:09:08 2024 +0700
+commit 4e728e5121140a61c5947b82740a68aaa96ebbe8
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 4 06:47:56 2023 +0800
 
-    cmd/compile: remove types.Type rparams field
+    log/slog: restore the original log setting before test exits
     
-    This field is present during the initial development of generic support
-    inside compiler, and indicating whether a type is fully instantiated is
-    the solely purpose at this moment. Further, its name is also confused,
-    and there have been a TODO to chose a better name for it.
-    
-    Instead, just using a bit to track whether a type is fully instantiated,
-    then this rparams field can be removed to simplify the code.
-    
-    Change-Id: Ia29c6dd5792487c440b83b0f3b77bd60917c2019
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611255
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib3daffb8a4cc018d62ed6e5741355b1c1a206034
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515775
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/cmd/compile/internal/noder/reader.go      | 17 +++++---
- src/cmd/compile/internal/types/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types/type.go        | 63 +++++++--------------------
- 3 files changed, 26 insertions(+), 56 deletions(-)
+ src/log/slog/logger_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

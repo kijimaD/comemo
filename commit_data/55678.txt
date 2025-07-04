@@ -1,40 +1,36 @@
-commit e58486e5991c7dc3ac65ef12421cb33b91dd3d9e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 23 13:08:46 2024 -0500
+commit c10ba768feab868bdd0a984a34931093541dce33
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 20:35:23 2023 -0800
 
-    Revert "os: make use of pidfd on linux"
+    go/types, types2: add cause parameter to missingMethod, (new)assertableTo
     
-    This reverts CL 528438.
+    This CL allows missingMethod (and with it the assertableTo methods)
+    to provide an error cause without an extra external (and messy) call
+    of missingMethodCause. This latter function is now only called by
+    missingMethod and can be eliminated eventually in favor of more
+    precise error causes generated directly by missingMethod.
     
-    Reason for revert: Implicated in "bad FD" test failures. Full extent of
-    issue still unclear.
+    The change requires that missingMethod (and the assertableTo methods)
+    accept general types for both relevant argument types (rather than a
+    Type and a *Interface) so that error causes can report the appropriate
+    (possibly defined) type rather than the underlying interface type.
     
-    For #62654.
-    Fixes #65857.
-    
-    Change-Id: I066e38040544c506917e90255bd0e330964a0276
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566477
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic31508073fa138dd5fa27285b06cf232ee638685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472395
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/syscall/unix/pidfd_linux.go          |   8 --
- src/internal/syscall/unix/siginfo_linux.go        |  64 ----------
- src/internal/syscall/unix/siginfo_linux_mipsx.go  |  12 --
- src/internal/syscall/unix/siginfo_linux_other.go  |  12 --
- src/internal/syscall/unix/siginfo_linux_test.go   |  59 ---------
- src/internal/syscall/unix/sysnum_linux_386.go     |   1 -
- src/internal/syscall/unix/sysnum_linux_amd64.go   |   1 -
- src/internal/syscall/unix/sysnum_linux_arm.go     |   1 -
- src/internal/syscall/unix/sysnum_linux_generic.go |   1 -
- src/internal/syscall/unix/sysnum_linux_mips64x.go |   1 -
- src/internal/syscall/unix/sysnum_linux_mipsx.go   |   1 -
- src/internal/syscall/unix/sysnum_linux_ppc64x.go  |   1 -
- src/internal/syscall/unix/sysnum_linux_s390x.go   |   1 -
- src/os/exec_posix.go                              |  10 +-
- src/os/exec_unix.go                               |  39 ++----
- src/os/export_linux_test.go                       |   1 -
- src/os/pidfd_linux.go                             | 145 ----------------------
- src/os/pidfd_linux_test.go                        |  17 ---
- src/os/pidfd_other.go                             |  27 ----
- 19 files changed, 13 insertions(+), 389 deletions(-)
+ src/cmd/compile/internal/types2/api.go         |  2 +-
+ src/cmd/compile/internal/types2/expr.go        |  5 ++--
+ src/cmd/compile/internal/types2/infer.go       |  5 ++--
+ src/cmd/compile/internal/types2/instantiate.go |  4 +--
+ src/cmd/compile/internal/types2/lookup.go      | 40 +++++++++++++++++++-------
+ src/go/types/api.go                            |  2 +-
+ src/go/types/expr.go                           |  5 ++--
+ src/go/types/infer.go                          |  5 ++--
+ src/go/types/instantiate.go                    |  4 +--
+ src/go/types/lookup.go                         | 40 +++++++++++++++++++-------
+ 10 files changed, 74 insertions(+), 38 deletions(-)

@@ -1,29 +1,21 @@
-commit d0dc93c8e1a5be4e0a44b7f8ecb0cb1417de50ce
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jan 19 14:14:17 2024 +0100
+commit 9222a01e651f5968a1c66013f7094c265f4011e7
+Author: Florin Papa <fpapa@google.com>
+Date:   Mon Nov 21 10:07:58 2022 -0800
 
-    runtime,internal/poll: move websocket handling out of the runtime on Windows
+    debug/elf: add DT_FLAGS_1 constants
     
-    On Windows, the netpoll is currently coupled with the websocket usage
-    in the internal/poll package.
+    Add constants for all ELF dynamic flags (pertaining to DT_FLAGS_1). This will help, for example, determining whether an object is a position-independent executable (PIE). The constants are defined according to Table 15-10 in https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/dynamic-section.html.
     
-    This CL moves the websocket handling out of the runtime and puts it into
-    the internal/poll package, which already contains most of the async I/O
-    logic for websockets.
+    Fixes #56887
     
-    This is a good refactor per se, as the Go runtime shouldn't know about
-    websockets. In addition, it will make it easier (in a future CL) to only
-    load ws2_32.dll when the Go program actually uses websockets.
-    
-    Change-Id: Ic820872cf9bdbbf092505ed7f7504edb6687735e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556936
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6cd501af50d9dbcc2aa8a9a002e12c6fb6726761
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452496
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/poll/fd_windows.go                  | 11 ++++-----
- src/internal/syscall/windows/syscall_windows.go  |  1 +
- src/internal/syscall/windows/zsyscall_windows.go | 13 +++++++++++
- src/runtime/netpoll_windows.go                   | 29 +++++++-----------------
- src/runtime/os_windows.go                        | 11 ---------
- 5 files changed, 27 insertions(+), 38 deletions(-)
+ api/next/56887.txt        |  65 +++++++++++++++++++++++++
+ src/debug/elf/elf.go      | 118 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/debug/elf/elf_test.go |   1 +
+ 3 files changed, 184 insertions(+)

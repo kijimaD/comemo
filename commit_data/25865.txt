@@ -1,17 +1,12 @@
-commit 38d4511b104ad61d949d91652985bcdef8cbea5a
-Author: Jure Ham <jure.ham@zemanta.com>
-Date:   Tue Feb 23 11:41:27 2016 +0100
+commit 11b3dfd286872b0dd8225659f59884b78f80e47d
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Mon Jul 27 10:11:43 2015 +0200
 
-    sort: fix for nondeterministic less function in quicksort pivot
+    io: add examples to functions
     
-    Fixes #14377
-    
-    Change-Id: I130a6e1b8bc827db44efd0a74e759b894ecc4977
-    Reviewed-on: https://go-review.googlesource.com/19823
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id72cf4daceb7669cf9c7247df8e3ba086ccfe96e
+    Reviewed-on: https://go-review.googlesource.com/12730
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/sort/sort.go      | 14 +++++++-------
- src/sort/sort_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 7 deletions(-)
+ src/io/example_test.go | 223 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 223 insertions(+)

@@ -1,20 +1,14 @@
-commit eab5bc9a46df5306dab7fe40ad21a7f9b65ecdc8
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Oct 5 16:52:04 2017 +1100
+commit b88efc7e7ac15f9e0b5d8d9c82f870294f6a3839
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 11:12:34 2017 +0900
 
-    image/gif: add BenchmarkDecode.
+    net: update documentation on IP.IsUnspecified
     
-    Also add some b.ReportAllocs calls to other image codec benchmarks.
+    Fixes #19344.
     
-    Change-Id: I0f055dc76bffb66329c621a5f1ccd239f0cdd30b
-    Reviewed-on: https://go-review.googlesource.com/68390
-    Reviewed-by: Jed Denlea <jed@fastly.com>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Ic6fc7485cb50bfae99fda69d0cd9c4ae434af4c3
+    Reviewed-on: https://go-review.googlesource.com/44910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/image/gif/reader_test.go  | 18 ++++++++++++++++++
- src/image/gif/writer_test.go  |  9 ++++-----
- src/image/jpeg/reader_test.go |  4 ++--
- src/image/jpeg/writer_test.go |  8 ++++----
- src/image/png/reader_test.go  |  9 ++++-----
- src/image/png/writer_test.go  | 28 ++++++++++++++--------------
- 6 files changed, 46 insertions(+), 30 deletions(-)
+ src/net/ip.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

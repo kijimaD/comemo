@@ -1,20 +1,16 @@
-commit fcd61eb07e11f856e62de3f24383f51627f25009
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Dec 30 14:44:41 2014 -0500
+commit 6150414cb8819ab9f054298ec7f8006a43ab8eea
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 16 14:25:33 2014 -0500
 
-    go/parser: add {map,chan,interface} to expression lookahead tokens
+    runtime: update URL for heap dump format
     
-    + tests that these parse:
-      map[int]int{}[0]++
-      interface{f()}(x).f()
-      chan int(x) <- 0
+    I just created that redirect, so we can change
+    it once the wiki moves.
     
-    Fixes #9474
-    
-    Change-Id: If9fa57b3ab415ae7e93aa9935ec63edda8fe9d4f
-    Reviewed-on: https://go-review.googlesource.com/2178
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/177780043
 
- src/go/parser/parser.go     | 2 +-
- src/go/parser/short_test.go | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/heapdump.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

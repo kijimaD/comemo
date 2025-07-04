@@ -1,18 +1,31 @@
-commit dad4f39971d89b56224d1eb44121305b1c0ef711
-Author: cuishuang <imcusg@gmail.com>
-Date:   Fri May 2 09:13:26 2025 +0800
+commit 2ab9218c86ed625362df5060f64fcd59398a76f3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 6 17:50:45 2024 -0500
 
-    cmd/go/internal: make function comment match function name
+    cmd/go/internal/modfetch: pass "-c" arguments to git before subcommands
     
-    Change-Id: Ia1909a31dececd7d883ca3bddc6293dd81aee93e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669435
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    I accidentally transposed the arguments in CL 556358, causing the
+    shallow 'git fetch' attempt to always fail. That didn't break any
+    tests because we fall back to a full fetch, which works for nearly all
+    real Git servers, and we didn't have a test that checked for shallow
+    fetches.
+    
+    Tested manually using:
+            GOPROXY=direct go mod download -x -json gerrit.wikimedia.org/r/mediawiki@v0.0.0-20240202145822-67da0cbcfdf7
+    
+    (I'm still thinking about how to add a proper regression test.)
+    
+    Fixes #66147.
+    
+    Change-Id: I0bb17283bae856f369fd24f29375e507d0999933
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest,gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569422
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/generate/generate_test.go | 2 +-
- src/cmd/go/internal/list/list.go              | 2 +-
- src/cmd/go/internal/work/shell.go             | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt     | 44 ++++++++++++++--------------
+ 2 files changed, 23 insertions(+), 23 deletions(-)

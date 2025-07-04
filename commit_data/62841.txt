@@ -1,0 +1,178 @@
+commit a11643df8ff8a575abe4abc7f25d09631424ea49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 7 17:13:20 2025 -0400
+
+    math/big: replace addVW/subVW assembly with fast pure Go
+    
+    The vast majority of the time, carry propagation is limited and
+    addVW/subVW only need to consider a single word for carry propagation.
+    As Josh Bleecher-Snyder pointed out in 2019 (CL 164968), once carrying
+    is done, the remaining words can be handled faster with copy (memmove).
+    In the benchmarks below, this is the data=random case.
+    
+    Even more important, if the source and destination are the same,
+    the copy can be optimized away entirely, making a small in-place
+    addition to a big.Int O(1) instead of O(N). To date, only a few
+    systems (amd64, arm64, and pure Go, meaning wasm) make use of this
+    asymptotic improvement. This is the data=shortcut case.
+    
+    This CL deletes the addVW/subVW assembly and replaces it with
+    an optimized pure Go version. Using Go makes it easy to call
+    the real copy builtin, which will use optimized memmove code,
+    instead of recreating a worse memmove in assembly (as arm64 does)
+    or omitting the copy optimization entirely (as most others do).
+    
+    The worst case for the Go version versus assembly is the case
+    of incrementing 2^N-1 by 1, which has to propagate a carry
+    the entire length of the array. This is the data=carry case.
+    On balance, we believe this case is rare enough to be worth
+    taking a hit in that case, in exchange for significant wins
+    in the other cases and the deletion of significant amounts of
+    assembly of varying quality. (Remember that half the assembly has
+    the copy optimization and shortcut, while half does not.)
+    
+    In the benchmarks, the systems are:
+    
+            c2s16     GOARCH=amd64     c2s16 perf gomote (Intel, Google Cloud)
+            c3h88     GOARCH=amd64     c3h88 perf gomote (newer Intel, Google Cloud)
+            s7        GOARCH=amd64     rsc basement server (AMD Ryzen 9 7950X)
+            c4as16    GOARCH=arm64     c4as16 perf gomote (Google Cloud)
+            mac       GOARCH=arm64     Apple M3 Pro in MacBook Pro
+            386       GOARCH=386       gotip-linux-386 gomote
+            arm       GOARCH=arm       gotip-linux-arm gomote
+            loong64   GOARCH=loong64   gotip-linux-loong64 gomote
+            ppc64le   GOARCH=ppc64le   gotip-linux-ppc64le gomote
+            riscv64   GOARCH=riscv64   gotip-linux-riscv64 gomote
+    
+    benchmark \ system                    c2s16     c3h88       s7    c4as16       mac       386      arm  loong64   ppc64le  riscv64
+    
+    AddVW/words=1/data=random            -1.15%    -1.74%   -5.89%    -9.80%   -11.54%   +23.71%  -12.74%  -14.25%   +14.67%  +10.27%
+    AddVW/words=2/data=random            -2.59%         ~   -4.38%   -19.31%   -15.41%   +24.80%        ~  -19.99%   +13.73%  +19.71%
+    AddVW/words=3/data=random            -3.75%   -19.10%   -3.79%   -23.15%   -17.04%   +20.04%  -10.07%  -23.20%         ~  +15.39%
+    AddVW/words=4/data=random            -2.84%    +7.05%   -8.77%   -22.64%   -15.77%   +16.01%   -7.36%  -28.22%         ~  +23.00%
+    AddVW/words=5/data=random           -10.97%    +2.16%  -12.09%   -20.89%   -17.14%    +9.42%   -4.69%  -32.60%         ~  +10.07%
+    AddVW/words=6/data=random            -9.87%         ~   -7.54%   -19.08%    -6.46%         ~   -3.44%  -34.61%         ~  +12.19%
+    AddVW/words=7/data=random           -14.36%         ~  -10.09%   -19.10%   -10.47%    -6.20%   -5.06%  -38.14%   -11.54%   +6.79%
+    AddVW/words=8/data=random           -17.50%         ~  -11.06%   -25.14%   -12.88%    -8.35%   -5.11%  -41.39%   -14.04%  +11.87%
+    AddVW/words=9/data=random           -19.76%    -4.05%  -15.47%   -24.08%   -16.50%   -12.34%  -21.56%  -44.25%   -14.82%        ~
+    AddVW/words=10/data=random          -13.89%         ~   -9.69%   -23.06%    -8.04%   -12.58%  -19.25%  -32.80%   -11.68%        ~
+    AddVW/words=16/data=random          -29.36%   -15.35%  -21.86%   -25.04%   -19.89%   -32.26%  -16.29%  -42.66%   -25.92%   -3.01%
+    AddVW/words=32/data=random          -39.02%   -28.76%  -39.87%   -11.22%    -2.85%   -55.40%  -31.17%  -55.37%   -37.92%  -16.28%
+    AddVW/words=64/data=random          -25.94%   -19.09%  -20.60%    -6.90%    +8.91%   -51.00%  -43.72%  -62.27%   -44.11%  -28.74%
+    AddVW/words=100/data=random         -22.79%   -18.13%  -18.25%         ~   +33.89%   -67.40%  -51.77%  -63.54%   -53.75%  -30.97%
+    AddVW/words=1000/data=random         -8.98%    -3.84%        ~    -3.15%         ~   -93.35%  -63.92%  -65.66%   -68.67%  -42.30%
+    AddVW/words=10000/data=random        -1.38%    -0.38%        ~         ~         ~   -89.16%  -65.18%  -44.65%   -70.35%  -20.08%
+    AddVW/words=100000/data=random            ~         ~        ~         ~         ~   -87.03%  -64.51%  -36.08%   -61.40%  -16.53%
+    
+    SubVW/words=1/data=random            -3.67%         ~   -8.38%   -10.26%    -3.07%   +45.78%   -6.06%  -11.17%         ~        ~
+    SubVW/words=2/data=random            -3.48%   -10.07%   -5.76%   -20.14%    -8.45%   +44.28%        ~  -19.09%         ~  +16.98%
+    SubVW/words=3/data=random            -7.11%   -26.64%   -4.48%   -22.07%    -9.21%   +35.61%        ~  -23.93%   -18.20%        ~
+    SubVW/words=4/data=random            -4.23%    +7.19%   -8.95%   -22.62%   -13.89%   +33.20%   -8.96%  -29.96%         ~  +22.23%
+    SubVW/words=5/data=random           -11.49%    +1.92%  -10.86%   -22.27%   -17.53%   +24.48%   -2.88%  -35.19%   -19.55%        ~
+    SubVW/words=6/data=random            -7.67%         ~   -7.72%   -18.44%    -6.24%   +12.03%   -2.00%  -39.68%   -10.73%        ~
+    SubVW/words=7/data=random           -13.69%   -18.32%  -11.82%   -18.92%   -11.57%    +6.63%        ~  -43.54%   -30.81%        ~
+    SubVW/words=8/data=random           -16.02%         ~  -11.07%   -24.50%   -11.92%    +4.32%   -3.01%  -46.95%   -24.14%        ~
+    SubVW/words=9/data=random           -18.76%    -3.34%  -14.84%   -23.79%   -17.50%         ~  -21.80%  -49.98%   -29.62%        ~
+    SubVW/words=10/data=random          -13.23%         ~   -9.25%   -21.26%   -11.63%         ~  -18.58%  -39.19%   -20.09%        ~
+    SubVW/words=16/data=random          -28.25%   -13.24%  -22.66%   -27.18%   -19.13%   -23.38%  -20.24%  -51.01%   -28.06%   -3.05%
+    SubVW/words=32/data=random          -38.41%   -28.88%  -40.12%   -11.20%    -2.80%   -49.17%  -34.67%  -63.29%   -39.25%  -15.20%
+    SubVW/words=64/data=random          -25.51%   -19.24%  -22.20%    -6.57%    +9.98%   -48.52%  -48.14%  -69.50%   -49.44%  -27.92%
+    SubVW/words=100/data=random         -21.69%   -18.51%        ~    +1.92%   +34.42%   -65.88%  -54.67%  -71.24%   -58.88%  -30.71%
+    SubVW/words=1000/data=random         -9.81%    -4.05%   -2.14%    -3.06%         ~   -93.37%  -67.33%  -74.12%   -68.36%  -42.17%
+    SubVW/words=10000/data=random             ~    -0.52%        ~         ~         ~   -88.87%  -68.54%  -44.94%   -70.63%  -19.95%
+    SubVW/words=100000/data=random            ~         ~        ~         ~         ~   -86.69%  -68.09%  -48.36%   -62.42%  -19.32%
+    
+    AddVW/words=1/data=shortcut         -29.38%   -25.38%  -27.37%   -23.15%   -25.41%    +3.01%  -33.60%  -36.12%   -15.76%        ~
+    AddVW/words=2/data=shortcut         -32.79%   -34.72%  -31.47%   -24.47%   -28.21%    -3.75%  -34.66%  -43.89%   -23.65%  -21.56%
+    AddVW/words=3/data=shortcut         -38.50%   -46.83%  -35.67%   -26.38%   -30.29%   -10.41%  -44.89%  -47.68%   -30.93%  -26.85%
+    AddVW/words=4/data=shortcut         -40.40%   -28.85%  -34.19%   -29.83%   -32.95%   -16.09%  -42.86%  -51.02%   -34.19%  -26.69%
+    AddVW/words=5/data=shortcut         -43.87%   -35.42%  -36.46%   -32.59%   -37.72%   -20.82%  -45.14%  -54.01%   -35.49%  -30.48%
+    AddVW/words=6/data=shortcut         -46.98%   -39.34%  -42.22%   -35.43%   -38.18%   -27.46%  -46.72%  -56.61%   -40.21%  -34.07%
+    AddVW/words=7/data=shortcut         -49.63%   -47.97%  -46.61%   -35.28%   -41.93%   -31.14%  -49.29%  -58.89%   -41.10%  -37.01%
+    AddVW/words=8/data=shortcut         -50.48%   -42.33%  -45.40%   -40.24%   -41.74%   -32.92%  -50.62%  -60.98%   -44.85%  -38.10%
+    AddVW/words=9/data=shortcut         -54.27%   -43.52%  -49.06%   -42.16%   -45.22%   -37.57%  -51.84%  -62.91%   -46.04%  -40.82%
+    AddVW/words=10/data=shortcut        -56.01%   -45.40%  -51.42%   -43.29%   -46.14%   -38.65%  -53.65%  -64.62%   -47.05%  -43.21%
+    AddVW/words=16/data=shortcut        -62.73%   -55.66%  -59.31%   -56.38%   -54.31%   -53.16%  -61.03%  -72.29%   -58.24%  -52.57%
+    AddVW/words=32/data=shortcut        -74.00%   -69.42%  -71.75%   -33.65%   -37.35%   -71.73%  -72.59%  -82.44%   -70.87%  -67.69%
+    AddVW/words=64/data=shortcut        -56.69%   -52.72%  -52.09%   -35.48%   -36.87%   -84.24%  -83.10%  -90.37%   -82.56%  -80.81%
+    AddVW/words=100/data=shortcut       -56.68%   -53.18%  -51.49%   -33.49%   -37.72%   -89.95%  -88.21%  -93.37%   -88.47%  -86.52%
+    AddVW/words=1000/data=shortcut      -56.68%   -52.45%  -51.66%   -35.31%   -36.65%   -98.88%  -98.62%  -99.24%   -98.78%  -98.41%
+    AddVW/words=10000/data=shortcut     -56.70%   -52.40%  -51.92%   -33.49%   -36.98%   -99.89%  -99.86%  -99.92%   -99.87%  -99.91%
+    AddVW/words=100000/data=shortcut    -56.67%   -52.46%  -52.38%   -35.31%   -37.20%   -99.99%  -99.99%  -99.99%   -99.99%  -99.99%
+    
+    SubVW/words=1/data=shortcut         -29.80%   -20.71%  -26.94%   -23.24%   -25.33%   +26.97%  -32.02%  -37.85%   -40.20%  -12.67%
+    SubVW/words=2/data=shortcut         -35.47%   -36.38%  -31.93%   -25.43%   -30.18%   +18.96%  -33.48%  -46.48%   -39.38%  -18.65%
+    SubVW/words=3/data=shortcut         -39.22%   -49.96%  -36.90%   -25.82%   -30.96%   +12.53%  -40.67%  -51.07%   -43.71%  -23.78%
+    SubVW/words=4/data=shortcut         -40.46%   -24.90%  -34.66%   -29.87%   -33.97%    +4.60%  -42.32%  -54.92%   -42.83%  -22.45%
+    SubVW/words=5/data=shortcut         -43.84%   -34.17%  -38.00%   -32.55%   -37.27%    -2.46%  -43.09%  -58.18%   -45.70%  -26.45%
+    SubVW/words=6/data=shortcut         -47.69%   -37.49%  -42.73%   -35.90%   -37.73%    -8.52%  -46.55%  -61.01%   -44.00%  -30.14%
+    SubVW/words=7/data=shortcut         -49.45%   -50.66%  -46.88%   -34.77%   -41.64%   -14.46%  -48.92%  -63.46%   -50.47%  -33.39%
+    SubVW/words=8/data=shortcut         -50.45%   -39.31%  -47.14%   -40.47%   -41.70%   -15.77%  -50.21%  -65.64%   -47.71%  -34.01%
+    SubVW/words=9/data=shortcut         -54.28%   -43.07%  -49.42%   -41.34%   -44.99%   -19.39%  -51.55%  -67.61%   -56.92%  -36.82%
+    SubVW/words=10/data=shortcut        -56.85%   -47.88%  -50.92%   -42.76%   -45.67%   -23.60%  -53.04%  -69.34%   -60.18%  -39.43%
+    SubVW/words=16/data=shortcut        -62.36%   -54.83%  -58.80%   -55.83%   -53.74%   -41.04%  -60.16%  -76.75%   -60.56%  -48.63%
+    SubVW/words=32/data=shortcut        -73.68%   -68.64%  -71.57%   -33.52%   -37.34%   -64.73%  -72.67%  -85.89%   -71.87%  -64.56%
+    SubVW/words=64/data=shortcut        -56.68%   -51.66%  -52.56%   -34.75%   -37.54%   -80.30%  -83.58%  -92.39%   -83.41%  -78.70%
+    SubVW/words=100/data=shortcut       -56.68%   -50.97%  -51.57%   -33.68%   -36.78%   -87.42%  -88.53%  -94.84%   -88.87%  -84.96%
+    SubVW/words=1000/data=shortcut      -56.68%   -50.89%  -52.10%   -34.94%   -37.77%   -98.59%  -98.71%  -99.43%   -98.80%  -98.20%
+    SubVW/words=10000/data=shortcut     -56.68%   -51.00%  -52.44%   -33.65%   -37.27%   -99.86%  -99.87%  -99.94%   -99.88%  -99.90%
+    SubVW/words=100000/data=shortcut    -56.68%   -50.80%  -52.20%   -34.79%   -37.46%   -99.99%  -99.99%  -99.99%   -99.99%  -99.99%
+    
+    AddVW/words=1/data=carry             -0.51%    -5.29%  -24.03%   -26.48%         ~         ~  -33.14%  -30.23%         ~  -20.74%
+    AddVW/words=2/data=carry             -6.36%         ~  -21.05%   -39.40%         ~   +10.72%  -29.12%  -31.34%         ~  -17.29%
+    AddVW/words=3/data=carry                  ~         ~  -17.46%   -19.53%   +17.58%         ~  -26.23%  -23.61%    +7.80%  -14.34%
+    AddVW/words=4/data=carry            +19.02%   +16.80%        ~         ~   +28.25%         ~  -27.90%  -20.31%   +19.16%        ~
+    AddVW/words=5/data=carry             +3.97%   +53.02%        ~         ~   +11.31%         ~  -19.05%  -17.47%   +16.81%        ~
+    AddVW/words=6/data=carry             +2.98%   +19.83%        ~         ~   +14.84%         ~  -18.48%  -14.92%   +18.25%        ~
+    AddVW/words=7/data=carry                  ~         ~        ~         ~   +27.17%         ~  -15.50%  -12.74%   +13.00%        ~
+    AddVW/words=8/data=carry             +0.58%   +22.32%        ~    +6.10%   +29.63%         ~  -13.04%        ~   +28.46%   +2.95%
+    AddVW/words=9/data=carry                  ~   +31.53%        ~         ~   +14.42%         ~  -11.32%        ~   +18.37%   +3.28%
+    AddVW/words=10/data=carry            +3.94%   +22.36%        ~    +6.29%   +19.22%         ~  -11.27%        ~   +20.10%   +3.91%
+    AddVW/words=16/data=carry            +2.82%   +14.23%        ~   +10.06%   +25.91%   -16.12%        ~        ~   +52.28%  +10.40%
+    AddVW/words=32/data=carry                 ~   +25.35%  +13.66%         ~   +34.89%   -34.39%   +6.51%  -18.71%   +41.06%  +19.42%
+    AddVW/words=64/data=carry           -42.03%         ~  -39.70%    +6.65%   +32.29%   -39.94%  +14.34%        ~   +19.68%  +20.86%
+    AddVW/words=100/data=carry          -33.95%   -34.28%  -39.65%         ~   +27.72%   -26.80%  +17.40%        ~   +26.39%  +23.32%
+    AddVW/words=1000/data=carry         -42.49%   -47.87%  -47.44%    +1.25%    +4.25%   -41.76%  +23.40%        ~   +25.48%  +27.99%
+    AddVW/words=10000/data=carry        -41.85%   -48.49%  -49.43%         ~         ~   -42.09%  +24.61%  -10.32%   +40.55%  +18.35%
+    AddVW/words=100000/data=carry       -28.18%   -48.13%  -48.24%    +1.35%         ~   -42.90%  +24.73%   -9.79%   +22.55%  +17.16%
+    
+    SubVW/words=1/data=carry            -10.32%   -17.16%  -24.14%   -26.24%         ~   +18.43%  -34.10%  -29.54%    -9.57%        ~
+    SubVW/words=2/data=carry            -19.45%   -23.31%  -20.74%   -39.73%         ~   +15.74%  -28.13%  -30.21%         ~  -18.74%
+    SubVW/words=3/data=carry                  ~   -16.18%  -15.34%   -19.54%   +17.62%   +12.39%  -27.64%  -27.09%         ~  -14.97%
+    SubVW/words=4/data=carry            +11.67%   +24.42%        ~         ~   +25.11%   +14.07%  -28.08%  -26.18%         ~        ~
+    SubVW/words=5/data=carry             +8.08%   +25.64%        ~         ~   +10.35%    +8.12%  -21.75%  -25.50%         ~   -4.86%
+    SubVW/words=6/data=carry                  ~   +13.82%        ~         ~   +12.92%    +6.79%  -20.25%  -24.70%         ~   -2.74%
+    SubVW/words=7/data=carry                  ~         ~   +8.29%    +4.51%   +26.59%    +4.62%  -18.01%  -24.09%         ~   -1.26%
+    SubVW/words=8/data=carry                  ~   +23.16%  +16.19%    +6.16%   +25.46%    +6.74%  -15.57%  -22.74%         ~   +1.44%
+    SubVW/words=9/data=carry                  ~   +30.71%  +20.81%         ~   +12.36%         ~  -12.99%        ~         ~   +3.13%
+    SubVW/words=10/data=carry            +5.03%   +19.53%  +14.84%   +14.16%   +16.12%         ~  -11.64%  -16.00%   +15.45%   +3.29%
+    SubVW/words=16/data=carry           +14.42%   +15.58%  +33.07%   +11.43%   +24.65%         ~        ~  -21.90%   +25.59%   +9.40%
+    SubVW/words=32/data=carry                 ~   +27.57%  +46.58%         ~   +35.35%    -8.49%        ~  -24.04%   +11.86%  +18.40%
+    SubVW/words=64/data=carry           -24.34%   -27.83%  -20.90%   +13.34%   +37.17%   -14.90%        ~   -8.81%   +12.88%  +18.92%
+    SubVW/words=100/data=carry          -25.19%   -34.70%  -27.45%   +12.86%   +28.42%   -14.48%        ~        ~   +25.71%  +21.93%
+    SubVW/words=1000/data=carry         -24.93%   -47.86%  -47.26%    +2.66%         ~   -23.88%        ~        ~   +25.99%  +27.81%
+    SubVW/words=10000/data=carry        -24.17%   -36.48%  -49.41%    +1.06%         ~   -25.06%        ~  -26.50%   +27.94%  +18.36%
+    SubVW/words=100000/data=carry       -22.51%   -35.86%  -49.46%    +3.96%         ~   -25.18%        ~  -22.15%   +26.86%  +15.44%
+    
+    Change-Id: I8f252073040e674780ac6ec9912082fb205329dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664898
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/test/inl_test.go |   3 -
+ src/math/big/arith.go                     | 126 ++++++++++++++-------
+ src/math/big/arith_386.s                  |  45 --------
+ src/math/big/arith_amd64.s                | 113 -------------------
+ src/math/big/arith_arm.s                  |  60 ----------
+ src/math/big/arith_arm64.s                | 158 --------------------------
+ src/math/big/arith_decl.go                |  24 ----
+ src/math/big/arith_decl_pure.go           |  18 ---
+ src/math/big/arith_loong64.s              |  50 --------
+ src/math/big/arith_mips64x.s              |   6 -
+ src/math/big/arith_mipsx.s                |   6 -
+ src/math/big/arith_ppc64x.s               | 151 -------------------------
+ src/math/big/arith_riscv64.s              | 120 --------------------
+ src/math/big/arith_s390x.s                | 182 ------------------------------
+ src/math/big/arith_test.go                |  22 ++--
+ src/math/big/arith_wasm.s                 |   6 -
+ 16 files changed, 93 insertions(+), 997 deletions(-)

@@ -1,16 +1,18 @@
-commit 5c92f43c51e9313504ff86bec9b0cd0e5eb1c1bc
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Feb 11 21:40:26 2024 +0000
+commit de8c999159bb72e8a43f9b38b6369fc43eca572e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Feb 25 16:32:15 2023 +0700
 
-    math/rand/v2: use a doc link for crypto/rand
+    syscall: fix invalid unsafe.Pointer conversion on Windows
     
-    It's easier to go look at its documentation when there's a link.
+    Fixes #58714
     
-    Change-Id: Iad6c1aa1a3f4b9127dc526b4db473239329780d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563255
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ifa5c059ed5e358ed98aee7e83b95dd1806b535f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471335
     Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/math/rand/v2/rand.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/env_windows.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

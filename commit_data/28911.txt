@@ -1,30 +1,21 @@
-commit 3f2cb493e5d2a2c2beac9f75a3717a56e294d38a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 18 14:17:05 2016 -0700
+commit 0cd8faf74494f400d278b9b0071908951bea6f40
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 17 12:28:31 2016 -0700
 
-    cmd/compile: handle unsafe builtins like universal builtins
+    cmd/internal/obj: add opcode space safety check
     
-    Reuse the same mechanisms for handling universal builtins like len to
-    handle unsafe.Sizeof, etc. Allows us to drop package unsafe's export
-    data, and simplifies some code.
+    This CL adds a safety mechanism
+    for changing the number of opcodes
+    available per architecture.
     
-    Updates #17508.
+    A subsequent CL will actually make the change.
     
-    Change-Id: I620e0617c24e57e8a2d7cccd0e2de34608779656
-    Reviewed-on: https://go-review.googlesource.com/31433
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6332ed5514f2f153c54d11b7da0cc8a6be1c8066
+    Reviewed-on: https://go-review.googlesource.com/24222
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go        |   4 -
- src/cmd/compile/internal/gc/builtin/unsafe.go |  18 ----
- src/cmd/compile/internal/gc/const.go          |  15 +--
- src/cmd/compile/internal/gc/fmt.go            |   9 ++
- src/cmd/compile/internal/gc/main.go           |   2 -
- src/cmd/compile/internal/gc/mkbuiltin.go      |   5 +-
- src/cmd/compile/internal/gc/syntax.go         |   3 +
- src/cmd/compile/internal/gc/typecheck.go      |  55 ++++++-----
- src/cmd/compile/internal/gc/universe.go       |  16 ++++
- src/cmd/compile/internal/gc/unsafe.go         | 127 ++++++++------------------
- test/fixedbugs/bug376.go                      |   3 +-
- 11 files changed, 95 insertions(+), 162 deletions(-)
+ src/cmd/internal/obj/link.go | 3 ++-
+ src/cmd/internal/obj/util.go | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,28 +1,15 @@
-commit 4c2614c57c5e93431aef95490dd2de956ceb9967
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 27 13:05:17 2012 +0900
+commit a3498f4be4844802c2a942dee3a61531e6ed5275
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 26 23:44:30 2012 -0400
 
-    undo CL 5844051 / 5d0322034aa8
+    cmd/go: copy tag_test.go from goinstall
     
-    Breaks closure test when GOMAXPROCS=2 or more.
+    hg cat -r 11846 src/cmd/goinstall/tag_test.go >tag_test.go
+    No changes.
     
-    ««« original CL description
-    runtime: restore deadlock detection in the simplest case.
-    
-    Fixes #3342.
-    
-    R=iant, r, dave, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5844051
-    
-    »»»
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5924045
+    https://golang.org/cl/5919047
 
- src/pkg/runtime/mheap.c  |  3 ---
- src/pkg/runtime/proc.c   | 19 +++++--------------
- test/fixedbugs/bug429.go | 13 -------------
- test/golden.out          |  3 ---
- 4 files changed, 5 insertions(+), 33 deletions(-)
+ src/cmd/go/tag_test.go | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

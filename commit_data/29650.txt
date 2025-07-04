@@ -1,16 +1,20 @@
-commit 8a2c34e413bfbcb0ec9b01fd1dac3bc59d921256
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Nov 28 17:23:12 2016 -0500
+commit 41fa42b4475fda8b0c4205827ce0e2388608cb72
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Sep 30 10:35:03 2016 +0200
 
-    os: Executable can use /proc/self/exe on android
+    cmd/compile: delete unused Convconst function
     
-    Fixes the os test on the Android builder.
+    Convconst is not used in the new backend, and all its callers
+    were deleted in CL 29168 (cmd/compile: delete lots of the legacy
+    backend). iconv was an helper function for Convconst.
     
-    Change-Id: Ibb9db712156a620fcccf515e035475c5e2f535a5
-    Reviewed-on: https://go-review.googlesource.com/33650
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Updates #16357
+    
+    Change-Id: I65c7345586d7af81cdc2fb09c68f744ffb161a17
+    Reviewed-on: https://go-review.googlesource.com/30090
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/executable_procfs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go | 90 +-----------------------------------
+ 1 file changed, 1 insertion(+), 89 deletions(-)

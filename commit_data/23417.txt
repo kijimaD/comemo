@@ -1,18 +1,14 @@
-commit 526b5017133f193b8f82912936288f1ea767ffca
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue May 19 21:24:31 2015 -0400
+commit 6f2c0f1585e50bf2d8bcc11058373e38f5321227
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 12 10:01:37 2015 -0700
 
-    time: correct unrepresentable Unix time comment
+    runtime: add check for malloc in a signal handler
     
-    It's easy for someone who wants a time bigger than any
-    valid time to reach for time.Unix(1<<63-1, 0), so it
-    makes sense to explicit say such value is not valid.
-    
-    Fixes #10906 (again).
-    
-    Change-Id: If71e32472ae40d86c30e629b982406040a73c4c7
-    Reviewed-on: https://go-review.googlesource.com/10266
+    Change-Id: Ic8ebbe81eb788626c01bfab238d54236e6e5ef2b
+    Reviewed-on: https://go-review.googlesource.com/9964
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/time/time.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

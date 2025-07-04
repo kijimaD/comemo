@@ -1,25 +1,23 @@
-commit 0fb95e788e8639712b7200a5c08ec023fb3588cb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 29 22:04:09 2019 +0000
+commit 9f9e17a82fd7afa622424f51e458bb383cb952ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 19 12:20:56 2019 -0700
 
-    crypto/tls: remove NPN support
+    cmd/compile: fix ICE from go/defer call to variadic function
     
-    RELNOTE=yes
+    The special case logic for go/defer arguments in Escape.call was
+    scattered around a bit and was somewhat inconsistently handled across
+    different types of function calls and parameters. This CL pulls the
+    logic out into a separate callStmt method that's used uniformly for
+    all kinds of function calls and arguments.
     
-    Fixes #28362
+    Fixes #31573.
     
-    Change-Id: I43813c0c17bbe6c4cbb4d1f121518c434b3f5aa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174329
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icdcdf611754dc3fcf1af7cb52879fb4b73a7a31f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173019
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.14.html                            |   8 ++
- src/crypto/tls/conn.go                     |   2 -
- src/crypto/tls/handshake_client.go         |  25 -----
- src/crypto/tls/handshake_client_tls13.go   |   4 +-
- src/crypto/tls/handshake_messages.go       |  94 +----------------
- src/crypto/tls/handshake_messages_test.go  |  17 ---
- src/crypto/tls/handshake_server.go         |  23 ----
- src/crypto/tls/handshake_server_tls13.go   |   1 -
- src/crypto/tls/testdata/Client-TLSv12-ALPN |  74 ++++++-------
- src/crypto/tls/testdata/Client-TLSv13-ALPN | 162 ++++++++++++++---------------
- 10 files changed, 129 insertions(+), 281 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 94 +++++++++++++++++------------------
+ test/fixedbugs/issue31573.go          | 49 ++++++++++++++++++
+ 2 files changed, 96 insertions(+), 47 deletions(-)

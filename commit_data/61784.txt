@@ -1,0 +1,20 @@
+commit de76c0dff7b43a761786a9b5c75db2fb77797d62
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 22 04:45:33 2024 +0100
+
+    crypto/cipher: deprecate NewOFB, NewCFBDecrypter, and NewCFBEncrypter
+    
+    Updates #69445
+    
+    Change-Id: Ie9cd13d65f1f989f24731f8b09bbc5124873549f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631019
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ api/next/69445.txt                                |  3 +++
+ doc/next/6-stdlib/99-minor/crypto/cipher/69445.md |  5 +++++
+ src/crypto/cipher/cfb.go                          | 12 ++++++++++++
+ src/crypto/cipher/ofb.go                          |  6 ++++++
+ 4 files changed, 26 insertions(+)

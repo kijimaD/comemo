@@ -1,20 +1,23 @@
-commit 786e51d7baf6535290ecb0f34c9e73d7dcc21b02
+commit 4b209dbf0bf3e5fd4cffda1e11f11bf45ddf212d
 Author: Keith Randall <khr@golang.org>
-Date:   Tue May 24 16:53:48 2016 -0700
+Date:   Tue Mar 29 21:25:33 2016 -0700
 
-    cmd/compile: add generated tests for constant folding
+    runtime: don't use REP;MOVSB if CPUID doesn't say it is fast
     
-    Covers a bunch of constant-folding rules in generic.rules that aren't
-    being covered currently.
+    Only use REP;MOVSB if:
+     1) The CPUID flag says it is fast, and
+     2) The pointers are unaligned
+    Otherwise, use REP;MOVSQ.
     
-    Increases coverage in generic.rules from 65% to 72%.
+    Update #14630
     
-    Change-Id: I7bf58809faf22e97070183b42e6dd7d3f35bf5f9
-    Reviewed-on: https://go-review.googlesource.com/23407
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: I946b28b87880c08e5eed1ce2945016466c89db66
+    Reviewed-on: https://go-review.googlesource.com/21300
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/gc/constFold_test.go      | 12416 +++++++++++++++++++
- .../internal/gc/testdata/gen/constFoldGen.go       |   224 +
- 2 files changed, 12640 insertions(+)
+ src/runtime/asm_386.s       | 10 ++++++++++
+ src/runtime/asm_amd64.s     | 21 ++++++++++++++-------
+ src/runtime/memmove_386.s   | 19 ++++++++++++-------
+ src/runtime/memmove_amd64.s | 24 ++++++++++++++----------
+ src/runtime/runtime2.go     |  1 +
+ 5 files changed, 51 insertions(+), 24 deletions(-)

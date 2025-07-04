@@ -1,20 +1,26 @@
-commit 5631c4b3bfd71aae7cbdd7f35f63de7f89639d1e
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed Apr 14 18:35:49 2021 -0600
+commit 33511fb959f8f0edd5e831a4b41523daf9d84e87
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed Sep 23 14:06:28 2020 +0300
 
-    net/http: allow multiple dials in TestTransportMaxConnsPerHost
+    net/http/pprof: remove html/template dependency
     
-    If there is more than the expected single dial, the channel will block.
-    Allow at least one connection per client, and do the expected cleanup.
+    html/template indirectly uses reflect MethodByName, this causes linker
+    to use conservative mode resulting in larger binaries. The template here
+    is trivial and can be replaced by string manipulation.
     
-    Updates #45570
+    This reduces a binary using only net/http/pprof by ~2.5MB.
     
-    Change-Id: Iaecd45298a7d7c591b7d7b1be13cea6e4a1e2e85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310213
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Fixes #41569
+    
+    Change-Id: I240e1daa6376182ff4961997ee3ec7b96cb07be8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256900
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport_test.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/go/build/deps_test.go   |  2 +-
+ src/net/http/pprof/pprof.go | 60 ++++++++++++++++++++++++++-------------------
+ 2 files changed, 36 insertions(+), 26 deletions(-)

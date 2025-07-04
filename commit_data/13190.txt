@@ -1,14 +1,14 @@
-commit 90d59c586197a2300188206e4bbe99bb714e1833
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 29 11:01:50 2012 -0700
+commit fb32d60cd1ba70aa7cd9ccdc3cd409fda142df4b
+Author: Joel Sing <jsing@google.com>
+Date:   Wed May 30 02:52:50 2012 +1000
 
-    test/bench/shootout/timing.log: update after recent compiler changes
-    Moving panic out of line speeds up fannkuch almost a factor of two.
-    Changes to bitwhacking code affect mandelbrot badly.
+    runtime: make go work on netbsd/386
     
-    R=golang-dev, bradfitz, rsc, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6258056
+    https://golang.org/cl/6254055
 
- test/bench/shootout/timing.log | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/pkg/runtime/signal_netbsd_386.c | 11 ++++++
+ src/pkg/runtime/sys_netbsd_386.s    | 67 +++++++++----------------------------
+ src/pkg/runtime/sys_netbsd_amd64.s  |  2 +-
+ 3 files changed, 28 insertions(+), 52 deletions(-)

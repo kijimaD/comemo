@@ -1,25 +1,22 @@
-commit 734790716469c7dd887a1f31b8700d42e9cb3e29
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Sep 28 11:13:14 2020 -0400
+commit 5d70cb066756369f99be6ffa69b639626d95e647
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 11 22:03:50 2020 -0700
 
-    go/types: turn TestBenchmark into a normal benchmark
+    runtime: leave cleantimers early if G is being preempted
     
-    TestBenchmark doesn't use the -bench flag, so that it can format custom
-    output -- the number of checked lines per second. This is a barrier both
-    to discoverability, and to piping benchmark output into analysis tools
-    such as benchstat.
+    The cleantimers can run for a while in some unlikely cases.
+    If the GC is trying to preempt the G, it is forced to wait as the
+    G is holding timersLock. To avoid introducing a GC delay,
+    return from cleantimers if the G has a preemption request.
     
-    Using testing.B.ReportMetric and a bit of manual timing, we can achieve
-    similar results while conforming to normal benchmark output. Do this,
-    and rename the test func to BenchmarkCheck (for symmetry with
-    TestCheck).
+    Fixes #37779
     
-    Change-Id: Ie8f2259c1ca9e6986f0137287acf8eb2843f96b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257958
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id9a567f991e26668e2292eefc39e2edc56efa4e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223122
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/self_test.go | 80 ++++++++++++++++++++++++++---------------------
- 1 file changed, 45 insertions(+), 35 deletions(-)
+ src/runtime/time.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

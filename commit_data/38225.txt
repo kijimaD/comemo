@@ -1,15 +1,19 @@
-commit 6b04550820ac70283d856ceb8cb84d3883862c72
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon Mar 4 15:02:45 2019 -0800
+commit f64fd66f24d5c19d26ac58c4027aa9398a935490
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 10 14:13:49 2018 -0700
 
-    testing: fix missing verb in StartTimer doc
+    go/scanner: don't return token.INVALID for ".." sequence
     
-    Fixes StartTimer's doc with the verb 'be'
-    that was previously missing in 'can also used'.
+    Per the spec, "...the next token is the longest sequence of characters
+    that form a valid token." Thus, encountering a ".." sequence should
+    return two token.PERIOD tokens rather than a single token.ILLEGAL.
     
-    Change-Id: I4b3e6103fbf62d676056d32fcce4618536b7c05c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165117
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #28112.
+    
+    Change-Id: Iba5da841f40036e53f48f9be23f933f362e67f5e
+    Reviewed-on: https://go-review.googlesource.com/c/141337
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/testing/benchmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/scanner/scanner.go      | 18 +++++++++++++-----
+ src/go/scanner/scanner_test.go | 20 +++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 6 deletions(-)

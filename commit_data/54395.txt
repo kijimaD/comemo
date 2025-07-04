@@ -1,22 +1,27 @@
-commit 972fc055eb43bfe0e777f0301739b95c2053c208
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 8 15:44:57 2023 -0700
+commit 9fe17a0340b1609355aa5ce1828a0cf39e0a8092
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Oct 12 16:24:34 2022 -0400
 
-    cmd/compile/internal/ir: add Type param to NewBasicLit
+    cmd/link: don't reset variable size when handling -X flag
     
-    This CL adds an explicit Type parameter to NewBasicLit so that callers
-    can directly construct typed OLITERAL nodes.
+    The linker's -X flag allows setting/changing a string variable's
+    content at link time. Currently it resets its size then write a
+    new string header pointing to the new content. This mostly works.
+    But under ASAN build the string variable can have larger size
+    than the usual 2 words, due to the red zone. Resetting the size
+    can cause the variable to "overlap" (in ASAN's view) with other
+    variables. Don't reset the size.
     
-    Change-Id: I0ab50ac3d7ddb7adcc903633a62ac496921165e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527096
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #56175.
+    
+    Change-Id: Ib364208201a7a2fd7f44f9b1797834198736a405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442635
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ir/const.go      | 32 ++++++++++++++++++++++++++++---
- src/cmd/compile/internal/ir/expr.go       | 14 +++++---------
- src/cmd/compile/internal/noder/helpers.go |  2 --
- src/cmd/compile/internal/noder/reader.go  |  6 +++---
- src/cmd/compile/internal/walk/switch.go   |  2 +-
- 5 files changed, 38 insertions(+), 18 deletions(-)
+ misc/cgo/testsanitizers/asan_test.go               | 42 ++++++++++++++++++++++
+ .../testsanitizers/testdata/asan_linkerx/main.go   | 28 +++++++++++++++
+ .../testsanitizers/testdata/asan_linkerx/p/p.go    | 12 +++++++
+ src/cmd/link/internal/ld/data.go                   | 10 +++---
+ 4 files changed, 88 insertions(+), 4 deletions(-)

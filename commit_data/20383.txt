@@ -1,17 +1,13 @@
-commit b78d7b75c793ee676d4d7700610bd5030c5fea2f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 10 12:37:28 2014 -0700
+commit 97fdfdb52c28cab9251d1a610382d257c39682da
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 4 11:34:01 2014 +0400
 
-    reflect: use runtime's memmove instead of its own
+    runtime: fix solaris netpoll
     
-    They will both need write barriers at some point.
-    But until then, no reason why we shouldn't share.
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    TBR=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/141330043
+    https://golang.org/cl/141030043
 
- src/reflect/value.go | 29 +++--------------------------
- src/runtime/thunk.s  |  3 +++
- 2 files changed, 6 insertions(+), 26 deletions(-)
+ src/pkg/runtime/netpoll.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

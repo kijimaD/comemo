@@ -1,19 +1,18 @@
-commit 206ed90eafdb1a6b4438298e580b25dbd23cfe44
-Author: Fangming.Fang <fangming.fang@arm.com>
-Date:   Wed Apr 18 02:55:09 2018 +0000
+commit 613f8cad90a4359e423f5accbbafeb7dacbd53a5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 21:14:34 2017 +0000
 
-    cmd/asm: add rev64 instruction on ARM64
+    runtime: make RawSyscall panic on Solaris
     
-    This change provides VREV64 instruction for AES-GCM implementation.
+    It's unused and doesn't work.
     
-    Change-Id: Icdf278862b03556388586f459964b025c47b8c19
-    Reviewed-on: https://go-review.googlesource.com/107696
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #20833
+    
+    Change-Id: I09335e84c60f88dd1771f7353b0097f36a5e7660
+    Reviewed-on: https://go-review.googlesource.com/82636
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      |  2 ++
- src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
- src/cmd/internal/obj/arm64/a.out.go            |  1 +
- src/cmd/internal/obj/arm64/anames.go           |  1 +
- src/cmd/internal/obj/arm64/asm7.go             | 19 ++++++++++++++++---
- src/cmd/internal/obj/arm64/doc.go              |  5 +++++
- 6 files changed, 27 insertions(+), 3 deletions(-)
+ src/runtime/syscall_solaris.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

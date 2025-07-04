@@ -1,168 +1,19 @@
-commit 547baafa371672c11c550e8170a7ff2aa65e9954
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue May 14 10:59:26 2024 +0800
+commit 215bcbc6acc84565597bfafe8adc2eb1d1d5412b
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Mon Aug 7 13:44:17 2023 +0000
 
-    runtime: optimize the function memmove on loong64
+    testing: use the builtin max/min function
     
-    benchmarck on 3A6000:
-    goos: linux
-    goarch: loong64
-    pkg: runtime
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                                     │      old      │                 new                  │
-                                     │    sec/op     │    sec/op     vs base                │
-    Memmove/0                           0.6003n ± 0%   0.6003n ± 0%        ~ (p=0.487 n=20)
-    Memmove/1                            4.402n ± 0%    2.815n ± 0%  -36.05% (p=0.000 n=20)
-    Memmove/2                            5.202n ± 0%    3.202n ± 0%  -38.45% (p=0.000 n=20)
-    Memmove/3                            6.003n ± 0%    2.820n ± 0%  -53.02% (p=0.000 n=20)
-    Memmove/4                            6.803n ± 0%    3.202n ± 0%  -52.93% (p=0.000 n=20)
-    Memmove/5                            7.604n ± 0%    3.202n ± 0%  -57.89% (p=0.000 n=20)
-    Memmove/6                            8.404n ± 0%    3.202n ± 0%  -61.90% (p=0.000 n=20)
-    Memmove/7                            9.204n ± 0%    3.202n ± 0%  -65.21% (p=0.000 n=20)
-    Memmove/8                            4.802n ± 0%    3.602n ± 0%  -24.99% (p=0.000 n=20)
-    Memmove/9                            6.003n ± 0%    3.202n ± 0%  -46.66% (p=0.000 n=20)
-    Memmove/10                           6.803n ± 0%    3.202n ± 0%  -52.93% (p=0.000 n=20)
-    Memmove/11                           7.604n ± 0%    3.202n ± 0%  -57.89% (p=0.000 n=20)
-    Memmove/12                           8.404n ± 0%    3.202n ± 0%  -61.90% (p=0.000 n=20)
-    Memmove/13                           9.204n ± 0%    3.202n ± 0%  -65.21% (p=0.000 n=20)
-    Memmove/14                          10.000n ± 0%    3.202n ± 0%  -67.98% (p=0.000 n=20)
-    Memmove/15                          10.810n ± 0%    3.202n ± 0%  -70.38% (p=0.000 n=20)
-    Memmove/16                           6.003n ± 0%    3.202n ± 0%  -46.66% (p=0.000 n=20)
-    Memmove/32                           7.604n ± 0%    3.602n ± 0%  -52.63% (p=0.000 n=20)
-    Memmove/64                          10.810n ± 0%    4.402n ± 0%  -59.28% (p=0.000 n=20)
-    Memmove/128                         17.210n ± 0%    8.004n ± 0%  -53.49% (p=0.000 n=20)
-    Memmove/256                          30.41n ± 0%    10.81n ± 0%  -64.45% (p=0.000 n=20)
-    Memmove/512                          56.03n ± 0%    17.81n ± 0%  -68.21% (p=0.000 n=20)
-    Memmove/1024                        107.30n ± 0%    30.62n ± 0%  -71.46% (p=0.000 n=20)
-    Memmove/2048                        209.70n ± 0%    56.23n ± 0%  -73.19% (p=0.000 n=20)
-    Memmove/4096                         414.6n ± 0%    107.5n ± 0%  -74.07% (p=0.000 n=20)
-    MemmoveOverlap/32                    8.404n ± 0%    4.402n ± 0%  -47.62% (p=0.000 n=20)
-    MemmoveOverlap/64                   11.610n ± 0%    5.003n ± 0%  -56.91% (p=0.000 n=20)
-    MemmoveOverlap/128                  18.010n ± 0%    9.005n ± 0%  -50.00% (p=0.000 n=20)
-    MemmoveOverlap/256                   31.22n ± 0%    12.41n ± 0%  -60.25% (p=0.000 n=20)
-    MemmoveOverlap/512                   56.83n ± 0%    19.08n ± 0%  -66.43% (p=0.000 n=20)
-    MemmoveOverlap/1024                 108.10n ± 0%    32.00n ± 0%  -70.40% (p=0.000 n=20)
-    MemmoveOverlap/2048                 210.50n ± 0%    57.94n ± 0%  -72.48% (p=0.000 n=20)
-    MemmoveOverlap/4096                  415.4n ± 0%    108.9n ± 0%  -73.78% (p=0.000 n=20)
-    MemmoveUnalignedDst/0                2.448n ± 0%    2.942n ± 0%  +20.16% (p=0.000 n=20)
-    MemmoveUnalignedDst/1                4.802n ± 0%    3.202n ± 0%  -33.32% (p=0.000 n=20)
-    MemmoveUnalignedDst/2                5.603n ± 0%    3.602n ± 0%  -35.71% (p=0.000 n=20)
-    MemmoveUnalignedDst/3                6.403n ± 0%    3.202n ± 0%  -49.99% (p=0.000 n=20)
-    MemmoveUnalignedDst/4                7.203n ± 0%    3.602n ± 0%  -49.99% (p=0.000 n=20)
-    MemmoveUnalignedDst/5                8.004n ± 0%    3.602n ± 0%  -55.00% (p=0.000 n=20)
-    MemmoveUnalignedDst/6                8.804n ± 0%    3.602n ± 0%  -59.09% (p=0.000 n=20)
-    MemmoveUnalignedDst/7                9.605n ± 0%    3.602n ± 0%  -62.50% (p=0.000 n=20)
-    MemmoveUnalignedDst/8               10.400n ± 0%    4.002n ± 0%  -61.52% (p=0.000 n=20)
-    MemmoveUnalignedDst/9               11.210n ± 0%    3.802n ± 0%  -66.08% (p=0.000 n=20)
-    MemmoveUnalignedDst/10              12.010n ± 0%    3.802n ± 0%  -68.34% (p=0.000 n=20)
-    MemmoveUnalignedDst/11              12.810n ± 0%    3.802n ± 0%  -70.32% (p=0.000 n=20)
-    MemmoveUnalignedDst/12              13.610n ± 0%    3.802n ± 0%  -72.06% (p=0.000 n=20)
-    MemmoveUnalignedDst/13              14.410n ± 0%    3.802n ± 0%  -73.62% (p=0.000 n=20)
-    MemmoveUnalignedDst/14              15.210n ± 0%    3.802n ± 0%  -75.00% (p=0.000 n=20)
-    MemmoveUnalignedDst/15              16.010n ± 0%    3.802n ± 0%  -76.25% (p=0.000 n=20)
-    MemmoveUnalignedDst/16              17.210n ± 0%    3.802n ± 0%  -77.91% (p=0.000 n=20)
-    MemmoveUnalignedDst/32              30.020n ± 0%    4.202n ± 0%  -86.00% (p=0.000 n=20)
-    MemmoveUnalignedDst/64              56.030n ± 0%    6.804n ± 0%  -87.86% (p=0.000 n=20)
-    MemmoveUnalignedDst/128             106.90n ± 0%    13.61n ± 0%  -87.27% (p=0.000 n=20)
-    MemmoveUnalignedDst/256             209.50n ± 0%    17.07n ± 1%  -91.85% (p=0.000 n=20)
-    MemmoveUnalignedDst/512             414.60n ± 0%    24.95n ± 0%  -93.98% (p=0.000 n=20)
-    MemmoveUnalignedDst/1024            828.40n ± 0%    42.82n ± 0%  -94.83% (p=0.000 n=20)
-    MemmoveUnalignedDst/2048           1648.00n ± 0%    78.04n ± 0%  -95.26% (p=0.000 n=20)
-    MemmoveUnalignedDst/4096            3287.0n ± 0%    148.4n ± 0%  -95.49% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/32       30.810n ± 0%    5.603n ± 0%  -81.81% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/64       56.430n ± 0%    7.604n ± 0%  -86.52% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/128     107.700n ± 0%    9.812n ± 0%  -90.89% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/256      210.10n ± 0%    13.50n ± 0%  -93.57% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/512      415.00n ± 0%    21.21n ± 0%  -94.89% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/1024     828.80n ± 0%    41.02n ± 0%  -95.05% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/2048    1648.00n ± 0%    80.23n ± 0%  -95.13% (p=0.000 n=20)
-    MemmoveUnalignedDstOverlap/4096     3288.0n ± 0%    162.4n ± 0%  -95.06% (p=0.000 n=20)
-    MemmoveUnalignedSrc/0                2.468n ± 1%    2.913n ± 0%  +18.01% (p=0.000 n=20)
-    MemmoveUnalignedSrc/1                4.802n ± 0%    3.202n ± 0%  -33.32% (p=0.000 n=20)
-    MemmoveUnalignedSrc/2                5.603n ± 0%    3.603n ± 0%  -35.70% (p=0.000 n=20)
-    MemmoveUnalignedSrc/3                6.403n ± 0%    3.207n ± 0%  -49.91% (p=0.000 n=20)
-    MemmoveUnalignedSrc/4                7.203n ± 0%    3.603n ± 0%  -49.98% (p=0.000 n=20)
-    MemmoveUnalignedSrc/5                8.004n ± 0%    3.602n ± 0%  -55.00% (p=0.000 n=20)
-    MemmoveUnalignedSrc/6                8.804n ± 0%    3.602n ± 0%  -59.09% (p=0.000 n=20)
-    MemmoveUnalignedSrc/7                9.605n ± 0%    3.602n ± 0%  -62.50% (p=0.000 n=20)
-    MemmoveUnalignedSrc/8               10.410n ± 0%    4.002n ± 0%  -61.56% (p=0.000 n=20)
-    MemmoveUnalignedSrc/9               11.210n ± 0%    3.802n ± 0%  -66.08% (p=0.000 n=20)
-    MemmoveUnalignedSrc/10              12.010n ± 0%    3.802n ± 0%  -68.34% (p=0.000 n=20)
-    MemmoveUnalignedSrc/11              12.810n ± 0%    3.802n ± 0%  -70.32% (p=0.000 n=20)
-    MemmoveUnalignedSrc/12              13.610n ± 0%    3.802n ± 0%  -72.06% (p=0.000 n=20)
-    MemmoveUnalignedSrc/13              14.410n ± 0%    3.802n ± 0%  -73.62% (p=0.000 n=20)
-    MemmoveUnalignedSrc/14              15.210n ± 0%    3.802n ± 0%  -75.00% (p=0.000 n=20)
-    MemmoveUnalignedSrc/15              16.010n ± 0%    3.802n ± 0%  -76.25% (p=0.000 n=20)
-    MemmoveUnalignedSrc/16              16.810n ± 0%    3.802n ± 0%  -77.38% (p=0.000 n=20)
-    MemmoveUnalignedSrc/32              30.410n ± 0%    4.301n ± 0%  -85.86% (p=0.000 n=20)
-    MemmoveUnalignedSrc/64              55.630n ± 0%    5.203n ± 0%  -90.65% (p=0.000 n=20)
-    MemmoveUnalignedSrc/128            107.300n ± 0%    8.805n ± 0%  -91.79% (p=0.000 n=20)
-    MemmoveUnalignedSrc/256             209.50n ± 0%    12.41n ± 6%  -94.08% (p=0.000 n=20)
-    MemmoveUnalignedSrc/512             414.20n ± 0%    20.41n ± 0%  -95.07% (p=0.000 n=20)
-    MemmoveUnalignedSrc/1024            828.00n ± 0%    36.92n ± 0%  -95.54% (p=0.000 n=20)
-    MemmoveUnalignedSrc/2048           1648.00n ± 0%    71.41n ± 0%  -95.67% (p=0.000 n=20)
-    MemmoveUnalignedSrc/4096            3287.0n ± 0%    132.2n ± 0%  -95.98% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_16_0        7.203n ± 0%    5.002n ± 0%  -30.56% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_16_0        7.604n ± 0%    5.002n ± 0%  -34.22% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_16_1       13.210n ± 0%    5.002n ± 0%  -62.13% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_16_1       13.210n ± 0%    5.002n ± 0%  -62.13% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_16_4       13.210n ± 0%    5.002n ± 0%  -62.13% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_16_4       13.610n ± 0%    5.002n ± 0%  -63.24% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_16_7       12.810n ± 0%    5.002n ± 0%  -60.95% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_16_7       13.610n ± 0%    5.002n ± 0%  -63.24% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_64_0       12.010n ± 0%    7.191n ± 0%  -40.12% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_64_0       12.410n ± 0%    7.194n ± 0%  -42.03% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_64_1       18.410n ± 0%    7.604n ± 0%  -58.70% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_64_1       18.410n ± 0%    7.604n ± 0%  -58.70% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_64_4       18.410n ± 0%    7.604n ± 0%  -58.70% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_64_4       18.810n ± 0%    7.604n ± 0%  -59.57% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_64_7       18.010n ± 0%    7.604n ± 0%  -57.78% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_64_7       18.810n ± 0%    7.604n ± 0%  -59.57% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_256_0       31.62n ± 0%    14.19n ± 0%  -55.12% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_256_0       32.02n ± 0%    13.61n ± 0%  -57.50% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_256_1       38.02n ± 0%    18.20n ± 0%  -52.13% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_256_1       38.02n ± 0%    18.41n ± 0%  -51.58% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_256_4       38.02n ± 0%    17.21n ± 0%  -54.73% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_256_4       38.42n ± 0%    16.81n ± 0%  -56.25% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_256_7       37.62n ± 0%    15.61n ± 0%  -58.51% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_256_7       38.42n ± 0%    15.01n ± 0%  -60.93% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_4096_0      415.8n ± 0%    111.1n ± 0%  -73.28% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_4096_0      416.2n ± 0%    110.5n ± 0%  -73.45% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_4096_1      422.2n ± 0%    114.3n ± 0%  -72.93% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_4096_1      422.2n ± 0%    114.7n ± 0%  -72.83% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_4096_4      422.2n ± 0%    113.3n ± 0%  -73.16% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_4096_4      422.6n ± 0%    113.1n ± 0%  -73.24% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_4096_7      421.8n ± 0%    111.7n ± 0%  -73.52% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_4096_7      422.6n ± 0%    111.7n ± 0%  -73.57% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_65536_0     6.568µ ± 0%    4.869µ ± 0%  -25.88% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_65536_0     6.568µ ± 0%    5.009µ ± 0%  -23.74% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_65536_1     6.574µ ± 0%    4.743µ ± 0%  -27.85% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_65536_1     6.574µ ± 0%    4.770µ ± 0%  -27.44% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_65536_4     6.574µ ± 0%    4.758µ ± 0%  -27.63% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_65536_4     6.574µ ± 0%    4.768µ ± 0%  -27.48% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/f_65536_7     6.574µ ± 0%    4.757µ ± 0%  -27.64% (p=0.000 n=20)
-    MemmoveUnalignedSrcDst/b_65536_7     6.574µ ± 0%    4.583µ ± 0%  -30.29% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/32       30.410n ± 0%    6.804n ± 0%  -77.63% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/64        56.03n ± 0%    10.01n ± 0%  -82.13% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/128      107.30n ± 0%    14.01n ± 0%  -86.94% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/256      209.70n ± 0%    13.43n ± 1%  -93.60% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/512      414.60n ± 0%    22.23n ± 0%  -94.64% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/1024     828.40n ± 0%    37.62n ± 0%  -95.46% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/2048    1648.00n ± 0%    68.04n ± 0%  -95.87% (p=0.000 n=20)
-    MemmoveUnalignedSrcOverlap/4096     3287.0n ± 0%    128.9n ± 0%  -96.08% (p=0.000 n=20)
-    geomean                              48.94n         13.58n       -72.26%
-    
-    The relevant performance improved by 72.26%.
-    
-    Change-Id: If2d3e09c3d687e733e6ff2c50feb8d6a8eb7e63b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589537
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Auto-Submit: Tim King <taking@google.com>
+    Change-Id: I1250b6a33f5f3509a216d307f1783ad4aa5937fc
+    GitHub-Last-Rev: 98dc6b1a11eea8542551a368780a74c1ee2d7083
+    GitHub-Pull-Request: golang/go#61809
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516616
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/memmove_loong64.s | 335 +++++++++++++++++++++++++++++++-----------
- 1 file changed, 251 insertions(+), 84 deletions(-)
+ src/testing/benchmark.go | 14 --------------
+ 1 file changed, 14 deletions(-)

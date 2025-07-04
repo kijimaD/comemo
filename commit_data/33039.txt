@@ -1,18 +1,22 @@
-commit 0c6fc0d711da590eafdfa4719ae322f84b49521d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Oct 6 15:59:44 2017 -0400
+commit e1ced3219506938daf404bb2373333cd3352f350
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jun 27 11:36:32 2017 -0700
 
-    debug/elf: add relocation constants
+    time: show how to get midnight on the current day
     
-    Compiled from various tables found around the internet.
+    A common task is trying to get today's date in the local time zone
+    with zero values for the hour, minute, second, and nanosecond fields.
+    I tried this recently and incorrectly used Truncate(24*time.Hour),
+    which truncates based on a UTC clock, and gave me 5pm Pacific time
+    instead of midnight Pacific.
     
-    Some of these are used by cmd/link.
+    I thought it would be helpful to show a "correct" way to do this.
     
-    Change-Id: I258b25e694dbe91a61d675763f2c47ccc928fd70
-    Reviewed-on: https://go-review.googlesource.com/69012
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I479e6b0cc56367068530981ca69882b34febf945
+    Reviewed-on: https://go-review.googlesource.com/46833
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/elf/elf.go | 756 +++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 556 insertions(+), 200 deletions(-)
+ src/time/example_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

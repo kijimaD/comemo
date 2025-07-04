@@ -1,14 +1,12 @@
-commit f7dc4eb921c803160a739b44935a314df2a2a2cf
-Author: Tarmigan Casebolt <tarmigan@gmail.com>
-Date:   Sun Aug 23 19:51:28 2015 -0700
+commit cd2e2f60e77c05d68755ce5df4c401be1ea5b0d3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 1 15:49:40 2015 +1000
 
-    image/gif: avoid unused assignment
+    doc: add most major changes and most net changes to go1.5.html
     
-    Change-Id: Iaaecd8be9268c923f40cf0e5153cbf79f7015b8d
-    Reviewed-on: https://go-review.googlesource.com/13892
+    Change-Id: Ied305480f22b60767c4628e5a31236ac01eafc86
+    Reviewed-on: https://go-review.googlesource.com/11825
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/image/gif/writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.5.html | 162 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 121 insertions(+), 41 deletions(-)

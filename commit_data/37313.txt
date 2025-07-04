@@ -1,12 +1,15 @@
-commit 8ebc9fbc342ad9c89b52dd730a2baa4d3580c1e4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 8 20:06:05 2018 +0000
+commit 0d93758222353b924edcfd114e9a4c3d23081899
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 18 11:32:40 2018 +1000
 
-    cmd/go/internal/cache: fix wrong/old function name in comment
+    doc/gopher: add model sheet
     
-    Change-Id: Ia0caf2fb06097ac184f78779334460900e8c0149
-    Reviewed-on: https://go-review.googlesource.com/c/148580
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This should have been added to the repo after Renee's Gophercon
+    keynote. I will link to it from the FAQ.
+    
+    Change-Id: I0e5b88690e288827591d27b99420d3a449f7f662
+    Reviewed-on: https://go-review.googlesource.com/124615
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/internal/cache/hash.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/gopher/modelsheet.jpg | Bin 0 -> 85880 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

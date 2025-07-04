@@ -1,15 +1,22 @@
-commit 1b01910c0664f8863dd96b6781ca6c9e2cc6ed9d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 24 14:17:42 2015 -0400
+commit 23810777867d0a7df1ef149ec6ed4135ce07fb01
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 18 13:29:22 2015 -0700
 
-    runtime: rename gcController.findRunnable to findRunnableGCWorker
+    cmd/yacc: fix default action
     
-    This avoids confusion with the main findrunnable in the scheduler.
+    Previously, a production rule like
     
-    Change-Id: I8cf40657557a8610a2fe5a2f74598518256ca7f0
-    Reviewed-on: https://go-review.googlesource.com/9305
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+            A: B C D
+    
+    would cause yacc to check that A and B have the same declared types,
+    but then it would generate an implicit action of { $$ = $3 } (i.e.,
+    copy the value from D), even if A and D have different types.
+    
+    Fixes #10192.
+    
+    Change-Id: I51cfd7baa0011557141dca33b7af1d892cc6f49e
+    Reviewed-on: https://go-review.googlesource.com/7780
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go   | 4 ++--
- src/runtime/proc1.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/yacc/yacc.go | 3 ---
+ 1 file changed, 3 deletions(-)

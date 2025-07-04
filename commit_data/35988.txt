@@ -1,19 +1,33 @@
-commit 00f32fbe7ab053f67e255d1350a34e05b07a6ad6
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Sat Jul 14 04:17:19 2018 +0800
+commit a42ea51ae94af2005970a480ddc8ee257874908c
+Author: HaraldNordgren <haraldnordgren@gmail.com>
+Date:   Sat Jan 6 21:30:42 2018 +0100
 
-    cmd/go: fix module replace flag parsed bug
+    cmd/go: print each import error only once
     
-    In CL 122404, we change -replace syntax from => to =.
-    And we also need to change this and the tests.
+    This change prevents import errors from being printed multiple times.
+    Creating a bare-bones package 'p' with only one file importing itself
+    and running 'go build p', the current implementation gives this error
+    message:
     
-    Fixes golang/go#26373.
+            can't load package: import cycle not allowed
+            package p
+                    imports p
+            import cycle not allowed
+            package p
+                    imports p
     
-    Change-Id: I2d4e85e10c1578540cc7673b93d849270940d776
-    Reviewed-on: https://go-review.googlesource.com/123778
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    With this change we will show the message only once.
+    
+    Updates #23295
+    
+    Change-Id: I653b34c1c06c279f3df514f12ec0b89745a7e64a
+    Reviewed-on: https://go-review.googlesource.com/86535
+    Reviewed-by: Harald Nordgren <haraldnordgren@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modcmd/mod.go |  2 +-
- src/cmd/go/mod_test.go            | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/go_test.go                                    | 16 ++++++++++++++++
+ src/cmd/go/internal/load/pkg.go                          |  1 +
+ .../go/testdata/importcycle/src/selfimport/selfimport.go |  3 +++
+ 3 files changed, 20 insertions(+)

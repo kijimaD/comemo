@@ -1,26 +1,19 @@
-commit 29c2838cb476b57246137cf20153da7bda59547d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 13 15:41:48 2011 -0700
+commit f58ed4e64126b595efbde9df04e63c7ea2a4fbd6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 16:58:04 2011 -0400
 
-    go/types: move to exp/types per Go 1 plan
+    gc: disallow close on receive-only channels
     
-    This package is only used by gotype at the moment.
+    Fixes #2353.
+    Fixes #2246.
     
-    R=rsc, r
+    R=golang-dev, r, gri
     CC=golang-dev
-    https://golang.org/cl/5266042
+    https://golang.org/cl/5282042
 
- src/cmd/gotype/gotype.go                      | 2 +-
- src/pkg/Makefile                              | 2 +-
- src/pkg/{go => exp}/types/Makefile            | 2 +-
- src/pkg/{go => exp}/types/check.go            | 0
- src/pkg/{go => exp}/types/check_test.go       | 0
- src/pkg/{go => exp}/types/const.go            | 0
- src/pkg/{go => exp}/types/exportdata.go       | 0
- src/pkg/{go => exp}/types/gcimporter.go       | 0
- src/pkg/{go => exp}/types/gcimporter_test.go  | 0
- src/pkg/{go => exp}/types/testdata/exports.go | 0
- src/pkg/{go => exp}/types/testdata/test0.src  | 0
- src/pkg/{go => exp}/types/types.go            | 0
- src/pkg/{go => exp}/types/universe.go         | 0
- 13 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html       |  7 ++++---
+ src/cmd/gc/typecheck.c |  4 ++++
+ src/pkg/runtime/chan.c |  3 +++
+ test/chan/perm.go      |  4 ++++
+ test/closedchan.go     | 11 +++++++++++
+ 5 files changed, 26 insertions(+), 3 deletions(-)

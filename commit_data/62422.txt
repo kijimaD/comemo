@@ -1,0 +1,25 @@
+commit b199d9766a8957c686ece568483586f08fc9a8b4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 28 00:26:48 2025 +1100
+
+    runtime: add padding to m struct for 64 bit architectures
+    
+    CL 652276 reduced the m struct by 8 bytes, which has changed the
+    allocation class on 64 bit OpenBSD platforms. This results in build
+    failures due to:
+    
+        M structure uses sizeclass 1792/0x700 bytes; incompatible with mutex flag mask 0x3ff
+    
+    Add 128 bytes of padding when spinbitmutex is enabled on 64 bit
+    architectures, moving the size to the half point between the
+    1792 and 2048 allocation size.
+    
+    Change-Id: I71623a1f75714543c302217e619d20cf0e717aeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653335
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime2.go | 1 +
+ 1 file changed, 1 insertion(+)

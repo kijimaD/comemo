@@ -1,16 +1,21 @@
-commit a419f2f5c364031e2f65a9f031e8bb52e9c22fc9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 3 14:58:59 2021 -0700
+commit b62da089091e305b6231082d8a69b27c56603b51
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 4 21:09:17 2021 -0500
 
-    cmd/compile/internal/syntax: better error message when type parameters are not permitted
+    cmd/go: update error expectations in TestScript/mod_install_pkg_version
     
-    Fixes #48382.
+    This test was missed in CL 298650, and not caught by TryBots because
+    it is skipped it short mode (and we forgot to add longtest TryBots on
+    that CL).
     
-    Change-Id: I215896a4429839c41c9136b6922b1b748ed47734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361259
-    Trust: Robert Griesemer <gri@golang.org>
+    Updates #44745
+    
+    Change-Id: I696d01307dabf351b0e4735db0644f4e09c8e369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298794
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go          | 45 ++++++++++++++--------
- .../internal/syntax/testdata/issue48382.go2        | 15 ++++++++
- 2 files changed, 43 insertions(+), 17 deletions(-)
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

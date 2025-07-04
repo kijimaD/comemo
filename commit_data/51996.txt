@@ -1,19 +1,19 @@
-commit 117fe2e08d2fb385e4febed020b834d2d8e4358a
-Author: cui fliter <imcusg@gmail.com>
-Date:   Tue Feb 14 22:42:38 2023 +0800
+commit 83e9a97f62af41e65e37e096a4ed71f6a59d183e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 22 13:35:11 2022 -0400
 
-    all: fix some comments
+    crypto/x509/internal/macos: return errors when CFRef might be NULL
     
-    Change-Id: I16ec916b47de2f417b681c8abff5a1375ddf491b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468055
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Updates #51759
+    
+    Change-Id: Ib73fa5ec62d90c7e595150217b048158789f1afd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394674
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/math/big/int.go      | 2 +-
- src/net/http/server.go   | 4 ++--
- src/net/http/transfer.go | 2 +-
- src/os/tempfile.go       | 2 +-
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ src/crypto/x509/internal/macos/corefoundation.go | 14 ++++++++++----
+ src/crypto/x509/internal/macos/security.go       | 11 ++++++++---
+ src/crypto/x509/root_darwin.go                   |  8 ++++----
+ 3 files changed, 22 insertions(+), 11 deletions(-)

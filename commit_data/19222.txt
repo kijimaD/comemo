@@ -1,16 +1,16 @@
-commit 7ff8e90eb7ceb2016aa9fc736febd8a5902ec65e
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Mon Apr 21 17:00:27 2014 -0700
+commit 9cddb60d251fbd3b5a391b87fa76c20378296f92
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 21 13:07:51 2014 -0700
 
-    strings: fix off-by-one error in test
+    net: extend TestVariousDeadlines1Proc timeout
     
-    Previously it would panic because of out-of-bound access
-    if s1 is longer than s2.
+    TestVariousDeadlines1Proc was flaky on my system,
+    failing on about 5% of runs.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/90110043
+    https://golang.org/cl/89830045
 
- src/pkg/strings/strings_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/timeout_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

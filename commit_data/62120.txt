@@ -1,0 +1,30 @@
+commit bcfa00cbd259a8653547b227f8207ab43bf7d5c8
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Fri Aug 25 11:22:02 2023 +0200
+
+    cpu/internal: provide runtime detection of RISC-V extensions on Linux
+    
+    Add a RISCV64 variable to cpu/internal that indicates both the presence
+    of RISC-V extensions and performance information about the underlying
+    RISC-V cores.  The variable is only populated with non false values on
+    Linux.  The detection code relies on the riscv_hwprobe syscall
+    introduced in Linux 6.4.  The patch can detect RVV 1.0 and whether
+    the CPU supports fast misaligned accesses.  It can only detect RVV 1.0
+    on a 6.5 kernel or later (without backports).
+    
+    Updates #61416
+    
+    Change-Id: I2d8289345c885b699afff441d417cae38f6bdc54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522995
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/cpu/cpu.go               | 12 +++++
+ src/internal/cpu/cpu_riscv64.go       | 11 +++++
+ src/internal/cpu/cpu_riscv64_linux.go | 91 +++++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_riscv64_other.go | 11 +++++
+ src/runtime/os_linux_riscv64.go       | 30 ++++++++++++
+ 5 files changed, 155 insertions(+)

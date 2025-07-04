@@ -1,38 +1,38 @@
-commit f430bda2582bdea5cf3afd8a44ef5a46567a325a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 8 19:23:35 2021 +0200
+commit 1ff2fdaaf189e0d7ec73bdbff72558363239f48b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 3 14:56:13 2021 -0800
 
-    go/build, internal/goarch: sort goarchList alphabetically
+    [dev.typeparams] cmd/compile/internal/types2: add support for language version checking
     
-    Change-Id: I0534b61e34d78104cb85124b805fd90f3250e6c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354829
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add the Config.Lang field which may be set to a Go version string,
+    such as "go1.12". This is a string rather than explicit semantic
+    version numbers (such as {1, 12}) for API robustness; a string
+    is more flexible should we need more or different information.
+    
+    Add -lang flag to types2 package for use with (manual) testing
+    when running "go test -run Check$ -lang=... -files=...".
+    
+    While changing flags, look for comma-separated (rather than space-
+    separated) files when providing the -file flag.
+    
+    Check that numeric constant literals, signed shift counts are
+    accepted according to the selected language version.
+    
+    Type alias declarations and overlapping embedded interfaces are
+    not yet checked.
+    
+    Updates #31793.
+    
+    Change-Id: I9ff238ed38a88f377eb2267dc3e8816b89a40635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289509
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/build/syslist.go                    | 2 +-
- src/internal/goarch/zgoarch_386.go         | 4 ++--
- src/internal/goarch/zgoarch_amd64.go       | 4 ++--
- src/internal/goarch/zgoarch_arm.go         | 4 ++--
- src/internal/goarch/zgoarch_arm64.go       | 4 ++--
- src/internal/goarch/zgoarch_arm64be.go     | 4 ++--
- src/internal/goarch/zgoarch_armbe.go       | 4 ++--
- src/internal/goarch/zgoarch_loong64.go     | 4 ++--
- src/internal/goarch/zgoarch_mips.go        | 4 ++--
- src/internal/goarch/zgoarch_mips64.go      | 4 ++--
- src/internal/goarch/zgoarch_mips64le.go    | 4 ++--
- src/internal/goarch/zgoarch_mips64p32.go   | 4 ++--
- src/internal/goarch/zgoarch_mips64p32le.go | 4 ++--
- src/internal/goarch/zgoarch_mipsle.go      | 4 ++--
- src/internal/goarch/zgoarch_ppc.go         | 4 ++--
- src/internal/goarch/zgoarch_ppc64.go       | 4 ++--
- src/internal/goarch/zgoarch_ppc64le.go     | 4 ++--
- src/internal/goarch/zgoarch_riscv.go       | 4 ++--
- src/internal/goarch/zgoarch_riscv64.go     | 4 ++--
- src/internal/goarch/zgoarch_s390.go        | 4 ++--
- src/internal/goarch/zgoarch_s390x.go       | 4 ++--
- src/internal/goarch/zgoarch_sparc.go       | 4 ++--
- src/internal/goarch/zgoarch_sparc64.go     | 4 ++--
- src/internal/goarch/zgoarch_wasm.go        | 4 ++--
- 24 files changed, 47 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/types2/api.go             |  7 ++
+ src/cmd/compile/internal/types2/check.go           | 37 ++++++----
+ src/cmd/compile/internal/types2/check_test.go      | 32 +++++++--
+ src/cmd/compile/internal/types2/expr.go            |  5 ++
+ src/cmd/compile/internal/types2/stdlib_test.go     | 10 ++-
+ .../compile/internal/types2/testdata/go1_12.src    | 34 +++++++++
+ src/cmd/compile/internal/types2/version.go         | 81 ++++++++++++++++++++++
+ 7 files changed, 183 insertions(+), 23 deletions(-)

@@ -1,37 +1,31 @@
-commit 1811aeae66bee899317403c92c83b56673919775
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Mar 5 22:07:56 2021 -0800
+commit 32a84c99e136ed5af0686dbedd31fd7dff40fb38
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 8 07:58:04 2020 -0700
 
-    cmd/compile:  deal with helper generic types that add methods to T
+    cmd/compile: fix live variable computation for deferreturn
     
-    Deal with cases like: 'type P[T any] T' (used to add methods to an
-    arbitrary type T), In this case, P[T] has kind types.TTYPEPARAM (as does
-    T itself), but requires more code to substitute than a simple TTYPEPARAM
-    T. See the comment near the beginning of subster.typ() in stencil.go.
+    Taking the live variable set from the last return point is problematic.
+    See #40629 for details, but there may not be a return point, or it may
+    be before the final defer.
     
-    Add new test absdiff.go. This test has a case for complex types (which
-    I've commented out) that will only work when we deal better with Go
-    builtins in generic functions (like real and imag).
+    Additionally, keeping track of the last call as a *Value doesn't quite
+    work. If it is dead-code eliminated, the storage for the Value is reused
+    for some other random instruction. Its live variable information,
+    if it is available at all, is wrong.
     
-    Remove change in fmt.go for TTYPEPARAMS that is no longer needed (since
-    all TTYPEPARAMS have a sym) and was sometimes causing an extra prefix
-    when formatting method names.
+    Instead, just mark all the open-defer argument slots as live
+    throughout the function. (They are already zero-initialized.)
     
-    Separate out the setting of a TTYPEPARAM bound, since it can reference
-    the TTYPEPARAM being defined, so must be done separately. Also, we don't
-    currently (and may not ever) need bounds after types2 typechecking.
+    Fixes #40629
     
-    Change-Id: Id173057e0c4563b309b95e665e9c1151ead4ba77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300049
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie456c7db3082d0de57eaa5234a0f32525a1cce13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247522
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 29 ++++++++-
- src/cmd/compile/internal/noder/types.go   |  9 ++-
- src/cmd/compile/internal/types/fmt.go     |  2 +-
- src/cmd/compile/internal/types/type.go    |  7 +--
- test/typeparam/absdiff.go                 | 99 +++++++++++++++++++++++++++++++
- 5 files changed, 138 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 118 ++++++++---------------------------
+ src/cmd/compile/internal/gc/ssa.go   |  19 +-----
+ src/cmd/compile/internal/ssa/func.go |  11 +---
+ test/fixedbugs/issue40629.go         |  69 ++++++++++++++++++++
+ 4 files changed, 99 insertions(+), 118 deletions(-)

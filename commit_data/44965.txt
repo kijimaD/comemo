@@ -1,22 +1,32 @@
-commit 5cd8a344954cc29be9bce6d67b3f4293ed72aa9f
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Apr 5 20:03:02 2021 -0700
+commit 65dfe4a772a4bc612219d93886e5c07290785ee6
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 15 09:07:00 2020 -0400
 
-    cmd/compile: fix gcSizes.Sizeof for a zero-sized struct
+    cmd/compile: generate late-lowering static calls
     
-    (*gcSizes).Sizeof was requiring the last field of a zero-sized struct to
-    be at least one byte. But that rule (fix for #9401, see logic in
-    calcStructOffset) only applies to a struct that has some non-zero sized
-    fields. Fix (*gcSizes).Sizeof to have the logic like calcStructOffset.
+    This is testing for the limited case of zero or one SSA-able results.
     
-    Fixes running the gotests with -G=3 enabled.
+    One regression is that the later expansion of "Dereference" into
+    Move into argument slots thwarts the
+      MOVE A -> B, MOVE B -> C
+    replaced-by
+      MOVE A -> B, MOVE A -> C
+    optimization; the second move is written instead as a Dereference at the
+    phase where the optimization occurs, and because the target of the
+    dereference is not visible in the dereference, it's not possible to verify
+    that A and B or A and C don't overlap in some peculiar way (and for results
+    fed to args, they can).
     
-    Fixes #45390
+    Regression is repaired in a later CL by changing when calls are expanded.
     
-    Change-Id: I011f40e3de3a327392bbbb791b9422be75336313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307549
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: Ia0f48a9d483d5a54a99657a24b12b25b8edde55f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242782
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/sizes.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go     | 94 ++++++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/op.go     |  5 ++
+ src/cmd/compile/internal/types/type.go |  6 +--
+ 3 files changed, 87 insertions(+), 18 deletions(-)

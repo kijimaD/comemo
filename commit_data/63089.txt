@@ -1,0 +1,20 @@
+commit 89af77deef7e554dff5ca21ff2c2aaf0a2d253ac
+Author: MaineK00n <mainek00n.1229@gmail.com>
+Date:   Wed May 14 21:44:19 2025 +0000
+
+    internal/filepathlite: fix comment
+    
+    fix typo
+    
+    Change-Id: I46f0b052615d388a852439e63542b43e2ca62b7e
+    GitHub-Last-Rev: 96ac66c0362c5c544249cf465c528a924112fa76
+    GitHub-Pull-Request: golang/go#73725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672955
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/filepathlite/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit 01ac5b8dcfe5342af3770b0834220b87ea328fad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 20 10:58:40 2017 -0700
+commit 32aff9ea7fd402f0d999f90bf74bc3368e77cc45
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 04:15:17 2016 +0000
 
-    cmd/gofmt: clarify documentation re: tab width
+    doc: remove two go1.8.txt items
     
-    Fixes #19618.
-    
-    Change-Id: I0ac450ff717ec1f16eb12758c6bf5e98b5de20e8
-    Reviewed-on: https://go-review.googlesource.com/38374
+    Change-Id: I9035d1c9e81c4f772512958fed92d14335b8a9de
+    Reviewed-on: https://go-review.googlesource.com/33685
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gofmt/doc.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ doc/go1.8.txt | 3 ---
+ 1 file changed, 3 deletions(-)

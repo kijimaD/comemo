@@ -1,39 +1,61 @@
-commit 2c5b707b3b30ea194877600151a7c299671cab3a
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Aug 12 17:20:44 2024 +0800
+commit a3ced4a6333dc669359e77004fa3f8a662961cb5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 8 12:49:48 2023 -0700
 
-    cmd/compile: optimize RotateLeft8/16 on loong64
+    runtime/cgo: use frame address to set g0 stack bound
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                 │  bench.old   │              bench.new               │
-                 │    sec/op    │    sec/op     vs base                │
-    RotateLeft8     1.401n ± 0%    1.201n ± 0%  -14.28% (p=0.000 n=20)
-    RotateLeft16   1.4010n ± 0%   0.8032n ± 0%  -42.67% (p=0.000 n=20)
-    geomean         1.401n        0.9822n       -29.90%
+    This extends CL 419434 to all Unix targets. Rather than repeating
+    the code, pull all the similar code into a single function.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                 │  bench.old  │              bench.new              │
-                 │   sec/op    │   sec/op     vs base                │
-    RotateLeft8    1.576n ± 0%   1.310n ± 0%  -16.88% (p=0.000 n=20)
-    RotateLeft16   1.576n ± 0%   1.166n ± 0%  -26.02% (p=0.000 n=20)
-    geomean        1.576n        1.236n       -21.58%
+    CL 419434 description:
     
-    Change-Id: I39c18306be0b8fd31b57bd0911714abd1783b50e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604738
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
+    For a cgo binary, at startup we set g0's stack bounds using the
+    address of a local variable (&size) in a C function x_cgo_init and
+    the stack size from pthread_attr_getstacksize. Normally, &size is
+    an address within the current stack frame. However, when  it is
+    compiled with ASAN, it may be instrumented to __asan_stack_malloc_0
+    and the address may not live in the current stack frame, causing
+    the stack bound to be set incorrectly, e.g. lo > hi.
+    
+    Using __builtin_frame_address(0) to get the stack address instead.
+    
+    Change-Id: I914a09d32c66a79515b6f700be18c690f3c0c77b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517335
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewrite.go         |  4 +--
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 47 +++++++++++++++++++++++--
- test/codegen/mathbits.go                        |  7 ++++
- 4 files changed, 56 insertions(+), 4 deletions(-)
+ src/runtime/cgo/gcc_darwin_amd64.c    |  6 +-----
+ src/runtime/cgo/gcc_darwin_arm64.c    |  5 +----
+ src/runtime/cgo/gcc_dragonfly_amd64.c |  8 +-------
+ src/runtime/cgo/gcc_freebsd_386.c     |  8 +-------
+ src/runtime/cgo/gcc_freebsd_amd64.c   |  6 +-----
+ src/runtime/cgo/gcc_freebsd_arm.c     |  8 +-------
+ src/runtime/cgo/gcc_freebsd_arm64.c   |  8 +-------
+ src/runtime/cgo/gcc_freebsd_riscv64.c |  8 +-------
+ src/runtime/cgo/gcc_libinit.c         | 28 ++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_386.c       |  8 +-------
+ src/runtime/cgo/gcc_linux_amd64.c     |  8 +-------
+ src/runtime/cgo/gcc_linux_arm.c       |  8 +-------
+ src/runtime/cgo/gcc_linux_arm64.c     |  6 +-----
+ src/runtime/cgo/gcc_linux_loong64.c   |  8 +-------
+ src/runtime/cgo/gcc_linux_mips64x.c   |  8 +-------
+ src/runtime/cgo/gcc_linux_mipsx.c     |  8 +-------
+ src/runtime/cgo/gcc_linux_riscv64.c   |  8 +-------
+ src/runtime/cgo/gcc_linux_s390x.c     |  8 +-------
+ src/runtime/cgo/gcc_netbsd_386.c      |  8 +-------
+ src/runtime/cgo/gcc_netbsd_amd64.c    |  8 +-------
+ src/runtime/cgo/gcc_netbsd_arm.c      |  8 +-------
+ src/runtime/cgo/gcc_netbsd_arm64.c    |  8 +-------
+ src/runtime/cgo/gcc_openbsd_386.c     |  8 +-------
+ src/runtime/cgo/gcc_openbsd_amd64.c   |  8 +-------
+ src/runtime/cgo/gcc_openbsd_arm.c     |  8 +-------
+ src/runtime/cgo/gcc_openbsd_arm64.c   |  8 +-------
+ src/runtime/cgo/gcc_openbsd_mips64.c  |  8 +-------
+ src/runtime/cgo/gcc_ppc64x.c          |  8 +-------
+ src/runtime/cgo/gcc_solaris_amd64.c   |  7 +++++++
+ src/runtime/cgo/libcgo_unix.h         |  5 +++++
+ 30 files changed, 67 insertions(+), 180 deletions(-)

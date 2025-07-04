@@ -1,12 +1,20 @@
-commit 21500012c18adb985876507c0495c4d7990ff642
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 27 09:56:28 2015 -0700
+commit 1fb948a0293526ac680785e74cad750571976f1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 26 21:58:53 2015 -0700
 
-    doc: update go1.5.txt
+    test: set GOMAXPROCS=1 in fixedbugs/issue9110
     
-    Change-Id: I48b5f10d703dba48ec8e67c58d4276befafb5524
-    Reviewed-on: https://go-review.googlesource.com/10420
+    With this fix,
+    
+    GOMAXPROCS=8 ./all.bash
+    
+    passes, at least on my machine.
+    
+    Fixes #10216.
+    
+    Change-Id: Ib5991950892a1399ec81aced0a52b435e6f83fdf
+    Reviewed-on: https://go-review.googlesource.com/9392
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.5.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ test/fixedbugs/issue9110.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,37 +1,28 @@
-commit 4e1bf8ed3840632b4781d3c4abb4704dca468dd4
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 24 10:45:20 2021 -0400
+commit 34835df04891a1d54394888b763af88f9476101d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 9 16:52:18 2020 +0000
 
-    runtime: add GC testing helpers for regabi signature fuzzer
+    runtime: fix ReadMemStatsSlow's and CheckScavengedBits' chunk iteration
     
-    This CL adds a set of helper functions for testing GC interactions.
-    These are intended for use in the regabi signature fuzzer, but are
-    generally useful for GC tests, so we make them generally available to
-    runtime tests.
+    Both ReadMemStatsSlow and CheckScavengedBits iterate over the page
+    allocator's chunks but don't actually check if they exist. During the
+    development process the chunks index became sparse, so now this was a
+    possibility. If the runtime tests' heap is sparse we might end up
+    segfaulting in either one of these functions, though this will generally
+    be very rare.
     
-    These provide:
+    The pattern here to return nil for a nonexistent chunk is also useful
+    elsewhere, so this change introduces tryChunkOf which won't throw, but
+    might return nil. It also updates the documentation of chunkOf.
     
-    1. An easy way to force stack movement, for testing stack copying.
+    Fixes #41296.
     
-    2. A simple and robust way to check the reachability of a set of
-    pointers.
-    
-    3. A way to check what general category of memory a pointer points to,
-    mostly so tests can make sure they're testing what they mean to.
-    
-    For #40724, but generally useful.
-    
-    Change-Id: I15d33ccb3f5a792c0472a19c2cc9a8b4a9356a66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305330
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Id5ae0ca3234480de1724fdf2e3677eeedcf76fa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253777
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go | 21 ++++++++++
- src/runtime/gc_test.go     | 75 ++++++++++++++++++++++++++++++++++++
- src/runtime/mgc.go         | 96 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mgcsweep.go    | 16 ++++++--
- src/runtime/mheap.go       | 17 ++++++++
- 5 files changed, 221 insertions(+), 4 deletions(-)
+ src/runtime/export_test.go | 17 ++++++++++-------
+ src/runtime/mpagealloc.go  | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 7 deletions(-)

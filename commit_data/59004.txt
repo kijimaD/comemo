@@ -1,29 +1,26 @@
-commit 73fea035bf1e4e68ef14995a389d4fd8df5c6a34
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 16 15:44:55 2025 -0500
+commit a5fb65601e7e51f702fc1b3ea9e956f217449b55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 30 17:16:12 2024 -0800
 
-    cmd/go: allow symlinks of non-directory files in embed
+    go/token: correct out-of-bounds token offsets and positions
     
-    We previously disallowed all non-regular files being embedded. This CL
-    relaxes the restriction a little: if the GODEBUG embedfollowsymlinks=1
-    is set, we allow the leaf files being embedded (not the directories
-    containing them) to be symlinks. The files pointed to by the symlinks
-    must still be regular files.
+    Per the discussion on the issue, make methods that depend on
+    incoming offsets or positions tolerant in the presence of
+    out-of-bounds values by adjusting the values as needed.
     
-    This will be used when a Bazel build action executing the Go command is
-    running in a symlink-based sandbox. It's not something we want to enable
-    in general for now, so it's behind a GODEBUG.
+    Add an internal flag debug that can be set to enable the old
+    (not fault-tolerant) behavior.
     
-    Fixes #59924
+    Fixes #57490.
     
-    Change-Id: I895be14c12de55b7d1b663d81bdda1df37d54804
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8a7d422b9fd1d6f0980fd4e64da2f0489056d71e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559436
     Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/godebug.md                       |  5 +++++
- src/cmd/go/internal/load/pkg.go      | 21 +++++++++++++++++++
- src/cmd/go/testdata/script/embed.txt | 40 +++++++++++++++++++++++++++++++++++-
- src/internal/godebugs/table.go       |  1 +
- src/runtime/metrics/doc.go           |  5 +++++
- 5 files changed, 71 insertions(+), 1 deletion(-)
+ src/go/parser/parser_test.go  | 21 ++++++++++++++
+ src/go/token/position.go      | 67 ++++++++++++++++++++++++++++++++-----------
+ src/go/token/position_test.go | 59 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 130 insertions(+), 17 deletions(-)

@@ -1,18 +1,17 @@
-commit 35e413c5373538ca6e0516f454f78c74477eff2c
-Author: David Chase <drchase@google.com>
-Date:   Mon Jun 15 14:20:36 2020 -0400
+commit b79acf97c79c63779acc77062eef70511a42be9b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 2 09:31:44 2020 +0100
 
-    cmd/compile: add new ops for experiment with late call expansion
+    internal/cpu: use anonymous struct for CPU feature vars
     
-    Added Dereference, StaticLECall, SelectN, SelectNAddr
+    Like in x/sys/cpu, use anonymous structs to declare the CPU feature vars
+    instead of defining single-use types. Also, order the vars
+    alphabetically.
     
-    Change-Id: I5426ae488e83956539aa07f7415b8acc26c933e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239082
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iedd3ca51916e3cbb852d2aeed18b3a4c6613e778
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221757
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 15 +++++++++-----
- src/cmd/compile/internal/ssa/opGen.go          | 28 ++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 5 deletions(-)
+ src/internal/cpu/cpu.go | 64 ++++++++++++++++++++-----------------------------
+ 1 file changed, 26 insertions(+), 38 deletions(-)

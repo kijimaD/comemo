@@ -1,25 +1,24 @@
-commit 758ac371ab930734053ed226ac62681e62ab8eea
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Aug 15 21:15:35 2020 +0200
+commit 7f41a009a6d3f37c336b8e01fea90f11f996ce9a
+Author: vovapi <evgrafov.vladimir@gmail.com>
+Date:   Fri Jan 17 16:38:39 2020 +0000
 
-    misc/wasm: make wasm_exec more robust against uncommon environments
+    go/constant: remove redundant octal & separator literals parsing
     
-    JavaScript environments are quite unpredictable because bundlers add
-    mocks for compatibility and libraries can polute the global namespace.
-    Detect more of such situations:
+    Octal literals parsing was implemented in strconv in golang.org/cl/160244
+    and in math/big in golang.org/cl/165898.
+    Underscore separator parsing was implemented in strconv in golang.org/cl/160243
+    and in math/big golang.org/cl/166157.
+    Thus octal & underscore literal parsing in go/constant is removed as redundant.
     
-    - Add check that require("fs") returns an object.
-    - Fix check that require("fs") returns an non-empty object.
-    - Add check that "module" is defined.
+    This CL resolves TODO left by gri in golang.org/cl/160239 .
     
-    Fixes #40730
-    
-    Change-Id: I2ce65fc7db64bbbb0b60eec79a4cfe5c3fec99c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248758
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I311872dac49b1a13063e0abc1794001956620c5a
+    GitHub-Last-Rev: 264caf574e8dee8f1e36d9e62edb0ee3ff60d2d1
+    GitHub-Pull-Request: golang/go#36630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215277
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/wasm/wasm_exec.js | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/go/constant/value.go | 31 -------------------------------
+ 1 file changed, 31 deletions(-)

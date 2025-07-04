@@ -1,17 +1,18 @@
-commit f71f32e5e155ae5b7f60005c939746637086f30e
-Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
-Date:   Mon Apr 17 22:06:46 2017 -0500
+commit b53f0f8c96a46b3cce0f1073787b74dd23f57a80
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 3 20:54:52 2017 -0500
 
-    cmd/cgo: read source files once
+    cmd/compile: do not fold large offset on ARM64
     
-    Now cgo reads source files twice: for c prefix generation and parsing
-    go code to an ast node. It can be narrowed down to single loop.
+    Fixes #18933.
     
-    Change-Id: Ie05452a3a12106aaab863244727390037e69e8e6
-    Reviewed-on: https://go-review.googlesource.com/40939
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8bb98e95bb4486a086d93bcf99e3a37488e77b03
+    Reviewed-on: https://go-review.googlesource.com/36318
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/ast.go  | 14 +++++++-------
- src/cmd/cgo/main.go | 24 +++++++++++-------------
- 2 files changed, 18 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  84 +++++++++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 156 ++++++++++++++-------------
+ test/fixedbugs/issue6036.go                  |   2 +-
+ 3 files changed, 146 insertions(+), 96 deletions(-)

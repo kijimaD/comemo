@@ -1,30 +1,19 @@
-commit 5ca44dc403d4a609eeafb0f699a63f19ef045cd6
-Author: smasher164 <aindurti@gmail.com>
-Date:   Thu Apr 4 15:57:24 2019 -0400
+commit e308807f658c11af52804d55c1b8c4b2cf80d3f3
+Author: Aaron Cannon <cannona@fireantproductions.com>
+Date:   Sat Oct 27 11:21:00 2018 -0500
 
-    math/bits: make Add and Sub fallbacks constant time
+    flag: improve docs for PrintDefaults; clarify how to change output destination
     
-    Make the extended precision add-with-carry and sub-with-carry operations
-    take a constant amount of time to execute, regardless of input.
+    The existing docs only mention that it is possible to change the output
+    destination of PrintDefaults from the default of standard error, but fail to
+    mention how to actually do so. This change fixes this lack by directing users
+    to CommandLine.SetOutput.
     
-    name             old time/op  new time/op  delta
-    Add-4            1.16ns ±11%  1.51ns ± 5%  +30.52%  (p=0.008 n=5+5)
-    Add32-4          1.08ns ± 0%  1.03ns ± 1%   -4.86%  (p=0.029 n=4+4)
-    Add64-4          1.09ns ± 1%  1.95ns ± 3%  +79.23%  (p=0.008 n=5+5)
-    Add64multiple-4  4.03ns ± 1%  4.55ns ±11%  +13.07%  (p=0.008 n=5+5)
-    Sub-4            1.08ns ± 1%  1.50ns ± 0%  +38.17%  (p=0.016 n=5+4)
-    Sub32-4          1.09ns ± 2%  1.53ns ±10%  +40.26%  (p=0.008 n=5+5)
-    Sub64-4          1.10ns ± 1%  1.47ns ± 1%  +33.39%  (p=0.008 n=5+5)
-    Sub64multiple-4  4.30ns ± 2%  4.08ns ± 4%   -5.07%  (p=0.032 n=5+5)
+    Fixes #15024
     
-    Fixes #31267
-    
-    Change-Id: I1824b1b3ab8f09902ce8b5fef84ce2fdb8847ed9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170758
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ieaa7edbebd23d4ea6fa7e53d97a87143d590bdb3
+    Reviewed-on: https://go-review.googlesource.com/c/145203
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/bits/bits.go | 49 +++++++++++++++++++------------------------------
- 1 file changed, 19 insertions(+), 30 deletions(-)
+ src/flag/flag.go | 2 ++
+ 1 file changed, 2 insertions(+)

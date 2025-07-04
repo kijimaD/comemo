@@ -1,17 +1,49 @@
-commit 5a0743b020d3bf7875edd5ed50c9ee69d728e10e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 7 13:35:53 2019 -0800
+commit 6f9b94ab6658bbebe4c89791dc3e5ebe53be3d82
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri May 25 17:54:58 2018 +0100
 
-    cmd/go: improve error message for names forbidden by Windows
+    cmd/compile: implement OnesCount{8,16,32,64} intrinsics on s390x
     
-    Fixes #29589
+    This CL implements the math/bits.OnesCount{8,16,32,64} functions
+    as intrinsics on s390x using the 'population count' (popcnt)
+    instruction. This instruction was released as the 'population-count'
+    facility which uses the same facility bit (45) as the
+    'distinct-operands' facility which is a pre-requisite for Go on
+    s390x. We can therefore use it without a feature check.
     
-    Change-Id: I69ad461e70b236d9729a42053e35128437449e32
-    Reviewed-on: https://go-review.googlesource.com/c/156658
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    The s390x popcnt instruction treats a 64 bit register as a vector
+    of 8 bytes, summing the number of ones in each byte individually.
+    It then writes the results to the corresponding bytes in the
+    output register. Therefore to implement OnesCount{16,32,64} we
+    need to sum the individual byte counts using some extra
+    instructions. To do this efficiently I've added some additional
+    pseudo operations to the s390x SSA backend.
+    
+    Unlike other architectures the new instruction sequence is faster
+    for OnesCount8, so that is implemented using the intrinsic.
+    
+    name         old time/op  new time/op  delta
+    OnesCount    3.21ns ± 1%  1.35ns ± 0%  -58.00%  (p=0.000 n=20+20)
+    OnesCount8   0.91ns ± 1%  0.81ns ± 0%  -11.43%  (p=0.000 n=20+20)
+    OnesCount16  1.51ns ± 3%  1.21ns ± 0%  -19.71%  (p=0.000 n=20+17)
+    OnesCount32  1.91ns ± 0%  1.12ns ± 1%  -41.60%  (p=0.000 n=19+20)
+    OnesCount64  3.18ns ± 4%  1.35ns ± 0%  -57.52%  (p=0.000 n=20+20)
+    
+    Change-Id: Id54f0bd28b6db9a887ad12c0d72fcc168ef9c4e0
+    Reviewed-on: https://go-review.googlesource.com/114675
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/module/module.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s    |   1 +
+ src/cmd/compile/internal/gc/ssa.go           |  12 ++-
+ src/cmd/compile/internal/s390x/ssa.go        |   5 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  28 +++++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  19 ++++
+ src/cmd/compile/internal/ssa/opGen.go        |  33 ++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 149 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/s390x/a.out.go          |   3 +
+ src/cmd/internal/obj/s390x/anames.go         |   1 +
+ src/cmd/internal/obj/s390x/asmz.go           |   6 ++
+ test/codegen/mathbits.go                     |   9 ++
+ 11 files changed, 261 insertions(+), 5 deletions(-)

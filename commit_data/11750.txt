@@ -1,18 +1,15 @@
-commit c15a42ed76370afd87aebee0be131dba713bc4f4
+commit 4539d1f307d0f8f110367bc61d11e0888feb071d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 10:05:26 2012 +1100
+Date:   Fri Feb 10 10:02:06 2012 +1100
 
-    cmd/api: follow constant references
+    net/http: add ServeContent
     
-    For gccgo. Also removes bunch of special cases.
+    Fixes #2039
     
-    Fixes #2906
-    
-    R=golang-dev, remyoudompheng
+    R=r, rsc, n13m3y3r, r, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5644050
+    https://golang.org/cl/5643067
 
- src/cmd/api/goapi.go                       | 115 +++++++++++++++++++----------
- src/cmd/api/testdata/src/pkg/p1/golden.txt |   2 +
- src/cmd/api/testdata/src/pkg/p1/p1.go      |   5 ++
- 3 files changed, 84 insertions(+), 38 deletions(-)
+ src/pkg/net/http/fs.go      | 208 ++++++++++++++++++++++++++------------------
+ src/pkg/net/http/fs_test.go |  64 ++++++++++++--
+ 2 files changed, 178 insertions(+), 94 deletions(-)

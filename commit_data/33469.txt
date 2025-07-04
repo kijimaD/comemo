@@ -1,29 +1,23 @@
-commit 9e76ce70701ceef8fbccfb953b33a2ae7fe0367c
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Sep 9 17:05:41 2017 -0700
+commit 2763672ecbddec940c6586f43c98bf72a49bcc81
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 09:45:20 2017 +0900
 
-    crypto/x509: enforce all name constraints and support IP, email and URI constraints
+    cmd/link: show native relocation type name in error messages
     
-    This change makes crypto/x509 enforce name constraints for all names in
-    a leaf certificate, not just the name being validated. Thus, after this
-    change, if a certificate validates then all the names in it can be
-    trusted – one doesn't have a validate again for each interesting name.
-    
-    Making extended key usage work in this fashion still remains to be done.
-    
-    Updates #15196
-    
-    Change-Id: I72ed5ff2f7284082d5bf3e1e86faf76cef62f9b5
-    Reviewed-on: https://go-review.googlesource.com/62693
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I7f7b1e7ef832d53a93562b08ae914d023247c2c0
+    Reviewed-on: https://go-review.googlesource.com/56312
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/name_constraints_test.go | 1569 ++++++++++++++++++++++++++++++
- src/crypto/x509/root_windows.go          |    4 +-
- src/crypto/x509/verify.go                |  481 ++++++++-
- src/crypto/x509/verify_test.go           |   35 +-
- src/crypto/x509/x509.go                  |  349 +++++--
- src/crypto/x509/x509_test.go             |  130 ++-
- src/go/build/deps_test.go                |    2 +-
- 7 files changed, 2443 insertions(+), 127 deletions(-)
+ src/cmd/link/internal/amd64/asm.go |  8 +++----
+ src/cmd/link/internal/arm/asm.go   |  8 +++----
+ src/cmd/link/internal/arm64/asm.go |  4 ++--
+ src/cmd/link/internal/ld/data.go   |  8 +++----
+ src/cmd/link/internal/ld/elf.go    |  6 +++---
+ src/cmd/link/internal/ld/link.go   | 44 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go  |  4 ++--
+ src/cmd/link/internal/ld/pe.go     |  4 ++--
+ src/cmd/link/internal/ppc64/asm.go |  4 ++--
+ src/cmd/link/internal/x86/asm.go   |  8 +++----
+ 10 files changed, 71 insertions(+), 27 deletions(-)

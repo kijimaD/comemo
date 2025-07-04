@@ -1,14 +1,12 @@
-commit 3acddba2ec9ec2b6e8e9f6b9b6843d3780587bfe
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 13 03:50:50 2013 +0000
+commit 3714d69b1505b54683a8b28e64b8aece3796a1d2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 13 13:17:47 2013 +1000
 
-    cmd/5l: fix handling of RET.EQ in wrapper function
+    C: Jamie Wilkinson (Googler CLA)
     
-    Keith is too clever for me.
-    
-    R=ken2
-    CC=golang-dev, khr
-    https://golang.org/cl/13272050
+    R=golang-dev, dave, adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13692043
 
- src/cmd/5l/noop.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

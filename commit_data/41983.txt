@@ -1,34 +1,24 @@
-commit b1cae8cd1d66714d7fe7e84eb6aea04986b797f1
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Apr 16 11:40:09 2020 +0100
+commit 2ff746d7dc3ce5ce7034bfcc3af16b7b8eab7413
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 20 17:25:02 2019 -0400
 
-    cmd/compile: make some s390x rules use strongly typed aux values
+    runtime: add async preemption support on ARM
     
-    This first pass makes the rules using the condition code mask
-    (CCMask) and rotate parameters (RotateParams) aux values strongly
-    typed. This required adding strongly typed aux handling to the
-    block rulegen.
+    This CL adds support of call injection and async preemption on
+    ARM.
     
-    More CLs like this to follow, but this is probably the most
-    complex.
+    Injected call, like sigpanic, has special frame layout. Teach
+    traceback to handle it.
     
-    Passes toolstash-check -all.
-    
-    Change-Id: Ie513b07d527f0c1b398d7748331442dcb5f7b17d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228518
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I887e90134fbf8a676b73c26321c50b3c4762dba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202338
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/block.go        |   4 +-
- src/cmd/compile/internal/ssa/check.go        |  13 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules | 163 +++---
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  22 +-
- src/cmd/compile/internal/ssa/gen/main.go     |   6 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go  |  86 ++-
- src/cmd/compile/internal/ssa/op.go           |  41 +-
- src/cmd/compile/internal/ssa/opGen.go        |  12 +-
- src/cmd/compile/internal/ssa/rewrite.go      |  19 +
- src/cmd/compile/internal/ssa/rewriteS390X.go | 794 +++++++++++++--------------
- src/cmd/compile/internal/ssa/value.go        |   4 +-
- 11 files changed, 630 insertions(+), 534 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  2 +
+ src/runtime/mkpreempt.go                   | 65 +++++++++++++++++++++---
+ src/runtime/preempt_386.s                  |  4 +-
+ src/runtime/preempt_arm.s                  | 79 +++++++++++++++++++++++++++++-
+ src/runtime/signal_arm.go                  | 14 +++++-
+ src/runtime/traceback.go                   |  5 +-
+ 6 files changed, 153 insertions(+), 16 deletions(-)

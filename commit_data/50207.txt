@@ -1,22 +1,28 @@
-commit bc0a033266eeaed189a5c77becd45b861fd245f5
-Author: bqyang <clamyang2018@gmail.com>
-Date:   Wed Aug 31 08:28:13 2022 +0000
+commit e74db46519a7cbed16a7f14932da2ef93d647ece
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 7 19:12:16 2021 -0400
 
-    runtime: fix comment typo in mpagealloc.go
+    go/types: use an identifier map rather than isubst for recv type params
     
-    leve --> level
+    Receiver type parameters are the only type expressions allowed to be
+    blank. Previously this was handled by substitution of synthetic
+    non-blank names in the receiver type expression, but that introduced
+    problems related to AST mangling: the scope had extra elements,
+    Object.Name() was inaccurate, and synthetic nodes were recorded in
+    types.Info.
     
-    Change-Id: Ia5ff46c79c4dda2df426ec75d69e8fcede909b47
-    GitHub-Last-Rev: e57cad22d99b74c7e220f4d5a7b03a830544aea9
-    GitHub-Pull-Request: golang/go#54788
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426974
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fix this instead by recording a map of *ast.Ident->*TypeParam on the
+    Checker, which is read in Checker.ident to resolve blank identifiers
+    denoting receiver type parameters.
+    
+    Change-Id: I6a7a86b823409f54778c0f141e8bd269a2cc85d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354643
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mpagealloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/check.go     |  2 ++
+ src/go/types/signature.go | 86 ++++++++++-------------------------------------
+ src/go/types/typexpr.go   | 10 +++++-
+ 3 files changed, 28 insertions(+), 70 deletions(-)

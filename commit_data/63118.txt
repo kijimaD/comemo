@@ -1,0 +1,45 @@
+commit 112c23612f5fdfb776d8f338479e1dc374ee6f1b
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 28 16:07:16 2025 +0100
+
+    runtime,internal/trace: emit clock snapshots at the start of trace generations
+    
+    Replace the per-generation EvEventBatch containing a lone EvFrequency
+    event with a per-generation EvEventBatch containing a EvSync header
+    followed by an EvFrequency and EvClockSnapshot event.
+    
+    The new EvClockSnapshot event contains trace, mono and wall clock
+    snapshots taken in close time proximity. Ignoring minor resolution
+    differences, the trace and mono clock are the same on linux, but not on
+    windows (which still uses a TSC based trace clock).
+    
+    Emit the new sync batch at the very beginning of every new generation
+    rather than the end to be in harmony with the internal/trace reader
+    which emits a sync event at the beginning of every generation as well
+    and guarantees monotonically increasing event timestamps.
+    
+    Bump the version of the trace file format to 1.25 since this change is
+    not backwards compatible.
+    
+    Update the internal/trace reader implementation to decode the new
+    events, but do not expose them to the public reader API yet. This is
+    done in the next CL.
+    
+    For #69869
+    
+    Change-Id: I5bfedccdd23dc0adaf2401ec0970cbcc32363393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653575
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/base.go            |   2 +-
+ src/internal/trace/batch.go           |   7 ++-
+ src/internal/trace/generation.go      | 106 +++++++++++++++++++++++++++-------
+ src/internal/trace/reader.go          |   9 +--
+ src/internal/trace/tracev2/events.go  |  12 ++++
+ src/internal/trace/version/version.go |   8 ++-
+ src/runtime/trace.go                  |  29 ++++++----
+ src/runtime/tracetime.go              |  28 ++++++---
+ 8 files changed, 148 insertions(+), 53 deletions(-)

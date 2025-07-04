@@ -1,18 +1,15 @@
-commit cbd72318b964bde9d95102571cd22d1919dbd37f
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Sat Apr 2 18:07:24 2016 -0300
+commit 57faad66772390defb9c708a31eaf5e51a0c18c3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 21:51:07 2016 -0700
 
-    net: search domain from hostname if no search directives
+    cmd/compile: fix CTNIL static data comments
     
-    Fixes #14897
-    
-    Change-Id: Iffe7462983a5623a37aa0dc6f74c8c70e10c3244
-    Reviewed-on: https://go-review.googlesource.com/21464
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I434f881c10dec41a802641db8873abf1353beba2
+    Reviewed-on: https://go-review.googlesource.com/20671
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dnsconfig_unix.go      | 29 +++++++++++++++++++----
- src/net/dnsconfig_unix_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/obj.go   | 1 -
+ src/cmd/compile/internal/gc/sinit.go | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)

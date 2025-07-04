@@ -1,25 +1,48 @@
-commit 5e9afab7df87045bd919b120c1b05476e14d8a35
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Sep 25 09:22:48 2023 -0400
+commit 68bd383368b5958f8f02c49bc75134a0ef61daec
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 18 16:07:36 2022 -0700
 
-    log/slog: ensure ReplaceAttr does not see a group
+    cmd/compile: add cache of sizeable objects so they can be reused
     
-    The ReplaceAttr function should not see groups, only leaf attributes.
+    We kind of have this mechanism already, just normalizing it and
+    using it in a bunch of places. Previously a bunch of places cached
+    slices only for the duration of a single function compilation. Now
+    we can reuse slices across a whole compiler run.
     
-    Previously, we checked an Value for being a group, then resolved it,
-    then called ReplaceAttr. We neglected to see if it was a group
-    after resolving it.
+    Use a sync.Pool of powers-of-two sizes. This lets us use not
+    too much memory, and avoid holding onto memory we're no longer
+    using when a GC happens.
     
-    Now we resolve first, then check.
+    There's a few different types we need, so generate the code for it.
+    Generics would be useful here, but we can't use generics in the
+    compiler because of bootstrapping.
     
-    Fixes #62731.
-    
-    Change-Id: I2fc40758e77c445f82deb2c9de8cae7a3b0e22cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530478
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I6cf37e7b7b2e802882aaa723a0b29770511ccd82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444820
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/log/slog/handler.go      |  7 ++++---
- src/log/slog/handler_test.go | 12 ++++++++++++
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/allocators.go   | 198 +++++++++++++
+ src/cmd/compile/internal/ssa/_gen/main.go         |   1 +
+ src/cmd/compile/internal/ssa/allocators.go        | 343 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/cache.go             |  39 +--
+ src/cmd/compile/internal/ssa/critical.go          |   3 +-
+ src/cmd/compile/internal/ssa/cse.go               |  10 +-
+ src/cmd/compile/internal/ssa/deadcode.go          |  29 +-
+ src/cmd/compile/internal/ssa/dom.go               |  57 +---
+ src/cmd/compile/internal/ssa/flagalloc.go         |   3 +-
+ src/cmd/compile/internal/ssa/func.go              |  78 +----
+ src/cmd/compile/internal/ssa/layout.go            |   9 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go      |  12 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   6 +-
+ src/cmd/compile/internal/ssa/looprotate.go        |  16 +-
+ src/cmd/compile/internal/ssa/nilcheck.go          |   6 +-
+ src/cmd/compile/internal/ssa/print.go             |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go          |  13 +-
+ src/cmd/compile/internal/ssa/schedule.go          |   9 +-
+ src/cmd/compile/internal/ssa/stackalloc.go        |  26 +-
+ src/cmd/compile/internal/ssa/tighten.go           |   6 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |   3 +-
+ 21 files changed, 656 insertions(+), 213 deletions(-)

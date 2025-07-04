@@ -1,15 +1,14 @@
-commit 1bb4f37fcec4b22b663c995b0ff6a19a639d112d
+commit 9ba153e3e0969407c036deef6971d1f41cb11a18
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 21 00:09:22 2014 -0400
+Date:   Mon Apr 21 00:08:39 2014 -0400
 
-    runtime, go/build: re-enable cgo on FreeBSD.
-    Fixes #7331.
+    lib9: restore argv0 initialization code.
+    `GOARCH=arm go tool 6c` used to give "<prog>: cannot use 6c with GOARCH=arm"
     
-    LGTM=dave, iant
-    R=golang-codereviews, dave, gobot, iant
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/89150043
+    https://golang.org/cl/89330043
 
- src/pkg/go/build/build.go         | 1 +
- src/pkg/runtime/sys_freebsd_arm.s | 5 +++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/lib9/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

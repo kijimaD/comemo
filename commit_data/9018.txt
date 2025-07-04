@@ -1,12 +1,14 @@
-commit 8ed9fc600c7dc6a9286a6f04bdb41694d53bac3c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jul 12 14:22:48 2011 +1000
+commit ce3c3953be1c179685a5d318fd85f9b8009f0fb2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 20:56:21 2011 -0700
 
-    6l: change default output name to 6.out.exe on windows
+    http: support for periodic flushing in ReverseProxy
     
-    R=golang-dev, vcc.163
+    Fixes #2012
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4670049
+    https://golang.org/cl/4662091
 
- src/cmd/6l/obj.c | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/pkg/http/reverseproxy.go | 60 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 59 insertions(+), 1 deletion(-)

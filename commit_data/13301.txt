@@ -1,26 +1,21 @@
-commit 90fa13d2b7eee8b785428e0015b29aea95b8e75a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jun 7 09:35:35 2012 +1000
+commit 42a76efc924cdae869efa1c936d263134ff225d6
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Jun 6 18:38:56 2012 -0400
 
-    exp/html/atom: add more atoms.
+    net: pass tests on Plan 9 again
     
-    This completely covers the tags used by exp/html's parser.
-    
-    Before:
-    295 atoms; 1406 string bytes + 2048 tables = 3454 total data
-    BenchmarkLookup    50000         59841 ns/op
-    
-    After:
-    322 atoms; 1508 string bytes + 2048 tables = 3556 total data
-    BenchmarkLookup    50000         60159 ns/op
-    
-    R=r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6296045
+    https://golang.org/cl/6280045
 
- src/pkg/exp/html/atom/atom.go       |    6 +-
- src/pkg/exp/html/atom/atom_test.go  |   21 +
- src/pkg/exp/html/atom/gen.go        |   27 +
- src/pkg/exp/html/atom/table.go      | 1268 ++++++++++++++++++-----------------
- src/pkg/exp/html/atom/table_test.go |   27 +
- 5 files changed, 740 insertions(+), 609 deletions(-)
+ src/pkg/net/dial_test.go      |  2 +-
+ src/pkg/net/ipraw_test.go     |  2 ++
+ src/pkg/net/ipsock_plan9.go   | 19 +++++++++++++++++++
+ src/pkg/net/multicast_test.go |  2 ++
+ src/pkg/net/net_test.go       |  5 +++++
+ src/pkg/net/tcpsock_plan9.go  | 31 ++++++++++++-------------------
+ src/pkg/net/udpsock.go        |  4 ++++
+ src/pkg/net/udpsock_plan9.go  | 16 ----------------
+ src/pkg/net/udpsock_posix.go  |  7 +------
+ src/pkg/net/unicast_test.go   |  2 ++
+ 10 files changed, 48 insertions(+), 42 deletions(-)

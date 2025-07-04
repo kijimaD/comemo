@@ -1,20 +1,18 @@
-commit c31540364c2bc3bdb7800cfc344d85c2c9df3893
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Nov 18 16:42:31 2020 -0800
+commit aa74fce005b3ac35de79e799efb712f48c177256
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 21:55:24 2020 -0400
 
-    cmd/compile:  flag "-d=dumpptrs" to print Node ptrs in Dump output
+    [dev.link] cmd/link: use new dodata on MIPS(64) and RISCV64
     
-    The printing of the ptr values can mean that two dump outputs can't easily be
-    compared for the identical structure, so adding the "-d=dumpptrs" option to make
-    printing of Node pointer values be an option.
+    They also don't need to do anything for Adddynrel. So we can just
+    enable it.
     
-    Change-Id: I0e92b02f069e9de2e6fa036a7841645d13cdd7a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271339
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If85fceca63a7b3cb5a09e5db224c3018060e86de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229993
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/fmt.go  | 8 +++++---
- src/cmd/compile/internal/gc/main.go | 2 ++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/main.go   |  7 +++++--
+ src/cmd/link/internal/ld/target.go | 12 ++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

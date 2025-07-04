@@ -1,20 +1,19 @@
-commit 2de449e7a04a571a4aefefc83601802af214ea0a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 21 17:12:06 2014 -0400
+commit 4464ae280f6b6cd16ac23677aba05ac69e26c896
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 21 12:30:43 2014 -0700
 
-    test/float_lit2.go: rewrite to test values near boundaries
+    fmt: fix floating-point padding once and for all
+    Rewrite formatFloat to be much simpler and clearer and
+    avoid the tricky interaction with padding.
+    The issue refers to complex but the problem is just floating-point.
+    The new tests added were incorrectly formatted before this fix.
+    Fixes #8064.
     
-    Add larger comment explaining testing methodology,
-    and derive tests arithmetically.
-    
-    (These tests are checking rounding again; the derived
-    tests they replace were checking exact values.)
-    
-    LGTM=r, gri
-    R=gri, r
+    LGTM=jscrockett01, rsc
+    R=rsc, jscrockett01
     CC=golang-codereviews
-    https://golang.org/cl/100660044
+    https://golang.org/cl/99420048
 
- test/float_lit2.go | 202 +++++++++++++++++++++++++++++++++++------------------
- test/float_lit3.go |  52 +++++++++-----
- 2 files changed, 170 insertions(+), 84 deletions(-)
+ src/pkg/fmt/fmt_test.go | 12 ++++++++++
+ src/pkg/fmt/format.go   | 62 ++++++++++++++++++++++++-------------------------
+ 2 files changed, 43 insertions(+), 31 deletions(-)

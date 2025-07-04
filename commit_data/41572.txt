@@ -1,28 +1,20 @@
-commit bda42a7a782dbcf4b123d617c5b60f3c848cbb82
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Thu Mar 5 00:28:05 2020 +0000
+commit 592d304bdc293a03d80ad86ad4b98b02353bfd64
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sat Oct 12 16:27:15 2019 +0800
 
-    runtime: use staticuint64s instead of staticbytes for 1-length strings
+    net: use case-insensitive host string comparison in TestLookup*
     
-    This was the last remaining use of staticbytes, so we can now
-    delete it.
+    Some nameservers alter the case of records as they return, e.g
+    .google.COM or .Google.com.
+    However according to RFC4343, DNS name should be treated in case insensitive fashion.
+    This CL will fix case sensitive testcases.
     
-    The new code appears slightly faster on amd64:
+    Fixes #34781
     
-    name                   old time/op  new time/op  delta
-    SliceByteToString/1-4  6.29ns ± 2%  5.89ns ± 1%  -6.46%  (p=0.000 n=14+14)
-    
-    This may not be the case on the big-endian architectures, since they have
-    to do an extra addition.
-    
-    Updates #37612
-    
-    Change-Id: Icb84c5911ba025f798de152849992a55be99e4f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221979
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5f9f6a41ddc1c61993e8d1f934ef0febddc3adc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200277
+    Reviewed-by: Andrei Tudor Călin <mail@acln.ro>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/iface.go  | 36 ------------------------------------
- src/runtime/string.go | 13 ++++++-------
- 2 files changed, 6 insertions(+), 43 deletions(-)
+ src/net/lookup_test.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

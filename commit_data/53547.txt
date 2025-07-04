@@ -1,31 +1,20 @@
-commit 70cb990b15807eb61351b8fbeac28704240787bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 13 14:37:57 2023 -0400
+commit 2e06019dcd82c1c525c805af687063875d4b223b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 18 19:15:51 2022 +0200
 
-    database/sql: fix flake in TestContextCancelDuringRawBytesScan
+    runtime/pprof: check Getrusage return value in addMaxRSS
     
-    If the cancellation takes effect between Next and Scan,
-    then Scan returns context.Canceled, but the test wasn't
-    allowing this case.
+    Depending on the implementation of the getrusage syscall/function, the
+    value of rusage.Maxrss may be undefined in case of an error. Thus, only
+    report MaxRSS in case of no error.
     
-    The old flake reproduced easily with:
-    
-            go test -c
-            stress ./sql.test -test.count=100 -test.run=TestContextCancelDuringRawBytesScan
-    
-    The new test modes exercise that path directly instead of needing stress.
-    
-    The new check for context.Canceled fixes the new test mode "top".
-    
-    Fixes #60445.
-    
-    Change-Id: I3870039a0fbe0a43c3e261b43b175ef83f818765
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502876
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7572ccc53c49eb460e53bded3eb41736eed8d2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424815
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/database/sql/sql_test.go | 37 ++++++++++++++++++++++++++++++++++---
- 1 file changed, 34 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof_rusage.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,16 +1,14 @@
-commit 5759c6022c7d5fe43357fc69b5b0b2eec28c01a9
+commit 477d7b166307916376dc94b6917597d768f102d3
 Author: Adam Langley <agl@golang.org>
-Date:   Tue May 22 10:33:14 2012 -0400
+Date:   Tue May 22 10:17:39 2012 -0400
 
-    crypto/ecdsa: add full set of NIST test vectors.
+    crypto/ecdsa: fix case where p != 0 mod 8 and the hash length < p.
     
-    This includes the NIST test suite for ECDSA and alters the test to
-    parse and evaluate it.
+    I made a typo which breaks P-521.
     
-    R=golang-dev, bradfitz, rsc, b
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6219058
+    https://golang.org/cl/6219057
 
- src/pkg/crypto/ecdsa/ecdsa_test.go           | 256 ++++++++++++---------------
- src/pkg/crypto/ecdsa/testdata/SigVer.rsp.bz2 | Bin 0 -> 95485 bytes
- 2 files changed, 110 insertions(+), 146 deletions(-)
+ src/pkg/crypto/ecdsa/ecdsa.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,36 +1,17 @@
-commit 4210ebcd089f216798152b5e523eaa71fbefe65d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 9 13:02:08 2023 -0800
+commit 21998413ad82655fef1f31316db31e23e0684b21
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 1 17:41:46 2022 -0800
 
-    go/types: make tracing configurable (matching types2)
+    cmd/compile: unified IR support for implicit interfaces
     
-    This CL replaces the internal trace flag with Config.trace.
-    While unexported, it can still be set for testing via reflection.
-    The typical use is for manual tests, where -v (verbose) turns on
-    tracing output. Typical use:
-    
-            go test -run Manual -v
-    
-    This change makes go/types match types2 behavior.
-    
-    Change-Id: I22842f4bba8fd632efe5929c950f4b1cab0a8569
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461081
+    Change-Id: Ibdaa0750f7bc47b513c047fdf4b7145ebba9e870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386001
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/api.go        |  3 +++
- src/go/types/call.go       |  2 +-
- src/go/types/check.go      | 11 ++++-------
- src/go/types/check_test.go | 10 ++++++----
- src/go/types/decl.go       |  6 +++---
- src/go/types/errors.go     |  2 +-
- src/go/types/expr.go       |  2 +-
- src/go/types/named.go      |  2 +-
- src/go/types/stmt.go       |  2 +-
- src/go/types/subst.go      |  2 +-
- src/go/types/typeset.go    |  2 +-
- src/go/types/typexpr.go    |  4 ++--
- 12 files changed, 25 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/noder/reader.go  | 2 ++
+ src/cmd/compile/internal/noder/reader2.go | 7 ++++++-
+ src/cmd/compile/internal/noder/writer.go  | 9 +++++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

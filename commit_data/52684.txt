@@ -1,27 +1,29 @@
-commit 2068d5658e99f6cf13dd2648f3542d2c5bcdabfc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 17 14:09:39 2023 -0400
+commit d63865b5d19ec3ca57aa30b45b2e0b57b3d54087
+Author: pooja shyamsundar <poojashyam@ibm.com>
+Date:   Sun May 15 21:07:27 2022 -0700
 
-    Revert "Revert "Revert "runtime: consolidate function descriptor definitions on PPC64"""
+    crypto/internal/nistec: re-enable s390x asm for P-256
     
-    This reverts CL 481075 (a re-apply of previously reverted CL 478917).
+    - formatting and optimized init functionality for precomputed table
+    - updated formatting for comments
+    - further optimized init functionality
+    Fixes #52709
     
-    Reason for revert: CL 481061 causes C TSAN failures and must be
-    reverted. See CL 485275. This CL depends on CL 481061.
-    
-    For #59678.
-    
-    Change-Id: I4bf7f43d9df1ae28e04cd4065552bcbee82ef13f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485316
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie96a8ee52f09821d5ac53115185cbc1ad8f954d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404058
+    Auto-Submit: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Pooja Shyamsundar <poojashyam@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/asm_ppc64x.h       | 20 ++------------------
- src/runtime/asm_ppc64x.s       | 21 ++++++++++++++++++---
- src/runtime/cgo/asm_ppc64x.s   | 25 +++++++++++++------------
- src/runtime/rt0_aix_ppc64.s    | 17 +++++++++++++----
- src/runtime/rt0_linux_ppc64.s  | 13 ++++++++++---
- src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++++------
- 6 files changed, 73 insertions(+), 46 deletions(-)
+ src/crypto/internal/nistec/p256.go                |    2 +-
+ src/crypto/internal/nistec/p256_asm.go            |   12 +-
+ src/crypto/internal/nistec/p256_asm_s390x.s       | 1014 ++++++++-------------
+ src/crypto/internal/nistec/p256_asm_table_test.go |    2 +-
+ src/crypto/internal/nistec/p256_s390x.go          |  570 ------------
+ 5 files changed, 371 insertions(+), 1229 deletions(-)

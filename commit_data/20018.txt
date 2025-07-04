@@ -1,15 +1,13 @@
-commit c6fe53a230e70bbb7a5582afe96cacf174eb0335
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Aug 16 09:07:55 2014 +0400
+commit f497885c6343808b47811981ae42c2e816005163
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 13 07:39:52 2014 +1000
 
-    runtime: mark with non-atomic operations when GOMAXPROCS=1
-    Perf builders show 3-5% GC pause increase with GOMAXPROCS=1 when marking with atomic ops:
-    http://goperfd.appspot.com/perfdetail?commit=a8a6e765d6a87f7ccb71fd85a60eb5a821151f85&commit0=3b864e02b987171e05e2e9d0840b85b5b6476386&kind=builder&builder=linux-amd64&benchmark=http
+    doc: document go1.3.1
     
-    LGTM=rlh
-    R=golang-codereviews, rlh
-    CC=dave, golang-codereviews, khr, rsc
-    https://golang.org/cl/128340043
+    LGTM=r
+    R=r, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/126060043
 
- src/pkg/runtime/mgc0.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

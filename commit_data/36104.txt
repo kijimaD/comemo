@@ -1,16 +1,21 @@
-commit 834d2244a0150d8ae29b587ed2193e81e552d601
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri Jul 20 13:21:45 2018 +0700
+commit e6ab614fda5ce7533bda81f2b0de0f9fe18139bf
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Apr 4 13:47:53 2018 -0400
 
-    cm/go/internal/test: make vet run when using go test -c
+    cmd/trace: avoid emitting traceview slice with 0 duration
     
-    Fixes #26451
+    The trace viewer interprets the slice as a non-terminating
+    time interval which is quite opposit to what trace records indicate
+    (i.e., almostly immediately terminating time interval).
+    As observed in the issue #24663 this can result in quite misleading
+    visualization of the trace.
     
-    Change-Id: Icd8d6d55dc42adb5c8953787eec7eb29ba46b2aa
-    Reviewed-on: https://go-review.googlesource.com/125215
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Work around the trace viewer's issue by setting a small value
+    (0.0001usec) as the duration if the time interval is not positive.
+    
+    Change-Id: I1c2aac135c194d0717f5c01a98ca60ffb14ef45c
+    Reviewed-on: https://go-review.googlesource.com/104716
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- misc/cgo/testsanitizers/cc_test.go                 |  5 +++--
- src/cmd/go/internal/test/test.go                   | 17 +++++++++++------
- src/cmd/go/testdata/script/test_compile_binary.txt |  6 ++++++
- 3 files changed, 20 insertions(+), 8 deletions(-)
+ src/cmd/trace/trace.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

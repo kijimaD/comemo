@@ -1,12 +1,15 @@
-commit f00872527b9e31cf3389ef49788b21b22b1a51da
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Thu Mar 15 09:15:16 2012 +1100
+commit c959ebe4d85c24a17b74120fa9b6abe27427d9ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 14 14:41:06 2012 -0700
 
-    doc: add reference to FAQ to explain warning about concrete type
+    archive/zip: move r.zip off disk, into reader_test.go
     
-    R=golang-dev, adg
+    Makes certain virus scanners happier.
+    
+    R=golang-dev, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5820048
+    https://golang.org/cl/5823053
 
- doc/articles/error_handling.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/archive/zip/reader_test.go |  59 +++++++++++++++++++++++++++++++++----
+ src/pkg/archive/zip/testdata/r.zip | Bin 440 -> 0 bytes
+ 2 files changed, 54 insertions(+), 5 deletions(-)

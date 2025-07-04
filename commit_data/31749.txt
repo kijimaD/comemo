@@ -1,21 +1,17 @@
-commit 0c38d789bcce1b0de41e3a97478d613aa4665c95
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Tue Jun 6 02:03:55 2017 +0000
+commit 6088fab92015d4901e515a6991db874889508eba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 6 11:09:09 2016 -0800
 
-    cmd/go: fix TestBuildIDContainsArchModeEnv fail on arm64
+    cmd/compile: rename Nconv to nconv
     
-    TestBuildIDContainsArchModeEnv fails on arm64 because defaultGO386 has
-    different value from x86 (amd64/386). On arm64 defaultGO386 = '387' but
-    on x86 defaultGO386 = 'sse2'. The difference will make the test succeed
-    on x86 while fail on arm64 since it generates the same build ID.
-    Fix it by explicitly setting GO386 instead of using default value
+    For consistency.
     
-    Fixes #20608
-    
-    Change-Id: I864b0e47325942d9513516bdf47f60391d18c0d0
-    Reviewed-on: https://go-review.googlesource.com/45112
+    Change-Id: Ic687fea95f7a4a3be576945af3e9c97086309b07
+    Reviewed-on: https://go-review.googlesource.com/38142
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

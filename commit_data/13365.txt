@@ -1,13 +1,20 @@
-commit 77b1378c3e8b2669ae560c3a11c30e07f0a8cf8f
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Tue Jun 19 11:34:56 2012 -0700
+commit d4c4f4d2c4cdfc9e713383d419b528726cfbbb20
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 20 01:17:03 2012 +0800
 
-    exp/locale/collate: added regression test for collate package
-    based on UCA test files.
+    runtime: fix struct Sigaction for Linux/ARM
+            if we were to use sizeof(sa.sa_mask) instead of 8 as the last argument
+            to rt_sigaction, we would have already fixed this bug, so also updated
+            Linux/386 and Linux/amd64 files to use that; also test the return value
+            of rt_sigaction.
     
-    R=r
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6216056
+    https://golang.org/cl/6297087
 
- src/pkg/exp/locale/collate/regtest.go | 180 ++++++++++++++++++++++++++++++++++
- 1 file changed, 180 insertions(+)
+ src/pkg/runtime/defs_linux_arm.h     | 2 +-
+ src/pkg/runtime/os_linux.h           | 2 +-
+ src/pkg/runtime/signal_linux_386.c   | 3 ++-
+ src/pkg/runtime/signal_linux_amd64.c | 3 ++-
+ src/pkg/runtime/signal_linux_arm.c   | 3 ++-
+ 5 files changed, 8 insertions(+), 5 deletions(-)

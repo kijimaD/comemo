@@ -1,24 +1,19 @@
-commit f2bba30e4068695fcb08ddf5006e776c1fd38eca
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jun 18 18:05:10 2020 -0400
+commit ae0b735369317197773920ee282c68a01effaad3
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Jan 10 11:36:44 2020 -0500
 
-    cmd/link: use sym.Symbol in addpersrc
+    cmd/compile: emit only '/' in DWARF file names
     
-    addpersrc is called very late, after we have converted to
-    sym.Symbols and various fields in loader representation have been
-    dropped. Use the Symbol representation there.
+    Make file names consistent, using only forward slashes in the path.
     
-    Fixes #39658.
+    Fixes #36495
     
-    Change-Id: I616e838655b6f01554644171317e2cc5cefabf39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238779
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I337119d6dff233ab9d4bfe757147ec25961ae021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214286
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/pe.go             |  13 ++++++-----
- src/cmd/link/link_test.go                  |  34 +++++++++++++++++++++++++++++
- src/cmd/link/testdata/testPErsrc/main.go   |  19 ++++++++++++++++
- src/cmd/link/testdata/testPErsrc/rsrc.syso | Bin 0 -> 228 bytes
- 4 files changed, 60 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/objfile.go        |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go | 66 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 1 deletion(-)

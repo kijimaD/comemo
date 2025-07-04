@@ -1,16 +1,15 @@
-commit fc7b42325ac25240918d9572b69e4223199eec4a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 14 17:00:14 2011 -0700
+commit 48f598a393ddb1c48cd10015f1c024ca79a67d6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 14 16:09:15 2011 -0700
 
-    cgi: make test less flaky
+    go/printer: simplify internal state
     
-    Previously, during the anti-zombie test, a
-    CGI process had to finish within ~625ms.
-    Now it gets ~5.6 seconds.
+    No formatting changes.
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4741041
+    https://golang.org/cl/4735042
 
- src/pkg/http/cgi/host_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/printer/nodes.go   | 10 ----------
+ src/pkg/go/printer/printer.go | 20 +++++---------------
+ 2 files changed, 5 insertions(+), 25 deletions(-)

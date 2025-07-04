@@ -1,14 +1,26 @@
-commit 4064d5e9a3dce1b88866f1364a94a02f13db6162
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 20:26:32 2014 +0400
+commit 326f48eb9cfcdaf7433756361b465df5b889dd46
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Aug 19 08:52:52 2014 +1000
 
-    runtime: add comment
-    Explain why it's safe to allocate chans with flagNoScan.
+    fmt: print byte stringers correctly
     
-    LGTM=rsc
-    R=golang-codereviews
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/125510045
+    type T byte
+    func (T) String() string { return "X" }
+    
+    fmt.Sprintf("%s", []T{97, 98, 99, 100}) == "abcd"
+    fmt.Sprintf("%x", []T{97, 98, 99, 100}) == "61626364"
+    fmt.Sprintf("%v", []T{97, 98, 99, 100}) == "[X X X X]"
+    
+    This change makes the last case print correctly.
+    Before, it would have been "[97 98 99 100]".
+    
+    Fixes #8360.
+    
+    LGTM=r
+    R=r, dan.kortschak
+    CC=golang-codereviews
+    https://golang.org/cl/129330043
 
- src/pkg/runtime/chan.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/fmt/print.go    | 10 ++++++++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)

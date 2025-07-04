@@ -1,20 +1,26 @@
-commit ab7ecea0c8dff908dfcad8c9091b71c6051bb94a
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Sat Feb 29 11:23:29 2020 +0800
+commit 99b9ee3e44e53b91200a9feb6f22b206580656b0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 8 15:05:41 2019 -0400
 
-    cmd/compile: add intrinsics for runtime/internal/math on MIPS64x
+    go/build: import packages in module mode when GO111MODULE is "on"
     
-    name              old time/op  new time/op  delta
-    MulUintptr/small  8.42ns ± 0%  5.93ns ± 0%  -29.66%  (p=0.000 n=9+10)
-    MulUintptr/large  11.1ns ± 0%   7.4ns ± 0%  -33.17%  (p=0.000 n=10+9)
+    go/build.Import locates package dirctories using 'go list' when in
+    module mode (finding, downloading, and extracting modules is
+    complicated, so go/build does not handle it).
     
-    Change-Id: I6659a886389660461fc2c90bd248243f6e7c29d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210897
-    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    Previously, Import used 'go list' if GO111MODULE was not explicitly
+    off and a go.mod file was present (plus some other conditions). With
+    this change, if GO111MODULE is "on", a go.mod file does not need to be
+    present.
+    
+    Fixes #34669
+    
+    Change-Id: I9e56871054d4b07c3fc04b6f14a5c8c8e9f3c333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199818
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/ssa.go            |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 41 +++++++++++++++++++++++++++
- 3 files changed, 44 insertions(+), 1 deletion(-)
+ src/go/build/build.go      | 32 +++++++++++++++++++-------------
+ src/go/build/build_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 13 deletions(-)

@@ -1,27 +1,23 @@
-commit 24f83ed4e29495d5b8b6375aeaa2d34d14629c7d
-Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
-Date:   Thu Aug 3 14:44:01 2023 +0800
+commit 1c59199c919419293075ac9c93b27b033e2733f9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:03:25 2022 +0000
 
-    cmd/internal/obj/mips: add SEB/SEH instructions
+    runtime: remove atomic store requirement on pageAlloc.chunks
     
-    Add support for SEB/SEH instructions, which are introduced in mips32r2.
+    pageAlloc.chunks used to require an atomic store when growing the heap
+    because the scavenger would look at the list without locking the heap
+    lock. However, the scavenger doesn't do that anymore, and it looks like
+    nothing really does at all.
     
-    SEB/SEH can be used to sign-extend byte/halfword in registers directly without passing through memory.
+    This change updates the comment and makes the store non-atomic.
     
-    Ref: The MIPS32 Instruction Set, Revision 5.04: https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-05.04.pdf
-    
-    Updates #60072
-    
-    Change-Id: I33175ae9d943ead5983ac004bd2a158039046d65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515475
+    Change-Id: Ib452d147861060f9f6e74e2d98ee111cf89ce8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429219
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/testdata/mips.s   | 4 ++++
- src/cmd/asm/internal/asm/testdata/mips64.s | 4 ++++
- src/cmd/internal/obj/mips/a.out.go         | 2 ++
- src/cmd/internal/obj/mips/anames.go        | 2 ++
- src/cmd/internal/obj/mips/asm0.go          | 9 ++++++++-
- 5 files changed, 20 insertions(+), 1 deletion(-)
+ src/runtime/mpagealloc.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

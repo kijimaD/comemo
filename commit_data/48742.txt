@@ -1,23 +1,19 @@
-commit 017933163ab6a2b254f0310c61b57db65cded92e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 8 13:43:40 2022 -0500
+commit e552a6d31270c86064632af1d092e0db5a930250
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jun 5 07:48:30 2021 +0200
 
-    cmd/doc: use new go/doc APIs
+    cmd/go: remove hint when no module is suggested
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    Fixes #46528
     
-    Use the new per-Package go/doc API instead of the
-    top-level functions from go/doc. These handle links better.
-    
-    For #51082.
-    
-    Change-Id: I169b46d973673abdb6f126352c9f1e30f9fe1122
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384266
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2453d321ece878ea7823865758aa4a16b3ed7fe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325430
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/doc/pkg.go | 23 +++++++++++++++--------
- 1 file changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/modload/import.go           | 10 ++++++----
+ src/cmd/go/testdata/script/mod_install_hint.txt |  5 +++++
+ 2 files changed, 11 insertions(+), 4 deletions(-)

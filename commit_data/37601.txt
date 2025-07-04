@@ -1,12 +1,14 @@
-commit 940e5bc5617ed86fcbf845fdd1973be984259a59
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Dec 5 13:22:44 2018 -0500
+commit a034f310b040a4252843683f59555ded07016eae
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 10 10:34:41 2018 -0400
 
-    doc/go1.12: add more release notes for various packages
+    runtime: use gList in closechan
     
-    Change-Id: Ie11cf7d8204860f5a61ab650589d44072d6b131c
-    Reviewed-on: https://go-review.googlesource.com/c/152740
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8148eb17fe9f2cbb659c35d84cdd212b46dc23bf
+    Reviewed-on: https://go-review.googlesource.com/129401
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.12.html | 51 ++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 34 insertions(+), 17 deletions(-)
+ src/runtime/chan.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

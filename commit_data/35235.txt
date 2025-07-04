@@ -1,36 +1,21 @@
-commit c2366b27abe7e18b1b5642e5a9a009f5c41723ae
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Apr 4 14:59:27 2018 +0530
+commit 4555ed2e5ef029cafb8040710537f0ebffd41ad6
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 17 18:46:47 2018 -0800
 
-    go/ast: hide unexported fields in composite literals
+    cmd/fix: add intermediate cast for *C.CFTypeRef <-> *unsafe.Pointer
     
-    In ast/ast.go, added an Incomplete field inside CompositeLit
-    to denote that fields are missing.
+    When casting between *C.CFTypeRef and *unsafe.Pointer, we used to be
+    able to do the cast directly. Now with C.CFTypeRef being a uintptr
+    instead of an unsafe.Pointer, we need an intermediate cast.
     
-    In ast/filter.go, added a new function to go through the expression list
-    checking for KeyValue expressions inside composite literals.
-    Filter out entries with an unexported key.
+    Add the insertion of the intermediate cast to the cftype fix module.
     
-    In printer/nodes.go, checking if the Incomplete field is set,
-    and accordingly print the filtered message with proper indentation.
+    Fixes #23091
     
-    Copying over similar functionality in doc/exports.go so as to
-    maintain parity with ast/filter.go and such that godoc
-    can show the output correctly.
-    
-    Fixes #22803
-    
-    Change-Id: I57a3b999521933e32411a18e02d0b94d2ea2e6f6
-    Reviewed-on: https://go-review.googlesource.com/106395
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I891be2f4a08cfd7de1cc4c6ab841b1e0d8c388a6
+    Reviewed-on: https://go-review.googlesource.com/88175
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/ast/ast.go                     |  9 ++---
- src/go/ast/filter.go                  | 29 ++++++++++++++++
- src/go/doc/exports.go                 | 29 ++++++++++++++++
- src/go/printer/nodes.go               | 50 ++++++++++++++++++++-------
- src/go/printer/printer_test.go        |  1 +
- src/go/printer/testdata/complit.input | 65 +++++++++++++++++++++++++++++++++++
- src/go/printer/testdata/complit.x     | 62 +++++++++++++++++++++++++++++++++
- 7 files changed, 228 insertions(+), 17 deletions(-)
+ src/cmd/fix/cftype.go      | 99 ++++++++++++++++++++++++++++++++++------------
+ src/cmd/fix/cftype_test.go | 34 ++++++++++++++++
+ 2 files changed, 107 insertions(+), 26 deletions(-)

@@ -1,28 +1,19 @@
-commit 9745eed4fd4160cfbf55e9dbbfa99aca5563b392
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 11 18:22:23 2018 -0800
+commit 5e92c411284f1757c3531a70530170f1079ee5fc
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Sep 25 12:30:41 2017 +0200
 
-    cmd/go: make gccgo -buildmode=shared and -linkshared work again
+    runtime: fix TestGdbConst on windows
     
-    After CL 69831, addTransitiveLinkDeps ensures that all dependencies of
-    a link appear in Deps. We no longer need to traverse through all
-    actions to find them. And the old scheme of looking through all the
-    actions and assuming we would see shared library actions before
-    libraries they depend on no longer works.
+    Some (all?) versions of gdb on windows output "\r\n" as line ending
+    instead of "\n".
     
-    Now that we have complete deps, change to a simpler scheme in which we
-    find the shared libraries in the deps, and then use that to sort the
-    deps into archives and shared libraries.
+    Fixes #22012
     
-    Fixes #22224
-    
-    Change-Id: I14fcc773ac59b6f5c2965cc04d4ed962442cc89e
-    Reviewed-on: https://go-review.googlesource.com/87497
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I798204fd9f616d6d2c9c28eb5227fadfc63c0d45
+    Reviewed-on: https://go-review.googlesource.com/65850
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testshared/shared_test.go |  5 +-
- src/cmd/go/internal/work/action.go |  8 ++--
- src/cmd/go/internal/work/gccgo.go  | 94 +++++++++++++++++++-------------------
- 3 files changed, 50 insertions(+), 57 deletions(-)
+ src/runtime/runtime-gdb_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

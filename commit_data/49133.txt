@@ -1,21 +1,27 @@
-commit d28616d4697bf8ec02e8afed39013721e4567f9a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 9 15:33:22 2022 -0700
+commit e6a2cf233f736e6852b64b53d66dbda21c2e062d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 20 15:02:01 2021 -0700
 
-    syscall: update broken links
+    [dev.typeparams] cmd/compile: get runtime stuff working
     
-    Remove one link which isn't very interesting, and update another to
-    point to the current location.
+    Remaining stuff from Dan's CL 335412 to get tests passing.
     
-    Fixes #52753
+     - Removed PTRLIT case in node() that was added with the gcshape change.
+       I don't think it is needed anymore.
     
-    Change-Id: I5f53ede35b0ded197bc0e6d41eabf28d736de5b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405296
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+     - Modified (*itab).init() to add an irrelevant pointer (the itab
+       itself) for the '==' entry of interfaces with 'comparable'. That
+       entry is not used, so we just want to avoid the error that the given
+       type doesn't actually have an '==' method.
+    
+    Change-Id: I9b2d4c8342c0b2048d76e003d95023f4ccd559f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336149
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/syscall/syscall_windows.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  5 -----
+ src/runtime/iface.go                      | 10 ++++++++++
+ 2 files changed, 10 insertions(+), 5 deletions(-)

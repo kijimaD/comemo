@@ -1,26 +1,20 @@
-commit 403e5f1cb174185a763745276e12156e8d70ba6a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:30:29 2022 +0800
+commit 3ff39c5eda6aa869cbc3a19237750fa7cf495832
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 20 12:18:40 2021 -0700
 
-    net/http: use strings.Builder
+    cmd/compile/internal/types2: use correct types when checking generic conversions
     
-    Change-Id: I754edcf21e003a3f4037fb2c5d8d06f2cd5f2fa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428267
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Iterate through the actual, possibly defined types of constraints
+    when type-checking generic conversions, not the underlying types.
+    
+    For #47150.
+    
+    Change-Id: Ia7af313bf46d6f6b0ad5292ff793b030b8e2d3d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357333
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/cookie_test.go        |  7 +++----
- src/net/http/fs_test.go            |  2 +-
- src/net/http/header_test.go        |  3 ++-
- src/net/http/readrequest_test.go   |  2 +-
- src/net/http/request_test.go       | 10 +++++-----
- src/net/http/requestwrite_test.go  |  6 +++---
- src/net/http/response_test.go      |  8 ++++----
- src/net/http/responsewrite_test.go |  3 +--
- src/net/http/serve_test.go         | 12 ++++++------
- src/net/http/transport_test.go     | 18 +++++++++---------
- 10 files changed, 35 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go           | 16 ++++++++--------
+ .../internal/types2/testdata/examples/conversions.go2    | 14 ++++++++++++++
+ 2 files changed, 22 insertions(+), 8 deletions(-)

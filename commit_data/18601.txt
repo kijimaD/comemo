@@ -1,13 +1,13 @@
-commit fe330cf5bb28c3e29514ce78ed4b88ba89508de7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Feb 24 16:34:51 2014 +0900
+commit 4228092b2c2ab92e0a1ef05d1f0a93179d1266d5
+Author: Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+Date:   Sun Feb 23 21:18:41 2014 -0800
 
-    syscall: make mkerrors.sh work with clang
+    net/http: fix comment in connectMethod's key format
     
-    LGTM=iant
-    R=golang-codereviews, minux.ma, gobot, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/67170043
+    https://golang.org/cl/66990045
 
- src/pkg/syscall/mkerrors.sh | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/net/http/transport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

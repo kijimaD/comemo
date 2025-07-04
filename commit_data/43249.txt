@@ -1,33 +1,15 @@
-commit 9384d34c58099657bb1b133beaf3ff37ada9b017
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 10 18:53:26 2020 -0400
+commit fb0c3ee13dd9e10a2cf96e57f7ba45ba0e947a47
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 20 16:25:03 2020 -0400
 
-    text/template: allow newlines inside action delimiters
+    [dev.link] cmd/link: improve documentation on -benchmarkprofile
     
-    This allows multiline constructs like:
-    
-            {{"hello" |
-              printf}}
-    
-    Now that unclosed actions can span multiple lines,
-    track and report the start of the action when reporting errors.
-    
-    Also clean up a few "unexpected <error message>" to be just "<error message>".
-    
-    Fixes #29770.
-    
-    Change-Id: I54c6c016029a8328b7902a4b6d85eab713ec3285
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254257
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib55017f538b6c4ba805e56491b6a59942fad64ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224618
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/exec_test.go        |  2 +-
- src/text/template/doc.go              | 21 ++++-----
- src/text/template/exec_test.go        |  2 +-
- src/text/template/parse/lex.go        | 84 +++++++++++++++++------------------
- src/text/template/parse/lex_test.go   |  2 +-
- src/text/template/parse/parse.go      | 59 +++++++++++++-----------
- src/text/template/parse/parse_test.go | 36 ++++++++++++---
- 7 files changed, 118 insertions(+), 88 deletions(-)
+ src/cmd/link/internal/ld/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

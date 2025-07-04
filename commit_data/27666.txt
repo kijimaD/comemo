@@ -1,18 +1,38 @@
-commit 8042bfe347d5b2c4f6af372b09b23c8945fb196e
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Fri May 20 14:35:28 2016 -0700
+commit 4b7e36cdfe8e0c3579a2503a81474fe43db4db69
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 6 21:45:29 2016 -0700
 
-    encoding/csv: update doc about comments whitespace
+    cmd: extract obj's Biobuf code into new bio package
     
-    This patch updates the doc about comments whitespace for the
-    encoding/csv package to reflect that leading whitespace before
-    the hash will treat the line as not a comment.
+    API could still be made more Go-ey.
     
-    Fixes #13775.
+    Updates #15165.
     
-    Change-Id: Ia468c75b242a487b4b2b4cd3d342bfb8e07720ba
-    Reviewed-on: https://go-review.googlesource.com/23302
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I514ffceffa43c293ae5d7e5f1e9193fda0098865
+    Reviewed-on: https://go-review.googlesource.com/21644
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/csv/reader.go | 53 +++++++++++++++++++++++-----------------------
- 1 file changed, 27 insertions(+), 26 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go |   5 +-
+ src/cmd/asm/main.go                       |   5 +-
+ src/cmd/compile/internal/gc/bexport.go    |  10 +-
+ src/cmd/compile/internal/gc/export.go     |   8 +-
+ src/cmd/compile/internal/gc/go.go         |   5 +-
+ src/cmd/compile/internal/gc/main.go       |   5 +-
+ src/cmd/compile/internal/gc/obj.go        |  31 +++---
+ src/cmd/dist/buildtool.go                 |   1 +
+ src/cmd/internal/bio/buf.go               | 150 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/link.go              |   7 +-
+ src/cmd/internal/obj/objfile.go           |   9 +-
+ src/cmd/internal/obj/util.go              | 140 ----------------------------
+ src/cmd/link/internal/ld/ar.go            |  15 +--
+ src/cmd/link/internal/ld/go.go            |   5 +-
+ src/cmd/link/internal/ld/ldelf.go         |  13 +--
+ src/cmd/link/internal/ld/ldmacho.go       |  23 ++---
+ src/cmd/link/internal/ld/ldpe.go          |  27 +++---
+ src/cmd/link/internal/ld/lib.go           |  83 ++++++++---------
+ src/cmd/link/internal/ld/link.go          |   4 +-
+ src/cmd/link/internal/ld/objfile.go       |   9 +-
+ src/cmd/link/internal/ld/pobj.go          |   3 +-
+ 21 files changed, 291 insertions(+), 267 deletions(-)

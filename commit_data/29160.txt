@@ -1,28 +1,17 @@
-commit b679665a182bd6ec2989ae759df6b11142921cfb
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Oct 27 23:31:38 2016 +0200
+commit bd9aa9811d63c121a84ef92bc9b6a4101af46235
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Wed Jun 22 20:16:41 2016 +0300
 
-    cmd/compile: move stringtoslicebytetmp to the backend
+    cmd/vet: check for copying of array of locks
     
-    - removes the runtime function stringtoslicebytetmp
-    - removes the generation of calls to stringtoslicebytetmp from the frontend
-    - adds handling of OSTRARRAYBYTETMP in the backend
+    Updates #14664
     
-    This reduces binary sizes and avoids function call overhead.
-    
-    Change-Id: Ib9988d48549cee663b685b4897a483f94727b940
-    Reviewed-on: https://go-review.googlesource.com/32158
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I1f7b1116cfe91466816c760f136ce566da3e80a9
+    Reviewed-on: https://go-review.googlesource.com/24340
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 294 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
- src/cmd/compile/internal/gc/racewalk.go        |   4 +
- src/cmd/compile/internal/gc/ssa.go             |   5 +
- src/cmd/compile/internal/gc/walk.go            |  10 +-
- src/runtime/string.go                          |  12 -
- test/range.go                                  |  25 +++
- 7 files changed, 188 insertions(+), 163 deletions(-)
+ src/cmd/vet/copylock.go          |  8 ++++++++
+ src/cmd/vet/testdata/copylock.go | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+)

@@ -1,14 +1,82 @@
-commit e35763469a5a800b7140a632f020bf2659b53e94
-Author: Hana <hyangah@gmail.com>
-Date:   Tue Apr 26 09:26:50 2022 -0400
+commit ac2de11cfbea4e7979a5151e5fb03d70cdb3955f
+Merge: 2493c72742 37f9a8f69d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jun 25 11:17:04 2021 +0700
 
-    README.md: update wiki link
+    [dev.typeparams] all: merge master (37f9a8f) into dev.typeparams
     
-    Change-Id: I307c3524f2031e2a3e7ada6e86c73e278481de6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402179
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Conflicts:
+    
+    - src/go/types/check_test.go
+    
+      CL 330629 fixed a bug in package qualification logic
+    
+    - src/internal/buildcfg/exp.go
+    
+      CL 329930 make parseExperiments get go arch string as input param
+    
+    Merge List:
+    
+    + 2021-06-25 37f9a8f69d go/types: fix a bug in package qualification logic
+    + 2021-06-24 c309c89db5 reflect: document that InterfaceData is a low-entropy RNG
+    + 2021-06-24 cce621431a cmd/compile: fix wrong type in SSA generation for OSLICE2ARRPTR
+    + 2021-06-24 600a2a4ffb cmd/go: don't try to add replaced versions that won't be selected
+    + 2021-06-24 a9bb38222a net: remove hard-coded timeout in dialClosedPort test helper
+    + 2021-06-24 86d72fa2cb time: handle invalid UTF-8 byte sequences in quote to prevent panic
+    + 2021-06-24 44a12e5f33 cmd/go: search breadth-first instead of depth-first for test dependency cycles
+    + 2021-06-24 73496e0df0 net: use absDomainName in the Windows lookupPTR test helper
+    + 2021-06-24 222ed1b38a os: enable TestFifoEOF on openbsd
+    + 2021-06-22 0ebd5a8de0 cmd/go: update ToolTags based on GOARCH value
+    + 2021-06-22 5bd09e5efc spec: unsafe.Add/Slice are not permitted in statement context
+    + 2021-06-22 666315b4d3 runtime/internal/atomic: remove incorrect pointer indirection in comment
+    + 2021-06-22 63daa774b5 go/types: guard against checking instantiation when generics is disabled
+    + 2021-06-22 197a5ee2ab cmd/gofmt: remove stale documentation for the -G flag
+    + 2021-06-22 9afd158eb2 go/parser: parse an ast.IndexExpr for a[]
+    + 2021-06-21 1bd5a20e3c cmd/go: add a -go flag to 'go mod graph'
+    + 2021-06-21 761edf71f6 cmd/internal/moddeps: use a temporary directory for GOMODCACHE if needed
+    + 2021-06-21 a0400420ad cmd/internal/moddeps: use -mod=readonly instead of -mod=mod
+    + 2021-06-21 3f9ec83b10 cmd/go: document GOPPC64 environment variable
+    + 2021-06-21 20bdfba325 go/scanner: fall back to next() when encountering 0 bytes in parseIdentifier
+    + 2021-06-21 44f9a3566c database/sql: fix deadlock test in prepare statement
+    
+    Change-Id: I16490e8ea70ee65081f467223857033842da513a
 
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.17.html                                    |   7 ++
+ doc/go_spec.html                                   |   4 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   2 +-
+ src/cmd/go/alldocs.go                              |   9 +-
+ src/cmd/go/internal/cfg/cfg.go                     |   8 ++
+ src/cmd/go/internal/help/helpdoc.go                |   3 +
+ src/cmd/go/internal/load/test.go                   |  50 +++++++---
+ src/cmd/go/internal/modcmd/graph.go                |  13 ++-
+ src/cmd/go/internal/modcmd/verify.go               |   3 +-
+ src/cmd/go/internal/modget/get.go                  |   6 +-
+ src/cmd/go/internal/modload/buildlist.go           |  26 +++++-
+ src/cmd/go/internal/modload/import.go              |   9 ++
+ src/cmd/go/testdata/script/env_cross_build.txt     |  29 ++++++
+ src/cmd/go/testdata/script/mod_graph_version.txt   | 101 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_test_cycle.txt |  23 +++++
+ .../go/testdata/script/mod_tidy_replace_old.txt    |  34 +++++++
+ src/cmd/internal/moddeps/moddeps_test.go           |  35 ++++++-
+ src/database/sql/sql_test.go                       |   2 +-
+ src/go/parser/parser.go                            |   7 +-
+ src/go/scanner/scanner.go                          |   2 +-
+ src/go/scanner/scanner_test.go                     |   2 +
+ src/go/types/check_test.go                         |  28 +++---
+ src/go/types/errors.go                             |   2 +-
+ src/go/types/issues_test.go                        |  72 ++++++++++-----
+ src/go/types/testdata/check/issues.src             |   4 +-
+ src/go/types/testdata/examples/functions.go2       |   2 +-
+ src/go/types/testdata/fixedbugs/issue46403.src     |  11 +++
+ src/go/types/testdata/fixedbugs/issue46404.go1     |   8 ++
+ src/go/types/typexpr.go                            |   8 +-
+ src/internal/buildcfg/exp.go                       |  15 ++-
+ src/net/dial_test.go                               |  51 ++++-------
+ src/net/lookup_windows_test.go                     |   2 +-
+ src/os/fifo_test.go                                |   3 -
+ src/reflect/value.go                               |  10 +-
+ src/runtime/internal/atomic/atomic_386.s           |   2 +-
+ src/time/format.go                                 |  18 +++-
+ src/time/time_test.go                              |   5 +
+ test/fixedbugs/issue46907.go                       |  11 +++
+ 38 files changed, 505 insertions(+), 122 deletions(-)

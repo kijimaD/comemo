@@ -1,12 +1,26 @@
-commit dfedd34d4f0ba624f1637a07653f2bb8a274a0c2
-Author: Paul Borman <borman@google.com>
-Date:   Wed Jan 4 11:31:51 2012 +1100
+commit 126ee245c65d8942484c747c3c4d9b92d65f665c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 4 11:22:58 2012 +1100
 
-    doc: Fix URL to the Xcode web page
+    dashboard: increase notification log to 200 lines
     
-    R=golang-dev, kevlar
+    The go command lists all packages that were built.
+    A recent breakage notification included this text:
+    
+    $ tail -100 < log
+    ok      errors
+    ok      exp/ebnf
+    ?       exp/ebnflint [no test files]
+    ok      exp/gotype
+    ok      exp/norm
+    ok      exp/spdy
+    
+    If the breakage occurred before this point it would
+    not be visible in the output.
+    
+    R=golang-dev, gri, kevlar
     CC=golang-dev
-    https://golang.org/cl/5504113
+    https://golang.org/cl/5504109
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/app/build/notify.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

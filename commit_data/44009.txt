@@ -1,20 +1,24 @@
-commit 6e3cc5c56fa532df1f7690ee4955a1751b1ccbce
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Dec 11 16:24:26 2020 -0500
+commit 6ea7a196d0a04eb913e0136fb681610055cf9b11
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 1 12:24:03 2020 -0400
 
-    go/types: report invalid ... in conversions
+    [dev.link] cmd/internal/dwarf: revise Abbrevs() signature
     
-    This is a port of CL 277072 from the dev.typeparams branch.
+    The function Abbrevs() was returning an array of structures by value,
+    which is not very efficient (this was showing up in a kubernetes
+    kubelet linker profile). Switch the function to return a slice
+    instead.
     
-    Fixes #43124
+    Improves linker DwarfGenerateDebugSyms running time when
+    linking the compiler in compilebench:
     
-    Change-Id: I1424c396dc1ea984ec85b8f31a4d43353bf7e4fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277352
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    DwarfGenerateDebugSyms   29.2ms ±144%  23.9ms ±125%  -17.89%  (p=0.000 n=99+99)
+    
+    Change-Id: I1132816563f208c63eb82a7932d9f2bcb2455324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231558
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/call.go                  |  4 ++++
- src/go/types/fixedbugs/issue43124.src | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/internal/dwarf/dwarf.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

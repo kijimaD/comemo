@@ -1,20 +1,17 @@
-commit 1cd78eedd092c9ec10f1b5c626b8bcd0298e065f
-Author: Rob Pike <r@golang.org>
-Date:   Sat Oct 18 11:22:05 2014 -0700
+commit 85fd0fd7c432e1f1fb1fa1ccf18c1f935a9b2720
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:32:11 2014 -0400
 
-    text/template: fix bug in pipelined variadics
-    Simple bug in argument processing: The final arg may
-    be the pipeline value, in which case it gets bound to the
-    fixed argument section. The code got that wrong. Easy
-    to fix.
+    regexp/syntax: regenerate doc.go from re2 syntax
     
-    Fixes #8950.
+    Generated using re2/doc/mksyntaxgo.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Fixes #8505.
+    
+    LGTM=iant
+    R=r, iant
     CC=golang-codereviews
-    https://golang.org/cl/161750043
+    https://golang.org/cl/155890043
 
- src/text/template/exec.go      |  2 +-
- src/text/template/exec_test.go | 12 ++++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/regexp/syntax/doc.go | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

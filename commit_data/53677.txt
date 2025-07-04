@@ -1,22 +1,19 @@
-commit 230e54914209c134dbb6b09ffb143d7396c079a7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 12 13:56:44 2023 -0400
+commit 739304978086143a5d8c3b9bfa4f9f25aef23e90
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 27 21:38:45 2022 +0700
 
-    doc/go1.21: add a release note for CL 463177
+    reflect: simplify array value comparable check
     
-    I'm not sure why the relnote tool did not fill in a TODO for that
-    change; one was requested in
-    http://go.dev/cl/c/go/+/463177/3#message-87065dffb06e196fba9a325fefb32f16b41b6b15.
+    If array element is not interface, array or struct, we just need to
+    check whether the array element type is comparable.
     
-    Updates #50807.
-    Updates #27225.
-    
-    Change-Id: If6be8c126bcafb04ba92de88d2fc74a0557a07b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509098
+    Change-Id: I1ab94cfa17ae86feb6cd3fbdf878af5a776e7bec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426194
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- doc/go1.21.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/reflect/value.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

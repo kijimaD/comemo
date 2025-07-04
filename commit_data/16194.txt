@@ -1,18 +1,32 @@
-commit de2fcae372bd4b06b684380ea6b55100683e433a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 18 16:42:56 2013 +1000
+commit 24555c7b8cfc11f47b0df7ab2add827c64ba3d19
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 17 20:04:58 2013 -0700
 
-    misc/dashboard/builder: always do a native build
+    mime/multipart: don't strip leading space/tab in quoted-printable decoding
     
-    https://golang.org/cl/8134043 disabled cgo when cross compiling, this means builders which compile for both amd64 and 386 will be compiling the latter with cgo disabled.
+    Late bug fix, but this is arguably a regression from Go 1.0,
+    since we added this transparent decoding since then. Without
+    this fix, Go 1.0 users could decode this correctly, but Go 1.1
+    users would not be able to.
     
-    This proposal modifies the builder to mirror the dist tool by always doing a native build.
+    The newly added test is from the RFC itself.
     
-    Tested on my darwin/amd64 builder and confirmed the result when building darwin/386 is a native 386 build with cgo enabled.
+    The updated tests had the wrong "want" values before. They
+    were there to test \r\n vs \n equivalence (which is
+    unchanged), not leading whitespace.
     
-    R=bradfitz, dsymonds, r, adg
+    The skipWhite decoder struct field was added in the battles of
+    Issue 4771 in revision b3bb265bfecf. It was just a wrong
+    strategy, from an earlier round of attempts in
+    https://golang.org/cl/7300092/
+    
+    Update #4771
+    Fixes #5295
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8842044
+    https://golang.org/cl/8536045
 
- misc/dashboard/builder/main.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/mime/multipart/quotedprintable.go      | 20 ++++----------------
+ src/pkg/mime/multipart/quotedprintable_test.go |  9 +++++++--
+ 2 files changed, 11 insertions(+), 18 deletions(-)

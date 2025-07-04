@@ -1,16 +1,15 @@
-commit ae14472af9e9508eab948303b14290ca98d09646
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 22:21:58 2016 -0400
+commit 9c13eb3729988af8be1fd00175bacdd20c7d4206
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 16 15:06:01 2016 -0700
 
-    os: clean up after test
+    go/build: introduce go1.8 build tag
     
-    Noted in CL 31358 after submit.
-    
-    Change-Id: I76ddad9b9e27dd6a03c1c4f49153213747fe0a61
-    Reviewed-on: https://go-review.googlesource.com/31365
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib8855f8125970fc7ffb271635c28d31d310fcb5b
+    Reviewed-on: https://go-review.googlesource.com/27192
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/os_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,21 +1,24 @@
-commit 3249b645c986849bbf72c1dc71efc4f90df465ec
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Jun 13 22:26:21 2021 +0700
+commit 498d8d537153a210e45d356d779aee74de5acda1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 18 13:44:39 2020 -0500
 
-    cmd/compile: factor out rewrite multi-valued f()
+    cmd/go/internal/work: avoid modload.Selected in 'go install pkg@version'
     
-    So next CL can reuse code to rewrite OAS2FUNC.
+    At this point in installOutsideModule the build list is empty, so
+    Selected trivially returns "none" for all modules.
     
-    Passes toolstash -cmp.
+    (This change could have been made in CL 266657, but it was a bit
+    simpler to update the QueryPattern call sites mechanically to ensure
+    that there would be no unintentional semantic drift.)
     
-    For #46725
+    For #36460
     
-    Change-Id: I1113ed615b6d6b9494dd87000ce342d7a46d9e7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327650
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I44fb73794985bfeebb1dde0c092313f319c2945a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271419
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 31 +++++++++++++++----------
- 1 file changed, 19 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/work/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

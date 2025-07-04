@@ -1,26 +1,13 @@
-commit 41183d015d17ab537287599e2bf72ca1cdeafb55
-Author: S.Çağlar Onur <caglar@10ur.org>
-Date:   Sun Dec 22 08:55:29 2013 -0800
+commit 7054890715cea2433a7c9935bbb7fc6ca61f3e32
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Dec 20 23:19:32 2013 -0800
 
-    cgo/runtime: replace sigprocmask with pthread_sigmask.
+    bytes, strings: improve Title test coverage by adding cases with underscore and unicode line separator
     
-    sigprocmask use in a multithreaded environment is undefined so replace it with pthread_sigmask.
-    
-    Fixes #6811.
-    
-    R=jsing, iant
-    CC=golang-codereviews, golang-dev
-    https://golang.org/cl/30460043
+    R=golang-codereviews, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/42310045
 
- src/pkg/runtime/cgo/gcc_dragonfly_386.c   | 4 ++--
- src/pkg/runtime/cgo/gcc_dragonfly_amd64.c | 4 ++--
- src/pkg/runtime/cgo/gcc_freebsd_386.c     | 4 ++--
- src/pkg/runtime/cgo/gcc_freebsd_amd64.c   | 4 ++--
- src/pkg/runtime/cgo/gcc_linux_386.c       | 4 ++--
- src/pkg/runtime/cgo/gcc_linux_amd64.c     | 4 ++--
- src/pkg/runtime/cgo/gcc_netbsd_386.c      | 4 ++--
- src/pkg/runtime/cgo/gcc_netbsd_amd64.c    | 4 ++--
- src/pkg/runtime/cgo/gcc_netbsd_arm.c      | 4 ++--
- src/pkg/runtime/cgo/gcc_openbsd_386.c     | 4 ++--
- src/pkg/runtime/cgo/gcc_openbsd_amd64.c   | 4 ++--
- 11 files changed, 22 insertions(+), 22 deletions(-)
+ src/pkg/bytes/bytes_test.go     | 2 ++
+ src/pkg/strings/strings_test.go | 2 ++
+ 2 files changed, 4 insertions(+)

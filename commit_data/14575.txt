@@ -1,14 +1,18 @@
-commit 42a854b7465e332f27ece06328cc706909abbef3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 6 09:20:03 2012 -0800
+commit 9146ac14ee1e7516e2bb4212c0fcf054c6dde640
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 6 08:09:17 2012 +0100
 
-    gofmt: test rewrite of (x.(type)) -> x.(type)
+    cmd/gc: do not overflow parser stack on a long chain of else if.
     
-    R=rsc
+    Fixes #2615.
+    
+    R=dave, minux.ma, iant, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/6867062
+    https://golang.org/cl/6847078
 
- src/cmd/gofmt/gofmt_test.go              |  3 +-
- src/cmd/gofmt/testdata/typeswitch.golden | 60 ++++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/typeswitch.input  | 60 ++++++++++++++++++++++++++++++++
- 3 files changed, 122 insertions(+), 1 deletion(-)
+ src/cmd/gc/go.y             |   53 +-
+ src/cmd/gc/y.tab.c          | 3622 +++++++++++++++++++++++--------------------
+ src/cmd/gc/y.tab.h          |   68 +-
+ src/cmd/gc/yerr.h           |    2 +-
+ test/fixedbugs/issue2615.go |  547 +++++++
+ 5 files changed, 2616 insertions(+), 1676 deletions(-)

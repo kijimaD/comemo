@@ -1,12 +1,36 @@
-commit 32eb110277c02f2d6f7f86c658ebd4c84ca19072
+commit 0e9daef2d1c4d6dfc0c37386c5affaec370fa99e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 28 14:19:31 2012 -0700
+Date:   Fri Sep 28 10:35:32 2012 -0700
 
-    CONTRIBUTORS: added Paul Chang (Google CLA)
+    container/list: Correctly maintain internal invariants
     
-    R=golang-dev, iant
+    The previous implementation was a mess with invariants
+    maintained inconsistently. Essentially reimplemented
+    the package:
+    
+    - used a circular list as internal representation for
+      significantly simpler implementation with fewer
+      special cases while maintaining the illusion of
+      a nil-terminated doubly linked list externally
+    
+    - more precise documentation
+    
+    - cleaned up and simplified tests, added test case
+      for issue 4103.
+    
+    No changes to the API or documented semantics.
+    
+    All this said, I would be in favor of removing
+    this package eventually. container/ring provides
+    a faster implementation and a simpler and more
+    powerful API.
+    
+    Fixes #4103.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6569078
+    https://golang.org/cl/6569072
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/container/list/list.go      | 230 ++++++++++++++++--------------------
+ src/pkg/container/list/list_test.go | 102 ++++++++++------
+ 2 files changed, 169 insertions(+), 163 deletions(-)

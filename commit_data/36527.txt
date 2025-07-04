@@ -1,27 +1,51 @@
-commit 09df9b06a1e5ff07dd349401795c85360743a3fb
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 17 11:02:57 2018 -0400
+commit 1b6fec862cbe890ef0abea99827a587ffbe2e0f1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 12 15:27:02 2018 -0500
 
-    cmd/link: split out Extname into cold portion of sym.Symbol
+    sync/atomic: redirect many functions to runtime/internal/atomic
     
-    Create a new "AuxSymbol" struct into which 'cold' or 'infrequently
-    set' symbol fields are located. Move the Extname field from the
-    main Symbol struct to AuxSymbol.
+    The implementation of atomics are inherently tricky. It would
+    be good to have them implemented in a single place, instead of
+    multiple copies.
     
-    Updates #26186
+    Mostly a simple redirect.
     
-    Change-Id: I9e795fb0cc48f978e2818475fa073ed9f2db202d
-    Reviewed-on: https://go-review.googlesource.com/125476
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    On 386, some functions in sync/atomic have better implementations,
+    which are moved to runtime/internal/atomic.
+    
+    On ARM, some functions in sync/atomic have better implementations.
+    They are dropped by this CL, but restored with an improved
+    version in a follow-up CL. On linux/arm, 64-bit CAS kernel helper
+    is dropped, as we're trying to move away from kernel helpers.
+    
+    Fixes #23778.
+    
+    Change-Id: Icb9e1039acc92adbb2a371c34baaf0b79551c3ea
+    Reviewed-on: https://go-review.googlesource.com/93637
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/elf.go          |  6 ++--
- src/cmd/link/internal/ld/go.go           | 12 +++----
- src/cmd/link/internal/ld/lib.go          |  4 +--
- src/cmd/link/internal/ld/macho.go        |  8 ++---
- src/cmd/link/internal/ld/pe.go           | 19 ++++++-----
- src/cmd/link/internal/sym/sizeof_test.go |  2 +-
- src/cmd/link/internal/sym/symbol.go      | 57 +++++++++++++++++++++++---------
- src/cmd/link/internal/sym/symbols.go     |  6 ++--
- 8 files changed, 70 insertions(+), 44 deletions(-)
+ src/runtime/internal/atomic/asm_386.s       |  68 ++++++++-
+ src/runtime/internal/atomic/asm_amd64p32.s  |   3 +
+ src/runtime/internal/atomic/atomic_386.go   |  24 +--
+ src/runtime/internal/atomic/sys_linux_arm.s |  19 ++-
+ src/sync/atomic/64bit_arm.go                |  58 -------
+ src/sync/atomic/asm.s                       |  85 +++++++++++
+ src/sync/atomic/asm_386.s                   | 201 ------------------------
+ src/sync/atomic/asm_amd64.s                 | 137 -----------------
+ src/sync/atomic/asm_amd64p32.s              | 138 -----------------
+ src/sync/atomic/asm_arm.s                   | 228 ----------------------------
+ src/sync/atomic/asm_arm64.s                 | 149 ------------------
+ src/sync/atomic/asm_darwin_arm.s            |  91 -----------
+ src/sync/atomic/asm_freebsd_arm.s           |  90 -----------
+ src/sync/atomic/asm_linux_arm.s             | 197 ------------------------
+ src/sync/atomic/asm_mips64x.s               | 175 ---------------------
+ src/sync/atomic/asm_mipsx.s                 |  85 -----------
+ src/sync/atomic/asm_nacl_arm.s              |  90 -----------
+ src/sync/atomic/asm_netbsd_arm.s            |  90 -----------
+ src/sync/atomic/asm_openbsd_arm.s           |  90 -----------
+ src/sync/atomic/asm_plan9_arm.s             |  97 ------------
+ src/sync/atomic/asm_ppc64x.s                | 167 --------------------
+ src/sync/atomic/asm_s390x.s                 | 143 -----------------
+ src/sync/atomic/atomic_linux_arm_test.go    |  14 --
+ src/sync/atomic/export_linux_arm_test.go    |   7 -
+ 24 files changed, 175 insertions(+), 2271 deletions(-)

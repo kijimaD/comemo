@@ -1,18 +1,21 @@
-commit 42d2d5e2b575a034b43bc1ab4e6b948a1670ef9f
+commit e0844acfc8baa57541a8efef723937c2733e0c99
 Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Mar 21 15:15:40 2022 -0400
+Date:   Fri May 21 18:13:04 2021 -0400
 
-    cmd/link: delete oReader.flags
+    [dev.typeparams] runtime/pprof: replace funcPC with internal/abi.FuncPCABIInternal
     
-    Same information is provided from the fields of the embedded
-    goobj.Reader, and are accessed through it. Delete the flags field.
+    All funcPC references are ABIInternal functions. Replace with the
+    intrinsics.
     
-    Change-Id: I7a4f5dca054e567443d719b2931fceff231d6efc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394216
+    Change-Id: I2266bb6d2b713eb63b6a09846e9f9c423cab6e9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322349
     Trust: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/loader/loader.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/pprof/pprof.go      | 3 ++-
+ src/runtime/pprof/pprof_test.go | 3 ++-
+ src/runtime/pprof/proto.go      | 8 ++------
+ src/runtime/pprof/proto_test.go | 9 +++++----
+ 4 files changed, 11 insertions(+), 12 deletions(-)

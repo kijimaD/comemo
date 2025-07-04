@@ -1,19 +1,17 @@
-commit 323b5c9d37e3633c96a96303da71b5d45cc9bac6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 22 01:40:07 2016 +0000
+commit 594cddd62598dcfc1fe6ee1c3e5978063f498dc1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 28 13:31:33 2016 +1000
 
-    time: make Parse validate day's lower bound in addition to upper bound
+    testing: add Name method to *T and *B
     
-    Day 0 is as invalid as day 32.
+    Fixes #17231
     
-    Fixes #17874
-    
-    Change-Id: I52109d12bafd6d957d00c44d540cb88389fff0a7
-    Reviewed-on: https://go-review.googlesource.com/33429
+    Change-Id: I0d6007ab504f2277cb6affc9e2050157a6ad4d5e
+    Reviewed-on: https://go-review.googlesource.com/29970
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/format.go      | 2 +-
- src/time/format_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

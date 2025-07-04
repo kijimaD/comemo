@@ -1,31 +1,18 @@
-commit 013ad89c9bc5c2903c535d217af242063c797251
+commit 909f31872a0e5e5b8ec5cc49b22ae661777a2fbc
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 12 01:25:14 2011 -0400
+Date:   Tue Jul 12 01:23:58 2011 -0400
 
-    runtime: eliminate false sharing on runtime.goidgen
-    runtime.goidgen can be quite frequently modified and
-    shares cache line with the following variables,
-    it leads to false sharing.
-    50c6b0 b nfname
-    50c6b4 b nfunc
-    50c6b8 b nfunc$17
-    50c6bc b nhist$17
-    50c6c0 B runtime.checking
-    50c6c4 B runtime.gcwaiting
-    50c6c8 B runtime.goidgen
-    50c6cc B runtime.gomaxprocs
-    50c6d0 B runtime.panicking
-    50c6d4 B strconv.IntSize
-    50c6d8 B src/pkg/runtime/_xtest_.ss
-    50c6e0 B src/pkg/runtime/_xtest_.stop
-    50c6e8 b addrfree
-    50c6f0 b addrmem
-    50c6f8 b argv
+    runtime: eliminate false sharing on random number generators
+    Use machine-local random number generator instead of
+    racy global ones.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4673054
+    https://golang.org/cl/4674049
 
- src/pkg/runtime/proc.c    | 5 +++--
- src/pkg/runtime/runtime.h | 1 -
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/chan.c     | 15 ++-------------
+ src/pkg/runtime/malloc.goc | 17 +----------------
+ src/pkg/runtime/proc.c     |  2 ++
+ src/pkg/runtime/runtime.c  | 13 +++++++++++++
+ src/pkg/runtime/runtime.h  |  2 ++
+ 5 files changed, 20 insertions(+), 29 deletions(-)

@@ -1,57 +1,22 @@
-commit ff81a6444a9171ffe3021353388047a698b21252
-Author: Vlad Krasnov <vlad@cloudflare.com>
-Date:   Fri Mar 9 01:19:11 2018 +0000
+commit ee7dd810f9ca4e63ecfc1d3044869591783b8b74
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Dec 2 19:43:45 2016 +0000
 
-    crypto/elliptic: implement P256 for arm64
+    crypto/tls: simplify the Handshake locking strategy
     
-    This patch ports the existing optimized P256 implementation to arm64.
+    If in.Mutex is never locked by Handshake when c.handshakeComplete is
+    true, and since c.handshakeComplete is unset and then set back by
+    handleRenegotiation all under both in.Mutex and handshakeMutex, we can
+    significantly simplify the locking strategy by removing the sync.Cond.
     
-    name            old time/op    new time/op    delta
-    pkg:crypto/ecdsa goos:linux goarch:arm64
-    SignP256           539µs ±13%      43µs ± 2%  -91.95%  (p=0.000 n=20+20)
-    SignP384          13.2ms ± 1%    13.2ms ± 1%     ~     (p=0.739 n=10+10)
-    VerifyP256        1.57ms ± 0%    0.12ms ± 0%  -92.40%  (p=0.000 n=18+20)
-    KeyGeneration      391µs ± 0%      25µs ± 0%  -93.62%  (p=0.000 n=9+9)
-    pkg:crypto/elliptic goos:linux goarch:arm64
-    BaseMult          1.66ms ± 0%    1.65ms ± 1%     ~     (p=0.079 n=9+10)
-    BaseMultP256       389µs ± 0%      22µs ± 1%  -94.28%  (p=0.000 n=19+20)
-    ScalarMultP256    1.03ms ± 0%    0.09ms ± 0%  -91.25%  (p=0.000 n=19+20)
+    See also https://groups.google.com/forum/#!topic/golang-dev/Xxiai-R_jH0
+    and a more complete analysis at https://go-review.googlesource.com/c/go/+/33776#message-223a3ccc819f7015cc773d214c65bad70de5dfd7
     
-    name            old alloc/op   new alloc/op   delta
-    pkg:crypto/ecdsa goos:linux goarch:arm64
-    SignP256          5.47kB ± 0%    3.20kB ± 0%  -41.50%  (p=0.000 n=20+20)
-    SignP384          2.32MB ± 0%    2.32MB ± 0%     ~     (p=0.739 n=10+10)
-    VerifyP256        7.65kB ± 4%    0.98kB ± 0%  -87.24%  (p=0.000 n=20+20)
-    KeyGeneration     1.41kB ± 0%    0.69kB ± 0%  -51.05%  (p=0.000 n=9+10)
-    pkg:crypto/elliptic goos:linux goarch:arm64
-    BaseMult            224B ± 0%      224B ± 0%     ~     (all equal)
-    BaseMultP256      1.12kB ± 0%    0.29kB ± 0%  -74.29%  (p=0.000 n=20+20)
-    ScalarMultP256    1.59kB ± 7%    0.26kB ± 0%  -83.91%  (p=0.000 n=20+20)
-    
-    name            old allocs/op  new allocs/op  delta
-    pkg:crypto/ecdsa goos:linux goarch:arm64
-    SignP256            67.0 ± 0%      35.0 ± 0%  -47.76%  (p=0.000 n=20+20)
-    SignP384           17.5k ± 0%     17.5k ± 0%     ~     (p=0.725 n=10+10)
-    VerifyP256          97.2 ± 3%      17.0 ± 0%  -82.52%  (p=0.000 n=20+20)
-    KeyGeneration       21.0 ± 0%      13.0 ± 0%  -38.10%  (p=0.000 n=10+10)
-    pkg:crypto/elliptic goos:linux goarch:arm64
-    BaseMult            5.00 ± 0%      5.00 ± 0%     ~     (all equal)
-    BaseMultP256        16.0 ± 0%       6.0 ± 0%  -62.50%  (p=0.000 n=20+20)
-    ScalarMultP256      19.9 ± 6%       5.0 ± 0%  -74.87%  (p=0.000 n=20+20)
-    
-    Fixes #22806
-    
-    Change-Id: I12b343a27e6544189334f99c84242bb59db70a76
-    Reviewed-on: https://go-review.googlesource.com/121360
-    Run-TryBot: Vlad Krasnov <vlad@cloudflare.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6052695ece9aff9e3112c2fb176596fde8aa9cb2
+    Reviewed-on: https://go-review.googlesource.com/33776
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/crypto/elliptic/fuzz_test.go                   |   54 +
- src/crypto/elliptic/p256.go                        |    2 +-
- src/crypto/elliptic/{p256_amd64.go => p256_asm.go} |    2 +-
- src/crypto/elliptic/p256_asm_arm64.s               | 1529 ++++++++++++++++++++
- src/crypto/elliptic/p256_generic.go                |    2 +-
- 5 files changed, 1586 insertions(+), 3 deletions(-)
+ src/crypto/tls/conn.go             | 83 +++++---------------------------------
+ src/crypto/tls/handshake_client.go |  1 -
+ src/crypto/tls/handshake_server.go |  1 -
+ 3 files changed, 11 insertions(+), 74 deletions(-)

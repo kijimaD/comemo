@@ -1,0 +1,20 @@
+commit f6ea0621d2e7e7386d7f58241fb34bc78e39ebcc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 4 15:11:42 2025 -0800
+
+    internal/routebsd: fix parsing network address of length zero
+    
+    This applies CL 646555 from the net repository to this copy.
+    
+    For #70528
+    
+    Change-Id: Ib7e23accfa3f278392e7bdca6f8544b8f1395e7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646676
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/routebsd/address.go             | 74 +++++++++++++++-------------
+ src/internal/routebsd/address_darwin_test.go |  2 +-
+ 2 files changed, 40 insertions(+), 36 deletions(-)

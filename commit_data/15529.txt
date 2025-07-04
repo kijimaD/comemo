@@ -1,21 +1,15 @@
-commit d0d7416d3f9065141e1abe85528803afa9217371
+commit 8d732368c234a6c4ab2ad6c880ccbe978c6c376c
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 09:24:17 2013 -0500
+Date:   Fri Mar 1 05:03:25 2013 -0800
 
-    runtime: more build fixing
+    cmd/ld: fix windows build
     
-    Move the mstartfn into its own field.
-    Simpler, more likely to be correct.
+    Fixes #4948.
     
-    R=golang-dev, devon.odell
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7414046
+    https://golang.org/cl/7445045
 
- src/pkg/runtime/runtime.h           | 3 ++-
- src/pkg/runtime/sys_freebsd_386.s   | 5 +++--
- src/pkg/runtime/sys_freebsd_amd64.s | 6 +++---
- src/pkg/runtime/sys_windows_386.s   | 5 +++--
- src/pkg/runtime/sys_windows_amd64.s | 4 ++--
- src/pkg/runtime/thread_freebsd.c    | 2 +-
- src/pkg/runtime/thread_windows.c    | 2 +-
- 7 files changed, 15 insertions(+), 12 deletions(-)
+ src/cmd/ld/ldpe.c | 13 +++++++------
+ src/run.bat       |  2 --
+ 2 files changed, 7 insertions(+), 8 deletions(-)

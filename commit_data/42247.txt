@@ -1,15 +1,18 @@
-commit d1b36c8d8670c49c70bd8219efa2da762de08337
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri May 1 16:48:25 2020 +0200
+commit 3efa09f3862b68f0dfa5012455f475836e040e91
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 18 14:20:34 2019 -0800
 
-    internal/unsafeheader: fix reference in godoc comment for type String
+    time: deflake TestTicker
     
-    Refer to reflect.StringHeader in the godoc comment for type String
-    instead of reflect.SliceHeader.
+    Take the opportunity of deflaking to make it take less time to run.
     
-    Change-Id: I40fc016c7365510a12c41d4ca596f66d2892c3f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231537
+    Updates #35537
+    
+    Change-Id: I91ca8094fbe18fbfcd34dfda98da1592c9c82943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207403
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/unsafeheader/unsafeheader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/tick_test.go | 71 ++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 50 insertions(+), 21 deletions(-)

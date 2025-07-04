@@ -1,31 +1,19 @@
-commit bd8a5b00fcf71fb711ba8996a880b5b07f7b3634
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 22 21:19:10 2022 -0400
+commit 42e6b5bce2d027d4fcc4a7358b97a468494855d8
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 11:46:25 2021 -0400
 
-    os/exec: split parent I/O pipes by whether they are pumped by user code or internal goroutines
+    go/types: differently named types are not assignable
     
-    The pipes pumped by goroutines can be closed as soon as their
-    respective goroutines are done.
+    This is a clean port of CL 360274 to go/types.
     
-    The pipes pumped by user code, however, are documented to be closed in
-    Wait. When we add the WaitDelay field, it isn't obvious that we should
-    terminate the user-pumped pipes when the WaitDelay expires, since Wait
-    itself isn't going to wait for those user-controlled goroutines to
-    complete.
-    
-    (It's a bit more complicated than that because the documentation
-    currently states that Wait must not be called while the pipes are
-    being read — but it isn't obvious to me that that advice is entirely
-    correct.)
-    
-    For #50436.
-    
-    Change-Id: I97909c91d2097fb75138a360747168c08609696d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401894
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Idfa584fab95f7226e10b1a7c5b06d56a0bf9d757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360759
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec.go | 37 +++++++++++++++++++++++--------------
- 1 file changed, 23 insertions(+), 14 deletions(-)
+ src/go/types/operand.go                        | 66 ++++++++++++--------------
+ src/go/types/testdata/fixedbugs/issue49242.go2 | 27 +++++++++++
+ src/go/types/testdata/spec/assignability.go2   | 46 ++++++++++++++----
+ 3 files changed, 94 insertions(+), 45 deletions(-)

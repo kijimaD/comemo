@@ -1,21 +1,38 @@
-commit 8960925ad8dd1ef234731d94ebbea263e35a3e42
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 23 17:34:38 2024 -0400
+commit 715d53c090ea02dbd73c301684ecbd09b476989e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Apr 20 17:30:38 2023 +0200
 
-    time: deflake TestChan/asynctimerchan=1 tests
+    runtime: fallback to TEB arbitrary pointer when TLS slots are full
     
-    The overall time package tests increase from 3.85s to 4.85s on my laptop.
-    But they should be less flaky, and the time is spent sleeping, so it won't
-    slow down the overall machine running multiple package tests in
-    parallel.
+    The Go runtime allocates the TLS slot in the TEB TLS slots instead of
+    using the TEB arbitrary pointer. See CL 431775 for more context.
     
-    For #66322.
+    The problem is that the TEB TLS slots array only has capacity for 64
+    indices, allocating more requires some complex logic that we don't
+    support yet.
     
-    Change-Id: I66d6647c389c943b53045e8836ede4ba3d4670c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581315
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Although the Go runtime only allocates one index, a Go DLL can be
+    loaded in a process with more than 64 TLS slots allocated,
+    in which case it abort.
+    
+    This CL avoids aborting by falling back to the older behavior, that
+    is to use the TEB arbitrary pointer.
+    
+    Fixes #59213
+    
+    Change-Id: I39c73286fe2da95aa9c5ec5657ee0979ecbec533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486816
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/time/tick_test.go | 33 +++++++++++++++++++--------------
- 1 file changed, 19 insertions(+), 14 deletions(-)
+ src/runtime/signal_windows_test.go      | 56 +++++++++++++++++++++++++++++++++
+ src/runtime/sys_windows_386.s           |  7 ++++-
+ src/runtime/sys_windows_amd64.s         |  8 ++++-
+ src/runtime/sys_windows_arm64.s         |  8 +++--
+ src/runtime/testdata/testwintls/main.c  | 29 +++++++++++++++++
+ src/runtime/testdata/testwintls/main.go | 12 +++++++
+ 6 files changed, 116 insertions(+), 4 deletions(-)

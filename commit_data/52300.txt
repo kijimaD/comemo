@@ -1,18 +1,22 @@
-commit 455168d11391bf2b67833594ff6864c034107a59
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 14 11:34:51 2023 -0700
+commit 32275013645aa3d5dc0fa9f2ed529bc201b79759
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Apr 18 18:14:51 2022 -0400
 
-    cmd/asm: improve detector for incorrect R15 usage when dynamic linking
+    go/types: use error_.errorf for reporting related error information
     
-    Fixes #58632
+    Use error_.errorf for reporting related error information rather than
+    inlining the "\n\t". This aligns go/types with types2 in cases where the
+    related information has no position information. In other cases,
+    go/types needs to report a "continuation error" (starting with '\t') so
+    that users can access multiple error positions.
     
-    Change-Id: Idb19af2ac693ea5920da57c1808f1bc02702929d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476295
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ica98466596c374e0c1e502e7227c8d8c803b4c22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400825
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- .../asm/internal/asm/testdata/amd64dynlinkerror.s  |  97 ++++++++++++++
- src/cmd/internal/obj/x86/obj6.go                   | 149 ++++++++++++++++-----
- 2 files changed, 214 insertions(+), 32 deletions(-)
+ src/go/types/assignments.go | 10 +++++-----
+ src/go/types/call.go        |  9 ++++-----
+ src/go/types/conversions.go |  5 ++++-
+ 3 files changed, 13 insertions(+), 11 deletions(-)

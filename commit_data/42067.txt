@@ -1,25 +1,22 @@
-commit 3e342e8719b8d84a976c05df0c03d9084c5f39e6
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed Apr 22 15:35:45 2020 -0400
+commit 933bf75edaf4e762f65e6738d5a9d71b6438b50f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 29 20:42:00 2019 -0400
 
-    net/http/pprof: make TestDeltaProfile less flaky by retrying
+    runtime: add async preemption support on S390X
     
-    In some slow environment, the goroutine for mutexHog2 may not run
-    within 1secs. So, try with increasing seconds parameters,
-    and declare failure if it still fails with the longest duration
-    parameter (32sec).
+    This CL adds support of call injection and async preemption on
+    S390X.
     
-    Also, relax the test condition - previously we expected the
-    profile's duration is within 0.5~2sec. But obviously, in some
-    slow environment, that's not even guaranteed. Just check we get
-    non-zero duration in the result.
+    Like ARM64, we need to clobber one register (REGTMP) for
+    returning from the injected call. Previous CLs have marked code
+    sequences that use REGTMP async-nonpreemtible.
     
-    Update #38544
-    
-    Change-Id: Ia9b0d51429a2093e6c9eb92cf463ff6952ef3e10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229498
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I78adbc5fd70ca245da390f6266623385b45c9dfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204106
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/pprof/pprof_test.go | 50 +++++++++++++++-------------------------
- 1 file changed, 19 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  2 ++
+ src/runtime/mkpreempt.go                     | 35 ++++++++++++++++++++-
+ src/runtime/preempt_s390x.s                  | 47 ++++++++++++++++++++++++++--
+ src/runtime/signal_linux_s390x.go            | 14 +++++++--
+ 4 files changed, 93 insertions(+), 5 deletions(-)

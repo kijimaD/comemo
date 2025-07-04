@@ -1,12 +1,14 @@
-commit 2fb9fe48c63ed0b7eee36d0d8c2d494ad70602b0
-Author: Stanislav Afanasev <php.progger@gmail.com>
-Date:   Mon Dec 11 23:45:19 2017 +0300
+commit c2f8ed267b3fdfd06ca1a50aaf405886e52a8122
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Aug 23 12:45:27 2017 +0100
 
-    doc/contrib.html: fix outdated link
+    doc: mention s390x in environment section of install-source.html
     
-    Change-Id: I6d94a14a781a2fbeb90db35ae3490ce2ac5f8ed1
-    Reviewed-on: https://go-review.googlesource.com/83315
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I521ba94356165efc3252ca4b3d364a2bbabd4aab
+    Reviewed-on: https://go-review.googlesource.com/58010
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/contrib.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install-source.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

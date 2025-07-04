@@ -1,39 +1,12 @@
-commit 211932b98790df0ae112d7f680f6912514ae7d94
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jun 29 17:57:16 2019 +0200
+commit 739a78f2b8de3139ec253719d0a688c08b8e5324
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Apr 8 15:42:30 2019 -0400
 
-    go/printer: never print a newline before the returned results
+    doc: document Go 1.11.8
     
-    Otherwise, if one ends up with a "return result" where the two nodes are
-    in separate lines, the printer would incorrectly print a naked return:
-    
-            return
-                    result
-    
-    The fix is simple - by not telling exprList what the previous position
-    is, it never adds a leading linebreak. This is the same mechanism used
-    for identifier lists and values, so it seems appropriate.
-    
-    All other exprList calls that can produce a leading linebreak don't seem
-    buggy, because closing tokens such as parentheses and colons are needed
-    to finish the statement.
-    
-    Verified that the test failed before the patch as well:
-    
-            --- FAIL: TestIssue32854 (0.00s)
-                printer_test.go:806: got "return\n\tcall()", want "return call()"
-    
-    Finally, verified that 'gofmt -l -w src misc' doesn't make any new
-    changes, just in case we introduced any regression.
-    
-    Fixes #32854.
-    
-    Change-Id: I3384fbd711de06e742407df874c9ad85626d5d6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184121
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia06f7005f466e55a22c76bf2b47d74ee8eb77dd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171139
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/printer/nodes.go        |  6 ++++--
- src/go/printer/printer_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 2 deletions(-)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

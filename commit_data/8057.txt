@@ -1,17 +1,12 @@
-commit 08b092777168a3377067531307ffd20dd85becba
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Tue Apr 12 16:58:56 2011 -0700
+commit 36b6d1aaf20fa78532f83df48ebf1a12a2dd81af
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Apr 12 16:21:01 2011 -0400
 
-    os: fix Readdir in Plan 9
+    8l: correct Plan 9 compiler warnings
     
-    'TestReaddir.*' tests now passes.
-    
-    R=golang-dev, lucio, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4381048
+    https://golang.org/cl/4390047
 
- src/pkg/os/dir_plan9.go   | 80 +++++++++++++++++++----------------------------
- src/pkg/os/error_plan9.go |  3 ++
- src/pkg/os/file_plan9.go  |  7 +++++
- src/pkg/os/os_test.go     | 16 +++++++++-
- 4 files changed, 57 insertions(+), 49 deletions(-)
+ src/cmd/8l/asm.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

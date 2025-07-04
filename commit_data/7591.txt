@@ -1,19 +1,15 @@
-commit bb0e7bda35baa7963cb6a4bb74239609f7e34cf7
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 28 17:43:16 2011 -0800
+commit 432b4f309b9d2c82c72a18b917cdccb4ec2bd89f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 1 09:20:32 2011 +1100
 
-    goyacc: provide -p flag to set prefix for names.
+    build: convert src/cmd to use make directly and simplify src/make.bash
     
-    This should allow multiple goyacc grammars to be
-    compiled into the same binary. There's a chance it
-    Fixes #1562.
-    
-    R=rsc, r2
+    R=adg, bsiegert, rsc
     CC=golang-dev
-    https://golang.org/cl/4256044
+    https://golang.org/cl/4221047
 
- src/cmd/goyacc/Makefile  |   2 +-
- src/cmd/goyacc/doc.go    |  11 +-
- src/cmd/goyacc/goyacc.go | 314 ++++++++++++++++++++++++-----------------------
- src/cmd/goyacc/units.y   |   9 +-
- 4 files changed, 175 insertions(+), 161 deletions(-)
+ src/cmd/Makefile   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/clean.bash | 16 -------------
+ src/cmd/make.bash  | 30 ------------------------
+ src/make.bash      | 20 ++--------------
+ 4 files changed, 70 insertions(+), 64 deletions(-)

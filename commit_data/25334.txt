@@ -1,20 +1,12 @@
-commit cfc9fde54d2d27486edede6dccf107889f0d2cc6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 16:45:31 2015 +0000
+commit d8c6bf916e9afe3c53bfe781d2d42933d5c9626e
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Oct 21 15:51:02 2015 +1100
 
-    net/http: updated bundled http2 to finish trailer support
+    cmd/compile: remove a stray word in the go:nosplit documentation
     
-    This updates the bundled copy of x/net/http2 to git rev d2ecd08
-    for https://golang.org/cl/17912 (http2: send client trailers)
-    and enables the final Trailer test for http2.
-    
-    Fixes #13557
-    
-    Change-Id: Iaa15552b82bf7a2cb01b7787a2e1ec5ee680a9d3
-    Reviewed-on: https://go-review.googlesource.com/17935
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7a85c0ad8aba2d50032c8faa58c83fb327f360cf
+    Reviewed-on: https://go-review.googlesource.com/16140
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/clientserver_test.go |   5 +-
- src/net/http/h2_bundle.go         | 125 +++++++++++++++++++++++++++++---------
- 2 files changed, 96 insertions(+), 34 deletions(-)
+ src/cmd/compile/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

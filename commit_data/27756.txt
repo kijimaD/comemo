@@ -1,12 +1,41 @@
-commit cc6f5f6ce1daca51f475764a3e4fa9420cafcefa
-Author: Nick Harper <nharper@google.com>
-Date:   Wed Jun 29 11:18:01 2016 -0700
+commit 204b6f48c5107d3132033324fd492ca0253568dc
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Apr 12 09:41:11 2016 +0200
 
-    crypto/ecdsa: Update documentation for Sign
+    cmd/pprof/internal: move to cmd/internal/pprof
     
-    Change-Id: I2b7a81cb809d109f10d5f0db957c614f466d6bfd
-    Reviewed-on: https://go-review.googlesource.com/24582
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Make internal pprof packages available to cmd/trace.
+    cmd/trace needs access to them to generate symbolized
+    svg profiles (create and serialize Profile struct).
+    And potentially generate svg programmatically instead
+    of invoking go tool pprof.
+    
+    Change-Id: Iafd0c87ffdd4ddc081093be0b39761f19507907a
+    Reviewed-on: https://go-review.googlesource.com/21870
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/ecdsa/ecdsa.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ .../internal => internal/pprof}/commands/commands.go       |  8 ++++----
+ .../{pprof/internal => internal/pprof}/driver/driver.go    | 10 +++++-----
+ .../internal => internal/pprof}/driver/interactive.go      |  6 +++---
+ src/cmd/{pprof/internal => internal/pprof}/fetch/fetch.go  |  4 ++--
+ .../{pprof/internal => internal/pprof}/plugin/plugin.go    |  2 +-
+ .../{pprof/internal => internal/pprof}/profile/encode.go   |  0
+ .../{pprof/internal => internal/pprof}/profile/filter.go   |  0
+ .../internal => internal/pprof}/profile/legacy_profile.go  |  0
+ .../{pprof/internal => internal/pprof}/profile/profile.go  |  0
+ .../internal => internal/pprof}/profile/profile_test.go    |  0
+ .../{pprof/internal => internal/pprof}/profile/proto.go    |  0
+ .../internal => internal/pprof}/profile/proto_test.go      |  0
+ .../{pprof/internal => internal/pprof}/profile/prune.go    |  0
+ .../{pprof/internal => internal/pprof}/report/report.go    |  4 ++--
+ .../{pprof/internal => internal/pprof}/report/source.go    |  2 +-
+ .../internal => internal/pprof}/report/source_html.go      |  0
+ src/cmd/{pprof/internal => internal/pprof}/svg/svg.go      |  0
+ src/cmd/{pprof/internal => internal/pprof}/svg/svgpan.go   |  0
+ .../internal => internal/pprof}/symbolizer/symbolizer.go   |  4 ++--
+ .../{pprof/internal => internal/pprof}/symbolz/symbolz.go  |  2 +-
+ .../internal => internal/pprof}/tempfile/tempfile.go       |  0
+ src/cmd/pprof/pprof.go                                     | 14 +++++++-------
+ 22 files changed, 28 insertions(+), 28 deletions(-)

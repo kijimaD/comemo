@@ -1,16 +1,31 @@
-commit 8c2a04f169e15944bdd6f400e6ddc19c922a7676
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Jul 27 23:40:15 2024 +0200
+commit 26d07d80ca0093f87f37a02600eb1715ca0431a1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Oct 4 06:18:08 2023 -0700
 
-    crypto/internal/nistec: port cleanups and docs from p256_asm.go to purego
+    html/template: only track brace depth when we are in a JS tmpl lit
     
-    Change-Id: Ieaad0692f4301cc301a0dd2eadca2f2f9e96bff0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627942
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    The change that keeps on giving. Only track brace depth in tJS if we are
+    already inside of a template literal. If we start tracking depth outside
+    of nested literals it can cause the parser to think we're still in a JS
+    context when we've actually closed the string interp.
+    
+    I believe this _mostly_ captures the expected parsing, but since the
+    JS parser does not implement proper lexical goal symbols, it may not
+    be entirely accurate. At some point in the future we may be able to
+    significantly reduce the complexity of this implementation by
+    implementing a lexical parser that more closely follows the ECMAScript
+    specification, and structuring escaping rules based on which symbol an
+    action appears in. This would also allow us to catch errors, which
+    we currently cannot reasonable do (although perhaps this is beyond the
+    scope of what html/template _should_ be doing).
+    
+    Updates #61619
+    
+    Change-Id: I56e1dbc0d0705ef8fb7a5454ebe2421d4e162ef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532595
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/internal/nistec/p256.go | 272 ++++++++++++++++++++-----------------
- 1 file changed, 148 insertions(+), 124 deletions(-)
+ src/html/template/escape_test.go | 44 ++++++++++++++++++++++------------------
+ src/html/template/transition.go  |  7 +++++++
+ 2 files changed, 31 insertions(+), 20 deletions(-)

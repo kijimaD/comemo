@@ -1,30 +1,26 @@
-commit ffefcd360b64e197131d6dc37a7ed015a2643c1b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 12 16:30:42 2022 -0800
+commit 0bde2cf5fe1fea62bb0975a7098c55abd8f3da34
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 11 11:32:11 2022 -0500
 
-    spec: introduce notion of strict comparability
+    runtime: skip TestSegv/SegvInCgo failures with "runtime: unknown pc"
     
-    - Rephrase the notion of "comparability" from a property
-      of values (operands) to a property of types and adjust
-      dependent prose.
-    - Introduce the notion of "strict comparability".
-    - Fix the definitions of comparability for type interfaces
-      and type parameters.
-    - Define the predeclared identifier "comparable" as stricly
-      comparable.
+    This test has failed on four different builders in the past month.
+    Moreover, because every Go program depends on "runtime", it is likely
+    to be run any time a user runs 'go test all' in their own program.
     
-    These changes address existing problems in the spec as outlined
-    in the section on "Related spec issues" in issue #56548.
+    Since the test is known to be flaky, let's skip it to avoid
+    introducing testing noise until someone has time to investigate. It
+    seems like we have enough samples in the builder logs to at least
+    start with.
     
-    For #56548.
+    For #50979
     
-    Change-Id: Ibc8c2f36d92857a5134eadc18358624803d3dd21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457095
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I9748a82fbb97d4ed95d6f474427e5aa6ecdb023d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385154
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 84 ++++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 57 insertions(+), 27 deletions(-)
+ src/runtime/crash_cgo_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

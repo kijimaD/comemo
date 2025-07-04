@@ -1,27 +1,18 @@
-commit 864d4f1c6b364e13c0a4008bc203f336b0027f44
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Feb 11 10:27:55 2021 -0500
+commit eecc6282cc9a16a6be439df5540af127477edc32
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Fri May 29 17:53:27 2020 -0400
 
-    cmd/go: multiple small 'go help' fixes
+    doc/go1.15: update Go 1.15 release notes using relnote
     
-    * Link to privacy policies for proxy.golang.org and sum.golang.org in
-      'go help modules'. It's important that both policies are linked from
-      the go command's documentation.
-    * Fix wording and typo in 'go help vcs' following comments in CL 290992,
-      which adds reference documentation for GOVCS.
-    * Fix whitespace on GOVCS in 'go help environment'.
+    The additions were generated using golang.org/x/build/cmd/relnote.
     
-    For #41730
+    Updates #37419
     
-    Change-Id: I86abceacd4962b748361244026f219157c9285e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291230
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iad7b564dd7e6cbcbd0d216c2530802e086ec49cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235757
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/alldocs.go               | 30 ++++++++++++++++++++++--------
- src/cmd/go/internal/help/helpdoc.go |  2 +-
- src/cmd/go/internal/modget/get.go   | 17 ++++++++++-------
- src/cmd/go/internal/modload/help.go | 13 +++++++++++--
- 4 files changed, 44 insertions(+), 18 deletions(-)
+ doc/go1.15.html | 106 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 105 insertions(+), 1 deletion(-)

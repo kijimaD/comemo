@@ -1,12 +1,20 @@
-commit ebb1714fe76d105d551edec6aadc44d4109bd9fc
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Mar 22 12:56:52 2013 -0400
+commit 3b9702c9c8a7e69e5af9b6dafd2932228d6b3210
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Mar 23 02:17:01 2013 +1100
 
-    CONTRIBUTORS: add Joseph Bonneau (Google CLA)
+    runtime: correct return value checks for mmap on darwin/freebsd
+    
+    On Darwin and FreeBSD, the mmap syscall return value is returned
+    unmodified. This means that the return value will either be a
+    valid address or a positive error number.
+    
+    Also check return value from mmap in SysReserve - the callers of
+    SysReserve expect nil to be returned if the allocation failed.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7879044
+    https://golang.org/cl/7871043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/mem_darwin.c  |  9 +++++++--
+ src/pkg/runtime/mem_freebsd.c | 21 +++++++++++++--------
+ 2 files changed, 20 insertions(+), 10 deletions(-)

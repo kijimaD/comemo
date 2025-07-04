@@ -1,25 +1,19 @@
-commit 20313660f5f3a87dfd9074c4061c521fa25fcd32
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jun 21 14:43:05 2023 -0700
+commit 1dcef7b3bdcea4a829ea22c821e6a9484c325d61
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat Jul 9 11:28:50 2022 +0800
 
-    crypto/x509: tolerate multiple matching chains in testVerify
+    cmd/internal/obj/loong64: add MASKEQZ and MASKNEZ instructions support
     
-    Due to the semantics of roots, a root store may contain two valid roots
-    that have the same subject (but different SPKIs) at the asme time. As
-    such in testVerify it is possible that when we verify a certificate we
-    may get two chains that has the same stringified representation.
-    
-    Rather than doing something fancy to include keys (which is just overly
-    complicated), tolerate multiple matches.
-    
-    Fixes #60925
-    
-    Change-Id: I5f51f7635801762865a536bcb20ec75f217a36ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505035
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ied16c3be47c863a94d46bd568191057ded4b7d0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416734
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
 
- src/crypto/x509/verify_test.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 3 +++
+ src/cmd/internal/obj/loong64/a.out.go           | 3 +++
+ src/cmd/internal/obj/loong64/anames.go          | 2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 8 ++++++++
+ 4 files changed, 16 insertions(+)

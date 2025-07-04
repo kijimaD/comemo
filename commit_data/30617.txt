@@ -1,66 +1,19 @@
-commit 3dcfce8d19e6fc98131106a6b1b7ce5445efc959
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 8 12:50:00 2017 -0800
+commit 0df762ed7b2ac9484a4f64450424529ecee8aa7f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Nov 3 15:34:05 2016 -0700
 
-    cmd/compile: add OpOffPtr [c] SP to constant cache
+    net: add example for CIDRMask
     
-    They accounted for almost 30% of all CSE'd values.
+    I had trouble translating the documentation language into a subnet
+    - e.g. whether /31 was CIDRMask(1, 31) or CIDRMask(1, 32) or
+    CIDRMask(31, 32) so I thought I'd add a short example showing how to
+    create the right masks.
     
-    By never creating the duplicates in the first place,
-    we reduce the high water mark of Value IDs,
-    which in turn makes all SSA phases cheaper,
-    particularly regalloc.
-    
-    name       old time/op     new time/op     delta
-    Template       200ms ± 3%      198ms ± 4%  -0.87%  (p=0.016 n=50+49)
-    Unicode       86.9ms ± 2%     85.5ms ± 3%  -1.56%  (p=0.000 n=49+50)
-    GoTypes        553ms ± 4%      551ms ± 4%    ~     (p=0.183 n=50+49)
-    SSA            3.97s ± 3%      3.93s ± 2%  -1.06%  (p=0.000 n=48+48)
-    Flate          124ms ± 4%      124ms ± 3%    ~     (p=0.545 n=48+50)
-    GoParser       146ms ± 4%      146ms ± 4%    ~     (p=0.810 n=49+49)
-    Reflect        357ms ± 3%      355ms ± 3%  -0.59%  (p=0.049 n=50+48)
-    Tar            106ms ± 4%      107ms ± 5%    ~     (p=0.454 n=49+50)
-    XML            203ms ± 4%      203ms ± 4%    ~     (p=0.726 n=48+50)
-    
-    name       old user-ns/op  new user-ns/op  delta
-    Template        237M ± 3%       235M ± 4%    ~     (p=0.208 n=47+48)
-    Unicode         111M ± 4%       108M ± 9%  -2.50%  (p=0.000 n=47+50)
-    GoTypes         736M ± 5%       729M ± 4%  -0.95%  (p=0.017 n=50+46)
-    SSA            5.73G ± 4%      5.74G ± 4%    ~     (p=0.765 n=50+50)
-    Flate           150M ± 5%       148M ± 6%  -0.89%  (p=0.045 n=48+47)
-    GoParser        180M ± 5%       178M ± 7%  -1.34%  (p=0.012 n=50+50)
-    Reflect         450M ± 4%       444M ± 4%  -1.40%  (p=0.000 n=50+49)
-    Tar             124M ± 7%       123M ± 7%    ~     (p=0.092 n=50+50)
-    XML             248M ± 6%       245M ± 5%    ~     (p=0.057 n=50+50)
-    
-    name       old alloc/op    new alloc/op    delta
-    Template      39.4MB ± 0%     39.3MB ± 0%  -0.37%  (p=0.000 n=50+50)
-    Unicode       30.9MB ± 0%     30.9MB ± 0%  -0.27%  (p=0.000 n=48+50)
-    GoTypes        114MB ± 0%      113MB ± 0%  -1.03%  (p=0.000 n=50+49)
-    SSA            882MB ± 0%      865MB ± 0%  -1.95%  (p=0.000 n=49+49)
-    Flate         25.8MB ± 0%     25.7MB ± 0%  -0.21%  (p=0.000 n=50+50)
-    GoParser      31.7MB ± 0%     31.6MB ± 0%  -0.33%  (p=0.000 n=50+50)
-    Reflect       79.7MB ± 0%     79.3MB ± 0%  -0.49%  (p=0.000 n=44+49)
-    Tar           27.2MB ± 0%     27.1MB ± 0%  -0.31%  (p=0.000 n=50+50)
-    XML           42.7MB ± 0%     42.3MB ± 0%  -1.05%  (p=0.000 n=48+49)
-    
-    name       old allocs/op   new allocs/op   delta
-    Template        379k ± 1%       380k ± 1%  +0.26%  (p=0.000 n=50+50)
-    Unicode         324k ± 1%       324k ± 1%    ~     (p=0.964 n=49+50)
-    GoTypes        1.14M ± 0%      1.15M ± 0%  +0.14%  (p=0.000 n=50+49)
-    SSA            7.89M ± 0%      7.89M ± 0%  -0.05%  (p=0.000 n=49+49)
-    Flate           240k ± 1%       241k ± 1%  +0.27%  (p=0.001 n=50+50)
-    GoParser        310k ± 1%       311k ± 1%  +0.48%  (p=0.000 n=50+49)
-    Reflect        1.00M ± 0%      1.00M ± 0%  +0.17%  (p=0.000 n=48+50)
-    Tar             254k ± 1%       255k ± 1%  +0.23%  (p=0.005 n=50+50)
-    XML             395k ± 1%       395k ± 1%  +0.19%  (p=0.002 n=49+47)
-    
-    Change-Id: Iaa8f5f37e23bd81983409f7359f9dcd4dfe2961f
-    Reviewed-on: https://go-review.googlesource.com/38003
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia6a6de08c5c30b6d2249b3194cced2d3c383e317
+    Reviewed-on: https://go-review.googlesource.com/32677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go   | 19 +++++++++++--------
- src/cmd/compile/internal/ssa/func.go | 12 ++++++++++--
- 2 files changed, 21 insertions(+), 10 deletions(-)
+ src/net/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

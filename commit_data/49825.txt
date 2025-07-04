@@ -1,26 +1,18 @@
-commit 88635b3862502bce1676621546c75e549b008ed0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 5 20:40:45 2022 -0700
+commit 0bb40b08c4884952d7facce3135ff9e50847763f
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Sep 12 14:33:04 2021 -0400
 
-    cmd/compile/internal/noder: explicitly handle separate selectors
+    go/types: implement Identical for *Union types
     
-    This CL separates out the handling of selector expressions for field
-    values, method values, and method expressions. Again part of
-    refactoring to make it possible to access runtime dictionaries where
-    needed.
+    This aligns with the API proposal (#47916).
     
-    No behavioral change; just duplicating and then streamlining the
-    existing code paths.
-    
-    Change-Id: I53b2a344f4bdba2c9f37ef370dc9a091a3941021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421818
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I732e5b107e729718ed37e053ad3f434993a97ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349413
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/codes.go  |  4 ++-
- src/cmd/compile/internal/noder/reader.go | 49 ++++++++++++++++++--------------
- src/cmd/compile/internal/noder/writer.go | 27 ++++++++++++++----
- 3 files changed, 51 insertions(+), 29 deletions(-)
+ src/go/types/api_test.go   | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/predicates.go |  9 +++++++++
+ 2 files changed, 51 insertions(+)

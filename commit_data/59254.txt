@@ -1,30 +1,21 @@
-commit 3a4f077710b96ee72fcd4214280a41a7c355205b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Apr 8 11:19:57 2025 +0200
+commit 1571c0b338971be0068861d6dd63a0da6511bc0c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Feb 14 01:51:47 2024 +0000
 
-    syscall: fix dangling pointers in Windows' process attributes
+    cmd/dist: let the three runtime -quick tests run simultaneously
     
-    Windows' _PROC_THREAD_ATTRIBUTE_LIST can contain pointers to memory
-    owned by Go, but the GC is not aware of this. This can lead to the
-    memory being freed while the _PROC_THREAD_ATTRIBUTE_LIST is still in
-    use.
+    For #65164
     
-    This CL uses the same approach as in x/sys/windows to ensure that the
-    attributes are not collected by the GC.
-    
-    Fixes #73170.
-    Updates #73199.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Change-Id: I7dca8d386aed4c02fdcd4a631d0fa4dc5747a96f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663715
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ied19cebd113ef91c34f613cafbeb92a335d6420d
+    GitHub-Last-Rev: 8118be6e30ffc4edcd88b8a1d5ee3105e2c760de
+    GitHub-Pull-Request: golang/go#65444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560597
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_windows.go     | 11 ++++++-----
- src/syscall/syscall_windows.go  | 40 ++++++++++++++++++++++++++++++++--------
- src/syscall/types_windows.go    | 13 +++++++++++--
- src/syscall/zsyscall_windows.go | 19 +++++++++++++++++++
- 4 files changed, 68 insertions(+), 15 deletions(-)
+ src/cmd/dist/test.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

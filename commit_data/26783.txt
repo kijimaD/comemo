@@ -1,16 +1,18 @@
-commit 9658b7ef83ae9c34f4a52680e7102d958577d5bb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 7 14:27:15 2016 -0400
+commit 49d1e307108c4a52e65112926ce5f1acb04fd8d7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 17:16:42 2016 -0800
 
-    cmd/link: hide go.dwarf symbols
+    cmd/compile, go/parser: simpler binary expression parsing
     
-    Fixes #15179
+    The existing nested loops are too tricky for me to grok and don't seem
+    necessary.
     
-    Change-Id: I0f70b7ae1682eafaece7f22d8e76f0aa806f3ec9
-    Reviewed-on: https://go-review.googlesource.com/21589
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I75c65c8470b799d6f4cfb05bb1b4796c5d7d32e7
+    Reviewed-on: https://go-review.googlesource.com/19927
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/parser.go | 15 ++++++---------
+ src/go/parser/parser.go               | 26 +++++++++++---------------
+ 2 files changed, 17 insertions(+), 24 deletions(-)

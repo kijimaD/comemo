@@ -1,27 +1,30 @@
-commit c59b17e5a2244f7a99c440a07a1c174344da0ad8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jan 30 11:41:29 2021 +0000
+commit 5c2c6d3fbf4f0a1299b5e41463847d242eae19ca
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 21 11:09:45 2020 -0700
 
-    cmd/go: make -coverpkg=all skip test-only packages
+    runtime: framepointers are no longer an experiment - hard code them
     
-    Otherwise, the added test would fail in an unnecessary way:
+    I think they are no longer experimental status. Might as well promote
+    them to permanent.
     
-            go build example.com/cov/onlytest: no non-test Go files ...
-    
-    The test script is mimicking other cover_pkgall_*.txt scripts, so it
-    similarly tests both GOPATH and module modes.
-    
-    Fixes #27333.
-    
-    Change-Id: Ie60be569b31d49b173a78556c0669a87ada6799e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288292
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Id1259601b3dd2061dd60df86ee48080bfb575d2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249857
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/load/test.go                   |  8 ++--
- src/cmd/go/internal/test/test.go                   |  6 +++
- .../go/testdata/script/cover_pkgall_imports.txt    | 48 ++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go      |  4 ++--
+ src/cmd/compile/internal/ssa/regalloc.go |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go       | 10 +++++-----
+ src/cmd/internal/obj/link.go             |  7 +++----
+ src/cmd/internal/obj/sym.go              |  1 -
+ src/cmd/internal/obj/x86/asm6.go         |  6 +++---
+ src/cmd/internal/obj/x86/obj6.go         |  2 +-
+ src/cmd/internal/objabi/util.go          |  7 ++-----
+ src/cmd/link/internal/ld/lib.go          |  8 --------
+ src/runtime/cgocall.go                   |  9 ++-------
+ src/runtime/proc.go                      |  3 ---
+ src/runtime/runtime2.go                  |  8 +++++---
+ src/runtime/stack.go                     |  6 +-----
+ src/runtime/traceback.go                 |  6 +++---
+ 14 files changed, 28 insertions(+), 51 deletions(-)

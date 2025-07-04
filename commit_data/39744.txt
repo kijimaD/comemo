@@ -1,31 +1,28 @@
-commit ba068c1a6f77eec17571d83c4c693674006a5fff
-Author: zdjones <zachj1@gmail.com>
-Date:   Fri Aug 30 14:41:09 2019 +0100
+commit 6ca51f78978de7e6206d38b99eef8172fc8540d0
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 7 09:33:12 2018 +0100
 
-    cmd/compile: rename poset method dominates to reaches
+    runtime: replace division by span element size by multiply and shifts
     
-    The partially ordered set uses a method named 'dominates' to determine whether
-    two nodes are partially ordered. Dominates does a depth-first search of the
-    DAG, beginning at the source node, and returns true as soon as it finds a path
-    to the target node. In the context of the forest-of-DAGs that makes up the
-    poset, dominates is not necessarily checking dominance, but is checking
-    reachability. See the issue tracker for a more detailed discussion of the
-    difference.
+    Divisions are generally slow. The compiler can optimize a division
+    to use a sequence of faster multiplies and shifts (magic constants)
+    if the divisor is not know at compile time.
     
-    Fortunately, reachability is logically correct everywhere dominates is currently
-    used in poset.go. Reachability within a DAG is sufficient to establish the
-    partial ordering (source < target).
+    The value of the span element size in mcentral.grow is not known at
+    compile time but magic constants to compute n / span.elementsize
+    are already stored in class_to_divmagic and mspan.
+    They however need to be adjusted to work for
+    (0 <= n <= span.npages * pagesize) instead of
+    (0 <= n <  span.npages * pagesize).
     
-    This CL changes the name of the method (dominates -> reaches) and updates
-    all the comments in the file accordingly.
-    
-    Fixes #33971.
-    
-    Change-Id: Ia3a34f7b14b363801d75b05099cfc686035f7d96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192617
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ieea59f1c94525a88d012f2557d43691967900deb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/148057
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/poset.go | 40 +++++++++++++++++------------------
- 1 file changed, 20 insertions(+), 20 deletions(-)
+ src/runtime/mcentral.go      | 8 ++++----
+ src/runtime/mksizeclasses.go | 4 ++--
+ src/runtime/sizeclasses.go   | 2 +-
+ 3 files changed, 7 insertions(+), 7 deletions(-)

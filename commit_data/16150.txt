@@ -1,22 +1,13 @@
-commit 357e37dc945885a141b48182c4606f1aac8320db
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 9 15:00:21 2013 -0700
+commit 0d932d434bb2e546c029641a8321f3fb9b33ab92
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 9 10:03:14 2013 -0700
 
-    encoding/json: fix handling of anonymous fields
-    The old code was incorrect and also broken. It passed the tests by accident.
-    The new algorithm is:
-            1) Sort the fields in order of names.
-            2) For all fields with the same name, sort in increasing depth.
-            3) Choose the single field with shortest depth.
-    If any of the fields of a given name has a tag, do the above using
-    tagged fields of that name only.
-    Fixes #5245.
+    lib9: add newline to exec error message
     
-    R=iant
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/8583044
+    https://golang.org/cl/8573043
 
- src/pkg/encoding/json/decode_test.go |  2 +-
- src/pkg/encoding/json/encode.go      | 63 ++++++++++++++++++++++++++++++------
- src/pkg/encoding/json/encode_test.go | 50 ++++++++++++++++++++++++++++
- 3 files changed, 104 insertions(+), 11 deletions(-)
+ src/lib9/run_plan9.c | 2 +-
+ src/lib9/run_unix.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,20 +1,31 @@
-commit a7dcfa6133cac2c1200d8003bae279a062268499
+commit 7846500a5a7659615051fe46dee481bde623989f
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 29 15:58:43 2017 -0500
+Date:   Wed Aug 30 12:11:29 2017 -0400
 
-    cmd/internal/objfile: make lookupFunc an alias type
+    cmd/compile: remove redundant constant shift rules
     
-    In the x/arch repo, CL 45098 introduced SymLookup type, replacing
-    the unnamed function type for lookup functions. This affects the
-    signature of x86asm.GoSyntax. In particular, it cannot convert
-    one named type, namely lookupFunc, to the other without an
-    explicit cast. Make lookupFunc unnamed to fix.
+    Normal shift rules plus constant folding are enough to generate
+    efficient shift-by-constant instructions.
     
-    Change-Id: I973300d29ef1dbfdbd7fc2429e89c5849e6a7329
-    Reviewed-on: https://go-review.googlesource.com/80842
+    Add test to make sure we don't generate comparisons for constant
+    shifts.
+    
+    TODO: there are still constant shift rules on PPC64. If they
+    are removed, the constant folding rules are not enough to remove
+    all the test and mask stuff for constant shifts. Leave them in
+    for now.
+    
+    Fixes #20663.
+    
+    Change-Id: I724cc324aa8607762d0c8aacf9bfa641bda5c2a1
+    Reviewed-on: https://go-review.googlesource.com/60330
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/objfile/disasm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go       |  29 ++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  | 148 +++---
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules | 118 ++---
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 650 ++++----------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 192 ++++----
+ 5 files changed, 339 insertions(+), 798 deletions(-)

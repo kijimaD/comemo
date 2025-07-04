@@ -1,18 +1,19 @@
-commit 3d869c6e0c26503f835b4c2694af45e64991c4cd
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Mar 8 07:54:41 2014 +1100
+commit 84570aa9a18fa46dba1402004a54cedc7cf5e043
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 7 15:11:16 2014 -0500
 
-    crypto/md5, crypto/sha1: exclude amd64p32 from generic implementations.
+    runtime: round stack size to power of 2.
+    Fixes build on windows/386 and plan9/386.
+    Fixes #7487.
     
-    We provide amd64p32 implementations for md5 and sha1 so we need to exclude amd64p32 from the generic implementations in those packages.
-    
-    Fixes build once CL 72360044 lands.
-    
-    LGTM=agl, remyoudompheng
-    R=rsc, bradfitz, agl, remyoudompheng
+    LGTM=mattn.jp, dvyukov, rsc
+    R=golang-codereviews, mattn.jp, dvyukov, 0intro, rsc
     CC=golang-codereviews
-    https://golang.org/cl/72460043
+    https://golang.org/cl/72360043
 
- src/pkg/crypto/md5/md5block_generic.go   | 2 +-
- src/pkg/crypto/sha1/sha1block_generic.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c    |  7 ++++---
+ src/pkg/runtime/runtime.c |  4 ++++
+ src/pkg/runtime/runtime.h |  1 +
+ src/pkg/runtime/stack.c   |  6 +++---
+ src/pkg/runtime/stack.h   | 13 ++++++-------
+ 5 files changed, 18 insertions(+), 13 deletions(-)

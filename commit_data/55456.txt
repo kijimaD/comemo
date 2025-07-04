@@ -1,22 +1,21 @@
-commit 4c394b5638cc2694b1eff6418bc3e7db8132de0e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jan 26 17:28:45 2024 +0000
+commit 0602e2cdbc4b42e90c453e6ae365ad5f13f61c92
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Feb 6 21:27:37 2023 +0800
 
-    Revert "net/http: wrap client errors"
+    runtime/internal/sys: remove Bswap{32|64} assembly for 386
     
-    This reverts CL 533119.
+    CL 465515 instrinsify these functions, so that we can remove them.
     
-    Reason for revert: the test fails frequently, see #65287.
-    
-    Fixes #65287.
-    
-    Change-Id: I5bf2ee2b7ce435608ff76b892da261c0a4a189bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558916
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Change-Id: I81c9eb62ecf56d5a292dc5aced542b36b53847dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465516
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/client.go      |  4 ++--
- src/net/http/client_test.go | 19 -------------------
- src/net/http/transport.go   | 12 +++++-------
- 3 files changed, 7 insertions(+), 28 deletions(-)
+ src/runtime/internal/sys/intrinsics.go        | 32 ---------------------------
+ src/runtime/internal/sys/intrinsics_386.s     | 15 -------------
+ src/runtime/internal/sys/intrinsics_common.go | 32 +++++++++++++++++++++++++++
+ src/runtime/internal/sys/intrinsics_stubs.go  |  2 --
+ 4 files changed, 32 insertions(+), 49 deletions(-)

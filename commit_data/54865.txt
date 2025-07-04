@@ -1,35 +1,25 @@
-commit 2d428cfd85933cbe5c59a32498c82bda12ca5c96
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Nov 2 14:16:16 2023 -0400
+commit 6e0e492e1229b22acdc8161efd12500a0e09e67e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 15 13:37:42 2022 -0500
 
-    cmd/compile: fix unstable selection of hottest edge
+    cmd/compile/internal/pgo: count only the last two frames as a call edge
     
-    When selecting the hottest edge to use for PGO-based devirtualization,
-    edges are order by:
+    Currently for every CPU profile sample, we apply its weight to all
+    call edges of the entire call stack. Frames higher up the stack
+    are unlikely to be repeated calls (e.g. runtime.main calling
+    main.main). So adding weights to call edges higher up the stack
+    may be not reflecting the actual call edge weights in the program.
+    This CL changes it to add weights to only the edge between the
+    last two frames.
     
-    1. Edge weight
-    2. If weights are equal, prefer the edge with IR available in the
-       package.
-    3. Otherwise, simply sort lexicographically.
+    Without a branch profile (e.g. LBR records) this is not perfect,
+    but seems more reasonable.
     
-    The existing logic for (2) is incomplete.
-    
-    If the hottest edge so far is missing IR, but the new edge has IR, then
-    it works as expected and selects the new edge.
-    
-    But if the hottest edge so far has IR and the new edge is missing IR, we
-    want to always keep the hottest edge so far, but this logic will fall
-    through and use lexicographical ordering instead.
-    
-    Adjust the check to always make an explicit choice when IR availability
-    differs.
-    
-    Change-Id: Ia7fcc286aa9a62ac209fd978cfce60463505f4cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539475
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I0aee75cc608a152adad41c51120b661a6c542283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450915
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/devirtualize/pgo.go      |   9 +-
- src/cmd/compile/internal/devirtualize/pgo_test.go | 151 ++++++++++++++++++++++
- 2 files changed, 157 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/pgo/graph.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

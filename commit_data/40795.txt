@@ -1,36 +1,34 @@
-commit 71c59ee6fce79dddd7a39167e8658e3cfbba3c0f
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Tue Nov 12 17:42:08 2019 -0500
+commit 7aac3436dde7f247e8602f49317c17563def89ab
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 27 18:03:15 2019 -0400
 
-    runtime/pprof: fix the inlined frame merge logic
+    debug/elf: add version information to all dynamic symbols
     
-    tryAdd shouldn't succeed (and accept the new frame) if the last
-    existing frame on the deck is not an inlined frame.
+    Currently, File.ImportedSymbols is the only API that exposes the GNU
+    symbol version information for dynamic symbols. Unfortunately, it also
+    filters to specific types of symbols, and only returns symbol names.
     
-    For example, when we see the followig stack
-    [300656 300664 300655 300664]
+    The cgo tool is going to need symbol version information for more
+    symbols. In order to support this and make the API more orthogonal,
+    this CL adds version information to the Symbol type and updates
+    File.DynamicSymbols to fill this in. This has the downside of
+    increasing the size of Symbol, but seems to be the most natural API
+    for exposing this. I also explored 1) adding a method to get the
+    version information for the i'th dynamic symbol, but we don't use
+    symbol indexes anywhere else in the API, and it's not clear if this
+    index would be 0-based or 1-based, and 2) adding a
+    DynamicSymbolVersions method that returns a slice of version
+    information that parallels the DynamicSymbols slice, but that's less
+    efficient to implement and harder to use.
     
-    with each PC corresponds to
+    For #31912.
     
-    [{PC:300656 Func:nil Function:runtime.nanotime File:/workdir/go/src/runtime/time_nofake.go Line:19 Entry:300416 {0x28dac8 0x386c80}}]
-    [{PC:300664 Func:0x28dac8 Function:runtime.checkTimers File:/workdir/go/src/runtime/proc.go Line:2623 Entry:300416 {0x28dac8 0x386c80}}]
-    [{PC:300655 Func:nil Function:runtime.nanotime File:/workdir/go/src/runtime/time_nofake.go Line:19 Entry:300416 {0x28dac8 0x386c80}}]
-    [{PC:300664 Func:0x28dac8 Function:runtime.checkTimers File:/workdir/go/src/runtime/proc.go Line:2623 Entry:300416 {0x28dac8 0x386c80}}]
-    
-    PC:300656 and PC:300664 belong to a single location entry,
-    but the bug in the current tryAdd logic placed the entire stack into one
-    location entry.
-    
-    Also adds tests - this crash is a tricky case to test because I think it
-    should happen with normal go code. The new TestTryAdd simulates it by
-    using fake call sequences. The test crashed without the fix.
-    
-    Update #35538
-    
-    Change-Id: I6d3483f757abf4c429ab91616e4def90832fc04a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206958
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I69052ac3894f7af2aa9561f7085275130e0cf717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184099
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/pprof_test.go | 105 ++++++++++++++++++++++++++++++++++++----
- src/runtime/pprof/proto.go      |   5 +-
- 2 files changed, 97 insertions(+), 13 deletions(-)
+ src/debug/elf/file.go         | 40 +++++++++++++++++++++++++++++++---------
+ src/debug/elf/symbols_test.go |  4 ++++
+ 2 files changed, 35 insertions(+), 9 deletions(-)

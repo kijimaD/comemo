@@ -1,86 +1,32 @@
-commit 168a51b3a14b4fd539d5815de5f0e3bd7137ea55
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Sep 22 14:34:39 2015 +1200
+commit 7904946eeb35faece61bbf6f5b3cc8be2f519c17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 29 22:04:09 2015 -0700
 
-    runtime: adjust the arm64 memmove and memclr to operate by word as much as they can
+    cmd/cgo: discard trailing zero-sized fields in a non-empty C struct
     
-    Not only is this an obvious optimization:
+    In order to fix issue #9401 the compiler was changed to add a padding
+    byte to any non-empty Go struct that ends in a zero-sized field.  That
+    causes the Go version of such a C struct to have a different size than
+    the C struct, which can considerable confusion.  Change cgo so that it
+    discards any such zero-sized fields, so that the Go and C structs are
+    the same size.
     
-    benchmark                           old MB/s     new MB/s     speedup
-    BenchmarkMemmove1-4                 35.35        29.65        0.84x
-    BenchmarkMemmove2-4                 63.78        52.53        0.82x
-    BenchmarkMemmove3-4                 89.72        73.96        0.82x
-    BenchmarkMemmove4-4                 109.94       95.73        0.87x
-    BenchmarkMemmove5-4                 127.60       112.80       0.88x
-    BenchmarkMemmove6-4                 143.59       126.67       0.88x
-    BenchmarkMemmove7-4                 157.90       138.92       0.88x
-    BenchmarkMemmove8-4                 167.18       231.81       1.39x
-    BenchmarkMemmove9-4                 175.23       252.07       1.44x
-    BenchmarkMemmove10-4                165.68       261.10       1.58x
-    BenchmarkMemmove11-4                174.43       263.31       1.51x
-    BenchmarkMemmove12-4                180.76       267.56       1.48x
-    BenchmarkMemmove13-4                189.06       284.93       1.51x
-    BenchmarkMemmove14-4                186.31       284.72       1.53x
-    BenchmarkMemmove15-4                195.75       281.62       1.44x
-    BenchmarkMemmove16-4                202.96       439.23       2.16x
-    BenchmarkMemmove32-4                264.77       775.77       2.93x
-    BenchmarkMemmove64-4                306.81       1209.64      3.94x
-    BenchmarkMemmove128-4               357.03       1515.41      4.24x
-    BenchmarkMemmove256-4               380.77       2066.01      5.43x
-    BenchmarkMemmove512-4               385.05       2556.45      6.64x
-    BenchmarkMemmove1024-4              381.23       2804.10      7.36x
-    BenchmarkMemmove2048-4              379.06       2814.83      7.43x
-    BenchmarkMemmove4096-4              387.43       3064.96      7.91x
-    BenchmarkMemmoveUnaligned1-4        28.91        25.40        0.88x
-    BenchmarkMemmoveUnaligned2-4        56.13        47.56        0.85x
-    BenchmarkMemmoveUnaligned3-4        74.32        69.31        0.93x
-    BenchmarkMemmoveUnaligned4-4        97.02        83.58        0.86x
-    BenchmarkMemmoveUnaligned5-4        110.17       103.62       0.94x
-    BenchmarkMemmoveUnaligned6-4        124.95       113.26       0.91x
-    BenchmarkMemmoveUnaligned7-4        142.37       130.82       0.92x
-    BenchmarkMemmoveUnaligned8-4        151.20       205.64       1.36x
-    BenchmarkMemmoveUnaligned9-4        166.97       215.42       1.29x
-    BenchmarkMemmoveUnaligned10-4       148.49       221.22       1.49x
-    BenchmarkMemmoveUnaligned11-4       159.47       239.57       1.50x
-    BenchmarkMemmoveUnaligned12-4       163.52       247.32       1.51x
-    BenchmarkMemmoveUnaligned13-4       167.55       256.54       1.53x
-    BenchmarkMemmoveUnaligned14-4       175.12       251.03       1.43x
-    BenchmarkMemmoveUnaligned15-4       192.10       267.13       1.39x
-    BenchmarkMemmoveUnaligned16-4       190.76       378.87       1.99x
-    BenchmarkMemmoveUnaligned32-4       259.02       562.98       2.17x
-    BenchmarkMemmoveUnaligned64-4       317.72       842.44       2.65x
-    BenchmarkMemmoveUnaligned128-4      355.43       1274.49      3.59x
-    BenchmarkMemmoveUnaligned256-4      378.17       1815.74      4.80x
-    BenchmarkMemmoveUnaligned512-4      362.15       2180.81      6.02x
-    BenchmarkMemmoveUnaligned1024-4     376.07       2453.58      6.52x
-    BenchmarkMemmoveUnaligned2048-4     381.66       2568.32      6.73x
-    BenchmarkMemmoveUnaligned4096-4     398.51       2669.36      6.70x
-    BenchmarkMemclr5-4                  113.83       107.93       0.95x
-    BenchmarkMemclr16-4                 223.84       389.63       1.74x
-    BenchmarkMemclr64-4                 421.99       1209.58      2.87x
-    BenchmarkMemclr256-4                525.94       2411.58      4.59x
-    BenchmarkMemclr4096-4               581.66       4372.20      7.52x
-    BenchmarkMemclr65536-4              565.84       4747.48      8.39x
-    BenchmarkGoMemclr5-4                194.63       160.31       0.82x
-    BenchmarkGoMemclr16-4               295.30       630.07       2.13x
-    BenchmarkGoMemclr64-4               480.24       1884.03      3.92x
-    BenchmarkGoMemclr256-4              540.23       2926.49      5.42x
+    This is a change from previous releases, in that it used to be
+    possible to refer to a zero-sized trailing field (by taking its
+    address), and with this change it no longer is.  That is unfortunate,
+    but something has to change.  It seems better to visibly break
+    programs that do this rather than to silently break programs that rely
+    on the struct sizes being the same.
     
-    but it turns out that it's necessary to avoid the GC seeing partially written
-    pointers.
+    Update #9401.
+    Fixes #11925.
     
-    It's of course possible to be more sophisticated (using ldp/stp to move 16
-    bytes at a time in the core loop and unrolling the tail copying loops being
-    the obvious ideas) but I wanted something simple and (reasonably) obviously
-    correct.
-    
-    Fixes #12552
-    
-    Change-Id: Iaeaf8a812cd06f4747ba2f792de1ded738890735
-    Reviewed-on: https://go-review.googlesource.com/14813
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3fba3f02f11265b3c41d68616f79dedb05b81225
+    Reviewed-on: https://go-review.googlesource.com/12864
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/memclr_arm64.s  | 29 +++++++++++++---
- src/runtime/memmove_arm64.s | 81 +++++++++++++++++++++++++++++++++++++--------
- src/runtime/memmove_test.go | 35 ++++++++++++++++++++
- 3 files changed, 127 insertions(+), 18 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue11925.go | 37 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/issue8428.go  |  7 +++++--
+ src/cmd/cgo/gcc.go          | 26 ++++++++++++++++++++++----
+ 4 files changed, 65 insertions(+), 6 deletions(-)

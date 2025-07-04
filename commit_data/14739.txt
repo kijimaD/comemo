@@ -1,12 +1,15 @@
-commit fcc5cf639ef110eb7e845f3782eb82d2c897d693
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Dec 24 03:48:17 2012 +0800
+commit 403f012534b7042160d26377a70b6624ccfd976c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 18:23:26 2012 -0500
 
-    doc/articles/wiki/test.bash: suppress unnecessary output
+    runtime: zero d.free field
     
-    R=golang-dev, rsc
+    Not programming in Go anymore:
+    have to clear fields in local variables.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7000045
+    https://golang.org/cl/7002053
 
- doc/articles/wiki/test.bash | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/cgocall.c | 2 ++
+ 1 file changed, 2 insertions(+)

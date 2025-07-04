@@ -1,32 +1,31 @@
-commit 2a5114f49af42c1df293e64841b28c22a84211f0
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit ac78501b9c4f7458c6b4352b1590db058d9ac27c
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Aug 5 23:26:21 2021 -0700
 
-    runtime: support memclr/memmove for linux/loong64
+    [dev.typeparams] cmd/compile: make sure closures inside generic funcs are not compiled
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Closures inside generic functions were being added to the g.target.Decls
+    list during noding, just like other closures. We remove generic
+    functions/methods from g.target.Decls, so they don't get compiled
+    (they're only available for export and stenciling). Most closures inside
+    generic functions/methods were similarly being removed from
+    g.target.Decls, because they have a generic parameter. But we need to
+    ensure no closures in generic function/methods are left remaining in
+    g.target.Decls, since we don't want them transformed and compiled.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    So, we set a flag in (*irgen) that records when we are noding a
+    top-level generic function/method, and don't add any closures to
+    g.target.Decls when the flag is true.
     
-    Updates #46229
+    Updates #47514
     
-    Change-Id: I7c1f39670034db6714630d479bc41b6620ba2b1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368079
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id66b4c41d307ffa8f54cab6ce3646ade81606862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340258
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/memclr_loong64.s  |  41 +++++++++++++++++
- src/runtime/memmove_loong64.s | 105 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 146 insertions(+)
+ src/cmd/compile/internal/noder/decl.go  |  4 ++++
+ src/cmd/compile/internal/noder/expr.go  |  9 ++++++++-
+ src/cmd/compile/internal/noder/irgen.go |  5 +++++
+ test/typeparam/issue47514.go            | 20 ++++++++++++++++++++
+ 4 files changed, 37 insertions(+), 1 deletion(-)

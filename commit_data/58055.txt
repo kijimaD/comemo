@@ -1,29 +1,29 @@
-commit 7588cc9b00ec570043c1ee699eace8aa69c106c0
-Author: khr@golang.org <khr@golang.org>
-Date:   Wed Nov 29 22:03:22 2023 -0800
+commit 9b883484a8c1c0fb556ac0d04cf24e54dff7eb47
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 19 10:36:19 2023 +0000
 
-    cmd/link: use types (and not GC programs) to build data/bss ptrmasks
+    all: clean unnecessary casts for test files
     
-    The linker knows the types of the global variables. We can use those
-    types to build the GC programs that describe the data and bss pointer masks.
+    This is a follow up of CL 528696.
     
-    That way we don't use the GC programs of the constituent types.
-    This is part of an effort to remove GC programs from the runtime.
-    
-    There's a major complication in that when we're linking against a
-    shared library (typically, libstd.so), the relocations we need to
-    break apart arrays and structs into constituent types are difficult to
-    find. Load that additional data when linking against shared libraries.
-    
-    Change-Id: I8516b24a0604479895c7b8a8a358d3cd8d421530
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546216
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I5b71eabedb12567c4b1b36f7182a3d2b0ed662a5
+    GitHub-Last-Rev: acaf3ac11c38042ad27b99e1c70a3c9f1a554a15
+    GitHub-Pull-Request: golang/go#62713
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529197
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/ld/data.go      | 54 +++++++++++++++++-------
- src/cmd/link/internal/ld/decodesym.go | 44 +++++++++++++++++---
- src/cmd/link/internal/ld/dwarf.go     |  6 +--
- src/cmd/link/internal/ld/lib.go       | 77 ++++++++++++++++++++++++++++++++++-
- src/cmd/link/internal/ld/link.go      | 24 +++++++++++
- 5 files changed, 181 insertions(+), 24 deletions(-)
+ src/archive/zip/reader_test.go        |  6 +++---
+ src/archive/zip/zip_test.go           |  2 +-
+ src/bufio/scan_test.go                |  2 +-
+ src/debug/buildinfo/buildinfo_test.go |  2 +-
+ src/debug/elf/file_test.go            |  2 +-
+ src/internal/fmtsort/sort_test.go     |  2 +-
+ src/reflect/export_test.go            |  2 +-
+ src/runtime/export_test.go            | 18 +++++++++---------
+ src/syscall/dirent_test.go            |  2 +-
+ src/syscall/exec_linux_test.go        |  6 +++---
+ src/time/time_test.go                 | 18 +++++++++---------
+ 11 files changed, 31 insertions(+), 31 deletions(-)

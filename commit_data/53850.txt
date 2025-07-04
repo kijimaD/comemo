@@ -1,25 +1,21 @@
-commit 6fe976545d646a3f076a84a7ca22be63df8da718
-Author: root <vishwanatha.hd@ibm.com>
-Date:   Wed May 31 12:06:02 2023 +0000
+commit dc029f286e1860eca810b1c087ce09e0933ed746
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 2 14:28:11 2022 +0200
 
-    runtime: handle SIGPE exception for p256 crypto package on s390x
+    runtime: add missing copyright header to signal_windows_test.go
     
-    Older s390x before z13 did not have support to carry out floating point operations i.e. they didn't have the support for vector instructions like VX/VL, etc.
+    The file was added in CL 181839 which was submitted in 2019.
     
-    Starting with Go1.19, z13 is the minimum hardware level for running Go on LoZ (s390x). The main cause of this issue was the refactoring of elliptic curve to internal/nistec. The new code structures made it difficult to dynamically switch implementations at runtime, so it became necessary (in order machines to continue to use the accelerated implementation) to require z13 as the minimum hardware.
+    Also delete the superfluous //go:build windows build constraint which is
+    already part of the file name.
     
-    Hence, Go programs, when run on unsupported hardware, should crash on startup instead of crashing out in crypto code.
-    
-    Fixes: #58465
-    
-    Change-Id: I7c1a816205d19b5ddd2f1464839d16fa96815384
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499495
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iecdf3d75848a7b8e2a76cd18c9fff4fb90acdac2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427854
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/asm_s390x.s       |  1 +
- src/runtime/os_linux_s390x.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+)
+ src/runtime/signal_windows_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

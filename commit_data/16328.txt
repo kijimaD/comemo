@@ -1,13 +1,15 @@
-commit a8484753242a47ba43786395315a9edf09a0d8de
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat May 18 02:41:49 2013 +0800
+commit c15ca825ade48dd37ac024a9aae45d26fcdfb251
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 17 14:23:29 2013 +1000
 
-    cmd/ld: emit .tbss section when doing dynamic internal linking
-    Fixes #5200.
+    runtime: revert 3c2cddfbdaec
     
-    R=iant, dave
+    It appears, syscall.NewCallback still
+    uses heap to store executable code.
+    
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/9383043
+    https://golang.org/cl/9060046
 
- src/cmd/ld/elf.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mem_windows.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

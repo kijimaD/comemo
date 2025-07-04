@@ -1,21 +1,27 @@
-commit beac2f7d3b72ecaff146b98afb690489f0192422
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Feb 14 16:13:44 2025 -0800
+commit ba7c4e47b32fa99db8aa05331426b328bb39517a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 9 14:32:10 2023 -0500
 
-    cmd/compile: fix sign extension of paired 32-bit loads on arm64
+    os: limit temp file randomness to uint32
     
-    Fixes #71759
+    CL 516860 accidentally changed the randomness
+    used in TempFile from 32 to 64 bits on 64-bit platforms,
+    meaning from 10 to 20 decimal bytes.
+    This is enough to cause problems in a few tests
+    because it makes temporary directory names just
+    a little bit longer.
     
-    Change-Id: Iab05294ac933cc9972949158d3fe2bdc3073df5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649895
+    Limit back down to 32 bits of randomness, which is fine,
+    and add a test to avoid repeating the mistake.
+    
+    Fixes #64605.
+    
+    Change-Id: I17b8c063d11d5c0a96a68b5e5f83c889a13bca77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548635
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go         |  2 +-
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  3 ++-
- src/cmd/compile/internal/ssa/opGen.go         | 18 ++++++++++++++++++
- src/cmd/compile/internal/ssa/pair.go          |  5 ++++-
- test/codegen/memcombine.go                    |  4 ++++
- test/fixedbugs/issue71759.go                  | 20 ++++++++++++++++++++
- 6 files changed, 49 insertions(+), 3 deletions(-)
+ src/os/os_test.go  | 24 ++++++++++++++++++++++++
+ src/os/tempfile.go |  2 +-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

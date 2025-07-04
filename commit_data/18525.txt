@@ -1,21 +1,13 @@
-commit 47534ddc68d6c605db2d5ec5726927a244159ad9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 14 13:24:48 2014 +0400
+commit f0023cf1d57aabd8c0aa30a65eef9ec7de041eb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 14 00:43:43 2014 -0500
 
-    runtime: remove misleading message during crash
-    The following checkdead message is false positive:
+    cmd/gc: fix build for 'default unsigned char' compilers
     
-    $ go test -race -c runtime
-    $ ./runtime.test -test.cpu=2 -test.run=TestSmhasherWindowed -test.v
-    === RUN TestSmhasherWindowed-2
-    checkdead: find g 18 in status 1
-    SIGABRT: abort
-    PC=0x42bff1
-    
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/59490046
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/63680045
 
- src/pkg/runtime/proc.c | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/gc/plive.c | 2 +-
+ src/cmd/gc/popt.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

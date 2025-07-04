@@ -1,16 +1,14 @@
-commit 1946afb6621735d519009107bc98cab0a94d4fb6
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Oct 20 23:01:32 2014 +0200
+commit 8b7da4de488461500641d6147f1b544e892386ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:03:48 2014 -0400
 
-    os/exec: fix number of expected file descriptors on Plan 9
+    cmd/gc: fix print format
     
-    Since CL 104570043 and 112720043, we are using the
-    nsec system call instead of /dev/bintime on Plan 9.
+    Fixes 386 build.
     
-    LGTM=rsc
-    R=rsc
-    CC=aram, golang-codereviews
-    https://golang.org/cl/155590043
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/149620043
 
- src/os/exec/exec_test.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/gc/reflect.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

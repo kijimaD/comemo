@@ -1,13 +1,24 @@
-commit 092b7cfb08f6bc843050c71f1aae9ffbf4b512a5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 23 03:21:30 2013 +0800
+commit b5cfbda21236d273047f6aaec04df29162c26901
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 22 15:14:40 2013 -0400
 
-    runtime/cgo, go/build: re-enable cgo for FreeBSD/ARM.
+    cmd/vet: add assembly checker
     
-    R=dave, rsc
+    Fixes #5036.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7970043
+    https://golang.org/cl/7531045
 
- src/pkg/go/build/build.go             |  1 +
- src/pkg/runtime/cgo/gcc_freebsd_arm.c | 14 +++++++++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/go/pkg.go       |   7 +
+ src/cmd/go/vet.go       |   2 +-
+ src/cmd/vet/Makefile    |   4 +-
+ src/cmd/vet/asmdecl.go  | 532 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/buildtag.go |   2 +-
+ src/cmd/vet/main.go     |  47 +++--
+ src/cmd/vet/test_asm.go |  24 +++
+ src/cmd/vet/test_asm1.s | 249 ++++++++++++++++++++++
+ src/cmd/vet/test_asm2.s | 253 +++++++++++++++++++++++
+ src/cmd/vet/test_asm3.s | 168 +++++++++++++++
+ test/errchk             |   2 +-
+ 11 files changed, 1273 insertions(+), 17 deletions(-)

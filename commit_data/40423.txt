@@ -1,19 +1,17 @@
-commit 316fb95f4fd94fb00f7746c32ae85a82d5be1b81
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 25 20:48:07 2019 +0200
+commit c583104ee6331a6d006b493e85e0881d35164c93
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri May 10 15:32:24 2019 +0700
 
-    runtime: define emptyfunc as static function in assembly for freebsd/arm64
+    errors: remove useless condition checking in Is
     
-    CL 198544 broke the linux/arm64 build because it declares emptyfunc for
-    GOARCH=arm64, but only freebsd/arm64 defines it. Make it a static
-    assembly function specific for freebsd/arm64 and remove the stub.
+    golang.org/cl/175260 fixed Is panics if target is uncomparable. It did
+    add an useless condition checking whether target is comparable. Just
+    remove that condition.
     
-    Fixes #35160
-    
-    Change-Id: I5fd94249b60c6fd259c251407b6eccc8fa512934
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203418
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0a317056479638d209b0a0cbc7010c153558c087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176497
+    Reviewed-by: Joan Lopez de la Franca Beltran <joanjan14@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/stubs_arm64.go      | 1 -
- src/runtime/sys_freebsd_arm64.s | 4 ++--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

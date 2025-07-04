@@ -1,26 +1,20 @@
-commit 2718789bc7937c58a7a65e53d9cc941b04682f99
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Wed Oct 2 13:36:27 2019 -0700
+commit d7edc91643dbc76542930ee95ff66beea6eefa02
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 19:57:46 2019 +0200
 
-    io/ioutil: support predictable prefix,suffix for TempDir with *
+    cmd/dist: set the default external linker on platforms without gcc
     
-    Allow TempDir to create directories with predictable
-    prefixes and suffixes, separated by the last "*", for example:
-        "prefix*suffix"
-    will now expand to
-        "prefix" + <RANDOM_VALUE> + "suffix"
+    The go tool already sets -extld to the appropriate compiler. This
+    CL changes cmd/dist to do the same, to fix bootstrapping on platforms
+    that only have clang (Android and iOS).
     
-    RELNOTE=yes
+    Updates #31722
     
-    Fixes #33805.
-    
-    Change-Id: I85fa73ae6a684ce820d1810c82a60765eb9c4a42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198488
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I8a4fd227f85a768053a8946198eab68bbbdf9ae5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174305
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/ioutil/example_test.go  | 23 +++++++++++++++++++++
- src/io/ioutil/tempfile.go      | 32 +++++++++++++++++++-----------
- src/io/ioutil/tempfile_test.go | 45 ++++++++++++++++++++++++++++++++++--------
- 3 files changed, 81 insertions(+), 19 deletions(-)
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

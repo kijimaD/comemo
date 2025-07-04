@@ -1,16 +1,16 @@
-commit e850b3752f49db4c93ebf549400b2d79f6801c9a
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Oct 23 15:55:57 2018 +0200
+commit 6d709528972aa572a6dafb06cd3446348d337aa7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 25 19:05:25 2018 +0000
 
-    net: fix TestInterfaceMulticastAddrs for AIX
+    cmd/dist: enable more tests on js/wasm
     
-    This commit disables checkMulticastStats for AIX operating system.
+    Fixes #26050
     
-    Change-Id: If8d0fb609a0dcf75b7bb5c3871cfb6fad76a0a92
-    Reviewed-on: https://go-review.googlesource.com/c/144102
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I21697ac30eb3bc423263cba885bce5fea8f81d94
+    Reviewed-on: https://go-review.googlesource.com/120796
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/net/interface_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

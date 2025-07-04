@@ -1,45 +1,91 @@
-commit cf932cd897a3eaf3aa6fec3ba5d0ab1d9107eebb
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 21 13:28:17 2015 -0400
+commit 1b4025f4bd93515b71d389872db73380edaf0e25
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 19 15:22:20 2015 -0400
 
-    all: retire architecture letter in file names, public API
+    runtime: replace per-M workbuf cache with per-P gcWork cache
     
-    This CL removes the remaining visible uses of the "architecture letter" concept.
-    (They are no longer in tool names nor in source directory names.)
+    Currently, each M has a cache of the most recently used *workbuf. This
+    is used primarily by the write barrier so it doesn't have to access
+    the global workbuf lists on every write barrier. It's also used by
+    stack scanning because it's convenient.
     
-    Because the architecture letter concept is now gone, delete GOCHAR
-    from "go env" output, and change go/build.ArchChar to return an
-    error always.
+    This cache is important for write barrier performance, but this
+    particular approach has several downsides. It's faster than no cache,
+    but far from optimal (as the benchmarks below show). It's complex:
+    access to the cache is sprinkled through most of the workbuf list
+    operations and it requires special care to transform into and back out
+    of the gcWork cache that's actually used for scanning and marking. It
+    requires atomic exchanges to take ownership of the cached workbuf and
+    to return it to the M's cache even though it's almost always used by
+    only the current M. Since it's per-M, flushing these caches is O(# of
+    Ms), which may be high. And it has some significant subtleties: for
+    example, in general the cache shouldn't be used after the
+    harvestwbufs() in mark termination because it could hide work from
+    mark termination, but stack scanning can happen after this and *will*
+    use the cache (but it turns out this is okay because it will always be
+    followed by a getfull(), which drains the cache).
     
-    The architecture letter is still used in the compiler and linker sources
-    as a clumsy architecture enumeration, but that use is not visible to
-    Go users and can be cleaned up separately.
+    This change replaces this cache with a per-P gcWork object. This
+    gcWork cache can be used directly by scanning and marking (as long as
+    preemption is disabled, which is a general requirement of gcWork).
+    Since it's per-P, it doesn't require synchronization, which simplifies
+    things and means the only atomic operations in the write barrier are
+    occasionally fetching new work buffers and setting a mark bit if the
+    object isn't already marked. This cache can be flushed in O(# of Ps),
+    which is generally small. It follows a simple flushing rule: the cache
+    can be used during any phase, but during mark termination it must be
+    flushed before allowing preemption. This also makes the dispose during
+    mutator assist no longer necessary, which eliminates the vast majority
+    of gcWork dispose calls and reduces contention on the global workbuf
+    lists. And it's a lot faster on some benchmarks:
     
-    Change-Id: I4d97a38f372003fb610c9c5241bea440d9dbeb8d
-    Reviewed-on: https://go-review.googlesource.com/10289
-    Reviewed-by: Rob Pike <r@golang.org>
+    benchmark                          old ns/op       new ns/op       delta
+    BenchmarkBinaryTree17              11963668673     11206112763     -6.33%
+    BenchmarkFannkuch11                2643217136      2649182499      +0.23%
+    BenchmarkFmtFprintfEmpty           70.4            70.2            -0.28%
+    BenchmarkFmtFprintfString          364             307             -15.66%
+    BenchmarkFmtFprintfInt             317             282             -11.04%
+    BenchmarkFmtFprintfIntInt          512             483             -5.66%
+    BenchmarkFmtFprintfPrefixedInt     404             380             -5.94%
+    BenchmarkFmtFprintfFloat           521             479             -8.06%
+    BenchmarkFmtManyArgs               2164            1894            -12.48%
+    BenchmarkGobDecode                 30366146        22429593        -26.14%
+    BenchmarkGobEncode                 29867472        26663152        -10.73%
+    BenchmarkGzip                      391236616       396779490       +1.42%
+    BenchmarkGunzip                    96639491        96297024        -0.35%
+    BenchmarkHTTPClientServer          100110          70763           -29.31%
+    BenchmarkJSONEncode                51866051        52511382        +1.24%
+    BenchmarkJSONDecode                103813138       86094963        -17.07%
+    BenchmarkMandelbrot200             4121834         4120886         -0.02%
+    BenchmarkGoParse                   16472789        5879949         -64.31%
+    BenchmarkRegexpMatchEasy0_32       140             140             +0.00%
+    BenchmarkRegexpMatchEasy0_1K       394             394             +0.00%
+    BenchmarkRegexpMatchEasy1_32       120             120             +0.00%
+    BenchmarkRegexpMatchEasy1_1K       621             614             -1.13%
+    BenchmarkRegexpMatchMedium_32      209             202             -3.35%
+    BenchmarkRegexpMatchMedium_1K      54889           55175           +0.52%
+    BenchmarkRegexpMatchHard_32        2682            2675            -0.26%
+    BenchmarkRegexpMatchHard_1K        79383           79524           +0.18%
+    BenchmarkRevcomp                   584116718       584595320       +0.08%
+    BenchmarkTemplate                  125400565       109620196       -12.58%
+    BenchmarkTimeParse                 386             387             +0.26%
+    BenchmarkTimeFormat                580             447             -22.93%
+    
+    (Best out of 10 runs. The delta of averages is similar.)
+    
+    This also puts us in a good position to flush these caches when
+    nearing the end of concurrent marking, which will let us increase the
+    size of the work buffers while still controlling mark termination
+    pause time.
+    
+    Change-Id: I2dd94c8517a19297a98ec280203cccaa58792522
+    Reviewed-on: https://go-review.googlesource.com/9178
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.txt                                 |  2 +
- src/cmd/asm/internal/flags/flags.go           |  4 +-
- src/cmd/asm/main.go                           |  2 +-
- src/cmd/compile/internal/gc/lex.go            | 12 +++---
- src/cmd/compile/internal/gc/mkbuiltin.go      | 17 +++-----
- src/cmd/compile/internal/gc/obj.go            |  3 +-
- src/cmd/dist/build.go                         | 51 ++++-------------------
- src/cmd/go/build.go                           | 56 ++++++++++---------------
- src/cmd/go/env.go                             |  4 --
- src/cmd/link/internal/ld/lib.go               |  2 +-
- src/cmd/link/internal/ld/pobj.go              |  5 +--
- src/cmd/pack/pack_test.go                     | 25 ++----------
- src/go/build/build.go                         | 21 +++-------
- src/go/internal/gcimporter/gcimporter.go      |  2 +-
- src/go/internal/gcimporter/gcimporter_test.go |  3 +-
- test/bench/shootout/timing.sh                 | 59 +++++++++++++--------------
- test/fixedbugs/bug248.go                      | 16 +++-----
- test/fixedbugs/bug302.go                      | 14 ++-----
- test/fixedbugs/bug345.go                      |  6 +--
- test/fixedbugs/bug369.go                      | 20 ++++-----
- test/fixedbugs/issue9355.go                   |  7 +---
- test/run.go                                   | 13 ++----
- test/sinit_run.go                             |  9 +---
- 23 files changed, 114 insertions(+), 239 deletions(-)
+ src/runtime/mgc.go      |  26 +++++++---
+ src/runtime/mgcmark.go  |  60 ++++++++---------------
+ src/runtime/mgcwork.go  | 128 +++++-------------------------------------------
+ src/runtime/runtime2.go |   6 ++-
+ 4 files changed, 58 insertions(+), 162 deletions(-)

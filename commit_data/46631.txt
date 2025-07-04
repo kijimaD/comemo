@@ -1,18 +1,25 @@
-commit 45134acbe645665e93cf1d399027d56b44f23299
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 22 11:13:20 2021 -0700
+commit 82b9cae700d844857b24b31f40a51283fbdd6dd5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jan 17 00:38:54 2021 +0700
 
-    debug/gosym: add pcHeader parsing helpers
+    [dev.regabi] cmd/compile: change ir.NameOffsetExpr to use *obj.LSym instead of *Name
     
-    A subsequent change will duplicate most of case ver116.
-    Make it easier to read.
+    Because NameOffsetExpr is always used with global variables, and SSA
+    backend only needs (*Name).Linksym() to generate value for them.
     
-    Change-Id: I3a93181c7f094b12715b8a618e9efef7a1438a27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351909
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash -cmp.
+    
+    Updates #43737
+    
+    Change-Id: I17209e21383edb766070c0accd1fa4660659caef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284119
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/gosym/pclntab.go | 28 +++++++++++++++-------------
- 1 file changed, 15 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ir/expr.go     | 17 +++++++++++------
+ src/cmd/compile/internal/ir/fmt.go      |  2 +-
+ src/cmd/compile/internal/ir/node_gen.go |  6 ------
+ src/cmd/compile/internal/ssagen/ssa.go  | 29 ++++++++++++-----------------
+ 4 files changed, 24 insertions(+), 30 deletions(-)

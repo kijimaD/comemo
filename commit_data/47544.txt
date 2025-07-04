@@ -1,18 +1,27 @@
-commit 5d5f2b1e201fe9f3b641109ccd91b3ceae4cf460
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 20:04:14 2021 -0500
+commit 11b4aee05bfe83513cf08f83091e5aef8b33e766
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 28 09:30:36 2019 -0400
 
-    go/types: remove unneccesary tests in implements and lookup
+    cmd/compile: mark R16, R17 clobbered for non-standard calls on ARM64
     
-    This is a port of CL 363838 from types2 to go/types.
+    On ARM64, (external) linker generated trampoline may clobber R16
+    and R17. In CL 183842 we change Duff's devices not to use those
+    registers. However, this is not enough. The register allocator
+    also needs to know that these registers may be clobbered in any
+    calls that don't follow the standard Go calling convention. This
+    include Duff's devices and the write barrier.
     
-    Change-Id: I03f4da86ea38209a73f567cc5d84e7afd08883ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364935
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #32773, second attempt.
+    
+    Change-Id: Ia52a891d9bbb8515c927617dd53aee5af5bd9aa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184437
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
 
- src/go/types/instantiate.go | 6 ------
- src/go/types/lookup.go      | 6 +-----
- 2 files changed, 1 insertion(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  9 ++++--
+ src/cmd/compile/internal/ssa/opGen.go        |  6 ++--
+ src/runtime/asm_arm64.s                      | 47 +++++++++++++---------------
+ 3 files changed, 31 insertions(+), 31 deletions(-)

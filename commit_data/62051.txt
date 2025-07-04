@@ -1,0 +1,23 @@
+commit e0aeee82f3ab81b2a2ac77b352be52d13030820e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jan 27 19:56:42 2025 +0100
+
+    crypto/ecdsa: avoid needless ScalarBaseMult in s390x
+    
+    We are running the (slow on s390x) ScalarBaseMult and then discarding
+    the point because we are reusing randomPoint.
+    
+    Copied the function 1:1 removing the point computation.
+    
+    Change-Id: I6a6a46561633ab3bbbaef804481f6c5da15fe2fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

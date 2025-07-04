@@ -1,16 +1,14 @@
-commit 3692dfdd0a0846575595ebc5a9c67ba5dcfe79f3
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Tue Jan 22 17:12:45 2013 -0500
+commit 9114279c6688f9c37de61af1fd77142b4ff6d7e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 22 17:05:45 2013 -0500
 
-    fmt: Remove dead code and make comments and variables consistent.
+    encoding/xml: simplify copyValue
     
-    R=minux.ma, dave, rsc
+    Delete various complications left over from an earlier reflect API.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7064055
+    https://golang.org/cl/7124063
 
- src/pkg/fmt/fmt_test.go  | 21 +++++++++++----------
- src/pkg/fmt/format.go    | 21 ++++-----------------
- src/pkg/fmt/print.go     | 14 +++++++-------
- src/pkg/fmt/scan.go      |  9 +++++----
- src/pkg/fmt/scan_test.go | 18 ++++++++++--------
- 5 files changed, 37 insertions(+), 46 deletions(-)
+ src/pkg/encoding/xml/read.go | 59 ++++++++++++++++----------------------------
+ 1 file changed, 21 insertions(+), 38 deletions(-)

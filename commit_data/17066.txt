@@ -1,14 +1,19 @@
-commit a4ebad79b4168cdf395b245f8e3c8bb3c985daf9
+commit f59064de80eed5e7a84d20f1a889859cfa8259f7
 Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 7 09:35:06 2013 +1000
+Date:   Wed Aug 7 08:38:46 2013 +1000
 
-    all: fix up language in a couple of comments
-    Leftovers from 11699043
+    fmt: fix up zero padding
+    If the padding is huge, we crashed by blowing the buffer. That's easy: make sure
+    we have a big enough buffer by allocating in problematic cases.
+    Zero padding floats was just wrong in general: the space would appear in the
+    middle.
     
-    R=golang-dev, bradfitz
+    Fixes #6044.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12558046
+    https://golang.org/cl/12498043
 
- src/pkg/go/ast/ast.go        | 2 +-
- src/pkg/html/template/css.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/fmt/fmt_test.go | 11 +++++++++++
+ src/pkg/fmt/format.go   | 17 +++++++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)

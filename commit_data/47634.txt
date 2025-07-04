@@ -1,28 +1,13 @@
-commit f598e2962d3a358b59faa68471b6ed378fc68806
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 22 15:33:01 2021 -0500
+commit f25d78f8e216f5558885ffd2cea39b3ff1a3ff43
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Fri Apr 2 17:36:54 2021 +0900
 
-    runtime: fix preemption sensitivity in TestTinyAllocIssue37262
+    testing: clarify when Cleanup is called
     
-    TestTinyAllocIssue37262 assumes that all of its allocations will come
-    from the same tiny allocator (that is, the same P), and that nothing
-    else will allocate from that tiny allocator while it's running. It can
-    fail incorrectly if these assumptions aren't met.
-    
-    Fix this potential test flakiness by disabling preemption during this
-    test.
-    
-    As far as I know, this has never happened on the builders. It was
-    found by mayMoreStackPreempt.
-    
-    Change-Id: I59f993e0bdbf46a9add842d0e278415422c3f804
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366994
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I2ed394fccec83aac09a49673554cbf504787965b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/export_test.go | 9 +++++++++
- src/runtime/malloc_test.go | 7 +++++++
- 2 files changed, 16 insertions(+)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

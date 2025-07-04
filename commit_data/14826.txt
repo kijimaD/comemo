@@ -1,12 +1,12 @@
-commit bc776f6c5884527d43136a968eca456ba87f5a73
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Jan 8 09:49:38 2013 -0800
+commit f7320bf81bc21d33ff0c008e74bcc7c5310e1da6
+Author: Jason Travis <infomaniac7@gmail.com>
+Date:   Tue Jan 8 15:22:18 2013 +1100
 
-    doc/articles/go_command: remove an extra word.
+    cmd/vet: fix doc typo.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7061051
+    https://golang.org/cl/7061050
 
- doc/articles/go_command.html | 2 +-
+ src/cmd/vet/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

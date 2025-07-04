@@ -1,12 +1,88 @@
-commit f9902c7197f436578e8fafa7946d8cd83467729e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Oct 26 21:14:34 2012 +0800
+commit 542dd8b9fba40e03ccdf1fac0a805b5b23ea3b8c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 26 18:19:10 2012 +1100
 
-    encoding/binary: ReadVarint reads a signed number, not unsigned number
+    cmd/5g: peep.c: reactivate some optimisations
     
-    R=golang-dev, iant
+    Thanks to Minux and Remy for their advice.
+    
+    The EOR optimisation is applied to a few places in the stdlib.
+    
+    // hash/crc32/crc32.go
+    func update(crc uint32, tab *Table, p []byte) uint32 {
+            crc = ^crc
+            for _, v := range p {
+                    crc = tab[byte(crc)^v] ^ (crc >> 8)
+            }
+            return ^crc
+    }
+    
+    before:
+    
+    --- prog list "update" ---
+    0164 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:101) TEXT        update+0(SB),$12-24
+    0165 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:101) MOVW        tab+4(FP),R8
+    0166 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:102) MOVW        crc+0(FP),R0
+    0167 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:102) EOR         $-1,R0,R5
+    0168 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:103) MOVW        p+8(FP),R0
+    0169 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:103) MOVW        R0,autotmp_0019+-12(SP)
+    
+    after:
+    
+    --- prog list "update" ---
+    0164 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:101) TEXT        update+0(SB),$12-24
+    0165 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:101) MOVW        tab+4(FP),R8
+    0166 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:102) MOVW        crc+0(FP),R0
+    0167 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:102) MVN         R0,R5
+    0168 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:103) MOVW        p+8(FP),R0
+    0169 (/home/dfc/go/src/pkg/hash/crc32/crc32.go:103) MOVW        R0,autotmp_0019+-12(SP)
+    
+    After 5l has done its work,
+    
+            crc = ^crc
+       3d710:       e59d0014        ldr     r0, [sp, #20]
+       3d714:       e3e0b000        mvn     fp, #0
+       3d718:       e020500b        eor     r5, r0, fp
+    
+    becomes
+    
+            crc = ^crc
+       3d710:       e59d0014        ldr     r0, [sp, #20]
+       3d714:       e1e05000        mvn     r5, r0
+    
+    The MOVB optimisation has a small impact on the stdlib, in strconv
+    and gzip.
+    
+    // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
+    func put2(p []byte, v uint16) {
+            p[0] = uint8(v >> 0)
+            p[1] = uint8(v >> 8)
+    }
+    
+    before:
+    
+    --- prog list "put2" ---
+    1369 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:76) TEXT       put2+0(SB),$0-16
+    1370 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:76) MOVHU      v+12(FP),R4
+    1371 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVHU      R4,R0
+    1372 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVHU      R0,R0
+    1373 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVBU      R0,R1
+    1374 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVBU      R1,R3
+    1375 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVW       $p+0(FP),R1
+    
+    after:
+    
+    --- prog list "put2" ---
+    1369 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:76) TEXT       put2+0(SB),$0-16
+    1370 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:76) MOVHU      v+12(FP),R4
+    1371 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVHU      R4,R0
+    1372 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVBU      R0,R1
+    1373 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVBU      R1,R3
+    1374 (/home/dfc/go/src/pkg/compress/gzip/gzip.go:77) MOVW       $p+0(FP),R1
+    
+    R=remyoudompheng, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6762051
+    https://golang.org/cl/6674048
 
- src/pkg/encoding/binary/varint.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/peep.c | 33 ++++++++++++++++-----------------
+ 1 file changed, 16 insertions(+), 17 deletions(-)

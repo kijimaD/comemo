@@ -1,12 +1,19 @@
-commit f205ae3305d2b60076ee294113984595bae7c4da
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 27 13:17:48 2019 -0700
+commit 4e10ce45f5ea4f1328876c0defd7d8c8150fc397
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 28 16:47:17 2019 -0500
 
-    go/importer: update documentation on ForCompiler lookup parameter
+    go/build: set GO111MODULE=off explicitly in TestImportVendor*
     
-    Change-Id: I80dff181a79858b52ba77c3f38f77a744b423afa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184079
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    These tests check for GOPATH-mode vendoring behavior, so make sure
+    they're in GOPATH mode.
+    
+    Updates #30228
+    
+    Change-Id: I646f59b67cb76dacd07adc3f6ed15ed63f4e22a4
+    Reviewed-on: https://go-review.googlesource.com/c/164620
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/importer/importer.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/go/build/build_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

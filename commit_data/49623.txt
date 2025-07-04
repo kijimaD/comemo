@@ -1,26 +1,22 @@
-commit fa2d41d0ca736f3ad6b200b2a4e134364e9acc59
-Author: Julie Qiu <julieqiu@google.com>
-Date:   Thu Jun 23 23:17:53 2022 +0000
+commit 2dd7b770defc869edfcf610b9471fc4f580c3eb2
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 31 19:06:46 2021 -0700
 
-    io/fs: fix stack exhaustion in Glob
+    cmd/compile: fix missing case for shape double-check function
     
-    A limit is added to the number of path separators allowed by an input to
-    Glob, to prevent stack exhaustion issues.
+    Missing case types.TUNSAFEPTR in parameterizedBy().
     
-    Thanks to Juho Nurminen of Mattermost who reported a similar issue in
-    path/filepath.
+    Also realized there was the same missing case in the type substituter
+    (*Tsubster).Typ().
     
-    Fixes CVE-2022-30630
-    Fixes golang/go#53415
+    Fixes #48103
     
-    Change-Id: I5a9d02591fed90cd3d52627f5945f1301e53465d
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1497588
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417065
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: If71f1a6ef80932f0e2120d4c18b39a30189fd8fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346669
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/io/fs/glob.go      | 14 ++++++++++++--
- src/io/fs/glob_test.go | 10 ++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go  |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go |  2 +-
+ test/typeparam/issue48013.go               | 39 ++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 2 deletions(-)

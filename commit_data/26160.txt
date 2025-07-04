@@ -1,24 +1,12 @@
-commit 33fd4535a408aa863e6f0c7196291ae2a583644f
-Author: Ingo Oeser <nightlyone@googlemail.com>
-Date:   Tue Mar 8 21:53:33 2016 +0100
+commit bbb88f9091b44e1cb80d767f0ce3c77334e2ccb6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 21 14:38:25 2015 -0800
 
-    cmd/compile: use range construct
+    test: add test that gccgo miscompiled
     
-    so the code is more readable.
-    
-    Also use n[i] = val instead of n = append(n, val),
-    because this avoids a function call to append.
-    
-    NOTE: compiles, but I had trouble running toolstash -cmp and need sleep
-    now.
-    
-    @Ian this might save you some grunt work :-)
-    
-    Change-Id: I2a4c70396c58905f7d5aabf83f3020f11dea0e89
-    Reviewed-on: https://go-review.googlesource.com/20430
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic3f006f86a86de628e14b107f88a5923ea856a58
+    Reviewed-on: https://go-review.googlesource.com/18093
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ test/fixedbugs/bug497.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

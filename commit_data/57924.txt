@@ -1,21 +1,18 @@
-commit 4b89120b124f96153c0eff3ae09975b5abb7333f
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Nov 22 08:55:40 2023 +0800
+commit 905b58b5377e8f542590a46a3c90146ab45a6c96
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 17:23:55 2023 -0700
 
-    cmd/internal/obj/loong64: switch Lookup function call to ABIInternal mode
+    cmd/compile/internal/typecheck: remove HasNamedResults check
     
-    CL 521790 has experimentally enabled RegABI support on Loong64, so it
-    is possible to switch the Lookup function call to ABIInternal mode.
+    types2 has already checked for us that bare returns are valid, so no
+    need to duplicate the effort in typecheck.
     
-    Change-Id: I3ae053e20c0791efebe6b6bdc9a1550a11372bc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544435
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I13b2387173966ba44058fbc841327896e04184e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527515
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/loong64/obj.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/node.go        |  5 -----
+ src/cmd/compile/internal/typecheck/stmt.go | 11 ++++-------
+ 2 files changed, 4 insertions(+), 12 deletions(-)

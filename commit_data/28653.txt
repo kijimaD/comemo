@@ -1,14 +1,20 @@
-commit 3f952b75046548881709086cc20ab3c5fca2f52e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 4 14:40:38 2016 -0700
+commit 845992eeed01643bfb2e88aa559413908b3cb508
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 21 15:33:04 2016 -0700
 
-    cmd/compile/internal/ssa: update BlockKind documentation
+    test: add -s flag to commands understood by run.go
     
-    BlockCall was removed in golang.org/cl/28950.
+    If -s is specified, each file is considered a separate
+    package even if multiple files have the same package names.
     
-    Change-Id: Ib8d9f3111bf3dc01956dd776afeb345ede8bc933
-    Reviewed-on: https://go-review.googlesource.com/30353
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For instance, the action and flag "errorcheckdir -s"
+    will compile all files in the respective directory as
+    individual packages.
+    
+    Change-Id: Ic5c2f9e915a669433f66c2d3fe0ac068227a502f
+    Reviewed-on: https://go-review.googlesource.com/24313
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/block.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/run.go | 35 ++++++++++++++++++++++-------------
+ 1 file changed, 22 insertions(+), 13 deletions(-)

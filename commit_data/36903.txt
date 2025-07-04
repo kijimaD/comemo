@@ -1,27 +1,23 @@
-commit 5440bfc2ea8c0a4c78d5161605659c07ea10e37a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 25 16:13:17 2018 +0000
+commit aadaec5045d1b37f9ca7111866a26b5149fec78f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 7 20:44:17 2018 +1000
 
-    net/http/httputil: rewrite flushing code, disable on Server-Sent Events
+    cmd/cover: fix sorting of profile segment boundaries, again
     
-    * Rewrite the flushing code to not use a persistent goroutine, which
-      also simplifies testing.
-    * Define the meaning of a negative flush interval. Its meaning doesn't
-      change, but now it's locked in, and then we can use it to optimize
-      the performance of the non-buffered case to avoid use of an AfterFunc.
-    * Support (internal-only) special casing of FlushInterval values per
-      request/response.
-    * For now, treat Server-Sent Event responses as unbuffered. (or rather,
-      immediately flushed from the buffer per-write)
+    This is a refinement of CL 114855, which fixed the empty clause case,
+    but broke some other cases where segment boundaries can coincide
+    for other reasons.
     
-    Fixes #27816
+    Fixes #25767.
     
-    Change-Id: Ie0f975c997daa3db539504137c741a96d7022665
-    Reviewed-on: https://go-review.googlesource.com/c/137335
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2a387c83f9d651c8358f3e11b03f6167af0eb8bf
+    Reviewed-on: https://go-review.googlesource.com/116976
+    Run-TryBot: David Symonds <dsymonds@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 89 +++++++++++++++++++-----------
- src/net/http/httputil/reverseproxy_test.go | 56 +++++++++++++++----
- 2 files changed, 102 insertions(+), 43 deletions(-)
+ src/cmd/cover/profile.go                 | 12 +++++++-----
+ src/cmd/cover/testdata/html/html.go      | 12 ++++++++++++
+ src/cmd/cover/testdata/html/html.golden  |  8 ++++++++
+ src/cmd/cover/testdata/html/html_test.go |  1 +
+ 4 files changed, 28 insertions(+), 5 deletions(-)

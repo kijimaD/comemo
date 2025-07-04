@@ -1,29 +1,26 @@
-commit aa42d7b402ac163ebce141c2805eaf3558252606
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 30 15:55:14 2024 -0700
+commit b75ac7a8d588ddda6b3a57969be6fa1d3e6ef31a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 19:43:21 2023 +0000
 
-    spec: clarify that identical structs must have identical field embeddings
+    Revert "cmd/compile: enable zero-copy string->[]byte conversions"
     
-    The existing prose for struct identity did only require that two structs
-    "have the same sequence of fields, and if corresponding fields have the
-    same names, and identical types, and identical tags" for the structs to
-    be identical.
+    This reverts CL 520395.
     
-    The implementation (forever) has also required that two corresponding
-    fields are either both embedded or not embedded. This is arguably part
-    of a struct's structure but is not explicitly specified.
+    Reason for revert: thanm@ pointed out failure cases.
     
-    This CL makes a minor change to the prose to address that.
-    
-    Fixes #69472.
-    
-    Change-Id: Ifa4ca69717986675642a09d03ce683ba8235efcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616697
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I3fd60b73118be3652be2c08b77ab39e793b42110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520596
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 13 +++++++++----
+ src/cmd/compile/internal/ssagen/ssa.go    |  8 --------
+ src/cmd/compile/internal/walk/order.go    | 10 ++--------
+ src/cmd/compile/internal/walk/switch.go   |  1 -
+ test/escape2.go                           |  2 +-
+ test/escape2n.go                          |  2 +-
+ 6 files changed, 13 insertions(+), 23 deletions(-)

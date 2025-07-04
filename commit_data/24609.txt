@@ -1,103 +1,41 @@
-commit beedb1ec334a785a565684cf563f8354998212b4
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 12 23:43:43 2015 -0400
+commit 463858e6ff8cacd3bf2dafebe56272f8a863d959
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 11 09:47:45 2015 -0700
 
-    runtime: add pcvalue cache to improve stack scan speed
+    [dev.ssa] cmd/compile: make failed nil checks panic
     
-    The cost of scanning large stacks is currently dominated by the time
-    spent looking up and decoding the pcvalue table. However, large stacks
-    are usually large not because they contain calls to many different
-    functions, but because they contain many calls to the same, small set
-    of recursive functions. Hence, walking large stacks tends to make the
-    same pcvalue queries many times.
+    Introduce pseudo-ops PanicMem and LoweredPanicMem.
+    PanicMem could be rewritten directly into MOVL
+    during lowering, but then we couldn't log nil checks.
     
-    Based on this observation, this commit adds a small, very simple, and
-    fast cache in front of pcvalue lookup. We thread this cache down from
-    operations that make many pcvalue calls, such as gentraceback, stack
-    scanning, and stack adjusting.
+    With this change, runnable nil check tests pass:
     
-    This simple cache works well because it has minimal overhead when it's
-    not effective. I also tried a hashed direct-map cache, CLOCK-based
-    replacement, round-robin replacement, and round-robin with lookups
-    disabled until there had been at least 16 probes, but none of these
-    approaches had obvious wins over the random replacement policy in this
-    commit.
+    GOSSAPKG=main go run run.go -- nil*.go
     
-    This nearly doubles the overall performance of the deep stack test
-    program from issue #10898:
+    Compiler output nil check tests fail:
     
-    name        old time/op  new time/op  delta
-    Issue10898   16.5s ±12%    9.2s ±12%  -44.37%  (p=0.008 n=5+5)
+    GOSSAPKG=p go run run.go -- nil*.go
     
-    It's a very slight win on the garbage benchmark:
+    This is due to several factors:
     
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  4.92ms ± 1%  4.89ms ± 1%  -0.75%  (p=0.000 n=18+19)
+    * SSA has improved elimination of unnecessary nil checks.
+    * SSA is missing elimination of implicit nil checks.
+    * SSA is missing extra logging about why nil checks were removed.
     
-    It's a wash (but doesn't harm performance) on the go1 benchmarks,
-    which don't have particularly deep stacks:
+    I'm not sure how best to resolve these failures,
+    particularly in a world in which the two backends
+    will live side by side for some time.
+    For now, punt on the problem.
     
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              3.11s ± 2%     3.20s ± 3%  +2.83%  (p=0.000 n=17+20)
-    Fannkuch11-12                2.51s ± 1%     2.51s ± 1%  -0.22%  (p=0.034 n=19+18)
-    FmtFprintfEmpty-12          50.8ns ± 3%    50.6ns ± 2%    ~     (p=0.793 n=20+20)
-    FmtFprintfString-12          174ns ± 0%     174ns ± 1%  +0.17%  (p=0.048 n=15+20)
-    FmtFprintfInt-12             177ns ± 0%     165ns ± 1%  -6.99%  (p=0.000 n=17+19)
-    FmtFprintfIntInt-12          283ns ± 1%     284ns ± 0%  +0.22%  (p=0.000 n=18+15)
-    FmtFprintfPrefixedInt-12     243ns ± 1%     244ns ± 1%  +0.40%  (p=0.000 n=20+19)
-    FmtFprintfFloat-12           318ns ± 0%     319ns ± 0%  +0.27%  (p=0.001 n=19+20)
-    FmtManyArgs-12              1.12µs ± 0%    1.14µs ± 0%  +1.74%  (p=0.000 n=19+20)
-    GobDecode-12                8.69ms ± 0%    8.73ms ± 1%  +0.46%  (p=0.000 n=18+18)
-    GobEncode-12                6.64ms ± 1%    6.61ms ± 1%  -0.46%  (p=0.000 n=20+20)
-    Gzip-12                      323ms ± 2%     319ms ± 1%  -1.11%  (p=0.000 n=20+20)
-    Gunzip-12                   42.8ms ± 0%    42.9ms ± 0%    ~     (p=0.158 n=18+20)
-    HTTPClientServer-12         63.3µs ± 1%    63.1µs ± 1%  -0.35%  (p=0.011 n=20+20)
-    JSONEncode-12               16.9ms ± 1%    17.3ms ± 1%  +2.84%  (p=0.000 n=19+20)
-    JSONDecode-12               59.7ms ± 0%    58.5ms ± 0%  -2.05%  (p=0.000 n=19+17)
-    Mandelbrot200-12            3.92ms ± 0%    3.91ms ± 0%  -0.16%  (p=0.003 n=19+19)
-    GoParse-12                  3.79ms ± 2%    3.75ms ± 2%  -0.91%  (p=0.005 n=20+20)
-    RegexpMatchEasy0_32-12       102ns ± 1%     101ns ± 1%  -0.80%  (p=0.001 n=14+20)
-    RegexpMatchEasy0_1K-12       337ns ± 1%     346ns ± 1%  +2.90%  (p=0.000 n=20+19)
-    RegexpMatchEasy1_32-12      84.4ns ± 2%    84.3ns ± 2%    ~     (p=0.743 n=20+20)
-    RegexpMatchEasy1_1K-12       502ns ± 1%     505ns ± 0%  +0.64%  (p=0.000 n=20+20)
-    RegexpMatchMedium_32-12      133ns ± 1%     132ns ± 1%  -0.85%  (p=0.000 n=20+19)
-    RegexpMatchMedium_1K-12     40.1µs ± 1%    39.8µs ± 1%  -0.77%  (p=0.000 n=18+18)
-    RegexpMatchHard_32-12       2.08µs ± 1%    2.07µs ± 1%  -0.55%  (p=0.001 n=18+19)
-    RegexpMatchHard_1K-12       62.4µs ± 1%    62.0µs ± 1%  -0.74%  (p=0.000 n=19+19)
-    Revcomp-12                   545ms ± 2%     545ms ± 3%    ~     (p=0.771 n=19+20)
-    Template-12                 73.7ms ± 1%    72.0ms ± 0%  -2.33%  (p=0.000 n=20+18)
-    TimeParse-12                 358ns ± 1%     351ns ± 1%  -2.07%  (p=0.000 n=20+20)
-    TimeFormat-12                369ns ± 1%     356ns ± 0%  -3.53%  (p=0.000 n=20+18)
-    [Geo mean]                  63.5µs         63.2µs       -0.41%
-    
-    name                      old speed      new speed      delta
-    GobDecode-12              88.3MB/s ± 0%  87.9MB/s ± 0%  -0.43%  (p=0.000 n=18+17)
-    GobEncode-12               116MB/s ± 1%   116MB/s ± 1%  +0.47%  (p=0.000 n=20+20)
-    Gzip-12                   60.2MB/s ± 2%  60.8MB/s ± 1%  +1.13%  (p=0.000 n=20+20)
-    Gunzip-12                  453MB/s ± 0%   453MB/s ± 0%    ~     (p=0.160 n=18+20)
-    JSONEncode-12              115MB/s ± 1%   112MB/s ± 1%  -2.76%  (p=0.000 n=19+20)
-    JSONDecode-12             32.5MB/s ± 0%  33.2MB/s ± 0%  +2.09%  (p=0.000 n=19+17)
-    GoParse-12                15.3MB/s ± 2%  15.4MB/s ± 2%  +0.92%  (p=0.004 n=20+20)
-    RegexpMatchEasy0_32-12     311MB/s ± 1%   314MB/s ± 1%  +0.78%  (p=0.000 n=15+19)
-    RegexpMatchEasy0_1K-12    3.04GB/s ± 1%  2.95GB/s ± 1%  -2.90%  (p=0.000 n=19+19)
-    RegexpMatchEasy1_32-12     379MB/s ± 2%   380MB/s ± 2%    ~     (p=0.779 n=20+20)
-    RegexpMatchEasy1_1K-12    2.04GB/s ± 1%  2.02GB/s ± 0%  -0.62%  (p=0.000 n=20+20)
-    RegexpMatchMedium_32-12   7.46MB/s ± 1%  7.53MB/s ± 1%  +0.86%  (p=0.000 n=20+19)
-    RegexpMatchMedium_1K-12   25.5MB/s ± 1%  25.7MB/s ± 1%  +0.78%  (p=0.000 n=18+18)
-    RegexpMatchHard_32-12     15.4MB/s ± 1%  15.5MB/s ± 1%  +0.62%  (p=0.000 n=19+19)
-    RegexpMatchHard_1K-12     16.4MB/s ± 1%  16.5MB/s ± 1%  +0.82%  (p=0.000 n=20+19)
-    Revcomp-12                 466MB/s ± 2%   466MB/s ± 3%    ~     (p=0.765 n=19+20)
-    Template-12               26.3MB/s ± 1%  27.0MB/s ± 0%  +2.38%  (p=0.000 n=20+18)
-    [Geo mean]                97.8MB/s       98.0MB/s       +0.23%
-    
-    Change-Id: I281044ae0b24990ba46487cacbc1069493274bc4
-    Reviewed-on: https://go-review.googlesource.com/13614
+    Change-Id: Ib2ca6824551671f92e0e1800b036f5ca0905e2a3
+    Reviewed-on: https://go-review.googlesource.com/13474
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/heapdump.go  |  2 +-
- src/runtime/mbitmap.go   |  2 +-
- src/runtime/mgcmark.go   |  7 ++---
- src/runtime/stack.go     |  3 ++-
- src/runtime/symtab.go    | 66 ++++++++++++++++++++++++++++++++++++++++--------
- src/runtime/traceback.go |  6 +++--
- 6 files changed, 68 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 36 ++++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 +++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/lower.go          |  9 +++++--
+ src/cmd/compile/internal/ssa/opGen.go          | 10 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 18 +++++++++++++
+ 7 files changed, 73 insertions(+), 7 deletions(-)

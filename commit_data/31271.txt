@@ -1,22 +1,14 @@
-commit 227fff2ea4f21ec357eebe27324cc04b7c9919c7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 4 13:26:28 2017 -0400
+commit 3a6842a0ecf66cf06ce4f0a5fcb9c09fbfdbecc1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 9 12:32:33 2017 +0900
 
-    runtime/debug: don't trigger a GC on SetGCPercent
+    database/sql: replace the expr of timeunit * N with N * timeunit in test
     
-    Currently SetGCPercent forces a GC in order to recompute GC pacing.
-    Since we can now recompute pacing on the fly using gcSetTriggerRatio,
-    change SetGCPercent (really runtime.setGCPercent) to go through
-    gcSetTriggerRatio and not trigger a GC.
-    
-    Fixes #19076.
-    
-    Change-Id: Ib30d7ab1bb3b55219535b9f238108f3d45a1b522
-    Reviewed-on: https://go-review.googlesource.com/39835
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I97981b30a9629916f896cb989cc2a42a8bdbef47
+    Reviewed-on: https://go-review.googlesource.com/36672
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/debug/garbage.go      |  6 +-----
- src/runtime/debug/garbage_test.go |  2 ++
- src/runtime/mgc.go                | 31 ++++++++++++++-----------------
- 3 files changed, 17 insertions(+), 22 deletions(-)
+ src/database/sql/sql_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

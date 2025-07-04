@@ -1,21 +1,59 @@
-commit 06dc4e78c4c925f0e3763241b9695e6f3a36d8d6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Apr 16 22:17:38 2014 -0400
+commit 5e8c9226255b7e63dec1a286888f35782735aada
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 22:08:00 2014 -0400
 
-    cmd/nm: windows pe handling fixes
+    liblink, cmd/ld: reenable nosplit checking and test
     
-    - output absolute addresses, not relative;
-    - accept negative section numbers.
+    The new code is adapted from the Go 1.2 nosplit code,
+    but it does not have the bug reported in issue 7623:
     
-    Update #6936
-    Fixes #7738
+    g% go run nosplit.go
+    g% go1.2 run nosplit.go
+    BUG
+    rejected incorrectly:
+            main 0 call f; f 120
     
-    LGTM=rsc
-    R=golang-codereviews, bradfitz, ruiu, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/85240046
+            linker output:
+            # _/tmp/go-test-nosplit021064539
+            main.main: nosplit stack overflow
+                    120     guaranteed after split check in main.main
+                    112     on entry to main.f
+                    -8      after main.f uses 120
+    
+    g%
+    
+    Fixes #6931.
+    Fixes #7623.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, ality
+    CC=golang-codereviews, r
+    https://golang.org/cl/88190043
 
- src/cmd/nm/doc.go     |  1 +
- src/cmd/nm/nm_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/nm/pe.go      | 34 ++++++++++++++++++++++++++++++++--
- 3 files changed, 73 insertions(+), 2 deletions(-)
+ include/link.h                      |  11 +-
+ src/cmd/5l/asm.c                    |  14 +-
+ src/cmd/6l/asm.c                    |   3 +
+ src/cmd/8l/asm.c                    |   3 +
+ src/cmd/ld/data.c                   |  10 +-
+ src/cmd/ld/dwarf.c                  |   6 +-
+ src/cmd/ld/ldelf.c                  |  19 +--
+ src/cmd/ld/ldmacho.c                |  19 +--
+ src/cmd/ld/ldpe.c                   |  16 +-
+ src/cmd/ld/lib.c                    | 121 ++++++++------
+ src/cmd/ld/pcln.c                   |  10 +-
+ src/cmd/link/load.go                |  14 +-
+ src/cmd/link/testdata/autosection.6 | Bin 889 -> 890 bytes
+ src/cmd/link/testdata/autoweak.6    | Bin 426 -> 427 bytes
+ src/cmd/link/testdata/dead.6        | Bin 1060 -> 1066 bytes
+ src/cmd/link/testdata/hello.6       | Bin 272 -> 273 bytes
+ src/cmd/link/testdata/layout.6      | Bin 430 -> 431 bytes
+ src/cmd/link/testdata/pclntab.6     | Bin 4607 -> 4611 bytes
+ src/liblink/asm5.c                  |   6 +-
+ src/liblink/asm6.c                  |  17 +-
+ src/liblink/asm8.c                  |  15 +-
+ src/liblink/obj6.c                  |   8 +-
+ src/liblink/objfile.c               |  11 +-
+ src/liblink/pcln.c                  |   5 +-
+ src/pkg/debug/goobj/read.go         |   2 +
+ test/nosplit.go                     | 313 ++++++++++++++++++++++++++++++++++++
+ 26 files changed, 482 insertions(+), 141 deletions(-)

@@ -1,14 +1,25 @@
-commit 2157498dfee125e43cc37cad622fb7d2115dd3a8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 2 07:59:16 2021 -0700
+commit b7f4307761c61d2d3f563c37b0c9ad0e64899d9f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 19 12:42:57 2021 +0700
 
-    doc/go1.18: remove some redundancy from netip docs
+    cmd/compile: graceful handle error in noder LoadPackage
     
-    Change-Id: I593862331add3366f6b337844588568301746b80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360608
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    When syntax.Parse returns error, noder.file will be nil. Currently, we
+    continue accessing it regardlessly and depend on gc.hidePanic to hide
+    the panic from user.
+    
+    Instead, we should gracefully handle the error in LoadPackage, then exit
+    earlier if any error occurred.
+    
+    Updates #43311
+    
+    Change-Id: I0a108ef360bd4f0cc9f481071b8967355e1513af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294030
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.18.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/noder.go | 3 +++
+ test/fixedbugs/bug050.go                | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

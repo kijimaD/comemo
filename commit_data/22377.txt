@@ -1,12 +1,17 @@
-commit 47746f10fe26503984a99be0b081c642e1557d4e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 8 15:11:04 2015 -0400
+commit 5471e02338becccdd5df76c96bfeb467c25f003c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Mar 10 18:44:41 2015 +0300
 
-    cmd/internal/ld: emit macho .init_array section
+    runtime/pprof: fix trace test
     
-    Change-Id: Ie75a01e899e68f4f9643410f5e161152a81b8ba0
-    Reviewed-on: https://go-review.googlesource.com/8655
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Some of the trace stacks are OS-dependent due to OS-specific code
+    in net package. Check these stacks only on subset of OSes.
+    
+    Change-Id: If95e4485839f4120fd6395725374c3a2f8706dfc
+    Reviewed-on: https://go-review.googlesource.com/7300
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/internal/ld/macho.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/pprof/trace_stack_test.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

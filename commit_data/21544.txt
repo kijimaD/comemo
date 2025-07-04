@@ -1,18 +1,33 @@
-commit d34ee29a52ac4c99cb2b88873b239cd2c8407c3b
-Author: Rajat Goel <rajat.goel2010@gmail.com>
-Date:   Mon Feb 9 17:12:12 2015 -0800
+commit 0e84088715a2242fbc99b813ac25ac60b21d997a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 14:13:55 2015 -0500
 
-    net/http: fix test to check that requests to 'localhost' are not proxied
+    runtime: change tinyalloc, persistentalloc not to point past allocated data
     
-    I think the test was meant to test requests to 'localhost:80' instead
-    of 'localhost:80:80'. It passes even with 'localhost:80:80' because
-    net.SplitHostPort fails inside useProxy. Please comment if you want to
-    leave old 'localhost:80' is the list too to check old code path.
+    During all.bash I got a crash in the GOMAXPROCS=2 runtime test reporting
+    that the write barrier in the assignment 'c.tiny = add(x, size)' had been
+    given a pointer pointing into an unexpected span. The problem is that
+    the tiny allocation was at the end of a span and c.tiny was now pointing
+    to the end of the allocation and therefore to the end of the span aka
+    the beginning of the next span.
     
-    Change-Id: Ic4cd21901563449e3d4e2f4c8caf723f4ca15bac
-    u
-    Reviewed-on: https://go-review.googlesource.com/4293
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Rewrite tinyalloc not to do that.
+    
+    More generally, it's not okay to call add(p, size) unless you know that p
+    points at > (not just >=) size bytes. Similarly, pretty much any call to
+    roundup doesn't know how much space p points at, so those are all
+    broken.
+    
+    Rewrite persistentalloc not to use add(p, totalsize) and not to use roundup.
+    
+    There is only one use of roundup left, in vprintf, which is dead code.
+    I will remove that code and roundup itself in a followup CL.
+    
+    Change-Id: I211e307d1a656d29087b8fd40b2b71010722fb4a
+    Reviewed-on: https://go-review.googlesource.com/2814
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/http/proxy_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go  | 86 ++++++++++++++++++++++++--------------------------
+ src/runtime/malloc2.go |  4 +--
+ src/runtime/mgc0.go    |  2 +-
+ 3 files changed, 45 insertions(+), 47 deletions(-)

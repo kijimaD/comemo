@@ -1,25 +1,20 @@
-commit 6a2e2432c9f75f6f63301d2f73d463393e158f96
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Jul 2 14:02:42 2011 +1000
+commit acc284d8478696c94dfcee74cd5b90c2da692b38
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jul 1 13:53:12 2011 -0400
 
-    dashboard: show build state and package comments on dashboard
+    crypto/openpgp: add ability to reserialize keys.
     
-    This permits full URLs to be shown on the dashboard,
-    not just the repository roots.
+    This changes Signature so that parsed signatures can be reserialized
+    exactly. With this ability we can add Serialize to Entity and also the
+    ability to sign other public keys.
     
-    This has been tested.
-    
-    R=rsc, mattn.jp
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4627081
+    https://golang.org/cl/4627084
 
- misc/dashboard/builder/http.go              |  7 +++---
- misc/dashboard/builder/main.go              | 13 +++++-----
- misc/dashboard/builder/package.go           | 35 ++++++++++++++++++++------
- misc/dashboard/godashboard/auth.py          | 13 ++++++++++
- misc/dashboard/godashboard/gobuild.py       |  7 +-----
- misc/dashboard/godashboard/index.yaml       |  1 -
- misc/dashboard/godashboard/package.html     | 30 ++++++++++++++---------
- misc/dashboard/godashboard/package.py       | 38 ++++++++++++++++++++---------
- misc/dashboard/godashboard/static/style.css | 13 ++++++++--
- 9 files changed, 108 insertions(+), 49 deletions(-)
+ src/pkg/crypto/openpgp/keys.go                  | 67 +++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/public_key.go     | 10 ++--
+ src/pkg/crypto/openpgp/packet/signature.go      | 62 +++++++++++++----------
+ src/pkg/crypto/openpgp/packet/signature_test.go | 22 ++++++--
+ src/pkg/crypto/openpgp/read_test.go             | 23 +++++++++
+ 5 files changed, 150 insertions(+), 34 deletions(-)

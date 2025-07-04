@@ -1,19 +1,13 @@
-commit d254c61309845214084617eb5d3368bad91b609f
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sun Sep 3 23:11:45 2017 +0900
+commit ee57e36dfa6879c05ac6717c29f2df5b546e1256
+Author: wuyunzhou <yunzhouwu@gmail.com>
+Date:   Sat May 13 15:41:15 2017 +0800
 
-    cmd/go: check compiler flags per compilers in gccSupportsFlag
+    container/heap: avoid up() invoke if down() success at heap.Remove()
     
-    Current code always uses a C compilers for checking compiler flags even
-    for non-C compilers. This CL solves the issue.
-    
-    Fixes #21736
-    
-    Change-Id: I5eaddd5fe7d5df699eb2384518b21e6064ca31cf
-    Reviewed-on: https://go-review.googlesource.com/61270
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6c210e0c23ca533e1f303f88ef9dcb629a294a2a
+    Reviewed-on: https://go-review.googlesource.com/43472
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/work/build.go | 48 +++++++++++++++++++++++----------------
- 1 file changed, 28 insertions(+), 20 deletions(-)
+ src/container/heap/heap.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

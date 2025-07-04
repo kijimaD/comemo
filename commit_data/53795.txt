@@ -1,27 +1,21 @@
-commit 9b0361e549949a208aa6bbcdff25506a3f97d7a9
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jul 25 13:58:37 2023 -0400
+commit 5b1fbfba1c00be5f2e9fd9e75fb7530f218fca40
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 17 13:09:12 2022 -0700
 
-    net: make mustHaveExternalNetwork work as usual on GOOS=linux
+    cmd/compile: rewrite >>c<<c to &^(1<<c-1)
     
-    I considered deleting mustHaveExternalNetwork in favor of just using
-    the real testenv.MustHaveExternalNetwork. That certainly makes these
-    tests that call it easier to understand. But that negatively affects
-    some ports that don't have a longtest builder as it'd make the tests
-    not run automatically on any builder at all.
+    Fixes #54496
     
-    So, make a minimal change that applies only to GOOS=linux for now.
-    If we make more progress on establishing -longtest builders for all
-    ports, this intermediate layer helper will cease to have any benefit
-    and can be deleted in favor of the one in testenv package.
-    
-    Change-Id: Iaea207d98e780db429ab49e6e227650a8b35b786
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513416
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I3c2ed8cd55836d5b07c8cdec00d3b584885aca79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424856
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
 
- src/net/dial_test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  11 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 288 +++++++++++++++++++++++++
+ test/codegen/shift.go                          |   9 +
+ 3 files changed, 308 insertions(+)

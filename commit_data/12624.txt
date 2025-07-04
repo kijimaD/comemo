@@ -1,15 +1,12 @@
-commit 1fc9a17c7ea276ee80045dc8cc9411eb024cf8ea
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 14 12:49:59 2012 +0900
+commit ace7d2649973382c763987568a78bfa7a021cae8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 14 14:02:59 2012 +1100
 
-    runtime/cgo: darwin signal masking
+    cmd/godoc: s/ignore/appengine/ in appinit.go +build constraint
     
-    Fixes #3101 (again).
-    
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5825043
+    https://golang.org/cl/5784072
 
- src/pkg/runtime/cgo/gcc_darwin_386.c   | 8 ++++++++
- src/pkg/runtime/cgo/gcc_darwin_amd64.c | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ src/cmd/godoc/appinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

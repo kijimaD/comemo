@@ -1,23 +1,17 @@
-commit aae7b695acd7183332ca971f41426824448eca1e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 10 08:17:22 2011 -0800
+commit ee23ab16da704b427d3c592752cd1122921f49c3
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 10:36:04 2011 -0500
 
-    http: move RemoteAddr & UsingTLS from ResponseWriter to Request
+    crypto/openpgp: s/serialise/serialize/
     
-    ResponseWriter.RemoteAddr() string -> Request.RemoteAddr string
-    ResponseWriter.UsingTLS() bool -> Request.TLS *tls.ConnectionState
+    (No code changes, Americanization only.)
     
     R=rsc, bradfitzwork
-    CC=gburd, golang-dev
-    https://golang.org/cl/4248075
+    CC=golang-dev
+    https://golang.org/cl/4250075
 
- src/cmd/godoc/main.go             |  2 +-
- src/pkg/http/cgi/host.go          |  8 ++++++--
- src/pkg/http/cgi/host_test.go     |  1 +
- src/pkg/http/httptest/recorder.go | 24 ++++--------------------
- src/pkg/http/request.go           | 17 +++++++++++++++++
- src/pkg/http/serve_test.go        | 21 +++++++++++++++++++++
- src/pkg/http/server.go            | 34 +++++++++++++++-------------------
- src/pkg/rpc/server.go             |  2 +-
- src/pkg/websocket/server.go       |  4 ++--
- 9 files changed, 68 insertions(+), 45 deletions(-)
+ src/pkg/crypto/openpgp/packet/packet.go      |  8 ++++----
+ src/pkg/crypto/openpgp/packet/packet_test.go |  4 ++--
+ src/pkg/crypto/openpgp/packet/public_key.go  |  2 +-
+ src/pkg/crypto/openpgp/packet/signature.go   | 18 +++++++++---------
+ 4 files changed, 16 insertions(+), 16 deletions(-)

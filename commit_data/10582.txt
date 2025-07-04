@@ -1,28 +1,41 @@
-commit a5d300862b683e6a6d0e503c213d191155d1f63b
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Dec 2 11:46:24 2011 +1100
+commit 6ea3a268b6263db0c98dbeb8076b1aa710d8f498
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 15:14:15 2011 -0800
 
-    html: allow whitespace between head and body
+    go/doc: exclude lines ending in ':' from possible headings
     
-    Also ignore <head> tag after </head>.
+    This is a more conservative approach to heading detection and
+    removes 11 headings from the current repository (several in
+    fmt). The current headscan output is:
     
-    Pass tests6.dat, test 0:
-    <!doctype html></head> <head>
+    /home/gri/go3/src/cmd/goinstall (package documentation)
+            Remote Repositories
+            The GOPATH Environment Variable
+    /home/gri/go3/src/pkg/exp/gotype (package documentation)
+            Examples
+    /home/gri/go3/src/pkg/html/template (package template)
+            Introduction
+            Contexts
+            Errors
+            A fuller picture
+            Contexts
+            Typed Strings
+            Security Model
+    /home/gri/go3/src/pkg/text/template (package template)
+            Actions
+            Arguments
+            Pipelines
+            Variables
+            Examples
+            Functions
+            Associated templates
+            Nested template definitions
+    18 headings found
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   " "
-    |   <body>
-    
-    Also pass tests through test 6:
-    <body>
-    <div>
-    
-    R=nigeltao
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5447064
+    https://golang.org/cl/5437105
 
- src/pkg/html/parse.go      | 17 +++++++++++++++--
- src/pkg/html/parse_test.go |  1 +
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/pkg/go/doc/comment.go      | 13 ++++---------
+ src/pkg/go/doc/comment_test.go |  5 +++--
+ 2 files changed, 7 insertions(+), 11 deletions(-)

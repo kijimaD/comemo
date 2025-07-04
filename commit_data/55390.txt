@@ -1,21 +1,24 @@
-commit a557f9dcd72f29a571088f6867b2c3f206df41e1
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Thu Nov 23 12:08:33 2023 +0000
+commit ab0f0459da302a2c81c4c11a7b9b4387c15a7aa0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 1 12:33:11 2023 -0500
 
-    net/http/pprof: configure WriteDeadline
+    cmd/dist,internal/platform: reenable the c-archive build mode on ios
     
-    Configure write deadline according to requested profiling duration.
+    Also fix misc/cgo/testcarchive to provide a missing CoreFoundation
+    dependency at link time.
     
-    Fixes #62358
+    Fixes #58221.
+    Updates #58172.
+    Updates #58225.
     
-    Change-Id: I2350110ff20a637c7e90bdda57026b0b0d9c87ba
-    GitHub-Last-Rev: b79ae38defc4d9b58b23a9d13ff86fa863f18b00
-    GitHub-Pull-Request: golang/go#64360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544756
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib8b6e52ed2914596615da4c427df2fe984722de6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463752
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/pprof/pprof.go | 28 +++++++++++++---------------
- 1 file changed, 13 insertions(+), 15 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 9 +++++++++
+ src/cmd/dist/test.go                   | 2 +-
+ src/internal/platform/supported.go     | 2 +-
+ 3 files changed, 11 insertions(+), 2 deletions(-)

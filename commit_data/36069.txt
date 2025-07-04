@@ -1,16 +1,34 @@
-commit d278f09333edec3db982d1e4b4dfad0e1e8cce49
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 19 01:37:21 2018 -0400
+commit bcc8edfd8a6b95865911e7a03a21b40bad0acc1d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 30 18:58:03 2018 -0700
 
-    cmd/go: skip TestScript/mod_* on Windows
+    cmd/compile: simplify reexport logic
     
-    I don't know why it's failing.
-    Filed #26457.
+    Currently, we reexport any package-scope constant, function, type, or
+    variable declarations needed by an inlineable function body. However,
+    now that we have an early pass to walk inlineable function bodies
+    (golang.org/cl/74110), we can simplify the logic for finding these
+    declarations.
     
-    Change-Id: I84833293a572c5a1a25135bd01cb88518fc7441e
-    Reviewed-on: https://go-review.googlesource.com/124857
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The binary export format supports writing out type declarations
+    in-place at their first use. Also, it always writes out constants by
+    value, so their declarations never need to be reexported.
+    
+    Notably, we attempted this before (golang.org/cl/36170) and had to
+    revert it (golang.org/cl/45911). However, this was because while
+    writing out inline bodies, we could discover variable/function
+    dependencies. By collecting variable/function dependencies during
+    inlineable function discovery, we avoid this problem.
+    
+    While here, get rid of isInlineable. We already typecheck inlineable
+    function bodies during inlFlood, so it's become a no-op. Just move the
+    comment explaining parameter numbering to its caller.
+    
+    Change-Id: Ibbfaafce793733675d3a2ad98791758583055666
+    Reviewed-on: https://go-review.googlesource.com/103864
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/script_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 165 +++++++++++++--------------------
+ src/cmd/compile/internal/gc/export.go  | 131 +++-----------------------
+ src/cmd/compile/internal/gc/inl.go     |  12 ++-
+ 3 files changed, 88 insertions(+), 220 deletions(-)

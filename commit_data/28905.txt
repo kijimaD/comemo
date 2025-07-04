@@ -1,17 +1,20 @@
-commit 2a441d307868ea5b757fb90eeab07bfc308b94c6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 18 14:01:02 2016 +0000
+commit e6f1a886bc49e920533b3e95e96f4965000b9821
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 16 12:14:54 2016 -0400
 
-    net/http/internal: don't block unnecessarily in ChunkedReader
+    cmd/compile: fix uint<->float conversion on 386
     
-    Fixes #17355
+    The frontend rewriting lowers them to runtime calls on 386. It
+    matches explicitly uint32, but missed uint.
     
-    Change-Id: I5390979cd0081b61a639466377faa46b4221b74a
-    Reviewed-on: https://go-review.googlesource.com/31329
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16738.
+    
+    Change-Id: Iece7a45edf74615baca052a53273c208f057636d
+    Reviewed-on: https://go-review.googlesource.com/27085
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/internal/chunked.go      | 30 +++++++++++++++++++++---------
- src/net/http/internal/chunked_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/float_test.go | 33 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go       |  4 ++--
+ 2 files changed, 35 insertions(+), 2 deletions(-)

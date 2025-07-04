@@ -1,16 +1,14 @@
-commit e4a380868d6b430283721995374487632e2e0762
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 7 13:56:05 2017 -0800
+commit b73d46de36e937819f34a37a46af73eb435246aa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 18 14:55:05 2017 +1000
 
-    cmd/dist: correct default C++ compiler when using gcc
+    misc/cgo/testcshared: fix syntax error in the test
     
-    Fixes #22609
+    Another attempt to fix build
     
-    Change-Id: Ic948345e7d1623a7defee6a6493eb81fe7393111
-    Reviewed-on: https://go-review.googlesource.com/76396
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I26137c115ad4b5f5a69801ed981c146adf6e824c
+    Reviewed-on: https://go-review.googlesource.com/56750
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

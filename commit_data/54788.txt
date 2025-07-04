@@ -1,16 +1,25 @@
-commit 37788b8b9eef420903006489360e64684e2c54a7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 6 11:31:56 2023 +0200
+commit a171f3fe49f8c5aa96189a822dbb8e3ef6900f91
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 09:37:11 2022 -0500
 
-    cmd/go: remove unused (*testgoData).runGit test helper
+    go: use testenv.Command instead of exec.Command in tests
     
-    It's unused since CL 518775.
+    This may help to diagnose whether the hang observed in
+    https://build.golang.org/log/d03db1d27515a4f7e91502e8b58bc83f6e2c04be
+    is related to #56180.
     
-    Change-Id: I81a4865d0c656ca2b968d51e52388c88e661a157
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537595
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #56180.
+    Updates #54773.
+    
+    Change-Id: I81d37e55a35f876905ceabc103fcf0d1ff348e2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/go_test.go | 25 -------------------------
- 1 file changed, 25 deletions(-)
+ src/go/doc/comment/std_test.go                 | 3 +--
+ src/go/importer/importer_test.go               | 3 +--
+ src/go/internal/gccgoimporter/importer_test.go | 6 +++---
+ src/go/internal/gcimporter/gcimporter_test.go  | 3 +--
+ 4 files changed, 6 insertions(+), 9 deletions(-)

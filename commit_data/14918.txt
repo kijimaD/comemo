@@ -1,61 +1,14 @@
-commit 41ec481a53b2592111e1278670b3361ef98c352d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jan 18 16:33:25 2013 -0500
+commit f579faa69dec37d388823b9cd0d54d739f40570b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 16:24:00 2013 -0500
 
-    cmd/6c: Improve peep hole optimization of rotate and shift instructions.
+    cmd/go: diagnose un-bootstrapped runtime
     
-    Update #4629.
+    Fixes #4665.
     
-    $ cat shift2.c
-    unsigned int
-    shift(unsigned int x, unsigned int y)
-    {
-            x = (x << 3);
-            y = (y << 5);
-            x = (x << 7);
-            y = (y << 9);
-            return x ^ y;
-    }
-    
-    ## BEFORE
-    $ go tool 6c -S shift2.c
-    (shift2.c:2)    TEXT    shift+0(SB),$0-8
-    (shift2.c:4)    MOVL    x+0(FP),!!AX
-    (shift2.c:4)    SALL    $3,!!AX
-    (shift2.c:4)    MOVL    AX,!!DX
-    (shift2.c:5)    MOVL    y+4(FP),!!AX
-    (shift2.c:5)    SALL    $5,!!AX
-    (shift2.c:5)    MOVL    AX,!!CX
-    (shift2.c:6)    MOVL    DX,!!AX
-    (shift2.c:6)    SALL    $7,!!AX
-    (shift2.c:6)    MOVL    AX,!!DX
-    (shift2.c:7)    MOVL    CX,!!AX
-    (shift2.c:7)    SALL    $9,!!AX
-    (shift2.c:7)    MOVL    AX,!!CX
-    (shift2.c:8)    MOVL    DX,!!AX
-    (shift2.c:8)    XORL    CX,!!AX
-    (shift2.c:8)    RET     ,!!
-    (shift2.c:8)    RET     ,!!
-    (shift2.c:8)    END     ,!!
-    
-    ## AFTER
-    $ go tool 6c -S shift2.c
-    (shift2.c:2)    TEXT    shift+0(SB),$0-8
-    (shift2.c:4)    MOVL    x+0(FP),!!AX
-    (shift2.c:4)    SALL    $3,!!AX
-    (shift2.c:5)    MOVL    y+4(FP),!!CX
-    (shift2.c:5)    SALL    $5,!!CX
-    (shift2.c:6)    SALL    $7,!!AX
-    (shift2.c:7)    SALL    $9,!!CX
-    (shift2.c:8)    XORL    CX,!!AX
-    (shift2.c:8)    RET     ,!!
-    (shift2.c:8)    RET     ,!!
-    (shift2.c:8)    END     ,!!
-    
-    R=rsc, minux.ma, dave, nigeltao
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7066055
+    https://golang.org/cl/7132057
 
- src/cmd/6c/peep.c | 33 +++++++++++++++++++--------------
- src/cmd/6g/peep.c |  3 +++
- 2 files changed, 22 insertions(+), 14 deletions(-)
+ src/cmd/go/build.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

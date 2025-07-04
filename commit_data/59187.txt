@@ -1,19 +1,33 @@
-commit cfc784a152ebbc4fc0b8bf13c02e0f6eb9c980bd
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 27 16:22:38 2025 -0700
+commit ad377e906a8ee6f27545d83de280206dacec1e58
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jun 20 20:43:11 2023 +0800
 
-    os: avoid panic in Root when symlink references the root
+    math: add round assembly implementations on riscv64
     
-    We would panic when opening a symlink ending in ..,
-    where the symlink references the root itself.
+    goos: linux
+    goarch: riscv64
+    pkg: math
+                │ floor_old.bench │           floor_new.bench           │
+                │     sec/op      │   sec/op     vs base                │
+    Ceil              54.12n ± 0%   22.05n ± 0%  -59.26% (p=0.000 n=10)
+    Floor             40.80n ± 0%   22.05n ± 0%  -45.96% (p=0.000 n=10)
+    Round             20.73n ± 0%   20.74n ± 0%        ~ (p=0.441 n=10)
+    RoundToEven       24.07n ± 0%   24.07n ± 0%        ~ (p=1.000 n=10)
+    Trunc             38.73n ± 0%   22.05n ± 0%  -43.07% (p=0.000 n=10)
+    geomean           33.58n        22.17n       -33.98%
     
-    Fixes #73081
-    
-    Change-Id: I7dc3f041ca79df7942feec58c197fde6881ecae5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661416
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I24fb9e3bbf8146da253b6791b21377bea1afbd16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504737
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/os/root_openat.go |  3 +++
- src/os/root_test.go   | 27 +++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/math/floor_asm.go    |  2 +-
+ src/math/floor_noasm.go  |  2 +-
+ src/math/floor_riscv64.s | 41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 43 insertions(+), 2 deletions(-)

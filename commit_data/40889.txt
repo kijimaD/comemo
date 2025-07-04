@@ -1,20 +1,23 @@
-commit 6f7b96f6cb5f5c156cf4e69b1fa1ec0e57b01677
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 21 14:39:24 2019 +0100
+commit 0ca4f6be35d2abf54128b57c3aa1a1fcbd5adfe3
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Wed Jul 31 09:10:28 2019 -0400
 
-    syscall: follow convention for generated code comments in linux/riscv64 files
+    runtime/pprof: Mention goroutine label heritability
     
-    Use generated code comments following the convention
-    https://golang.org/s/generatedcode.
+    Document goroutine label inheritance. Goroutine labels are copied upon
+    goroutine creation and there is a test enforcing this, but it was not
+    mentioned in the docstrings for `Do` or `SetGoroutineLabels`.
     
-    Follow-up for CL 204659
+    Add notes to both of those functions' docstrings so it's clear that one
+    does not need to set labels as soon as a new goroutine is spawned if
+    they want to propagate tags.
     
-    Change-Id: I7a3467ff9477488616b17f059245368d3d82d7a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208417
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #32223
+    Updates #23458
+    
+    Change-Id: Idfa33031af0104b884b03ca855ac82b98500c8b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189317
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/zerrors_linux_riscv64.go | 2 +-
- src/syscall/zsysnum_linux_riscv64.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/pprof/runtime.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,16 +1,28 @@
-commit cb00d9343156859401fadac1ceadab3398c3a1c8
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Mar 31 18:05:50 2020 +0800
+commit 8608733e93456ec6665c6b5c90691ae8a3af7b31
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 13:25:03 2019 -0500
 
-    doc, cmd/internal/obj/arm64: update the directives in the doc
+    cmd/dist: remove extraneous '-i' from 'go test -race' command
     
-    Adding the usage of PCALIGN directive for arm64, and updating some
-    details on using some directives defined in the textflag.h file.
+    At one point (before GOCACHE), the '-i' flag meant, effectively,
+    “save the intermediate results of this command to make
+    future commands faster”.
     
-    Change-Id: I43d363e3337939bab69b856831caf06803a292d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227801
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    However, now that we require GOCACHE to be enabled everywhere, '-i' no
+    longer has that meaning: the intermediate results are already saved in
+    GOCACHE, so the -i flag merely adds extra work (copying or linking
+    things from GOCACHE into pkg), and also adds additional failure modes
+    resulting from that extra work (particularly when 'pkg' is read-only).
+    
+    Since the flag now causes more harm than good, omit it.
+    
+    Updates #30316
+    
+    Change-Id: I295b6c0fc460dfc11ffa2a964cbb2a40f2935edc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207962
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/asm.html                      | 25 ++++++++++++++++++++++++
- src/cmd/internal/obj/arm64/doc.go | 40 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

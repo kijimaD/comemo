@@ -1,21 +1,17 @@
-commit 83515df3f31cc70eab2ea4af77e675cabe1eefd5
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Jun 19 15:39:17 2018 -0400
+commit 42ecf39e85a6960f4e0c2272bf9aff491eda3b66
+Author: ChrisALiles <caveryliles@gmail.com>
+Date:   Mon Feb 26 15:35:48 2018 +1100
 
-    cmd/link: enable DWARF compression on Windows
+    cmd/compile: improve compiler error on embedded structs
     
-    Simple follow-on to CL 118276. Everything worked except that the
-    compressed sections need to be aligned at PEFILEALIGN.
+    Fixes #23609
     
-    Fixes #25927
-    Updates #11799
-    
-    Change-Id: Iec871defe30e3e66055d64a5ae77d5a7aca355f5
-    Reviewed-on: https://go-review.googlesource.com/119816
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I751aae3d849de7fce1306324fcb1a4c3842d873e
+    Reviewed-on: https://go-review.googlesource.com/97076
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 13 ++++++++++++-
+ test/fixedbugs/issue23609.go             | 27 +++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

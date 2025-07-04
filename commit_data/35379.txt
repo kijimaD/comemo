@@ -1,23 +1,14 @@
-commit bec2f51b07b2d5cf38ac88d21d9bf221e329e132
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri May 11 06:19:58 2018 +0000
+commit 5412c0c17e5d51ff94b37e5c397601f07912bb96
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 8 21:19:42 2018 +0000
 
-    cmd/internal/obj/arm: fix wrong encoding of MUL
+    net/http/fcgi: update URL to spec documentation
     
-    The arm assembler incorrectly encodes the following instructions.
-    "MUL R2, R4" -> 0xe0040492 ("MUL R4, R2, R4")
-    "MUL R2, R4, R4" -> 0xe0040492 ("MUL R4, R2, R4")
+    Fixes #23748
     
-    The CL fixes that issue.
-    
-    fixes #25347
-    
-    Change-Id: I883716c7bc51c5f64837ae7d81342f94540a58cb
-    Reviewed-on: https://go-review.googlesource.com/112737
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iacdbd57c53492175cf1d3045640db61151e10731
+    Reviewed-on: https://go-review.googlesource.com/92955
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/arm.s | 12 ++++++++----
- src/cmd/internal/obj/arm/asm5.go        | 10 ----------
- 2 files changed, 8 insertions(+), 14 deletions(-)
+ src/net/http/fcgi/fcgi.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

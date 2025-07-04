@@ -1,14 +1,16 @@
-commit a304273d74b95c835ee08b641a17ce6bc591ddd3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 16 18:06:18 2021 -0700
+commit 5ce83d3bdaa97012150e7e20941d1a0ceb2cd7db
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Sep 17 10:28:18 2020 -0400
 
-    cmd/compile/internal/types2: allow composite literals of type parameter type
+    [dev.fuzz] testing: small cleanup to running targets
     
-    Change-Id: Iaaa2a3b462da6b121f13a10595950a8502b5f271
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342690
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Idcf90c5acbf7dbba2ea01d21d893214a5c2028c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255517
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/expr.go                |  2 +-
- .../internal/types2/testdata/examples/types.go2        | 18 +++++++++++++++++-
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 10 ++++++++++
+ src/testing/fuzz.go                      | 18 +++++++++---------
+ 2 files changed, 19 insertions(+), 9 deletions(-)

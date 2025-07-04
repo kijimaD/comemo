@@ -1,16 +1,24 @@
-commit 17dcbd866241c69990c23ce543ebd2906d546961
+commit 6bedf4a2b45068c486c69a04410f2c2469152f2d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 12 14:58:32 2023 -0700
+Date:   Thu Aug 18 16:59:10 2022 -0700
 
-    spec: de-emphasize string(int) conversions
+    go/types: match types2 error for invalid map key
     
-    Fixes #60731.
+    Use "invalid" rather than "incomparable" in error message for map key
+    types that are not comparable. This is the original compiler error
+    message and many tests check for this specific message. The type
+    checker does provide an additional explanation if the reason for
+    the error is not obvious (e.g. for type parameters).
     
-    Change-Id: I71fad1c8385b13d036bb0ce7ae6bd21e0f596e51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502657
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #54511.
+    
+    Change-Id: Idb76c48b4dfbfd66a7deac728a552e07f14e06d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424905
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- doc/go_spec.html | 40 +++++++++++++++++++++++++---------------
- 1 file changed, 25 insertions(+), 15 deletions(-)
+ src/go/types/testdata/check/cycles0.go    | 8 ++++----
+ src/go/types/testdata/check/typeparams.go | 2 +-
+ src/go/types/typexpr.go                   | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

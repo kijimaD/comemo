@@ -1,22 +1,17 @@
-commit 440368da526b69fe9a500e29ce9cd84aa7cc6c35
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 10 10:03:27 2018 -0400
+commit 5a720d229d5ebc2f8b599aa54a3d807a1d54365f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jul 31 21:43:07 2018 -0700
 
-    cmd/go/internal/imports: resolve symlinks in ScanDir
+    cmd/go: fix unnecessary plural
     
-    We were using the mode reported by ReadDir to decide whether each
-    entry is a file, but in the case of symlinks that isn't sufficient: a
-    symlink could point to either a file or a directory, and if it is a
-    file we should treat it as such.
+    "expanded imports paths" should read "expanded import paths." Run
+    mkalldocs.sh to pick up other changes which were not committed to
+    alldocs.go.
     
-    Fixes #28107
-    
-    Change-Id: Icf6e495dce427a7b1124c9cc9f085e40a215c169
-    Reviewed-on: https://go-review.googlesource.com/c/141097
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iaa61e022d65f9464e8ff93a92cfba27dadf679cf
+    Reviewed-on: https://go-review.googlesource.com/127157
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/imports/scan.go        | 10 ++++++++++
- src/cmd/go/testdata/script/mod_symlink.txt | 23 +++++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/cmd/go/alldocs.go            | 20 ++++++++++++--------
+ src/cmd/go/internal/list/list.go |  2 +-
+ 2 files changed, 13 insertions(+), 9 deletions(-)

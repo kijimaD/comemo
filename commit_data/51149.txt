@@ -1,22 +1,28 @@
-commit a1c31d6803dac891b200b3598aa00224ab80c0bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 7 11:45:57 2022 -0500
+commit c1c303f6f8b77d3ed4e135583f3d60b159907245
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 7 15:59:22 2021 -0800
 
-    cmd/go: replace Action.Func with Action.Actor
+    test: add extra typeswitch tests that cause duplicate cases
     
-    The interface will let us store actor-specific state in the
-    interface implementation instead of continuing to grow
-    the Action struct. In the long term we should remove fields
-    from the struct that are not used by all Actions.
+    Augmented some of the typeswitch*.go tests so that some instantiations
+    have duplicate cases, in order to ensure we're testing that.
     
-    Change-Id: I8ac89eda7a91d742cee547a1f779e9f254dfd2f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448356
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Spacing changes in the tests are due to gofmt.
+    
+    Change-Id: I5d3678813505c520c544281d4ac8a62ce7e236ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370155
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/run/run.go     |  2 +-
- src/cmd/go/internal/test/test.go   | 12 ++++-----
- src/cmd/go/internal/work/action.go | 52 +++++++++++++++++++++++---------------
- src/cmd/go/internal/work/exec.go   |  4 +--
- 4 files changed, 41 insertions(+), 29 deletions(-)
+ test/run.go                    |  4 ++++
+ test/typeparam/typeswitch1.go  |  6 ++++--
+ test/typeparam/typeswitch1.out |  2 ++
+ test/typeparam/typeswitch2.go  |  2 ++
+ test/typeparam/typeswitch2.out |  2 ++
+ test/typeparam/typeswitch3.go  |  7 ++++++-
+ test/typeparam/typeswitch3.out |  3 +++
+ test/typeparam/typeswitch4.go  | 11 ++++++++---
+ test/typeparam/typeswitch4.out |  3 +++
+ 9 files changed, 34 insertions(+), 6 deletions(-)

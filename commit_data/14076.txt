@@ -1,15 +1,12 @@
-commit 05fc42ab0272a72b5c8e67b757398c328f5bbcac
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 7 17:58:13 2012 -0700
+commit 236e79cab382bf3e702aa7d03b03903c36445053
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 8 10:40:56 2012 +1100
 
-    go/parser: fix object kind
+    godoc: fetch jQuery via https
     
-    Bug introduced with CL 6624047.
-    
-    R=r
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6620073
+    https://golang.org/cl/6614064
 
- src/pkg/go/parser/parser.go      |  6 ++++-
- src/pkg/go/parser/parser_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 1 deletion(-)
+ lib/godoc/godoc.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

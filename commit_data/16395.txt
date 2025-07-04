@@ -1,17 +1,17 @@
-commit 8f7863d6382d92267bff313564d3e077d5e68ac3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 23 22:51:07 2013 -0700
+commit 7b9df092618d593e29ff8e7a509a5ad110431439
+Author: Frederick Kelly Mayle III <frederickmayle@gmail.com>
+Date:   Thu May 23 14:17:52 2013 -0700
 
-    cmd/cgo: use intgo, not int, for string and slice structures
+    runtime: faster range on empty map
     
-    Fixes #5548.
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkMapIter               191          190   -0.52%
+    BenchmarkMapIterEmpty           22            4  -78.96%
     
-    R=golang-dev, minux.ma
+    R=golang-dev, minux.ma, dvyukov, iant, khr
     CC=golang-dev
-    https://golang.org/cl/9643044
+    https://golang.org/cl/9637043
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue5548.go  | 26 ++++++++++++++++++++++++++
- misc/cgo/test/issue5548_c.c | 24 ++++++++++++++++++++++++
- src/cmd/cgo/out.go          | 31 ++++++++++++++++++++-----------
- 4 files changed, 71 insertions(+), 11 deletions(-)
+ src/pkg/runtime/hashmap.c        |  2 +-
+ src/pkg/runtime/mapspeed_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

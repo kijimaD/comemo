@@ -1,25 +1,13 @@
-commit a1fb024ac923bba8350ead22188fbcf0cca985a7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 18 11:57:05 2017 -0400
+commit 8546aa2e4b6a2898b52f5fd58f0e522ddf590572
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 18:46:28 2017 +0000
 
-    cmd/go: hide work subdirectory names in gcc/clang object files
+    doc: flesh out some more Go 1.9 package notes
     
-    Until now the subdirectories under $WORK have had predictable
-    names, so it was OK to strip just $WORK from the file names that
-    end up in object files. In the future, those predictable names would
-    cause predictable collisions when compiling one package in two
-    different ways, so we're moving toward arbitrary, unpredictable
-    subdirectory names instead. When we do that, if the names appear
-    in the object files we won't get reproducible builds.
-    
-    Take the subdirectory names out now, to make the later change safe.
-    
-    Change-Id: I8057d1cc73f6e35c98b7718c9789c161dcbd87c0
-    Reviewed-on: https://go-review.googlesource.com/67251
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib6e2b858fcb15ea95fa8cfcba3bfac4e210605fe
+    Reviewed-on: https://go-review.googlesource.com/45610
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/envcmd/env.go |  4 +--
- src/cmd/go/internal/work/build.go | 56 +++++++++++++++++++++------------------
- 2 files changed, 32 insertions(+), 28 deletions(-)
+ doc/go1.9.html | 105 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 77 insertions(+), 28 deletions(-)

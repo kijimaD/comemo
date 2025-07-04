@@ -1,24 +1,17 @@
-commit e240d8150cf7b40587acd306a5bfa2b813a94010
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Jun 2 22:06:38 2024 +0200
+commit db83768f1521e944a4561327639cb212dc97321d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 13:42:22 2023 -0400
 
-    net: handle more error strings in lookupCNAME on Plan 9
+    cmd/go: clean up old readEnvFile code
     
-    On Plan 9, the queryDNS function could return an
-    error string, which was not handled in lookupCNAME.
+    Now that cfg.CanGetenv does the right thing, we don't need a separate
+    readEnvFile in 'go env'.
     
-    This change fixes lookupCNAME by handling the
-    "resource does not exist; negrcode" error string.
-    
-    Fixes #67776.
-    
-    Change-Id: I73f3286b9524a504212ba4303606a245b4962b1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589715
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Bypass: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I187c8615ad074ba132516bcf499f82877a32d5e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497457
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/lookup_plan9.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/envcmd/env.go | 35 +++++------------------------------
+ 1 file changed, 5 insertions(+), 30 deletions(-)

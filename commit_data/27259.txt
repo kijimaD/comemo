@@ -1,16 +1,21 @@
-commit ba6765c237ed4dece0056b774d81e160b3839db1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 4 12:20:14 2016 +1000
+commit ebd9f1bd4c39bc2fe3bcf6f0d3c81f70dae495d8
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Sun Mar 13 22:12:03 2016 +0100
 
-    cmd/api: remove debug/pe replated changes from next.txt
+    encoding/binary: remove bound checks from conversions.
     
-    See CL 22720 for details.
+    * This the simplest solution I could came up with
+    that doesn't required changing the compiler.
+    * The bound checks become constants now
+    so they are removed during opt phase.
     
-    Updates #15345
+    Updates #14808
     
-    Change-Id: If93ddbb8137d57da9846b671160b4cebe1992570
-    Reviewed-on: https://go-review.googlesource.com/22752
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: If32c33d7ec08bb400321b465015d152f0a5d3001
+    Reviewed-on: https://go-review.googlesource.com/20654
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/next.txt | 8 --------
- 1 file changed, 8 deletions(-)
+ src/encoding/binary/binary.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

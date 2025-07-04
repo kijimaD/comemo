@@ -1,25 +1,25 @@
-commit 6e0e492e1229b22acdc8161efd12500a0e09e67e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 15 13:37:42 2022 -0500
+commit a99c38d66381b2a6abbc0d9c88feb3f6291cb245
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 14 15:22:51 2022 -0500
 
-    cmd/compile/internal/pgo: count only the last two frames as a call edge
+    Revert "cmd/dist: log CPU model when testing"
     
-    Currently for every CPU profile sample, we apply its weight to all
-    call edges of the entire call stack. Frames higher up the stack
-    are unlikely to be repeated calls (e.g. runtime.main calling
-    main.main). So adding weights to call edges higher up the stack
-    may be not reflecting the actual call edge weights in the program.
-    This CL changes it to add weights to only the edge between the
-    last two frames.
+    Fails TestRepeatBootstrap.
     
-    Without a branch profile (e.g. LBR records) this is not perfect,
-    but seems more reasonable.
+    This reverts CL 371474.
     
-    Change-Id: I0aee75cc608a152adad41c51120b661a6c542283
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450915
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    For #50146.
+    
+    Change-Id: Ie4adda4e0229e153471301ca00fe2c1c694b4b2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378587
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/pgo/graph.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/dist/metadata.go           | 24 ------------------------
+ src/cmd/dist/metadata_bootstrap.go | 21 ---------------------
+ src/cmd/dist/sys_windows.go        |  6 +++---
+ src/cmd/dist/test.go               | 19 -------------------
+ 4 files changed, 3 insertions(+), 67 deletions(-)

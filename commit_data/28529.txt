@@ -1,60 +1,20 @@
-commit d15295c6790b70eba0e4a3aa7ddead251aa440da
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Sep 25 13:38:54 2016 -0700
+commit 52fe47247217f5126dacc5a8c8e80b85d2fb25c6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 31 14:55:12 2016 -0700
 
-    runtime: unify handling of alternate signal stack
+    cmd/compile: for arm, zero unaligned memory 1 byte at a time
     
-    Change all Unix systems to use stackt for the alternate signal
-    stack (some were using sigaltstackt). Add OS-specific setSignalstackSP
-    function to handle different types for ss_sp field, and unify all
-    OS-specific signalstack functions into one. Unify handling of alternate
-    signal stack in OS-specific minit and sigtrampgo functions via new
-    functions minitSignalstack and setGsignalStack.
+    If memory might be unaligned, zero it one byte at a time
+    instead of 4 bytes at a time.
     
-    Change-Id: Idc316dc69b1dd725717acdf61a1cd8b9f33ed174
-    Reviewed-on: https://go-review.googlesource.com/29757
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #15902
+    
+    Change-Id: I4eff0840e042e2f137c1a4028f08793eb7dfd703
+    Reviewed-on: https://go-review.googlesource.com/23587
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/defs1_linux.go          |  2 +-
- src/runtime/defs1_netbsd_386.go     |  6 -----
- src/runtime/defs1_netbsd_amd64.go   |  7 -----
- src/runtime/defs1_netbsd_arm.go     |  6 -----
- src/runtime/defs1_solaris_amd64.go  |  9 +------
- src/runtime/defs2_linux.go          |  2 +-
- src/runtime/defs3_linux.go          |  2 +-
- src/runtime/defs_arm_linux.go       |  2 +-
- src/runtime/defs_dragonfly.go       |  1 -
- src/runtime/defs_dragonfly_amd64.go |  7 -----
- src/runtime/defs_freebsd.go         |  1 -
- src/runtime/defs_freebsd_386.go     |  6 -----
- src/runtime/defs_freebsd_amd64.go   |  7 -----
- src/runtime/defs_freebsd_arm.go     |  6 -----
- src/runtime/defs_linux_386.go       |  4 +--
- src/runtime/defs_linux_amd64.go     |  4 +--
- src/runtime/defs_linux_arm.go       |  4 +--
- src/runtime/defs_linux_arm64.go     |  4 +--
- src/runtime/defs_linux_mips64x.go   |  4 +--
- src/runtime/defs_linux_ppc64.go     |  4 +--
- src/runtime/defs_linux_ppc64le.go   |  4 +--
- src/runtime/defs_linux_s390x.go     |  4 +--
- src/runtime/defs_netbsd.go          |  1 -
- src/runtime/defs_openbsd.go         |  1 -
- src/runtime/defs_openbsd_386.go     |  6 -----
- src/runtime/defs_openbsd_amd64.go   |  7 -----
- src/runtime/defs_openbsd_arm.go     |  6 -----
- src/runtime/defs_solaris.go         |  1 -
- src/runtime/os3_solaris.go          | 33 +++++------------------
- src/runtime/os_darwin.go            | 29 +++------------------
- src/runtime/os_dragonfly.go         | 32 ++++-------------------
- src/runtime/os_freebsd.go           | 30 +++------------------
- src/runtime/os_linux.go             | 31 ++++------------------
- src/runtime/os_netbsd.go            | 15 +++--------
- src/runtime/os_openbsd.go           | 30 +++------------------
- src/runtime/signal_darwin.go        |  6 +----
- src/runtime/signal_freebsd.go       |  6 +----
- src/runtime/signal_openbsd.go       |  6 +----
- src/runtime/signal_sigtramp.go      |  8 ++----
- src/runtime/signal_unix.go          | 52 +++++++++++++++++++++++++++++++++++++
- 40 files changed, 110 insertions(+), 286 deletions(-)
+ src/cmd/compile/internal/arm/ggen.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue15902.go         | 27 +++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

@@ -1,28 +1,71 @@
-commit 140000dd55d9c4e3058f2b1a2488233a0671dbff
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Feb 23 14:15:28 2023 +0100
+commit 81431c7aa7c5d782e72dec342442ea7664ef1783
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:05:46 2022 -0500
 
-    runtime: set procid on Windows
+    all: replace `` and '' with “ (U+201C) and ” (U+201D) in doc comments
     
-    The runtime-gdb.py script needs procid to be set in order to
-    map a goroutine ID with an OS thread. The Go runtime is not currently
-    setting that variable on Windows, so TestGdbPython (and friends) can't
-    succeed.
+    go/doc in all its forms applies this replacement when rendering
+    the comments. We are considering formatting doc comments,
+    including doing this replacement as part of the formatting.
+    Apply it to our source files ahead of time.
     
-    This CL initializes procid and unskips gdb tests on Windows.
+    For #51082.
     
-    Fixes #22687
-    Updates #21380
-    Updates #22021
-    
-    Change-Id: Icd1d9fc1764669ed1bf04f53d17fadfd24ac3f30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470596
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ifcc1f5861abb57c5d14e7d8c2102dfb31b7a3a19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384262
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_windows.go       | 3 +++
- src/runtime/runtime-gdb_test.go | 2 --
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/bug/bug.go                      |  2 +-
+ src/cmd/go/internal/clean/clean.go                  |  2 +-
+ src/cmd/go/internal/doc/doc.go                      |  2 +-
+ src/cmd/go/internal/envcmd/env.go                   |  2 +-
+ src/cmd/go/internal/fix/fix.go                      |  2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go                   |  2 +-
+ src/cmd/go/internal/generate/generate.go            |  2 +-
+ src/cmd/go/internal/get/get.go                      |  2 +-
+ src/cmd/go/internal/help/help.go                    |  2 +-
+ src/cmd/go/internal/list/list.go                    |  2 +-
+ src/cmd/go/internal/modcmd/mod.go                   |  2 +-
+ src/cmd/go/internal/modget/get.go                   |  2 +-
+ src/cmd/go/internal/run/run.go                      |  2 +-
+ src/cmd/go/internal/tool/tool.go                    |  2 +-
+ src/cmd/go/internal/version/version.go              |  2 +-
+ src/cmd/go/internal/vet/vet.go                      |  2 +-
+ src/cmd/go/internal/workcmd/work.go                 |  2 +-
+ src/cmd/link/internal/ld/data.go                    |  2 +-
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go  |  2 +-
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go |  2 +-
+ src/compress/bzip2/bzip2.go                         |  4 ++--
+ src/compress/lzw/reader.go                          |  4 ++--
+ src/crypto/rsa/pkcs1v15.go                          |  4 ++--
+ src/debug/dwarf/entry.go                            |  4 ++--
+ src/debug/dwarf/type.go                             |  2 +-
+ src/encoding/asn1/asn1.go                           |  2 +-
+ src/encoding/base32/base32.go                       |  2 +-
+ src/encoding/json/decode.go                         |  2 +-
+ src/fmt/print.go                                    |  2 +-
+ src/go/doc/testdata/testing.go                      |  2 +-
+ src/internal/testenv/testenv.go                     |  8 ++++----
+ src/math/big/floatconv.go                           |  6 +++---
+ src/math/big/int.go                                 | 12 ++++++------
+ src/math/big/intconv.go                             |  4 ++--
+ src/math/big/natconv.go                             |  6 +++---
+ src/math/big/ratconv.go                             | 16 ++++++++--------
+ src/math/bits.go                                    |  4 ++--
+ src/math/cmplx/isnan.go                             |  2 +-
+ src/net/http/server.go                              |  4 ++--
+ src/net/url/url.go                                  |  6 +++---
+ src/os/file_plan9.go                                |  2 +-
+ src/os/file_unix.go                                 |  2 +-
+ src/os/file_windows.go                              |  2 +-
+ src/path/filepath/path.go                           |  4 ++--
+ src/path/path.go                                    |  4 ++--
+ src/reflect/deepequal.go                            |  2 +-
+ src/regexp/exec_test.go                             |  4 ++--
+ src/regexp/syntax/prog.go                           |  2 +-
+ src/runtime/float.go                                |  2 +-
+ src/time/tick.go                                    |  2 +-
+ 50 files changed, 81 insertions(+), 81 deletions(-)

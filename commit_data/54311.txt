@@ -1,16 +1,37 @@
-commit b6372114b234c779b2db5773721cf88c2289898f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 5 14:39:56 2023 -0700
+commit 500bc6b8056ee2eaf7640610a48ffa00bdd896a5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 30 19:01:09 2022 -0400
 
-    cmd/go: correct function name in comment
+    runtime: don't jump stack if at entry of systemstack
     
-    Change-Id: I9d8056117367998c3723ec4cc09f47b46ec8b4ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525855
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    The traceback code has special "jump stack" logic, to trace back
+    stack switches through systemstack. If we're at the entry of
+    systemstack, the stack switch hasn't happened, so don't jump to
+    user stack.
+    
+    The jump stack logic is only used if we're on the g0 stack. It can
+    happen that we're at the entry of a recursive systemstack call on
+    the g0 stack. In we jump stack here, there will be two problems:
+    1. There are frames between entering the g0 stack and this
+       recursive systemstack call. Those frames will be lost.
+    2. Worse, we switched frame.sp but frame.fp calculation will use
+       the entry SP delta (0), which will be wrong, which in turn
+       leads wrong frame.lr and things will go off.
+    
+    For now, don't jump stack if we're at entry of systemstack (SP
+    delta is 0).
+    
+    Using a per-PC SPWRITE marker may be a better fix. If we haven't
+    written the SP, we haven't switched the stack so we can just
+    unwind like a normal function.
+    
+    May fix #55851.
+    
+    Change-Id: I2b624c8c086b235b34d9c7d3cebd4a37264f00f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437299
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/load/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/traceback.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

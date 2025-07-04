@@ -1,17 +1,22 @@
-commit c71b6767241210deaf9888f96dfd6166b7a718eb
+commit 5c45e56898261c29ae44e65bd087a508c9abe0a5
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 12 16:28:55 2011 -0700
+Date:   Fri Aug 12 15:43:10 2011 -0700
 
-    godoc: position URLs (containing file names) must be quoted and URL escaped
+    godoc: remove last vestiges of old template system
     
-    Since the posLink_url also adds a non-URL attribute, the quoting and  URL-escaping
-    must happen inside posLink_url (otherwise the non-URL attribute becomes part or the
-    URL portion of the tag.
+    - rename template funcs for better consistency and
+      sort them into groups of related functionality
+    - try to be more consistent with html vs url escaping
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4888041
+    https://golang.org/cl/4887041
 
- lib/godoc/package.html |  8 ++++----
- src/cmd/godoc/godoc.go | 20 ++++++++++----------
- 2 files changed, 14 insertions(+), 14 deletions(-)
+ lib/godoc/godoc.html     |   2 +-
+ lib/godoc/package.html   |  50 +++++------
+ lib/godoc/package.txt    |  20 ++---
+ lib/godoc/search.html    |  41 ++++-----
+ lib/godoc/search.txt     |   6 +-
+ src/cmd/godoc/godoc.go   | 228 ++++++++++++++++++-----------------------------
+ src/cmd/godoc/snippet.go |   9 +-
+ 7 files changed, 152 insertions(+), 204 deletions(-)

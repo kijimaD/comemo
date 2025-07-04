@@ -1,12 +1,12 @@
-commit 8f6341d9eead70b2fa010a49f92e170682980d01
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Fri Jun 14 12:37:23 2013 -0700
+commit 39613054af49086b96b2e0a059a300b2430c3185
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 14 10:00:07 2013 -0700
 
-    cmd/godoc: don't link unexported identifiers
+    api: update next.txt
     
-    R=golang-dev, gri, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9722045
+    https://golang.org/cl/10283043
 
- src/cmd/godoc/linkify.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next.txt | 101 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

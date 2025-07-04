@@ -1,19 +1,12 @@
-commit e281576b9acaba6a7d088c8446fc2c3bfa2e3b96
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 13:46:57 2011 -0800
+commit 158ca3c47ea0d8bbb76f7b73abd94872d216730e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 2 08:12:17 2011 +1100
 
-    go/doc: switch ToHTML from []byte to string argument
+    tag weekly.2011-12-02
     
-    - this removes extra conversions from strings to bytes and vice versa
-      for each comment
-    - minor cleanups
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5434096
+    https://golang.org/cl/5450062
 
- src/cmd/godoc/godoc.go         |  2 +-
- src/pkg/go/doc/comment.go      | 92 ++++++++++++++----------------------------
- src/pkg/go/doc/comment_test.go |  2 +-
- src/pkg/go/doc/headscan.go     |  2 +-
- 4 files changed, 33 insertions(+), 65 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

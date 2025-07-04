@@ -1,12 +1,15 @@
-commit 7f7be843e96a531d989e2790ceba45782158ffdd
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 16:56:33 2017 +1000
+commit 3cf72322dc234b01dff0757a9d928362967fe9e3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:47:09 2017 -0700
 
-    cmd/link: introduce and use peFile.addInitArray
+    cmd/compile: reuse LSyms in dumptypestructs
     
-    Change-Id: I4377c478159129ab3f3b5ddc58d1944f8f4a4b07
-    Reviewed-on: https://go-review.googlesource.com/56320
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I4a5c841eb16e05db7d923d4c3c7cd2d7695fa4af
+    Reviewed-on: https://go-review.googlesource.com/41409
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 72 ++++++++++++++++++++----------------------
- 1 file changed, 34 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

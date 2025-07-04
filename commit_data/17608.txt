@@ -1,14 +1,19 @@
-commit 2ec53b07053fa8d974759661de3881aacef8c6db
+commit 83da0fd989d7e5c981bde26a8a9cc0d0f88fe9ed
 Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 16 16:13:27 2013 +1000
+Date:   Mon Sep 16 13:03:00 2013 +1000
 
-    cmd/nm: put the -S flag in the usage message
-    The -S flag reports symbol size, but is missing from the usage message.
+    doc/go1.2.html: compiler changes
+    Document the semantic changes within the gc toolchain.
     
-    R=golang-dev, dsymonds
+    Also delete the mention of unbalanced right delims in template
+    That change was rolled back.
+    
+    Absent typos, things we've forgotten, and new things that happen,
+    the release notes are ready.
+    
+    R=golang-dev, adg, dominik.honnef
     CC=golang-dev
-    https://golang.org/cl/13660046
+    https://golang.org/cl/13368052
 
- src/cmd/nm/doc.go | 2 +-
- src/cmd/nm/nm.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.2.html | 59 +++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 36 insertions(+), 23 deletions(-)

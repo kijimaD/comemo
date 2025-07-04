@@ -1,20 +1,19 @@
-commit eb21b31e487344fb0045b3ef7b14df9521b94952
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Jan 22 16:35:21 2021 -0500
+commit aeab40317415468323ef45095f2090ff90c3ecd2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu May 14 18:17:49 2020 +0900
 
-    runtime: define dummy msanmove
+    cmd/go: use temporary file for output of gcc command on Windows
     
-    In msan mode we instrument code with msan* functions, including
-    msanmove. In some configurations the code is instrumented by the
-    compiler but msan is not actually linked in, so we need dummy
-    definitions for those functions so the program links. msanmove is
-    newly added in CL 270859 but a dummy definition in msan0.go was
-    not added, causing link failures. Add it.
+    On Windows, some of gcc command (like msys2 native) output NUL as a file.
     
-    Change-Id: I91f8e749919f57f1182e90b43412b0282cf4767c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285955
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Fixes #36000
+    
+    Change-Id: I02c632fa2d710a011d79f24d5beee4bc57ad994e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233977
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/msan0.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/exec.go          | 14 +++++++++++++-
+ src/cmd/go/testdata/script/issue36000.txt |  6 ++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

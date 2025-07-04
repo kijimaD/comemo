@@ -1,19 +1,29 @@
-commit 1a9807906df1d1cb9955dfda387b92e03375c0f0
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 18:20:49 2021 -0400
+commit bf9bbbd6ed1d58433019c145c10082f4d5c062c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:45:35 2020 -0500
 
-    go/types: more systematic error handling in typeWriter
+    [dev.regabi] cmd/compile: cleanup for concrete types - order
     
-    This is a port of CL 346009 to go/types. An unnecessary break statement
-    was removed from both the port and types2.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: I2cc1328a61100d4b01a2d26ac7bac9044440d579
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346558
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL focuses on order.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ib5731905a620175a6fe978f512da593e0dae9d87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277922
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/typestring.go |  1 -
- src/go/types/typestring.go                    | 81 +++++++++++++--------------
- 2 files changed, 39 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 369 ++++++++++++++++++++---------------
+ src/cmd/compile/internal/ir/stmt.go  |   4 +-
+ 2 files changed, 210 insertions(+), 163 deletions(-)

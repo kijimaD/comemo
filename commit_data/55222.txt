@@ -1,29 +1,43 @@
-commit a9c9cc07ac0d3dc73865a57e6ce45c22ada3b5c9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 20 11:22:48 2023 +1100
+commit 4b23068712399d206fd7168e4ced79bfb23363b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 15:55:01 2023 -0800
 
-    iter, runtime: add coroutine support
+    types2: add *Config to typecheck functions for tests, factor more code
     
-    The exported API is only available with GOEXPERIMENT=rangefunc.
-    This will let Go 1.22 users who want to experiment with rangefuncs
-    access an efficient implementation of iter.Pull and iter.Pull2.
+    Some tests in go/types can still not use the typecheck helper functions
+    because they need a specific fileset for position information.
     
-    For #61897.
+    (We could use a single global file set for all tests to make this work.)
     
-    Change-Id: I6ef5fa8f117567efe4029b7b8b0f4d9b85697fb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543319
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I73552b08a00f08d809c319d3d2328acee9532619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461694
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/dist/test.go              |  11 +++
- src/cmd/internal/objabi/funcid.go |   1 +
- src/go/build/deps_test.go         |   3 +
- src/internal/abi/symtab.go        |   1 +
- src/iter/iter.go                  | 161 +++++++++++++++++++++++++++++++++++++
- src/iter/pull_test.go             | 118 +++++++++++++++++++++++++++
- src/runtime/coro.go               | 165 ++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go               |   8 +-
- src/runtime/runtime2.go           |   5 ++
- src/runtime/sizeof_test.go        |   6 +-
- src/runtime/traceback.go          |   2 +-
- 11 files changed, 475 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        | 51 ++++++++++------------
+ src/cmd/compile/internal/types2/builtins_test.go   | 12 +----
+ src/cmd/compile/internal/types2/example_test.go    |  8 +---
+ src/cmd/compile/internal/types2/hilbert_test.go    |  2 +-
+ .../compile/internal/types2/instantiate_test.go    | 10 ++---
+ src/cmd/compile/internal/types2/issues_test.go     | 38 +++++++---------
+ src/cmd/compile/internal/types2/mono_test.go       |  4 +-
+ src/cmd/compile/internal/types2/named_test.go      |  2 +-
+ src/cmd/compile/internal/types2/object_test.go     |  4 +-
+ src/cmd/compile/internal/types2/sizes_test.go      |  8 +---
+ src/cmd/compile/internal/types2/typestring_test.go |  6 +--
+ src/go/types/api_test.go                           | 47 ++++++++++----------
+ src/go/types/builtins_test.go                      | 13 +-----
+ src/go/types/example_test.go                       |  2 +
+ src/go/types/hilbert_test.go                       |  2 +-
+ src/go/types/instantiate_test.go                   | 10 ++---
+ src/go/types/issues_test.go                        | 31 +++++++------
+ src/go/types/methodset_test.go                     |  2 +-
+ src/go/types/mono_test.go                          |  6 +--
+ src/go/types/named_test.go                         |  2 +-
+ src/go/types/object_test.go                        |  4 +-
+ src/go/types/sizes_test.go                         | 10 +----
+ src/go/types/typestring_test.go                    |  6 +--
+ 23 files changed, 115 insertions(+), 165 deletions(-)

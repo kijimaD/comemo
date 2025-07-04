@@ -1,24 +1,21 @@
-commit 92bbecc518533867a9bb381e261196111db2dd80
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Aug 24 10:58:51 2023 -0700
+commit 27d4cdd1a6280e906c4f6bd89b5882a51ad64099
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 27 13:21:52 2022 -0500
 
-    net/http: deflake TestRequestBodyLimit
+    debug/elf: fix typo in R_PPC64_TPREL34 and R_PPC64_DTPREL34
     
-    This test can return with a Transport still processing
-    an in-flight request, resulting in a test failure due
-    to the leaked Transport.
+    The suffix should be 34 not 28. I misread the name because the
+    reloc listed before these two in the ABI is named "R_PC64_PCREL28".
     
-    Avoid this by waiting for the Transport to close the
-    request body before returning.
+    Updates #54345
     
-    Fixes #60264
-    
-    Change-Id: I8d8b54f633c2e28da2b1bf1bc01ce09dd77769de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522695
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Ie8238f55e441c787d70ead58e0a177c650f8b89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435415
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/serve_test.go | 49 +++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 38 insertions(+), 11 deletions(-)
+ api/next/54345.txt   | 8 ++++----
+ src/debug/elf/elf.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

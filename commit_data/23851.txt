@@ -1,26 +1,24 @@
-commit 4f188c2d1c88d68d3f74a82c148cde804573d691
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 22 15:14:54 2015 -0400
+commit 3c60e6e8cfc6da21fc12aadaff63d780310ba822
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 16 19:20:18 2015 -0400
 
-    runtime: disallow GC assists in non-preemptible contexts
+    runtime: fix races in stack scan
     
-    Currently it's possible to perform GC work on a system stack or when
-    locks are held if there's an allocation that triggers an assist. This
-    is generally a bad idea because of the fragility of these contexts,
-    and it's incompatible with two changes we're about to make: one is to
-    yield after signaling mark completion (which we can't do from a
-    non-preemptible context) and the other is to make assists block if
-    there's no other way for them to pay off the assist debt.
+    This fixes a hang during runtime.TestTraceStress.
+    It also fixes double-scan of stacks, which leads to
+    stack barrier installation failures.
     
-    This commit simply skips the assist if it's called from a
-    non-preemptible context. The allocation will still count toward the
-    assist debt, so it will be paid off by a later assist. There should be
-    little allocation from non-preemptible contexts, so this shouldn't
-    harm the overall assist mechanism.
+    Both of these have shown up as flaky failures on the dashboard.
     
-    Change-Id: I7bf0e6c73e659fe6b52f27437abf39d76b245c79
-    Reviewed-on: https://go-review.googlesource.com/12649
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10941.
+    
+    Change-Id: Ia2a5991ce2c9f43ba06ae1c7032f7c898dc990e0
+    Reviewed-on: https://go-review.googlesource.com/11089
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mgcmark.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/mgc.go      |   2 +-
+ src/runtime/mgcmark.go  |  57 +-------------------------
+ src/runtime/proc1.go    | 107 +++++++++++++++++++++++-------------------------
+ src/runtime/runtime2.go |   2 +-
+ src/runtime/stack1.go   |  11 +++--
+ 5 files changed, 62 insertions(+), 117 deletions(-)

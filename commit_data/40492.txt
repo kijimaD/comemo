@@ -1,25 +1,36 @@
-commit cc47b0d2cd1c633f1a3c21632978d1180f65195f
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Oct 28 15:55:36 2019 -0700
+commit 06642d8e77ae23325de1db177366c902ec75ab1e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed May 15 12:47:05 2019 -0400
 
-    cmd/compile:  handle some missing cases of non-SSAable values for args of open-coded defers
+    cmd/go: don't attempt to downgrade to incompatible versions
     
-    In my experimentation, I had found that most non-SSAable expressions were
-    converted to autotmp variables during AST evaluation. However, this was not true
-    generally, as witnessed by issue #35213, which has a non-SSAable field reference
-    of a struct that is not converted to an autotmp. So, I fixed openDeferSave() to
-    handle non-SSAable nodes more generally, and make sure that these non-SSAable
-    expressions are not evaluated more than once (which could incorrectly repeat side
-    effects).
+    When we downgrade a module (using 'go get m@none' or similar), we
+    exclude versions of other modules that depend on it. We'll try
+    previous versions (in the "versions" list returned by the proxy or in
+    codeRepo.Versions for vcs) until we find a version that doesn't
+    require an excluded module version.
     
-    Fixes #35213
+    If older versions of a module are broken for some reason,
+    mvs.Downgrade currently panics. With this change, we ignore versions
+    with errors during downgrade.
     
-    Change-Id: I8043d5576b455e94163599e930ca0275e550d594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203888
-    Run-TryBot: Dan Scales <danscales@google.com>
+    A frequent cause of this is incompatible v2+ versions. These are
+    common if a repository tagged v2.0.0 before migrating to modules, then
+    tagged v2.0.1 with a go.mod file later. v2.0.0 is incorrectly
+    considered part of the v2 module.
+    
+    Fixes #31942
+    
+    Change-Id: Icaa75c5c93f73f18a400c22f18a8cc603aa4011a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177337
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 39 ++++++++++++++++++++++++--------------
- src/runtime/defer_test.go          | 35 +++++++++++++++++++++++++++++++++-
- 2 files changed, 59 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go                     | 50 ++++++++++++++--------
+ .../testdata/mod/example.com_downgrade_v2.0.0.txt  |  9 ++++
+ .../mod/example.com_downgrade_v2_v2.0.1.txt        | 13 ++++++
+ .../mod/example.com_latemigrate_v2_v2.0.0.txt      | 14 ++++++
+ .../mod/example.com_latemigrate_v2_v2.0.1.txt      | 20 +++++++++
+ src/cmd/go/testdata/script/mod_get_downgrade.txt   | 17 +++++++-
+ 6 files changed, 102 insertions(+), 21 deletions(-)

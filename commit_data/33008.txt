@@ -1,18 +1,27 @@
-commit a04adcaf35ab803f991b96ac4ae019cd55559e10
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Mon Oct 9 17:31:06 2017 +0200
+commit 3445ece2128b0721cae4f6e84b159539acd314ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 22 19:02:35 2017 -0400
 
-    runtime: remove the 'go:nosplit' directive from documentation
+    cmd/go: be more precise when a directory cannot be built
     
-    The //go:nosplit directive was visible in GoDoc because the function
-    that it preceeded (Gosched) is exported. This change moves the directive
-    above the documentation, hiding it from the output.
+    Maybe there are no Go files at all.
+    Maybe they are all excluded by build constraints.
+    Maybe there are only test Go files.
+    Be specific.
     
-    Change-Id: I281fd7573f11d977487809f74c9cc16b2af0dc88
-    Reviewed-on: https://go-review.googlesource.com/69120
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #17008.
+    Fixes parts of #20760.
+    
+    Change-Id: If6ac82ba0ed437772e76e06763263747d3bc4f65
+    Reviewed-on: https://go-review.googlesource.com/46427
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                        | 38 ++++++++++++++++++++++------
+ src/cmd/go/internal/load/pkg.go              | 29 +++++++++++++++++++++
+ src/cmd/go/internal/work/build.go            | 15 +++++------
+ src/cmd/go/testdata/src/exclude/empty/x.txt  |  0
+ src/cmd/go/testdata/src/exclude/ignore/_x.go |  1 +
+ src/cmd/go/testdata/src/exclude/x.go         |  3 +++
+ src/cmd/go/testdata/src/exclude/x_linux.go   |  4 +++
+ 7 files changed, 74 insertions(+), 16 deletions(-)

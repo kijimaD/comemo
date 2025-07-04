@@ -1,17 +1,17 @@
-commit 1b5b08d10a372ef3e3a21442fade2d2b4e3be343
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Feb 21 10:50:29 2019 +0100
+commit 90df37769d6441ce550443fa7e0c008d38e53455
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 17 08:04:01 2018 -0700
 
-    cmd/nm: fix cgo tests for aix/ppc64
+    cmd/cgo: rewrite pointer checking to use more function literals
     
-    This commit handles AIX cgo in cmd/nm tests.
+    Fixes #14210
+    Fixes #25941
     
-    Change-Id: I6753a0102e4f2c4c7bd4d7c999f62a0cb3d2183c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164017
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idde2d032290da3edb742b5b4f6ffeb625f05b494
+    Reviewed-on: https://go-review.googlesource.com/c/142884
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/nm/nm_cgo_test.go |  2 ++
- src/cmd/nm/nm_test.go     | 11 +++++++++++
- 2 files changed, 13 insertions(+)
+ misc/cgo/errors/ptr_test.go |  49 ++++++++
+ src/cmd/cgo/gcc.go          | 296 +++++++++++++++++++++++++++++---------------
+ src/cmd/cgo/main.go         |   1 +
+ 3 files changed, 248 insertions(+), 98 deletions(-)

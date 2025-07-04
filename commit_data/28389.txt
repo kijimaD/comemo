@@ -1,18 +1,49 @@
-commit 27eebbabc23366552508f4b13375f8729b90aacb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 15 00:52:36 2016 -0700
+commit 44497ebacb6336e4cc9ce2934840bdd68e8c46c0
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 17 18:46:03 2016 -0400
 
-    cmd/compile, runtime: remove throwreturn
+    runtime: fix goroutine priority elevation
     
-    Change-Id: If8d27cf1cd8d650ed0ba332448d3174d80b6b0ca
-    Reviewed-on: https://go-review.googlesource.com/29217
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently it's possible for user code to exploit the high scheduler
+    priority of the GC worker in conjunction with the runnext optimization
+    to elevate a user goroutine to high priority so it will always run
+    even if there are other runnable goroutines.
+    
+    For example, if a goroutine is in a tight allocation loop, the
+    following can happen:
+    
+    1. Goroutine 1 allocates, triggering a GC.
+    2. G 1 attempts an assist, but fails and blocks.
+    3. The scheduler runs the GC worker, since it is high priority.
+       Note that this also starts a new scheduler quantum.
+    4. The GC worker does enough work to satisfy the assist.
+    5. The GC worker readies G 1, putting it in runnext.
+    6. GC finishes and the scheduler runs G 1 from runnext, giving it
+       the rest of the GC worker's quantum.
+    7. Go to 1.
+    
+    Even if there are other goroutines on the run queue, they never get a
+    chance to run in the above sequence. This requires a confluence of
+    circumstances that make it unlikely, though not impossible, that it
+    would happen in "real" code. In the test added by this commit, we
+    force this confluence by setting GOMAXPROCS to 1 and GOGC to 1 so it's
+    easy for the test to repeated trigger GC and wake from a blocked
+    assist.
+    
+    We fix this by making GC always put user goroutines at the end of the
+    run queue, instead of in runnext. This makes it so user code can't
+    piggy-back on the GC's high priority to make a user goroutine act like
+    it has high priority. The only other situation where GC wakes user
+    goroutines is waking all blocked assists at the end, but this uses the
+    global run queue and hence doesn't have this problem.
+    
+    Fixes #15706.
+    
+    Change-Id: I1589dee4b7b7d0c9c8575ed3472226084dfce8bc
+    Reviewed-on: https://go-review.googlesource.com/23172
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 198 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
- src/cmd/compile/internal/gc/go.go              |   2 -
- src/cmd/compile/internal/gc/pgen.go            |   1 -
- src/runtime/panic.go                           |   4 -
- 5 files changed, 99 insertions(+), 107 deletions(-)
+ src/runtime/mgcmark.go              |  8 +++++++-
+ src/runtime/proc_test.go            |  8 ++++++++
+ src/runtime/testdata/testprog/gc.go | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 1 deletion(-)

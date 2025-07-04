@@ -1,22 +1,23 @@
-commit 9deda35ff81acb1dcb6fc66d69fa6da6ca4f5d87
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 11 15:40:43 2024 +0200
+commit 2420cc0d00fccb28c4d155941b2853c14bee4e34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 3 12:55:16 2023 -0700
 
-    cmd/cgo: use slices.ContainsFunc
+    go/types: use file start position as key for Info.FileVersions
     
-    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
-    the slices package (introduced in Go 1.21) can be used in packages built
-    using the bootstrap toolchain.
+    Per discussion on CL 515135.
     
-    For #64751
+    While at it, also use the file start position as key for the
+    internal map Checker.posVers.
     
-    Change-Id: Ib36f39016f57c5e110f78a85ca9c806d91356024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612316
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I14e9b1ff9e8ee5e3ba5de181fc9c7ffc39f28261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515656
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/gcc.go | 34 +++++++++++++---------------------
- 1 file changed, 13 insertions(+), 21 deletions(-)
+ src/go/types/api.go     |  4 ++--
+ src/go/types/check.go   | 26 +++++++++++++-------------
+ src/go/types/version.go |  3 ++-
+ 3 files changed, 17 insertions(+), 16 deletions(-)

@@ -1,34 +1,27 @@
-commit 4721ea6abcde318a2f5d61ec249cde5e9c57ebea
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 13 11:22:42 2016 -0400
+commit 45983827248f399426839b1789710120086dd4f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 18:56:45 2015 -0700
 
-    runtime/internal/atomic: rename Storep1 to StorepNoWB
+    cmd/compile/internal/gc: export & import function bodies, but don't hook up
     
-    Make it clear that the point of this function stores a pointer
-    *without* a write barrier.
+    Function bodies are not yet hooked up because the node structure is not
+    100% correct. This commit establishes that we can correctly write bodies
+    out and read them in again.
     
-    sed -i -e 's/Storep1/StorepNoWB/' $(git grep -l Storep1)
+    - export and import all exported inlined function bodies:
+      (export GO_GCFLAGS="-newexport"; sh all.bash) working
+    - inlined functions are not yet hooked up (just dropped on the floor)
+    - improved tracing output and error messages
+    - make mkbuiltin.go work for both textual and binary export data
+      so we can run tests with the new format
     
-    Updates #15270.
-    
-    Change-Id: Ifad7e17815e51a738070655fe3b178afdadaecf6
-    Reviewed-on: https://go-review.googlesource.com/21994
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I70dc4de419df1b604389c3747041d6dba8730b0b
+    Reviewed-on: https://go-review.googlesource.com/16284
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/atomic_pointer.go                 | 4 ++--
- src/runtime/hashmap.go                        | 4 ++--
- src/runtime/internal/atomic/asm_386.s         | 2 +-
- src/runtime/internal/atomic/asm_amd64.s       | 2 +-
- src/runtime/internal/atomic/asm_amd64p32.s    | 2 +-
- src/runtime/internal/atomic/asm_mips64x.s     | 2 +-
- src/runtime/internal/atomic/asm_ppc64x.s      | 2 +-
- src/runtime/internal/atomic/atomic_386.go     | 2 +-
- src/runtime/internal/atomic/atomic_amd64x.go  | 5 ++++-
- src/runtime/internal/atomic/atomic_arm.go     | 2 +-
- src/runtime/internal/atomic/atomic_arm64.go   | 2 +-
- src/runtime/internal/atomic/atomic_arm64.s    | 2 +-
- src/runtime/internal/atomic/atomic_mips64x.go | 2 +-
- src/runtime/internal/atomic/atomic_ppc64x.go  | 2 +-
- src/runtime/internal/atomic/atomic_s390x.go   | 2 +-
- 15 files changed, 20 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   | 455 +++++++++++++++++++++++++------
+ src/cmd/compile/internal/gc/bimport.go   | 335 ++++++++++++++++++++---
+ src/cmd/compile/internal/gc/mkbuiltin.go |  53 ++--
+ src/cmd/compile/internal/gc/parser.go    |  11 +-
+ src/cmd/compile/internal/gc/syntax.go    |   2 +-
+ 5 files changed, 707 insertions(+), 149 deletions(-)

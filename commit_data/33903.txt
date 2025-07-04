@@ -1,17 +1,29 @@
-commit a4dfb2e55525d56e5e185dc0082ee70d9bf1c00a
-Author: David Chase <drchase@google.com>
-Date:   Fri Dec 15 15:56:51 2017 -0500
+commit 32dc9b247fc8393d5effb31a6673c797d75db78e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 14 11:11:30 2017 -0400
 
-    cmd/link: make inlining+locationlist test depend on GOARCH
+    [dev.boringcrypto] cmd/go: exclude SysoFiles when using -msan
     
-    Location lists are only supported on x86 and amd64, so the
-    test expecting them failed everywhere else. Make that test
-    skip unless GOARCH is x86 or amd64.
+    There's no way for a *.syso file to be compiled to work both in
+    normal mode and in msan mode. Assume they are compiled in
+    normal mode and drop them in msan mode.
     
-    Change-Id: Id86b34d30c6a0b97e6fa0cd5aca31f51ed84f556
-    Reviewed-on: https://go-review.googlesource.com/84395
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Packages with syso files currently fail in -msan mode because
+    the syso file calls out to a routine like memcmp which then
+    falsely reports uninitialized memory. After this CL, they will fail
+    in -msan with link errors, because the syso will not be used.
+    But then it will at least be possible for package authors to write
+    fallback code in the package that avoids the syso in -msan mode,
+    so that the package with the syso can at least run in both modes.
+    Without this CL, that's not possible.
+    
+    See #21884.
+    
+    Change-Id: I77340614c4711325032484e65fa9c3f8332741d5
+    Reviewed-on: https://go-review.googlesource.com/63917
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/go_test.go           | 8 ++++++--
+ src/cmd/go/internal/load/pkg.go | 6 ++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

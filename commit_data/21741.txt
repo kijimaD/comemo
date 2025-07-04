@@ -1,32 +1,16 @@
-commit 7e1b61c71840386a494a0a9f99cb7237112c1116
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Feb 23 13:58:05 2015 -0800
+commit 2ffe3255a1ba3e09105eb1c86ef221a8ccc5c515
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri Jan 30 15:07:11 2015 -0800
 
-    runtime: mark pages we return to kernel as NOHUGEPAGE
+    os: allow EROFS in TestMkdirAllAtSlash
     
-    We return memory to the kernel with madvise(..., DONTNEED).
-    Also mark returned memory with NOHUGEPAGE to keep the kernel from
-    merging this memory into a huge page, effectively reallocating it.
+    On some systems (e.g. ChromeOS), / is mounted read-only.
+    This results in error code syscall.EROFS, which I guess
+    is just as valid as syscall.EACCES for this test.
     
-    Only known to be a problem on linux/{386,amd64,amd64p32} at the moment.
-    It may come up on other os/arch combinations in the future.
-    
-    Fixes #8832
-    
-    Change-Id: Ifffc6627a0296926e3f189a8a9b6e4bdb54c79eb
-    Reviewed-on: https://go-review.googlesource.com/5660
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I9188d5437a1b5ac1daa9c68b95b8dcb447666ca3
+    Reviewed-on: https://go-review.googlesource.com/3676
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/arch1_386.go          |  1 +
- src/runtime/arch1_amd64.go        |  1 +
- src/runtime/arch1_amd64p32.go     |  1 +
- src/runtime/arch1_arm.go          |  1 +
- src/runtime/arch1_ppc64.go        |  1 +
- src/runtime/arch1_ppc64le.go      |  1 +
- src/runtime/defs_linux_386.go     |  4 +++-
- src/runtime/defs_linux_amd64.go   |  4 +++-
- src/runtime/defs_linux_arm.go     | 21 +++++++++++++--------
- src/runtime/defs_linux_ppc64.go   |  4 +++-
- src/runtime/defs_linux_ppc64le.go |  4 +++-
- src/runtime/mem_linux.go          | 19 +++++++++++++++++++
- 12 files changed, 50 insertions(+), 12 deletions(-)
+ src/os/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

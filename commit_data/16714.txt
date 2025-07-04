@@ -1,14 +1,14 @@
-commit 328ec95878d15fb823d8ff6f9c9b2658874f6ab9
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jul 8 21:14:32 2013 -0500
+commit 47a89693e98dfe1e81be10fce769f992483746b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 8 11:45:33 2013 +1000
 
-    cmd/ld: trivial: fix unhandled switch case
+    misc/dist: clean files from GOPATH after building tour
     
-    Fix warning found by clang 3.3.
+    Fixes #5503.
     
-    R=rsc, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11022043
+    https://golang.org/cl/10989043
 
- src/cmd/ld/lib.c | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/dist/bindist.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

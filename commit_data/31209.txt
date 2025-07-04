@@ -1,17 +1,18 @@
-commit 2abd91e26564bd5ddd364b11e74e050a72766339
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 18 06:57:43 2017 -0700
+commit ab067cde34b515172cf51b4c562b2b4ef3cbe587
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 6 17:52:26 2017 -0500
 
-    runtime: add a map growth benchmark
+    cmd/link: use external linking for PIE by default
     
-    Updates #19931
-    Updates #19992
+    Now `go test -buildmode=pie std -short` passes on linux/amd64.
     
-    Change-Id: Ib2d4e6b9b89a49caa443310d896dce8d6db06050
-    Reviewed-on: https://go-review.googlesource.com/40978
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #18968
+    
+    Change-Id: Ide21877713e00edc64c1700c950016d6bff8de0e
+    Reviewed-on: https://go-review.googlesource.com/36417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mapspeed_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/link/internal/ld/config.go | 2 ++
+ 1 file changed, 2 insertions(+)

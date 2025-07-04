@@ -1,16 +1,19 @@
-commit 7bc90eda690debde8dce18c8370904beefff5960
+commit d044674a0dbca127307bf37f32348874110f3ec6
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Mar 5 14:35:15 2011 -0500
+Date:   Sat Mar 5 14:35:03 2011 -0500
 
-    http: fix, use WriteProxy
+    compress/flate: fix test
     
-    Fixes #53.
+    The test was checking for a buffer to be empty but
+    actually racing with the background goroutine that
+    was emptying it.  Left a comment so that the check
+    is not reintroduced later.
     
-    R=bradfitzgo, bradfitzwork
+    Fixes #1557.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4240075
+    https://golang.org/cl/4248063
 
- src/pkg/http/request.go           | 13 +++++----
- src/pkg/http/requestwrite_test.go | 59 ++++++++++++++++++++++++++++++++++++---
- src/pkg/http/transport.go         |  5 +++-
- 3 files changed, 66 insertions(+), 11 deletions(-)
+ src/pkg/compress/flate/deflate_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

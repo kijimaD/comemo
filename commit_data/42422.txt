@@ -1,14 +1,19 @@
-commit f1f8f9af9a55d73dfc6603a93bee0559fdc9024d
-Author: Yasser Abdolmaleki <yasser@yasser.ca>
-Date:   Sat May 30 17:42:34 2020 -0700
+commit e6b044b20040f76a5602a7fe6fc3d6e994376df1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 13 11:51:15 2019 -0500
 
-    container/list: fix typo in function comments
+    [dev.link] cmd/link: add storage and methods for read/write of Sym value
     
-    The correct word to use here is 'another' not 'an other'
+    Add loader methods SymValue() and SetSymValue() to get/set the
+    value of a symbol by global index.
     
-    Change-Id: Ie4f748ae94a5945dceb52779222ffd8cf36b8845
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235838
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifc71480fc34c719ad00506d0828edf36c1a57119
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211302
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/container/list/list.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go      | 24 ++++++++++++++++++++++--
+ src/cmd/link/internal/loader/loader_test.go | 15 ++++++++++++++-
+ 2 files changed, 36 insertions(+), 3 deletions(-)

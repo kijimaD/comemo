@@ -1,21 +1,28 @@
-commit 01837ca7eb7d83dcbf760c032e1b25320f200510
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Apr 16 18:28:29 2022 -0700
+commit 3e6219c6a9472e266d504d443b065e5a3e265a64
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 01:26:34 2021 -0700
 
-    reflect: in assignTo only allocate target if needed
+    [dev.typeparams] cmd/compile: split package escape into multiple files
     
-    Also correct parameter name in comment.
+    This CL reorganizes the code from package escape into multiple files,
+    so the relationships between bits of code are hopefully easier to
+    follow. Besides moving code around and adding necessary
+    copyright/import declarations, no code is touched at all.
     
-    Change-Id: Ic9486e08c2eea184faccf181cda7da808793def6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400674
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dan Kortschak <dan@kortschak.io>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Iddd396c3a140f4eb1a7a6266d92a4098118b575b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329989
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/reflect/value.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/escape/assign.go |  120 ++
+ src/cmd/compile/internal/escape/call.go   |  182 +++
+ src/cmd/compile/internal/escape/escape.go | 1722 +----------------------------
+ src/cmd/compile/internal/escape/expr.go   |  340 ++++++
+ src/cmd/compile/internal/escape/graph.go  |  324 ++++++
+ src/cmd/compile/internal/escape/leaks.go  |  106 ++
+ src/cmd/compile/internal/escape/solve.go  |  289 +++++
+ src/cmd/compile/internal/escape/stmt.go   |  208 ++++
+ src/cmd/compile/internal/escape/utils.go  |  215 ++++
+ 9 files changed, 1797 insertions(+), 1709 deletions(-)

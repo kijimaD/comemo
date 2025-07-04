@@ -1,21 +1,21 @@
-commit 8e18428e389c04f38c3b7e8f152d7f14077b7850
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Jun 21 08:17:35 2021 +0000
+commit db514c0caf5effb4396c9746e025c1ba2d717604
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Dec 1 17:37:07 2020 -0500
 
-    cmd/internal/obj/arm64: don't use REGTMP when moving C_AACON2 to a register
+    [dev.fuzz] testing: fix duplicate logging when fuzzing
     
-    MOVD $C_AACON2(Rf), Rt is encoded as ADD $C_AACON2_high_12_bits, Rf, REGTMP +
-    ADD $C_AACON2_low_12_bits, REGTMP, Rt. Actually REGTMP is not necessary here,
-    we can use Rt directly, so it becomes ADD $C_AACON2_high_12_bits, Rf, Rt +
-    ADD $C_AACON2_low_12_bits, Rt, Rt.
+    The workers were printing PASS/FAIL logs and
+    various others things, when that should be
+    the sole responsibility of the coordinator
+    process, which will have the aggregated data.
     
-    Change-Id: I90b7718b5fb0ab9f3ea28511f42946a6bdccfef3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329751
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
+    Change-Id: I7ac9883db62f0fe79ba1799cb88773c542a2a948
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274652
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 8 ++++----
- src/cmd/internal/obj/arm64/asm7.go        | 8 +++++---
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ src/testing/fuzz.go    | 7 ++++++-
+ src/testing/testing.go | 6 ++++--
+ 2 files changed, 10 insertions(+), 3 deletions(-)

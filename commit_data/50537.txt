@@ -1,17 +1,48 @@
-commit 0053ec452db5bd973c7ac9f4faa5041884e460e8
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Aug 25 22:08:10 2022 +0800
+commit fde4cc2a3189e2c964a0ce49de3cbe79ebedf985
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 5 10:35:31 2021 -0400
 
-    reflect: rtype.MethodByName using binary search
+    testing: reduce memory used by subtest names
     
-    Change-Id: If36e9fd7d6b1993ca2d0d382e7fa52212170c798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425481
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This is heavily based on CL 341336 by Joe Tsai and CL 351452 by
+    Jay Conrod.
+    
+    T.Run and T.Name use a map[string]int64 to hold the next suffix to use
+    when duplicate names are passed to T.Run. This map necessarily retains
+    one entry per unique name. However, it's a waste of memory to retain
+    one entry per duplicate name: when we encounter the Nth duplicate, we
+    know that names 00 through N-1 have been used just by looking at N.
+    
+    We do still need to store (and check for collisions againsts) explicit
+    names provided by the caller. For example, if the user passes in "a",
+    then "a#01", then "a" again, we cannot deduplicate the second "a" to
+    "a#01" — we need to instead skip ahead to "a#02". We can do so by
+    checking the count of "a", then generating a proposed deduplicated
+    name, then double-checking that proposed name against only the
+    explicit names so far.
+    
+    This somewhat reduces memory usage for tests that spawn large numbers
+    of duplicate subtests, but doesn't solve the problem of memory growth
+    for fuzzing — we still have to track all of the explicit,
+    user-provided subtest names, and in a long-running fuzz test that set
+    alone may be unbounded.
+    
+    This fixes memory growth for the example described in
+    https://golang.org/issue/44517#issuecomment-897104060,
+    but not the one in
+    https://golang.org/issue/44517#issuecomment-933825661.
+    
+    For #44517
+    
+    Change-Id: Ia159ecfcf44561ba67508d3af6377c27856df31d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354749
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/reflect/all_test.go | 10 ++++++++++
- src/reflect/type.go     | 22 ++++++++++++++++++----
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ src/testing/match.go      |  78 ++++++++++++++++++++++++++++-------
+ src/testing/match_test.go | 101 +++++++++++++++++++++++++++++++---------------
+ 2 files changed, 131 insertions(+), 48 deletions(-)

@@ -1,14 +1,14 @@
-commit 6cf61bb5b90fa64d450bb93a9f79032e520f7340
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Mon Sep 5 07:40:50 2011 -0400
+commit 740805fdb17aa53fb3cf936e706eacf7f1607545
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 5 15:03:41 2011 +1000
 
-    runtime: add test for multiple concurrent channel consumers
+    misc/goplay: another template fix
     
-    There was a time (in the past) when this wasn't robust.
+    Fixes #2219.
     
-    R=rsc, dvyukov
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4965058
+    https://golang.org/cl/4950063
 
- src/pkg/runtime/chan_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ misc/goplay/goplay.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

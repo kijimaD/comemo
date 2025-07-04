@@ -1,19 +1,13 @@
-commit 11075ed893193a415d6b16cd28f06ad4bcc49092
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Nov 3 17:51:15 2011 +0100
+commit 80bce97e45d99e7784bfa1d7d3563126d8c233e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 12:44:51 2011 -0400
 
-    gc: Don't pollute the xmethod list with non-methods.
+    gc, ld: sync pathtoprefix + add comments
     
-    Fixes #2355.
-    
-    I have a test, but not sure if it's worth adding.  Instead i've made
-    the patching-over in reflect.c methods more fatal and more descriptive.
-    
-    R=rsc
+    R=lvd, lvd
     CC=golang-dev
-    https://golang.org/cl/5302082
+    https://golang.org/cl/5332051
 
- src/cmd/gc/reflect.c     |  9 ++++++---
- src/cmd/gc/subr.c        |  7 +++++--
- test/fixedbugs/bug372.go | 28 ++++++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 5 deletions(-)
+ src/cmd/gc/subr.c |  2 ++
+ src/cmd/ld/lib.c  | 14 +++++++++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)

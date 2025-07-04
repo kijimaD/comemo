@@ -1,35 +1,18 @@
-commit c026845bd2984002168e7496cb9d0150f79164d0
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Feb 7 10:19:02 2017 -0800
+commit 8e4e103a00c88f297b7f28360d3d021a2e5bb865
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 26 08:50:23 2016 +0200
 
-    database/sql: record the context error in Rows if canceled
+    net/rpc: enable TestGobError on Plan 9
     
-    Previously it was intended that Rows.Scan would return
-    an error and Rows.Err would return nil. This was problematic
-    because drivers could not differentiate between a normal
-    Rows.Close or a context cancel close.
+    This issue has been fixed in CL 31271.
     
-    The alternative is to require drivers to return a Scan to return
-    an error if the driver is closed while there are still rows to be read.
-    This is currently not how several drivers currently work and may be
-    difficult to detect when there are additional rows.
+    Fixes #8908.
     
-    At the same time guard the the Rows.lasterr and prevent a close
-    while a Rows operation is active.
-    
-    For the drivers that do not have Context methods, do not check for
-    context cancelation after the operation, but before for any operation
-    that may modify the database state.
-    
-    Fixes #18961
-    
-    Change-Id: I49a25318ecd9f97a35d5b50540ecd850c01cfa5e
-    Reviewed-on: https://go-review.googlesource.com/36485
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I8015490e2d992e09c664560e42188315e0e0669e
+    Reviewed-on: https://go-review.googlesource.com/32150
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/ctxutil.go  |  54 +++++++++--------------
- src/database/sql/sql.go      | 102 +++++++++++++++++++++++++++++++------------
- src/database/sql/sql_test.go |  10 +++--
- 3 files changed, 100 insertions(+), 66 deletions(-)
+ src/net/rpc/client_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,17 +1,13 @@
-commit 5032a7dc0cb95eefe92714f572b58e5fa1569d6b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 10 11:46:57 2012 -0800
+commit 57f15a3d0302c6743150e105958b7f21fddc4058
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 11:13:27 2012 -0800
 
-    runtime: distinct panic message for call of nil func value
+    A+C: add Shenghou Ma (Individual CLA)
     
-    R=golang-dev, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5531062
+    https://golang.org/cl/5528065
 
- src/pkg/runtime/thread_darwin.c  | 10 ++++++++--
- src/pkg/runtime/thread_freebsd.c | 10 ++++++++--
- src/pkg/runtime/thread_linux.c   | 10 ++++++++--
- src/pkg/runtime/thread_netbsd.c  | 10 ++++++++--
- src/pkg/runtime/thread_openbsd.c | 10 ++++++++--
- src/pkg/runtime/thread_windows.c |  5 ++++-
- 6 files changed, 44 insertions(+), 11 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

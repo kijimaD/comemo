@@ -1,17 +1,29 @@
-commit 53db708a1d7639f15256df14b04cf68de42803c4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 10 16:26:58 2022 -0700
+commit f4f503e0a3ac7fbf9f57c7fe34cecc8df383e334
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 26 17:41:02 2021 -0700
 
-    cmd/compile/internal/types: change structuraltype_test.go to external test
+    [dev.typeparams] cmd/compile: implement generic .(T) operations
     
-    This test can run against package types's exported API just fine.
+    Introduce new dynamic dottype operations which take a dynamic
+    instead of static type to convert to.
     
-    Change-Id: I74184eedc9ca9159b05d893c5f7c615c3dd1884d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405655
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5824a1fea056fe811b1226ce059e1e8da1baa335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337609
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- .../compile/internal/types/structuraltype_test.go  | 49 ++++++++++++----------
- 1 file changed, 26 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/escape/expr.go   |   4 +
+ src/cmd/compile/internal/ir/expr.go       |  23 ++++++
+ src/cmd/compile/internal/ir/node.go       |   4 +
+ src/cmd/compile/internal/ir/node_gen.go   |  28 +++++++
+ src/cmd/compile/internal/ir/op_string.go  |  16 ++--
+ src/cmd/compile/internal/noder/stencil.go |  43 ++++++++++-
+ src/cmd/compile/internal/ssagen/ssa.go    | 122 ++++++++++++++++++++----------
+ src/cmd/compile/internal/walk/expr.go     |  11 +++
+ src/cmd/compile/internal/walk/order.go    |   4 +
+ test/typeparam/dottype.go                 |   5 ++
+ test/typeparam/dottype.out                |   2 +
+ 11 files changed, 209 insertions(+), 53 deletions(-)

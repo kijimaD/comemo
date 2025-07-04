@@ -1,19 +1,22 @@
-commit 40cdf69fc9279ab28f84a6e0f965de8382c578fe
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Oct 17 22:38:17 2023 +0800
+commit c3aac6c010f9293319ae5dbe0592bc7706b6a161
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Nov 11 07:34:15 2022 +0000
 
-    internal/poll: add SPLICE_F_NONBLOCK flag for splice to avoid inconsistency with O_NONBLOCK
+    net: handle correctly the _gateway and _outbound hostnames for nss myhostname
     
-    For #59041
+    Fixes #56387
     
-    Details: https://github.com/golang/go/issues/59041#issuecomment-1766610087
-    
-    Change-Id: Id3fc1df6d86b7c4cc383d09f9465fa8f4cc2a559
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536015
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: If412134344600caefec425699398522399986d4d
+    GitHub-Last-Rev: f33540ef8f90e9a8c09f3947aba8c01155516d39
+    GitHub-Pull-Request: golang/go#56388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/splice_linux.go | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ src/net/conf.go      | 10 ++++++++--
+ src/net/conf_test.go |  6 ++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,38 +1,21 @@
-commit 88129f0cb2438b555fd1dc74c707408251902b4e
-Author: Tim Wright <tenortim@gmail.com>
-Date:   Tue Feb 13 19:00:17 2018 -0800
+commit fa62ea6927d81202342289b2b15398886ea4f3bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 19:36:35 2017 -0500
 
-    all: enable c-shared/c-archive support for freebsd/amd64
+    cmd/dist: do not reinstall runtime/cgo with -tags lldb on ios builders
     
-    Fixes #14327
-    Much of the code is based on the linux/amd64 code that implements these
-    build modes, and code is shared where possible.
+    The cache will take care of keeping go test -tags lldb fast.
+    Installing runtime/cgo this way just makes all the checkNotStale
+    tests think runtime/cgo is out of date.
     
-    Change-Id: Ia510f2023768c0edbc863aebc585929ec593b332
-    Reviewed-on: https://go-review.googlesource.com/93875
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Should fix ios builders.
+    
+    Fixes #22509.
+    
+    Change-Id: If092cc4feb189eb848b6a22f6d22b89b70df219c
+    Reviewed-on: https://go-review.googlesource.com/76020
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go           |  5 +-
- misc/cgo/testcarchive/main5.c                    |  2 +
- misc/cgo/testcshared/cshared_test.go             | 12 ++-
- src/cmd/dist/test.go                             |  2 +
- src/cmd/go/internal/work/init.go                 |  3 +-
- src/cmd/internal/obj/x86/asm6.go                 |  6 +-
- src/cmd/internal/obj/x86/obj6.go                 |  2 +-
- src/cmd/link/internal/ld/config.go               |  6 ++
- src/runtime/cgo/gcc_fatalf.c                     |  2 +-
- src/runtime/cgo/gcc_freebsd_amd64.c              | 22 ++++--
- src/runtime/cgo/gcc_freebsd_sigaction.c          | 80 +++++++++++++++++++
- src/runtime/cgo/sigaction.go                     |  2 +-
- src/runtime/cgo_sigaction.go                     |  2 +-
- src/runtime/os_freebsd.go                        | 98 +++++++++++++++++++-----
- src/runtime/os_freebsd2.go                       | 20 +++++
- src/runtime/os_freebsd_amd64.go                  | 24 ++++++
- src/runtime/{sigaction_linux.go => sigaction.go} |  6 +-
- src/runtime/signal_unix.go                       |  5 +-
- src/runtime/sys_freebsd_386.s                    |  6 +-
- src/runtime/sys_freebsd_amd64.s                  | 96 ++++++++++++++++++++++-
- src/runtime/sys_freebsd_arm.s                    |  7 +-
- 21 files changed, 356 insertions(+), 52 deletions(-)
+ src/cmd/dist/test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

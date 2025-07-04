@@ -1,15 +1,83 @@
-commit 3c182a12f772c51e93195f2efaf84e3aff69109e
+commit 94d540a4b6bf68ec472bf4469037955e3133fcf7
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 18 21:15:44 2017 -0700
+Date:   Thu Apr 27 15:30:31 2017 -0700
 
-    runtime: replace t.keysize with fixed key size in evacuate_fastX
+    cmd/compile: add Type.MustSize and Type.MustAlignment
     
-    Change-Id: I89c3c3b21d7a4acbc49b14a52ac8d9a5861c0c39
-    Reviewed-on: https://go-review.googlesource.com/59131
+    Type.Size and Type.Alignment are for the front end:
+    They calculate size and alignment if needed.
+    
+    Type.MustSize and Type.MustAlignment are for the back end:
+    They call Fatal if size and alignment are not already calculated.
+    
+    Most uses are of MustSize and MustAlignment,
+    but that's because the back end is newer,
+    and this API was added to support it.
+    
+    This CL was mostly generated with sed and selective reversion.
+    The only mildly interesting bit is the change of the ssa.Type interface
+    and the supporting ssa dummy types.
+    
+    Follow-up to review feedback on CL 41970.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0d9b9505e57453dae8fb6a236a07a7a02abd459e
+    Reviewed-on: https://go-review.googlesource.com/42016
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/hashmap_fast.go | 36 ++++++++++++++++++------------------
- 1 file changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go            |   2 +-
+ src/cmd/compile/internal/amd64/ssa.go             |  12 +-
+ src/cmd/compile/internal/arm/ggen.go              |   2 +-
+ src/cmd/compile/internal/arm/ssa.go               |  18 +--
+ src/cmd/compile/internal/arm64/ggen.go            |   2 +-
+ src/cmd/compile/internal/arm64/ssa.go             |  22 +--
+ src/cmd/compile/internal/gc/plive.go              |   4 +-
+ src/cmd/compile/internal/gc/ssa.go                |  92 ++++++------
+ src/cmd/compile/internal/mips/ggen.go             |   2 +-
+ src/cmd/compile/internal/mips/ssa.go              |  18 +--
+ src/cmd/compile/internal/mips64/ggen.go           |   2 +-
+ src/cmd/compile/internal/mips64/ssa.go            |  20 +--
+ src/cmd/compile/internal/ppc64/ggen.go            |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go             |   8 +-
+ src/cmd/compile/internal/s390x/ggen.go            |   2 +-
+ src/cmd/compile/internal/s390x/ssa.go             |   8 +-
+ src/cmd/compile/internal/ssa/deadstore.go         |   4 +-
+ src/cmd/compile/internal/ssa/decompose.go         |  12 +-
+ src/cmd/compile/internal/ssa/export_test.go       |   2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules        |  24 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  42 +++---
+ src/cmd/compile/internal/ssa/gen/ARM.rules        |  38 ++---
+ src/cmd/compile/internal/ssa/gen/ARM64.rules      |  24 ++--
+ src/cmd/compile/internal/ssa/gen/MIPS.rules       |  52 +++----
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules     |  66 ++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules      |  16 +--
+ src/cmd/compile/internal/ssa/gen/S390X.rules      |  12 +-
+ src/cmd/compile/internal/ssa/gen/dec.rules        |   8 +-
+ src/cmd/compile/internal/ssa/gen/dec64.rules      |   4 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  14 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   4 +-
+ src/cmd/compile/internal/ssa/op.go                |   2 +-
+ src/cmd/compile/internal/ssa/phiopt.go            |   6 +-
+ src/cmd/compile/internal/ssa/rewrite.go           |  14 +-
+ src/cmd/compile/internal/ssa/rewrite386.go        |  68 ++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 168 +++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteARM.go        |  72 +++++-----
+ src/cmd/compile/internal/ssa/rewriteARM64.go      |  48 +++----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go       | 100 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 128 ++++++++---------
+ src/cmd/compile/internal/ssa/rewritePPC64.go      |  32 ++---
+ src/cmd/compile/internal/ssa/rewriteS390X.go      |  24 ++--
+ src/cmd/compile/internal/ssa/rewritedec.go        |  16 +--
+ src/cmd/compile/internal/ssa/rewritedec64.go      |   8 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go    |  28 ++--
+ src/cmd/compile/internal/ssa/type.go              |  12 +-
+ src/cmd/compile/internal/ssa/type_test.go         |   4 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  14 +-
+ src/cmd/compile/internal/types/type.go            |  16 +++
+ src/cmd/compile/internal/x86/387.go               |   4 +-
+ src/cmd/compile/internal/x86/ggen.go              |   2 +-
+ src/cmd/compile/internal/x86/ssa.go               |  16 +--
+ 52 files changed, 668 insertions(+), 652 deletions(-)

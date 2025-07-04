@@ -1,21 +1,22 @@
-commit d110d7c42dd8025465153e4008ba807f1e69b359
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 18 16:12:36 2023 -0400
+commit 2dcc9acbd27902c9e551f54ca29d2519418b45c4
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 25 18:40:54 2022 +0800
 
-    runtime: skip TestStackSwitchCallback on ios
+    cmd/go: show an error when a package in a module conflicts with one in std
     
-    getcontext is unsupported on ios, returning ENOTSUP.
+    Fixes #35270
     
-    Fixes #62700.
-    
-    Change-Id: Icc6c45fbd574886766d5289e2fbdbd62981d77eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529216
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I5d2a04359702be6dc04affb867540091b926bc23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434095
+    Run-TryBot: xie cui <523516579@qq.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/crash_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/import.go              | 42 ++++++++++------
+ .../go/testdata/script/mod_go_version_missing.txt  |  3 +-
+ src/cmd/go/testdata/script/mod_issue35270.txt      | 57 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_std_vendor.txt      |  5 +-
+ src/cmd/go/testdata/script/mod_vendor.txt          |  2 +-
+ 5 files changed, 90 insertions(+), 19 deletions(-)

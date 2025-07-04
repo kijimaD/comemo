@@ -1,14 +1,13 @@
-commit 9ff00c8fc99b203138747a622f7014dff317c013
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 5 21:33:44 2012 -0800
+commit eab42619467c0bb5c52cb17868df1ac77691d9cc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 6 15:25:42 2012 +1100
 
-    go/build: fix windows and plan9 builds
-    
-    Bit of a band-aid fix.
+    strconv: remove dependency on bytes
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5757045
+    https://golang.org/cl/5759044
 
- src/pkg/go/build/deps_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/pkg/go/build/deps_test.go |  2 +-
+ src/pkg/strconv/quote.go      | 63 ++++++++++++++++++++++---------------------
+ 2 files changed, 34 insertions(+), 31 deletions(-)

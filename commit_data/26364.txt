@@ -1,21 +1,14 @@
-commit dbed1c6361f333f7a7aaec1a33a69d0b53956f6b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 17 13:26:08 2016 -0700
+commit aba6250250d0cdcd1b7a19ca9c6112639eccbb5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 13 19:36:51 2016 +0000
 
-    cmd/compile: eliminate NumFields wrapper functions
+    net/http: clarify ConnState StateActive docs for HTTP/2
     
-    Change-Id: I3c6035559288cfdc33857216f50241b81932c8a4
-    Reviewed-on: https://go-review.googlesource.com/20811
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Update #13925
+    
+    Change-Id: I7cd0625fad841eb0e3f364629f9bc225aa2fdce9
+    Reviewed-on: https://go-review.googlesource.com/18575
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   | 10 +++++-----
- src/cmd/compile/internal/gc/dcl.go       |  2 +-
- src/cmd/compile/internal/gc/sinit.go     |  2 +-
- src/cmd/compile/internal/gc/ssa.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      |  4 ++--
- src/cmd/compile/internal/gc/type.go      |  5 -----
- src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
- src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
- 8 files changed, 19 insertions(+), 24 deletions(-)
+ src/net/http/server.go | 5 +++++
+ 1 file changed, 5 insertions(+)

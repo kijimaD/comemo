@@ -1,22 +1,40 @@
-commit 9515cb511a1210e013c26354ea09e786acd61365
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 28 10:20:32 2017 -0800
+commit 23416315060bf7601e5779c3a6a2529d4d604584
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 05:28:01 2016 +0000
 
-    math/bits: faster TrailingZeroes8
+    all: sprinkle t.Parallel on some slow tests
     
-    For sizes > 8, the existing code is faster.
+    I used the slowtests.go tool as described in
+    https://golang.org/cl/32684 on packages that stood out.
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkTrailingZeros8-8     1.95          1.29          -33.85%
+    go test -short std drops from ~56 to ~52 seconds.
     
-    Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.
+    This isn't a huge win, but it was mostly an exercise.
     
-    Change-Id: I6f3a33ec633a2c544ec29693c141f2f99335c745
-    Reviewed-on: https://go-review.googlesource.com/37581
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #17751
+    
+    Change-Id: I9f3402e36a038d71e662d06ce2c1d52f6c4b674d
+    Reviewed-on: https://go-review.googlesource.com/32751
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/bits/bits.go        |  2 +-
- src/math/bits/bits_impl.go   |  8 --------
- src/math/bits/bits_tables.go | 19 +++++++++++++++++++
- src/math/bits/make_tables.go |  9 +++++++++
- 4 files changed, 29 insertions(+), 9 deletions(-)
+ src/compress/flate/deflate_test.go      |  7 +++++
+ src/compress/flate/flate_test.go        |  1 +
+ src/compress/flate/writer_test.go       |  3 ++
+ src/crypto/tls/handshake_client_test.go | 21 +++++++++++++
+ src/crypto/tls/handshake_server_test.go |  2 ++
+ src/crypto/tls/tls_test.go              |  1 +
+ src/encoding/json/encode_test.go        |  2 ++
+ src/encoding/json/scanner_test.go       |  1 +
+ src/go/printer/printer_test.go          | 55 ++++++++++++++++++++-------------
+ src/log/syslog/syslog_test.go           |  2 ++
+ src/mime/multipart/multipart_test.go    |  2 ++
+ src/runtime/crash_cgo_test.go           | 16 ++++++++++
+ src/runtime/crash_test.go               |  2 ++
+ src/runtime/crash_unix_test.go          |  2 ++
+ src/runtime/map_test.go                 |  1 +
+ src/runtime/memmove_linux_amd64_test.go |  1 +
+ src/runtime/memmove_test.go             |  4 +++
+ src/runtime/runtime-gdb_test.go         |  2 ++
+ 18 files changed, 103 insertions(+), 22 deletions(-)

@@ -1,44 +1,20 @@
-commit 01f99b4e9540f34b44e13b25f6dd04b82ac952d9
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 11 13:07:35 2020 -0700
+commit 83ba044be67c03a3054e359907111473342fd22b
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Jan 27 15:31:41 2020 -0500
 
-    cmd/compile: mark DUFFZERO/DUFFCOPY as async unsafe
+    [dev.link] cmd/link: use new sym format in pe loader
     
-    These operations are async unsafe on architectures that use
-    frame pointers.
-    
-    The reason is they rely on data being safe when stored below the stack
-    pointer. They do:
-    
-      45da69:       48 89 6c 24 f0          mov    %rbp,-0x10(%rsp)
-      45da6e:       48 8d 6c 24 f0          lea    -0x10(%rsp),%rbp
-      45da73:       e8 7d d0 ff ff          callq  45aaf5 <runtime.duffzero+0x115>
-      45da78:       48 8b 6d 00             mov    0x0(%rbp),%rbp
-    
-    This dance ensures that inside duffzero, it looks like there is a
-    proper frame pointer set up, so that stack walkbacks work correctly if
-    the kernel samples during duffzero.
-    
-    However, this instruction sequence depends on data not being clobbered
-    even though it is below the stack pointer.
-    
-    If there is an async interrupt at any of those last 3 instructions,
-    and the interrupt decides to insert a call to asyncPreempt, then the
-    saved frame pointer on the stack gets clobbered. The last instruction
-    above then restores junk to the frame pointer.
-    
-    To prevent this, mark these instructions as async unsafe.
-    
-    (The body of duffzero is already async unsafe, as it is in package runtime.)
-    
-    Change-Id: I5562e82f9f5bd2fb543dcf2b6b9133d87ff83032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248261
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib784b8432ff4355b7ff4068801a0bcfcaf108950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216718
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 2 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 2 ++
- src/cmd/compile/internal/ssa/opGen.go        | 4 ++++
- 3 files changed, 8 insertions(+)
+ src/cmd/link/internal/ld/ar.go                |  31 ++---
+ src/cmd/link/internal/ld/lib.go               |   7 +-
+ src/cmd/link/internal/ld/main.go              |   2 +-
+ src/cmd/link/internal/ld/pe.go                |  26 ++--
+ src/cmd/link/internal/loader/loader.go        |  38 +++++-
+ src/cmd/link/internal/loader/symbolbuilder.go |   2 +
+ src/cmd/link/internal/loadpe/ldpe.go          | 168 ++++++++++++++------------
+ 7 files changed, 152 insertions(+), 122 deletions(-)

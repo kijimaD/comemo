@@ -1,20 +1,54 @@
-commit 4c028e565071c80803c975ca9c6431dbc6bb2a88
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 13 13:05:33 2017 -0700
+commit a5e3cac89587d2d6235e9a7217185dee9be6852a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 15 11:15:13 2017 -0700
 
-    cmd/go: adjust regexp that cleans cgo-related errors
+    cmd/compile: rearrange fields between ssa.Func, ssa.Cache, and ssa.Config
     
-    The compiler now also prints column information - make sure we use
-    the correct regexp for compiler error cleanups. Accept both, error
-    positions with columns and without, since column printing may be
-    disabled with -gcflags=-C.
+    This makes ssa.Func, ssa.Cache, and ssa.Config fulfill
+    the roles laid out for them in CL 38160.
     
-    Fixes #20628.
+    The only non-trivial change in this CL is how cached
+    values and blocks get IDs. Prior to this CL, their IDs were
+    assigned as part of resetting the cache, and only modified
+    IDs were reset. This required knowing how many values and
+    blocks were modified, which required a tight coupling between
+    ssa.Func and ssa.Config. To eliminate that coupling,
+    we now zero values and blocks during reset,
+    and assign their IDs when they are used.
+    Since unused values and blocks have ID == 0,
+    we can efficiently find the last used value/block,
+    to avoid zeroing everything.
+    Bulk zeroing is efficient, but not efficient enough
+    to obviate the need to avoid zeroing everything every time.
+    As a happy side-effect, ssa.Func.Free is no longer necessary.
     
-    Change-Id: I46dc921dd5c29d7b8172cd19a3df57951f60d889
-    Reviewed-on: https://go-review.googlesource.com/45612
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    DebugHashMatch and friends now belong in func.go.
+    They have been left in place for clarity and review.
+    I will move them in a subsequent CL.
+    
+    Passes toolstash -cmp. No compiler performance impact.
+    No change in 'go test cmd/compile/internal/ssa' execution time.
+    
+    Change-Id: I2eb7af58da067ef6a36e815a6f386cfe8634d098
+    Reviewed-on: https://go-review.googlesource.com/38167
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go           |  5 ++
+ src/cmd/compile/internal/gc/pgen.go           |  1 -
+ src/cmd/compile/internal/gc/ssa.go            | 38 ++++++-------
+ src/cmd/compile/internal/ssa/cache.go         | 31 ++++++++++
+ src/cmd/compile/internal/ssa/compile.go       |  6 +-
+ src/cmd/compile/internal/ssa/config.go        | 65 ++++-----------------
+ src/cmd/compile/internal/ssa/copyelim_test.go |  1 -
+ src/cmd/compile/internal/ssa/deadcode_test.go |  1 -
+ src/cmd/compile/internal/ssa/dom.go           |  8 +--
+ src/cmd/compile/internal/ssa/func.go          | 81 +++++++++------------------
+ src/cmd/compile/internal/ssa/func_test.go     |  7 ++-
+ src/cmd/compile/internal/ssa/fuse_test.go     |  1 -
+ src/cmd/compile/internal/ssa/loop_test.go     |  2 -
+ src/cmd/compile/internal/ssa/regalloc.go      |  2 +-
+ src/cmd/compile/internal/ssa/shift_test.go    | 12 ++--
+ src/cmd/compile/internal/ssa/stackalloc.go    |  4 +-
+ 16 files changed, 114 insertions(+), 151 deletions(-)

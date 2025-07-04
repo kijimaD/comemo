@@ -1,17 +1,24 @@
-commit 73eb27bd3bdf727347a5e4d7d369d92f712f5ab5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 11 15:09:47 2021 -0800
+commit 1a3558341860357c2400e37773e5076bb3a51628
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jul 15 17:38:36 2020 -0400
 
-    misc/cgo/testcarchive: don't use == for string equality in C code
+    cmd/go: add tracing for querying and downloading from the proxy
     
-    For https://gcc.gnu.org/PR99553
+    This CL adds tracing spans for modload.queryPattern, modload.queryProxy,
+    modload.QueryPattern, modload.QueryPattern.queryModule,
+    modload.queryPrefixModules and modfetch.Download.
     
-    Change-Id: I29a7fbfd89963d4139bc19af99330d70567938ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300993
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Updates #38714
+    
+    Change-Id: I537c7fa4f466c691c1b60ec73ef8a2277af49cd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242786
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/testcarchive/testdata/main_unix.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modcmd/download.go             |  2 +-
+ src/cmd/go/internal/modfetch/fetch.go              | 21 +++++++++++++++------
+ .../internal/modfetch/zip_sum_test/zip_sum_test.go |  3 ++-
+ src/cmd/go/internal/modload/query.go               | 22 ++++++++++++++++++----
+ 4 files changed, 36 insertions(+), 12 deletions(-)

@@ -1,13 +1,13 @@
-commit d5c7ef6216d7c3bc7e2e6da88a71edab577656d4
+commit 29f17fb01ceedad4d76ec4442e0a3bd6a6717e09
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jul 27 13:53:18 2013 +0400
+Date:   Sat Jul 27 13:36:27 2013 +0400
 
-    cmd/dist: fix crash on windows
-    currently 'dist install' always crashes on windows
+    net: temporary skip hanging test on windows
+    Update #5971.
     
-    R=golang-dev, r
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/11919043
+    https://golang.org/cl/11938046
 
- src/cmd/dist/windows.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/timeout_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

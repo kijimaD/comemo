@@ -1,35 +1,14 @@
-commit ccf9acefa8b61fb58daad233a6e0478d092d55ef
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Mar 8 10:07:17 2021 -0600
+commit 6072d6ee3e173bb46370dabc158e2cb25a6f4877
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 10 09:56:00 2020 -0700
 
-    cmd/compile/internal: improve handling of DS form offsets on ppc64x
+    test: add a test case that gccgo fails to compile
     
-    In the ppc64 ISA DS form loads and stores are restricted to offset
-    fields that are a multiple of 4. This is currently handled with checks
-    in the rules that generate MOVDload, MOVWload, MOVDstore and
-    MOVDstorezero to prevent invalid instructions from getting to the
-    assembler.
-    
-    An unhandled case was discovered which led to the search for a better
-    solution to this problem. Now, instead of checking the offset in the
-    rules, this will be detected when processing these Ops in
-    ssaGenValues in ppc64/ssa.go. If the offset is not valid, the address
-    of the symbol to be loaded or stored will be computed using the base
-    register + offset, and that value used in the new base register.
-    With the full address in the base register, the offset field can be
-    zero in the instruction.
-    
-    Updates #44739
-    
-    Change-Id: I4f3c0c469ae70a63e3add295c9b55ea0e30ef9b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299789
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: If36394e059cdae49834d26ad4ffdd3092a72a0b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 124 ++++++++++++++++++++-------
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  48 ++++-------
- src/cmd/compile/internal/ssa/rewritePPC64.go | 107 +++++------------------
- test/fixedbugs/issue44739.go                 |  61 +++++++++++++
- 4 files changed, 192 insertions(+), 148 deletions(-)
+ test/fixedbugs/bug509.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

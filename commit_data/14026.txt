@@ -1,21 +1,20 @@
-commit 23599ca2f6a25aa43c24e24962dcd7616a83d508
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Fri Oct 5 16:23:30 2012 -0400
+commit 1f6fba2d5648edb757644431b87f93c8481f36c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 5 08:48:23 2012 -0700
 
-    runtime: mask SSE exceptions on plan9/amd64
+    go/printer: don't forget the .0 in 1.0
     
-    The Go run-time assumes that all SSE floating-point exceptions
-    are masked so that Go programs are not broken by such invalid
-    operations. By default, the 64-bit version of the Plan 9 kernel
-    masks only some SSE floating-point exceptions. Here, we mask
-    them all on a per-thread basis.
+    (use floating-point rather then integer constant division)
     
-    R=rsc, rminnich, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6592056
+    gofmt -w src misc
+    
+    Fixes #3965.
+    
+    R=r, bsiegert, 0xjnml
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6610051
 
- src/pkg/runtime/os_plan9.h        | 1 +
- src/pkg/runtime/sys_plan9_386.s   | 4 ++++
- src/pkg/runtime/sys_plan9_amd64.s | 9 +++++++++
- src/pkg/runtime/thread_plan9.c    | 3 +++
- 4 files changed, 17 insertions(+)
+ src/pkg/go/printer/nodes.go                     |  2 +-
+ src/pkg/go/printer/testdata/declarations.golden | 29 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 29 +++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 1 deletion(-)

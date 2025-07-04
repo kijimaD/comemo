@@ -1,14 +1,14 @@
-commit f9f196c2a0ae7e4354d0a079e073386938209e76
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 11 09:57:47 2011 -0800
+commit 17d50d8664837c10a23560ed53a297b493dda26e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 11 09:36:44 2011 -0800
 
-    log: add methods for exit and panic
-    There were already functions for the standard logger;
-    this just completes the set.
+    runtime/cgo: Add callbacks to support SWIG.
     
-    R=rsc, adg
+    R=rsc, iant2, r
     CC=golang-dev
-    https://golang.org/cl/3901043
+    https://golang.org/cl/3886041
 
- src/pkg/log/log.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/pkg/runtime/cgo/Makefile    |  1 +
+ src/pkg/runtime/cgo/callbacks.c | 73 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/cgo.go      |  7 ++++
+ 3 files changed, 81 insertions(+)

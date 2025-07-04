@@ -1,17 +1,19 @@
-commit 16c5d30c84a7dbba88f89585b0238f52cc6b4494
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Tue Feb 20 19:14:00 2018 -0500
+commit e01eac371a3a5d62b5e75dbb4b7b6c89bae81569
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 13 11:05:12 2017 -0400
 
-    github: update Pull Request template
+    cmd/compile: mark LoweredGetCallerPC rematerializeable
     
-    + Move from Markdown checklist to text. The first PR comment is
-      presented as text when creating it.
-    + Add the note about Signed-Off-By: not being required.
+    The caller's PC is always available in the frame. We can just
+    load it when needed, no need to spill.
     
-    Change-Id: I0650891dcf11ed7dd367007148730ba2917784fe
-    Reviewed-on: https://go-review.googlesource.com/95696
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9c0a525903e574bb4eec9fe53cbeb8c64321166a
+    Reviewed-on: https://go-review.googlesource.com/70710
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- .github/PULL_REQUEST_TEMPLATE    | 25 +++++++++++++++++++++++++
- .github/PULL_REQUEST_TEMPLATE.md | 21 ---------------------
- 2 files changed, 25 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 10 ++++++----
+ 3 files changed, 8 insertions(+), 6 deletions(-)

@@ -1,23 +1,19 @@
-commit 1c5862cc0afada6ef0c07687ce4bf951ed9dd798
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Oct 18 13:42:25 2023 -0500
+commit 46bed9d04c5f1e0da557d79b9a35bf9331fcd33f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 11 13:12:47 2022 -0500
 
-    test/codegen: fix PPC64 AddLargeConst test
+    runtime/race: add missing copyright headers to syso import files
     
-    Commit 061d77cb70 was published in parallel with another commit
-    36ecff0893 which changed how certain constants were generated.
+    These were apparently missed in CL 424034.
     
-    Update the test to account for the changes.
-    
-    Change-Id: I314b735a34857efa02392b7a0dd9fd634e4ee428
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536256
+    Change-Id: I60fcdd8c16992177a23c0e701f4224b250cfabee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449855
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- test/codegen/arithmetic.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/race/race_v1_amd64.go | 4 ++++
+ src/runtime/race/race_v3_amd64.go | 4 ++++
+ 2 files changed, 8 insertions(+)

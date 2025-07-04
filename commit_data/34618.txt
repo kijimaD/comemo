@@ -1,27 +1,15 @@
-commit 423111081b87c6c4e61c4d94c94bfdf1853fa01f
-Author: James Cowgill <james.cowgill@mips.com>
-Date:   Wed Feb 28 16:10:14 2018 +0000
+commit 5e35954a8c3f8dff1d031161b9b5f73784d73a21
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 2 09:19:10 2017 -0400
 
-    cmd/internal/obj/mips: load/store even float registers first
+    cmd/go: disable implicit $GOCACHE when clearing $HOME in test
     
-    There is a bug in Octeon III processors where storing an odd floating
-    point register after it has recently been written to by a double
-    floating point operation will store the old value from before the double
-    operation (there are some extra details - the operation and store
-    must be a certain number of cycles apart). However, this bug does not
-    occur if the even register is stored first. Currently the bug only
-    happens on big endian because go always loads the even register first on
-    little endian.
-    
-    Workaround the bug by always loading / storing the even floating point
-    register first. Since this is just an instruction reordering, it should
-    have no performance penalty. This follows other compilers like GCC which
-    will always store the even register first (although you do have to set
-    the ISA level to MIPS I to prevent it from using SDC1).
-    
-    Change-Id: I5e73daa4d724ca1df7bf5228aab19f53f26a4976
-    Reviewed-on: https://go-review.googlesource.com/97735
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie9967c8aaf7cf2e90a442937df21b1218f7ae26f
+    Reviewed-on: https://go-review.googlesource.com/75472
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/internal/obj/mips/obj0.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

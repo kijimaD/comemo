@@ -1,17 +1,32 @@
-commit 84a855e547b8ef9a1a7aaaaedc3b1058ef7d1c09
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 13 16:19:51 2017 -0800
+commit 8380de416bbb3550de902374b7626e569060a712
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 27 17:36:39 2016 -0400
 
-    cmd/vet/all: add mips and mipsle
+    runtime: align stack pointer in sigfwd
     
-    Change-Id: I689b2e8e214561350f88fa4e20c8f34cf69dc6a7
-    Reviewed-on: https://go-review.googlesource.com/37301
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    sigfwd calls an arbitrary C signal handler function.  The System V ABI
+    for x86_64 (and the most recent revision of the ABI for i386) requires
+    the stack to be 16-byte aligned.
+    
+    Fixes: #17641
+    
+    Change-Id: I77f53d4a8c29c1b0fe8cfbcc8d5381c4e6f75a6b
+    Reviewed-on: https://go-review.googlesource.com/32107
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/main.go              |  2 ++
- src/cmd/vet/all/whitelist/mips.txt   |  7 +++++++
- src/cmd/vet/all/whitelist/mipsle.txt |  7 +++++++
- src/cmd/vet/all/whitelist/mipsx.txt  | 11 +++++++++++
- 4 files changed, 27 insertions(+)
+ misc/cgo/testcarchive/main2.c     | 13 +++++++++++++
+ src/runtime/sys_darwin_386.s      |  6 +++---
+ src/runtime/sys_darwin_amd64.s    | 19 ++++++++++---------
+ src/runtime/sys_dragonfly_amd64.s | 11 ++++++++---
+ src/runtime/sys_freebsd_386.s     | 18 ++++++++++++------
+ src/runtime/sys_freebsd_amd64.s   | 11 ++++++++---
+ src/runtime/sys_linux_386.s       | 18 ++++++++++++------
+ src/runtime/sys_linux_amd64.s     | 11 ++++++++---
+ src/runtime/sys_netbsd_386.s      | 18 ++++++++++++------
+ src/runtime/sys_netbsd_amd64.s    | 11 ++++++++---
+ src/runtime/sys_openbsd_386.s     | 18 ++++++++++++------
+ src/runtime/sys_openbsd_amd64.s   | 11 ++++++++---
+ src/runtime/sys_solaris_amd64.s   | 11 ++++++++---
+ 13 files changed, 122 insertions(+), 54 deletions(-)

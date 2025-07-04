@@ -1,13 +1,16 @@
-commit 96833d3a25078aae1b5e279775bebb09a054b4c8
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 14 16:26:00 2012 +0400
+commit 7f70bb59133d026a0f246b74713df5210a6937ac
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Nov 14 19:06:12 2012 +1100
 
-    cmd/gc: racewalk: fix instrumentation of structs
-    + do not instrument go.itab.*
+    syscall: regenerate z-files for openbsd/386
     
-    R=golang-dev, rsc
+    Regenerate z-files for OpenBSD/386 on OpenBSD 5.2.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6819106
+    https://golang.org/cl/6844044
 
- src/cmd/gc/racewalk.c | 48 +++++++++++++++++++++++++++++++++---------------
- 1 file changed, 33 insertions(+), 15 deletions(-)
+ src/pkg/syscall/zerrors_openbsd_386.go | 107 +++++++++++++++++++++++++++++----
+ src/pkg/syscall/zsysnum_openbsd_386.go |   9 +--
+ src/pkg/syscall/ztypes_openbsd_386.go  |  47 ++++++++-------
+ 3 files changed, 122 insertions(+), 41 deletions(-)

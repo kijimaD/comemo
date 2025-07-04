@@ -1,17 +1,20 @@
-commit 89d7a2fbda06976858cd00451d6eee81fffd9aea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 6 18:02:02 2017 -0800
+commit 410b73728f2cddb5e7bce3acd623e8a254af60db
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Sep 10 09:01:30 2017 +0900
 
-    encoding/xml: don't crash on invalid XMLName tag
+    cmd/link: remove windows-specific kludges from Adddynrel
     
-    Fixes #20953
+    Adddynrel does nothing on windows. We can make code don't call Adddynrel
+    on windows in the first place.
     
-    Change-Id: Ia30a6e0e335c1f738e1359500e09057b5981f1c7
-    Reviewed-on: https://go-review.googlesource.com/82397
+    Change-Id: I376cc36d44a5df18bda13be57e3916ca3062f181
+    Reviewed-on: https://go-review.googlesource.com/62611
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/encoding/xml/marshal_test.go | 19 +++++++++++++++++++
- src/encoding/xml/typeinfo.go     |  2 +-
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go | 20 +++++---------------
+ src/cmd/link/internal/ld/data.go   |  6 ++++--
+ src/cmd/link/internal/x86/asm.go   |  5 -----
+ 3 files changed, 9 insertions(+), 22 deletions(-)

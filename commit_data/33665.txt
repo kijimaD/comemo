@@ -1,27 +1,12 @@
-commit 1490cf67edc42ffd2abd6230f0caebebaf832a96
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Jun 27 00:47:17 2017 -0600
+commit 3558c16d48452d2f7e725dbefe5938f1575dd980
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:14:43 2017 +1000
 
-    net/http: implement sniffing for some fonts
+    cmd/link: introduce and use peFile.emitRelocations
     
-    Implement sniffing for fonts:
-    * MS Font object  --> "application/vnd.ms-fontobject"
-    * ttf             --> "application/font-ttf"
-    
-    * off             --> "application/font-off"
-    * otf             --> "application/font-off"
-    
-    * cff             --> "application/font-cff"
-    * woff            --> "application/font-woff"
-    
-    Fixes #20808
-    
-    Change-Id: Ibe02a87d3c9d610c6a30e1b6c03f4e520404e70f
-    Reviewed-on: https://go-review.googlesource.com/47553
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2458d1391af063d99ba1e446bcf12f7c41ae5f6b
+    Reviewed-on: https://go-review.googlesource.com/59419
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/sniff.go      | 15 +++++++++++++++
- src/net/http/sniff_test.go | 11 +++++++++++
- 2 files changed, 26 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 104 ++++++++++++++++++++---------------------
+ 1 file changed, 52 insertions(+), 52 deletions(-)

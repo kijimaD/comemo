@@ -1,49 +1,24 @@
-commit 6891405bbefc005467bd334d4061b599129a18c9
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 18 11:11:55 2023 -0400
+commit 131f981df0a7d17361839b55fd4d588e652f16a9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jul 20 20:27:58 2022 +0700
 
-    cmd/dist: use "pkg[:variant]" as dist test name
+    [dev.unified] cmd/compile: make Unified IR always writes concrete type for const exprs
     
-    The work to add the -json flag to the 'dist test' command also cleaned
-    how dist tests are tracked and registered. By now, a pair of (import
-    path, variant) strings is sufficient to uniquely identify every dist
-    test that exists. Some of the custom dist test names have been improved
-    along the way. And since the names are already changing a little anyway,
-    we use this opportunity to make them more uniform and predictable.
+    So we don't have to depend on typecheck pass to fixup the concrete
+    type for some constant expressions. Previously, the problem won't show up,
+    until CL 418475 sent, which removes an un-necessary type conversion in
+    "append(a, b...) to help the optimization kicks in.
     
-    The mapping from the old dist test names to the new is as follows:
+    For #53888
     
-    - "go_test:pkg"       → "pkg"  (this is the most common case)
-    - "go_test_bench:pkg" → "pkg:racebench"
-    - all other custom names are now called "pkg:variant", where variant
-      is a description of their test configuration and pkg is the import
-      path of the Go package under test
-    
-    CL 495016 introduced test variants and used variant names for rewriting
-    the Package field in JSON events, and now that same name starts to also
-    be used as the dist test name.
-    
-    Like previously done in CL 494496, registering a test variant involving
-    multiple Go packages creates a "pkg:variant" dist test name for each.
-    In the future we may combine their 'go test' invocation purely as an
-    optimization.
-    
-    We can do this with the support of CL 496190 that keeps the coordinator
-    happy and capable of working with both new and old names.
-    
-    In the end, all dist tests now have a consistent "pkg[:variant]" name.
-    
-    For #37486.
-    For #59990.
-    
-    Change-Id: I7eb02a42792a9831a2f3eeab583ff635d24269e8
-    Co-authored-by: Austin Clements <austin@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496181
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idaecd38b7abbaa3ad5b00ff3b1fb0fd8bbeb6726
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418514
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/test.go | 210 +++++++++++++++++++++++++++------------------------
- 1 file changed, 113 insertions(+), 97 deletions(-)
+ src/cmd/compile/internal/noder/expr.go    | 29 +++--------------------------
+ src/cmd/compile/internal/noder/helpers.go | 31 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/writer.go  |  4 +++-
+ 3 files changed, 37 insertions(+), 27 deletions(-)

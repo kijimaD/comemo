@@ -1,22 +1,13 @@
-commit 4a5b99c3a81dab8f389123f6e53ad879bbf6ed42
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 24 21:14:39 2017 -0400
+commit 9b1e7cf2ac90d2c4637cae480957e0f0152c3622
+Author: Francesc Campoy <francesc@campoy.cat>
+Date:   Fri Aug 4 15:41:57 2017 -0700
 
-    cmd/link: only adjust pagezero for iOS on darwin/arm64
+    math/bits: add examples for OnesCount functions
     
-    The new pagezero_size introduced by CL 72730 breaks
-    on 32-bit systems, since it is 2³². Restrict the change to
-    darwin/arm64, since it is intended for iOS only.
-    
-    We could plausibly allow GOARCH=amd64 as well, but
-    without a compelling reason, changing the zero page size
-    doesn't seem worth the risk.
-    
-    Change-Id: I5d6adcbaff8d0e5b169ff13512f188332cc7ed9a
-    Reviewed-on: https://go-review.googlesource.com/73250
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ie673f9665825a40281c2584d478ba1260f725856
+    Reviewed-on: https://go-review.googlesource.com/53357
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/math/bits/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

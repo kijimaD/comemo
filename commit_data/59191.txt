@@ -1,34 +1,18 @@
-commit 8f6c083d7bf68a766073c50ceb8ea405a3fe7bed
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 25 16:55:54 2025 -0400
+commit 727e8d3863f45789e559d4a9d20286026cb5bb07
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Feb 23 01:06:40 2024 +0000
 
-    cmd/link: choose one with larger size for duplicated BSS symbols
+    runtime: add crash stack support for arm
     
-    When two packages declare a variable with the same name (with
-    linkname at least on one side), the linker will choose one as the
-    actual definition of the symbol if one has content (i.e. a DATA
-    symbol) and the other does not (i.e. a BSS symbol). When both have
-    content, it is redefinition error. When neither has content,
-    currently the choice is sort of arbitrary (depending on symbol
-    loading order, etc. which are subject to change).
-    
-    One use case for that is that one wants to reference a symbol
-    defined in another package, and the reference side just wants to
-    see some of the fields, so it may be declared with a smaller type.
-    In this case, we want to choose the one with the larger size as
-    the true definition. Otherwise the code accessing the larger
-    sized one may read/write out of bounds, corrupting the next
-    variable. This CL makes the linker do so.
-    
-    Fixes #72032.
-    
-    Change-Id: I160aa9e0234702066cb8f141c186eaa89d0fcfed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660696
+    Change-Id: Ide4002d1cf82f2daaf7261b367c391dedbbf7719
+    GitHub-Last-Rev: 80ee248c3e34529e7a522acc97db9fb69c82dffb
+    GitHub-Pull-Request: golang/go#65308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558699
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@golang.org>
 
- src/cmd/link/internal/loader/loader.go  | 29 +++++++++++++------
- src/cmd/link/link_test.go               | 50 +++++++++++++++++++++++++++++++++
- src/cmd/link/testdata/linkname/sched.go | 19 +++++++++++++
- 3 files changed, 90 insertions(+), 8 deletions(-)
+ src/runtime/asm.s     |  2 ++
+ src/runtime/asm_arm.s | 39 ++++++++++++++++++++++++++++++++-------
+ src/runtime/proc.go   |  2 +-
+ 3 files changed, 35 insertions(+), 8 deletions(-)

@@ -1,50 +1,14 @@
-commit 4d600b8e5f7c50283ba71978a63700b219b5c80d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 13:48:15 2017 -0700
+commit 7853b090dd8e9f02147581c4e7bdbb45021e787c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:40:14 2017 -0800
 
-    cmd/compile: convert dxxx to dxxxLSym
+    crypto/x509: CreateCertificateRequest reads ExtraExtensions, not Extensions.
     
-    This is an automated refactoring to eliminate
-    all dxxx calls in gc/obj.go that accept types.Sym
-    instead of obj.LSym parameters.
+    Fixes #18899.
     
-    The refactoring was of the form:
-    
-    gorename -from '"cmd/compile/internal/gc".duintxx' -to Duintxx
-    gorename -from '"cmd/compile/internal/gc".duintxxLSym' -to DuintxxLSym
-    eg -t t.go -w cmd/compile/internal/gc
-    gofmt -r 'DuintxxLSym -> duintxxLSym' -w cmd/compile/internal/gc
-    
-    where t.go looked like:
-    
-    func before(s *types.Sym, off int, v uint64, wid int) int {
-            return gc.Duintxx(s, off, v, wid)
-    }
-    
-    func after(s *types.Sym, off int, v uint64, wid int) int {
-            return gc.DuintxxLSym(s.Linksym(), off, v, wid)
-    }
-    
-    The rename/gofmt shenanigans were to work around
-    limitations and bugs in eg and gorename.
-    
-    The resulting code in reflect.go looks temporarily ugly,
-    but it makes refactoring and cleanup opportunities
-    much clearer.
-    
-    Next step is to rename all the dxxx methods to rename the -LSym suffix
-    and clean up reflect.go.
-    
-    The renaming is left for a separate CL to make the changes in
-    this CL more obvious, and thus hopefully easier to review.
-    
-    Passes toolstash-check.
-    
-    Change-Id: Ib31a2b6fd146ed03a855d20ecb0433f0f74e2f10
-    Reviewed-on: https://go-review.googlesource.com/41396
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6a4bf0aad9cf1dbe6691ba4e4c478fcb33c44528
+    Reviewed-on: https://go-review.googlesource.com/36558
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/obj.go     |  46 ++++-------
- src/cmd/compile/internal/gc/reflect.go | 136 ++++++++++++++++-----------------
- 2 files changed, 81 insertions(+), 101 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

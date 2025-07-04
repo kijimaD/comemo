@@ -1,19 +1,30 @@
-commit 2221bc35cf5b133071feea7013b4c6509ae3b563
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Sat Nov 21 17:09:08 2015 -0800
+commit 2027b00e63d9128eaba4a0164072380561c0fc9c
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sun Aug 30 22:29:00 2015 +0200
 
-    html/template: Add missing error check to package example.
+    hash/crc32: add AMD64 optimized IEEE CRC calculation
     
-    This appears to be an unintended omission. The check func is declared
-    just above, and the err value from template.Parse is captured rather
-    than discarded via blank identifier. All following calls that similarly
-    return err are checked, so it can't be that this example elides error
-    checking for brevity. Finally, if you look at Example_autoescaping,
-    it does check err from template.Parse and its code is very similar.
+    IEEE is the most commonly used CRC-32 polynomial, used by zip, gzip and others.
     
-    Change-Id: I076e1846302d5f2cdb1d027ed85ca0db85e33ace
-    Reviewed-on: https://go-review.googlesource.com/17170
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Based on http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
+    
+    benchmark                       old ns/op     new ns/op     delta
+    BenchmarkIEEECrc1KB-8           3193          352           -88.98%
+    BenchmarkIEEECrc4KB-8           5025          1307          -73.99%
+    BenchmarkCastagnoliCrc1KB-8     126           126           +0.00%
+    
+    benchmark                       old MB/s     new MB/s     speedup
+    BenchmarkIEEECrc1KB-8           320.68       2901.92      9.05x
+    BenchmarkIEEECrc4KB-8           815.08       3131.80      3.84x
+    BenchmarkCastagnoliCrc1KB-8     8100.80      8109.78      1.00x
+    
+    Change-Id: I99c9a48365f631827f516e44f97e86155f03cb90
+    Reviewed-on: https://go-review.googlesource.com/14080
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/html/template/example_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/hash/crc32/crc32.go                            |  12 +-
+ src/hash/crc32/crc32_amd64.go                      |  54 +++++++
+ src/hash/crc32/crc32_amd64.s                       | 169 +++++++++++++++++++++
+ .../crc32/{crc32_amd64x.go => crc32_amd64p32.go}   |  16 +-
+ src/hash/crc32/crc32_generic.go                    |  11 ++
+ 5 files changed, 251 insertions(+), 11 deletions(-)

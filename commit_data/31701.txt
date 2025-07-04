@@ -1,14 +1,18 @@
-commit 29469d2406d213187ee91bd256bb60e98e451324
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Jun 2 17:07:33 2017 +0200
+commit 3a1271dad7617a9766d21987b2c3cc0e683d2010
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 8 22:54:52 2017 +0100
 
-    bytes: note that NewBuffer take ownership of its argument
+    go/internal/srcimporter: skip tests on iOS
     
-    Fixes #19383
+    The iOS test harness only includes the current test directory in its
+    app bundles, but the tests need access to all source code.
     
-    Change-Id: Ic84517053ced7794006f6fc65e6f249e97d6cf35
-    Reviewed-on: https://go-review.googlesource.com/44691
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8a902b183bc2745b4fbfffef867002d573abb1f5
+    Reviewed-on: https://go-review.googlesource.com/37961
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bytes/buffer.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/go/internal/srcimporter/srcimporter_test.go |  6 +++---
+ src/internal/testenv/testenv.go                 | 13 +++++++++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

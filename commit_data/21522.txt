@@ -1,15 +1,18 @@
-commit 46bff7558ac77a7585d5987fb40cdab39282bfb4
+commit 3ab4b68bc18927607d893bf747f8381c5902eb4a
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Feb 7 13:32:35 2015 -0800
+Date:   Mon Jan 12 17:23:18 2015 -0800
 
-    net/smtp: document SendMail more
+    net/http: deflake TestResponseWriterWriteStringAllocs, test interface instead
     
-    Fixes #9776
+    Skip the allocation testing (which was only used as a signal for
+    whether the interface was implemented by ResponseWriter), and just
+    test for it directly.
     
-    Change-Id: I53741fd970244bbfa6874adcb4f1e3d0e7de386b
-    Reviewed-on: https://go-review.googlesource.com/4162
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #9575
+    
+    Change-Id: Ie230f1d21b104537d5647e9c900a81509d692469
+    Reviewed-on: https://go-review.googlesource.com/2720
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/smtp/example_test.go | 24 +++++++++++++++++++++++-
- src/net/smtp/smtp.go         | 21 ++++++++++++++++++---
- 2 files changed, 41 insertions(+), 4 deletions(-)
+ src/net/http/serve_test.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

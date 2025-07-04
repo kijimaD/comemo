@@ -1,19 +1,12 @@
-commit c23afa9ddb1180b929ba09a7d96710677a2a4b45
-Author: Felix Kollmann <fk@konsorten.de>
-Date:   Wed Apr 18 21:04:49 2018 +0000
+commit fdf3ceafc61c0cf9b7b7bd6757f0c51393a7a83c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 20:08:21 2017 +0000
 
-    os: enable symlink creation on Windows 10
+    net/http: document ResponseWriter.WriteHeader more
     
-    Fixes #22874
-    
-    Change-Id: Ia30fc8df39e88fbc2939a4490c34da8dd5815a94
-    GitHub-Last-Rev: 3ba7abcc96ee02837fbfd65c044326c2f1923020
-    GitHub-Pull-Request: golang/go#24307
-    Reviewed-on: https://go-review.googlesource.com/99337
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I65209b90ed7c56d4c751b3e4b3ce1de52dae368c
+    Reviewed-on: https://go-review.googlesource.com/82635
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/windows/symlink_windows.go | 14 ++++++++
- src/os/file_windows.go                          | 11 ++++++-
- src/os/os_windows_test.go                       | 44 +++++++++++++++++++++++++
- 3 files changed, 68 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

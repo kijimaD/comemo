@@ -1,25 +1,27 @@
-commit eab0c46af7331484a7d5837cad68d9d01890b90f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 3 00:17:56 2021 -0400
+commit 368c40116434532dc0b53b72fa04788ca6742898
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 27 16:09:40 2020 -0700
 
-    cmd/go/internal/modload: remove outdated comments and redundant tests
+    runtime: block signals in needm before allocating M
     
-    The outdated comment in modfile.go was missed in CL 315409.
+    Otherwise, if a signal occurs just after we allocated the M,
+    we can deadlock if the signal handler needs to allocate an M
+    itself.
     
-    Upon a closer look at the test case in mod_go_version_vendor.txt, it
-    is almost completely redundant with the new test in
-    mod_vendor_goversion.txt. Make it completely redundant and remove it.
+    Fixes #42207
     
-    Updates #36876
-    
-    Change-Id: Ibcd1f6b426460aaafbd6dc0be93078547904572b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316209
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I76f44547f419e8b1c14cbf49bf602c6e645d8c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265759
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/modfile.go             |  3 --
- .../go/testdata/script/mod_go_version_vendor.txt   | 38 ----------------------
- .../go/testdata/script/mod_vendor_goversion.txt    | 23 ++++++++++---
- 3 files changed, 19 insertions(+), 45 deletions(-)
+ src/runtime/crash_unix_test.go                    |  9 +++
+ src/runtime/os_js.go                              |  2 +-
+ src/runtime/os_plan9.go                           |  2 +-
+ src/runtime/os_windows.go                         |  2 +-
+ src/runtime/proc.go                               | 26 ++++---
+ src/runtime/signal_unix.go                        |  8 +-
+ src/runtime/testdata/testprogcgo/needmdeadlock.go | 95 +++++++++++++++++++++++
+ 7 files changed, 127 insertions(+), 17 deletions(-)

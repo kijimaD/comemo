@@ -1,14 +1,17 @@
-commit ad366fdbe40eea7f4fbdc75e8a27304c696793f1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 22:45:06 2016 +0000
+commit b8eb5b53eadd10ed8c84b94a46301a3fc3715282
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Sep 11 23:29:25 2016 +0200
 
-    cmd/dist: add mips and mipsle as GOARCH values
+    net: make lookupPort case-insensitive on Plan 9
     
-    Change-Id: I7a51d5d96a7cb87c40ade5be276136c465010bb9
-    Reviewed-on: https://go-review.googlesource.com/32596
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The CL 28951 added TestLookupPort_Minimal, which was failing
+    on Plan 9, because lookupPort was not case-insensitive.
+    
+    Change-Id: Ic80dd29dad4ffd1c84c2590e3d5d0e588ab2e6c2
+    Reviewed-on: https://go-review.googlesource.com/29051
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

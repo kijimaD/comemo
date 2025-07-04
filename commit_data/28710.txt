@@ -1,18 +1,14 @@
-commit a016ecfdcbc266f45f33350238777fba9a391b8d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 5 15:59:09 2016 -0700
+commit fc12bb263683e43c0b93eb00071f894f5cfcc772
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 30 14:55:01 2016 -0400
 
-    spec: clarify acceptable indices in array/slice composite literals
+    context: cancel the context in ExampleWithTimeout, with explanation
     
-    This simply documents the status quo accepted by cmd/compile, gccgo,
-    and go/types. The new language matches the language used for indices
-    of index expressions for arrays and slices.
+    Fixes #16230
     
-    Fixes #16679.
-    
-    Change-Id: I65447889fbda9d222f2a9e6c10334d1b38c555f0
-    Reviewed-on: https://go-review.googlesource.com/30474
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibb10234a6c3ab8bd0cfd93c2ebe8cfa66f80f6b0
+    Reviewed-on: https://go-review.googlesource.com/24682
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/context/withtimeout_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

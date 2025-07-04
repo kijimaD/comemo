@@ -1,140 +1,17 @@
-commit 5890e25b7ccb2d2249b2f8a02ef5dbc36047868b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 12 12:36:34 2018 -0400
+commit c53ff2818a453bd47c937c78e37c6e057bb653c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 28 14:42:05 2018 -0700
 
-    cmd/go: add new test script facility
+    bufio: document ReadFrom/WriteTo calls to underlying methods
     
-    The original cmd/go tests were tiny shell scripts
-    written against a library of shell functions.
-    They were okay to write but difficult to run:
-    you couldn't select individual tests (with -run)
-    they didn't run on Windows, they were slow, and so on.
+    In general use of these magic methods must be documented so that
+    users understand what will happen.
     
-    CL 10464 introduced go_test.go's testgo framework
-    and later CLs translated the test shell script over to
-    individual go tests. This let us run tests selectively,
-    run tests on Windows, run tests in parallel, isolate
-    different tests, and so on. It was a big advance.
+    Fixes #23289
     
-    The tests had always been awkward to write.
-    Here was the first test in test.bash:
-    
-            TEST 'file:line in error messages'
-            # Test that error messages have file:line information at beginning of
-            # the line. Also test issue 4917: that the error is on stderr.
-            d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
-            fn=$d/err.go
-            echo "package main" > $fn
-            echo 'import "bar"' >> $fn
-            ./testgo run $fn 2>$d/err.out || true
-            if ! grep -q "^$fn:" $d/err.out; then
-                    echo "missing file:line in error message"
-                    cat $d/err.out
-                    ok=false
-            fi
-            rm -r $d
-    
-    The final Go version of this test was:
-    
-            func TestFileLineInErrorMessages(t *testing.T) {
-                    tg := testgo(t)
-                    defer tg.cleanup()
-                    tg.parallel()
-                    tg.tempFile("err.go", `package main; import "bar"`)
-                    path := tg.path("err.go")
-                    tg.runFail("run", path)
-                    shortPath := path
-                    if rel, err := filepath.Rel(tg.pwd(), path); err == nil && len(rel) < len(path) {
-                            shortPath = rel
-                    }
-                    tg.grepStderr("^"+regexp.QuoteMeta(shortPath)+":", "missing file:line in error message")
-            }
-    
-    It's better but still quite difficult to skim.
-    
-    This CL introduces a new facility meant as a successor to the testgo
-    approach that brings back the style of writing tests as little scripts,
-    but they are now scripts in a built-for-purpose shell-like language,
-    not bash itself. In this new form, the test above is a single file,
-    testdata/script/fileline.txt:
-    
-            # look for short, relative file:line in error message
-            ! go run ../../gopath/x/y/z/err.go
-            stderr ^..[\\/]x[\\/]y[\\/]z[\\/]err.go:
-    
-            -- ../x/y/z/err.go --
-            package main; import "bar"
-    
-    The file is a txtar text archive (see CL 123359) in which the leading comment
-    is the test script and the files are the initial state of the temporary file
-    system where the script runs.
-    
-    Each script runs as a subtest, so that they can still be selected individually.
-    
-    The scripts are kept isolated from each other by default,
-    so all script subtests are treated as parallel tests, for the
-    testing package to run in parallel. Even for the 15 tests in
-    this CL, that cuts the time for TestScript from 5.5s to 2.5s.
-    
-    The scripts do not have access to the cmd/go source directory,
-    nor to cmd/go/testdata, so they are prevented from creating temporary
-    files in those places or modifying existing ones. (Many existing tests
-    scribble in testdata, unfortunately, especially testdata/pkg when
-    they run builds with GOPATH=testdata.)
-    
-    This CL introduces the script facility and converts 15 tests.
-    The txtar archive form will allow us to delete the large trees of trivial
-    files in testdata; a few are deleted in this CL.
-    
-    See testdata/script/README for details and a larger conversion example.
-    
-    As part of converting testdata/script/test_badtest.txt,
-    I discovered that 'go test' was incorrectly printing a FAIL line
-    to stderr (not stdout) in one corner case. This CL fixes that
-    to keep the test passing.
-    
-    Future CLs will convert more tests.
-    
-    Change-Id: I11aa9e18dd2d4c7dcd8e310dbdc6a1ea5f7e54c1
-    Reviewed-on: https://go-review.googlesource.com/123577
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic46915eee1d3b7e57d8d1886834ddfb2e8e66e62
+    Reviewed-on: https://go-review.googlesource.com/103238
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go                              | 359 ++----------
- src/cmd/go/internal/imports/build.go               |  14 +-
- src/cmd/go/internal/test/test.go                   |   7 +-
- src/cmd/go/internal/work/action.go                 |   2 +-
- src/cmd/go/script_test.go                          | 652 +++++++++++++++++++++
- src/cmd/go/testdata/script/README                  | 244 ++++++++
- src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  11 +
- src/cmd/go/testdata/script/build_cache_compile.txt |  18 +
- src/cmd/go/testdata/script/build_cache_link.txt    |  23 +
- src/cmd/go/testdata/script/build_cache_output.txt  |  19 +
- src/cmd/go/testdata/script/fileline.txt            |   6 +
- .../go/testdata/script/install_cleans_build.txt    |  22 +
- src/cmd/go/testdata/script/install_cross_gobin.txt |  23 +
- .../go/testdata/script/install_rebuild_gopath.txt  |  29 +
- .../go/testdata/script/install_rebuild_removed.txt |  42 ++
- src/cmd/go/testdata/script/linkname.txt            |   7 +
- src/cmd/go/testdata/script/list_std.txt            |  12 +
- src/cmd/go/testdata/script/list_tags.txt           |   8 +
- .../go/testdata/script/pattern_syntax_error.txt    |  10 +
- src/cmd/go/testdata/script/run_hello.txt           |   7 +
- src/cmd/go/testdata/script/test_badtest.txt        |  30 +
- src/cmd/go/testdata/script/vendor_complex.txt      |  73 +++
- src/cmd/go/testdata/src/badtest/badexec/x_test.go  |   5 -
- src/cmd/go/testdata/src/badtest/badsyntax/x.go     |   1 -
- .../go/testdata/src/badtest/badsyntax/x_test.go    |   3 -
- src/cmd/go/testdata/src/badtest/badvar/x.go        |   1 -
- src/cmd/go/testdata/src/badtest/badvar/x_test.go   |   5 -
- src/cmd/go/testdata/src/complex/main.go            |  12 -
- .../go/testdata/src/complex/nest/sub/test12/p.go   |  11 -
- .../go/testdata/src/complex/nest/sub/test23/p.go   |  11 -
- .../testdata/src/complex/nest/sub/vendor/v2/v2.go  |   3 -
- .../go/testdata/src/complex/nest/vendor/v1/v1.go   |   3 -
- .../go/testdata/src/complex/nest/vendor/v2/v2.go   |   3 -
- .../go/testdata/src/complex/nest/vendor/v3/v3.go   |   3 -
- src/cmd/go/testdata/src/complex/vendor/v/v.go      |   3 -
- src/cmd/go/testdata/src/complex/w/w.go             |   3 -
- 36 files changed, 1281 insertions(+), 404 deletions(-)
+ src/bufio/bufio.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

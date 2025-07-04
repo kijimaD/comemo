@@ -1,0 +1,18 @@
+commit 0767ffdf27cc3fad4e88eee523fac04f2e669e82
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 24 18:53:45 2024 +0000
+
+    doc: add relnote fragment on stack slot merging
+    
+    Add a blurb to the toolchain section talking about stack slot merging.
+    
+    Updates #62737.
+    
+    Change-Id: I26193a6a381c95ff5d79ce80b77c10c7561d00cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581439
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/next/5-toolchain.md | 5 +++++
+ 1 file changed, 5 insertions(+)

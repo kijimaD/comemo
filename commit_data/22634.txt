@@ -1,12 +1,14 @@
-commit 3c939b5348c32d232d0a84553fdbe850aa101969
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Tue Apr 21 17:30:49 2015 +0200
+commit d593f4a4d51cb4a6be8fb808800978cea6b97d9a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 19:10:31 2015 +0300
 
-    doc/go1.5.txt: add reflect.ArrayOf
+    test: add tests for escape analysis of function parameters
     
-    Change-Id: I89704249218d4fdba11463c239c69143f8ad0051
-    Reviewed-on: https://go-review.googlesource.com/9185
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    False positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: I002ac5965ec6748adafa2c4c657c97d8f7ff75d0
+    Reviewed-on: https://go-review.googlesource.com/5311
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ test/escape_param.go | 326 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 326 insertions(+)

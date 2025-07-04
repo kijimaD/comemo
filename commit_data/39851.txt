@@ -1,16 +1,16 @@
-commit 5bb19e3454b91b0b8be53958a0f1b98f8b7b2c6b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 5 12:47:07 2019 -0400
+commit db7e74696087edefd03162583cc8d45ad5bd2f06
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 22:57:27 2019 +0000
 
-    cmd/go/internal/module: document Version usage for filesystem replacements
+    cmd/vet/all: don't use the x/tools vet in GOPATH
     
-    Updates #34085
+    Updates golang/go#31040
     
-    Change-Id: I57250d0c51a27f0bd3e223588dde9d6d955e0fcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193618
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I76e3044b2cc992e63194654a825e70307075eff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169237
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/module/module.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/vet/all/main.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

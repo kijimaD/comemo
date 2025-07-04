@@ -1,15 +1,13 @@
-commit b95c48918c1b29750ac13bfb9a220f58724fdfcf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 17 13:25:12 2013 -0700
+commit a4196bb6c8a7016145a76587a6a67ffda8444b56
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 18 02:33:55 2013 +0800
 
-    archive/zip: add docs on type of slashes in paths
-    
-    Fixes #5307
+    misc/cgo/test: fix a gcc warning
+    See https://code.google.com/p/go/issues/detail?id=5227#c16.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8676046
+    https://golang.org/cl/8833044
 
- src/pkg/archive/zip/struct.go | 9 ++++++++-
- src/pkg/archive/zip/writer.go | 3 +++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue5227.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

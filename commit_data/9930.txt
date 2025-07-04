@@ -1,16 +1,24 @@
-commit 187c3536a894b7d50db2133f3c8da1a6f6f1af9f
+commit e58a77809d5d31317f64bfc5b8a96e2fb093bae4
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 11 17:52:37 2011 -0700
+Date:   Tue Oct 11 17:43:10 2011 -0700
 
-    exp/datafmt: delete per Go 1 plan
+    ebnf, ebnflint: move under exp
     
-    R=r, bradfitz
+    pkg/ebnf -> pkg/exp/ebnf
+    cmd/ebnflint -> pkg/exp/ebnflint
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5249055
+    https://golang.org/cl/5188042
 
- src/pkg/Makefile                    |   1 -
- src/pkg/exp/datafmt/Makefile        |  12 -
- src/pkg/exp/datafmt/datafmt.go      | 710 ------------------------------------
- src/pkg/exp/datafmt/datafmt_test.go | 330 -----------------
- src/pkg/exp/datafmt/parser.go       | 368 -------------------
- 5 files changed, 1421 deletions(-)
+ src/cmd/Makefile                          | 1 -
+ src/pkg/Makefile                          | 6 +++---
+ src/pkg/{ => exp}/ebnf/Makefile           | 6 +++---
+ src/pkg/{ => exp}/ebnf/ebnf.go            | 0
+ src/pkg/{ => exp}/ebnf/ebnf_test.go       | 0
+ src/pkg/{ => exp}/ebnf/parser.go          | 0
+ src/{cmd => pkg/exp}/ebnflint/Makefile    | 4 ++--
+ src/{cmd => pkg/exp}/ebnflint/doc.go      | 0
+ src/{cmd => pkg/exp}/ebnflint/ebnflint.go | 2 +-
+ src/run.bash                              | 2 +-
+ 10 files changed, 10 insertions(+), 11 deletions(-)

@@ -1,23 +1,16 @@
-commit 3a7cbfaa40e91e22a8857cfc1132110b2265ce3d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 13 15:49:52 2018 -0700
+commit d3562c9db95e7dffaba457bb09ec685ad033a722
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Mar 2 15:26:37 2018 -0500
 
-    cmd/cgo: add import path to hash
+    internal/trace: Revert "remove backlinks from span/task end to start"
     
-    This avoids name conflicts when two identical packages use cgo.
-    This can happen in practice when the same package is vendored multiple
-    times in a single build.
+    This reverts commit 16398894dccf06e34af8fb1c7cff6eed9b163057.
+    This broke TestUserTaskSpan test.
     
-    Fixes #23555
-    
-    Change-Id: I9f0ec6db9165dcf9cdf3d314c668fee8ada18f9c
-    Reviewed-on: https://go-review.googlesource.com/118739
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If5ff8bdfe84e8cb30787b03ead87205ece3d5601
+    Reviewed-on: https://go-review.googlesource.com/98235
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- misc/cgo/test/issue23555.go    | 11 +++++++++++
- misc/cgo/test/issue23555a/a.go | 12 ++++++++++++
- misc/cgo/test/issue23555b/a.go | 12 ++++++++++++
- src/cmd/cgo/main.go            |  2 ++
- 4 files changed, 37 insertions(+)
+ src/cmd/trace/annotations.go | 103 ++++++++++++++-----------------------------
+ src/internal/trace/parser.go |  11 ++---
+ 2 files changed, 38 insertions(+), 76 deletions(-)

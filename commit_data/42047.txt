@@ -1,43 +1,25 @@
-commit e464d7d7970be972a17a98c7ad996c2db4a04997
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Apr 17 05:05:07 2020 -0700
+commit b3a361337c5ea48fb4de832b9883f19e172e1bb5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 12 19:08:39 2019 +0000
 
-    cmd/compile: optimize comparisons with immediates on s390x
+    runtime: add pallocbits and tests
     
-    When generating code for unsigned equals (==) and not equals (!=)
-    comparisons we currently, on s390x, always use signed comparisons.
+    This change adds a per-chunk bitmap for page allocation called
+    pallocBits with algorithms for allocating and freeing pages out of the
+    bitmap. This change also adds tests for pallocBits, but does not yet
+    integrate it into the runtime.
     
-    This mostly works well, however signed comparisons on s390x sign
-    extend their immediates and unsigned comparisons zero extend them.
-    For compare-and-branch instructions which can only have 8-bit
-    immediates this significantly changes the range of immediate values
-    we can represent: [-128, 127] for signed comparisons and [0, 255]
-    for unsigned comparisons.
+    Updates #35112.
     
-    When generating equals and not equals checks we don't neet to worry
-    about whether the comparison is signed or unsigned. This CL
-    therefore adds rules to allow us to switch signedness for such
-    comparisons if it means that it brings a constant into range for an
-    8-bit immediate.
-    
-    For example, a signed equals with an integer in the range [128, 255]
-    will now be implemented using an unsigned compare-and-branch
-    instruction rather than separate compare and branch instructions.
-    
-    As part of this change I've also added support for adding a name
-    to block control values using the same `x:(...)` syntax we use for
-    value rules.
-    
-    Triggers 792 times when compiling cmd and std.
-    
-    Change-Id: I77fa80a128f0a8ce51a2888d1e384bd5e9b61a77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228642
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I479006ed9f1609c80eedfff0580d5426b064b0ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190620
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  11 ++
- src/cmd/compile/internal/ssa/gen/rulegen.go  |  12 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go | 168 +++++++++++++++++++++++++++
- test/codegen/compare_and_branch.go           |  52 +++++++++
- 4 files changed, 238 insertions(+), 5 deletions(-)
+ src/go/build/deps_test.go       |   4 +-
+ src/runtime/export_test.go      |  63 +++++++++
+ src/runtime/mpallocbits.go      | 260 +++++++++++++++++++++++++++++++++++
+ src/runtime/mpallocbits_test.go | 290 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 615 insertions(+), 2 deletions(-)

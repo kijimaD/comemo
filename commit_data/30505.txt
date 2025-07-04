@@ -1,21 +1,19 @@
-commit b50b72858714f29f7147c0d58444398345ac8188
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 22 18:00:18 2016 -0700
+commit add8028eb9925db0ec9d3d0f95dec65c8cab1d96
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 16:11:50 2016 -0800
 
-    runtime: simplify sweep allocation counting
+    go/types: remove unused alias-related testdata files
     
-    Currently sweep counts the number of allocated objects, computes the
-    number of free objects from that, then re-computes the number of
-    allocated objects from that. Simplify and clean this up by skipping
-    these intermediate steps.
+    They interfere with gofmt -w across this directory.
     
-    Change-Id: I3ed98e371eb54bbcab7c8530466c4ab5fde35f0a
-    Reviewed-on: https://go-review.googlesource.com/34935
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Follow-up on https://go-review.googlesource.com/32819.
+    
+    For #16339 (comment).
+    
+    Change-Id: I4298b6117d89517d4fe6addce3942d950d821817
+    Reviewed-on: https://go-review.googlesource.com/33019
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mbitmap.go  | 8 ++++----
- src/runtime/mgcsweep.go | 8 +++-----
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ src/go/types/testdata/alias.go      |  21 -------
+ src/go/types/testdata/aliasdecl.src | 111 ------------------------------------
+ 2 files changed, 132 deletions(-)

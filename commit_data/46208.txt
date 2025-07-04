@@ -1,17 +1,22 @@
-commit a29d9aad7a4543498ff505b0a36d10c0f0153d3f
-Author: citizen233 <mengrenxiong@gmail.com>
-Date:   Sun Aug 29 21:45:35 2021 +0800
+commit 3298300ddf45a0792b4d8ea5e05f0fbceec4c9f9
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Dec 10 09:52:52 2020 +0800
 
-    test/typeparam/sliceimp.dir: fix typo in a.go
+    text/template: error on range over send channel
     
-    Fixing a typo, comparision -> comparison
+    template range require channel contains RecvDir
+    if recv on send only channel will raise an panic.
     
-    Change-Id: I369f95c251f155bc6a9a6b86077bcf1ab245fc3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345950
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Keith Randall <khr@golang.org>
+    Fixes #43065
+    
+    Change-Id: Ie0ea70ce60e074bf8c9f2378e07ef1d4c41dc38f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276532
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- test/typeparam/sliceimp.dir/a.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/text/template/exec.go      |  4 ++++
+ src/text/template/exec_test.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)

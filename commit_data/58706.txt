@@ -1,31 +1,21 @@
-commit a9357490919feed070e952ebc681b1a7af30aac2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Feb 11 17:56:21 2025 +0000
+commit 16d3040a84be821d801b75bd1a3d8ab4cc89ee36
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 30 22:59:04 2023 -0800
 
-    runtime: make TestSpuriousWakeupsNeverHangSemasleep more robust
+    maps: fix aliasing problems with Clone
     
-    This change modifies this test (which involves an arbitrary timeout) to
-    be a little less flaky by double-checking that our subprocess program
-    completed even if the ticker fires and we've exceeded our timeout. The
-    logic behind this change is that the testing goroutine might get delayed
-    for any number of reasons, but the subprocess could still complete in
-    time. Still, the goroutine will wake up to handle the ticker and see its
-    over time, even though the event it was waiting for did actually happen.
+    Make sure to alloc+copy large keys and values instead of aliasing them,
+    when they might be updated by a future assignment.
     
-    I can't reproduce #71548 locally, so I suspect because this test calls
-    t.Parallel other load can delay the testing goroutine enough for this to
-    happen (especially with GODEBUG=gccheckmark=1, which pauses
-    everything to perform a full mark and sweep, and runtime tests love to
-    call runtime.GC).
+    Fixes #64474
     
-    For #71548.
-    
-    Change-Id: I83e86a0115f65950886b57b5af0b4a517ef5f90f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648576
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie2226a81cf3897e4e2ee24472f2966d397ace53f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546515
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/runtime/semasleep_test.go | 30 ++++++++++++++++++++++--------
- 1 file changed, 22 insertions(+), 8 deletions(-)
+ src/maps/maps_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/map.go    | 22 +++++++++++++++----
+ 2 files changed, 76 insertions(+), 4 deletions(-)

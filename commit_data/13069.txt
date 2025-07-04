@@ -1,23 +1,12 @@
-commit 8a9edcf7906637ddb037296a86f664a50c47a199
-Author: Joel Sing <jsing@google.com>
-Date:   Wed May 16 01:52:20 2012 +1000
+commit 773685b4a3e4f8911421825f879f06a3de92c15e
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 15 11:48:58 2012 -0400
 
-    runtime: fix netbsd runtime defs
+    runtime: fix counting of free objects
     
-    Fix and regenerate runtime defs for NetBSD.
-    
-    Whilst the mcontext struct can be handled across architectures,
-    the registers are provided as defines that index an array, rather
-    than as members of the struct. Since these are architecture
-    dependent, include them via a defs_netbsd_<arch>.go file.
-    
-    R=golang-dev, m4dh4tt3r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6190070
+    https://golang.org/cl/6206056
 
- src/pkg/runtime/defs_netbsd.go       |  19 ++-
- src/pkg/runtime/defs_netbsd_386.go   |  42 ++++++
- src/pkg/runtime/defs_netbsd_386.h    | 259 +++++++++++++++++---------------
- src/pkg/runtime/defs_netbsd_amd64.go |  49 ++++++
- src/pkg/runtime/defs_netbsd_amd64.h  | 282 ++++++++++++++++++-----------------
- 5 files changed, 385 insertions(+), 266 deletions(-)
+ src/pkg/runtime/malloc.goc | 1 +
+ 1 file changed, 1 insertion(+)

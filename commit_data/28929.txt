@@ -1,14 +1,14 @@
-commit 023bb034e93363492ef444fefcb1d38cdc61ede1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 19 09:56:53 2016 -0700
+commit e772c723665c098fb6a90b5e03a61d172e348703
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 17 08:30:31 2016 -0700
 
-    spec: slightly more realistic example for type assertions
+    doc/go1.8: support "option ndots:0" in resolv.conf
     
-    For #17428.
+    Updates #15419.
     
-    Change-Id: Ia902b50cf0c40e3c2167fb573a39d328331c38c7
-    Reviewed-on: https://go-review.googlesource.com/31449
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If7c80adcb38b5731e337b2ae2d9d76fcf8513d8e
+    Reviewed-on: https://go-review.googlesource.com/27271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ doc/go1.8.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

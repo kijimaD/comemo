@@ -1,18 +1,24 @@
-commit e076c1b897b30648db794b66fd10929fe9a9852e
-Author: Raghvender <raghvenders@gmail.com>
-Date:   Mon Dec 11 15:41:45 2023 -0600
+commit fd208c8850cdfe84469d3e4ef9bd55e2e0cece70
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Feb 4 12:00:20 2023 +0700
 
-    cmd/go: allow test caching for the -fullpath flag
+    cmd/compile: remove constant arithmetic overflows during typecheck
     
-    Change-Id: I5662b8ff617772ca2afec8bf419c468a3e69c392
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548996
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Since go1.19, these errors are already reported by types2 for any user's
+    Go code. Compiler generated code, which looks like constant expression
+    should be evaluated as non-constant semantic, which allows overflows.
+    
+    Fixes #58293
+    
+    Change-Id: I6f0049a69bdb0a8d0d7a0db49c7badaa92598ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465096
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/alldocs.go                            | 2 +-
- src/cmd/go/internal/test/test.go                 | 5 +++--
- src/cmd/go/testdata/script/test_cache_inputs.txt | 7 +++++++
- 3 files changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/const.go | 36 ++---------------------------
+ test/fixedbugs/issue58293.go                | 13 +++++++++++
+ 2 files changed, 15 insertions(+), 34 deletions(-)

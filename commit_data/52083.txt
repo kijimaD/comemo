@@ -1,23 +1,19 @@
-commit ffb07d0c66db2f3f33faedf2927f9aa476d47720
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 24 15:52:58 2023 -0800
+commit ac313524fe4997b80a4221647f0da79d0e07b88e
+Author: zlasd <zlasd@hotmail.com>
+Date:   Sun Mar 27 21:17:53 2022 +0800
 
-    cmd/link: don't emit PAX_FLAGS segment on Linux
+    reflect: fix Value.NumMethod docs
     
-    We started emitting this segment in 2012 in CL 6326054 for #47.
-    It disabled three kinds of protection: mprotect, randexec, and emutramp.
-    The randexec protection was deprecated some time ago, replaced by PIE.
-    The emutramp and mprotect protection was because we used to rely on being
-    able to create writable executable memory to implement function closures,
-    but that is not true since https://go.dev/s/go11func was implemented.
+    NumMethod counts unexported methods for interface types. This
+    behavior is documented in Type.NumMethod
     
-    Change-Id: I5e3a5279d76d642b0423d26195b891479a235763
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471199
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #42123
+    
+    Change-Id: Ia5aba353a8cc64190c701d1521972d57e8903564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396075
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/ld/elf.go | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/reflect/type.go  | 4 +++-
+ src/reflect/value.go | 6 +++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,20 +1,24 @@
-commit 1b0cf430dd130ad53e9f43bc04d2ed91bcd87b26
+commit c043e90e559a18691be722f96272846808292fe0
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 19 15:32:14 2016 -0700
+Date:   Fri Aug 19 18:10:00 2016 -0700
 
-    cmd/compile: implement package-level aliases (no export yet)
+    cmd/compile: clean up encoding of export version info
     
-    Requires -newparser=1.
+    Replace ad-hoc encoding of export version info with a
+    more systematic approach.
     
-    For #17487.
-    For #16339.
+    Continue to read (but not write) the Go1.7 format for backward-
+    compatibility. This will avoid spurious errors with old installed
+    packages.
     
-    Change-Id: I156fb0c0f8a97e8c72dbbfbd7fe821efee12b957
-    Reviewed-on: https://go-review.googlesource.com/31597
+    Fixes #16244.
+    
+    Change-Id: I945e79ffd5e22b883250f6f9fac218370c2505a2
+    Reviewed-on: https://go-review.googlesource.com/27452
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/main.go  |  2 +
- src/cmd/compile/internal/gc/noder.go | 91 +++++++++++++++++++++++++++++++++-
- src/go/types/stdlib_test.go          |  1 +
- test/alias2.go                       | 96 ++++++++++++++++++++++++++++++++++++
- 4 files changed, 188 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |  69 +++++------
+ src/cmd/compile/internal/gc/bimport.go |  53 ++++++---
+ src/cmd/compile/internal/gc/builtin.go | 208 ++++++++++++++++-----------------
+ src/go/internal/gcimporter/bimport.go  |  54 ++++++---
+ 4 files changed, 205 insertions(+), 179 deletions(-)

@@ -1,14 +1,13 @@
-commit b60ec4cc4b230f4d0787acf82057947b8bf80cea
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Sat Sep 5 14:24:28 2020 +0300
+commit 89f249a40d6317620243bc2dac083dffafcb4448
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 03:05:57 2020 +1100
 
-    mime: add examples for FormatMediaType and ParseMediaType
+    math: implement Sqrt in assembly for riscv64
     
-    Change-Id: Ic129c58784ad1f0b8b90fc9d33e52bee61bdf0eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253237
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9a5dc33271434e58335f5562a30cc131c6a8332c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220918
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/mime/example_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/math/sqrt_riscv64.s  | 14 ++++++++++++++
+ src/math/stubs_riscv64.s |  3 ---
+ 2 files changed, 14 insertions(+), 3 deletions(-)

@@ -1,30 +1,18 @@
-commit 856525ce5c49624fe43d1842a118964d3e38e528
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Dec 9 17:35:21 2018 +0000
+commit 141eacd27298c1d9f6019f0d1bde90ad8d07bebe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 26 20:19:14 2018 -0700
 
-    text/template: improve nil errors in evalField
+    go/internal/gccgo: remove unused test file
     
-    If we're accessing a field on a nil struct pointer, and that field is
-    present in the type, we should print a "nil pointer evaluating X.Y" error
-    instead of the broader "can't evaluate field Y in X". The latter error
-    should still be used for the cases where the field is simply missing.
+    Follow-up on https://go-review.googlesource.com/c/go/+/137857/4
+    which didn't remove this test file after it was removed from the
+    list of importer tests in importer_test.go.
     
-    While at it, remove the isNil checks in the struct and map cases. The
-    indirect func will only return a true isNil when returning a pointer or
-    interface reflect.Value, so it's impossible for either of these checks
-    to be useful.
-    
-    Finally, extend the test suite to test a handful of these edge cases,
-    including the one shown in the original issue.
-    
-    Fixes #29137.
-    
-    Change-Id: I53408ced8a7b53807a0a8461b6baef1cd01d25ae
-    Reviewed-on: https://go-review.googlesource.com/c/153341
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib89cb3a6d976115da42c33443529ea27bd1ce838
+    Reviewed-on: https://go-review.googlesource.com/137975
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/exec.go      | 22 ++++++++-----
- src/text/template/exec_test.go | 70 ++++++++++++++++++++++++++++++++++--------
- 2 files changed, 72 insertions(+), 20 deletions(-)
+ src/go/internal/gccgoimporter/testdata/alias.gox | 4 ----
+ 1 file changed, 4 deletions(-)

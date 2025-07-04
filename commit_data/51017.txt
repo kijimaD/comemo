@@ -1,26 +1,17 @@
-commit 7f255ba065ee7bd41da806b297cd643e3ead3fee
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Sep 28 11:50:41 2022 -0400
+commit 45bae64015975a4d7ede597a55397545571d8bc5
+Author: Chaoqun Han <hanssccv@gmail.com>
+Date:   Thu Nov 25 09:41:06 2021 +0800
 
-    cmd/dist: produce intermedate .a files in a temporary location
+    A+C: add Chaoqun Han (individual CLA)
     
-    Before this change, the .a files for the intermediate go toolchains
-    were produced in the same location as the install target. This change
-    has them produced in a temporary location instead. This change,
-    combined with go install not producing .a files for most stdlib
-    packages by default results in a build of the distribution only
-    producing .a's for the five packages in std that require cgo. (Before
-    this change, the .a's for the final build were not being produced, but
-    stale ones from the intermediate builds were left behind.)
-    
-    For #47257
-    
-    Change-Id: I91b826cd1ce9aad9c492fb865e36d34dc8bb188e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436135
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Id4aa067ef84510a31992d7d32cc697dd8b8342f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367035
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/dist/build.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

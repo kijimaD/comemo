@@ -1,0 +1,28 @@
+commit 090748d6c7973e9bb8f5efe069135c8ea0f0d89c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 12 15:43:37 2024 -0500
+
+    testing: improve B.Loop docs, use B.Loop in examples
+    
+    This updates the testing documentation to frame B.Loop as the
+    canonical way to write benchmarks. We retain documentation on b.N
+    benchmarks because people will definitely continue to see them (and
+    write them), but it's demoted to clearly second class.
+    
+    This also attempts to clarify and refine the B.Loop documentation
+    itself.
+    
+    Updates #61515
+    Fixes #70787
+    
+    Change-Id: If5123435bfe3a5883a753119ecdf7bbc41afd499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635895
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/testing/benchmark.go      | 54 +++++++++++++++++++++++++------------------
+ src/testing/benchmark_test.go |  4 ++--
+ src/testing/testing.go        | 46 ++++++++++++++++++++++++++++--------
+ 3 files changed, 71 insertions(+), 33 deletions(-)

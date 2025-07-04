@@ -1,19 +1,15 @@
-commit ce884036d2199ebec22e4f9200789a532a1225d1
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 28 22:34:32 2014 +0400
+commit 5be96aad0094b51757a40414fb7a5f3418de8067
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 28 19:49:29 2014 +1100
 
-    runtime: adjust malloc race instrumentation for tiny allocs
-    Tiny alloc memory block is shared by different goroutines running on the same thread.
-    We call racemalloc after enabling preemption in mallocgc,
-    as the result another goroutine can act on not yet race-cleared tiny block.
-    Call racemalloc before enabling preemption.
-    Fixes #7224.
+    io: clarify MultiReader documentation
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    Fixes #7216.
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/57730043
+    https://golang.org/cl/54740044
 
- src/pkg/runtime/malloc.goc                |  4 ++--
- src/pkg/runtime/race/testdata/mop_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/pkg/io/multi.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

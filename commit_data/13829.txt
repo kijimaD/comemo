@@ -1,18 +1,23 @@
-commit 7b7a7a573789c3dd49fc4c1f6e76920a2fd9485e
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 14 15:25:37 2012 -0700
+commit cc06593c681878a2a87f3612aa024e69a1ac074b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 14 11:31:56 2012 -0700
 
-    text/template: towards better errors
-    Give the right name for errors, and add a test to check we're
-    getting the errors we expect.
-    Also fix an ordering bug (calling add after stopParse) that
-    caused a nil indirection rather than a helpful error.
-    Fixes #3280.
+    spec: clarify section on string types
     
-    R=golang-dev, adg
+    Strings happen to be represented similarly to
+    byte slices internally, but they don't quite
+    behave like them: While strings can be indexed,
+    sliced, and have their len() taken like byte
+    slices, string elements are not addressable,
+    make() and cap() is not supported, range loops
+    operate differently, and they are immutable (and
+    thus behave like values rather then references).
+    
+    Fixes #4018.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6520043
+    https://golang.org/cl/6503116
 
- src/pkg/text/template/parse/parse.go      | 11 +++--
- src/pkg/text/template/parse/parse_test.go | 73 ++++++++++++++++++++++++++++++-
- 2 files changed, 79 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

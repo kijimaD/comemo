@@ -1,17 +1,12 @@
-commit 7098f3d44279e7b753a27cebae9f09d406862edd
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Apr 5 10:59:10 2011 -0400
+commit 80c5ef9f3159803990467bd93cb349a50ca0e12f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 4 23:57:08 2011 -0700
 
-    crypto/des: new package providing implementations of DES and TDEA
-    Original code by Chris Lennert <cale...@gmail.com>
+    os: fix windows build
     
-    R=rsc, agl1
+    R=brainman
     CC=golang-dev
-    https://golang.org/cl/4331054
+    https://golang.org/cl/4308047
 
- src/pkg/crypto/des/Makefile    |   13 +
- src/pkg/crypto/des/block.go    |  130 ++++
- src/pkg/crypto/des/cipher.go   |  113 +++
- src/pkg/crypto/des/const.go    |  138 ++++
- src/pkg/crypto/des/des_test.go | 1595 ++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 1989 insertions(+)
+ src/pkg/os/file_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

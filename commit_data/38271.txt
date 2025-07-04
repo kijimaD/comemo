@@ -1,24 +1,35 @@
-commit a30421a39480efd766eb07518fb2edc4c9e0a8b8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 6 11:06:14 2019 -0500
+commit 7f3313133ee3e40515aa99d3618b8e5eafed42d6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 7 12:45:56 2018 +0100
 
-    cmd/vet/all: build the vet tool within the golang.org/x/tools repository
+    cmd/compile: don't panic on invalid map key declarations
     
-    When running cmd/vet/all on multiple builders, the coordinator places
-    a copy of golang.org/x/tools at a consistent revision in the builders'
-    GOPATHs. Keep using the consistent revision in module mode by
-    executing the build from a working directory within that repository.
+    In golang.org/cl/75310, the compiler's typechecker was changed so that
+    map key types were validated at a later stage, to make sure that all the
+    necessary type information was present.
     
-    When not running on a builder, use 'go vet' directly instead of
-    building an arbitrarily stale vet tool from the user's GOPATH.
+    This still worked for map type declarations, but caused a regression for
+    top-level map variable declarations. These now caused a fatal panic
+    instead of a typechecking error.
     
-    Updates #30228
+    The cause was that checkMapKeys was run too early, before all
+    typechecking was done. In particular, top-level map variable
+    declarations are typechecked as external declarations, much later than
+    where checkMapKeys was run.
     
-    Change-Id: I19bc809247378da98f3e6ac8572f61bda4518143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165740
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Add a test case for both exported and unexported top-level map
+    declarations, and add a second call to checkMapKeys at the actual end of
+    typechecking. Simply moving the one call isn't a good solution either;
+    the comments expand on that.
+    
+    Fixes #28058.
+    
+    Change-Id: Ia5febb01a1d877447cf66ba44fb49a7e0f4f18a5
+    Reviewed-on: https://go-review.googlesource.com/c/140417
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/vet/all/main.go | 90 +++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 65 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  7 ++++++-
+ test/fixedbugs/issue28058.go        | 13 +++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

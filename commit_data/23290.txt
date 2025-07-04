@@ -1,30 +1,23 @@
-commit 1303957dbf47113a09713e952c332fd5b14379b6
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 5 17:18:15 2015 -0400
+commit 9f5d0bff415b57726b38f0ca85183f379ca04432
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 5 16:10:12 2015 +1200
 
-    runtime: enable write barriers during concurrent scan
+    cmd/6l, cmd/internal/ld: handle R_PCREL to function in other shared library
     
-    Currently, write barriers are only enabled after completion of the
-    concurrent scan phase, as we enter the concurrent mark phase. However,
-    stack barriers are installed during the scan phase and assume that
-    write barriers will track changes to frames above the stack
-    barriers. Since write barriers aren't enabled until after stack
-    barriers are installed, we may miss modifications to the stack that
-    happen after installing the stack barriers and before enabling write
-    barriers.
+    An ELF linker handles a PC-relative reference to an STT_FUNC defined in a
+    shared library by building a PLT entry and referring to that, so do the
+    same in 6l.
     
-    Fix this by enabling write barriers during the scan phase.
+    Fixes #10690
     
-    This commit intentionally makes the minimal change to do this (there's
-    only one line of code change; the rest are comment changes). At the
-    very least, we should consider eliminating the ragged barrier that's
-    intended to synchronize the enabling of write barriers, but now just
-    wastes time. I've included a large comment about extensions and
-    alternative designs.
-    
-    Change-Id: Ib20fede794e4fcb91ddf36f99bd97344d7f96421
-    Reviewed-on: https://go-review.googlesource.com/10795
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I061a96fd4400d957e301d0ac86760ce256910e1d
+    Reviewed-on: https://go-review.googlesource.com/9711
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 46 +++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 39 insertions(+), 7 deletions(-)
+ src/cmd/6l/asm.go             |  7 ++++++-
+ src/cmd/internal/ld/lib.go    |  1 +
+ src/cmd/internal/ld/link.go   | 37 +++++++++++++++++++++----------------
+ src/cmd/internal/ld/symtab.go |  7 +++----
+ 4 files changed, 31 insertions(+), 21 deletions(-)

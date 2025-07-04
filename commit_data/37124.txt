@@ -1,18 +1,31 @@
-commit f8153fcd740483b8c341926acd76b4127c17c789
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 9 15:19:36 2018 -0400
+commit cdce82485047bd0f7f5dc31d27326bb4ca869e53
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 19:23:35 2018 +0000
 
-    cmd/go/internal/modload: skip fetches of replaced modules in moduleInfo
+    net/http: update bundled http2
     
-    Fixes #27859
+    Updates http2 to x/net/http2 git rev 97aa3a539 for:
     
-    Change-Id: Ibb459cf41c3a8fe41bb008f60ef6cdd3437a37b1
-    Reviewed-on: https://go-review.googlesource.com/c/140860
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+        http2: dynamic table updates must occur first
+        https://golang.org/cl/111681
+    
+        http2: receiving too much data is a protocol error
+        https://golang.org/cl/111679
+    
+        http2: correct overflow protection
+        https://golang.org/cl/111675
+    
+        http2: make Server send GOAWAY if Handler sets "Connection: close" header
+        https://golang.org/cl/121415
+    
+    Fixes #20977
+    
+    Change-Id: I9b8659b5191409ed007e2d911913763bcbabb7cc
+    Reviewed-on: https://go-review.googlesource.com/121695
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modload/build.go              | 50 ++++++++++++-----------
- src/cmd/go/testdata/script/mod_replace.txt        | 28 ++++++++++++-
- src/cmd/go/testdata/script/mod_vendor_replace.txt | 39 ++++++++++++++++++
- 3 files changed, 93 insertions(+), 24 deletions(-)
+ src/net/http/clientserver_test.go |  1 -
+ src/net/http/h2_bundle.go         | 32 +++++++++++++++++++++++---------
+ 2 files changed, 23 insertions(+), 10 deletions(-)

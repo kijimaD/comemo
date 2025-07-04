@@ -1,14 +1,16 @@
-commit b3915112b98d21784155f5cafc1e9cb70b33fb7d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 5 14:13:53 2013 -0800
+commit d01516796c94f6c4da58bbc2f8c010e3f48ef220
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 5 11:42:43 2013 -0800
 
-    doc/effective_go.html: update slices and maps.
-    Drop the phrase "reference types", which has caused confusion.
-    Add a section about 2D arrays, a common newbie question.
+    go/types: add test typechecking std lib
     
-    R=golang-dev, cespare, adg, rsc
+    - run time is limited if -short is set
+    - also added missing TODO to unrelated file return.go
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/7423051
+    https://golang.org/cl/7448052
 
- doc/effective_go.html | 104 ++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 88 insertions(+), 16 deletions(-)
+ src/pkg/go/types/return.go      |   5 +-
+ src/pkg/go/types/stdlib_test.go | 133 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 137 insertions(+), 1 deletion(-)

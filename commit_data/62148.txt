@@ -1,0 +1,24 @@
+commit 7a2f757c521d9af201c6d3463a0e203c4104d5aa
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 24 14:38:33 2024 +1100
+
+    cmd/internal/obj/riscv: update references to RISC-V specification
+    
+    Update references to version 20240411 of the RISC-V specifications.
+    Reorder and regroup instructions to maintain ordering. Also be
+    consistent with formatting.
+    
+    The instruction encodings table was seemingly missed in CL 616115.
+    
+    Change-Id: I47b7c8538383ff3b0503ba59db570c3d4f0d5653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Pengcheng Wang <wangpengcheng.pp@bytedance.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s |   4 +
+ src/cmd/internal/obj/riscv/cpu.go           | 118 ++++++++++++++--------------
+ src/cmd/internal/obj/riscv/obj.go           |  54 +++++++------
+ 3 files changed, 94 insertions(+), 82 deletions(-)

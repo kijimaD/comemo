@@ -1,13 +1,14 @@
-commit 7ea58297171ef9ba2680abd5e2490d48c1c9f24c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 20 15:27:26 2016 -0700
+commit 36f61ed7ed962a25f41ecd6ab57cbaa5ce938bf1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 6 23:16:15 2016 -0700
 
-    cmd/compile: a couple of minor comment fixes
+    cmd/dist: build cmd/compile/internal/syntax
     
-    Change-Id: If1d08a84c9295816489b1cfdd031ba12892ae963
-    Reviewed-on: https://go-review.googlesource.com/31598
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie6dd2318e031be445c0b1ae65d4c78723d5a1167
+    Reviewed-on: https://go-review.googlesource.com/27197
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/go.go        | 4 ++--
- src/cmd/compile/internal/gc/typecheck.go | 9 ++-------
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ src/cmd/dist/buildtool.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

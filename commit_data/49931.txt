@@ -1,22 +1,28 @@
-commit c411886c753dc85c23d06953b9a2e20e4ec1731f
+commit 085c609a70f8f156734efe2cf4bfb5fe8bd94363
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 16 18:51:57 2022 +0700
+Date:   Tue Sep 21 00:23:28 2021 +0700
 
-    all: use "noopt" build tag for checking optimization disabled
+    cmd/go: fix go command fails to perform concurrent compilation
     
-    Fixes #49390
+    CL 344909 fixed the bug in the order of passing gcflags from cmd/go to
+    cmd/compile. In that process, we merged the flags passed by cmd/go and
+    the flags specified by "-gcflags" to one variable. That causes the
+    gcBackendConcurrency function fails to detect concurrency level, since
+    when it expects only the latter flags.
     
-    Change-Id: Ie5a5e097635c9fdcf4509455007283009a7d3021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423256
+    To fix this, just don't merge those two variables, so we can now
+    correctly detect the concurrency level and passing the right -c to
+    the compiler.
+    
+    Fixes #48490
+    
+    Change-Id: I1293a7d6b946b7fccdd5cd34a38452bf6306e115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351049
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/dist/build.go           | 17 +++++++++++++++++
- src/cmd/dist/test.go            | 12 ++++++++++--
- src/internal/testenv/noopt.go   | 12 ++++++++++++
- src/internal/testenv/opt.go     | 12 ++++++++++++
- src/internal/testenv/testenv.go |  7 +------
- 5 files changed, 52 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/work/gc.go                     | 24 +++++++++++-----------
+ .../testdata/script/build_concurrent_backend.txt   | 14 +++++++++++++
+ 2 files changed, 26 insertions(+), 12 deletions(-)

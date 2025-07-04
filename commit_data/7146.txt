@@ -1,12 +1,12 @@
-commit 052ff45690fef2630c43cdde5ee91ba502f1370a
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 18 20:56:55 2011 -0800
+commit eead5e8879b4a317f6019f04fb7c6eb40b1ba051
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 18 20:45:17 2011 -0800
 
-    crypto/cipher: fix build (missing file in Makefile)
+    arm register allocation/tempname allocation bug
     
-    R=agl, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4073041
+    https://golang.org/cl/4008044
 
- src/pkg/crypto/cipher/Makefile | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/5g/cgen.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

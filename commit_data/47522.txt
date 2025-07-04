@@ -1,20 +1,21 @@
-commit 0555ea3ce997db6e6ef14ba9f55857f359b3fbf2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 16 22:18:02 2021 -0800
+commit adb037d67ad46491bb0e9c2a09b56e89dd8a3617
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 23 00:26:39 2021 -0400
 
-    runtime: don't serialize all builds in test
+    cmd/go: attribute direct imports from indirect dependencies to the importing package
     
-    Permit a test whose program is already built to run immediately,
-    rather than waiting for another test to complete its build.
+    For #36460
+    Updates #40775
     
-    For #44422
-    
-    Change-Id: I2d1b35d055ee4c4251f4caef3b52dccc82b71a1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364654
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I833ee8ee733151aafcff508bf91d0e6e37c50032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303869
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/crash_test.go | 61 ++++++++++++++++++++++++++++++++---------------
- 1 file changed, 42 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    | 25 ++++++++++++
+ src/cmd/go/internal/modload/import.go              | 17 ++++++++
+ src/cmd/go/internal/modload/load.go                | 45 +++++++++++++++-------
+ .../testdata/script/mod_get_promote_implicit.txt   |  2 +-
+ 4 files changed, 75 insertions(+), 14 deletions(-)

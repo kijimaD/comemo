@@ -1,17 +1,26 @@
-commit 2f0a306d283c21b98089706878190c34bd591b9a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 23 03:46:58 2016 +0000
+commit 6fea452e38012e167e8a8f08f571e0240b248c97
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 2 20:15:12 2016 -0700
 
-    doc: add net/http section to go1.8.html
+    archive/tar: move parse/format functionality into strconv.go
     
-    TBR=See https://golang.org/cl/33244 and review there.
+    Move all parse/format related functionality into strconv.go
+    and thoroughly test them. This also reduces the amount of noise
+    inside reader.go and writer.go.
     
-    Updates #17929
+    There was zero functionality change other than moving code around.
     
-    Change-Id: I752ec7a6d086f370feaf3cf282708620e891079b
-    Reviewed-on: https://go-review.googlesource.com/33478
+    Change-Id: I3bc288d10c20ebb3814b30b75d8acd7be62b85d7
+    Reviewed-on: https://go-review.googlesource.com/28470
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 123 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- doc/go1.8.txt  |  55 +++++++++++++-------------
- 2 files changed, 147 insertions(+), 31 deletions(-)
+ src/archive/tar/common.go       |  23 ----
+ src/archive/tar/reader.go       | 147 -----------------------
+ src/archive/tar/reader_test.go  | 237 ++++++++++--------------------------
+ src/archive/tar/strconv.go      | 254 +++++++++++++++++++++++++++++++++++++++
+ src/archive/tar/strconv_test.go | 257 ++++++++++++++++++++++++++++++++++++++++
+ src/archive/tar/writer.go       |  70 -----------
+ src/archive/tar/writer_test.go  | 113 ------------------
+ 7 files changed, 573 insertions(+), 528 deletions(-)

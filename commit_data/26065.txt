@@ -1,31 +1,17 @@
-commit 55c65d4a97bb578418c39f74a42e3748e075e0e4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 4 13:16:48 2016 -0800
+commit 3cc24aa9ab06a57751c08e8bfeb9fc84e82e1ca5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 14:17:56 2015 -0800
 
-    cmd/compile: change export.go and fmt.go to use nodeSeq
+    go/constant: use Float.Rat method instead of doing it manually
     
-    Also fix some uses of nodeSeqIterator.Len, and fix the implementation in
-    nodesIterator.
+    Also fixed conversion bug and added corresponding test case.
     
-    Passes toolstash -cmp.
-    
-    Update #14473.
-    
-    Change-Id: I228871470234b7f1314ffd2aae8a4c0624c35f98
-    Reviewed-on: https://go-review.googlesource.com/20231
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I26f143fbc8d40a6d073ecb095e61b461495f3d68
+    Reviewed-on: https://go-review.googlesource.com/17872
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/alg.go      |  4 +-
- src/cmd/compile/internal/gc/bexport.go  |  4 +-
- src/cmd/compile/internal/gc/export.go   | 22 ++++-----
- src/cmd/compile/internal/gc/fmt.go      | 82 +++++++++++----------------------
- src/cmd/compile/internal/gc/inl.go      |  6 +--
- src/cmd/compile/internal/gc/order.go    |  2 +-
- src/cmd/compile/internal/gc/racewalk.go |  6 +--
- src/cmd/compile/internal/gc/ssa.go      |  6 +--
- src/cmd/compile/internal/gc/subr.go     |  2 +-
- src/cmd/compile/internal/gc/syntax.go   |  2 +-
- src/cmd/compile/internal/gc/walk.go     |  8 ++--
- 11 files changed, 54 insertions(+), 90 deletions(-)
+ src/go/constant/value.go      | 54 +++++++++++++++----------------------------
+ src/go/constant/value_test.go |  1 +
+ 2 files changed, 20 insertions(+), 35 deletions(-)

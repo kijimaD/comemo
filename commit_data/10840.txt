@@ -1,14 +1,12 @@
-commit 055b4f7ea018ce64e560915d4dab0afb3f54d234
+commit ecc317647b831c44af46af5ecee29f62ff815e7c
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Dec 16 19:51:25 2011 +0900
+Date:   Fri Dec 16 19:50:55 2011 +0900
 
-    syscall: sort Makefile, mkall.sh and mkerrors.sh entries
+    net: sort Makefile entries
     
     R=golang-dev, jsing
     CC=golang-dev
-    https://golang.org/cl/5495062
+    https://golang.org/cl/5493058
 
- src/pkg/syscall/Makefile    | 16 ++++++-------
- src/pkg/syscall/mkall.sh    | 56 +++++++++++++++++++++----------------------
- src/pkg/syscall/mkerrors.sh | 58 ++++++++++++++++++++++-----------------------
- 3 files changed, 65 insertions(+), 65 deletions(-)
+ src/pkg/net/Makefile | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

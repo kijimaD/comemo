@@ -1,58 +1,59 @@
-commit d931716cde778a3a4c9ab14410f791e9e8b72785
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 11 23:22:57 2015 +0300
+commit d57056ba2619ed75a8b1c0255d318ac1dc9a1bb1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 22 10:24:50 2015 -0400
 
-    net/http: fix races cloning TLS config
+    runtime: don't free stack spans during GC
     
-    Found in a Google program running under the race detector.
-    No test, but verified that this fixes the race with go run -race of:
+    Memory for stacks is manually managed by the runtime and, currently
+    (with one exception) we free stack spans immediately when the last
+    stack on a span is freed. However, the garbage collector assumes that
+    spans can never transition from non-free to free during scan or mark.
+    This disagreement makes it possible for the garbage collector to mark
+    uninitialized objects and is blocking us from re-enabling the bad
+    pointer test in the garbage collector (issue #9880).
     
-            package main
+    For example, the following sequence will result in marking an
+    uninitialized object:
     
-            import (
-                    "crypto/tls"
-                    "fmt"
-                    "net"
-                    "net/http"
-                    "net/http/httptest"
-            )
+    1. scanobject loads a pointer slot out of the object it's scanning.
+       This happens to be one of the special pointers from the heap into a
+       stack. Call the pointer p and suppose it points into X's stack.
     
-            func main() {
-                    for {
-                            ts := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {}))
-                            conf := &tls.Config{} // non-nil
-                            a, b := net.Pipe()
-                            go func() {
-                                    sconn := tls.Server(a, conf)
-                                    sconn.Handshake()
-                            }()
-                            tr := &http.Transport{
-                                    TLSClientConfig: conf,
-                            }
-                            req, _ := http.NewRequest("GET", ts.URL, nil)
-                            _, err := tr.RoundTrip(req)
-                            println(fmt.Sprint(err))
-                            a.Close()
-                            b.Close()
-                            ts.Close()
-                    }
-            }
+    2. X, running on another thread, grows its stack and frees its old
+       stack.
     
-    Also modified cmd/vet to report the copy-of-mutex bug statically
-    in CL 13646, and fixed two other instances in the code found by vet.
-    But vet could not have told us about cloneTLSConfig vs cloneTLSClientConfig.
+    3. The old stack happens to be large or was the last stack in its
+       span, so X frees this span, setting it to state _MSpanFree.
     
-    Confirmed that original report is also fixed by this.
+    4. The span gets reused as a heap span.
     
-    Fixes #12099.
+    5. scanobject calls heapBitsForObject, which loads the span containing
+       p, which is now in state _MSpanInUse, but doesn't necessarily have
+       an object at p. The not-object at p gets marked, and at this point
+       all sorts of things can go wrong.
     
-    Change-Id: Iba0171549e01852a5ec3438c25a1951c98524dec
-    Reviewed-on: https://go-review.googlesource.com/13453
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    We already have a partial solution to this. When shrinking a stack, we
+    put the old stack on a queue to be freed at the end of garbage
+    collection. This was done to address exactly this problem, but wasn't
+    a complete solution.
+    
+    This commit generalizes this solution to both shrinking and growing
+    stacks. For stacks that fit in the stack pool, we simply don't free
+    the span, even if its reference count reaches zero. It's fine to reuse
+    the span for other stacks, and this enables that. At the end of GC, we
+    sweep for cached stack spans with a zero reference count and free
+    them. For larger stacks, we simply queue the stack span to be freed at
+    the end of GC. Ideally, we would reuse these large stack spans the way
+    we can small stack spans, but that's a more invasive change that will
+    have to wait until after the freeze.
+    
+    Fixes #11267.
+    
+    Change-Id: Ib7f2c5da4845cc0268e8dc098b08465116972a71
+    Reviewed-on: https://go-review.googlesource.com/11502
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/server.go    |  7 ++---
- src/net/http/transport.go | 80 +++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 72 insertions(+), 15 deletions(-)
+ src/runtime/mgc.go    |  6 +++-
+ src/runtime/mheap.go  | 14 ++++++++
+ src/runtime/stack1.go | 93 +++++++++++++++++++++++++++++++++------------------
+ 3 files changed, 79 insertions(+), 34 deletions(-)

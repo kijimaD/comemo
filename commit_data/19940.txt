@@ -1,15 +1,13 @@
-commit fad69a7b77a7996b0308bdbcd559b78b32046bb3
+commit cfed26c7ceeaf093d975e0a748d270cd1b716816
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 7 23:24:32 2014 +1000
+Date:   Thu Aug 7 11:50:27 2014 +1000
 
-    cmd/fix: mention -help instead of the non-existent -? flag
+    misc/nacl: wrap lines in README file
     
-    Update #8314
-    
-    TBR=r
-    R=golang-codereviews
+    LGTM=dan.kortschak, dave
+    R=dave, dan.kortschak
     CC=golang-codereviews
-    https://golang.org/cl/123890043
+    https://golang.org/cl/121350043
 
- src/cmd/fix/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/nacl/README | 57 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 42 insertions(+), 15 deletions(-)

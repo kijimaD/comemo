@@ -1,21 +1,36 @@
-commit 8ff04a9966083f982ecaa57f7bcc786aa7316ec8
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Sep 25 09:22:09 2018 -0700
+commit c21ba224ec88c2a5cb01dad54f06819ed29d4ba4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Aug 25 16:29:01 2018 +0100
 
-    os: clearer doc for Interrupt
+    encoding/json: remove a branch in the structEncoder loop
     
-    I was confused by the juxtaposition of os.Interrupt docs, which are
-    "guaranteed to exist on all platforms" in one sentence and then
-    "not implemented" in the next sentence. Reading the code reveals
-    "not implemented" refers specifically to the implementation of
-    os.Process.Signal on Windows, not to the os.Interrupt variable itself.
-    Reword the doc to make this distinction clearer.
+    Encoders like map and array can use the much cheaper "i > 0" check to
+    see if we're not writing the first element. However, since struct fields
+    support omitempty, we need to keep track of that separately.
     
-    Fixes #27854.
+    This is much more expensive - after calling the field encoder itself,
+    and retrieving the field via reflection, this branch was the third most
+    expensive piece of this field loop.
     
-    Change-Id: I5fe7cddea61fa1954cef2006dc51b8fa8ece4d6e
-    Reviewed-on: https://go-review.googlesource.com/c/137336
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Instead, hoist the branch logic outside of the loop. The code doesn't
+    get much more complex, since we just delay the writing of each byte
+    until the next iteration. Yet the performance improvement is noticeable,
+    even when the struct types in CodeEncoder only have 2 and 7 fields,
+    respectively.
+    
+    name           old time/op    new time/op    delta
+    CodeEncoder-4    5.39ms ± 0%    5.31ms ± 0%  -1.37%  (p=0.010 n=4+6)
+    
+    name           old speed      new speed      delta
+    CodeEncoder-4   360MB/s ± 0%   365MB/s ± 0%  +1.39%  (p=0.010 n=4+6)
+    
+    Updates #5683.
+    
+    Change-Id: I2662cf459e0dfd68e56fa52bc898a417e84266c2
+    Reviewed-on: https://go-review.googlesource.com/131401
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec_posix.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/encoding/json/encode.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

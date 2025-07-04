@@ -1,14 +1,27 @@
-commit 9c37a23bcb178351d70c2d90e8915b9e413d59b8
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon May 25 07:20:07 2015 -0400
+commit bb6320535d6bcef1a5d44cb7429877166c4d5298
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 27 17:01:53 2015 -0400
 
-    misc/android: cleaner to remove stale GOROOT files
+    runtime: replace STW for enabling write barriers with ragged barrier
     
-    Updates #10806
+    Currently, we use a full stop-the-world around enabling write
+    barriers. This is to ensure that all Gs have enabled write barriers
+    before any blackening occurs (either in gcBgMarkWorker() or in
+    gcAssistAlloc()).
     
-    Change-Id: I734d6db026cc7c2e3099a76dc8db8e42b2b90aa7
-    Reviewed-on: https://go-review.googlesource.com/10390
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    However, there's no need to bring the whole world to a synchronous
+    stop to ensure this. This change replaces the STW with a ragged
+    barrier that ensures each P has individually observed that write
+    barriers should be enabled before GC performs any blackening.
+    
+    Change-Id: If2f129a6a55bd8bdd4308067af2b739f3fb41955
+    Reviewed-on: https://go-review.googlesource.com/8207
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- misc/android/cleaner.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/runtime/malloc.go   |  2 +-
+ src/runtime/mgc.go      | 42 +++++++++++++++++++++++++-----------------
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/proc1.go    |  9 +++++----
+ src/runtime/runtime2.go |  5 +++++
+ 5 files changed, 37 insertions(+), 23 deletions(-)

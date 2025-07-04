@@ -1,14 +1,26 @@
-commit 8389e7cfa927b1560bf036caf00ec66a6b373d57
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Aug 10 23:30:20 2015 +0000
+commit fdd921c9f40f75843838d8f0218106cf078810ed
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jun 14 10:48:13 2015 -0700
 
-    doc: link to Go 1.5 release notes from "project" page
+    encoding/asn1: be stricter by reserialising parsed times.
     
-    Update issue #12102.
+    The time package does normalisation of times: for example day zero is
+    converted to the last day of the previous month and the 31st of February
+    is moved into March etc. This makes the ASN.1 parsing a little
+    worryingly lax.
     
-    Change-Id: I9cafb284a848cc053bc7e5479c53ebf889b6d4d9
-    Reviewed-on: https://go-review.googlesource.com/13480
-    Reviewed-by: Rob Pike <r@golang.org>
+    This change causes the parser to reserialise parsed times to ensure that
+    they round-trip correctly and thus were not normalised.
+    
+    Fixes #11134.
+    
+    Change-Id: I3988bb95153a7b33d64ab861fbe51b1a34a359e9
+    Reviewed-on: https://go-review.googlesource.com/11094
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/contrib.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/encoding/asn1/asn1.go      | 31 +++++++++++++++++++++++++++----
+ src/encoding/asn1/asn1_test.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 64 insertions(+), 5 deletions(-)

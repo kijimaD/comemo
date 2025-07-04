@@ -1,22 +1,33 @@
-commit 4085a4893c427a2138e28fe4f16a646e7f571adb
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 12 12:53:32 2023 -0500
+commit 86c4b0a6ec70b07ab49d3813a5576ed295e269e9
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Thu Feb 2 11:07:34 2023 +0900
 
-    net: move cgo-using darwin test to separate package
+    context: remove one allocation in timerCtx
     
-    It is a goal / requirement that nothing in the standard library
-    on darwin require cgo, and this test-only file makes net use
-    cgo on darwin. Move it elsewhere.
+    Embed the cancelCtx into timerCtx, instead of allocating both separately.
     
-    Change-Id: I6c11a8391d3913f73ce0098ba63b29adf5864f93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549255
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    name                               old time/op    new time/op    delta
+    WithTimeout/concurrency=40-16        2.21µs ±11%    2.08µs ± 5%   -5.76%  (p=0.011 n=10+10)
+    WithTimeout/concurrency=4000-16      1.94µs ± 6%    1.86µs ±10%     ~     (p=0.099 n=9+10)
+    WithTimeout/concurrency=400000-16    1.86µs ± 7%    1.83µs ±10%     ~     (p=0.353 n=10+10)
+    
+    name                               old alloc/op   new alloc/op   delta
+    WithTimeout/concurrency=40-16        2.56kB ± 0%    2.40kB ± 0%   -6.25%  (p=0.001 n=8+9)
+    WithTimeout/concurrency=4000-16      2.56kB ± 0%    2.40kB ± 0%   -6.25%  (p=0.000 n=9+10)
+    WithTimeout/concurrency=400000-16    2.56kB ± 0%    2.40kB ± 0%   -6.26%  (p=0.000 n=9+9)
+    
+    name                               old allocs/op  new allocs/op  delta
+    WithTimeout/concurrency=40-16          50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=10+10)
+    WithTimeout/concurrency=4000-16        50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=10+10)
+    WithTimeout/concurrency=400000-16      50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=10+10)
+    
+    Change-Id: Ia0460db3b8412fbaa6f1539fd6b4fb1b873896c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463999
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/testdata/script/darwin_no_cgo.txt                |  9 +++++++++
- src/go/build/deps_test.go                                   |  7 ++++++-
- src/net/internal/cgotest/empty_test.go                      | 13 +++++++++++++
- .../cgotest/resstate.go}                                    |  4 ++--
- 4 files changed, 30 insertions(+), 3 deletions(-)
+ src/context/context.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

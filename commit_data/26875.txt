@@ -1,14 +1,14 @@
-commit da224a5c42e7fce7f1d190a86962b1c46be454ef
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Apr 10 20:14:27 2016 +0200
+commit dd0a128a02c4894f2c17ab886852d6bd10c6c721
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 29 10:41:45 2016 -0900
 
-    cmd/pprof: pass the event to pprof_toggle_asm for the weblist command
+    cmd/link: make rddataBufMax a const
     
-    Fixes #15225
-    
-    Change-Id: I1f85590b2c3293463c6476beebcd3256adc1bf23
-    Reviewed-on: https://go-review.googlesource.com/21802
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1ece7463d35efba0e8d2b1e61727dd25283ff720
+    Reviewed-on: https://go-review.googlesource.com/20059
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/pprof/report/source.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/objfile.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,12 +1,20 @@
-commit 906aefb038b6baddc38f165bdfb6ecf624db398d
-Author: mattyw <gh@mattyw.net>
-Date:   Sat Feb 7 10:28:20 2015 +0800
+commit b46b9429f05362b2b2227861811e50b47b9ec928
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Jan 13 08:01:18 2015 +0100
 
-    gofmt/doc: gofmt -s output may not be backward compatible
+    build: bootstrap on Plan 9
     
-    Change-Id: If697ab554e6cb5545d99c6b103ed8bc54f69ed48
-    Reviewed-on: https://go-review.googlesource.com/4161
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    This change implements the requirement of
+    old Go to build new Go on Plan 9. Also fix
+    the build of the new cmd/dist written in Go.
+    
+    This is similar to the make.bash change in
+    CL 2470, but applied to make.rc for Plan 9.
+    
+    Change-Id: Ifd9a3bd8658e2cee6f92b4c7f29ce86ee2a93c53
+    Reviewed-on: https://go-review.googlesource.com/2662
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gofmt/doc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/dist/sys_default.go |  2 +-
+ src/make.rc                 | 21 ++++++++++++---------
+ 2 files changed, 13 insertions(+), 10 deletions(-)

@@ -1,16 +1,16 @@
-commit a7295523336cd5af59e50442071471402f3966c9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 15 17:47:02 2014 -0700
+commit fe7b29f5fd5be75484ce7ea89c2b63d96f9baa14
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 13 01:02:01 2014 +0400
 
-    crypto/x509: SystemRootsError style tweaks, document in Verify
+    runtime/pprof: fix data race
+    It's unclear why we do this broken double-checked locking.
+    The mutex is not held for the whole duration of CPU profiling.
+    Fixes #8365.
     
-    In retrospect this should've been a variable instead of a type,
-    but oh well.
-    
-    LGTM=agl
-    R=agl
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/129250044
+    https://golang.org/cl/116290043
 
- src/pkg/crypto/x509/verify.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/runtime/pprof/pprof.go | 6 ------
+ 1 file changed, 6 deletions(-)

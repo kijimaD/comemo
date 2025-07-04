@@ -1,19 +1,35 @@
-commit cf51702bba18cf15e4f4aca1db6bf33bfa349d64
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Dec 12 10:12:06 2013 +0400
+commit 5744be9fe44f77010840f52eaca1b654fd19d00d
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Wed Dec 11 16:05:02 2013 -0500
 
-    net: don't leave hostsPath unrestored on error in TestLookupStaticHost
+    crypto/cipher: speed up xor operations in CBC, CFB, OBF, CTR
+    and GCM on 386 and amd64
     
-    If the return was reached, then hostsPath would not be properly restored
-    to its original value. See the (lengthy) discussion at
-    https://golang.org/cl/15960047/
+    Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz:
     
-    I assume that this is not for Go 1.2; mailing now since I promised to do so.
-    I will plan to ping once Go 1.2 is out.
+    benchmark                    old MB/s     new MB/s  speedup
+    BenchmarkAESGCMSeal1K           82.39        92.05    1.12x
+    BenchmarkAESGCMOpen1K           82.28        91.88    1.12x
+    BenchmarkAESCFBEncrypt1K       141.54       277.59    1.96x
+    BenchmarkAESCFBDecrypt1K       133.06       278.07    2.09x
+    BenchmarkAESOFB1K              160.51       380.24    2.37x
+    BenchmarkAESCTR1K              164.07       429.25    2.62x
+    BenchmarkAESCBCEncrypt1K       170.99       263.74    1.54x
+    BenchmarkAESCBCDecrypt1K       124.96       249.14    1.99x
     
-    R=rsc, bradfitz
+    Fixes #6741.
+    
+    R=agl, dave, agl
     CC=golang-dev
-    https://golang.org/cl/16200043
+    https://golang.org/cl/24250044
 
- src/pkg/net/hosts_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/cipher/benchmark_test.go | 139 ++++++++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/cbc.go            |  17 ++--
+ src/pkg/crypto/cipher/cfb.go            |  59 +++++++-------
+ src/pkg/crypto/cipher/ctr.go            |  55 +++++++++----
+ src/pkg/crypto/cipher/gcm.go            |  13 +--
+ src/pkg/crypto/cipher/gcm_test.go       |  16 ----
+ src/pkg/crypto/cipher/ofb.go            |  42 +++++++---
+ src/pkg/crypto/cipher/xor.go            |  84 +++++++++++++++++++
+ src/pkg/crypto/cipher/xor_test.go       |  28 +++++++
+ 9 files changed, 359 insertions(+), 94 deletions(-)

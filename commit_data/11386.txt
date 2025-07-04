@@ -1,126 +1,13 @@
-commit 0368ca138babbceb0d4938b421465cb0c3f378f0
+commit b6f671b90124e0326e32793bbaeb59eaa43b4c2f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 25 15:30:42 2012 -0500
+Date:   Wed Jan 25 15:30:03 2012 -0500
 
-    build: remove code now in subrepositories
+    gofix: update go1pkgrename for subrepositories
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5569064
+    https://golang.org/cl/5576044
 
- src/cmd/Makefile                                   |   1 -
- src/cmd/hgpatch/Makefile                           |  11 -
- src/cmd/hgpatch/doc.go                             |  18 -
- src/cmd/hgpatch/main.go                            | 360 -----------
- src/pkg/Makefile                                   |  23 -
- src/pkg/crypto/bcrypt/Makefile                     |  12 -
- src/pkg/crypto/bcrypt/base64.go                    |  35 --
- src/pkg/crypto/bcrypt/bcrypt.go                    | 282 ---------
- src/pkg/crypto/bcrypt/bcrypt_test.go               | 194 ------
- src/pkg/crypto/blowfish/Makefile                   |  13 -
- src/pkg/crypto/blowfish/block.go                   | 192 ------
- src/pkg/crypto/blowfish/blowfish_test.go           | 210 -------
- src/pkg/crypto/blowfish/cipher.go                  | 100 ---
- src/pkg/crypto/blowfish/const.go                   | 199 ------
- src/pkg/crypto/cast5/Makefile                      |  11 -
- src/pkg/crypto/cast5/cast5.go                      | 534 ----------------
- src/pkg/crypto/cast5/cast5_test.go                 | 104 ---
- src/pkg/crypto/md4/Makefile                        |  12 -
- src/pkg/crypto/md4/md4.go                          | 118 ----
- src/pkg/crypto/md4/md4_test.go                     |  71 ---
- src/pkg/crypto/md4/md4block.go                     |  89 ---
- src/pkg/crypto/ocsp/Makefile                       |  11 -
- src/pkg/crypto/ocsp/ocsp.go                        | 191 ------
- src/pkg/crypto/ocsp/ocsp_test.go                   | 107 ----
- src/pkg/crypto/openpgp/Makefile                    |  14 -
- src/pkg/crypto/openpgp/armor/Makefile              |  12 -
- src/pkg/crypto/openpgp/armor/armor.go              | 219 -------
- src/pkg/crypto/openpgp/armor/armor_test.go         |  95 ---
- src/pkg/crypto/openpgp/armor/encode.go             | 160 -----
- src/pkg/crypto/openpgp/canonical_text.go           |  59 --
- src/pkg/crypto/openpgp/canonical_text_test.go      |  52 --
- src/pkg/crypto/openpgp/elgamal/Makefile            |  11 -
- src/pkg/crypto/openpgp/elgamal/elgamal.go          | 122 ----
- src/pkg/crypto/openpgp/elgamal/elgamal_test.go     |  49 --
- src/pkg/crypto/openpgp/errors/Makefile             |  11 -
- src/pkg/crypto/openpgp/errors/errors.go            |  64 --
- src/pkg/crypto/openpgp/keys.go                     | 546 ----------------
- src/pkg/crypto/openpgp/packet/Makefile             |  22 -
- src/pkg/crypto/openpgp/packet/compressed.go        |  38 --
- src/pkg/crypto/openpgp/packet/compressed_test.go   |  41 --
- src/pkg/crypto/openpgp/packet/encrypted_key.go     | 167 -----
- .../crypto/openpgp/packet/encrypted_key_test.go    | 126 ----
- src/pkg/crypto/openpgp/packet/literal.go           |  89 ---
- .../crypto/openpgp/packet/one_pass_signature.go    |  73 ---
- src/pkg/crypto/openpgp/packet/packet.go            | 482 --------------
- src/pkg/crypto/openpgp/packet/packet_test.go       | 255 --------
- src/pkg/crypto/openpgp/packet/private_key.go       | 310 ---------
- src/pkg/crypto/openpgp/packet/private_key_test.go  |  58 --
- src/pkg/crypto/openpgp/packet/public_key.go        | 414 ------------
- src/pkg/crypto/openpgp/packet/public_key_test.go   |  99 ---
- src/pkg/crypto/openpgp/packet/reader.go            |  62 --
- src/pkg/crypto/openpgp/packet/signature.go         | 611 ------------------
- src/pkg/crypto/openpgp/packet/signature_test.go    |  42 --
- .../openpgp/packet/symmetric_key_encrypted.go      | 161 -----
- .../openpgp/packet/symmetric_key_encrypted_test.go | 101 ---
- .../openpgp/packet/symmetrically_encrypted.go      | 289 ---------
- .../openpgp/packet/symmetrically_encrypted_test.go | 124 ----
- src/pkg/crypto/openpgp/packet/userid.go            | 160 -----
- src/pkg/crypto/openpgp/packet/userid_test.go       |  87 ---
- src/pkg/crypto/openpgp/read.go                     | 414 ------------
- src/pkg/crypto/openpgp/read_test.go                | 372 -----------
- src/pkg/crypto/openpgp/s2k/Makefile                |  11 -
- src/pkg/crypto/openpgp/s2k/s2k.go                  | 183 ------
- src/pkg/crypto/openpgp/s2k/s2k_test.go             | 118 ----
- src/pkg/crypto/openpgp/write.go                    | 315 ----------
- src/pkg/crypto/openpgp/write_test.go               | 232 -------
- src/pkg/crypto/ripemd160/Makefile                  |  12 -
- src/pkg/crypto/ripemd160/ripemd160.go              | 120 ----
- src/pkg/crypto/ripemd160/ripemd160_test.go         |  64 --
- src/pkg/crypto/ripemd160/ripemd160block.go         | 161 -----
- src/pkg/crypto/twofish/Makefile                    |  11 -
- src/pkg/crypto/twofish/twofish.go                  | 355 -----------
- src/pkg/crypto/twofish/twofish_test.go             | 129 ----
- src/pkg/crypto/xtea/Makefile                       |  12 -
- src/pkg/crypto/xtea/block.go                       |  66 --
- src/pkg/crypto/xtea/cipher.go                      |  89 ---
- src/pkg/crypto/xtea/xtea_test.go                   | 246 --------
- src/pkg/encoding/git85/Makefile                    |  11 -
- src/pkg/encoding/git85/git.go                      | 276 --------
- src/pkg/encoding/git85/git_test.go                 | 194 ------
- src/pkg/exp/spdy/Makefile                          |  13 -
- src/pkg/exp/spdy/read.go                           | 312 ---------
- src/pkg/exp/spdy/spdy_test.go                      | 497 ---------------
- src/pkg/exp/spdy/types.go                          | 369 -----------
- src/pkg/exp/spdy/write.go                          | 285 ---------
- src/pkg/exp/ssh/Makefile                           |  21 -
- src/pkg/exp/ssh/channel.go                         | 318 ----------
- src/pkg/exp/ssh/cipher.go                          |  88 ---
- src/pkg/exp/ssh/cipher_test.go                     |  62 --
- src/pkg/exp/ssh/client.go                          | 505 ---------------
- src/pkg/exp/ssh/client_auth.go                     | 316 ----------
- src/pkg/exp/ssh/client_auth_test.go                | 257 --------
- src/pkg/exp/ssh/client_func_test.go                |  61 --
- src/pkg/exp/ssh/common.go                          | 239 -------
- src/pkg/exp/ssh/common_test.go                     |  26 -
- src/pkg/exp/ssh/doc.go                             | 127 ----
- src/pkg/exp/ssh/messages.go                        | 640 -------------------
- src/pkg/exp/ssh/messages_test.go                   | 125 ----
- src/pkg/exp/ssh/server.go                          | 676 --------------------
- src/pkg/exp/ssh/server_terminal.go                 |  81 ---
- src/pkg/exp/ssh/session.go                         | 494 ---------------
- src/pkg/exp/ssh/session_test.go                    | 374 -----------
- src/pkg/exp/ssh/tcpip.go                           | 132 ----
- src/pkg/exp/ssh/tcpip_func_test.go                 |  59 --
- src/pkg/exp/ssh/transport.go                       | 369 -----------
- src/pkg/exp/ssh/transport_test.go                  |  51 --
- src/pkg/websocket/Makefile                         |  11 -
- src/pkg/websocket/client.go                        | 137 ----
- src/pkg/websocket/hixie.go                         | 695 ---------------------
- src/pkg/websocket/hixie_test.go                    | 201 ------
- src/pkg/websocket/hybi.go                          | 549 ----------------
- src/pkg/websocket/hybi_test.go                     | 584 -----------------
- src/pkg/websocket/server.go                        | 102 ---
- src/pkg/websocket/websocket.go                     | 412 ------------
- src/pkg/websocket/websocket_test.go                | 274 --------
- 115 files changed, 20976 deletions(-)
+ src/cmd/gofix/go1pkgrename.go      | 26 ++++++++++++++++++++++++++
+ src/cmd/gofix/go1pkgrename_test.go |  4 ++++
+ 2 files changed, 30 insertions(+)

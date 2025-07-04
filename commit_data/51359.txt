@@ -1,17 +1,54 @@
-commit 7f75b72904e9d7ac512307514c29043ff604bacb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 17 16:09:15 2022 -0800
+commit ef4be98abd699c6f059dcac6dc6dfe5774cbf257
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jan 6 16:51:10 2022 -0800
 
-    go/types, types2: replace some Errorf calls with Error calls (cleanup)
+    cmd/compile: support field access for typeparam with structural constraint
     
-    Change-Id: I9b6759a82b8009b323132c78cb7d78c2c35652bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451815
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    In the compiler, we need to distinguish field and method access on a
+    type param. For field access, we avoid the dictionary access (to create
+    an interface bound) and just do the normal transformDot() (which will
+    create the field access on the shape type).
+    
+    This field access works fine for non-pointer types, since the shape type
+    preserves the underlying type of all types in the shape. But we
+    generally merge all pointer types into a single shape, which means the
+    field will not be accessible via the shape type. So, we need to change
+    Shapify() so that a type which is a pointer type is mapped to its
+    underlying type, rather than being merged with other pointers.
+    
+    Because we don't want to change the export format at this point in the
+    release, we need to compute StructuralType() directly in types1, rather
+    than relying on types2. That implementation is in types/type.go, along
+    with the helper specificTypes().
+    
+    I enabled the compiler-related tests in issue50417.go, added an extra
+    test for unnamed pointer types, and added a bunch more tests for
+    interesting cases involving StructuralType(). I added a test
+    issue50417b.go similar to the original example, but also tests access to
+    an embedded field.
+    
+    I also added a unit test in
+    cmd/compile/internal/types/structuraltype_test.go that tests a bunch of
+    unusual cases directly (some of which have no structural type).
+    
+    Updates #50417
+    
+    Change-Id: I77c55cbad98a2b95efbd4a02a026c07dfbb46caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376194
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go | 12 ++++++------
- src/go/types/issues_test.go                    | 12 ++++++------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go          |  80 +++++----
+ src/cmd/compile/internal/reflectdata/reflect.go    |   3 +-
+ src/cmd/compile/internal/typecheck/crawler.go      |   2 +-
+ src/cmd/compile/internal/typecheck/subr.go         |   9 +-
+ src/cmd/compile/internal/types/structuraltype.go   | 187 +++++++++++++++++++++
+ .../compile/internal/types/structuraltype_test.go  | 135 +++++++++++++++
+ src/go/internal/gcimporter/gcimporter_test.go      |   5 +-
+ test/run.go                                        |   1 +
+ test/typeparam/issue50417.go                       |  86 +++++++++-
+ test/typeparam/issue50417b.go                      |  50 ++++++
+ 10 files changed, 512 insertions(+), 46 deletions(-)

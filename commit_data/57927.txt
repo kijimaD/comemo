@@ -1,35 +1,21 @@
-commit 6051da46d01e967b55d088530fcbe84e8deb0e7a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 5 13:50:00 2024 -0500
+commit aa381c538af4eeaf5044ca657c5778805bed77d7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 18:50:26 2023 -0700
 
-    crypto/internal/fips: avoid some non-relocatable global initializers
+    cmd/compile/internal/types: remove Type.vargen
     
-    In normal code,
+    The unified frontend diasmbiguates local types by putting vargen
+    directly into their symbol name instead. We no longer need a separate
+    int field for it.
     
-            var x = []int{...}
-    
-    will be laid out by the linker, but in FIPS packages, the slice
-    assignment has to be deferred to init time to avoid a global
-    data relocation. We can avoid the init time work by writing
-    
-            var x = [...]int{...}
-    
-    instead. Do that.
-    
-    For #69536.
-    
-    Change-Id: Ie3c1d25af3f79182ee254014e49d3711038aa327
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625815
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I556c588ed68c5e2cb324cd46abd934894b5aaef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527517
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/internal/fips/sha256/sha256block.go                | 2 +-
- src/crypto/internal/fips/sha256/sha256block_arm64.s           | 2 +-
- src/crypto/internal/fips/sha256/sha256block_riscv64.s         | 2 +-
- src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go | 2 +-
- src/crypto/internal/fips/sha512/sha512block.go                | 2 +-
- src/crypto/internal/fips/sha512/sha512block_amd64.s           | 2 +-
- src/crypto/internal/fips/sha512/sha512block_arm64.s           | 2 +-
- src/crypto/internal/fips/sha512/sha512block_riscv64.s         | 2 +-
- 8 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types/fmt.go         |  8 --------
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 27 +--------------------------
+ 3 files changed, 2 insertions(+), 35 deletions(-)

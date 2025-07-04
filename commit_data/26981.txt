@@ -1,14 +1,22 @@
-commit 3629814c4399010a47f146516511ecfef64f05c3
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 18 09:20:58 2016 +1000
+commit da1802f1df178b0e06366a0589237d924b7c6c4e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 4 12:34:43 2016 -0800
 
-    doc: link to iant's generics proposal from the FAQ.
+    cmd/compile: use OffPtr when possible
     
-    Updates #15292.
+    OffPtr allocates less and is easier to optimize.
     
-    Change-Id: I229f66c2a41ae0738225f2ba7a574478f5d6d620
-    Reviewed-on: https://go-review.googlesource.com/22163
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    With this change, the OffPtr collapsing opt
+    rule matches increase from 160k to 263k,
+    and the Load-after-Store opt rule matches
+    increase from 217 to 853.
+    
+    Change-Id: I763426a3196900f22a367f7f6d8e8047b279653d
+    Reviewed-on: https://go-review.googlesource.com/20273
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go_faq.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)

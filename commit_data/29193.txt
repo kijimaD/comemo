@@ -1,15 +1,40 @@
-commit c5e7006540ca949b481a0477d1308e1373dd5c31
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 14 14:06:38 2016 -0400
+commit f9dafc742d7c0e892b6e4ff17cb9ec7165887e44
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 30 14:46:25 2016 -0400
 
-    runtime: document rules about unmanaged memory
+    cmd/compile, runtime, etc: get rid of constant FP registers
     
-    Updates #17503.
+    On ARM64, MIPS64, and PPC64, some floating point registers were
+    reserved for constants 0, 1, 2, 0.5, etc. This CL removes them.
     
-    Change-Id: I109d8742358ae983fdff3f3dbb7136973e81f4c3
-    Reviewed-on: https://go-review.googlesource.com/31452
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    On ARM64, they are never used. On MIPS64 and PPC64, the only use
+    case is a multiplication-by-2 in the old backend of the compiler,
+    which is replaced with an addition.
+    
+    Change-Id: I737cbf43283756e3408964fc88c567a938c57036
+    Reviewed-on: https://go-review.googlesource.com/28095
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/HACKING.md | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 53 insertions(+)
+ src/cmd/compile/internal/arm64/gsubr.go       |   4 -
+ src/cmd/compile/internal/mips64/gsubr.go      |   7 +-
+ src/cmd/compile/internal/mips64/reg.go        |   4 -
+ src/cmd/compile/internal/ppc64/gsubr.go       |   8 +-
+ src/cmd/compile/internal/ppc64/reg.go         |   3 -
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go  |  10 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  10 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go  |  10 +-
+ src/cmd/compile/internal/ssa/opGen.go         | 281 +++++++++++++-------------
+ src/cmd/internal/obj/arm64/a.out.go           |  12 +-
+ src/cmd/internal/obj/mips/a.out.go            |  28 ++-
+ src/cmd/internal/obj/ppc64/a.out.go           |  41 ++--
+ src/runtime/asm_arm64.s                       |  12 --
+ src/runtime/asm_mips64x.s                     |  16 --
+ src/runtime/asm_ppc64x.s                      |   6 -
+ src/runtime/cgo/asm_arm64.s                   |   1 -
+ src/runtime/cgo/asm_mips64x.s                 |   1 -
+ src/runtime/cgo/gcc_mips64x.S                 |   3 -
+ src/runtime/cgo_mips64x.go                    |  12 --
+ src/runtime/sys_linux_mips64x.s               |   5 -
+ 20 files changed, 194 insertions(+), 280 deletions(-)

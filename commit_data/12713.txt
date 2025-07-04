@@ -1,12 +1,12 @@
-commit f5f80368c4be5f477a46fb40d455b97890efda7c
+commit b8b308d184a73926eb0eb468f96f7a0f4dc63402
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 21 14:55:05 2012 -0700
+Date:   Wed Mar 21 14:29:16 2012 -0700
 
-    exp/norm/normalize.go: fix typo
+    doc/effective_go.html: undo local font change
     
-    R=golang-dev, r, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5874045
+    https://golang.org/cl/5876043
 
- src/pkg/exp/norm/normalize.go | 2 +-
+ doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

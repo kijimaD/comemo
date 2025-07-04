@@ -1,16 +1,17 @@
-commit 0cc4c2971da80d010af5a3336ad2e7fda06f06a8
-Author: Alexandre Maari <draeron@gmail.com>
-Date:   Mon Oct 15 13:23:09 2018 -0400
+commit 3dced519cbabc213df369d9112206986e62687fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 22 17:45:30 2018 +0000
 
-    text/template: removed truncation of context in error message
+    syscall, internal/poll: fix build on js/wasm
     
-    Fixes #27930
+    Fixes #26014
     
-    Change-Id: I31ad3fdb74d74152268c59ae4c651cc4c8c1716d
-    Reviewed-on: https://go-review.googlesource.com/c/142217
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I9d92414a9181c5d189e3e266666950656bf00406
+    Reviewed-on: https://go-review.googlesource.com/120576
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/parse/parse.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/internal/poll/fd_unix.go | 7 ++++---
+ src/syscall/net_js.go        | 7 +++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

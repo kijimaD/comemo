@@ -1,31 +1,23 @@
-commit 259b7edf5c3a9b898d9b250c44d4f2c94bc90ca5
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 21 16:18:45 2016 -0700
+commit 9d6427d8992b05445029f95c9555820675dd2e3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 01:33:16 2016 -0500
 
-    cmd/compile: allow naming of subexpressions
+    cmd/asm: reject foo(SB)(AX) instead of silently treating as foo(SB)
     
-    Allow names to be used for subexpressions of match rules.
-    For example:
+    Add test for assembly errors, to verify fix.
+    Make sure invalid instruction errors are printed just once
+    (was printing them once per span iteration, so typically twice).
     
-    (OpA x:(OpB y)) -> ..use x here to refer to the OpB value..
+    Fixes #13282.
     
-    This gets rid of the .Args[0].Args[0]... way of naming we
-    used to use.
-    
-    While we're here, give all subexpression matches names instead
-    of recomputing them with .Args[i] sequences each time they
-    are referenced.  Makes the generated rule code a bit smaller.
-    
-    Change-Id: Ie42139f6f208933b75bd2ae8bd34e95419bc0e4e
-    Reviewed-on: https://go-review.googlesource.com/20997
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: Id5f66f80a80b3bc4832e00084b0a91f1afec7f8f
+    Reviewed-on: https://go-review.googlesource.com/18858
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   24 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |    8 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   66 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2954 ++++++++++++++----------
- src/cmd/compile/internal/ssa/rewritedec.go     |   25 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 2935 +++++++++++++----------
- 6 files changed, 3521 insertions(+), 2491 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go      | 114 ++++++++++++++++++++++++-
+ src/cmd/asm/internal/asm/testdata/amd64error.s |   7 ++
+ src/cmd/asm/main.go                            |   2 +-
+ src/cmd/compile/internal/gc/lex.go             |   2 +-
+ src/cmd/internal/obj/link.go                   |   8 +-
+ src/cmd/internal/obj/x86/asm6.go               |   9 ++
+ 6 files changed, 135 insertions(+), 7 deletions(-)

@@ -1,12 +1,17 @@
-commit cb0f0d6cf1f3bc5bf629d04272756192bbf8db7a
-Author: Andrew <andybons@golang.org>
-Date:   Mon Jun 17 16:20:53 2019 -0400
+commit 9426d8c63311c17483d93a20efc26e6dbb759772
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 27 11:41:48 2019 +1100
 
-    doc/go1.13: add release notes for the net package
+    time: rewrite ExampleDuration_Nanoseconds to be more idiomatic.
     
-    Change-Id: I54dc8afc33d6f8946d2c79b0339118fa3710a688
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182618
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fix the punctuation and use the proper units for microseconds,
+    while explaining the incorrect but common variant 'us'.
+    
+    Change-Id: I9e96694ef27ab4761efccd8616ac7b6700f60d39
+    Reviewed-on: https://go-review.googlesource.com/c/163917
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.13.html | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/time/example_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

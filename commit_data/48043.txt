@@ -1,19 +1,18 @@
-commit d3f5cf9d285d39258b2e6f9002c44aaab3e77c42
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 28 15:17:46 2022 -0800
+commit d2f96f2f75f6808362136dd1f20ae338e91aed81
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 15 13:31:32 2021 +0200
 
-    cmd/go: update go work edit -json types to final version
+    math/rand: make the security warning clearer and more prominent
     
-    For #45713
+    It is still a common misconception that math/rand can be used for
+    security-sensitive work if seeded with crypto/rand
+    (lazyledger/lazyledger-core#270). It can not.
     
-    Change-Id: Ia55a96702b99cccaf5d96c2125ee513700658444
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381874
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Trust: Michael Matloob <matloob@golang.org>
+    Change-Id: I8598c352d1750eabeada50be9976ab68cbb42cc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310350
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/alldocs.go               | 18 +++++++++---------
- src/cmd/go/internal/workcmd/edit.go | 18 +++++++++---------
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ src/math/rand/rand.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

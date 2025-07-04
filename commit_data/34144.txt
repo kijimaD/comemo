@@ -1,18 +1,16 @@
-commit 32a0a1d37c87bbbc5f9650da9a4b7262f3162ae4
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Jan 11 22:19:01 2018 +0530
+commit acdb44765d86a5fd66cbbe24735f7dde658a295f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 5 10:50:37 2017 -0700
 
-    doc/articles/wiki: highlight the use of _ warning
+    cmd/internal/dwarf: remove unused SymValue method
     
-    This moves the paragraph mentioning the use of _ higher up
-    to emphasize the warning and thereby reducing chances of getting
-    stuck.
-    
-    Fixes #22617
-    
-    Change-Id: I64352a3e966a22d86fc9d381332bade49d74714a
-    Reviewed-on: https://go-review.googlesource.com/87375
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ied42c2778899ce12cc256f0a124b77bf0e141aee
+    Reviewed-on: https://go-review.googlesource.com/68471
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/articles/wiki/index.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go   | 1 -
+ src/cmd/internal/obj/objfile.go   | 3 ---
+ src/cmd/link/internal/ld/dwarf.go | 3 ---
+ 3 files changed, 7 deletions(-)

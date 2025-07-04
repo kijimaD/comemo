@@ -1,12 +1,20 @@
-commit 60315002f3642f25437548e597e684b88a54e78f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 17 09:25:45 2015 -0700
+commit 30ab39ac7643633716de44840172816ba5658637
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Tue Jun 9 12:01:38 2015 +0200
 
-    doc: document GODEBUG=netdns=X and netcgo in go1.5.txt
+    doc: updated language about the AUTHORS/CONTRIBUTORS update
     
-    Change-Id: I720aeb1511e407750617e23c4cba1edcddf745bb
-    Reviewed-on: https://go-review.googlesource.com/12326
+    Reflect the process changes where AUTHORS and CONTRIBUTORS
+    files are updated automatically based on commit logs
+    and Google committers no longer need to do it manually
+    on the first contributors.
+    
+    The documentation update will help to avoid requests to be
+    added from new contributors.
+    
+    Change-Id: I67daae5bd21246cf79fe3724838889b929bc5e66
+    Reviewed-on: https://go-review.googlesource.com/10824
     Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/contribute.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,18 +1,22 @@
-commit b15372f39bb555196053ddac5e86931a1502c86c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 28 13:06:55 2021 -0700
+commit a36493eb3c7f8c990f5112f70e66270372a5b12e
+Author: Thom Wiggers <thom@thomwiggers.nl>
+Date:   Tue Sep 29 09:34:08 2020 +0000
 
-    runtime: remove linux-amd64 walltime function
+    crypto/tls: add no-shared to openssl build instructions
     
-    It's never called.
+    This prevents the custom-built version of openssl prefering the system
+    libraries over the ones compiled with the specified (weak crypto)
+    options necessary to generate the updates. This difference can lead to
+    confusing failures when updating the tests.
     
-    Change-Id: I8956743b21301816b5f37a9b34e3f50ef7b2e70a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314771
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #31809
+    
+    Change-Id: I2dd257f3121d6c6c62c6aeba52e1c74046b3c584
+    GitHub-Last-Rev: 6d4eeafadf0b4671b7e17c6810f1a66a9fda7d3c
+    GitHub-Pull-Request: golang/go#41630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257517
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/sys_linux_amd64.s | 73 ++-----------------------------------------
- src/runtime/timestub2.go      | 10 ++++--
- 2 files changed, 10 insertions(+), 73 deletions(-)
+ src/crypto/tls/handshake_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,37 +1,15 @@
-commit 948b2c722b32d2bc63d6f326c80831801b0e06f7
+commit c038c38ac1240202cfaaec21f917483869df31a9
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 28 19:50:19 2014 -0400
+Date:   Wed May 28 15:48:35 2014 -0400
 
-    cmd/gc: fix x=x crash
+    doc/go1.3.html: math/big's Int and Rat implement TextMarshaler, TextUnmarshaler
     
-    The 'nodarg' function is used to obtain a Node*
-    representing a function argument or result.
-    It returned a brand new Node*, but that violates
-    the guarantee in most places in the compiler that
-    two Node*s refer to the same variable if and only if
-    they are the same Node* pointer. Reestablish that
-    invariant by making nodarg return a preexisting
-    named variable if present.
+    Update #8112
     
-    Having fixed that, avoid any copy during x=x in
-    componentgen, because the VARDEF we emit
-    before the copy marks the lhs x as dead incorrectly.
-    
-    The change in walk.c avoids modifying the result
-    of nodarg. This was the only place in the compiler
-    that did so.
-    
-    Fixes #8097.
-    
-    LGTM=r, khr
-    R=golang-codereviews, r, khr
-    CC=golang-codereviews, iant
-    https://golang.org/cl/102820043
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/95640043
 
- src/cmd/5g/cgen.c  |  8 ++++++++
- src/cmd/6g/cgen.c  |  7 +++++++
- src/cmd/6g/gsubr.c |  9 +++++++++
- src/cmd/8g/cgen.c  |  7 +++++++
- src/cmd/gc/walk.c  |  3 ++-
- test/live.go       | 26 ++++++++++++++++++++++++++
- 6 files changed, 59 insertions(+), 1 deletion(-)
+ doc/go1.3.html | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

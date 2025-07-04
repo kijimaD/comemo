@@ -1,18 +1,39 @@
-commit 0bd4710ca61463716d1f88d33cc4f6e92b9b8255
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 9 15:28:44 2022 -0800
+commit 1302f93c4e1eae0e625b372f9bb6bb48780af30f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 13 17:32:07 2021 -0500
 
-    sync/atomic: hint users of old API to use new type-based API instead
+    cmd/dist: log CPU model when testing
     
-    Fixes #56495
+    Knowing whether test failures are correlated with specific CPU models on
+    has proven useful on several issues. Log it for prior to testing so it
+    is always available.
     
-    Change-Id: Ib2f39273da68e3056688306aa0d5e274b5507bf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449237
-    Run-TryBot: Keith Randall <khr@golang.org>
+    internal/sysinfo provides the CPU model, but it is not available in the
+    bootstrap toolchain, so we can't access this unconditionally in
+    cmd/dist. Instead use a build-tagged file, as the final version of
+    cmd/dist will use the final toolchain.
+    
+    The addition of new data to the beginning of cmd/dist output will break
+    x/build/cmd/coordinator's banner parsing, leaving extra lines in the log
+    output, though information will not be lost.
+    https://golang.org/cl/372538 fixes up the coordinator and should be
+    submitted and deployed before this CL is submitted.
+    
+    For #46272.
+    For #49209.
+    For #50146.
+    
+    Change-Id: I515d2ec58e4c0034b76bf624ecaab38f16146074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371474
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/sync/atomic/doc.go | 41 ++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/dist/metadata.go           | 24 ++++++++++++++++++++++++
+ src/cmd/dist/metadata_bootstrap.go | 21 +++++++++++++++++++++
+ src/cmd/dist/sys_windows.go        |  6 +++---
+ src/cmd/dist/test.go               | 19 +++++++++++++++++++
+ 4 files changed, 67 insertions(+), 3 deletions(-)

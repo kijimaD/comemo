@@ -1,20 +1,19 @@
-commit 65c133506f42c3e4180c0444970b224228244afc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Jul 14 20:30:43 2023 +0200
+commit 13d48bb6a1ad3787c10fbbe4265ad11672d90a37
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Sep 28 14:41:30 2022 -0700
 
-    runtime: remove unused F_{GET,SET}FL cgo constants on solaris and openbsd
+    encoding/gob: add top level security doc
     
-    The generated constants were already removed by CL 497076, so the cgo
-    constants used to generate them are no longer needed as well.
+    Add a slightly expanded version of the Decoder type comment to the top
+    level package doc, which explains that this package is not designed
+    to be hardened against adversarial inputs.
     
-    Change-Id: I37dabd800461d134424af8bd72fb0c1b8504d604
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509676
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8b83433838c8235eb06ded99041fdf726c811ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436096
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/defs_openbsd.go | 3 ---
- src/runtime/defs_solaris.go | 2 --
- 2 files changed, 5 deletions(-)
+ src/encoding/gob/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

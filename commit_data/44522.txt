@@ -1,44 +1,20 @@
-commit 60b500dc6c78a793775a7dff4eb8c656734a54c8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 26 09:16:56 2021 -0800
+commit 3067a8dc02f62c287a8ccd3fcf16bfdf4f687f5f
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Jul 14 13:12:58 2020 -0400
 
-    math/big: remove bounds checks for shrVU_g inner loop
+    [dev.link] cmd/link: use pclntabState and eliminate globals
     
-    Make explicit a shrVU_g precondition.
-    Replace i with i+1 throughout the loop.
-    The resulting loop is functionally identical,
-    but the compiler can do better BCE without the i-1 slice offset.
+    Non functional change.
     
-    Benchmarks results on amd64 with -tags=math_big_pure_go.
+    As runtime.pclntab breaks up, it'll be easier if we can just pass around
+    the pclntab state. Also, eliminate the globals in pclntab.
     
-    name                          old time/op  new time/op  delta
-    NonZeroShifts/1/shrVU-8       4.55ns ± 2%  4.45ns ± 3%   -2.27%  (p=0.000 n=28+30)
-    NonZeroShifts/1/shlVU-8       4.07ns ± 1%  4.13ns ± 4%   +1.55%  (p=0.000 n=26+29)
-    NonZeroShifts/2/shrVU-8       6.12ns ± 1%  5.55ns ± 1%   -9.30%  (p=0.000 n=28+28)
-    NonZeroShifts/2/shlVU-8       5.65ns ± 3%  5.70ns ± 2%   +0.92%  (p=0.008 n=30+29)
-    NonZeroShifts/3/shrVU-8       7.58ns ± 2%  6.79ns ± 2%  -10.46%  (p=0.000 n=28+28)
-    NonZeroShifts/3/shlVU-8       6.62ns ± 2%  6.69ns ± 1%   +1.07%  (p=0.000 n=29+28)
-    NonZeroShifts/4/shrVU-8       9.02ns ± 1%  7.79ns ± 2%  -13.59%  (p=0.000 n=27+30)
-    NonZeroShifts/4/shlVU-8       7.74ns ± 1%  7.82ns ± 1%   +0.92%  (p=0.000 n=26+28)
-    NonZeroShifts/5/shrVU-8       10.6ns ± 1%   8.9ns ± 3%  -16.31%  (p=0.000 n=25+29)
-    NonZeroShifts/5/shlVU-8       8.59ns ± 1%  8.68ns ± 1%   +1.13%  (p=0.000 n=27+29)
-    NonZeroShifts/10/shrVU-8      18.2ns ± 2%  14.4ns ± 1%  -20.96%  (p=0.000 n=27+28)
-    NonZeroShifts/10/shlVU-8      14.1ns ± 1%  14.1ns ± 1%   +0.46%  (p=0.001 n=26+28)
-    NonZeroShifts/100/shrVU-8      161ns ± 2%   118ns ± 1%  -26.83%  (p=0.000 n=29+30)
-    NonZeroShifts/100/shlVU-8      119ns ± 2%   120ns ± 2%   +0.92%  (p=0.000 n=29+29)
-    NonZeroShifts/1000/shrVU-8    1.54µs ± 1%  1.10µs ± 1%  -28.63%  (p=0.000 n=29+29)
-    NonZeroShifts/1000/shlVU-8    1.10µs ± 1%  1.10µs ± 2%     ~     (p=0.701 n=28+29)
-    NonZeroShifts/10000/shrVU-8   15.3µs ± 2%  10.9µs ± 1%  -28.68%  (p=0.000 n=28+28)
-    NonZeroShifts/10000/shlVU-8   10.9µs ± 2%  10.9µs ± 2%   -0.57%  (p=0.003 n=26+29)
-    NonZeroShifts/100000/shrVU-8   154µs ± 1%   111µs ± 2%  -28.04%  (p=0.000 n=27+28)
-    NonZeroShifts/100000/shlVU-8   113µs ± 2%   113µs ± 2%     ~     (p=0.790 n=30+30)
-    
-    Change-Id: Ib6a621ee7c88b27f0f18121fb2cba3606c40c9b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297049
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I2a5849e8f5f422a336a881e53a261e3997d11c44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242599
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/big/arith.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/main.go   |   7 +-
+ src/cmd/link/internal/ld/pcln.go   | 233 +++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/symtab.go |  25 ++--
+ 3 files changed, 146 insertions(+), 119 deletions(-)

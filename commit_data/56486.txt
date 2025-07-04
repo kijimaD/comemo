@@ -1,35 +1,21 @@
-commit bf0b605dfbc36b3555eef3315b15facca1c08bdb
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu May 9 18:16:59 2024 -0400
+commit dc076eaf2e64f51cca986a4a340a51befd7b6250
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Tue May 9 20:32:19 2023 -0700
 
-    runtime: make convTstring write barrier unreachable from throw
+    misc/wasm: add wasmedge to wasip1 script
     
-    CL 581215 changed 'throw' so that instead of print(s) it called
-    a more complicated function, printpanicval, that statically
-    appeared to have convTstring in its call graph, even though this
-    isn't dynamically reachable when called with a string argument.
+    The wasmedge runtime will be used to test our wasip1
+    implementation against the WASI runtime from wasmedge.org.
     
-    However, this caused the link-time static callgraph test to point
-    out that throw (which is called in nowritebarrierrec contexts
-    such as markgc) reaches a write barrier.
+    For #60097
     
-    The solution is to inline and specialize the printpanicval
-    function for strings; it reduces to printindented.
-    
-    Thanks to mpratt for pointing out that the reachability
-    check is on the fully lowered code, and is thus sensitive
-    to optimizations such as inlining.
-    I added an explanatory comment on the line that generates
-    the error message to help future users confused as I was.
-    
-    Fixes golang/go#67274
-    
-    Change-Id: Ief110d554de365ce4c09509dceee000cbee30ad9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584617
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ib0e886de46240b4d43d02ec8a7bc7cea0730c162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494120
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/cmd/compile/internal/ssagen/nowb.go | 8 ++++++++
- src/runtime/panic.go                    | 5 ++---
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ misc/wasm/go_wasip1_wasm_exec | 3 +++
+ 1 file changed, 3 insertions(+)

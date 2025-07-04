@@ -1,19 +1,17 @@
-commit dc629ec939c006aca7a8d60a176253057b28e10c
-Author: Damien Neil <dneil@google.com>
-Date:   Sat Sep 3 19:51:48 2022 -0700
+commit 404f84d417ceed0f47e51d2c4f933a6dee96dca5
+Author: Benjamin Peterson <benjamin@python.org>
+Date:   Fri Oct 15 23:24:28 2021 +0000
 
-    net/http: make triv.go example less insecure
+    runtime: remove reference to crypto/tls GODEBUG usage
     
-    The triv.go example serves the entire contents of $HOME by default.
-    That seems bad, let's not do that.
+    crypto/tls briefly used GODEBUG. That usage was removed in CL 191999.
     
-    Also change it to listen on localhost only.
-    
-    Change-Id: I8f1b7bd6b7d737852273e2ba82deabc4a2d11f6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428237
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I759b6f1b02db8160075cba30d73823018e19ad9d
+    GitHub-Last-Rev: 12d2a4a82b1467e4c2214aa78eb9a0af4938a9de
+    GitHub-Pull-Request: golang/go#49012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356313
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/net/http/triv.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

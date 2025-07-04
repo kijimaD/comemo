@@ -1,16 +1,13 @@
-commit d62b31386338364b3f319337ca0a1e511c6f23f7
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Nov 3 21:17:45 2016 -0700
+commit b11c79fd07c80e6902fa26045ac566ddc2f1250d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 12 11:43:55 2016 -0700
 
-    net/http: move extra redirect logic for 307/308 into redirectBehavior
+    cmd/compile: deduplicate importtype and (*importer).importtype
     
-    Follow up of CL https://go-review.googlesource.com/32595.
-    
-    Change-Id: I2b3ff7e6b2c764bb6bc5e9aa692d0aed79eb5626
-    Reviewed-on: https://go-review.googlesource.com/32750
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7bfb0e5e71fc26448b0d5d3801cd6e50c8b48f5d
+    Reviewed-on: https://go-review.googlesource.com/29078
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/client.go | 61 ++++++++++++++++++++++----------------------------
- 1 file changed, 27 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 25 ++++++++++---------------
+ src/cmd/compile/internal/gc/export.go  | 26 --------------------------
+ 2 files changed, 10 insertions(+), 41 deletions(-)

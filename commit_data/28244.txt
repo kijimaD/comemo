@@ -1,32 +1,20 @@
-commit 252093f1203da13e1face4f71141ac75482ccf11
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Sep 6 10:38:16 2016 +0200
+commit a1813ae0a091e1b880c0d3472112d2c725c2fa18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 6 11:32:18 2016 -0700
 
-    runtime: remove maxstring
+    misc/cgo/testcarchive: avoid possible pthread_create race
     
-    Before this CL the runtime prevented printing of overlong strings with the print
-    function when the length of the string was determined to be corrupted.
-    Corruption was checked by comparing the string size against the limit
-    which was stored in maxstring.
+    The old code assumed that the thread ID set by pthread_create would be
+    available in the newly created thread.  While that is clearly true
+    eventually, it is not necessarily true immediately.  Rather than try to
+    pass down the thread ID, just call pthread_self in the created thread.
     
-    However maxstring was not updated everywhere were go strings were created
-    e.g. for string constants during compile time. Thereby the check for maximum
-    string length prevented the printing of some valid strings.
+    Fixes #15576 (I hope).
     
-    The protection maxstring provided did not warrant the bookkeeping
-    and global synchronization needed to keep maxstring updated to the
-    correct limit everywhere.
-    
-    Fixes #16999
-    
-    Change-Id: I62cc2f4362f333f75b77f199ce1a71aac0ff7aeb
-    Reviewed-on: https://go-review.googlesource.com/28813
+    Change-Id: Ic07086b00e4fd5676c04719a299c583320da64a1
+    Reviewed-on: https://go-review.googlesource.com/22880
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go |  3 ---
- src/runtime/print.go       |  4 ----
- src/runtime/string.go      | 20 ++------------------
- src/runtime/string_test.go | 13 -------------
- 4 files changed, 2 insertions(+), 38 deletions(-)
+ misc/cgo/testcarchive/main4.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

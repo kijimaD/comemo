@@ -1,20 +1,16 @@
-commit 8cd00a5262e7e2af213066ffa1ac9a7dcafcbaed
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Sat Apr 21 09:55:50 2018 +0100
+commit ce94c0a79170a174096de902ee93ad38e6c75d6f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 09:55:02 2018 -0800
 
-    archive/zip: prevent writing data for a directory
+    cmd/go: on Windows, disable cache if LocalAppData is not set
     
-    When creating a directory, Writer.Create now returns a dummy
-    io.Writer that always returns an error on Write.
+    Fixes #23146
     
-    Fixes #24043
-    
-    Change-Id: I7792f54440d45d22d0aa174cba5015ed5fab1c5c
-    Reviewed-on: https://go-review.googlesource.com/108615
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I06e3328ecca5e27f8e1ada05c2d7cd9bdda714e6
+    Reviewed-on: https://go-review.googlesource.com/85996
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/writer.go      | 55 +++++++++++++++++++++++++++---------------
- src/archive/zip/writer_test.go | 11 +++++++++
- 2 files changed, 46 insertions(+), 20 deletions(-)
+ src/cmd/go/internal/cache/default.go | 3 +++
+ 1 file changed, 3 insertions(+)

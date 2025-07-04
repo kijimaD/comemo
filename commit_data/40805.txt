@@ -1,16 +1,15 @@
-commit 5e52ca067a98d43ca3f2fc6d0f4116475dcac9ef
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 15 09:05:41 2019 -0500
+commit 726b1bf9871f4905d85a53051301f636e8273328
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 11 13:29:53 2019 -0400
 
-    cmd/go: fix typo'd argument in build_trimpath.txt
+    runtime: expand comments on runtime panic checks
     
-    Fixes #35617
+    This adds comments explaining why it's important that some panics are
+    allowed in the runtime (even though this isn't ideal).
     
-    Change-Id: I514f4e5f80ba9866c5cad3eb1fecd6f346c82f14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207340
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I04c6fc4f792f3793f951619ccaea6bfef2f1763c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181737
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/testdata/script/build_trimpath.txt | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/panic.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

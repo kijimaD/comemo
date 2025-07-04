@@ -1,0 +1,18 @@
+commit 574e836055f2b329824ae3646bf1cb563ca03d54
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Feb 18 17:53:19 2025 +1100
+
+    cmd/asm/internal/asm: add additional tests for constant loads on riscv64
+    
+    This improves test coverage around the various constant load edge cases.
+    
+    Change-Id: Ibafeec78e76d95e9f56b48fa6bd012772bf505c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652776
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 40 ++++++++++++++++++++---------
+ 1 file changed, 28 insertions(+), 12 deletions(-)

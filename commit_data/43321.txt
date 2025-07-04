@@ -1,19 +1,16 @@
-commit 8ee4d6e1bf1e76a4eac627d5fc9b0d0332d209e2
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 15 15:53:09 2020 -0400
+commit 2975b27bbd3d4e85a2488ac289e112bc0dedfebe
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 26 09:32:27 2020 +1100
 
-    cmd/go/internal/modload: move fetch to import.go
+    scan: for style, adjust code for bad scan read counts
     
-    From a comment in CL 262341. It makes more sense in import.go than in
-    mvs.go.
+    Make the code more consistent with the rest of the file.
+    Should have caught this in review of CL 225357.
     
-    Change-Id: If4dfa1091077e110c5041bc849d99bc0be2bd8e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262780
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I12824cb436539c31604684e043ebb7587cc92471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225557
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/import.go | 39 ++++++++++++++++++++++++++++++++
- src/cmd/go/internal/modload/mvs.go    | 42 -----------------------------------
- 2 files changed, 39 insertions(+), 42 deletions(-)
+ src/bufio/scan.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

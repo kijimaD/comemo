@@ -1,34 +1,14 @@
-commit cb767247caeaedd0ed438adba8e27c3334be783e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 00:01:55 2014 -0400
+commit b3de7f28a8c111043013cc539421021a32176c33
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Aug 28 16:02:15 2014 -0700
 
-    runtime: refactor/fix asmcgocall/asmcgocall_errno
+    runtime: fix Plan 9 build for new C calling convention
     
-    Instead of making asmcgocall call asmcgocall_errno,
-    make both load args into registers and call a shared
-    assembly function.
-    
-    On amd64, this costs 1 word in the asmcgocall_errno path
-    but saves 3 words in the asmcgocall path, and the latter
-    is what happens on critical nosplit paths on Windows.
-    
-    On arm, this fixes build failures: asmcgocall was writing
-    the arguments for asmcgocall_errno into the wrong
-    place on the stack. Passing them in registers avoids the
-    decision entirely.
-    
-    On 386, this isn't really needed, since the nosplit paths
-    have twice as many words to work with, but do it for consistency.
-    
-    Update #8635
-    Fixes arm build (except GOARM=5).
-    
-    TBR=iant
+    LGTM=0intro, rsc
+    R=rsc, 0intro
     CC=golang-codereviews
-    https://golang.org/cl/134390043
+    https://golang.org/cl/132320043
 
- misc/cgo/test/callback.go   |  9 +++++++--
- src/pkg/runtime/asm_386.s   | 13 ++++++++-----
- src/pkg/runtime/asm_amd64.s | 13 ++++++++-----
- src/pkg/runtime/asm_arm.s   | 15 +++++++++------
- 4 files changed, 32 insertions(+), 18 deletions(-)
+ src/pkg/runtime/sys_plan9_386.s   | 27 ++++++++++++++-------------
+ src/pkg/runtime/sys_plan9_amd64.s | 29 +++++++++++++++--------------
+ 2 files changed, 29 insertions(+), 27 deletions(-)

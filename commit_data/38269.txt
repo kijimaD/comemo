@@ -1,21 +1,19 @@
-commit 7778b5ab5a2215668ad1ad4d174d58b3363c9de8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 5 17:01:19 2019 -0500
+commit f81d73e8d57c99d32744e61940dad08c4ec07111
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun May 6 12:19:25 2018 +0200
 
-    cmd/go: clear GOPROXY in TestGoGetInsecure
+    strconv: add comment explaining bounded shift in formatBits
     
-    TestGoGetInsecure verifies that 'go get -insecure' can fetch a
-    particular package. However, the GOPROXY protocol does not provide a
-    means for proxies to indicate packages as insecure; thus, proxies
-    cannot safely serve those packages.
+    The compiler can generate better code for shifts bounded to be less than 32
+    and thereby known to be less than any register width.
+    See https://golang.org/cl/109776.
     
-    Updates #30571
-    
-    Change-Id: I447776dff98bd8ee6eb5055b897b9c7d293e3423
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165745
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0c4c9f0faafa065fce3c10fd328830deb92f9e38
+    Reviewed-on: https://go-review.googlesource.com/c/111735
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/strconv/itoa.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

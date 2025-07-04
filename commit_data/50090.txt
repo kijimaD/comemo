@@ -1,16 +1,32 @@
-commit a36a0c440e7b3cfd6ede8f1ab1981101e6db8d95
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Thu Jun 9 06:50:54 2022 +0200
+commit 952df981580659389679b27d65e1eceeedf0e2df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 30 10:04:46 2021 -0700
 
-    cmd/compile: fix error message formatting in decomposeBuiltInPhi
+    cmd/compile: accept constraint literals with elided interfaces
     
-    Change-Id: Ib2b2eb6bebb59134f671a79739ee1acaf32ed443
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411217
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    This change enables the relaxed syntax for constraint literals
+    as proposed in issue #48424 and adds a simple smoke test for
+    the compiler. (Most of the relevant changes are in the syntax
+    and types2 package which have more extensive tests for this.)
+    
+    This makes it possible to experiment with the new syntax while
+    we contemplate the fate of #48424.
+    
+    If #48424 is accepted, this change can remain. If #48424 is
+    not accepted, reverting this CL will remove this feature in
+    the compiler.
+    
+    For #48424.
+    
+    Change-Id: I624fbb37c2f616ee9ad692e17e4fc75c9d5b06e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353389
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/decompose.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/noder.go       |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go |  5 ++-
+ test/typeparam/issue48424.go                  | 54 +++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 3 deletions(-)

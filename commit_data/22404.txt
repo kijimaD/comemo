@@ -1,19 +1,14 @@
-commit cb6e9ec03d66fd5a25c513c6effcc5d8206a9133
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Apr 9 10:24:22 2015 +1200
+commit 63269404a8d588fb0af679adc1f940294cedc2c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 14:53:41 2015 -0800
 
-    cmd/go: support -buildmode=default,archive,exe,c-shared
+    math/big: introduce Bits abstraction instead of using "untyped" []int bit lists
     
-    Modelled somewhat on the -race support.
-    
-    Change-Id: I137037addfc76341f7deb216776fdd18e9af9fe5
-    Reviewed-on: https://go-review.googlesource.com/8680
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6caa6bdcf6643ce3015244397a752bd133f3d00c
+    Reviewed-on: https://go-review.googlesource.com/6840
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/build.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/go/doc.go   | 32 +++++++++++++++++++++++++++++-
- src/cmd/go/help.go  | 29 +++++++++++++++++++++++++++
- src/cmd/go/main.go  |  1 +
- 4 files changed, 116 insertions(+), 3 deletions(-)
+ src/math/big/bits_test.go  | 114 +++++++++++++++++++++++++--------------------
+ src/math/big/float.go      |   2 +-
+ src/math/big/float_test.go |  32 ++++++-------
+ 3 files changed, 80 insertions(+), 68 deletions(-)

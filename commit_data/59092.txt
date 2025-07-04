@@ -1,23 +1,24 @@
-commit 180795ceac69b57b9a13f51c87f0be9bf9af9050
-Author: limeidan <limeidan@loongson.cn>
-Date:   Wed Mar 5 15:07:07 2025 +0800
+commit 36fb6160ae128489c4fd793d7359370ea3eaf992
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 21 17:20:02 2024 +1100
 
-    runtime, runtime/cgo: use libc for sigaction syscalls when cgo is enabled on loong64
+    fmt: document how %#g handles infinities and NaNs
     
-    This ensures that runtime's signal handlers pass through the TSAN and
-    MSAN libc interceptors and subsequent calls to the intercepted
-    sigaction function from C will correctly see them.
+    The %#g format prints a "Go-syntax representation", but there is
+    no such thing for IEEE754 infinities and NaNs, so just document
+    what happens, which is that it prints +Inf, -Inf, or NaN.  We could
+    show something like math.Inf(1) and math.Nan(), but that doesn't
+    sit right, and anyway for NaNs you can't even recover the original
+    value. Simpler and more honest to give up.
     
-    Change-Id: I243a70d9dcb6d95a65c8494d5f9f9f09a316c693
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654995
+    Fixes #51486
+    
+    Change-Id: I8d4e8186f5d7acc3e0e7b51d0b322142908ea0a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557235
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/cgo/gcc_sigaction.c | 11 ++++++++---
- src/runtime/cgo/sigaction.go    |  2 +-
- src/runtime/cgo_sigaction.go    |  2 +-
- src/runtime/sigaction.go        |  2 +-
- src/runtime/sys_linux_loong64.s | 10 ++++++++++
- 5 files changed, 21 insertions(+), 6 deletions(-)
+ src/fmt/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

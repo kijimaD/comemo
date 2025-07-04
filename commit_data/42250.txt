@@ -1,29 +1,21 @@
-commit b565d1ec1630f6ffa50024fe14ac4ea88a2e6701
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 30 23:05:51 2020 -0700
+commit 8cf5293caa7071601fa90358abdd20a0b787e178
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 03:25:53 2019 +1100
 
-    cmd/cgo: use type aliases for #define type macros
+    cmd/internal/obj/riscv: split immediates larger than 12-bits
     
-    Cgo's initial design for handling "#define foo int*" involved
-    rewriting "C.foo" to "*_Ctype_int" everywhere. But now that we have
-    type aliases, we can declare "type _Ctype_foo = *_Ctype_int" once, and
-    then rewrite "C.foo" to just "_Ctype_foo".
+    Handle immediates larger than 12-bits by rewriting as an LUI instruction with
+    the high bits, followed by the original instruction with the low bits.
     
-    This is important for go/types's UsesCgo mode, where go/types needs to
-    be able to figure out a type for each C.foo identifier using only the
-    information written into _cgo_gotypes.go.
+    Based on the riscv-go port.
     
-    Fixes #38649.
+    Updates #27532
     
-    Change-Id: Ia0f8c2d82df81efb1be5bc26195ea9154c0af871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230037
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I8ed6d6e6db06fb8a27f3ab75f467ec2b7ff1f075
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204626
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/test.go                      |  8 ++++++++
- misc/cgo/testgodefs/testdata/issue38649.go | 15 +++++++++++++++
- misc/cgo/testgodefs/testdata/main.go       |  3 +++
- misc/cgo/testgodefs/testgodefs_test.go     |  1 +
- src/cmd/cgo/gcc.go                         | 15 +++++++++------
- 5 files changed, 36 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 110 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 110 insertions(+)

@@ -1,13 +1,16 @@
-commit 33a15eb6c020b7c54456b809e02ab678a1cebb51
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Sep 23 23:37:42 2011 +0900
+commit 46ed89b7a32f2c415dc12a077e2bbc8bbf973eb9
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Sep 23 10:28:02 2011 +0200
 
-    net: make use of AF_UNSPEC instead of individual address family
+    runtime: gdb support: gracefully handle not being able to find types
     
-    R=fullung, rsc
+    The Dwarf info has the full typenames, the go *struct runtime.commonType
+    has the short name.  A more permanent fix would link the two together
+    but this way the user gets useable stack traces for now.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5034044
+    https://golang.org/cl/5097046
 
- src/pkg/net/interface_bsd.go   |  1 -
- src/pkg/net/interface_linux.go | 33 ++++++++++-----------------------
- 2 files changed, 10 insertions(+), 24 deletions(-)
+ src/pkg/runtime/runtime-gdb.py | 31 +++++++++++++++++++++++++++----
+ 1 file changed, 27 insertions(+), 4 deletions(-)

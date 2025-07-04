@@ -1,23 +1,16 @@
-commit a4ded4b5ff90a58d1ecf55914af941c468a502f1
+commit 3f9ec83b10c6de2a992b7458eb3be279f48eb6f8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 13 14:35:15 2022 -0700
+Date:   Sun Jun 20 12:22:16 2021 -0700
 
-    misc/cgo/test: remove timing dependency from TestParallelSleep
+    cmd/go: document GOPPC64 environment variable
     
-    Rename it TestIssue1560 since it no longer sleeps.
-    
-    For #1560
-    Fixes #45586
-    
-    Change-Id: I338eee9de43e871da142143943e9435218438e90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400194
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2d2c02eec4ac6eca218fa5334d32650c1620692c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329689
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- misc/cgo/test/callback_c.c | 31 ++++-----------------------
- misc/cgo/test/cgo_test.go  |  2 +-
- misc/cgo/test/testx.go     | 53 ++++++++++++++++++++++++----------------------
- 3 files changed, 33 insertions(+), 53 deletions(-)
+ src/cmd/go/alldocs.go               | 3 +++
+ src/cmd/go/internal/help/helpdoc.go | 3 +++
+ 2 files changed, 6 insertions(+)

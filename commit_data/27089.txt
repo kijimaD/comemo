@@ -1,14 +1,32 @@
-commit f7d19672f273ecb600d0b0db32990d1a6462a898
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 22 22:15:17 2016 +0000
+commit ddc6b64444c3914621b3b1ff019e02b5aabdc20c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 9 19:27:57 2016 -0800
 
-    api: update next.txt
+    cmd/compile: fix defer/deferreturn
     
-    Change-Id: I12d5e5d0e74b354f26898bab4ea30eb27ac45cd7
-    Reviewed-on: https://go-review.googlesource.com/22387
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Make sure we do any just-before-return cleanup on all paths out of a
+    function, including when recovering.  Each exit path should include
+    deferreturn (if there are any defers) and then the exit
+    code (e.g. copying heap-escaping return values back to the stack).
+    
+    Introduce a Defer SSA block type which has two outgoing edges - one the
+    fallthrough edge (the defer was queued successfully) and one which
+    immediately returns (the defer had a successful recover() call and
+    normal execution should resume at the return point).
+    
+    Fixes #14725
+    
+    Change-Id: Iad035c9fd25ef8b7a74dafbd7461cf04833d981f
+    Reviewed-on: https://go-review.googlesource.com/20486
+    Reviewed-by: David Chase <drchase@google.com>
 
- api/next.txt | 184 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 184 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 96 ++++++++++++--------------
+ src/cmd/compile/internal/ssa/check.go          | 10 +++
+ src/cmd/compile/internal/ssa/flagalloc.go      |  4 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/likelyadjust.go   |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  2 +
+ src/cmd/compile/internal/ssa/phiopt.go         |  4 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  6 +-
+ test/fixedbugs/issue14725.go                   | 57 +++++++++++++++
+ 9 files changed, 124 insertions(+), 58 deletions(-)

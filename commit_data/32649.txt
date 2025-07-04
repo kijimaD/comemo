@@ -1,33 +1,20 @@
-commit e86c0676cf90109094c8ff09e83b56492c1e628b
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Aug 31 12:27:53 2017 +0200
+commit 643be70045e413943cae9d73687beaa4db47f909
+Author: David Chase <drchase@google.com>
+Date:   Wed May 10 13:50:19 2017 -0400
 
-    cmd/dist: use standard generated code header
+    cmd/compile: repair copy-pasted method comment
     
-    This belongs to a series of clean-up changes (see below) for cmd/dist.
-    This is change (4).
+    Inadvertent copy-pasta in CL
+    https://go-review.googlesource.com/c/36207/
     
-    These changes include:
-    (1)  apply minor fixes
-    (2)  restore behavior of branchtag
-    (3)  unleash bootstrap optimization for windows
-    (4)  use standard generated code header
-    (5)  remove trivial variables + functions
-    (6)  move functions for the better
-    (7)  simplify code segments
-    (8)  use bytes.Buffer for code generation
-    (9)  rename variables + functions
-    (10) remove doc.go
+    Is this allowed for 1.9 post-freeze?
     
-    Change-Id: I5e163f89a518f074e58bf2d44597e553c918d7e6
-    Reviewed-on: https://go-review.googlesource.com/61010
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I00dd27f9f53babeded3695346986a7a491f8a771
+    Reviewed-on: https://go-review.googlesource.com/43092
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/buildgo.go      | 8 ++++----
- src/cmd/dist/buildruntime.go | 4 ++--
- src/cmd/dist/buildtool.go    | 6 ++++--
- src/cmd/dist/deps.go         | 2 +-
- src/cmd/dist/mkdeps.bash     | 2 +-
- 5 files changed, 12 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/value.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

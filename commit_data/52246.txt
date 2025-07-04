@@ -1,24 +1,20 @@
-commit 9872428a715a907a122ad705b5fa42f11a385664
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 14 11:50:30 2023 -0500
+commit 338a81741a9aecba1a80014eced5cb2d3852d8eb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 20 11:17:59 2022 -0400
 
-    runtime: move cgo traceback into unwinder
+    crypto/rand: apply the same max read size on Illumos as on Solaris
     
-    Currently, gentraceback's loop ends with a call to tracebackCgoContext
-    to process cgo frames. This requires spreading various parts of the
-    printing and pcbuf logic across these two functions.
+    This case was missed in CL 370894, and masked by the lack of an
+    Illumos TryBot.
     
-    Clean this up by moving cgo unwinding into unwinder and then lifting
-    the printing and pcbuf logic from tracebackCgoContext into
-    gentraceback along with the other printing and pcbuf logic.
+    Fixes #52452.
     
-    Updates #54466.
-    
-    Change-Id: Ic71afaa5ae110c0ea5be9409e267e4284e36a8c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468299
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7cda193e33c11a9d04eb888fdb5ec9218e6ed1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401294
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
 
- src/runtime/traceback.go | 98 +++++++++++++++++++++++++++---------------------
- 1 file changed, 55 insertions(+), 43 deletions(-)
+ src/crypto/rand/rand_getrandom.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

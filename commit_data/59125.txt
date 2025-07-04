@@ -1,30 +1,26 @@
-commit 665af869920432879629c1d64cf59f129942dcd6
-Author: Max Neverov <neverov.max@gmail.com>
-Date:   Tue Mar 18 20:02:03 2025 +0000
+commit 1c9c9c8412f7d650a543c31478a82b9d61d1dd14
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Nov 15 15:51:41 2023 -0600
 
-    cmd/go: fail go clean command when failed to find go cache directory
+    cmd/internal/obj/ppc64: cleanup optab entries after renaming
     
-    Currently, if computing of the go cache directory fails it does not expose the error. Commands like go clean, exec, modindex that use go cache directory continue execution producing incorrect or no result. This patch adds an error to the return values such that it can be validated on call sites. It also introduces such validation in go clean -cache command to fail execution in case when error occurred.
+    Combine MOVW/MOVD using C_16CON as they accept any 16 bit
+    constant.
     
-    Fixes #69997
+    Remove MULLW/MULLD C_U16CON optab entry. These assemble to
+    the mulli opcode which only accepts a signed 16 bit constant.
     
-    Change-Id: I53fd1ec67f0a6bd8a367e785dcb145a673c084dc
-    GitHub-Last-Rev: e2063d10db7bb969bcbc8993761e3b38bb420938
-    GitHub-Pull-Request: golang/go#70392
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628596
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Remove superfluous optab entrys for VSPLTB and VSPLTISB,
+    as C_S16CON accepts C_U15CON arguments.
+    
+    Change-Id: Ie20dd07bcedda428fb1dd674474d7dfa67d76dc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563915
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
 
- src/cmd/go/alldocs.go                        |  2 +-
- src/cmd/go/go_test.go                        |  2 +-
- src/cmd/go/internal/cache/default.go         | 12 ++++++------
- src/cmd/go/internal/clean/clean.go           | 10 ++++++++--
- src/cmd/go/internal/envcmd/env.go            |  2 +-
- src/cmd/go/internal/help/helpdoc.go          |  2 +-
- src/cmd/go/internal/modindex/read.go         |  2 +-
- src/cmd/go/internal/test/test.go             |  2 +-
- src/cmd/go/internal/work/shell.go            |  2 +-
- src/cmd/go/testdata/script/clean_cache_n.txt |  5 +++++
- 10 files changed, 26 insertions(+), 15 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 38 +++++++++++---------------------------
+ 1 file changed, 11 insertions(+), 27 deletions(-)

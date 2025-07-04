@@ -1,21 +1,15 @@
-commit acabf87127fab93513df46811d5f473ef72905b1
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Aug 14 16:45:33 2022 +0800
+commit ac60900759c29d9c06d9fe131825c4677e47d6a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 5 15:29:50 2021 -0700
 
-    reflect: add Value.{Comparable,Equal}
+    cmd/go: use os.ErrProcessDone rather than matching error string
     
-    For #46746
-    
-    Change-Id: I879124974cdb55932cd9d07d3b384d49d5059857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423794
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ied57fb6e71d56618d46aeb36a37a709e08b4346e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354136
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- api/next/46746.txt      |   2 +
- src/reflect/all_test.go | 363 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    |  86 ++++++++++++
- 3 files changed, 451 insertions(+)
+ src/cmd/go/script_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

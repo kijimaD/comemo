@@ -1,24 +1,22 @@
-commit 868a110c568591d9085996ba05c94593809a437a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Feb 21 22:27:19 2021 +0700
+commit e4a3e57f47b498bf81b56a6d2f1589e28dd122c9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 22 12:56:49 2020 -0400
 
-    cmd/compile: make check2 gracefully exit if it reported errors
+    [dev.link] cmd/link: stream external relocations on ARM and on Windows
     
-    Otherwise, if -d=panic was set, check2 will treat already reported
-    error as internal compiler error.
+    Do them in the same CL so ARM's archreloc doesn't need to support
+    both streaming and non-streaming.
     
-    For #43311
-    Fixes #44445
+    TODO: we haven't switched to using mmap to emit external
+    relocations on Windows.
     
-    Change-Id: I5dbe06334666df21d9107396b9dcfdd905aa1e44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294850
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ica2ee89c03fc74839efd6b9e26c80585fcdce45c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244357
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go | 2 +-
- test/fixedbugs/bug188.go                | 8 ++++----
- test/fixedbugs/bug358.go                | 2 +-
- test/fixedbugs/bug397.go                | 8 ++++----
- 4 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/arm/asm.go   | 38 +++++++++++++++++++++++---------------
+ src/cmd/link/internal/arm/obj.go   |  1 +
+ src/cmd/link/internal/ld/pe.go     | 19 +++++++++++++------
+ src/cmd/link/internal/ld/target.go |  4 ++--
+ 4 files changed, 39 insertions(+), 23 deletions(-)

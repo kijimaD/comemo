@@ -1,16 +1,12 @@
-commit 77e1227a021c1a7a651fe5fd4965a800d48f8c1b
+commit fd04f05f2f5225f9a17a34a21535fd79cceb687d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Apr 5 20:35:54 2012 +0400
+Date:   Thu Apr 5 18:59:50 2012 +0400
 
-    test/bench/garbage: fix parser benchmark
-    +add standard bench output to tree2
-    +print GOMAXPROCS as go test does
+    runtime: replace XOR AX, AX with MOV $0, AX
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5992044
+    https://golang.org/cl/5985048
 
- test/bench/garbage/parser.go |  2 --
- test/bench/garbage/stats.go  | 15 ++++++++++-----
- test/bench/garbage/tree2.go  |  8 +++++++-
- 3 files changed, 17 insertions(+), 8 deletions(-)
+ src/pkg/runtime/asm_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

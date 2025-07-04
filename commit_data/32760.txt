@@ -1,34 +1,22 @@
-commit 7c8a9615c0512815060489a491265c275127b79f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 18 23:02:02 2017 -0700
+commit 3b69c3bbed7f49eb2f69729c8edbe8fe2b6cc40a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Apr 21 11:49:19 2017 -0600
 
-    cmd/compile: fix stack frame info for calls in receiver slot
+    net/http: deep copy Request.URL also in Request.WithContext's copy
     
-    Previously, after inlining a call, we made a second pass to rewrite
-    the AST's position information to record the inlined stack frame. The
-    call arguments were part of this AST, but it would be incorrect to
-    rewrite them too, so extra effort was made to temporarily remove them
-    while the position rewriting was done.
+    Despite the previously known behavior of Request.WithContext
+    shallow copying a request, usage of the request inside server.ServeHTTP
+    mutates the request's URL. This CL implements deep copying of the URL.
     
-    However, this extra logic was only done for regular arguments: it was
-    not done for receiver arguments. Consequently if m was inlined in
-    "f().m(g(), h())", g and h would have correct call frames, but f would
-    appear to be called by m.
+    Fixes #20068
     
-    The fix taken by this CL is to merge setpos into inlsubst and only
-    rewrite position information for nodes that were actually copied from
-    the original function AST body. As a side benefit, this eliminates an
-    extra AST pass and some AST walking code.
-    
-    Fixes #21879.
-    
-    Change-Id: I22b25c208313fc25c358d3a2eebfc9b012400084
-    Reviewed-on: https://go-review.googlesource.com/64470
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I86857d7259e23ac624d196401bf12dde401c42af
+    Reviewed-on: https://go-review.googlesource.com/41308
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 94 +++++++++++---------------------------
- test/fixedbugs/issue21879.go       | 37 +++++++++++++++
- test/fixedbugs/issue21879.out      |  2 +
- 3 files changed, 65 insertions(+), 68 deletions(-)
+ src/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++++++
+ src/net/http/request.go                    |  8 +++++++
+ src/net/http/request_test.go               | 16 +++++++++++++
+ 3 files changed, 62 insertions(+)

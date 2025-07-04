@@ -1,28 +1,22 @@
-commit 14332ed5b8fb91cbf26f4f815862a883cfa9e310
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Dec 21 11:29:24 2017 +0000
+commit 4a2391e7c965f7ed4d1ec189087293c1f6bae43c
+Author: griesemer <gri@golang.org>
+Date:   Tue Sep 19 14:35:15 2017 +0200
 
-    cmd/internal/obj/arm: fix wrong encoding of NMULAF/NMULAD/NMULSF/NMULSD
+    spec: state which predeclared types are defined or alias types (clarification)
     
-    NMULAF/NMULAD/NMULSF/NMULSD are incorrectly encoded by the arm
-    assembler.
+    When we introduced the distinction between "defined" and "alias" types
+    we retained the notion of a "named" type (any type with a name). The
+    predeclared types (which all have names) simply remained named types.
     
-    Instruction            Right binary      Current wrong binary
-    "NMULAF F5, F6, F7"    0xee167a45        0xee167a05
-    "NMULAD F5, F6, F7"    0xee167b45        0xee167b05
-    "NMULSF F5, F6, F7"    0xee167a05        0xee167a45
-    "NMULSD F5, F6, F7"    0xee167b05        0xee167b45
+    This CL clarifies the spec by stating excplicitly which predeclared
+    types are defined types (or at least "act" like defined types), and
+    which ones are alias types.
     
-    This patch fixes this issue.
+    Fixes #21785.
     
-    fixes issue #23212
-    
-    Change-Id: Ic9c203f92c34b90d6eef492a694c0e95b4d479c5
-    Reviewed-on: https://go-review.googlesource.com/85116
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia8ae133509eb5d738e6757b3442c9992355e3535
+    Reviewed-on: https://go-review.googlesource.com/64591
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/armv6.s | 8 ++++----
- src/cmd/internal/obj/arm/asm5.go          | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

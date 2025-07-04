@@ -1,21 +1,19 @@
-commit 7d30af8e17d62932f8a458ad96f483b9afec6171
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Dec 13 12:07:06 2019 +0100
+commit 37373592afe200a13d6ecf02b73a97e51beef9e1
+Author: Eddie Scholtz <escholtz@google.com>
+Date:   Tue Aug 27 13:33:45 2019 -0600
 
-    spec: reword claim about the grammar being regular
+    encoding/xml: rename fInnerXml to fInnerXML
     
-    Since the word "regular" has a precise meaning in the context of
-    formal languages, the Introduction sentence claiming that Go's grammar
-    is "compact and regular" may mislead readers.
+    Per the code review guidelines: "Words in names that are
+    initialisms or acronyms have a consistent case."
     
-    Reword it using Rob's suggestion.
-    
-    Fixes #36037
-    
-    Change-Id: I00c1a5714bdab8878d9a77b36d67dae67d63da0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211277
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I347b02d2f48455f2cbbc040191ba197e3e8f23fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191970
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/encoding/xml/marshal.go  | 2 +-
+ src/encoding/xml/read.go     | 2 +-
+ src/encoding/xml/typeinfo.go | 8 ++++----
+ 3 files changed, 6 insertions(+), 6 deletions(-)

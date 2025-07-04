@@ -1,30 +1,219 @@
-commit ee2ecc4552d8fd2b29be29aed1fe81dca0df60f9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 2 10:02:15 2015 -0800
+commit b8540fc28867623b23c23e97108a6e975e8a49e7
+Merge: 273507aa8f a236804c76
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 12:07:11 2014 -0500
 
-    bufio: add Reader.Discard
+    [dev.garbage] all: merge dev.cc (493ad916c3b1) into dev.garbage
     
-    Reader.Discard is the complement to Peek. It discards the next n bytes
-    of input.
-    
-    We already have Reader.Buffered to see how many bytes of data are
-    sitting available in memory, and Reader.Peek to get that that buffer
-    directly. But once you're done with the Peek'd data, you can't get rid
-    of it, other than Reading it.
-    Both Read and io.CopyN(ioutil.Discard, bufReader, N) are relatively
-    slow. People instead resort to multiple blind ReadByte calls, just to
-    advance the internal b.r variable.
-    
-    I've wanted this previously, several people have asked for it in the
-    past on golang-nuts/dev, and somebody just asked me for it again in a
-    private email. There are a few places in the standard library we'd use
-    it too.
-    
-    Change-Id: I85dfad47704a58bd42f6867adbc9e4e1792bc3b0
-    Reviewed-on: https://go-review.googlesource.com/2260
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/179290043
 
- src/bufio/bufio.go       |  33 +++++++++++
- src/bufio/bufio_test.go  | 146 +++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/transfer.go |   3 +-
- 3 files changed, 180 insertions(+), 2 deletions(-)
+ .hgtags                                          |    1 +
+ AUTHORS                                          |    2 +-
+ CONTRIBUTORS                                     |    3 +-
+ doc/go1.4.html                                   |   65 +-
+ doc/go_spec.html                                 |   68 +-
+ doc/gopher/fiveyears.jpg                         |  Bin 0 -> 220526 bytes
+ doc/install.html                                 |    2 +-
+ include/link.h                                   |    9 +-
+ misc/makerelease/makerelease.go                  |    4 +-
+ src/cmd/5g/opt.h                                 |   30 +-
+ src/cmd/5g/reg.c                                 |   47 +-
+ src/cmd/5l/5.out.h                               |    2 +
+ src/cmd/6g/opt.h                                 |   32 +-
+ src/cmd/6g/reg.c                                 |   43 +-
+ src/cmd/6l/6.out.h                               |    2 +
+ src/cmd/8g/opt.h                                 |   32 +-
+ src/cmd/8g/reg.c                                 |   53 +-
+ src/cmd/8l/8.out.h                               |    2 +
+ src/cmd/9a/lex.c                                 |    3 +-
+ src/cmd/9c/Makefile                              |    5 -
+ src/cmd/9c/Notes                                 |   14 -
+ src/cmd/9c/cgen.c                                | 1147 ----------------
+ src/cmd/9c/doc.go                                |   17 -
+ src/cmd/9c/gc.h                                  |  350 -----
+ src/cmd/9c/list.c                                |   37 -
+ src/cmd/9c/machcap.c                             |  105 --
+ src/cmd/9c/mul.c                                 |  638 ---------
+ src/cmd/9c/peep.c                                | 1076 ---------------
+ src/cmd/9c/reg.c                                 | 1163 ----------------
+ src/cmd/9c/sgen.c                                |  291 ----
+ src/cmd/9c/swt.c                                 |  407 ------
+ src/cmd/9c/txt.c                                 | 1537 ----------------------
+ src/cmd/9g/prog.c                                |    9 +-
+ src/cmd/9g/reg.c                                 |    7 +-
+ src/cmd/9l/9.out.h                               |    2 +
+ src/cmd/cgo/doc.go                               |    2 +-
+ src/cmd/dist/build.c                             |    7 +-
+ src/cmd/dist/buildgc.c                           |   87 +-
+ src/cmd/dist/buildruntime.c                      |   60 -
+ src/cmd/gc/walk.c                                |    1 -
+ src/cmd/go/tool.go                               |   12 +-
+ src/{debug => cmd/internal}/goobj/read.go        |    0
+ src/{debug => cmd/internal}/goobj/read_test.go   |    0
+ src/cmd/internal/objfile/goobj.go                |    2 +-
+ src/cmd/link/auto.go                             |    2 +-
+ src/cmd/link/auto_test.go                        |    2 +-
+ src/cmd/link/dead.go                             |    2 +-
+ src/cmd/link/dead_test.go                        |    2 +-
+ src/cmd/link/layout.go                           |    2 +-
+ src/cmd/link/link_test.go                        |    2 +-
+ src/cmd/link/pclntab.go                          |    2 +-
+ src/cmd/link/pclntab_test.go                     |    2 +-
+ src/cmd/link/prog.go                             |    2 +-
+ src/cmd/link/runtime.go                          |    2 +-
+ src/cmd/link/scan.go                             |    4 +-
+ src/cmd/pprof/internal/report/source.go          |    6 +-
+ src/crypto/x509/root_unix.go                     |    1 +
+ src/go/parser/error_test.go                      |   27 +-
+ src/go/parser/parser_test.go                     |   20 +-
+ src/hash/crc32/crc32.go                          |    4 +-
+ src/image/jpeg/reader.go                         |    3 +
+ src/image/jpeg/reader_test.go                    |   46 +
+ src/liblink/list6.c                              |   38 +
+ src/liblink/list9.c                              |   41 +
+ src/net/http/fs.go                               |    8 +-
+ src/net/url/example_test.go                      |   30 +
+ src/regexp/syntax/regexp.go                      |    2 +-
+ src/run.bash                                     |   38 +-
+ src/run.bat                                      |    8 +-
+ src/runtime/arch1_386.go                         |    2 +-
+ src/runtime/arch1_amd64.go                       |    2 +-
+ src/runtime/arch1_amd64p32.go                    |   15 +
+ src/runtime/arch1_arm.go                         |    2 +-
+ src/runtime/arch1_power64.go                     |   15 +
+ src/runtime/arch1_power64le.go                   |   15 +
+ src/runtime/arch_amd64p32.h                      |   17 -
+ src/runtime/arch_power64.h                       |   14 -
+ src/runtime/asm_amd64p32.s                       |    2 +-
+ src/runtime/asm_power64x.s                       |   59 +-
+ src/runtime/atomic_power64x.go                   |   69 +
+ src/runtime/chan.go                              |    1 +
+ src/runtime/defs1_netbsd_386.go                  |   22 +-
+ src/runtime/defs1_netbsd_amd64.go                |   20 +-
+ src/runtime/defs_linux_386.go                    |    9 +-
+ src/runtime/defs_linux_amd64.go                  |   10 +-
+ src/runtime/defs_linux_arm.go                    |    9 +-
+ src/runtime/defs_linux_power64.go                |  198 +++
+ src/runtime/defs_linux_power64.h                 |  204 ---
+ src/runtime/defs_linux_power64le.go              |  198 +++
+ src/runtime/defs_linux_power64le.h               |  204 ---
+ src/runtime/defs_plan9_386.go                    |    2 +
+ src/runtime/defs_plan9_amd64.go                  |    2 +
+ src/runtime/env_plan9.go                         |    3 +
+ src/runtime/gengoos.go                           |   84 ++
+ src/runtime/heapdump.go                          |    2 +-
+ src/runtime/lfstack.go                           |    4 +
+ src/runtime/lfstack_32bit.go                     |    2 +-
+ src/runtime/lfstack_linux_power64x.go            |   20 +-
+ src/runtime/malloc.go                            |   11 +-
+ src/runtime/malloc2.go                           |    2 +-
+ src/runtime/mem_bsd.go                           |    4 +-
+ src/runtime/mem_nacl.c                           |  120 --
+ src/runtime/mem_plan9.c                          |  121 --
+ src/runtime/mem_plan9.go                         |   70 +
+ src/runtime/mgc0.go                              |   16 +
+ src/runtime/{netpoll_stub.c => netpoll_stub.go}  |    9 +-
+ src/runtime/netpoll_windows.go                   |    4 +-
+ src/runtime/os1_nacl.go                          |  197 +++
+ src/runtime/os1_netbsd.go                        |  265 ++++
+ src/runtime/os1_netbsd_386.go                    |   16 +
+ src/runtime/os1_netbsd_amd64.go                  |   16 +
+ src/runtime/os1_plan9.go                         |  270 ++++
+ src/runtime/os1_windows.go                       |  564 ++++++++
+ src/runtime/os1_windows_386.go                   |  118 ++
+ src/runtime/os1_windows_amd64.go                 |  137 ++
+ src/runtime/os2_nacl.go                          |  154 +++
+ src/runtime/os2_netbsd.go                        |   18 +
+ src/runtime/os2_plan9.go                         |   72 +
+ src/runtime/os2_windows.go                       |   25 +
+ src/runtime/os_android.h                         |    1 -
+ src/runtime/{os_android.c => os_android_arm.go}  |   11 +-
+ src/runtime/os_nacl.c                            |  315 -----
+ src/runtime/os_nacl.go                           |   21 +-
+ src/runtime/os_nacl.h                            |  162 ---
+ src/runtime/{os_nacl_arm.c => os_nacl_arm.go}    |   19 +-
+ src/runtime/os_netbsd.c                          |  371 ------
+ src/runtime/os_netbsd.go                         |   32 +-
+ src/runtime/os_netbsd.h                          |   31 -
+ src/runtime/os_netbsd_386.c                      |   17 -
+ src/runtime/os_netbsd_amd64.c                    |   18 -
+ src/runtime/os_plan9.c                           |  368 ------
+ src/runtime/os_plan9.go                          |   27 +
+ src/runtime/os_plan9.h                           |   93 --
+ src/runtime/os_plan9_386.c                       |  150 ---
+ src/runtime/os_plan9_386.go                      |  131 ++
+ src/runtime/os_plan9_amd64.c                     |  158 ---
+ src/runtime/os_plan9_amd64.go                    |  139 ++
+ src/runtime/os_windows.c                         |  636 ---------
+ src/runtime/os_windows.go                        |   16 -
+ src/runtime/os_windows.h                         |   42 -
+ src/runtime/os_windows_386.c                     |  128 --
+ src/runtime/os_windows_amd64.c                   |  150 ---
+ src/runtime/panic.go                             |    2 +-
+ src/runtime/proc.go                              |   22 +-
+ src/runtime/race/race_unix_test.go               |   30 +
+ src/runtime/race1.go                             |   37 +-
+ src/runtime/race_amd64.s                         |   43 +-
+ src/runtime/runtime2.go                          |   16 +-
+ src/runtime/select.go                            |    2 +
+ src/runtime/sema.go                              |    2 +
+ src/runtime/signal_android_386.h                 |    1 -
+ src/runtime/signal_android_arm.h                 |    1 -
+ src/runtime/signal_linux_386.go                  |    2 +-
+ src/runtime/signal_linux_amd64.go                |    2 +-
+ src/runtime/signal_linux_arm.go                  |    2 +-
+ src/runtime/signal_linux_power64.h               |   49 -
+ src/runtime/signal_linux_power64le.h             |   49 -
+ src/runtime/signal_linux_power64x.go             |   71 +
+ src/runtime/signal_nacl.go                       |   45 +
+ src/runtime/signal_nacl_386.go                   |   34 +
+ src/runtime/signal_nacl_386.h                    |   23 -
+ src/runtime/signal_nacl_amd64p32.go              |   44 +
+ src/runtime/signal_nacl_amd64p32.h               |   31 -
+ src/runtime/signal_nacl_arm.go                   |   47 +
+ src/runtime/signal_nacl_arm.h                    |   28 -
+ src/runtime/signal_netbsd.go                     |   46 +
+ src/runtime/signal_netbsd_386.go                 |   38 +
+ src/runtime/signal_netbsd_386.h                  |   23 -
+ src/runtime/signal_netbsd_amd64.go               |   48 +
+ src/runtime/signal_netbsd_amd64.h                |   31 -
+ src/runtime/{signals_plan9.h => signal_plan9.go} |   57 +-
+ src/runtime/signal_power64x.c                    |  137 --
+ src/runtime/signal_power64x.go                   |  144 ++
+ src/runtime/signals_android.h                    |    1 -
+ src/runtime/signals_nacl.h                       |   53 -
+ src/runtime/signals_netbsd.h                     |   54 -
+ src/runtime/stack1.go                            |    2 +-
+ src/runtime/stack2.go                            |    2 +-
+ src/runtime/stubs.go                             |    2 +-
+ src/runtime/stubs2.go                            |    3 +
+ src/runtime/{arch_power64le.h => stubs3.go}      |   16 +-
+ src/runtime/sys_linux_power64x.s                 |    3 +-
+ src/runtime/sys_power64x.c                       |   38 -
+ src/runtime/sys_power64x.go                      |   37 +
+ src/runtime/sys_windows_386.s                    |   16 +-
+ src/runtime/sys_windows_amd64.s                  |   14 +-
+ src/runtime/syscall_windows.go                   |   18 +-
+ src/runtime/zgoarch_386.go                       |   12 +
+ src/runtime/zgoarch_amd64.go                     |   12 +
+ src/runtime/zgoarch_amd64p32.go                  |   12 +
+ src/runtime/zgoarch_arm.go                       |   12 +
+ src/runtime/zgoarch_power64.go                   |   12 +
+ src/runtime/zgoarch_power64le.go                 |   12 +
+ src/runtime/zgoos_android.go                     |   17 +
+ src/runtime/zgoos_darwin.go                      |   17 +
+ src/runtime/zgoos_dragonfly.go                   |   17 +
+ src/runtime/zgoos_freebsd.go                     |   17 +
+ src/runtime/zgoos_linux.go                       |   19 +
+ src/runtime/zgoos_nacl.go                        |   17 +
+ src/runtime/zgoos_netbsd.go                      |   17 +
+ src/runtime/zgoos_openbsd.go                     |   17 +
+ src/runtime/zgoos_plan9.go                       |   17 +
+ src/runtime/zgoos_solaris.go                     |   17 +
+ src/runtime/zgoos_windows.go                     |   17 +
+ src/syscall/exec_bsd.go                          |   40 +-
+ src/syscall/exec_linux.go                        |   36 +-
+ test/fixedbugs/issue9110.go                      |   90 ++
+ 207 files changed, 4734 insertions(+), 11182 deletions(-)

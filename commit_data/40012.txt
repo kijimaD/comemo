@@ -1,34 +1,32 @@
-commit 0f7b4e72a054f974489d8342cdae5a6a7ba7a31b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Sep 24 13:11:36 2019 +0100
+commit 2ab6d0172eb9112eba8c6e05a813e260985d20cf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 17 20:05:20 2019 +0000
 
-    text/template: don't evaluate '.' as a float64
+    runtime: throw if scavenge necessary during coalescing
     
-    When using a '.' constant literal as a reflect.Value variadic argument,
-    idealConstant would incorrectly result in a float64. This is because
-    rune literals can be represented as a float64, and contain a period,
-    which tricked the logic into thinking the literal must have been a
-    floating point number.
+    Currently when coalescing if two adjacent spans are scavenged, we
+    subtract their sizes from memstats and re-scavenge the new combined
+    span. This is wasteful however, since the realignment semantics make
+    this case of having to re-scavenge impossible.
     
-    This also happened with other characters that can be part of a floating
-    point number, such as 'e' or 'P'.
+    In realign() inside of coalesce(), there was also a bug: on systems
+    where physPageSize > pageSize, we wouldn't realign because a condition
+    had the wrong sign. This wasteful re-scavenging has been masking this
+    bug this whole time. So, this change fixes that first.
     
-    To fix these edge cases, exit the case sooner if the literal was a rune,
-    since that should always go to the int case instead.
+    Then this change gets rid of the needsScavenge logic and instead checks
+    explicitly for the possibility of unscavenged pages near the physical
+    page boundary. If the possibility exists, it throws. The intent of
+    throwing here is to catch changes to the runtime which cause this
+    invariant to no longer hold, at which point it would likely be
+    appropriate to scavenge the additional pages (and only the additional
+    pages) at that point.
     
-    Finally, add test cases that verify that they behave properly. These
-    would error before, since eq would receive a mix of int and float64,
-    which aren't comparable.
-    
-    Fixes #34483.
-    
-    Change-Id: Icfcb7803bfa0cf317a1d1adacacad3d69a57eb42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196808
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I185e3d7b53e36e90cf9ace5fa297a9e8008d75f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158377
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Payne <tom@airmap.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/text/template/exec.go      | 11 ++++++++++-
- src/text/template/exec_test.go |  6 ++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/runtime/mheap.go | 61 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 29 insertions(+), 32 deletions(-)

@@ -1,18 +1,23 @@
-commit 5a8eae6d47d768a8900ddf7a6a4d20db53ae519d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Apr 11 09:54:08 2017 +0900
+commit de2e5459aecb531a67dad274b789ffeb61dca020
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 23 14:24:24 2017 -0800
 
-    os: adjust error in Stat on windows
+    [dev.typealias] cmd/compile: declare methods after resolving receiver type
     
-    Current code could return a non-nil os.FileInfo even if there is an error.
-    This is a bit incompatible with Stat on other OSes.
+    For #18130.
+    Fixes #18655.
     
-    Change-Id: I37b608da234f957bb89b82509649de78ccc70bbb
-    Reviewed-on: https://go-review.googlesource.com/40330
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I58e2f076b9d8273f128cc033bba9edcd06c81567
+    Reviewed-on: https://go-review.googlesource.com/35575
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/os_test.go      | 39 +++++++++++++++++++++++++++++++++++++++
- src/os/stat_windows.go |  4 ++--
- 2 files changed, 41 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go   |  9 +--------
+ src/cmd/compile/internal/gc/dcl.go       | 25 ++++++++++++-------------
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/noder.go     | 12 ++++++------
+ src/cmd/compile/internal/gc/typecheck.go |  7 +++++++
+ test/alias2.go                           |  8 ++++----
+ test/fixedbugs/issue18655.go             | 22 ++++++++++++++++++++++
+ 7 files changed, 53 insertions(+), 32 deletions(-)

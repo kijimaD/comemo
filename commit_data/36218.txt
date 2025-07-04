@@ -1,13 +1,17 @@
-commit d8935731553800e22b5b071414782b2738f87fb0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 6 15:42:26 2018 -0400
+commit 94ef1dafbd9b490bdf7fc40b33df8399eea03b8e
+Author: fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Apr 11 21:18:58 2018 -0400
 
-    cmd/go: fix outdated comments
+    time: don't panic when stringifying Weekday
     
-    Change-Id: I09532546c96b3758f76528fb5010dafc638139b8
-    Reviewed-on: https://go-review.googlesource.com/128135
+    Fixes #24692
+    
+    Change-Id: I14058cd3968d08fbcfc275f1b13b6dba9e3c5068
+    Reviewed-on: https://go-review.googlesource.com/106535
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/import.go | 2 +-
- src/cmd/go/internal/modload/load.go   | 3 ---
- 2 files changed, 1 insertion(+), 4 deletions(-)
+ src/time/time.go      |  9 ++++++++-
+ src/time/time_test.go | 12 +++++++++++-
+ 2 files changed, 19 insertions(+), 2 deletions(-)

@@ -1,28 +1,37 @@
-commit 05cc8b5369b4c3571f0fb2aeed67f9229301b382
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 10 10:03:21 2022 -0500
+commit af05064f978729f3b066e1d627633c11c5e267e2
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Dec 14 11:33:10 2021 -0500
 
-    go/build: omit PkgObj for packages "unsafe" and "builtin"
+    go/types: externalize union type sets
     
-    Package "builtin" is not a real, importable package; it exists only
-    for documentation. Package "unsafe" is not compiled into an object
-    file from its source code; instead, imports of "unsafe" are handled
-    specially by the compiler.
+    Move calculated type sets for unions into a map, rather than storing
+    them on the Union type.
     
-    (In Go 1.19.3, package "unsafe" did not have an install target, while
-    package "builtin" did but that target was never written.)
+    Type sets for unions only matter during calculation of interface type
+    sets, and to a lesser extent inside of Identical. The latter should not
+    be encountered during type checking, as Identical uses the precomputed
+    interface type set when comparing interfaces, and unions do not arise
+    outside of interface types.
     
-    Fixes #56687.
-    Updates #47257.
+    Removing the tset field from Union potentially frees up memory, and
+    eliminates a source of races via calls to NewUnion and Identical. It
+    also sets the stage for recording Unions for every subexpression of
+    union terms, which preserves an existing invariant that BinaryExprs and
+    UnaryExprs should have a recorded type.
     
-    Change-Id: I1d1e90ff9e1629b80e0df93e1f7e17242c8dab69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449376
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Updates #50093
+    
+    Change-Id: I5956fa59be6b0907c3a71faeba9fa5dd8aae0d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371756
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modindex/read.go                  |  2 +-
- src/cmd/go/testdata/script/install_goroot_targets.txt | 16 ++++++++++------
- src/go/build/build.go                                 |  2 +-
- 3 files changed, 12 insertions(+), 8 deletions(-)
+ src/go/types/check.go       |  2 ++
+ src/go/types/predicates.go  |  7 +++++--
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/subst.go       |  2 +-
+ src/go/types/typeset.go     | 28 +++++++++++++++++++---------
+ src/go/types/union.go       |  7 +++----
+ 6 files changed, 31 insertions(+), 17 deletions(-)

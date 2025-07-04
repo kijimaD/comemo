@@ -1,18 +1,18 @@
-commit a5d3f7ece9033393166d0c74cd1121c15032ba4d
+commit d7cedc4b74f902a3a1b429fb27f85380f6955a6f
 Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 29 15:17:34 2016 -0400
+Date:   Mon Mar 14 13:51:23 2016 -0400
 
-    runtime: avoid conditional execution in morePointers and isPointer
+    runtime: perform gcMarkRootCheck during STW in checkmark mode
     
-    heapBits.bits is carefully written to produce good machine code. Use
-    it in heapBits.morePointers and heapBits.isPointer to get good machine
-    code there, too.
+    gcMarkRootCheck is too expensive to do during mark termination.
+    However, since it's a useful check and it complements checkmark mode
+    nicely, enable it during mark termination is checkmark is enabled.
     
-    Change-Id: I208c7d0d38697e7a22cad67f692162589b75f1e2
-    Reviewed-on: https://go-review.googlesource.com/22630
+    Change-Id: Icd9039e85e6e9d22747454441b50f1cdd1412202
+    Reviewed-on: https://go-review.googlesource.com/20663
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mbitmap.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

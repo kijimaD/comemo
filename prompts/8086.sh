@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8086: b065b56da1cccf42e913c1dd1c72500495ef56e7
+# Index 8086: 0f03eedb878968851f36189f31fb3b1dfce31d84
 
 echo "🚀 Generating explanation for commit 8086..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8086
-- **コミットハッシュ**: b065b56da1cccf42e913c1dd1c72500495ef56e7
-- **GitHub URL**: https://github.com/golang/go/commit/b065b56da1cccf42e913c1dd1c72500495ef56e7
+- **コミットハッシュ**: 0f03eedb878968851f36189f31fb3b1dfce31d84
+- **GitHub URL**: https://github.com/golang/go/commit/0f03eedb878968851f36189f31fb3b1dfce31d84
 
 ### 章構成
 

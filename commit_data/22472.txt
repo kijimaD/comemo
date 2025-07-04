@@ -1,24 +1,23 @@
-commit 93644c9118dfcd5c7b46d22fbe6b7f1cb1f1b696
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Fri Apr 3 09:40:10 2015 -0700
+commit 506615d83ebbbaba33aaf98d79a285b0b367a094
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 14:26:04 2015 -0400
 
-    runtime: shared library runtime init for arm
+    runtime: factor object dumping code out of greyobject
     
-    Adds the runtime initialization flow for arm akin to amd64.
-    In particular,we use the library initialization entry point to:
-        - create a new OS thread and run the "regular" runtime init stack on
-          that thread
-        - return immediately from the main (i.e., loader) thread
-        - at the first CGO invocation, we wait for the runtime initialization
-          to complete.
+    When checkmark fails, greyobject dumps both the object that pointed to
+    the unmarked object and the unmarked object. This code cluttered up
+    greyobject, was copy-pasted for the two objects, and the copy for
+    dumping the unmarked object was not entirely correct.
     
-    Verified to work on a Raspberry Pi and an Android phone.
+    Extract object dumping out to a new function. This declutters
+    greyobject and fixes the bugs in dumping the unmarked object. The new
+    function is slightly cleaned up from the original code to have more
+    natural control flow and shows a marker on the field in the base
+    object that points to the unmarked object to make it easy to find.
     
-    Change-Id: I32f39228ae30a03ce9569287f234b305790fecf6
-    Reviewed-on: https://go-review.googlesource.com/8455
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
+    Change-Id: Ib51318a943f50b0b99995f0941d03ee8876b9fcf
+    Reviewed-on: https://go-review.googlesource.com/7506
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/rt0_linux_arm.s | 52 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/sys_linux_arm.s | 37 +++++++++++++++++++++++++++++---
- 2 files changed, 86 insertions(+), 3 deletions(-)
+ src/runtime/mgcmark.go | 57 ++++++++++++++++++++++----------------------------
+ 1 file changed, 25 insertions(+), 32 deletions(-)

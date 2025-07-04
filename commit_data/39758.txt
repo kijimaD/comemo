@@ -1,34 +1,18 @@
-commit b003afe4fea9427ea8d8014dd4be1b02124af520
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Fri May 17 15:16:38 2019 -0600
+commit 66b264d2c1119ffefd7cd99def02b9f533651678
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 17:01:15 2019 +0100
 
-    cmd/compile: intrinsify RotateLeft32 on wasm
+    runtime: fix TestSigStackSwapping on aix/ppc64
     
-    wasm has 32-bit versions of all integer operations. This change
-    lowers RotateLeft32 to i32.rotl on wasm and intrinsifies the math/bits
-    call.  Benchmarking on amd64 under node.js this is ~25% faster.
+    This commit fixes TestSigStackSwapping by increasing the signal stack
+    size. This is needed because SIGSTKSZ is too small when VMX is used on
+    AIX.
     
-    node v10.15.3/amd64
-    name          old time/op  new time/op  delta
-    RotateLeft    8.37ns ± 1%  8.28ns ± 0%   -1.05%  (p=0.029 n=4+4)
-    RotateLeft8   11.9ns ± 1%  11.8ns ± 0%     ~     (p=0.167 n=5+5)
-    RotateLeft16  11.8ns ± 0%  11.8ns ± 0%     ~     (all equal)
-    RotateLeft32  11.9ns ± 1%   8.7ns ± 0%  -26.32%  (p=0.008 n=5+5)
-    RotateLeft64  8.31ns ± 1%  8.43ns ± 2%     ~     (p=0.063 n=5+5)
-    
-    Updates #31265
-    
-    Change-Id: I5b8e155978faeea536c4f6427ac9564d2f096a46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182359
-    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
+    Change-Id: Ic2b5faa65745228d0768383b3d6ebd4b6f9f532c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164012
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go          |  2 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  5 ++---
- src/cmd/compile/internal/ssa/gen/WasmOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go       | 15 ++++++++++++++
- src/cmd/compile/internal/ssa/rewriteWasm.go | 31 ++++++-----------------------
- src/cmd/compile/internal/wasm/ssa.go        |  6 ++++++
- test/codegen/mathbits.go                    |  4 ++++
- 7 files changed, 35 insertions(+), 29 deletions(-)
+ src/runtime/testdata/testprogcgo/sigstack.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

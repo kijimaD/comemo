@@ -1,22 +1,16 @@
-commit 48bfc8db51557210a0c6c38566185b1c376c374d
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Feb 17 18:12:22 2018 +0100
+commit 585717b90e0bbff2b1f6020459eb4acfab8a1c9d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 9 13:23:13 2018 -0800
 
-    runtime,cmd/compile: adjust and correct path names in comments of map code
+    cmd/compile: fix path for go tool in test
     
-    Some of the comments relative paths do not exist and
-    reflect does not define its own hmap structure.
+    Fixes #23326
     
-    Correct paths and consistently reference paths starting from the
-    go src directory.
-    
-    Change-Id: I5204a3a98f77d65f17dcde98b847378cea05ad8a
-    Reviewed-on: https://go-review.googlesource.com/94758
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I6abc353ab004aadc6a4cbefbff3198f848640d7f
+    Reviewed-on: https://go-review.googlesource.com/87036
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 12 ++++++------
- src/cmd/compile/internal/gc/walk.go    |  6 +++---
- src/runtime/map.go                     | 12 ++++++------
- 3 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,13 @@
-commit 40fa8c200cc18a361843a526f3e0116e5dfd006f
-Author: citizen233 <mengrenxiong@gmail.com>
-Date:   Tue Sep 28 14:05:20 2021 +0800
+commit cf8ed7cca480cd625bb46466b9528a641dddd399
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jan 20 22:15:40 2021 +0000
 
-    cmd/go/internal/modcmd: fix "go mod editwork" error text
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Fixes #48583
-    
-    Change-Id: I863ece5c546c383a2f46b8b1a36cbf9f2526d3ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352709
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Iae94f521ded21e60db435806c7cb0eb13e3b2f2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285072
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/internal/modcmd/editwork.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

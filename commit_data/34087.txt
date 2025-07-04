@@ -1,28 +1,37 @@
-commit 945872e5ef8b1f73e2f7e23d76a91dec68f8de35
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 18 16:05:39 2018 -0800
+commit eb5bf55496b7378fb8831521c1b943dc940a5b98
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Oct 3 13:05:22 2017 +0200
 
-    cmd/compile/internal/syntax: added test cases for recent fixes
+    misc/ios: always kill lldb process when it hangs
     
-    R=go1.11.
+    The lldb child process is killed if a test runs too long. Also
+    kill it when the setup times out (and is retried).
     
-    Now that we have a syntax error test harness, we can add the
-    proper tests for the recent parser fixes.
+    Might help with builder flakes where all 5 attempts to start up
+    lldb fail even though the tests before and after the timeouts
+    succeed. For example:
     
-    For #20800.
-    For #20789.
-    For #23385.
-    For #23434.
+    ...
+    ok      vendor/golang_org/x/net/route   37.797s
+    lldb setup error: command timeout (lldb start for 17s)
+    start timeout, trying again
+    lldb setup error: command timeout (lldb start for 17s)
+    start timeout, trying again
+    lldb setup error: command timeout (lldb start for 17s)
+    start timeout, trying again
+    lldb setup error: command timeout (lldb start for 17s)
+    start timeout, trying again
+    lldb setup error: command timeout (lldb start for 17s)
+    go_darwin_arm_exec: failed to start test harness (retry attempted)
+    FAIL    vendor/golang_org/x/text/transform      115.185s
+    ok      vendor/golang_org/x/text/unicode/norm   122.773s
+    ...
     
-    A test for #20789 already exists in test/fixedbugs, but this
-    is the better location for that test. But leaving the existing
-    one where it is as well.
-    
-    Change-Id: I5937b9b63bafd1efab467a00344302e717976171
-    Reviewed-on: https://go-review.googlesource.com/88336
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6638860522896491dccfa12f1e520c0f23df6d66
+    Reviewed-on: https://go-review.googlesource.com/67791
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../internal/syntax/testdata/issue20789.src        |  9 +++++++
- .../internal/syntax/testdata/issue23385.src        | 12 +++++++++
- .../internal/syntax/testdata/issue23434.src        | 31 ++++++++++++++++++++++
- 3 files changed, 52 insertions(+)
+ misc/ios/go_darwin_arm_exec.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,25 +1,20 @@
-commit c9b60632ebb08a428a9bd15a89798a693667cb05
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Dec 9 15:24:38 2021 +0100
+commit caf4c9434b0c9b3f27e1c5e620b2acb0e46a74bb
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 4 20:38:24 2021 -0400
 
-    crypto/rand: separate out plan9 X9.31 /dev/random expander
+    cmd/compile: debug trace output for -N variable location gen
     
-    The X9.31 expander is now only used for plan9. Perhaps once upon a time
-    there was a use for abstraction, but the code is now covered in hacky
-    "fileName == urandomDevice" and "GOOS == plan9" checks, to the point
-    where the abstraction is much too leaky. Since plan9 is the only
-    platform that has a /dev/random without a /dev/urandom, we can simplify
-    both the generic urandom code and the plan9 X9.31 code by separating
-    them into different files, each focusing on doing one thing well.
+    Add some rudimentary debug trace output for -N location list
+    generation if "-d=ssa/locationlists" is set.
     
-    Change-Id: I0ca43b748a0fbbd60f2ec7819688a540506d34df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370580
-    Trust: Jason Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Updates #45948.
+    
+    Change-Id: If1a95730538a6e7def7ebe1ece1a71da8e5f0975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317089
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/rand/eagain.go     |  27 ----------
- src/crypto/rand/rand_plan9.go | 109 ++++++++++++++++++++++++++++++++++++++
- src/crypto/rand/rand_unix.go  | 119 +++++-------------------------------------
- 3 files changed, 123 insertions(+), 132 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,17 +1,28 @@
-commit 8088b6db2341e6efdb9e0b0f43953ccd17fd9705
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Jan 5 15:54:03 2024 -0500
+commit 57f9ed5f12ba395fa55880305bc11e1db840f36c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 13:21:34 2023 -0500
 
-    slices: explicitly discard results of some functions
+    cmd/go: add and use cmd/go/internal/slices.Clip
     
-    This will otherwise trigger an "unusedresult" vet check.
+    This will be part of the standard library soon and then
+    cmd/go can use it directly, but I am writing a few more instances
+    of this pattern today and wanted to clean these up first.
     
-    Fixes #64978
-    
-    Change-Id: Ie19aded0f808d394f389452c3ff7f3edc1ed710d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554196
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3a7336039949ffe95a403aed08d79206c91eafb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464115
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/slices/slices_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/generate/generate.go |  3 ++-
+ src/cmd/go/internal/modload/buildlist.go | 12 ++++--------
+ src/cmd/go/internal/modload/init.go      |  3 ++-
+ src/cmd/go/internal/modload/query.go     |  3 ++-
+ src/cmd/go/internal/mvs/graph.go         |  5 +++--
+ src/cmd/go/internal/slices/slices.go     | 12 ++++++++++++
+ src/cmd/go/internal/test/test.go         |  3 ++-
+ src/cmd/go/internal/vcweb/git.go         |  3 ++-
+ src/cmd/go/internal/vcweb/hg.go          |  3 ++-
+ src/cmd/go/internal/work/exec.go         |  3 ++-
+ 10 files changed, 33 insertions(+), 17 deletions(-)

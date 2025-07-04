@@ -1,30 +1,19 @@
-commit 8cd6d68a0881d2bc0081081a847bb36fc314e761
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Oct 23 20:55:43 2024 +0800
+commit 303aa921c59017b521c9f077a8bd6687a2d81465
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 13:55:01 2024 +0000
 
-    cmd/go: fix incorrect determining default value of CGO_ENABLED
+    Revert "net/http: remove superfluous newline on redirects"
     
-    The default value is the value obtained when
-    no environment variables are set and go env  -w is not used.
+    This reverts commit 2b58355ef624239dbe32185dc8dfc9d1074615c6.
     
-    In the past,
-    we used the current value
-    (may be modified by an environment variable to a non-default value),
-    error was used as the default value.
+    Reason for revert: This breaks tons of tests for no real reason.
     
-    For #69994
-    
-    Change-Id: Iead3a6cacd04dc51a094ffb9f7bb7553320fcd78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621995
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I89773f48cf983c0b6346e46c37a0ebbe2620e3b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571675
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/build.go                      |  1 -
- src/cmd/dist/buildgo.go                    | 17 -----------------
- src/cmd/dist/buildruntime.go               |  2 ++
- src/cmd/go/internal/cfg/cfg.go             | 11 +++++++----
- src/cmd/go/testdata/script/env_changed.txt |  3 +++
- src/go/build/build.go                      |  2 +-
- 6 files changed, 13 insertions(+), 23 deletions(-)
+ src/net/http/serve_test.go | 2 +-
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

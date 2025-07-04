@@ -1,20 +1,50 @@
-commit cb4df9833474d36c6e4cb005682215047b5f0979
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Oct 18 17:02:06 2020 +0000
+commit e43239aabe2fbbd8ad08b46fb2a7c3d9a4d36589
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 23 02:21:59 2020 +0700
 
-    cmd/go: add /v2 to another require example
+    cmd/compile: pre-alloc enough room for Escape.walkAll
     
-    This is the same change as in CL 144917, but applied to a nearby line.
+    Slightly reduce allocs, passes toolstash-check.
     
-    For #28374.
+    name          old time/op       new time/op       delta
+    Template            181ms ± 4%        174ms ± 0%  -3.59%  (p=0.008 n=5+5)
     
-    Change-Id: I6e1693d3a14e2517d863d1052a06c1156fc1edd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263437
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    name          old user-time/op  new user-time/op  delta
+    Template            249ms ± 3%        240ms ± 2%  -3.59%  (p=0.016 n=5+5)
+    
+    name          old alloc/op      new alloc/op      delta
+    Template           35.0MB ± 0%       34.9MB ± 0%  -0.09%  (p=0.008 n=5+5)
+    Unicode            28.6MB ± 0%       28.6MB ± 0%    ~     (p=0.421 n=5+5)
+    GoTypes             114MB ± 0%        114MB ± 0%  -0.10%  (p=0.008 n=5+5)
+    Compiler            542MB ± 0%        541MB ± 0%  -0.13%  (p=0.008 n=5+5)
+    SSA                1.21GB ± 0%       1.21GB ± 0%  -0.10%  (p=0.008 n=5+5)
+    Flate              22.0MB ± 0%       22.0MB ± 0%  -0.05%  (p=0.016 n=5+5)
+    GoParser           27.1MB ± 0%       27.0MB ± 0%  -0.05%  (p=0.008 n=5+5)
+    Reflect            74.8MB ± 0%       74.8MB ± 0%  -0.11%  (p=0.008 n=5+5)
+    Tar                33.0MB ± 0%       32.9MB ± 0%  -0.07%  (p=0.008 n=5+5)
+    XML                42.1MB ± 0%       42.1MB ± 0%  -0.07%  (p=0.008 n=5+5)
+    LinkCompiler        222MB ± 0%        222MB ± 0%    ~     (p=0.690 n=5+5)
+    [Geo mean]         81.3MB            81.2MB       -0.07%
+    
+    name          old allocs/op     new allocs/op     delta
+    Template             347k ± 0%         347k ± 0%  -0.16%  (p=0.008 n=5+5)
+    Unicode              334k ± 0%         334k ± 0%  -0.03%  (p=0.016 n=5+5)
+    GoTypes             1.20M ± 0%        1.20M ± 0%  -0.12%  (p=0.008 n=5+5)
+    Compiler            5.13M ± 0%        5.12M ± 0%  -0.11%  (p=0.008 n=5+5)
+    SSA                 11.7M ± 0%        11.7M ± 0%  -0.13%  (p=0.008 n=5+5)
+    Flate                221k ± 0%         221k ± 0%  -0.18%  (p=0.008 n=5+5)
+    GoParser             280k ± 0%         280k ± 0%  -0.06%  (p=0.008 n=5+5)
+    Reflect              902k ± 0%         900k ± 0%  -0.28%  (p=0.008 n=5+5)
+    Tar                  323k ± 0%         322k ± 0%  -0.18%  (p=0.008 n=5+5)
+    XML                  401k ± 0%         401k ± 0%  -0.10%  (p=0.008 n=5+5)
+    LinkCompiler         735k ± 0%         735k ± 0%    ~     (p=0.841 n=5+5)
+    [Geo mean]           753k              752k       -0.12%
+    
+    Change-Id: I647bd7752f28b74e6f400fa16cb69632f5c952b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/modload/help.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

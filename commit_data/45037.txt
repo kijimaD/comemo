@@ -1,21 +1,22 @@
-commit d138ee2cfbd2be3edde22ad8a69da7657d0b0b7a
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 9 09:49:15 2021 -0400
+commit ad618689ef06e9dca86c0e2b9b38a2c1b9266f4a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Sep 26 16:30:02 2020 +0200
 
-    test/abi: disable test on windows for now
+    cmd/dist: detect gohostarch on netbsd/arm64 hosts
     
-    This tickles some other bug, do this to clear builders.
+    On netbsd/arm64 `uname -m` reports `evbarm` which is mapped to
+    gohostarch=arm. Fix this by checking for "aarch64" in `uname -p` output
+    to fix self-hosted build on netbsd/arm64.
     
-    Updates #40724.
-    Updates #45465.
+    Updates #30824
     
-    Change-Id: Id51efbcf474865da231fcbc6216e5d604f99c296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308889
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0f0450ff35af0bec51aeec3b210143ba892216c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257643
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- test/abi/bad_select_crash.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/dist/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

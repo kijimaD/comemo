@@ -1,18 +1,12 @@
-commit 49741f23d5938eff80f2c8ca4b16c9f1b0e15f7d
-Author: Clement Skau <clementskau@gmail.com>
-Date:   Wed Jan 19 10:05:48 2011 -0500
+commit 43582bad33f18ea3f88252574810aee849380590
+Author: Corey Thomasson <cthom.lists@gmail.com>
+Date:   Wed Jan 19 09:55:46 2011 -0500
 
-    http: fix Content-Range and Content-Length in response
+    net: avoid nil dereference if /etc/services can't be opened
     
-    RFC2616 sections 4.4 and 14.16:
-      * Cannot use Content-Length with non-identity Transfer-Encoding
-      * Content-Range response is "bytes x-y/z" not "x-y/z"
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4018041
+    https://golang.org/cl/4081041
 
- src/pkg/http/fs.go      | 2 +-
- src/pkg/http/fs_test.go | 2 +-
- src/pkg/http/server.go  | 4 ++++
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/net/port.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

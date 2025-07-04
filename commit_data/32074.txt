@@ -1,19 +1,24 @@
-commit c522b2bec9e6186a8efb7ddd221295390638a18e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 21 18:52:38 2017 +0000
+commit 37515135626ba0bb81c3f2befc3393f862290826
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 16:52:50 2017 -0700
 
-    net/http: document that after Hijack, Request.Body is invalid
+    cmd/compile: don't modify nodfp in AllocFrame
     
-    We can make it panic with a more explicit and readable error message
-    during Go 1.10, but document it for now. This has always been the
-    case; it's not a new rule.
+    nodfp is a global, so modifying it is unsafe in a concurrent backend.
+    It is also not necessary, since the Used marks
+    are only relevant for nodes in fn.Dcl.
+    For good measure, mark nodfp as always used.
     
-    Updates #20933
+    Passes toolstash-check.
     
-    Change-Id: I53c1fefb47a8f4aae0bb32fa742afa3a2ed20e8a
-    Reviewed-on: https://go-review.googlesource.com/50634
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Updates #15756
+    
+    Change-Id: I5320459f5eced2898615a17b395a10c1064bcaf5
+    Reviewed-on: https://go-review.googlesource.com/39200
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/pgen.go     | 7 +++++--
+ src/cmd/compile/internal/gc/universe.go | 1 +
+ 2 files changed, 6 insertions(+), 2 deletions(-)

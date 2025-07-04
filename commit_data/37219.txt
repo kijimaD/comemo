@@ -1,30 +1,24 @@
-commit 21f7f01289577698eb70a4558d588bd00b6fed01
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Oct 31 15:07:57 2018 +0100
+commit 8d6fc84986cc0cb0bf77503828a2e7740f8ccac1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 16:44:56 2018 -0700
 
-    runtime: avoid runtimeNano call on a common netpoll path
+    internal/poll: don't take read lock in SetBlocking
     
-    runtimeNano is slower than nanotime, so pass the duration
-    to runtime_pollSetDeadline as is. netpoll can add nanotime itself.
-    Arguably a bit simpler because, say, a negative duration
-    clearly represents already expired timer, no need to compare to
-    nanotime again.
-    This may also fix an obscure corner case when a deadline in past
-    which happens to be nanotime 0 is confused with no deadline at all,
-    which are radically different things.
-    Also don't compute any durations and times if Time is zero
-    (currently we first compute everything and then reset d back to 0,
-    which is wasteful).
+    Taking a read lock in SetBlocking could cause SetBlocking to block
+    waiting for a Read in another goroutine to complete. Since SetBlocking
+    is called by os.(*File).Fd, that could lead to deadlock if the
+    goroutine calling Fd is going to use it to unblock the Read.
+    Use an atomic store instead.
     
-    name                  old time/op  new time/op  delta
-    TCP4OneShotTimeout-6  17.1µs ± 0%  17.0µs ± 0%     ~     (p=0.421 n=5+5)
-    SetReadDeadline-6      230ns ± 0%   205ns ± 1%  -10.63%  (p=0.008 n=5+5)
+    Updates #24481
     
-    Change-Id: I2aad699270289a5b9ead68f5e44ec4ec6d96baa0
-    Reviewed-on: https://go-review.googlesource.com/c/146344
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I79413328e06ddf28b6d5b8af7a0e29d5b4e1e6ff
+    Reviewed-on: https://go-review.googlesource.com/123176
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_poll_runtime.go | 15 ++++++---------
- src/runtime/netpoll.go               |  9 +++++++--
- 2 files changed, 13 insertions(+), 11 deletions(-)
+ src/cmd/dist/test.go         |  2 +-
+ src/internal/poll/fd_unix.go | 25 +++++++++++++------------
+ src/os/pipe_test.go          | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+), 13 deletions(-)

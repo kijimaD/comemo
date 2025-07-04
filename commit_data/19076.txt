@@ -1,16 +1,21 @@
-commit 397f129daf81a74997397aa7d097d1c3039a5333
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Apr 9 08:36:27 2014 +0200
+commit 51fba7d8f543e9a3d1c192f9a4e1fa9e29ccc998
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 15:57:50 2014 +1000
 
-    cmd/gc: avoid confusing error message "ovf in mpaddxx"
+    html/template: fix two unrelated bugs
+    1) The code to catch an exception marked the template as escaped
+    when it was not yet, which caused subsequent executions of the
+    template to not escape properly.
+    2) ensurePipelineContains needs to handled Field as well as
+    Identifier nodes.
     
-    Fixes #6889
+    Fixes #7379.
     
-    LGTM=rsc
-    R=gri, rsc
+    LGTM=mikesamuel
+    R=mikesamuel
     CC=golang-codereviews
-    https://golang.org/cl/85080044
+    https://golang.org/cl/85240043
 
- src/cmd/gc/mparith2.c       |  10 ++++-
- test/fixedbugs/issue6889.go | 103 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 112 insertions(+), 1 deletion(-)
+ src/pkg/html/template/escape.go      | 51 +++++++++++++++++++++++++-----------
+ src/pkg/html/template/escape_test.go | 32 ++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 15 deletions(-)

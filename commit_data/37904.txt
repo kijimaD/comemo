@@ -1,17 +1,19 @@
-commit 8e50e48f4ddd434b848240837a02a487d502b3ee
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Jan 20 19:14:58 2019 +0100
+commit 4545fea4fc845d481d97e7dac7d6fe0b37048ce2
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Sep 8 14:23:14 2018 +0000
 
-    cmd/cgo: remove duplicate entry from gofmtLineReplacer
+    cmd/compile/internal/amd64: simplify assembly generator
     
-    CL 158457 added a duplicate entry for the ",\n" -> "," replacement to
-    gofmtLineReplacer. Remove the duplicate.
+    Merge two case-statements together, since they have similar logic.
     
-    Change-Id: I17684fcd19cbc96fa7a7b53bf7c1a6382bf1114f
-    Reviewed-on: https://go-review.googlesource.com/c/158619
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    1. That makes the assembly generator more clear.
+    2. The total size of cmd/compile decreases about 0.8KB.
+    
+    Change-Id: I0144a07152202ee7b21e323bcd5dea80a351a6e3
+    Reviewed-on: https://go-review.googlesource.com/134215
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/godefs.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

@@ -1,134 +1,18 @@
-commit 43b7e670401401b2e7536b4931df8b29a25994c7
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Sun Feb 2 23:42:43 2025 +0100
+commit 3f2bf706f7f6c260cb83410131d3c2d508e05a94
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 15:12:25 2023 -0500
 
-    cmd/compile: lower x*z + y to FMA if FMA enabled
+    runtime/metrics: document runtime-internal locks in /sync/mutex/wait/total:seconds
     
-    There is a generic opcode for FMA, but we don't use it in rewrite rules.
-    This is maybe because some archs, like WASM and MIPS don't have a late
-    lowering rule for it.
+    For #57071.
     
-    Fixes #71204
-    
-    Intel Alder Lake 12600k (GOAMD64=v3):
-    
-    math:
-    
-    name                    old time/op  new time/op  delta
-    Acos-16                 4.58ns ± 0%  3.36ns ± 0%  -26.68%  (p=0.008 n=5+5)
-    Acosh-16                8.04ns ± 1%  6.44ns ± 0%  -19.95%  (p=0.008 n=5+5)
-    Asin-16                 4.28ns ± 0%  3.32ns ± 0%  -22.24%  (p=0.008 n=5+5)
-    Asinh-16                9.92ns ± 0%  8.62ns ± 0%  -13.13%  (p=0.008 n=5+5)
-    Atan-16                 2.31ns ± 0%  1.84ns ± 0%  -20.02%  (p=0.008 n=5+5)
-    Atanh-16                7.79ns ± 0%  7.03ns ± 0%   -9.67%  (p=0.008 n=5+5)
-    Atan2-16                3.93ns ± 0%  3.52ns ± 0%  -10.35%  (p=0.000 n=5+4)
-    Cbrt-16                 4.62ns ± 0%  4.41ns ± 0%   -4.57%  (p=0.016 n=4+5)
-    Ceil-16                 0.14ns ± 1%  0.14ns ± 2%     ~     (p=0.103 n=5+5)
-    Copysign-16             0.33ns ± 0%  0.33ns ± 0%   +0.03%  (p=0.029 n=4+4)
-    Cos-16                  4.87ns ± 0%  4.75ns ± 0%   -2.44%  (p=0.016 n=5+4)
-    Cosh-16                 4.86ns ± 0%  4.86ns ± 0%     ~     (p=0.317 n=5+5)
-    Erf-16                  2.71ns ± 0%  2.25ns ± 0%  -16.69%  (p=0.008 n=5+5)
-    Erfc-16                 3.06ns ± 0%  2.67ns ± 0%  -13.00%  (p=0.016 n=5+4)
-    Erfinv-16               3.88ns ± 0%  2.84ns ± 3%  -26.83%  (p=0.008 n=5+5)
-    Erfcinv-16              4.08ns ± 0%  3.01ns ± 1%  -26.27%  (p=0.008 n=5+5)
-    Exp-16                  3.29ns ± 0%  3.37ns ± 2%   +2.64%  (p=0.016 n=4+5)
-    ExpGo-16                8.44ns ± 0%  7.48ns ± 1%  -11.37%  (p=0.008 n=5+5)
-    Expm1-16                4.46ns ± 0%  3.69ns ± 2%  -17.26%  (p=0.016 n=4+5)
-    Exp2-16                 8.20ns ± 0%  7.39ns ± 2%   -9.94%  (p=0.008 n=5+5)
-    Exp2Go-16               8.26ns ± 0%  7.23ns ± 0%  -12.49%  (p=0.016 n=4+5)
-    Abs-16                  0.26ns ± 3%  0.22ns ± 1%  -16.34%  (p=0.008 n=5+5)
-    Dim-16                  0.38ns ± 1%  0.40ns ± 2%   +5.02%  (p=0.008 n=5+5)
-    Floor-16                0.11ns ± 1%  0.17ns ± 4%  +54.99%  (p=0.008 n=5+5)
-    Max-16                  1.24ns ± 0%  1.24ns ± 0%     ~     (p=0.619 n=5+5)
-    Min-16                  1.24ns ± 0%  1.24ns ± 0%     ~     (p=0.484 n=5+5)
-    Mod-16                  13.4ns ± 1%  12.8ns ± 0%   -4.21%  (p=0.016 n=5+4)
-    Frexp-16                1.70ns ± 0%  1.71ns ± 0%   +0.46%  (p=0.008 n=5+5)
-    Gamma-16                3.97ns ± 0%  3.97ns ± 0%     ~     (p=0.643 n=5+5)
-    Hypot-16                2.11ns ± 0%  2.11ns ± 0%     ~     (p=0.762 n=5+5)
-    HypotGo-16              2.48ns ± 4%  2.26ns ± 0%   -8.94%  (p=0.008 n=5+5)
-    Ilogb-16                1.67ns ± 0%  1.67ns ± 0%   -0.07%  (p=0.048 n=5+5)
-    J0-16                   19.8ns ± 0%  19.3ns ± 0%     ~     (p=0.079 n=4+5)
-    J1-16                   19.4ns ± 0%  18.9ns ± 0%   -2.63%  (p=0.000 n=5+4)
-    Jn-16                   41.5ns ± 0%  40.6ns ± 0%   -2.32%  (p=0.016 n=4+5)
-    Ldexp-16                2.26ns ± 0%  2.26ns ± 0%     ~     (p=0.683 n=5+5)
-    Lgamma-16               4.40ns ± 0%  4.21ns ± 0%   -4.21%  (p=0.008 n=5+5)
-    Log-16                  4.05ns ± 0%  4.05ns ± 0%     ~     (all equal)
-    Logb-16                 1.69ns ± 0%  1.69ns ± 0%     ~     (p=0.429 n=5+5)
-    Log1p-16                5.00ns ± 0%  3.99ns ± 0%  -20.14%  (p=0.008 n=5+5)
-    Log10-16                4.22ns ± 0%  4.21ns ± 0%   -0.15%  (p=0.008 n=5+5)
-    Log2-16                 2.27ns ± 0%  2.25ns ± 0%   -0.94%  (p=0.008 n=5+5)
-    Modf-16                 1.44ns ± 0%  1.44ns ± 0%     ~     (p=0.492 n=5+5)
-    Nextafter32-16          2.09ns ± 0%  2.09ns ± 0%     ~     (p=0.079 n=4+5)
-    Nextafter64-16          2.09ns ± 0%  2.09ns ± 0%     ~     (p=0.095 n=4+5)
-    PowInt-16               10.8ns ± 0%  10.8ns ± 0%     ~     (all equal)
-    PowFrac-16              25.3ns ± 0%  25.3ns ± 0%   -0.09%  (p=0.000 n=5+4)
-    Pow10Pos-16             0.52ns ± 1%  0.52ns ± 0%     ~     (p=0.810 n=5+5)
-    Pow10Neg-16             0.82ns ± 0%  0.82ns ± 0%     ~     (p=0.381 n=5+5)
-    Round-16                0.93ns ± 0%  0.93ns ± 0%     ~     (p=0.056 n=5+5)
-    RoundToEven-16          1.64ns ± 0%  1.64ns ± 0%     ~     (all equal)
-    Remainder-16            12.4ns ± 2%  12.0ns ± 0%   -3.27%  (p=0.008 n=5+5)
-    Signbit-16              0.37ns ± 0%  0.37ns ± 0%   -0.19%  (p=0.008 n=5+5)
-    Sin-16                  4.04ns ± 0%  3.92ns ± 0%   -3.13%  (p=0.000 n=4+5)
-    Sincos-16               5.99ns ± 0%  5.80ns ± 0%   -3.03%  (p=0.008 n=5+5)
-    Sinh-16                 5.22ns ± 0%  5.22ns ± 0%     ~     (p=0.651 n=5+4)
-    SqrtIndirect-16         0.41ns ± 0%  0.41ns ± 0%     ~     (p=0.333 n=4+5)
-    SqrtLatency-16          2.66ns ± 0%  2.66ns ± 0%     ~     (p=0.079 n=4+5)
-    SqrtIndirectLatency-16  2.66ns ± 0%  2.66ns ± 0%     ~     (p=1.000 n=5+5)
-    SqrtGoLatency-16        30.1ns ± 0%  28.6ns ± 1%   -4.84%  (p=0.008 n=5+5)
-    SqrtPrime-16             645ns ± 0%   645ns ± 0%     ~     (p=0.095 n=5+4)
-    Tan-16                  4.21ns ± 0%  4.09ns ± 0%   -2.76%  (p=0.029 n=4+4)
-    Tanh-16                 5.36ns ± 0%  5.36ns ± 0%     ~     (p=0.444 n=5+5)
-    Trunc-16                0.12ns ± 6%  0.11ns ± 1%   -6.79%  (p=0.008 n=5+5)
-    Y0-16                   19.2ns ± 0%  18.7ns ± 0%   -2.52%  (p=0.000 n=5+4)
-    Y1-16                   19.1ns ± 0%  18.4ns ± 0%     ~     (p=0.079 n=4+5)
-    Yn-16                   40.7ns ± 0%  39.5ns ± 0%   -2.82%  (p=0.008 n=5+5)
-    Float64bits-16          0.21ns ± 0%  0.21ns ± 0%     ~     (p=0.603 n=5+5)
-    Float64frombits-16      0.21ns ± 0%  0.21ns ± 0%     ~     (p=0.984 n=4+5)
-    Float32bits-16          0.21ns ± 0%  0.21ns ± 0%     ~     (p=0.778 n=4+5)
-    Float32frombits-16      0.21ns ± 0%  0.20ns ± 0%     ~     (p=0.397 n=5+5)
-    FMA-16                  0.82ns ± 0%  0.82ns ± 0%   +0.02%  (p=0.029 n=4+4)
-    [Geo mean]              2.87ns       2.74ns        -4.61%
-    
-    math/cmplx:
-    
-    name        old time/op  new time/op  delta
-    Abs-16      2.07ns ± 0%  2.05ns ± 0%   -0.70%  (p=0.016 n=5+4)
-    Acos-16     36.5ns ± 0%  35.7ns ± 0%   -2.33%  (p=0.029 n=4+4)
-    Acosh-16    37.0ns ± 0%  36.2ns ± 0%   -2.20%  (p=0.008 n=5+5)
-    Asin-16     36.5ns ± 0%  35.7ns ± 0%   -2.29%  (p=0.008 n=5+5)
-    Asinh-16    33.5ns ± 0%  31.6ns ± 0%   -5.51%  (p=0.008 n=5+5)
-    Atan-16     15.5ns ± 0%  13.9ns ± 0%  -10.61%  (p=0.008 n=5+5)
-    Atanh-16    15.0ns ± 0%  13.6ns ± 0%   -9.73%  (p=0.008 n=5+5)
-    Conj-16     0.11ns ± 5%  0.11ns ± 1%     ~     (p=0.421 n=5+5)
-    Cos-16      12.3ns ± 0%  12.2ns ± 0%   -0.60%  (p=0.000 n=4+5)
-    Cosh-16     12.1ns ± 0%  12.0ns ± 0%     ~     (p=0.079 n=4+5)
-    Exp-16      10.0ns ± 0%   9.8ns ± 0%   -1.77%  (p=0.008 n=5+5)
-    Log-16      14.5ns ± 0%  13.7ns ± 0%   -5.67%  (p=0.008 n=5+5)
-    Log10-16    14.5ns ± 0%  13.7ns ± 0%   -5.55%  (p=0.000 n=5+4)
-    Phase-16    5.11ns ± 0%  4.25ns ± 0%  -16.90%  (p=0.008 n=5+5)
-    Polar-16    7.12ns ± 0%  6.35ns ± 0%  -10.90%  (p=0.008 n=5+5)
-    Pow-16      64.3ns ± 0%  63.7ns ± 0%   -0.97%  (p=0.008 n=5+5)
-    Rect-16     5.74ns ± 0%  5.58ns ± 0%   -2.73%  (p=0.016 n=4+5)
-    Sin-16      12.2ns ± 0%  12.2ns ± 0%   -0.54%  (p=0.000 n=4+5)
-    Sinh-16     12.1ns ± 0%  12.0ns ± 0%   -0.58%  (p=0.000 n=5+4)
-    Sqrt-16     5.30ns ± 0%  5.18ns ± 0%   -2.36%  (p=0.008 n=5+5)
-    Tan-16      22.7ns ± 0%  22.6ns ± 0%   -0.33%  (p=0.008 n=5+5)
-    Tanh-16     21.2ns ± 0%  20.9ns ± 0%   -1.32%  (p=0.008 n=5+5)
-    [Geo mean]  11.3ns       10.8ns        -3.97%
-    
-    Change-Id: Idcc4b357ba68477929c126289e5095b27a827b1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646335
+    Change-Id: I7ce6c35bed95a6ea3cdc17007f861c5dd82404d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547056
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go         |  4 ++-
- src/cmd/compile/internal/ssa/_gen/AMD64.rules |  5 ++-
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 10 ++++--
- src/cmd/compile/internal/ssa/opGen.go         | 47 +++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 44 +++++++++++++++++++++++--
- test/codegen/floats.go                        |  2 ++
- test/codegen/math.go                          |  6 ++--
- 7 files changed, 110 insertions(+), 8 deletions(-)
+ src/runtime/metrics/description.go |  2 +-
+ src/runtime/metrics/doc.go         | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

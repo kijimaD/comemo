@@ -1,0 +1,36 @@
+commit a65f1a467ff6a10dc6688f292dfa8a2e08cc1eb4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 15 20:42:32 2024 +0000
+
+    weak: move internal/weak to weak, and update according to proposal
+    
+    The updates are:
+    - API documentation changes.
+    - Removal of the old package documentation discouraging linkname.
+    - Addition of new package documentation with some advice.
+    - Renaming of weak.Pointer.Strong -> weak.Pointer.Value.
+    
+    Fixes #67552.
+    
+    Change-Id: Ifad7e629b6d339dacaf2ca37b459d7f903e31bf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ api/next/67552.txt                       |  3 ++
+ doc/next/6-stdlib/1-weak.md              | 12 +++++
+ doc/next/6-stdlib/99-minor/weak/67552.md |  1 +
+ src/cmd/link/internal/loader/loader.go   |  3 --
+ src/go/build/deps_test.go                |  2 +-
+ src/go/doc/comment/std.go                |  1 +
+ src/internal/weak/pointer.go             | 83 --------------------------------
+ src/runtime/gc_test.go                   |  6 +--
+ src/runtime/mgcsweep.go                  |  2 +-
+ src/runtime/mheap.go                     |  4 +-
+ src/unique/handle.go                     |  6 +--
+ src/unique/handle_test.go                |  2 +-
+ src/weak/doc.go                          | 26 ++++++++++
+ src/weak/pointer.go                      | 62 ++++++++++++++++++++++++
+ src/{internal => }/weak/pointer_test.go  | 26 +++++-----
+ 15 files changed, 129 insertions(+), 110 deletions(-)

@@ -1,17 +1,31 @@
-commit f030043e37c4038e8a169feaf814ccbe3ae55cda
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 23 21:32:30 2021 +1000
+commit 575fd6ff0a886675412f1c24b390500b8413cebc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:44:42 2020 -0500
 
-    cmd/internal/obj/riscv: simplify machine code output
+    [dev.regabi] cmd/compile: split out package inline [generated]
     
-    Use cursym.WriteInt rather than building up a slice of bytes and then writing them
-    out via PutUint32. This also allows for variable instruction sizes, which will be
-    needed when support for compressed (2 byte length) instructions is added.
+    [git-generate]
     
-    Change-Id: I17c9ffa52d27c91a24e161317e3db28e224804ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344460
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    cd src/cmd/compile/internal/gc
+    rf '
+            mv numNonClosures inl.go
+            mv inlFlood Inline_Flood
+            mv inlcalls InlineCalls
+            mv devirtualize Devirtualize
+            mv caninl CanInline
+    
+            mv inl.go cmd/compile/internal/inline
+    '
+    
+    Change-Id: Iee1f5b1e82d5cea6be4ecd91e6920500810f21de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279309
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/export.go          |  3 +-
+ src/cmd/compile/internal/gc/main.go            | 18 +++-------
+ src/cmd/compile/internal/gc/subr.go            |  3 +-
+ src/cmd/compile/internal/{gc => inline}/inl.go | 46 ++++++++++++++++----------
+ 4 files changed, 37 insertions(+), 33 deletions(-)

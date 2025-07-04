@@ -1,48 +1,12 @@
-commit ae253719a2f5ff26899d6c989fcfed3bbef3f926
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue Apr 14 12:15:52 2020 -0400
+commit c6621d9241c1835806fbc85ca9893d90af035fc4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 2 10:24:33 2019 -0400
 
-    std,cmd: update golang.org/x/crypto to v0.0.0-20200414155820-4f8f47aa7992
+    [dev.link] cmd/link: restore -dumpdep in new deadcode pass
     
-    That includes https://golang.org/cl/228223
-    
-    Also, update src/vendor/golang.org/x/crypto to match vendored
-    golang.org/x/crypto version.
-    Otherwise cmd/internal/goobj.TestDependencyVersionsConsistent
-    fails.
-    
-    Fixes #27147
-    
-    Change-Id: I4a3f1502fdee887762b10348811a08850a15a47a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228226
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2e52206a95c9463df5661664726a8b3bbf3ad1fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204825
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 ++--
- .../golang.org/x/crypto/ssh/terminal/terminal.go   |  8 +++++++
- src/cmd/vendor/modules.txt                         |  2 +-
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 ++--
- .../golang.org/x/crypto/chacha20/chacha_arm64.go   |  3 +--
- .../golang.org/x/crypto/chacha20/chacha_arm64.s    |  3 +--
- .../golang.org/x/crypto/chacha20/chacha_generic.go | 27 ++++++++++++++++++++++
- .../golang.org/x/crypto/chacha20/chacha_noasm.go   |  2 +-
- .../golang.org/x/crypto/chacha20/chacha_ppc64le.go |  2 +-
- .../golang.org/x/crypto/chacha20/chacha_ppc64le.s  |  2 +-
- .../golang.org/x/crypto/chacha20/chacha_s390x.go   |  2 +-
- .../golang.org/x/crypto/chacha20/chacha_s390x.s    |  2 +-
- .../chacha20poly1305/chacha20poly1305_amd64.go     |  2 +-
- .../chacha20poly1305/chacha20poly1305_amd64.s      |  2 +-
- .../chacha20poly1305/chacha20poly1305_noasm.go     |  2 +-
- .../golang.org/x/crypto/poly1305/mac_noasm.go      |  2 +-
- .../golang.org/x/crypto/poly1305/sum_amd64.go      |  2 +-
- .../golang.org/x/crypto/poly1305/sum_amd64.s       |  2 +-
- .../golang.org/x/crypto/poly1305/sum_noasm.go      |  2 +-
- .../golang.org/x/crypto/poly1305/sum_ppc64le.go    |  2 +-
- .../golang.org/x/crypto/poly1305/sum_ppc64le.s     |  2 +-
- .../golang.org/x/crypto/poly1305/sum_s390x.go      |  2 +-
- .../golang.org/x/crypto/poly1305/sum_s390x.s       |  2 +-
- .../golang.org/x/crypto/poly1305/sum_vmsl_s390x.s  |  2 +-
- src/vendor/modules.txt                             |  2 +-
- 27 files changed, 62 insertions(+), 29 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

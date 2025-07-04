@@ -1,14 +1,20 @@
-commit 3b0224282cf84228d6bcd4b783eb164e579fbd9e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 11 16:20:23 2015 -0700
+commit 1942e3814bd99ff9466bcbc82eb63d3fab130484
+Author: Austin Clements <austin@google.com>
+Date:   Sat Jul 18 23:22:18 2015 -0700
 
-    spec: fix composite literal syntax to match prose
+    runtime: clarify runtime.GC blocking behavior
     
-    Fixes #12578.
+    The runtime.GC documentation was rewritten in df2809f to make it clear
+    that it blocks until GC is complete, but the re-rewrite in ed9a4c9 and
+    e28a679 lost this property when clarifying that it may also block the
+    entire program and not just the caller.
     
-    Change-Id: I257d70a67609463e24936bc1739285da154be2fe
-    Reviewed-on: https://go-review.googlesource.com/14531
+    Try to arrive at wording that conveys both of these properties.
+    
+    Change-Id: I1e255322aa28a21a548556ecf2a44d8d8ac524ef
+    Reviewed-on: https://go-review.googlesource.com/12392
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go_spec.html | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/runtime/mgc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

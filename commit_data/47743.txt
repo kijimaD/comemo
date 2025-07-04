@@ -1,17 +1,24 @@
-commit c759ec228435e387a5c863b6b886b49a055fa80a
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 7 16:29:21 2021 -0500
+commit bb76193a7f0b04c6c25696ed28dd5516ae23d83c
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 8 15:30:03 2021 -0400
 
-    doc/go1.18: clarify additions to net package API
+    cmd/compile: fix buglet in walk convert phase relating to convF32/64
     
-    For #47694.
+    The helper function used by the compiler's walk phase to determine
+    whether a param can be passed in a single float register wasn't quite
+    correct (didn't allow for the possibility of struct with two fields,
+    first zero size and second float). Fix up the helper to take this
+    case into account.
     
-    Updates #46518.
+    Updates #40724.
     
-    Change-Id: Ife3a8d3d6a1c50f55b5ab15730d5a6bd3ec512e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370134
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I55b42a1b17ea86de1d696788f029ad3aae4a179c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308689
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/walk/convert.go | 17 ++++++++++++++++-
+ test/abi/convF_criteria.go               | 27 +++++++++++++++++++++++++++
+ test/abi/convF_criteria.out              |  2 ++
+ 3 files changed, 45 insertions(+), 1 deletion(-)

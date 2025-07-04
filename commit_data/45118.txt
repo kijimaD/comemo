@@ -1,25 +1,23 @@
-commit eb433ed5a2ab13567cd5d7f0413308174750d5dd
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Apr 11 09:47:13 2021 -0700
+commit a517c3422e808ae51533a0700e05d59e8a799136
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 5 12:17:30 2020 -0400
 
-    cmd/compile: set types properly for imported funcs with closures
+    runtime: clean up runtime.call* frame sizes on ARM64
     
-    For the new export/import of node types, we were just missing setting
-    the types of the closure variables (which have the same types as the
-    captured variables) and the OCLOSURE node itself (which has the same
-    type as the Func node).
+    ARM64 used to require that all assembly frame sizes were of the form
+    16*N+8 because ARM64 requires 16-byte SP alignment and the assembler
+    added an 8 byte LR slot. This made all of the runtime.call* frame
+    sizes wonky. The assembler now rounds up the frame size appropriately
+    after adding any additional slots it needs, so this is no longer
+    necessary.
     
-    Re-enabled inlining of functions with closures.
+    This CL cleans up the frame sizes of these functions so they look the
+    way you'd expect and match all other architectures.
     
-    Change-Id: I687149b061f3ffeec3244ff02dc6e946659077a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308974
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I47819092296b8983c43eadf2e66c7c1e0d518555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259448
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inl.go        |  2 +-
- src/cmd/compile/internal/typecheck/iimport.go | 11 +++++++
- test/closure3.dir/main.go                     | 44 +++++++++++++--------------
- test/inline.go                                | 22 +++++++-------
- 4 files changed, 45 insertions(+), 34 deletions(-)
+ src/runtime/asm_arm64.s | 56 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 29 deletions(-)

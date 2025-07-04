@@ -1,26 +1,20 @@
-commit 9c02c75639b893cea6dbce1092d07e886ec5f44e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Oct 26 13:29:39 2016 -0400
+commit 11e3955e10ccd9105b78e07f4785402a5c8ceaf7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 29 13:53:32 2016 -0700
 
-    runtime: pass windows float syscall args via XMM
+    net: restore per-query timeout logic
     
-    Based on the calling convention documented in:
+    The handling of "options timeout:n" is supposed to be per individual
+    DNS server exchange, not per Lookup call.
     
-            https://msdn.microsoft.com/en-us/library/zthk2dkh.aspx
+    Fixes #16865.
     
-    and long-used in golang.org/x/mobile/gl via some fixup asm:
-    
-            https://go.googlesource.com/mobile/+/master/gl/work_windows_amd64.s
-    
-    Fixes #6510
-    
-    Change-Id: I97e81baaa2872bcd732b1308915eb66f1ba2168f
-    Reviewed-on: https://go-review.googlesource.com/32173
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I2304579b9169c1515292f142cb372af9d37ff7c1
+    Reviewed-on: https://go-review.googlesource.com/28057
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_windows_amd64.s     |  8 ++++++
- src/runtime/syscall_windows_test.go | 56 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ src/net/dnsclient_unix.go      | 17 ++++----
+ src/net/dnsclient_unix_test.go | 96 ++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 92 insertions(+), 21 deletions(-)

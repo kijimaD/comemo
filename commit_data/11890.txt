@@ -1,12 +1,14 @@
-commit 1c987a321f5013517a0c1987826f9595dde7cb72
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 14 01:13:14 2012 -0500
+commit adb1a6ce3ca6b6f9c9aed7148cfc8b4b9b498b06
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 14 17:11:12 2012 +1100
 
-    5g: fix memory corruption
+    net/http: more robust test
     
-    R=ken2
+    Fixes #3014
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5666043
+    https://golang.org/cl/5665043
 
- src/cmd/5g/gsubr.c | 4 ++--
+ src/pkg/net/http/fs_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

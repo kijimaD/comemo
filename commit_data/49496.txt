@@ -1,32 +1,21 @@
-commit d42a48828f3cff4e57cefaf72bc88cef7d355fd6
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Tue Jun 14 21:29:36 2022 -0700
+commit f98b6111eb8edda63a785db5678418b9eecbc5e9
+Author: subham sarkar <sarkar.subhams2@gmail.com>
+Date:   Tue Jul 20 17:17:14 2021 +0000
 
-    sync: add more notes about Cond behavior
+    go/token: match the implementation of index selection with sort.Search
     
-    Cond is difficult to use correctly (I was just bitten by it in
-    a production app that I inherited). While several proposals have come
-    up to improve or remove sync.Cond, no action has so far been taken.
+    name          old time/op    new time/op    delta
+    SearchInts-8    15.5ns ± 2%    13.7ns ± 4%  -11.87%  (p=0.008 n=5+5)
     
-    Update the documentation to discourage use of sync.Cond, and point
-    people in the direction of preferred alternatives. I believe this will
-    help encourage behavior we want (less use of sync.Cond and more use of
-    channels), while also paving the way for, potentially, removing Cond
-    in a future version of the language.
+    (see CL 36332 for the original change to sort.Search)
     
-    Thanks very much to Bryan Mills and Sean Liao for discussion and
-    recommendations.
-    
-    Updates #20491.
-    Updates #21165.
-    
-    Change-Id: Ib4d0631c79d4c4d0a30027255cd43bc47cddebd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412237
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: If452818185b92b8b3548b066f475e493d604ea29
+    GitHub-Last-Rev: 32dd3cffa6b54b332948ac6a2929458defd4838f
+    GitHub-Pull-Request: golang/go#47293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335809
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/sync/cond.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/go/token/position.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

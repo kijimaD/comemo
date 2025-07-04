@@ -1,39 +1,29 @@
-commit 7855d6835d3a27e967a0c2d748f9f39305e7ba47
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jan 4 19:45:38 2020 +0900
+commit 81c6bac06f5f8a45f0837cb42b2793df64de08a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 26 10:22:26 2019 -0400
 
-    cmd/compile: add a script to measure ssa/gen's coverage
+    cmd/go/internal/robustio: extend filesystem workarounds to darwin platforms
     
-    Since rulegen is only tested by inspecting and running its output code,
-    we have no good way to see if any chunks of its source are actually
-    being unused.
+    The macOS filesystem seems to have gotten significantly flakier as of
+    macOS 10.14, so this causes frequently flakes in the 10.14 builders.
     
-    Code coverage only works as part of 'go test', since it needs to
-    instrument our code. Add a script that sets up a tiny test for that
-    purpose, with a quick example on how to use it.
+    We have no reason to believe that it will be fixed any time soon, so
+    rather than trying to detect the specific macOS version, we'll apply
+    the same workarounds that we use on Windows: classifying (and
+    retrying) the errors known to indicate flakiness and relaxing the
+    success criteria for renameio.TestConcurrentReadsAndWrites.
     
-    We need to use a script, because there's no other way to make this work
-    without breaking 'go run *.go'. It's far more common to run the
-    generator than to obtain a coverage profile, so this solution seems like
-    the right tradeoff, and we don't break existing users.
+    Fixes #33041
     
-    The script isn't terribly portable, but that's okay for now.
-    
-    At the time of wriging, coverage sits at 89.7%. I've manually skimmed
-    main.go and rulegen.go, and practically all unused code is either error
-    handling, or optional code like *genLog and "if false". A couple of
-    small exceptions stand out, though I'm not paying attention to them in
-    this CL.
-    
-    While at it, inline a couple of tiny unusedInspector methods that were
-    only needed once or twice.
-    
-    Change-Id: I78c5fb47c8536d70e546a437637d4428ec7adfaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212760
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I74d8c15677951d7a0df0d4ebf6ea03e43eebddf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197517
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/cover.bash | 26 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/rulegen.go | 24 +++++++++---------------
- 2 files changed, 35 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/renameio/renameio_test.go    | 12 +++-
+ src/cmd/go/internal/robustio/robustio_darwin.go  | 21 ++++++
+ src/cmd/go/internal/robustio/robustio_flaky.go   | 92 ++++++++++++++++++++++++
+ src/cmd/go/internal/robustio/robustio_other.go   |  2 +-
+ src/cmd/go/internal/robustio/robustio_windows.go | 80 +--------------------
+ 5 files changed, 125 insertions(+), 82 deletions(-)

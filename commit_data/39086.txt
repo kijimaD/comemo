@@ -1,48 +1,70 @@
-commit b6f59cbc803695f8da6b888fe7a88c6f8c5b3ea7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 9 08:57:20 2019 -0400
+commit 69c2c56453cdea1ad32d50fc82193f06b1b33f93
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Dec 4 07:58:18 2018 -0800
 
-    cmd/vet/all: update whitelist for vet fixes
+    cmd/compile,runtime: redo mid-stack inlining tracebacks
     
-    The vetall builder runs vet straight out of golang.org/x/tools,
-    so submiting CL 176097 in that repo will break the builder
-    by making all these whitelist entries stale.
-    Submiting this CL will fix it, by removing them.
+    Work involved in getting a stack trace is divided between
+    runtime.Callers and runtime.CallersFrames.
     
-    The addition of the gcWriteBarrier declaration in runtime/stubs.go
-    is necessary because the diagnostic is no longer emitted on arm,
-    so it must be removed from all.txt. Adding it to runtime is better
-    than adding it to every-other-goarch.txt.
+    Before this CL, runtime.Callers returns a pc per runtime frame.
+    runtime.CallersFrames is responsible for expanding a runtime frame
+    into potentially multiple user frames.
     
-    For #31916.
+    After this CL, runtime.Callers returns a pc per user frame.
+    runtime.CallersFrames just maps those to user frame info.
     
-    Change-Id: I432f6049cd3ee5a467add5066c440be8616d9d54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176177
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Entries in the result of runtime.Callers are now pcs
+    of the calls (or of the inline marks), not of the instruction
+    just after the call.
+    
+    Fixes #29007
+    Fixes #28640
+    Update #26320
+    
+    Change-Id: I1c9567596ff73dc73271311005097a9188c3406f
+    Reviewed-on: https://go-review.googlesource.com/c/152537
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/vet/all/whitelist/aix_ppc64.txt            |  3 ---
- src/cmd/vet/all/whitelist/all.txt                  | 24 ----------------------
- src/cmd/vet/all/whitelist/android_arm.txt          |  1 -
- src/cmd/vet/all/whitelist/arm.txt                  |  4 ----
- src/cmd/vet/all/whitelist/arm64.txt                |  2 --
- src/cmd/vet/all/whitelist/freebsd_arm.txt          |  3 ---
- src/cmd/vet/all/whitelist/linux_arm.txt            |  1 -
- src/cmd/vet/all/whitelist/mips64x.txt              |  5 -----
- src/cmd/vet/all/whitelist/mipsx.txt                |  7 -------
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt        |  2 --
- src/cmd/vet/all/whitelist/nacl_arm.txt             |  1 -
- src/cmd/vet/all/whitelist/netbsd_386.txt           |  1 +
- src/cmd/vet/all/whitelist/netbsd_amd64.txt         |  2 ++
- src/cmd/vet/all/whitelist/netbsd_arm.txt           |  1 -
- .../all/whitelist/{netbsd.txt => netbsd_arm64.txt} |  2 --
- src/cmd/vet/all/whitelist/openbsd_arm.txt          |  3 ---
- src/cmd/vet/all/whitelist/plan9_arm.txt            |  3 ---
- src/cmd/vet/all/whitelist/ppc64x.txt               |  8 --------
- src/cmd/vet/all/whitelist/s390x.txt                | 20 ------------------
- src/cmd/vet/all/whitelist/wasm.txt                 | 13 ------------
- src/cmd/vet/all/whitelist/windows.txt              |  1 -
- src/cmd/vet/all/whitelist/windows_386.txt          |  1 +
- src/cmd/vet/all/whitelist/windows_amd64.txt        |  1 -
- src/runtime/stubs.go                               |  3 +++
- 24 files changed, 7 insertions(+), 105 deletions(-)
+ misc/cgo/test/callback.go                      |   4 -
+ src/cmd/compile/internal/amd64/ggen.go         |   3 +-
+ src/cmd/compile/internal/arm/ggen.go           |   3 +-
+ src/cmd/compile/internal/arm64/ggen.go         |   3 +-
+ src/cmd/compile/internal/gc/fmt.go             |   4 +
+ src/cmd/compile/internal/gc/go.go              |   2 +-
+ src/cmd/compile/internal/gc/inl.go             |   9 +
+ src/cmd/compile/internal/gc/order.go           |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  12 ++
+ src/cmd/compile/internal/gc/syntax.go          |   2 +
+ src/cmd/compile/internal/gc/walk.go            |   3 +
+ src/cmd/compile/internal/mips/ggen.go          |   3 +-
+ src/cmd/compile/internal/mips64/ggen.go        |   3 +-
+ src/cmd/compile/internal/ppc64/ggen.go         |   9 +-
+ src/cmd/compile/internal/s390x/ggen.go         |   3 +-
+ src/cmd/compile/internal/ssa/deadcode.go       |   2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 +
+ src/cmd/compile/internal/ssa/lower.go          |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   7 +
+ src/cmd/compile/internal/wasm/ssa.go           |   6 +-
+ src/cmd/compile/internal/x86/ggen.go           |   3 +-
+ src/cmd/internal/goobj/read.go                 |  10 +-
+ src/cmd/internal/obj/inl.go                    |  13 +-
+ src/cmd/internal/obj/link.go                   |  28 ++-
+ src/cmd/internal/obj/objfile.go                |   1 +
+ src/cmd/internal/obj/pcln.go                   |  16 ++
+ src/cmd/internal/obj/wasm/wasmobj.go           |   3 +-
+ src/cmd/internal/objabi/funcid.go              |  63 ++++++
+ src/cmd/link/internal/ld/pcln.go               |  52 ++---
+ src/cmd/link/internal/objfile/objfile.go       |   1 +
+ src/cmd/link/internal/sym/symbol.go            |  15 +-
+ src/runtime/extern.go                          |  24 +--
+ src/runtime/pprof/proto.go                     |  15 +-
+ src/runtime/pprof/proto_test.go                |   4 +-
+ src/runtime/pprof/protomem_test.go             |   6 +-
+ src/runtime/symtab.go                          | 288 +++++++------------------
+ src/runtime/traceback.go                       |  88 ++++----
+ test/fixedbugs/issue5856.go                    |   2 +-
+ test/inline_callers.go                         |  10 +-
+ 39 files changed, 341 insertions(+), 387 deletions(-)

@@ -1,17 +1,24 @@
-commit 465097b2b5f9d8178fafac8a85a3cd331758b643
-Author: cuishuang <imcusg@gmail.com>
-Date:   Mon Mar 31 18:10:43 2025 +0800
+commit 960654be0c4ad7918376e2e1d47491c9bc7520e0
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 26 13:45:42 2024 -0800
 
-    all:  use built-in max/min to simplify the code
+    net/http/httputil: avoid ReverseProxy data race on 1xx response and error
     
-    Change-Id: I309d93d6ebf0feb462217a344d5f02c190220752
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661737
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    ReverseProxy uses a httptrace.ClientTrace.Got1xxResponse trace hook
+    to capture 1xx response headers for proxying. This hook can be called
+    asynchrnously after RoundTrip returns. (This should only happen when
+    RoundTrip has failed for some reason.) Add synchronization so we don't
+    attempt to modifying the ResponseWriter headers map from the hook
+    after another goroutine has begun making use of it.
+    
+    Fixes #65123
+    
+    Change-Id: I8b7ecb1a140f7ba7e37b9d27b8a20bca41a118b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567216
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/net/timeout_test.go | 5 +----
- src/os/timeout_test.go  | 5 +----
- 2 files changed, 2 insertions(+), 8 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 14 +++++++
+ src/net/http/httputil/reverseproxy_test.go | 67 ++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)

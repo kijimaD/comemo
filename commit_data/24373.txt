@@ -1,19 +1,14 @@
-commit 707b619c3a9d94ea61a471aeecfe1c914c3372e1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 24 15:23:26 2015 +0900
+commit 6b8762104a90c93ebd51149e7a031738832c5cdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 00:14:33 2015 -0400
 
-    syscall: fix alignment check for link-layer information on BSD variants
+    runtime/pprof: document content of heap profile
     
-    When link-layer information is wrapped with sockaddr_dl, we need to
-    follow the len field of sockaddr_dl. When link-layer information is
-    naked, we need to use the length of whole link-layer information.
+    Fixes #11343.
     
-    Fixes #12641.
-    
-    Change-Id: I4d377f64cbab1760b993fc55c719288616042bbb
-    Reviewed-on: https://go-review.googlesource.com/14939
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I46efc24b687b9d060ad864fbb238c74544348e38
+    Reviewed-on: https://go-review.googlesource.com/12556
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/route_bsd.go      |  9 ++++++---
- src/syscall/route_bsd_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,61 +1,29 @@
-commit cdbd4d49d8b3595048ae63ac0f3891633470dfbe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 8 10:29:40 2018 -0500
+commit 12d0a2884a9e1a12050807393fe0266d1b0b40fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 23:17:45 2018 -0400
 
-    cmd/go: enable module mode without a main module when GO111MODULE=on
+    cmd/go: do not try to understand git fetch --depth=1 errors
     
-    This is as minimal a change as I could comfortably make to enable 'go
-    get' outside of a module for 1.12.
+    We used to try a git fetch --depth=1 of a specific hash and
+    distinguish between an error meaning
+    "that's not a hash I can give you directly"
+    (in which case we fall through and pull the whole repo)
+    and some other error like connection failure, bad ssh key
+    (in which case we give up).
     
-    In general, commands invoked in module mode while outside of a module
-    operate as though they are in a module with an initially-empty go.mod
-    file. ('go env GOMOD' reports os.DevNull.)
+    We've had repeated problems trying to understand the
+    error meanings so just stop doing that, and fall back to
+    trying a full fetch on any error at all. If the error really
+    was some kind of network or auth or i/o problem, then
+    it will happen the second time and we can report it then.
     
-    Commands that operate on the current directory (such as 'go list' and
-    'go get -u' without arguments) fail: without a module definition, we
-    don't know the package path. Likewise, commands whose sole purpose is
-    to write files within the main module (such as 'go mod edit' and 'go
-    mod vendor') fail, since we don't know where to write their output.
+    Fixes #26894.
     
-    Since the go.sum file for the main module is authoritative, we do not
-    check go.sum files when operating outside of a module. I plan to
-    revisit that when the tree opens for 1.13.
-    
-    We may also want to revisit the behavior of 'go list': it would be
-    useful to be able to query individual packages (and dependencies of
-    those packages) within versioned modules, but today we only allow
-    versioned paths in conjunction with the '-m' flag.
-    
-    Fixes #24250
-    
-    RELNOTE=yes
-    
-    Change-Id: I028c323ddea27693a92ad0aa4a6a55d5e3f43f2c
-    Reviewed-on: https://go-review.googlesource.com/c/148517
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If1eaaddb87e8bfeff7a3894cce4ecef39802198c
+    Reviewed-on: https://go-review.googlesource.com/128904
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/clean/clean.go                 |   5 +-
- src/cmd/go/internal/envcmd/env.go                  |   6 +-
- src/cmd/go/internal/load/pkg.go                    |   4 +-
- src/cmd/go/internal/modcmd/edit.go                 |   3 +-
- src/cmd/go/internal/modcmd/vendor.go               |   2 +-
- src/cmd/go/internal/modget/get.go                  |   4 +-
- src/cmd/go/internal/modload/build.go               |   8 +-
- src/cmd/go/internal/modload/import.go              |   4 +-
- src/cmd/go/internal/modload/init.go                | 191 ++++++++++++------
- src/cmd/go/internal/modload/list.go                |  18 +-
- src/cmd/go/internal/modload/load.go                |  29 +--
- src/cmd/go/internal/modload/query.go               |  16 +-
- src/cmd/go/internal/modload/search.go              |   5 +-
- src/cmd/go/internal/modload/testgo.go              |   9 +
- .../mod/example.com_printversion_v0.1.0.txt        |  27 +++
- .../mod/example.com_printversion_v1.0.0.txt        |  35 ++++
- .../go/testdata/mod/example.com_version_v1.0.0.txt |  11 ++
- .../go/testdata/mod/example.com_version_v1.0.1.txt |  11 ++
- .../go/testdata/mod/example.com_version_v1.1.0.txt |  11 ++
- src/cmd/go/testdata/script/mod_enabled.txt         |   2 +-
- src/cmd/go/testdata/script/mod_nomod.txt           |   2 +-
- src/cmd/go/testdata/script/mod_outside.txt         | 214 +++++++++++++++++++++
- 22 files changed, 511 insertions(+), 106 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

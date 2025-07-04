@@ -1,15 +1,54 @@
-commit 7cef83162bbe0008f3e158297b94a7dead64a9b1
-Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
-Date:   Thu Oct 7 07:34:47 2021 +0200
+commit e491c6eea9ad599a0ae766a3217bd9a16ca3a25a
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jan 27 10:33:35 2021 -0500
 
-    unicode: use IsSpace not IsUpper in IsSpace example test
+    math/big: fix comment in divRecursiveStep
     
-    Change-Id: Ie3017e5507f57cbb2ae9c8b737b378cef91fefeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354509
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    There appears to be a typo in the description of
+    the recursive division algorithm.
+    
+    Two things seem suspicious with the original comment:
+      1. It is talking about choosing s, but s doesn't
+         appear anywhere in the equation.
+      2. The math in the equation is incorrect.
+    
+    Where
+      B = len(v)/2
+      s = B - 1
+    
+    Proof that it is incorrect:
+        len(v) - B >= B + 1
+        len(v) - len(v)/2 >= len(v)/2 + 1
+    
+        This doesn't hold if len(v) is even, e.g. 10:
+        10 - 10/2 >= 10/2 + 1
+        10 - 5 >= 5 + 1
+        5 >= 6  // this is false
+    
+    The new equation will be the following,
+    which will be mathematically correct:
+        len(v) - s >= B + 1
+        len(v) - (len(v)/2 - 1) >= len(v)/2 + 1
+        len(v) - len(v)/2 + 1 >= len(v)/2 + 1
+        len(v) - len(v)/2 >= len(v)/2
+    
+        This holds if len(v) is even or odd.
+    
+        e.g. 10
+        10 - 10/2 >= 10/2
+        10 - 5 >= 5
+        5 >= 5
+    
+        e.g. 11
+        11 - 11/2 >= 11/2
+        11 - 5 >= 5
+        6 >= 5
+    
+    Change-Id: If77ce09286cf7038637b5dfd0fb7d4f828023f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287372
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/unicode/example_test.go | 2 +-
+ src/math/big/nat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

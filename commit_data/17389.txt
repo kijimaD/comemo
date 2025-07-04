@@ -1,12 +1,13 @@
-commit b2e937970b27386951fac2e8d03015c62276a19c
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Aug 26 19:11:43 2013 -0400
+commit 61f3fdcaec30b5798f62024b3cc485d8d6a615b9
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 25 23:50:44 2013 +1000
 
-    C: add JP Sugarbroad (Google CLA)
+    doc/go_faq.html: fix non-grammatical sentence
+    With my apologies.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/13232043
+    https://golang.org/cl/12984045
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

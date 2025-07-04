@@ -1,21 +1,18 @@
-commit 1da05eb0cebed9595ee0d326d9bd67edd046af0d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 21 00:12:02 2021 -0700
+commit bb44c90a94fefcdf51caf1be05b9af6876cac2f4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 19 18:16:31 2020 +0000
 
-    spec: add unsafe.Add and unsafe.Slice
+    Revert "cmd/link: put C static symbols in the symbol table"
     
-    Updates #19367.
-    Updates #40481.
+    This reverts CL 263259.
     
-    Change-Id: I578066ad68d2cd6bea50df1a534cf799e4404a7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312212
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reason for revert: break AIX builder.
+    
+    Change-Id: I3abb0b1f509961a06f1567d8c87679b0ca5782d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263660
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go_spec.html     | 32 +++++++++++++++++++++++++++++++-
- src/unsafe/unsafe.go | 23 +++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

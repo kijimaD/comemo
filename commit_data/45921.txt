@@ -1,31 +1,31 @@
-commit c1cc9f9c3d5ed789a080ef9f8dd9c11eca7e2026
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jul 15 00:56:44 2021 +0700
+commit c4bd0b7474f169a60acf66306a4a721f790e36c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 07:23:50 2020 -0500
 
-    cmd/compile: fix lookup package of redeclared dot import symbol
+    [dev.regabi] cmd/compile: make ir.Func the ODCLFUNC Node implementation
     
-    The compiler is relying on Sym.Def field to lookup symbol package in
-    DotImportRefs map. But the Sym.Def field is clear whenever the compiler
-    finish processing a file. If the dot import happen in file A, then the
-    redeclaration happen in file B, then the symbol lookup in file B will
-    see a nil Sym.Def, that cause the compiler crashes.
+    Before this CL, an ODCLFUNC Node was represented by both
+    a node struct and a Func struct (and a Name for the ONAME,
+    which isn't changing here). Now Func can be repurposed as
+    the ODCLFUNC implementation, replacing the two structs
+    totaling 280+144 = 424 bytes (64-bit) with a single 320-byte struct.
     
-    To fix this, we can interate over DotImportRefs and check for matching
-    symbol name and return the corresponding package. Though this operation
-    can be slow, but it only happens in invalid program, when printing error
-    message, so it's not worth to optimize it further.
+    Using the *Func as the node also gives us a clear, typed answer to
+    “which node should we use to represent functions?”
+    The next CL will clean up uses. This CL is just the trivial
+    change in representation.
     
-    Fixes #47201
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: I4ca1cb0a8e7432b19cf71434592a4cbb58d54adf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334589
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ie6d670da91d6eb8d67a85f8f83630b9586dc7443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274096
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/dcl.go | 12 +++++++++++-
- test/fixedbugs/issue47201.dir/a.go        | 13 +++++++++++++
- test/fixedbugs/issue47201.dir/b.go        |  9 +++++++++
- test/fixedbugs/issue47201.go              |  7 +++++++
- 4 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/fmt.go         |  7 ++++++
+ src/cmd/compile/internal/ir/func.go        | 34 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/node.go        |  9 +-------
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ 4 files changed, 43 insertions(+), 9 deletions(-)

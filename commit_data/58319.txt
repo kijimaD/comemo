@@ -1,18 +1,25 @@
-commit 106c804751992ccbba94c1dbdea4845a96659aa5
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 2 20:08:12 2024 +0100
+commit 1cc5b34d2864251c0ab05d8c560b1aede6786327
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 09:13:57 2023 -0400
 
-    crypto/rsa: fix keys with p < q
+    math/rand/v2: remove Rand.Seed
     
-    Updates #70643
+    Removing Rand.Seed lets us remove lockedSource as well,
+    along with the ambiguity in globalRand about which source
+    to use.
     
-    Change-Id: I4aee8373dbddf774564902b3957c6eba11d15fc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632955
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    For #61716.
+    
+    Change-Id: Ibe150520dd1e7dd87165eacaebe9f0c2daeaedfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502498
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/crypto/internal/fips140/rsa/rsa.go |  8 +++++--
- src/crypto/rsa/rsa_test.go             | 43 ++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 2 deletions(-)
+ api/next/61716.txt               |   9 +--
+ src/math/rand/v2/auto_test.go    |   8 +-
+ src/math/rand/v2/default_test.go | 148 ----------------------------------
+ src/math/rand/v2/race_test.go    |   8 +-
+ src/math/rand/v2/rand.go         | 167 ++++-----------------------------------
+ 5 files changed, 25 insertions(+), 315 deletions(-)

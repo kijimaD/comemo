@@ -1,21 +1,26 @@
-commit 070b82e2e8b28b067e08927228ee651dd54a4236
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 29 00:10:57 2017 +0000
+commit ecc6a81617477ddfa961f44e309707a4f864104a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 16:15:10 2017 -0700
 
-    net/http: update bundled http2
+    cmd/compile: prevent modification of ONAME/OLITERAL/OTYPES nodes in walkexpr
     
-    Updates http2 to x/net/http2 git rev d4223d6710a for:
+    ONAME, OLITERAL, and OTYPE nodes can be shared between functions.
+    In a concurrent backend, such nodes might be walked concurrently
+    with being read in other functions.
+    Arrange for them to be unmodified by walk.
     
-        http2: refund connection flow control on DATA frames received after reset
-        https://golang.org/cl/46591
+    This is a follow-up to CL 38609.
     
-    Fixes #46591
+    Passes toolstash-check.
     
-    Change-Id: I5e6999599e921fed279c6d29ae77439191e99615
-    Reviewed-on: https://go-review.googlesource.com/47096
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15756
+    
+    Change-Id: I03ff1d2c0ad81dafac3fd55caa218939cf7c0565
+    Reviewed-on: https://go-review.googlesource.com/38655
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/h2_bundle.go | 23 +++++++++++++++++------
- 1 file changed, 17 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 6 +++++-
+ src/cmd/compile/internal/gc/walk.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 3 deletions(-)

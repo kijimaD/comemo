@@ -1,15 +1,17 @@
-commit 5a1906dc47638840b6db96edb11ffe1fb011caad
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 12:30:16 2014 -0400
+commit 0be3176a8bc394f5234a2665843b5490e9095f46
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 22 14:29:45 2014 +1000
 
-    log/syslog: try /var/run/log, for FreeBSD
+    image/gif: don't let the per-frame transparent index modify the global
+    palette.
     
-    Fixes #8449.
+    Fixes #7993.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=bradfitz, golang-codereviews
-    https://golang.org/cl/145600044
+    LGTM=r
+    R=r
+    CC=golang-codereviews, james.jdunne
+    https://golang.org/cl/138600043
 
- src/log/syslog/syslog_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/image/gif/reader.go      |  7 ++++-
+ src/image/gif/reader_test.go | 64 +++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 61 insertions(+), 10 deletions(-)

@@ -1,12 +1,27 @@
-commit 9fffe45c6551a495f00d5593e941f7f1b1b7e784
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Mar 10 09:35:56 2012 +1100
+commit 3cea4131dfa3d07f74b53a4f26412d4a0470717e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 9 14:12:02 2012 -0800
 
-    crypto/x509: do not forget to free cert context
+    archive/zip: write data descriptor signature for OS X; fix bugs reading it
     
-    R=golang-dev, krautz, rsc
+    We now always write the "optional" streaming data descriptor
+    signature, which turns out to be required for OS X.
+    
+    Also, handle reading the data descriptor with or without the
+    signature, per the spec's recommendation. Fix data descriptor
+    reading bugs found in the process.
+    
+    Fixes #3252
+    
+    R=golang-dev, alex.brainman, nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/5783059
+    https://golang.org/cl/5787062
 
- src/pkg/crypto/x509/root_windows.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/pkg/archive/zip/reader.go                      |  60 +++++++---
+ src/pkg/archive/zip/reader_test.go                 | 131 +++++++++++++++------
+ src/pkg/archive/zip/struct.go                      |   9 +-
+ .../archive/zip/testdata/go-no-datadesc-sig.zip    | Bin 0 -> 330 bytes
+ .../archive/zip/testdata/go-with-datadesc-sig.zip  | Bin 0 -> 242 bytes
+ src/pkg/archive/zip/writer.go                      |   1 +
+ src/pkg/archive/zip/writer_test.go                 |   2 +-
+ 7 files changed, 146 insertions(+), 57 deletions(-)

@@ -1,16 +1,18 @@
-commit c229d2fdc684e366be4b4cf17949a02ae35caaaa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 30 02:31:15 2015 +0000
+commit 7393c24877407ff2d3d1fad761e5aebbf6671ac3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 21 10:15:15 2015 -0700
 
-    net/http: update x/net/http2
+    [dev.ssa] cmd/compile: everything is live and reachable after regalloc
     
-    Updated bundle of golang.org/x/net/http2 to rev c95266
+    This CL makes function printing and HTML generation
+    accurate after regalloc.
     
-    Change-Id: Id6df66a8f4eadd6a100f359fd6cac981653dafa6
-    Reviewed-on: https://go-review.googlesource.com/16448
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Prior to this CL, text and HTML function outputs
+    showed live values and blocks as dead.
+    
+    Change-Id: I70669cd8641af841447fc5d2ecbd754b281356f0
+    Reviewed-on: https://go-review.googlesource.com/13812
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/h2_bundle.go | 1100 +++++++++++++++++++++++++++++++++------------
- 1 file changed, 825 insertions(+), 275 deletions(-)
+ src/cmd/compile/internal/ssa/deadcode.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

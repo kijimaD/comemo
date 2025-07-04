@@ -1,17 +1,29 @@
-commit a7a199947a15d48d405be809278a7ea7c6ebf03a
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Fri Mar 18 10:50:00 2016 +0100
+commit b5c5efd5de4c4668b149d1dba4d9b00c88dd0b80
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 14 16:02:23 2016 -0800
 
-    cmd/compile: add rules to simplify AddPtr
+    [dev.ssa] cmd/compile: optimize phi ops
     
-    Fixes #14849
+    Redo how we keep track of forward references when building SSA.
+    When the forward reference is resolved, update the Value node
+    in place.
     
-    Change-Id: I86e2dc27ca73bb6b24261a68cbf0094a63167414
-    Reviewed-on: https://go-review.googlesource.com/20833
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Improve the phi elimination pass so it can simplify phis of phis.
+    
+    Give SSA package access to decoded line numbers.  Fix line numbers
+    for constant booleans.
+    
+    Change-Id: I3dc9896148d260be2f3dd14cbe5db639ec9fa6b7
+    Reviewed-on: https://go-review.googlesource.com/18674
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  3 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 39 ++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 153 +++++++++++++------------
+ src/cmd/compile/internal/ssa/compile.go        |   8 +-
+ src/cmd/compile/internal/ssa/config.go         |   3 +
+ src/cmd/compile/internal/ssa/export_test.go    |   3 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   3 +
+ src/cmd/compile/internal/ssa/opGen.go          |   5 +
+ src/cmd/compile/internal/ssa/phielim.go        |  59 +++++++---
+ src/cmd/compile/internal/ssa/print.go          |   2 +
+ 8 files changed, 143 insertions(+), 93 deletions(-)

@@ -1,12 +1,26 @@
-commit 5ae67e1e4ee87b468e268b21d8f0127b5b0257f8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 4 10:07:16 2015 +1100
+commit ce5cb037d171273f1a5294723234be5495c9d336
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 6 09:06:44 2015 -0800
 
-    include: restore use of signal.h on windows (fixes build)
+    runtime: use some startup randomness in the fallback hashes
     
-    Change-Id: Ifd983cf50b1ccbe64a45d3b3ad171ef67f608033
-    Reviewed-on: https://go-review.googlesource.com/3831
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fold in some startup randomness to make the hash vary across
+    different runs.  This helps prevent attackers from choosing
+    keys that all map to the same bucket.
+    
+    Also, reorganize the hash a bit.  Move the *m1 multiply to after
+    the xor of the current hash and the message.  For hash quality
+    it doesn't really matter, but for DDOS resistance it helps a lot
+    (any processing done to the message before it is merged with the
+    random seed is useless, as it is easily inverted by an attacker).
+    
+    Update #9365
+    
+    Change-Id: Ib19968168e1bbc541d1d28be2701bb83e53f1e24
+    Reviewed-on: https://go-review.googlesource.com/2344
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- include/u.h | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/alg.go    | 20 +++++++++------
+ src/runtime/hash32.go | 66 ++++++++++++++++++++++-------------------------
+ src/runtime/hash64.go | 71 +++++++++++++++++++++++----------------------------
+ 3 files changed, 75 insertions(+), 82 deletions(-)

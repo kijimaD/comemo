@@ -1,22 +1,13 @@
-commit 1558834248858f268e5ae8b57a213f373a0f61e0
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed Jan 19 15:30:26 2011 -0500
+commit f8e9936d877d6628935fd374ad9b08b2ccff7367
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 15:30:18 2011 -0500
 
-    5a, 5l, 6a, 6l, 8a, 8l: handle out of memory, large allocations
+    A+C: Jeff R. Allen (individual CLA)
     
-    Fixes #392.
-    
-    R=rsc, r2
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/2732042
+    https://golang.org/cl/4018043
 
- src/cmd/5a/a.h     |  1 -
- src/cmd/5l/l.h     |  1 -
- src/cmd/6a/a.h     |  1 -
- src/cmd/6l/l.h     |  1 -
- src/cmd/8a/a.h     |  1 -
- src/cmd/8l/l.h     |  1 -
- src/cmd/cc/cc.h    |  1 -
- src/cmd/cc/dpchk.c |  1 +
- src/cmd/cc/lexbody | 43 ++++++++++++++-----------------------------
- 9 files changed, 15 insertions(+), 36 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,143 +1,22 @@
-commit 0349f29a55fc194e3d51f748ec9ddceab87a5668
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Feb 17 23:12:55 2019 -0500
+commit b3369063e52571be1cdf0e7a16f99b12c2a23914
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 16:48:54 2018 +0000
 
-    cmd/compile: flow interface data to heap if CONVIFACE of a non-direct interface escapes
+    test: skip some tests on noopt builder
     
-    Consider the following code:
+    Adds a new build tag "gcflags_noopt" that can be used in test/*.go
+    tests.
     
-    func f(x []*T) interface{} {
-            return x
-    }
+    Fixes #27833
     
-    It returns an interface that holds a heap copy of x (by calling
-    convT2I or friend), therefore x escape to heap. The current
-    escape analysis only recognizes that x flows to the result. This
-    is not sufficient, since if the result does not escape, x's
-    content may be stack allocated and this will result a
-    heap-to-stack pointer, which is bad.
-    
-    Fix this by realizing that if a CONVIFACE escapes and we're
-    converting from a non-direct interface type, the data needs to
-    escape to heap.
-    
-    Running "toolstash -cmp" on std & cmd, the generated machine code
-    are identical for all packages. However, the export data (escape
-    tags) differ in the following packages. It looks to me that all
-    are similar to the "f" above, where the parameter should escape
-    to heap.
-    
-    io/ioutil/ioutil.go:118
-            old: leaking param: r to result ~r1 level=0
-            new: leaking param: r
-    
-    image/image.go:943
-            old: leaking param: p to result ~r0 level=1
-            new: leaking param content: p
-    
-    net/url/url.go:200
-            old: leaking param: s to result ~r2 level=0
-            new: leaking param: s
-    
-    (as a consequence)
-    net/url/url.go:183
-            old: leaking param: s to result ~r1 level=0
-            new: leaking param: s
-    
-    net/url/url.go:194
-            old: leaking param: s to result ~r1 level=0
-            new: leaking param: s
-    
-    net/url/url.go:699
-            old: leaking param: u to result ~r0 level=1
-            new: leaking param: u
-    
-    net/url/url.go:775
-            old: (*URL).String u does not escape
-            new: leaking param content: u
-    
-    net/url/url.go:1038
-            old: leaking param: u to result ~r0 level=1
-            new: leaking param: u
-    
-    net/url/url.go:1099
-            old: (*URL).MarshalBinary u does not escape
-            new: leaking param content: u
-    
-    flag/flag.go:235
-            old: leaking param: s to result ~r0 level=1
-            new: leaking param content: s
-    
-    go/scanner/errors.go:105
-            old: leaking param: p to result ~r0 level=0
-            new: leaking param: p
-    
-    database/sql/sql.go:204
-            old: leaking param: ns to result ~r0 level=0
-            new: leaking param: ns
-    
-    go/constant/value.go:303
-            old: leaking param: re to result ~r2 level=0, leaking param: im to result ~r2 level=0
-            new: leaking param: re, leaking param: im
-    
-    go/constant/value.go:846
-            old: leaking param: x to result ~r1 level=0
-            new: leaking param: x
-    
-    encoding/xml/xml.go:518
-            old: leaking param: d to result ~r1 level=2
-            new: leaking param content: d
-    
-    encoding/xml/xml.go:122
-            old: leaking param: leaking param: t to result ~r1 level=0
-            new: leaking param: t
-    
-    crypto/x509/verify.go:506
-            old: leaking param: c to result ~r8 level=0
-            new: leaking param: c
-    
-    crypto/x509/verify.go:563
-            old: leaking param: c to result ~r3 level=0, leaking param content: c
-            new: leaking param: c
-    
-    crypto/x509/verify.go:615
-            old: (nothing)
-            new: leaking closure reference c
-    
-    crypto/x509/verify.go:996
-            old: leaking param: c to result ~r1 level=0, leaking param content: c
-            new: leaking param: c
-    
-    net/http/filetransport.go:30
-            old: leaking param: fs to result ~r1 level=0
-            new: leaking param: fs
-    
-    net/http/h2_bundle.go:2684
-            old: leaking param: mh to result ~r0 level=2
-            new: leaking param content: mh
-    
-    net/http/h2_bundle.go:7352
-            old: http2checkConnHeaders req does not escape
-            new: leaking param content: req
-    
-    net/http/pprof/pprof.go:221
-            old: leaking param: name to result ~r1 level=0
-            new: leaking param: name
-    
-    cmd/internal/bio/must.go:21
-            old: leaking param: w to result ~r1 level=0
-            new: leaking param: w
-    
-    Fixes #29353.
-    
-    Change-Id: I7e7798ae773728028b0dcae5bccb3ada51189c68
-    Reviewed-on: https://go-review.googlesource.com/c/162829
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4ea0ccd9e9e58c4639de18645fec81eb24a3a929
+    Reviewed-on: https://go-review.googlesource.com/136898
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 10 ++++++++++
- test/escape_because.go             |  2 +-
- test/escape_param.go               | 15 +++++++++++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ test/checkbce.go            |  2 +-
+ test/fixedbugs/issue7921.go |  1 +
+ test/nosplit.go             |  2 +-
+ test/run.go                 | 16 ++++++++++++----
+ 4 files changed, 15 insertions(+), 6 deletions(-)

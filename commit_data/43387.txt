@@ -1,24 +1,14 @@
-commit f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 19 20:45:01 2020 -0400
+commit 2cb80bdee0dcb4ff55f46ab7025a37546aef6b7a
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Tue Mar 31 19:44:19 2020 +0100
 
-    cmd/go/internal/renameio: include ios in the darwin test-flake mitigation
+    runtime: skip gdb tests on Plan 9
     
-    Because the "ios" build constraint implies "darwin", it is already
-    included in the general "darwin" flakiness workaround in
-    cmd/go/internal/robustio. We just need to relax the renameio test
-    to avoid false-positives there.
+    There's no gdb on Plan 9.
     
-    I do not expect this change to drive the rate of false-positives down
-    to zero, but it should at least reduce noise on the build dashboard.
-    
-    For #42066
-    
-    Change-Id: Ia33dbd33295fce5b3261b4831f2807ce29b82e65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263777
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ibeb0fbd3c096a69181c19b1fb2bc6291612b6da3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226657
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/go/internal/renameio/renameio_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/runtime/runtime-gdb_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

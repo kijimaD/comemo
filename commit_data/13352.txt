@@ -1,13 +1,12 @@
-commit a11e74daf7e42fa811378f5f38fb0dfdf6480f3a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Jun 14 22:43:15 2012 +0800
+commit 00e8a3ae915eab33982cdf7e2c0aa91102384d16
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 14 11:44:00 2012 +1000
 
-    crypto/elliptic: fix doc typo
-            Fixes #3735.
+    doc: document go1.0.2
     
-    R=golang-dev, agl
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6301083
+    https://golang.org/cl/6298079
 
- src/pkg/crypto/elliptic/elliptic.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

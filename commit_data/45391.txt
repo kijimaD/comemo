@@ -1,23 +1,14 @@
-commit 5c69cb2a5bc33ae2c8af598a53f4337bd1e77508
-Author: unbyte <i@shangyes.net>
-Date:   Wed Apr 28 04:32:15 2021 +0000
+commit f1aa0b081e9a75b7757a8e08378aba0326911916
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 21 16:04:07 2020 +0200
 
-    cmd/go: populate module info even if an error occurs in loading package
+    doc/go1.16: document ASLR support for -buildmode=c-shared on windows
     
-    The existing implementation ignores module info if there is any error loading the package.
-    
-    Fixes #44287
-    
-    Change-Id: I24142e4c7256517292fc654e29d759871b80bc09
-    GitHub-Last-Rev: 28e9bf85e8c119f3b805c38c79aef60322fcc551
-    GitHub-Pull-Request: golang/go#45777
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313549
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Matloob <matloob@golang.org>
+    Change-Id: I89c61e444b3ab36f0081a5252d210cb265344122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/internal/load/pkg.go                    | 23 +++++++++++-----------
- .../go/testdata/script/list_module_when_error.txt  | 19 ++++++++++++++++++
- 2 files changed, 31 insertions(+), 11 deletions(-)
+ doc/go1.16.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

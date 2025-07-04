@@ -1,12 +1,12 @@
-commit d420be5b1c03dd4d7791062ae50c37fb0aa529d6
+commit da7959d5dd1a230868d8eca9dbf11b4d54e8915a
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 23 12:45:58 2012 +1100
+Date:   Fri Mar 23 12:44:33 2012 +1100
 
-    tag weekly.2012-03-22
+    misc/dist: make godoc shortcut work
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5877063
+    https://golang.org/cl/5877062
 
- .hgtags | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/dist/windows/installer.wxs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

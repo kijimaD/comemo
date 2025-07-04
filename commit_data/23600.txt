@@ -1,19 +1,18 @@
-commit 173fa1d8093409eb6a409f4e3196c7d334c10c48
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jul 5 10:43:34 2015 +1000
+commit 4ed7d06a872a6fdaf2a232e794baff747834891b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 29 10:33:39 2015 -0700
 
-    cmd/go: delete references to old tools (5a etc.) from cmd/go docs
+    cmd/asm: delete Addr.Reg2
     
-    Don't talk about commands that no longer exist.
+    That which cannot happen has not happened.
     
-    There are still references throughout the tree, mostly in comments,
-    but they provide a charming historical backdrop for the idle tourist.
+    No immediate changes to Addr or Prog size.
     
-    Change-Id: I637ebdce05bbc7df5addcc46cb772d2bb9f3e073
-    Reviewed-on: https://go-review.googlesource.com/11885
+    Change-Id: I4cb9315f2c9f5f92eda340bfc4abb46395fa467f
+    Reviewed-on: https://go-review.googlesource.com/10513
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 18 ++++++++----------
- src/cmd/go/build.go   |  6 +++---
- src/cmd/go/help.go    | 12 +++++-------
- 3 files changed, 16 insertions(+), 20 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 6 ++----
+ src/cmd/internal/obj/link.go      | 1 -
+ 2 files changed, 2 insertions(+), 5 deletions(-)

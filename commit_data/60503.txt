@@ -1,0 +1,21 @@
+commit c6117e8f05a55dad96b5d36cd04702b5424eab5a
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Apr 17 11:29:13 2024 +0800
+
+    cmd/link: pass architecture to isPLTCall
+    
+    The relocation number of each architecture starts from 0. objabi.ElfRelocOffset
+    + objabi.RelocType(xxx) cannot uniquely represent a relocation, so the new
+    argument 'arch' was added to help identify relocation.
+    
+    Change-Id: Ic8121dbfd1a4f31f279d50ffdc9c932ce3066efd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580275
+    Commit-Queue: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/link/internal/ld/data.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

@@ -1,12 +1,21 @@
-commit 226e1eac031c304c6fe271f46e21804c00794e57
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 1 10:28:37 2013 +1000
+commit a05237f20ae6230238a9e44bc8bfc974e6d51422
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jul 31 23:37:23 2013 +0200
 
-    C: add Folke Behrens (Google CLA)
+    runtime: save 8 stack bytes in timediv on arm.
     
-    R=golang-dev, dsymonds
+    Operations on int64 are very stack consuming with 5c.
+    Fixes netbsd/arm build.
+    
+    Before: TEXT    runtime.timediv+0(SB),7,$52-16
+    After:  TEXT    runtime.timediv+0(SB),7,$44-16
+    
+    The stack usage is unchanged on 386:
+            TEXT    runtime.timediv+0(SB),7,$8-16
+    
+    R=golang-dev, dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12208043
+    https://golang.org/cl/12182044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/runtime.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

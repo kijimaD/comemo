@@ -1,28 +1,19 @@
-commit 71ab3c1ccfebbc065c10531e4846f02d44f4be0d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 30 22:56:00 2016 -0700
+commit 2eeaaaae7530337c23b0d4d76ac519e677c125dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 19 04:29:13 2016 +0530
 
-    cmd/link: remove -H elf flag
+    net/http: fix bug where http2 wasn't enabled on DefaultTransport
     
-    We create appropriate ELF files automatically based on GOOS. There's
-    no point in supporting -H elf flag, particularly since we need to emit
-    different flavors of ELF depending on GOOS anyway.
+    I had accidentally disabled a headline feature at the last second. :(
     
-    If that weren't reason enough, -H elf appears to be broken since at
-    least Go 1.4. At least I wasn't able to find a way to make use of it.
+    Fixes #14391
     
-    As best I can tell digging through commit history, -H elf is just an
-    artifact leftover from Plan 9's 6l linker.
-    
-    Change-Id: I7393caaadbc60107bbd6bc99b976a4f4fe6b5451
-    Reviewed-on: https://go-review.googlesource.com/21343
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1992c9b801072b7538b95c55242be174075ff932
+    Reviewed-on: https://go-review.googlesource.com/19672
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go       |  1 -
- src/cmd/internal/obj/sym.go        |  1 -
- src/cmd/link/internal/amd64/asm.go |  6 ++----
- src/cmd/link/internal/amd64/obj.go | 13 -------------
- src/cmd/link/internal/ld/sym.go    |  1 -
- 5 files changed, 2 insertions(+), 20 deletions(-)
+ src/net/http/transport.go      | 10 +++++++---
+ src/net/http/transport_test.go |  5 +++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

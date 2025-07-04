@@ -1,12 +1,16 @@
-commit 2b6288113e0582ac323b1d7b28f4298f93dc7480
+commit 090049130e751718ee8100d673c6add9f98289b2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 10 18:31:27 2012 -0800
+Date:   Tue Jan 10 18:30:06 2012 -0800
 
-    go/scanner: fix documentation
+    go/ast: predeclared objects have the Universe/Unsafe scope as Decl
     
-    R=golang-dev, rsc
+    Makes it possible to easily detect if an Object was predeclared
+    (as opposed to unresolved).
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5528070
+    https://golang.org/cl/5530072
 
- src/pkg/go/scanner/scanner.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/types/universe.go | 1 +
+ src/pkg/go/ast/scope.go       | 4 +++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

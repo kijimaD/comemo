@@ -1,24 +1,28 @@
-commit 7f38067acb738c43d870400dd648662d31456f5f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 8 16:16:59 2023 -0800
+commit 1de1c0d10df18f4fda46aff82aadd9edfba2b751
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Feb 28 13:41:33 2022 -0500
 
-    testing: add Testing function
+    syscall: move Syscall declarations to OS files
     
-    The Testing function reports whether the program is a test created
-    by "go test".
+    Future CLs will be changing the provenance of these functions. Move the
+    declarations to the individual OS files now so that future CLs can
+    change only 1 OS at a time rather than changing all at once.
     
-    Fixes #52600
+    For #51087
     
-    Change-Id: Ie0fff7c7dfdfdf997c18b4b6112632600b327cc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475496
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5e1bca71e670263d8c0faa586c1b6b4de1a114b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388474
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- api/next/52600.txt               |  1 +
- src/cmd/go/internal/load/test.go |  8 ++++--
- src/testing/testing.go           | 16 +++++++++++
- src/testing/testing_test.go      | 61 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 84 insertions(+), 2 deletions(-)
+ src/syscall/syscall_aix.go       | 5 +++++
+ src/syscall/syscall_darwin.go    | 5 +++++
+ src/syscall/syscall_dragonfly.go | 5 +++++
+ src/syscall/syscall_freebsd.go   | 5 +++++
+ src/syscall/syscall_linux.go     | 5 +++++
+ src/syscall/syscall_netbsd.go    | 8 ++++++--
+ src/syscall/syscall_openbsd.go   | 8 ++++++--
+ src/syscall/syscall_solaris.go   | 5 +++++
+ src/syscall/syscall_unix.go      | 5 -----
+ 9 files changed, 42 insertions(+), 9 deletions(-)

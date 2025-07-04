@@ -1,12 +1,12 @@
-commit 6d2d4ba94fb94dd5a9f581a1606d720bed8131dd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 1 21:44:14 2013 -0400
+commit b86f6c92247bc453fff28956d0ef0420b8b96f21
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jul 1 21:20:42 2013 -0400
 
-    sort: fix 32-bit build
+    net/rpc/jsonrpc: remove unused serverCodec.resp field
     
-    TBR=golang-dev
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/10856043
+    https://golang.org/cl/10458045
 
- src/pkg/sort/sort_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/rpc/jsonrpc/server.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

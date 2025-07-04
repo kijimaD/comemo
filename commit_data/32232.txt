@@ -1,22 +1,21 @@
-commit 1f631a2f9a20d8dc57fb877fb95f807c895d1c40
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Jun 13 13:54:46 2017 +0200
+commit 407c56ae9f40d3a83ba4e259c67ccbb58d2485b0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 16 14:46:53 2017 -0400
 
-    cmd/go: parallelize fmt
+    runtime: generalize {alloc,free}Stack to {alloc,free}Manual
     
-    Currently go fmt formats all files sequentially.
-    That's a shame. Parallelize it over files.
+    We're going to start using manually-managed spans for GC workbufs, so
+    rename the allocate/free methods and pass in a pointer to the stats to
+    use instead of using the stack stats directly.
     
-    Reduces time of go fmt ./... in std lib
-    from ~6.1s to ~0.9s.
+    For #19325.
     
-    Reduces time of go fmt github.com/google/syzkaller/...
-    from ~5.2s to ~1.8s.
-    
-    Change-Id: I3d27fc25326106b2a4781e13506a25c12d5bcdc5
-    Reviewed-on: https://go-review.googlesource.com/45491
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I37df0147ae5a8e1f3cb37d59c8e57a1fcc6f2980
+    Reviewed-on: https://go-review.googlesource.com/38576
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/internal/fmtcmd/fmt.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/HACKING.md | 10 +++++-----
+ src/runtime/mheap.go   | 41 ++++++++++++++++++++++++++++-------------
+ src/runtime/stack.go   | 12 ++++++------
+ 3 files changed, 39 insertions(+), 24 deletions(-)

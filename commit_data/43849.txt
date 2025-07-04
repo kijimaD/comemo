@@ -1,20 +1,48 @@
-commit 012efc67f280d7a68dd30a3150acd50cfa12985b
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Nov 13 17:14:46 2020 -0500
+commit 1cc7be89a94951cbd1b6db669cb5a278e7aea545
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 11:01:38 2020 -0700
 
-    cmd/go/internal/modload: ignore selected version in checkRetractions
+    cmd/compile: improve generated eq algs for structs containing interfaces
     
-    Fixes #42601
+    type T struct {
+        s interface{}
+        i int
+    }
     
-    Change-Id: I58d817ed34ccbd39591326c4bc23569f94028412
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272006
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Prior to this change, we generated this equality algorithm for T:
+    
+    func eqT(p, q *T) bool {
+        return p.s.type == q.s.type &&
+          runtime.efaceeq(p.s.type, p.s.data, q.s.data) &&
+          p.i == q.i
+    }
+    
+    This change splits the two halves of the interface equality,
+    so that we can do the cheap (type) half early and the expensive
+    (data) half late. We now generate:
+    
+    func eqT(p, q *T) bool {
+        return p.s.type == q.s.type &&
+          p.i == q.i &&
+          runtime.efaceeq(p.s.type, p.s.data, q.s.data)
+    }
+    
+    The generated code tends to be a bit smaller. Examples:
+    
+    go/ast
+    .eq."".ForStmt 306 -> 304  (-0.65%)
+    .eq."".TypeAssertExpr 221 -> 219  (-0.90%)
+    .eq."".TypeSwitchStmt 228 -> 226  (-0.88%)
+    .eq."".ParenExpr 150 -> 148  (-1.33%)
+    .eq."".IndexExpr 221 -> 219  (-0.90%)
+    .eq."".SwitchStmt 228 -> 226  (-0.88%)
+    .eq."".RangeStmt 334 -> 332  (-0.60%)
+    
+    Change-Id: Iec9e24f214ca772416202b9fb9252e625c22380e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230207
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/modfile.go                |  6 +++---
- .../mod/example.com_retract_incompatible_v1.0.0.txt   | 19 +++++++++++++++++++
- ...e.com_retract_incompatible_v2.0.0+incompatible.txt |  9 +++++++++
- .../go/testdata/script/mod_retract_incompatible.txt   | 15 +++++++++++++++
- 4 files changed, 46 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/alg.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

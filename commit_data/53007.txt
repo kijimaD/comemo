@@ -1,22 +1,18 @@
-commit 3943fc14d35c117f2256fb789743d9f075c9aba5
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 8 16:31:23 2023 -0400
+commit 416c953960a475b7418b5c6aef0f46dd102b9129
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 25 15:40:11 2022 -0700
 
-    misc/reboot: move to cmd/internal/bootstrap_test
+    test: add test that gofrontend gets wrong
     
-    This is the last test run from misc by dist.
+    For #52856
     
-    For #37486.
-    
-    Change-Id: I1a70ded29ba0de548c9a16611ba987a258121e80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493606
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Iab3e8352f64d774058391f0422cd01c53c3e711d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414235
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go                                       |  7 -------
- .../cmd/internal/bootstrap_test}/experiment_toolid_test.go |  5 +++--
- .../cmd/internal/bootstrap_test}/overlaydir_test.go        |  2 +-
- .../cmd/internal/bootstrap_test}/reboot_test.go            | 14 ++++++++------
- 4 files changed, 12 insertions(+), 16 deletions(-)
+ test/fixedbugs/issue52856.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue52856.dir/main.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue52856.go          | 10 ++++++++++
+ 3 files changed, 38 insertions(+)

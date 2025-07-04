@@ -1,33 +1,21 @@
-commit e7a7352e527ca275a2b66cc3cafde09836345a8f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 25 14:52:17 2015 +1100
+commit eeebcd9db30219d41ddb8a17d2bba3e72c894dd5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 3 10:41:16 2015 -0800
 
-    syscall: Reimplement linux syscalls in terms of their *at replacements.
+    [dev.cc] asm: fix handling of statics (data<>) and symbols
     
-    Updates #9974
+    A typo limited the number of center-dot substitutions to one. Fixed.
     
-    This proposal tackles the body of syscalls which have been replaced,
-    and are now deprecated in linux. This is needed for the arm64 port as
-    arm64 is the first linux architecture to remove the "legacy" forms of
-    these syscalls.
+    With these changes, plus a recent fix to 6a, the are no differences,
+    down to the bit level, in object code for any assembly files in std
+    between asm and 6a. (Runtime has not been checked yet, but I
+    expect no errors.)
     
-    The *AT variants were added in kernel 2.6.16, so well before our 2.6.23
-    cutoff (hey, it'll even work on RHEL5).
-    
-    Discussion: https://groups.google.com/forum/#!topic/golang-dev/zpeFtN2z5Fc
-    
-    Change-Id: I473a7c9a295d6f776fcdc75dcce06cbe9e3564ee
-    Reviewed-on: https://go-review.googlesource.com/5837
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0e8045b4414223d937e7f8919c8768860554b7d5
+    Reviewed-on: https://go-review.googlesource.com/3820
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/syscall/syscall_linux.go          |  74 ++++++--
- src/syscall/syscall_linux_386.go      |   1 -
- src/syscall/syscall_linux_amd64.go    |   1 -
- src/syscall/syscall_linux_arm.go      |   1 -
- src/syscall/syscall_linux_ppc64x.go   |   1 -
- src/syscall/zsyscall_linux_386.go     | 308 ++++++++--------------------------
- src/syscall/zsyscall_linux_amd64.go   | 308 ++++++++--------------------------
- src/syscall/zsyscall_linux_arm.go     | 308 ++++++++--------------------------
- src/syscall/zsyscall_linux_ppc64.go   | 308 ++++++++--------------------------
- src/syscall/zsyscall_linux_ppc64le.go | 308 ++++++++--------------------------
- 10 files changed, 410 insertions(+), 1208 deletions(-)
+ src/cmd/asm/internal/asm/asm.go   | 21 +++++++++++++++------
+ src/cmd/asm/internal/lex/input.go |  4 ++++
+ src/cmd/asm/internal/lex/lex.go   |  2 +-
+ 3 files changed, 20 insertions(+), 7 deletions(-)

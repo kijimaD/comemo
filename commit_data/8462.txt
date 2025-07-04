@@ -1,12 +1,14 @@
-commit ccafd53ed35b64cfe32b191870e0523d1538f00a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun May 22 18:46:48 2011 -0700
+commit 12104807de0894433b92f8e7399fead03a52a23c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 22 10:09:07 2011 -0700
 
-    http: add docs/warning on incorrect use of NewChunkedWriter
+    syscall: add IPv6 scope zone ID support
     
-    R=golang-dev, adg, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4536075
+    https://golang.org/cl/4515124
 
- src/pkg/http/chunked.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_bsd.go     | 9 ++++++---
+ src/pkg/syscall/syscall_linux.go   | 9 ++++++---
+ src/pkg/syscall/syscall_windows.go | 5 +++--
+ 3 files changed, 15 insertions(+), 8 deletions(-)

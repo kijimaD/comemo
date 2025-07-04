@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8088: 9c3ecb361739e9ed2f1cd560197cc9dfab2e7b91
+# Index 8088: 2fca1a4049ad96cecaa1c35a44d11265cd2f7e45
 
 echo "🚀 Generating explanation for commit 8088..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8088
-- **コミットハッシュ**: 9c3ecb361739e9ed2f1cd560197cc9dfab2e7b91
-- **GitHub URL**: https://github.com/golang/go/commit/9c3ecb361739e9ed2f1cd560197cc9dfab2e7b91
+- **コミットハッシュ**: 2fca1a4049ad96cecaa1c35a44d11265cd2f7e45
+- **GitHub URL**: https://github.com/golang/go/commit/2fca1a4049ad96cecaa1c35a44d11265cd2f7e45
 
 ### 章構成
 

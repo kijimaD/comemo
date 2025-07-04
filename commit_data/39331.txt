@@ -1,24 +1,33 @@
-commit 8969b051017343c31c6de8033c4c591824f86d97
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Jun 2 12:40:06 2019 +0100
+commit 3cf56e78d812069d2ffb65b5c29a76961b0b0af8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 23:21:29 2019 -0500
 
-    cmd/vendor: go get -u golang.org/x/tools && go mod vendor
+    text/template: accept new number syntax
     
-    To pick up the structtag vet fix for 1.13.
+    This CL updates text/template's scanner to accept the
+    new number syntaxes:
     
-    Fixes #30846.
+     - Hexadecimal floating-point values.
+     - Digit-separating underscores.
+     - Leading 0b and 0o prefixes.
     
-    Change-Id: I5e011a7db1ffb9435793d533097d768f209c18e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179999
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    See golang.org/design/19308-number-literals for background.
+    
+    For #12711.
+    For #19308.
+    For #28493.
+    For #29008.
+    
+    Change-Id: I68c16ea35c3f506701063781388de72bafee6b8d
+    Reviewed-on: https://go-review.googlesource.com/c/160248
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- .../golang.org/x/tools/go/analysis/analysis.go     | 17 +++++-
- .../go/analysis/internal/analysisflags/flags.go    |  9 ++-
- .../go/analysis/passes/structtag/structtag.go      | 69 +++++++++++++++-------
- .../x/tools/go/analysis/passes/tests/tests.go      |  5 +-
- src/cmd/vendor/modules.txt                         |  2 +-
- 7 files changed, 78 insertions(+), 30 deletions(-)
+ src/html/template/template_test.go    |  6 ++++++
+ src/text/template/exec.go             |  6 +++---
+ src/text/template/exec_test.go        | 21 +++++++++++++++++++++
+ src/text/template/parse/lex.go        | 21 ++++++++++++++++-----
+ src/text/template/parse/lex_test.go   | 12 +++++++++++-
+ src/text/template/parse/node.go       |  2 +-
+ src/text/template/parse/parse_test.go | 12 ++++++++++++
+ 7 files changed, 70 insertions(+), 10 deletions(-)

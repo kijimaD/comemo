@@ -1,23 +1,22 @@
-commit 9e6b1fcd0a42db0f4699ff17e3b248e563f7eee4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 4 22:24:58 2021 +0700
+commit cecb7a1cf31e8d8991669208e584269db32066c9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 29 18:10:15 2020 -0400
 
-    cmd/compile: do not report error for invalid constant
+    [dev.link] cmd/compile, cmd/link: make itab symbols content-addressable
     
-    Invalid constant was already reported by noder, so don't re-check in
-    typecheck, which lead to compiler crashing.
+    Extend the content-addressable symbol mechanism to itab symbols.
+    Itab symbols require global uniqueness (as at run time we compare
+    pointers), so it needs to be reliably deduplicated. Currently the
+    content hash depends on symbol name expansion, so we can only do
+    this when all Go packages are built with know package paths. Fall
+    back to checking names if any Go package is built with unknown
+    package path.
     
-    Updates #43311
-    
-    Change-Id: I48e2f540601cef725c1ff628c066ed15d848e771
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298713
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icf5e8873755050c20e5fc6549f6de1c883254c89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245719
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/noder/noder.go         | 2 +-
- src/cmd/compile/internal/typecheck/typecheck.go | 4 +++-
- test/char_lit1.go                               | 2 +-
- test/fixedbugs/issue20232.go                    | 2 +-
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |  1 +
+ src/cmd/internal/obj/objfile2.go       |  9 ++++++---
+ src/cmd/link/internal/loader/loader.go | 15 +++++++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

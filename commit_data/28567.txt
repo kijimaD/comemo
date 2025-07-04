@@ -1,35 +1,21 @@
-commit db82cf4e506938a36a57a64dbe1f79eb0365ea89
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Sep 26 16:44:35 2016 +1000
+commit 6901b084824244122ea108eb7305295e44136be8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 3 07:11:52 2016 -0700
 
-    runtime: use RtlGenRandom instead of CryptGenRandom
+    cmd/link: avoid name collision with DWARF .def suffix
     
-    This change replaces the use of CryptGenRandom with RtlGenRandom in
-    Windows to generate cryptographically random numbers during process
-    startup. RtlGenRandom uses the same RNG as CryptGenRandom, but it has many
-    fewer DLL dependencies and so does not affect process startup time as
-    much.
+    Adding a .def suffix for DWARF info collided with the DWARF info,
+    without the suffix, for a method named def. Change the suffix to ..def
+    instead.
     
-    This makes running simple Go program on my computers faster.
+    Fixes #15926.
     
-    Windows XP:
-    benchmark                      old ns/op     new ns/op     delta
-    BenchmarkRunningGoProgram-2     47408573      10784148      -77.25%
-    
-    Windows 7 (VM):
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkRunningGoProgram     16260390      12792150      -21.33%
-    
-    Windows 7:
-    benchmark                      old ns/op     new ns/op     delta
-    BenchmarkRunningGoProgram-2     13600778      10050574      -26.10%
-    
-    Fixes #15589
-    
-    Change-Id: I2816239a2056e3d4a6dcd86a6fa2bb619c6008fe
-    Reviewed-on: https://go-review.googlesource.com/29700
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1bf1bcb5dff1d7f7b79f78e3f7a3bbfcd2201bb
+    Reviewed-on: https://go-review.googlesource.com/23733
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os_windows.go           | 35 ++++++++++++++++++----------------
- src/runtime/syscall_windows_test.go | 38 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 16 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go |  6 +++---
+ test/fixedbugs/issue15926.go      | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

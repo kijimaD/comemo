@@ -1,18 +1,97 @@
-commit 16edf0b1f7401df07e0d2f96c8b97516e50cffd9
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Wed Sep 6 10:31:03 2017 +0100
+commit 88672de7af5c6a146d64ad2bba7282716fd0d65d
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Fri Mar 24 16:43:02 2017 -0400
 
-    crypto/cipher: panic when IV length does not equal block size in NewOFB
+    math: use SIMD to accelerate additional scalar math functions on s390x
     
-    Functions like NewCBCDecrypter, NewCBCEncrypter, NewCFBDecrypter,
-    NewCFBEncrypter and NewCTR all panic when IV length does not equal block size.
-    This commit changes NewOFB to panic too, instead of returning nil silently.
+    As necessary, math functions were structured to use stubs, so that they can
+    be accelerated with assembly on any platform.
     
-    Change-Id: Ic4d3ebfad79bb0cf4759fa1c1a400c1a8d043490
-    Reviewed-on: https://go-review.googlesource.com/61850
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    Technique used was minimax polynomial approximation using tables of
+    polynomial coefficients, with argument range reduction.
+    
+    Benchmark         New     Old     Speedup
+    BenchmarkAcos     12.2    47.5    3.89
+    BenchmarkAcosh    18.5    56.2    3.04
+    BenchmarkAsin     13.1    40.6    3.10
+    BenchmarkAsinh    19.4    62.8    3.24
+    BenchmarkAtan     10.1    23      2.28
+    BenchmarkAtanh    19.1    53.2    2.79
+    BenchmarkAtan2    16.5    33.9    2.05
+    BenchmarkCbrt     14.8    58      3.92
+    BenchmarkErf      10.8    20.1    1.86
+    BenchmarkErfc     11.2    23.5    2.10
+    BenchmarkExp      8.77    53.8    6.13
+    BenchmarkExpm1    10.1    38.3    3.79
+    BenchmarkLog      13.1    40.1    3.06
+    BenchmarkLog1p    12.7    38.3    3.02
+    BenchmarkPowInt   31.7    40.5    1.28
+    BenchmarkPowFrac  33.1    141     4.26
+    BenchmarkTan      11.5    30      2.61
+    
+    Accuracy was tested against a high precision
+    reference function to determine maximum error.
+    Note: ulperr is error in "units in the last place"
+    
+           max
+          ulperr
+    Acos  1.15
+    Acosh 1.07
+    Asin  2.22
+    Asinh 1.72
+    Atan  1.41
+    Atanh 3.00
+    Atan2 1.45
+    Cbrt  1.18
+    Erf   1.29
+    Erfc  4.82
+    Exp   1.00
+    Expm1 2.26
+    Log   0.94
+    Log1p 2.39
+    Tan   3.14
+    
+    Pow will have 99.99% correctly rounded results with reasonable inputs
+    producing numeric (non Inf or NaN) results
+    
+    Change-Id: I850e8cf7b70426e8b54ec49d74acd4cddc8c6cb2
+    Reviewed-on: https://go-review.googlesource.com/38585
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/cipher/ofb.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/acos_s390x.s         | 144 +++++++++
+ src/math/acosh.go             |   4 +-
+ src/math/acosh_s390x.s        | 172 +++++++++++
+ src/math/arith_s390x.go       |  48 +++
+ src/math/arith_s390x_test.go  | 298 +++++++++++++++++++
+ src/math/asin_s390x.s         | 162 ++++++++++
+ src/math/asinh.go             |   4 +-
+ src/math/asinh_s390x.s        | 223 ++++++++++++++
+ src/math/asinh_stub.s         |  17 ++
+ src/math/atan2_s390x.s        | 302 +++++++++++++++++++
+ src/math/atan_s390x.s         | 132 +++++++++
+ src/math/atanh.go             |   4 +-
+ src/math/atanh_s390x.s        | 178 +++++++++++
+ src/math/cbrt.go              |   4 +-
+ src/math/cbrt_s390x.s         | 162 ++++++++++
+ src/math/cbrt_stub.s          |  11 +
+ src/math/erf.go               |   8 +-
+ src/math/erf_s390x.s          | 299 +++++++++++++++++++
+ src/math/erf_stub.s           |  14 +
+ src/math/erfc_s390x.s         | 530 +++++++++++++++++++++++++++++++++
+ src/math/exp_s390x.s          | 185 ++++++++++++
+ src/math/expm1_s390x.s        | 202 +++++++++++++
+ src/math/export_s390x_test.go |  17 ++
+ src/math/log1p_s390x.s        | 186 ++++++++++++
+ src/math/log_s390x.s          | 180 ++++++++++++
+ src/math/pow.go               |   4 +-
+ src/math/pow_s390x.s          | 666 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/pow_stub.s           |  11 +
+ src/math/stubs_arm64.s        |  21 ++
+ src/math/stubs_mips64x.s      |  21 ++
+ src/math/stubs_mipsx.s        |  21 ++
+ src/math/stubs_ppc64x.s       |  22 ++
+ src/math/stubs_s390x.s        | 423 +++++++++++++++++++++++----
+ src/math/tan_s390x.s          | 110 +++++++
+ 34 files changed, 4720 insertions(+), 65 deletions(-)

@@ -1,15 +1,13 @@
-commit 4769f87e0d39cbcce5309ff79c82465629798d15
+commit 5b0ac5f76eca0f96b926c7f80d094b159b2fbcc5
 Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Aug 11 17:10:23 2014 -0400
+Date:   Thu Aug 7 18:41:09 2014 -0400
 
-    runtime: no need to set R9 to m for runtime.sigpanic anymore
-    
-    Replaces CL 123980043 which I created on the dev.power64 branch.
+    [dev.power64] liblink: handle $i64. symbols, add debug output for -S -v, show rel addend in hex for RISC arches
     
     LGTM=rsc
     R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/123120043
+    https://golang.org/cl/127770043
 
- src/pkg/runtime/signal_arm.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/liblink/objfile.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

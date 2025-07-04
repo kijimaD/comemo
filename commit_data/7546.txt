@@ -1,12 +1,23 @@
-commit 9fc0f159c31e7b63708ed80982a88753db8a4a02
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 23 10:12:38 2011 -0800
+commit c9b90c9d70da05269a0de0e528c13b6b76299846
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 23 09:49:35 2011 -0800
 
-    sync: make package comment appear
+    gob: protect against pure recursive types.
+    
+    There are further changes required for things like
+    recursive map types.  Recursive struct types work
+    but the mechanism needs generalization.  The
+    case handled in this CL is pathological since it
+    cannot be represented at all by gob, so it should
+    be handled separately. (Prior to this CL, encode
+    would recur forever.)
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4220044
+    https://golang.org/cl/4206041
 
- src/pkg/sync/cond.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/gob/codec_test.go | 22 +++++++++++++---
+ src/pkg/gob/decode.go     |  8 ++----
+ src/pkg/gob/encoder.go    |  9 ++++---
+ src/pkg/gob/type.go       | 64 +++++++++++++++++++++++++++++++----------------
+ 4 files changed, 68 insertions(+), 35 deletions(-)

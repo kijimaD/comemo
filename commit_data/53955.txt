@@ -1,16 +1,17 @@
-commit d9f7e1dc7349140aa85f82daa6706a1c205d0768
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 9 02:51:59 2023 -0700
+commit 86477e507fce38128b6696bcb036da026966c9d5
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Sep 6 00:11:54 2022 +0800
 
-    runtime: fix asan asm on amd64
+    os: add a test case of copying a file itself via io.Copy
     
-    On amd64, the 8-byte move instruction is MOVQ, not MOVD.
-    
-    Change-Id: I48d9b6f5f9f6c7f2e3fe20fd017b816cfb3983a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517635
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib9746cb4f27625cb22620271b280d2da242b2fba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428437
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/asan_amd64.s | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/os/readfrom_linux_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 57 insertions(+), 1 deletion(-)

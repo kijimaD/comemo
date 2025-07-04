@@ -1,18 +1,27 @@
-commit 0ecf7696335a3aade9e41843acfd5ab188d2511f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Nov 26 23:28:11 2020 +0700
+commit 0722a49b3713fe41bb46e7f690a3f7f1314edbc7
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 28 10:51:40 2020 -0400
 
-    cmd/compile: do not mark OpSP, OpSB pos for debugging
+    [dev.link] cmd/link: remove elf sym fields from sym.Symbol
     
-    Fixes #42801
+    Remove the "ElfSym" and "LocalElfSym" fields from sym.Symbol,
+    replacing uses with loader method calls as needed.
     
-    Change-Id: I2080ecacc109479f5820035401ce2b26d72e2ef2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273506
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I3828f13203ece2bdc03eeb09ab37a5c94e21a726
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230462
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/func.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/amd64/asm.go       |  2 +-
+ src/cmd/link/internal/arm/asm.go         |  2 +-
+ src/cmd/link/internal/arm64/asm.go       |  2 +-
+ src/cmd/link/internal/ld/elf.go          |  3 ++-
+ src/cmd/link/internal/ld/lib.go          | 11 +++++++++
+ src/cmd/link/internal/ld/symtab.go       |  6 ++---
+ src/cmd/link/internal/mips/asm.go        |  2 +-
+ src/cmd/link/internal/mips64/asm.go      |  2 +-
+ src/cmd/link/internal/ppc64/asm.go       |  2 +-
+ src/cmd/link/internal/s390x/asm.go       |  2 +-
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 38 +++++++++++---------------------
+ src/cmd/link/internal/x86/asm.go         |  2 +-
+ 13 files changed, 38 insertions(+), 38 deletions(-)

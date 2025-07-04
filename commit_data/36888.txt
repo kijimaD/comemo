@@ -1,17 +1,19 @@
-commit 9f193fbe31d7ffa5f6e71a6387cbcf4636306660
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Sat Jun 30 18:12:24 2018 +0200
+commit 5f2b4f26aa3ae79e6cfd3bd397d586d5a3ed9fec
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 7 12:17:40 2018 +0200
 
-    encoding/json: use isSpace in stateEndTop
+    runtime: remove unused darwinVersion and getDarwinVersion
     
-    This change makes stateEndTop use isSpace instead of specifically
-    recreating the same functionality.
+    They are unused since CL 114799.
     
-    Change-Id: I81f8f51682e46e7f8e2b9fed423a968457200625
-    Reviewed-on: https://go-review.googlesource.com/c/121797
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Also remove consts _CTL_KERN and _KERN_OSRELEASE previously used by
+    getDarwinVersion.
+    
+    Change-Id: I51b701e8effbe4dd4301b0e6d52e8885469032f4
+    Reviewed-on: https://go-review.googlesource.com/116955
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/scanner.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_darwin.go | 28 +++-------------------------
+ 1 file changed, 3 insertions(+), 25 deletions(-)

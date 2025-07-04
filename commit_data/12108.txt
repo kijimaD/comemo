@@ -1,12 +1,12 @@
-commit e5013e89f14e9bc84e33178db095a4bb658eabd5
+commit 7507f3f2578241b2f8f9be59cd7acb5cea3151fb
 Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Tue Feb 21 15:42:03 2012 -0500
+Date:   Tue Feb 21 13:23:33 2012 -0500
 
-    cmd/go: pass 2, remove reference to incomplete -file flag
+    cmd/go: 'go help test' remove documentation for incomplete -file flag
     
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, rsc, r, r
     CC=golang-dev
-    https://golang.org/cl/5686058
+    https://golang.org/cl/5673093
 
- src/cmd/go/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

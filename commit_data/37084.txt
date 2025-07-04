@@ -1,14 +1,19 @@
-commit 1e38ecdbbee983a049500102af9e50ee33b446a8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 23 14:54:59 2018 -0700
+commit 0436b162397018c45068b47ca1b5924a3eafdee0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 25 02:08:52 2018 +0900
 
-    spec: refer to "run-time panic" rather than "exception" (cleanup)
+    net: improve ExampleUDPConn_WriteTo docs
     
-    Fixes #28341.
+    Also updates comment on isConnected field of netFD for clarification.
     
-    Change-Id: If8ae844c9b5e843ce9229c0a555f7006426baed7
-    Reviewed-on: https://go-review.googlesource.com/c/144260
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Icb1b0332e3b4c7802eae00ddc26cd5ba54c82dc2
+    Reviewed-on: https://go-review.googlesource.com/120955
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/example_test.go | 5 +++--
+ src/net/fd_unix.go      | 2 +-
+ src/net/fd_windows.go   | 2 +-
+ src/net/net_fake.go     | 2 +-
+ 4 files changed, 6 insertions(+), 5 deletions(-)

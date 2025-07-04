@@ -1,15 +1,13 @@
-commit bfb486875a3bd8cf5c9fd978c557eeb8ff9b4908
-Author: Ross Light <rlight2@gmail.com>
-Date:   Fri Apr 15 15:32:03 2011 -0700
+commit a12d70f60d57d4a0b6d796423da7f0c39b27ee26
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 16:16:33 2011 -0400
 
-    compress/zlib: add FDICT flag in Reader/Writer
+    gc: fix complex move bug
     
-    R=bradfitzgo, rsc, bradfitzwork
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4406046
+    https://golang.org/cl/4439044
 
- src/pkg/compress/zlib/reader.go      | 22 +++++++++++---
- src/pkg/compress/zlib/reader_test.go | 35 ++++++++++++++++++++-
- src/pkg/compress/zlib/writer.go      | 59 ++++++++++++++++++++++++++++--------
- src/pkg/compress/zlib/writer_test.go | 51 ++++++++++++++++++++-----------
- 4 files changed, 132 insertions(+), 35 deletions(-)
+ src/cmd/gc/cplx.c        | 19 +++++++++++++++---
+ test/fixedbugs/bug329.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

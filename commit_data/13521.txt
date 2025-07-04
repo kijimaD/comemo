@@ -1,12 +1,19 @@
-commit 3fe5f3353f8d163ae973d4454d71c691c143e19d
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 30 11:37:20 2012 +1000
+commit f8c6514a1cb11034e96588ddfafdbbba5b0cf27b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 30 10:05:24 2012 +1000
 
-    misc/dashboard/codereview: fix tag nesting.
+    net/http: don't modify Request Method's case
     
-    R=golang-dev, rsc, minux.ma
+    This fixes a data race (usually just harmlessly updating
+    "GET" to "GET"), but also follows RFC 2616 Sec 5.1.1 which
+    says that the request method is case-sensitive.
+    
+    Fixes #3881
+    
+    R=golang-dev, rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6454062
+    https://golang.org/cl/6446063
 
- misc/dashboard/codereview/dashboard/front.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/response.go   |  6 ------
+ src/pkg/net/http/serve_test.go | 16 ++++++++++++++++
+ 2 files changed, 16 insertions(+), 6 deletions(-)

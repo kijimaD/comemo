@@ -1,18 +1,22 @@
-commit c6a2dada0df8c2d75cf3ae599d7caed77d416fa2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 2 11:20:30 2022 -0400
+commit 07f623063ddf8216b03a4a17a27110d330e80c7e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 21 09:43:58 2021 -0700
 
-    net: disable TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion [sic] on DragonflyBSD
+    reflect: add MapIter.Reset
     
-    Like OpenBSD, DragonflyBSD does not do IPv4-in-IPv6 mapping.
+    This allows callers to do (amortized) allocation-free iteration
+    over many maps.
     
-    For #52264.
+    Fixes #46293
     
-    Change-Id: Id41606e75652e684f2e0e98c6459156641aec9b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420775
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3aa6134dd00da35b508bd1e3b487332a871a3673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321891
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/udpsock_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 12 +++++++++
+ 2 files changed, 78 insertions(+)

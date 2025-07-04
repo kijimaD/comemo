@@ -1,0 +1,28 @@
+commit 726d898c92ed0159f283f324478d00f15419f476
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 3 13:51:25 2024 -0700
+
+    go/types, types2: always try inference over methods when possible
+    
+    During type inference, when comparing type parameters against their
+    constraints, if a type argument is completely known it must implement
+    its constraint. In this case, always unify the type argument's methods
+    against the constraint methods, if any.
+    
+    Before this CL, this step was only attempted if the constraint had no
+    core type. That left information unused which led to type inference
+    failures where it should have succeeded.
+    
+    Fixes #66751.
+    
+    Change-Id: I71e96b71258624212186cf17ec47e67a589817b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617896
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/infer.go           | 63 ++++++++++++----------
+ src/go/types/infer.go                              | 63 ++++++++++++----------
+ .../types/testdata/fixedbugs/issue66751.go         | 62 +++++++++++++++++++++
+ 3 files changed, 134 insertions(+), 54 deletions(-)

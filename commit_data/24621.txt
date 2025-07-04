@@ -1,21 +1,18 @@
-commit 8ee0fd862357aade3f58cdb41467408105c9e865
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jun 9 15:24:38 2015 -0700
+commit 3b705824ce6cf4827732eb32923835a327c5f963
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 13 12:47:50 2015 -0700
 
-    runtime: replace is{plan9,solaris,windows} with GOOS tests
+    [dev.ssa] cmd/compile: fix constant subtraction rules
     
-    Change-Id: I27589395f547c5837dc7536a0ab5bc7cc23a4ff6
-    Reviewed-on: https://go-review.googlesource.com/10872
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    (SUBQconst [x] y) computes y-x, not x-y.
+    
+    Fixes #12137
+    
+    Change-Id: Idbd0554eee051102f562240d1756647843666ee6
+    Reviewed-on: https://go-review.googlesource.com/13631
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/asm_386.s           | 10 ++++++----
- src/runtime/asm_amd64.s         | 15 +++++++++------
- src/runtime/rt0_plan9_386.s     |  2 --
- src/runtime/rt0_plan9_amd64.s   |  2 --
- src/runtime/rt0_solaris_amd64.s |  3 ---
- src/runtime/rt0_windows_386.s   |  4 ----
- src/runtime/rt0_windows_amd64.s |  3 ---
- src/runtime/runtime1.go         |  7 -------
- 8 files changed, 15 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 31 +++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      | 16 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 80 +++++++++++------------
+ 3 files changed, 79 insertions(+), 48 deletions(-)

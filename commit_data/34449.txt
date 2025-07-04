@@ -1,16 +1,14 @@
-commit c69f60d0715a836b739b34a92a56c1f7d29485a6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 2 17:19:46 2018 +0100
+commit 2ea7d3461bb41d0ae12b56ee52d43314bcdb97f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 14:29:22 2017 -0400
 
-    runtime: remove unused __vdso_time_sym
+    [release-branch.go1.9] go1.9.2
     
-    It's unused since https://golang.org/cl/99320043
-    
-    Change-Id: I74d69ff894aa2fb556f1c2083406c118c559d91b
-    Reviewed-on: https://go-review.googlesource.com/98195
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Idb72e9f562887680e0b287649a4ae1325d7e3eb5
+    Reviewed-on: https://go-review.googlesource.com/71271
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/vdso_linux_amd64.go | 2 --
- 1 file changed, 2 deletions(-)
+ VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

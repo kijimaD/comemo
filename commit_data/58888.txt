@@ -1,34 +1,21 @@
-commit 37e9c5eaba30db61823643e761b31cdae8cc1854
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jun 18 03:00:47 2024 +1000
+commit 3c1155ee2d0e2e9bfb907faa61a46e0b4dd509a3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 17 13:44:44 2024 -0500
 
-    cmd/internal/obj/riscv: implement vector load/store instructions
+    runtime: mark TestGdbCoreCrashThreadBacktrace as flaky
     
-    Implement vector unit stride, vector strided, vector indexed and
-    vector whole register load and store instructions.
+    This test exercises the SIGQUIT crash loop and managed to trigger the
+    race from #65138 at least once.
     
-    The vector unit stride instructions take an optional vector mask
-    register, which if specified must be register V0. If only two
-    operands are given, the instruction is encoded as unmasked.
+    For #65138.
+    Fixes #64752.
     
-    The vector strided and vector indexed instructions also take an
-    optional vector mask register, which if specified must be register
-    V0. If only three operands are given, the instruction is encoded as
-    unmasked.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Change-Id: I35e43bb8f1cf6ae8826fbeec384b95ac945da50f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631937
+    Change-Id: I11091510aa7ae4f58b1d748e53df2e3e3dbfb323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556356
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Pengcheng Wang <wangpengcheng.pp@bytedance.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s      |  98 ++++++++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s |  39 ++++
- src/cmd/internal/obj/riscv/anames.go             |   4 +
- src/cmd/internal/obj/riscv/cpu.go                |   4 +
- src/cmd/internal/obj/riscv/obj.go                | 226 +++++++++++++++++++++--
- 5 files changed, 356 insertions(+), 15 deletions(-)
+ src/runtime/runtime-gdb_unix_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

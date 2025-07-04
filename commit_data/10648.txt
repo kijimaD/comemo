@@ -1,14 +1,14 @@
-commit 3c56a7b17e71eaf4c30203a553669c5ea2e44ce9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 7 15:00:44 2011 -0500
+commit e97a55810f4956f08a9738fa6a51dabdfece57c1
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Wed Dec 7 15:00:38 2011 -0500
 
-    test: make array smaller in nilptr test
+    godoc: <pre> must not occur inside <p>
+    Fixes #2532
     
-    Fixes #2314.
-    
-    R=golang-dev, r
+    R=golang-dev, dr.volker.dobler, rsc
     CC=golang-dev
-    https://golang.org/cl/5437154
+    https://golang.org/cl/5450115
 
- test/nilptr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/godoc/example.html | 4 ++--
+ lib/godoc/package.html | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

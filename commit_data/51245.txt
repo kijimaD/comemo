@@ -1,15 +1,18 @@
-commit 1a6a37f997d3e3b7d594874678cfb917b6665c6c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 13:11:54 2022 -0500
+commit b5e06545b3c3b3b9c2ed8204e5ba3fd25a85db0f
+Author: Reilly Watson <reillywatson@gmail.com>
+Date:   Mon Dec 20 16:31:45 2021 -0500
 
-    doc/go1.20: add TODOs found by x/build/cmd/relnote
+    net/http: fix link to ResponseWriter trailer example
     
-    Change-Id: Id1e7cf8f088fa39d177a001e97c93cd660d0b3c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450256
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The links to this example were using an underscore separator
+    instead of a hyphen, and incorrect casing.
+    
+    Fixes #50279
+    
+    Change-Id: I35d76a8a78cd708b7505ff1a70f7dacddaf43efd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.20.html | 329 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 328 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

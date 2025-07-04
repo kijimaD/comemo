@@ -1,22 +1,19 @@
-commit 0a0a160d4df488939892a1adaca6c530fb784cc8
-Author: Jeff Wentworth <j.wentworth@gmail.com>
-Date:   Sat Aug 14 09:46:32 2021 +0000
+commit 5984ea71977d8436436a096902a32974b958c0bb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Dec 1 22:23:42 2020 +0700
 
-    sync/atomic: fix documentation for CompareAndSwap
+    doc: update signal.Notify example to use buffered channel
     
-    Fixes #47699
+    This if follow up of CL 274332.
     
-    The documentation for CompareAndSwap atomic/value incorrectly labelled the function as CompareAndSwapPointer. This PR fixes that.
+    Updates #9399.
     
-    Change-Id: I6db08fdfe166570b775248fd24550f5d28e3434e
-    GitHub-Last-Rev: 41f78707928f48c9cdac26b6a4f618d4284e1ca1
-    GitHub-Pull-Request: golang/go#47700
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342210
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ic6dd534dc18227a799cbb9577979f2285596b825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274393
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/atomic/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,22 @@
-commit 2034dae94fe8d627c3f746b8a14b4b4c83aecaee
+commit 3de7ba1873b3efb0004d61147cc049dd42d8725d
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 07:31:53 2014 -0400
+Date:   Mon Sep 1 10:05:16 2014 -0400
 
-    build: fix windows make.bat
+    runtime: change PC, SP values in Stkframe, Panic, Defer from byte* to uintptr
     
-    The Unix make.bash builds cmd/dist from *.c.
-    make.bat apparently does not.
+    uintptr is better when translating to Go,
+    and in a few places it's better in C too.
     
-    TBR=r
-    CC=golang-codereviews
-    https://golang.org/cl/137280043
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/138980043
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/heapdump.c      | 10 +++++-----
+ src/pkg/runtime/mgc0.c          | 20 ++++++++++----------
+ src/pkg/runtime/panic.c         | 16 ++++++++--------
+ src/pkg/runtime/runtime.h       | 16 ++++++++--------
+ src/pkg/runtime/stack.c         | 10 +++++-----
+ src/pkg/runtime/traceback_arm.c | 12 ++++++------
+ src/pkg/runtime/traceback_x86.c | 16 ++++++++--------
+ 7 files changed, 50 insertions(+), 50 deletions(-)

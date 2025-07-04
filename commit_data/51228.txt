@@ -1,19 +1,18 @@
-commit fffda6b3adfb4d05290c58939a78a99643398ff1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 10 17:17:54 2022 -0500
+commit c3561dd346262414caff570c05f2403f9688aca0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 19:50:33 2021 -0800
 
-    cmd/link: exit if runtime.a is missing
+    cmd/compile/internal/types2: better error message when using comparable in union
     
-    Many stages in the linker assume some runtime symbols exist.
-    Error out if the runtime package cannot be found.
+    Fixes #49602.
     
-    Fixes #56685.
-    
-    Change-Id: I39b2663f6d7419688e30e6d8650e5eb8fc43a2b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449638
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I3499f8a485a2c8ec8afc74c5ef7b20d42c943a05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372674
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 3 +++
- 1 file changed, 3 insertions(+)
+ .../internal/types2/testdata/fixedbugs/issue49602.go2 | 19 +++++++++++++++++++
+ src/cmd/compile/internal/types2/union.go              | 11 ++++++++++-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

@@ -1,23 +1,18 @@
-commit d365f2266df98985f19705717ff8cf4ad3e743dc
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon May 5 12:33:46 2025 -0400
+commit b4b9746e5170d50475b9c0d60073ce5e74b7aae1
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 11 17:41:43 2024 +0000
 
-    runtime: replace mentions of "raised" with "panicked"
+    strconv: use slices.BinarySearch to simplify makeisprint.go
     
-    Fixes #73526
-    
-    Change-Id: I4b801cf3e54b99559e6d5ca8fdb2fd0692a0d3a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669975
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    Reviewed-by: Mark Freeman <mark@golang.org>
+    Change-Id: I9886a99f730b7616f6f8a5e6154e1beb7d3c79e6
+    GitHub-Last-Rev: 3f9dc7707377f79968e2dfcd206b83db21e60e60
+    GitHub-Pull-Request: golang/go#66242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/next/4-runtime.md                               |  6 +++---
- src/cmd/go/testdata/script/test_cleanup_failnow.txt |  4 ++--
- src/cmd/go/testdata/script/test_fuzz_return.txt     |  2 +-
- src/runtime/crash_test.go                           | 16 ++++++++--------
- src/runtime/panic.go                                | 10 +++++-----
- src/runtime/runtime2.go                             |  2 +-
- src/runtime/testdata/testprog/crash.go              | 14 +++++++-------
- 7 files changed, 27 insertions(+), 27 deletions(-)
+ src/strconv/makeisprint.go | 43 +++++++------------------------------------
+ 1 file changed, 7 insertions(+), 36 deletions(-)

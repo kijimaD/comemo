@@ -1,22 +1,12 @@
-commit abb970ef57f3370f92c5079c073ec8a9414d5b17
-Author: William Chan <willchan@chromium.org>
-Date:   Thu May 26 09:54:54 2011 -0700
+commit 4bb337e5254f6c4d20748759109dade64c26f99a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 26 09:53:28 2011 -0700
 
-    http/spdy: redo interfaces, flesh out implementation & frame types
+    CONTRIBUTORS: add William Chan (Google CLA)
     
-    Added a new Framer to handle reading/writing Frames. This is necessary since we have to maintain a compression context across streams.
-    
-    TODO:
-    * Separate the types and read/write routines into different files.
-    * Improve error handling.
-    
-    R=bradfitz, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4503042
+    https://golang.org/cl/4552066
 
- src/pkg/http/spdy/Makefile         |   1 +
- src/pkg/http/spdy/framer.go        | 422 ++++++++++++++++++++++++
- src/pkg/http/spdy/framer_test.go   | 496 ++++++++++++++++++++++++++++
- src/pkg/http/spdy/protocol.go      | 639 ++++++++++++++++++++++---------------
- src/pkg/http/spdy/protocol_test.go | 259 ---------------
- 5 files changed, 1297 insertions(+), 520 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

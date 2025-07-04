@@ -1,13 +1,13 @@
-commit 705a028d0fef32e4bd9c43c6469847db71a756c7
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Thu Jun 19 01:49:14 2014 -0400
+commit c97ea6bead1b8b415fe5110744b63b050e765b6c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 19 11:21:35 2014 +1000
 
-    testing/quick: brought Check parameter name in line with function doc
+    tag go1.3
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/102830043
+    https://golang.org/cl/107200043
 
- src/pkg/testing/quick/quick.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

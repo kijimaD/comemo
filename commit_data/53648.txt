@@ -1,21 +1,48 @@
-commit e126572f8a91d42b86242012012d0cad4507dca8
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jul 3 13:16:59 2023 -0700
+commit bc1d0d8eb1fb5efb36fc2324fa7eb818b084b016
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 9 18:20:47 2022 -0700
 
-    runtime: have ReadMemStats do a nil check before switching stacks
+    reflect: add Value.SetZero
     
-    This gives the user a better stack trace experience. No need to
-    expose them to runtime.systemstack and friends.
+    The v.SetZero method is a faster equivalent of v.Set(Zero(v.Type())).
     
-    Fixes #61158
+    Performance:
     
-    Change-Id: I4f423f82e54b062773067c0ae64622e37cb3948b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507755
+                                 Direct         CachedZero     NewZero
+            SetZero/Bool         2.20ns ± 0%    8.97ns ± 5%    11.4ns ± 1%
+            SetZero/Int          3.08ns ± 1%    9.06ns ± 1%    11.5ns ± 0%
+            SetZero/Uint         2.88ns ± 1%    9.04ns ± 1%    11.7ns ± 5%
+            SetZero/Float        2.65ns ± 2%    9.05ns ± 1%    11.5ns ± 1%
+            SetZero/Complex      2.68ns ± 3%    9.31ns ± 1%    11.7ns ± 1%
+            SetZero/Array        6.69ns ± 4%    9.32ns ± 1%    11.8ns ± 1%
+            SetZero/Chan         3.31ns ± 1%    6.19ns ± 1%    8.20ns ± 1%
+            SetZero/Func         3.32ns ± 1%    6.20ns ± 0%    8.24ns ± 1%
+            SetZero/Interface    2.66ns ± 1%    9.31ns ± 1%    11.8ns ± 1%
+            SetZero/Map          3.31ns ± 1%    6.21ns ± 2%    8.19ns ± 1%
+            SetZero/Pointer      3.30ns ± 1%    6.22ns ± 1%    8.17ns ± 1%
+            SetZero/Slice        2.90ns ± 4%    9.13ns ± 1%    11.6ns ± 1%
+            SetZero/String       3.11ns ± 1%    9.30ns ± 1%    11.8ns ± 2%
+            SetZero/Struct       6.37ns ± 1%    9.18ns ± 4%    11.5ns ± 1%
+    
+    where:
+    
+            * Direct is measuring Value.SetZero
+            * CachedZero is measuring Value.Set with a cached Zero value
+            * NewZero is measuring Value.Set with a new Zero value
+    
+    Fixes #52376
+    
+    Change-Id: I793ca723aa97627824c5f5b356b2da30c8e46d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411476
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
 
- src/runtime/mstats.go    | 1 +
- src/runtime/traceback.go | 1 +
- 2 files changed, 2 insertions(+)
+ api/next/52376.txt      |  1 +
+ src/reflect/all_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 58 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 108 insertions(+), 2 deletions(-)

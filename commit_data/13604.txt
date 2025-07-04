@@ -1,16 +1,29 @@
-commit a5c4e0fa2a9b409d6b268a3aeba99af23b968a9a
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Thu Aug 9 09:40:05 2012 +1000
+commit c48b77b1b5e5ac38351487583a1082b7b73d0ffe
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 8 14:01:23 2012 -0700
 
-    math: update definition of NaN in assembly language files
+    all: make Unicode surrogate halves illegal as UTF-8
     
-    R=rsc, minux.ma, golang-dev, nigeltao
+    Surrogate halves are part of UTF-16 and should never appear in UTF-8.
+    (The rune that two combined halves represent in UTF-16 should
+    be encoded directly.)
+    
+    Encoding: encode as RuneError.
+    Decoding: convert to RuneError, consume one byte.
+    
+    This requires changing:
+            package unicode/utf8
+            runtime for range over string
+    Also added utf8.ValidRune and fixed bug in utf.RuneLen.
+    
+    Fixes #3927.
+    
+    R=golang-dev, rsc, bsiegert
     CC=golang-dev
-    https://golang.org/cl/6461047
+    https://golang.org/cl/6458099
 
- src/pkg/math/dim_amd64.s    | 2 +-
- src/pkg/math/hypot_386.s    | 2 +-
- src/pkg/math/hypot_amd64.s  | 4 ++--
- src/pkg/math/log_amd64.s    | 2 +-
- src/pkg/math/sincos_amd64.s | 2 +-
- 5 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/runtime/rune.c            |  9 +++-
+ src/pkg/unicode/utf8/utf8.go      | 38 ++++++++++++++-
+ src/pkg/unicode/utf8/utf8_test.go | 98 +++++++++++++++++++++++++++++++++------
+ test/stringrange.go               |  7 +++
+ 4 files changed, 136 insertions(+), 16 deletions(-)

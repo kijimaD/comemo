@@ -1,23 +1,25 @@
-commit 88108cc563418ab962e41bdcc54a1d2010c2efcf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 6 15:01:17 2025 -0800
+commit 71052169be2d4de14f2e93ea6ba9811b54434bc3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 03:38:04 2023 +0000
 
-    cmd/go: adjust testsuite to add reraised panic message
+    cmd/trace/v2: add support for task and region endpoints
     
-    A couple of tests generate different output due to CL 645916
-    for issue #71517.
+    This change fills out the last of cmd/trace's subpages for v2 traces by
+    adding support for task and region endpoints.
     
-    Fixes #71593
-    Fixes #71594
+    For #60773.
+    For #63960.
     
-    Change-Id: Ifaeff4e9de8d881202bd9e6394c9b9cff8959596
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647495
+    Change-Id: Ifc4c660514b3904788785a1b20e3abc3bb9e55f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542077
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/testdata/script/test_cleanup_failnow.txt | 6 +++---
- src/cmd/go/testdata/script/test_fuzz_return.txt     | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/trace/v2/goroutines.go |   6 +-
+ src/cmd/trace/v2/main.go       |   8 +
+ src/cmd/trace/v2/pprof.go      |  90 -------
+ src/cmd/trace/v2/regions.go    | 529 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/trace/v2/tasks.go      | 477 +++++++++++++++++++++++++++++++++++++
+ src/internal/trace/summary.go  |   6 +
+ 6 files changed, 1023 insertions(+), 93 deletions(-)

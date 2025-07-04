@@ -1,16 +1,21 @@
-commit 6f19fd438e2178d086c4352b439e857bd08051bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 29 10:29:00 2014 -0400
+commit 38ce599494be0274f3b9dd3391a60c548420f562
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 25 15:59:13 2014 +1000
 
-    runtime: fix sprintf index out of bounds
+    runtime: convert NewCallback and NewCallbackCDecl to Go
     
-    Breaks on Plan 9, apparently.
-    The other systems must not run sprintf during all.bash.
-    I'd write a test but it's all going away.
-    
-    TBR=r
-    CC=0intro, golang-codereviews
-    https://golang.org/cl/133260044
+    LGTM=khr
+    R=khr, remyoudompheng
+    CC=golang-codereviews
+    https://golang.org/cl/132820043
 
- src/pkg/runtime/print1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/api/goapi.go                |  5 +-
+ src/cmd/dist/buildruntime.c         |  5 ++
+ src/pkg/runtime/callback_windows.c  | 77 -------------------------------
+ src/pkg/runtime/syscall_windows.go  | 92 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/syscall_windows.goc |  8 ----
+ src/pkg/syscall/asm_windows.s       | 13 ++++++
+ src/pkg/syscall/asm_windows_386.s   |  7 ---
+ src/pkg/syscall/asm_windows_amd64.s |  7 ---
+ src/pkg/syscall/syscall_windows.go  | 18 ++++++--
+ 9 files changed, 127 insertions(+), 105 deletions(-)

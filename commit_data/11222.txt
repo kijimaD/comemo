@@ -1,14 +1,13 @@
-commit 18ee75ec88593d96796089038b93ed66596ae4d9
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Jan 18 09:52:16 2012 +0100
+commit 436b37d885d6bf552d16f81a6b75a96aa44b6248
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 18 16:59:40 2012 +1100
 
-    gc: handle printing of string/arrayrune conversions
+    os: remove old note about NewSyscallError being special
     
-    Fixes #2714.
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5540066
+    https://golang.org/cl/5556044
 
- src/cmd/gc/fmt.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/os/error_plan9.go | 4 ----
+ src/pkg/os/error_posix.go | 4 ----
+ 2 files changed, 8 deletions(-)

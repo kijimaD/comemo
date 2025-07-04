@@ -1,23 +1,21 @@
-commit 7f2463cc363fe8dbcbb89d521d1ede650de86c9b
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 3 11:26:37 2021 -0700
+commit 9d3718e834fcf5b602b84539364606445cfc8a1a
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 4 16:38:20 2021 -0500
 
-    cmd/compile: fix up shape type package
+    cmd/compile: remove I-saw-a-register-pragma chatter
     
-    Use go.shape instead of .shape as the package the compiler uses
-    to store shape types.
+    It is not multithreaded-compilation-safe, and also seems
+    to cause problems on the noopt-builder.
     
-    Prevent path escaping for compiler-internal types, so we don't
-    need to see %2e everywhere.
-    
-    Change-Id: I98e39c3b6472560113bdea7e0ba6eb7b81cb35e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361174
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I52dbcd507d256990f1ec7c8040ec7b76595aae4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298850
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types/pkg.go  | 9 ++++++++-
- src/cmd/compile/internal/types/type.go | 2 +-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go |  4 ----
+ test/abi/regabipragma.dir/main.go      | 36 ----------------------------------
+ test/abi/regabipragma.dir/tmp/foo.go   | 19 ------------------
+ test/abi/regabipragma.go               | 13 ------------
+ test/abi/regabipragma.out              |  6 ------
+ 5 files changed, 78 deletions(-)

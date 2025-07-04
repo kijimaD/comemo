@@ -1,50 +1,21 @@
-commit dcbe77246922fe7ef41f07df228f47a37803f360
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jan 9 13:13:45 2024 -0500
+commit 47e205c344b88639fae2e9cced906fb8c72579d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jan 28 19:55:19 2023 -0800
 
-    runtime: replace rwmutexR/W with per-rwmutex lock rank
+    cmd/link: make .dynamic section read-only for MIPS ELF
     
-    CL 549536 intended to decouple the internal implementation of rwmutex
-    from the semantic meaning of an rwmutex read/write lock in the static
-    lock ranking.
+    For #36435
     
-    Unfortunately, it was not thought through well enough. The internals
-    were represented with the rwmutexR and rwmutexW lock ranks. The idea was
-    that the internal lock ranks need not model the higher-level ordering,
-    since those have separate rankings. That is incorrect; rwmutexW is held
-    for the duration of a write lock, so it must be ranked before any lock
-    taken while any write lock is held, which is precisely what we were
-    trying to avoid.
-    
-    This is visible in violations like:
-    
-            0 : execW 11 0x0
-            1 : rwmutexW 51 0x111d9c8
-            2 : fin 30 0x111d3a0
-            fatal error: lock ordering problem
-    
-    execW < fin is modeled, but rwmutexW < fin is missing.
-    
-    Fix this by eliminating the rwmutexR/W lock ranks shared across
-    different types of rwmutex. Instead require users to define an
-    additional "internal" lock rank to represent the implementation details
-    of rwmutex.rLock. We can avoid an additional "internal" lock rank for
-    rwmutex.wLock because the existing writeRank has the same semantics for
-    semantic and internal locking. i.e., writeRank is held for the duration
-    of a write lock, which is exactly how rwmutex.wLock is used, so we can
-    use writeRank directly on wLock.
-    
-    For #64722.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-staticlockranking
-    Change-Id: Ia572de188a46ba8fe054ae28537648beaa16b12c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie733b641f20ca5bcee3784c088eb27699890a151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463982
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/export_test.go |   2 +-
- src/runtime/lockrank.go    | 219 +++++++++++++++++++++++----------------------
- src/runtime/mklockrank.go  |  22 ++---
- src/runtime/proc.go        |   4 +-
- src/runtime/rwmutex.go     |  30 ++++---
- 5 files changed, 143 insertions(+), 134 deletions(-)
+ src/cmd/link/internal/ld/elf.go     | 11 ++++++++++-
+ src/cmd/link/internal/mips/obj.go   |  4 ++++
+ src/cmd/link/internal/mips64/obj.go |  4 ++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)

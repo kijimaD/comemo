@@ -1,20 +1,14 @@
-commit 70462f90ec6cf4c0a98f9c556f71b9c99aea94c0
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 21 11:31:44 2015 -0400
+commit ffbf209a7c733ef519abbe9a5c47a8b1c73814af
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 13:00:28 2015 -0700
 
-    runtime: simplify mSpan_Sweep
+    [dev.ssa] test: gofmt {goto,label,label1}.go
     
-    This is a cleanup following cc8f544, which was a minimal change to fix
-    issue #11617. This consolidates the two places in mSpan_Sweep that
-    update sweepgen. Previously this was necessary because sweepgen must
-    be updated before freeing the span, but we freed large spans early.
-    Now we free large spans later, so there's no need to duplicate the
-    sweepgen update. This also means large spans can take advantage of the
-    sweepgen sanity checking performed for other spans.
-    
-    Change-Id: I23b79dbd9ec81d08575cd307cdc0fa6b20831768
-    Reviewed-on: https://go-review.googlesource.com/12451
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I971d0c93632e39aad4e2ba1862f085df820baf8b
+    Reviewed-on: https://go-review.googlesource.com/12431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcsweep.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ test/goto.go   | 72 +++++++++++++++++++++++++++++-----------------------------
+ test/label.go  |  3 +--
+ test/label1.go |  1 -
+ 3 files changed, 37 insertions(+), 39 deletions(-)

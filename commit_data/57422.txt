@@ -1,26 +1,30 @@
-commit 493517bb5c84e8f88ba74d4d2e8c3ac58fda7839
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 11 14:49:43 2024 -0700
+commit 088f953fd0e5aa99a9e4a92acdb9a6058480491c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jul 7 11:06:05 2023 +0200
 
-    runtime, reflect: avoid allocation in structType.Field common cases
+    all: add a few more godoc links
     
-    Use assembler to make runtime.staticuint64s into a readonly array
-    so that the reflect package can safely create a slice without requiring
-    any allocation.
+    Over the past few months as I read the standard library's documentation
+    I kept finding spots where godoc links would have helped me.
+    I kept adding to a stash of changes to fix them up bit by bit.
     
-    Fixes #2320
-    Fixes #68380
+    The stash has grown big enough by now, and we're nearing a release,
+    so I think it's time to merge to avoid git conflicts or bit rot.
     
-    Change-Id: If2c97238eca782d0632db265c840581d4ecb9d18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597855
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Note that a few sentences are slightly reworded,
+    since "implements the Fooer interface" can just be "implements [Fooer]"
+    now that the link provides all the context needed to the user.
+    
+    Change-Id: I01c31d3d3ff066d06aeb44f545f8dd0fb9a8d998
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508395
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/reflect/all_test.go |  28 +++++
- src/reflect/type.go     |  35 +++++--
- src/runtime/iface.go    |  43 ++------
- src/runtime/ints.s      | 264 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 329 insertions(+), 41 deletions(-)
+ src/encoding/json/decode.go | 16 +++++++-------
+ src/encoding/json/encode.go | 12 +++++------
+ src/io/io.go                | 21 +++++++++----------
+ src/net/http/server.go      | 51 +++++++++++++++++++++------------------------
+ src/path/path.go            |  2 +-
+ 5 files changed, 49 insertions(+), 53 deletions(-)

@@ -1,20 +1,20 @@
-commit 2eb8d94dbd822fab695f2781c8b6d14345be1d07
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 21 20:48:21 2016 -0500
+commit 7c38ae084eb6d17b3b9270678cc32cc12b26b95b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 11:30:33 2015 -0500
 
-    cmd/asm: add test for verification of instruction encodings
+    runtime: delete runtime/internal/atomic/textflag.h
     
-    Not much testing yet, but the test now exists.
+    As per mdempsky's comment on golang.org/cl/14204, textflag.h is
+    copied to the includes dir by cmd/dist, and the copy in
+    runtime/internal/atomic is not actually being used.
     
-    Another step toward #13822.
+    Updates #11647
     
-    Change-Id: Idb2b06bf53a6113c83008150b4c0b631bb195279
-    Reviewed-on: https://go-review.googlesource.com/18844
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie95c08903a9df54cea4c70ee9d5291176f7b5609
+    Reviewed-on: https://go-review.googlesource.com/16871
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go | 146 ++++++++++++++++++++++++++----
- src/cmd/asm/internal/asm/testdata/amd64.s |   2 +-
- src/cmd/asm/internal/asm/testdata/arm.s   |   2 +-
- src/cmd/internal/obj/arm/asm5.go          |   2 +-
- 4 files changed, 132 insertions(+), 20 deletions(-)
+ src/runtime/internal/atomic/textflag.h | 30 ------------------------------
+ 1 file changed, 30 deletions(-)

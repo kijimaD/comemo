@@ -1,20 +1,18 @@
-commit 786eb5b754780d649f5d85481096d268728d383f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 23 21:55:37 2017 -0500
+commit 17190343e3db72a3f299e5a4359ae6bc3e5ed194
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 22 08:59:52 2016 +0900
 
-    runtime: make debug.FreeOSMemory call runtime.GC()
+    cmd/go: skip flaky TestCgoConsistentResults on FreeBSD
     
-    Currently freeOSMemory calls gcStart directly, but we really just want
-    it to behave like runtime.GC() and then perform a scavenge, so make it
-    call runtime.GC() rather than gcStart.
+    FreeBSD 11 or above uses clang-3.6 or higher by default.
     
-    For #18216.
+    Updates #15405.
     
-    Change-Id: I548ec007afc788e87d383532a443a10d92105937
-    Reviewed-on: https://go-review.googlesource.com/37518
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If49ce298130165f9e1525c7fd0fd5aa39099ad53
+    Reviewed-on: https://go-review.googlesource.com/34675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mheap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

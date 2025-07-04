@@ -1,43 +1,16 @@
-commit 7b87631e8c41b7919a3a3a845b61cb7c240efff9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 20 00:00:45 2015 -0400
+commit dc870d5f4b77c0a2a276f8fd12510a53969c56b5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 6 14:30:03 2015 -0400
 
-    cmd/go: detect when package or binary is stale due to removed source file
+    runtime: detailed debug output of controller state
     
-    The go command uses file modification times to decide when a
-    package is out of date: if the .a file is older than a source file,
-    the .a file needs to be rebuilt. This scheme breaks down when
-    multiple source files compile into a single .a file: if one source file
-    is removed but no other changes are made, there is no indication
-    that the .a file is out of date.
+    This adds a detailed debug dump of the state of the GC controller and
+    a GODEBUG flag to enable it.
     
-    The fix is to store a value called a build ID in the package archive itself.
-    The build ID is a hash of the names of all source files compiled into the package.
-    A later go command can read the build ID out of the package archive
-    and compare to the build ID derived from the list of source files it now
-    sees in the directory. If the build IDs differ, the file list has changed,
-    and the package must be rebuilt.
-    
-    There is a cost here: when scanning a package directory, in addition
-    to reading the beginning of every source file for build tags and imports,
-    the go command now also reads the beginning of the associated
-    package archive, for the build ID. This is at most a doubling in the
-    number of files read. On my 2012 MacBook Pro, the time for
-    'go list std' increases from about 0.215 seconds to about 0.23 seconds.
-    
-    For executable binaries, the approach is the same except that the
-    build ID information is stored in a trailer at the end of the executable file.
-    It remains to be seen if anything objects to the trailer.
-    I don't expect problems except maybe on Plan 9.
-    
-    Fixes #3895.
-    
-    Change-Id: I21b4ebf5890c1a39e4a013eabe1ddbb5f3510c04
-    Reviewed-on: https://go-review.googlesource.com/9154
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I562fed7981691a84ddf0f9e6fcd9f089f497ac13
+    Reviewed-on: https://go-review.googlesource.com/9640
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go |  61 +--------------
- src/cmd/go/build.go   |  23 ++++++
- src/cmd/go/pkg.go     | 213 +++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/test.bash  |  68 ++++++++++++++++
- 4 files changed, 306 insertions(+), 59 deletions(-)
+ src/runtime/mgc.go      | 28 ++++++++++++++++++++++++++++
+ src/runtime/runtime1.go |  2 ++
+ 2 files changed, 30 insertions(+)

@@ -1,12 +1,13 @@
-commit 7606079d9f54351e0aff78da804ce72814475446
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 28 11:47:23 2011 -0500
+commit e77099daa2167cb394d133bd525fa5dc1c0771a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 28 11:00:32 2011 -0500
 
-    CONTRIBUTORS: add Maxim Pimenov (Google CLA)
+    sql: add Tx.Stmt to use an existing prepared stmt in a transaction
     
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5443047
+    https://golang.org/cl/5433059
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/sql/sql.go      | 79 ++++++++++++++++++++++++++++++++++-----------
+ src/pkg/exp/sql/sql_test.go | 24 +++++++++++++-
+ 2 files changed, 83 insertions(+), 20 deletions(-)

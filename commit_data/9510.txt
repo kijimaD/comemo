@@ -1,14 +1,14 @@
-commit e753512e2d42483eacaca975ff8fd58cc1b7dfed
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Fri Aug 26 16:43:37 2011 -0400
+commit 26d9c804f837398eef1d09d6224de59e37d1cbca
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Aug 26 15:39:23 2011 -0400
 
-    cgo: fixes callback for windows amd64
+    8l: add openbsd
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4826041
+    https://golang.org/cl/4972043
 
- misc/cgo/life/Makefile      | 14 ++++++++++++++
- src/pkg/runtime/amd64/asm.s | 10 +++++-----
- src/pkg/runtime/cgo/amd64.S | 19 +++++++++++++++++++
- 3 files changed, 38 insertions(+), 5 deletions(-)
+ src/cmd/8l/asm.c  | 9 ++++++++-
+ src/cmd/8l/doc.go | 2 ++
+ src/cmd/8l/obj.c  | 3 +++
+ 3 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,25 +1,16 @@
-commit e29e0ba19af26c30c95b59aeda482e60ae594113
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Jun 1 15:13:55 2016 +0200
+commit ffeae198d018693f84b15f8f44f9a2eb6b8e9713
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 5 11:31:50 2016 +1000
 
-    cmd/compile: fix TestAssembly on Plan 9
+    runtime: leave directory before removing it in TestDLLPreloadMitigation
     
-    Since CL 23620, TestAssembly is failing on Plan 9.
+    Fixes #15120
     
-    In CL 23620, the process environment is passed to 'go tool compile'
-    after setting GOARCH. On Plan 9, if GOARCH is already set in the
-    process environment, it would take precedence. On Unix, it works
-    as expected because the first GOARCH found takes precedence.
-    
-    This change uses the mergeEnvLists function from cmd/go/main.go
-    to merge the two environment lists such that variables with the
-    same name in "in" replace those in "out".
-    
-    Change-Id: Idee22058343932ee18666dda331c562c89c33507
-    Reviewed-on: https://go-review.googlesource.com/23593
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I1d9a192ac163826bad8b46e8c0b0b9e218e69570
+    Reviewed-on: https://go-review.googlesource.com/21520
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ src/runtime/syscall_windows_test.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

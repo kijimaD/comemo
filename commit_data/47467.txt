@@ -1,44 +1,19 @@
-commit 1dc9af5cdc6dabe4841afb4edf9dbf5124946ea0
-Author: Dan Scales <danscales@google.com>
-Date:   Sat Nov 13 16:17:52 2021 -0800
+commit 1c590661e7d3b477662f76ead56f39567ea8345a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 19 11:48:22 2021 -0400
 
-    cmd/compile: fix position info for implicit nodes due to generics
+    testing: allow parallel-subtest goroutines to exit when the subtest is complete
     
-    The main fix is that we should call ir.SetPos() at the beginning of
-    (*subster).node.edit function, since that is analogous to the
-    ir.SetPos() at the beginning of typecheck.typecheck(). It ensures that
-    transform functions can use base.Pos() with appropriate results, just
-    like their corresponding tc*() functions do.
+    Fixes #45127
+    Updates #38768
     
-    A small fix is to make sure that the new nodes creates for dictionary
-    references have the correct position based on the location of the
-    function call.
-    
-    Another small fix is to the use of base.Pos when creating a new selector
-    expression (including implicit XDOTs) for a method expression in
-    buildClosure().
-    
-    Also, I converted the final use of base.Pos in stencil.go to src.NoXPos,
-    since the nodes created by AddImplicitDots will be checked for their
-    type, but won't actually be used.
-    
-    I also needed to add an ir.SetPos() at the beginning of transformCall(),
-    since transformCall() is called in the modify and dict passes, when we
-    base.Pos is not being set for each node.
-    
-    This change fixes all the line numbering problems printed out from
-    Alessandro's program, except for auto-generated functions (which I think
-    are fine).
-    
-    Fixes #49523
-    
-    Change-Id: I9836a497b7beba25ecafdde653a6c2036a3020d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363835
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I7f41901d5bcc07741ac9f5f2a24d2b07ef633cb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303330
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go   | 25 ++++++++++++++++---------
- src/cmd/compile/internal/noder/transform.go |  3 +++
- 2 files changed, 19 insertions(+), 9 deletions(-)
+ .../script/test_finished_subtest_goroutines.txt    | 52 ++++++++++++++++++++++
+ src/testing/testing.go                             | 13 +++---
+ 2 files changed, 59 insertions(+), 6 deletions(-)

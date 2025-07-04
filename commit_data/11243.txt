@@ -1,12 +1,37 @@
-commit 0d8c6b4fcdcbaa56ce1ccaf6dcd99b58af830c5b
-Author: Sanjay Menakuru <balasanjay@gmail.com>
-Date:   Thu Jan 19 13:28:25 2012 +1100
+commit af08cfa494452b53d4b520f6ad862abf6f81f3ca
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jan 19 12:59:39 2012 +1100
 
-    path: added examples
+    image: add PixOffset methods; use them in image/draw and image/tiff.
     
-    R=rsc, adg
-    CC=golang-dev
-    https://golang.org/cl/5503089
+    image/draw benchmarks show <1% change for the fast paths.
+    The slow paths got worse by 1-4%, but they're the slow paths.
+    I don't care so much about them, and presumably compiler improvements
+    could claw it back.
+    
+    IIUC 6g's inlining is enabled by default now.
+    
+    benchmark                        old ns/op    new ns/op    delta
+    draw.BenchmarkFillOver             2988384      2999624   +0.38%
+    draw.BenchmarkFillSrc               153141       153262   +0.08%
+    draw.BenchmarkCopyOver             2155756      2170831   +0.70%
+    draw.BenchmarkCopySrc                72591        72646   +0.08%
+    draw.BenchmarkNRGBAOver            2487372      2491576   +0.17%
+    draw.BenchmarkNRGBASrc             1361306      1409180   +3.52%
+    draw.BenchmarkYCbCr                2540712      2562359   +0.85%
+    draw.BenchmarkGlyphOver            1004879      1023308   +1.83%
+    draw.BenchmarkRGBA                 8746670      8844455   +1.12%
+    draw.BenchmarkGenericOver         31860960     32512960   +2.05%
+    draw.BenchmarkGenericMaskOver     16369060     16435720   +0.41%
+    draw.BenchmarkGenericSrc          13128540     13127810   -0.01%
+    draw.BenchmarkGenericMaskSrc      30059300     28883210   -3.91%
+    
+    R=r, gri
+    CC=golang-dev, rsc
+    https://golang.org/cl/5536059
 
- src/pkg/path/example_test.go | 61 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ src/pkg/image/draw/draw.go   |  22 ++++----
+ src/pkg/image/image.go       | 128 ++++++++++++++++++++++++++++++-------------
+ src/pkg/image/tiff/reader.go |  12 ++--
+ src/pkg/image/ycbcr.go       |  38 +++++++------
+ 4 files changed, 128 insertions(+), 72 deletions(-)

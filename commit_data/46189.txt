@@ -1,25 +1,47 @@
-commit 39eb1cc3f4a7d620d3faae139f83e88e652f5d25
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jun 25 20:21:31 2020 -0400
+commit 5aca6e78570c4a4826e500613b1bc054bc95142a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 20:14:07 2020 -0800
 
-    crypto/x509: drop compatibility hack for expired COMODO intermediates
+    [dev.typeparams] test: finish triaging all outstanding failing tests
     
-    The hack was there for a couple intermediates with only SGC EKUs that
-    issued severAuth certificates. They now all expired, so we can drop it.
+    Also: Adjusted error patterns for passing test that have different
+    error messages.
     
-    https://crt.sh/?id=10066
-    https://crt.sh/?id=213
-    
-    Change-Id: I46820024892b2f9918ce125bafbbaf9e6c5c58b3
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/781225
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327809
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I216294b4c4855aa93da22cdc3c0b3303e54a8420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277994
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/x509/name_constraints_test.go |  14 +++--
- src/crypto/x509/root_windows.go          |   5 --
- src/crypto/x509/verify.go                |   8 ---
- src/crypto/x509/verify_test.go           | 100 -------------------------------
- 4 files changed, 9 insertions(+), 118 deletions(-)
+ test/convlit.go          | 14 ++++-----
+ test/fixedbugs/bug163.go |  4 +--
+ test/fixedbugs/bug192.go |  4 ++-
+ test/fixedbugs/bug229.go |  4 +--
+ test/fixedbugs/bug325.go |  2 +-
+ test/fixedbugs/bug326.go |  2 +-
+ test/fixedbugs/bug340.go |  2 +-
+ test/fixedbugs/bug342.go |  2 +-
+ test/fixedbugs/bug350.go |  2 +-
+ test/fixedbugs/bug357.go |  2 +-
+ test/fixedbugs/bug362.go |  6 ++--
+ test/fixedbugs/bug371.go |  4 +--
+ test/fixedbugs/bug379.go |  2 +-
+ test/fixedbugs/bug383.go |  4 +--
+ test/fixedbugs/bug386.go |  4 +--
+ test/fixedbugs/bug389.go |  2 +-
+ test/fixedbugs/bug390.go |  2 +-
+ test/fixedbugs/bug397.go |  2 +-
+ test/fixedbugs/bug416.go |  2 +-
+ test/fixedbugs/bug418.go |  4 +--
+ test/fixedbugs/bug462.go |  4 ++-
+ test/fixedbugs/bug463.go |  4 +--
+ test/fixedbugs/bug487.go |  6 ++--
+ test/makechan.go         | 14 ++++-----
+ test/makemap.go          | 18 ++++++------
+ test/run.go              | 76 +++++++++++++-----------------------------------
+ test/slice3err.go        | 66 ++++++++++++++++++++---------------------
+ test/switch5.go          | 30 +++++++++----------
+ test/switch6.go          |  8 ++---
+ test/switch7.go          |  2 +-
+ 30 files changed, 133 insertions(+), 165 deletions(-)

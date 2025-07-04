@@ -1,12 +1,19 @@
-commit d2f663c4f241b2f1318f5126c206436afaefdadd
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 18 15:45:56 2018 -0400
+commit 8a525b8e7f37ea5d2386af6b5f3758c721849ffe
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sat Mar 31 10:07:03 2018 +0800
 
-    doc/go1.11: mention major performance optimizations
+    internal/cpu: update arm64 cpu features
     
-    Change-Id: I25b93a84996ab1c17d64089b4c2ffabdff3365ec
-    Reviewed-on: https://go-review.googlesource.com/124710
-    Reviewed-by: Austin Clements <austin@google.com>
+    Follow the Linux Kernel 4.15
+    Add Arm64 minimalFeatures test
+    
+    Change-Id: I1c092521ba59b1e4096c27786fa0464f9ef7d311
+    Reviewed-on: https://go-review.googlesource.com/103636
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/internal/cpu/cpu.go       | 37 +++++++++++++++++++++++----------
+ src/internal/cpu/cpu_arm64.go | 48 +++++++++++++++++++++++++++++++++++--------
+ src/internal/cpu/cpu_test.go  | 11 ++++++++++
+ 3 files changed, 76 insertions(+), 20 deletions(-)

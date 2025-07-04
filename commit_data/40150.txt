@@ -1,19 +1,17 @@
-commit b106105e52003627308189a0c455206506fcd925
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Oct 5 11:26:40 2019 +1000
+commit 415da714fa2b7e96743e14fe0a33f02ae8c8dd5b
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Mon Apr 22 14:35:01 2019 -0700
 
-    syscall, internal/syscall/windows, internal/syscall/windows/registry: make go generate use new golang.org/x/sys/windows/mkwinsyscall
+    net/http: document that Basic Auth may require URL encoding
     
-    Updates #34388
+    Explicitly warn callers that no URL encoding is performed and
+    that they might need to do it.
     
-    Change-Id: I327a1c1557c47fa6c113c7a1a507a8e7355f9d1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199277
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Fixes #31577
+    
+    Change-Id: I52dc3fd2798ba8c3652d4a967b1c5c48eb69f43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173319
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/windows/mksyscall.go          | 2 +-
- src/internal/syscall/windows/registry/mksyscall.go | 2 +-
- src/syscall/syscall.go                             | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/request.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,15 +1,12 @@
-commit 0f9311811c037891876e4b151c55351299cb588f
+commit 6a23d82df1da085e43dc8c0267b15aacf60f82e5
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 11:09:07 2013 -0800
+Date:   Wed Dec 18 10:37:27 2013 -0800
 
-    fmt: use sync.Pool
+    api: update next.txt
     
-    Update #4720
-    
-    R=golang-dev, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/43990043
+    https://golang.org/cl/43490048
 
- src/pkg/fmt/print.go | 40 ++++------------------------------------
- src/pkg/fmt/scan.go  |  9 ++++++---
- 2 files changed, 10 insertions(+), 39 deletions(-)
+ api/next.txt | 150 ++++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 112 insertions(+), 38 deletions(-)

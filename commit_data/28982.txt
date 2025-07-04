@@ -1,35 +1,14 @@
-commit 3d4ea227c6b8062c436fc9417034f2d01cf8c82c
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Oct 18 17:22:25 2016 -0700
+commit ab9137dd24e10a9f884475413437cc31e48dbdf7
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Aug 19 11:13:11 2016 -0700
 
-    archive/tar: validate sparse headers in parsePAX
+    context: test WithCancel with canceled parent
     
-    According to the GNU manual, the format is:
-    <<<
-    GNU.sparse.size=size
-    GNU.sparse.numblocks=numblocks
-    repeat numblocks times
-      GNU.sparse.offset=offset
-      GNU.sparse.numbytes=numbytes
-    end repeat
-    >>>
-    
-    The logic in parsePAX converts the repeating sequence of
-    (offset, numbytes) pairs (which is not PAX compliant) into a single
-    comma-delimited list of numbers (which is now PAX compliant).
-    
-    Thus, we validate the following:
-    * The (offset, numbytes) headers must come in the correct order.
-    * The ',' delimiter cannot appear in the value.
-    We do not validate that the value is a parsible decimal since that
-    will be determined later.
-    
-    Change-Id: I8d6681021734eb997898227ae8603efb1e17c0c8
-    Reviewed-on: https://go-review.googlesource.com/31439
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I32079cc12cfffb8520f0073a8b5119705dc0cd1b
+    Reviewed-on: https://go-review.googlesource.com/27401
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/reader.go      | 37 +++++++++++++++++++------------------
- src/archive/tar/reader_test.go | 13 ++++++++++---
- 2 files changed, 29 insertions(+), 21 deletions(-)
+ src/context/context_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

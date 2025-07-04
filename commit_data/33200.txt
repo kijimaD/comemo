@@ -1,15 +1,28 @@
-commit 0c5b00d0cd41a9f1662f6cc306bb74f70e8abd08
-Author: griesemer <gri@golang.org>
-Date:   Mon Oct 23 14:08:41 2017 -0700
+commit 780249eed449ea8ae63f0dec258c55381f30173b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 18:06:03 2017 -0400
 
-    spec: remove sentence discussing existing implementations
+    runtime: fall back to small mmaps if we fail to grow reservation
     
-    Fixes #22282.
+    Right now, if it's possible to grow the arena reservation but
+    mheap.sysAlloc fails to get 256MB more of memory, it simply fails.
+    However, on 32-bit we have a fallback path that uses much smaller
+    mmaps that could take in this situation, but fail to.
     
-    Change-Id: I4097e9cbd590ab6c8b1511a3b752c6ac98ac819b
-    Reviewed-on: https://go-review.googlesource.com/72792
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This commit fixes mheap.sysAlloc to use a common failure path in case
+    it can't grow the reservation. On 32-bit, this path includes the
+    fallback.
+    
+    Ideally, mheap.sysAlloc would attempt smaller reservation growths
+    first, but taking the fallback path is a simple change for Go 1.9.
+    
+    Updates #21044 (fixes one of two issues).
+    
+    Change-Id: I1e0035ffba986c3551479d5742809e43da5e7c73
+    Reviewed-on: https://go-review.googlesource.com/51713
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/malloc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

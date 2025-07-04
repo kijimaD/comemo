@@ -1,24 +1,26 @@
-commit ba57781181b18187958756b7ad7ccb126728de2d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 7 18:43:03 2015 -0700
+commit 8e24283a28f9b739cdbd990994c9c98e3855f7ed
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 13 13:29:23 2015 -0400
 
-    cmd/5g, etc: prepare Node.Val to be unexported
+    runtime: track background scan work credit
     
-    Remove all uses of Node.Val outside of the gc package.
+    This tracks scan work done by background GC in a global pool. Mutator
+    assists will draw on this credit to avoid doing work when background
+    GC is staying ahead.
     
-    A subsequent, automated commit in the Go 1.6 cycle
-    will unexport Node.Val.
+    Unlike the other GC controller tracking variables, this will be both
+    written and read throughout the cycle. Hence, we can't arbitrarily
+    delay updates like we can for scan work and bytes marked. However, we
+    still want to minimize contention, so this global credit pool is
+    allowed some error from the "true" amount of credit. Background GC
+    accumulates credit locally up to a limit and only then flushes to the
+    global pool. Similarly, mutator assists will draw from the credit pool
+    in batches.
     
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: Ia92ae6a7766c83ab3e45c69edab24a9581c824f9
-    Reviewed-on: https://go-review.googlesource.com/9267
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1aa4fc604b63bf53d1ee2a967694dffdfc3e255e
+    Reviewed-on: https://go-review.googlesource.com/8834
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/5g/gsubr.go          |  8 ++++----
- src/cmd/6g/gsubr.go          |  4 ++--
- src/cmd/7g/gsubr.go          | 17 ++++++++---------
- src/cmd/8g/gsubr.go          | 12 ++++++------
- src/cmd/9g/gsubr.go          | 19 +++++++++----------
- src/cmd/internal/gc/const.go | 28 +++++++++++++++++-----------
- 6 files changed, 46 insertions(+), 42 deletions(-)
+ src/runtime/mgc.go     | 21 ++++++++++++++++++---
+ src/runtime/mgcmark.go | 27 ++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 4 deletions(-)

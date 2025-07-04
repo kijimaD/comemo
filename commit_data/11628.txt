@@ -1,20 +1,12 @@
-commit 22185aed742bba5e85b1e4bac68e4c50be84a227
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 6 09:26:32 2012 +1100
+commit c06bd52a2e5a38125635b770b5ddad2cb3ce6909
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Feb 5 15:16:39 2012 +1100
 
-    dashboard: update to go1beta
+    cmd/dist: fix bug in bsubst
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r, dsymonds, akumar
     CC=golang-dev
-    https://golang.org/cl/5624056
+    https://golang.org/cl/5624054
 
- misc/dashboard/app/app.yaml         |  2 +-
- misc/dashboard/app/build/build.go   | 45 ++++++++++++++++++-----------------
- misc/dashboard/app/build/handler.go | 47 +++++++++++++++++++------------------
- misc/dashboard/app/build/init.go    |  2 +-
- misc/dashboard/app/build/key.go     |  2 +-
- misc/dashboard/app/build/notify.go  | 15 ++++++------
- misc/dashboard/app/build/test.go    | 20 ++++++++--------
- misc/dashboard/app/build/ui.go      | 18 +++++++-------
- misc/dashboard/app/cache/cache.go   |  4 ++--
- 9 files changed, 78 insertions(+), 77 deletions(-)
+ src/cmd/dist/buf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,34 +1,39 @@
-commit 9ffd9339da503b50571ec6806e5d6d2cf5d5912a
-Author: Samuel Tan <samueltan@google.com>
-Date:   Tue Apr 4 18:26:21 2017 -0700
+commit 256a605faa10bc5507597c4669cc5bc400bf487a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 09:54:10 2017 -0800
 
-    html/template: panic if predefined escapers are found in pipelines during rewriting
+    cmd/compile: don't use nilcheck information until the next block
     
-    Report an error if a predefined escaper (i.e. "html", "urlquery", or "js")
-    is found in a pipeline that will be rewritten by the contextual auto-escaper,
-    instead of trying to merge the escaper-inserted escaping directives
-    with these predefined escapers. This merging behavior is a source
-    of several security and correctness bugs (eee #19336, #19345, #19352,
-    and #19353.)
+    When nilcheck runs, the values in a block are not in any particular
+    order.  So any facts derived from examining the blocks shouldn't be
+    used until we reach the next block.
     
-    This merging logic was originally intended to ease migration of text/template
-    templates with user-defined escapers to html/template. Now that
-    migration is no longer an issue, this logic can be safely removed.
+    This is suboptimal as it won't eliminate nil checks within a block.
+    But it's probably a better fix for now as it is a much smaller change
+    than other strategies for fixing this bug.
     
-    NOTE: this is a backward-incompatible change that fixes known security
-    bugs (see linked issues for more details). It will explicitly break users
-    that attempt to execute templates with pipelines containing predefined
-    escapers.
+    nilptr3.go changes are mostly because for this pattern:
+      _ = *p
+      _ = *p
+    either nil check is fine to keep, and this CL changes which one
+    the compiler tends to keep.
+    There are a few regressions from code like this:
+      _ = *p
+      f()
+      _ = *p
+    For this pattern, after this CL we issue 2 nil checks instead of one.
+    (For the curious, this happens because intra-block nil check
+     elimination now falls to CSE, not nilcheck proper.  The former
+     pattern has two nil checks with the same store argument.  The latter
+     pattern has two nil checks with different store arguments.)
     
-    Fixes #19336, #19345, #19352, #19353
+    Fixes #18725
     
-    Change-Id: I46b0ca8a2809d179c13c0d4f42b63126ed1c3b49
-    Reviewed-on: https://go-review.googlesource.com/37880
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3721b494c8bc9ba1142dc5c4361ea55c66920ac8
+    Reviewed-on: https://go-review.googlesource.com/35485
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/html/template/error.go       |  21 ++++++++
- src/html/template/escape.go      | 110 ++++++++++++---------------------------
- src/html/template/escape_test.go |  98 +++++++++-------------------------
- 3 files changed, 81 insertions(+), 148 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go | 22 ++++++++++++++-----
+ test/fixedbugs/issue18725.go             | 24 +++++++++++++++++++++
+ test/nilptr3.go                          | 36 ++++++++++++++++----------------
+ 3 files changed, 59 insertions(+), 23 deletions(-)

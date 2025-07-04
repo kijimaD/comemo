@@ -1,19 +1,18 @@
-commit 7adafc985aa6bf5f66de1b6e9ff9d553d8dd183b
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Nov 25 19:23:44 2019 +0100
+commit 362625209b6cd2bc059b6b0a67712ddebab312d9
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Aug 9 14:37:39 2019 +0530
 
-    cmd/go: prefix calls to Windows rmdir with cmd.exe
+    doc/install-source.html: add new GOOS and GOARCHes
     
-    rmdir is a built-in of cmd.exe. It's also an alias in powershell.exe. We
-    want always the cmd.exe on, so specify it explicitly.
+    And also insert new paragraphs between GOOS and GOARCH listings
+    for better readability.
     
-    Fixes #35813
+    Fixes #28142
+    Fixes #26513
     
-    Change-Id: I89723e993ee26a20b42d03b8a725ff10ccf30505
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208639
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie92e98dbfd924e80032a12afbfa02f30e3a6f916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189578
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/testdata/script/mod_cache_rw.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/install-source.html | 46 ++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 42 insertions(+), 4 deletions(-)

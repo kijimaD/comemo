@@ -1,15 +1,12 @@
-commit 8f0bfc5a29ab942af5b8dd1caf143383a90c2170
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 29 12:18:26 2012 -0800
+commit 357b257cd161f390554cee7c4d404be3f868e465
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 1 03:11:37 2012 +0800
 
-    net/http/httptest: make Server.Close wait for outstanding requests to finish
+    runtime/pprof: skip test on 64-bit Mac OS X 10.6
     
-    Might fix issue 3050
-    
-    R=golang-dev, rsc
+    R=rsc, bsiegert
     CC=golang-dev
-    https://golang.org/cl/5708066
+    https://golang.org/cl/5709060
 
- src/pkg/net/http/httptest/server.go | 36 +++++++++++++++++++++++++++++++++++-
- src/pkg/net/http/sniff_test.go      |  3 ++-
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ src/pkg/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

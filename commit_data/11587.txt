@@ -1,16 +1,12 @@
-commit 450c955bd973f153ba99c340022a424be5c75f73
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 3 06:29:30 2012 -0800
+commit 8f9434b6c187b590c542a5d211f771d63a8c5bbf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 3 16:45:51 2012 +1100
 
-    test: test slice beyond len
+    build: crash if test runs forever
     
-    When slicing a slice, the bounds may be > len as long as they
-    are <= cap.  Interestingly, gccgo got that wrong and still
-    passed the testsuite and all the library tests.
-    
-    R=golang-dev, rsc, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5622053
+    https://golang.org/cl/5604051
 
- test/ken/array.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/run.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

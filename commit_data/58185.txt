@@ -1,34 +1,16 @@
-commit 2ad53d5a1928c6afd368c5ff00d2f6c4425e6bcd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 19 10:28:45 2024 -0800
+commit dacf1f1e10a6b1ed02b6b935e502ddf8585b3748
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Oct 10 15:34:42 2023 -0400
 
-    go/types, types2: disallow new methods on (aliases to) cgo-generated types
+    go/types: clarify the documentation for Func.Pkg
     
-    This makes methods on aliases of cgo-generated types a new compiler error.
-    That is ok because cgo-behavior is not covered by the G1 compatibility
-    guarantee.
-    
-    Background: In 2023 we fixed a gopls issue related to this by actually
-    enabling methods on cgo-generated types in the first place (#59944).
-    See the discussion in #60725 and this CL for why we believe it is ok
-    to make this an error now.
-    
-    Based on a variation of CL 503596 (by Xie Cui).
-    
-    Fixes #60725.
-    For #59944.
-    
-    Change-Id: I7e9e6e1a76447167483a282b268f5183214027c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629715
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Ia695960ba652143f4a48c1ca3495a043097acbb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534298
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/cmd/compile/internal/types2/issues_test.go     |  5 +++--
- src/cmd/compile/internal/types2/signature.go       | 10 ++++++++-
- .../testdata/script/cgo_badmethod_issue60725.txt   | 26 ++++++++++++++++++++++
- src/go/types/issues_test.go                        |  5 +++--
- src/go/types/signature.go                          | 10 ++++++++-
- 5 files changed, 50 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/object.go | 6 ++++++
+ src/go/types/object.go                    | 6 ++++++
+ 2 files changed, 12 insertions(+)

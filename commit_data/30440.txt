@@ -1,18 +1,15 @@
-commit 45055f21ab4b6005446e8d680f315ece410e75b5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 28 13:18:55 2017 -0800
+commit 585a0b03b243e1847b3028bc0f2e77bb3688adba
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:45 2016 +0200
 
-    go/types: implement SizesFor convenience function
+    cmd/link/internal/ld: add support for GOARCH=mips{,le}
     
-    SizesFor returns a Sizes implementation for a supported architecture.
-    Use functionality in srcimporter.
-    
-    Change-Id: I197e641b419c678030dfaab5c5b8c569fd0410f3
-    Reviewed-on: https://go-review.googlesource.com/37583
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ida214ccc5858969ea60abb0787f4d98bab4336d6
+    Reviewed-on: https://go-review.googlesource.com/31480
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/internal/srcimporter/srcimporter.go | 19 +------------------
- src/go/types/api.go                        |  2 +-
- src/go/types/sizes.go                      | 28 +++++++++++++++++++++++++++-
- 3 files changed, 29 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/ld/elf.go   | 28 ++++++++++++++++------------
+ src/cmd/link/internal/ld/ldelf.go |  6 ++++++
+ 2 files changed, 22 insertions(+), 12 deletions(-)

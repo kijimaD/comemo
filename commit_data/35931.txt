@@ -1,21 +1,31 @@
-commit c78b7693abc1de4fa76d28ebf4c6ef9dcf0a68bb
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Mon Jul 9 23:24:18 2018 -0400
+commit ff5cf43df5b1614f940157b21ca6ed64791b8a1f
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Mar 19 23:07:18 2018 +0300
 
-    net/http: update bundled http2
+    runtime,sync/atomic: replace asm BYTEs with insts for x86
     
-    Updates http2 to x/net/http2 git rev 292b43b for:
+    For each replacement, test case is added to new 386enc.s file
+    with exception of EMMS, SYSENTER, MFENCE and LFENCE as they
+    are already covered in amd64enc.s (same on amd64 and 386).
     
-        http2: reject incoming HEADERS in Server on half-closed streams
-        https://golang.org/cl/111677
+    The replacement became less obvious after go vet suggested changes
+    Before:
+            BYTE $0x0f; BYTE $0x7f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+    Changed to MOVQ (this form is being tested):
+            MOVQ M0, 8(SP)
+    Refactored to FP-relative access (go vet advice):
+            MOVQ M0, val+4(FP)
     
-    Updates #25023
-    
-    Change-Id: I479ae9b5b899fb0202e6301d02535fb6aeb4997a
-    Reviewed-on: https://go-review.googlesource.com/122877
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I56b87cf3371b6ad81ad0cd9db2033aee407b5818
+    Reviewed-on: https://go-review.googlesource.com/101475
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/net/http/h2_bundle.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/asm/internal/asm/endtoend_test.go  |  4 ++++
+ src/cmd/asm/internal/asm/testdata/386enc.s | 16 ++++++++++++++++
+ src/runtime/asm_386.s                      |  4 ++--
+ src/runtime/internal/atomic/asm_386.s      | 18 ++++++------------
+ src/runtime/sys_darwin_386.s               |  2 +-
+ src/sync/atomic/asm_386.s                  | 12 ++++--------
+ 6 files changed, 33 insertions(+), 23 deletions(-)

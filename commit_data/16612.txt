@@ -1,14 +1,21 @@
-commit fc1e298ba1dfa404e2036d7461110511fdc28422
+commit f243584d297e183112cc97fcc09a9140961dc188
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 21 15:09:04 2013 -0700
+Date:   Fri Jun 21 13:14:06 2013 -0700
 
-    go/parser: always provide a non-nil path for imports
+    go/*: support for slices with cap: s[:j:k] and s[i:j:k]
     
-    The go/ast ImportSpec always requires a non-nil path.
+    Experimental, per rsc's proposal.
     
-    R=adonovan
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/10402047
+    https://golang.org/cl/10204043
 
- src/pkg/go/parser/parser.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/go/ast/ast.go                          |  1 +
+ src/pkg/go/ast/walk.go                         |  3 +++
+ src/pkg/go/parser/parser.go                    | 26 +++++++++++++++---------
+ src/pkg/go/parser/short_test.go                | 10 +++++++++
+ src/pkg/go/printer/nodes.go                    | 28 +++++++++++++++++---------
+ src/pkg/go/printer/testdata/expressions.golden | 17 ++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 17 ++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 17 ++++++++++++++++
+ 8 files changed, 99 insertions(+), 20 deletions(-)

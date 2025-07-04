@@ -1,19 +1,12 @@
-commit 69cb8fef43aba1d133d093c4617c5711c1b5a20b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 2 13:13:51 2011 -0400
+commit f3c351982fc2a9940f7ec831db48569b56f0a035
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 2 09:57:24 2011 -0700
 
-    sync/atomic: fix check64
+    exec: missing docs, errors
     
-    The LDREXD and STREXD instructions require
-    aligned addresses, and the ARM stack is not
-    guaranteed to be aligned during the check.
-    This may cause other problems later (on the ARM
-    not all 64-bit pointers may be 64-bit aligned)
-    but at least the check is correct now.
-    
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4564053
+    https://golang.org/cl/4550111
 
- src/pkg/sync/atomic/asm_arm.s | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/exec/exec.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

@@ -1,16 +1,12 @@
-commit 9a8979deb01fd43a660351aedff2c155f9fe5ff6
-Author: Vladimir Kovpak <cn007b@gmail.com>
-Date:   Wed Mar 13 09:39:21 2019 +0000
+commit f999576dd8df6e4d09e3c67c23ba4d8dc18d53d3
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Mon Nov 5 22:04:46 2018 +0530
 
-    math/rand: add example for Intn func
+    cmd/addr2line: defer closing objfile
     
-    Change-Id: I831ffb5c3fa2872d71def8d8461f0adbd4ae2c1a
-    GitHub-Last-Rev: 2adfcd2d5a592ef4c63da781240a391da89b5d9e
-    GitHub-Pull-Request: golang/go#30706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166426
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I19ff9d231c4cc779b0737802c3c40ee2e00934dd
+    Reviewed-on: https://go-review.googlesource.com/c/147477
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/rand/example_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/addr2line/main.go | 1 +
+ 1 file changed, 1 insertion(+)

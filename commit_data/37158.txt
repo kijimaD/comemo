@@ -1,28 +1,18 @@
-commit 7b0fa529f33fc444e762af7e33d6c8deba5298b3
-Author: BigMikes <giulio.micheloni@gmail.com>
-Date:   Mon Oct 29 11:45:16 2018 +0100
+commit 7145f1c7c7dcd4506f2819166f073e92f57afbb7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 27 17:05:48 2018 +0900
 
-    net/http: in Transport, don't error on non-chunked response with Trailer header
+    cmd/compile: minor updates to the README
     
-    There are cases where HTTP message specifies the Trailer header
-    but not the Transfer-Encoding = chunked. The existing
-    implementation would return an error in those cases, without
-    returning also the message itself.
-    Instead, it would be preferable to let the library user decide when
-    the message is valid or not.
-    This change makes the fixTrailer() function not to return an error
-    and to keep the Trailer value in the Response.Header map but not
-    populate Response.Trailer.
+    Use an HTML comment with triple dashes for the copypright header, which
+    means that the paragraph will be ignored when rendering both HTML and
+    TeX.
     
-    Fixes #27197
+    While at it, quote "GC", and properly link to internal/ssa/README.md.
     
-    Change-Id: Ic1e96791fde97f31dc5ecb8de05c8e4f49465c2c
-    Reviewed-on: https://go-review.googlesource.com/c/145398
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib18529d2fc777d836e74726ff1cfe685e08b063c
+    Reviewed-on: https://go-review.googlesource.com/109875
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/request.go       |  5 +++--
- src/net/http/response_test.go | 28 ++++++++++++++++++++++++++++
- src/net/http/transfer.go      | 14 ++++++++++----
- 3 files changed, 41 insertions(+), 6 deletions(-)
+ src/cmd/compile/README.md | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

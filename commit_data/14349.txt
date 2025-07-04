@@ -1,14 +1,14 @@
-commit e3977f0d3a20ec7311b939fd2e60d78f4c6031ef
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 7 17:34:06 2012 -0800
+commit 64b3e590c00b9c1e532dd0014b16174c9397664c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Nov 8 10:36:29 2012 +1100
 
-    cmd/gc: warn about slice indexes larger than int in typecheck pass
+    image/jpeg: handle fill bytes.
     
-    Fixes GOARCH=386 build.
+    Fixes #4337.
     
-    R=golang-dev, r
+    R=r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6810098
+    https://golang.org/cl/6814098
 
- src/cmd/gc/typecheck.c | 8 ++++++++
+ src/pkg/image/jpeg/reader.go | 8 ++++++++
  1 file changed, 8 insertions(+)

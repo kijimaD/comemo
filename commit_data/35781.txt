@@ -1,15 +1,21 @@
-commit 75fdeaa801bc64b8b720433a868e1be197d03eaf
-Author: Thomas Bruyelle <thomas.bruyelle@gmail.com>
-Date:   Fri Jun 22 11:16:40 2018 +0200
+commit 88466e93a4d4b7503dcbf880be2cd8ad7702d632
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 7 15:10:27 2018 -0800
 
-    net/http: fix test assertion
+    cmd/compile: mark anonymous receiver parameters as non-escaping
     
-    Logf doesn't make the test fail, so the test was always OK.
+    This was already done for normal parameters, and the same logic
+    applies for receiver parameters too.
     
-    Change-Id: I7c10ee74ff7e5d28cbd3a35e185093cb9f349470
-    Reviewed-on: https://go-review.googlesource.com/120496
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #24305.
+    
+    Change-Id: Ia2a46f68d14e8fb62004ff0da1db0f065a95a1b7
+    Reviewed-on: https://go-review.googlesource.com/99335
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transfer_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go     | 22 ++++++++++++----------
+ src/cmd/compile/internal/types/type.go |  5 +++++
+ test/escape5.go                        | 12 ++++++++++++
+ 3 files changed, 29 insertions(+), 10 deletions(-)

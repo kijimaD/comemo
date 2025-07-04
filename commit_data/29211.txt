@@ -1,13 +1,21 @@
-commit 91c1cdfbdbecbc33ad396f55d9e8b5619959fde1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Oct 28 13:16:25 2016 -0700
+commit 33bb597d859e6d98b4abb27592cb925753764136
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 31 12:30:46 2016 -0700
 
-    cmd/compile: add Param to Sizeof test
+    cmd/compile: print SizeAndAlign AuxInt values correctly
     
-    Change-Id: I2a710f0e9b484b3dfc581d3a9a23aa13321ec267
-    Reviewed-on: https://go-review.googlesource.com/32316
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Makes the AuxInt arg to Move/Zero print in a readable format.
+    
+    Change-Id: I12295959b00ff7c1638d35836cc6d64d112c11ca
+    Reviewed-on: https://go-review.googlesource.com/28271
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/sizeof_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/check.go          | 2 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 8 ++++----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
+ src/cmd/compile/internal/ssa/op.go             | 1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
+ src/cmd/compile/internal/ssa/value.go          | 2 ++
+ 6 files changed, 12 insertions(+), 7 deletions(-)

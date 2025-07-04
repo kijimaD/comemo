@@ -1,31 +1,21 @@
-commit c3495058786a3c05699f0d4a39ecc7df39e58897
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sun Apr 7 13:56:58 2019 +0700
+commit 8d335084cc58c8167b12ce5d1791bfc6db1355f2
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Mar 16 10:57:44 2018 -0700
 
-    os: fix RemoveAll hangs on large directory
+    database/sql: add examples for opening and testing a DB pool
     
-    golang.org/cl/121255 added close and re-open the directory when looping, prevent
-    us from missing some if previous iteration deleted files.
+    Show two larger application examples. One example that
+    could be used in a CLI, the other in a long running
+    service. These demonstarates different strategies for
+    handling DB.Ping errors in context.
     
-    The CL introdued a bug. If we can not delete all entries in one request,
-    the looping never exits, causing RemoveAll hangs.
+    Fixes #23738
     
-    To fix that, simply discard the entries if we can not delete all of them
-    in one iteration, then continue reading entries and delete them.
-    
-    Also make sure removeall_at return first error it encounters.
-    
-    Fixes #29921
-    
-    Change-Id: I8ec3a4c822d8d2d95d9f1ab71547879da395bc4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171099
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id01213caf1f47917239a7506b01d30e37db74d31
+    Reviewed-on: https://go-review.googlesource.com/c/101216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/export_test.go    |  1 +
- src/os/path.go           |  3 +++
- src/os/removeall_at.go   | 48 ++++++++++++++++++++++++++++++++----------------
- src/os/removeall_noat.go | 40 ++++++++++++++++++++++++++++------------
- src/os/removeall_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 110 insertions(+), 28 deletions(-)
+ src/database/sql/example_cli_test.go     |  86 +++++++++++++++++
+ src/database/sql/example_service_test.go | 158 +++++++++++++++++++++++++++++++
+ src/database/sql/example_test.go         |  77 ++++++++++-----
+ 3 files changed, 298 insertions(+), 23 deletions(-)

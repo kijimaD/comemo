@@ -1,20 +1,25 @@
-commit 1033065ee381da075e458de0420d0a5838e910cb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 29 20:03:29 2019 +0000
+commit 99e4ddd053fada36038f7fd4e7220d789e30e48a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 17 14:42:29 2018 -0800
 
-    runtime: add physHugePageSize
+    cmd/compile: increase nesting depth limit for type descriptors
     
-    This change adds the global physHugePageSize which is initialized in
-    osinit(). physHugePageSize contains the system's transparent huge page
-    (or superpage) size in bytes.
+    The formatting routines for types use a depth limit as primitive
+    mechanism to detect cycles. For now, increase the limit from 100
+    to 250 and file #29312 so we don't drop this on the floor.
     
-    For #30333.
+    Also, adjust some fatal error messages elsewhere to use
+    better formatting.
     
-    Change-Id: I2f0198c40729dbbe6e6f2676cef1d57dd107562c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170858
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #29264.
+    Updates #29312.
+    
+    Change-Id: Idd529f6682d478e0dcd2d469cb802192190602f6
+    Reviewed-on: https://go-review.googlesource.com/c/154583
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go   |  8 ++++++++
- src/runtime/os_linux.go | 23 +++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go     |  6 +++++-
+ src/cmd/compile/internal/gc/iexport.go |  2 +-
+ src/cmd/compile/internal/gc/iimport.go |  2 +-
+ test/fixedbugs/issue29264.go           | 22 ++++++++++++++++++++++
+ 4 files changed, 29 insertions(+), 3 deletions(-)

@@ -1,21 +1,17 @@
-commit 97e4010fd4b8094aa0b4498ad751e4c07ea8a1aa
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 22 10:10:23 2018 -0400
+commit dada467fc688ef5970bf4af30c2644c0d2ccdb54
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 19 13:23:32 2018 -0400
 
-    cmd/compile: accept and parse symabis
+    cmd/go/internal/par: actually make par.Work run things in parallel
     
-    This doesn't yet do anything with this information.
+    This was an unfortunate debugging print introduced
+    while working on the unfortunately large CL 123576.
+    At least now we're done with that awfulness.
     
-    For #27539.
-    
-    Change-Id: Ia12c905812aa1ed425eedd6ab2f55ec75d81c0ce
-    Reviewed-on: https://go-review.googlesource.com/c/147099
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib83db59382a799f649832d22d3c6f039d2ef9d2c
+    Reviewed-on: https://go-review.googlesource.com/125015
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/main.go | 82 +++++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/abi_string.go  | 16 ++++++++
- src/cmd/internal/obj/link.go        | 22 ++++++++++
- 3 files changed, 120 insertions(+)
+ src/cmd/go/internal/par/work.go      |  1 -
+ src/cmd/go/internal/par/work_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

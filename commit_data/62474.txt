@@ -1,0 +1,24 @@
+commit 938b6c15e92e6a80b8368798a350a1a811487d88
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Mar 6 13:23:52 2025 +0100
+
+    os: more godoc links
+    
+    Add missing links to *PathError.
+    
+    Also a few links to O_ flags and Mode and syscall constants.
+    
+    Change-Id: Ic6ec5780a44942050a83ed07dbf16d6fa9f83eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655375
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/file.go         | 34 +++++++++++++++++-----------------
+ src/os/file_plan9.go   | 22 +++++++++++-----------
+ src/os/file_posix.go   |  6 +++---
+ src/os/file_unix.go    |  4 ++--
+ src/os/file_windows.go |  2 +-
+ src/os/root.go         |  4 ++--
+ 6 files changed, 36 insertions(+), 36 deletions(-)

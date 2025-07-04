@@ -1,15 +1,24 @@
-commit 4607ebc7d897c36687ae4ede3cfd4939c6dd0a54
-Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
-Date:   Sat Oct 2 11:59:08 2021 +0200
+commit 32e789f4fb45b6296b9283ab80e126287eab4db5
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Mon Feb 1 13:32:18 2021 +1030
 
-    math: add Remainder example
+    test: fix incorrectly laid out instructions in issue11656.go
     
-    Change-Id: I4b0fa69a36b04103473aa08e246fa193315ac5aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353689
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    CL 279423 introduced a regression in this test as it incorrectly laid
+    out various instructions. In the case of arm, the second instruction
+    was overwriting the first. In the case of 386, amd64 and s390x, the
+    instructions were being appended to the end of the slice after 64
+    zero bytes.
+    
+    This was causing test failures on "linux/s390x on z13".
+    
+    Fixes #44028
+    
+    Change-Id: Id136212dabdae27db7e91904b0df6a3a9d2f4af4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288278
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/example_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ test/fixedbugs/issue11656.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

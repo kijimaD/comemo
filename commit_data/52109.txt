@@ -1,27 +1,23 @@
-commit b611b3a8cc8c4cab3853853a135d5c29e807f513
-Author: Maksadbek Akhmedov <a.maksadbek@gmail.com>
-Date:   Wed Feb 8 14:58:04 2023 +0100
+commit b4cabaf8c094da8387ac6274706fe4850d77ebc6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 5 11:51:43 2022 -0400
 
-    cmd/go: make go test build multiple executables
+    os/signal: run TestNotifyContextNotifications subtests in parallel
     
-    If -c is set while testing multiple packages, then allow
-    to build testing binary executables to the current directory
-    or to the directory that -o refers to.
+    If we run out of time on the first subtest, we don't want to start the
+    second one with essentially no time remaining. (Moreover, there is no
+    compelling reason not to run these tests in parallel, since they send
+    signals to separate processes.)
     
-    $ go test -c -o /tmp ./pkg1 ./pkg2 ./pkg2
-    $ ls /tmp
-    pkg1.test pkg2.test pkg3.test
+    For #51054.
     
-    Fixes #15513.
-    
-    Change-Id: I3aba01bebfa90e61e59276f2832d99c0d323b82e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466397
+    Change-Id: I0424e08c3a9d2db986568d5a5c004859b52f7c51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398454
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Henrique Vicente de Oliveira Pinto <henriquevicente@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/test/test.go                   | 91 +++++++++++++++++-----
- .../go/testdata/script/test_compile_multi_pkg.txt  | 46 +++++++++++
- 2 files changed, 116 insertions(+), 21 deletions(-)
+ src/os/signal/signal_test.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

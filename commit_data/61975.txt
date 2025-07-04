@@ -1,0 +1,18 @@
+commit 4b652e9f5f5c0793f2e41cd2876bce5a241b2c95
+Author: linmaolin <linlin152@foxmail.com>
+Date:   Thu Jan 2 21:05:21 2025 +0000
+
+    cmd/go: fix two typos in helpdoc.go
+    
+    Change-Id: Ib750438107db6c82020cfb4abbab52435012b7fc
+    GitHub-Last-Rev: 3fa9b8c7bc70965c1ec9082b00c9b5a7af9751ef
+    GitHub-Pull-Request: golang/go#71082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639217
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/alldocs.go               | 4 ++--
+ src/cmd/go/internal/help/helpdoc.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

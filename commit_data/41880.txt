@@ -1,16 +1,22 @@
-commit a03618500c25690ea96308030e678178641127ed
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Apr 6 23:42:55 2020 +0100
+commit cc4b824e53ef52e1572808c7b7f9b8507516c816
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Tue Oct 29 15:39:42 2019 +0100
 
-    cmd/compile: simplify s390x 'operation with memory operand' rules
+    runtime: fix nbpipe_test for AIX
     
-    The generated code remains exactly the same.
+    Fcntl can't be called using syscall.Syscall as it doesn't work on AIX.
+    Moreover, fcntl isn't exported by syscall package.
     
-    Change-Id: Id70af46b6c3c18153789961e5589eab717c3316e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227164
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    However, it can be accessed by exporting it from runtime package
+    using export_aix_test.go.
+    
+    Change-Id: Ib6af66d9d7eacb9ca0525ebc4cd4c92951735f1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204059
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules | 55 +++++++++-------------------
- 1 file changed, 18 insertions(+), 37 deletions(-)
+ src/runtime/export_aix_test.go        |  7 +++++++
+ src/runtime/nbpipe_fcntl_aix_test.go  | 17 +++++++++++++++++
+ src/runtime/nbpipe_fcntl_unix_test.go | 14 ++++++++++++++
+ src/runtime/nbpipe_test.go            |  4 ++--
+ 4 files changed, 40 insertions(+), 2 deletions(-)

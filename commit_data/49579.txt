@@ -1,21 +1,18 @@
-commit 9a4d5357f40c367fcad279184f245290ba0a8fb9
-Author: Sebastian Gassner <sepastian@users.noreply.github.com>
-Date:   Thu Jun 30 13:37:04 2022 +0000
+commit 9da7ccab5888e15b675584b5b0eeb63e48baafa8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 27 14:26:31 2021 -0400
 
-    flag: highlight support for double dashes in docs
+    cmd/go/internal/modload: remove go117EnableLazyLoading
     
-    Updating examples, to show that double dashes are also permitted. This has been easy to miss previously.
+    Updates #36460
     
-    Change-Id: Ib67b4e39fea90ef4cb9e894709c53baedfc18fc2
-    GitHub-Last-Rev: f7df57b646d6412c1346e85c3a7353a8df41afc6
-    GitHub-Pull-Request: golang/go#53628
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415374
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I19f375f58f118e83a2615a29bbbb3853f059f0bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345391
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/flag/flag.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/init.go    | 21 ++++++++++-----------
+ src/cmd/go/internal/modload/modfile.go |  8 --------
+ 2 files changed, 10 insertions(+), 19 deletions(-)

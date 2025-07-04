@@ -1,21 +1,45 @@
-commit 29ff86b05b573cd715975155092d38d063ae2276
-Author: c9s <yoanlin93@gmail.com>
-Date:   Sat May 30 01:12:35 2015 +0800
+commit cf932cd897a3eaf3aa6fec3ba5d0ab1d9107eebb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 13:28:17 2015 -0400
 
-    cmd/go: handle error when git remote origin doesn't exist
+    all: retire architecture letter in file names, public API
     
-    - Let runOutput return the error message
-    - When `git config ...` returns empty buffer, it means the config key is
-      correct, but there is no corresponding value.
-    - Return the correct error when the url of remote origin is not found.
-    - Update error message
+    This CL removes the remaining visible uses of the "architecture letter" concept.
+    (They are no longer in tool names nor in source directory names.)
     
-    Fixes: #10922
+    Because the architecture letter concept is now gone, delete GOCHAR
+    from "go env" output, and change go/build.ArchChar to return an
+    error always.
     
-    Change-Id: I3f8880f6717a4f079b840d1249174378d36bca1b
-    Reviewed-on: https://go-review.googlesource.com/10475
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The architecture letter is still used in the compiler and linker sources
+    as a clumsy architecture enumeration, but that use is not visible to
+    Go users and can be cleaned up separately.
+    
+    Change-Id: I4d97a38f372003fb610c9c5241bea440d9dbeb8d
+    Reviewed-on: https://go-review.googlesource.com/10289
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/get.go | 29 +++++++++++++++--------------
- src/cmd/go/vcs.go | 10 ++++++++--
- 2 files changed, 23 insertions(+), 16 deletions(-)
+ doc/go1.5.txt                                 |  2 +
+ src/cmd/asm/internal/flags/flags.go           |  4 +-
+ src/cmd/asm/main.go                           |  2 +-
+ src/cmd/compile/internal/gc/lex.go            | 12 +++---
+ src/cmd/compile/internal/gc/mkbuiltin.go      | 17 +++-----
+ src/cmd/compile/internal/gc/obj.go            |  3 +-
+ src/cmd/dist/build.go                         | 51 ++++-------------------
+ src/cmd/go/build.go                           | 56 ++++++++++---------------
+ src/cmd/go/env.go                             |  4 --
+ src/cmd/link/internal/ld/lib.go               |  2 +-
+ src/cmd/link/internal/ld/pobj.go              |  5 +--
+ src/cmd/pack/pack_test.go                     | 25 ++----------
+ src/go/build/build.go                         | 21 +++-------
+ src/go/internal/gcimporter/gcimporter.go      |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go |  3 +-
+ test/bench/shootout/timing.sh                 | 59 +++++++++++++--------------
+ test/fixedbugs/bug248.go                      | 16 +++-----
+ test/fixedbugs/bug302.go                      | 14 ++-----
+ test/fixedbugs/bug345.go                      |  6 +--
+ test/fixedbugs/bug369.go                      | 20 ++++-----
+ test/fixedbugs/issue9355.go                   |  7 +---
+ test/run.go                                   | 13 ++----
+ test/sinit_run.go                             |  9 +---
+ 23 files changed, 114 insertions(+), 239 deletions(-)

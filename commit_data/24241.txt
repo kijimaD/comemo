@@ -1,20 +1,18 @@
-commit 7d48573d468fdbd4ff77c5b0aee5386a2f6967ad
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 12:14:54 2015 +0000
+commit 3549178e551e359200dc4fd162f14b848ad65b31
+Author: Paolo Martini <mrtnpaolo@gmail.com>
+Date:   Fri Jul 17 17:26:08 2015 +0200
 
-    cmd/internal/obj: map/slice literals janitoring
+    doc: fix typo
     
-    Simplify slice/map literal expressions.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
-    Checked that the result can still be compiled with Go 1.4.
+    The document `doc/go_spec.html` uses "preceeding" instead of the word
+    "preceding" in one place.
     
-    Change-Id: I0a6773d12200a7b43491f25f914335069a1fa5e8
-    Reviewed-on: https://go-review.googlesource.com/13833
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixed another occurrence in `src/go/types/typexpr.go`.
+    
+    Change-Id: Ic67f62026b5c9d002c5c5632299f14ecac8b02ae
+    Reviewed-on: https://go-review.googlesource.com/12354
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go   |  390 ++++-----
- src/cmd/internal/obj/ppc64/asm9.go |  638 +++++++-------
- src/cmd/internal/obj/x86/asm6.go   | 1632 ++++++++++++++++++------------------
- 3 files changed, 1330 insertions(+), 1330 deletions(-)
+ doc/go_spec.html        | 2 +-
+ src/go/types/typexpr.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,20 @@
-commit b3a361337c5ea48fb4de832b9883f19e172e1bb5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 12 19:08:39 2019 +0000
+commit 13f179b9c8c3b9d9066e71d0a69cff8c0876098b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 7 22:59:40 2019 +0100
 
-    runtime: add pallocbits and tests
+    cmd/go: fix syntax mistake in a testscript file
     
-    This change adds a per-chunk bitmap for page allocation called
-    pallocBits with algorithms for allocating and freeing pages out of the
-    bitmap. This change also adds tests for pallocBits, but does not yet
-    integrate it into the runtime.
+    I didn't realise that the trybots don't include any Mac machines, so I
+    assumed this test change was fine when submitting CL 181177.
     
-    Updates #35112.
+    In any case, this is a simple fix. I forgot to add the quotes, as the
+    new UserConfigDir on Mac includes a space.
     
-    Change-Id: I479006ed9f1609c80eedfff0580d5426b064b0ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190620
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I0766b966fc41736e9fc859e37f059a3f12788d7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181278
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/build/deps_test.go       |   4 +-
- src/runtime/export_test.go      |  63 +++++++++
- src/runtime/mpallocbits.go      | 260 +++++++++++++++++++++++++++++++++++
- src/runtime/mpallocbits_test.go | 290 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 615 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/env_write.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

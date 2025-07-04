@@ -1,24 +1,13 @@
-commit 8a06936ea18d9df793622460968590f654d76b2b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 23 21:23:40 2011 -0700
+commit 10b23e7fc94c6a89db2739080ba3c5e0fcbcaee9
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Sat Sep 24 10:38:39 2011 +1000
 
-    test: match gccgo error messages
+    syscall: mksyscall_windows.pl to produce packages other than syscall (for example pkg/exp/wingui/zwinapi.go)
     
-    bug340.go:14:7: error: expected type
-    bug340.go:15:4: error: reference to undefined field or method ‘x’
-    
-    bug350.go:12:1: error: redefinition of ‘m’
-    bug350.go:11:1: note: previous definition of ‘m’ was here
-    bug350.go:15:1: error: redefinition of ‘p’
-    bug350.go:14:1: note: previous definition of ‘p’ was here
-    
-    bug351.go:12:6: error: non-name on left side of ‘:=’
-    
-    R=golang-dev, rsc
+    R=golang-dev, alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/5127041
+    https://golang.org/cl/4964074
 
- test/fixedbugs/bug340.go | 6 +++---
- test/fixedbugs/bug350.go | 8 ++++----
- test/fixedbugs/bug351.go | 2 +-
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/exp/wingui/Makefile          |  6 ------
+ src/pkg/syscall/mksyscall_windows.pl | 24 +++++++++++++++++-------
+ 2 files changed, 17 insertions(+), 13 deletions(-)

@@ -1,25 +1,17 @@
-commit 91d989eb6df17b0696cfd53e84b10ccb3f09c1dd
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Wed May 6 22:14:32 2015 +0000
+commit 909bdf56d6aca1546e43a74af4dc46724221ba0e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 20:08:22 2015 -0400
 
-    html/template: fix pipeline sanitization
+    cmd/7g: disable duff's device on darwin
     
-    Pipelines are altered by inserting sanitizers if they are not
-    already present. The code makes the assumption that the first
-    operands of each commands are function identifiers.
+    ld64 cannot handle BR26 reloc with non-zero addend. It incorrectly
+    thinks that non-zero addend for BR26 means the code is not PIC, but
+    those BR26 relocs should be fully resolved at link time.
     
-    This is wrong, since they can also be methods. It results in
-    a panic with templates such as {{1|print 2|.f 3}}
-    
-    Adds an extra type assertion to make sure only identifiers
-    are compared with sanitizers.
-    
-    Fixes #10673
-    
-    Change-Id: I3eb820982675231dbfa970f197abc5ef335ce86b
-    Reviewed-on: https://go-review.googlesource.com/9801
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f01
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8780
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/html/template/escape.go      |  6 +++---
- src/html/template/escape_test.go | 10 ++++++++++
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/7g/ggen.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

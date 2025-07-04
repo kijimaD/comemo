@@ -1,16 +1,12 @@
-commit c29f4e00a15d0f710d29ca92ee1001c7cdbd40a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 21 21:12:41 2012 -0400
+commit 3730ddcbd846fec80a588880999e8cc280ff7450
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 21 14:50:38 2012 -0500
 
-    cmd/gc: fix a spurious -u compile error
+    doc: document go1.0.3
     
-    Fixes #4082.
-    
-    R=dsymonds
-    CC=golang-dev
-    https://golang.org/cl/6545055
+    R=rsc, r
+    CC=gobot, golang-dev
+    https://golang.org/cl/6532049
 
- src/cmd/gc/go.h        | 1 +
- src/cmd/gc/reflect.c   | 4 ++++
- src/cmd/gc/typecheck.c | 4 +---
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ doc/devel/release.html | 4 ++++
+ 1 file changed, 4 insertions(+)

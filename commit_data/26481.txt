@@ -1,18 +1,17 @@
-commit babc73547eed0fb75f4b507e02bd8235acdbc8e9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 23 16:43:17 2016 -0700
+commit 867bef93b9a60ef07f068bc8d2d4398b76331e3c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 20:58:00 2016 +0000
 
-    cmd/compile: remove redundant parameter from finishcompare
+    database/sql: implement Scan of time.Time, document, clarify Scan error text
     
-    This is follow-up 3 of 3 to CL 20959.
+    Fixes #9157
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I06efded21bbc970cbefa10e8f2cac1ebc6942e1b
-    Reviewed-on: https://go-review.googlesource.com/21054
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iadf305a172a0ec53ae91e1b2db3f3351691a48ff
+    Reviewed-on: https://go-review.googlesource.com/18935
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/database/sql/convert.go      | 31 +++++++++++++++++---
+ src/database/sql/convert_test.go | 23 +++++++++++++--
+ src/database/sql/sql.go          | 63 ++++++++++++++++++++++++++++++++--------
+ 3 files changed, 98 insertions(+), 19 deletions(-)

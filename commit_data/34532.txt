@@ -1,110 +1,29 @@
-commit 669db2cef55321b0fe354b8bf9212245dc9c6aed
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 10 16:28:58 2018 -0500
+commit 3e887ff7ea4f1e0d17a7a67e906bef9eec00ed1d
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat Oct 28 23:03:15 2017 +0100
 
-    cmd/compile: make prove pass use unsatisfiability
+    time: document that valid layouts are not valid Parse values
     
-    Currently the prove pass uses implication queries. For each block, it
-    collects the set of branch conditions leading to that block, and
-    queries this fact table for whether any of these facts imply the
-    block's own branch condition (or its inverse). This works remarkably
-    well considering it doesn't do any deduction on these facts, but it
-    has various downsides:
+    For #9346 #22135 explicitly state under layout constants
+    that they are not valid time values for Parse. Also add
+    examples of parsing valid RFC3339 values and the layout
+    to the example for time.Parse.
     
-    1. It requires an implementation both of adding facts to the table and
-       determining implications. These are very nearly duals of each
-       other, but require separate implementations. Likewise, the process
-       of asserting facts of dominating branch conditions is very nearly
-       the dual of the process of querying implied branch conditions.
+    Fix capitalisation of time.Parse and Time.Format.
     
-    2. It leads to less effective use of derived facts. For example, the
-       prove pass currently derives facts about the relations between len
-       and cap, but can't make use of these unless a branch condition is
-       in the exact form of a derived fact. If one of these derived facts
-       contradicts another fact, it won't notice or make use of this.
+    For #20869 include RFC3339 in the list of layouts that do
+    not accept all the time formats allowed by RFCs (lowercase z).
+    This does not fully address #20869.
     
-    This CL changes the approach of the prove pass to instead use
-    *contradiction* instead of implication. Rather than ever querying a
-    branch condition, it simply adds branch conditions to the fact table.
-    If this leads to a contradiction (specifically, it makes the fact set
-    unsatisfiable), that branch is impossible and can be cut. As a result,
+    Fixes #9346
+    Fixes #22135
     
-    1. We can eliminate the code for determining implications
-       (factsTable.get disappears entirely). Also, there is now a single
-       implementation of visiting and asserting branch conditions, since
-       we don't have to flip them around to treat them as facts in one
-       place and queries in another.
-    
-    2. Derived facts can be used effectively. It doesn't matter *why* the
-       fact table is unsatisfiable; a contradiction in any of the facts is
-       enough.
-    
-    3. As an added benefit, it's now quite easy to avoid traversing beyond
-       provably-unreachable blocks. In contrast, the current
-       implementation always visits all blocks.
-    
-    The prove pass already has nearly all of the mechanism necessary to
-    compute unsatisfiability, which means this both simplifies the code
-    and makes it more powerful.
-    
-    The only complication is that the current implication procedure has a
-    hack for dealing with the 0 <= Args[0] condition of OpIsInBounds and
-    OpIsSliceInBounds. We replace this with asserting the appropriate fact
-    when we process one of these conditions. This seems much cleaner
-    anyway, and works because we can now take advantage of derived facts.
-    
-    This has no measurable effect on compiler performance.
-    
-    Effectiveness:
-    
-    There is exactly one condition in all of std and cmd that this fails
-    to prove that the old implementation could: (int64(^uint(0)>>1) < x)
-    in encoding/gob. This can never be true because x is an int, and it's
-    basically coincidence that the old code gets this. (For example, it
-    fails to prove the similar (x < ^int64(^uint(0)>>1)) condition that
-    immediately precedes it, and even though the conditions are logically
-    unrelated, it wouldn't get the second one if it hadn't first processed
-    the first!)
-    
-    It does, however, prove a few dozen additional branches. These come
-    from facts that are added to the fact table about the relations
-    between len and cap. These were almost never queried directly before,
-    but could lead to contradictions, which the unsat-based approach is
-    able to use.
-    
-    There are exactly two branches in std and cmd that this implementation
-    proves in the *other* direction. This sounds scary, but is okay
-    because both occur in already-unreachable blocks, so it doesn't matter
-    what we chose. Because the fact table logic is sound but incomplete,
-    it fails to prove that the block isn't reachable, even though it is
-    able to prove that both outgoing branches are impossible. We could
-    turn these blocks into BlockExit blocks, but it doesn't seem worth the
-    trouble of the extra proof effort for something that happens twice in
-    all of std and cmd.
-    
-    Tests:
-    
-    This CL updates test/prove.go to change the expected messages because
-    it can no longer give a "reason" why it proved or disproved a
-    condition. It also adds a new test of a branch it couldn't prove
-    before.
-    
-    It mostly guts test/sliceopt.go, removing everything related to slice
-    bounds optimizations and moving a few relevant tests to test/prove.go.
-    Much of this test is actually unreachable. The new prove pass figures
-    this out and doesn't try to prove anything about the unreachable
-    parts. The output on the unreachable parts is already suspect because
-    anything can be proved at that point, so it's really just a regression
-    test for an algorithm the compiler no longer uses.
-    
-    This is a step toward fixing #23354. That issue is quite easy to fix
-    once we can use derived facts effectively.
-    
-    Change-Id: Ia48a1b9ee081310579fe474e4a61857424ff8ce8
-    Reviewed-on: https://go-review.googlesource.com/87478
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia4c13e5745de583db5ef7d5b1688d7768bc42c1b
+    Reviewed-on: https://go-review.googlesource.com/74231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 339 ++++++++++++++++------------------
- test/prove.go                         |  80 +++++---
- test/sliceopt.go                      |  45 +----
- 3 files changed, 209 insertions(+), 255 deletions(-)
+ src/time/example_test.go | 18 +++++++++++++++++-
+ src/time/format.go       | 11 +++++++----
+ 2 files changed, 24 insertions(+), 5 deletions(-)

@@ -1,14 +1,16 @@
-commit fd296282e0a5058351954f1a7ea2dac5ef87f052
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 19 14:14:58 2016 -0400
+commit 2256e38978a38a954df72ab50423c1883f1063d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 27 14:33:23 2016 -0700
 
-    cmd/dist: enable plugin test on darwin/amd64
+    runtime: update pprof binary header URL
     
-    Change-Id: I6071881a5f7b9638bca0bfef76d6f4f45c9202a6
-    Reviewed-on: https://go-review.googlesource.com/29396
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    The code has moved from code.google.com to github.com.
+    
+    Change-Id: I0cc9eb69b3fedc9e916417bc7695759632f2391f
+    Reviewed-on: https://go-review.googlesource.com/23523
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/cpuprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,31 +1,16 @@
-commit 434b2a5d0dbdfdce6327beb06ca03c02b3fd2785
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 31 16:51:32 2022 -0400
+commit 5f034f9b46f32010434d64aa376bb118e899253a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 3 15:18:36 2021 -0400
 
-    syscall: relax output check in TestGroupCleanupUserNamespace
+    [dev.typeparams] internal/buildcfg: turn on regabireflect by default on ARM64
     
-    “If you have a procedure with ten parameters, you probably missed some.”
-    ― attr. Alan J. Perlis
-    
-    I argue that the same is true for hard-coded special cases.
-    
-    In TestGroupCleanupUserNamespace, instead of a curated list of strings
-    observed in the wild we now check for a prefix, as was done for
-    TestGroupCleanup in CL 24670.
-    
-    Updates #16224.
-    Updates #16303.
-    Updates #19938.
-    Updates #34547.
-    Updates #46752.
-    Fixes #52088.
-    
-    Change-Id: I59c5b0c048113e306996c0f8247e09c714d2423a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397316
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4a0a093b07a287cc3a3e0ee939e7ee82d8e9b1aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324889
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/exec_linux_test.go | 25 +++++++++----------------
- 1 file changed, 9 insertions(+), 16 deletions(-)
+ src/internal/buildcfg/exp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

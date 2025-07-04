@@ -1,17 +1,15 @@
-commit e5ef657264ef9b7c0bcd9b5c437fea2d602a2030
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 29 11:47:04 2014 -0500
+commit 213a6645cee2e7050eabb28042aa733f9c8452c8
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 21 20:44:04 2014 +0100
 
-    cmd/gc: add write barrier in copy of function parameters to heap
+    [dev.cc] cmd/8g: fix warning on Plan 9
     
-    Found with GODEBUG=wbshadow=2 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
+    warning: /usr/go/src/cmd/8g/reg.c:365 format mismatch d VLONG, arg 5
     
-    Change-Id: I1320d5340a9e421c779f24f3b170e33974e56e4f
-    Reviewed-on: https://go-review.googlesource.com/2278
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/177160043
 
- src/cmd/gc/typecheck.c |  1 +
- src/cmd/gc/walk.c      | 12 +++++++++---
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/8g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

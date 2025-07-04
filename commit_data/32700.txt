@@ -1,21 +1,16 @@
-commit 96b1eff087bd29c43d60b27aad6e53c2ca7e67c7
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Sep 12 12:22:22 2017 -0400
+commit 9a432552cb6dad659dd6ff7e3c9ab9defc5c73d2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 20 11:13:55 2017 +0200
 
-    runtime: in cpuProfile.addExtra, set p.lostExtra to 0 after flush
+    os: document that NewFile can return nil
     
-    After the number of lost extra events are written to the the cpuprof log,
-    the number of lost extra events should be set to zero, or else, the next
-    time time addExtra is logged, lostExtra will be overcounted. This change
-    resets lostExtra after its value is written to the log.
+    Fixes #20023
     
-    Fixes #21836
-    
-    Change-Id: I8a6ac9c61e579e7a5ca7bdb0f3463f8ae8b9f863
-    Reviewed-on: https://go-review.googlesource.com/63270
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1bec3e69031ffcfd7ad71716be9597ec322528ff
+    Reviewed-on: https://go-review.googlesource.com/41211
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cpuprof.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/os/file_plan9.go   | 4 +++-
+ src/os/file_unix.go    | 4 +++-
+ src/os/file_windows.go | 4 +++-
+ 3 files changed, 9 insertions(+), 3 deletions(-)

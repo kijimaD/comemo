@@ -1,19 +1,23 @@
-commit af29e98390036e1f260fe50dc18ffcf178f1f29d
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Mon Jul 30 22:31:01 2018 +0100
+commit 31700b83b5d9bdc2ddc474fd72b809a7b585d6da
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Dec 8 08:19:32 2017 +0000
 
-    doc: add link to go command modules docs from Go 1.11 release notes
+    cmd/internal/obj/arm64: add assembler support for load with register offset
     
-    The FAQ already has a link to the release notes and the go command docs.
-    Add a link from the release notes to the go command docs, to ensure that
-    people ultimately end up there (the docs that then signpost
-    people to the relevant other help docs).
+    The patch adds support for LDR(register offset) instruction.
+    And add the test cases and negative tests.
     
-    Updates #25517.
-    
-    Change-Id: I284c84af712d4519c59f7ca6c396b05a4c967cee
-    Reviewed-on: https://go-review.googlesource.com/126777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b32c6a5065afc4571116d4896f7ebec3c0416d3
+    Reviewed-on: https://go-review.googlesource.com/87955
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.11.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arm64.go             |  88 ++++++++++++----
+ src/cmd/asm/internal/asm/parse.go              |  50 ++++++----
+ src/cmd/asm/internal/asm/testdata/arm64.s      |   8 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  13 ++-
+ src/cmd/internal/obj/arm64/a.out.go            |   2 +
+ src/cmd/internal/obj/arm64/asm7.go             | 133 ++++++++++++++++++-------
+ src/cmd/internal/obj/arm64/doc.go              |  22 ++--
+ src/cmd/internal/obj/arm64/list7.go            |   3 +
+ src/cmd/internal/obj/util.go                   |  19 +++-
+ 9 files changed, 251 insertions(+), 87 deletions(-)

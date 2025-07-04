@@ -1,15 +1,17 @@
-commit 2ae4f356cc785ef5ac4f756143cc6c2eb3a273d6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Mar 7 15:48:39 2011 +1100
+commit 0db312b6a854cc75aa88899865560a7ddcdf9f07
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 6 23:02:29 2011 -0500
 
-    doc/codelab/wiki: include into windows build
+    http: use Header type consistently
     
-    R=adg, rsc
-    CC=Joe Poirier, golang-dev
-    https://golang.org/cl/4257052
+    R=bradfitzgo, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4244053
 
- doc/codelab/wiki/Makefile  |  2 +-
- doc/codelab/wiki/test.sh   |  2 +-
- doc/codelab/wiki/wiki.html | 70 +++++++++++++++++++++++-----------------------
- src/run.bash               |  1 -
- 4 files changed, 37 insertions(+), 38 deletions(-)
+ src/pkg/http/client.go             |  2 +-
+ src/pkg/http/readrequest_test.go   |  2 +-
+ src/pkg/http/request.go            |  2 +-
+ src/pkg/http/requestwrite_test.go  |  4 ++--
+ src/pkg/http/response.go           | 17 ++++++++---------
+ src/pkg/http/responsewrite_test.go |  6 +++---
+ 6 files changed, 16 insertions(+), 17 deletions(-)

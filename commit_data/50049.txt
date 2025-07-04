@@ -1,27 +1,21 @@
-commit b4c124af1e2953e010200fe50651f5ffc967a346
-Author: Chris Gillis <gillisct@gmail.com>
-Date:   Fri Jun 18 02:14:28 2021 +0000
+commit e180e2c27c3c3f06a4df6352386efedc15a1e38c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 28 17:07:01 2021 -0400
 
-    image/gif: avoid decoding past the first frame in decode()
+    cmd/internal/goobj, cmd/link: remove funcdataoff
     
-    The existing decode() method offers the ability to keep just one
-    frame of the GIF image, however it will read and decompress all
-    subsequent frames regardless.
+    FUNCDATA is always a symbol reference with 0 offset. Assert the
+    offset is 0 and remove funcdataoff.
     
-    Fixes #41142
-    
-    Change-Id: I0c3c11f9c11cd487b6c365e9a8b98e617d555db0
-    GitHub-Last-Rev: 03ebc8ee7bb19ee80c62d0c935b783d7bc75c2e9
-    GitHub-Pull-Request: golang/go#46813
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329329
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Paul Tyng <paul@paultyng.net>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+    Change-Id: I326815365c9db5aeef6b869df5d78a9957bc16a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352894
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/image/gif/reader.go      | 4 ++++
- src/image/gif/reader_test.go | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/funcinfo.go     | 35 +++++--------------
+ src/cmd/internal/obj/link.go           | 17 +++++-----
+ src/cmd/internal/obj/objfile.go        |  4 ---
+ src/cmd/internal/obj/pcln.go           | 11 +++---
+ src/cmd/link/internal/ld/pcln.go       | 35 +++++++------------
+ src/cmd/link/internal/loader/loader.go | 62 +++++++++++++++-------------------
+ 6 files changed, 62 insertions(+), 102 deletions(-)

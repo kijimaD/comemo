@@ -1,18 +1,20 @@
-commit e3ada56537e0fdf04111de01a336902b1e0fb9ab
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 10 21:06:54 2023 +0000
+commit c391156f96357593fa18fccee305401e3f82a1a6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 5 16:14:22 2022 +0100
 
-    runtime: hide sysExitTicks a little better
+    cmd/go: set up git identity for build_buildvcs_auto.txt
     
-    Just another step to hiding implementation details.
+    Just like in other tests like get_dotfiles.txt or
+    version_buildvcs_git.txt. Without it, I get a failure on my machine:
     
-    Change-Id: I71b7cc522d18c23f03a9bf32e428279e62b39a89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494192
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+            fatal: empty ident name (for <mvdan@p14s.localdomain>) not allowed
+    
+    Change-Id: I1c17c0d58c539b59154570b5438c7bd850bac5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/proc.go  |  7 +++----
- src/runtime/trace.go | 12 +++++++-----
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/build_buildvcs_auto.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

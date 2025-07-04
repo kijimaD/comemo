@@ -1,23 +1,34 @@
-commit f005df8b582658d54e63d59953201299d6fee880
-Author: Ayan George <ayan@ayan.net>
-Date:   Tue Jan 11 16:37:46 2022 -0500
+commit 9e8a312b71b3ad271026947d15f4d9fc483b0132
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Mar 24 21:55:49 2021 -0400
 
-    cmd/go: enable fuzz testing for FreeBSD
+    go/parser: move type params in scope for the function signature
     
-    Add "freebsd" to GOOS for which sys.FuzzSupported() returns true
-    and add freebsd to the build tags to fuzz test source.
+    Type parameter resolution is a bit tricky: type parameters are in the
+    function scope, but unlike ordinary parameters may reference eachother.
+    When resolving the function scope, we must be careful about the order in
+    which objects are resolved and declared.
     
-    Fixes #46554
-    Change-Id: I5f695ecc8f09c0ab4279ced23b4715b788fcade0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377855
-    Trust: Bryan Mills <bcmills@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Using ordering allows us to avoid passing around temporary scopes for
+    field declarations.
+    
+    Add a bunch of tests for this behavior, and skip "_" in resolution tests
+    as it just adds noise.
+    
+    For #45221
+    
+    Change-Id: Id080cddce3fd76396bf86ba5aba856aedf64a458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304456
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/sys/supported.go      | 2 +-
- src/internal/fuzz/minimize_test.go     | 2 +-
- src/internal/fuzz/sys_posix.go         | 2 +-
- src/internal/fuzz/sys_unimplemented.go | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/go/parser/resolver.go                        | 101 +++++++++++++++++------
+ src/go/parser/resolver_test.go                   |   3 +-
+ src/go/parser/testdata/resolution/issue45136.src |   6 +-
+ src/go/parser/testdata/resolution/issue45160.src |   2 +-
+ src/go/parser/testdata/resolution/resolution.src |  13 ++-
+ src/go/parser/testdata/resolution/typeparams.go2 |  32 +++++--
+ 6 files changed, 119 insertions(+), 38 deletions(-)

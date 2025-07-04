@@ -1,18 +1,39 @@
-commit f4bf9bceac20868fb692bacf02ee5b4ccd99b778
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:53:24 2022 +0800
+commit 5a3d0f5a6361a2a1ccba19ad8d8da8b4367ea2c9
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 9 11:17:08 2021 -0500
 
-    runtime: use strings.Builder
+    cmd/internal/obj/ppc64: rework argument classifications
     
-    Change-Id: I9274d36ca983fdf59088b71a97b139ea262370dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428276
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This introduces a number of new classifications which will make it
+    easier to generate functions to assemble the new instructions of
+    ISA 3.1, and potentially earlier versions.
+    
+    No code generation changes should occur as a result of these. These
+    allow finer control over how an opcode is matched to an optab entry.
+    
+    Literal values are now classified based on the smallest number of bits
+    needed to encode, and matching rules will accept a literal if it
+    can be zero/sign extended to fit a larger literal class.
+    
+    Likewise, support classifying even register numbers for GPR, VSX, and
+    FPR instructions. Some instructions require and even/odd register pair,
+    and these are usually represented by specifying the even register, and
+    similarly encoded.
+    
+    Likewise, add a unit test for the argument classifier function (aclass).
+    This caught an off-by-one bug in aclass which is also fixed.
+    
+    Updates #44549
+    
+    Change-Id: Ia03013aea8b56c4d59b7c3812cdd67ddb3b720b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350152
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/align_test.go          | 3 +--
- src/runtime/debuglog_test.go       | 5 ++---
- src/runtime/signal_windows_test.go | 4 ++--
- src/runtime/stack_test.go          | 3 +--
- 4 files changed, 6 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go    |  89 +++++++-----
+ src/cmd/internal/obj/ppc64/anames9.go  |  22 ++-
+ src/cmd/internal/obj/ppc64/asm9.go     | 250 +++++++++++++++++----------------
+ src/cmd/internal/obj/ppc64/asm_test.go | 114 +++++++++++++++
+ 4 files changed, 316 insertions(+), 159 deletions(-)

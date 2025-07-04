@@ -1,22 +1,12 @@
-commit 2bddbf5e8f864890f5a8cda1a5e00dbf04b4f7e9
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Jan 18 19:08:00 2013 -0800
+commit c8c8ab08ed4946e719d0ae001d9af3287e73b70d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Jan 19 13:36:59 2013 +1100
 
-    cmd/8g, cmd/dist, cmd/gc: fix warnings on Plan 9
+    doc: fix effective_go: s/byte array/byte slice/.
     
-    cmd/8g/gsubr.c: unreachable code
-    cmd/8g/reg.c: overspecifed class
-    cmd/dist/plan9.c: unused parameter
-    cmd/gc/fmt.c: stkdelta is now a vlong
-    cmd/gc/racewalk.c: used but not set
-    
-    R=golang-dev, seed, rsc
-    CC=golang-dev
-    https://golang.org/cl/7067052
+    R=rsc
+    CC=golang-dev, mdempsky
+    https://golang.org/cl/7062049
 
- src/cmd/8g/gsubr.c    | 5 +----
- src/cmd/8g/reg.c      | 2 +-
- src/cmd/dist/plan9.c  | 1 +
- src/cmd/gc/fmt.c      | 2 +-
- src/cmd/gc/racewalk.c | 1 +
- 5 files changed, 5 insertions(+), 6 deletions(-)
+ doc/effective_go.html | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

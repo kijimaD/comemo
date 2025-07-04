@@ -1,31 +1,18 @@
-commit 15618840f6d416cc9da34505a5ea5190ff15c3aa
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Oct 2 13:31:37 2024 -0500
+commit 01cad815a1c3c48d54b3cbbfc9f599f5f91918fe
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 26 22:34:05 2023 -0400
 
-    cmd/compile: add internal/runtime/atomic.Xchg8 intrinsic for PPC64
+    runtime: remove runtime.Add testing function
     
-    This is minor extension of the existing support for 32 and
-    64 bit types.
+    Replace with unsafe.Add.
     
-    For #69735
-    
-    Change-Id: I6828ec223951d2b692e077dc507b000ac23c32a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617496
-    Reviewed-by: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ic5c155349dadc51457119b3c05ab717cdfd26c95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521176
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go              | 17 +++++++++++------
- src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  2 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  3 ++-
- src/cmd/compile/internal/ssa/opGen.go              | 18 ++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go       |  3 +++
- src/cmd/compile/internal/ssagen/intrinsics.go      |  2 +-
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  2 ++
- src/internal/runtime/atomic/atomic_ppc64x.go       |  3 +++
- src/internal/runtime/atomic/atomic_ppc64x.s        | 16 ++++++++++++++++
- src/internal/runtime/atomic/xchg8_test.go          |  2 +-
- 10 files changed, 58 insertions(+), 10 deletions(-)
+ src/runtime/export_linux_test.go  | 1 -
+ src/runtime/runtime_linux_test.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

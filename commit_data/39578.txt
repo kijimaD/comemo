@@ -1,13 +1,34 @@
-commit 8e82624e691387eed2261e6c34decb27348f4685
-Author: Bharath Thiruveedula <tbharath91@gmail.com>
-Date:   Tue Aug 6 09:26:48 2019 +0530
+commit 9dc3b8b722ec93a3cd16742764a29cb3f908edbe
+Author: Keith Randall <khr@google.com>
+Date:   Wed Mar 6 14:45:47 2019 -0800
 
-    net: fix the docs in IPNet.String
+    reflect: fix more issues with StructOf GC programs
     
-    Fixes #33433
-    Change-Id: Idb3961685a3cfd13ba26155a1d64fc24cc418fdb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189117
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    First the insidious bug:
+    
+      var n uintptr
+      for n := elemPtrs; n > 120; n -= 120 {
+        prog = append(prog, 120)
+        prog = append(prog, mask[:15]...)
+        mask = mask[15:]
+      }
+      prog = append(prog, byte(n))
+      prog = append(prog, mask[:(n+7)/8]...)
+    
+    The := breaks this code, because the n after the loop is always 0!
+    
+    We also do need to handle field padding correctly. In particular
+    the old padding code doesn't correctly handle fields that are not
+    a multiple of a pointer in size.
+    
+    Fixes #30606.
+    
+    Change-Id: Ifcab9494dc25c20116753c5d7e0145d6c2053ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165860
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/ip.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/type.go           | 35 ++++++++++++++++-------------
+ test/fixedbugs/issue30606b.go | 51 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 15 deletions(-)

@@ -1,16 +1,29 @@
-commit 547a82c36cbeb59544943848ec6c5cadbe0b770a
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Feb 6 14:44:30 2014 -0800
+commit 2dc759d7c69cbb0800de53d6ca391c703ad42d9c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Feb 6 09:11:00 2014 -0800
 
-    math/big: replace goto with for loop
-    I just added support for goto statements to my GopherJS project and now I am trying to get rid of my patches. These occurrences of goto however are a bit problematic:
-    GopherJS has to emulate gotos, so there is some performance drawback when doing so. In this case the drawback is major, since this is a core function of math/big which is called quite often. Additionally I can't see any reason here why the implementation with gotos should be preferred over my proposal.
-    That's why I would kindly ask to include this patch, even though it is functional equivalent to the existing code.
+    cmd/go, cmd/cgo, make.bash: cross compiling with cgo enabled
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Introduce two new environment variables, CC_FOR_TARGET and CXX_FOR_TARGET.
+    CC_FOR_TARGET defaults to CC and is used when compiling for GOARCH, while
+    CC remains for compiling for GOHOSTARCH.
+    CXX_FOR_TARGET defaults to CXX and is used when compiling C++ code for
+    GOARCH.
+    
+    CGO_ENABLED defaults to disabled when cross compiling and has to be
+    explicitly enabled.
+    
+    Update #4714
+    
+    LGTM=minux.ma, iant
+    R=golang-codereviews, minux.ma, iant, rsc, dominik.honnef
     CC=golang-codereviews
-    https://golang.org/cl/55470046
+    https://golang.org/cl/57100043
 
- src/pkg/math/big/arith.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/dist/a.h          |  3 +-
+ src/cmd/dist/build.c      | 25 ++++++++++----
+ src/cmd/dist/buildgo.c    |  2 +-
+ src/cmd/go/build.go       | 83 +++++++++++++++++++++++++----------------------
+ src/make.bash             | 17 +++++++---
+ src/pkg/go/build/build.go |  3 +-
+ 6 files changed, 79 insertions(+), 54 deletions(-)

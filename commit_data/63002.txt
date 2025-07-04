@@ -1,0 +1,20 @@
+commit b4e992b6e1a3eb6985814ac074ad3057ab21c40a
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 23 12:30:52 2025 -0400
+
+    reflect: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace a usage of runtime.SetFinalizer with runtime.AddCleanup in
+    the TestCallReturnsEmpty test. There is an additional use of
+    SetFinalizer in the reflect package which depends on object
+    resurrection and needs further refactoring to replace.
+    
+    Updates #70907
+    
+    Change-Id: I4c0e56c35745a225776bd611d026945efdaf96f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667595
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/all_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

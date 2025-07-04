@@ -1,21 +1,21 @@
-commit 7e5e4a7cef34727c8de2da218e76da23f826d608
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 9 01:39:18 2022 +0700
+commit 426ff3746fb2ebb777e32572b6eda5e19263ace9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 9 14:04:43 2021 -0700
 
-    math/big: disable TestNewIntAllocs on noopt builder
+    cmd/cgo, runtime/cgo: avoid GCC/clang conversion warnings
     
-    Since when that test requires inlining, which is disabled on noopt
-    builder.
+    Add explicit conversions to avoid warnings from -Wsign-conversion and
+    -Wshorten-64-to-32. Also avoid runtime errors from -fsanitize=undefined.
     
-    Updates #29951
+    Fixes #48121
     
-    Change-Id: I9d7a0a64015a30d3bfb5ad5d806ea0955657fda3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422039
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I29dc8d976884fc42826392c10f1e1759bb1a3989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348739
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/math/big/int_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/cgo/out.go              |  4 ++--
+ src/runtime/cgo/gcc_sigaction.c | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,22 +1,24 @@
-commit 24fc64028c0faa7fcbdae2bf2a2ded825713c982
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 14 10:21:51 2022 -0800
+commit a1ce5503c7a9518c96a231e3ff867d5c994afda2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 21 11:49:38 2021 -0500
 
-    os: don't request read access from CreateFile in Stat
+    all: update vendored golang.org/x/crypto for cryptobyte fix
     
-    CL 448897 changed os.Stat to request GENERIC_READ access when using
-    CreateFile to examine a file. This is unnecessary; access flags of 0
-    will permit examining file metadata even if the file isn't readable.
-    Revert to the old behavior here.
+    Fixes #49678
     
-    For #56217
-    
-    Change-Id: I09220b3bbee304bd89f4a94ec9b0af42042b7773
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450296
+    Change-Id: I47dd959a787180a67856e60dfa6eba3ddd045972
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373360
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/os/stat_windows.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/go.mod                                    |  2 +-
+ src/cmd/go.sum                                    |  4 +-
+ src/cmd/vendor/modules.txt                        |  2 +-
+ src/crypto/x509/x509_test.go                      | 95 +++++++++++++++++++++++
+ src/go.mod                                        |  2 +-
+ src/go.sum                                        |  4 +-
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go |  7 +-
+ src/vendor/modules.txt                            |  2 +-
+ 8 files changed, 109 insertions(+), 9 deletions(-)

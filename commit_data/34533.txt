@@ -1,24 +1,38 @@
-commit 941fc129e2f059a5fb9f5ab77f5cb12aedecd145
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 11 14:23:01 2018 -0500
+commit 9aa6f80ed385f092259aa5b0623fdf826b6da75b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 11:13:27 2017 -0400
 
-    cmd/compile: derive unsigned limits from signed limits in prove
+    go/importer: support lookup in importer.For
     
-    This adds a few simple deductions to the prove pass' fact table to
-    derive unsigned concrete limits from signed concrete limits where
-    possible.
+    The support in this CL assumes that something at a higher level than
+    the toolchain-specific importers is taking care of converting imports
+    in source code into canonical import paths before invoking the
+    toolchain-specific importers. That kind of "what does an import mean"
+    as opposed to "find me the import data for this specific path"
+    should be provided by higher-level layers.
     
-    This tweak lets the pass prove 70 additional branch conditions in std
-    and cmd.
+    That's a different layering than the default behavior but matches the
+    current layering in the compiler and linker and works with the metadata
+    planned for generation by the go command for package management.
+    It should also eventually allow the importer code to stop concerning
+    itself with source directories and vendor import translation and maybe
+    deprecate ImporterFrom in favor of Importer once again. But that's all
+    in the future. For now, just make non-nil lookups work, and test that.
     
-    This is based on a comment from the recently-deleted factsTable.get:
-    "// TODO: also use signed data if lim.min >= 0".
+    Fixes #13847.
+    Adds #22550.
     
-    Change-Id: Ib4340249e7733070f004a0aa31254adf5df8a392
-    Reviewed-on: https://go-review.googlesource.com/87479
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I048c6a384492e634988a7317942667689ae680ff
+    Reviewed-on: https://go-review.googlesource.com/74354
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 13 +++++++++++++
- test/prove.go                         | 25 +++++++++++++++++++++++--
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/go/importer/importer.go                        | 38 +++++++-----
+ src/go/importer/importer_test.go                   | 68 ++++++++++++++++++++++
+ .../gccgoimporter/gccgoinstallation_test.go        |  4 +-
+ src/go/internal/gccgoimporter/importer.go          | 52 +++++++++++++----
+ src/go/internal/gccgoimporter/importer_test.go     |  2 +-
+ src/go/internal/gcimporter/gcimporter.go           | 65 ++++++++++++++-------
+ src/go/internal/gcimporter/gcimporter_test.go      | 16 ++---
+ 7 files changed, 186 insertions(+), 59 deletions(-)

@@ -1,21 +1,21 @@
-commit 7f3569c33acb2e1a23c55a29ddff2203e39c0176
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 11 15:05:59 2022 -0700
+commit 119213566a8e0da729a8bccc7d7f7d525f0c1cf9
+Author: jochen weber <jochen.weber80@gmail.com>
+Date:   Fri May 14 12:45:13 2021 +0000
 
-    cmd/compile/internal/ssa: include "ppc64" in has-regabi arches list
+    cmd/cgo: remove hardcoded '-pie' ldflag for linux/arm
     
-    While here, rename helper function to follow Go naming idioms:
-    https://github.com/golang/go/wiki/CodeReviewComments#initialisms
+    a minimally invasive fix proposal for #45940. which keeps the fix for #26197.
     
-    Fixes #53456.
+    an alternative for (#26197) could be to fail if we have both flags. adding/removing a flag without an message to the user is inconvenient.
     
-    Change-Id: I041dd25968e192ea2b430d58e3348626a970f92b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422957
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6ac2524d81ff57202fbe3032a53afd5106270a9e
+    GitHub-Last-Rev: edaf02fa455329b5d794a139f99874b5e8cc12d1
+    GitHub-Pull-Request: golang/go#45989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317569
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/debug_lines_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/exec.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

@@ -1,24 +1,25 @@
-commit 78e50d0fa0bc78d197bd1b41e1bdef8c20a03396
-Author: Mike Beaumont <mjboamail@gmail.com>
-Date:   Mon Apr 29 12:14:32 2024 +0200
+commit b6c75c5fb114fd951a7e3d9aa569b9bcd06d6bc3
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 10:47:45 2023 -0400
 
-    crypto/tls: don't call tlsrsakex.IncNonDefault with FIPS
+    test,internal/testdir: don't set GOOS/GOARCH
     
-    We haven't called tlsrsakex.Value() yet at this point if we're using
-    FIPS, like if CipherSuites != nil. This adds needFIPS as a gate next to
-    CipherSuites != nil. FIPS specifies suites that would be skipped if
-    tlsarsakex were set.
+    The test directory driver currently sets the GOOS/GOARCH environment
+    variables if they aren't set. This appears to be in service of a
+    single test, test/env.go, which was introduced in September 2008 along
+    with os.Getenv. It's not entirely clear what that test is even trying
+    to check, since runtime.GOOS isn't necessarily the same as $GOOS. We
+    keep the test around because golang.org/x/tools/go/ssa/interp uses it
+    as a test case, but we simplify the test and eliminate the need for
+    the driver to set GOOS/GOARCH.
     
-    Fixes #65991
-    
-    Change-Id: I8070d8f43f27c04067490af8cc7ec5e787f2b9bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582315
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5acc0093b557c95d1f0a526d031210256a68222d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493601
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/tls/handshake_client.go | 2 +-
- src/crypto/tls/handshake_server.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/internal/testdir/testdir_test.go |  8 --------
+ test/env.go                          | 13 ++++++++-----
+ 2 files changed, 8 insertions(+), 13 deletions(-)

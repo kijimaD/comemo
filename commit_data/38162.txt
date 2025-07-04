@@ -1,34 +1,18 @@
-commit e27402aee03b9232b7042ca6cba8b42b15727ef7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Feb 25 11:32:00 2019 +0100
+commit 7b8b3f30edde4ec93b91e62d2d6442dff7360056
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Oct 5 12:09:43 2018 +0000
 
-    cmd/dist, cmd/link: allow passing default dynamic linker/loader
+    cmd/compile: combine similar code in 386's assembly generator
     
-    Add an environment variable to make.bash to allow setting the default
-    dynamic linker/loader. This fixes alpine builds to use
-    /lib/ld-musl-x86_64.so.1:
+    The indexed MOVload and MOVstore have similar logic, and this CL
+    combine them together. The total size of pkg/linux_386/cmd/compile/
+    decreases about 4KB.
     
-      $ readelf -l ../bin/go | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/'
-      /lib/ld-musl-x86_64.so.1
-    
-    Also re-enable the internal linker tests that were previously disabled
-    for alpine (CL 41759, CL 41678).
-    
-    Fixes #18243
-    Updates #19938
-    
-    This resurrects CL 50070 authored by Jessie Frazelle.
-    
-    Change-Id: I132b5282045a3d60c8568e3b002a7f075eac2d93
-    Reviewed-on: https://go-review.googlesource.com/c/163977
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I06236a3542aaa3dfc113c49fe4c69d209e018dfe
+    Reviewed-on: https://go-review.googlesource.com/c/139958
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/build.go           |  3 +++
- src/cmd/dist/buildruntime.go    |  1 +
- src/cmd/dist/test.go            |  9 +--------
- src/cmd/internal/objabi/util.go |  1 +
- src/cmd/link/internal/ld/elf.go |  5 +++++
- src/make.bash                   | 12 ++++++++++++
- 6 files changed, 23 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/x86/ssa.go | 94 ++++++++++++-------------------------
+ 1 file changed, 30 insertions(+), 64 deletions(-)

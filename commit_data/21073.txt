@@ -1,12 +1,23 @@
-commit 7f4c26850a6ede3cf619efd36e5ad853948a608a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 23 15:00:04 2014 +1100
+commit c81d248ecaef272aae56adabf84588c254b8ec39
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 22:30:02 2014 -0500
 
-    runtime: import unsafe in os_windows.go (fixes windows build)
+    [dev.cc] runtime: convert softfloat_arm.c to Go + build fixes
     
-    Change-Id: I55419cb580e6d18cf1c17c3e7bb8777ed6d794e7
-    Reviewed-on: https://go-review.googlesource.com/1995
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also include onM_signalok fix from issue 8995.
+    
+    Fixes linux/arm build.
+    Fixes #8995.
+    
+    LGTM=r
+    R=r, dave
+    CC=golang-codereviews
+    https://golang.org/cl/168580043
 
- src/runtime/os_windows.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/asm_arm.s           |  10 +-
+ src/runtime/softfloat64.go      |  22 +-
+ src/runtime/softfloat64_test.go |   2 +-
+ src/runtime/softfloat_arm.c     | 687 ----------------------------------------
+ src/runtime/softfloat_arm.go    | 644 +++++++++++++++++++++++++++++++++++++
+ src/runtime/sqrt.go             |   4 -
+ 6 files changed, 662 insertions(+), 707 deletions(-)

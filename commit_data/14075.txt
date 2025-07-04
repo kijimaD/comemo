@@ -1,17 +1,64 @@
-commit 9e811683f1e4138820f0caaec20041c57c302f73
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 7 17:56:10 2012 -0700
+commit 905e8dfa27b943aa306cadb1a6880bbeb4051173
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Oct 8 09:51:04 2012 +1100
 
-    gophertool: make work with latest Chrome extension security restrictions
+    cmd/5g: avoid temporaries during gcmp(reg, constant)
     
-    No JavaScript in HTML anymore.
+    Address several instances of unneeded temporaries when using gcmp.
     
-    R=golang-dev, dsymonds
+    func M(m map[int]bool) int {
+            return len(m)
+    }
+    
+    --- prog list "M" ---
+    0000 (/home/dfc/src/map.go:3) TEXT      M+0(SB),$0-8
+    0001 (/home/dfc/src/map.go:4) MOVW      m+0(FP),R0
+    0002 (/home/dfc/src/map.go:4) MOVW      $0,R1
+    0003 (/home/dfc/src/map.go:4) CMP       R1,R0,
+    0004 (/home/dfc/src/map.go:4) BEQ       ,6(APC)
+    0005 (/home/dfc/src/map.go:4) MOVW      0(R0),R0
+    0006 (/home/dfc/src/map.go:4) MOVW      R0,.noname+4(FP)
+    0007 (/home/dfc/src/map.go:4) RET       ,
+    
+    after:
+    
+    --- prog list "M" ---
+    0000 (/home/dfc/src/map.go:3) TEXT      M+0(SB),$0-8
+    0001 (/home/dfc/src/map.go:4) MOVW      m+0(FP),R0
+    0002 (/home/dfc/src/map.go:4) CMP       $0,R0,
+    0003 (/home/dfc/src/map.go:4) BEQ       ,5(APC)
+    0004 (/home/dfc/src/map.go:4) MOVW      0(R0),R0
+    0005 (/home/dfc/src/map.go:4) MOVW      R0,.noname+4(FP)
+    0006 (/home/dfc/src/map.go:4) RET       ,
+    
+    func C(c chan int) int {
+            return cap(c)
+    }
+    
+    --- prog list "C" ---
+    0000 (/home/dfc/src/map.go:3) TEXT      C+0(SB),$0-8
+    0001 (/home/dfc/src/map.go:4) MOVW      c+0(FP),R0
+    0002 (/home/dfc/src/map.go:4) MOVW      $0,R1
+    0003 (/home/dfc/src/map.go:4) CMP       R1,R0,
+    0004 (/home/dfc/src/map.go:4) BEQ       ,6(APC)
+    0005 (/home/dfc/src/map.go:4) MOVW      4(R0),R0
+    0006 (/home/dfc/src/map.go:4) MOVW      R0,.noname+4(FP)
+    0007 (/home/dfc/src/map.go:4) RET       ,
+    
+    after:
+    
+    --- prog list "C" ---
+    0000 (/home/dfc/src/map.go:3) TEXT      C+0(SB),$0-8
+    0001 (/home/dfc/src/map.go:4) MOVW      c+0(FP),R0
+    0002 (/home/dfc/src/map.go:4) CMP       $0,R0,
+    0003 (/home/dfc/src/map.go:4) BEQ       ,5(APC)
+    0004 (/home/dfc/src/map.go:4) MOVW      4(R0),R0
+    0005 (/home/dfc/src/map.go:4) MOVW      R0,.noname+4(FP)
+    0006 (/home/dfc/src/map.go:4) RET       ,
+    
+    R=rsc, minux.ma, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6619066
+    https://golang.org/cl/6618054
 
- misc/chrome/gophertool/background.html | 14 +----------
- misc/chrome/gophertool/background.js   |  9 +++++++
- misc/chrome/gophertool/popup.html      | 43 ++++------------------------------
- misc/chrome/gophertool/popup.js        | 38 ++++++++++++++++++++++++++++++
- 4 files changed, 52 insertions(+), 52 deletions(-)
+ src/cmd/5g/cgen.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

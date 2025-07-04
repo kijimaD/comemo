@@ -1,27 +1,25 @@
-commit 485a572243568530721009829393ba2c0deb7bd0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 5 09:41:53 2022 -0400
+commit 04acb8a7b9fc0212687cc25aa2598d12f6aceb74
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jul 8 12:07:01 2021 -0700
 
-    cmd: use 128-bit SHA256 & encode in base64 for content hashes
+    [dev.typeparams] cmd/compile:  report mismatch between types because of //go:notinheap
     
-    We used to use SHA1 for content hashes, but CL 402595 changed
-    all the “don't care” hashes to cmd/internal/notsha256 (negated SHA256).
-    This made object files a little bit bigger: fmt.a on my Mac laptop grows
-    from 910678 to 937612 bytes (+3%).
+    types2 currently ignores pragmas, so it does not catch a conversion
+    error when converting a pointer to a type which is NOT marked notinheap
+    to a pointer to a convertible type, but which is marked notinheap.
     
-    To remove that growth, truncate the hash we use for these purposes
-    to 128 bits (half a SHA256), and also use base64 instead of hex for
-    encoding it when a string form is needed. This brings fmt.a down to
-    901706 bytes (-1% from original, -4% from current).
+    So, we specifically check for this error in transformConv() and report
+    it during noder2.
     
-    Change-Id: Id81da1cf3ee85ed130b3cda73aa697d8c0053a62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404294
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6e9c9ee29f53fa5e490c1ac8306e2191db59eeb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333369
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/staticdata/data.go | 13 ++++++++++---
- src/cmd/internal/goobj/objfile.go           |  3 +--
- src/cmd/internal/obj/sym.go                 |  5 ++++-
- 3 files changed, 15 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go     |  4 ++++
+ src/cmd/compile/internal/noder/transform.go | 10 +++++++++-
+ test/run.go                                 |  3 +--
+ 3 files changed, 14 insertions(+), 3 deletions(-)

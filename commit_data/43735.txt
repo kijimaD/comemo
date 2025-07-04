@@ -1,15 +1,20 @@
-commit d51ae669363fdd4a741db7f0193e7e6ebc639ff3
-Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
-Date:   Wed Nov 4 15:28:25 2020 +0300
+commit 81df5e69fc189af44459a4c6520b1c99d0210a92
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 22 10:08:41 2020 +0200
 
-    archive/zip: fix documentation to mention fs.FS interface
+    cmd/compile: switch to typed aux for mips lowering rules
     
-    Fixes #42374
+    This covers most of the lowering rules.
     
-    Change-Id: I0ed1eb052d79bcc65810b74bff48f1e615e1dc1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267657
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Passes
+    
+      GOARCH=mips gotip build -toolexec 'toolstash -cmp' -a std
+      GOARCH=mipsle gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I9d00aaebecb36622e3bdaf556e5a9377670bf86b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229102
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/archive/zip/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 410 +++++++--------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 740 +++++++++++++++-------------
+ 2 files changed, 599 insertions(+), 551 deletions(-)

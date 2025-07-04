@@ -1,17 +1,19 @@
-commit fc5e64cb8f790c559a6f6c8801a8e1f03aee21a5
-Author: Joel Sing <jsing@google.com>
-Date:   Wed Nov 14 03:19:34 2012 +1100
+commit 306afc7725e5174e7ad06fc7ba160ec7bc262cb7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 13 16:18:37 2012 +0900
 
-    syscall: regenerate z-files for openbsd/amd64
+    net: consolidate common socket functions for Plan 9
     
-    Regenerate z-files for OpenBSD/amd64 on OpenBSD 5.2.
+    This CL extends changeset 13126:fc4a62e14aba to Plan 9.
     
-    R=golang-dev, bradfitz, mikioh.mikioh
+    R=ality, golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6843045
+    https://golang.org/cl/6820124
 
- src/pkg/syscall/zerrors_openbsd_amd64.go | 105 ++++++++++++++++++++++++++++---
- src/pkg/syscall/zsysctl_openbsd.go       |   2 +
- src/pkg/syscall/zsysnum_openbsd_amd64.go |   9 +--
- src/pkg/syscall/ztypes_openbsd_amd64.go  |  50 ++++++++-------
- 4 files changed, 128 insertions(+), 38 deletions(-)
+ src/pkg/net/fd_plan9.go      | 115 ++++++++++++++++++++++++
+ src/pkg/net/ipsock_plan9.go  | 202 ++++---------------------------------------
+ src/pkg/net/net.go           |  97 +++++++++++++++++++++
+ src/pkg/net/net_posix.go     | 110 -----------------------
+ src/pkg/net/tcpsock_plan9.go | 115 ++++++++++++++++++++----
+ src/pkg/net/udpsock_plan9.go |  36 ++++----
+ 6 files changed, 349 insertions(+), 326 deletions(-)

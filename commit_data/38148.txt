@@ -1,22 +1,30 @@
-commit 1f17d61026a9d83591db420ba1441c8555d2f4a0
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Feb 28 04:40:51 2019 -0500
+commit 8256bcdae0da68644db1e33c0db86f5ac4395c4b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 16 16:23:52 2018 +1000
 
-    internal/cpu: change s390x API to match x/sys/cpu
+    cmd/link: move .rel symbol from .rdata into .text
     
-    This CL changes the internal/cpu API to more closely match the
-    public version in x/sys/cpu (added in CL 163003). This will make it
-    easier to update the dependencies of vendored code. The most prominent
-    renaming is from VE1 to VXE for the vector-enhancements facility 1.
-    VXE is the mnemonic used for this facility in the HWCAP vector.
+    .rel symbol type is sym.SELFROSECT, and that makes .rel written
+    into .rdata section. But .rel stores code - jump table used for
+    external C functions. So we have to mark whole .rdata section
+    as executable (IMAGE_SCN_MEM_EXECUTE), because of .rel presence
+    in it.
     
-    Change-Id: I922d6c8bb287900a4bd7af70567e22eac567b5c1
-    Reviewed-on: https://go-review.googlesource.com/c/164437
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Move .rel into .text section, and make .rdata section non executable.
+    
+    I also had to move code that adjusted the size of .rel symbol
+    before calling textaddress, otherwise textaddress would not
+    calculate size of .text section correctly.
+    
+    Fixes #25926
+    
+    Change-Id: I4962f5de7b367410154c8709adfcd8472de9ac1a
+    Reviewed-on: https://go-review.googlesource.com/c/125455
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/elliptic/p256_s390x.go |  2 +-
- src/internal/cpu/cpu.go           | 39 ++++++++++++++++++++-------------------
- src/internal/cpu/cpu_s390x.go     | 39 +++++++++++++++++++++++++--------------
- 3 files changed, 46 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/ld/data.go | 38 +++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/main.go |  1 +
+ src/cmd/link/internal/ld/pe.go   |  9 ---------
+ 3 files changed, 28 insertions(+), 20 deletions(-)

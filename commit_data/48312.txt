@@ -1,63 +1,21 @@
-commit 079a027d27a9eed18c99c0c6a6e2fc70f9dd07b7
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Mon Mar 7 12:56:01 2022 +0000
+commit 9524e93adf9807ab3c23d09a6b8c0aa8dd98f9ab
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 6 09:01:07 2021 -0400
 
-    io: add WriterTo to MultiReader
+    go/types: add a test case for issue 45985
     
-    This patch allows to zerocopy using MultiReader.
-    This is done by MultiReader implementing WriterTo.
+    The fix for #45985 is a little subtle. Start by committing the (bad)
+    test case.
     
-    Each sub reader is copied using usual io copy helper and thus use
-    WriterTo or ReadFrom with reflection.
+    For #45985
     
-    There is a special case for when a subreader is a MultiReader.
-    Instead of using copyBuffer which would call multiReader.WriteTo,
-    multiReader.writeToWithBuffer is used instead, the difference
-    is that the temporary copy buffer is passed along, saving
-    allocations for nested MultiReaders.
-    
-    The workflow looks like this:
-    - multiReader.WriteTo (allocates 32k buffer)
-      - multiReader.writeToWithBuffer
-        - for each subReader:
-          - is instance of multiReader ?
-            - yes, call multiReader.writeToWithBuffer
-            - no, call copyBuffer(writer, currentReader, buffer)
-              - does currentReader implements WriterTo ?
-               - yes, use use currentReader.WriteTo
-               - no, does writer implement ReadFrom ?
-                 - yes, use writer.ReadFrom
-                 - no, copy using Read / Write with buffer
-    
-    This can be improved by lazy allocating the 32k buffer.
-    For example a MultiReader of such types:
-      MultiReader(
-        bytes.Reader, // WriterTo-able
-        bytes.Reader, // WriterTo-able
-        bytes.Reader, // WriterTo-able
-      )
-    
-    Doesn't need any allocation, all copy can be done using bytes.Reader's
-    internal data slice. However currently we still allocate a 32k buffer
-    for nothing.
-    
-    This optimisation has been omitted for a future patch because of high
-    complexity costs for a non obvious performance cost (it needs a benchmark).
-    This patch at least is on par with the previous MultiReader.Read
-    workflow allocation wise.
-    
-    Fixes #50842
-    
-    Change-Id: Ib070c8f36337d9dd86090df8a703c5df97a773ae
-    GitHub-Last-Rev: 8ebe60ceacec6bd52b63d9bdc05cd5b4ada57a6e
-    GitHub-Pull-Request: golang/go#51502
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390215
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ia6625818e9b1c5e869b2c2f724f817c13c9944d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317471
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/io/multi.go      | 25 +++++++++++++++++++++++++
- src/io/multi_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ src/go/types/infer.go                          |  4 ++--
+ src/go/types/testdata/fixedbugs/issue45985.go2 | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

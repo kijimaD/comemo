@@ -1,19 +1,18 @@
-commit 98f1bfbb180b30e899b27ef5c5f53d16138dbd86
+commit dca29095beb91b77f8dd41bf51e3771fdd814db0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 7 20:39:54 2017 -0500
+Date:   Mon Jul 17 10:30:40 2017 -0400
 
-    cmd/go: move cfg.ExternalLinkingForced to internal/load
+    cmd/go: add t.Helper calls to test helpers
     
-    It needs to refer to packages, so it can no longer be in cfg.
-    No semantic changes here.
+    Now that we have t.Helper, might as well use it to make the
+    reported failure lines more helpful.
     
-    Can now be unexported, so that was a net win anyway.
-    
-    Change-Id: I58bf6cdcd435e6e019291bb8dcd5d5b7f1ac03a3
-    Reviewed-on: https://go-review.googlesource.com/76550
+    Change-Id: I2a0c64e9ca7bdc0eaf2b62f9f855c41467767084
+    Reviewed-on: https://go-review.googlesource.com/56274
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/internal/cfg/cfg.go  | 37 -------------------------------------
- src/cmd/go/internal/load/pkg.go | 39 ++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 38 insertions(+), 38 deletions(-)
+ src/cmd/go/go_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

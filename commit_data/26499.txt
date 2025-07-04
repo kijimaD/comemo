@@ -1,25 +1,31 @@
-commit 0a82ed5d7c6db2c01a840e2a494cb6ff22a02823
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 21:47:02 2016 +0100
+commit 6a96a2fe5a95375e2f8cccca6d848728fef0e09f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 27 16:47:23 2016 -0800
 
-    misc/cgo/testcarchive: re-enable c-archive test on iOS and Android
+    [dev.ssa] cmd/compile: make cse faster
     
-    The c-archive test were recently converted from shell script to Go.
-    Unfortunately, it also lost the ability to target iOS and Android
-    that lack C compilers and require exec wrappers.
+    It is one of the slowest compiler phases right now, and we
+    run two of them.
     
-    Compile the c-archive test for the host and run it with the target
-    GOOS/GOARCH environment. Change the test to rely on go env GOOS
-    and go env GOARCH instead of runtime.GOOS and runtime.GOARCH.
+    Instead of using a map to make the initial partition, use a sort.
+    It is much less memory intensive.
     
-    Fixes #8345
+    Do a few optimizations to avoid work for size-1 equivalence classes.
     
-    Change-Id: I290ace2f7e96b87c55d99492feb7d660140dcb32
-    Reviewed-on: https://go-review.googlesource.com/21102
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Implement -N.
+    
+    Change-Id: I1d2d85d3771abc918db4dd7cc30b0b2d854b15e1
+    Reviewed-on: https://go-review.googlesource.com/19024
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/testcarchive/carchive_test.go | 55 ++++++++++++++++++----------------
- src/cmd/dist/test.go                   | 27 ++++++++++++++---
- 2 files changed, 52 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go            |   2 +-
+ src/cmd/compile/internal/ssa/compile.go       |  58 ++++----
+ src/cmd/compile/internal/ssa/config.go        |   4 +-
+ src/cmd/compile/internal/ssa/cse.go           | 200 ++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/dom_test.go      |   2 +-
+ src/cmd/compile/internal/ssa/export_test.go   |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go |  20 +--
+ src/cmd/compile/internal/ssa/regalloc.go      |   6 +
+ test/nilcheck.go                              |   1 -
+ test/nilcheck_ssa.go                          | 187 ------------------------
+ 10 files changed, 206 insertions(+), 276 deletions(-)

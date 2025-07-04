@@ -1,50 +1,12 @@
-commit fc595b78d216e9470afce5d99c002b4bf5760c2c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 6 12:30:59 2015 -0400
+commit 3eadc59b0d23b2807787057e2251ee48b4be39c3
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 16 20:42:21 2015 +0200
 
-    cmd/internal/gc: mark panicindex calls as not returning
+    net: fix typo in comment
     
-    Most of the calls to panicindex are already
-    marked as not returning, but these two were missed
-    at some point.
-    
-    Performance changes below.
-    
-    name                   old mean              new mean              delta
-    BinaryTree17            5.70s × (0.98,1.04)   5.68s × (0.97,1.04)    ~    (p=0.681)
-    Fannkuch11              4.32s × (1.00,1.00)   4.41s × (0.98,1.03)  +1.98% (p=0.018)
-    FmtFprintfEmpty        92.6ns × (0.91,1.11)  92.7ns × (0.91,1.16)    ~    (p=0.969)
-    FmtFprintfString        280ns × (0.97,1.05)   281ns × (0.96,1.08)    ~    (p=0.860)
-    FmtFprintfInt           284ns × (0.99,1.02)   288ns × (0.97,1.06)    ~    (p=0.207)
-    FmtFprintfIntInt        488ns × (0.98,1.01)   493ns × (0.97,1.04)    ~    (p=0.271)
-    FmtFprintfPrefixedInt   418ns × (0.98,1.04)   423ns × (0.97,1.04)    ~    (p=0.311)
-    FmtFprintfFloat         597ns × (1.00,1.00)   598ns × (0.99,1.01)    ~    (p=0.789)
-    FmtManyArgs            1.87µs × (0.99,1.01)  1.89µs × (0.98,1.05)    ~    (p=0.158)
-    GobDecode              14.6ms × (0.99,1.01)  14.8ms × (0.98,1.03)  +1.51% (p=0.015)
-    GobEncode              12.3ms × (0.98,1.03)  12.3ms × (0.98,1.01)    ~    (p=0.474)
-    Gzip                    647ms × (1.00,1.01)   656ms × (0.99,1.05)    ~    (p=0.104)
-    Gunzip                  142ms × (1.00,1.00)   142ms × (1.00,1.00)    ~    (p=0.110)
-    HTTPClientServer       89.6µs × (0.99,1.03)  91.2µs × (0.97,1.04)    ~    (p=0.061)
-    JSONEncode             31.7ms × (0.99,1.01)  32.6ms × (0.97,1.08)  +2.87% (p=0.038)
-    JSONDecode              111ms × (1.00,1.01)   114ms × (0.97,1.05)  +2.47% (p=0.040)
-    Mandelbrot200          6.01ms × (1.00,1.00)  6.11ms × (0.98,1.04)    ~    (p=0.073)
-    GoParse                6.54ms × (0.99,1.02)  6.66ms × (0.97,1.04)    ~    (p=0.064)
-    RegexpMatchEasy0_32     159ns × (0.99,1.02)   159ns × (0.99,1.00)    ~    (p=0.693)
-    RegexpMatchEasy0_1K     540ns × (0.99,1.03)   538ns × (1.00,1.01)    ~    (p=0.360)
-    RegexpMatchEasy1_32     137ns × (0.99,1.01)   138ns × (1.00,1.00)    ~    (p=0.511)
-    RegexpMatchEasy1_1K     867ns × (1.00,1.01)   869ns × (0.99,1.01)    ~    (p=0.193)
-    RegexpMatchMedium_32    252ns × (1.00,1.00)   252ns × (0.99,1.01)    ~    (p=0.076)
-    RegexpMatchMedium_1K   72.7µs × (1.00,1.00)  72.7µs × (1.00,1.00)    ~    (p=0.963)
-    RegexpMatchHard_32     3.84µs × (1.00,1.00)  3.85µs × (1.00,1.00)    ~    (p=0.371)
-    RegexpMatchHard_1K      117µs × (1.00,1.01)   118µs × (1.00,1.00)    ~    (p=0.898)
-    Revcomp                 909ms × (0.98,1.03)   920ms × (0.97,1.07)    ~    (p=0.368)
-    Template                128ms × (0.99,1.01)   129ms × (0.98,1.03)  +1.41% (p=0.042)
-    TimeParse               619ns × (0.98,1.01)   619ns × (0.99,1.01)    ~    (p=0.730)
-    TimeFormat              651ns × (1.00,1.01)   661ns × (0.98,1.04)    ~    (p=0.097)
-    
-    Change-Id: I0ec5baff41f5d282307137ce0d927e6301e4fa10
-    Reviewed-on: https://go-review.googlesource.com/9811
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I8b2063e65d3454a694a789c1682dacfe0bea2e19
+    Reviewed-on: https://go-review.googlesource.com/8965
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/cgen.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/fd_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

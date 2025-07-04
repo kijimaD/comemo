@@ -1,19 +1,30 @@
-commit d57c889ae8bdfdddbfb242f90b90f649988a720e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 7 22:59:29 2015 -0400
+commit 53c53984e7ae789c3a1dda0ef4d8f6e760753faa
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 4 15:40:58 2015 -0400
 
-    runtime: wait to update arena_used until after mapping bitmap
+    runtime: include scalar slots in GC scan work metric
     
-    This avoids a race with gcmarkwb_m that was leading to faults.
+    The garbage collector predicts how much "scan work" must be done in a
+    cycle to determine how much work should be done by mutators when they
+    allocate. Most code doesn't care what units the scan work is in: it
+    simply knows that a certain amount of scan work has to be done in the
+    cycle. Currently, the GC uses the number of pointer slots scanned as
+    the scan work on the theory that this is the bulk of the time spent in
+    the garbage collector and hence reflects real CPU resource usage.
+    However, this metric is difficult to estimate at the beginning of a
+    cycle.
     
-    Fixes #10212.
+    Switch to counting the total number of bytes scanned, including both
+    pointer and scalar slots. This is still less than the total marked
+    heap since it omits no-scan objects and no-scan tails of objects. This
+    metric may not reflect absolute performance as well as the count of
+    scanned pointer slots (though it still takes time to scan scalar
+    fields), but it will be much easier to estimate robustly, which is
+    more important.
     
-    Change-Id: I6fcf8d09f2692227063ce29152cb57366ea22487
-    Reviewed-on: https://go-review.googlesource.com/10816
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie3a5eeeb0384a1ca566f61b2f11e9ff3a75ca121
+    Reviewed-on: https://go-review.googlesource.com/9694
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go  | 12 ++++++------
- src/runtime/mbitmap.go |  9 +++++++--
- src/runtime/mheap.go   | 14 +++++++++++---
- 3 files changed, 24 insertions(+), 11 deletions(-)
+ src/runtime/mgcmark.go | 20 ++++----------------
+ 1 file changed, 4 insertions(+), 16 deletions(-)

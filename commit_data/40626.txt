@@ -1,14 +1,41 @@
-commit 63546a03cc678718a9c878e91ef1d1839b445f53
-Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
-Date:   Wed Nov 6 20:36:43 2019 +0000
+commit f5e5bc1a4281b22c9ca2c75431647638de515ba0
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 31 16:38:56 2019 -0400
 
-    doc: Effective Go: formatting of code example
+    runtime: mark all Go symbols called from assembly in other packages
     
-    Change-Id: I7f5947cef3ec43746f60abca556dda29a705caf7
-    GitHub-Last-Rev: b9aefd06abdaee854671451711579dd5bd33bd26
-    GitHub-Pull-Request: golang/go#35404
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205610
-    Reviewed-by: Rob Pike <r@golang.org>
+    This marks all Go symbols called from assembly in other packages with
+    "go:linkname" directives to ensure they get ABI wrappers.
+    
+    Now that we have this go:linkname convention, this also removes the
+    abi0Syms definition in the runtime, which was used to give morestackc
+    an ABI0 wrapper. Instead, we now just mark morestackc with a
+    go:linkname directive.
+    
+    This was tested with buildall.bash in the default configuration, with
+    -race, and with -gcflags=all=-d=ssa/intrinsics/off. Since I couldn't
+    test cgo on non-Linux configurations, I manually grepped for runtime
+    symbols in runtime/cgo.
+    
+    Updates #31230.
+    
+    Change-Id: I6c8aa56be2ca6802dfa2bf159e49c411b9071bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179862
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/progs/eff_qr.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/asm.s                            |  8 --------
+ src/runtime/internal/atomic/atomic_386.go    |  4 ++++
+ src/runtime/internal/atomic/atomic_amd64x.go |  5 +++++
+ src/runtime/internal/atomic/atomic_mipsx.go  |  7 +++++++
+ src/runtime/internal/atomic/atomic_s390x.go  |  7 +++++++
+ src/runtime/internal/atomic/atomic_wasm.go   | 18 +++++++++++++++++
+ src/runtime/proc.go                          |  7 +++++++
+ src/runtime/signal_unix.go                   |  7 +++++++
+ src/runtime/stack.go                         |  3 +++
+ src/runtime/string.go                        |  2 ++
+ src/runtime/sys_darwin.go                    |  3 +++
+ src/runtime/syscall_aix.go                   | 14 ++++++++++++++
+ src/runtime/syscall_solaris.go               | 29 ++++++++++++++++++++++++++++
+ 13 files changed, 106 insertions(+), 8 deletions(-)

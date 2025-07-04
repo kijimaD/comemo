@@ -1,18 +1,19 @@
-commit 83bfdb6561c06bd890446af01b0f0c735360a8df
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Jan 12 09:54:19 2022 -0500
+commit 9fbcba6664840ada5aaedb7f1a587d0cca1c9035
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 14 23:36:14 2021 -0400
 
-    go/ast: mention that FieldLists can now be enclosed by brackets
+    cmd/compile: in clobberdead mode, don't clobber slots that are live for defers
     
-    Type parameter lists are stored using ast.FieldLists. Update the
-    documentation to reflect that the enclosing delimiter may be a bracket.
+    There are stack slots that are kept live for defers, which are
+    tracked separately. Don't clobber them.
     
-    Change-Id: Id103e7b38975e94a1b521f75695edc10408ad3dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378014
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib558345758b5a4fd89c7ff8a3fe08087059add21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310329
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/ast/ast.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

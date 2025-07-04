@@ -1,29 +1,14 @@
-commit e92853523d11d1e50d89a3c017c5d902aed0596a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 17 11:37:54 2019 -0700
+commit 96d41786c5bd5b3597b6a28a7e8c412c33f15086
+Author: James Craig Burley <james-github@burleyarch.com>
+Date:   Wed Nov 28 18:53:16 2018 +0000
 
-    cmd/compile: use named fields in nodl
+    doc: fix typo in FAQ
     
-    We use a struct to allocate two structs simultaneously.
-    Because we embed structs rather than using named fields,
-    the compiler generates forwarding method stubs for the
-    anonymous type.
-    
-    In theory, the compiler could detect that these stubs are unnecessary:
-    The value in question has a very limited scope, the methods are not
-    called, and there are operations where an interface would need
-    to be satisfied.
-    
-    This compiler optimization is unlikely to happen, though;
-    the ROI is likely to be low.
-    
-    Instead, just give the fields names. Cuts 64k off the cmd/compile binary.
-    
-    Change-Id: Id10ec69c23cd2dd33306f4c1bc75724e3c571b56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172579
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I956d6d1dbf8516cb65eb3a0686a3b0584b4a6840
+    GitHub-Last-Rev: 1c928f3c67eceae424cbcd6b0935605a78728604
+    GitHub-Pull-Request: golang/go#28991
+    Reviewed-on: https://go-review.googlesource.com/c/151324
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

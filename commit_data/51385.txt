@@ -1,87 +1,24 @@
-commit 8a81fdf165facdcefa06531de5af98a4db343035
-Author: Lúcás Meier <cronokirby@gmail.com>
-Date:   Tue Jun 8 21:36:06 2021 +0200
+commit 2c2e08144f79d8746384c2a483bf03532dc0c443
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 18 18:46:00 2022 -0800
 
-    crypto/rsa: replace big.Int for encryption and decryption
+    runtime: remove -tags=threadprof in tests
     
-    Infamously, big.Int does not provide constant-time arithmetic, making
-    its use in cryptographic code quite tricky. RSA uses big.Int
-    pervasively, in its public API, for key generation, precomputation, and
-    for encryption and decryption. This is a known problem. One mitigation,
-    blinding, is already in place during decryption. This helps mitigate the
-    very leaky exponentiation operation. Because big.Int is fundamentally
-    not constant-time, it's unfortunately difficult to guarantee that
-    mitigations like these are completely effective.
+    Use an enviroment variable rather than a build tag to control starting
+    a busy loop thread when testprogcgo starts. This lets us skip another
+    build that invokes the C compiler and linker, which should avoid
+    timeouts running the runtime tests.
     
-    This patch removes the use of big.Int for encryption and decryption,
-    replacing it with an internal nat type instead. Signing and verification
-    are also affected, because they depend on encryption and decryption.
+    Fixes #44422
     
-    Overall, this patch degrades performance by 55% for private key
-    operations, and 4-5x for (much faster) public key operations.
-    (Signatures do both, so the slowdown is worse than decryption.)
-    
-    name                    old time/op  new time/op    delta
-    DecryptPKCS1v15/2048-8  1.50ms ± 0%    2.34ms ± 0%    +56.44%  (p=0.000 n=8+10)
-    DecryptPKCS1v15/3072-8  4.40ms ± 0%    6.79ms ± 0%    +54.33%  (p=0.000 n=10+9)
-    DecryptPKCS1v15/4096-8  9.31ms ± 0%   15.14ms ± 0%    +62.60%  (p=0.000 n=10+10)
-    EncryptPKCS1v15/2048-8  8.16µs ± 0%  355.58µs ± 0%  +4258.90%  (p=0.000 n=10+9)
-    DecryptOAEP/2048-8      1.50ms ± 0%    2.34ms ± 0%    +55.68%  (p=0.000 n=10+9)
-    EncryptOAEP/2048-8      8.51µs ± 0%  355.95µs ± 0%  +4082.75%  (p=0.000 n=10+9)
-    SignPKCS1v15/2048-8     1.51ms ± 0%    2.69ms ± 0%    +77.94%  (p=0.000 n=10+10)
-    VerifyPKCS1v15/2048-8   7.25µs ± 0%  354.34µs ± 0%  +4789.52%  (p=0.000 n=9+9)
-    SignPSS/2048-8          1.51ms ± 0%    2.70ms ± 0%    +78.80%  (p=0.000 n=9+10)
-    VerifyPSS/2048-8        8.27µs ± 1%  355.65µs ± 0%  +4199.39%  (p=0.000 n=10+10)
-    
-    Keep in mind that this is without any assembly at all, and that further
-    improvements are likely possible. I think having a review of the logic
-    and the cryptography would be a good idea at this stage, before we
-    complicate the code too much through optimization.
-    
-    The bulk of the work is in nat.go. This introduces two new types: nat,
-    representing natural numbers, and modulus, representing moduli used in
-    modular arithmetic.
-    
-    A nat has an "announced size", which may be larger than its "true size",
-    the number of bits needed to represent this number. Operations on a nat
-    will only ever leak its announced size, never its true size, or other
-    information about its value. The size of a nat is always clear based on
-    how its value is set. For example, x.mod(y, m) will make the announced
-    size of x match that of m, since x is reduced modulo m.
-    
-    Operations assume that the announced size of the operands match what's
-    expected (with a few exceptions). For example, x.modAdd(y, m) assumes
-    that x and y have the same announced size as m, and that they're reduced
-    modulo m.
-    
-    Nats are represented over unsatured bits.UintSize - 1 bit limbs. This
-    means that we can't reuse the assembly routines for big.Int, which use
-    saturated bits.UintSize limbs. The advantage of unsaturated limbs is
-    that it makes Montgomery multiplication faster, by needing fewer
-    registers in a hot loop. This makes exponentiation faster, which
-    consists of many Montgomery multiplications.
-    
-    Moduli use nat internally. Unlike nat, the true size of a modulus always
-    matches its announced size. When creating a modulus, any zero padding is
-    removed. Moduli will also precompute constants when created, which is
-    another reason why having a separate type is desirable.
-    
-    Updates #20654
-    
-    Co-authored-by: Filippo Valsorda <filippo@golang.org>
-    Change-Id: I73b61f87d58ab912e80a9644e255d552cbadcced
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326012
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I516668d71a373da311d844990236566ff63e6d72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379294
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/rsa/example_test.go |  21 +-
- src/crypto/rsa/nat.go          | 626 +++++++++++++++++++++++++++++++++++++++++
- src/crypto/rsa/nat_test.go     | 384 +++++++++++++++++++++++++
- src/crypto/rsa/pkcs1v15.go     |  47 ++--
- src/crypto/rsa/pss.go          |  49 ++--
- src/crypto/rsa/pss_test.go     |  10 +-
- src/crypto/rsa/rsa.go          | 173 +++++-------
- src/crypto/rsa/rsa_test.go     |  11 +-
- 8 files changed, 1144 insertions(+), 177 deletions(-)
+ src/runtime/crash_cgo_test.go                  | 28 ++++----------------------
+ src/runtime/testdata/testprogcgo/threadprof.go | 19 ++++++++++-------
+ 2 files changed, 16 insertions(+), 31 deletions(-)

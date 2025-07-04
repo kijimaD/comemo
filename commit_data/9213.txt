@@ -1,12 +1,12 @@
-commit 7e1101d470a21b2023e4363cc277836b50d3763f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 26 14:44:51 2011 -0700
+commit e21f69338b64f81d40af42dbb1ce1ee5e23309f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 26 11:30:11 2011 -0700
 
-    rpc: convert /debug/rpc handler to exp/template
+    http: set content type for fileserver directory listings
     
-    R=golang-dev, adg
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4819048
+    https://golang.org/cl/4815062
 
- src/pkg/rpc/debug.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/pkg/http/fs.go | 1 +
+ 1 file changed, 1 insertion(+)

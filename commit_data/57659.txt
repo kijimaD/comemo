@@ -1,22 +1,29 @@
-commit 86a1a994ff522a7236e6744e40dfbc33d0d6bd88
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Oct 10 09:57:50 2024 -0700
+commit 463c34451dbb08970768c6184b666157c67191bf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 21 14:10:24 2023 -0700
 
-    internal/syscall/windows: add Openat, Mkdirat
+    cmd/compile: use better line numbers for write barriers
     
-    Windows versions of openat and mkdirat,
-    implemented using NtCreateFile.
+    When the write barrier does several pointer writes under one
+    write barrier flag check, the line numbers aren't really correct.
     
-    For #67002
+    The writes inside the write barrier have a confusing set of positions.
+    The loads of the old values are given the line number of the
+    corresponding store instruction, but the stores into the write buffer
+    are given the line number of the first store. Instead, give them all
+    line numbers corresponding to the store instruction.
     
-    Change-Id: If43b1c1069733e5c45f7d45a69699fec30187308
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619435
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The writes at the merge point, which are the original writes and the
+    only ones that happen when the barrier is off, are currently all given
+    the line number of the first write. Instead give them their original
+    line number.
+    
+    Change-Id: Id64820b707f45f07b0978f8d03c97900fdc4bc0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521499
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/internal/syscall/windows/at_windows.go      | 168 ++++++++++++++++++++++++
- src/internal/syscall/windows/syscall_windows.go |  10 ++
- src/internal/syscall/windows/types_windows.go   |  22 +++-
- src/syscall/types_windows.go                    |  26 ++--
- 4 files changed, 213 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

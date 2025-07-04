@@ -1,31 +1,52 @@
-commit 9c833831b2bdaa465349194797cf3894cb85f9c4
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Apr 24 13:05:10 2018 +0200
+commit 28edaf4584c4cbfb0ed03692108ebc90db039d17
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Mar 1 11:40:36 2018 -0500
 
-    cmd/link: move dwarf part of DWARF generation before type name mangling
+    cmd/compile,test: combine byte loads and stores on ppc64le
     
-    Splits part of dwarfgeneratedebugsyms into a new function,
-    dwarfGenerateDebugInfo which is called between deadcode elimination
-    and type name mangling.
-    This function takes care of collecting and processing the DIEs for
-    all functions and package-level variables and also generates DIEs
-    for all types used in the program.
+    CL 74410 added rules to combine consecutive byte loads and
+    stores when the byte order was little endian for ppc64le. This
+    is the corresponding change for bytes that are in big endian order.
+    These rules are all intended for a little endian target arch.
     
-    Fixes #23733
+    This adds new testcases in test/codegen/memcombine.go
     
-    Change-Id: I75ef0608fbed2dffc3be7a477f1b03e7e740ec61
-    Reviewed-on: https://go-review.googlesource.com/111237
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #22496
+    Updates #24242
+    
+    Benchmark improvement for encoding/binary:
+    name                      old time/op    new time/op    delta
+    ReadSlice1000Int32s-16      11.0µs ± 0%     9.0µs ± 0%  -17.47%  (p=0.029 n=4+4)
+    ReadStruct-16               2.47µs ± 1%    2.48µs ± 0%   +0.67%  (p=0.114 n=4+4)
+    ReadInts-16                  642ns ± 1%     630ns ± 1%   -2.02%  (p=0.029 n=4+4)
+    WriteInts-16                 654ns ± 0%     653ns ± 1%   -0.08%  (p=0.629 n=4+4)
+    WriteSlice1000Int32s-16     8.75µs ± 0%    8.20µs ± 0%   -6.19%  (p=0.029 n=4+4)
+    PutUint16-16                1.16ns ± 0%    0.93ns ± 0%  -19.83%  (p=0.029 n=4+4)
+    PutUint32-16                1.16ns ± 0%    0.93ns ± 0%  -19.83%  (p=0.029 n=4+4)
+    PutUint64-16                1.85ns ± 0%    0.93ns ± 0%  -49.73%  (p=0.029 n=4+4)
+    LittleEndianPutUint16-16    1.03ns ± 0%    0.93ns ± 0%   -9.71%  (p=0.029 n=4+4)
+    LittleEndianPutUint32-16    0.93ns ± 0%    0.93ns ± 0%     ~     (all equal)
+    LittleEndianPutUint64-16    0.93ns ± 0%    0.93ns ± 0%     ~     (all equal)
+    PutUvarint32-16             43.0ns ± 0%    43.1ns ± 0%   +0.12%  (p=0.429 n=4+4)
+    PutUvarint64-16              174ns ± 0%     175ns ± 0%   +0.29%  (p=0.429 n=4+4)
+    
+    Updates made to functions in gcm.go to enable their matching. An existing
+    testcase prevents these functions from being replaced by those in encoding/binary
+    due to import dependencies.
+    
+    Change-Id: Idb3bd1e6e7b12d86cd828fb29cb095848a3e485a
+    Reviewed-on: https://go-review.googlesource.com/98136
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testplugin/src/checkdwarf/main.go | 106 ++++++++++
- misc/cgo/testplugin/test.bash              |   4 +
- src/cmd/link/internal/ld/data.go           |   2 +-
- src/cmd/link/internal/ld/dwarf.go          | 320 ++++++++++++++---------------
- src/cmd/link/internal/ld/lib.go            |   1 -
- src/cmd/link/internal/ld/link.go           |   3 +
- src/cmd/link/internal/ld/main.go           |   1 +
- src/cmd/link/internal/objfile/objfile.go   |   2 +
- src/cmd/link/internal/sym/symbol.go        |   1 +
- 9 files changed, 276 insertions(+), 164 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        |    62 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   232 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    77 +-
+ src/cmd/compile/internal/ssa/opGen.go        |    98 +-
+ src/cmd/compile/internal/ssa/regalloc.go     |     2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 12026 +++++++++++++++++++++++--
+ src/cmd/internal/obj/ppc64/asm9.go           |     2 +
+ src/crypto/cipher/gcm.go                     |     2 +
+ test/codegen/memcombine.go                   |    16 +-
+ 9 files changed, 11707 insertions(+), 810 deletions(-)

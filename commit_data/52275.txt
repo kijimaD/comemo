@@ -1,24 +1,23 @@
-commit a54fe8a270aef105dc5fbdca4eb90227587361e9
-Author: David Chase <drchase@google.com>
-Date:   Sun Mar 12 18:19:57 2023 +0100
+commit a4ded4b5ff90a58d1ecf55914af941c468a502f1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 13 14:35:15 2022 -0700
 
-    cmd/go: restore 'extend path shortening to all paths in messages'
+    misc/cgo/test: remove timing dependency from TestParallelSleep
     
-    The problem requiring a revert was creation (somehow) of /-containing
-    paths in compiler messages on Windows.  The new code deals with this
-    existing-but-unexpected behavior.
+    Rename it TestIssue1560 since it no longer sleeps.
     
-    original was CL 465805
-    revert was CL 473795
+    For #1560
+    Fixes #45586
     
-    this is the original, plus a correction for unexpected paths on Windows.
-    
-    Change-Id: I786e875e704c2d7018c8248960f2ff7188cac3ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474015
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I338eee9de43e871da142143943e9435218438e90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400194
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go                 | 36 +++++++++--
- src/cmd/go/testdata/script/build_shorten_pkg.txt | 81 ++++++++++++++++++++++++
- 2 files changed, 112 insertions(+), 5 deletions(-)
+ misc/cgo/test/callback_c.c | 31 ++++-----------------------
+ misc/cgo/test/cgo_test.go  |  2 +-
+ misc/cgo/test/testx.go     | 53 ++++++++++++++++++++++++----------------------
+ 3 files changed, 33 insertions(+), 53 deletions(-)

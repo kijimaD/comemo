@@ -1,30 +1,20 @@
-commit 93453233bd00cc641d2f959f1faf236e0094c2bf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 22 15:56:58 2021 -0700
+commit 81ea89adf38b90c3c3a8c4eed9e6c093a8634d59
+Author: Jakub Warczarek <jakub.warczarek@gmail.com>
+Date:   Sat Dec 12 17:43:52 2020 +0000
 
-    cmd/compile: fix unsafe.Add with small-size offsets operands
+    cmd/go: fix non-script staleness checks interacting badly with GOFLAGS
     
-    Like other builtin functions, unsafe.Add's len operand is allowed to
-    be variable sized. However, unlike other builtins, it doesn't get
-    lowered to a runtime function call, so we never end up coercing it to
-    a specific type. As a result, we could end up constructing an OpAddPtr
-    value but with a less-than-ptr-sized addend operand.
+    Fixes #43012.
     
-    This CL fixes this by always coercing the second operand to uintptr
-    during SSA construction.
-    
-    Theoretically, we could do this during walk instead, but the frontend
-    doesn't allow converting negative constants to uintptr.
-    
-    Fixes #48536.
-    
-    Change-Id: Ib0619ea79df58b256b250fec967a6d3c8afea631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351592
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idc7a64b53c411e6dadd98521a48e15e664737d42
+    GitHub-Last-Rev: b56c0880c3b5ceb86c6fa2ba6bf82f8969e10472
+    GitHub-Pull-Request: golang/go#43155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277453
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssagen/ssa.go |  5 +++++
- test/fixedbugs/issue48536.go           | 29 +++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

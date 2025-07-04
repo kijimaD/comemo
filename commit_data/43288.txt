@@ -1,19 +1,24 @@
-commit c8eea1633e160d3517ea44e50898893dad09fed0
+commit ea93ddfaeb2a797717ae6230d1166d842bc44655
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Oct 13 18:28:25 2020 -0400
+Date:   Sat Mar 21 16:06:57 2020 -0400
 
-    cmd/internal/obj: remove LSym.RefIdx
+    [dev.link] cmd/link: use Extname in doxcoff
     
-    LSym.RefIdx was for the old object files. I should have deleted
-    it when I deleted old object file code.
+    On AIX, when external linking, we need to change the function
+    names to start with a dot and make function descriptors with the
+    names without the dot. Currently this is done through symbol
+    renaming, which is not friendly for switching to the loader.
     
-    Change-Id: I8294f43a1e7ba45b1d75e84cc83cbaf2cb32f025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262077
-    Trust: Cherry Zhang <cherryyz@google.com>
+    In this CL we use symbol's external name for this. This allows us
+    to get rid of symbol renaming.
+    
+    Change-Id: If72602d17e96f0339fdac2e2321f1edfb292b5f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224940
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/obj/link.go        | 3 +--
- src/cmd/internal/obj/sizeof_test.go | 2 +-
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/xcoff.go      | 22 +++++++++++++++------
+ src/cmd/link/internal/loader/loader.go | 35 ++++++----------------------------
+ src/cmd/link/internal/sym/symbols.go   |  6 ++++--
+ 3 files changed, 26 insertions(+), 37 deletions(-)

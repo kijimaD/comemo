@@ -1,26 +1,23 @@
-commit 6fea452e38012e167e8a8f08f571e0240b248c97
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Sep 2 20:15:12 2016 -0700
+commit 2f088884aeab7f34ca69c0b8ab21c9694c628e19
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 6 10:56:42 2016 -0700
 
-    archive/tar: move parse/format functionality into strconv.go
+    cmd/compile: use fake package for allocating autos
     
-    Move all parse/format related functionality into strconv.go
-    and thoroughly test them. This also reduces the amount of noise
-    inside reader.go and writer.go.
+    Make sure auto names don't conflict with function names. Before this CL,
+    we confused name a.len (the len field of the slice a) with a.len (the function
+    len declared on a).
     
-    There was zero functionality change other than moving code around.
+    Fixes #15961
     
-    Change-Id: I3bc288d10c20ebb3814b30b75d8acd7be62b85d7
-    Reviewed-on: https://go-review.googlesource.com/28470
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I14913de697b521fb35db9a1b10ba201f25d552bb
+    Reviewed-on: https://go-review.googlesource.com/23789
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/common.go       |  23 ----
- src/archive/tar/reader.go       | 147 -----------------------
- src/archive/tar/reader_test.go  | 237 ++++++++++--------------------------
- src/archive/tar/strconv.go      | 254 +++++++++++++++++++++++++++++++++++++++
- src/archive/tar/strconv_test.go | 257 ++++++++++++++++++++++++++++++++++++++++
- src/archive/tar/writer.go       |  70 -----------
- src/archive/tar/writer_test.go  | 113 ------------------
- 7 files changed, 573 insertions(+), 528 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  2 ++
+ src/cmd/compile/internal/gc/main.go |  2 ++
+ src/cmd/compile/internal/gc/ssa.go  |  2 +-
+ test/fixedbugs/issue15961.go        | 21 +++++++++++++++++++++
+ 4 files changed, 26 insertions(+), 1 deletion(-)

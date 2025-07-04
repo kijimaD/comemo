@@ -1,23 +1,27 @@
-commit 14ade57ab8f2a6b9608fc3cab57957f39caead40
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Apr 23 22:20:55 2021 +0000
+commit cb0a0f52e67f128c6ad69027c9a8c7a5caf58446
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 16 00:41:03 2020 -0400
 
-    runtime: fix scavenge min fraction constant floor division
+    io: adopt Discard, NopCloser, ReadAll from io/ioutil
     
-    Currently there's a minor bug where the constant for the min fraction of
-    time spent scavenging is rounded down to zero. I don't think this
-    affects anything in practice because this case is exceedingly rare and
-    extreme, but currently it doesn't properly prevent the pacing parameters
-    from getting out of hand in these extreme cases.
+    As proposed and approved in #40025, Discard, NopCloser, and ReadAll
+    do not really fit into io/ioutil, which exists mainly to hold things that
+    would cause an import cycle if implemented in io itself, which is to say
+    things that import "os".
     
-    Fixes #44036.
+    These three do not import "os" - they are generic io helpers like
+    many of the things in io itself, so it makes sense for them to be there.
     
-    Change-Id: I7de644ab0ecac33765c337a736482a0966882780
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313249
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Fixes #40025.
+    
+    Change-Id: I77f47e9b2a72839edf7446997936631980047b67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263141
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcscavenge.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/io/example_test.go  |  14 +++++++
+ src/io/io.go            |  84 +++++++++++++++++++++++++++++++++++--
+ src/io/ioutil/ioutil.go | 107 +++++++++++++++---------------------------------
+ 3 files changed, 126 insertions(+), 79 deletions(-)

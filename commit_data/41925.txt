@@ -1,22 +1,19 @@
-commit 916ecbc731874bc33f116b0f62c60fc1d64d3841
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Apr 13 12:11:23 2020 +0200
+commit 9bde9b4d1561ed915904a4f64764076dcfe58419
+Author: Domas Tamašauskas <puerdomus@gmail.com>
+Date:   Thu Oct 10 21:54:18 2019 +0300
 
-    internal/cpu: unify HWCap/HWCap2 comments
+    time: document an alternative way of setting the system's time zone
     
-    HWCap and HWCap2 are no longer linknamed into package runtime. Also,
-    merge two sentences both starting with "These are..." and don't mention
-    any file name where archauxv is defined, as it become outdated if
-    support for a new $GOOS/$GOARCH combination is added. This is e.g.
-    already the case for arm64, where archauxv is also defined for
-    freebsd/arm64.
+    User's program was mutating time.Local variable and crashing
+    itself as a consequence. Instead of documenting that time.Local
+    variable should not be mutated, recommended way of setting the
+    system's time zone has been documented.
     
-    Change-Id: I9314a66633736b12e777869a832d8b79d442a6f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228057
+    Fixes #34814
+    
+    Change-Id: I7781189855c3bf2ea979dfa07f86c283eed27091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200457
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/cpu/cpu_arm.go     | 5 ++---
- src/internal/cpu/cpu_arm64.go   | 4 ++--
- src/internal/cpu/cpu_mips64x.go | 4 ++--
- src/internal/cpu/cpu_ppc64x.go  | 4 ++--
- 4 files changed, 8 insertions(+), 9 deletions(-)
+ src/time/zoneinfo.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,26 +1,14 @@
-commit 53d859bdf570699c7d581f6ba3cdc45d0ad102f3
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 20 16:05:23 2019 +0100
+commit 85066acca144625e239294e2ce07bb2cfbc800c2
+Author: OlgaVlPetrova <OVPpetrova@gmail.com>
+Date:   Sat Oct 13 14:53:45 2018 +0300
 
-    runtime/cgo: add port for aix/ppc64
+    src/cmd/compile/internal/ssa: replace `s = s + x' => 's += x'.
     
-    This commit add port of runtime/cgo for aix/ppc64.
-    AIX assembly is different from Linux assembly, therefore gcc_ppc64.S
-    must be redone for AIX.
-    
-    Change-Id: I780ebab4ef9c4ce912f4c4d521d8c135b1eebf6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164002
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1f399a8a0aa200bfda01f97f920b1345e59956ba
+    Reviewed-on: https://go-review.googlesource.com/c/142057
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/asm_ppc64x.s                       |  13 +-
- src/runtime/cgo/gcc_aix_ppc64.S                    | 133 +++++++++++++++++++++
- src/runtime/cgo/gcc_context.c                      |   2 +-
- src/runtime/cgo/gcc_fatalf.c                       |   2 +-
- src/runtime/cgo/gcc_libinit.c                      |   2 +-
- .../cgo/{gcc_ppc64x.S => gcc_linux_ppc64x.S}       |   1 +
- .../cgo/{gcc_linux_ppc64x.c => gcc_ppc64x.c}       |   0
- src/runtime/cgo/gcc_setenv.c                       |   2 +-
- src/runtime/cgo/setenv.go                          |   2 +-
- 9 files changed, 148 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/sparsetree.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

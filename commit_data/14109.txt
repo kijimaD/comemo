@@ -1,15 +1,12 @@
-commit f04ae1373eb75fc63a35b81f7d1b3d5867523279
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 10 13:29:50 2012 +1100
+commit 749a445ba0697226bd7edd156dffccdce60415ee
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 10 11:59:39 2012 +1100
 
-    spec: clarify defer semantics
-    It's already there but only in the "for instance" and so not
-    clear enough: deferred functions run after
-    the result parameters are updated.
+    bytes: fix tests and fix build
     
-    R=golang-dev, dsymonds
+    R=golang-dev, edsrzf
     CC=golang-dev
-    https://golang.org/cl/6631058
+    https://golang.org/cl/6633051
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/bytes/buffer_test.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

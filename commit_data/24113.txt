@@ -1,14 +1,25 @@
-commit 383a3601dd3567e97c856b5ac05e635ea53e2f8e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Aug 29 10:06:43 2015 +1000
+commit d5004ee69e117936890bf85b924c38f3bb505a6d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 6 10:34:01 2015 +1000
 
-    misc/nacl: fix nacl build
+    runtime: use AddVectoredContinueHandler on Windows XP amd64
     
-    Update testzip.proto to reflect vendoring of golang.org/x/arch.
+    Recent change (CL 10370) unexpectedly broke TestRaiseException on
+    Windows XP amd64. I still do not know why. But reverting old
+    CL 8165 fixes the problem.
     
-    Change-Id: I532da1100f74d1e9887eb3cf26974660ae818d92
-    Reviewed-on: https://go-review.googlesource.com/14007
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This effectively makes Windows XP amd64 use AddVectoredContinueHandler
+    instead of SetUnhandledExceptionFilter for exception handling. That is
+    what we do for all recent Windows versions too.
+    
+    Fixes #11481
+    
+    Change-Id: If2e8037711f05bf97e3c69f5a8d86af67c58f6fc
+    Reviewed-on: https://go-review.googlesource.com/11888
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/nacl/testzip.proto | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ src/runtime/os1_windows.go    | 8 --------
+ src/runtime/signal_windows.go | 8 ++------
+ 2 files changed, 2 insertions(+), 14 deletions(-)

@@ -1,0 +1,27 @@
+commit 9623a3586fc6c2d11820f412d437de1a613f755c
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed May 1 14:33:11 2024 +0000
+
+    runtime/internal/atomic: add mips operators for And/Or
+    
+    These primitives will be used by the new And/Or sync/atomic apis.
+    
+    Implemented for mips/mipsle and mips64/mips64le.
+    
+    For #61395
+    
+    Change-Id: Icc604a2b5cdfe72646d47d3c6a0bb49a0fd0d353
+    GitHub-Last-Rev: 95dca2a9f144c5d96dfa53eaf116e88be5f55040
+    GitHub-Pull-Request: golang/go#63297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531835
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../runtime/atomic/atomic_andor_generic.go         |  2 +-
+ src/internal/runtime/atomic/atomic_mips64x.go      | 18 ++++++
+ src/internal/runtime/atomic/atomic_mips64x.s       | 64 ++++++++++++++++++++++
+ src/internal/runtime/atomic/atomic_mipsx.go        | 32 +++++++++++
+ src/internal/runtime/atomic/atomic_mipsx.s         | 36 ++++++++++++
+ 5 files changed, 151 insertions(+), 1 deletion(-)

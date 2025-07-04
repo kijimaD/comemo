@@ -1,16 +1,18 @@
-commit d6665bc33818a5982e18f424bfe5d0e7ff961a89
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Sep 26 16:11:49 2012 +0900
+commit 1785bfca6b0bbf84c44b438968f328c02aeee73d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 25 17:39:02 2012 -0700
 
-    net: fix plan 9 build
+    exp/types/staging: updated gcimporter
     
-    R=golang-dev, lucio.dere, fshahriar
+    Mostly minor changes to match the new
+    definitions in types.go and const.go.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/6562046
+    https://golang.org/cl/6506101
 
- src/pkg/net/iprawsock_plan9.go |  97 ++++++++++++++++++--------
- src/pkg/net/ipsock_plan9.go    |  32 ++++++++-
- src/pkg/net/tcpsock_plan9.go   |  23 +++---
- src/pkg/net/udpsock_plan9.go   |  52 +++++++++-----
- src/pkg/net/unixsock_plan9.go  | 154 +++++++++++++++++++++++++++++++----------
- 5 files changed, 258 insertions(+), 100 deletions(-)
+ src/pkg/exp/types/staging/exportdata.go       | 110 ++++
+ src/pkg/exp/types/staging/gcimporter.go       | 887 ++++++++++++++++++++++++++
+ src/pkg/exp/types/staging/gcimporter_test.go  | 154 +++++
+ src/pkg/exp/types/staging/testdata/exports.go |  89 +++
+ 4 files changed, 1240 insertions(+)

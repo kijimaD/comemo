@@ -1,14 +1,13 @@
-commit c687be423cd004a74c12acfb8816e3dcca919f70
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 24 10:40:55 2014 -0800
+commit 5b6aaba1ce869b3744f5f44bf218ef521bbd7940
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 21:08:37 2014 +0400
 
-    crypto/md5,sha1: add examples for Sum
+    testing: improve diagnosis of a potential misuse of RunParallel
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/66900044
+    https://golang.org/cl/68230045
 
- src/pkg/crypto/md5/example_test.go  | 6 ++++++
- src/pkg/crypto/sha1/example_test.go | 9 ++++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/pkg/testing/benchmark.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

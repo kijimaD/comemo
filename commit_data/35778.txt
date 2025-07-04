@@ -1,21 +1,23 @@
-commit 4991bc6257a9e9d922f7b6e29e393d764c4e4295
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 21 16:56:13 2018 -0400
+commit c2f28de732749425ea29b5efa982c407964f8560
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 6 20:47:38 2018 -0800
 
-    runtime: avoid recursive panic on bad lock count
+    runtime: change from rt_sigaction to sigaction
     
-    Currently, if lock or unlock calls throw because the g.m.lock count is
-    corrupted, we're unlikely to get a stack trace because startpanic_m
-    will itself attempt to acquire a lock, causing a recursive failure.
+    This normalizes the Linux code to act like other targets. The size
+    argument to the rt_sigaction system call is pushed to a single
+    function, sysSigaction.
     
-    Avoid this by forcing the g.m.locks count to a sane value if it's
-    currently bad.
+    This is intended as a simplification step for CL 93875 for #14327.
     
-    This might be enough to get a stack trace from #25128.
-    
-    Change-Id: I52d7bd4717ffae94a821f4249585f3eb6cd5aa41
-    Reviewed-on: https://go-review.googlesource.com/120416
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I594788e235f0da20e16e8a028e27ac8c883907c4
+    Reviewed-on: https://go-review.googlesource.com/99077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/panic.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/cgo_sigaction.go   | 23 +++++++++--------------
+ src/runtime/os_linux.go        | 22 ++++++++++++++++------
+ src/runtime/sigaction_linux.go | 11 ++++++++---
+ src/runtime/sys_linux_amd64.s  |  2 +-
+ 4 files changed, 34 insertions(+), 24 deletions(-)

@@ -1,12 +1,20 @@
-commit a33b76081b1c66eb1c3c171853782de5dcff8456
+commit dd47a0a2ca62e8c7f275545d3aa810d3b875550f
 Author: Adam Langley <agl@golang.org>
-Date:   Sun Jan 15 10:08:48 2012 -0500
+Date:   Sun Jan 15 09:59:06 2012 -0500
 
-    exp/ssh: patching in the last change lost that a file was deleted.
+    exp/ssh: remove duplicated terminal code.
     
-    R=golang-dev
+    The terminal code in exp/terminal was forked from the code in exp/ssh.
+    This change removes the duplicated code from exp/ssh in favour of
+    using exp/terminal.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5541060
+    https://golang.org/cl/5375064
 
- src/pkg/exp/ssh/server_shell_test.go | 134 -----------------------------------
- 1 file changed, 134 deletions(-)
+ src/pkg/exp/ssh/Makefile           |   2 +-
+ src/pkg/exp/ssh/doc.go             |  24 ++-
+ src/pkg/exp/ssh/server_shell.go    | 398 -------------------------------------
+ src/pkg/exp/ssh/server_terminal.go |  81 ++++++++
+ src/pkg/exp/ssh/session_test.go    |  23 ++-
+ 5 files changed, 112 insertions(+), 416 deletions(-)

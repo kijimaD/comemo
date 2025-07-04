@@ -1,33 +1,33 @@
-commit 201cb046b745f8bb00e3d382290190c74ba7b7e1
-Author: Obeyda Djeffal <djefobey@gmail.com>
-Date:   Sat Apr 11 23:21:22 2020 +0100
+commit a3ffb0d9eb948409c0898c6b1803401c9bc68ed4
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 16 19:10:06 2019 -0400
 
-    time: quote original value in errors returned by ParseDuration
+    runtime: asynchronous preemption function for x86
     
-    Quote original values passed as substring of ParseError.Message.
-    Improves the user experience of ParseDuration by making it
-    quote its original argument, for example:
+    This adds asynchronous preemption function for amd64 and 386. These
+    functions spill and restore all register state that can be used by
+    user Go code.
     
-       _, err := time.ParseDuration("for breakfast")
-     will now produce an error, which when printed out is:
+    For the moment we stub out the other arches.
     
-      time: invalid duration "for breakfast"
-     instead of:
+    For #10958, #24543.
     
-      time: invalid duration for breakfast
-    
-    Adapt test cases for format.Parse and format.ParseDuration.
-    
-    Fixes #38295
-    
-    Change-Id: Ife322c8f3c859e1e4e8dd546d4cf0d519b4bfa81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227878
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6f93fabe9875f4834922a5712362e79045c00aca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201759
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/time/example_test.go |   2 +-
- src/time/format.go       |  20 +++----
- src/time/format_test.go  |   6 +--
- src/time/time_test.go    | 135 ++++++++++++++++++++++++++---------------------
- 4 files changed, 90 insertions(+), 73 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |   2 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
+ src/runtime/mkpreempt.go                     | 266 +++++++++++++++++++++++++++
+ src/runtime/preempt.go                       |  15 ++
+ src/runtime/preempt_386.s                    |  52 ++++++
+ src/runtime/preempt_amd64.s                  |  79 ++++++++
+ src/runtime/preempt_arm.s                    |   8 +
+ src/runtime/preempt_arm64.s                  |   8 +
+ src/runtime/preempt_mips64x.s                |  10 +
+ src/runtime/preempt_mipsx.s                  |  10 +
+ src/runtime/preempt_ppc64x.s                 |  10 +
+ src/runtime/preempt_s390x.s                  |   8 +
+ src/runtime/preempt_wasm.s                   |   8 +
+ 13 files changed, 478 insertions(+)

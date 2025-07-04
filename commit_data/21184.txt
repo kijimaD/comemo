@@ -1,12 +1,18 @@
-commit ce36552083ef281d4c90b2396a56afa039e119b0
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Sun Dec 14 14:32:56 2014 +0800
+commit 7c1e33033ddc2370c468b0f3087d5a584dfd2c7e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 1 07:52:09 2014 -0800
 
-    doc/contribute: add necessary <code> tags, remove an extra close parenthesis.
+    reflect: Fix reflect.funcLayout.  The GC bitmap has two bits per
+    pointer, not one.
     
-    Change-Id: I7238ae84d637534a345e5d077b8c63466148bd75
-    Reviewed-on: https://go-review.googlesource.com/1521
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #9179
+    
+    LGTM=iant, rsc
+    R=golang-codereviews, iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/182160043
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go    | 101 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/export_test.go |  19 +++++++++
+ src/reflect/type.go        |   4 +-
+ 3 files changed, 122 insertions(+), 2 deletions(-)

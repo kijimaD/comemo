@@ -1,25 +1,19 @@
-commit 8b4deb448e587802f67930b765c9598fc8cd36e5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 1 14:52:18 2016 -0800
+commit 2fb931d08f8b65ca36ba8deefff080f839e0ed74
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 9 12:53:57 2015 +1100
 
-    cmd/compile: fix OADDSTR buffer size calculation
+    path/filepath: remove code working around Join bug
     
-    The size calculation has been wrong since this code was first committed
-    in https://golang.org/cl/3120.  The effect was that the compiler always
-    allocated a temporary buffer on the stack for a non-escaping string
-    concatenation.  This turns out to make no practical difference, as the
-    compiler always allocates a buffer of the same size (32 bytes) and the
-    runtime only uses the temporary buffer if the concatenated strings
-    fit (check is in rawstringtmp in runtime/string.go).
+    EvalSymlinks code assumes that Join has a bug
+    (see issue #11551 for details). But issue #11551 has
+    been fixed. Remove the workaround so it does not
+    confuses us when we read code next time.
     
-    The effect of this change is to avoid generating a temporary buffer on
-    the stack that will not be used.
-    
-    Change-Id: Id632bfe3d6c113c9934c018a2dd4bcbf1784a63d
-    Reviewed-on: https://go-review.googlesource.com/20112
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I06bea20189f01f9922237c05516847353d8e4736
+    Reviewed-on: https://go-review.googlesource.com/17620
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/path/filepath/symlink.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

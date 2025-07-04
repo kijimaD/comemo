@@ -1,24 +1,27 @@
-commit 249f5d2af4e14a087c462596f142064529609c3b
-Author: Vladimir Varankin <vladimir@varank.in>
-Date:   Tue Feb 26 23:21:59 2019 +0000
+commit 5440bfc2ea8c0a4c78d5161605659c07ea10e37a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 25 16:13:17 2018 +0000
 
-    cmd/go: refer to testflag help in go test -help output
+    net/http/httputil: rewrite flushing code, disable on Server-Sent Events
     
-    The change makes it easier for a user to get to the page where
-    she can check supported test flags, by adding 'go test testflag'
-    reference to the 'go test -help' output.
+    * Rewrite the flushing code to not use a persistent goroutine, which
+      also simplifies testing.
+    * Define the meaning of a negative flush interval. Its meaning doesn't
+      change, but now it's locked in, and then we can use it to optimize
+      the performance of the non-buffered case to avoid use of an AfterFunc.
+    * Support (internal-only) special casing of FlushInterval values per
+      request/response.
+    * For now, treat Server-Sent Event responses as unbuffered. (or rather,
+      immediately flushed from the buffer per-write)
     
-    Fix #30365
+    Fixes #27816
     
-    Change-Id: I5b3db7853021ef68d096dcb467d7957d7e1bf623
-    GitHub-Last-Rev: ce3dec59fcae0cca232372f01cdda98773c290c0
-    GitHub-Pull-Request: golang/go#30420
-    Reviewed-on: https://go-review.googlesource.com/c/163858
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie0f975c997daa3db539504137c741a96d7022665
+    Reviewed-on: https://go-review.googlesource.com/c/137335
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/base/base.go    | 2 +-
- src/cmd/go/internal/test/test.go    | 8 +++++++-
- src/cmd/go/testdata/script/help.txt | 2 +-
- 3 files changed, 9 insertions(+), 3 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 89 +++++++++++++++++++-----------
+ src/net/http/httputil/reverseproxy_test.go | 56 +++++++++++++++----
+ 2 files changed, 102 insertions(+), 43 deletions(-)

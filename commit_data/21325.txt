@@ -1,17 +1,16 @@
-commit 34bc85f6f3b02ebcd490b40f4d32907ff2e69af3
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Jan 13 15:36:42 2015 -0500
+commit a48e789635788d4cab23f76b4adc74e5fa343d24
+Author: Stan Schwertly <stan@schwertly.com>
+Date:   Thu Dec 18 19:32:40 2014 +0000
 
-    runtime: fix trigger for concurrent GC
+    encoding/binary: check for unsigned integers in intDataSize.
     
-    Adjust triggergc so that we trigger when we have used 7/8
-    of the available heap memory. Do first collection when we
-    exceed 4Mbytes.
+    intDataSize ignores unsigned integers, forcing reads/writes to miss the fast path.
     
-    Change-Id: I467b4335e16dc9cd1521d687fc1f99a51cc7e54b
-    Reviewed-on: https://go-review.googlesource.com/3149
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #8956
+    
+    Change-Id: Ie79b565b037db3c469aa1dc6d0a8a5a9252d5f0a
+    Reviewed-on: https://go-review.googlesource.com/1777
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go | 10 ++++++----
- src/runtime/mgc.go    |  1 +
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/encoding/binary/binary.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

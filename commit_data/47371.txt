@@ -1,18 +1,61 @@
-commit b93220c9ca1935c56c01afc1d72d063f1e026f15
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 12 16:50:35 2021 -0700
+commit 4350e4961a6ea3d36a33271423735b37c96dd5bf
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 10 17:06:54 2021 -0600
 
-    encoding/xml: add generic encoding test
+    crypto/md5: improve ppc64x performance
     
-    Fixes #48521
+    This is mostly cleanup and simplification.  This removes
+    many unneeded register moves, loads, and bit twiddlings
+    which were holdovers from porting this from the amd64
+    version.
     
-    Change-Id: Id8402bcff243c0ab19e4ec0b138b9af8c111f88d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355492
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    The updated code loads each block once per iteration
+    instead of once per round. Similarly, the logical
+    operations now match the original md5 specification.
+    
+    Likewise, add extra sizes to the benchtest to give more
+    data points on how the implementation scales with input
+    size.
+    
+    All in all, this is roughly a 20% improvement on ppc64le
+    code running on POWER9 (POWER8 is similar, but around
+    16%):
+    
+    name                 old time/op    new time/op    delta
+    Hash8Bytes              297ns ± 0%     255ns ± 0%  -14.14%
+    Hash64                  527ns ± 0%     444ns ± 0%  -15.76%
+    Hash128                 771ns ± 0%     645ns ± 0%  -16.35%
+    Hash256                1.26µs ± 0%    1.05µs ± 0%  -16.68%
+    Hash512                2.23µs ± 0%    1.85µs ± 0%  -16.82%
+    Hash1K                 4.16µs ± 0%    3.46µs ± 0%  -16.83%
+    Hash8K                 31.2µs ± 0%    26.0µs ± 0%  -16.74%
+    Hash1M                 3.58ms ± 0%    2.98ms ± 0%  -16.74%
+    Hash8M                 26.1ms ± 0%    21.7ms ± 0%  -16.81%
+    Hash8BytesUnaligned     297ns ± 0%     255ns ± 0%  -14.08%
+    Hash1KUnaligned        4.16µs ± 0%    3.46µs ± 0%  -16.79%
+    Hash8KUnaligned        31.2µs ± 0%    26.0µs ± 0%  -16.78%
+    
+    name                 old speed      new speed      delta
+    Hash8Bytes           26.9MB/s ± 0%  31.4MB/s ± 0%  +16.45%
+    Hash64                122MB/s ± 0%   144MB/s ± 0%  +18.69%
+    Hash128               166MB/s ± 0%   199MB/s ± 0%  +19.54%
+    Hash256               203MB/s ± 0%   244MB/s ± 0%  +20.01%
+    Hash512               230MB/s ± 0%   276MB/s ± 0%  +20.18%
+    Hash1K                246MB/s ± 0%   296MB/s ± 0%  +20.26%
+    Hash8K                263MB/s ± 0%   315MB/s ± 0%  +20.11%
+    Hash1M                293MB/s ± 0%   352MB/s ± 0%  +20.10%
+    Hash8M                321MB/s ± 0%   386MB/s ± 0%  +20.21%
+    Hash8BytesUnaligned  26.9MB/s ± 0%  31.4MB/s ± 0%  +16.41%
+    Hash1KUnaligned       246MB/s ± 0%   296MB/s ± 0%  +20.19%
+    Hash8KUnaligned       263MB/s ± 0%   315MB/s ± 0%  +20.15%
+    
+    Change-Id: I269bfa6878966bb4f6a64dc349100f5dc453ab7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300613
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/encoding/xml/marshal_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/crypto/md5/md5_test.go       |  26 +++-
+ src/crypto/md5/md5block_ppc64x.s | 303 ++++++++++++++++++++-------------------
+ 2 files changed, 182 insertions(+), 147 deletions(-)

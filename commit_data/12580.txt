@@ -1,14 +1,16 @@
-commit 2d3cc97c9c7ced9d13d99611c3f3a69b4c81fbba
+commit 4e18bfb9306e80fd16522bfb6a4a98c3f2b42c0d
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 16:48:16 2012 -0400
+Date:   Mon Mar 12 16:35:15 2012 -0400
 
-    runtime: fix windows/amd64
+    cmd/go: make go get new.code/... work
     
-    Maybe.
+    Fixes #2909.
     
-    TBR=bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5754091
+    https://golang.org/cl/5796072
 
- src/pkg/runtime/sys_windows_amd64.s | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/go/get.go  | 121 +++++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/go/http.go |   1 -
+ src/cmd/go/vcs.go  |  17 ++++++++
+ 3 files changed, 112 insertions(+), 27 deletions(-)

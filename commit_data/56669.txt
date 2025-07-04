@@ -1,32 +1,21 @@
-commit bf91eb3a8bb057a620f3823e4d6b74a529c0a44d
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu May 23 10:47:36 2024 -0400
+commit 49ad23a6d23d6cc1666c22e4bc215f25f717b569
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 19 16:58:37 2023 -0400
 
-    std: fix calls to Printf(s) with non-constant s
+    cmd/dist: delete moved_goroot test
     
-    In all cases the intent was not to interpret s as a format string.
-    In one case (go/types), this was a latent bug in production.
-    (These were uncovered by a new check in vet's printf analyzer.)
+    This test is largely obviated by the goroot_executable and
+    list_goroot_symlink cmd/go script tests. It's the last user of several
+    special-case features in cmd/dist and runs only under a fairly
+    constrained set of conditions (including only running on builders, not
+    locally). Delete it.
     
-    Updates #60529
-    
-    Change-Id: I3e17af7e589be9aec1580783a1b1011c52ec494b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587855
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Icc744e3f9f04813bfd0cad2ef3e88e42617ecf5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496519
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/types2/builtins.go  | 2 +-
- src/crypto/rsa/pss_test.go                   | 2 +-
- src/database/sql/sql_test.go                 | 4 ++--
- src/encoding/json/encode_test.go             | 2 +-
- src/go/types/builtins.go                     | 2 +-
- src/go/types/typexpr.go                      | 2 +-
- src/internal/coverage/cfile/emitdata_test.go | 2 +-
- src/math/big/int_test.go                     | 2 +-
- src/math/rand/rand_test.go                   | 2 +-
- src/math/rand/v2/rand_test.go                | 2 +-
- src/net/http/serve_test.go                   | 4 ++--
- src/net/smtp/smtp.go                         | 4 ++--
- src/net/smtp/smtp_test.go                    | 4 ++--
- src/runtime/pprof/pprof_test.go              | 2 +-
- 14 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/dist/test.go | 44 --------------------------------------------
+ 1 file changed, 44 deletions(-)

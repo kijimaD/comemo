@@ -1,25 +1,19 @@
-commit 7d50abf0394dbcd2d86ac9c1c5c527ef5117e351
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 22 17:36:12 2018 +0000
+commit 9f2c611fa7cccfacd317b88eff14d3ba64e855ff
+Author: Michael Kasch <michael.kasch@gmail.com>
+Date:   Fri Mar 2 19:03:21 2018 +0100
 
-    cmd/dist: skip non-std tests on js/wasm
+    time: add support for parsing timezones denoted by sign and offset
     
-    After the std tests, most of the rest of the tests aren't applicable
-    to js/wasm. (anything with -cpu=>1, cgo, etc)
+    IANA Zoneinfo does not provide names for all timezones. Some are denoted
+    by a sign and an offset only. E.g: Europe/Turkey is currently +03 or
+    America/La_Paz which is -04 (https://data.iana.org/time-zones/releases/tzdata2018c.tar.gz)
     
-    Skip them all for now. We can incrementally re-enable them over time
-    as the js/wasm port is fleshed out. But let's get the builder column
-    black again so we can enable trybots and keep it black.
+    Fixes #24071
     
-    Updates #26014
-    Updates #26015
-    Updates #18892
-    
-    Change-Id: I8992ed3888f598fa42273ce8646a32d62ce45b1d
-    Reviewed-on: https://go-review.googlesource.com/120575
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I9c230a719945e1263c5b52bab82084d22861be3e
+    Reviewed-on: https://go-review.googlesource.com/98157
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/format.go      | 21 +++++++++++++++++----
+ src/time/format_test.go |  2 ++
+ 2 files changed, 19 insertions(+), 4 deletions(-)

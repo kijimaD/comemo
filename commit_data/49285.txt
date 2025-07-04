@@ -1,24 +1,22 @@
-commit 87039c7d340eaf5731f3c12c1d1dd9875c7693fa
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 12 22:59:44 2022 +0000
+commit 9e0ac72d680e71d22c7d31950a16d4f92f08305a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 5 18:33:22 2021 -0700
 
-    cmd/go: reference BuildID field from list's -export docs
+    [dev.typeparams] cmd/compile/internal/types2: remove Interface.Complete (cleanup)
     
-    In https://golang.org/cl/263542 we added BuildID to the Package struct
-    in the docs for "go list", correctly pointing out that it's only set
-    when -export is used.
+    Interface.Complete is not needed anymore. We can remove it in
+    types2 (and eventually make it an empty function in go/types,
+    where we must maintain the existing API).
     
-    Further down, the doc details the -export flag on its own.
-    It already mentioned the Export field, and we forgot to add a mention to
-    BuildID as well. Do that.
-    
-    Change-Id: I5838a8900edae8012fe333937d86baea3066c5f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392114
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I689f0d6f3a83997d8ca5bae773b9af0083d0bf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340255
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/alldocs.go            | 3 ++-
- src/cmd/go/internal/list/list.go | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go   |  4 ----
+ src/cmd/compile/internal/noder/reader2.go      |  4 +---
+ src/cmd/compile/internal/types2/interface.go   | 19 -------------------
+ src/cmd/compile/internal/types2/issues_test.go |  3 ++-
+ 4 files changed, 3 insertions(+), 27 deletions(-)

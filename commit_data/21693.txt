@@ -1,14 +1,17 @@
-commit b48d2a5f25ffa22dbae80c3820b87b3d489bbd1d
-Author: Charles Dorian <cldorian@gmail.com>
-Date:   Wed Feb 18 20:05:38 2015 -0500
+commit ad8223865319e5325e9f79cfd340d906d1c85bb6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 28 10:21:04 2015 -0800
 
-    math: faster Cbrt
+    [dev.cc] cmd/asm: the text flag argument to TEXT psudo-op is optional
     
-    Old 45.3 ns/op, new 19.9 ns/op.
+    Allow TEXT to have two or three operands.
+    In
+            TEXT foo(SB),flag,$0
+    the flag can be missing, in which case we take it to be zero.
     
-    Change-Id: If2a201981dcc259846631ecbc694c401e0a80287
-    Reviewed-on: https://go-review.googlesource.com/5260
+    Change-Id: I7b88543b52019f7890baac4b95f9e63884d43c83
+    Reviewed-on: https://go-review.googlesource.com/3440
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/cbrt.go | 91 ++++++++++++++++++++++++++++----------------------------
- 1 file changed, 46 insertions(+), 45 deletions(-)
+ src/cmd/asm/internal/asm/asm.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

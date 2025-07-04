@@ -1,22 +1,36 @@
-commit a155a2f8a135b8b274d978ccb9ca4e690176118b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:57:04 2024 -0500
+commit d12fe60004ae5e4024c8a93f4f7de7183bb61576
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 1 13:45:18 2023 +0000
 
-    runtime: change timer.status to timer.state
+    all: skip tests that fail on android/arm64
     
-    The status enumeration is simple enough now that we can
-    view it as a bit set instead. Switch to a bit set, freeing up
-    the remaining bits for use in followup work to allow
-    garbage-collecting timers.
+    Many of the tests skipped platforms that build PIE binaries by
+    default, but (still) lack a central function to report which platforms
+    those are.
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
+    Some of the tests assumed (but did not check for) internal linking
+    support, or invoked `go tool link` directly without properly
+    configuring the external linker.
     
-    Change-Id: I5f331fe3db1b5cb52f8571091f97f8ba029f3ac9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564130
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    A few of the tests seem to be triggering latent bugs in the linker.
+    
+    For #58806.
+    For #58807.
+    For #58794.
+    
+    Change-Id: Ie4d06b1597f404590ad2abf978d4c363647407ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/time.go | 324 +++++++++++++++++++++++-----------------------------
- 1 file changed, 142 insertions(+), 182 deletions(-)
+ src/cmd/link/elf_test.go               |  5 ++++-
+ src/cmd/link/internal/ld/dwarf_test.go | 18 +++++++++++++-----
+ src/cmd/link/internal/ld/ld_test.go    |  3 +++
+ src/cmd/link/link_test.go              | 12 ++++++++++++
+ src/cmd/nm/nm_test.go                  | 15 ++++++++++++++-
+ src/cmd/pack/pack_test.go              |  5 +++++
+ src/cmd/pprof/pprof_test.go            |  6 +++++-
+ src/runtime/crash_cgo_test.go          |  3 +++
+ 8 files changed, 59 insertions(+), 8 deletions(-)

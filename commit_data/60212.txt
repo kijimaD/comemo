@@ -1,0 +1,22 @@
+commit 3dcb9623dfe412761fc3aa6fa654649d7139f056
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun May 26 17:56:45 2024 +0000
+
+    syscall: add Setuid for aix
+    
+    Fixes #67651
+    
+    Change-Id: I8128433ddd040c8b91d7b6264200e19433d7a7dc
+    GitHub-Last-Rev: 7557a88cf5a52a99e7689b604964cd4ec8e6bfec
+    GitHub-Pull-Request: golang/go#67656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588119
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/syscall_aix.go        |  1 +
+ src/syscall/zsyscall_aix_ppc64.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+)

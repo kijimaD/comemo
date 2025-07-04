@@ -1,0 +1,24 @@
+commit 0b5f72251bb564c7780b61f56a37faab31ed3512
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 17:40:50 2024 -0800
+
+    slices: add iterator-related functions
+    
+    Fixes #61899
+    
+    Change-Id: Icbde1ac8293723eefc3251008ae9711e756ed1b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568477
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/61899.txt                         |   8 ++
+ doc/next/6-stdlib/3-iter.md                |  17 +++
+ doc/next/6-stdlib/99-minor/slices/61899.md |   1 +
+ src/cmd/dist/test.go                       |  16 +--
+ src/go/build/deps_test.go                  |   2 +-
+ src/slices/iter.go                         |  86 ++++++++++++++
+ src/slices/iter_test.go                    | 184 +++++++++++++++++++++++++++++
+ src/slices/sort_test.go                    |  19 ++-
+ 8 files changed, 319 insertions(+), 14 deletions(-)

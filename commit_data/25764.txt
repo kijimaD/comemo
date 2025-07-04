@@ -1,17 +1,19 @@
-commit 1a94431a78c4de5182dd43b438701cca80455746
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jan 13 15:51:16 2016 -0800
+commit d2c81ad84776edfb4c790666f1d80554b4393d46
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 17 17:31:04 2015 -0500
 
-    cmd/cgo: support multiple-value special form in VarDecl
+    runtime: recursively disallow write barriers in sysmon
     
-    Fixes #13930.
+    sysmon runs without a P. This means it can't interact with the garbage
+    collector, so write barriers not allowed in anything that sysmon does.
     
-    Change-Id: I124b7d31d1f2be05b7f23dafd1e52d9f3f02f3f0
-    Reviewed-on: https://go-review.googlesource.com/18623
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #10600.
+    
+    Change-Id: I9de1283900dadee4f72e2ebfc8787123e382ae88
+    Reviewed-on: https://go-review.googlesource.com/17006
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue13930.go | 13 +++++++++++++
- src/cmd/cgo/ast.go          |  6 +++++-
- src/cmd/cgo/doc.go          |  3 ++-
- 3 files changed, 20 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 3 +++
+ 1 file changed, 3 insertions(+)

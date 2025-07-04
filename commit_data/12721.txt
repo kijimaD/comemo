@@ -1,12 +1,15 @@
-commit 209b2e55f70169c517e682532e48e49d6a86d1bf
+commit 47b6197a011f201b6975407c36978dac0b1f87d7
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 22 11:40:12 2012 -0700
+Date:   Thu Mar 22 09:44:31 2012 -0700
 
-    cmd/gc: fix comment typo, assignment spacing
+    cmd/gc: when expanding append inline, preserve arguments
     
-    R=bradfitz, gri, lvd
+    Fixes #3369.
+    
+    R=golang-dev, gri, lvd, r
     CC=golang-dev
-    https://golang.org/cl/5874053
+    https://golang.org/cl/5876044
 
- src/cmd/gc/walk.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/walk.c        |  6 ++++++
+ test/fixedbugs/bug428.go | 19 +++++++++++++++++++
+ 2 files changed, 25 insertions(+)

@@ -1,25 +1,28 @@
-commit 444039e0546c3db1e8f73fb0a74ed21e45a09cb9
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Feb 28 09:10:36 2019 -0800
+commit 28fa1da9db8eedf079f1b83fd39383e17b3d7e68
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Oct 4 16:46:22 2018 +0800
 
-    fmt: fix %d and other non-string verbs on errors
+    cmd/api: explicit tagKey with GOOS and GOARCH
     
-    When formatting an error with a non-string formatting verb such as %d,
-    use the default formatting behavior rather than treating this as a bad
-    verb.
+    The origin tagKey is just dirname if no tags input which will cause
+    pkgCache missmatch if other imported pkg explicit on GOARCH or GOOS
     
-    For example, this should print 42, not %!d(main.E=42):
+    This CL will add GOOS and GOARCH to tagKey
     
-      var E int
-      func (E) Error() string { return "error" }
-      fmt.Printf("%d", E(42))
+    Fixes #8425
+    Fixes #21181
     
-    Fixes #30472
-    
-    Change-Id: I62fd309c8ee9839a69052b0ec7f1808449dcee8e
-    Reviewed-on: https://go-review.googlesource.com/c/164557
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifc189cf6746d753ad7c7e5bb60621297fc0a4e35
+    Reviewed-on: https://go-review.googlesource.com/c/138315
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/fmt/errors.go      |  3 +--
- src/fmt/errors_test.go | 19 ++++++++++++++++++-
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ api/except.txt                                     |  2 ++
+ src/cmd/api/goapi.go                               | 14 ++++++++++----
+ src/cmd/api/goapi_test.go                          | 15 +++++++++++++++
+ src/cmd/api/testdata/src/issue21181/dep/p.go       |  5 +++++
+ src/cmd/api/testdata/src/issue21181/dep/p_amd64.go |  1 +
+ src/cmd/api/testdata/src/issue21181/indirect/p.go  |  5 +++++
+ src/cmd/api/testdata/src/issue21181/p/p.go         |  9 +++++++++
+ src/cmd/api/testdata/src/issue21181/p/p_amd64.go   |  7 +++++++
+ src/cmd/api/testdata/src/issue21181/p/p_generic.go | 11 +++++++++++
+ 9 files changed, 65 insertions(+), 4 deletions(-)

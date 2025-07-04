@@ -1,13 +1,13 @@
-commit 0cfbb64c4317b6a47cbc140218c3c68d181923cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Oct 21 20:32:35 2012 -0400
+commit ee7680104ff5596be0d49ce2e93993dbaab2bb02
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 22 09:21:57 2012 +1100
 
-    A+C: Jingcheng Zhang and Patrick Smith (individual CLA x2)
+    A+C: Richard Eric Gavaletz (individual CLA)
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6749055
+    https://golang.org/cl/6734055
 
- AUTHORS      | 2 ++
- CONTRIBUTORS | 2 ++
- 2 files changed, 4 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

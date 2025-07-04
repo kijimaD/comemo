@@ -1,30 +1,25 @@
-commit d65c0593c4f1dd4a9b381cf654668aa27166b24e
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Thu Nov 3 12:16:06 2022 -0700
+commit 7a840664fe9d8d4c11b943dba77c513dba5207a1
+Author: Roi Martin <jroi.martin@gmail.com>
+Date:   Tue Nov 30 19:35:47 2021 +0100
 
-    text/template/parse: fix interaction of break/continue keywords and functions
+    cmd/go: update "go help doc" docs
     
-    Fixes a bug that was introduced in CL 410414; in that CL, to avoid
-    a race condition in the initialization of the lexer, the setting
-    of the breakOK and continueOK options was moved to before
-    Tree.funcs was populated from parameters. As a result, the parser
-    missed the fact that 'break' and 'continue' were defined as functions.
+    This CL updates "go help doc" docs so they reflect the following
+    changes:
     
-    Following CL 421883 race conditions are no longer an issue, so
-    the simplest fix is just to move the initialization where it was
-    before - in startParse, after t.funcs has been set.
+    - CL 59413 modified "go doc", so the behavior of the two-args case is
+      consistent with the one-arg one.
+    - CL 141397 removed godoc's command-line interface in favor of "go doc".
     
-    Fixes #56538
+    Fixes #49830.
     
-    Change-Id: I3b99fe9ad12255a4f6eb9a00eb3f64529ff055c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447775
-    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
-    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Change-Id: I0923634291d34ae663fe2944d69757462b814919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367497
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Trust: Russ Cox <rsc@golang.org>
 
- src/text/template/parse/parse.go      | 10 +++++-----
- src/text/template/parse/parse_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 5 deletions(-)
+ src/cmd/go/alldocs.go          | 5 ++---
+ src/cmd/go/internal/doc/doc.go | 5 ++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

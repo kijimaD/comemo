@@ -1,27 +1,22 @@
-commit 439f9397fc3ef260a74a64e0b0efb071a066b321
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 13 14:19:23 2013 -0400
+commit bd9cd6e30e629f8751c978a75befc087b4cb5617
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 13 15:01:22 2013 +1000
 
-    runtime: avoid inconsistent goroutine state in profiler
+    syscall: add TCIOFLUSH family of constants
     
-    Because profiling signals can arrive at any time, we must
-    handle the case where a profiling signal arrives halfway
-    through a goroutine switch. Luckily, although there is much
-    to think through, very little needs to change.
+    Fixes #6355.
     
-    Fixes #6000.
-    Fixes #6015.
+    zerrors_linux_{386,amd64,arm}.go were regenerated using mkerrors.sh but I opted to add the three TC.*FLUSH lines by hand to keep the diff smaller and avoid problems with the API checker.
     
-    R=golang-dev, dvyukov
+    I'll check freebsd and darwin, could I ask for help with net/open bsd.
+    
+    R=mikioh.mikioh, jsing, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13421048
+    https://golang.org/cl/13660043
 
- src/pkg/runtime/arch_386.h          |   1 +
- src/pkg/runtime/arch_amd64.h        |   1 +
- src/pkg/runtime/arch_arm.h          |   1 +
- src/pkg/runtime/export_test.c       |  13 ++++
- src/pkg/runtime/export_test.go      |   2 +
- src/pkg/runtime/pprof/pprof_test.go | 116 +++++++++++++++++++++++++++---------
- src/pkg/runtime/proc.c              |  77 +++++++++++++++++++++++-
- src/pkg/runtime/runtime_test.go     |  43 +++++++++++++
- 8 files changed, 225 insertions(+), 29 deletions(-)
+ src/pkg/syscall/consistency_unix_test.go | 9 +++++++++
+ src/pkg/syscall/mkerrors.sh              | 1 +
+ src/pkg/syscall/zerrors_linux_386.go     | 3 +++
+ src/pkg/syscall/zerrors_linux_amd64.go   | 3 +++
+ src/pkg/syscall/zerrors_linux_arm.go     | 3 +++
+ 5 files changed, 19 insertions(+)

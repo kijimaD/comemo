@@ -1,15 +1,42 @@
-commit ec735c4ec8b15a340f223c20b77b8456a1ebcab3
+commit c9164a5d77be38fb5aa3940908b8dd2cdd494618
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 20 16:12:47 2011 -0400
+Date:   Wed Apr 20 15:21:59 2011 -0400
 
-    gc: fix error for +string
+    net: use C library resolver on FreeBSD, Linux, OS X / amd64, 386
     
-    Fixes #1710.
+    This CL makes it possible to resolve DNS names on OS X
+    without offending the Application-Level Firewall.
     
-    R=ken2
+    It also means that cross-compiling from one operating
+    system to another is no longer possible when using
+    package net, because cgo needs to be able to sniff around
+    the local C libraries.  We could special-case this one use
+    and check in generated files, but it seems more trouble
+    than it's worth.  Cross compiling is dead anyway.
+    
+    It is still possible to use either GOARCH=amd64 or GOARCH=386
+    on typical Linux and OS X x86 systems.
+    
+    It is also still possible to build GOOS=linux GOARCH=arm on
+    any system, because arm is for now excluded from this change
+    (there is no cgo for arm yet).
+    
+    R=iant, r, mikioh
     CC=golang-dev
-    https://golang.org/cl/4444054
+    https://golang.org/cl/4437053
 
- src/cmd/gc/align.c       |  2 +-
- test/fixedbugs/bug330.go | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/pkg/net/Makefile           |  19 +++++-
+ src/pkg/net/cgo_stub.go        |   4 ++
+ src/pkg/net/cgo_unix.go        | 148 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/dial.go            |   8 +--
+ src/pkg/net/dialgoogle_test.go |  15 +++--
+ src/pkg/net/dnsclient.go       |  22 ++++--
+ src/pkg/net/hosts_test.go      |  15 +++++
+ src/pkg/net/iprawsock.go       |   2 +-
+ src/pkg/net/ipsock.go          |  46 ++++++++++---
+ src/pkg/net/lookup.go          |  12 ++++
+ src/pkg/net/server_test.go     |   8 +--
+ src/pkg/net/srv_test.go        |   6 +-
+ src/pkg/net/tcpsock.go         |   4 +-
+ src/pkg/net/udpsock.go         |   4 +-
+ 14 files changed, 279 insertions(+), 34 deletions(-)

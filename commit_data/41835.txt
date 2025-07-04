@@ -1,19 +1,14 @@
-commit e18a5ba0ca142c64aa03c6fb500d69cbbaab1bb6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 2 22:47:29 2020 -0400
+commit 6afabe2768830940a9b02d45911563e51d287224
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 28 16:49:27 2019 +0000
 
-    cmd/link: in stack bound check, don't check a call repetitively
+    doc/go1.14: document that Go 1.14 is likely last to support darwin/arm
     
-    In stack bound check pass, check a call once, not over and over
-    again. Fix an accidental quadratic behavior...
+    Fixes #34751
     
-    In particular, switching to the new linker caused MIPS builders
-    noticeably slower. This CL fixes it.
-    
-    Change-Id: Idd00c79e80af6278652c92a1d9d7bb2d194e9490
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227078
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5ae1bb2bfddaa05245b364556d2b999b158a4cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203879
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/lib.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.14.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

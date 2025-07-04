@@ -1,17 +1,31 @@
-commit da54dfb6a1f3bef827b9ec3780c98fde77a97d11
-Author: KimMachineGun <geon0250@gmail.com>
-Date:   Sun Nov 29 08:18:12 2020 +0000
+commit f2163c4d458df70bd46f284f995419135f0e1fc3
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Apr 29 12:23:32 2020 +0200
 
-    doc/go1.16: document new behavior of asn1.Unmarshal on invalid argument
+    bytes, strings: align requirements for functions passed to FieldFuncs
     
-    For #41509
+    golang.org/cl/229763 removed the documentation of requirements of
+    the function passed to FieldsFunc. The current implementation does
+    not require functions to return consistent results but this had not
+    been the case for previous implementations.
     
-    Change-Id: Ie761c428710d15848cb80ffd2d85de747113f2d4
-    GitHub-Last-Rev: 05541624593d945d82b6f4cfae1461654eabea7b
-    GitHub-Pull-Request: golang/go#42315
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267057
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add the requirement for consistent results back to the documentation
+    to allow for future implementations to be more allocation efficient
+    for an output with more than 32 fields. This is possible with a two
+    pass algorithm first determining the number of fields used to allocate
+    the output slice and then splitting the input into fields.
+    
+    While at it align the documentation of bytes.FieldsFunc with
+    strings.FieldFunc.
+    
+    Fixes #38630
+    
+    Change-Id: Iabbf9ca3dff0daa41f4ec930a21a3dd98e19f122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230797
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.16.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/bytes/bytes.go     | 5 +++--
+ src/strings/strings.go | 3 +++
+ 2 files changed, 6 insertions(+), 2 deletions(-)

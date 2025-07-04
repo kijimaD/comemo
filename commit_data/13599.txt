@@ -1,12 +1,21 @@
-commit 4230dd4c6c4c08f1559d85bc135991627fd89d92
-Author: Yves Junqueira <yves.junqueira@gmail.com>
-Date:   Wed Aug 8 12:04:54 2012 +1000
+commit 3601f27708e6c0d6f71e690139de46df19cedc38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 7 17:45:58 2012 -0700
 
-    crypto/rand: Example for Read.
+    godoc: make id attributes unique
     
-    R=adg, remyoudompheng, rsc, r
+    Some browsers (e.g. IE9) ignore the case of 'id' attributes
+    which can lead to conflicts. Prefix non-generated 'id's with
+    "pkg-" to make them different from any generated attribute.
+    
+    Also: Added missing entry for "Other packages" to top-level
+    index.
+    
+    Fixes #3851.
+    
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6457085
+    https://golang.org/cl/6449105
 
- src/pkg/crypto/rand/example_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ lib/godoc/package.html | 39 ++++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)

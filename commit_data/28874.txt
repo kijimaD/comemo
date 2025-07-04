@@ -1,25 +1,19 @@
-commit 67d8226b4862f0f8deb4dc6fa8617017ecb0f32b
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Oct 12 10:46:43 2016 -0700
+commit 14e446d909784fba7b349b76ec0a234c2a86a491
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Wed Jul 20 00:58:55 2016 +0200
 
-    crypto/tls: support ChaCha20-Poly1305.
+    bytes: add examples
     
-    This change adds support for the ChaCha20-Poly1305 AEAD to crypto/tls,
-    as specified in https://tools.ietf.org/html/rfc7905.
+    `bytes` and `strings` are pretty similar to each other, this commit
+    brings `strings` examples to its counter-part.
     
-    Fixes #15499.
+    Partially addresses #16360
     
-    Change-Id: Iaa689be90e03f208c40b574eca399e56f3c7ecf1
-    Reviewed-on: https://go-review.googlesource.com/30957
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I551320eaa78be9df69012035f1c3333f500e04c9
+    Reviewed-on: https://go-review.googlesource.com/25062
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/cipher_suites.go                    | 68 +++++++++++++++++-
- src/crypto/tls/conn.go                             | 24 ++++---
- src/crypto/tls/handshake_client_test.go            | 28 ++++++++
- src/crypto/tls/handshake_server_test.go            |  6 ++
- .../Client-TLSv12-ECDHE-ECDSA-CHACHA20-POLY1305    | 77 ++++++++++++++++++++
- .../Client-TLSv12-ECDHE-RSA-CHACHA20-POLY1305      | 81 ++++++++++++++++++++++
- src/go/build/deps_test.go                          |  2 +
- 7 files changed, 275 insertions(+), 11 deletions(-)
+ src/bytes/example_test.go | 203 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 203 insertions(+)

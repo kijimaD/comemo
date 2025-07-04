@@ -1,19 +1,13 @@
-commit 5f2b4f26aa3ae79e6cfd3bd397d586d5a3ed9fec
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Jun 7 12:17:40 2018 +0200
+commit db7af2e67b023da2c4e8c1cc49543ebf4566ce52
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Feb 25 10:29:28 2018 -0800
 
-    runtime: remove unused darwinVersion and getDarwinVersion
+    os/user: clean up grammar in comments
     
-    They are unused since CL 114799.
-    
-    Also remove consts _CTL_KERN and _KERN_OSRELEASE previously used by
-    getDarwinVersion.
-    
-    Change-Id: I51b701e8effbe4dd4301b0e6d52e8885469032f4
-    Reviewed-on: https://go-review.googlesource.com/116955
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If9fe04894851d60a682346415c2e5523b2f04929
+    Reviewed-on: https://go-review.googlesource.com/96981
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/os_darwin.go | 28 +++-------------------------
- 1 file changed, 3 insertions(+), 25 deletions(-)
+ src/os/user/lookup_windows.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

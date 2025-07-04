@@ -1,15 +1,13 @@
-commit ccf2b8843e26731a2215d0d8b0ac04d7c2d42074
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 18 14:22:55 2012 -0400
+commit e8de8b58caf52115be0d5d11282c504da8642238
+Author: Anthony Eufemio <anthony.eufemio@gmail.com>
+Date:   Tue Sep 18 11:01:10 2012 -0700
 
-    encoding/json: do not read beyond array literal
+    builtin: Changed documentation for rune type.
+    Fixes #4093.
     
-    Fixes #3942.
-    
-    R=golang-dev, mike.rosset, r
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/6524043
+    https://golang.org/cl/6536047
 
- src/pkg/encoding/json/stream.go      |  2 +-
- src/pkg/encoding/json/stream_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/pkg/builtin/builtin.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

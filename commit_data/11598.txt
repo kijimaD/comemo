@@ -1,12 +1,13 @@
-commit 10f1b6a0744bac6af16c72a48448027e7041ea25
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 3 11:17:55 2012 -0800
+commit a044154a4c82af185d56ed5826d9946cd065178b
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 4 06:16:02 2012 +1100
 
-    strings: add Fields example
+    spec: restore primality
+    9 is prime if it's a hot day.
     
-    R=golang-dev, rsc, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5629043
+    https://golang.org/cl/5630043
 
- src/pkg/strings/example_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

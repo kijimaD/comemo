@@ -1,15 +1,14 @@
-commit f849f6b7fd77fb1dccaf283121f4161b41f8a9b4
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 01:56:51 2015 -0400
+commit 1114a76ae6081242c38614aeb4ff9c37b8be75c4
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 4 15:18:27 2015 -0700
 
-    cmd/go: give full import stack for errors in dependencies of test dependencies
+    [dev.ssa] cmd/compile/internal/ssa: Add dummy frontend for testing.
     
-    Fixes #9558.
-    
-    Change-Id: I68506af58088155d38d492b49b19c5fc2048b087
-    Reviewed-on: https://go-review.googlesource.com/12176
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ica26c0297ac7afeb0b5b668cf5f5cd1667c6cc43
+    Reviewed-on: https://go-review.googlesource.com/10699
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go | 14 ++++++++++++++
- src/cmd/go/test.go    | 10 ++++++++++
- 2 files changed, 24 insertions(+)
+ src/cmd/compile/internal/ssa/deadcode_test.go | 6 +++---
+ src/cmd/compile/internal/ssa/export_test.go   | 6 ++++++
+ src/cmd/compile/internal/ssa/func_test.go     | 4 ++--
+ 3 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,16 +1,14 @@
-commit 5e381d3a9a5cda59b7ec6482e4285b286dcb850c
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Feb 8 11:41:47 2012 +1100
+commit 2f8e5a5f88b0d744fe0c7c13b53e363d38124d88
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 11:40:56 2012 +1100
 
-    image: delete the image.Repeated type.
+    io/ioutil: document EOF behavior in ReadFile and ReadAll
     
-    R=r
+    Fixes #2862.
+    
+    R=golang-dev, n13m3y3r, iant
     CC=golang-dev
-    https://golang.org/cl/5636045
+    https://golang.org/cl/5646048
 
- doc/go1.html                   |  5 +----
- doc/go1.tmpl                   |  5 +----
- src/cmd/fix/imagetiled.go      | 40 ----------------------------------------
- src/cmd/fix/imagetiled_test.go | 41 -----------------------------------------
- src/pkg/image/names.go         | 27 ---------------------------
- 5 files changed, 2 insertions(+), 116 deletions(-)
+ src/pkg/io/ioutil/ioutil.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

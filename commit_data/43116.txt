@@ -1,23 +1,22 @@
-commit 8ab020adb27089fa207d015f2f69600ef3d1d307
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Sat Sep 26 19:40:17 2020 +0000
+commit 5db3c8f1fd93b63236be0c4fe35e6f704582fbe1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 7 14:00:26 2020 -0500
 
-    runtime: netbsd-arm64 fixes
+    cmd/link: fix for package name attr testpoint in dwarf_test.go
     
-    Add missing declaration of crosscall1.
+    Tighten up a testpoint that looks for the compile unit
+    DW_AT_go_package_name attribute. The linker code that injects this
+    attribute was accidentally broken on the dev.link branch, but in a way
+    that wasn't detected by the test (attr was generated, but always with
+    an empty string). The new test will fail if the attr is an empty
+    string, or if we can't find the attribute for the runtime package.
     
-    Fix stack alignment for pipe2 return value.
-    
-    Work around kernel clobbering of r28 on aarch64 by reloading from ucontext.
-    https://nxr.netbsd.org/xref/src/sys/arch/aarch64/aarch64/sig_machdep.c#104
-    
-    Update #30824
-    
-    Change-Id: I7f9472939f4c02953f8c207308610118f5d3c54c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257645
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I8b065e7eb3486646364d0eaf48a73db6acffbd18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218483
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/cgo/gcc_netbsd_arm64.c |  2 ++
- src/runtime/sys_netbsd_arm64.s     | 11 +++++++++--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

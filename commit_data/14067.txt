@@ -1,21 +1,15 @@
-commit 65b782e951e21e6e9293547d73f1e839cec2dc82
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Oct 8 04:20:17 2012 +0800
+commit 9844e4cd7cc52ecbe7d49307b6546a118de5bea7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 21:52:57 2012 +0200
 
-    cmd/ld, cmd/5l: support R_ARM_PC24 and R_ARM_JUMP24, fix R_ARM_CALL
+    test: correct type in declbad.go
     
-    1. R_ARM_CALL can also be used to call a PLT entry
-    2. add support for R_ARM_PC24 and R_ARM_JUMP24
-    3. refactor, remove D_PLT32 in favor of D_CALL
+    The test is not about type mismatches and it causes
+    an extra error to appear.
     
-    Fixes #4006.
-    
-    R=rsc, dave
-    CC=fullung, golang-dev
-    https://golang.org/cl/6622057
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6614062
 
- src/cmd/5l/5.out.h |  3 +--
- src/cmd/5l/asm.c   | 36 ++++++++++++++++++++++++------------
- src/cmd/ld/elf.h   |  3 ++-
- src/cmd/ld/ldelf.c |  2 ++
- 4 files changed, 29 insertions(+), 15 deletions(-)
+ test/declbad.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

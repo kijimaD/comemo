@@ -1,0 +1,16 @@
+commit e23ebec90d93f934d4426b861d83799637fe3e45
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Aug 13 18:27:38 2024 +0200
+
+    cmd/compile: compute Divu's limits from argument's limits
+    
+    Change-Id: Id522bde5bba627d9cdc8c3d8e907bdc168e5b13c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605157
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 11 +++++++++++
+ test/prove.go                         | 23 +++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

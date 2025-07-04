@@ -1,14 +1,12 @@
-commit 776fd72579a85e1e6e7d62942a46ddf3940893a9
+commit 2683c76d9588f018458e8e0c38dc4ed85ffc970d
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 8 10:43:25 2011 +1000
+Date:   Fri Apr 8 10:35:35 2011 +1000
 
-    test/bench: enable build and test on Windows
+    misc/cgo/life: enable build and test on Windows
     
     R=golang-dev, rsc1
-    CC=golang-dev
-    https://golang.org/cl/4366043
+    CC=golang-dev, vcc
+    https://golang.org/cl/4374044
 
- src/run.bash                     | 1 -
- test/bench/regex-dna-parallel.go | 2 +-
- test/bench/regex-dna.go          | 2 +-
- 3 files changed, 2 insertions(+), 3 deletions(-)
+ src/run.bash | 1 -
+ 1 file changed, 1 deletion(-)

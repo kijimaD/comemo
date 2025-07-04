@@ -1,12 +1,14 @@
-commit 30c85bf14c32a836e666542b78a961e1e8fdc346
-Author: Ryan Hitchman <hitchmanr@gmail.com>
-Date:   Wed Jan 19 14:46:06 2011 -0500
+commit 3a97119517423b8ba5e172d4101f273c0cbea86e
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Jan 19 14:34:53 2011 -0500
 
-    codereview: don't mail change lists with no files
+    net, syscall: return source address in Recvmsg
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3561041
+    https://golang.org/cl/3766042
 
- lib/codereview/codereview.py | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/net/fd.go                | 2 +-
+ src/pkg/syscall/syscall_bsd.go   | 4 ++--
+ src/pkg/syscall/syscall_linux.go | 6 +++++-
+ 3 files changed, 8 insertions(+), 4 deletions(-)

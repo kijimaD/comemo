@@ -1,19 +1,22 @@
-commit b31e9a63a4d7ed98b89719ee54b752920782ae15
+commit 5ad676a7ce1800c7dd6e4f97a6eae52e54f74ef1
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 6 14:09:26 2024 -0700
+Date:   Fri May 26 16:22:24 2023 -0700
 
-    unsafe: say "functions like syscall.Syscall", not only Syscall
+    doc/go1.21: mention errors.ErrUnsupported
     
-    Fixes #68301
+    Also mention errors that implement it.
     
-    Change-Id: I9d7f623370705ab2ad4c49489b5a89162467f22a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596936
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    For #41198
+    
+    Change-Id: I4f01b112f53b19e2494b701bb012cb2cb52f8962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498775
+    Reviewed-by: Eli Bendersky <eliben@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/unsafe/unsafe.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.21.html | 36 +++++++++++++++++++++++++++++-------
+ 1 file changed, 29 insertions(+), 7 deletions(-)

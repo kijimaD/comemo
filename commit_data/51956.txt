@@ -1,22 +1,21 @@
-commit 8ffcd3da93c9f408afaebd06ae8a21f8f770a037
+commit b10164b29278016cfbc5f42c0f8620cd467993d5
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 8 16:06:50 2023 +0700
+Date:   Mon Mar 28 21:41:19 2022 +0700
 
-    cmd/compile: remove reflectdata.AfterGlobalEscapeAnalysis
+    cmd/compile/internal/ir: remove un-used code for const
     
-    This global variable was used by the old frontend to decide whether to
-    perform escape analysis during method wrapper generation.
+    CL 390474 removed last usages of ConstValue, it can now be removed, and
+    also Float64Val, since when it's only used by ConstValue.
     
-    The old frontend is gone now, the variable is not used anywhere else.
+    CanInt64 is un-used for a long time, its original form last usage was
+    removed in CL 221802.
     
-    Change-Id: I448f2761ea608a9a2ec39a9920fcf7aa12d98799
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466278
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id142b0da49c319faca73ef1b2090325f81431321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396078
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/main.go             | 5 -----
- src/cmd/compile/internal/reflectdata/reflect.go | 6 ------
- 2 files changed, 11 deletions(-)
+ src/cmd/compile/internal/ir/val.go | 42 --------------------------------------
+ 1 file changed, 42 deletions(-)

@@ -1,22 +1,25 @@
-commit ae329abec0f78743ab2fbf30ef5b488376fe3c85
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 23 12:28:29 2020 -0400
+commit 2a5bf32638e1ce1fd85c722f39dff4cf842c0de1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 11 22:24:01 2020 -0400
 
-    cmd/go: add another test case for package/module ambiguity in 'go get'
+    [dev.link] cmd/link: refer to .got instead of .got.plt on S390X
     
-    For #37438
+    S390X uses .got instead of .got.plt. It is changed accidentally
+    in CL 222977. This CL fixes it.
     
-    Change-Id: Iae00ef7f97144e85f4f710cdb3087c2548b4b8f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256799
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Also, on S390X, we need to set the relocation "variant" of
+    R_PCREL relocation. In the old code AddPCRelPlus has the magic.
+    Here we use the equivalent R_PCRELDBL, as the loader doesn't
+    have variant.
+    
+    Fix S390X build.
+    
+    Change-Id: I388e16f02a0568d70287aa9a132fd42b442e3905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223143
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../testdata/mod/example.net_pkgremoved_v0.1.0.txt | 16 +++++++++
- .../testdata/mod/example.net_pkgremoved_v0.2.0.txt | 15 +++++++++
- .../testdata/mod/example.net_pkgremoved_v0.2.1.txt | 15 +++++++++
- src/cmd/go/testdata/script/mod_get_patchmod.txt    | 38 ++++++++++++++++++++++
- 4 files changed, 84 insertions(+)
+ src/cmd/link/internal/ld/elf.go    | 6 ++++--
+ src/cmd/link/internal/s390x/asm.go | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

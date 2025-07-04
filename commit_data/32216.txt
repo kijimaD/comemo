@@ -1,16 +1,20 @@
-commit d03b89bd41dbbb9f9d632839006309f4a1e9f4ca
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Aug 12 15:21:05 2017 +0900
+commit e05de6a5be66c517516e78093606ffc8c89042b2
+Author: Lucas Clemente <lclemente@google.com>
+Date:   Mon Mar 20 13:35:41 2017 +0100
 
-    debug/macho: add some file flags
+    hash/fnv: add 128-bit FNV hash support
     
-    Fixes #21414
+    The 128bit FNV hash will be used e.g. in QUIC.
     
-    Change-Id: Idff6e269ae32b33253067c9f32cac25256eb7f1c
-    Reviewed-on: https://go-review.googlesource.com/55251
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The algorithm is described at
+    https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+    
+    Change-Id: I13f3ec39b0e12b7a5008824a6619dff2e708ee81
+    Reviewed-on: https://go-review.googlesource.com/38356
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/macho/macho.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/hash/fnv/fnv.go      | 122 +++++++++++++++++++++++++++++++++++++++--------
+ src/hash/fnv/fnv_test.go |  39 +++++++++++++++
+ 2 files changed, 141 insertions(+), 20 deletions(-)

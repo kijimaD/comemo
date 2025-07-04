@@ -1,24 +1,18 @@
-commit cb13022a244e6c311a3494696ddffe07cfe5edf1
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 9 12:52:18 2022 -0700
+commit 4a4221e8187189adcc6463d2d96fe2e8da290132
+Author: Alexander Melentyev <alexander@melentyev.org>
+Date:   Sat Sep 11 06:59:17 2021 +0000
 
-    runtime: ensure that we don't scan noscan objects
+    all: remove some unused code
     
-    We claim to not maintain pointer bits for noscan objects. But in fact
-    we do, since whenever we switch a page from scannable to noscan, we
-    call heapBits.initSpan which zeroes the heap bits.
-    
-    Switch to ensure that we never scan noscan objects. This ensures that
-    we don't depend on the ptrbits for noscan objects. That fixes a bug
-    in the 1-bit bitmap CL which depended on that fact.
-    
-    Change-Id: I4e66f582605b53732f8fca310c1f6bd2892963cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422435
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I519b8021fa79dccc5c0ee79134547491116fc4cc
+    GitHub-Last-Rev: 48869f5434c1255d33c3a14714747509235c94df
+    GitHub-Pull-Request: golang/go#48071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/mgcmark.go | 18 ++++++------------
- src/runtime/mheap.go   |  6 ++++--
- 2 files changed, 10 insertions(+), 14 deletions(-)
+ src/database/sql/convert_test.go | 3 ---
+ src/time/time.go                 | 1 -
+ 2 files changed, 4 deletions(-)

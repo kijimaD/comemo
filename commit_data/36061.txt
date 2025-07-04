@@ -1,12 +1,18 @@
-commit 1ff8717aeb0f96f840b8fdc126622bfee3e8fe47
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 18 15:29:32 2018 -0700
+commit 2722650415c459dfb47c2e52661816cd844530bc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 23 22:02:03 2018 +0000
 
-    doc: fill in final standard library TODOs in go1.11.html
+    cmd: remove some unused parameters
     
-    Change-Id: Ic1ff580573711a6c91c1d5e3eb019a298a2fec49
-    Reviewed-on: https://go-review.googlesource.com/124837
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9d2a4b8df324897e264d30801e95ddc0f0e75f3a
+    Reviewed-on: https://go-review.googlesource.com/102337
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- doc/go1.11.html | 28 ++++++++++++++++++++++++----
- 1 file changed, 24 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/asm.go   | 10 +++++-----
+ src/cmd/asm/internal/asm/parse.go | 10 +++++-----
+ src/cmd/internal/obj/x86/asm6.go  | 16 ++++++++--------
+ src/cmd/internal/obj/x86/obj6.go  |  8 ++++----
+ src/cmd/pack/pack.go              |  8 ++++----
+ 5 files changed, 26 insertions(+), 26 deletions(-)

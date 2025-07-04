@@ -1,12 +1,13 @@
-commit db22e236fd1dea780aefbbd90a705bd631934d91
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Sun Feb 20 18:53:23 2011 +0100
+commit e041b9980c306eda2d26bfb55ac18aec7e54726c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 19 15:04:56 2011 -0800
 
-    runtime-gdb.py: gdb pretty printer for go strings properly handles length.
+    spec: delete incorrect obsolete mention of selector working on
+    pointer to interface type.
     
-    R=rsc, r2
+    R=golang-dev, niemeyer, gri
     CC=golang-dev
-    https://golang.org/cl/4183060
+    https://golang.org/cl/4173067
 
- src/pkg/runtime/runtime-gdb.py | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,17 @@
-commit 0b50a5dad78193fecae52f18a01df928c229eb32
-Author: Jingcheng Zhang <diogin@gmail.com>
-Date:   Fri Dec 14 09:13:42 2012 -0800
+commit 19e2f26b21a8bb5f9cfed1808d25534d8fe88c47
+Author: James David Chalfant <james.chalfant@gmail.com>
+Date:   Fri Dec 14 09:00:33 2012 -0800
 
-    builtin: correct comment on builtin function delete().
+    database/sql: adds test for fix in issue 4433.
     
-    Delete on a nil map is now a no-op.
+    Tests that here should be automatic retries if a database
+    driver's connection returns ErrBadConn on Begin. See
+    "TestTxErrBadConn" in sql_test.go
     
-    R=golang-dev, bradfitz
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6938054
+    https://golang.org/cl/6942050
 
- src/pkg/builtin/builtin.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/database/sql/fakedb_test.go | 32 +++++++++++++++++++++++++++-----
+ src/pkg/database/sql/sql_test.go    | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 5 deletions(-)

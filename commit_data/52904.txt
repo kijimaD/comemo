@@ -1,24 +1,15 @@
-commit 26899ef3ee7cd3d9e663e6f792c93bb411c863db
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 4 17:01:53 2023 -0700
+commit 9228d7d7d523e6831933b79f768dfbb51f8ffb5b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 9 15:11:57 2022 -0400
 
-    go/types, types2: better error message for bad assignment
+    doc/go1.19: add a release note for module indexing
     
-    If the LHS of an assignment is neither addressable nor a map expression
-    (and not the blank identifier), explicitly say so for a better error
-    message.
-    
-    For #3117.
-    
-    Change-Id: I4bffc35574fe390a0567e89182b23585eb5a90de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492875
+    Change-Id: I264499d955049c5b7c4bdda7ce23cf7fe7031402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411497
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/assignments.go     |  2 +-
- src/go/types/assignments.go                        |  2 +-
- src/internal/types/testdata/fixedbugs/issue3117.go | 13 +++++++++++++
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ doc/go1.19.html | 5 +++++
+ 1 file changed, 5 insertions(+)

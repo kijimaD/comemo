@@ -1,17 +1,33 @@
-commit 4206e9d343e07f3b2f6c0fe7d5d93c30024eaa96
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 13 17:53:57 2016 +0000
+commit 9f08b6c49445a30dd516104a68c7725c687c31c2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 10 11:18:50 2015 -0800
 
-    net/http: update bundled http2
+    crypto/tls: don't send IP literals as SNI values.
     
-    Updates x/net/http2 to git rev c93a9b4f2a for https://golang.org/cl/18474
+    (This relands commit a4dcc692011bf1ceca9b1a363fd83f3e59e399ee.)
     
-    Forgot to submit this four days ago.
+    https://tools.ietf.org/html/rfc6066#section-3 states:
     
-    Change-Id: Id96ab164ec765911c31874cca39b44aa55e80153
-    Reviewed-on: https://go-review.googlesource.com/18574
+      “Literal IPv4 and IPv6 addresses are not permitted in "HostName".”
+    
+    However, if an IP literal was set as Config.ServerName (which could
+    happen as easily as calling Dial with an IP address) then the code would
+    send the IP literal as the SNI value.
+    
+    This change filters out IP literals, as recognised by net.ParseIP, from
+    being sent as the SNI value.
+    
+    Fixes #13111.
+    
+    Change-Id: I6e544a78a01388f8fe98150589d073b917087f75
+    Reviewed-on: https://go-review.googlesource.com/16776
+    Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/crypto/tls/common.go                |  3 ++-
+ src/crypto/tls/handshake_client.go      |  9 ++++++++-
+ src/crypto/tls/handshake_client_test.go | 27 +++++++++++++++++++++++++++
+ src/net/http/client_test.go             | 10 +++++++---
+ 4 files changed, 44 insertions(+), 5 deletions(-)

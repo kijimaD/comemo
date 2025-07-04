@@ -1,20 +1,20 @@
-commit 6af9635fb8a002f563a1765f7ab2bd97d4e4d4df
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 14:23:48 2023 -0500
+commit df89f2ba53aab53356be197c581d142cefc2c6bc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 1 11:09:30 2022 -0400
 
-    cmd/go: enable vet directive analyzer during 'go test'
+    crypto/x509: skip WSATRY_AGAIN errors when dialing badssl.com subdomains
     
-    For #56986, run the new directive analyzer during 'go test',
-    to diagnose problems that would otherwise be missed,
-    like //go:debug appearing in the wrong place in a file
-    or in the wrong files.
+    (Temporarily, until the root cause of the test failure can be
+    diagnosed and fixed properly.)
     
-    Change-Id: I1ac230c3c67e58b5e584128e0ec6ff482cb225f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464135
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    For #52094
+    
+    Change-Id: Iec69e162159f3f0a93135f742aac97cf82c1d96c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397478
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/alldocs.go            | 4 ++--
- src/cmd/go/internal/test/test.go | 5 +++--
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/crypto/x509/root_windows_test.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

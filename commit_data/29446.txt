@@ -1,12 +1,30 @@
-commit ef462153de8f756a6f214ec24ccc541fe99f58ad
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Nov 9 09:24:50 2016 +0100
+commit 584978f4b5a6abc6d3950114994e7281b525a232
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 16 00:33:29 2016 +1000
 
-    C: add Martin Möhrmann's google.com email (Google CLA)
+    cmd/compile/internal/gc: unexport private variables
     
-    Change-Id: Ia439c4a3c873ef24f60f8ee54a74f767fdaafd29
-    Reviewed-on: https://go-review.googlesource.com/32799
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I14a7c08105e6bdcee04a5cc21d7932e9ca753384
+    Reviewed-on: https://go-review.googlesource.com/29138
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go       |  8 ++--
+ src/cmd/compile/internal/gc/align.go     |  4 +-
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  4 +-
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/const.go     | 30 ++++++-------
+ src/cmd/compile/internal/gc/dcl.go       | 28 ++++++------
+ src/cmd/compile/internal/gc/go.go        | 22 ++++-----
+ src/cmd/compile/internal/gc/gsubr.go     | 18 ++++----
+ src/cmd/compile/internal/gc/main.go      |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     | 18 ++++----
+ src/cmd/compile/internal/gc/ssa.go       | 14 +++---
+ src/cmd/compile/internal/gc/subr.go      |  6 +--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +--
+ src/cmd/compile/internal/gc/universe.go  | 76 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/walk.go      | 32 +++++++-------
+ 17 files changed, 137 insertions(+), 137 deletions(-)

@@ -1,23 +1,20 @@
-commit ebbdf2a14cfb2c694d7ecc815d0adc36c344362a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 28 15:49:26 2015 -0500
+commit fcd61eb07e11f856e62de3f24383f51627f25009
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Dec 30 14:44:41 2014 -0500
 
-    runtime: eliminate parfor ctx field
+    go/parser: add {map,chan,interface} to expression lookahead tokens
     
-    Prior to the conversion of the runtime to Go, this void* was
-    necessary to get closure information in to C callbacks.  There
-    are no more C callbacks and parfor is perfectly capable of
-    invoking a Go closure now, so eliminate ctx and all of its
-    unsafe-ness.  (Plus, the runtime currently doesn't use ctx for
-    anything.)
+    + tests that these parse:
+      map[int]int{}[0]++
+      interface{f()}(x).f()
+      chan int(x) <- 0
     
-    Change-Id: I39fc53b7dd3d7f660710abc76b0d831bfc6296d8
-    Reviewed-on: https://go-review.googlesource.com/3395
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Fixes #9474
+    
+    Change-Id: If9fa57b3ab415ae7e93aa9935ec63edda8fe9d4f
+    Reviewed-on: https://go-review.googlesource.com/2178
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/export_test.go |  5 ++---
- src/runtime/mgc.go         |  4 ++--
- src/runtime/parfor.go      |  6 +-----
- src/runtime/parfor_test.go | 21 +++++----------------
- 4 files changed, 10 insertions(+), 26 deletions(-)
+ src/go/parser/parser.go     | 2 +-
+ src/go/parser/short_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

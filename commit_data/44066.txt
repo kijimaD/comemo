@@ -1,22 +1,21 @@
-commit 2018b68a65c32a12ed5f65983212bea175b7a0fa
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 23 14:01:12 2020 -0800
+commit b1760f3a27ed9a0e99599bf028b2b48403f8c3fc
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 27 11:17:00 2020 -0700
 
-    net/mail: don't use MDT in test
+    runtime: grow stack more than 2x if the new frame is large
     
-    When time.Parse sees a timezone name that matches the local timezone,
-    it uses the local timezone. The tests weren't expecting that,
-    so using MDT broke with TZ=America/Boise (where MDT means Mountain
-    Daylight Time). Just use GMT instead.
+    We might as well grow the stack at least as large as we'll need for
+    the frame that is calling morestack. It doesn't help with the
+    lots-of-small-frames case, but it may help a bit with the
+    few-big-frames case.
     
-    Fixes #43354
+    Update #18138
     
-    Change-Id: Ida70c8c867e2568b1535d1dfbf1fb0ed9e0e5c1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280072
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I1f49c97706a70e20b30433cbec99a7901528ea52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225800
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/mail/message_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/stack.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

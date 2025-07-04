@@ -1,19 +1,53 @@
-commit 49b7c9caec6b96d0b327624efee61bd8a72cf68c
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Sun Dec 12 10:53:17 2021 -0500
+commit 814c5ff13810e800aeb67fd0371e21984d4d2c64
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 31 14:47:59 2021 -0400
 
-    net/netip: make Prefix.MarshalText format 4-in-6 IPs consistently
+    cmd/go: support module deprecation
     
-    Fixes #50115.
+    A module is deprecated if its author adds a comment containing a
+    paragraph starting with "Deprecated:" to its go.mod file. The comment
+    must appear immediately before the "module" directive or as a suffix
+    on the same line. The deprecation message runs from just after
+    "Deprecated:" to the end of the paragraph. This is implemented in
+    CL 301089.
     
-    Change-Id: Iac76e5b486d3a2a784583345eaeb22c31cc4a36d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371134
-    Trust: Matt Layher <mdlayher@gmail.com>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    'go list -m -u' loads deprecation messages from the latest version of
+    each module, not considering retractions (i.e., deprecations and
+    retractions are loaded from the same version). By default, deprecated
+    modules are printed with a "(deprecated)" suffix. The full deprecation
+    message is available in the -f and -json output.
+    
+    'go get' prints deprecation warnings for modules named on the command
+    line. It also prints warnings for modules needed to build packages
+    named on the command line if those modules are direct dependencies of
+    the main module.
+    
+    For #40357
+    
+    Change-Id: Id81fb2b24710681b025becd6cd74f746f4378e78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306334
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/net/netip/netip.go      |  7 ++++++-
- src/net/netip/netip_test.go | 27 ++++++++++++++++++++++++++-
- 2 files changed, 32 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go                              |   2 +-
+ src/cmd/go/internal/list/list.go                   |   4 +-
+ src/cmd/go/internal/modcmd/edit.go                 |  14 ++-
+ src/cmd/go/internal/modget/get.go                  | 113 +++++++++++++++------
+ src/cmd/go/internal/modinfo/info.go                |  33 +++---
+ src/cmd/go/internal/modload/build.go               |  34 ++++++-
+ src/cmd/go/internal/modload/buildlist.go           |   6 ++
+ src/cmd/go/internal/modload/list.go                |   4 +
+ src/cmd/go/internal/modload/modfile.go             |  38 +++++++
+ .../mod/example.com_deprecated_a_v1.0.0.txt        |  12 +++
+ .../mod/example.com_deprecated_a_v1.9.0.txt        |  14 +++
+ .../mod/example.com_deprecated_b_v1.0.0.txt        |  12 +++
+ .../mod/example.com_deprecated_b_v1.9.0.txt        |  14 +++
+ .../mod/example.com_undeprecated_v1.0.0.txt        |  14 +++
+ .../mod/example.com_undeprecated_v1.0.1.txt        |  14 +++
+ .../go/testdata/script/mod_deprecate_message.txt   |  73 +++++++++++++
+ src/cmd/go/testdata/script/mod_edit.txt            |  18 ++++
+ src/cmd/go/testdata/script/mod_get_deprecated.txt  |  66 ++++++++++++
+ src/cmd/go/testdata/script/mod_list_deprecated.txt |  52 ++++++++++
+ .../script/mod_list_deprecated_replace.txt         |  68 +++++++++++++
+ 20 files changed, 550 insertions(+), 55 deletions(-)

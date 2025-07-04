@@ -1,15 +1,60 @@
-commit 55af51d5c0f5e2bbe80ae6dd0df6aed48e6ebd09
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Apr 12 12:33:52 2012 -0400
+commit 4945fc8e40eef046501f613135b4f18cf2777d29
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 12 12:01:24 2012 +0400
 
-    encoding/pem: ignore spaces and tabs at the end of header lines.
+    runtime: speedup GC sweep phase (batch free)
     
-    Fixes #3502.
+    benchmark                             old ns/op    new ns/op    delta
+    garbage.BenchmarkParser              4370050250   3779668750  -13.51%
+    garbage.BenchmarkParser-2            3713087000   3628771500   -2.27%
+    garbage.BenchmarkParser-4            3519755250   3406349750   -3.22%
+    garbage.BenchmarkParser-8            3386627750   3319144000   -1.99%
     
-    R=bradfitz
+    garbage.BenchmarkTree                 493585529    408102411  -17.32%
+    garbage.BenchmarkTree-2               500487176    402285176  -19.62%
+    garbage.BenchmarkTree-4               473238882    361484058  -23.61%
+    garbage.BenchmarkTree-8               486977823    368334823  -24.36%
+    
+    garbage.BenchmarkTree2                 31446600     31203200   -0.77%
+    garbage.BenchmarkTree2-2               21469000     21077900   -1.82%
+    garbage.BenchmarkTree2-4               11007600     10899100   -0.99%
+    garbage.BenchmarkTree2-8                7692400      7032600   -8.58%
+    
+    garbage.BenchmarkParserPause          241863263    163249450  -32.50%
+    garbage.BenchmarkParserPause-2        120135418    112981575   -5.95%
+    garbage.BenchmarkParserPause-4         83411552     64580700  -22.58%
+    garbage.BenchmarkParserPause-8         51870697     42207244  -18.63%
+    
+    garbage.BenchmarkTreePause             20940474     13147011  -37.22%
+    garbage.BenchmarkTreePause-2           20115124     11146715  -44.59%
+    garbage.BenchmarkTreePause-4           17217584      7486327  -56.52%
+    garbage.BenchmarkTreePause-8           18258845      7400871  -59.47%
+    
+    garbage.BenchmarkTree2Pause           174067190    172674190   -0.80%
+    garbage.BenchmarkTree2Pause-2         131175809    130615761   -0.43%
+    garbage.BenchmarkTree2Pause-4          95406666     93972047   -1.50%
+    garbage.BenchmarkTree2Pause-8          86056095     85334952   -0.84%
+    
+    garbage.BenchmarkParserLastPause      329932000    324790000   -1.56%
+    garbage.BenchmarkParserLastPause-2    209383000    210456000   +0.51%
+    garbage.BenchmarkParserLastPause-4    113981000    112921000   -0.93%
+    garbage.BenchmarkParserLastPause-8     77967000     76625000   -1.72%
+    
+    garbage.BenchmarkTreeLastPause         29752000     18444000  -38.01%
+    garbage.BenchmarkTreeLastPause-2       24274000     14766000  -39.17%
+    garbage.BenchmarkTreeLastPause-4       19565000      8726000  -55.40%
+    garbage.BenchmarkTreeLastPause-8       21956000     10530000  -52.04%
+    
+    garbage.BenchmarkTree2LastPause       314411000    311945000   -0.78%
+    garbage.BenchmarkTree2LastPause-2     214641000    210836000   -1.77%
+    garbage.BenchmarkTree2LastPause-4     110024000    108943000   -0.98%
+    garbage.BenchmarkTree2LastPause-8      76873000     70263000   -8.60%
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6011046
+    https://golang.org/cl/5991049
 
- src/pkg/encoding/pem/pem.go      |  9 +++++----
- src/pkg/encoding/pem/pem_test.go | 22 +++++++++++-----------
- 2 files changed, 16 insertions(+), 15 deletions(-)
+ src/pkg/runtime/malloc.h   |  3 ++-
+ src/pkg/runtime/mcentral.c | 39 ++++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/mgc0.c     | 27 ++++++++++++++++++++++-----
+ 3 files changed, 60 insertions(+), 9 deletions(-)

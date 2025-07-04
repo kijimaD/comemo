@@ -1,16 +1,13 @@
-commit 0406c63ea38520adf040f3f72ea3d8008dd53480
+commit 33e8ca4d67ecd1fb02d9189160cb3a91b4285748
 Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 8 16:39:54 2013 -0800
+Date:   Fri Mar 8 13:53:17 2013 -0800
 
-    text/template: revert minor change to Name method
-    For  better printing, I recently changed Name to return "<unnamed>" for templates
-    with empty names, but this causes trouble for the many packages that used "" as
-    the template name, so restore the old behavior.
-    It's usually printed as a quoted string anyway, so it should be fine.
+    effective_go.html: add a section on type assertions
+    The information was missing, oddly enough.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/7577044
+    https://golang.org/cl/7636044
 
- src/pkg/text/template/template.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/effective_go.html | 94 +++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 88 insertions(+), 6 deletions(-)

@@ -1,14 +1,24 @@
-commit 54eb9efb708bee98979782c5c220ae4b184190c9
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 19 13:44:33 2015 +1000
+commit 2814906df029aea2130c7065d12be85634229861
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Jun 27 14:50:39 2015 -0700
 
-    doc: fix typos in go1.5.html
+    crypto/rsa: check for primes ≤ 1 in Validate
     
-    Thanks to Nathan Youngman for spotting them.
+    Change 7c7126cfeb82894229b9c3d5109e4b04e6cfde0c removed the primality
+    checking in Validate to save CPU time. That check happened to be
+    filtering out private keys with primes that were zero or one. Without
+    that filtering, such primes cause a panic when trying to use such a
+    private key.
     
-    Change-Id: I1856527af66a5d1965265ec3dcd639d3f6d74bcc
-    Reviewed-on: https://go-review.googlesource.com/13711
+    This change specifically checks for and rejects primes ≤ 1 in Validate.
+    
+    Fixes #11233.
+    
+    Change-Id: Ie6537edb8250c07a45aaf50dab43227002ee7386
+    Reviewed-on: https://go-review.googlesource.com/11611
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.html | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/crypto/rsa/rsa.go        | 4 ++++
+ src/crypto/x509/x509_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+)

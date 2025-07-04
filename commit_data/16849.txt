@@ -1,14 +1,18 @@
-commit 4d17efe81b88b0ffacb74986d2558e9098afdded
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 23 14:43:55 2013 -0400
+commit baa9ca032bf257eb931f3fe82897650e21206093
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 22 22:39:09 2013 -0700
 
-    misc/cgo/test: test recursive internal OS thread lock
+    net/http: respect tls.Config.ServerName in Transport
     
-    This would have failed with CL 11663043.
+    When making an HTTPS client request, respect the
+    ServerName field in the tls.Config.
     
-    R=golang-dev, bradfitz
+    Fixes #5829
+    
+    R=golang-dev, agl, adg
     CC=golang-dev
-    https://golang.org/cl/11480045
+    https://golang.org/cl/11691043
 
- misc/cgo/test/issue3775.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/net/http/client_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/net/http/transport.go   |  4 ++--
+ 2 files changed, 32 insertions(+), 2 deletions(-)

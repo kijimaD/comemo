@@ -1,35 +1,32 @@
-commit 2fcca5d52dd3d23ec2ca3a81e588e0f9d877ca69
-Author: root <vishwanatha.hd@ibm.com>
-Date:   Sat Apr 1 18:36:57 2023 +0000
+commit 540f8c2b50f5def060244853673ccfc94d2d3e43
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Apr 25 17:18:19 2022 -0400
 
-    syscall: add a Go directive "go:nocheckptr" to forkAndExecInChild1
+    cmd/compile: use jump table on ARM64
     
-    forkAndExecInChild1 func must not acquire any locks in child, because
-    they might have been locked at the time of the fork. This implies to
-    no rescheduling, no malloc calls, and no new stack segments.
+    Following CL 357330, use jump tables on ARM64.
     
-    So, doing a "checkptrAlignment" is bad here, because checkptr
-    functions added by the instrumentation could grow the stack, which
-    should not be done between fork and exec calls.
+    name                         old time/op  new time/op  delta
+    Switch8Predictable-4         3.41ns ± 0%  3.21ns ± 0%     ~     (p=0.079 n=4+5)
+    Switch8Unpredictable-4       12.0ns ± 0%   9.5ns ± 0%  -21.17%  (p=0.000 n=5+4)
+    Switch32Predictable-4        3.06ns ± 0%  2.82ns ± 0%   -7.78%  (p=0.008 n=5+5)
+    Switch32Unpredictable-4      13.3ns ± 0%   9.5ns ± 0%  -28.87%  (p=0.016 n=4+5)
+    SwitchStringPredictable-4    3.71ns ± 0%  3.21ns ± 0%  -13.43%  (p=0.000 n=5+4)
+    SwitchStringUnpredictable-4  14.8ns ± 0%  15.1ns ± 0%   +2.37%  (p=0.008 n=5+5)
     
-    Hence using a Go directive "go:nocheckptr" to forkAndExecInChild1
-    func,so that the compiler should not do "checkptrAlignment" when
-    functions marked with "go:norace".
-    
-    This race detection bug was caught in go 1.21 on s390x.
-    Running a "./race.bash" script from "go/src" directory failed and the
-    bug details are provided in issue link mentioned below.
-    
-    Fixes #58785
-    
-    Change-Id: I254091368b0789d886acdf26f8aa8d8f5a986b24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481415
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia0b85df7ca9273cf70c05eb957225c6e61822fa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403979
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/syscall/exec_linux.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/arm64/ssa.go        | 37 ++++++++++++++------
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++++
+ src/cmd/compile/internal/ssa/opGen.go        | 50 +++++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 14 ++++++++
+ src/cmd/internal/obj/arm64/asm7.go           | 10 ++++++
+ src/cmd/internal/sys/arch.go                 |  1 +
+ test/codegen/switch.go                       |  2 ++
+ 8 files changed, 87 insertions(+), 35 deletions(-)

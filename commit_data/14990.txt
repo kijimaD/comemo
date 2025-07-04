@@ -1,22 +1,14 @@
-commit e65c0a82ce6c8c8fe06622f95bf713d1a962eee0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jan 26 18:16:43 2013 -0800
+commit c48f7d6b8af8b1a8ced44453a9970801faeeb9f5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jan 25 23:07:21 2013 -0500
 
-    runtime: use new CNT_MASK in lfstack
+    cmd/go: add missing tests
     
-    This is for SPARC64, a 64-bit processor that uses all 64-bits
-    of virtual addresses.  The idea is to use the low order 3 bits
-    to at least get a small ABA counter.  That should work since
-    pointers are aligned.  The idea is for SPARC64 to set CNT_MASK
-    == 7, PTR_BITS == 0, PTR_MASK == 0xffffffffffffff8.
+    These changes to test.bash were intended to be submitted with CL 6941058, but were accidentally excluded from the original CL.
     
-    Also add uintptr casts to avoid GCC warnings.  The gccgo
-    runtime code is compiled with GCC, and GCC warns when casting
-    between a pointer and a type of a different size.
-    
-    R=dvyukov
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7225043
+    https://golang.org/cl/7232043
 
- src/pkg/runtime/lfstack.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/go/test.bash | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

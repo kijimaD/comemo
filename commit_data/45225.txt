@@ -1,15 +1,19 @@
-commit 62cad233a62d59366dc3721bd8f97b388f02ee58
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Mar 8 17:02:12 2021 -0500
+commit c8eea1633e160d3517ea44e50898893dad09fed0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 13 18:28:25 2020 -0400
 
-    go/types: remove stale commented-out testdata
+    cmd/internal/obj: remove LSym.RefIdx
     
-    Change-Id: I44b191204b05cd44ab6e3c662ddd05596aa3af1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299831
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    LSym.RefIdx was for the old object files. I should have deleted
+    it when I deleted old object file code.
+    
+    Change-Id: I8294f43a1e7ba45b1d75e84cc83cbaf2cb32f025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262077
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/go/types/testdata/typeparams.go2 | 29 -----------------------------
- 1 file changed, 29 deletions(-)
+ src/cmd/internal/obj/link.go        | 3 +--
+ src/cmd/internal/obj/sizeof_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)

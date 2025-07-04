@@ -1,18 +1,17 @@
-commit 1ff19201fd898c3e1a0ed5d3458c81c1f062570b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 9 19:29:25 2016 +0000
+commit 80423f1e64f1e939cddc455a29e5111527cd16f8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Dec 26 16:50:01 2015 +0900
 
-    net/url: add URL.Hostname and URL.Port accessors
+    os/exec: cleanup and remove duplicated code
     
-    Fixes #16142
-    
-    Change-Id: I7609faaf00c69646b0bd44a60a63a22d9265feb0
-    Reviewed-on: https://go-review.googlesource.com/28933
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Francesc Campoy Flores <campoy@golang.org>
+    Change-Id: Ia2f61427b1cc09064ac4c0563bccbd9b98767a0e
+    Reviewed-on: https://go-review.googlesource.com/18118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/url/url.go      | 41 +++++++++++++++++++++++++++++++++++++++++
- src/net/url/url_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+)
+ src/os/exec/lp_plan9.go        |  8 +++--
+ src/os/exec/lp_unix.go         | 10 +++---
+ src/os/exec/lp_windows.go      | 69 ++++++++++++------------------------------
+ src/os/exec/lp_windows_test.go |  2 +-
+ 4 files changed, 29 insertions(+), 60 deletions(-)

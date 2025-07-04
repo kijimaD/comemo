@@ -1,15 +1,15 @@
-commit f4fc8894241fa4f55075f0ad71398618f929356b
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Mon Mar 26 16:48:20 2012 +1100
+commit 6492cac6dd3995535bd7ddd7ab11ca5047967ada
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 26 16:08:21 2012 +1100
 
-    windows: install fixes
+    run.bash: compile the codewalks
+    They could be tested but that requires more than seems wise right now.
     
-    * set default installation drive to C:\
-    * remove Win64 component property
+    Update #2648.
     
-    R=golang-dev, bradfitz, aram
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5901044
+    https://golang.org/cl/5908054
 
- misc/dist/windows/installer.wxs | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/run.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

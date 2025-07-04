@@ -1,50 +1,15 @@
-commit eb98e515637c9447970ac1c1a2c24c1a9f0a189e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 28 22:57:57 2016 -0700
+commit fd458ba49991fbdd65acaa83c970b9d6c63ec87e
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Feb 9 19:13:43 2016 +0100
 
-    cmd/compile: add typArray, typSlice, and typDDDArray
+    [dev.ssa] cmd/compile/internal/ssa: more simplifications and normalization
     
-    These are the first of several convenience
-    constructors for types.
+    Found by inspecting random generated code.
     
-    They are part of type field encapsulation.
-    This removes most external writes to TARRAY Type and Bound fields.
-    
-    substAny still directly fiddles with the .Type field.
-    substAny generally needs access to Type internals.
-    It will be moved to type.go in a future CL.
-    
-    bimport still directly writes the .Type field.
-    This is hard to change.
-    
-    Also of note:
-    
-    * inl.go contains an (apparently irrelevant) bug fix:
-      as.Right was given the wrong type.
-      vararrtype was previously unused.
-    * I believe that aindex (subr.go) never creates slices,
-      but it is safer to keep existing behavior.
-      The removal of -1 as a constant there is part
-      of hiding that implementation detail.
-      Future CLs will finish that job.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: If09bf001a874d7dba08e9ad0bcd6722860af4b91
-    Reviewed-on: https://go-review.googlesource.com/21249
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I57d0fed7c3a8dc91fd13cdccb4819101f9976ec9
+    Reviewed-on: https://go-review.googlesource.com/19413
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/esc.go       | 12 ++++--------
- src/cmd/compile/internal/gc/inl.go       |  7 ++-----
- src/cmd/compile/internal/gc/order.go     |  4 +---
- src/cmd/compile/internal/gc/parser.go    |  4 +---
- src/cmd/compile/internal/gc/reflect.go   | 18 ++++--------------
- src/cmd/compile/internal/gc/sinit.go     | 10 +++-------
- src/cmd/compile/internal/gc/subr.go      | 19 ++++++++-----------
- src/cmd/compile/internal/gc/type.go      | 24 ++++++++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go | 29 +++++++++++++----------------
- src/cmd/compile/internal/gc/walk.go      |  8 ++------
- 10 files changed, 62 insertions(+), 73 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   69 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1024 +++++++++++++++++++++++-
+ 2 files changed, 1064 insertions(+), 29 deletions(-)

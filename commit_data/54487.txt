@@ -1,23 +1,22 @@
-commit 6192f4615514a7673fb2318ce3491e162d74d438
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Sep 15 12:17:15 2023 -0400
+commit f841722853db7911cb5f65d1045e9ecbb5a0d08c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Oct 12 11:04:50 2022 -0500
 
-    net/http: handle MethodNotAllowed
+    cmd/compile: enable lateLower pass on PPC64
     
-    If no pattern matches a request, but a pattern would have
-    matched if the request had a different method, then
-    serve a 405 (Method Not Allowed), and populate the
-    "Allow" header with the methods that would have succeeded.
+    This allows new rules to be added which would otherwise
+    greatly overcomplicate the generic rules, like CC opcode
+    conversion or zero register simplification.
     
-    Updates #61640.
-    
-    Change-Id: I0ae9eb95e62c71ff7766a03043525a97099ac1bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528401
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1533f0fa07815aff99ed8ab890077bd22a3bfbf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442595
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/request_test.go      | 55 ++++++++++++++++++++++++++++++++++--
- src/net/http/routing_tree.go      | 27 ++++++++++++++++++
- src/net/http/routing_tree_test.go | 59 +++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go            | 42 +++++++++++++++++++++++++---
- 4 files changed, 177 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules |  5 +++++
+ src/cmd/compile/internal/ssa/config.go                 |  1 +
+ src/cmd/compile/internal/ssa/rewritePPC64latelower.go  | 11 +++++++++++
+ 3 files changed, 17 insertions(+)

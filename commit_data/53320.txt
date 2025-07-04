@@ -1,23 +1,19 @@
-commit b267db08b22de7a7bbe700530fd9e71ca060610f
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 24 02:29:15 2023 +0200
+commit 51a23d6681aef3736e09fbc61fc9ae03305efc2c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 18 08:51:32 2022 -0700
 
-    crypto/tls: add VersionName
+    net/url: clarify RawPath documentation
     
-    Fixes #46308
+    Consistently recommend using EscapedPath rather than RawPath directly.
     
-    Change-Id: I5162b26cbce61ae5df5d2e093cf8a28406d15863
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497377
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #33596.
+    
+    Change-Id: Ibe5c2dfa7fe6b1fbc540efed6db1291fc6532726
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418035
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Samuli Silvius <samuli.silvius@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- api/next/46308.txt         |  1 +
- src/crypto/tls/common.go   | 20 ++++++++++++++++++++
- src/crypto/tls/tls_test.go |  9 +++++++++
- 3 files changed, 30 insertions(+)
+ src/net/url/url.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

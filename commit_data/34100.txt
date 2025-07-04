@@ -1,20 +1,14 @@
-commit de186c63ce058b2ab43f324fe582dc2ab1369614
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 8 10:31:07 2018 -0500
+commit 3cdf6100f1cac9b3ff30c790d145240d6f5a2f8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 12:16:42 2017 -0400
 
-    cmd/compile: calls can clobber g on s390x
+    cmd/go: drop PackageInternal.Pkgdir (unused)
     
-    Because a call may ultimately invoke runtime.setg, we have to assume
-    that g may be clobbered by any call. All of the other architectures
-    that use a g register already do this, but it was missing from the
-    s390x caller save clobber set.
-    
-    Change-Id: Ia931638d42c44979839f20d71097acf31475f423
-    Reviewed-on: https://go-review.googlesource.com/92835
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iab8f0d201780bd571541a6806f071e883a553d35
+    Reviewed-on: https://go-review.googlesource.com/56286
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/ssa/gen/S390XOps.go | 2 +-
- src/cmd/compile/internal/ssa/opGen.go        | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,29 +1,22 @@
-commit 721c8735dffcf488b1ff1c072909eb84426f3da3
+commit cc9ec52d739ec3c9f2a3e9bfdcc98643bee61cca
 Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 31 13:48:48 2014 -0700
+Date:   Thu Jul 31 12:43:40 2014 -0700
 
-    runtime: move built-in print routines to go.
+    runtime: convert slice operations to Go.
     
-    Fixes #8297
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, khr, dave, dvyukov
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/119240043
+    https://golang.org/cl/120190044
 
- src/pkg/runtime/alg.goc         |   8 +--
- src/pkg/runtime/gc_test.go      |  24 ++++++++
- src/pkg/runtime/iface.goc       |   8 ---
- src/pkg/runtime/os_darwin.c     |  18 +++---
- src/pkg/runtime/os_dragonfly.c  |   6 +-
- src/pkg/runtime/os_freebsd.c    |   6 +-
- src/pkg/runtime/print.c         | 128 ++++++++++++++++++++++++++++------------
- src/pkg/runtime/print.go        | 109 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/runtime.h       |  26 ++++----
- src/pkg/runtime/slice.c         |  27 ---------
- src/pkg/runtime/slice.go        |  11 ----
- src/pkg/runtime/traceback_arm.c |   2 +-
- src/pkg/runtime/traceback_x86.c |   2 +-
- test/print.go                   |  42 +++++++++++++
- test/print.out                  |  24 ++++++++
- 15 files changed, 322 insertions(+), 119 deletions(-)
+ src/cmd/api/goapi.go      |   2 +-
+ src/cmd/gc/builtin.c      |   2 +-
+ src/cmd/gc/runtime.go     |   2 +-
+ src/cmd/gc/walk.c         |   4 +-
+ src/pkg/runtime/alg.goc   |   4 +-
+ src/pkg/runtime/malloc.go |   6 ++
+ src/pkg/runtime/slice.c   |  27 ++++++
+ src/pkg/runtime/slice.go  | 154 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/slice.goc | 208 ----------------------------------------------
+ src/pkg/runtime/stubs.go  |   3 +
+ 10 files changed, 197 insertions(+), 215 deletions(-)

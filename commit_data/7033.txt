@@ -1,13 +1,12 @@
-commit 3f38342e24ead62afb8834de965e4d8758b5051f
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Jan 5 13:00:08 2011 +1100
+commit 2f5a5be237d8e115188398c30545a0e593269928
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Jan 4 16:23:29 2011 -0800
 
-    doc: update contribution guidelines to prefix the change description
-    with the primary affected package.
+    strings: fix description of FieldsFunc
     
-    R=rsc, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/3867041
+    https://golang.org/cl/3814041
 
- doc/contribute.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/strings/strings.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

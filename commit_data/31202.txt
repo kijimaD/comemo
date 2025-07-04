@@ -1,24 +1,14 @@
-commit 073297ff681a0192cae08b5973b16b7d748257c5
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 17 10:17:09 2017 -0400
+commit fdbae7d77ed1d365f1fd6735d234f7c277102f12
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Feb 6 13:43:11 2017 -0500
 
-    cmd/compile: enhance postorder computation and repair loop finder
+    net/http/httputil: don't log read error when it's context.Canceled
     
-    Replace derecursed postorder computation with one that
-    mimics DFS traversal.
+    Fixes #18838
     
-    Corrected outerinner function in loopfinder
-    
-    Leave enhanced checks in place.
-    
-    Change-Id: I657ba5e89c88941028d6d4c72e9f9056e30f1ce8
-    Reviewed-on: https://go-review.googlesource.com/40872
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I44976cadb0dc3c23eacb8cdd58429a572cd8d28a
+    Reviewed-on: https://go-review.googlesource.com/36358
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go                  |  1 -
- src/cmd/compile/internal/ssa/check.go        | 17 ++++++++++
- src/cmd/compile/internal/ssa/dom.go          | 48 +++++++++++++++-------------
- src/cmd/compile/internal/ssa/dom_test.go     | 40 ++++++++++++++++++++---
- src/cmd/compile/internal/ssa/likelyadjust.go | 35 +++++++++++++++++---
- 5 files changed, 108 insertions(+), 33 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

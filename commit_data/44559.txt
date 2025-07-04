@@ -1,19 +1,21 @@
-commit 618b66e16d5adedbeccb7e7ed35b26e439a9f86f
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Mar 2 06:02:55 2021 +0000
+commit 3fc2e6b0ce77a94504b5e83c0ef4adb6d6fabbbc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 11 07:24:52 2020 -0400
 
-    cmd/compile: remove 4-byte alignment requirement of stack slot on arm
+    [dev.link] cmd/internal/obj: combine objfile.go and objfile2.go
     
-    This CL applies CL 267999 to arm.
+    Combine objfile2.go into objfile.go.
     
-    Updates #42385
+    objfile.go has a lot of code for DWARF generation. Move them to
+    dwarf.go.
     
-    Change-Id: Iad82aafcb7b0a5a77a4bea32f648320f57a17cdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297773
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
+    Change-Id: I2a27c672e9e9b8eea35d5e0a71433dcc80b7afa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247918
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/dwarf.go    |  492 +++++++++++++++++
+ src/cmd/internal/obj/objfile.go  | 1123 ++++++++++++++++++++++----------------
+ src/cmd/internal/obj/objfile2.go |  658 ----------------------
+ 3 files changed, 1131 insertions(+), 1142 deletions(-)

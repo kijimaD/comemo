@@ -1,19 +1,21 @@
-commit f5558bb2f580ed40374a98e8db6fd58ae79f6e1d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 27 10:09:26 2020 -0700
+commit 05ee5065d0fa9d8dbb043f2099e11e1809de1133
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 24 17:00:57 2019 +0700
 
-    os/exec: add temporary debugging code for #25628
+    syscall: correct comment in testGetdirentries
     
-    On linux-386 builders run the TestExtraFiles subprocess under strace,
-    in hopes of finding out where the unexpected descriptor is coming from.
+    Correct comment about allocating big enough slice to copy result of
+    Getdirentries.
     
-    For #25628
+    While at it, also convert from Dirent directly to slice of byte.
     
-    Change-Id: I9a62d6a5192a076525a616ccc71de74bbe7ebd58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225799
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #35092
+    
+    Change-Id: I892de7953120622882e1561728e1e56b009a2351
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202880
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/syscall/getdirentries_test.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

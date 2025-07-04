@@ -1,14 +1,22 @@
-commit d270a6794b662db0735b34d244fffb63430aa471
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 10:45:50 2015 -0500
+commit 76dcedc920c6712fc302b053f125e0d7d6db69f0
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 20 21:33:18 2015 -0700
 
-    runtime: disable gdb test when a GOROOT_FINAL move is pending
+    cmd/go: dedup packages in packagesAndErrors
     
-    Fixes #13577.
+    packagesAndErrors function doesn't dedup packages.
+    As a result, `go list io ./io` prints io package twice.
+    Same applies to `go build` and `go test`.
     
-    Change-Id: I0bb8157d6210b0c7c09380c2163b7d7349495732
-    Reviewed-on: https://go-review.googlesource.com/17970
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    * dedup packages.
+    * add a test for go list
+    
+    Change-Id: I54d4063979b1c9359e5416e12327cb85c4823a0f
+    Reviewed-on: https://go-review.googlesource.com/16136
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime-gdb_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ src/cmd/go/pkg.go     | 21 +++++++++++++++------
+ 2 files changed, 27 insertions(+), 6 deletions(-)

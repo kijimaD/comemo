@@ -1,22 +1,26 @@
-commit 997dbcf6ba716647a2a74cebc7b490594ebd6b2b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 18:27:11 2023 -0800
+commit 0605bf6052807e71e52fc3864b18b221ce61b047
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 11 17:19:09 2022 -0400
 
-    go/types, types2: move Checker.infer into infer.go; delete infer2.go
+    go/ast, go/printer: recognize export and extern line directives
     
-    Adjust imports but no other code changes otherwise.
+    Now that gofmt is reformatting these, we can't get away with
+    not knowing about directives such as //export and //extern (for gccgo).
+    Otherwise "//export foo" and "//extern foo" turn into "// export foo",
+    and "// extern foo", which are completely different meanings.
     
-    Change-Id: Iffbd7f9b1786676a42b68d91ee6cc7df07d776bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471015
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    For #51082.
+    
+    Change-Id: Id0970331fa0b52ab5fa621631b5fa460767068bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399734
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go  | 344 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/infer2.go | 359 -----------------------------
- src/go/types/generate_test.go             |   1 -
- src/go/types/infer.go                     | 344 ++++++++++++++++++++++++++++
- src/go/types/infer2.go                    | 361 ------------------------------
- 5 files changed, 688 insertions(+), 721 deletions(-)
+ src/go/ast/ast.go                       | 4 +++-
+ src/go/ast/ast_test.go                  | 3 +++
+ src/go/printer/comment.go               | 4 +++-
+ src/go/printer/testdata/comments.golden | 6 ++++++
+ src/go/printer/testdata/comments.input  | 6 ++++++
+ 5 files changed, 21 insertions(+), 2 deletions(-)

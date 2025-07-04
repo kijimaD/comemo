@@ -1,13 +1,15 @@
-commit 41d75933d79bc094a5e522bf67e6e182cbd65450
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Aug 16 14:04:15 2014 +1000
+commit 1837419f302da9b36055bf12b6a7f92c420cb32b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 13 01:03:32 2014 +0400
 
-    cmd/ld: fix operator precedence
+    runtime: remove FlagNoProfile
+    Turns out to be unused as well.
     
-    LGTM=rsc
-    R=gobot, dave
-    CC=golang-codereviews, iant, rsc
-    https://golang.org/cl/114420043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, khr
+    https://golang.org/cl/127170044
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/malloc.go | 19 ++++++++-----------
+ src/pkg/runtime/malloc.h  |  3 +--
+ 2 files changed, 9 insertions(+), 13 deletions(-)

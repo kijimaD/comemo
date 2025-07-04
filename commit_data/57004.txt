@@ -1,28 +1,24 @@
-commit 9f0491c524c305a48904cf65f15fe16763b61c2b
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 22 15:48:31 2024 +0000
+commit a21bb839cb86a94166f5248eca396bdaa0815522
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 6 16:53:39 2023 -0400
 
-    cmd: consolidate "known" os/arch tables into separate package
+    cmd/dist: disable PGO for toolchain2 build
     
-    Common up the the "known OS/Arch" tables from { cmd/go/internal/imports,
-    cmd/go/internal/modindex, go/build } and relocate them to a new
-    package, internal/syslist. No change in functionality.
+    Toolchain2 is only used for building toolchain3. We don't need to
+    build it with PGO. And building with PGO causes packages to be
+    built twice (one with PGO for the compiler, one without for other
+    programs). Disable PGO for toolchain2.
     
-    Updates #68606.
+    Also, I thought cmd/dist requires toolchain2 and toolchain3
+    compilers are identical binaries, so they need to be built in the
+    same way. But it doesn't.
     
-    Change-Id: I6414a05c96b8fddbdbd9678d322cb49d9b1b0af3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601357
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iaf49816da3dd06db79b48482c0e2435e09b512d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/imports/build.go          | 75 ++------------------------
- src/cmd/go/internal/modindex/build.go         |  7 +--
- src/cmd/go/internal/modindex/syslist.go       | 78 ---------------------------
- src/cmd/go/internal/script/conds.go           |  6 +--
- src/go/build/build.go                         |  7 +--
- src/go/build/deps_test.go                     |  3 +-
- src/internal/goarch/gengoarch.go              |  4 +-
- src/internal/goos/gengoos.go                  |  4 +-
- src/{go/build => internal/syslist}/syslist.go | 19 ++++---
- 9 files changed, 33 insertions(+), 170 deletions(-)
+ src/cmd/dist/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

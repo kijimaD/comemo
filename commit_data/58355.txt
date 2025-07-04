@@ -1,30 +1,21 @@
-commit 1a193b43a22a67256c7da73c30504d4107e4a64d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 25 20:29:11 2024 -0500
+commit ea3010d994c927907fda2d742799f5629cdf9265
+Author: dchaofei <dchaofei@gmail.com>
+Date:   Thu May 19 02:02:50 2022 +0000
 
-    cmd/go: use AppendPath(OrigEnv) as env for tool executable
+    crypto/x509: optimize the performance of checkSignature
     
-    Before this change, when go tool wass used to start a tool defined in a
-    go.mod tool directive, it used the environment the go command was
-    running in. The issue with doing that is that the go command sets
-    various environment variables from the computed environment when
-    invoking a subcommand. That is used to standardise the environment for
-    the various tools invoked by the go command, but it is not the
-    expectatation of tools invoked by the go command, especially since those
-    environment variables may change the behavior of the tool run. Instead
-    use the same environment we use in go run to start the executable: the
-    original environment (with minor modifications) saved before we start
-    explicitly setting the envornment, with GOROOT/bin added to the path so
-    that sub commands that run the go tool use the proper go tool binary.
+    The loop should be terminated immediately when `algo` has been found
     
-    Fixes #70544
+    Fixes #52955
     
-    Change-Id: Ifbf0040a2543113638eec7232323eb9de1d61529
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631836
-    Reviewed-by: Conrad Irwin <conrad.irwin@gmail.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: Ib3865c4616a0c1af9b72daea45f5a1750f84562f
+    GitHub-Last-Rev: 721322725fb2d3a3ea410d09fd8320dfef865d8d
+    GitHub-Pull-Request: golang/go#52987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go/internal/tool/tool.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/crypto/x509/x509.go | 1 +
+ 1 file changed, 1 insertion(+)

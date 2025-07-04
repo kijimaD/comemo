@@ -1,43 +1,19 @@
-commit 2af48cbb7d85e5fdc635e75b99f949010c607786
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 5 13:09:20 2022 -0400
+commit 8835343280029eaf86e0612d600ae7af5c68b092
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 2 11:39:38 2021 -0800
 
-    cmd/go: add -C flag
+    doc/go1.18: mention new -asan option
     
-    The -C flag is like tar -C or make -C: it changes to the named directory
-    early in command startup, before anything else happens.
+    For #44853
+    For #47694
     
-    Fixes #50332.
-    
-    Change-Id: I8e4546f69044cb3a028d4d26dfba482b08cb845d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421436
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ia76246218b1361d8bdf510bbfc5178c83cdd3eec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368834
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/doc/main.go                    | 19 ++++++++-----
- src/cmd/go/alldocs.go                  |  9 ++++++-
- src/cmd/go/chdir_test.go               | 49 ++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/base/flag.go       |  8 ++++++
- src/cmd/go/internal/bug/bug.go         |  1 +
- src/cmd/go/internal/envcmd/env.go      |  1 +
- src/cmd/go/internal/fmtcmd/fmt.go      |  1 +
- src/cmd/go/internal/modcmd/download.go |  1 +
- src/cmd/go/internal/modcmd/edit.go     |  5 +++-
- src/cmd/go/internal/modcmd/graph.go    |  1 +
- src/cmd/go/internal/modcmd/init.go     |  1 +
- src/cmd/go/internal/modcmd/tidy.go     |  1 +
- src/cmd/go/internal/modcmd/vendor.go   |  1 +
- src/cmd/go/internal/modcmd/verify.go   |  1 +
- src/cmd/go/internal/modcmd/why.go      |  1 +
- src/cmd/go/internal/tool/tool.go       |  1 +
- src/cmd/go/internal/version/version.go |  1 +
- src/cmd/go/internal/vet/vet.go         |  3 ++-
- src/cmd/go/internal/work/build.go      |  5 ++++
- src/cmd/go/internal/workcmd/edit.go    |  1 +
- src/cmd/go/internal/workcmd/init.go    |  1 +
- src/cmd/go/internal/workcmd/sync.go    |  1 +
- src/cmd/go/internal/workcmd/use.go     |  1 +
- src/cmd/go/testdata/script/chdir.txt   | 31 +++++++++++++++++++++
- 24 files changed, 136 insertions(+), 9 deletions(-)
+ doc/go1.18.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

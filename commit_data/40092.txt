@@ -1,72 +1,17 @@
-commit af880809d8c3896a7d37d7547c290cd9bc34530f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Sep 26 16:37:02 2019 +1000
+commit 850844ef65a89a12e66dd749c8862a7ff77f865e
+Author: Sergey Yanykin <syanykin@ozon.ru>
+Date:   Sat Apr 13 16:46:23 2019 +0300
 
-    cmd/link: MapViewOfFile output file
+    cmd/link/internal/ld: inline dosymtab
     
-    CL 170738 used mmap for writing most of the output file content.
+    Updates #20205
     
-    This change implements similar functionality for Windows.
-    
-    The output of
-    
-    compilebench -count=5
-    
-    command before and after this change
-    
-    name                      old time/op       new time/op       delta
-    Template                        254ms ±14%        239ms ±10%    ~     (p=0.222 n=5+5)
-    Unicode                         119ms ±14%        113ms ±12%    ~     (p=0.421 n=5+5)
-    GoTypes                         892ms ±23%        850ms ± 1%    ~     (p=0.841 n=5+5)
-    Compiler                        3.86s ± 2%        3.82s ± 1%    ~     (p=0.222 n=5+5)
-    SSA                             12.6s ± 1%        12.6s ± 1%    ~     (p=0.095 n=5+5)
-    Flate                           162ms ±18%        149ms ± 1%  -7.91%  (p=0.016 n=5+5)
-    GoParser                        199ms ±12%        184ms ± 1%    ~     (p=0.056 n=5+5)
-    Reflect                         524ms ±13%        507ms ± 3%    ~     (p=0.421 n=5+5)
-    Tar                             207ms ± 7%        198ms ± 0%  -4.58%  (p=0.016 n=5+4)
-    XML                             305ms ± 6%        299ms ± 5%    ~     (p=0.690 n=5+5)
-    LinkCompiler                    1.14s ±11%        1.14s ± 3%    ~     (p=0.222 n=5+5)
-    ExternalLinkCompiler            2.80s ± 5%        2.92s ±13%    ~     (p=0.222 n=5+5)
-    LinkWithoutDebugCompiler        727ms ± 2%        750ms ± 7%    ~     (p=0.151 n=5+5)
-    StdCmd                          44.0s ± 8%        43.3s ± 2%    ~     (p=1.000 n=5+5)
-    
-    name                      old user-time/op  new user-time/op  delta
-    Template                        300ms ±27%        259ms ±34%    ~     (p=0.341 n=5+5)
-    Unicode                         134ms ±51%        144ms ±67%    ~     (p=0.548 n=5+5)
-    GoTypes                         1.05s ±10%        1.03s ± 6%    ~     (p=0.968 n=5+5)
-    Compiler                        5.01s ± 3%        4.88s ± 3%    ~     (p=0.286 n=5+5)
-    SSA                             16.8s ± 1%        16.7s ± 1%  -0.95%  (p=0.008 n=5+5)
-    Flate                           178ms ±67%        181ms ±38%    ~     (p=0.849 n=5+5)
-    GoParser                        231ms ±32%        219ms ±21%    ~     (p=0.810 n=5+5)
-    Reflect                         634ms ±33%        650ms ± 6%    ~     (p=0.135 n=5+5)
-    Tar                             219ms ±36%        231ms ±19%    ~     (p=0.905 n=5+5)
-    XML                             378ms ±20%        366ms ±23%    ~     (p=0.913 n=5+5)
-    LinkCompiler                    1.34s ±15%        1.32s ±10%    ~     (p=0.730 n=5+5)
-    ExternalLinkCompiler            1.22s ±13%        1.18s ±15%    ~     (p=0.873 n=5+5)
-    LinkWithoutDebugCompiler        847ms ±13%        841ms ±21%    ~     (p=0.667 n=5+5)
-    
-    name                      old text-bytes    new text-bytes    delta
-    HelloSize                       767kB ± 0%        767kB ± 0%    ~     (all equal)
-    CmdGoSize                      10.6MB ± 0%       10.6MB ± 0%    ~     (all equal)
-    
-    name                      old data-bytes    new data-bytes    delta
-    HelloSize                      10.1kB ± 0%       10.1kB ± 0%    ~     (all equal)
-    CmdGoSize                       310kB ± 0%        310kB ± 0%    ~     (all equal)
-    
-    name                      old bss-bytes     new bss-bytes     delta
-    HelloSize                       0.00B             0.00B         ~     (all equal)
-    CmdGoSize                       0.00B             0.00B         ~     (all equal)
-    
-    name                      old exe-bytes     new exe-bytes     delta
-    HelloSize                      1.10MB ± 0%       1.10MB ± 0%    ~     (all equal)
-    CmdGoSize                      14.7MB ± 0%       14.7MB ± 0%    ~     (all equal)
-    
-    Change-Id: I653f63213b9cc8a4b05f71938e34b5d53b05e3f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196846
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I44a7ee46a1cdc7fe6fd36c4db4c0dd87a19f7f5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171733
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/outbuf_nommap.go  |  2 +-
- src/cmd/link/internal/ld/outbuf_windows.go | 47 ++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go   | 13 -------------
+ src/cmd/link/internal/ld/symtab.go | 11 ++++++++++-
+ 2 files changed, 10 insertions(+), 14 deletions(-)

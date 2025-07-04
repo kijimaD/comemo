@@ -1,24 +1,18 @@
-commit dcf354512a25c1aea3d20efb7c8e3977e70479b6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 9 10:18:51 2022 +0200
+commit 5a94a90d84cc65a04ab44737baa406023e9b2001
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 22:08:14 2021 -0700
 
-    syscall: wrap fstatat only once on linux/{arm64,riscv64}
+    cmd/compile/internal/types2: better error message for invalid array decls
     
-    Currently the linux/arm64 and linux/riscv64 ports wrap the fstatat
-    syscall twice, once in func fstatat and once in func Fstatat. Change the
-    latter to be a simple wrapper around the former to deduplicate some
-    code.
+    Fixes #43527.
     
-    Change-Id: I82ec9374e2bcfe116eabf01f021eed1ee810ec15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412934
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I988a4d49f2f54b4b1741688fb52a55bf313d39e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348731
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/syscall/syscall_linux_arm64.go    | 10 +++++++---
- src/syscall/syscall_linux_riscv64.go  | 10 +++++++---
- src/syscall/zsyscall_linux_arm64.go   | 15 ---------------
- src/syscall/zsyscall_linux_riscv64.go | 15 ---------------
- 4 files changed, 14 insertions(+), 36 deletions(-)
+ .../internal/types2/testdata/fixedbugs/issue43527.go2    | 16 ++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go               | 10 ++++++++++
+ src/go/types/testdata/fixedbugs/issue43527.go2           | 16 ++++++++++++++++
+ src/go/types/typexpr.go                                  | 10 ++++++++++
+ 4 files changed, 52 insertions(+)

@@ -1,14 +1,13 @@
-commit f43b6d470eea1618b3ead2e1e21612b6d22730e1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 16 11:20:07 2013 +1000
+commit d237f3ce6ff414e2ce8ffea9a20dda6ba603495b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 10:28:53 2013 +1000
 
-    doc: add uninstallation instructions
+    doc/go1.2.html: net/http, encoding, performance, library changes
+    Everything is done except compiler changes and additional platforms, if any.
     
-    Fixes #5821.
-    
-    R=golang-dev, kamil.kisiel
+    R=golang-dev, dominik.honnef, adg
     CC=golang-dev
-    https://golang.org/cl/13720043
+    https://golang.org/cl/13484045
 
- doc/install.html | 34 ++++++++++++++++++++++++++--------
- 1 file changed, 26 insertions(+), 8 deletions(-)
+ doc/go1.2.html | 146 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 85 insertions(+), 61 deletions(-)

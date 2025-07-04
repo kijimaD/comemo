@@ -1,17 +1,26 @@
-commit c4e3f6c4c78f52060d409a549b83b72644069137
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Mar 2 06:10:58 2021 +0000
+commit 3c54069907de8470b7ffa1cba8eae48e446feced
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Jul 12 17:57:11 2020 -0400
 
-    cmd/compile: remove 8-byte alignment requirement of stack slot on s390x
+    [dev.link] cmd/internal/obj: make integer/float constant symbols content-addressable
     
-    This CL applies CL 267999 to s390x.
+    Fill in the data at compile time, and get rid of the preprocess
+    function in the linker.
     
-    Updates #42385
+    We need to be careful with symbol alignment: data symbols are
+    generally naturally aligned, except for string symbols which are
+    not aligned. When deduplicating two symbols with same content but
+    different alignments, we need to keep the biggest alignment.
     
-    Change-Id: Ie8e69ad1b3f7ddc2c8f05125f4af617aeac035ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297769
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
+    Change-Id: I4bd96adfdc5f704b5bf3a0e723457c9bfe16a684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242081
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssagen/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go                |  6 +++
+ src/cmd/internal/obj/objfile2.go            | 19 ++++++++
+ src/cmd/internal/obj/sym.go                 | 20 ++++++++
+ src/cmd/link/internal/loader/loader.go      | 75 +++++++++++------------------
+ src/cmd/link/internal/loader/loader_test.go |  3 +-
+ 5 files changed, 74 insertions(+), 49 deletions(-)

@@ -1,12 +1,22 @@
-commit 1948aef6e3d1935cb4cfdf4a52f6c278cbbe2a8b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Oct 21 17:04:49 2015 -0400
+commit 546836556d202c9667ad6530710bae6a982d427e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 10 15:17:18 2015 +1000
 
-    runtime: fix typos
+    cmd/yacc: use %q to print strings in Toknames
     
-    Change-Id: Iffc25fc80452baf090bf8ef15ab798cfaa120b8e
-    Reviewed-on: https://go-review.googlesource.com/16154
+    Fixes #12086
+    
+    Belongs in 1.5
+    
+    There remains a question of why the Statenames table's elements
+    are not printed. What purpose does that serve?
+    
+    Change-Id: I83fd57b81d5e5065c3397a66ed457fc0d1c041bd
+    Reviewed-on: https://go-review.googlesource.com/13462
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/msan0.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/yacc/yacc.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,45 +1,49 @@
-commit 9c81402f58ae83987f32153c1587c9f03b4a5769
+commit c730a93fb9845740b09b9b0cef917b30098286cc
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 25 15:31:23 2018 -0700
+Date:   Wed May 23 16:35:56 2018 -0700
 
-    go/internal/gccgoimporter: fix updating of "forward declared" types
+    go/types: permit embedding of non-defined interfaces via alias type names
     
-    The existing code uses a type map which associates a type number
-    with a type; references to existing types are expressed via the
-    type number in the export data.
+    Embedded interfaces in interfaces must take the form of a (possibly
+    qualified) type name. Before alias types, a type name always denoted
+    a defined (formerly "named") type. The introduction of alias types
+    enabled embedding of non-defined types via alias type names, as in:
     
-    Before this CL, type map entries were set when a type was read
-    in completely, which meant that recursive references to types
-    (i.e., type map entries) that were in the middle of construction
-    (i.e., where the type map was not yet updated) would lead to nil
-    types. Such cycles are usually created via defined types which
-    introduce a types.Named entry into the type map before the underlying
-    type is parsed; in this case the code worked. In case of type aliases,
-    no such "forwarder" exists and type cycles lead to nil types.
+    type T interface { E }
+    type E interface { m() }
     
-    This CL fixes the problem by a) updating the type map as soon as
-    a type becomes available but before the type's components are parsed;
-    b) keeping track of a list of type map entries that may need to be
-    updated together (because of aliases that may all refer to the same
-    type); and c) adding (redundant) markers to the type map to detect
-    algorithmic errors.
+    Both cmd/compile and gccgo accept this kind of code, and the spec does
+    not prohibit it. There may be code in the wild that makes use of this.
     
-    Also:
-    - distinguish between parseInt and parseInt64
-    - added more test cases
+    go/types was written under the assumption that embedded interfaces
+    were always defined types; and that assumption was even reflected in
+    the go/types API.
     
-    Fixes #27856.
+    This change removes this restriction in the implementation (which
+    happens to make it simpler), and in the API (by adding additional
+    functions and deprecating the corresponding older versions).
     
-    Change-Id: Iba701439ea3231aa435b7b80ea2d419db2af3be1
-    Reviewed-on: https://go-review.googlesource.com/137857
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It also replaces uses of NewInterface and Embedded (old API) by
+    NewInterface2 and EmbeddedType (new API) in dependent packages
+    (importers).
+    
+    The old API remains in place for backward compatibility and is marked
+    as deprecated.
+    
+    Fixes #25301.
+    
+    Change-Id: I272acd498754179efaf0590ca49d3eb4eee4348e
+    Reviewed-on: https://go-review.googlesource.com/114317
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/internal/gccgoimporter/importer_test.go     |   4 +-
- src/go/internal/gccgoimporter/parser.go            | 224 ++++++++++++++-------
- src/go/internal/gccgoimporter/testdata/aliases.go  |  65 ++++++
- src/go/internal/gccgoimporter/testdata/aliases.gox |  33 +++
- .../internal/gccgoimporter/testdata/issue27856.go  |   9 +
- .../internal/gccgoimporter/testdata/issue27856.gox |   9 +
- 6 files changed, 275 insertions(+), 69 deletions(-)
+ src/go/internal/gccgoimporter/parser.go           |  6 ++--
+ src/go/internal/gcimporter/bimport.go             |  6 ++--
+ src/go/internal/gcimporter/gcimporter_test.go     | 26 ++++++++++++--
+ src/go/internal/gcimporter/iimport.go             |  6 ++--
+ src/go/internal/gcimporter/testdata/issue25301.go | 17 +++++++++
+ src/go/types/testdata/issues.src                  | 22 ++++++++++++
+ src/go/types/type.go                              | 44 +++++++++++++++++++----
+ src/go/types/typestring_test.go                   |  8 ++---
+ src/go/types/typexpr.go                           | 24 +++++++------
+ src/go/types/universe.go                          |  2 +-
+ 10 files changed, 127 insertions(+), 34 deletions(-)

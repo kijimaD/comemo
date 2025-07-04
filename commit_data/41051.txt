@@ -1,24 +1,23 @@
-commit 8adc1e00aa1a92a85b9d6f3526419d49dd7859dd
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Aug 31 01:02:04 2019 +1000
+commit d85072ff86e61752fb89363d7c929c850e0a8a8d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Aug 27 06:46:16 2019 -0600
 
-    cmd/link: skip symbol references when looking for missing symbols
+    runtime: monitor for suspend/resume to kick timeouts
     
-    ErrorUnresolved attempts to find the missing symbol in another ABI,
-    in order to provide more friendly error messages. However, in doing so
-    it checks the same ABI and can find the symbol reference for the symbol
-    that it is currently reporting the unresolved error for. Avoid this by
-    ignoring SXREF symbols, which is the same behaviour used when linking
-    is performed.
+    Starting in Windows 8, the wait functions don't take into account
+    suspend time, even though the monotonic counters do. This results in
+    timer buckets stalling on resume. Therefore, this commit makes it so
+    that on resume, we return from the wait functions and recalculate the
+    amount of time left to wait.
     
-    Fixes #33979
+    Fixes: #31528
     
-    Change-Id: I3cb2477b2ad4baa7c2007323b983eb29404b0aac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192597
+    Change-Id: I0db02cc72188cb620954e87a0180e0a3c83f4a56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191957
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/link/internal/ld/link.go |  2 +-
- src/cmd/link/link_test.go        | 79 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+), 1 deletion(-)
+ src/runtime/os_windows.go      | 83 +++++++++++++++++++++++++++++++++++++-----
+ src/runtime/syscall_windows.go | 12 ++++--
+ 2 files changed, 82 insertions(+), 13 deletions(-)

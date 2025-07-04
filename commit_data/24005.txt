@@ -1,22 +1,24 @@
-commit 546836556d202c9667ad6530710bae6a982d427e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 10 15:17:18 2015 +1000
+commit 0a6df4a87b8333e1029c1940c84e39fad66352fa
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Jun 13 13:50:02 2015 -0700
 
-    cmd/yacc: use %q to print strings in Toknames
+    encoding/asn1: don't parse invalid UTF-8.
     
-    Fixes #12086
+    Invalid UTF-8 triggers an error when marshaling but, previously, not
+    when unmarshaling. This means that ASN.1 structures were not
+    round-tripping.
     
-    Belongs in 1.5
+    This change makes invalid UTF-8 in a string marked as UTF-8 to be an
+    error when Unmarshaling.
     
-    There remains a question of why the Statenames table's elements
-    are not printed. What purpose does that serve?
+    Fixes #11126.
     
-    Change-Id: I83fd57b81d5e5065c3397a66ed457fc0d1c041bd
-    Reviewed-on: https://go-review.googlesource.com/13462
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ic37be84d21dc5c03983525e244d955a8b1e1ff14
+    Reviewed-on: https://go-review.googlesource.com/11056
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/yacc/yacc.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/encoding/asn1/asn1.go      |  4 ++++
+ src/encoding/asn1/asn1_test.go | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)

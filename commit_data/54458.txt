@@ -1,14 +1,33 @@
-commit 399b2a4b1b7857444c38305025cc793c9377e415
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Sep 13 16:00:45 2023 -0400
+commit 819087624072fe8ca5914668e837d18eb231f04e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 20:41:14 2022 -0700
 
-    net/http: give ServeMux.handler a better name
+    go/types, types2: replace typecheck with mustTypecheck almost everywhere (cleanup)
     
-    Change-Id: I27bb7d9d5f172a84aa31304194b8a13036b9c5d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528275
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Replace even in places where before we have a specific error message
+    or different control-flow (except in TestTypeString or TestObjectString)
+    because failing to type-check in virtually all cases represents an error
+    in the test itself.
+    
+    Change-Id: I9f1e6d25bddd92c168353409b281b5a3f29a747c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443915
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/net/http/server.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        | 49 +++++++---------------
+ .../compile/internal/types2/instantiate_test.go    | 25 +++--------
+ src/cmd/compile/internal/types2/issues_test.go     | 12 ++----
+ src/cmd/compile/internal/types2/named_test.go      |  5 +--
+ src/cmd/compile/internal/types2/sizes_test.go      | 10 ++---
+ src/cmd/compile/internal/types2/typestring_test.go |  4 +-
+ src/go/types/api_test.go                           | 49 +++++++---------------
+ src/go/types/instantiate_test.go                   | 25 +++--------
+ src/go/types/issues_test.go                        | 10 +----
+ src/go/types/methodset_test.go                     |  6 +--
+ src/go/types/named_test.go                         |  5 +--
+ src/go/types/sizes_test.go                         | 11 ++---
+ src/go/types/typestring_test.go                    |  4 +-
+ 13 files changed, 60 insertions(+), 155 deletions(-)

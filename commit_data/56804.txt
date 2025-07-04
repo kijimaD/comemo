@@ -1,21 +1,19 @@
-commit f27a40ce5fbb2574b81cf05c61c6630e0dfcaf4a
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 12 11:13:26 2024 -0400
+commit eea26e8e685af0270b10c41c7d8f8de22a520373
+Author: fangguizhen <1297394526@qq.com>
+Date:   Tue Jan 3 18:18:35 2023 +0000
 
-    cmd/compile: give the closure generated for rangefunc bodies a name.
+    net/http: check for nil, nil return from DialContext as well as Dial
     
-    The generated name has the form "#yield%d" for %d = 1, 2, 3, ...
-    This may help the debugger connect execution within a rangefunc
-    loop's body to the frame containing the rest of the source code.
-    (It may not actually be necessary; we need to confirm with Alessandro
-    Aarzilli or someone else on the Delve team.)
-    
-    Change-Id: Iabbb2ea5604a4bc1558c160819ac80197e1f2242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592175
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Change-Id: I3b6dd9c40b3c10db2eda6a25b9d556c9c3733bbc
+    GitHub-Last-Rev: fd9b0c4193511a75b4a0073f37aa3116db23a46f
+    GitHub-Pull-Request: golang/go#57448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458876
+    Reviewed-by: Javad Rajabzadeh <ja7ad@live.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/rangefunc/rewrite.go | 44 +++++++++++++++++++--------
- 1 file changed, 32 insertions(+), 12 deletions(-)
+ src/net/http/transport.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

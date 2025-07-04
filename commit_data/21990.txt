@@ -1,15 +1,12 @@
-commit 4f489f59c28aa9d8e6114132869e49b0734bc6ec
-Author: Matt Joiner <anacrolix@gmail.com>
-Date:   Wed Mar 11 17:52:57 2015 +1100
+commit 277eddb8f236b76c1028110ca89c9fc596f3074f
+Author: Ivan Ukhov <ivan.ukhov@gmail.com>
+Date:   Tue Feb 17 07:53:44 2015 +0100
 
-    net/http/pprof: Use relative links to profiles in index html
+    math: change Nextafter64 to Nextafter in the description of Nextafter
     
-    This allows /debug/pprof/ and descendents to be used through
-    http.StripPrefix and other path rewriting handlers.
-    
-    Change-Id: I53673876c107bbfaf430123ead78e6524b42ac21
-    Reviewed-on: https://go-review.googlesource.com/7351
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I3419d6247fbff36aa1ed5451bb3cfb7502c3d07e
+    Reviewed-on: https://go-review.googlesource.com/5030
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/pprof/pprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/nextafter.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

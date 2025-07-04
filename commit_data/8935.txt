@@ -1,18 +1,14 @@
-commit 13f889778ef5dbaaaf058c24ee73c0c5e38d3de1
+commit 72efdea20e96cba1b28352c1b0343b510caa8402
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 4 15:15:47 2011 +1000
+Date:   Mon Jul 4 11:50:35 2011 +1000
 
-    exp/template: add template sets, allowing templates to reference one another
+    exp/template: allow complex numbers, add 'with', 'define', and 'template' keywords.
+    Also simplify the handling of keywords.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4673042
+    https://golang.org/cl/4639096
 
- src/pkg/exp/template/Makefile      |   1 +
- src/pkg/exp/template/exec.go       | 111 +++++++++++++--
- src/pkg/exp/template/exec_test.go  |  91 +++++++++---
- src/pkg/exp/template/parse.go      | 285 +++++++++++++++++++++++++++++--------
- src/pkg/exp/template/parse_test.go |  82 +++++++----
- src/pkg/exp/template/set.go        |  71 +++++++++
- src/pkg/exp/template/set_test.go   | 101 +++++++++++++
- 7 files changed, 626 insertions(+), 116 deletions(-)
+ src/pkg/exp/template/lex.go      | 88 ++++++++++++++++++++++++++--------------
+ src/pkg/exp/template/lex_test.go |  7 +++-
+ 2 files changed, 63 insertions(+), 32 deletions(-)

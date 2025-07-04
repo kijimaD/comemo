@@ -1,28 +1,50 @@
-commit e5ba7d3abf1e356f8cb7d760f95a389dd08c63ae
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 6 22:09:12 2021 -0500
+commit b675e52e9592ba3db1a3cf2dc9c4bc02c89e03a8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 13:35:48 2021 -0400
 
-    net/http: remove arbitrary timeout in TestServerHijackGetsBackgroundByte_big
+    internal/goexperiment: consolidate experiment-enabled constants
     
-    This test fails with "timeout" once per couple of months.
-    It may be that the arbitrary timeout is too short,
-    or it may be that the test is detecting a real bug
-    (perhaps a deadlock) and reporting it without sufficient
-    information to debug.
+    Currently, we have boolean and integral constants for GOEXPERIMENTs in
+    various places. Consolidate these into automatically generated
+    constants in the internal/goexperiment package.
     
-    Either way, the arbitrary timeout is doing only harm:
-    either it is too short, or it is preventing us from getting
-    a useful goroutine dump when the test inevitably times out.
-    
-    Fixes #35498 (hopefully).
-    
-    Change-Id: Ic6bbb1ef8df2c111b9888ba9903f58633e7cb95d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369854
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I42a49aba2a3b4c722fedea23a613162cd8a67bee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307818
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/serve_test.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/go/build/deps_test.go                          |  4 +-
+ src/internal/goexperiment/exp_fieldtrack_off.go    |  9 +++
+ src/internal/goexperiment/exp_fieldtrack_on.go     |  9 +++
+ .../goexperiment/exp_preemptibleloops_off.go       |  9 +++
+ .../goexperiment/exp_preemptibleloops_on.go        |  9 +++
+ src/internal/goexperiment/exp_regabi_off.go        |  9 +++
+ src/internal/goexperiment/exp_regabi_on.go         |  9 +++
+ src/internal/goexperiment/exp_regabiargs_off.go    |  9 +++
+ src/internal/goexperiment/exp_regabiargs_on.go     |  9 +++
+ src/internal/goexperiment/exp_regabidefer_off.go   |  9 +++
+ src/internal/goexperiment/exp_regabidefer_on.go    |  9 +++
+ src/internal/goexperiment/exp_regabig_off.go       |  9 +++
+ src/internal/goexperiment/exp_regabig_on.go        |  9 +++
+ src/internal/goexperiment/exp_regabireflect_off.go |  9 +++
+ src/internal/goexperiment/exp_regabireflect_on.go  |  9 +++
+ .../goexperiment/exp_regabiwrappers_off.go         |  9 +++
+ src/internal/goexperiment/exp_regabiwrappers_on.go |  9 +++
+ .../goexperiment/exp_staticlockranking_off.go      |  9 +++
+ .../goexperiment/exp_staticlockranking_on.go       |  9 +++
+ src/internal/goexperiment/flags.go                 |  9 ++-
+ src/internal/goexperiment/mkconsts.go              | 74 ++++++++++++++++++++++
+ src/reflect/abi.go                                 |  7 +-
+ src/reflect/regabiargs_off.go                      | 10 ---
+ src/reflect/regabiargs_on.go                       | 10 ---
+ src/runtime/panic.go                               | 25 ++++----
+ src/runtime/proc.go                                |  5 +-
+ src/runtime/regabiargs_off.go                      | 10 ---
+ src/runtime/regabiargs_on.go                       | 10 ---
+ src/runtime/regabidefer_off.go                     | 10 ---
+ src/runtime/regabidefer_on.go                      | 10 ---
+ src/runtime/stubs.go                               |  3 +-
+ 31 files changed, 267 insertions(+), 82 deletions(-)

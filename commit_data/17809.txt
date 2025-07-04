@@ -1,15 +1,13 @@
-commit 4dce7f85751e42fd1149fa46938edb8a046d4c3a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 17 12:13:33 2013 -0400
+commit 078bcffcb83e5aafd5e368c587bc8cb159a39020
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Oct 17 11:48:27 2013 +1100
 
-    encoding/xml: accept chains of interfaces and pointers
+    A+C: add Jamie Turner (Dropbox corporate CLA).
     
-    Fixes #6556.
-    
-    R=golang-dev, iant, adg
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14747043
+    https://golang.org/cl/14765043
 
- src/pkg/encoding/xml/marshal.go      | 13 +++++++------
- src/pkg/encoding/xml/marshal_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 6 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

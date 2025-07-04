@@ -1,19 +1,22 @@
-commit c18ff21cc897e9b675310c62045e88e4ba1d50bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 4 15:01:54 2025 -0500
+commit 29746b4814bb76a3d5a36fc86967b358f11bbb93
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 26 17:57:39 2024 +0100
 
-    cmd/compile, runtime: remove plan9 special case avoiding SSE
+    runtime: make netpollBreak entries identifiable on Windows
     
-    Change-Id: Id5258a72b0727bf7c66d558e30486eac2c6c8c36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655875
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    It is currently not possible to distinguish between a netpollBreak
+    entry and an entry initiated by external WSA operations (as in #58870).
+    
+    This CL sets a unique completion key when posting the
+    netpollBreak entry so that it can be identified as such.
+    
+    Change-Id: I8e74a7ddc607dc215d6ed8c59d5c3cf47ec8dc62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558895
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/amd64/ggen.go | 8 ++------
- src/cmd/compile/internal/amd64/ssa.go  | 9 ++-------
- src/cmd/compile/internal/ssa/config.go | 6 ------
- src/runtime/asm_amd64.s                | 2 --
- 4 files changed, 4 insertions(+), 21 deletions(-)
+ src/internal/poll/fd_windows_test.go | 22 +++------
+ src/runtime/netpoll_windows.go       | 86 +++++++++++++++++++++++++++++-------
+ 2 files changed, 75 insertions(+), 33 deletions(-)

@@ -1,17 +1,35 @@
-commit 86324f29c6892e56ea756e7a5d81a26c86ce2e12
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 15:45:51 2016 -0400
+commit d1faf3879ede9efc9f1907dfad04bac8ec08d598
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 27 15:33:11 2016 -0700
 
-    go/build: do not record go:binary-only-package if build tags not satisfied
+    cmd/compile: don’t generate pointless gotos during inlining
     
-    This is the documented (and now implemented) behavior.
+    Their only purpose in life was to suppress an error.
+    Suppress that error explicitly instead by reusing
+    an existing, aptly named Node field.
     
-    Fixes #16841.
+    This generates fewer blocks during ssa construction.
     
-    Change-Id: Ic75adc5ba18303ed9578e04284f32933f905d6a3
-    Reviewed-on: https://go-review.googlesource.com/31577
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    name       old alloc/op     new alloc/op     delta
+    Template       47.5MB ± 0%      47.2MB ± 0%  -0.72%        (p=0.000 n=15+15)
+    Unicode        36.8MB ± 0%      36.8MB ± 0%    ~           (p=0.775 n=15+15)
+    GoTypes         143MB ± 0%       142MB ± 0%  -1.03%        (p=0.000 n=15+14)
+    Compiler        686MB ± 0%       674MB ± 0%  -1.75%        (p=0.000 n=15+15)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         446k ± 0%        445k ± 0%  -0.20%        (p=0.000 n=15+15)
+    Unicode          355k ± 0%        355k ± 0%    ~           (p=0.235 n=13+15)
+    GoTypes         1.36M ± 0%       1.36M ± 0%  -0.41%        (p=0.000 n=13+15)
+    Compiler        5.77M ± 0%       5.70M ± 0%  -1.16%        (p=0.000 n=15+15)
+    
+    
+    Change-Id: I5f14afb833c9d355688d9a229eb820e95c7657bf
+    Reviewed-on: https://go-review.googlesource.com/27461
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 10 ++++++++++
- src/go/build/build.go | 11 +++++++----
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/gen.go | 3 +++
+ src/cmd/compile/internal/gc/inl.go | 5 +++--
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

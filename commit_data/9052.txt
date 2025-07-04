@@ -1,12 +1,23 @@
-commit a6e60916c1a5ad15819ad34d63e0c2e064263a29
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Wed Jul 13 11:44:44 2011 -0700
+commit 86a659cad03b98d1921d72e3cf459bcd189ae0ec
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 13 11:22:41 2011 -0700
 
-    runtime: stdcall_raw stack 16byte align for Win64
+    runtime: fix data race during Itab hash update/lookup
+    The data race is on newly published Itab nodes, which are
+    both unsafely published and unsafely acquired. It can
+    break on IA-32/Intel64 due to compiler optimizations
+    (most likely not an issue as of now) and on ARM due to
+    hardware memory access reorderings.
     
-    R=alex.brainman, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4681049
+    https://golang.org/cl/4673055
 
- src/pkg/runtime/windows/amd64/sys.s | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/386/asm.s      |  6 ++++++
+ src/pkg/runtime/386/atomic.c   |  7 +++++++
+ src/pkg/runtime/amd64/asm.s    |  6 ++++++
+ src/pkg/runtime/amd64/atomic.c |  7 +++++++
+ src/pkg/runtime/arm/atomic.c   | 20 ++++++++++++++++++++
+ src/pkg/runtime/iface.c        |  9 +++++----
+ src/pkg/runtime/runtime.h      |  4 +++-
+ 7 files changed, 54 insertions(+), 5 deletions(-)

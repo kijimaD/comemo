@@ -1,17 +1,12 @@
-commit 2cb1aa468108598d5d3fab1c6ff9b6ba1217bf80
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Dec 12 15:22:55 2011 -0500
+commit 68ec347c16a7dd0b05bcc60ba683c219c60a47a6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 12 10:40:15 2011 -0800
 
-    archive/zip: make zip understand os.FileMode.
-    Fixes implicit dependency on underlying os file modes.
+    net/http: make test remove temporary file and directory
     
-    R=rsc, r, n13m3y3r, gustavo, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5440130
+    https://golang.org/cl/5486044
 
- src/pkg/archive/zip/reader_test.go     |  64 +++++++++++++++++++-----
- src/pkg/archive/zip/struct.go          |  88 ++++++++++++++++++++++++++++++---
- src/pkg/archive/zip/testdata/unix.zip  | Bin 0 -> 620 bytes
- src/pkg/archive/zip/testdata/winxp.zip | Bin 0 -> 412 bytes
- src/pkg/archive/zip/writer_test.go     |  24 ++++++++-
- 5 files changed, 153 insertions(+), 23 deletions(-)
+ src/pkg/net/http/filetransport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

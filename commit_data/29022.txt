@@ -1,13 +1,22 @@
-commit aeb8b9591c254560c1ecc4eafbc38b31d632da64
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 14:51:58 2016 -0400
+commit 2c58cb36f971aed484e880769eb2b0a21654459a
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Sat Aug 20 15:46:06 2016 -0700
 
-    encoding/json: fix bad formatting introduced in CL 20356
+    encoding/xml: do not ignore error return from copyValue
     
-    Change-Id: I39a8b543e472e5ec5d4807a9b7f61657465c5ce5
-    Reviewed-on: https://go-review.googlesource.com/31816
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The error return from copyValue was ignored causing some XML attribute
+    parsing to swallow an error.
+    
+    Additionally, type MyMarshalerAttrTest had no UnmarshalXMLAttr method
+    causing marshalTests not to be symmetrical and the test suite to fail
+    for test case 101.
+    
+    Fixes #16158
+    
+    Change-Id: Icebc505295a2c656ca4b42ba37bb0957dd7260c6
+    Reviewed-on: https://go-review.googlesource.com/27455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/xml/marshal_test.go | 17 ++++++++++++++++-
+ src/encoding/xml/read.go         |  5 +----
+ 2 files changed, 17 insertions(+), 5 deletions(-)

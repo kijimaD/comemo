@@ -1,18 +1,15 @@
-commit 7c167f270826039590af43360b9fb9b2890fe13d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 30 13:33:28 2015 -0700
+commit 0ffd9c8cadae38a9334dcbb9dc7876f499deb474
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Aug 21 21:38:41 2015 -0500
 
-    test: disable flaky heapsampling test for now
+    [dev.ssa] cmd/compile/internal: mark len(map), len/cap(chan) unimplemented
     
-    Flaky tests do more harm than good.
+    Mark these as unimplemented so we don't generate bad code.
     
-    Updates #13098
-    
-    Change-Id: I179ed810b49bbb96c8df462bfa20b70231b26772
-    Reviewed-on: https://go-review.googlesource.com/16521
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I101190c40a753faaa82193ac37e2978b20a96e4e
+    Reviewed-on: https://go-review.googlesource.com/13748
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- test/heapsampling.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go  | 10 ++++++++++
+ src/cmd/compile/internal/gc/type.go |  8 ++++++++
+ 2 files changed, 18 insertions(+)

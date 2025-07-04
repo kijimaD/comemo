@@ -1,19 +1,20 @@
-commit f77bba43aa223fc86fd223f3ea4ef60db8e0c583
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 20 12:12:35 2025 -0800
+commit adec22b9f7c9d9cfb95ff6af1c63ec489d6e9bb8
+Author: Tim King <taking@google.com>
+Date:   Tue Dec 19 10:08:00 2023 -0800
 
-    net: accept a valid IP address in LookupMX
+    doc/go1.22: document changes to vet loopclosure analyzer
     
-    Fixes #56025
+    cmd/vet no longer reports loopclosure bugs within files built at
+    GoVersion>=1.22.
     
-    Change-Id: I202fdd0e11afeb22c5bc22d91fe4bfea8987e727
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651056
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    For #61422.
+    
+    Change-Id: I6f29373bb236822ece4e7ae35914859538b8d57b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551376
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/99-minor/net/56025.md |  5 +++
- src/net/dnsclient_unix_test.go          | 72 +++++++++++++++++++++++++++++----
- src/net/lookup.go                       | 20 +++++----
- 3 files changed, 82 insertions(+), 15 deletions(-)
+ doc/go1.22.html | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

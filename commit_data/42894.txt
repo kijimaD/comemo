@@ -1,25 +1,20 @@
-commit e6583dc95375c4e266bffab6f8888e8e557b6355
-Author: Heisenberg <lziqiang1@gmail.com>
-Date:   Mon Aug 3 15:33:47 2020 +0800
+commit 3a9381c6b00c6a2131911b09d0dfb6264d30b15b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 14:06:00 2020 -0800
 
-    runtime: add file copyright header declaration
+    cmd/compile: use ellipses in S390X rules
     
-    Some files have no copyright notice.
-    The copyright time is the earliest modification record of the file.
+    Also, explicitly zero AuxInt in some ops (like Div),
+    to make it clear why they do not use an ellipsis.
     
-    Change-Id: I5698bae16b6b73543e074415877a03348f792951
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246378
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Passes toolstash-check -all.
+    
+    Change-Id: I47b4ed745196ed734927dbb5923edec33ce286da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217013
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/defs_linux_arm.go        | 4 ++++
- src/runtime/defs_linux_mips64x.go    | 4 ++++
- src/runtime/defs_openbsd_arm64.go    | 4 ++++
- src/runtime/defs_plan9_386.go        | 4 ++++
- src/runtime/defs_plan9_amd64.go      | 4 ++++
- src/runtime/rt0_linux_ppc64.s        | 4 ++++
- src/runtime/rt0_linux_ppc64le.s      | 4 ++++
- src/runtime/trace/annotation.go      | 4 ++++
- src/runtime/trace/annotation_test.go | 4 ++++
- 9 files changed, 36 insertions(+)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  171 +--
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 2016 +++++---------------------
+ 2 files changed, 414 insertions(+), 1773 deletions(-)

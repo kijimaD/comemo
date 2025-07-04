@@ -1,20 +1,14 @@
-commit fe5005f721d3036dd3c6fa5c0e7b43c188342859
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri May 4 03:44:41 2012 -0700
+commit 2bed8a7e957439587ae30416183fe2300d059bb9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 4 18:34:04 2012 +0800
 
-    syscall: remove the Signal type on Plan 9
+    go/build: cgo is supported on Linux/ARM
+            Last Part of CL 5601044 (cgo: Linux/ARM support)
+            Fixes #1880.
     
-    Instead use a new type, "Note", whose underlying
-    type is just a string.  This change allows us to
-    remove the exported os.Plan9Note type.
-    
-    R=bradfitz, seed, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6015046
+    https://golang.org/cl/5988057
 
- src/pkg/os/exec.go                   |  8 --------
- src/pkg/os/exec_plan9.go             | 40 +++++++++++++++++++++---------------
- src/pkg/os/exec_posix.go             |  8 ++++++++
- src/pkg/syscall/syscall_plan9.go     | 18 ++++++++--------
- src/pkg/syscall/zerrors_plan9_386.go |  3 ---
- 5 files changed, 42 insertions(+), 35 deletions(-)
+ src/pkg/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

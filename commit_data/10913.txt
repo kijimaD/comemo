@@ -1,17 +1,13 @@
-commit e83cd7f750efe3ac2233f0589971f1e0e424382e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 17:54:40 2011 -0500
+commit 01507b9ad168b98a1d528e6039f98a13d633034e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 14:32:33 2011 -0800
 
-    build: a round of fixes
+    net: fix Windows build
     
-    TBR=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5503052
+    https://golang.org/cl/5505048
 
- src/pkg/debug/gosym/pclntab_test.go       |  3 ++-
- src/pkg/exp/inotify/inotify_linux_test.go |  5 +++++
- src/pkg/runtime/Makefile                  |  2 +-
- src/pkg/runtime/cgo/gcc_setenv.c          |  2 ++
- src/pkg/runtime/cgo/trigger.go            | 10 ++++++++++
- src/pkg/runtime/runtime.h                 |  3 ++-
- 6 files changed, 22 insertions(+), 3 deletions(-)
+ src/pkg/net/fd.go  | 8 --------
+ src/pkg/net/net.go | 8 ++++++++
+ 2 files changed, 8 insertions(+), 8 deletions(-)

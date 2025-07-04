@@ -1,23 +1,23 @@
-commit 21036ed0ff69b4b46e37809c416cfa60c5eee6d6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 28 15:16:30 2023 +0000
+commit c451a02a6d3e95d279260bd8c1edae676d62997d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Apr 7 23:53:12 2022 +0800
 
-    cmd/go: skip TestDocsUpToDate if 'go build' is not supported
+    strings, bytes: improve the description of simple case-folding in EqualFold
     
-    testGo is currently only configured if testenv.HasGoBuild returns
-    true, which implies that a complete toolchain is present.
-    Since setting up testGo now only uses the test binary itself, it does
-    not actually require 'go build', but fixing that will be a bit more
-    involved. For now, just skip the test when it isn't set up.
+    This CL removes the problem description pointed out by @bjkail.
+    Second, synchronously modify the comments of the bytes package.
     
-    Fixes #58775.
+    Updates #52022
+    Fixes #52204
     
-    Change-Id: I6487b47b44c87aa139ae11cfa44ce6f0f5f84bd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472095
+    Change-Id: I0aa52c774f40bb91f32bebdd2a62a11067a77be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398736
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/help_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/bytes/bytes.go     | 2 +-
+ src/strings/strings.go | 2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)

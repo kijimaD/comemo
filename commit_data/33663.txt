@@ -1,20 +1,19 @@
-commit 3c375f1b7ed54471c5323420a15b9bfe162a2527
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 22 09:43:52 2017 -0800
+commit 88a1e85c706a7917f97be9c612334f0c85e96cf3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Aug 27 19:09:18 2017 +0900
 
-    cmd/compile, go/types: error if main.main is not a function
+    cmd/link: fix warning for buildmode=plugin on darwin/amd64
     
-    Fixes #21256.
+    Without this CL, the system linker complains about absolute addressing
+    in type..eqfunc.*.
     
-    Change-Id: I3af4c76e734c09d07f15525b793a544a7279b906
-    Reviewed-on: https://go-review.googlesource.com/79435
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Updates #18190
+    
+    Change-Id: I68db37a7f4c96b16a9c13baffc0f043a3048df6d
+    Reviewed-on: https://go-review.googlesource.com/59373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 10 ++++++----
- src/go/types/check_test.go         |  1 +
- src/go/types/resolver.go           |  7 +++++++
- src/go/types/testdata/decls5.src   | 10 ++++++++++
- test/fixedbugs/issue21256.go       |  9 +++++++++
- 5 files changed, 33 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

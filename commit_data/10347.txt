@@ -1,15 +1,20 @@
-commit 351daf878843dd782b8e42276f568d6130cf7c62
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Fri Nov 11 14:56:18 2011 -0500
+commit a6c501e4b1c0bc21e85a51ef62af65c4f284fff1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Nov 11 14:40:41 2011 -0500
 
-    env.bash: Check for presence of make/gmake
+    net, io/ioutil: remove use of os.Time
     
-    Without this, a missing gmake will result in bogus error "Did not find
-    Go environment variables".
+    I had to replace the single use of io/ioutil
+    in the time package with a bytes.Buffer since
+    there would've been a dependency cycle.
+    
+    There are no other uses of os.Time.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5369066
+    https://golang.org/cl/5372054
 
- src/env.bash | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/io/ioutil/tempfile.go |  4 ++--
+ src/pkg/net/hosts.go          |  6 +++---
+ src/pkg/time/zoneinfo_unix.go | 12 +++++++++---
+ 3 files changed, 14 insertions(+), 8 deletions(-)

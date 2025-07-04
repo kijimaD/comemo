@@ -1,17 +1,19 @@
-commit 7bb2a7d63b0767f9c6fa0382ed9185ba21757095
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 4 18:12:30 2015 -0800
+commit af78482d6b1f7af7ec8339da6cf5fbbad95146bb
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Aug 21 15:23:57 2015 +1200
 
-    cmd/dist: remove vestigial -s flag
+    cmd/compile, cmd/link, reflect, runtime: remove type.zero field
     
-    Fixes #12002.
+    No longer used after previous hashmap change.
     
-    Change-Id: I7262f4520560ac158fc2ee3ce1d2f7a488d40354
-    Reviewed-on: https://go-review.googlesource.com/16666
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I558470f872281e84a78406132df4e391d077b833
+    Reviewed-on: https://go-review.googlesource.com/13785
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 25 +++++++++----------------
+ src/cmd/link/internal/ld/decodesym.go  |  2 +-
+ src/reflect/type.go                    | 21 ++++++++++-----------
+ src/runtime/type.go                    |  5 ++---
+ 4 files changed, 22 insertions(+), 31 deletions(-)

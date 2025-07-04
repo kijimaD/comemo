@@ -1,19 +1,19 @@
-commit 48a1a5189843571a08461a5756e5fe553f966c94
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 23 19:25:32 2020 +0000
+commit 1067ab080863f9e9557889d501ac0a75fbb3e19a
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 13 08:37:03 2020 -0700
 
-    runtime/metrics: tweak wording of stack and unused memory metrics
+    runtime: added several new lock-rank partial order edges
     
-    This change tweaks and simplifies the descriptions of a couple metrics
-    to make them easier to parse (for humans).
+    Several new ones came from my testing (long, repeated runs) and one (assistQueue ->
+    spine) came from the staticlockranking builder (filed as issue 38441).
     
-    Change-Id: I852654c7e7042c662ebdfa6334e3baf49ca4b33c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272566
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #38441
+    
+    Change-Id: I4268da0d8b8cc51251eba6bd936110c8ab4c4e61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229480
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/metrics/description.go | 9 ++++-----
- src/runtime/metrics/doc.go         | 7 +++----
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ src/runtime/lockrank.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

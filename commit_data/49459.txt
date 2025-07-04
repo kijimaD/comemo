@@ -1,23 +1,19 @@
-commit 5ee939b8199266446d7ccc563751a9d3db26bf8b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 13 11:06:55 2022 -0700
+commit 97d17dc02398730822abba75a3d3ae26c0f3c0fd
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Aug 21 02:51:51 2021 +0800
 
-    spec: clarify behavior of map size hint for make built-in
+    test/typeparam: add a test case for issue46591
     
-    The spec already states that the precise behavior of the map size
-    hint provided to the make built-in is implementation-dependent.
+    Fixes #46591
     
-    Exclude requiring specific run-time behavior for maps.
-    (The current Go compiler does not panic if the size hint is negative
-    at run-time.)
-    
-    Fixes #53219.
-    
-    Change-Id: I2f3618bf9ba4ed921e18dc4f2273eaa770805bd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411919
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4875092ecd7760b0cd487e793576ef7a9a569a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343970
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/typeparam/issue46591.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

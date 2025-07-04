@@ -1,21 +1,20 @@
-commit 33b4ffc3573eb81854591d39f1029dabacbdec72
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 24 14:28:18 2021 -0400
+commit ae3680b30b81162da3ae0ea248eea502e8ca2195
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Sep 4 13:01:08 2020 -0400
 
-    cmd/compile: track funcsyms by ir.Name instead of types.Sym
+    cmd/link: rewrite some code without using reflection
     
-    This is a cleanup to bring funcsym tracking a little closer to the
-    ir.Func. (I thought I needed this for a later change. That turned out
-    not to be the case, but it's a nice cleanup.)
+    In Mach-O DWARF combining, some code was written using reflection,
+    so it could support both 32-bit and 64-bit Mach-O files without
+    duplicating code. We no longer support 32-bit darwin platforms
+    now. 32-bit support can go. Rewrite it with direct field access,
+    for 64-bit only.
     
-    Change-Id: I53e692f5d7ba4be56d42d8e0aefc06284cea0661
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305270
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If1338c3cd37cecf603f4df0c6eb0c890eaebfe5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253557
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go      |  2 +-
- src/cmd/compile/internal/staticdata/data.go | 35 +++++++++++++++--------------
- 2 files changed, 19 insertions(+), 18 deletions(-)
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 95 ++++++++++---------------
+ 1 file changed, 38 insertions(+), 57 deletions(-)

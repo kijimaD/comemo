@@ -1,16 +1,14 @@
-commit 055e1a3ae7884df71da17dadc2acae227444e4d6
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jun 24 18:51:06 2015 +0200
+commit 19354b9dc87d62dbb5280354be7fd90bdf196a24
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat May 2 13:08:12 2015 +0100
 
-    runtime/race: fix test driver
+    cmd/pprof/internal/profile: ignore comments when parsing heap profiles
     
-    At some point it silently stopped recognizing test output.
-    Meanwhile two tests degraded...
+    Fixes #10659.
     
-    Change-Id: I90a0325fc9aaa16c3ef16b9c4c642581da2bb10c
-    Reviewed-on: https://go-review.googlesource.com/11416
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I22dc306ce6f398dd40010ac430928a718d67d466
+    Reviewed-on: https://go-review.googlesource.com/9623
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/race/race_test.go         | 5 ++++-
- src/runtime/race/testdata/mop_test.go | 4 ++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/pprof/internal/profile/legacy_profile.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

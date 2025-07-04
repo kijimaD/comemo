@@ -1,15 +1,13 @@
-commit 9dc6764d3c780cf302a8a7521d27e61102d701fc
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 14 09:22:47 2014 -0700
+commit 6587557660ac2fece3e2af8b44ca37799cde7b6a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 1 09:16:55 2014 +0900
 
-    runtime: a few optimizations of scanblock.
+    misc/nacl/README: fix typo
     
-    Lowers gc pause time by 5-10% on test/bench/garbage
-    
-    LGTM=rsc, dvyukov
-    R=rsc, dvyukov
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/157810043
+    https://golang.org/cl/151870043
 
- src/runtime/mgc0.c | 35 ++++++++++++++++++-----------------
- 1 file changed, 18 insertions(+), 17 deletions(-)
+ misc/nacl/README | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

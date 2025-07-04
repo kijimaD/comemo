@@ -1,20 +1,20 @@
-commit 58eadc232e4fd2633761ffdeeaa922216beee74e
-Author: avivklas <avivklas@gmail.com>
-Date:   Tue Sep 15 08:48:44 2020 +0300
+commit 5aef51a729f428bfd4b2c28fd2ba7950660608e0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Mar 18 10:03:51 2020 -0700
 
-    net/http: test that ParseMultipartForm returns an error for int overflow
+    database/sql: add test for Conn.Validator interface
     
-    ParseMultipartForm has been changed to return an error if maxMemory
-    parameter + 10MB causes int overflows. This adds a test for the new
-    behaviour.
+    This addresses comments made by Russ after
+    https://golang.org/cl/174122 was merged. It addes a test
+    for the connection validator and renames the interface to just
+    "Validator".
     
-    For #40430
-    
-    Change-Id: I4f66ce8a9382940182011d22a84ee52b1d1364cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254977
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iea53e9b250c9be2e86e9b75906e7353e26437c5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223963
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/request_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/database/sql/driver/driver.go |  8 ++++----
+ src/database/sql/fakedb_test.go   |  4 ++--
+ src/database/sql/sql.go           |  4 ++--
+ src/database/sql/sql_test.go      | 31 +++++++++++++++++++++++++++++++
+ 4 files changed, 39 insertions(+), 8 deletions(-)

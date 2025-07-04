@@ -1,26 +1,24 @@
-commit 1318fb4a32371311688c6b868c3041f0501b6aeb
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Mar 29 16:07:18 2021 -0700
+commit d7ab277eed4d2e5ede4f3361adf42d4ad76ced8f
+Author: Junchen Li <junchen.li@arm.com>
+Date:   Mon Aug 31 13:32:33 2020 +0800
 
-    cmd/compile: handle partial type inference that doesn't require function args
+    cmd/asm: add more SIMD instructions on arm64
     
-    Handle the case where types can be partially inferred for an
-    instantiated function that is not immediately called. The key for the
-    Inferred map is the CallExpr (if inferring types required the function
-    arguments) or the IndexExpr (if types could be inferred without the
-    function arguments).
+    This CL adds USHLL, USHLL2, UZP1, UZP2, and BIF instructions requested
+    by #40725. And since UXTL* are aliases of USHLL*, this CL also merges
+    them into one case.
     
-    Added new tests for the case where the function isn't immediately called
-    to typelist.go.
+    Updates #40725
     
-    Change-Id: I60f503ad67cd192da2f2002060229efd4930dc39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305909
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I404a4fdaf953319f72eea548175bec1097a2a816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253659
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/expr.go | 32 +++++++++++--------
- test/typeparam/typelist.go             | 58 ++++++++++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+), 13 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  20 +++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |   8 ++
+ src/cmd/internal/obj/arm64/a.out.go            |   9 +-
+ src/cmd/internal/obj/arm64/anames.go           |   9 +-
+ src/cmd/internal/obj/arm64/asm7.go             | 109 +++++++++++++------------
+ 5 files changed, 100 insertions(+), 55 deletions(-)

@@ -1,37 +1,27 @@
-commit 4acb305d8bf421ccd8963faa140ce57094ce36ae
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 19 05:35:58 2017 +0900
+commit 1490cf67edc42ffd2abd6230f0caebebaf832a96
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Jun 27 00:47:17 2017 -0600
 
-    net/http: replace SOCKS client implementation
+    net/http: implement sniffing for some fonts
     
-    This change replaces the vendored socks client implementation with the
-    bundle of golang.org/x/net/internal/socks package which contains fixes
-    for 19354 and 11682.
+    Implement sniffing for fonts:
+    * MS Font object  --> "application/vnd.ms-fontobject"
+    * ttf             --> "application/font-ttf"
     
-    golang.org/x/net/internal/socks becomes socks_bundle.go.
+    * off             --> "application/font-off"
+    * otf             --> "application/font-off"
     
-    At git rev 61147c4. (golang.org/cl/38278)
+    * cff             --> "application/font-cff"
+    * woff            --> "application/font-woff"
     
-    Updates #11682.
-    Updates #18508.
-    Updates #19354.
-    Fixes #19688.
-    Updates #21333.
+    Fixes #20808
     
-    Change-Id: I8cf6c3f5eb87c24685a7592be015729f84fbed77
-    Reviewed-on: https://go-review.googlesource.com/41031
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Ibe02a87d3c9d610c6a30e1b6c03f4e520404e70f
+    Reviewed-on: https://go-review.googlesource.com/47553
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/deps_test.go                          |   1 -
- src/net/http/socks_bundle.go                       | 421 +++++++++++++++++++++
- src/net/http/transport.go                          |  40 +-
- src/net/http/transport_test.go                     |   6 +-
- src/vendor/golang_org/x/net/proxy/direct.go        |  18 -
- src/vendor/golang_org/x/net/proxy/per_host.go      | 140 -------
- src/vendor/golang_org/x/net/proxy/per_host_test.go |  55 ---
- src/vendor/golang_org/x/net/proxy/proxy.go         |  94 -----
- src/vendor/golang_org/x/net/proxy/proxy_test.go    | 142 -------
- src/vendor/golang_org/x/net/proxy/socks5.go        | 213 -----------
- 10 files changed, 437 insertions(+), 693 deletions(-)
+ src/net/http/sniff.go      | 15 +++++++++++++++
+ src/net/http/sniff_test.go | 11 +++++++++++
+ 2 files changed, 26 insertions(+)

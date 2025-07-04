@@ -1,28 +1,15 @@
-commit de1c934b9709728b15cc821a055155ee13e1d0ab
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 20 11:38:54 2021 +0700
+commit ddf44904f125c964e81d7c3ec2612908f95a0fa3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 17:17:36 2020 -0800
 
-    cmd/compile: fix checkptr false positive for (*[Big]T)(ptr)[:n:n] pattern
+    [dev.typeparams] test: exclude 32bit-specific test that fails on 32bit platforms (fix build)
     
-    The checkptr instrumentation is currently inserted before slice
-    operation has validated that n <= Big. So instead of panic, checkptr
-    have false positive throws.
-    
-    To fix this, just insert the checkptr instrumentation after the bound
-    checking during SSA generation.
-    
-    Fixes #46938
-    
-    Change-Id: I9dbf84441c711842ccc883f3654ca8766ac696d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343972
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I4f1d5d34dd9b26cea8e837a8ff7e833e02c913e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276815
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ir/expr.go      |  9 +++++----
- src/cmd/compile/internal/ssagen/ssa.go   |  3 +++
- src/cmd/compile/internal/walk/convert.go | 13 +++++++++++--
- src/cmd/compile/internal/walk/expr.go    |  2 +-
- test/fixedbugs/issue46938.go             | 29 +++++++++++++++++++++++++++++
- 5 files changed, 49 insertions(+), 7 deletions(-)
+ test/run.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

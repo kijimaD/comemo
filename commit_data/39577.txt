@@ -1,19 +1,20 @@
-commit 546ea78efa159680dde0df42f1f2091ccafef4df
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Aug 2 06:43:20 2019 -0400
+commit e269f4ce01c458b53975fe666261b4be13160773
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Wed Feb 27 14:10:07 2019 -0500
 
-    errors: improve doc
+    go/constant: add Val accessor and Make constructor to handle varied types
     
-    Explain wrapping and how to use Is and As in the package doc.
+    This change adds a Val accessor that returns the underlying type for a
+    given constant.Value. This change also adds a Make constructor that builds a
+    constant.Value given a value of a specific type.
     
-    Explain "chain" in Is and As.
+    Fixes #29820
     
-    Updates #33364.
-    
-    Change-Id: Ic06362106dbd129e33dd47e63176ee5355492086
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188737
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4fc3f5221408e24af42ffecd21ce4099ee75b47a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164538
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/errors/errors.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/errors/wrap.go   |  6 ++++++
- 2 files changed, 55 insertions(+)
+ src/go/constant/example_test.go | 22 +++++++++++++++
+ src/go/constant/value.go        | 62 +++++++++++++++++++++++++++++++++++++++++
+ src/go/constant/value_test.go   | 17 +++++++++++
+ 3 files changed, 101 insertions(+)

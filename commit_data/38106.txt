@@ -1,21 +1,69 @@
-commit 8ee9bca2729ead81da6bf5a18b87767ff396d1b7
-Author: Gergely Brautigam <skarlso777@gmail.com>
-Date:   Fri Jan 18 21:43:56 2019 +0100
+commit b8ac64a581b1e8e033cd7c9919d7dcf8fb16d17b
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Thu May 17 13:45:53 2018 +0000
 
-    cmd/compile: suppress typecheck errors in a type switch case with broken type
+    all: this big patch remove whitespace from assembly files
     
-    If a type switch case expression has failed typechecking, the case body is
-    likely to also fail with confusing or spurious errors. Suppress
-    typechecking the case body when this happens.
+    Don't worry, this patch just remove trailing whitespace from
+    assembly files, and does not touch any logical changes.
     
-    Fixes #28926
-    
-    Change-Id: Idfdb9d5627994f2fd90154af1659e9a92bf692c4
-    Reviewed-on: https://go-review.googlesource.com/c/158617
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ia724ac0b1abf8bc1e41454bdc79289ef317c165d
+    Reviewed-on: https://go-review.googlesource.com/c/113595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
- test/fixedbugs/issue28926.go       | 24 ++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/testdata/386.s   |  2 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  2 +-
+ src/crypto/md5/md5block_386.s             |  2 +-
+ src/crypto/md5/md5block_amd64.s           |  4 +-
+ src/crypto/md5/md5block_amd64p32.s        |  4 +-
+ src/crypto/sha1/sha1block_386.s           |  8 +--
+ src/crypto/sha1/sha1block_amd64.s         | 10 ++--
+ src/crypto/sha1/sha1block_amd64p32.s      | 10 ++--
+ src/crypto/sha1/sha1block_arm.s           | 10 ++--
+ src/internal/bytealg/compare_amd64.s      |  2 +-
+ src/internal/bytealg/compare_amd64p32.s   |  2 +-
+ src/internal/bytealg/equal_amd64.s        |  2 +-
+ src/internal/bytealg/equal_amd64p32.s     |  2 +-
+ src/internal/bytealg/equal_arm.s          |  2 +-
+ src/math/big/arith_386.s                  |  2 +-
+ src/math/big/arith_amd64.s                |  6 +--
+ src/math/big/arith_arm.s                  |  4 +-
+ src/math/big/arith_s390x.s                | 14 +++---
+ src/math/expm1_386.s                      |  4 +-
+ src/math/sin_386.s                        |  2 +-
+ src/math/sqrt_386.s                       |  2 +-
+ src/math/sqrt_arm.s                       |  2 +-
+ src/runtime/asm_386.s                     | 84 +++++++++++++++----------------
+ src/runtime/asm_amd64.s                   | 26 +++++-----
+ src/runtime/asm_amd64p32.s                |  4 +-
+ src/runtime/asm_arm.s                     |  8 +--
+ src/runtime/cgo/asm_amd64.s               |  6 +--
+ src/runtime/cgo/asm_arm.s                 |  2 +-
+ src/runtime/cgo/signal_darwin_arm64.s     |  2 +-
+ src/runtime/memmove_amd64p32.s            |  2 +-
+ src/runtime/memmove_arm.s                 |  2 +-
+ src/runtime/memmove_plan9_386.s           |  2 +-
+ src/runtime/memmove_plan9_amd64.s         |  2 +-
+ src/runtime/rt0_linux_ppc64le.s           |  2 +-
+ src/runtime/rt0_nacl_amd64p32.s           |  2 +-
+ src/runtime/sys_dragonfly_amd64.s         |  2 +-
+ src/runtime/sys_freebsd_386.s             |  4 +-
+ src/runtime/sys_linux_amd64.s             |  2 +-
+ src/runtime/sys_nacl_386.s                |  8 +--
+ src/runtime/sys_nacl_amd64p32.s           |  4 +-
+ src/runtime/sys_netbsd_amd64.s            |  2 +-
+ src/runtime/sys_openbsd_386.s             |  2 +-
+ src/runtime/sys_plan9_386.s               |  2 +-
+ src/runtime/sys_plan9_amd64.s             |  2 +-
+ src/runtime/sys_solaris_amd64.s           |  8 +--
+ src/runtime/sys_windows_386.s             |  8 +--
+ src/runtime/sys_windows_amd64.s           |  2 +-
+ src/runtime/vlop_arm.s                    |  2 +-
+ src/syscall/asm_nacl_386.s                |  2 +-
+ src/syscall/asm_nacl_amd64p32.s           |  2 +-
+ src/syscall/asm_nacl_arm.s                |  2 +-
+ src/syscall/asm_plan9_386.s               | 20 ++++----
+ src/syscall/asm_plan9_amd64.s             | 20 ++++----
+ 53 files changed, 168 insertions(+), 168 deletions(-)

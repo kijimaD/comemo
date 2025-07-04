@@ -1,28 +1,25 @@
-commit 6fb07317e5e7997a1e44ccb6984229c77dc186a3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 8 13:11:04 2022 -0800
+commit 82517acae866d60a9754d44d004bfa159e656c07
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 10 14:52:22 2021 +0200
 
-    spec: more adjustments/corrections
+    net, runtime: drop macOS 10.12 skip conditions in tests
     
-    - Change section title from "Type parameters lists" to
-      "Type parameter declarations" as the enclosing section
-      is about declarations.
+    Go 1.17 requires macOS 10.13 or later. Thus, drop the special cases for
+    the darwin-amd64-10_12 builder added in CL 202618.
     
-    - Correct section on parsing ambiguity in type parameter
-      lists.
+    Updates #22019
+    Updates #23011
+    Updates #32919
     
-    - Rephrase paragraphs on type parameters for method receivers
-      and adjust examples.
-    
-    - Remove duplicate prose in section on function argument type
-      inference.
-    
-    - Clarified "after substitution" column in Instantiations section.
-    
-    Change-Id: Id76be9804ad96a3f1221e5c4942552dde015dfcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390994
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idef11c213dfb25fd002b7cda6d425cf2e26a2e06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318329
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go_spec.html | 92 +++++++++++++++++++++++++++++---------------------------
- 1 file changed, 47 insertions(+), 45 deletions(-)
+ src/net/dial_test.go      | 10 +---------
+ src/net/server_test.go    |  7 -------
+ src/runtime/crash_test.go |  8 --------
+ 3 files changed, 1 insertion(+), 24 deletions(-)

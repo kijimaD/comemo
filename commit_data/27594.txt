@@ -1,14 +1,26 @@
-commit 04acd625d7a1044c8ca78464f6727276577ffb3d
-Author: Kenny Grant <kennygrant@gmail.com>
-Date:   Tue May 31 22:30:37 2016 +0100
+commit 0c71e293b57b0b2fbfa63d0fbf364b1771b6ee6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 4 15:41:56 2016 -0700
 
-    context: fix typo in comments
+    cmd/compile: minor cleanup to import loading
     
-    Change-Id: I41310ec88c889fda79d80eaf4a742a1000284f60
-    Reviewed-on: https://go-review.googlesource.com/23591
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Briefly document what the importfoo functions do.
+    
+    Get rid of importsym's unused result parameter.
+    
+    Get rid of the redundant calls to importsym(s, OTYPE)
+    after we've already called pkgtype(s).
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4c057358144044f5356e4dec68907ec85f1fe806
+    Reviewed-on: https://go-review.googlesource.com/21498
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bimport.go |  1 -
+ src/cmd/compile/internal/gc/export.go  | 13 ++++++-------
+ src/cmd/compile/internal/gc/parser.go  |  7 +------
+ 3 files changed, 7 insertions(+), 14 deletions(-)

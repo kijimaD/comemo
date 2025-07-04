@@ -1,20 +1,15 @@
-commit 8cf579abf7151f9301daf9d2ee293de0320c16aa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 7 12:50:21 2018 -0400
+commit 85caeafb8c0d4c6926d67ce2939470780fab1a04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 25 15:24:08 2018 -0800
 
-    cmd/go: restore "go list" exit code for missing binary packages
+    unsafe: fix reference to string header
     
-    Prior to CL 108156, "go list" exited with code 0 if there were missing binary packages.
-    Restore that behavior to fix the failing TestBinaryOnlyPackages.
+    Fixes #24115
     
-    Fixes golang/go#25784.
-    
-    Change-Id: Iaeca6bcc840f5ac8f2a016cef131f5c59a8261a8
-    Reviewed-on: https://go-review.googlesource.com/117036
+    Change-Id: I89d3d5a9c0916fd2e21fe5930549c4129de8ab48
+    Reviewed-on: https://go-review.googlesource.com/96983
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go            | 1 -
- src/cmd/go/internal/work/exec.go | 3 +++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/unsafe/unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

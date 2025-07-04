@@ -1,25 +1,18 @@
-commit e54bc92a2ca9a3726dcf5a72cd7e993766e16dd8
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Feb 22 13:32:54 2017 -0500
+commit 6c2a35ae0c29306b53a4a5925627ee7235a8c450
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 7 11:08:36 2016 -0500
 
-    runtime, cmd/go: roll back stale message, test detail
+    test/fixedbugs: enable issue 10607 test on ppc64le
     
-    Some debugging code was recently added to:
-    1) provide more detail for the stale reason when it is
-    determined that a package is stale
-    2) provide file and package time and date information when
-    it is determined that runtime.a is stale
+    ppc64le supports both internal and external linking so I don't
+    think there is any reason for it to skip this test.
     
-    This backs out those those debugging messages.
-    
-    Fixes #19116
-    
-    Change-Id: I8dd0cbe29324820275b481d8bbb78ff2c5fbc362
-    Reviewed-on: https://go-review.googlesource.com/37382
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I05c80cc25909c0364f0a1fb7d20766b011ea1ebb
+    Reviewed-on: https://go-review.googlesource.com/32854
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 14 +++-----------
- src/runtime/crash_test.go       |  3 ---
- 2 files changed, 3 insertions(+), 14 deletions(-)
+ test/fixedbugs/issue10607.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

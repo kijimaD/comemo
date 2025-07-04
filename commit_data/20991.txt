@@ -1,15 +1,26 @@
-commit 5308c6d9325735ab4e69620e99aaa8d119e02941
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 16 15:11:43 2014 +1100
+commit 810019286fdb8ad6b60096f2b0e2dcf0bc900c3a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 3 15:48:51 2014 -0500
 
-    crypto/rand: handle EAGAIN reads from /dev/urandom
+    [dev.power64] 9g: fix nilopt
     
-    Fixes #9205
+    Previously, nilopt was disabled on power64x because it threw
+    away "seemly random segments of code."  Indeed, excise on
+    power64x failed to preserve the link field, so it excised not
+    only the requested instruction but all following instructions
+    in the function.  Fix excise to retain the link field while
+    otherwise zeroing the instruction.
     
-    Change-Id: Iacd608ba43332008984aa8ece17dcb5757f27b3f
-    Reviewed-on: https://go-review.googlesource.com/1611
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This makes nilopt safe on power64x.  It still fails
+    nilptr3.go's tests for removal of repeated nil checks because
+    those depend on also optimizing away repeated loads, which
+    doesn't currently happen on power64x.
+    
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/168120043
 
- src/crypto/rand/eagain.go    | 27 +++++++++++++++++++++++++++
- src/crypto/rand/rand_unix.go | 18 +++++++++++++++++-
- 2 files changed, 44 insertions(+), 1 deletion(-)
+ src/cmd/9g/peep.c | 4 +++-
+ src/cmd/gc/popt.c | 4 ----
+ 2 files changed, 3 insertions(+), 5 deletions(-)

@@ -1,17 +1,18 @@
-commit 9fe5c7f12274fd4044457e863cbb8bc3ae751dcb
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Aug 18 13:22:58 2021 -0400
+commit 48d6275952184f1e858c2796d36c6b205d5d7e83
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 6 21:20:15 2020 -0500
 
-    go/types: add the TypeParam.Obj method
+    doc/go1.16: improve channel race detector changes description
     
-    Users should be able to access the type name associated with a type
-    parameter.
+    Based on text from Daniel Fava.
     
-    Change-Id: I495c3b4377f9d4807b1e78ad341e573d4d3c7bff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343931
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For #40700.
+    
+    Change-Id: I0bc3a4340b8a777ff96d3cf226a7d51d3f65db2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275786
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Daniel Fava <danielsfava@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go/types/typeparam.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.16.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

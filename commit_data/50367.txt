@@ -1,17 +1,42 @@
-commit 1429a97520ea526dc0ced275789694aa9566c81f
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Sep 5 14:56:27 2022 +0800
+commit 1dff8f0a056517f0a8adfda663402ffb2e089281
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 18 23:10:43 2021 +0000
 
-    cmd/compile/internal/ir: use strings.Builder
+    runtime: retype mheap.pagesSweptBasis as atomic.Uint64
     
-    Change-Id: I24fb36a0591782c07f26c3289265aa41a643666d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428357
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    [git-generate]
+    cd src/runtime
+    mv export_test.go export.go
+    GOROOT=$(dirname $(dirname $PWD)) rf '
+      add mheap.pagesSweptBasis pagesSweptBasis_ atomic.Uint64 // pagesSwept to use as the origin of the sweep ratio
+      ex {
+        import "runtime/internal/atomic"
+    
+        var t mheap
+        var v, w uint64
+        var d int64
+    
+        t.pagesSweptBasis -> t.pagesSweptBasis_.Load()
+        t.pagesSweptBasis = v -> t.pagesSweptBasis_.Store(v)
+        atomic.Load64(&t.pagesSweptBasis) -> t.pagesSweptBasis_.Load()
+        atomic.LoadAcq64(&t.pagesSweptBasis) -> t.pagesSweptBasis_.LoadAcquire()
+        atomic.Store64(&t.pagesSweptBasis, v) -> t.pagesSweptBasis_.Store(v)
+        atomic.StoreRel64(&t.pagesSweptBasis, v) -> t.pagesSweptBasis_.StoreRelease(v)
+        atomic.Cas64(&t.pagesSweptBasis, v, w) -> t.pagesSweptBasis_.CompareAndSwap(v, w)
+        atomic.Xchg64(&t.pagesSweptBasis, v) -> t.pagesSweptBasis_.Swap(v)
+        atomic.Xadd64(&t.pagesSweptBasis, d) -> t.pagesSweptBasis_.Add(d)
+      }
+      rm mheap.pagesSweptBasis
+      mv mheap.pagesSweptBasis_ mheap.pagesSweptBasis
+    '
+    mv export.go export_test.go
+    
+    Change-Id: Id9438184b9bd06d96894c02376385bad45dee154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356710
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ir/mknode.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mgcpacer.go | 2 +-
+ src/runtime/mgcsweep.go | 4 ++--
+ src/runtime/mheap.go    | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

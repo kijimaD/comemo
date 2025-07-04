@@ -1,25 +1,29 @@
-commit d168c4f29682e032a14bb8f5ca23af08a6834635
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 7 02:27:35 2022 -0800
+commit b4ca1cec69f8248b77d8d8ce019943ced5235ed0
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 9 20:43:49 2021 -0500
 
-    test: additional generic type switch test coverage
+    cmd/compile: set unsayable "names" for regabi testing triggers
     
-    None of the current generic type switch test cases exercise type
-    switches where the instantiated case is an interface type.
+    This disables the "testing names" for method names and
+    trailing input types passed to closure/interface/other calls.
+    The logic using the names remains, so that editing the change
+    to enable local testing is not too hard.
     
-    Change-Id: I9272fa61b8dde1fe1a3702d524d4f40253ef19b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390354
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Also fixes broken build tag in reflect/abi_test.go
+    
+    Updates #44816.
+    
+    Change-Id: I3d222d2473c98d04ab6f1122ede9fea70c994af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300150
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/typeparam/typeswitch1.go  |  2 ++
- test/typeparam/typeswitch1.out |  2 ++
- test/typeparam/typeswitch2.go  | 14 ++++++++------
- test/typeparam/typeswitch2.out |  6 ++++--
- test/typeparam/typeswitch3.go  |  8 ++++++++
- test/typeparam/typeswitch3.out |  3 +++
- test/typeparam/typeswitch4.go  |  8 ++++++++
- test/typeparam/typeswitch4.out |  3 +++
- 8 files changed, 38 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go |  7 +++--
+ src/reflect/abi_test.go                |  7 +++--
+ test/abi/fibish2.go                    | 40 --------------------------
+ test/abi/fibish2.out                   |  1 -
+ test/abi/methods.go                    | 52 ----------------------------------
+ test/abi/methods.out                   |  2 --
+ 6 files changed, 9 insertions(+), 100 deletions(-)

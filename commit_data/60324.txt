@@ -1,0 +1,23 @@
+commit b691da9f788f27eb3d5035f3dbdc15c107d71ef9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri May 31 15:08:45 2024 +0000
+
+    Revert "crypto/x509: reject serial numbers longer than 20 octets"
+    
+    This reverts commit 8524931a2cdc6a57afdf6f4b3375cb261c2557da.
+    
+    Reason for revert: It turns out, basically no one in private PKIs can
+    get this right. It causes way too much breakage, and every other impl
+    also ignores it, so we'll continue to be in good company.
+    
+    Change-Id: I2da808b411ec12f72112c49079faf9f68ae465c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/godebug.md                 |  5 -----
+ src/crypto/x509/parser.go      | 24 +-----------------------
+ src/crypto/x509/x509_test.go   | 23 -----------------------
+ src/internal/godebugs/table.go |  1 -
+ src/runtime/metrics/doc.go     |  5 -----
+ 5 files changed, 1 insertion(+), 57 deletions(-)

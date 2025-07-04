@@ -1,29 +1,52 @@
-commit 933e34ac995cf7b2a1d044dc530bfafbf697758d
-Author: Keith Randall <khr@google.com>
-Date:   Mon Feb 25 14:51:58 2019 -0800
+commit b57ccdf992b46b15c33cf4672de4a7911d667617
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Sun Sep 23 16:47:05 2018 +0100
 
-    cmd/compile: treat slice pointers as non-nil
+    image: optimize bounds checking for At and Set methods
     
-    var a []int = ...
-    p := &a[0]
-    _ = *p
+    Use a subslice of the pixel data to give the compiler hints
+    for bounds checking. Only do this for image formats that
+    require 4 or more slice reads/writes.
     
-    We don't need to nil check on the 3rd line. If the bounds check on the 2nd
-    line passes, we know p is non-nil.
+    See #27857 for discussion of small cap sizes.
     
-    We rely on the fact that any cap>0 slice has a non-nil pointer as its
-    pointer to the backing array. This is true for all safely-constructed slices,
-    and I don't see any reason why someone would violate this rule using unsafe.
+    name                   old time/op    new time/op    delta
+    At/rgba-8              18.8ns ± 2%    18.5ns ± 1%   -1.49%  (p=0.026 n=10+10)
+    At/rgba64-8            22.2ns ± 2%    21.1ns ± 3%   -4.51%  (p=0.000 n=10+10)
+    At/nrgba-8             18.8ns ± 2%    18.7ns ± 2%     ~     (p=0.467 n=10+10)
+    At/nrgba64-8           21.9ns ± 2%    21.0ns ± 2%   -4.15%  (p=0.000 n=10+9)
+    At/alpha-8             14.3ns ± 1%    14.3ns ± 2%     ~     (p=0.543 n=10+10)
+    At/alpha16-8           6.43ns ± 1%    6.47ns ± 1%     ~     (p=0.053 n=10+10)
+    At/gray-8              14.4ns ± 2%    14.6ns ± 5%     ~     (p=0.194 n=10+10)
+    At/gray16-8            6.52ns ± 1%    6.55ns ± 2%     ~     (p=0.610 n=10+10)
+    At/paletted-8          4.17ns ± 1%    4.21ns ± 2%     ~     (p=0.095 n=9+10)
+    Set/rgba-8             39.2ns ± 2%    40.1ns ± 4%   +2.45%  (p=0.007 n=10+10)
+    Set/rgba64-8           46.2ns ± 3%    43.3ns ± 3%   -6.11%  (p=0.000 n=10+10)
+    Set/nrgba-8            39.2ns ± 1%    39.7ns ± 5%     ~     (p=0.407 n=10+10)
+    Set/nrgba64-8          45.6ns ± 3%    42.9ns ± 3%   -5.83%  (p=0.000 n=9+10)
+    Set/alpha-8            35.0ns ± 3%    34.1ns ± 2%   -2.43%  (p=0.017 n=10+10)
+    Set/alpha16-8          36.3ns ± 4%    35.8ns ± 5%     ~     (p=0.254 n=10+10)
+    Set/gray-8             19.8ns ± 1%    19.7ns ± 0%   -0.69%  (p=0.002 n=8+6)
+    Set/gray16-8           36.0ns ± 1%    36.4ns ± 2%   +1.08%  (p=0.037 n=10+10)
+    Set/paletted-8         39.1ns ± 0%    39.6ns ± 1%   +1.30%  (p=0.000 n=10+10)
+    RGBAAt-8               3.72ns ± 1%    3.58ns ± 1%   -3.76%  (p=0.000 n=9+10)
+    RGBASetRGBA-8          4.35ns ± 1%    3.70ns ± 1%  -14.92%  (p=0.000 n=10+10)
+    RGBA64At-8             5.08ns ± 1%    3.69ns ± 1%  -27.40%  (p=0.000 n=9+9)
+    RGBA64SetRGBA64-8      6.65ns ± 2%    3.63ns ± 0%  -45.35%  (p=0.000 n=10+9)
+    NRGBAAt-8              3.72ns ± 1%    3.59ns ± 1%   -3.55%  (p=0.000 n=10+10)
+    NRGBASetNRGBA-8        4.05ns ± 0%    3.71ns ± 1%   -8.57%  (p=0.000 n=9+10)
+    NRGBA64At-8            4.99ns ± 1%    3.69ns ± 0%  -26.07%  (p=0.000 n=10+9)
+    NRGBA64SetNRGBA64-8    6.66ns ± 1%    3.64ns ± 1%  -45.40%  (p=0.000 n=10+10)
+    AlphaAt-8              1.44ns ± 1%    1.44ns ± 0%     ~     (p=0.176 n=10+7)
+    AlphaSetAlpha-8        1.60ns ± 2%    1.56ns ± 0%   -2.62%  (p=0.000 n=10+6)
+    Alpha16At-8            2.87ns ± 1%    2.92ns ± 2%   +1.67%  (p=0.001 n=10+10)
+    AlphaSetAlpha16-8      3.26ns ± 1%    3.35ns ± 1%   +2.68%  (p=0.012 n=8+3)
     
-    R=go1.13
+    Fixes #14884
     
-    Fixes #30366
-    
-    Change-Id: I3ed764fcb72cfe1fbf963d8c1a82e24e3b6dead7
-    Reviewed-on: https://go-review.googlesource.com/c/163740
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia0383530596a550e1b1c7aafce5220e5e0935a53
+    Reviewed-on: https://go-review.googlesource.com/137495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/nilcheck.go |  4 +++-
- test/codegen/slices.go                   | 10 ++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/image/image.go | 149 +++++++++++++++++++++++++++++------------------------
+ 1 file changed, 82 insertions(+), 67 deletions(-)

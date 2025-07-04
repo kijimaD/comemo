@@ -1,15 +1,14 @@
-commit 48c0d8b6e22a6372cd7772e65246803cc56566ff
+commit a5f257a042f19dfe0023a0e5ad7dd673b32ad087
 Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Aug 14 13:18:32 2013 -0400
+Date:   Wed Aug 14 12:47:06 2013 -0400
 
-    runtime: Fix netbsd/arm and freebsd/arm build
+    cmd/cgo: fix windows build
     
-            The ARM external linking CL left missed changes to sys_freebsd_arm.s and sys_netbsd_arm.s already done to sys_linux_arm.s.
+            The shared library changes broke the windows build because __attribute__ ((visibility ("hidden"))) is not supported in windows gcc. This change removes the attribute, as it is only needed when building shared libraries.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/12842044
+    https://golang.org/cl/12829044
 
- src/pkg/runtime/sys_freebsd_arm.s | 6 +++---
- src/pkg/runtime/sys_netbsd_arm.s  | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,18 @@
-commit 00e8a3ae915eab33982cdf7e2c0aa91102384d16
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 14 11:44:00 2012 +1000
+commit 733ee91786ef4fd8a13a272745f0458a3ed74e50
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 13 15:55:43 2012 -0700
 
-    doc: document go1.0.2
+    encoding/gob: don't cache broken encoding engines.
+    Fixes a situation where a nested bad type would still
+    permit the outer type to install a working engine, leading
+    to inconsistent behavior.
     
-    R=golang-dev, dave, rsc
+    Fixes #3273.
+    
+    R=bsiegert, rsc
     CC=golang-dev
-    https://golang.org/cl/6298079
+    https://golang.org/cl/6294067
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/encoding/gob/encode.go       | 13 ++++++++++++-
+ src/pkg/encoding/gob/encoder_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 1 deletion(-)

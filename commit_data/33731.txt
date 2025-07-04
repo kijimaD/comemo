@@ -1,21 +1,25 @@
-commit dbb1d198ab883e9b617ba9cdfb2059fc212f4762
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 29 15:55:40 2017 -0500
+commit e3e09e3d5f2e4276bda8f1b821424a6bb9976943
+Author: Francesc Campoy Flores <campoy@golang.org>
+Date:   Thu Aug 3 10:52:42 2017 -0700
 
-    cmd/compile: fix loop depth of range expression in escape analysis
+    doc: add error handling on http.ListenAndServe
     
-    ORANGE node's Right node is the expression it is ranging over,
-    which is evaluated before the loop. In the escape analysis,
-    we should walk this node without loop depth incremented.
+    Fixes #19511
     
-    Fixes #21709.
-    
-    Change-Id: Idc1e4c76e39afb5a344d85f6b497930a488ce5cf
-    Reviewed-on: https://go-review.googlesource.com/80740
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5585726773b822dba0be0196961132323ebbe084
+    Reviewed-on: https://go-review.googlesource.com/53071
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 11 +++++++++++
- test/fixedbugs/issue21709.go       | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ doc/articles/wiki/final-noclosure.go     | 3 ++-
+ doc/articles/wiki/final-noerror.go       | 3 ++-
+ doc/articles/wiki/final-parsetemplate.go | 3 ++-
+ doc/articles/wiki/final-template.go      | 3 ++-
+ doc/articles/wiki/final-test.patch       | 2 +-
+ doc/articles/wiki/final.go               | 3 ++-
+ doc/articles/wiki/http-sample.go         | 3 ++-
+ doc/articles/wiki/index.html             | 6 ++++++
+ doc/articles/wiki/notemplate.go          | 3 ++-
+ doc/articles/wiki/part2.go               | 3 ++-
+ doc/articles/wiki/part3-errorhandling.go | 3 ++-
+ doc/articles/wiki/part3.go               | 3 ++-
+ 12 files changed, 27 insertions(+), 11 deletions(-)

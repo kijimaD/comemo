@@ -1,30 +1,12 @@
-commit 59495e8dfda0cfc1fa527337b2fed8a8099137dc
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Feb 7 15:31:18 2015 +0300
+commit 7785be8f2227df881e7ab3a4e81a2fc69a165cf8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 15 15:28:12 2015 +1100
 
-    runtime: never show system goroutines in traceback
+    doc: document Go 1.4.1
     
-    Fixes #9791
-    
-    g.issystem flag setup races with other code wherever we set it.
-    Even if we set both in parent goroutine and in the system goroutine,
-    it is still possible that some other goroutine crashes
-    before the flag is set. We could pass issystem flag to newproc1,
-    but we start all goroutines with go nowadays.
-    
-    Instead look at g.startpc to distinguish system goroutines (similar to topofstack).
-    
-    Change-Id: Ia3467968dee27fa07d9fecedd4c2b00928f26645
-    Reviewed-on: https://go-review.googlesource.com/4113
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4e9737497f4995657c46e52e0722d921499f8d17
+    Reviewed-on: https://go-review.googlesource.com/2854
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/crash_test.go | 34 +++++++++++++++++++++++++++++++---
- src/runtime/heapdump.go   |  2 +-
- src/runtime/mfinal.go     |  9 ++++++---
- src/runtime/mgc0.go       |  2 --
- src/runtime/proc.go       |  1 -
- src/runtime/proc1.go      |  2 +-
- src/runtime/runtime2.go   |  1 -
- src/runtime/time.go       |  1 -
- src/runtime/traceback.go  | 23 ++++++++++++++++++++++-
- 9 files changed, 61 insertions(+), 14 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

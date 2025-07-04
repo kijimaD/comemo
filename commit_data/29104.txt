@@ -1,19 +1,16 @@
-commit 1625da24106b610f89ff7a67a11581df95f8e234
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 10 10:16:41 2016 -0700
+commit 307de6540a5e6e5c2353c410240bb0f98bab1624
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 16:21:53 2016 -0700
 
-    encoding/json: marshal the RawMessage value type the same as its pointer type
+    cmd/compile/internal/obj/x86: clean up "is leaf?" check
     
-    Fixes #14493
-    Updates #6458 (changes its behavior)
+    Minor code cleanup. No functional changes.
     
-    Change-Id: I851a8113fd312dae3384e989ec2b70949dc22838
-    Reviewed-on: https://go-review.googlesource.com/21811
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2e631b43b122174302a182a1a286c0f873851ce6
+    Reviewed-on: https://go-review.googlesource.com/24813
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/except.txt                   |  1 +
- src/encoding/json/encode_test.go | 15 ++++++++++++++-
- src/encoding/json/stream.go      |  6 +++---
- 3 files changed, 18 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

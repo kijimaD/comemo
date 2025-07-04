@@ -1,109 +1,14 @@
-commit 43f954e09858449cc5f3650720e81b7e879ab349
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 21:40:47 2016 -0400
+commit 04b4dbe1f0ec58efe8a1bf8e05a1042b17176c3b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 08:05:19 2016 -0400
 
-    testing: mark tests and benchmarks failed if a race occurs during execution
+    cmd/link: mark PIE binaries as ET_DYN
     
-    Before:
+    Part of adding PIE internal linking on linux/amd64.
     
-    $ go test -race -v -run TestRace
-    === RUN   TestRace
-    ==================
-    WARNING: DATA RACE
-    Write at 0x00c420076420 by goroutine 7:
-      _/Users/rsc/go/src/cmd/go/testdata/src/testrace.TestRace.func1()
-          /Users/rsc/go/src/cmd/go/testdata/src/testrace/race_test.go:10 +0x3b
-    
-    Previous write at 0x00c420076420 by goroutine 6:
-      _/Users/rsc/go/src/cmd/go/testdata/src/testrace.TestRace()
-          /Users/rsc/go/src/cmd/go/testdata/src/testrace/race_test.go:13 +0xcc
-      testing.tRunner()
-          /Users/rsc/go/src/testing/testing.go:656 +0x104
-    
-    Goroutine 7 (running) created at:
-      _/Users/rsc/go/src/cmd/go/testdata/src/testrace.TestRace()
-          /Users/rsc/go/src/cmd/go/testdata/src/testrace/race_test.go:12 +0xbb
-      testing.tRunner()
-          /Users/rsc/go/src/testing/testing.go:656 +0x104
-    
-    Goroutine 6 (running) created at:
-      testing.(*T).Run()
-          /Users/rsc/go/src/testing/testing.go:693 +0x536
-      testing.runTests.func1()
-          /Users/rsc/go/src/testing/testing.go:877 +0xaa
-      testing.tRunner()
-          /Users/rsc/go/src/testing/testing.go:656 +0x104
-      testing.runTests()
-          /Users/rsc/go/src/testing/testing.go:883 +0x4ac
-      testing.(*M).Run()
-          /Users/rsc/go/src/testing/testing.go:818 +0x1c3
-      main.main()
-          _/Users/rsc/go/src/cmd/go/testdata/src/testrace/_test/_testmain.go:42 +0x20f
-    ==================
-    --- PASS: TestRace (0.00s)
-    PASS
-    Found 1 data race(s)
-    FAIL    _/Users/rsc/go/src/cmd/go/testdata/src/testrace 1.026s
-    $
-    
-    After:
-    
-    $ go test -race -v -run TestRace
-    === RUN   TestRace
-    ==================
-    WARNING: DATA RACE
-    Write at 0x00c420076420 by goroutine 7:
-      _/Users/rsc/go/src/cmd/go/testdata/src/testrace.TestRace.func1()
-          /Users/rsc/go/src/cmd/go/testdata/src/testrace/race_test.go:10 +0x3b
-    
-    Previous write at 0x00c420076420 by goroutine 6:
-      _/Users/rsc/go/src/cmd/go/testdata/src/testrace.TestRace()
-          /Users/rsc/go/src/cmd/go/testdata/src/testrace/race_test.go:13 +0xcc
-      testing.tRunner()
-          /Users/rsc/go/src/testing/testing.go:656 +0x104
-    
-    Goroutine 7 (running) created at:
-      _/Users/rsc/go/src/cmd/go/testdata/src/testrace.TestRace()
-          /Users/rsc/go/src/cmd/go/testdata/src/testrace/race_test.go:12 +0xbb
-      testing.tRunner()
-          /Users/rsc/go/src/testing/testing.go:656 +0x104
-    
-    Goroutine 6 (running) created at:
-      testing.(*T).Run()
-          /Users/rsc/go/src/testing/testing.go:693 +0x536
-      testing.runTests.func1()
-          /Users/rsc/go/src/testing/testing.go:877 +0xaa
-      testing.tRunner()
-          /Users/rsc/go/src/testing/testing.go:656 +0x104
-      testing.runTests()
-          /Users/rsc/go/src/testing/testing.go:883 +0x4ac
-      testing.(*M).Run()
-          /Users/rsc/go/src/testing/testing.go:818 +0x1c3
-      main.main()
-          _/Users/rsc/go/src/cmd/go/testdata/src/testrace/_test/_testmain.go:42 +0x20f
-    ==================
-    --- FAIL: TestRace (0.00s)
-            testing.go:609: race detected during execution of test
-    FAIL
-    FAIL    _/Users/rsc/go/src/cmd/go/testdata/src/testrace 0.022s
-    $
-    
-    Fixes #15972.
-    
-    Change-Id: Idb15b8ab81d65637bb535c7e275595ca4a6e450e
-    Reviewed-on: https://go-review.googlesource.com/32615
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I586e7c2afba349281168df5e20d2fdcb697f6e37
+    Reviewed-on: https://go-review.googlesource.com/28542
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                         | 20 +++++++++++++++++
- src/cmd/go/testdata/src/testrace/race_test.go | 29 ++++++++++++++++++++++++
- src/go/build/deps_test.go                     |  2 +-
- src/internal/race/norace.go                   |  2 ++
- src/internal/race/race.go                     |  4 ++++
- src/runtime/race.go                           |  6 +++++
- src/runtime/race/output_test.go               |  4 ++--
- src/runtime/race/race_test.go                 |  6 +++--
- src/testing/benchmark.go                      |  6 +++++
- src/testing/testing.go                        | 32 ++++++++++++++++++---------
- 10 files changed, 95 insertions(+), 16 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,13 +1,23 @@
-commit cf2fe5d6f12f075f265ba067869fc5f0e3b23ff0
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Mon Aug 2 00:56:25 2021 +0800
+commit 76136be02701aab8a4b546956f1847d28dbe0ba2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 27 11:26:12 2020 -0800
 
-    doc/asm: fix HTML markup
+    [dev.regabi] cmd/compile: check for recursive import in ImportBody
     
-    Change-Id: I33bde4835d3b83fafd55beea483f6236c4c62840
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338990
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    After earlier importer refactorings, most of the importer is now
+    reentrant, so we don't need to guard against it at Resolve. The only
+    remaining part that is still not reentrant is inline body importing,
+    so move the recursive-import check there.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ia828f880a03e6125b102668c12a155d4c253d26b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280515
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/asm.html | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go   | 5 +++++
+ src/cmd/compile/internal/typecheck/typecheck.go | 8 +-------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

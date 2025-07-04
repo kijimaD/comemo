@@ -1,33 +1,17 @@
-commit f0894a00f4b756d4b9b4078af2e686b359493583
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Jul 13 16:40:49 2023 +0200
+commit 134cd34c07862aa8618e25d1d1279b4fd127c512
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 11:11:08 2022 +0800
 
-    os: remove 5ms sleep on Windows in (*Process).Wait
+    hash: convert haveCastagnoli to atomic type
     
-    The 5ms sleep in (*Process).Wait was added to mitigate errors while
-    removing executable files using os.RemoveAll.
-    
-    Windows 10 1903 implements POSIX semantics for DeleteFile, making the
-    implementation of os.RemoveAll on Windows much more robust. Older
-    Windows 10 versions also made internal improvements to avoid errors
-    when removing files, making it less likely that the 5ms sleep is
-    necessary.
-    
-    Windows 10 is the oldest version that Go supports (see #57004), so it
-    makes sense to unconditionally remove the 5ms sleep now. We have all
-    the Go 1.22 development cycle to see if this causes any regression.
-    
-    Fixes #25965
-    
-    Change-Id: Ie0bbe6dc3e8389fd51a32484d5d20cf59b019451
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509335
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I313fff5684d89ee737572d11b1b697c5575866a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426083
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/os/exec_windows.go      |  6 ----
- src/os/exec_windows_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 6 deletions(-)
+ src/hash/crc32/crc32.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

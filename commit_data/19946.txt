@@ -1,21 +1,32 @@
-commit a3c0ca54b01284af40e684422a739d41b4cb9cfe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 7 12:45:01 2014 -0700
+commit cd2f8356ce5515c87710bc7ababfee8fdbdee9c3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 7 13:04:04 2014 +0400
 
-    go/parser: don't do method receiver checks at parse-time
+    runtime: remove mal/malloc/FlagNoGC/FlagNoInvokeGC
+    FlagNoGC is unused now.
+    FlagNoInvokeGC is unneeded as we don't invoke GC
+    on g0 and when holding locks anyway.
+    mal/malloc have very few uses and you never remember
+    the exact set of flags they use and the difference between them.
+    Moreover, eventually we need to give exact types to all allocations,
+    something what mal/malloc do not support.
     
-    The ast and printer don't care, and go/types can provide
-    a better error message.
-    
-    This change requires an update to the tests for go/types
-    (go.tools repo). CL forthcoming.
-    
-    Fixes #8493.
-    
-    LGTM=adonovan
-    R=rsc, adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/123010044
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/117580043
 
- src/pkg/go/parser/parser.go | 32 +-------------------------------
- 1 file changed, 1 insertion(+), 31 deletions(-)
+ src/pkg/runtime/cgo/callbacks.c |  4 ++--
+ src/pkg/runtime/env_posix.c     |  4 ++--
+ src/pkg/runtime/heapdump.c      |  2 --
+ src/pkg/runtime/malloc.c        | 12 ------------
+ src/pkg/runtime/malloc.go       |  5 ++---
+ src/pkg/runtime/malloc.h        |  5 +----
+ src/pkg/runtime/mgc0.c          |  4 ++--
+ src/pkg/runtime/panic.c         |  2 +-
+ src/pkg/runtime/parfor.c        |  2 +-
+ src/pkg/runtime/proc.c          |  6 +++---
+ src/pkg/runtime/runtime.c       |  4 ++--
+ src/pkg/runtime/runtime.h       |  3 +--
+ src/pkg/runtime/time.goc        |  2 +-
+ 13 files changed, 18 insertions(+), 37 deletions(-)

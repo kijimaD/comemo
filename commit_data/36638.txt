@@ -1,21 +1,16 @@
-commit dc3680865a880e4f24ad40474b27c8ca276d8e5d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Sep 11 22:09:00 2018 +0200
+commit e6a9335c7fbdcfbf5fd715ffe73873cd391368df
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 11 18:11:51 2018 -0400
 
-    encoding/json: more tests to cover decoding edge cases
+    runtime: skip GDB tests on Windows
     
-    The overall coverage of the json package goes up from 90.8% to 91.3%.
+    Updates #22687.
     
-    While at it, apply two minor code simplifications found while inspecting
-    the HTML coverage report.
-    
-    Change-Id: I0fba968afeedc813b1385e4bde72d93b878854d7
-    Reviewed-on: https://go-review.googlesource.com/134735
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Iedccd9d2416ae7150cd2febe81c8bc9493d8d65c
+    Reviewed-on: https://go-review.googlesource.com/112915
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt |  1 +
- src/encoding/json/decode.go       | 23 ++++++++++-------------
- src/encoding/json/decode_test.go  | 19 ++++++++++++++++++-
- 3 files changed, 29 insertions(+), 14 deletions(-)
+ src/runtime/runtime-gdb_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

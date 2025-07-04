@@ -1,12 +1,15 @@
-commit 2295554db6503cc47eb0cfb69c59cc5b740f5f0e
+commit 986df83e0de4b762b66f9cd6f4af3d8ad5f25bf5
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 1 22:16:20 2012 +0400
+Date:   Thu Mar 1 21:26:08 2012 +0400
 
-    sync: add Once example
+    sync: remove old WaitGroup example
+    The docs look awkward - there is a paragraph
+    "For example:" with a plain text example,
+    and straight below it a real Example.
     
-    R=golang-dev, rsc, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5715046
+    https://golang.org/cl/5717048
 
- src/pkg/sync/example_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/pkg/sync/waitgroup.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

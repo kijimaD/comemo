@@ -1,12 +1,12 @@
-commit ee1cb829ac6d3b3a79b4fe92d9cea1d19baf15bf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 4 12:28:08 2011 +1100
+commit 21f3080d0f223e0797add8eb5c10970a6ea7f24c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 3 16:52:56 2011 -0800
 
-    doc: describe platform-specific conventions in code.html
+    gofmt: exclude test file that is not legal Go
     
-    R=r, rsc, gri
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4257049
+    https://golang.org/cl/4252053
 
- doc/code.html | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

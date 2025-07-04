@@ -1,15 +1,13 @@
-commit 69e7e8a696825fa818b70587563ac68e52f8b1a1
-Author: Edward Muller <edwardam@interlix.com>
-Date:   Tue Aug 30 19:14:46 2016 -0700
+commit 24c05e7e695767a46ce6e48d2492c29ba7adffc4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 1 15:18:13 2016 +0000
 
-    doc: update go tour installation instructions
+    net/http: fix typo in comment
     
-    Fixes #16933
-    
-    Change-Id: I2054abd28bc555b018309934774fc4ecc44826b3
-    Reviewed-on: https://go-review.googlesource.com/28217
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I753e62879a56582a9511e3f34fdeac929202efbf
+    Reviewed-on: https://go-review.googlesource.com/22680
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/docs.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

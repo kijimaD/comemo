@@ -1,15 +1,17 @@
-commit a36b5b99cca834aa4968d7aaa81f5e5565f7c461
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 27 08:57:30 2014 -0800
+commit 0b0e209ffb937f283cdca8b51efadc78cc93f8a1
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Feb 28 03:26:26 2014 +1100
 
-    spec: slightly rephrased wording on parsing ambiguity for composite literals
+    runtime: disable TestSetPanicOnFault for dragonfly/386
     
-    Fixes #4482.
+    This test currently deadlocks on dragonfly/386.
     
-    LGTM=r
-    R=r, iant, rsc, ken
+    Update #7421
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/69020045
+    https://golang.org/cl/69380043
 
- doc/go_spec.html | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/pkg/runtime/runtime_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

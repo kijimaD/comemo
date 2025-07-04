@@ -1,12 +1,15 @@
-commit 727901410a9394b5c6d8f844321eb651cfa4abca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 31 14:33:34 2013 -0700
+commit fbcc24bb9d20caa7a73cfd12ed0ba9332f274368
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Wed Jul 31 14:11:25 2013 -0700
 
-    doc/go1.2.txt: add time zone offsets with seconds
+    container/list: added MoveBefore and MoveAfter
     
-    R=golang-dev, r
+    Fixes #4940.
+    
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/12174043
+    https://golang.org/cl/12021044
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/container/list/list.go      | 18 ++++++++++++++++++
+ src/pkg/container/list/list_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

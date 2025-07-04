@@ -1,21 +1,29 @@
-commit 2031252fb8182f8d1c5569034f20a952ec9e2de1
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 11 04:09:04 2012 +0800
+commit 9feddd0bae188825e01771d182b84e47b159aa30
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Tue Apr 10 15:15:39 2012 -0400
 
-    5a, 5l: add PLD (preload data) instruction
-            Supported in ARMv5TE and above, excluding ARMv5TExP.
-            For CL 5990066.
+    hash: more efficient memory allocation
     
-    R=golang-dev, rsc
+    Feed append the complete content at once.
+    
+    BenchmarkAdler32KB       1000000              2534 ns/op         404.05 MB/s
+    BenchmarkCrc32KB          500000              4757 ns/op         215.26 MB/s
+    BenchmarkCrc64KB          500000              4769 ns/op         214.70 MB/s
+    BenchmarkFnv32KB         1000000              2417 ns/op         423.64 MB/s
+    BenchmarkFnv32aKB        1000000              2408 ns/op         425.23 MB/s
+    BenchmarkFnv64KB          500000              4262 ns/op         240.21 MB/s
+    BenchmarkFnv64aKB         500000              4234 ns/op         241.83 MB/s
+    
+    R=iant, rsc, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5999044
+    https://golang.org/cl/5937053
 
- src/cmd/5a/a.y     |    9 +-
- src/cmd/5a/lex.c   |    2 +
- src/cmd/5a/y.tab.c | 1048 ++++++++++++++++++++++++++--------------------------
- src/cmd/5a/y.tab.h |   92 ++---
- src/cmd/5l/5.out.h |    2 +
- src/cmd/5l/asm.c   |    3 +
- src/cmd/5l/optab.c |    2 +
- src/cmd/5l/span.c  |    1 +
- 8 files changed, 593 insertions(+), 566 deletions(-)
+ src/pkg/hash/adler32/adler32.go      |  6 +-----
+ src/pkg/hash/adler32/adler32_test.go | 21 ++++++++++++---------
+ src/pkg/hash/crc32/crc32.go          |  6 +-----
+ src/pkg/hash/crc32/crc32_test.go     | 18 ++++++++++--------
+ src/pkg/hash/crc64/crc64.go          | 10 +---------
+ src/pkg/hash/crc64/crc64_test.go     | 17 ++++++++++-------
+ src/pkg/hash/fnv/fnv.go              | 32 ++++----------------------------
+ src/pkg/hash/fnv/fnv_test.go         | 34 ++++++++++++++++------------------
+ 8 files changed, 55 insertions(+), 89 deletions(-)

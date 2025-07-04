@@ -1,15 +1,15 @@
-commit 8ce1a953fb125ab390e816540d7f6c304ee7e52b
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Sat Oct 2 22:50:31 2021 +0800
+commit 63b0a0a5b83e28f55ce68cf1099d9c5ff3998b60
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 16 17:09:23 2021 -0700
 
-    io: add error check to TeeReader Example
+    spec: fix rendering of >=
     
-    Change-Id: I0b94bdced47483c6412e9979ce2d103fbfc52afb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353729
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Follow-up on https://golang.org/cl/297249.
+    
+    Change-Id: Ib4df91df530e4e7d7dd8c54d89c834cee55031f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302370
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/io/example_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

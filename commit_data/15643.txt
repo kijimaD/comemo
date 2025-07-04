@@ -1,14 +1,14 @@
-commit 091d7210c7bbcc7497a48a41be091e1957d17717
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 8 11:25:21 2013 -0500
+commit 51338095eb6fa331b64716dea1fed4fa8f513fef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 7 20:11:37 2013 -0800
 
-    runtime: make TestStackMem a little less flaky
+    spec: clarify unsafe.Offsetof
     
-    Have seen failures with GOMAXPROCS=4 on Windows.
+    Fixes #4905.
     
-    R=golang-dev, r
+    R=rsc, r, iant, ken
     CC=golang-dev
-    https://golang.org/cl/7626043
+    https://golang.org/cl/7583043
 
- src/pkg/runtime/stack_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

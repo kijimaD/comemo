@@ -1,0 +1,21 @@
+commit 97ccc224f1b0f9a5c7353ad0bafdb3e9c3a4cc27
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Jul 10 19:23:32 2024 -0700
+
+    math/big: use lists in docstrings
+    
+    This looks way better than the code formatting.
+    
+    Similar to CL 597656.
+    
+    Change-Id: I2c8809c1d6f8a8387941567213880662ff649a73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597659
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/math/big/float.go | 14 ++++++--------
+ src/math/big/int.go   | 28 +++++++++++++---------------
+ src/math/big/rat.go   | 14 ++++++--------
+ 3 files changed, 25 insertions(+), 31 deletions(-)

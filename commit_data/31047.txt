@@ -1,47 +1,26 @@
-commit c9446398e8d72263f75c11bb835d75421627b3a3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 9 22:41:32 2017 -0800
+commit 48d8edb5b21db190f717e035b4d9ab61a077f9d7
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Mon Jan 16 23:54:45 2017 +0000
 
-    cmd/compile: allow composite literal structs with _ fields
+    crypto/tls: disable CBC cipher suites with SHA-256 by default
     
-    Given code such as
+    As is, they were fully vulnerable to the Lucky13 attack. The SHA1
+    variants implement limited countermeasures (see f28cf8346c4) but the
+    SHA256 ones are apparently used rarely enough (see 8741504888b) that
+    it's not worth the extra code.
     
-    type T struct {
-      _ string
-    }
+    Instead, disable them by default and update the warning.
     
-    func f() {
-      var x = T{"space"}
-      // ...
-    }
+    Updates #13385
+    Updates #15487
     
-    the compiler rewrote the 'var x' line as
-    
-    var x T
-    x._ = "space"
-    
-    The compiler then rejected the assignment to
-    a blank field, thus rejecting valid code.
-    
-    It also failed to catch a number of invalid assignments.
-    And there were insufficient checks for validity
-    when emitting static data, leading to ICEs.
-    
-    To fix, check earlier for explicit blanks field names,
-    explicitly handle legit blanks in sinit,
-    and don't try to emit static data for nodes
-    for which typechecking has failed.
-    
-    Fixes #19482
-    
-    Change-Id: I594476171d15e6e8ecc6a1749e3859157fe2c929
-    Reviewed-on: https://go-review.googlesource.com/38006
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I45b8b716001e2fa0811b17e25be76e2512e5abb2
+    Reviewed-on: https://go-review.googlesource.com/35290
+    Reviewed-by: Adam Langley <alangley@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go     |  9 ++++++++-
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- src/cmd/internal/obj/data.go             |  2 +-
- test/fixedbugs/issue19482.go             | 34 ++++++++++++++++++++++++++++++++
- 4 files changed, 44 insertions(+), 3 deletions(-)
+ src/crypto/tls/cipher_suites.go | 6 +++---
+ src/crypto/tls/tls.go           | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

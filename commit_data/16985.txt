@@ -1,16 +1,14 @@
-commit 17d803d25133b34f519cf620a28b2302677a02e8
+commit 9742003ffc7fd72ce2b433e9895ecbb6d9e4c720
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 1 12:16:37 2013 -0700
+Date:   Thu Aug 1 11:17:26 2013 -0700
 
-    net/http: don't write out invalid cookie lines
+    strings: add IndexByte, for consistency with bytes package
     
-    Fixes #3033
+    I always forget which package has it.
     
-    R=golang-dev, fvbommel, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12204043
+    https://golang.org/cl/12214044
 
- src/pkg/net/http/cookie.go      | 69 ++++++++++++++++++++++++++++++++++++-----
- src/pkg/net/http/cookie_test.go | 31 ++++++++++++++++++
- src/pkg/net/http/request.go     |  2 +-
- 3 files changed, 94 insertions(+), 8 deletions(-)
+ src/pkg/strings/strings.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

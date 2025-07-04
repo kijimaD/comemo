@@ -1,16 +1,44 @@
-commit c20ff36fe2379d313602496ff3c269af2a8a1839
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sun Apr 26 16:37:31 2015 +1200
+commit e8694c8196e39328d6d61b1f32228d21112008d7
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Wed Mar 25 17:50:35 2015 -0700
 
-    cmd/internal/ld: R_TLS_LE is fine on Darwin too
+    runtime: initialize shared library at library-load time
     
-    Sorry about this.
+    This is Part 2 of the change, see Part 1 here: in https://go-review.googlesource.com/#/c/7692/
     
-    Fixes #10575
+    Suggested by iant@, we use the library initialization entry point to:
+        - create a new OS thread and run the "regular" runtime init stack on
+          that thread
+        - return immediately from the main (i.e., loader) thread
+        - at the first CGO invocation, we wait for the runtime initialization
+          to complete.
     
-    Change-Id: I2de23be68e7d822d182e5a0d6a00c607448d861e
-    Reviewed-on: https://go-review.googlesource.com/9341
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The above mechanism is implemented only on linux_amd64.  Next step is to
+    support it on linux_arm.  Other platforms don't yet support shared library
+    compiling/linking, but we intend to use the same strategy there as well.
+    
+    Change-Id: Ib2c81b1b83bee837134084b75a3beecfb8de6bf4
+    Reviewed-on: https://go-review.googlesource.com/8094
+    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/ld/data.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/doc.go                    |  5 ++++-
+ src/cmd/cgo/out.go                    | 10 ++++++---
+ src/runtime/cgo.go                    | 12 ++++++----
+ src/runtime/cgo/callbacks.go          | 26 ++++++++++++++++++++++
+ src/runtime/cgo/gcc_libinit.c         | 41 +++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_libinit_openbsd.c | 22 +++++++++++++++++++
+ src/runtime/cgo/gcc_libinit_windows.c | 22 +++++++++++++++++++
+ src/runtime/cgo/libcgo.h              | 11 ++++++++++
+ src/runtime/os1_linux.go              | 33 ++++++++++++++++++++++------
+ src/runtime/os_linux.go               |  3 +++
+ src/runtime/proc.go                   |  8 +++++++
+ src/runtime/rt0_linux_amd64.s         | 33 +++++++++++++++++++++++++---
+ src/runtime/runtime2.go               |  3 +++
+ src/runtime/sys_linux_386.s           |  6 +++++
+ src/runtime/sys_linux_amd64.s         | 28 ++++++++++++++++++++++++
+ src/runtime/sys_linux_arm.s           |  6 +++++
+ src/runtime/sys_linux_arm64.s         |  6 +++++
+ src/runtime/sys_linux_ppc64x.s        |  6 +++++
+ 18 files changed, 263 insertions(+), 18 deletions(-)

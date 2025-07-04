@@ -1,24 +1,18 @@
-commit 846490110ab1117b5f7366e3a531d24d88800074
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 11 15:20:13 2022 -0400
+commit b2f09cd717169cbad41bfc614f0b70b13edbc74a
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 17:09:47 2021 -0400
 
-    runtime/race: update amd64 syso images to avoid sse4
+    go/types: do not declare new methods on instantiated types
     
-    Rebuild selected amd64 syso images with updated LLVM build rules that
-    avoid the use of SSE4, so as to ensure that the Go race detector
-    continues to work on older x86 cpus. No changes to the syso files for
-    openbsd/amd64 (upstream support has been removed in LLVM) or
-    netbsd/amd64 (work still in progress there).
+    This is a port of CL 345472 to go/types.
     
-    Fixes #53743.
-    
-    Change-Id: I738ae4d1e0528c6e06dd4ddb78e7039a30a51779
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416857
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I0e2a88909ecebe9dea3325244153f5c74e4c3ce7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346553
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/race/README                  |   6 +++---
- src/runtime/race/race_darwin_amd64.syso  | Bin 538536 -> 541464 bytes
- src/runtime/race/race_freebsd_amd64.syso | Bin 710664 -> 712464 bytes
- src/runtime/race/race_linux_amd64.syso   | Bin 552768 -> 557744 bytes
- 4 files changed, 3 insertions(+), 3 deletions(-)
+ src/go/types/signature.go                      |  8 +++++++-
+ src/go/types/testdata/fixedbugs/issue47968.go2 | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

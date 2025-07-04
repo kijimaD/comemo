@@ -1,0 +1,22 @@
+commit e9d3b030ed6fe8380d9b0411ef06eff001769641
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jun 2 11:27:08 2025 -0400
+
+    slices,sort: explicitly discard results in benchmarks
+    
+    The unusedresult analyzer will report failure to use the results
+    of these pure functions.
+    
+    Updates #73950
+    
+    Change-Id: I783cb92ad913105afd46c782bedf6234410c645d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677995
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/slices/sort_benchmark_test.go      | 4 ++--
+ src/slices/sort_test.go                | 8 ++++----
+ src/sort/sort_slices_benchmark_test.go | 2 +-
+ 3 files changed, 7 insertions(+), 7 deletions(-)

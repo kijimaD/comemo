@@ -1,17 +1,21 @@
-commit c41b8cf1a39c972f461afe32da4fe43198eb2767
-Author: Sean Liao <sean@liao.dev>
-Date:   Wed Oct 16 00:51:22 2024 +0100
+commit 98195ed057cfd30d5cb902766602c1230bb33384
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 14:06:17 2023 -0700
 
-    strconv: display format options as list
+    cmd/compile/internal/types: remove Funarg
     
-    Fixes #69890
+    There's no need for the Funarg type anymore. A simple boolean suffices
+    to indicate whether a TSTRUCT represents a parameter tuple.
     
-    Change-Id: I1da4eb76c008679a687f4faa4294fe32b5fc7f42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620236
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    While here, rename Struct.Funarg to ParamTuple.
+    
+    Change-Id: I657512d4ba10e51ec4cfd7c7d77e0194bdb0853b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/strconv/ftoa.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types/fmt.go  | 20 ++++++++------------
+ src/cmd/compile/internal/types/type.go | 25 +++++++------------------
+ 2 files changed, 15 insertions(+), 30 deletions(-)

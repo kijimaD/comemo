@@ -1,18 +1,23 @@
-commit f9d114d0e85eba7a79b9656aa65f0ba939787fb6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 24 13:23:14 2023 -0700
+commit de95dca32fb196d5f09bf5db4a6ba592907559c3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 6 16:08:41 2022 -0700
 
-    spec: document min and max built-ins
+    cmd/compile/internal/noder: explicit receiver expression handling
     
-    For #59488.
+    This CL adds a helper expression code for receiver addressing; i.e.,
+    the implicit addressing, dereferencing, and field selections involved
+    in changing the `x` in `x.M()` into an appropriate expression to pass
+    as an argument to the method.
     
-    Change-Id: I50f65216bf02b42c1e0619702833f4a6dbed8925
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498136
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: I9be933e2a38c8f94f6a85d95b54f34164e5efb0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421820
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- doc/go_spec.html | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 67 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  |  1 +
+ src/cmd/compile/internal/noder/reader.go | 13 +++++++++++
+ src/cmd/compile/internal/noder/writer.go | 38 ++++++++++++++++++++++++++++++--
+ 3 files changed, 50 insertions(+), 2 deletions(-)

@@ -1,21 +1,28 @@
-commit 78c2529d73fbd2e2213c9f03862bcf2aaa86d78b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 4 14:49:42 2021 -0700
+commit cd99385ff4a4b7534c71bb92420da6f462c5598e
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Jan 14 07:14:02 2021 +0000
 
-    debug/gosym: add funcTab abstraction
+    cmd/internal/obj/arm64: fix VMOVQ instruction encoding error
     
-    This clarifies the existing code and makes modifications easier.
+    The VMOVQ instruction moves a 128-bit constant into a V register, as 128-bit
+    constant can't be loaded into a register directly, we split it into two 64-bit
+    constants and load it from constant pool. Currently we add the 128-bit constant
+    to literal pool by calling the 'addpool' function twice, this is not the right
+    way because it doesn't guarantee the two DWORD instructions are consecutive,
+    and the second call of addpool will overwrite the p.Pool field,resulting in a
+    wrong PC-relative offset value of the Prog.
     
-    name            old time/op    new time/op    delta
-    115/LineToPC-8    58.6µs ± 3%    56.4µs ± 3%  -3.80%  (p=0.000 n=15+15)
-    115/PCToLine-8     194ns ± 2%     188ns ± 2%  -3.31%  (p=0.000 n=15+15)
+    This CL renames the flag LFROM3 to LFROM128, and adds a new function addpool128
+    to add a 128-bit constant to the literal pool.
     
-    Change-Id: Iafdf57af93d5e3c145965c32e0227e37c69ab017
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353880
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I616f043c99a9a18a663f8768842cc980de2e6f79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282334
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    Trust: eric fang <eric.fang@arm.com>
 
- src/debug/gosym/pclntab.go | 64 ++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 51 insertions(+), 13 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go                 | 38 +++++++++++++++++++---
+ .../obj/arm64/{asm_test.go => asm_arm64_test.go}   | 18 +++++++---
+ src/cmd/internal/obj/arm64/asm_arm64_test.s        | 14 ++++++++
+ 3 files changed, 62 insertions(+), 8 deletions(-)

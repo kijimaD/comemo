@@ -1,41 +1,16 @@
-commit a6b16e00240ca5ca0161f88819ef32f91f6af52c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 24 06:06:14 2017 -0700
+commit 15c62e8535125f096c2425330fe9b561c38e7ee4
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Feb 13 14:40:48 2017 -0500
 
-    cmd/compile: improve efficiency of binary export position encoding
+    net/http: document Response.Header values that are subordinate to other fields
     
-    Use -64 instead of 0 as the magic "new file"
-    line delta, since it is much less common.
+    I noticed that Content-Length may appear in http.Response.Header, but the docs
+    say it should be omitted.  Per discussion with bradfitz@, updating the docs to
+    indicate that the struct fields are authoritative.
     
-    Use a new path encoding that breaks up paths
-    into /-separated components, allowing
-    reuse of the component strings, and making
-    many re-used paths a single byte to encode.
-    
-    Bump the export version to 5.
-    
-    Fixes #20080
-    
-    name        old export-bytes  new export-bytes  delta
-    Template          19.1k ± 0%        17.4k ± 0%  -8.74%  (p=0.008 n=5+5)
-    Unicode           4.47k ± 0%        4.42k ± 0%  -0.96%  (p=0.008 n=5+5)
-    GoTypes           29.9k ± 0%        27.6k ± 0%  -7.41%  (p=0.008 n=5+5)
-    Compiler          71.4k ± 0%        65.4k ± 0%  -8.45%  (p=0.008 n=5+5)
-    SSA               67.8k ± 0%        65.6k ± 0%  -3.38%  (p=0.008 n=5+5)
-    Flate             4.99k ± 0%        4.79k ± 0%  -3.91%  (p=0.008 n=5+5)
-    GoParser          8.77k ± 0%        7.97k ± 0%  -9.14%  (p=0.008 n=5+5)
-    Reflect           6.27k ± 0%        6.13k ± 0%  -2.22%  (p=0.008 n=5+5)
-    Tar               9.46k ± 0%        8.82k ± 0%  -6.69%  (p=0.008 n=5+5)
-    XML               16.0k ± 0%        14.9k ± 0%  -6.69%  (p=0.008 n=5+5)
-    [Geo mean]        14.8k             14.0k       -5.80%
-    
-    Change-Id: Iea0c8c62e61dbab3cfd14ee121e34845c85f00d2
-    Reviewed-on: https://go-review.googlesource.com/41619
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id1807ff9d4ba5de425d8b147205f29b18351230f
+    Reviewed-on: https://go-review.googlesource.com/36842
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 67 +++++++++++++------------
- src/cmd/compile/internal/gc/bimport.go | 68 +++++++++++++++++++------
- src/go/internal/gcimporter/bimport.go  | 90 ++++++++++++++++++++++++----------
- 3 files changed, 155 insertions(+), 70 deletions(-)
+ src/net/http/response.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,20 +1,19 @@
-commit f3247f6110d41793b0fc1c1a9d6541e649acd438
+commit 2a78e8afc0994f5b292bc9a5a7258c749e43032f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 8 14:46:17 2023 -0700
+Date:   Mon Jun 13 22:15:25 2022 -0700
 
-    cmd/compile/internal/types2: pass pos argument to Checker.overflow
+    test: add tests for string/[]byte/[]rune conversions
     
-    This matches the go/types version of Checker.overflow.
-    Preparation for generating this function (and others)
-    for go/types.
+    Matches examples in spec section on string conversions.
     
-    Change-Id: I84117203247011bd2e96c9cf53fd5a443e528bbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493558
+    For #23814.
+    
+    Change-Id: I08099c27bfdb98735868266f5a42901321b97b56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412095
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/expr.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ test/fixedbugs/issue23814.go | 61 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

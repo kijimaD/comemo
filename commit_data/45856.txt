@@ -1,15 +1,20 @@
-commit 666315b4d38b99931bb9fd158a76e59928fd2852
-Author: Xing Gao <18340825824@163.com>
-Date:   Tue Jun 22 02:12:29 2021 +0000
+commit 65dcd15c720585958908668fb17c47bc620a9923
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Nov 24 13:23:10 2020 -0500
 
-    runtime/internal/atomic: remove incorrect pointer indirection in comment
+    doc/go1.16: fill in Go 1.16 release note TODOs using relnote
     
-    Change-Id: I9d743b7f6b001158299bea4af4aede678654bc8e
-    GitHub-Last-Rev: 7e07834abc861e21030fe4a8eb323bac01e18f7a
-    GitHub-Pull-Request: golang/go#46851
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329730
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
+    The additions were generated using golang.org/x/build/cmd/relnote
+    at CL 272907. It was modified to find previously-missed entries
+    by querying the Gerrit API in addition to the maintner corpus.
+    
+    For #40700.
+    Updates #41849.
+    
+    Change-Id: If575984fe40e0133ad5e8fc5411ea5063457250d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272871
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/runtime/internal/atomic/atomic_386.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.16.html | 191 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 188 insertions(+), 3 deletions(-)

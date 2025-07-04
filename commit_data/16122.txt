@@ -1,14 +1,12 @@
-commit 4235fa8f2a1e3b9f162a477b7ce210b98e84eb65
+commit 114f20532e5f360a8738bfd7ab58dbd8d9f6ca98
 Author: Albert Strasheim <fullung@gmail.com>
-Date:   Sun Apr 7 11:37:37 2013 -0700
+Date:   Sun Apr 7 18:37:32 2013 +1000
 
-    runtime, runtime/debug, runtime/race: deflake tests
+    runtime: gofmt -s
     
-    R=golang-dev, dvyukov, bradfitz
+    R=golang-dev, iant, dave
     CC=golang-dev
-    https://golang.org/cl/8366044
+    https://golang.org/cl/8253045
 
- src/pkg/runtime/crash_test.go         | 20 ++++++++++++++++++--
- src/pkg/runtime/debug/garbage_test.go |  2 ++
- src/pkg/runtime/race/race_test.go     |  2 +-
- 3 files changed, 21 insertions(+), 3 deletions(-)
+ src/pkg/runtime/map_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,20 @@
-commit 4e728e5121140a61c5947b82740a68aaa96ebbe8
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Aug 4 06:47:56 2023 +0800
+commit cdc6aeb6730d9bf5ec8bdf1fa155834e6db11e95
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Sep 4 14:55:00 2022 +0000
 
-    log/slog: restore the original log setting before test exits
+    internal: convert calls to atomic type
     
-    Change-Id: Ib3daffb8a4cc018d62ed6e5741355b1c1a206034
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515775
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    For #53821
+    
+    Change-Id: Iee8ccea714726bbb6a4b384887bb107c29b823a9
+    GitHub-Last-Rev: 119aad36245800115ea85b9748e61d7c75f20344
+    GitHub-Pull-Request: golang/go#54862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428335
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/log/slog/logger_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/internal/singleflight/singleflight_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

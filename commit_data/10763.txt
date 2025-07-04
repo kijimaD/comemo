@@ -1,64 +1,14 @@
-commit bcbb2f93eebcde483291481b9f3d80077959c0be
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 17:46:54 2011 -0500
+commit b1175bebd0d2aef604825287b60798fce448a5c4
+Author: Florian Weimer <fw@deneb.enyo.de>
+Date:   Tue Dec 13 17:45:01 2011 -0500
 
-    test/bench: move to test/bench/shootout
+    contribute.html: do not fill in the reviewer field
     
-    R=golang-dev, r, gri, bradfitz
+    The golang-dev mailing list is added automatically.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5487067
+    https://golang.org/cl/5482060
 
- src/run.bash                                       |   2 +-
- test/bench/{ => shootout}/Makefile                 |   0
- test/bench/{ => shootout}/binary-tree-freelist.go  |   0
- test/bench/{ => shootout}/binary-tree-freelist.txt |   0
- test/bench/{ => shootout}/binary-tree.c            |   0
- test/bench/{ => shootout}/binary-tree.go           |   0
- test/bench/{ => shootout}/binary-tree.txt          |   0
- test/bench/{ => shootout}/chameneosredux.c         |   0
- test/bench/{ => shootout}/chameneosredux.go        |  20 ++++-----
- test/bench/{ => shootout}/chameneosredux.txt       |   0
- test/bench/{ => shootout}/fannkuch-parallel.go     |   0
- test/bench/{ => shootout}/fannkuch-parallel.txt    |   0
- test/bench/{ => shootout}/fannkuch.c               |   0
- test/bench/{ => shootout}/fannkuch.go              |   0
- test/bench/{ => shootout}/fannkuch.txt             |   0
- test/bench/{ => shootout}/fasta-1000.out           |   0
- test/bench/{ => shootout}/fasta.c                  |   0
- test/bench/{ => shootout}/fasta.go                 |   3 +-
- test/bench/{ => shootout}/fasta.txt                |   0
- test/bench/{ => shootout}/k-nucleotide-parallel.go |   0
- .../bench/{ => shootout}/k-nucleotide-parallel.txt |   0
- test/bench/{ => shootout}/k-nucleotide.c           |   0
- test/bench/{ => shootout}/k-nucleotide.go          |   0
- test/bench/{ => shootout}/k-nucleotide.txt         |   0
- test/bench/{ => shootout}/mandelbrot.c             |   0
- test/bench/{ => shootout}/mandelbrot.go            |   0
- test/bench/{ => shootout}/mandelbrot.txt           | Bin
- test/bench/{ => shootout}/meteor-contest.c         |   0
- test/bench/{ => shootout}/meteor-contest.go        |   9 ----
- test/bench/{ => shootout}/meteor-contest.txt       |   0
- test/bench/{ => shootout}/nbody.c                  |   0
- test/bench/{ => shootout}/nbody.go                 |  48 ++++++++++-----------
- test/bench/{ => shootout}/nbody.txt                |   0
- test/bench/{ => shootout}/pidigits.c               |   0
- test/bench/{ => shootout}/pidigits.go              |   0
- test/bench/{ => shootout}/pidigits.txt             |   0
- test/bench/{ => shootout}/regex-dna-parallel.go    |   2 +-
- test/bench/{ => shootout}/regex-dna-parallel.txt   |   0
- test/bench/{ => shootout}/regex-dna.c              |   0
- test/bench/{ => shootout}/regex-dna.go             |   0
- test/bench/{ => shootout}/regex-dna.txt            |   0
- test/bench/{ => shootout}/reverse-complement.c     |   0
- test/bench/{ => shootout}/reverse-complement.go    |   0
- test/bench/{ => shootout}/reverse-complement.txt   |   0
- .../bench/{ => shootout}/spectral-norm-parallel.go |   0
- test/bench/{ => shootout}/spectral-norm.c          |   0
- test/bench/{ => shootout}/spectral-norm.go         |   0
- test/bench/{ => shootout}/spectral-norm.txt        |   0
- test/bench/{ => shootout}/threadring.c             |   0
- test/bench/{ => shootout}/threadring.go            |   2 +-
- test/bench/{ => shootout}/threadring.txt           |   0
- test/bench/{ => shootout}/timing.log               |   0
- test/bench/{ => shootout}/timing.sh                |   0
- 53 files changed, 38 insertions(+), 48 deletions(-)
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

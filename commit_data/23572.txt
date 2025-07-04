@@ -1,16 +1,16 @@
-commit b8d2d6b9c0fcd66fe9579d7525d4ec5ecc2d73a3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jun 29 16:43:25 2015 +1000
+commit 553f45a61e062abe1c3459adc288929fc8693746
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 27 10:49:25 2015 -0700
 
-    image/gif: accept LZW encodings that do not have an explicit end marker.
+    archive/zip: sanity check the TOC's declared number of files
     
-    The spec says this is invalid, but it matches giflib's behavior.
+    Fixes #10956
     
-    Fixes #9856 (together with https://go-review.googlesource.com/11661).
-    
-    Change-Id: I05701f62a9e5e724a2d85c6b87ae4111e537146b
-    Reviewed-on: https://go-review.googlesource.com/11663
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If8517094f04250c4f722e1e899a237eb6e170eb9
+    Reviewed-on: https://go-review.googlesource.com/10421
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/image/gif/reader.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/archive/zip/reader.go      |  4 ++++
+ src/archive/zip/reader_test.go | 17 +++++++++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,12 +1,12 @@
-commit 5cdb3d0321c4615ff271353030e3742912e241ba
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Mar 22 15:08:09 2016 -0400
+commit c2b40809c136c341716287a30f1a619b2921f075
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 26 16:29:47 2016 +0900
 
-    syscall: correct spelling/typos in comment
+    net/http: fix nit in test
     
-    Change-Id: Ib44c6b1ce07aa8fb67033cf21e177a90fd4005dc
-    Reviewed-on: https://go-review.googlesource.com/21002
+    Change-Id: I8c647e709d93a76636e04375609fceadf3754aa1
+    Reviewed-on: https://go-review.googlesource.com/18954
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/mkall.sh | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/response_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

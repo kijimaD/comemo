@@ -1,15 +1,20 @@
-commit 57d89fb6598046a41b1690dec1222257a3c21bf6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Jun 2 15:39:47 2013 +0200
+commit a28609d66f74383ad23015aa810e3c76444057f5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jun 2 09:13:12 2013 +1000
 
-    cmd/fix: check type assertion in netipv6zone rule.
+    testing: fix rounding error in roundDown10
     
-    Fixes #5461.
+    Fixes #5599.
     
-    R=golang-dev, r
+    Thanks to minux.ma for the suggested fix.
+    
+    As we now have a harness to test testing internal functions I added some coverage for testing.roundUp, as it is the main consumer of roundDown10.
+    
+    R=minux.ma, kr, r
     CC=golang-dev
-    https://golang.org/cl/9947043
+    https://golang.org/cl/9926043
 
- src/cmd/fix/netipv6zone.go      | 2 +-
- src/cmd/fix/netipv6zone_test.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/testing/benchmark.go      | 13 ++++++++-----
+ src/pkg/testing/benchmark_test.go | 39 +++++++++++++++++++++++++++++++++------
+ src/pkg/testing/export_test.go    |  5 ++++-
+ 3 files changed, 45 insertions(+), 12 deletions(-)

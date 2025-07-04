@@ -1,18 +1,35 @@
-commit 884c93a6df07eb62efeaa44265b58936d3084dd7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Oct 5 17:29:49 2023 +0200
+commit 96711e4d8b9247a9b8502efef1b8714dd9e1915a
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 2 17:23:47 2022 -0400
 
-    cmd/compile/internal/typecheck: use strings.Contains
+    cmd/compile: add testing-flag guard to package-is-collected assert
     
-    Change-Id: I439268e91288f9a5a0946ac428731cdfa4d111cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533135
+    On advice of the department of garbage collection, forcing a garbage
+    collection generally does not improve performance. However,
+    this-data-is-now-unreachable is a good property to be able to test,
+    and that requires finalizers and a forced GC. So, to save build time,
+    this test was removed from the compiler itself, but to verify the
+    property, it was added to the fma_test (and the end-to-end dependence
+    on the flag was tested with an inserted failure in testing the
+    test).
+    
+    TODO: also turn on the new -d=gccheck=1 debug flag on the ssacheck
+    builder.
+    
+    Benchmarking reveals that it is profitable to avoid this GC,
+    with about 1.5% reduction in both user and wall time.
+    
+    (48 p) https://perf.golang.org/search?q=upload:20221103.3
+    (12 p) https://perf.golang.org/search?q=upload:20221103.5
+    
+    Change-Id: I4c4816d619735838a32388acf0cc5eb1cd5f0db5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447359
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/typecheck/expr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/base/debug.go       | 1 +
+ src/cmd/compile/internal/noder/unified.go    | 3 ++-
+ src/cmd/compile/internal/ssa/fmahash_test.go | 3 ++-
+ 3 files changed, 5 insertions(+), 2 deletions(-)

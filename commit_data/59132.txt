@@ -1,15 +1,23 @@
-commit 686128a9f3f112c2e103622190673656811dee5f
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 20 13:33:49 2025 -0700
+commit 968b71bce4489dd201c5247c6142a830d90a1ee1
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Feb 2 15:54:24 2024 +0000
 
-    runtime/race: don't complain about unrun tests when fatal map access happens
+    strings: make use of sizeclasses in (*Builder).Grow
     
-    Fixes #72964
+    Fixes #64833
     
-    Change-Id: I42c6994fec3b21774bddd1d4d65dc832d9149446
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659697
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ice3f5dfab65f5525bc7a6f57ddeaabda8d64dfa3
+    GitHub-Last-Rev: 38f1d6c19d8ec29ae5645ce677839a301f798df3
+    GitHub-Pull-Request: golang/go#64835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552135
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/race/race_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/bytes/bytes.go              |  8 ++++----
+ src/internal/bytealg/bytealg.go |  3 ++-
+ src/runtime/slice.go            |  3 ++-
+ src/strings/builder.go          |  6 +++++-
+ src/strings/builder_test.go     | 13 +++++++++++++
+ 5 files changed, 26 insertions(+), 7 deletions(-)

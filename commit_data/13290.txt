@@ -1,15 +1,33 @@
-commit 2cb74984553e07ae3bc7ca7e89099c11925b01c1
-Author: Joel Sing <jsing@google.com>
-Date:   Wed Jun 6 20:39:27 2012 +1000
+commit 166dab6993029802526804393a31cb8d080743e6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jun 6 07:49:58 2012 +1000
 
-    runtime: fix tv_sec handling for netbsd/386
+    test/bench/go1: reduce fasta data size for linux/arm
     
-    On netbsd/386, tv_sec is a 64-bit integer for both timeval and timespec.
-    Fix the time handling code so that it works correctly.
+    As discussed on golang-dev, reduce the size of the fasta
+    dataset to make it possible to run the go1 benchmarks on
+    small ARM systems.
     
-    R=golang-dev, rsc, m4dh4tt3r
+    Also, remove the 25m suffix from fasta data and Revcomp.
+    
+    linux/arm: pandaboard OMAP4
+    
+    BenchmarkBinaryTree17          1        70892426000 ns/op
+    BenchmarkFannkuch11            1        35712066000 ns/op
+    BenchmarkGobDecode            10         137146000 ns/op           5.60 MB/s
+    BenchmarkGobEncode            50          64953000 ns/op          11.82 MB/s
+    BenchmarkGzip          1        5675690000 ns/op           3.42 MB/s
+    BenchmarkGunzip        1        1207001000 ns/op          16.08 MB/s
+    BenchmarkJSONEncode            5         860424800 ns/op           2.26 MB/s
+    BenchmarkJSONDecode            1        3321839000 ns/op           0.58 MB/s
+    BenchmarkMandelbrot200        50          45893560 ns/op
+    BenchmarkRevcomp              10         135220300 ns/op          18.80 MB/s
+    BenchmarkTemplate              1        6385681000 ns/op           0.30 MB/s
+    
+    R=rsc, minux.ma, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6256056
+    https://golang.org/cl/6278048
 
- src/pkg/runtime/sys_netbsd_386.s | 32 ++++++++++++++++++--------------
- 1 file changed, 18 insertions(+), 14 deletions(-)
+ test/bench/go1/fasta_test.go   | 17 ++++++++++++++++-
+ test/bench/go1/revcomp_test.go |  6 +++---
+ 2 files changed, 19 insertions(+), 4 deletions(-)

@@ -1,16 +1,19 @@
-commit 0175064e697d3e072573b32173299b7edbda7360
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 2 19:57:11 2019 -0800
+commit d5c7abf73a3f65cb7d5b9c3193e59ac9e0729c7a
+Author: ianzapolsky <ianzapolsky@gmail.com>
+Date:   Thu Aug 30 12:57:16 2018 -0600
 
-    net: skip TestUDPZeroBytePayload on Darwin
+    fmt: add an example for Errorf
     
-    Updates #29225
+    The errors package has an example for Errorf, but the fmt
+    package does not. Copy the Errorf example from errors to
+    fmt. Move existing Stringer example into separate file, so as
+    not to break the assumption that the entire file will be
+    presented as the example.
     
-    Change-Id: I4c9b7a108861ce5c9ab84f7324ced3da51e7bf2a
-    Reviewed-on: https://go-review.googlesource.com/c/156119
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8a210a69362017fa08615a8c3feccdeee8427e22
+    Reviewed-on: https://go-review.googlesource.com/132239
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/udpsock_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/fmt/example_test.go          | 25 +++++++------------------
+ src/fmt/stringer_example_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 18 deletions(-)

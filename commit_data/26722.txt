@@ -1,28 +1,12 @@
-commit 7735dfb67c2c18274e70582b23846ef9f854c31a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 4 10:49:55 2016 -0700
+commit 814978a013e0a11512b5f9fc103e522e506db113
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Feb 23 23:15:57 2016 -0500
 
-    cmd/compile: give TLS relocations a name when dumping assembly
+    .gitignore: ignore src/go/build/zcgo.go
     
-    Before:
-    
-            ...
-            0x00d0 ff ff ff e8 00 00 00 00 e9 23 ff ff ff cc cc cc  .........#......
-            rel 5+4 t=14 +0
-            rel 82+4 t=13 runtime.writeBarrier+0
-            ...
-    
-    After:
-    
-            ...
-            0x00d0 ff ff ff e8 00 00 00 00 e9 23 ff ff ff cc cc cc  .........#......
-            rel 5+4 t=14 TLS+0
-            rel 82+4 t=13 runtime.writeBarrier+0
-            ...
-    
-    Change-Id: Ibdaf694581b5fd5fb87fa8ce6a792f3eb4493622
-    Reviewed-on: https://go-review.googlesource.com/21545
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6d5db2781d05d6e7e49f5059db1fd84ad6ec328e
+    Reviewed-on: https://go-review.googlesource.com/19839
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/internal/obj/objfile.go | 2 ++
- 1 file changed, 2 insertions(+)
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)

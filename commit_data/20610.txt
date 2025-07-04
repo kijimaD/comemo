@@ -1,14 +1,20 @@
-commit 62d3202aaa0fb131be1f0dbf21e97dbe11b177dc
+commit 00d2f916adf2fb025406f0558ab8cac122fdf060
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 1 16:51:32 2014 -0400
+Date:   Wed Sep 24 15:20:03 2014 -0400
 
-    reflect: fix IsValid vs Kind mismatch after Elem of nil interface
+    cmd/gc: run escape analysis always (even in -N mode)
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/151960044
+    Fixes #8585.
+    Removes some little-used code paths.
+    
+    LGTM=josharian
+    R=golang-codereviews, minux, josharian
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/132970043
 
- src/reflect/all_test.go | 14 ++++++++++++++
- src/reflect/value.go    |  4 +++-
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/gc/gen.c       |    6 +-
+ src/cmd/gc/lex.c       |    8 +-
+ src/cmd/gc/typecheck.c |    6 -
+ test/escape2.go        |    2 +
+ test/escape2n.go       | 1494 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 1503 insertions(+), 13 deletions(-)

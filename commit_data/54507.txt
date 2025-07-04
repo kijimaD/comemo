@@ -1,24 +1,28 @@
-commit eca5a97340e6b475268a522012f30e8e25bb8b8f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 18 15:36:38 2023 +0200
+commit b95ea201d54953055e7d5d29cf68bb5f19f21f93
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 20 15:56:11 2022 -0700
 
-    syscall: correctly generate accept on linux/arm
+    cmd/compile: add support for alternative comparable semantics
     
-    CL 457995 introduced syscall_linux_accept.go which is used on linux/arm
-    to generate accept and use it in Accept. However, that CL forgot to
-    include the file in the list of files used with mksyscall.pl to generate
-    the syscall wrappers. This lead to accept no longer being generated when
-    re-running mkall.sh on linux/arm.
+    Add the experimental compiler flag -altcomparable. If set, the
+    compiler uses alternative comparable semantics: any ordinary
+    (non-type parameter) interface implements the comparable
+    constraint.
     
-    Change-Id: I7747399afae47a883a7fb079c82e835b90f366cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This permits experimenting with this alternative semantics
+    akin to what is proposed in #52509.
+    
+    For #52509.
+    
+    Change-Id: I64192eee6f2a550eeb50de011079f2f0b994cf94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444636
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Commit-Queue: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/syscall/mkall.sh | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/base/flag.go   | 3 ++-
+ src/cmd/compile/internal/noder/irgen.go | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

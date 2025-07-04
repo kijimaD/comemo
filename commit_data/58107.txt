@@ -1,22 +1,32 @@
-commit 40e62d63a3068ad678c023f92c6439cefa885bd8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Oct 12 20:22:44 2024 +0200
+commit ef3171c5eb4bc22b79690afb36bbb1e681473ea0
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Oct 2 16:24:26 2023 +0000
 
-    crypto/internal/mlkem768: update to final FIPS 203
+    net: handle the network parameter properly in LookupPort
     
-    Main changes are the domain separator in KeyGen, dropping support for
-    the extended decapsulation key encoding in favor of seeds (see
-    https://words.filippo.io/ml-kem-seeds/), and documentation changes.
+    The cgo version (unix) is populating the GetAddrInfo hints
+    based on the network parameter, but windows not quite.
     
-    Change-Id: I8773034929094b3242aa39ac6e9d007c2bc94e63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621975
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This change populates the hints the same way as the
+    cgo unix version does now.
+    
+    This bug was spotted by Bryan in CL 530415.
+    https://go-review.googlesource.com/c/go/+/530415/comment/76640dc7_ed0409ca/
+    
+    Change-Id: I6fc29b1e4cdc879123ab0f5a624b6f37c68c00ba
+    GitHub-Last-Rev: eaa616378b3fa9a5a72192f3d501c591804f45d8
+    GitHub-Pull-Request: golang/go#63284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531635
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/internal/mlkem768/mlkem768.go      | 243 ++++++++++----------------
- src/crypto/internal/mlkem768/mlkem768_test.go |  98 +++--------
- src/crypto/tls/key_schedule_test.go           |  18 --
- 3 files changed, 118 insertions(+), 241 deletions(-)
+ src/net/cgo_unix.go       |  2 +-
+ src/net/lookup.go         | 51 ++++++++++++++++++++++---------------
+ src/net/lookup_plan9.go   | 28 ++++++++++++++-------
+ src/net/lookup_test.go    | 64 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/net/lookup_windows.go | 28 ++++++++++++++-------
+ 5 files changed, 130 insertions(+), 43 deletions(-)

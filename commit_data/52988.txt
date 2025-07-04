@@ -1,16 +1,20 @@
-commit 62bf7a4809d37ff09ad256a3eaca977bae9284e7
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 9 20:02:24 2023 +0000
+commit 711dacd8cf52d0c06624c4af3563d3b728c50b57
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 11:31:11 2022 -0700
 
-    runtime: hide trace.shutdown behind traceShuttingDown
+    [dev.unified] cmd/compile/internal/noder: implicit conversion of call arguments
     
-    Change-Id: I0b123e65f40570caeee611679d80dc27034d5a52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494183
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Function call arguments need to be implicitly converted to their
+    respective parameter types. This CL updates the Unified IR writer to
+    handle this case, at least for typical function calls. I'll handle
+    f(g()) calls is a subsequent CL.
+    
+    Change-Id: I7c031d21f57885c9516eaf89eca517977bf9e39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413514
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go  | 4 ++--
- src/runtime/trace.go | 5 +++++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

@@ -1,30 +1,30 @@
-commit 936bb82ddb7f6456e3008b26f0398880d11ce3c0
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Mar 25 10:29:22 2025 +0100
+commit c07b9b00361b9a99fc64ffe36f897d24954f99cf
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Feb 21 17:18:43 2024 +0000
 
-    internal/poll,net: set SIO_UDP_CONNRESET in net
+    net: support context cancellation in acquireThread
     
-    Setting the SIO_UDP_CONNRESET option in internal/poll.FD.Init
-    adds unnecessary complexity to the FD.Init signature and
-    implementation. Better to set it in the net package when initializing
-    the UDP connection, which is where conceptually it belongs.
+    acquireThread is already waiting on a channel, so
+    it can be easily wired up to support context cancellation.
+    This change will make sure that contexts that are
+    cancelled at the acquireThread stage (when the limit of
+    threads is reached) do not queue unnecessarily and cause
+    an unnecessary cgo call that will be soon aborted by
+    the doBlockingWithCtx function.
     
-    While here, update an outdated comment in FD.Init that said the runtime
-    poller doesn't support I/O operations initialized by the user
-    outside the internal/poll package. It does support those operations
-    since CL 561895.
+    Updates #63978
     
-    For #19098.
-    Updates #21172.
-    
-    Change-Id: I9a70b0deafdb4619830abe2147e2d366b4c2b890
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660496
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I8ae4debd51995637567d8f51c6f1ed60f23d6c0c
+    GitHub-Last-Rev: 4189b9faf07c073a2ca440becee07b6aa9c4e795
+    GitHub-Pull-Request: golang/go#63985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539360
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/internal/poll/fd_windows.go      | 41 +++++++++++-------------------------
- src/internal/poll/fd_windows_test.go |  3 +--
- src/net/fd_windows.go                | 19 +++++++++++++----
- 3 files changed, 28 insertions(+), 35 deletions(-)
+ src/net/cgo_unix.go       | 38 +++++++++++++---------
+ src/net/lookup_windows.go | 83 ++++++++++++++++++++++++++++++++++++++---------
+ src/net/net.go            |  9 +++--
+ 3 files changed, 97 insertions(+), 33 deletions(-)

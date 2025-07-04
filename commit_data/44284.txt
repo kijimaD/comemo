@@ -1,29 +1,14 @@
-commit 5421c37a1db5098659f86b21d011fc263d93524e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:27:25 2021 -0500
+commit a38f29ad613a56b2ad5b3f109a404c06a7a92fed
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 3 17:09:44 2020 -0400
 
-    runtime: fix windows/arm externalthreadhandler
+    doc/go1.15: add release notes for RISC-V port
     
-    Externalthreadhandler was not handling its own stack correctly.
-    It incorrectly referred to the saved LR slot (uninitialized, it turned out)
-    as holding the return value from the called function.
-    
-    Externalthreadhandler is used to call two different functions:
-    profileloop1 and ctrlhandler1.
-    Profileloop1 does not return, so no harm done.
-    Ctrlhandler1 returns a boolean indicating whether the handler
-    took care of the control event (if true, no other handlers run).
-    
-    It's hard to say exactly what uninitialized values are likely to
-    have been returned instead of ctrlhandler1's result, but it
-    probably wasn't helping matters.
-    
-    Change-Id: Ia02f1c033df618cb82c2193b3a8241ed048a8b18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288812
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I35045925cca942980419829fe07e5e0f38cb7a91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236338
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/sys_windows_arm.s | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ doc/go1.15.html | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)

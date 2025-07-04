@@ -1,18 +1,15 @@
-commit 1c322524ada678c26b831c7e88525e65130a0880
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Nov 9 14:28:02 2017 -0500
+commit a2b70ebf2db03bd0ddede1d37b0f05478c6a02af
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 18 11:06:20 2017 -0400
 
-    cmd/compile: remove unnecessary tmpdir in ssa_test
+    cmd/dist: disable broken TestDeps
     
-    I added this in CL 76024 in order to do compile+link+run. This
-    is no longer necessary after CL 76551, which changed it back to
-    "go run". Remove it.
+    Will debug soon but wanted to fix builders.
     
-    Change-Id: Ifa744d4b2f73f33cad056b24051821e43638cc7f
-    Reviewed-on: https://go-review.googlesource.com/76690
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I921d58d1272370f3102ba1f86ad535f4c0f6b8db
+    Reviewed-on: https://go-review.googlesource.com/56970
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/dist/deps_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,22 +1,21 @@
-commit 984753b665875cd62f6144a42f6df58cb5f159a8
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 10 12:18:00 2016 -0400
+commit d94409d65186a5fcee2955e374e1d5c0f457eb2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 17:20:00 2016 -0700
 
-    runtime: fix GC assist retry path
+    go/types: fix bad printf verbs
     
-    GC assists retry if preempted or if they fail to park. However, on the
-    retry path they currently use stale statistics. In particular, the
-    retry can use "debtBytes", but debtBytes isn't updated when the debt
-    changes (since other than retries it is only used once). Also, though
-    less of a problem, the if the assist ratio has changed while the
-    assist was blocked, the retry will still use the old assist ratio.
+    This fixes the following vet warnings:
     
-    Fix all of this by simply making the retry jump back to where we
-    compute these statistics, rather than just after.
+    go/types/builtins.go:437: arg call for printf verb %s of wrong type: *go/ast.CallExpr
+    go/types/builtins.go:598: arg call for printf verb %s of wrong type: *go/ast.CallExpr
     
-    Change-Id: I2ed8b4f0fc9f008ff060aa926f4334b662ac7d3f
-    Reviewed-on: https://go-review.googlesource.com/30701
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Updates #11041
+    
+    Change-Id: I746d054e8e49b330fbdf961912a98f55dd5f3ff9
+    Reviewed-on: https://go-review.googlesource.com/26997
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgcmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/builtins.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

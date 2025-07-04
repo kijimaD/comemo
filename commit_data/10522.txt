@@ -1,12 +1,13 @@
-commit 62203141ac0d3222dbdf35c4ed97356e0da9486b
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Mon Nov 28 09:50:40 2011 -0800
+commit b57bb9282e0ba47bfecc3de8a2ab72754a2d8185
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 28 12:29:19 2011 -0500
 
-    doc/tmptohtml: output fix
+    exp/ssh: add safeString error sanitiser
     
-    R=r, gri
+    R=huin, agl, gustav.paul, cw
     CC=golang-dev
-    https://golang.org/cl/5441047
+    https://golang.org/cl/5399044
 
- doc/tmpltohtml.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/ssh/common.go      | 13 +++++++++++++
+ src/pkg/exp/ssh/common_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

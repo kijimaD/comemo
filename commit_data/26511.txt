@@ -1,14 +1,28 @@
-commit 44189299bfd98eff20d1d84c0c7ee2310124fe38
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Mar 25 11:14:29 2016 +0100
+commit d8a65672f8605d9d51fd90996162ab8d79a4aa32
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 25 09:21:17 2016 -0800
 
-    compress/gzip: skip mtime test when GOROOT doesn't exist
+    [dev.ssa] cmd/compile: optimization for && and || expressions
     
-    Fixes the iOS builders
+    Compiling && and || expressions often leads to control
+    flow of the following form:
     
-    Change-Id: I5097ca19048381ffb5a4c5ea038b7c4aa18ee4b7
-    Reviewed-on: https://go-review.googlesource.com/21132
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    p:
+      If a goto b else c
+    b: <- p ...
+      x = phi(a, ...)
+      If x goto t else u
+    
+    Note that if we take the edge p->b, then we are guaranteed
+    to take the edge b->t also.  So in this situation, we might
+    as well go directly from p to t.
+    
+    Change-Id: I6974f1e6367119a2ddf2014f9741fdb490edcc12
+    Reviewed-on: https://go-review.googlesource.com/18910
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/compress/gzip/issue14937_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/compile.go           |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |  31 ++---
+ src/cmd/compile/internal/ssa/shortcircuit.go      | 144 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/shortcircuit_test.go |  50 ++++++++
+ 4 files changed, 208 insertions(+), 18 deletions(-)

@@ -1,14 +1,12 @@
-commit 407eb30f9f237fb8d8d352bec37f89409e6e5e1a
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed Jul 18 16:26:13 2018 -0400
+commit 9b9bc684e817bbc9c5ea76a6fa695afa2647480c
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Sun Apr 1 16:01:52 2018 +0000
 
-    doc/go1.11: update runtime/trace to use region instead of span
+    src/run.bash: remove some trailing whitespace
     
-    The final API uses 'region' instead of 'span' from the proposal.
-    
-    Change-Id: I305da891a360596fff89b10bc6de3090289b5396
-    Reviewed-on: https://go-review.googlesource.com/124815
+    Change-Id: I56a4d25bdf886d0c0cc9723c197a014dfc9da3d3
+    Reviewed-on: https://go-review.googlesource.com/103995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 2 +-
+ src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

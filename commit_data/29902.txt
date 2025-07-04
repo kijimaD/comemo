@@ -1,17 +1,38 @@
-commit c3fc9b4b81f84f08911ad81a38e388ca5f4462a5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 5 00:52:04 2017 +0000
+commit f444b48fe419c2d19b7b9a89faad30f0e8b0e474
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 12 16:54:02 2016 -0400
 
-    lib/time: update tzdata to 2016j
+    encoding/json: fix decoding of null into Unmarshaler, TextUnmarshaler
     
-    Fixes #18500
+    1. Define behavior for Unmarshal of JSON null into Unmarshaler and
+    TextUnmarshaler. Specifically, an Unmarshaler will be given the
+    literal null and can decide what to do (because otherwise
+    json.RawMessage is impossible to implement), and a TextUnmarshaler
+    will be skipped over (because there is no text to unmarshal), like
+    most other inappropriate types. Document this in Unmarshal, with a
+    reminder in UnmarshalJSON about handling null.
     
-    Change-Id: I4dddd1b99aecf86b9431b0c14f452152dff9b95a
-    Reviewed-on: https://go-review.googlesource.com/34816
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    2. Test all this.
+    
+    3. Fix the TextUnmarshaler case, which was returning an unmarshalling
+    error, to match the definition.
+    
+    4. Fix the error that had been used for the TextUnmarshaler, since it
+    was claiming that there was a JSON string when in fact the problem was
+    NOT having a string.
+    
+    5. Adjust time.Time and big.Int's UnmarshalJSON to ignore null, as is
+    conventional.
+    
+    Fixes #9037.
+    
+    Change-Id: If78350414eb8dda712867dc8f4ca35a9db041b0c
+    Reviewed-on: https://go-review.googlesource.com/30944
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 364943 -> 366113 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/big/intmarsh.go |   4 +
+ src/encoding/json/decode.go              |  31 ++++-
+ src/encoding/json/decode_test.go         | 225 ++++++++++++++++++++++++++-----
+ src/math/big/intmarsh.go                 |   4 +
+ src/time/time.go                         |   4 +
+ 5 files changed, 231 insertions(+), 37 deletions(-)

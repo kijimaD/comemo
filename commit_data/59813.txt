@@ -1,24 +1,27 @@
-commit ed7815726db4a0eb904d7cae2532cde48348d7ff
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jun 17 12:34:22 2025 -0700
+commit 57026007c828ac06fe4f8656c1aa497dd3ba40c3
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Tue Apr 23 22:15:03 2024 +0000
 
-    encoding/json/v2: report error on time.Duration without explicit format
+    cmd/compile: teach dse about equivalent LocalAddrs
     
-    The default representation of a time.Duration is still undecided.
-    In order to keep the future open, report an error on a time.Duration
-    without an explicit format flag provided.
+    This patch teaches DSE that two LocalAddrs of the same variable
+    are equal, even if they are from different memory states. This avoids
+    dependance on a store into the same LocalAddr being added to
+    loadUse even though the store is unnecessary and is in fact
+    shadowed.
     
-    Updates #71631
+    Fixes #59021
     
-    Change-Id: I08248404ff6551723851417c8188a13f53c61937
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/682455
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I0ef128b783c4ad6fd2236fa5ff20345b4d31eddb
+    GitHub-Last-Rev: b80a6b28fb7c86c66ea65282702b3aa032d6f5a5
+    GitHub-Pull-Request: golang/go#66793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578376
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Joedian Reid <joedian@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/encoding/json/v2/arshal_test.go | 54 ++++++++++++++++++++-----------------
- src/encoding/json/v2/arshal_time.go |  6 +++++
- src/encoding/json/v2/bench_test.go  |  3 ++-
- src/encoding/json/v2_diff_test.go   |  1 +
- 4 files changed, 39 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go      | 19 +++++++++++
+ src/cmd/compile/internal/ssa/deadstore_test.go | 45 ++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

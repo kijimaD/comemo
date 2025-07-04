@@ -1,19 +1,15 @@
-commit f844b0be18ecab2406b2c1d20abb53e358d5574e
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 12:18:19 2016 -0500
+commit d95888127195f5f0e032e280ef969eee669c8474
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Nov 5 22:47:45 2015 -0800
 
-    cmd/internal/obj/x86: rename POPCNT to POPCNTQ
+    runtime: use WriteConsole to implement print and panic on windows
     
-    Ilya added POPCNT in a CL earlier this month but it's really only POPCNTQ.
-    The other forms still need to be added.
+    Fixes #7864
     
-    For #4816.
-    
-    Change-Id: I1186850d32ad6d5777475c7808e6fc9d9133e118
-    Reviewed-on: https://go-review.googlesource.com/18848
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id13369352aeccac8387876f0b911e383c543c28e
+    Reviewed-on: https://go-review.googlesource.com/16714
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/a.out.go  | 4 +++-
- src/cmd/internal/obj/x86/anames.go | 4 +++-
- src/cmd/internal/obj/x86/asm6.go   | 2 +-
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/os1_windows.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

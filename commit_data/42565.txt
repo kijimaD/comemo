@@ -1,17 +1,18 @@
-commit b13774691cfb22b1cb18263c9a35176c4a0e94b2
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 24 16:49:05 2020 -0400
+commit 5a3a5d35258e2be1427fdea36b0a0787b0f67364
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 05:06:56 2019 +1100
 
-    crypto/x509: move and update the SSL_CERT_FILE and SSL_CERT_DIR docs
+    math, math/big: add support for riscv64
     
-    Fixes #37907
+    Based on riscv-go port.
     
-    Change-Id: Ia077de6dcc74ed761d278eab4efbf45e151429b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239747
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Updates #27532
+    
+    Change-Id: Id8ae7d851c393ec3702e4176c363accb0a42587f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/cert_pool.go | 12 ++++++++----
- src/crypto/x509/x509.go      |  4 ----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/math/big/arith_decl.go      |   2 +-
+ src/math/big/arith_decl_pure.go |   2 +-
+ src/math/stubs_riscv64.s        | 113 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 115 insertions(+), 2 deletions(-)

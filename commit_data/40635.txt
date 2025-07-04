@@ -1,22 +1,21 @@
-commit 3b1ae308a40d4548f7dab84d22e62838fcdbb354
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 29 23:02:14 2019 +0700
+commit eb2fabf2fa4e1cb0386ae52e041c3d6b0ced3d29
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 16 22:13:47 2019 +0900
 
-    syscall: revert security_windows.go change of CL 201877
+    text/template: clarify the safety of Template.New
     
-    This CL was verified by running:
+    In particular, the returned template isn't independent from the parent.
+    For example, it can't be parsed concurrently with other children
+    templates. Only methods which are explicitly safe for concurrent use,
+    like Execute, may be used concurrently.
     
-            go test -gcflags=all=-d=checkptr=2 internal/syscall/windows
+    Fixes #30281.
     
-    internal/syscall/windows.TestRunAtLowIntegrity uses code in question.
-    
-    Updates #34972
-    
-    Change-Id: I434530058e2d41f132e9bf154e8c64c03894e9c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204117
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Idc84bf4199c035316cdb83b950fd4a8f2a71cd0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172297
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/syscall/security_windows.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/text/template/template.go | 4 ++++
+ 1 file changed, 4 insertions(+)

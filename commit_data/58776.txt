@@ -1,19 +1,35 @@
-commit 43d8b1e8fed9be5f61f864e0b185e918e3fadf2c
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Feb 17 11:45:51 2025 +0000
+commit a839ec1e73c25d47cc329e93b9508fb53277bdd2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 8 11:26:30 2023 -0500
 
-    os: deal with chmod error for TestRootConsistencyChmod
+    cmd/go/internal/modload: classify "invalid pseudo-version" errors in Query
     
-    Previously the error returned by chmod has not actually been used.
+    If we encounter an unclassified error in modload.Query, it takes
+    precedence even if the package is found in some other module.
+    (That is intentional, so that if a package exists in both a parent
+    and a nested module the outcome is deterministic, and does not shift
+    if a temporary error causes one of the modules to be unavailable.)
     
-    Change-Id: I97c947a2278a084c58784fd100630ce2a54bfb03
-    GitHub-Last-Rev: ddc60a044f641d264c9ee88d87b2da7e2f766741
-    GitHub-Pull-Request: golang/go#71744
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649418
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    A pseudo-version is formed from a base version and a commit hash.
+    Each version tag is specific to the module in a particular directory
+    of the repo (often the root directory), whereas the commit hash is
+    the same for all subdirectories. When we go to check a particular
+    subdirectory for the requested package, we may find that that version
+    is not valid for that combination of <subdirectory, commit hash>,
+    but we should keep looking to see whether it is valid for a module
+    in some other subdirectory.
+    
+    Fixes #47650.
+    
+    Change-Id: Id48f590ce906a3d4cf4e82fc66137bf67613277d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548475
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/os/root_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go          | 12 ++++++-
+ src/cmd/go/internal/modload/query.go              | 17 +++++++---
+ src/cmd/go/testdata/script/mod_get_issue47650.txt | 29 ++++++++++++++++
+ src/cmd/go/testdata/vcstest/git/issue47650.txt    | 41 +++++++++++++++++++++++
+ 4 files changed, 93 insertions(+), 6 deletions(-)

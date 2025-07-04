@@ -1,27 +1,12 @@
-commit 9905cec0dc04fd7cddb7c7504006b7aa618abd94
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 4 13:55:35 2013 -0800
+commit a969f3c247b45ab5557aff1a8777751360b9c0a4
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Mar 4 15:31:57 2013 -0500
 
-    spec: terminating statements for functions
+    misc/emacs: Add tab completion for godoc command, completing from known installed packages
     
-    The only functional change is the new section
-    on terminating statements.
-    
-    There is a minor syntax rewrite (not change)
-    of function declarations to make it easier to
-    refer to the notion of a function from all places
-    where it is used (function decls, method decls,
-    and function literals).
-    
-    Includes some minor fixes/additions of missing links.
-    
-    Based closely on Russ' proposal.
-    
-    Fixes #65.
-    
-    R=rsc, r, iant, ken, bradfitz
+    R=golang-dev, adonovan, bradfitz, cw, patrick.allen.higgins, sameer, ugorji
     CC=golang-dev
-    https://golang.org/cl/7415050
+    https://golang.org/cl/7373051
 
- doc/go_spec.html | 122 +++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 105 insertions(+), 17 deletions(-)
+ misc/emacs/go-mode.el | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

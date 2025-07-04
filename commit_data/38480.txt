@@ -1,22 +1,16 @@
-commit cb8aefd3b06f39679ebe1abbd38abef52cbd76b7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 19 10:40:52 2019 -0700
+commit 21d2e15ee1bed44a7a1b8f775aff4a57cae9533a
+Author: tkivisik <taavi.kivisik@gmail.com>
+Date:   Wed Oct 17 12:42:54 2018 +0000
 
-    cmd/internal/obj/x86: slightly optimize ADJSP encoding
+    doc: improve language in contribute
     
-    This shaves a few bytes off here and there.
+    Previous wording was incorrect.
     
-    file    before    after     Δ       %
-    buildid 2865992   2861896   -4096   -0.143%
-    pprof   14744060  14739964  -4096   -0.028%
-    trace   11680644  11676548  -4096   -0.035%
-    vet     8448240   8444144   -4096   -0.048%
-    
-    Change-Id: I799034afabc06a37b535301cd1380d63b4461095
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168343
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I91406c775161d9724ec60824c156e8e9a925bcd7
+    GitHub-Last-Rev: 2b6b4e136a78a431cc847a2717cbeae4341ed7bc
+    GitHub-Pull-Request: golang/go#28248
+    Reviewed-on: https://go-review.googlesource.com/c/142879
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/internal/obj/x86/asm6.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

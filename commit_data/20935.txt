@@ -1,14 +1,13 @@
-commit 439b32936367c3efd0dadab48dd51202e1a510f1
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Dec 8 18:47:42 2014 +1100
+commit 982dcb249d107c1cab844912583c5eca0a07a00f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 28 13:49:41 2014 -0700
 
-    remove the obsolete lib/codereview.
+    doc/go1.4.html: breaking compiler change, no plugins in misc
     
-    Change-Id: Idd2e74053ce4a2be3d757aef1bb83313973de6f0
-    Reviewed-on: https://go-review.googlesource.com/1175
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166850043
 
- lib/codereview/codereview.cfg |    2 -
- lib/codereview/codereview.py  | 3694 -----------------------------------------
- lib/codereview/test.sh        |  199 ---
- 3 files changed, 3895 deletions(-)
+ doc/go1.4.html | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 50 insertions(+), 6 deletions(-)

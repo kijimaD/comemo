@@ -1,25 +1,19 @@
-commit 57cb47209c655bdd7fb6d7effd5375e9b0fe90cf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 2 22:06:11 2023 -0400
+commit 77d9252ddfc6b3e2e48916240340ea5470b005a6
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Mon May 23 23:20:00 2022 +0000
 
-    cmd/compile,cmd/link: skip tests that require DWARF symbols on ios
+    runtime: fix inline assembly trampoline for arm64
     
-    The linker does not combine DWARF information into the binary on ios.
-    This generalizes test skips that were already present for a similar
-    reason on plan9.
+    Use the program counter to compute the address of the first instruction
+    of the ret sled. The ret sled is located after 5 instructions from the
+    MOVD instruction saving the value of the program counter.
     
-    Fixes #59939.
-    
-    Change-Id: Ideda07c9f9a69fd102a7d9a83ea8e7b7c29d0da2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491835
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Change-Id: Ie7ae7a0807785d6fea035cf7a770dba7f37de0ec
+    GitHub-Last-Rev: 2719208c6a3b049e0f394e5311ce3282b58f8516
+    GitHub-Pull-Request: golang/go#53039
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407895
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/dwarfgen/scope_test.go |   9 ++-
- src/cmd/compile/internal/ssa/stmtlines_test.go  |   5 +-
- src/cmd/link/dwarf_test.go                      |   4 +-
- src/cmd/link/internal/ld/dwarf_test.go          | 103 +++++++-----------------
- src/internal/platform/supported.go              |  12 ++-
- 5 files changed, 52 insertions(+), 81 deletions(-)
+ src/runtime/libfuzzer_arm64.s | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

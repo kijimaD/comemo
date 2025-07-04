@@ -1,59 +1,37 @@
-commit cd42fa581ab860af32672fb1e0eb5de19b4986e1
-Merge: 2db4cc38a0 ce122624f0
-Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
-Date:   Tue Apr 14 17:35:25 2020 +0000
+commit d2c039fb210429958bce6347a1e9d9a7b0ffd26d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Nov 3 10:32:37 2019 +1100
 
-    Merge "cmd: merge branch 'dev.link' into master"
+    crypto/x509: make '-gcflags=all=-d=checkptr' flag work
+    
+    Replace
+    
+    buf := [HUGE_CONST]*T)(unsafe.Pointer(p))[:]
+    
+    with
+    
+    buf := [HUGE_CONST]*T)(unsafe.Pointer(p))[:n:n]
+    
+    Pointer p points to n of T elements. New unsafe pointer conversion
+    logic verifies that both first and last elements point into the
+    same Go variable. And this change adjusts all code to comply with
+    this rule.
+    
+    Verified by running
+    
+    go test -a -short -gcflags=all=-d=checkptr crypto/x509
+    
+    The test does not fail even with original version of this code. I
+    suspect it is because all variables I changed live outside of Go
+    memory. But I am just guessing, I don't really know how pointer
+    checker works.
+    
+    Updates golang/go#34972
+    
+    Change-Id: Ibc33fdc9e2023d9b14905c9badf2f0b683999ab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204621
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/goobj/readnew.go             |   8 +-
- src/cmd/internal/goobj2/funcinfo.go           |  82 +++-
- src/cmd/internal/goobj2/objfile.go            | 206 +++++-----
- src/cmd/internal/goobj2/objfile_test.go       |  72 +++-
- src/cmd/internal/obj/objfile2.go              |  77 ++--
- src/cmd/link/internal/amd64/asm.go            |  44 +--
- src/cmd/link/internal/amd64/obj.go            |   2 +-
- src/cmd/link/internal/arm/asm.go              | 198 +++++-----
- src/cmd/link/internal/arm/obj.go              |   2 +-
- src/cmd/link/internal/arm64/asm.go            |  49 +--
- src/cmd/link/internal/arm64/obj.go            |   2 +-
- src/cmd/link/internal/ld/data.go              | 181 +++++----
- src/cmd/link/internal/ld/deadcode.go          |  40 +-
- src/cmd/link/internal/ld/decodesym2.go        |  11 +
- src/cmd/link/internal/ld/dwarf.go             |   2 +-
- src/cmd/link/internal/ld/dwarf2.go            |  12 +-
- src/cmd/link/internal/ld/ld.go                |  44 +++
- src/cmd/link/internal/ld/lib.go               |  74 ++--
- src/cmd/link/internal/ld/link.go              |   8 +-
- src/cmd/link/internal/ld/macho.go             |   2 +-
- src/cmd/link/internal/ld/main.go              |  21 +-
- src/cmd/link/internal/ld/pcln.go              | 528 +++++++++++++++----------
- src/cmd/link/internal/ld/sym.go               |   1 +
- src/cmd/link/internal/ld/symtab.go            |  43 +--
- src/cmd/link/internal/ld/target.go            |   4 +
- src/cmd/link/internal/ld/typelink.go          |  33 +-
- src/cmd/link/internal/ld/xcoff.go             |   2 +-
- src/cmd/link/internal/loadelf/ldelf.go        |  53 +--
- src/cmd/link/internal/loader/loader.go        | 529 ++++++++++++++------------
- src/cmd/link/internal/loader/symbolbuilder.go |  66 +++-
- src/cmd/link/internal/loadmacho/ldmacho.go    | 146 ++-----
- src/cmd/link/internal/loadpe/ldpe.go          |  51 +--
- src/cmd/link/internal/loadxcoff/ldxcoff.go    |  33 +-
- src/cmd/link/internal/mips/asm.go             |   2 +-
- src/cmd/link/internal/mips/obj.go             |   2 +-
- src/cmd/link/internal/mips64/asm.go           |   2 +-
- src/cmd/link/internal/mips64/obj.go           |   2 +-
- src/cmd/link/internal/ppc64/asm.go            | 334 ++++++++--------
- src/cmd/link/internal/ppc64/obj.go            |   2 +-
- src/cmd/link/internal/riscv64/asm.go          |   2 +-
- src/cmd/link/internal/riscv64/obj.go          |   2 +-
- src/cmd/link/internal/s390x/asm.go            |  49 +--
- src/cmd/link/internal/s390x/obj.go            |   2 +-
- src/cmd/link/internal/sym/library.go          |   2 -
- src/cmd/link/internal/sym/sizeof_test.go      |   2 +-
- src/cmd/link/internal/sym/symbol.go           |  24 --
- src/cmd/link/internal/wasm/asm.go             |   9 +-
- src/cmd/link/internal/wasm/obj.go             |   2 +-
- src/cmd/link/internal/x86/asm.go              |  68 +---
- src/cmd/link/internal/x86/obj.go              |   2 +-
- src/cmd/oldlink/internal/ld/elf.go            |  33 ++
- 51 files changed, 1671 insertions(+), 1496 deletions(-)
+ src/crypto/x509/root_windows.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

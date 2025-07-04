@@ -1,16 +1,20 @@
-commit 2acd3fa8f134dafd34a1789177950474b256a74a
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Apr 7 08:31:52 2017 +0200
+commit 2c8b70eacfc3fd2d86bd8e4e4764f11a2e9b3deb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 21:24:17 2017 +0000
 
-    cmd/compile: reduce switch cases in evconst
+    crypto/x509: revert SystemCertPool implementation for Windows
     
-    Reduces the number of cases that need to be tested and
-    reduces size of the evconst function by 101 bytes.
+    Updates #18609
     
-    Change-Id: Ie56055a89d0dadd311fb940b51c488fc003694b9
-    Reviewed-on: https://go-review.googlesource.com/39950
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8306135660f52cf625bed4c7f53f632e527617de
+    Reviewed-on: https://go-review.googlesource.com/35265
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 78 ++++++++++++++++--------------------
- 1 file changed, 35 insertions(+), 43 deletions(-)
+ doc/go1.8.html                  |  5 -----
+ src/crypto/x509/cert_pool.go    | 11 ++++++++++-
+ src/crypto/x509/root_windows.go |  5 +++++
+ src/crypto/x509/x509_test.go    |  4 ++++
+ 4 files changed, 19 insertions(+), 6 deletions(-)

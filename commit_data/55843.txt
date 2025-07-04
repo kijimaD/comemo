@@ -1,25 +1,16 @@
-commit 58052fe8e707cc0285cffb239bc7a5343243e316
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Mar 6 12:39:23 2024 -0500
+commit 553506d39a44a4f56f4f801b15e82fea7f542403
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 17 12:40:25 2023 -0700
 
-    cmd: update telemetry to d5a85b2
+    cmd/go: use platform.MustLinkExternal in externalLinkingForced
     
-    commands run:
-            go get golang.org/x/telemetry@d5a85b2
-            go mod tidy
-            go mod vendor
-    
-    Fixes #66099
-    
-    Change-Id: Ia9215855f1472fa885792d5b23a986f29759af18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569421
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If5613ae73d03c196f26340fd6293e37c78c29bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
 
- src/cmd/go.mod                                     |  4 +--
- src/cmd/go.sum                                     |  8 ++---
- .../x/telemetry/internal/upload/upload.go          |  9 +++++
- src/cmd/vendor/golang.org/x/telemetry/start.go     | 40 +++++++++++++++++++++-
- src/cmd/vendor/modules.txt                         |  4 +--
- 5 files changed, 56 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

@@ -1,54 +1,15 @@
-commit 23e15f72538381dab83d02b3bf543cf95230d3e8
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 9 21:43:00 2013 +0400
+commit ba6cf63cba611d8d4602781bd8abf5bade2af3ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 9 09:23:27 2013 -0700
 
-    net: add special netFD mutex
-    The mutex, fdMutex, handles locking and lifetime of sysfd,
-    and serializes Read and Write methods.
-    This allows to strip 2 sync.Mutex.Lock calls,
-    2 sync.Mutex.Unlock calls, 1 defer and some amount
-    of misc overhead from every network operation.
+    net: give C.getaddrinfo a hint that we only want SOCK_STREAM answers
     
-    On linux/amd64, Intel E5-2690:
-    benchmark                             old ns/op    new ns/op    delta
-    BenchmarkTCP4Persistent                    9595         9454   -1.47%
-    BenchmarkTCP4Persistent-2                  8978         8772   -2.29%
-    BenchmarkTCP4ConcurrentReadWrite           4900         4625   -5.61%
-    BenchmarkTCP4ConcurrentReadWrite-2         2603         2500   -3.96%
+    This should be more efficient everywhere, and appears to be
+    required on Solaris.
     
-    In general it strips 70-500 ns from every network operation depending
-    on processor model. On my relatively new E5-2690 it accounts to ~5%
-    of network op cost.
-    
-    Fixes #6074.
-    
-    R=golang-dev, bradfitz, alex.brainman, iant, mikioh.mikioh
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12418043
+    https://golang.org/cl/12583046
 
- src/pkg/net/fd_mutex.go           | 184 +++++++++++++++++++++++++++++++++++++
- src/pkg/net/fd_mutex_test.go      | 186 ++++++++++++++++++++++++++++++++++++++
- src/pkg/net/fd_poll_runtime.go    |   2 +-
- src/pkg/net/fd_unix.go            | 137 ++++++++++++++--------------
- src/pkg/net/fd_windows.go         | 132 ++++++++++++++-------------
- src/pkg/net/sendfile_freebsd.go   |   6 +-
- src/pkg/net/sendfile_linux.go     |   6 +-
- src/pkg/net/sendfile_windows.go   |   7 +-
- src/pkg/net/sockopt_posix.go      |   8 +-
- src/pkg/net/sockoptip_bsd.go      |   4 +-
- src/pkg/net/sockoptip_linux.go    |   4 +-
- src/pkg/net/sockoptip_posix.go    |   8 +-
- src/pkg/net/sockoptip_windows.go  |   4 +-
- src/pkg/net/tcpsockopt_darwin.go  |   2 +-
- src/pkg/net/tcpsockopt_openbsd.go |   2 +-
- src/pkg/net/tcpsockopt_posix.go   |   2 +-
- src/pkg/net/tcpsockopt_unix.go    |   2 +-
- src/pkg/net/tcpsockopt_windows.go |   2 +-
- src/pkg/runtime/mgc0.c            |   4 +-
- src/pkg/runtime/mprof.goc         |   4 +-
- src/pkg/runtime/netpoll.goc       |   8 ++
- src/pkg/runtime/proc.c            |   2 +-
- src/pkg/runtime/race.c            |   2 +-
- src/pkg/runtime/runtime.h         |   2 +-
- src/pkg/runtime/sema.goc          |  12 +--
- 25 files changed, 553 insertions(+), 179 deletions(-)
+ src/pkg/net/cgo_unix.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

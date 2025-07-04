@@ -1,19 +1,38 @@
-commit 07a6cbf58acd812dd935ef6373d567fd75e5ca3f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Sep 2 22:26:42 2015 +1200
+commit e2bb03f175e162cef9a6639d36483cf5e8be5306
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 26 12:16:51 2015 -0400
 
-    cmd/dist, cmd/go, misc/cgo/testshared: update testshared and run it on arm
+    runtime: don't install a stack barrier in cgocallback_gofunc's frame
     
-    And enable PIE in cmd/go because that's all it seems to take.
+    Currently the runtime can install stack barriers in any frame.
+    However, the frame of cgocallback_gofunc is special: it's the one
+    function that switches from a regular G stack to the system stack on
+    return. Hence, the return PC slot in its frame on the G stack is
+    actually used to save getg().sched.pc (so tracebacks appear to unwind
+    to the last Go function running on that G), and not as an actual
+    return PC for cgocallback_gofunc.
     
-    Change-Id: Ie017f427ace5e91de333a9f7cba9684c4641dfd5
-    Reviewed-on: https://go-review.googlesource.com/14222
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Because of this, if we install a stack barrier in cgocallback_gofunc's
+    return PC slot, when cgocallback_gofunc does return, it will move the
+    stack barrier stub PC in to getg().sched.pc and switch back to the
+    system stack. The rest of the runtime doesn't know how to deal with a
+    stack barrier stub in sched.pc: nothing knows how to match it up with
+    the G's stack barrier array and, when the runtime removes stack
+    barriers, it doesn't know to undo the one in sched.pc. Hence, if the C
+    code later returns back in to Go code, it will attempt to return
+    through the stack barrier saved in sched.pc, which may no longer have
+    correct unwinding information.
+    
+    Fix this by blacklisting cgocallback_gofunc's frame so the runtime
+    won't install a stack barrier in it's return PC slot.
+    
+    Fixes #12238.
+    
+    Change-Id: I46aa2155df2fd050dd50de3434b62987dc4947b8
+    Reviewed-on: https://go-review.googlesource.com/13944
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testshared/shared_test.go | 8 ++++++--
- src/cmd/dist/test.go               | 2 +-
- src/cmd/go/build.go                | 2 +-
- 3 files changed, 8 insertions(+), 4 deletions(-)
+ src/runtime/asm_amd64p32.s |  6 ++++++
+ src/runtime/mgcmark.go     | 25 ++++++++++++++++++++-----
+ src/runtime/traceback.go   |  2 ++
+ 3 files changed, 28 insertions(+), 5 deletions(-)

@@ -1,0 +1,21 @@
+commit e9242ee81274154f2ec0a82a176496acea0b91ef
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Mar 26 15:46:30 2025 +0100
+
+    cmd/compile: remove references to *gc.Node in docs
+    
+    ssa.Sym is only implemented by *ir.Name or *obj.LSym.
+    
+    Change-Id: Ia171db618abd8b438fcc2cf402f40f3fe3ec6833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660995
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/genericOps.go | 6 +++---
+ src/cmd/compile/internal/ssa/_gen/rulegen.go    | 2 +-
+ src/cmd/compile/internal/ssa/op.go              | 6 +++---
+ src/cmd/compile/internal/ssa/regalloc.go        | 2 +-
+ 4 files changed, 8 insertions(+), 8 deletions(-)

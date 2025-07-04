@@ -1,19 +1,12 @@
-commit eb3aba24b5bc96d4059db492e362d2cd5c77682e
+commit fa538114edce01d7556e61bcd96b1593a0c47d1a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 15:46:39 2011 -0400
+Date:   Thu Oct 13 15:44:17 2011 -0400
 
-    gc: stricter multiple assignment + test
+    spec: define order of multiple assignment
     
-    Fixes #693.
-    
-    R=ken2
+    R=golang-dev, r, gri
     CC=golang-dev
-    https://golang.org/cl/5265045
+    https://golang.org/cl/5240055
 
- src/cmd/gc/dcl.c       |   1 +
- src/cmd/gc/go.h        |   1 +
- src/cmd/gc/subr.c      |   3 +
- src/cmd/gc/typecheck.c |   3 +
- src/cmd/gc/walk.c      | 266 ++++++++++++++++++++++++++++++++++++++++++-------
- test/reorder.go        | 121 ++++++++++++++++++++++
- 6 files changed, 360 insertions(+), 35 deletions(-)
+ doc/go_spec.html | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

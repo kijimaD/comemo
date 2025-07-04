@@ -1,13 +1,18 @@
-commit 6401e0f83f29b0f3b03b9d07ebcab56e5ddb461b
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 19 12:20:50 2013 -0700
+commit d017f578d01fa608d5ed40e343d0ffaf5fc0d476
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 19 23:06:46 2013 +0400
 
-    runtime: don't run finalizers if we're still on the g0 stack.
+    runtime: do not preempt race calls
+    In the crash stack trace race cgocall() calls endcgo(),
+    this means that m->racecall is wrong.
+    Indeed this can happen is a goroutine is rescheduled to another M
+    during race call.
+    Disable preemption for race calls.
+    Fixes #6155.
     
-    R=golang-dev, rsc, dvyukov, khr
+    R=golang-dev, rsc, cshapiro
     CC=golang-dev
-    https://golang.org/cl/11386044
+    https://golang.org/cl/12866045
 
- src/pkg/runtime/mgc0.c  | 7 ++++---
- src/pkg/runtime/stack.c | 2 +-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/runtime/race.c | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

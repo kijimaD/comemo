@@ -1,27 +1,19 @@
-commit bb6320535d6bcef1a5d44cb7429877166c4d5298
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 27 17:01:53 2015 -0400
+commit 7b850ec6917acada87482bbdea76abb57aa5f9cd
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Apr 2 16:19:46 2015 -0700
 
-    runtime: replace STW for enabling write barriers with ragged barrier
+    crypto/tls: tidy up a little and add test.
     
-    Currently, we use a full stop-the-world around enabling write
-    barriers. This is to ensure that all Gs have enabled write barriers
-    before any blackening occurs (either in gcBgMarkWorker() or in
-    gcAssistAlloc()).
+    This is a follow on to 28f33b4a which removes one of the boolean flags
+    and adds a test for the key-driven cipher selection.
     
-    However, there's no need to bring the whole world to a synchronous
-    stop to ensure this. This change replaces the STW with a ragged
-    barrier that ensures each P has individually observed that write
-    barriers should be enabled before GC performs any blackening.
-    
-    Change-Id: If2f129a6a55bd8bdd4308067af2b739f3fb41955
-    Reviewed-on: https://go-review.googlesource.com/8207
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: If2a400de807eb19110352912a9f467491cc8986c
+    Reviewed-on: https://go-review.googlesource.com/8428
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Jacob Haven <jacob@cloudflare.com>
 
- src/runtime/malloc.go   |  2 +-
- src/runtime/mgc.go      | 42 +++++++++++++++++++++++++-----------------
- src/runtime/mgcmark.go  |  2 +-
- src/runtime/proc1.go    |  9 +++++----
- src/runtime/runtime2.go |  5 +++++
- 5 files changed, 37 insertions(+), 23 deletions(-)
+ src/crypto/tls/common.go                |  8 ++---
+ src/crypto/tls/handshake_server.go      | 17 ++++------
+ src/crypto/tls/handshake_server_test.go | 59 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 69 insertions(+), 15 deletions(-)

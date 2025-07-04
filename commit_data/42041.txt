@@ -1,49 +1,24 @@
-commit 768201729df89a28aae2cc5e41a33ffcb759c113
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 1 15:51:08 2020 -0400
+commit 73d57bf80f42eda964768e1761b02ce9257638dc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 7 14:09:23 2019 +0000
 
-    cmd/compile: detect and diagnose invalid //go: directive placement
+    Revert "sync: yield to the waiter when unlocking a starving mutex"
     
-    Thie CL changes cmd/compile/internal/syntax to give the gc half of
-    the compiler more control over pragma handling, so that it can prepare
-    better errors, diagnose misuse, and so on. Before, the API between
-    the two was hard-coded as a uint16. Now it is an interface{}.
-    This should set us up better for future directives.
+    This reverts CL 200577.
     
-    In addition to the split, this CL emits a "misplaced compiler directive"
-    error for any directive that is in a place where it has no effect.
-    I've certainly been confused in the past by adding comments
-    that were doing nothing and not realizing it. This should help
-    avoid that kind of confusion.
+    Reason for revert: broke linux-arm64-packet and solaris-amd64-oraclerel builders
     
-    The rule, now applied consistently, is that a //go: directive
-    must appear on a line by itself immediately before the declaration
-    specifier it means to apply to. See cmd/compile/doc.go for
-    precise text and test/directive.go for examples.
+    Fixes #35424
+    Updates #33747
     
-    This may cause some code to stop compiling, but that code
-    was broken. For example, this code formerly applied the
-    //go:noinline to f (not c) but now will fail to compile:
-    
-            //go:noinline
-            const c = 1
-    
-            func f() {}
-    
-    Change-Id: Ieba9b8d90a27cfab25de79d2790a895cefe5296f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228578
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I2575fd84d37995d458183caae54704f15d8b8426
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205817
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/doc.go                     |  58 +++++++++++-----
- src/cmd/compile/internal/gc/lex.go         |  37 ++++++++---
- src/cmd/compile/internal/gc/noder.go       | 102 ++++++++++++++++++++++++-----
- src/cmd/compile/internal/gc/syntax.go      |   5 +-
- src/cmd/compile/internal/syntax/nodes.go   |  27 ++++----
- src/cmd/compile/internal/syntax/parser.go  |  71 +++++++++++++++-----
- src/cmd/compile/internal/syntax/scanner.go |  12 ++--
- src/cmd/compile/internal/syntax/syntax.go  |  25 ++++---
- src/go/types/stdlib_test.go                |   1 +
- test/directive.go                          |  95 +++++++++++++++++++++++++++
- 10 files changed, 345 insertions(+), 88 deletions(-)
+ src/runtime/export_test.go |  8 -----
+ src/runtime/proc.go        | 15 ---------
+ src/runtime/sema.go        | 21 +-----------
+ src/runtime/sema_test.go   | 80 ----------------------------------------------
+ src/sync/mutex.go          |  3 +-
+ 5 files changed, 2 insertions(+), 125 deletions(-)

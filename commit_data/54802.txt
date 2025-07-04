@@ -1,24 +1,18 @@
-commit 8c92897e15d15fbc664cd5a05132ce800cf4017f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 16 22:36:57 2023 -0400
+commit 3e1519d05a640701e1a2f1d9ba737fc912a1b624
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:45:00 2022 -0500
 
-    cmd/compile: rework TestPGOHash to not rebuild dependencies
+    cmd/pack: use testenv.Command instead of exec.Command in tests
     
-    TestPGOHash may rebuild dependencies as we pass -trimpath to the
-    go command. This CL makes it pass -trimpath compiler flag to only
-    the current package instead, as we only need the current package
-    to have a stable source file path.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    Also refactor buildPGOInliningTest to only take compiler flags,
-    not go flags, to avoid accidental rebuild.
-    
-    Should fix #63733.
-    
-    Change-Id: Iec6c4e90cf659790e21083ee2e697f518234c5b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535915
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia1dd1bacfa2c9378401bbce304ebf7ee3f159352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450707
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/test/pgo_inl_test.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/pack/pack_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

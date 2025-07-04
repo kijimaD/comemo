@@ -1,20 +1,17 @@
-commit aca0e2bb27c4ef23004571cce0cfdb819a1a2223
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 4 16:42:56 2024 -0700
+commit a4e694b8d41be82b3605f577833dfcb85788ee2b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jul 17 14:32:44 2023 +0200
 
-    go/types, types2: factor out isdddArray and inNode helper functions
+    doc/go1.21: consistently use spaces for indentation
     
-    Preparation for generation of go/types/literals.go from types2 sources.
-    
-    Change-Id: I9af23fbe1e448976394ddd7b348188c2595d8afe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610557
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ib0aec9ee6cd7aae1821c82e67f0c67be01122992
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509677
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/types2/literals.go |  4 ++--
- src/cmd/compile/internal/types2/util.go     |  6 ++++++
- src/go/types/literals.go                    | 16 +++++++---------
- src/go/types/util.go                        | 10 ++++++++++
- 4 files changed, 25 insertions(+), 11 deletions(-)
+ doc/go1.21.html | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

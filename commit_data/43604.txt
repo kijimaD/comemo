@@ -1,18 +1,16 @@
-commit ae82ee4016c44e558b002f0c7ffbb40d698d411e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Oct 27 23:30:14 2020 +1100
+commit 8f53fad035ccc580859f7b063ae8be30b009a6be
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 14 14:00:42 2020 -0700
 
-    runtime: optimise gcWriteBarrier for riscv64
+    math/big: add test that linker is able to remove unused code
     
-    Avoid saving unnecessary registers in gcWriteBarrier on riscv64, which also
-    removes references to X4 and X27 (TP and g registers).
+    (Follow-up to CL 228108.)
     
-    Change-Id: I2854161dcdf0c6047a45347165371827dcf8c1cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265518
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia6d119ee19c7aa923cdeead06d3cee87a1751105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228109
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_riscv64.s | 134 ++++++++++++++++++++--------------------------
- 1 file changed, 59 insertions(+), 75 deletions(-)
+ src/math/big/link_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

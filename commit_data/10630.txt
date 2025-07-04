@@ -1,12 +1,15 @@
-commit 2c7a84a95bc10fe57b7b0699aee23f06f23076b5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 7 09:41:20 2011 +1100
+commit b219e8cbcf67e10b47ab6ebe97eb6497f6010000
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 6 13:54:22 2011 -0800
 
-    goinstall: honour -install=false flag when -make=true
+    strconv: squeezed a bit more out of int/uint formatting
     
-    R=rsc
+    - less code
+    - slightly better performance (0-4%)
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5448124
+    https://golang.org/cl/5448120
 
- src/cmd/goinstall/make.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/strconv/itoa.go | 41 ++++++++++++++++++-----------------------
+ 1 file changed, 18 insertions(+), 23 deletions(-)

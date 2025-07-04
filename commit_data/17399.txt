@@ -1,14 +1,17 @@
-commit 8b047893a08f316a5f5179e2d71b45a068c9108a
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Aug 27 09:03:38 2013 -0700
+commit 264b73b3f24b56ac1db5c65e9cfaa267d0a41f48
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Aug 27 09:47:58 2013 -0400
 
-    go/ast: fix comment formatting
+    misc/emacs: allow users to customize path of 'go' tool.
     
-    A bullet list was getting mangled in godoc.
+    Some users have multiple Go development trees and invoke the
+    'go' tool via a wrapper that sets GOROOT and GOPATH based on
+    the current directory.  Such users should customize go-command
+    to point to the wrapper script.
     
-    R=golang-dev, bradfitz
+    R=dominik.honnef
     CC=golang-dev
-    https://golang.org/cl/13060047
+    https://golang.org/cl/13233043
 
- src/pkg/go/ast/commentmap.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ misc/emacs/go-mode.el | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

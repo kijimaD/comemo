@@ -1,25 +1,21 @@
-commit 2c8529cb4d474ab1c7993d3a5af27d9c5e748e0b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 31 16:54:21 2019 -0400
+commit 983986f23d81eae6ee202bd31383d04e73187536
+Author: kawakami <kawakami.ozone@gmail.com>
+Date:   Thu May 16 03:11:44 2019 +0900
 
-    cmd/go: default to mod=readonly when the go.mod file is read-only
+    image/gif: fix transparency loss when encoding a wrapped *image.Paletted
     
-    Updates #30185
-    Updates #33326
-    Updates #34822
+    This keeps transparency of a wrapped image.Image even after it is encoded.
     
-    Change-Id: Ie13651585898d1bbbf4f779b97ee50b6c7e7ad50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204521
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #30995
+    
+    Change-Id: I1f7ac98b1741f83ed740f6eda6c36b7e9b16e5af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177377
+    Reviewed-by: Hayato Kawakami <kawakami.ozone@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                 |  1 +
- src/cmd/go/internal/modfetch/repo.go           | 21 ++++++++----
- src/cmd/go/internal/modload/init.go            | 47 +++++++++++++++++---------
- src/cmd/go/internal/modload/stat_openfile.go   | 27 +++++++++++++++
- src/cmd/go/internal/modload/stat_unix.go       | 31 +++++++++++++++++
- src/cmd/go/internal/modload/stat_windows.go    | 23 +++++++++++++
- src/cmd/go/script_test.go                      |  6 +++-
- src/cmd/go/testdata/script/mod_readonly.txt    | 12 +++++--
- src/cmd/go/testdata/script/mod_vendor_auto.txt |  2 --
- 9 files changed, 143 insertions(+), 27 deletions(-)
+ src/image/gif/writer.go             |  14 ++++++-
+ src/image/gif/writer_test.go        |  81 ++++++++++++++++++++++++++++++++++--
+ src/image/testdata/triangle-001.gif | Bin 0 -> 1476 bytes
+ 3 files changed, 90 insertions(+), 5 deletions(-)

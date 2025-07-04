@@ -1,76 +1,24 @@
-commit 6781ff226d8d2f9b49a61eaa8de40be68fea7037
-Author: Zxilly <zxilly@outlook.com>
-Date:   Sat Aug 24 08:39:47 2024 +0000
+commit 12bd2445afffbf229bafc538260c37b5dc176479
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 25 15:14:03 2023 -0700
 
-    misc/wasm: move wasm runtime files to lib/wasm
+    runtime2: don't check fcntl errno in checkfds on AIX and Solaris
     
-    Fixes #68024
+    On AIX and Solaris the errno value is fetched using m.mOS.perrno.
+    When checkfds is called, that value has not yet been set up by minit.
+    Since the error value doesn't really matter in checkfds,
+    don't bother to check it on AIX and Solaris.
     
-    Change-Id: I730c3ecfb14472f3eea3895c2a4d5e1d4ac146f5
-    GitHub-Last-Rev: 4242f360103ba1fd1f4085b8257ccce0f07a68e5
-    GitHub-Pull-Request: golang/go#68840
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604696
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #61584
+    
+    Change-Id: I4e679ee3fdad4f0b833ae102597b2d6b8cb46cb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513215
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/next/7-ports.md                                  |  3 +++
- {misc => lib}/wasm/go_js_wasm_exec                   |  0
- {misc => lib}/wasm/go_wasip1_wasm_exec               |  0
- {misc => lib}/wasm/wasm_exec.js                      |  0
- {misc => lib}/wasm/wasm_exec_node.js                 |  0
- misc/wasm/wasm_exec.html                             |  2 +-
- src/cmd/distpack/test.go                             |  5 +++++
- src/cmd/go/internal/toolchain/select.go              | 20 ++++++++++++++------
- ...org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.android-386.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.android-amd64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.android-arm.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.android-arm64.txt |  1 +
- ..._toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt |  1 +
- ..._toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt |  1 +
- ...olchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt |  1 +
- ...olchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt |  1 +
- ...org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt |  1 +
- ...org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt |  1 +
- ...g.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt |  1 +
- ...org_toolchain_v0.0.1-go1.999testmod.linux-386.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt |  1 +
- ...org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.linux-loong64.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt |  1 +
- ...rg_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt |  1 +
- ..._toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt |  1 +
- ...rg_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt |  1 +
- ..._toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt |  1 +
- ...oolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt |  1 +
- ...olchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt |  1 +
- ...org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt |  1 +
- ...org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt |  1 +
- ...toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt |  1 +
- ...g_toolchain_v0.0.1-go1.999testmod.windows-386.txt |  2 ++
- ...toolchain_v0.0.1-go1.999testmod.windows-amd64.txt |  2 ++
- ...g_toolchain_v0.0.1-go1.999testmod.windows-arm.txt |  2 ++
- ...toolchain_v0.0.1-go1.999testmod.windows-arm64.txt |  1 +
- src/syscall/js/js_test.go                            |  2 +-
- 56 files changed, 74 insertions(+), 8 deletions(-)
+ src/runtime/fds_unix.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,21 +1,22 @@
-commit 98277f30e4365f3b35d856fa9cdee2fe01ab862b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 9 10:17:54 2022 +0200
+commit 025308fe084264538f49924b3f52d8d6b6359658
+Author: Ethan Reesor <ethan.reesor@gmail.com>
+Date:   Fri Aug 20 18:57:45 2021 -0500
 
-    syscall: add Mmap and Munmap on solaris
+    testing: increase alternation precedence
     
-    They exist on all other Unix ports, define them on GOOS=solaris as well.
+    Updates handling of go test flags -run and -bench to give alternation
+    precendence over the / delimiter. Currently, `A/B|C/D` is effectively
+    `A/(B|C)/D` - with this change, it changes to effectively `(A/B)|(C/D)`.
     
-    Fixes #52875
+    Fixes #39904
     
-    Change-Id: I7285156b3b48ce12fbcc6d1d88865540a5c51a21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413374
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Iebe5efd8d91c72eed6351bd63b4689b0fcb0ed0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343883
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/syscall/mmap_unix_test.go  |  2 +-
- src/syscall/syscall_solaris.go | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/testing/match.go      | 108 +++++++++++++++++++++++++++++++++++++---------
+ src/testing/match_test.go |  29 ++++++++++---
+ 2 files changed, 110 insertions(+), 27 deletions(-)

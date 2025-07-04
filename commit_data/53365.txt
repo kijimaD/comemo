@@ -1,22 +1,23 @@
-commit 7ad92e95b56019083824492fbec5bb07926d8ebd
-Author: Enrico Candino <enrico.candino@gmail.com>
-Date:   Fri May 26 00:52:57 2023 +0200
+commit 0b79abc27e1e4ea4ef3c299206f49e0724b03d57
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 13 14:27:45 2022 -0400
 
-    cmd/go: update cover flag documentation
+    cmd/compile: avoid copying Pos from ONAME when creating converts for maps
     
-    Cover flag documentation was not up to date, and the -covermode flag
-    documentation was missing.
+    ONAME nodes are shared, so using their position for anything is almost
+    always a mistake.  There are probably more instances of this mistake
+    elsewhere.  For now, handle the case of map key temporaries, where it's
+    been a problem.
     
-    Fixes #60438
+    Fixes #53456.
     
-    Change-Id: I11e769fa2a32d074de7a748aa534afdfe2ca4e78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498415
+    Change-Id: Id44e845d08d428592ad3ba31986635b6b87b0041
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417076
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/alldocs.go             | 14 +++++++++++---
- src/cmd/go/internal/work/build.go | 14 +++++++++++---
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/debug_lines_test.go | 46 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/testdata/b53456.go  | 19 ++++++++++
+ src/cmd/compile/internal/walk/order.go           | 24 ++++++++-----
+ 3 files changed, 64 insertions(+), 25 deletions(-)

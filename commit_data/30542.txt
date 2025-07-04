@@ -1,27 +1,24 @@
-commit a5a1fd4bc9c45f817c15733f2576048546325b28
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Mon Mar 6 20:00:54 2017 +0200
+commit eb8f2a832078d0748bcf1eb38357c8119fdbccb7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 11 07:37:32 2016 -0800
 
-    cmd/compile/internal/gc: convert Sym.Flags to bitset8
+    all: fix vet nits
     
-    This makes Sym flags consistent with the rest of the code after
-    the CL 37445.
+    Fixes these complaints from vet:
     
-    No functional changes.
+    cmd/compile/internal/gc/noder.go:32: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
+    cmd/compile/internal/gc/noder.go:1035: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
+    cmd/compile/internal/gc/noder.go:1051: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
+    cmd/compile/internal/syntax/parser_test.go:182: possible formatting directive in Error call
+    net/http/client_test.go:1334: possible formatting directive in Fatal call
     
-    Passes toolstash -cmp.
-    
-    Change-Id: Ica919f2ab98581371c717fff9a70aeb11058ca17
-    Reviewed-on: https://go-review.googlesource.com/37847
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5f90ec30f3c106c7e66c92e2b6f8d3b4874fec66
+    Reviewed-on: https://go-review.googlesource.com/33133
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 12 ++++++------
- src/cmd/compile/internal/gc/closure.go |  8 ++++----
- src/cmd/compile/internal/gc/dcl.go     |  6 +++---
- src/cmd/compile/internal/gc/export.go  | 14 +++++++-------
- src/cmd/compile/internal/gc/go.go      | 35 ++++++++++++++++++++++++----------
- src/cmd/compile/internal/gc/reflect.go | 24 +++++++++++------------
- src/cmd/compile/internal/gc/subr.go    | 14 +++++++-------
- 7 files changed, 64 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/gc/noder.go           | 6 +++---
+ src/cmd/compile/internal/syntax/parser_test.go | 2 +-
+ src/net/http/client_test.go                    | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

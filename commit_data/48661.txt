@@ -1,21 +1,16 @@
-commit 884e75fa53529321352a18538fe9e02fd485c49a
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Sat Feb 12 17:03:19 2022 +0800
+commit f4901341263adf7fc177e8e5e2e79576b490bb8f
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Mon May 31 12:15:12 2021 +0900
 
-    reflect: fix the collision of variable name and package name
+    spec: improve wording by choosing an official term "keyword"
     
-    The return value "abi" of func "funcLayout" is the same as package
-    "internal/abi", which currently works fine, but it is more reliable to
-    avoid conflicts.
+    Replace "reserved word" by "keyword" as the latter is the official term.
     
-    Change-Id: I83715dd79beff7cb3fc25747fef186dc0e2dfa8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385414
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I9f269759b872026034a9f47e4a761cff2d348ca0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323729
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/reflect/makefunc.go | 16 ++++++++--------
- src/reflect/type.go     | 20 ++++++++++----------
- src/reflect/value.go    | 24 ++++++++++++------------
- 3 files changed, 30 insertions(+), 30 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

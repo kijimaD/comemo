@@ -1,19 +1,16 @@
-commit 94002f6fcafb0e81ff9c5f12a28c21435534cb40
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 12:23:47 2021 -0400
+commit 78e442ea79294480c28e44b21702c6452e704110
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Dec 1 14:59:23 2020 -0800
 
-    go/types: implement term lists
+    doc/go1.16: add encoding/json note for tag change
     
-    This is a straightforward port of CL 339596 to go/types, differing only
-    in the package declaration.
+    For #40700
+    Fixes #42898
     
-    Change-Id: If5bf8fd5667bee91b04fdb797702e6045d5fba7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342330
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I652657ff8d6cce20bf868f0b1101d723d3f704d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274614
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/types/termlist.go      | 167 +++++++++++++++++++++++++
- src/go/types/termlist_test.go | 278 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 445 insertions(+)
+ doc/go1.16.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,41 +1,21 @@
-commit 901bf291bc90819cb6dad76064475cf9ecbc9651
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Dec 3 13:29:58 2020 +0100
+commit 70b277cf2e953bb9994b00898280f4659a47471e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 14:27:36 2021 +0700
 
-    runtime: allow builtin write function to be redirected with function pointer
+    cmd/compile: only check return for valid functions
     
-    The x/sys/windows package currently uses go:linkname for other facilities
-    inside of runtime that are not suitable to be exposed as a public API
-    due to their dangers but are still necessary for manipulating any
-    low-level plumbing that the runtime controls.
+    CheckReturn uses fn.Type() unconditionally, so for invalid function,
+    fn.Type() will be nil, causes the compiler crashes.
     
-    Logging, via the built-in println and panic handler, is one such
-    low-level plumbing feature. In this case, x/sys/windows/svc needs to be
-    able to redirect panics to the Windows event log. Because the event log
-    is a complicated interface, this requires a bit more fiddling than the
-    simple solution used on Android (baking it into runtime itself), and
-    because Windows services are very diverse, the event log might not even
-    always be a desirable destination.
+    Updates #43311
     
-    This commit accomplishes this by exposing a function pointer called
-    "overrideWrite" that low-level runtime packages like x/sys/windows/svc
-    can use to redirect output logs toward the event log or otherwise.
-    
-    It is not safe or acceptable to use as a generic mechanism, and for that
-    reason, we wouldn't want to expose this as a real stable API, similar to
-    the other instances of go:linkname in x/sys/windows. But for packages
-    that must interoperate with low-level Go runtime fundamentals, this is a
-    safety hatch for packages that are developed in tandem with the runtime.
-    x/sys/windows is one such package.
-    
-    Updates #42888.
-    
-    Change-Id: I77a32ff7e1494324e8cc38e792e007f86d32672d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278792
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I4420dd296c72ea83986b38fbf2c7f51fa59757c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298709
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/time_nofake.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ test/fixedbugs/issue17588.go                    | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,15 +1,24 @@
-commit f1b7c140ffe42db59b51937037b2af6c48fa94b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 28 14:40:59 2013 -0700
+commit 7e7f89933b9d6eba5d298d3f619b5ef4166e5052
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 14:19:51 2013 -0700
 
-    cmd/godoc: provide a link from notes to source location
+    net/http: parse Request-Line in a function, remove an allocation
     
-    R=golang-dev, r
+    Removes another per-request allocation. Also makes the code more
+    readable, IMO. And more testable.
+    
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAliveLite        10539        10324   -2.04%
+    
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAliveLite           20           19   -5.00%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAliveLite         1609         1559   -3.11%
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/8122043
+    https://golang.org/cl/8118044
 
- lib/godoc/package.html   |  4 ++--
- src/cmd/godoc/godoc.go   | 32 +++++++++++++++++++++++---------
- src/pkg/go/doc/doc.go    |  6 +++---
- src/pkg/go/doc/reader.go |  1 +
- 4 files changed, 29 insertions(+), 14 deletions(-)
+ src/pkg/net/http/request.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

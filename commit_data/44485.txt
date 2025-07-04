@@ -1,27 +1,40 @@
-commit 79beddc773ecca50c283dde6aad7c80929da0554
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Nov 23 10:59:33 2020 +0000
+commit 3dabaa44e8705b429f66b267cffe4a5b12f06acb
+Merge: 88382a9f97 6f264801a7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 17 14:56:36 2020 -0400
 
-    cmd/asm: add 128-bit FLDPQ and FSTPQ instructions for arm64
+    [dev.link] all: merge branch 'master' into dev.link
     
-    This CL adds assembly support for 128-bit FLDPQ and FSTPQ instructions.
-    
-    This CL also deletes some wrong pre/post-indexed LDP and STP instructions,
-    such as {ALDP, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPRE},
-    because when the offset type is C_UAUTO4K, pre and post don't work.
-    
-    Change-Id: Ifd901d4440eb06eb9e86c9dd17518749fdf32848
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273668
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6545cb431e9e3efa02defca52af7eae502adb157
 
- src/cmd/asm/internal/asm/testdata/arm64.s      |  48 ++++
- src/cmd/asm/internal/asm/testdata/arm64error.s |   3 +
- src/cmd/internal/obj/arm64/a.out.go            |  16 +-
- src/cmd/internal/obj/arm64/anames.go           |   2 +
- src/cmd/internal/obj/arm64/anames7.go          |  12 +
- src/cmd/internal/obj/arm64/asm7.go             | 335 ++++++++++++++++---------
- 6 files changed, 297 insertions(+), 119 deletions(-)
+ api/go1.15.txt                                     |    2 -
+ doc/go1.15.html                                    |   17 +-
+ src/cmd/go/alldocs.go                              |    2 +
+ src/cmd/go/internal/help/helpdoc.go                |    2 +
+ src/cmd/gofmt/gofmt.go                             |    8 +-
+ src/compress/flate/deflate_test.go                 |   56 +-
+ src/compress/flate/deflatefast.go                  |   49 +-
+ src/compress/flate/huffman_bit_writer.go           |    1 +
+ src/compress/flate/writer_test.go                  |   63 +
+ src/crypto/x509/root_windows.go                    |   46 +-
+ src/crypto/x509/verify.go                          |   26 +-
+ src/crypto/x509/verify_test.go                     |  890 +++++-----
+ src/go/format/format.go                            |    8 +-
+ src/go/format/format_test.go                       |    4 +-
+ src/go/printer/nodes.go                            |   18 +-
+ src/go/printer/performance_test.go                 |    2 +-
+ src/go/printer/printer.go                          |   17 +-
+ src/go/printer/printer_test.go                     |    8 +-
+ .../{go2numbers.stdfmt => go2numbers.norm}         |    0
+ src/html/template/clone_test.go                    |    2 +-
+ src/html/template/content_test.go                  |    6 +-
+ src/html/template/escape_test.go                   |    2 +-
+ src/html/template/exec_test.go                     | 1708 ++++++++++++++++++++
+ src/html/template/multi_test.go                    |  246 +++
+ src/html/template/testdata/file1.tmpl              |    2 +
+ src/html/template/testdata/file2.tmpl              |    2 +
+ src/html/template/testdata/tmpl1.tmpl              |    3 +
+ src/html/template/testdata/tmpl2.tmpl              |    3 +
+ src/net/http/server.go                             |   43 +-
+ src/text/template/multi_test.go                    |    1 +
+ 30 files changed, 2621 insertions(+), 616 deletions(-)

@@ -1,25 +1,18 @@
-commit 282a14ec617ea663740026687d0ec5130066d75c
-Author: Than McIntosh <thanm@golang.org>
-Date:   Thu Dec 5 19:01:22 2024 -0500
+commit 5b84d50038ae852e638631b0a7e71c719e41d240
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 18 16:00:06 2023 -0500
 
-    cmd/internal/objabi,cmd/link/internal/sym: add SDWARFADDR symbol type
+    test: skip rangegen.go on 32-bit platforms
     
-    Add a new symbol type: SDWARFADDR. This kind of symbol stores content
-    to be added to the DWARF .debug_addr section (new with DWARF5). At the
-    moment these symbols are created only in the linker, but it's not hard to
-    imagine other implementations in which the compiler would create them,
-    so they are added to both the compiler and linker symbol kind space.
+    Add a skip for this test that effectively disables it for 32-bit platforms,
+    so as to not run into timeouts or OOMs on smaller machines.
     
-    Updates #26379.
+    Fixes #64789.
     
-    Change-Id: I4a82ead0d59fe6028abfd6d6e3fc3df2e28c0ef6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634415
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2d428e1dccae62b8bb1a69c5f95699692a282bbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550975
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/internal/objabi/symkind.go          |  1 +
- src/cmd/internal/objabi/symkind_string.go   | 13 +++++++------
- src/cmd/link/internal/sym/symkind.go        |  4 +++-
- src/cmd/link/internal/sym/symkind_string.go |  9 +++++----
- 4 files changed, 16 insertions(+), 11 deletions(-)
+ test/rangegen.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

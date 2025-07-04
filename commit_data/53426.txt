@@ -1,17 +1,32 @@
-commit 691b6ca3de2cd601f274ae41b32d83e08e5b0e2d
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Thu Jun 1 06:13:46 2023 -0700
+commit 98f3eb2d3edc00ac3c39f23db157b42d14fe6726
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 14 16:35:37 2022 -0400
 
-    doc: remove relnote TODO by merging with another section
+    cmd/go: restore TestLegacyMod as a script test
     
-    This change was already described in the linker section.
+    This test was apparently mistakenly removed without a replacement in
+    CL 213223, but its testdata was left in the tree. This change removes
+    the orphaned testdata subdirectory, and restores the test that
+    previously used that data as a self-contained script.
     
-    Change-Id: I3e36dbd66b3b53c5f0063b0d67d8773383f1f77f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499817
-    Auto-Submit: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Bypass: Eli Bendersky <eliben@google.com>
+    For #27494.
+    
+    Change-Id: Ice81895a44c558aaab198b8ef7ec046d92f5d58f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417658
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.21.html | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/cmd/go/testdata/modlegacy/src/new/go.mod       |  1 -
+ src/cmd/go/testdata/modlegacy/src/new/new.go       |  3 --
+ src/cmd/go/testdata/modlegacy/src/new/p1/p1.go     |  7 ----
+ src/cmd/go/testdata/modlegacy/src/new/p2/p2.go     |  1 -
+ src/cmd/go/testdata/modlegacy/src/new/sub/go.mod   |  1 -
+ .../go/testdata/modlegacy/src/new/sub/inner/go.mod |  1 -
+ .../go/testdata/modlegacy/src/new/sub/inner/x/x.go |  1 -
+ .../go/testdata/modlegacy/src/new/sub/x/v1/y/y.go  |  1 -
+ src/cmd/go/testdata/modlegacy/src/old/p1/p1.go     |  5 ---
+ src/cmd/go/testdata/modlegacy/src/old/p2/p2.go     |  1 -
+ src/cmd/go/testdata/script/list_legacy_mod.txt     | 48 ++++++++++++++++++++++
+ 11 files changed, 48 insertions(+), 22 deletions(-)

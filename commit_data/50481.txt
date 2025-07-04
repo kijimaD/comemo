@@ -1,53 +1,22 @@
-commit 44ad662a49e0490af0be12652f64aeab6fe1a5ee
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Aug 28 05:31:18 2022 +1000
+commit 4f1c9aace00277914e080170237ae381e05683c5
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Oct 27 11:23:06 2021 -0400
 
-    runtime: optimise memclrNoHeapPointers on riscv64
+    go/types: add debugging support for delayed actions
     
-    Implement a more optimised memclrNoHeapPointers on riscv64, where up
-    to 64 bytes are zeroed per loop after achieving alignment.
+    This is a port of CL 355871 to go/types.
     
-    name                     old time/op    new time/op     delta
-    Memclr/5-4                 53.1ns _ 0%     37.0ns _ 4%   -30.37%  (p=0.002 n=3+3)
-    Memclr/16-4                42.3ns _ 0%     34.8ns _ 0%   -17.81%  (p=0.000 n=3+3)
-    Memclr/64-4                67.8ns _ 0%     44.0ns _ 1%   -35.09%  (p=0.000 n=3+3)
-    Memclr/256-4                185ns _ 0%       78ns _ 1%   -57.52%  (p=0.000 n=3+3)
-    Memclr/4096-4              2.50_s _ 1%     0.76_s _ 1%   -69.72%  (p=0.000 n=3+3)
-    Memclr/65536-4             55.6_s _ 0%     31.4_s _ 0%   -43.56%  (p=0.000 n=3+3)
-    Memclr/1M-4                1.15ms _ 0%     0.72ms _ 1%   -37.14%  (p=0.000 n=3+3)
-    Memclr/4M-4                12.1ms _ 3%     10.1ms _ 0%   -16.51%  (p=0.007 n=3+3)
-    Memclr/8M-4                25.2ms _ 1%     21.5ms _ 0%   -14.75%  (p=0.001 n=3+3)
-    Memclr/16M-4               52.8ms _ 5%     43.4ms _ 0%   -17.95%  (p=0.019 n=3+3)
-    Memclr/64M-4                202ms _ 1%      173ms _ 0%   -14.42%  (p=0.001 n=3+3)
-    MemclrRange/1K_2K-4        54.0_s _ 1%     22.0_s _ 0%   -59.26%  (p=0.000 n=3+3)
-    MemclrRange/2K_8K-4         176_s _ 1%       64_s _ 1%   -63.77%  (p=0.000 n=3+3)
-    MemclrRange/4K_16K-4        172_s _ 6%       60_s _ 0%   -65.38%  (p=0.002 n=3+3)
-    MemclrRange/160K_228K-4    1.54ms _ 1%     0.91ms _ 0%   -40.60%  (p=0.000 n=3+3)
-    
-    name                     old speed      new speed       delta
-    Memclr/5-4               94.1MB/s _ 0%  135.3MB/s _ 4%   +43.70%  (p=0.004 n=3+3)
-    Memclr/16-4               378MB/s _ 0%    460MB/s _ 0%   +21.67%  (p=0.000 n=3+3)
-    Memclr/64-4               943MB/s _ 0%   1454MB/s _ 1%   +54.07%  (p=0.000 n=3+3)
-    Memclr/256-4             1.39GB/s _ 0%   3.26GB/s _ 1%  +135.38%  (p=0.000 n=3+3)
-    Memclr/4096-4            1.64GB/s _ 1%   5.41GB/s _ 1%  +230.28%  (p=0.000 n=3+3)
-    Memclr/65536-4           1.18GB/s _ 0%   2.09GB/s _ 0%   +77.19%  (p=0.000 n=3+3)
-    Memclr/1M-4               914MB/s _ 0%   1454MB/s _ 1%   +59.08%  (p=0.000 n=3+3)
-    Memclr/4M-4               346MB/s _ 3%    415MB/s _ 0%   +19.73%  (p=0.004 n=3+3)
-    Memclr/8M-4               332MB/s _ 1%    390MB/s _ 0%   +17.29%  (p=0.000 n=3+3)
-    Memclr/16M-4              318MB/s _ 5%    387MB/s _ 0%   +21.72%  (p=0.013 n=3+3)
-    Memclr/64M-4              333MB/s _ 1%    389MB/s _ 0%   +16.84%  (p=0.001 n=3+3)
-    MemclrRange/1K_2K-4      1.78GB/s _ 1%   4.36GB/s _ 0%  +145.48%  (p=0.000 n=3+3)
-    MemclrRange/2K_8K-4      1.89GB/s _ 1%   5.22GB/s _ 1%  +176.03%  (p=0.000 n=3+3)
-    MemclrRange/4K_16K-4     1.88GB/s _ 5%   5.42GB/s _ 0%  +188.40%  (p=0.000 n=3+3)
-    MemclrRange/160K_228K-4  1.08GB/s _ 1%   1.82GB/s _ 0%   +68.35%  (p=0.000 n=3+3)
-    
-    Change-Id: Ide566f148f890f70217ed08fd472ee5893d3511c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426255
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2dbc3c625c16b545a271a19606ef34ce04a4a6df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359136
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/memclr_riscv64.s | 117 ++++++++++++++++++++++++++++++++-----------
- 1 file changed, 87 insertions(+), 30 deletions(-)
+ src/go/types/check.go       | 39 +++++++++++++++++++++++++++++++++++----
+ src/go/types/decl.go        |  2 +-
+ src/go/types/instantiate.go |  2 +-
+ src/go/types/interface.go   |  2 +-
+ src/go/types/struct.go      |  2 +-
+ src/go/types/typexpr.go     |  2 --
+ 6 files changed, 39 insertions(+), 10 deletions(-)

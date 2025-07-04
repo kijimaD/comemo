@@ -1,14 +1,16 @@
-commit 536531769b73fcc7517d9756a8b28b5f56ccd2df
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 29 09:08:23 2011 -0700
+commit a7bb288f99e338f39a53a97e27977208679cf2eb
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Mar 29 10:35:34 2011 -0400
 
-    CL 4291070: incorporating rsc's feedback
+    crypto/x509: Parse Extended Key Usage extension
     
-    R=rsc
+    This changeset makes it possible for crypto/x509 to parse
+    certificates that include the 'Extended Key Usage' extension
+    with the critical bit set.
+    
+    R=agl1
     CC=golang-dev
-    https://golang.org/cl/4313054
+    https://golang.org/cl/4277075
 
- src/cmd/govet/govet.go        | 4 ++--
- src/pkg/go/printer/nodes.go   | 2 +-
- src/pkg/go/printer/printer.go | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/crypto/x509/x509.go | 77 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

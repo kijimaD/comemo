@@ -1,15 +1,21 @@
-commit b3000b6f6a36ff89836bac5549669859efd80ff0
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 24 09:10:44 2015 -0700
+commit dec685921da18c12de1200aae1e65758fd5b7d8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 14:47:03 2015 -0700
 
-    cmd/go: rename doc.go to alldocs.go in preparation for "go doc"
+    cmd/internal/gc/big: updated vendored version of math/big (fix build)
     
-    Also rename and update mkdoc.sh to mkalldocs.sh
-    
-    Change-Id: Ief3673c22d45624e173fc65ee279cea324da03b5
-    Reviewed-on: https://go-review.googlesource.com/9226
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I04c2bd18a47cc775c78d074fe521cef2b0d6e7f0
+    Reviewed-on: https://go-review.googlesource.com/8426
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/{doc.go => alldocs.go}     | 0
- src/cmd/go/{mkdoc.sh => mkalldocs.sh} | 4 ++--
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/big/accuracy_string.go   |   7 +-
+ src/cmd/internal/gc/big/float.go             | 425 +++++++++++++--------------
+ src/cmd/internal/gc/big/float_test.go        | 220 +++++++-------
+ src/cmd/internal/gc/big/floatconv.go         |  11 +-
+ src/cmd/internal/gc/big/floatconv_test.go    |   2 +-
+ src/cmd/internal/gc/big/floatexample_test.go | 110 +++----
+ src/cmd/internal/gc/big/ftoa.go              |   2 +-
+ src/cmd/internal/gc/big/int.go               |   4 +
+ src/cmd/internal/gc/big/int_test.go          |  41 ++-
+ 9 files changed, 397 insertions(+), 425 deletions(-)

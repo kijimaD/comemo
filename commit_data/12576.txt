@@ -1,17 +1,12 @@
-commit a7c9f2490769e29696b64c3e4027b1bca64d44f1
+commit 4edd53e47b5a2e474f4e0b0399c272c48952d261
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 12 13:25:48 2012 -0700
+Date:   Mon Mar 12 13:17:48 2012 -0700
 
-    cmd/fix: add rules for net/http -> net/http/httputil renames
+    os: document FileInfo.Size as system-dependent for irregular files
     
-    And merge the httputil fix into go1rename.
-    
-    R=golang-dev, r, dsymonds, r, rsc
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5696084
+    https://golang.org/cl/5795059
 
- src/cmd/fix/go1rename.go      |  90 +++++++++++++++++++++++++++++
- src/cmd/fix/go1rename_test.go | 130 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/fix/httputil.go       |  63 --------------------
- src/cmd/fix/httputil_test.go  | 122 ---------------------------------------
- 4 files changed, 220 insertions(+), 185 deletions(-)
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

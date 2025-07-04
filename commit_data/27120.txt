@@ -1,21 +1,17 @@
-commit 0b6332eb54767f916926ae39516ddaed87b26edb
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 25 16:24:11 2016 -0400
+commit e2836935bb95e82432b527b1f6a9f3e566150ff8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 10 19:32:04 2016 -0500
 
-    cmd/compile: fix another bug in dominator computation
+    cmd/link: treat reflect.Value.Method like Call
     
-    Here, "fix" means "replace".  The new dominator computation
-    is the "simple" algorithm from Lengauer and Tarjan's TOPLAS
-    paper, with minimal changes.
+    Fixes #14740
     
-    Also included is a test that tweaks the fixed error.
-    
-    Change-Id: I0abdf53d5d64df1e67e4e62f55e88957045cd63b
-    Reviewed-on: https://go-review.googlesource.com/22401
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Iad8d971c21977b0a1f4ef55a08bb180a8125e976
+    Reviewed-on: https://go-review.googlesource.com/20562
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/dom.go      | 279 ++++++++++++-------------------
- src/cmd/compile/internal/ssa/dom_test.go | 165 ++++++++++++++----
- 2 files changed, 241 insertions(+), 203 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 30 +++++++++++++++++-------------
+ test/reflectmethod4.go               | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 13 deletions(-)

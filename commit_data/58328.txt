@@ -1,21 +1,258 @@
-commit ccf4ebbb6176d7c35edc1b03d274a8d6fb1630bc
-Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
-Date:   Wed Dec 4 03:19:08 2024 +0000
+commit 8abde68f19ff84c12e8b353e41934999b1bb051c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 13:50:26 2023 -0400
 
-    runtime: remove "hall of shame" comment from public documentation
+    math/rand/v2: delete Mitchell/Reeds source
     
-    See https://pkg.go.dev/runtime@go1.23.4#FuncForPC
+    These slowdowns are because we are now using PCG instead of the
+    Mitchell/Reeds LFSR for the benchmarks. PCG is in fact a bit slower
+    (but generates statically far better random numbers).
     
-    The updated comment uses the same format as bytes.Repeat and math.Float32bits.
+    goos: linux
+    goarch: amd64
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 01ff938549.amd64 │           afa459a2f0.amd64           │
+                            │      sec/op      │    sec/op     vs base                │
+    PCG_DXSM-32                    1.490n ± 0%    1.488n ± 2%        ~ (p=0.408 n=20)
+    SourceUint64-32                1.352n ± 1%    1.450n ± 3%   +7.21% (p=0.000 n=20)
+    GlobalInt64-32                 2.083n ± 0%    2.067n ± 2%        ~ (p=0.223 n=20)
+    GlobalInt64Parallel-32        0.1035n ± 1%   0.1044n ± 2%        ~ (p=0.010 n=20)
+    GlobalUint64-32                2.038n ± 1%    2.085n ± 0%   +2.28% (p=0.000 n=20)
+    GlobalUint64Parallel-32       0.1006n ± 1%   0.1008n ± 1%        ~ (p=0.733 n=20)
+    Int64-32                       1.687n ± 2%    1.779n ± 1%   +5.48% (p=0.000 n=20)
+    Uint64-32                      1.674n ± 2%    1.854n ± 2%  +10.69% (p=0.000 n=20)
+    GlobalIntN1000-32              3.135n ± 1%    3.140n ± 3%        ~ (p=0.794 n=20)
+    IntN1000-32                    2.478n ± 1%    2.496n ± 1%   +0.73% (p=0.006 n=20)
+    Int64N1000-32                  2.455n ± 1%    2.510n ± 2%   +2.22% (p=0.000 n=20)
+    Int64N1e8-32                   2.467n ± 2%    2.471n ± 2%        ~ (p=0.050 n=20)
+    Int64N1e9-32                   2.454n ± 1%    2.488n ± 2%   +1.39% (p=0.000 n=20)
+    Int64N2e9-32                   2.482n ± 1%    2.478n ± 2%        ~ (p=0.066 n=20)
+    Int64N1e18-32                  3.349n ± 2%    3.088n ± 1%   -7.81% (p=0.000 n=20)
+    Int64N2e18-32                  3.537n ± 1%    3.493n ± 1%   -1.24% (p=0.002 n=20)
+    Int64N4e18-32                  4.917n ± 0%    5.060n ± 2%   +2.91% (p=0.000 n=20)
+    Int32N1000-32                  2.386n ± 1%    2.620n ± 1%   +9.76% (p=0.000 n=20)
+    Int32N1e8-32                   2.366n ± 1%    2.652n ± 0%  +12.11% (p=0.000 n=20)
+    Int32N1e9-32                   2.355n ± 2%    2.644n ± 1%  +12.32% (p=0.000 n=20)
+    Int32N2e9-32                   2.371n ± 1%    2.619n ± 2%  +10.48% (p=0.000 n=20)
+    Float32-32                     2.245n ± 2%    2.261n ± 1%        ~ (p=0.625 n=20)
+    Float64-32                     2.235n ± 1%    2.241n ± 2%        ~ (p=0.393 n=20)
+    ExpFloat64-32                  3.813n ± 3%    3.716n ± 1%   -2.53% (p=0.000 n=20)
+    NormFloat64-32                 3.652n ± 2%    3.718n ± 1%   +1.79% (p=0.006 n=20)
+    Perm3-32                       33.12n ± 3%    34.11n ± 2%        ~ (p=0.021 n=20)
+    Perm30-32                      205.1n ± 1%    200.6n ± 0%   -2.17% (p=0.000 n=20)
+    Perm30ViaShuffle-32            110.8n ± 1%    109.7n ± 1%   -0.99% (p=0.002 n=20)
+    ShuffleOverhead-32             113.0n ± 1%    107.2n ± 1%   -5.09% (p=0.000 n=20)
+    Concurrent-32                  2.100n ± 0%    2.108n ± 6%        ~ (p=0.103 n=20)
     
-    Change-Id: Idfbc38645e6b0f03fb07f294c4c79b997d9a01a1
-    GitHub-Last-Rev: 00fa155c75fb625be84edeadff49276e6cddc42c
-    GitHub-Pull-Request: golang/go#70671
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633475
+    goos: darwin
+    goarch: arm64
+    pkg: math/rand/v2
+                           │ 01ff938549.arm64 │           afa459a2f0.arm64           │
+                           │      sec/op      │    sec/op     vs base                │
+    PCG_DXSM-8                    2.531n ± 0%    2.531n ± 0%        ~ (p=0.763 n=20)
+    SourceUint64-8                2.258n ± 1%    2.531n ± 0%  +12.09% (p=0.000 n=20)
+    GlobalInt64-8                 2.167n ± 0%    2.177n ± 1%        ~ (p=0.213 n=20)
+    GlobalInt64Parallel-8        0.4310n ± 0%   0.4319n ± 0%        ~ (p=0.027 n=20)
+    GlobalUint64-8                2.182n ± 1%    2.185n ± 1%        ~ (p=0.683 n=20)
+    GlobalUint64Parallel-8       0.4297n ± 0%   0.4295n ± 1%        ~ (p=0.941 n=20)
+    Int64-8                       2.472n ± 1%    4.104n ± 0%  +66.00% (p=0.000 n=20)
+    Uint64-8                      2.449n ± 1%    4.080n ± 0%  +66.60% (p=0.000 n=20)
+    GlobalIntN1000-8              2.814n ± 2%    2.814n ± 1%        ~ (p=0.972 n=20)
+    IntN1000-8                    2.998n ± 2%    4.140n ± 0%  +38.09% (p=0.000 n=20)
+    Int64N1000-8                  2.949n ± 2%    4.139n ± 0%  +40.35% (p=0.000 n=20)
+    Int64N1e8-8                   2.953n ± 2%    4.140n ± 0%  +40.22% (p=0.000 n=20)
+    Int64N1e9-8                   2.950n ± 0%    4.139n ± 0%  +40.32% (p=0.000 n=20)
+    Int64N2e9-8                   2.946n ± 2%    4.140n ± 0%  +40.53% (p=0.000 n=20)
+    Int64N1e18-8                  3.779n ± 1%    5.273n ± 0%  +39.52% (p=0.000 n=20)
+    Int64N2e18-8                  4.370n ± 1%    6.059n ± 0%  +38.65% (p=0.000 n=20)
+    Int64N4e18-8                  6.544n ± 1%    8.803n ± 0%  +34.52% (p=0.000 n=20)
+    Int32N1000-8                  2.950n ± 0%    4.131n ± 0%  +40.06% (p=0.000 n=20)
+    Int32N1e8-8                   2.950n ± 2%    4.131n ± 0%  +40.03% (p=0.000 n=20)
+    Int32N1e9-8                   2.951n ± 2%    4.131n ± 0%  +39.99% (p=0.000 n=20)
+    Int32N2e9-8                   2.950n ± 2%    4.131n ± 0%  +40.03% (p=0.000 n=20)
+    Float32-8                     3.441n ± 0%    4.110n ± 0%  +19.44% (p=0.000 n=20)
+    Float64-8                     3.442n ± 0%    4.104n ± 0%  +19.24% (p=0.000 n=20)
+    ExpFloat64-8                  4.481n ± 0%    5.338n ± 0%  +19.11% (p=0.000 n=20)
+    NormFloat64-8                 4.725n ± 0%    5.731n ± 0%  +21.28% (p=0.000 n=20)
+    Perm3-8                       26.55n ± 0%    26.62n ± 0%   +0.28% (p=0.000 n=20)
+    Perm30-8                      181.9n ± 0%    194.6n ± 2%   +6.98% (p=0.000 n=20)
+    Perm30ViaShuffle-8            142.9n ± 0%    156.4n ± 0%   +9.45% (p=0.000 n=20)
+    ShuffleOverhead-8             120.8n ± 2%    125.8n ± 0%   +4.10% (p=0.000 n=20)
+    Concurrent-8                  2.421n ± 6%    2.654n ± 6%   +9.67% (p=0.002 n=20)
+    
+    goos: linux
+    goarch: 386
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 01ff938549.386 │            afa459a2f0.386             │
+                            │     sec/op     │    sec/op     vs base                 │
+    PCG_DXSM-32                  7.613n ± 1%    7.793n ± 2%    +2.38% (p=0.000 n=20)
+    SourceUint64-32              2.069n ± 0%    7.680n ± 1%  +271.19% (p=0.000 n=20)
+    GlobalInt64-32               3.456n ± 1%    3.474n ± 3%         ~ (p=0.654 n=20)
+    GlobalInt64Parallel-32      0.3252n ± 0%   0.3253n ± 0%         ~ (p=0.952 n=20)
+    GlobalUint64-32              3.573n ± 1%    3.433n ± 2%    -3.92% (p=0.000 n=20)
+    GlobalUint64Parallel-32     0.3159n ± 0%   0.3156n ± 0%         ~ (p=0.223 n=20)
+    Int64-32                     2.562n ± 2%    7.707n ± 1%  +200.74% (p=0.000 n=20)
+    Uint64-32                    2.592n ± 0%    7.714n ± 1%  +197.65% (p=0.000 n=20)
+    GlobalIntN1000-32            6.266n ± 2%    6.236n ± 1%         ~ (p=0.039 n=20)
+    IntN1000-32                  4.724n ± 2%   10.410n ± 1%  +120.39% (p=0.000 n=20)
+    Int64N1000-32                5.490n ± 2%   10.975n ± 2%   +99.89% (p=0.000 n=20)
+    Int64N1e8-32                 5.513n ± 2%   10.980n ± 1%   +99.15% (p=0.000 n=20)
+    Int64N1e9-32                 5.476n ± 1%   10.950n ± 0%   +99.96% (p=0.000 n=20)
+    Int64N2e9-32                 5.501n ± 2%   11.110n ± 1%  +101.96% (p=0.000 n=20)
+    Int64N1e18-32                9.043n ± 2%   15.180n ± 2%   +67.86% (p=0.000 n=20)
+    Int64N2e18-32                9.601n ± 2%   15.610n ± 1%   +62.60% (p=0.000 n=20)
+    Int64N4e18-32                12.00n ± 1%    19.23n ± 2%   +60.14% (p=0.000 n=20)
+    Int32N1000-32                4.829n ± 2%   10.345n ± 1%  +114.25% (p=0.000 n=20)
+    Int32N1e8-32                 4.825n ± 2%   10.330n ± 1%  +114.09% (p=0.000 n=20)
+    Int32N1e9-32                 4.830n ± 2%   10.350n ± 1%  +114.26% (p=0.000 n=20)
+    Int32N2e9-32                 4.750n ± 2%   10.345n ± 1%  +117.81% (p=0.000 n=20)
+    Float32-32                   10.89n ± 4%    13.57n ± 1%   +24.61% (p=0.000 n=20)
+    Float64-32                   19.60n ± 4%    22.95n ± 4%   +17.12% (p=0.000 n=20)
+    ExpFloat64-32                12.96n ± 3%    15.23n ± 2%   +17.47% (p=0.000 n=20)
+    NormFloat64-32               7.516n ± 1%   13.780n ± 1%   +83.34% (p=0.000 n=20)
+    Perm3-32                     36.78n ± 2%    46.62n ± 2%   +26.72% (p=0.000 n=20)
+    Perm30-32                    238.9n ± 2%    400.7n ± 1%   +67.73% (p=0.000 n=20)
+    Perm30ViaShuffle-32          189.7n ± 2%    350.5n ± 1%   +84.79% (p=0.000 n=20)
+    ShuffleOverhead-32           159.8n ± 1%    326.0n ± 2%  +104.01% (p=0.000 n=20)
+    Concurrent-32                3.286n ± 1%    3.290n ± 0%         ~ (p=0.743 n=20)
+    
+    On the other hand, compared to the original "update benchmarks" CL,
+    the cleanups we've made more than compensate for PCG being a bit
+    slower than LFSR, at least on 64-bit x86. ARM64 (Apple M1) is a bit
+    slower: perhaps the 64x64→128 multiply is slower there for some reason.
+    386 is noticeably slower, but it's also a non-SSA backend.
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 220860f76f.amd64 │            afa459a2f0.amd64            │
+                            │      sec/op      │    sec/op     vs base                  │
+    SourceUint64-32                1.555n ± 1%    1.450n ± 3%   -6.78% (p=0.000 n=20)
+    GlobalInt64-32                 2.071n ± 1%    2.067n ± 2%        ~ (p=0.673 n=20)
+    GlobalInt63Parallel-32        0.1023n ± 1%
+    GlobalInt64Parallel-32                       0.1044n ± 2%
+    GlobalUint64-32                5.193n ± 1%    2.085n ± 0%  -59.86% (p=0.000 n=20)
+    GlobalUint64Parallel-32       0.2341n ± 0%   0.1008n ± 1%  -56.93% (p=0.000 n=20)
+    Int64-32                       2.056n ± 2%    1.779n ± 1%  -13.47% (p=0.000 n=20)
+    Uint64-32                      2.077n ± 2%    1.854n ± 2%  -10.74% (p=0.000 n=20)
+    GlobalIntN1000-32              4.077n ± 2%    3.140n ± 3%  -22.98% (p=0.000 n=20)
+    IntN1000-32                    3.476n ± 2%    2.496n ± 1%  -28.19% (p=0.000 n=20)
+    Int64N1000-32                  3.059n ± 1%    2.510n ± 2%  -17.96% (p=0.000 n=20)
+    Int64N1e8-32                   2.942n ± 1%    2.471n ± 2%  -15.98% (p=0.000 n=20)
+    Int64N1e9-32                   2.932n ± 1%    2.488n ± 2%  -15.14% (p=0.000 n=20)
+    Int64N2e9-32                   2.925n ± 1%    2.478n ± 2%  -15.30% (p=0.000 n=20)
+    Int64N1e18-32                  3.116n ± 1%    3.088n ± 1%        ~ (p=0.013 n=20)
+    Int64N2e18-32                  4.067n ± 1%    3.493n ± 1%  -14.11% (p=0.000 n=20)
+    Int64N4e18-32                  4.054n ± 1%    5.060n ± 2%  +24.80% (p=0.000 n=20)
+    Int32N1000-32                  2.951n ± 1%    2.620n ± 1%  -11.22% (p=0.000 n=20)
+    Int32N1e8-32                   3.102n ± 1%    2.652n ± 0%  -14.50% (p=0.000 n=20)
+    Int32N1e9-32                   3.535n ± 1%    2.644n ± 1%  -25.20% (p=0.000 n=20)
+    Int32N2e9-32                   3.514n ± 1%    2.619n ± 2%  -25.47% (p=0.000 n=20)
+    Float32-32                     2.760n ± 1%    2.261n ± 1%  -18.06% (p=0.000 n=20)
+    Float64-32                     2.284n ± 1%    2.241n ± 2%        ~ (p=0.016 n=20)
+    ExpFloat64-32                  3.757n ± 1%    3.716n ± 1%        ~ (p=0.034 n=20)
+    NormFloat64-32                 3.837n ± 1%    3.718n ± 1%   -3.09% (p=0.000 n=20)
+    Perm3-32                       35.23n ± 2%    34.11n ± 2%   -3.19% (p=0.000 n=20)
+    Perm30-32                      208.8n ± 1%    200.6n ± 0%   -3.93% (p=0.000 n=20)
+    Perm30ViaShuffle-32            111.7n ± 1%    109.7n ± 1%   -1.84% (p=0.000 n=20)
+    ShuffleOverhead-32             101.1n ± 1%    107.2n ± 1%   +6.03% (p=0.000 n=20)
+    Concurrent-32                  2.108n ± 7%    2.108n ± 6%        ~ (p=0.644 n=20)
+    PCG_DXSM-32                                   1.488n ± 2%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/rand/v2
+    cpu: Apple M1
+                           │ 220860f76f.arm64 │            afa459a2f0.arm64            │
+                           │      sec/op      │    sec/op     vs base                  │
+    SourceUint64-8                2.316n ± 1%    2.531n ± 0%   +9.33% (p=0.000 n=20)
+    GlobalInt64-8                 2.183n ± 1%    2.177n ± 1%        ~ (p=0.533 n=20)
+    GlobalInt63Parallel-8        0.4331n ± 0%
+    GlobalInt64Parallel-8                       0.4319n ± 0%
+    GlobalUint64-8                4.377n ± 2%    2.185n ± 1%  -50.07% (p=0.000 n=20)
+    GlobalUint64Parallel-8       0.9237n ± 0%   0.4295n ± 1%  -53.50% (p=0.000 n=20)
+    Int64-8                       2.538n ± 1%    4.104n ± 0%  +61.68% (p=0.000 n=20)
+    Uint64-8                      2.604n ± 1%    4.080n ± 0%  +56.68% (p=0.000 n=20)
+    GlobalIntN1000-8              3.857n ± 2%    2.814n ± 1%  -27.04% (p=0.000 n=20)
+    IntN1000-8                    3.822n ± 2%    4.140n ± 0%   +8.32% (p=0.000 n=20)
+    Int64N1000-8                  3.318n ± 0%    4.139n ± 0%  +24.74% (p=0.000 n=20)
+    Int64N1e8-8                   3.349n ± 1%    4.140n ± 0%  +23.64% (p=0.000 n=20)
+    Int64N1e9-8                   3.317n ± 2%    4.139n ± 0%  +24.80% (p=0.000 n=20)
+    Int64N2e9-8                   3.317n ± 2%    4.140n ± 0%  +24.81% (p=0.000 n=20)
+    Int64N1e18-8                  3.542n ± 1%    5.273n ± 0%  +48.85% (p=0.000 n=20)
+    Int64N2e18-8                  5.087n ± 0%    6.059n ± 0%  +19.12% (p=0.000 n=20)
+    Int64N4e18-8                  5.084n ± 0%    8.803n ± 0%  +73.16% (p=0.000 n=20)
+    Int32N1000-8                  3.208n ± 2%    4.131n ± 0%  +28.79% (p=0.000 n=20)
+    Int32N1e8-8                   3.610n ± 1%    4.131n ± 0%  +14.43% (p=0.000 n=20)
+    Int32N1e9-8                   4.235n ± 0%    4.131n ± 0%   -2.44% (p=0.000 n=20)
+    Int32N2e9-8                   4.229n ± 1%    4.131n ± 0%   -2.33% (p=0.000 n=20)
+    Float32-8                     3.468n ± 0%    4.110n ± 0%  +18.50% (p=0.000 n=20)
+    Float64-8                     3.447n ± 0%    4.104n ± 0%  +19.05% (p=0.000 n=20)
+    ExpFloat64-8                  4.567n ± 0%    5.338n ± 0%  +16.86% (p=0.000 n=20)
+    NormFloat64-8                 4.821n ± 0%    5.731n ± 0%  +18.89% (p=0.000 n=20)
+    Perm3-8                       28.89n ± 0%    26.62n ± 0%   -7.84% (p=0.000 n=20)
+    Perm30-8                      175.7n ± 0%    194.6n ± 2%  +10.76% (p=0.000 n=20)
+    Perm30ViaShuffle-8            153.5n ± 0%    156.4n ± 0%   +1.86% (p=0.000 n=20)
+    ShuffleOverhead-8             119.8n ± 1%    125.8n ± 0%   +4.97% (p=0.000 n=20)
+    Concurrent-8                  2.433n ± 3%    2.654n ± 6%   +9.13% (p=0.001 n=20)
+    PCG_DXSM-8                                   2.531n ± 0%
+    
+    goos: linux
+    goarch: 386
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ 220860f76f.386 │             afa459a2f0.386              │
+                            │     sec/op     │    sec/op     vs base                   │
+    SourceUint64-32             2.370n ±  1%    7.680n ± 1%  +224.05% (p=0.000 n=20)
+    GlobalInt64-32              3.569n ±  1%    3.474n ± 3%    -2.66% (p=0.001 n=20)
+    GlobalInt63Parallel-32     0.3221n ±  1%
+    GlobalInt64Parallel-32                     0.3253n ± 0%
+    GlobalUint64-32             8.797n ± 10%    3.433n ± 2%   -60.98% (p=0.000 n=20)
+    GlobalUint64Parallel-32    0.6351n ±  0%   0.3156n ± 0%   -50.31% (p=0.000 n=20)
+    Int64-32                    2.612n ±  2%    7.707n ± 1%  +195.04% (p=0.000 n=20)
+    Uint64-32                   3.350n ±  1%    7.714n ± 1%  +130.25% (p=0.000 n=20)
+    GlobalIntN1000-32           5.892n ±  1%    6.236n ± 1%    +5.82% (p=0.000 n=20)
+    IntN1000-32                 4.546n ±  1%   10.410n ± 1%  +128.97% (p=0.000 n=20)
+    Int64N1000-32               14.59n ±  1%    10.97n ± 2%   -24.75% (p=0.000 n=20)
+    Int64N1e8-32                14.76n ±  2%    10.98n ± 1%   -25.58% (p=0.000 n=20)
+    Int64N1e9-32                16.57n ±  1%    10.95n ± 0%   -33.90% (p=0.000 n=20)
+    Int64N2e9-32                14.54n ±  1%    11.11n ± 1%   -23.62% (p=0.000 n=20)
+    Int64N1e18-32               16.14n ±  1%    15.18n ± 2%    -5.95% (p=0.000 n=20)
+    Int64N2e18-32               18.10n ±  1%    15.61n ± 1%   -13.73% (p=0.000 n=20)
+    Int64N4e18-32               18.65n ±  1%    19.23n ± 2%    +3.08% (p=0.000 n=20)
+    Int32N1000-32               3.560n ±  1%   10.345n ± 1%  +190.55% (p=0.000 n=20)
+    Int32N1e8-32                3.770n ±  2%   10.330n ± 1%  +174.01% (p=0.000 n=20)
+    Int32N1e9-32                4.098n ±  0%   10.350n ± 1%  +152.53% (p=0.000 n=20)
+    Int32N2e9-32                4.179n ±  1%   10.345n ± 1%  +147.52% (p=0.000 n=20)
+    Float32-32                  21.18n ±  4%    13.57n ± 1%   -35.93% (p=0.000 n=20)
+    Float64-32                  20.60n ±  2%    22.95n ± 4%   +11.41% (p=0.000 n=20)
+    ExpFloat64-32               13.07n ±  0%    15.23n ± 2%   +16.48% (p=0.000 n=20)
+    NormFloat64-32              7.738n ±  2%   13.780n ± 1%   +78.08% (p=0.000 n=20)
+    Perm3-32                    36.73n ±  1%    46.62n ± 2%   +26.91% (p=0.000 n=20)
+    Perm30-32                   211.9n ±  1%    400.7n ± 1%   +89.05% (p=0.000 n=20)
+    Perm30ViaShuffle-32         165.2n ±  1%    350.5n ± 1%  +112.20% (p=0.000 n=20)
+    ShuffleOverhead-32          133.9n ±  1%    326.0n ± 2%  +143.37% (p=0.000 n=20)
+    Concurrent-32               3.287n ±  2%    3.290n ± 0%         ~ (p=0.365 n=20)
+    PCG_DXSM-32                                 7.793n ± 2%
+    
+    For #61716.
+    
+    Change-Id: I4e9c0525b5f84a2ac46f23da9e365495e2d05777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502506
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/symtab.go | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ api/next/61716.txt               |   1 -
+ src/math/rand/v2/auto_test.go    |   2 +-
+ src/math/rand/v2/example_test.go |  26 +-
+ src/math/rand/v2/gen_cooked.go   |  89 ------
+ src/math/rand/v2/rand.go         |  16 +-
+ src/math/rand/v2/rand_test.go    |  24 +-
+ src/math/rand/v2/regress_test.go | 632 +++++++++++++++++++--------------------
+ src/math/rand/v2/rng.go          | 252 ----------------
+ 8 files changed, 343 insertions(+), 699 deletions(-)

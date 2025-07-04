@@ -1,17 +1,34 @@
-commit e95f6af0082556bbcf01e376ae8c5f1f14ded75e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 17 12:58:10 2024 -0400
+commit 202ba7deab99251577027b8a1360d5d21c76e75d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat May 6 22:52:06 2023 -0400
 
-    cmd/go/internal/envcmd: remove duplicate env value set
+    cmd/internal/bootstrap_test: update TestExperimentToolID for Go 1.21
     
-    CL 586095 wasn't needed because setting the GODEBUG value was just moved
-    lower in CL 563137. Now we set it twice. Remove the second set so that
-    it's only set once.
+    This test is configured to run only when explicitly requested due to
+    being costly. Apply two updates so it can run on the toolchain today:
     
-    Change-Id: I4a830977833b007e996d0ccaec705a1da4631e6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586477
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    - overlay GOROOT/lib for zoneinfo.zip (similarly to CL 462279)
+    - stop expecting framepointer to be listed in the GOEXPERIMENT
+      section of the compiler version (see CL 49252 and CL 249857)
+    
+    I checked if by now there's another test that would report a problem
+    if the fix made in CL 186200 had regressed. Running all.bash locally
+    with GO_TEST_SHORT=0 GO_BUILDER_NAME=darwin-arm64-longtest passed ok,
+    while this manual test did catch the problem.
+    
+    Also simplify the test implementation while here so it's less different
+    from TestRepeatBootstrap.
+    
+    For #33091.
+    
+    Change-Id: I14eea18c19c2e8996bcba31c80e03dcf679f56ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493475
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/envcmd/env.go | 1 -
- 1 file changed, 1 deletion(-)
+ .../bootstrap_test/experiment_toolid_test.go       | 60 ++++++++++++----------
+ src/cmd/internal/bootstrap_test/reboot_test.go     |  2 +-
+ 2 files changed, 33 insertions(+), 29 deletions(-)

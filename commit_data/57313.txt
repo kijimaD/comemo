@@ -1,18 +1,20 @@
-commit 76a42d74356e3c5bee0851c99665b21bf29f0c27
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Aug 29 18:23:25 2024 -0700
+commit b656fa33123709b381f688c92b7421b43d877715
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Jul 1 14:01:23 2023 +0000
 
-    internal/testenv: add missing t.Helper calls
+    cmd/internal/goobj: use unsafe.String in toString func
     
-    ...and move a few so they won't be called when not needed.
-    
-    Change-Id: I024b9552ed5ed839cde4fbae4815ec6ba8b67265
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609300
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I93a5e0996e48cc74e6b2e39c3a4c7aa68fd6a3a0
+    GitHub-Last-Rev: afd8feb0deac34f671e0ed11ad55f6be427bd8b1
+    GitHub-Pull-Request: golang/go#61137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507517
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/testenv/exec.go    |  2 ++
- src/internal/testenv/testenv.go | 12 ++++++++++--
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/internal/goobj/objfile.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

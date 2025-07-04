@@ -1,14 +1,15 @@
-commit b17a23363372fd0b37017ec9865d774a1825dc22
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Feb 20 09:51:25 2012 +1100
+commit d5b28ad2b6da460ef10f9b94bb067053fb1a2e13
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Mon Feb 20 08:33:28 2012 +1100
 
-    syscall: force Windows to always use US English error messages
-    Fixes #1834.
+    doc: update contrib.html
     
-    R=rsc, alex.brainman
+    Fix all the local links, as contrib.html is served as
+    /project/
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5673068
+    https://golang.org/cl/5656105
 
- src/pkg/syscall/syscall_windows.go | 4 +++-
- src/pkg/syscall/ztypes_windows.go  | 3 +++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ doc/contrib.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,23 +1,23 @@
-commit 5d076d579a338d313806196cd3d045cc402565e5
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Jan 9 10:48:14 2020 +0100
+commit 7c90e2cbda677a1a9993403df192f31fb011a112
+Author: Keith Randall <khr@google.com>
+Date:   Tue Sep 3 10:27:48 2019 -0700
 
-    misc/cgo/test: re-enable darwin cgo tests in race mode
+    bytes/hash: disable seed test on 32-bit platforms
     
-    Go 1.14 will drop support for macOS 10.10, see #23011
+    The distribution of hash outputs when varying the seed is
+    not good enough on 32-bit platforms.
     
-    This reverts CL 125304
+    This isn't a likely attack vector (the adversary controlling the seed),
+    so it isn't a huge deal. Would be nice to fix, though. For now, just
+    skip this test.
     
-    Updates #26475
-    Updates #26513
+    Fixes #33988
     
-    Change-Id: Ia13eef30f22d67103f7ae45424124fbb116e1261
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214057
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icf51ab687fc215422a5492ae78e6f414b33e04cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193078
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue21897.go                      | 11 +----------
- misc/cgo/test/issue21897b.go                     |  2 +-
- misc/cgo/test/testdata/issue24161_darwin_test.go |  8 --------
- 3 files changed, 2 insertions(+), 19 deletions(-)
+ src/bytes/hash/smhasher_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

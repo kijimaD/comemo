@@ -1,29 +1,37 @@
-commit f36e1adaa2c72d74dc669b596ea1c4df5e938def
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Oct 9 22:45:17 2016 -0700
+commit 615a52b95b5eedb94297f8de6e7838b16445bd16
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 6 12:38:19 2016 -0700
 
-    math/big: implement Float.Scan, type assert fmt interfaces to enforce docs
+    cmd/compile: inline x, ok := y.(T) where T is a scalar
     
-    Implements Float.Scan which satisfies fmt.Scanner interface.
-    Also enforces docs' interface implementation claims with compile time
-    type assertions, that is:
-    + Float always implements fmt.Formatter and fmt.Scanner
-    + Int always implements fmt.Formatter and fmt.Scanner
-    + Rat always implements fmt.Formatter
-    which will ensure that the API claims are strictly matched.
+    When T is a scalar, there are no runtime calls
+    required, which makes this a clear win.
     
-    Also note that Float.Scan doesn't handle ±Inf.
+    encoding/binary:
+    WriteInts-8                958ns ± 3%     864ns ± 2%   -9.80%  (p=0.000 n=15+15)
     
-    Fixes #17391
+    This also considerably shrinks a core fmt
+    routine:
     
-    Change-Id: I3d3dfbe7f602066975c7a7794fe25b4c645440ce
-    Reviewed-on: https://go-review.googlesource.com/30723
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Before: "".(*pp).printArg t=1 size=3952 args=0x20 locals=0xf0
+    After:  "".(*pp).printArg t=1 size=2624 args=0x20 locals=0x98
+    
+    Unfortunately, I find it very hard to get stable
+    numbers out of the fmt benchmarks due to thermal scaling.
+    
+    Change-Id: I1278006b030253bf8e48dc7631d18985cdaa143d
+    Reviewed-on: https://go-review.googlesource.com/26659
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/example_test.go   | 13 +++++++++++
- src/math/big/floatconv.go      | 15 ++++++++++++
- src/math/big/floatconv_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
- src/math/big/ftoa.go           |  2 ++
- src/math/big/intconv.go        |  4 ++++
- src/math/big/ratconv.go        |  3 +++
- 6 files changed, 89 insertions(+)
+ src/cmd/compile/internal/gc/cgen.go      | 12 ++++++++++--
+ src/cmd/compile/internal/gc/gsubr.go     | 18 ++++++++++++++++--
+ src/cmd/compile/internal/gc/opnames.go   |  1 +
+ src/cmd/compile/internal/gc/racewalk.go  |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++++
+ src/cmd/compile/internal/gc/subr.go      | 19 +++++++++++++++++++
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++++++
+ src/cmd/compile/internal/gc/walk.go      | 30 ++++++++++++++++++++++++------
+ test/interface/assertinline.go           | 16 +++++++++++++++-
+ 10 files changed, 97 insertions(+), 13 deletions(-)

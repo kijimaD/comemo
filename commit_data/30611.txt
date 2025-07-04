@@ -1,27 +1,19 @@
-commit bfc164c64d33edfaf774b5c29b9bf5648a6447fb
-Author: Paul Marks <pmarks@google.com>
-Date:   Tue Nov 1 21:01:08 2016 -0700
+commit 1e3c57c2cc1500b12a35a859f3d6e8aa27aeebc5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 16 10:43:54 2016 -0500
 
-    net: add Resolver.StrictErrors
+    cmd/internal/obj/arm64: fix branch too far for CBZ (and like)
     
-    When LookupIP is performing multiple subqueries, this option causes a
-    timeout/servfail affecting a single query to abort the whole operation,
-    instead of returning a partial (IPv4/IPv6-only) result.
+    The assembler backend fixes too-far conditional branches, but only
+    for BEQ and like. Add a case for CBZ and like.
     
-    Similarly, operations that walk the DNS search list will also abort when
-    encountering one of these errors.
+    Fixes #17925.
     
-    Fixes #17448
-    
-    Change-Id: Ice22e4aceb555c5a80d19bd1fde8b8fe87ac9517
-    Reviewed-on: https://go-review.googlesource.com/32572
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie516e6c5ca165b582367283a0110f7081e00c214
+    Reviewed-on: https://go-review.googlesource.com/33304
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/dnsclient_unix.go      |  50 ++++--
- src/net/dnsclient_unix_test.go | 349 +++++++++++++++++++++++++++++++++++++++--
- src/net/lookup.go              |  10 ++
- src/net/lookup_unix.go         |  24 +--
- src/net/netgo_unix_test.go     |   2 +-
- 5 files changed, 393 insertions(+), 42 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go     |  2 +-
+ src/cmd/internal/obj/arm64/asm_test.go | 62 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

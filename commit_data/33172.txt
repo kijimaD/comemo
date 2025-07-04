@@ -1,29 +1,16 @@
-commit 85177f42767fdd6c245dcd0ba0e70e0427600f3f
-Author: griesemer <gri@golang.org>
-Date:   Thu Oct 19 11:48:54 2017 -0700
+commit fa3c5173a5ab4d011cf77ab9775e677d2a9682ea
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 18 11:14:28 2017 -0400
 
-    spec: remove vestiges referring to iotas being incremented
+    runtime: improve out-of-memory message when VirtualAlloc fails
     
-    https://golang.org/cl/71750 specifies iota values as indices,
-    thus making them independent from nested constant declarations.
-    This CL removes some of the comments in the examples that were
-    still referring to the old notion of iotas being incremented
-    and reset.
+    Fixes #19514.
     
-    As an aside, please note that the spec still permits the use
-    of iota in a nested function (like before). Specifically, the
-    following cases are permitted by the spec (as before):
-    
-    1) const _ = len([iota]int{})
-    2) const _ = unsafe.Sizeof(func(){ _ = iota })
-    
-    For #15550.
-    
-    Change-Id: I9e5fec75daf7b628b1e08d970512397e9c348923
-    Reviewed-on: https://go-review.googlesource.com/71912
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I93600d5c3d11ecab5a47dd4cd55ed3aea05e221e
+    Reviewed-on: https://go-review.googlesource.com/49611
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 37 ++++++++++++++++++-------------------
- 1 file changed, 18 insertions(+), 19 deletions(-)
+ src/runtime/mem_windows.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

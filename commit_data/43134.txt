@@ -1,28 +1,19 @@
-commit 0ab72ed020d0c320b5007987abdf40677db34cfc
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 24 16:54:31 2020 -0400
+commit efc832b8dee55d5c3fb6dabc4d983e1ba089bd95
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 21 13:52:18 2019 -0500
 
-    cmd/link, runtime: use a sentinel value for unreachable method
+    crypto/tls: add {SignatureScheme,CurveID,ClientAuthType}.String()
     
-    In the method table, the method's code pointer is stored as an
-    offset from the start of the text section. Currently, for an
-    unreachable method, the offset is left as 0, which resolves to
-    the start of the text section at run time. It is possible that
-    there is valid code there. If an unreachable method is ever
-    reached (due to a compiler or linker bug), the execution will
-    jump to a wrong location but may continue to run for a while,
-    until it fails with a seemingly unrelated error.
+    Fixes #35499
     
-    This CL changes it to use -1 for unreachable method instead. At
-    run time this will resolve to an invalid address, which makes it
-    fail immediately if it is ever reached.
-    
-    Change-Id: Ied6ed7f1833c4f3b991fdf55d8810d70d307b2e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257203
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ieb487782f389f6d80e8f68ee980e584d906cb4da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208226
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/link/internal/ld/data.go | 6 ++++++
- src/runtime/type.go              | 9 ++++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/crypto/tls/auth.go          |   4 +-
+ src/crypto/tls/auth_test.go     |  14 ++---
+ src/crypto/tls/common.go        |   2 +
+ src/crypto/tls/common_string.go | 116 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 127 insertions(+), 9 deletions(-)

@@ -1,15 +1,17 @@
-commit 400bb82678c34988e02d8bd0a6449b00c1965d50
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 12:49:16 2015 +0000
+commit aadd84e0c4ac2476644d0f60b4873867c9549306
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 17 17:31:49 2015 +0900
 
-    crypto/x509: map/slice literals janitoring
+    net: classify site-local unicast in address selection
     
-    Simplify slice/map literal expression.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
+    This change adds site-local unicast classification for users still using
+    the deprecated addresses internally.
     
-    Change-Id: I4472c6003cf66e65f6e69050872ff95c96f01253
-    Reviewed-on: https://go-review.googlesource.com/13836
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If50870c6d4a85fe471c002b161eec59efcebe2f4
+    Reviewed-on: https://go-review.googlesource.com/12344
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/x509_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/addrselect.go      | 10 +++++++---
+ src/net/addrselect_test.go |  1 +
+ 2 files changed, 8 insertions(+), 3 deletions(-)

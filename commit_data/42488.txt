@@ -1,14 +1,22 @@
-commit 2603d9a89ae1eb06386b9dd68fdb9f185aca4804
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jun 8 13:07:39 2020 -0400
+commit 2863969cc3a5c17cc69a2d967911954b5cc1f7ad
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 16:41:39 2019 -0500
 
-    doc/go1.15: add release notes for crypto and math/big
+    cmd/go: convert TestIssue7108 to the script framework
     
-    Updates #37419
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Change-Id: I12f073697dc319e439f4ffe4e0aac7f6afb19a74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236918
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ic16a0c6c1eabeba003b9cff620e2911078fd6cf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212813
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 57 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                       |  8 --------
+ src/cmd/go/testdata/script/test_badtest.txt | 19 ++++++++++++++++++-
+ src/cmd/go/testdata/src/notest/hello.go     |  6 ------
+ 3 files changed, 18 insertions(+), 15 deletions(-)

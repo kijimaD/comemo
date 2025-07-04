@@ -1,22 +1,20 @@
-commit 05ff045dfeab582503a15c4233161aa8b6be179d
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Sun Aug 14 09:56:34 2022 +0000
+commit ba1c52d7d77724de4407572bd02421c36df3d78a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 17 12:27:23 2021 -0700
 
-    net/http: add Server.DisableOptionsHandler for custom handling of OPTIONS *
+    text/template: initialize template before locking it
     
-    Fixes #41773
+    For #39807
+    Fixes #48436
     
-    Change-Id: I432ad5410d5e3bb0aff3a6e0eea6906ab1b214e2
-    GitHub-Last-Rev: 57d1ee249dcdf46c54214d0636f235e5c62af213
-    GitHub-Pull-Request: golang/go#49014
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356410
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: hopehook <hopehook@qq.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I75f82fd8738dd2f11f0c69b1230e1be1abc36024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350730
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- api/next/41773.txt         |  1 +
- src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
- src/net/http/server.go     |  6 +++++-
- 3 files changed, 37 insertions(+), 1 deletion(-)
+ src/text/template/multi_test.go | 10 ++++++++++
+ src/text/template/template.go   |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

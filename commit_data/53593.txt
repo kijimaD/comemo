@@ -1,29 +1,18 @@
-commit 3b4b7b84def19a57ffa3c83001b37038d9ea204b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 16 13:04:50 2023 -0400
+commit 723a27994ddc926a2078bcc23ccbc33857577b4c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:50:04 2022 -0700
 
-    cmd/distpack: rename go.mod to _go.mod in toolchain modules
+    strings: rely on utf8.AppendRune
     
-    Modules cannot contain go.mod files except at the root
-    (and we don't keep one at the root). Rename the other go.mod
-    files to _go.mod.
+    This is both simpler and more performant.
     
-    dl2mod, which we used to convert all the old releases,
-    did this renaming, but it was missed when porting that
-    code to distpack.
-    
-    For #57001.
-    Fixes #60847.
-    
-    Change-Id: I4d646b96b5be15df3b79193e254ddc9b11cc8734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503979
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I66ef8e49c059a722932392ee3ecfb951d9b8e121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412339
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/distpack/archive.go | 12 +++++++++++-
- src/cmd/distpack/pack.go    | 13 +++++++++++++
- src/cmd/distpack/test.go    |  4 ++++
- 3 files changed, 28 insertions(+), 1 deletion(-)
+ src/strings/builder.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

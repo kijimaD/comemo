@@ -1,17 +1,27 @@
-commit d73aa535ded764933aa63e4c2c8fb34e479270cb
-Author: Mark Freeman <mark@golang.org>
-Date:   Wed May 7 16:49:02 2025 -0400
+commit 9a9b110f58325f684050ad5db0433bc9ad962d6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 14:42:53 2024 -0400
 
-    cmd/compile/internal/noder: begin documenting meta section
+    doc: fix various release notes mistakes
     
-    Meta is the most fundamental section. To flesh this out, we discuss references. Primitives are briefly mentioned by pointing to pkgbits,
-    where they will be defined using a similar grammar.
-    
-    Change-Id: I7abd899f38fad4cc5caf87ebfc7aa1b1985b17d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671176
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ib7666b3df1d7190772748129c349d4dc7046ca5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571795
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/doc.go | 91 +++++++++++++++++++++++++++++------
- 1 file changed, 77 insertions(+), 14 deletions(-)
+ doc/next/6-stdlib/0-heading.md                        | 2 +-
+ doc/next/6-stdlib/99-minor/database/sql/64707.md      | 6 +++---
+ doc/next/6-stdlib/99-minor/debug/elf/66054.md         | 6 +++---
+ doc/next/6-stdlib/99-minor/net/62254.md               | 6 +++---
+ doc/next/6-stdlib/99-minor/net/http/64910.md          | 2 +-
+ doc/next/6-stdlib/99-minor/net/http/httptest/59473.md | 4 ++--
+ doc/next/6-stdlib/99-minor/os/33357.md                | 2 +-
+ doc/next/6-stdlib/99-minor/os/62484.md                | 2 +-
+ doc/next/6-stdlib/99-minor/os/63703.md                | 2 +-
+ doc/next/6-stdlib/99-minor/path/filepath/57151.md     | 2 +-
+ doc/next/6-stdlib/99-minor/runtime/debug/42888.md     | 2 +-
+ doc/next/6-stdlib/99-minor/sync/61696.md              | 2 +-
+ doc/next/6-stdlib/99-minor/syscall/62254.md           | 2 +-
+ doc/next/6-stdlib/99-minor/syscall/65817.md           | 2 +-
+ 14 files changed, 21 insertions(+), 21 deletions(-)

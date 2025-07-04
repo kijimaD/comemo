@@ -1,22 +1,21 @@
-commit cc276a768feddf6ae1d82b581e0d975a8990d18a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 20 15:40:44 2024 -0800
+commit ab86d29bb5e572a19bed60bdfe75b66a09609a2f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 16 21:30:36 2023 +0700
 
-    go/types: generate conversions.go from types2 source
+    cmd/compile: update documentation for ONAME node with nil Func
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 300 LOC.
+    After CL 436435 chain, the only case left where we create an ONAME node
+    with nil Func is interface method from imported package.
     
-    Change-Id: I749e47668e90e77e99109005fbe19045d4a5ad29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565437
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I9d9144916d01712283f2b116973f88965715fea3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468816
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/conversions.go | 13 +++++++------
- src/cmd/compile/internal/types2/util.go        |  2 ++
- src/go/types/conversions.go                    | 11 ++++++++---
- src/go/types/generate_test.go                  |  1 +
- src/go/types/util.go                           |  2 ++
- 5 files changed, 20 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ir/expr.go    | 3 +--
+ src/cmd/compile/internal/ir/name.go    | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go | 7 +++----
+ 3 files changed, 5 insertions(+), 7 deletions(-)

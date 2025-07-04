@@ -1,21 +1,20 @@
-commit fca7b8f3e690ec0562dd6ed609a8c7e6bef744c8
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu May 27 15:14:18 2021 +0000
+commit cb4df9833474d36c6e4cb005682215047b5f0979
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Oct 18 17:02:06 2020 +0000
 
-    Revert "net: verify results from Lookup* are valid domain names"
+    cmd/go: add /v2 to another require example
     
-    This reverts commit c89f1224a544cde464fcb86e78ebb0cc97eedba2.
+    This is the same change as in CL 144917, but applied to a nearby line.
     
-    Reason for revert: reverting so we can apply follow-up fixes and do a single cherry pick.
+    For #28374.
     
-    Change-Id: I16c6283a0bcab056216f330fb98fa3b5f2b0780c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323129
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I6e1693d3a14e2517d863d1052a06c1156fc1edd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263437
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/dnsclient_unix_test.go | 121 -----------------------------------------
- src/net/lookup.go              |  98 +++------------------------------
- 2 files changed, 8 insertions(+), 211 deletions(-)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/modload/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

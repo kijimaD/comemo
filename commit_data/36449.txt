@@ -1,35 +1,19 @@
-commit c35069d6428d29b12088731aab35cbff1e504a28
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Tue Jul 24 10:39:00 2018 +0300
+commit 980fdb8dd5fe0151a9b7e84ec6b8c20a11727521
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 03:17:18 2018 +0200
 
-    cmd/compile: clean the output of GOSSAFUNC
+    cmd/compile: improve testing of induction variables
     
-    Since we print almost everything to ssa.html in the GOSSAFUNC mode,
-    there is a need to stop spamming stdout when user just wants to see
-    ssa.html.
+    Test both minimum and maximum bound, and prepare
+    formatting for more advanced tests (inclusive / esclusive bounds).
     
-    This changes cleans output of the GOSSAFUNC debug mode.
-    To enable the dump of the debug data to stdout, one must
-    put suffix + after the function name like that:
-    
-    GOSSAFUNC=Foo+
-    
-    Otherwise gc will not print the IR and ASM to stdout after each phase.
-    AST IR is still sent to stdout because it is not included
-    into ssa.html. It will be fixed in a separate change.
-    
-    The change adds printing out the full path to the ssa.html file.
-    
-    Updates #25942
-    
-    Change-Id: I711e145e05f0443c7df5459ca528dced273a62ee
-    Reviewed-on: https://go-review.googlesource.com/126603
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Change-Id: Ibe432916d9c938343bc07943798bc9709ad71845
+    Reviewed-on: https://go-review.googlesource.com/104040
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/main.go     |  4 ++
- src/cmd/compile/internal/gc/ssa.go      | 70 ++++++++++++++++-----------------
- src/cmd/compile/internal/ssa/compile.go | 10 +++--
- src/cmd/compile/internal/ssa/html.go    | 11 +++++-
- 4 files changed, 53 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/ssa/loopbce.go | 21 ++++++++++---
+ test/loopbce.go                         | 54 ++++++++++++++++-----------------
+ test/prove.go                           |  4 +--
+ 3 files changed, 46 insertions(+), 33 deletions(-)

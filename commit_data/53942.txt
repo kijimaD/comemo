@@ -1,24 +1,24 @@
-commit 6e43407931ee4acc204620a9fae59c7903164901
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Aug 8 14:07:08 2023 -0700
+commit a9a398220ff387fe4924aee08365ffc374767a3a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Sep 7 22:34:48 2022 +0800
 
-    path/filepath: don't drop .. elements when cleaning invalid Windows paths
+    all: use unsafe.{Slice, SliceData, String, StringData} to simplify code
     
-    Fix a bug where Clean could improperly drop .. elements from a
-    path on Windows, when the path contains elements containing a ':'.
+    Because most of these APIs are recently supported, we can only do some
+    advancement work as much as possible under the premise of compatibility.
     
-    For example, Clean("a/../b:/../../c") now correctly returns "..\c"
-    rather than "c".
+    For #54854.
     
-    Fixes #61866
-    
-    Change-Id: I97b0238953c183b2ce19ca89c14f26700008ea72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517216
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Id15d11288bf23902570d54eaf2704a5264210b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429115
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/path/filepath/path.go      | 33 +++++++++++++++++++++------------
- src/path/filepath/path_test.go |  4 ++++
- 2 files changed, 25 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/modindex/read.go    | 10 +---------
+ src/hash/maphash/maphash.go             |  7 +++----
+ src/internal/fuzz/counters_supported.go | 10 +---------
+ 3 files changed, 5 insertions(+), 22 deletions(-)

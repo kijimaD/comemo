@@ -1,21 +1,20 @@
-commit e721778f3ed43b5ec6beda5e3f2fa93eda38f352
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 7 16:08:12 2014 -0500
+commit 76236ef13684fd63555ae4be90ca31e94eda670f
+Author: David Covert <davidhcovert@gmail.com>
+Date:   Fri Mar 7 15:30:02 2014 -0500
 
-    sync: give finalizers more time in TestPoolGC
+    regexp: add one-pass optimization from RE2
     
-    If we report a leak, make sure we've waited long enough to be sure.
-    The new sleep regimen waits 1.05 seconds before failing; the old
-    one waited 0.005 seconds.
+    This produces about a 2.3x speedup for patterns
+    that can be handled this way.
     
-    (The single linux/amd64 failure in this test feels more like a
-    timing problem than a leak. I don't want to spend time on it unless
-    we're sure.)
-    
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/72630043
+    https://golang.org/cl/13345046
 
- src/pkg/sync/pool_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/regexp/all_test.go         |  55 ++++
+ src/pkg/regexp/exec.go             | 121 +++++++-
+ src/pkg/regexp/regexp.go           |  11 +-
+ src/pkg/regexp/syntax/prog.go      | 587 ++++++++++++++++++++++++++++++++++++-
+ src/pkg/regexp/syntax/prog_test.go | 198 +++++++++++++
+ 5 files changed, 952 insertions(+), 20 deletions(-)

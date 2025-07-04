@@ -1,0 +1,31 @@
+commit a053e79024f56a2a64728b1287509e880fad203e
+Author: Mark Wakefield <mark.a.wakefield@gmail.com>
+Date:   Thu Jan 2 19:18:01 2025 +0000
+
+    net/http: support TCP half-close when HTTP is upgraded in ReverseProxy
+    
+    This CL propagates closing the write stream from either side of the
+    reverse proxy and ensures the proxy waits for both copy-to and the
+    copy-from the backend to complete.
+    
+    The new unit test checks communication through the reverse proxy when
+    the backend or frontend closes either the read or write streams.
+    That closing the write stream is propagated through the proxy from
+    either the backend or the frontend. That closing the read stream is
+    not propagated through the proxy.
+    
+    Fixes #35892
+    
+    Change-Id: I83ce377df66a0f17b9ba2b53caf9e4991a95f6a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637939
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Matej Kramny <matejkramny@gmail.com>
+
+ src/net/http/httputil/reverseproxy.go      |  38 +++++++-
+ src/net/http/httputil/reverseproxy_test.go | 144 +++++++++++++++++++++++++++++
+ src/net/http/transport.go                  |   7 ++
+ 3 files changed, 184 insertions(+), 5 deletions(-)

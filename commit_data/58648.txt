@@ -1,15 +1,25 @@
-commit d7f6f6fd54bb888606d882cd73df9dcac229b80a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 6 18:04:00 2025 -0800
+commit 2c424edd91a07ef200ff639c205ddf6f51a17351
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Nov 21 22:57:59 2023 +0000
 
-    bufio: skip network test if unixpacket socket not supported
+    internal/abi, runtime,  reflect, cmd: merge maxZero const into internal/abi
     
-    Change-Id: I03434fdc4916fc8d195de2617edc28ec4b66a172
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647535
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    For #59670
+    
+    Change-Id: If38a74ad067a3ea3ff551c0c25c8ef41abec114b
+    GitHub-Last-Rev: fb1f2f3c9f320017627bc3342b061e1e7f6f7fad
+    GitHub-Pull-Request: golang/go#64268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543655
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bufio/net_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/assign.go |  3 ++-
+ src/cmd/compile/internal/walk/expr.go   |  3 ++-
+ src/cmd/compile/internal/walk/walk.go   |  1 -
+ src/internal/abi/map.go                 |  3 +++
+ src/reflect/value.go                    | 11 ++++-------
+ src/runtime/map.go                      |  3 +--
+ 6 files changed, 12 insertions(+), 12 deletions(-)

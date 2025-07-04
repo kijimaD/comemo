@@ -1,32 +1,18 @@
-commit f2e9076764b35cc34d9a166aa3b074c203aea0a2
-Author: Vasily Leonenko <vasiliy.leonenko@gmail.com>
-Date:   Mon Mar 31 23:25:00 2025 +0300
+commit 0fefe417db0e4343968e5772336289e1c82b88a4
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Sun Feb 25 10:15:17 2024 +0000
 
-    internal/bytealg: optimize Count/CountString on arm64
+    cmd/gofmt: remove impossible err!=nil conditional
     
-    Introduce ABIInternal support for Count/CountString
-    Move <32 size block from function end to beginning as fastpath
-    
-    goos: linux
-    goarch: arm64
-    pkg: strings
-                       │   base.txt   │               new.txt                │
-                       │     B/s      │     B/s       vs base                │
-    CountByte/10         672.5Mi ± 0%   692.9Mi ± 0%   +3.04% (p=0.000 n=10)
-    CountByte/32         3.592Gi ± 0%   3.970Gi ± 0%  +10.53% (p=0.000 n=10)
-    CountByte/4096       16.63Gi ± 0%   16.73Gi ± 0%   +0.64% (p=0.000 n=10)
-    CountByte/4194304    14.97Gi ± 2%   15.02Gi ± 1%        ~ (p=0.190 n=10)
-    CountByte/67108864   12.50Gi ± 0%   12.50Gi ± 0%        ~ (p=0.853 n=10)
-    geomean              5.931Gi        6.099Gi        +2.83%
-    
-    Change-Id: I5af1be2b117d9fb8d570739637499923de62251c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662395
+    Change-Id: Ife63c766cefc14d2f6bdd3c706f913b1b6f99949
+    GitHub-Last-Rev: 04e23349e68a3ce12b7d33c0fd3ad8c7ffbd8aaa
+    GitHub-Pull-Request: golang/go#65929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566099
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Commit-Queue: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/bytealg/count_arm64.s | 84 +++++++++++++++++++-------------------
- 1 file changed, 43 insertions(+), 41 deletions(-)
+ src/cmd/gofmt/gofmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

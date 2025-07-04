@@ -1,12 +1,22 @@
-commit a63d5dd118aa3e36f60c358f1221356825acc502
+commit d3c758d7d2a29f86d4d75bc29363532c6b8c49b0
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 20 17:20:32 2013 -0400
+Date:   Wed Mar 20 17:11:09 2013 -0400
 
-    cmd/gc: add OCHECKNOTNIL to race walker (fix build)
+    cmd/gc: implement method values
     
-    TBR=dvyukov
+    R=ken2, ken
     CC=golang-dev
-    https://golang.org/cl/7635046
+    https://golang.org/cl/7546052
 
- src/cmd/gc/racewalk.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5g/gsubr.c     |  20 +---
+ src/cmd/6g/gsubr.c     |  16 +--
+ src/cmd/8g/gsubr.c     |  16 +--
+ src/cmd/gc/closure.c   | 176 ++++++++++++++++++++++++++---
+ src/cmd/gc/gen.c       |   5 +-
+ src/cmd/gc/go.h        |   8 +-
+ src/cmd/gc/inl.c       |   2 +-
+ src/cmd/gc/subr.c      |  14 +++
+ src/cmd/gc/typecheck.c |  13 ++-
+ src/cmd/gc/walk.c      |  27 +++--
+ test/method5.go        | 297 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 11 files changed, 524 insertions(+), 70 deletions(-)

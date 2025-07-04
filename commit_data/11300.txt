@@ -1,35 +1,14 @@
-commit 290e68b9833da723cbe9138856f7d6d494e5b07b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 20 17:14:09 2012 -0500
+commit 696bf79350b5cb0e977def1fc98ba6d6c8bd829f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 20 13:51:49 2012 -0800
 
-    gc: undo most of 'fix infinite recursion for embedded interfaces'
+    bytes.Buffer: turn buffer size overflows into errors
+    Fixes #2743.
     
-    Preserve test.
-    
-    changeset:   11593:f1deaf35e1d1
-    user:        Luuk van Dijk <lvd@golang.org>
-    date:        Tue Jan 17 10:00:57 2012 +0100
-    summary:     gc: fix infinite recursion for embedded interfaces
-    
-    This is causing 'interface type loop' errors during compilation
-    of a complex program.  I don't understand what's happening
-    well enough to boil it down to a simple test case, but undoing
-    this change fixes the problem.
-    
-    The change being undone is fixing a corner case (uses of
-    pointer to interface in an interface definition) that basically
-    only comes up in erroneous Go programs.  Let's not try to
-    fix this again until after Go 1.
-    
-    Unfixes issue 1909.
-    
-    TBR=lvd
+    R=golang-dev, gri, r
     CC=golang-dev
-    https://golang.org/cl/5555063
+    https://golang.org/cl/5556072
 
- src/cmd/gc/dcl.c                   |  9 +--------
- src/cmd/gc/export.c                |  9 +--------
- src/cmd/gc/fmt.c                   |  8 +-------
- test/{fixedbugs => bugs}/bug395.go | 15 +++++++++++----
- test/golden.out                    |  3 +++
- 5 files changed, 17 insertions(+), 27 deletions(-)
+ src/pkg/bytes/buffer.go      | 40 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/bytes/buffer_test.go | 16 ++++++++++++++++
+ 2 files changed, 52 insertions(+), 4 deletions(-)

@@ -1,21 +1,23 @@
-commit 9fab498ab1c2c03595f8e4a261b67e9eb9cbd0e7
+commit afd181cf0b69c3591d7e47ceca4fabf14434d77e
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Apr 13 22:05:14 2023 +0700
+Date:   Tue May 17 15:38:35 2022 +0700
 
-    cmd/compile/internal/typecheck: remove some un-used functions
+    test,misc: fix builders that do not support plugin
     
-    CL 405094 removed the only caller of markBreak/setHasBreak and
-    isTermNodes/isTermNode.
+    CL 406358 added test that use -buildmode=plugin. But plugin mode only
+    supports on some os/arch pairs, so this CL moving the test to
+    misc/cgo/testplugin directory instead.
     
-    importlist variable is only used in old frontend.
+    Updates #52937
     
-    Change-Id: I9472f2c0017b6200847999f2cea0e9021a1b14e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484435
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iad049443c1f6539f6af1988bebd4dff56c6e1bf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406774
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 143 ------------------------
- 1 file changed, 143 deletions(-)
+ misc/cgo/testplugin/plugin_test.go                                   | 4 ++++
+ .../issue52937.go => misc/cgo/testplugin/testdata/issue52937/main.go | 5 -----
+ 2 files changed, 4 insertions(+), 5 deletions(-)

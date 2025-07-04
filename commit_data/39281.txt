@@ -1,14 +1,15 @@
-commit 9e2299207a4ed4de49eae173903ae88ee8da6065
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 30 18:33:14 2019 -0400
+commit ef454fd586ee30d8b35b5895320619ebde2beb98
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 15 23:42:32 2019 +0000
 
-    misc/cgo/errors: remove debugging println
+    doc/go1.12: document net/url.Parse now rejecting ASCII CTLs
     
-    Change-Id: I0c7da31e94307f939e1a2f023e00d5b24bac0ea6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179604
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #27302
+    Updates #22907
+    
+    Change-Id: Iac6957f3517265dfb9c662efb7af31192e3bfd6c
+    Reviewed-on: https://go-review.googlesource.com/c/162960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/errors/ptr_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.12.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,17 +1,23 @@
-commit 745ec8b922d236016dac99ae270084447dd4758f
+commit cda1947fd12ad31060b30a0a601130bfaa26d234
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 2 07:34:52 2018 -0700
+Date:   Wed Jul 11 13:51:39 2018 -0700
 
-    cmd/go: don't let "go test -c -o /dev/null" overwrite /dev/null
+    runtime: don't say "different packages" if they may not be different
     
-    Fixes #28549
+    Fix the panic message produced for an interface conversion error to
+    only say "types from different packages" if they are definitely from
+    different packges. If they may be from the same package, say "types
+    from different scopes."
     
-    Change-Id: Iba71bb2edd0759004e0c7df92b2b8f1197bd62d3
-    Reviewed-on: https://go-review.googlesource.com/c/146901
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #18911
+    Fixes #26094
+    
+    Change-Id: I0cea50ba31007d88e70c067b4680009ede69bab9
+    Reviewed-on: https://go-review.googlesource.com/123395
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/go_test.go            | 30 ++++++++++++++++++++++++++++++
- src/cmd/go/internal/test/test.go | 20 ++++++++++++--------
- 2 files changed, 42 insertions(+), 8 deletions(-)
+ src/runtime/error.go         | 33 ++++++++++++++++-------------
+ src/runtime/iface.go         | 16 ++++++---------
+ src/runtime/type.go          | 19 +++++++++++++++++
+ test/fixedbugs/issue26094.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 93 insertions(+), 24 deletions(-)

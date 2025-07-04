@@ -1,25 +1,16 @@
-commit e1ddf0507c6d6dcbe1a2ebe54b8728498edf0995
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Sep 10 18:53:51 2019 +0000
+commit 2d75c332cca28678ff61d9f7cd58a82acb75e197
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jun 10 12:18:44 2019 -0700
 
-    runtime: count scavenged bits for new allocation for new page allocator
+    syscall: fix freebsd 64-bit test
     
-    This change makes it so that the new page allocator returns the number
-    of pages that are scavenged in a new allocation so that mheap can update
-    memstats appropriately.
+    64 bits is 8 bytes. Duh.
     
-    The accounting could be embedded into pageAlloc, but that would make
-    the new allocator more difficult to test.
-    
-    Updates #35112.
-    
-    Change-Id: I0f94f563d7af2458e6d534f589d2e7dd6af26d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195698
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I991b359df6241889bdef13152f551af9db6e14c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181557
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/export_test.go      |  15 ++-
- src/runtime/mpagealloc.go       |  29 ++++--
- src/runtime/mpagealloc_test.go  | 201 +++++++++++++++++++++++++++-------------
- src/runtime/mpallocbits.go      |  20 ++++
- src/runtime/mpallocbits_test.go |  92 ++++++++++++++++++
- 5 files changed, 281 insertions(+), 76 deletions(-)
+ src/syscall/syscall_freebsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

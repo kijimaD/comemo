@@ -1,16 +1,21 @@
-commit 3479e1e5439c3c4f5236239ad1ebaba2b945f755
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Thu Jun 22 16:33:06 2023 +0300
+commit 7ee220c56768021179b7c4be19631be82773b9da
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 14 00:29:20 2022 +0700
 
-    internal/fuzz: fix typo in comment
+    net: avoid relying on singleflight.Group.DoChan to detect hook called
     
-    Change-Id: I04f0aa2730cd7d60027a36a3b81289e4972d4a9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505115
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    So next CLs can revert changes to "internal/singleflight" in CL #82795,
+    then replace it with "golang.org/x/sync/singleflight" instead.
+    
+    For #31697
+    
+    Change-Id: I873ce30d7e051539aa6dc5d4f21e558869a6d132
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423654
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/fuzz/counters_unsupported.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/lookup.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

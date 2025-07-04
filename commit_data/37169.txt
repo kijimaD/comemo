@@ -1,18 +1,24 @@
-commit 61d40c8abc82fd845b5e4340bdf0495de0de7ecd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 15 23:00:58 2018 +0000
+commit fb72965df06e193bce0b999a0b5cb2a7b817fc7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 5 21:38:02 2018 -0400
 
-    runtime: extend ReadMemStatsSlow to re-compute HeapReleased
+    go/doc: update header rules
     
-    This change extends the test function ReadMemStatsSlow to re-compute
-    the HeapReleased statistic such that it is checked in testing to be
-    consistent with the bookkeeping done in the runtime.
+    Go documentation can have header lines, which are single-line paragraphs
+    with leading and trailing letters and almost no punctuation.
+    Before this CL, the only allowed punctuation was ' followed by s.
     
-    Change-Id: I49f5c2620f5731edea8e9f768744cf997dcd7c22
-    Reviewed-on: https://go-review.googlesource.com/c/142397
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    After this CL, parentheses and commas are also allowed,
+    to pick up a pair of previously unrecognized headings in the
+    go command documentation:
+    
+            Gofmt (reformat) package sources
+            Modules, module versions, and more
+    
+    Change-Id: I6d59c40a1269f01cef62a3fb17b909571c2f2adb
+    Reviewed-on: https://go-review.googlesource.com/122407
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/export_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/go/doc/comment.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

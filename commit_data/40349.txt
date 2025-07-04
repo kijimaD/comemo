@@ -1,38 +1,28 @@
-commit 16f0f9c8e1e767d10d483939981e3b2242554c33
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Oct 21 16:12:22 2019 +0200
+commit a62b5723be15849656279c244834064b951801fc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 29 20:58:39 2019 +0000
 
-    syscall: respect permission bits on file opening on Windows
+    runtime: scavenge huge spans first
     
-    On Windows, os.Chmod and syscall.Chmod toggle the FILE_ATTRIBUTES_
-    READONLY flag depending on the permission bits. That's a bit odd but I
-    guess some compromises were made at some point and this is what was
-    chosen to map to a Unix concept that Windows doesn't really have in the
-    same way. That's fine. However, the logic used in Chmod was forgotten
-    from os.Open and syscall.Open, which then manifested itself in various
-    places, most recently, go modules' read-only behavior.
+    This change adds two new treap iteration types: one for large
+    unscavenged spans (contain at least one huge page) and one for small
+    unscavenged spans. This allows us to scavenge the huge spans first by
+    first iterating over the large ones, then the small ones.
     
-    This makes syscall.Open consistent with syscall.Chmod and adds a test
-    for the permission _behavior_ using ioutil. By testing the behavior
-    instead of explicitly testing for the attribute bits we care about, we
-    make sure this doesn't regress in unforeseen ways in the future, as well
-    as ensuring the test works on platforms other than Windows.
+    Also, since we now depend on physHugePageSize being a power of two,
+    ensure that that's the case when it's retrieved from the OS.
     
-    In the process, we fix some tests that never worked and relied on broken
-    behavior, as well as tests that were disabled on Windows due to the
-    broken behavior and had TODO notes.
+    For #30333.
     
-    Fixes #35033
-    
-    Change-Id: I6f7cf54517cbe5f6b1678d1c24f2ab337edcc7f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202439
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I51662740205ad5e4905404a0856f5f2b2d2a5680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174399
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/cover/cover_test.go                 |  4 ++--
- src/cmd/go/testdata/script/mod_cache_rw.txt |  9 +++++----
- src/io/ioutil/ioutil_test.go                | 31 +++++++++++++++++++++++++++++
- src/syscall/syscall_windows.go              |  6 +++++-
- 4 files changed, 43 insertions(+), 7 deletions(-)
+ src/runtime/export_test.go |  1 +
+ src/runtime/mgclarge.go    |  6 ++++-
+ src/runtime/mheap.go       | 60 +++++++++++++++++++++++++++++++---------------
+ src/runtime/os_linux.go    |  7 ++++--
+ src/runtime/treap_test.go  |  8 ++++---
+ 5 files changed, 57 insertions(+), 25 deletions(-)

@@ -1,19 +1,16 @@
-commit 0044bc614af52d3f9acdd4db18e053e635c25ccd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 11 12:56:27 2025 -0800
+commit 459cd35ec092fdb48e1825ccd01fb630a77474bf
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 7 16:13:04 2023 +0800
 
-    os: consolidate and clarify File.Fd docs
+    doc/go1.22: mention new #vet analyzer
     
-    Change-Id: Id062b969fe7d6908a0797b36a4a379e4d46ba557
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648516
+    Change-Id: Ib135101bc8adbdb158c5e98bcca14e13d7ac963b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    Reviewed-by: Tim King <taking@google.com>
 
- src/os/file.go         | 17 +++++++++++++++++
- src/os/file_plan9.go   | 37 +++++++++++++++----------------------
- src/os/file_unix.go    | 15 ++-------------
- src/os/file_windows.go |  9 ++-------
- src/os/stat_plan9.go   |  2 +-
- 5 files changed, 37 insertions(+), 43 deletions(-)
+ doc/go1.22.html | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

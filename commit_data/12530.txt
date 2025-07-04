@@ -1,14 +1,20 @@
-commit c978a5a3a94fbd03cfe012fbf1ac556728d7fb41
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 8 14:03:40 2012 -0500
+commit 56cae1c2307be5895c628b66f7b2418d56278f98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 8 10:48:51 2012 -0800
 
-    test: skip . files in directory
+    all: gofmt -w -s src misc
     
-    Xcode generates ._foo.go files.
-    
-    R=golang-dev, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5786055
+    https://golang.org/cl/5781058
 
- test/run.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ misc/cgo/test/backdoor/backdoor.go          |  2 +-
+ misc/dashboard/app/build/init.go            |  2 +-
+ misc/dashboard/app/build/test.go            |  2 +-
+ src/pkg/crypto/tls/handshake_server_test.go |  2 +-
+ src/pkg/database/sql/sql_test.go            | 48 ++++++++++++++---------------
+ src/pkg/encoding/gob/encoder_test.go        |  4 +--
+ src/pkg/exp/norm/maketables.go              |  4 +--
+ src/pkg/net/http/client_test.go             |  6 ++--
+ src/pkg/path/filepath/path_test.go          |  4 +--
+ 9 files changed, 37 insertions(+), 37 deletions(-)

@@ -1,20 +1,25 @@
-commit 95a3779ebc6456c501fa5d888f8fb842dae58460
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu May 9 22:04:57 2024 +0000
+commit f90bb8a38f2f1ed2109f8fa88fb90a5c2db1f3fe
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 4 17:09:49 2023 -0400
 
-    reflect: clarify documentation for Value.Seq/Seq2
+    cmd/link: remove elfsetstring out of the loader
     
-    For #66056
+    Currently, we pass elfsetstring to the loader as a callback, for
+    a special case of Addstring. This is only used for ELF when adding
+    strings to the section header string table. Move the logic to the
+    caller instead, so the loader would not have this special case.
     
-    Change-Id: Ib47c07b2527d8213584b72e2575a353f2deaed68
-    GitHub-Last-Rev: 525a5c3fa469fcccfb1ab67b61c7d12e024cfb33
-    GitHub-Pull-Request: golang/go#67268
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584515
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Icfb91f380fe4ba435985c3019681597932f58242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492718
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/reflect/iter.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data_test.go         |   3 +-
+ src/cmd/link/internal/ld/dwarf.go             |  13 ++-
+ src/cmd/link/internal/ld/elf.go               | 127 +++++++++++++-------------
+ src/cmd/link/internal/ld/lib.go               |   3 +-
+ src/cmd/link/internal/loader/loader.go        |   7 +-
+ src/cmd/link/internal/loader/loader_test.go   |   3 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |   4 -
+ 7 files changed, 76 insertions(+), 84 deletions(-)

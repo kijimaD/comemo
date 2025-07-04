@@ -1,43 +1,30 @@
-commit 07d48993f257a6536d83555bb8cc9daffa07dd56
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Oct 23 17:09:39 2015 -0700
+commit 1cf05ee61267b8f98494ac1ca0b75e831c53f32e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 9 23:31:10 2015 -0400
 
-    cmd/doc: fix strange indentation artifacts with unexported fields
+    runtime: move arch1_$GOARCH.go into arch_$GOARCH.go
     
-    The NamePos value was not being set, and would default to a value
-    of zero. This would cause the printing logic to get confused as
-    to where exactly to place the "Has unexported fields" string.
+    Update #12563.
     
-    A trivial package changes from
-    
-    <
-    type A struct {
-            A int // A
-            B int
-                            // B
-            // Has unexported fields.
-    }
-    >
-    
-    to
-    
-    <
-    type A struct {
-            A int // A
-            B int // B
-            // Has unexported fields.
-    }
-    >
-    
-    Fixes #12971
-    
-    Change-Id: I53b7799a1f1c0ad7dcaddff83d9aaeb1d6b7823e
-    Reviewed-on: https://go-review.googlesource.com/16286
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Change-Id: Id87f8e53586accd662575c31961c39787268df7a
+    Reviewed-on: https://go-review.googlesource.com/14471
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/doc_test.go     | 37 ++++++++++++++++++++++++++++++++++++-
- src/cmd/doc/pkg.go          |  9 ++++++++-
- src/cmd/doc/testdata/pkg.go |  9 ++++++++-
- 3 files changed, 52 insertions(+), 3 deletions(-)
+ src/runtime/arch1_386.go      | 15 ---------------
+ src/runtime/arch1_amd64.go    | 15 ---------------
+ src/runtime/arch1_amd64p32.go | 15 ---------------
+ src/runtime/arch1_arm.go      | 15 ---------------
+ src/runtime/arch1_arm64.go    | 15 ---------------
+ src/runtime/arch1_ppc64.go    | 15 ---------------
+ src/runtime/arch1_ppc64le.go  | 15 ---------------
+ src/runtime/arch_386.go       | 10 ++++++++++
+ src/runtime/arch_amd64.go     | 10 ++++++++++
+ src/runtime/arch_amd64p32.go  | 10 ++++++++++
+ src/runtime/arch_arm.go       | 10 ++++++++++
+ src/runtime/arch_arm64.go     | 10 ++++++++++
+ src/runtime/arch_ppc64.go     | 10 ++++++++++
+ src/runtime/arch_ppc64le.go   | 10 ++++++++++
+ 14 files changed, 70 insertions(+), 105 deletions(-)

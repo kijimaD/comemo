@@ -1,24 +1,17 @@
-commit c8ccbcdde595bd04056398bec72532a8582f7442
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Fri Aug 2 15:31:22 2024 -0700
+commit 7cc07405962d804f0386baad100b1b5084dda4c0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 26 10:56:55 2023 +0200
 
-    runtime: add direct benchmark of mutex contention
+    slices: add godoc links
     
-    Measure throughput of a single mutex with all threads contending. Do not
-    attempt to measure fairness/starvation.
-    
-    The ChanContended benchmark works somewhat well for this (interacting
-    with the mutex is a large contributor to its results), but it's better
-    to be clear about what we're attempting to measure.
-    
-    For #68578
-    
-    Change-Id: Ie397b4c363bfcd5afddf796a81cd6c34ebf8551b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604375
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Change-Id: I79d2bab2275f123636b63e87533ae9dad69ee00f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/runtime_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 45 insertions(+), 3 deletions(-)
+ src/slices/slices.go | 4 ++--
+ src/slices/sort.go   | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

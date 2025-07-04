@@ -1,15 +1,15 @@
-commit 15dcdf751cfd9f075c3071b3ca1d5303334f2694
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 31 15:52:04 2011 -0400
+commit 5b62ba14c460a23d31c8c2645a41c196ceee8220
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue May 31 15:41:47 2011 -0400
 
-    gc: fix m[x], _ = y.(T)
+    gc: disallow ... in type conversions
     
-    Fixes #1900.
+    Fixes #1866.
     
-    R=ken2
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4561053
+    https://golang.org/cl/4548073
 
- src/cmd/gc/walk.c        |  2 +-
- test/fixedbugs/bug343.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c | 2 +-
+ test/ddd1.go           | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,17 +1,36 @@
-commit 5f08e480f447a7f197f41686bf672d39b10c3518
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 10:40:34 2016 +0100
+commit 4223675913762a12cd23871fbd003d8a68cb49a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 10:05:18 2016 -0500
 
-    misc/ios: pass through SIGCONT in the exec wrapper
+    cmd/go: refine definition of 'standard' import paths to include vendored code
     
-    Instruct lldb to pass through SIGCONT unhindered when running iOS
-    tests. Fixes the TestSIGCONT test in os/signal.
+    The vendored copy of golang.org/x/net/http/hpack was being treated
+    as not standard, which in turn was making it not subject to the mtime
+    exception for rebuilding the standard library in a release, which in turn
+    was making net/http look out of date.
     
-    For #14318
+    One fix and three tests:
     
-    Change-Id: I669264208cc3d6ecae9fbc8790e0b753a93a5e04
-    Reviewed-on: https://go-review.googlesource.com/21071
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    - Fix the definition of standard.
+    - Test that everything in $GOROOT/src/ is standard during 'go test cmd/go'.
+    (In general there can be non-standard things in $GOROOT/src/, but this
+    test implies that you can do that or you can run 'go test cmd/go',
+    but not both. That's fine.)
+    - Test that 'go list std cmd' shows our vendored code.
+    - Enforce that no standard package can depend on a non-standard one.
+    
+    Also fix a few error printing nits.
+    
+    Fixes #13713.
+    
+    Change-Id: I1f943f1c354174c199e9b52075c11ee44198e81b
+    Reviewed-on: https://go-review.googlesource.com/18978
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/go_test.go | 37 ++++++++++++++++++++++++++++++++++---
+ src/cmd/go/main.go    |  5 ++---
+ src/cmd/go/pkg.go     | 28 ++++++++++++++++++++++++++--
+ src/cmd/go/run.go     | 14 ++++++++++++--
+ 4 files changed, 74 insertions(+), 10 deletions(-)

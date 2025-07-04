@@ -1,25 +1,30 @@
-commit e9eb88ae7291bf9f1b05e8e4860474c734c5448d
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Feb 11 09:17:08 2025 +0100
+commit 5a2161ce9ec130271ec67566ecb5a842497e8742
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 30 18:13:51 2023 +0000
 
-    {all,clean,make,race,run}.bat: simplify error handling
+    runtime: emit the correct P status from a safepoint in the v2 tracer
     
-    The bat files can use "if" + parentheses to make it easier to
-    understand how the if-case is handled rather than the more cryptic
-    "if" + "goto".
+    The GoSyscallBegin event is a signal for both the P and the G to enter a
+    syscall state for the trace parser. (Ps can't have their own event
+    because it's too hard to model. As soon as the P enters _Psyscall it can
+    get stolen out of it.) But there's a window in time between when that
+    event is emitted and when the P enters _Psyscall where the P's status
+    can get emitted. In this window the tracer will emit the wrong status:
+    Running instead of Syscall. Really any call into the tracer could emit a
+    status event for the P, but in this particular case it's when running a
+    safepoint function that explicitly emits an event for the P's status.
     
-    While here, replace some "goto"s with direct "exit" calls.
+    The fix is straightforward. The source-of-truth on syscall status is the
+    G's status, so the function that emits the P's status just needs to
+    check the status of any G attached to it. If it's in _Gsyscall, then the
+    tracer should emit a Syscall status for the P if it's in _Prunning.
     
-    Change-Id: I20e1804439b5088f8f1e5cbf8676f3d58560109d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648375
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #64318.
+    
+    Change-Id: I3b0fb0d41ff578e62810b04fa5a3ef73e2929b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546025
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/all.bat   | 16 ++++++----------
- src/clean.bat | 15 +++++----------
- src/make.bat  | 28 ++++++++++++----------------
- src/race.bat  | 34 +++++++++++++---------------------
- src/run.bat   | 16 ++++++----------
- 5 files changed, 42 insertions(+), 67 deletions(-)
+ src/runtime/trace2status.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

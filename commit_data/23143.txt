@@ -1,14 +1,24 @@
-commit 9262e2183bd1a6d8489f0d597053af76194ede00
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed May 27 10:30:55 2015 +1200
+commit 02ba71e54721f89dcece3f2b439ecea0d06d5802
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 27 17:15:30 2015 -0400
 
-    misc/cgo/testshared: do not capture output of go commands in verbose mode
+    runtime/race: fix failing tests
     
-    Change-Id: I8694ee5e5642c31815ae63cd414a3b1fcd9c95b0
-    Reviewed-on: https://go-review.googlesource.com/10411
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Some race tests were sensitive to the goroutine scheduling order.
+    When this changed in commit e870f06, these tests started to fail.
+    
+    Fix TestRaceHeapParam by ensuring that the racing goroutine has
+    run before the test exits. Fix TestRaceRWMutexMultipleReaders by
+    adding a third reader to ensure that two readers wind up on the
+    same side of the writer (and race with each other) regardless of
+    the schedule. Fix TestRaceRange by ensuring that the racing
+    goroutine runs before the main goroutine exits the loop it races
+    with.
+    
+    Change-Id: Iaf002f8730ea42227feaf2f3c51b9a1e57ccffdd
+    Reviewed-on: https://go-review.googlesource.com/9402
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testshared/shared_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/runtime/race/testdata/mop_test.go     |  5 +++++
+ src/runtime/race/testdata/rwmutex_test.go | 22 ++++++++++++++++++++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)

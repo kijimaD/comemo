@@ -1,18 +1,12 @@
-commit 7de86a1b1c7f145cb574796dce6992fb12c91381
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue May 12 16:54:39 2015 +0200
+commit 6302641c98603f51b09c5974e7a3680b00e9c107
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 10:50:56 2015 -0700
 
-    runtime: terminate exit status buffer on Plan 9
+    doc/go1.5.txt: go generate -run
     
-    The status buffer built by the exit function
-    was not nil-terminated.
-    
-    Fixes #10789.
-    
-    Change-Id: I2d34ac50a19d138176c4b47393497ba7070d5b61
-    Reviewed-on: https://go-review.googlesource.com/9953
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8029640fe74731d7847390f371af37b85dec96cc
+    Reviewed-on: https://go-review.googlesource.com/9006
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os1_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

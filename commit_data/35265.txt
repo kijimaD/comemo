@@ -1,17 +1,12 @@
-commit dc4b9cffde2846b2f5f442b7bd72d2188c580c9a
-Author: Sam Whited <sam@samwhited.com>
-Date:   Mon Apr 30 11:42:54 2018 -0500
+commit 7350297eb61e71c901504d132b1d9077a11f57f6
+Author: Sarah Adams <shadams@google.com>
+Date:   Wed Jan 24 15:07:15 2018 -0800
 
-    net/http: don't write redirect body if content-type is set
+    doc: remove Sarah Adams from conduct working group contacts
     
-    Fixes #25166
-    
-    Change-Id: Id1fe18899579365519ac08ebedf74cd23c0fbd9f
-    Reviewed-on: https://go-review.googlesource.com/110296
-    Run-TryBot: Sam Whited <sam@samwhited.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id2332332ba5ff5a3ae6e58882743aa25359c02f6
+    Reviewed-on: https://go-review.googlesource.com/89675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 19 ++++++++++++++-----
- src/net/http/server.go     | 12 ++++++++++--
- 2 files changed, 24 insertions(+), 7 deletions(-)
+ doc/conduct.html | 1 -
+ 1 file changed, 1 deletion(-)

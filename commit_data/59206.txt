@@ -1,71 +1,30 @@
-commit 903d7b786209dbb7f119681b8ac5620b240dd2a0
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Mar 28 18:04:16 2025 -0400
+commit f63faf3689e215ef1f23d26316b2dae910df9f20
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 20 17:15:43 2024 +0000
 
-    cmd/vendor: update golang.org/x/tools to v0.31.1-0.20250328151535-a857356d5cc5
+    net: don't force cgo resolver for .local subdomain queries
     
-    Also, sys@v0.31.1.
+    The cgo resolver sends DNS queries for .local subdomain
+    lookups, just as we do in the go resolver.
+    We don't need to fallback to the cgo resolver for this
+    domains when nsswitch.conf uses only file and dns modules.
     
-    Updates #18022
+    This has a benefit that we select a consistent resolver,
+    that is only based on the system configuration, regardless
+    of the queried domain.
     
-    Change-Id: I15a6d1979cc1e71d3065bc50f09dc8d3f6c6cdc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661518
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Updates #63978
+    
+    Change-Id: I9166103adb94d7ab52992925f413f361130e7c52
+    GitHub-Last-Rev: e2bc5874cb5c9165e3cc058e9effe36d0ce68cd6
+    GitHub-Pull-Request: golang/go#63986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540555
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go.mod                                     |   8 +-
- src/cmd/go.sum                                     |  16 +-
- .../vendor/golang.org/x/sync/errgroup/errgroup.go  |   2 +-
- src/cmd/vendor/golang.org/x/sync/errgroup/go120.go |  13 -
- .../vendor/golang.org/x/sync/errgroup/pre_go120.go |  14 -
- .../golang.org/x/tools/go/analysis/analysis.go     |   8 +-
- .../go/analysis/internal/analysisflags/flags.go    |  10 +-
- .../x/tools/go/analysis/passes/appends/appends.go  |   2 +-
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   6 +-
- .../tools/go/analysis/passes/buildtag/buildtag.go  |   2 +-
- .../x/tools/go/analysis/passes/cgocall/cgocall.go  |   2 +-
- .../go/analysis/passes/composite/composite.go      |   2 +-
- .../tools/go/analysis/passes/copylock/copylock.go  |   4 +-
- .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  |   2 +-
- .../go/analysis/passes/directive/directive.go      |   2 +-
- .../analysis/passes/framepointer/framepointer.go   |   2 +-
- .../go/analysis/passes/ifaceassert/ifaceassert.go  |   2 +-
- .../x/tools/go/analysis/passes/inspect/inspect.go  |   2 +-
- .../go/analysis/passes/loopclosure/loopclosure.go  |   2 +-
- .../go/analysis/passes/lostcancel/lostcancel.go    |   2 +-
- .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   2 +-
- .../x/tools/go/analysis/passes/printf/printf.go    |  18 +-
- .../x/tools/go/analysis/passes/shift/shift.go      |   2 +-
- .../go/analysis/passes/stdmethods/stdmethods.go    |   2 +-
- .../go/analysis/passes/stringintconv/string.go     |   2 +-
- .../go/analysis/passes/structtag/structtag.go      |   2 +-
- .../passes/testinggoroutine/testinggoroutine.go    |   2 +-
- .../x/tools/go/analysis/passes/tests/tests.go      |   2 +-
- .../go/analysis/passes/unreachable/unreachable.go  |   2 +-
- .../go/analysis/passes/unsafeptr/unsafeptr.go      |   2 +-
- .../analysis/passes/unusedresult/unusedresult.go   |   6 +-
- .../x/tools/go/analysis/passes/waitgroup/doc.go    |  34 ++
- .../go/analysis/passes/waitgroup/waitgroup.go      |  91 ++++
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   4 +-
- .../golang.org/x/tools/go/analysis/validate.go     |   2 +-
- .../x/tools/go/ast/inspector/inspector.go          |   2 +
- .../x/tools/internal/analysisinternal/analysis.go  | 177 ++++++-
- .../x/tools/internal/astutil/cursor/cursor.go      | 527 +++++++++++++++++++++
- .../x/tools/internal/astutil/cursor/hooks.go       |  40 ++
- .../golang.org/x/tools/internal/facts/facts.go     |   2 +-
- .../golang.org/x/tools/internal/stdlib/deps.go     | 359 ++++++++++++++
- .../golang.org/x/tools/internal/stdlib/import.go   |  89 ++++
- .../golang.org/x/tools/internal/stdlib/manifest.go |   9 +-
- .../golang.org/x/tools/internal/stdlib/stdlib.go   |   2 +-
- .../x/tools/internal/typeparams/normalize.go       |   2 +-
- .../x/tools/internal/typesinternal/types.go        |   6 +-
- src/cmd/vendor/modules.txt                         |  18 +-
- src/cmd/vet/main.go                                |   1 +
- src/cmd/vet/testdata/waitgroup/waitgroup.go        |  20 +
- src/go.mod                                         |   2 +-
- src/go.sum                                         |   4 +-
- src/vendor/modules.txt                             |   4 +-
- 52 files changed, 1425 insertions(+), 115 deletions(-)
+ src/net/conf.go      | 17 +++++++----------
+ src/net/conf_test.go |  4 ++--
+ src/net/net.go       |  3 +--
+ 3 files changed, 10 insertions(+), 14 deletions(-)

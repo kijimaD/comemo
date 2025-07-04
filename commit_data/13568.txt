@@ -1,17 +1,21 @@
-commit dee5adcf74d249adf1d6ba83eb906dbb60e2ee4f
-Author: Michał Derkacz <ziutek@lnet.pl>
-Date:   Fri Aug 3 16:15:11 2012 -0400
+commit f4f1ba2b1ebb76d4277cd775215ccd12994ffb40
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Aug 3 21:47:26 2012 +0200
 
-    5a, 5l, math: Add support for ABSD, ABSF floating point instructions.
+    cmd/gc: accept switches on comparable arrays.
     
-    R=golang-dev, dave, rsc, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6225051
+    The compiler is incorrectly rejecting switches on arrays of
+    comparable types. It also doesn't catch incomparable structs
+    when typechecking the switch, leading to unreadable errors
+    during typechecking of the generated code.
+    
+    Fixes #3894.
+    
+    R=rsc
+    CC=gobot, golang-dev, r, remy
+    https://golang.org/cl/6442074
 
- src/cmd/5a/lex.c                |  4 ++--
- src/cmd/5l/5.out.h              |  2 ++
- src/cmd/5l/asm.c                |  4 +++-
- src/cmd/5l/softfloat.c          |  2 ++
- src/cmd/5l/span.c               |  2 ++
- src/pkg/runtime/softfloat_arm.c | 17 +++++++++++++++++
- 6 files changed, 28 insertions(+), 3 deletions(-)
+ src/cmd/gc/swt.c | 10 +++++++---
+ test/switch.go   | 32 ++++++++++++++++++++++++++++++++
+ test/switch3.go  | 11 +++++++++++
+ 3 files changed, 50 insertions(+), 3 deletions(-)

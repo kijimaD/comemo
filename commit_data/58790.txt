@@ -1,20 +1,18 @@
-commit abd023911360006fedee9fccc707c73cdfb20b23
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Feb 14 01:07:54 2025 +0800
+commit 962dade46b07a7d914b23de0bc8cc66e0c5b7ced
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Dec 10 18:38:08 2023 +0100
 
-    go/parser: deprecate parser.ParseDir
+    doc: document SetUnhandledExceptionFilter interop
     
-    Fixes #71122
+    For #50951.
+    For #61422.
     
-    Change-Id: Icaf27842f4a42e11eea4bd2203eba5d56610c196
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649275
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Change-Id: Ib9038a00de8f4d8606443e9acd414402023cde63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548319
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/71122.txt                            | 1 +
- doc/next/6-stdlib/99-minor/go/parser/71122.md | 1 +
- src/go/parser/interface.go                    | 5 +++++
- 3 files changed, 7 insertions(+)
+ doc/go1.22.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

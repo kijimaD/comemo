@@ -1,13 +1,13 @@
-commit 85916146ea0f63fd9a1b8e1c224eae261ff337ba
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Mon Oct 3 19:08:59 2011 +0100
+commit d573ad26719fa6100970dc291ae83ad8ea33bff1
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Oct 1 11:58:36 2011 -0700
 
-    runtime: fix usleep on linux/386 and re-enable parallel gc
+    runtime: implement runtime usleep for openbsd
     
-    R=golang-dev, jsing, alex.brainman, cw, rsc
+    R=golang-dev, mikioh.mikioh, hectorchu
     CC=golang-dev
-    https://golang.org/cl/5166047
+    https://golang.org/cl/5173043
 
- src/pkg/runtime/linux/386/sys.s | 21 ++++++++++-----------
- src/pkg/runtime/proc.c          |  2 --
- 2 files changed, 10 insertions(+), 13 deletions(-)
+ src/pkg/runtime/openbsd/386/sys.s   | 18 ++++++++++++++++++
+ src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++++++++++
+ 2 files changed, 34 insertions(+)

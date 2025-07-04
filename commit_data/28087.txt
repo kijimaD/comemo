@@ -1,63 +1,47 @@
-commit 90c3cf4b52cc9373a96009da0d013019c1f5bcd8
-Author: Radu Berinde <radu@cockroachlabs.com>
-Date:   Sat Aug 27 13:17:30 2016 -0400
+commit af125a5193c75dd59307fcf1b26d885010ce8bfd
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 26 10:45:35 2016 -0700
 
-    hash/crc32: improve the AMD64 implementation using SSE4.2
+    crypto/tls: allow renegotiation to be handled by a client.
     
-    The algorithm is explained in the comments. The improvement in
-    throughput is about 1.4x for buffers between 500b-4Kb and 2.5x-2.6x
-    for larger buffers.
+    This change adds Config.Renegotiation which controls whether a TLS
+    client will accept renegotiation requests from a server. This is used,
+    for example, by some web servers that wish to “add” a client certificate
+    to an HTTPS connection.
     
-    Additionally, we no longer initialize the software tables if SSE4.2 is
-    available.
+    This is disabled by default because it significantly complicates the
+    state machine.
     
-    Adding a test for the SSE implementation (restricted to amd64 and
-    amd64p32).
+    Originally, handshakeMutex was taken before locking either Conn.in or
+    Conn.out. However, if renegotiation is permitted then a handshake may
+    be triggered during a Read() call. If Conn.in were unlocked before
+    taking handshakeMutex then a concurrent Read() call could see an
+    intermediate state and trigger an error. Thus handshakeMutex is now
+    locked after Conn.in and the handshake functions assume that Conn.in is
+    locked for the duration of the handshake.
     
-    Benchmarks on a Haswell i5-4670 @ 3.4 GHz:
+    Additionally, handshakeMutex used to protect Conn.out also. With the
+    possibility of renegotiation that's no longer viable and so
+    writeRecordLocked has been split off.
     
-    name                           old time/op    new time/op     delta
-    CastagnoliCrc15B-4               21.9ns ± 1%     22.9ns ± 0%    +4.45%
-    CastagnoliCrc15BMisaligned-4     22.6ns ± 0%     23.4ns ± 0%    +3.43%
-    CastagnoliCrc40B-4               23.3ns ± 0%     23.9ns ± 0%    +2.58%
-    CastagnoliCrc40BMisaligned-4     25.4ns ± 0%     26.1ns ± 0%    +2.86%
-    CastagnoliCrc512-4               72.6ns ± 0%     52.8ns ± 0%   -27.33%
-    CastagnoliCrc512Misaligned-4     76.3ns ± 1%     56.3ns ± 0%   -26.18%
-    CastagnoliCrc1KB-4                128ns ± 1%       89ns ± 0%   -30.04%
-    CastagnoliCrc1KBMisaligned-4      130ns ± 0%       88ns ± 0%   -32.65%
-    CastagnoliCrc4KB-4                461ns ± 0%      187ns ± 0%   -59.40%
-    CastagnoliCrc4KBMisaligned-4      463ns ± 0%      191ns ± 0%   -58.77%
-    CastagnoliCrc32KB-4              3.58µs ± 0%     1.35µs ± 0%   -62.22%
-    CastagnoliCrc32KBMisaligned-4    3.58µs ± 0%     1.36µs ± 0%   -61.84%
+    Fixes #5742.
     
-    name                           old speed      new speed       delta
-    CastagnoliCrc15B-4              684MB/s ± 1%    655MB/s ± 0%    -4.32%
-    CastagnoliCrc15BMisaligned-4    663MB/s ± 0%    641MB/s ± 0%    -3.32%
-    CastagnoliCrc40B-4             1.72GB/s ± 0%   1.67GB/s ± 0%    -2.69%
-    CastagnoliCrc40BMisaligned-4   1.58GB/s ± 0%   1.53GB/s ± 0%    -2.82%
-    CastagnoliCrc512-4             7.05GB/s ± 0%   9.70GB/s ± 0%   +37.59%
-    CastagnoliCrc512Misaligned-4   6.71GB/s ± 1%   9.09GB/s ± 0%   +35.43%
-    CastagnoliCrc1KB-4             7.98GB/s ± 1%  11.46GB/s ± 0%   +43.55%
-    CastagnoliCrc1KBMisaligned-4   7.86GB/s ± 0%  11.70GB/s ± 0%   +48.75%
-    CastagnoliCrc4KB-4             8.87GB/s ± 0%  21.80GB/s ± 0%  +145.69%
-    CastagnoliCrc4KBMisaligned-4   8.83GB/s ± 0%  21.39GB/s ± 0%  +142.25%
-    CastagnoliCrc32KB-4            9.15GB/s ± 0%  24.22GB/s ± 0%  +164.62%
-    CastagnoliCrc32KBMisaligned-4  9.16GB/s ± 0%  24.00GB/s ± 0%  +161.94%
-    
-    Fixes #16107.
-    
-    Change-Id: Ibe50ea76574674ce0571ef31c31015e0ed66b907
-    Reviewed-on: https://go-review.googlesource.com/27931
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I935914db1f185d507ff39bba8274c148d756a1c8
+    Reviewed-on: https://go-review.googlesource.com/22475
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/hash/crc32/crc32.go            |  10 ++-
- src/hash/crc32/crc32_amd64.go      | 170 +++++++++++++++++++++++++++++++++++--
- src/hash/crc32/crc32_amd64.s       |  49 ++++++++++-
- src/hash/crc32/crc32_amd64_test.go |  45 ++++++++++
- src/hash/crc32/crc32_amd64p32.go   |   9 +-
- src/hash/crc32/crc32_generic.go    |   4 +
- src/hash/crc32/crc32_s390x.go      |   4 +
- src/hash/crc32/crc32_test.go       |  24 ++++++
- 8 files changed, 301 insertions(+), 14 deletions(-)
+ src/crypto/tls/common.go                           |  32 ++
+ src/crypto/tls/conn.go                             | 174 +++++++--
+ src/crypto/tls/handshake_client.go                 | 151 +++++---
+ src/crypto/tls/handshake_client_test.go            | 267 +++++++++++++-
+ src/crypto/tls/handshake_messages.go               | 127 ++++---
+ src/crypto/tls/handshake_server.go                 |  19 +-
+ src/crypto/tls/handshake_server_test.go            |  12 +-
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 251 +++++++++++++
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 409 +++++++++++++++++++++
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 255 +++++++++++++
+ .../testdata/Client-TLSv12-RenegotiationRejected   |  97 +++++
+ src/net/http/transport.go                          |   1 +
+ 12 files changed, 1633 insertions(+), 162 deletions(-)

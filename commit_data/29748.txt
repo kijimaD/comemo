@@ -1,21 +1,27 @@
-commit 348a7c5397f996a333f88cf9f0c912b282368f32
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Dec 5 23:20:20 2016 -0500
+commit 91706c04b93e9f14321a038943829e99dc333794
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Oct 5 23:08:25 2016 -0400
 
-    cmd/link: hash packages after loading all symbols
+    cmd/asm, cmd/internal/obj/s390x: delete unused instructions
     
-    Conditioning on the plugin.Open symbol existing before loading all
-    symbols means sometimes some packages don't have a hash value.
+    Deletes the following s390x instructions:
     
-    Fixes #17928
+     - ADDME
+     - ADDZE
+     - SUBME
+     - SUBZE
     
-    Change-Id: I2722449aa58eca08a25117d3ce976f11f805b5ac
-    Reviewed-on: https://go-review.googlesource.com/33925
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    They appear to be emulated PPC instructions left over from the
+    porting process and I don't think they will ever be useful.
+    
+    Change-Id: I9b1ba78019dbd1218d0c8f8ea2903878802d1990
+    Reviewed-on: https://go-review.googlesource.com/30538
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/elf.go  |  3 ++-
- src/cmd/link/internal/ld/lib.go  | 45 ++++++++++++++++++++++++++++++----------
- src/cmd/link/internal/ld/link.go |  2 +-
- 3 files changed, 37 insertions(+), 13 deletions(-)
+ src/cmd/asm/internal/arch/s390x.go   |  6 +----
+ src/cmd/internal/obj/s390x/a.out.go  |  4 ---
+ src/cmd/internal/obj/s390x/anames.go |  4 ---
+ src/cmd/internal/obj/s390x/asmz.go   | 47 +++---------------------------------
+ 4 files changed, 5 insertions(+), 56 deletions(-)

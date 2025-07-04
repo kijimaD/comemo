@@ -1,43 +1,21 @@
-commit f7b625e4cb363c23ed5c8c144ee7d06c4136a0eb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Apr 25 09:15:25 2018 +1000
+commit c941e27e70c3e06e1011d2dd71d72a7a06a9bcbc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 15 15:57:13 2018 -0800
 
-    cmd/go/internal/load: use lowercase package directory comparisons on Windows
+    cmd/go: restrict meta imports to valid schemes
     
-    go build
+    Before this change, when using -insecure, we permitted any meta import
+    repo root as long as it contained "://". When not using -insecure, we
+    restrict meta import repo roots to be valid URLs. People may depend on
+    that somehow, so permit meta import repo roots to be invalid URLs, but
+    require them to have valid schemes per RFC 3986.
     
-    command is short for
+    Fixes #23867
     
-    go build .
-    
-    and it builds . package. When command above is executed from
-    directory inside of GOPATH, it uses GOPATH to calculate package
-    source directory. So . package uses GOPATH as part of package
-    source directory.
-    
-    On the other hand
-    
-    go build -ldflags=abc
-    
-    only passes flag to the linker for packages that are listed
-    on the command line. The command above assumes . package again,
-    and that package source path is compared with current directory.
-    
-    Current code compares result of os.Getwd with what GOPATH
-    environment variable contains. But these values might differ
-    in letter case on Windows. For example, one might return
-    c:\gopath\..., while the other might contain C:\GOPATH.
-    
-    Fixes #24750
-    Fixes #24232
-    Fixes #25046
-    
-    Change-Id: I03d8c7a9b73e847f88ae61c88cd41efa546c6d0e
-    Reviewed-on: https://go-review.googlesource.com/109235
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iac666dfc75ac321bf8639dda5b0dba7c8840922d
+    Reviewed-on: https://go-review.googlesource.com/94603
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go              | 33 +++++++++++++++++++++++++++++++++
- src/cmd/go/internal/load/search.go |  8 +++++++-
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/get/vcs.go      | 34 +++++++++++++++++++++++++++--
+ src/cmd/go/internal/get/vcs_test.go | 43 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 2 deletions(-)

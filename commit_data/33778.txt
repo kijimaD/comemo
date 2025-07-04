@@ -1,18 +1,31 @@
-commit 22b4c8358590bff54cdbc4ad2b359913d48ff474
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 1 13:24:20 2017 -0800
+commit 5b043abe1260d3ab0e5e27b6d312682149d321ba
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Sep 7 13:30:43 2017 +0300
 
-    go/types: don't use directory foo which might exist under GOPATH
+    cmd/asm: restrict x86 shift ops to 8bit args
     
-    Simply choose an extremely unlikely path name in the test is fine.
+    Change "yshl" and "yshb" immediate oclass from Yi32 to Yu8.
+    This forbids:
+    - negative shift counts
+    - shift counts that not fit into 8bit
     
-    Fixes #21013.
+    Affects:
+      RCL{B,L,Q,W}
+      RCR{B,L,Q,W}
+      ROL{B,L,Q,W}
+      ROR{B,L,Q,W}
+      SAL{B,L,Q,W}
+      SAR{B,L,Q,W}
+      SHL{B,L,Q,W}
+      SHR{B,L,Q,W}
     
-    Change-Id: I56c0a1986b5ef5d618c7fe2b14701f584fe81c37
-    Reviewed-on: https://go-review.googlesource.com/81578
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Issue #21528 has some additional context about this change.
+    
+    Change-Id: I60884cb2b41a860820889fcd878ca6f564006b4a
+    Reviewed-on: https://go-review.googlesource.com/62190
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/api_test.go | 4 ++--
+ src/cmd/internal/obj/x86/asm6.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

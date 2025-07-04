@@ -1,16 +1,20 @@
-commit 1d0977a1d552ad19a88c4ba9aeecd403699d82b6
+commit eb6ee75add2c9eaffd52fe572230a3fa08080f50
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 14 16:51:18 2016 -0700
+Date:   Fri Mar 4 16:13:17 2016 -0800
 
-    cmd/cgo: add missing formatting directive in error message
+    cmd/compile: convert select, sinit, ssa to nodeSeq
     
-    Fixes #15310.
+    Passes toolstash -cmp.
     
-    Change-Id: I588b3c630a20a6878f7cd00f9af29b1dd8a4abf6
-    Reviewed-on: https://go-review.googlesource.com/22100
+    Update #14473.
+    
+    Change-Id: I1b50fe981e7a266d4b14f31d849eb91afccdfda3
+    Reviewed-on: https://go-review.googlesource.com/20270
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/gcc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/select.go | 151 ++++++++++++++++------------------
+ src/cmd/compile/internal/gc/sinit.go  |  96 ++++++++++-----------
+ src/cmd/compile/internal/gc/ssa.go    |  30 +++----
+ 3 files changed, 134 insertions(+), 143 deletions(-)

@@ -1,17 +1,24 @@
-commit c5fac1edc4fbcf3fff8e8a53b8348437b86c4c59
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 8 12:37:17 2019 -0500
+commit 530097fe60c3d9feffabf52ea910bf35af9da6fb
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jun 13 19:56:37 2019 -0400
 
-    cmd/go/internal/modload: use lockedfile.Read for the initial read of the go.mod file
+    cmd/go: document GOBIN and 'go install' locations
     
-    Updates #34634
-    Fixes #35425
+    * In doc/install-source.html, clarify the meaning of $GOBIN and
+      describe where executables from the Go distribution are
+      installed. Also describe $GOPATH, since it provides a default value
+      for $GOBIN and may conflict with $GOROOT.
+    * Add more detail to 'go help install' as well.
     
-    Change-Id: I878a8d229b33dcde9e7d4dfd82ddf9815d38a465
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206142
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #31576
+    
+    Change-Id: Ib8a8c21677c3aa0ebef97a3b587b6f8fe338b80e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182341
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/init.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/install-source.html           | 68 ++++++++++++++++++++++++++++-----------
+ src/cmd/go/alldocs.go             |  9 ++++++
+ src/cmd/go/internal/work/build.go |  9 ++++++
+ 3 files changed, 68 insertions(+), 18 deletions(-)

@@ -1,19 +1,24 @@
-commit 7d4d71e52f0714c7990705f0fc56f9104761514e
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Apr 18 14:53:02 2023 -0700
+commit 3b956dc2d96e02c7d58a3c1fd00ba466b27315e3
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 30 10:08:15 2023 +0200
 
-    net/http: improve error reporting in TestCancelRequestWhenSharingConnection
+    go/internal/gcimport: unskip Windows tests
     
-    Ensure that errors are reported if an HTTP request unexpectedly fails.
+    There are many tests in internal/gcimporter that are skipped on
+    Windows because they build a test program that needs the -D flag
+    when invoking the Go compiler.
     
-    For #56587
+    This flag is already passed since CL 442303, so there is no need to
+    skip those tests.
     
-    Change-Id: I1adfb4fedc24d4177caf54e34c5033267e32caa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486075
+    Change-Id: I877e670194048bda9a52ad2568650cf33eacfb5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480415
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/transport_test.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ .../compile/internal/importer/gcimporter_test.go   | 36 ----------------
+ src/go/internal/gcimporter/gcimporter_test.go      | 48 ----------------------
+ 2 files changed, 84 deletions(-)

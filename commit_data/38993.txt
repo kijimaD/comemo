@@ -1,35 +1,19 @@
-commit 40036a99a07ee89f59864c42af056bb5e33e696e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Feb 5 00:06:55 2019 +0000
+commit 9c075b7c71703f6c4d815c5f7d5177476412c2ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 4 17:00:19 2018 -0500
 
-    runtime: change the span allocation policy to first-fit
+    cmd/go/internal/get: relax pathOK check to allow any letter
     
-    This change modifies the treap implementation to be address-ordered
-    instead of size-ordered, and further augments it so it may be used for
-    allocation. It then modifies the find method to implement a first-fit
-    allocation policy.
+    This fixes a regression of #18660 with the new path checks.
     
-    This change to the treap implementation consequently makes it so that
-    spans are scavenged in highest-address-first order without any
-    additional changes to the scavenging code. Because the treap itself is
-    now address ordered, and the scavenging code iterates over it in
-    reverse, the highest address is now chosen instead of the largest span.
+    Updates #29230
     
-    This change also renames the now wrongly-named "scavengeLargest" method
-    on mheap to just "scavengeLocked" and also fixes up logic in that method
-    which made assumptions about size.
-    
-    For #30333.
-    
-    Change-Id: I94b6f3209211cc1bfdc8cdaea04152a232cfbbb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164101
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2dd9adab999e7f810e0e746ad8b75ea9622f56e7
+    Reviewed-on: https://team-review.git.corp.google.com/c/370578
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154104
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/export_test.go |   1 +
- src/runtime/mgclarge.go    | 255 +++++++++++++++++++++++++++++----------------
- src/runtime/mheap.go       |  43 ++++----
- src/runtime/proc.go        |   2 +-
- src/runtime/treap_test.go  |  26 +++--
- 5 files changed, 196 insertions(+), 131 deletions(-)
+ src/cmd/go/internal/get/path.go            | 13 +++++++------
+ src/cmd/go/testdata/script/get_unicode.txt | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 6 deletions(-)

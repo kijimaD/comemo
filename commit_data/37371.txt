@@ -1,29 +1,18 @@
-commit 5d39260079b5170e6b4263adb4022cc4b54153c4
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Thu Nov 8 22:08:35 2018 -0800
+commit c814ac44c0571f844718f07aa52afa47e37fb1ed
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 19 16:59:50 2018 -0400
 
-    net: preserve unexpired context values for LookupIPAddr
+    cmd/go: fix TestScript/list_test_e on Windows
     
-    To avoid any cancelation of the parent context from affecting
-    lookupGroup operations, Resolver.LookupIPAddr previously used
-    an entirely new context created from context.Background().
-    However, this meant that all the values in the parent context
-    with which LookupIPAddr was invoked were dropped.
+    I forgot to run trybots on CL 123758, and the test failed on Windows because I
+    hard-coded a slash-delimited path.
     
-    This change provides a custom context implementation
-    that only preserves values of the parent context by composing
-    context.Background() and the parent context. It only falls back
-    to the parent context to perform value lookups if the parent
-    context has not yet expired.
-    This context is never canceled, and has no deadlines.
+    Use the tent-in-a-box operator ([/\\]) to make the path platform-agnostic.
     
-    Fixes #28600
-    
-    Change-Id: If2f570caa26c65bad638b7102c35c79d5e429fea
-    Reviewed-on: https://go-review.googlesource.com/c/148698
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I9113ab60d21152c11e2ebdf822b58a44b1b38574
+    Reviewed-on: https://go-review.googlesource.com/125115
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup.go      | 32 +++++++++++++++++++--
- src/net/lookup_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 105 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/list_test_e.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

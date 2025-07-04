@@ -1,19 +1,23 @@
-commit dcb27e8a660a5f29de374730cb2fc9f467dae9cc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 26 14:16:24 2023 -0700
+commit 9923162f1cb88295bccb4d86ccc6829931199fdf
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 21 14:54:34 2022 -0400
 
-    doc/go1.21: mention regexp.MarshalText and UnmarshalText
+    runtime: don't use trace.lock for trace reader parking
     
-    For #46159
+    We're about to require that all uses of trace.lock be on the system
+    stack. That's mostly easy, except that it's involving parking the
+    trace reader. Fix this by changing that parking protocol so it instead
+    synchronizes through an atomic.
     
-    Change-Id: Ia9cc0827a89d362532d1a662b791de8eebbfb2fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498756
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #53979.
+    
+    Change-Id: Icd6db8678dd01094029d7ad1c612029f571b4cbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418955
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.21.html | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/runtime/proc.go  |  2 +-
+ src/runtime/trace.go | 53 +++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 41 insertions(+), 14 deletions(-)

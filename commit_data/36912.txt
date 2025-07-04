@@ -1,18 +1,14 @@
-commit 48dc42b6afe7ad13102c55b8200c9f4577a88c84
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 4 16:49:53 2018 -0700
+commit 1f137052e4a20dbd302f947b1cf34cdf4b427d65
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Sat Jun 9 00:01:42 2018 +0000
 
-    cmd/compile/internal/gc: major evconst cleanup
+    strconv: add missing period to godoc comment
     
-    Major cleanup to structure the code more similarly to go/constant.
-    
-    Passes "toolstash -cmp" on std cmd.
-    
-    Change-Id: I3ec7a7a24e313f119b0da4095001aad02e317894
-    Reviewed-on: https://go-review.googlesource.com/c/139901
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I90ba0a6e0c6ccdce16938eed09424308a84fc6fb
+    GitHub-Last-Rev: 66b6db1a674e6817209a69a7ccd1846d3b0e1900
+    GitHub-Pull-Request: golang/go#25801
+    Reviewed-on: https://go-review.googlesource.com/117575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 851 +++++++++++++----------------------
- 1 file changed, 302 insertions(+), 549 deletions(-)
+ src/strconv/atob.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

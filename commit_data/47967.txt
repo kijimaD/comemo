@@ -1,24 +1,18 @@
-commit bec2cc370871b998a131f5f363dab4a14b5f2eb2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 12 10:26:04 2022 -0500
+commit 9dd71ba91397c7f69571ae7f0810d64f2f38547a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
 
-    runtime: eliminate arbitrary timeout in TestStackGrowth
+    internal/buildcfg: enable regabiargs by default
     
-    Instead, allow the test to run up until nearly the test's deadline,
-    whatever that may be, and then crash with a panic (instead of calling
-    t.Errorf) to get a useful goroutine dump.
+    For #40724.
     
-    With the arbitrary timeout removed, we can now also run this test in
-    short mode, reducing its impact on test latency.
-    
-    Fixes #19381
-    
-    Change-Id: Ie1fae321a2973fcb9b69a012103363f16214f529
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378034
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7509668478d20dd625f210e5a33f5d896a76d6b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310176
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/stack_test.go | 72 ++++++++++++++++++-----------------------------
- 1 file changed, 28 insertions(+), 44 deletions(-)
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

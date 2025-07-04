@@ -1,31 +1,48 @@
-commit 44877315efba1c3e98ae7cde96fa46376fbaf0fd
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Aug 8 06:13:43 2017 +0000
+commit 3216e0cefab43670c788a475237f6f4b235fc200
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Aug 7 22:36:22 2017 +0200
 
-    crypto/sha1: optimize arm64 sha1 implemention
+    cmd/compile: replace eqstring with memequal
     
-    Optimize with ARMv8 SHA1 instructions.
-    Results (Cortex-A72)
+    eqstring is only called for strings with equal lengths.
+    Instead of pushing a pointer and length for each argument string
+    on the stack we can omit pushing one of the lengths on the stack.
     
-    name             old time/op    new time/op     delta
-    Hash8Bytes-64      1.06µs ± 4%     0.56µs ± 4%   -47.19%  (p=0.008 n=5+5)
-    Hash320Bytes-64    3.92µs ± 1%     0.82µs ± 2%   -79.07%  (p=0.008 n=5+5)
-    Hash1K-64          10.2µs ± 2%      1.5µs ± 2%   -85.71%  (p=0.008 n=5+5)
-    Hash8K-64          73.9µs ± 1%      7.6µs ± 1%   -89.66%  (p=0.008 n=5+5)
+    Changing eqstrings signature to eqstring(*uint8, *uint8, int) bool
+    to implement the above optimization would make it very similar to the
+    existing memequal(*any, *any, uintptr) bool function.
     
-    name             old speed      new speed       delta
-    Hash8Bytes-64    7.55MB/s ± 4%  14.29MB/s ± 4%   +89.27%  (p=0.008 n=5+5)
-    Hash320Bytes-64  81.6MB/s ± 1%  390.0MB/s ± 2%  +377.64%  (p=0.008 n=5+5)
-    Hash1K-64         100MB/s ± 2%    701MB/s ± 2%  +599.65%  (p=0.008 n=5+5)
-    Hash8K-64         111MB/s ± 1%   1072MB/s ± 1%  +867.44%  (p=0.008 n=5+5)
+    Since string lengths are positive we can avoid code redundancy and
+    use memequal instead of using eqstring with an optimized signature.
     
-    Change-Id: I84397f980db9518f4150ac4c5ffa2c5a97a34444
-    Reviewed-on: https://go-review.googlesource.com/61550
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    go command binary size reduced by 4128 bytes on amd64.
+    
+    name                          old time/op    new time/op    delta
+    CompareStringEqual              6.03ns ± 1%    5.71ns ± 1%   -5.23%  (p=0.000 n=19+18)
+    CompareStringIdentical          2.88ns ± 1%    3.22ns ± 7%  +11.86%  (p=0.000 n=20+20)
+    CompareStringSameLength         4.31ns ± 1%    4.01ns ± 1%   -7.17%  (p=0.000 n=19+19)
+    CompareStringDifferentLength    0.29ns ± 2%    0.29ns ± 2%     ~     (p=1.000 n=20+20)
+    CompareStringBigUnaligned       64.3µs ± 2%    64.1µs ± 3%     ~     (p=0.164 n=20+19)
+    CompareStringBig                61.9µs ± 1%    61.6µs ± 2%   -0.46%  (p=0.033 n=20+19)
+    
+    Change-Id: Ice15f3b937c981f0d3bc8479a9ea0d10658ac8df
+    Reviewed-on: https://go-review.googlesource.com/53650
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/sha1/sha1block_arm64.go   |  28 +++++++
- src/crypto/sha1/sha1block_arm64.s    | 152 +++++++++++++++++++++++++++++++++++
- src/crypto/sha1/sha1block_generic.go |   2 +-
- 3 files changed, 181 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         | 364 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
+ src/cmd/compile/internal/gc/walk.go            |  25 +-
+ src/runtime/asm_386.s                          |  17 --
+ src/runtime/asm_amd64.s                        |  17 --
+ src/runtime/asm_amd64p32.s                     |  18 --
+ src/runtime/asm_arm.s                          |  25 --
+ src/runtime/asm_arm64.s                        |  25 --
+ src/runtime/asm_mips64x.s                      |  25 --
+ src/runtime/asm_mipsx.s                        |  25 --
+ src/runtime/asm_ppc64x.s                       |  18 --
+ src/runtime/asm_s390x.s                        |  12 -
+ src/runtime/runtime_test.go                    |   6 +-
+ src/runtime/stubs.go                           |   1 -
+ 14 files changed, 201 insertions(+), 378 deletions(-)

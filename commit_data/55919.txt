@@ -1,56 +1,27 @@
-commit 381ba9f64cce0e40889d0eec3efef4ca9bb0cf26
-Author: kwakubiney <kwakubiney@gmail.com>
-Date:   Mon Mar 11 22:53:08 2024 +0000
+commit bd7b19356f3827c36ef584bfd8e88aa6cee00710
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 21 17:21:17 2023 -0700
 
-    encoding/binary: cache struct sizes to speed up Read and Write for slice of structs.
+    go/types, types2: adjust Checker.recordCommaOkTypes signature
     
-    A lot of allocations happen in dataSize due to reflection.
+    By changing the signature to accept a slice rather than an
+    array, we can avoid creating the array in the first place.
     
-    Cache the result of the function when encoding a
-    slice of structs similar to what is done for struct types
-    so that subsequent calls to dataSize can avoid allocations.
+    Functionally, we now also record comma-ok types if the
+    corresponding assignment was incorrect. But this change
+    provides more (not less) information through the API and
+    only so if the program is incorrect in the first place.
     
-                            │   old.txt   │            new.txt            │
-                            │   sec/op    │   sec/op     vs base          │
-    WriteSlice1000Structs-2   846.7µ ± 4%   856.4µ ± 3%  ~ (p=0.602 n=20)
-    
-                            │   old.txt    │            new.txt             │
-                            │     B/s      │     B/s       vs base          │
-    WriteSlice1000Structs-2   84.48Mi ± 4%   83.52Mi ± 3%  ~ (p=0.602 n=20)
-    
-                            │   old.txt    │               new.txt               │
-                            │     B/op     │     B/op      vs base               │
-    WriteSlice1000Structs-2   80.18Ki ± 0%   80.06Ki ± 0%  -0.15% (p=0.000 n=20)
-    
-                            │   old.txt   │              new.txt               │
-                            │  allocs/op  │ allocs/op   vs base                │
-    WriteSlice1000Structs-2   16.000 ± 0%   1.000 ± 0%  -93.75% (p=0.000 n=2
-    
-                           │   old.txt   │              new.txt               │
-                           │   sec/op    │   sec/op     vs base               │
-    ReadSlice1000Structs-2   847.4µ ± 4%   821.1µ ± 3%  -3.10% (p=0.012 n=20)
-    
-                           │   old.txt    │               new.txt               │
-                           │     B/s      │     B/s       vs base               │
-    ReadSlice1000Structs-2   84.40Mi ± 4%   87.11Mi ± 3%  +3.20% (p=0.012 n=20)
-    
-                           │   old.txt    │               new.txt               │
-                           │     B/op     │     B/op      vs base               │
-    ReadSlice1000Structs-2   80.12Ki ± 0%   80.00Ki ± 0%  -0.15% (p=0.000 n=20)
-    
-                           │   old.txt   │              new.txt               │
-                           │  allocs/op  │ allocs/op   vs base                │
-    ReadSlice1000Structs-2   16.000 ± 0%   1.000 ± 0%  -93.75% (p=0.000 n=20)
-    
-    Fixes #66253
-    
-    Change-Id: I8227e61306db1fe103489ea4fee2429247c3debc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570855
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I0d629441f2f890a37912171fb26ef0e75827ce23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478218
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/binary/binary.go      | 13 +++++++++++--
- src/encoding/binary/binary_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 16 ++++++----------
+ src/cmd/compile/internal/types2/check.go       | 19 ++++++++++++-------
+ src/go/types/assignments.go                    | 16 ++++++----------
+ src/go/types/check.go                          | 14 +++++++++-----
+ 4 files changed, 33 insertions(+), 32 deletions(-)

@@ -1,16 +1,19 @@
-commit 5644774ea5c954a08c1e068be9771429a232ca7c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 28 19:31:25 2013 -0400
+commit e7426010c5a577bf2b1e84223036b2c55671f914
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 25 17:31:02 2013 +0300
 
-    net: handle single-line non-\n-terminated files correctly in readLine
+    misc/linkcheck: better redirect handling, use meaningful exit code
     
-    Fixes #6646.
+    Prevent linkcheck from following redirects that lead beyond the outside
+    the root URL.
     
-    R=rsc, bradfitz
+    Return a non-zero exit code when there are problems.
+    
+    Some minor refactoring for clarity.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/15960047
+    https://golang.org/cl/14425049
 
- src/pkg/net/hosts_test.go             | 13 +++++++++++++
- src/pkg/net/parse.go                  |  2 +-
- src/pkg/net/testdata/hosts_singleline |  1 +
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ misc/linkcheck/linkcheck.go | 90 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 58 insertions(+), 32 deletions(-)

@@ -1,14 +1,14 @@
-commit 6a88f1c4cb212bc8c9ab7517b8eab2b4c20c6e67
-Author: Rob Pike <r@golang.org>
-Date:   Mon Dec 26 23:49:24 2011 -0800
+commit 83d540244337214922802776eaf5ea4b6f597be5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 26 20:25:31 2011 +1100
 
-    bytes.Buffer: read of 0 bytes at EOF shouldn't be an EOF
-    This corner case arose doing an RPC with a empty-slice payload. Ouch.
+    misc/windows: add src/pkg/runtime/z* files to installation script
     
-    R=golang-dev, iant
+    Fixes #2614.
+    
+    R=golang-dev, jdpoirier
     CC=golang-dev
-    https://golang.org/cl/5505073
+    https://golang.org/cl/5505070
 
- src/pkg/bytes/buffer.go      |  5 ++++-
- src/pkg/bytes/buffer_test.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ misc/windows/package.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,18 +1,21 @@
-commit bcd3a58d4694fa0bf8aa079875a5d236c9f20ef6
-Author: tkivisik <taavi.kivisik@gmail.com>
-Date:   Fri Jan 18 20:45:41 2019 +0000
+commit 7a0eb56466eb26704fad49caec228ba21831761e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Sep 7 12:58:14 2018 -0400
 
-    A+C: add author, rename contributor to a real name
+    crypto/x509: allow ":" in Common Name hostnames
     
-    Renamed from github user to use my real name in CONTRIBUTORS, added my name
-    to AUTHORS.
+    At least one popular service puts a hostname which contains a ":"
+    in the Common Name field. On the other hand, I don't know of any name
+    constrained certificates that only work if we ignore such CNs.
     
-    Change-Id: I671638f1525d44bcc2b0a08d0dcff6adb1717510
-    GitHub-Last-Rev: b989e185de9ad2d1207085043fcdc821d851c562
-    GitHub-Pull-Request: golang/go#29823
-    Reviewed-on: https://go-review.googlesource.com/c/158540
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #24151
+    
+    Change-Id: I2d813e3e522ebd65ab5ea5cd83390467a869eea3
+    Reviewed-on: https://go-review.googlesource.com/134076
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/crypto/x509/verify.go      | 4 ++--
+ src/crypto/x509/verify_test.go | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

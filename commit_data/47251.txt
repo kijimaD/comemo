@@ -1,15 +1,30 @@
-commit 961aab26bffece299f1528b44d260ea0a921ac56
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 25 21:43:27 2021 +0000
+commit a22bd3dc73bfcc9bf37cbd651933c54c82799c2a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 1 19:23:42 2021 -0500
 
-    internal/buildcfg: enable the pacer redesign by default
+    cmd/compile: use getcallerpc for racefuncentry
     
-    Change-Id: Ifb90d5482cb0cedee6cb4d6297853ac7913d14ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358674
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Currently, when instrumenting for the race detector, the compiler
+    inserts racefuncentry/racefuncentryfp at the entry of instrumented
+    functions. racefuncentry takes the caller's PC. On AMD64, we synthesize
+    a node which points to -8(FP) which is where the return address is
+    stored. Later this node turns to a special Arg in SSA that is not
+    really an argument. This causes problems in the new ABI work so that
+    special node has to be special-cased.
+    
+    This CL changes the special node to a call to getcallerpc, which lowers
+    to an intrinsic in SSA. This also unifies AMD64 code path and LR machine
+    code path, as getcallerpc works on all platforms.
+    
+    Change-Id: I1377e140b91e0473cfcadfda221f26870c1b124d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297929
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/buildcfg/exp.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/base/base.go              |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |  6 +--
+ src/cmd/compile/internal/ssagen/ssa.go             |  3 ++
+ src/cmd/compile/internal/typecheck/builtin.go      | 57 +++++++++++-----------
+ .../compile/internal/typecheck/builtin/runtime.go  |  4 +-
+ src/cmd/compile/internal/walk/race.go              | 27 ++--------
+ 6 files changed, 44 insertions(+), 55 deletions(-)

@@ -1,24 +1,25 @@
-commit 946cb0ece13eb9055e0670e2c7423a2adaab225f
+commit dc7f82559d61b09843daa5a3312aae2f05dfbdc6
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 4 00:22:52 2011 -0400
+Date:   Thu Aug 4 00:22:48 2011 -0400
 
-    net: joined group addresses for a specific interface for darwin, freebsd, linux
-    
-    This CL enables to list the multicast, joined group addresses
-    for a specific interface by using Interface.MulticastAddrs
-    method.
+    syscall: update routing message support for BSD variants
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4808062
+    https://golang.org/cl/4826056
 
- src/pkg/net/Makefile             |   2 +
- src/pkg/net/interface.go         |   9 ++++
- src/pkg/net/interface_bsd.go     |  44 ++++++++++++++---
- src/pkg/net/interface_darwin.go  |  49 +++++++++++++++++++
- src/pkg/net/interface_freebsd.go |  49 +++++++++++++++++++
- src/pkg/net/interface_linux.go   | 100 ++++++++++++++++++++++++++++++++++++---
- src/pkg/net/interface_stub.go    |   7 +++
- src/pkg/net/interface_test.go    |   7 +++
- src/pkg/net/interface_windows.go |   7 +++
- 9 files changed, 260 insertions(+), 14 deletions(-)
+ src/pkg/syscall/Makefile                  |  2 +
+ src/pkg/syscall/route_bsd.go              | 61 ++++++++++++++++---------------
+ src/pkg/syscall/route_darwin.go           | 48 ++++++++++++++++++++++++
+ src/pkg/syscall/route_freebsd.go          | 48 ++++++++++++++++++++++++
+ src/pkg/syscall/types_darwin.c            |  4 ++
+ src/pkg/syscall/types_freebsd.c           |  2 +
+ src/pkg/syscall/zsyscall_darwin_386.go    | 20 +++++-----
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 20 +++++-----
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 20 +++++-----
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 20 +++++-----
+ src/pkg/syscall/ztypes_darwin_386.go      | 23 ++++++++++++
+ src/pkg/syscall/ztypes_darwin_amd64.go    | 23 ++++++++++++
+ src/pkg/syscall/ztypes_freebsd_386.go     | 11 ++++++
+ src/pkg/syscall/ztypes_freebsd_amd64.go   | 11 ++++++
+ 14 files changed, 244 insertions(+), 69 deletions(-)

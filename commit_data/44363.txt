@@ -1,16 +1,24 @@
-commit 5e94fe931613111c170e4798131790b3db2bbe90
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Feb 23 15:05:33 2021 +0100
+commit f84bbd52b0021c401b0b6508e90e913ae0aa241d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 4 15:41:45 2020 -0400
 
-    go/build/constraint: fix splitPlusBuild func doc comment
+    cmd/compile: mark block control instruction unsafe in "all unsafe" functions
     
-    Noticed while reading the code of the new package; likely a copy-paste
-    from the splitGoBuild function, which is almost identical.
+    Currently, for runtime functions and nosplit functions, it is
+    considered "all unsafe", meaning that the entire function body is
+    unsafe points. In the past, we didn't mark CALLs in such
+    functions unsafe, which is fixed in CL 230541. We also didn't
+    mark block control instructions (for mostly-empty blocks) unsafe.
+    This CL fixes it.
     
-    Change-Id: I869272123708d25d237a4f0445f8e853865747f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295469
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    May fix #36110.
+    
+    Change-Id: I3be8fdcef2b294e5367b31eb1c1b5e79966565fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236597
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/constraint/expr.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 12 +++++++++---
+ src/cmd/compile/internal/gc/ssa.go   |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

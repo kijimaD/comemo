@@ -1,14 +1,12 @@
-commit 4cc71e336300d50a50b006779207a19deb0c715e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 3 16:38:22 2013 -0700
+commit 58d18e25af3d3cbc3bc7cb23c42d81d782910e34
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Oct 3 12:46:02 2013 -0700
 
-    spec: added additional links, added missing 'label'
+    spec: fix small typo in comment for example
     
-    No semantic spec changes.
-    
-    R=r
+    R=golang-dev, mirtchovski, r
     CC=golang-dev
-    https://golang.org/cl/14363043
+    https://golang.org/cl/14227043
 
- doc/go_spec.html | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

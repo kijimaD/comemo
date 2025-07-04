@@ -1,20 +1,13 @@
-commit 709096f185e8ca00693e189cb41ae7f893812721
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Aug 31 22:59:43 2014 -0400
+commit 2511d92ffe52c55ad5d22e585d55aed47c2e24fb
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Aug 26 05:26:48 2014 -0700
 
-    misc/cgo/testcdefs: comment out test of packed structs
+    doc/cmd.html: close a tag.
     
-    The [568]c compilers no longer support packed structs, so
-    using them with -cdefs no longer works.  Just commenting out
-    the test, rather than removing it, in case this needs to be
-    handled.  It may be that -cdefs can go away entirely in the
-    future, in which case so can this directory.
-    
-    LGTM=mdempsky
-    R=rsc, mdempsky
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/136030043
+    https://golang.org/cl/130560043
 
- misc/cgo/testcdefs/cdefstest.go | 3 ++-
- misc/cgo/testcdefs/main.c       | 9 +++++++--
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ doc/cmd.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

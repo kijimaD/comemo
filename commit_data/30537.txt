@@ -1,16 +1,18 @@
-commit 5f3281139d2173f4d742aaf3ed9ba57a93b46737
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Mar 5 13:42:55 2017 +0100
+commit 428df5e39c0a696b71724237879a22a718a854a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 10 22:06:08 2016 -0800
 
-    go/types: remove unused field parameter
+    cmd/go: don't set default GOPATH to GOROOT
     
-    Found by github.com/mvdan/unparam.
+    It will just cause confusion later as the go tool will say
+    "warning: GOPATH set to GOROOT (%s) has no effect".
+    Better to just leave GOPATH unset and get that warning instead.
     
-    Change-Id: Ie26e963176eb7afb35d16fed5cbca6530f7731c3
-    Reviewed-on: https://go-review.googlesource.com/37832
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I78ff9e87fdf4bb0460f4f6d6ee76e1becaa3e7b0
+    Reviewed-on: https://go-review.googlesource.com/33105
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/typexpr.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/go/build/build.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

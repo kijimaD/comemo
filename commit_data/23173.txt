@@ -1,19 +1,15 @@
-commit c53342e40a371571703821361cd0adc4fe3162ca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 29 10:00:45 2015 -0700
+commit edac5d91445c6d29b2a83d5396654d6038564463
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 29 07:36:16 2015 +0900
 
-    cmd/internal/obj: fix build breakage from making From3 a pointer
+    net: rename dialgoogle_test.go to external_test.go
     
-    Change-Id: I55a7f455ebbd6b1bd6912aae82c0fcff6f43387c
-    Reviewed-on: https://go-review.googlesource.com/10512
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    In the followup changes, tests that require external facilities such as
+    DNS servers and RRs will move into external_test.go.
+    
+    Change-Id: Ib460b0c51961159830357652dbf5430e1ba01514
+    Reviewed-on: https://go-review.googlesource.com/9461
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/obj/arm64/asm7.go |  2 +-
- src/cmd/internal/obj/go.go         |  4 +++-
- src/cmd/internal/obj/link.go       |  8 ++++++++
- src/cmd/internal/obj/objfile.go    |  2 +-
- src/cmd/internal/obj/ppc64/asm9.go |  2 +-
- src/cmd/internal/obj/x86/obj6.go   | 10 +++++-----
- 6 files changed, 19 insertions(+), 9 deletions(-)
+ src/net/{dialgoogle_test.go => external_test.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

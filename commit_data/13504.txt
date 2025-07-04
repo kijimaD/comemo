@@ -1,24 +1,18 @@
-commit b9e051e82d25b5fae040d7f6235774b48e3f3a2b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 26 22:46:20 2012 -0700
+commit 55f0c8b2cddff16de2bf101ec997bf96813615d4
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Jul 27 09:27:10 2012 +1000
 
-    runtime: ignore signal 33 == SIGSETXID on GNU/Linux
+    exp/html: replace NUL bytes in plaintext, raw text, and RCDATA
     
-    When a cgo program calls setuid, setgid, etc., the GNU/Linux
-    pthread library sends signal SIGSETXID to each thread to tell
-    it to update its UID info.  If Go is permitted to intercept
-    the default SIGSETXID signal handler, the program will hang.
+    If NUL bytes occur inside certain elements, convert them to U+FFFD
+    replacement character.
     
-    This patch tells the runtime package to not try to intercept
-    SIGSETXID on GNU/Linux.  This will be odd if a Go program
-    wants to try to use that signal, but it means that cgo
-    programs that call setuid, etc., won't hang.
+    Pass 1 additional test.
     
-    Fixes #3871.
-    
-    R=rsc, r, minux.ma, bradfitz
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6455050
+    https://golang.org/cl/6452047
 
- src/pkg/runtime/signals_linux.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log |  2 +-
+ src/pkg/exp/html/token.go                           | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

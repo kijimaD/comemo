@@ -1,20 +1,15 @@
-commit 804e3e565e98e1ff3a22eb354a473225f6dc7351
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 23 10:34:01 2018 -0800
+commit 8ce8143f104a72718bdd8a53b4f8d3deba0df47e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 18 15:40:32 2017 +1100
 
-    runtime: don't check for String/Error methods in printany
+    cmd/link: add TODO missing from CL 70310
     
-    They have either already been called by preprintpanics, or they can
-    not be called safely because of the various conditions checked at the
-    start of gopanic.
+    CL 70310 dropped TODO while moving code.
+    Add TODO back, so we do not forget.
     
-    Fixes #24059
-    
-    Change-Id: I4a6233d12c9f7aaaee72f343257ea108bae79241
-    Reviewed-on: https://go-review.googlesource.com/96755
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3599ac02743bd35fb9556fdc238e9c72cf7f718f
+    Reviewed-on: https://go-review.googlesource.com/71590
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/error.go | 6 ++----
- src/runtime/iface.go | 8 ++++++++
- src/runtime/panic.go | 3 ---
- 3 files changed, 10 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 1 +
+ 1 file changed, 1 insertion(+)

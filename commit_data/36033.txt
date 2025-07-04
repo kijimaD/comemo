@@ -1,50 +1,28 @@
-commit 5c622a5bf3cf3eda45384171bb75591a18e89855
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 16 00:47:24 2018 -0400
+commit 9967582f770f62f72a349ec276e00dba8639aa26
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 15:00:47 2018 -0700
 
-    cmd/go/internal/modfetch: restrict file names in zip files, avoid case-insensitive collisions
+    regexp/syntax: update perl script to preserve \s behavior
     
-    Within the zip file for a given module, disallow names that are invalid
-    on various operating systems (mostly Windows), and disallow
-    having two different paths that are case-fold-equivalent.
-    Disallowing different case-fold-equivalent paths means the
-    zip file content is safe for case-insensitive file systems.
+    Incorporate https://code-review.googlesource.com/#/c/re2/+/3050/ from
+    the re2 repository. Description of that change:
     
-    There is more we could do to relax the rules later, but I think
-    this should be enough to avoid digging a hole in the early days
-    of modules that's hard to climb out of later.
+        Preserve the original behaviour of \s.
     
-    In tests on my repo test corpus, the repos now rejected are:
+        Prior to Perl 5.18, \s did not match vertical tab. Bake that into
+        make_perl_groups.pl as an override so that perl_groups.cc retains
+        its current definitions when rebuilt with newer versions of Perl.
     
-    github.com/vjeantet/goldap v0.0.0-20160521203625-ea702ca12a40
-            "doc/RFC 4511 - LDAP: The Protocol.txt": invalid char ':'
+    This fixes make_perl_groups.pl to generate an unchanged perl_groups.go
+    with perl versions 5.18 and later.
     
-    github.com/ChimeraCoder/anaconda v0.0.0-20160509014622-91bfbf5de08d
-            "json/statuses/show.json?id=404409873170841600": invalid char '?'
+    Fixes #22057
     
-    github.com/bmatcuk/doublestar
-            "test/a☺b": invalid char '☺'
-    
-    github.com/kubernetes-incubator/service-catalog v0.1.10
-            "cmd/svcat/testdata/responses/clusterserviceclasses?fieldSelector=spec.externalName=user-provided-service.json": invalid char '?'
-    
-    The : and ? are reserved on Windows,
-    and the : is half-reserved (and quite confusing) on macOS.
-    The ☺ is perhaps an overreach, but I am not convinced
-    that allowing all of category So is safe; certainly Sk is not.
-    
-    Change-Id: I83b6ac47ce6c442f726f1036bccccdb15553c0af
-    Reviewed-on: https://go-review.googlesource.com/124380
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I9a56e9660092ed6c1ff1045b4a3847de355441a7
+    Reviewed-on: https://go-review.googlesource.com/103517
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/unzip.go              |  31 +++-
- src/cmd/go/internal/module/module.go               |  78 ++++++--
- src/cmd/go/internal/module/module_test.go          | 198 +++++++++++----------
- src/cmd/go/mod_test.go                             |  24 ++-
- src/cmd/go/testdata/mod/rsc.io_badfile1_v1.0.0.txt |  14 ++
- src/cmd/go/testdata/mod/rsc.io_badfile2_v1.0.0.txt |  12 ++
- src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt |  12 ++
- src/cmd/go/testdata/mod/rsc.io_badfile4_v1.0.0.txt |  15 ++
- src/cmd/go/testdata/mod/rsc.io_badfile5_v1.0.0.txt |  13 ++
- 9 files changed, 287 insertions(+), 110 deletions(-)
+ src/regexp/syntax/make_perl_groups.pl | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

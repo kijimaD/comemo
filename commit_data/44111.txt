@@ -1,31 +1,23 @@
-commit 25886cf4bd28be373afb80a4c068a785b43bdddf
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 8 13:24:23 2021 -0500
+commit d40b0a1494cc3b717207ce822d01d0f180627a3f
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Fri May 8 12:09:00 2020 +0000
 
-    cmd/go: preserve sums for indirect deps fetched by 'go mod download'
+    cmd/link: fix mode parameter to fallocate on Linux
     
-    Previously, commands that wrote go.sum (except 'go mod tidy') would
-    retain sums for zip files of directly required modules. Sums of
-    indirect dependencies wouldn't be retained unless they were used to
-    load packages.
+    Fix the mode parameter to fallocate on Linux which is the operation mode
+    and not the file mode as with os.OpenFile.
     
-    With this change, sums for indirect dependencies will be retained if
-    they're available. This allows users to add missing sums with
-    'go mod download example.com/mod', which previously only worked for
-    directly required modules.
+    Also handle syscall.EINTR.
     
-    Note that 'go mod download' without arguments now adds sums for every
-    module in the build list. That matches 1.15 behavior.
+    Fixes #38950
     
-    For #41103
-    
-    Change-Id: I4cce2bf1c73578dae836bdb5adb32da071554f1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282692
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ieed20d9ab5c8a49be51c9f9a42b7263f394a5261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232805
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modload/init.go              | 53 ++++++++++++------------
- src/cmd/go/testdata/script/mod_sum_ambiguous.txt |  8 ++++
- 2 files changed, 34 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/ld/outbuf_linux.go | 2 +-
+ src/cmd/link/internal/ld/outbuf_mmap.go  | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

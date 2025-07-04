@@ -1,32 +1,16 @@
-commit c3189cee717a47dd7936d9f82904db72b28293f6
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Aug 19 16:59:19 2017 +0200
+commit 95e7897bd81885f1068faa0652cc463c00364f62
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 28 21:16:03 2017 +0000
 
-    runtime: forward crashing signals to late handlers
+    Revert "build: fail nicely if somebody runs all.bash from a binary tarball package"
     
-    CL 49590 made it possible for external signal handlers to catch
-    signals from a crashing Go process. This CL extends that support
-    to handlers registered after the Go runtime has initialized.
+    This reverts commit 3d86d45dd60358636c569e9cf06b23b5e0e04e8a.
     
-    Updates #20392 (and possibly fix it).
+    Reason for revert: Fixing a different way. See #20008.
     
-    Change-Id: I18eccd5e958a505f4d1782a7fc51c16bd3a4ff9c
-    Reviewed-on: https://go-review.googlesource.com/57291
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6f4382ffdfff83a4504b013ba37100319b2c1aad
+    Reviewed-on: https://go-review.googlesource.com/42138
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_cgo_test.go                  | 18 ++++++++-----
- src/runtime/runtime2.go                        |  1 +
- src/runtime/signal_darwin.go                   | 18 ++++++-------
- src/runtime/signal_dragonfly.go                | 18 ++++++-------
- src/runtime/signal_freebsd.go                  | 18 ++++++-------
- src/runtime/signal_nacl.go                     | 12 ++++-----
- src/runtime/signal_netbsd.go                   | 18 ++++++-------
- src/runtime/signal_openbsd.go                  | 12 ++++-----
- src/runtime/signal_solaris.go                  | 14 +++++-----
- src/runtime/signal_unix.go                     | 37 +++++++++-----------------
- src/runtime/sigtab_linux_generic.go            | 14 +++++-----
- src/runtime/sigtab_linux_mipsx.go              | 14 +++++-----
- src/runtime/testdata/testprogcgo/catchpanic.go | 15 ++++++++---
- 13 files changed, 105 insertions(+), 104 deletions(-)
+ src/all.bash | 4 ----
+ 1 file changed, 4 deletions(-)

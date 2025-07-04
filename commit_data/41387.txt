@@ -1,19 +1,23 @@
-commit 151ccd4bdb06d77e89f00b8172b70cfb2f49ca2b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Feb 23 13:08:29 2020 -0800
+commit 2c47caa900cb4aca9ab9e802289fa0671ad843a4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 28 14:33:10 2019 +0200
 
-    go/types: report correct number of arguments for make() built-in calls
+    cmd/compile: use %v for Node formatting
     
-    Also: Added test cases for (separate) issue #37393.
-          To be enabled when that issue is fixed.
+    CL 197817 replaced a use of n.Rlist with n.Right in a Fprintf call,
+    but it left the corresponding format as %.v, which broke the
+    TestFormats test on the longtest builder.
     
-    Fixes #37349.
-    Updates #37393.
+    Since with n.Right is custom to use %v (and not %.v), replace the
+    format with %v.
     
-    Change-Id: Ib78cb0614c0b396241af06a3aa5d37d8045c2f2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220584
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes the longtest builder.
+    
+    Change-Id: Icf5bf820a936c51e633c25ada1a71a1ffb6d28c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197837
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/builtins.go      |  2 +-
- src/go/types/builtins_test.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

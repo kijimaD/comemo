@@ -1,21 +1,22 @@
-commit 0e19aaabc052f858beed7d174a55d4110c8d66a0
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Aug 20 18:39:46 2020 +0800
+commit ba093c4562e7464e95a4bde6505d270b71ed623f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun Feb 23 20:45:51 2020 -0800
 
-    cmd/asm: fix the error of checking the post-index offset of VLD[1-4]R instructions of arm64
+    doc/articles/race_detector: mention memory leak potential
     
-    The post-index offset of VLD[1-4]R instructions is decided by the
-    "size" field not "Q" field, the current assembler uses "Q" fileld
-    to check the correctness of post-index offset which is not correct.
-    This patch fixes it.
+    As far as I can tell, there is no public documentation on this topic,
+    which cost me several days of debugging.
     
-    Fixes #40725
+    I am possibly unusual in that I run binaries in production with the
+    race detector turned on, but I think that others who do the same may
+    want to be aware of the risk.
     
-    Change-Id: If1cde7f21c6b3ee0e491649eb567700bd1475c84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249757
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #26813.
+    Updates #37233.
+    
+    Change-Id: I1f8111bd01d0000596e6057b7cb5ed017d5dc655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220586
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      | 28 +++++++++++++++-----------
- src/cmd/asm/internal/asm/testdata/arm64error.s |  1 +
- src/cmd/internal/obj/arm64/asm7.go             | 13 ++++++++++--
- 3 files changed, 28 insertions(+), 14 deletions(-)
+ doc/articles/race_detector.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

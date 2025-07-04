@@ -1,20 +1,12 @@
-commit 715588f1d3ecc92087018be2aa758c55d1e03d13
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sat Feb 4 14:32:05 2012 +1100
+commit f25a3873b74bf48c6f0e41e9091e8beba087a1f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 17:36:48 2012 -0800
 
-    expvar: revise API.
+    test: fix copyright year in new test case
     
-    Nuke RemoveAll from the public API.
-    Replace Iter functions with Do functions.
-    
-    Fixes #2852.
-    
-    R=rsc, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5622055
+    https://golang.org/cl/5631044
 
- doc/go1.html                  | 17 ++++++++
- doc/go1.tmpl                  | 17 ++++++++
- src/pkg/expvar/expvar.go      | 94 +++++++++++++++++++++----------------------
- src/pkg/expvar/expvar_test.go |  8 ++++
- 4 files changed, 89 insertions(+), 47 deletions(-)
+ test/fixedbugs/bug405.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

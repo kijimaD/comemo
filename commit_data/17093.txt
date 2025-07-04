@@ -1,29 +1,15 @@
-commit 1f4d58ad5d6cdb03cd4f9d8062a711db9fe137bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 8 13:46:30 2013 -0400
+commit 547f1a6fe7915193d6c28dac21648f08e2f67bd9
+Author: Dmitriy Shelenin <deemok@googlemail.com>
+Date:   Thu Aug 8 10:40:51 2013 -0700
 
-    cmd/gc: move large stack variables to heap
+    encoding/xml: allow attributes stored in pointers to be marshaled.
     
-    Individual variables bigger than 10 MB are now
-    moved to the heap, as if they had escaped on
-    their own.
+    Fixes #5334.
     
-    This avoids ridiculous stacks for programs that
-    do things like
-            x := [1<<30]byte{}
-            ... use x ...
-    
-    If 10 MB is too small, we can raise the limit.
-    
-    Fixes #6077.
-    
-    R=ken2
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/12650045
+    https://golang.org/cl/8653047
 
- src/cmd/gc/go.h             |   3 +
- src/cmd/gc/lex.c            |   4 +
- src/cmd/gc/pgen.c           |  23 +++++
- test/escape5.go             |   7 ++
- test/fixedbugs/bug385_64.go | 217 ++++++++++++++++++++++++++++++++++++++++++--
- 5 files changed, 246 insertions(+), 8 deletions(-)
+ src/pkg/encoding/xml/marshal.go      | 11 ++++++++++-
+ src/pkg/encoding/xml/marshal_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

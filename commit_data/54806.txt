@@ -1,21 +1,18 @@
-commit 48bd1fc93bddea0af62b2ec687fbde449be4c94c
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 6 00:06:18 2023 -0400
+commit 0df08b955371b7953350a834fd27c594fc45fe73
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:53:41 2022 -0500
 
-    math/rand/v2: clean up regression test
+    cmd/vet: use testenv.Command instead of exec.Command in tests
     
-    Add more test cases.
-    Replace -printgolden with -update,
-    which rewrites the files for us.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    For #61716.
-    
-    Change-Id: I7c4c900ee896042429135a21971a56ebe16b6a66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516858
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I973be280cd0a7f495b491bfb0e04771389562e04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450711
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/math/rand/v2/regress_test.go | 651 ++++++++++++++++++++++-----------------
- 1 file changed, 376 insertions(+), 275 deletions(-)
+ src/cmd/vet/vet_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

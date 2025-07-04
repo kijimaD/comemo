@@ -1,31 +1,25 @@
-commit 7b58581a232829f29a26d6ebee9f4c3ca59b4771
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 17 14:29:16 2019 -0700
+commit 5003b6264503c0858649ba5b10d4ec5c6f3902a1
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sun May 5 09:35:14 2019 -0400
 
-    cmd/compile: recognize (*[Big]T)(ptr)[:n:m] pattern for -d=checkptr
+    html/template: add support for JavaScript modules
     
-    A common idiom for turning an unsafe.Pointer into a slice is to write:
+    html/template does not properly treat JavaScript code as
+    JavaScript when using a <script> tag with "module" set as
+    the type attribute.
     
-        s := (*[Big]T)(ptr)[:n:m]
+    See also:
+    https://www.w3.org/TR/html5/semantics-scripting.html#element-attrdef-script-type and
+    https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2
     
-    This technically violates Go's unsafe pointer rules (rule #1 says T2
-    can't be bigger than T1), but it's fairly common and not too difficult
-    to recognize, so might as well allow it for now so we can make
-    progress on #34972.
+    Original change from tomut at https://golang.org/cl/135417
     
-    This should be revisited if #19367 is accepted.
+    Fixes #31327
     
-    Updates #22218.
-    Updates #34972.
-    
-    Change-Id: Id824e2461904e770910b6e728b4234041d2cc8bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201839
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6239be69cd7994990d091400664e4474124a98fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175218
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  2 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
- src/cmd/compile/internal/gc/walk.go            | 34 ++++++++++++++++++++++----
- src/runtime/checkptr.go                        | 16 +++++++-----
- 4 files changed, 41 insertions(+), 13 deletions(-)
+ src/html/template/js.go      | 1 +
+ src/html/template/js_test.go | 1 +
+ 2 files changed, 2 insertions(+)

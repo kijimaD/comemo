@@ -1,19 +1,25 @@
-commit a30d24fad99a95c8f65f8677ad9404e090aeb13a
-Author: Gregory Man <man.gregory@gmail.com>
-Date:   Wed Mar 28 11:44:10 2018 +0300
+commit 442d15abc367a21893e68dab3ac518cc28f155d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 15:07:44 2017 -0500
 
-    net/http: strip password from error message
+    database/sql/driver: rename ResetSessioner to SessionResetter
     
-    Strip password from URL then stringifying it to error.
+    Originally we tried the strict -er suffix as the rule in this case
+    but eventually we decided it was too awkward: io.WriteByter
+    became io.ByteWriter. By analogy, here the interface should be
+    named SessionResetter instead of the awkward ResetSessioner.
     
-    Fixes #24572
+    This change should not affect any drivers that have already
+    implemented the interface, because the method name is not changing.
     
-    Change-Id: I1751ea9ccf87e7dff50c4c2a2010bf3f865702f8
-    Reviewed-on: https://go-review.googlesource.com/102855
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    (This was added during the Go 1.10 cycle and has not been
+    released yet, so we can change it.)
+    
+    Change-Id: Ie50e4e090d3811f85965da9da37d966e9f45e79d
+    Reviewed-on: https://go-review.googlesource.com/78127
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/net/http/client.go      | 13 +++++++++++--
- src/net/http/client_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 2 deletions(-)
+ src/database/sql/driver/driver.go | 4 ++--
+ src/database/sql/sql.go           | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

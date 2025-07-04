@@ -1,14 +1,14 @@
-commit fd0f69c6802b92fed953659efe5f2e0e2e8aed14
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Nov 17 15:41:18 2016 +0900
+commit 5df7f5220f42cb283147ab271cd965720e233759
+Author: Sam Whited <sam@samwhited.com>
+Date:   Thu Sep 1 09:19:32 2016 -0500
 
-    net: use testenv.SkipFlaky instead of testing.Skip
+    net/rpc: Add documentation for client.Close
     
-    Change-Id: Ic219fedbe6bbb846f31111fa21df6f2b8620e269
-    Reviewed-on: https://go-review.googlesource.com/33263
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #16678
+    
+    Change-Id: I48c2825d4fef55a75d2f99640a7079c56fce39db
+    Reviewed-on: https://go-review.googlesource.com/28370
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/timeout_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/rpc/client.go | 2 ++
+ 1 file changed, 2 insertions(+)

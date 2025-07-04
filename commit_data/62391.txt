@@ -1,0 +1,20 @@
+commit 16959799bdbda1f1a8e719e23f4440c26318922f
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed Feb 26 13:23:53 2025 +0200
+
+    crypto/internal/fips140/edwards25519/field/_asm: update avo dependency
+    
+    v0.4.0 does not work with Go 1.25.
+    
+    Change-Id: Ib9081b0ee78cad7974b038d89fa92d9ccbfa305a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652715
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../fips140/edwards25519/field/_asm/go.mod         | 10 +++---
+ .../fips140/edwards25519/field/_asm/go.sum         | 40 +++++-----------------
+ 2 files changed, 12 insertions(+), 38 deletions(-)

@@ -1,16 +1,19 @@
-commit 6372c821c7cada20e662f9cc37f5d1c202a6b5fe
+commit 2aa2da295f47826032f3fd7b262d9ec00e919422
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 13 21:44:35 2016 -0700
+Date:   Thu Mar 3 16:27:05 2016 -0800
 
-    doc: GCC 6 will have the Go 1.6.1 user libraries
+    cmd/compile: convert dcl.go to nodeSeq
     
-    Update #14759.
+    Add new functions setNodeSeqNode, appendNodeSeq, appendNodeSeqNode.
     
-    Change-Id: I8a174aad721beb62380e10071d9648b6b1c21b8c
-    Reviewed-on: https://go-review.googlesource.com/22072
+    Passes toolstash -cmp.
+    
+    Change-Id: I6c1745b1108dea45a2c0d029b9de1917ae17a962
+    Reviewed-on: https://go-review.googlesource.com/20196
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.6.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go    |  46 +++++++-------
+ src/cmd/compile/internal/gc/syntax.go | 109 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 128 insertions(+), 27 deletions(-)

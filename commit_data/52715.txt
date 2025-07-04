@@ -1,19 +1,19 @@
-commit 1f9d80e33165dfb169d1ee82ca0021484951d3bb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jan 3 17:59:48 2023 +0000
+commit 97ce98ac203e76fc1a1e902226277dc00456b41b
+Author: Mostafa Solati <mostafa.solati@gmail.com>
+Date:   Tue Aug 3 01:55:49 2021 +0430
 
-    runtime: disable huge pages for GC metadata for small heaps
+    cmd/go: do not ignore flags option with bad quoting
     
-    For #55328.
+    Fixes #43177
     
-    Change-Id: I8792161f09906c08d506cc0ace9d07e76ec6baa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460316
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7d8ef8dee0dcade3cc88fc6423e23f41d1f8ffb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339289
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/malloc.go     | 63 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mgc.go        |  5 ++++
- src/runtime/mheap.go      |  4 +++
- src/runtime/mpagealloc.go | 59 +++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 130 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/flag.go                | 3 +++
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 4 ++++
+ 2 files changed, 7 insertions(+)

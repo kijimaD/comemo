@@ -1,22 +1,19 @@
-commit 8eb9fdaa0123fc98cb70f58801eb74c8a6f92817
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Sep 24 08:39:31 2016 +1000
+commit 1161a19c1ef536f8db2ca7eddf0e424e138e37db
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Fri Aug 12 12:45:14 2016 +0200
 
-    cmd/compile: write type symbols referenced in ptabs
+    context: add examples
     
-    The exported symbol for a plugin can be the only reference to a
-    type in a program. In particular, "var F func()" will have
-    the type *func(), which is uncommon.
+    Add function level examples to the package.
     
-    Fixes #17140
+    Partially addresses #16360
     
-    Change-Id: Ide2104edbf087565f5377374057ae54e0c00c57e
-    Reviewed-on: https://go-review.googlesource.com/29692
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7162aed4e4a969743c19b79c9ffaf9217d2c1c08
+    Reviewed-on: https://go-review.googlesource.com/26930
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testplugin/src/host/host.go           | 12 ++++++++++++
- misc/cgo/testplugin/src/sub/plugin1/plugin1.go |  3 +++
- src/cmd/compile/internal/gc/reflect.go         |  2 +-
- src/cmd/link/internal/ld/deadcode.go           |  5 +++++
- 4 files changed, 21 insertions(+), 1 deletion(-)
+ src/context/example_test.go     | 109 ++++++++++++++++++++++++++++++++++++++++
+ src/context/withtimeout_test.go |  33 ------------
+ 2 files changed, 109 insertions(+), 33 deletions(-)

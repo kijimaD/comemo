@@ -1,23 +1,16 @@
-commit 20c76f7f3f9a8e353cedf57fd633afdc00c09d6f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jan 2 21:42:26 2013 +0100
+commit 8850d14fe9c38482ee64e21f6d837c267dbe528e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 2 15:31:49 2013 -0500
 
-    cmd/gc: mark wrapper methods for unnamed types as DUPOK.
+    test/run: handle compiledir and errorcheckdir with multi-file packages
     
-    Unnamed types like structs with embedded fields can have methods.
-    These methods are generated on-the-fly by the compiler and
-    it may happen for identical types in different packages.
-    The linker must accept these multiple definitions.
+    Multiple files with the same package all get compiled together.
     
-    Fixes #4590.
-    
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/7030051
+    R=golang-dev, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/7005053
 
- src/cmd/gc/subr.c                    |  3 +++
- test/fixedbugs/issue4590.dir/pkg1.go | 26 ++++++++++++++++++++++++++
- test/fixedbugs/issue4590.dir/pkg2.go | 15 +++++++++++++++
- test/fixedbugs/issue4590.dir/prog.go | 25 +++++++++++++++++++++++++
- test/fixedbugs/issue4590.go          | 10 ++++++++++
- 5 files changed, 79 insertions(+)
+ test/fixedbugs/issue4326.dir/z.go |  2 +-
+ test/run.go                       | 74 +++++++++++++++++++++++++++++++--------
+ test/testlib                      | 43 +++++++++++++++--------
+ 3 files changed, 89 insertions(+), 30 deletions(-)

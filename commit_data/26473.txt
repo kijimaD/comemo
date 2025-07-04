@@ -1,21 +1,33 @@
-commit c1892b9c4b321b03973aa4433ec7cd8fe0a307a9
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Wed Mar 23 11:11:34 2016 +0100
+commit eb3b1830b01fca572fcdd9c95aeb8090e6c09497
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 19 22:45:37 2016 -0500
 
-    cmd/compile: don't simplify nilchecks in loops
+    runtime: attach mark workers to P after they park
     
-    khr: Lifting the nil check out of the loop altogether is an admirable
-    goal, and this rewrite is one step on the way. But without lifting it
-    out of the loop, the rewrite is just hurting us.
+    Currently mark workers attach to their designated Ps before parking,
+    either during initialization or after performing a phase transition.
+    However, in both of these cases, it's possible that the mark worker is
+    running on a different P than the one it attaches to. This is a
+    problem, because as soon as the worker attaches to a P, that P's
+    scheduler can execute the worker. If the worker hasn't yet parked on
+    the P it's actually running on, this means the worker G will be
+    running in two places at once. The most visible consequence of this is
+    that once the first instance of the worker does park, it will clear
+    g.m and the second instance will crash shortly when it tries to use
+    g.m.
     
-    Fixes #14917
+    Fix this by moving the attach to the gopark callback. At this point,
+    the G is genuinely stopped and the callback is running on the system
+    stack, so it's safe for another P's scheduler to pick up the worker G.
     
-    Change-Id: Idb917f37d89f50f8e046d5ebd7c092b1e0eb0633
-    Reviewed-on: https://go-review.googlesource.com/21040
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13363. Fixes #13978.
+    
+    Change-Id: If2f7c4a4174f9511f6227e14a27c56fb842d1cc8
+    Reviewed-on: https://go-review.googlesource.com/18761
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  4 ---
- src/cmd/compile/internal/ssa/rewritegeneric.go | 38 --------------------------
- 2 files changed, 42 deletions(-)
+ src/runtime/mgc.go  | 89 +++++++++++++++++++++++++++++++++--------------------
+ src/runtime/proc.go |  2 ++
+ 2 files changed, 58 insertions(+), 33 deletions(-)

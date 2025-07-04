@@ -1,21 +1,32 @@
-commit de46eaadb5fb75dba66e90aaf1faf2b7a0443815
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 27 09:42:41 2024 -0700
+commit 9cf209f6b87f46795c3eadbeaceeeca7d429752b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 16 10:46:11 2023 -0400
 
-    go/types, types2: replace 2 uses of Scope.LookupParent with Checker.lookup
+    runtime/testdata/testprog: use testenv.SyscallIsNotSupported to check syscall.Unshare
     
-    A step towards removing reliance on Scope.LookupParent.
+    syscall.Unshare is the sort of system call that may be blocked in a
+    container environment, and experience has shown that different
+    container implementations choose from a variety of different error
+    codes for blocked syscalls.
     
-    Updates #69673.
+    In particular, the patch in
+    https://git.alpinelinux.org/aports/tree/community/go/tests-unshare-enosys.patch
+    seems to suggest that the container environment used to test the Go
+    distribution on Alpine Linux returns ENOSYS instead of EPERM.
     
-    Change-Id: I9fdd4b08ea600b531b90895ac779fdc580ff00e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616259
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    The existing testenv.SyscallIsNotSupported helper checks for
+    the kinds of error codes we have seen from containers in practice, so
+    let's use that here.
+    
+    For #62053.
+    Updates #29366.
+    
+    Change-Id: Ic6755f7224fcdc0cb8b25dde2d6047ceb5c3ffdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520057
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/call.go | 4 ++--
- src/go/types/call.go                    | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/testdata/testprog/syscalls_linux.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,26 +1,31 @@
-commit 1b0b9809046c1862f8ea0240fe016e516c67676f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 21 14:07:50 2019 -0400
+commit bff0ae6a0174f48a15ef3dcc661c8458e37a9d4a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 10 12:31:13 2019 -0400
 
-    runtime: add async preemption support on ARM64
+    cmd/go: in TestScript, set $GOEXE instead of $exe
     
-    This CL adds support of call injection and async preemption on
-    ARM64.
+    $GOEXE exists and is documented in 'go env', so $exe is redundant and
+    a bit confusing. Notably, mod_modinfo.txt already assumes that GOEXE
+    is set (even though it isn't), and thus fails on Windows.
     
-    There seems no way to return from the injected call without
-    clobbering *any* register. So we have to clobber one, which is
-    chosen to be REGTMP. Previous CLs have marked code sequences
-    that use REGTMP async-nonpreemtible.
+    After this CL, `go test cmd/go/...` passes on a windows-amd64-2016
+    builder. However, given that the $PATH on the builder is very minimal
+    (#32430) and network access is limited, tests that rely on binaries
+    (such as 'git') or external networking may still be broken.
     
-    Change-Id: Ieca4e3ba5557adf3d0f5d923bce5f1769b58e30b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203461
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Updates #25300
+    
+    Change-Id: I9d80f2a0fbaa8bc35fa2205b6898aeccecda4e94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181542
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   2 +
- src/runtime/mkpreempt.go                     |  54 ++++++++++-
- src/runtime/preempt_arm64.s                  | 140 ++++++++++++++++++++++++++-
- src/runtime/signal_arm64.go                  |  14 ++-
- 4 files changed, 205 insertions(+), 5 deletions(-)
+ src/cmd/go/script_test.go                           |  7 ++-----
+ src/cmd/go/testdata/script/README                   |  3 +--
+ src/cmd/go/testdata/script/build_cache_link.txt     |  4 ++--
+ src/cmd/go/testdata/script/build_multi_main.txt     |  2 +-
+ src/cmd/go/testdata/script/install_cleans_build.txt | 12 ++++++------
+ src/cmd/go/testdata/script/mod_build_versioned.txt  | 12 ++++++------
+ src/cmd/go/testdata/script/test_devnull.txt         |  2 +-
+ 7 files changed, 19 insertions(+), 23 deletions(-)

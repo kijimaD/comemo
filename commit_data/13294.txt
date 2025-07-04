@@ -1,13 +1,17 @@
-commit fe80cf0f152ca0d975ef67d6c0f0807472796500
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 6 16:05:27 2012 -0400
+commit 58993e514ec8ee306b305df7db761f73ae522d3a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 6 22:03:31 2012 +0800
 
-    A+C: Markus Sonderegger (individual CLA)
+    net: fix cgoAddrInfoFlags() on FreeBSD
+            CL 6250075 removed AI_MASK mask on all BSD variants,
+            however FreeBSD's AI_MASK does not include AI_V4MAPPED
+            and AI_ALL, and its libc is strict about the ai_flags.
     
-    R=golang-dev, bradfitz
+            This will fix the FreeBSD builder.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6303047
+    https://golang.org/cl/6305054
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/net/cgo_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

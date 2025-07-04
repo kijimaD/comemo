@@ -1,20 +1,23 @@
-commit 66a7097ca9283bd98fd3fbb507634e444081d215
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 13 10:52:56 2016 -0800
+commit 880a689124161f9dc342255ba8fe326719eb8de1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 4 12:30:30 2015 -0800
 
-    go/importer: fix field/method package for binary importer
+    runtime: don't call msanread when running on the system stack
     
-    This is the equivalent of https://golang.org/cl/18549 for
-    the binary importer (which is usually not used because by
-    default the gc compiler produces the traditional textual
-    export format).
+    The runtime is not instrumented, but the calls to msanread in the
+    runtime can sometimes refer to the system stack.  An example is the call
+    to copy in stkbucket in mprof.go.  Depending on what C code has done,
+    the system stack may appear uninitialized to msan.
     
-    For #13898.
-    
-    Change-Id: Idb6b515f2ee49e6d0362c71846994b0bd4dae8f7
-    Reviewed-on: https://go-review.googlesource.com/18598
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic21705b9ac504ae5cf7601a59189302f072e7db1
+    Reviewed-on: https://go-review.googlesource.com/16660
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/internal/gcimporter/bimport.go | 67 ++++++++++++++++++++---------------
- 1 file changed, 38 insertions(+), 29 deletions(-)
+ misc/cgo/testsanitizers/msan.go      |  4 +++
+ misc/cgo/testsanitizers/msan2.go     |  4 +++
+ misc/cgo/testsanitizers/msan4.go     | 50 ++++++++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/msan_fail.go |  4 +++
+ misc/cgo/testsanitizers/test.bash    |  5 ++++
+ src/runtime/msan.go                  | 15 ++++++++++-
+ src/runtime/msan_amd64.s             |  6 ++---
+ 7 files changed, 84 insertions(+), 4 deletions(-)

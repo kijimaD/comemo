@@ -1,32 +1,20 @@
-commit e158cb21e58a8e50645a15f3747c76627eaaa231
-Author: Sean Liao <sean@liao.dev>
-Date:   Thu Nov 23 18:43:12 2023 +0000
+commit 925182263164f44ec02bc90498da4b8dab4c9810
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 10 14:18:06 2023 -0800
 
-    .github: clean up issue forms
+    go/types, types2: factor out under.go, generate it for go/types
     
-    bugs:
-    * drop unused labels
-    * drop the reproduce checkbox:
-      it's not a strong signal and introduces clutter in github as a task list
-    * link go.dev/play
-    
-    govuln:
-    * use correct label
-    * ask for version of the tool
-    * link go.dev/play
-    
-    telemetry:
-    * align title with purpose
-    
-    Change-Id: Id7dd876e518c75dc22e9aec43d9af6e18af088fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544775
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I581be544de313618ccd1e3ef4dc38f1ebf201b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461495
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- .github/ISSUE_TEMPLATE/00-bug.yml       | 15 +++++----------
- .github/ISSUE_TEMPLATE/04-vuln.yml      | 16 ++++++++++------
- .github/ISSUE_TEMPLATE/12-telemetry.yml |  2 +-
- 3 files changed, 16 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/type.go  | 109 -----------------------------
+ src/cmd/compile/internal/types2/under.go | 114 ++++++++++++++++++++++++++++++
+ src/go/types/generator.go                |   1 +
+ src/go/types/type.go                     | 109 -----------------------------
+ src/go/types/under.go                    | 116 +++++++++++++++++++++++++++++++
+ 5 files changed, 231 insertions(+), 218 deletions(-)

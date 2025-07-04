@@ -1,18 +1,15 @@
-commit e4b12eb8af28d3f505a5487b76dbfd4b1a37c0da
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon Dec 23 11:34:03 2024 -0500
+commit e418258993cc1a11816baf5d9004cea3b029ae7c
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue Dec 5 22:54:10 2023 +0000
 
-    io: use runtime.AddCleanup instead of runtime.SetFinalizer
+    doc: document new cmp.Or function
     
-    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup.
-    
-    Updates #70907
-    
-    Change-Id: Id604ca44ea67dcf8f87797e27347c6f4e9ad0b86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638556
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    TryBot-Bypass: Carlos Amedee <carlos@golang.org>
+    Change-Id: I41ea06018daae2c929edc24a714007cede9296ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547756
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/io/multi_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ doc/go1.22.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,26 +1,30 @@
-commit 5fde02e312796012b5ddacd79cbaafb91d329c72
-Author: Dmitri Goutnik <dgoutnik@gmail.com>
-Date:   Wed Jun 8 10:52:19 2022 -0500
+commit 9efb6493f498f8fdcc5d34d4df4d5e9c620f861b
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 21:12:33 2021 -0500
 
-    runtime: add msan support on freebsd/amd64
+    all: update vendored golang.org/x/tools
     
-    Adjust build constraints and change the runtime to call the C mmap function
-    when using cgo.
+    Update the vendored x/tools to pick up the fix for #49597, using the
+    following commands:
     
-    R=go1.20
+      go get -d golang.org/x/tools@4adea5033c5c6f39a900d4b963c4b496448b1655
+      go mod tidy
+      go mod vendor
     
-    For #53298
+    Fixes #49597
     
-    Change-Id: If9c3306dc16a8645d1bb9be0343e0472d6c4783f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411274
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ib1bc43aacbdc707b605194012134f048a336e176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363986
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/cgo/gcc_mmap.c      |  2 +-
- src/runtime/cgo/mmap.go         |  2 +-
- src/runtime/cgo_mmap.go         |  2 +-
- src/runtime/mmap.go             |  2 +-
- src/runtime/msan/msan.go        |  2 +-
- src/runtime/sys_freebsd_amd64.s | 35 +++++++++++++++++++++++++++++++++--
- 6 files changed, 38 insertions(+), 7 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/analysis/passes/composite/composite.go      |  21 +++-
+ .../x/tools/go/analysis/passes/shift/shift.go      |  20 +++-
+ .../go/analysis/passes/stringintconv/string.go     |  37 ++++--
+ .../x/tools/internal/typeparams/normalize.go       | 132 +++++++++------------
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 7 files changed, 117 insertions(+), 101 deletions(-)

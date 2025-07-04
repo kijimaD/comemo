@@ -1,26 +1,19 @@
-commit f495b36ccdfe93629cb83f8be79dca662ef68a64
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 24 11:44:42 2022 -0500
+commit 726ffce659a173951186097b26489570cff24fd3
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 09:44:08 2021 -0400
 
-    crypto/aes: rewrite ppc64le block crypting
+    [dev.typeparams] go/types: "comparable" must not be visible before Go 1.18
     
-    This unrolls the counter loop and simplifies the load/storing
-    of text/ciphertext and keys by using unaligned VSX memory
-    operations.
+    This is a straightforward port of CL 331517 to go/types.
     
-    Performance delta on POWER9:
-    
-    name     old time/op   new time/op    delta
-    Encrypt   19.9ns ± 0%    14.9ns ± 0%  -24.95%
-    Decrypt   19.8ns ± 0%    14.6ns ± 0%  -26.12%
-    
-    Change-Id: Iba98d5c1d88c6bead45bc04c97ae64bcb6fc9f21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404354
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id00761fd5dffb4d09e19f086d18ddc20f11528d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335032
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/aes/asm_ppc64le.s | 302 ++++++++++++++++++++++++++-----------------
- 1 file changed, 180 insertions(+), 122 deletions(-)
+ src/go/types/testdata/fixedbugs/issue46090.go2 |  9 ++++
+ src/go/types/typexpr.go                        |  2 +-
+ src/go/types/universe.go                       | 64 +++++++++-----------------
+ 3 files changed, 32 insertions(+), 43 deletions(-)

@@ -1,28 +1,17 @@
-commit 26713b5fefc158feb1f0f3d5d30627de226f7668
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Feb 19 17:37:17 2021 -0500
+commit c4f77b11df3ab8c3a717ef7f57f957c491d57c8e
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Tue Jun 9 16:17:46 2020 -0400
 
-    go/types: don't write during sanitizeInfo if nothing has changed
+    api: promote next to go1.15
     
-    In its final phase, the typechecker walks the types it produces to
-    ensure that no unexpanded type instances leak through the API. However,
-    this also walks shared types (such as those in the universe scope),
-    resulting in a potential data race during concurrent typechecking
-    passes.
-    
-    Fix this by being careful not to write if nothing needs to be changed.
-    Since any shared types should already be sanitized, this should
-    eliminate data races.
-    
-    For #44434
-    
-    Change-Id: Iadb2e78863efe0e974e69a00e255f26cfaf9386a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294411
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I42e0d096b28614b95b0af21144f8f118e3eafcd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237297
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/go/types/sanitize.go | 82 +++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 63 insertions(+), 19 deletions(-)
+ api/go1.15.txt | 133 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |   3 --
+ 2 files changed, 133 insertions(+), 3 deletions(-)

@@ -1,14 +1,18 @@
-commit f3310124277638d3eb4fdcfe86966b9c41fe4954
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 25 09:35:55 2013 -0700
+commit 5852760088f15c68b98f18620e4fa720e1f167da
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Thu Jul 25 09:56:06 2013 -0400
 
-    spec: update prose in Constants section
+    syscall: prlimit argument error for Getrlimit and Setrlimit on Linux 32-bit
     
-    Fixes #5952.
+    The rlimit arguments for prlimit are reversed for linux 32-bit (386 and arm).
+    Getrlimit becomes Setrlimit and vice versa.
+    Fixes #5949.
     
-    R=r, rsc
+    R=iant, mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/11812043
+    https://golang.org/cl/11803043
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/syscall/rlimit_linux_test.go | 41 ++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux_386.go |  4 ++--
+ src/pkg/syscall/syscall_linux_arm.go |  4 ++--
+ 3 files changed, 45 insertions(+), 4 deletions(-)

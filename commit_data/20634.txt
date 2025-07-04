@@ -1,20 +1,13 @@
-commit ee8e28d328567b5f12a94b1156b5f6d20d1f67fe
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Oct 5 13:15:13 2014 +1100
+commit cfae41ff36d833719b073d1eec5f0fd535ca9e61
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 10:52:02 2014 -0700
 
-    syscall: another attempt to keep windows syscall pointers live
+    time: make it clear that time.Time values do not compare with ==
     
-    This approach was suggested in
-    https://golang.org/cl/138250043/#msg15.
-    Unlike current version of mksyscall_windows.go,
-    new code could be used in go.sys and other external
-    repos without help from asm.
-    
-    LGTM=iant
-    R=golang-codereviews, iant, r
+    LGTM=bradfitz, josharian, adg, rsc
+    R=golang-codereviews, bradfitz, josharian, rsc, adg
     CC=golang-codereviews
-    https://golang.org/cl/143160046
+    https://golang.org/cl/141340043
 
- src/syscall/mksyscall_windows.go | 79 +++++++++++++++++++++++++++++++++++-----
- src/syscall/zsyscall_windows.go  | 36 +++++++++++++++---
- 2 files changed, 100 insertions(+), 15 deletions(-)
+ src/time/time.go | 5 +++++
+ 1 file changed, 5 insertions(+)

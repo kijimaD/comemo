@@ -1,21 +1,28 @@
-commit 5d6f835b3e41778de6589c97c90e5e98fb50b851
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 22:33:24 2023 -0700
+commit 4bcf94b0232db65ed5df47e0127cdbc8866aec64
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 11 11:56:51 2022 +0700
 
-    cmd/compile/internal/ssagen: call AllocFrame after ssa.Compile
+    all: prevent fakePC overflow on 386 in libfuzzer mode
     
-    This indirection is no longer necessary.
+    fakePC uses hash.Sum32, which returns an uint32. However, libfuzzer
+    trace/hook functions declare fakePC argument as int, causing overflow on
+    386 archs.
     
-    Change-Id: Ibb5eb1753febdc17a93ea9c35130e3d2b26c360e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526518
+    Fixing this by changing fakePC argument to uint to prevent the overflow.
+    
+    Fixes #56141
+    
+    Change-Id: I3994c461319983ab70065f90bf61539a363e0a2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441996
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/compile.go     |  3 ---
- src/cmd/compile/internal/ssa/config.go      |  3 ---
- src/cmd/compile/internal/ssa/export_test.go |  2 --
- src/cmd/compile/internal/ssa/stackframe.go  | 10 ----------
- src/cmd/compile/internal/ssagen/ssa.go      |  2 ++
- 5 files changed, 2 insertions(+), 18 deletions(-)
+ .../compile/internal/typecheck/_builtin/runtime.go | 20 +++++++++---------
+ src/cmd/compile/internal/typecheck/builtin.go      | 10 ++++-----
+ src/internal/fuzz/trace.go                         | 24 +++++++++++-----------
+ src/runtime/libfuzzer.go                           | 16 +++++++--------
+ test/fixedbugs/issue56141.go                       | 12 +++++++++++
+ 5 files changed, 47 insertions(+), 35 deletions(-)

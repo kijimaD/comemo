@@ -1,18 +1,24 @@
-commit dc5a0d276bbcd6120325c9e0f9c8fd099fa2b8d6
+commit f375b305c801515b587719490b4be0db1a66e20c
 Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Nov 21 23:25:51 2023 +0100
+Date:   Wed Jan 4 21:51:50 2023 +0100
 
-    crypto/tls: mark RSA KEX cipher suites insecure
+    crypto/x509: clarify that CheckSignatureFrom and CheckSignature are low-level APIs
     
-    Updates #63413
+    In particular, CheckSignatureFrom just can't check the path length
+    limit, because it might be enforced above the parent.
     
-    Change-Id: I31fc2f9728582524cac5d101d0011093dbd05ed3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544336
+    We don't need to document the supported signature algorithms for
+    CheckSignatureFrom, since we document at the constants in what contexts
+    they are allowed and not. That does leave CheckSignature ambiguous,
+    though, because that function doesn't have an explicit context.
+    
+    Change-Id: I4c107440a93f60bc0de07df2b7efeb1a4a766da0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460537
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/tls/cipher_suites.go |  9 ++++-----
- src/crypto/tls/tls_test.go      | 21 +++++++++++++--------
- 2 files changed, 17 insertions(+), 13 deletions(-)
+ src/crypto/x509/x509.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

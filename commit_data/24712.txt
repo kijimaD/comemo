@@ -1,35 +1,18 @@
-commit 3a765430c18f993e291de14cc8d7803d95493fb8
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 2 16:45:07 2015 -0500
+commit 4282588694de58b86df17af7366a5f00903af24b
+Author: David Chase <drchase@google.com>
+Date:   Thu Aug 20 15:14:20 2015 -0400
 
-    cmd/compile: add go:nowritebarrierrec annotation
+    [dev.ssa] cmd/compile: add [u]int and FP to FP conversions
     
-    This introduces a recursive variant of the go:nowritebarrier
-    annotation that prohibits write barriers not only in the annotated
-    function, but in all functions it calls, recursively. The error
-    message gives the shortest call stack from the annotated function to
-    the function containing the prohibited write barrier, including the
-    names of the functions and the line numbers of the calls.
-    
-    To demonstrate the annotation, we apply it to gcmarkwb_m, the write
-    barrier itself.
-    
-    This is a new annotation rather than a modification of the existing
-    go:nowritebarrier annotation because, for better or worse, there are
-    many go:nowritebarrier functions that do call functions with write
-    barriers. In most of these cases this is benign because the annotation
-    was conservative, but it prohibits simply coopting the existing
-    annotation.
-    
-    Change-Id: I225ca483c8f699e8436373ed96349e80ca2c2479
-    Reviewed-on: https://go-review.googlesource.com/16554
+    Change-Id: I8c17f706a3e0f1fa2d754bfb4ccd1f7a027cb3db
+    Reviewed-on: https://go-review.googlesource.com/13744
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go   |  18 ++++--
- src/cmd/compile/internal/gc/dcl.go    | 113 ++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/go.go     |  13 ++--
- src/cmd/compile/internal/gc/lex.go    |  13 ++++
- src/cmd/compile/internal/gc/syntax.go |  19 +++---
- src/cmd/compile/internal/gc/y.go      |   2 +
- src/runtime/mbarrier.go               |   2 +-
- 7 files changed, 161 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 195 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 140 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  13 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  18 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  11 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 180 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 160 ++++++++++++++++++++
+ 7 files changed, 708 insertions(+), 9 deletions(-)

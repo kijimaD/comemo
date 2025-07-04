@@ -1,12 +1,16 @@
-commit 6f97ef28af33fb8c9a2ce19ae74f04cfbead7e7c
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Jan 13 13:24:59 2014 +0100
+commit 3233a12f614723317f5d2e127b87b69aa236cd58
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 13 11:24:56 2014 +1100
 
-    os: disable TestReaddirStatFailures on Plan 9
+    syscall: remove getsockname workaround for openbsd
     
-    R=rsc, dave, aram, jeremyjackins, lucio.dere
-    CC=golang-codereviews, jas
-    https://golang.org/cl/50980043
+    Remove the getsockname workaround for unix domain sockets on OpenBSD.
+    This was fixed in OpenBSD 5.2 and we now have a minimum requirement
+    for OpenBSD 5.4-current.
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/50960043
 
- src/pkg/os/os_test.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/syscall/syscall_bsd.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

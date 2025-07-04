@@ -1,36 +1,27 @@
-commit 6b37b15d9520f9fa2b819e66a37fac4b2d08da78
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Nov 17 11:55:53 2020 -0500
+commit d65e1b2e41deb810565c94555d791e7384618da0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 30 20:43:59 2020 -0400
 
-    runtime: don't take allglock in tracebackothers
+    crypto/x509: ignore Common Name by default
     
-    tracebackothers is called from fatal throw/panic.
+    Common Name has been deprecated for 20 years, and has horrible
+    interactions with Name Constraints. The browsers managed to drop it last
+    year, let's try flicking the switch to disabled by default.
     
-    A fatal throw may be taken with allglock held (notably in the allocator
-    when allglock is held), which would cause a deadlock in tracebackothers
-    when we try to take allglock again. Locking allglock here is also often
-    a lock order violation w.r.t. the locks held when throw was called.
+    Return helpful errors for things that would get unbroken by flipping the
+    switch back with the environment variable.
     
-    Avoid the deadlock and ordering issues by skipping locking altogether.
-    It is OK to miss concurrently created Gs (which are generally avoided by
-    freezetheworld(), and which were possible previously anyways if created
-    after the loop).
+    Had to refresh a test certificate that was too old to have SANs.
     
-    Fatal throw/panic freezetheworld(), which should freeze other threads
-    that may be racing to modify allgs. However, freezetheworld() does _not_
-    guarantee that it stops all other threads, so we can't simply drop the
-    lock.
+    Updates #24151
     
-    Fixes #42669
-    Updates #43175
-    
-    Change-Id: I657aec46ed35fd5d1b3f1ba25b500128ab26b088
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270861
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: I2ab78577fd936ba67969d3417284dbe46e4ae02f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231379
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/mgcmark.go   |  1 -
- src/runtime/proc.go      | 43 +++++++++++++++++++++++++++++++++++++++----
- src/runtime/runtime2.go  |  1 -
- src/runtime/traceback.go | 27 +++++++++++++++++----------
- 4 files changed, 56 insertions(+), 16 deletions(-)
+ src/crypto/x509/verify.go      | 32 ++++++++------
+ src/crypto/x509/verify_test.go |  4 +-
+ src/crypto/x509/x509_test.go   | 96 +++++++++++++++++++++---------------------
+ 3 files changed, 70 insertions(+), 62 deletions(-)

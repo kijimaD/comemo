@@ -1,19 +1,15 @@
-commit 666fc173c02ff3004ac9ef867aa4eec7e243dde3
-Author: Neil Alexander <neilalexander@users.noreply.github.com>
-Date:   Tue Nov 9 22:35:50 2021 +0000
+commit dc1556eaef871074895ed9fdf6028475d53235be
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 11 15:00:50 2021 -0500
 
-    doc/go1.18: document http.Transport.Dial* being used in js/wasm
+    cmd/compile: update some comments
     
-    This PR adds a note into the Go 1.18 changelog for CL 330852.
+    Update some symbol references after refactoring.
     
-    Updates #46923.
-    
-    Change-Id: I99150e9275ce23fcf3697d6a22ac216818223c74
-    GitHub-Last-Rev: b2772ce68bcd02af672c663760b635eab292afb7
-    GitHub-Pull-Request: golang/go#49258
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360297
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I134eec453b69efae97eb8a13e52ff8c14d38442a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301790
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

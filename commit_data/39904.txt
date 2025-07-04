@@ -1,22 +1,36 @@
-commit 75da700d0ae307ebfd4a3493b53e8f361c16f481
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Sep 14 01:29:19 2019 +0700
+commit d8f60eea64a568b272222960eb253bfc08cfbac2
+Author: David Chase <drchase@google.com>
+Date:   Wed Sep 19 16:20:35 2018 -0400
 
-    cmd/compile: consistently use strlit to access constants string values
+    cmd/compile: enhance induction variable detection for unrolled loops
     
-    Passes toolstash-check.
+    Would suggest extending capabilities (32-bit, unsigned, etc)
+    in separate CLs because prove bugs are so mystifying.
     
-    Change-Id: Ieaef20b7649787727b69469f93ffc942022bc079
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195198
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This implements the suggestion in this comment
+    https://go-review.googlesource.com/c/go/+/104041/10/src/cmd/compile/internal/ssa/loopbce.go#164
+    for inferring properly bounded iteration for loops of the form
+    
+    for i := K0; i < KNN-(K-1); i += K
+    for i := K0; i <= KNN-K;    i += K
+    
+    Where KNN is "known non negative" (i.e., len or cap) and K
+    is also not negative.  Because i <= KNN-K, i+K <= KNN and
+    no overflow occurs.
+    
+    Also handles decreasing case (K1 > 0)
+    for i := KNN; i >= K0; i -= K1
+    which works when MININT+K1 < K0
+    (i.e. MININT < K0-K1, no overflow)
+    
+    Signed only, also only 64 bit for now.
+    
+    Change-Id: I5da6015aba2f781ec76c4ad59c9c48d952325fdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/136375
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/cmd/compile/internal/gc/const.go     |  4 ++--
- src/cmd/compile/internal/gc/noder.go     |  6 +++---
- src/cmd/compile/internal/gc/order.go     |  2 +-
- src/cmd/compile/internal/gc/sinit.go     |  2 +-
- src/cmd/compile/internal/gc/ssa.go       |  2 +-
- src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
- src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
- 7 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/ssa/loopbce.go |  98 ++++++++++++++++++++++++--
+ test/prove.go                           | 117 ++++++++++++++++++++++++++++++++
+ 2 files changed, 211 insertions(+), 4 deletions(-)

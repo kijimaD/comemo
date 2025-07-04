@@ -1,18 +1,13 @@
-commit 8bb47a5eecf57b88c1b9cc088a21ae869c6a6764
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 25 14:07:10 2019 -0400
+commit afd79150d99abe06bd56870f146842f77f279d6d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 13 12:02:43 2019 +0200
 
-    net/http: skip failing test on windows-amd64-longtest builder
+    os: fix typo in Chmod godoc
     
-    bradfitz is actively thinking about a proper fix.
-    In the meantime, skip the test to suss out any other failures in the builder.
-    
-    Updates #35122
-    
-    Change-Id: I9bf0640222e3d385c1a3e2be5ab52b80d3e8c21a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203500
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3e5c20d2ffbbe604e6c8b21e2afa50dd6c9f2b7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176626
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

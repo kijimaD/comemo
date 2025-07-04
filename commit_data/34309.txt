@@ -1,23 +1,17 @@
-commit e9db7b9dd147d787883813a772b7cd5700b87114
-Author: Austin Clements <austin@google.com>
-Date:   Fri Feb 16 17:53:16 2018 -0500
+commit b79e99bfb4bcc7694401cd94a1bb14faee8af048
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 11:58:21 2017 -0700
 
-    runtime: abstract indexing of arena index
+    runtime: remove commented out code from ARM Linux boot
     
-    Accessing the arena index is about to get slightly more complicated.
-    Abstract this away into a set of functions for going back and forth
-    between addresses and arena slice indexes.
+    The code was commented out by https://golang.org/cl/13234050 in 2013.
+    Let's just remove it.
     
-    For #23862.
-    
-    Change-Id: I0b20e74ef47a07b78ed0cf0a6128afe6f6e40f4b
-    Reviewed-on: https://go-review.googlesource.com/95496
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I46ae1f07386719e991458e782d236214c40bdce1
+    Reviewed-on: https://go-review.googlesource.com/70770
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/heapdump.go |  4 ++--
- src/runtime/malloc.go   | 29 ++++++++++++++++++++++-------
- src/runtime/mbitmap.go  |  4 ++--
- src/runtime/mheap.go    | 36 ++++++++++++++++++++++++++++++------
- 4 files changed, 56 insertions(+), 17 deletions(-)
+ src/runtime/rt0_linux_arm.s | 60 ++-------------------------------------------
+ 1 file changed, 2 insertions(+), 58 deletions(-)

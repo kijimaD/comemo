@@ -1,11 +1,16 @@
-commit a883f117a9dda5f218bb08dc1c4e181ab1679e11
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 17 08:39:18 2014 -0700
+commit 815a843b6aff1a1db558514811bed4c78adce522
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 20:37:28 2014 -0400
 
-    doc/go1.4.txt: reduced stack size
+    runtime: enable StackCopyAlways
     
+    It worked at CL 134660043 on the builders,
+    so I believe it will stick this time.
+    
+    LGTM=bradfitz
+    R=khr, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/144050043
+    https://golang.org/cl/141280043
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

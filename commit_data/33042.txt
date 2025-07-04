@@ -1,36 +1,14 @@
-commit 4e8be99590d54cc9ea949d9eadc560a1c2456539
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 9 21:07:32 2017 -0400
+commit 7e067c4c78e057d1b034e40d7edee4efe3a4ee28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 28 12:14:49 2017 -0700
 
-    cmd/go: clean up compile vs link vs shared library actions
+    doc: mention gccgo status in 1.9 release notes
     
-    Everything got a bit tangled together in b.action1.
-    Try to tease things apart again.
+    Updates #20587
     
-    In general this is a refactoring of the existing code, with limited
-    changes to the effect of the code.
-    
-    The main additional change is to complete a.Deps for link actions.
-    That list now directly contains all the inputs the linker will attempt
-    to read, eliminating the need for a transitive traversal of the entire
-    action graph to find those. The comepleteness of a.Deps will be
-    important when we eventually use it to decide whether an cached
-    action output can be reused.
-    
-    all.bash passes, but it's possible I've broken some subtety of
-    buildmode=shared again. Certainly that code took the longest
-    to get working.
-    
-    Change-Id: I34e849eda446dca45a9cfce02b07bec6edb6d0d4
-    Reviewed-on: https://go-review.googlesource.com/69831
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: If35868345d9697d4afa2e9c19b85e01d94c87908
+    Reviewed-on: https://go-review.googlesource.com/47034
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go |   2 +
- misc/cgo/testshared/shared_test.go     |  18 +-
- src/cmd/go/internal/load/pkg.go        |   6 +-
- src/cmd/go/internal/run/run.go         |   2 +-
- src/cmd/go/internal/test/test.go       |   6 +-
- src/cmd/go/internal/work/build.go      | 754 +++++++++++++++++++--------------
- 6 files changed, 460 insertions(+), 328 deletions(-)
+ doc/go1.9.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

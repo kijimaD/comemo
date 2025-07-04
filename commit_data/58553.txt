@@ -1,19 +1,102 @@
-commit 4f48ad5c6b2775ab295ea0062b93527cbf4ea9d0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jan 29 03:18:01 2025 +0100
+commit f664031bc17629080332a1c7bede38d67fd32e47
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Feb 28 16:39:15 2023 +0800
 
-    cmd/link/internal/loader: fix linknames from FIPS 140 frozen tree
+    net,os: arrange zero-copy of os.File and net.TCPConn to net.UnixConn
     
-    blockedLinknames was updated in CL 635676 after the lib/fips140 zip
-    mechanism was last tested. linknames from crypto/internal/fips140/v1.0.0
-    need to be allowed if they'd be allowed from crypto/internal/fips140.
+    Fixes #58808
     
-    Change-Id: I6a6a4656022118d4739ae14831f2ad721951c192
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645195
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    goos: linux
+    goarch: amd64
+    pkg: net
+    cpu: DO-Premium-Intel
+                                 │      old      │                 new                  │
+                                 │    sec/op     │    sec/op     vs base                │
+    Splice/tcp-to-unix/1024-4       3.783µ ± 10%   3.201µ ±  7%  -15.40% (p=0.001 n=10)
+    Splice/tcp-to-unix/2048-4       3.967µ ± 13%   3.818µ ± 16%        ~ (p=0.971 n=10)
+    Splice/tcp-to-unix/4096-4       4.988µ ± 16%   4.590µ ± 11%        ~ (p=0.089 n=10)
+    Splice/tcp-to-unix/8192-4       6.981µ ± 13%   5.236µ ±  9%  -25.00% (p=0.000 n=10)
+    Splice/tcp-to-unix/16384-4     10.192µ ±  9%   7.350µ ±  7%  -27.89% (p=0.000 n=10)
+    Splice/tcp-to-unix/32768-4      19.65µ ± 13%   10.28µ ± 16%  -47.69% (p=0.000 n=10)
+    Splice/tcp-to-unix/65536-4      41.89µ ± 18%   15.70µ ± 13%  -62.52% (p=0.000 n=10)
+    Splice/tcp-to-unix/131072-4     90.05µ ± 11%   29.55µ ± 10%  -67.18% (p=0.000 n=10)
+    Splice/tcp-to-unix/262144-4    170.24µ ± 15%   52.66µ ±  4%  -69.06% (p=0.000 n=10)
+    Splice/tcp-to-unix/524288-4     326.4µ ± 13%   109.3µ ± 11%  -66.52% (p=0.000 n=10)
+    Splice/tcp-to-unix/1048576-4    651.4µ ±  9%   228.3µ ± 14%  -64.95% (p=0.000 n=10)
+    geomean                         29.42µ         15.62µ        -46.90%
+    
+                                 │      old      │                  new                   │
+                                 │      B/s      │      B/s       vs base                 │
+    Splice/tcp-to-unix/1024-4      258.2Mi ± 11%   305.2Mi ±  8%   +18.21% (p=0.001 n=10)
+    Splice/tcp-to-unix/2048-4      492.5Mi ± 15%   511.7Mi ± 13%         ~ (p=0.971 n=10)
+    Splice/tcp-to-unix/4096-4      783.5Mi ± 14%   851.2Mi ± 12%         ~ (p=0.089 n=10)
+    Splice/tcp-to-unix/8192-4      1.093Gi ± 11%   1.458Gi ±  8%   +33.36% (p=0.000 n=10)
+    Splice/tcp-to-unix/16384-4     1.497Gi ±  9%   2.076Gi ±  7%   +38.67% (p=0.000 n=10)
+    Splice/tcp-to-unix/32768-4     1.553Gi ± 11%   2.969Gi ± 14%   +91.17% (p=0.000 n=10)
+    Splice/tcp-to-unix/65536-4     1.458Gi ± 23%   3.888Gi ± 11%  +166.69% (p=0.000 n=10)
+    Splice/tcp-to-unix/131072-4    1.356Gi ± 10%   4.131Gi ±  9%  +204.72% (p=0.000 n=10)
+    Splice/tcp-to-unix/262144-4    1.434Gi ± 13%   4.637Gi ±  4%  +223.32% (p=0.000 n=10)
+    Splice/tcp-to-unix/524288-4    1.497Gi ± 15%   4.468Gi ± 10%  +198.47% (p=0.000 n=10)
+    Splice/tcp-to-unix/1048576-4   1.501Gi ± 10%   4.277Gi ± 16%  +184.88% (p=0.000 n=10)
+    geomean                        1.038Gi         1.954Gi         +88.28%
+    
+                                 │      old      │                   new                   │
+                                 │     B/op      │    B/op     vs base                     │
+    Splice/tcp-to-unix/1024-4      0.000 ±  0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/2048-4      0.000 ±  0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/4096-4      0.000 ±  0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/8192-4      0.000 ±  0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/16384-4     0.000 ±  0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/32768-4     0.000 ±  0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/65536-4     1.000 ±   ?     0.000 ± 0%  -100.00% (p=0.001 n=10)
+    Splice/tcp-to-unix/131072-4    2.000 ±  0%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    Splice/tcp-to-unix/262144-4    4.000 ± 25%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    Splice/tcp-to-unix/524288-4    7.500 ± 33%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+    Splice/tcp-to-unix/1048576-4   17.00 ± 12%      0.00 ± 0%  -100.00% (p=0.000 n=10)
+    geomean                                    ²               ?                       ² ³
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    ³ ratios must be >0 to compute geomean
+    
+                                 │     old      │                 new                 │
+                                 │  allocs/op   │ allocs/op   vs base                 │
+    Splice/tcp-to-unix/1024-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/2048-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/4096-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/8192-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/16384-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/32768-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/65536-4     0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/131072-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/262144-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/524288-4    0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Splice/tcp-to-unix/1048576-4   0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                                   ²               +0.00%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+    Change-Id: I829061b009a0929a8ef1a15c183793c0b9104dde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472475
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/link/internal/loader/loader.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ api/next/58808.txt                               |   2 +
+ src/internal/poll/fd.go                          |  11 ++
+ src/net/http/transfer_test.go                    |   6 +
+ src/net/net.go                                   |  46 +++++-
+ src/net/rawconn.go                               |  11 ++
+ src/net/sendfile_linux_test.go                   |  24 +++-
+ src/net/splice_linux.go                          |  40 ++++--
+ src/net/splice_stub.go                           |   6 +-
+ src/net/splice_test.go                           |  21 ++-
+ src/net/tcpsock.go                               |  12 ++
+ src/net/tcpsock_plan9.go                         |   4 +
+ src/net/tcpsock_posix.go                         |   9 +-
+ src/os/export_linux_test.go                      |   7 +-
+ src/os/file.go                                   |  50 ++++++-
+ src/os/readfrom_linux_test.go                    |  17 ++-
+ src/os/writeto_linux_test.go                     | 171 +++++++++++++++++++++++
+ src/os/{readfrom_linux.go => zero_copy_linux.go} |  87 +++++++++---
+ src/os/{readfrom_stub.go => zero_copy_stub.go}   |   4 +
+ 18 files changed, 461 insertions(+), 67 deletions(-)

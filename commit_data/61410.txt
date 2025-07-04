@@ -1,0 +1,33 @@
+commit eb29beb0ad83353097786cda793af8dea0b05b27
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Tue Oct 29 07:33:44 2024 +0100
+
+    cmd/objdump: add s390x plan9 disasm support
+    
+    This CL provides vendor support for s390x disassembler plan9 syntax.
+    
+    cd $GOROOT/src/cmd
+    go get golang.org/x/arch@master
+    go mod tidy
+    go mod vendor
+    
+    For #15255
+    
+    Change-Id: I20c87510a1aee2d1cf2df58feb535974c4c0e3ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623075
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ src/cmd/internal/objfile/disasm.go                 |    4 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/decode.go     |   50 +-
+ .../golang.org/x/arch/s390x/s390xasm/field.go      |   51 -
+ .../vendor/golang.org/x/arch/s390x/s390xasm/gnu.go |   28 +-
+ .../golang.org/x/arch/s390x/s390xasm/inst.go       |   62 +-
+ .../golang.org/x/arch/s390x/s390xasm/plan9.go      | 1282 ++++++++++++++++++++
+ .../golang.org/x/arch/s390x/s390xasm/tables.go     |   75 +-
+ src/cmd/vendor/modules.txt                         |    2 +-
+ 10 files changed, 1437 insertions(+), 123 deletions(-)

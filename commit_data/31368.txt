@@ -1,26 +1,27 @@
-commit 8a4087aee64e7f0f73c9e286e159ab9bc5f564bf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Apr 26 09:27:15 2017 +0200
+commit 7ffdb757758c086556e5eba277202d9d8940c2bd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 14 01:00:49 2017 -0500
 
-    net: fix close on closed listener on Plan 9
+    expvar: add benchmarks for steady-state Map Add calls
     
-    Since close errors have been cleaned up in CL 39997,
-    TestCloseError is failing on Plan 9, because
-    TCPListener.Close didn't check that the listener
-    has already been closed before writing the "hangup"
-    string to the listener control file.
+    Add a benchmark for setting a String value, which we may
+    want to treat differently from Int or Float due to the need to support
+    Add methods for the latter.
     
-    This change fixes TCPListener.Close on Plan 9,
-    by closing poll.FD before writing the "hangup"
-    string.
+    Update tests to use only the exported API instead of making (fragile)
+    assumptions about unexported fields.
     
-    Fixes #20128.
+    The existing Map benchmarks construct a new Map for each iteration, which
+    focuses the benchmark results on the initial allocation costs for the
+    Map and its entries. This change adds variants of the benchmarks which
+    use a long-lived map in order to measure steady-state performance for
+    Map updates on existing keys.
     
-    Change-Id: I13862b23a9055dd1be658acef7066707d98c591f
-    Reviewed-on: https://go-review.googlesource.com/41850
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #18177
+    
+    Change-Id: I62c920991d17d5898c592446af382cd5c04c528a
+    Reviewed-on: https://go-review.googlesource.com/36959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/tcpsock_plan9.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/expvar/expvar_test.go | 79 +++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 59 insertions(+), 20 deletions(-)

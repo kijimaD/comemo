@@ -1,13 +1,14 @@
-commit 48ca3f288c112130d6ab4afabdb375f970652874
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 27 16:13:29 2012 -0700
+commit 9c8ae6ca34640eb835eda8afc268815c6fbde039
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 27 22:21:33 2012 +1000
 
-    flag: fix bug in handling of booleans on error
-    Fixes #3869.
+    os: move epipecheck from file_posix.go and into file_unix.go to fix windows build
     
-    R=golang-dev, dsymonds
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6448072
+    https://golang.org/cl/6450058
 
- src/pkg/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/file_posix.go   | 11 -----------
+ src/pkg/os/file_unix.go    | 11 +++++++++++
+ src/pkg/os/file_windows.go |  3 +++
+ 3 files changed, 14 insertions(+), 11 deletions(-)

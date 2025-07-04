@@ -1,15 +1,37 @@
-commit e50e4f7ec1c25017dc8e906c752375e43a8a38a3
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Jun 12 06:56:50 2013 +0800
+commit 6120ef079948340d6819b8f9a9d526ad4292e26e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 11 16:49:24 2013 -0400
 
-    cmd/ld: supply -s to gcc if -s is passed.
-    Fixes #5463.
+    runtime: rename _rt0_$GOARCH to _rt0_go
     
-    R=golang-dev, iant
+    There's no reason to use a different name on each architecture,
+    and doing so makes it impossible for portable code to refer to
+    the original Go runtime entry point. Rename it _rt0_go everywhere.
+    
+    This is a global search and replace only.
+    
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9239045
+    https://golang.org/cl/10196043
 
- src/cmd/ld/elf.c | 1 +
- src/cmd/ld/lib.c | 5 ++++-
- src/cmd/ld/lib.h | 1 +
- 3 files changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/runtime/asm_386.s           | 2 +-
+ src/pkg/runtime/asm_amd64.s         | 2 +-
+ src/pkg/runtime/asm_arm.s           | 2 +-
+ src/pkg/runtime/rt0_darwin_386.s    | 2 +-
+ src/pkg/runtime/rt0_darwin_amd64.s  | 2 +-
+ src/pkg/runtime/rt0_freebsd_386.s   | 2 +-
+ src/pkg/runtime/rt0_freebsd_amd64.s | 2 +-
+ src/pkg/runtime/rt0_freebsd_arm.s   | 2 +-
+ src/pkg/runtime/rt0_linux_386.s     | 2 +-
+ src/pkg/runtime/rt0_linux_amd64.s   | 2 +-
+ src/pkg/runtime/rt0_linux_arm.s     | 2 +-
+ src/pkg/runtime/rt0_netbsd_386.s    | 2 +-
+ src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
+ src/pkg/runtime/rt0_netbsd_arm.s    | 2 +-
+ src/pkg/runtime/rt0_openbsd_386.s   | 2 +-
+ src/pkg/runtime/rt0_openbsd_amd64.s | 2 +-
+ src/pkg/runtime/rt0_plan9_386.s     | 2 +-
+ src/pkg/runtime/rt0_plan9_amd64.s   | 2 +-
+ src/pkg/runtime/rt0_windows_386.s   | 2 +-
+ src/pkg/runtime/rt0_windows_amd64.s | 2 +-
+ 20 files changed, 20 insertions(+), 20 deletions(-)

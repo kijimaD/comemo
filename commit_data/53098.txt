@@ -1,49 +1,38 @@
-commit 75add1ce0e4424f2a72cd40835bafeafd80641d1
-Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
-Date:   Mon May 15 14:06:02 2023 +0800
+commit 123a6328b7bd31ed6725d9412913fed6a4436aad
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 11 15:34:26 2022 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on MIPS64x
+    internal/trace: don't report regions on system goroutines
     
-    This CL intrinsify atomic{And,Or} on mips64x, which already implemented on mipsx.
+    If a goroutine is started within a user region, internal/trace assigns
+    the child goroutine a nameless region for its entire lifetime which is
+    assosciated the same task as the parent's region.
     
-    goos: linux
-    goarch: mips64le
-    pkg: runtime/internal/atomic
-                    _  oldatomic  _             newatomic              _
-                    _   sec/op    _   sec/op     vs base               _
-    AtomicLoad64-4    27.96n _ 0%   28.02n _ 0%   +0.20% (p=0.026 n=8)
-    AtomicStore64-4   29.14n _ 0%   29.21n _ 0%   +0.22% (p=0.004 n=8)
-    AtomicLoad-4      27.96n _ 0%   28.02n _ 0%        ~ (p=0.220 n=8)
-    AtomicStore-4     29.15n _ 0%   29.21n _ 0%   +0.19% (p=0.002 n=8)
-    And8-4            53.09n _ 0%   41.71n _ 0%  -21.44% (p=0.000 n=8)
-    And-4             49.87n _ 0%   39.93n _ 0%  -19.93% (p=0.000 n=8)
-    And8Parallel-4    70.45n _ 0%   68.58n _ 0%   -2.65% (p=0.000 n=8)
-    AndParallel-4     70.40n _ 0%   67.95n _ 0%   -3.47% (p=0.000 n=8)
-    Or8-4             52.09n _ 0%   41.11n _ 0%  -21.08% (p=0.000 n=8)
-    Or-4              49.80n _ 0%   39.87n _ 0%  -19.93% (p=0.000 n=8)
-    Or8Parallel-4     70.43n _ 0%   68.25n _ 0%   -3.08% (p=0.000 n=8)
-    OrParallel-4      70.42n _ 0%   67.94n _ 0%   -3.51% (p=0.000 n=8)
-    Xadd-4            67.83n _ 0%   67.92n _ 0%   +0.13% (p=0.003 n=8)
-    Xadd64-4          67.85n _ 0%   67.92n _ 0%   +0.09% (p=0.021 n=8)
-    Cas-4             81.34n _ 0%   81.37n _ 0%        ~ (p=0.859 n=8)
-    Cas64-4           81.43n _ 0%   81.53n _ 0%   +0.13% (p=0.001 n=8)
-    Xchg-4            67.15n _ 0%   67.18n _ 0%        ~ (p=0.367 n=8)
-    Xchg64-4          67.16n _ 0%   67.21n _ 0%   +0.08% (p=0.008 n=8)
-    geomean           54.04n        51.01n        -5.61%
+    This is not strictly necessary: a child goroutine is not necessarily
+    related to the task unless it performs some task operation (in which
+    case it will be associated with the task through the standard means).
     
-    Change-Id: I9a4353f4b14134f1e9cf0dcf99db3feb951328ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494875
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Junxian Zhu <zhujunxian@oss.cipunited.com>
+    However, it can be quite handy to see child goroutines within a region,
+    which may be child worker goroutines that you simply didn't perform task
+    operations on.
+    
+    If the first GC occurs during a region, the GC worker goroutines will
+    also inherit a child region. We know for sure that these aren't related
+    to the task, so filter them out from the region list.
+    
+    Note that we can't exclude system goroutines from setting activeRegions
+    in EvGoCreate handling, because we don't know the goroutine start
+    function name until the first EvGoStart.
+    
+    Fixes #53784.
+    
+    Change-Id: Ic83d84e23858a8400a76d1ae2f1418ef49951178
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416858
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/mips64/ssa.go         |  37 ++++++
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  40 ++++++
- src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go |  11 ++
- src/cmd/compile/internal/ssa/opGen.go          |  30 +++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 164 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go         |   8 +-
- 6 files changed, 286 insertions(+), 4 deletions(-)
+ src/cmd/trace/trace.go           |  8 +-------
+ src/internal/trace/goroutines.go | 37 ++++++++++++++++++++++++++++---------
+ src/runtime/traceback.go         |  2 +-
+ 3 files changed, 30 insertions(+), 17 deletions(-)

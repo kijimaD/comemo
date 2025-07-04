@@ -1,17 +1,34 @@
-commit 62dc3c3f0dc340ad98f737542523c15ee32d671d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 15 21:14:21 2017 -0500
+commit 9d17e175e07a32f919e122faf617e09f9c9726da
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 24 15:06:26 2017 -0400
 
-    cmd/go: fix swig support and run swig tests during run.bash
+    runtime: capture runtimeInitTime after nanotime is initialized
     
-    (The tests only run when swig is already installed on the local system.)
+    CL 36428 changed the way nanotime works so on Darwin and Windows it
+    now depends on runtime.startNano, which is computed at runtime.init
+    time. Unfortunately, the `runtimeInitTime = nanotime()` initialization
+    happened *before* runtime.init, so on these platforms runtimeInitTime
+    is set incorrectly. The one (and only) consequence of this is that the
+    start time printed in gctrace lines is bogus:
     
-    Change-Id: I172d106a68cfc746a1058f5a4bcf6761bab88912
-    Reviewed-on: https://go-review.googlesource.com/78175
+    gc 1 18446653480.186s 0%: 0.092+0.47+0.038 ms clock, 0.37+0.15/0.81/1.8+0.15 ms cpu, 4->4->1 MB, 5 MB goal, 8 P
+    
+    To fix this, this commit moves the runtimeInitTime initialization to
+    shortly after runtime.init, at which point nanotime is safe to use.
+    
+    This also requires changing the condition in newproc1 that currently
+    uses runtimeInitTime != 0 simply to detect whether or not the main M
+    has started. Since runtimeInitTime could genuinely be 0 now, this
+    introduces a separate flag to newproc1.
+    
+    Fixes #21554.
+    
+    Change-Id: Id874a4b912d3fa3d22f58d01b31ffb3548266d3b
+    Reviewed-on: https://go-review.googlesource.com/58690
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/swig/stdio/file.go          | 15 +++++++++++++++
- misc/swig/stdio/file_test.go     |  6 ++++++
- src/cmd/dist/test.go             | 20 ++++++++++++++++++++
- src/cmd/go/internal/work/exec.go | 39 +++++++++++++++++++--------------------
- 4 files changed, 60 insertions(+), 20 deletions(-)
+ src/runtime/proc.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

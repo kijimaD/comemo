@@ -1,27 +1,23 @@
-commit 1a2435c95f8c68c7d21d172c8a80c6cc96aa9cf5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jan 26 13:46:45 2022 -0800
+commit 9c1b769d5fdd419bbaf416bc51981f0ba2af0831
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 16 17:06:02 2021 -0400
 
-    go/types, cmd/compile: fix composite literal structural typing
+    cmd/go: add a source file in the multiple-paths module in TestScript/mod_tidy_replace
     
-    For a composite literal expression like []T{{f: 1}}, we allow T to be
-    a pointer to struct type, so it's consistent to allow T to also be a
-    type parameter whose structural type is a pointer to struct type.
+    This situation is analogous to CL 309334: the test expects 'go mod
+    tidy' to fail due to a module used for more than one path in the build
+    list, but doesn't actually contain any packages or imports — so no
+    module is necessarily used at all, and the error only occurs if we
+    report it prematurely.
     
-    Fixes #50833.
+    For #36460
     
-    Change-Id: Ib0781ec4a4f327c875ea25b97740ff2c0c86b916
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381075
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5ccecf30f280895eba913a8d62571872b75e710d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312098
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/noder/expr.go             |  2 +-
- src/cmd/compile/internal/noder/writer.go           |  3 +--
- src/cmd/compile/internal/types2/expr.go            |  6 +-----
- .../types2/testdata/fixedbugs/issue50833.go2       | 16 +++++++++++++++
- src/go/types/expr.go                               |  6 +-----
- src/go/types/testdata/fixedbugs/issue50833.go2     | 16 +++++++++++++++
- test/typeparam/issue50833.go                       | 23 ++++++++++++++++++++++
- 7 files changed, 59 insertions(+), 13 deletions(-)
+ src/cmd/go/testdata/script/mod_tidy_replace.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

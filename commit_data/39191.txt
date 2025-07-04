@@ -1,23 +1,18 @@
-commit 703fb665d68ac96ae193891ffae2774c2a3deb4b
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Thu May 16 18:15:39 2019 -0600
+commit bcd3a58d4694fa0bf8aa079875a5d236c9f20ef6
+Author: tkivisik <taavi.kivisik@gmail.com>
+Date:   Fri Jan 18 20:45:41 2019 +0000
 
-    errors: update As example to include else case
+    A+C: add author, rename contributor to a real name
     
-    The current example illustrates using As when the error is able to be
-    interpreted as an os.PathError, but elides the "else" case. This CL adds the
-    small extra else case to make it clear that it's not safe to assume As will
-    return true.
+    Renamed from github user to use my real name in CONTRIBUTORS, added my name
+    to AUTHORS.
     
-    This CL also squash the err instantiation and the err nil check into one line
-    for brevity.
-    
-    Change-Id: I3d3ab483ffb38fb2788d0498b3f03229a87dd7c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177717
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I671638f1525d44bcc2b0a08d0dcff6adb1717510
+    GitHub-Last-Rev: b989e185de9ad2d1207085043fcdc821d851c562
+    GitHub-Pull-Request: golang/go#29823
+    Reviewed-on: https://go-review.googlesource.com/c/158540
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/errors/example_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

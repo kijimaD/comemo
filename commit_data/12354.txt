@@ -1,12 +1,14 @@
-commit bc1e89008d84eab2d661c6add8ef12e1dba32c93
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 5 10:57:58 2012 +1100
+commit d1e726c58325e9c9f40162a436decab40d77656a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 10:34:22 2012 +1100
 
-    misc: update usage message in benchcmp for go tool
+    doc: change menu, tweak front page
     
-    R=golang-dev, r
+    R=golang-dev, kyle, r
     CC=golang-dev
-    https://golang.org/cl/5727052
+    https://golang.org/cl/5729052
 
- misc/benchcmp | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/root.html        | 44 ++++++++++++++++++++++----------------------
+ doc/style.css        | 14 +++++++-------
+ lib/godoc/godoc.html |  9 +++++----
+ 3 files changed, 34 insertions(+), 33 deletions(-)

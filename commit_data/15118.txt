@@ -1,12 +1,12 @@
-commit 873c7d39aa70b1c9174ae18ee97e33891b45e7fa
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 22:41:24 2013 -0500
+commit 0df8c7517ebb93bfbe690748ae5b0a8c39854aaf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 4 14:34:35 2013 +1100
 
-    C: add Alex Bramley (Google CLA)
+    archive/tar: add Copyright notice to example_test.go
     
-    R=golang-dev, bradfitz
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7284047
+    https://golang.org/cl/7278050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/archive/tar/example_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

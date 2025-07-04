@@ -1,25 +1,18 @@
-commit e9c994954facb8967f09413d488e875e33fa96ec
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 18 22:18:27 2019 -0400
+commit 74b3c50eeb5d7c15dbf41524f6fa42d6d29e4cd6
+Author: Jacob Walker <jacobwalker0814@gmail.com>
+Date:   Thu May 2 03:45:08 2019 +0000
 
-    runtime: fix past-the-end write of wasmStack
+    errors: fix comment referencing the Wrapper interface
     
-    On Wasm, at program start, we set the SP to
-    wasmStack+sizeof(wasmStack), and start to write on it. This write
-    is actually past the end of wasmStack. This may scribble to some
-    other variable next to it in the data segment. Or if wasmStack
-    happens to be the last object in the data segment, we'll scribble
-    to unreserved memory and cause the next sysReserve return
-    non-zero memory. Either way, this is bad. Fix this by subtracting
-    16 before writing.
+    The Unwrap function performs a type assertion looking for the Wrapper
+    interface. The method of that interface is called Unwrap but the
+    interface itself is called Wrapper.
     
-    Found while debugging the new page allocator (CL 190622 and the
-    stack) with Michael. We found that on Wasm, the first sysReserve
-    may return memory with the first a few words being non-zero.
-    
-    Change-Id: I2d76dd3fee85bddb2ff6a902b5876dea3f2969a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202086
+    Change-Id: Ie3bf296f93b773d36015bcab2a0e6585d39783c7
+    GitHub-Last-Rev: 32b1a0c2f8bf8f3eaebf6de252571d82313e86e0
+    GitHub-Pull-Request: golang/go#31794
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174917
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/rt0_js_wasm.s | 2 +-
+ src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

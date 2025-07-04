@@ -1,20 +1,18 @@
-commit 126d475a4311c5c34f380a11941dbeeac39145fd
+commit ad17a9c0a9e758a584f3d5992bc75fbde9512122
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 18 21:07:08 2012 -0500
+Date:   Sat Feb 18 21:02:41 2012 -0500
 
-    gc: drop ideal bool
+    time: use Go distribution zoneinfo if system copy not found
     
-    R=golang-dev, ken2
+    Fixes #2964.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5674098
+    https://golang.org/cl/5656101
 
- src/cmd/gc/const.c       | 7 +++----
- src/cmd/gc/export.c      | 2 +-
- src/cmd/gc/fmt.c         | 4 ++--
- src/cmd/gc/go.h          | 1 -
- src/cmd/gc/lex.c         | 5 ++---
- src/cmd/gc/subr.c        | 4 ++--
- test/fixedbugs/bug285.go | 1 -
- test/named.go            | 4 +---
- test/named1.go           | 4 ++--
- 9 files changed, 13 insertions(+), 19 deletions(-)
+ src/pkg/time/zoneinfo.go         |  22 ++++-
+ src/pkg/time/zoneinfo_plan9.go   |  24 ++---
+ src/pkg/time/zoneinfo_read.go    | 203 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/zoneinfo_unix.go    | 199 ++------------------------------------
+ src/pkg/time/zoneinfo_windows.go |   5 +-
+ 5 files changed, 243 insertions(+), 210 deletions(-)

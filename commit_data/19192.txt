@@ -1,18 +1,16 @@
-commit 32dffef0980eb810b97f48eb9dfabb33602a0472
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 16 23:12:06 2014 -0400
+commit 6277cc3df578455c22a0da4deb4213d8db4c9ffe
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Apr 16 22:43:44 2014 -0400
 
-    cmd/gc: fix segfault in isgoconst.
+    compress/gzip: add Reset method to Reader
     
-    Variables declared with 'var' have no sym->def.
-    
-    Fixes #7794.
+    Fixes #6364.
     
     LGTM=rsc
-    R=golang-codereviews, bradfitz, rsc
+    R=golang-codereviews, bradfitz, rsc, gobot
     CC=golang-codereviews
-    https://golang.org/cl/88360043
+    https://golang.org/cl/13512052
 
- src/cmd/gc/const.c          |  2 +-
- test/fixedbugs/issue7794.go | 12 ++++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/pkg/compress/gzip/gunzip.go      | 11 +++++++++++
+ src/pkg/compress/gzip/gunzip_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

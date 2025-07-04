@@ -1,19 +1,16 @@
-commit 3c586d4483b0cf59cd57adec150317c497065845
-Author: Andrew <andybons@golang.org>
-Date:   Mon Jun 25 20:24:37 2018 +0000
+commit da022da900e3c52750894458067136ec799d5c12
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 11 16:50:09 2018 -0500
 
-    cmd/dist: increase timeout scale to 3 for windows
+    cmd/compile: simplify OpSlicemask optimization
     
-    cmd/go can sometimes take up to 400s on windows due
-    to various issues (disk I/O on builders being the
-    latest cause). Increase the timeout scale to account
-    for this.
+    The previous CL introduced isConstDelta. Use it to simplify the
+    OpSlicemask optimization in the prove pass. This passes toolstash
+    -cmp.
     
-    Change-Id: I1fd4964472a70fb0f33cf6ed73298c034b9c1fb0
-    Reviewed-on: https://go-review.googlesource.com/120762
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If2aa762db4cdc0cd1c581a536340530a9831081b
+    Reviewed-on: https://go-review.googlesource.com/87481
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

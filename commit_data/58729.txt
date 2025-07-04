@@ -1,36 +1,26 @@
-commit a7e331e67105f1a8cc0236b7f3b1e6a3570dda27
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 13 08:04:03 2025 -0800
+commit 6e33a6376e5bbbfa34c72c34d61abcc3f5891772
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 27 12:24:59 2023 -0500
 
-    cmd/compile: implement signed loads from read-only memory
+    cmd/go: use local go cache for cover_statements script test
     
-    In addition to unsigned loads which already exist.
+    Use a test-local directory for GOCACHE in "cover_statements" script
+    test, as a workaround for issue 64014.
     
-    This helps code that does switches on strings to constant-fold
-    the switch away when the string being switched on is constant.
+    For the portion of this test that verifies that caching works
+    correctly, the cache should theoretically always behave
+    reliably/deterministically, however if other tests are concurrently
+    accessing the cache while this test is running, it can lead to cache
+    lookup failures, which manifest as a flaky failure. To avoid such
+    flakes, use a separate isolated GOCACHE for this test.
     
-    Fixes #71699
+    For #64014.
     
-    Change-Id: If3051af0f7255d2a573da6f96b153a987a7f159d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649295
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: Ia66798215a75b7c41188ed15920c17b73f40152a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545235
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/_gen/386.rules    |  2 +
- src/cmd/compile/internal/ssa/_gen/AMD64.rules  |  7 +++-
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go  |  2 +-
- src/cmd/compile/internal/ssa/_gen/ARM.rules    |  2 +
- src/cmd/compile/internal/ssa/_gen/ARM64.rules  |  3 ++
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  9 ++--
- src/cmd/compile/internal/ssa/_gen/Wasm.rules   |  3 ++
- src/cmd/compile/internal/ssa/rewrite386.go     | 26 ++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 49 ++++++++++++++++++++--
- src/cmd/compile/internal/ssa/rewriteARM.go     | 28 +++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 39 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 51 +++++++++++++++++++---
- src/cmd/compile/internal/ssa/rewriteWasm.go    | 58 ++++++++++++++++++++++++++
- test/codegen/switch.go                         | 14 +++++++
- 14 files changed, 279 insertions(+), 14 deletions(-)
+ src/cmd/go/testdata/script/cover_statements.txt | 8 ++++++++
+ 1 file changed, 8 insertions(+)

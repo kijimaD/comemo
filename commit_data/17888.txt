@@ -1,10 +1,12 @@
-commit 24be1b2b295a95861047efd9afad401945d34e4d
-Author: dvyukov <dvyukov@google.com>
-Date:   Tue Nov 19 12:55:12 2013 +0400
+commit bad181e2c2e4d7e1bd44899390edc7e8a90086b4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 18 12:47:37 2013 +1100
 
-    13+
+    tag go1.2rc5
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/28150043
 
- test/bench/perf/bench1.go |  11 +++++
- test/bench/perf/bench2.go |   5 +++
- test/bench/perf/driver.go | 103 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 119 insertions(+)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

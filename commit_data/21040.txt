@@ -1,18 +1,18 @@
-commit f3c85c507bf9d42c5bd7e3c22919f3e0b7946bb7
-Author: Rob Pike <r@golang.org>
-Date:   Mon Dec 15 09:52:06 2014 +0900
+commit f6661675729bcd9d2dd0149bbcbfccd3facb22f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 9 18:55:36 2014 -0800
 
-    fmt: fix bug in scanning of hex strings
-    Couldn't handle a hex string terminated by anything
-    other than spaces. Easy to fix.
+    cmd/5g: fix bit mask for div/mod routines clobbering R12
     
-    Fixes #9124.
+    This patch is based only on reading the code.  I have not
+    tried to construct a test case.
     
-    Change-Id: I18f89a0bd99a105c9110e1ede641873bf9daf3af
-    Reviewed-on: https://go-review.googlesource.com/1538
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9077.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/172110043
 
- src/fmt/fmt_test.go  |  2 +-
- src/fmt/scan.go      | 28 +++++++++++++++-----------
- src/fmt/scan_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 73 insertions(+), 13 deletions(-)
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

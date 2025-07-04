@@ -1,28 +1,19 @@
-commit 6d4358705301e06e71b99977b77ae2c0a6b16b86
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 5 14:04:27 2018 -0800
+commit c544e0fbdb7344b2025650aaf70bab3b09d72003
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 20:02:24 2018 +0000
 
-    cmd/cgo: preserve type information across loadDWARF loop
+    strings: select Replacer algorithm and build machine lazily
     
-    CL 122575 and its successors introduced a loop calling loadDWARF,
-    whereas before we only called it once. Pass a single typeConv to each
-    call, rather than creating a new one in loadDWARF itself. Change the
-    maps from dwarf.Type to use string keys rather than dwarf.Type keys,
-    since when the DWARF is reloaded the dwarf.Type pointers will be
-    different. These changes permit typeConv.Type to return a consistent
-    value for a given DWARF type, avoiding spurious type conversion errors
-    due to typedefs loaded after the first loop iteration.
+    Saves 22KB of memory in stdlib packages.
     
-    Fixes #27340
+    Updates #26775
     
-    Change-Id: Ic33467bbfca4c54e95909621b35ba2a58216d96e
-    Reviewed-on: https://go-review.googlesource.com/c/152762
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia19fe7aff61f6e2ddd83cd35969d7ff94526591f
+    Reviewed-on: https://go-review.googlesource.com/127661
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/issue27340.go          | 12 +++++++++++
- misc/cgo/test/issue27340/a.go        | 42 ++++++++++++++++++++++++++++++++++++
- misc/cgo/test/issue9026/issue9026.go |  2 +-
- src/cmd/cgo/gcc.go                   | 35 +++++++++++++++++-------------
- 4 files changed, 75 insertions(+), 16 deletions(-)
+ src/strings/export_test.go |  2 ++
+ src/strings/replace.go     | 28 ++++++++++++++++++++++------
+ 2 files changed, 24 insertions(+), 6 deletions(-)

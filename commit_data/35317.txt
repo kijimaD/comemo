@@ -1,16 +1,10 @@
-commit 5188b4dea0614a15caa729d3c3153e1128e55f80
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Tue May 8 21:00:36 2018 +0800
+commit 74b56022a1f834b3edce5c3eca0570323ac90cd7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 7 16:07:34 2018 +0000
 
-    encoding/binary: returns length of bool slice in intDataSize
+    doc: note that x509 cert parsing rejects some more certs now
     
-    intDataSize should return length of bool slice, so functions
-    Read and Write can use the fast path to process bool slice.
-    
-    Change-Id: I8cd275e3ffea82024850662d86caca64bd91bf70
-    Reviewed-on: https://go-review.googlesource.com/112135
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #23711
 
- src/encoding/binary/binary.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.10.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

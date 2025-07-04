@@ -1,25 +1,20 @@
-commit 2fa45a4fcd57070967f081f3a5c33014c3f29fea
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jun 3 07:50:58 2022 -0400
+commit 446614182202a57b84c2742c8992c552e5fc7d3b
+Author: 180909 <734461790@qq.com>
+Date:   Mon Aug 16 06:07:39 2021 +0000
 
-    cmd/link/internal/loadpe: handle _main reference properly
+    cmd/go: add document -json in testflag
     
-    When building CGO internal linking on windows 386, make sure to avoid
-    rewriting references to "_main" to "main" when reading symbols during
-    host object loading; the main routine defined by the Go runtime is
-    still named "_main" (not "main"). If we don't do this, we wind up with
-    an SXREF symbol named "main", which can then cause the loader to pull
-    an actual "main" symbol out of a host archive, which is undesirable.
+    Fixes #47628
     
-    Updates #35006.
-    
-    Change-Id: I3768e3617b560552f4522e9e72af879c6adf7705
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410124
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2776fbc22d8a73ca7adc2cf7ad85669d57cc7eae
+    GitHub-Last-Rev: 826907b0797cdc25f921117e2ee44fc0dc2d21c3
+    GitHub-Pull-Request: golang/go#47683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341991
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/loadpe/ldpe.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go            | 4 ++++
+ src/cmd/go/internal/test/test.go | 4 ++++
+ 2 files changed, 8 insertions(+)

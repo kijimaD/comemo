@@ -1,35 +1,20 @@
-commit db67824361e5bdaf846c339b224f4ccb349566d1
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Nov 4 15:21:26 2023 +0800
+commit 3eedba50b10ca9086646f12d7917912cff7d4d0a
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 6 17:10:10 2023 -0500
 
-    syscall: add available godoc link
+    cmd/go: extend path shortening to all paths in messages
     
-    Change-Id: I0fcb79f471cdb8b464924d9b04c675f120861f67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539835
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The previous code only shortened the directory name for files
+    in the directory being compiled (and $WORK and runtime/std).
+    
+    This extends the shortening to all file names.
+    
+    Change-Id: I6abef6141d57036d893420b82e01ed0fbb637788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465805
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/syscall/dir_plan9.go       |  8 +++----
- src/syscall/dll_windows.go     | 48 +++++++++++++++++++++---------------------
- src/syscall/exec_plan9.go      |  6 +++---
- src/syscall/exec_unix.go       | 18 ++++++++--------
- src/syscall/flock_aix.go       |  2 +-
- src/syscall/flock_bsd.go       |  2 +-
- src/syscall/flock_linux.go     |  2 +-
- src/syscall/pwd_plan9.go       |  2 +-
- src/syscall/route_bsd.go       |  4 ++--
- src/syscall/sockcmsg_unix.go   |  2 +-
- src/syscall/syscall.go         |  8 +++----
- src/syscall/syscall_js.go      |  4 ++--
- src/syscall/syscall_linux.go   |  4 ++--
- src/syscall/syscall_plan9.go   |  4 ++--
- src/syscall/syscall_solaris.go |  2 +-
- src/syscall/syscall_unix.go    |  6 +++---
- src/syscall/syscall_wasip1.go  |  6 +++---
- src/syscall/syscall_windows.go | 12 +++++------
- src/syscall/timestruct.go      |  4 ++--
- 19 files changed, 72 insertions(+), 72 deletions(-)
+ src/cmd/go/internal/work/exec.go                   | 29 ++++++--
+ .../script/build_shorten_sibling_package.txt       | 81 ++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 5 deletions(-)

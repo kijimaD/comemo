@@ -1,23 +1,24 @@
-commit f9da938614c22c47239d3b78a06700b271fc621d
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Oct 13 11:37:37 2022 -0500
+commit 2bbf383774952c8ddc309a45c024af76b47ea1fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 10:53:48 2021 -0500
 
-    cmd/compile: remove unused ISELB PPC64 ssa opcode
+    net/mail: improve detection of charset errors
     
-    The usage of ISELB has been removed as part of changes
-    made to support Power10 SETBC instructions.
+    The detection of the "unknown charset" case was too tailored
+    to one specific address parser. Make it generalize, so that custom
+    address parsers behave the same way as the default one
+    for character sets they do not handle.
     
-    Change-Id: I2fce4370f48c1eeee65d411dfd1bea4201f45b45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465575
+    Fixes #41625.
+    
+    Change-Id: I347d4bb6844d0a1f23e908b776d21e8be5af3874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283632
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/ppc64/ssa.go         | 23 ++++++++---------------
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  2 --
- src/cmd/compile/internal/ssa/opGen.go         | 15 ---------------
- 3 files changed, 8 insertions(+), 32 deletions(-)
+ src/net/mail/message.go      | 36 ++++++++++++++++++++++++++++++------
+ src/net/mail/message_test.go | 11 +++++++++++
+ 2 files changed, 41 insertions(+), 6 deletions(-)

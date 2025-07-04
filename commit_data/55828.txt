@@ -1,36 +1,24 @@
-commit 821bf37819ec170cadbc9e44a7471f7613611c41
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jan 11 11:31:57 2024 -0800
+commit 23e8f43cb1e865edeab2bad08dc01cceac3ba0b0
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 28 17:36:38 2023 -0500
 
-    net/http, net/http/cookiejar: avoid subdomain matches on IPv6 zones
+    cmd/compile: restore return-in-loop loopvar optimization
     
-    When deciding whether to forward cookies or sensitive headers
-    across a redirect, do not attempt to interpret an IPv6 address
-    as a domain name.
+    but this time, correctly.
+    children of Returns can have For/Range loops in them,
+    and those must be visited.
     
-    Avoids a case where a maliciously-crafted redirect to an
-    IPv6 address with a scoped addressing zone could be
-    misinterpreted as a within-domain redirect. For example,
-    we could interpret "::1%.www.example.com" as a subdomain
-    of "www.example.com".
+    Includes test to verify that the optimization occurs,
+    and also that the problematic case that broke the original
+    optimization is now correctly handled.
     
-    Thanks to Juho Nurminen of Mattermost for reporting this issue.
-    
-    Fixes CVE-2023-45289
-    Fixes #65065
-    
-    Change-Id: I8f463f59f0e700c8a18733d2b264a8bcb3a19599
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2131938
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569340
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If5a94fd51c862d4bfb318fec78456b7b202f3fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472355
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/client.go             |  6 ++++++
- src/net/http/client_test.go        |  1 +
- src/net/http/cookiejar/jar.go      |  7 +++++++
- src/net/http/cookiejar/jar_test.go | 10 ++++++++++
- 4 files changed, 24 insertions(+)
+ src/cmd/compile/internal/loopvar/loopvar.go      | 23 +++++++++++++
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 38 +++++++++++++++++++++
+ src/cmd/compile/internal/loopvar/testdata/opt.go | 42 ++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+)

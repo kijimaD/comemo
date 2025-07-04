@@ -1,21 +1,30 @@
-commit 288615ddb57a79fa78c6f13b829bd8daeeff8fa1
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Nov 27 17:05:56 2023 -0600
+commit 778627f33187d874440ce1f353bb4d7bce55304a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Feb 13 20:49:38 2023 +0100
 
-    cmd/internal/obj/ppc64: generate smaller machine code for OR/XOR of uint32 values
+    crypto/internal/nistec: refactor scalar multiplication
     
-    These binary operations can be done in two sequential instructions instead of loading a
-    constant into REGTMP and doing the binary op.
+    The assumptions of some of the assembly functions were still scarcely
+    documented and even disregarded: p256ScalarMult was relying on the fact
+    that the "undefined behavior" of p256PointAddAsm with regards to
+    infinity inputs was returning the infinity.
     
-    Change-Id: Ie0ab863f9e81afad140b92b265bca4d3f0fe90b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565215
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Aside from expanding comments, moving the bit window massaging into a
+    more easily understood p256OrdRsh function, and fixing the above, this
+    change folds the last iteration of p256ScalarMult into the loop to
+    reduce special cases and inverts the iteration order of p256BaseMult so
+    it matches p256ScalarMult for ease of comparison.
+    
+    Updates #58647
+    
+    Change-Id: Ie5712ea778aadbe5adcdb478d111c2527e83caa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471256
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 10 +++++-----
- src/cmd/internal/obj/ppc64/asm9.go        | 21 +++++++++++++++++++++
- 2 files changed, 26 insertions(+), 5 deletions(-)
+ src/crypto/internal/nistec/nistec_test.go |  30 +++---
+ src/crypto/internal/nistec/p256_asm.go    | 159 +++++++++++++++++++-----------
+ 2 files changed, 112 insertions(+), 77 deletions(-)

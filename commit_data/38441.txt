@@ -1,19 +1,16 @@
-commit 14c3692502be68275a8deb9c19dabbbd510a4f31
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Mar 16 14:05:00 2019 +0100
+commit d1836e629fdfcf8b13e616630ba15d461700a953
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Oct 29 18:11:12 2018 -0500
 
-    cmd/dist: reenable testing of Examples for js/wasm
+    crypto/tls: remove unneeded calls to bytes.NewReader
     
-    Testing Examples for js/wasm is supported as of ac56baa, so we can
-    reenable them.
+    Updates #28269
     
-    This reverts CL 119377 (commit 9a91713).
-    
-    Fixes #25933
-    
-    Change-Id: I0f228a3ec385dbe9573d3c33e42dccd4488d7152
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167800
+    Change-Id: Iae765f85e6ae49f4b581161ed489b2f5ee27cdba
+    Reviewed-on: https://go-review.googlesource.com/c/145737
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/crypto/tls/tls.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

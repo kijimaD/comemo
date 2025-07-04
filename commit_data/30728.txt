@@ -1,23 +1,19 @@
-commit 13ae271d5d007dcd630d9f43d6a43016b9af6e5c
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 7 16:38:29 2017 -0500
+commit a745dc930e00a026aea6449ec0e790152eb4bcd4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 02:04:09 2016 +0000
 
-    runtime: introduce a type for lfstacks
+    doc: add tool sections to go1.8.html
     
-    The lfstack API is still a C-style API: lfstacks all have unhelpful
-    type uint64 and the APIs are package-level functions. Make the code
-    more readable and Go-style by creating an lfstack type with methods
-    for push, pop, and empty.
+    Some still in TODO form.
     
-    Change-Id: I64685fa3be0e82ae2d1a782a452a50974440a827
-    Reviewed-on: https://go-review.googlesource.com/38290
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I63547bed3c6ce34b706821a3c150ae03d7d82cf8
+    Reviewed-on: https://go-review.googlesource.com/33682
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/export_test.go |  4 ++--
- src/runtime/lfstack.go     | 35 +++++++++++++++++++++++------------
- src/runtime/mgc.go         |  6 +++---
- src/runtime/mgcwork.go     | 14 +++++++-------
- 4 files changed, 35 insertions(+), 24 deletions(-)
+ doc/go1.8.html | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.8.txt  | 33 ---------------------------------
+ 2 files changed, 50 insertions(+), 33 deletions(-)

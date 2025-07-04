@@ -1,24 +1,16 @@
-commit 43530e6b25ce542420967efa9d1016fad0336a4f
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Oct 24 09:25:05 2018 -0400
+commit cbce223da02bb198b9984c161c6cd6291a80b3d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 15:00:52 2018 +0000
 
-    cmd/cgo: handle new-style gccgo packagepath mangling
+    net/http: update docs on Transport.DisableKeepAlives
     
-    With https://golang.org/cl/135455, gccgo now uses a different mangling
-    scheme for package paths; add code to use this new scheme for function
-    and variable symbols. Since users sometimes use older versions of
-    gccgo with newer versions of go, perform a test at runtime to see
-    which mangling scheme is in effect for the version of 'gccgo' in the
-    path.
+    Be super explicit that HTTP keep-alives != TCP keep-alives.
     
-    Updates #27534.
+    Fixes #26128
     
-    Change-Id: If7ecab06a72e1361129fe40ca6582070a3e8e737
-    Reviewed-on: https://go-review.googlesource.com/c/144418
+    Change-Id: I77d74a6fe077259d996543f901a58aa3e49c1093
+    Reviewed-on: https://go-review.googlesource.com/121616
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/main.go |   2 +
- src/cmd/cgo/out.go  | 111 +++++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 107 insertions(+), 6 deletions(-)
+ src/net/http/transport.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

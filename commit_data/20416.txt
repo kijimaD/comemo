@@ -1,16 +1,22 @@
-commit 6c59cdcf34634309b2eb4f12ff3d6f14646f6545
+commit 9c721aedd572c00d1a91549dda910ce74fe17d44
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 14 22:20:01 2014 -0400
+Date:   Sat Sep 6 15:27:52 2014 -0400
 
-    runtime: fix solaris build
+    cmd/yacc: move cmd/yacc/expr to cmd/yacc/testdata/expr
     
-    CL 144830043 changed LibCall for Windows.
-    I didn't realize Solaris used it too.
+    This will keep the go command from trying to build it
+    when the cmd/ tree is no longer a special case.
     
-    TBR=iant
+    Also update doc.go to refer to the correct location.
+    (It was incorrect even before this CL.)
+    
+    LGTM=r
+    R=iant, r
     CC=golang-codereviews
-    https://golang.org/cl/142100043
+    https://golang.org/cl/134560043
 
- src/runtime/os_solaris.c       | 12 +++---
- src/runtime/syscall_solaris.go | 88 +++++++++++++++++++++---------------------
- 2 files changed, 50 insertions(+), 50 deletions(-)
+ src/cmd/yacc/doc.go                      | 5 +++--
+ src/cmd/yacc/{ => testdata}/expr/README  | 0
+ src/cmd/yacc/{ => testdata}/expr/expr.y  | 0
+ src/cmd/yacc/{ => testdata}/expr/main.go | 0
+ 4 files changed, 3 insertions(+), 2 deletions(-)

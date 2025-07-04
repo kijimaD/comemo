@@ -1,17 +1,25 @@
-commit e4061120115d1bcdbe17f863e6559ed7b412a73d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 2 10:10:54 2022 -0400
+commit 8dab959a8e3c631e3166eb08ba450bfdbbf56e03
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 14 17:30:42 2021 -0700
 
-    runtime: document implicit fields at the end of _func
+    reflect: rename Mapiter.SetKey to Value.SetIterKey
     
-    Currently these are only implicitly documented by the code that
-    generates and consumes them. Add explicit documentation.
+    Same for Value.
     
-    Change-Id: I25a1294f04dc11785242643bec83370c66ff7a20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427954
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Add a bigger test. Include some shouldPanic checks.
+    
+    Fix a bug in assignment conversion.
+    
+    Fixes #48294
+    
+    Change-Id: Id863ee5122a5787a7b35574b18586fd24d118788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356049
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/runtime2.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/reflect/all_test.go | 90 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/reflect/value.go    | 48 +++++++++++++-------------
+ 2 files changed, 108 insertions(+), 30 deletions(-)

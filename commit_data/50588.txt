@@ -1,22 +1,34 @@
-commit 1e91ffc897efb1ed298753c08f086fbc8f725025
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Sep 26 09:17:23 2022 -0400
+commit 7c9510ef3ec4b1008b599c9c8a0ec9adaba4b663
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 1 22:35:29 2021 +0000
 
-    cmd/go: avoid internal errors on "go test -testwork"
+    syscall: fix finalizer fd close bugs in TestFcntlFlock and TestPassFD
     
-    Fix up the package test harness to avoid errors of the form
+    Currently, the syscall test suite takes very little time to run. It
+    stands to reason that pretty much every time, zero GCs execute.
     
-      go_test.go:NNN: internal testsuite error: path(".") with no tempdir
+    With CL 309869, this changes because the minimum heap size is lowered,
+    triggering two bugs in the test suite.
     
-    when the "-testwork" flag is passed when running "go test".
+    One bug is in TestFcntlFlock, where a raw FD is wrapped in an os.File
+    whose last reference is passed into a Cmd. That FD is then closed by a
+    defer syscall.Close, instead of the os.File's Close, so the finalizer
+    may fire *after* that FD has already been reused by another test.
     
-    Fixes #55874.
+    The second bug is in the child helper process of TestPassFD, where
+    there's a small window in which a temp file's FD is encoded for an
+    out-of-band unix domain socket message to the parent, but not yet sent.
+    The point of encoding is also the last reference that FD's os.File, so a
+    finalizer may run at any time. While it's safe for the finalizer to run
+    after the FD is sent, if it runs before, the send will fail, since unix
+    domain sockets require that any sent FDs are valid.
     
-    Change-Id: I76cc39902f51a62cb4cd0da8794b97d620fb4873
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434455
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2d1bd7e6db6efcc6763273217fd85cb5b9764274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360575
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/syscall/syscall_unix_test.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

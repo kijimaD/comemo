@@ -1,13 +1,89 @@
-commit 8707f31c0abc6b607014e843b7cc188b3019daa9
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Thu Jul 21 14:06:27 2016 -0700
+commit db5338f87982086a19310ad6e25c046280644b98
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 12 17:12:26 2016 -0700
 
-    go1.7rc3
+    cmd/compile: teach CSE that new objects are bespoke
     
-    Change-Id: Iaef13003979c68926c260c415d6074a50ae137b2
-    Reviewed-on: https://go-review.googlesource.com/25142
-    Run-TryBot: Chris Broadfoot <cbro@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    runtime.newobject never returns the same thing twice,
+    so the resulting value will never be a common subexpression.
+    
+    This helps when compiling large static data structures
+    that include pointers, such as maps and slices.
+    No clear performance impact on other code. (See below.)
+    
+    For the code in issue #15112:
+    
+    Before:
+      real  1m14.238s
+      user  1m18.985s
+      sys   0m0.787s
+    
+    After:
+      real  0m47.172s
+      user  0m52.248s
+      sys   0m0.767s
+    
+    For the code in issue #15235, size 10k:
+    
+    Before:
+      real  0m44.916s
+      user  0m46.577s
+      sys   0m0.304s
+    
+    After:
+      real  0m7.703s
+      user  0m9.041s
+      sys   0m0.316s
+    
+    Still more work to be done, particularly for #15112.
+    
+    Updates #15112
+    Updates #15235
+    
+    
+    name       old time/op      new time/op      delta
+    Template        330ms ±11%       333ms ±13%    ~           (p=0.749 n=20+19)
+    Unicode         148ms ± 6%       152ms ± 8%    ~           (p=0.072 n=18+20)
+    GoTypes         1.01s ± 7%       1.01s ± 3%    ~           (p=0.583 n=20+20)
+    Compiler        5.04s ± 2%       5.06s ± 2%    ~           (p=0.314 n=20+20)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   444user-ms ±11%  445user-ms ±10%    ~           (p=0.738 n=20+20)
+    Unicode    215user-ms ± 5%  218user-ms ± 5%    ~           (p=0.239 n=18+18)
+    GoTypes    1.45user-s ± 3%  1.45user-s ± 4%    ~           (p=0.620 n=20+20)
+    Compiler   7.23user-s ± 2%  7.22user-s ± 2%    ~           (p=0.901 n=20+19)
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       55.0MB ± 0%      55.0MB ± 0%    ~           (p=0.547 n=20+20)
+    Unicode        37.6MB ± 0%      37.6MB ± 0%    ~           (p=0.301 n=20+20)
+    GoTypes         177MB ± 0%       177MB ± 0%    ~           (p=0.065 n=20+19)
+    Compiler        798MB ± 0%       797MB ± 0%  -0.05%        (p=0.000 n=19+20)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         492k ± 0%        493k ± 0%  +0.03%        (p=0.030 n=20+20)
+    Unicode          377k ± 0%        377k ± 0%    ~           (p=0.423 n=20+19)
+    GoTypes         1.40M ± 0%       1.40M ± 0%    ~           (p=0.102 n=20+20)
+    Compiler        5.53M ± 0%       5.53M ± 0%    ~           (p=0.094 n=17+18)
+    
+    name       old text-bytes   new text-bytes   delta
+    HelloSize        561k ± 0%        561k ± 0%    ~     (all samples are equal)
+    CmdGoSize       6.13M ± 0%       6.13M ± 0%    ~     (all samples are equal)
+    
+    name       old data-bytes   new data-bytes   delta
+    HelloSize        128k ± 0%        128k ± 0%    ~     (all samples are equal)
+    CmdGoSize        306k ± 0%        306k ± 0%    ~     (all samples are equal)
+    
+    name       old exe-bytes    new exe-bytes    delta
+    HelloSize        905k ± 0%        905k ± 0%    ~     (all samples are equal)
+    CmdGoSize       9.64M ± 0%       9.64M ± 0%    ~     (all samples are equal)
+    
+    Change-Id: Id774e2901d7701a3ec7a1c1d1cf1d9327a4107fc
+    Reviewed-on: https://go-review.googlesource.com/21937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- VERSION | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/subr.go    | 4 ++++
+ src/cmd/compile/internal/ssa/config.go | 6 ++++++
+ src/cmd/compile/internal/ssa/cse.go    | 8 ++++++++
+ 3 files changed, 18 insertions(+)

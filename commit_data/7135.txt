@@ -1,15 +1,13 @@
-commit 661bcb773ba2be6442756bf6d44590a8c4ba4d98
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 18 11:24:49 2011 -0500
+commit 25f762c75b58e32747a9e29813b3bc3dc3d1cee9
+Author: Jos Visser <josv@google.com>
+Date:   Tue Jan 18 11:24:43 2011 -0500
 
-    gc: fix typed constant declarations
+    expvar: add Float
     
-    Fixes #1411.
-    
-    R=rsc, gri, ejsherry
+    R=r, rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4035042
+    https://golang.org/cl/4044041
 
- src/cmd/gc/walk.c        | 10 ++++++++--
- test/fixedbugs/bug318.go | 12 ++++++++++++
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/expvar/expvar.go      | 54 +++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/expvar/expvar_test.go | 42 +++++++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 2 deletions(-)

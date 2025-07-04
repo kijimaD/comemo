@@ -1,12 +1,23 @@
-commit a6ebc88bace75ea1eb978ed2d1267e4ac3e9a99a
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Mon Dec 16 09:43:03 2013 -0800
+commit 62baae6e57ca9271fc9a4269958d474aa398cc00
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Dec 16 12:35:25 2013 +1100
 
-    strings: Add FieldsFunc example.
+    unicode/utf16: add explicit test for decoding invalid runes.
     
-    R=golang-dev, dave
+    The EncodeRune test exercises DecodeRune, but only for runes that it can encode. Add an explicit test for invalid utf16 surrogate pairs.
+    
+    Bonus: coverage is now 100%
+    
+    unicode/utf16/utf16.go: IsSurrogate     100.0%
+    unicode/utf16/utf16.go: DecodeRune      100.0%
+    unicode/utf16/utf16.go: EncodeRune      100.0%
+    unicode/utf16/utf16.go: Encode          100.0%
+    unicode/utf16/utf16.go: Decode          100.0%
+    total:                  (statements)    100.0%
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/42360043
+    https://golang.org/cl/39150044
 
- src/pkg/strings/example_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/unicode/utf16/utf16_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

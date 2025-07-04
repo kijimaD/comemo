@@ -1,12 +1,16 @@
-commit 7e56eeeced897de63f8772cff3154837ef7c4b0c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 30 10:01:49 2014 -0800
+commit 2ceca80e3fd52706c4c6bc3366844471a349d0be
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Nov 15 13:27:05 2014 +1100
 
-    doc: add http server trailers support to go1.5.txt
+    [dev.cc] runtime: fix _sfloat thunk
     
-    Change-Id: Ic15e40bb1ae0bf3a4e8c43a44daf7cc35a18da87
-    Reviewed-on: https://go-review.googlesource.com/2192
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    * _sfloat dispatches to runtime._sfloat2 with the Go calling convention, so the seecond argument is a [15]uint32, not a *[15]uint32.
+    * adjust _sfloat2 to return the new pc in 68(R13) as expected.
+    
+    LGTM=rsc
+    R=minux, austin, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/174160043
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/softfloat_arm.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

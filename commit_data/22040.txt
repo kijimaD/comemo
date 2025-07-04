@@ -1,17 +1,18 @@
-commit f0aef42ea16741d9c1872653343c012f5173373e
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:25:50 2015 +0100
+commit 786825c5e8e4b93bf7c4dbe5e5a80c3fe0cb39ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 17 21:52:42 2015 -0500
 
-    math, math/big: add support for GOARCH=arm64
+    [dev.cc] cmd/gc: tweak default fatal in ordersafeexpr for c2go
     
-    Change-Id: Ief12e1435a40dd2eaddc3f97f63be44c4dd2e050
-    Reviewed-on: https://go-review.googlesource.com/7144
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    c2go was putting a fallthrough after the fatal call.
+    Changed c2go to know that fatal doesn't return,
+    but then there is a missing return at the end of
+    the translated Go function.
+    Move code around a little to make C and Go agree.
+    
+    Change-Id: Icef3d55ccdde0709c02dd0c2b78826f6da33a146
+    Reviewed-on: https://go-review.googlesource.com/5170
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/math/abs_arm64.s       | 11 ++++++
- src/math/big/arith_arm64.s | 44 ++++++++++++++++++++++
- src/math/stubs_arm64.s     | 91 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 146 insertions(+)
+ src/cmd/gc/order.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,18 +1,15 @@
-commit f5f69bba3b0d2563d56eff0935f32d7b252c7df6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 6 09:15:13 2015 -0800
+commit 8cda58c25ebdd46dc29c6aee776e286ed8c31081
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Nov 22 13:37:46 2014 -0500
 
-    cmd/go: buffer output for go usage
+    cmd/go: fix running pprof on windows.
     
-    It did tons of write syscalls before:
-        https://www.youtube.com/watch?v=t60fhjAqBdw
+    Fixes #9149.
     
-    This is the worst offender. It's not worth fixing all the cases of two
-    consecutive prints.
-    
-    Change-Id: I95860ef6a844d89b149528195182b191aad8731b
-    Reviewed-on: https://go-review.googlesource.com/2371
-    Reviewed-by: Rob Pike <r@golang.org>
+    LGTM=alex.brainman, rsc
+    R=rsc, dave, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/176170043
 
- src/cmd/go/main.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/tool.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

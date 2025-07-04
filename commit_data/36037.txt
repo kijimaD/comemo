@@ -1,15 +1,16 @@
-commit 0d93758222353b924edcfd114e9a4c3d23081899
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 18 11:32:40 2018 +1000
+commit b8620afb8d17a2b884f20535ccbc21b192b75b3a
+Author: mewmew <rnd0x00@gmail.com>
+Date:   Thu Mar 29 23:00:01 2018 +0000
 
-    doc/gopher: add model sheet
+    fmt: document the behaviour of %p on slices
     
-    This should have been added to the repo after Renee's Gophercon
-    keynote. I will link to it from the FAQ.
+    Fixes #23291.
     
-    Change-Id: I0e5b88690e288827591d27b99420d3a449f7f662
-    Reviewed-on: https://go-review.googlesource.com/124615
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I9bb3b8246968693871d4800e2cdb2c8390f4b6a6
+    GitHub-Last-Rev: bc3444206764016b730d770a8c71a49c214ae824
+    GitHub-Pull-Request: golang/go#24600
+    Reviewed-on: https://go-review.googlesource.com/103516
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/gopher/modelsheet.jpg | Bin 0 -> 85880 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/fmt/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

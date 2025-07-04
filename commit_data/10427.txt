@@ -1,15 +1,29 @@
-commit 4d27f64863ab8518f4ac9f20539bd20c16e77433
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 16 18:44:21 2011 -0500
+commit 3276afd4d4ae45afee834c7455abbb9be1906540
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 17 10:25:33 2011 +1100
 
-    gofmt: do not stop test.sh after 1 error
+    html: parse </optgroup> and </option>
     
-    Fix bug377.go to be gofmt-compliant.
+    Pass tests2.dat, test 35:
+    <!DOCTYPE html><select><optgroup><option></optgroup><option><select><option>
     
-    R=gri, r, r
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <select>
+    |       <optgroup>
+    |         <option>
+    |       <option>
+    |     <option>
+    
+    Also pass tests through test 41:
+    <!DOCTYPE html><!-- XXX - XXX - XXX -->
+    
+    R=nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/5400045
+    https://golang.org/cl/5395045
 
- src/cmd/gofmt/test.sh    | 9 +++++++--
- test/fixedbugs/bug377.go | 2 +-
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/html/parse.go      | 12 ++++++++++--
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 11 insertions(+), 3 deletions(-)

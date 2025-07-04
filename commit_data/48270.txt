@@ -1,31 +1,25 @@
-commit 29c1355326c372ddb873b7d62d33140deda1681c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jan 25 13:52:47 2022 -0600
+commit af3237eaf9cf46e6a02a3b53447e49c55abd4f00
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Apr 27 14:34:17 2021 -0400
 
-    crypto/sha256: adapt ppc64le asm to work on ppc64
+    [dev.fuzz] internal/fuzz: don't panic if types change
     
-    Workaround the minor endian differences, and avoid needing to
-    stack a frame as extra VSRs can be used in a similar capacity.
+    There was a bug where if the types to fuzz were
+    different from the types in a file in the on-disk
+    corpus, then the code would panic. We thought
+    this case was handled, but the final `continue`
+    in the nested loop still allowed the invalid
+    entry to be added to the corpus. Pulling the
+    validation into a helper function makes this
+    less brittle.
     
-    The microbenchmarks show no significant differences on ppc64le/p9.
-    
-    ppc64/linux performance difference on a POWER9:
-    
-    name        old time/op    new time/op    delta
-    Hash8Bytes     686ns ± 0%     372ns ± 0%   -45.78%
-    Hash1K        9.17µs ± 0%    4.24µs ± 0%   -53.74%
-    Hash8K        67.9µs ± 0%    31.7µs ± 0%   -53.35%
-    
-    Fixes #50785
-    
-    Change-Id: I43d87670127df9767d54d10b5165b84e5b88f5d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380776
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I401346f890ea30ab7cff9640cb555da2e3ff8cc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313810
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/sha256/sha256block_decl.go              |  2 +-
- src/crypto/sha256/sha256block_generic.go           |  2 +-
- ...{sha256block_ppc64le.s => sha256block_ppc64x.s} | 84 +++++++++++-----------
- 3 files changed, 46 insertions(+), 42 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 14 +++++++++++++-
+ src/internal/fuzz/fuzz.go                | 31 +++++++++++++++++++------------
+ 2 files changed, 32 insertions(+), 13 deletions(-)

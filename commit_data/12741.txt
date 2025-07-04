@@ -1,15 +1,12 @@
-commit 4074795e151813f303d5500d255901c6a3a796ef
+commit 73b5eb38c1b15dc9bf8d35c285d0c8019ec33b53
 Author: Rob Pike <r@golang.org>
-Date:   Sun Mar 25 11:34:51 2012 +1100
+Date:   Sat Mar 24 10:14:25 2012 +1100
 
-    effective_go: cleanups and fixes
-    Also explain the situation with recursive String methods more accurately,
-    and clean up the code now that the fmt package is more careful.
+    docs/articles/wiki: minor fixes
     
-    R=golang-dev, minux.ma, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5907047
+    https://golang.org/cl/5900046
 
- doc/effective_go.html     | 52 +++++++++++++++++++++++++++++++++++------------
- doc/progs/eff_bytesize.go | 18 ++++++++--------
- 2 files changed, 48 insertions(+), 22 deletions(-)
+ doc/articles/wiki/wiki.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

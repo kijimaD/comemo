@@ -1,13 +1,25 @@
-commit 4b39d115a0228d9c88b47f2fd86c9d6377ba7273
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Nov 9 10:27:22 2011 +1100
+commit ce4eec2e0acf9ec36c34bd42e81bbb2e32f18b81
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Nov 9 09:43:55 2011 +1100
 
-    weekly.2011-11-08
+    html: treat <image> as <img>
     
-    R=r
+    Pass tests1.dat, test 90:
+    <p><image></p>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |       <img>
+    
+    Also pass test 91:
+    <a><table><a></table><p><a><div><a>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5351049
+    https://golang.org/cl/5339052
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 69 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 3 +++
+ src/pkg/html/parse_test.go | 5 +++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,16 +1,27 @@
-commit d4f48e3ff92d1d9ea05f5d8b91e37a29eba0ac89
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 1 03:25:02 2017 +0000
+commit d349fa25dfe2a86c01620f8b049c5e78e46759f3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 30 14:17:24 2017 -0700
 
-    os: ignore Chtimes test failure on NetBSD if fs mounted noatime
+    cmd/compile: fix and improve struct field reflect information
     
-    Fixes #19293
+    The previous logic was overly complicated, generated suboptimally
+    encoded struct type descriptors, and mishandled embeddings of
+    predeclared universal types.
     
-    Change-Id: I35f2f786e2e3972eda21ba5a948433bfcd621269
-    Reviewed-on: https://go-review.googlesource.com/81355
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #21122.
+    Fixes #21353.
+    Fixes #21696.
+    Fixes #21702.
+    Updates #21357.
+    
+    Change-Id: If34761fa6dbe4af2af59dee501e7f30845320376
+    Reviewed-on: https://go-review.googlesource.com/60410
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/os/os_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go | 50 +++++++------------
+ src/reflect/all_test.go                | 88 ++++++++++++++++++++++++++++++++++
+ src/reflect/type.go                    | 21 ++------
+ src/runtime/type.go                    |  6 +--
+ 4 files changed, 111 insertions(+), 54 deletions(-)

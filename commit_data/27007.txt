@@ -1,26 +1,29 @@
-commit 3c6e60c0e41ed42d5df6dcbf134e3a664c08c154
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 19 12:08:33 2016 -0700
+commit bd68b8abc2e3ceaa3b9bde98568a4a9af8bde40f
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Feb 29 12:06:57 2016 -0300
 
-    cmd/compile: fix isStaticCompositeLiteral
+    net/http: TimeoutHandler should start timer when serving request
     
-    Previously, isStaticCompositeLiteral would
-    return the wrong value for literals like:
+    TimeoutHandler was starting the Timer when the handler was created,
+    instead of when serving a request. It also was sharing it between
+    multiple requests, which is incorrect, as the requests might start
+    at different times.
     
-    [1]struct{ b []byte }{b: []byte{1}}
+    Store the timeout duration and create the Timer when ServeHTTP is
+    called. Different requests will have different timers.
     
-    Note that the outermost component is an array,
-    but once we recurse into isStaticCompositeLiteral,
-    we never check again that arrays are actually arrays.
+    The testing plumbing was simplified to store the channel used to
+    control when timeout happens. It overrides the regular timer.
     
-    Instead of adding more logic to the guts of
-    isStaticCompositeLiteral, allow it to accept
-    any Node and return the correct answer.
+    Fixes #14568.
     
-    Change-Id: I6af7814a9037bbc7043da9a96137fbee067bbe0e
-    Reviewed-on: https://go-review.googlesource.com/22247
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4bd51a83f412396f208682d3ae5e382db5f8dc81
+    Reviewed-on: https://go-review.googlesource.com/20046
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 25 ++++++++++++++-----------
- src/cmd/compile/internal/gc/walk.go  |  2 +-
- 2 files changed, 15 insertions(+), 12 deletions(-)
+ src/net/http/export_test.go |  6 +++---
+ src/net/http/serve_test.go  | 26 ++++++++++++++++++++++++++
+ src/net/http/server.go      | 28 ++++++++++++++--------------
+ 3 files changed, 43 insertions(+), 17 deletions(-)

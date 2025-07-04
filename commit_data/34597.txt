@@ -1,15 +1,22 @@
-commit 858042b8fd51ae827e85cd47a0daf2957b84738e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Mar 14 11:47:34 2018 +0100
+commit 2f1f607b21af8c30e80fb4fc062a8f447cffd48b
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Oct 31 16:49:27 2017 -0500
 
-    test/codegen: add codegen tests for div
+    cmd/compile: intrinsify math.RoundToEven on amd64
     
-    Change-Id: I6ce8981e85fd55ade6078b0946e54a9215d9deca
-    Reviewed-on: https://go-review.googlesource.com/100575
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    We already do this for floor/ceil, but RoundToEven was added later.
+    Intrinsify it also.
+    
+    name           old time/op  new time/op  delta
+    RoundToEven-8  3.00ns ± 1%  0.68ns ± 2%  -77.34%  (p=0.000 n=10+10)
+    
+    Change-Id: Ib158cbceb436c6725b2d9353a526c5c4be19bcad
+    Reviewed-on: https://go-review.googlesource.com/74852
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/codegen/arithmetic.go | 66 +++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 63 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go           |  3 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 ++++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 14 ++++++++++++++
+ 4 files changed, 23 insertions(+), 5 deletions(-)

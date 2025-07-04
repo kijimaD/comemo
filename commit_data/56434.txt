@@ -1,19 +1,20 @@
-commit a0a6026bb176d25401d7d188f95c1fe769d71db8
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 10 15:24:06 2024 -0400
+commit f3247f6110d41793b0fc1c1a9d6541e649acd438
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 8 14:46:17 2023 -0700
 
-    cmd/go/testdata/script: clear path in gotoolchain_issue66175
+    cmd/compile/internal/types2: pass pos argument to Checker.overflow
     
-    The gotoolchain_issue66175 script test would fail if a binary named
-    go1.21 or go1.22 was present in the system PATH. Clear the path at the
-    beginning of the test to make it independent of the system path.
+    This matches the go/types version of Checker.overflow.
+    Preparation for generating this function (and others)
+    for go/types.
     
-    Fixes #67277
-    
-    Change-Id: I6d9133aee5b20ab116e07b659e8ecf3eb8add4ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584258
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I84117203247011bd2e96c9cf53fd5a443e528bbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493558
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/go/testdata/script/gotoolchain_issue66175.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/types2/expr.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

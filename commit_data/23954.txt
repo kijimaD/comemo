@@ -1,52 +1,12 @@
-commit ecead89be9e4cbd75f2bceeb8c288db5fcad311a
+commit 751eef83e0c0a28879cdcdc384d6810dad915e90
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 3 13:57:25 2015 +1000
+Date:   Thu Jun 25 16:20:27 2015 +1000
 
-    go/types: remove the renaming import of go/constant
+    doc: first cut at prose for big changes in go1.5.html
     
-    For niceness, when go/exact was moved from x/tools, it
-    was renamed go/constant.
-    
-    For simplicity, when go/types was moved from x/tools, its
-    imports of (now) go/constant were done with a rename:
-    
-        import exact "go/constant"
-    
-    This kept the code just as it was before and avoided the issue
-    of what to call the internal constant called, um, constant.
-    
-    But not all was hidden, as the text of some fields of structs and
-    the like leaked the old name, so things like "exact.Value" appeared
-    in type definitions and function signatures in the documentation.
-    This is unacceptable.
-    
-    Fix the documentation issue by fixing the code. Rename the constant
-    constant constant_, and remove the renaming import.
-    
-    This should go into 1.5. It's mostly a mechanical change, is
-    internal to the package, and fixes the documentation. It contains
-    no semantic changes except to fix a benchmark that was broken
-    in the original transition.
-    
-    Fixes #11949.
-    
-    Change-Id: Ieb94b6558535b504180b1378f19e8f5a96f92d3c
-    Reviewed-on: https://go-review.googlesource.com/13051
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie2aba3d5069d88548414f7d76b9b6efb9acf0393
+    Reviewed-on: https://go-review.googlesource.com/11477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api.go         |   6 +--
- src/go/types/assignments.go |   4 +-
- src/go/types/builtins.go    |  52 ++++++++++-----------
- src/go/types/call.go        |   4 +-
- src/go/types/check.go       |  22 ++++-----
- src/go/types/conversions.go |   8 ++--
- src/go/types/decl.go        |   6 +--
- src/go/types/expr.go        | 110 ++++++++++++++++++++++----------------------
- src/go/types/object.go      |   8 ++--
- src/go/types/operand.go     |  52 ++++++++++-----------
- src/go/types/resolver.go    |   4 +-
- src/go/types/self_test.go   |   2 +-
- src/go/types/stmt.go        |   6 +--
- src/go/types/typexpr.go     |   8 ++--
- src/go/types/universe.go    |  10 ++--
- 15 files changed, 151 insertions(+), 151 deletions(-)
+ doc/go1.5.html | 488 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 410 insertions(+), 78 deletions(-)

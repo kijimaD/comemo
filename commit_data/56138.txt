@@ -1,37 +1,25 @@
-commit 2e064cf14441460290fd25d9d61f02a9d0bae671
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 4 13:05:13 2024 +0900
+commit de475e8a66b0f530e074c68031a364ad2ebe2a95
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 29 10:28:33 2023 +0200
 
-    encoding/csv: port the go-fuzz function to native fuzzing
+    syscall: implement Fchdir on Windows
     
-    Beyond the required file move and refactor to use the testing package,
-    a number of changes were made to get the fuzzing working properly.
+    This CL adds support for os.File.Chdir() on Windows by implementing
+    syscall.Fchdir, which is internally used by Chdir.
     
-    First, add more logs to see what is going on.
+    Windows does not provide a function that sets the working directory
+    using a file handle, so we have to fallback to retrieving the file
+    handle path and then use it in SetCurrentDirectory.
     
-    Second, some option combinations set Comma to the null character,
-    which simply never worked at all. I suspect the author meant to leave
-    the comma character as the default instead.
-    This was spotted thanks to the added logging.
-    
-    Third, the round-trip DeepEqual check did not work at all
-    when any comments were involved, as the writer does not support them.
-    
-    Fourth and last, massage the first and second parsed records before
-    comparing them with DeepEqual, as the nature of Reader and Writer
-    causes empty quoted records and CRLF sequences to change.
-    
-    With all the changes above, the fuzzing function appears to work
-    normally on my laptop now. I fuzzed for a solid five minutes and
-    could no longer encounter any errors or panics.
-    
-    Change-Id: Ie27f65f66099bdaa076343cee18b480803d2e4d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576375
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2ae93575e50411e5a9426ea531541958d7c9e812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/encoding/csv/fuzz.go      | 70 -------------------------------
- src/encoding/csv/fuzz_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 96 insertions(+), 70 deletions(-)
+ src/os/os_test.go               | 21 ++++----------------
+ src/syscall/syscall_windows.go  | 43 ++++++++++++++++++++++++++++++++++++++++-
+ src/syscall/zsyscall_windows.go | 10 ++++++++++
+ 3 files changed, 56 insertions(+), 18 deletions(-)

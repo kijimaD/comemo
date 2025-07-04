@@ -1,30 +1,24 @@
-commit 370682ae98d7edc3ce9772d6d1d746df93ba9e6d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Nov 2 16:34:51 2020 -0500
+commit b71eafbcece175db33acfb205e9090ca99a8f984
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 20 17:00:48 2020 -0800
 
-    runtime: disable preemption in startm
+    time: use extended time format past end of zone transitions
     
-    startm contains a critical section from when it takes ownership of a P
-    (either on function entry or call to pidleput) until it wakes the M
-    receiving the P. If preempted in this critical section, the owned P is
-    left in limbo. If preempted for a GC stop, there will be nothing to stop
-    the owned P and STW will wait forever.
+    This gives us better expected information for daylight savings time
+    transitions in year 2038 and beyond.
     
-    golang.org/cl/232298 introduced the first call to startm that is not on
-    the system stack (via a wakep call), introducing the possibility of
-    preemption. Disable preemption in startm to ensure this remains
-    non-preemptible.
+    Fixes #36654
     
-    Since we're not always on the system stack anymore, we also need to be
-    careful in allocm.
-    
-    Updates #42237
-    
-    Change-Id: Icb95eef9eb262121856485316098331beea045da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267257
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: I5a39aed3c40b184e1d7bb7d6ce3aff5307c4c146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215539
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 50 ++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 42 insertions(+), 8 deletions(-)
+ src/time/export_test.go   |  31 +++++
+ src/time/time.go          |  50 ++++---
+ src/time/time_test.go     |   7 +
+ src/time/zoneinfo.go      | 348 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_read.go |  15 +-
+ src/time/zoneinfo_test.go |  94 +++++++++++++
+ 6 files changed, 523 insertions(+), 22 deletions(-)

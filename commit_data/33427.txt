@@ -1,30 +1,12 @@
-commit 09660450394657510880197974d5ccfabd7bef8b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 4 12:35:23 2017 +1100
+commit 29186526608b10d04a67ce250d4df11bcd8dc661
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Wed Aug 16 05:33:36 2017 -0700
 
-    internal/testenv: mark SkipFlaky and SkipFlakyNet as helpers
+    go/internal/gcimporter: fix typo: cmd/compiler → cmd/compile
     
-    This makes the output they print refer to the code that called them.
-    
-    For example, instead of
-    
-    === RUN   TestWindowsStackMemoryCgo
-    --- SKIP: TestWindowsStackMemoryCgo (0.00s)
-            testenv.go:213: skipping known flaky test ...
-    PASS
-    
-    we see
-    
-    === RUN   TestWindowsStackMemoryCgo
-    --- SKIP: TestWindowsStackMemoryCgo (0.00s)
-            crash_cgo_test.go:471: skipping known flaky test ...
-    PASS
-    
-    Change-Id: I5f4c77c3aeab5c0e43c6dde2f15db70a6df24603
-    Reviewed-on: https://go-review.googlesource.com/76031
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I087980d30308353c4a450636122f7e87c8310090
+    Reviewed-on: https://go-review.googlesource.com/56090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/testenv/testenv.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/internal/gcimporter/bimport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

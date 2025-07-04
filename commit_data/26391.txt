@@ -1,18 +1,16 @@
-commit e97789f7d9c937810c99f556ae1586e16213b744
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Mar 18 16:56:47 2016 +0100
+commit 49234ee2db71dc209a05038798777c2a0ad2b82c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 18 11:43:32 2016 -0800
 
-    fmt: simplify handling of reporting flags to formatters
+    net/http: panic on bogus use of CloseNotifier or Hijacker
     
-    Remove rewriting of flags before calling formatters.
-    Change Flag method to directly take plusV and sharpV flags
-    into account when reporting if plus or sharp flag is set.
+    Fixes #14001
     
-    Change-Id: Ic3423881ad89e5a5f9fff5ab59e842062394ef6d
-    Reviewed-on: https://go-review.googlesource.com/20859
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I6f9bc3028345081758d8f537c3aaddb2e254e69e
+    Reviewed-on: https://go-review.googlesource.com/18708
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/print.go | 33 ++-------------------------------
- 1 file changed, 2 insertions(+), 31 deletions(-)
+ src/net/http/server.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

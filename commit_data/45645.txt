@@ -1,26 +1,24 @@
-commit b1aff42900133e4fbc9b7d7c1af13c77e4f647b0
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon May 10 17:19:50 2021 -0400
+commit cc0930cd1d200a126a3ae8ac3d1bea986cfc30fe
+Author: kemalelmizan <kemalelmizan@gmail.com>
+Date:   Fri Aug 28 06:39:43 2020 +0700
 
-    cmd/go: don't print 'go get' deprecation notices in the main module
+    cmd/doc: adding validation before adding comment marker
     
-    If a user runs 'go get example.com/cmd' for a package in the main
-    module, it's more likely they intend to fill in missing dependencies
-    for that package (especially with -u). If the intent were only to
-    build and install, 'go install example.com/cmd' would be a better
-    choice.
+    Previous fix in issue #20929 for adding comment marker does
+    not check whether string field have // prefix or not.
+    This commit ensures string field does not contain // before adding
+    prefix to the line. Test also included in this commit.
     
-    For #43684
+    Fixes #40992
     
-    Resolving a comment on CL 305670.
-    
-    Change-Id: I5c80ffdcdb3425b448f2f49cc20b07a18cb2bbe9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318570
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ibc5e8ef147eeb2ed732fb9e19815c8b21fcfb2ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251237
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modget/get.go                   |  8 ++++----
- .../testdata/script/mod_get_deprecate_install.txt   | 21 +++++++++++++++++++--
- 2 files changed, 23 insertions(+), 6 deletions(-)
+ src/go/doc/comment.go      |  2 +-
+ src/go/doc/comment_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

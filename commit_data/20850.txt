@@ -1,44 +1,21 @@
-commit c6e53fea107563225ec85889b4d88d5ffbd85c17
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 4 10:20:35 2014 -0800
+commit 8c29633368994eb56f19d9d15f1a3433f5e9306a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 19 10:33:22 2014 -0700
 
-    test: comment out failing cases from sinit.go
+    flag: disallow setting flags multiple times
+    This is a day 1 error in the flag package: It did not check
+    that a flag was set at most once on the command line.
+    Because user-defined flags may have more general
+    properties, the check applies only to the standard flag
+    types in this package: bool, string, etc.
     
-    One failing case this removes is:
+    Fixes #8960.
     
-    var bytes = []byte("hello, world")
-    var copy_bytes = bytes
-    
-    We could handle this in the compiler, but it requires special
-    case for a variable that is initialized to the value of a
-    variable that is initialized to a string literal converted to
-    []byte.  This seems an unlikely case--it never occurs in the
-    standrd library--and it seems unnecessary to write the code to
-    handle it.
-    
-    If we do want to support this case, one approach is
-    https://golang.org/cl/171840043.
-    
-    The other failing cases are of the form
-    
-    var bx bool
-    var copy_bx = bx
-    
-    The compiler used to initialize copy_bx to false.  However,
-    that led to issue 7665, since bx may be initialized in non-Go
-    code.  The compiler no longer assumes that bx must be false,
-    so copy_bx can not be statically initialized.
-    
-    We can fix these with https://golang.org/cl/169040043
-    if we also pass -complete to the compiler as part of this
-    test.  This is OK but it's too late in the release cycle.
-    
-    Fixes #8746.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/165400043
+    https://golang.org/cl/156390043
 
- test/sinit.go | 43 +++++++++++++++++++++++++++++--------------
- 1 file changed, 29 insertions(+), 14 deletions(-)
+ src/flag/flag.go      | 30 ++++++++++++++++++++++++++
+ src/flag/flag_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+)

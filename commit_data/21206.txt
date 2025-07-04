@@ -1,15 +1,16 @@
-commit fcfbeb3adf5830d1887f5f52bd78fdbaa8429d75
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 7 16:46:29 2015 -0800
+commit 94151eb2799809ece7e44ce3212aa3cbb9520849
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 21:33:07 2014 -0500
 
-    test: shorten test runtime
+    encoding/xml: remove SyntaxError.Byte
     
-    This test was taking a long time, reduce its zealousness.
+    It is unused. It was introduced in the CL that added InputOffset.
+    I suspect it was an editing mistake.
     
-    Change-Id: Ib824247b84b0039a9ec690f72336bef3738d4c44
-    Reviewed-on: https://go-review.googlesource.com/2502
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/182580043
 
- test/fixedbugs/issue9321.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/encoding/xml/xml.go | 1 -
+ 1 file changed, 1 deletion(-)

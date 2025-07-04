@@ -1,15 +1,34 @@
-commit 69015b6fc467a9e0d5772794f15476da458d7cc5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 27 18:52:40 2012 -0800
+commit 7201b0c27c45d06ccb1f2ac4f275200a863bae91
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 28 13:35:58 2012 +1100
 
-    test: bug424: wrong embedded method called
+    tutorial: delete
+    Instead we'll point people at the Tour and beef up code.html.
     
-    R=golang-dev, r
+    Fixes #3107.
+    
+    R=golang-dev, bradfitz, r, adg
     CC=golang-dev
-    https://golang.org/cl/5695083
+    https://golang.org/cl/5697077
 
- test/bugs/424.dir/lib.go  | 16 +++++++++++++
- test/bugs/424.dir/main.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++
- test/bugs/424.go          |  9 +++++++
- test/golden.out           |  3 +++
- 4 files changed, 89 insertions(+)
+ doc/Makefile                    |    1 -
+ doc/docs.html                   |   13 +-
+ doc/effective_go.html           |    8 +-
+ doc/effective_go.tmpl           |    8 +-
+ doc/go_for_cpp_programmers.html |    5 +-
+ doc/go_tutorial.html            | 1452 ---------------------------------------
+ doc/go_tutorial.tmpl            | 1040 ----------------------------
+ doc/install-source.html         |    3 +-
+ doc/makehtml                    |    2 +-
+ doc/progs/cat.go                |   47 --
+ doc/progs/cat_rot13.go          |   91 ---
+ doc/progs/echo.go               |   32 -
+ doc/progs/file.go               |   77 ---
+ doc/progs/file_windows.go       |   77 ---
+ doc/progs/run                   |   58 --
+ doc/progs/sieve.go              |   38 -
+ doc/progs/sieve1.go             |   51 --
+ doc/progs/sortmain.go           |   68 --
+ doc/talks/go_talk-20100323.html |    2 +-
+ src/cmd/godoc/main.go           |    2 +-
+ 20 files changed, 20 insertions(+), 3055 deletions(-)

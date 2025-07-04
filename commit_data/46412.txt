@@ -1,31 +1,162 @@
-commit 23832ba2e2fb396cda1dacf3e8afcb38ec36dcba
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 26 19:13:22 2021 -0700
+commit a800acaae140318896e319edc25845d643d8e273
+Merge: dd40bbc57b 07569dac4e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 00:39:13 2020 -0800
 
-    reflect: optimize for maps with string keys
+    [dev.typeparams] all: merge dev.regabi (07569da) into dev.typeparams
     
-    Over 80% of all Go map types use a string as the key.
-    The Go runtime already has a specialized implementation for such maps
-    in runtime/map_faststr.go. However, the Go reflection implementation
-    has not historically made use of that implementation.
+    Conflicts:
     
-    This CL plumbs the appropriate logic to be accessible from Go reflection
-    so that it can benefit as well.
+    - test/fixedbugs/issue27595.go
+    - test/fixedbugs/issue30087.go
+    - test/used.go
     
-        name                            old time/op    new time/op    delta
-        Map/StringKeys/MapIndex-4       4.65us ± 5%    2.95us ± 3%  -36.50%  (p=0.016 n=4+5)
-        Map/StringKeys/SetMapIndex-4    7.47us ± 5%    5.27us ± 2%  -29.40%  (p=0.008 n=5+5)
-        Map/Uint64Keys/MapIndex-4       3.79us ± 3%    3.75us ± 2%     ~     (p=0.548 n=5+5)
-        Map/Uint64Keys/SetMapIndex-4    6.13us ± 3%    6.09us ± 1%     ~     (p=0.746 n=5+5)
+    Merge List:
     
-    Change-Id: I5495d48948d8caf2d004a03ae1820ab5f8729670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345486
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    + 2020-12-28 07569dac4e [dev.regabi] all: merge master (1d78139) into dev.regabi
+    + 2020-12-28 76136be027 [dev.regabi] cmd/compile: check for recursive import in ImportBody
+    + 2020-12-28 fda7ec3a3f [dev.regabi] cmd/compile: remove Name.IsDDD, etc
+    + 2020-12-28 098a6490b9 [dev.regabi] cmd/compile: remove Declare in makepartialcall
+    + 2020-12-28 137f0d2e06 [dev.regabi] cmd/compile: remove unnecessary Name.Sym call
+    + 2020-12-28 3383b5c74a [dev.regabi] cmd/compile: flatten dependency graph [generated]
+    + 2020-12-28 f8afb8216a [dev.regabi] cmd/compile: rename CommStmt and CaseStmt [generated]
+    + 2020-12-28 5f3bd59a0d [dev.regabi] cmd/compile: remove some unneeded code in package ir
+    + 2020-12-28 3bdafb0d82 [dev.regabi] cmd/compile: remove CommStmt.List
+    + 2020-12-28 2ecf52b841 [dev.regabi] cmd/compile: separate CommStmt from CaseStmt
+    + 2020-12-28 ed9772e130 [dev.regabi] cmd/compile: add explicit file name in types generation
+    + 2020-12-28 a59d26603f [dev.regabi] cmd/compile: use []*CaseStmt in {Select,Switch}Stmt
+    + 2020-12-28 fbc4458c06 [dev.regabi] cmd/compile: simplify some tree traversal code
+    + 2020-12-28 6c67677541 [dev.regabi] cmd/compile: simplify FuncName and PkgFuncName
+    + 2020-12-28 676d794b81 [dev.regabi] cmd/compile: remove refersToCommonName
+    + 2020-12-28 c98548e110 [dev.regabi] cmd/compile: merge ascompatee, ascompatee1, and reorder3
+    + 2020-12-28 4c215c4fa9 [dev.regabi] cmd/compile: simplify and optimize reorder3
+    + 2020-12-28 e6c973198d [dev.regabi] cmd/compile: stop mangling SelectorExpr.Sel for ODOTMETH
+    + 2020-12-28 135ce1c485 [dev.regabi] cmd/compile: desugar OMETHEXPR into ONAME during walk
+    + 2020-12-28 0f732f8c91 [dev.regabi] cmd/compile: minor walkExpr cleanups
+    + 2020-12-28 0de8eafd98 [dev.regabi] cmd/compile: remove SelectorExpr.Offset field
+    + 2020-12-28 a4f335f420 [dev.regabi] cmd/compile: always use a Field for ODOTPTR expressions
+    + 2020-12-26 1d78139128 runtime/cgo: fix Android build with NDK 22
+    + 2020-12-25 2018b68a65 net/mail: don't use MDT in test
+    + 2020-12-25 e4f293d853 [dev.regabi] cmd/compile: fix OCALLMETH desugaring
+    + 2020-12-25 1d9a1f67d5 [dev.regabi] cmd/compile: don't emit reflect data for method types
+    + 2020-12-25 396b6c2e7c [dev.regabi] cmd/compile: cleanup assignment typechecking
+    + 2020-12-25 e24d2f3d05 [dev.regabi] cmd/compile: remove typ from RangeStmt
+    + 2020-12-25 2785c691c2 [dev.regabi] cmd/compile: cleanup devirtualization docs
+    + 2020-12-25 4b1d0fe66f [dev.regabi] cmd/compile: new devirtualization pkg [generated]
+    + 2020-12-24 082cc8b7d9 [dev.regabi] cmd/compile: change ir.IsAssignable -> ir.IsAddressable
+    + 2020-12-24 27b248b307 [dev.regabi] cmd/compile: separate range stmt Vars to Key, Value nodes
+    + 2020-12-23 40818038bf [dev.regabi] cmd/compile: change CaseStmt.Vars to Var
+    + 2020-12-23 b116404444 runtime: shift timeHistogram buckets and allow negative durations
+    + 2020-12-23 8db7e2fecd runtime: fix allocs-by-size and frees-by-size buckets
+    + 2020-12-23 fb96f07e1a runtime: fix nStackRoots comment about stack roots
+    + 2020-12-23 d1502b3c72 lib/time, time/tzdata: update tzdata to 2020e
+    + 2020-12-23 30c99cbb7a cmd/go: add the Retract field to 'go help mod edit' definition of the GoMod struct
+    + 2020-12-23 49d0b239cb doc: fix a typo in contribute.html
+    + 2020-12-23 9eeed291bc [dev.regabi] cmd/compile: eliminate usage of ir.Node in liveness
+    + 2020-12-23 d1d64e4cea [dev.regabi] cmd/compile: split SliceExpr.List into separate fields
+    + 2020-12-23 98a73030b0 cmd/go: in 'go get', promote named implicit dependencies to explicit
+    + 2020-12-23 d19018e8f1 [dev.regabi] cmd/compile: split SliceHeaderExpr.LenCap into separate fields
+    + 2020-12-23 53f082b0ee [dev.regabi] cmd/compile: cleanup export code further
+    + 2020-12-23 31267f82e1 [dev.regabi] cmd/compile: simplify function/interface/struct typechecking
+    + 2020-12-23 addade2cce [dev.regabi] cmd/compile: prefer types constructors over typecheck
+    + 2020-12-23 18ebfb49e9 [dev.regabi] cmd/compile: cleanup noder
+    + 2020-12-23 87a592b356 [dev.regabi] cmd/compile: cleanup import/export code
+    + 2020-12-23 5898025026 [dev.regabi] cmd/compile: update mkbuiltin.go to use new type constructors
+    + 2020-12-23 63c96c2ee7 [dev.regabi] cmd/compile: update mkbuiltin.go and re-enable TestBuiltin
+    + 2020-12-23 fd6ba1c8a2 os/signal: fix a deadlock with syscall.AllThreadsSyscall() use
+    + 2020-12-23 b0b0d98283 runtime: linux iscgo support for not blocking nptl signals
+    + 2020-12-22 223331fc0c cmd/go/internal/modload: add hint for missing implicit dependency
+    
+    Change-Id: Iecb8a7dfb401b6ab383e97101cd81bfc201683f6
 
- src/reflect/all_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 46 ++++++++++++++++++++++++++++++++++++++++------
- src/runtime/map.go      | 21 +++++++++++++++++++++
- 3 files changed, 108 insertions(+), 6 deletions(-)
+ doc/contribute.html                                |     2 +-
+ lib/time/update.bash                               |     4 +-
+ lib/time/zoneinfo.zip                              |   Bin 422449 -> 424205 bytes
+ .../compile/internal/devirtualize/devirtualize.go  |    85 +
+ src/cmd/compile/internal/escape/escape.go          |    29 +-
+ src/cmd/compile/internal/gc/main.go                |     3 +-
+ src/cmd/compile/internal/inline/inl.go             |    91 +-
+ src/cmd/compile/internal/ir/expr.go                |    80 +-
+ src/cmd/compile/internal/ir/fmt.go                 |    37 +-
+ src/cmd/compile/internal/ir/func.go                |    38 +-
+ src/cmd/compile/internal/ir/mknode.go              |    18 +-
+ src/cmd/compile/internal/ir/name.go                |     3 -
+ src/cmd/compile/internal/ir/node_gen.go            |    70 +-
+ src/cmd/compile/internal/ir/scc.go                 |    49 +-
+ src/cmd/compile/internal/ir/stmt.go                |   121 +-
+ src/cmd/compile/internal/ir/type.go                |    28 -
+ src/cmd/compile/internal/ir/visit.go               |     3 +-
+ src/cmd/compile/internal/liveness/plive.go         |   107 +-
+ src/cmd/compile/internal/noder/noder.go            |   119 +-
+ src/cmd/compile/internal/objw/prog.go              |    12 +-
+ src/cmd/compile/internal/pkginit/initorder.go      |     6 +-
+ src/cmd/compile/internal/reflectdata/alg.go        |    22 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |    15 +-
+ src/cmd/compile/internal/ssa/numberlines.go        |    10 -
+ src/cmd/compile/internal/ssagen/ssa.go             |   119 +-
+ src/cmd/compile/internal/staticinit/sched.go       |     2 +-
+ src/cmd/compile/internal/typebits/typebits.go      |    87 +
+ src/cmd/compile/internal/typecheck/builtin.go      |   189 +-
+ src/cmd/compile/internal/typecheck/builtin_test.go |     1 -
+ src/cmd/compile/internal/typecheck/const.go        |     2 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |   126 +-
+ src/cmd/compile/internal/typecheck/expr.go         |    50 +-
+ src/cmd/compile/internal/typecheck/func.go         |    55 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |    82 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   142 +-
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |    14 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |   369 +-
+ src/cmd/compile/internal/typecheck/type.go         |    72 +-
+ src/cmd/compile/internal/typecheck/typecheck.go    |    37 +-
+ src/cmd/compile/internal/types/alg.go              |     2 +-
+ src/cmd/compile/internal/types/algkind_string.go   |     2 +-
+ src/cmd/compile/internal/types/fmt.go              |    14 +-
+ src/cmd/compile/internal/types/goversion.go        |     2 -
+ .../types/{etype_string.go => kind_string.go}      |    12 +-
+ src/cmd/compile/internal/types/type.go             |     4 +-
+ src/cmd/compile/internal/walk/assign.go            |   390 +-
+ src/cmd/compile/internal/walk/builtin.go           |    17 +-
+ src/cmd/compile/internal/walk/compare.go           |    12 +-
+ src/cmd/compile/internal/walk/complit.go           |     5 +-
+ src/cmd/compile/internal/walk/convert.go           |     4 +-
+ src/cmd/compile/internal/walk/expr.go              |   119 +-
+ src/cmd/compile/internal/walk/order.go             |    29 +-
+ src/cmd/compile/internal/walk/range.go             |    30 +-
+ src/cmd/compile/internal/walk/select.go            |    24 +-
+ src/cmd/compile/internal/walk/switch.go            |    48 +-
+ src/cmd/compile/internal/walk/walk.go              |    30 +-
+ src/cmd/go/alldocs.go                              |     1 +
+ src/cmd/go/internal/modcmd/edit.go                 |     1 +
+ src/cmd/go/internal/modload/buildlist.go           |    11 +
+ src/cmd/go/internal/modload/init.go                |     6 +-
+ src/cmd/go/internal/modload/load.go                |    11 +-
+ src/cmd/go/internal/modload/query.go               |    10 +-
+ src/cmd/go/internal/str/str.go                     |    14 +
+ .../testdata/script/mod_get_promote_implicit.txt   |    88 +
+ src/net/mail/message_test.go                       |     8 +-
+ src/os/signal/signal_linux_test.go                 |    42 +
+ src/runtime/cgo/gcc_linux_386.c                    |     2 +-
+ src/runtime/cgo/gcc_linux_amd64.c                  |     2 +-
+ src/runtime/cgo/gcc_linux_arm.c                    |     2 +-
+ src/runtime/cgo/gcc_linux_arm64.c                  |     2 +-
+ src/runtime/export_test.go                         |     4 +-
+ src/runtime/histogram.go                           |    30 +-
+ src/runtime/histogram_test.go                      |    22 +-
+ src/runtime/metrics.go                             |    17 +-
+ src/runtime/metrics_test.go                        |     6 +
+ src/runtime/mgcmark.go                             |     3 +-
+ src/runtime/os_js.go                               |     2 +-
+ src/runtime/os_linux.go                            |    18 +
+ src/runtime/os_plan9.go                            |     2 +-
+ src/runtime/os_windows.go                          |     2 +-
+ src/runtime/proc.go                                |     9 +-
+ src/runtime/signal_unix.go                         |    19 +-
+ src/runtime/sigqueue.go                            |    34 +-
+ src/runtime/sigqueue_plan9.go                      |     7 +
+ src/syscall/syscall_linux_test.go                  |    13 +
+ src/time/tzdata/zipdata.go                         | 13714 ++++++++++---------
+ test/fixedbugs/issue27595.go                       |     2 +-
+ test/fixedbugs/issue30087.go                       |     6 +-
+ test/fixedbugs/issue31053.dir/main.go              |     6 +-
+ test/used.go                                       |     1 +
+ 90 files changed, 8495 insertions(+), 8665 deletions(-)

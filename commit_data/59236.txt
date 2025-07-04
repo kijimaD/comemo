@@ -1,16 +1,32 @@
-commit 6fd9ee3da9dc5570f66735e835cac2d66a0f6244
-Author: cuishuang <imcusg@gmail.com>
-Date:   Mon Mar 31 18:46:54 2025 +0800
+commit 296d0812b091d9cb1847381cb88ed8936d7c35ec
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Jan 10 13:33:40 2024 +0000
 
-    all: use slices.Equal to simplify code
+    net/http: prevent redirect loop in serveFile if "/" is a normal file
     
-    Change-Id: Ib3be7cee6ca6dce899805aac176ca789eb2fd0f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661738
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    When FileServer(Dir("file")) is used where "file" is a normal file and
+    not a directory, the server enters a redirect loop.
+    
+    The usage of a file inplace of a directory path is not documented in
+    http.Dir and it could be considered undefined behavior.
+    
+    This CL updates serveFile to check if we are trying to traverse a normal
+    file instead of a directory and return an error, preventing the redirect
+    loop.
+    
+    Fixes #63769
+    
+    Change-Id: I81e289444e7d0bd72189c2e7b763f5540333e2d0
+    GitHub-Last-Rev: 754c9a1167916b5a8c3c827391d7e4a2ff3bc44d
+    GitHub-Pull-Request: golang/go#63860
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538719
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/windows/registry/registry_test.go | 18 ++----------------
- src/runtime/pprof/pprof_test.go                        | 10 +---------
- 2 files changed, 3 insertions(+), 25 deletions(-)
+ src/net/http/fs.go      | 13 +++++++++----
+ src/net/http/fs_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 4 deletions(-)

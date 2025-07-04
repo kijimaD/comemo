@@ -1,18 +1,18 @@
-commit 8c7564deadedda87097e0eedd3e8f85bcd895ff0
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Apr 12 14:23:13 2019 +0200
+commit dcb1363a1fc3e02085f17533052dfab35e426143
+Author: Michael Ellis <micellis@justin.tv>
+Date:   Wed Nov 7 15:14:20 2018 -0800
 
-    runtime: add //go:cgo_unsafe_args to AIX syscallX functions
+    cmd/go: parse dot-separated identifiers in build metadata
     
-    On AIX, syscallX functions are using the first argument to retrieve the
-    next arguments when calling asmcgocall. Therefore,//go:cgo_unsafe_args
-    is needed.
+    Per https://semver.org/#spec-item-10, build metadata may include
+    a series of dot separated identifiers.
     
-    Change-Id: I7fe0fbf0c961250a6573c66a8b0eb897dff94bfe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171723
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #28647
+    
+    Change-Id: I98655c62584a822953df71fba32b4a2cafe7a04b
+    Reviewed-on: https://go-review.googlesource.com/c/148835
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/os2_aix.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/internal/semver/semver.go      | 2 +-
+ src/cmd/go/internal/semver/semver_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

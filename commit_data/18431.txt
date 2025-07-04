@@ -1,13 +1,18 @@
-commit 193f4151ee62c5f893ae2aff0cc26b3aced84bd3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 10 08:25:47 2014 +1100
+commit 2b93c4dd06932ee9a5770353c75956910ace1c9b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Feb 7 23:58:21 2014 +0100
 
-    C: add Robert Sesek (Google CLA)
+    cmd/6g: faster memmove/memset-like code using unaligned load/stores.
     
-    LGTM=bradfitz
-    R=dave, bradfitz
+    This changes makes sgen and clearfat use unaligned instructions for
+    the trailing bytes, like the runtime memmove does, resulting in faster
+    code when manipulating types whose size is not a multiple of 8.
+    
+    LGTM=khr
+    R=khr, iant, rsc
     CC=golang-codereviews
-    https://golang.org/cl/61310043
+    https://golang.org/cl/51740044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/6g/cgen.c | 35 +++++++++++++++++++++++++++--------
+ src/cmd/6g/ggen.c | 24 +++++++++++++++++++-----
+ 2 files changed, 46 insertions(+), 13 deletions(-)

@@ -1,12 +1,12 @@
-commit 69c90985b34564c344a8516be9fb3d4832f2b66e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 4 10:36:45 2013 -0500
+commit d4a020dec1396ec162f95dd834b358da4a519355
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Mon Mar 4 10:25:21 2013 -0500
 
-    runtime: add link to design doc for new scheduler
+    container/heap: fix int overflow bug
     
-    R=golang-dev, remyoudompheng, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7419049
+    https://golang.org/cl/7450052
 
- src/pkg/runtime/proc.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/container/heap/heap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

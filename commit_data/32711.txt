@@ -1,19 +1,19 @@
-commit 1d3ad6733e7b1417444bfe1c5ca85b6108e9ac6c
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Sep 10 12:55:16 2017 +0200
+commit 9fdf77c3730cbb98f699bbd06db16988b7c590c2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri May 19 02:13:50 2017 +0200
 
-    runtime: refactor hmap.extra.overflow array into two separate fields
+    cmd/compile: skip TestScopeRanges on Plan 9
     
-    This makes it easier to deduce from the field names which overflow
-    field corresponds to h.buckets and which to h.oldbuckets by aligning
-    the naming with the buckets fields in hmap.
+    TestScopeRanges has been added in CL 40095. This
+    test is failing on Plan 9 because executables don't
+    have a DWARF symbol table.
     
-    Change-Id: I8d6a729229a190db0212bac012ead1a3c13cf5d0
-    Reviewed-on: https://go-review.googlesource.com/62411
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #20418.
+    
+    Change-Id: I6dd3baa636998134ccd042203c8b5c3199a4d6e1
+    Reviewed-on: https://go-review.googlesource.com/43670
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/reflect.go |  6 ++++--
- src/runtime/hashmap.go                 | 33 ++++++++++++++++++---------------
- 2 files changed, 22 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/scope_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,14 +1,23 @@
-commit 9025408ab5576af13a4ef2e395426053b9c7b28e
-Author: Burcu Dogan <jbd@google.com>
-Date:   Mon Dec 14 16:17:21 2015 -0800
+commit 67722fea5015d43d8fc9a533533c9b580fa99fc8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 15 11:29:06 2015 -0700
 
-    net/http: test client timeout against HTTP/2
+    cmd/compile/internal/gc: reject invalid unsafe.Sizeof([0]byte{}[0])
     
-    Change-Id: Id511855da1c663250a4ffb149277a3f4a7f38360
-    Reviewed-on: https://go-review.googlesource.com/17766
+    Apply static bounds checking logic during type checking even to
+    zero-element arrays, but skip synthesized OINDEX nodes that the
+    compiler has asserted are within bounds (such as the ones generated
+    while desugaring ORANGE nodes).  This matches the logic in walkexpr
+    that also skips static bounds checking when Bounded is true.
+    
+    Passes toolstash/buildall.
+    
+    Fixes #12944.
+    
+    Change-Id: I14ba03d71c002bf969d69783bec8d1a8e10e7d75
+    Reviewed-on: https://go-review.googlesource.com/15902
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client_test.go | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ test/fixedbugs/issue12944.go             | 13 +++++++++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)

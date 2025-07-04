@@ -1,18 +1,27 @@
-commit 3f5a97514b16c432d9699a0f1a913fabd3c0cb86
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 20 16:40:49 2020 -0500
+commit 8af8fa910329242caa7402561ed011d2de3f00e9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 20 21:22:03 2020 +0000
 
-    cmd/go/internal/modload: remove a stale comment for EditBuildList
+    runtime: add spanSet data structure
     
-    For #36460
-    Updates #37438
+    This change copies the gcSweepBuf data structure into a new file and
+    renames it spanSet. It will serve as the basis for a heavily modified
+    version of the gcSweepBuf data structure for the new mcentral
+    implementation.
     
-    Change-Id: I1626d40e78b110035a893b1b80dbd2279bf50ffe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272128
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    We move it into a separate file now for two reasons:
+    1. We will need both implementations as they will coexist simultaneously
+       for a time.
+    2. By creating it now in a new change it'll make future changes which
+       modify it easier to review (rather than introducing the new file then).
+    
+    Updates #37487.
+    
+    Change-Id: If80603cab6e813a1ee2e5ecd49dcde5d8045a6c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221179
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modload/buildlist.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/runtime/mspanset.go | 176 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 176 insertions(+)

@@ -1,17 +1,25 @@
-commit 2f0661558883e60e148d319d89401d56870a9756
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 10:30:37 2012 -0400
+commit 5e47b779905ce87faac1bea3b0774b50ddf1ceba
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Sep 24 13:22:03 2012 +0900
 
-    encoding/asn1: prepare for 64-bit ints
+    exp/locale/collate/tools/colcmp: implementation of colcmp tool used for comparing
+    various implementation of collation.  The tool provides commands for soring,
+    regressing one implementation against another, and benchmarking.
+    Currently it includes collation implementations for the Go collator, ICU,
+    and one using Darwin's CoreFoundation framework.
+    To avoid building this tool in the default build, the colcmp tag has been
+    added to all files. This allows other tools/colcmp in this directory (e.g. it may make
+    sense to move maketables here) to be put in this directory as well.
     
-    The code was assuming that int = 32 bits. Don't.
-    
-    Update #2188.
-    
-    R=agl
+    R=r, rsc, mpvl
     CC=golang-dev
-    https://golang.org/cl/6543063
+    https://golang.org/cl/6496118
 
- src/pkg/encoding/asn1/asn1.go      | 33 +++++++++++++++++----------------
- src/pkg/encoding/asn1/asn1_test.go |  2 +-
- 2 files changed, 18 insertions(+), 17 deletions(-)
+ src/pkg/exp/locale/collate/tools/colcmp/Makefile  |   7 +
+ src/pkg/exp/locale/collate/tools/colcmp/chars.go  | 937 ++++++++++++++++++++++
+ src/pkg/exp/locale/collate/tools/colcmp/col.go    |  95 +++
+ src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 528 ++++++++++++
+ src/pkg/exp/locale/collate/tools/colcmp/darwin.go | 111 +++
+ src/pkg/exp/locale/collate/tools/colcmp/gen.go    | 179 +++++
+ src/pkg/exp/locale/collate/tools/colcmp/icu.go    | 209 +++++
+ 7 files changed, 2066 insertions(+)

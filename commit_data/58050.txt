@@ -1,18 +1,20 @@
-commit e5c4c79cc446976e61f0b08577dc6f994dec023f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 13 16:44:29 2024 +0000
+commit 7117819fdc1f9c365e4ec02d7e2f17eccf081a4d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Sep 20 23:37:59 2023 +0000
 
-    internal/sync: add Clear to HashTrieMap
+    runtime: no need to convert 'c.fault()' to uintptr in sighandler
     
-    This change adds the Clear operation to HashTrieMap to align it with
-    sync.Map.
+    After CL 528817, *sigctxt.fault of all arches return uintptr, so
+    there is no need to convert 'c.fault()' to uintptr anymore.
     
-    Change-Id: I46069b018725d7fe3a07d667876235534bca86f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606459
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I062283b578adaaee69d8f439b109a573eeb15110
+    GitHub-Last-Rev: 3ce3a75a66557d1a8ff089fd532ac694bfa0104f
+    GitHub-Pull-Request: golang/go#63133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529995
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/sync/hashtriemap.go      | 36 ++++++++++++++++---------
- src/internal/sync/hashtriemap_test.go | 51 +++++++++++++++++++++++++++++++++++
- 2 files changed, 75 insertions(+), 12 deletions(-)
+ src/runtime/signal_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

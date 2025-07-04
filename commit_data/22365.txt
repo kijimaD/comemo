@@ -1,20 +1,14 @@
-commit fb919e3a60ac83c427d470fa3382d8d8b606a369
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 8 21:41:47 2015 +1000
+commit ac080fa6d85ae848089b55144de0ce9dfc484d64
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 9 09:06:11 2015 -0400
 
-    cmd/asm/internal/asm: add arm64 end to end tests
+    net: skip unixgram tests on darwin/arm
     
-    Add end to end tests for arm64 to support CL 8405.
-    
-    There are several instruction forms commented out at the moment
-    they will be addressed in CL 8405 or later followups.
-    
-    Change-Id: I6eeeb810c1e03cd49bb3c881bc46a29cdb817822
-    Reviewed-on: https://go-review.googlesource.com/8631
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9d2c84237f7b1c4dc2e53adf249b7518dda81a21
+    Reviewed-on: https://go-review.googlesource.com/7165
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go   |   4 +
- src/cmd/asm/internal/asm/testdata/arm64.out |  46 +++++
- src/cmd/asm/internal/asm/testdata/arm64.s   | 252 ++++++++++++++++++++++++++++
- 3 files changed, 302 insertions(+)
+ src/net/unix_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

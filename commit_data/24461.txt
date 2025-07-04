@@ -1,16 +1,15 @@
-commit 449cc06e9825c130af7cba4910cecb66f98a2345
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 6 17:57:46 2015 -0700
+commit b7205b92c0a5ae985a3530dc8ad17e7d3a7a807d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jul 29 19:56:10 2015 -0400
 
-    test: adjust gccgo expected import errors
+    runtime/trace: test requires 'go tool addr2line'
     
-    Update two tests for the recently submitted gccgo change
-    https://golang.org/cl/14259.
+    For the android/arm builder.
     
-    Change-Id: Ib18bc87ea512074aa91fd4096d0874b72e2243e5
-    Reviewed-on: https://go-review.googlesource.com/15493
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: Iad4881689223cd6479870da9541524a8cc458cce
+    Reviewed-on: https://go-review.googlesource.com/12859
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- test/fixedbugs/issue5957.dir/c.go | 2 +-
- test/import4.dir/import4.go       | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/trace/trace_stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

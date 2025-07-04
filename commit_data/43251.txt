@@ -1,20 +1,14 @@
-commit 373695727b8975d20168ca0d6ae338f98a4a079a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 12 11:56:15 2020 -0400
+commit 36b815edd6cd23d5aabdb488c24db2033bbdeea2
+Author: d-tsuji <dram.dt.shonan@gmail.com>
+Date:   Sat Mar 21 20:40:01 2020 +0900
 
-    net/http: deflake TestTransportPersistConnLeak on macOS
+    net/http: remove period at end of error message
     
-    On a loaded system, sometimes connections don't work out.
-    Ignore those in TestTransportPersistConnLeak to avoid flakes.
-    
-    For #33585.
-    
-    Change-Id: Ic07057532dc0ea5115d6ec49c3c29099a9382295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261538
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Russ Cox <rsc@golang.org>
+    Change-Id: I4ff5411543c200344babb754fc089e10e29e0fe4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224697
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport_test.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/net/http/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

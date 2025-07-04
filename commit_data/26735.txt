@@ -1,12 +1,14 @@
-commit 34c58065e54e0ac2d610b4a550bdba8f1db90ec6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 6 02:52:17 2016 +0000
+commit 4feb47bc765d2cd7d774b0a28b06e8d81a1affe7
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Tue Feb 23 18:19:52 2016 -0800
 
-    runtime: rename os1_linux.go to os_linux.go
+    encoding/csv: clarify that TrimLeadingSpace can trim the delimiter
     
-    Change-Id: I938f61763c3256a876d62aeb54ef8c25cc4fc90e
-    Reviewed-on: https://go-review.googlesource.com/21567
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #14464
+    
+    Change-Id: Iafc21641cca7d35b7a5631cfc94742ee8e7d5042
+    Reviewed-on: https://go-review.googlesource.com/19861
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/{os1_linux.go => os_linux.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/encoding/csv/reader.go | 2 ++
+ 1 file changed, 2 insertions(+)

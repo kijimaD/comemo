@@ -1,28 +1,13 @@
-commit 06946aad1973c42e26ddb0890c57ef37fecbb48a
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 28 20:55:01 2015 -0700
+commit 65085188494e0bb1a0edae36993a43e4670b9e48
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:24 2015 -0400
 
-    cmd/go: better UI for go doc
+    misc/cgo/test/issue9400: add arm64 implementation
     
-    Print it out much like godoc so there isn't a single block of text.
-    Print the symbol before its comment and indent the comment so
-    individual symbols separate visually.
-    
-    Buffer the output.
-    
-    Add a -c option to force case-sensitive matching.
-    
-    Allow two arguments, like godoc, to help disambiguate cases
-    where path and symbol may be confused.
-    
-    Improve the documentation printed by go help doc.
-    
-    Change-Id: If687aad04bbacdf7dbe4bf7636de9fe96f756fd0
-    Reviewed-on: https://go-review.googlesource.com/9471
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f4
+    Reviewed-on: https://go-review.googlesource.com/8451
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/cmd/doc/main.go   |  66 ++++++++++++++++-----------
- src/cmd/doc/pkg.go    | 124 ++++++++++++++++++++++++++++++++++----------------
- src/cmd/go/alldocs.go |  66 +++++++++++++++++----------
- src/cmd/go/doc.go     |  67 +++++++++++++++++----------
- 4 files changed, 213 insertions(+), 110 deletions(-)
+ misc/cgo/test/issue9400/asm_arm64.s | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

@@ -1,21 +1,32 @@
-commit d94ab597af9b3f8e8ba371023314d80f6b3be5a5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Feb 8 15:59:07 2024 +0000
+commit 06b67591e7861d813e94fa76434af9c778d81cf5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 21 17:34:41 2023 -0500
 
-    cmd/cgo/internal/testsanitizers: disable location checking for clang
+    cmd/link: default to external linking with cgo std packages
     
-    Pending a resolution to #65606, this CL marks clang's ASAN runtime as
-    unable to symbolize stack traces to unblock the LUCI clang builder.
+    Previously, when a program depends on cgo packages in the standard
+    library (e.g. net, os/user) but not otherwise use cgo, we default
+    to internal linking mode. As we shipped pre-built cgo-using packages
+    in Go distributions, we don't require a C compiler to build those
+    packages. Then, by using internal linking we can link programs
+    using those packages without requiring a C toolchain.
     
-    For #65606.
-    Fixes #65469.
+    As of Go 1.20, we stopped shipping those pre-built packages. If a
+    user doesn't have a C toolchain, they will use the non-cgo version
+    of the package. If they have a C toolchain, they can get cgo-using
+    packages but they can link with the external linker as well. So
+    there is no strong need to be able to link the cgo version of the
+    packages without a C toolchain. This CL makes it default to
+    external linking mode.
     
-    Change-Id: I649773085aff30e5703e7f7ac2c72a0430a015c2
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-clang15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562675
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #58619.
+    Fixes #58620.
+    
+    Change-Id: I62d3744c2b82ce734813c0e303e417d85dd29868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470298
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/cgo/internal/testsanitizers/cc_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 3 ---
+ 1 file changed, 3 deletions(-)

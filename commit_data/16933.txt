@@ -1,16 +1,22 @@
-commit 5fea8c030b2877cdab6463e9f5466f877735e128
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 31 13:04:57 2013 +1000
+commit 57933b86b1a09a44d1350437f42a3305a30ad2b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 22:52:10 2013 -0400
 
-    text/template: fix type of ComplexZero in test
-    Was stupidly float64; should be complex128.
-    The tests still pass.
+    cmd/go: send timed out test SIGQUIT before SIGKILL
     
-    Fixes #5649.
+    There is a chance that the SIGQUIT will make the test process
+    dump its stacks as part of exiting, which would be nice for
+    finding out what it is doing.
     
-    R=golang-dev, rsc
+    Right now the builders are occasionally timing out running
+    the runtime test. I hope this will give us some information
+    about the state of the runtime.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12107044
+    https://golang.org/cl/12041051
 
- src/pkg/text/template/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/signal_notunix.go |  4 ++++
+ src/cmd/go/signal_unix.go    |  4 ++++
+ src/cmd/go/test.go           | 13 +++++++++++++
+ 3 files changed, 21 insertions(+)

@@ -1,17 +1,21 @@
-commit 4911622055d1bcc88182a0c3292115e33c299814
+commit 8f5718176fdd3040d874f85fbd5c825fbd359173
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:22:26 2011 -0700
+Date:   Tue Oct 25 22:22:09 2011 -0700
 
-    exp/template/html: use rune
+    bytes, strings: use rune
     
-    Nothing terribly interesting here.
+    Various rune-based APIs change.
     
-    R=mikesamuel, nigeltao, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5307044
+    https://golang.org/cl/5306044
 
- src/pkg/exp/template/html/css.go      | 40 +++++++++++++++++------------------
- src/pkg/exp/template/html/css_test.go |  6 +++---
- src/pkg/exp/template/html/html.go     |  2 +-
- src/pkg/exp/template/html/js.go       | 16 +++++++-------
- 4 files changed, 32 insertions(+), 32 deletions(-)
+ src/pkg/bytes/buffer.go         |   6 +-
+ src/pkg/bytes/buffer_test.go    |   6 +-
+ src/pkg/bytes/bytes.go          | 121 ++++++++++++++++++++--------------------
+ src/pkg/bytes/bytes_test.go     |  60 ++++++++++----------
+ src/pkg/strings/reader.go       |   6 +-
+ src/pkg/strings/replace_test.go |   6 +-
+ src/pkg/strings/strings.go      |  95 +++++++++++++++----------------
+ src/pkg/strings/strings_test.go |  76 ++++++++++++-------------
+ 8 files changed, 189 insertions(+), 187 deletions(-)

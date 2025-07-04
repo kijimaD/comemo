@@ -1,35 +1,19 @@
-commit 9b30811280427a6d50d2558f316d62210e948656
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Sep 3 19:54:32 2019 +0000
+commit 4e2b4d7fb2343ea5a05fcb9da821b6912ca86893
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Apr 10 16:29:57 2019 +0200
 
-    runtime: redefine scavenge goal in terms of heap_inuse
+    runtime: move libcall to stack for syscall package on aix/ppc64
     
-    This change makes it so that the scavenge goal is defined primarily in
-    terms of heap_inuse at the end of the last GC rather than next_gc. The
-    reason behind this change is that next_gc doesn't take into account
-    fragmentation, and we can fall into situation where the scavenger thinks
-    it should have work to do but there's no free and unscavenged memory
-    available.
+    Inside syscall_syscall6 function, libcall can directly be on the stack.
+    This is first function called with //go:nosplit, unlike runtime syscalls
+    which can be called during the sigtramp or by others //go:nosplit
+    functions.
     
-    In order to ensure the scavenge goal still tracks next_gc, we multiply
-    heap_inuse by the ratio between the current heap goal and the last heap
-    goal, which describes whether the heap is growing or shrinking, and by
-    how much.
-    
-    Finally, this change updates the documentation for scavenging and
-    elaborates on why the scavenge goal is defined the way it is.
-    
-    Fixes #34048.
-    Updates #32828.
-    
-    Change-Id: I8deaf87620b5dc12a40ab8a90bf27932868610da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193040
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Icc28def1a63e525850ec3bfb8184b995dfeaa736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go         |  4 ++++
- src/runtime/mgcscavenge.go | 40 ++++++++++++++++++++++++++++++++++++----
- src/runtime/mstats.go      |  2 ++
- 3 files changed, 42 insertions(+), 4 deletions(-)
+ src/runtime/syscall_aix.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

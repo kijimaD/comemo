@@ -1,36 +1,31 @@
-commit 22dfc77c99687c973b116f88e4295d88e6c11d7d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 9 16:14:01 2012 -0800
+commit 748fab9d11e23b8f8c17cd583f995252ec86bfd3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jan 10 11:06:09 2012 +1100
 
-    go/doc: first steps towards cleaning up go/doc
+    html: foreign element HTML integration points, tag name adjustment,
+    shorten the MathML namespace abbreviation from "mathml" to "math".
+    Python's html5lib uses "mathml", but I think that that is an internal
+    implementation detail; the test cases use "math".
     
-    - separated exported data structures from doc reader
-      by extracting all exported data structures into doc.go
-      and moving the implementation into reader.go
-    - added missing documentation comments
-    - no API or semantic changes (but moved positions of
-      PackageDoc.Doc and TypeDoc.Decl field up for consistency)
-    - runs all tests
+    Pass tests10.dat, test 30:
+    <div><svg><path><foreignObject><math></div>a
     
-    R=golang-dev, r
+    | <html>
+    |   <head>
+    |   <body>
+    |     <div>
+    |       <svg svg>
+    |         <svg path>
+    |           <svg foreignObject>
+    |             <math math>
+    |               "a"
+    
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5527063
+    https://golang.org/cl/5529044
 
- src/buildscript_darwin_386.sh    |   2 +-
- src/buildscript_darwin_amd64.sh  |   2 +-
- src/buildscript_freebsd_386.sh   |   2 +-
- src/buildscript_freebsd_amd64.sh |   2 +-
- src/buildscript_linux_386.sh     |   2 +-
- src/buildscript_linux_amd64.sh   |   2 +-
- src/buildscript_linux_arm.sh     |   2 +-
- src/buildscript_netbsd_386.sh    |   2 +-
- src/buildscript_netbsd_amd64.sh  |   2 +-
- src/buildscript_openbsd_386.sh   |   2 +-
- src/buildscript_openbsd_amd64.sh |   2 +-
- src/buildscript_plan9_386.sh     |   2 +-
- src/buildscript_windows_386.sh   |   2 +-
- src/buildscript_windows_amd64.sh |   2 +-
- src/pkg/go/doc/Makefile          |   1 +
- src/pkg/go/doc/doc.go            | 684 +++------------------------------------
- src/pkg/go/doc/reader.go         | 613 +++++++++++++++++++++++++++++++++++
- 17 files changed, 666 insertions(+), 660 deletions(-)
+ src/pkg/html/foreign.go    |  59 +++++++++++-
+ src/pkg/html/node.go       |   4 +
+ src/pkg/html/parse.go      | 222 +++++++++++++++++++++++++++------------------
+ src/pkg/html/parse_test.go |   2 +-
+ 4 files changed, 196 insertions(+), 91 deletions(-)

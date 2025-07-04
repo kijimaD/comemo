@@ -1,21 +1,15 @@
-commit a14c1c986eba6ca6a35bfb9feb833b8eff53c7b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 12 11:18:12 2014 -0700
+commit 005806cab17a20adaec33a1ee02a19355356fa67
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 5 14:59:31 2014 -0700
 
-    go/printer: don't reduce nesting depth twice if parentheses are present around an expr
+    runtime: run getgcmask on the M stack.
     
-    No impact on formatting on our repos.
-    
-    Fixes #8021.
-    
-    LGTM=adonovan
-    R=adonovan, dvyukov
+    LGTM=rsc
+    R=rsc, khr
     CC=golang-codereviews
-    https://golang.org/cl/142020043
+    https://golang.org/cl/132660043
 
- src/go/printer/nodes.go                    | 2 +-
- src/go/printer/testdata/expressions.golden | 5 +++++
- src/go/printer/testdata/expressions.input  | 5 +++++
- src/go/printer/testdata/expressions.raw    | 5 +++++
- src/go/printer/testdata/statements.golden  | 2 +-
- 5 files changed, 17 insertions(+), 2 deletions(-)
+ src/pkg/runtime/export_test.go | 13 ++++++++++++-
+ src/pkg/runtime/mgc0.c         |  4 ++--
+ src/pkg/runtime/stubs.goc      |  7 -------
+ 3 files changed, 14 insertions(+), 10 deletions(-)

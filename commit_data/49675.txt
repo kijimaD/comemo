@@ -1,21 +1,16 @@
-commit 424814615491c604e6a0945f33e5a7b779dc2be5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jul 26 13:29:16 2022 -0700
+commit 9c56a64673d2f458e28c603f95b4efb5d39beef2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Sep 2 14:38:58 2021 -0700
 
-    net: document UDPConn.ReadFromUDPAddrPort's AddrPort result more
+    [dev.fuzz] internal/fuzz: maintain debug info during minimization
     
-    Clarify the form of its IPv4 addresses when listening on an
-    unspecified address.
-    
-    (found while testing/reviewing CL 399454)
-    
-    Change-Id: I62b367f5a4e6d340eb72dd7ec342080f1821e63e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419614
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I70c0229e43dfe37f70b9c79c2e6fe88d7b8d7bd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347231
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/udpsock.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/internal/fuzz/fuzz.go   | 3 ++-
+ src/internal/fuzz/worker.go | 5 +++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

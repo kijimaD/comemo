@@ -1,0 +1,33 @@
+commit dc548bb322387039a12000c04e5b9083a0511639
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon May 6 03:57:08 2024 +0000
+
+    os: use filepathlite.Base
+    
+    Replace custom basename implementations with filepathlite.Base across
+    all relevant os/stat files to unify path processing across platforms.
+    
+    Change-Id: I7c4795661926949bae71e66d8b4f9363e7caef15
+    GitHub-Last-Rev: 1236e93ebcd4137f9cbbbab2163cadf4e4d02674
+    GitHub-Pull-Request: golang/go#67195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583415
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/path_unix.go      | 18 ------------------
+ src/os/path_windows.go   | 24 ------------------------
+ src/os/stat_aix.go       |  3 ++-
+ src/os/stat_darwin.go    |  3 ++-
+ src/os/stat_dragonfly.go |  3 ++-
+ src/os/stat_freebsd.go   |  3 ++-
+ src/os/stat_js.go        |  3 ++-
+ src/os/stat_linux.go     |  3 ++-
+ src/os/stat_netbsd.go    |  3 ++-
+ src/os/stat_openbsd.go   |  3 ++-
+ src/os/stat_solaris.go   |  3 ++-
+ src/os/stat_wasip1.go    |  3 ++-
+ src/os/stat_windows.go   |  3 ++-
+ src/os/types_windows.go  |  4 ++--
+ 14 files changed, 24 insertions(+), 55 deletions(-)

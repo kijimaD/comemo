@@ -1,17 +1,14 @@
-commit 678ce976357ef6a60a603d0b0f9d661f8db353c2
-Author: Julien Schmidt <google@julienschmidt.com>
-Date:   Wed Oct 4 17:26:14 2017 +0200
+commit 75ab6134fcea003803e25c9bad7f092be3eeb5c3
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Jun 14 19:44:20 2017 -0700
 
-    database/sql: fix unreachable code in ColumnTypes test
+    net/http: document SOCKS5 proxy support
     
-    Before this change the ct == 0 check could never be true. Moreover the
-    values were not properly indirected.
+    Fixes #20618
     
-    Change-Id: Ice47e36e3492babc4b47d2f9099e8772be231c96
-    Reviewed-on: https://go-review.googlesource.com/68130
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I90712bd76d9d47f29221bc298c69737ebee25c12
+    Reviewed-on: https://go-review.googlesource.com/45814
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/net/http/transport.go | 5 +++++
+ 1 file changed, 5 insertions(+)

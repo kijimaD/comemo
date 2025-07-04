@@ -1,20 +1,12 @@
-commit 888bac1421d098b6cbe58d4fde5d6ba516833f23
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Apr 30 20:00:23 2019 +0200
+commit b6e6870cdb04a838dfb08f2792fbd8d41b849d2a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Dec 12 17:03:34 2018 -0500
 
-    cmd/dist: detect GOHOSTARCH on iOS
+    doc/go1.12: add release notes for bufio and syscall packages
     
-    cmd/dist defaults to GOHOSTARCH=amd64 on darwin because no other
-    darwin host could build Go. With the upcoming self-hosted iOS
-    builders, GOHOSTARCH=arm64 is also possible.
-    
-    Updates #31722
-    
-    Change-Id: I9af47d9f8c57ea45475ce498acefbfe6bf4815b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174306
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I5112be3b0f80ef1d9dad234b1f233e598465a409
+    Reviewed-on: https://go-review.googlesource.com/c/153824
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/main.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ doc/go1.12.html | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

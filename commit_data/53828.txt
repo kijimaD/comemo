@@ -1,21 +1,17 @@
-commit 789980ec0e4f6512cd021d238e6c8e309a7e1cf2
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jul 29 02:03:38 2023 +1000
+commit af7f417665fb1612eb9865c7ab4992bf095148e2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:53:13 2022 +0800
 
-    cmd/internal/obj/mips: use more appropriate register types for OP_FRRR/OP_SRR
+    runtime: convert local var stop at TestAfterStress to atomic type
     
-    Rather than passing registers as uint32, use int16 and cast to uint32 in
-    the OP_FRRR/OP_SRR implementation. This allows a large number of casts to be
-    removed and code simplified at call sites.
+    For #53821
     
-    Change-Id: Ia4bf3bd022f79d65e45fca64db13db12739e5b23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514099
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I7e86dac34691f7752f68879ff379061f3435cd45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427139
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/internal/obj/mips/asm0.go | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ src/time/sleep_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

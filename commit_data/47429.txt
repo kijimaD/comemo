@@ -1,31 +1,18 @@
-commit 95d06576702c54139796f3e24e2eec4b135b1a09
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 12 05:04:32 2021 +0000
+commit 2583c1b4df979eae16fab6527275030a630da42b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 17 16:49:02 2021 -0700
 
-    test/recover4.go: use mprotect to create a hole instead of munmap
+    go/types: add test case for issue #45096
     
-    Currently the recover4 test, which recovers from a panic created from a
-    fault, generates a fault by creating a hole in a mapping. It does this
-    via munmap. However, it's possible the runtime can create a new mapping
-    that ends up in that hole, for example if the GC executes, causing the
-    test to fail.
+    This verifies that issue #45096 is not an issue for go/types.
     
-    In fact, this is the case now with a smaller minimum heap size.
+    Updates #45096.
     
-    Modify the test to use mprotect, and clean up the code a little while
-    we're here: define everything in terms of the length of original
-    mapping, deduplicate some constants and expressions, and have the test
-    recover properly even if recover() returns nil (right now it panics
-    because it fails to type assert nil as error).
-    
-    Fixes #49381.
-    
-    Change-Id: If399eca564466e5e8aeb2dc6f86a246d0fce7b5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363534
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4e987b5d4928f0c864d0d2c0379149443beb4d5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302754
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/recover4.go | 28 +++++++++++++++-------------
- 1 file changed, 15 insertions(+), 13 deletions(-)
+ src/go/types/api_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

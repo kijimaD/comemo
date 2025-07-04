@@ -1,44 +1,23 @@
-commit 7eaa8efbe4bb63ca486aab61f83287dd4bf1d609
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jan 23 13:06:21 2018 -0800
+commit 84d2c7ea835c238f466de64066b65614d1bc7dbe
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 11:32:17 2017 -0400
 
-    cmd/compile: don't let spills clobber arguments
+    runtime: dynamically allocate allp
     
-    The compiler allows code to have multiple differently-typed views of a
-    single argument. For instance, if we have
+    This makes it possible to eliminate the hard cap on GOMAXPROCS.
     
-    func f(x float64) {
-       y := *(*int64)(unsafe.Pointer(&x))
-       ...
-    }
+    Updates #15131.
     
-    Then in SSA we get two OpArg ops, one with float64 type and one with
-    int64 type.
-    
-    The compiler will try to reuse argument slots for spill slots. It
-    checks that the argument slot is dead by consulting an interference
-    graph.
-    
-    When building the interference graph, we normally ignore cross-type
-    edges because the values on either end of that edge can't be allocated
-    to the same slot. (This is just a space-saving optimization.) This
-    rule breaks down when one of the values is an argument, because of the
-    multiple views described above. If we're spilling a float64, it is not
-    enough that the float64 version of x is dead; the int64 version of x
-    has to be dead also.
-    
-    Remove the optimization of not recording interference edges if types
-    don't match. That optimization is incorrect if one of the values
-    connected by the edge is an argument.
-    
-    Fixes #23522
-    
-    Change-Id: I361f85d80fe3bc7249014ca2c3ec887c3dc30271
-    Reviewed-on: https://go-review.googlesource.com/89335
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I4c422b340791621584c118a6be1b38e8a44f8b70
+    Reviewed-on: https://go-review.googlesource.com/45573
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/stackalloc.go |  6 +++-
- test/fixedbugs/issue23522.go               | 46 ++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go      |  4 ++--
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/mstats.go   |  6 +++++-
+ src/runtime/proc.go     | 35 +++++++++++++++++++++++++++++++++--
+ src/runtime/runtime2.go |  3 ++-
+ src/runtime/trace.go    |  6 ++++--
+ 6 files changed, 47 insertions(+), 9 deletions(-)

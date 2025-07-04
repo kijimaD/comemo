@@ -1,13 +1,13 @@
-commit 1e063eea38fe3ecc8bea4e35bc0482fa8100ea80
+commit e5b0bcebdb7fb78b8783c966cff871efb52bbbc8
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 20 21:17:56 2013 +0400
+Date:   Wed Feb 20 12:34:16 2013 +0400
 
-    runtime: prepare for M's running w/o mcache
-    Can not happen ATM. In preparation for the new scheduler.
+    runtime/debug: deflake TestFreeOSMemory
+    This is followup to https://golang.org/cl/7319050/
     
-    R=golang-dev, rsc
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7388043
+    https://golang.org/cl/7379043
 
- src/pkg/runtime/panic.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/debug/garbage_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

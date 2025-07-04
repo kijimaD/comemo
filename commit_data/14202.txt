@@ -1,23 +1,17 @@
-commit e7f89fcb1cdd5fc41377108fcaad2363d4456b24
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Oct 22 10:01:14 2012 +0200
+commit 319131f295fecb687787d89b1441a6ea9222d5e4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Oct 22 08:38:23 2012 +0200
 
-    cmd/gc: fix strict tree property for AST for OAS2RECV nodes.
+    cmd/gc: fix inlining bug for composite literals in if statements.
     
-    in typecheck and walk, conversion from OAS2RECV to OAS2
-    and to OSELRECV2 duplicated the ->rlist->n to ->right
-    thereby destroying the strict tree-ness of the AST (up to
-    ONAMES) of course.  Several recursions in esc.c and inl.c
-    and probably elsewhere assume nodes of the tree aren't duplicated.
-    rather than defensively code around this, i'd rather assert
-    these cases away and fix their cause.
+    Fixes #4230.
     
-    (this was tripped in 6741044)
-    
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/6750043
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6640056
 
- src/cmd/gc/select.c    | 5 +++--
- src/cmd/gc/typecheck.c | 1 -
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/fmt.c               | 10 ++++---
+ test/fixedbugs/bug465.dir/a.go | 61 ++++++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug465.dir/b.go | 17 ++++++++++++
+ test/fixedbugs/bug465.go       | 10 +++++++
+ 4 files changed, 94 insertions(+), 4 deletions(-)

@@ -1,15 +1,12 @@
-commit 6f5af9c0b1c242ac74f415a3ce9f9a8437c54324
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue May 21 18:35:47 2013 +0200
+commit c3294049c37066f946360e7cefbb89fcfe294300
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 09:11:11 2013 -0700
 
-    cmd/gc: fix confusing error with broken types and defer/go
+    api: update next.txt
     
-    Fixes #5172.
-    
-    R=golang-dev, bradfitz, r
+    R=minux.ma
     CC=golang-dev
-    https://golang.org/cl/9614044
+    https://golang.org/cl/9459047
 
- src/cmd/gc/typecheck.c      |  5 +++++
- test/fixedbugs/issue5172.go | 19 +++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ api/next.txt | 31250 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 31250 insertions(+)

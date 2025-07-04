@@ -1,20 +1,29 @@
-commit 12c0f1b3e6ace3972bb3d328b2bdcadb6dceb198
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 28 14:19:28 2018 -0800
+commit d7ab57efda161c1757e591ec469ca4d01976cb66
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 15 12:40:07 2018 +0100
 
-    cmd/cgo: set correct column for user-written code
+    cmd/go: fix 'go vet -h' to print the right text
     
-    Take advantage of the new /*line*/ comments.
+    For the last two releases, its output has been the same as 'go -h'.
     
-    Fixes #26745
+    The test and vet sub-commands share their flag logic via the cmdflag
+    package, so fixing it there would mean a larger refactor. Moreover, the
+    test subcommand handles its '-h' flag in a special way; that's #26999.
     
-    Change-Id: I8098642e0f11f7418fe81b9a08dbe07671f930fe
-    Reviewed-on: https://go-review.googlesource.com/c/151598
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For now, use a much less invasive fix, mirroring the special-casing of
+    'test -h' to simply print vet's short usage text.
+    
+    Also add a regression test via a cmd/go test script.
+    
+    Fixes #26998.
+    
+    Change-Id: Ie6b866d98116a1bc5f84a204e1c9f1c2f6b48bff
+    Reviewed-on: https://go-review.googlesource.com/129318
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/errors/errors_test.go    |  1 +
- misc/cgo/errors/src/issue26745.go | 17 +++++++++++++++++
- src/cmd/cgo/gcc.go                | 37 ++++++++++++++++++++++++++++++-------
- 3 files changed, 48 insertions(+), 7 deletions(-)
+ src/cmd/go/main.go                  | 7 +++++++
+ src/cmd/go/testdata/script/help.txt | 6 ++++++
+ 2 files changed, 13 insertions(+)

@@ -1,40 +1,26 @@
-commit 18c2461af38e93ed385e953f3336fcaaca2da727
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Mon Oct 28 14:01:54 2024 -0700
+commit 00073c25f65947dc4a331dcc6b20cb215fb03341
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Aug 17 15:30:23 2023 -0400
 
-    runtime: allow futex OSes to use sema-based mutex
+    cmd/compile/internal/inline/inlheur: rescore callsites based on result use
     
-    Implement sema{create,sleep,wakeup} in terms of the futex syscall when
-    available. Split the lock2/unlock2 implementations out of lock_sema.go
-    and lock_futex.go (which they shared with runtime.note) to allow
-    swapping in new implementations of those.
+    Add a post-processing pass that updates the scores on callsites based
+    on how their results are used. This is similar to the "param feeds
+    unmodified into <XXX>" heuristics, but applies to returned results
+    instead: if we know that function F always returns a constant, and we
+    can see that the result from a given call feeds unmodified into an
+    if/switch, then decrease the score on the call to encourage inlining.
     
-    Let futex-based platforms use the semaphore-based mutex implementation.
-    Control that via the new "spinbitmutex" GOEXPERMENT value, disabled by
-    default.
-    
-    This lays the groundwork for a "spinbit" mutex implementation; it does
-    not include the new mutex implementation.
-    
-    For #68578.
-    
-    Change-Id: I091289c85124212a87abec7079ecbd9e610b4270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622996
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If513765c79d868cbdf672facbff9d92ad24f909e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521819
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/goexperiment/exp_spinbitmutex_off.go |   8 ++
- src/internal/goexperiment/exp_spinbitmutex_on.go  |   8 ++
- src/internal/goexperiment/flags.go                |   4 +
- src/runtime/lock_futex.go                         | 153 +++++-----------------
- src/runtime/lock_futex_tristate.go                | 136 +++++++++++++++++++
- src/runtime/lock_js.go                            |   2 +
- src/runtime/lock_sema.go                          | 125 ------------------
- src/runtime/lock_sema_tristate.go                 | 148 +++++++++++++++++++++
- src/runtime/lock_wasip1.go                        |   2 +
- src/runtime/os_dragonfly.go                       |   4 +-
- src/runtime/os_freebsd.go                         |   4 +-
- src/runtime/os_linux.go                           |   2 +
- src/runtime/runtime2.go                           |   2 +-
- 13 files changed, 347 insertions(+), 251 deletions(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go |   8 +-
+ .../inline/inlheur/analyze_func_callsites.go       |  14 +-
+ .../internal/inline/inlheur/funcprops_test.go      |   2 +-
+ .../inline/inlheur/score_callresult_uses.go        | 423 +++++++++++++++++++++
+ .../inline/inlheur/scoreadjusttyp_string.go        |  10 +-
+ src/cmd/compile/internal/inline/inlheur/scoring.go |   4 +-
+ .../inline/inlheur/testdata/props/returns2.go      | 228 +++++++++++
+ 7 files changed, 674 insertions(+), 15 deletions(-)

@@ -1,20 +1,25 @@
-commit e58c9baa9f7b708bcd6a3abf5a8426b0531ed002
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 16 09:16:21 2023 +0800
+commit 38cfb3be9d486833456276777155980d1ec0823e
+Author: Andrey Bozhko <andybozhko@gmail.com>
+Date:   Wed Dec 21 22:24:05 2022 +0000
 
-    cmd/internal/obj: set morestack arg spilling and regabi prologue on loong64
+    testing: rephrase the sentence about naming test files
     
-    Update #40724
+    This updates the explanation about
+    naming test files to be a little more clear.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: Ie92da57e29bae0e5cccb2a49a7cbeaf02cbf3a8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521787
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Run-TryBot: David Chase <drchase@google.com>
+    Fixes #57389
+    
+    Change-Id: I9b3a8e2dae5e3ad398b55624e183809b7d90864c
+    GitHub-Last-Rev: 9ff81b74b201ca032fd373424aa02a3fedaec008
+    GitHub-Pull-Request: golang/go#57399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458435
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Fahad King <fahadking750@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/loong64/obj.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/testing/testing.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

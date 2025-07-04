@@ -1,19 +1,21 @@
-commit 90ce1936e32f46de4c64752dfc54df75ec5758f0
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jan 14 18:09:36 2015 -0500
+commit 6262902070569201f220a40d7abbbf88795ad47d
+Author: Kato Kazuyoshi <kato.kazuyoshi@gmail.com>
+Date:   Tue Dec 16 08:22:17 2014 -0800
 
-    strings: add Compare(x, y string) int, for symmetry with bytes.Compare
+    os: handle the sticky bit separately for *BSD and Solaris
     
-    The implementation is the same assembly (or Go) routine.
+    open(2) and mkdir(2) won't set the sticky bit on *BSD and Solaris.
+    This behavior is mentioned on sticky(8).
+    see also: https://github.com/dotcloud/docker/pull/6587
     
-    Change-Id: Ib937c461c24ad2d5be9b692b4eed40d9eb031412
-    Reviewed-on: https://go-review.googlesource.com/2828
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #8383.
+    
+    Change-Id: Ic4733700f9926b9fc2b6fd1f998acec34e518764
+    Reviewed-on: https://go-review.googlesource.com/1673
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_386.s       |  3 ++
- src/runtime/asm_amd64.s     |  3 ++
- src/runtime/asm_amd64p32.s  |  3 ++
- src/runtime/noasm.go        |  5 +++
- src/strings/compare_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++
- src/strings/strings_decl.go |  7 ++++
- 6 files changed, 119 insertions(+)
+ src/os/file.go          |  6 ++++++
+ src/os/file_unix.go     | 12 ++++++++++++
+ src/os/sticky_bsd.go    | 11 +++++++++++
+ src/os/sticky_notbsd.go | 14 ++++++++++++++
+ 4 files changed, 43 insertions(+)

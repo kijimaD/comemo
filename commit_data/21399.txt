@@ -1,16 +1,17 @@
-commit 925861f3068a397cec0b04154e11114bf3e3ab1e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 27 21:07:35 2015 -0500
+commit 76b2f06ee54f92b104412bdf9fefd8e7915969d3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 30 19:48:26 2014 -0500
 
-    liblink: bug fixes for ppc64 %P format
+    cmd/gc: fix filename output format verb for -s
     
-    - certain code paths were appending to the string without first clearing it.
-    - some prints were using spaces instead of tabs
+    %lL will prepend the current directory to the filename, which is not
+    what we want here (as the file name is already absolute).
     
-    Change-Id: I7a3d38289c8206682baf8942abf5a9950a56b449
-    Reviewed-on: https://go-review.googlesource.com/3511
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes #9150.
+    
+    Change-Id: I4c9386be6baf421393b92d9401a264b4692986d0
+    Reviewed-on: https://go-review.googlesource.com/2231
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/liblink/list9.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

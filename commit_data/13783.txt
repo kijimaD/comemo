@@ -1,15 +1,20 @@
-commit 6ce49303652420b55c7c878a924bbcd5e2e8e624
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 10 13:03:07 2012 -0700
+commit 72fa142fc54366f3009d47afd51bd031cc946454
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 10 15:35:39 2012 -0400
 
-    gc: initial BOM is legal.
-    Fixes #4040.
+    6l/8l: emit correct opcodes to F(SUB|DIV)R?D.
     
-    R=rsc
+    When the destination was not F0, 6l and 8l swapped FSUBD/FSUBRD and
+    FDIVD/FDIVRD.
+    
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6497098
+    https://golang.org/cl/6498092
 
- src/cmd/gc/lex.c | 12 +++++++++++-
- test/bom.go      | 26 ++++++++++++++++++++++++++
- test/bombad.go   | 18 ++++++++++++++++++
- 3 files changed, 55 insertions(+), 1 deletion(-)
+ src/cmd/6l/optab.c                      |  8 ++++----
+ src/cmd/8l/optab.c                      |  8 ++++----
+ test/fixedbugs/bug453.dir/bug453.go     | 22 ++++++++++++++++++++++
+ test/fixedbugs/bug453.dir/bug453.s      | 31 +++++++++++++++++++++++++++++++
+ test/fixedbugs/bug453.dir/bug453_ref.go | 15 +++++++++++++++
+ test/fixedbugs/bug453.go                |  7 +++++++
+ 6 files changed, 83 insertions(+), 8 deletions(-)

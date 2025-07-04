@@ -1,0 +1,28 @@
+commit 1cafdfb63bb9b8825c5f4143d154bce3b82ed6a1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 10 12:26:03 2025 -0400
+
+    net/http: make the zero value of CrossOriginProtection work
+    
+    Currently, CrossOriginProtection must be constructed by
+    NewCrossOriginProtection. If you try to use the zero value, most
+    methods will panic with a nil dereference.
+    
+    This CL makes CrossOriginProtection use on-demand initialization
+    instead, so the zero value has the same semantics as the value
+    currently returned by NewCrossOriginProtection. Now,
+    NewCrossOriginProtection just constructs the zero value.
+    
+    We keep NewCrossOriginProtection by analogy to NewServeMux.
+    
+    Updates #73626
+    Fixes #74089.
+    
+    Change-Id: Ia80183eb6bfdafb0e002271c0b25c2d6230a159a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680396
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/csrf.go | 37 ++++++++++++++++++++++++++++---------
+ 1 file changed, 28 insertions(+), 9 deletions(-)

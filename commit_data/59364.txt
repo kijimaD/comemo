@@ -1,23 +1,28 @@
-commit 67e0681aef41cfd9794d3f7819450acd08a67905
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 22 15:14:17 2025 -0700
+commit db44044f75a8b6467c37dd99a944e0021a153e6b
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Mar 7 14:37:15 2024 +0000
 
-    cmd/compile: put constant value on node inside parentheses
+    internal/poll: change Fsync to fallback to syscall.Fsync on darwin
     
-    That's where the unified IR writer expects it.
+    In certain scenarios, such as network mounts, calling Fsync results in
+    ENOTSUP in OSX. This issue was introduced in CL 130676 since
+    syscall.FSync was not properly flushing contents to disk, and it was
+    replaced with fcntl(fd, F_FULLSYNC). Most SMB servers, like Windows
+    Server and Samba don't support F_FULLSYNC.
     
-    Fixes #73476
+    To avoid such issues fallback to syscall.Fsync if fcntl returns ENOTSUP.
     
-    Change-Id: Ic22bd8dee5be5991e6d126ae3f6eccb2acdc0b19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667415
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Fixes #64215
+    
+    Change-Id: I567191e1179b7e70ddffb6b881469de1872746ef
+    GitHub-Last-Rev: 62e6931cf79735a192ed57be05005e84720ed232
+    GitHub-Pull-Request: golang/go#64258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543535
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/range.go | 10 ++++++++++
- src/go/types/range.go                    | 10 ++++++++++
- test/fixedbugs/issue73476.go             | 17 +++++++++++++++++
- test/fixedbugs/issue73476.out            |  4 ++++
- 4 files changed, 41 insertions(+)
+ src/internal/poll/fd_fsync_darwin.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

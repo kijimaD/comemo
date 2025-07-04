@@ -1,14 +1,21 @@
-commit 7e9f00c80c56fe325d0c0e11c4a8ce4bc368b06e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 30 12:30:26 2013 -0800
+commit fc7b75f21622a3c4ddb523f49a24274ffcf41147
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jan 30 21:10:19 2013 +0100
 
-    cmd/godoc: fix buggy use of strings.HasSuffix
+    cmd/gc: fix export data for aggressive inlining.
     
-    This code never worked. Maybe it's not necessary?
+    Export data was broken after revision 6b602ab487d6
+    when -l is specified at least 3 times: it makes the compiler
+    write out func (*T).Method() declarations in export data, which
+    is not supported.
     
-    R=golang-dev, rsc
+    Also fix the formatting of recover() in export data. It was
+    not treated like panic() and was rendered as "<node RECOVER>".
+    
+    R=golang-dev, lvd, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7225070
+    https://golang.org/cl/7067051
 
- src/cmd/godoc/godoc.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/gc/export.c | 11 ++++++++++-
+ src/cmd/gc/fmt.c    |  2 ++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

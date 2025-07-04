@@ -1,22 +1,32 @@
-commit f5804ce4f3b0f9fa8b9d149edc7fd43c6134768c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Aug 10 08:11:46 2017 -0700
+commit 7f32d41e5dc3885f440244e0e181832879426b45
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 12 09:43:28 2017 -0400
 
-    runtime: simplify hashmap tooManyOverflowBuckets
+    runtime: expand inlining iteratively in CallersFrames
     
-    This generates better code.
+    Currently CallersFrames expands each PC to a slice of Frames and then
+    iteratively returns those Frames. However, this makes it very
+    difficult to avoid heap allocation: either the Frames slice will be
+    heap allocated, or, if it uses internal scratch space for small slices
+    (as it currently does), the Frames object itself has to be heap
+    allocated.
     
-    Masking B in the return statement should be unnecessary,
-    but the compiler is understandably not yet clever enough to see that.
+    Fix this, at least in the common case, by expanding each PC
+    iteratively. We introduce a new pcExpander type that's responsible for
+    expanding a single PC. This maintains state from one Frame to the next
+    in the same PC. Frames then becomes a wrapper around this responsible
+    for feeding it the next PC when the pcExpander runs out of frames for
+    the current PC.
     
-    Someday, it'd also be nice for the compiler to generate
-    a CMOV for the saturation if statement.
+    This makes it possible to stack-allocate a Frames object, which will
+    make it possible to use this API for PC expansion from within the
+    runtime itself.
     
-    Change-Id: Ie1c157b21f5212610da1f3c7823a93816b3b61b9
-    Reviewed-on: https://go-review.googlesource.com/54656
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I993463945ab574557cf1d6bedbe79ce7e9cbbdcd
+    Reviewed-on: https://go-review.googlesource.com/40434
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/runtime/hashmap.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/symtab.go | 241 +++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 149 insertions(+), 92 deletions(-)

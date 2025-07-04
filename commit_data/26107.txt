@@ -1,23 +1,19 @@
-commit 2b19b6e3f109a7a7392d4628ae700833623aa26e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 7 17:10:19 2016 -0500
+commit ab39b8de7ef209f004c040e47b74f340347486f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 17:14:51 2015 -0800
 
-    runtime: fix checkmark scanning of finalizers
+    os/signal: document signal handling
     
-    Currently work.finalizersDone is reset only at the beginning of
-    gcStart. As a result, it will be set when checkmark runs, so checkmark
-    will skip scanning finalizers. Hence, if there are any bugs that cause
-    the regular scan of finalizers to miss pointers, checkmark will also
-    miss them and fail to detect the missed pointer.
+    This is an attempt to document the current state of signal handling.
+    It's not intended to describe the best way to handle signals.  Future
+    changes to signal handling should update these docs as appropriate.
     
-    Fix this by resetting finalizersDone in gcResetMarkState. This way it
-    gets reset before any full mark, which is exactly what we want.
+    update #9896.
     
-    Change-Id: I4ddb5eba5b3b97e52aaf3e08fd9aa692bda32b20
-    Reviewed-on: https://go-review.googlesource.com/20332
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3c50af5cc641357b57dfe90ae1c7883a7e1ec059
+    Reviewed-on: https://go-review.googlesource.com/17877
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/os/signal/doc.go    | 183 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/signal/signal.go |   1 -
+ 2 files changed, 183 insertions(+), 1 deletion(-)

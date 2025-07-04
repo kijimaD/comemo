@@ -1,19 +1,38 @@
-commit efaa36017e34b87a5731793594b42d483209d808
+commit f9d6b909b10e80d862932a935907e36c8cc24eeb
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 4 23:34:01 2016 +0000
+Date:   Thu Jun 23 20:51:39 2016 +0000
 
-    encoding/csv: update and add CSV reading benchmarks
+    A+C: automated updates
     
-    Benchmarks broken off from https://golang.org/cl/24723 and modified to
-    allocate less in the places we're not trying to measure.
+    Add Aaron Zinman (corporate CLA for Empirical Interfaces Inc.)
+    Add Ayanamist Yang (individual CLA)
+    Add Christian Couder (individual CLA)
+    Add Eric Engestrom (individual CLA)
+    Add Filippo Valsorda (individual CLA)
+    Add Gyu-Ho Lee (individual CLA)
+    Add H. İbrahim Güngör (individual CLA)
+    Add Jacob Hoffman-Andrews (individual CLA)
+    Add Jason Barnett (individual CLA)
+    Add Joe Farrell (individual CLA)
+    Add Julian Kornberger (individual CLA)
+    Add Kris Rousey (corporate CLA for Google Inc.)
+    Add Miguel Mendez (individual CLA)
+    Add Nic Day (individual CLA)
+    Add Paulo Casaretto (individual CLA)
+    Add Philip Børgesen (individual CLA)
+    Add Quan Tran (individual CLA)
+    Add Sai Cheemalapati (corporate CLA for Google Inc.)
+    Add Sasha Sobol (individual CLA)
+    Add Seth Vargo (individual CLA)
+    Add Simon Thulbourn (individual CLA)
+    Add Wisdom Omuya (individual CLA)
     
-    Updates #16791
+    Updates #12042
     
-    Change-Id: I508e4cfeac60322d56f1d71ff1912f6a6f183a63
-    Reviewed-on: https://go-review.googlesource.com/30357
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie8ab5e3500ee62000c0b176d4d71340446e72ab7
+    Reviewed-on: https://go-review.googlesource.com/24420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/csv/reader_test.go | 72 ++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 64 insertions(+), 8 deletions(-)
+ AUTHORS      | 20 ++++++++++++++++++++
+ CONTRIBUTORS | 22 ++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

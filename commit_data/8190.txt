@@ -1,15 +1,13 @@
-commit 81cfb4ec2b37a296722de4172a4a0d29cce06961
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 22 09:09:37 2011 -0700
+commit 75ca6d189c24f701e9544fc89b735e41cd25583b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 08:53:52 2011 -0700
 
-    http: fix FileServer's default text content type
+    http/cgi: copy some PATH environment variables to child
     
-    Fixes #1729
-    
-    R=rsc, adg
+    R=bradfitz, bradfitzwork, iant2, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4443057
+    https://golang.org/cl/4444058
 
- src/pkg/http/fs.go      | 2 +-
- src/pkg/http/fs_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/cgi/host.go            | 13 ++++++++++---
+ src/pkg/http/cgi/matryoshka_test.go |  8 ++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

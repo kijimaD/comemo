@@ -1,22 +1,16 @@
-commit 279da965329a74cd75320f15cb9672a282690ab7
-Author: 段仪 <duanyi.aster@bytedance.com>
-Date:   Tue Feb 18 18:01:45 2025 +0000
+commit 1541af5ce81b9f58845fdbf0bf72b7b6965b5e96
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 16:37:49 2023 -0500
 
-    runtime: add some linknames back for `github.com/bytedance/sonic`
+    doc/go1.22: document bufio changes
     
-    Add some linknames back, therefore sonic (github.com/bytedance/sonic) can work correctly.
+    For #61422.
     
-    Fixes #71672
-    
-    Change-Id: Iae86c837d8a714855106a26766aa08b128e17e58
-    GitHub-Last-Rev: 4de0a4871766f9e7763394fdcdcaa9d683e97987
-    GitHub-Pull-Request: golang/go#71673
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648537
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1b20c536a5b1c105286c84e7c1c7e37eb89bbc93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548879
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/stubs.go  | 10 ++++++++++
- src/runtime/symtab.go | 23 ++++++++++++++++++++++-
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ doc/go1.22.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

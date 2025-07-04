@@ -1,25 +1,23 @@
-commit df47b821747184361f9b3d6038fc66eda4916619
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Mar 20 17:31:35 2017 -0400
+commit 74628a8b9f102bddd5078ee426efe0fd57033115
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 14:56:58 2016 -0500
 
-    cmd/internal/obj/s390x: cleanup objz.go
+    doc, cmd/go: adjust documentation for default GOPATH
     
-    This CL deletes some unnecessary code in objz.go that existed to
-    support instruction scheduling. It's likely instruction scheduling
-    will never be done in this part of the backend so this code can
-    just be deleted.
+    Replaces CL 33356.
     
-    This file can probably be cleaned up a bit more, but I think this
-    is a good start.
+    Fixes #17262.
     
-    Passes: go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: I1645632ac551a90a4f4be418045c046b488e9469
-    Reviewed-on: https://go-review.googlesource.com/38394
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: Idfb2343e90771775e51a66c63760f458737a288c
+    Reviewed-on: https://go-review.googlesource.com/33730
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/s390x/a.out.go |  12 +--
- src/cmd/internal/obj/s390x/objz.go  | 146 ++++--------------------------------
- 2 files changed, 16 insertions(+), 142 deletions(-)
+ doc/articles/go_command.html | 48 +++++++++++---------------------
+ doc/code.html                | 37 +++++++++++++++++--------
+ doc/go_faq.html              |  2 +-
+ doc/install-source.html      |  4 +--
+ doc/install.html             | 66 ++++++++++++++++++--------------------------
+ src/cmd/go/alldocs.go        | 14 ++++++----
+ src/cmd/go/help.go           | 14 ++++++----
+ 7 files changed, 87 insertions(+), 98 deletions(-)

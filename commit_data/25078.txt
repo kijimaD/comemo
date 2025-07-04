@@ -1,19 +1,31 @@
-commit de531fc255e4b8ec6c38fa839546cddcac1e074b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 27 16:11:05 2015 -0800
+commit 5cf281a9b791f0f10efd1574934cbb19ea1b33da
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Sep 22 14:32:05 2015 +0300
 
-    cmd/compile: remove gratuituous type conversions
+    runtime: optimize duffcopy on amd64
     
-    Follow-up cleanup for https://go-review.googlesource.com/17248:
-    Use properly typed local variable op now that that variable use
-    is not overloaded anymore.
+    Use movups to copy 16 bytes at a time.
+    Results (haswell):
     
-    Also: Remove unnecessary if stmt from common lexical path.
+    name            old time/op  new time/op  delta
+    CopyFat8-48     0.62ns ± 3%  0.63ns ± 3%     ~     (p=0.535 n=20+20)
+    CopyFat12-48    0.92ns ± 2%  0.93ns ± 3%     ~     (p=0.594 n=17+18)
+    CopyFat16-48    1.23ns ± 2%  1.23ns ± 2%     ~     (p=0.839 n=20+19)
+    CopyFat24-48    1.85ns ± 2%  1.84ns ± 0%   -0.48%  (p=0.014 n=19+20)
+    CopyFat32-48    2.45ns ± 0%  2.45ns ± 1%     ~     (p=1.000 n=16+16)
+    CopyFat64-48    3.30ns ± 2%  2.14ns ± 1%  -35.00%  (p=0.000 n=20+18)
+    CopyFat128-48   6.05ns ± 0%  3.98ns ± 0%  -34.22%  (p=0.000 n=18+17)
+    CopyFat256-48   11.9ns ± 3%   7.7ns ± 0%  -35.87%  (p=0.000 n=20+17)
+    CopyFat512-48   23.0ns ± 2%  15.1ns ± 2%  -34.52%  (p=0.000 n=20+18)
+    CopyFat1024-48  44.8ns ± 1%  29.8ns ± 2%  -33.48%  (p=0.000 n=17+19)
     
-    Change-Id: I984b0b346f3fdccd5aedc937330c0a5f99acf324
-    Reviewed-on: https://go-review.googlesource.com/17249
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8a78773c656d400726a020894461e00c59f896bf
+    Reviewed-on: https://go-review.googlesource.com/14836
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/lex.go    | 37 +++++++++++++++++------------------
- src/cmd/compile/internal/gc/parser.go |  2 +-
- 2 files changed, 19 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/amd64/cgen.go |  14 +-
+ src/runtime/duff_amd64.s               | 958 +++++++++++----------------------
+ src/runtime/mkduff.go                  |  10 +-
+ 3 files changed, 336 insertions(+), 646 deletions(-)

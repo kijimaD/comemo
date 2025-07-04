@@ -1,14 +1,45 @@
-commit 4439b21d0cf1fa3be7bd52ff79e83149f314458c
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Sep 2 10:36:01 2017 +0900
+commit 1213776650486aff30b607a6c6b6ece3e9c0155f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 9 17:36:42 2017 -0700
 
-    cmd/go: don't write file if -n option is given
+    cmd/compile: use a buffered channel for the function queue
     
-    Change-Id: I01f5d3b4748d0ead8642ff3e53d1ae9c4378bcbc
-    Reviewed-on: https://go-review.googlesource.com/61111
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Updates #20307
+    
+    With -c=2:
+    
+    name        old time/op       new time/op       delta
+    Template          140ms ± 3%        139ms ± 4%  -1.06%  (p=0.003 n=50+50)
+    Unicode          81.1ms ± 4%       81.9ms ± 4%  +0.96%  (p=0.006 n=50+49)
+    GoTypes           375ms ± 3%        374ms ± 3%    ~     (p=0.094 n=48+48)
+    Compiler          1.69s ± 2%        1.68s ± 2%  -0.41%  (p=0.004 n=49+48)
+    SSA               3.05s ± 1%        3.05s ± 2%    ~     (p=0.953 n=47+49)
+    Flate            86.3ms ± 2%       85.9ms ± 2%  -0.49%  (p=0.011 n=49+48)
+    GoParser         99.5ms ± 3%       99.3ms ± 3%    ~     (p=0.394 n=48+49)
+    Reflect           262ms ± 3%        261ms ± 3%    ~     (p=0.354 n=47+49)
+    Tar              81.4ms ± 3%       79.7ms ± 4%  -1.98%  (p=0.000 n=47+50)
+    XML               133ms ± 3%        133ms ± 3%    ~     (p=0.992 n=50+49)
+    [Geo mean]        236ms             235ms       -0.36%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          249ms ± 5%        242ms ± 7%  -2.61%  (p=0.000 n=48+50)
+    Unicode           111ms ± 4%        111ms ± 6%    ~     (p=0.407 n=46+47)
+    GoTypes           753ms ± 2%        748ms ± 3%  -0.65%  (p=0.010 n=48+50)
+    Compiler          3.28s ± 2%        3.27s ± 2%  -0.40%  (p=0.026 n=49+47)
+    SSA               7.03s ± 2%        7.01s ± 3%    ~     (p=0.154 n=45+50)
+    Flate             154ms ± 3%        154ms ± 3%    ~     (p=0.306 n=49+49)
+    GoParser          180ms ± 4%        179ms ± 4%    ~     (p=0.148 n=48+48)
+    Reflect           427ms ± 2%        428ms ± 3%    ~     (p=0.502 n=46+49)
+    Tar               142ms ± 5%        135ms ± 9%  -4.83%  (p=0.000 n=46+50)
+    XML               247ms ± 3%        247ms ± 4%    ~     (p=0.921 n=49+49)
+    [Geo mean]        426ms             422ms       -0.92%
+    
+    
+    Change-Id: I4746234439ddb9a7e5840fc783b8857da6a4a680
+    Reviewed-on: https://go-review.googlesource.com/43110
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/build.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

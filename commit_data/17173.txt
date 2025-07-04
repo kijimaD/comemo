@@ -1,15 +1,26 @@
-commit 4d2494330eff67b8f67eb8af165dbcfc3c2aabdf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 12 19:18:47 2013 -0700
+commit dbf96addfb7fc868701fdf3d70ed6c2e1c920d63
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 22:02:10 2013 -0400
 
-    cmd/api: don't fail API check if there's no network
+    cmd/gc: move flow graph into portable opt
     
-    If the hg checkout of go.tools fails, check for Internet
-    connectivity before failing.
+    Now there's only one copy of the flow graph construction
+    and dominator computation, and different optimizations
+    can attach different annotations to the instructions.
     
-    R=golang-dev, shivakumar.gn
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12814043
+    https://golang.org/cl/12797045
 
- src/cmd/api/run.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/5g/opt.h  |  34 +---
+ src/cmd/5g/peep.c | 297 ++++++++++++++------------------
+ src/cmd/5g/reg.c  | 499 +++++++++++++++---------------------------------------
+ src/cmd/6g/opt.h  |  40 +----
+ src/cmd/6g/peep.c | 194 ++++++++-------------
+ src/cmd/6g/reg.c  | 454 ++++++++++++++-----------------------------------
+ src/cmd/8g/opt.h  |  22 +--
+ src/cmd/8g/peep.c | 160 ++++++-----------
+ src/cmd/8g/reg.c  | 452 ++++++++++++++-----------------------------------
+ src/cmd/gc/popt.c | 281 ++++++++++++++++++++++++++++++
+ src/cmd/gc/popt.h |  34 ++++
+ 11 files changed, 965 insertions(+), 1502 deletions(-)

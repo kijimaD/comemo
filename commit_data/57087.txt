@@ -1,32 +1,34 @@
-commit 40876244739f787fd9a4eb06503cc122b6c5ce52
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Jun 6 16:06:39 2024 +0800
+commit 6dc2d2aa6b9cbab9dc190276cb5a77b4b4a91cd3
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Tue Jun 13 21:39:54 2023 -0700
 
-    cmd/internal/obj/loong64: add support for instructions FFINT.{S/D}.{W/L} and FTINT.{W/L}.{S/D}
+    testing/fstest: fix the Glob test when dir entries are out of order
     
-    Go asm syntax:
-            FFINT{F/D}{W/V}         FJ, FD
-            FTINT{W/V}{F/D}         FJ, FD
+    This change adds a test highlighting an issue with the fstest.TestFS
+    test suite which occurred when the fs.FS implementation would expose
+    directories returning unordered directory entries from their ReadDir
+    method.
     
-    Equivalent platform assembler syntax:
-            ffint.{s/d}.{w/l}       fd, fj
-            ftint.{w/l}.{s/d}       fd, fj
+    --- FAIL: TestShuffledFS (0.00s)
+        testfs_test.go:76: testing fs.Sub(fsys, tmp): TestFS found errors:
+            .: Glob(`*e*`): wrong output:
+            extra: one
+            missing: one
     
-    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    The issue came from having the wrong variable passed to the checkGlob
+    method. There are two variables named list and list2, the latter is
+    sorted, and the checkGlob method expects a sorted list but was passed
+    list instead of list2.
     
-    Change-Id: Ie7646c5d49645c63b274b34b66539f10370f4930
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590996
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I5e49dccf14077e7d1fee51687eb6a5eeb0330c16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  9 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
- src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
- src/cmd/internal/obj/loong64/asm.go             | 24 ++++++++++++++++++++++++
- 4 files changed, 51 insertions(+)
+ src/testing/fstest/testfs.go      |  2 +-
+ src/testing/fstest/testfs_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

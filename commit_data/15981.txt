@@ -1,14 +1,13 @@
-commit 1a427a697e9fce8bd3a12ae233bc6f751a406b9d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 28 08:46:17 2013 -0700
+commit 99645db9268cfe93f561ef2de013ea5f58304c79
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 27 16:31:14 2013 -0700
 
-    cmd/godoc: don't crash if there's no documentation
+    text/template: fix bug in evaluating a chain starting with a function.
     
-    Fixes regression introduced by CL 7860049.
-    
-    R=golang-dev, kamil.kisiel, dave
+    R=golang-dev, alberto.garcia.hierro
     CC=golang-dev
-    https://golang.org/cl/8069044
+    https://golang.org/cl/7861046
 
- src/cmd/godoc/main.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/text/template/exec.go      |  2 ++
+ src/pkg/text/template/exec_test.go | 27 +++++++++++++++++----------
+ 2 files changed, 19 insertions(+), 10 deletions(-)

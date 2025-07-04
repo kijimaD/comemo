@@ -1,0 +1,28 @@
+commit 045b5c1bfb4535dc8149d93efec1f6412f5ccdae
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu May 15 15:21:06 2025 +0800
+
+    cmd/internal/obj/loong64: change the plan9 format of the prefetch instruction PRELDX
+    
+    before:
+        MOVV    $n + $offset, Roff
+        PRELDX  (Rbase)(Roff), $hint
+    after:
+        PRELDX  offset(Rbase), $n, $hint
+    
+    This instruction is supported in CL 671875, but is not actually used
+    
+    Change-Id: I943d488ea6dc77781cd796ef480a89fede666bab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673155
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/asm.go                 |  5 ++
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  3 -
+ src/cmd/asm/internal/asm/testdata/loong64enc5.s |  5 ++
+ src/cmd/internal/obj/loong64/asm.go             | 73 +++++++++++++++++++------
+ src/cmd/internal/obj/loong64/doc.go             | 26 +++++++++
+ 5 files changed, 93 insertions(+), 19 deletions(-)

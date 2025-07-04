@@ -1,32 +1,55 @@
-commit b5e31780b612c1317c9853f9e59df5c1bd0b3552
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 7 17:20:35 2023 -0500
+commit 8fd2875c3e9455df722dd3c930332591eebbb3c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 09:39:45 2022 -0800
 
-    cmd/compile: check for iteration after range func loop exit
+    go/types, types2: make the new comparable semantics the default
     
-    When this happens, panic.
+    Ordinary interface types now satisfy comparable constraints. This
+    is a fully backward-compatible change: it simply permits additional
+    code to be valid that wasn't valid before.
     
-    This is a revised version of a check that used #next,
-    where this one instead uses a per-loop #exit flag,
-    and catches more problematic iterators.
+    This change makes the new comparable semantics the default behavior,
+    depending on the Go -lang version.
     
-    Updates #56413.
-    Updates #61405.
+    It also renames the flag types2.Config.AltComparableSemantics to
+    types2.Config.OldComparableSemantics and inverts its meaning
+    (or types.Config.oldComparableSemantics respectively).
     
-    Change-Id: I6574f754e475bb67b9236b4f6c25979089f9b629
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540263
-    Run-TryBot: David Chase <drchase@google.com>
+    Add new predicate Satisfies (matching the predicate Implements but
+    for constraint satisfaction), per the proposal description.
+    
+    Adjust some existing tests by setting -oldComparableSemantics
+    and add some new tests that verify version-dependent behavior.
+    
+    The compiler flag -oldcomparable may be used to temporarily
+    switch back to the Go 1.18/1.19 behavior should this change
+    cause problems, or to identify that a problem is unrelated
+    to this change. The flag will be removed for Go 1.21.
+    
+    For #52509.
+    For #56548.
+    For #57011.
+    
+    Change-Id: I8b3b3d9d492fc24b0693567055f0053ccb5aeb42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454575
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/codes.go            |    1 +
- src/cmd/compile/internal/noder/reader.go           |    4 +
- src/cmd/compile/internal/noder/writer.go           |    9 +
- .../compile/internal/rangefunc/rangefunc_test.go   | 1297 ++++++++++++++++++++
- src/cmd/compile/internal/rangefunc/rewrite.go      |  192 ++-
- src/cmd/compile/internal/syntax/type.go            |   36 +-
- .../compile/internal/typecheck/_builtin/runtime.go |    3 +
- src/cmd/compile/internal/typecheck/builtin.go      |    1 +
- src/cmd/internal/goobj/builtinlist.go              |    9 +-
- src/runtime/panic.go                               |    7 +
- 10 files changed, 1521 insertions(+), 38 deletions(-)
+ api/next/56548.txt                                 |  1 +
+ src/cmd/compile/internal/base/flag.go              |  4 +--
+ src/cmd/compile/internal/noder/irgen.go            |  2 +-
+ src/cmd/compile/internal/types2/api.go             | 15 ++++++++--
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 33 ++++++++++++++++++----
+ src/go/types/api.go                                | 15 ++++++++--
+ src/go/types/check_test.go                         |  8 +++---
+ src/go/types/instantiate.go                        | 33 ++++++++++++++++++----
+ src/internal/types/testdata/check/issues1.go       |  2 ++
+ .../types/testdata/fixedbugs/issue50646.go         |  2 ++
+ .../types/testdata/fixedbugs/issue51257.go         |  2 ++
+ src/internal/types/testdata/spec/comparable.go     |  2 --
+ src/internal/types/testdata/spec/comparable1.19.go | 28 ++++++++++++++++++
+ src/internal/types/testdata/spec/oldcomparable.go  | 28 ++++++++++++++++++
+ 15 files changed, 149 insertions(+), 28 deletions(-)

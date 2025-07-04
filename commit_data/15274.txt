@@ -1,15 +1,18 @@
-commit f87b7f67b232db252a527dbc000533a27ccb8cd2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 15 22:22:13 2013 +0400
+commit 2b9787c2f3861736e82aa715343b67157911917f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 13:12:28 2013 -0500
 
-    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
-    The removed code leads to the situation when M executes the same locked G again and again.
-    Fixes #4820.
+    encoding/binary: make type error more specific
     
-    R=golang-dev, rsc
+    Right now it says 'invalid type S' for a struct type S.
+    Instead, say which type inside the struct is the problem.
+    
+    Fixes #4825.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7310096
+    https://golang.org/cl/7301102
 
- src/pkg/runtime/proc.c       |  8 --------
- src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 8 deletions(-)
+ src/pkg/encoding/binary/binary.go      | 57 ++++++++++++++++++----------------
+ src/pkg/encoding/binary/binary_test.go |  9 +++++-
+ 2 files changed, 39 insertions(+), 27 deletions(-)

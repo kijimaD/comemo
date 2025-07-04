@@ -1,18 +1,37 @@
-commit 519a7bb1e77365b0ce056215dc70687666fc3c5b
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Wed Feb 21 02:23:29 2024 +0000
+commit b94dc384cabf75e7e8703265cd80f5324f84b642
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 28 13:27:51 2023 -0800
 
-    crypto/x509: fix typo
+    cmd/compile/internal/ir: explicit Pos for New{Bool,Int,String}
     
-    Change-Id: I0911c59280e4a208a3deee1f70b47adc60fb734b
-    GitHub-Last-Rev: 12e95ade68c2f2dd8f87126eae9f3a75841ec8bc
-    GitHub-Pull-Request: golang/go#65833
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565439
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Stop depending on base.Pos for these.
+    
+    Change-Id: I58dea44f8141eb37b59a6e9f7db0c6baa516ad93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472296
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/x509/hybrid_pool_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/compare/compare.go        |  2 +-
+ src/cmd/compile/internal/coverage/cover.go         | 14 ++++----
+ src/cmd/compile/internal/escape/desugar.go         |  2 +-
+ src/cmd/compile/internal/ir/const.go               | 13 ++++----
+ src/cmd/compile/internal/ir/val.go                 |  5 ---
+ src/cmd/compile/internal/pkginit/init.go           |  4 +--
+ .../compile/internal/pkginit/initAsanGlobals.go    | 18 +++++-----
+ src/cmd/compile/internal/reflectdata/alg.go        | 24 +++++++-------
+ src/cmd/compile/internal/typecheck/func.go         |  4 +--
+ src/cmd/compile/internal/typecheck/typecheck.go    |  2 +-
+ src/cmd/compile/internal/walk/assign.go            |  8 ++---
+ src/cmd/compile/internal/walk/builtin.go           | 32 +++++++++---------
+ src/cmd/compile/internal/walk/compare.go           | 38 +++++++++++-----------
+ src/cmd/compile/internal/walk/complit.go           | 12 +++----
+ src/cmd/compile/internal/walk/convert.go           |  6 ++--
+ src/cmd/compile/internal/walk/order.go             |  6 ++--
+ src/cmd/compile/internal/walk/range.go             | 20 ++++++------
+ src/cmd/compile/internal/walk/select.go            | 14 ++++----
+ src/cmd/compile/internal/walk/switch.go            | 10 +++---
+ 19 files changed, 115 insertions(+), 119 deletions(-)

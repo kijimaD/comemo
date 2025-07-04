@@ -1,34 +1,13 @@
-commit 6c5f0282422043b913bb7908efb8849905777c8b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 31 13:21:11 2021 -0700
+commit 88e1415d0896824e275fd39bd80cca47275358cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 13:20:06 2020 -0500
 
-    cmd/compile/internal/pkginit: separate "init" and "inittask" logic
+    [dev.regabi] cmd/compile: add type assertion in regabi test
     
-    This CL splits the creation of the "init" function responsible for
-    executing package-scope variable initialization statemens from the
-    creation of the "inittask" record that tells the runtime how to
-    sequence all program-wide package initialization.
-    
-    Longer term, this is desirable because sorting variable initialization
-    is already handled by types2 (with Info.InitOrder), so we might as
-    well reuse that.
-    
-    As a more immediate impetus, for unified IR, I want to defer method
-    wrapper generation until after inlining (to know which wrappers are
-    needed). But the staticinit optimization used to decide whether to
-    emit the inittask calls into reflectdata, which in turn tries to
-    generate its own method wrappers. So separating the work allows to
-    create the "init" function early and then emit "inittask" after
-    inlining is done.
-    
-    Change-Id: Ice1d421f92feecaaeafdf7da6b9647c0f27e3571
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346629
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I7da5165f3679736040be5bfbcea3d4a85deaff2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277957
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/main.go           |  20 +++--
- src/cmd/compile/internal/pkginit/init.go      | 103 +++++++++++++++++---------
- src/cmd/compile/internal/pkginit/initorder.go |  10 +--
- 3 files changed, 85 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/abiutilsaux_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

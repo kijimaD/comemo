@@ -1,12 +1,14 @@
-commit e91b31bc79809ccb3ac86dc9c71d7fad4acbc40d
+commit 811006c89d85076b9ed7a43a64ed9b61ba72dd16
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 15:27:49 2012 -0800
+Date:   Thu Jan 12 15:04:39 2012 -0800
 
-    fix build
+    cmd/go: handle cgo pkg-config pragmas
     
-    TBR=gri
+    Fixes #2681.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5528090
+    https://golang.org/cl/5540047
 
- src/Make.pkg | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 83 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 57 insertions(+), 26 deletions(-)

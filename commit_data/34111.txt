@@ -1,15 +1,20 @@
-commit 6009a261e9b3ed228ed1532d5574db25d32e8b3d
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Feb 1 12:21:44 2018 -0800
+commit c80338accb7282295f8c607a9b47cf25904fbb19
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 30 16:50:00 2017 +0000
 
-    crypto/tls: handle errors in generate_cert.go
+    cmd/link: remove ctxt from objfile reader
     
-    I don't expect these to hit often, but we should still alert users if
-    we fail to write the correct data to the file, or fail to close it.
+    Preparation for moving the object file reader to its own package.
     
-    Change-Id: I33774e94108f7f18ed655ade8cca229b1993d4d2
-    Reviewed-on: https://go-review.googlesource.com/91456
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #22095
+    
+    Change-Id: I31fe4a10a2c465f8ea4bf548f40918807e4ec6b5
+    Reviewed-on: https://go-review.googlesource.com/67314
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/generate_cert.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/lib.go     |  3 ++-
+ src/cmd/link/internal/ld/link.go    | 30 +++++++++++++++++++++---------
+ src/cmd/link/internal/ld/objfile.go | 25 +++++++++++--------------
+ 3 files changed, 34 insertions(+), 24 deletions(-)

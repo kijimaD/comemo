@@ -1,32 +1,22 @@
-commit daee726a0b7c932ed418e623ef29697c77d113a8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 20 20:33:43 2021 -0400
+commit 96fc07af1c551dd9746221149201e8ab57b90995
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 09:42:52 2020 -0400
 
-    cmd/compile: don't accumulate duplicated named slots
+    go/build: allow io/fs to depend on time
     
-    Currently, in expand_calls, for each appearance of a named
-    variables's component, we add the named slot to f.Names list. If
-    a variable appears many times, we add it to f.Names many times.
-    Furthure, for each duplicated named slot, its entry in
-    f.NamedValues is a slice that contains all Values associated with
-    that name. This leads to quadratic behavior when iterating named
-    values like
+    In preparation for moving os.FileInfo into io/fs.
+    Also keep syscall from depending on io again.
+    We want to keep them separated, in case io ever
+    needs to start depending on time.
     
-            for _, name := range f.Names {
-                    for _, v := range f.NamedValues[name] {
-                            ...
-                    }
-            }
+    For #41190.
     
-    This CL makes it not to add duplicated entries to f.Names.
-    
-    Change-Id: I82a8d009db81ecf48b4577e0bca501feff677cdf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312093
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I98350fa03accf4a20c75ddebb0e961aa1ccccd2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243905
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

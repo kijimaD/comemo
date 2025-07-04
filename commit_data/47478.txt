@@ -1,23 +1,20 @@
-commit e08aae2ee443ba8bb16b8ce9c5d3d8d4d3cfa82b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Nov 14 11:29:45 2021 -0800
+commit ba6b8e75ed16b3e9ecb305399e5ec2e29778e299
+Author: Shuhei Takahashi <nya@chromium.org>
+Date:   Mon Mar 22 13:35:49 2021 +0900
 
-    cmd/compile/internal/types2: implement Checker.implements
+    os/exec: avoid flaky Wait in TestContextCancel
     
-    Checker.implements implements the complete interface
-    "implements" predicate. Use it instead of Checker.satisfies.
-    This is mostly a refactoring of the code but the constraint
-    types have already been instatiated with the respective type
-    arguments as needed before calling "implements".
-    Future CLs will address the various TODOs.
+    This change just increases the timeout to 1 minute to avoid test
+    flakiness.
     
-    Change-Id: If530cca36643a561282361348f1526157a7182de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363837
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #42061
+    
+    Change-Id: Id258488ee8f062cd5e68b68bb5cf11e15fdbb396
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303351
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 121 +++++++++++----------
- .../types2/testdata/fixedbugs/issue45920.go2       |   4 +-
- 2 files changed, 67 insertions(+), 58 deletions(-)
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

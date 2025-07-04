@@ -1,17 +1,11 @@
-commit 160b2461b66c13f1014243f06a401bb1477b46dc
+commit 5a17aaa830a5951d2dc24aabb6c267d224a6b697
 Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 12 15:28:45 2014 -0700
+Date:   Fri Aug 8 14:54:04 2014 -0700
 
-    syscall: freeze the package
-    Add a clause to the doc comment for the package and a
-    paragraph in the compatibility document explaining the
-    situation.
+    doc/go1.4.txt: go.sys subrepo created
     
-    LGTM=bradfitz, adg, rsc
-    R=golang-codereviews, adg, bradfitz, minux, rsc
     CC=golang-codereviews
-    https://golang.org/cl/129820043
+    https://golang.org/cl/124050043
 
- doc/go1compat.html         | 14 ++++++++++++++
- src/pkg/syscall/syscall.go |  7 +++++++
- 2 files changed, 21 insertions(+)
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

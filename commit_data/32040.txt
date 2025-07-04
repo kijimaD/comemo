@@ -1,14 +1,19 @@
-commit 2b7a08c3c79030b07290f2f71033443273f8a5f0
-Author: André Carvalho <asantostc@gmail.com>
-Date:   Sat Jul 15 14:42:31 2017 -0300
+commit 1be3e76e7628cae8500c0c1f3aa620638aec351d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 1 21:03:20 2017 -0500
 
-    os/exec: add example for Cmd.Run
+    runtime: simplify heap profile flushing
     
-    Change-Id: Ic47198bc8bf5baabfcf4d0599825eab30d7b126c
-    Reviewed-on: https://go-review.googlesource.com/48853
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently the heap profile is flushed by *either* gcSweep in STW mode
+    or by gcMarkTermination in concurrent mode. Simplify this by making
+    gcMarkTermination always flush the heap profile and by making gcSweep
+    do one extra flush (instead of two) in STW mode.
+    
+    Change-Id: I62147afb2a128e1f3d92ef4bb8144c8a345f53c4
+    Reviewed-on: https://go-review.googlesource.com/37715
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/os/exec/example_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/mgc.go | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

@@ -1,33 +1,17 @@
-commit 025abd530e2c5a010b295efbcbcef94aff0cd396
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 19 11:01:17 2011 -0400
+commit 9f636598ba2425cbc31e416599f430829fa36b20
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jul 19 10:47:33 2011 -0400
 
-    runtime: faster entersyscall, exitsyscall
+    cgo: windows amd64 port
     
-    Uses atomic memory accesses to avoid the need to acquire
-    and release schedlock on fast paths.
-    
-    benchmark                            old ns/op    new ns/op    delta
-    runtime_test.BenchmarkSyscall               73           31  -56.63%
-    runtime_test.BenchmarkSyscall-2            538           74  -86.23%
-    runtime_test.BenchmarkSyscall-3            508          103  -79.72%
-    runtime_test.BenchmarkSyscall-4            721           97  -86.52%
-    runtime_test.BenchmarkSyscallWork          920          873   -5.11%
-    runtime_test.BenchmarkSyscallWork-2        516          481   -6.78%
-    runtime_test.BenchmarkSyscallWork-3        550          343  -37.64%
-    runtime_test.BenchmarkSyscallWork-4        632          263  -58.39%
-    
-    (Intel Core i7 L640 2.13 GHz-based Lenovo X201s)
-    
-    Reduced a less artificial server benchmark
-    from 11.5r 12.0u 8.0s to 8.3r 9.1u 1.0s.
-    
-    R=dvyukov, r, bradfitz, r, iant, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4723042
+    https://golang.org/cl/4725041
 
- src/pkg/runtime/export_test.go |   6 +
- src/pkg/runtime/proc.c         | 395 ++++++++++++++++++++++++--------
- src/pkg/runtime/proc.p         | 506 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/proc_test.go   |  50 ++++
- 4 files changed, 857 insertions(+), 100 deletions(-)
+ src/cmd/6l/asm.c                    |  2 +-
+ src/cmd/ld/data.c                   | 40 ++++++++++++++++++++++++++++++++-----
+ src/cmd/ld/ldpe.c                   | 29 +++++++++++++++++++++++++++
+ src/pkg/runtime/amd64/asm.s         |  4 +++-
+ src/pkg/runtime/cgo/windows_amd64.c |  9 ++++++---
+ src/pkg/runtime/windows/amd64/rt0.s |  3 +++
+ 6 files changed, 77 insertions(+), 10 deletions(-)

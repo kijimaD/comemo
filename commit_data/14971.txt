@@ -1,21 +1,12 @@
-commit 7f0d1652a46df1d15d7e80fb34f88b5ebb4ff5f6
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Tue Jan 22 22:42:44 2013 -0500
+commit f1c397f0ea256ccdc59bb0dc6a6efa9b0f829e9e
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Wed Jan 23 14:22:03 2013 +1100
 
-    syscall: fix fork-exec/wait inconsistencies for Plan 9
+    doc/articles/race_detector: fix some format.
     
-    Fixes the fork-exec/wait race condition for ForkExec
-    as well, by making it use startProcess. This makes the
-    comment for StartProcess consistent as well.
-    
-    Further, the passing of Waitmsg data in startProcess
-    and WaitProcess is protected against possible forks
-    from outside of ForkExec and StartProcess, which might
-    cause interference with the Await call.
-    
-    R=rsc, rminnich, npe, ality
+    R=golang-dev, bradfitz, minux.ma, adg
     CC=golang-dev
-    https://golang.org/cl/7128059
+    https://golang.org/cl/7137049
 
- src/pkg/syscall/exec_plan9.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ doc/articles/race_detector.html | 60 ++++++++++++++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 22 deletions(-)

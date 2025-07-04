@@ -1,24 +1,21 @@
-commit 7789966286a97c2e60140c7108c6df8238436dbe
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Sat Mar 11 22:26:39 2023 +0800
+commit 01837ca7eb7d83dcbf760c032e1b25320f200510
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 16 18:28:29 2022 -0700
 
-    cmd/compile/internal, runtime: use NOOP for hardware NOPs on loong64
+    reflect: in assignTo only allocate target if needed
     
-    The canonical LoongArch NOP instruction form is "andi r0, r0, 0", as
-    described in the LoongArch Reference Manual Volume 1, Section 2.2.1.10.
-    We currently use NOR instead, which may or may not change anything (e.g.
-    performance on less capable micro-architectures) but is deviation from
-    upstream standards nevertheless. Fix them to use the explicit hardware
-    NOP which happens to be supported as `NOOP`.
+    Also correct parameter name in comment.
     
-    Change-Id: I0a799a1da959e9c3b582feb88202df2bab0ab23a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475615
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: Ic9486e08c2eea184faccf181cda7da808793def6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400674
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/loong64/ggen.go | 6 +-----
- src/runtime/asm_loong64.s                | 4 ++--
- 2 files changed, 3 insertions(+), 7 deletions(-)
+ src/reflect/value.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

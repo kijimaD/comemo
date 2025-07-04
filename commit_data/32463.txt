@@ -1,57 +1,26 @@
-commit fb05948d9ea8ef3473b97c38bf4bd92b889e877a
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 24 13:19:40 2017 -0700
+commit 502a03ffcfe488f5c774794e6224e711b064fdf3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 18:02:43 2017 -0700
 
-    cmd/compile,math: improve code generation for math.Abs
+    cmd/compile: move Node.Typecheck to flags
     
-    Implement int reg <-> fp reg moves on amd64.
-    If we see a load to int reg followed by an int->fp move, then we can just
-    load to the fp reg instead.  Same for stores.
-    
-    math.Abs is now:
-    
-    MOVQ    "".x+8(SP), AX
-    SHLQ    $1, AX
-    SHRQ    $1, AX
-    MOVQ    AX, "".~r1+16(SP)
-    
-    math.Copysign is now:
-    
-    MOVQ    "".x+8(SP), AX
-    SHLQ    $1, AX
-    SHRQ    $1, AX
-    MOVQ    "".y+16(SP), CX
-    SHRQ    $63, CX
-    SHLQ    $63, CX
-    ORQ     CX, AX
-    MOVQ    AX, "".~r2+24(SP)
-    
-    math.Float64bits is now:
-    
-    MOVSD   "".x+8(SP), X0
-    MOVSD   X0, "".~r1+16(SP)
-    (it would be nicer to use a non-SSE reg for this, nothing is perfect)
-    
-    And due to the fix for #21440, the inlined version of these improve as well.
-    
-    name      old time/op  new time/op  delta
-    Abs       1.38ns ± 5%  0.89ns ±10%  -35.54%  (p=0.000 n=10+10)
-    Copysign  1.56ns ± 7%  1.35ns ± 6%  -13.77%  (p=0.000 n=9+10)
-    
-    Fixes #13095
-    
-    Change-Id: Ibd7f2792412a6668608780b0688a77062e1f1499
-    Reviewed-on: https://go-review.googlesource.com/58732
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Id5aa4a1499068bf2d3497b21d794f970b7e47fdf
+    Reviewed-on: https://go-review.googlesource.com/41795
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |   12 +
- src/cmd/compile/internal/gc/asm_test.go      |   53 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   44 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |    7 +
- src/cmd/compile/internal/ssa/opGen.go        |   52 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1018 ++++++++++++++++++++++++++
- src/math/abs.go                              |   11 +-
- 7 files changed, 1186 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 +++---
+ src/cmd/compile/internal/gc/racewalk.go  |  2 +-
+ src/cmd/compile/internal/gc/range.go     | 12 ++++++------
+ src/cmd/compile/internal/gc/reflect.go   | 12 ++++++------
+ src/cmd/compile/internal/gc/select.go    |  4 ++--
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 16 ++++++++--------
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 11 +++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go      | 32 ++++++++++++++++----------------
+ 13 files changed, 67 insertions(+), 64 deletions(-)

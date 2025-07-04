@@ -1,27 +1,18 @@
-commit e7dd28891ef84684b83242caba3ba338908235a0
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 8 13:34:42 2015 -0400
+commit 32e75bace0ed5e09819760a76d741430116e821e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 13 16:12:07 2015 +1100
 
-    cmd/internal/gc, cmd/[56789]g: rename stackcopy to blockcopy
+    all: fix race when allocating buffer for some windows syscalls
     
-    To avoid confusion with the runtime concept of copying stack.
+    Fixes #9753
     
-    Change-Id: I33442377b71012c2482c2d0ddd561492c71e70d0
-    Reviewed-on: https://go-review.googlesource.com/8639
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6c641ed7ef4f687a108e7d937ab4b9c24d5baf5d
+    Reviewed-on: https://go-review.googlesource.com/4940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/cgen.go          | 2 +-
- src/cmd/5g/galign.go        | 2 +-
- src/cmd/6g/cgen.go          | 2 +-
- src/cmd/6g/galign.go        | 2 +-
- src/cmd/7g/cgen.go          | 2 +-
- src/cmd/7g/galign.go        | 2 +-
- src/cmd/8g/cgen.go          | 2 +-
- src/cmd/8g/galign.go        | 2 +-
- src/cmd/9g/cgen.go          | 2 +-
- src/cmd/9g/galign.go        | 2 +-
- src/cmd/internal/gc/cgen.go | 2 +-
- src/cmd/internal/gc/go.go   | 2 +-
- src/runtime/mkduff.go       | 2 +-
- 13 files changed, 13 insertions(+), 13 deletions(-)
+ src/os/file_windows.go               | 22 ++++----
+ src/path/filepath/symlink_windows.go | 27 +++++-----
+ src/syscall/env_windows.go           | 20 ++++----
+ src/syscall/exec_windows.go          | 16 ++----
+ src/syscall/security_windows.go      | 98 +++++++++++++++++-------------------
+ 5 files changed, 81 insertions(+), 102 deletions(-)

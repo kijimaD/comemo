@@ -1,16 +1,32 @@
-commit 8f0ca7dc720b7197c91e02c8cef6e19ad95978d0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 2 09:58:12 2021 -0700
+commit a2d92b5143ad6ed1b55b71032c5c1f468ba76fd4
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 19 17:11:40 2021 -0500
 
-    cmd/compile/internal/types2: report cause for failing const conversions
+    cmd/compile: register abi, morestack work and mole whacking
     
-    Follow-up on CL 360396.
+    Morestack works for non-pointer register parameters
     
-    Change-Id: Icd802baffb1fef91f8fef0070b6167a438ceda1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360795
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Within a function body, pointer-typed parameters are correctly
+    tracked.
+    
+    Results still not hooked up.
+    
+    For #40724.
+    
+    Change-Id: Icaee0b51d0da54af983662d945d939b756088746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294410
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/conversions.go              | 11 +++++++++--
- .../compile/internal/types2/testdata/spec/conversions.go2   | 13 +++++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go   |  4 +++
+ src/cmd/compile/internal/amd64/ssa.go      | 11 ++++++
+ src/cmd/compile/internal/ssa/debug.go      |  4 +--
+ src/cmd/compile/internal/ssa/stackalloc.go | 41 +++++++++++++---------
+ src/cmd/compile/internal/ssagen/ssa.go     | 48 +++++++++++++++++++++++---
+ src/cmd/internal/obj/link.go               | 23 +++++++++----
+ src/cmd/internal/obj/x86/obj6.go           | 55 +++++++++++++++++++-----------
+ test/abi/f_ret_z_not.go                    | 14 ++++----
+ test/abi/many_int_input.go                 | 30 ++++++++++++++++
+ test/abi/many_int_input.out                |  1 +
+ test/abi/regabipragma.go                   |  1 +
+ 11 files changed, 175 insertions(+), 57 deletions(-)

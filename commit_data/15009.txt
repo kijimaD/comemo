@@ -1,12 +1,21 @@
-commit 10da5260690e6b41097686f379e1b629ef148dc5
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Jan 28 16:57:36 2013 -0800
+commit 91e99c13457109e3571767cae3fc56c472bdd7dc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 28 16:31:46 2013 -0800
 
-    cmd/gc: document more of the declaration context enumeration
+    encoding/json: add Decoder.Buffered accessor to get overread data
     
-    R=golang-dev, rsc
+    Otherwise it's impossible to know how much data from the
+    json.Decoder's underlying Reader was actually consumed.
+    
+    The old fix from golang.org/issue/1955 just added docs. This
+    provides an actual mechanism.
+    
+    Update #1955
+    
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/7231051
+    https://golang.org/cl/7181053
 
- src/cmd/gc/go.h | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/pkg/encoding/json/stream.go      |  7 +++++++
+ src/pkg/encoding/json/stream_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

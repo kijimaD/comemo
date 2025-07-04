@@ -1,22 +1,16 @@
-commit 567556d78657326c99b8fa84ec2a5ee511a0941b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 19 20:23:58 2020 -0700
+commit f6774bc91b3037d8bcdec96c855320eb4932b4c2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 6 15:02:41 2019 -0500
 
-    syscall: preserve Windows file permissions for O_CREAT|O_TRUNC
+    cmd/go: clarify -dropreplace help text in 'go help mod edit'
     
-    On Windows, calling syscall.Open(file, O_CREAT|O_TRUNC, 0) for a file
-    that already exists would change the file to be read-only.
-    That is not how the Unix syscall.Open behaves, so avoid it on
-    Windows by calling CreateFile twice if necessary.
+    Fixes #34930
     
-    Fixes #38225
-    
-    Change-Id: I70097fca8863df427cc8a97b9376a9ffc69c6318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234534
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie0ddd8de6e40f5a192c4d2267399126e449fe5f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210340
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/os_test.go              | 31 +++++++++++++++++++++++++++++++
- src/syscall/syscall_windows.go | 20 ++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/go/alldocs.go              | 17 +++++++++++------
+ src/cmd/go/internal/modcmd/edit.go | 17 +++++++++++------
+ 2 files changed, 22 insertions(+), 12 deletions(-)

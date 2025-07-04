@@ -1,21 +1,23 @@
-commit ac85f2bedd405d64b54c3a248c9079b6cde57359
-Author: Mikhail Mazurskiy <mmazurskiy@gitlab.com>
-Date:   Tue Oct 31 00:17:18 2023 +0000
+commit 831c6509ccddfc55c7f2121c5158f5f40916e6ad
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu May 5 09:24:21 2022 -0400
 
-    net/url: use quick path in URL.Encode() on empty map
+    crypto/ed25519: implement Ed25519ctx and Ed25519ph with context
     
-    Make url.Values.Encode() slightly more efficient when url.Values
-    is an empty but non-nil map.
+    This is missing a test for Ed25519ph with context, since the RFC doesn't
+    provide one.
     
-    Change-Id: I7f205cc7e67526a1fa0035eab4773cec5e0f2c99
-    GitHub-Last-Rev: 0530b439db8cea755464c6dc2d268a0bd567889e
-    GitHub-Pull-Request: golang/go#63836
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538637
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Fixes #31804
+    
+    Change-Id: I20947374c51c6b22fb2835317d00edf816c9a2d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404274
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/net/url/url.go      | 2 +-
- src/net/url/url_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ api/next/31804.txt                 |  1 +
+ src/crypto/ed25519/ed25519.go      | 90 +++++++++++++++++++++++++++-----------
+ src/crypto/ed25519/ed25519_test.go | 58 ++++++++++++++++++++++++
+ 3 files changed, 124 insertions(+), 25 deletions(-)

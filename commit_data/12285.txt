@@ -1,22 +1,36 @@
-commit 8c5290502fc1d7cddf416614aab5d2ad3c1b9b08
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 29 13:14:05 2012 -0800
+commit 8e38b17a906e7208fe9133cedd154758ae4f717d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 15:54:06 2012 -0500
 
-    time: skip a often-flaky test in short mode
+    spec: apply method sets, embedding to all types, not just named types
     
-    In -test.short mode, skip measuring the upper bound of time
-    sleeps. The API only guarantees minimum bounds on sleeps,
-    anyway, so this isn't a bug we're ignoring as much as it is
-    simply observing bad builder virtualization and/or loaded
-    machines.
+    When we first wrote the method set definition, we had long
+    discussions about whether method sets applied to all types
+    or just named types, and we (or at least I) concluded that it
+    didn't matter: the two were equivalent points of view, because
+    the only way to introduce a new method was to write a method
+    function, which requires a named receiver type.
     
-    We keep the test in full mode where developers will
-    presumably be running on a lightly-loaded, native, fast
-    machine.
+    However, the addition of embedded types changed this.
+    Embedding can introduce a method without writing an explicit
+    method function, as in:
     
-    R=golang-dev, rsc
+            var x struct {
+                    sync.Mutex
+            }
+    
+            var px *struct {
+                    sync.Mutex
+            }
+    
+            var _, _ sync.Locker = &x, px
+    
+    The edits in this CL make clear that both &x and px satisfy
+    sync.Locker.  Today, gccgo already works this way; 6g does not.
+    
+    R=golang-dev, gri, iant, r
     CC=golang-dev
-    https://golang.org/cl/5713044
+    https://golang.org/cl/5702062
 
- src/pkg/time/sleep_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

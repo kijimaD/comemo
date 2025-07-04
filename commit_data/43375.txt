@@ -1,28 +1,32 @@
-commit 627959eb04ee0edc4a985a7526ed7fe838ad2573
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 14 21:15:37 2020 -0400
+commit c46632a2e0c61786900c2c324989aa90e8821aea
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Mar 17 10:24:40 2020 -0400
 
-    cmd/link: support cgo internal/linking on darwin/arm64
+    [dev.link] cmd/link: parallelize asmb on amd64
     
-    Cgo programs work as well. Still not enabled by default for now.
+    Introduces a parallel OutBuf implementation, and POC on amd64. Due to
+    some of the weird behaviors I saw on MacOS (SIGBUS while calling msync),
+    I will wait for feedback to port to other architectures.
     
-    Enable internal linking tests.
+    On my mac, sped up Asmb by ~78% for cmd/compile (below). Will likely
+    have an appreciable speedup on kubelet benchmark.
     
-    Updates #38485.
+    Asmb                      39.1ms ±11%     8.5ms ±10%     -78.17%  (p=0.000 n=10+9)
+    TotalTime                  596ms ± 2%     577ms ± 8%      -3.07%  (p=0.034 n=8+10)
     
-    Change-Id: I8324a5c263fba221eb4e67d71207ca84fa241e6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263637
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Id2a2577c3f4da155d8dccc862897f43b941877ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223742
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/cgo/test/issue4029.c                  |  2 +-
- misc/cgo/test/issue4029.go                 |  3 +-
- misc/cgo/test/issue4029w.go                |  2 +-
- src/cmd/dist/test.go                       |  7 +--
- src/cmd/link/internal/arm64/asm.go         | 91 ++++++++++++++++++++++++++++--
- src/cmd/link/internal/ld/config.go         |  3 -
- src/cmd/link/internal/loader/loader.go     |  8 ++-
- src/cmd/link/internal/loadmacho/ldmacho.go | 57 +++++++++++--------
- 8 files changed, 131 insertions(+), 42 deletions(-)
+ src/cmd/link/internal/amd64/asm.go         |  32 +++++----
+ src/cmd/link/internal/ld/data.go           | 110 ++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/lib.go            |  28 +++-----
+ src/cmd/link/internal/ld/link.go           |   4 +-
+ src/cmd/link/internal/ld/outbuf.go         | 110 +++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/outbuf_mmap.go    |   9 ++-
+ src/cmd/link/internal/ld/outbuf_windows.go |   1 +
+ src/cmd/link/internal/ld/sym.go            |   8 ++-
+ src/cmd/link/internal/x86/asm.go           |   2 +-
+ 9 files changed, 245 insertions(+), 59 deletions(-)

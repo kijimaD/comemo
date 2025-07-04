@@ -1,15 +1,16 @@
-commit c50760110280ce1e07e7969eec77b1d32e25ae12
-Author: Robert Dinu <r@varp.se>
-Date:   Wed Feb 12 07:35:54 2014 -0800
+commit 947aaf275cd5ede46c83322514f96a9fe9373171
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 11 16:45:31 2014 -0800
 
-    debug/pe: delete unnecessary type conversions
+    go/parser: better error messages for if/switch/for conditions/expressions
     
-    Fixes #7104.
+    Fixes #7102.
     
-    LGTM=iant
-    R=golang-dev, iant
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/61480049
+    https://golang.org/cl/56770045
 
- src/pkg/debug/pe/file.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/pkg/go/parser/parser.go     | 10 +++++-----
+ src/pkg/go/parser/short_test.go | 16 ++++++++++------
+ 2 files changed, 15 insertions(+), 11 deletions(-)

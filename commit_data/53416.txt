@@ -1,21 +1,21 @@
-commit b25dff2efeb8662d6c0e7711bed706a9ffdd6780
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 31 23:35:14 2023 +0200
+commit 69a8954282dc4500bb645e67fb912d53a7f78a5c
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Fri Aug 12 19:08:35 2022 +0200
 
-    doc/go1.21: document that os.DirFS implements fs.Read{File,Dir}FS
+    runtime: document GODEBUG=cpu.* in runtime package
     
-    Also add a missing </a> in the preceding section.
+    So far was only documented in doc/diagnostics.
     
-    For #53761
+    Fixes: #54183
     
-    Change-Id: I8e64b86b5b32067f954d58cf9adf86cb4d2eeb2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499735
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Eli Bendersky <eliben@google.com>
+    Change-Id: Iab67a1500547f30325453c614a2f2f6621dfadb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423275
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- doc/go1.21.html | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/extern.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

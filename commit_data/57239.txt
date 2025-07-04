@@ -1,21 +1,23 @@
-commit d2879efd0227df32d6aeee1be58c325b477f22d4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Aug 22 12:00:10 2024 -0400
+commit e201ff2b98981807c4d57ed15d42d308817e138a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue May 16 13:33:15 2023 -0400
 
-    cmd/go: document unsettable GOTELEMETRY and GOTELEMETRYDIR go env vars
+    go/ast: add Unparen(Expr) helper
     
-    This change adds documentation to "go help telemetry" and "go help
-    environment" for the unsettable GOTELEMETRY and GOTELEMETRYDIR go env
-    variables.
+    Fixes #60061
     
-    For #68928
-    
-    Change-Id: I8c139bd8585ffb0c45b9dd722ef6e7a9a33df192
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607855
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If1bc03f9367620c9ea8702bfd4648020d5ab52ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495315
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                         | 10 ++++++++++
- src/cmd/go/internal/help/helpdoc.go           |  5 +++++
- src/cmd/go/internal/telemetrycmd/telemetry.go |  5 +++++
- 3 files changed, 20 insertions(+)
+ api/next/60061.txt                |  1 +
+ src/go/ast/ast.go                 | 11 +++++++++++
+ src/go/parser/parser.go           | 12 ++----------
+ src/go/parser/resolver.go         |  2 +-
+ src/go/printer/testdata/parser.go | 12 ++----------
+ src/go/types/builtins.go          | 11 +----------
+ 6 files changed, 18 insertions(+), 31 deletions(-)

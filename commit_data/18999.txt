@@ -1,65 +1,46 @@
-commit daca06f2e35035ea2c9d508f9f52a23baa406885
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 1 20:02:54 2014 -0400
+commit 6c7cbf086c34ebb88311ba12d3a75adcbdce8ac8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 1 12:51:02 2014 -0700
 
-    cmd/gc: shorten more temporary lifetimes
+    runtime: get rid of most uses of REP for copying/zeroing.
     
-    1. In functions with heap-allocated result variables or with
-    defer statements, the return sequence requires more than
-    just a single RET instruction. There is an optimization that
-    arranges for all returns to jump to a single copy of the return
-    epilogue in this case. Unfortunately, that optimization is
-    fundamentally incompatible with PC-based liveness information:
-    it takes PCs at many different points in the function and makes
-    them all land at one PC, making the combined liveness information
-    at that target PC a mess. Disable this optimization, so that each
-    return site gets its own copy of the 'call deferreturn' and the
-    copying of result variables back from the heap.
-    This removes quite a few spurious 'ambiguously live' variables.
+    REP MOVSQ and REP STOSQ have a really high startup overhead.
+    Use a Duff's device to do the repetition instead.
     
-    2. Let orderexpr allocate temporaries that are passed by address
-    to a function call and then die on return, so that we can arrange
-    an appropriate VARKILL.
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkClearFat32       7.20          1.60          -77.78%
+    BenchmarkCopyFat32        6.88          2.38          -65.41%
+    BenchmarkClearFat64       7.15          3.20          -55.24%
+    BenchmarkCopyFat64        6.88          3.44          -50.00%
+    BenchmarkClearFat128      9.53          5.34          -43.97%
+    BenchmarkCopyFat128       9.27          5.56          -40.02%
+    BenchmarkClearFat256      13.8          9.53          -30.94%
+    BenchmarkCopyFat256       13.5          10.3          -23.70%
+    BenchmarkClearFat512      22.3          18.0          -19.28%
+    BenchmarkCopyFat512       22.0          19.7          -10.45%
+    BenchmarkCopyFat1024      36.5          38.4          +5.21%
+    BenchmarkClearFat1024     35.1          35.0          -0.28%
     
-    2a. Do this for ... slices.
+    TODO: use for stack frame zeroing
+    TODO: REP prefixes are still used for "reverse" copying when src/dst
+    regions overlap.  Might be worth fixing.
     
-    2b. Do this for closure structs.
-    
-    2c. Do this for runtime.concatstring, which is the implementation
-    of large string additions. Change representation of OADDSTR to
-    an explicit list in typecheck to avoid reconstructing list in both
-    walk and order.
-    
-    3. Let orderexpr allocate the temporary variable copies used for
-    range loops, so that they can be killed when the loop is over.
-    Similarly, let it allocate the temporary holding the map iterator.
-    
-    CL 81940043 reduced the number of ambiguously live temps
-    in the godoc binary from 860 to 711.
-    
-    This CL reduces the number to 121. Still more to do, but another
-    good checkpoint.
-    
-    Update #7345
-    
-    LGTM=khr
-    R=khr
-    CC=golang-codereviews
-    https://golang.org/cl/83090046
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, r
+    https://golang.org/cl/81370046
 
- src/cmd/5g/ggen.c      |  4 ++-
- src/cmd/6g/ggen.c      | 16 +++++----
- src/cmd/8g/ggen.c      |  4 ++-
- src/cmd/gc/closure.c   |  8 +++++
- src/cmd/gc/const.c     | 52 ++++++++++++++++++++++------
- src/cmd/gc/esc.c       | 44 +++++++++++++++++++-----
- src/cmd/gc/fmt.c       |  9 ++++-
- src/cmd/gc/go.h        |  1 -
- src/cmd/gc/order.c     | 90 ++++++++++++++++++++++++++++++++++++++++++++----
- src/cmd/gc/pgen.c      | 17 ++-------
- src/cmd/gc/range.c     | 32 ++++++++---------
- src/cmd/gc/sinit.c     | 36 +++++++++++++------
- src/cmd/gc/typecheck.c | 14 +++++++-
- src/cmd/gc/walk.c      | 49 +++++++++++++-------------
- test/live.go           | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 15 files changed, 368 insertions(+), 101 deletions(-)
+ src/cmd/6g/cgen.c               |   9 +-
+ src/cmd/6g/ggen.c               |   8 +-
+ src/cmd/6g/prog.c               |   2 +
+ src/cmd/6l/6.out.h              |   2 +
+ src/cmd/8g/cgen.c               |   9 +-
+ src/cmd/8g/ggen.c               |   9 +-
+ src/cmd/8g/prog.c               |   2 +
+ src/cmd/8l/8.out.h              |   2 +
+ src/liblink/asm6.c              |   9 +
+ src/liblink/asm8.c              |   9 +
+ src/pkg/runtime/asm_386.s       | 794 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s     | 795 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memmove_test.go |  80 ++++
+ 13 files changed, 1726 insertions(+), 4 deletions(-)

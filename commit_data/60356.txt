@@ -1,0 +1,18 @@
+commit 68315bc8ce8c7fd1a9e47e73b2d18ef21f8c6d9a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 24 16:39:21 2024 -0400
+
+    cmd: run go mod tidy after CL 593684
+    
+    Reported by TestAllDependencies/cmd(thorough) in cmd/internal/moddeps.
+    
+    Change-Id: I897baf00efbfebd07abe387f54c7ce4fc14444e6
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594536
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go.sum | 2 --
+ 1 file changed, 2 deletions(-)

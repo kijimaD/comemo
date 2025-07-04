@@ -1,45 +1,15 @@
-commit 1d303a00862eb4222640806ece5608bb1314a597
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Jun 23 13:23:52 2018 -0400
+commit 5f541b11aaa345b4cf0fb37a80c32b704a6854ea
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 9 14:51:30 2018 +0100
 
-    cmd/compile: fold offset into address on Wasm
+    test/codegen: port MULs merging tests to codegen
     
-    On Wasm, the offset was not folded into LoweredAddr, so it was
-    not rematerializeable. This led to the address-taken operation
-    in some cases generated too early, before the local variable
-    becoming live. The liveness code thinks the variable live when
-    the address is taken, then backs it up to live at function
-    entry, then complains about it, because nothing other than
-    arguments should be live on entry.
+    And delete them from asm_go.
     
-    This CL folds the offset into the address operation, so it is
-    rematerializeable and so generated right before use, after the
-    variable actually becomes live.
-    
-    It might be possible to relax the liveness code not to think a
-    variable live when its address being taken, but until the address
-    actually being used. But it would be quite complicated. As we're
-    late in Go 1.11 freeze, it would be better not to do it. Also,
-    I think the address operation is rematerializeable now on all
-    architectures, so this is probably less necessary.
-    
-    This may also be a slight optimization, as the address+offset is
-    now rematerializeable, which can be generated on the Wasm stack,
-    without using any "registers" which are emulated by local
-    variables on Wasm. I don't know how to do benchmarks on Wasm. At
-    least, cmd/go binary size shrinks 9K.
-    
-    Fixes #25966.
-    
-    Change-Id: I01e5869515d6a3942fccdcb857f924a866876e57
-    Reviewed-on: https://go-review.googlesource.com/120599
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: I0057cbd90ca55fa51c596e32406e190f3866f93e
+    Reviewed-on: https://go-review.googlesource.com/99815
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  5 +++++
- src/cmd/compile/internal/ssa/gen/WasmOps.go |  2 +-
- src/cmd/compile/internal/ssa/rewriteWasm.go | 21 +++++++++++++++++++++
- src/cmd/compile/internal/wasm/ssa.go        | 16 +++++-----------
- test/fixedbugs/issue25966.go                | 24 ++++++++++++++++++++++++
- 5 files changed, 56 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 66 ---------------------------------
+ test/codegen/arithmetic.go              | 34 +++++++++++++++++
+ 2 files changed, 34 insertions(+), 66 deletions(-)

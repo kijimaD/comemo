@@ -1,19 +1,26 @@
-commit 4f1146e6614676126d3810ea319e3f658d4f8116
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue May 20 09:46:53 2025 +0200
+commit 8ed0d35fef275ddae39285000bf0e27f5f431d81
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 25 05:58:00 2024 +0000
 
-    testing: use a pattern to match the elapsed time in TestTRun
+    regexp: use slices to simplify the code
     
-    Fixes #73723
-    Fixes #73737
-    Fixes #73739
+    Replace some "reflect.DeepEqual" calls in the tests with
+    "slices.Equal" which is much faster for slice comparisons.
     
-    Change-Id: I1ebd3614614285c3e660d48241389bb0f896be23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674355
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Remove unnecessary "runeSlice" and redundant helper functions.
+    
+    Change-Id: Ib5dc41848d7a3c5149f41701d60471a487cff476
+    GitHub-Last-Rev: 87b5ed043d2935b971aa676cc52b9b2c5b45736b
+    GitHub-Pull-Request: golang/go#66509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573977
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/testing/sub_test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/regexp/all_test.go     |  5 +++--
+ src/regexp/exec_test.go    | 17 +++--------------
+ src/regexp/onepass.go      | 13 +++----------
+ src/regexp/onepass_test.go |  6 +++---
+ 4 files changed, 12 insertions(+), 29 deletions(-)

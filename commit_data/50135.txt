@@ -1,18 +1,50 @@
-commit e0ec1d6770879518af726b6cd8693dab3390db24
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Aug 25 03:03:35 2022 +0800
+commit ae83301ab21fd3a0664d1277ee7b313cbf6590d9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 4 12:13:41 2021 -0500
 
-    runtime: convert forcegcstate.idle to internal atomic type
+    internal/buildcfg: enable register ABI for PPC64
     
-    Note that this changes a few unsynchronized operations of forcegcstate.idle to synchronized operations.
+    This enables the new register ABI for all PPC64 targets
+    by default including linux/ppc64, linux/ppc64le, and aix/ppc64.
     
-    Updates #53821
+    Improvements with the new register ABI on a power9:
     
-    Change-Id: I041654cc84a188fad45e2df7abce3a434f9a1f15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425361
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    name    old time/op (ns/op)     new time/op (ns/op)     delta
+    BinaryTree17            3882070000      3274900000      -15.64%
+    Fannkuch11              3787620000      3614740000      -4.56%
+    FmtFprintfEmpty         58.705          51.1875         -12.81%
+    FmtFprintfString        101.675         94.4725         -7.08%
+    FmtFprintfInt           112.725         104.075         -7.67%
+    FmtFprintfIntInt        166.475         158.05          -5.06%
+    FmtFprintfPrefixedInt   183.7           178.975         -2.57%
+    FmtFprintfFloat         246.55          258.8           +4.97%
+    FmtManyArgs             648.325         665.875         +2.71%
+    GobDecode               8004660         6802210         -15.02%
+    GobEncode               7289780         5675710         -22.14%
+    Gzip                    326931000       323586000       -1.02%
+    Gunzip                  47544700        37808000        -20.48%
+    HTTPClientServer        46927.2         42357.8         -9.74%
+    JSONEncode              12098300        9621450         -20.47%
+    JSONDecode              62305300        55410200        -11.07%
+    Mandelbrot200           5841540         5934590         +1.59%
+    GoParse                 5594880         4003360         -28.45%
+    RegexpMatchEasy0_32     96.185          89.6325         -6.81%
+    RegexpMatchEasy0_1K     255.775         210.45          -17.72%
+    RegexpMatchEasy1_32     102.95          93.8825         -8.81%
+    RegexpMatchEasy1_1K     511.65          385.075         -24.74%
+    RegexpMatchMedium_32    1414.75         1236.75         -12.58%
+    RegexpMatchMedium_1K    42114.5         37022.5         -12.09%
+    RegexpMatchHard_32      2110.5          1901.5          -9.90%
+    RegexpMatchHard_1K      63559.5         59494           -6.40%
+    Revcomp                 532981000       480640000       -9.82%
+    Template                81903600        65743300        -19.73%
+    TimeParse               310.75          276.525         -11.01%
+    TimeFormat              483.4           355.475         -26.46%
+    
+    Change-Id: Ib7c5dfe8ddc2f17050943912048f55667dabde39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353969
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/proc.go     | 8 ++++----
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/internal/buildcfg/exp.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,17 +1,19 @@
-commit a3bc52b7862621ea2ca246d6637d0490cae91988
-Author: ZhangYunHao <zyunhjob@163.com>
-Date:   Wed Oct 14 03:34:57 2020 +0000
+commit 355f53f0a0a5d79032068d4914d7aea3435084ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 23 11:38:49 2020 -0700
 
-    sync: fix typo in pooldequeue
+    runtime: don't call wakeNetPoller during timerModifying
     
-    .
+    Reduce the length of time that other timer functions can see timerModifying.
+    In particular avoid system calls.
     
-    Change-Id: I26fa26d67d01bcd583a1efaaf9a38398cbf793f7
-    GitHub-Last-Rev: ded020d02ca2e429f7c31065e5a27dae6eb7a611
-    GitHub-Pull-Request: golang/go#41932
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261477
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #38023
+    
+    Change-Id: I1b61229c668e6085d9ee6dca9488a90055386c36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224902
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/sync/poolqueue.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

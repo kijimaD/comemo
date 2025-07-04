@@ -1,15 +1,17 @@
-commit 916f4cfa64822c9b7f407544a73c44fc51248a5c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 11 15:23:18 2013 -0700
+commit d2be8f29485f80d41d84970aa32329b3621c9dab
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 18:12:07 2013 -0400
 
-    go/parser: better error message if = is seen instead of ==
+    cmd/addr2line: exit 0 for --help
     
-    Fixes #4519.
+    This is what pprof expects, or else it won't use the program.
+    And if it doesn't use the program, it gets very bad results.
     
-    R=rsc
+    Fixes #4818.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7733044
+    https://golang.org/cl/7728043
 
- src/pkg/go/parser/parser.go     | 43 +++++++++++++++++++++++++++++++++--------
- src/pkg/go/parser/short_test.go |  3 +++
- 2 files changed, 38 insertions(+), 8 deletions(-)
+ src/cmd/addr2line/main.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

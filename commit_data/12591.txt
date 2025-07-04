@@ -1,12 +1,15 @@
-commit 7c128493a41168f35201a26a6f32ee36fe9cc852
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Mar 13 12:51:28 2012 +1100
+commit 0238cec02144991036dadb7ee58e8c9a2de2b0de
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 13 12:50:04 2012 +1100
 
-    test: actually run them on windows
+    os, syscall: windows really isn't posix compliant, fix os.IsExist()
     
-    R=golang-dev, r, rsc, bradfitz, minux.ma
+    R=golang-dev, rsc, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5756065
+    https://golang.org/cl/5754083
 
- src/run.bat | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/os/error_posix.go         |  2 +-
+ src/pkg/os/error_test.go          | 31 +++++++++++++++++++++++++++++++
+ src/pkg/os/error_windows.go       | 35 +++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |  2 ++
+ 4 files changed, 69 insertions(+), 1 deletion(-)

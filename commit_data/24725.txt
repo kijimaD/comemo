@@ -1,45 +1,20 @@
-commit 8e496f1d6923172291658f0a785bdb47cc152325
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 20 14:12:05 2015 -0700
+commit a94e906c41e83b663cd51751cbb74e801a54aba8
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 25 18:25:42 2015 -0500
 
-    runtime: simplify buffered channels.
+    runtime: remove always false comparison in sigsend
     
-    This change removes the retry mechanism we use for buffered channels.
-    Instead, any sender waking up a receiver or vice versa completes the
-    full protocol with its counterpart.  This means the counterpart does
-    not need to relock the channel when it wakes up.  (Currently
-    buffered channels need to relock on wakeup.)
+    s is a uint32 and can never be zero. It's max value is already tested
+    against sig.wanted, whose size is derived from _NSIG.  This also
+    matches the test in signal_enable.
     
-    For sends on a channel with waiting receivers, this change replaces
-    two copies (sender->queue, queue->receiver) with one (sender->receiver).
-    For receives on channels with a waiting sender, two copies are still required.
+    Fixes #11282
     
-    This change unifies to a large degree the algorithm for buffered
-    and unbuffered channels, simplifying the overall implementation.
-    
-    Fixes #11506
-    
-    benchmark                        old ns/op     new ns/op     delta
-    BenchmarkChanProdCons10          125           110           -12.00%
-    BenchmarkChanProdCons0           303           284           -6.27%
-    BenchmarkChanProdCons100         75.5          71.3          -5.56%
-    BenchmarkChanContended           6452          6125          -5.07%
-    BenchmarkChanNonblocking         11.5          11.0          -4.35%
-    BenchmarkChanCreation            149           143           -4.03%
-    BenchmarkChanSem                 63.6          61.6          -3.14%
-    BenchmarkChanUncontended         6390          6212          -2.79%
-    BenchmarkChanSync                282           276           -2.13%
-    BenchmarkChanProdConsWork10      516           506           -1.94%
-    BenchmarkChanProdConsWork0       696           685           -1.58%
-    BenchmarkChanProdConsWork100     470           469           -0.21%
-    BenchmarkChanPopular             660427        660012        -0.06%
-    
-    Change-Id: I164113a56432fbc7cace0786e49c5a6e6a708ea4
-    Reviewed-on: https://go-review.googlesource.com/9345
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I8eec9c7df8eb8682433616462fe51b264c092475
+    Reviewed-on: https://go-review.googlesource.com/13940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/chan.go   | 495 +++++++++++++++++++++++---------------------------
- src/runtime/select.go | 118 ++++--------
- 2 files changed, 264 insertions(+), 349 deletions(-)
+ src/runtime/sigqueue.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

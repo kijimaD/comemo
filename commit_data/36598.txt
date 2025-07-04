@@ -1,31 +1,27 @@
-commit 48af3a8be593d349d7af8e831e26b5b2798a464e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Sep 3 12:14:31 2018 +0100
+commit d96221f206ee0f74446fc47b955b716ac8667667
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sun Apr 22 15:58:49 2018 -0700
 
-    cmd/compile: fix store-to-load forwarding of 32-bit sNaNs
+    doc: make front page video respond to layout changes (1/2)
     
-    Signalling NaNs were being converted to quiet NaNs during constant
-    propagation through integer <-> float store-to-load forwarding.
-    This occurs because we store float32 constants as float64
-    values and CPU hardware 'quietens' NaNs during conversion between
-    the two.
+    The videos on the front page are always the same width, regardless of
+    the viewport width. These changes let the video fill the space given
+    to its container regardless of layout. It uses the standard hack for
+    making iframes responsive, but the videos are loaded at random and do
+    not have uniform aspect ratios so that information is injected into the
+    DOM using custom properties. If these are not supported, it falls back
+    to the same layout present before this change.
     
-    Eventually we want to move to using float32 values to store float32
-    constants, however this will be a big change since both the compiler
-    and the assembler expect float64 values. So for now this is a small
-    change that will fix the immediate issue.
+    Note: this change also requires CL 108678 to complete the fix,
+    though either CL without the other is harmless.
     
-    Fixes #27193.
+    Updates #24997.
     
-    Change-Id: Iac54bd8c13abe26f9396712bc71f9b396f842724
-    Reviewed-on: https://go-review.googlesource.com/132956
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I2f93dc21ffe01d99ce0e175e9dd0e3d486fddc9f
+    Reviewed-on: https://go-review.googlesource.com/108677
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/gc/float_test.go      | 111 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/check.go          |  15 ++--
- src/cmd/compile/internal/ssa/gen/generic.rules |   4 +-
- src/cmd/compile/internal/ssa/rewrite.go        |  32 +++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go |   8 +-
- 5 files changed, 159 insertions(+), 11 deletions(-)
+ doc/root.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

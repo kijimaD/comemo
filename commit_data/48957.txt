@@ -1,19 +1,27 @@
-commit 64369c3ea0932482e0d108cb022dee4a9f8447cb
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Sun May 1 15:56:20 2022 +0800
+commit 1ff43d1b179eb96a34b9007e10d78e2278643f3f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 28 16:00:26 2021 -0700
 
-    A+C: add Wayne Zuo (individual CLA)
+    [dev.typeparams] cmd/compile/internal/types2: remove unused *Checker arguments (cleanup)
     
-    Change-Id: I12fe0b7952a41f6d0f78f892d823244793745279
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403336
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Simplified names and unnecessary function indirections where possible.
+    
+    Change-Id: I1c7a386393d086fd7ad29f892e03f048781f3547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331512
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/api.go         |  4 +--
+ src/cmd/compile/internal/types2/builtins.go    |  6 ++--
+ src/cmd/compile/internal/types2/call.go        |  4 +--
+ src/cmd/compile/internal/types2/conversions.go |  6 ++--
+ src/cmd/compile/internal/types2/expr.go        |  6 ++--
+ src/cmd/compile/internal/types2/infer.go       |  4 +--
+ src/cmd/compile/internal/types2/interface.go   |  2 +-
+ src/cmd/compile/internal/types2/lookup.go      | 45 +++++++++++---------------
+ src/cmd/compile/internal/types2/operand.go     |  8 ++---
+ src/cmd/compile/internal/types2/predicates.go  | 40 ++++++++---------------
+ src/cmd/compile/internal/types2/stmt.go        |  4 +--
+ src/cmd/compile/internal/types2/unify.go       | 13 ++++----
+ 12 files changed, 61 insertions(+), 81 deletions(-)

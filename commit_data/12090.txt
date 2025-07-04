@@ -1,14 +1,14 @@
-commit 041edbcc79ff6922436bc04cff6f8a7fe96566e0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 21 11:24:29 2012 +1100
+commit 8729d158caa847d1e90a65dca36009972faf2cb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 21 11:11:18 2012 +1100
 
-    misc/goplay: remain in work directory, build in temp directory
+    net: more docs on deadlines
     
-    Fixes #2935.
+    Fixes #2777
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5684048
+    https://golang.org/cl/5685060
 
- misc/goplay/goplay.go | 90 ++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 67 insertions(+), 23 deletions(-)
+ src/pkg/net/net.go | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

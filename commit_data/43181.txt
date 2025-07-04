@@ -1,19 +1,20 @@
-commit 059ca6185c19404e991cc7714b1df047fd78785f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 2 21:57:24 2020 -0400
+commit 2a08f3c18127f91b22ef4f3f96c52850959b25ac
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 21 02:28:37 2020 +1100
 
-    cmd/dist: detect gohostarch on ios/arm64
+    cmd/internal/obj/riscv: add FENCE instruction
     
-    Add a case for gohostos == "ios" along with "darwin".
+    Also remove #define's that were previously in use.
     
-    Updates #38485.
+    Updates #36765
     
-    Change-Id: Ic7310e6c97d405f78a5e5db1a639860455e61327
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259337
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I90b6a8629c78f549012f3f6c5f3b325336182712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220539
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/dist/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 5 ++++-
+ src/cmd/internal/obj/riscv/obj.go            | 7 +++++++
+ src/runtime/atomic_riscv64.s                 | 2 --
+ src/runtime/internal/atomic/atomic_riscv64.s | 1 -
+ src/runtime/sys_linux_riscv64.s              | 2 --
+ 5 files changed, 11 insertions(+), 6 deletions(-)

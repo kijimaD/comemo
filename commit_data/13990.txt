@@ -1,16 +1,12 @@
-commit 4bb75cd9ada7058cb90ff43dca13bd246f59f46d
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Sep 30 10:35:09 2012 +0200
+commit 0b448bdef76ba5565f96ce33698a76683e3f4553
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Sep 30 15:46:37 2012 +1000
 
-    test/fixedbugs: forgotten test cases for issues 3907 and 4156.
+    exp/types: better diagnosis for compile failures.
     
-    Update #3907.
-    Update #4156.
-    
-    R=golang-dev, dave
+    R=gri, dave
     CC=golang-dev
-    https://golang.org/cl/6595044
+    https://golang.org/cl/6587046
 
- test/fixedbugs/bug455.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++
- test/fixedbugs/bug456.go | 26 +++++++++++++++++++++++
- 2 files changed, 80 insertions(+)
+ src/pkg/exp/types/gcimporter_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

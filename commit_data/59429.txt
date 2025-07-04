@@ -1,23 +1,18 @@
-commit d6c8bedc7b3d2de7714dca75bd05912b371538f1
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Apr 1 15:43:22 2025 -0700
+commit 38723f2b3881ea71039c1d475cab001113adc83d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 9 13:41:24 2024 -0500
 
-    runtime, testing/synctest: stop advancing time when main goroutine exits
+    runtime: add minimal debug tracing of runtime timers
     
-    Once the goroutine started by synctest.Run exits, stop advancing
-    the fake clock in its bubble. This avoids confusing situations
-    where a bubble remains alive indefinitely while a background
-    goroutine reads from a time.Ticker or otherwise advances the clock.
+    Toggled by a compile-time const, so there should be no
+    runtime footprint in ordinary builds.
     
-    For #67434
-    
-    Change-Id: Id608ffe3c7d7b07747b56a21f365787fb9a057d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662155
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I7751847524f4fda3853388d3e5a18188bd737c27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570336
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/synctest/synctest_test.go | 24 ++++++++++++++++++++++++
- src/runtime/synctest.go                | 34 ++++++++++++++++++++++++++--------
- src/testing/synctest/synctest.go       |  5 ++++-
- 3 files changed, 54 insertions(+), 9 deletions(-)
+ src/runtime/time.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)

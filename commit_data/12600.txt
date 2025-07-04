@@ -1,18 +1,14 @@
-commit c9f1f56143c7f4284fe3bdd3526aeb72714d533f
+commit cf46040784ad13ccd88aaea70e31f1dd89748cf9
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 15:02:36 2012 +1100
+Date:   Tue Mar 13 15:02:14 2012 +1100
 
-    doc: increase h3 size
+    doc: windows zip archive installation instructions
     
-    This makes h3 and h4 more distinct, and h2 and h3 the same size.
-    The h2 and h3 styles may be distinguished h2's background styles.
-    
-    This means that almost all text on the site is either 16px, 20px,
-    or 24px. (with a smattering of 14px)
+    Fixes #3254.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5754095
+    https://golang.org/cl/5794071
 
- doc/style.css | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install.html | 42 +++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 41 insertions(+), 1 deletion(-)

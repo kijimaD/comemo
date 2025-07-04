@@ -1,12 +1,15 @@
-commit c5a95e47a02fa32a5a560d1e1cccc30f0a502dda
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed May 4 12:48:20 2016 -0400
+commit 1857bfca134261ab2e0fc1adcf6a974f550d430a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jan 20 15:47:54 2016 +0100
 
-    doc: update go1.7.txt
+    testing: implementation of subbenchmarks
     
-    Change-Id: I78efbfe0d7e9825126109a568c99f548a099b0fb
-    Reviewed-on: https://go-review.googlesource.com/22771
-    Reviewed-by: Minux Ma <minux@golang.org>
+    API is not exposed yet.
+    
+    Change-Id: I729360ef2be1d8ea683ca93cdb1763897cc8657c
+    Reviewed-on: https://go-review.googlesource.com/18895
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.7.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/testing/benchmark.go | 135 +++++++++++++++++++++++++++++++++++++----------
+ src/testing/sub_test.go  |  97 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 205 insertions(+), 27 deletions(-)

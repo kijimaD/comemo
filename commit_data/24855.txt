@@ -1,17 +1,18 @@
-commit d10675089d74db0408f2432eae3bd89a8e1c2d6a
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Nov 13 08:55:44 2015 +1300
+commit ced0646fe5ed9abb3b51fa99748b090f1dfe90e8
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Sep 1 22:53:46 2015 -0300
 
-    runtime: ignore rt_sigaction error if it is for SIGRTMAX
+    net: make DNSError.Temporary return true on SERVFAIL
     
-    A forward port of https://codereview.appspot.com/124900043/ which somehow
-    got lost somewhere.
+    Fixes #8434
     
-    Fixes #13024
-    
-    Change-Id: Iab128899e65c51d90f6704e3e1b2fc9326e3a1c2
-    Reviewed-on: https://go-review.googlesource.com/16853
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I323222b4160f3aba35cac1de7f6df93c524b72ec
+    Reviewed-on: https://go-review.googlesource.com/14169
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os1_linux.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/dnsclient.go      |  9 +++++++--
+ src/net/dnsclient_test.go | 25 +++++++++++++++++++++++++
+ src/net/net.go            | 11 ++++++-----
+ 3 files changed, 38 insertions(+), 7 deletions(-)

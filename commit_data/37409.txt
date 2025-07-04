@@ -1,49 +1,16 @@
-commit 5333550bdc1f4d3814c9dd0d66151ea331c39682
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 27 11:34:07 2018 -0400
+commit 8450fd96779cc9e269f8a083a7f163bb1d7dbd39
+Author: Craig Citro <craigcitro@google.com>
+Date:   Fri Jul 27 13:39:49 2018 -0700
 
-    runtime: implement efficient page reclaimer
+    net/http: document Transport.Proxy's https support
     
-    When we attempt to allocate an N page span (either for a large
-    allocation or when an mcentral runs dry), we first try to sweep spans
-    to release N pages. Currently, this can be extremely expensive:
-    sweeping a span to emptiness is the hardest thing to ask for and the
-    sweeper generally doesn't know where to even look for potentially
-    fruitful results. Since this is on the critical path of many
-    allocations, this is unfortunate.
+    The net/http module added support for HTTPS proxies in CL 68550, but the
+    Transport.Proxy docstring was never updated to reflect this. This (doc-only)
+    update adds "https" to the list of supported schemes.
     
-    This CL changes how we reclaim empty spans. Instead of trying lots of
-    spans and hoping for the best, it uses the newly introduced span marks
-    to efficiently find empty spans. The span marks (and in-use bits) are
-    in a dense bitmap, so these spans can be found with an efficient
-    sequential memory scan. This approach can scan for unmarked spans at
-    about 300 GB/ms and can free unmarked spans at about 32 MB/ms. We
-    could probably significantly improve the rate at which is can free
-    unmarked spans, but that's a separate issue.
-    
-    Like the current reclaimer, this is still linear in the number of
-    spans that are swept, but the constant factor is now so vanishingly
-    small that it doesn't matter.
-    
-    The benchmark in #18155 demonstrates both significant page reclaiming
-    delays, and object reclaiming delays. With "-retain-count=20000000
-    -preallocate=true -loop-count=3", the benchmark demonstrates several
-    page reclaiming delays on the order of 40ms. After this change, the
-    page reclaims are insignificant. The longest sweeps are still ~150ms,
-    but are object reclaiming delays. We'll address those in the next
-    several CLs.
-    
-    Updates #18155.
-    
-    Fixes #21378 by completely replacing the logic that had that bug.
-    
-    Change-Id: Iad80eec11d7fc262d02c8f0761ac6998425c4064
-    Reviewed-on: https://go-review.googlesource.com/c/138959
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I0570fcdae8232bb42d52c4dd739dd09ee8dfd612
+    Reviewed-on: https://go-review.googlesource.com/126495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go      |   3 +
- src/runtime/mgcsweep.go |  27 +++++-
- src/runtime/mheap.go    | 224 +++++++++++++++++++++++++++++++++++-------------
- 3 files changed, 194 insertions(+), 60 deletions(-)
+ src/net/http/transport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

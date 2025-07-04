@@ -1,16 +1,21 @@
-commit 99e45e49b7438bc45a6dd09fb2636dde74ef5d33
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Mar 1 17:41:59 2012 +1100
+commit ed238ca4e5e94cbbc0b2d0922e5ae1df2247ca68
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 1 17:36:35 2012 +1100
 
-    encoding/json: escape output from Marshalers.
+    os: release process handle at the end of windows (*Process).Wait
     
-    Fixes #3127.
+    Fixes #3154.
     
-    R=rsc, r
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5707054
+    https://golang.org/cl/5707052
 
- src/pkg/encoding/json/encode.go      |  2 +-
- src/pkg/encoding/json/encode_test.go | 19 +++++++++++++++++++
- src/pkg/encoding/json/indent.go      | 13 +++++++++++++
- 3 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/cgo/util.go        | 1 -
+ src/cmd/godoc/main.go      | 1 -
+ src/pkg/net/http/triv.go   | 1 -
+ src/pkg/os/doc.go          | 7 +++++++
+ src/pkg/os/exec_plan9.go   | 3 +--
+ src/pkg/os/exec_unix.go    | 3 +--
+ src/pkg/os/exec_windows.go | 5 +++--
+ src/pkg/os/os_test.go      | 2 --
+ 8 files changed, 12 insertions(+), 11 deletions(-)

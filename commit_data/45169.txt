@@ -1,22 +1,15 @@
-commit a63ff398d541a1b3a3658e38693adebf370aadbb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 14 13:10:34 2021 -0700
+commit bb46b60d294e8759de19da6d824af315dafca22c
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 12 12:58:07 2020 -0400
 
-    cmd/compile/internal/syntax: fix error message for ... without type
+    cmd/compile: enable late expansion in openDeferExit
     
-    Only complain about missing type; leave it to type-checking
-    to decide whether "..." is permitted in the first place.
-    
-    Fixes #43674.
-    
-    Change-Id: Icbc8f084e364fe3ac16076406a134354219c08d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310209
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I4ce9e914d22b519b00d7e19d93091f6ac0b60938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248188
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/syntax/parser.go               |  2 +-
- src/cmd/compile/internal/syntax/testdata/issue43674.src | 13 +++++++++++++
- test/fixedbugs/bug228.go                                |  2 +-
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 57 ++++++++++++++++++++++++++++++--------
+ 1 file changed, 46 insertions(+), 11 deletions(-)

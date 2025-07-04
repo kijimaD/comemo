@@ -1,12 +1,18 @@
-commit 0fe65c4f4979f0ad43bad30721821096e489de56
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Aug 2 14:29:04 2013 -0700
+commit bbf143002188a7af7d60e28da472f06c6d99aa03
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Fri Aug 2 14:15:33 2013 -0700
 
-    cmd/dist: fix windows build.
+    cmd/go: Fix go get when the fetched XML uses ASCII encoding
     
-    R=golang-dev, bradfitz
+    Also, add a meaningful error message when an encoding which
+    can't be parsed is found.
+    
+    Fixes #5801.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/12351045
+    https://golang.org/cl/12343043
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/discovery.go | 22 ++++++++++++++++++++--
+ src/cmd/go/vcs.go       | 11 +++++++++--
+ 2 files changed, 29 insertions(+), 4 deletions(-)

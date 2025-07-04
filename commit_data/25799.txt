@@ -1,19 +1,21 @@
-commit 3a11c8d3190210c510c152471ddb85eb36a15e76
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Feb 20 00:00:53 2016 -0800
+commit b89033399894776d677a4cecc82e2ac888fd7906
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 11:37:12 2015 -0500
 
-    cmd/compile: simplify if statement parsing
+    runtime: clean up gcMarkDone
     
-    Somewhat notably, this means long if statement chains are now parsed
-    recursively, rather than iteratively.  This shouldn't be a concern
-    though, as several other functions (e.g., gen, typecheck, walk)
-    already use recursion to process the parsed if statement Node trees.
+    This improves the documentation comment on gcMarkDone, replaces a
+    recursive call with a simple goto, and disables preemption before
+    stopping the world in accordance with the documentation comment on
+    stopTheWorldWithSema.
     
-    Change-Id: Ic8c12ace9021c870d60c06f5db86a48c4ec57084
-    Reviewed-on: https://go-review.googlesource.com/19756
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Updates #13363, but, sadly, doesn't fix it.
+    
+    Change-Id: I6cb2a5836b35685bf82f7b1ce7e48a7625906656
+    Reviewed-on: https://go-review.googlesource.com/17149
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 61 ++++-------------------------------
- 1 file changed, 6 insertions(+), 55 deletions(-)
+ src/runtime/mgc.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

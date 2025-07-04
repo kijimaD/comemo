@@ -1,16 +1,15 @@
-commit f97f876125f72f543a14f57fb6570dee6bfa2c6f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 6 19:25:04 2015 -0700
+commit f7be77e5b61706b6264367c43b78a9a4a93f8f3a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 15 15:18:00 2015 +0200
 
-    net: disable failing ICMP test for now
+    cmd/dist: fix bootstrapping with gccgo on 386
     
-    To be fixed later.
+    We forgot to add the !gccgo tag to cpuid_386.s.
     
-    Updates #10730
-    
-    Change-Id: Icac19f48c9e035dce192c97943b77b60411a3ea2
-    Reviewed-on: https://go-review.googlesource.com/9797
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I2de2ed92ac9686c9365cb37cd29121fa98c2bf37
+    Reviewed-on: https://go-review.googlesource.com/8960
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/file_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/cpuid_386.s | 2 ++
+ 1 file changed, 2 insertions(+)

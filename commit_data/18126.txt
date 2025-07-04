@@ -1,12 +1,21 @@
-commit 351caa4b9109a3d307557b539427869abefbf815
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Sun Dec 29 20:56:05 2013 +1100
+commit 672525a56e7d326ec986bc330a7accd8ec0395f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 28 09:37:54 2013 -0800
 
-    crypto/hmac: add tests for Size() and BlockSize()
+    net: work around Solaris connect issue when server closes socket
     
-    R=golang-codereviews, dave
+    On Solaris, if you do a in-progress connect, and then the
+    server accepts and closes the socket, the client's later
+    attempt to complete the connect will fail with EINVAL.  Handle
+    this case by assuming that the connect succeeded.  This code
+    is weird enough that it is implemented as Solaris-only so that
+    it doesn't hide a real error on a different OS.
+    
+    Update #6828
+    
+    R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
-    https://golang.org/cl/41320044
+    https://golang.org/cl/46160043
 
- src/pkg/crypto/hmac/hmac_test.go | 66 +++++++++++++++++++++++++++++++++++++---
- 1 file changed, 62 insertions(+), 4 deletions(-)
+ src/pkg/net/fd_unix.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

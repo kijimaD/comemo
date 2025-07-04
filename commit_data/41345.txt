@@ -1,19 +1,24 @@
-commit 9ca57923e222335cc63924833d5bf562962e06c9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 23 10:54:09 2019 -0400
+commit 770a13546e2e98f59310297462115d0163a1cf1a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 11 14:49:39 2017 +0200
 
-    testing: testing: add (*T).Deadline method for test timeout
+    cmd/compile: use yyerrorl in some typechecking functions
     
-    Fixes #28135
+    Replace usage of yyerror with yyerrorl in checkdefergo and copytype in
+    typecheck.go.
     
-    Change-Id: I62818595eaf4a59d8b5c26cd6848c08fec795ad1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202758
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    All covered error messages already appear in the tests and the yyerror
+    replacement did not lead to any tests failing.
+    
+    Passes toolstash-check
+    
+    Updates #19683
+    
+    Change-Id: I735e83bcda7ddc6a14afb22e50200bcbb9192fc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/69910
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/next.txt                                 |  1 +
- doc/go1.15.html                              |  9 +++++
- src/cmd/go/testdata/script/test_deadline.txt | 50 ++++++++++++++++++++++++++++
- src/testing/testing.go                       | 43 +++++++++++++++++-------
- 4 files changed, 91 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

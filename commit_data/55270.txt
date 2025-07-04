@@ -1,14 +1,30 @@
-commit 018c1da0cfcac0cbcff426d15bc2428c47d499ba
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 11 16:45:56 2023 -0500
+commit e216ee7e7416df48dc9550a6f18552a4ada5d419
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 9 12:30:24 2022 -0500
 
-    doc/go1.22: document io changes
+    syscall: clean up variable declarations in forkAndExecInChild
     
-    Change-Id: I1dd4030782ad20512836927d42bc8fe3d93437d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548880
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    The various forkAndExecInChild implementations have comments
+    explaining that they pre-declare variables to force allocations
+    to occur before forking, but then later use ":=" declarations
+    for additional variables.
+    
+    To make it clearer that those ":=" declarations do not allocate,
+    we move their declarations up to the predeclared blocks.
+    
+    For #57208.
+    
+    Change-Id: Ie8cb577fa7180b51b64d6dc398169053fdf8ea97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456516
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/syscall/exec_bsd.go     | 19 ++++++-----
+ src/syscall/exec_freebsd.go | 24 ++++++++------
+ src/syscall/exec_libc.go    | 19 ++++++-----
+ src/syscall/exec_libc2.go   | 23 +++++++------
+ src/syscall/exec_linux.go   | 78 ++++++++++++++++++++++++++-------------------
+ src/syscall/exec_plan9.go   |  6 ++--
+ 6 files changed, 98 insertions(+), 71 deletions(-)

@@ -1,22 +1,31 @@
-commit 0a1da095d1cef7c8ac6065da2983565b450566a5
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 18 11:49:39 2022 +0200
+commit f0c79caa1398b6a840ec9406eb34b46a125ecb82
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 21 14:22:51 2021 -0700
 
-    runtime/internal/atomic: remove double-check in kernelcas on linux/arm
+    runtime: move entry method from _func to funcInfo
     
-    Older kernels which require the double check of the __kuser_cmpxchg
-    result are no longer supported as of Go 1.18 which requires at least
-    Linux 2.6.32.
+    This will be required when we change from storing entry PCs in _func
+    to entry PC offsets, which are relative to the containing module.
     
-    For #45964
+    Notably, almost all uses of the entry method were already called
+    on a funcInfo. Only Func.Entry incurs the additional module
+    lookup cost.
     
-    Change-Id: Ic3d6691bf006353ac51b9d43e742d970e3d4e961
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424556
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This makes Entry considerably slower, but it is probably
+    still fast enough in absolute terms that it is OK.
+    
+    name             old time/op  new time/op  delta
+    Func/Name-8      8.86ns ± 0%  8.33ns ± 2%    -5.92%  (p=0.000 n=12+13)
+    Func/Entry-8     0.64ns ± 0%  2.62ns ±36%  +310.07%  (p=0.000 n=14+15)
+    Func/FileLine-8  24.5ns ± 0%  25.0ns ± 4%    +2.21%  (p=0.015 n=14+13)
+    
+    Change-Id: Ia2d5de5f2f83fab334f1875452b9e8e87651d340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351461
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/internal/atomic/sys_linux_arm.s | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |  2 +-
+ src/runtime/symtab.go                     | 13 ++++++++-----
+ 2 files changed, 9 insertions(+), 6 deletions(-)

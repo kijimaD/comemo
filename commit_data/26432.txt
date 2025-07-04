@@ -1,14 +1,18 @@
-commit bea2008b83424b9693c0e38940ffd53a5e1e80a3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 21 09:11:45 2016 -0700
+commit d2b0c387b2d48fb61ba2fee75c34ed66289c199f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:35:05 2016 -0500
 
-    math/cmplx: added clarifying comment
+    cmd/asm: add YMM registers Y0 through Y15
     
-    Fixes #14890.
+    Not recognized in any instructions yet, but this lets the
+    assembler parse them at least.
     
-    Change-Id: Ie790276b0e2ef94c92db3a777042d750269f876a
-    Reviewed-on: https://go-review.googlesource.com/20953
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    For #14068.
+    
+    Change-Id: Id4f7329a969b747a867ce261b20165fab2cdcab8
+    Reviewed-on: https://go-review.googlesource.com/18846
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/cmplx/cmath_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/internal/obj/x86/a.out.go | 17 +++++++++++++++++
+ src/cmd/internal/obj/x86/list6.go | 16 ++++++++++++++++
+ 2 files changed, 33 insertions(+)

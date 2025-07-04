@@ -1,12 +1,14 @@
-commit 33b6d46afd3377d309e6db0126a20c7cc859e064
+commit 1f7128e17b3982e530675df17f39c7f24a120ec3
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 30 15:44:27 2012 -0800
+Date:   Mon Jan 30 15:34:34 2012 -0800
 
-    cmd/pack: change gopack to pack in error messages
+    run.bash: s/make/gomake
+    attempt to fix freebsd build
+    TBR=rsc
     
-    R=golang-dev, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5598051
+    https://golang.org/cl/5576077
 
- src/cmd/pack/ar.c | 69 +++++++++++++++++++++++++++----------------------------
- 1 file changed, 34 insertions(+), 35 deletions(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,15 @@
-commit 7610a0552fcd5ef3ed75c0e931275d2e7cdb9eaf
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 6 15:48:28 2013 -0500
+commit 4f43201e51f36e7db909ff3c3a86104dada5161b
+Author: Ewan Chou <coocood@gmail.com>
+Date:   Wed Mar 6 15:21:19 2013 -0500
 
-    lib9: add mktempdir, removeall, runprog
+    strings: remove allocations in Split(s, "")
     
-    R=golang-dev, bradfitz
+    BenchmarkSplit1     77984460     24131380  -69.06%
+    
+    R=golang-dev, rsc, minux.ma, dave, extemporalgenome
     CC=golang-dev
-    https://golang.org/cl/7523043
+    https://golang.org/cl/7458043
 
- include/libc.h             |   4 ++
- src/cmd/dist/windows.c     |   2 +
- src/lib9/run_plan9.c       |  38 +++++++++++++++
- src/lib9/run_unix.c        |  43 +++++++++++++++++
- src/lib9/run_windows.c     |  83 +++++++++++++++++++++++++++++++++
- src/lib9/tempdir_plan9.c   |  54 ++++++++++++++++++++++
- src/lib9/tempdir_unix.c    |  52 +++++++++++++++++++++
- src/lib9/tempdir_windows.c | 112 +++++++++++++++++++++++++++++++++++++++++++++
- src/lib9/win.h             |   8 ++++
- 9 files changed, 396 insertions(+)
+ src/pkg/strings/strings.go      |  6 +++++-
+ src/pkg/strings/strings_test.go | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

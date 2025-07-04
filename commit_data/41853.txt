@@ -1,22 +1,17 @@
-commit 44ae94751ab35232f72845c7b885c5338220bca5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Apr 1 13:08:41 2020 -0400
+commit a754d2993db1771ca3903d0a5d0e3add1883cf9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 28 16:55:06 2019 -0700
 
-    cmd/go: report 'go get' errors for absolute paths outside module root
+    cmd/compile/internal/syntax: don't hardwire path separator in test
     
-    'go get' will now check absolute paths without wildcards the same way
-    it checks relative paths. modload.DirImportPath may be used for both
-    without converting path separators.
+    Windows uses '\' not '/'.
     
-    Fixes #38038
+    Fixes #35175.
     
-    Change-Id: I453299898ece58f3b5002a5e80021d6bfe815fdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226857
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib3d01dcf148fc0675496d5213f5bcc9cf210a6fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203889
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modget/get.go           | 21 ++++++++++++---------
- src/cmd/go/testdata/script/mod_get_main.txt | 15 ++++++++++++---
- 2 files changed, 24 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/syntax/parser_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

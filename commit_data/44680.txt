@@ -1,137 +1,17 @@
-commit 051bf37833780726aacf3c88f1bbec56b3540b34
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu Jun 11 09:35:24 2020 +0000
+commit ac875bc923db2b7350f244f06a06557e6fd97e05
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 15 00:44:58 2020 +0700
 
-    cmd/compile/internal/ssa: handle more cases in fuse pass
+    cmd/compile: don't bother to declare closure inside redeclared func
     
-    Currently fuseBlockIf handls four cases where s0 and s1 have only one predecessor
-    node. In fact, even if s0 and s1 have multiple predecessor nodes, it can be optimized
-    as well. This patch handles these cases.
+    Fixes #17758
     
-    This CL does not bring significant performance changes, it is more like an optimization
-    of dead code elimination. So it detects a lot of benchmarks whose functions are
-    completely optimized, such as BenchmarkNeIfaceConcrete, BenchmarkEqIfaceConcrete,
-    BenchmarkFullJapaneseRune, BenchmarkClearFat{8, 12, 16,...1024}, Benchmark{En|De}codeRune,
-    and BenchmarkCopyFat{8, 12, 16,...1024} and many others that I didn't check.
-    
-    Test result of compilecmp on linux amd64, the data on linux arm64 is similar.
-    name                      old time/op                 new time/op                 delta
-    Template                    466131893.640000ns +-16%    455546571.480000ns +-12%    ~     (p=0.066 n=50+50)
-    Unicode                     195858206.980000ns +- 9%    197387526.224490ns +- 9%    ~     (p=0.231 n=50+49)
-    GoTypes                    1581961264.260000ns +- 7%   1581828319.640000ns +- 5%    ~     (p=0.964 n=50+50)
-    Compiler                   7425890449.259998ns +- 2%   7424138343.632654ns +- 2%    ~     (p=0.815 n=50+49)
-    SSA                       17392652203.380009ns +- 1%  17248314507.854172ns +- 1%  -0.83%  (p=0.000 n=50+48)
-    Flate                       298061504.940000ns +-12%    292773080.632653ns +-12%    ~     (p=0.165 n=50+49)
-    GoParser                    376046929.420000ns +- 9%    370746254.693878ns +- 9%    ~     (p=0.231 n=50+49)
-    Reflect                     995721330.160000ns +- 7%    985916024.620000ns +- 7%    ~     (p=0.103 n=50+50)
-    Tar                         398878287.040000ns +-10%    399186737.000000ns +-11%    ~     (p=0.883 n=50+50)
-    XML                         555898064.200000ns +- 8%    554877077.100000ns +-10%    ~     (p=0.926 n=50+50)
-    LinkCompiler                757995424.632653ns +- 7%    758301900.420000ns +- 7%    ~     (p=0.437 n=49+50)
-    ExternalLinkCompiler       2399985741.270834ns +- 4%   2396112274.630435ns +- 4%    ~     (p=0.766 n=48+46)
-    LinkWithoutDebugCompiler    450472710.700000ns +- 9%    448935188.720000ns +- 7%    ~     (p=0.668 n=50+50)
-    [Geo mean]                   927951041.671984ns          922858781.007286ns       -0.55%
-    
-    name                      old user-time/op            new user-time/op            delta
-    Template                    639484500.000000ns +-16%    630857140.000000ns +-13%    ~     (p=0.363 n=50+50)
-    Unicode                     370072081.632653ns +-11%    375108300.000000ns +-10%    ~     (p=0.248 n=49+50)
-    GoTypes                    2205838860.000000ns +- 5%   2206640900.000000ns +- 3%    ~     (p=0.915 n=50+50)
-    Compiler                  10337224272.727268ns +- 2%  10366187152.173916ns +- 2%    ~     (p=0.324 n=44+46)
-    SSA                       23843616104.166660ns +- 3%  23678281387.755112ns +- 3%  -0.69%  (p=0.002 n=48+49)
-    Flate                       396446760.000000ns +-15%    391245333.333333ns +-10%    ~     (p=0.313 n=50+48)
-    GoParser                    509121660.000000ns +-10%    505938620.000000ns +- 9%    ~     (p=0.436 n=50+50)
-    Reflect                    1328136212.765958ns +- 6%   1312627440.000000ns +- 8%    ~     (p=0.068 n=47+50)
-    Tar                         563039480.000000ns +-10%    563064360.000000ns +-10%    ~     (p=0.953 n=50+50)
-    XML                         775596380.000000ns +- 9%    774736920.000000ns +-11%    ~     (p=0.899 n=50+50)
-    LinkCompiler               1315155260.000000ns +- 9%   1312946860.000001ns +- 6%    ~     (p=0.861 n=50+50)
-    ExternalLinkCompiler       2739635480.000000ns +- 6%   2732580380.000000ns +- 6%    ~     (p=0.943 n=50+50)
-    LinkWithoutDebugCompiler    537418600.000000ns +-10%    535914620.000000ns +- 9%    ~     (p=0.734 n=50+50)
-    [Geo mean]                  1296231259.389525ns         1291929605.124197ns       -0.33%
-    
-    name                      old alloc/op                new alloc/op                delta
-    Template                                35.0MB +- 0%                35.0MB +- 0%    ~     (p=0.586 n=50+50)
-    Unicode                                 29.3MB +- 0%                29.3MB +- 0%  +0.01%  (p=0.004 n=50+50)
-    GoTypes                                  116MB +- 0%                 116MB +- 0%    ~     (p=0.102 n=50+50)
-    Compiler                                 555MB +- 0%                 555MB +- 0%    ~     (p=0.285 n=50+50)
-    SSA                                     1.37GB +- 0%                1.36GB +- 0%  -0.98%  (p=0.000 n=49+49)
-    Flate                                   21.8MB +- 0%                21.8MB +- 0%    ~     (p=0.475 n=50+49)
-    GoParser                                26.7MB +- 0%                26.7MB +- 0%    ~     (p=0.385 n=50+50)
-    Reflect                                 74.2MB +- 0%                74.3MB +- 0%  +0.01%  (p=0.006 n=49+50)
-    Tar                                     32.7MB +- 0%                32.7MB +- 0%    ~     (p=0.125 n=50+50)
-    XML                                     41.8MB +- 0%                41.8MB +- 0%    ~     (p=0.649 n=49+50)
-    LinkCompiler                             105MB +- 0%                 105MB +- 0%  -0.05%  (p=0.000 n=50+48)
-    ExternalLinkCompiler                    92.6MB +- 0%                92.6MB +- 0%  -0.02%  (p=0.000 n=50+50)
-    LinkWithoutDebugCompiler                63.9MB +- 0%                63.9MB +- 0%  -0.05%  (p=0.000 n=50+50)
-    [Geo mean]                               77.0MB                      76.9MB       -0.08%
-    
-    name                      old allocs/op               new allocs/op               delta
-    Template                                  344k +- 0%                  344k +- 0%    ~     (p=0.091 n=50+50)
-    Unicode                                   340k +- 0%                  340k +- 0%    ~     (p=0.084 n=50+50)
-    GoTypes                                  1.19M +- 0%                 1.19M +- 0%    ~     (p=0.634 n=50+50)
-    Compiler                                 5.05M +- 0%                 5.05M +- 0%    ~     (p=0.428 n=50+48)
-    SSA                                      12.9M +- 0%                 12.8M +- 0%  -0.94%  (p=0.000 n=48+50)
-    Flate                                     216k +- 0%                  216k +- 0%    ~     (p=0.959 n=50+50)
-    GoParser                                  275k +- 0%                  275k +- 0%    ~     (p=0.705 n=50+50)
-    Reflect                                   887k +- 0%                  887k +- 0%    ~     (p=0.136 n=50+50)
-    Tar                                       318k +- 0%                  318k +- 0%  +0.01%  (p=0.007 n=50+48)
-    XML                                       396k +- 0%                  396k +- 0%    ~     (p=0.577 n=48+50)
-    LinkCompiler                              457k +- 0%                  457k +- 0%  -0.02%  (p=0.000 n=50+48)
-    ExternalLinkCompiler                      459k +- 0%                  459k +- 0%  -0.02%  (p=0.000 n=50+49)
-    LinkWithoutDebugCompiler                  111k +- 0%                  111k +- 0%  -0.09%  (p=0.000 n=50+50)
-    [Geo mean]                                 603k                        603k       -0.08%
-    
-    name                      old maxRSS/op               new maxRSS/op               delta
-    Template                                 33.7M +- 5%                 33.7M +- 3%    ~     (p=0.798 n=50+48)
-    Unicode                                  35.2M +- 5%                 35.3M +- 5%    ~     (p=0.586 n=50+50)
-    GoTypes                                  73.5M +- 5%                 73.2M +- 5%    ~     (p=0.436 n=50+50)
-    Compiler                                  315M +- 3%                  315M +- 3%    ~     (p=0.726 n=49+48)
-    SSA                                       705M +- 5%                  691M +- 5%  -2.01%  (p=0.000 n=50+50)
-    Flate                                    25.2M +- 3%                 25.0M +- 3%    ~     (p=0.122 n=49+49)
-    GoParser                                 27.7M +- 5%                 27.7M +- 3%    ~     (p=0.967 n=50+50)
-    Reflect                                  54.6M +- 4%                 54.8M +- 4%    ~     (p=0.418 n=50+50)
-    Tar                                      32.2M +- 4%                 32.1M +- 3%    ~     (p=0.644 n=50+49)
-    XML                                      38.7M +- 5%                 38.9M +- 5%    ~     (p=0.612 n=50+50)
-    LinkCompiler                              159M +- 1%                  159M +- 1%    ~     (p=0.302 n=49+50)
-    ExternalLinkCompiler                      171M +- 1%                  170M +- 1%  -0.33%  (p=0.000 n=50+50)
-    LinkWithoutDebugCompiler                  133M +- 1%                  132M +- 1%  -0.44%  (p=0.000 n=48+50)
-    [Geo mean]                                76.9M                       76.8M       -0.25%
-    
-    name                      old text-bytes              new text-bytes              delta
-    HelloSize                                804kB +- 0%                 804kB +- 0%    ~     (all equal)
-    
-    name                      old data-bytes              new data-bytes              delta
-    HelloSize                               13.2kB +- 0%                13.2kB +- 0%    ~     (all equal)
-    
-    name                      old bss-bytes               new bss-bytes               delta
-    HelloSize                                206kB +- 0%                 206kB +- 0%    ~     (all equal)
-    
-    name                      old exe-bytes               new exe-bytes               delta
-    HelloSize                               1.20MB +- 0%                1.20MB +- 0%    ~     (all equal)
-    
-    file    before    after     Δ       %
-    api     4904729   4904881   +152    +0.003%
-    asm     4849768   4849696   -72     -0.001%
-    buildid 2604760   2604768   +8      +0.000%
-    cgo     4505984   4506000   +16     +0.000%
-    compile 18936732  18864939  -71793  -0.379%
-    cover   4787385   4787377   -8      -0.000%
-    dist    3451964   3451988   +24     +0.001%
-    doc     3794929   3794913   -16     -0.000%
-    fix     3201863   3201847   -16     -0.000%
-    link    6467231   6467327   +96     +0.001%
-    objdump 4400076   4400132   +56     +0.001%
-    pprof   13354395  13354507  +112    +0.001%
-    trace   10186673  10187273  +600    +0.006%
-    vet     6727213   6727277   +64     +0.001%
-    total   105284348 105213571 -70777  -0.067%
-    
-    Change-Id: I5020d112021f165a4ae18aa56402d8690330d8fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239457
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I75f5dc5be85fd8a6791ac89dfc0681be759cca36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/fuse.go      |  97 +++++++++++++++-------------
- src/cmd/compile/internal/ssa/fuse_test.go | 104 +++++++++++++++++++++++++++++-
- 2 files changed, 153 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 12 +++++++++++-
+ test/fixedbugs/issue17758.go           | 17 +++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

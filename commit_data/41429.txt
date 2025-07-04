@@ -1,20 +1,14 @@
-commit b2696fde403a5b059936ac6dd22b6ec9a899e084
-Author: Corne van der Plas <vdplas@gmail.com>
-Date:   Tue Nov 19 13:22:55 2019 +0100
+commit 3d437ac6bc655c7c1a3e2811a9d73fb64e342de1
+Author: Utkarsh Dixit <utkarsh.extc@gmail.com>
+Date:   Wed Oct 2 05:49:50 2019 +0000
 
-    cmd/link: Revert -buildmode=pie to internal linking
+    C: update email address for utkarsh-extc
     
-    When internal linking was broken buildmode PIE is set to external
-    linking. Now internal linking is fixed, -buildmode=pie can default to
-    internal linking again.
-    
-    Fixes #35545
-    
-    Change-Id: Iaf86b3047eb76babebc1545a79125586a7a3980e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207877
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If657dab2df19d3b0c2ff9869a64e3a97446646ac
+    GitHub-Last-Rev: b921b01cf4e5bcbbc65fb1fb0b5cd836bda73596
+    GitHub-Pull-Request: golang/go#34637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198041
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/internal/ld/config.go | 2 +-
+ CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

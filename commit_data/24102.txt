@@ -1,24 +1,23 @@
-commit de786965e63ef95b6a295761ea63b93e1ea9380d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 27 16:15:00 2015 +1000
+commit 315e5c99d868bffad5ac75871e486d6f3a625f23
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 6 15:52:33 2015 +1000
 
-    syscall: remove nacl srpc helper
+    debug/pe: truncate pe sections to their size in memory
     
-    Fixes #11961
+    Section.Data returns disk section data, but those are rounded up to
+    some predefined value. Processing these as is confuses dwarf parser
+    because of garbage at the end. Truncate Section.Data as per memory
+    section description.
     
-    Minux removed the use of SRPC in 003dccfa, but the SRPC name service
-    code was left in the tree. SRPC was removed in pepper_42 making the
-    code, which ran on startup, fail, even though it was not used.
+    Sometimes dwarf sections have memory section size of 0
+    (for pe object files). Keep those to their disk size.
     
-    Removing srpc_nacl.go for a total diff of -822 lines has got to count
-    as one of the easiest nacl fixes we've had to date.
+    Fixes #11608
     
-    Change-Id: Ic4e348146bfe47450bbb9cabb91699ba153e6bf0
-    Reviewed-on: https://go-review.googlesource.com/13958
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8de0a2271201a24aa9ac8dac44f1e9c8a9285183
+    Reviewed-on: https://go-review.googlesource.com/11950
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/srpc_nacl.go | 822 -----------------------------------------------
- 1 file changed, 822 deletions(-)
+ src/debug/pe/file.go      |   3 ++
+ src/debug/pe/file_test.go | 116 ++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 94 insertions(+), 25 deletions(-)

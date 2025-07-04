@@ -1,19 +1,12 @@
-commit 813e97b7867a2dd56249f5e2f19b102479b5e633
-Author: Rick Hudson <rlh@golang.org>
-Date:   Wed Jan 28 15:57:46 2015 -0500
+commit 3b76b017cabb0ea29a184670e081edfe11afb8de
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Sun Dec 28 13:37:44 2014 -0800
 
-    runtime: set minimum heap size to 4Mbytes
+    doc: add net/smtp TLSConnectionState note in go1.5.txt
     
-    Set the minimum heap size to 4Mbytes except when the hash
-    table code wants to force a GC. In an unrelated change when a
-    mutator is asked to assist the GC by marking pointer workbufs
-    it will keep working until the requested number of pointers
-    are processed even if it means asking for additional workbufs.
-    
-    Change-Id: I661cfc0a7f2efcf6286b5d37d73e593d9ecd04d5
-    Reviewed-on: https://go-review.googlesource.com/3392
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ia18f6ed0fa38dac297fc5fe1ca56e38ec37518ef
+    Reviewed-on: https://go-review.googlesource.com/2152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 32 +++++++++++++++++++++++++++-----
- 1 file changed, 27 insertions(+), 5 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

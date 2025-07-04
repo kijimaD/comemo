@@ -1,39 +1,20 @@
-commit 57d40f1b27c0e0a4ca491895a68efc40c7c7d435
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Thu May 31 18:51:00 2018 +0300
+commit 6aeddb1b5751136d1b2c1e28c4026fb57a832c18
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Feb 21 17:48:33 2018 +0100
 
-    test: remove rundircmpout and cmpout actions
+    cmd/compile: intrinsify math.Sqrt on mips64
     
-    This CL removes the rundircmpout action completely
-    because it is not used anywhere.
+    Fixes #24006
     
-    The run case already looks for output files. Rename the cmpout action
-    mentioned in tests to the run action and remove "cmpout" from run.go.
-    
-    Change-Id: I835ceb70082927f8e9360e0ea0ba74f296363ab3
-    Reviewed-on: https://go-review.googlesource.com/115575
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic1438b121fe705f9a6e3ed8340882e9dfd26ecf7
+    Reviewed-on: https://go-review.googlesource.com/95916
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/life/main.go        | 2 +-
- misc/cgo/stdio/chain.go      | 2 +-
- misc/cgo/stdio/fib.go        | 2 +-
- misc/cgo/stdio/hello.go      | 2 +-
- test/deferprint.go           | 2 +-
- test/fixedbugs/bug206.go     | 2 +-
- test/fixedbugs/bug328.go     | 2 +-
- test/fixedbugs/bug409.go     | 2 +-
- test/fixedbugs/issue21887.go | 2 +-
- test/fixedbugs/issue22683.go | 2 +-
- test/fixedbugs/issue25322.go | 2 +-
- test/fixedbugs/issue6899.go  | 2 +-
- test/goprint.go              | 2 +-
- test/helloworld.go           | 2 +-
- test/ken/cplx0.go            | 2 +-
- test/ken/string.go           | 2 +-
- test/print.go                | 2 +-
- test/printbig.go             | 2 +-
- test/run.go                  | 4 ----
- test/sigchld.go              | 2 +-
- 20 files changed, 19 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go            |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go        |  3 ++-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 ++
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  7 ++++---
+ src/cmd/compile/internal/ssa/opGen.go         | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 13 +++++++++++++
+ 6 files changed, 36 insertions(+), 5 deletions(-)

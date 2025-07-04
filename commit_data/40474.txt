@@ -1,38 +1,24 @@
-commit 97592b3c14e96eece91ddc91a188e08fd2ed2dfa
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 23 10:20:49 2019 -0400
+commit 6ab049b96578547b78f919810d01f94d94cc1981
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 15:10:32 2019 -0400
 
-    cmd/compile: intrinsics for runtime/internal/atomic.Store8
+    testing: panic on calls to Short/Verbose before Parse
     
-    For #10958, #24543, but makes sense on its own.
+    CL 121936 added this diagnostic to avoid a panic accessing *short.
+    (Hence the "This shouldn't really be a panic" comment.)
     
-    Change-Id: I2a87dab66b82a1863e4b6512b1f8def51463ce2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203284
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    That CL was right to produce a clearer error than a plain memory fault,
+    but I think wrong to print+exit instead of panicking. I just ran into
+    one of these in a real program, and there is no indication anywhere
+    of how the program reached this point. The panic will show that.
+    So change print+exit to a panic with a helpful message, in contrast
+    to the original panic with an unhelpful message and the current
+    helpful message without stack trace.
+    
+    Change-Id: Ib2bae1dead4ccde92f00fa3a34c05241ff7690c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177419
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |  2 +-
- src/cmd/compile/internal/arm64/ssa.go          |  1 +
- src/cmd/compile/internal/gc/ssa.go             |  8 ++-
- src/cmd/compile/internal/mips64/ssa.go         |  7 ++-
- src/cmd/compile/internal/ppc64/ssa.go          | 10 ++-
- src/cmd/compile/internal/s390x/ssa.go          |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  1 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  1 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  1 +
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  1 +
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |  1 +
- src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go          | 85 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 20 ++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 16 +++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 16 +++++
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 17 ++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 19 ++++++
- 23 files changed, 206 insertions(+), 10 deletions(-)
+ src/testing/testing.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

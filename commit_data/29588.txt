@@ -1,17 +1,14 @@
-commit e54662dc859f65f90eefede76a6134f8d892cc77
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 17 13:35:59 2016 -0800
+commit 6bcd258095da307dc60ffe1b45b014c0be849dc9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 24 15:53:09 2016 +0200
 
-    go/types: look at underlying type of element type of composite literals with elided types
+    math/big: better SetFloat64 example in doc
     
-    Match behavior of gc and gccgo.
+    Fixes #17221
     
-    For #17954.
-    
-    Change-Id: I3f065e56d0a623bd7642c1438d0cab94d23fa2ae
-    Reviewed-on: https://go-review.googlesource.com/33358
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idaa2af6b8646651ea72195671d1a4b5c370a5a22
+    Reviewed-on: https://go-review.googlesource.com/29711
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/expr.go            | 30 ++++++++++++++++++------------
- src/go/types/testdata/expr3.src | 24 ++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 12 deletions(-)
+ src/math/big/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,15 @@
-commit 8a4cee67afeda7c89e4a6e97cd95820f1904095d
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Mar 23 21:22:32 2017 -0600
+commit 2815045a50862276082048714337f95c46e98605
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 4 21:23:00 2017 +0000
 
-    cmd/compile: use yyerrorl in typecheckswitch
+    net/http/httputil: make DumpRequest and DumpRequestOut recognize http.NoBody
     
-    Replace yyerror usages with yyerrorl in function
-    typecheckswitch.
+    Fixes #18506
     
-    Updates #19683.
-    
-    Change-Id: I7188cdecddd2ce4e06b8cee45b57f3765a979405
-    Reviewed-on: https://go-review.googlesource.com/38597
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6b0b107296311178938609e878e1ef47a30a463f
+    Reviewed-on: https://go-review.googlesource.com/34814
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/swt.go | 35 ++++++++++++++++-------------------
- 1 file changed, 16 insertions(+), 19 deletions(-)
+ src/net/http/httputil/dump.go      | 13 +++++++++----
+ src/net/http/httputil/dump_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

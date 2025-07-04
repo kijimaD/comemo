@@ -1,22 +1,33 @@
-commit a3537522d67a1cc01f0e533acb8384341e80f5e0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 05:49:23 2016 -0700
+commit 7d3a40978aaa69c3cf08068a83252927b4514e9d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 12:19:36 2015 -0800
 
-    net/http: update bundled http2
+    cmd/compile: refactor export data parsing
     
-    Updates x/net/http2 to git rev 31df19d6 for changes since Go 1.6.
+    Merge push_parser and pop_parser into a single parse_import function
+    and inline unimportfile. Shake out function boundaries a little bit so
+    that the symmetry is readily visible.
     
-    The main change was https://go-review.googlesource.com/19726 (move
-    merging of HEADERS and CONTINUATION into Framer), but there were a few
-    garbage reduction changes too.
+    Move the import_package call into parse_import (and inline
+    import_there into import_package).  This means importfile no longer
+    needs to provide fake import data to be needlessly lexed/parsed every
+    time it's called.
     
-    Change-Id: I882443d20749f8638f637a2835efe92538c95d31
-    Reviewed-on: https://go-review.googlesource.com/21365
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Also, instead of indicating import success/failure by whether the next
+    token is "package", import_spec can just check whether importpkg is
+    non-nil.
+    
+    Tangentially, this somehow alters the diagnostics produced for
+    test/fixedbugs/issue11610.go.  However, the new diagnostics are more
+    consistent with those produced when the empty import statement is
+    absent, which seems more desirable than maintaining the previous
+    errors.
+    
+    Change-Id: I5cd1c22aa14da8a743ef569ff084711d137279d5
+    Reviewed-on: https://go-review.googlesource.com/19650
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/h2_bundle.go                         | 972 ++++++++++++----------
- src/vendor/golang.org/x/net/http2/hpack/encode.go |   2 +-
- src/vendor/golang.org/x/net/http2/hpack/hpack.go  |  15 +-
- 3 files changed, 538 insertions(+), 451 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    | 97 +++++++++--------------------------
+ src/cmd/compile/internal/gc/parser.go | 58 +++++----------------
+ test/fixedbugs/issue11610.go          |  4 +-
+ 3 files changed, 38 insertions(+), 121 deletions(-)

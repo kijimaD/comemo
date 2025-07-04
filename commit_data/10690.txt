@@ -1,20 +1,13 @@
-commit 1cb7f85d74f03668294267d465b9c20d49318ab9
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 9 14:58:28 2011 -0500
+commit 5912869d61f0b20aaa9ea858195e8039ddc78dc6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 9 10:47:36 2011 -0800
 
-    gc: 0 expected bugs
+    html/template: make Must work
+    Fixes #2545.
     
-    Now that Luuk's qualified exporting code
-    is in, fixing this bug is trivial.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5479048
+    https://golang.org/cl/5475054
 
- src/cmd/gc/subr.c                        |  6 +-----
- test/bugs/bug367.dir/main.go             | 12 ------------
- test/fixedbugs/bug367.dir/main.go        | 24 ++++++++++++++++++++++++
- test/{bugs => fixedbugs}/bug367.dir/p.go |  7 +++----
- test/{bugs => fixedbugs}/bug367.go       |  2 +-
- test/golden.out                          |  4 ----
- 6 files changed, 29 insertions(+), 26 deletions(-)
+ src/pkg/html/template/template.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

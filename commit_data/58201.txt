@@ -1,19 +1,17 @@
-commit a1b5394dba07cbb61c1f23c2610ef1a3be4c567b
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 18 17:49:14 2024 -0800
+commit cf97cd317be0d5fc1fa7b861f143060d7fd9b361
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 14:13:36 2023 +0800
 
-    os: add Root.FS
+    bufio: add available godoc link
     
-    For #67002
-    
-    Change-Id: Ib687c92d645b9172677e5781a3e51ef1a0427c30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629518
+    Change-Id: Id32bae57c9fcc2074f82089ba9c69be9a601f128
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534758
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/67002.txt    |  1 +
- src/os/file.go        |  5 +++
- src/os/os_test.go     | 13 +++++++-
- src/os/root.go        | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/os/stat_wasip1.go |  1 -
- 5 files changed, 106 insertions(+), 2 deletions(-)
+ src/bufio/bufio.go | 80 +++++++++++++++++++++++++++---------------------------
+ src/bufio/scan.go  | 60 ++++++++++++++++++++--------------------
+ 2 files changed, 70 insertions(+), 70 deletions(-)

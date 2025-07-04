@@ -1,21 +1,16 @@
-commit 2f7fbf8851e4c45f7e0d207836a3c7a97eaa1823
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 13 22:55:33 2017 +0000
+commit b744a11a966ad3999c190fea9909ec8df0570b87
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 17 15:05:53 2017 +0000
 
-    path, path/filepath: clarify and cross-reference packages
+    go/types: enforce Check path restrictions via panics
     
-    The path package has a reference to the path/filepath package, so add
-    a reverse reference.
+    Its godoc says that path must not be empty or dot, while the existing
+    implementation happily accepts both.
     
-    And clarify the path package doesn't do Windows paths.
-    
-    Fixes #20117
-    
-    Change-Id: I65c5ce24e600b32ea20c5821b744bd89f6aff98c
-    Reviewed-on: https://go-review.googlesource.com/45653
-    Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I64766271c35152dc7adb21ff60eb05c52237e6b6
+    Reviewed-on: https://go-review.googlesource.com/38262
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/path/filepath/path.go | 5 +++++
- src/path/path.go          | 5 ++++-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/go/types/api.go | 3 +++
+ 1 file changed, 3 insertions(+)

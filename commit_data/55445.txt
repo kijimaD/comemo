@@ -1,25 +1,21 @@
-commit 93f0c0b25e7ea8ae7c2d5df32c6083cfabf2ffc2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jan 25 17:13:11 2024 +0000
+commit 02d8ebda8398342516a24a3e8435d527ed156cab
+Author: Maksim Meshkov <subtle.byte.dev@gmail.com>
+Date:   Sun Feb 5 13:01:19 2023 +0000
 
-    internal/testenv: allow "-noopt" anywhere in builder name in test
+    runtime: fix cpu sample comment
     
-    testenv's TestHasGoBuild test is supposed to allow noopt builders to not
-    have go build, but the pattern match is failing on the LUCI builders
-    where a test shard might have an additional "-test_only" suffix in the
-    builder name. Furthermore, in the LUCI world, "run mods" (the builder
-    type suffixes) are supposed to be well-defined and composable, so it
-    doesn't make sense to restrict "-noopt" to the builder suffix anyway.
+    Fixes #58327
     
-    This change modifies the test to allow "-noopt" to appear anywhere in
-    the builder name when checking if it's running on a noopt builder.
-    
-    Change-Id: I393818e3e8e452c7b0927cbc65726d552aa8ff8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558596
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I15593e6ee42e04f2de13804ef26e0e66a2307db0
+    GitHub-Last-Rev: 7e0d04b503d2ba217b76b1ac668a67cd72ec6d7c
+    GitHub-Pull-Request: golang/go#58338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465335
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/testenv/testenv_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/trace/parser.go | 2 +-
+ src/runtime/trace.go         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

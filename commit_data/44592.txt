@@ -1,21 +1,21 @@
-commit 5ce51ea74177513b473e2da05d0e4e9b7affb3c4
-Author: KimMachineGun <geon0250@gmail.com>
-Date:   Wed Mar 10 12:55:56 2021 +0000
+commit 5a18e0b58ca2d08f3988018a8759207cb64e651a
+Author: Gaurav Singh <gaurav1086@gmail.com>
+Date:   Thu Jul 23 23:27:05 2020 +0000
 
-    flag: panic if flag name begins with - or contains =
+    sync: fix goroutine leak for when TestMutexFairness times out
     
-    Fixes #41792
+    If the timeout triggers before writing to the done channel, the
+    goroutine will be blocked waiting for a corresponding read that’s
+    no longer existent, thus a goroutine leak. This change fixes that by
+    using a buffered channel instead.
     
-    Change-Id: I9b4aae8a899e3c3ac9532d27932d275cfb1fab48
-    GitHub-Last-Rev: f06b1e17674bf77bdc2d3e798df4c4379748c8d2
-    GitHub-Pull-Request: golang/go#42737
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271788
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Rob Pike <r@golang.org>
+    Change-Id: I9cf4067a58bc5a729ab31e4426edd78bd359e8e0
+    GitHub-Last-Rev: a7d811a7be6d875175a894e53d474aa0034e7d2c
+    GitHub-Pull-Request: golang/go#40236
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242902
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/flag/flag.go      | 24 +++++++++++----
- src/flag/flag_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 101 insertions(+), 6 deletions(-)
+ src/sync/mutex_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

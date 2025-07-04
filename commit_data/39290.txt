@@ -1,27 +1,16 @@
-commit 6f7542e4cb6914e8b8d888f16d440feeb8e631d2
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri May 31 14:14:00 2019 -0400
+commit 8827147932314ab623cc65e071c5b48b2d76e37b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 13:53:39 2019 -0500
 
-    cmd/go: ignore build tags when 'go get' modifies build list
+    cmd/nm: fix testGoLib helper to be module-agnostic
     
-    In module mode, 'go get' should not consider build constraints when
-    loading packages in order to modify the module graph. With this
-    change, 'go get' considers all build tags to be true except for
-    "ignore" and malformed build constraint expressions.
+    Updates #30228
     
-    When 'go get' builds packages, it still applies build constraints for
-    the target platform.
-    
-    Fixes #32345
-    
-    Change-Id: I6dceae6f10a5185870537de730b36292271ad124
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179898
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3c7864e6725312df5ec978cdc130ccfe8fc2e738
+    Reviewed-on: https://go-review.googlesource.com/c/162836
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/imports/tags.go         | 15 ++++++++++
- src/cmd/go/internal/modcmd/vendor.go        |  4 +--
- src/cmd/go/internal/modget/get.go           | 26 +++++++++--------
- src/cmd/go/internal/modload/load.go         | 34 +++++++++++-----------
- src/cmd/go/internal/modload/query.go        |  3 +-
- src/cmd/go/testdata/script/mod_get_tags.txt | 44 +++++++++++++++++++++++++++++
- 6 files changed, 94 insertions(+), 32 deletions(-)
+ src/cmd/nm/nm_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

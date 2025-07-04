@@ -1,14 +1,26 @@
-commit a8d9c3103d6ed1b867f9e49bd2a157a195f86d9f
-Author: Burcu Dogan <jbd@google.com>
-Date:   Fri Dec 4 11:12:39 2015 -0800
+commit 9fb79380f069348b317865aafa4023d3013137cb
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jul 12 09:23:37 2015 +0900
 
-    net/http: test max request body size against both HTTP/1 and HTTP/2
+    runtime: drop sigfwd from signal forwarding unsupported platforms
     
-    Change-Id: I009eaa52d03f1c3af33a6e884332f41c7cf48edd
-    Reviewed-on: https://go-review.googlesource.com/17427
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This change splits signal_unix.go into signal_unix.go and
+    signal2_unix.go and removes the fake symbol sigfwd from signal
+    forwarding unsupported platforms for clarification purpose.
+    
+    Change-Id: I205eab5cf1930fda8a68659b35cfa9f3a0e67ca6
+    Reviewed-on: https://go-review.googlesource.com/12062
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/runtime/os_dragonfly.go  |  3 ---
+ src/runtime/os_freebsd.go    |  3 ---
+ src/runtime/os_linux.go      |  3 ---
+ src/runtime/os_nacl.go       |  4 ----
+ src/runtime/os_netbsd.go     |  4 ----
+ src/runtime/os_openbsd.go    |  5 -----
+ src/runtime/os_solaris.go    |  3 ---
+ src/runtime/signal1_unix.go  |  2 +-
+ src/runtime/signal2_unix.go  | 46 ++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/signal_darwin.go |  3 ---
+ src/runtime/signal_unix.go   | 36 +---------------------------------
+ 11 files changed, 48 insertions(+), 64 deletions(-)

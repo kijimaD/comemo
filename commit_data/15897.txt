@@ -1,24 +1,59 @@
-commit b5cfbda21236d273047f6aaec04df29162c26901
+commit 07720b67b3696d57509bcdc3cb10affa9e1c887d
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 22 15:14:40 2013 -0400
+Date:   Fri Mar 22 12:57:55 2013 -0400
 
-    cmd/vet: add assembly checker
-    
-    Fixes #5036.
+    build: update assembly variable names for vet
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7531045
+    https://golang.org/cl/7834046
 
- src/cmd/go/pkg.go       |   7 +
- src/cmd/go/vet.go       |   2 +-
- src/cmd/vet/Makefile    |   4 +-
- src/cmd/vet/asmdecl.go  | 532 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/vet/buildtag.go |   2 +-
- src/cmd/vet/main.go     |  47 +++--
- src/cmd/vet/test_asm.go |  24 +++
- src/cmd/vet/test_asm1.s | 249 ++++++++++++++++++++++
- src/cmd/vet/test_asm2.s | 253 +++++++++++++++++++++++
- src/cmd/vet/test_asm3.s | 168 +++++++++++++++
- test/errchk             |   2 +-
- 11 files changed, 1273 insertions(+), 17 deletions(-)
+ src/pkg/bytes/asm_386.s               | 12 ++++++------
+ src/pkg/bytes/asm_amd64.s             | 16 ++++++++--------
+ src/pkg/bytes/asm_arm.s               | 14 +++++++-------
+ src/pkg/crypto/md5/md5block_386.s     |  2 +-
+ src/pkg/crypto/md5/md5block_amd64.s   |  2 +-
+ src/pkg/crypto/rc4/rc4_386.s          |  8 ++++----
+ src/pkg/crypto/rc4/rc4_amd64.s        | 16 ++++++++--------
+ src/pkg/crypto/sha1/sha1block_386.s   |  2 +-
+ src/pkg/crypto/sha1/sha1block_amd64.s |  4 ++--
+ src/pkg/crypto/sha1/sha1block_decl.go |  2 +-
+ src/pkg/hash/crc32/crc32_amd64.s      |  6 +++---
+ src/pkg/math/abs_386.s                |  2 +-
+ src/pkg/math/abs_amd64.s              |  2 +-
+ src/pkg/math/abs_arm.s                |  8 ++++----
+ src/pkg/math/asin_386.s               |  4 ++--
+ src/pkg/math/atan2_386.s              |  2 +-
+ src/pkg/math/atan_386.s               |  2 +-
+ src/pkg/math/big/arith_386.s          | 18 +++++++++---------
+ src/pkg/math/big/arith_amd64.s        | 18 +++++++++---------
+ src/pkg/math/big/arith_arm.s          | 16 ++++++++--------
+ src/pkg/math/dim_amd64.s              | 24 ++++++++++++------------
+ src/pkg/math/exp2_386.s               | 16 ++++++++--------
+ src/pkg/math/exp_386.s                | 14 +++++++-------
+ src/pkg/math/exp_amd64.s              |  6 +++---
+ src/pkg/math/expm1_386.s              | 16 ++++++++--------
+ src/pkg/math/floor_386.s              |  6 +++---
+ src/pkg/math/floor_amd64.s            | 12 ++++++------
+ src/pkg/math/hypot_386.s              | 24 ++++++++++++------------
+ src/pkg/math/hypot_amd64.s            |  8 ++++----
+ src/pkg/math/ldexp_386.s              |  2 +-
+ src/pkg/math/log10_386.s              |  4 ++--
+ src/pkg/math/log1p_386.s              |  4 ++--
+ src/pkg/math/log_386.s                |  2 +-
+ src/pkg/math/log_amd64.s              |  8 ++++----
+ src/pkg/math/mod_386.s                |  2 +-
+ src/pkg/math/remainder_386.s          |  2 +-
+ src/pkg/math/sin_386.s                |  8 ++++----
+ src/pkg/math/sqrt_386.s               |  2 +-
+ src/pkg/math/sqrt_amd64.s             |  2 +-
+ src/pkg/math/sqrt_arm.s               |  2 +-
+ src/pkg/math/tan_386.s                |  4 ++--
+ src/pkg/os/signal/sig.s               |  2 ++
+ src/pkg/reflect/asm_386.s             |  4 ++--
+ src/pkg/reflect/asm_amd64.s           |  4 ++--
+ src/pkg/reflect/asm_arm.s             |  4 ++--
+ src/pkg/runtime/asm_386.s             |  2 +-
+ src/pkg/runtime/asm_amd64.s           |  2 +-
+ src/pkg/sync/atomic/asm_386.s         | 16 ++++++++--------
+ 48 files changed, 180 insertions(+), 178 deletions(-)

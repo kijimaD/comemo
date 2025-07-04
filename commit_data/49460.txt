@@ -1,20 +1,31 @@
-commit fbc75dff2fa5bac474936e611ff1b7e778617be3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 10 16:49:51 2022 -0700
+commit c9912780ab3ecea3c685bfc8bec229c0d2b09317
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 19 15:53:13 2021 -0700
 
-    cmd/cgo: remove -fsanitize=hwaddress hardware tags
+    cmd/compile: enable -G=3 by default
     
-    No test because this isn't support on any of the builders.
+    This CL changes cmd/compile's -G flag's default from 0 to 3, which
+    enables use of the new types2 type checker and support for type
+    parameters. The old type checker is still available with
+    -gcflags=all=-G=0.
     
-    Fixes #53285
+    The CL also updates the regress test harness to account for the change
+    in default behavior (e.g., to expect known types2 changes/failures).
+    However, the -G=0 mode is still being tested for now.
     
-    Change-Id: If8d17bdcdac81a6ce404a35a289bf83f07f02855
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411698
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Copy of CL 340914 by danscales@, minus the cmd/internal/objabi.AbsFile
+    change (handled instead by CL 343731) and rebased to master branch.
+    
+    Updates #43651.
+    
+    Change-Id: I1f62d6c0a3ff245e15c5c0e8f3d922129fdd4f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343732
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/gcc.go | 37 +++++++++++++++++++++++++++++--------
- 1 file changed, 29 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/base/flag.go |  1 +
+ test/run.go                           | 29 ++++++++++++++++-------------
+ test/typeparam/smoketest.go           |  2 +-
+ 3 files changed, 18 insertions(+), 14 deletions(-)

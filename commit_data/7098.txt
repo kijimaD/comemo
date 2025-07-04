@@ -1,14 +1,14 @@
-commit 6f62e407733cb8b340e75bc91bc2633976675d9d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 11 21:42:24 2011 -0800
+commit 7b4a4d3788df6cb55bd35ecf5180ba40a422e313
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 11 21:24:44 2011 -0800
 
-    C&A for Eric Eisner
-    there is something funny in the database; trying to recreate the change.
+    godoc: remove TODO (bug257.go can now be indexed)
     
-    R=gri
+    Pending CL 3752044.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/3900044
+    https://golang.org/cl/3949042
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/godoc/index.go | 6 ------
+ 1 file changed, 6 deletions(-)

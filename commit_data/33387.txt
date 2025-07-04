@@ -1,31 +1,20 @@
-commit 8585f9fdb176893992bc8096ff595148b14b1795
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Sep 7 05:57:44 2017 +0200
+commit 583a941d4ed7cb8e03bbeceaf05969c285c30b2e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Aug 15 11:33:18 2017 +0200
 
-    runtime: refactor insertion slot tracking for fast hashmap functions
+    cmd/link: skip TestSizes on Plan 9
     
-    * Avoid calculating insertk until needed.
-    * Avoid a pointer into b.tophash and just track the insertion index.
-      This avoids b.tophash being marked as escaping to heap.
-    * Calculate val only once at the end of the mapassign functions.
+    TestSizes has been added in CL 55551. This test is
+    failing on Plan 9 because executables don't have
+    a DWARF symbol table.
     
-    Function sizes decrease slightly, e.g. for mapassign_faststr:
-    before "".mapassign_faststr STEXT size=1166 args=0x28 locals=0x78
-    after  "".mapassign_faststr STEXT size=1080 args=0x28 locals=0x68
+    Fixes #21453.
     
-    name                     old time/op  new time/op  delta
-    MapAssign/Int32/256-4    19.4ns ± 4%  19.5ns ±11%     ~     (p=0.973 n=20+20)
-    MapAssign/Int32/65536-4  32.5ns ± 2%  32.4ns ± 3%     ~     (p=0.078 n=20+19)
-    MapAssign/Int64/256-4    20.3ns ± 6%  17.6ns ± 5%  -13.01%  (p=0.000 n=20+20)
-    MapAssign/Int64/65536-4  33.3ns ± 2%  33.3ns ± 1%     ~     (p=0.444 n=20+20)
-    MapAssign/Str/256-4      22.3ns ± 3%  22.4ns ± 3%     ~     (p=0.343 n=20+20)
-    MapAssign/Str/65536-4    44.9ns ± 1%  43.9ns ± 1%   -2.39%  (p=0.000 n=20+19)
-    
-    Change-Id: I2627bb8a961d366d9473b5922fa129176319eb22
-    Reviewed-on: https://go-review.googlesource.com/74870
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I560611b49aea5417e8c5ac0cec6c7882bd9f8335
+    Reviewed-on: https://go-review.googlesource.com/55692
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/hashmap_fast.go | 87 +++++++++++++++++++++++----------------------
- 1 file changed, 45 insertions(+), 42 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

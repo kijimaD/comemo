@@ -1,18 +1,30 @@
-commit f8c2f4f111f40551eafd12dadbfbc6c4bc4d37c0
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Nov 10 15:31:32 2018 +0100
+commit acd30e9a827a1df4d99592cdd16e26a4395ebcfe
+Author: David Wimmer <davidlwimmer@gmail.com>
+Date:   Wed Jul 25 18:44:07 2018 +0000
 
-    go/doc: disable playground for examples that use syscall/js
+    runtime: fix syscall error returns on mips/mips64/ppc64
     
-    The playground is not using GOOS=js, so it is not able to use the
-    package syscall/js. Examples that depend on syscall/js should not
-    show a "Run" button.
+    The linux syscall functions used in runtime are designed around the calling
+    convention of returning errors as negative numbers. On some other systems
+    (like mips and ppc) the actual syscalls signal errors in other ways. This
+    means that the assembly implementations of the syscall functions on these
+    platforms need to transform the return values in the error cases to match
+    the expected negative errno values. This was addressed for certain syscalls
+    in https://golang.org/cl/19455 and https://golang.org/cl/89235. This patch
+    handles the rest of the syscall functions in sys_linux_*.s that return any
+    value for mips/mips64/ppc64.
     
-    Fixes #28526.
+    Fixes #23446
     
-    Change-Id: I8b2fcdd0c0ee517a5c3864bf459f813129542389
-    Reviewed-on: https://go-review.googlesource.com/c/148918
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I302100261231f76d5850ab2c2ea080170d7dba72
+    GitHub-Last-Rev: e358e2b08c76897b13f917cfa12b5085e20337f9
+    GitHub-Pull-Request: golang/go#26606
+    Reviewed-on: https://go-review.googlesource.com/125895
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/doc/example.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/sys_linux_mips64x.s | 14 ++++++++++++++
+ src/runtime/sys_linux_mipsx.s   | 18 +++++++++++++++---
+ src/runtime/sys_linux_ppc64x.s  | 14 ++++++++++++++
+ 3 files changed, 43 insertions(+), 3 deletions(-)

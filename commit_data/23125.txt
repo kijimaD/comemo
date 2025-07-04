@@ -1,12 +1,16 @@
-commit 75250a9f791e650bcf0fe16e9d3436314a94dde6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 22 11:31:47 2015 -0700
+commit 2a46f55b359909ab0710f7952747811dfae07a50
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 24 16:37:31 2015 -0400
 
-    cmd/compile/internal/gc: simplify mpgetflt (remove switch and indirection)
+    runtime: panic when idling a P with runnable Gs
     
-    Change-Id: I6ae3534defdae9367e1b856dbb8e846c3263a758
-    Reviewed-on: https://go-review.googlesource.com/10358
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This adds a check that we never put a P on the idle list when it has
+    work on its local run queue.
+    
+    Change-Id: Ifcfab750de60c335148a7f513d4eef17be03b6a7
+    Reviewed-on: https://go-review.googlesource.com/9324
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/mparith3.go | 27 +++++++++++----------------
- 1 file changed, 11 insertions(+), 16 deletions(-)
+ src/runtime/proc1.go | 3 +++
+ 1 file changed, 3 insertions(+)

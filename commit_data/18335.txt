@@ -1,23 +1,15 @@
-commit 021c11683ca28c7e01a2eca5ccbb9b8bd34e3bc1
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Jan 22 23:30:52 2014 +0100
+commit 91fbf6f159a099a273e6880a5fe40351d61270b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 22 16:34:02 2014 -0500
 
-    debug/plan9obj: implement parsing of Plan 9 a.out executables
+    testing: fix SkipNow and FailNow to avoid panic(nil) check
     
-    It implements parsing of the header and symbol table for both
-    32-bit and 64-bit Plan 9 binaries. The nm tool was updated to
-    use this package.
+    Sorry, too many windows in which to run all.bash.
+    Fixes build.
     
-    R=rsc, aram
+    TBR=r
     CC=golang-codereviews
-    https://golang.org/cl/49970044
+    https://golang.org/cl/55790043
 
- src/cmd/nm/nm.go                                 |   4 +
- src/cmd/nm/plan9obj.go                           |  48 ++++
- src/pkg/debug/plan9obj/file.go                   | 346 +++++++++++++++++++++++
- src/pkg/debug/plan9obj/file_test.go              |  81 ++++++
- src/pkg/debug/plan9obj/plan9obj.go               |  91 ++++++
- src/pkg/debug/plan9obj/testdata/386-plan9-exec   | Bin 0 -> 37232 bytes
- src/pkg/debug/plan9obj/testdata/amd64-plan9-exec | Bin 0 -> 34279 bytes
- src/pkg/debug/plan9obj/testdata/hello.c          |   8 +
- 8 files changed, 578 insertions(+)
+ src/pkg/testing/testing.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

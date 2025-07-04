@@ -1,39 +1,22 @@
-commit 9aae6482f41de1a9cef2e039be1d668ac2c42d00
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 28 16:00:12 2011 -0400
+commit 7b0f3caa26a46f2d8ef277ff677efec899618871
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 28 09:34:26 2011 -0700
 
-    go: documentation for new command
+    strings: add Replacer, NewReplacer
     
-    *** This is a design review, not a code review. ***
-    Feel free to reply to the mail instead of picking out
-    individual lines to comment on in Rietveld.
+    This is just a new API to do many replacements at once.
     
-    This command, go, will replace both gomake/make and goinstall.
-    Make will stick around only for building our C commands
-    and perhaps package runtime.
+    While the point of this API is to be faster than doing replacements one
+    at a time, the implementation in this CL has the optimizations removed
+    and may actually be slower.
     
-    In normal use while developing you'd run commands like
+    Future CLs will bring back & add optimizations.
     
-            go compile
-            go test
-            go clean
-            go install
-    
-    which apply to the package in the current directory.
-    
-    To operate on code written by others, you add an explicit
-    package path:
-    
-            go get gopath.googlecode.com/hg/oauth
-            go test gopath.googlecode.com/hg/oauth
-    
-    The script.txt file is a script showing the output of
-    the various help commands that the command has.
-    (Right now, all the command can do is print help messages.)
-    
-    R=golang-dev, bradfitz, kevlar, r, edsrzf, gri, adg, rogpeppe, r
+    R=r, rsc, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5019045
+    https://golang.org/cl/5081042
 
- src/cmd/go/script.txt | 352 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 352 insertions(+)
+ src/pkg/strings/Makefile        |  1 +
+ src/pkg/strings/replace.go      | 84 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/replace_test.go | 75 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+)

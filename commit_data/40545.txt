@@ -1,39 +1,15 @@
-commit 61fa79885ba83b2552e7026cb300ae426a3c0b83
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 18 15:45:52 2019 -0400
+commit fc58acbe5cb18a8428a81452bdf6e2b84625315c
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:43:05 2019 +0000
 
-    cmd/compile: fix missing unsafe-points
+    compress/gzip: add missing error check in test
     
-    Currently, the compiler fails to mark any unsafe-points in the initial
-    instructions of a function as unsafe points. This happens because
-    unsafe points are encoded as a stack map index of -2 and the compiler
-    emits PCDATA instructions when there's a change in the stack map
-    index, but I had set the initial stack map index to -2. The actual
-    initial PCDATA value assumed by the PCDATA encoder and the runtime is
-    -1. Hence, if the first instructions had a stack map index of -2, no
-    PCDATA was emitted, which cause the runtime to assume the index was -1
-    instead.
-    
-    This was particularly problematic in the runtime, where the compiler
-    was supposed to mark only calls as safe-points and everything else as
-    unsafe-points. Runtime leaf functions, for example, should have been
-    marked as entirely unsafe-points, but were instead marked entirely as
-    safe-points.
-    
-    Fix this by making the PCDATA instruction generator assume the initial
-    PCDATA value is -1 instead of -2, so it will emit a PCDATA instruction
-    right away if the first real instruction is an unsafe-point.
-    
-    This increases the size of the cmd/go binary by 0.02% since we now
-    emit slightly more PCDATA than before.
-    
-    For #10958, #24543.
-    
-    Change-Id: I92222107f799130072b36d49098d2686f1543699
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202084
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib7be503a46f3609ea29464569e57e1f620e97a53
+    GitHub-Last-Rev: a43cffe45f3b9d208028f7682088cbe537d6deca
+    GitHub-Pull-Request: golang/go#30007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160431
+    Run-TryBot: Leon Klingele <git@leonklingele.de>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/compress/gzip/gzip_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

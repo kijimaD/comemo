@@ -1,12 +1,12 @@
-commit a025e1caac516c967486f4644fbe4c647100b632
+commit aa20d2629284ee73637598c9635ae2f8f7530d04
 Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Wed Dec 18 10:20:25 2013 -0800
+Date:   Wed Dec 18 10:18:35 2013 -0800
 
-    html: add tests for UnescapeString edge cases
+    encoding/json: add test for HTMLEscape
     
-    R=golang-dev, gobot, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/40810044
+    https://golang.org/cl/38220044
 
- src/pkg/html/escape_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/pkg/encoding/json/encode_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

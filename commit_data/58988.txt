@@ -1,20 +1,21 @@
-commit 2620cc1caae099c5947bfd5ff2c10bd4a3b628fd
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Feb 26 16:31:41 2025 -0500
+commit a0d477cb6d3173c860583ccf7aa7919687bddbca
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 3 13:49:26 2023 -0700
 
-    cmd/go/internal/mmap: close file after mmap
+    runtime: print exported methods from the runtime in tracebacks
     
-    Closing the file after mmap will reduce the number of files associated
-    with the process. This will not likely help with #71698 but it doesn't
-    hurt to close the files and should simplify lsof output.
+    We currently suppress runtime frames in tracebacks, except for
+    exported functions.
+    This CL also prints exported methods of exported types
+    in tracebacks, for consistency.
     
-    For #71698
-    
-    Change-Id: I06a1bf91914afc7703783fe1a38d8bc5a6fb3d9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653055
+    Change-Id: Ic65e7611621f0b210de5ae0c02b9d0a044f39fd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507736
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/internal/cache/cache.go |  4 ++++
- src/cmd/go/internal/mmap/mmap.go   | 19 +++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/runtime/crash_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/traceback.go  | 28 +++++++++++++++++++++++++---
+ 2 files changed, 61 insertions(+), 3 deletions(-)

@@ -1,15 +1,21 @@
-commit 87a65f6ce7322de799843cfa991a5e7e36de90d5
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Nov 12 10:44:37 2015 -0500
+commit 821e124c24c2b2d753be22a04a3b20b7bf579627
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Sep 1 19:58:31 2015 -0400
 
-    cmd/compile: delete the runtime_internal_atomic.go builtin defs file
+    cmd/link/internal/ld: align PE .text section to 32-byte when external linking
     
-    The file was automatically placed in the cl by a tool I had built.
-    Since the compiler doesn't hook into the atomic package, it's unnecessary.
+    Some symbols, for example, masks requires 16-byte alignment, and
+    they are placed in the text section. Before this change, the text
+    section is only aligned to 4-byte, and it's making masks unaligned.
     
-    Change-Id: I631fd876813b381bb12604865b00fc5b268dce84
-    Reviewed-on: https://go-review.googlesource.com/16844
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12415.
+    
+    Change-Id: I7767778d1b4f7d3e74c2719a02848350782a4160
+    Reviewed-on: https://go-review.googlesource.com/14166
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/builtin/runtime_internal_atomic.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,13 +1,15 @@
-commit 10b23e7fc94c6a89db2739080ba3c5e0fcbcaee9
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Sat Sep 24 10:38:39 2011 +1000
+commit cf6d0175d900f1b7a8997f7d7737d1247cde1a4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 23 10:57:31 2011 -0700
 
-    syscall: mksyscall_windows.pl to produce packages other than syscall (for example pkg/exp/wingui/zwinapi.go)
+    http: add Location method to Response
     
-    R=golang-dev, alex.brainman, rsc
+    Fixes #2300
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4964074
+    https://golang.org/cl/5117041
 
- src/pkg/exp/wingui/Makefile          |  6 ------
- src/pkg/syscall/mksyscall_windows.pl | 24 +++++++++++++++++-------
- 2 files changed, 17 insertions(+), 13 deletions(-)
+ src/pkg/http/response.go      | 18 ++++++++++++++++
+ src/pkg/http/response_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

@@ -1,23 +1,19 @@
-commit 02196d36575636a64f868ee0ffe6bb61442e7245
-Author: Eugene Kalinin <e.v.kalinin@gmail.com>
-Date:   Fri Jun 28 23:59:49 2019 +0300
+commit 8e4f1a71f22683745c863a776878d9c47e737305
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 20:36:20 2019 +0200
 
-    encoding/json: correct caller's name in encoding errors
+    time: look for zoneinfo.zip in GOROOT
     
-    1. Change mapencode.encode to use fmt.Error rather than MarshalerError.
-    MarshalerError refer to MarshalJSON, but mapencode.encode does not use that.
+    The zoneinfo.zip file will be in the $GOROOT in self-hsoted builds
+    on iOS.
     
-    2. Add sourceFunc field to MarshalerError to record the name of the function
-    that creates the error, so that the Error method can report it correctly.
+    Updates #31722
     
-    Fixes #29753
-    
-    Change-Id: I186c2fac8470ae2f9e300501de3730face642230
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184119
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I991fae92e3dc50581b099a2d8901aed36ecc7cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174310
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/encode.go      | 24 ++++++++++++++++--------
- src/encoding/json/encode_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 8 deletions(-)
+ src/time/zoneinfo_ios.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,19 +1,22 @@
-commit d50429ab608798b0677ba6886f301ee3a98d3c41
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 14:05:02 2020 -0500
+commit 9c384cc570fa964cea1fecc061b17d6858cbcc0d
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Sep 14 20:58:30 2019 +0530
 
-    cmd/go: convert TestGoBuildTestOnly to the script framework
+    cmd/compile: optimize ssa if blocks for wasm architecture
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Check for the next block and accordingly place the successor blocks.
+    This saves an additional jump instruction if the next block is any one
+    of the successor blocks.
     
-    Updates #36320
-    Updates #17751
+    While at it, inline the logic of goToBlock.
     
-    Change-Id: I1832e15e6a15301e075d2ec9d5169a77f11328fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213822
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reduces the size of pkg/js_wasm by 264 bytes.
+    
+    Change-Id: I671ac4322e6edcb0d7e590dcca27e074268068d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195204
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/go/go_test.go                          | 21 ---------------------
- src/cmd/go/testdata/script/build_test_only.txt | 15 +++++++++++++++
- 2 files changed, 15 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/wasm/ssa.go | 45 +++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 16 deletions(-)

@@ -1,19 +1,11 @@
-commit 2fe9482343a4321d54dac5eca5eb04e06aea29d6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Oct 27 20:35:15 2014 -0400
+commit 7c74850d764665aedcef8831cf028bea93f35178
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 12 11:41:55 2014 -0700
 
-    runtime: add fake time support back.
-    Revived from CL 15690048.
+    go1.4: add note about change to bufio.SplitFunc at EOF
     
-    Fixes #5356.
-    
-    LGTM=rsc
-    R=adg, dvyukov, rsc
     CC=golang-codereviews
-    https://golang.org/cl/101400043
+    https://golang.org/cl/159800044
 
- src/runtime/proc.c              | 20 ++++++++++++++++++++
- src/runtime/rt0_nacl_amd64p32.s |  4 ++--
- src/runtime/sys_nacl_amd64p32.s |  6 +++---
- src/runtime/time.go             | 29 ++++++++++++++++++++++++++---
- 4 files changed, 51 insertions(+), 8 deletions(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

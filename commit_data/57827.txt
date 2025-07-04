@@ -1,30 +1,64 @@
-commit 0b652e3ef6413b343d0e7ee38a58f1cc15c933f6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Oct 14 15:05:07 2024 -0400
+commit 0dfb22ed70749a2cd6d95ec6eee63bb213a940d4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Sep 3 14:23:02 2023 -0400
 
-    internal/runtime/maps: use uintptr instead of uint32 for index in group
+    all: use ^TestName$ regular pattern for invoking a single test
     
-    This avoids some zero-extension ops on 64-bit machines.
+    Use ^ and $ in the -run flag regular expression value when the intention
+    is to invoke a single named test. This removes the reliance on there not
+    being another similarly named test to achieve the intended result.
     
-    Based on khr@'s CL 619479.
+    In particular, package syscall has tests named TestUnshareMountNameSpace
+    and TestUnshareMountNameSpaceChroot that both trigger themselves setting
+    GO_WANT_HELPER_PROCESS=1 to run alternate code in a helper process. As a
+    consequence of overlap in their test names, the former was inadvertently
+    triggering one too many helpers.
     
-    For #54766.
+    Spotted while reviewing CL 525196. Apply the same change in other places
+    to make it easier for code readers to see that said tests aren't running
+    extraneous tests. The unlikely cases of -run=TestSomething intentionally
+    being used to run all tests that have the TestSomething substring in the
+    name can be better written as -run=^.*TestSomething.*$ or with a comment
+    so it is clear it wasn't an oversight.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: Ie9a56da26382dc9e515c613abc8cf6fec3767671
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620216
+    Change-Id: Iba208aba3998acdbf8c6708e5d23ab88938bfc1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524948
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/internal/runtime/maps/export_test.go           |  2 +-
- src/internal/runtime/maps/group.go                 | 16 ++++++++--------
- src/internal/runtime/maps/map.go                   |  4 ++--
- src/internal/runtime/maps/runtime_fast32_swiss.go  | 10 +++++-----
- src/internal/runtime/maps/runtime_fast64_swiss.go  | 10 +++++-----
- src/internal/runtime/maps/runtime_faststr_swiss.go |  6 +++---
- src/internal/runtime/maps/runtime_swiss.go         |  4 ++--
- src/internal/runtime/maps/table.go                 | 12 ++++++------
- src/internal/runtime/maps/table_debug.go           |  4 ++--
- 9 files changed, 34 insertions(+), 34 deletions(-)
+ src/cmd/cgo/internal/test/issue18146.go           |  2 +-
+ src/cmd/compile/internal/test/ssa_test.go         |  2 +-
+ src/cmd/go/alldocs.go                             |  2 +-
+ src/cmd/go/internal/help/help.go                  |  2 +-
+ src/cmd/go/internal/lockedfile/lockedfile_test.go |  2 +-
+ src/cmd/go/main.go                                |  2 +-
+ src/flag/flag_test.go                             |  2 +-
+ src/internal/cpu/cpu_test.go                      |  2 +-
+ src/internal/godebug/godebug_test.go              |  4 ++--
+ src/internal/platform/supported.go                |  2 +-
+ src/internal/syscall/windows/exec_windows_test.go |  2 +-
+ src/math/big/calibrate_test.go                    |  2 +-
+ src/net/http/cgi/integration_test.go              | 12 ++++++------
+ src/net/http/fs_test.go                           |  2 +-
+ src/net/http/httptest/server.go                   |  2 +-
+ src/net/http/serve_test.go                        |  6 +++---
+ src/os/os_test.go                                 |  2 +-
+ src/os/os_windows_test.go                         |  2 +-
+ src/os/pipe_test.go                               |  2 +-
+ src/os/removeall_test.go                          |  2 +-
+ src/os/signal/signal_cgo_test.go                  |  4 ++--
+ src/os/signal/signal_test.go                      | 12 ++++++------
+ src/runtime/abi_test.go                           |  2 +-
+ src/runtime/crash_test.go                         |  4 ++--
+ src/runtime/malloc_test.go                        |  2 +-
+ src/runtime/vdso_test.go                          |  4 ++--
+ src/syscall/exec_linux_test.go                    | 12 ++++++------
+ src/syscall/exec_unix_test.go                     |  6 +++---
+ src/syscall/exec_windows_test.go                  |  4 ++--
+ src/testing/flag_test.go                          |  2 +-
+ src/testing/panic_test.go                         |  6 +++---
+ 31 files changed, 57 insertions(+), 57 deletions(-)

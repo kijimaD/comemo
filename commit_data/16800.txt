@@ -1,17 +1,12 @@
-commit c5c52f072b3d33f1a40ffda6d5334d38d0a11fa5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 17 18:02:21 2013 -0700
+commit 4aa6d353063aff777a9bdd3d3cedea5ca3fed2a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 18 10:10:10 2013 +1000
 
-    cmd/cgo: don't emit #pragma declarations when using gccgo
+    net/http: document NewRequest treating Reader as ReadCloser
     
-    Update #5905
-    
-    Don't emit #pragma cgo_ldflag and cgo_import_static
-    declarations that gccgo doesn't understand and can't use.
-    
-    R=golang-dev, rsc, bradfitz
+    R=golang-dev, dsymonds, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/11490043
+    https://golang.org/cl/11432044
 
- src/cmd/cgo/out.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/net/http/request.go | 4 ++++
+ 1 file changed, 4 insertions(+)

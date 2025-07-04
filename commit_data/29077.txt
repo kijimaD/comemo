@@ -1,23 +1,33 @@
-commit 575b1dda4ec845aea6b5c475e9d748dc76d1bc06
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 5 21:22:33 2016 -0400
+commit 3e270ab80bbbc259402f0ae22b5eb36f4daec426
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 23 10:43:47 2016 -0700
 
-    runtime: eliminate allspans snapshot
+    cmd/compile: clean up ctz ops
     
-    Now that sweeping and span marking use the sweep list, there's no need
-    for the work.spans snapshot of the allspans list. This change
-    eliminates the few remaining uses of it, which are either dead code or
-    can use allspans directly, and removes work.spans and its support
-    functions.
+    Now that we have ops that can return 2 results, have BSF return a result
+    and flags.  We can then get rid of the redundant comparison and use CMOV
+    instead of CMOVconst ops.
     
-    Change-Id: Id5388b42b1e68e8baee853d8eafb8bb4ff95bb43
-    Reviewed-on: https://go-review.googlesource.com/30537
-    Run-TryBot: Austin Clements <austin@google.com>
+    Get rid of a bunch of the ops we don't use.  Ctz{8,16}, plus all the Clzs,
+    and CMOVNEs.  I don't think we'll ever use them, and they would be easy
+    to add back if needed.
+    
+    Change-Id: I8858a1d017903474ea7e4002fc76a6a86e7bd487
+    Reviewed-on: https://go-review.googlesource.com/27630
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mgc.go      | 34 ++--------------------------------
- src/runtime/mgcmark.go  |  4 ++--
- src/runtime/mgcsweep.go | 21 ++++++---------------
- src/runtime/mheap.go    |  4 +---
- 4 files changed, 11 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  25 +-
+ src/cmd/compile/internal/gc/ssa.go             |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  31 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  24 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 200 ++------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 348 ++-----------------------
+ src/runtime/internal/sys/intrinsics.go         |  33 ---
+ src/runtime/internal/sys/intrinsics_386.s      |  16 --
+ src/runtime/internal/sys/intrinsics_stubs.go   |   2 -
+ src/runtime/internal/sys/intrinsics_test.go    |  16 --
+ test/intrinsic.dir/main.go                     |  15 --
+ 12 files changed, 71 insertions(+), 650 deletions(-)

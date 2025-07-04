@@ -1,23 +1,18 @@
-commit 29499858bfa616b19c5108510d3cc6c9fa937bcc
-Author: Rob Pike <r@golang.org>
-Date:   Fri Nov 20 13:17:32 2015 -0800
+commit c1ad904bdbc214f78dc19753cd178166e7707a25
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Mon Sep 14 20:53:44 2015 +0200
 
-    fmt: give correct error for % at end of string when scanning
+    cmd/compile/internal/gc: remove unnecessary stringsCompare
     
-    Previously it said, "bad verb %% for ...", which is not only wrong,
-    it's ironic as the fix is to use %% rather than % at the end of the
-    string. Diagnose the case where a simple % is at EOF.
+    Remove several uses of stringsCompare.
     
-    If there's anything after the percent, the error is already good
-    but this CL also puts quotes around the verb designation ('%d' etc.)
-    to make it even clearer, especially when there is a space involved.
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
     
-    Fixes #12315.
-    
-    Change-Id: I31d30659965e940d0bd9ce92a475aab3e2369ef0
-    Reviewed-on: https://go-review.googlesource.com/17150
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3f2323df2ad8c03bad77e0a91d6e2e714803705b
+    Reviewed-on: https://go-review.googlesource.com/14556
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/fmt/scan.go      | 8 ++++++--
- src/fmt/scan_test.go | 3 +++
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/export.go | 34 ++++++--------------------
+ src/cmd/compile/internal/gc/popt.go   | 15 ++++--------
+ src/cmd/compile/internal/gc/subr.go   | 46 +++++++++++++----------------------
+ 3 files changed, 30 insertions(+), 65 deletions(-)

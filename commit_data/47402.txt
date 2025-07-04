@@ -1,23 +1,19 @@
-commit 99fa49e4b7f74fb21cc811270fe42c9b7fa99668
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 9 16:17:50 2021 -0800
+commit bd0fc0b9c32e3697380a6484154accacdb928f97
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 10 14:41:38 2021 -0600
 
-    lib/time, time/tzdata: update to 2021e
+    cmd/link: preserve elf phdr flags when loading external objects
     
-    Doing this a little early in the release cycle as there have been some
-    changes in the handling of old timezones. They should continue to
-    work as expected, but more testing time may be useful.
+    Preserve program header flags when passing them through loadelf.Load.
+    They shouldn't be coerced to 0 on non-ARM platforms which set them
+    such as ppc64le.
     
-    For #22487
-    
-    Change-Id: I3686fed79a052c46112445055044cff5842f2a45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362874
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I022613356f910d812de2fc22eac949960eeb53b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300950
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- lib/time/update.bash       |     4 +-
- lib/time/zoneinfo.zip      |   Bin 424214 -> 425837 bytes
- src/time/tzdata/zipdata.go | 13753 ++++++++++++++++++++++---------------------
- 3 files changed, 6892 insertions(+), 6865 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 2 ++
+ 1 file changed, 2 insertions(+)

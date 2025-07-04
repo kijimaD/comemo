@@ -1,22 +1,20 @@
-commit 8c30460b870f3ced089cbc2fdada809a331481e1
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed May 24 10:45:15 2023 +0800
+commit 1519729c6a1f05735fdc7a6db38dc83838783eee
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 6 20:56:39 2022 +0700
 
-    all: fix unavailable url
+    cmd/compile: treat constants to type parameter conversion as non-constant in Unified IR
     
-    RISC-V modified the address of github and the suffix of the file.
+    Fixes #54307
     
-    The previous link is no longer accessible. use latest link.
-    
-    Change-Id: I5e33ea8447a59b8183658248df05c79ddd380cba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497378
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idcbdb3b1cf7c7fd147cc079659f29a9b5d17e6e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421874
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/riscv64/asm.go | 2 +-
- src/debug/elf/elf.go                 | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go |  5 +++++
+ src/cmd/compile/internal/noder/reader.go  | 18 ++++++++++++++----
+ src/cmd/compile/internal/noder/writer.go  |  2 ++
+ test/fixedbugs/issue54307.go              | 19 +++++++++++++++++++
+ 4 files changed, 40 insertions(+), 4 deletions(-)

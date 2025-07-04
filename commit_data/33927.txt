@@ -1,12 +1,19 @@
-commit 15bc0a129ac149ac5130cb06d6bfdbbcc7e24d3c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 2 16:37:48 2018 -0800
+commit 822f832d29c5fe8d0fac3f36028c0b4ffa7eec80
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 19 15:58:40 2017 +0900
 
-    doc/go1.10: mention new os.IsTimeout function
+    cmd/nm: add test case for go archives
     
-    Change-Id: I84fd3912163ca262df5d7d4690c0dd7e136e79ca
-    Reviewed-on: https://go-review.googlesource.com/85938
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also, rename some test cases, check (*os.File).Close
+    
+    For #21706
+    
+    Change-Id: Ie60c4d345b2259736c823dc6001c08affcdd86e7
+    Reviewed-on: https://go-review.googlesource.com/64510
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.10.html | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/nm/nm_cgo_test.go |  18 +++----
+ src/cmd/nm/nm_test.go     | 117 ++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 117 insertions(+), 18 deletions(-)

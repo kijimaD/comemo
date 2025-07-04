@@ -1,14 +1,12 @@
-commit 45eef04ed462e52389195e960960bfbf40a7ec4b
+commit 6677d2954eaa4d2ff89a5c962168440825b38611
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 01:23:27 2011 -0500
+Date:   Mon Nov 14 01:21:38 2011 -0500
 
-    syscall: fix linux arm build
+    syscall: make windows Errno implement net.Error (fix build)
     
-    Regenerate system call file.
-    
-    TBR=bradfitz
+    TBR=brainman
     CC=golang-dev
-    https://golang.org/cl/5371087
+    https://golang.org/cl/5371086
 
- src/pkg/syscall/zsyscall_linux_arm.go | 744 ++++++++++++++++++++++------------
- 1 file changed, 496 insertions(+), 248 deletions(-)
+ src/pkg/syscall/dll_windows.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,21 +1,19 @@
-commit 8b68fafd1f74fce1cb9c085c979134f012d2b8fc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 19 17:12:57 2017 -0700
+commit 17137fae2e9abed50a1e6499f0a2fffedc6f0256
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Apr 18 11:01:02 2017 -0400
 
-    cmd/compile: simplify walkprint
+    runtime: fix TestCaller with -l=4
     
-    Superficial simplifications: reduce variable scope,
-    eliminate pointless temporaries, use a switch statement.
+    Only the noinline pragma on testCallerFoo is needed to pass the test,
+    but the second pragma makes the test robust to future changes to the
+    inliner.
     
-    Passes toolstash-check.
-    
-    Change-Id: I6450493a0583a6ce8ec0461b66954cf1445a754f
-    Reviewed-on: https://go-review.googlesource.com/55095
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I80b384380c598f52e0382f53b59bb47ff196363d
+    Reviewed-on: https://go-review.googlesource.com/40877
+    Run-TryBot: David Lazar <lazard@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 53 +++++++++++++++----------------------
- 1 file changed, 22 insertions(+), 31 deletions(-)
+ src/runtime/symtab_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

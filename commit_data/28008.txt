@@ -1,14 +1,23 @@
-commit 25d18954f68f0f90e337addfe1970b4f960d0418
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 21 15:31:56 2016 -0700
+commit 0436a89a2c5afad41356dc1dff7c745cd30636a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 22 16:35:29 2016 -0700
 
-    test: add test case that gccgo miscompiled
+    spec: be more explicit about equivalence of empty string and absent field tags
     
-    Change-Id: I384eac632a4a87c12977e56a7d7bad7614305c51
-    Reviewed-on: https://go-review.googlesource.com/25143
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Note that the spec already makes that point with a comment in the very first
+    example for struct field tags. This change is simply stating this explicitly
+    in the actual spec prose.
+    
+    - gccgo and go/types already follow this rule
+    - the current reflect package API doesn't distinguish between absent tags
+      and empty tags (i.e., there is no discoverable difference)
+    
+    Fixes #15412.
+    
+    Change-Id: I92f9c283064137b4c8651630cee0343720717a02
+    Reviewed-on: https://go-review.googlesource.com/22391
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/fixedbugs/bug498.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

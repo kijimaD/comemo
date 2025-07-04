@@ -1,20 +1,28 @@
-commit 115c3bfad55809a27009f9ea6f95970ff94164f0
+commit 3c3c1d8d2856e7859f4ba36b19c91f1538546d2a
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon May 2 17:36:04 2022 -0700
+Date:   Fri Jul 9 17:47:15 2021 -0700
 
-    cmd/compile/internal/typecheck: avoid use of Name.Ntype for assignments
+    [dev.typeparams] cmd/compile: more incremental typecheck for unified IR
     
-    Prep refactoring for the next CL, which removes Name.Ntype
-    entirely. Pulled out separately because this logic is a little subtle,
-    so this should be easier to bisect in case there's something I'm
-    missing here.
+    CL 332469 changed the unified IR reader to incrementally typecheck
+    each statement as they're read/constructed. This CL goes further to
+    incrementally typecheck each expression.
     
-    Change-Id: I4ffec6ee62fcd036582e8d2c963edcbd8bac184f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403837
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    While here, this CL reorganizes a few things to make this go more
+    smoothly. In particular, it renames expr to expr0 and adds a new expr
+    wrapper that applies typecheck.Expr; gets rid of exprTypeSwitchguard
+    by moving that logic into switchStmt; and splits exprConvert out from
+    exprCall, which simplifies the logic for typechecking the calleee
+    expression somewhat.
+    
+    Change-Id: I6289de9388dc94a947971f4b7213aafeb2faa5dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333730
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/typecheck/stmt.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  |  4 +--
+ src/cmd/compile/internal/noder/reader.go | 43 ++++++++++++++++++++++++--------
+ src/cmd/compile/internal/noder/writer.go | 34 +++++++++++++++++--------
+ 3 files changed, 57 insertions(+), 24 deletions(-)

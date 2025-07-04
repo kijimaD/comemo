@@ -1,14 +1,17 @@
-commit 826831acf7426f4e5e27198f96dbb07f933551b8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 16 12:41:55 2016 -0700
+commit 27df2e3f76925701b54d9422ae5c1cac3a7d334d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 24 14:03:58 2015 -0500
 
-    cmd/compile: move LSym.RefIdx for better packing
+    runtime: mark greyobject go:nowritebarrierrec
     
-    Change-Id: I0516d49ee8381c5e022d77c2fb41515c01c8a631
-    Reviewed-on: https://go-review.googlesource.com/20764
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    It would certainly be a mistake to invoke a write barrier while
+    greying an object.
+    
+    Change-Id: I34445a15ab09655ea8a3628a507df56aea61e618
+    Reviewed-on: https://go-review.googlesource.com/18533
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go        | 5 +++--
- src/cmd/internal/obj/sizeof_test.go | 2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

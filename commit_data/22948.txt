@@ -1,15 +1,21 @@
-commit 19e81a9b3b0d103fe7a9a9605c16eb4ba1f20ed8
-Author: Patrick Mezard <patrick@mezard.eu>
-Date:   Sat May 9 15:44:58 2015 +0200
+commit a6bade60b0475f3cb01103284b9c378f92490bf7
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Apr 8 13:14:15 2015 +0200
 
-    internal/syscall/windows/registry: handle invalid integer values
+    cmd/7g: remove loads that only load an immediate to be later used by ADD/SUB
     
-    I have around twenty of such values on a Windows 7 development machine.
-    regedit displays (translated): "invalid 32-bits DWORD value".
+    Optimize the sequence:
+            MOV $imm, Rt
+            ADD Rt, Rs, Rd
     
-    Change-Id: Ib37a414ee4c85e891b0a25fed2ddad9e105f5f4e
-    Reviewed-on: https://go-review.googlesource.com/9901
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    into:
+            ADD $imm, Rs, Rd
+    
+    Saves 66k in godoc.
+    
+    Change-Id: I27b4aaa0ec80a59472fe2e5816efdf3db9c901ee
+    Reviewed-on: https://go-review.googlesource.com/8632
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/internal/syscall/windows/registry/value.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/7g/peep.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

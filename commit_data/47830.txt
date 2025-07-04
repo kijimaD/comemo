@@ -1,23 +1,24 @@
-commit 3c495839fe6e711b9161f8efc2d1bd474bf60916
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 16 10:25:07 2021 -0800
+commit 6208b10d1e843e49a8cff42ed17f548530fc7452
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 11 16:30:36 2021 -0400
 
-    spec: describe constraint parsing ambiguity and work-around more precisely
+    cmd/link: refactor setCgoAttr
     
-    The new description matches the implementation (CL 370774).
+    setCgoAttr takes a lookup function, but there's only a single call and
+    setCgoAttr already has access to the lookup function passed at that
+    call. Simplify setCgoAttr by eliminating the lookup parameter and
+    calling the lookup function directly.
     
-    Also, in the section on type constraints, use "defines" instead of
-    "determines" because the constraint interface defines the type set
-    which is precisely the set of acceptable type arguments.
+    For #40724.
     
-    For #49482.
-    
-    Change-Id: I6f30f49100e8ba8bec0a0f1b450f88cae54312eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372874
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib27c0fa2b88c387e30423365f7757e3ba02cf7d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309338
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/go.go  | 10 +++++-----
+ src/cmd/link/internal/ld/lib.go |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

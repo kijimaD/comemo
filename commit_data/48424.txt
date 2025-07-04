@@ -1,18 +1,24 @@
-commit 489102de18cff38d1b12d09eeb7e60af42492d63
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 17 11:41:24 2022 +0100
+commit 701bd6064655fb51d189c9f421f876a67f6619a3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 19 09:58:01 2021 -0700
 
-    syscall: optimize UTF16{,Ptr}FromString
+    [dev.typeparams] cmd/compile: simplify targ's type
     
-    Use bytealg.IndexByteString in UTF16FromString instead of an open-coded
-    loop.
+    Make the base type of targ a *types.Type instead of an ir.Node
+    containing a type.
     
-    Change-Id: I366448382f2d0adeca6b254131e0087a1f489258
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393614
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also move makeInstName to typecheck, so it can later be used by
+    reflectdata for making wrappers.
+    
+    Change-Id: If148beaa972e5112ead2771d6e32d73f16ca30c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321209
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/syscall/syscall_windows.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go  | 63 +++++-------------------------
+ src/cmd/compile/internal/noder/types.go    |  4 +-
+ src/cmd/compile/internal/typecheck/subr.go | 58 +++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 55 deletions(-)

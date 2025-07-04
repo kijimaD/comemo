@@ -1,12 +1,12 @@
-commit 520f9dea138afe3a7742f789576a42b97573f1e3
+commit bb818622f790f255dad3a573018686b2ef32ec92
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Nov 9 11:22:25 2011 +1100
+Date:   Wed Nov 9 11:17:39 2011 +1100
 
-    fix .hgtags
+    tag weekly.2011-11-09
     
-    R=golang-dev
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5346049
+    https://golang.org/cl/5341051
 
- .hgtags | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,20 +1,15 @@
-commit 19532d04bfe4bfb2e4a2de239ac13f31b77080fc
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Sep 22 01:34:13 2019 +0200
+commit 06c9ccdfc7b9e39e0f609c00bddd1b39a0385a37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 16:36:21 2019 +0000
 
-    cmd/compile: add debugging mode for poset
+    os/exec: always set SYSTEMROOT on Windows if not listed in Cmd.Env
     
-    Add an internal mode to simplify debugging of posets
-    by checking the integrity after every mutation. Turn
-    it on within SSA checked builds.
+    Fixes #25210
     
-    Change-Id: Idaa8277f58e5bce3753702e212cea4d698de30ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196780
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If27b61776154dae9b9b67bf4e4f5faa785d98105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174318
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go |  2 ++
- src/cmd/compile/internal/ssa/poset.go   | 34 +++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/os/exec/exec.go      | 25 ++++++++++++++++++++++++-
+ src/os/exec/exec_test.go | 19 +++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

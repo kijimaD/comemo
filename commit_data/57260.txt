@@ -1,25 +1,19 @@
-commit dff15aa610f44a414069e6123fe1e16e7d65065c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Aug 4 04:45:14 2024 +1000
+commit 050d4d3b9e1b022e1020dea4ffca5ffabf15ad7e
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Thu Jul 20 17:41:06 2023 -0700
 
-    cmd/compile/internal/ssagen: provide intrinsicBuilders
+    log/slog: fix comment above log levels
     
-    Create an intrinsicBuilders type that has functions for adding and
-    looking up intrinsics. This makes the implementation more self contained,
-    readable and testable. Additionally, pass an *intrinsicBuildConfig to
-    initIntrinsics to improve testability without needing to modify package
-    level variables.
+    This extra newline causes pkg.go.dev and gopls to only show the bottom
+    half of this comment; I'm pretty sure this entire thing is meant to be
+    in the docs.
     
-    Change-Id: I0ee0a19c192dd6da9f1c5f1c29b98a3ad8161fe2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605478
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5bbf081fb2072d9d773d5a995bc3693dc44f65ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511855
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssagen/intrinsics.go      | 118 +++++++++++++++------
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  47 +++++++-
- src/cmd/compile/internal/ssagen/ssa.go             |   6 +-
- src/internal/buildcfg/cfg.go                       |   6 +-
- 4 files changed, 138 insertions(+), 39 deletions(-)
+ src/log/slog/level.go | 1 -
+ 1 file changed, 1 deletion(-)

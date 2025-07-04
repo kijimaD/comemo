@@ -1,19 +1,17 @@
-commit 1161a19c1ef536f8db2ca7eddf0e424e138e37db
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Fri Aug 12 12:45:14 2016 +0200
+commit d1981ac313f6858cf1ec163dac94ea0d6904a731
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 10 04:29:32 2016 +0900
 
-    context: add examples
+    net: reorganize interface tests to avoid vague flakiness
     
-    Add function level examples to the package.
+    This change reorganizes test cases for surveying network interfaces and
+    address prefixes to make sure which part of the functionality is broken.
     
-    Partially addresses #16360
+    Updates #7849.
     
-    Change-Id: I7162aed4e4a969743c19b79c9ffaf9217d2c1c08
-    Reviewed-on: https://go-review.googlesource.com/26930
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If6918075802eef69a7f1ee040010b3c46f4f4b97
+    Reviewed-on: https://go-review.googlesource.com/22990
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/example_test.go     | 109 ++++++++++++++++++++++++++++++++++++++++
- src/context/withtimeout_test.go |  33 ------------
- 2 files changed, 109 insertions(+), 33 deletions(-)
+ src/net/interface_test.go | 292 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 165 insertions(+), 127 deletions(-)

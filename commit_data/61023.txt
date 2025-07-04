@@ -1,0 +1,34 @@
+commit e3cbda934ce5fa42b324f2042c5ee30a2a2e7c8c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 23 10:46:41 2024 -0700
+
+    go/types, types2: print type parameters for Alias tyoes
+    
+    Like for Named types, print type parameters for Alias types.
+    
+    Add test case for Alias object string to existing test.
+    To make the test work, factor out the mechanism to set
+    GOEXPERIMENT=aliastypeparams at test time and use it
+    for this test as well.
+    
+    No test case for un-instantiated generic type Alias type
+    string: there's no existing test framework, the code is
+    identical as for Named types, and these strings only appear
+    in tracing output. Tested manually.
+    
+    Change-Id: I476d04d0b6a7c18b79be1d34a9e3e072941df83f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615195
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/check_test.go  | 26 ++++++++++++++++++--------
+ src/cmd/compile/internal/types2/object.go      |  2 +-
+ src/cmd/compile/internal/types2/object_test.go |  6 +++++-
+ src/cmd/compile/internal/types2/typestring.go  |  3 +++
+ src/go/types/check_test.go                     | 26 ++++++++++++++++++--------
+ src/go/types/object.go                         |  2 +-
+ src/go/types/object_test.go                    |  4 +++-
+ src/go/types/typestring.go                     |  3 +++
+ 8 files changed, 52 insertions(+), 20 deletions(-)

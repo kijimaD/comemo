@@ -1,33 +1,37 @@
-commit a96e117a58dce1d55fd83a7b3391fa667dd66652
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jan 23 08:22:10 2017 -0800
+commit 9aed16e96dc97a68a00e6358fe05f96ce5c16b35
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Tue Oct 18 18:05:43 2016 +0200
 
-    runtime: amd64, use 4-byte ops for memmove of 4 bytes
+    regexp: avoid alloc in QuoteMeta when not quoting
     
-    memmove used to use 2 2-byte load/store pairs to move 4 bytes.
-    When the result is loaded with a single 4-byte load, it caused
-    a store to load fowarding stall.  To avoid the stall,
-    special case memmove to use 4 byte ops for the 4 byte copy case.
+    Many users quote literals in regular expressions just in case.
+    No need to allocate then.
     
-    We already have a special case for 8-byte copies.
-    386 already specializes 4-byte copies.
-    I'll do 2-byte copies also, but not for 1.8.
+    Note: Also added benchmarks for quoting and not quoting.
     
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkIssue18740-8     7567          4799          -36.58%
+            name             old time/op    new time/op     delta
+            QuoteMetaAll-4      629ns ± 6%      654ns ± 5%    +4.01%        (p=0.001 n=20+19)
+            QuoteMetaNone-4    1.02µs ± 6%     0.20µs ± 0%   -80.73%        (p=0.000 n=18+20)
     
-    3-byte copies get a bit slower.  Other copies are unchanged.
-    name         old time/op   new time/op   delta
-    Memmove/3-8   4.76ns ± 5%   5.26ns ± 3%  +10.50%  (p=0.000 n=10+10)
+            name             old speed      new speed       delta
+            QuoteMetaAll-4   22.3MB/s ± 6%   21.4MB/s ± 5%    -3.94%        (p=0.001 n=20+19)
+            QuoteMetaNone-4  25.3MB/s ± 3%  131.5MB/s ± 0%  +419.28%        (p=0.000 n=17+19)
     
-    Fixes #18740
+            name             old alloc/op   new alloc/op    delta
+            QuoteMetaAll-4      64.0B ± 0%      64.0B ± 0%      ~     (all samples are equal)
+            QuoteMetaNone-4     96.0B ± 0%      0.0B ±NaN%  -100.00%        (p=0.000 n=20+20)
     
-    Change-Id: Iec82cbac0ecfee80fa3c8fc83828f9a1819c3c74
-    Reviewed-on: https://go-review.googlesource.com/35567
-    Run-TryBot: Keith Randall <khr@golang.org>
+            name             old allocs/op  new allocs/op   delta
+            QuoteMetaAll-4       2.00 ± 0%       2.00 ± 0%      ~     (all samples are equal)
+            QuoteMetaNone-4      2.00 ± 0%      0.00 ±NaN%  -100.00%        (p=0.000 n=20+20)
+    
+    Change-Id: I38d50f463cde463115d22534f8eb849e54d899af
+    Reviewed-on: https://go-review.googlesource.com/31395
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/memmove_amd64.s | 10 ++++++++--
- src/runtime/memmove_test.go | 20 ++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/regexp/all_test.go | 20 ++++++++++++++++++++
+ src/regexp/regexp.go   | 21 ++++++++++++++++-----
+ 2 files changed, 36 insertions(+), 5 deletions(-)

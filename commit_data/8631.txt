@@ -1,22 +1,15 @@
-commit 94b974a22d6eaf46a1c3b50b20746ee9d759a327
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Mon Jun 6 19:53:30 2011 +1000
+commit 7dd47326e51d85804415bd80d640be19f3166df5
+Author: Jeffrey M Hodges <jeff@somethingsimilar.com>
+Date:   Mon Jun 6 06:56:09 2011 +0000
 
-    os: add Process.Kill and Process.Signal
+    libmach: use the standardized format for designated initializers.
+    The brace style in these files are a little inconsistent so I rolled with
+    it on a per-file basis.
     
-    R=alex.brainman, r, rsc, krasin, iant, rsc, r
+    R=dave, r
     CC=golang-dev
-    https://golang.org/cl/4437091
+    https://golang.org/cl/4515194
 
- src/pkg/os/Makefile                               | 12 +++++++++++
- src/pkg/os/exec_posix.go                          | 25 ++++++++++++++++++++++-
- src/pkg/os/exec_unix.go                           |  8 ++++++++
- src/pkg/os/exec_windows.go                        | 12 ++++++++++-
- src/pkg/os/{signal/mkunix.sh => mkunixsignals.sh} |  2 +-
- src/pkg/os/signal/Makefile                        |  6 ------
- src/pkg/os/signal/signal.go                       | 25 +++++------------------
- src/pkg/os/signal/signal_test.go                  |  5 +++--
- src/pkg/syscall/syscall_windows.go                |  9 +++-----
- src/pkg/syscall/zsyscall_windows_386.go           | 21 ++++++++++++++++---
- src/pkg/syscall/ztypes_windows_386.go             | 17 +++++++++++++++
- 11 files changed, 102 insertions(+), 40 deletions(-)
+ src/libmach/8db.c | 1682 ++++++++++++++++++++++++++---------------------------
+ src/libmach/obj.c |   22 +-
+ 2 files changed, 852 insertions(+), 852 deletions(-)

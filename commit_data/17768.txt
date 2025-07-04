@@ -1,12 +1,16 @@
-commit 7bbe0163c7def3eca41fa0e2d950fdfe37f37562
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 9 06:44:11 2013 -0700
+commit 158c56ef8a7149d863fda4726094978d0562eea2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 8 16:16:24 2013 -0700
 
-    net: fix typo in failure message in test
+    lib/time: update time zone files to version 2013g
+    This dataset is current as of Sep 30, 2013.
     
-    R=golang-dev, mikioh.mikioh
+    Fixes #6524
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14582043
+    https://golang.org/cl/14570044
 
- src/pkg/net/packetconn_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/time/update.bash  |   6 ++++--
+ lib/time/zoneinfo.zip | Bin 374530 -> 374754 bytes
+ 2 files changed, 4 insertions(+), 2 deletions(-)

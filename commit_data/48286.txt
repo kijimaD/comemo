@@ -1,17 +1,21 @@
-commit 797e8890463671b96fb0af8ed151101950d76999
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 2 20:16:55 2022 -0800
+commit 3b304ce7fe35b9d1e8cf0b0518ed2550c361a010
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Apr 23 21:25:06 2021 +0800
 
-    doc/go1.19: mention use of EDNS(0)
+    runtime: implement runqdrain() for GC mark worker goroutines
     
-    For #51153
+    Revive CL 310149
     
-    Change-Id: I4374c63498b62ba7a08f146eebd034cbd50623f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389634
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib4714ea5b2ade32c0f66edff841a79d8212bd79a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313009
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.19.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/runtime/mgc.go      | 12 ++++--------
+ src/runtime/proc.go     | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime2.go |  3 +++
+ 3 files changed, 48 insertions(+), 8 deletions(-)

@@ -1,20 +1,28 @@
-commit fd1363240ac22583125d43d8e15f130f02a7659b
-Author: Mordy Ovits <mordyovits@users.noreply.github.com>
-Date:   Thu May 23 01:41:03 2024 +0000
+commit 86c6b4763ed486f20cf018d0810cfd7a1fd91998
+Author: miller <millerresearch@gmail.com>
+Date:   Thu May 18 10:17:42 2023 +0100
 
-    doc: fix two instances of "the the" in godebug.md
+    internal/poll: handle SetDeadline to time.Now() in Plan 9
     
-    Remove two instances of "the the" introduced recently
-    in CL 562343 and CL 562975.
+    The implementation of SetDeadline in Plan 9 begins by calculating
+    d = the offset of the requested deadline from time.Now(). If d > 0,
+    a timer is set to interrupt future I/O. If d < 0, the channel is
+    flagged to prevent future I/O and any current I/O is cancelled.
+    But if d = 0, nothing happens and the deadline isn't set.
     
-    Change-Id: Ib32ca80fcd6764343021c84135bd65853945c9ea
-    GitHub-Last-Rev: 0bd2c0b4bd662645d03fb4f08e201bae29c1a7e6
-    GitHub-Pull-Request: golang/go#67594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587717
+    The d = 0 case should be handled the same as d < 0.
+    
+    Fixes #60282
+    Fixes #52896
+    
+    Change-Id: Id8167db3604db1c129d99376fa78a3da75417d20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496137
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/godebug.md | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/poll/fd_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,33 @@
-commit e71d8a2fe44f1e8e85186669922438407636af0c
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Feb 1 11:49:33 2011 -0500
+commit 62afa225aff6d0925eabbd746ec30b8c003b23fb
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Tue Feb 1 11:49:24 2011 -0500
 
-    6l: add comment to CMOV* relocation
+    windows: multiple improvements and cleanups
     
-    R=rsc
+    The callback mechanism has been made more flexible.
+    Eliminated one round of argument copying in Syscall.
+    Faster Get/SetLastError implemented.
+    Added gettime for gc perf profiling.
+    
+    R=rsc, brainman, mattn, rog
     CC=golang-dev
-    https://golang.org/cl/4042045
+    https://golang.org/cl/4058046
 
- src/cmd/6l/asm.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/exp/wingui/gui.go               |  11 +-
+ src/pkg/exp/wingui/zwinapi.go           |  32 +++---
+ src/pkg/runtime/cgocall.c               |   9 +-
+ src/pkg/runtime/cgocall.h               |   2 +-
+ src/pkg/runtime/runtime.c               |   2 +-
+ src/pkg/runtime/runtime.h               |   4 +-
+ src/pkg/runtime/windows/386/signal.c    |   1 +
+ src/pkg/runtime/windows/386/sys.s       | 102 +++++++++----------
+ src/pkg/runtime/windows/mem.c           |  12 +--
+ src/pkg/runtime/windows/os.h            |  32 ++----
+ src/pkg/runtime/windows/syscall.goc     | 132 ++++++++----------------
+ src/pkg/runtime/windows/thread.c        | 175 ++++++++++++++++----------------
+ src/pkg/syscall/mksyscall_windows.sh    |  27 ++---
+ src/pkg/syscall/syscall.go              |   4 -
+ src/pkg/syscall/syscall_unix.go         |   4 +
+ src/pkg/syscall/syscall_windows.go      |  35 ++-----
+ src/pkg/syscall/zsyscall_windows_386.go | 150 +++++++++++++--------------
+ 17 files changed, 319 insertions(+), 415 deletions(-)

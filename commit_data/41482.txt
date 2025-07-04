@@ -1,28 +1,20 @@
-commit 2c859eae1da367ab292f65ca4fed4f6c89d644f9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 24 13:53:53 2020 -0800
+commit 8b391060004dfc03c93a76faab4a0d208a60cc1b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 5 17:46:09 2019 +0700
 
-    cmd/compile: ignore div/mod in prove on non-x86 architectures
+    internal/reflectlite: add type mirror with reflect test
     
-    Instead of writing AuxInt during prove and then zeroing it during lower,
-    just don't write it in the first place.
+    Add test to check that struct type in reflectlite is mirror of reflect.
+    Note that the test does not check the field types, only check for number
+    of fields and field name are the same.
     
-    Passes toolstash-check -all.
+    Updates #34486
     
-    Change-Id: Iea4b555029a9d69332e835536f9cf3a42b8223db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220682
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id5f9b26d35faec97863dd1fe7e5eab37d4913181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199280
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  8 +--
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 +-
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 +--
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  4 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules    |  4 +-
- src/cmd/compile/internal/ssa/prove.go          |  6 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 68 +++-----------------------
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 34 ++-----------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 68 +++-----------------------
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 34 ++-----------
- src/cmd/compile/internal/ssa/rewriteWasm.go    | 34 ++-----------
- 11 files changed, 48 insertions(+), 224 deletions(-)
+ src/internal/reflectlite/reflect_mirror_test.go | 120 ++++++++++++++++++++++++
+ 1 file changed, 120 insertions(+)

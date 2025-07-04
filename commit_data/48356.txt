@@ -1,24 +1,28 @@
-commit 5003ed884a67ee26b4cedbe6f5b1c02bd5eb6630
-Author: Steven Johnstone <steven.james.johnstone@gmail.com>
-Date:   Thu Mar 10 13:38:00 2022 +0000
+commit 9995c6b50aa55c1cc1236d1d688929df512dad53
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue May 11 17:02:20 2021 +0200
 
-    internal/fuzz: minimization should not reduce coverage
+    cmd/go: ignore implicit imports when the -find flag is set
     
-    Minimization should result in a fuzz input which
-    includes the same coverage bits as the original
-    input.
+    The documentation of the go list -find flag says that the Deps list will
+    be empty. However the current implementation adds implicit imports when
+    supporting Cgo or SWIG and when linking a main package.
     
-    Updates #48326
+    Update the documentation of PackageOpts.IgnoreImport to clarify that
+    both explicit and implicit imports are ignored.
     
-    Change-Id: I6c5f30058b57ccd1a096ad0e9452a4dfbb7d9aab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391454
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Add a regression test.
+    
+    Fixes #46092
+    
+    Change-Id: I37847528d84adb7a18eb6ff29e4af4b4318a66fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318770
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt | 11 -----------
- src/internal/fuzz/coverage.go                                 | 11 +++++++++++
- src/internal/fuzz/worker.go                                   |  3 ++-
- 3 files changed, 13 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/load/pkg.go                 | 56 +++++++++++++------------
+ src/cmd/go/testdata/script/list_find_nodeps.txt | 39 +++++++++++++++++
+ 2 files changed, 69 insertions(+), 26 deletions(-)

@@ -1,12 +1,33 @@
-commit 73ff7cb1ed56921c82bf6bdfc173ce8e49ea437c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Oct 27 19:47:54 2015 -0400
+commit 46e62f873a34b06348bdaf231f1b72367950732e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 18 14:17:30 2015 -0700
 
-    runtime: c-shared entrypoint for linux/arm64
+    [dev.ssa] cmd/compile: used Bounded field to fix empty range loops
     
-    Change-Id: I7dab124842f5209097a8d5a802fcbdde650654fa
-    Reviewed-on: https://go-review.googlesource.com/16395
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        for i, v := range a {
+        }
+    
+    Walk converts this to a regular for loop, like this:
+    
+        for i := 0, p := &a[0]; i < len(a); i++, p++ {
+            v := *p
+        }
+    
+    Unfortunately, &a[0] fails its bounds check when a is
+    the empty slice (or string).  The old compiler gets around this
+    by marking &a[0] as Bounded, meaning "don't emit bounds checks
+    for this index op".  This change makes SSA honor that same mark.
+    
+    The SSA compiler hasn't implemented bounds check panics yet,
+    so the failed bounds check just causes the current routine
+    to return immediately.
+    
+    Fixes bytes package tests.
+    
+    Change-Id: Ibe838853ef4046c92f76adbded8cca3b1e449e0b
+    Reviewed-on: https://go-review.googlesource.com/13685
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/rt0_linux_arm64.s | 44 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go              | 12 +++++++++---
+ src/cmd/compile/internal/gc/testdata/ctl_ssa.go | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

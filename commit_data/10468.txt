@@ -1,23 +1,17 @@
-commit fb57134d47977b5c607da2271fa3f5d75400138d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 20 11:46:35 2011 -0500
+commit 05d8d112fe4e78273d2ca0fe7d388a76d9e02407
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Nov 20 22:42:28 2011 +1100
 
-    exp/ssh: alter Session to match the exec.Cmd API
+    html: refactor parse test infrastructure
     
-    This CL inverts the direction of the Stdin/out/err members of the
-    Session struct so they reflect the API of the exec.Cmd. In doing so
-    it borrows heavily from the exec package.
+    My excuse for doing this is that test cases with newlines in them didn't
+    work. But instead of just fixing that, I rearranged everything in
+    parse_test.go to use fewer channels and pipes, and just call a
+    straightforward function to read test cases from a file.
     
-    Additionally Shell now returns immediately, wait for completion using
-    Wait. Exec calls Wait internally and so blocks until the remote
-    command is complete.
-    
-    Credit to Gustavo Niemeyer for the impetus for this CL.
-    
-    R=rsc, agl, n13m3y3r, huin, bradfitz
-    CC=cw, golang-dev
-    https://golang.org/cl/5322055
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5410049
 
- src/pkg/exp/ssh/client.go  |  11 --
- src/pkg/exp/ssh/session.go | 299 ++++++++++++++++++++++++++++++++++-----------
- 2 files changed, 227 insertions(+), 83 deletions(-)
+ src/pkg/html/parse_test.go | 119 ++++++++++++++++++++-------------------------
+ 1 file changed, 53 insertions(+), 66 deletions(-)

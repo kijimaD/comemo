@@ -1,18 +1,22 @@
-commit 00ebfcde7f3b6e63447e2a3962975e0a8c3729dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 13 19:31:35 2018 +0000
+commit 4ff4e5072590ca885f807d1619106d4d8a52217c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 27 13:33:32 2018 +0000
 
-    net/http: don't cancel Request.Context on pipelined Server requests
+    runtime: parse auxv for page size on netbsd
     
-    See big comment in code.
+    Decode AT_PAGESZ to determine physPageSize on netbsd.
     
-    Fixes #23921
+    Also rename vdso_none.go to auxv_none.go which matches its purpose more
+    closely.
     
-    Change-Id: I2dbd1acc2e9da07a71f9e0640aafe0c59a335627
-    Reviewed-on: https://go-review.googlesource.com/123875
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Akin to CL 99780 which did the same for freebsd.
+    
+    Change-Id: Iea4322f861ff0f3515e9051585dbb442f024326b
+    Reviewed-on: https://go-review.googlesource.com/102677
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 54 ++++++++++++++++------------------------------
- src/net/http/server.go     | 45 +++++++++++++++++++++-----------------
- 2 files changed, 44 insertions(+), 55 deletions(-)
+ src/runtime/{vdso_none.go => auxv_none.go} |  1 +
+ src/runtime/os_netbsd.go                   | 36 +++++++++++++++++++++++++++++-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

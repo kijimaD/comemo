@@ -1,19 +1,19 @@
-commit ab39b8de7ef209f004c040e47b74f340347486f2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 15 17:14:51 2015 -0800
+commit fbfc18c52281a4ac6dd812274e9a3b4774f77f76
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 20 13:56:16 2015 -0700
 
-    os/signal: document signal handling
+    [dev.ssa] cmd/compile: don't issue nops for static data
     
-    This is an attempt to document the current state of signal handling.
-    It's not intended to describe the best way to handle signals.  Future
-    changes to signal handling should update these docs as appropriate.
+    It confuses live variable analysis to have a bunch of unreachable
+    no-ops at the end of a function.  Symptom is:
+        gc/plive.go:483 panic: interface conversion: interface {} is nil, not *gc.BasicBlock
     
-    update #9896.
+    I don't see any reason why the old compiler needs these no-ops either.
+    all.bash passes with the equivalent code removed on master.
     
-    Change-Id: I3c50af5cc641357b57dfe90ae1c7883a7e1ec059
-    Reviewed-on: https://go-review.googlesource.com/17877
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifcd2c3e139aa16314f08aebc9079b2fb7aa60556
+    Reviewed-on: https://go-review.googlesource.com/16132
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/os/signal/doc.go    | 183 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/os/signal/signal.go |   1 -
- 2 files changed, 183 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 3 ---
+ 1 file changed, 3 deletions(-)

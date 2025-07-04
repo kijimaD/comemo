@@ -1,12 +1,14 @@
-commit a933635579355dc152ab0ad6571d92015bb88cb8
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 8 21:48:19 2011 -0500
+commit 136c04f71adf3611d94c33552aebb63290647580
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 8 16:39:05 2011 -0800
 
-    spec: var x = 'a' defaults to type rune
+    doc/go1: most of the simple language changes
     
-    R=gri, r, r, adg, iant, ken
+    R=rsc, adg, r
     CC=golang-dev
-    https://golang.org/cl/5444053
+    https://golang.org/cl/5477044
 
- doc/go_spec.html | 67 ++++++++++++++++++++++++++++----------------------------
- 1 file changed, 33 insertions(+), 34 deletions(-)
+ doc/go1.html     | 226 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ doc/go1.tmpl     | 182 +++++++++++++++++++++++++++++++++++++++++++-
+ doc/progs/go1.go |  74 ++++++++++++++++++
+ 3 files changed, 479 insertions(+), 3 deletions(-)

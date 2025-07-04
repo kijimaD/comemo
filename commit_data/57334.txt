@@ -1,21 +1,22 @@
-commit 700920bbb73b39af4794854e79b76dc9b66b19ca
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon Sep 2 12:37:51 2024 +0000
+commit 463887d5cc3e4cc30347f350f6cdc93f42766340
+Author: Hiro <laciferin@gmail.com>
+Date:   Mon Jul 31 08:50:43 2023 +0000
 
-    go/printer: do not panic on *ast.ParenExpr in combinesWithName
+    go/types: add test cases for generic constraints, types and functions
     
-    Fixes #69206
+    Dups: #60856
+    For #60817
     
-    Change-Id: I1b5a664c22d5739e2c6748d562591f57345b536e
-    GitHub-Last-Rev: 1798e2c65b3c2c0c1ef674b000dce2636c834783
-    GitHub-Pull-Request: golang/go#69208
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610115
+    Change-Id: Ic0710758e170d6ceed66649fec08ef8054be4d6b
+    GitHub-Last-Rev: 8bbc76aaa704f102f9eabdfead45da452e1ea6e6
+    GitHub-Pull-Request: golang/go#61664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514255
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/go/printer/nodes.go                 | 4 +---
- src/go/printer/testdata/generics.golden | 2 ++
- src/go/printer/testdata/generics.input  | 2 ++
- 3 files changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/syntax/printer_test.go | 17 +++++++++++++++--
+ src/go/types/exprstring_test.go                 | 19 +++++++++++++++----
+ 2 files changed, 30 insertions(+), 6 deletions(-)

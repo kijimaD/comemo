@@ -1,14 +1,14 @@
-commit 828bb0c123af11d21c82eb87b64dfa9af24858c7
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun May 24 19:16:03 2020 +0200
+commit 84540f0b0acb4bb4c488b138345197c3e537d837
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 10 16:21:56 2019 +0100
 
-    syscall/js: improve documentation of Func.Release
+    cmd/compile/internal/logopt: gofmt
     
-    Fixes #38152
-    
-    Change-Id: I807f49e23cc33e1c9b64029c7504b5a1f81a6bab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235138
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie9d29645e7702104202ee1f338babdd9e33e1e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210679
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/js/func.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/logopt/log_opts.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

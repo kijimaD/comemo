@@ -1,17 +1,30 @@
-commit d01200e772902ef8178af767a62a059bf340df31
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Aug 26 11:16:52 2022 +0800
+commit 5780be401fbf1c4766f45301e727fde4a89ac2cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 7 15:53:32 2021 -0700
 
-    runtime: convert sig.{state,delivering} to atomic type
+    cmd/compile/internal/types2: partial revert of incorrect unification "fix"
     
-    For #53821
+    The "fix" (CL 352832) for #48619 was incorrect and broke
+    the unification algorithm in some cases (e.g., #48695).
     
-    Change-Id: I1c8df255ce9e2345d4fa45bd4d1761b73b9fa064
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425780
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL reverts the changes made by CL 352832 to unify.go,
+    and comments out code in corresponding tests.
+    
+    As a result, #48695 will be fixed, and we will re-open #48619.
+    
+    Fixes #48695.
+    For #48619.
+    For #48656.
+    
+    Change-Id: I91bc492062dbcc8dae7626f6b33f6dfabf48bcb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354690
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/sigqueue.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ .../types2/testdata/fixedbugs/issue48619.go2       | 18 ++++++++-------
+ .../types2/testdata/fixedbugs/issue48656.go2       | 11 +++++----
+ .../types2/testdata/fixedbugs/issue48695.go2       | 14 ++++++++++++
+ src/cmd/compile/internal/types2/unify.go           | 26 +++-------------------
+ 4 files changed, 32 insertions(+), 37 deletions(-)

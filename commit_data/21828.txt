@@ -1,14 +1,12 @@
-commit e15221acece3ffeb7aaca9cf967f8ea7dac6e664
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 2 00:16:16 2015 -0500
+commit a1457cac9cc3901df2db9e669a4018141ef12e57
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:08:23 2014 -0500
 
-    cmd/9l: fix ppc64le build
+    sync/atomic: darwin/arm support
     
-    The conversion accidentally dropped the +4 here.
-    
-    Change-Id: Ic6181a759565c261bc1b084317f693ae249fd036
-    Reviewed-on: https://go-review.googlesource.com/6451
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I213a8ab0b8c027a7b73567aeefdca73fd10eae28
+    Reviewed-on: https://go-review.googlesource.com/2122
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/9l/asm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/sync/atomic/asm_darwin_arm.s | 99 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)

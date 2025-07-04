@@ -1,26 +1,18 @@
-commit 0a17b2c174dcbe0f30a19be2ca5517ed0660f706
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 7 16:26:15 2023 +1100
+commit 8d3631fcef414a2fae9177c9916977490252a86e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:38:31 2022 +0800
 
-    cmd/internal/obj/arm64: load large constants into vector registers from rodata
+    cmd/nm: use print-style not printf-style
     
-    Load large constants into vector registers from rodata, instead of placing them
-    in the literal pool. This treats VMOVQ/VMOVD/VMOVS the same as FMOVD/FMOVS and
-    makes use of the existing mechanism for storing values in rodata. Two additional
-    instructions are required for a load, however these instructions are used
-    infrequently and already have a high latency.
-    
-    Updates #59615
-    
-    Change-Id: I54226730267689963d73321e548733ae2d66740e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515617
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic977026a99a825954117902051e59928de9ccbdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435947
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 53 +++++++-------------------------------
- src/cmd/internal/obj/arm64/obj7.go | 29 ++++++++++++++++++---
- src/cmd/internal/obj/sym.go        | 31 ++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 47 deletions(-)
+ src/cmd/nm/nm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

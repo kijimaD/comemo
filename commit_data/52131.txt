@@ -1,23 +1,34 @@
-commit 9b221f9350b555a1e8c01c08a88ed6590ca11a17
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Feb 16 14:35:25 2023 +0700
+commit 3e7ffb862f550c38ce0611b970a4dce10a01226e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 7 15:13:47 2022 +0900
 
-    hash/maphash: add purego implementation
+    all: consistently use US spelling of present participles
     
-    Fixes #47342
+    It has been agreed that we should prefer the US spelling of words like
+    "canceling" over "cancelling"; for example, see https://go.dev/cl/14526.
     
-    Change-Id: I9c3b36de3e7c85d3e7aff2f84abc78a1b382008c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468795
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fix a few occurrences of the "canceling" inconsistency, as well as:
+    
+    * signaling
+    * tunneling
+    * marshaling
+    
+    Change-Id: I99f3ba0a700a9f0292bc6c1b110af31dd05f1ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398734
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go                |   6 +++
- src/go/build/deps_test.go           |   5 +-
- src/hash/maphash/maphash.go         |  51 ++++--------------
- src/hash/maphash/maphash_purego.go  | 104 ++++++++++++++++++++++++++++++++++++
- src/hash/maphash/maphash_runtime.go |  43 +++++++++++++++
- 5 files changed, 167 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go                | 2 +-
+ src/cmd/compile/internal/ir/const.go                      | 2 +-
+ src/cmd/go/internal/work/security.go                      | 2 +-
+ src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go | 4 ++--
+ src/crypto/tls/handshake_client_test.go                   | 2 +-
+ src/crypto/tls/handshake_server_test.go                   | 2 +-
+ src/net/http/fcgi/fcgi_test.go                            | 8 ++++----
+ src/net/http/server.go                                    | 2 +-
+ src/reflect/visiblefields_test.go                         | 2 +-
+ src/runtime/mgcsweep.go                                   | 2 +-
+ src/testing/testing.go                                    | 2 +-
+ 11 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,32 +1,24 @@
-commit 48e00ab70a49652d4b015ac71b80da9f3ae7d1ab
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Apr 9 15:27:30 2024 +0200
+commit 20c349e5344152b56145ef6ebb649f431bdb2c90
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 10 02:20:56 2023 +0700
 
-    image/gif: revert incorrect usage of clear
+    cmd/compile: reenable inline static init
     
-    CL 570555 replaced a loop which added empty
-    color.RGBA elements with a call to clear.
+    Updates #58293
+    Updates #58339
+    Fixes #58439
     
-    color.Palette is a slice of interfaces, so using
-    clear results in a slice of nil elements, rather
-    than what we previously had which was empty
-    color.RGBA elements. This could cause a panic when
-    attempting to re-encode a GIF which had an
-    extended color palette because of the weird
-    transparency hack.
-    
-    This was discovered by OSS-Fuzz. I've added a test
-    case using their reproducer in order to prevent
-    future regressions.
-    
-    Change-Id: I00a89257d90b6cca68672173eecdaa0a24f18d9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577555
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I06d2d92f86fa4a672d69515c4066d69d3e0fc75b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467016
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/image/gif/reader.go      |  6 ++++--
- src/image/gif/reader_test.go | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ test/fixedbugs/issue56778.go          | 2 +-
+ test/fixedbugs/issue58439.go          | 2 +-
+ test/inline.go                        | 2 +-
+ test/noinit.go                        | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

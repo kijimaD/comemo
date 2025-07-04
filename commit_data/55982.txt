@@ -1,22 +1,43 @@
-commit 0b7b90cf198b17dd2d164e3bf013aa5846356b55
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Mon Mar 18 05:20:00 2024 +0000
+commit 8890c3a05f7bf62f455ad2f81a644ba5cae005d8
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Mar 24 22:44:01 2023 -0700
 
-    database/sql: close rows in test
+    all: add wasip1 definitions
     
-    This change invokes defer rows.Close() in TestQuery to properly close the rows.
+    Add wasip1 GOOS definitions to the compiler and build
+    definitions.
     
-    Change-Id: I1ab0d172ad2130e9caab7dbda93d671550c33c6b
-    GitHub-Last-Rev: 76883a3bceefb80873e57150356a4acc001ee1a3
-    GitHub-Pull-Request: golang/go#66371
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572197
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I087e7ff4205a34187bbca18b1693ad911ddd1219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479616
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/database/sql/sql_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/dist/build.go                |  2 ++
+ src/cmd/go/internal/imports/build.go |  1 +
+ src/cmd/internal/objabi/head.go      |  5 +++++
+ src/go/build/syslist.go              |  1 +
+ src/internal/goos/zgoos_aix.go       |  1 +
+ src/internal/goos/zgoos_android.go   |  1 +
+ src/internal/goos/zgoos_darwin.go    |  1 +
+ src/internal/goos/zgoos_dragonfly.go |  1 +
+ src/internal/goos/zgoos_freebsd.go   |  1 +
+ src/internal/goos/zgoos_hurd.go      |  1 +
+ src/internal/goos/zgoos_illumos.go   |  1 +
+ src/internal/goos/zgoos_ios.go       |  1 +
+ src/internal/goos/zgoos_js.go        |  1 +
+ src/internal/goos/zgoos_linux.go     |  1 +
+ src/internal/goos/zgoos_netbsd.go    |  1 +
+ src/internal/goos/zgoos_openbsd.go   |  1 +
+ src/internal/goos/zgoos_plan9.go     |  1 +
+ src/internal/goos/zgoos_solaris.go   |  1 +
+ src/internal/goos/zgoos_wasip1.go    | 26 ++++++++++++++++++++++++++
+ src/internal/goos/zgoos_windows.go   |  1 +
+ src/internal/goos/zgoos_zos.go       |  1 +
+ 21 files changed, 51 insertions(+)

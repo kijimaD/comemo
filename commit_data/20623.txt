@@ -1,28 +1,27 @@
-commit c65a47f890e33eeed6ee9d8b6d965a5534fb6e0e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 3 10:36:54 2014 +1000
+commit 6077f0fc32a401f9a7b9540b6d1b00e855018c9a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 19:18:01 2014 -0400
 
-    undo CL 138250043 / 4eda5e4001fd
+    cmd/go: fix bytes and net the right way
     
-    I will use different approach to solve this problem.
-    See CL 143160046 for details.
+    Not sure why they used empty.s and all these other
+    packages were special cased in cmd/go instead.
+    Add them to the list.
     
-    ««« original CL description
-    syscall: keep Windows syscall pointers live too
+    This avoids problems with net .s files being compiled
+    with gcc in cgo mode and gcc not supporting // comments
+    on ARM.
     
-    Like https://golang.org/cl/139360044
+    Not a problem with bytes, but be consistent.
     
-    LGTM=rsc, alex.brainman
-    R=alex.brainman, rsc
+    The last change fixed the ARM build but broke the Windows build.
+    Maybe *this* will make everyone happy. Sigh.
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/138250043
-    »»»
-    
-    LGTM=r
-    R=golang-codereviews, bradfitz, r
-    CC=golang-codereviews
-    https://golang.org/cl/147440043
+    https://golang.org/cl/144530046
 
- src/syscall/mksyscall_windows.go | 24 ++----------------------
- src/syscall/zsyscall_windows.go  | 15 ++++-----------
- 2 files changed, 6 insertions(+), 33 deletions(-)
+ src/bytes/bytes.s   |  5 -----
+ src/cmd/go/build.go |  2 +-
+ src/net/empty.s     | 10 ----------
+ 3 files changed, 1 insertion(+), 16 deletions(-)

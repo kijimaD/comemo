@@ -1,32 +1,44 @@
-commit 1e5a72e980d481dbe1c605aab870275d6ab4e81d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 19 14:55:36 2024 -0700
+commit 33da4ce4579d4e04a1daa6122abbf669e51ee6ba
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Oct 19 16:43:22 2022 +1100
 
-    go/types, types2: introduce typeset iterators
+    cmd/compile: sign or zero extend for 32 bit equality on riscv64
     
-    Preparation for removing the existing non-standard iterators
-    (is, underIs). Note that we cannot use typeset iterators in
-    range-over-func because the bootstrap compiler doesn't have
-    access to it yet.
+    For 32 bit equality (Eq32), rather than always zero extending to 64 bits,
+    sign extend for signed types and zero extend for unsigned types. This makes
+    no difference to the equality test (via SUB), however it increases the
+    likelihood of avoiding unnecessary sign or zero extension simply for the
+    purpose of equality testing.
     
-    While at it, move underIs from expr.go to under.go
-    and adjust some doc strings in typset.go to match
-    prevailing style in that file.
+    While here, replace the Neq* rules with (Not (Eq*)) - this makes no
+    difference to the generated code (as the intermediates get expanded and
+    eliminated), however it means that changes to the equality rules also
+    reflect in the inequality rules.
     
-    Change-Id: Iecd014eeb5b3fca56a807381c148c5f7a29bfb78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614239
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
+    As an example, the following:
+    
+       lw      t0,956(t0)
+       slli    t0,t0,0x20
+       srli    t0,t0,0x20
+       li      t1,1
+       bne     t1,t0,278fc
+    
+    Becomes:
+    
+       lw      t0,1024(t0)
+       li      t1,1
+       bne     t1,t0,278b0
+    
+    Removes almost 1000 instructions from the Go binary on riscv64.
+    
+    Change-Id: Iac60635f494f6db87faa47752bd1cc16e6b5967f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516595
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/expr.go      | 10 ---------
- src/cmd/compile/internal/types2/typeparam.go |  8 +++++++
- src/cmd/compile/internal/types2/typeset.go   | 33 +++++++++++++++++++++++-----
- src/cmd/compile/internal/types2/under.go     | 24 ++++++++++++++++++++
- src/go/types/expr.go                         | 10 ---------
- src/go/types/typeparam.go                    |  8 +++++++
- src/go/types/typeset.go                      | 33 +++++++++++++++++++++++-----
- src/go/types/under.go                        | 24 ++++++++++++++++++++
- 8 files changed, 120 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  13 +--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 101 ++++++++++++++----------
+ 2 files changed, 67 insertions(+), 47 deletions(-)

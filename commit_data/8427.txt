@@ -1,13 +1,17 @@
-commit cef64d8e2b465f4c6cbe145ee60afbad28398275
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 18 10:51:45 2011 -0400
+commit 5f7b0bc36693c3790e4370c2892e10365a622aff
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue May 17 15:47:14 2011 -0700
 
-    syscall: add TODO about required manual corrections
+    image/jpeg: fix bounds calculation for grayscale JPEG images.
     
-    R=golang-dev, dave, rsc
+    Also add grayscale test cases for image/decode_test.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4553042
+    https://golang.org/cl/4526063
 
- src/pkg/syscall/ztypes_darwin_386.go   | 4 ++++
- src/pkg/syscall/ztypes_darwin_amd64.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/pkg/image/decode_test.go               |  46 ++++++++++++++++++-----------
+ src/pkg/image/jpeg/reader.go               |   1 +
+ src/pkg/image/testdata/video-005.gray.jpeg | Bin 0 -> 5618 bytes
+ src/pkg/image/testdata/video-005.gray.png  | Bin 0 -> 14974 bytes
+ 4 files changed, 29 insertions(+), 18 deletions(-)

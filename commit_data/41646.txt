@@ -1,20 +1,15 @@
-commit d774d979ddab54c5d878e31d015c0678573b7a9d
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Sat Mar 14 00:37:20 2020 -0600
+commit 4edd78d9f8322f3627dbdc83775bf2134502a1ef
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 17 16:58:56 2019 +0000
 
-    math/cmplx: disable TanHuge test on s390x
+    doc/go1.14.html: add some TODOs about various ports
     
-    s390x has inaccurate range reduction for the assembly routines
-    in math so these tests are diabled until these are corrected.
+    Updates #15581
+    Updates #34368
     
-    Updates #37854
-    
-    Change-Id: I1e26acd6d09ae3e592a3dd90aec73a6844f5c6fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223457
-    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ife3be7ed484cbe87960bf972ac701954d86127d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201740
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/math/cmplx/cmath_test.go |  5 -----
- src/math/cmplx/huge_test.go  | 22 ++++++++++++++++++++++
- 2 files changed, 22 insertions(+), 5 deletions(-)
+ doc/go1.14.html | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

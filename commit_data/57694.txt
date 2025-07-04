@@ -1,19 +1,21 @@
-commit e750a0cdb3b5af4d92026eadfd8f21a3f4761492
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 3 18:27:01 2024 +0000
+commit aa0ba4dcaff56b1e44ad0165516db36b71f99e50
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 23 11:22:04 2023 +0200
 
-    runtime: rename shouldhelpgc to checkGCTrigger in mallocgc
+    net: use internal/bytealg.CountString
     
-    shouldhelpgc is a very unhelpful name, because it has nothing to do with
-    assists and solely to do with GC triggering. Name it checkGCTrigger
-    instead, which is much clearer.
+    On platforms that provide a native implementation this might be slightly
+    faster. On other platforms it is equivalent to the count func.
     
-    Change-Id: Id38debd424ddb397376c0cea6e74b3fe94002f71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617877
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If46cc65598993e64084cc98533cb8c1e9679a6fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522136
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/malloc.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/net/dnsclient_unix.go |  3 ++-
+ src/net/ipsock.go         |  4 ++--
+ src/net/parse.go          | 11 -----------
+ 3 files changed, 4 insertions(+), 14 deletions(-)

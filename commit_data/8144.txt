@@ -1,25 +1,130 @@
-commit cded21a337daada5cad779ea8720efb72c00d407
+commit 40fccbce6b0a93d86db03ba4a3d5de68d45e250b
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 18 14:36:22 2011 -0400
+Date:   Mon Apr 18 14:35:33 2011 -0400
 
-    changes for more restricted reflect.SetValue
+    reflect: more efficient; cannot Set result of NewValue anymore
     
-    R=golang-dev, r
+     * Reduces malloc counts during gob encoder/decoder test from 6/6 to 3/5.
+    
+    The current reflect uses Set to mean two subtly different things.
+    
+    (1) If you have a reflect.Value v, it might just represent
+    itself (as in v = reflect.NewValue(42)), in which case calling
+    v.Set only changed v, not any other data in the program.
+    
+    (2) If you have a reflect Value v derived from a pointer
+    or a slice (as in x := []int{42}; v = reflect.NewValue(x).Index(0)),
+    v represents the value held there.  Changing x[0] affects the
+    value returned by v.Int(), and calling v.Set affects x[0].
+    
+    This was not really by design; it just happened that way.
+    
+    The motivation for the new reflect implementation was
+    to remove mallocs.  The use case (1) has an implicit malloc
+    inside it.  If you can do:
+    
+           v := reflect.NewValue(0)
+           v.Set(42)
+           i := v.Int()  // i = 42
+    
+    then that implies that v is referring to some underlying
+    chunk of memory in order to remember the 42; that is,
+    NewValue must have allocated some memory.
+    
+    Almost all the time you are using reflect the goal is to
+    inspect or to change other data, not to manipulate data
+    stored solely inside a reflect.Value.
+    
+    This CL removes use case (1), so that an assignable
+    reflect.Value must always refer to some other piece of data
+    in the program.  Put another way, removing this case would
+    make
+    
+           v := reflect.NewValue(0)
+           v.Set(42)
+    
+    as illegal as
+    
+           0 = 42.
+    
+    It would also make this illegal:
+    
+           x := 0
+           v := reflect.NewValue(x)
+           v.Set(42)
+    
+    for the same reason.  (Note that right now, v.Set(42) "succeeds"
+    but does not change the value of x.)
+    
+    If you really wanted to make v refer to x, you'd start with &x
+    and dereference it:
+    
+           x := 0
+           v := reflect.NewValue(&x).Elem()  // v = *&x
+           v.Set(42)
+    
+    It's pretty rare, except in tests, to want to use NewValue and then
+    call Set to change the Value itself instead of some other piece of
+    data in the program.  I haven't seen it happen once yet while
+    making the tree build with this change.
+    
+    For the same reasons, reflect.Zero (formerly reflect.MakeZero)
+    would also return an unassignable, unaddressable value.
+    This invalidates the (awkward) idiom:
+    
+           pv := ... some Ptr Value we have ...
+           v := reflect.Zero(pv.Type().Elem())
+           pv.PointTo(v)
+    
+    which, when the API changed, turned into:
+    
+           pv := ... some Ptr Value we have ...
+           v := reflect.Zero(pv.Type().Elem())
+           pv.Set(v.Addr())
+    
+    In both, it is far from clear what the code is trying to do.  Now that
+    it is possible, this CL adds reflect.New(Type) Value that does the
+    obvious thing (same as Go's new), so this code would be replaced by:
+    
+           pv := ... some Ptr Value we have ...
+           pv.Set(reflect.New(pv.Type().Elem()))
+    
+    The changes just described can be confusing to think about,
+    but I believe it is because the old API was confusing - it was
+    conflating two different kinds of Values - and that the new API
+    by itself is pretty simple: you can only Set (or call Addr on)
+    a Value if it actually addresses some real piece of data; that is,
+    only if it is the result of dereferencing a Ptr or indexing a Slice.
+    
+    If you really want the old behavior, you'd get it by translating:
+    
+           v := reflect.NewValue(x)
+    
+    into
+    
+           v := reflect.New(reflect.Typeof(x)).Elem()
+           v.Set(reflect.NewValue(x))
+    
+    Gofix will not be able to help with this, because whether
+    and how to change the code depends on whether the original
+    code meant use (1) or use (2), so the developer has to read
+    and think about the code.
+    
+    You can see the effect on packages in the tree in
+    https://golang.org/cl/4423043/.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4423043
+    https://golang.org/cl/4435042
 
- src/cmd/gofmt/rewrite.go       |  6 +++---
- src/pkg/asn1/asn1_test.go      | 14 +++++---------
- src/pkg/gob/codec_test.go      |  1 -
- src/pkg/gob/decode.go          | 39 +++++++++++++++++++++++++++++++--------
- src/pkg/gob/decoder.go         | 20 +++++++++++++-------
- src/pkg/gob/encode.go          |  6 +++---
- src/pkg/gob/encoder_test.go    |  2 +-
- src/pkg/json/decode.go         | 19 +++++++++++++------
- src/pkg/json/decode_test.go    |  3 +--
- src/pkg/netchan/export.go      |  2 +-
- src/pkg/netchan/import.go      |  2 +-
- src/pkg/rpc/server.go          | 10 ++--------
- src/pkg/testing/quick/quick.go |  6 +++---
- src/pkg/xml/read_test.go       |  4 +---
- 14 files changed, 78 insertions(+), 56 deletions(-)
+ src/pkg/reflect/all_test.go  |  182 +++--
+ src/pkg/reflect/deepequal.go |   45 +-
+ src/pkg/reflect/type.go      |   51 +-
+ src/pkg/reflect/value.go     | 1778 +++++++++++++++++++++---------------------
+ src/pkg/runtime/Makefile     |    1 -
+ src/pkg/runtime/chan.c       |  103 ++-
+ src/pkg/runtime/hashmap.c    |  121 ++-
+ src/pkg/runtime/iface.c      |   54 +-
+ src/pkg/runtime/reflect.goc  |  114 ---
+ src/pkg/runtime/runtime.h    |    2 -
+ 10 files changed, 1312 insertions(+), 1139 deletions(-)

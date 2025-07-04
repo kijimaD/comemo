@@ -1,23 +1,26 @@
-commit c9408a154a0cd4624c09bd4a78a44485fc3224ff
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Nov 9 17:21:42 2024 +0100
+commit 3fb1d95149fa280343581a48547c3c3f70dac5fb
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 7 11:06:35 2023 -0400
 
-    crypto/internal/fips/tls12: implement TLS 1.2 KDF
+    internal,cmd/internal: relocate covcmd package from std to cmd
     
-    For #69536
+    Relocate the 'covcmd' package from .../internal/coverage to
+    .../cmd/internal/cov, to reflect the fact that the definitions in this
+    package are used only in cmd, not in std.
     
-    Change-Id: If2477c5249a7c7db45c1af05e715ae0b61e7d940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626837
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I65bcc34736d1d0a23134a6c91c17ff138cd45431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526595
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/internal/fips/cast_external_test.go |  1 +
- src/crypto/internal/fips/tls12/cast.go         | 37 ++++++++++++++
- src/crypto/internal/fips/tls12/tls12.go        | 69 ++++++++++++++++++++++++++
- src/crypto/tls/prf.go                          | 63 +++++++++++------------
- src/go/build/deps_test.go                      |  1 +
- 5 files changed, 138 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/base/flag.go                         | 2 +-
+ src/cmd/cover/cfg_test.go                                     | 2 +-
+ src/cmd/cover/cover.go                                        | 4 ++--
+ src/cmd/dist/buildtool.go                                     | 2 +-
+ src/cmd/go/internal/work/action.go                            | 2 +-
+ src/cmd/go/internal/work/cover.go                             | 2 +-
+ src/cmd/go/internal/work/exec.go                              | 2 +-
+ src/{internal/coverage => cmd/internal/cov}/covcmd/cmddefs.go | 0
+ src/go/build/deps_test.go                                     | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

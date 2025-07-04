@@ -1,20 +1,89 @@
-commit 2d93805171275a4199bf74fe0e47671fb2f9aea4
+commit e25f46e59621caf02f8ac1acc8d1dbe028859e47
 Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 28 09:13:56 2023 -0500
+Date:   Fri Apr 1 15:51:12 2022 -0400
 
-    runtime: add a benchmark of Callers
+    cmd/link: faster algorithm for nosplit stack checking, better errors
     
-    We're about to make major changes to tracebacks. We have benchmarks of
-    stack copying, but not of PC buffer filling, so add some that we can
-    track through these changes.
+    The linker performs a global analysis of all nosplit call chains to
+    check they fit in the stack space ensured by splittable functions.
+    That analysis has two problems right now:
     
-    For #54466.
+    1. It's inefficient. It performs a top-down analysis, starting with
+    every nosplit function and the nosplit stack limit and walking *down*
+    the call graph to compute how much stack remains at every call. As a
+    result, it visits the same functions over and over, often with
+    different remaining stack depths. This approach is historical: this
+    check was originally written in C and this approach avoided the need
+    for any interesting data structures.
     
-    Change-Id: I3ed61d75144ba03b61517cd9834eeb71c99d74df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472956
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    2. If some call chain is over the limit, it only reports a single call
+    chain. As a result, if the check does fail, you often wind up playing
+    whack-a-mole by guessing where the problem is in the one chain, trying
+    to reduce the stack size, and then seeing if the link works or reports
+    a different path.
+    
+    This CL completely rewrites the nosplit stack check. It now uses a
+    bottom-up analysis, computing the maximum stack height required by
+    every function's call tree. This visits every function exactly once,
+    making it much more efficient. It uses slightly more heap space for
+    intermediate storage, but still very little in the scheme of the
+    overall link. For example, when linking cmd/go, the new algorithm
+    virtually eliminates the time spent in this pass, and reduces overall
+    link time:
+    
+               │   before    │                after                │
+               │   sec/op    │   sec/op     vs base                │
+    Dostkcheck   7.926m ± 4%   1.831m ± 6%  -76.90% (p=0.000 n=20)
+    TotalTime    301.3m ± 1%   296.4m ± 3%   -1.62% (p=0.040 n=20)
+    
+               │    before    │                 after                  │
+               │     B/op     │     B/op       vs base                 │
+    Dostkcheck   40.00Ki ± 0%   212.15Ki ± 0%  +430.37% (p=0.000 n=20)
+    
+    Most of this time is spent analyzing the runtime, so for larger
+    binaries, the total time saved is roughly the same, and proportionally
+    less of the overall link.
+    
+    If the new implementation finds an error, it redoes the analysis,
+    switching to preferring quality of error reporting over performance.
+    For error reporting, it computes stack depths top-down (like the old
+    algorithm), and reports *all* paths that are over the stack limit,
+    presented as a tree for compactness. For example, this is the output
+    from a simple test case from test/nosplit with two over-limit paths
+    from f1:
+    
+            main.f1: nosplit stack overflow
+            main.f1
+                grows 768 bytes, calls main.f2
+                    grows 56 bytes, calls main.f4
+                        grows 48 bytes
+                        80 bytes over limit
+                grows 768 bytes, calls main.f3
+                    grows 104 bytes
+                    80 bytes over limit
+    
+    While we're here, we do a few nice cleanups:
+    
+    - We add a debug output flag, which will be useful for understanding
+      what our nosplit chains look like and which ones are close to
+      running over.
+    
+    - We move the implementation out of the fog of lib.go to its own file.
+    
+    - The implementation is generally more Go-like and less C-like.
+    
+    Change-Id: If1ab31197f5215475559b93695c44a01bd16e276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398176
     Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/callers_test.go | 91 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 91 insertions(+)
+ src/cmd/link/internal/ld/lib.go                    | 218 -----------
+ src/cmd/link/internal/ld/main.go                   |   5 +-
+ src/cmd/link/internal/ld/stackcheck.go             | 421 +++++++++++++++++++++
+ src/cmd/link/internal/ld/stackcheck_test.go        |  89 +++++
+ .../link/internal/ld/testdata/stackcheck/main.go   |  20 +
+ .../link/internal/ld/testdata/stackcheck/main.s    |  40 ++
+ test/nosplit.go                                    |   3 +-
+ 7 files changed, 575 insertions(+), 221 deletions(-)

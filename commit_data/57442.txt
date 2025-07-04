@@ -1,15 +1,22 @@
-commit 30f3931c5411a9b3bd9da3eaae71375a232b12cb
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 12 14:14:34 2024 +0200
+commit 008ab9adb8382a274ba25c005a046b912af94809
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 7 15:46:34 2023 -0400
 
-    runtime/pprof: use slices.Contains
+    go/types: fix panic in allowVersion when pos is invalid
     
-    Change-Id: I013aae68f47d7a37deb44097f80a213d8c7976bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612655
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    CL 515656 updated go/types to use file base as key in the posVers map,
+    but introduced a panic when the corresponding *token.File is nil.
+    
+    Check that pos is valid before performing the lookup.
+    
+    Fixes #61822
+    
+    Change-Id: I1ac9d48c831a470de8439a50022ba5f59b3e0bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516738
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/runtime/pprof/pprof_test.go | 14 +++-----------
- 1 file changed, 3 insertions(+), 11 deletions(-)
+ src/go/types/version.go                             |  7 ++++---
+ src/internal/types/testdata/fixedbugs/issue61822.go | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

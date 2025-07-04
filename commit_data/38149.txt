@@ -1,18 +1,24 @@
-commit 72d24a7484063d1ca1113badb481f725382e39b8
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Feb 28 15:20:59 2019 +0100
+commit 415e948eaea05930b2a16bab6af9e38b24e8414b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 12:10:01 2017 -0400
 
-    cmd/compile: simplify zero ext operations on wasm
+    runtime: improve mheap.alloc doc and let compiler check system stack
     
-    On wasm every integer is stored with 64 bits. We can do zero
-    extension by simply zeroing the upper bits.
+    The alloc_m documentation refers to concepts that don't exist (and
+    maybe never did?). alloc_m is also not the API entry point to span
+    allocation.
     
-    Change-Id: I02c54a38b3b2b7654fff96055edab1b92d48ff32
-    Reviewed-on: https://go-review.googlesource.com/c/164461
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Hence, rewrite the documentation for alloc and alloc_m. While we're
+    here, document why alloc_m must run on the system stack and replace
+    alloc_m's hand-implemented system stack check with a go:systemstack
+    annotation.
+    
+    Change-Id: I30e263d8e53c2774a6614e1b44df5464838cef09
+    Reviewed-on: https://go-review.googlesource.com/c/139459
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  6 +-
- src/cmd/compile/internal/ssa/rewriteWasm.go | 90 ++++++++++-------------------
- 2 files changed, 33 insertions(+), 63 deletions(-)
+ src/runtime/mheap.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

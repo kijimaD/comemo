@@ -1,120 +1,21 @@
-commit 948a262455346c6035df6bd5dc36c5d4b6aca409
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 28 15:08:47 2021 -0700
+commit bc0b198bd75a8eef45d0965531ba6fa127d0e8ec
+Author: Tiwei Bie <tiwei.btw@antgroup.com>
+Date:   Thu Oct 15 01:43:51 2020 +0000
 
-    cmd/compile/internal/types2: nest all test data under the testdata directory
+    runtime: dump the status of lockedg on error
     
-    This matches https://golang.org/cl/314829 for go/types.
+    The dumpgstatus() will dump current g's status anyway. When lockedg's
+    status is bad, it's more helpful to dump lockedg's status as well than
+    dumping current g's status twice.
     
-    Change-Id: If3d127af0557bb13d504581920ea03e39db0eb07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314772
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: If5248cb94b9cdcbf4ceea07562237e1d6ee28489
+    GitHub-Last-Rev: da814c51ff42f56fb28582f088f4d72b500061fe
+    GitHub-Pull-Request: golang/go#40248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243097
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go                 | 11 ++++++-----
- .../compile/internal/types2/testdata/{ => check}/blank.src    |  0
- .../compile/internal/types2/testdata/{ => check}/builtins.go2 |  0
- .../compile/internal/types2/testdata/{ => check}/builtins.src |  0
- .../compile/internal/types2/testdata/{ => check}/chans.go2    |  0
- .../compile/internal/types2/testdata/{ => check}/const0.src   |  0
- .../compile/internal/types2/testdata/{ => check}/const1.src   |  0
- .../internal/types2/testdata/{ => check}/constdecl.src        |  0
- .../internal/types2/testdata/{ => check}/conversions.src      |  0
- .../internal/types2/testdata/{ => check}/conversions2.src     |  0
- .../compile/internal/types2/testdata/{ => check}/cycles.src   |  0
- .../compile/internal/types2/testdata/{ => check}/cycles1.src  |  0
- .../compile/internal/types2/testdata/{ => check}/cycles2.src  |  0
- .../compile/internal/types2/testdata/{ => check}/cycles3.src  |  0
- .../compile/internal/types2/testdata/{ => check}/cycles4.src  |  0
- .../compile/internal/types2/testdata/{ => check}/cycles5.src  |  0
- .../compile/internal/types2/testdata/{ => check}/decls0.src   |  0
- .../compile/internal/types2/testdata/{ => check}/decls1.src   |  0
- .../internal/types2/testdata/{ => check}/decls2/decls2a.src   |  0
- .../internal/types2/testdata/{ => check}/decls2/decls2b.src   |  0
- .../compile/internal/types2/testdata/{ => check}/decls3.src   |  0
- .../compile/internal/types2/testdata/{ => check}/decls4.src   |  0
- .../compile/internal/types2/testdata/{ => check}/decls5.src   |  0
- .../compile/internal/types2/testdata/{ => check}/errors.src   |  0
- .../compile/internal/types2/testdata/{ => check}/expr0.src    |  0
- .../compile/internal/types2/testdata/{ => check}/expr1.src    |  0
- .../compile/internal/types2/testdata/{ => check}/expr2.src    |  0
- .../compile/internal/types2/testdata/{ => check}/expr3.src    |  0
- .../compile/internal/types2/testdata/{ => check}/go1_12.src   |  0
- .../compile/internal/types2/testdata/{ => check}/go1_13.src   |  0
- .../compile/internal/types2/testdata/{ => check}/go1_8.src    |  0
- .../compile/internal/types2/testdata/{ => check}/gotos.src    |  0
- .../compile/internal/types2/testdata/{ => check}/importC.src  |  0
- .../types2/testdata/{ => check}/importdecl0/importdecl0a.src  |  0
- .../types2/testdata/{ => check}/importdecl0/importdecl0b.src  |  0
- .../types2/testdata/{ => check}/importdecl1/importdecl1a.src  |  0
- .../types2/testdata/{ => check}/importdecl1/importdecl1b.src  |  0
- .../compile/internal/types2/testdata/{ => check}/init0.src    |  0
- .../compile/internal/types2/testdata/{ => check}/init1.src    |  0
- .../compile/internal/types2/testdata/{ => check}/init2.src    |  0
- .../types2/testdata/{ => check}/issue25008/issue25008a.src    |  0
- .../types2/testdata/{ => check}/issue25008/issue25008b.src    |  0
- .../compile/internal/types2/testdata/{ => check}/issues.go2   |  0
- .../compile/internal/types2/testdata/{ => check}/issues.src   |  0
- .../compile/internal/types2/testdata/{ => check}/labels.src   |  0
- .../compile/internal/types2/testdata/{ => check}/linalg.go2   |  0
- .../compile/internal/types2/testdata/{ => check}/literals.src |  0
- src/cmd/compile/internal/types2/testdata/{ => check}/main.go2 |  0
- src/cmd/compile/internal/types2/testdata/{ => check}/main.src |  0
- src/cmd/compile/internal/types2/testdata/{ => check}/map.go2  |  0
- src/cmd/compile/internal/types2/testdata/{ => check}/map2.go2 |  0
- .../internal/types2/testdata/{ => check}/methodsets.src       |  0
- .../internal/types2/testdata/{ => check}/mtypeparams.go2      |  0
- .../compile/internal/types2/testdata/{ => check}/shifts.src   |  0
- .../compile/internal/types2/testdata/{ => check}/slices.go2   |  0
- .../compile/internal/types2/testdata/{ => check}/stmt0.src    |  0
- .../compile/internal/types2/testdata/{ => check}/stmt1.src    |  0
- .../internal/types2/testdata/{ => check}/tinference.go2       |  0
- src/cmd/compile/internal/types2/testdata/{ => check}/tmp.go2  |  0
- .../compile/internal/types2/testdata/{ => check}/typeinst.go2 |  0
- .../internal/types2/testdata/{ => check}/typeinst2.go2        |  0
- .../internal/types2/testdata/{ => check}/typeparams.go2       |  0
- .../compile/internal/types2/testdata/{ => check}/vardecl.src  |  0
- .../internal/types2/{ => testdata}/examples/functions.go2     |  0
- .../internal/types2/{ => testdata}/examples/inference.go2     |  0
- .../internal/types2/{ => testdata}/examples/methods.go2       |  0
- .../compile/internal/types2/{ => testdata}/examples/types.go2 |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue20583.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue23203a.src  |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue23203b.src  |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue26390.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue28251.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39634.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39664.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39680.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39693.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39699.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39711.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39723.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39725.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39754.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39755.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39768.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39938.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39948.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39976.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue39982.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue40038.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue40056.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue40057.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue40301.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue40684.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue41124.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue42695.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue42758.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue42987.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue43087.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue43110.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue43124.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue43125.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue43190.src   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue44688.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue44799.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue45548.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue45635.go2   |  0
- .../internal/types2/{ => testdata}/fixedbugs/issue6977.src    |  0
- 106 files changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/proc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

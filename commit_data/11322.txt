@@ -1,12 +1,24 @@
-commit e37792191f41764ca33dc26c445494bc1475136b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Jan 22 18:52:38 2012 -0800
+commit 57007fe12b59fdc61027e5f8cba17444485ca32f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Jan 23 00:50:05 2012 -0200
 
-    go/doc: set Type.Name field
+    encoding/xml: improve []byte handling
     
-    R=golang-dev, adg
+    Marshalling of []byte in attributes and the general
+    marshalling of named []byte types was fixed.
+    
+    A []byte field also won't be nil if an XML element
+    was mapped to it, even if the element is empty.
+    
+    Tests were introduced to make sure that *struct{}
+    fields works correctly for element presence testing.
+    No changes to the logic made in that regard.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5569043
+    https://golang.org/cl/5539070
 
- src/pkg/go/doc/reader.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/encoding/xml/marshal.go      | 58 +++++++++++++++++++++---------------
+ src/pkg/encoding/xml/marshal_test.go | 50 +++++++++++++++++++++++++++++++
+ src/pkg/encoding/xml/read.go         | 12 ++++----
+ 3 files changed, 91 insertions(+), 29 deletions(-)

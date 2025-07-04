@@ -1,14 +1,33 @@
-commit 8cd6341cf8c3179966f708b267fc8cee4afa774f
+commit 6624b708660460600041bf7391e4f03b13b6edef
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 14:55:46 2013 -0400
+Date:   Wed Sep 11 14:35:08 2013 -0400
 
-    cmd/gc: allow x[i:j:k] (and x[:j:k]) into the release
+    undo CL 13632053 / dc7bfe0f022d
     
-    R=ken2
+    It was never going to last.
+    
+    ««« original CL description
+    cmd/api: break the builds
+    
+    There is some question about whether the api tool is
+    running on Windows (see issue 6124), and now I'm
+    starting to question whether it runs on any of the builders,
+    since both darwin/amd64 and linux/amd64 are crashing for me
+    in the api tool due to a recent cgo-related change, and yet
+    the dashboard is happy.
+    
+    If the dashboard is still happy after this CL, we have a problem.
+    
+    Update #6124
+    
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/13512053
+    https://golang.org/cl/13632053
+    »»»
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13474045
 
- src/cmd/gc/go.y    |    9 -
- src/cmd/gc/y.tab.c | 1875 ++++++++++++++++++----------------------------------
- src/cmd/gc/y.tab.h |   46 +-
- 3 files changed, 654 insertions(+), 1276 deletions(-)
+ src/cmd/api/goapi.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,17 +1,23 @@
-commit 797124f5ff4bb80957007adbf3115287a4e90870
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 14 15:47:49 2020 -0400
+commit 60d437f99468906935f35e5c6fbd31c7228a1045
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 7 10:49:33 2020 -0800
 
-    cmd/go/internal/test: keep looking for go command flags after ambiguous test flag
+    runtime: avoid double notewakeup in netpoll stub code
     
-    Fixes #40763
+    Otherwise we can see
+    - goroutine 1 calls netpollBreak, the atomic.Cas succeeds, then suspends
+    - goroutine 2 calls noteclear, sets netpollBroken to 0
+    - goroutine 3 calls netpollBreak, the atomic.Cas succeeds, calls notewakeup
+    - goroutine 1 wakes up calls notewakeup, crashes due to double wakeup
     
-    Change-Id: I275970d1f8561414571a5b93e368d68fa052c60f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248618
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This doesn't happen on Plan 9 because it only runs one thread at a time.
+    But Fuschia wants to use this code too.
+    
+    Change-Id: Ib636e4f327bb15e44a2c40fd681aae9a91073a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/test/testflag.go      | 29 +++++++++++++++++++++----
- src/cmd/go/testdata/script/test_flags.txt | 35 +++++++++++++++++++++++++------
- 2 files changed, 54 insertions(+), 10 deletions(-)
+ src/runtime/netpoll_stub.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

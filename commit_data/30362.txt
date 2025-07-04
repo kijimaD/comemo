@@ -1,19 +1,15 @@
-commit 6694a01016e2fb842ee6d8ae053b9c87f56185ff
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 21 17:00:10 2017 -0800
+commit 47c1715ba5ea7d5ecc9eff846f448d8a3b62808d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Nov 2 09:10:29 2016 -0400
 
-    cmd/dist: fix negative test filtering
+    runtime: address comments from CL 32357
     
-    std and race bench tests fail to check against t.runRxWant, so what
-    should be negative filters act as positive filters.
-    
-    Fixes #19239
-    
-    Change-Id: Icf02b2192bcd806a162fca9fb0af68a27ccfc936
-    Reviewed-on: https://go-review.googlesource.com/37336
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I174d7307bfdd8ec57bb4266dab8569fd2234abb4
+    Reviewed-on: https://go-review.googlesource.com/32610
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc.go   | 2 +-
+ src/runtime/symtab.go | 5 +----
+ 2 files changed, 2 insertions(+), 5 deletions(-)

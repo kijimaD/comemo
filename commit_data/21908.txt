@@ -1,13 +1,26 @@
-commit 1fff4fbebf07e38380aaa938b8d985d81e790b7d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 3 22:21:04 2015 -0500
+commit 9568126f350b10163155045445cb149323a2b5c8
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jan 30 09:14:13 2015 +0300
 
-    .gitignore: remove obselete entries
+    cmd/gc: allocate buffers for non-escaping string conversions on stack
     
-    Change-Id: I520a0f2c2d14f744a5d2e8cf93963eec1cf3e9ba
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/6732
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Support the following conversions in escape analysis:
+    []rune("foo")
+    []byte("foo")
+    string([]rune{})
+    
+    If the result does not escape, allocate temp buffer on stack
+    and pass it to runtime functions.
+    
+    Change-Id: I1d075907eab8b0109ad7ad1878104b02b3d5c690
+    Reviewed-on: https://go-review.googlesource.com/3590
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- .gitignore | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/gc/builtin.c  |  6 +++---
+ src/cmd/gc/esc.c      | 14 ++++++++-----
+ src/cmd/gc/runtime.go |  6 +++---
+ src/cmd/gc/walk.c     | 30 +++++++++++++++++++++------
+ src/runtime/string.go | 27 +++++++++++++++----------
+ test/escape2.go       | 56 +++++++++++++++++++++++++++++++++++++++++++++++----
+ test/escape2n.go      | 56 +++++++++++++++++++++++++++++++++++++++++++++++----
+ 7 files changed, 159 insertions(+), 36 deletions(-)

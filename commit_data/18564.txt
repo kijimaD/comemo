@@ -1,23 +1,18 @@
-commit 2541cc81978dc5e41e2e2db6345d8ca7a365ca8c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 19 10:00:44 2014 -0500
+commit 96678f9dc026648889830cd058cd34d9e7759426
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Feb 19 07:55:03 2014 +0100
 
-    cmd/ld: drop gcargs, gclocals symbols from symbol table
+    cmd/gc: reject incorrect use of fallthrough.
     
-    Update #6853
+    Fixes #6500.
     
-    Every function now has a gcargs and gclocals symbol
-    holding associated garbage collection information.
-    Put them all in the same meta-symbol as the go.func data
-    and then drop individual entries from symbol table.
-    
-    Removing gcargs and gclocals reduces the size of a
-    typical binary by 10%.
-    
-    LGTM=r
-    R=r
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/65870044
+    https://golang.org/cl/14920053
 
- src/cmd/ld/symtab.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/gc/go.y             |   2 +
+ src/cmd/gc/swt.c            |   2 +-
+ src/cmd/gc/y.tab.c          | 506 ++++++++++++++++++++++----------------------
+ test/fixedbugs/issue6500.go |  29 +++
+ 4 files changed, 286 insertions(+), 253 deletions(-)

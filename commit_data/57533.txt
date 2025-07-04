@@ -1,26 +1,19 @@
-commit a3a05ed04cb53c53bdacded2d16f0f3e5facdbb0
-Author: cions <gh.cions@gmail.com>
-Date:   Tue Sep 24 01:27:40 2024 +0000
+commit e95ca9154a6d326248357e87caa4e24368bcb68b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 14 14:15:23 2023 -0700
 
-    os: ignore SIGSYS in checkPidfd
+    go/types, types2: move emode computation closer to use (cleanup)
     
-    In Android version 11 and earlier, pidfd-related system calls
-    are not allowed by the seccomp policy, which causes crashes due
-    to SIGSYS signals.
+    Follow-up on https://go.dev/cl/519435.
     
-    Fixes #69065
-    
-    Change-Id: Ib29631639a5cf221ac11b4d82390cb79436b8657
-    GitHub-Last-Rev: aad6b3b32c81795f86bc4a9e81aad94899daf520
-    GitHub-Pull-Request: golang/go#69543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614277
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8febf5544f28acb87607331ff8be8454470328ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519436
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/os/pidfd_linux.go           | 16 ++++++++++++++++
- src/runtime/os_linux.go         | 13 +++++++++++--
- src/runtime/os_unix_nonlinux.go |  7 +++++++
- src/runtime/signal_unix.go      | 17 +++++++++++++++++
- 4 files changed, 51 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 14 +++++++-------
+ src/go/types/unify.go                    | 14 +++++++-------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

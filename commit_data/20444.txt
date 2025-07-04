@@ -1,16 +1,99 @@
-commit 06e4b06893941b75c3d3955fb6ee75b69e9eb1ae
+commit cf622d758cd51cfa09f5b503d323c81ed3a5541e
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 16 17:40:33 2014 -0400
+Date:   Mon Sep 8 16:59:59 2014 -0400
 
-    net/mail: allow us-ascii encoding
+    syscall: keep allocated C string live across call to Syscall
     
-    Fixes #6611.
+    Given:
     
-    LGTM=bradfitz
-    R=bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/14990045
+            p := alloc()
+            fn_taking_ptr(p)
+    
+    p is NOT recorded as live at the call to fn_taking_ptr:
+    it's not needed by the code following the call.
+    p was passed to fn_taking_ptr, and fn_taking_ptr must keep
+    it alive as long as it needs it.
+    In practice, fn_taking_ptr will keep its own arguments live
+    for as long as the function is executing.
+    
+    But if instead you have:
+    
+            p := alloc()
+            i := uintptr(unsafe.Pointer(p))
+            fn_taking_int(i)
+    
+    p is STILL NOT recorded as live at the call to fn_taking_int:
+    it's not needed by the code following the call.
+    fn_taking_int is responsible for keeping its own arguments
+    live, but fn_taking_int is written to take an integer, so even
+    though fn_taking_int does keep its argument live, that argument
+    does not keep the allocated memory live, because the garbage
+    collector does not dereference integers.
+    
+    The shorter form:
+    
+            p := alloc()
+            fn_taking_int(uintptr(unsafe.Pointer(p)))
+    
+    and the even shorter form:
+    
+            fn_taking_int(uintptr(unsafe.Pointer(alloc())))
+    
+    are both the same as the 3-line form above.
+    
+    syscall.Syscall is like fn_taking_int: it is written to take a list
+    of integers, and yet those integers are sometimes pointers.
+    If there is no other copy of those pointers being kept live,
+    the memory they point at may be garbage collected during
+    the call to syscall.Syscall.
+    
+    This is happening on Solaris: for whatever reason, the timing
+    is such that the garbage collector manages to free the string
+    argument to the open(2) system call before the system call
+    has been invoked.
+    
+    Change the system call wrappers to insert explicit references
+    that will keep the allocations alive in the original frame
+    (and therefore preserve the memory) until after syscall.Syscall
+    has returned.
+    
+    Should fix Solaris flakiness.
+    
+    This is not a problem for cgo, because cgo wrappers have
+    correctly typed arguments.
+    
+    LGTM=iant, khr, aram, rlh
+    R=iant, khr, bradfitz, aram, rlh
+    CC=dvyukov, golang-codereviews, r
+    https://golang.org/cl/139360044
 
- src/net/mail/message.go      | 13 ++++++++++++-
- src/net/mail/message_test.go | 10 ++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/syscall/asm.s                       |  8 ++++++
+ src/syscall/dll_windows.go              |  1 +
+ src/syscall/mksyscall.pl                |  6 ++++
+ src/syscall/mksyscall_solaris.pl        |  8 ++++--
+ src/syscall/so_solaris.go               |  2 ++
+ src/syscall/syscall.go                  |  7 +++++
+ src/syscall/syscall_darwin.go           |  1 +
+ src/syscall/syscall_linux.go            |  8 ++++--
+ src/syscall/syscall_linux_386.go        |  1 +
+ src/syscall/syscall_linux_arm.go        |  1 +
+ src/syscall/syscall_plan9.go            |  2 ++
+ src/syscall/zsyscall_darwin_386.go      | 32 +++++++++++++++++++++
+ src/syscall/zsyscall_darwin_amd64.go    | 32 +++++++++++++++++++++
+ src/syscall/zsyscall_dragonfly_386.go   | 30 +++++++++++++++++++
+ src/syscall/zsyscall_dragonfly_amd64.go | 30 +++++++++++++++++++
+ src/syscall/zsyscall_freebsd_386.go     | 30 +++++++++++++++++++
+ src/syscall/zsyscall_freebsd_amd64.go   | 30 +++++++++++++++++++
+ src/syscall/zsyscall_freebsd_arm.go     | 30 +++++++++++++++++++
+ src/syscall/zsyscall_linux_386.go       | 50 ++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_amd64.go     | 51 +++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_arm.go       | 50 ++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_netbsd_386.go      | 27 +++++++++++++++++
+ src/syscall/zsyscall_netbsd_amd64.go    | 27 +++++++++++++++++
+ src/syscall/zsyscall_netbsd_arm.go      | 27 +++++++++++++++++
+ src/syscall/zsyscall_openbsd_386.go     | 29 +++++++++++++++++++
+ src/syscall/zsyscall_openbsd_amd64.go   | 29 +++++++++++++++++++
+ src/syscall/zsyscall_plan9_386.go       | 46 +++++++++++++++++------------
+ src/syscall/zsyscall_plan9_amd64.go     | 12 +++++++-
+ src/syscall/zsyscall_solaris_amd64.go   | 23 +++++++++++++++
+ 29 files changed, 607 insertions(+), 23 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9950: cd5f144fe26d05bf22f8129c312ce6f8ecaf3216
+# Index 9950: c50182480db093e447f02e76a735ed23a80305bf
 
 echo "🚀 Generating explanation for commit 9950..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 9950
-- **コミットハッシュ**: cd5f144fe26d05bf22f8129c312ce6f8ecaf3216
-- **GitHub URL**: https://github.com/golang/go/commit/cd5f144fe26d05bf22f8129c312ce6f8ecaf3216
+- **コミットハッシュ**: c50182480db093e447f02e76a735ed23a80305bf
+- **GitHub URL**: https://github.com/golang/go/commit/c50182480db093e447f02e76a735ed23a80305bf
 
 ### 章構成
 

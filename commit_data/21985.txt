@@ -1,25 +1,19 @@
-commit d533e3955db945072ab2dfcca1cab57099569260
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 5 17:00:18 2015 -0800
+commit 68bcc13291af2340dd26a44caff638d0b04fe456
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 16 20:42:55 2015 -0800
 
-    cmd/internal/ld: fix package data parsing
+    [dev.cc] cmd/asm: fix build for x86 architectures
     
-    The conversion of this logic from C introduced a few subtle behavior
-    changes.  E.g., assigning "name := data[p0:]" and then "name =
-    name[:p1-p0]" actually caused name to span the vast majority of the
-    package data, as at the time of the second statement p0 points just
-    after the package name and p1 points to the end of the package data.
+    Mishandled the complex addressing mode in masks<>(SB)(CX*8)
+    as a casualty of the ARM work. Fix by backing all the flows up to
+    the state where registerIndirect is always called with the input
+    sitting on the opening paren.
     
-    Similarly, the logic for advancing past the newline at the end of the
-    package line changed slightly: for a "package foo safe" line, the new
-    code would only advance up to the newline, but not past.  (Albeit, in
-    practice this doesn't matter: newlines in package data are harmless.)
+    With this, build passes for me with linux-arm, linux-386, and linux-amd64.
     
-    Lastly, "data[p0]" was incorrectly written as "data[0]" a few times.
-    
-    Change-Id: I49017e16ba33a627f773532b418cbf85a84f2b4b
-    Reviewed-on: https://go-review.googlesource.com/7000
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7cae69a6fa9b635c79efd93850bd1e744b22bc79
+    Reviewed-on: https://go-review.googlesource.com/4964
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/ld/go.go | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

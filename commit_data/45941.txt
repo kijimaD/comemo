@@ -1,18 +1,18 @@
-commit 1868f8296eb15d11c45c2c7c1d373b211f745d84
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Jul 25 21:04:33 2021 -0400
+commit 2bc814cd18b582030f25d22e0a3e80d4d30b19cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 14:16:39 2020 -0500
 
-    crypto/x509: update iOS bundled roots to version 55188.120.1.0.1
+    [dev.regabi] cmd/compile: clean up ONEW node
     
-    Updates #38843.
+    The list is no longer needed and can be deleted.
+    Doing so reduces the inlining cost of any function containing
+    an explicit call to new by 1 point, so this change is not
+    toolstash -cmp safe.
     
-    Change-Id: I6e003ed03cd13d8ecf86ce05ab0e11c47e271c0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337329
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Id29e115d68e466a353708ab4b8c1021e9c85a628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274132
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/x509/root.go     |  2 +-
- src/crypto/x509/root_ios.go | 37 ++++++++++++++++++++++++++++++++++++-
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 5 -----
+ 1 file changed, 5 deletions(-)

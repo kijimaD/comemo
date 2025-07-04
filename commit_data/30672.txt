@@ -1,85 +1,19 @@
-commit c03e75e53915af9905bc261c66b5276de042ea1c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 14 11:05:03 2017 -0700
+commit 323b5c9d37e3633c96a96303da71b5d45cc9bac6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 22 01:40:07 2016 +0000
 
-    cmd/compile: check labels and gotos before building SSA
+    time: make Parse validate day's lower bound in addition to upper bound
     
-    This CL introduces yet another compiler pass,
-    which checks for correct control flow constructs
-    prior to converting from AST to SSA form.
+    Day 0 is as invalid as day 32.
     
-    It cannot be integrated with walk, since walk rewrites
-    switch and select statements on the fly.
+    Fixes #17874
     
-    To reduce code duplication, this CL also does some
-    minor refactoring.
-    
-    With this pass in place, the AST to SSA converter
-    can now stop generating SSA for any known-dead code.
-    This minor savings pays for the minor cost of the new pass.
-    
-    Performance is almost a wash:
-    
-    name       old time/op     new time/op     delta
-    Template       206ms ± 4%      205ms ± 4%   ~     (p=0.108 n=43+43)
-    Unicode       84.0ms ± 4%     84.0ms ± 4%   ~     (p=0.979 n=43+43)
-    GoTypes        550ms ± 3%      553ms ± 3%   ~     (p=0.065 n=40+41)
-    Compiler       2.57s ± 4%      2.58s ± 2%   ~     (p=0.103 n=44+41)
-    SSA            3.94s ± 3%      3.93s ± 2%   ~     (p=0.833 n=44+42)
-    Flate          126ms ± 6%      125ms ± 4%   ~     (p=0.941 n=43+39)
-    GoParser       147ms ± 4%      148ms ± 3%   ~     (p=0.164 n=42+39)
-    Reflect        359ms ± 3%      357ms ± 5%   ~     (p=0.241 n=43+44)
-    Tar            106ms ± 5%      106ms ± 7%   ~     (p=0.853 n=40+43)
-    XML            202ms ± 3%      203ms ± 3%   ~     (p=0.488 n=42+41)
-    
-    name       old user-ns/op  new user-ns/op  delta
-    Template        240M ± 4%       239M ± 4%   ~     (p=0.844 n=42+43)
-    Unicode         107M ± 5%       107M ± 4%   ~     (p=0.332 n=40+43)
-    GoTypes         735M ± 3%       731M ± 4%   ~     (p=0.141 n=43+44)
-    Compiler       3.51G ± 3%      3.52G ± 3%   ~     (p=0.208 n=42+43)
-    SSA            5.72G ± 4%      5.72G ± 3%   ~     (p=0.928 n=44+42)
-    Flate           151M ± 7%       150M ± 8%   ~     (p=0.662 n=44+43)
-    GoParser        181M ± 5%       181M ± 4%   ~     (p=0.379 n=41+44)
-    Reflect         447M ± 4%       445M ± 4%   ~     (p=0.344 n=43+43)
-    Tar             125M ± 7%       124M ± 6%   ~     (p=0.353 n=43+43)
-    XML             248M ± 4%       250M ± 6%   ~     (p=0.158 n=44+44)
-    
-    name       old alloc/op    new alloc/op    delta
-    Template      40.3MB ± 0%     40.2MB ± 0%  -0.27%  (p=0.000 n=10+10)
-    Unicode       30.3MB ± 0%     30.2MB ± 0%  -0.10%  (p=0.015 n=10+10)
-    GoTypes        114MB ± 0%      114MB ± 0%  -0.06%  (p=0.000 n=7+9)
-    Compiler       480MB ± 0%      481MB ± 0%  +0.07%  (p=0.000 n=10+10)
-    SSA            864MB ± 0%      862MB ± 0%  -0.25%  (p=0.000 n=9+10)
-    Flate         25.9MB ± 0%     25.9MB ± 0%    ~     (p=0.123 n=10+10)
-    GoParser      32.1MB ± 0%     32.1MB ± 0%    ~     (p=0.631 n=10+10)
-    Reflect       79.9MB ± 0%     79.6MB ± 0%  -0.39%  (p=0.000 n=10+9)
-    Tar           27.1MB ± 0%     27.0MB ± 0%  -0.18%  (p=0.003 n=10+10)
-    XML           42.6MB ± 0%     42.6MB ± 0%    ~     (p=0.143 n=10+10)
-    
-    name       old allocs/op   new allocs/op   delta
-    Template        401k ± 0%       401k ± 1%    ~     (p=0.353 n=10+10)
-    Unicode         322k ± 0%       322k ± 0%    ~     (p=0.739 n=10+10)
-    GoTypes        1.18M ± 0%      1.18M ± 0%  +0.25%  (p=0.001 n=7+8)
-    Compiler       4.51M ± 0%      4.53M ± 0%  +0.37%  (p=0.000 n=10+10)
-    SSA            7.91M ± 0%      7.93M ± 0%  +0.20%  (p=0.000 n=9+10)
-    Flate           244k ± 0%       245k ± 0%    ~     (p=0.123 n=10+10)
-    GoParser        323k ± 1%       324k ± 1%  +0.40%  (p=0.035 n=10+10)
-    Reflect        1.01M ± 0%      1.02M ± 0%  +0.37%  (p=0.000 n=10+9)
-    Tar             258k ± 1%       258k ± 1%    ~     (p=0.661 n=10+9)
-    XML             403k ± 0%       405k ± 0%  +0.47%  (p=0.004 n=10+10)
-    
-    Updates #15756
-    Updates #19250
-    
-    Change-Id: I647bfbb745c35630447eb79dfcaa994b490ce942
-    Reviewed-on: https://go-review.googlesource.com/38159
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I52109d12bafd6d957d00c44d540cb88389fff0a7
+    Reviewed-on: https://go-review.googlesource.com/33429
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/checkcfg.go  | 299 +++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/pgen.go      |   4 +
- src/cmd/compile/internal/gc/ssa.go       | 210 ++--------------------
- src/cmd/compile/internal/gc/subr.go      |  17 ++
- src/cmd/compile/internal/gc/typecheck.go |   7 +
- 5 files changed, 340 insertions(+), 197 deletions(-)
+ src/time/format.go      | 2 +-
+ src/time/format_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

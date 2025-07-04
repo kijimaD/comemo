@@ -1,17 +1,36 @@
-commit e0d8064ed4b53436f678960022c7092b2078094d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 7 09:11:00 2016 -0700
+commit 980ab12ade53e70d037ab2ab475148b216d84a14
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 13 18:37:18 2016 -0700
 
-    go/types: fix multiword data structure alignment on nacl
+    cmd/compile/internal/gc: change flags to bool where possible
     
-    Fixes #16464
+    Some of the Debug[x] flags are actually boolean too, but not all, so
+    they need to be handled separately.
     
-    Change-Id: Ibf5625c1b5fa3abd18623023f18664e8f81fa45a
-    Reviewed-on: https://go-review.googlesource.com/26996
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    While here, change some obj.Flagstr and obj.Flagint64 calls to
+    directly use flag.StringVar and flag.Int64Var instead.
+    
+    Change-Id: Iccedf6fed4328240ee2257f57fe6d66688f237c4
+    Reviewed-on: https://go-review.googlesource.com/22052
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/go/types/sizes.go      |  9 +++++++++
- src/go/types/sizes_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/cmd/compile/internal/gc/alg.go       |  5 +-
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       |  4 +-
+ src/cmd/compile/internal/gc/export.go    |  8 ++--
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/go.go        | 18 ++++----
+ src/cmd/compile/internal/gc/inl.go       |  4 +-
+ src/cmd/compile/internal/gc/lex.go       |  6 +--
+ src/cmd/compile/internal/gc/main.go      | 79 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/obj.go       |  8 ++--
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go  | 10 ++--
+ src/cmd/compile/internal/gc/reflect.go   |  4 +-
+ src/cmd/compile/internal/gc/ssa.go       |  4 +-
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  4 +-
+ src/cmd/compile/internal/gc/unsafe.go    |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  9 ++--
+ 19 files changed, 88 insertions(+), 87 deletions(-)

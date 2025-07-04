@@ -1,27 +1,12 @@
-commit 86da989ee53f85044c04a418e5ec30e111d169b0
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri May 31 10:42:30 2013 +0400
+commit 85fc2f70acf1ad1f834e826a1bbde3e02fe2c9ee
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 30 12:41:20 2013 -0400
 
-    runtime: introduce helper persistentalloc() function
-    It is a caching wrapper around SysAlloc() that can allocate small chunks.
-    Use it for symtab allocations. Reduces number of symtab walks from 4 to 3
-    (reduces buildfuncs time from 10ms to 7.5ms on a large binary,
-    reduces initial heap size by 680K on the same binary).
-    Also can be used for type info allocation, itab allocation.
-    There are also several places in GC where we do the same thing,
-    they can be changed to use persistentalloc().
-    Also can be used in FixAlloc, because each instance of FixAlloc allocates
-    in 128K regions, which is too eager.
-    Reincarnation of committed and rolled back https://golang.org/cl/9805043
-    The latent bugs that it revealed are fixed:
-    https://golang.org/cl/9837049
-    https://golang.org/cl/9778048
+    doc/go1.2.txt: AllocsPerRun now quantized
     
-    R=golang-dev, khr
+    R=golang-dev, khr, rsc
     CC=golang-dev
-    https://golang.org/cl/9778049
+    https://golang.org/cl/9728045
 
- src/pkg/runtime/malloc.goc | 47 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/malloc.h   |  1 +
- src/pkg/runtime/symtab.c   | 32 +++++++------------------------
- 3 files changed, 55 insertions(+), 25 deletions(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

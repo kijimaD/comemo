@@ -1,16 +1,15 @@
-commit 09a9ef61153227307d00e5bffae106d66b400858
+commit 2296928fe7c43896518e8e04ae60a381215fa7f0
 Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Jul 18 21:04:56 2014 -0400
+Date:   Fri Jul 18 20:59:55 2014 -0400
 
-    codereview: abort 'hg commit' before entering commit message.
+    test: add test for issue8347
     
-    Hook pre-commit runs before 'hg commit' command whereas hook precommit runs
-    after the user has entered commit message.
+    Fixes #8347.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/106320043
+    https://golang.org/cl/109600044
 
- lib/codereview/codereview.py | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ test/fixedbugs/issue8347.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

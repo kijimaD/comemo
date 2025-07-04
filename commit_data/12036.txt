@@ -1,12 +1,16 @@
-commit 95b0fe141c29e9188dbffd27db6e228e22f61c0c
+commit 0e70f2722b5e30244892dd41877f1770dae25122
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 18 20:31:19 2012 -0500
+Date:   Sat Feb 18 16:24:23 2012 -0500
 
-    cmd/api: s/ideal-bool/bool/
+    all: shorten some of the longer tests
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5674105
+    https://golang.org/cl/5675092
 
- src/cmd/api/goapi.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/compress/flate/deflate_test.go |  7 +++++++
+ src/pkg/image/ycbcr_test.go            |  3 +++
+ src/pkg/math/big/nat_test.go           |  3 +++
+ src/pkg/math/rand/rand_test.go         |  6 ++++++
+ src/pkg/old/netchan/netchan_test.go    | 12 ++++++++++++
+ 5 files changed, 31 insertions(+)

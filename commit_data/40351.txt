@@ -1,17 +1,26 @@
-commit d29c14f3d2519d72a24c7060d99935f562c37db3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 22 02:44:42 2019 -0700
+commit 5c15ed64deaf71dd3b84470f3de8aae0b667d6ef
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 2 07:05:21 2019 +0000
 
-    runtime: factor signal stack code out of sigtrampgo
+    runtime: split spans during allocation without treap removal
     
-    This reduces the required nosplit stack size, which permits building
-    on Solaris with -gcflags=all=-N -l.
+    Now that the treap is first-fit, we can make a nice optimization.
+    Mainly, since we know that span splitting doesn't modify the relative
+    position of a span in a treap, we can actually modify a span in-place
+    on the treap. The only caveat is that we need to update the relevant
+    metadata.
     
-    Fixes #35046
+    To enable this optimization, this change introduces a mutate method on
+    the iterator which takes a callback that is passed the iterator's span.
+    The method records some properties of the span before it calls into the
+    callback and then uses those records to see what changed and update
+    treap metadata appropriately.
     
-    Change-Id: Icb3a421bb791c73e2f670ecfadbe32daea79789f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202446
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I74f7d2ee172800828434ba0194d3d78d3942acf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174879
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/signal_unix.go | 84 ++++++++++++++++++++++++++--------------------
- 1 file changed, 48 insertions(+), 36 deletions(-)
+ src/runtime/mgclarge.go | 34 ++++++++++++++++++++++++++++
+ src/runtime/mheap.go    | 60 +++++++++++++++++++++++++++----------------------
+ 2 files changed, 67 insertions(+), 27 deletions(-)

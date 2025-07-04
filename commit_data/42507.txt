@@ -1,27 +1,14 @@
-commit 6aadfcdfad663738519535abc76e819d2843375d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jun 10 12:47:23 2020 -0700
+commit 25a14b19abd3b9e16f47c6249fda1998431ce5be
+Author: Julian Tibble <julian.tibble@gmail.com>
+Date:   Tue Jan 7 10:26:48 2020 +0000
 
-    go/types: rename UsesCgo to go115UsesCgo
+    runtime: fix typo in comment
     
-    This API and functionality was added late in the Go 1.15 release
-    cycle, and use within gopls has revealed some shortcomings. It's
-    possible (but not decided) that we'll want a different API long-term,
-    so for now this CL renames UsesCgo to a non-exported name to avoid
-    long-term commitment under the Go 1 compat guarantee.
-    
-    Updates #16623.
-    Updates #39072.
-    
-    Change-Id: I04bc0c161a84adebe43e926df5df406bc794c3db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237417
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I96db053184e5e72864514d5421a97774545cc2dd
+    GitHub-Last-Rev: f1451ab626563f82f1703a559e4cb6d66665a7b6
+    GitHub-Pull-Request: golang/go#36425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213597
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/go1.15.txt                             |  1 -
- src/go/internal/srcimporter/srcimporter.go |  6 +++++-
- src/go/types/api.go                        | 10 +++++++---
- src/go/types/check.go                      |  4 ++--
- src/go/types/resolver.go                   |  4 ++--
- 5 files changed, 16 insertions(+), 9 deletions(-)
+ src/runtime/os_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

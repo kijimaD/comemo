@@ -1,12 +1,14 @@
-commit 3aa8272e4462287d112a6b6147781dca17ef46a0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 30 10:45:36 2011 -0700
+commit 2f9fbad04332b2bd9f5805c2a99c1d4c22cf4afe
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 30 09:44:23 2011 -0700
 
-    fix build; add simplify.go to regexp Makefile
+    http/cgi: add Handler.Dir to specify working directory
     
-    R=rsc
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4643062
+    https://golang.org/cl/4635042
 
- src/pkg/exp/regexp/syntax/Makefile | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/http/cgi/host.go           | 24 +++++++++---
+ src/pkg/http/cgi/host_test.go      | 76 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cgi/testdata/test.cgi | 14 +++++++
+ 3 files changed, 108 insertions(+), 6 deletions(-)

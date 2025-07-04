@@ -1,47 +1,23 @@
-commit f77e10fb2e1cb79b27727908fa081c890ecf118f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 1 12:38:42 2015 +0900
+commit a888fcf7a792bdf0c456dd95ac509fc65f4d7b21
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Fri Apr 10 17:23:00 2015 -0700
 
-    net: simplify error messages in tests
+    runtime: remove runtime wait/notify from ppc64x architectures.
     
-    This change simplifies unnecessarily redundant error messages in tests.
-    There's no need to worry any more because package APIs now return
-    consistent, self-descriptive error values.
+    Related to issue #10410
     
-    Alos renames ambiguous test functions and makes use of test tables.
+    For some reason, any non-trivial code in _cgo_wait_runtime_init_done
+    (even fprintf()) will crash that call.
     
-    Change-Id: I7b61027607c4ae2a3cf605d08d58cf449fa27eb2
-    Reviewed-on: https://go-review.googlesource.com/9662
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    If anybody has any guess why this is happening, please let me know!
+    
+    For now, I'm clearing the functions for ppc64, as it's currently not used.
+    
+    Change-Id: I1b11383aaf4f9f9a16f1fd6606842cfeedc9f0b3
+    Reviewed-on: https://go-review.googlesource.com/8766
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
 
- src/net/cgo_unix_test.go        |  4 +-
- src/net/conf_test.go            |  2 +-
- src/net/conn_test.go            | 12 +++---
- src/net/dial_test.go            | 13 +++---
- src/net/dnsclient_test.go       |  2 +-
- src/net/dnsclient_unix_test.go  | 17 ++++----
- src/net/dnsconfig_unix_test.go  |  6 +--
- src/net/dnsmsg_test.go          |  2 +-
- src/net/dnsname_test.go         | 29 ++++++-------
- src/net/file_test.go            | 40 +++++++++---------
- src/net/hosts_test.go           |  6 +--
- src/net/interface_linux_test.go |  6 +--
- src/net/interface_unix_test.go  | 31 +++++++-------
- src/net/ipraw_test.go           |  8 ++--
- src/net/listen_test.go          |  2 +-
- src/net/lookup_test.go          | 16 +++----
- src/net/lookup_windows_test.go  | 14 +++---
- src/net/mac_test.go             | 19 ++++-----
- src/net/net_windows_test.go     |  4 +-
- src/net/netgo_unix_test.go      |  4 +-
- src/net/packetconn_test.go      | 24 +++++------
- src/net/parse_test.go           |  9 ++--
- src/net/pipe_test.go            | 25 ++++++-----
- src/net/port_test.go            | 24 +++++------
- src/net/protoconn_test.go       | 90 +++++++++++++++++++--------------------
- src/net/server_test.go          |  8 ++--
- src/net/tcp_test.go             | 46 ++++++++++----------
- src/net/udp_test.go             | 70 +++++++++++++++---------------
- src/net/unix_test.go            | 94 +++++++++++++++++++++--------------------
- 29 files changed, 307 insertions(+), 320 deletions(-)
+ src/runtime/cgo/gcc_libinit.c              |  1 +
+ src/runtime/cgo/gcc_libinit_linux_ppc64x.c | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

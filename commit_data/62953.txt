@@ -1,0 +1,27 @@
+commit f38256eae560c6532c172573e39dd8d4827eff95
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Thu May 8 14:25:25 2025 +0000
+
+    cmd/vendor: pull in the x/mod/modfile ignore directive
+    
+    go get golang.org/x/mod@9d33331
+    go mod tidy
+    go mod vendor
+    
+    For #42965
+    
+    Change-Id: Ib741c96be53214c35058a564116688e7122a205a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 126 ++++++++++++++++-----
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go    |   8 +-
+ src/cmd/vendor/golang.org/x/mod/module/module.go   |  19 ++--
+ src/cmd/vendor/golang.org/x/mod/semver/semver.go   |  30 +++--
+ .../vendor/golang.org/x/mod/sumdb/dirhash/hash.go  |   6 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 8 files changed, 134 insertions(+), 63 deletions(-)

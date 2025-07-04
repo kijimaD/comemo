@@ -1,14 +1,16 @@
-commit 0318d80e51ff148f3a94008b59b36d601846152e
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Thu Sep 1 23:28:26 2016 -0700
+commit b6687c8933e2e123cd336d6ee96aa43df40bfc24
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:24 2016 -0400
 
-    path/filepath: use new style deprecation message
+    runtime: add linux/mips64x cgo support
     
-    Change-Id: I242a8960583e333f372929aad4adb8efbe441cd4
-    Reviewed-on: https://go-review.googlesource.com/28413
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id40dd05b7b264f3b779fdf9ccc2421ba4bc70589
+    Reviewed-on: https://go-review.googlesource.com/19806
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/path/filepath/path_unix.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/asm_mips64x.s       | 100 ++++++++++++++++++++++++++++++++--------
+ src/runtime/cgo_mips64x.go      |  12 +++++
+ src/runtime/cgocall.go          |   6 ++-
+ src/runtime/sys_linux_mips64x.s |   4 +-
+ src/runtime/tls_mips64x.s       |   7 +++
+ 5 files changed, 106 insertions(+), 23 deletions(-)

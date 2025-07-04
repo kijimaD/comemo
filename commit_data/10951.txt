@@ -1,12 +1,26 @@
-commit 5e5592cf30b3415cf76189c4343f915541596cbb
+commit a9b92013d2a14d58d8ed7dde1c90599703885e29
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 21 16:35:31 2011 -0500
+Date:   Wed Dec 21 15:58:05 2011 -0500
 
-    os/user: not on windows
+    buildscript: make script safer, same output on Windows
     
-    R=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5498062
+    https://golang.org/cl/5502062
 
- src/pkg/os/user/lookup_stubs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/buildscript.sh               |  12 +-
+ src/buildscript_darwin_386.sh    | 602 +++++++++++++++++++-------------------
+ src/buildscript_darwin_amd64.sh  | 600 +++++++++++++++++++-------------------
+ src/buildscript_freebsd_386.sh   | 602 +++++++++++++++++++-------------------
+ src/buildscript_freebsd_amd64.sh | 600 +++++++++++++++++++-------------------
+ src/buildscript_linux_386.sh     | 602 +++++++++++++++++++-------------------
+ src/buildscript_linux_amd64.sh   | 600 +++++++++++++++++++-------------------
+ src/buildscript_linux_arm.sh     | 608 +++++++++++++++++++--------------------
+ src/buildscript_netbsd_386.sh    | 602 +++++++++++++++++++-------------------
+ src/buildscript_netbsd_amd64.sh  | 600 +++++++++++++++++++-------------------
+ src/buildscript_openbsd_386.sh   | 602 +++++++++++++++++++-------------------
+ src/buildscript_openbsd_amd64.sh | 600 +++++++++++++++++++-------------------
+ src/buildscript_plan9_386.sh     | 604 +++++++++++++++++++-------------------
+ src/buildscript_windows_386.sh   | 606 +++++++++++++++++++-------------------
+ src/buildscript_windows_amd64.sh | 604 +++++++++++++++++++-------------------
+ 15 files changed, 4227 insertions(+), 4217 deletions(-)

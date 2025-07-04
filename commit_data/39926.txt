@@ -1,25 +1,16 @@
-commit df855da653095e606fe69503b075e45d53d86ad7
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Sep 16 16:11:01 2019 -0400
+commit 20389553c7d287a4fffb9718e328a514640a915c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Mar 20 03:58:42 2019 +1100
 
-    debug/elf: apply more relocations when reading DWARF data sections
+    crypto/tls: simplify intermediate certificate handling
     
-    The elf reader's method for reading in DWARF section data has support
-    for applying selected relocations when the debug/dwarf readers are
-    being used on relocatable objects. This patch extends the set of
-    relocations applied slightly. In particlar, prior to this for some
-    architectures we were only applying relocations whose target symbol
-    was a section symbol; now we also include some relocations that target
-    other symbols. This is needed to get meaningful values for compilation
-    unit DIE low_pc attributes, which typically target a specific function
-    symbol in text.
+    The certificates argument to verifyServerCertificate must contain
+    at least one certificate. Simplify the intermediate certificate
+    handling code accordingly.
     
-    Fixes #31363.
-    
-    Change-Id: I34b02e7904cd7f2dea74197f73fa648141d15212
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195679
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8292cdfb51f418e011d6d97f47d10b4e631aa932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169657
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/link/dwarf_test.go |   2 +-
- src/debug/elf/file.go      | 112 ++++++++++++++++++++++++++++-----------------
- 2 files changed, 70 insertions(+), 44 deletions(-)
+ src/crypto/tls/handshake_client.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

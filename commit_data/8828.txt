@@ -1,15 +1,16 @@
-commit d7df79a7e53e14c00f07d6ceae79245ef348d1fc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 23 10:15:46 2011 +1000
+commit 88442358a98bca7c93eec12be221b2a0f26e8277
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 23 09:54:57 2011 +1000
 
-    go/build: include Import objects in Script Inputs
+    net, syscall: interface for windows
     
-    This has the effect of making goinstall rebuild a package's
-    dependencies when they are newer than the current package object.
-    
-    R=rsc
+    R=mikioh.mikioh, alex.brainman, rsc, vincent.vanackere
     CC=golang-dev
-    https://golang.org/cl/4627051
+    https://golang.org/cl/4590050
 
- src/pkg/go/build/build.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/net/Makefile                    |   2 +-
+ src/pkg/net/interface_windows.go        | 152 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      |   3 +
+ src/pkg/syscall/zsyscall_windows_386.go |  32 ++++++-
+ src/pkg/syscall/ztypes_windows_386.go   |  93 +++++++++++++++++++
+ 5 files changed, 280 insertions(+), 2 deletions(-)

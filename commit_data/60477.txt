@@ -1,0 +1,24 @@
+commit b5b9d24dc38c63cca6319f2b139cb9b35b3cb058
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:32:38 2024 +0000
+
+    encoding: use slices and maps to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
+    much faster.
+    
+    Change-Id: I62ad60a66e28cfb2bb49c36037bafd4b9d201e88
+    GitHub-Last-Rev: 79554baddb1856260a44ba6587c205d223a527b1
+    GitHub-Pull-Request: golang/go#67611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587818
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/asn1/marshal_test.go |  3 ++-
+ src/encoding/csv/reader_test.go   |  3 ++-
+ src/encoding/gob/encoder_test.go  | 15 ++++++++-------
+ src/encoding/json/decode_test.go  |  5 +++--
+ src/encoding/pem/pem_test.go      |  2 +-
+ 5 files changed, 16 insertions(+), 12 deletions(-)

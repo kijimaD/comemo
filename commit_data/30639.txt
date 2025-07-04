@@ -1,49 +1,23 @@
-commit a51e4cc9cea152a203ab508197dc0965c00e3a76
-Author: khr <khr@khr-glaptop.roam.corp.google.com>
-Date:   Thu Mar 9 10:38:45 2017 -0800
+commit b21743c6d0484a6912d1a4ee20905c7b9b578ed8
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 17 12:15:19 2016 -0800
 
-    cmd/compile: zero return parameters earlier
+    crypto/tls: reject zero-length SCTs.
     
-    Move the zeroing of results earlier.  In particular, they need to
-    come before any move-to-heap operations, as those require allocation.
-    Those allocations are points at which the GC can see the uninitialized
-    result slots.
+    The SignedCertificateTimestampList[1] specifies that both the list and
+    each element must not be empty. Checking that the list is not empty was
+    handled in [2] and this change checks that the SCTs themselves are not
+    zero-length.
     
-    For the function:
+    [1] https://tools.ietf.org/html/rfc6962#section-3.3
+    [2] https://golang.org/cl/33265
     
-    func f() (x, y, z *int) {
-      defer(){}()
-      escape(&y)
-      return
-    }
-    
-    We used to generate code like this:
-    
-    x = nil
-    y = nil
-    &y = new(int)
-    z = nil
-    
-    Now we will generate:
-    
-    x = nil
-    y = nil
-    z = nil
-    &y = new(int)
-    
-    Since the fix for #18860, the return slots are always live if there
-    is a defer, so the former ordering allowed the GC to see junk
-    in the z slot.
-    
-    Fixes #19078
-    
-    Change-Id: I71554ae437549725bb79e13b2c100b2911d47ed4
-    Reviewed-on: https://go-review.googlesource.com/38133
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Iabaae7a15f6d111eb079e5086e0bd2005fae9e48
+    Reviewed-on: https://go-review.googlesource.com/33355
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 10 ++++++---
- src/cmd/compile/internal/gc/walk.go  | 35 ++++++++++++++++++++----------
- test/fixedbugs/issue19078.go         | 42 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 73 insertions(+), 14 deletions(-)
+ src/crypto/tls/handshake_messages.go      |  2 +-
+ src/crypto/tls/handshake_messages_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

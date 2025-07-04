@@ -1,21 +1,30 @@
-commit df0ac450022076631280569e2a157f016dcdab80
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Dec 6 16:52:53 2019 -0500
+commit 997086b7e6db6c74926500aa15fd3c02bc4939b8
+Author: Dong-hee Na <donghee.na92@gmail.com>
+Date:   Mon May 6 18:53:46 2019 +0900
 
-    cmd/link: skip gaps between PT_LOAD segments in TestPIESize
+    text/template: replace bytes.Buffer with strings.Builder
     
-    There may be gaps between non-writeable and writeable PT_LOAD
-    segments, and the gaps may be large as the segments may have
-    large alignment. Don't count those gaps in file size comparison.
+    After Go.1.10+ strings.Builder is known as more efficient in
+    concatenating and building strings than bytes.Buffer.
     
-    Fixes #36023.
+    In this CL,
+    there is a minor logic fix for getting advantage of strings.builder.
     
-    Change-Id: I68582bdd0f385ac5c6f87d485d476d06bc96db19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210180
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    name               old time/op    new time/op    delta
+    DefinedTemplate-8     543ns ± 3%     512ns ± 2%   -5.73%  (p=0.000 n=8+8)
+    
+    name               old alloc/op   new alloc/op   delta
+    DefinedTemplate-8      192B ± 0%      160B ± 0%  -16.67%  (p=0.000 n=8+8)
+    
+    name               old allocs/op  new allocs/op  delta
+    DefinedTemplate-8      5.00 ± 0%      5.00 ± 0%     ~     (all equal)
+    
+    Change-Id: Icda0054d146e6c5e32ed8a4d13221bb6850d31b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175261
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/elf_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/text/template/exec.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

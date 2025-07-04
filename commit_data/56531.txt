@@ -1,45 +1,16 @@
-commit 01ad44bc08c7ea3b8a7d1d989051046c77b6a63d
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Tue May 7 10:37:48 2024 -0400
+commit acd8dc95833182df86831ec78e7470864bdb3b88
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 8 09:15:25 2023 -0400
 
-    cmd/trace: collapse v2 directory into trace
+    cmd/go: add a regression test for Git configurations with safe.bareRepository=explicit
     
-    This change removes the old trace code and replaces it with the new tracer.
-    It does the following:
-    - Moves the contents of the v2 directory into the parent trace directory.
-    - Combines the old tracer main file with the new main file.
-    - Replaces any existing files with the corresponding v2 files.
-    - Removes any unused files.
-    
-    Updates #67367
-    
-    Change-Id: I2237920e13588258a2442b639d562cf7f8a8e944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584536
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I394265a4bf849ec89ac44c67aeaaaca801e46caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493476
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Emily Shaffer <emilyshaffer@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/trace/annotations.go                     | 1196 ----------------------
- src/cmd/trace/annotations_test.go                |   39 -
- src/cmd/trace/{v2 => }/gen.go                    |    2 +-
- src/cmd/trace/{v2 => }/goroutinegen.go           |    2 +-
- src/cmd/trace/goroutines.go                      |  504 +++++----
- src/cmd/trace/{v2 => }/gstate.go                 |    2 +-
- src/cmd/trace/{v2 => }/jsontrace.go              |    2 +-
- src/cmd/trace/{v2 => }/jsontrace_test.go         |    2 +-
- src/cmd/trace/main.go                            |  375 ++++---
- src/cmd/trace/pprof.go                           |  393 ++++---
- src/cmd/trace/{v2 => }/procgen.go                |    2 +-
- src/cmd/trace/{v2 => }/regions.go                |    2 +-
- src/cmd/trace/{v2 => }/tasks.go                  |    2 +-
- src/cmd/trace/{v2 => }/testdata/generate.go      |    0
- src/cmd/trace/{v2 => }/testdata/go122.test       |    0
- src/cmd/trace/{v2 => }/testdata/mktests.go       |    0
- src/cmd/trace/{v2 => }/testdata/testprog/main.go |    0
- src/cmd/trace/{v2 => }/threadgen.go              |    2 +-
- src/cmd/trace/trace.go                           |  810 ---------------
- src/cmd/trace/trace_test.go                      |  178 ----
- src/cmd/trace/v2/goroutines.go                   |  420 --------
- src/cmd/trace/v2/main.go                         |  323 ------
- src/cmd/trace/v2/pprof.go                        |  336 ------
- src/cmd/trace/{v2 => }/viewer.go                 |    2 +-
- 24 files changed, 812 insertions(+), 3782 deletions(-)
+ .../script/mod_download_git_bareRepository.txt        | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

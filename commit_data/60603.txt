@@ -1,0 +1,20 @@
+commit 677e080dfed1f17de76d4914cf4935b4914e9ddb
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon Aug 5 03:00:42 2024 +0000
+
+    bytes, strings: replace reflect.DeepEqual and custom eq with slices.Equal in tests
+    
+    Change-Id: I016672af79d49a00ddc2d0449cdaac61e98b4ba0
+    GitHub-Last-Rev: 38d15d9a03e5bd29e4b25f1d767e40cf7165a7a6
+    GitHub-Pull-Request: golang/go#68730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602698
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/bytes_test.go     |  9 ++++-----
+ src/strings/strings_test.go | 22 +++++-----------------
+ 2 files changed, 9 insertions(+), 22 deletions(-)

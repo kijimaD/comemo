@@ -1,32 +1,19 @@
-commit 133cdfb46979064fcf359598dd2dd93ffa57cf3c
-Author: nobishino <nobishii11@gmail.com>
-Date:   Mon May 13 21:31:18 2024 +0000
+commit 2ca4104f0519027c55266d48b47ea16ee4da6915
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu May 4 19:30:53 2023 +0800
 
-    encoding/csv: clarify that Writer uses different line break than RFC 4180 by default
+    cmd: use slices.Equal to simplify code
     
-    Package documentation of encoding/csv says:
+    #57433 added slices.Equal, using it can reduce the amount of code
     
-    > this package supports the format described in RFC 4180.
-    
-    According to section 2 of RFC 4180:
-    
-    > Each record is located on a separate line, delimited by a line break (CRLF).
-    
-    On the other hand, Writer uses LF (not CRLF) as newline character by default.
-    
-    > If [Writer.UseCRLF] is true, the Writer ends each output line with \r\n instead of \n.
-    
-    Strictly speaking, this behavior is different from RFC 4180.
-    Package documentation would improve if we clarify that point.
-    
-    Change-Id: I120e9332b593e1ac9ed8e49f6f8419ea88efc57d
-    GitHub-Last-Rev: 489167eb04331fa5c623f3da9041a9d34aa258ae
-    GitHub-Pull-Request: golang/go#67290
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584835
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I70d14b6c4c24da641a34ed36c900d9291033f526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492576
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
 
- src/encoding/csv/reader.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/covdata/argsmerge.go | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)

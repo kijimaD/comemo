@@ -1,20 +1,26 @@
-commit d45f24c084ee7f70797ad645f922ea820db28776
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Sep 13 14:45:23 2018 -0400
+commit 5654114d04291be151ff1b1dda09d5b96e0601fa
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed May 16 11:21:18 2018 +0100
 
-    cmd/compile: use bounded shift information on ppc64x
+    cmd/compile: use math/bits functions where possible
     
-    Makes use of bounded shift information to generate
-    more efficient shift instructions.
+    Use the math/bits functions to calculate the number of leading/
+    trailing zeros, bit length and the population count.
     
-    Updates #25167 for ppc64x
+    The math/bits package is built as part of the bootstrap process
+    so we do not need to provide an alternative implementation for
+    Go versions prior to 1.9.
     
-    Change-Id: I7fc8d49a3fb3e0f273cc51bc767470b239cbdca7
-    Reviewed-on: https://go-review.googlesource.com/135380
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Passes toolstash-check -all.
+    
+    Change-Id: I393b4cc1c8accd0ca7cb3599d3926fa6319b574f
+    Reviewed-on: https://go-review.googlesource.com/113336
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  14 +
- src/cmd/compile/internal/ssa/rewritePPC64.go | 798 ++++++++++++++++++++++++++-
- 2 files changed, 803 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/bits_bootstrap.go | 24 -----------------
+ src/cmd/compile/internal/ssa/bits_go19.go      | 13 ----------
+ src/cmd/compile/internal/ssa/debug.go          | 11 ++++----
+ src/cmd/compile/internal/ssa/rewrite.go        | 36 ++++++--------------------
+ 4 files changed, 14 insertions(+), 70 deletions(-)

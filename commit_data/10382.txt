@@ -1,12 +1,48 @@
-commit 39b255768265ef93496755c968647f68ddb6d985
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Mon Nov 14 11:16:06 2011 -0800
+commit 0acd879c267061814810f70d0f13b4c8767268b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 14:06:50 2011 -0500
 
-    kate: add error and rune
+    syscall: take over env implementation
     
-    R=golang-dev, gri
+    The environment is needed by package time, which
+    we want not to depend on os (so that os can use
+    time.Time), so push down into syscall.
+    
+    Delete syscall.Sleep, now unnecessary.
+    
+    The package os environment API is preserved;
+    it is only the implementation that is moving to syscall.
+    
+    Delete os.Envs, which was undocumented,
+    uninitialized on Windows and Plan 9, and
+    not maintained by Setenv and Clearenv.
+    Code can call os.Environ instead.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5370078
+    https://golang.org/cl/5370091
 
- misc/kate/go.xml | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/os/Makefile                       |   6 --
+ src/pkg/os/env.go                         |  49 +++++++++++-
+ src/pkg/os/env_plan9.go                   |  99 -----------------------
+ src/pkg/os/env_unix.go                    | 112 --------------------------
+ src/pkg/os/env_windows.go                 | 128 ------------------------------
+ src/pkg/os/exec_windows.go                |  14 ++++
+ src/pkg/os/file_plan9.go                  |   5 ++
+ src/pkg/os/file_unix.go                   |   9 +++
+ src/pkg/os/file_windows.go                |  18 +++++
+ src/pkg/os/os_test.go                     |   2 +-
+ src/pkg/os/proc.go                        |   4 +-
+ src/pkg/runtime/proc.c                    |   4 +-
+ src/pkg/runtime/runtime.c                 |  12 +--
+ src/pkg/syscall/Makefile                  |   6 ++
+ src/pkg/syscall/env_plan9.go              |  74 +++++++++++++++++
+ src/pkg/syscall/env_unix.go               |  85 ++++++++++++++++++++
+ src/pkg/syscall/env_windows.go            |  78 ++++++++++++++++++
+ src/pkg/syscall/syscall_bsd.go            |   5 --
+ src/pkg/syscall/syscall_linux.go          |   6 --
+ src/pkg/syscall/syscall_plan9.go          |   5 --
+ src/pkg/syscall/syscall_windows.go        |   1 -
+ src/pkg/syscall/zsyscall_windows_386.go   |   6 --
+ src/pkg/syscall/zsyscall_windows_amd64.go |   6 --
+ 23 files changed, 348 insertions(+), 386 deletions(-)

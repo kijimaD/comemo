@@ -1,16 +1,15 @@
-commit e69b9ddd4219b8d9d4d1b26cdd31875bdac9c0c7
+commit 2d310a0087e9354f9c881dc8f9c2956803ca1c31
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 16 16:24:17 2011 -0400
+Date:   Mon May 16 16:15:13 2011 -0400
 
-    ld: do not emit reference to dynamic library named ""
-    
-    Fixes #1778.
+    5c, 5g: another attempt at silencing gcc
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4550047
+    https://golang.org/cl/4535074
 
- src/cmd/5l/asm.c | 3 +++
- src/cmd/6l/asm.c | 3 +++
- src/cmd/8l/asm.c | 3 +++
- 3 files changed, 9 insertions(+)
+ src/cmd/5c/gc.h   | 4 ++--
+ src/cmd/5c/peep.c | 4 ++--
+ src/cmd/5g/gg.h   | 4 ++--
+ src/cmd/5g/peep.c | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)

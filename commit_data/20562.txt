@@ -1,16 +1,16 @@
-commit b2487ef6a399790cfe57127c3f50fc59341460e4
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 26 12:33:05 2014 -0700
+commit 98a5f52ef0658f1e1ad823bfad91dd5bbc261a75
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 14:48:47 2014 -0400
 
-    flag: allow CommandLine's Usage function to be set
+    os: avoid error result when dir is removed out from under RemoveAll
     
-    Fixes #7779.
+    Fixes #7776.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/147210043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, r
+    https://golang.org/cl/145860043
 
- src/flag/flag.go      | 15 +++++++++------
- src/flag/flag_test.go | 10 ++++++++++
- 2 files changed, 19 insertions(+), 6 deletions(-)
+ src/os/os_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/path.go    |  5 ++++-
+ 2 files changed, 46 insertions(+), 1 deletion(-)

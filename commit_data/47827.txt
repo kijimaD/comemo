@@ -1,17 +1,17 @@
-commit 63077bfcf563e3f2ef96fa51203ed2fad71a371c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 16 10:40:47 2021 -0500
+commit 39dd96ca5a60502d66494bff83257379df660eea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 10 18:26:01 2021 -0700
 
-    os/exec: skip TestContextCancel on netbsd/arm64
+    cmd/compile/internal/types: add example test for type inference
     
-    For #42061
+    Follow-up on https://golang.org/cl/308372.
     
-    Change-Id: I3b4c774ad9e375d4bfef1cfb4336c35ed30a6430
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372795
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #44799.
+    
+    Change-Id: I27d149241d465ee31e9c21d5f0935f31efcb5b60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308973
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/exec/exec_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ .../compile/internal/types2/examples/inference.go2 | 101 +++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

@@ -1,35 +1,20 @@
-commit 14950d89e583e8fe7c4f1ba0ea01495f8e6afac3
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Tue Jun 17 22:08:46 2014 -0700
+commit b559392e1b84f521a8b9c2d3c1164960c62799c8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 17 14:56:54 2014 -0700
 
-    strings: add fast path to Replace
-    
-    genericReplacer.lookup is called for each byte of an input
-    string. In many (most?) cases, lookup will fail for the first
-    byte, and it will return immediately. Adding a fast path for
-    that case seems worth it.
-    
-    Benchmark on my Xeon 3.5GHz Linux box:
-    
-    benchmark                        old ns/op    new ns/op    delta
-    BenchmarkGenericNoMatch               2691          774  -71.24%
-    BenchmarkGenericMatch1                7920         8151   +2.92%
-    BenchmarkGenericMatch2               52336        39927  -23.71%
-    BenchmarkSingleMaxSkipping            1575         1575   +0.00%
-    BenchmarkSingleLongSuffixFail         1429         1429   +0.00%
-    BenchmarkSingleMatch                 56228        55444   -1.39%
-    BenchmarkByteByteNoMatch               568          568   +0.00%
-    BenchmarkByteByteMatch                 977          972   -0.51%
-    BenchmarkByteStringMatch              1669         1687   +1.08%
-    BenchmarkHTMLEscapeNew                 422          422   +0.00%
-    BenchmarkHTMLEscapeOld                 692          670   -3.18%
-    BenchmarkByteByteReplaces             8492         8474   -0.21%
-    BenchmarkByteByteMap                  2817         2808   -0.32%
+    fmt: fix signs when zero padding.
+    Bug was introduced recently. Add more tests, fix the bugs.
+    Suppress + sign when not required in zero padding.
+    Do not zero pad infinities.
+    All old tests still pass.
+    This time for sure!
+    Fixes #8217.
     
     LGTM=rsc
-    R=golang-codereviews, bradfitz, dave, rsc
+    R=golang-codereviews, dan.kortschak, rsc
     CC=golang-codereviews
-    https://golang.org/cl/79200044
+    https://golang.org/cl/103480043
 
- src/pkg/strings/replace.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/fmt/fmt_test.go | 115 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/fmt/format.go   |  71 ++++++++++++++----------------
+ 2 files changed, 147 insertions(+), 39 deletions(-)

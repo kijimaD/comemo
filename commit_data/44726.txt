@@ -1,33 +1,25 @@
-commit 06ca809410649e24c1a3a079a0a859bae2d4613a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 15 15:43:45 2021 -0400
+commit 9bcc5d20b6f2574e5b98822e0986a1cfa14032f6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 23 22:24:04 2020 -0400
 
-    cmd/internal/objabi: centralize GOEXPERIMENT parsing
+    cmd/go/internal/mvs: reverse the order of BuildListError.stack
     
-    objabi parses GOEXPERIMENT, but most of the consumers look at the raw
-    GOEXPERIMENT string that objabi gets from the environment. Centralize
-    this logic by only exposing the parsed GOEXPERIMENT value from objabi.
-    This sets us up for the next few changes. It also has the nice but
-    mostly useless property that the order of experiment names will be
-    canonicalized in build cache hashes.
+    When we print the stack from a BuildListError, we print the main
+    module first and the error last. That was the opposite of the order in
+    which in was stored in memory, leading to (arguably) more complex code
+    and (definitely) my own inability to reason about the contents of the
+    slice.
     
-    After this, the only remaining place that looks at raw GOEXPERIMENT is
-    cmd/dist, which we'll fix in the next CL.
+    For now, it's still more convenient to construct the stack reversed,
+    so we do that and then reverse it before packing it into the error.
     
-    For #40724.
+    For #36460
     
-    Change-Id: Idb150f848e17c184fae91372ca8b361591472f51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302049
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6312fb67b2ad9bf9b64071fe829854833208bad7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244759
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/cfg/cfg.go   | 13 ++++----
- src/cmd/go/internal/work/exec.go | 11 ++++---
- src/cmd/go/internal/work/init.go | 11 ++-----
- src/cmd/internal/objabi/flag.go  |  2 +-
- src/cmd/internal/objabi/util.go  | 68 ++++++++++++++++++++++++++--------------
- 5 files changed, 60 insertions(+), 45 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go | 35 +++++++++++++++++++++++------------
+ 1 file changed, 23 insertions(+), 12 deletions(-)

@@ -1,25 +1,36 @@
-commit a0f05823e4953d137310de164b2544e41dd767d2
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Jul 14 19:40:23 2022 -0700
+commit cfe6763783615233ec7ae863784b898718d14c40
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Oct 13 16:49:27 2021 -0400
 
-    syscall: fix skipping some tests on Linux
+    internal/fuzz: fix bugs with minimization
     
-    The kernel knob /proc/sys/kernel/unprivileged_userns_clone is
-    only available in Debian (and Ubuntu) kernels, so if the tests
-    are run on e.g. Fedora, skipUnprivilegedUserClone() skips a lot
-    of tests.
+    This pulls in some code and tests from CL 353355.
     
-    Modify it to treat ENOENT as "it should work".
+    This change makes some refactors for when we read
+    to and write from memory during minimization.
+    That fixes a bug when minimizing interesting inputs.
+    Now, if an error occurs while minimizing an interesting
+    input, that value will continue to be minimized as a
+    crash, and returned to the user.
     
-    Change-Id: I959201ede139ede989cc8ab646c9bf51e0539ada
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417694
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This change also allows minimization of a crash that
+    occurred during the warmup phase. We don't want to
+    minimize failures in the seed corpus, but if an entry
+    in the cache causes a new failure, then there's no
+    compelling reason why we shouldn't try to minimize it.
+    
+    Fixes #48731
+    
+    Change-Id: I7262cecd8ea7ae6fdf932f3a36db55fb062a1f2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355691
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/syscall/exec_linux_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 112 +++++++++++++--------
+ .../go/testdata/script/test_fuzz_seed_corpus.txt   |  38 ++++++-
+ src/internal/fuzz/fuzz.go                          |   6 +-
+ src/internal/fuzz/minimize_test.go                 |  13 ++-
+ src/internal/fuzz/worker.go                        |  71 +++++++------
+ 5 files changed, 151 insertions(+), 89 deletions(-)

@@ -1,12 +1,12 @@
-commit 8defd9f708126a1c6968490ac970c279c1fdb0c5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 28 10:08:10 2017 -0800
+commit 66fdf433b09c72e29b7e5bb5238ec9b3cf745479
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:29 2016 +0200
 
-    cmd/vet/all: exit with non-zero error code on failure
+    cmd/internal/sys: add support for GOARCH=mips{,le}
     
-    Change-Id: I68e60b155c583fa47aa5ca13d591851009a4e571
-    Reviewed-on: https://go-review.googlesource.com/37571
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8c6b8839c68818430510702719dca15b8d748fb8
+    Reviewed-on: https://go-review.googlesource.com/31473
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/main.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/internal/sys/arch.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

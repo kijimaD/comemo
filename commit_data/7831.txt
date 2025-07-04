@@ -1,12 +1,14 @@
-commit f492bd7012a6cb2af2f91d82400e6c8df141c127
+commit 544cf759040667768348ea516bcb2f72b08e573f
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 22 11:52:41 2011 -0700
+Date:   Tue Mar 22 11:43:00 2011 -0700
 
-    gob: fix up ugly formatting introduced by buggy (now fixed) gofmt.
+    gob: use pointers in bootstrapType so interfaces behave properly
+    and don't lead to a nil reflect.Type.
+    Fixes #1626.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4281065
+    https://golang.org/cl/4289062
 
- src/pkg/gob/type.go | 35 +++++++----------------------------
- 1 file changed, 7 insertions(+), 28 deletions(-)
+ src/pkg/gob/type.go | 58 +++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 41 insertions(+), 17 deletions(-)

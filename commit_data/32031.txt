@@ -1,16 +1,29 @@
-commit 6bfd2d19ffa5b9700e1ddc8744bdfedf40d2b705
-Author: Ivan Moscoso <moscoso@gmail.com>
-Date:   Sat Jul 15 11:53:48 2017 -0600
+commit 4e3a1e409ae1bf74deb3c93745ad49b71311f4de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 27 15:58:14 2017 +1100
 
-    regexp: clarify example for 'FindString'
+    cmd/link/internal/ld: introduce and use windowsgui variable
     
-    Clarifying that FindString only provides left-most match
+    cmd/link -H flag is stored in variable of type
+    cmd/internal/obj.HeadType. The HeadType type from cmd/internal/obj
+    accepts Hwindows and Hwindowsgui values, but these values have
+    same meaning - build PE executable, except for 2 places in
+    cmd/link/internal/ld package.
     
-    Change-Id: Ic6ecec12cca759fd4b3565ef5901a110843ffd56
-    Reviewed-on: https://go-review.googlesource.com/48609
+    This CL introduces code to store cmd/link "windowsgui" -H flag
+    in cmd/link/internal/ld, so cmd/internal/obj.Hwindowsgui can be
+    removed in the next CL.
+    
+    This CL also includes 2 changes to code where distinction
+    between Hwindows and Hwindowsgui is important.
+    
+    Change-Id: Ie5ee1f374e50c834652a037f2770118d56c21a2a
+    Reviewed-on: https://go-review.googlesource.com/38760
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/example_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/lib.go  |  8 +++++---
+ src/cmd/link/internal/ld/main.go | 15 ++++++++++++++-
+ src/cmd/link/internal/ld/pe.go   |  2 +-
+ 3 files changed, 20 insertions(+), 5 deletions(-)

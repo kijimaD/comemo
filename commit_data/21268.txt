@@ -1,22 +1,15 @@
-commit d1210acffd19482a0471f68d62baf10695fee8b9
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Wed Jan 7 19:56:06 2015 +0100
+commit 5308c6d9325735ab4e69620e99aaa8d119e02941
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 16 15:11:43 2014 +1100
 
-    time: correctly parse large input durations and avoid precision loss
+    crypto/rand: handle EAGAIN reads from /dev/urandom
     
-    Do not lose precision for durations specified without fractions
-    that can be represented by an int64 such as 1<<53+1 nanoseconds.
-    Previously there was some precision lost in floating point conversion.
+    Fixes #9205
     
-    Handle overflow for durations above 1<<63-1 nanoseconds but not earlier.
-    
-    Add tests to cover the above cases.
-    
-    Change-Id: I4bcda93cee1673e501ecb6a9eef3914ee29aecd2
-    Reviewed-on: https://go-review.googlesource.com/2461
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Iacd608ba43332008984aa8ece17dcb5757f27b3f
+    Reviewed-on: https://go-review.googlesource.com/1611
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/format.go    | 71 +++++++++++++++++++++++++++++++--------------------
- src/time/time_test.go | 23 ++++++++++++++++-
- 2 files changed, 66 insertions(+), 28 deletions(-)
+ src/crypto/rand/eagain.go    | 27 +++++++++++++++++++++++++++
+ src/crypto/rand/rand_unix.go | 18 +++++++++++++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)

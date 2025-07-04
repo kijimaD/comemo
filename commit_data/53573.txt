@@ -1,33 +1,67 @@
-commit 4eceefa3388c11afc2b71302de53cac921f7f439
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jun 16 09:03:11 2023 -0400
+commit 0a52d80666ddaa557cec17ad9166e2514b0bb6d4
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Aug 4 09:43:44 2022 +0000
 
-    cmd/distpack: make go_$GOOS_$GOARCH_exec programs executable
+    cmd/compile/internal/ssa: optimize memory moving on arm64
     
-    The go command recognizes when a program named go_$GOOS_$GOARCH_exec
-    is in PATH. There are two such programs living in GOROOT/misc/wasm.
-    Like GOROOT/bin/{go,gofmt} and GOROOT/pkg/tool/**, these programs
-    need to have the executable bit set to do their job, so set it.
+    This CL optimizes memory moving with LDP and STP on arm64.
     
-    Comparing a distpack produced before and after this change shows that
-    the pack.go file is modified, the two go_{js,wasip1}_wasm_exec programs
-    have the new file mode, and there are no other changes, as expected.
+    Benchmarks:
+    name              old time/op  new time/op  delta
+    ClearFat7-160     1.08ns ± 0%  0.95ns ± 0%  -11.41%  (p=0.008 n=5+5)
+    ClearFat8-160     0.84ns ± 0%  0.84ns ± 0%   -0.95%  (p=0.008 n=5+5)
+    ClearFat11-160    1.08ns ± 0%  0.95ns ± 0%  -11.46%  (p=0.008 n=5+5)
+    ClearFat12-160    0.95ns ± 0%  0.95ns ± 0%     ~     (p=0.063 n=4+5)
+    ClearFat13-160    1.08ns ± 0%  0.95ns ± 0%  -11.45%  (p=0.008 n=5+5)
+    ClearFat14-160    1.08ns ± 0%  0.95ns ± 0%  -11.47%  (p=0.008 n=5+5)
+    ClearFat15-160    1.24ns ± 0%  0.95ns ± 0%  -22.98%  (p=0.029 n=4+4)
+    ClearFat16-160    0.84ns ± 0%  0.83ns ± 0%   -0.11%  (p=0.008 n=5+5)
+    ClearFat24-160    2.15ns ± 0%  2.15ns ± 0%     ~     (all equal)
+    ClearFat32-160    2.86ns ± 0%  2.86ns ± 0%     ~     (p=0.333 n=5+4)
+    ClearFat40-160    2.15ns ± 0%  2.15ns ± 0%     ~     (all equal)
+    ClearFat48-160    3.32ns ± 1%  3.31ns ± 1%     ~     (p=0.690 n=5+5)
+    ClearFat56-160    2.15ns ± 0%  2.15ns ± 0%     ~     (all equal)
+    ClearFat64-160    3.25ns ± 1%  3.26ns ± 1%     ~     (p=0.841 n=5+5)
+    ClearFat72-160    2.22ns ± 0%  2.22ns ± 0%     ~     (p=0.444 n=5+5)
+    ClearFat128-160   4.03ns ± 0%  4.04ns ± 0%   +0.32%  (p=0.008 n=5+5)
+    ClearFat256-160   6.44ns ± 0%  6.44ns ± 0%   +0.08%  (p=0.016 n=4+5)
+    ClearFat512-160   12.2ns ± 0%  12.2ns ± 0%   +0.13%  (p=0.008 n=5+5)
+    ClearFat1024-160  24.3ns ± 0%  24.3ns ± 0%     ~     (p=0.167 n=5+5)
+    ClearFat1032-160  24.5ns ± 0%  24.5ns ± 0%     ~     (p=0.238 n=4+5)
+    ClearFat1040-160  29.2ns ± 0%  29.3ns ± 0%   +0.34%  (p=0.008 n=5+5)
+    CopyFat7-160      1.43ns ± 0%  1.07ns ± 0%  -24.97%  (p=0.008 n=5+5)
+    CopyFat8-160      0.89ns ± 0%  0.89ns ± 0%     ~     (p=0.238 n=5+5)
+    CopyFat11-160     1.43ns ± 0%  1.07ns ± 0%  -24.97%  (p=0.008 n=5+5)
+    CopyFat12-160     1.07ns ± 0%  1.07ns ± 0%     ~     (p=0.238 n=5+4)
+    CopyFat13-160     1.43ns ± 0%  1.07ns ± 0%     ~     (p=0.079 n=4+5)
+    CopyFat14-160     1.43ns ± 0%  1.07ns ± 0%  -24.95%  (p=0.008 n=5+5)
+    CopyFat15-160     1.79ns ± 0%  1.07ns ± 0%     ~     (p=0.079 n=4+5)
+    CopyFat16-160     1.07ns ± 0%  1.07ns ± 0%     ~     (p=0.444 n=5+5)
+    CopyFat24-160     1.84ns ± 2%  1.67ns ± 0%   -9.28%  (p=0.008 n=5+5)
+    CopyFat32-160     3.22ns ± 0%  2.92ns ± 0%   -9.40%  (p=0.008 n=5+5)
+    CopyFat64-160     3.64ns ± 0%  3.57ns ± 0%   -1.96%  (p=0.008 n=5+5)
+    CopyFat72-160     3.56ns ± 0%  3.11ns ± 0%  -12.89%  (p=0.008 n=5+5)
+    CopyFat128-160    5.06ns ± 0%  5.06ns ± 0%   +0.04%  (p=0.048 n=5+5)
+    CopyFat256-160    9.13ns ± 0%  9.13ns ± 0%     ~     (p=0.659 n=5+5)
+    CopyFat512-160    17.4ns ± 0%  17.4ns ± 0%     ~     (p=0.167 n=5+5)
+    CopyFat520-160    17.2ns ± 0%  17.3ns ± 0%   +0.37%  (p=0.008 n=5+5)
+    CopyFat1024-160   34.1ns ± 0%  34.0ns ± 0%     ~     (p=0.127 n=5+5)
+    CopyFat1032-160   80.9ns ± 0%  34.2ns ± 0%  -57.74%  (p=0.008 n=5+5)
+    CopyFat1040-160   94.4ns ± 0%  41.7ns ± 0%  -55.78%  (p=0.016 n=5+4)
     
-    The mode change is relevant to the binary and source distributions only.
-    No change to the module zip since it doesn't include GOROOT/misc at all,
-    so no effect on previously created toolchain modules whose checksums
-    are already recorded in the Go checksum database and cannot be changed.
-    (Other than by changing their "v0.0.1" version, but that's expensive.)
-    
-    Fixes #60843.
-    
-    Change-Id: I799b6aacff59c0785cb7743cbd17dda5a9ef91be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503975
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I14186f9f82b0ecf8b6c02191dc5da566b9a21e6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421654
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/distpack/pack.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/arm64/ssa.go        |  30 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 111 +++---
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  28 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  20 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 527 ++++++++++++++++++++-------
+ src/cmd/internal/obj/arm64/asm7.go           |   4 +-
+ src/runtime/memmove_test.go                  | 318 +++++++++++++---
+ test/codegen/strings.go                      |   2 +-
+ 8 files changed, 782 insertions(+), 258 deletions(-)

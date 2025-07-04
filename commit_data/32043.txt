@@ -1,15 +1,20 @@
-commit 42aec4c03857a9bfcc8e445b2ae6abe1c7a055b4
-Author: Vitor De Mario <vitordemario@gmail.com>
-Date:   Sat Jul 15 11:25:37 2017 -0600
+commit 3d58498fdb047c442abafff4277159d6c3842e05
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 11:54:43 2017 -0500
 
-    io/ioutil: add example for ReadFile
+    runtime: simplify forced GC triggering
     
-    Change-Id: I062ec0606a741c8aa1b74f3f4b4e4fd47f76fed5
-    Reviewed-on: https://go-review.googlesource.com/48775
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Now that the gcMode is no longer involved in the GC trigger condition,
+    we can simplify the triggering of forced GCs. By making the trigger
+    condition for forced GCs true even if gcphase is not _GCoff, we don't
+    need any special case path in gcStart to ensure that forced GCs don't
+    get consolidated.
+    
+    Change-Id: I6067a13d76e40ff2eef8fade6fc14adb0cb58ee5
+    Reviewed-on: https://go-review.googlesource.com/37517
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/io/ioutil/example_test.go | 12 ++++++++++++
- src/io/ioutil/testdata/hello  |  1 +
- 2 files changed, 13 insertions(+)
+ src/runtime/mgc.go | 30 ++++++++++--------------------
+ 1 file changed, 10 insertions(+), 20 deletions(-)

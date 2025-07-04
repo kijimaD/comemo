@@ -1,26 +1,24 @@
-commit 8591f8e19e3a2e75e86b486ac8a9ec7ff4f3bcbe
-Author: Örjan Fors <o@42mm.org>
-Date:   Wed Mar 5 22:33:50 2025 +0000
+commit 5b6cd3d0cbd3f3f0a645e37526fabe35a7e75319
+Author: Hiro <laciferin@gmail.com>
+Date:   Wed Jan 3 00:10:58 2024 +0000
 
-    log/slog: use consistent call depth for all output
+    sync: add Map.Clear
     
-    This makes all log functions keep a consistent call structure to be nice
-    with the handleWriter in the slog package which expects a strict level
-    of 4.
+    Fixes #61696
     
-    Fixes #67362.
-    
-    Change-Id: Ib967c696074b1ca931f6656dd27ff1ec484233b8
-    GitHub-Last-Rev: 49bc424986875da2dd244b57f8b0851d3bfd1a29
-    GitHub-Pull-Request: golang/go#67645
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588335
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0a31afd3bc433fc84280d56f2798bda10da61eba
+    GitHub-Last-Rev: 17bedc864f1685178a42b59f7083677a6124f831
+    GitHub-Pull-Request: golang/go#61702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515015
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/log/log.go              | 55 +++++++++++++++++++-------
- src/log/log_test.go         | 87 +++++++++++++++++++++++++++++++++++++++-
- src/log/slog/logger_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 222 insertions(+), 16 deletions(-)
+ api/next/61696.txt             |  1 +
+ src/sync/map.go                | 20 ++++++++++++++
+ src/sync/map_bench_test.go     | 12 ++++++++
+ src/sync/map_reference_test.go | 17 +++++++++++-
+ src/sync/map_test.go           | 63 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 112 insertions(+), 1 deletion(-)

@@ -1,19 +1,24 @@
-commit 63dcab2e91cfa40ae6dc1f0455b1f3c2801a00ec
-Author: Tim King <taking@google.com>
-Date:   Tue May 25 19:23:02 2021 -0700
+commit 05082c90d5b35935ccc27acb070e00702df91a3a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 17 14:17:07 2020 -0400
 
-    doc/go1.17: mention new vet checks sigchanyzer and stdmethods.
+    cmd/compile: clean up buggy DWARF inlined info PC ranges
     
-    These vet checks were added in CL 299532 and CL 321389.
+    Repair the code that generates PC ranges for DWARF inlined routine
+    instances to insure that if II Y is a child of II X within the inline
+    tree, X's ranges include the ranges from Y. This is similar to what
+    we're already doing for DWARF scopes.
     
-    Also adds a TODO for buildtags.
+    Updates #33188.
     
-    Change-Id: I516dc77729f6d2dc147318260fe452831b115dfa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322769
-    Trust: Tim King <taking@google.com>
-    Run-TryBot: Tim King <taking@google.com>
+    Change-Id: I9bb552777fcd1ae93dc01872707667ad092b1dd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248724
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- doc/go1.17.html | 45 +++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 43 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dwinl.go | 92 ++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/dwarf/dwarf.go      | 31 +++++++-----
+ 2 files changed, 110 insertions(+), 13 deletions(-)

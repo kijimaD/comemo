@@ -1,0 +1,25 @@
+commit 3c05790d4847ba2d0d06b5ba3f82b311a99d531c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Feb 19 15:07:53 2025 +0000
+
+    bytes,strings: remove redundant return statement for Lines
+    
+    To make it more idiomatic.
+    
+    Change-Id: If48ae9931908e515df7f23185aac6f84aac72084
+    GitHub-Last-Rev: 525ed5031a08388f637bd2a09bd47c9e25df21f1
+    GitHub-Pull-Request: golang/go#71838
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650595
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+
+ src/bytes/iter.go   | 1 -
+ src/strings/iter.go | 1 -
+ 2 files changed, 2 deletions(-)

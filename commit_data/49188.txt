@@ -1,25 +1,37 @@
-commit 81d567146eb94678d401e282f99885010411df39
-Author: David Chase <drchase@google.com>
-Date:   Fri May 13 12:09:21 2022 -0400
+commit 7cd10c1149e51a9d2f0868babaf66b8091b9c0b9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 27 10:22:35 2021 -0700
 
-    runtime: add go:yeswritebarrierrec to panic functions
+    cmd/go: use .mod instead of .zip to determine if version has go.mod file
     
-    Panic avoids any write barriers in the runtime by checking first
-    and throwing if called inappropriately, so it is "okay".  Adding
-    this annotation repairs recursive write barrier checking, which
-    becomes more thorough when the local package naming convention
-    is changed from "" to the actual package name.
+    When checking for updates, the go command checks whether the highest
+    compatible version has a go.mod file in order to determine whether
+    +incompatible versions may be considered "latest". Previously, to
+    perform this check, the go command would download the content of the
+    module (the .zip file) to see whether a go.mod file was present at the
+    root. This is slower than necessary, and it caused 'go list -m -u' to
+    try to save the sum for the .zip file in go.sum in some cases.
     
-    This CL is a prerequisite for a pending code cleanup,
-    https://go-review.googlesource.com/c/go/+/393715
+    With this change, the go command only downloads the .mod file and
+    checks whether it appears to be a fake file generated for a version
+    that didn't have a go.mod file. This is faster and requires less
+    verification. Fake files only have a "module" directive. It's possible
+    to commit a file that passes this test, but it would be difficult to
+    do accidentally: Go 1.12 and later at least add a "go" directive. A
+    false positive here would cause version queries to have slightly
+    different results but would not affect builds.
     
-    Updates #51734.
+    Fixes #47377
     
-    Change-Id: If831a3598c6c8cd37a8e9ba269f822cd81464a13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405900
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ie5ffd0b45e39bd0921328a60af99a9f6e5ab6346
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337850
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/panic.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/go/internal/modfetch/coderepo.go           | 23 +++---
+ src/cmd/go/internal/modload/modfile.go             | 83 +++++++++++-----------
+ src/cmd/go/internal/modload/query.go               | 30 ++++++--
+ .../go/testdata/script/mod_update_sum_readonly.txt | 34 +++++++++
+ 4 files changed, 114 insertions(+), 56 deletions(-)

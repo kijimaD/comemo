@@ -1,13 +1,16 @@
-commit d05b3869286a48afbc228992b314f0bf817afc48
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Mar 19 22:54:06 2012 +0800
+commit 2ef4a84022577ee3de1ecf91ef05603a527b9889
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 19 16:51:06 2012 +1100
 
-    doc: update format for "C? Go? Cgo!" article
+    path/filepath: implement Match and Glob on windows
     
-    R=adg
+    As discussed on golang-dev, windows will use
+    "\" as path separator. No escaping allowed.
+    
+    R=golang-dev, r, mattn.jp, rsc, rogpeppe, bsiegert, r
     CC=golang-dev
-    https://golang.org/cl/5841050
+    https://golang.org/cl/5825044
 
- doc/articles/c_go_cgo.html | 59 +++++++++++++++++++++++-----------------------
- doc/progs/cgo1.go          |  2 --
- 2 files changed, 30 insertions(+), 31 deletions(-)
+ src/pkg/path/filepath/match.go      | 24 +++++++++++++++--------
+ src/pkg/path/filepath/match_test.go | 38 ++++++++++++++++++++++---------------
+ 2 files changed, 39 insertions(+), 23 deletions(-)

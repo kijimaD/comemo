@@ -1,0 +1,31 @@
+commit 1aee4f3464b678f135912e2b2703e0f6c060b980
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Wed Dec 11 14:03:17 2024 +0100
+
+    cmd/internal/obj/riscv: prevent panics on bad branches
+    
+    Syntactically incorrect branches, such as
+    
+    BEQ     X5, X6, $1
+    BEQ     X5, X6, 31(X10)
+    
+    cause the assembler to panic, which they shouldn't really do.  It's
+    better for the user to see a normal error, as reported for other
+    syntax errors in riscv64 assembly.  The panics also prevent us
+    from writing negative tests for these sorts of errors.
+    
+    Here we fix the issue by ensuring we generate a normal error instead
+    of panicking when the user provides an invalid branch target.  We
+    also add a couple of negative tests.
+    
+    Change-Id: I1da568999a75097484b61a01d418f5d4be3e04fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637316
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64error.s | 2 ++
+ src/cmd/internal/obj/riscv/obj.go                | 8 ++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

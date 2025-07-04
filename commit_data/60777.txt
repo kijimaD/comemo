@@ -1,0 +1,28 @@
+commit 61e00ae134193b8db6c5a3083b51d5bc2c15e18f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Aug 27 11:13:46 2024 -0400
+
+    debug/buildinfo: stop searchMagic search at EOF
+    
+    An invalid executable may claim to have a data section bigger than the
+    executable, causing readData in searchMagic to hit EOF. Since readData
+    suppresses all EOF errors, searchData would keep attempting to search
+    through a potentially huge "section" despite readData continuously
+    failing.
+    
+    Fix by suppressing EOF only on partial read. If nothing is read, allow
+    EOF. Note that most of the admittedly tedious EOF handling in this
+    package is around ensuring we return errNotGoExe in most cases.
+    
+    This was discovered by the new fuzz test. This fuzz test was inspired
+    by #69066, though it has not found that specific bug.
+    
+    Change-Id: Icf413e996cecc583c084c9e44249b9294c3d8f10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608637
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/debug/buildinfo/buildinfo.go                   | 31 +++++++++++++++-------
+ src/debug/buildinfo/buildinfo_test.go              | 18 +++++++++++++
+ .../testdata/fuzz/FuzzRead/36aeb674e3454016        |  2 ++
+ 3 files changed, 41 insertions(+), 10 deletions(-)

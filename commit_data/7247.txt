@@ -1,13 +1,13 @@
-commit 770acbe7b8b8c6356f23f990e668bcb106999882
+commit e46e192857cb4705786472bf094853f06c6414ec
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 26 12:54:07 2011 -0500
+Date:   Wed Jan 26 12:38:06 2011 -0500
 
-    codelab/wiki: fix build
+    net: fix build
     
-    TBR=adg
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4077045
+    https://golang.org/cl/3982051
 
- doc/codelab/wiki/test.sh        | 8 ++++----
- doc/codelab/wiki/test_edit.good | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/net/dialgoogle_test.go | 38 +++++++++++++++++++++++++++++---------
+ src/pkg/net/timeout_test.go    | 12 ++++++++----
+ 2 files changed, 37 insertions(+), 13 deletions(-)

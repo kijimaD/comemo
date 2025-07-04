@@ -1,18 +1,14 @@
-commit 92cd6e3af9f423ab4d8ac78f24e7fd81c31a8ce6
-Author: David Glasser <glasser@meteor.com>
-Date:   Tue May 31 12:28:57 2016 -0700
+commit 6f2a8810b01d6332d35c9b3e3e64c13f60d31776
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Apr 6 11:53:26 2016 +1000
 
-    encoding/json: fix docs on valid key names
+    expvar: Ensure strings are written as valid JSON.
     
-    This has been inaccurate since https://golang.org/cl/6048047.
-    
-    Fixes #15317.
-    
-    Change-Id: If93d2161f51ccb91912cb94a35318cf33f4d526a
-    Reviewed-on: https://go-review.googlesource.com/23691
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5147dbf4e85cf42cd1f32c57861e4c16d9dbd049
+    Reviewed-on: https://go-review.googlesource.com/21529
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/encoding/json/encode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/expvar/expvar.go      |  6 ++++--
+ src/expvar/expvar_test.go | 10 ++++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

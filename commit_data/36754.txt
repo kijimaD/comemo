@@ -1,23 +1,40 @@
-commit e35a41261b19589f40d32bd66274c23ab4b9b32e
-Author: Keith Randall <khr@google.com>
-Date:   Tue Sep 25 14:32:44 2018 -0700
+commit 3f2039e28dca40d231a789c9693195354aaba3f5
+Author: Anit Gandhi <anitgandhi@gmail.com>
+Date:   Wed May 23 22:03:08 2018 +0000
 
-    reflect: use correct write barrier operations for method funcs
+    crypto/{aes,internal/cipherhw,tls}: use common internal/cpu in place of cipherhw
     
-    Fix the code to use write barriers on heap memory, and no
-    write barriers on stack memory.
+    When the internal/cpu package was introduced, the AES package still used
+    the custom crypto/internal/cipherhw package for amd64 and s390x. This
+    change removes that package entirely in favor of directly referencing the
+    cpu feature flags set and exposed by the internal/cpu package. In
+    addition, 5 new flags have been added to the internal/cpu s390x struct
+    for detecting various cipher message (KM) features.
     
-    These errors were discoverd as part of fixing #27695. They may
-    have something to do with that issue, but hard to be sure.
-    The core cause is different, so this fix is a separate CL.
-    
-    Update #27695
-    
-    Change-Id: Ib005f6b3308de340be83c3d07d049d5e316b1e3c
-    Reviewed-on: https://go-review.googlesource.com/137438
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I77cdd8bc1b04ab0e483b21bf1879b5801a4ba5f4
+    GitHub-Last-Rev: a611e3ecb1f480dcbfce3cb0c8c9e4058f56c1a4
+    GitHub-Pull-Request: golang/go#24766
+    Reviewed-on: https://go-review.googlesource.com/105695
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/type.go     |  2 ++
- src/reflect/value.go    | 39 ++++++++++++++++++++++++++-------------
- src/runtime/mbarrier.go | 13 +++++++++++++
- 3 files changed, 41 insertions(+), 13 deletions(-)
+ src/crypto/aes/aes_gcm.go                      |   1 -
+ src/crypto/aes/asm_s390x.s                     |  23 ------
+ src/crypto/aes/cipher_amd64.go                 |  12 +--
+ src/crypto/aes/cipher_ppc64le.go               |   5 --
+ src/crypto/aes/cipher_s390x.go                 |  17 +++--
+ src/crypto/aes/gcm_amd64.s                     |  14 ----
+ src/crypto/aes/gcm_s390x.go                    |  10 +--
+ src/crypto/internal/cipherhw/asm_amd64.s       |  17 -----
+ src/crypto/internal/cipherhw/asm_s390x.s       |  44 -----------
+ src/crypto/internal/cipherhw/cipherhw_amd64.go |  16 ----
+ src/crypto/internal/cipherhw/cipherhw_s390x.go |  18 -----
+ src/crypto/internal/cipherhw/doc.go            |   7 --
+ src/crypto/internal/cipherhw/generic.go        |  11 ---
+ src/crypto/tls/common.go                       |  20 ++++-
+ src/go/build/deps_test.go                      |   1 -
+ src/internal/cpu/cpu.go                        |   7 +-
+ src/internal/cpu/cpu_s390x.go                  |  15 ++++
+ src/internal/cpu/cpu_s390x.s                   | 101 +++++++++++++++++++++++++
+ 18 files changed, 158 insertions(+), 181 deletions(-)

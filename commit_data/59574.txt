@@ -1,51 +1,18 @@
-commit dfebef1c0459af0a34eceb4027c9fab5824f2eab
-Author: Julian Zhu <jz531210@gmail.com>
-Date:   Sat May 17 14:30:07 2025 +0800
+commit b47f2febea5c570fef4a5c27a46473f511fbdaa3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 26 09:23:16 2024 -0700
 
-    cmd/compile: fold negation into addition/subtraction on arm64
+    runtime,hash/maphash: reuse hashSets to save memory pressure
     
-    Fold negation into addition/subtraction and avoid double negation.
+    Might help with OOMs on 32-bit platforms
     
-    platform: linux/arm64
-    
-    file      before    after     Δ       %
-    addr2line 3628108   3628116   +8      +0.000%
-    asm       6208353   6207857   -496    -0.008%
-    buildid   3460682   3460418   -264    -0.008%
-    cgo       5572988   5572492   -496    -0.009%
-    compile   26042159  26041039  -1120   -0.004%
-    cover     6304328   6303472   -856    -0.014%
-    dist      4139330   4139098   -232    -0.006%
-    doc       9429305   9428065   -1240   -0.013%
-    fix       3997189   3996733   -456    -0.011%
-    link      8212128   8210280   -1848   -0.023%
-    nm        3620056   3619696   -360    -0.010%
-    objdump   5920289   5919233   -1056   -0.018%
-    pack      2892250   2891778   -472    -0.016%
-    pprof     17094569  17092745  -1824   -0.011%
-    test2json 3335825   3335529   -296    -0.009%
-    trace     15842080  15841456  -624    -0.004%
-    vet       9472194   9471106   -1088   -0.011%
-    go        19081541  19081509  -32     -0.000%
-    total     154253374 154240622 -12752  -0.008%
-    
-    platform: darwin/arm64
-    
-    file    before    after     Δ       %
-    compile 27152002  27135490  -16512  -0.061%
-    link    8372914   8356402   -16512  -0.197%
-    go      19154802  19154778  -24     -0.000%
-    total   157734180 157701132 -33048  -0.021%
-    
-    Change-Id: I15a349bfbaf7333ec3e4a62ae4d06f3f371dfb1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673715
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: Idd5129c61ecdfeedd5a9a18fce85dbba27cab946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574475
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 24 ++++++++++++++++++++++++
- test/codegen/arithmetic.go                    | 10 ++++++++++
- 3 files changed, 36 insertions(+)
+ src/hash/maphash/smhasher_test.go | 52 +++++++++++++++++----------------
+ src/runtime/hash_test.go          | 60 ++++++++++++++++++++-------------------
+ 2 files changed, 58 insertions(+), 54 deletions(-)

@@ -1,20 +1,20 @@
-commit f3e0f1c077c778104bc1b56a490f4233569b87a9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 8 15:49:03 2023 -0500
+commit ad646b33c9fd2366c91a44b262910c1064b24f11
+Author: mzh <mzh@golangcn.org>
+Date:   Sun Mar 27 23:08:32 2022 +0000
 
-    cmd/go/internal/test: rewrite generate tests using the new maps package
+    Revert "reflect, runtime: add reflect support for regabi on riscv64"
     
-    For #58415.
+    This reverts commit 56400fc70675cc2f404f33e3ed13386967cfe4da.
     
-    Change-Id: I13c00f28824087e1841a49ec35a3e2a990945137
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466695
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reason for revert: this CL requires CL360296 be merged
+    
+    Change-Id: I4c48c4d23b73b6e892cf86cbbc864698ebc5c992
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396076
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/test/flagdefs_test.go          | 77 ++++++++++++----------
- src/cmd/go/internal/test/genflags.go               | 27 +-------
- .../go/internal/test/internal/genflags/testflag.go | 35 ++++++++++
- src/cmd/go/internal/test/testflag.go               |  6 +-
- 4 files changed, 83 insertions(+), 62 deletions(-)
+ src/reflect/asm_riscv64.s | 54 +++++++----------------------------------------
+ src/runtime/stack.go      |  3 +--
+ 2 files changed, 9 insertions(+), 48 deletions(-)

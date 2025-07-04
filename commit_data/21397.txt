@@ -1,17 +1,14 @@
-commit 27aed3ce6898f3078f4ee52935c63a12aca86b9e
-Author: Rick Hudson <rlh@golang.org>
-Date:   Thu Jan 29 10:37:32 2015 -0500
+commit 6cb403319fd162f02499332e0aab32487c1b1ef8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jan 1 00:00:00 2015 +1100
 
-    runtime: scanvalid race Fixes #9727
+    doc: 2015 will be the Year of the Gopher.
     
-    Set gcscanvalid=false after you have cased to _Grunning.
-    If you do it before the cas and the atomicstatus races to a scan state,
-    the scan will set gcscanvalid=true and we will be _Grunning
-    with gcscanvalid==true which is not a good thing.
-    
-    Change-Id: Ie53ea744a5600392b47da91159d985fe6fe75961
-    Reviewed-on: https://go-review.googlesource.com/3510
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ic2e34f84596b56715d5f41c9a5250f7c9f8e671b
+    Reviewed-on: https://go-review.googlesource.com/2087
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/proc1.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

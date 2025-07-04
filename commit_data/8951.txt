@@ -1,12 +1,22 @@
-commit 9d5ed1744a794e2dbaa20ae241e944adb37854a4
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jul 6 15:14:10 2011 +1000
+commit 9495dd31d22ada490414265e4c3c1325b70ba06d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 14:46:41 2011 +1000
 
-    exp/template: add missing dotNode case.
+    exp/template: fixes and updates.
+    - fix line numbers - forgot to update state.line during execution
+    - add a comment convention {{/* comment */}}
+    - set.Template returns the named template in the set
+    - set.Execute executes the named template in the set
+    - use a local methodByName so this package can be used with earlier release of reflect.
+    - use initial cap to detect exported names
     
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4672044
+    https://golang.org/cl/4668054
 
- src/pkg/exp/template/exec.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/exp/template/exec.go     | 26 ++++++++++++++++++++++++--
+ src/pkg/exp/template/lex.go      | 22 ++++++++++++++++++++--
+ src/pkg/exp/template/lex_test.go |  5 +++++
+ src/pkg/exp/template/parse.go    |  1 +
+ src/pkg/exp/template/set.go      | 18 ++++++++++++++++++
+ 5 files changed, 68 insertions(+), 4 deletions(-)

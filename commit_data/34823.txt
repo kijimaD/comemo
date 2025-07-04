@@ -1,12 +1,20 @@
-commit a818ddd972165564d0660ee867db1d01c41a9723
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 3 13:59:14 2018 -0700
+commit c2efb2fde59d489f34bd7dafcae467b9f5f5eedd
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Tue Oct 31 19:18:48 2017 -0400
 
-    cmd/compile/internal/syntax: update a couple of comments
+    cmd/link: enable c-shared and c-archive mode on s390x
     
-    Change-Id: Ie84d0e61697922c1e808d815fb7d9aec694ee8e9
-    Reviewed-on: https://go-review.googlesource.com/104615
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Adding s390x to the list of architectures that support c-shared and c-archive.
+    Required adding load-time initialization (via _rt0_s390x_linux_lib) and adding s390x
+    to the c-shared and c-archive tests.
+    
+    Change-Id: I75883b2891c310fe8ce7f08c27b06895c074e123
+    Reviewed-on: https://go-review.googlesource.com/74910
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/compile/internal/syntax/nodes.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go               |  4 +-
+ src/cmd/go/internal/work/init.go   |  2 +-
+ src/cmd/link/internal/ld/config.go |  2 +-
+ src/runtime/asm_s390x.s            | 77 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/rt0_linux_s390x.s      | 21 ++++++-----
+ 5 files changed, 93 insertions(+), 13 deletions(-)

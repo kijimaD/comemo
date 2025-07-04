@@ -1,37 +1,25 @@
-commit 90bcc552c0347948166817a602f612f219bc980c
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Jun 24 10:01:47 2024 -0700
+commit 82d5ebce96761083f5313b180c6b368be1912d42
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 00:33:44 2023 -0400
 
-    crypto/tls: apply QUIC session event flag to QUICResumeSession events
+    cmd/go: rename gover.ToolchainVersion to gover.FromToolchain
     
-    Go 1.23 adds two new events to QUICConns: QUICStoreSessionEvent and
-    QUICResumeSessionEvent. We added a QUICConfig.EnableStoreSessionEvent
-    flag to control whether the store-session event is provided or not,
-    because receiving this event requires additional action from the caller:
-    the session must be explicitly stored with QUICConn.StoreSession.
+    Suggested by bcmills in CL 497555 review but easier to do at the
+    top of the stack.
     
-    We did not add a control for whether the resume-session event is
-    provided, because this event requires no action and the caller is
-    expected to ignore unknown events.
+    For #57001.
     
-    However, we never documented the expectation that callers ignore
-    unknown events, and quic-go produces an error when receiving an
-    unexpected event. So change the EnableStoreSessionEvent flag to
-    apply to both new events.
-    
-    Fixes #68124
-    For #63691
-    
-    Change-Id: I84af487e52b3815f7b648e09884608f8915cd645
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594475
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I6f2cc0f546e8d6b1e03c7335a89f07dcb45cf5b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498077
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- api/go1.23.txt                           |   2 +-
- src/crypto/tls/handshake_client.go       |   4 +-
- src/crypto/tls/handshake_client_tls13.go |   2 +-
- src/crypto/tls/handshake_server_tls13.go |   2 +-
- src/crypto/tls/quic.go                   |  16 ++--
- src/crypto/tls/quic_test.go              | 158 +++++++++++++++++--------------
- 6 files changed, 100 insertions(+), 84 deletions(-)
+ src/cmd/go/gotoolchain.go                 |  6 +++---
+ src/cmd/go/internal/gover/latest.go       |  2 +-
+ src/cmd/go/internal/gover/mod.go          |  2 +-
+ src/cmd/go/internal/gover/toolchain.go    | 16 ++++++++--------
+ src/cmd/go/internal/modfetch/toolchain.go |  2 +-
+ src/cmd/go/internal/modload/init.go       |  2 +-
+ 6 files changed, 15 insertions(+), 15 deletions(-)

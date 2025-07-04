@@ -1,19 +1,31 @@
-commit cd3aae9b815389a5e2f05066beffdf9678534325
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Mar 14 11:07:06 2018 +0100
+commit 8585f9fdb176893992bc8096ff595148b14b1795
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Sep 7 05:57:44 2017 +0200
 
-    test/codegen: port all small memmove tests to codegen
+    runtime: refactor insertion slot tracking for fast hashmap functions
     
-    This change ports all the remaining tests checking that small memmoves
-    are replaced with MOVs to the new codegen test harness, and deletes
-    them from the asm_test file.
+    * Avoid calculating insertk until needed.
+    * Avoid a pointer into b.tophash and just track the insertion index.
+      This avoids b.tophash being marked as escaping to heap.
+    * Calculate val only once at the end of the mapassign functions.
     
-    Change-Id: I01c94b441e27a5d61518035af62d62779dafeb56
-    Reviewed-on: https://go-review.googlesource.com/100476
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Function sizes decrease slightly, e.g. for mapassign_faststr:
+    before "".mapassign_faststr STEXT size=1166 args=0x28 locals=0x78
+    after  "".mapassign_faststr STEXT size=1080 args=0x28 locals=0x68
+    
+    name                     old time/op  new time/op  delta
+    MapAssign/Int32/256-4    19.4ns ± 4%  19.5ns ±11%     ~     (p=0.973 n=20+20)
+    MapAssign/Int32/65536-4  32.5ns ± 2%  32.4ns ± 3%     ~     (p=0.078 n=20+19)
+    MapAssign/Int64/256-4    20.3ns ± 6%  17.6ns ± 5%  -13.01%  (p=0.000 n=20+20)
+    MapAssign/Int64/65536-4  33.3ns ± 2%  33.3ns ± 1%     ~     (p=0.444 n=20+20)
+    MapAssign/Str/256-4      22.3ns ± 3%  22.4ns ± 3%     ~     (p=0.343 n=20+20)
+    MapAssign/Str/65536-4    44.9ns ± 1%  43.9ns ± 1%   -2.39%  (p=0.000 n=20+19)
+    
+    Change-Id: I2627bb8a961d366d9473b5922fa129176319eb22
+    Reviewed-on: https://go-review.googlesource.com/74870
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 50 ---------------------------------
- test/codegen/movesmall.go               | 25 +++++++++++++++--
- 2 files changed, 23 insertions(+), 52 deletions(-)
+ src/runtime/hashmap_fast.go | 87 +++++++++++++++++++++++----------------------
+ 1 file changed, 45 insertions(+), 42 deletions(-)

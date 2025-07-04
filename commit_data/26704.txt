@@ -1,16 +1,20 @@
-commit ffeae198d018693f84b15f8f44f9a2eb6b8e9713
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 5 11:31:50 2016 +1000
+commit cd41db34bcd1776a783fb7507b68705a7de4e54a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 30 22:01:00 2016 +0100
 
-    runtime: leave directory before removing it in TestDLLPreloadMitigation
+    regexp: remove unreachable code
     
-    Fixes #15120
+    Found running go vet on the package. It barks that
+            regexp/backtrack.go:257: unreachable code
+            regexp/backtrack.go:302: unreachable code
     
-    Change-Id: I1d9a192ac163826bad8b46e8c0b0b9e218e69570
-    Reviewed-on: https://go-review.googlesource.com/21520
+    For #11041
+    
+    Change-Id: I0f5ba0d6183108fba3d144991b826273db0ffb09
+    Reviewed-on: https://go-review.googlesource.com/19824
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/syscall_windows_test.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/regexp/backtrack.go | 2 --
+ 1 file changed, 2 deletions(-)

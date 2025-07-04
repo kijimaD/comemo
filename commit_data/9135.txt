@@ -1,13 +1,18 @@
-commit 62f618a22cf5c607a90ccb95bf6ceed6ab866ffe
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 20 08:39:24 2011 +1000
+commit 8930ce2dc1590c21d22a658723d05f08a8e4f6a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 19 08:22:20 2011 -0700
 
-    sync/atomic: delete workaround
-    Load seems to work on arm now.
+    godoc: implement http.FileSystem for zip files
     
-    R=dsymonds
+    R=rsc, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4795042
+    https://golang.org/cl/4750047
 
- src/pkg/sync/atomic/atomic_test.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ lib/godoc/dirlist.html      |   6 +-
+ src/cmd/godoc/Makefile      |   1 +
+ src/cmd/godoc/filesystem.go |   5 ++
+ src/cmd/godoc/godoc.go      |  48 +++++++-----
+ src/cmd/godoc/httpzip.go    | 184 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/main.go       |  32 +++++---
+ src/cmd/godoc/zip.go        |  11 ++-
+ 7 files changed, 252 insertions(+), 35 deletions(-)

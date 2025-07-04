@@ -1,19 +1,16 @@
-commit 0436b162397018c45068b47ca1b5924a3eafdee0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jun 25 02:08:52 2018 +0900
+commit 6b5a0b5c1674e82749664b124daf0e6b15af04dd
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Mar 6 18:06:50 2018 -0500
 
-    net: improve ExampleUDPConn_WriteTo docs
+    cmd/trace: set cname for span slices
     
-    Also updates comment on isConnected field of netFD for clarification.
+    Define a set of color names available in trace viewer
     
-    Change-Id: Icb1b0332e3b4c7802eae00ddc26cd5ba54c82dc2
-    Reviewed-on: https://go-review.googlesource.com/120955
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    https://user-images.githubusercontent.com/4999471/37063995-5d0bad48-2169-11e8-92be-9cb363e21c38.png
+    
+    Change-Id: I312fcbc5430d7512b4c39ddc79a769259bad8c22
+    Reviewed-on: https://go-review.googlesource.com/99055
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/example_test.go | 5 +++--
- src/net/fd_unix.go      | 2 +-
- src/net/fd_windows.go   | 2 +-
- src/net/net_fake.go     | 2 +-
- 4 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/trace/trace.go | 48 ++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 44 insertions(+), 4 deletions(-)

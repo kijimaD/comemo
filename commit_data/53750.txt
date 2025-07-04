@@ -1,21 +1,20 @@
-commit 3437ff0d7ad9b556b534871dec14bf4ac4e603fe
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jul 20 14:21:07 2023 -0400
+commit 36f191abcd633a7795195adf89153cc7f373c90f
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sat Aug 13 12:53:37 2022 -0700
 
-    cmd/cgo/internal/testshared: skip in short mode and not on builders
+    syscall: make mkall.sh accept file list
     
-    We already skip testcarchive, testcshared, and testplugin in short
-    mode and not on builders. The shared build mode is not more
-    supported than the c-archive, c-shared, and plugin build modes. No
-    need to run it everywhere by default.
+    Amend the "mkall.sh -syscalls" implementation to
+     - prepend ./ before mksyscalls.pl;
+     - accept the optional file list argument.
     
-    Updates #61025.
+    This is a preparation for CL 416115.
     
-    Change-Id: I6a06e04c1a1dc78f0f85456320d128bd67277915
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511696
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ib4dc2b4aa0d2dd22a256414864e92f2d2fd957a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423676
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/cgo/internal/testshared/shared_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/syscall/mkall.sh | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

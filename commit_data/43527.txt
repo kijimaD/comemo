@@ -1,23 +1,30 @@
-commit 8e2370bf7f0c992ce1ea5dc54b43551cea71a485
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Aug 6 19:04:46 2020 +0000
+commit db48c404cf8dc955a07d3a110b8e7099055075b3
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 7 17:08:00 2020 -0400
 
-    runtime,runtime/metrics: add object size distribution metrics
+    [dev.link] cmd/link: convert pcln linker phase to use loader APIs
     
-    This change adds metrics for the distribution of objects allocated and
-    freed by size, mirroring MemStats' BySize field.
+    Rework the linker's pcln phase to work with the new loader. As part of
+    this set of changes the handling of "go.file..." symbols has been
+    revised somewhat -- previously they were treated as always live in the
+    loader, and now we no longer do this.
     
-    For #37112.
+    The original plan had been to have the new implementation generate
+    nameless "inltree" symbols, however the plan now is to keep them
+    named for now and convert them to nameless in a subsequent patch.
     
-    Change-Id: Ibaf1812da93598b37265ec97abc6669c1a5efcbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247045
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: If71c93ff1f146dbb63b6ee2546308acdc94b643c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227759
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/metrics.go             | 52 ++++++++++++++++++++++++++++++++++++++
- src/runtime/metrics/description.go | 10 ++++++++
- src/runtime/metrics/doc.go         |  6 +++++
- src/runtime/metrics_test.go        | 36 ++++++++++++++++++++++++++
- 4 files changed, 104 insertions(+)
+ src/cmd/link/internal/ld/lib.go        |   4 +
+ src/cmd/link/internal/ld/link.go       |   2 +-
+ src/cmd/link/internal/ld/macho.go      |   2 +-
+ src/cmd/link/internal/ld/main.go       |   4 +-
+ src/cmd/link/internal/ld/pcln.go       | 476 +++++++++++++++++++++------------
+ src/cmd/link/internal/ld/symtab.go     |   4 +-
+ src/cmd/link/internal/loader/loader.go |   2 +-
+ 7 files changed, 311 insertions(+), 183 deletions(-)

@@ -1,15 +1,19 @@
-commit c274ff6761ed8bdaea7d99fcaeb1116fff3763dd
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 3 16:11:03 2014 -0400
+commit 844b625ebcc7101e09fb87828a0e71db942a2416
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 16:10:33 2014 -0400
 
-    fmt: fix go syntax formatting of []byte(nil)
-    Fixes #7639.
+    net/url: add test of "Windows" file URL
     
-    LGTM=rsc
-    R=r, adg, rsc
+    This is just testing the status quo, so that any future attempt
+    to change it will make the test break and redirect the person
+    making the change to look at issue 6027.
+    
+    Fixes #6027.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/81240043
+    https://golang.org/cl/83930046
 
- src/pkg/fmt/fmt_test.go | 2 ++
- src/pkg/fmt/print.go    | 9 +++++++++
- 2 files changed, 11 insertions(+)
+ src/pkg/net/url/url_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

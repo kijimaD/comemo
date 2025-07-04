@@ -1,38 +1,26 @@
-commit a2d8157a7ecc8c7a91c93182ae4778aef505677e
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Sep 22 16:22:04 2022 -0700
+commit 6e8b7e4f4213afb67a91050cb2d71347d73145aa
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed Jan 12 02:22:10 2022 +0000
 
-    archive/tar, archive/zip: return ErrInsecurePath for unsafe paths
+    Revert "all: add a handful of fuzz targets"
     
-    Return a distinguishable error when reading an archive file
-    with a path that is:
+    This reverts CL 352109.
     
-            - absolute
-            - escapes the current directory (../a)
-            - on Windows, a reserved name such as NUL
+    Reason for revert: causing OOM failures on several builders, and may cause OOMs for end users with small machines as well.
     
-    Users may ignore this error and proceed if they do not need name
-    sanitization or intend to perform it themselves.
-    
-    Fixes #25849
-    Fixes #55356
-    
-    Change-Id: Ieefa163f00384bc285ab329ea21a6561d39d8096
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449937
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I58308d09919969d5a6512ee5cee6aa5c4af6769b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377934
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- api/next/55356.txt             |  2 ++
- doc/go1.20.html                | 25 +++++++++++++++++++++++++
- src/archive/tar/common.go      |  1 +
- src/archive/tar/reader.go      | 13 +++++++++++++
- src/archive/tar/reader_test.go | 37 +++++++++++++++++++++++++++++++++++++
- src/archive/tar/writer_test.go |  4 ++--
- src/archive/zip/reader.go      | 30 +++++++++++++++++++++++++++---
- src/archive/zip/reader_test.go | 36 ++++++++++++++++++++++++++++++++++--
- src/archive/zip/struct.go      |  7 -------
- 9 files changed, 141 insertions(+), 14 deletions(-)
+ src/archive/tar/fuzz_test.go   | 97 ------------------------------------------
+ src/archive/zip/fuzz_test.go   | 81 -----------------------------------
+ src/compress/gzip/fuzz_test.go | 92 ---------------------------------------
+ src/encoding/json/fuzz_test.go | 83 ------------------------------------
+ src/image/gif/fuzz_test.go     | 61 --------------------------
+ src/image/jpeg/fuzz_test.go    | 61 --------------------------
+ src/image/png/fuzz_test.go     | 68 -----------------------------
+ 7 files changed, 543 deletions(-)

@@ -1,31 +1,24 @@
-commit dade83a588feace6af9882500f2282c8a83f54d0
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Mar 24 12:10:22 2021 -0400
+commit 27a30186abc18a8fc22b8ab40e3ee9f29d81c1d4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 29 03:25:21 2020 +0700
 
-    cmd/internal/moddeps: fix false positive when $TMPDIR is symlinked
+    cmd/compile,runtime: skip zero'ing order array for select statements
     
-    os.Getwd notes that if the current directory can be reached via
-    multiple paths (due to symbolic links), Getwd may return any one
-    of them. A way to ensure that the desired path is used is to set
-    the PWD environment variable pointing to it.
+    The order array was zero initialized by the compiler, but ends up being
+    overwritten by the runtime anyway.
     
-    The go generate command has started to update the PWD environment
-    variable as of CL 287152, which was the missing link previously
-    resulting in mkwinsyscall misunderstanding whether it's inside
-    the std lib when symbolic links are involved (issue 44079).
+    So let the runtime takes full responsibility for initializing, save us
+    one instruction per select.
     
-    Now all that's left is for us to also set the PWD environment
-    variable when invoking the go command in the test, so that it
-    too knows the intended working directory path to use.
+    Fixes #40399
     
-    Fixes #44080.
-    Updates #44079.
-    Updates #43862.
-    
-    Change-Id: I65c9d19d0979f486800b9b328c9b45a1a3180e81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304449
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iec1eca27ad7180d4fcb3cc9ef97348206b7fe6b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/select.go |  4 +---
+ src/runtime/select.go                 |  1 +
+ test/codegen/select.go                | 20 ++++++++++++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

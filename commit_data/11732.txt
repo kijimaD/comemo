@@ -1,15 +1,14 @@
-commit c0e74b63cf3ef73191f8908609c2c22b75a50be6
+commit 00d0f8e3201d1865b7cd1efa031c4dbe4a96dd7e
 Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 9 14:12:55 2012 +1100
+Date:   Thu Feb 9 14:12:18 2012 +1100
 
-    fmt: scan FALSE correctly
+    cmd/go: rearrange help for 'go test'
+    Put the 'go test' flags into 'go help test', so 'go help testflags'
+    is about the flags for the compiled test binary.
     
-    Fixes bug 2922.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5642072
+    https://golang.org/cl/5641060
 
- src/pkg/fmt/scan.go      | 2 +-
- src/pkg/fmt/scan_test.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/go/test.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

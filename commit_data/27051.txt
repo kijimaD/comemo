@@ -1,14 +1,27 @@
-commit f8fc3710fd4c596adac57048f705a994f199df8c
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 21 10:02:36 2016 -0700
+commit 9323de3da79d240b8223f74bd8ddd0d55dab8070
+Author: Brady Catherman <brady@gmail.com>
+Date:   Fri Feb 5 14:16:31 2016 -0700
 
-    cmd/compile: handle mem copies in amd64 backend
+    testing: implement 'Unordered Output' in Examples.
     
-    Fixes noopt builder.
+    Adds a type of output to Examples that allows tests to have unordered
+    output. This is intended to help clarify when the output of a command
+    will produce a fixed return, but that return might not be in an constant
+    order.
     
-    Change-Id: If13373b2597f0fcc9b1b2f9c860f2bd043e43c6c
-    Reviewed-on: https://go-review.googlesource.com/22338
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Examples where this is useful would be documenting the rand.Perm()
+    call, or perhaps the (os.File).Readdir(), both of which can not guarantee
+    order, but can guarantee the elements of the output.
+    
+    Fixes #10149
+    
+    Change-Id: Iaf0cf1580b686afebd79718ed67ea744f5ed9fc5
+    Reviewed-on: https://go-review.googlesource.com/19280
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/alldocs.go         | 22 ++++++++++++++++++----
+ src/cmd/go/test.go            | 40 ++++++++++++++++++++++++++++------------
+ src/go/doc/example.go         | 30 ++++++++++++++++++------------
+ src/math/rand/example_test.go | 10 ++++++++++
+ src/testing/example.go        | 26 +++++++++++++++++++++-----
+ 5 files changed, 95 insertions(+), 33 deletions(-)

@@ -1,20 +1,26 @@
-commit 9848e93cb76f068b97e8ea342c33cc09b553790f
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Oct 11 13:33:53 2020 +0200
+commit 2602b346599c1febe3ddc3fef526175833d59951
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 1 11:09:49 2020 -0400
 
-    misc/wasm: make sure sp is unsigned
+    [dev.link] cmd/oldlink: remove tests
     
-    An i32 passed from WebAssembly to JavaScript is always read as a signed
-    integer. Use the bitshift operator to turn it into an unsigned integer.
+    They are essentially duplicates of cmd/link tests. No need to
+    test twice.
     
-    Fixes #40923
-    
-    Change-Id: Ia91ed2145dd2fc3071e2fc22b86ebfcb3c1e9f4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261358
-    Trust: Richard Musiol <neelance@gmail.com>
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I91fdc996f5e160631648ee63341c4e46bb6cc54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226801
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/wasm/wasm_exec.js | 32 ++++++++++++++++++++++++++++----
- 1 file changed, 28 insertions(+), 4 deletions(-)
+ src/cmd/oldlink/dwarf_test.go                    |  201 ----
+ src/cmd/oldlink/elf_test.go                      |  416 -------
+ src/cmd/oldlink/internal/ld/dwarf_test.go        | 1365 ----------------------
+ src/cmd/oldlink/internal/ld/elf_test.go          |   79 --
+ src/cmd/oldlink/internal/ld/issue33808_test.go   |   54 -
+ src/cmd/oldlink/internal/ld/ld_test.go           |  136 ---
+ src/cmd/oldlink/internal/ld/nooptcgolink_test.go |   37 -
+ src/cmd/oldlink/link_test.go                     |  449 -------
+ src/cmd/oldlink/linkbig_test.go                  |  112 --
+ src/cmd/oldlink/testdata/lib.go                  |    8 -
+ src/cmd/oldlink/testdata/main.m                  |    5 -
+ 11 files changed, 2862 deletions(-)

@@ -1,21 +1,25 @@
-commit a16b4bf30c476aec397a9d63ca60c7f5a5776de1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Mar 4 12:38:43 2024 -0500
+commit ef4b2fdc48f242fe8f95f15df055c674efa8f35e
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Apr 6 12:09:04 2023 -0700
 
-    cmd/preprofile: clean up error handling
+    net/http: improve failure mode for TestResponseControllerSetPastReadDeadline
     
-    This CL adjusts error handling to be a bit more idiomatic. The
-    processing function returns errors, leaving main to log and exit on
-    error.
+    A test flake in #59447 seems to indicate that this test got stuck
+    waiting for the test handler to close the readc channel.
+    If the handler returns early due to an unexpected error, it might
+    fail to close this channel. Add a second channel to act as a
+    signal that the handler has given up and the test should stop.
+    This won't fix whatever happened in the flake, but might help
+    us debug it if it happens again.
     
-    This CL contains no functional changes.
+    For #59447
     
-    For #58102.
-    
-    Change-Id: I9074127cc675e177d046474b7f01fbc37d0bd4c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569335
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I05d84c6176aa938887d93126a6f3bb4dc941c90d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482935
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/preprofile/main.go | 54 ++++++++++++++++++++++------------------------
- 1 file changed, 26 insertions(+), 28 deletions(-)
+ src/net/http/responsecontroller_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

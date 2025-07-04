@@ -1,16 +1,28 @@
-commit 7fd51f2fb4f60a8cdce7053e953b145ba463391d
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jun 15 17:41:07 2011 -0700
+commit 0193139becc629407fc6a8802d33294667086d74
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 15 19:47:52 2011 -0400
 
-    syscall: use strict in perl scripts
+    undo CL 4557047 / 8818ac606e92
     
-    R=golang-dev, bradfitz, rsc
+    I don't think we've discussed this API enough.
+    
+    ««« original CL description
+    bike/shed: new package.
+    
+    It comes up often enough that it's time to provide
+    the utility of a standard package.
+    
+    R=r, mirtchovski, adg, rsc, n13m3y3r, ality, go.peter.90, lstoakes, iant, jan.mercl, bsiegert, robert.hencke, rogpeppe, befelemepeseveze, kevlar
     CC=golang-dev
-    https://golang.org/cl/4609047
+    https://golang.org/cl/4557047
+    »»»
+    
+    R=dsymonds, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/4576065
 
- src/pkg/syscall/mksyscall.pl         | 14 ++++++++------
- src/pkg/syscall/mksyscall_windows.pl | 30 ++++++++++++++----------------
- src/pkg/syscall/mksysnum_darwin.pl   |  2 ++
- src/pkg/syscall/mksysnum_freebsd.pl  |  2 ++
- src/pkg/syscall/mksysnum_linux.pl    |  2 ++
- 5 files changed, 28 insertions(+), 22 deletions(-)
+ src/pkg/Makefile                 |  1 -
+ src/pkg/bike/shed/Makefile       | 11 -----------
+ src/pkg/bike/shed/colors.go      | 26 --------------------------
+ src/pkg/bike/shed/colors_test.go | 15 ---------------
+ 4 files changed, 53 deletions(-)

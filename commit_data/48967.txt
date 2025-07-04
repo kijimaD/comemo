@@ -1,21 +1,19 @@
-commit a41e37f56a4fc2523ac88a76bf54ba3e45dcf533
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 3 07:14:48 2022 -0400
+commit 1cd505c353e4656ba28fd8de8708e8c8e6c21cbf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 28 19:41:29 2021 -0700
 
-    cmd/internal/notsha256: fix ppc64 build
+    [dev.typeparams] cmd/compile/internal/types2: "comparable" must not be visible before Go 1.18
     
-    The Go 1.8 toolchain on the builder does not support the
-    assembly in this directory for ppc64, so just delete it.
+    While at it, clean up the setup of comparable in universe.go.
     
-    Change-Id: I97caf9d176b7d72b4a265a008b84d91bb86ef70e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403616
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #46090
+    
+    Change-Id: I9655b3e137a03763d677d9a2a730c5570ccff6dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331517
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/notsha256/sha256block_decl.go    |   4 +-
- src/cmd/internal/notsha256/sha256block_generic.go |   4 +-
- src/cmd/internal/notsha256/sha256block_ppc64x.s   | 424 ----------------------
- 3 files changed, 4 insertions(+), 428 deletions(-)
+ .../types2/testdata/fixedbugs/issue46090.go2       |  9 ++++
+ src/cmd/compile/internal/types2/typexpr.go         |  2 +-
+ src/cmd/compile/internal/types2/universe.go        | 61 ++++++++--------------
+ 3 files changed, 32 insertions(+), 40 deletions(-)

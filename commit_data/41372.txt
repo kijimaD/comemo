@@ -1,17 +1,23 @@
-commit 059a5ac3ebfafe5977b1e6176433c111ef8950f3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 8 17:50:52 2020 -0800
+commit ac1d440ea6576dcfb851374dca69cf480f593517
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 16:32:34 2019 -0700
 
-    test: add test that gccgo fails to compile
+    cmd/compile: apply constant folding to ORUNESTR
     
-    Change-Id: I14d31bb62fd0e26a84f8781644c40918404f5f3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213899
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    ORUNESTR represents the special case of integer->string conversion. If
+    the integer is a constant, then the string is a constant too, so
+    evconst needs to perform constant folding here.
+    
+    Passes toolstash-check.
+    
+    Fixes #34563.
+    
+    Change-Id: Ieab3d76794d8ce570106b6b707a4bcd725d156e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197677
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/bug507.dir/a.go | 13 +++++++++++++
- test/fixedbugs/bug507.dir/b.go |  9 +++++++++
- test/fixedbugs/bug507.dir/c.go |  9 +++++++++
- test/fixedbugs/bug507.go       |  9 +++++++++
- 4 files changed, 40 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 2 +-
+ test/const.go                        | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

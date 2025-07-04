@@ -1,25 +1,15 @@
-commit 26d22609c389cd9b5a21939183b6411e5861e16b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 2 15:55:38 2018 -0700
+commit 0e1517c0b313d565b0d5f69b9bbd46e9d4a940d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 7 15:46:19 2018 +0000
 
-    spec: distinguish between explicit and implicit conversions (clarification)
+    cmd/go: skip TestBinaryOnlyPackages until it's fixed
     
-    The spec used the term "conversion" somewhat indiscriminately for
-    explicit conversions that appear literally in the source, and implicit
-    conversions that are implied by the context of an expression.
-    Be clearer about it by defining the terms.
+    Updates #25784
     
-    Also, state that integer to string conversions of the form string(x)
-    are never implicit. This clarifies situations where implicit conversions
-    might require an integer to change to a string (but don't and never have
-    done so). See line 3948.
-    
-    Fixes #26313.
-    
-    Change-Id: I8939466df6b5950933ae7c987662ef9f88827fda
-    Reviewed-on: https://go-review.googlesource.com/c/139099
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I638eab82b026d3df89da532b5cc3f5c06b02d6c8
+    Reviewed-on: https://go-review.googlesource.com/117075
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 39 +++++++++++++++++++++++----------------
- 1 file changed, 23 insertions(+), 16 deletions(-)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

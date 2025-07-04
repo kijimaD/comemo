@@ -1,26 +1,21 @@
-commit 4816eface10125bc915c8a0dfff7fe1489827b8c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 23 17:25:26 2018 -0400
+commit 1fccbfe90e80f214db0abf3ff0db5a0dfe0efdf3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 10 15:32:28 2018 -0500
 
-    cmd/compile: derive len/cap relations in factsTable.update
+    nacl*.bash: pass flags to make.bash
     
-    Currently, the prove pass derives implicit relations between len and
-    cap in the code that adds branch conditions. This is fine right now
-    because that's the only place we can encounter len and cap, but we're
-    about to add a second way to add assertions to the facts table that
-    can also produce facts involving len and cap.
+    Just like all.bash passes flags to make.bash, I think it makes
+    sense that naclmake.bash and nacltest.bash do so as well. For
+    example, on a slow machine I can do "./nacltest.bash -v" to see
+    the build progress.
     
-    Prepare for this by moving the fact derivation from updateRestrictions
-    (where it only applies on branches) to factsTable.update, which can
-    derive these facts no matter where the root facts come from.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: If09692d9eb98ffaa93f4cfa58ed2d8ba0887c111
-    Reviewed-on: https://go-review.googlesource.com/102602
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id766dd590e6b83e8b5345822580dc1b05eac8ea3
+    Reviewed-on: https://go-review.googlesource.com/93117
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 56 +++++++++++++++++++----------------
- 1 file changed, 31 insertions(+), 25 deletions(-)
+ src/naclmake.bash | 2 +-
+ src/nacltest.bash | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

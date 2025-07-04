@@ -1,39 +1,25 @@
-commit af05d8be3d9dd566b2ce3ff5344258314f128ff6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 28 13:51:39 2021 -0400
+commit ae1fa08e4138c49c8e7fa10c3eadbfca0233842b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 29 15:41:18 2021 -0800
 
-    all: manual fixups for //go:build vs // +build
+    context: reduce contention in cancelCtx.Done
     
-    Update many generators, also handle files that were not part of the
-    standard build during 'go fix' in CL 344955.
+    Use an atomic.Value to hold the done channel.
+    Conveniently, we have a mutex handy to coordinate writes to it.
     
-    Fixes #41184.
+    name                 old time/op  new time/op  delta
+    ContextCancelDone-8  67.5ns ±10%   2.2ns ±11%  -96.74%  (p=0.000 n=30+28)
     
-    Change-Id: I1edc684e8101882dcd11f75c6745c266fccfe9e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359476
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #42564
+    
+    Change-Id: I5d72e0e87fb221d4e230209e5fb4698bea4053c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288193
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/elliptic/gen_p256_table.go                  | 1 -
- src/internal/goarch/gengoarch.go                       | 3 +--
- src/internal/goos/gengoos.go                           | 1 -
- src/internal/syscall/windows/exec_windows_test.go      | 1 -
- src/internal/syscall/windows/mksyscall.go              | 1 -
- src/internal/syscall/windows/registry/export_test.go   | 1 -
- src/internal/syscall/windows/registry/key.go           | 1 -
- src/internal/syscall/windows/registry/mksyscall.go     | 1 -
- src/internal/syscall/windows/registry/registry_test.go | 1 -
- src/internal/syscall/windows/registry/syscall.go       | 1 -
- src/internal/syscall/windows/registry/value.go         | 1 -
- src/internal/syscall/windows/sysdll/sysdll.go          | 1 -
- src/runtime/asan/asan.go                               | 3 ---
- src/runtime/mkduff.go                                  | 2 --
- src/runtime/mkpreempt.go                               | 1 -
- src/runtime/msan/msan.go                               | 3 ---
- src/runtime/wincallback.go                             | 1 -
- src/syscall/js/export_test.go                          | 1 -
- src/syscall/js/func.go                                 | 1 -
- src/syscall/js/js.go                                   | 1 -
- src/syscall/js/js_test.go                              | 1 -
- 21 files changed, 1 insertion(+), 27 deletions(-)
+ src/context/benchmark_test.go | 15 +++++++++++++++
+ src/context/context.go        | 30 +++++++++++++++++-------------
+ 2 files changed, 32 insertions(+), 13 deletions(-)

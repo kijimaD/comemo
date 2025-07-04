@@ -1,48 +1,16 @@
-commit 9d032026d69288c840131e3c83f4f2fd79f4ed23
-Author: Austin Clements <austin@google.com>
-Date:   Sat Oct 12 18:35:49 2019 -0400
+commit 309ab1ecc810fad29d09bbf91c22c6bfd1683c6f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 10 16:57:22 2019 -0400
 
-    cmd/internal/obj/x86: correct pcsp for ADJSP
+    cmd/go: add generated code comment to _testmain.go template
     
-    The x86 assembler supports an "ADJSP" pseudo-op that compiles to an
-    ADD/SUB from SP. Unfortunately, while this seems perfect for an
-    instruction that would allow obj to continue to track the SP/FP delta,
-    obj currently doesn't do that. As a result, FP-relative references
-    won't work and, perhaps worse, the pcsp table will have the wrong
-    frame size.
+    Fixes #31971
     
-    We don't currently use this instruction in any assembly or generate it
-    in the compiler, but this is a perfect instruction for solving a
-    problem in #24543.
-    
-    This CL makes ADJSP useful by incorporating it into the SP delta
-    logic.
-    
-    One subtlety is that we do generate ADJSP in obj itself to open a
-    function's stack frame. Currently, when preprocess enters the loop to
-    compute the SP delta, it may or may not start at this ADJSP
-    instruction depending on various factors. We clean this up by instead
-    always starting the SP delta at 0 and always starting this loop at the
-    entry to the function.
-    
-    Why not just recognize ADD/SUB of SP? The danger is that could change
-    the meaning of existing code. For example, walltime1 in
-    sys_linux_amd64.s saves SP, SUBs from it, and aligns it. Later, it
-    restores the saved copy and then does a few FP-relative references.
-    Currently obj doesn't know any of this is happening, but that's fine
-    once it gets to the FP-relative references. If we taught obj to
-    recognize the SUB, it would start to miscompile this code. An
-    alternative would be to recognize unknown instructions that write to
-    SP and refuse subsequent FP-relative references, but that's kind of
-    annoying.
-    
-    This passes toolstash -cmp for std on both amd64 and 386.
-    
-    Change-Id: Ic6c6a7cbf980bca904576676c07b44c0aaa9c82d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200877
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I127659be145e348fae20930615666d67dc7971ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176468
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/load/test.go                   |  2 ++
+ src/cmd/go/testdata/script/test_generated_main.txt | 35 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

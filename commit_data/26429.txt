@@ -1,19 +1,12 @@
-commit f226e886c2b3e0fc0cb8fad8401d1ff8d006df58
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 21 18:27:21 2016 +1100
+commit e8b53c92b8086af8c5f279c795951a9aa1a14d58
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 23 13:28:14 2016 +0900
 
-    internal/syscall/unix: document randomTrap
+    net: enable TestLookupDotsWithRemoteSource on builders
     
-    Updates #10848
-    
-    Change-Id: I8353100ed01cb0e8fc19225157f5709bae388612
-    Reviewed-on: https://go-review.googlesource.com/20975
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2609660b10a16ec2a256fc9c8e046ba4ae67963f
+    Reviewed-on: https://go-review.googlesource.com/18880
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/unix/getrandom_linux_386.go     | 2 ++
- src/internal/syscall/unix/getrandom_linux_amd64.go   | 2 ++
- src/internal/syscall/unix/getrandom_linux_arm.go     | 2 ++
- src/internal/syscall/unix/getrandom_linux_generic.go | 7 +++++++
- src/internal/syscall/unix/getrandom_linux_mips64x.go | 2 ++
- src/internal/syscall/unix/getrandom_linux_ppc64x.go  | 2 ++
- 6 files changed, 17 insertions(+)
+ src/net/lookup_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

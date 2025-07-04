@@ -1,34 +1,23 @@
-commit f582778ee991e8a443e691f9a45c8f0600a748a0
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 6 17:01:25 2021 -0400
+commit 526ee96f4992ff3a1e1c219fe8dc9870098bacba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 6 17:37:03 2020 -0800
 
-    cmd/compile: emit sensible go_asm.h consts for big ints
+    os: avoid allocation in File.WriteString
     
-    Currently, the compiler will emit any const that doesn't fit in an
-    int64 to go_asm.h like
+    Instead of alloc+copy to convert the string
+    to a byte slice, do an unsafe conversion.
     
-        #define const_stackPreempt constant.intVal{val:(*big.Int)(0xc000c06c40)}
+    Rely on the kernel not to scribble on the
+    buffer during the write.
     
-    This happens because dumpasmhdr formats the constant.Value using the
-    verb "%#v". Since constant.Value doesn't implement the GoString()
-    method, this just prints the Go-syntax representation of the value.
-    This happens to work for small integer constants, which go/constant
-    represents directly as an int64, but not for integer constants that
-    don't fit in an int64, which go/constant represents as a big.Int.
+    Fixes #42406
     
-    Make these constants usable by changing the formatting verb to "%v",
-    which will call the String() method, giving a reasonable result in all
-    cases.
-    
-    Change-Id: I365eeb88c8acfc43ff377cc873432269bde3f541
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359954
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I66f4838b43a11bcc3d67bbfa1706726318d55343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268020
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/gc/export.go |  2 +-
- test/asmhdr.dir/main.go               | 66 +++++++++++++++++++++++++++++++++++
- test/asmhdr.dir/main.s                | 27 ++++++++++++++
- test/asmhdr.go                        |  9 +++++
- 4 files changed, 103 insertions(+), 1 deletion(-)
+ src/os/file.go    |  9 ++++++++-
+ src/os/os_test.go | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

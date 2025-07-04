@@ -1,26 +1,28 @@
-commit 0882ca7a73639c3886ed7673c59d2a7f489cb9e4
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Tue Jan 16 23:30:12 2024 +0100
+commit 140000dd55d9c4e3058f2b1a2488233a0671dbff
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 23 14:15:28 2023 +0100
 
-    hash/crc32: fix code generator to use the Go standard
+    runtime: set procid on Windows
     
-    Apply the Go standard for code generation (https://go.dev/s/generatedcode)
-    to generated crc32_table_ppc64le.s despites this is not
-    generated Go but Assembly.  This is to help prevent changes like CL 478976
-    that changed the generated output without fixing the generator.
+    The runtime-gdb.py script needs procid to be set in order to
+    map a goroutine ID with an OS thread. The Go runtime is not currently
+    setting that variable on Windows, so TestGdbPython (and friends) can't
+    succeed.
     
-    Add gen.go to allow to launch code generation with "go generate".
+    This CL initializes procid and unskips gdb tests on Windows.
     
-    Change-Id: I8671284265425826c8620dbec055519b992fa04e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556335
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Fixes #22687
+    Updates #21380
+    Updates #22021
+    
+    Change-Id: Icd1d9fc1764669ed1bf04f53d17fadfd24ac3f30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470596
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/hash/crc32/crc32_table_ppc64le.s | 3 +--
- src/hash/crc32/gen.go                | 7 +++++++
- src/hash/crc32/gen_const_ppc64le.go  | 8 ++++----
- 3 files changed, 12 insertions(+), 6 deletions(-)
+ src/runtime/os_windows.go       | 3 +++
+ src/runtime/runtime-gdb_test.go | 2 --
+ 2 files changed, 3 insertions(+), 2 deletions(-)

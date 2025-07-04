@@ -1,23 +1,23 @@
-commit 9ff7df003d770b1dffc984e1861fd009fe08d579
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Tue Mar 13 23:36:45 2018 +0000
+commit 1ac884698446b034bfd4c671c1284058921a6ea4
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Oct 24 06:32:45 2017 +0000
 
-    sync: make WaitGroup more space-efficient
+    cmd/internal/obj/arm: add BFC/BFI to arm's assembler
     
-    The struct stores its 64-bit state field in a 12-byte array to
-    ensure that it can be 64-bit-aligned. This leaves 4 spare bytes,
-    which we can reuse to store the sema field.
+    BFC (Bit Field Clear) and BFI (Bit Field Insert) were
+    introduced in ARMv6T2, and the compiler can use them
+    to do further optimization.
     
-    (32-bit alignment is still guaranteed because the array type was
-    changed to [3]uint32.)
-    
-    Fixes #19149.
-    
-    Change-Id: I9bc20e69e45e0e07fbf496080f3650e8be0d6e8d
-    Reviewed-on: https://go-review.googlesource.com/100515
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5a3fbcd2c2400c9bf4b939da6366c854c744c27f
+    Reviewed-on: https://go-review.googlesource.com/72891
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/sync/waitgroup.go | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/arch/arm.go             |  5 +++--
+ src/cmd/asm/internal/asm/testdata/arm.s      |  5 ++++-
+ src/cmd/asm/internal/asm/testdata/armerror.s |  1 +
+ src/cmd/internal/obj/arm/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm/anames.go           |  2 ++
+ src/cmd/internal/obj/arm/asm5.go             | 25 +++++++++++++++++++++----
+ 6 files changed, 33 insertions(+), 7 deletions(-)

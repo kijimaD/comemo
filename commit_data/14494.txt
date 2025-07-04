@@ -1,32 +1,22 @@
-commit 127d2bf78595c6e07d59fd91ea97ca0bb516ed73
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 26 13:31:02 2012 -0800
+commit 9a61c0412c119f5df05a7c3877985cd1dbc83931
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 13:20:30 2012 -0800
 
-    net/http: fix Transport races & deadlocks
+    go/printer: some internal cleanups
     
-    Thanks to Dustin Sallings for exposing the most frustrating
-    bug ever, and for providing repro cases (which formed the
-    basis of the new tests in this CL), and to Dave Cheney and
-    Dmitry Vyukov for help debugging and fixing.
+    Cleanups introduced originally by now abandoned
+    https://golang.org/cl/6846078/ .
     
-    This CL depends on submited pollster CLs ffd1e075c260 (Unix)
-    and 14b544194509 (Windows), as well as unsubmitted 6852085.
-    Some operating systems (OpenBSD, NetBSD, ?) may still require
-    more pollster work, fixing races (Issue 4434 and
-    http://goo.gl/JXB6W).
+    Includes additional test cases for 'if' and 'for'
+    statements.
     
-    Tested on linux-amd64 and darwin-amd64, both with GOMAXPROCS 1
-    and 4 (all combinations of which previously failed differently)
+    No formatting changes.
     
-    Fixes #4191
-    Update #4434 (related fallout from this bug)
-    
-    R=dave, bradfitz, dsallings, rsc, fullung
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6851061
+    https://golang.org/cl/6855096
 
- src/pkg/net/http/export_test.go    |   9 +++-
- src/pkg/net/http/server.go         |  55 +++++++++++++++++--
- src/pkg/net/http/transport.go      |  88 ++++++++++++++++++-------------
- src/pkg/net/http/transport_test.go | 105 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 216 insertions(+), 41 deletions(-)
+ src/pkg/go/printer/nodes.go                   | 59 ++++++++++---------
+ src/pkg/go/printer/testdata/statements.golden | 82 ++++++++++++++++++++++++++-
+ src/pkg/go/printer/testdata/statements.input  | 62 +++++++++++++++++++-
+ 3 files changed, 173 insertions(+), 30 deletions(-)

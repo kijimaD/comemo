@@ -1,22 +1,20 @@
-commit 8c15a1725147692e1106f2e32fae657e1b7f27aa
-Author: Radu Berinde <radu@cockroachlabs.com>
-Date:   Sun Aug 28 11:47:14 2016 -0400
+commit 3c8ef0e0c9c26f15926a396688b0fe8acd4e3dcf
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 24 14:37:14 2016 -0400
 
-    hash/crc32: fix nil Castagnoli table problem
+    cmd/compile: allow 64-bit multiplication with immediates on s390x
     
-    When SSE is available, we don't need the Table. However, it is
-    returned as a handle by MakeTable. Fix this to always generate
-    the table.
+    MGHI (16-bit signed immediate) is now used where possible for both
+    MULLW and MULLD. MGHI is 2-bytes shorter than MSGFI.
     
-    Further cleanup is discussed in #16909.
-    
-    Change-Id: Ic05400d68c6b5d25073ebd962000451746137afc
-    Reviewed-on: https://go-review.googlesource.com/27934
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5d0648934f28b3403b1126913fd703d8f62b9e9f
+    Reviewed-on: https://go-review.googlesource.com/22398
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/hash/crc32/crc32.go            | 5 ++++-
- src/hash/crc32/crc32_amd64_test.go | 9 ++++-----
- src/hash/crc32/crc32_test.go       | 3 +++
- 3 files changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s |  8 ++++++--
+ src/cmd/compile/internal/s390x/gsubr.go   |  7 +------
+ src/cmd/internal/obj/s390x/asmz.go        | 21 ++++++++++-----------
+ 3 files changed, 17 insertions(+), 19 deletions(-)

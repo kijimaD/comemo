@@ -1,12 +1,14 @@
-commit d00a646e707e0014800ff2fd115f36b5cc9eb635
-Author: Alexei Sholik <alcosholik@gmail.com>
-Date:   Wed Apr 17 11:46:30 2013 -0700
+commit a9c695204db90e21c798edabfc7aea9316a347ba
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 16 14:20:06 2013 -0700
 
-    go/token: fix grammar for precedence consts
+    doc: more doubled words
+    I wrote a tool.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8662045
+    https://golang.org/cl/8695047
 
- src/pkg/go/token/token.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/gccgo_contribute.html | 2 +-
+ doc/install.html          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,20 @@
-commit 2f99e889f02df9ef88fb1d26194eb2e8e725fda5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jan 15 23:48:57 2019 +0000
+commit f64c0b2a281fd1587c2e2e1c488cec0fa5de6e3e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 7 12:45:49 2018 +0200
 
-    runtime: de-duplicate coalescing code
+    debug/elf: add R_RISCV_32_PCREL relocation
     
-    Currently the code surrounding coalescing is duplicated between merging
-    with the span before the span considered for coalescing and merging with
-    the span after. This change factors out the shared portions of these
-    codepaths into a local closure which acts as a helper.
+    This were missed in CL 107339 as it is not documented (yet) in
+    https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md
     
-    Change-Id: I7919fbed3f9a833eafb324a21a4beaa81f2eaa91
-    Reviewed-on: https://go-review.googlesource.com/c/158077
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    But binutils already uses it. See
+    https://github.com/riscv/riscv-elf-psabi-doc/issues/36
+    
+    Change-Id: I1b084cbf70eb6ac966136bed1bb654883a97b6a9
+    Reviewed-on: https://go-review.googlesource.com/134015
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mheap.go | 50 +++++++++++++++++++++++++-------------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ src/debug/elf/elf.go | 2 ++
+ 1 file changed, 2 insertions(+)

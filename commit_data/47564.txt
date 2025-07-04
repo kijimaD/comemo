@@ -1,13 +1,23 @@
-commit 0c3b4a358ad6813d6aad111d0d0c45dce84cbeec
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 18 12:16:39 2021 -0800
+commit 1e8fff0f7b4577dcb7192928e2db4af7a11e9c0e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 24 10:32:13 2021 -0400
 
-    spec: add type parameter lists
+    cmd/compile: assert that function values reference ABIInternal
     
-    Change-Id: I29e9188a0fa1326c2755a9b86aeb47feaa8019be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365274
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Function values must always point to the ABIInternal entry point of a
+    function. It wasn't entirely obvious to me we were getting this right,
+    so this CL adds checks for this.
+    
+    Updates #40724.
+    
+    Change-Id: Idd854e996d63d9151c28ec5c9251b690453b1024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305272
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 195 +++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 175 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go      | 5 +++++
+ src/cmd/compile/internal/staticdata/data.go | 8 +++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

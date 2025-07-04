@@ -1,14 +1,16 @@
-commit 51d52f820e11a713f1253e9130165cb4cd62ac50
+commit ed01f4be591e6b8e1791164f5b1abb1a237a51ad
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 3 20:06:51 2013 +0900
+Date:   Sun Mar 3 15:59:53 2013 +0900
 
-    net: disable unixgram test on Plan 9 and Windows
+    net: add unixgram dial test
     
-    Fixes build on Plan 9 and Windows.
+    Also replaces testing.Errof with testing.Fatalf, make use of ICMP mock.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7454049
+    https://golang.org/cl/7308058
 
- src/pkg/net/packetconn_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/net/conn_test.go       |  34 ++++---
+ src/pkg/net/packetconn_test.go |  84 +++++++++++-----
+ src/pkg/net/protoconn_test.go  | 217 +++++++++++++++--------------------------
+ 3 files changed, 151 insertions(+), 184 deletions(-)

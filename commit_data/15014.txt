@@ -1,12 +1,20 @@
-commit e1448c07e1365998b7e80e01d9f94c4e4345f7d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 09:32:49 2013 -0800
+commit aa0b573ad610ea659902c8a54183e9fa30d8380e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jan 29 10:49:16 2013 -0500
 
-    codereview: show 'not lgtms' in hg p output (with lgtms)
+    exp/ssa: make Parameters values, not addresses.
     
-    R=golang-dev, iant
+    We explicitly spill all parameters to the frame during initial
+    SSA construction.  (Later passes will remove spills.)
+    We now properly handle local Allocs escaping via Captures.
+    
+    Also: allocate BasicBlock.Succs inline.
+    
+    R=iant, iant
     CC=golang-dev
-    https://golang.org/cl/7245043
+    https://golang.org/cl/7231050
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/ssa/blockopt.go |  6 +-----
+ src/pkg/exp/ssa/func.go     | 50 ++++++++++++++++++++++++++++-----------------
+ src/pkg/exp/ssa/ssa.go      | 30 ++++++++-------------------
+ 3 files changed, 41 insertions(+), 45 deletions(-)

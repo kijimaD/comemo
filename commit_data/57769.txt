@@ -1,18 +1,23 @@
-commit b45c7f1661a88d6765e2a5e1eaff4c06c5af33ed
-Author: Lin Runze <lrzlin@163.com>
-Date:   Tue Oct 15 15:18:08 2024 +0800
+commit b3faace3f755a6dd64f482f085d76c9f8a6034d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 27 14:10:29 2023 -0700
 
-    cmd/internal/obj: add prologue_end DWARF stmt for riscv64
+    cmd/internal/{dwarf,obj}: stop substituting "" with pkgprefix
     
-    This patch adds prologue_end statement to the DWARF info for riscv64,
-    which delve debugger uses for skip stacksplit prologue.
+    cmd/asm and cmd/compile now always create symbols with the appropriate
+    package prefixes, so cmd/internal/dwarf and cmd/internal/obj can stop
+    worrying about qualifying names itself.
     
-    Change-Id: I4e5d9c26202385f65b3118b16f53f66de9d327f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620295
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9aee5d759bf0d41a61722c777e7f66fce957e79e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523338
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/internal/dwarf/dwarf.go | 19 ++++---------------
+ src/cmd/internal/obj/dwarf.go   |  2 --
+ src/cmd/internal/obj/objfile.go |  4 ++--
+ src/cmd/internal/obj/plist.go   | 13 +++++++++----
+ src/cmd/internal/obj/sym.go     |  8 +++++---
+ 5 files changed, 20 insertions(+), 26 deletions(-)

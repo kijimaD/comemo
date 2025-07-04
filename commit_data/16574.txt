@@ -1,17 +1,14 @@
-commit 5caf762457420bf6df0298a8d363ab60216f03bc
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jun 15 16:02:39 2013 +0400
+commit de316388a7fe6879fdaf0ad262c200d3810d0079
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 14 11:42:51 2013 -0700
 
-    runtime: remove unused moreframesize_minalloc field
-    It was used to request large stack segment for GC
-    when it was running not on g0.
-    Now GC is running on g0 with large stack,
-    and it is not needed anymore.
+    runtime: garbage collector runs on g0 now.
+    No need to change to Grunnable state.
+    Add some more checks for Grunning state.
     
-    R=golang-dev, dave
+    R=golang-dev, rsc, khr, dvyukov
     CC=golang-dev
-    https://golang.org/cl/10242045
+    https://golang.org/cl/10186045
 
- src/pkg/runtime/runtime.h |  1 -
- src/pkg/runtime/stack.c   | 14 +++-----------
- 2 files changed, 3 insertions(+), 12 deletions(-)
+ src/pkg/runtime/mgc0.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

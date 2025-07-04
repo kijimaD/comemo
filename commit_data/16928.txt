@@ -1,14 +1,14 @@
-commit 12a38d5b95db2221c68049fb6d2cc7abd5617304
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 30 13:35:14 2013 -0700
+commit a20784bdafc9a594a2c70be1e91f4b86182e6a21
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 30 22:17:38 2013 +0400
 
-    container/list: document complexity of Len
+    runtime: enable goroutine preemption
+    All known issues with preemption have beed fixed.
     
-    Fixes #5972.
-    
-    R=golang-dev, adonovan
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12125043
+    https://golang.org/cl/12008044
 
- src/pkg/container/list/list.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/proc.c       | 2 +-
+ src/pkg/runtime/proc_test.go | 2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)

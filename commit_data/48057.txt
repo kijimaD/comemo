@@ -1,17 +1,15 @@
-commit edbe4742a296239c06cd99721bb0dbc5008d35a1
-Author: pierwill <pierwill@users.noreply.github.com>
-Date:   Wed Feb 2 18:21:04 2022 +0000
+commit 79f35130cd8cd391ae98dffb1eb303b53610a0be
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 12:52:53 2021 -0400
 
-    cmd/compile: edit README
+    cmd/link: expand PE constants and fix doc URL
     
-    Make some small edits for clarification of important concepts.
-    
-    Change-Id: I1f78f2a59489ac71e3948dc924641540508613ce
-    GitHub-Last-Rev: 1819140ee607edf8be3ed35f846848178065391a
-    GitHub-Pull-Request: golang/go#50980
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382458
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie3492b925f6d12430ce05e7d727e739a62f201e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312038
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/README.md | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 35 +++++++++++++++++++++++++++++------
+ 1 file changed, 29 insertions(+), 6 deletions(-)

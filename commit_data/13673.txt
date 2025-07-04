@@ -1,17 +1,22 @@
-commit e80f6a4de1a35cab03e7e4d29e26015895ffe04f
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Aug 23 14:35:26 2012 +0800
+commit 251199c430929d072cbe4cc8dc97659fa3d1ce6a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Aug 23 16:17:22 2012 +1000
 
-    cmd/6g: fix float32/64->uint64 conversion
-        CVTSS2SQ's rounding mode is controlled by the RC field of MXCSR;
-    as we specifically need truncate semantic, we should use CVTTSS2SQ.
+    cmd/8g: roll back the small integer constant optimizations introduced
+    in 13416:67c0b8c8fb29 "faster code, mainly for rotate" [1]. The codegen
+    can run out of registers if there are too many small-int arithmetic ops.
     
-        Fixes #3804.
+    An alternative approach is to copy 6g's sbop/abop codegen to 8g, but
+    this change is less risky.
     
-    R=rsc, r
+    Fixes #3835.
+    
+    [1] http://code.google.com/p/go/source/diff?spec=svn67c0b8c8fb29b1b7b6221977af6b89cae787b941&name=67c0b8c8fb29&r=67c0b8c8fb29b1b7b6221977af6b89cae787b941&format=side&path=/src/cmd/8g/cgen.c
+    
+    R=rsc, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/6352079
+    https://golang.org/cl/6450163
 
- src/cmd/6g/gsubr.c       |   4 +-
- test/fixedbugs/bug447.go | 105 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 107 insertions(+), 2 deletions(-)
+ src/cmd/8g/cgen.c        |  8 +-------
+ test/fixedbugs/bug451.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 7 deletions(-)

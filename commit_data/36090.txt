@@ -1,22 +1,12 @@
-commit ad705baafd52089cad35791755e4b80212727a82
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sun Jul 15 18:34:55 2018 +0300
+commit a818ddd972165564d0660ee867db1d01c41a9723
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 3 13:59:14 2018 -0700
 
-    cmd/go: skip vet when package cannot be build under "go test/vet"
+    cmd/compile/internal/syntax: update a couple of comments
     
-    If the the package cannot be built,
-    "go test" and "go vet" should not run the "vet" tool.
-    In that case only errors from the compilers will be displayed.
-    
-    Fixes #26125
-    
-    Change-Id: I5da6ba64bae5f44feaf5bd4e765eea85533cddd4
-    Reviewed-on: https://go-review.googlesource.com/123938
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie84d0e61697922c1e808d815fb7d9aec694ee8e9
+    Reviewed-on: https://go-review.googlesource.com/104615
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go            | 15 +++++++++++++++
- src/cmd/go/internal/work/exec.go | 12 ++++++++----
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/syntax/nodes.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

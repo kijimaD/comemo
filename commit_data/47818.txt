@@ -1,17 +1,15 @@
-commit ae695cd93fc7d2aadeb3636002fd77f35bfa0710
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 16 15:15:32 2021 -0500
+commit 3d5e3a15f65f1dd622c87ffba58914c877c8112c
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Mon Apr 12 22:49:07 2021 +0200
 
-    cmd/go: add missing cgo condition in TestScript/mod_list_compiled_concurrent
+    debug/pe: replace os.MkdirTemp with T.TempDir
     
-    Updates #50205
+    Updates #45402
     
-    Change-Id: I60d2e32c2cd84599f4a0126e4da4f1d61bd29b51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372799
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3d83a66270ca38e82d6bb7f8a1367af3d5343a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309352
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/debug/pe/file_test.go | 21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)

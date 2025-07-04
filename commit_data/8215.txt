@@ -1,28 +1,16 @@
-commit 41342dc73c29a4afa693dac52d4d03dd5407c13a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 13:39:00 2011 -0400
+commit f1781bec3b60898ddde6f905bc94feeb8fdd4ade
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Apr 25 12:14:30 2011 -0400
 
-    gofix: add support for reflect rename
+    8g,8l: fix "set but not used" gcc error
     
-    R=golang-dev, r
+    $ gcc --version
+    gcc (GCC) 4.6.0 20110415 (prerelease)
+    
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4450053
+    https://golang.org/cl/4442080
 
- src/cmd/gofix/reflect.go                       | 18 +++++++++++++
- src/cmd/gofix/testdata/reflect.asn1.go.out     | 30 ++++++++++-----------
- src/cmd/gofix/testdata/reflect.datafmt.go.out  |  2 +-
- src/cmd/gofix/testdata/reflect.decode.go.out   | 22 ++++++++--------
- src/cmd/gofix/testdata/reflect.decoder.go.out  |  4 +--
- src/cmd/gofix/testdata/reflect.dnsmsg.go.out   |  6 ++---
- src/cmd/gofix/testdata/reflect.encode.go.out   |  4 +--
- src/cmd/gofix/testdata/reflect.encoder.go.out  |  4 +--
- src/cmd/gofix/testdata/reflect.export.go.out   |  8 +++---
- src/cmd/gofix/testdata/reflect.print.go.out    | 34 ++++++++++++------------
- src/cmd/gofix/testdata/reflect.quick.go.out    | 36 +++++++++++++-------------
- src/cmd/gofix/testdata/reflect.read.go.out     | 14 +++++-----
- src/cmd/gofix/testdata/reflect.scan.go.out     |  4 +--
- src/cmd/gofix/testdata/reflect.script.go.out   | 12 ++++-----
- src/cmd/gofix/testdata/reflect.template.go.out |  6 ++---
- src/cmd/gofix/testdata/reflect.type.go.out     | 24 ++++++++---------
- src/cmd/gofix/typecheck.go                     |  7 ++++-
- 17 files changed, 129 insertions(+), 106 deletions(-)
+ src/cmd/8g/ggen.c | 4 ----
+ src/cmd/8l/obj.c  | 3 +--
+ 2 files changed, 1 insertion(+), 6 deletions(-)

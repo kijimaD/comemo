@@ -1,27 +1,47 @@
-commit cc82867f6bf650e6b48a6e87849e4fdd5b94ef70
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jul 28 05:07:02 2022 -0400
+commit 2d026a4ea5b28680c1ed7660f720c4cb028c5b35
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 14 14:26:11 2021 -0700
 
-    runtime/race: update race_windows_amd64.syso
+    bytes: rely on runtime.growslice for growing
     
-    Update race_windows_amd64.syso to latest tsan (V3) runtime.
+    Rather than naively making a slice of capacity 2*c+n,
+    rely on the append(..., make(...)) pattern to allocate a
+    slice that aligns up to the closest size class.
     
-    This version of the runtime depends on libsynchronization.a, so to
-    use this syso, you need to also be using a sufficiently up to date
-    version of GCC (notably GCC 5.1, installed on the Go windows builders
-    right now, does not include this library).
+    Performance:
+            name                          old time/op    new time/op    delta
+            BufferWriteBlock/N4096       3.03µs ± 6%    2.04µs ± 6%  -32.60%  (p=0.000 n=10+10)
+            BufferWriteBlock/N65536      47.8µs ± 6%    28.1µs ± 2%  -41.32%  (p=0.000 n=9+8)
+            BufferWriteBlock/N1048576     844µs ± 7%     510µs ± 5%  -39.59%  (p=0.000 n=8+9)
     
-    Updates #48231.
-    Updates #35006.
-    Fixes #49761.
+            name                          old alloc/op   new alloc/op   delta
+            BufferWriteBlock/N4096       12.3kB ± 0%     7.2kB ± 0%  -41.67%  (p=0.000 n=10+10)
+            BufferWriteBlock/N65536       258kB ± 0%     130kB ± 0%  -49.60%  (p=0.000 n=10+10)
+            BufferWriteBlock/N1048576    4.19MB ± 0%    2.10MB ± 0%  -49.98%  (p=0.000 n=10+8)
     
-    Change-Id: Ia1e2b1d8fe7e2c99728150734935a2c522006caa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420197
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+            name                          old allocs/op  new allocs/op  delta
+            BufferWriteBlock/N4096         3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+            BufferWriteBlock/N65536        7.00 ± 0%      7.00 ± 0%     ~     (all equal)
+            BufferWriteBlock/N1048576      11.0 ± 0%      11.0 ± 0%     ~     (all equal)
+    
+    The performance is faster since the growth rate is capped at 2x,
+    while previously it could grow by amounts potentially much greater than 2x,
+    leading to significant amounts of memory waste and extra copying.
+    
+    Credit goes to Martin Möhrmann for suggesting the
+    append(b, make([]T, n)...) pattern.
+    
+    Fixes #42984
+    Updates #51462
+    
+    Change-Id: I7b23f75dddbf53f8b8b93485bb1a1fff9649b96b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349994
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/race/README                            |   2 +-
- .../race/internal/amd64v1/race_windows.syso        | Bin 461185 -> 550036 bytes
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/buffer.go      | 31 ++++++++++++++++++++++---------
+ src/bytes/buffer_test.go | 15 +++++++++++++++
+ 2 files changed, 37 insertions(+), 9 deletions(-)

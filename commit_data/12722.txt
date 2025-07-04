@@ -1,13 +1,12 @@
-commit d12f1ff7ad6ce477819d2e3ba596390ca9aa568a
+commit 209b2e55f70169c517e682532e48e49d6a86d1bf
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 22 12:48:41 2012 -0700
+Date:   Thu Mar 22 11:40:12 2012 -0700
 
-    test: fix run.bash by spelling out the commands to use for bug424.go
+    cmd/gc: fix comment typo, assignment spacing
     
-    R=golang-dev, gri, iant
+    R=bradfitz, gri, lvd
     CC=golang-dev
-    https://golang.org/cl/5882046
+    https://golang.org/cl/5874053
 
- test/fixedbugs/bug424.go | 4 ++--
- test/golden.out          | 3 ---
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

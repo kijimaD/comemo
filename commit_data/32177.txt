@@ -1,14 +1,18 @@
-commit 62f8494e1d6090b995379dc8f4dcedbc0ecfcba8
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Aug 11 10:45:50 2017 +0900
+commit 2a8d99e427ab19cb4f00680244f31818b53aa238
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 10 22:16:43 2017 -0700
 
-    cmd/cgo: remove unused code
+    cmd/compile/internal/ssa: remove unused Typ fields
     
-    Change-Id: I8d295ea32bf56adc42171947133f3e16a88664c6
-    Reviewed-on: https://go-review.googlesource.com/54911
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    These are never accessed.
+    
+    Change-Id: I45975972d19d1f263f6545c9ed648511501094c6
+    Reviewed-on: https://go-review.googlesource.com/40315
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/gcc.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 8 ++++----
+ src/cmd/compile/internal/ssa/value.go        | 2 --
+ src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
+ 3 files changed, 5 insertions(+), 7 deletions(-)

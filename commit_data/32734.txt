@@ -1,24 +1,18 @@
-commit 165c15afa3ff41c2dc117cb3a40edc7f15f9478b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 13 10:14:02 2017 -0700
+commit c5e8ec5b6dc63de087d93d96dc06cb3de6842ec4
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Mar 22 09:14:41 2017 +0100
 
-    runtime: change lockedg/lockedm to guintptr/muintptr
+    net/http/cookiejar: increase test coverage
     
-    This change has no real effect in itself. This is to prepare for a
-    followup change that will call lockOSThread during a cgo callback when
-    there is no p assigned, and therefore when lockOSThread can not use a
-    write barrier.
+    The jarKey function handles broken PublicSuffixList implementations but
+    no test verified it.
     
-    Change-Id: Ia122d41acf54191864bcb68f393f2ed3b2f87abc
-    Reviewed-on: https://go-review.googlesource.com/63630
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb76de9e8c3941f3b08d3e43970056e023013457
+    Reviewed-on: https://go-review.googlesource.com/38357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/proc.go              | 36 ++++++++++++++++++------------------
- src/runtime/runtime2.go          |  4 ++--
- src/runtime/signal_sighandler.go |  4 ++--
- src/runtime/signal_windows.go    |  4 ++--
- src/runtime/traceback.go         |  2 +-
- 5 files changed, 25 insertions(+), 25 deletions(-)
+ src/net/http/cookiejar/jar.go      |  3 +++
+ src/net/http/cookiejar/jar_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

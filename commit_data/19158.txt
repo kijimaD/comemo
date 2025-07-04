@@ -1,15 +1,26 @@
-commit 853c99ddb8dc25ca361f1efdd65a9b371cc39fcb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 15 19:40:00 2014 -0700
+commit dacc020c00e8ad85cc3b006091632f76a79015be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 21:17:18 2014 -0400
 
-    crypto/tls: don't block on Read of zero bytes
+    cmd/ld: record complete runtime-gdb.py path again
     
-    Fixes #7775
+    This code never got updated after the liblink shuffle.
+    Tested by hand that it works and respects GOROOT_FINAL.
     
-    LGTM=rsc
-    R=agl, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/88340043
+    The discussion in issue 6963 suggests that perhaps we should
+    just drop runtime-gdb.py entirely, but I am not convinced
+    that is true. It was in Go 1.2 and I don't see a reason not to
+    keep it in Go 1.3. The fact that binaries have not been emitting
+    the reference was just a missed detail in the liblink conversion,
+    not part of a grand plan.
+    
+    Fixes #7506.
+    Fixes #6963.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/87870048
 
- src/pkg/crypto/tls/conn.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/ld/dwarf.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

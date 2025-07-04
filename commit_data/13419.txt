@@ -1,16 +1,12 @@
-commit 11cafa3a42e216140adcb9f29d1ec3e320850682
-Author: Jean-Marc Eurin <jmeurin@google.com>
-Date:   Fri Jun 29 12:49:31 2012 -0400
+commit 4c3dc1ba74dfb28f018a12219fff4e5fa83db30e
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Thu Jun 28 15:18:35 2012 -0700
 
-        misc/emacs: Fix the gofmt patching when the TMPDIR is not the default.
+    net/http: Fix a verb-tense mismatch and a typo in documentation.
     
-    The previous code assumed the gofmt output referred to /tmp but
-    that's not true if TMPDIR points somewhere else (like on Macs).
-    Fixes #3782.
-    
-    R=sameer
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6346050
+    https://golang.org/cl/6357049
 
- misc/emacs/go-mode.el | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,12 @@
-commit bb4cf3f3514614e95b77918d3e15ff1b1f94397d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 24 13:10:22 2011 +0400
+commit 4a4fa38d0e86064c6fec9e0fa9f60cb1782bcaff
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Aug 24 11:05:45 2011 +0200
 
-    http: on invalid request, send 400 response
+    exp/norm: Reduced the size of the byte buffer used by reorderBuffer by half by reusing space when combining.
     
-    Fixes #2160
-    
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4930049
+    https://golang.org/cl/4939042
 
- src/pkg/http/server.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/exp/norm/composition.go | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

@@ -1,16 +1,26 @@
-commit 32a0cbb88187deecfcbcf62f11056ca09fe4a4a0
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Jun 25 16:00:35 2012 -0400
+commit 277e7e57cadc08a2e82885b423308627e9e5c786
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 25 11:27:54 2012 -0700
 
-    encoding/csv, encoding/xml: report write errors
+    go/ast: minor comment maps API change
     
-    Fixes #3773.
+    This is a new, not yet committed API.
     
-    R=bradfitz, rsc
+    - Changed NewCommentMap to be independent of
+      *File nodes and more symmetric with the
+      Filter and Comments methods.
+    
+    - Implemented Update method for use in
+      AST modifications.
+    
+    - Implemented String method for debugging
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6327053
+    https://golang.org/cl/6303086
 
- src/pkg/encoding/csv/writer.go       |  5 ++--
- src/pkg/encoding/xml/marshal.go      | 26 +++++++++++-------
- src/pkg/encoding/xml/marshal_test.go | 52 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 70 insertions(+), 13 deletions(-)
+ src/cmd/godoc/godoc.go            |   2 +-
+ src/cmd/godoc/main.go             |   2 +-
+ src/pkg/go/ast/commentmap.go      | 102 +++++++++++++++++++++++++++++++-------
+ src/pkg/go/ast/commentmap_test.go |   2 +-
+ 4 files changed, 86 insertions(+), 22 deletions(-)

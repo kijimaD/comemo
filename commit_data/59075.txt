@@ -1,17 +1,21 @@
-commit 35139d6e45b4384ea4f87b8e36bc1355dd52d641
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Fri Mar 14 13:47:54 2025 -0700
+commit d94ab597af9b3f8e8ba371023314d80f6b3be5a5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 8 15:59:07 2024 +0000
 
-    runtime: log profile when mutex profile test fails
+    cmd/cgo/internal/testsanitizers: disable location checking for clang
     
-    For #70602
+    Pending a resolution to #65606, this CL marks clang's ASAN runtime as
+    unable to symbolize stack traces to unblock the LUCI clang builder.
     
-    Change-Id: I3f723ebc17ef690d5be7f4f948c9dd1f890196fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658095
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    For #65606.
+    Fixes #65469.
+    
+    Change-Id: I649773085aff30e5703e7f7ac2c72a0430a015c2
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562675
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/metrics_test.go | 22 +++++++++++++++++-----
- 1 file changed, 17 insertions(+), 5 deletions(-)
+ src/cmd/cgo/internal/testsanitizers/cc_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

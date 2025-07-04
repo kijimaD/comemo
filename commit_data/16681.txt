@@ -1,19 +1,18 @@
-commit aec6b49aaebd7adc9ec8d11f3ffacdf041b0da2d
-Author: David Bürgin <676c7473@gmail.com>
-Date:   Mon Jul 1 16:20:50 2013 +1000
+commit 0a4fc122de2d0c5da7e89feb7c079e602612a2fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 30 19:53:36 2013 -0400
 
-    misc/vim: Add compiler plugin for Go
+    lib9: restore printing of signed integers
     
-    This change adds a basic compiler plugin for Go. The plugin
-    integrates "go build" with Vim's ":make" command and the
-    quickfix list.
+    A casualty of https://golang.org/cl/10195044.
     
-    Fixes #5751.
+    If x is an 32-bit int and u is a 64-bit ulong,
+            u = (uint)x // converts to uint before extension, so zero fills
+            u = (ulong)x // sign-extends
     
-    R=golang-dev, dsymonds, niklas.schnelle, 0xjnml
+    TBR=iant, r
     CC=golang-dev
-    https://golang.org/cl/10466043
+    https://golang.org/cl/10814043
 
- misc/vim/compiler/go.vim | 30 ++++++++++++++++++++++++++++++
- misc/vim/readme.txt      | 16 ++++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/lib9/fmt/dofmt.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

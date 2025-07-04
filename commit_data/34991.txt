@@ -1,30 +1,18 @@
-commit 284ba47b4916e3cf4f206494ad5a3577e20db9bf
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Apr 15 19:00:27 2018 +0200
+commit 22b4c8358590bff54cdbc4ad2b359913d48ff474
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 1 13:24:20 2017 -0800
 
-    test: run codegen tests on all supported architecture variants
+    go/types: don't use directory foo which might exist under GOPATH
     
-    This CL makes the codegen testsuite automatically test all
-    architecture variants for architecture specified in tests. For
-    instance, if a test file specifies a "arm" test, it will be
-    automatically run on all GOARM variants (5,6,7), to increase
-    the coverage.
+    Simply choose an extremely unlikely path name in the test is fine.
     
-    The CL also introduces a syntax to specify only a specific
-    variant (eg: "arm/7") in case the test makes sense only there.
-    The same syntax also allows to specify the operating system
-    in case it matters (eg: "plan9/386/sse2").
+    Fixes #21013.
     
-    Fixes #24658
-    
-    Change-Id: I2eba8b918f51bb6a77a8431a309f8b71af07ea22
-    Reviewed-on: https://go-review.googlesource.com/107315
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I56c0a1986b5ef5d618c7fe2b14701f584fe81c37
+    Reviewed-on: https://go-review.googlesource.com/81578
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/codegen/README    |  18 +++++++
- test/codegen/floats.go |  20 +++++---
- test/codegen/math.go   |   5 +-
- test/run.go            | 135 +++++++++++++++++++++++++++++++++++++------------
- 4 files changed, 137 insertions(+), 41 deletions(-)
+ src/go/types/api_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

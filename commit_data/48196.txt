@@ -1,20 +1,18 @@
-commit e534907f65f5a3eda47a069ea0aab33306c1d616
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Feb 18 09:19:47 2022 -0500
+commit ee4f9656ac419bb92408f65f082c735a6b82d1fa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 9 22:00:14 2021 -0400
 
-    go/types: delete unnecessary slice construction
+    cmd/go/internal/modload: avoid loading the full module graph to determine which checksums to add to go.sum
     
-    CL 374294 made our check for incorrect type parameters constraints
-    eager, but failed to remove the construction of the bounds slice, which
-    was no longer used.
+    For #36460
     
-    Change-Id: Ib8778fba947ef8a8414803e95d72c49b8f75c204
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386717
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I606314054bd9064f7c4053f56049fabbaec54143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309189
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/decl.go | 2 --
- src/go/types/decl.go                    | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/go/internal/modload/init.go | 58 +++++++++++++++++++++++--------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)

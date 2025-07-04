@@ -1,12 +1,18 @@
-commit b4d32d832f046fea973f508d5a6bbeb4bba4723f
+commit 8eee153bc81680a6115dc8e1f2661ee51d5c7383
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Feb 14 22:18:29 2012 -0200
+Date:   Tue Feb 14 22:09:02 2012 -0200
 
-    lib/godoc: fix subdirectories html reference
+    runtime: fix grsec support
     
-    R=golang-dev, adg
+    Changeset 36c9c7810f14 broke support for grsec-patched kernels.
+    Those do not give back the address requested without MAP_FIXED,
+    so when verifying an mmap without this flag for success, the
+    resulting address must not be compared against the requested
+    address since it may have succeeded at a different location.
+    
+    R=golang-dev, rsc, gustavo, iant
     CC=golang-dev
-    https://golang.org/cl/5677043
+    https://golang.org/cl/5650072
 
- lib/godoc/package.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mem_linux.c | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)

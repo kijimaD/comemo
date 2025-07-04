@@ -1,37 +1,44 @@
-commit 160914e33ca6521d74297291d801062cc44d794d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Feb 6 14:24:16 2017 -0500
+commit f9497a6747abe8738728eeb08f80849c88404d18
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 5 17:50:39 2016 -0400
 
-    cmd/compile: do not use "oaslit" for global
+    runtime: make sweep time proportional to in-use spans
     
-    The compiler did not emit write barrier for assigning global with
-    struct literal, like global = T{} where T contains pointer.
+    Currently sweeping walks the list of all spans, which means the work
+    in sweeping is proportional to the maximum number of spans ever used.
+    If the heap was once large but is now small, this causes an
+    amortization failure: on a small heap, GCs happen frequently, but a
+    full sweep still has to happen in each GC cycle, which means we spent
+    a lot of time in sweeping.
     
-    The relevant code path is:
-    walkexpr OAS var_ OSTRUCTLIT
-        oaslit
-            anylit OSTRUCTLIT
-                walkexpr OAS var_ nil
-                return without adding write barrier
-        return true
-    break (without adding write barrier)
+    Fix this by creating a separate list consisting of just the in-use
+    spans to be swept, so sweeping is proportional to the number of in-use
+    spans (which is proportional to the live heap). Specifically, we
+    create two lists: a list of unswept in-use spans and a list of swept
+    in-use spans. At the start of the sweep cycle, the swept list becomes
+    the unswept list and the new swept list is empty. Allocating a new
+    in-use span adds it to the swept list. Sweeping moves spans from the
+    unswept list to the swept list.
     
-    This CL makes oaslit not apply to globals. See also CL
-    https://go-review.googlesource.com/c/36355/ for an alternative
-    fix.
+    This fixes the amortization problem because a shrinking heap moves
+    spans off the unswept list without adding them to the swept list,
+    reducing the time required by the next sweep cycle.
     
-    The downside of this is that it generates static data for zeroing
-    struct now. Also this only covers global. If there is any lurking
-    bug with implicit zeroing other than globals, this doesn't fix.
+    Updates #9265. This fix eliminates almost all of the time spent in
+    sweepone; however, markrootSpans has essentially the same bug, so now
+    the test program from this issue spends all of its time in
+    markrootSpans.
     
-    Fixes #18956.
+    No significant effect on other benchmarks.
     
-    Change-Id: Ibcd27e4fae3aa38390ffa94a32a9dd7a802e4b37
-    Reviewed-on: https://go-review.googlesource.com/36410
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib382e82790aad907da1c127e62b3ab45d7a4ac1e
+    Reviewed-on: https://go-review.googlesource.com/30535
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go |  2 +-
- test/writebarrier.go                 | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go         |   7 ++-
+ src/runtime/mgcsweep.go    |  29 +++++++---
+ src/runtime/mgcsweepbuf.go | 133 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go       |  12 ++++
+ 4 files changed, 173 insertions(+), 8 deletions(-)

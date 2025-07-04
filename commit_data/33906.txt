@@ -1,20 +1,14 @@
-commit 54f0520f940f7edd916c34b7d44f9fc2c9e48cf7
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Dec 18 13:58:41 2017 -0500
+commit 66ce8e383f1070320b9d63d06dc7f5ec40d35135
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Mon Sep 18 17:07:21 2017 +0200
 
-    cmd/internal/link: disable selected DWARF tests on Solaris
+    bytes: removed unnecessary slicing on copy
     
-    Disable the three linker DWARF tests that invoke the compiler in
-    non-debug mode on Solaris, since this seems to trigger a split stack
-    overflow. These can be turned back on once the issue in question is
-    resolved.
-    
-    Updates #23168.
-    
-    Change-Id: I5be1b098e33e8bad3bc234a0964eab1dee7e7954
-    Reviewed-on: https://go-review.googlesource.com/84655
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ia42e3479c852a88968947411de8b32e5bcda5ae3
+    Reviewed-on: https://go-review.googlesource.com/64371
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/bytes/buffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

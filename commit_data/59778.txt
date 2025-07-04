@@ -1,28 +1,30 @@
-commit ee7bfbdbcc75c17c9f6f357f7950cfae0d63811c
-Author: Paul Murphy <paumurph@redhat.com>
-Date:   Wed Jun 4 08:51:11 2025 -0500
+commit a088e230d4e7892b15851babe161bbd1766738a1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 4 04:51:24 2024 +0000
 
-    cmd/compile/internal/ssa: fix PPC64 merging of (AND (S[RL]Dconst ...)
+    unique: add unique package and implement Make/Handle
     
-    CL 622236 forgot to check the mask was also a 32 bit rotate mask. Add
-    a modified version of isPPC64WordRotateMask which valids the mask is
-    contiguous and fits inside a uint32.
+    This change adds the unique package for canonicalizing values, as
+    described by the proposal in #62483.
     
-    I don't this is possible when merging SRDconst, the first check should
-    always reject such combines. But, be extra careful and do it there
-    too.
+    Fixes #62483.
     
-    Fixes #73153
-    
-    Change-Id: Ie95f74ec5e7d89dc761511126db814f886a7a435
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/679775
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I1dc3d34ec12351cb4dc3838a8ea29a5368d59e99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574355
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 19 +++++++++++++++++--
- test/codegen/shift.go                   | 10 ++++++++++
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ api/next/62483.txt                         |   3 +
+ doc/next/6-stdlib/2-unique.md              |  13 +++
+ doc/next/6-stdlib/99-minor/unique/62483.md |   1 +
+ src/go/build/deps_test.go                  |   3 +
+ src/go/doc/comment/std.go                  |   1 +
+ src/runtime/mgc.go                         |  23 +++-
+ src/unique/clone.go                        | 100 +++++++++++++++++
+ src/unique/clone_test.go                   |  37 ++++++
+ src/unique/doc.go                          |   9 ++
+ src/unique/handle.go                       | 174 +++++++++++++++++++++++++++++
+ src/unique/handle_bench_test.go            |  63 +++++++++++
+ src/unique/handle_test.go                  | 111 ++++++++++++++++++
+ 12 files changed, 537 insertions(+), 1 deletion(-)

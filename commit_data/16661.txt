@@ -1,23 +1,23 @@
-commit d2a19e9fd1c4f2c4941d86e860be0cee8c418170
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Jun 27 13:31:05 2013 -0400
+commit 15a1c3d1e46393a0b05ef5f518d1f4d0b7c638b8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 27 20:52:12 2013 +0400
 
-    crypto/elliptic: add constant-time, P-256 implementation.
+    runtime: fix CPU underutilization
+    runtime.newproc/ready are deliberately sloppy about waking new M's,
+    they only ensure that there is at least 1 spinning M.
+    Currently to compensate for that, schedule() checks if the current P
+    has local work and there are no spinning M's, it wakes up another one.
+    It does not work if goroutines do not call schedule.
+    With this change a spinning M wakes up another M when it finds work to do.
+    It's also not ideal, but it fixes the underutilization.
+    A proper check would require to know the exact number of runnable G's,
+    but it's too expensive to maintain.
+    Fixes #5586.
     
-    On my 64-bit machine, despite being 32-bit code, fixed-base
-    multiplications are 7.1x faster and arbitary multiplications are 2.6x
-    faster.
-    
-    It is difficult to review this change. However, the code is essentially
-    the same as code that has been open-sourced in Chromium. There it has
-    been successfully performing P-256 operations for several months on
-    many machines so the arithmetic of the code should be sound.
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/10551044
+    R=rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/9776044
 
- src/pkg/crypto/elliptic/elliptic.go      |   12 -
- src/pkg/crypto/elliptic/elliptic_test.go |   57 ++
- src/pkg/crypto/elliptic/p256.go          | 1186 ++++++++++++++++++++++++++++++
- 3 files changed, 1243 insertions(+), 12 deletions(-)
+ src/pkg/runtime/proc.c       | 41 +++++++++++++++++++++++++++--------------
+ src/pkg/runtime/proc_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 14 deletions(-)

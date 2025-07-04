@@ -1,17 +1,14 @@
-commit 9c514e149c1d986c404460121c1a5fc01ab8356c
+commit a92bd662829384203ec70df8c93bb542b0921553
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jul 21 12:24:33 2015 -0700
+Date:   Mon Jul 13 14:01:08 2015 -0600
 
-    io: add WriteString support to MultiWriter
+    [dev.ssa] cmd/compile: support zero type for *T
     
-    Fixes #11805
-    
-    Change-Id: I081e16b869dc706bd847ee645bb902bc671c123f
-    Reviewed-on: https://go-review.googlesource.com/12485
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4c9bcea01e2c4333c2a3592b66f1da9f424747a4
+    Reviewed-on: https://go-review.googlesource.com/12130
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/io/multi.go      | 24 ++++++++++++++++++++++++
- src/io/multi_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 76 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go           |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 18 ++++++++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

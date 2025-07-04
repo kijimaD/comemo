@@ -1,20 +1,15 @@
-commit ff15e5c00f7fe3fcec1277f932fbca381fd2d2ad
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Feb 24 19:48:06 2014 +0100
+commit cd13a57b0ade69b8c4c2e4fc4f1952abfa885929
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 21:12:44 2014 +0400
 
-    cmd/go: Plan 9 compatible "env" output
+    testing: fix bogus benchmark
+    Fatal must not be called from secondary goroutines.
+    Fixes #7401.
     
-    Fixes the output of go env so that variables can be set
-    more accurately when using Plan 9's rc shell. Specifically,
-    GOPATH may have multiple components and the current
-    representation is plain wrong. In practice, we probably
-    ought to change os. Getenv to produce the right result, but
-    that requires considerably more thought.
-    
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/66600043
+    https://golang.org/cl/67820047
 
- src/cmd/go/env.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/pkg/testing/benchmark_test.go | 1 -
+ 1 file changed, 1 deletion(-)

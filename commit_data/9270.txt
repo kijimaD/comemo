@@ -1,12 +1,12 @@
-commit 8800f7cb551616efe941e83f9c0a5fb53599e57d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 1 11:50:50 2011 +1000
+commit 05f734c8b4e24363fd1b39a41b153179a6aee8d3
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Aug 1 11:12:50 2011 +1000
 
-    http: correct format flags when printing errors during tests
+    cmd/ld/pe.c: Corrected mismatched print formats and variables.
     
-    R=golang-dev, dsymonds
-    CC=golang-dev
-    https://golang.org/cl/4809065
+    R=golang-dev, alex.brainman
+    CC=golang-dev, rsc
+    https://golang.org/cl/4839041
 
- src/pkg/http/fs_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/pe.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

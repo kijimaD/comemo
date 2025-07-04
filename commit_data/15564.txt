@@ -1,12 +1,13 @@
-commit bfbac2dc1c20aac00f22442aedf183962e8b2da2
-Author: Rob Pike <r@golang.org>
-Date:   Sun Mar 3 09:12:36 2013 -0800
+commit b767556dd751bd99cc57a528df6d9f3ec7df4b18
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 3 19:10:59 2013 +0900
 
-    doc/go1.1.html: fix typo in URL
+    net: fix windows build
     
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7423050
+    https://golang.org/cl/7429049
 
- doc/go1.1.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/protoconn_test.go | 13 +++++++++++++
+ src/pkg/net/unix_test.go      | 13 -------------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,34 +1,17 @@
-commit dd7ce26abf7cf431e7cecf6153fbb8730b1da686
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Jun 29 03:09:54 2022 +0000
+commit f59d36d2e3f0707c8bf2b157009ffc38a9b74d25
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 11:19:20 2021 -0500
 
-    math: optimize Hypot function
+    go/types: make object test an external test
     
-    This CL optimizes the Hypot function by putting the Abs function in
-    front of the IsInf check. This simplifies the judgment of IsInf.
+    This is a port of CL 361409 to go/types.
     
-    Benchmarks:
-    On linux/arm64,
-    name         old time/op  new time/op  delta
-    Hypot-160    5.26ns ± 0%  4.53ns ± 0%  -13.84%  (p=0.000 n=4+5)
-    HypotGo-160  5.19ns ± 0%  4.85ns ± 0%   -6.53%  (p=0.008 n=5+5)
-    
-    On linux/amd64,
-    name        old time/op  new time/op  delta
-    Hypot-44    5.99ns ± 0%  5.99ns ± 0%     ~     (p=0.667 n=5+5)
-    HypotGo-44  7.46ns ± 0%  6.61ns ± 0%  -11.37%  (p=0.008 n=5+5)
-    
-    On darwin/arm64,
-    name       old time/op  new time/op  delta
-    Hypot-8    3.58ns ± 0%  2.79ns ± 0%  -22.01%  (p=0.008 n=5+5)
-    HypotGo-8  3.58ns ± 0%  2.79ns ± 0%  -22.15%  (p=0.008 n=5+5)
-    
-    Change-Id: Id79236e01d9494b6e00bbda3ec08c72caf5ef3c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414974
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I17ccf8a5b4ba715fd8a87ea2c1811700fb1157e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362538
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/hypot.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/object_test.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

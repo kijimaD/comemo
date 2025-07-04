@@ -1,15 +1,15 @@
-commit 4566868b41620ba47ef589d8bab9b0906c370cb6
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Tue Oct 18 15:58:10 2011 -0400
+commit c7cf56bec994c6888be89c7c8f8a1911fb266ca8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 12:40:41 2011 -0700
 
-    6l, 8l: emit macho dwarf info before linkedit section
+    big: handle aliasing correctly for Rat.SetFrac.
     
-    R=golang-dev, rsc
+    Fixes #2379.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5272050
+    https://golang.org/cl/5305043
 
- src/cmd/6l/asm.c   | 16 +++++++++++++---
- src/cmd/8l/asm.c   | 16 +++++++++++++---
- src/cmd/ld/lib.h   |  1 +
- src/cmd/ld/macho.c |  2 +-
- 4 files changed, 28 insertions(+), 7 deletions(-)
+ src/pkg/big/rat.go      |  8 ++++++--
+ src/pkg/big/rat_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 2 deletions(-)

@@ -1,31 +1,19 @@
-commit a21b71daf57a54a12c2aedff0fba0860fa977590
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu May 15 13:41:14 2025 -0400
+commit deb2f89eb16929819cddbd293240f06f5f396bc1
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 16:35:22 2023 +0800
 
-    crypto/tls: have servers prefer TLS 1.3 when supported
+    time: add available godoc link
     
-    Previously the common Config.mutualVersion() code prioritized the
-    selected version based on the provided peerVersions being sent in peer
-    preference order.
-    
-    Instead we would prefer to see TLS 1.3 used whenever it is
-    supported, even if the peer would prefer an older protocol version.
-    This commit updates mutualVersions() to implement this policy change.
-    
-    Our new behaviour matches the behaviour of other TLS stacks, notably
-    BoringSSL, and so also allows enabling the IgnoreClientVersionOrder BoGo
-    test that we otherwise must skip.
-    
-    Updates #72006
-    
-    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673236
-    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
-    TryBot-Bypass: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Idfe9cf2f2e4750d6673455f98deef2efc2d292a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539837
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- doc/next/6-stdlib/99-minor/crypto/tls/version_pref.md | 1 +
- src/crypto/tls/bogo_config.json                       | 1 -
- src/crypto/tls/common.go                              | 6 +++---
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/time/format.go   | 34 +++++++++++++++++-----------------
+ src/time/sleep.go    | 20 ++++++++++----------
+ src/time/tick.go     |  8 ++++----
+ src/time/time.go     | 50 +++++++++++++++++++++++++-------------------------
+ src/time/zoneinfo.go |  4 ++--
+ 5 files changed, 58 insertions(+), 58 deletions(-)

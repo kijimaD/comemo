@@ -1,54 +1,39 @@
-commit 2541a68a7010afcd2970ddc3979432e1a8f08406
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue May 20 15:39:22 2025 +0000
+commit 84b190ad3cfaa9e192f0980a58611db9f9286553
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 27 22:44:52 2024 -0400
 
-    reflect: add TypeAssert[T]
-    
-    This implementation is zero-alloc when T is a concrete type,
-    allocates when val contains a method or when T is a interface
-    and Value was obtained for example through Elem(), in which case
-    it has to be allocated to avoid sharing the same memory.
+    runtime: avoid unnecessary netpoll wakeups during timer creation
     
     goos: linux
     goarch: amd64
-    pkg: reflect
-    cpu: AMD Ryzen 5 4600G with Radeon Graphics
-                                                                             │ /tmp/bench2 │
-                                                                             │   sec/op    │
-    TypeAssert/TypeAssert[int](int)-12                                         2.725n ± 1%
-    TypeAssert/TypeAssert[uint8](int)-12                                       2.599n ± 1%
-    TypeAssert/TypeAssert[fmt.Stringer](reflect_test.testTypeWithMethod)-12    8.470n ± 0%
-    TypeAssert/TypeAssert[fmt.Stringer](*reflect_test.testTypeWithMethod)-12   8.460n ± 1%
-    TypeAssert/TypeAssert[interface_{}](int)-12                                4.181n ± 1%
-    TypeAssert/TypeAssert[interface_{}](reflect_test.testTypeWithMethod)-12    4.178n ± 1%
-    TypeAssert/TypeAssert[time.Time](time.Time)-12                             2.839n ± 0%
-    TypeAssert/TypeAssert[func()_string](func()_string)-12                     151.1n ± 1%
-    geomean                                                                    6.645n
+    pkg: time
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                                       │ s7base.txt  │               s7.txt               │
+                                       │   sec/op    │   sec/op     vs base               │
+    AdjustTimers10000-32                 315.1µ ± 4%   291.4µ ± 5%  -7.52% (p=0.001 n=10)
+    AdjustTimers10000SingleThread-32     1.728m ± 6%   1.728m ± 5%       ~ (p=0.971 n=10)
+    AdjustTimers10000NoReset-32          263.0µ ± 3%   253.1µ ± 6%  -3.75% (p=0.023 n=10)
+    AdjustTimers10000NoSleep-32          306.8µ ± 5%   277.3µ ± 3%  -9.62% (p=0.000 n=10)
+    AdjustTimers10000NoResetNoSleep-32   245.3µ ± 3%   241.4µ ± 2%       ~ (p=0.529 n=10)
     
-                                                                             │ /tmp/bench2  │
-                                                                             │     B/op     │
-    TypeAssert/TypeAssert[int](int)-12                                         0.000 ± 0%
-    TypeAssert/TypeAssert[uint8](int)-12                                       0.000 ± 0%
-    TypeAssert/TypeAssert[fmt.Stringer](reflect_test.testTypeWithMethod)-12    0.000 ± 0%
-    TypeAssert/TypeAssert[fmt.Stringer](*reflect_test.testTypeWithMethod)-12   0.000 ± 0%
-    TypeAssert/TypeAssert[interface_{}](int)-12                                0.000 ± 0%
-    TypeAssert/TypeAssert[interface_{}](reflect_test.testTypeWithMethod)-12    0.000 ± 0%
-    TypeAssert/TypeAssert[time.Time](time.Time)-12                             0.000 ± 0%
-    TypeAssert/TypeAssert[func()_string](func()_string)-12                     72.00 ± 0%
-    geomean                                                                               ¹
+    goos: darwin
+    goarch: arm64
+    pkg: time
+    cpu: Apple M3 Pro
+                                       │ m3base.txt  │               m3.txt                │
+                                       │   sec/op    │   sec/op     vs base                │
+    AdjustTimers10000-12                 385.5µ ± 3%   288.1µ ± 1%  -25.26% (p=0.000 n=10)
+    AdjustTimers10000SingleThread-12     1.213m ± 1%   1.195m ± 1%   -1.45% (p=0.001 n=10)
+    AdjustTimers10000NoReset-12          346.4µ ± 5%   280.8µ ± 1%  -18.94% (p=0.000 n=10)
+    AdjustTimers10000NoSleep-12          362.6µ ± 1%   292.5µ ± 1%  -19.33% (p=0.000 n=10)
+    AdjustTimers10000NoResetNoSleep-12   317.3µ ± 8%   279.8µ ± 2%  -11.79% (p=0.000 n=10)
     
-    Fixes #62121
     
-    Change-Id: I0911c70c5966672c930d387438643f94a40441c4
-    GitHub-Last-Rev: ce89a53097b53fc59ff3ce3996917f8484ad3967
-    GitHub-Pull-Request: golang/go#71639
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648056
+    Change-Id: Id3e10abfb1024f8e7883c8c366d941e4f1c2a894
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574738
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- api/next/62121.txt                          |   1 +
- doc/next/6-stdlib/99-minor/reflect/62121.md |   3 +
- src/reflect/all_test.go                     | 129 ++++++++++++++++++++++++++++
- src/reflect/value.go                        |  98 +++++++++++++++++----
- 4 files changed, 214 insertions(+), 17 deletions(-)
+ src/runtime/time.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

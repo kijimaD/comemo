@@ -1,18 +1,23 @@
-commit e0edd3e15519eb10a885d99422878596acd97899
-Author: cui fliter <imcusg@gmail.com>
-Date:   Mon Jan 15 14:52:10 2024 +0800
+commit 9fa153b729969855fcb694e12c16e20b1407ed9c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 9 13:49:21 2024 -0500
 
-    html/template: replace end-of-life link
+    runtime: don't call traceReadCPU on the system stack
     
-    Fix #65044
+    traceReadCPU calls profBuf.read, which does a raceacquire. g0 does not
+    have a race context, so this crashes when running on the system stack.
     
-    Change-Id: I5bf9c1cf2e9d3ae1e4bbb8f2653512c710db370b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555815
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: David Chase <drchase@google.com>
+    We could borrow a race context, but it is simpler to just move
+    traceReadCPU off of the system stack.
+    
+    Fixes #65607.
+    
+    Change-Id: I335155b96d683aebb92b2f4e1eea063dd139f2d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562996
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/html/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/trace2.go    | 3 +++
+ src/runtime/trace2cpu.go | 6 +++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

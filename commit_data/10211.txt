@@ -1,13 +1,21 @@
-commit 7db617b4747342e48d2f6586dacecd31511f365a
-Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 2 12:06:36 2011 -0700
+commit 8089e578124227a322a77f9c5599d2244f9d0cfc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 2 11:46:04 2011 -0700
 
-    builtin: document the basic types
-    The recursive definitions are illegal Go, but godoc doesn't mind.
+    exp/sql: finish transactions, flesh out types, docs
     
-    R=bradfitz, r, n13m3y3r, rsc
+    Fixes #2328 (float, bool)
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5322067
+    https://golang.org/cl/5294067
 
- src/pkg/builtin/builtin.go | 80 ++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 78 insertions(+), 2 deletions(-)
+ src/pkg/Makefile                     |   1 -
+ src/pkg/exp/sql/convert.go           |  71 ++++++----
+ src/pkg/exp/sql/convert_test.go      |  52 +++++++
+ src/pkg/exp/sql/driver/driver.go     |  14 +-
+ src/pkg/exp/sql/driver/types.go      |  62 ++++++++-
+ src/pkg/exp/sql/driver/types_test.go |  57 ++++++++
+ src/pkg/exp/sql/fakedb_test.go       |   2 +-
+ src/pkg/exp/sql/sql.go               | 258 ++++++++++++++++++++++++++++-------
+ 8 files changed, 433 insertions(+), 84 deletions(-)

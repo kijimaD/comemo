@@ -1,20 +1,111 @@
-commit 96e8e62821ddb862e947fc9a1609e8e5b713cf14
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 11 22:16:20 2022 +0000
+commit dcfe57b8c2ff32e3dba99787a81a43657a115011
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Fri Dec 24 15:29:18 2021 +0300
 
-    runtime: initialize the memory limit in mallocinit
+    runtime: use ERMS in memclr_amd64
     
-    Currently the memory limit is left uninitialized before gcinit, and
-    allocations may happen. The result is that the span allocation path
-    might try to scavenge memory unnecessarily. Prevent this by setting the
-    memory limit up early to its default value.
+    This patch adds support for REP STOSB in memclr(). The current
+    implementation uses REP STOSB when 1) ERMS is supported
+    2) size is bigger than 2kb and less than 32mb.
     
-    Change-Id: I886d9a8fa645861e4f88e0d54af793418426f520
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450736
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    The threshold of 2kb is chosen based on benchmark results and is
+    close to what Intel mentioned in their comparison of ERMSB and AVX
+    (Table 3-4. Relative Performance of Memcpy() Using ERMSB Vs. 128-bit
+    AVX in the Intel Optimization Guide).
+    
+    While REP STOS uses a no-RFO write protocol, ERMS could show the
+    same or slower performance comparing to Non-Temporal Stores when the
+    size is bigger than LLC depending on hardware.
+    
+    Benchmarks (including MemclrRange from CL373362)
+    goos: darwin
+    goarch: amd64
+    pkg: runtime
+    cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+    name                           old time/op    new time/op    delta
+    Memclr/5-12                      1.90ns ± 2%    2.13ns ± 2%  +11.72%  (p=0.001 n=7+7)
+    Memclr/16-12                     2.33ns ± 4%    2.36ns ± 4%     ~     (p=0.259 n=7+7)
+    Memclr/64-12                     2.58ns ± 2%    2.61ns ± 3%     ~     (p=0.091 n=7+7)
+    Memclr/256-12                    4.89ns ± 4%    4.94ns ± 3%     ~     (p=0.620 n=7+7)
+    Memclr/4096-12                   38.4ns ± 2%    39.5ns ± 5%     ~     (p=0.078 n=7+7)
+    Memclr/65536-12                   929ns ± 2%    1040ns ±19%     ~     (p=0.268 n=5+7)
+    Memclr/1M-12                     24.2µs ± 5%    19.0µs ± 9%  -21.62%  (p=0.001 n=7+7)
+    Memclr/4M-12                     93.3µs ± 3%    73.2µs ± 4%  -21.50%  (p=0.001 n=7+7)
+    Memclr/8M-12                      209µs ± 6%     164µs ± 3%  -21.55%  (p=0.001 n=7+7)
+    Memclr/16M-12                     731µs ± 4%     507µs ± 6%  -30.71%  (p=0.001 n=7+7)
+    Memclr/64M-12                    1.79ms ± 1%    1.83ms ± 3%   +2.47%  (p=0.041 n=6+6)
+    MemclrRange/1_2_47K-12            873ns ± 3%     899ns ± 5%     ~     (p=0.053 n=7+7)
+    MemclrRange/2_8_166K-12          2.98µs ± 4%    2.90µs ± 5%     ~     (p=0.165 n=7+7)
+    MemclrRange/4_16_315K-12         6.81µs ± 4%    5.31µs ± 9%  -22.01%  (p=0.001 n=7+7)
+    MemclrRange/128_256_1623K-12     37.5µs ± 4%    28.1µs ± 4%  -25.19%  (p=0.001 n=7+6)
+    [Geo mean]                       1.56µs         1.43µs        -8.43%
+    
+    name                           old speed      new speed      delta
+    Memclr/5-12                    2.63GB/s ± 2%  2.35GB/s ± 2%  -10.50%  (p=0.001 n=7+7)
+    Memclr/16-12                   6.86GB/s ± 4%  6.79GB/s ± 4%     ~     (p=0.259 n=7+7)
+    Memclr/64-12                   24.8GB/s ± 2%  24.5GB/s ± 3%     ~     (p=0.097 n=7+7)
+    Memclr/256-12                  52.4GB/s ± 4%  51.9GB/s ± 3%     ~     (p=0.620 n=7+7)
+    Memclr/4096-12                  107GB/s ± 2%   104GB/s ± 5%     ~     (p=0.073 n=7+7)
+    Memclr/65536-12                70.6GB/s ± 2%  64.2GB/s ±21%     ~     (p=0.268 n=5+7)
+    Memclr/1M-12                   43.4GB/s ± 5%  55.5GB/s ±10%  +28.04%  (p=0.001 n=7+7)
+    Memclr/4M-12                   45.0GB/s ± 4%  57.3GB/s ± 4%  +27.38%  (p=0.001 n=7+7)
+    Memclr/8M-12                   40.1GB/s ± 5%  51.1GB/s ± 3%  +27.37%  (p=0.001 n=7+7)
+    Memclr/16M-12                  23.0GB/s ± 4%  33.1GB/s ± 6%  +44.39%  (p=0.001 n=7+7)
+    Memclr/64M-12                  37.6GB/s ± 1%  36.7GB/s ± 3%   -2.38%  (p=0.041 n=6+6)
+    MemclrRange/1_2_47K-12         55.9GB/s ± 3%  54.3GB/s ± 5%     ~     (p=0.053 n=7+7)
+    MemclrRange/2_8_166K-12        57.4GB/s ± 5%  58.9GB/s ± 5%     ~     (p=0.165 n=7+7)
+    MemclrRange/4_16_315K-12       47.4GB/s ± 4%  60.9GB/s ± 9%  +28.40%  (p=0.001 n=7+7)
+    MemclrRange/128_256_1623K-12   44.3GB/s ± 4%  58.4GB/s ± 9%  +31.73%  (p=0.001 n=7+7)
+    [Geo mean]                     33.6GB/s       36.8GB/s        +9.27%
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: Intel(R) Xeon(R) Gold 6230N CPU @ 2.30GHz
+    name                     old time/op    new time/op     delta
+    Memclr/5-2                 2.53ns ± 0%     2.52ns ± 0%   -0.25%  (p=0.001 n=7+7)
+    Memclr/16-2                2.77ns ± 0%     2.55ns ± 0%   -7.97%  (p=0.000 n=5+7)
+    Memclr/64-2                3.16ns ± 0%     3.16ns ± 0%     ~     (p=0.432 n=7+7)
+    Memclr/256-2               7.26ns ± 0%     7.26ns ± 0%     ~     (p=0.220 n=7+7)
+    Memclr/4096-2              49.3ns ± 0%     43.5ns ± 0%  -11.80%  (p=0.001 n=7+7)
+    Memclr/65536-2             1.32µs ± 1%     1.24µs ± 0%   -6.31%  (p=0.001 n=7+7)
+    Memclr/1M-2                27.3µs ± 0%     26.6µs ± 5%     ~     (p=0.195 n=7+7)
+    Memclr/4M-2                 195µs ± 0%      148µs ± 4%  -24.22%  (p=0.001 n=7+7)
+    Memclr/8M-2                 391µs ± 0%      308µs ± 0%  -21.09%  (p=0.001 n=7+6)
+    Memclr/16M-2                782µs ± 0%      639µs ± 1%  -18.31%  (p=0.001 n=7+7)
+    Memclr/64M-2               2.83ms ± 1%     2.84ms ± 1%     ~     (p=0.620 n=7+7)
+    MemclrRange/1K_2K-2        1.24µs ± 0%     1.24µs ± 0%     ~     (p=1.000 n=7+6)
+    MemclrRange/2K_8K-2        3.89µs ± 0%     3.11µs ± 0%  -20.00%  (p=0.001 n=6+7)
+    MemclrRange/4K_16K-2       3.63µs ± 0%     2.37µs ± 0%  -34.61%  (p=0.001 n=7+7)
+    MemclrRange/160K_228K-2    31.0µs ± 0%     30.6µs ± 1%   -1.50%  (p=0.001 n=7+7)
+    [Geo mean]                 1.97µs          1.76µs       -10.59%
+    
+    name                     old speed      new speed       delta
+    Memclr/5-2               1.98GB/s ± 0%   1.98GB/s ± 0%   +0.27%  (p=0.001 n=7+7)
+    Memclr/16-2              5.78GB/s ± 0%   6.28GB/s ± 0%   +8.67%  (p=0.001 n=7+7)
+    Memclr/64-2              20.2GB/s ± 0%   20.3GB/s ± 0%     ~     (p=0.535 n=7+7)
+    Memclr/256-2             35.3GB/s ± 0%   35.2GB/s ± 0%     ~     (p=0.259 n=7+7)
+    Memclr/4096-2            83.1GB/s ± 0%   94.2GB/s ± 0%  +13.39%  (p=0.001 n=7+7)
+    Memclr/65536-2           49.7GB/s ± 1%   53.0GB/s ± 0%   +6.73%  (p=0.001 n=7+7)
+    Memclr/1M-2              38.4GB/s ± 0%   39.4GB/s ± 4%     ~     (p=0.209 n=7+7)
+    Memclr/4M-2              21.5GB/s ± 0%   28.4GB/s ± 4%  +32.02%  (p=0.001 n=7+7)
+    Memclr/8M-2              21.5GB/s ± 0%   27.2GB/s ± 0%  +26.73%  (p=0.001 n=7+6)
+    Memclr/16M-2             21.4GB/s ± 0%   26.2GB/s ± 1%  +22.42%  (p=0.001 n=7+7)
+    Memclr/64M-2             23.7GB/s ± 1%   23.7GB/s ± 1%     ~     (p=0.620 n=7+7)
+    MemclrRange/1K_2K-2      77.3GB/s ± 0%   77.3GB/s ± 0%     ~     (p=0.710 n=7+7)
+    MemclrRange/2K_8K-2      85.7GB/s ± 0%  107.1GB/s ± 0%  +25.00%  (p=0.001 n=6+7)
+    MemclrRange/4K_16K-2     89.0GB/s ± 0%  136.1GB/s ± 0%  +52.92%  (p=0.001 n=7+7)
+    MemclrRange/160K_228K-2  53.6GB/s ± 0%   54.4GB/s ± 1%   +1.52%  (p=0.001 n=7+7)
+    [Geo mean]               29.2GB/s        32.7GB/s       +11.86%
+    
+    Change-Id: I8f3533f88ebd303ae1666a77391fec304bea9724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374396
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/malloc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/memclr_amd64.s | 37 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 3 deletions(-)

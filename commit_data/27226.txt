@@ -1,19 +1,24 @@
-commit 073d292c453f85f6c50f063ba0a4d0d1b328dadc
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:18:09 2016 -0400
+commit 61b9315d3797ff9c007952c5096592542e655472
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 21:14:15 2016 -0700
 
-    cmd/link, runtime: add external linking support for linux/mips64x
+    cmd/internal/obj: remove LSym.Value
     
-    Fixes #12560
+    It is unused.
     
-    Change-Id: Ic2004fc7b09f2dbbf83c41f8c6307757c0e1676d
-    Reviewed-on: https://go-review.googlesource.com/19803
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I22ae2bb432ce6be377dea43cf018ffccb6e95f37
+    Reviewed-on: https://go-review.googlesource.com/20698
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/elf.go     | 49 ++++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go     |  2 +
- src/cmd/link/internal/mips64/asm.go | 75 ++++++++++++++++++++++++++++++++++++-
- src/cmd/link/internal/mips64/obj.go |  3 ++
- src/runtime/asm_mips64x.s           |  6 +--
- src/runtime/rt0_linux_mips64x.s     | 15 +++++---
- 6 files changed, 139 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/link.go        | 1 -
+ src/cmd/internal/obj/mips/asm0.go   | 4 ++--
+ src/cmd/internal/obj/objfile.go     | 2 +-
+ src/cmd/internal/obj/pcln.go        | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go  | 4 ++--
+ src/cmd/internal/obj/sizeof_test.go | 2 +-
+ src/cmd/internal/obj/sym.go         | 1 -
+ 7 files changed, 7 insertions(+), 9 deletions(-)

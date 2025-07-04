@@ -1,12 +1,27 @@
-commit 652d2386e99526eccc6634af2eaa7ff4c9a113c4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Sep 29 08:43:07 2015 +1000
+commit 765cea2b26b1f65b1865185526065db893feb346
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 13:52:04 2015 -0400
 
-    doc: add text/template blocks and redefinition to go1.6.txt
+    encoding/xml: fix race using finfo.parents in s.trim
     
-    Change-Id: Ide82ac98dc7cb1035ceb9d461ed95af899f8f983
-    Reviewed-on: https://go-review.googlesource.com/15081
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    This race was identified in #9796, but a sequence of fixes
+    proposed in golang.org/cl/4152 were rolled into
+    golang.org/cl/5910 which both fixed the race and
+    modified the name space behavior.
+    
+    We rolled back the name space changes and lost the race fix.
+    
+    Fix the race separate from the name space changes,
+    following the suggestion made by Roger Peppe in
+    https://go-review.googlesource.com/#/c/4152/7/src/encoding/xml/marshal.go@897
+    
+    Fixes #9796.
+    Fixes #11885.
+    
+    Change-Id: Ib2b68982da83dee9e04db8b8465a8295259bba46
+    Reviewed-on: https://go-review.googlesource.com/12687
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

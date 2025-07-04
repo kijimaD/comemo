@@ -1,16 +1,12 @@
-commit 8b16a8bbc10c9cfc07123311e1cc05263c7beec9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jul 7 23:06:30 2013 +0800
+commit daf81ae78ee17bc4ef0992f399f39dc3122cc107
+Author: Oliver Hookins <ohookins@gmail.com>
+Date:   Fri Jul 5 14:26:09 2013 +1000
 
-    cmd/go: fix "go get -u" for git repositories.
-    CL 10869046 changed cmd/go to checkout master branch, so
-    for "go get -u" to work, it must "git pull" instead of
-    "git fetch". Added "--ff-only" so that it won't accidentally
-    overwrite user changes.
+    encoding/json: Correct description of stateNeg function.
     
-    R=dsymonds
+    R=golang-dev, dave, adg
     CC=golang-dev
-    https://golang.org/cl/10907043
+    https://golang.org/cl/10862045
 
- src/cmd/go/vcs.go | 2 +-
+ src/pkg/encoding/json/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

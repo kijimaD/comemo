@@ -1,20 +1,17 @@
-commit 65607683f531e30071e450858ef6bdc283a0280c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 29 15:49:05 2020 -0400
+commit 7f0c479ffffc6267f482fbc48c0ca5f43017b40c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 23 05:30:01 2020 +0700
 
-    cmd/go: print deprecation messages for 'go get' installing executables
+    cmd/compile: rewrite dec64 rules to use typed aux field
     
-    For #40276
+    Passes toolstash-check -all.
     
-    Change-Id: I5e631a4c9ce07f23640fb56eb455457bc55072c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266360
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If9dd6c2155374eb9ef47639201ec90109a9e314c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229518
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- doc/go1.16.html                                    | 10 +++++
- src/cmd/go/alldocs.go                              | 15 +++++--
- src/cmd/go/internal/modget/get.go                  | 49 ++++++++++++++++++----
- .../testdata/script/mod_get_deprecate_install.txt  | 22 ++++++++++
- 4 files changed, 83 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/gen/dec64.rules | 236 ++++++++++---------------
+ src/cmd/compile/internal/ssa/rewritedec64.go | 254 +++++++++++++--------------
+ 2 files changed, 222 insertions(+), 268 deletions(-)

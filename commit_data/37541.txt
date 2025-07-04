@@ -1,14 +1,31 @@
-commit 96a6bd4bf6281a57c933bdcc1da96a7608cf20d7
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Nov 30 12:09:59 2018 +0100
+commit c882f4b6b13d4d38d354bec4614d4402031ec1b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 13 17:57:39 2018 -0700
 
-    cmd/go/internal/lockedfile/internal/filelock: fix test on iOS
+    go/printer: consider empty lines in table layout computation
     
-    Change-Id: I0390b382db0ca36de20af0ef15204c5bfc084d3d
-    Reviewed-on: https://go-review.googlesource.com/c/151937
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    In previous versions of Go including 1.10, an empty line would break the
+    alignment of elements within an expression list.
+    
+    golang.org/cl/104755 changed the heuristic, with the side effect that
+    empty lines no longer broke the table alignment.
+    
+    A prior fix (https://go-review.googlesource.com/c/go/+/125260, reverted)
+    introduced another regression (#26930) which this change doesn't produce.
+    
+    Added test cases for both #26352 and #26930.
+    
+    Fixes #26352.
+    Updates #26930.
+    
+    Change-Id: I371f48e6f3620ebbab53f2128ec5e58bcd4a62f1
+    Reviewed-on: https://go-review.googlesource.com/129256
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/go/printer/nodes.go                  | 41 +++++++++++++++-----------
+ src/go/printer/testdata/alignment.golden | 42 +++++++++++++++++++++++++++
+ src/go/printer/testdata/alignment.input  | 49 ++++++++++++++++++++++++++++++++
+ 3 files changed, 116 insertions(+), 16 deletions(-)

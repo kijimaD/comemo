@@ -1,17 +1,12 @@
-commit abbbb4283a60df46abe11b898345bbe9bc724034
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Feb 28 20:37:25 2013 -0500
+commit 523cb45c9d46dc7765c7626303e8a80210bbc5bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 28 16:58:14 2013 -0800
 
-    go/types: fix regression in type checking of RangeStmt.
+    net/http: document net/http/cookiejar on CookieJar
     
-    Now that untyped expressions are done in two phases, the
-    identity of operand.expr is used as a map key; when reusing
-    operand values we now must be careful to update the
-    expr field.
-    
-    R=gri
+    R=golang-dev, nigeltao, adg
     CC=golang-dev
-    https://golang.org/cl/7444049
+    https://golang.org/cl/7444048
 
- src/pkg/go/types/stmt.go | 2 ++
+ src/pkg/net/http/jar.go | 2 ++
  1 file changed, 2 insertions(+)

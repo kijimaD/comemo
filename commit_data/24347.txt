@@ -1,12 +1,13 @@
-commit c604f48d243b235ec741c117b32bcf6c89ff6c66
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Tue Sep 22 20:45:16 2015 -0700
+commit d90e0481bf0c2f5ba13ed0ae1872b223f0c5ce9c
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jul 23 20:01:40 2015 -0500
 
-    doc: document go1.4.3
+    [dev.ssa] cmd/compile: implement LEAQ2/LEAQ4/LEAQ8 opcodes
     
-    Change-Id: Ib1bfe4038e2b125a31acd9ff7772e462b0a6358f
-    Reviewed-on: https://go-review.googlesource.com/14852
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8da76b9a4c5c80e8515e69e105d6349fe3ad9281
+    Reviewed-on: https://go-review.googlesource.com/12611
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/devel/release.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

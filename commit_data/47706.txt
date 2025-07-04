@@ -1,46 +1,24 @@
-commit c27a3592aec5f46ae18f7fd3d9ba18e69e2f1dcb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 23 17:27:40 2021 +0000
+commit 1395432f2330498c8e5661c14652996894f0cc7d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 5 14:30:03 2021 -0700
 
-    runtime: set iOS addr space to 40 bits with incremental pagealloc
+    cmd/compile/internal/types2: remove Config.AcceptMethodTypeParams flag
     
-    In iOS <14, the address space is strictly limited to 8 GiB, or 33 bits.
-    As a result, the page allocator also assumes all heap memory lives in
-    this region. This is especially necessary because the page allocator has
-    a PROT_NONE mapping proportional to the size of the usable address
-    space, so this keeps that mapping very small.
+    Type parameters for methods are not part of the accepted language,
+    but maintaining the code for type-checking them ensures regularity
+    of the type checker implementation. For now, keep the flag internally,
+    disabled by default. The flag is set when running tests.
     
-    However starting with iOS 14, this restriction is relaxed, and mmap may
-    start returning addresses outside of the <14 range. Today this means
-    that in iOS 14 and later, users experience an error in the page
-    allocator when a heap arena is mapped outside of the old range.
-    
-    This change increases the ios/arm64 heapAddrBits to 40 while
-    simultaneously making ios/arm64 use the 64-bit pagealloc implementation
-    (with reservations and incremental mapping) to accommodate both iOS
-    versions <14 and 14+.
-    
-    Once iOS <14 is deprecated, we can remove these exceptions and treat
-    ios/arm64 like any other arm64 platform.
-    
-    This change also makes the BaseChunkIdx expression a little bit easier
-    to read, while we're here.
-    
-    Fixes #46860.
-    
-    Change-Id: I13865f799777739109585f14f1cc49d6d57e096b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344401
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ic99934bd00bd2608dc1178e4131f46dd1507f0f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307214
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/export_test.go      | 14 +++++++++++++-
- src/runtime/malloc.go           | 20 +++++++++++++-------
- src/runtime/mgcscavenge_test.go |  5 ++++-
- src/runtime/mpagealloc_32bit.go |  8 +-------
- src/runtime/mpagealloc_64bit.go |  4 +---
- src/runtime/mpagealloc_test.go  |  9 +++++++--
- src/runtime/mpagecache_test.go  |  5 ++++-
- 7 files changed, 43 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/types2/api.go        | 3 ---
+ src/cmd/compile/internal/types2/api_test.go   | 5 ++---
+ src/cmd/compile/internal/types2/check.go      | 5 -----
+ src/cmd/compile/internal/types2/check_test.go | 1 -
+ src/cmd/compile/internal/types2/resolver.go   | 2 +-
+ src/cmd/compile/internal/types2/types_test.go | 9 +++++++++
+ src/cmd/compile/internal/types2/typexpr.go    | 7 +++++--
+ 7 files changed, 17 insertions(+), 15 deletions(-)

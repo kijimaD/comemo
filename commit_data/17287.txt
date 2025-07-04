@@ -1,19 +1,14 @@
-commit 0b25ba9ced9d0dda8a73545a2cc3eb377515d9c7
+commit 5f199f2d5a6054cffbea5a869004a3af55b4f401
 Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Fri Aug 16 00:22:38 2013 -0400
+Date:   Thu Aug 15 20:40:38 2013 -0700
 
-    misc/emacs: allow godef to work in coverage buffers
+    misc/emacs: when defining prog-mode, define it like GNU Emacs 24 would
     
-    Jumps to the same file will use the original buffer, not the
-    coverage buffer. Making it work for the coverage buffer isn't
-    worth the trouble, especially because it would break as soon as
-    you jump to a different file and back.
-    
-    Use error instead of message so it actually terminates
+    Fixes #6156.
     
     R=adonovan
     CC=golang-dev
-    https://golang.org/cl/13041043
+    https://golang.org/cl/13035043
 
- misc/emacs/go-mode.el | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ misc/emacs/go-mode.el | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

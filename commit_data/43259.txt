@@ -1,16 +1,16 @@
-commit 2f4368c174f616b6623e66ca4c84e701d209fa4f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 14:10:24 2020 -0400
+commit 0c302459968511865ec6a5ee4ff2172e4e54cef8
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 22 06:22:41 2020 +0000
 
-    cmd/fix: rename confusing boolean
+    runtime: correct the system-call name of kevent  in comment
     
-    ("truth" says nothing about what is true.
-    This boolean tracks whether the file was fixed.)
-    
-    Change-Id: I29bb80c4fad3ca7f2ae96e50e16f6cde484b374f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240556
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib1f4a6f7e36d28eff39f597df5c4703bf62654a4
+    GitHub-Last-Rev: 15ea1b9fa846737bd5d30b7b98d8933f9992e5c7
+    GitHub-Pull-Request: golang/go#37994
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/fix/gotypes.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/netpoll_aix.go    | 2 +-
+ src/runtime/netpoll_kqueue.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,13 +1,18 @@
-commit b51123001f76d67df07fca304b16664344ba6800
+commit 6920b2a1f93a2ff6876eafc7f8747e82aa59d015
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 22 20:41:13 2014 -0700
+Date:   Wed Oct 8 15:48:46 2014 -0700
 
-    gccgo_install.html: the 4.9 release series supports Go 1.2
+    reflect: add tests for variadic method calls
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    These tests fail when using gccgo.  In gccgo using Interface
+    on the value of a method function is implemented using a
+    variant of MakeFunc.  That approach did not correctly handle
+    variadic functions.
+    
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/163760043
+    https://golang.org/cl/151280043
 
- doc/gccgo_install.html | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/reflect/all_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 49 insertions(+), 5 deletions(-)

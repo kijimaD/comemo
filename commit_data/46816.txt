@@ -1,24 +1,38 @@
-commit 5b9206f64ef4d8ea3201627cf9ba5c2b86e65022
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sun Sep 26 14:56:55 2021 +0800
+commit bfc7418e6d3a505fe348718fd113473c9d92b135
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 29 12:03:32 2021 -0500
 
-    time: allow minimum int64 in ParseDuration
+    [dev.regabi] runtime, syscall, etc.: mark Darwin syscall wrappers as ABIInternal
     
-    ParseDuration should handle minimum int64 (-1<<63) nanosecond
-    since type Duration is alias of int64
+    Mark the syscall wrappers as ABIInternal, as they have addresses
+    taken from Go code, and it is important to call to them without
+    wrappers.
     
-    name           old time/op  new time/op  delta
-    ParseDuration  91.4ns ± 0%  86.4ns ± 1%  -5.49%  (p=0.000 n=9+8)
+    Previously, the wrapper is just a single JMP instruction, which
+    makes it not matter. In the next CL we'll make the wrapper
+    actually have a frame. The real wrappers will mess up things
+    such as stack alignment for C ABI.
     
-    Fixes: #48629
-    Change-Id: I81b7035b25cefb4c1e5b7801c20f2d335e29358a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352269
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This doesn't look really nice, but I don't know how we can do
+    better...
+    
+    TODO: other OSes.
+    
+    Change-Id: Ifb3920494990a7775e3e6902fbcaf137df3cc653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288092
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/time/format.go    | 56 +++++++++++++++++++++++++--------------------------
- src/time/time_test.go | 27 ++++++++++++++++++++-----
- 2 files changed, 49 insertions(+), 34 deletions(-)
+ src/cmd/dist/build.go                           |   2 +
+ src/cmd/internal/objabi/path.go                 |   2 +
+ src/crypto/x509/internal/macos/corefoundation.s |  21 +-
+ src/crypto/x509/internal/macos/security.s       |  11 +-
+ src/runtime/sys_darwin_amd64.s                  |  96 ++++-----
+ src/syscall/mkasm.go                            |   3 +-
+ src/syscall/zsyscall_darwin_amd64.s             | 250 ++++++++++++------------
+ src/syscall/zsyscall_darwin_arm64.s             | 250 ++++++++++++------------
+ src/syscall/zsyscall_openbsd_amd64.s            | 230 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_arm64.s            | 230 +++++++++++-----------
+ 10 files changed, 554 insertions(+), 541 deletions(-)

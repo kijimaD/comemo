@@ -1,23 +1,38 @@
-commit beea7c1ba6a93c2a2991e79936ac4050bae851c4
-Author: Chemaclass <chemaclass@outlook.es>
-Date:   Sat Apr 13 14:24:11 2024 +0000
+commit 14ab998f95b53baa6e336c598b0f34e319cc9717
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 14 14:25:56 2023 -0400
 
-    io: fix typo inside copyBuffer
+    cmd/go: add check for unknown godebug setting
     
-    The "rt" seems to be caused after copy-pasting the previous "wt" block
-    which make sense as WriterTo, but for ReaderFrom it makes more sense
-    thinking of rf instead of rt.
+    A //go:debug line mentioning an unknown or retired setting
+    should be diagnosed as making the program invalid. Do that.
+    We agreed on this in the proposal but I forgot to implement it.
     
-    Change-Id: I873699c27211bea6cdba3e199f36eb3c38188d70
-    GitHub-Last-Rev: 1795600a9b29946d824ba645c137da216bdf6302
-    GitHub-Pull-Request: golang/go#66811
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578635
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ie69072a1682d4eeb6866c02adbbb426f608567c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476280
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/io/io.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testshared/shared_test.go             |   2 +-
+ src/cmd/dist/buildtool.go                      |   1 +
+ src/cmd/go/gotoolchain.go                      |   2 +-
+ src/cmd/go/internal/fsys/fsys.go               |   6 +-
+ src/cmd/go/internal/load/godebug.go            |  24 +++--
+ src/cmd/go/internal/modindex/read.go           |   2 +-
+ src/cmd/go/testdata/script/godebug_unknown.txt |   9 ++
+ src/go/build/deps_test.go                      |   4 +-
+ src/internal/cpu/cpu_test.go                   |   2 +-
+ src/internal/cpu/cpu_x86_test.go               |   2 +-
+ src/internal/fuzz/fuzz.go                      |   2 +-
+ src/internal/godebug/godebug.go                |  38 ++++++--
+ src/internal/godebug/godebug_test.go           |   6 +-
+ src/internal/godebugs/godebugs_test.go         |  41 ++++++++
+ src/internal/godebugs/table.go                 |  64 +++++++++++++
+ src/internal/intern/intern.go                  |   2 +-
+ src/mime/multipart/formdata.go                 |   4 +-
+ src/os/exec/exec.go                            |   2 +-
+ src/runtime/metrics.go                         |  26 ++---
+ src/runtime/metrics/description.go             | 126 ++++++-------------------
+ src/runtime/metrics/doc.go                     |   7 +-
+ 21 files changed, 208 insertions(+), 164 deletions(-)

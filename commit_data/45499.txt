@@ -1,26 +1,27 @@
-commit be1da9cdeecba15d0f68b4dcc145bcc77c0c4ace
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat May 1 15:00:03 2021 -0400
+commit b3f7f60129b822978115717912f4d477a46e8467
+Author: xd <xiangdong.ji@gmail.com>
+Date:   Wed Oct 14 11:02:49 2020 -0700
 
-    cmd/link: unify text segment write
+    cmd/dist: fix build failure of misc/cgo/test on arm64
     
-    Currently we have two code paths of writing the text segment. They
-    are semantically the same:
+    misc/cgo/test fails in 'dist test' on arm64 if the C compiler is of GCC-9.4 or
+    above and its 'outline atomics' feature is enabled, since the internal linking
+    hasn't yet supported "__attribute__((constructor))" and also mis-handles hidden
+    visibility.
     
-    - if we split text sections, we write all ".text" sections as
-      text and the the rest as data.
-    - if we do not split text sections, we write the first section
-      as text and the rest as data. The first section is named ".text"
-      and is the only one in this case.
+    This change addresses the problem by skipping the internal linking cases of
+    misc/cgo/test on linux/arm64. It fixes 'dist test' failure only, user is expected to
+    pass a GCC option '-mno-outline-atomics' via CGO_CFLAGS if running into the same
+    problem when building cgo programs using internal linking.
     
-    Unify the code.
+    Updates #39466
     
-    Change-Id: Ic639eed625615be3c8a8d41f5b47e901552f587a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316049
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I57f9e85fca881e5fd2dae6c1b4446bce9e0c1975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262357
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/link/internal/ld/asmb.go   | 23 ++++++-----------------
- src/cmd/link/internal/ld/lib.go    |  3 ---
- src/cmd/link/internal/ppc64/obj.go | 13 ++++++-------
- 3 files changed, 12 insertions(+), 27 deletions(-)
+ src/cmd/dist/test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

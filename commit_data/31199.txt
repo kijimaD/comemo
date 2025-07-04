@@ -1,16 +1,21 @@
-commit 08fe56386ba117a44b52b28e5ab8dd4321af49f9
-Author: Todd Neal <todd@tneal.org>
-Date:   Tue Apr 18 21:01:20 2017 -0500
+commit 91ad2a219445d6df3ddb796d0f44190da24f429d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 9 16:00:02 2016 -0500
 
-    .gitignore: change path to zbootstrap.go
+    runtime/pprof: add definitions of profile label types
     
-    zbootstrap.go was moved in 1e3570a. This updates .gitignore to match.
+    This change defines WithLabels, Labels, Label, and ForLabels.
+    This is the first step of the profile labels implemention for go 1.9.
     
-    Change-Id: I7500e0abc8e60b6c36c6ae056b2f68b9d021fc6f
-    Reviewed-on: https://go-review.googlesource.com/40993
-    Run-TryBot: Todd Neal <todd@tneal.org>
+    Updates #17280
+    
+    Change-Id: I2dfc9aae90f7a4aa1ff7080d5747f0a1f0728e75
+    Reviewed-on: https://go-review.googlesource.com/34198
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- .gitignore | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go       |  2 +-
+ src/runtime/pprof/label.go      | 77 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/pprof/label_test.go | 82 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+), 1 deletion(-)

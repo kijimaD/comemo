@@ -1,15 +1,20 @@
-commit e266d6064c7e485673ea651d673b2ca22e0649f2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 29 07:45:38 2012 +0900
+commit bfdc3baa1e6a5d18dbfb85081f223192dd2fb210
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Wed Feb 29 09:38:58 2012 +1100
 
-    net: fix comment on Dial with unixgram
+    doc/style.css: make selectors more selective.
     
-    We should use DialUnix or ListenPacket for unixgram networks
-    because Dial doesn't take a local UnixAddr.
+    Change #foo to div#foo to avoid selecting headings
+    with anchor foo, such as <h1 id="foo">.
     
-    R=golang-dev, rsc
+    (A more extensive change would be to use class
+    selectors for styling. Perhaps this is better, since id:s
+    should be unique within a document according to
+    http://www.w3.org/TR/CSS2/selector.html#id-selectors)
+    
+    R=golang-dev, gri, adg
     CC=golang-dev
-    https://golang.org/cl/5706043
+    https://golang.org/cl/5702044
 
- src/pkg/net/dial.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/style.css | 146 +++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 84 insertions(+), 62 deletions(-)

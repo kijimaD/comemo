@@ -1,23 +1,22 @@
-commit 619e37bdcc45c740c9c96aeaa10a6304781c6cec
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Sun Apr 16 00:10:19 2017 +0100
+commit 03583675765933d4a5fb394cfa89fb41b274aaa7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jan 21 19:52:09 2017 -0800
 
-    cmd/compile: Budget for inlining is now 80 nodes, not 40
+    cmd/compile, runtime: convert byte-sized values to interfaces without allocation
     
-    This comment was out of date since the bump to 80 done as the same time
-    as inlining transitive functions in:
+    Based in part on khr's CL 2500.
     
-      commit 77ccb16eb12f461eaea5fdf652a2e929dc154192
-      Author: Russ Cox <rsc@golang.org>
-      Date:   Tue Feb 24 12:19:01 2015 -0500
+    Updates #17725
+    Updates #18121
     
-          cmd/internal/gc: transitive inlining
-    
-    Adjust the comment at the top of the file accordingly.
-    
-    Change-Id: Ia6d7397c874e3b85396e82dc9678e56aab9ad728
-    Reviewed-on: https://go-review.googlesource.com/40910
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I744e1f92fc2104e6c5bd883a898c30b2eea8cc31
+    Reviewed-on: https://go-review.googlesource.com/35555
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go   |  1 +
+ src/cmd/compile/internal/gc/ssa.go  |  4 ++++
+ src/cmd/compile/internal/gc/walk.go | 24 +++++++++++++++++++++++-
+ src/runtime/iface.go                | 36 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 1 deletion(-)

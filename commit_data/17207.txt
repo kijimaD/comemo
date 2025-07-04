@@ -1,22 +1,15 @@
-commit c32a8830bd5d8bc203d21d0b921790737d767f4a
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 14 07:03:18 2013 +1000
+commit d90a81c39f06351ce6524a1ae15499d2d60253c8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 14 00:44:57 2013 +0400
 
-    cmd/go: nicer error diagnosis in go test
-    Before,
-            go test -bench .
-    would just dump the long generic "go help" message. Confusing and
-    unhelpful. Now the message is short and on point and also reminds the
-    user about the oft-forgotten "go help testflag".
+    net: fix windows build
+    Windows builders say:
+    pkg\net\dnsclient_unix_test.go:24: undefined: dnsConfig
+    pkg\net\dnsclient_unix_test.go:25: undefined: exchange
     
-            % go test -bench
-            go test: missing argument for flag bench
-            run "go help test" or "go help testflag" for more information
-            %
-    
-    R=rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/12662046
+    https://golang.org/cl/12889043
 
- src/cmd/go/testflag.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/pkg/net/dnsclient_unix_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

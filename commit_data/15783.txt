@@ -1,16 +1,26 @@
-commit f6a952599e2e9d75b50d1b1252397325111b1a87
-Author: Tyler Bunnell <tylerbunnell@gmail.com>
-Date:   Fri Mar 15 00:35:09 2013 -0400
+commit cb4428e555f664a64b0e2f5f4fe6e3c5991dbdd7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 00:00:02 2013 -0400
 
-    cmd/gc: disallow fallthrough in final case of switch
+    os/signal: add Stop, be careful about SIGHUP
     
-    Small change to cmd/gc to catch a "fallthrough" in the final case of a switch.
+    Fixes #4268.
+    Fixes #4491.
     
-    R=golang-dev, rsc, mtj
+    R=golang-dev, nightlyone, fullung, r
     CC=golang-dev
-    https://golang.org/cl/7841043
+    https://golang.org/cl/7546048
 
- src/cmd/gc/swt.c |  4 ++++
- test/switch.go   |  9 ---------
- test/switch4.go  | 36 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 40 insertions(+), 9 deletions(-)
+ src/pkg/os/signal/sig.s            |   3 +
+ src/pkg/os/signal/signal.go        |  91 +++++++++++++++++++++++------
+ src/pkg/os/signal/signal_stub.go   |   8 ++-
+ src/pkg/os/signal/signal_test.go   | 113 +++++++++++++++++++++++++++++++++++--
+ src/pkg/os/signal/signal_unix.go   |  25 ++++++--
+ src/pkg/runtime/os_plan9_386.c     |   6 ++
+ src/pkg/runtime/os_plan9_amd64.c   |   6 ++
+ src/pkg/runtime/os_windows_386.c   |   6 ++
+ src/pkg/runtime/os_windows_amd64.c |   6 ++
+ src/pkg/runtime/runtime.h          |   3 +
+ src/pkg/runtime/signal_unix.c      |  51 +++++++++++++----
+ src/pkg/runtime/sigqueue.goc       |  18 +++---
+ 12 files changed, 289 insertions(+), 47 deletions(-)

@@ -1,19 +1,17 @@
-commit 408b31dcc5d888fe7599e703bb05f50d4a378d4f
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 11 12:31:55 2023 -0400
+commit 7717ac151ae1556541dddc6a817ac04733f1af44
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 10 11:23:40 2022 -0500
 
-    cmd/go: rename ld, ldShared "out" argument to "targetPath"
+    runtime: make Malloc benchmarks actually benchmark malloc
     
-    "out" is often used for stdout or stderr. Rename it to targetPath to
-    clarify its meaning.
+    The compiler is too clever so the allocations are currently
+    avoided. Rewrite to make them actually allocate.
     
-    Change-Id: I95823e9119843a7026dc26c192497776ee4219e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534595
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I9542e1365120b2ace318360883b0b01ed5670da7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449476
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/work/exec.go  |  8 ++++----
- src/cmd/go/internal/work/gc.go    | 10 +++++-----
- src/cmd/go/internal/work/gccgo.go |  8 ++++----
- 3 files changed, 13 insertions(+), 13 deletions(-)
+ src/runtime/malloc_test.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

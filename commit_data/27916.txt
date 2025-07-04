@@ -1,22 +1,19 @@
-commit 794442375d87e57d012bab2d7424575f6cdff018
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 18 17:05:54 2016 -0700
+commit 5183ad696c708ab5fc65006413019b1ef96aa91b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 18 16:42:17 2016 +1000
 
-    cmd/vet: allow large shifts of constants
+    debug/pe: add some documentation and TODO
     
-    Large shifts of constants are frequently
-    used for fancy 32/64 bit detection.
+    No code changes. Just moved ImportDirectory next to ImportedSymbols.
+    And moved useless FormatError to the bottom of file.go.
     
-    This removes 14 false positives from the
-    standard library.
+    Updates #15345
     
-    Updates #11041
-    
-    Change-Id: Ib39346e5c161da04c38a6a3067932ef43bf74f2d
-    Reviewed-on: https://go-review.googlesource.com/27155
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I91ff243cefd18008b1c5ee9ec4326583deee431b
+    Reviewed-on: https://go-review.googlesource.com/22182
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/shift.go          | 6 ++++++
- src/cmd/vet/testdata/shift.go | 2 ++
- 2 files changed, 8 insertions(+)
+ src/debug/pe/file.go | 52 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 25 deletions(-)

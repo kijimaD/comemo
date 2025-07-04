@@ -1,14 +1,19 @@
-commit 0e3f4fdb520097b9c45264ebc97e246a156b51d2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Nov 7 05:03:16 2012 +0800
+commit d098bffd8488df939221bc487cf6f2f124b66e1e
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue Nov 6 20:40:40 2012 +0100
 
-    net/rpc: give hint to pass a pointer to Register
-    Fixes #4325.
+    cmd/gc, runtime: avoid unnecessary copy on type assertion.
     
-    R=golang-dev, r
+    When the first result of a type assertion is blank, the compiler would still copy out a potentially large non-interface type.
+    
+    Fixes #1021.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6819081
+    https://golang.org/cl/6812079
 
- src/pkg/net/rpc/server.go      | 61 ++++++++++++++++++++++++++++++------------
- src/pkg/net/rpc/server_test.go | 17 +++++++++---
- 2 files changed, 58 insertions(+), 20 deletions(-)
+ src/cmd/gc/builtin.c    |  2 ++
+ src/cmd/gc/runtime.go   |  2 ++
+ src/cmd/gc/walk.c       | 25 +++++++++++++++++++++++++
+ src/pkg/runtime/iface.c | 14 ++++++++++++++
+ 4 files changed, 43 insertions(+)

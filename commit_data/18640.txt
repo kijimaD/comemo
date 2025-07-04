@@ -1,20 +1,15 @@
-commit 280d46b03be642fbbb817332069d6b337774746e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 25 10:22:27 2014 -0500
+commit 7206f50f719cdac2a93e2beb723908bff69d7f22
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 25 23:03:01 2014 +0900
 
-    cmd/go: document new -exec flag on run/test
+    runtime: use monotonic clock for timers on linux/arm
     
-    The new flag was added by CL 68150047 (part of the NaCl replay),
-    but the change, like the original, omitted documentation of the
-    new behavior.
+    Update #6007
     
-    LGTM=r
-    R=r
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/68580043
+    https://golang.org/cl/67730048
 
- doc/go1.3.txt      |  1 +
- src/cmd/go/doc.go  | 24 ++++++++++++++++++------
- src/cmd/go/run.go  | 11 ++++++++++-
- src/cmd/go/test.go |  4 ++++
- 4 files changed, 33 insertions(+), 7 deletions(-)
+ src/pkg/runtime/sys_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

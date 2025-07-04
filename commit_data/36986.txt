@@ -1,44 +1,118 @@
-commit a1ca4893ff755d6b0b3bf4b026196d55251ea846
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Jan 27 11:55:34 2018 +0100
+commit 10313803615307d1a9cd13d16c4d4316e61cd91e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 14 11:49:42 2018 +0200
 
-    cmd/compile: add intrinsics for runtime/internal/math on 386 and amd64
+    syscall, internal/syscall: follow convention for generated code comment
     
-    Add generic, 386 and amd64 specific ops and SSA rules for multiplication
-    with overflow and branching based on overflow flags. Use these to intrinsify
-    runtime/internal/math.MulUinptr.
+    Follow the convertion (https://golang.org/s/generatedcode) for generated
+    code.
     
-    On amd64
-      mul, overflow := math.MulUintptr(a, b)
-      if overflow {
-    is lowered to two instructions:
-      MULQ SI
-      JO 0x10ee35c
-    
-    No codegen tests as codegen can not currently test unexported internal runtime
-    functions.
-    
-    amd64:
-    name              old time/op  new time/op  delta
-    MulUintptr/small  1.16ns ± 5%  0.88ns ± 6%  -24.36%  (p=0.000 n=19+20)
-    MulUintptr/large  10.7ns ± 1%   1.1ns ± 1%  -89.28%  (p=0.000 n=17+19)
-    
-    Change-Id: If60739a86f820e5044d677276c21df90d3c7a86a
-    Reviewed-on: https://go-review.googlesource.com/c/141820
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I4ac8b99ac45f25dd2399d048ea831489e5394984
+    Reviewed-on: https://go-review.googlesource.com/118821
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |  13 ++-
- src/cmd/compile/internal/gc/ssa.go             |   8 ++
- src/cmd/compile/internal/ssa/gen/386.rules     |   5 +
- src/cmd/compile/internal/ssa/gen/386Ops.go     |   5 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   6 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +
- src/cmd/compile/internal/ssa/gen/genericOps.go |   3 +
- src/cmd/compile/internal/ssa/opGen.go          | 101 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewrite386.go     | 123 ++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 150 +++++++++++++++++++++++++
- src/cmd/compile/internal/x86/ssa.go            |  13 ++-
- src/runtime/internal/math/math_test.go         |  28 +++++
- 12 files changed, 459 insertions(+), 2 deletions(-)
+ src/internal/syscall/windows/registry/zsyscall_windows.go | 2 +-
+ src/internal/syscall/windows/zsyscall_windows.go          | 2 +-
+ src/syscall/mkerrors.sh                                   | 2 +-
+ src/syscall/mksyscall.pl                                  | 2 +-
+ src/syscall/mksyscall_solaris.pl                          | 2 +-
+ src/syscall/mksyscall_windows.go                          | 2 +-
+ src/syscall/mksysctl_openbsd.pl                           | 2 +-
+ src/syscall/mksysnum_darwin.pl                            | 2 +-
+ src/syscall/mksysnum_dragonfly.pl                         | 2 +-
+ src/syscall/mksysnum_freebsd.pl                           | 2 +-
+ src/syscall/mksysnum_linux.pl                             | 2 +-
+ src/syscall/mksysnum_netbsd.pl                            | 2 +-
+ src/syscall/mksysnum_openbsd.pl                           | 2 +-
+ src/syscall/mksysnum_plan9.sh                             | 2 +-
+ src/syscall/zerrors_darwin_386.go                         | 2 +-
+ src/syscall/zerrors_darwin_amd64.go                       | 2 +-
+ src/syscall/zerrors_darwin_arm.go                         | 2 +-
+ src/syscall/zerrors_darwin_arm64.go                       | 2 +-
+ src/syscall/zerrors_dragonfly_amd64.go                    | 2 +-
+ src/syscall/zerrors_freebsd_386.go                        | 2 +-
+ src/syscall/zerrors_freebsd_amd64.go                      | 2 +-
+ src/syscall/zerrors_freebsd_arm.go                        | 2 +-
+ src/syscall/zerrors_linux_386.go                          | 2 +-
+ src/syscall/zerrors_linux_amd64.go                        | 2 +-
+ src/syscall/zerrors_linux_arm.go                          | 2 +-
+ src/syscall/zerrors_linux_arm64.go                        | 2 +-
+ src/syscall/zerrors_linux_mips.go                         | 2 +-
+ src/syscall/zerrors_linux_mips64.go                       | 2 +-
+ src/syscall/zerrors_linux_mips64le.go                     | 2 +-
+ src/syscall/zerrors_linux_mipsle.go                       | 2 +-
+ src/syscall/zerrors_linux_ppc64.go                        | 2 +-
+ src/syscall/zerrors_linux_ppc64le.go                      | 2 +-
+ src/syscall/zerrors_linux_s390x.go                        | 2 +-
+ src/syscall/zerrors_netbsd_386.go                         | 2 +-
+ src/syscall/zerrors_netbsd_amd64.go                       | 2 +-
+ src/syscall/zerrors_netbsd_arm.go                         | 2 +-
+ src/syscall/zerrors_openbsd_386.go                        | 2 +-
+ src/syscall/zerrors_openbsd_amd64.go                      | 2 +-
+ src/syscall/zerrors_openbsd_arm.go                        | 2 +-
+ src/syscall/zerrors_solaris_amd64.go                      | 2 +-
+ src/syscall/zerrors_windows.go                            | 2 +-
+ src/syscall/zsyscall_darwin_386.go                        | 2 +-
+ src/syscall/zsyscall_darwin_amd64.go                      | 2 +-
+ src/syscall/zsyscall_darwin_arm.go                        | 2 +-
+ src/syscall/zsyscall_darwin_arm64.go                      | 2 +-
+ src/syscall/zsyscall_dragonfly_amd64.go                   | 2 +-
+ src/syscall/zsyscall_freebsd_386.go                       | 2 +-
+ src/syscall/zsyscall_freebsd_amd64.go                     | 2 +-
+ src/syscall/zsyscall_freebsd_arm.go                       | 2 +-
+ src/syscall/zsyscall_linux_386.go                         | 2 +-
+ src/syscall/zsyscall_linux_amd64.go                       | 2 +-
+ src/syscall/zsyscall_linux_arm.go                         | 2 +-
+ src/syscall/zsyscall_linux_arm64.go                       | 2 +-
+ src/syscall/zsyscall_linux_mips.go                        | 2 +-
+ src/syscall/zsyscall_linux_mips64.go                      | 2 +-
+ src/syscall/zsyscall_linux_mips64le.go                    | 2 +-
+ src/syscall/zsyscall_linux_mipsle.go                      | 2 +-
+ src/syscall/zsyscall_linux_ppc64.go                       | 2 +-
+ src/syscall/zsyscall_linux_ppc64le.go                     | 2 +-
+ src/syscall/zsyscall_linux_s390x.go                       | 2 +-
+ src/syscall/zsyscall_nacl_386.go                          | 2 +-
+ src/syscall/zsyscall_nacl_amd64p32.go                     | 2 +-
+ src/syscall/zsyscall_nacl_arm.go                          | 2 +-
+ src/syscall/zsyscall_netbsd_386.go                        | 2 +-
+ src/syscall/zsyscall_netbsd_amd64.go                      | 2 +-
+ src/syscall/zsyscall_netbsd_arm.go                        | 2 +-
+ src/syscall/zsyscall_openbsd_386.go                       | 2 +-
+ src/syscall/zsyscall_openbsd_amd64.go                     | 2 +-
+ src/syscall/zsyscall_openbsd_arm.go                       | 2 +-
+ src/syscall/zsyscall_plan9_386.go                         | 2 +-
+ src/syscall/zsyscall_plan9_amd64.go                       | 2 +-
+ src/syscall/zsyscall_plan9_arm.go                         | 2 +-
+ src/syscall/zsyscall_solaris_amd64.go                     | 2 +-
+ src/syscall/zsyscall_windows.go                           | 2 +-
+ src/syscall/zsysctl_openbsd.go                            | 2 +-
+ src/syscall/zsysnum_darwin_386.go                         | 2 +-
+ src/syscall/zsysnum_darwin_amd64.go                       | 2 +-
+ src/syscall/zsysnum_darwin_arm.go                         | 2 +-
+ src/syscall/zsysnum_darwin_arm64.go                       | 2 +-
+ src/syscall/zsysnum_dragonfly_amd64.go                    | 2 +-
+ src/syscall/zsysnum_freebsd_386.go                        | 2 +-
+ src/syscall/zsysnum_freebsd_amd64.go                      | 2 +-
+ src/syscall/zsysnum_freebsd_arm.go                        | 2 +-
+ src/syscall/zsysnum_linux_386.go                          | 2 +-
+ src/syscall/zsysnum_linux_amd64.go                        | 2 +-
+ src/syscall/zsysnum_linux_arm.go                          | 2 +-
+ src/syscall/zsysnum_linux_arm64.go                        | 2 +-
+ src/syscall/zsysnum_linux_mips.go                         | 2 +-
+ src/syscall/zsysnum_linux_mips64.go                       | 2 +-
+ src/syscall/zsysnum_linux_mips64le.go                     | 2 +-
+ src/syscall/zsysnum_linux_mipsle.go                       | 2 +-
+ src/syscall/zsysnum_linux_ppc64.go                        | 2 +-
+ src/syscall/zsysnum_linux_ppc64le.go                      | 2 +-
+ src/syscall/zsysnum_linux_s390x.go                        | 2 +-
+ src/syscall/zsysnum_netbsd_386.go                         | 2 +-
+ src/syscall/zsysnum_netbsd_amd64.go                       | 2 +-
+ src/syscall/zsysnum_netbsd_arm.go                         | 2 +-
+ src/syscall/zsysnum_openbsd_386.go                        | 2 +-
+ src/syscall/zsysnum_openbsd_amd64.go                      | 2 +-
+ src/syscall/zsysnum_openbsd_arm.go                        | 2 +-
+ src/syscall/zsysnum_plan9.go                              | 2 +-
+ 101 files changed, 101 insertions(+), 101 deletions(-)

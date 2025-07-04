@@ -1,20 +1,19 @@
-commit 1f068f0dc7bc997446a7aac44cfc70746ad918e0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 18 12:11:43 2022 -0400
+commit 72f0976ac45fcb7f3fd6d47a3ac5c96a78edd59d
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:37:04 2021 -0500
 
-    runtime: throw in unreachable exitThread
+    go/types: better position for "3-index slice of string" error
     
-    Several OSes don't ever reach exitThread, On AIX, Plan9, Solaris, and
-    Windows, we throw if this function is accidentally reached. Do the same
-    on Darwin and OpenBSD for consistency.
+    This is a port of CL 363670 from types2 to go/types.
     
-    Change-Id: Icd189b11179755a28b3ec48b267349c57facbf24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443717
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I2ac3a5f86bb4eafddd2854e193083b2b737e29b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364901
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/sys_darwin.go   | 1 +
- src/runtime/sys_openbsd2.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/go/types/index.go                      | 6 +++++-
+ src/go/types/testdata/check/expr3.src      | 4 ++--
+ src/go/types/testdata/check/typeparams.go2 | 4 ++--
+ 3 files changed, 9 insertions(+), 5 deletions(-)

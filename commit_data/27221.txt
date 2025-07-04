@@ -1,14 +1,27 @@
-commit 9bc1e2065c3a4ac257bebc5c7c07cd5c844b11ba
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:16:51 2016 -0400
+commit db72b41bcd67ecb80890d586effbabd8d110952c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 18 09:34:43 2016 -0500
 
-    cmd/asm/internal/asm/testdata: remove WORD $foo(SB) from mips64.s
+    runtime: protect sudog.elem with hchan.lock
     
-    on mips64, address is 64 bit, not a WORD. also it is never used anywhere.
+    Currently sudog.elem is never accessed concurrently, so in several
+    cases we drop the channel lock just before reading/writing the
+    sent/received value from/to sudog.elem. However, concurrent stack
+    shrinking is going to have to adjust sudog.elem to point to the new
+    stack, which means it needs a way to synchronize with accesses to
+    sudog.elem. Hence, add sudog.elem to the fields protected by
+    hchan.lock and scoot the unlocks down past the uses of sudog.elem.
     
-    Change-Id: Ic6bf6d6a21c8d2f1eb7bfe9efc5a29186ec2a8ef
-    Reviewed-on: https://go-review.googlesource.com/19801
-    Reviewed-by: Minux Ma <minux@golang.org>
+    While we're here, better document the channel synchronization rules.
+    
+    For #12967.
+    
+    Change-Id: I3ad0ca71f0a74b0716c261aef21b2f7f13f74917
+    Reviewed-on: https://go-review.googlesource.com/20040
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/mips64.s | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/chan.go     | 10 ++++++----
+ src/runtime/runtime2.go | 17 ++++++++++++-----
+ 2 files changed, 18 insertions(+), 9 deletions(-)

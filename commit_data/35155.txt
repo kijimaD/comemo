@@ -1,21 +1,22 @@
-commit 5f5168e00460b0b8b36055444855ceb38e313ccb
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 19 15:09:34 2018 -0400
+commit afd090c0c07b86de1cdeb2415d3fc187709832ac
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Dec 19 23:59:56 2017 +0900
 
-    cmd/link, cmd/go: enable DWARF on darwin/arm and darwin/arm64
+    cmd/buildid: fix rewrite algorithm
     
-    Fixes #24883.
+    Update rewrite algorithm by coping code from
+    go/internal/work/buildid:updateBuildID.
     
-    Change-Id: Iff992ec3f2f31f4d82923d7cc806df4ee58e70b0
-    Reviewed-on: https://go-review.googlesource.com/108295
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Probably, this is not the best option. We could provide high-level API
+    in cmd/internal/buildid in the future.
+    
+    Fixes #23181
+    
+    Change-Id: I336a7c50426ab39bc9998b55c372af61a4fb21a7
+    Reviewed-on: https://go-review.googlesource.com/84735
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/work/gc.go     |  2 +-
- src/cmd/link/dwarf_test.go         | 30 ++++++++++++++++++++++++++++--
- src/cmd/link/internal/arm/obj.go   |  1 -
- src/cmd/link/internal/arm64/obj.go |  1 -
- src/cmd/link/internal/ld/lib.go    | 35 ++++++++++++++++-------------------
- 5 files changed, 45 insertions(+), 24 deletions(-)
+ src/cmd/buildid/buildid.go          | 29 +++++++++++++++++++++++------
+ src/cmd/go/go_test.go               |  4 +++-
+ src/cmd/go/internal/work/buildid.go |  2 ++
+ 3 files changed, 28 insertions(+), 7 deletions(-)

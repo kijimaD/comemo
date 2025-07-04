@@ -1,16 +1,16 @@
-commit ca94064104fd5c3a30efeb0e3654b9089fef4754
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Thu Jun 19 10:15:04 2014 +1000
+commit 0e92b538a9f6e337b8e48f47f38803e8245c03cc
+Author: Robert Dinu <r@varp.se>
+Date:   Wed Jun 18 10:59:25 2014 -0700
 
-    image: add RGBAAt, Gray16At, etc.
+    testing: fix timing format inconsistency
     
-    Fixes #7694.
+    Fixes #8175.
     
-    LGTM=nigeltao, rsc, r
-    R=golang-codereviews, nigeltao, rsc, r
+    LGTM=r
+    R=golang-codereviews, r, gobot
     CC=golang-codereviews
-    https://golang.org/cl/109000049
+    https://golang.org/cl/103320043
 
- src/pkg/image/image.go | 32 ++++++++++++++++++++++++++++++++
- src/pkg/image/ycbcr.go |  4 ++++
- 2 files changed, 36 insertions(+)
+ src/pkg/testing/example.go |  6 +++---
+ src/pkg/testing/testing.go | 15 ++++++++++-----
+ 2 files changed, 13 insertions(+), 8 deletions(-)

@@ -1,33 +1,20 @@
-commit e8ec68edfac4f50f57dd7faf039bb5c0f8eaba88
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 26 11:44:34 2022 -0400
+commit c402d64f37f819b0f2d9949c6895e342191d11d6
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 29 12:21:46 2021 -0500
 
-    internal/testenv: remove RunWithTimout
+    go/types: consider structural restrictions in Implements
     
-    For most tests, the test's deadline itself is more appropriate than an
-    arbitrary timeout layered atop of it (especially once #48157 is
-    implemented), and testenv.Command already adds cleaner timeout
-    behavior when a command would run too close to the test's deadline.
+    Fixes #49786
     
-    That makes RunWithTimeout something of an attractive nuisance. For
-    now, migrate the two existing uses of it to testenv.CommandContext,
-    with a shorter timeout implemented using context.WithTimeout.
-    
-    As a followup, we may want to drop the extra timeouts from these
-    invocations entirely.
-    
-    Updates #50436.
-    Updates #37405.
-    
-    Change-Id: I16840fd36c0137b6da87ec54012b3e44661f0d08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445597
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4559d013399deda48bcb97aef3427ecf87a3ef26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367515
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/testenv/testenv.go | 57 -----------------------------------------
- src/runtime/crash_test.go       | 19 +++++++++++---
- src/runtime/runtime-gdb_test.go |  6 ++++-
- 3 files changed, 20 insertions(+), 62 deletions(-)
+ src/cmd/compile/internal/types2/api.go      |  12 +++-
+ src/cmd/compile/internal/types2/api_test.go | 103 +++++++++++++++++++++++++++
+ src/go/types/api.go                         |  12 +++-
+ src/go/types/api_test.go                    | 104 ++++++++++++++++++++++++++++
+ 4 files changed, 227 insertions(+), 4 deletions(-)

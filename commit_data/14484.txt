@@ -1,17 +1,12 @@
-commit 1de4d313dd4a231a4765b8b5b05113e544df920a
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Nov 26 10:56:39 2012 -0800
+commit 7f0821805098ce7d7d58c6bf6c54d1a86b905ca9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 26 22:14:43 2012 +0400
 
-    crypto/tls: use 1/n-1 record splitting to protect against BEAST
+    cnd/gc: fix build
     
-    This requires rebasing the block-mode test scripts.
-    I used GnuTLS version 3.1.4.
-    
-    R=agl
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6844073
+    https://golang.org/cl/6856097
 
- src/pkg/crypto/tls/conn.go                  |  22 +-
- src/pkg/crypto/tls/handshake_client_test.go | 250 ++++++-----
- src/pkg/crypto/tls/handshake_server_test.go | 662 ++++++++++++++++------------
- 3 files changed, 543 insertions(+), 391 deletions(-)
+ src/cmd/gc/racewalk.c | 3 ---
+ 1 file changed, 3 deletions(-)

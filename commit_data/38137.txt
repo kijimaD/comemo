@@ -1,18 +1,17 @@
-commit 9f9c5fa8c7b8ad4d6a691aa3f1b557a9216d838f
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Jan 23 09:01:37 2019 +0100
+commit 011b8eb6bb9783ec6b22697810863f30ca7bda1f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 12:18:27 2017 -0400
 
-    cmd/link: fix -a with external linker
+    runtime: don't double-zero treap nodes
     
-    This commit fixes a panic when -a was used with external linkmode.
+    mheap_.treapalloc.alloc() already returns a zeroed treapNode. Don't
+    bother re-zeroing all of the fields.
     
-    Fixes #29807
-    
-    Change-Id: I8cd42775f2953cec620cbc9ab345421c2694c9a2
-    Reviewed-on: https://go-review.googlesource.com/c/158998
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iea317040fbb72dfe5ef1e2c56c287680b065f2d9
+    Reviewed-on: https://go-review.googlesource.com/c/139460
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/mgclarge.go | 12 ------------
+ 1 file changed, 12 deletions(-)

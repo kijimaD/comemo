@@ -1,17 +1,20 @@
-commit 3c51a69937c2bd99c746007c99b9b44d44a0060b
+commit 66bf59712e6ee1ea84ce88ff35cea78e525ac5a7
 Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Jan 28 18:26:26 2013 -0500
+Date:   Mon Jan 28 18:06:14 2013 -0500
 
-    exp/gotype: fix build breakage due to https://code.google.com/p/go/source/detail?r=ca5e5de48173
+    exp/ssa: (#2 of 5): core utilities
     
-    Add 'math/big' to blacklist of packages that use shift
-    operations as yet unsupported by go/types.
+    This CL includes the implementation of Literal, all the
+    Value.String and Instruction.String methods, the sanity
+    checker, and other misc utilities.
     
-    (The failure was masked due to local bugfixes in my client.)
-    
-    R=rsc, bradfitz, bradfitz
+    R=gri, iant, iant
     CC=golang-dev
-    https://golang.org/cl/7220057
+    https://golang.org/cl/7199052
 
- src/pkg/exp/gotype/gotype_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/ssa/literal.go | 137 ++++++++++++++++
+ src/pkg/exp/ssa/print.go   | 383 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/sanity.go  | 263 +++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/ssa.go     |  21 +--
+ src/pkg/exp/ssa/util.go    | 172 ++++++++++++++++++++
+ 5 files changed, 961 insertions(+), 15 deletions(-)

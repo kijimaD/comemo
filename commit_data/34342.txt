@@ -1,35 +1,27 @@
-commit 9697a119e6af9fd08080e7765d8ba75d715117a6
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Feb 23 15:08:11 2018 -0800
+commit 717d37591d9d446007b830c70ff74d8f8dca13d9
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 18 20:14:29 2017 -0400
 
-    archive/zip: fix handling of Info-ZIP Unix extended timestamps
+    cmd/compile: allow duplicate DWARF producer symbols
     
-    The Info-ZIP Unix1 extra field is specified as such:
-    >>>
-    Value    Size   Description
-    -----    ----   -----------
-    0x5855   Short  tag for this extra block type ("UX")
-    TSize    Short  total data size for this block
-    AcTime   Long   time of last access (GMT/UTC)
-    ModTime  Long   time of last modification (GMT/UTC)
-    <<<
+    When building test binaries, we build one archive with all of the test
+    sources and a second archive with the generated test package main and
+    link them together. If the test sources are themselves in package main
+    and the test was compiled with non-default compiler flags, then both
+    archives will contain a go.cuinfo.producer.main symbol, leading to a
+    duplicate symbol failure.
     
-    The previous handling was incorrect in that it read the AcTime field
-    instead of the ModTime field.
+    This has been causing test build failures on darwin-arm-a1428ios,
+    darwin-arm64-a1549ios, linux-amd64-noopt, android-arm-wiko-fever, and
+    android-arm64-wiko-fever since CL 71430 added this symbol. This CL
+    should fix the build.
     
-    The test-osx.zip test unfortunately locked in the wrong behavior.
-    Manually parsing that ZIP file shows that the encoded MS-DOS
-    date and time are 0x4b5f and 0xa97d, which corresponds with a
-    date of 2017-10-31 21:11:58, which matches the correct mod time
-    (off by 1 second due to MS-DOS timestamp resolution).
-    
-    Fixes #23901
-    
-    Change-Id: I567824c66e8316b9acd103dbecde366874a4b7ef
-    Reviewed-on: https://go-review.googlesource.com/96895
-    Run-TryBot: Joe Tsai <joetsai@google.com>
+    Change-Id: I69051c846e7c0d97395a865a361cae07f411f9ad
+    Reviewed-on: https://go-review.googlesource.com/71771
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/reader.go      | 8 +-------
- src/archive/zip/reader_test.go | 2 +-
- 2 files changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

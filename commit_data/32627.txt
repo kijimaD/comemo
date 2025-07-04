@@ -1,26 +1,87 @@
-commit 38ad33088c3bee63e8d53e7aff4d6610d82ca84c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Sep 6 21:59:00 2017 +0200
+commit fb0ccc5d0ac41edc545a877691d84bbb86801a07
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 28 18:02:00 2017 -0400
 
-    cmd/vet: remove two unused parameters and simplify
+    cmd/internal/obj/arm64, cmd/compile: improve offset folding on ARM64
     
-    The isStar and directory function parameters have been unused ever since
-    they were introduced. Remove them.
+    ARM64 assembler backend only accepts loads and stores with small
+    or aligned offset. The compiler therefore can only fold small or
+    aligned offsets into loads and stores. For locals and args, their
+    offsets to SP are not known until very late, and the compiler
+    makes conservative decision not folding some of them. However,
+    in most cases, the offset is indeed small or aligned, and can
+    be folded into load and store (but actually not).
     
-    While at it, apply some other minor simplifications, such as simplifying
-    a HasPrefix if and using an early continue to unindent many lines of
-    code.
+    This CL adds support of loads and stores with large and unaligned
+    offsets. When the offset doesn't fit into the instruction, it
+    uses two instructions and (for very large offset) the constant
+    pool. This way, the compiler doesn't need to be conservative,
+    and can simply fold the offset.
     
-    Change-Id: I8d57353e9ec10cdb59c5388cf6152ce0ec17bdba
-    Reviewed-on: https://go-review.googlesource.com/62030
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    To make it work, the assembler's optab matching rules need to be
+    changed. Before, MOVD accepts C_UAUTO32K which matches multiple
+    of 8 between 0 and 32K, and also C_UAUTO16K, which may not be
+    multiple of 8 and does not fit into MOVD instruction. The
+    assembler errors in the latter case. This change makes it only
+    matches multiple of 8 (or offsets within ±256, which also fits
+    in instruction), and uses the large-or-unaligned-offset rule
+    for things doesn't fit (without error). Other sized move rules
+    are changed similarly.
+    
+    Class C_UAUTO64K and C_UOREG64K are removed, as they are never
+    used.
+    
+    In shared library, load/store of global is rewritten to using
+    GOT and temp register, which conflicts with the use of temp
+    register for assembling large offset. So the folding is disabled
+    for globals in shared library mode.
+    
+    Reduce cmd/go binary size by 2%.
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              8.67s ± 0%     8.61s ± 0%   -0.60%  (p=0.000 n=9+10)
+    Fannkuch11-8                6.24s ± 0%     6.19s ± 0%   -0.83%  (p=0.000 n=10+9)
+    FmtFprintfEmpty-8           116ns ± 0%     116ns ± 0%     ~     (all equal)
+    FmtFprintfString-8          196ns ± 0%     192ns ± 0%   -1.89%  (p=0.000 n=10+10)
+    FmtFprintfInt-8             199ns ± 0%     198ns ± 0%   -0.35%  (p=0.001 n=9+10)
+    FmtFprintfIntInt-8          294ns ± 0%     293ns ± 0%   -0.34%  (p=0.000 n=8+8)
+    FmtFprintfPrefixedInt-8     318ns ± 1%     318ns ± 1%     ~     (p=1.000 n=10+10)
+    FmtFprintfFloat-8           537ns ± 0%     531ns ± 0%   -1.17%  (p=0.000 n=9+10)
+    FmtManyArgs-8              1.19µs ± 1%    1.18µs ± 1%   -1.41%  (p=0.001 n=10+10)
+    GobDecode-8                17.2ms ± 1%    17.3ms ± 2%     ~     (p=0.165 n=10+10)
+    GobEncode-8                14.7ms ± 1%    14.7ms ± 2%     ~     (p=0.631 n=10+10)
+    Gzip-8                      837ms ± 0%     836ms ± 0%   -0.14%  (p=0.006 n=9+10)
+    Gunzip-8                    141ms ± 0%     139ms ± 0%   -1.24%  (p=0.000 n=9+10)
+    HTTPClientServer-8          256µs ± 1%     253µs ± 1%   -1.35%  (p=0.000 n=10+10)
+    JSONEncode-8               40.1ms ± 1%    41.3ms ± 1%   +3.06%  (p=0.000 n=10+9)
+    JSONDecode-8                157ms ± 1%     156ms ± 1%   -0.83%  (p=0.001 n=9+8)
+    Mandelbrot200-8            8.94ms ± 0%    8.94ms ± 0%   +0.02%  (p=0.000 n=9+9)
+    GoParse-8                  8.69ms ± 0%    8.54ms ± 1%   -1.69%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_32-8       227ns ± 1%     228ns ± 1%   +0.48%  (p=0.016 n=10+9)
+    RegexpMatchEasy0_1K-8      1.92µs ± 0%    1.63µs ± 0%  -15.08%  (p=0.000 n=10+9)
+    RegexpMatchEasy1_32-8       256ns ± 0%     251ns ± 0%   -2.19%  (p=0.000 n=10+9)
+    RegexpMatchEasy1_1K-8      2.38µs ± 0%    2.09µs ± 0%  -12.49%  (p=0.000 n=10+9)
+    RegexpMatchMedium_32-8      352ns ± 0%     354ns ± 0%   +0.39%  (p=0.002 n=10+9)
+    RegexpMatchMedium_1K-8      106µs ± 0%     106µs ± 0%   -0.05%  (p=0.005 n=10+9)
+    RegexpMatchHard_32-8       5.92µs ± 0%    5.89µs ± 0%   -0.40%  (p=0.000 n=9+8)
+    RegexpMatchHard_1K-8        180µs ± 0%     179µs ± 0%   -0.14%  (p=0.000 n=10+9)
+    Revcomp-8                   1.20s ± 0%     1.13s ± 0%   -6.29%  (p=0.000 n=9+8)
+    Template-8                  159ms ± 1%     154ms ± 1%   -3.14%  (p=0.000 n=9+10)
+    TimeParse-8                 800ns ± 3%     769ns ± 1%   -3.91%  (p=0.000 n=10+10)
+    TimeFormat-8                826ns ± 2%     817ns ± 2%   -1.04%  (p=0.050 n=10+10)
+    [Geo mean]                  145µs          143µs        -1.79%
+    
+    Change-Id: I5fc42087cee9b54ea414f8ef6d6d020b80eb5985
+    Reviewed-on: https://go-review.googlesource.com/42172
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/vet/buildtag.go |  4 +---
- src/cmd/vet/main.go     |  8 ++++----
- src/cmd/vet/method.go   |  2 +-
- src/cmd/vet/print.go    | 41 +++++++++++++++++++++--------------------
- src/cmd/vet/unused.go   |  2 +-
- 5 files changed, 28 insertions(+), 29 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s    |  54 +++++
+ src/cmd/compile/internal/gc/asm_test.go      |  10 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 115 ++++++---
+ src/cmd/compile/internal/ssa/rewrite.go      |  14 --
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 232 ++++++++++++------
+ src/cmd/internal/obj/arm64/a.out.go          |  35 ++-
+ src/cmd/internal/obj/arm64/anames7.go        |  14 +-
+ src/cmd/internal/obj/arm64/asm7.go           | 346 ++++++++++++++++++---------
+ 8 files changed, 562 insertions(+), 258 deletions(-)

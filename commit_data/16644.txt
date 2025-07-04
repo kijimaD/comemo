@@ -1,13 +1,14 @@
-commit be6556f787569c9ff8d8aa7aeee3611e2eee3421
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jun 26 18:05:02 2013 +0200
+commit 4cf73890a2cc4a75cd8cd2ad726690a2ef60cf1d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 25 17:04:18 2013 -0700
 
-    test: match gccgo error strings.
+    crypto/sha1: provide a top-level Sum function
+    Makes it easy to ask the simple question, what is the hash of this data?
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10468043
+    https://golang.org/cl/10571043
 
- test/const6.go               | 12 ++++++------
- test/fixedbugs/issue4085a.go | 10 +++++-----
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ src/pkg/crypto/sha1/sha1.go      | 16 ++++++++++++++--
+ src/pkg/crypto/sha1/sha1_test.go |  4 ++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

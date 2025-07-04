@@ -1,21 +1,20 @@
-commit 934d5f2cf703c6aad9f0ce6a73a3922d1af83049
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jun 11 21:20:05 2025 +0000
+commit 8d880da1c42d0bc81e9e350df4f3fc4238c79873
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 9 14:14:58 2024 -0800
 
-    internal/trace: end test programs with SIGQUIT
+    cmd/cgo/internal/test: don't skip some tests on musl
     
-    This change switches from using testenv.Command to
-    testenv.CommandContext which is a little bit friendlier. It also
-    switches away from using 'go run' to 'go build' and running the
-    resulting binary explicitly. This helps eliminate any questions about
-    signal handling and propagation.
+    They reportedly work at least as of Alpine 3.18.
     
-    For #72740.
+    Fixes #39857
     
-    Change-Id: Ife8010da89a7bc439e061fe0c9c6b1f5620d90f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680977
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6a249d61d33e467bf32e8c250f870fc261b90941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563096
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/trace/trace_test.go | 27 ++++++++++++++++++++++-----
- 1 file changed, 22 insertions(+), 5 deletions(-)
+ src/cmd/cgo/internal/test/cgo_linux_test.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)

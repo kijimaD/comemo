@@ -1,19 +1,12 @@
-commit 7f18f8119257d42e5702b56c246c930904aac15a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 14 09:43:27 2013 -0800
+commit a0509d85104f8e4397a1d882524278c24221b58d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 14 19:29:03 2013 +0900
 
-    go/types: callback for *ast.Ident -> Object mapping
+    syscall: simplify netlink sockets
     
-    Also re-enabled resolver test.
-    
-    R=adonovan
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7107043
+    https://golang.org/cl/7039044
 
- src/pkg/go/types/api.go           |   9 ++-
- src/pkg/go/types/check.go         |  26 +++++++--
- src/pkg/go/types/expr.go          |   3 +-
- src/pkg/go/types/resolve.go       |   2 +-
- src/pkg/go/types/resolver_test.go | 114 ++++++++++++--------------------------
- src/pkg/go/types/stmt.go          |   7 ++-
- 6 files changed, 72 insertions(+), 89 deletions(-)
+ src/pkg/syscall/netlink_linux.go | 170 +++++++++++++++------------------------
+ 1 file changed, 66 insertions(+), 104 deletions(-)

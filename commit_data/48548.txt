@@ -1,27 +1,24 @@
-commit 0d651041a9f48bbd1456317dfc784cdfa253e877
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Dec 1 19:48:58 2021 -0800
+commit 3de3440fb9b2d7f8a14b33f96fcfcee8eb61ec55
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 27 22:27:55 2021 -0400
 
-    syscall: optimize Byte{Ptr,Slice}FromString
+    go/ast: remove FuncDecl.IsMethod for Go 1.17
     
-    Use bytealg.IndexByteString(str, 0) instead of looping through the
-    string to check for a zero byte. A quick and dirty benchmark shows 10x
-    performance improvement (on amd64 machine, using go 1.17.3).
+    The IsMethod method was added to FuncDecl in the process of working on
+    support for type parameters, but is now only used in one place. It also
+    didn't go through the proposal process. Remove it for 1.17.
     
-    BytePtrFromString is used by many functions with string arguments.
-    This change should make many functions in os package, such as those
-    accepting a filename (os.Open, os.Stat, etc.), a tad faster.
+    Also clean up a doc comment that mentioned type parameters.
     
-    PS I am aware that syscall package is deprecated and frozen, but this
-    change is mainly for the os package and the likes. The alternative
-    would be for os to switch to x/sys, which is a much bigger change.
+    Fixes #46297
     
-    Change-Id: I18fdd50f9fbfe0a23a4a71bc4bd0a5f5b0eaa475
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368457
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I432bdd626324f613baf059540b7c5436985b2b16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323369
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/syscall.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/go/ast/ast.go        | 6 +-----
+ src/go/types/resolver.go | 2 +-
+ 2 files changed, 2 insertions(+), 6 deletions(-)

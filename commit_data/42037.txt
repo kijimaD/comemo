@@ -1,19 +1,28 @@
-commit 876c1feb7d5e10a6ff831de9db19b9ff0ea92fa8
-Author: alex-semenyuk <alexsemenyuk88@gmail.com>
-Date:   Mon Apr 20 20:33:19 2020 +0000
+commit 7a2baa9c48601e65bc8c8ed99d57a0d214b779ef
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 7 13:57:19 2019 +1100
 
-    test/codegen, runtime/pprof, runtime: apply fmt
+    cmd/doc: don't bother checking validity of symbols at top level
     
-    Change-Id: Ife4e065246729319c39e57a4fbd8e6f7b37724e1
-    GitHub-Last-Rev: e71803eaeb366c00f6c156de0b0b2c50927a0e82
-    GitHub-Pull-Request: golang/go#38527
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228901
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    No need to check as pieces further down do so anyway:
+    
+            %  go doc '&&.%$^'
+            doc: symbol && is not a type in package fmt installed in "fmt"
+            exit status 1
+            %
+    
+    Removing this check allows 'go doc sort.interface' or 'go doc
+    types.type' to discover sort.Interface and go/types.Type.
+    
+    Easily
+    
+    Fixes #34656.
+    
+    Change-Id: I84352e83dd7f91a232f45a44d1a52f019a1a9a06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205778
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/pprof/proto.go      |  2 +-
- src/runtime/runtime-gdb_test.go |  1 +
- test/codegen/condmove.go        |  2 +-
- test/codegen/copy.go            | 28 ++++++++++++++--------------
- 4 files changed, 17 insertions(+), 16 deletions(-)
+ src/cmd/doc/main.go | 6 ------
+ 1 file changed, 6 deletions(-)

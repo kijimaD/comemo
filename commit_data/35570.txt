@@ -1,19 +1,15 @@
-commit e4259d67b9e1f0180a923faa512a1781465faac4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 30 18:13:27 2018 -0700
+commit ac81c5c402ac1023296d4c418287d26aa48061d7
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Feb 5 16:55:54 2018 -0500
 
-    go/types: report object path in trace mode
+    cmd/compile/internal/ssa: refactor buildLocationLists
     
-    For debugging only; disabled (dead code) by default
-    unless internal constant trace flag is set to true.
+    Change the closures to methods on debugState, mostly just for aesthetic
+    reasons.
     
-    For #8699.
-    
-    Change-Id: Ib7b272c6ac8efacccbbbe24650ef500c5a9ddcf5
-    Reviewed-on: https://go-review.googlesource.com/115457
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5242807f7300efafc7efb4eb3bd305ac3ec8e826
+    Reviewed-on: https://go-review.googlesource.com/92403
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/check.go      | 12 ++++++++++++
- src/go/types/decl.go       |  4 ++--
- src/go/types/interfaces.go |  2 +-
- 3 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 245 +++++++++++++++++-----------------
+ 1 file changed, 125 insertions(+), 120 deletions(-)

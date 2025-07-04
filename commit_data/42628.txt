@@ -1,27 +1,30 @@
-commit 19a932ceb8dc0059754e1f986c86daba3a4fb14e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jul 27 11:36:41 2020 -0400
+commit e7f9e17b7927cad7a93c5785e864799e8d9b4381
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 28 19:59:19 2020 +0000
 
-    cmd/link: don't mark shared library symbols reachable unconditionally
+    runtime: ensure that searchAddr always refers to inUse memory
     
-    During the transitioning period, we mark symbols from Go shared
-    libraries reachable unconditionally. That might be useful when
-    there was still a large portion of the linker using sym.Symbols,
-    and only reachable symbols were converted to sym.Symbols. Marking
-    them reachable brings them to the dynamic symbol table, even if
-    they are not needed, increased the binary size unexpectedly.
+    This change formalizes an assumption made by the page allocator, which
+    is that (*pageAlloc).searchAddr should never refer to memory that is not
+    represented by (*pageAlloc).inUse. The portion of address space covered
+    by (*pageAlloc).inUse reflects the parts of the summary arrays which are
+    guaranteed to mapped, and so looking at any summary which is not
+    reflected there may cause a segfault.
     
-    That time has passed. Now we largely operate on loader symbols,
-    and it is not needed to mark them reachable anymore.
+    In fact, this can happen today. This change thus also removes a
+    micro-optimization which is the only case which may cause
+    (*pageAlloc).searchAddr to point outside of any region covered by
+    (*pageAlloc).inUse, and adds a test verifying that the current segfault
+    can no longer occur.
     
-    Fixes #40416.
-    
-    Change-Id: I1e2bdb93a960ba7dc96575fabe15af93d8e95329
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244839
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I98b534f0ffba8656d3bd6d782f6fc22549ddf1c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216697
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/testshared/shared_test.go | 13 +++++++++++++
- src/cmd/link/internal/ld/lib.go    | 11 -----------
- 2 files changed, 13 insertions(+), 11 deletions(-)
+ src/runtime/export_test.go     |  1 +
+ src/runtime/mpagealloc.go      |  7 ++++--
+ src/runtime/mpagealloc_test.go | 48 +++++++++++++++++++++++++++++++++++++++---
+ src/runtime/mpallocbits.go     | 10 ++-------
+ 4 files changed, 53 insertions(+), 13 deletions(-)

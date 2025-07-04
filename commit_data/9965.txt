@@ -1,68 +1,26 @@
-commit 6198336bb51c5a176adce5777159509954b211ac
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 18:45:38 2011 -0400
+commit 29c2838cb476b57246137cf20153da7bda59547d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 13 15:41:48 2011 -0700
 
-    gofix: make fix order explicit
+    go/types: move to exp/types per Go 1 plan
     
-    Also test only specific fixes, not all fixes.
-    This means we don't have to keep updating old
-    test cases to match later changes to the library.
+    This package is only used by gotype at the moment.
     
-    I had to adjust some of the reflect test cases,
-    because they were implicitly testing
-    reflect+oserrorstring, not just reflect.
-    
-    R=golang-dev, bradfitz, r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5283042
+    https://golang.org/cl/5266042
 
- src/cmd/gofix/filepath.go                    | 10 ++++-----
- src/cmd/gofix/filepath_test.go               |  2 +-
- src/cmd/gofix/fix.go                         | 31 ++++++++++++++++++++++++----
- src/cmd/gofix/httpfinalurl.go                |  4 ----
- src/cmd/gofix/httpfinalurl_test.go           |  2 +-
- src/cmd/gofix/httpfs.go                      |  4 ----
- src/cmd/gofix/httpfs_test.go                 |  2 +-
- src/cmd/gofix/httpheaders.go                 |  4 ----
- src/cmd/gofix/httpheaders_test.go            |  2 +-
- src/cmd/gofix/httpserver.go                  |  4 ----
- src/cmd/gofix/httpserver_test.go             |  2 +-
- src/cmd/gofix/imagecolor.go                  | 12 +++++------
- src/cmd/gofix/imagecolor_test.go             |  2 +-
- src/cmd/gofix/imagenew.go                    |  4 ----
- src/cmd/gofix/imagenew_test.go               |  2 +-
- src/cmd/gofix/iocopyn.go                     |  4 ----
- src/cmd/gofix/iocopyn_test.go                |  2 +-
- src/cmd/gofix/main_test.go                   | 10 ++++++++-
- src/cmd/gofix/math.go                        |  4 ----
- src/cmd/gofix/math_test.go                   |  2 +-
- src/cmd/gofix/netdial.go                     |  6 ------
- src/cmd/gofix/netdial_test.go                |  4 +++-
- src/cmd/gofix/netudpgroup.go                 |  4 ----
- src/cmd/gofix/netudpgroup_test.go            |  2 +-
- src/cmd/gofix/oserrorstring.go               |  4 ----
- src/cmd/gofix/oserrorstring_test.go          |  2 +-
- src/cmd/gofix/osopen.go                      |  4 ----
- src/cmd/gofix/osopen_test.go                 |  2 +-
- src/cmd/gofix/procattr.go                    |  4 ----
- src/cmd/gofix/procattr_test.go               |  2 +-
- src/cmd/gofix/reflect.go                     |  4 ----
- src/cmd/gofix/reflect_test.go                |  2 +-
- src/cmd/gofix/signal.go                      | 10 ++++-----
- src/cmd/gofix/signal_test.go                 |  2 +-
- src/cmd/gofix/sorthelpers.go                 | 10 ++++-----
- src/cmd/gofix/sorthelpers_test.go            |  2 +-
- src/cmd/gofix/sortslice.go                   | 10 ++++-----
- src/cmd/gofix/sortslice_test.go              |  2 +-
- src/cmd/gofix/stringssplit.go                |  4 ----
- src/cmd/gofix/stringssplit_test.go           |  2 +-
- src/cmd/gofix/testdata/reflect.decoder.go.in |  6 +++---
- src/cmd/gofix/testdata/reflect.encoder.go.in |  2 +-
- src/cmd/gofix/testdata/reflect.export.go.in  | 12 +++++------
- src/cmd/gofix/testdata/reflect.print.go.in   |  2 +-
- src/cmd/gofix/testdata/reflect.read.go.in    |  4 ++--
- src/cmd/gofix/testdata/reflect.scan.go.in    |  8 +++----
- src/cmd/gofix/testdata/reflect.type.go.in    |  4 ++--
- src/cmd/gofix/url.go                         |  4 ----
- src/cmd/gofix/url_test.go                    |  2 +-
- 49 files changed, 98 insertions(+), 137 deletions(-)
+ src/cmd/gotype/gotype.go                      | 2 +-
+ src/pkg/Makefile                              | 2 +-
+ src/pkg/{go => exp}/types/Makefile            | 2 +-
+ src/pkg/{go => exp}/types/check.go            | 0
+ src/pkg/{go => exp}/types/check_test.go       | 0
+ src/pkg/{go => exp}/types/const.go            | 0
+ src/pkg/{go => exp}/types/exportdata.go       | 0
+ src/pkg/{go => exp}/types/gcimporter.go       | 0
+ src/pkg/{go => exp}/types/gcimporter_test.go  | 0
+ src/pkg/{go => exp}/types/testdata/exports.go | 0
+ src/pkg/{go => exp}/types/testdata/test0.src  | 0
+ src/pkg/{go => exp}/types/types.go            | 0
+ src/pkg/{go => exp}/types/universe.go         | 0
+ 13 files changed, 3 insertions(+), 3 deletions(-)

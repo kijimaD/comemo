@@ -1,20 +1,17 @@
-commit f986191325e9c8be606b5f4db69a33692728274b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 11 18:12:20 2021 +0000
+commit 482903150dff1a4e9791330aed24ae607005fc18
+Author: Antonio Garcia <garcia.olais@gmail.com>
+Date:   Fri Mar 19 15:29:09 2021 +0000
 
-    runtime: fix released bytes accumulation in bg scavenger
+    syscall: fix typo in exec_windows_test.go
     
-    Currently "released" is not accumulated bytes released. If the last
-    attempt to scavenge ends up as 0, then the scavenger will go to sleep
-    too soon. This is an artifact from the old code where scavenge would
-    only be called into once.
+    nothign -> nothing
     
-    Change-Id: I85aa2261f1504a6fb5bf086daa029eecb0e09cf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363416
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I3f5cf20cc094d280f6cafa179eaefd745874dec1
+    GitHub-Last-Rev: a4cf42f27574ab8567d0f45bcd4dfbe018587214
+    GitHub-Pull-Request: golang/go#45118
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303269
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcscavenge.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/syscall/exec_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

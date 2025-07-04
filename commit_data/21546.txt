@@ -1,24 +1,20 @@
-commit 263405ea4ac29e2c70e6e0bd3793e54c60f3a305
-Author: Nicolas S. Dade <nic.dade@gmail.com>
-Date:   Wed Feb 4 18:05:53 2015 -0800
+commit 882f21d6aef78c55265662dbac3af1d38d6f7c82
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 14 22:20:03 2015 +0100
 
-    net: permit WriteMsgUDP to connected UDP sockets
+    runtime: define netpollinited on Plan 9
     
-    The sanity checks at the beginning of WriteMsgUDP were too
-    strict, and did not allow a case sendmsg(2) suppports: sending
-    to a connected UDP socket.
+    Since CL 2750, the build is broken on Plan 9,
+    because a new function netpollinited was added
+    and called from findrunnable in proc1.go.
+    However, netpoll is not implemented on Plan 9.
+    Thus, we define netpollinited in netpoll_stub.go.
     
-    This fixes the sanity checks. Either the socket is unconnected,
-    and a destination addresses is required (what all existing callers
-    must have been doing), or the socket is connected and an explicit
-    destination address must not be used.
+    Fixes #9590
     
-    Fixes #9807
-    
-    Change-Id: I08d4ec3c2bf830335c402acfc0680c841cfcec71
-    Reviewed-on: https://go-review.googlesource.com/3951
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I0895607b86cbc7e94c1bfb2def2b1a368a8efbe6
+    Reviewed-on: https://go-review.googlesource.com/2759
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/udp_test.go      | 48 ++++++++++++++++++++++++++++++++++++------------
- src/net/udpsock_posix.go | 12 +++++++-----
- 2 files changed, 43 insertions(+), 17 deletions(-)
+ src/runtime/netpoll_stub.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,30 +1,33 @@
-commit b847d4cd2c2293d025720d4ae57b2e9578831d29
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 21 18:50:11 2024 +0700
+commit 4460291e0eb291ad90d814ae1e2e18140677ddcb
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Thu Mar 2 16:20:07 2023 -0500
 
-    cmd/compile: fix early deadcode with label statement
+    runtime/trace: update outdated Task and Region documentation
     
-    CL 517775 moved early deadcode into unified writer. with new way to
-    handle dead code with label statement involved: any statements after
-    terminating statement will be considered dead until next label
-    statement.
+    A previous iteration of the tracer's user annotation API had different
+    names for tasks and regions, and used to return functions for ending
+    them rather than types with End methods. This CL updates the doc
+    comments to reflect those changes, and also fixes up the internal
+    documentation of the events (similar to go.dev/cl/465335, the stack
+    argument was in the wrong place in the list).
     
-    However, this is not safe, because code after label statement may still
-    refer to dead statements between terminating and label statement.
+    The User Log event internal documentation might also look wrong since
+    the value argument follows the stack argument. However, the User Log
+    event is a special case where the log message is appended immediately
+    following the normal event, including the stack argument. There isn't
+    much room to clarify this next to the event type definitions, so this CL
+    clarifies the comment where the event is encoded.
     
-    It's only safe to remove statements after terminating *and* label one.
-    
-    Fixes #65593
-    
-    Change-Id: Idb630165240931fad50789304a9e4535f51f56e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565596
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I846c709f6026ef01c0a272557d6390b2c17074e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472955
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
 
- src/cmd/compile/internal/noder/writer.go | 15 +++++++++++----
- test/fixedbugs/issue65593.go             | 21 +++++++++++++++++++++
- 2 files changed, 32 insertions(+), 4 deletions(-)
+ src/internal/trace/parser.go    |  4 ++--
+ src/runtime/trace.go            | 12 +++++++-----
+ src/runtime/trace/annotation.go | 16 ++++++++--------
+ 3 files changed, 17 insertions(+), 15 deletions(-)

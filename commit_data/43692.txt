@@ -1,19 +1,12 @@
-commit da7aa86917811a571e6634b45a457f918b8e6561
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 2 21:31:06 2020 -0800
+commit 366460defbbfabf9db4471ac55c9819e25487ed9
+Author: Brad Fitzpatrick <bradfitz@tailscale.com>
+Date:   Wed Apr 15 14:44:27 2020 -0700
 
-    cmd/go: in cgoflags, permit -DX1, prohibit -Wp,-D,opt
+    A: add Tailscale Inc. (Corporate CLA)
     
-    Restrict -D and -U to ASCII C identifiers, but do permit trailing digits.
-    When using -Wp, prohibit commas in -D values.
-    
-    Change-Id: Ibfc4dfdd6e6c258e131448e7682610c44eee9492
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267277
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic95f6f78fa56169998a6890beb873693852c5798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228419
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/security.go      | 8 ++++----
- src/cmd/go/internal/work/security_test.go | 5 +++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

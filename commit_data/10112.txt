@@ -1,12 +1,12 @@
-commit c3733b29d494995859bb6d6241797f67ece4c53d
+commit 704bf7791b835cce29052d17d35995df9ecad40e
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 26 22:25:20 2011 +1100
+Date:   Wed Oct 26 22:22:33 2011 +1100
 
-    net: document why we do not use SO_REUSEADDR on windows
+    .hgignore: ignore src/pkg/exp/ebnflint/ebnflint
     
-    R=rsc, adg
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5302058
+    https://golang.org/cl/5294060
 
- src/pkg/net/sock_windows.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ .hgignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,27 @@
-commit 8615cbffe27c223230785502939ae14498f673ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 3 19:17:43 2017 -0400
+commit 53836a74f8b0137ebd52f0279edc16fc7d5cf2ca
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jul 20 23:31:51 2017 -0700
 
-    time: fix Time package doc paragraph order
+    math/big: speed up GCD x, y calculation
     
-    Introduce the presence of the monotonic time reading first,
-    before the paragraph about comparison that mentions it multiple times.
+    The current implementation of the extended Euclidean GCD algorithm
+    calculates both cosequences x and y inside the division loop. This
+    is unneccessary since the second Bezout coefficient can be obtained
+    at the end of calculation via a multiplication, subtraction and a
+    division.  In case only one coefficient is needed, e.g. ModInverse
+    this calculation can be skipped entirely.  This is a standard
+    optimization, see e.g.
     
-    Change-Id: I91e31e118be013eee6c258163a1bb2cb42501527
-    Reviewed-on: https://go-review.googlesource.com/76010
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    "Handbook of Elliptic and Hyperelliptic Curve Cryptography"
+    Cohen et al pp 191
+    Available at:
+    http://cs.ucsb.edu/~koc/ccs130h/2013/EllipticHyperelliptic-CohenFrey.pdf
+    
+    Updates #15833
+    
+    Change-Id: I1e0d2e63567cfed97fd955048fe6373d36f22757
+    Reviewed-on: https://go-review.googlesource.com/50530
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/time/time.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/math/big/int.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

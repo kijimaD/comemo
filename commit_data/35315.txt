@@ -1,19 +1,12 @@
-commit b00f72e08a574297827d27779cb3aabf3b49524c
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 12:36:52 2018 +0100
+commit 528dad8c7252a322b41a1413945b9b17febb5105
+Author: Jeff Grafton <jgrafton@google.com>
+Date:   Thu Jan 4 17:05:56 2018 -0800
 
-    math, math/big: add wasm architecture
+    [dev.cryptoboring] misc/boring: update README for Bazel
     
-    This commit adds the wasm architecture to the math package.
-    
-    Updates #18892
-    
-    Change-Id: I5cc38552a31b193d35fb81ae87600a76b8b9e9b5
-    Reviewed-on: https://go-review.googlesource.com/106996
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I77e9f68f38dbeb4e22b9557aaad9eb92b7baf9cb
+    Reviewed-on: https://go-review.googlesource.com/86278
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/arith_wasm.s |  40 ++++++++++++++++++
- src/math/floor_wasm.s     |  26 ++++++++++++
- src/math/sqrt_wasm.s      |  12 ++++++
- src/math/stubs_wasm.s     | 101 ++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 179 insertions(+)
+ misc/boring/README.md | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

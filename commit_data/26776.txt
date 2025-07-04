@@ -1,16 +1,18 @@
-commit 95a895df0c64b0cd1283c4cf7794d491427d765c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Apr 7 10:07:10 2016 -0400
+commit a337e30620ca8557943190a988f53487ced68f05
+Author: kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Thu Feb 25 17:39:45 2016 +1030
 
-    go/types: make Identical(nil, T) == Identical(T, nil)
+    cmd/dist: don't run fortran test if fortran compilation fails
     
-    Fixes #15173
+    Fixes #14498.
     
-    Change-Id: I353756f7bc36db0d2b24d40c80771481b7b18f6b
-    Reviewed-on: https://go-review.googlesource.com/21585
+    Change-Id: I4cfab3e45898466179cefbd31c6f7f796da82363
+    Reviewed-on: https://go-review.googlesource.com/19874
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/api_test.go   | 17 +++++++++++++++++
- src/go/types/predicates.go |  2 ++
- 2 files changed, 19 insertions(+)
+ misc/cgo/fortran/helloworld/helloworld.f90 |  3 +++
+ misc/cgo/fortran/test.bash                 | 22 ++++++++++++++++++++++
+ src/cmd/dist/test.go                       |  2 +-
+ 3 files changed, 26 insertions(+), 1 deletion(-)

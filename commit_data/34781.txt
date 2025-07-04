@@ -1,17 +1,17 @@
-commit 6734452554f639c63055e8e233a6bc1d2076c3ed
-Author: ajnirp <ajnirp@users.noreply.github.com>
-Date:   Fri Mar 30 23:21:50 2018 +0000
+commit 9232a612fed58d2629073056f827db3fae0cd5f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 12:38:11 2017 -0500
 
-    testing: fix testing flags link
+    encoding/binary: make new example a bit more idiomatic
     
-    Fixed a broken link to a section in the documentation for the
-    test flags for the go command.
+    Mainly get rid of the weird zero-value struct literal,
+    but while we're here also group and order things a bit better:
+    first the reader, then the data, then the call (which takes reader then data).
     
-    Change-Id: Ic4bdd4965aac7856dd13a2adda9d774b9bae4113
-    GitHub-Last-Rev: 15bda340674c268a92f43a2820eca50482940de1
-    GitHub-Pull-Request: golang/go#24613
-    Reviewed-on: https://go-review.googlesource.com/103835
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I901b0661d85d8eaa0807e4482aac66500ca996c7
+    Reviewed-on: https://go-review.googlesource.com/78118
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/binary/example_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

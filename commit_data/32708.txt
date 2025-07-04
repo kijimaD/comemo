@@ -1,19 +1,17 @@
-commit 9f1a7192dc574b47f8fae81c16796f808806f032
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 12 16:45:26 2017 -0400
+commit 0f0a51f1d12bb009034a38c69aa786ba62ca41e2
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Thu Apr 13 11:23:35 2017 -0500
 
-    misc/cgo/test: set the traceback level instead of failing the test
+    os: lstat oldname before renaming
     
-    Previously, test7978 failed if the user did not invoke it with
-    GOTRACEBACK=2 already set in their environment. Environment-sensitive
-    test are awkward, and in this case there is a very simple workaround:
-    set the traceback level to the necessary value explicitly.
+    Fixes #19647
     
-    Change-Id: I7d576f24138aa8a41392148eae11bbeaef558573
-    Reviewed-on: https://go-review.googlesource.com/63275
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ife4f98cf2c55ee9490843797213dae2f2647b0a3
+    Reviewed-on: https://go-review.googlesource.com/40577
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue7978.go |  9 ++------
- src/cmd/dist/test.go       | 54 ++++++++++++----------------------------------
- 2 files changed, 16 insertions(+), 47 deletions(-)
+ src/os/file_unix.go | 15 ++++++++++++---
+ src/os/os_test.go   | 12 ++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

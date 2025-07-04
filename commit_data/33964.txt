@@ -1,14 +1,22 @@
-commit a99deed39bb945cba922bd312435fdf309b42a13
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 8 16:01:52 2018 +0000
+commit 67a0c783123556506d2a41ac6b512b00f855ea39
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Sep 20 17:33:26 2017 -0300
 
-    container/list: document nil values more
+    syscall: update syscall.Select to use newselect on ppc64x
     
-    Fixes #23372
+    Analog to the runtime package, syscall.Select should be using
+    newselect instead of select. This change addresses this problem and
+    regenerates zsyscall_linux_* for ppc64 and ppc64le.
     
-    Change-Id: Ie99fb4d84cb49efa66c0ff480d2656c33ef11e6d
-    Reviewed-on: https://go-review.googlesource.com/86676
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #21946
+    
+    Change-Id: I5dc3bf9e7f0b1172d6cce30ddf3bb1e3c95ec8e9
+    Reviewed-on: https://go-review.googlesource.com/65090
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/container/list/list.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/syscall/syscall_linux_ppc64x.go   | 2 +-
+ src/syscall/zsyscall_linux_ppc64.go   | 2 +-
+ src/syscall/zsyscall_linux_ppc64le.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

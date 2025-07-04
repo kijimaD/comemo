@@ -1,18 +1,22 @@
-commit a1eb658d18b1f594e133aa71d3e29d33ed523106
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 01:51:53 2023 +1000
+commit 3615eb16af57b832a3b6d957d86b84b656865a14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 3 13:22:37 2022 -0700
 
-    cmd/go/testdata/mod: add golang toolchain test data for openbsd/riscv64
+    testing: add Get method for -test.v option
     
-    Updates #55999
+    There is existing code that calls flag.Lookup("test.v") and inspects
+    the value. That stopped working as of CL 443596. Make code like that
+    continue to work at least for the case where we aren't using
+    -test.v=test2json.
     
-    Change-Id: I65e3bfb08ed2dd1602531902c7df8232e5151aa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518628
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Aaron Bieber <deftly@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: Idb30b149b48ee3987a201e349cf4d9bfe9ddee56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447796
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- ...org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/testing/flag_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go   |  7 ++++
+ 2 files changed, 93 insertions(+)

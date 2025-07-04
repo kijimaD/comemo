@@ -1,16 +1,22 @@
-commit ba25778f3f24fcf0be5167737b28dd62d7fbeff1
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 10 11:07:35 2012 +0100
+commit ad3e82e7369556f84b6fcf3002cba93f1c4cbc4b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 10 16:11:31 2012 +0900
 
-    gc: omit runtime.closure wrap for closures without closure variables
+    undo CL 5530063 / 1d7295fdf62e
     
-    Fixes #1894.
+    runtime: enable runtime.ncpu on FreeBSD
     
-    test/closure.go's test for newfunc already covers this.
+    ««« original CL description
+    cmd/go: fix freebsd build
     
-    R=rsc, dsymonds, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5516051
+    https://golang.org/cl/5530063
+    »»»
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5531059
 
- src/cmd/gc/closure.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/build.go | 3 ---
+ 1 file changed, 3 deletions(-)

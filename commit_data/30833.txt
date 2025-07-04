@@ -1,23 +1,19 @@
-commit 7202341de92927484a3eed101d3b77653b8b8bd1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 24 09:36:31 2017 -0700
+commit e97c8a592f20d390a97db1d516782c56badf258d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 15:25:07 2016 -0800
 
-    cmd/compile: only SSA [0]T when T is SSA-able
+    [dev.inline] cmd/compile/internal/syntax: simplified position code
     
-    Almost never happens in practice.
-    The compiler will generate reasonable code anyway,
-    since assignments involving [0]T never do any work.
+    Reviewed in and cherry-picked from https://go-review.googlesource.com/#/c/33805/.
     
-    Fixes #19696
-    Fixes #19671
-    
-    Change-Id: I350d2e0c5bb326c4789c74a046ab0486b2cee49c
-    Reviewed-on: https://go-review.googlesource.com/38599
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I859d9bd5f2256ca78f7b24b330290f7ae600854d
+    Reviewed-on: https://go-review.googlesource.com/34234
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  5 +----
- test/fixedbugs/issue19671.go       | 16 ++++++++++++++++
- test/fixedbugs/issue19696.go       | 20 ++++++++++++++++++++
- 3 files changed, 37 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/syntax/pos.go          | 83 ++++++++++---------------
+ src/cmd/compile/internal/syntax/pos_test.go     | 32 +++++-----
+ src/cmd/compile/internal/syntax/scanner.go      |  2 +-
+ src/cmd/compile/internal/syntax/scanner_test.go |  2 +-
+ 4 files changed, 53 insertions(+), 66 deletions(-)

@@ -1,0 +1,18 @@
+commit c3a0859720469087e1542e8e00a60700f2f8847b
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Apr 10 15:31:03 2025 +0000
+
+    runtime: use built-in min function
+    
+    Change-Id: I625c392864c97cefc2ac8f23612e3f62f7fbba23
+    GitHub-Last-Rev: 779f756850e7bf0cf2059ed0b4d412638c872f7e
+    GitHub-Pull-Request: golang/go#73313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664016
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/proc.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

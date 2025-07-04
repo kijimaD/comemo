@@ -1,18 +1,16 @@
-commit 3c2e4ed8d31e65556e936bf394a47e644605d23d
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 1 10:10:17 2016 -0800
+commit 776a90100f1f65fcf54dfd3d082d657341bdc323
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:24:56 2016 -0700
 
-    cmd/objdump: copy gosym.PCValue into internal package
+    go/scanner, go/token: recognize => (ALIAS) token
     
-    ... so we don't have to export gosym.PCValue.
+    For #16339.
     
-    Change-Id: Ie8f196d5e5ab63e3e69d1d7b4bfbbf32b7b5e4f5
-    Reviewed-on: https://go-review.googlesource.com/33791
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0f83e46f13b5c8801aacf48fc8b690049edbbbff
+    Reviewed-on: https://go-review.googlesource.com/30210
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/go1.8.txt                     |  1 -
- src/cmd/internal/objfile/goobj.go | 51 +++++++++++++++++++++++++++++++++++++--
- src/debug/gosym/pclntab.go        |  7 ------
- 3 files changed, 49 insertions(+), 10 deletions(-)
+ src/go/scanner/scanner.go      | 2 +-
+ src/go/scanner/scanner_test.go | 1 +
+ src/go/token/token.go          | 8 +++++++-
+ 3 files changed, 9 insertions(+), 2 deletions(-)

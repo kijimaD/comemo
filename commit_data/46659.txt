@@ -1,20 +1,19 @@
-commit aeb4fbabc0aaa5293dd34821c450855e9ff82230
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Sep 28 14:35:03 2021 -0400
+commit 3e15bf77166bc89fb6af8649da560b09d9c0ada5
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jan 15 11:30:49 2021 -0500
 
-    runtime: drop nowritebarrier from gcParkAssist
+    [dev.typeparams] go/types: don't modify Named.underlying in validType
     
-    Nothing in this function is at odds with having write barriers. It
-    originally inherited the annotation from gcAssistAlloc
-    http://golang.org/cl/30700, which subsequently dropped the annotation in
-    http://golang.org/cl/32431 as it was unnecessary.
+    This was fixed on dev.go2go in CL 240901, but accidentally omitted from
+    the merge.
     
-    Change-Id: Ie464e6b4ed957f57e922ec043728ff4e15bf35ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352811
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I9020eb51dac4aa07d57c3de747d33ba84abb6386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284254
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/runtime/mgcmark.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/go/types/decl.go | 1 -
+ 1 file changed, 1 deletion(-)

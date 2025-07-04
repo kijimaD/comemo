@@ -1,22 +1,16 @@
-commit 29f0984a3558ef6e3e58a621791473a71b510365
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jun 30 06:36:31 2016 -0400
+commit be7c786dd04db51076012618ea29ee528a654978
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Apr 12 13:38:24 2016 -0400
 
-    cmd/compile: don't set line number to 0 when building SSA
+    cmd/objdump: skip TestDisasm* on s390x
     
-    The frontend may emit node with line number missing. In this case,
-    use the parent line number. Instead of changing every call site of
-    pushLine, do it in pushLine itself.
+    The disassembler is not yet implemented on s390x.
     
-    Fixes #16214.
+    Updates #15255.
     
-    Change-Id: I80390550b56e4d690fc770b01ff725b892ffd6dc
-    Reviewed-on: https://go-review.googlesource.com/24641
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ibab319c8c087b1a619baa1529398305c1e721877
+    Reviewed-on: https://go-review.googlesource.com/21894
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 35 +++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/ssa.go      |  8 ++++++++
- 2 files changed, 43 insertions(+)
+ src/cmd/objdump/objdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

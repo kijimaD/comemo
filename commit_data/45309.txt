@@ -1,18 +1,21 @@
-commit d4bfe006155ea0d9c2970e22fca5a027125c8a98
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 21 10:28:27 2021 -0400
+commit 5e46c6a10f578333d9ba3f9aa2e4a0d3adb196a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 15:24:39 2020 -0700
 
-    cmd/go: make build cache tag sensitive to GOSSADIR; remove unused
+    [dev.typeparams] cmd/compile/internal/syntax: add Pos method
     
-    GOSSADIR is a useful compiler flag for debugging.
-    Removed GO_SSA_PHI_LOC_CUTOFF, it is no longer mentioned in the compiler.
+    Allows syntax.Pos values to implement
     
-    Change-Id: I3600f4c6ded95c9d34b85a6f0da6ba89b17a13ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312290
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    interface {
+            Pos() Pos
+    }
+    
+    Preparation step for types2 package.
+    
+    Change-Id: Ib0f4d7695a3d066983567d680fc3b9256a31c31d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263622
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/pos.go | 1 +
+ 1 file changed, 1 insertion(+)

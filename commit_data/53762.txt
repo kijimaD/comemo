@@ -1,25 +1,21 @@
-commit 7141d1e6d820241de321f8a9d336871737560950
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 23 05:21:31 2023 -0400
+commit 6b555dc29e98ca756eb3f10edc4b8a17a72b1258
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 16:10:03 2022 -0700
 
-    make.bash,bat,rc: use Go 1.20.6 instead of Go 1.17.13
+    go/types: use singular in version error messages
     
-    This was missed in the update of the bootstrap toolchain
-    and should help people who don't set GOROOT_BOOTSTRAP
-    and instead assume these scripts will find the right one.
+    This matches the majority use case as well as types2.
     
-    For #54265.
+    For #54511.
     
-    Change-Id: I37a0d0976006d13b73df00013780be5abf202e91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512275
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If800afc35db8d32cca8329ed9d6a80b4a15c4878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426477
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/dist/README | 22 ++++++++--------------
- src/make.bash       |  8 ++++----
- src/make.bat        |  2 +-
- src/make.rc         |  2 +-
- 4 files changed, 14 insertions(+), 20 deletions(-)
+ src/go/types/resolver.go                      |  4 ++--
+ src/go/types/testdata/fixedbugs/issue47818.go | 10 ++++++----
+ 2 files changed, 8 insertions(+), 6 deletions(-)

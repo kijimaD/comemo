@@ -1,12 +1,12 @@
-commit 06e18ca5a3ecca411e4b31d3bdc9f36356ed99c2
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Mar 5 22:19:51 2012 +1100
+commit 80cb47b706b81fd85d8141455af9e62b5683bc35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 17:07:10 2012 +1100
 
-    strings: Rename example to match function name.
+    doc: fix download link on front page
     
-    R=golang-dev, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5729065
+    https://golang.org/cl/5730053
 
- src/pkg/strings/example_test.go | 2 +-
+ doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

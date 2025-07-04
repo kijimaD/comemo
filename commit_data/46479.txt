@@ -1,48 +1,30 @@
-commit 974b0166d6a7c20b98f7e517e49197bea46fc5e2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Sep 17 14:25:54 2021 +0200
+commit 907a4bfdc75004bc31c30564734cffc61ab1e80c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 00:16:46 2021 -0800
 
-    syscall: implement Pipe using pipe2 syscall on all linux platforms
+    [dev.regabi] cmd/compile: fix map assignment order
     
-    Most architectures currently already implement Pipe using the pipe2
-    syscall. Only 386, amd64 and mips{,le} still use the pipe syscall.
-    However, some systems (e.g. Android seccomp policies) block that
-    syscall, see #40828 for an example.
+    After the previous cleanup/optimization CLs, ascompatee now correctly
+    handles map assignments too. So remove the code from order.mapAssign,
+    which causes us to assign to the map at the wrong point during
+    execution. It's not every day you get to fix an issue by only removing
+    code.
     
-    The pipe2 syscall was added in Linux kernel version 2.6.27. The minimum
-    required Linux kernel version for Go 1.18 will be changed to 2.6.32
-    per #45964 so it is possible to unify the implementation of Pipe using
-    the pipe2 syscall.
+    Thanks to Cuong Manh Le for test cases and continually following up on
+    this issue.
     
-    For #45964
+    Passes toolstash -cmp. (Apparently the standard library never uses
+    tricky map assignments. Go figure.)
     
-    Change-Id: I8ed6a391300c95f3107b4ec6b27d320e42fb535b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350530
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #23017.
+    
+    Change-Id: Ie0728103d59d884d00c1c050251290a2a46150f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281172
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/syscall/syscall_linux.go           | 17 +++++++++++++++++
- src/syscall/syscall_linux_386.go       | 26 --------------------------
- src/syscall/syscall_linux_amd64.go     | 26 --------------------------
- src/syscall/syscall_linux_arm.go       | 26 --------------------------
- src/syscall/syscall_linux_arm64.go     | 24 ------------------------
- src/syscall/syscall_linux_mips64x.go   | 24 ------------------------
- src/syscall/syscall_linux_mipsx.go     | 23 -----------------------
- src/syscall/syscall_linux_ppc64x.go    | 24 ------------------------
- src/syscall/syscall_linux_riscv64.go   | 24 ------------------------
- src/syscall/syscall_linux_s390x.go     | 24 ------------------------
- src/syscall/zsyscall_linux_386.go      | 30 ++++++++++--------------------
- src/syscall/zsyscall_linux_amd64.go    | 30 ++++++++++--------------------
- src/syscall/zsyscall_linux_arm.go      | 30 ++++++++++--------------------
- src/syscall/zsyscall_linux_arm64.go    | 20 ++++++++++----------
- src/syscall/zsyscall_linux_mips.go     | 32 ++++++++++----------------------
- src/syscall/zsyscall_linux_mips64.go   | 20 ++++++++++----------
- src/syscall/zsyscall_linux_mips64le.go | 20 ++++++++++----------
- src/syscall/zsyscall_linux_mipsle.go   | 32 ++++++++++----------------------
- src/syscall/zsyscall_linux_ppc64.go    | 20 ++++++++++----------
- src/syscall/zsyscall_linux_ppc64le.go  | 20 ++++++++++----------
- src/syscall/zsyscall_linux_riscv64.go  | 20 ++++++++++----------
- src/syscall/zsyscall_linux_s390x.go    | 20 ++++++++++----------
- 22 files changed, 137 insertions(+), 395 deletions(-)
+ src/cmd/compile/internal/walk/order.go |  37 +----------
+ test/fixedbugs/issue23017.go           | 113 +++++++++++++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 36 deletions(-)

@@ -1,14 +1,21 @@
-commit 776e1709e59c2c50d93467e666d4bb8955b32ed3
-Author: adarsh ravichandran <adarshravichandran91@gmail.com>
-Date:   Mon May 20 16:27:13 2019 +0530
+commit 1e450aa2f208046aab0628e024a70c5193559fe7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 23 20:35:37 2019 +0000
 
-    math/bits: add example for OnesCount function
+    net/http: update bundled http2
     
-    Change-Id: Id87db9bed5e8715d554c1bf95c063d7d0a03c3e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178117
+    Updates bundled http2 to x/net git rev ed066c81e7 for:
+    
+        http2: Revert a closed stream cannot receive data
+        https://golang.org/cl/153977
+    
+    Updates golang/go#28204
+    
+    Change-Id: I0a489e4e8a581a107970199f64f0fa9281982efe
+    Reviewed-on: https://go-review.googlesource.com/c/159179
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/math/bits/example_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/net/http/h2_bundle.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

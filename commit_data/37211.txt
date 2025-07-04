@@ -1,48 +1,25 @@
-commit 7f9984535995fc90556bd18d73b43b4bad744c99
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue May 29 07:26:17 2018 +0100
+commit deefcb26233c8acd089e9ae1d247c13891b6c55c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 29 14:46:57 2018 -0700
 
-    crypto/md5: simplify generic implementation
+    go/types: ignore artificial cycles introduced via method declarations
     
-    This change uses library functions such as bits.RotateLeft32 to
-    reduce the amount of code needed in the generic implementation.
-    Since the code is now shorter I've also removed the option to
-    generate a non-unrolled version of the code.
+    At the moment, method declarations are type-checked together with
+    they receiver base types. This is a known problem (to be fixed early
+    for Go 1.12) but with the new cycle detection algorithm now also
+    introduced artifical type cycles.
     
-    I've also tried to remove bounds checks where possible to make
-    the new version performant, however that is not the primary goal
-    of this change since most architectures have assembly
-    implementations already.
+    This change pushes a special marker on the cycle path in those cases
+    so that these cycles can be ignored.
     
-    Assembly performance:
+    Fixes #26124.
     
-    name                 old speed      new speed      delta
-    Hash8Bytes           50.3MB/s ± 1%  59.1MB/s ± 0%  +17.63%  (p=0.000 n=9+8)
-    Hash1K                590MB/s ± 0%   597MB/s ± 0%   +1.25%  (p=0.000 n=9+9)
-    Hash8K                636MB/s ± 1%   638MB/s ± 1%     ~     (p=0.072 n=10+10)
-    Hash8BytesUnaligned  50.5MB/s ± 0%  59.1MB/s ± 1%  +17.09%  (p=0.000 n=10+10)
-    Hash1KUnaligned       589MB/s ± 1%   596MB/s ± 1%   +1.23%  (p=0.000 n=9+10)
-    Hash8KUnaligned       638MB/s ± 1%   640MB/s ± 0%   +0.35%  (p=0.002 n=10+10)
-    
-    Pure Go performance:
-    
-    name                 old speed      new speed      delta
-    Hash8Bytes           30.3MB/s ± 1%  42.8MB/s ± 0%  +41.20%  (p=0.000 n=9+9)
-    Hash1K                364MB/s ± 4%   394MB/s ± 1%   +8.27%  (p=0.000 n=10+10)
-    Hash8K                404MB/s ± 1%   420MB/s ± 0%   +4.17%  (p=0.000 n=10+9)
-    Hash8BytesUnaligned  30.3MB/s ± 1%  42.8MB/s ± 1%  +40.92%  (p=0.000 n=9+10)
-    Hash1KUnaligned       368MB/s ± 0%   394MB/s ± 0%   +7.07%  (p=0.000 n=9+9)
-    Hash8KUnaligned       404MB/s ± 1%   411MB/s ± 3%   +1.91%  (p=0.026 n=9+10)
-    
-    Change-Id: I9a91fb52ea8d62964d5351bdf121e9fbc9282852
-    Reviewed-on: https://go-review.googlesource.com/c/137355
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I64da4ccc32d4ae293da48880c892154a1c6ac3fe
+    Reviewed-on: https://go-review.googlesource.com/121757
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/crypto/md5/gen.go              | 195 +++++++--------------
- src/crypto/md5/md5.go              | 100 +++++------
- src/crypto/md5/md5block.go         | 347 +++++++++++--------------------------
- src/crypto/md5/md5block_decl.go    |   2 +
- src/crypto/md5/md5block_generic.go |   2 +
- 5 files changed, 213 insertions(+), 433 deletions(-)
+ src/go/types/decl.go             | 28 ++++++++++++++++++++++++++--
+ src/go/types/testdata/issues.src | 24 ++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 2 deletions(-)

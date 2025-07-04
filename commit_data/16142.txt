@@ -1,14 +1,14 @@
-commit 26312afd7b7f92201afa5f10e1c54803f27dbcf5
+commit 77a0b96f2f779717f801173aacd35f2b2041dd9e
 Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Apr 9 12:48:04 2013 +1000
+Date:   Tue Apr 9 11:14:22 2013 +1000
 
-    misc/dashboard/builder: add -race builder support
+    net: add test for runtime.PollDesc leak
     
-    If the build key contains -race, the builder will invoke to the race.{bat,bash} build command. This allows {darwin,linux,windows}-amd64 builders to do race and non race builds in sequence.
+    See 8318044
     
-    R=adg, dvyukov, fullung
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/8266046
+    https://golang.org/cl/8547043
 
- misc/dashboard/builder/main.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/net/dial_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

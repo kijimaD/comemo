@@ -1,24 +1,19 @@
-commit 1eeb257b88e59f2f3ce3cbe0eb80a9f049765853
-Author: Erik Pellizzon <erikpellizzon1@gmail.com>
-Date:   Mon Sep 19 08:30:01 2022 +0000
+commit b0472aa990dfa9fb4ffe49b5af6f3d744d81ba6e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 1 14:05:14 2021 -0700
 
-    crypto: use encoding append functions
+    net: add BenchmarkReadWriteMsgUDPAddrPort
     
-    Replace custom append functions in the hash functions with the implementation of the encoding/binary package that do the same thing.
-    The binary bigendian functions are already used in other parts of the code in the crypto package.
+    The main item of interest here is the allocs.
     
-    Change-Id: I76d2dbe143fc72a3b4ac06be312caf72bd71378a
-    GitHub-Last-Rev: 1c6c68279efbe2c5835d82db900f607c7bf36836
-    GitHub-Pull-Request: golang/go#55085
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431035
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    BenchmarkReadWriteMsgUDPAddrPort-8        195920              6450 ns/op             176 B/op          5 allocs/op
+    
+    Change-Id: I358bd18888ce254b6c6d5d5c920e6d22ce5a2ef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360595
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/md5/md5.go       | 22 +++++-----------------
- src/crypto/sha1/sha1.go     | 24 ++++++------------------
- src/crypto/sha256/sha256.go | 30 +++++++++---------------------
- src/crypto/sha512/sha512.go | 24 +++++++++---------------
- 4 files changed, 29 insertions(+), 71 deletions(-)
+ src/net/udpsock_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

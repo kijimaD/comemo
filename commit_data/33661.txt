@@ -1,26 +1,18 @@
-commit f100e0c228df5df22fc3b85152a10059fa9874a6
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun Jul 30 21:14:10 2017 -0700
+commit 77acf19a5929fcd2941a8ae1724584b4a184c93a
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 29 07:39:57 2017 +0900
 
-    os/user: fix darwin GetGroupIds for n > 256
+    cmd/cgo: avoid using common names for sniffing
     
-    If a Mac user has more than 256 groups, getGroupList returns -1 but
-    does not correctly set n. We need to retry the syscall with an
-    ever-increasing group size until we get all of the user's groups.
+    Current code uses names like "x" and "s" which can conflict with user's
+    code easily. Use cryptographic names.
     
-    The easiest way to test this change is to set n to a value lower than
-    the current user's number of groups, test on a Mac and observe
-    a failure, then apply the patch and test that it passes.
+    Fixes #21668
     
-    Fixes #21067.
-    
-    Change-Id: I0f5c4eac1c465226a460bc0803eff791dcfd4200
-    Reviewed-on: https://go-review.googlesource.com/51892
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib6d3d6327aa5b92d95c71503d42e3a79d96c8e15
+    Reviewed-on: https://go-review.googlesource.com/59710
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/user/getgrouplist_darwin.go | 23 +++++++++++++++++++++++
- src/os/user/getgrouplist_unix.go   | 19 +++++++++++++++++++
- src/os/user/listgroups_unix.go     | 15 ++++++---------
- 3 files changed, 48 insertions(+), 9 deletions(-)
+ misc/cgo/test/issue21668.go | 13 +++++++++++++
+ src/cmd/cgo/gcc.go          | 20 ++++++++++----------
+ 2 files changed, 23 insertions(+), 10 deletions(-)

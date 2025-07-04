@@ -1,32 +1,25 @@
-commit c4e0e816531b679b3e6581e469279df813a9ea3d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed Jun 21 19:48:22 2017 +0900
+commit 3394633db0e3b507f89f5c187fdfd50561fca8bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 22:21:33 2017 -0700
 
-    runtime/cgo: fix typos
+    cmd/internal/obj: eliminate AMODE
     
-    Change-Id: I6265ac81e5c38b201e14ddba2d6b9f0e73d8445c
-    Reviewed-on: https://go-review.googlesource.com/46310
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    AMODE appears to have been intended to allow
+    a Prog to switch between 16 (!), 32, or 64 bit x86.
+    It is unused anywhere in the tree.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ic57b257cfe580f29dad81d97e4193bf3c330c598
+    Reviewed-on: https://go-review.googlesource.com/38445
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/cgo/gcc_darwin_386.c      | 2 +-
- src/runtime/cgo/gcc_darwin_amd64.c    | 2 +-
- src/runtime/cgo/gcc_darwin_arm.c      | 2 +-
- src/runtime/cgo/gcc_darwin_arm64.c    | 2 +-
- src/runtime/cgo/gcc_dragonfly_amd64.c | 2 +-
- src/runtime/cgo/gcc_freebsd_386.c     | 2 +-
- src/runtime/cgo/gcc_freebsd_amd64.c   | 2 +-
- src/runtime/cgo/gcc_freebsd_arm.c     | 2 +-
- src/runtime/cgo/gcc_linux_386.c       | 2 +-
- src/runtime/cgo/gcc_linux_amd64.c     | 2 +-
- src/runtime/cgo/gcc_linux_arm.c       | 2 +-
- src/runtime/cgo/gcc_linux_arm64.c     | 2 +-
- src/runtime/cgo/gcc_linux_mips64x.c   | 2 +-
- src/runtime/cgo/gcc_linux_mipsx.c     | 2 +-
- src/runtime/cgo/gcc_linux_ppc64x.c    | 2 +-
- src/runtime/cgo/gcc_linux_s390x.c     | 2 +-
- src/runtime/cgo/gcc_netbsd_386.c      | 2 +-
- src/runtime/cgo/gcc_netbsd_amd64.c    | 2 +-
- src/runtime/cgo/gcc_netbsd_arm.c      | 2 +-
- src/runtime/cgo/gcc_openbsd_386.c     | 2 +-
- src/runtime/cgo/gcc_openbsd_amd64.c   | 2 +-
- 21 files changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/internal/obj/x86/a.out.go  |  1 -
+ src/cmd/internal/obj/x86/anames.go |  1 -
+ src/cmd/internal/obj/x86/obj6.go   | 11 -----------
+ 3 files changed, 13 deletions(-)

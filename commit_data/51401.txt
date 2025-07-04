@@ -1,21 +1,30 @@
-commit d6859465e5e9049dd38929881da6eedb9a16dee5
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Nov 21 11:46:23 2022 -0500
+commit 9dfd458e64a2d3fa92fb7b5da393163151f99cf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 14 17:34:59 2022 -0800
 
-    testing: skip TestVectoredHandlerExceptionInNonGoThread on windows-amd64-2012-*
+    go/types, types2: remove special case for external types in validType
     
-    Modify skip rule for TestVectoredHandlerExceptionInNonGoThread to
-    trigger on both the base builder (windows-amd64-2012) and the newcc
-    canary builder (windows-amd64-2012-newcc).
+    Because validType doesn't modify global state anymore, there's
+    no need to ignore imported types. When we start tracking type
+    parameters, we need to include imported types because they may
+    contribute to cycles that invalidate a type.
     
-    Updates #49681.
+    This CL effectively reverts CL 202483 (issue #35049, which
+    doesn't apply anymore because we don't change the state of
+    imported objects).
     
-    Change-Id: I58109fc2e861b943cb66be0feec348671be84ab3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452436
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    Preparation for fixing issue #48962.
+    
+    For #35049.
+    For #48962.
+    
+    Change-Id: I06f15575ad197375c74ffd09c222250610186b15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378675
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/signal_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/validtype.go | 18 ++++++++++--------
+ src/go/types/validtype.go                    | 18 ++++++++++--------
+ 2 files changed, 20 insertions(+), 16 deletions(-)

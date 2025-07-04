@@ -1,18 +1,23 @@
-commit 6b609110fdfab4a496c246889f1e67fd7cba61df
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Dec 5 22:09:32 2021 -0500
+commit a9e475a15a7211c356157d1d0e5dc7cef7dd970e
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 8 12:44:05 2021 -0400
 
-    cmd/compile/internal/types2: sort to reduce computational complexity of initOrder
+    cmd/compile: add recursive-invalidate Value method, use in expand_calls
     
-    This is a clean port of CL 369434 to types2.
+    This removes more unused values during transformation.
+    Leaving them in the tree can create type conflicts in OpArg* references.
     
-    Change-Id: I3f9f80757bfbefb7b0417eef9e7b7c74c4c100b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369474
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #40724.
+    Updates #44816.
+    Fixes #45417.
+    
+    Change-Id: I07dcb7b4b2bf8d79e22e0543cb2fb52c2ececb96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308589
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/initorder.go | 62 ++++++++++++++++++----------
- src/cmd/compile/internal/types2/self_test.go |  1 +
- 2 files changed, 42 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 11 +++++++----
+ src/cmd/compile/internal/ssa/value.go        | 29 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

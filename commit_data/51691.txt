@@ -1,49 +1,24 @@
-commit b419db6c15519a29ff3d7d2e56d8f115204f8c5d
-Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
-Date:   Thu Jan 19 22:26:15 2023 +0000
+commit 46afa893ebf85e23dd820a11e6007a9adb503419
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Jan 3 18:48:51 2022 +0100
 
-    all: fix typos in go file comments
+    crypto/rand: use fast key erasure RNG on plan9 instead of ANSI X9.31
     
-    This is the second round to look for spelling mistakes. This time the
-    manual sifting of the result list was made easier by filtering out
-    capitalized and camelcase words.
+    This should be a bit faster and slicker than the very old ANSI X9.31,
+    which relied on the system time. Uses AES instead of ChaCha because it's
+    in the standard library.
     
-    grep -r --include '*.go' -E '^// .*$' . | aspell list | grep -E -x '[A-Za-z]{1}[a-z]*' | sort | uniq
+    Reference: https://blog.cr.yp.to/20170723-random.html
+    Reference: https://github.com/jedisct1/supercop/blob/master/crypto_rng/aes256/ref/rng.c
     
-    This PR will be imported into Gerrit with the title and first
-    comment (this text) used to generate the subject and body of
-    the Gerrit change.
-    
-    Change-Id: Ie8a2092aaa7e1f051aa90f03dbaf2b9aaf5664a9
-    GitHub-Last-Rev: fc2bd6e0c51652f13a7588980f1408af8e6080f5
-    GitHub-Pull-Request: golang/go#57737
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461595
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib7b37a83cca29f5d346355b7cb8cfe5250086b95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375215
+    Trust: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- misc/cgo/testshared/shared_test.go                   | 2 +-
- src/cmd/compile/internal/inline/inl.go               | 2 +-
- src/cmd/compile/internal/ir/func.go                  | 2 +-
- src/cmd/compile/internal/noder/expr.go               | 2 +-
- src/cmd/compile/internal/pgo/irgraph.go              | 4 ++--
- src/cmd/compile/internal/ssa/compile.go              | 2 +-
- src/cmd/compile/internal/ssa/debug.go                | 2 +-
- src/cmd/compile/internal/test/testdata/arith_test.go | 2 +-
- src/cmd/compile/internal/typecheck/subr.go           | 2 +-
- src/cmd/go/internal/modindex/read.go                 | 4 ++--
- src/cmd/go/internal/script/state.go                  | 2 +-
- src/cmd/go/internal/work/init.go                     | 2 +-
- src/cmd/go/internal/workcmd/use.go                   | 2 +-
- src/cmd/internal/goobj/objfile.go                    | 2 +-
- src/cmd/internal/obj/arm64/asm7.go                   | 2 +-
- src/cmd/internal/obj/objfile.go                      | 4 ++--
- src/crypto/internal/alias/alias.go                   | 2 +-
- src/debug/pe/symbol.go                               | 2 +-
- src/internal/types/testdata/check/typeinst0.go       | 2 +-
- src/internal/types/testdata/check/typeparams.go      | 2 +-
- src/runtime/metrics.go                               | 4 ++--
- src/runtime/print.go                                 | 2 +-
- 22 files changed, 26 insertions(+), 26 deletions(-)
+ src/crypto/rand/rand_plan9.go | 114 +++++++++++++++++-------------------------
+ 1 file changed, 46 insertions(+), 68 deletions(-)

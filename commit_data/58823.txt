@@ -1,18 +1,13 @@
-commit f062d7b10b276c1b698819f492e4b4754e160ee3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 20 22:20:38 2025 -0800
+commit 450f5d90c2c85cb2b031bcf4a65c3b1467231977
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 18 13:34:36 2023 -0500
 
-    cmd/go: look at runes, not bytes, when printing env vars
+    doc: add math/rand/v2 release notes
     
-    For #58508
-    Fixes #71863
-    
-    Change-Id: Ib1ebaf751bcc6900da6ffd01a9462dd237e2c89a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651295
+    Change-Id: If1922413ff948f9b8d8cebec6756b6870f38c162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550777
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/envcmd/env.go | 53 +++++++++++++++++++++------------------
- 1 file changed, 29 insertions(+), 24 deletions(-)
+ doc/go1.22.html | 109 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 79 insertions(+), 30 deletions(-)

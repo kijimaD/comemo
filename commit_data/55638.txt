@@ -1,19 +1,31 @@
-commit 5a412045046586d35488c34fd3ce21ef0960ce44
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Feb 20 17:15:51 2024 +0000
+commit 41e8679611fdee738065b91588b7016880ffde61
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jan 13 06:22:34 2023 +0000
 
-    net: mention the cgo thread limit in package docs
+    cmd/asm: remove the incorrect check of LDADDx-like instructions
     
-    Updates #63978
+    According to the ARM Architecture Reference Manual, LDADDx-like
+    instructions can take rt as zr when the encode A bit is 0. They
+    are used by the alias STADDx-like instructions. The current
+    assembler adds incorrect constraints for them, which is rt can't
+    be zr when field.enc A is 0. This patch removes it.
     
-    Change-Id: I39a5c812b4f604baf4ca5ffcff52b8dc17d4990d
-    GitHub-Last-Rev: 4ab6e262f4fd37ff32d6b3eb756fea187e5d6e53
-    GitHub-Pull-Request: golang/go#63990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539361
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Add test cases.
+    
+    Reported by Matt Horsnell <matt.horsnell@arm.com>
+    
+    The reference:
+    https://developer.arm.com/documentation/ddi0602/2022-12/Base-Instructions
+    
+    Change-Id: Ia2487a5e3900e32994fc14edaf03deeb245e70c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462295
+    Reviewed-by: Matt Horsnell <matthew.horsnell@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/net.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s      | 32 ++++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 32 --------------------------
+ src/cmd/internal/obj/arm64/asm7.go             | 13 ++---------
+ 3 files changed, 34 insertions(+), 43 deletions(-)

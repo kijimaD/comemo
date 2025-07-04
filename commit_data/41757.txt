@@ -1,25 +1,14 @@
-commit d1ecfcc1e8baa0bb3a9fb504e8c14125a69139ba
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 18 15:09:40 2020 +0000
+commit 787906493b511d5baaab19bf28ac8bf75fc06079
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 23 17:46:39 2019 +0000
 
-    runtime: ensure minTriggerRatio never exceeds maxTriggerRatio
+    doc: clarify that contributing isn't just for code
     
-    Currently, the capping logic for the GC trigger ratio is such that if
-    gcpercent is low, we may end up setting the trigger ratio far too high,
-    breaking the promise of SetGCPercent and GOGC has a trade-off knob (we
-    won't start a GC early enough, and we will use more memory).
+    Updates #33323
     
-    This change modifies the capping logic for the trigger ratio by scaling
-    the minTriggerRatio with gcpercent the same way we scale
-    maxTriggerRatio.
-    
-    Fixes #37927.
-    
-    Change-Id: I2a048c1808fb67186333d3d5a6bee328be2f35da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223937
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4b3076469f3db8ab0fe888edcf0471f17dc199e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202823
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgc.go | 48 ++++++++++++++++++++++++++++--------------------
- 1 file changed, 28 insertions(+), 20 deletions(-)
+ doc/contrib.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

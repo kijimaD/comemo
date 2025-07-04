@@ -1,20 +1,24 @@
-commit 40a26c92812a0b49a6a8335c9cb70a78fd380967
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 7 11:57:49 2016 -0800
+commit 76811213d7f927c15220c91b4c47af7028af4f47
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Nov 3 00:04:46 2015 +0530
 
-    net/http: add some tests around sending & receiving star requests
+    cmd/go: check if destination is a regular file
     
-    I thought there was still work to do in http2 for this, but I guess
-    not: the work for parsing them is in net/url (used by http2) and the
-    handling of OPTIONS * is already in net/http serverHandler, also used
-    by http2.
+    builder.copyFile ensures that the destination is an object file.  This
+    wouldn't be true if we are not writing to a regular file and the copy
+    fails.  Check if the destination is an object file only if we are
+    writing to a regular file.  While removing the file, ensure that it is a
+    regular file so that device files and such aren't removed when running
+    as a user with suggicient privileges.
     
-    But keep the tests.
+    Fixes #12407
     
-    Change-Id: I566dd0a03cf13c9ea8e735c6bd32d2c521ed503b
-    Reviewed-on: https://go-review.googlesource.com/18368
-    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie86ce9770fa59aa56fc486a5962287859b69db3d
+    Reviewed-on: https://go-review.googlesource.com/16585
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/clientserver_test.go | 69 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 69 insertions(+)
+ src/cmd/go/build.go   | 16 +++++++++++++---
+ src/cmd/go/go_test.go |  8 ++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)

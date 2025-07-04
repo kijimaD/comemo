@@ -1,21 +1,31 @@
-commit 2a7c446f987494228dc96d96272737568e01cddc
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Feb 27 03:14:06 2016 -0700
+commit 194a5c3e61d4509bdc9c84005305a881783939e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 6 07:14:49 2016 +0000
 
-    net/http: make ParseMultipartForm also populate Request.PostForm
+    net/http: update bundled http2, add test for Transport's User-Agent behavior
     
-    Ensures that after request.ParseMultipartForm has been invoked,
-    Request.PostForm and Request.Form are both populated with the
-    same formValues read in, instead of only populating Request.Form.
+    Adds a test that both http1 and http2's Transport send a default
+    User-Agent, with the same behavior.
     
-    Fixes #9305
+    Updates bundled http2 to golang.org/x/net git rev 1ade16a545 (for
+    https://go-review.googlesource.com/18285)
     
-    Change-Id: I3d4a11b006fc7dffaa35360014fe15b8c74d00a3
-    Reviewed-on: https://go-review.googlesource.com/19986
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The http1 behavior changes slightly: if req.Header["User-Agent"] is
+    defined at all, even if it's nil or a zero-length slice, then the
+    User-Agent header is omitted. This is a slight behavior change for
+    http1, but is consistent with how http1 & http2 do optional headers
+    elsewhere (such as "Date", "Content-Type"). The old behavior (set it
+    explicitly to "", aka []string{""}) still works as before. And now
+    there are even tests.
+    
+    Fixes #13685
+    
+    Change-Id: I5786a6913b560de4a5f1f90e595fe320ff567adf
+    Reviewed-on: https://go-review.googlesource.com/18284
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go      |  7 +++++
- src/net/http/request_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+)
+ src/net/http/clientserver_test.go | 61 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         | 20 ++++++++++++-
+ src/net/http/request.go           |  6 ++--
+ 3 files changed, 82 insertions(+), 5 deletions(-)

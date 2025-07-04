@@ -1,12 +1,14 @@
-commit 8fb6c3ac25f077f5207215dc4868014a29e61759
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Jul 16 12:18:00 2013 -0400
+commit 9bd32b48ca135ea21a2ee634e849cd72d780ccef
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jul 16 08:35:06 2013 -0700
 
-    test: invert incorrect condition.
+    net: fix setsockopt for openbsd
     
-    R=gri
+    s/TCP_KEEPALIVE/SO_KEEPALIVE/ to unbreak build on OpenBSD.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11359043
+    https://golang.org/cl/11345044
 
- test/cmp.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/tcpsockopt_openbsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

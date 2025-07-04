@@ -1,26 +1,31 @@
-commit f39cca94af880253be22cdbb30d0a7d385f6b516
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 2 10:14:36 2016 -0800
+commit 3583a44ed2ae27495626caaa431b197187dcf01b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Sep 3 02:44:26 2015 -0400
 
-    cmd/compile: bring vendored copy of math/big up-to-date
+    runtime: check that masks and shifts are correct aligned
     
-    These files were not added to the repo. They contain conversion
-    routines and corresponding tests not used by the compiler and
-    thus are technically not needed.
+    We need a runtime check because the original issue is encountered
+    when running cross compiled windows program from linux. It's better
+    to give a meaningful crash message earlier than to segfault later.
     
-    However, future changes to math/big (and corresponding updates
-    of this vendored version) may require these files to exist.
-    Add them to avoid unnecessary confusion.
+    The added test should not impose any measurable overhead to Go
+    programs.
     
-    Change-Id: Ie390fb54f499463b2bba2fdc084967539afbeeb3
-    Reviewed-on: https://go-review.googlesource.com/19730
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    For #12415.
+    
+    Change-Id: Ib4a24ef560c09c0585b351d62eefd157b6b7f04c
+    Reviewed-on: https://go-review.googlesource.com/14207
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/big/example_rat_test.go |  65 ++++++++++++
- src/cmd/compile/internal/big/floatmarsh.go       |  33 ++++++
- src/cmd/compile/internal/big/floatmarsh_test.go  |  54 ++++++++++
- src/cmd/compile/internal/big/intmarsh.go         |  74 ++++++++++++++
- src/cmd/compile/internal/big/intmarsh_test.go    | 121 ++++++++++++++++++++++
- src/cmd/compile/internal/big/ratmarsh.go         |  73 +++++++++++++
- src/cmd/compile/internal/big/ratmarsh_test.go    | 125 +++++++++++++++++++++++
- 7 files changed, 545 insertions(+)
+ src/runtime/asm_386.s      | 9 +++++++++
+ src/runtime/asm_amd64.s    | 9 +++++++++
+ src/runtime/asm_amd64p32.s | 4 ++++
+ src/runtime/asm_arm.s      | 5 +++++
+ src/runtime/asm_arm64.s    | 4 ++++
+ src/runtime/asm_mips64x.s  | 5 +++++
+ src/runtime/asm_ppc64x.s   | 4 ++++
+ src/runtime/runtime1.go    | 4 ++++
+ src/runtime/stubs.go       | 3 +++
+ 9 files changed, 47 insertions(+)

@@ -1,31 +1,38 @@
-commit 6dce882b3aad86b8c3e2928d3be6a87e425c1754
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jun 23 01:04:29 2023 +0700
+commit d5aa088d822bc8ef3ceb80c20184f40fcb9b8d2e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 24 09:45:18 2022 -0400
 
-    cmd/compile: scanning closures body when visiting wrapper function
+    cmd/go: avoid registering AtExit handlers in tests
     
-    CL 410344 fixed missing method value wrapper, by visiting body of
-    wrapper function after applying inlining pass.
+    Ever since 'go build' was added (in CL 5483069), it has used an atexit
+    handler to clean up working directories.
     
-    CL 492017 allow more inlining of functions that construct closures,
-    which ends up making the wrapper function now inlineable, but can
-    contain closure nodes that couldn't be inlined. These closures body may
-    contain OMETHVALUE nodes that we never seen, thus we need to scan
-    closures body for finding them.
+    CL 154109 introduced 'cc' command to the script test framework that
+    called Init on a builder once per invocation. Unfortunately, since
+    base.AtExit is unsynchronized, the Init added there caused any script
+    that invokes that command to be unsafe for concurrent use.
     
-    Fixes #60945
+    This change fixes the race by having the 'cc' command pass in its
+    working directory instead of allowing the Builder to allocate one.
+    Following modern Go best practices, it also replaces the in-place Init
+    method (which is prone to typestate and aliasing bugs) with a
+    NewBuilder constructor function.
     
-    Change-Id: Ia1e31420bb172ff87d7321d2da2989ef23e6ebb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505255
+    Fixes #54423.
+    
+    Change-Id: I8fc2127a7d877bb39a1174e398736bb51d03d4d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425205
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/visit.go     | 11 +++++++++++
- src/cmd/compile/internal/noder/reader.go |  6 +++++-
- test/fixedbugs/issue60945.dir/a.go       | 22 ++++++++++++++++++++++
- test/fixedbugs/issue60945.dir/b.go       |  9 +++++++++
- test/fixedbugs/issue60945.go             |  7 +++++++
- 5 files changed, 54 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/envcmd/env.go  |  4 ++--
+ src/cmd/go/internal/list/list.go   |  3 +--
+ src/cmd/go/internal/run/run.go     |  3 +--
+ src/cmd/go/internal/test/test.go   | 16 ++++++++++++----
+ src/cmd/go/internal/vet/vet.go     |  3 +--
+ src/cmd/go/internal/work/action.go | 14 ++++++++++++--
+ src/cmd/go/internal/work/build.go  |  7 +++----
+ src/cmd/go/script_test.go          |  4 +---
+ 8 files changed, 33 insertions(+), 21 deletions(-)

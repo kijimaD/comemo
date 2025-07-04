@@ -1,30 +1,24 @@
-commit 61f92ee56abbc6c6af317e4b867b4214c31ae4c7
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Mar 14 21:27:25 2018 -0400
+commit f99d14e0de86bc387aef366eef122bd49086ac8c
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Sep 18 13:54:21 2017 -0400
 
-    internal/trace: fix GC time computation of short goroutines
+    runtime/pprof: use new profile format for block/mutex profiles
     
-    Goroutine analysis reports the sum of all overlapping GC intervals as
-    the GCTime of a goroutine. The computation is done by adding the length
-    of a completed GC interval to 'active' goroutines when processing the
-    corresponding EvGCDone event. This change fixes the two corner cases
-    the current implementation ignores:
+    Unlike the legacy text format that outputs the count and the number of
+    cycles, the pprof tool expects contention profiles to include the count
+    and the delay time measured in nanoseconds. printCountCycleProfile
+    performs the conversion from cycles to nanoseconds.
+    (See parseContention function in
+     cmd/vendor/github.com/google/pprof/profile/legacy_profile.go)
     
-    1) Goroutine that ends during GC. Previously, this goroutine was ignored
-    and GC time was undercounted. We handle this case by setting the
-    gcStartTime only when GC is active and handling non-zero gcStartTime
-    when processing EvGoStop and EvGoStart.
+    Fixes #21474
     
-    2) Goroutine that starts during GC. Previously, the entire GC interval
-    length was added to the Goroutine's GCTime which resulted in overcount
-    of GC time. We handle this case by computing the length of overlapped
-    period precisely.
-    
-    Change-Id: Ifa8e82672ec341b5ff87837209f4311fa7262b7f
-    Reviewed-on: https://go-review.googlesource.com/100842
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I8e8fb6ea803822d7eaaf9ecf1df3e236ad225a7b
+    Reviewed-on: https://go-review.googlesource.com/64410
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/trace/goroutines.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/runtime/pprof/pprof.go      |  59 ++++++++---
+ src/runtime/pprof/pprof_test.go | 225 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 230 insertions(+), 54 deletions(-)

@@ -1,12 +1,22 @@
-commit 6e9043234221678e53d3b46ea98fb2ed56c260b7
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Tue May 3 13:49:54 2016 -0700
+commit 2cc42cf2a8a9a3f0fdd2d6169ca2fa3b9cffe48e
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Mar 16 21:22:41 2016 -0500
 
-    runtime/cgo: add context argument to crosscall2 on mips64
+    cmd/compile/test: replace switch{} with go:noinline
     
-    Change-Id: Id018516075842afd8af12fbf207763a851d5a851
-    Reviewed-on: https://go-review.googlesource.com/22754
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic40449b2e4b4f18cbe5b5d4c3d51ea7b05ac674d
+    Reviewed-on: https://go-review.googlesource.com/20823
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/asm_mips64x.s | 86 ++++++++++++++++++++++---------------------
- 1 file changed, 44 insertions(+), 42 deletions(-)
+ .../compile/internal/gc/testdata/addressed_ssa.go  |  27 +--
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go  |   4 +-
+ .../compile/internal/gc/testdata/compound_ssa.go   |   6 +-
+ src/cmd/compile/internal/gc/testdata/copy_ssa.go   |  93 ++++------
+ src/cmd/compile/internal/gc/testdata/ctl_ssa.go    |   3 +-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go     | 193 ++++++++-------------
+ .../compile/internal/gc/testdata/loadstore_ssa.go  |  14 +-
+ src/cmd/compile/internal/gc/testdata/string_ssa.go |   3 +-
+ src/cmd/compile/internal/gc/testdata/zero_ssa.go   |  75 +++-----
+ 9 files changed, 154 insertions(+), 264 deletions(-)

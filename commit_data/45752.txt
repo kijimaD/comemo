@@ -1,17 +1,30 @@
-commit 3a9d906edcfd0fa574ecd5498f8999b56f1e5fa1
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue May 25 16:24:41 2021 +0200
+commit 1e1fa5903b760c6714ba17e50bf850b01f49135c
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Nov 10 15:54:12 2020 -0500
 
-    os: avoid finalizer race in windows process object
+    math/big: fix shift for recursive division
     
-    If proc.Release is called concurrently, a handle will be double-freed.
+    The previous s value could cause a crash
+    for certain inputs.
     
-    Change-Id: I0c0c32e312e07bc8615e0bf9e9b691214444d8d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322510
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Will check in tests and documentation improvements later.
+    
+    Thanks to the Go Ethereum team and the OSS-Fuzz project for reporting this.
+    Thanks to Rémy Oudompheng and Robert Griesemer for their help
+    developing and validating the fix.
+    
+    Fixes CVE-2020-28362
+    
+    Change-Id: Ibbf455c4436bcdb07c84a34fa6551fb3422356d3
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/899974
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269657
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec_windows.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/math/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

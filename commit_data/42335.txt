@@ -1,41 +1,26 @@
-commit 60368c2477d2517d7d4d83412eba5420fdb81a2b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed May 29 11:09:50 2019 +0100
+commit 2ac1ca9160f52907ce1cd04738c80b1c055b5ba6
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Nov 22 17:02:06 2019 +0000
 
-    encoding/json: reuse values when decoding map elements
+    cmd/vet: honor analyzer flags when running vet outside $GOROOT/src
     
-    When we decode into a struct, each input key-value may be decoded into
-    one of the struct's fields. Particularly, existing data isn't dropped,
-    so that some sub-fields can be decoded into without zeroing all other
-    data.
+    Additional vet flags specified by user are discarded if 'go vet'
+    is invoked outside $GOROOT/src to check a package under $GOROOT
+    (including those under "vendor" of $GOROOT), fix it by avoiding the
+    overwriting, the logic of detemining if the package under vetting
+    comes from $GOROOT remains untouched.
     
-    However, decoding into a map behaved in the opposite way. Whenever a
-    key-value was decoded, it completely replaced the previous map element.
-    If the map contained any non-zero data in that key, it's dropped.
+    Also checked 'go tool vet <options> <cfg>' and 'go vet <options>
+    <user pkg>', both worked w./w.o this fix.
     
-    Instead, try to reuse the existing element value if possible. If the map
-    element type is a pointer, and the value is non-nil, we can decode
-    directly into it. If it's not a pointer, make a copy and decode into
-    that copy, as map element values aren't addressable.
+    Fixes #35837.
     
-    This means we have to parse and convert the map element key before the
-    value, to be able to obtain the existing element value. This is fine,
-    though. Moreover, reporting errors on the key before the value follows
-    the input order more closely.
-    
-    Finally, add a test to explore the four combinations, involving pointer
-    and non-pointer, and non-zero and zero values. A table-driven test
-    wasn't used, as each case required different checks, such as checking
-    that the non-nil pointer case doesn't end up with a different pointer.
-    
-    Fixes #31924.
-    
-    Change-Id: I5ca40c9963a98aaf92f26f0b35843c021028dfca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179337
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I549af7964e40440afd35f2d1971f77eee6f8de34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209498
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/encoding/json/decode.go      | 103 ++++++++++++++++++++++-----------------
- src/encoding/json/decode_test.go |  54 ++++++++++++++++++++
- 2 files changed, 112 insertions(+), 45 deletions(-)
+ src/cmd/go/internal/work/exec.go         | 2 +-
+ src/cmd/go/testdata/script/vet_flags.txt | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

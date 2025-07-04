@@ -1,0 +1,40 @@
+commit 2f2f8fe2e810747fecf6d3366d7b76eb65352ee1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 6 16:11:50 2025 -0500
+
+    cmd/go: change go tool to build tools missing from GOROOT/pkg/tool
+    
+    If a tool in cmd is not installed in $GOROOT/pkg/tool/${GOOS}_${GOARCH},
+    go tool will build (if it's not cached) and run it in a similar way
+    (with some changes) to how tools declared with tool directives are built
+    and run.
+    
+    The main change in how builtin tools are run as compared to mod tools is
+    that they are built "in host mode" using the running go command's GOOS
+    and GOARCH. The "-exec" flag is also ignored and we don't add GOROOT/bin
+    to the PATH.
+    
+    A ForceHost function has been added to the cfg package to force the
+    configuration to runtime.GOOS/runtime.GOARCH. It has to recompute the
+    BuildContext because it's normally determined at init time but we're
+    changing it after we realize we're running a builtin tool. (Detecting
+    that we're running a builtin tool at init time would mean replicating
+    the cmd line parsing logic so recomputing BuildContext sounds like the
+    smaller change.)
+    
+    For #71867
+    
+    Change-Id: I3b2edf2cb985c1dcf5f845fbf39b7dc11dea4df7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666476
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+
+ src/cmd/go/internal/base/tool.go                   |   4 +-
+ src/cmd/go/internal/cfg/cfg.go                     |  30 +++++
+ src/cmd/go/internal/tool/tool.go                   | 133 ++++++++++++---------
+ src/cmd/go/internal/work/exec.go                   |   1 +
+ src/cmd/go/internal/work/gc.go                     |  11 +-
+ src/cmd/go/internal/work/init.go                   |  26 ++++
+ .../go/testdata/script/tool_build_as_needed.txt    |  52 ++++++++
+ 7 files changed, 193 insertions(+), 64 deletions(-)

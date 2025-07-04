@@ -1,27 +1,31 @@
-commit 805907115352801a54f987fc9079251b478cce3f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Feb 3 08:58:04 2015 +0300
+commit ac5a1ac318efb7890b25cf614a0cd5b3e52c74e3
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 22 14:42:37 2014 -0500
 
-    runtime: bound defer pools
+    cmd/ld: support for relocation variants
     
-    The unbounded list-based defer pool can grow infinitely.
-    This can happen if a goroutine routinely allocates a defer;
-    then blocks on one P; and then unblocked, scheduled and
-    frees the defer on another P.
-    The scenario was reported on golang-nuts list.
+    Most ppc64 relocations come in six or more variants where the basic
+    relocation formula is the same, but which bits of the computed value
+    are installed where changes.  Introduce the concept of "variants" for
+    internal relocations to support this.  Since this applies to
+    architecture-independent relocation types like R_PCREL, we do this in
+    relocsym.
     
-    We've been here several times. Any unbounded local caches
-    are bad and grow to infinite size. This change introduces
-    central defer pool; local pools become fixed-size
-    with the only purpose of amortizing accesses to the
-    central pool.
+    Currently there is only an identity variant.  A later CL that adds
+    support for ppc64 ELF relocations will introduce more.
     
-    Change-Id: Iadcfb113ccecf912e1b64afc07926f0de9de2248
-    Reviewed-on: https://go-review.googlesource.com/3741
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0c5f0e7dbe5beece79cd24fe36267d37c52f1a0c
+    Reviewed-on: https://go-review.googlesource.com/2005
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc0.go     | 27 +++++++++++++++------------
- src/runtime/panic.go    | 40 +++++++++++++++++++++++++++++++++++-----
- src/runtime/proc1.go    | 10 ++++++++++
- src/runtime/runtime2.go |  7 ++++++-
- 4 files changed, 66 insertions(+), 18 deletions(-)
+ include/link.h    | 7 +++++++
+ src/cmd/5l/asm.c  | 9 +++++++++
+ src/cmd/5l/l.h    | 1 +
+ src/cmd/6l/asm.c  | 9 +++++++++
+ src/cmd/6l/l.h    | 1 +
+ src/cmd/8l/asm.c  | 9 +++++++++
+ src/cmd/8l/l.h    | 1 +
+ src/cmd/9l/asm.c  | 9 +++++++++
+ src/cmd/9l/l.h    | 1 +
+ src/cmd/ld/data.c | 2 ++
+ 10 files changed, 49 insertions(+)

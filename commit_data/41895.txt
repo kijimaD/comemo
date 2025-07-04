@@ -1,18 +1,18 @@
-commit c1f0edae04dccd509618ab8b594d18cb2b0a49f7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 8 12:51:50 2020 -0400
+commit 396a9b98bac38dce31085146f8c713fbe3c0c664
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Oct 29 10:52:20 2019 -0400
 
-    net: convert many Close tests to use parallel subtests
+    [dev.link] cmd/link: fix macho host objects
     
-    Also set a deadline in TestCloseWrite so that we can more easily
-    determine which kind of connection is getting stuck on the
-    darwin-arm64-corellium builder (#34837).
+    Small updates to macho loader, fixing some misunderstandings I had about
+    using the new object file format.
     
-    Change-Id: I8ccacbf436e8e493fb2298a79b17e0af8fc6eb81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227588
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9224b01ca327e3a087ebfa36800bd6eef6abcc80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204097
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/net_test.go | 542 ++++++++++++++++++++++++++++------------------------
- 1 file changed, 289 insertions(+), 253 deletions(-)
+ src/cmd/link/internal/ld/config.go         |  2 +-
+ src/cmd/link/internal/ld/lib.go            |  3 ++-
+ src/cmd/link/internal/loader/loader.go     |  2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go | 27 ++++++++++-----------------
+ 4 files changed, 14 insertions(+), 20 deletions(-)

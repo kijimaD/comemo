@@ -1,18 +1,34 @@
-commit 17078f5860699e0d1e1f6f3ca328f92621ac49d0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 27 16:13:40 2022 +0200
+commit 9e4e23c724bc2145c5aee6edf3ec60cc322047cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 2 17:31:51 2021 -0700
 
-    cmd/api: skip tests on platforms that cannot exec
+    cmd/compile/internal/types2: rename isX predicates to allX, add simple is_X (step 1 of 2)
     
-    These tests execute commands using exec.Command.
+    Rename the isX predicates to allX to clearly identify that these
+    predicates are looking inside type parameters.
     
-    Change-Id: I2708d6d24762fe2b2a902b1b221cc67392bf5c41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435235
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Introduce is_X as predicates that do not look
+    inside type parameters so we can see all call sites.
+    The next CL will rename them all back to isX.
+    
+    Review all call sites and use correct predicate.
+    
+    Replace the single helper function is with isBasic and allBasic.
+    
+    Change-Id: I3430ccfc466fdedf4b58a6158f95d47b9020f7a5
+    
+    Change-Id: I81116b87cf8f2e17526723c7440676d133057aca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360955
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/api/goapi_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go    | 14 ++--
+ src/cmd/compile/internal/types2/check.go       |  6 +-
+ src/cmd/compile/internal/types2/conversions.go | 12 ++--
+ src/cmd/compile/internal/types2/expr.go        | 90 +++++++++++++-------------
+ src/cmd/compile/internal/types2/index.go       |  8 +--
+ src/cmd/compile/internal/types2/predicates.go  | 66 ++++++++++++-------
+ src/cmd/compile/internal/types2/sizes.go       |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        |  8 +--
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ 9 files changed, 114 insertions(+), 94 deletions(-)

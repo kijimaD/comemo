@@ -1,22 +1,30 @@
-commit ed9aed1c9d7dd340006f22b96e1ee4476582b874
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 17 15:44:20 2023 -0400
+commit f1caf1aa1c45e014e35316da8e0d2edf48795bf6
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 4 18:56:21 2023 -0400
 
-    internal/sysinfo: implement CPUName on bsd systems
+    cmd/compile: deadcode unreferenced hidden closures during inlining
     
-    sysctl machdep.cpu.brand_string seems to be standard
-    across the BSDs. There does not seem to be a standard
-    way to get the CPU frequency.
+    When a closure is inlined, it may contain other hidden closures, which
+    the inliner will duplicate, rendering the original nested closures as
+    unreachable. Because they are unreachable, they don't get processed in
+    escape analysis, meaning that go/defer statements don't get rewritten,
+    which can then in turn trigger errors in walk. This patch looks for
+    nested hidden closures and marks them as dead, so that they can be
+    skipped later on in the compilation flow.  NB: if during escape
+    analysis we rediscover a hidden closure (due to an explicit reference)
+    that was previously marked dead, revive it at that point.
     
-    Change-Id: Ic986d6c81dd54e1b84544317f2a53ce16801319b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520636
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #59404.
+    
+    Change-Id: I76db1e9cf1ee38bd1147aeae823f916dbbbf081b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/internal/sysinfo/cpuinfo_bsd.go  | 14 ++++++++++++++
- src/internal/sysinfo/cpuinfo_stub.go |  2 +-
- src/internal/sysinfo/export_test.go  |  7 +++++++
- src/internal/sysinfo/sysinfo_test.go | 15 +++++++++++++++
- 4 files changed, 37 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 37 +++++++++++++++++++++
+ test/fixedbugs/issue59404.go           | 61 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue59404part2.go      | 24 +++++++++++++
+ 3 files changed, 122 insertions(+)

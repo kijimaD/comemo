@@ -1,21 +1,34 @@
-commit 08a8fa9c471603c7ec44895392c6bfa31a8ddcb6
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun May 23 23:06:43 2021 +0200
+commit 362d25f2c82980860cb4eb5bfd0648116504788d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 19 01:31:05 2020 -0400
 
-    misc/wasm: ensure correct stack pointer in catch clauses
+    io/fs: add WalkDir
     
-    The stack pointer may have changed after a call from JavaScript into Go
-    code because of stack growth. The normal case already updated the
-    sp variable accordingly, but the catch case did not yet.
+    This commit is a copy of filepath.WalkDir adapted to use fs.FS
+    instead of the native OS file system. It is the last implementation
+    piece of the io/fs proposal.
     
-    Fixes #45433
+    The original io/fs proposal was to adopt filepath.Walk, but we
+    have since introduced the more efficient filepath.WalkDir (#42027),
+    so this CL adopts that more efficient option instead.
     
-    Change-Id: I3e0a33381929626f6b21902948935eb5ffb26c96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321936
-    Trust: Richard Musiol <neelance@gmail.com>
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    (The changes in path/filepath bring the two copies more in line
+    with each other. The main change is unembedding the field
+    in statDirEntry, so that the fs.DirEntry passed to the WalkDirFunc
+    for the root of the tree does not have any extra methods.)
+    
+    For #41190.
+    
+    Change-Id: I9359dfcc110338c0ec64535f22cafb38d0b613a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243916
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/wasm/wasm_exec.js | 3 +++
- 1 file changed, 3 insertions(+)
+ src/io/fs/walk.go                | 132 +++++++++++++++++++++++++++++++++
+ src/io/fs/walk_test.go           | 155 +++++++++++++++++++++++++++++++++++++++
+ src/path/filepath/export_test.go |   2 -
+ src/path/filepath/path.go        |  77 +++----------------
+ src/path/filepath/path_test.go   |  15 +++-
+ 5 files changed, 310 insertions(+), 71 deletions(-)

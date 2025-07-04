@@ -1,19 +1,18 @@
-commit d1cf5b899d2c60c480955101ec37e0f70f128711
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jul 28 00:01:16 2015 +0200
+commit 7733a7cad81d1e356a11a8e83221a32e5d622869
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Sat Jun 13 10:53:06 2015 +0200
 
-    net/http: disable new flaky TestTransportCancelBeforeResponseHeaders test
+    archive/tar: add missing error checks
     
-    I'll rewrite this later. It's apparently dependent on scheduling order.
-    The earlier fix in git rev 9d56c181 seems fine, though.
+    Check for errors when reading the headers following the pax headers.
     
-    Update #11894
+    Fixes #11169.
     
-    Change-Id: I7c150918af4be079c262a5f2933ef4639cc535ef
-    Reviewed-on: https://go-review.googlesource.com/12731
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ifec4a949ec8df8b49fa7cb7a67eb826fe2282ad8
+    Reviewed-on: https://go-review.googlesource.com/11031
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/transport_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/archive/tar/reader.go               |   6 ++++++
+ src/archive/tar/reader_test.go          |  15 +++++++++++++++
+ src/archive/tar/testdata/issue11169.tar | Bin 0 -> 602 bytes
+ 3 files changed, 21 insertions(+)

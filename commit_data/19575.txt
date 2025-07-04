@@ -1,19 +1,16 @@
-commit 24f8919aafa476a4730184bd4dc743a7a76e62ff
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Jun 19 12:04:59 2014 -0700
+commit 57964db3cb2ec2f3cbb1011a17a8c71d9d2c5b07
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Thu Jun 19 22:18:24 2014 +1000
 
-    encoding/base64, encoding/base32: speed up Encode
-    Avoid unnecessary bitwise-OR operations.
+    image/jpeg: encode *image.Gray as grayscale JPEGs.
     
-    benchmark                      old MB/s     new MB/s  speedup
-    BenchmarkEncodeToStringBase64  179.02       205.74    1.15x
-    BenchmarkEncodeToStringBase32  155.86       167.82    1.08x
+    Fixes #8201.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=nigeltao
+    R=nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/109090043
+    https://golang.org/cl/105990046
 
- src/pkg/encoding/base32/base32.go | 16 ++++++++--------
- src/pkg/encoding/base64/base64.go |  8 ++++----
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/pkg/image/jpeg/writer.go      | 131 ++++++++++++++++++++++++++++----------
+ src/pkg/image/jpeg/writer_test.go |  28 ++++++++
+ 2 files changed, 124 insertions(+), 35 deletions(-)

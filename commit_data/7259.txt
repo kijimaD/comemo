@@ -1,12 +1,12 @@
-commit 90585bde3797b514b54dca8b7e71bfe458ff11a4
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Jan 27 23:03:52 2011 +1000
+commit 1e17621cbe84a0dde3892e04ab2a746ff3d78c31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 22:09:14 2011 -0800
 
-    misc/vim/syntax: set large value to 'syntax sync'.
+    go/scanner: fix build (adjust scanner EOF linecount)
     
-    R=golang-dev, dsymonds, adg
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4102044
+    https://golang.org/cl/3990045
 
- misc/vim/syntax/go.vim | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/go/scanner/scanner_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

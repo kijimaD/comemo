@@ -1,12 +1,12 @@
-commit 881907730f42ca72c475db5e007b1a50943f116d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 13 13:43:41 2012 +1100
+commit 16ade99d9d57a84a754bfa8e9a52f5911d9cf5e4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 12 22:42:55 2012 -0400
 
-    doc: update reference gopher
+    runtime: fix windows/amd64 exception handler
     
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/5754094
+    R=golang-dev, rsc
+    CC=golang-dev, hectorchu
+    https://golang.org/cl/5797077
 
- doc/gopher/ref.png | Bin 10536 -> 5895 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/runtime/sys_windows_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

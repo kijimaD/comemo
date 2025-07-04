@@ -1,25 +1,17 @@
-commit eba0e866fafe3f8223d654a29fb953e02c07364a
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Oct 17 18:27:53 2021 -0400
+commit 07ef3135253321176704bce6e629a07ac02bf1c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 17 12:03:13 2021 -0800
 
-    go/types: delay expansion of underlying in typeDecl
+    runtime/cgo: add cast in C code to avoid C compiler warning
     
-    Even after type-checking the RHS of a type declaration, we may not yet
-    be able to expand, if the RHS is itself an instance (see #49043).
+    Fixes #44340
     
-    We can instead rely on the mechanisms we have in place for delayed
-    expansion.
-    
-    Fixes #49043
-    
-    Change-Id: Ibffa4c1b1163c824b5c7e151aaac35f3e8c84ec7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356533
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id80dd1f44a988b653933732afcc8e49a826affc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293209
+    Reviewed-by: Andrew G. Morgan <agm@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/decl.go                           | 23 ++++++-----------------
- src/go/types/named.go                          | 17 ++++++++++++++++-
- src/go/types/testdata/check/typeinst.go2       |  2 +-
- src/go/types/testdata/fixedbugs/issue49043.go2 | 24 ++++++++++++++++++++++++
- 4 files changed, 47 insertions(+), 19 deletions(-)
+ src/runtime/cgo/linux_syscall.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

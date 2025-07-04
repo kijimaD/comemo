@@ -1,16 +1,14 @@
-commit c576bcbad5e7671ae24d499d77a4b2371c4ab981
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Sep 2 16:44:51 2013 +0900
+commit fd0af9b56c56d293f4ca9396184dd452615933ee
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 31 09:33:38 2013 -0700
 
-    net: fix TestFirstFavoriteAddr failure on single IP stack kernel
+    cmd/8l: add support for dragonfly/386
     
-    Update #3610
-    Update #5267
-    Update #5707
-    
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13465043
+    https://golang.org/cl/13328045
 
- src/pkg/net/ipsock_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/8l/asm.c  | 1 +
+ src/cmd/8l/obj.c  | 4 ++++
+ src/cmd/ld/doc.go | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

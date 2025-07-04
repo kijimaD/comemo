@@ -1,18 +1,18 @@
-commit 506eb0a9b1a7051f64788f330ea26722fa293f3c
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Sep 14 20:59:50 2020 +0000
+commit 117826903a526c4d31c628f1a302c1d4799c1666
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 11:11:48 2020 -0800
 
-    Revert "encoding/json: implement Is on SyntaxError"
+    flag: update comment to refer to Output, not out
     
-    This reverts CL 253037.
+    The out method was renamed to Output in CL 70391 for #17628 and #21888.
     
-    Reason for revert: The recommended way to check for a type of error is errors.As. API changes should also start with a proposal.
+    Fixes #37514
     
-    Change-Id: I62896717aa47ed491c2c4775d2b05d80e5e9cde3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254837
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I99be47b5030ccbbf10a056df9fcc3c97cb99b015
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221383
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/encoding/json/scanner.go      | 6 ------
- src/encoding/json/scanner_test.go | 9 ---------
- 2 files changed, 15 deletions(-)
+ src/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

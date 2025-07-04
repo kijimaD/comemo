@@ -1,26 +1,43 @@
-commit 502a03ffcfe488f5c774794e6224e711b064fdf3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 18:02:43 2017 -0700
+commit d089a6c7187f1ff85277515405ec6c641588a7ff
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 14:03:49 2017 -0500
 
-    cmd/compile: move Node.Typecheck to flags
+    runtime: remove stack barriers
     
-    Change-Id: Id5aa4a1499068bf2d3497b21d794f970b7e47fdf
-    Reviewed-on: https://go-review.googlesource.com/41795
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Now that we don't rescan stacks, stack barriers are unnecessary. This
+    removes all of the code and structures supporting them as well as
+    tests that were specifically for stack barriers.
+    
+    Updates #17503.
+    
+    Change-Id: Ia29221730e0f2bbe7beab4fa757f31a032d9690c
+    Reviewed-on: https://go-review.googlesource.com/36620
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go       |  4 ++--
- src/cmd/compile/internal/gc/gsubr.go     |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  6 +++---
- src/cmd/compile/internal/gc/racewalk.go  |  2 +-
- src/cmd/compile/internal/gc/range.go     | 12 ++++++------
- src/cmd/compile/internal/gc/reflect.go   | 12 ++++++------
- src/cmd/compile/internal/gc/select.go    |  4 ++--
- src/cmd/compile/internal/gc/sinit.go     |  2 +-
- src/cmd/compile/internal/gc/subr.go      | 16 ++++++++--------
- src/cmd/compile/internal/gc/swt.go       |  2 +-
- src/cmd/compile/internal/gc/syntax.go    | 11 +++++++----
- src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
- src/cmd/compile/internal/gc/walk.go      | 32 ++++++++++++++++----------------
- 13 files changed, 67 insertions(+), 64 deletions(-)
+ src/runtime/asm_386.s           |  30 ---
+ src/runtime/asm_amd64.s         |  36 ----
+ src/runtime/asm_amd64p32.s      |  31 ----
+ src/runtime/asm_arm.s           |  33 ----
+ src/runtime/asm_arm64.s         |  33 ----
+ src/runtime/asm_mips64x.s       |  32 ----
+ src/runtime/asm_mipsx.s         |  28 ---
+ src/runtime/asm_ppc64x.s        |  34 ----
+ src/runtime/asm_s390x.s         |  31 ----
+ src/runtime/extern.go           |   7 -
+ src/runtime/mbitmap.go          |  22 +--
+ src/runtime/mgc.go              |  20 +-
+ src/runtime/mgcmark.go          |  76 --------
+ src/runtime/mstkbar.go          | 393 ----------------------------------------
+ src/runtime/panic.go            |   1 -
+ src/runtime/pprof/pprof_test.go | 115 +-----------
+ src/runtime/proc.go             |  39 +---
+ src/runtime/runtime1.go         |  43 ++---
+ src/runtime/runtime2.go         |   8 -
+ src/runtime/stack.go            |  41 +----
+ src/runtime/stack_test.go       |   8 +-
+ src/runtime/stubs.go            |   9 +-
+ src/runtime/trace.go            |   7 +-
+ src/runtime/traceback.go        |  55 ------
+ 24 files changed, 32 insertions(+), 1100 deletions(-)

@@ -1,21 +1,25 @@
-commit f6360cf488e4ddab0f920065b8775773f702e6bf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 16 11:39:06 2023 -0700
+commit 73c38f226e15e218411d87a05c878f087ad89455
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 15 14:24:12 2022 -0400
 
-    syscall: remove deprecation notice
+    cmd/go: clear GOPATH from build context when importing from module
     
-    The syscall package isn't getting new system call support,
-    but it is not deprecated.
+    In module mode, we shouldn't handle packages under GOPATH any
+    differently from other packages. Clear GOPATH from the build context
+    before Importing to ensure that.
     
-    Fixes #60797
+    Fixes #37015.
     
-    Change-Id: I33b60269f9ce70ac2108fa0f3d42fd87a3076bf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520018
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0203e25013716bca346fd4a67d80f1d05bbaea77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412476
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/syscall/syscall.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/go1.20.html                                    | 11 ++++
+ src/cmd/go/internal/load/pkg.go                    |  5 +-
+ src/cmd/go/internal/modindex/read.go               | 71 ++++++++--------------
+ .../go/testdata/script/mod_go_version_missing.txt  |  2 +-
+ 4 files changed, 42 insertions(+), 47 deletions(-)

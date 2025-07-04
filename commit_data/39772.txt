@@ -1,14 +1,38 @@
-commit d5fe73393c40c7b4070aa73903671c8d1f23f2c2
-Author: peter zhang <i@ddatsh.com>
-Date:   Mon Sep 2 11:41:23 2019 +0000
+commit 3cb1e9d98a98abed5fbdcf78a54956851310fe30
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 19 14:54:40 2019 +0100
 
-    math/big: fix a duplicate "the" in a comment
+    internal/bytealg: add assembly implementation of Count/CountString on arm
     
-    Change-Id: Ib637381ab8a12aeb798576b781e1b3c458ba812d
-    GitHub-Last-Rev: 12994496b6b636d75564e5ae7e938b65bca526df
-    GitHub-Pull-Request: golang/go#34017
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192877
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Simple single-byte loop count for now, to be further improved in future
+    CLs.
+    
+    Benchmark on linux/arm:
+    
+    name               old time/op    new time/op     delta
+    CountSingle/10-4      122ns ± 0%       87ns ± 1%  -28.41%  (p=0.000 n=7+10)
+    CountSingle/32-4      242ns ± 0%      174ns ± 1%  -28.25%  (p=0.000 n=10+10)
+    CountSingle/4K-4     24.2µs ± 1%     15.6µs ± 1%  -35.42%  (p=0.000 n=10+10)
+    CountSingle/4M-4     29.6ms ± 1%     21.3ms ± 1%  -28.09%  (p=0.000 n=10+9)
+    CountSingle/64M-4     562ms ± 0%      414ms ± 1%  -26.23%  (p=0.000 n=8+10)
+    
+    name               old speed      new speed       delta
+    CountSingle/10-4   81.7MB/s ± 1%  114.5MB/s ± 1%  +40.07%  (p=0.000 n=10+10)
+    CountSingle/32-4    132MB/s ± 0%    184MB/s ± 1%  +39.39%  (p=0.000 n=10+9)
+    CountSingle/4K-4    170MB/s ± 1%    263MB/s ± 1%  +54.86%  (p=0.000 n=10+10)
+    CountSingle/4M-4    142MB/s ± 1%    197MB/s ± 1%  +39.07%  (p=0.000 n=10+9)
+    CountSingle/64M-4   119MB/s ± 0%    162MB/s ± 1%  +35.55%  (p=0.000 n=8+10)
+    
+    Updates #29001
+    
+    Change-Id: I42a268215a62044286ec32b548d8e4b86b9570ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168319
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/big/ratconv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/bytealg/count_arm.s      | 43 +++++++++++++++++++++++++++++++++++
+ src/internal/bytealg/count_generic.go |  2 +-
+ src/internal/bytealg/count_native.go  |  2 +-
+ 3 files changed, 45 insertions(+), 2 deletions(-)

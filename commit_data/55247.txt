@@ -1,15 +1,32 @@
-commit 9869a0ce7e2685a72641452efc17f039b9040164
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Dec 8 15:11:12 2023 -0500
+commit 3e44b7d07a7b3c6233eb1bf4cf3cb00a0b85adec
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 4 17:23:46 2023 -0500
 
-    doc/go1.22: fix go test -cover formatting
+    os: treat non-symlink reparse points as irregular files
     
-    For #61422.
+    Prior to this change (as of CL 143578), our stat function attempted to
+    resolve all reparse points as if they were symlinks.
     
-    Change-Id: I3591673b55fef35bc429d2e1ce4bc72c0129c03c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548479
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This results in an additional call to CreateFile when statting a
+    symlink file: we use CreateFile once to obtain the reparse tag and
+    check whether the file is actually a symlink, and if it is we call
+    CreateFile again without FILE_FLAG_OPEN_REPARSE_POINT to stat the link
+    target. Fortunately, since symlinks are rare on Windows that overhead
+    shouldn't be a big deal in practice.
+    
+    Fixes #42919.
+    
+    Change-Id: If453930c6e98040cd6525ac4aea60a84498c9579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460595
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- doc/go1.22.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/os_windows_test.go | 82 +++++++++++++++++++++++++++++++++++++++++++++--
+ src/os/stat_test.go       | 29 +++++++++++++++++
+ src/os/stat_windows.go    | 77 ++++++++++++++++++++++++++++----------------
+ src/os/types_windows.go   | 63 +++++++++++++++++++++++++-----------
+ 4 files changed, 203 insertions(+), 48 deletions(-)

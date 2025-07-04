@@ -1,27 +1,16 @@
-commit 988ffc0fe2dac1072b8c0f22458b8c04295174ff
-Author: Gautham Thambidorai <gautham.dorai@gmail.com>
-Date:   Wed Jan 22 18:24:03 2014 -0500
+commit f7245c062668199fcb505de47d694ceaed512394
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 22 16:39:39 2014 -0500
 
-    crypto/tls: Client side support for TLS session resumption.
+    runtime: fix typo in ARM code
     
-    Adam (agl@) had already done an initial review of this CL in a branch.
+    The typo was introduced by one of Dmitriy's CLs this morning.
+    The fix makes the ARM build compile again; it still won't pass
+    its tests, but one thing at a time.
     
-    Added ClientSessionState to Config which now allows clients to keep state
-    required to resume a TLS session with a server. A client handshake will try
-    and use the SessionTicket/MasterSecret in this cached state if the server
-    acknowledged resumption.
-    
-    We also added support to cache ClientSessionState object in Config that will
-    be looked up by server remote address during the handshake.
-    
-    R=golang-codereviews, agl, rsc, agl, agl, bradfitz, mikioh.mikioh
+    TBR=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/15680043
+    https://golang.org/cl/55770044
 
- src/pkg/crypto/tls/common.go                |  99 +++++++++
- src/pkg/crypto/tls/conn.go                  |   2 +
- src/pkg/crypto/tls/handshake_client.go      | 299 ++++++++++++++++++++++------
- src/pkg/crypto/tls/handshake_client_test.go |  84 ++++++++
- src/pkg/crypto/tls/handshake_server_test.go |   3 +
- src/pkg/go/build/deps_test.go               |   2 +-
- 6 files changed, 427 insertions(+), 62 deletions(-)
+ src/pkg/runtime/atomic_arm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

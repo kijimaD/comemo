@@ -1,29 +1,17 @@
-commit 59f2704dabf0c68bc645adb0ed4a8d94cdbcd7bb
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 8 15:01:34 2019 -0500
+commit 160ddf76e397557a4f05203e9c38ffd43365a65a
+Author: Samuel Kelemen <SCKelemen@users.noreply.github.com>
+Date:   Tue Nov 13 17:59:23 2018 +0000
 
-    sync: add Pool benchmarks to stress STW and reuse
+    cmd/internal/obj/arm64: fix spelling in arm64 doc
     
-    This adds two benchmarks that will highlight two problems in Pool that
-    we're about to address.
+    ln5: "instrutions" => "instructions";
+    ln159: "immedate" => "immediate";
     
-    The first benchmark measures the impact of large Pools on GC STW time.
-    Currently, STW time is O(# of items in Pools), and this benchmark
-    demonstrates 70µs STW times.
-    
-    The second benchmark measures the impact of fully clearing all Pools
-    on each GC. Typically this is a problem in heavily-loaded systems
-    because it causes a spike in allocation. This benchmark stresses this
-    by simulating an expensive "New" function, so the cost of creating new
-    objects is reflected in the ns/op of the benchmark.
-    
-    For #22950, #22331.
-    
-    Change-Id: I0c8853190d23144026fa11837b6bf42adc461722
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166959
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ifb94a9c145d1911ed92f12883213245beee2bd67
+    GitHub-Last-Rev: 78627835e76c6d837a72badd5fc28ba27f0a6ff7
+    GitHub-Pull-Request: golang/go#28776
+    Reviewed-on: https://go-review.googlesource.com/c/149378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sync/pool_test.go | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 82 insertions(+)
+ src/cmd/internal/obj/arm64/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

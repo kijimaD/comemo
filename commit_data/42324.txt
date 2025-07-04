@@ -1,37 +1,15 @@
-commit 55ec5182d7b84eb2461c495a55984162b23f3df8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 21 17:05:14 2019 +0000
+commit b11d02ef740091d15671a647f876142018613aa4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 25 14:38:34 2019 -0500
 
-    runtime: remove scavAddr in favor of address ranges
+    doc: add section on resolving packages to module reference doc
     
-    This change removes the concept of s.scavAddr in favor of explicitly
-    reserving and unreserving address ranges. s.scavAddr has several
-    problems with raciness that can cause the scavenger to miss updates, or
-    move it back unnecessarily, forcing future scavenge calls to iterate
-    over searched address space unnecessarily.
+    Updates #33637
     
-    This change achieves this by replacing scavAddr with a second addrRanges
-    which is cloned from s.inUse at the end of each sweep phase. Ranges from
-    this second addrRanges are then reserved by scavengers (with the
-    reservation size proportional to the heap size) who are then able to
-    safely iterate over those ranges without worry of another scavenger
-    coming in.
-    
-    Fixes #35788.
-    
-    Change-Id: Ief01ae170384174875118742f6c26b2a41cbb66d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208378
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3b4303479b44894442a04226cbf1f1e27dbb2fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208779
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/export_test.go      |  13 +-
- src/runtime/extern.go           |   7 +-
- src/runtime/mgcscavenge.go      | 319 +++++++++++++++++++++++-----------------
- src/runtime/mgcscavenge_test.go |   6 +-
- src/runtime/mgcsweep.go         |   6 +-
- src/runtime/mheap.go            |  20 +--
- src/runtime/mpagealloc.go       |  36 ++---
- src/runtime/mranges.go          |  69 +++++++++
- 8 files changed, 305 insertions(+), 171 deletions(-)
+ doc/modules.md | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

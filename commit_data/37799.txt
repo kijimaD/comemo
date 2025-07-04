@@ -1,12 +1,17 @@
-commit f4f1b14ab497539bc2fd326965c8a4b40bbae49d
-Author: Hidetatsu Yaginuma <ygnmhdtt@gmail.com>
-Date:   Sun Dec 30 16:03:53 2018 +0900
+commit f9a4ae018d99c5afb0e4f128545ff26e01d7b498
+Author: Alexey Alexandrov <aalexand@google.com>
+Date:   Fri Jul 27 00:05:50 2018 -0700
 
-    strconv: add missing package name into doc.go(godoc overview)
+    runtime/pprof: compute memory profile block size using sampled values
     
-    Change-Id: I336ad707a85bf0c81b6c2230c90452c0b3b92924
-    Reviewed-on: https://go-review.googlesource.com/c/155998
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #26638.
+    
+    Change-Id: I3c18d1298d99af8ea8c00916303efd2b5a5effc7
+    Reviewed-on: https://go-review.googlesource.com/126336
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/pprof/protomem.go      | 4 ++--
+ src/runtime/pprof/protomem_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

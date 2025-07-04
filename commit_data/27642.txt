@@ -1,16 +1,19 @@
-commit b89bcc1daeed9980c5ba8a255b37877493952874
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jun 3 16:45:21 2016 +0900
+commit 530e2164940d6650c43ecc8c652eed557e0bff8a
+Author: Ross Light <light@google.com>
+Date:   Thu Mar 31 14:57:49 2016 -0700
 
-    cmd/go: re-enable TestCgoConsistentResults on solaris
+    os/user: wrap getgrnam_r to fix type issues
     
-    Updates #13247.
+    Even with -D_POSIX_PTHREAD_SEMANTICS, Solaris seems to not define
+    getgrnam_r in a POSIX compatible way.
     
-    Change-Id: If5e4c9f4db05f58608b0eeed1a2312a04015b207
-    Reviewed-on: https://go-review.googlesource.com/23741
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #14967
+    
+    Change-Id: I78cb7e5b30b2d8b860e336060a0a06f4720c0475
+    Reviewed-on: https://go-review.googlesource.com/21385
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/os/user/lookup_unix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

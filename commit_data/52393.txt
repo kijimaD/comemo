@@ -1,25 +1,35 @@
-commit 10c2348602a3bc44b9b352fe95a18b83b025e367
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Mon Feb 15 15:55:28 2021 +0200
+commit d4bfc87218335cb48c9d1d1a308d720f9195cae7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 29 11:58:03 2022 -0700
 
-    net/http: continue using referer header if it's present
+    cmd/compile: simplify code from CL 398474
     
-    Currently, net/http replaces the Referer header with the URL of the
-    previous request, regardless of its status. This CL changes this
-    behavior, respecting the Referer header for secure connections, if it is
-    set.
+    This CL:
     
-    Fixes #44160
+    1. extracts typecheck.LookupNum into a method on *types.Pkg, so that
+    it can be used with any package, not just types.LocalPkg,
     
-    Change-Id: I2d7fe37dd681549136329e832188294691584870
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291636
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Nick Craig-Wood <nickcw@gmail.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    2. adds a new helper function closureSym to generate symbols in the
+    appropriate package as needed within stencil.go, and
+    
+    3. updates the existing typecheck.LookupNum+Name.SetSym code to call
+    closureSym instead.
+    
+    No functional change (so no need to backport to Go 1.18), but a little
+    cleaner, and avoids polluting types.LocalPkg.Syms with symbols that we
+    won't end up using.
+    
+    Updates #52117.
+    
+    Change-Id: Ifc8a3b76a37c830125e9d494530d1f5b2e3e3e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403197
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/client.go      |  9 +++++++--
- src/net/http/client_test.go | 30 +++++++++++++++++++-----------
- 2 files changed, 26 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go  | 28 ++++++++++++++--------------
+ src/cmd/compile/internal/typecheck/subr.go |  9 ++-------
+ src/cmd/compile/internal/types/pkg.go      | 10 ++++++++++
+ 3 files changed, 26 insertions(+), 21 deletions(-)

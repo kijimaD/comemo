@@ -1,72 +1,33 @@
-commit b66bc0a9d5eba193f7d7f4977ca64a77527f4b3b
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Jan 24 10:37:59 2022 -0500
+commit 7e97e4e8ccdba9677f31ab9380802cd7613f62c5
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Fri Mar 26 19:27:22 2021 -0700
 
-    go/types, types2: make each method instantiation independently lazy
+    syscall: syscall.AllThreadsSyscall signal handling fixes
     
-    Method signatures can introduce a significant number of edges into the
-    type graph. One can imagine a generic type with many methods, each of
-    which may use other instantiated types, etc. For performance, when type
-    checking generic code, we should avoid unnecessary instantiation of
-    methods wherever possible.
+    The runtime support for syscall.AllThreadsSyscall() functions had
+    some corner case deadlock issues when signal handling was in use.
+    This was observed in at least 3 build test failures on ppc64 and
+    amd64 architecture CGO_ENABLED=0 builds over the last few months.
     
-    This CL achieves this by making method instantiation lazy at the
-    individual method level. It abstracts method access into a methodList
-    type, which may be either eager or lazy. In the lazy case, methods are
-    only instantiated when they are accessed via the Named.Method,
-    MethodSet, or LookupFieldOrMethod APIs. Factoring out a methodList type
-    makes it easier to verify that we're not leaking the methods slice
-    anywhere, and as a side benefit reduces the size of *Named types in the
-    case where there are no methods. The effective memory footprint of Named
-    types with methods increases by a pointer (to hold the slice of guards),
-    and the footprint of instantiated named types increases additionally by
-    a sync.Once per method. We estimate that this memory increase is more
-    than offset by the reduction in the number of instantiated methods.
+    The fixes involve more controlled handling of signals while the
+    AllThreads mechanism is being executed. Further details are
+    discussed in bug #44193.
     
-    This also simplifies the code. Previously we had to work around the fact
-    that named type expansion could occur before all signatures were set-up,
-    by stashing the instantiated receiver into a partially filled-out *Func.
-    With fully lazy methods, we can rely on the invariant that any use of
-    methods in valid code can only occur after all signatures can be type
-    checked. This means that we can fully instantiate the *Func, and don't
-    need to deal with partially instantiated stubs.
+    The all-threads syscall support is new in go1.16, so earlier
+    releases are not affected by this bug.
     
-    Finally, this CL fixes a bug (issue #50619), where traversing
-    Method->Receiver Type->Method did not get us back where we started. This
-    is fixed by not instantiating a new method if t is already the receiver
-    base of the original method.
+    Fixes #44193
     
-    A test is added to explicitly verify the invariant above, and more test
-    cases are added for the behavior of Info with respect to generic code.
-    
-    Fixes #50619
-    
-    Change-Id: I5b6d2bdc4404c9f5dcb583a29cb64e8af9794c54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380499
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I01ba8508a6e1bb2d872751f50da86dd07911a41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305149
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go        | 113 ++++++++++++++
- src/cmd/compile/internal/types2/decl.go            |  12 +-
- src/cmd/compile/internal/types2/instantiate.go     |   2 +-
- src/cmd/compile/internal/types2/lookup.go          |   2 +-
- src/cmd/compile/internal/types2/methodlist.go      |  79 ++++++++++
- src/cmd/compile/internal/types2/methodlist_test.go |  40 +++++
- src/cmd/compile/internal/types2/named.go           | 171 +++++++++++----------
- src/cmd/compile/internal/types2/object.go          |   9 +-
- src/cmd/compile/internal/types2/sizeof_test.go     |   4 +-
- src/cmd/compile/internal/types2/typexpr.go         |   2 +-
- src/go/types/api_test.go                           | 114 ++++++++++++++
- src/go/types/decl.go                               |  12 +-
- src/go/types/instantiate.go                        |   2 +-
- src/go/types/lookup.go                             |   2 +-
- src/go/types/methodlist.go                         |  78 ++++++++++
- src/go/types/methodlist_test.go                    |  41 +++++
- src/go/types/methodset.go                          |  35 +++--
- src/go/types/named.go                              | 171 +++++++++++----------
- src/go/types/object.go                             |   9 +-
- src/go/types/sizeof_test.go                        |   4 +-
- src/go/types/typexpr.go                            |   2 +-
- 21 files changed, 698 insertions(+), 206 deletions(-)
+ src/os/signal/signal_test.go | 42 +++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go          | 52 ++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/runtime2.go      |  7 ++++--
+ src/runtime/sigqueue.go      |  2 +-
+ 4 files changed, 96 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 7196db9e66529cb3e81cbc401557358047543c2f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 21:54:53 2024 +0000
+
+    internal/coverage: refactor EmitPercent in preparation for bugfix
+    
+    Refactor cformat.EmitPercent to accept a package filter (list of
+    packages to report). This is a no-op in terms of exposed coverage
+    functionality, but we will need this feature in a subsequent patch.
+    
+    Updates #65570.
+    
+    Change-Id: I04ddc624a634837ea31c12ec395aa1295a0ea1f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592204
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/covdata/dump.go                    |  2 +-
+ src/internal/coverage/cfile/testsupport.go |  2 +-
+ src/internal/coverage/cformat/fmt_test.go  | 26 ++++++++++++++++++++++----
+ src/internal/coverage/cformat/format.go    | 21 ++++++++++++++-------
+ 4 files changed, 38 insertions(+), 13 deletions(-)

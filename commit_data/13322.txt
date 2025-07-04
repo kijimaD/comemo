@@ -1,20 +1,19 @@
-commit 7ad37673e1a08118a748c9df45c83d2b9ce73d4f
+commit 50452720ba8a582d24870bfe0b4d1a97e6652f4f
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 8 13:54:48 2012 -0400
+Date:   Fri Jun 8 13:05:01 2012 -0400
 
-    syscall: revert API changes in Windows Win32finddata fix.
+    regexp/syntax: unexport ErrUnexpectedParen
     
-    Preserve old API by using correct struct in system call
-    and then copying the results, as we did for SetsockoptLinger.
+    This new error is the only API change in the current draft of
+    Go 1.0.2 CLs. I'd like to include the CL that introduced it,
+    because it replaces a mysterious 'internal error' with a
+    useful error message, but I don't want any API changes,
+    so unexport the error constant for now. It can be
+    re-exported for Go 1.1.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6307065
+    https://golang.org/cl/6294055
 
- api/next.txt                              | 26 --------------------------
- src/pkg/os/file_windows.go                |  6 +++---
- src/pkg/syscall/syscall_windows.go        | 27 ++++++++++++++++++++++-----
- src/pkg/syscall/zsyscall_windows_386.go   |  4 ++--
- src/pkg/syscall/zsyscall_windows_amd64.go |  4 ++--
- src/pkg/syscall/ztypes_windows.go         | 24 ++++++++++++++++++++----
- 6 files changed, 49 insertions(+), 42 deletions(-)
+ src/pkg/regexp/syntax/parse.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

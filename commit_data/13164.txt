@@ -1,14 +1,14 @@
-commit 184209787c5904cb670857c7c1ef3a2fd10718e5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 24 16:24:39 2012 -0700
+commit 132dbb61aadf2eaa0718e388b2bb7e3f6e42f734
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Fri May 25 09:19:21 2012 +1000
 
-    strconv: better documentation for FormatInt, FormatUint.
+    net/mail: more liberal parsing of Date headers.
+    Fixes #3639.
     
-    Fixes #3580.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6252047
+    https://golang.org/cl/6243045
 
- src/pkg/strconv/itoa.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/net/mail/message.go      | 11 ++++++-----
+ src/pkg/net/mail/message_test.go |  5 +++++
+ 2 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,26 +1,18 @@
-commit ba006e6b6afeb8a6718cfbfb04104cc8f4b28a1a
+commit 32b822f29a7e0ceaee9d393da8fa85e6d2e9c9f1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 13 15:31:09 2011 -0700
+Date:   Fri May 13 12:54:51 2011 -0700
 
-    go/types: type checker API + testing infrastructure
+    go spec: fix error in production syntax
     
-    At the moment types.Check() only deals with global
-    types and only partially so. But the framework is
-    there to compute them and check for cycles. An initial
-    type test is passing.
+    Fix analoguous error in ebnf.go which already
+    correctly accepted an empty production.
     
-    First step of a series of CLs to come.
+    Fixes #1821.
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4425063
+    https://golang.org/cl/4526056
 
- src/cmd/gotype/gotype.go             |   6 +-
- src/pkg/go/types/Makefile            |   1 +
- src/pkg/go/types/check.go            | 230 +++++++++++++++++++++++++++++++++++
- src/pkg/go/types/check_test.go       | 224 ++++++++++++++++++++++++++++++++++
- src/pkg/go/types/gcimporter.go       | 133 +++++++++++---------
- src/pkg/go/types/testdata/exports.go |   2 +-
- src/pkg/go/types/testdata/test0.src  | 154 +++++++++++++++++++++++
- src/pkg/go/types/types.go            | 169 +++++++++++++++++++++++--
- 8 files changed, 849 insertions(+), 70 deletions(-)
+ doc/go_spec.html     | 4 ++--
+ src/pkg/ebnf/ebnf.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

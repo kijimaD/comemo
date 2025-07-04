@@ -1,45 +1,45 @@
-commit 1213776650486aff30b607a6c6b6ece3e9c0155f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 9 17:36:42 2017 -0700
+commit 379567aad19e97eb2145d7bbe45a7a2febccd3e4
+Author: philhofer <phofer@umich.edu>
+Date:   Mon Feb 20 08:43:54 2017 -0800
 
-    cmd/compile: use a buffered channel for the function queue
+    cmd/compile/ssa: more aggressive constant folding
     
-    Updates #20307
+    Add rewrite rules that canonicalize the location
+    of constants in expressions, and fold conststants
+    that appear in operations that can be trivially
+    reassociated.
     
-    With -c=2:
+    After this change, the compiler constant-folds
+    expressions like "4 + x - 1" and "4 & x & 1"
     
-    name        old time/op       new time/op       delta
-    Template          140ms ± 3%        139ms ± 4%  -1.06%  (p=0.003 n=50+50)
-    Unicode          81.1ms ± 4%       81.9ms ± 4%  +0.96%  (p=0.006 n=50+49)
-    GoTypes           375ms ± 3%        374ms ± 3%    ~     (p=0.094 n=48+48)
-    Compiler          1.69s ± 2%        1.68s ± 2%  -0.41%  (p=0.004 n=49+48)
-    SSA               3.05s ± 1%        3.05s ± 2%    ~     (p=0.953 n=47+49)
-    Flate            86.3ms ± 2%       85.9ms ± 2%  -0.49%  (p=0.011 n=49+48)
-    GoParser         99.5ms ± 3%       99.3ms ± 3%    ~     (p=0.394 n=48+49)
-    Reflect           262ms ± 3%        261ms ± 3%    ~     (p=0.354 n=47+49)
-    Tar              81.4ms ± 3%       79.7ms ± 4%  -1.98%  (p=0.000 n=47+50)
-    XML               133ms ± 3%        133ms ± 3%    ~     (p=0.992 n=50+49)
-    [Geo mean]        236ms             235ms       -0.36%
+    Benchmarks affected on darwin/amd64:
     
-    name        old user-time/op  new user-time/op  delta
-    Template          249ms ± 5%        242ms ± 7%  -2.61%  (p=0.000 n=48+50)
-    Unicode           111ms ± 4%        111ms ± 6%    ~     (p=0.407 n=46+47)
-    GoTypes           753ms ± 2%        748ms ± 3%  -0.65%  (p=0.010 n=48+50)
-    Compiler          3.28s ± 2%        3.27s ± 2%  -0.40%  (p=0.026 n=49+47)
-    SSA               7.03s ± 2%        7.01s ± 3%    ~     (p=0.154 n=45+50)
-    Flate             154ms ± 3%        154ms ± 3%    ~     (p=0.306 n=49+49)
-    GoParser          180ms ± 4%        179ms ± 4%    ~     (p=0.148 n=48+48)
-    Reflect           427ms ± 2%        428ms ± 3%    ~     (p=0.502 n=46+49)
-    Tar               142ms ± 5%        135ms ± 9%  -4.83%  (p=0.000 n=46+50)
-    XML               247ms ± 3%        247ms ± 4%    ~     (p=0.921 n=49+49)
-    [Geo mean]        426ms             422ms       -0.92%
+    name                     old time/op    new time/op    delta
+    FmtFprintfInt-8            82.1ns ± 1%    81.7ns ± 1%  -0.46%  (p=0.023 n=8+9)
+    FmtFprintfIntInt-8          122ns ± 2%     120ns ± 2%  -1.48%  (p=0.047 n=10+10)
+    FmtManyArgs-8               493ns ± 0%     486ns ± 1%  -1.37%  (p=0.000 n=8+10)
+    Gzip-8                      230ms ± 0%     229ms ± 1%  -0.46%  (p=0.001 n=10+9)
+    HTTPClientServer-8         74.5µs ± 1%    73.7µs ± 1%  -1.11%  (p=0.000 n=10+10)
+    JSONDecode-8               51.7ms ± 0%    51.9ms ± 1%  +0.42%  (p=0.017 n=10+9)
+    RegexpMatchEasy0_32-8      82.6ns ± 1%    81.7ns ± 0%  -1.02%  (p=0.000 n=9+8)
+    RegexpMatchMedium_32-8      121ns ± 1%     120ns ± 1%  -1.48%  (p=0.001 n=10+10)
+    Revcomp-8                   426ms ± 1%     400ms ± 1%  -6.16%  (p=0.000 n=10+10)
+    TimeFormat-8                330ns ± 1%     327ns ± 0%  -0.82%  (p=0.000 n=10+10)
     
+    name                     old speed      new speed      delta
+    Gzip-8                   84.4MB/s ± 0%  84.8MB/s ± 1%  +0.47%  (p=0.001 n=10+9)
+    JSONDecode-8             37.6MB/s ± 0%  37.4MB/s ± 1%  -0.42%  (p=0.016 n=10+9)
+    RegexpMatchEasy0_32-8     387MB/s ± 1%   392MB/s ± 0%  +1.06%  (p=0.000 n=9+8)
+    RegexpMatchMedium_32-8   8.21MB/s ± 1%  8.34MB/s ± 1%  +1.58%  (p=0.000 n=10+9)
+    Revcomp-8                 597MB/s ± 1%   636MB/s ± 1%  +6.57%  (p=0.000 n=10+10)
     
-    Change-Id: I4746234439ddb9a7e5840fc783b8857da6a4a680
-    Reviewed-on: https://go-review.googlesource.com/43110
+    Change-Id: Ie37ff91605b76a984a8400dfd1e34f50bf61c864
+    Reviewed-on: https://go-review.googlesource.com/37290
+    Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  161 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 3114 ++++++++++++++++++++++--
+ test/loopbce.go                                |    2 +-
+ 3 files changed, 3097 insertions(+), 180 deletions(-)

@@ -1,13 +1,12 @@
-commit 5080d7617a03197dc7319eaf1a8f76d5288f0a46
+commit dc331e656501cdb3f244582ec347549b22c9288e
 Author: Ken Thompson <ken@golang.org>
-Date:   Tue Feb 8 17:30:23 2011 -0800
+Date:   Tue Feb 8 16:55:59 2011 -0800
 
-    cgen64: dont use MVN instruction
+    peep: more optimization
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4154043
+    https://golang.org/cl/4149044
 
- src/cmd/5g/cgen64.c |  8 ++++++--
- src/cmd/5g/peep.c   | 36 ++++++++++++++++++------------------
- 2 files changed, 24 insertions(+), 20 deletions(-)
+ src/cmd/5g/peep.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

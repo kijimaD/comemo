@@ -1,30 +1,30 @@
-commit 3e67f46d4f7d661504d281bdedbd1432c09bd751
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Nov 22 14:31:37 2023 -0500
+commit 839c84255034d5181bb69e8d10070119ab97d9fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 11:46:15 2023 -0800
 
-    .github: try "import/path: issue title" instead of "affected/package: "
+    go/types, cmd/compile/internal/types2: minor adjustments (cleanups)
     
-    The multiple issue templates pre-populate the issue title with a prefix
-    that Go issues customarily have. The "affected/package" phrase is short
-    for "the import path of the affected package". Let's try simplifying it
-    to just "import/path", and also include "issue title" to make the title
-    a more representative template of what the final title should look like.
+    go/types:
+    - gofmt a couple of files
     
-    Updates #29839.
+    types2:
+    - add loong64 to sizes list (present in go/types)
+    - fix a type in validtype.go
+    - co-locate an accessor with others in typeparam.go
     
-    Change-Id: I9736d24cf3d0a51536ac13dd07dd189fb51da021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544556
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    This changes further reduce discrepancy between types2 and go/types.
+    
+    Change-Id: I2e6a09f1c4b8dbc947c48af13031ff58a2bc6f4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460996
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- .github/ISSUE_TEMPLATE/00-bug.yml             | 2 +-
- .github/ISSUE_TEMPLATE/01-pkgsite.yml         | 2 +-
- .github/ISSUE_TEMPLATE/03-gopls.yml           | 2 +-
- .github/ISSUE_TEMPLATE/04-vuln.yml            | 2 +-
- .github/ISSUE_TEMPLATE/10-proposal.yml        | 2 +-
- .github/ISSUE_TEMPLATE/11-language-change.yml | 2 +-
- .github/ISSUE_TEMPLATE/12-telemetry.yml       | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/gccgosizes.go | 1 +
+ src/cmd/compile/internal/types2/typeparam.go  | 6 +++---
+ src/cmd/compile/internal/types2/validtype.go  | 2 +-
+ src/go/types/errorcalls_test.go               | 2 +-
+ src/go/types/testdata/manual.go               | 1 -
+ 5 files changed, 6 insertions(+), 6 deletions(-)

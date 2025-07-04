@@ -1,20 +1,18 @@
-commit b1182f22c0e557840239dfa80259d6b8c67fb559
-Author: Zxilly <zhouxinyu1001@gmail.com>
-Date:   Tue Mar 19 01:09:54 2024 +0000
+commit d15fcbc79f252fe5c01e099ab89b58f1de61df32
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 18:39:09 2023 +1100
 
-    cmd/go/internal/modget: remove duplicate exit
+    cmd/internal/obj/arm64: use more appropriate types for olsr9s/olsr12u
     
-    base.ExitIfErrors() has been deferred at the begin of the function,
-    no need to call it again.
+    This allows for a large number of casts to be removed at call sites.
+    While here, use consistent register naming.
     
-    Change-Id: I4fc81572cfce0f84832448da667c65bb477dea22
-    GitHub-Last-Rev: cc156358755d516a9c8a6989f4601345bd3b55bc
-    GitHub-Pull-Request: golang/go#66392
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572576
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I78a2a928b78c9f09f91fb6ed6ad440aa4e63923d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471517
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/modget/get.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go | 37 ++++++++++++++++++-------------------
+ 1 file changed, 18 insertions(+), 19 deletions(-)

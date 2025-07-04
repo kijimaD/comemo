@@ -1,20 +1,18 @@
-commit d3be3daafef4b614fc676c807956047976848c7e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jul 3 22:58:42 2014 +0400
+commit df75f082d3f18f859ddbd3d002c711a4ec507948
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Thu Jul 3 11:36:05 2014 +1000
 
-    runtime: delete unnecessary confusing code
-    The code in GC that handles gp->gobuf.ctxt is wrong,
-    because it does not mark the ctxt object itself,
-    if just queues the ctxt object for scanning.
-    So the ctxt object can be collected as garbage.
-    However, Gobuf.ctxt is void*, so it's always marked and
-    scanned through G.
+    runtime: make runtime·usleep and runtime·osyield callable from cgo callback
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/105490044
+    runtime·usleep and runtime·osyield fall back to calling an
+    assembly wrapper for the libc functions in the absence of a m,
+    so they can be called in cgo callback context.
+    
+    LGTM=rsc
+    R=minux.ma, rsc
+    CC=dave, golang-codereviews
+    https://golang.org/cl/102620044
 
- src/pkg/runtime/mgc0.c    | 5 -----
- src/pkg/runtime/runtime.h | 2 +-
- 2 files changed, 1 insertion(+), 6 deletions(-)
+ src/pkg/runtime/os_solaris.c        | 18 ++++++++++---
+ src/pkg/runtime/sys_solaris_amd64.s | 52 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 3 deletions(-)

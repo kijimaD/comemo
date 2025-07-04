@@ -1,29 +1,15 @@
-commit c48b77b1b5e5ac38351487583a1082b7b73d0ffe
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 8 14:01:23 2012 -0700
+commit e803e1cfa61d6677025440b7336e20854f619755
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Aug 8 13:16:21 2012 +1000
 
-    all: make Unicode surrogate halves illegal as UTF-8
+    misc/dashboard/codereview: fixes for non-reviewers.
     
-    Surrogate halves are part of UTF-16 and should never appear in UTF-8.
-    (The rune that two combined halves represent in UTF-16 should
-    be encoded directly.)
+    Also rename the testing CGI argument from "email" to "user".
     
-    Encoding: encode as RuneError.
-    Decoding: convert to RuneError, consume one byte.
-    
-    This requires changing:
-            package unicode/utf8
-            runtime for range over string
-    Also added utf8.ValidRune and fixed bug in utf.RuneLen.
-    
-    Fixes #3927.
-    
-    R=golang-dev, rsc, bsiegert
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6458099
+    https://golang.org/cl/6454117
 
- src/pkg/runtime/rune.c            |  9 +++-
- src/pkg/unicode/utf8/utf8.go      | 38 ++++++++++++++-
- src/pkg/unicode/utf8/utf8_test.go | 98 +++++++++++++++++++++++++++++++++------
- test/stringrange.go               |  7 +++
- 4 files changed, 136 insertions(+), 16 deletions(-)
+ misc/dashboard/codereview/dashboard/front.go | 29 +++++++++++++++++-----------
+ misc/dashboard/codereview/index.yaml         |  6 ++++++
+ 2 files changed, 24 insertions(+), 11 deletions(-)

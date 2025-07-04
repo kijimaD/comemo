@@ -1,20 +1,32 @@
-commit d6e6140c988e0b276fa5559190ede3494ea73cf0
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 10 10:49:33 2022 -0400
+commit bfcb7c4c8adadd6191c3fdacf2b59136b0da5c1c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 2 16:59:01 2021 -0700
 
-    cmd/compile: fix boolean comparison on RISCV64
+    [dev.typeparams] cmd/compile: fix unified IR support for //go:nointerface
     
-    Following CL 405114, for RISCV64.
+    This CL changes fixedbugs/issue30862.go into a "runindir" test so that
+    it can use '-goexperiment fieldtrack' and test that //go:nointerface
+    works with cmd/compile. In particular, this revealed that -G=3 and
+    unified IR did not handle it correctly.
     
-    May fix RISCV64 builds.
+    This CL also fixes unified IR's support for //go:nointerface and adds
+    a test that checks that //go:nointerface, promoted methods, and
+    generics all interact as expected.
     
-    Updates #52788.
+    Updates #47045.
     
-    Change-Id: Ifc34658703d1e8b97665e7b862060152e3005d71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405553
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib8acff8ae18bf124520d00c98e8915699cba2abd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332611
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 47 ++++++++++++++++++++++++--
- 2 files changed, 50 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/reader.go   |  5 +--
+ test/fixedbugs/issue30862.dir/{ => a}/a.go |  0
+ test/fixedbugs/issue30862.dir/{ => b}/b.go |  2 +-
+ test/fixedbugs/issue30862.dir/main.go      |  2 +-
+ test/fixedbugs/issue30862.go               |  4 +-
+ test/run.go                                |  6 ++-
+ test/typeparam/mdempsky/15.go              | 69 ++++++++++++++++++++++++++++++
+ 7 files changed, 78 insertions(+), 10 deletions(-)

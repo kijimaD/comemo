@@ -1,27 +1,41 @@
-commit 665992b5158c1c851f6e6a1ecb15a166f5ff611e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 6 13:17:53 2022 -0700
+commit ecd2e140ec54feca9afbda7726345e09cd380eea
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Nov 12 11:16:43 2021 -0500
 
-    go/types, types2: better error for generic type decl. with missing constraint
+    runtime: drop cgoTraceback call assumptions from CgoPprof tests
     
-    If a generic type declaration is missing a constraint, syntactically
-    it is an array type declaration with an undefined array length.
-    Mention the possibility of a missing constraint in the error message
-    for the undefined array length.
+    the CgoPprof tests currently assume that calls to their cgoTraceback
+    functions are primarily for generating pprof samples and exit early
+    after receiving two calls.
     
-    For #56064.
-    For #55961.
-    For #51145.
+    This is a fragile assumption, as cgoTraceback will be called for _any_
+    signal received, hence why the test already looks for 2 calls instead of
+    1.
     
-    Change-Id: Ic161aeda9ea44faa8aa3bf3e9d62b3b13a95d4c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439559
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Still, this has caused flaky failures in two cases:
+    
+    * #37201, where async preemption signals add additional probability of
+    receiving non-profiling signals. This was resolved by disabling async
+    preemption.
+    
+    * #49401, where some ITIMER_PROF SIGPROF signals are ignored in favor of
+    per-thread SIGPROF signals.
+    
+    Rather than attempting to keep plugging holes, this CL drops the fragile
+    assumption from these tests. Now they simply unconditionally run for the
+    full 1s before exiting.
+    
+    Fixes #49401
+    
+    Change-Id: I16dc9d2f16c2fb511e9db93dd096a402121f86ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363634
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
 
- src/cmd/compile/internal/types2/typexpr.go          | 2 +-
- src/go/types/typexpr.go                             | 2 +-
- src/internal/types/testdata/fixedbugs/issue43527.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/crash_cgo_test.go                   |  5 -----
+ src/runtime/testdata/testprogcgo/pprof.go       | 11 +----------
+ src/runtime/testdata/testprogcgo/threadpprof.go | 14 +-------------
+ 3 files changed, 2 insertions(+), 28 deletions(-)

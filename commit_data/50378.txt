@@ -1,19 +1,20 @@
-commit 77da976419ebef9beec480e86202db7a32ebd181
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Aug 28 06:11:43 2022 +1000
+commit 8151b56c5d1de8f654a6e6789a0e607b55845c1e
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 21 13:23:29 2021 -0400
 
-    cmd/compile: remove redundant SEQZ/SNEZ on riscv64
+    go/types, types2: always return an underlying type from optype
     
-    In particular, (SEQZ (SNEZ x)) can arise from (Not (IsNonNil x)).
+    Optype should never return a defined type.
     
-    Change-Id: Ie249cd1934d71087e0f774cf8f6c937ceeed7ad5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428215
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I37b29e0c958e127e75e834e71d6392ea80827773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357694
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 12 +++++--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 44 ++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/testdata/examples/types.go2 | 8 ++++++++
+ src/cmd/compile/internal/types2/type.go                     | 2 +-
+ src/go/types/testdata/examples/types.go2                    | 8 ++++++++
+ src/go/types/type.go                                        | 2 +-
+ 4 files changed, 18 insertions(+), 2 deletions(-)

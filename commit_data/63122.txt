@@ -1,0 +1,31 @@
+commit 07b94b2db23eda9ff4629cd8c2a0a32decdae08b
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 28 17:30:54 2025 +0100
+
+    internal/trace: add generator tests for sync events
+    
+    Add generator tests that verify the timestamps for the sync events
+    emitted in the go1.25 trace format and earlier versions.
+    
+    Add the ability to configure the properties of the per-generation sync
+    batches in testgen. Also refactor testgen to produce more realistic
+    timestamps by keeping track of lastTs and using it for structural
+    batches that don't have their own timestamps. Otherwise they default to
+    zero which means the minTs of the generation can't be controlled.
+    
+    For #69869
+    
+    Change-Id: I92a49b8281bc4169b63e13c030c1de7720cd6f26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653876
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/internal/testgen/trace.go       | 77 ++++++++++++++++++----
+ src/internal/trace/reader_test.go                  | 74 +++++++++++++++++++++
+ .../trace/testdata/generators/go123-sync.go        | 30 +++++++++
+ .../trace/testdata/generators/go125-sync.go        | 31 +++++++++
+ src/internal/trace/testdata/tests/go123-sync.test  | 26 ++++++++
+ src/internal/trace/testdata/tests/go125-sync.test  | 32 +++++++++
+ 6 files changed, 257 insertions(+), 13 deletions(-)

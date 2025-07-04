@@ -1,20 +1,16 @@
-commit 56b70d98f522be3c1fed7df3d0359c913a2a1bc7
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Dec 10 15:32:17 2018 -0500
+commit a0212aa6273395c400092383bbdebc251ebacd2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 21 02:43:45 2018 +0000
 
-    doc: use https scheme in oss-distros link
+    cmd/go: revert "add graphviz output to graph command"
     
-    The https scheme is supported, and should be used per best practices.
+    This reverts commit 723479bc30f998f29ecbba7caea118ac4e2c9afd.
     
-    The previous http link redirected to https:
+    Reason for revert: other tools should convert the graph output to graphviz.
     
-            $ curl -i 'http://oss-security.openwall.org/wiki/mailing-lists/distros'
-            HTTP/1.1 302 Moved Temporarily
-            Location: https://oss-security.openwall.org/wiki/mailing-lists/distros
-    
-    Change-Id: I857b93eeec45996d6dc05dbf7532d1759bf4d447
-    Reviewed-on: https://go-review.googlesource.com/c/153457
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ide5b8f0b061aaff74bb6ba4c2a8f8768d1fbc05a
+    Reviewed-on: https://go-review.googlesource.com/130295
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/security.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modcmd/graph.go | 33 +++------------------------------
+ 1 file changed, 3 insertions(+), 30 deletions(-)

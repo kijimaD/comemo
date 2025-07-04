@@ -1,16 +1,19 @@
-commit b9b204d55daaab264239f322cb3c13c57452cb2f
+commit 07c103f6e61f390d2fb344c6e4437fdf744d4c73
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 22 21:18:03 2011 -0400
+Date:   Fri Jul 22 21:17:46 2011 -0400
 
-    ld: detect all import cycles
+    sort: remove testing cycle
     
-    Fixes #2052.
+    import cycle:
+            "testing"
+            imports "flag"
+            imports "sort"
+            imports "testing"
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4812053
+    https://golang.org/cl/4811048
 
- src/cmd/ld/go.c  | 161 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/ld/lib.c |   3 ++
- src/cmd/ld/lib.h |   2 +
- 3 files changed, 165 insertions(+), 1 deletion(-)
+ src/pkg/sort/search_test.go |  7 +++++--
+ src/pkg/sort/sort_test.go   | 10 +++++++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)

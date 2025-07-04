@@ -1,29 +1,15 @@
-commit 605e57d8fee696238f3338c415043f16a7743731
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Sep 17 15:57:24 2011 -0400
+commit b71a805cd5131ff6407a25af540e3dd80fa883c2
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Sat Sep 17 11:43:06 2011 -0700
 
-    exp/ssh: new package.
+    archive/tar: document Header fields and Type flags
     
-    The typical UNIX method for controlling long running process is to
-    send the process signals. Since this doesn't get you very far, various
-    ad-hoc, remote-control protocols have been used over time by programs
-    like Apache and BIND.
+    Documentation more along the lines of os.FileInfo
+    Fixes #2180.
     
-    Implementing an SSH server means that Go code will have a standard,
-    secure way to do this in the future.
-    
-    R=bradfitz, borman, dave, gustavo, dsymonds, r, adg, rsc, rogpeppe, lvd, kevlar, raul.san
-    CC=golang-dev
-    https://golang.org/cl/4962064
+    R=golang-dev, dsymonds
+    CC=golang-dev, mike.rosset
+    https://golang.org/cl/4958055
 
- src/pkg/exp/ssh/Makefile             |  16 +
- src/pkg/exp/ssh/channel.go           | 317 ++++++++++++++++
- src/pkg/exp/ssh/common.go            |  96 +++++
- src/pkg/exp/ssh/doc.go               |  79 ++++
- src/pkg/exp/ssh/messages.go          | 557 +++++++++++++++++++++++++++
- src/pkg/exp/ssh/messages_test.go     | 125 ++++++
- src/pkg/exp/ssh/server.go            | 711 +++++++++++++++++++++++++++++++++++
- src/pkg/exp/ssh/server_shell.go      | 399 ++++++++++++++++++++
- src/pkg/exp/ssh/server_shell_test.go | 134 +++++++
- src/pkg/exp/ssh/transport.go         | 308 +++++++++++++++
- 10 files changed, 2742 insertions(+)
+ src/pkg/archive/tar/common.go | 51 ++++++++++++++++++++++---------------------
+ 1 file changed, 26 insertions(+), 25 deletions(-)

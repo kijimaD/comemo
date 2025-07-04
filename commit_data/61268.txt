@@ -1,0 +1,22 @@
+commit 4646556ba49367b3ea19181ac7d5f8ba1b5928b8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jun 28 00:03:53 2024 +1000
+
+    cmd/internal/obj,cmd/asm: add vector registers to riscv64 assembler
+    
+    This adds V0 through V31 as vector registers, which are available on CPUs
+    that support the V extension.
+    
+    Change-Id: Ibffee3f9a2cf1d062638715b3744431d72d451ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595404
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: 鹏程汪 <wangpengcheng.pp@bytedance.com>
+
+ src/cmd/asm/internal/arch/arch.go  |  4 ++++
+ src/cmd/internal/obj/riscv/cpu.go  | 36 +++++++++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/riscv/list.go |  2 ++
+ src/cmd/internal/obj/riscv/obj.go  | 10 ++++++++++
+ 4 files changed, 51 insertions(+), 1 deletion(-)

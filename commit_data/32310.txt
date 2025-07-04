@@ -1,19 +1,17 @@
-commit 9c9df65c539a0e2b1de9094382b87cc0f2748ae3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 10 11:17:59 2017 +0900
+commit 2abd91e26564bd5ddd364b11e74e050a72766339
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 18 06:57:43 2017 -0700
 
-    reflect: remove useless parameter from newName
+    runtime: add a map growth benchmark
     
-    pkgPath always received the empty string. Worse yet, it panicked if it
-    received anything else. This has been the case ever since newName was
-    introduced in early 2016.
+    Updates #19931
+    Updates #19992
     
-    Change-Id: I5f164305bd30c34455ef35e776c7616f303b37e4
-    Reviewed-on: https://go-review.googlesource.com/54331
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ib2d4e6b9b89a49caa443310d896dce8d6db06050
+    Reviewed-on: https://go-review.googlesource.com/40978
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/export_test.go |  2 +-
- src/reflect/type.go        | 29 +++++++++++------------------
- 2 files changed, 12 insertions(+), 19 deletions(-)
+ src/runtime/mapspeed_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,19 +1,14 @@
-commit 22be4bfdbf8100cfff28c4053dcfd35370917993
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 20 12:16:46 2014 -0400
+commit 6e8f7b4f3e98deb90c8e2bc183b514c6780cb3a9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 6 22:22:47 2014 -0700
 
-    regexp: fix TestOnePassCutoff
+    doc/go1.4.txt: useless change to tickle builders
     
-    The stack blowout can no longer happen,
-    but we can still test that too-complex regexps
-    are rejected.
+    Debugging the builders and need a commit to make them run.
     
-    Replacement for CL 162770043.
-    
-    LGTM=iant, r
-    R=r, iant
-    CC=bradfitz, golang-codereviews
-    https://golang.org/cl/162860043
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/149600043
 
- src/regexp/all_test.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ doc/go1.4.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

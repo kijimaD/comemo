@@ -1,24 +1,32 @@
-commit 690a8c3fb136431d4f22894c545ea99278758570
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 13 19:22:57 2021 -0400
+commit e1b305af028544e00a22c905e68049c98c10a1cc
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Wed Nov 4 10:13:42 2020 +1300
 
-    make.bash: fix misuse of continue
+    strconv: revert ParseFloat/ParseComplex error on incorrect bitSize
     
-    Apparently, in bash, the "continue" keyword can only be used
-    inside of a loop, not in an if block. If readelf exists but $CC
-    does not, make.bash emits a warning:
+    This is a partial revert of https://go-review.googlesource.com/c/go/+/248219
+    because we found that a non-trivial amount of code erroneously calls
+    ParseFloat(s, 10) or even ParseFloat(s, 0) and expects it to work --
+    before that change was merged, ParseFloat accepted a bitSize of
+    anything other than 32 or 64 to mean 64 (and ParseComplex was similar).
     
-    ./make.bash: line 135: continue: only meaningful in a `for', `while', or `until' loop
+    So revert that behavior to avoid breaking people's code, and add tests
+    for this.
     
-    Change it to a conditional.
+    I may add a vet check to flag ParseFloat(s, not_32_or_64) in a later
+    change.
     
-    Change-Id: I00a0940ed99bc0c565094e506705961b6b3d362e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320170
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    See #42297 for more details.
+    
+    Change-Id: I4bc0156bd74f67a39d5561b6e5fde3f2d20bd622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267319
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/make.bash | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/strconv/atoc.go      |  6 +++---
+ src/strconv/atoc_test.go | 21 +++++++++++++--------
+ src/strconv/atof.go      |  3 ---
+ src/strconv/atof_test.go | 22 ++++++++++++++--------
+ 4 files changed, 30 insertions(+), 22 deletions(-)

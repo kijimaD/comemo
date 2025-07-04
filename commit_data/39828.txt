@@ -1,18 +1,18 @@
-commit a5025fdcde3f4f8442052eac902217f8c55ec3e4
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sat Sep 7 21:15:55 2019 +0200
+commit 9eef9648005c17681800fdb55ed2404ab769761e
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 24 18:17:43 2019 +0100
 
-    log/syslog: skip unsupported tests on iOS
+    misc/wasm: exit with code 1 if WebAssembly.instantiate fails
     
-    CL 193843 disabled sysctl on iOS. This change disables two tests that
-    rely on sysctl.
+    go_js_wasm_exec was returning with code 0 if WebAssembly.instantiate
+    failed. This made failing tests show as passed.
     
-    Updates #34133
-    
-    Change-Id: I7c569a1992a50ad6027a294c1fd535cccddcfc4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193844
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Icfb2f42e9f1c3c70ca4a130a61a63cb305edff32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168885
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/log/syslog/syslog_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ misc/wasm/wasm_exec.js | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

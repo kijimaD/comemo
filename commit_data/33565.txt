@@ -1,16 +1,22 @@
-commit 22671e734473d3cd088958a00826c1adf936032c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 13 21:20:23 2017 -0500
+commit 77b4beba2fd892a3f8e9da527fdad031f6ecc613
+Author: André Carvalho <asantostc@gmail.com>
+Date:   Fri Jul 28 20:31:20 2017 -0300
 
-    bytes: change ExampleReader_Len to use a non-ASCII string
+    reflect: handle types with unexported methods before exported ones
     
-    This should help make clear that Len is not counting runes.
-    Also delete empty string, which doesn't add much.
+    The method Method expects index to be an index of exported fields,
+    but, before this change, the index used by MethodByName could
+    take into account unexported fields if those happened sort
+    before the exported one.
     
-    Change-Id: I1602352df1897fef6e855e9db0bababb8ab788ca
-    Reviewed-on: https://go-review.googlesource.com/78110
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Fixes #21177
+    
+    Change-Id: I90bb64a47b23e2e43fdd2b8a1e0a2c9a8a63ded2
+    Reviewed-on: https://go-review.googlesource.com/51810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/example_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/reflect/all_test.go | 19 +++++++++++++++++++
+ src/reflect/type.go     |  8 ++++++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)

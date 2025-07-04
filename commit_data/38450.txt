@@ -1,27 +1,21 @@
-commit 916e861fd969e19e918e5b24c45a834c63dd8ee4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 18 12:19:26 2019 -0700
+commit 78bb91cbd34a8f2f3784ba5df94c0e56c44fc751
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 4 15:59:47 2018 +0000
 
-    cmd/compile: fix importing rewritten f(g()) calls
+    runtime: remove npreleased in favor of boolean
     
-    golang.org/cl/166983 started serializing the Ninit field of OCALL
-    nodes within function inline bodies (necessary to fix a regression in
-    building crypto/ecdsa with -gcflags=-l=4), but this means the Ninit
-    field needs to be typechecked when the imported function body is used.
+    This change removes npreleased from mspan since spans may now either be
+    scavenged or not scavenged; how many of its pages were actually scavenged
+    doesn't matter. It saves some space in mpsan overhead too, as the boolean
+    fits into what would otherwise be struct padding.
     
-    It's unclear why this wasn't necessary for the crypto/ecdsa
-    regression.
+    For #14045.
     
-    Fixes #30907.
-    
-    Change-Id: Id5f0bf3c4d17bbd6d5318913b859093c93a0a20c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168199
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I63f25a4d98658f5fe21c6a466fc38c59bfc5d0f5
+    Reviewed-on: https://go-review.googlesource.com/c/139737
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go |  1 +
- test/fixedbugs/issue30907.dir/a.go       | 19 +++++++++++++++++++
- test/fixedbugs/issue30907.dir/b.go       | 11 +++++++++++
- test/fixedbugs/issue30907.go             |  7 +++++++
- 4 files changed, 38 insertions(+)
+ src/runtime/mheap.go | 77 ++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 47 insertions(+), 30 deletions(-)

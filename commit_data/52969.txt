@@ -1,18 +1,21 @@
-commit 48f8c5c0373886736d348acb1ce1601457da1d2e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 10 15:51:46 2023 -0400
+commit 4045b1bc3f97a47274ef1da2bf6d29f5ce1c7b88
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Jun 16 11:05:39 2022 +0800
 
-    internal/bisect: copy parser changes from CL 494177
+    cmd/compile: fix assert condition in generic method call
     
-    x/tools/cmd/bisect is changing to emit hex skips for robustness.
-    Update this copy of internal/bisect to understand them.
+    Fixes #53406.
     
-    Change-Id: Ie9445714e8e9fb594e656db2f94dcde9b6ce82d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494178
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If7ae39ec1042a792d82a0a2de96d168c22d8ab71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412614
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Auto-Submit: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
 
- src/cmd/compile/internal/loopvar/loopvar_test.go | 46 ++++++++++++------------
- src/internal/bisect/bisect.go                    | 23 ++++++++++--
- 2 files changed, 45 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 12 +++++++++---
+ test/typeparam/issue53406.go              | 22 ++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

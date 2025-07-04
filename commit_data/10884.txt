@@ -1,12 +1,14 @@
-commit 448d89d67afdb8c448843efe9e687a944bacda59
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 20 11:51:31 2011 +1100
+commit 7c94dc04a794119dd9488fb491a56faa4507bf7e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 20 11:30:48 2011 +1100
 
-    old/template: close file in TestAll before deleting it
+    dashboard: display correct package build state
     
-    R=golang-dev, rsc
+    Includes some boring whitespace tweaks.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5491073
+    https://golang.org/cl/5492067
 
- src/pkg/old/template/template_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ misc/dashboard/app/build/ui.html | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

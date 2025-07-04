@@ -1,21 +1,55 @@
-commit 12bb256cb30a76b540dbbc1cac38d7044facfa29
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Mar 3 13:33:24 2021 -0500
+commit 6f264801a76bbf1a0defacba4230efaefc47598c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jul 1 12:49:43 2020 -0400
 
-    go/types: use correct recv for parameterized embedded methods
+    go/printer: remove exported StdFormat flag
     
-    This is a direct port of CL 298129 to go/types.
+    The StdFormat flag was added as part of CL 231461, where the primary aim
+    was to fix the bug #37476. It's expected that the existing printer modes
+    only adjust spacing but do not change any of the code text itself. A new
+    printing flag served as a way for cmd/gofmt and go/format to delegate
+    a part of formatting work to the printer—where it's more more convenient
+    and efficient to perform—while maintaining current low-level printing
+    behavior of go/printer unmodified.
     
-    Fixes #44688
+    We already have cmd/gofmt and the go/format API that implement standard
+    formatting of Go source code, so there isn't a need to expose StdFormat
+    flag to the world, as it can only cause confusion.
     
-    Change-Id: I950992ea7beea5b9c8bea0c296b5ce03b2aa9b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298349
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Consider that to format source in canonical gofmt style completely it
+    may require tasks A, B, C to be done. In one version of Go, the printer
+    may do both A and B, while cmd/gofmt and go/format will do the remaining
+    task C. In another version, the printer may take on doing just A, while
+    cmd/gofmt and go/format will perform B and C. This makes it hard to add
+    a gofmt-like mode to the printer without compromising on above fluidity.
+    
+    This change prefers to shift back some complexity to the implementation
+    of the standard library, allowing us to avoid creating the new exported
+    printing flag just for the internal needs of gofmt and go/format today.
+    
+    We may still want to re-think the API and consider if something better
+    should be added, but unfortunately there isn't time for Go 1.15. We are
+    not adding new APIs now, so we can defer this decision until Go 1.16 or
+    later, when there is more time.
+    
+    For #37476.
+    For #37453.
+    For #39489.
+    For #37419.
+    
+    Change-Id: I0bb07156dca852b043487099dcf05c5350b29e20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240683
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/call.go                  | 33 +++++++++-----
- src/go/types/fixedbugs/issue44688.go2 | 83 +++++++++++++++++++++++++++++++++++
- 2 files changed, 105 insertions(+), 11 deletions(-)
+ api/go1.15.txt                                         |  2 --
+ doc/go1.15.html                                        | 17 ++++++++++-------
+ src/cmd/gofmt/gofmt.go                                 |  8 +++++++-
+ src/go/format/format.go                                |  8 +++++++-
+ src/go/format/format_test.go                           |  4 ++--
+ src/go/printer/nodes.go                                | 18 +++++++++++-------
+ src/go/printer/performance_test.go                     |  2 +-
+ src/go/printer/printer.go                              | 17 ++++++++++++++++-
+ src/go/printer/printer_test.go                         |  8 ++++----
+ .../testdata/{go2numbers.stdfmt => go2numbers.norm}    |  0
+ 10 files changed, 58 insertions(+), 26 deletions(-)

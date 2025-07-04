@@ -1,26 +1,25 @@
-commit 3a1ce1085ad08296557e8a87573fae4634ce7d8e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Mar 23 22:47:56 2017 -0400
+commit 32bf2829a17a90bdbd472335707639ba35776da6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 30 23:28:40 2016 -0800
 
-    runtime: access _cgo_yield indirectly
+    [dev.inline] cmd/compile/internal/syntax: process //line pragmas in scanner
     
-    The darwin linker for ARM does not allow PC-relative relocation
-    of external symbol in text section. Work around it by accessing
-    it indirectly: putting its address in a global variable (which is
-    not external), and accessing through that variable.
+    Reviewed in and cherry-picked from https://go-review.googlesource.com/#/c/33764/.
     
-    Fixes #19684.
+    Minor adjustment in noder.go to make merge compile again.
     
-    Change-Id: I41361bbb281b5dbdda0d100ae49d32c69ed85a81
-    Reviewed-on: https://go-review.googlesource.com/38596
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib5029b52b59944f207b0f2438c8a5aa576eb25b8
+    Reviewed-on: https://go-review.googlesource.com/34233
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
 
- src/runtime/cgo.go        |  2 ++
- src/runtime/lock_futex.go | 18 +++++++++---------
- src/runtime/lock_sema.go  | 14 +++++++-------
- src/runtime/proc.go       |  8 ++++----
- 4 files changed, 22 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/noder.go            |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go        |  2 +-
+ src/cmd/compile/internal/syntax/parser.go       |  4 +-
+ src/cmd/compile/internal/syntax/parser_test.go  |  4 +-
+ src/cmd/compile/internal/syntax/pos.go          | 12 +++--
+ src/cmd/compile/internal/syntax/scanner.go      | 71 +++++++++++++++++--------
+ src/cmd/compile/internal/syntax/scanner_test.go | 14 +++--
+ src/cmd/compile/internal/syntax/syntax.go       | 12 ++---
+ 8 files changed, 78 insertions(+), 43 deletions(-)

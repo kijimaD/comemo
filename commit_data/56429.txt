@@ -1,67 +1,28 @@
-commit 4721f95058878042576ef09562a84e6c93e5c399
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 9 17:07:43 2024 -0400
+commit bc3bdfa977628cfa2c6079eef71fab3e8d923d59
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu May 4 09:42:58 2023 -0500
 
-    cmd/compile, cmd/link: disallow linkname of some newly added internal functions
+    test: add memcombine testcases for ppc64
     
-    Go API is defined through exported symbols. When a package is
-    imported, the compiler ensures that only exported symbols can be
-    accessed, and the go command ensures that internal packages cannot
-    be imported. This ensures API integrity. But there is a hole:
-    using linkname, one can access internal or non-exported symbols.
-    Linkname is a mechanism to give access of a symbol to a package
-    without adding it to the public API. It is intended for coupled
-    packages to share some implementation details, or to break
-    circular dependencies, and both "push" (definition) and "pull"
-    (reference) sides are controlled, so they can be updated in sync.
-    Nevertheless, it is abused as a mechanism to reach into internal
-    details of other packages uncontrolled by the user, notably the
-    runtime. As the other package evolves, the code often breaks,
-    because the linknamed symbol may no longer exist, or change its
-    signature or semantics.
+    Thanks to the recent addition of the memcombine pass, the
+    ppc64 ports now have the memcombine optimizations. Previously
+    in PPC64.rules, the memcombine rules were only added for
+    ppc64le targets due to the significant increase in size of
+    the rewritePPC64.go file when those rules were added. The
+    ppc64 and ppc64le rules had to be different because of the
+    byte order due to endianness differences.
     
-    This CL adds a mechanism to enforce the integrity of linknames.
-    Generally, "push" linkname is allowed, as the package defining
-    the symbol explicitly opt in for access outside of the package.
-    "Pull" linkname is checked and only allowed in some circumstances.
-    Given that there are existing code that use "pull"-only linkname
-    to access other package's internals, disallowing it completely is
-    too much a change at this point in the release cycle. For a start,
-    implement a hard-coded blocklist, which contains some newly added
-    internal functions that, if used inappropriately, may break memory
-    safety or runtime integrity. All blocked symbols are newly added
-    in Go 1.23. So existing code that builds with Go 1.22 will
-    continue to build.
+    This enables the memcombine tests to be run on ppc64 as well
+    as ppc64le.
     
-    For the implementation, when compiling a package, we mark
-    linknamed symbols in the current package with an attribute. At
-    link time, marked linknamed symbols are checked against the
-    blocklist. Care is taken so it distinguishes a linkname reference
-    in the current package vs. a reference of a linkname from another
-    package and propagated to the current package (e.g. through
-    inlining or instantiation).
-    
-    Symbol references in assembly code are similar to linknames, and
-    are treated similarly.
-    
-    Change-Id: I8067efe29c122740cd4f1effd2dec2d839147d5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584598
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I4081e2d94617a1b66541d536c0c2662e266c9c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492615
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/noder/reader.go        | 13 +++++-
- src/cmd/internal/goobj/objfile.go               |  2 +
- src/cmd/internal/obj/link.go                    |  5 ++
- src/cmd/internal/obj/objfile.go                 |  3 ++
- src/cmd/link/internal/loader/loader.go          | 61 ++++++++++++++++++++++++-
- src/cmd/link/link_test.go                       | 40 ++++++++++++++++
- src/cmd/link/testdata/linkname/coro.go          | 27 +++++++++++
- src/cmd/link/testdata/linkname/coro_asm/asm.s   |  7 +++
- src/cmd/link/testdata/linkname/coro_asm/main.go | 13 ++++++
- src/cmd/link/testdata/linkname/coro_var.go      | 21 +++++++++
- src/cmd/link/testdata/linkname/ok.go            | 27 +++++++++++
- src/cmd/link/testdata/linkname/p/p.go           | 19 ++++++++
- src/cmd/link/testdata/linkname/push.go          | 26 +++++++++++
- src/cmd/link/testdata/linkname/weak.go          | 22 +++++++++
- 14 files changed, 284 insertions(+), 2 deletions(-)
+ test/codegen/memcombine.go | 99 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 95 insertions(+), 4 deletions(-)

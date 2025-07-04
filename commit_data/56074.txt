@@ -1,39 +1,25 @@
-commit 84b190ad3cfaa9e192f0980a58611db9f9286553
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 27 22:44:52 2024 -0400
+commit 38dadcc3b5e0f0ed70d224f1eb519a83dcdb52de
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 7 15:37:18 2023 +0000
 
-    runtime: avoid unnecessary netpoll wakeups during timer creation
+    net/http: fix a race in TestResponseControllerSetPastReadDeadline
     
-    goos: linux
-    goarch: amd64
-    pkg: time
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                                       │ s7base.txt  │               s7.txt               │
-                                       │   sec/op    │   sec/op     vs base               │
-    AdjustTimers10000-32                 315.1µ ± 4%   291.4µ ± 5%  -7.52% (p=0.001 n=10)
-    AdjustTimers10000SingleThread-32     1.728m ± 6%   1.728m ± 5%       ~ (p=0.971 n=10)
-    AdjustTimers10000NoReset-32          263.0µ ± 3%   253.1µ ± 6%  -3.75% (p=0.023 n=10)
-    AdjustTimers10000NoSleep-32          306.8µ ± 5%   277.3µ ± 3%  -9.62% (p=0.000 n=10)
-    AdjustTimers10000NoResetNoSleep-32   245.3µ ± 3%   241.4µ ± 2%       ~ (p=0.529 n=10)
+    If the Write goroutine is delayed for long enough after its first
+    Write, the handler may have closed both the readc and donec channels
+    by the time it selects over them, and the donec case may be randomly
+    chosen. Handle that case by explicitly checking readc as well.
     
-    goos: darwin
-    goarch: arm64
-    pkg: time
-    cpu: Apple M3 Pro
-                                       │ m3base.txt  │               m3.txt                │
-                                       │   sec/op    │   sec/op     vs base                │
-    AdjustTimers10000-12                 385.5µ ± 3%   288.1µ ± 1%  -25.26% (p=0.000 n=10)
-    AdjustTimers10000SingleThread-12     1.213m ± 1%   1.195m ± 1%   -1.45% (p=0.001 n=10)
-    AdjustTimers10000NoReset-12          346.4µ ± 5%   280.8µ ± 1%  -18.94% (p=0.000 n=10)
-    AdjustTimers10000NoSleep-12          362.6µ ± 1%   292.5µ ± 1%  -19.33% (p=0.000 n=10)
-    AdjustTimers10000NoResetNoSleep-12   317.3µ ± 8%   279.8µ ± 2%  -11.79% (p=0.000 n=10)
+    This fixes a race accidentally introduced in CL 482935 and observed in
+    https://build.golang.org/log/fa684750994d1fda409722f144b90c65b4c52cf9.
     
+    For #59447.
     
-    Change-Id: Id3e10abfb1024f8e7883c8c366d941e4f1c2a894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574738
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I5c87a599910cf8c1d037e5bbce68bf35afd55d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483036
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/time.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/http/responsecontroller_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

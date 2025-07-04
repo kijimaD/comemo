@@ -1,13 +1,15 @@
-commit 96da953d86130b1d9779538c2a09d3b58e69c0f1
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 4 00:00:26 2012 +0800
+commit 951a97e42ff6ce8a2656180d90eca112d795ea0b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Apr 3 12:14:02 2012 +1000
 
-    godoc: update appinit.go, apply !appengine build constrain to main.go
+    encoding/base64: fix panic when input len is not a multiple of 4
     
-    R=adg, dsymonds
+    Fixes #3442.
+    
+    R=for.go.yong, dsymonds, sougou, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/5969063
+    https://golang.org/cl/5975052
 
- src/cmd/godoc/appinit.go | 7 +++++--
- src/cmd/godoc/main.go    | 2 ++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/encoding/base64/base64.go      | 5 +++++
+ src/pkg/encoding/base64/base64_test.go | 3 +++
+ 2 files changed, 8 insertions(+)

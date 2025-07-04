@@ -1,0 +1,19 @@
+commit 6f59c11155d75024985d4827a7fe155cd6561df9
+Author: Robert Griesemer <gri@google.com>
+Date:   Wed Oct 30 15:57:42 2024 -0700
+
+    go/types, types2: better error message when selecting on a built-in
+    
+    Fixes #43285.
+    
+    Change-Id: Iddadf76e2dc10fcf77f588c865a68125ebeda290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go             | 2 +-
+ src/go/types/call.go                                | 2 +-
+ src/internal/types/testdata/fixedbugs/issue51360.go | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)

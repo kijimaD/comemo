@@ -1,17 +1,41 @@
-commit 434a6c85cb80ccb413377c550a94039bac6b33b3
+commit dcf1d7bc0e6146c143454dc5077de9452e6fd795
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 14:45:07 2011 -0500
+Date:   Fri Dec 2 14:14:25 2011 -0500
 
-    gc: use gofmt spacing when printing map type
+    gofmt -s misc src
     
-    R=ken2
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/5450071
+    https://golang.org/cl/5451079
 
- src/cmd/gc/fmt.c                     | 4 ++--
- src/pkg/encoding/xml/marshal_test.go | 4 ++--
- src/pkg/fmt/fmt_test.go              | 8 ++++----
- src/pkg/go/ast/print_test.go         | 2 +-
- src/pkg/reflect/all_test.go          | 6 +++---
- test/escape2.go                      | 4 ++--
- 6 files changed, 14 insertions(+), 14 deletions(-)
+ misc/dashboard/app/build/test.go       |   2 +-
+ src/cmd/cgo/gcc.go                     |   2 +-
+ src/cmd/cgo/out.go                     |  32 +++++-----
+ src/cmd/gofix/error.go                 |   2 +-
+ src/cmd/gofix/hashsum.go               |   2 +-
+ src/cmd/gofix/httpheaders.go           |   4 +-
+ src/cmd/gofix/reflect.go               |  72 ++++++++++-----------
+ src/cmd/gofix/template.go              |   4 +-
+ src/cmd/gofix/timefileinfo.go          |   4 +-
+ src/cmd/goinstall/download.go          |   8 +--
+ src/cmd/gotest/flag.go                 |  28 ++++-----
+ src/pkg/archive/tar/reader_test.go     |  16 ++---
+ src/pkg/archive/tar/writer_test.go     |  12 ++--
+ src/pkg/compress/flate/deflate_test.go |  60 +++++++++---------
+ src/pkg/compress/flate/flate_test.go   |  12 ++--
+ src/pkg/crypto/tls/cipher_suites.go    |  12 ++--
+ src/pkg/debug/macho/file_test.go       |  80 +++++++++++------------
+ src/pkg/debug/pe/file_test.go          |  54 ++++++++--------
+ src/pkg/encoding/json/decode_test.go   |   4 +-
+ src/pkg/encoding/xml/marshal_test.go   |   8 +--
+ src/pkg/exp/ssh/cipher.go              |  10 +--
+ src/pkg/go/parser/parser.go            |   4 +-
+ src/pkg/go/printer/nodes.go            |   2 +-
+ src/pkg/go/printer/testdata/parser.go  |   4 +-
+ src/pkg/html/render_test.go            |  26 ++++----
+ src/pkg/html/template/escape_test.go   |   8 +--
+ src/pkg/net/http/cookie_test.go        |  24 +++----
+ src/pkg/net/mail/message_test.go       |  26 ++++----
+ src/pkg/old/template/template_test.go  | 112 ++++++++++++++++-----------------
+ src/pkg/path/filepath/path_test.go     |  18 +++---
+ 30 files changed, 326 insertions(+), 326 deletions(-)

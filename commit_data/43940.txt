@@ -1,30 +1,20 @@
-commit b635e4b808bf45ebd66e9f687e18b9af6bd634c1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Dec 1 17:24:33 2020 -0500
+commit 844b410922b2ea7d22b651c536178e79696749f6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 29 16:45:05 2020 -0700
 
-    time, runtime: don't set timer when = 0
+    net/http/cgi: replace constant map with switch statement
     
-    timer when == 0, in the context of timer0When and timerModifiedEarliest,
-    is a sentinel value meaning there are no timers on the heap.
-    TestCheckRuntimeTimerOverflow reaching into the runtime to set a timer
-    to when = 0 when it is otherwise not possible breaks this invariant.
+    The switch statement can be statically optimized by the compiler,
+    whereas similarly optimizing the map index expression would require
+    additional compiler analysis to detect the map is never mutated.
     
-    After golang.org/cl/258303, we will no longer detect and run this timer,
-    thus blocking any other timers lower on the heap from running. This
-    manifests as random timers failing to fire in other tests.
+    Updates #10848.
     
-    The need to set this overflowed timer to when = 0 is gone with the old
-    timer proc implementation, so we can simply remove it.
-    
-    Fixes #42424
-    
-    Change-Id: Iea32100136ad8ec1bedfa77b1e7d9ed868812838
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274632
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: I2fc70d4a34dc545677b99f218b51023c7891bbbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231041
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/time.go       |  2 ++
- src/time/internal_test.go | 10 ----------
- 2 files changed, 2 insertions(+), 10 deletions(-)
+ src/net/http/cgi/host.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

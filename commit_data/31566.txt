@@ -1,13 +1,19 @@
-commit ee57e36dfa6879c05ac6717c29f2df5b546e1256
-Author: wuyunzhou <yunzhouwu@gmail.com>
-Date:   Sat May 13 15:41:15 2017 +0800
+commit d271576a0f7578288d663afee9d308e67e4a9d48
+Author: Joe Shaw <joe@joeshaw.org>
+Date:   Fri Feb 17 11:55:42 2017 -0500
 
-    container/heap: avoid up() invoke if down() success at heap.Remove()
+    encoding/pem: refuse extra data on ending line
     
-    Change-Id: I6c210e0c23ca533e1f303f88ef9dcb629a294a2a
-    Reviewed-on: https://go-review.googlesource.com/43472
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Previously the code didn't check for extra data after the final five
+    dashes of the ending line of a PEM block.
+    
+    Fixes #19147
+    Fixes #7042
+    
+    Change-Id: Idaab2390914a2bed8c2c12b14dfb6d68233fdfec
+    Reviewed-on: https://go-review.googlesource.com/37147
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/container/heap/heap.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/encoding/pem/pem.go      | 10 ++++++++--
+ src/encoding/pem/pem_test.go | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

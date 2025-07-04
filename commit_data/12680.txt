@@ -1,14 +1,16 @@
-commit 4161dfc4feafa08870e347c5ca7da155a9790867
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 19 11:12:32 2012 +1100
+commit 7e054266c94462be87277367ec59f1d27ed78ab0
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Mon Mar 19 08:26:36 2012 +1100
 
-    syscall: delete passfd_test.go
+    doc: various typos, remove apostrophes from ordinals
     
-    We can revisit the issue of testing in syscall after Go 1.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5844057
+    https://golang.org/cl/5845059
 
- src/pkg/syscall/passfd_test.go | 150 -----------------------------------------
- 1 file changed, 150 deletions(-)
+ doc/code.html               | 2 +-
+ doc/debugging_with_gdb.html | 2 +-
+ doc/gccgo_install.html      | 2 +-
+ doc/go_mem.html             | 6 +++---
+ doc/go_spec.html            | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)

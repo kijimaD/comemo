@@ -1,19 +1,30 @@
-commit b386b628521780c048af14a148f373c84e687b26
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon Apr 28 19:35:38 2025 +0800
+commit 32014d549609422748dcb698fef1d43a5a33b0b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 18:25:14 2024 +0000
 
-    cmd/internal/obj/loong64: fix the error parameters when calling UnspillRegisterArgs
+    Revert "encoding/xml: reject XML declaration after start of document"
     
-    This bug was introduced in CL 648518.
+    This reverts commit 8a0fbd75a54c27ff2ae624ac2775bf752cdbceb4.
     
-    Fixes #73518.
+    Reason for revert: Breaking real-world tests inside Google,
+    which means it probably breaks real-world tests outside Google.
     
-    Change-Id: I4988dd0b636c6a6a48d2aa2e2ae868e43f69995a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668475
+    One instance I have seen is a <!-- --> comment (often a copyright notice) before the procinst.
+    
+    Another test checks that a canonicalizer can handle a test input that simply has procinsts mid-XML.
+    
+    XML is full of contradictions, XML implementations more so. If we are going to start being picky, that probably needs to be controlled by a GODEBUG (and a proposal).
+    
+    For #65691 (will reopen manually).
+    
+    Change-Id: Ib52d0944b1478e71744a2a35b271fdf7e1c972ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570175
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/loong64/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/xml/marshal.go      | 28 ++++------------------------
+ src/encoding/xml/marshal_test.go |  3 ---
+ src/encoding/xml/xml.go          | 12 ------------
+ src/encoding/xml/xml_test.go     |  2 --
+ 4 files changed, 4 insertions(+), 41 deletions(-)

@@ -1,16 +1,13 @@
-commit 709e03f43dce8e6fde3398e01255c08d22cb1ee2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 12 05:23:38 2013 -0700
+commit 1d1142f17834f75812448d54ce7a7abeebdf86c3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 11 13:40:14 2013 -0700
 
-    runtime: add a hook to disable precise GC
+    misc/dist/darwin: add execute bit to preinstall
+    Fixes #5258.
     
-    This will let us ask people to rebuild the Go system without
-    precise GC, and then rebuild and retest their program, to see
-    if precise GC is causing whatever problem they are having.
-    
-    R=golang-dev, r
+    R=golang-dev, iant, minux.ma
     CC=golang-dev
-    https://golang.org/cl/8700043
+    https://golang.org/cl/8682043
 
- src/pkg/runtime/mgc0.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ misc/dist/darwin/scripts/preinstall | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

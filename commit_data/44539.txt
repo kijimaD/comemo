@@ -1,28 +1,27 @@
-commit 39bdd41d03725878f1fd6f8b500ba6700f03bdad
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Tue Mar 2 11:54:36 2021 -0800
+commit b85033d153835c45cd4ee51046a34c1dac52f0e0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Aug 3 17:59:41 2020 -0400
 
-    cmd/go/internal/modfetch/codehost: report git errors more accurately
+    [dev.link] cmd/link: fix pclntab symbol handling on AIX
     
-    Previously, if you attempted to fetch a private repository, or your
-    Git/curl client failed for an unknown reason, codehost would return an
-    UnknownRevisionError, which reported that a given revision in go.mod
-    was "unknown". This is confusing to many users who can go look in
-    their browser for example and see that the commit-ish exists.
+    On AIX, container symbols are handled in a weird way (unlike
+    other platforms): the outer symbol needs to have size (but still
+    no data), and the inner symbols must not be in the symbol table
+    (otherwise it overlaps with the outer symbol, which the system
+    linker doesn't like).
     
-    Instead check whether "git ls-remote" exited with an error, and if so,
-    return that instead of the UnknownRevision message.
+    As of CL 241598, pclntab becomes a container symbol. We need to
+    follow the rule above for AIX.
     
-    Fixes #42751.
+    Fix AIX build.
     
-    Change-Id: I0dbded878b2818280e61126a4493767d719ad577
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297950
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ie2515a4cabbd8cf3f6d3868643a28f64ca3365a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246479
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go       |  6 +++++
- src/cmd/go/testdata/script/mod_get_private_vcs.txt | 30 ++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/cmd/link/internal/ld/data.go  | 3 +++
+ src/cmd/link/internal/ld/pcln.go  | 2 ++
+ src/cmd/link/internal/ld/xcoff.go | 2 ++
+ 3 files changed, 7 insertions(+)

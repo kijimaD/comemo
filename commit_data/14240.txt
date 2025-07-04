@@ -1,15 +1,14 @@
-commit 71d9e956a00e95f734f633056882475832d534f4
+commit 1d61c9bb3e41947ab66732d0346b821d5062554c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 30 13:12:59 2012 +0100
+Date:   Tue Oct 30 10:51:29 2012 +0100
 
-    cmd/api: handle contexts re-converging
+    io: add ByteWriter interface
     
-    Fixes #4303
+    API change.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds, nigeltao, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6816058
+    https://golang.org/cl/6760045
 
- src/cmd/api/goapi.go      | 35 +++++++++++++++++++++++++----------
- src/cmd/api/goapi_test.go | 21 ++++++++++++++++++---
- 2 files changed, 43 insertions(+), 13 deletions(-)
+ src/pkg/io/io.go | 5 +++++
+ 1 file changed, 5 insertions(+)

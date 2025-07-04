@@ -1,16 +1,15 @@
-commit 23e6e1124522267655b05a5f47f62fc99f0e56c3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 12:18:00 2016 -0400
+commit f15915af4effbbe6895ae69be02d22ac016927d5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 15:21:12 2016 -0700
 
-    encoding/asn1: document that default:x tag only has meaning with optional tag
+    cmd/vet: ignore printf failures in cmd
     
-    Fixes #16712.
+    This is a temporary measure to work around #17057.
+    It will be reverted when #17057 is fixed.
     
-    Change-Id: Ib216059c6c0c952162c19e080dcf3799f0652a8d
-    Reviewed-on: https://go-review.googlesource.com/32171
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Change-Id: I21c02f63f3530774c91065cfed5d9c566839ed9f
+    Reviewed-on: https://go-review.googlesource.com/28959
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/encoding/asn1/asn1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/all/main.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,16 +1,21 @@
-commit 0b4d4998d57936cf8bb2566f5f3e36eb70892ca4
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Oct 5 13:05:09 2021 -0400
+commit 54514c6b2896c6a634a7b8017ade909985172e4d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jan 25 10:34:28 2021 -0500
 
-    testing: document f.Fuzz requirement to not change underlying data
+    cmd/go: fix TestScript/cgo_path, cgo_path_space when CC set
     
-    Updates #48606
+    These tests failed if CC was set to a path containing a separator
+    during make.bash. They now set CC explicitly.
     
-    Change-Id: I6d555fdefccd842fb65ec8d630b4808bcb54a825
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353977
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #43897
+    
+    Change-Id: Ic6e7f192fcb363f0ac9f45b329113255453bf76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286292
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/testing/fuzz.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/cgo_path.txt       |  7 +++++++
+ src/cmd/go/testdata/script/cgo_path_space.txt | 27 ++++++++++++++-------------
+ 2 files changed, 21 insertions(+), 13 deletions(-)

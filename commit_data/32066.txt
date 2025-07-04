@@ -1,18 +1,30 @@
-commit dc7fa5f6dbf1bc638d3c2b48ae394c6a2517d0ba
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Thu Jul 20 12:29:15 2017 -0400
+commit 8e36575ebe36aba9c42be4f965fa30ec0f2b41dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 07:12:57 2017 -0700
 
-    cmd/go: fix test when go source tree has POSIX ACL
+    cmd/compile: don't mutate shared nodes in orderinit
     
-    Fixes TestGoBuildUmask when the user has a POSIX ACL on the Go source tree.
+    A few gc.Node ops may be shared across functions.
+    The compiler is (mostly) already careful to avoid mutating them.
+    However, from a concurrency perspective, replacing (say)
+    an empty list with an empty list still counts as a mutation.
+    One place this occurs is orderinit. Avoid it.
     
-    Fixes #17909.
+    This requires fixing one spot where shared nodes were mutated.
+    It doesn't result in any functional or performance changes.
     
-    Change-Id: I5bc19099af8353afd41071258f4f317612b4c8c1
-    Reviewed-on: https://go-review.googlesource.com/50370
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I63c93b31baeeac62d7574804acb6b7f2bc9d14a9
+    Reviewed-on: https://go-review.googlesource.com/39196
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_unix_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/order.go  | 10 +++++++++-
+ src/cmd/compile/internal/gc/subr.go   |  7 ++-----
+ src/cmd/compile/internal/gc/syntax.go | 12 +++++++++++-
+ src/cmd/compile/internal/gc/walk.go   |  1 +
+ 4 files changed, 23 insertions(+), 7 deletions(-)

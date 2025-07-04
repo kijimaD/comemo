@@ -1,12 +1,12 @@
-commit dc94094920a322ce07c3f555ee13f9505985edc4
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Wed Dec 2 16:22:53 2015 -0800
+commit 652d2386e99526eccc6634af2eaa7ff4c9a113c4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 29 08:43:07 2015 +1000
 
-    doc: correct release date for go1.5.2
+    doc: add text/template blocks and redefinition to go1.6.txt
     
-    Change-Id: I6bee207db7485f96a499f51b2d1346c35e086d41
-    Reviewed-on: https://go-review.googlesource.com/17337
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ide82ac98dc7cb1035ceb9d461ed95af899f8f983
+    Reviewed-on: https://go-review.googlesource.com/15081
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/devel/release.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

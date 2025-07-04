@@ -1,18 +1,22 @@
-commit ba4c6d1d6e36b9a4beee3f501fa8ad2e044d0768
-Author: Qi Xiao <xiaq@google.com>
-Date:   Sun Jun 11 23:29:26 2023 +0100
+commit 6bdca82030779e3b9032324e68a3feacb85bc9bc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Aug 19 17:38:00 2022 -0400
 
-    syscall: Fix Getwd on Windows to correctly handle long paths.
+    misc/cgo/test: disable setgid tests with musl
     
-    Fixes #60051.
+    We don't have a good musl detection mechanism, so we detect Alpine (the
+    most common user of musl) instead.
     
-    Change-Id: Ia68ca0493912cb09d8c1d36a144bf0725842af1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502415
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    For #39857.
+    For #19938.
+    
+    Change-Id: I2fa39248682aed75884476374fe2212be4427347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425001
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/syscall/syscall_windows.go      | 18 ++++++++++++++----
- src/syscall/syscall_windows_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 4 deletions(-)
+ misc/cgo/test/cgo_linux_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

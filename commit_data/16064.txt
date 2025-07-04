@@ -1,19 +1,12 @@
-commit 4b6ca212715b7aa66930bc9c3f1e46b096f5f383
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Apr 3 08:18:30 2013 +0200
+commit 839c4f015933ce1291778fc1fd178b1cb8cf0e41
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 3 16:49:17 2013 +1100
 
-    cmd/gc: be more tolerant with recursive types when checking map types.
+    doc/go1.1.html: additional tweaks
     
-    A nested TFORW type would push algtype1 into an impossible case.
-    
-    Fixes #5125.
-    
-    R=golang-dev, daniel.morsing
+    R=r, adg, minux.ma
     CC=golang-dev
-    https://golang.org/cl/8213043
+    https://golang.org/cl/8250043
 
- src/cmd/gc/subr.c                    | 13 +++++++++++--
- test/fixedbugs/issue5125.dir/bug.go  | 17 +++++++++++++++++
- test/fixedbugs/issue5125.dir/main.go | 10 ++++++++++
- test/fixedbugs/issue5125.go          | 10 ++++++++++
- 4 files changed, 48 insertions(+), 2 deletions(-)
+ doc/go1.1.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

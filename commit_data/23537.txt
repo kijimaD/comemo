@@ -1,17 +1,31 @@
-commit 3b7841b3aff9204f054ffabbe4dd39d3e3dd3e91
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 29 10:14:24 2015 +1000
+commit e5060c7f7524bf32e07f62d2593aae8d280725e5
+Author: David Chase <drchase@google.com>
+Date:   Wed May 20 15:16:34 2015 -0400
 
-    cmd/go: reset read-only flag during TestIssue10952
+    cmd/internal/gc: move check for large-hence-heap-allocated types into escape analysis
     
-    git sets read-only flag on all its repo files on Windows.
-    os.Remove cannot delete these files.
+    Before this change, the check for too-large arrays (and other large
+    types) occurred after escape analysis.  If the data moved off stack
+    and onto the heap contained any pointers, it would therefore escape,
+    but because the too-large check occurred after escape analysis this
+    would not be recorded and a stack pointer would leak to the heap
+    (see the modified escape_array.go for an example).
     
-    Fixes windows build
+    Some of these appear to remain, in calls to typecheck from within walk.
     
-    Change-Id: Icaf72470456b88a1c26295caecd4e0d3dc22a1b6
-    Reviewed-on: https://go-review.googlesource.com/11602
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Also corrected a few comments in escape_array.go about "BAD"
+    analysis that is now done correctly.
+    
+    Enhanced to move aditional EscNone-but-large-so-heap checks into esc.c.
+    
+    Change-Id: I770c111baff28a9ed5f8beb601cf09dacc561b83
+    Reviewed-on: https://go-review.googlesource.com/10268
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/cmd/compile/internal/gc/esc.go  | 13 ++++++++
+ src/cmd/compile/internal/gc/lex.go  |  6 ++--
+ src/cmd/compile/internal/gc/pgen.go | 19 ------------
+ src/cmd/compile/internal/gc/walk.go | 24 ++++++++++++--
+ test/escape5.go                     |  7 ++---
+ test/escape_array.go                | 62 +++++++++++++++++++++++++++++++++----
+ 6 files changed, 96 insertions(+), 35 deletions(-)

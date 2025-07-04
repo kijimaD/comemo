@@ -1,25 +1,15 @@
-commit f9e90f7e7401b7222ea10420140dc43687e4017f
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Fri Aug 13 08:51:46 2021 -0700
+commit d45df5de32e555a0386b7e473d30516d744df70a
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Jan 15 11:26:34 2021 -0500
 
-    runtime: allow per-OS changes to unix profiler
+    [dev.fuzz] cmd/go/testdata: fix flaky test
     
-    Updates #35057
-    
-    Change-Id: I56ea8f4750022847f0866c85e237a2cea40e0ff7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342053
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: I7702aa12a1ed9bb0645af774dd584e661d7c8fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284193
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/os3_solaris.go  | 13 +++++++++++++
- src/runtime/os_aix.go       | 13 +++++++++++++
- src/runtime/os_darwin.go    | 13 +++++++++++++
- src/runtime/os_dragonfly.go | 13 +++++++++++++
- src/runtime/os_freebsd.go   | 13 +++++++++++++
- src/runtime/os_linux.go     | 16 ++++++++++++++++
- src/runtime/os_netbsd.go    | 13 +++++++++++++
- src/runtime/os_openbsd.go   | 13 +++++++++++++
- src/runtime/signal_unix.go  | 25 +++++++++++++++++--------
- 9 files changed, 124 insertions(+), 8 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt | 22 ++++------------------
+ 1 file changed, 4 insertions(+), 18 deletions(-)

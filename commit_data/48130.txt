@@ -1,19 +1,18 @@
-commit 656d3f4401e1fdb628e24027cf91cc803c7a0dac
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Feb 9 17:42:38 2022 -0500
+commit e51246c8819f16cd78d3da01162ca14b432d30bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 10:58:54 2021 -0700
 
-    doc/go1.18: remove some TODOs for changes we aren't mentioning again
+    runtime: consolidate Windows time constants into single copy
     
-    These TODOs were originally removed in CL 368794.
-    
-    Updates #47694
-    
-    Change-Id: I39d5c0ce5f96adbbc466585a5831f721057dbed5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384619
-    Trust: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1a583d3da9cca4ac51f3fec9b508b7638b452d60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314270
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.18.html | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/runtime/sys_windows_386.s   | 11 +----------
+ src/runtime/sys_windows_amd64.s | 11 +----------
+ src/runtime/sys_windows_arm.s   | 11 +----------
+ src/runtime/sys_windows_arm64.s | 11 +----------
+ src/runtime/time_windows.h      | 16 ++++++++++++++++
+ 5 files changed, 20 insertions(+), 40 deletions(-)

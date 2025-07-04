@@ -1,15 +1,18 @@
-commit 301714d804a38e900b8758a79c76b214ac8f3ed2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 4 23:36:16 2018 +0000
+commit 93e97ef066d3aad0a51a4a54212382f04c142255
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 20 15:22:21 2017 -0700
 
-    net/http: document CONNECT more
+    cmd/compile/internal/gc: update comment in plive.go
     
-    Fixes #22554
+    onebitwalktype1 no longer appears to be a bottleneck for the mentioned
+    test case. In fact, we appear to compile it significantly faster now
+    than Go 1.4 did (~1.8s vs ~3s).
     
-    Change-Id: I624f2883489a46d7162c11f489c2f0a0ec5a836f
-    Reviewed-on: https://go-review.googlesource.com/86277
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #21951.
+    
+    Change-Id: I315313e906092a7d6ff4ff60a918d80a4cff7a7f
+    Reviewed-on: https://go-review.googlesource.com/65110
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/request.go   | 4 ++++
- src/net/http/transport.go | 9 +++++++++
- 2 files changed, 13 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,23 +1,19 @@
-commit c203696aa5d11c05e66905526254ca39f8ad2fd2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Jan 10 17:01:31 2018 +0000
+commit 2f8b555de27198775f9606e001ef19b76efdb415
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Sep 23 00:57:51 2017 +0200
 
-    go/importer,os/exec: use testenv.GoToolPath
+    archive/tar: fix sparse files support on Darwin
     
-    These were the last two occurences of exec.Command("go", ...) in all of
-    std cmd. Checked with:
+    Apple defined the SEEK_HOLE/SEEK_DATA constants in unistd.h
+    with swapped values, compared to all other UNIX systems.
     
-            gogrep '$(f is(func))("go", $*_)' std cmd
+    Fixes #21970
     
-    Also changed lp_windows_test to use a test package name to avoid a
-    circular dependency, since internal/testenv imports os/exec.
-    
-    Change-Id: I9a18948600dfecc8507ad76172e219e78b791ffd
-    Reviewed-on: https://go-review.googlesource.com/87200
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I84a33e0741f0f33a2e04898e96b788b87aa9890f
+    Reviewed-on: https://go-review.googlesource.com/65570
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/importer/importer_test.go |  2 +-
- src/os/exec/lp_windows_test.go   | 13 +++++++++----
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/archive/tar/sparse_unix.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

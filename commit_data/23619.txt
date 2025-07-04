@@ -1,20 +1,14 @@
-commit 4b2774f5ea4f6f0beb75259f65e60585b6dbfd56
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 8 14:18:33 2015 -0700
+commit 1fa0a8cec5f46bee1d652202934665a2ecdfc8d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 1 13:25:03 2015 +0900
 
-    runtime: make sysmon-triggered GC concurrent
+    runtime: fix data race in BenchmarkChanPopular
     
-    sysmon triggers a GC if there has been no GC for two minutes.
-    Currently, this is a STW GC. There is no reason for this to be STW, so
-    make it concurrent.
+    Fixes #11014.
     
-    Fixes #10261.
-    
-    Change-Id: I92f3ac37272d5c2a31480ff1fa897ebad08775a9
-    Reviewed-on: https://go-review.googlesource.com/11955
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9a18dacd10564d3eaa1fea4d77f1a48e08e79f53
+    Reviewed-on: https://go-review.googlesource.com/10563
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go  | 2 +-
- src/runtime/proc1.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/chan_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

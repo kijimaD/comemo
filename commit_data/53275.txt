@@ -1,21 +1,28 @@
-commit 42f387aae123ec416b57d84ba96ec4a5ef0e8a1b
-Author: Robert Griesemer <gri@google.com>
-Date:   Wed May 24 16:30:49 2023 +0000
+commit 2493072db68a8f8b545bb2a6faebac0da0f01336
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 18 11:47:19 2022 -0700
 
-    Revert "cmd/compile: enable printing of error URLs by default"
+    cmd/compile: avoid assignment conversion in append(a, b...)
     
-    This reverts commit e7a9ca0a53db4b4f357b5d3caaef65e44ce08a90.
+    There's no need for a and b to match types. The typechecker already
+    ensured that a and b are both slices with the same base type, or
+    a and b are (possibly named) []byte and string.
     
-    Reason for revert: Decided to delay to Go 1.22.
+    The optimization to treat append(b, make([], ...)) as a zeroing
+    slice extension doesn't fire when there's a OCONVNOP wrapping the make.
+    Fixes #53888
     
-    Change-Id: I4635cb4c1372b54cac573041be8a43e294de5183
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497975
+    Change-Id: Ied871ed0bbb8e4a4b35d280c71acbab8103691bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418475
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/base/flag.go    | 1 -
- src/cmd/internal/testdir/testdir_test.go | 6 +++---
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/transform.go      | 10 +++---
+ src/cmd/compile/internal/test/issue53888_test.go | 44 ++++++++++++++++++++++++
+ src/cmd/compile/internal/typecheck/func.go       |  6 +++-
+ src/runtime/slice.go                             |  4 +--
+ test/fixedbugs/issue29190.go                     |  4 +--
+ 5 files changed, 58 insertions(+), 10 deletions(-)

@@ -1,22 +1,14 @@
-commit 4d6207790b2f08daa00d2a7a67854a159ab2f601
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 4 15:51:31 2016 -0400
+commit 874ea6a4c7fc402ff05a8e63dea5d1b41d55930e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 23 11:20:34 2016 -0700
 
-    runtime: consolidate h_allspans and mheap_.allspans
+    cmd/compile: add comment
     
-    These are two ways to refer to the allspans array that hark back to
-    when the runtime was split between C and Go. Clean this up by making
-    mheap_.allspans a slice and eliminating h_allspans.
+    Minor update on https://go-review.googlesource.com/27441 .
     
-    Change-Id: Ic9360d040cf3eb590b5dfbab0b82e8ace8525610
-    Reviewed-on: https://go-review.googlesource.com/30530
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I605a8bfbe67e259020aa53f1d2357808197d02b6
+    Reviewed-on: https://go-review.googlesource.com/27631
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/export_test.go |  2 +-
- src/runtime/heapdump.go    |  8 +++----
- src/runtime/mgc.go         |  5 ++---
- src/runtime/mheap.go       | 56 ++++++++++++++++++++++++++++------------------
- src/runtime/mstats.go      |  2 +-
- 5 files changed, 42 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 4 ++++
+ 1 file changed, 4 insertions(+)

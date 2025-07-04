@@ -1,15 +1,31 @@
-commit ae9804595879eb07efd23b9c98eab46693573447
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 16:57:23 2016 -0700
+commit 8a83d36b8e4aeed56f85e6b26832b6a7ed8951a5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Mar 2 12:21:53 2016 -0800
 
-    cmd/compile: use correct export function (fix debugFormat)
+    compress/bzip2: refactor unit tests
     
-    Tested with debugFormat enabled and running
-    (export GO_GCFLAGS=-newexport; sh all.bash).
+    Over the years as more bugs were discovered with the bzip2 library,
+    new Tests were appended the unit tests and the tests became gnarly.
     
-    Change-Id: If7d43e1e594ea43c644232b89e670f7abb6b003e
-    Reviewed-on: https://go-review.googlesource.com/22033
+    Clean up the tests to be more consistent with modern Go style in
+    addition to coalescing common tests into a general version that
+    iterates over a list of input/output pairs. This has the advantage that
+    the input, output, and test code are all in the same area, rather than
+    being sprawled around the test file.
+    
+    There is no loss of test coverage.
+    
+    Change-Id: I377ed89378f0b89763d4a56ffc37b22d9c2a369e
+    Reviewed-on: https://go-review.googlesource.com/20133
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/bexport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/bzip2/bzip2_test.go               | 578 ++++++++-----------------
+ src/compress/bzip2/testdata/fail-issue5747.bz2 | Bin 0 -> 7232 bytes
+ src/compress/bzip2/testdata/pass-random1.bin   | Bin 0 -> 1024 bytes
+ src/compress/bzip2/testdata/pass-random1.bz2   | Bin 0 -> 1309 bytes
+ src/compress/bzip2/testdata/pass-random2.bin   |   1 +
+ src/compress/bzip2/testdata/pass-random2.bz2   | Bin 0 -> 125 bytes
+ src/compress/bzip2/testdata/pass-sawtooth.bz2  | Bin 0 -> 2017 bytes
+ 7 files changed, 180 insertions(+), 399 deletions(-)

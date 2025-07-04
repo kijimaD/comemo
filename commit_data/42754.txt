@@ -1,33 +1,24 @@
-commit 216714e44f703470f102cf248f7e9097160093d4
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Aug 17 10:57:54 2020 -0400
+commit f74e21c150cfbcb193742844bd9651f2e4a58d60
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 13:30:37 2020 -0500
 
-    math/big: improve performance of mulAddVWW on ppc64x
+    cmd/go: convert some generate tests to the script framework
     
-    This changes the assembly implementation on ppc64x
-    to improve performance by reordering some instructions.
-    It also eliminates an unnecessary move by changing an
-    ADDZE to use the correct target register.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Improvement on power9:
+    Updates #36320
+    Updates #17751
     
-    MulAddVWW/1         6.89ns ± 0%    7.30ns ± 0%   +5.95%  (p=1.000 n=1+1)
-    MulAddVWW/2         8.04ns ± 0%    8.06ns ± 0%   +0.25%  (p=1.000 n=1+1)
-    MulAddVWW/3         9.39ns ± 0%    9.39ns ± 0%     ~     (all equal)
-    MulAddVWW/4         9.76ns ± 0%    9.48ns ± 0%   -2.87%  (p=1.000 n=1+1)
-    MulAddVWW/5         10.5ns ± 0%    10.3ns ± 0%   -1.90%  (p=1.000 n=1+1)
-    MulAddVWW/10        15.4ns ± 0%    14.9ns ± 0%   -3.25%  (p=1.000 n=1+1)
-    MulAddVWW/100        149ns ± 0%     125ns ± 0%  -16.11%  (p=1.000 n=1+1)
-    MulAddVWW/1000      1.42µs ± 0%    1.28µs ± 0%   -9.74%  (p=1.000 n=1+1)
-    MulAddVWW/10000     14.2µs ± 0%    12.8µs ± 0%   -9.73%  (p=1.000 n=1+1)
-    MulAddVWW/100000     144µs ± 0%     129µs ± 0%  -10.10%  (p=1.000 n=1+1)
-    
-    Change-Id: I0ae7002a69783ca19d7a4e3e42042ae75dc60069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248721
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Change-Id: I7110e460e18542aff90a7ae078b996ec45816d81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213424
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/math/big/arith_ppc64x.s | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go                       | 76 ------------------------
+ src/cmd/go/testdata/generate/test1.go       | 13 -----
+ src/cmd/go/testdata/generate/test2.go       | 10 ----
+ src/cmd/go/testdata/generate/test3.go       |  9 ---
+ src/cmd/go/testdata/generate/test4.go       | 10 ----
+ src/cmd/go/testdata/script/generate.txt     | 91 +++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/generate_env.txt | 31 ++++++++++
+ 7 files changed, 122 insertions(+), 118 deletions(-)

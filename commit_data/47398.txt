@@ -1,25 +1,18 @@
-commit 4d0683965bd05aee6845bf6849c85c4bf2bb10d4
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Nov 5 13:02:09 2021 +0100
+commit 26c32de7c9a6bb54d0144d1cc2f00cc334778cac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 12 11:26:51 2021 -0500
 
-    net: do more faithful conversion from AddrPort to UDPAddr
+    cmd/go/internal/modcmd: in 'go mod tidy', suspend go.mod writes until tidy
     
-    A UDPAddr with a nil IP is a valid state, representing an AF-agnostic
-    unspecified address, so checking for addr.IsValid() isn't correct;
-    remove that, as it's only needed in the UDP rx path where it can be
-    added. Secondly, forcing everything to be IPv6 also is not correct, and
-    was likely done when the missing .AsSlice() made doing the right thing
-    less ergonomic. Fix this by using .AsSlice(), which properly preserves
-    IP version.
+    For #36460
     
-    Change-Id: Idd1eaecd4076f32a843f859a0a9802ef98f956d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361478
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: Ia8633f37aec8c7ed532bf7278867251e5e2a4285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301370
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/udpsock.go      | 16 +++++++---------
- src/net/udpsock_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modcmd/tidy.go | 3 +++
+ 1 file changed, 3 insertions(+)

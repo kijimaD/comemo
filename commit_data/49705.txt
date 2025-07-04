@@ -1,18 +1,20 @@
-commit 4400238ec8ef3f0d2609bbd18ea57d6c5d097f1d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 13:49:17 2022 -0400
+commit d92101f452e10680ad4c8af2d5ad40d940b59214
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Tue Sep 7 00:38:40 2021 -0700
 
-    runtime: trivial replacements of _g_ in remaining files
+    cmd/compile: resolve TODO in inl.go
     
-    Change-Id: I24d299b345bda1c9d6fa7876d4f03c05b8c1156d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418587
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    If the condition is a bool constant, there's no need to walk both
+    branches.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4ee5e3553ce07c2213efba0d33d869b4a1b57783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347911
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/panic.go    | 16 ++++++++--------
- src/runtime/race.go     | 32 ++++++++++++++++----------------
- src/runtime/rdebug.go   |  6 +++---
- src/runtime/runtime1.go | 22 +++++++++++-----------
- src/runtime/trace.go    | 32 ++++++++++++++++----------------
- 5 files changed, 54 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

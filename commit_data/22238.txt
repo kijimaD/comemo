@@ -1,16 +1,18 @@
-commit a4374c1de1d4fd924a11e055ca55efde11b258da
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 20 13:21:51 2015 -0400
+commit 86a7c85f83895d54a00d79e3cd0356c11de3a589
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 19:42:03 2015 -0500
 
-    runtime: fix another out of date comment in GC
+    cmd/dist: fix default GOOS/GOARCH for cross-compile
     
-    gcDrain used to be passed a *workbuf to start draining from, but now
-    it takes a gcWork, which hides whether or not there's an initial
-    workbuf. Update the comment to match this.
+    Before this CL, if you are on a darwin/amd64 machine and
+    cross-compile 9g for a linux/ppc64 machine, when you copy
+    9g over to that kind of machine and run it, you'll find it thinks
+    the default object target is darwin/amd64. Not useful.
+    Make the default target linux/ppc64 in this case. More useful.
     
-    Change-Id: I976b58e5bfebc451cfd4fa75e770113067b5cc07
-    Reviewed-on: https://go-review.googlesource.com/8246
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I62f2e9cb5f60b3077a922b31cd023a9cb7a6cfda
+    Reviewed-on: https://go-review.googlesource.com/6407
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/buildruntime.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

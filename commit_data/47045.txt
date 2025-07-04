@@ -1,29 +1,18 @@
-commit 86f6bf18b013d570e89f57c2decaddca5ce2a847
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Aug 4 17:33:50 2021 -0400
+commit 89eb2b55b9d128f0bd2bfada5d8b2bb115e1d6d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 16:58:24 2021 -0800
 
-    runtime: handle async fatal signals in VDSO
+    cmd/compile/internal/types2: review of issues_test.go
     
-    If we receive an async signal while running in the VDSO, such as a
-    SIGABRT or SIGSEGV sent from another process, we fail to print the
-    stacktrace with "runtime: unknown pc <vdso PC>".
+    The changes between (equivalent, and reviewed) go/types/issues_test.go
+    and issues_test.go can be seen by comparing patchset 1 and 3. The actual
+    change is just removing the "// UNREVIEWED" marker and making making
+    some minor code adjustments to match go/types's version more closely.
     
-    We already have machinery to handle SIGPROF in the VDSO, but it isn't
-    hooked up for other signals. Add it to the general signal traceback
-    path.
-    
-    This case is covered by TestSegv by making the test more strict w.r.t.
-    accepted output.
-    
-    Fixes #47537
-    
-    Change-Id: I755585f70e0c23e207e135bc6bd2aa68298e5d24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/339990
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I26f3f700d12db69fc68161a6b0dc081a0e9cd0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294473
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/crash_cgo_test.go | 18 +++++++++++++-----
- src/runtime/traceback.go      | 11 +++++++++--
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/issues_test.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

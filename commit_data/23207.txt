@@ -1,22 +1,56 @@
-commit 496ad0a286e556c9faf3bc11540986375b284b08
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 26 21:49:31 2015 -0400
+commit 1c10598064dcc560cf4b447f573e0d0dd34762e4
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 29 10:10:48 2015 -0700
 
-    cmd/compile: move Node.Paramfld to Node.Param.Field
+    crypto/tls: update the supported signature algorithms.
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 264
-    $
+    This is the second in a two-part change. See https://golang.org/cl/9415
+    for details of the overall change.
     
-    Change-Id: I5c90089dcf5df51c874250f28a1bc3ec32f764b9
-    Reviewed-on: https://go-review.googlesource.com/10522
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    This change updates the supported signature algorithms to include
+    SHA-384 and updates all the testdata/ files accordingly. Even some of
+    the testdata/ files named “TLS1.0” and “TLS1.1” have been updated
+    because they have TLS 1.2 ClientHello's even though the server picks a
+    lower version.
+    
+    Fixes #9757.
+    
+    Change-Id: Ia76de2b548d3b39cd4aa3f71132b0da7c917debd
+    Reviewed-on: https://go-review.googlesource.com/9472
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go       |  2 +-
- src/cmd/compile/internal/gc/esc.go       |  2 +-
- src/cmd/compile/internal/gc/pgen.go      |  4 ++--
- src/cmd/compile/internal/gc/syntax.go    | 35 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/typecheck.go | 13 +++++++++++-
- src/cmd/compile/internal/gc/walk.go      | 11 +++++-----
- 6 files changed, 40 insertions(+), 27 deletions(-)
+ src/crypto/tls/common.go                           |   2 +
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  96 ++++++++++----------
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  58 ++++++------
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    |  96 ++++++++++----------
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  58 ++++++------
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  78 ++++++++--------
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  78 ++++++++--------
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  40 ++++-----
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  78 ++++++++--------
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  78 ++++++++--------
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  40 ++++-----
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  70 +++++++--------
+ src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  72 +++++++--------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 100 ++++++++++-----------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  61 +++++++------
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  90 +++++++++----------
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    |  96 ++++++++++----------
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  58 ++++++------
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  80 ++++++++---------
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  72 +++++++--------
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  74 +++++++--------
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  78 ++++++++--------
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  40 ++++-----
+ src/crypto/tls/testdata/Client-TLSv12-SCT          |  70 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  68 +++++++-------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  68 +++++++-------
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  83 +++++++++--------
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  81 +++++++++--------
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  70 +++++++--------
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      |  68 +++++++-------
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      |  50 +++++------
+ .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |  70 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  70 +++++++--------
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  69 +++++++-------
+ 34 files changed, 1180 insertions(+), 1180 deletions(-)

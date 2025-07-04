@@ -1,26 +1,18 @@
-commit d74bf73be052851e83fb59a40f47d49f4b890ca3
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 19 17:21:20 2022 +0200
+commit 4056934e483c51fa046f9c2d1ee35f0385b84d91
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Mon Oct 25 23:57:46 2021 -0500
 
-    os: use wait6 to avoid wait/kill race on netbsd
+    test/codegen: updated arithmetic tests to verify on ppc64,ppc64le
     
-    Resend of CL 315281 which was partially reverted by CL 354249 after the
-    original CL was suspected to cause test failures as reported in #48789.
-    It seems that both wait4 and wait6 lead to that particular deadlock, so
-    let's use wait6. That way we at least don't hit #13987 on netbsd.
+    Updated multiple tests in test/codegen/arithmetic.go to verify
+    on ppc64/ppc64le as well
     
-    Updates #13987
-    For #48789
-    For #50138
-    
-    Change-Id: Iadc4a771217b7e9e821502e89afa07036e0dcb6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431855
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I79ca9f87017ea31147a4ba16f5d42ba0fcae64e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358546
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/wait_unimp.go | 2 +-
- src/os/wait_wait6.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ test/codegen/arithmetic.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

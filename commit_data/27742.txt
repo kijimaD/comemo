@@ -1,44 +1,17 @@
-commit ed9362f769626b1cdaf2eb1da63d5f25cadc979b
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Jun 27 21:37:19 2016 -0400
+commit 32efa16c3d63dd630e2190a8c0f30c0a941f6fd7
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 1 14:51:29 2016 -0400
 
-    reflect, runtime: optimize Name method
+    cmd/compile: added stats printing to stackalloc
     
-    Several minor changes that remove a good chunk of the overhead added
-    to the reflect Name method over the 1.7 cycle, as seen from the
-    non-SSA architectures.
+    This is controlled by the "regalloc" stats flag, since regalloc
+    calls stackalloc.  The plan is for this to allow comparison
+    of cheaper stack allocation algorithms with what we have now.
     
-    In particular, there are ~20 fewer instructions in reflect.name.name
-    on 386, and the method now qualifies for inlining.
-    
-    The simple JSON decoding benchmark on darwin/386:
-    
-            name           old time/op    new time/op    delta
-            CodeDecoder-8    49.2ms ± 0%    48.9ms ± 1%  -0.77%  (p=0.000 n=10+9)
-    
-            name           old speed      new speed      delta
-            CodeDecoder-8  39.4MB/s ± 0%  39.7MB/s ± 1%  +0.77%  (p=0.000 n=10+9)
-    
-    On darwin/amd64 the effect is less pronounced:
-    
-            name           old time/op    new time/op    delta
-            CodeDecoder-8    38.9ms ± 0%    38.7ms ± 1%  -0.38%  (p=0.005 n=10+10)
-    
-            name           old speed      new speed      delta
-            CodeDecoder-8  49.9MB/s ± 0%  50.1MB/s ± 1%  +0.38%  (p=0.006 n=10+10)
-    
-    Counterintuitively, I get much more useful benchmark data out of my
-    MacBook Pro than a linux workstation with more expensive Intel chips.
-    While the laptop has fewer cores and an active GUI, the single-threaded
-    performance is significantly better (nearly 1.5x decoding throughput)
-    so the differences are more pronounced.
-    
-    For #16117.
-    
-    Change-Id: I4e0cc1cc2d271d47d5127b1ee1ca926faf34cabf
-    Reviewed-on: https://go-review.googlesource.com/24510
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibf64a780344c69babfcbb328fd6d053ea2e02cfc
+    Reviewed-on: https://go-review.googlesource.com/21393
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/type.go | 18 +++++-------------
- src/runtime/type.go | 41 +++++++++++++++++++----------------------
- 2 files changed, 24 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/ssa/stackalloc.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

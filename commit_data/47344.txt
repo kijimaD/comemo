@@ -1,25 +1,23 @@
-commit 67e22941dfe1555d8597e48f49ff86d3be340a36
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 8 21:45:58 2021 +0000
+commit cdd08e615a9b92742b21a94443720b6d70452510
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Mar 12 09:51:50 2021 -0800
 
-    Revert "cmd/go: add workspace pruning mode"
+    cmd/go/internal/load: always set IsImportCycle when in a cycle
     
-    This reverts CL 357169.
+    When hitting an import cycle in reusePackage, and there is already
+    an error set, make sure IsImportCycle is set so that we don't
+    end up stuck in a loop.
     
-    Reason for revert: appears to be failing on longtest SlowBot.¹
+    Fixes #25830
     
-    ¹https://storage.googleapis.com/go-build-log/a97c855b/linux-amd64-longtest_7c9857d4.log
-    
-    Change-Id: I3b94395671db78ed5fb2fb1019e7199e4ffbd272
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362249
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Iba966aea4a637dfc34ee22782a477209ac48c9bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301289
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go  | 86 ++++++++-----------------------
- src/cmd/go/internal/modload/init.go       | 44 ++++++++--------
- src/cmd/go/internal/modload/load.go       | 24 +--------
- src/cmd/go/internal/modload/modfile.go    | 14 ++---
- src/cmd/go/testdata/script/work_prune.txt |  2 +-
- 5 files changed, 49 insertions(+), 121 deletions(-)
+ src/cmd/go/internal/load/pkg.go               |  5 +++++
+ src/cmd/go/testdata/script/list_err_cycle.txt | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)

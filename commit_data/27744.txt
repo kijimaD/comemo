@@ -1,14 +1,49 @@
-commit 3001334e7752af67036a6d9c30c919cbfea81a7c
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Jun 27 23:27:54 2016 -0700
+commit d1feddb7ae6389ee4175ee85b7168cf58a04b952
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 4 13:22:34 2016 -0700
 
-    doc/go1.7.html: mention recent changes to Rand.Read
+    cmd/vet: improve documentation for flags, slightly
     
-    Updates #16124
+    The way that -all works was unclear from the documentation and made
+    worse by recent changes to the flag package. Improve matters by making
+    the help message say "default true" for the tests that do default to true,
+    and tweak some of the wording.
     
-    Change-Id: Ib58f2bb37fd1559efc512a2e3cba976f09b939a0
-    Reviewed-on: https://go-review.googlesource.com/24520
+    Before:
+    
+    Usage of vet:
+            vet [flags] directory...
+            vet [flags] files... # Must be a single package
+    For more information run
+            go doc cmd/vet
+    
+    Flags:
+      -all
+            enable all non-experimental checks (default unset)
+      -asmdecl
+            check assembly against Go declarations (default unset)
+    ...
+    
+    After:
+    
+    Usage of vet:
+            vet [flags] directory...
+            vet [flags] files... # Must be a single package
+    By default, -all is set and all non-experimental checks are run.
+    For more information run
+            go doc cmd/vet
+    
+    Flags:
+      -all
+            enable all non-experimental checks (default true)
+      -asmdecl
+            check assembly against Go declarations (default true)
+    ...
+    
+    Change-Id: Ie94b27381a9ad2382a10a7542a93bce1d59fa8f5
+    Reviewed-on: https://go-review.googlesource.com/21495
     Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.7.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/vet/doc.go  | 11 +++++------
+ src/cmd/vet/main.go |  3 ++-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

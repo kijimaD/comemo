@@ -1,23 +1,12 @@
-commit bab302dea2f31e1ab04d17bc42050d0610c15793
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 20:29:22 2013 -0400
+commit e333b96529da99e40fe920ecf084dea4e18309ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 11 17:18:52 2013 -0700
 
-    undo CL 13348045 / 43675523c526
+    spec: define s[i:j:k]
     
-    There is no reason to do this, and it's more work.
-    
-    ««« original CL description
-    net: make channel-based semaphore depend on receive, not send
-    
-    R=r, dvyukov
+    R=rsc, r, iant, ken
     CC=golang-dev
-    https://golang.org/cl/13348045
-    
-    »»»
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/13632047
+    https://golang.org/cl/10243046
 
- src/pkg/net/net.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 61 insertions(+), 4 deletions(-)

@@ -1,26 +1,12 @@
-commit c41608f4ac868047dcab0de73cb96e831db264be
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 2 17:34:42 2016 -0800
+commit bea9ae2f13812238773f08156c4b9eac4a73c72d
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Thu Jun 25 13:11:25 2015 -0400
 
-    cmd/compile: remove more superfluous int(lineno) conversions
+    CONTRIBUTORS: add Arkadi Pyuro <arkadi@google.com>
     
-    Change-Id: Ia3e5d62b9d38a6c356baec8eb88b2bdabff5820f
-    Reviewed-on: https://go-review.googlesource.com/20150
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I88fea011e68a8f0d351d2a9dd81d6aa48bc7c7c7
+    Reviewed-on: https://go-review.googlesource.com/17731
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/align.go     |  9 +++------
- src/cmd/compile/internal/gc/closure.go   |  8 ++++----
- src/cmd/compile/internal/gc/const.go     | 15 +++++++--------
- src/cmd/compile/internal/gc/dcl.go       | 12 ++++++------
- src/cmd/compile/internal/gc/esc.go       |  8 ++++----
- src/cmd/compile/internal/gc/gen.go       |  4 ++--
- src/cmd/compile/internal/gc/order.go     |  8 ++++----
- src/cmd/compile/internal/gc/range.go     |  6 +++---
- src/cmd/compile/internal/gc/select.go    |  8 ++++----
- src/cmd/compile/internal/gc/sinit.go     |  4 ++--
- src/cmd/compile/internal/gc/swt.go       |  8 ++++----
- src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
- src/cmd/compile/internal/gc/walk.go      |  4 ++--
- 13 files changed, 58 insertions(+), 62 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

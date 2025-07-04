@@ -1,20 +1,28 @@
-commit 89a1f02834f1472cf307b222e14884ebd41086d3
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Apr 12 18:14:45 2016 +0300
+commit b5481dd0a635780e8ff35cb274a9b3d85fc7f608
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 1 21:30:26 2016 -0500
 
-    hash/adler32: Unroll loop for extra performance.
+    runtime: disable gcMarkRootCheck debugging check during STW
     
-    name         old time/op    new time/op    delta
-    Adler32KB-4     592ns ± 0%     447ns ± 0%  -24.49%  (p=0.000 n=19+20)
+    gcMarkRootCheck takes ~10ns per goroutine. This is just a debugging
+    check, so disable it (plus, if something is going to go wrong, it's
+    more likely to go wrong during concurrent mark).
     
-    name         old speed      new speed      delta
-    Adler32KB-4  1.73GB/s ± 0%  2.29GB/s ± 0%  +32.41%  (p=0.000 n=20+20)
+    We may be able to re-enable this later, or move it to after we've
+    started the world again. (But not for 1.6.x.)
     
-    Change-Id: I38990aa66ca4452a886200018a57c0bc3af30717
-    Reviewed-on: https://go-review.googlesource.com/21880
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    For 1.6.x.
+    
+    Fixes #14419.
+    
+    name / 95%ile-time/markTerm          old          new  delta
+    500kIdleGs-12                24.0ms ± 0%  18.9ms ± 6%  -21.46%  (p=0.000 n=15+20)
+    
+    Change-Id: Idb2a2b1771449de772c159ef95920d6df1090666
+    Reviewed-on: https://go-review.googlesource.com/20148
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/hash/adler32/adler32.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

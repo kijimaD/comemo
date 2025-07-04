@@ -1,16 +1,15 @@
-commit cc36b835e4488103fc3e8972f9d8bcb1282a75bf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Oct 25 06:23:54 2018 -0700
+commit 59934e7ebb25c31647154a559cd2480376ee70cd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 1 14:18:03 2018 -0700
 
-    cmd/compile: expand large stack frame error messages
+    cmd/go: add -flat_namespace to LDFLAGS whitelist
     
-    Change-Id: Ib9f621e380dd9a6beace27ec5ff62780012f8274
-    Reviewed-on: https://go-review.googlesource.com/c/144600
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #26173
+    
+    Change-Id: I032551f63b359c8cbb7296931e1957d2bff8f328
+    Reviewed-on: https://go-review.googlesource.com/121819
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/gc/main.go | 10 +++++++---
- src/cmd/compile/internal/gc/pgen.go |  5 +++--
- src/cmd/compile/internal/gc/subr.go | 10 +++++++++-
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/security.go | 1 +
+ 1 file changed, 1 insertion(+)

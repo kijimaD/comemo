@@ -1,26 +1,19 @@
-commit a41d21695cad0e30d9c006198cd7edd8c38bf885
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 9 10:55:36 2018 -0400
+commit 1101a902fe7dba7285e88c94d73489cc2b7b2511
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sun Mar 18 12:15:55 2018 -0700
 
-    regexp: revert "use sync.Pool to cache regexp.machine objects"
+    go/format: move example to external test file
     
-    Revert CL 101715.
+    Per #11257 all examples should be in external test files.
     
-    The size of a sync.Pool scales linearly with GOMAXPROCS,
-    making it inappropriate to put a sync.Pool in any individually
-    allocated object, as the sync.Pool documentation explains.
-    The change also broke DeepEqual on regexps.
+    Additionally, doing so makes this example playable.
     
-    I have a cleaner way to do this with global sync.Pools but it's
-    too late in the cycle. Will revisit in Go 1.12. For now, revert.
+    Updates #24352. (Albeit tangentially).
     
-    Fixes #26219.
-    
-    Change-Id: Ie632e709eb3caf489d85efceac0e4b130ec2019f
-    Reviewed-on: https://go-review.googlesource.com/122596
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I77ab4655107f61db2e9d21a608b73ace3a230fb2
+    Reviewed-on: https://go-review.googlesource.com/101285
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/regexp/regexp.go | 62 +++++++++++++++++++++++++++++++---------------------
- 1 file changed, 37 insertions(+), 25 deletions(-)
+ src/go/format/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ src/go/format/format_test.go  | 27 ---------------------------
+ 2 files changed, 39 insertions(+), 27 deletions(-)

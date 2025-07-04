@@ -1,27 +1,21 @@
-commit 7e63c8b765c30823131bd136d190afbe4c21abc9
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri May 21 12:01:39 2021 +0200
+commit 74ec40fc8acffb81f17ccbaa498b15f694c25e4d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 5 01:05:04 2020 +0000
 
-    runtime: wait for Go runtime to initialize in Windows signal test
+    path/filepath: revert "add WalkDir"
     
-    The test harness waits for "ready" as a sign that the Go runtime has
-    installed its signal handler and is ready to be tested. But actually,
-    while LoadLibrary starts the loading of the Go runtime, it does so
-    asynchronously, so the "ready" sign is potentially premature and
-    certainly racy. However, all exported cgo entry points make a call to
-    _cgo_wait_runtime_init_done which waits for that asynchronous
-    initialization to complete. Therefore, this commit fixes the test to
-    call into the exported "Dummy" cgo function before emitting the "ready"
-    sign, so that we're sure the Go runtime is actually loaded.
+    This reverts CL 266240.
     
-    Updates #45638.
+    Reason for revert: tests aren't passing on windows-amd64-longtest.
     
-    Change-Id: I9b12b172d45bdcc09d54dd301de3a3e499544834
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321769
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: If323c6254a42aff0418e2c0a9531f3d4c829a242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267798
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/testdata/testwinlibsignal/main.c | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/path/filepath/export_test.go |   2 -
+ src/path/filepath/path.go        | 213 +++++----------------------------------
+ src/path/filepath/path_test.go   |  89 ++++++----------
+ 3 files changed, 54 insertions(+), 250 deletions(-)

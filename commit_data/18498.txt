@@ -1,18 +1,20 @@
-commit e0a55a6c9826f3b0548a2d78be82931ad73ac218
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Thu Feb 13 19:04:43 2014 +0000
+commit fc8e77ca65ab7d4dfd6fd58ad67145f253aab829
+Author: Kyle Isom <kyle@gokyle.net>
+Date:   Thu Feb 13 12:54:04 2014 -0500
 
-    cmd/gc: for loop init statement misanalyzed by escape analysis
+    crypto/x509: Add certificate signature request (CSR) support.
     
-    Logically, the init statement is in the enclosing scopes loopdepth, not inside the for loop.
+    This change adds support for parsing and serialisation of PKCS #10,
+    certificate signature requests.
     
-    Fixes #7313.
-    
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/62430043
+    LGTM=agl
+    R=golang-codereviews, agl
+    CC=agl, golang-codereviews, nick
+    https://golang.org/cl/49830048
 
- src/cmd/gc/esc.c |  4 +++-
- test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/crypto/x509/pkix/pkix.go   |   7 +
+ src/pkg/crypto/x509/x509.go        | 567 +++++++++++++++++++++++++++++--------
+ src/pkg/crypto/x509/x509_test.go   | 214 +++++++++++++-
+ src/pkg/encoding/asn1/asn1.go      |  14 +
+ src/pkg/encoding/asn1/asn1_test.go |   4 +
+ 5 files changed, 691 insertions(+), 115 deletions(-)

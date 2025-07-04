@@ -1,21 +1,21 @@
-commit 0c6d8bb109adfa188190b2e6de59b88853ded378
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 14 16:25:43 2022 -0700
+commit 8e14a9cf04fd2a215871f7f68abaa926d8435173
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jun 9 18:41:19 2021 -0400
 
-    debug/pe: read string table in 10M chunks
+    [dev.typeparams] go/types: eliminate need for unpack and asUnion functions
     
-    No separate test because this makes no difference for valid PE files.
+    This is a straightforward port of CL 323355 to go/types, adjusted for
+    the different error reporting API in go/types.
     
-    Fixes #52350
-    
-    Change-Id: I2aa011a4e8b34cb08052222e94c52627ebe99fbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400378
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I0f9d7ca0e0959e1e214ecd61eb85cc311e6409a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326679
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/debug/pe/string.go | 25 +++++++++++++++++++++++--
- 1 file changed, 23 insertions(+), 2 deletions(-)
+ src/go/types/builtins.go | 12 +++++-------
+ src/go/types/infer.go    | 15 +++++++++------
+ src/go/types/subst.go    | 11 ++++++-----
+ src/go/types/type.go     | 35 +++++++++--------------------------
+ 4 files changed, 29 insertions(+), 44 deletions(-)

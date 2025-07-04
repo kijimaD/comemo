@@ -1,14 +1,18 @@
-commit 4925f8aa79db712f746cc4abbff643e90d7200b2
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Fri Apr 12 16:04:19 2013 -0700
+commit 18ff727487422d73c8dd609d229c3dda7539d9a9
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Apr 12 14:05:14 2013 -0700
 
-    test: make goprint.go wait longer for go its routine to execute
+    cmd/go: quote command line arguments in debug output
     
-    Update #5281
+    Debug output from go test -x may contain empty arguments.
+    This CL quotes arguments if needed. E.g. the output of
+    go test -x is now
+      .../6g -o ./_go_.6 -p testmain -complete -D "" -I . -I $WORK ./_testmain.go
+    which is easier to grasp.
     
-    R=golang-dev, r, bradfitz, cshapiro
+    R=golang-dev, bradfitz, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/8631047
+    https://golang.org/cl/8633043
 
- test/goprint.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

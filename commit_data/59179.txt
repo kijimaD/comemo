@@ -1,28 +1,24 @@
-commit d88f93f720692c7a7f3740093afdd51b45c6056f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 6 23:29:57 2025 +1100
+commit 55bb3d1c105131f93dbe9abd03445e1f07d02303
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 13:51:28 2024 -0800
 
-    cmd/internal/obj/riscv,internal/bytealg: synthesize MIN/MAX/MINU/MAXU instructions
+    go/types: : generate assignments.go from types2 source
     
-    Provide a synthesized version of the MIN/MAX/MINU/MAXU instructions
-    if they're not natively available. This allows these instructions to
-    be used in assembly unconditionally.
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 600 LOC.
     
-    Use MIN in internal/bytealg.compare.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Change-Id: I8a5a3a59f0a9205e136fc3d673b23eaf3ca469f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653295
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Change-Id: I7107c8050075281bf6840a9f5234d70e09734ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565836
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        |  16 +--
- src/cmd/internal/obj/riscv/asm_test.go             |  14 +++
- src/cmd/internal/obj/riscv/obj.go                  |  44 +++++++
- .../obj/riscv/testdata/testminmax/minmax_test.go   | 140 +++++++++++++++++++++
- .../obj/riscv/testdata/testminmax/minmax_test.s    | 131 +++++++++++++++++++
- src/internal/bytealg/compare_riscv64.s             |   8 +-
- 6 files changed, 339 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 37 ++++++++++++++++++--------
+ src/cmd/compile/internal/types2/operand.go     |  4 +--
+ src/cmd/compile/internal/types2/util.go        |  7 ++---
+ src/go/types/assignments.go                    | 33 +++++++++++++++++------
+ src/go/types/generate_test.go                  |  7 ++++-
+ src/go/types/operand.go                        |  2 ++
+ src/go/types/util.go                           | 11 ++++----
+ 7 files changed, 70 insertions(+), 31 deletions(-)

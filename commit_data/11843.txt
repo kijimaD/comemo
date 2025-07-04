@@ -1,13 +1,30 @@
-commit 7bd6ebb104acb150263774d7fa054c1f93c67806
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 13 23:39:56 2012 +1100
+commit d84de09e1d46efe6e0dc5edcbb6c30b02733aa70
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 13 21:22:36 2012 +1100
 
-    spec: strings are more slices than arrays
-    Thanks to Aaron Kemp for noticing.
+    godoc: new design
     
-    R=golang-dev, dsymonds
+    This is not the finished product,
+    but a good checkpoint from which to
+    proceed with further development.
+    
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5645097
+    https://golang.org/cl/5571061
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/all.css              | 222 --------------------------------
+ doc/community.html       |  55 --------
+ doc/contrib.html         |  63 +++++-----
+ doc/docs.html            | 227 ++++++++++++++-------------------
+ doc/frontpage.css        | 143 ---------------------
+ doc/godocs.js            |  35 ++----
+ doc/gopher/frontpage.png | Bin 0 -> 31610 bytes
+ doc/gopher/ref.png       | Bin 0 -> 14576 bytes
+ doc/install.html         |   3 +-
+ doc/reference.html       |  40 ++++++
+ doc/root.html            | 207 +++++++++++++++---------------
+ doc/style.css            | 320 +++++++++++++++++++++++++++++++++++++++++++++++
+ lib/godoc/godoc.html     | 105 ++++++++--------
+ lib/godoc/package.html   |  54 ++++----
+ src/cmd/godoc/godoc.go   |   2 +-
+ 15 files changed, 676 insertions(+), 800 deletions(-)

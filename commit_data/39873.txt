@@ -1,31 +1,25 @@
-commit 8875fb97c5cadbc6f02e4ce89efa586023c0a777
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Sep 10 16:06:12 2019 -0400
+commit 92e6cf4c0f9bf2e1ecd57f22a430d96020cbdd69
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 27 16:15:04 2019 -0400
 
-    cmd/go: strip trailing slash from versioned arguments
+    cmd/compile: repair ssa/debug_test regression
     
-    'go get' accepts arguments of the form path@version, and it passes
-    them through search.CleanPatterns before querying proxies. With this
-    change, CleanPatterns preserves text after '@' and will strip trailing
-    slashes from the patn.
+    Code introduced in
     
-    Previously, we did not strip trailing slashes when a version was
-    present, which caused proxy base URL validation to fail. Module paths
-    that end with ".go" (for example, github.com/nats-io/nats.go) use
-    trailing slashes to prevent 'go build' and other commands from
-    interpreting packages as source file names, so this caused unnecessary
-    problems for them.
+    [2034fbab5b1d11bc59cb476bc3f49ee1b344839d]
+    cmd/compile: use existing instructions instead of nops for inline marks
     
-    Updates #32483
+    to change a src.Pos's column to 1 accidentally reset
+    the is_stmt and prologue/epilogue bits, and that
+    turned out to cause a regression in ssa/debug_test.
     
-    Change-Id: Id3730c52089e52f1cac446617c20132a3021a808
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194600
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Preserving that information fixed the regression.
+    
+    Change-Id: I7c6859c8b68d9c6f7c0cbc8805c1f41dc5c1d5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169739
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modget/get.go                  |  9 ++++++
- src/cmd/go/internal/search/search.go               | 26 ++++++++++++------
- .../testdata/mod/example.com_dotgo.go_v1.0.0.txt   | 16 +++++++++++
- .../go/testdata/script/mod_get_trailing_slash.txt  | 32 ++++++++++++++++++++++
- 4 files changed, 75 insertions(+), 8 deletions(-)
+ src/cmd/internal/src/pos.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,20 +1,16 @@
-commit f6b93a4c358b28b350dd8fe1780c1f78e520c09c
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Mar 21 13:50:37 2024 +0800
+commit 2face96fc427989bbc8b2bae197755d4ebd93f75
+Author: Kaiya <xiongkaiya@gmail.com>
+Date:   Thu Apr 6 15:01:34 2023 +0800
 
-    slices: add examples
+    runtime: fix typo in traceback.go
     
-    For Clone, Grow, Clip, Concat, Contains, Repeat.
-    
-    Fixes #66435
-    
-    Change-Id: Ife8f61427e9cd18b7106c100de8f82f9d7840c9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573255
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I3515453c3b4310b9fc635324d75c872a01501604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482735
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/slices/example_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ src/runtime/traceback.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

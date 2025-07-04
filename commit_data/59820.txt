@@ -1,15 +1,20 @@
-commit 47b941f445f0a839e826b81a5394d30934821500
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jun 13 15:07:24 2025 -0400
+commit 196916299da7568a2a2165246e5164637df03fb9
+Author: Philipp Wollermann <philwo@google.com>
+Date:   Tue Apr 23 17:18:20 2024 +0900
 
-    cmd/link: add one more linkname to the blocklist
+    net: fix sendfile regression with io.Copy on macOS
     
-    I missed one in the previous CL.
+    Since CL 472475, io.Copy can no longer use sendfile on macOS for copying
+    files to a socket due to a too strict type assertion. This CL fixes the
+    issue by checking for the necessary interfaces instead of the concrete
+    os.File type in sendfile_unix_alt.go.
     
-    Change-Id: I448a871523d7fb8f429b4482839d7f101ea003b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681497
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #66988
+    
+    Change-Id: Ia0dd190f6575016a191c34a935132907147c8e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581035
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/link/internal/loader/loader.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/sendfile_unix_alt.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

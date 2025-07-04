@@ -1,44 +1,12 @@
-commit 4419d7e53cba0d897c5962af4ad1dd0b4aaf0b21
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 12 17:42:01 2013 -0400
+commit cfefe6a7633abc8964166720769df60e56a50583
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 12 12:24:57 2013 -0700
 
-    undo CL 11161044 / ba455262a9db
-    
-    I want to think more carefully about this.
-    
-    We put this in because Marshal encoded named []byte but Unmarshal rejected them.
-    And we noticed that Marshal's behavior was undocumented so we documented it.
-    But I am starting to think the docs and Unmarshal were correct and Marshal's
-    behavior was the problem.
-    
-    Rolling back to give us more time to think.
-    
-    ««« original CL description
-    json: unmarshal types that are byte slices.
-    
-    The json package cheerfully would marshal
-    
-            type S struct {
-                    IP net.IP
-            }
-    
-    but would give an error when unmarshalling.  This change allows any
-    type whose concrete type is a byte slice to be unmarshalled from a
-    string.
-    
-    Fixes #5086.
+    cmd/dist: allow assembly code to use enumerated constants.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11161044
-    
-    »»»
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/11042046
+    https://golang.org/cl/11056044
 
- src/pkg/encoding/json/decode.go      |  2 +-
- src/pkg/encoding/json/decode_test.go | 29 -----------------------------
- src/pkg/encoding/json/encode.go      |  4 ++--
- 3 files changed, 3 insertions(+), 32 deletions(-)
+ src/cmd/dist/buildruntime.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

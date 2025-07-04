@@ -1,33 +1,27 @@
-commit 0f0c89243044a5a5de142e51da3a98f082fd3771
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 24 11:24:01 2022 -0500
+commit df35ade067f22ef1f3aad3c2f3576997ff9646b4
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Jun 8 20:34:16 2021 -0400
 
-    crypto/aes: merge ppc64le crypt key expansion
+    doc/go1.17: document //go:build lines
     
-    It is not necessary to expand the key twice for each direction,
-    the decrypt key can be stored in reverse simultaneously.
+    In 1.17, //go:build lines are fully supported. This entails changes to
+    the go command, vet, and gofmt. Document all of them.
     
-    Likewise, there is no need to store the key length alongside the
-    expanded keys, this is now inferred by the key length slice.
-    Noteably, the key expansion benchmark assumes the key array size
-    is the exact size of the expanded key.
+    I'm not Russ, but this is a significant change, it slipped under the
+    radar, and we're trying to get the release out. So here's what I got.
     
-    Now, the ppc64le aes asm interface is identical to the generic
-    asm interface. Callsites and usage is updated to reflect this.
+    I wasn't sure where to put the go command change. On the one hand,
+    it's pretty significant. On the other, it certainly affects fewer
+    people than lazy loading. So it probably shouldn't be first, but I also
+    didn't want to bury it the middle of all the other module changes. Open
+    to suggestions.
     
-    Performance uplift on POWER9 is substantial:
-    
-    name    old time/op  new time/op  delta
-    Expand   167ns ± 0%    49ns ± 0%  -70.55%
-    
-    Change-Id: I3fdaf9c27e8860e8150d4683eb4046d97a53293a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398894
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Paul Murphy <murp@ibm.com>
+    Change-Id: Ia1a96bcfb1977973c5b0b0a6b18a9242a745af12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326209
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/crypto/aes/asm_ppc64le.s     | 207 +++++++++++++++------------------------
- src/crypto/aes/cbc_ppc64le.go    |   6 +-
- src/crypto/aes/cipher_ppc64le.go |  43 ++++----
- 3 files changed, 105 insertions(+), 151 deletions(-)
+ doc/go1.17.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 47 insertions(+), 2 deletions(-)

@@ -1,19 +1,35 @@
-commit e94fe09c33f9608ced0e7abcabba9fb697844a6c
+commit 0dcab98fd829e845a83fed996025f96b8b1165b1
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon May 2 17:37:44 2022 -0700
+Date:   Fri Jul 9 19:47:45 2021 -0700
 
-    cmd/compile: remove ir.Name.TypeDefn
+    [dev.typeparams] cmd/compile: slightly more incremental unified typecheck
     
-    This method used to be needed so the legacy typechecker could report
-    type declaration loops, but that's handled by types2 now.
+    This CL pushes the typecheck.Expr calls further down to the IR
+    construction points. It turns out we don't really care about
+    typecheck.AssignExpr, because it's only used to distinguish whether
+    ir.BlankNode is allowed. We can avoid that issue by just skipping the
+    call to typecheck.Expr for blank nodes.
     
-    Change-Id: Ie0d89e6dcff277778b12ed960b6b31669fd903a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403838
+    Similarly, for typecheck.Callee, only two details matter: (1) don't
+    report errors for builtin functions (which aren't allowed outside of
+    callee contexts); and (2) method-value selector expressions need to
+    have Op ODOTMETH/ODOTINTER rather than OMETHVALUE. The first can be
+    handled by simply skipping typecheck on Names (as with ir.BlankNode,
+    we don't need to typecheck these). The second currently requires
+    adding a 'callee bool' parameter to disambiguate the context.
+    
+    The other option would be for exprCall to reset the fun's Op from
+    OMETHVALUE to OXDOT and let typecheck handle it a second time. But I
+    anticipate needing to add extra logic in the exprSelector case which
+    would be harder to undo, so this seems somewhat better.
+    
+    Change-Id: I1a8dfb6af04265ab466fd7f4cb6ee8b479e92282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333769
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ir/name.go    | 10 ----------
- src/cmd/compile/internal/types/type.go |  8 +-------
- 2 files changed, 1 insertion(+), 17 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 76 ++++++++++++++++++--------------
+ src/cmd/compile/internal/noder/writer.go | 31 +++++++++----
+ 2 files changed, 64 insertions(+), 43 deletions(-)

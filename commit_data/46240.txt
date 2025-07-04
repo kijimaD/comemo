@@ -1,19 +1,21 @@
-commit bb0b511738713c7a8cc4c194e037a7ea852751ca
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 25 13:03:30 2021 -0700
+commit fa06894b36054e80e815ee538fb6f72c9e58f14a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 14:56:03 2020 -0500
 
-    cmd/compile: use right line number for conversion expression
+    [dev.regabi] cmd/compile: cleanup preparing for concrete types
     
-    Use the position of the actual conversion operation instead of base.Pos.
+    Avoid using the same variable for two different concrete
+    Node types in walk. This will smooth the introduction of
+    specific constructors, replacing ir.Nod and friends.
     
-    Fixes #47880
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: I56adc134e09cb7fd625adc0a847c1a6b3e254b1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345095
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Replay of CL 275884, lost to the bad-merge history rewrite.
+    
+    Change-Id: I05628e20a19c9559ed7478526ef6cb2613f735e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277954
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/walk/convert.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 181 ++++++++++++++----------------------
+ 1 file changed, 70 insertions(+), 111 deletions(-)

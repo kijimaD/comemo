@@ -1,24 +1,29 @@
-commit 27f41bb15391668fa8ba18561efe364bab9b8312
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 21 21:42:52 2024 +0000
+commit 110e4fb1c2e3a21631704bbfaf672230b9ba2492
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 22 09:33:22 2023 -0700
 
-    Revert "testing: add TB.SetGOMAXPROCS function"
+    go/scanner: reject large line and column numbers in //line directives
     
-    This reverts CL 519235.
+    Setting a large line or column number using a //line directive can cause
+    integer overflow even in small source files.
     
-    Reason for revert: Proposal is still in incoming.
+    Limit line and column numbers in //line directives to 2^30-1, which
+    is small enough to avoid int32 overflow on all reasonbly-sized files.
     
-    For #62020
+    For #59180
+    Fixes CVE-2023-24537
     
-    Change-Id: Icccb930209f36097f5d930c01eda6b5042bdddc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573516
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802456
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I149bf34deca532af7994203fa1e6aca3c890ea14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482078
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- api/next/62020.txt                          |  4 --
- doc/next/6-stdlib/99-minor/testing/62020.md |  1 -
- src/testing/testing.go                      | 49 +--------------
- src/testing/testing_test.go                 | 97 -----------------------------
- 4 files changed, 2 insertions(+), 149 deletions(-)
+ src/go/parser/parser_test.go | 16 ++++++++++++++++
+ src/go/scanner/scanner.go    |  7 +++++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)

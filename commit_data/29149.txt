@@ -1,65 +1,16 @@
-commit deb4177cf0b8352f4908c0eba9e81dfb0213545c
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 25 15:49:52 2016 -0700
+commit 26124030a051b6b05a29349fdc4b92880e18c8a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 09:03:08 2016 -0700
 
-    cmd/compile: use masks instead of branches for slicing
+    androidtest.bash: use go list to get pkg dir
     
-    When we do
+    This will be more robust in the faces of
+    future changes to the pkg dir layout.
     
-      var x []byte = ...
-      y := x[i:]
-    
-    We can't just use y.ptr = x.ptr + i, as the new pointer may point to the
-    next object in memory after the backing array.
-    We used to fix this by doing:
-    
-      y.cap = x.cap - i
-      delta := i
-      if y.cap == 0 {
-        delta = 0
-      }
-      y.ptr = x.ptr + delta
-    
-    That generates a branch in what is otherwise straight-line code.
-    
-    Better to do:
-    
-      y.cap = x.cap - i
-      mask := (y.cap - 1) >> 63 // -1 if y.cap==0, 0 otherwise
-      y.ptr = x.ptr + i &^ mask
-    
-    It's about the same number of instructions (~4, depending on what
-    parts are constant, and the target architecture), but it is all
-    inline. It plays nicely with CSE, and the mask can be computed
-    in parallel with the index (in cases where a multiply is required).
-    
-    It is a minor win in both speed and space.
-    
-    Change-Id: Ied60465a0b8abb683c02208402e5bb7ac0e8370f
-    Reviewed-on: https://go-review.googlesource.com/32022
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iaf078093f02ef3a10884a19c25e2068cbbf5f36a
+    Reviewed-on: https://go-review.googlesource.com/27929
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 60 ++++++++--------------
- src/cmd/compile/internal/ssa/gen/386.rules     |  3 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  1 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  2 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  4 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 +
- src/cmd/compile/internal/ssa/gen/generic.rules |  5 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go          |  6 +++
- src/cmd/compile/internal/ssa/prove.go          | 38 ++++++++++++++
- src/cmd/compile/internal/ssa/rewrite386.go     | 31 ++++++++++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 23 +++++++++
- src/cmd/compile/internal/ssa/rewriteARM.go     | 22 ++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 22 ++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 31 ++++++++++--
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 23 +++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 25 ++++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 69 ++++++++++++++++++++++++++
- test/sliceopt.go                               |  9 ++--
- 21 files changed, 325 insertions(+), 56 deletions(-)
+ src/androidtest.bash | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

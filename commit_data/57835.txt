@@ -1,17 +1,30 @@
-commit 0fd414c652f766e803d7a9b4f70daebd542dd6ab
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Oct 29 10:31:23 2024 -0700
+commit a0c3a1b6769c9849577eb6426fdac39d40372307
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 17 17:12:44 2023 -0400
 
-    internal/poll: handle (0, EINVAL) return from sendfile on Solaris
+    cmd/go: reject toolchain directives containing path separators
     
-    Also check for GOOS=illumos as well as GOOS=solaris.
+    If GOTOOLCHAIN="path" or "auto", the go command uses exec.LookPath to
+    search for it in order to allow toolchains to refer to local-only
+    toolchain variants (such as toolchains built from enterprise- or
+    distro-patched source). However, those toolchains should only be
+    resolved from $PATH, not relative to the working directory of the
+    command.
     
-    Change-Id: I887e6cddc1b8ad0f4624c9491e089c6bb8bce70e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622977
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #62198.
+    Fixes CVE-2023-39320.
+    
+    Change-Id: I247c7acea95d737362dd0475e9fc8515430d0fcc
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1996318
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526158
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/sendfile_unix.go | 76 ++++++++++++++++++--------------------
- 1 file changed, 35 insertions(+), 41 deletions(-)
+ src/cmd/go/internal/gover/toolchain.go             |  7 +++++
+ src/cmd/go/testdata/script/mod_toolchain_slash.txt | 32 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

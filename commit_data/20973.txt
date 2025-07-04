@@ -1,15 +1,13 @@
-commit 082a2374fbe0d41e500158270e1ddc321c09a9e4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 12 15:54:24 2014 +1100
+commit 692ad844b632074d9e71b6e59fab227c82da77b5
+Author: Nathan P Finch <nate.finch@gmail.com>
+Date:   Thu Oct 30 13:20:43 2014 -0700
 
-    cmd/api: update the API checker to Go 1.4 and git
+    cmd/go: fix minor typo
     
-    Still using the ancient go/types API. Updating that to the modern API
-    should be a separate effort in a separate change.
-    
-    Change-Id: Ic1c5ae3c13711d34fe757507ecfc00ee883810bf
-    Reviewed-on: https://go-review.googlesource.com/1404
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/170770043
 
- src/cmd/api/run.go | 33 ++++++++++++++++++---------------
- 1 file changed, 18 insertions(+), 15 deletions(-)
+ src/cmd/go/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

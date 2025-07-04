@@ -1,0 +1,22 @@
+commit fd8938c799969ad8caec2aaec5a4966e48a17895
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Mon Feb 17 18:39:58 2025 +0000
+
+    net/http: speed up cookie and method validation
+    
+    Fixes #67031
+    
+    Change-Id: I1d764afdc7e50d61007f5f71a674eb6872ce507a
+    GitHub-Last-Rev: 869535e843d2133fa5279297b002dd96725384e0
+    GitHub-Pull-Request: golang/go#71798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650195
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/cookie.go  | 17 +++++------------
+ src/net/http/http.go    |  6 ++++++
+ src/net/http/request.go |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)

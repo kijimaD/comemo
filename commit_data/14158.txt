@@ -1,17 +1,22 @@
-commit ec1ef16cea9b9e9dd671fa30ff2d4546ec6c1dac
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 17 16:00:09 2012 +1100
+commit 7565726875d96e4a2bd927ebabc5ea614e602ac4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 16 13:46:27 2012 -0700
 
-    path/filepath: better documentation for WalkFunc
-    Define the properties of the arguments better. In particular,
-    explain that the path is (sort of) relative to the argument to
-    Walk.
+    math/big: fix big.Exp and document better
     
-    Fixes #4119.
+    - always return 1 for y <= 0
+    - document that the sign of m is ignored
+    - protect against div-0 panics by treating
+      m == 0 the same way as m == nil
+    - added extra tests
     
-    R=golang-dev, iant
+    Fixes #4239.
+    
+    R=agl, remyoudompheng, agl
     CC=golang-dev
-    https://golang.org/cl/6721048
+    https://golang.org/cl/6724046
 
- src/pkg/path/filepath/path.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/pkg/math/big/int.go      | 11 +++++------
+ src/pkg/math/big/int_test.go | 25 +++++++++++++++++++------
+ src/pkg/math/big/nat.go      | 16 ++++++++--------
+ 3 files changed, 32 insertions(+), 20 deletions(-)

@@ -1,13 +1,12 @@
-commit bb298754abb55b2a44b52cb694d6f4762864e197
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 1 17:19:09 2015 -0700
+commit 5cc6bfe2342185a70444b977c2f1599cf9116914
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 14:55:04 2015 -0500
 
-    math/big: implement missing special cases for binary operations
+    go/build: skip GOROOT tests on darwin/arm
     
-    Change-Id: I9fc12b1a9b1554523e08839c1ff46c8668217ba1
-    Reviewed-on: https://go-review.googlesource.com/8381
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If2d303caae933eec61634152e5d83faaba591315
+    Reviewed-on: https://go-review.googlesource.com/6660
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/math/big/float.go      | 231 ++++++++++++++++++++++++++-------------------
- src/math/big/float_test.go |  49 ++++++----
- 2 files changed, 168 insertions(+), 112 deletions(-)
+ src/go/build/build_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

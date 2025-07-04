@@ -1,14 +1,20 @@
-commit 8f764fb689ea4313c5a6de2cabdf65aee9f89c5d
+commit 3548ab5ebb9b729f8399693488d537e37688b0ef
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Sep 6 15:48:21 2013 -0400
+Date:   Fri Sep 6 15:47:39 2013 -0400
 
-    codereview: update use of promptchoice for Mercurial 2.7
+    runtime: handle timer overflow in tsleep
     
-    Fixes #6186.
+    Make sure we never pass a timer into timerproc with
+    a negative duration since it will cause other timers
+    to never expire.
     
-    R=golang-dev, bradfitz, remyoudompheng, rsc
+    Fixes #5321.
+    
+    R=golang-dev, minux.ma, remyoudompheng, mikioh.mikioh, r, bradfitz, rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/13112043
+    https://golang.org/cl/9035047
 
- lib/codereview/codereview.py | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/runtime/time.goc      | 29 ++++++++++++++++++++
+ src/pkg/time/internal_test.go | 63 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/sleep_test.go    |  6 +++++
+ 3 files changed, 98 insertions(+)

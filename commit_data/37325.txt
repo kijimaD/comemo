@@ -1,28 +1,13 @@
-commit e496e612b7f45a09209f8f4e1c7c1d0db378dc18
-Author: Nikhil Benesch <nikhil.benesch@gmail.com>
-Date:   Fri Nov 9 00:55:13 2018 -0500
+commit d0764a248113d3cd616c17723c090aead23daf7f
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 15:35:12 2018 -0400
 
-    runtime: never call into race detector with retaken P
+    doc: update go1.11.html removing TODO about TLS offsets
     
-    cgocall could previously invoke the race detector on an M whose P had
-    been retaken. The race detector would attempt to use the P-local state
-    from this stale P, racing with the thread that was actually wired to
-    that P. The result was memory corruption of ThreadSanitizer's internal
-    data structures that presented as hard-to-understand assertion failures
-    and segfaults.
-    
-    Reorder cgocall so that it always acquires a P before invoking the race
-    detector, and add a test that stresses the interaction between cgo and
-    the race detector to protect against future bugs of this kind.
-    
-    Fixes #27660.
-    
-    Change-Id: Ide93f96a23490314d6647547140e0a412a97f0d4
-    Reviewed-on: https://go-review.googlesource.com/c/148717
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Id06e5139f16cd7a85c59a3dcf2020cf647fcdea0
+    Reviewed-on: https://go-review.googlesource.com/124709
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/test27660.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/cgocall.go     | 28 +++++++++++-------------
- 3 files changed, 68 insertions(+), 15 deletions(-)
+ doc/go1.11.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

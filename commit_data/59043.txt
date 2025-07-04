@@ -1,32 +1,19 @@
-commit d729053edffdfb17ee947cee8af0d7edc45f6111
-Author: Luca Maltagliati <lmalta95@gmail.com>
-Date:   Wed Mar 12 21:40:12 2025 +0000
+commit 77c91884719ffdd1feb00e6991f82aa8866baab3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 7 09:12:05 2024 -0800
 
-    mime/multipart: add helper to build content-disposition header contents
+    spec: fix typo in year (it's 2024 now)
     
-    This PR adds an helper FileContentDisposition that builds multipart
-    Content-Disposition header contents with field name and file name,
-    escaping quotes and escape characters.
+    While at it, set the date to the Go 1.22 release date.
     
-    The  function is then called in the related helper CreateFormFile.
-    
-    The new function allows users to add other custom MIMEHeaders,
-    without having to rewrite the char escaping logic of field name and
-    file name, which is provided by the new helper.
-    
-    Fixes #46771
-    
-    Change-Id: Ifc82a79583feb6dd609ca1e6024e612fb58c05ce
-    GitHub-Last-Rev: 969f846fa967d2b3eca7a21ee096b299b8a94546
-    GitHub-Pull-Request: golang/go#63324
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531995
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I03872626e500433eb63786d24c67810c8c6289f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562337
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- api/next/46771.txt                                 |  1 +
- doc/next/6-stdlib/99-minor/mime/multipart/46771.md |  2 ++
- src/mime/multipart/writer.go                       | 11 ++++++++---
- src/mime/multipart/writer_test.go                  | 19 +++++++++++++++++++
- 4 files changed, 30 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,40 @@
-commit 09824ccfe5dce385e4f02894883b635a52a30cac
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Wed Jun 19 18:02:09 2019 -0600
+commit cf8cc7f63c7ddefb666a6e8d99a4843d3277db9f
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 24 12:14:27 2019 +0100
 
-    reflect: give type hints in error messages
+    cmd/compile: add saturating conversions on wasm
     
-    Currently, if you call various reflect methods you might get a panic with a
-    message like, "reflect: Field of non-struct type". Sometimes it's easy to
-    grok what's going on, but other times you need to laboriously go perform
-    reflect.ValueOf(myType).Kind().
+    This change adds the GOWASM option "satconv" to enable the generation
+    of experimental saturating (non-trapping) float-to-int conversions.
+    It improves the performance of the conversion by 42%.
     
-    This CL just adds that detail to the error message, saving debuggers the
-    extra step and making the error message more clear.
+    Previously the conversions had already been augmented with helper
+    functions to have saturating behavior. Now Wasm.rules is always using
+    the new operation names and wasm/ssa.go is falling back to the helpers
+    if the feature is not enabled.
     
-    Change-Id: I7e0c211a3001e6b217b828cbcf50518080b5cb1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183097
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The feature is in phase 4 of the WebAssembly proposal process:
+    https://github.com/WebAssembly/meetings/blob/master/process/phases.md
+    
+    More information on the feature can be found at:
+    https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md
+    
+    Change-Id: Ic6c3688017054ede804b02b6b0ffd4a02ef33ad7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170119
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/type.go | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ doc/install-source.html                     |  1 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 16 +++++++--------
+ src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go       | 12 +++++------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 32 ++++++++++++++---------------
+ src/cmd/compile/internal/wasm/ssa.go        | 21 +++++++++++++------
+ src/cmd/go/alldocs.go                       |  2 +-
+ src/cmd/go/internal/help/helpdoc.go         |  2 +-
+ src/cmd/internal/obj/wasm/a.out.go          |  9 ++++++++
+ src/cmd/internal/obj/wasm/anames.go         |  8 ++++++++
+ src/cmd/internal/obj/wasm/wasmobj.go        |  9 ++++++--
+ src/cmd/internal/objabi/util.go             |  6 ++++++
+ 12 files changed, 80 insertions(+), 42 deletions(-)

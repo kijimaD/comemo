@@ -1,13 +1,26 @@
-commit f5425dc80052a3826880718198bed9bfdb2df128
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Jul 20 11:00:28 2018 +0200
+commit 08304e886790cbf0ef4bca8158dcb7d99f3a67e7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 4 12:12:10 2018 -0400
 
-    doc/go1.11: fix unclosed html and typos in net section
+    cmd/link: put runtime.framepointer_enabled in DATA instead of RODATA
     
-    Change-Id: I3bcf8850ad3873f2627ba017cbfb8b7a8c9cf467
-    Reviewed-on: https://go-review.googlesource.com/125256
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    On darwin, only writable symbol is exported
+    (cmd/link/internal/ld/macho.go:/machoShouldExport).
+    For plugin to work correctly, global variables, including
+    runtime.framepointer_enabled which is set by the linker, need
+    to be exported when dynamic linking. Put it in DATA so it is
+    exported. Also in Go it is defined as a var, which is not
+    read-only.
+    
+    While here, do the same for runtime.goarm.
+    
+    Fixes #24653.
+    
+    Change-Id: I9d1b7d5a648be17103d20b97be65a901cb69f5a2
+    Reviewed-on: https://go-review.googlesource.com/104715
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.11.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

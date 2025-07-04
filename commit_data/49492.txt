@@ -1,18 +1,32 @@
-commit 9068c6844dc0f0100bd810ad73dbf877bb92507b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 16 15:45:25 2022 -0400
+commit 7b6893d2d2f7ff22efdbc29c6729066be8857dfc
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jul 30 15:55:31 2021 -0700
 
-    cmd/dist: add package . to 'go test' commands
+    [dev.fuzz] internal/fuzz: coarsen each coverage counter when taking a snapshot
     
-    This suppresses verbose output if the test passes,
-    eliminating some "hello from C" noise for the ../misc/cgo test.
+    When taking a snapshot of coverage counters, round each counter down
+    to the nearest power of 2.
     
-    Change-Id: I6324bfb4b3633c20e0eb0ae03aa25d40fab9fcfb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412776
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    After coarsening, at most 1 bit per byte will be set. This lets the
+    coordinator use a coverage array as a mask that distinguish between
+    code that's executed many times for a given input and code that's
+    executed once or a few times. For example, if a byte in this array has
+    the value 12, it means the block has been executed at least 4 times
+    and at least 8 times with different inputs.
+    
+    Also change the term "edge" to "bits" or just be more vague about how
+    coverage is represented.
+    
+    Also add more code that may be "interesting" in test_fuzz_cache.
+    
+    Change-Id: I67bf2adb298fb8efd7680b069a476c27e5fdbdae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338829
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/dist/test.go | 44 ++++++++++++++++++++++----------------------
- 1 file changed, 22 insertions(+), 22 deletions(-)
+ src/internal/fuzz/coverage.go | 63 ++++++++++++++++++++++++++++++++++++-------
+ src/internal/fuzz/fuzz.go     | 56 ++++++++++++++++++++------------------
+ src/internal/fuzz/worker.go   | 24 ++++++++---------
+ 3 files changed, 95 insertions(+), 48 deletions(-)

@@ -1,14 +1,25 @@
-commit 6ca968c791587cd70a1c0fcc5ddc21cdc7be60ad
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 11 14:36:51 2011 +1000
+commit f3625e7087087a5d3332183be959a397d1625ff4
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Aug 10 23:28:48 2011 -0500
 
-    exp/template: find the String method by taking the address if we need to.
-    Also simplify nil handling in printing.
+    exp/template: rename Parse*File and Parse*Files for clarity
     
-    R=golang-dev, dsymonds
+    IMPORTANT: Previous usage of *Files will continue to compile
+    fine but misbehave since the interface is compatible.
+    
+    The following functions have been renamed:
+    
+        ParseFiles => ParseGlob
+        ParseFile => ParseFiles
+        ParseSetFiles => ParseSetGlob
+        ParseSetFile => ParseSetFiles
+        ParseTemplateFiles => ParseTemplateGlob
+        ParseTemplateFile => ParseTemplateFiles
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4869042
+    https://golang.org/cl/4867041
 
- src/pkg/exp/template/exec.go      | 13 +++++++------
- src/pkg/exp/template/exec_test.go | 21 +++++++++++++++++++++
- 2 files changed, 28 insertions(+), 6 deletions(-)
+ src/pkg/exp/template/helper.go   | 62 ++++++++++++++++++++--------------------
+ src/pkg/exp/template/set_test.go | 56 ++++++++++++++++++------------------
+ 2 files changed, 59 insertions(+), 59 deletions(-)

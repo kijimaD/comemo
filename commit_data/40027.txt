@@ -1,28 +1,30 @@
-commit eb96f8a57444d174bba500b3a5d2a8b21b7e6d1e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jun 25 19:06:57 2019 +0000
+commit df1cdbf7933ae03d716e4ce657f15d8e77309da5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 12 14:20:21 2019 +0200
 
-    runtime: scavenge on growth instead of inline with allocation
+    bootstrap.bash: fix build if no exec wrapper exists
     
-    Inline scavenging causes significant performance regressions in tail
-    latency for k8s and has relatively little benefit for RSS footprint.
+    Since CL 170941 bootstrap.bash fails if no exec wrapper exists for a
+    given GOOS/GOARCH yet:
     
-    We disabled inline scavenging in Go 1.12.5 (CL 174102) as well, but
-    we thought other changes in Go 1.13 had mitigated the issues with
-    inline scavenging. Apparently we were wrong.
+      #### Building ../../go-linux-arm-bootstrap
     
-    This CL switches back to only doing foreground scavenging on heap
-    growth, rather than doing it when allocation tries to allocate from
-    scavenged space.
+      Building Go cmd/dist using /usr/local/go.
+      Building Go toolchain1 using /usr/local/go.
+      Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+      Building Go toolchain2 using go_bootstrap and Go toolchain1.
+      Building Go toolchain3 using go_bootstrap and Go toolchain2.
+      Building packages and commands for host, linux/amd64.
+      Building packages and commands for target, linux/arm.
+      rm: cannot remove 'bin/go_linux_arm_exec': No such file or directory
     
-    Fixes #32828.
+    Fix it by using 'rm -f' to ignore nonexisting files.
     
-    Change-Id: I1f5df44046091f0b4f89fec73c2cde98bf9448cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183857
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ib4b1e19747052fa4dca06319f35cc25a0545c4f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171722
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- src/runtime/mheap.go | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ src/bootstrap.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 09aeb6e33ab426eff4676a3baf694d5a3019e9fc
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Jul 1 12:41:56 2024 -0700
+
+    os: add TODO about removing test exception
+    
+    TestChtimesOmit excludes the failure on DragonFly BSD when both
+    atime and mtime are omitted.
+    
+    The relevant Dragonfly BSD bug is now fixed in git (see [1]).
+    
+    Add a TODO comment to remove the exclusion from the test once
+    the fix is generally available. This comment also addresses the
+    question why the exception exists.
+    
+    Amends CL 591535.
+    
+    [1]: https://github.com/DragonFlyBSD/DragonFlyBSD/commit/c7c71870ed0
+    
+    Change-Id: I3b53582301d44feb76b53788aa337c380ba82592
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595958
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/os/os_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,19 +1,14 @@
-commit e7426010c5a577bf2b1e84223036b2c55671f914
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 25 17:31:02 2013 +0300
+commit 17a03d86508fea470d4d55d64e3936cc44e5ed1b
+Author: Matthew Cottingham <mattcottingham@gmail.com>
+Date:   Thu Oct 24 10:13:23 2013 -0700
 
-    misc/linkcheck: better redirect handling, use meaningful exit code
+    database/sql: link to wiki in package docs
     
-    Prevent linkcheck from following redirects that lead beyond the outside
-    the root URL.
+    Update #5886
     
-    Return a non-zero exit code when there are problems.
-    
-    Some minor refactoring for clarity.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, kamil.kisiel, adg, r, rsc, dave, arnehormann, bradfitz
     CC=golang-dev
-    https://golang.org/cl/14425049
+    https://golang.org/cl/14087043
 
- misc/linkcheck/linkcheck.go | 90 +++++++++++++++++++++++++++++----------------
- 1 file changed, 58 insertions(+), 32 deletions(-)
+ src/pkg/database/sql/sql.go | 3 +++
+ 1 file changed, 3 insertions(+)

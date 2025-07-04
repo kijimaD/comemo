@@ -1,13 +1,163 @@
-commit 9cd8cb0b17e4bbff7cfce29631dc78c9cafd2e8f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 30 12:33:57 2014 +1100
+commit aae5c57e38c7c09f2009308803d4bdf1f39a3fd6
+Merge: 0226351d27 343d113610
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 16 15:00:08 2014 -0400
 
-    tag go1.4beta1
+    all: merge default branch into dev.garbage
     
-    TBR=rsc
-    R=r, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/164240043
+    hg was unable to create a CL on the code review server for this,
+    so I am submitting the merge by hand.
+    The only manual edits are in mgc0.c, to reapply the
+    removal of cached/ncached to the new code.
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ AUTHORS                                       |   1 +
+ CONTRIBUTORS                                  |   2 +
+ doc/go1.4.txt                                 |   4 +-
+ doc/go1compat.html                            |  10 +-
+ include/link.h                                |   2 +
+ misc/cgo/test/callback_c_gc.c                 |  10 +
+ misc/cgo/test/callback_c_gccgo.c              |   7 +
+ misc/cgo/test/cgo_test.go                     |   2 +
+ misc/cgo/test/issue8517.go                    |  13 +
+ misc/cgo/test/issue8517_windows.c             |  24 ++
+ misc/cgo/test/issue8517_windows.go            |  45 ++++
+ misc/cgo/test/issue8811.c                     |   8 +
+ misc/cgo/test/issue8811.go                    |  22 ++
+ misc/cgo/test/issue8828.go                    |  16 ++
+ misc/cgo/test/issue8828/issue8828.c           |   7 +
+ misc/cgo/test/issue8828/trivial.go            |   8 +
+ src/cmd/5a/lex.c                              |   1 +
+ src/cmd/5c/reg.c                              |   9 +-
+ src/cmd/6a/lex.c                              |   1 +
+ src/cmd/6c/reg.c                              |  14 +-
+ src/cmd/8a/lex.c                              |   1 +
+ src/cmd/8c/reg.c                              |   9 +-
+ src/cmd/cc/godefs.c                           |   6 +-
+ src/cmd/gc/builtin.c                          |   5 +-
+ src/cmd/gc/dcl.c                              |  14 +
+ src/cmd/gc/order.c                            |   6 +-
+ src/cmd/gc/pgen.c                             |   2 +
+ src/cmd/gc/racewalk.c                         |   7 +-
+ src/cmd/gc/reflect.c                          |  25 +-
+ src/cmd/gc/runtime.go                         |   7 +
+ src/cmd/gc/sinit.c                            |   2 +-
+ src/cmd/gc/walk.c                             |  32 ++-
+ src/cmd/go/build.go                           |   2 +-
+ src/cmd/go/doc.go                             |  39 +--
+ src/cmd/go/list.go                            |  39 +--
+ src/cmd/go/pkg.go                             |  22 +-
+ src/cmd/go/test.bash                          |  14 +
+ src/cmd/go/testdata/src/vetpkg/a_test.go      |   1 +
+ src/cmd/go/testdata/src/vetpkg/b.go           |   7 +
+ src/cmd/go/vet.go                             |  23 +-
+ src/cmd/ld/decodesym.c                        |   5 +-
+ src/cmd/ld/dwarf.c                            |  14 +-
+ src/cmd/ld/ldelf.c                            |   2 +
+ src/cmd/ld/ldpe.c                             |  26 +-
+ src/cmd/ld/macho.c                            |   3 +-
+ src/crypto/x509/x509.go                       |  17 +-
+ src/crypto/x509/x509_test.go                  |  63 +++++
+ src/database/sql/fakedb_test.go               |  22 ++
+ src/database/sql/sql.go                       |  11 +
+ src/debug/elf/file.go                         |   8 +
+ src/encoding/asn1/asn1.go                     |   4 +-
+ src/encoding/asn1/asn1_test.go                |  48 ++++
+ src/encoding/gob/encode.go                    |  10 +-
+ src/encoding/json/decode.go                   |  40 ++-
+ src/encoding/json/decode_test.go              |  21 +-
+ src/encoding/json/encode.go                   |   2 +
+ src/go/build/build.go                         |  27 +-
+ src/go/build/build_test.go                    |  18 ++
+ src/go/build/doc.go                           |  10 +-
+ src/go/build/testdata/empty/dummy             |   0
+ src/go/build/testdata/multi/file.go           |   5 +
+ src/go/build/testdata/multi/file_appengine.go |   5 +
+ src/liblink/data.c                            |   2 +
+ src/math/big/int.go                           |  19 +-
+ src/math/big/int_test.go                      |  36 ++-
+ src/math/big/rat.go                           |   7 +-
+ src/math/big/rat_test.go                      |   1 +
+ src/net/fd_windows.go                         |  12 +
+ src/net/http/client.go                        |  28 +-
+ src/net/http/client_test.go                   |  37 +++
+ src/net/http/export_test.go                   |   5 +
+ src/net/http/response_test.go                 |  28 ++
+ src/net/http/serve_test.go                    |  97 +++++++
+ src/net/http/server.go                        |  32 ++-
+ src/net/http/transport.go                     |  11 +-
+ src/net/http/transport_test.go                |  33 +++
+ src/net/rpc/client.go                         |  12 +-
+ src/net/rpc/client_test.go                    |  55 ++++
+ src/net/udp_test.go                           |  41 +++
+ src/net/url/url.go                            |  18 ++
+ src/os/error_plan9.go                         |   3 +-
+ src/os/exec/exec.go                           |  11 +-
+ src/os/exec_unix.go                           |  14 +-
+ src/os/exec_windows.go                        |   3 +
+ src/os/os_test.go                             |  47 +++-
+ src/os/path.go                                |   6 +-
+ src/reflect/all_test.go                       |  83 +++++-
+ src/reflect/makefunc.go                       |   6 +-
+ src/reflect/type.go                           |  62 +++--
+ src/reflect/value.go                          | 368 ++++++--------------------
+ src/regexp/syntax/doc.go                      |  48 ++--
+ src/runtime/asm_386.s                         |  75 +++---
+ src/runtime/asm_amd64.s                       |  75 +++---
+ src/runtime/asm_amd64p32.s                    |  80 +++---
+ src/runtime/asm_arm.s                         |  73 +++--
+ src/runtime/cgocallback.go                    |   3 +
+ src/runtime/chan.go                           |  11 +-
+ src/runtime/defs_windows.go                   |   4 +
+ src/runtime/defs_windows_386.h                |   4 +
+ src/runtime/defs_windows_amd64.h              |   4 +
+ src/runtime/heapdump.c                        |  44 ++-
+ src/runtime/malloc.go                         |   2 +-
+ src/runtime/mgc0.c                            |  40 ++-
+ src/runtime/mgc0.go                           |  21 ++
+ src/runtime/mgc0.h                            |   2 +
+ src/runtime/os_windows.c                      |  52 +++-
+ src/runtime/os_windows_386.c                  |  84 +++---
+ src/runtime/os_windows_amd64.c                |  97 ++++---
+ src/runtime/panic.c                           |   4 +
+ src/runtime/panic.go                          |  27 ++
+ src/runtime/runtime.h                         |   5 +-
+ src/runtime/stack.c                           |  39 ++-
+ src/runtime/stubs.go                          |  30 +++
+ src/runtime/sys_windows_386.s                 |  18 +-
+ src/runtime/sys_windows_amd64.s               |  18 +-
+ src/runtime/syscall_windows_test.go           |  39 +++
+ src/runtime/type.h                            |   2 +-
+ src/strings/strings.go                        |   9 +-
+ src/syscall/syscall_windows.go                |   4 +-
+ src/syscall/ztypes_windows.go                 |   1 +
+ test/assign.go                                |  12 +
+ test/fixedbugs/issue6703a.go                  |  16 ++
+ test/fixedbugs/issue6703b.go                  |  16 ++
+ test/fixedbugs/issue6703c.go                  |  18 ++
+ test/fixedbugs/issue6703d.go                  |  18 ++
+ test/fixedbugs/issue6703e.go                  |  18 ++
+ test/fixedbugs/issue6703f.go                  |  18 ++
+ test/fixedbugs/issue6703g.go                  |  20 ++
+ test/fixedbugs/issue6703h.go                  |  20 ++
+ test/fixedbugs/issue6703i.go                  |  20 ++
+ test/fixedbugs/issue6703j.go                  |  20 ++
+ test/fixedbugs/issue6703k.go                  |  21 ++
+ test/fixedbugs/issue6703l.go                  |  21 ++
+ test/fixedbugs/issue6703m.go                  |  25 ++
+ test/fixedbugs/issue6703n.go                  |  25 ++
+ test/fixedbugs/issue6703o.go                  |  23 ++
+ test/fixedbugs/issue6703p.go                  |  23 ++
+ test/fixedbugs/issue6703q.go                  |  28 ++
+ test/fixedbugs/issue6703r.go                  |  28 ++
+ test/fixedbugs/issue6703s.go                  |  18 ++
+ test/fixedbugs/issue6703t.go                  |  18 ++
+ test/fixedbugs/issue6703u.go                  |  18 ++
+ test/fixedbugs/issue6703v.go                  |  18 ++
+ test/fixedbugs/issue6703w.go                  |  21 ++
+ test/fixedbugs/issue6703x.go                  |  21 ++
+ test/fixedbugs/issue6703y.go                  |  23 ++
+ test/fixedbugs/issue6703z.go                  |  23 ++
+ test/fixedbugs/issue8079.go                   |  11 +
+ test/interface/explicit.go                    |   4 +-
+ test/interface/fail.go                        |  14 -
+ 150 files changed, 2548 insertions(+), 853 deletions(-)

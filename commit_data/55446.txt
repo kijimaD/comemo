@@ -1,21 +1,23 @@
-commit 5c7c24ce827b10982245951f6c2b1bbf0abc5aae
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jan 25 17:23:15 2024 +0000
+commit f02cdba16398cee70a69262a55eb357dac6f81df
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Feb 6 14:48:19 2023 -0800
 
-    internal/testenv: support the LUCI mobile builders in tests
+    encoding/hex: fix Decode output check regression
     
-    This change updates the testenv tests to correctly match on future LUCI
-    builder names for mobile builders. This isn't a problem today because
-    those haven't been set up yet, but the builder names are structured and
-    it's clear where the modifiers will appear. Might as well set them up
-    now.
+    CL 461958 fixed a potential panic,
+    but also introduced an observable regression where
+    invalid input could be detected before the panic occurs.
+    Adjust the check to preserve prior behavior,
+    while also preventing the panic.
     
-    Change-Id: I244b88a62a90312c0f3ff2360527d58531070362
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558597
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I52819f88a6a64883fbc9fd512697c38c29ca0ccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465855
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/testenv/testenv_test.go | 26 +++++++++++++++++++++++---
- 1 file changed, 23 insertions(+), 3 deletions(-)
+ src/encoding/hex/hex.go      | 6 +++---
+ src/encoding/hex/hex_test.go | 7 +++++--
+ 2 files changed, 8 insertions(+), 5 deletions(-)

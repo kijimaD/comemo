@@ -1,14 +1,14 @@
-commit 223d31f9fb1f821d0b1705fda3f925cff54d38b9
-Author: Qais Patankar <qaisjp@gmail.com>
-Date:   Sat Apr 25 19:37:24 2020 +0000
+commit 298be61f3c74a010d3f6bb6c827b268cd3a5fca8
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 29 14:44:54 2019 -0400
 
-    A: Qais Patankar (individual CLA)
+    cmd/compile: add json logging for escape analysis
     
-    Change-Id: I329a27d73166b70c5c13918a695d58958dbf8604
-    GitHub-Last-Rev: ca7be2b287c5732952f8b90f43888d38aa9ed316
-    GitHub-Pull-Request: golang/go#38659
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230197
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7ca075e50d144aa449a20ebfbaf7337406e1e510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204161
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- AUTHORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/escape.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

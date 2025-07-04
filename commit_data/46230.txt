@@ -1,28 +1,28 @@
-commit 68152359fdd45e8d51aaaec64075aad4ff8f68b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 30 20:30:25 2021 -0700
+commit f4e7a6b905ce60448e506a3f6578d01b60602cdd
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 15 15:54:25 2020 -0500
 
-    cmd/compile/internal/types2: disallow aliases for generic types
+    cmd/internal/goobj: fix buglet in object file reader
     
-    The existing approach (alias name stands for generic type name)
-    is an exception: it's the only place where a generic type could
-    be used without explicit instantiation. The correct solution is
-    currently under discussion (see proposal issue #46477).
+    The code in the new (introduced in 1.15) Go object file reader was
+    casting a pointer-mmaped-memory into a large array prior to performing
+    a read of the relocations section:
     
-    This CL requires that the RHS of an alias type declaration be
-    an instantiated non-generic type. If #46477 is accepted, the
-    implementation will require proper representation of alias
-    types.
+            return (*[1<<20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
     
-    Change-Id: Ie85b923213a64f39837e56e38e14757458272b93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346294
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For very large object files, this artificial array isn't large enough
+    (that is, there are more than 1048576 relocs to read), so update the
+    code to use a larger artifical array size.
+    
+    Fixes #41621.
+    
+    Change-Id: Ic047c8aef4f8a3839f2e7e3594bce652ebd6bd5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278492
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/decl.go                |  2 +-
- .../internal/types2/testdata/check/typeinst.go2        | 10 ++++++----
- .../internal/types2/testdata/fixedbugs/issue39768.go2  |  6 +++---
- .../internal/types2/testdata/fixedbugs/issue47968.go2  |  2 +-
- src/cmd/compile/internal/types2/typexpr.go             | 18 ++++++------------
- test/typeparam/aliasimp.dir/main.go                    | 13 ++++++++-----
- 6 files changed, 25 insertions(+), 26 deletions(-)
+ src/cmd/internal/goobj/objfile.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

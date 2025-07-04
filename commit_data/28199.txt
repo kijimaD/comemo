@@ -1,16 +1,14 @@
-commit 1a04b4abe78a152da5ccd801bf13a1df7ddfa8aa
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Sep 4 14:52:59 2016 -0700
+commit 27d0d849fe7802794c74d049f5e8e1b0be018f9a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu May 5 06:43:13 2016 +1000
 
-    net/http/httputil: t.Error -> t.Errorf
+    compress/flate: distinguish between base and min match length.
     
-    Found by vet.
-    
-    Change-Id: I09b79d68c7a5fc97e0edda4700a82bfbb00a4f45
-    Reviewed-on: https://go-review.googlesource.com/28486
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I93db5cd86e3fb568e4444cad95268ba4a02ce8a0
+    Reviewed-on: https://go-review.googlesource.com/22787
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/net/http/httputil/reverseproxy_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/flate/deflate.go     | 22 +++++++++++++++-------
+ src/compress/flate/deflatefast.go | 10 +++++-----
+ src/compress/flate/inflate.go     |  9 ++++-----
+ 3 files changed, 24 insertions(+), 17 deletions(-)

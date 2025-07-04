@@ -1,15 +1,21 @@
-commit fdce27f7b8f671e3399d2c116dbd15ec2e612af2
+commit 52f0afe0dbf123f0b81bf358b6427c09bb96a597
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Apr 25 13:19:35 2012 +0200
+Date:   Wed Apr 25 13:19:00 2012 +0200
 
-    exp/locale/collate: Added Builder type for generating a complete
-    collation table. At this moment, it only implements the generation of
-    a root table.
+    exp/locale/collate: Added skeleton for the higher-level types to provide
+    context for change lists of lower-level types. The public APIs are defined
+    in builder.go and collate.go. Type table is the glue between the lower and
+    higher level code and might be a good starting point for understanding the
+    collation code.
     
-    R=r
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/6039047
+    https://golang.org/cl/5999053
 
- src/pkg/exp/locale/collate/build/builder.go      | 501 +++++++++++++++++++++++
- src/pkg/exp/locale/collate/build/builder_test.go | 265 ++++++++++++
- 2 files changed, 766 insertions(+)
+ src/pkg/exp/locale/collate/build/table.go | 109 ++++++++++++
+ src/pkg/exp/locale/collate/collate.go     | 157 +++++++++++++++++
+ src/pkg/exp/locale/collate/export.go      |  31 ++++
+ src/pkg/exp/locale/collate/export_test.go |  49 ++++++
+ src/pkg/exp/locale/collate/table.go       | 135 +++++++++++++++
+ src/pkg/exp/locale/collate/table_test.go  | 278 ++++++++++++++++++++++++++++++
+ 6 files changed, 759 insertions(+)

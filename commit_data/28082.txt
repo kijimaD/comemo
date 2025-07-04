@@ -1,16 +1,24 @@
-commit 57331b79da3920ba579a07a20827ee4499cf1c7e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 26 23:39:50 2016 +0000
+commit 80e9a7f0797c73b27471eb4b371baa1c7ccb427b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 27 22:04:49 2016 -0700
 
-    Revert "cmd/compile: use printer in typefmt, Tconv"
+    cmd/compile: have all or no parameter named in exported signatures
     
-    This reverts commit 8fb0893307b0d4ab4a115a6151ee8d344d3c1d74.
+    Binary export format only.
     
-    Broke go/ast tests.
+    Make sure we don't accidentally export an unnamed parameter
+    in signatures which expect all named parameters; otherwise
+    we crash during import. Appears to happen for _ (blank)
+    parameter names, as observed in method signatures such as
+    the one at: x/tools/godoc/analysis/analysis.go:76.
     
-    Change-Id: I5c314cb29731d4bc3a0873af8ebfe376f5faba8a
-    Reviewed-on: https://go-review.googlesource.com/27923
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #15470.
+    
+    TBR=mdempsky
+    
+    Change-Id: I1b1184bf08c4c09d8a46946539c4b8c341acdb84
+    Reviewed-on: https://go-review.googlesource.com/22543
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 133 +++++++++++++++++++------------------
- 1 file changed, 67 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 37 ++++++++++++++++++++++------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

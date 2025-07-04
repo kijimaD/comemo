@@ -1,20 +1,18 @@
-commit e52d317d2476acc0a9985fab7068ee5c2971807b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 19 16:32:41 2017 -0400
+commit 12991a75e0d93443642137d63719d63c286729be
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Feb 8 23:11:15 2017 +0100
 
-    cmd/compile: convert ishairy into a visitor
+    cmd/gofmt: fix diff on Plan 9
     
-    The inliner's ishairy passes a budget and a reason down through the
-    walk. Lift these into a visitor object and turn ishairy and its
-    helpers into methods.
+    On Plan 9, GNU diff is called ape/diff.
     
-    This will make it easy to add more state.
+    Fixes #18999.
     
-    Change-Id: Ic6ae246e1affd67ed283c3205f9595ae33e22215
-    Reviewed-on: https://go-review.googlesource.com/41151
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7cf6c23c97bcc47172bbf838fd9dd72aefa4c18b
+    Reviewed-on: https://go-review.googlesource.com/36650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl.go | 58 ++++++++++++++++++++++----------------
- 1 file changed, 33 insertions(+), 25 deletions(-)
+ src/cmd/gofmt/gofmt.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

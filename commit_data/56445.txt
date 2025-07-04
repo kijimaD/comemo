@@ -1,21 +1,93 @@
-commit b5bfb5a3ce7c6d993dab40d9b92c06b873ecd404
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Sun Nov 19 20:01:57 2023 -0500
+commit ffc4cc05f596a38c19f0d7e1ee91f17527ac3b37
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 8 20:23:40 2023 -0400
 
-    runtime: refactor fpunwindExpand to use provided buffer
+    cmd/compile: standardize on outer-to-inner for pos lists
     
-    fpunwindExpand currently allocates a new slice to hold the expanded call
-    stack. In each place it's used, the resulting slice won't be needed
-    immediately afterward, so the allocation is wasteful. Refactor
-    fpunwindExpand to instead expand the call stack into a provided buffer.
+    The call sites that cared all reversed inner-to-outer to outer-to-inner already.
+    The ones that didn't care left it alone. No one explicitly wanted inner-to-outer.
+    Also change to a callback-based interface, so that call sites aren't required
+    to accumulate the results in a slice (the main reason for that before was to
+    reverse the slice!).
     
-    Change-Id: I05b26c191a8f76404c21ccbe3bd422325540425b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543715
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    There were three places where these lists were printed:
+    
+    1. -d=ssa/genssa/dump, explicitly reversing to outer-to-inner
+    2. node dumps like -W, leaving the default inner-to-outer
+    3. file positions for HashDebugs, explicitly reversing to outer-to-inner
+    
+    It makes no sense that (1) and (2) would differ. The reason they do is that
+    the code for (2) was too lazy to bother to fix it to be the right way.
+    
+    Consider this program:
+    
+            package p
+    
+            func f() {
+                    g()
+            }
+    
+            func g() {
+                    println()
+            }
+    
+    Both before and after this change, the ssa dump for f looks like:
+    
+            # x.go:3
+                    00000 (3)       TEXT    <unlinkable>.f(SB), ABIInternal
+                    00001 (3)       FUNCDATA        $0, gclocals·g2BeySu+wFnoycgXfElmcg==(SB)
+                    00002 (3)       FUNCDATA        $1, gclocals·g2BeySu+wFnoycgXfElmcg==(SB)
+             v4     00003 (-4)      XCHGL   AX, AX
+            # x.go:4
+            # x.go:8
+             v5     00004 (+8)      PCDATA  $1, $0
+             v5     00005 (+8)      CALL    runtime.printlock(SB)
+             v7     00006 (-8)      CALL    runtime.printnl(SB)
+             v9     00007 (-8)      CALL    runtime.printunlock(SB)
+            # x.go:5
+             b2     00008 (5)       RET
+                    00009 (?)       END
+    
+    Note # x.go:4 (f) then # x.go:8 (g, called from f) between v4 and v5.
+    
+    The -W node dumps used the opposite order:
+    
+            before walk f
+            .   AS2 Def tc(1) # x.go:4:3
+            .   INLMARK # +x.go:4:3
+            .   PRINTN tc(1) # x.go:8:9,x.go:4:3
+            .   LABEL p..i0 # x.go:4:3
+    
+    Now they match the ssa dump order, and they use spaces as separators,
+    to avoid potential problems with commas in some editors.
+    
+            before walk f
+            .   AS2 Def tc(1) # x.go:4:3
+            .   INLMARK # +x.go:4:3
+            .   PRINTN tc(1) # x.go:4:3 x.go:8:9
+            .   LABEL p..i0 # x.go:4:3
+    
+    I'm unaware of any argument for the old order other than it was easier
+    to compute without allocation. The new code uses recursion to reverse
+    the order without allocation.
+    
+    Now that the callers get the results outer-to-inner, most don't need
+    any slices at all.
+    
+    This change is particularly important for HashDebug, which had been
+    using a locked temporary slice to walk the inline stack without allocation.
+    Now the temporary slice is gone.
+    
+    Change-Id: I5cb6d76b2f950db67b248acc928e47a0460569f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/tracestack.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/base/hashdebug.go  | 22 +++++++++++-----------
+ src/cmd/compile/internal/ir/fmt.go          | 10 +++++-----
+ src/cmd/compile/internal/logopt/log_opts.go | 13 +++++--------
+ src/cmd/compile/internal/ssagen/ssa.go      | 10 +++++-----
+ src/cmd/internal/obj/inl.go                 | 23 ++++++++++++-----------
+ src/cmd/internal/obj/util.go                |  5 -----
+ 6 files changed, 38 insertions(+), 45 deletions(-)

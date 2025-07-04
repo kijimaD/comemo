@@ -1,21 +1,22 @@
-commit 18441e8adeab78b32507fefc84be495873928f8c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 7 22:45:12 2013 -0500
+commit 30a9957aacb21fef5195a43dba99669465a789e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 7 16:00:06 2013 -0800
 
-    net: do not use RLock around Accept
+    bytes: minor optimization to lastIndexFunc
     
-    It might be non-blocking, but it also might be blocking.
-    Cannot take the chance, as Accept might block indefinitely
-    and make it impossible to acquire ForkLock exclusively
-    (during fork+exec).
+    Before and after:
+    BenchmarkTrimSpace  20000000   81.3 ns/op
+    BenchmarkTrimSpace  50000000   58.0 ns/op
     
-    Fixes #4737.
+    (most whitespace trimming is ASCII whitespace)
     
-    R=golang-dev, dave, iant, mikioh.mikioh
+    Same optimization appeared a handful of other places
+    in this file, but not here.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7309050
+    https://golang.org/cl/7305063
 
- src/pkg/net/fd_unix.go      | 3 +++
- src/pkg/net/sock_cloexec.go | 6 +++---
- src/pkg/net/sys_cloexec.go  | 6 +++---
- 3 files changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/bytes/bytes.go      | 5 ++++-
+ src/pkg/bytes/bytes_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

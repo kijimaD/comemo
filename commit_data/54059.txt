@@ -1,28 +1,29 @@
-commit 6c431fab3701b5f07357a358ab232062353f5bed
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Jun 22 11:03:17 2023 -0700
+commit 2d741947d8931325576427b3699d1af20e7be7cf
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 18 22:05:00 2022 +1000
 
-    encoding: reject negative runes in Encoding.WithPadding
+    flag: test IsBoolFlag when creating the usage message
     
-    A negative rune (other than NoPadding) makes no semantic sense.
-    Doing so relies on integer overflow of converting a rune to a byte
-    and would thus be equivalent to passing the positive byte value
-    of byte(padding).
+    Although I can't think of any reason to do this, it is possible for
+    a user-defined flag to implement IsBoolFlag but return "false".
+    This is nuts because checking the interface is satisfied should
+    obviously be sufficient, but the documentation kinda implies it's
+    not. And if you try this, you'll discover that the usage message
+    ignores the return value even though the rest of the package plays
+    nice. Bother.
     
-    This may cause existing code to panic.
-    An alternative is treat negative runes as equivalent to NoPadding.
-    However, the code already panics to report erroneous padding values,
-    so this is in line with the existing API.
+    So we fix it, as the fix is trivial: call the method when creating
+    the usage message.
     
-    Change-Id: I02499705519581598adc0c8525d90e25278dc056
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505236
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #53473
+    
+    Change-Id: I1ac80a876ad5626eebfc5ef6cb972cd3007afaad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431102
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/base32/base32.go | 8 ++++----
- src/encoding/base64/base64.go | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/flag/flag.go      |  6 ++++--
+ src/flag/flag_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

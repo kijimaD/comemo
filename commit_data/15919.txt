@@ -1,14 +1,16 @@
-commit 77fb0c17df4758ac68ca26b67837a99a61a457d7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Mar 25 12:13:34 2013 +1100
+commit a909e4ba1e2044d33429d732f879a0c27bf977c2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Mar 24 11:38:57 2013 +0100
 
-    all.bat,make.bat,run.bat: make these work even when directory has space in it
+    cmd/cc: fix typo leading to index out of range.
     
-    R=golang-dev, bradfitz
+    Detected by GCC static analysis.
+    
+    Fixes #5117.
+    
+    R=golang-dev, ality, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7510048
+    https://golang.org/cl/7665047
 
- src/all.bat  | 2 +-
- src/make.bat | 4 ++--
- src/run.bat  | 6 +++---
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/cc/funct.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

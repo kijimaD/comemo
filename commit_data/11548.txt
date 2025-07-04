@@ -1,12 +1,14 @@
-commit 4ea5d62e5a0013b21c9d796b41a56e71b19159b6
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Thu Feb 2 10:17:52 2012 +1100
+commit b2935330b03bd9c8c691b3d98ce416d9017ce656
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 1 15:10:14 2012 -0800
 
-    os: file windows use syscall.InvalidHandle instead of -1.
+    net/http/httputil: fix race in DumpRequestOut
     
-    R=golang-dev, adg, alex.brainman
+    Fixes #2715
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5602050
+    https://golang.org/cl/5614043
 
- src/pkg/os/file_windows.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/httputil/dump.go | 55 ++++++++++++++++++++++++++-------------
+ 1 file changed, 37 insertions(+), 18 deletions(-)

@@ -1,18 +1,18 @@
-commit 28bac5640cfd889a795bd7d7d24e6d788a985ead
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 21 21:00:15 2024 +0000
+commit 5b37d720e39037fec4e298c3ae44d6487f029f92
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 12 18:46:45 2023 -0700
 
-    internal/sync: add Swap to HashTrieMap
+    all: stop using fmt.Sprintf in t.Error/t.Fatal
     
-    This change adds the Swap operation (with the same semantics as
-    sync.Map's Swap) to HashTrieMap.
-    
-    Change-Id: I8697a0c8c2eb761e2452a41b868b590ccbfa5c03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594064
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id63e1e5ae7e225e4a6a721673bf2d43b6c398c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527701
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/internal/sync/hashtriemap.go      | 103 +++++++++++++++++++
- src/internal/sync/hashtriemap_test.go | 183 +++++++++++++++++++++++++++++++++-
- 2 files changed, 284 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/ppc64/asm_test.go |  4 ++--
+ src/context/x_test.go                  |  3 ++-
+ src/runtime/defer_test.go              | 27 +++++++++++++--------------
+ 3 files changed, 17 insertions(+), 17 deletions(-)

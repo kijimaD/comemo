@@ -1,33 +1,55 @@
-commit 3320ce94b669c083e7a94a36dd5d5bceb6c0df0e
-Author: Andy Pan <i@andypan.me>
-Date:   Thu Oct 24 13:10:54 2024 +0800
+commit a9d4b2dbe47008677b6abb04a7b9c8327eb4d21b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 29 11:26:45 2023 -0400
 
-    internal/poll: handle the special case of sendfile(2) sending the full chunk
+    net: avoid internal hooks in TestDialTimeout
     
-    CL 622235 would fix #70000 while resulting in one extra sendfile(2) system
-    call when sendfile(2) returns (>0, EAGAIN).
-    That's also why I left sendfile_bsd.go behind, and didn't make it line up
-    with other two implementations: sendfile_linux.go and sendfile_solaris.go.
+    TestDialTimeout has historically been very flaky
+    (#11872, #13144, #22896, and now #56876),
+    apparently in part due to implementation details of the socktest
+    package it relies on.
     
-    Unlike sendfile(2)'s on Linux and Solaris that always return (0, EAGAIN),
-    sendfile(2)'s on *BSD and macOS may return (>0, EAGAIN) when using a socket
-    marked for non-blocking I/O. In that case, the current code will try to re-call
-    sendfile(2) immediately, which will most likely get us a (0, EAGAIN).
-    After that, it goes to `dstFD.pd.waitWrite(dstFD.isFile)` below,
-    which should have been done in the first place.
+    In reviewing CL 467335, I noticed that TestDialTimeout is the last
+    remaining use of testHookDialChannel (added for #5349), and that that
+    hook no longer has any effect for Unix and Windows.
     
-    Thus, the real problem that leads to #70000 is that the old code doesn't handle
-    the special case of sendfile(2) sending the exact number of bytes the caller requested.
+    As an experiment, I tried removing both that hook and the call to
+    time.Sleep in the socktest filter, and to my surprise the test
+    continued to pass. That greatly undermined my confidence in the test,
+    since it appears that the “timeout” behavior it observes is caused by
+    the socktest filter injecting an error rather than anything in the net
+    package proper actually timing out.
     
-    Fixes #70000
+    To restore confidence in the test, I think it should be written
+    against only the public API of the net package, and should test the
+    publicly-documented behaviors. This change implements that approach.
     
-    Change-Id: I6073d6b9feb58b3d7e114ec21e4e80d9727bca66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622255
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Notably, when a timeout is set on a Dial call, that does not guarantee
+    that the listener will actually call Accept on the connection before
+    the timeout occurs: the kernel's network stack may preemptively accept
+    and buffer the connection on behalf of the listener. To avoid test
+    flakiness, the test must tolerate (and leave open) those spurious
+    connections: when the kernel has accepted enough of them, it will
+    start to block new connections until the buffered connections have
+    been accepted, and the expected timeout behavior will occur.
+    
+    This also allows the test to run much more quickly and in parallel:
+    since we are relying on real timeouts instead of injected calls to
+    time.Sleep, we can set the timeouts to be much shorter and run
+    concurrently with other public-API tests without introducing races.
+    
+    Fixes #56876.
+    
+    Change-Id: I90dcb2ed70976e70857ca29c253ed760cb078a4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524055
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/internal/poll/sendfile_bsd.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/net/hook_plan9.go   |   9 ---
+ src/net/hook_unix.go    |   1 -
+ src/net/hook_windows.go |   3 -
+ src/net/ipsock_plan9.go |   1 -
+ src/net/timeout_test.go | 143 ++++++++++++++++++++++++++++++++----------------
+ 5 files changed, 97 insertions(+), 60 deletions(-)

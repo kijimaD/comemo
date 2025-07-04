@@ -1,27 +1,21 @@
-commit b3f7f60129b822978115717912f4d477a46e8467
-Author: xd <xiangdong.ji@gmail.com>
-Date:   Wed Oct 14 11:02:49 2020 -0700
+commit fb16f4b82e2f7cb1a44cc6e32adad7ce2b0d0553
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Apr 13 01:39:45 2020 +1000
 
-    cmd/dist: fix build failure of misc/cgo/test on arm64
+    cmd/compile: log large copies on riscv64
     
-    misc/cgo/test fails in 'dist test' on arm64 if the C compiler is of GCC-9.4 or
-    above and its 'outline atomics' feature is enabled, since the internal linking
-    hasn't yet supported "__attribute__((constructor))" and also mis-handles hidden
-    visibility.
+    Log large copies in the riscv64 compiler.
     
-    This change addresses the problem by skipping the internal linking cases of
-    misc/cgo/test on linux/arm64. It fixes 'dist test' failure only, user is expected to
-    pass a GCC option '-mno-outline-atomics' via CGO_CFLAGS if running into the same
-    problem when building cgo programs using internal linking.
+    This was missed in 47ade08141b23cfeafed92943e16012d5dc5eb8b, resulting in
+    the new test added to cmd/compile/internal/logopt failing on riscv64.
     
-    Updates #39466
-    
-    Change-Id: I57f9e85fca881e5fd2dae6c1b4446bce9e0c1975
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262357
+    Change-Id: I6f763e86f42834148e911d16928f9fbabcfa4290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227804
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

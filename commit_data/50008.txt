@@ -1,26 +1,22 @@
-commit dee9adc0f73d361d00a4d9230bb3517f2448b3b0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 24 17:00:24 2022 -0700
+commit 8d09f7c5178b04bade2859d32d0710233a620d4f
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Aug 13 09:01:13 2021 -0700
 
-    encoding/gob: use saferio to read large buffer
+    runtime: use per-thread profiler for SetCgoTraceback platforms
     
-    Avoid allocating large amounts of memory for corrupt input.
+    Updates #35057
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
-    
-    Fixes #53369
-    
-    Change-Id: I67c5e75bf181ad84988d6d6da12507df0e6df8e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413979
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I61d772a2cbfb27540fb70c14676c68593076ca94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342054
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/encoding/gob/decode.go  | 17 ++++++-----------
- src/encoding/gob/decoder.go |  6 ++++--
- src/go/build/deps_test.go   |  8 ++++----
- 3 files changed, 14 insertions(+), 17 deletions(-)
+ src/runtime/os_linux.go         |  6 ++----
+ src/runtime/signal_unix.go      | 21 ++++++++++++++++-----
+ src/runtime/sys_darwin_amd64.s  | 23 ++++++++++++++++++++---
+ src/runtime/sys_freebsd_amd64.s | 23 ++++++++++++++++++++---
+ src/runtime/sys_linux_amd64.s   | 23 ++++++++++++++++++++---
+ src/runtime/sys_linux_ppc64x.s  |  3 +++
+ 6 files changed, 81 insertions(+), 18 deletions(-)

@@ -1,18 +1,16 @@
-commit 0b2cb89196967030ae005076f0166ad7d6024083
-Author: griesemer <gri@golang.org>
-Date:   Mon Oct 16 17:17:40 2017 -0700
+commit bcc349aecf7bb26d4430e8f8ab60d9362181d1a0
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Sun Jul 16 03:58:00 2017 +1000
 
-    cmd/compile/internal/syntax: better recovery after missing closing parentheses
+    archive/zip: remove an out of date TODO
     
-    Fine-tune skipping of tokens after missing closing parentheses in lists.
+    It had been implemented. Refer to https://golang.org/pkg/archive/zip/#FileHeader.Comment
     
-    Fixes #22164.
-    
-    Change-Id: I575d86e21048cd40340a2c08399e8b0deec337cf
-    Reviewed-on: https://go-review.googlesource.com/71250
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I81572562c3111b58189baa3510b9ba688fe269c9
+    Reviewed-on: https://go-review.googlesource.com/48857
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go |  6 ++++--
- test/fixedbugs/issue22164.go              | 26 ++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ src/archive/zip/writer.go | 2 --
+ 1 file changed, 2 deletions(-)

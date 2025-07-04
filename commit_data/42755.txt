@@ -1,40 +1,38 @@
-commit e7c7ce646f37b260fe5a5635bc52243d28125dd8
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Aug 17 16:14:48 2020 -0500
+commit 8538f5f08f568aab5146ef93f8358d27b30dbfaf
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 7 16:07:20 2020 -0500
 
-    cmd/compile: combine multiply/add into maddld on ppc64le/power9
+    cmd/go: convert all tests using testdata/standalone_* to script framework
     
-    Add a new lowering rule to match and replace such instances
-    with the MADDLD instruction available on power9 where
-    possible.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Likewise, this plumbs in a new ppc64 ssa opcode to house
-    the newly generated MADDLD instructions.
+    Updates #36320
+    Updates #17751
     
-    When testing ed25519, this reduced binary size by 936B.
-    Similarly, MADDLD combination occcurs in a few other less
-    obvious cases such as division by constant.
-    
-    Testing of golang.org/x/crypto/ed25519 shows non-trivial
-    speedup during keygeneration:
-    
-    name           old time/op  new time/op  delta
-    KeyGeneration  65.2µs ± 0%  63.1µs ± 0%  -3.19%
-    Signing        64.3µs ± 0%  64.4µs ± 0%  +0.16%
-    Verification    147µs ± 0%   147µs ± 0%  +0.11%
-    
-    Similarly, this test binary has shrunk by 66488B.
-    
-    Change-Id: I077aeda7943119b41f07e4e62e44a648f16e4ad0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248723
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Iea6ba91d37c6f0d4994ae64e629c349c4eae511a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213678
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 14 ++++++++++++++
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 21 +++++++++++++++++++++
- test/codegen/arithmetic.go                   | 12 ++++++++----
- 6 files changed, 64 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go                              | 129 ---------------------
+ src/cmd/go/testdata/script/test_main.txt           |  66 +++++++++++
+ .../script/test_match_benchmark_labels.txt         |  18 +++
+ .../testdata/script/test_match_no_benchmarks.txt   |  13 +++
+ .../go/testdata/script/test_match_no_subtests.txt  |  12 ++
+ .../script/test_match_no_subtests_failure.txt      |  15 +++
+ .../test_match_no_subtests_parallel.txt}           |   5 +
+ src/cmd/go/testdata/script/test_match_no_tests.txt |  11 ++
+ .../script/test_match_no_tests_with_subtests.txt   |  12 ++
+ .../testdata/script/test_match_only_benchmarks.txt |  13 +++
+ .../testdata/script/test_match_only_subtests.txt   |  14 +++
+ .../script/test_match_only_subtests_parallel.txt   |  21 ++++
+ .../go/testdata/script/test_match_only_tests.txt   |  13 +++
+ .../go/testdata/script/test_parallel_number.txt    |  25 ++++
+ src/cmd/go/testdata/standalone_benchmark_test.go   |   6 -
+ src/cmd/go/testdata/standalone_fail_sub_test.go    |   8 --
+ src/cmd/go/testdata/standalone_main_normal_test.go |  10 --
+ src/cmd/go/testdata/standalone_main_wrong_test.go  |  10 --
+ src/cmd/go/testdata/standalone_sub_test.go         |   7 --
+ src/cmd/go/testdata/standalone_test.go             |   6 -
+ .../go/testdata/standalone_testmain_flag_test.go   |  29 -----
+ 21 files changed, 238 insertions(+), 205 deletions(-)

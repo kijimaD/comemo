@@ -1,62 +1,16 @@
-commit 5c472132bf88cc04c85ad5f848d8a2f77f21b228
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Mon Aug 6 15:36:16 2018 -0500
+commit d89efc3c06edd25c686717003b4b82e864d7d0bc
+Author: Xargin <cao1988228@163.com>
+Date:   Tue Jun 26 03:33:20 2018 +0000
 
-    cmd/compile, runtime: add new lightweight atomics for ppc64x
+    syscall: fix typo in RawSyscall6 comment
     
-    This change creates the infrastructure for new lightweight atomics
-    primitives in runtime/internal/atomic:
-    
-    - LoadAcq, for load-acquire
-    - StoreRel, for store-release
-    - CasRel, for Compare-and-Swap-release
-    
-    and implements them for ppc64x. There is visible performance improvement
-    in producer-consumer scenarios, like BenchmarkChanProdCons*:
-    
-    benchmark                           old ns/op     new ns/op     delta
-    BenchmarkChanProdCons0-48           2034          2034          +0.00%
-    BenchmarkChanProdCons10-48          1798          1608          -10.57%
-    BenchmarkChanProdCons100-48         1596          1585          -0.69%
-    BenchmarkChanProdConsWork0-48       2084          2046          -1.82%
-    BenchmarkChanProdConsWork10-48      1829          1668          -8.80%
-    BenchmarkChanProdConsWork100-48     1650          1650          +0.00%
-    
-    Fixes #21348
-    
-    Change-Id: I1f6ce377e4a0fe4bd7f5f775e8036f50070ad8db
-    Reviewed-on: https://go-review.googlesource.com/c/142277
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I589a60459a3b0811da77d46428eca57c741b1184
+    GitHub-Last-Rev: f9ab775b9d7f869916af6de9abb7c1d5f0005f1b
+    GitHub-Pull-Request: golang/go#26063
+    Reviewed-on: https://go-review.googlesource.com/120917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/ssa.go             | 27 +++++++++
- src/cmd/compile/internal/ppc64/ssa.go          | 33 ++++++++---
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  9 ++-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   | 14 ++---
- src/cmd/compile/internal/ssa/gen/genericOps.go | 31 +++++-----
- src/cmd/compile/internal/ssa/opGen.go          | 27 +++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 78 +++++++++++++++++++++++---
- src/runtime/internal/atomic/asm_386.s          |  6 ++
- src/runtime/internal/atomic/asm_amd64.s        |  6 ++
- src/runtime/internal/atomic/asm_amd64p32.s     |  6 ++
- src/runtime/internal/atomic/asm_arm.s          |  9 +++
- src/runtime/internal/atomic/asm_arm64.s        |  3 +
- src/runtime/internal/atomic/asm_mips64x.s      |  6 ++
- src/runtime/internal/atomic/asm_mipsx.s        |  6 ++
- src/runtime/internal/atomic/asm_ppc64x.s       | 25 +++++++++
- src/runtime/internal/atomic/asm_s390x.s        |  4 ++
- src/runtime/internal/atomic/atomic_386.go      | 12 ++++
- src/runtime/internal/atomic/atomic_amd64x.go   | 12 ++++
- src/runtime/internal/atomic/atomic_arm.go      |  9 +++
- src/runtime/internal/atomic/atomic_arm64.go    |  9 +++
- src/runtime/internal/atomic/atomic_arm64.s     |  7 +++
- src/runtime/internal/atomic/atomic_mips64x.go  |  9 +++
- src/runtime/internal/atomic/atomic_mips64x.s   |  4 ++
- src/runtime/internal/atomic/atomic_mipsx.go    |  9 +++
- src/runtime/internal/atomic/atomic_ppc64x.go   |  9 +++
- src/runtime/internal/atomic/atomic_ppc64x.s    |  9 +++
- src/runtime/internal/atomic/atomic_s390x.go    | 15 +++++
- src/runtime/internal/atomic/atomic_wasm.go     | 22 ++++++++
- src/runtime/proc.go                            | 20 +++----
- 29 files changed, 386 insertions(+), 50 deletions(-)
+ src/syscall/asm_darwin_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

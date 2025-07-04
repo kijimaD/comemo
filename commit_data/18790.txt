@@ -1,15 +1,24 @@
-commit c0d4576593906e169f367e7c61d94ed37cc782b8
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 7 13:23:50 2014 +1100
+commit f4359afa7f7886541a51c44cefee39250a202d65
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 6 16:03:43 2014 -0800
 
-    strconv: document value returned by ParseInt when there is an error
-    Documenting existing behavior; new commentary only.
-    Fixes #7105.
+    runtime: shrink bigger stacks without any copying.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Instead, split the underlying storage in half and
+    free just half of it.
+    
+    Shrinking without copying lets us reclaim storage used
+    by a previously profligate Go routine that has now blocked
+    inside some C code.
+    
+    To shrink in place, we need all stacks to be a power of 2 in size.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/68840044
+    https://golang.org/cl/69580044
 
- src/pkg/strconv/atoi.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/runtime/malloc.h |  1 +
+ src/pkg/runtime/mheap.c  | 51 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/stack.c  | 78 ++++++++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 118 insertions(+), 12 deletions(-)

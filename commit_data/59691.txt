@@ -1,34 +1,25 @@
-commit b1f259b1b42f055863a67492e7815ec752eae56b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Apr 25 19:13:52 2025 +0700
+commit 08af216c75a583a198c4ccfe68628c74554ee82f
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 2 13:41:00 2024 +0000
 
-    cmd/compile: fix ICE with recursive alias type parameter
+    encoding/json: use slices to simplify the code
     
-    CL 585399 fixed an initialization loop during IR contruction that
-    involving alias type, by avoiding publishing alias declarations until
-    the RHS type expression has been constructed.
+    Use "slices.Equal" instead of "reflect.DeepEqual".
     
-    There's an assertion to ensure that the alias's type must be the same
-    during the initialization. However, that assertion is too strict, since
-    we may construct different instances of the same type, if the type is an
-    instantination of generic type.
+    Replace unnecessary helper type "byIndex" with "slices.SortFunc".
     
-    To fix this, we could use types.IdenticalStrict to ensure that these
-    types matching exactly.
+    No effect on benchmarks.
     
-    Updates #66873.
-    Updates #73309.
-    
-    Change-Id: I2559bed37e21615854333fb1057d7349406e6a1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668175
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I1fb2768ea6d9db7f487408fa109343be3f1741d5
+    GitHub-Last-Rev: 8429bc145272ae620fcd001b1de393bf3c0b6108
+    GitHub-Pull-Request: golang/go#66646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575715
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/reader.go       |  2 +-
- src/cmd/compile/internal/types2/stdlib_test.go |  1 +
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/issue73309.go                   | 18 ++++++++++++++++++
- 4 files changed, 21 insertions(+), 1 deletion(-)
+ src/encoding/json/decode_test.go |  5 +++--
+ src/encoding/json/encode.go      | 25 ++++---------------------
+ 2 files changed, 7 insertions(+), 23 deletions(-)

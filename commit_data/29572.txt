@@ -1,25 +1,29 @@
-commit b2d34fa51bd509f0aa780151a3d30c5ca77f1f4e
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Nov 9 09:09:37 2016 -0600
+commit 9f1c78781b320b6d7cf83378b857c1168cb7fd0f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Sep 24 17:03:30 2016 +0200
 
-    runtime: handle bad ftab index in symtab.go
+    cmd/cgo: fix line info in _cgo_gotypes.go
     
-    If a program has had its text section split into multiple
-    sections then the ftab that is built is based on addresses
-    prior to splitting.  That means all the function addresses
-    are there and correct because of relocation but the
-    but the computed idx won't always match up quite right and
-    in some cases go beyond the end of the table, causing a panic.
+    Don't write line info for types, we don't have it.
+    Otherwise types look like:
     
-    To resolve this, determine if the idx is too large and if it is,
-    set it to the last index in ftab.  Then search backward to find the
-    matching function address.
+    type _Ctype_struct_cb struct {
+    //line :1
+          on_test *[0]byte
+    //line :1
+    }
     
-    Fixes #17854
+    Which is not useful. Moreover we never override source info,
+    so subsequent source code uses the same source info.
+    Moreover, empty file name makes compile emit no source debug info at all.
     
-    Change-Id: I6940e76a5238727b0a9ac23dc80000996db2579a
-    Reviewed-on: https://go-review.googlesource.com/32972
-    Reviewed-by: David Chase <drchase@google.com>
+    Update #17190
+    
+    Change-Id: I7ae6fa4964520d7665743d340419b787df0b51e8
+    Reviewed-on: https://go-review.googlesource.com/29713
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/symtab.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/cgo/out.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

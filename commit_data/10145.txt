@@ -1,26 +1,19 @@
-commit 03f163c7f22bfaab69a56d48160b0a184ce6bf54
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Oct 28 16:04:58 2011 +1100
+commit 0e81e508bedec7e25aafc5b3939901dbc1d67914
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 21:20:44 2011 -0700
 
-    html: don't run "adoption agency" on elements that aren't in scope.
+    fmt: handle os.Error values
     
-    Pass tests1.dat, test 55:
-    <!DOCTYPE html><font><table></font></table></font>
+    Handling os.Error is no different than handling fmt.Stringer
+    here, so the code is redundant now, but it will be necessary
+    once error goes in.
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <font>
-    |       <table>
+    Adding it now will make gofix fix it.
     
-    Also pass tests through test 69:
-    <DIV> abc <B> def <I> ghi <P> jkl
-    
-    R=nigeltao
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5309074
+    https://golang.org/cl/5331045
 
- src/pkg/html/parse.go      | 4 ++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/fmt/doc.go   | 10 +++++++---
+ src/pkg/fmt/print.go | 17 ++++++++++++++---
+ 2 files changed, 21 insertions(+), 6 deletions(-)

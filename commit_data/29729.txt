@@ -1,14 +1,20 @@
-commit 6270c5ac28e89322268acd92c14a7a490a53e3a1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 1 09:15:39 2016 -0800
+commit 6dd38ebae11dc0dfa607723de3c12355e556c6ed
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 4 14:14:48 2016 -0500
 
-    test: add test case for which gccgo generated incorrect GC info
+    cmd/compile: Improve const shifts in PPC64.rules
     
-    Change-Id: I5e33db9e63f70706882b85ab124a48509797b05a
-    Reviewed-on: https://go-review.googlesource.com/33790
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This change updates PPC64.rules to recognize constant shift
+    counts and generate more efficient code sequences in those cases.
+    
+    Fixes #17336
+    
+    Change-Id: I8a7b812408d7a68388df41e42bad045dd214be17
+    Reviewed-on: https://go-review.googlesource.com/30310
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- test/fixedbugs/bug500.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   89 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1124 +++++++++++++++++++++++++-
+ 2 files changed, 1191 insertions(+), 22 deletions(-)

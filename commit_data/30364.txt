@@ -1,14 +1,18 @@
-commit c804fd8927dabe1484b52e31f752136b7c0b32b7
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Wed Feb 22 21:24:44 2017 +0200
+commit 53cc69170ae1a96163d3b6c14467e85dc8aa7266
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Nov 2 11:41:40 2016 -0400
 
-    net: update IP.MarshalText documentation regarding len(ip) == 0
+    bytes, strings: update s390x code to match amd64 changes
     
-    Describe the difference from String encoding when len(ip) is zero.
+    Updates the s390x-specific files in these packages with the changes
+    to the amd64-specific files made during the review of CL 31690. I'd
+    like to keep these files in sync unless there is a reason to
+    diverge.
     
-    Change-Id: Ia9b36b405d4fec3fee9a77498a839b6d90c2ec0d
-    Reviewed-on: https://go-review.googlesource.com/37379
+    Change-Id: Id83e5ce11a45f877bdcc991d02b14416d1a2d8d2
+    Reviewed-on: https://go-review.googlesource.com/32574
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/ip.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/bytes/bytes_s390x.go     | 14 +++++++-------
+ src/strings/strings_s390x.go | 14 +++++++-------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

@@ -1,12 +1,22 @@
-commit 6f43a989b0701ef2f87827dc72ee93378e09bb9b
-Author: Jonathan Boulle <jonathanboulle@gmail.com>
-Date:   Tue Aug 30 02:09:19 2016 +0200
+commit 5edcff01343f36618dd6330438cf8b456bd914ef
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 29 14:17:04 2016 +1000
 
-    os: fix typo in comment (Readir -> Readdir)
+    cmd/compile/internal/gc: bv.go cleanup
     
-    Change-Id: I8434925661dc11396380af65c192c9f0dc191287
-    Reviewed-on: https://go-review.googlesource.com/27973
+    Drive by gardening of bv.go.
+    
+    - Unexport the Bvec type, it is not used outside internal/gc.
+      (machine translated with gofmt -r)
+    - Removed unused constants and functions.
+      (driven by cmd/unused)
+    
+    Change-Id: I3433758ad4e62439f802f4b0ed306e67336d9aba
+    Reviewed-on: https://go-review.googlesource.com/22602
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/dir_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bv.go    | 73 ++++++++++--------------------------
+ src/cmd/compile/internal/gc/plive.go | 40 ++++++++++----------
+ 2 files changed, 39 insertions(+), 74 deletions(-)

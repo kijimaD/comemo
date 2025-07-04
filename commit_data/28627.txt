@@ -1,18 +1,20 @@
-commit 6879dbde4e6dceceb272b83fc6682e97b9de2fa1
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 9 10:31:27 2016 -0400
+commit 26d6dc6bf8a7e5487844a63aa26a4de3afdd688e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 14 14:38:22 2016 -0700
 
-    runtime: introduce a type for span states
+    runtime: if the test program hangs, try to get a stack trace
     
-    Currently span states are untyped constants and the field is just a
-    uint8. Make this more type-safe by introducing a type for the span
-    state.
+    This is an attempt to get more information for #14809, which seems to
+    occur rarely.
     
-    Change-Id: I369bf59fe6e8234475f4921611424fceb7d0a6de
-    Reviewed-on: https://go-review.googlesource.com/30141
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Updates #14809.
+    
+    Change-Id: Idbeb136ceb57993644e03266622eb699d2685d02
+    Reviewed-on: https://go-review.googlesource.com/24110
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mheap.go | 36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
+ src/runtime/crash_nonunix_test.go | 13 ++++++++++++
+ src/runtime/crash_test.go         | 44 +++++++++++++++++++++++++++++++++++++--
+ src/runtime/crash_unix_test.go    |  4 ++++
+ 3 files changed, 59 insertions(+), 2 deletions(-)

@@ -1,14 +1,21 @@
-commit e07958f7dfde86fe9053e25793219d4807f4d74c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jul 31 23:02:46 2012 -0400
+commit 152279f203e75f923c510e4cabae6405046ba7f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 31 19:30:18 2012 -0700
 
-    runtime: round return value address in runtime.equal
-         Fixes #3866.
+    exp/types: Replace String method with TypeString function
     
-    R=rsc, r, nigeltao
+    This is more in sync with the rest of the package;
+    for instance, we have functions (not methods) to
+    deref or find the underlying type of a Type.
+    
+    In the process use a single bytes.Buffer to create
+    the string representation for a type rather than
+    the (occasional) string concatenation.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6452046
+    https://golang.org/cl/6458057
 
- src/pkg/runtime/alg.c    |  9 ++++---
- test/fixedbugs/bug449.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 4 deletions(-)
+ src/pkg/exp/types/types.go      | 199 ++++++++++++++++++++--------------------
+ src/pkg/exp/types/types_test.go |   2 +-
+ 2 files changed, 102 insertions(+), 99 deletions(-)

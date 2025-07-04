@@ -1,21 +1,23 @@
-commit dcf6e20606bb7e3920fef186d87e69742f7986fb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 6 12:25:56 2015 -0400
+commit c1e73dd2868fde5cbb00e8c290afdf3171bca5e6
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Wed Apr 15 15:00:53 2015 -0400
 
-    cmd/internal/gc: drop unused Reslice field from Node
+    crypto/tls: fix test data generation
     
-    Dead code.
+    - Multiple GetCertificate tests shared the same name and were
+      overwriting each other, each test now has a unique name.
+    - expectAlert was not implemented in the data updater, the single
+      test that used it has been replaced with a ClientHello failure
+      test.
     
-    This field is left over from Go 1.4, when we elided the fake write
-    barrier in this case. Today, it's unused (always false).
-    The upcoming append/slice changes handle this case again,
-    but without needing this field.
+    Fixes #10470
     
-    Change-Id: Ic6f160b64efdc1bbed02097ee03050f8cd0ab1b8
-    Reviewed-on: https://go-review.googlesource.com/9789
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I500738f6302ffa863d7ee45d85fa8773155e0614
+    Reviewed-on: https://go-review.googlesource.com/8959
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/internal/gc/syntax.go    |  1 -
- src/cmd/internal/gc/typecheck.go | 23 -----------------------
- src/cmd/internal/gc/walk.go      | 20 --------------------
- 3 files changed, 44 deletions(-)
+ src/crypto/tls/handshake_server_test.go            | 47 ++++++-------
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  | 76 ++++++++++++++++++++++
+ .../Server-TLSv12-SNI-GetCertificateNotFound       | 76 ++++++++++++++++++++++
+ 3 files changed, 171 insertions(+), 28 deletions(-)

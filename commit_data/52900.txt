@@ -1,43 +1,16 @@
-commit 06fd1f30e92e0951b7a0d348221d968190da8888
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 26 01:43:20 2023 -0400
+commit ff3db8d12d8e2eacde7eccd47ea4f3e3dd5a6807
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Jun 10 23:13:41 2022 +0200
 
-    cmd/go: save checksums for go.mod files needed for go version lines
+    doc: fix typos in Go memory model
     
-    When we load a package from a module, we need the go version line from
-    that module's go.mod file to know what language semantics to use for
-    the package. We need to save a checksum for the go.mod file even if
-    the module's requirements are pruned out of the module graph.
-    Previously, we were missing checksums for test dependencies of
-    packages in 'all' and packages passed to 'go get -t'.
-    
-    This change preserves the existing bug for 'go mod tidy' in older
-    module versions, but fixes it for 'go mod tidy' in modules at go 1.21
-    or higher and for 'go get -t' at all versions.
-    
-    Fixes #56222.
-    
-    Change-Id: Icd6acce348907621ae0b02dbeac04fb180353dcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489075
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I8e94215d9bee0ea3ad378870fe565e961a9d80c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411595
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/list/list.go                   |  2 +-
- src/cmd/go/internal/modload/import.go              | 12 ++++
- src/cmd/go/internal/modload/init.go                | 14 +++-
- src/cmd/go/internal/modload/modfile.go             | 15 +++--
- src/cmd/go/testdata/script/list_parse_err.txt      |  4 +-
- src/cmd/go/testdata/script/list_test_cycle.txt     |  2 +-
- .../go/testdata/script/mod_install_pkg_version.txt |  3 +-
- src/cmd/go/testdata/script/mod_list_sums.txt       |  2 +-
- src/cmd/go/testdata/script/mod_run_pkg_version.txt |  3 +-
- src/cmd/go/testdata/script/mod_sum_issue56222.txt  | 74 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_sum_readonly.txt    |  6 +-
- src/cmd/go/testdata/script/mod_tidy_compat.txt     |  2 +-
- .../testdata/script/mod_tidy_compat_ambiguous.txt  |  2 +-
- .../testdata/script/mod_tidy_compat_implicit.txt   | 10 +--
- .../script/mod_tidy_compat_incompatible.txt        |  2 +-
- .../testdata/script/mod_tidy_compat_irrelevant.txt |  2 +-
- 16 files changed, 131 insertions(+), 24 deletions(-)
+ doc/go_mem.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

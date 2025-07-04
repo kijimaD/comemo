@@ -1,25 +1,28 @@
-commit 33576247e295b19311484d943d85495006d2fb39
+commit f8654579cdd637167bb38d38f0de76abc812d34c
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 30 13:37:30 2021 -0700
+Date:   Thu Jan 21 20:20:22 2021 -0800
 
-    cmd/compile/internal/types2: mark implicit interfaces as such
+    [dev.typeparams] cmd/compile/internal/types2: adjust errors in branch checking code, fix a bug
     
-    Provide an accessor for clients, and don't print the interface
-    around implicitly wrapped embedded types.
+    The types2.Config.IgnoreBranches flag mistakenly excluded a
+    set of label-unrelated branch checks. After fixing this and
+    also adjusting some error messages to match the existing
+    compiler errors, more errorcheck tests pass now with the -G
+    option.
     
-    For #48424.
+    Renamed IngnoreBranches to IgnoreLabels since its controlling
+    label checks, not all branch statement (such as continue, etc)
+    checks.
     
-    Change-Id: Ib2c76315508fc749ea4337d52e13d17de80e04da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353396
+    Change-Id: I0819f56eb132ce76c9a9628d8942af756691065a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285652
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/decl.go                       | 11 ++++++-----
- src/cmd/compile/internal/types2/interface.go                  |  5 ++++-
- .../compile/internal/types2/testdata/examples/typesets.go2    | 10 ++++++++++
- src/cmd/compile/internal/types2/typeparam.go                  |  2 +-
- src/cmd/compile/internal/types2/typestring.go                 |  9 +++++++++
- src/cmd/compile/internal/types2/universe.go                   |  4 ++--
- 6 files changed, 32 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go |  2 +-
+ src/cmd/compile/internal/types2/api.go  |  7 +++----
+ src/cmd/compile/internal/types2/stmt.go | 23 +++++++++++++----------
+ test/run.go                             |  3 ---
+ 4 files changed, 17 insertions(+), 18 deletions(-)

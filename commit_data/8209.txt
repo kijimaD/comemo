@@ -1,15 +1,12 @@
-commit a9a6c90104a9fd4e9627a300bb301adf8a039592
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Apr 25 10:27:36 2011 -0400
+commit b6cb4f9bf4896a3274ed0e0e4cffa0f78c822ff0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 24 19:25:49 2011 +1000
 
-    crypto/tls: use time(), not Time().
+    jpeg: decode to a YCbCr image instead of an RGBA image.
     
-    The unexported version returns a sensible default when the user hasn't
-    set a value. The exported version crashes in that case.
-    
-    R=bradfitzgo, rsc1
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4435070
+    https://golang.org/cl/4436053
 
- src/pkg/crypto/tls/handshake_client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/jpeg/reader.go | 140 ++++++++++++++++++++++---------------------
+ 1 file changed, 72 insertions(+), 68 deletions(-)

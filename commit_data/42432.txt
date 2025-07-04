@@ -1,21 +1,18 @@
-commit d17aebf46d8d0f55cbd205be4482c632527eca27
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Tue Jun 2 10:34:09 2020 +0100
+commit 751aea8f199fdc9b0cbacf4fdd554bead8dbfdb9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 19 22:36:13 2019 -0500
 
-    internal/poll: add mutex to prevent SetDeadline race in Plan 9
+    cmd/go: avoid erroneous canonicalization when trying to resolve imports using replacements
     
-    There are data races on fd.[rw]aio and fd.[rw]timedout when Read/Write
-    is called on a polled fd concurrently with SetDeadline (see #38769).
-    Adding a mutex around accesses to each pair (read and write) prevents
-    the race, which was causing deadlocks in net/http tests on the builders.
+    Updates #32700
+    Fixes #33795
     
-    Updates #38769.
-    
-    Change-Id: I31719b3c9a664e81a775cda583cff31c0da946c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235820
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I16897a0a2f3aa2f0b0bf8cf8252f3f39eef2e7ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212200
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/internal/poll/fd_plan9.go | 29 +++++++++++++++++++++++------
- 1 file changed, 23 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modload/import.go             |  7 ++++++-
+ src/cmd/go/testdata/script/mod_replace_import.txt | 10 ++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

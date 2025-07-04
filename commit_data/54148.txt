@@ -1,19 +1,21 @@
-commit 282cd561bbfceef2e32847212cc535dc888143d9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 22 13:48:02 2023 +0200
+commit 6485e8f50334f4ff369984759c22fba327a5d064
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 22 14:09:21 2022 -0700
 
-    net/netip: remove unused netIPv{4,6}len consts
+    cmd/compile: use stricter rule for possible partial overlap
     
-    These were added by CL 339309 but never used.
+    Partial overlaps can only happen for strict sub-pieces of larger arrays.
+    That's a much stronger condition than the current optimization rules.
     
-    Change-Id: I40cbb5b18ac94e72bc56c15bb239677de2a202f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521216
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Update #54467
+    
+    Change-Id: I11e539b71099e50175f37ee78fddf69283f83ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433056
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/netip/netip.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 28 ++++++----------
+ test/codegen/issue54467.go             | 59 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 18 deletions(-)

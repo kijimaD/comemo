@@ -1,28 +1,13 @@
-commit eb91b5f2240f4444edb8975796e1d5695d054d73
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 10 11:01:55 2014 +1100
+commit a14ae4451700a690a2ca075d585d55d60f0d46e3
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Oct 30 14:08:55 2014 -0400
 
-    [release-branch.go1.4] doc: scrub references to code.google.com
-    
-    These are the references that affect current Go users.
-    I left intact references in older release notes;
-    we can figure out what to do with them later.
+    misc/cgo/test: fix bad C test code that fails on some configurations
     
     LGTM=rsc
     R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/186140043
-    
-    Conflicts:
-            doc/go1.4.html
-    
-    Change-Id: I1032686f2b3ac6dacaf8f114b8c35cdf221330ca
+    https://golang.org/cl/169800043
 
- doc/code.html          |  4 ++--
- doc/contrib.html       | 12 ++++++------
- doc/devel/release.html |  3 +--
- doc/devel/weekly.html  |  2 +-
- doc/go1.3.html         |  4 ++--
- doc/go_faq.html        |  2 +-
- doc/help.html          |  2 +-
- 7 files changed, 14 insertions(+), 15 deletions(-)
+ misc/cgo/test/issue9026.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

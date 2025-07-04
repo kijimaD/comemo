@@ -1,18 +1,21 @@
-commit 72e71b90f3e808900279433c581af272d5b9afa4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Aug 27 17:09:56 2019 +0000
+commit 30cc8a46c47252e15300d3cf9d27cba9e71e649b
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 11 15:05:10 2019 -0400
 
-    Revert "net/url: fail TestParseErrors test when getting an unwanted error"
+    test: add new test for gccgo compilation problem
     
-    This reverts https://golang.org/cl/185080.
+    New test for issue 30659 (compilation error due to bad
+    export data).
     
-    Reason for revert: some new changes are erroring again, so this broke the builders.
+    Updates #30659.
     
-    Change-Id: I28da16da98b90cefbb47173d31bbbb56e43062d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191781
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2541ee3c379e5b22033fea66bb4ebaf720cc5e1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166917
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/url/url_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue30659.dir/a.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue30659.dir/b.go | 13 +++++++++++++
+ test/fixedbugs/issue30659.go       |  7 +++++++
+ 3 files changed, 39 insertions(+)

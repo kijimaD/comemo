@@ -1,18 +1,19 @@
-commit a10f158d6fdac7c6130b816a00ff14cc22619d2e
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sun Apr 10 21:57:39 2022 +0800
+commit 182157c81ad5a147ba13c6e80f844b2242598aed
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jun 9 12:59:30 2021 -0400
 
-    runtime: update description of GODEBUG=gctrace=1
+    doc/go1.17: remove lingering TODO
     
-    For #44167.
+    As far as I can tell the Core Library section is complete. Remove its
+    TODO.
     
-    Change-Id: I2dcd13cbe74e88de00e9fc51f9bd86e604a167df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399300
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia84c6656fac045e25fae1a7ce8b488a3a26fd250
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326469
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/extern.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ doc/go1.17.html | 4 ----
+ 1 file changed, 4 deletions(-)

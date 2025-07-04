@@ -1,31 +1,21 @@
-commit ad7d1d995f85f43500dc3fa503642056c81b8411
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 18 17:32:05 2023 -0400
+commit dc00aed6de101700fd02b30f93789b9e9e1fe9a1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jul 14 13:00:05 2022 -0700
 
-    cmd/cgo/internal/testsovar: merge into testso
+    go/parser: skip TestParseDepthLimit for short tests
     
-    The test driver for testso and testsovar are literally identical, and
-    only the testdata code is different between the two test packages.
-    Merge them into a single test package with two tests that share a
-    driver.
+    Because it requires a not insignificant amount of memory to run. Also
+    remove the WASM-only skip from TestScopeDepthLimit, which is less
+    intensive.
     
-    Change-Id: I3f107a6aba345c0dd58606c10e3ac8eee33b33c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496315
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #53816
+    
+    Change-Id: I8463046510ce4dd3d8f6d66938828d5e6963c3be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417657
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/cmd/cgo/internal/testso/so_test.go             |  10 +-
- .../cgo/internal/testso/testdata/{ => so}/cgoso.c  |   0
- .../cgo/internal/testso/testdata/{ => so}/cgoso.go |   0
- .../internal/testso/testdata/{ => so}/cgoso_c.c    |   0
- .../testso/testdata/{ => so}/cgoso_unix.go         |   0
- .../cgo/internal/testso/testdata/{ => so}/main.go  |   0
- .../testdata => testso/testdata/sovar}/cgoso.go    |   0
- .../testdata => testso/testdata/sovar}/cgoso_c.c   |   0
- .../testdata => testso/testdata/sovar}/cgoso_c.h   |   0
- .../testdata => testso/testdata/sovar}/main.go     |   0
- src/cmd/cgo/internal/testsovar/overlaydir_test.go  |  78 -------------
- src/cmd/cgo/internal/testsovar/so_test.go          | 128 ---------------------
- 12 files changed, 9 insertions(+), 207 deletions(-)
+ src/go/parser/parser_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,20 +1,35 @@
-commit f2c3957ed8b44f29aaf9a1a7ddc5208ae2168dc9
-Author: Austin Clements <austin@google.com>
-Date:   Tue May 26 14:32:24 2015 -0400
+commit d942737f8a3b15a79d2d1252e107edeb2e51d7e5
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Apr 26 15:18:41 2015 -0700
 
-    runtime: disable GC around TestGoroutineParallelism
+    crypto/x509: allow parsing of certificates with unknown critical extensions.
     
-    TestGoroutineParallelism can deadlock if the GC runs during the
-    test. Currently it tries to prevent this by forcing a GC before the
-    test, but this is best effort and fails completely if GOGC is very low
-    for testing.
+    Previously, unknown critical extensions were a parse error. However, for
+    some cases one wishes to parse and use a certificate that may contain
+    these extensions. For example, when using a certificate in a TLS server:
+    it's the client's concern whether it understands the critical extensions
+    but the server still wishes to parse SNI values out of the certificate
+    etc.
     
-    This change replaces this best-effort fix with simply setting GOGC to
-    off for the duration of the test.
+    This change moves the rejection of unknown critical extensions from
+    ParseCertificate to Certificate.Verify. The former will now record the
+    OIDs of unknown critical extensions in the Certificate and the latter
+    will fail to verify certificates with them. If a user of this package
+    wishes to handle any unknown critical extensions themselves, they can
+    extract the extensions from Certificate.Extensions, process them and
+    remove known OIDs from Certificate.UnknownCriticalExtensions.
     
-    Change-Id: I8229310833f241b149ebcd32845870c1cb14e9f8
-    Reviewed-on: https://go-review.googlesource.com/10454
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    See discussion at
+    https://groups.google.com/forum/#!msg/golang-nuts/IrzoZlwalTQ/qdK1k-ogeHIJ
+    and in the linked bug.
+    
+    Fixes #10459
+    
+    Change-Id: I762521a44c01160fa0901f990ba2f5d4977d7977
+    Reviewed-on: https://go-review.googlesource.com/9390
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/crypto/x509/verify.go    |  4 ++++
+ src/crypto/x509/x509.go      | 26 ++++++++++++++++++--------
+ src/crypto/x509/x509_test.go | 28 +++++++++++++++++++++++++---
+ 3 files changed, 47 insertions(+), 11 deletions(-)

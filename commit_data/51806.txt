@@ -1,74 +1,38 @@
-commit 0301c6c3512561b85b48d0e167f3e405484f496f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Jan 25 11:53:10 2023 -0600
+commit 95395fdbe3e76778a9035d9478f52513fc34a97b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jan 7 12:13:31 2022 -0500
 
-    test/codegen: combine trivial PPC64 tests into ppc64x
+    syscall: call ABIInternal entersyscall on register ABI platforms
     
-    Use a small python script to consolidate duplicate
-    ppc64/ppc64le tests into a single ppc64x codegen test.
+    Currently, when register ABI is used, syscall.Syscall calls
+    entersyscall via a wrapper, so the actual entersyscall records the
+    caller PC and SP of the wrapper. At the point of the actual
+    syscall, the wrapper frame is gone, so the recorded PC and SP are
+    technically invalid. Furthermore, in some functions on some
+    platforms (e.g. Syscall9 on NetBSD/AMD64), that frame is
+    overwritten. If we unwind the stack from the recorded syscallpc
+    and syscallsp, it may go wrong. Fix this by calling the
+    ABIInternal function directly.
     
-    This makes small assumption that anytime two tests with
-    for different arch/variant combos exists, those tests
-    can be combined into a single ppc64x test.
+    exitsyscall calls are changed as well. It doesn't really matter,
+    just changed for consistency.
     
-    E.x:
-    
-      // ppc64le: foo
-      // ppc64le/power9: foo
-    into
-      // ppc64x: foo
-    
-    or
-    
-      // ppc64: foo
-      // ppc64le: foo
-    into
-      // ppc64x: foo
-    
-    import glob
-    import re
-    files = glob.glob("codegen/*.go")
-    for file in files:
-        with open(file) as f:
-            text = [l for l in f]
-        i = 0
-        while i < len(text):
-            first = re.match("\s*// ?ppc64(le)?(/power[89])?:(.*)", text[i])
-            if first:
-                j = i+1
-                while j < len(text):
-                    second = re.match("\s*// ?ppc64(le)?(/power[89])?:(.*)", text[j])
-                    if not second:
-                        break
-                    if (not first.group(2) or first.group(2) == second.group(2)) and first.group(3) == second.group(3):
-                        text[i] = re.sub(" ?ppc64(le|x)?"," ppc64x",text[i])
-                        text=text[:j] + (text[j+1:])
-                    else:
-                        j += 1
-            i+=1
-        with open(file, 'w') as f:
-            f.write("".join(text))
-    
-    Change-Id: Ic6b009b54eacaadc5a23db9c5a3bf7331b595821
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463220
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: Iead8dd22cf32b05e382414fef664b7c4c1719b7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376356
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- test/codegen/arithmetic.go  | 129 +++++++++++----------------------
- test/codegen/bool.go        |  30 +++-----
- test/codegen/comparisons.go |  42 ++++-------
- test/codegen/copy.go        |  45 ++++--------
- test/codegen/floats.go      |  24 +++----
- test/codegen/issue42610.go  |   6 +-
- test/codegen/logic.go       |   3 +-
- test/codegen/math.go        |  48 +++++--------
- test/codegen/mathbits.go    | 171 +++++++++++++++-----------------------------
- test/codegen/noextend.go    | 102 +++++++++-----------------
- test/codegen/rotate.go      |  60 ++++++----------
- test/codegen/shift.go       | 147 +++++++++++++------------------------
- test/codegen/slices.go      |  78 +++++++-------------
- test/codegen/stack.go       |  15 ++--
- 14 files changed, 298 insertions(+), 602 deletions(-)
+ src/syscall/asm9_unix2_amd64.s  |  6 +++---
+ src/syscall/asm_darwin_amd64.s  | 18 +++++++++---------
+ src/syscall/asm_darwin_arm64.s  | 18 +++++++++---------
+ src/syscall/asm_freebsd_arm64.s | 18 +++++++++---------
+ src/syscall/asm_linux_amd64.s   | 12 ++++++------
+ src/syscall/asm_linux_arm64.s   | 12 ++++++------
+ src/syscall/asm_linux_ppc64x.s  | 12 ++++++------
+ src/syscall/asm_netbsd_amd64.s  |  6 +++---
+ src/syscall/asm_netbsd_arm64.s  | 19 +++++++++----------
+ src/syscall/asm_plan9_amd64.s   | 12 ++++++------
+ src/syscall/asm_unix_amd64.s    | 12 ++++++------
+ 11 files changed, 72 insertions(+), 73 deletions(-)

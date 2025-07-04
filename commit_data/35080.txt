@@ -1,28 +1,15 @@
-commit dfb1b696656bd56e10c3085e145fe5f40dc2ba42
-Author: Adam Azarchs <adam.azarchs@10xgenomics.com>
-Date:   Thu Apr 19 19:59:39 2018 -0700
+commit 1055dfce40da4852add029c8a0e7312dff079507
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 12:11:19 2017 -0800
 
-    os/signal: add func Ignored(sig Signal) bool
+    cmd/go: remove script.sh in TestTestCacheInputs
     
-    Ignored reports whether sig is currently ignored.
+    Updates #22593
     
-    This implementation only works applies on Unix systems for now.  However, at
-    the moment that is also the case for Ignore() and several other signal
-    interaction methods, so that seems fair.
-    
-    Fixes #22497
-    
-    Change-Id: I7c1b1a5e12373ca5da44709500ff5acedc6f1316
-    Reviewed-on: https://go-review.googlesource.com/108376
+    Change-Id: I76e52dc8b874da13ae9e2d80e5c0d6d8424b67db
+    Reviewed-on: https://go-review.googlesource.com/83257
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/signal/signal.go       |  9 +++++++
- src/os/signal/signal_plan9.go |  5 ++++
- src/os/signal/signal_test.go  | 59 +++++++++++++++++++++++++++++++++++++++++++
- src/os/signal/signal_unix.go  |  5 ++++
- src/runtime/signal_unix.go    |  2 ++
- src/runtime/sigqueue.go       |  9 +++++++
- src/runtime/sigqueue_plan9.go |  5 ++++
- 7 files changed, 94 insertions(+)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,188 +1,25 @@
-commit 610d522189ed3fcf0d298609a248a3283bde62cd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 13:31:16 2016 -0500
+commit 962dc4b44d5260e72dad8d636cb09bcf7f4aa6bb
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Sep 27 20:30:01 2016 -0400
 
-    os: fix handling of Windows Unicode console input and ^Z
+    cmd/compile: improve load/store merging on s390x
     
-    Go 1.5 worked with Unicode console input but not ^Z.
-    Go 1.6 did not work with Unicode console input but did handle one ^Z case.
-    Go 1.7 did not work with Unicode console input but did handle one ^Z case.
+    This commit makes the process of load/store merging more incremental
+    for both big and little endian operations. It also adds support for
+    32-bit shifts (needed to merge 16- and 32-bit loads/stores).
     
-    The intent of this CL is for Go 1.8 to work with Unicode console input
-    and also handle all ^Z cases.
+    In addition, the merging of little endian stores is now supported.
+    Little endian stores are now up to 30 times faster.
     
-    Here's a simple test program for reading from the console.
-    It prints a "> " prompt, calls read, prints what it gets, and repeats.
-    
-            package main
-    
-            import (
-                "fmt"
-                "os"
-            )
-    
-            func main() {
-                p := make([]byte, 100)
-                fmt.Printf("> ")
-                for {
-                    n, err := os.Stdin.Read(p)
-                    fmt.Printf("[%d %q %v]\n> ", n, p[:n], err)
-                }
-            }
-    
-    On Unix, typing a ^D produces a break in the input stream.
-    If the ^D is at the beginning of a line, then the 0 bytes returned
-    appear as an io.EOF:
-    
-            $ go run /tmp/x.go
-            > hello
-            [6 "hello\n" <nil>]
-            > hello^D[5 "hello" <nil>]
-            > ^D[0 "" EOF]
-            > ^D[0 "" EOF]
-            > hello^Dworld
-            [5 "hello" <nil>]
-            > [6 "world\n" <nil>]
-            >
-    
-    On Windows, the EOF character is ^Z, not ^D, and there has
-    been a long-standing problem that in Go programs, ^Z on Windows
-    does not behave in the expected way, namely like ^D on Unix.
-    Instead, the ^Z come through as literal ^Z characters:
-    
-            C:\>c:\go1.5.4\bin\go run x.go
-            > ^Z
-            [3 "\x1a\r\n" <nil>]
-            > hello^Zworld
-            [13 "hello\x1aworld\r\n" <nil>]
-            >
-    
-    CL 4310 attempted to fix this bug, then known as #6303,
-    by changing the use of ReadConsole to ReadFile.
-    This CL was released as part of Go 1.6 and did fix the case
-    of a ^Z by itself, but not as part of a larger input:
-    
-            C:\>c:\go1.6.3\bin\go run x.go
-            > ^Z
-            [0 "" EOF]
-            > hello^Zworld
-            [13 "hello\x1aworld\r\n" <nil>]
-            >
-    
-    So the fix was incomplete.
-    Worse, the fix broke Unicode console input.
-    
-    ReadFile does not handle Unicode console input correctly.
-    To handle Unicode correctly, programs must use ReadConsole.
-    Early versions of Go used ReadFile to read the console,
-    leading to incorrect Unicode handling, which was filed as #4760
-    and fixed in CL 7312053, which switched to ReadConsole
-    and was released as part of Go 1.1 and still worked as of Go 1.5:
-    
-            C:\>c:\go1.5.4\bin\go run x.go
-            > hello
-            [7 "hello\r\n" <nil>]
-            > hello world™
-            [16 "hello world™\r\n" <nil>]
-            >
-    
-    But in Go 1.6:
-    
-            C:\>c:\go1.6.3\bin\go run x.go
-            > hello
-            [7 "hello\r\n" <nil>]
-            > hello world™
-            [0 "" EOF]
-            >
-    
-    That is, changing back to ReadFile in Go 1.6 reintroduced #4760,
-    which has been refiled as #17097. (We have no automated test
-    for this because we don't know how to simulate console input
-    in a test: it appears that one must actually type at a keyboard
-    to use the real APIs. This CL at least adds a comment warning
-    not to reintroduce ReadFile again.)
-    
-    CL 29493 attempted to fix #17097, but it was not a complete fix:
-    the hello world™ example above still fails, as does Shift-JIS input,
-    which was filed as #17939.
-    
-    CL 29493 also broke ^Z handling, which was filed as #17427.
-    
-    This CL attempts the never before successfully performed trick
-    of simultaneously fixing Unicode console input and ^Z handling.
-    It changes the console input to use ReadConsole again,
-    as in Go 1.5, which seemed to work for all known Unicode input.
-    Then it adds explicit handling of ^Z in the input stream.
-    (In the case where standard input is a redirected file, ^Z processing
-    should not happen, and it does not, because this code path is only
-    invoked when standard input is the console.)
-    
-    With this CL:
-    
-            C:\>go run x.go
-            > hello
-            [7 "hello\r\n" <nil>]
-            > hello world™
-            [16 "hello world™\r\n" <nil>]
-            > ^Z
-            [0 "" EOF]
-            > [2 "\r\n" <nil>]
-            > hello^Zworld
-            [5 "hello" <nil>]
-            > [0 "" EOF]
-            > [7 "world\r\n" <nil>]
-    
-    This almost matches Unix:
-    
-            $ go run /tmp/x.go
-            > hello
-            [6 "hello\n" <nil>]
-            > hello world™
-            [15 "hello world™\n" <nil>]
-            > ^D
-            [0 "" EOF]
-            > [1 "\n" <nil>]
-            > hello^Dworld
-            [5 "hello" <nil>]
-            > [6 "world\n" <nil>]
-            >
-    
-    The difference is in the handling of hello^Dworld / hello^Zworld.
-    On Unix, hello^Dworld terminates the read of hello but does not
-    result in a zero-length read between reading hello and world.
-    This is dictated by the tty driver, not any special Go code.
-    
-    On Windows, in this CL, hello^Zworld inserts a zero length read
-    result between hello and world, which is treated as an interior EOF.
-    This is implemented by the Go code in this CL, but it matches the
-    handling of ^Z on the console in other programs:
-    
-            C:\>copy con x.txt
-            hello^Zworld
-                    1 file(s) copied.
-    
-            C:\>type x.txt
-            hello
-            C:\>
-    
-    A natural question is how to test all this. As noted above, we don't
-    know how to write automated tests using the actual Windows console.
-    CL 29493 introduced the idea of substituting a different syscall.ReadFile
-    implementation for testing; this CL continues that idea but substituting
-    for syscall.ReadConsole instead. To avoid the regression of putting
-    ReadFile back, this CL adds a comment warning against that.
-    
-    Fixes #17427.
-    Fixes #17939.
-    
-    Change-Id: Ibaabd0ceb2d7af501d44ac66d53f64aba3944142
-    Reviewed-on: https://go-review.googlesource.com/33451
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Iefdd81eda4a65b335f23c3ff222146540083ad9c
+    Reviewed-on: https://go-review.googlesource.com/29956
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/export_windows_test.go |   8 +--
- src/os/file_windows.go        | 152 ++++++++++++++++++------------------------
- src/os/os_windows_test.go     | 142 +++++++++++++++++----------------------
- 3 files changed, 131 insertions(+), 171 deletions(-)
+ src/cmd/compile/internal/s390x/ssa.go        |    2 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  330 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   37 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   90 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 4891 +++++++++++++++++---------
+ 5 files changed, 3488 insertions(+), 1862 deletions(-)

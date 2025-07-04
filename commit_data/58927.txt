@@ -1,24 +1,29 @@
-commit bef2bb80a942a06bda2ff3aaedf46ff42d43aaf0
-Author: Than McIntosh <thanm@golang.org>
-Date:   Thu Dec 12 20:47:30 2024 -0500
+commit d0dc93c8e1a5be4e0a44b7f8ecb0cb1417de50ce
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 19 14:14:17 2024 +0100
 
-    cmd/compile,cmd/link: move to DWARF5-style location lists
+    runtime,internal/poll: move websocket handling out of the runtime on Windows
     
-    This patch updates the compiler to generate DWARF5-style location
-    lists (e.g. entries that feed into .debug_loclists) as opposed to
-    DWARF4-style location lists (which wind up in .debug_loc). The DWARF5
-    format is much more compact, and can make indirect references to text
-    addresses via the .debug_addr section for further space savings.
+    On Windows, the netpoll is currently coupled with the websocket usage
+    in the internal/poll package.
     
-    Updates #26379.
+    This CL moves the websocket handling out of the runtime and puts it into
+    the internal/poll package, which already contains most of the async I/O
+    logic for websockets.
     
-    Change-Id: If2e6fce1136d9cba5125ea51a71419596d1d1691
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635836
+    This is a good refactor per se, as the Go runtime shouldn't know about
+    websockets. In addition, it will make it easier (in a future CL) to only
+    load ws2_32.dll when the Go program actually uses websockets.
+    
+    Change-Id: Ic820872cf9bdbbf092505ed7f7504edb6687735e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556936
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/debug.go | 61 ++++++++++++++++++++++++++++++++-
- src/cmd/internal/dwarf/dwarf_defs.go  | 14 ++++++++
- src/cmd/link/internal/ld/dwarf.go     | 64 +++++++++++++++++++++--------------
- 3 files changed, 113 insertions(+), 26 deletions(-)
+ src/internal/poll/fd_windows.go                  | 11 ++++-----
+ src/internal/syscall/windows/syscall_windows.go  |  1 +
+ src/internal/syscall/windows/zsyscall_windows.go | 13 +++++++++++
+ src/runtime/netpoll_windows.go                   | 29 +++++++-----------------
+ src/runtime/os_windows.go                        | 11 ---------
+ 5 files changed, 27 insertions(+), 38 deletions(-)

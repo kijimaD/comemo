@@ -1,38 +1,34 @@
-commit ddef157813686870e26c3c2c83bd5af6bef71a61
-Author: zdjones <zachj1@gmail.com>
-Date:   Wed Feb 6 19:49:15 2019 +0000
+commit edb2d1cbf23c1a638837f21bc7dd51a0807ab236
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Nov 6 15:14:56 2018 +0000
 
-    cmd/compile: make prove use poset to check non-negatives
+    cmd/vet: fix some pointer false positives in printf
     
-    Prove currently fails to remove bounds checks of the form:
+    fmt's godoc reads:
     
-    if i >= 0 {              // hint that i is non-negative
-        for i < len(data) {  // i becomes Phi in the loop SSA
-            _ = data[i]      // data[Phi]; bounds check!!
-            i++
-        }
-    }
+            For compound objects, the elements are printed using these
+            rules, recursively, laid out like this:
     
-    addIndVarRestrictions fails to identify that the loop induction
-    variable, (Phi), is non-negative. As a result, the restrictions,
-    i <= Phi < len(data), are only added for the signed domain. When
-    testing the bounds check, addBranchRestrictions is similarly unable
-    to infer that Phi is non-negative. As a result, the restriction,
-    Phi >= len(data), is only added/tested for the unsigned domain.
+                    struct:             {field0 field1 ...}
+                    array, slice:       [elem0 elem1 ...]
+                    maps:               map[key1:value1 key2:value2 ...]
+                    pointer to above:   &{}, &[], &map[]
     
-    This CL changes the isNonNegative method to utilise the factTable's
-    partially ordered set (poset). It also adds field factTable.zero to
-    allow isNonNegative to query the poset using the zero(0) constant
-    found or created early in prove.
+    That is, a pointer to a struct, array, slice, or map, can be correctly
+    printed by fmt if the type pointed to can be printed without issues.
     
-    Fixes #28956
+    vet was only following this rule for pointers to structs, omitting
+    arrays, slices, and maps. Fix that, and add tests for all the
+    combinations.
     
-    Change-Id: I792f886c652eeaa339b0d57d5faefbf5922fe44f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161437
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #27672.
+    
+    Change-Id: Ie61ebe1fffc594184f7b24d7dbf72d7d5de78309
+    Reviewed-on: https://go-review.googlesource.com/c/147758
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 35 +++++++++++++++++++++--------------
- test/prove.go                         | 20 ++++++++++++++++++++
- 2 files changed, 41 insertions(+), 14 deletions(-)
+ src/cmd/vet/testdata/print.go | 26 ++++++++++++++++++++++++++
+ src/cmd/vet/types.go          | 18 +++++++++++++-----
+ 2 files changed, 39 insertions(+), 5 deletions(-)

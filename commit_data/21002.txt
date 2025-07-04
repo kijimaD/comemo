@@ -1,12 +1,24 @@
-commit 0293b7ee37de9b489688a3bd8672a1655e441d71
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 18 12:55:22 2014 +1100
+commit 75d3f62b3c9dc21a2c32a74f1d19b67b965e410b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 14:42:54 2014 -0500
 
-    doc: fixes to contributor docs
+    [dev.garbage] cmd/gc, runtime: add locks around print statements
     
-    Change-Id: Ib31fb1f8239d8113728bc4c6e411416721571341
-    Reviewed-on: https://go-review.googlesource.com/1743
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Now each C printf, Go print, or Go println is guaranteed
+    not to be interleaved with other calls of those functions.
+    This should help when debugging concurrent failures.
+    
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/169120043
 
- doc/contribute.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/builtin.c  |   2 +
+ src/cmd/gc/go.h       |   1 +
+ src/cmd/gc/runtime.go |   2 +
+ src/cmd/gc/walk.c     |  17 ++++++
+ src/runtime/print1.go |  30 +++++++++-
+ src/runtime/runtime.h |   1 +
+ test/live.go          | 152 ++++++++++++++++++++++++++++----------------------
+ test/live2.go         |   6 +-
+ 8 files changed, 140 insertions(+), 71 deletions(-)

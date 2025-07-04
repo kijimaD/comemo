@@ -1,22 +1,16 @@
-commit 3cf9acccae4686ebb1dbaece4056eca58b8392b2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 13 10:01:34 2014 -0700
+commit 1b89cd16589c223f1d5fb73b88a2612800d68e67
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 30 11:49:15 2014 -0700
 
-    reflect: generated unrolled GC bitmask directly
+    encoding/asn1: fix unmarshaling of implicitly tagged UTF-8 strings.
     
-    The code for a generated type is already generating an
-    unrolled GC bitmask.  Rather than unrolling the the source
-    type bitmasks and copying them, just generate the required
-    bitmask directly.  Don't mark it as an unrolled GC program,
-    since there is no need to do so.
-    
-    Fixes #8917.
+    Fixes #8541.
     
     LGTM=rsc
-    R=dvyukov, rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/156930044
+    https://golang.org/cl/153770043
 
- src/reflect/all_test.go |  6 ++++++
- src/reflect/type.go     | 56 ++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 43 insertions(+), 19 deletions(-)
+ src/encoding/asn1/asn1.go      | 12 ++++++++----
+ src/encoding/asn1/asn1_test.go |  5 +++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

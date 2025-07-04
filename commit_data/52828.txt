@@ -1,20 +1,46 @@
-commit 6b859d9d5816bd3eaeff40eece7bd797b2824e8f
-Author: Will Faught <willfaught@users.noreply.github.com>
-Date:   Fri Apr 28 23:44:50 2023 +0000
+commit 07eca49055f7ef0d73be2ca28dcc5d489db129b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 31 20:59:55 2022 -0700
 
-    text/template: reword uncover to unwrap
+    go/types, types2: use type nest to detect type cycles (fix validType)
     
-    Matches the preceding "wrap" terminology.
+    validType was using a global type info map to detect invalid recursive
+    types, which was incorrect. Instead, change the algorithm as follows:
     
-    Change-Id: Ia783de578c2942fe1474281c3d6056b1074d41b0
-    GitHub-Last-Rev: 4fcff4e9b2836d428ba668186441089a9618c028
-    GitHub-Pull-Request: golang/go#59891
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490675
+    - Rather than using a "seen" (or typeInfo) map which is cumbersome to
+      update correctly, use the stack of embedding types (the type nest)
+      to check whether a type is embedded within itself, directly or
+      indirectly.
+    
+    - Use Identical for type comparisons which correctly considers identity
+      of instantiated generic types.
+    
+    - As before, maintain the full path of types leading to a cycle. But
+      unlike before, track the named types rather than their objects, for
+      a smaller slice ([]*Named rather than []Object), and convert to an
+      object list only when needed for error reporting.
+    
+    - As an optimization, keep track of valid *Named types (Checker.valids).
+      This prevents pathological cases from consuming excessive computation
+      time.
+    
+    - Add clarifying comments and document invariants.
+    
+    Based on earlier insights by David Chase (see also CL 408818).
+    
+    Fixes #52698.
+    
+    Change-Id: I5e4598c58afcf4ab987a426c5c4b7b28bdfcf5ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409694
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/text/template/funcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check.go           |   3 +-
+ .../types2/testdata/fixedbugs/issue52698.go        |  62 ++++++
+ src/cmd/compile/internal/types2/validtype.go       | 210 +++++++++++++++-----
+ src/go/types/check.go                              |   3 +-
+ src/go/types/testdata/fixedbugs/issue52698.go      |  50 +++++
+ src/go/types/validtype.go                          | 211 ++++++++++++++++-----
+ 6 files changed, 445 insertions(+), 94 deletions(-)

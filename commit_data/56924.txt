@@ -1,54 +1,15 @@
-commit 20e18c95504b047c5ba82d252318de625fabfa70
-Author: Diego Augusto Molina <diegoaugustomolina@gmail.com>
-Date:   Tue Jun 25 22:15:16 2024 -0300
+commit fdd9911d1a97066752f0d889db8713bae0449a74
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 14:23:46 2023 -0700
 
-    unicode/utf8: AppendRune and EncodeRune performance improvement
+    doc/go1.21: remove math.Compare TODOs
     
-    - Prefer the evaluation of the valid higher byte-width runes branches
-    over the one for invalid ones
-    - Avoid the evaluation of the bytes of the RuneError constant, and
-    instead hard code its byte values
-    - EncodeRune only: inline for fast handling of ASCII
-    
-    goos: linux
-    goarch: amd64
-    pkg: unicode/utf8
-    cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
-                                  │ baseline.test-append.txt │ append-rune-invalid-case-last.test.txt │
-                                  │          sec/op          │     sec/op      vs base                │
-    AppendASCIIRune-8                           0.2135n ± 0%     0.2135n ± 0%        ~ (p=0.578 n=20)
-    AppendSpanishRune-8                          1.645n ± 1%      1.509n ± 2%   -8.30% (p=0.000 n=20)
-    AppendJapaneseRune-8                         2.196n ± 1%      2.004n ± 1%   -8.74% (p=0.000 n=20)
-    AppendMaxRune-8                              2.670n ± 1%      2.349n ± 3%  -12.01% (p=0.000 n=20)
-    AppendInvalidRuneMaxPlusOne-8                2.214n ± 2%      1.798n ± 3%  -18.77% (p=0.000 n=20)
-    AppendInvalidRuneSurrogate-8                 2.258n ± 1%      1.793n ± 2%  -20.59% (p=0.000 n=20)
-    AppendInvalidRuneNegative-8                  2.171n ± 2%      1.767n ± 2%  -18.61% (p=0.000 n=20)
-    geomean                                      1.559n           1.361n       -12.69%
-    
-    goos: linux
-    goarch: amd64
-    pkg: unicode/utf8
-    cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
-                                  │ baseline.test-encode.txt │     encode-rune-invalid-last.txt     │
-                                  │          sec/op          │    sec/op     vs base                │
-    EncodeASCIIRune-8                           1.0950n ± 1%   0.2140n ± 0%  -80.46% (p=0.000 n=20)
-    EncodeSpanishRune-8                          1.499n ± 0%    1.414n ± 2%   -5.64% (p=0.000 n=20)
-    EncodeJapaneseRune-8                         1.960n ± 2%    1.716n ± 4%  -12.43% (p=0.000 n=20)
-    EncodeMaxRune-8                              2.145n ± 2%    2.227n ± 1%   +3.78% (p=0.000 n=20)
-    EncodeInvalidRuneMaxPlusOne-8                1.955n ± 2%    1.802n ± 2%   -7.80% (p=0.000 n=20)
-    EncodeInvalidRuneSurrogate-8                 1.946n ± 3%    1.777n ± 2%   -8.68% (p=0.000 n=20)
-    EncodeInvalidRuneNegative-8                  1.968n ± 2%    1.766n ± 2%  -10.29% (p=0.000 n=20)
-    geomean                                      1.757n         1.308n       -25.57%
-    
-    Fixes #68131
-    
-    Change-Id: Ibcafa75d63cca07a2e78cd06f6f1e382cb8c716e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I975b437240df03da84f2ce7c47f7a0097a597f25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499638
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
 
- src/unicode/utf8/utf8.go      | 40 ++++++++++++++--------
- src/unicode/utf8/utf8_test.go | 78 ++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 101 insertions(+), 17 deletions(-)
+ doc/go1.21.html | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)

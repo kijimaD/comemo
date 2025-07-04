@@ -1,22 +1,25 @@
-commit 209942fa88ef49e98a0f36dbbfa74c936a8d0fad
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Mon Feb 14 12:16:22 2022 -0800
+commit ea5369bac041e7a78e198f4412350cfd923215aa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jul 3 05:27:54 2021 -0700
 
-    runtime/pprof: add race annotations for goroutine profiles
+    [dev.typeparams] cmd/compile: remove ir.CallUse
     
-    The race annotations for goroutine label maps covered the special type
-    of read necessary to create CPU profiles. Extend that to include
-    goroutine profiles. Annotate the copy involved in creating new
-    goroutines.
+    Unneeded after the previous CL changed inlining to leave OINLCALL
+    nodes in place.
     
-    Fixes #50292
-    
-    Change-Id: I10f69314e4f4eba85c506590fe4781f4d6b8ec2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385660
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9af09a86a21caa51a1117b3de17d7312dd702600
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332650
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mprof.go            |  4 +++
- src/runtime/pprof/pprof_test.go | 59 ++++++++++++++++++++++++++++++++++++++++-
- src/runtime/proc.go             |  5 ++++
- 3 files changed, 67 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/expr.go           | 12 ------------
+ src/cmd/compile/internal/noder/helpers.go     |  3 ---
+ src/cmd/compile/internal/noder/stmt.go        |  6 +-----
+ src/cmd/compile/internal/noder/transform.go   |  1 -
+ src/cmd/compile/internal/typecheck/func.go    |  4 ----
+ src/cmd/compile/internal/typecheck/iexport.go |  1 -
+ src/cmd/compile/internal/typecheck/iimport.go |  1 -
+ src/cmd/compile/internal/typecheck/stmt.go    |  1 -
+ 8 files changed, 1 insertion(+), 28 deletions(-)

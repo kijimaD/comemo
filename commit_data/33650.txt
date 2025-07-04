@@ -1,34 +1,17 @@
-commit 49322ca9ede175cbd62de601ddc1170edcaae1a7
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Mon Nov 20 20:56:05 2017 +0300
+commit 0480bfe57f41b4f4746b0f9da2eb72e948b355a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 18 21:19:12 2017 -0700
 
-    cmd/internal/obj/x86: fix /is4 encoding for VBLEND
+    runtime: remove handling of indirect key types in evacuate_fastX
     
-    Fixes VBLENDVP{D/S}, VPBLENDVB encoding for /is4 imm8[7:4]
-    encoded register operand.
+    None of the mapfast key types are indirect.
     
-    Explanation:
-    `reg[r]+regrex[r]+1` will yield correct values for 8..15 reg indexes,
-    but for 0..7 it gives `index+1` results.
-    There was no test that used lower 8 register with /is4 encoding,
-    so the bug passed the tests.
-    The proper solution is to get 4th bit from regrex with a proper shift:
-    `reg[r]|(regrex[r]<<1)`.
-    
-    Instead of inlining `reg[r]|(regrex[r]<<1)` expr,
-    using new `regIndex(r)` function.
-    
-    Test that reproduces this issue is added to
-    amd64enc_extra.s test suite.
-    
-    Bug came from https://golang.org/cl/70650.
-    
-    Change-Id: I846a25e88d5e6df88df9d9c3f5fe94ec55416a33
-    Reviewed-on: https://go-review.googlesource.com/78815
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I1fb2682257567ee69504082a6cdad63c99916671
+    Reviewed-on: https://go-review.googlesource.com/59133
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 ++
- src/cmd/internal/obj/x86/asm6.go                   | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/hashmap_fast.go | 36 ++++++------------------------------
+ 1 file changed, 6 insertions(+), 30 deletions(-)

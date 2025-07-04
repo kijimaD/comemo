@@ -1,24 +1,27 @@
-commit 74163c895a7c5d7ebafeaed1f4a0891d218e2704
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 21 15:36:38 2024 -0700
+commit 99ea5b9765dc79e8d8f7e37bd55d6ab949eb739c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 16:17:44 2023 -0700
 
-    cmd/compile: use STP/LDP around morestack on arm64
+    cmd/compile: remove ErrorfVers and base.Flag.Lang hack
     
-    The spill/restore code around morestack is almost never exectued, so
-    we should make it as small as possible. Using 2-register loads/stores
-    makes sense here. Also, the offsets from SP are pretty small so the
-    offset almost always fits in the (smaller than a normal load/store)
-    offset field of the instruction.
+    ErrorfVers used to be used by typecheck to report when new language
+    functionality was used, but the -lang flag (from go.mod) was set to an
+    older version. However, all of the callers have been since removed,
+    now that this is handled by types2.
     
-    Makes cmd/go 0.6% smaller.
+    And for the same reason, we can stop changing base.Flag.Lang. This was
+    previously a workaround so that the unified frontend could generate
+    arbitrary IR without upsetting typecheck, at a time when typecheck was
+    itself a real frontend. Now it's just a glorified desugaring pass.
     
-    Change-Id: I8845283c1b269a259498153924428f6173bda293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621556
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1c0316dbfe2e08ba089acd50fdfe20b17176be25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522877
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go | 77 +++++++++++++++++++++++++++++++----
- src/cmd/internal/obj/link.go          |  9 ++++
- test/codegen/spills.go                | 31 ++++++++++++++
- 3 files changed, 110 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/base/print.go    | 5 -----
+ src/cmd/compile/internal/noder/unified.go | 9 ---------
+ 2 files changed, 14 deletions(-)

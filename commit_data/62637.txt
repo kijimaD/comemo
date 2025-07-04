@@ -1,0 +1,30 @@
+commit 665af869920432879629c1d64cf59f129942dcd6
+Author: Max Neverov <neverov.max@gmail.com>
+Date:   Tue Mar 18 20:02:03 2025 +0000
+
+    cmd/go: fail go clean command when failed to find go cache directory
+    
+    Currently, if computing of the go cache directory fails it does not expose the error. Commands like go clean, exec, modindex that use go cache directory continue execution producing incorrect or no result. This patch adds an error to the return values such that it can be validated on call sites. It also introduces such validation in go clean -cache command to fail execution in case when error occurred.
+    
+    Fixes #69997
+    
+    Change-Id: I53fd1ec67f0a6bd8a367e785dcb145a673c084dc
+    GitHub-Last-Rev: e2063d10db7bb969bcbc8993761e3b38bb420938
+    GitHub-Pull-Request: golang/go#70392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628596
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go                        |  2 +-
+ src/cmd/go/go_test.go                        |  2 +-
+ src/cmd/go/internal/cache/default.go         | 12 ++++++------
+ src/cmd/go/internal/clean/clean.go           | 10 ++++++++--
+ src/cmd/go/internal/envcmd/env.go            |  2 +-
+ src/cmd/go/internal/help/helpdoc.go          |  2 +-
+ src/cmd/go/internal/modindex/read.go         |  2 +-
+ src/cmd/go/internal/test/test.go             |  2 +-
+ src/cmd/go/internal/work/shell.go            |  2 +-
+ src/cmd/go/testdata/script/clean_cache_n.txt |  5 +++++
+ 10 files changed, 26 insertions(+), 15 deletions(-)

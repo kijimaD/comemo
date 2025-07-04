@@ -1,24 +1,24 @@
-commit 19156a54741d4f353c9e8e0860197ca95a6ee6ca
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat May 14 16:15:26 2022 +0700
+commit 35dbdda2feecd04fde8d44441fef58aabaf0a78a
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jul 29 07:27:35 2021 -0700
 
-    cmd/compile: fix inlining function has shape in type
+    [dev.typeparams] cmd/compile: remove remaining uses of Unshapify
     
-    CL 395854 made inline pass to not inlining function with shape params,
-    but pass no shape arguments. But it does not consider the case where
-    function has shape params, but passing zero arguments. In this case, the
-    un-safe interface conversion that may be applied to a shape argument can
-    not happen, so it's safe to inline the function.
+    The other uses of Unshapify were really only there to allow for the
+    dictionary checking code at the beginning of generic functions/methods.
+    But that will go away as soon as we start combining real shapes. If we
+    get rid of that code, we can get rid of the unshapify calls elsewhere.
     
-    Fixes #52907
+    The only tricky part is that getInstantiation now gets targs that may each
+    either be a shape or concrete type, and it must translate any concrete
+    types to shapes, while leaving the already existing shapes.
     
-    Change-Id: Ifa7b23709bb47b97e27dc1bf32343d92683ef783
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406176
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ib2b9072b921f8e064958548a1078d82f1d040c9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338289
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/inline/inl.go |  4 ++--
- test/fixedbugs/issue52907.go           | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 97 +++++++++++--------------------
+ 1 file changed, 35 insertions(+), 62 deletions(-)

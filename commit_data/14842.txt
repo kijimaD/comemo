@@ -1,12 +1,34 @@
-commit ecb75486f80e320dc0a06dd85c1b83a3daf293f4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 9 15:22:48 2013 -0800
+commit 593d8b0c1409d044472a2848de199eec498100b1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 10 09:57:01 2013 +1100
 
-    container/list: avoid memory leaks
+    cmd/go: remove $GOROOT as a go get target
     
-    R=golang-dev, dsymonds
+    Fixes #4186.
+    
+    Back in the day, before the Go 1.0 release, $GOROOT was mandatory for building from source. Fast forward to now and $GOPATH is mandatory and $GOROOT is optional, and mainly used by those who use the binary distribution in uncommon places.
+    
+    For example, most novices at least know about `sudo` as they would have used it to install the binary tarball into /usr/local. It is logical they would use the `sudo` hammer to `go get` other Go packages when faced with a permission error talking about the path they just had to use `sudo` on last time.
+    
+    Even if they had read the documentation and set $GOPATH, go get will not work as expected as `sudo` masks most environment variables.
+    
+    llucky(~) % ~/go/bin/go env | grep GOPATH
+    GOPATH="/home/dfc"
+    lucky(~) % sudo ~/go/bin/go env | grep GOPATH
+    GOPATH=""
+    
+    This CL therefore proposes to remove support for using `go get` to download source into $GOROOT.
+    
+    This CL also proposes an error when GOPATH=$GOROOT, as this is another place where new Go users can get stuck.
+    
+    Further discussion: https://groups.google.com/d/topic/golang-nuts/VIg3fjHiHRI/discussion
+    
+    R=rsc, adg, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7065067
+    https://golang.org/cl/6941058
 
- src/pkg/container/list/list.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.1.html     | 33 +++++++++++++++++++++++++--------
+ src/cmd/go/doc.go  |  2 +-
+ src/cmd/go/get.go  | 19 ++++++++++---------
+ src/cmd/go/help.go |  2 +-
+ 4 files changed, 37 insertions(+), 19 deletions(-)

@@ -1,14 +1,13 @@
-commit f8a28ecc9f9ab0ca6a65ca4af4f5a7f3256f6a96
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 25 20:19:55 2012 -0800
+commit 7b5048570a32f477cd946298a643ae89c7a01f3c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jan 26 00:59:50 2012 -0200
 
-    path/filepath: fix test
-    If there's an error, sometimes you need to stop.
-    Part of issue 2787.
+    doc/go1: add encoding/xml changes
     
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5570068
+    https://golang.org/cl/5569067
 
- src/pkg/path/filepath/path_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ doc/go1.html | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ doc/go1.tmpl | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 100 insertions(+), 12 deletions(-)

@@ -1,15 +1,17 @@
-commit 6492cac6dd3995535bd7ddd7ab11ca5047967ada
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 26 16:08:21 2012 +1100
+commit 0b762d9523a8b672143556739726d3d4e8ac6c94
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 26 14:10:27 2012 +1100
 
-    run.bash: compile the codewalks
-    They could be tested but that requires more than seems wise right now.
+    godoc: make 'Overview' section collapsable
     
-    Update #2648.
+    This makes packages with lengthly package comments easier to browse.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5908054
+    https://golang.org/cl/5901055
 
- src/run.bash | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/godocs.js          | 40 ++++++++++++++++++++++------------------
+ doc/style.css          | 10 +++++-----
+ lib/godoc/example.html |  6 +++---
+ lib/godoc/package.html | 13 ++++++++++---
+ 4 files changed, 40 insertions(+), 29 deletions(-)

@@ -1,26 +1,21 @@
-commit bbfae469a1d207a415dd813d799df1ed2dd2d80a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 30 12:25:02 2018 -0700
+commit 4671da0414b31c7bd234e96b5af414fecb79e861
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 22 15:29:03 2017 -0500
 
-    cmd/compile: handle blank struct fields in NumComponents
+    runtime: print runtime frames in throwsplit trace
     
-    NumComponents is used by racewalk to decide whether reads and writes
-    might occur to subobjects of an address. For that purpose,
-    blank fields matter.
+    newstack manually prints the stack trace if we try to grow the stack
+    when throwsplit is set. However, the default behavior is to omit
+    runtime frames. Since runtime frames can be critical to understanding
+    this crash, this change fixes this traceback to include them.
     
-    It is also used to decide whether to inline == and != for a type.
-    For that purpose, blank fields may be ignored.
+    Updates #21431.
     
-    Add a parameter to NumComponents to support this distinction.
-    While we're here, document NumComponents, as requested in CL 59334.
-    
-    Change-Id: I8c2021b172edadd6184848a32a74774dde1805c8
-    Reviewed-on: https://go-review.googlesource.com/103755
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5aa43f43aa2f10a8de7d67bcec743427be3a3b5d
+    Reviewed-on: https://go-review.googlesource.com/79518
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/racewalk.go |  2 +-
- src/cmd/compile/internal/gc/walk.go     |  2 +-
- src/cmd/compile/internal/types/type.go  | 22 +++++++++++++++++++---
- 3 files changed, 21 insertions(+), 5 deletions(-)
+ src/runtime/stack.go | 1 +
+ 1 file changed, 1 insertion(+)

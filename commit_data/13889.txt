@@ -1,33 +1,15 @@
-commit 4591cd631dad588c8fb40097021d1c63860aa4ad
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 21 00:35:25 2012 -0400
+commit 9773ac1d08312e376d0741791545ca21cd0332d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Sep 21 07:13:36 2012 +0900
 
-    unicode: performance improvements (API change)
+    net: fix comment
     
-    *** There is an API change here: the introduction of the
-    LatinOffset int in the RangeTable struct. ***
-    
-    * Avoid checking Latin range multiple times for non-Latin runes.
-    * Use linear search when it is faster than binary search.
-    
-    go test -calibrate runs the calibration for where the linear/binary
-    crossover should be.
-    
-    benchmark                       old MB/s     new MB/s  speedup
-    BenchmarkFields            36.27        41.43    1.14x
-    BenchmarkFieldsFunc        36.23        41.38    1.14x
-    
-    The speedup here is evenly split between the linear scans
-    and the LatinOffset change. Both are about 1.07x.
-    
-    R=r
-    CC=bradfitz, gobot, golang-dev
-    https://golang.org/cl/6526048
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6546044
 
- src/pkg/unicode/digit.go       |   2 +-
- src/pkg/unicode/graphic.go     |  10 ++--
- src/pkg/unicode/letter.go      |  74 ++++++++++++++++++--------
- src/pkg/unicode/letter_test.go | 118 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/unicode/maketables.go  |  20 ++++++-
- src/pkg/unicode/tables.go      |  38 +++++++++++++
- 6 files changed, 232 insertions(+), 30 deletions(-)
+ src/pkg/net/dial.go       | 2 +-
+ src/pkg/net/fd_unix.go    | 2 +-
+ src/pkg/net/fd_windows.go | 2 +-
+ src/pkg/net/sock_posix.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

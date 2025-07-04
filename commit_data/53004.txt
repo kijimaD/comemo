@@ -1,25 +1,24 @@
-commit b6c75c5fb114fd951a7e3d9aa569b9bcd06d6bc3
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 8 10:47:45 2023 -0400
+commit 1821639b57a643f9c3f6d3b3d329d2283d5d7a57
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Sat Jun 25 05:17:45 2022 +0000
 
-    test,internal/testdir: don't set GOOS/GOARCH
+    runtime: mark string comparison hooks as no split
     
-    The test directory driver currently sets the GOOS/GOARCH environment
-    variables if they aren't set. This appears to be in service of a
-    single test, test/env.go, which was introduced in September 2008 along
-    with os.Getenv. It's not entirely clear what that test is even trying
-    to check, since runtime.GOOS isn't necessarily the same as $GOOS. We
-    keep the test around because golang.org/x/tools/go/ssa/interp uses it
-    as a test case, but we simplify the test and eliminate the need for
-    the driver to set GOOS/GOARCH.
+    These functions can be inserted by the compiler into the code to be
+    instrumented. This may result in these functions having callers that
+    are nosplit. That is why they must be nosplit.
     
-    Change-Id: I5acc0093b557c95d1f0a526d031210256a68222d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493601
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This is a followup for CL 410034 in order to fix #53190.
+    
+    Change-Id: I03746208a2a302a581a1eaad6c9d0672bb1e949a
+    GitHub-Last-Rev: 6506d86f221d745de083fad862bba7ba04a80455
+    GitHub-Pull-Request: golang/go#53544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413978
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/testdir/testdir_test.go |  8 --------
- test/env.go                          | 13 ++++++++-----
- 2 files changed, 8 insertions(+), 13 deletions(-)
+ src/runtime/libfuzzer.go | 4 ++++
+ 1 file changed, 4 insertions(+)

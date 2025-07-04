@@ -1,20 +1,17 @@
-commit 9dcbc43f4f299b8ea6546a464d9fdeb5839b5ae9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 25 10:55:22 2016 -0700
+commit d05773ce73ae5ed784dc47800992f58790023b4a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 11 10:21:51 2016 -0500
 
-    test: add test for issue 15084
+    cmd/internal/obj: fix nil pointer dereference in Dconv
     
-    The underlying issues have been fixed.
-    All the individual fixes have their own tests,
-    but it's still useful to have a plain source test.
+    p can be nil in Dconv so we need to do a check before dereferencing
+    it. Fixes a problem I was having running toolstash.
     
-    Fixes #15084
-    
-    Change-Id: I06c485a7d0716201bd57d1f3be53668dddd7ec14
-    Reviewed-on: https://go-review.googlesource.com/22426
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I34d6d278b319583d8454c2342ac88e054fc4b641
+    Reviewed-on: https://go-review.googlesource.com/20595
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- test/fixedbugs/issue15084.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/cmd/internal/obj/util.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

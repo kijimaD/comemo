@@ -1,22 +1,22 @@
-commit c4db811e44662fe59233e4445c5dc001579f1243
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jul 8 08:46:37 2023 -0700
+commit 3d6ba27f4ffef372d9a41bc488ca329c2786187f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Aug 12 16:47:31 2022 +0000
 
-    cmd/compile: don't ICE on unaligned offsets for pointer writes
+    net/http: don't panic on very large MaxBytesReaderLimit
     
-    User code is unlikely to be correct, but don't crash the compiler
-    when the offset of a pointer in an object is not a multiple of the
-    pointer size.
+    Fixes #54408
     
-    Fixes #61187
-    
-    Change-Id: Ie56bfcb38556c5dd6f702ae4ec1d4534c6acd420
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508555
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I454199ae5bcd087b8fc4169b7622412105e71113
+    GitHub-Last-Rev: a33fe7e206d0c394440962acd360df3aa9b117c3
+    GitHub-Pull-Request: golang/go#54415
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423314
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
 
- src/cmd/compile/internal/ssa/writebarrier.go |  7 +++++--
- test/fixedbugs/issue61187.go                 | 22 ++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/net/http/request.go      | 3 ++-
+ src/net/http/request_test.go | 6 ++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

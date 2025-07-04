@@ -1,15 +1,22 @@
-commit 5f541b11aaa345b4cf0fb37a80c32b704a6854ea
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 9 14:51:30 2018 +0100
+commit f1ce59d988f02deb47c3fd33cbc40542726ea76c
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Oct 28 20:50:57 2017 -0400
 
-    test/codegen: port MULs merging tests to codegen
+    encoding/json: Include the offset of a SyntaxError
     
-    And delete them from asm_go.
+    When a SyntaxError occurs, report the current offset within the stream.
+    The code already accounted for the offset within the current buffer
+    being scanned. By including how much data was already scanned, the
+    current offset can be computed.
     
-    Change-Id: I0057cbd90ca55fa51c596e32406e190f3866f93e
-    Reviewed-on: https://go-review.googlesource.com/99815
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #22478
+    
+    Change-Id: I91ecd4cad0b85a5c1556bc597f3ee914e769af01
+    Reviewed-on: https://go-review.googlesource.com/74251
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 66 ---------------------------------
- test/codegen/arithmetic.go              | 34 +++++++++++++++++
- 2 files changed, 34 insertions(+), 66 deletions(-)
+ src/encoding/json/stream.go      | 34 ++++++++++++++++------------------
+ src/encoding/json/stream_test.go | 21 ++++++++++++++-------
+ 2 files changed, 30 insertions(+), 25 deletions(-)

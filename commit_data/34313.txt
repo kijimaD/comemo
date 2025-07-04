@@ -1,19 +1,18 @@
-commit e02d6bb621a6c452cbef37946467f94a0054f2b1
-Author: OneOfOne <oneofone@gmail.com>
-Date:   Wed Feb 21 19:58:33 2018 +0000
+commit 0b2cb89196967030ae005076f0166ad7d6024083
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 16 17:17:40 2017 -0700
 
-    net/http: support multipart/mixed in Request.MultipartReader
+    cmd/compile/internal/syntax: better recovery after missing closing parentheses
     
-    Fixes #23959
+    Fine-tune skipping of tokens after missing closing parentheses in lists.
     
-    GitHub-Last-Rev: 08ce026f52f9fd65b49d99745dffed46a3951585
-    GitHub-Pull-Request: golang/go#24012
-    Change-Id: I7e71c41330346dbc4dad6ba813cabfa8a54e2f66
-    Reviewed-on: https://go-review.googlesource.com/95975
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #22164.
+    
+    Change-Id: I575d86e21048cd40340a2c08399e8b0deec337cf
+    Reviewed-on: https://go-review.googlesource.com/71250
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/request.go      | 10 +++++-----
- src/net/http/request_test.go | 10 ++++++++++
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go |  6 ++++--
+ test/fixedbugs/issue22164.go              | 26 ++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

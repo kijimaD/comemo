@@ -1,24 +1,27 @@
-commit 4ac638f4b7c49370a62db4e6232f2895d7bbda0d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 31 19:56:26 2023 +0000
+commit ea6c82845589a40c35f01122ce4e2931694ffc7f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 4 23:02:05 2022 -0700
 
-    Revert "Revert "runtime: consolidate function descriptor definitions on PPC64""
+    cmd/compile/internal/syntax: fix printing of ambiguous constraint literals
     
-    This reverts CL 481059, which in turn reverts CL 478917.
+    Without this change, the type parameter list "[P T | T]" is printed
+    as "[P T | T,]" in an attempt to avoid an ambiguity. But the type
+    parameter P cannot syntactically combine with the constraint T | T
+    and make a new valid expression.
     
-    Reason for revert: reapply the original CL.
+    This change introduces a specific combinesWithName predicate that
+    reports whether a constraint expression can combine with a type
+    parameter name to form a new valid (value) expression.
     
-    Change-Id: Icf6bb6a620313b44fadcc7f69a62fdbb943e34fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481075
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Use combinesWithName to accurately determine when a comma is needed.
+    
+    For #49482.
+    
+    Change-Id: Id1d17a18f0c9af04495da7b0453e83798f32b04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404397
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/asm_ppc64x.h       | 20 ++++++++++++++++++--
- src/runtime/asm_ppc64x.s       | 21 +++------------------
- src/runtime/cgo/asm_ppc64x.s   | 25 ++++++++++++-------------
- src/runtime/rt0_aix_ppc64.s    | 17 ++++-------------
- src/runtime/rt0_linux_ppc64.s  | 13 +++----------
- src/runtime/sys_linux_ppc64x.s | 23 ++++++-----------------
- 6 files changed, 46 insertions(+), 73 deletions(-)
+ src/cmd/compile/internal/syntax/printer.go      | 34 ++++++++++++++++++++-----
+ src/cmd/compile/internal/syntax/printer_test.go |  4 ++-
+ 2 files changed, 31 insertions(+), 7 deletions(-)

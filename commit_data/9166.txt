@@ -1,14 +1,15 @@
-commit 301d8a6d4aa9837530390b87266609bf1443566f
+commit 22853098a9a3139260b6d0efcd95a825999807b0
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 21 14:29:14 2011 -0400
+Date:   Thu Jul 21 14:10:39 2011 -0400
 
-    http: fix chunking bug during content sniffing
+    gc: select functions are no longer special
     
-    R=golang-dev, bradfitz, gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4807044
+    https://golang.org/cl/4794049
 
- src/pkg/http/httptest/server.go | 22 ++++++++++++++++-
- src/pkg/http/server.go          | 27 ++++++++++++++++-----
- src/pkg/http/sniff_test.go      | 54 ++++++++++++++++++++++++++++++++++-------
- 3 files changed, 87 insertions(+), 16 deletions(-)
+ src/cmd/gc/go.h        |  1 -
+ src/cmd/gc/subr.c      | 23 -----------------------
+ src/cmd/gc/walk.c      | 11 -----------
+ src/pkg/runtime/chan.c | 12 ++++++++++++
+ 4 files changed, 12 insertions(+), 35 deletions(-)

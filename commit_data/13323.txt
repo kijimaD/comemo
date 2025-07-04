@@ -1,12 +1,12 @@
-commit 56f5e6d845fe201cbd58351b610be55ab44c8c1c
+commit 0c2f0cca7cc29a38e710f23fa752eecfa2368392
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 8 14:04:44 2012 -0400
+Date:   Fri Jun 8 13:44:13 2012 -0400
 
-    syscall: fix windows build
+    cmd/api: handle empty API file, ignore -next in release
     
-    TBR=bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6303061
+    https://golang.org/cl/6298063
 
- src/pkg/syscall/syscall_windows_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/api/goapi.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

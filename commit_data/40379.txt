@@ -1,20 +1,23 @@
-commit 5a5854c2d1a0eed6d48734ab2cc674c25aa670cb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 22 11:59:00 2019 -0700
+commit 41df5aeb7f02a47ff7ccf5002140b70b04a4fd46
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 8 21:28:14 2019 +0000
 
-    runtime: fix -d=checkptr failure for testing/quick
+    cmd/go: set the "generate" build tag in go generate, per design doc
     
-    This CL extends checkptrBase to recognize pointers into the stack and
-    data/bss sections. I was meaning to do this eventually anyway, but
-    it's also an easy way to workaround #35068.
+    And use it in two internal windows packages, so they don't show up in
+    "go list std" or binary releases on non-Windows platforms.
     
-    Updates #35068.
+    Fixes #31920
     
-    Change-Id: Ib47f0aa800473a4fbc249da52ff03bec32c3ebe2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202639
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iaa292b6015c9d7310dd677c9e296006440ba5e27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175983
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/checkptr.go | 40 ++++++++++++++++++++++++++++++++++++----
- 1 file changed, 36 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go                              | 4 +++-
+ src/cmd/go/internal/generate/generate.go           | 7 ++++++-
+ src/internal/syscall/windows/mksyscall.go          | 2 ++
+ src/internal/syscall/windows/registry/mksyscall.go | 2 ++
+ 4 files changed, 13 insertions(+), 2 deletions(-)

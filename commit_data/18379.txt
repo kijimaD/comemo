@@ -1,17 +1,19 @@
-commit 7a73f32725ff8b13a4cca703972fa76e598f4436
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Jan 30 07:54:57 2014 +0100
+commit 289d46399b794a15be12f57a8162fa514bd8f306
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 29 16:14:45 2014 -0800
 
-    encoding/gob: fix two crashes on corrupted data.
+    cmd/8g: don't crash if Prog->u.branch is nil
+    The code is copied from cmd/6g.
+    Empirically, all branch targets are nil in this code so
+    something is still wrong, but at least this stops 8g -S
+    from crashing.
     
-    Fixes #6323.
+    Update #7178
     
-    LGTM=r
-    R=r
+    LGTM=dave, iant
+    R=iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/56870043
+    https://golang.org/cl/58400043
 
- src/pkg/encoding/gob/codec_test.go   | 56 ++++++++++++++++++++++++++++++++----
- src/pkg/encoding/gob/decode.go       |  6 +++-
- src/pkg/encoding/gob/encoder_test.go |  2 ++
- 3 files changed, 58 insertions(+), 6 deletions(-)
+ src/cmd/8g/list.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

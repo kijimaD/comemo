@@ -1,19 +1,16 @@
-commit 8fb9565832e6dbacaaa057ffabc251a9341f8d23
-Author: Adin Scannell <ascannell@google.com>
-Date:   Wed Feb 8 19:15:23 2023 +0000
+commit 234283d8aba1e892906e889782ae5723686da6c6
+Author: zhangjian <ZJ.Cosmos@gmail.com>
+Date:   Tue Mar 22 16:35:21 2022 +0000
 
-    runtime: fix signature for linked functions
+    go/build: remove unused code in TestDependencies
     
-    These functions are linked using go:linkname, but do not match the
-    original declarations. This change brings these in sync.
-    
-    Change-Id: I16651304c3dba2f9897c2c42e30555d2f7805c2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466615
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I7ccffbf96bd30f33bb42b6a2592962e2d4dda9fc
+    GitHub-Last-Rev: 2d6e214ac50bf505f8edf5ad8bf1c7f02e7b1194
+    GitHub-Pull-Request: golang/go#51231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386374
+    Reviewed-by: mzh <mzh@golangcn.org>
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/internal/poll/fd_poll_runtime.go | 2 +-
- src/sync/atomic/value.go             | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

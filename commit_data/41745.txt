@@ -1,34 +1,19 @@
-commit 16cfab8d89ec26a71356c73378ab92eafa6a7356
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Tue Nov 26 15:33:37 2019 -0500
+commit b2ea4e6d345652f44595c038301720344350b459
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 22 16:49:04 2019 -0400
 
-    cmd/compile: use load and test instructions on s390x
+    cmd/go: make 'go mod verify' report an error outside a module
     
-    The load and test instructions compare the given value
-    against zero and will produce a condition code indicating
-    one of the following scenarios:
+    Also, test that 'go mod download' without arguments reports an error.
     
-    0: Result is zero
-    1: Result is less than zero
-    2: Result is greater than zero
-    3: Result is not a number (NaN)
+    Fixes #32027
     
-    The instruction can be used to simplify floating point comparisons
-    against zero, which can enable further optimizations.
-    
-    This CL also reduces the size of .text section of math.test binary by around
-    0.7 KB (in hexadecimal, from 1358f0 to 135620).
-    
-    Change-Id: I33cb714f0c6feebac7a1c46dfcc735e7daceff9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209159
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I873fc59fba4c78ee2b4f49f0d846ee2ac0eee4db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202697
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/s390x/ssa.go        |  2 +
- src/cmd/compile/internal/ssa/gen/S390X.rules |  6 ++
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  7 ++-
- src/cmd/compile/internal/ssa/opGen.go        | 22 ++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 84 ++++++++++++++++++++++++++++
- test/codegen/floats.go                       | 10 ++++
- 6 files changed, 129 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modcmd/verify.go       |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt | 13 +++++++++----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

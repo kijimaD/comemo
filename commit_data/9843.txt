@@ -1,21 +1,14 @@
-commit 39493be2948231462eec6a0d045fb2b5adafa3c4
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Sep 30 13:13:39 2011 -0700
+commit f18e4e44a3e6ba037e8e05c65fde2b25048402d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 30 14:59:46 2011 -0400
 
-    io: rename Copyn to CopyN.
+    runtime: disable parallel gc
     
-    R=golang-dev, r
+    Breaks on Linux/386 during parallel sync tests.
+    
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5157045
+    https://golang.org/cl/5168044
 
- src/cmd/gofix/Makefile              |  1 +
- src/cmd/gofix/iocopyn.go            | 40 +++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/iocopyn_test.go       | 37 ++++++++++++++++++++++++++++++++++
- src/pkg/archive/tar/reader.go       |  2 +-
- src/pkg/http/fs.go                  |  2 +-
- src/pkg/http/transport_test.go      |  2 +-
- src/pkg/io/io.go                    |  6 +++---
- src/pkg/io/io_test.go               | 40 ++++++++++++++++++-------------------
- src/pkg/mime/multipart/formdata.go  |  4 ++--
- src/pkg/mime/multipart/multipart.go |  2 +-
- 10 files changed, 107 insertions(+), 29 deletions(-)
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

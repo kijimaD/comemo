@@ -1,12 +1,89 @@
-commit d293c85e397c328be13e58d79e34193f05f0707f
-Author: Kashav Madan <kshvmdn@gmail.com>
-Date:   Sat Jun 17 02:07:44 2017 -0400
+commit 5d6b7fcaa1444f6c17d519c9ce7bc0771bfd96ec
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Tue Mar 14 11:11:28 2017 -0700
 
-    doc: fix typo in Go 1.9 release notes
+    runtime: add mapdelete_fast*
     
-    Change-Id: Ia5c8fcff000bf3d369d42407342c470ea92e18da
-    Reviewed-on: https://go-review.googlesource.com/46006
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Add benchmarks for map delete with int32/int64/string key
+    
+    Benchmark results on darwin/amd64
+    
+    name                 old time/op  new time/op  delta
+    MapDelete/Int32/1-8   151ns ± 8%    99ns ± 3%  -34.39%  (p=0.008 n=5+5)
+    MapDelete/Int32/2-8   128ns ± 2%   111ns ±15%  -13.40%  (p=0.040 n=5+5)
+    MapDelete/Int32/4-8   128ns ± 5%   114ns ± 2%  -10.82%  (p=0.008 n=5+5)
+    MapDelete/Int64/1-8   144ns ± 0%   104ns ± 3%  -27.53%  (p=0.016 n=4+5)
+    MapDelete/Int64/2-8   153ns ± 1%   126ns ± 3%  -17.17%  (p=0.008 n=5+5)
+    MapDelete/Int64/4-8   178ns ± 3%   136ns ± 2%  -23.60%  (p=0.008 n=5+5)
+    MapDelete/Str/1-8     187ns ± 3%   171ns ± 3%   -8.54%  (p=0.008 n=5+5)
+    MapDelete/Str/2-8     221ns ± 3%   206ns ± 4%   -7.18%  (p=0.016 n=5+4)
+    MapDelete/Str/4-8     256ns ± 5%   232ns ± 2%   -9.36%  (p=0.016 n=4+5)
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              2.78s ± 7%     2.70s ± 1%    ~     (p=0.151 n=5+5)
+    Fannkuch11-8                3.21s ± 2%     3.19s ± 1%    ~     (p=0.310 n=5+5)
+    FmtFprintfEmpty-8          49.1ns ± 3%    50.2ns ± 2%    ~     (p=0.095 n=5+5)
+    FmtFprintfString-8         78.6ns ± 4%    80.2ns ± 5%    ~     (p=0.460 n=5+5)
+    FmtFprintfInt-8            79.7ns ± 1%    81.0ns ± 3%    ~     (p=0.103 n=5+5)
+    FmtFprintfIntInt-8          117ns ± 2%     119ns ± 0%    ~     (p=0.079 n=5+4)
+    FmtFprintfPrefixedInt-8     153ns ± 1%     146ns ± 3%  -4.19%  (p=0.024 n=5+5)
+    FmtFprintfFloat-8           239ns ± 1%     237ns ± 1%    ~     (p=0.246 n=5+5)
+    FmtManyArgs-8               506ns ± 2%     509ns ± 2%    ~     (p=0.238 n=5+5)
+    GobDecode-8                7.06ms ± 4%    6.86ms ± 1%    ~     (p=0.222 n=5+5)
+    GobEncode-8                6.01ms ± 5%    5.87ms ± 2%    ~     (p=0.222 n=5+5)
+    Gzip-8                      246ms ± 4%     236ms ± 1%  -4.12%  (p=0.008 n=5+5)
+    Gunzip-8                   37.7ms ± 4%    37.3ms ± 1%    ~     (p=0.841 n=5+5)
+    HTTPClientServer-8         64.9µs ± 1%    64.4µs ± 0%  -0.80%  (p=0.032 n=5+4)
+    JSONEncode-8               16.0ms ± 2%    16.2ms ±11%    ~     (p=0.548 n=5+5)
+    JSONDecode-8               53.2ms ± 2%    53.1ms ± 4%    ~     (p=1.000 n=5+5)
+    Mandelbrot200-8            4.33ms ± 2%    4.32ms ± 2%    ~     (p=0.841 n=5+5)
+    GoParse-8                  3.24ms ± 2%    3.27ms ± 4%    ~     (p=0.690 n=5+5)
+    RegexpMatchEasy0_32-8      86.2ns ± 1%    85.2ns ± 3%    ~     (p=0.286 n=5+5)
+    RegexpMatchEasy0_1K-8       198ns ± 2%     199ns ± 1%    ~     (p=0.310 n=5+5)
+    RegexpMatchEasy1_32-8      82.6ns ± 2%    81.8ns ± 1%    ~     (p=0.294 n=5+5)
+    RegexpMatchEasy1_1K-8       359ns ± 2%     354ns ± 1%  -1.39%  (p=0.048 n=5+5)
+    RegexpMatchMedium_32-8      123ns ± 2%     123ns ± 1%    ~     (p=0.905 n=5+5)
+    RegexpMatchMedium_1K-8     38.2µs ± 2%    38.6µs ± 8%    ~     (p=0.690 n=5+5)
+    RegexpMatchHard_32-8       1.92µs ± 2%    1.91µs ± 5%    ~     (p=0.460 n=5+5)
+    RegexpMatchHard_1K-8       57.6µs ± 1%    57.0µs ± 2%    ~     (p=0.310 n=5+5)
+    Revcomp-8                   483ms ± 7%     441ms ± 1%  -8.79%  (p=0.016 n=5+4)
+    Template-8                 58.0ms ± 1%    58.2ms ± 7%    ~     (p=0.310 n=5+5)
+    TimeParse-8                 324ns ± 6%     312ns ± 2%    ~     (p=0.087 n=5+5)
+    TimeFormat-8                330ns ± 1%     329ns ± 1%    ~     (p=0.968 n=5+5)
+    
+    name                     old speed      new speed      delta
+    GobDecode-8               109MB/s ± 4%   112MB/s ± 1%    ~     (p=0.222 n=5+5)
+    GobEncode-8               128MB/s ± 5%   131MB/s ± 2%    ~     (p=0.222 n=5+5)
+    Gzip-8                   78.9MB/s ± 4%  82.3MB/s ± 1%  +4.25%  (p=0.008 n=5+5)
+    Gunzip-8                  514MB/s ± 4%   521MB/s ± 1%    ~     (p=0.841 n=5+5)
+    JSONEncode-8              121MB/s ± 2%   120MB/s ±10%    ~     (p=0.548 n=5+5)
+    JSONDecode-8             36.5MB/s ± 2%  36.6MB/s ± 4%    ~     (p=1.000 n=5+5)
+    GoParse-8                17.9MB/s ± 2%  17.7MB/s ± 4%    ~     (p=0.730 n=5+5)
+    RegexpMatchEasy0_32-8     371MB/s ± 1%   375MB/s ± 3%    ~     (p=0.310 n=5+5)
+    RegexpMatchEasy0_1K-8    5.15GB/s ± 1%  5.13GB/s ± 1%    ~     (p=0.548 n=5+5)
+    RegexpMatchEasy1_32-8     387MB/s ± 2%   391MB/s ± 1%    ~     (p=0.310 n=5+5)
+    RegexpMatchEasy1_1K-8    2.85GB/s ± 2%  2.89GB/s ± 1%    ~     (p=0.056 n=5+5)
+    RegexpMatchMedium_32-8   8.07MB/s ± 2%  8.06MB/s ± 1%    ~     (p=0.730 n=5+5)
+    RegexpMatchMedium_1K-8   26.8MB/s ± 2%  26.6MB/s ± 7%    ~     (p=0.690 n=5+5)
+    RegexpMatchHard_32-8     16.7MB/s ± 2%  16.7MB/s ± 5%    ~     (p=0.421 n=5+5)
+    RegexpMatchHard_1K-8     17.8MB/s ± 1%  18.0MB/s ± 2%    ~     (p=0.310 n=5+5)
+    Revcomp-8                 527MB/s ± 6%   577MB/s ± 1%  +9.44%  (p=0.016 n=5+4)
+    Template-8               33.5MB/s ± 1%  33.4MB/s ± 7%    ~     (p=0.310 n=5+5)
+    
+    Updates #19495
+    
+    Change-Id: Ib9ece1690813d9b4788455db43d30891e2138df5
+    Reviewed-on: https://go-review.googlesource.com/38172
+    Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.9.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         | 184 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   3 +
+ src/cmd/compile/internal/gc/order.go           |  38 +++--
+ src/cmd/compile/internal/gc/walk.go            |  79 ++++++-----
+ src/runtime/hashmap_fast.go                    | 169 +++++++++++++++++++++++
+ src/runtime/map_test.go                        |  76 ++++++++--
+ test/live.go                                   |  10 +-
+ 7 files changed, 390 insertions(+), 169 deletions(-)

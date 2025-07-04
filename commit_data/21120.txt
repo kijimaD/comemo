@@ -1,14 +1,28 @@
-commit 6cb403319fd162f02499332e0aab32487c1b1ef8
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Jan 1 00:00:00 2015 +1100
+commit 3034be60d87cb927a6fcded5ffb6663ca5f93674
+Merge: 0fcf54b3d2 2ceca80e3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 16 16:53:53 2014 -0500
 
-    doc: 2015 will be the Year of the Gopher.
+    [dev.garbage] all: merge dev.cc (723ca3789b88) into dev.garbage
     
-    Change-Id: Ic2e34f84596b56715d5f41c9a5250f7c9f8e671b
-    Reviewed-on: https://go-review.googlesource.com/2087
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Brings in Linux time signature fixes. Should fix build.
+    
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/176870043
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/liblink/asm9.c                  | 1 -
+ src/liblink/list9.c                 | 6 +++---
+ src/liblink/obj9.c                  | 5 +----
+ src/runtime/defs_dragonfly_amd64.go | 4 ++--
+ src/runtime/defs_freebsd_386.go     | 4 ++--
+ src/runtime/defs_freebsd_amd64.go   | 4 ++--
+ src/runtime/defs_freebsd_arm.go     | 4 ++--
+ src/runtime/defs_linux_386.go       | 4 ++--
+ src/runtime/defs_linux_amd64.go     | 4 ++--
+ src/runtime/defs_linux_arm.go       | 4 ++--
+ src/runtime/defs_openbsd_386.go     | 4 ++--
+ src/runtime/defs_openbsd_amd64.go   | 4 ++--
+ src/runtime/os_linux_arm.go         | 7 +++++--
+ src/runtime/softfloat_arm.go        | 5 +++--
+ 14 files changed, 30 insertions(+), 30 deletions(-)

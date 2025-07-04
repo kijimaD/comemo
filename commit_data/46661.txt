@@ -1,22 +1,35 @@
-commit 2fad7dbb893737a01c7ab4f382720a2b0440b736
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 28 13:13:49 2021 -0700
+commit d8796b5670d46a4197fc5e81a32d127c45ab6557
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 15 18:19:00 2021 -0800
 
-    debug/gosym: add hook to disable recovers
+    [dev.typeparams] cmd/compile/internal/types2: report type of nil based on context
     
-    debug/gosym assumes throughout that bogus input means a malformed file.
-    That's generally true, but not when you're changing the package.
-    In that case, the panic usually indicates a newly introduced bug,
-    and seeing the panic is really useful.
+    With this CL, the type reported for uses of the predeclared
+    identifier nil changes from untyped nil to the type of the
+    context within which nil is used, matching the behaviour of
+    types2 for other untyped types.
     
-    Add a manually-enabled way to make panics panic.
+    If an untyped nil value is assigned or converted to an
+    interface, the nil expression is given the interface type.
     
-    Change-Id: I07af6c7b982c4cf61180db29f07aa63576ba7837
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352949
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    The predicate TypeAndValue.IsNil doesn't change in behavior,
+    it still reports whether the relevant expression is a (typed
+    or untyped) nil value.
+    
+    Change-Id: Id766468f3f3f2a53e4c55e1e6cd521e459c4a94f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284218
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/gosym/pclntab.go | 36 +++++++++++++++++++++++-------------
- 1 file changed, 23 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/api.go             |  7 ++-
+ src/cmd/compile/internal/types2/api_test.go        | 66 ++++++++++++----------
+ src/cmd/compile/internal/types2/assignments.go     | 10 +++-
+ src/cmd/compile/internal/types2/conversions.go     | 10 ++--
+ src/cmd/compile/internal/types2/expr.go            | 58 ++++++++-----------
+ src/cmd/compile/internal/types2/issues_test.go     |  2 +-
+ src/cmd/compile/internal/types2/operand.go         | 23 ++++++--
+ src/cmd/compile/internal/types2/testdata/stmt0.src |  6 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  9 +--
+ test/fixedbugs/issue6402.go                        |  2 +-
+ 10 files changed, 101 insertions(+), 92 deletions(-)

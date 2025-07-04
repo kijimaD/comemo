@@ -1,12 +1,15 @@
-commit f44304ee634ce8f97a0000b72dafba4fdbdf46b1
+commit 7d418aeed2f93014d2717da36dd08376e3fe2bf9
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 18 19:05:53 2012 -0800
+Date:   Wed Jan 18 19:05:44 2012 -0800
 
-    net/http: update the Client docs a bit
+    syscall: add Unix method to TimeSpec, TimeVal
     
-    R=golang-dev, dsymonds, adg
+    Fixes #2534
+    
+    R=golang-dev, dave, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5557058
+    https://golang.org/cl/5554057
 
- src/pkg/net/http/client.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/syscall/syscall.go         | 8 ++++++++
+ src/pkg/syscall/syscall_windows.go | 7 +++++++
+ 2 files changed, 15 insertions(+)

@@ -1,17 +1,21 @@
-commit 943e2635b304a24c001c793f22ff4493cc077daa
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 11 15:08:19 2017 -0800
+commit 577967799c22e5a443ec49f494039f80e08202fe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 12 13:42:10 2017 -0700
 
-    cmd/go: remove file created by test
+    cmd/compile: simplify exporting OTYPE nodes
     
-    The file cmd/go/testdata/src/testcache/script.sh was accidentally
-    committed with CL 83256. Sorry about that.
+    We only export packages that typechecked successfully, and OTYPE nodes
+    will always have their Type field set.
     
-    Updates #22593
+    Changes the package export format, but only in the compiler-specific
+    section. No version bump necessary.
     
-    Change-Id: Id8f07587ea97015ed75439db220560a5446e53e6
-    Reviewed-on: https://go-review.googlesource.com/83395
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I722f5827e73948fceb0432bc8b3b22471fea8f61
+    Reviewed-on: https://go-review.googlesource.com/63273
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/testdata/src/testcache/script.sh | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 6 +-----
+ src/cmd/compile/internal/gc/bimport.go | 6 +-----
+ 2 files changed, 2 insertions(+), 10 deletions(-)

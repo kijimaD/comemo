@@ -1,53 +1,21 @@
-commit 2fb5610c3a2f0b61714f167ff8f701518fbc9370
-Author: Julien Cretel <jub0bsinthecloud@gmail.com>
-Date:   Wed Mar 19 20:07:38 2025 +0000
+commit b138b19d2f7d99c462bf53b0dcc1ee98884630ab
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 13 13:20:01 2023 -0800
 
-    strings: speed up Replace
+    cmd/compile: use symbolic offsets of fields in internal/abi.ITab
     
-    Add benchmarks for Replace.
+    After this CL, we can reorder or pad internal/abi.ITab fields at will
+    (keeping Fun last, and updating ITabTypeOff correctly) without
+    breaking anything.
     
-    The length of parameter old does not change. Move the corresponding length
-    check outside the loop. Use range-over-int loops where possible.
-    
-    Some benchmark results (no changes to allocations):
-    
-    goos: darwin
-    goarch: amd64
-    pkg: strings
-    cpu: Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
-                                     │     old      │                new                 │
-                                     │    sec/op    │   sec/op     vs base               │
-    Replace/"hello"_"l"_"L"_0-8         6.102n ± 6%   6.139n ± 5%       ~ (p=0.644 n=20)
-    Replace/"hello"_"l"_"L"_-1-8        62.81n ± 1%   63.30n ± 1%       ~ (p=0.098 n=20)
-    Replace/"hello"_"x"_"X"_-1-8        12.19n ± 0%   12.49n ± 0%  +2.50% (p=0.000 n=20)
-    Replace/""_"x"_"X"_-1-8             12.20n ± 0%   12.51n ± 0%  +2.58% (p=0.000 n=20)
-    Replace/"radar"_"r"_"<r>"_-1-8      69.65n ± 0%   66.57n ± 0%  -4.43% (p=0.000 n=20)
-    Replace/""_""_"<>"_-1-8             39.54n ± 1%   35.84n ± 1%  -9.34% (p=0.000 n=20)
-    Replace/"banana"_"a"_"<>"_-1-8      79.95n ± 0%   79.21n ± 0%  -0.93% (p=0.000 n=20)
-    Replace/"banana"_"a"_"<>"_1-8       48.67n ± 1%   49.45n ± 0%  +1.60% (p=0.000 n=20)
-    Replace/"banana"_"a"_"<>"_1000-8    80.28n ± 1%   79.52n ± 0%  -0.95% (p=0.000 n=20)
-    Replace/"banana"_"an"_"<>"_-1-8     82.89n ± 1%   84.62n ± 1%  +2.09% (p=0.000 n=20)
-    Replace/"banana"_"ana"_"<>"_-1-8    56.45n ± 1%   57.41n ± 1%  +1.69% (p=0.000 n=20)
-    Replace/"banana"_""_"<>"_-1-8       114.5n ± 1%   104.8n ± 0%  -8.52% (p=0.000 n=20)
-    Replace/"banana"_""_"<>"_10-8       114.5n ± 0%   104.8n ± 0%  -8.43% (p=0.000 n=20)
-    Replace/"banana"_""_"<>"_6-8       104.00n ± 0%   95.43n ± 0%  -8.24% (p=0.000 n=20)
-    Replace/"banana"_""_"<>"_5-8        91.85n ± 1%   83.68n ± 1%  -8.89% (p=0.000 n=20)
-    Replace/"banana"_""_"<>"_1-8        43.73n ± 1%   40.17n ± 0%  -8.13% (p=0.000 n=20)
-    Replace/"banana"_"a"_"a"_-1-8       4.410n ± 0%   4.443n ± 0%  +0.76% (p=0.000 n=20)
-    Replace/"banana"_"a"_"a"_1-8        4.395n ± 0%   4.423n ± 1%  +0.64% (p=0.022 n=20)
-    Replace/"☺☻☹"_""_"<>"_-1-8          98.58n ± 0%   91.66n ± 0%  -7.02% (p=0.000 n=20)
-    geomean                             39.72n        38.59n       -2.83%
-    
-    Change-Id: Ia0c7798b24d95d7c98b488a6d4ce7e78de76db9d
-    GitHub-Last-Rev: 644fe36dcbe46b6a22febea5fe2cd566572b879c
-    GitHub-Pull-Request: golang/go#72868
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657935
+    Change-Id: Ib7bb5828519813e0d1aa36be5092f96fcd62b3be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549516
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/strings/strings.go      | 27 +++++++++++++++------------
- src/strings/strings_test.go | 16 ++++++++++++++++
- 2 files changed, 31 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go  | 15 ++++++++-------
+ src/cmd/compile/internal/walk/switch.go |  2 +-
+ src/cmd/compile/internal/walk/walk.go   |  5 +++--
+ src/internal/abi/iface.go               |  3 ---
+ 4 files changed, 12 insertions(+), 13 deletions(-)

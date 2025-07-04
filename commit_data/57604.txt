@@ -1,19 +1,19 @@
-commit 58e046b66c393ea2e17fff6958f8030e8948fb6f
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Oct 3 15:56:15 2024 +0000
+commit 2a0b8cfd801077359d4483801bd5ae3b3572b314
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:16:07 2023 -0700
 
-    go/ast/internal/tests: add missing copyright header
+    cmd/compile/internal/reflectdata: remove special case for init
     
-    I have forgotten to add it in CL 616340
+    Now that package initialization ordering is handled by types2 instead
+    of pkginit, we can get rid of this special case.
     
-    Change-Id: Ia4753aa20b5e2d9978c129f2ab7d063b63a5b8e2
-    GitHub-Last-Rev: 2a301b12df2573b1f85eece69175c109b462ab95
-    GitHub-Pull-Request: golang/go#69766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617616
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4b94df02813b662498ae7d2e829119e3bb932d6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520604
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/ast/internal/tests/sortimports_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/reflectdata/helpers.go | 10 ----------
+ 1 file changed, 10 deletions(-)

@@ -1,34 +1,20 @@
-commit a9bedc36a53f9d4ff6ab1c1a43c900c2fc8eba84
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 18 12:38:32 2023 -0700
+commit 550864e5d20d6d3507aae7d2797f84140963d555
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 26 20:52:09 2022 -0400
 
-    cmd/compile: ensure we keep top 32 bits zeroed for 32-bit arm64 ops
+    runtime: add cgo guard for exit hooks test
     
-    When rewriting, for example, MSUBW, we need to ensure that the result
-    has its 32 top bits zeroed. That's what the instruction is spec'd to do.
-    Normally, we'd only use MSUBW for computations on 32-bit values, and
-    as such the top 32 bits aren't normally used. But some situations, like
-    if we cast the result to a uint64, the top 32 bits do matter.
+    Add an additional guard to ensure that we don't try to run the "-race"
+    variant of the exit hooks test when CGO is explicitly turned off via
+    CGO_ENABLED=0 (this fixes a failure on the no-cgo builder caused
+    by CL 354790).
     
-    This comes up in 62131 because we have a rule saying, MOVWUreg applied
-    to a MSUBW is unnecessary, as the arg to MOVWUreg already has zeroed
-    top 32 bits. But if MSUBW is later rewritten to another op that doesn't
-    zero the top 32 bits (SUB, probably), getting rid of the MOVWUreg earlier
-    causes a problem.
-    
-    So change rewrite rules to always maintain the top 32 bits as zero if the
-    instruction is spec'd to provide that. We need to introduce a few *W operations
-    to make that happen.
-    
-    Fixes #62131
-    
-    Change-Id: If3d160821e285fd7454746b735a243671bff8894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520916
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I9dc7fbd71962e9a098916da69d9119a753f27116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434935
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 152 ++---
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 794 +++++++++++++++-----------
- 2 files changed, 534 insertions(+), 412 deletions(-)
+ src/runtime/ehooks_test.go                          | 15 ++++++++-------
+ src/runtime/testdata/testexithooks/testexithooks.go |  2 --
+ 2 files changed, 8 insertions(+), 9 deletions(-)

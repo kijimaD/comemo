@@ -1,22 +1,22 @@
-commit c0c1bbde172c33e6e4ea994b413f23ca42c50c06
-Author: minherz <minherz@gmail.com>
-Date:   Sun Jun 12 22:26:02 2022 -0700
+commit 17e9d148d3354f8da745e6533213ca5b348b719e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 1 15:24:01 2021 +0200
 
-    http: improve Get documentation
+    syscall: drop fallback to utimes in UtimesNano on Linux
     
-    The existing documentation is unclear about header keys formatting.
-    The clarifying sentence is added to Get function to emphasis that
-    keys have to be stored in canonical format to have Get returining
-    non empty value.
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The current minimum required version is 2.6.23 and
+    utimensat was added in 2.6.22, so the fallback isn't even necessary for
+    the current minimum supported version. Remove the fallback to utimes.
     
-    Fixes #53140
+    For #45964
     
-    Change-Id: Icd0955bcbb6676cec028fe37042aed5846e13ed1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417975
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I5536f6ea7a34944dd9165f1533c10692171fb0c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346790
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/header.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/syscall/syscall_linux.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

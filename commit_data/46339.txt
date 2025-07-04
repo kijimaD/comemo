@@ -1,18 +1,125 @@
-commit b606739be6758615658188c8a6453256eaeccf35
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 7 15:13:51 2021 -0700
+commit 9ee309255a94499c6f4e6d3ac7653b5eeb4ae7b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:08:03 2020 -0500
 
-    reflect: add test for passing float32 signaling NaNs
+    [dev.regabi] cmd/compile: move helpers into package types [generated]
     
-    Update #40724
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            # Type hash (formatting).
+            mv typehash TypeHash
+            mv TypeHash fmt.go
     
-    Change-Id: I110cdb7c4a2c5db6b85ca951143430555261abf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348017
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+            # Method sorting.
+            mv methcmp MethodsByName
+            mv MethodsByName MethodsByName.Len MethodsByName.Swap \
+                    MethodsByName.Less sort.go
+    
+            # Move version check into types.
+            # A little surprising, but its keyed off the types.Pkg.
+            ex {
+                    import "cmd/compile/internal/types"
+                    var p *types.Pkg
+                    var major, minor int
+                    langSupported(major, minor, p) -> AllowsGoVersion(p, major, minor)
+            }
+            rm langSupported
+            mv checkLang ParseLangFlag
+            mv lang langWant AllowsGoVersion ParseLangFlag \
+                    parseLang currentLang goVersionRE goversion.go
+    
+            mv testdclstack CheckDclstack
+            mv CheckDclstack scope.go
+    
+            mv algtype1 AlgType
+            mv isComplex IsComplex
+            mv isFloat IsFloat
+            mv isInt IsInt
+            mv issimple IsSimple
+            mv okforcmp IsOrdered
+            mv floatForComplex FloatForComplex
+            mv complexForFloat ComplexForFloat
+            mv isdirectiface IsDirectIface
+            mv isifacemethod IsInterfaceMethod
+            mv isMethodApplicable IsMethodApplicable
+            mv ispaddedfield IsPaddedField
+            mv isRuntimePkg IsRuntimePkg
+            mv isReflectPkg IsReflectPkg
+            mv methtype ReceiverBaseType
+            mv typesymname TypeSymName
+            mv typesym TypeSym
+            mv typeLookup TypeSymLookup
+            mv IsAlias IsDotAlias
+            mv isreflexive IsReflexive
+            mv simtype SimType
+    
+            # The type1.go here is to avoid an undiagnosed bug in rf
+            # that does not get the follow-up typechecking right if we
+            # move directly to type.go during the mv into package types below.
+            mv \
+                    IsInt IsOrdered IsReflexive \
+                    IsDirectIface IsInterfaceMethod IsMethodApplicable IsPaddedField \
+                    IsRuntimePkg IsReflectPkg ReceiverBaseType \
+                    FloatForComplex ComplexForFloat \
+                    TypeSym TypeSymLookup TypeSymName \
+                    typepkg SimType \
+                    type1.go
+    
+            # The alg1.go here is because we are only moving part of alg.go.
+            mv typeHasNoAlg TypeHasNoAlg
+            mv AlgKind ANOEQ AlgType TypeHasNoAlg IsComparable IncomparableField IsPaddedField alg1.go
+    
+            mv IsDotAlias pkg.go
+    
+            mv alg1.go algkind_string.go fmt.go goversion.go pkg.go \
+                    CheckDclstack \ # scope.go
+                    sort.go type1.go \
+                    cmd/compile/internal/types
+    '
+    cd ../types
+    rf '
+            mv IsDclstackValid isDclstackValid
+            mv alg1.go alg.go
+            mv type1.go type.go
+    '
+    
+    Change-Id: I8bd53b21c7bdd1770e1b525de32f136833e84c9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279307
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/abi_test.go | 25 +++++++++++++++++++++++++
- src/reflect/all_test.go |  3 ++-
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go                 | 271 +++++----------------
+ src/cmd/compile/internal/gc/align.go               |   8 +-
+ src/cmd/compile/internal/gc/const.go               |   6 +-
+ src/cmd/compile/internal/gc/dcl.go                 |  17 +-
+ src/cmd/compile/internal/gc/escape.go              |   4 +-
+ src/cmd/compile/internal/gc/go.go                  |  28 ---
+ src/cmd/compile/internal/gc/gsubr.go               |   2 +-
+ src/cmd/compile/internal/gc/iexport.go             |   6 +-
+ src/cmd/compile/internal/gc/inl.go                 |   8 +-
+ src/cmd/compile/internal/gc/main.go                |  93 +------
+ src/cmd/compile/internal/gc/noder.go               |   6 +-
+ src/cmd/compile/internal/gc/obj.go                 |   2 +-
+ src/cmd/compile/internal/gc/order.go               |   2 +-
+ src/cmd/compile/internal/gc/pgen.go                |   4 +-
+ src/cmd/compile/internal/gc/range.go               |   2 +-
+ src/cmd/compile/internal/gc/reflect.go             | 108 ++------
+ src/cmd/compile/internal/gc/sinit.go               |   4 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  44 +---
+ src/cmd/compile/internal/gc/subr.go                | 112 ++-------
+ src/cmd/compile/internal/gc/swt.go                 |  10 +-
+ src/cmd/compile/internal/gc/typecheck.go           |  30 +--
+ src/cmd/compile/internal/gc/universe.go            |  56 ++---
+ src/cmd/compile/internal/gc/walk.go                |  24 +-
+ src/cmd/compile/internal/types/alg.go              | 173 +++++++++++++
+ .../internal/{gc => types}/algkind_string.go       |   2 +-
+ src/cmd/compile/internal/types/fmt.go              |  11 +
+ src/cmd/compile/internal/types/goversion.go        |  96 ++++++++
+ src/cmd/compile/internal/types/pkg.go              |   4 +
+ src/cmd/compile/internal/types/scope.go            |   8 +-
+ src/cmd/compile/internal/types/sort.go             |  14 ++
+ src/cmd/compile/internal/types/type.go             | 202 +++++++++++++++
+ 31 files changed, 691 insertions(+), 666 deletions(-)

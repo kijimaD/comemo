@@ -1,18 +1,20 @@
-commit 3d562de8e38317a06fbf860e60f71c5e4f0ceab6
-Author: bogem <albertnigma@gmail.com>
-Date:   Sat Sep 10 18:34:07 2016 +0500
+commit e9407ae514df7d18e162ce03ebd530fe21aed16d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed May 11 10:23:37 2016 -0700
 
-    os: delete code duplications in error files
+    cmd/pprof: remove tempDir when no longer needed
     
-    Change-Id: I1ec2fcf81a7a9e45a2fae8c02c8adabc7841b4fa
-    Reviewed-on: https://go-review.googlesource.com/29013
+    The pprof tools properly cleans up all files it creates, but forgets
+    to clean up the temporary directory itself. This CL fixes that.
+    
+    Fixes #13863
+    
+    Change-Id: I1151c36cdad5ace7cc97e7e04001cf0149ef0f63
+    Reviewed-on: https://go-review.googlesource.com/23019
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/error.go         | 13 +++++++++++++
- src/os/error_plan9.go   | 48 ++++++++++++++++--------------------------------
- src/os/error_unix.go    | 33 +++------------------------------
- src/os/error_windows.go | 33 +++------------------------------
- 4 files changed, 35 insertions(+), 92 deletions(-)
+ src/cmd/internal/pprof/commands/commands.go | 1 +
+ src/cmd/internal/pprof/tempfile/tempfile.go | 9 +++++----
+ 2 files changed, 6 insertions(+), 4 deletions(-)

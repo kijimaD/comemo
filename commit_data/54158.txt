@@ -1,17 +1,36 @@
-commit 1f544ef0ebebd5bc19a8d4d1c6e09ccb01e59b95
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 13:14:44 2023 -0700
+commit fa13731a45049eca149bdfd807c35d18ece6a85a
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Tue Sep 27 17:36:26 2022 +0000
 
-    cmd/compile/internal/types: refactor struct size calculation
+    debug/elf: return error on reading from SHT_NOBITS sections
     
-    This CL simplifies how struct sizes and field offsets are calculated.
+    An SHT_NOBITS section contains no bytes and occupies no space in the
+    file. This change makes it return an error on reading from this section
+    so that it will force the caller to check for an SHT_NNOBITS section.
     
-    Change-Id: If4af778cb49218d295277df596e45bdd8b23ed9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521276
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    We have considered another option to return "nil, nil" for the Data
+    method. It's abandoned because it might lead a program to simply do
+    the wrong thing, thinking that the section is empty.
+    
+    Please note that it breaks programs which expect a byte slice with the
+    length described by the sh_size field. There are two reasons to
+    introduce this breaking change: 1. SHT_NOBITS means no data and it's
+    unnecessary to allocate memory for it; 2. it could result in an OOM if
+    the file is corrupted and has a huge sh_size.
+    
+    Fixes #54967.
+    
+    Change-Id: I0c3ed4e097214fe88413d726a89122105ad45d4f
+    GitHub-Last-Rev: 994c12d9da8c7029ce1d26eb1eb4d333ef3b1f97
+    GitHub-Pull-Request: golang/go#54994
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429601
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/types/size.go | 159 +++++++++++++++------------------
- 1 file changed, 70 insertions(+), 89 deletions(-)
+ src/debug/elf/elf_test.go  | 22 ----------------------
+ src/debug/elf/file.go      | 16 +++++++++-------
+ src/debug/elf/file_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 29 deletions(-)

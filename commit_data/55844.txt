@@ -1,39 +1,28 @@
-commit 997636760e2d981bb2f5ba486e0702e60a07ba16
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 8 13:54:10 2024 +1100
+commit 50479b79bcd5920bcbca9698f6a382660bb53179
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Mar 17 11:40:25 2023 -0400
 
-    cmd/compile,cmd/internal/obj: provide rotation pseudo-instructions for riscv64
+    cmd/go: make sure linker -o for plugin doesn't include tempdir path
     
-    Provide and use rotation pseudo-instructions for riscv64. The RISC-V bitmanip
-    extension adds support for hardware rotation instructions in the form of ROL,
-    ROLW, ROR, RORI, RORIW and RORW. These are easily implemented in the assembler
-    as pseudo-instructions for CPUs that do not support the bitmanip extension.
+    There is already a case that when buildmode=shared passes only the
+    basename of the -o argument to the link command to the linker (and
+    runs in the directory of that argument) to avoid having that
+    (temporary) directory of the file be included in the LC_ID_DYLIB load
+    command. Extend the case to buildmode=plugin, because the same thing
+    can happen there.
     
-    This approach provides a number of advantages, including reducing the rewrite
-    rules needed in the compiler, simplifying codegen tests and most importantly,
-    allowing these instructions to be used in assembly (for example, riscv64
-    optimised versions of SHA-256 and SHA-512). When bitmanip support is added,
-    these instruction sequences can simply be replaced with a single instruction
-    if permitted by the GORISCV64 profile.
+    This can only happen on darwin: the -o command can be embedded into
+    Mach-O and PE binaries, but plugin isn't supported on Windows.
     
-    Change-Id: Ia23402e1a82f211ac760690deb063386056ae1fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565015
+    For #58557
+    
+    Change-Id: I7a4a5627148e77c6906ac4583af3d9f053d5b249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477296
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s     |  18 +++
- src/cmd/compile/internal/riscv64/ssa.go         |   4 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  15 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  14 +-
- src/cmd/compile/internal/ssa/opGen.go           | 124 +++++++++++++---
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 185 ++++++++++++++++++------
- src/cmd/internal/obj/riscv/anames.go            |   6 +
- src/cmd/internal/obj/riscv/cpu.go               |   6 +
- src/cmd/internal/obj/riscv/obj.go               |  51 ++++++-
- src/crypto/sha512/sha512block_riscv64.s         |  25 ++--
- test/codegen/rotate.go                          |  24 +--
- 11 files changed, 376 insertions(+), 96 deletions(-)
+ src/cmd/go/internal/work/gc.go                           |  2 +-
+ src/cmd/go/testdata/script/build_plugin_reproducible.txt | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

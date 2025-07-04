@@ -1,28 +1,16 @@
-commit f4e7a6b905ce60448e506a3f6578d01b60602cdd
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Dec 15 15:54:25 2020 -0500
+commit afbf9d47dd993fe235c58df611a3fdb4eb526bfc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 5 00:00:54 2020 -0400
 
-    cmd/internal/goobj: fix buglet in object file reader
+    [dev.link] cmd/link: use new reloc pass on ARM
     
-    The code in the new (introduced in 1.15) Go object file reader was
-    casting a pointer-mmaped-memory into a large array prior to performing
-    a read of the relocations section:
-    
-            return (*[1<<20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
-    
-    For very large object files, this artificial array isn't large enough
-    (that is, there are more than 1048576 relocs to read), so update the
-    code to use a larger artifical array size.
-    
-    Fixes #41621.
-    
-    Change-Id: Ic047c8aef4f8a3839f2e7e3594bce652ebd6bd5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278492
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: I7dde19dbc0b912c4d2446c90364f86e7213add81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232299
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/goobj/objfile.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/arm/asm.go | 70 ++++++++++++++++------------------------
+ src/cmd/link/internal/arm/obj.go |  2 +-
+ src/cmd/link/internal/ld/main.go |  2 +-
+ 3 files changed, 30 insertions(+), 44 deletions(-)

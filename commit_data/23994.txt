@@ -1,14 +1,18 @@
-commit 5973558826c14baf4be28e438af608d397ea08dd
-Author: Joe Shaw <joe@joeshaw.org>
-Date:   Thu Aug 6 13:05:30 2015 -0400
+commit ebfc5be5b9489aabe0755d0d7bd943852b03f1c5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 25 14:12:48 2015 +1000
 
-    doc: remove duplicate -asmflags mention
+    cmd/go: adjust TestFileLineInErrorMessages
     
-    Fixes #12053
+    cmd/go sometimes returns relative path in the error message
+    (see shortPath function). Account for that during
+    TestFileLineInErrorMessages.
     
-    Change-Id: Icd883b4f1ac944a8ec718c79770a8e3fc6542e3a
-    Reviewed-on: https://go-review.googlesource.com/13259
+    Fixes #11355
+    
+    Change-Id: Ica79359eab48d669d307449fdd458764895fab2c
+    Reviewed-on: https://go-review.googlesource.com/11475
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.html | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/go/go_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

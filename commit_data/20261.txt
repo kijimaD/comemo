@@ -1,17 +1,24 @@
-commit 9aa7d136f52928587a6bd2db320f4f4f2b6b0666
+commit 6179aca54825867db3ab15bfff28fbda73e49378
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 2 19:18:46 2014 -0400
+Date:   Thu Aug 28 10:46:59 2014 -0400
 
-    runtime: avoid race with forcegc helper
+    runtime: convert runtime1.goc, noasm_arm.goc to Go
     
-    While we are here, give the gc helper a real function name
-    that will appear in stack traces.
-    
-    LGTM=rlh
-    R=rlh
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/133470043
+    LGTM=dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/135070043
 
- src/pkg/runtime/proc.c  |  9 ++++++---
- src/pkg/runtime/proc.go | 34 ++++++++++++++++++----------------
- 2 files changed, 24 insertions(+), 19 deletions(-)
+ src/pkg/runtime/asm_386.s      |   2 +-
+ src/pkg/runtime/asm_amd64.s    |   2 +-
+ src/pkg/runtime/asm_amd64p32.s |   2 +-
+ src/pkg/runtime/debug.go       |  26 +++++++--
+ src/pkg/runtime/error.go       |   5 +-
+ src/pkg/runtime/extern.go      |  69 ++++++++++++++++++++++--
+ src/pkg/runtime/noasm_arm.go   |  54 +++++++++++++++++++
+ src/pkg/runtime/noasm_arm.goc  |  74 --------------------------
+ src/pkg/runtime/runtime.c      |   7 +++
+ src/pkg/runtime/runtime1.goc   | 116 -----------------------------------------
+ src/pkg/runtime/stubs.goc      |   5 ++
+ src/pkg/runtime/thunk.s        |   6 +++
+ 12 files changed, 167 insertions(+), 201 deletions(-)

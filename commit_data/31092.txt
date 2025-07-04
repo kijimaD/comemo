@@ -1,22 +1,23 @@
-commit e49627d355820684527ea7e50522087e1234fa16
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Apr 10 21:33:27 2017 -0500
+commit 3e55059f305bde37a4dac1397e8a1b798b6fbd9e
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Jan 30 19:55:35 2017 +0100
 
-    plugin: properly handle recursively defined types
+    cmd/dist: really skip the testsanitizers tests on Android
     
-    Prevent a crash if the same type in two plugins had a recursive
-    definition, either by referring to a pointer to itself or a map existing
-    with the type as a value type (which creates a recursive definition
-    through the overflow bucket type).
+    The test.bash script in misc/cgo/testsanitizers use GOOS, not GOHOSTOS.
+    Fix the dist check from gohostos to goos accordingly.
     
-    Fixes #19258
+    The error was masked on the builders because they run on a darwin host
+    where the sanitizers tests never ran.
     
-    Change-Id: Iac1cbda4c5b6e8edd5e6859a4d5da3bad539a9c6
-    Reviewed-on: https://go-review.googlesource.com/40292
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    With this change, the Android test suite completes successfully on
+    Android/amd64.
+    
+    Change-Id: Id7690429f78c6ac7a26fc9118d913b719b565bb2
+    Reviewed-on: https://go-review.googlesource.com/35959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testplugin/unnamed1.go | 11 +++++++++++
- misc/cgo/testplugin/unnamed2.go |  9 +++++++++
- src/runtime/type.go             | 38 +++++++++++++++++++++++++++-----------
- 3 files changed, 47 insertions(+), 11 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

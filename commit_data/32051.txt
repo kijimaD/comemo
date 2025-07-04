@@ -1,17 +1,24 @@
-commit 8bb88fdcc2b5a6c1b02f601ff8652cef82c78124
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 17 11:12:20 2017 -0400
+commit 5a45a157f2e94cb3fec38a3be8afa3bffd800067
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Mar 30 16:03:03 2017 -0700
 
-    strconv: apply Brad's review comment
+    database/sql: support scanning into user defined string types
     
-    Missed in CL 49253 because I submitted from the Gerrit UI and
-    had not mailed the latest copy. Sigh.
+    User defined numeric types such as "type Int int64" have
+    been able to be scanned into without a custom scanner by
+    using the reflect scan code path used to convert between
+    various numeric types. Add in a path for string types
+    for symmetry and least surprise.
     
-    Change-Id: I540f960278df43e2eaf1aac188eb124a1ff240dd
-    Reviewed-on: https://go-review.googlesource.com/49256
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #18101
+    
+    Change-Id: I00553bcf021ffe6d95047eca0067ee94b54ff501
+    Reviewed-on: https://go-review.googlesource.com/39031
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strconv/atof_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/database/sql/convert.go      | 14 ++++++++++++++
+ src/database/sql/convert_test.go | 13 ++++++++++---
+ src/database/sql/sql_test.go     | 18 ++++++++++++++++++
+ 3 files changed, 42 insertions(+), 3 deletions(-)

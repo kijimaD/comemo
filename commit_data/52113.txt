@@ -1,20 +1,22 @@
-commit 0ff91e03dbb7ed169915b12793cbee9ca9798d4c
-Author: RenKanai <rk2904powr@gmail.com>
-Date:   Sun Mar 27 22:06:22 2022 +0900
+commit 5a6a830c1ceafd551937876f11590fd60aea1799
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 5 14:34:47 2022 -0400
 
-    cmd/go: reject list when -find and -export are used together
+    cmd/vendor: undo stray edits from CL 384262
     
-    Fixes #51952.
+    cmd/internal/moddeps is currently failing on the longtest builders
+    because vendored third-party dependencies were accidentally edited as
+    part of CL 384262 (a global cleanup of the standard library).
     
-    Change-Id: If2cfc41d65373ca38cfb7b0396be8988d444eb5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396074
+    Updates #51082
+    
+    Change-Id: I6f79c8f1177420a51128ce42d6c14fa5dcc4bd7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398455
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go            | 2 ++
- src/cmd/go/internal/list/list.go | 5 +++++
- 2 files changed, 7 insertions(+)
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go  | 2 +-
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

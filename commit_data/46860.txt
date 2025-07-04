@@ -1,31 +1,24 @@
-commit ac6d706a058de56e5817ea820df4ed59492adbdf
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Aug 10 14:51:57 2021 -0700
+commit 493363ccff354ab5ed133f6d5fac942ba6cc034a
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Feb 8 18:24:13 2021 -0500
 
-    [dev.typeparams] cmd/compile: add test for number of instantiations
+    [dev.regabi] go/types: must not import a package called "init"
     
-    Add a test for a generic sort function, operating on several different
-    pointer types (across two packages), so they should all share the same
-    shape-based instantiation. Actually check that only one instantiation of
-    Sort is created using 'go tool nm', and also check that the output is
-    correct.
+    This is a port of CL 287494 to go/types. The additional checks in
+    test/fixedbugs are included, though they won't be executed by go/types.
+    Support for errorcheckdir checks will be added to go/types in a later
+    CL.
     
-    In order to do the test on the executable using 'go nm', added this as a
-    'go test' in cmd/compile/internal/test.
-    
-    Added the genembed.go test that I meant to include with a previous CL.
-    
-    Change-Id: I9962913c2f1809484c2b1dfef3b07e4c8770731c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354696
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I37e202ea5daf7d7b8fc6ae93a4c4dbd11762480f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290570
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/test/inst_test.go         | 71 ++++++++++++++++++++++
- .../internal/test/testdata/mysort/mysort.go        | 40 ++++++++++++
- src/cmd/compile/internal/test/testdata/ptrsort.go  | 30 +++++++++
- src/cmd/compile/internal/test/testdata/ptrsort.out |  3 +
- test/typeparam/genembed.go                         | 52 ++++++++++++++++
- 5 files changed, 196 insertions(+)
+ src/go/types/resolver.go                           | 25 +++++++++++-----------
+ src/go/types/testdata/importdecl0/importdecl0a.src |  2 +-
+ test/fixedbugs/issue43962.dir/a.go                 |  5 +++++
+ test/fixedbugs/issue43962.dir/b.go                 |  7 ++++++
+ test/fixedbugs/issue43962.go                       |  9 ++++++++
+ 5 files changed, 35 insertions(+), 13 deletions(-)

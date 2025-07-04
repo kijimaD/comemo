@@ -1,171 +1,19 @@
-commit fb0fe4277d8393110569b66944dffb4b2c2c1687
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 16 17:44:16 2017 -0500
+commit e9abf1a7166186cdcf84ccfd028c2c66f1ec4788
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 13:58:21 2017 +1100
 
-    expvar: replace RWMutex usage with sync.Map and atomics
+    cmd/link: introduce shNames
     
-    Int and Float already used atomics.
+    Introduce a slice that keeps long pe section names as we add them.
+    It will be used later to output pe symbol table and dwarf relocations.
     
-    When many goroutines on many CPUs concurrently update a StringSet or a
-    Map with different keys per goroutine, this change results in dramatic
-    steady-state speedups.
+    For #10776.
     
-    This change does add some overhead for single-CPU and ephemeral maps.
-    I believe that is mostly due to an increase in allocations per call
-    (to pack the map keys and values into interface{} values that may
-    escape into the heap). With better inlining and/or escape analysis,
-    the single-CPU penalty may decline somewhat.
-    
-    There are still two RWMutexes in the package: one for the keys in the
-    global "vars" map, and one for the keys in individual Map variables.
-    
-    Those RWMutexes could also be eliminated, but avoiding excessive
-    allocations when adding new keys would require care. The remaining
-    RWMutexes are only acquired in Do functions, which I believe are not
-    typically on the fast path.
-    
-    updates #17973
-    updates #18177
-    
-    name             old time/op    new time/op    delta
-    StringSet          65.9ns ± 8%    55.7ns ± 1%   -15.46%  (p=0.000 n=8+7)
-    StringSet-6         416ns ±22%     127ns ±19%   -69.37%  (p=0.000 n=8+8)
-    StringSet-48        309ns ± 8%      94ns ± 3%   -69.43%  (p=0.001 n=7+7)
-    
-    name             old alloc/op   new alloc/op   delta
-    StringSet           0.00B         16.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    StringSet-6         0.00B         16.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    StringSet-48        0.00B         16.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    
-    name             old allocs/op  new allocs/op  delta
-    StringSet            0.00           1.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    StringSet-6          0.00           1.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    StringSet-48         0.00           1.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    
-    https://perf.golang.org/search?q=upload:20170427.3
-    
-    name                           old time/op    new time/op    delta
-    IntAdd                           5.64ns ± 3%    5.58ns ± 1%      ~     (p=0.185 n=8+8)
-    IntAdd-6                         18.6ns ±32%    21.4ns ±21%      ~     (p=0.078 n=8+8)
-    IntAdd-48                        19.6ns ±13%    20.6ns ±19%      ~     (p=0.702 n=8+8)
-    IntSet                           5.50ns ± 1%    5.48ns ± 0%      ~     (p=0.222 n=7+8)
-    IntSet-6                         18.5ns ±16%    20.4ns ±30%      ~     (p=0.314 n=8+8)
-    IntSet-48                        19.7ns ±12%    20.4ns ±16%      ~     (p=0.522 n=8+8)
-    FloatAdd                         14.5ns ± 1%    14.6ns ± 2%      ~     (p=0.237 n=7+8)
-    FloatAdd-6                       69.9ns ±13%    68.4ns ± 7%      ~     (p=0.557 n=7+7)
-    FloatAdd-48                       110ns ± 9%     109ns ± 6%      ~     (p=0.667 n=8+8)
-    FloatSet                         7.62ns ± 3%    7.64ns ± 5%      ~     (p=0.939 n=8+8)
-    FloatSet-6                       20.7ns ±22%    21.0ns ±23%      ~     (p=0.959 n=8+8)
-    FloatSet-48                      20.4ns ±24%    20.8ns ±19%      ~     (p=0.899 n=8+8)
-    MapSet                           88.1ns ±15%   200.9ns ± 7%  +128.11%  (p=0.000 n=8+8)
-    MapSet-6                          453ns ±12%     202ns ± 8%   -55.43%  (p=0.000 n=8+8)
-    MapSet-48                         432ns ±12%     240ns ±15%   -44.49%  (p=0.000 n=8+8)
-    MapSetDifferent                   349ns ± 1%     876ns ± 2%  +151.08%  (p=0.001 n=6+7)
-    MapSetDifferent-6                1.74µs ±32%    0.25µs ±17%   -85.71%  (p=0.000 n=8+8)
-    MapSetDifferent-48               1.77µs ±10%    0.14µs ± 2%   -91.84%  (p=0.000 n=8+8)
-    MapSetString                     88.1ns ± 7%   205.3ns ± 5%  +132.98%  (p=0.001 n=7+7)
-    MapSetString-6                    438ns ±30%     205ns ± 9%   -53.15%  (p=0.000 n=8+8)
-    MapSetString-48                   419ns ±14%     241ns ±15%   -42.39%  (p=0.000 n=8+8)
-    MapAddSame                        686ns ± 9%    1010ns ± 5%   +47.41%  (p=0.000 n=8+8)
-    MapAddSame-6                      238ns ±10%     300ns ±11%   +26.22%  (p=0.000 n=8+8)
-    MapAddSame-48                     366ns ± 4%     483ns ± 3%   +32.06%  (p=0.000 n=8+8)
-    MapAddDifferent                  1.96µs ± 4%    3.24µs ± 6%   +65.58%  (p=0.000 n=8+8)
-    MapAddDifferent-6                 553ns ± 3%     948ns ± 8%   +71.43%  (p=0.000 n=7+8)
-    MapAddDifferent-48                548ns ± 4%    1242ns ±10%  +126.81%  (p=0.000 n=8+8)
-    MapAddSameSteadyState            31.5ns ± 7%    41.7ns ± 6%   +32.61%  (p=0.000 n=8+8)
-    MapAddSameSteadyState-6           239ns ± 7%     101ns ±30%   -57.53%  (p=0.000 n=7+8)
-    MapAddSameSteadyState-48          152ns ± 4%      85ns ±13%   -43.84%  (p=0.000 n=8+7)
-    MapAddDifferentSteadyState        151ns ± 5%     177ns ± 1%   +17.32%  (p=0.001 n=8+6)
-    MapAddDifferentSteadyState-6      861ns ±15%      62ns ±23%   -92.85%  (p=0.000 n=8+8)
-    MapAddDifferentSteadyState-48     617ns ± 2%      20ns ±14%   -96.75%  (p=0.000 n=8+8)
-    RealworldExpvarUsage             4.33µs ± 4%    4.48µs ± 6%      ~     (p=0.336 n=8+7)
-    RealworldExpvarUsage-6           2.12µs ±20%    2.28µs ±10%      ~     (p=0.228 n=8+6)
-    RealworldExpvarUsage-48          1.23µs ±19%    1.36µs ±16%      ~     (p=0.152 n=7+8)
-    
-    name                           old alloc/op   new alloc/op   delta
-    IntAdd                            0.00B          0.00B           ~     (all equal)
-    IntAdd-6                          0.00B          0.00B           ~     (all equal)
-    IntAdd-48                         0.00B          0.00B           ~     (all equal)
-    IntSet                            0.00B          0.00B           ~     (all equal)
-    IntSet-6                          0.00B          0.00B           ~     (all equal)
-    IntSet-48                         0.00B          0.00B           ~     (all equal)
-    FloatAdd                          0.00B          0.00B           ~     (all equal)
-    FloatAdd-6                        0.00B          0.00B           ~     (all equal)
-    FloatAdd-48                       0.00B          0.00B           ~     (all equal)
-    FloatSet                          0.00B          0.00B           ~     (all equal)
-    FloatSet-6                        0.00B          0.00B           ~     (all equal)
-    FloatSet-48                       0.00B          0.00B           ~     (all equal)
-    MapSet                            0.00B         48.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSet-6                          0.00B         48.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSet-48                         0.00B         48.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetDifferent                   0.00B        192.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetDifferent-6                 0.00B        192.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetDifferent-48                0.00B        192.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetString                      0.00B         48.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetString-6                    0.00B         48.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetString-48                   0.00B         48.00B ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapAddSame                         456B ± 0%      480B ± 0%    +5.26%  (p=0.000 n=8+8)
-    MapAddSame-6                       456B ± 0%      480B ± 0%    +5.26%  (p=0.000 n=8+8)
-    MapAddSame-48                      456B ± 0%      480B ± 0%    +5.26%  (p=0.000 n=8+8)
-    MapAddDifferent                    672B ± 0%     1088B ± 0%   +61.90%  (p=0.000 n=8+8)
-    MapAddDifferent-6                  672B ± 0%     1088B ± 0%   +61.90%  (p=0.000 n=8+8)
-    MapAddDifferent-48                 672B ± 0%     1088B ± 0%   +61.90%  (p=0.000 n=8+8)
-    MapAddSameSteadyState             0.00B          0.00B           ~     (all equal)
-    MapAddSameSteadyState-6           0.00B          0.00B           ~     (all equal)
-    MapAddSameSteadyState-48          0.00B          0.00B           ~     (all equal)
-    MapAddDifferentSteadyState        0.00B          0.00B           ~     (all equal)
-    MapAddDifferentSteadyState-6      0.00B          0.00B           ~     (all equal)
-    MapAddDifferentSteadyState-48     0.00B          0.00B           ~     (all equal)
-    RealworldExpvarUsage              0.00B          0.00B           ~     (all equal)
-    RealworldExpvarUsage-6            0.00B          0.00B           ~     (all equal)
-    RealworldExpvarUsage-48           0.00B          0.00B           ~     (all equal)
-    
-    name                           old allocs/op  new allocs/op  delta
-    IntAdd                             0.00           0.00           ~     (all equal)
-    IntAdd-6                           0.00           0.00           ~     (all equal)
-    IntAdd-48                          0.00           0.00           ~     (all equal)
-    IntSet                             0.00           0.00           ~     (all equal)
-    IntSet-6                           0.00           0.00           ~     (all equal)
-    IntSet-48                          0.00           0.00           ~     (all equal)
-    FloatAdd                           0.00           0.00           ~     (all equal)
-    FloatAdd-6                         0.00           0.00           ~     (all equal)
-    FloatAdd-48                        0.00           0.00           ~     (all equal)
-    FloatSet                           0.00           0.00           ~     (all equal)
-    FloatSet-6                         0.00           0.00           ~     (all equal)
-    FloatSet-48                        0.00           0.00           ~     (all equal)
-    MapSet                             0.00           3.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSet-6                           0.00           3.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSet-48                          0.00           3.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetDifferent                    0.00          12.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetDifferent-6                  0.00          12.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetDifferent-48                 0.00          12.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetString                       0.00           3.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetString-6                     0.00           3.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapSetString-48                    0.00           3.00 ± 0%     +Inf%  (p=0.000 n=8+8)
-    MapAddSame                         6.00 ± 0%     11.00 ± 0%   +83.33%  (p=0.000 n=8+8)
-    MapAddSame-6                       6.00 ± 0%     11.00 ± 0%   +83.33%  (p=0.000 n=8+8)
-    MapAddSame-48                      6.00 ± 0%     11.00 ± 0%   +83.33%  (p=0.000 n=8+8)
-    MapAddDifferent                    14.0 ± 0%      31.0 ± 0%  +121.43%  (p=0.000 n=8+8)
-    MapAddDifferent-6                  14.0 ± 0%      31.0 ± 0%  +121.43%  (p=0.000 n=8+8)
-    MapAddDifferent-48                 14.0 ± 0%      31.0 ± 0%  +121.43%  (p=0.000 n=8+8)
-    MapAddSameSteadyState              0.00           0.00           ~     (all equal)
-    MapAddSameSteadyState-6            0.00           0.00           ~     (all equal)
-    MapAddSameSteadyState-48           0.00           0.00           ~     (all equal)
-    MapAddDifferentSteadyState         0.00           0.00           ~     (all equal)
-    MapAddDifferentSteadyState-6       0.00           0.00           ~     (all equal)
-    MapAddDifferentSteadyState-48      0.00           0.00           ~     (all equal)
-    RealworldExpvarUsage               0.00           0.00           ~     (all equal)
-    RealworldExpvarUsage-6             0.00           0.00           ~     (all equal)
-    RealworldExpvarUsage-48            0.00           0.00           ~     (all equal)
-    
-    https://perf.golang.org/search?q=upload:20170427.1
-    
-    Change-Id: I388b2e8a3cadb84fc1418af8acfc27338f799273
-    Reviewed-on: https://go-review.googlesource.com/41930
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I02f808a456393659db2354031baf1d4f9e0b2d61
+    Reviewed-on: https://go-review.googlesource.com/36977
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/expvar/expvar.go      | 136 ++++++++++++++++++----------------------------
- src/expvar/expvar_test.go |  20 ++++---
- 2 files changed, 63 insertions(+), 93 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

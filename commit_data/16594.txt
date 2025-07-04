@@ -1,17 +1,14 @@
-commit 269b2f2d4dbab20f8d66ed9495f344acb8da4315
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 18 14:43:37 2013 -0400
+commit f9c22f7e7804ba4fcee37c75c3ba18788624b7b4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 18 23:20:17 2013 +1000
 
-    cmd/gc: fix race detector on tail-call wrappers
+    cmd/cgo: avoid leaking fds
     
-    (By not using the tail-call wrappers when the race
-    detector is enabled.)
+    Fixes #5714.
     
-    R=golang-dev, minux.ma, dvyukov, daniel.morsing
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/10227043
+    https://golang.org/cl/10386043
 
- src/cmd/gc/go.h       | 1 -
- src/cmd/gc/racewalk.c | 2 +-
- src/cmd/gc/subr.c     | 6 ++----
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/cgo/gcc.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,23 +1,26 @@
-commit 51a96f86f7a0604f4b3010b8a688f9b66a5c5acb
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 25 14:13:35 2024 +0000
+commit 4526fa790eb45c7f581e2420ce47763575985dfc
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Mar 29 13:13:19 2023 -0400
 
-    regexp/syntax: simplify the code
+    cmd/go: fix tests for new builder environment
     
-    Use the slices package and the built-in max to simplify the code.
-    There's no noticeable performance change in this modification.
+    Fix two long tests that fail in the builders we're trying out:
     
-    Change-Id: I96e46ba8ab1323f1ba0b8c9b827836e217772cf2
-    GitHub-Last-Rev: f0111ac7e220f7dac03290125a3a83831012f235
-    GitHub-Pull-Request: golang/go#66511
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573978
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    - TestQueryImport was failing with:
+      open /nonexist-gopath/pkg/sumdb/sum.golang.org/latest: no such file or directory
+      which eventually turns out to be because it couldn't create
+      /nonexist-gopath because it wasn't running as root. The test already
+      uses a temporary GOPATH, but missed overriding a configuration
+      variable set at init time.
+    - test_flags fails if the working directory has /x/ in it, which it now
+      happens to.
+    
+    Change-Id: Ideef0f318157b42987539e3a20f9fba6a3d3bdd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480255
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/regexp/syntax/parse.go  |  4 +---
- src/regexp/syntax/regexp.go | 19 +++----------------
- 2 files changed, 4 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/modload/query_test.go | 1 +
+ src/cmd/go/testdata/script/test_flags.txt | 3 +--
+ 2 files changed, 2 insertions(+), 2 deletions(-)

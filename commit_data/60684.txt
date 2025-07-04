@@ -1,0 +1,26 @@
+commit 2693f77b3583585172810427e12a634b28d34493
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Aug 14 20:04:08 2024 +0000
+
+    Revert "go/types, types2: only use fileVersion if 1.21 or greater"
+    
+    This reverts CL 603895
+    
+    Reason for revert: We've decided to change the logic for how upgrades are done and want to submit the new logic in a self contained CL that can be cherry-picked onto release-branch.go1.23
+    
+    Change-Id: I366af8e95ce1de7311b0385a23f9dd3df175745a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605675
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/api_test.go         |  8 ++------
+ src/cmd/compile/internal/types2/check.go            | 15 +--------------
+ src/go/types/api_test.go                            |  8 ++------
+ src/go/types/check.go                               | 15 +--------------
+ src/internal/types/testdata/check/go1_20_19.go      |  2 +-
+ src/internal/types/testdata/check/go1_21_19.go      |  2 +-
+ src/internal/types/testdata/check/go1_21_22.go      | 16 ----------------
+ src/internal/types/testdata/check/go1_22_21.go      | 16 ----------------
+ src/internal/types/testdata/fixedbugs/issue66285.go |  7 ++++++-
+ test/fixedbugs/issue63489a.go                       | 20 ++++++++------------
+ 10 files changed, 22 insertions(+), 87 deletions(-)

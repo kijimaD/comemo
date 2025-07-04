@@ -1,30 +1,20 @@
-commit 7de2249a08aab44c512d0ea86f50481d76e135f1
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Dec 28 18:40:12 2021 -0800
+commit c692f752b5b78b919e11f3fccf158bc7dc17920b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 16 10:17:34 2021 +0200
 
-    cmd/compile, test: updated comments in crawler.go, added test
+    cmd/link/internal/ld: re-enable tests on darwin
     
-    Added a test to make sure that the private methods of a local generic
-    type are properly exported, if there is a global variable with that
-    type.
+    It looks like these are fixed again for darwin on current tip after CL
+    111258 marked them to be skipped.
     
-    Added comments in crawler.go, to give more detail and to give more about
-    the overall purpose.
+    Updates #23168
     
-    Fixed one place where t.isFullyInstantiated() should be replaced by
-    isPtrFullyInstantiated(t), so that we catch pointers to generic types
-    that may be used as a method receiver.
-    
-    Change-Id: I9c42d14eb6ebe14d249df7c8fa39e889f7cd3f22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374754
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4abecee1152ccd4f2d44d76d1acdecb0d6140981
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308994
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/typecheck/crawler.go | 38 ++++++++++++++++++++-------
- test/typeparam/gencrawler.dir/a.go            | 27 +++++++++++++++++++
- test/typeparam/gencrawler.dir/main.go         | 12 +++++++++
- test/typeparam/gencrawler.go                  | 10 +++++++
- test/typeparam/gencrawler.out                 |  2 ++
- 5 files changed, 80 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

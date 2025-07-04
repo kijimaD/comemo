@@ -1,27 +1,73 @@
-commit 4787e906cff56ae23028df12c68331745651ec9e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Jan 5 20:52:00 2021 +0100
+commit dd98c0ca3f19a8de7a8422c92839ff985f9827e4
+Merge: a9d2e3abf7 7d232ab276
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu May 7 23:27:25 2020 -0400
 
-    crypto/x509: rollback new CertificateRequest fields
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    In general, we don't want to encourage reading them from CSRs, and
-    applications that really want to can parse the Extensions field.
-    
-    Note that this also fixes a bug where the error of
-    parseKeyUsageExtension was not handled in parseCertificateRequest.
-    
-    Fixes #43477
-    Updates #37172
-    
-    Change-Id: Ia5707b0e23cecc0aed57e419a1ca25e26eea6bbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/281235
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I083d1e4e997b30d9fab10940401eaf160e36f6c1
 
- api/go1.16.txt               |  9 -----
- doc/go1.16.html              |  8 -----
- src/crypto/x509/x509.go      | 84 --------------------------------------------
- src/crypto/x509/x509_test.go | 56 +++++++++++++----------------
- 4 files changed, 25 insertions(+), 132 deletions(-)
+ src/cmd/compile/internal/gc/iimport.go       |   3 +-
+ src/cmd/compile/internal/gc/sinit.go         |   3 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  39 ++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 186 ++++++++++++++++-----------
+ src/cmd/internal/obj/arm64/asm7.go           |  31 +++--
+ src/cmd/internal/obj/mips/asm0.go            |  25 +++-
+ src/cmd/internal/obj/plist.go                |  66 ++++++++--
+ src/cmd/internal/obj/riscv/obj.go            |   2 +-
+ src/cmd/internal/obj/s390x/asmz.go           |   2 +-
+ src/cmd/internal/obj/x86/asm6.go             |   2 +-
+ src/cmd/internal/objabi/funcdata.go          |  11 ++
+ src/cmd/link/internal/ld/deadcode_test.go    |   1 +
+ src/crypto/ecdsa/ecdsa.go                    |  14 ++
+ src/crypto/ecdsa/equal_test.go               |  17 ++-
+ src/crypto/ed25519/ed25519.go                |  12 ++
+ src/crypto/ed25519/ed25519_test.go           |  12 +-
+ src/crypto/rsa/equal_test.go                 |  17 ++-
+ src/crypto/rsa/rsa.go                        |  24 ++++
+ src/crypto/tls/common.go                     |   4 +
+ src/crypto/tls/handshake_client.go           |  14 +-
+ src/crypto/tls/handshake_client_test.go      |  45 +++++++
+ src/crypto/tls/handshake_client_tls13.go     |  75 ++++++-----
+ src/crypto/tls/handshake_messages_test.go    |   8 +-
+ src/crypto/tls/handshake_server.go           |   2 +-
+ src/crypto/tls/ticket.go                     | 107 ++++++---------
+ src/crypto/x509/root_unix.go                 |  29 ++++-
+ src/crypto/x509/root_unix_test.go            |  27 ++++
+ src/crypto/x509/verify.go                    |  32 ++++-
+ src/encoding/csv/writer.go                   |  16 ++-
+ src/encoding/csv/writer_test.go              |  17 +++
+ src/net/http/cgi/host.go                     |   5 +-
+ src/net/http/cookie.go                       |  11 +-
+ src/net/http/fs.go                           |   4 +-
+ src/net/http/httptest/recorder.go            |   3 +-
+ src/net/http/httputil/reverseproxy.go        |   3 +-
+ src/net/http/httputil/reverseproxy_test.go   |  13 +-
+ src/net/http/response_test.go                |   1 +
+ src/net/http/serve_test.go                   |  31 -----
+ src/net/http/transfer.go                     | 117 +++++++----------
+ src/net/http/transfer_test.go                |  22 +++-
+ src/net/http/transport.go                    |   2 +-
+ src/runtime/conv_wasm_test.go                | 128 ++++++++++++++++++
+ src/runtime/os_windows.go                    |  33 ++---
+ src/runtime/preempt.go                       |  53 ++++++--
+ src/runtime/proc.go                          |   2 +-
+ src/runtime/runtime2.go                      |   4 +-
+ src/runtime/signal_386.go                    |   9 +-
+ src/runtime/signal_amd64.go                  |   9 +-
+ src/runtime/signal_arm.go                    |   6 +-
+ src/runtime/signal_arm64.go                  |   6 +-
+ src/runtime/signal_linux_s390x.go            |   6 +-
+ src/runtime/signal_mips64x.go                |   6 +-
+ src/runtime/signal_mipsx.go                  |   6 +-
+ src/runtime/signal_ppc64x.go                 |   6 +-
+ src/runtime/signal_riscv64.go                |   6 +-
+ src/runtime/signal_unix.go                   |   8 +-
+ src/runtime/symtab.go                        |  53 ++++++--
+ src/runtime/sys_wasm.s                       |   6 +-
+ src/testing/helper_test.go                   |   2 +
+ src/testing/helperfuncs_test.go              |  11 ++
+ src/testing/testing.go                       |  35 +++--
+ test/fixedbugs/issue38690.go                 |  65 ++++++++++
+ test/fixedbugs/issue38746.go                 |  17 +++
+ 63 files changed, 1082 insertions(+), 450 deletions(-)

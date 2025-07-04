@@ -1,18 +1,29 @@
-commit 28fb0d802380391044650e36f186c27302d6f578
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 11 10:33:25 2015 -0400
+commit 1746e711ad7429248af4d17a57413aeaab0c2095
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 25 14:04:55 2015 -0700
 
-    cmd/go: fix addition of "math" dependency for arm binaries
+    [dev.ssa] cmd/compile/ssa: add nilcheckelim benchmarks
     
-    p.ImportPath is the directory-derived path (like cmd/go).
-    p.Name is the actual package name.
+    These benchmarks demonstrate that
+    the nilcheckelim pass is roughly O(n^2):
     
-    Fixes #12089.
+    BenchmarkNilCheckDeep1           2000000               741 ns/op           1.35 MB/s
+    BenchmarkNilCheckDeep10          1000000              2237 ns/op           4.47 MB/s
+    BenchmarkNilCheckDeep100           20000             60713 ns/op           1.65 MB/s
+    BenchmarkNilCheckDeep1000            200           7925198 ns/op           0.13 MB/s
+    BenchmarkNilCheckDeep10000             1        1220104252 ns/op           0.01 MB/s
     
-    Change-Id: Ief76d42a85f811b0dfe2218affb48551527a7d44
-    Reviewed-on: https://go-review.googlesource.com/13530
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Profiling suggests that building the
+    dominator tree is also O(n^2),
+    and before size factors take over,
+    considerably more expensive than nilcheckelim.
+    
+    Change-Id: If966b38ec52243a25f355dab871300d29db02e16
+    Reviewed-on: https://go-review.googlesource.com/11520
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go | 20 ++++++++++++++++++++
- src/cmd/go/pkg.go     |  2 +-
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/dom.go           |  3 ++
+ src/cmd/compile/internal/ssa/export_test.go   |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go      |  1 +
+ src/cmd/compile/internal/ssa/nilcheck_test.go | 56 +++++++++++++++++++++++++++
+ 4 files changed, 61 insertions(+), 1 deletion(-)

@@ -1,31 +1,32 @@
-commit 0fcb94895fa3efd9733e5ab66f5634f92cee9aa3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 28 15:07:56 2022 -0800
+commit 90ec25773523ac2c5e075f1e5d7519ee08201b8c
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 23 21:49:08 2021 -0400
 
-    cmd/compile/internal/typecheck: remove unused -G=0 code
+    cmd/compile: make the stack allocator more careful about register args.
     
-    The typechecking code for dealing with dot imports and redeclaration
-    errors can be removed, as these will now always be caught by types2
-    instead. Even when running the typecheck on internally constructed IR,
-    we'll never introduce new imports or redeclare identifiers.
+    Assignment between input parameters causes them to have more than
+    one "Name", and running this backwards from names to values can end
+    up confusing (conflating) parameter spill slots.
     
-    Also, Func.Shortname (and typecheck.addmethod) was only used by the
-    -G=0 frontend. The new types2-based frontends directly associate
-    methods with their receiver type during IR construction.
+    Around 105a6e9518, this cases a stack overflow running
+    go test -race encoding/pem
+    because two slice parameters spill (incorrectly) into the same
+    stack slots (in the AB?I-defined parameter spill area).
     
-    Change-Id: I6578a448412141c87a0a53a6566639d9c00eeed7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388537
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This also tickles a failure in cue, which turned out to be
+    easier to isolate.
+    
+    Fixes #45851.
+    Updates #40724.
+    
+    Change-Id: I39c56815bd6abb652f1ccbe83c47f4f373a125c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313212
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ir/func.go             |   5 +-
- src/cmd/compile/internal/ir/sizeof_test.go      |   2 +-
- src/cmd/compile/internal/noder/transform.go     |   6 --
- src/cmd/compile/internal/typecheck/dcl.go       | 124 ------------------------
- src/cmd/compile/internal/typecheck/expr.go      |   6 --
- src/cmd/compile/internal/typecheck/func.go      |  14 ---
- src/cmd/compile/internal/typecheck/subr.go      |   4 -
- src/cmd/compile/internal/typecheck/typecheck.go |   7 --
- 8 files changed, 2 insertions(+), 166 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go |  6 ++-
+ src/cmd/compile/internal/ssa/stackalloc.go   | 39 ++++++++++++++++
+ test/fixedbugs/issue45851.go                 | 68 ++++++++++++++++++++++++++++
+ 3 files changed, 112 insertions(+), 1 deletion(-)

@@ -1,34 +1,40 @@
-commit 0a8a719ded242be4d928ec77ff2169d1d9c1fa52
+commit ade6bc68b0d71477b3370a20099bcb66de14f517
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 16 13:59:42 2014 -0400
+Date:   Wed Apr 16 13:12:18 2014 -0400
 
-    cmd/5g, cmd/6g, cmd/8g: preserve wide values in large functions
+    runtime: crash when func main calls Goexit and all other goroutines exit
     
-    In large functions with many variables, the register optimizer
-    may give up and choose not to track certain variables at all.
-    In this case, the "nextinnode" information linking together
-    all the words from a given variable will be incomplete, and
-    the result may be that only some of a multiword value is
-    preserved across a call. That confuses the garbage collector,
-    so don't do that. Instead, mark those variables as having
-    their address taken, so that they will be preserved at all
-    calls. It's overkill, but correct.
+    This has typically crashed in the past, although usually with
+    an 'all goroutines are asleep - deadlock!' message that shows
+    no goroutines (because there aren't any).
     
-    Tested by hand using the 6g -S output to see that it does fix
-    the buggy generated code leading to the issue 7726 failure.
+    Previous discussion at:
+    https://groups.google.com/d/msg/golang-nuts/uCT_7WxxopQ/BoSBlLFzUTkJ
+    https://groups.google.com/d/msg/golang-dev/KUojayEr20I/u4fp_Ej5PdUJ
+    http://golang.org/issue/7711
     
-    There is no automated test because I managed to break the
-    compiler while writing a test (see issue 7727). I will check
-    in a test along with the fix to issue 7727.
+    There is general agreement that runtime.Goexit terminates the
+    main goroutine, so that main cannot return, so the program does
+    not exit.
     
-    Fixes #7726.
+    The interpretation that all other goroutines exiting causes an
+    exit(0) is relatively new and was not part of those discussions.
+    That is what this CL changes.
     
-    LGTM=khr
-    R=khr, bradfitz, dave
+    Thankfully, even though the exit(0) has been there for a while,
+    some other accounting bugs made it very difficult to trigger,
+    so it is reasonable to replace. In particular, see golang.org/issue/7711#c10
+    for an examination of the behavior across past releases.
+    
+    Fixes #7711.
+    
+    LGTM=iant, r
+    R=golang-codereviews, iant, dvyukov, r
     CC=golang-codereviews
-    https://golang.org/cl/85200043
+    https://golang.org/cl/88210044
 
- src/cmd/5g/reg.c | 10 ++++++++++
- src/cmd/6g/reg.c | 10 ++++++++++
- src/cmd/8g/reg.c | 10 ++++++++++
- 3 files changed, 30 insertions(+)
+ doc/go1.3.html                |  9 +++++++++
+ src/pkg/runtime/crash_test.go | 14 +++++++-------
+ src/pkg/runtime/extern.go     |  5 +++++
+ src/pkg/runtime/proc.c        |  2 +-
+ 4 files changed, 22 insertions(+), 8 deletions(-)

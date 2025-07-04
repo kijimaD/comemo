@@ -1,12 +1,17 @@
-commit 39ed682206332cf0ab557b715ec80c9ab2cbba5f
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 4 20:16:07 2015 -0700
+commit a5d23fceab47ff3f0cfacfecbe74f2f853a6ed1c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 30 09:01:22 2015 -0700
 
-    runtime: explain why continuous assist revising is necessary
+    doc: add go1.5 note about change to zero-sized fields in cgo
     
-    Change-Id: I950af8d80433b3ae8a1da0aa7a8d2d0b295dd313
-    Reviewed-on: https://go-review.googlesource.com/15404
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    This documents the change made in https://golang.org/cl/12864 for
+    https://golang.org/issue/11925.
+    
+    Update #11925.
+    
+    Change-Id: Id09f2a489ea947a725ed12c9cf793e5daef07a06
+    Reviewed-on: https://go-review.googlesource.com/12866
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/mgc.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ doc/go1.5.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

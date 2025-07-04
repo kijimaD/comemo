@@ -1,19 +1,14 @@
-commit 749082e2a48719101606e7416b70fbdeea93a523
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 1 12:30:09 2013 -0800
+commit e02168f6593db7f807a475b2bd4af0f3d7583e4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 15:01:26 2013 -0500
 
-    cmd/vet: use go/printer to pretty-print expressions in printf messages
-    Fixes #4945.
-    Most examples in this issue now better, but #10 is incomplete and I'm not
-    certain how to reproduce it. It actually looks like a go/types problem, since
-    the type being reported is coming directly from that package.
-    Please reopen the issue if you disagree.
+    build: skip cgo test on arm
     
-    R=golang-dev, rsc
+    Update #4961.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7448046
+    https://golang.org/cl/7451044
 
- src/cmd/vet/main.go       |  2 +-
- src/cmd/vet/print.go      |  6 +++---
- src/cmd/vet/test_print.go | 52 +++++++++++++++++++++++------------------------
- 3 files changed, 30 insertions(+), 30 deletions(-)
+ src/run.bash | 1 +
+ 1 file changed, 1 insertion(+)

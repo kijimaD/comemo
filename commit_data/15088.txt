@@ -1,20 +1,17 @@
-commit e2711cb202081261d4586be525b6281544a7dac7
+commit b396d1143b3e717eb2828a101feeb8eb6810891b
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 1 21:13:41 2013 -0500
+Date:   Fri Feb 1 21:01:46 2013 -0500
 
-    cmd/gc: put 'not used' message on correct line
+    reflect: explain StructField.Anonymous field as 'embedded'
     
-    Fixes #4663.
+    The spec mostly uses the term embedded.
+    It's too late to change the field name but at least fix the docs.
     
-    R=ken2
+    Fixes #4514.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7235081
+    https://golang.org/cl/7235080
 
- src/cmd/gc/go.y             |   15 +
- src/cmd/gc/y.tab.c          | 1787 +++++++++++++++----------------------------
- src/cmd/gc/y.tab.h          |   46 +-
- test/fixedbugs/bug357.go    |    2 +-
- test/fixedbugs/bug379.go    |    2 +-
- test/fixedbugs/issue4654.go |    4 +-
- test/fixedbugs/issue4663.go |   14 +
- 7 files changed, 656 insertions(+), 1214 deletions(-)
+ src/pkg/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

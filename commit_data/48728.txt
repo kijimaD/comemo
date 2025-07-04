@@ -1,29 +1,18 @@
-commit 494b79f39ab8e7b6f096b6c6088bd84bb8592dc4
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 07:55:25 2022 -0400
+commit 18788245ea25a6f0ac11b02c15f5a94eab7a9e97
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 01:10:10 2021 -0700
 
-    go/doc/comment: add data structures
+    [dev.typeparams] cmd/compile: add ir.TypeNodeAt
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    This CL adds a variant of ir.TypeNode that allows specifying position
+    information. This shouldn't normally be needed/used, but it's
+    occasionally helpful for writing code that passes toolstash -cmp.
     
-    Implement just the data structures of the new API for
-    parsing and printing doc comments, as well as a syntax tree
-    form for inspecting and manipulating them.
-    
-    The API itself was discussed and accepted as part of the
-    proposal process in #51082.
-    
-    For #51082.
-    
-    Change-Id: Iae7fbc85705964585273b970c5c62e394feb1288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397276
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2be5da0339fd1ec2bee01d6c5310bd2ef58c46b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327049
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- api/next/51082.txt          |  35 +++++++++
- src/go/build/deps_test.go   |   4 +-
- src/go/doc/comment/parse.go | 169 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 206 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/type.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,41 +1,21 @@
-commit 664aebab7da0da5859857c60b401ec85e3a408dd
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Mon Dec 2 15:47:25 2024 +0100
+commit b3b442449b0b979a035b5a26b8e62d8f6158fa69
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 16 10:22:13 2023 +0800
 
-    cmd/go: add rva23u64 as a valid value for GORISCV64
+    cmd/compile: fix If lowering on loong64
     
-    The RVA23 profile was ratified on the 21st of October 2024.
+    Update #40724
     
-    https://riscv.org/announcements/2024/10/risc-v-announces-ratification-of-the-rva23-profile-standard/
-    
-    Now that it's ratified we can add rva23u64 as a valid value for the
-    GORISCV64 environment variable. This will allow the compiler and
-    assembler to generate instructions made mandatory by the new profile
-    without a runtime check.  Examples of such instructions include those
-    introduced by the Vector and Zicond extensions.
-    
-    Setting GORISCV64=rva23u64 defines the riscv64.rva20u64,
-    riscv64.rva22u64 and riscv64.rva23u64 build tags, sets the internal
-    variable buildcfg.GORISCV64 to 23 and defines the macros
-    GORISCV64_rva23u64, hasV, hasZba, hasZbb, hasZbs, hasZfa, and
-    hasZicond for use in assembly language code.
-    
-    Updates #61476
-    
-    Change-Id: I7641c23084fa52891c9a18df58f4013cb6597d88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633417
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I44477e32db765e0299d8361bd2b8d2c95564ed28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521788
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/alldocs.go                    | 7 ++++---
- src/cmd/go/internal/help/helpdoc.go      | 7 ++++---
- src/cmd/go/testdata/script/tooltags.txt  | 7 ++++++-
- src/cmd/internal/testdir/testdir_test.go | 2 +-
- src/internal/buildcfg/cfg.go             | 7 ++++++-
- src/internal/buildcfg/cfg_test.go        | 4 ++++
- src/runtime/asm_riscv64.h                | 9 +++++++++
- 7 files changed, 34 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 27 +++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,12 +1,24 @@
-commit 0e8032ca49ac0c46781ba7dd106af3d373b3aedd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 5 09:03:00 2011 -0700
+commit d97b8a817bbc0c4a40ca9f567e5e0d7c227f1fd6
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed May 4 20:52:55 2011 -0700
 
-    go spec: newlines cannot be used inside a char or "" string literal
+    image/tiff: implement a decoder.
     
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/4462043
+    The current iteration can decode 8-bit images in
+    grayscale, paletted, RGB, RGBA and NRGBA mode. LZW compression
+    is implemented but does not work on my test images.
+    Deflate (i.e. zlib) compression with or without a horizontal
+    predictor is supported.
+    
+    R=nigeltao, nigeltao_gnome
+    CC=golang-dev, mpl
+    https://golang.org/cl/4240051
 
- doc/go_spec.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/Makefile                  |   1 +
+ src/pkg/image/decode_test.go      |   5 +-
+ src/pkg/image/tiff/Makefile       |  13 ++
+ src/pkg/image/tiff/buffer.go      |  57 ++++++
+ src/pkg/image/tiff/buffer_test.go |  36 ++++
+ src/pkg/image/tiff/consts.go      | 102 ++++++++++
+ src/pkg/image/tiff/reader.go      | 385 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 597 insertions(+), 2 deletions(-)

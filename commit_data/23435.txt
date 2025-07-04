@@ -1,16 +1,54 @@
-commit 1a040c923035fbab613ef9f37422e91ac01ff911
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 17 18:03:16 2015 -0700
+commit ecfe42cab0c22da35aed6752cafaf0d3c7bb44d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun May 10 13:43:51 2015 -0400
 
-    cmd/cgo: static variables in the preamble may not be referenced
+    runtime: keep pointer bits set always in 1-word spans
     
-    This is a documentation fix that reflects the current reality.
+    It's dumb to clear them in initSpan, set them in heapBitsSetType,
+    clear them in heapBitsSweepSpan, set them again in heapBitsSetType,
+    clear them again in heapBitsSweepSpan, and so on.
     
-    Fixes #9673.
+    Set them in initSpan and be done with it (until the span is reused
+    for objects of a different size).
     
-    Change-Id: Ie436b277dfd1b68b13c67813d29c238d2c23b820
-    Reviewed-on: https://go-review.googlesource.com/11221
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This avoids an atomic operation in a common case (one-word allocation).
+    Suggested by rlh.
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            5.87s × (0.97,1.03)   5.93s × (0.98,1.04)              ~    (p=0.056)
+    Fannkuch11              4.34s × (1.00,1.01)   4.41s × (1.00,1.00)            +1.42% (p=0.000)
+    FmtFprintfEmpty        86.1ns × (0.98,1.03)  88.9ns × (0.95,1.14)              ~    (p=0.066)
+    FmtFprintfString        292ns × (0.97,1.04)   284ns × (0.98,1.03)            -2.64% (p=0.000)
+    FmtFprintfInt           271ns × (0.98,1.06)   274ns × (0.98,1.05)              ~    (p=0.148)
+    FmtFprintfIntInt        478ns × (0.98,1.05)   487ns × (0.98,1.03)            +1.85% (p=0.004)
+    FmtFprintfPrefixedInt   397ns × (0.98,1.05)   394ns × (0.98,1.02)              ~    (p=0.184)
+    FmtFprintfFloat         553ns × (0.99,1.02)   543ns × (0.99,1.01)            -1.71% (p=0.000)
+    FmtManyArgs            1.90µs × (0.98,1.05)  1.88µs × (0.99,1.01)            -0.97% (p=0.037)
+    GobDecode              15.1ms × (0.99,1.01)  15.3ms × (0.99,1.01)            +0.78% (p=0.001)
+    GobEncode              11.7ms × (0.98,1.05)  11.6ms × (0.99,1.02)            -1.39% (p=0.009)
+    Gzip                    646ms × (1.00,1.01)   647ms × (1.00,1.01)              ~    (p=0.120)
+    Gunzip                  142ms × (1.00,1.00)   142ms × (1.00,1.00)              ~    (p=0.068)
+    HTTPClientServer       89.7µs × (0.99,1.01)  90.1µs × (0.98,1.03)              ~    (p=0.224)
+    JSONEncode             31.3ms × (0.99,1.01)  31.2ms × (0.99,1.02)              ~    (p=0.149)
+    JSONDecode              113ms × (0.99,1.01)   111ms × (0.99,1.01)            -1.25% (p=0.000)
+    Mandelbrot200          6.01ms × (1.00,1.00)  6.01ms × (1.00,1.00)            +0.09% (p=0.015)
+    GoParse                6.63ms × (0.98,1.03)  6.55ms × (0.99,1.02)            -1.10% (p=0.006)
+    RegexpMatchEasy0_32     161ns × (1.00,1.00)   161ns × (1.00,1.00)  (sample has zero variance)
+    RegexpMatchEasy0_1K     539ns × (0.99,1.01)   563ns × (0.99,1.01)            +4.51% (p=0.000)
+    RegexpMatchEasy1_32     140ns × (0.99,1.01)   141ns × (0.99,1.01)            +1.34% (p=0.000)
+    RegexpMatchEasy1_1K     886ns × (1.00,1.01)   888ns × (1.00,1.00)            +0.20% (p=0.003)
+    RegexpMatchMedium_32    252ns × (1.00,1.02)   255ns × (0.99,1.01)            +1.32% (p=0.000)
+    RegexpMatchMedium_1K   72.7µs × (1.00,1.00)  72.6µs × (1.00,1.00)              ~    (p=0.296)
+    RegexpMatchHard_32     3.84µs × (1.00,1.01)  3.84µs × (1.00,1.00)              ~    (p=0.339)
+    RegexpMatchHard_1K      117µs × (1.00,1.01)   117µs × (1.00,1.00)            -0.28% (p=0.022)
+    Revcomp                 914ms × (0.99,1.01)   909ms × (0.99,1.01)            -0.49% (p=0.031)
+    Template                128ms × (0.99,1.01)   127ms × (0.99,1.01)            -1.10% (p=0.000)
+    TimeParse               628ns × (0.99,1.01)   639ns × (0.99,1.01)            +1.69% (p=0.000)
+    TimeFormat              660ns × (0.99,1.01)   662ns × (0.99,1.02)              ~    (p=0.287)
+    
+    Change-Id: I3127b0ab89708267c74aa7d0eae1db1a1bcdfda5
+    Reviewed-on: https://go-review.googlesource.com/9884
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/cgo/doc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/mbitmap.go | 49 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 29 insertions(+), 20 deletions(-)

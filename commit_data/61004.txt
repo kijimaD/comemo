@@ -1,0 +1,24 @@
+commit c208b913954514ac7cab0fa701fba9c89af70392
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Aug 9 15:00:35 2024 -0400
+
+    go/types, types2: clarify Named, Alias, TypeName, Object
+    
+    Updates #65855
+    Updates #66890
+    
+    Change-Id: I167c9de818049cae02f0d99f8e0fb4017e07bea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604476
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/alias.go     | 35 ++++++++++++++++++++++++----
+ src/cmd/compile/internal/types2/named.go     | 11 +++++++++
+ src/cmd/compile/internal/types2/object.go    | 19 +++++++++++----
+ src/cmd/compile/internal/types2/typeparam.go |  5 +++-
+ src/go/types/alias.go                        | 35 ++++++++++++++++++++++++----
+ src/go/types/named.go                        | 11 +++++++++
+ src/go/types/object.go                       | 19 +++++++++++----
+ src/go/types/typeparam.go                    |  5 +++-
+ 8 files changed, 120 insertions(+), 20 deletions(-)

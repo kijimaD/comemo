@@ -1,24 +1,15 @@
-commit 8324acadfe682ec72b3dd75e43ee174940817f28
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Nov 21 16:55:11 2019 -0500
+commit 2691091a4afb059845caf203cccd29b84694ca2b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Aug 2 20:53:14 2019 -0400
 
-    cmd/go: fix and re-enable build_trimpath test
+    misc/boring: add Go 1.11.12b4 and 1.12.7b4 to RELEASES
     
-    The test was comparing a binary built from a list of files to a test
-    build from a named package. That should not (and did not) work. The
-    test now compares two binaries built the same way in different
-    directories.
+    Also, workaround #33443.
     
-    Also add a portion of the test for GOPATH and fix the gccgo portion of
-    the test (verified manually).
-    
-    Fixes #35435
-    
-    Change-Id: I2535a0011c9d97d2274e5550ae277302dbb91e6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208234
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I10667d99769bec3af8696d895d6b8ce1f9dcd2ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188738
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/go/testdata/script/build_trimpath.txt | 115 +++++++++++++++++---------
- 1 file changed, 77 insertions(+), 38 deletions(-)
+ misc/boring/RELEASES      | 4 ++++
+ misc/boring/build.release | 3 +++
+ 2 files changed, 7 insertions(+)

@@ -1,107 +1,29 @@
-commit 1ac637c7667bb5cac35bb72b5a27052a9eacd925
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 00:46:28 2016 -0500
+commit 03227bb55ec92c9af4dcf55d83ec77b3f1e69aff
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 10 14:37:52 2015 -0500
 
-    cmd/compile: recognize Syscall-like functions for liveness analysis
+    runtime: eliminate traceBuf write barriers
     
-    Consider this code:
+    The tracing code is currently called from contexts such as sysmon and
+    the scheduler where write barriers are not allowed. Unfortunately,
+    while the common paths through the tracing code do not have write
+    barriers, many of the less common paths dealing with buffer overflow
+    and recycling do.
     
-            func f(*int)
+    This change replaces all *traceBufs with traceBufPtrs. In the style of
+    guintptr, etc., the GC does not trace traceBufPtrs and write barriers
+    do not apply when these pointers are written. Since traceBufs are
+    allocated from non-GC'd memory and manually managed, this is always
+    safe.
     
-            func g() {
-                    p := new(int)
-                    f(p)
-            }
+    Updates #10600.
     
-    where f is an assembly function.
-    In general liveness analysis assumes that during the call to f, p is dead
-    in this frame. If f has retained p, p will be found alive in f's frame and keep
-    the new(int) from being garbage collected. This is all correct and works.
-    We use the Go func declaration for f to give the assembly function
-    liveness information (the arguments are assumed live for the entire call).
-    
-    Now consider this code:
-    
-            func h1() {
-                    p := new(int)
-                    syscall.Syscall(1, 2, 3, uintptr(unsafe.Pointer(p)))
-            }
-    
-    Here syscall.Syscall is taking the place of f, but because its arguments
-    are uintptr, the liveness analysis and the garbage collector ignore them.
-    Since p is no longer live in h once the call starts, if the garbage collector
-    scans the stack while the system call is blocked, it will find no reference
-    to the new(int) and reclaim it. If the kernel is going to write to *p once
-    the call finishes, reclaiming the memory is a mistake.
-    
-    We can't change the arguments or the liveness information for
-    syscall.Syscall itself, both for compatibility and because sometimes the
-    arguments really are integers, and the garbage collector will get quite upset
-    if it finds an integer where it expects a pointer. The problem is that
-    these arguments are fundamentally untyped.
-    
-    The solution we have taken in the syscall package's wrappers in past
-    releases is to insert a call to a dummy function named "use", to make
-    it look like the argument is live during the call to syscall.Syscall:
-    
-            func h2() {
-                    p := new(int)
-                    syscall.Syscall(1, 2, 3, uintptr(unsafe.Pointer(p)))
-                    use(unsafe.Pointer(p))
-            }
-    
-    Keeping p alive during the call means that if the garbage collector
-    scans the stack during the system call now, it will find the reference to p.
-    
-    Unfortunately, this approach is not available to users outside syscall,
-    because 'use' is unexported, and people also have to realize they need
-    to use it and do so. There is much existing code using syscall.Syscall
-    without a 'use'-like function. That code will fail very occasionally in
-    mysterious ways (see #13372).
-    
-    This CL fixes all that existing code by making the compiler do the right
-    thing automatically, without any code modifications. That is, it takes h1
-    above, which is incorrect code today, and makes it correct code.
-    
-    Specifically, if the compiler sees a foreign func definition (one
-    without a body) that has uintptr arguments, it marks those arguments
-    as "unsafe uintptrs". If it later sees the function being called
-    with uintptr(unsafe.Pointer(x)) as an argument, it arranges to mark x
-    as having escaped, and it makes sure to hold x in a live temporary
-    variable until the call returns, so that the garbage collector cannot
-    reclaim whatever heap memory x points to.
-    
-    For now I am leaving the explicit calls to use in package syscall,
-    but they can be removed early in a future cycle (likely Go 1.7).
-    
-    The rule has no effect on escape analysis, only on liveness analysis.
-    
-    Fixes #13372.
-    
-    Change-Id: I2addb83f70d08db08c64d394f9d06ff0a063c500
-    Reviewed-on: https://go-review.googlesource.com/18584
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I52b992d36d1b634ebd855c8cde27947ec14f59ba
+    Reviewed-on: https://go-review.googlesource.com/16812
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- doc/asm.html                             |  7 +++++++
- src/cmd/compile/internal/amd64/prog.go   |  1 +
- src/cmd/compile/internal/arm/prog.go     |  1 +
- src/cmd/compile/internal/arm64/prog.go   |  1 +
- src/cmd/compile/internal/gc/esc.go       | 30 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/gen.go       |  6 ++++++
- src/cmd/compile/internal/gc/gsubr.go     |  2 +-
- src/cmd/compile/internal/gc/order.go     | 30 +++++++++++++++++++++++++++++-
- src/cmd/compile/internal/gc/pgen.go      | 14 +++++++++++---
- src/cmd/compile/internal/gc/plive.go     |  2 +-
- src/cmd/compile/internal/gc/racewalk.go  |  2 +-
- src/cmd/compile/internal/gc/reg.go       |  3 +++
- src/cmd/compile/internal/gc/syntax.go    |  2 ++
- src/cmd/compile/internal/gc/typecheck.go |  3 ++-
- src/cmd/compile/internal/gc/walk.go      |  3 ++-
- src/cmd/compile/internal/mips64/prog.go  |  1 +
- src/cmd/compile/internal/ppc64/prog.go   |  1 +
- src/cmd/compile/internal/x86/prog.go     |  1 +
- src/cmd/internal/obj/link.go             |  1 +
- src/cmd/internal/obj/util.go             |  3 ++-
- src/syscall/syscall.go                   |  3 +++
- test/live_syscall.go                     | 28 ++++++++++++++++++++++++++++
- 22 files changed, 135 insertions(+), 10 deletions(-)
+ src/runtime/runtime2.go |   2 +-
+ src/runtime/trace.go    | 150 ++++++++++++++++++++++++++----------------------
+ 2 files changed, 83 insertions(+), 69 deletions(-)

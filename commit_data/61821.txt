@@ -1,0 +1,48 @@
+commit c5c4f3dd5f5e5a6a27fe53dc57eaf6acf414a4bc
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 29 15:38:48 2024 +0100
+
+    crypto/x509: keep RSA CRT values in ParsePKCS1PrivateKey
+    
+    Turns out that recomputing them (and qInv in particular) in constant
+    time is expensive, so let's not throw them away when they are available.
+    They are much faster to check, so we now do that on precompute.
+    
+    Also, thanks to the opaque crypto/internal/fips140/rsa.PrivateKey type,
+    we now have some assurance that the values we use are always ones we
+    checked.
+    
+    Recovers most of the performance loss since CL 630516 in the happy path.
+    Also, since now we always use the CRT, if necessary by running a
+    throwaway Precompute, which is now cheap if PrecomputedValues is filled
+    out, we effectively fixed the JSON round-trip slowdown (#59695).
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/rsa
+    cpu: Apple M2
+                                │ 3b42687c56  │          f017604bc6-dirty           │
+                                │   sec/op    │   sec/op     vs base                │
+    ParsePKCS8PrivateKey/2048-8   26.76µ ± 1%   65.99µ ± 1%  +146.64% (p=0.002 n=6)
+    
+    Fixes #59695
+    Updates #69799
+    For #69536
+    
+    Change-Id: I507f8c5a32e69ab28990a3bf78959836b9b08cc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632478
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ doc/godebug.md                                  |   5 +
+ doc/next/6-stdlib/99-minor/crypto/x509/69799.md |   4 +
+ src/crypto/internal/fips140/rsa/rsa.go          | 118 ++++++++++++++++++------
+ src/crypto/rsa/rsa.go                           |  14 +++
+ src/crypto/x509/pkcs1.go                        |  34 ++++++-
+ src/crypto/x509/pkcs8.go                        |   3 +
+ src/crypto/x509/x509_test.go                    |  55 +++++++++++
+ src/internal/godebugs/table.go                  |   1 +
+ src/runtime/metrics/doc.go                      |   4 +
+ 9 files changed, 206 insertions(+), 32 deletions(-)

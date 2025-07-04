@@ -1,12 +1,22 @@
-commit d1cefd6b6d6c0fc5b7dfe527cc8527401709f21d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 17:21:33 2013 +0400
+commit 39a7017c26eeb1b5514ca6b756e1c7eede170e6b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 13 20:00:58 2013 +0900
 
-    doc: update go1.2.txt
+    net: make deadline helpers join to netFD as its methods
     
-    R=golang-dev, r
+    Just for readability reasons; to prevent overlooking deadline stuff
+    across over platforms.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/12851043
+    https://golang.org/cl/8656044
 
- doc/go1.2.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/net/fd_plan9.go        |  6 +++---
+ src/pkg/net/fd_poll_runtime.go | 12 ++++++------
+ src/pkg/net/fd_poll_unix.go    | 14 +++++++-------
+ src/pkg/net/net.go             |  6 +++---
+ src/pkg/net/sock_posix.go      |  4 ++--
+ src/pkg/net/tcpsock_plan9.go   |  2 +-
+ src/pkg/net/tcpsock_posix.go   |  2 +-
+ src/pkg/net/unixsock_posix.go  |  2 +-
+ 8 files changed, 24 insertions(+), 24 deletions(-)

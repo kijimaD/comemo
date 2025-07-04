@@ -1,19 +1,21 @@
-commit 3bc0601742a68d5f73312fe13fe521f8b7fd7e1e
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Tue Oct 20 13:15:12 2015 +1100
+commit 26049f6f9171d1190f3bbe05ec304845cfe6399f
+Author: Jed Denlea <jed@fastly.com>
+Date:   Mon Aug 3 18:00:44 2015 -0700
 
-    runtime: rename _func.frame to make it clear it's deprecated and unused.
+    net/http: close server conn after broken trailers
     
-    When I saw that it was labelled "legacy", I went looking for users of it
-    to see how it was still used. But there aren't any. Save the next person
-    the trouble.
+    Prior to this change, broken trailers would be handled by body.Read, and
+    an error would be returned to its caller (likely a Handler), but that
+    error would go completely unnoticed by the rest of the server flow
+    allowing a broken connection to be reused.  This is a possible request
+    smuggling vector.
     
-    Change-Id: I921dd6c57b60331c9816542272555153ac133c02
-    Reviewed-on: https://go-review.googlesource.com/16035
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12027.
+    
+    Change-Id: I077eb0b8dff35c5d5534ee5f6386127c9954bd58
+    Reviewed-on: https://go-review.googlesource.com/13148
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/runtime2.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/serve_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go   |  6 ++++++
+ 2 files changed, 40 insertions(+)

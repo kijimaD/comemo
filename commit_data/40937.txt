@@ -1,19 +1,21 @@
-commit d72dce87837c96f875d5fa2e26159ef211bce3a0
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Nov 26 17:07:26 2019 -0500
+commit 29d3c569e00ab46075dc9ab0520ef7a1a0fc91b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 22 17:03:30 2019 -0700
 
-    cmd/go: test that 'go list -e -mod=readonly' reports errors correctly
+    go/types: postpone interface method type comparison to the end
     
-    This issue was fixed by earlier improvements to error handling when
-    loading modules.
+    Introduce a new list of final actions that is executed at the
+    end of type checking and use it to collect method type comparisons
+    and also map key checks.
     
-    Fixes #34829
+    Fixes #33656.
     
-    Change-Id: I4cf4e182a7381f8b5c359179d90bd02491ea7911
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209037
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia77a35a45a9d7eaa7fc3e9e19f41f32dcd6ef9d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191418
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/testdata/script/mod_list_e_readonly.txt | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/go/types/check.go             | 23 ++++++++++++++++++++++-
+ src/go/types/testdata/cycles2.src |  6 ++----
+ src/go/types/type.go              | 18 ++++++++++++++----
+ src/go/types/typexpr.go           | 23 +++++++++++++----------
+ 4 files changed, 51 insertions(+), 19 deletions(-)

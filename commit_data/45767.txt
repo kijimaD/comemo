@@ -1,17 +1,24 @@
-commit 0fb3e2c18408cc8ff6cb87962fc13f2684d1df96
+commit d70a33a40bd2bab2f8cd6ab714c4664ce55dc499
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 7 17:04:32 2021 -0400
+Date:   Thu Oct 1 10:53:41 2020 -0400
 
-    doc/go1.17: add a release note for the '-compat' flag to 'go mod tidy'
+    cmd/go/internal/work: add missing newline to go version note
     
-    Updates #46141
+    A missed newline was added for one case in CL 162957, but
+    the parallel no-output case was missed.
     
-    Change-Id: I7a6a84f816e3db19bb492f862366a29dc46ed2ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325910
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Add the missed newline for the second case and update the test to
+    cover the full line for both cases.
+    
+    Updates #30263
+    
+    Change-Id: I02aa523290295a6d409cd68066b45c6990e6fb6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258758
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.17.html | 33 +++++++++++++++++++++++++++++----
- 1 file changed, 29 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/exec.go              |  2 +-
+ src/cmd/go/testdata/script/mod_go_version.txt | 41 +++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 3 deletions(-)

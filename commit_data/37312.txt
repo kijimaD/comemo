@@ -1,38 +1,19 @@
-commit a98bb7e244954f1e035e9b9b6868a92cff04089c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Oct 28 12:01:11 2018 -0700
+commit e161b1e8ee0eb5c2dbc9f317fee4638cd7372726
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 16 22:40:05 2018 -0400
 
-    cmd/compile: only optimize chained Moves on disjoint stack mem
+    cmd/go/internal/module: allow v0.0.0 pseudoversion for gopkg.in/check.v1
     
-    This optimization is not sound if A, B, or C
-    might overlap with each other.
+    It worked once. It needs to keep working.
     
-    Thanks to Michael Munday for pointing this
-    out during the review of CL 143479.
-    
-    This reduces the number of times this optimization
-    triggers during make.bash from 386 to 74.
-    
-    This is unfortunate, but I don't see an obvious way around it,
-    short of souping up the disjointness analysis.
-    
-    name        old object-bytes  new object-bytes  delta
-    Template          507kB ± 0%        507kB ± 0%   +0.13%  (p=0.008 n=5+5)
-    Unicode           225kB ± 0%        225kB ± 0%     ~     (all equal)
-    GoTypes          1.85MB ± 0%       1.85MB ± 0%   +0.02%  (p=0.008 n=5+5)
-    Flate             328kB ± 0%        328kB ± 0%     ~     (all equal)
-    GoParser          402kB ± 0%        402kB ± 0%     ~     (all equal)
-    Reflect          1.41MB ± 0%       1.41MB ± 0%     ~     (all equal)
-    Tar               457kB ± 0%        458kB ± 0%   +0.20%  (p=0.008 n=5+5)
-    XML               600kB ± 0%        601kB ± 0%   +0.03%  (p=0.008 n=5+5)
-    
-    Change-Id: Ida408cb627145ba9faf473a78606f050c2f3f51c
-    Reviewed-on: https://go-review.googlesource.com/c/145208
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iaa43726e1c78f0c4a20b5805c7c2bfa76fab2489
+    Reviewed-on: https://go-review.googlesource.com/124383
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 11 ++++++++---
- src/cmd/compile/internal/ssa/rewrite.go        |  7 +++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 18 +++++++++++-------
- 3 files changed, 26 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/module/module.go               | 38 +++++++++-------------
+ src/cmd/go/internal/module/module_test.go          |  8 +++++
+ src/cmd/go/mod_test.go                             |  4 +--
+ src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt |  2 +-
+ 4 files changed, 26 insertions(+), 26 deletions(-)

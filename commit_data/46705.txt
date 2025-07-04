@@ -1,64 +1,17 @@
-commit afe43f1e5e0d256341689195454527726b26ccae
-Author: roudkerk <roudkerk@google.com>
-Date:   Mon Jul 19 12:49:57 2021 +0100
+commit ec4051763d439e7108bc673dd0b1bf1cbbc5dfc5
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Fri Jan 22 15:00:35 2021 +0000
 
-    context: implement Context.Value using iteration rather than recursion
+    runtime: fix typo in mgcscavenge.go
     
-    In profiles of a production server, 2.3% of CPU time is spent in
-    runtime.newstack for stacks with 12 or more chained Context.Value
-    calls. Using iteration will avoid some needless stack resizes.
+    recieved -> received
     
-    When calling Context.Value in the same goroutine (see
-    DeepValueSameGoRoutine) , no stack resizing is needed (after warming
-    up), and this change reduces time/op by around 10%.
-    
-    The time to start a new goroutine and call Context.Value (see
-    DeepValueNewGoRoutine) is reduced by over 75% if a stack resize is
-    needed. If you factor out the overhead of starting the goroutine
-    (about 960ns) then, avoiding the stack resize saves about 95%.
-    
-    ```
-    name                                          old time/op  new time/op  delta
-    CommonParentCancel-12                          960ns ± 1%   958ns ± 1%     ~     (p=0.561 n=9+9)
-    WithTimeout/concurrency=40-12                 1.31µs ± 2%  1.29µs ± 6%     ~     (p=0.305 n=9+10)
-    WithTimeout/concurrency=4000-12               1.30µs ± 2%  1.30µs ± 2%     ~     (p=0.343 n=10+10)
-    WithTimeout/concurrency=400000-12             1.03µs ± 1%  1.02µs ± 2%     ~     (p=0.213 n=9+9)
-    CancelTree/depth=1/Root=Background-12          123ns ± 5%   126ns ± 2%   +2.61%  (p=0.023 n=10+9)
-    CancelTree/depth=1/Root=OpenCanceler-12        781ns ± 4%   806ns ± 4%   +3.20%  (p=0.022 n=9+10)
-    CancelTree/depth=1/Root=ClosedCanceler-12      370ns ± 4%   369ns ± 3%     ~     (p=0.497 n=9+10)
-    CancelTree/depth=10/Root=Background-12        4.74µs ± 4%  4.78µs ± 3%     ~     (p=0.516 n=10+10)
-    CancelTree/depth=10/Root=OpenCanceler-12      6.31µs ± 4%  6.29µs ± 4%     ~     (p=1.000 n=10+10)
-    CancelTree/depth=10/Root=ClosedCanceler-12    2.10µs ± 5%  2.09µs ± 5%     ~     (p=0.839 n=10+10)
-    CancelTree/depth=100/Root=Background-12       51.0µs ± 3%  51.2µs ± 2%     ~     (p=0.631 n=10+10)
-    CancelTree/depth=100/Root=OpenCanceler-12     60.8µs ± 1%  61.6µs ± 4%     ~     (p=0.274 n=8+10)
-    CancelTree/depth=100/Root=ClosedCanceler-12   19.3µs ± 2%  19.0µs ± 3%     ~     (p=0.123 n=10+10)
-    CancelTree/depth=1000/Root=Background-12       504µs ± 4%   512µs ± 4%     ~     (p=0.123 n=10+10)
-    CancelTree/depth=1000/Root=OpenCanceler-12     615µs ± 6%   619µs ± 4%     ~     (p=1.000 n=10+10)
-    CancelTree/depth=1000/Root=ClosedCanceler-12   190µs ± 2%   192µs ± 3%     ~     (p=0.190 n=9+9)
-    CheckCanceled/Err-12                          12.1ns ± 2%  12.1ns ± 2%     ~     (p=0.615 n=10+10)
-    CheckCanceled/Done-12                         7.27ns ± 1%  7.26ns ± 1%     ~     (p=0.698 n=10+10)
-    ContextCancelDone-12                          1.03ns ± 1%  1.03ns ± 1%     ~     (p=0.474 n=9+9)
-    DeepValueNewGoRoutine/depth=10-12             1.02µs ± 3%  0.99µs ± 2%   -3.41%  (p=0.000 n=10+10)
-    DeepValueNewGoRoutine/depth=20-12             1.11µs ± 3%  1.08µs ± 2%   -2.51%  (p=0.004 n=10+10)
-    DeepValueNewGoRoutine/depth=30-12             5.55µs ±10%  1.17µs ± 4%  -78.91%  (p=0.000 n=10+10)
-    DeepValueNewGoRoutine/depth=50-12             5.70µs ±13%  1.35µs ± 2%  -76.31%  (p=0.000 n=10+10)
-    DeepValueNewGoRoutine/depth=100-12            9.69µs ± 4%  1.82µs ± 2%  -81.18%  (p=0.000 n=10+10)
-    DeepValueSameGoRoutine/depth=10-12            54.2ns ± 2%  46.8ns ± 2%  -13.71%  (p=0.000 n=9+9)
-    DeepValueSameGoRoutine/depth=20-12             109ns ± 2%    97ns ± 2%  -11.11%  (p=0.000 n=10+10)
-    DeepValueSameGoRoutine/depth=30-12             155ns ± 3%   140ns ± 1%   -9.49%  (p=0.000 n=10+10)
-    DeepValueSameGoRoutine/depth=50-12             256ns ± 2%   226ns ± 2%  -11.83%  (p=0.000 n=10+10)
-    DeepValueSameGoRoutine/depth=100-12            492ns ± 3%   442ns ± 1%  -10.15%  (p=0.000 n=10+10)
-    ```
-    
-    Fixes #47292
-    
-    Change-Id: I6bdeb234c979fb8fd6bfb91fd345cb5038f52c75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335790
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    Change-Id: I84336170e179832604e1311ea9263af36f9ce15a
+    GitHub-Last-Rev: a6068c1d2b5a7711b93899f798dbc84f1ea339e4
+    GitHub-Pull-Request: golang/go#43845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285675
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/context/benchmark_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/context/context.go        | 30 ++++++++++++++++++++++++++++--
- 2 files changed, 64 insertions(+), 2 deletions(-)
+ src/runtime/mgcscavenge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

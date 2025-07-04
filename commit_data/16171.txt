@@ -1,12 +1,14 @@
-commit d4d063580f3e684945e9f8dc470b2312fb27c5cf
-Author: Alexei Sholik <alcosholik@gmail.com>
-Date:   Fri Apr 12 16:08:56 2013 -0700
+commit 14cb1a1da98bbecaf64c8393138b845ce5562c23
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Apr 12 15:58:34 2013 -0700
 
-    testing/iotest: rephrase DataErrReader's description
+    test: raise the allocation threshold for chan/select2.go failure
     
-    R=r
+    Updates #5282
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8650044
+    https://golang.org/cl/8718045
 
- src/pkg/testing/iotest/reader.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ test/chan/select2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

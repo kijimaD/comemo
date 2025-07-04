@@ -1,19 +1,23 @@
-commit 09f1546cba2998a8d89f4506c16ba3bff115071d
-Author: Sean Liao <sean@liao.dev>
-Date:   Tue May 27 19:11:28 2025 +0100
+commit 55e4097cbaf67307eeb981150da774329a03b88d
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 3 11:58:54 2024 -0400
 
-    log/slog: fix longtests with empty source
+    internal/goexperiment: remove the ExecTracer2 experiment
     
-    Tests broken by CL 674875
+    This change removes the ExecTracer2 experiment flag. This flag was
+    created as part of the tracer overhaul described in #60773.
     
-    Updates #73808
+    Updates #66703
+    For #60773
     
-    Change-Id: I7ad93e4a8ba1977d136f99b9d4963fa8a9c159ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676595
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib95b9dd8bb68b48e7543c4d28d853c6a518438f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576258
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/log/slog/logger_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/buildcfg/exp.go                     | 1 -
+ src/internal/goexperiment/exp_exectracer2_off.go | 8 --------
+ src/internal/goexperiment/exp_exectracer2_on.go  | 8 --------
+ src/internal/goexperiment/flags.go               | 4 ----
+ 4 files changed, 21 deletions(-)

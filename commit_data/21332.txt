@@ -1,15 +1,40 @@
-commit dcb37f94e0a981b322f4c15c343695c70cca09d1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 22 21:54:26 2015 -0800
+commit cda0ea1c0e06d1309f66423a8fd72e272d089b6c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 10 17:02:58 2014 -0800
 
-    go/parser: report error for var/const decls with missing init exprs
+    runtime: a better fallback hash
     
-    Fixes #9639.
+    For arm and powerpc, as well as x86 without aes instructions.
+    Contains a mixture of ideas from cityhash and xxhash.
     
-    Change-Id: I311045d3df26b29b9380c159ef4727e85650d13b
-    Reviewed-on: https://go-review.googlesource.com/3211
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Compared to our old fallback on ARM, it's ~no slower on
+    small objects and up to ~50% faster on large objects.  More
+    importantly, it is a much better hash function and thus has
+    less chance of bad behavior.
+    
+    Fixes #8737
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkHash5                    173           181           +4.62%
+    BenchmarkHash16                   252           212           -15.87%
+    BenchmarkHash64                   575           419           -27.13%
+    BenchmarkHash1024                 7173          3995          -44.31%
+    BenchmarkHash65536                516940        313173        -39.42%
+    BenchmarkHashStringSpeed          300           279           -7.00%
+    BenchmarkHashBytesSpeed           478           424           -11.30%
+    BenchmarkHashInt32Speed           217           207           -4.61%
+    BenchmarkHashInt64Speed           262           231           -11.83%
+    BenchmarkHashStringArraySpeed     609           631           +3.61%
+    
+    Change-Id: I0a9335028f32b10ad484966e3019987973afd3eb
+    Reviewed-on: https://go-review.googlesource.com/1360
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/parser/parser.go     | 12 ++++++++++++
- src/go/parser/short_test.go |  7 ++++++-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/runtime/alg.go         | 25 ++----------
+ src/runtime/export_test.go |  1 -
+ src/runtime/hash32.go      | 93 ++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/hash64.go      | 96 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/hash_test.go   |  9 -----
+ src/runtime/unaligned1.go  | 17 ++++++++
+ src/runtime/unaligned2.go  | 20 ++++++++++
+ 7 files changed, 229 insertions(+), 32 deletions(-)

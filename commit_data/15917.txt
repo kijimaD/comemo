@@ -1,16 +1,14 @@
-commit a909e4ba1e2044d33429d732f879a0c27bf977c2
+commit a3c2d62a9ab518ed6098375d4df91e0521c86026
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Mar 24 11:38:57 2013 +0100
+Date:   Sun Mar 24 08:55:08 2013 +0100
 
-    cmd/cc: fix typo leading to index out of range.
+    cmd/5l, cmd/6l, cmd/8l: remove declaration on non-existent variables.
     
-    Detected by GCC static analysis.
-    
-    Fixes #5117.
-    
-    R=golang-dev, ality, minux.ma
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7665047
+    https://golang.org/cl/7985043
 
- src/cmd/cc/funct.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/l.h | 1 -
+ src/cmd/6l/l.h | 1 -
+ src/cmd/8l/l.h | 3 ---
+ 3 files changed, 5 deletions(-)

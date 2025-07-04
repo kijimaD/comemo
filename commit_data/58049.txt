@@ -1,17 +1,35 @@
-commit 083045f99dde6fb00c4e8658a67cacce1e06825f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 13 16:33:30 2024 +0000
+commit b6ae112ff1bb7ace761ed8dfee95626069280f07
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Sep 7 14:59:58 2023 +0200
 
-    internal/sync: add Delete to HashTrieMap
+    runtime: implement usleep in Go instead of assembly on Windows
     
-    This change adds the Delete operation (with the same semantics as
-    sync.Map's Delete) to HashTrieMap.
+    Windows APIs are normally not arch-specific, so it's better to
+    implement them in Go instead of assembly.
     
-    Change-Id: If90376ff735256444538719d670ed07e9e42870b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606458
-    Reviewed-by: David Chase <drchase@google.com>
+    It was previously implemented in assembly because it was the only way
+    to support calls without a valid g. This CL defines a new function,
+    stdcall_no_g, that can be used in such cases.
+    
+    While here, I've also replaced the use of the deprecated syscall
+    NtWaitForSingleObject with WaitForSingleObject. The former may
+    give the illusion of being more accurate, as it takes a higher
+    resolution timeout, but it's not. Windows time resolution is 15.6ms,
+    and can be as high as 1ms when using a high resolution timer, which
+    WaitForSingleObject supports.
+    
+    Change-Id: I903400220ade4d4ccc15685c8da47182430f8686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526477
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/internal/sync/hashtriemap.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/os_windows.go       | 19 ++++++++++---------
+ src/runtime/sys_windows_386.s   | 17 -----------------
+ src/runtime/sys_windows_amd64.s | 19 -------------------
+ src/runtime/sys_windows_arm.s   | 19 -------------------
+ src/runtime/sys_windows_arm64.s | 15 ---------------
+ 5 files changed, 10 insertions(+), 79 deletions(-)

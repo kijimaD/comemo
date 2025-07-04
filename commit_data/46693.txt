@@ -1,21 +1,17 @@
-commit 8d494b08189cda1b66b9f851d4d7088c77ac7b6b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 30 17:42:15 2021 -0400
+commit b186e4d70de28697d1ad7e3c31625793e6338ef0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 09:43:08 2021 -0500
 
-    cmd/link: set alignment for string symbols in symtab pass
+    cmd/go: add test case for cgo CC setting
     
-    Set alignment for string symbols in symtab pass, so we don't need
-    to look at symbol name in symalign in dodata pass. (Ideally we
-    should not use symbol name like this in symtab pass either, but
-    we already use the names there anyway.)
-    
-    Change-Id: I9fd61e0dd0824c50e3d0d7c07f75b967c8654796
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353470
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ied986053a64447c5eac6369f6c9b69ed3d3f94d9
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/949415
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284782
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
 
- src/cmd/link/internal/ld/data.go   | 7 -------
- src/cmd/link/internal/ld/symtab.go | 6 ++++++
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/go/testdata/script/cgo_path.txt | 35 +++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

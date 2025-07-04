@@ -1,23 +1,14 @@
-commit baed067d879410951279feeebc0ef67702415ffd
+commit 90f91928866a602df045b6c44f58a6f2f741bbf0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 14:43:57 2013 -0400
+Date:   Tue Sep 10 14:43:21 2013 -0400
 
-    cmd/go: show FAIL for errors during test setup
+    cmd/go: run benchmarks in sequence
     
-    For example, if an x_test.go file contains a syntax error,
-    b.test fails with an error message. But it wasn't printing
-    the same FAIL line that a build failure later would print.
-    This makes all the test failures that happen (once we
-    decide to start running tests) consistently say FAIL.
-    
-    Fixes #4701.
+    Fixes #5662.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13431044
+    https://golang.org/cl/13650043
 
- src/cmd/go/test.bash                          | 13 +++++++++++++
- src/cmd/go/test.go                            |  6 ++++--
- src/cmd/go/testdata/src/syntaxerror/x.go      |  1 +
- src/cmd/go/testdata/src/syntaxerror/x_test.go |  4 ++++
- 4 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/go/test.go | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

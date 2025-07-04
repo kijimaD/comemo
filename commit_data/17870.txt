@@ -1,12 +1,12 @@
-commit 19dda5cd74401cefaadf2ea46da32890e5737542
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Fri Nov 8 11:31:44 2013 -0500
+commit 8d206d9d804d793727a668a21711dac69689cf23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 13:58:35 2013 -0800
 
-    emacs: allow users to customize the gofmt command, in particular, to use goimports instead.
+    doc: update note about GCC 4.8.2 in gccgo instructions
     
-    R=adonovan
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/23680043
+    https://golang.org/cl/22510043
 
- misc/emacs/go-mode.el | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ doc/gccgo_install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

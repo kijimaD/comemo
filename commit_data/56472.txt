@@ -1,19 +1,16 @@
-commit 1f6a983baf4b9a636e9e4bbd827fcb4d6ef4ebe0
-Author: apocelipes <seve3r@outlook.com>
-Date:   Tue May 14 09:42:57 2024 +0000
+commit 3f9521b2f00b2dba9781c52ed489372a8b5960fe
+Author: David Chase <drchase@google.com>
+Date:   Mon Feb 13 18:52:16 2023 -0500
 
-    database/sql: reordering fields to reduce struct sizes
+    internal/abi: common up some offset/size functions
     
-    There are 16 bytes reduced.
-    
-    Change-Id: I33ca96fd22002b3111f0462c3029d70df48adb6e
-    GitHub-Last-Rev: 8df56a9655ef261be3ff9403491cbbe1ebda1ec0
-    GitHub-Pull-Request: golang/go#67055
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581935
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I92eeed20af35c7dec309457a80b8fd44eb70b57f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467876
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/database/sql/sql.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 15 ++++++++-------
+ src/cmd/link/internal/ld/decodesym.go           | 10 +++++-----
+ 2 files changed, 13 insertions(+), 12 deletions(-)

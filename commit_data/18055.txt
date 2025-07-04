@@ -1,12 +1,17 @@
-commit 6a23d82df1da085e43dc8c0267b15aacf60f82e5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 10:37:27 2013 -0800
+commit f48120ef51bd007f0d84b42e25e1e23e75b9f244
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 18 13:29:40 2013 -0500
 
-    api: update next.txt
+    cmd/nm: minor cleanup from previous CL
     
-    R=golang-dev, rsc
+    I forgot to apply Ian's suggestions before submitting CL 40600043.
+    
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/43490048
+    https://golang.org/cl/43560045
 
- api/next.txt | 150 ++++++++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 112 insertions(+), 38 deletions(-)
+ src/cmd/nm/doc.go   |  2 ++
+ src/cmd/nm/elf.go   |  3 +++
+ src/cmd/nm/goobj.go |  2 +-
+ src/cmd/nm/nm.go    | 16 ++++++----------
+ 4 files changed, 12 insertions(+), 11 deletions(-)

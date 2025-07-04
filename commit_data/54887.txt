@@ -1,22 +1,22 @@
-commit f5ec2e46d93f6ae289b1eed0bd6e82f3368ecee9
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Wed Nov 1 13:47:23 2023 +0000
+commit 7161fc737dab823f94d77810953493a0f458284f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 18 14:33:23 2022 -0500
 
-    net/http/httptest: remove unnecessary creation of http.Transport
+    cmd/go/internal/script: check lack of error for non-waiting cmds
     
-    In (*Server).StartTLS, it's unnecessary to create an http.Client
-    with a Transport, because a new one will be created with the
-    TLSClientConfig later.
+    In the script engine, if a command does not return a Wait function and
+    it succeeds, we won't call checkStatus. That means that commands that
+    don't have a wait function, have a "!" indicating that they are
+    supposed to fail, and then succeed will spuriously not fail the script
+    engine test even they were supposed to fail but didn't.
     
-    Change-Id: I086e28717e9739787529006c3f0296c8224cd790
-    GitHub-Last-Rev: 33724596bd901a05a91654f8c2df233aa6563ea6
-    GitHub-Pull-Request: golang/go#60124
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494355
-    Run-TryBot: t hepudds <thepudds1460@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ic88c3cdd628064d48f14a8a4a2e97cded48890fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451284
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/net/http/httptest/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/script/engine.go            | 9 ++++++---
+ src/cmd/go/testdata/script/list_issue_56509.txt | 3 ++-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

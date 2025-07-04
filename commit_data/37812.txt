@@ -1,30 +1,14 @@
-commit 8e6396115e56d8e0cbecd6904f94c8d893db1724
-Author: Austin Clements <austin@google.com>
-Date:   Sun Dec 30 20:04:16 2018 -0500
+commit f882d89b768bcfbd02b209acf0d525f4dbdd8f09
+Author: G. Hussain Chinoy <ghchinoy@gmail.com>
+Date:   Thu Aug 30 18:24:53 2018 +0000
 
-    runtime: don't spin in checkPut if non-preemptible
+    ghchinoy: add example for ioutil.WriteFile
     
-    Currently it's possible for the runtime to deadlock if checkPut is
-    called in a non-preemptible context. In this case, checkPut may spin,
-    so it won't leave the non-preemptible context, but the thread running
-    gcMarkDone needs to preempt all of the goroutines before it can
-    release the checkPut spin loops.
-    
-    Fix this by returning from checkPut if it's called under any of the
-    conditions that would prevent gcMarkDone from preempting it. In this
-    case, it leaves a note behind that this happened; if the runtime does
-    later detect left-over work it can at least indicate that it was
-    unable to catch it in the act.
-    
-    For #27993.
-    Updates #29385 (may fix it).
-    
-    Change-Id: Ic71c10701229febb4ddf8c104fb10e06d84b122e
-    Reviewed-on: https://go-review.googlesource.com/c/156017
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I65c3bda498562fdf39994ec1cadce7947e2d84b5
+    Reviewed-on: https://go-review.googlesource.com/132277
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mgc.go     |  3 +++
- src/runtime/mgcwork.go | 16 ++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/io/ioutil/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

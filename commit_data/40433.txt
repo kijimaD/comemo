@@ -1,18 +1,19 @@
-commit 813d8e886208e5e001df3b55e8bc1c65ca4249ff
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Oct 23 14:28:55 2019 +0700
+commit 3def99a8a8e3dc9841132e7b3515187b51b6a528
+Author: Luka Zitnik <luka.zitnik@gmail.com>
+Date:   Sun Apr 7 16:41:11 2019 +0200
 
-    runtime: factor out debug.invalidptr case in findObject
+    cmd/go: print finally FAIL if a test has failed in package list mode
     
-    This helps keeping findObject's frame small.
+    Fixes #30507
     
-    Updates #35068
-    
-    Change-Id: I1b8c1fcc5831944c86f1a30ed2f2d867a5f2b242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202797
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ic598e4d5f71c624fcde051982bf85533e2f18e8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170948
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mbitmap.go | 50 +++++++++++++++++++++++++++-----------------------
- 1 file changed, 27 insertions(+), 23 deletions(-)
+ src/cmd/go/alldocs.go                      |  5 ++++-
+ src/cmd/go/internal/base/base.go           |  4 ++++
+ src/cmd/go/internal/test/test.go           | 18 ++++++++++++++++--
+ src/cmd/go/testdata/script/test_status.txt | 18 ++++++++++++++++++
+ 4 files changed, 42 insertions(+), 3 deletions(-)

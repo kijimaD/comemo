@@ -1,15 +1,13 @@
-commit 4d1301949a546b373e9bd75bbefac3fc228b9de5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 10 12:48:56 2014 -0800
+commit d0252b17ce16dfc9725a3945d9a1fa2fe3e507c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 10 14:40:19 2014 -0500
 
-    container/heap: avoid and/or ambiguity in documentation
+    lib/codereview: allow addca CLs without LGTM
     
-    (per suggestion by Doug McIlroy)
-    
-    LGTM=r
-    R=r
+    LGTM=gri
+    R=golang-codereviews, gri
     CC=golang-codereviews
-    https://golang.org/cl/50580046
+    https://golang.org/cl/61610043
 
- src/pkg/container/heap/heap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

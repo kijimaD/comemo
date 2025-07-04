@@ -1,21 +1,26 @@
-commit 76d2f6cc6245d0e8876c29881570d218838c1068
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 6 15:02:28 2019 -0500
+commit b963149d4eddaf92d9e2a9d3bf5474c2d0a3b55d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 22 19:09:33 2019 +1000
 
-    cmd/go: include cfg.BuildModReason in 'import lookup disabled' errors
+    net: do not call Windows TransmitFile for large files
     
-    This location was missed in CL 204521.
+    TransmitFile does not allow for number of bytes that can be
+    transmitted to be larger than 2147483646. See
     
-    Updates #33326
-    Updates #33848
+    https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
     
-    Change-Id: I0ece6d9b37548d8abb54f79c69be5548a0428c76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210341
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    for details. So adjust sendFile accordingly.
+    
+    No test added, because this would require creating large file
+    (more than 2GB file).
+    
+    Fixes #33193.
+    
+    Change-Id: I82e0cb104d112264e4ea363bb20b6d02ac30b38e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187037
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/modload/import.go              | 13 +++++++------
- src/cmd/go/testdata/script/mod_list_e_readonly.txt |  2 +-
- src/cmd/go/testdata/script/mod_readonly.txt        |  3 ++-
- 3 files changed, 10 insertions(+), 8 deletions(-)
+ src/net/sendfile_windows.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

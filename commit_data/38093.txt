@@ -1,18 +1,24 @@
-commit 572329ef7f62ced3bd0d099d670247cc2bbb8810
-Author: go101 <tapir.liu@gmail.com>
-Date:   Fri Feb 22 02:11:55 2019 +0000
+commit 457c8f4fe9e4d45f97d0a3f3c4a80789c6616fd6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 16 12:25:38 2018 -0400
 
-    go/ast: break out after first variable in ExampleCommentMap
+    runtime: eliminate blocking GC work drains
     
-    The current ExampleCommentMap might panic if there are more satisfied
-    comments in the parsed program.
+    Now work.helperDrainBlock is always false, so we can remove it and
+    code paths that only ran when it was true. That means we no longer use
+    the gcDrainBlock mode of gcDrain, so we can eliminate that. That means
+    we no longer use gcWork.get, so we can eliminate that. That means we
+    no longer use getfull, so we can eliminate that.
     
-    Change-Id: Ibe6943470aa0cfb450dae9fc07c1199acaabef73
-    GitHub-Last-Rev: c79e98c2868179ea47618b296ce28c5eebc0b99d
-    GitHub-Pull-Request: golang/go#28587
-    Reviewed-on: https://go-review.googlesource.com/c/147359
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #26903. This is a follow-up to unifying STW GC and concurrent GC.
+    
+    Change-Id: I8dbcf8ce24861df0a6149e0b7c5cd0eadb5c13f6
+    Reviewed-on: https://go-review.googlesource.com/c/134782
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/go/ast/example_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go     | 25 +++-----------
+ src/runtime/mgcmark.go | 44 ++++++++-----------------
+ src/runtime/mgcwork.go | 88 +-------------------------------------------------
+ 3 files changed, 18 insertions(+), 139 deletions(-)

@@ -1,21 +1,19 @@
-commit 1fccbfe90e80f214db0abf3ff0db5a0dfe0efdf3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Feb 10 15:32:28 2018 -0500
+commit b77d9fe0ead35a30cbe449ae805bc4a8770b4a68
+Author: griesemer <gri@golang.org>
+Date:   Thu Oct 5 14:20:51 2017 -0700
 
-    nacl*.bash: pass flags to make.bash
+    cmd/compile: better error message for assignment mismatches
     
-    Just like all.bash passes flags to make.bash, I think it makes
-    sense that naclmake.bash and nacltest.bash do so as well. For
-    example, on a slow machine I can do "./nacltest.bash -v" to see
-    the build progress.
+    Keep left-to-right order when referring to the number of
+    variables and values involved.
     
-    Change-Id: Id766dd590e6b83e8b5345822580dc1b05eac8ea3
-    Reviewed-on: https://go-review.googlesource.com/93117
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #22159.
+    
+    Change-Id: Iccca12d3222f9d5e049939a9ccec07513c393faa
+    Reviewed-on: https://go-review.googlesource.com/68690
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/naclmake.bash | 2 +-
- src/nacltest.bash | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ test/fixedbugs/bug289.go                 | 4 ++--
+ test/fixedbugs/bug487.go                 | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

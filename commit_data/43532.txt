@@ -1,19 +1,252 @@
-commit 0eb52ac2501396874a4e885bf13994773ba1acfe
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Oct 24 19:07:14 2020 +0200
+commit 53a2a6a7fc5dc0ac5eb9db80af59485380fb0052
+Merge: a1c29156ae ea7126fe14
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 10 13:50:52 2020 -0400
 
-    cmd/compile: port last ARM rules to typed
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Passes
+    Clean merge.
     
-      GOARCH=arm gotip build -toolexec 'toolstash -cmp' -a std
-    
-    Change-Id: I4a1cace82c5d957774ea20572406af276f02bf97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264680
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic3634fa450e42635e2daafb53b7dedc6c954d072
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |  8 +--
- src/cmd/compile/internal/ssa/rewriteARM.go | 94 +++++++++++++++++++++++++-----
- 2 files changed, 84 insertions(+), 18 deletions(-)
+ api/except.txt                                     |    4 -
+ doc/install-source.html                            |    6 -
+ misc/cgo/test/pkg_test.go                          |    2 +-
+ misc/cgo/test/sigaltstack.go                       |    4 +-
+ misc/cgo/test/testx.go                             |    2 +-
+ misc/cgo/testcarchive/carchive_test.go             |    8 +-
+ misc/cgo/testcshared/cshared_test.go               |    2 +-
+ misc/cgo/testso/so_test.go                         |    2 +-
+ misc/cgo/testsovar/so_test.go                      |    2 +-
+ misc/ios/clangwrap.sh                              |    4 +-
+ src/buildall.bash                                  |    2 +-
+ src/cmd/asm/internal/asm/testdata/s390x.s          |    1 +
+ src/cmd/compile/internal/amd64/ssa.go              |    3 +-
+ src/cmd/compile/internal/gc/align.go               |    6 +-
+ src/cmd/compile/internal/gc/builtin.go             |   32 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go     |   10 +-
+ src/cmd/compile/internal/gc/bv.go                  |   25 +-
+ src/cmd/compile/internal/gc/go.go                  |   46 +-
+ src/cmd/compile/internal/gc/obj.go                 |   13 +
+ src/cmd/compile/internal/gc/sinit.go               |   31 +-
+ src/cmd/compile/internal/gc/ssa.go                 |   75 +-
+ src/cmd/compile/internal/gc/subr.go                |   15 +
+ src/cmd/compile/internal/gc/syntax.go              |    4 +
+ src/cmd/compile/internal/gc/universe.go            |   10 +-
+ src/cmd/compile/internal/gc/walk.go                |   93 +-
+ src/cmd/compile/internal/logopt/logopt_test.go     |    4 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |   11 +-
+ src/cmd/compile/internal/s390x/ssa.go              |    8 +-
+ src/cmd/compile/internal/ssa/check.go              |    8 +-
+ src/cmd/compile/internal/ssa/config.go             |    2 +-
+ src/cmd/compile/internal/ssa/deadcode.go           |   10 +-
+ src/cmd/compile/internal/ssa/debug_test.go         |    2 +
+ src/cmd/compile/internal/ssa/export_test.go        |    2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |   10 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   54 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |    2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |    4 -
+ src/cmd/compile/internal/ssa/gen/ARM64.rules       |    6 -
+ src/cmd/compile/internal/ssa/gen/MIPS.rules        |    3 -
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules      |    3 -
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  103 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules     |    8 -
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |   80 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |   34 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules        |    3 -
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   20 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |    6 -
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |  199 +-
+ src/cmd/compile/internal/ssa/layout.go             |   37 +-
+ src/cmd/compile/internal/ssa/op.go                 |   15 +-
+ src/cmd/compile/internal/ssa/opGen.go              |   28 -
+ src/cmd/compile/internal/ssa/rewrite386.go         |   72 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  152 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         |   72 -
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |   72 -
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |   72 -
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   72 -
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 1012 +++++-----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     |   60 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  408 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |   12 -
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  142 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go       |  349 +++-
+ src/cmd/compile/internal/ssa/value.go              |    8 +-
+ src/cmd/dist/build.go                              |    4 +-
+ src/cmd/dist/test.go                               |   12 +-
+ src/cmd/dist/util.go                               |    4 +-
+ src/cmd/doc/doc_test.go                            |    4 +-
+ src/cmd/go/go_test.go                              |    2 +-
+ src/cmd/go/internal/base/base.go                   |   25 -
+ src/cmd/go/internal/cfg/cfg.go                     |   11 +
+ src/cmd/go/internal/clean/clean.go                 |    6 +-
+ src/cmd/go/internal/envcmd/env.go                  |    1 +
+ src/cmd/go/internal/load/pkg.go                    |   95 +-
+ src/cmd/go/internal/load/test.go                   |    7 +-
+ src/cmd/go/internal/modconv/convert_test.go        |    4 +-
+ src/cmd/go/internal/modfetch/cache.go              |   28 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |   10 +-
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |    1 -
+ src/cmd/go/internal/modfetch/codehost/shell.go     |    3 +-
+ src/cmd/go/internal/modfetch/coderepo_test.go      |    2 +-
+ src/cmd/go/internal/modfetch/fetch.go              |   11 +-
+ src/cmd/go/internal/modfetch/sumdb.go              |   15 +-
+ src/cmd/go/internal/modget/get.go                  |   21 +-
+ src/cmd/go/internal/modload/init.go                |   19 -
+ src/cmd/go/internal/modload/query_test.go          |    5 +-
+ src/cmd/go/internal/work/build_test.go             |    2 +-
+ src/cmd/go/internal/work/init.go                   |    4 +-
+ .../go/testdata/script/link_syso_issue33139.txt    |    4 -
+ src/cmd/go/testdata/script/list_parse_err.txt      |   36 +-
+ src/cmd/go/testdata/script/mod_get_main.txt        |   15 +-
+ src/cmd/go/testdata/script/mod_gomodcache.txt      |   59 +
+ src/cmd/internal/obj/link.go                       |    6 +-
+ src/cmd/internal/obj/ppc64/asm9.go                 |   11 +-
+ src/cmd/internal/obj/s390x/a.out.go                |    1 +
+ src/cmd/internal/obj/s390x/anames.go               |    1 +
+ src/cmd/internal/obj/s390x/asmz.go                 |    3 +
+ src/cmd/internal/objabi/stack.go                   |    2 +-
+ src/cmd/internal/objabi/util.go                    |    8 +-
+ src/cmd/internal/sys/supported.go                  |    4 +-
+ src/cmd/link/dwarf_test.go                         |    4 +-
+ src/cmd/link/internal/arm/asm.go                   |   16 -
+ src/cmd/link/internal/arm/obj.go                   |    9 -
+ src/cmd/link/internal/ld/lib.go                    |    2 +-
+ src/cmd/link/internal/ld/sym.go                    |   12 +-
+ src/cmd/oldlink/internal/arm/asm.go                |   25 -
+ src/cmd/oldlink/internal/arm/obj.go                |    9 -
+ src/cmd/oldlink/internal/ld/lib.go                 |    2 +-
+ src/cmd/oldlink/internal/ld/sym.go                 |    8 +-
+ src/cmd/oldlink/internal/loadmacho/ldmacho.go      |  103 +-
+ src/crypto/x509/root_cgo_darwin.go                 |    2 +-
+ .../{root_darwin_armx.go => root_darwin_arm64.go}  |    6 +-
+ src/crypto/x509/root_darwin_arm_gen.go             |    8 +-
+ src/crypto/x509/root_darwin_test.go                |    2 +-
+ src/encoding/xml/marshal.go                        |    7 +-
+ src/encoding/xml/marshal_test.go                   |   24 +
+ src/go/build/build_test.go                         |   14 +-
+ src/go/build/deps_test.go                          |    2 +-
+ src/go/build/doc.go                                |    4 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |    3 +-
+ src/internal/cfg/cfg.go                            |    1 +
+ src/internal/testenv/testenv.go                    |    6 +-
+ src/iostest.bash                                   |    9 +-
+ src/log/syslog/syslog_test.go                      |    2 +-
+ src/math/big/nat.go                                |   15 +-
+ src/math/big/nat_test.go                           |   18 +
+ src/net/dial_test.go                               |    2 +-
+ src/net/lookup_test.go                             |   10 +-
+ src/net/net_test.go                                |  542 ++---
+ src/net/platform_test.go                           |    6 +-
+ src/net/textproto/pipeline.go                      |    1 +
+ src/net/timeout_test.go                            |    2 +-
+ src/net/url/url.go                                 |   14 +
+ src/net/url/url_test.go                            |   67 +
+ src/os/exec/exec_test.go                           |   21 +-
+ src/os/file.go                                     |    2 +-
+ src/os/os_test.go                                  |    8 +-
+ src/os/path_test.go                                |    4 +-
+ src/os/signal/signal_test.go                       |   18 +-
+ src/os/wait_waitid.go                              |    3 +-
+ src/path/filepath/path_test.go                     |   16 +-
+ src/regexp/all_test.go                             |   42 +-
+ src/regexp/example_test.go                         |   13 +
+ src/regexp/regexp.go                               |   18 +
+ src/runtime/asm_386.s                              |    4 -
+ src/runtime/cgo/cgo.go                             |    3 +-
+ src/runtime/cgo/gcc_arm64.S                        |   53 +-
+ src/runtime/cgo/gcc_darwin_386.c                   |   66 -
+ src/runtime/cgo/gcc_darwin_arm.c                   |  164 --
+ src/runtime/cgo/gcc_darwin_arm64.c                 |    2 +-
+ ...l2_darwin_armx.c => gcc_signal2_darwin_arm64.c} |    4 +-
+ ...nal_darwin_armx.c => gcc_signal_darwin_arm64.c} |    2 -
+ src/runtime/cgo/gcc_signal_darwin_lldb.c           |    2 +-
+ src/runtime/cgo/signal_darwin_arm.s                |   49 -
+ ...ignal_darwin_armx.go => signal_darwin_arm64.go} |    3 -
+ src/runtime/cgocheck.go                            |   13 +-
+ src/runtime/chan.go                                |    1 +
+ src/runtime/defs_darwin.go                         |    1 -
+ src/runtime/defs_darwin_386.go                     |  367 ----
+ src/runtime/defs_darwin_arm.go                     |  231 ---
+ src/runtime/export_test.go                         |    1 +
+ src/runtime/iface.go                               |    1 +
+ src/runtime/lock_futex.go                          |    8 +
+ src/runtime/lock_js.go                             |    8 +
+ src/runtime/lock_sema.go                           |   10 +-
+ src/runtime/lockrank.go                            |  234 +++
+ src/runtime/lockrank_off.go                        |   26 +
+ src/runtime/lockrank_on.go                         |  160 ++
+ src/runtime/malloc.go                              |    3 +
+ src/runtime/map_benchmark_test.go                  |   19 +
+ src/runtime/mbarrier.go                            |   56 +-
+ src/runtime/mcentral.go                            |    1 +
+ src/runtime/mgc.go                                 |    3 +
+ src/runtime/mgcscavenge.go                         |    1 +
+ src/runtime/mgcsweep.go                            |    1 +
+ src/runtime/mgcwork.go                             |    8 +
+ src/runtime/mheap.go                               |    5 +
+ src/runtime/netpoll.go                             |    2 +
+ src/runtime/netpoll_aix.go                         |    6 +-
+ src/runtime/netpoll_epoll.go                       |    6 +-
+ src/runtime/netpoll_kqueue.go                      |    6 +-
+ src/runtime/netpoll_solaris.go                     |    6 +-
+ src/runtime/netpoll_windows.go                     |    6 +-
+ src/runtime/os_darwin.go                           |    8 +-
+ src/runtime/os_darwin_arm.go                       |   23 -
+ src/runtime/os_linux.go                            |    7 +-
+ src/runtime/pprof/pprof_test.go                    |    2 +-
+ src/runtime/proc.go                                |   17 +
+ src/runtime/proc_test.go                           |    6 +
+ src/runtime/race/README                            |    2 +-
+ src/runtime/race/race_linux_ppc64le.syso           |  Bin 570032 -> 618664 bytes
+ src/runtime/rt0_darwin_386.s                       |   17 -
+ src/runtime/rt0_darwin_arm.s                       |   11 -
+ src/runtime/runtime-gdb_test.go                    |   95 +-
+ src/runtime/runtime2.go                            |   13 +
+ src/runtime/rwmutex.go                             |   10 +-
+ src/runtime/sema.go                                |   10 +-
+ src/runtime/signal_386.go                          |   18 +-
+ src/runtime/signal_arm.go                          |    6 +-
+ src/runtime/signal_darwin_386.go                   |   64 -
+ src/runtime/signal_darwin_arm.go                   |   73 -
+ src/runtime/signal_unix.go                         |    6 +-
+ src/runtime/slice.go                               |   38 +-
+ src/runtime/stack.go                               |    7 +-
+ src/runtime/string.go                              |   47 +-
+ src/runtime/sys_darwin.go                          |   11 +
+ src/runtime/sys_darwin_32.go                       |   21 -
+ src/runtime/sys_darwin_386.s                       |  951 ---------
+ src/runtime/sys_darwin_64.go                       |   21 -
+ src/runtime/sys_darwin_arm.s                       |  603 ------
+ src/runtime/tls_arm.s                              |    5 +-
+ src/runtime/trace.go                               |    1 +
+ src/runtime/vlrt.go                                |    3 -
+ src/sync/runtime.go                                |   10 -
+ src/sync/runtime2.go                               |   15 +
+ src/sync/runtime2_lockrank.go                      |   18 +
+ src/sync/rwmutex_test.go                           |    2 +
+ src/syscall/asm_darwin_386.s                       |  140 --
+ src/syscall/asm_darwin_arm.s                       |  133 --
+ src/syscall/mkall.sh                               |   14 -
+ src/syscall/syscall_darwin_386.go                  |   65 -
+ src/syscall/syscall_darwin_arm.go                  |   71 -
+ src/syscall/syscall_unix_test.go                   |    2 +-
+ src/syscall/zerrors_darwin_386.go                  | 1423 -------------
+ src/syscall/zerrors_darwin_arm.go                  | 1351 -------------
+ src/syscall/zsyscall_darwin_386.go                 | 2083 --------------------
+ src/syscall/zsyscall_darwin_386.s                  |  253 ---
+ src/syscall/zsyscall_darwin_arm.go                 | 2067 -------------------
+ src/syscall/zsyscall_darwin_arm.s                  |  251 ---
+ src/syscall/zsysnum_darwin_386.go                  |  362 ----
+ src/syscall/zsysnum_darwin_arm.go                  |  347 ----
+ src/syscall/ztypes_darwin_386.go                   |  452 -----
+ src/syscall/ztypes_darwin_arm.go                   |  453 -----
+ src/time/zoneinfo_ios.go                           |    2 +-
+ src/time/zoneinfo_unix.go                          |    2 +-
+ test/codegen/floats.go                             |   14 +-
+ test/codegen/shift.go                              |   24 +
+ test/codegen/shortcircuit.go                       |   17 +
+ test/fixedbugs/issue14636.go                       |    2 +-
+ test/nosplit.go                                    |    6 +-
+ 240 files changed, 3510 insertions(+), 14822 deletions(-)

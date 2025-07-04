@@ -1,33 +1,22 @@
-commit cef0a2ecfbd8dfe48434e28fc8b6f584a0212637
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jun 18 14:21:13 2024 -0400
+commit 543e601c118c4bffbeee65e7e9baf79a17ffdfaf
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue May 16 09:19:58 2023 +0200
 
-    all: update vendored golang.org/x/tools
+    net/http: second do not force the Content-Length header if nilled
     
-    Pull in CL 593297:
+    This is a second round of CL 469095 which has been fixed after
+    the issue discovered in the revert CL 495017.
     
-            f2d2ebe4 go/analysis/passes/buildtag: retire Go 1.15 support
+    The issue was a missing res.Body.Close() in the newly added test.
     
-    Along with other changes that have landed into x/tools.
-    This fixes a vet failure reported on longtest builders.
-    
-    For #66092.
-    
-    Change-Id: I549cc3f8e2c2033fe961bf014ff8cc1998021538
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593376
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ifd9d8458022e59f4486397443a2862d06383e990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495115
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../golang.org/x/tools/go/analysis/diagnostic.go   |  17 +-
- .../tools/go/analysis/passes/buildtag/buildtag.go  |   3 -
- .../go/analysis/passes/buildtag/buildtag_old.go    | 174 ---------------------
- .../go/analysis/passes/stringintconv/string.go     |  86 ++++++++--
- .../x/tools/internal/analysisinternal/analysis.go  |  81 ++++++++++
- .../golang.org/x/tools/internal/stdlib/manifest.go | 111 +++++++++++++
- src/cmd/vendor/modules.txt                         |   2 +-
- 9 files changed, 280 insertions(+), 200 deletions(-)
+ src/net/http/serve_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  2 +-
+ 2 files changed, 41 insertions(+), 1 deletion(-)

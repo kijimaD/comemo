@@ -1,26 +1,15 @@
-commit d9b87d7cc3281a3d3051dfa75e30251f25ee117d
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Mon Jun 12 09:05:33 2023 -0700
+commit a73808e1e06dfca15a51743ced1fab038b5a2392
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 15:40:23 2022 -0700
 
-    slices: add benchmark for IsSorted vs. IntsAreSorted
+    go/parser: fix spelling in error message
     
-    We'd like to mention in a comment that users should prefer
-    slices.IsSorted over sort.IntsAreSorted and similar
-    functions. Create a benchmark that shows this.
+    Make spelling consistent with uses in other error messages.
     
-    goos: linux
-    goarch: amd64
-    pkg: slices
-    cpu: 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz
-    BenchmarkIntsAreSorted-8                    6031            198315 ns/op
-    BenchmarkIsSorted-8                        26580             45801 ns/op
-    
-    Change-Id: I4f14fafd799ecec35c8a5215b74994e972103061
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502556
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I584cd22413842fb8bae1632ed34c8b0e7ef163cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424902
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/slices/sort_benchmark_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

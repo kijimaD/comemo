@@ -1,12 +1,19 @@
-commit e9895d92e0b55b2abede9779cb3c8443affb3d7b
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Dec 17 14:21:11 2013 -0800
+commit 4b76a31c6d9fd9dd0c58b46a71c10d5061ed39eb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 17 14:18:58 2013 -0800
 
-    container/list: Add missing period to doc comment for Front
+    runtime: don't crash in SetFinalizer if sizeof *x is zero
     
-    R=golang-dev, bradfitz
+    And document it explicitly, even though it already said
+    it wasn't guaranteed.
+    
+    Fixes #6857
+    
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/38540046
+    https://golang.org/cl/43580043
 
- src/pkg/container/list/list.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/extern.go      | 3 +++
+ src/pkg/runtime/malloc.goc     | 5 ++++-
+ src/pkg/runtime/mfinal_test.go | 7 +++++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)

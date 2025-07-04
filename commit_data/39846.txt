@@ -1,34 +1,26 @@
-commit 5c5f217b635d5bcbbda482f92264265eb61c13f2
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Apr 25 09:41:46 2019 -0400
+commit c4f87ed26ffc17e6cf326d33e49f639d9bf7cf86
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 25 16:34:19 2019 -0700
 
-    cmd/compile: improve s390x sign/zero extension removal
+    cmd/compile: fix "append outside assignment" ICE
     
-    This CL gets rid of the MOVDreg and MOVDnop SSA operations on
-    s390x. They were originally inserted to help avoid situations
-    where a sign/zero extension was elided but a spill invalidated
-    the optimization. It's not really clear we need to do this though
-    (amd64 doesn't have these ops for example) so long as we are
-    careful when removing sign/zero extensions. Also, the MOVDreg
-    technique doesn't work if the register is spilled before the
-    MOVDreg op (I haven't seen that in practice).
+    Some special-case code paths in order.go didn't expect OCALLFUNC to
+    have Ninit; in particular, OAS2FUNC and ODEFER/OGO failed to call
+    o.init on their child OCALLFUNC node. This resulted in not all of the
+    AST being properly ordered.
     
-    Removing these ops reduces the complexity of the rules and also
-    allows us to unblock optimizations. For example, the compiler can
-    now merge the loads in binary.{Big,Little}Endian.PutUint16 which
-    it wasn't able to do before. This CL reduces the size of the .text
-    section in the go tool by about 4.7KB (0.09%).
+    This was noticed because order is responsible for introducing an
+    invariant around how OAPPEND is used, which is enforced by walk.
+    However, there were perhaps simpler cases (e.g., simple order of
+    evaluation) that were being silently miscompiled.
     
-    Change-Id: Icaddae7f2e4f9b2debb6fabae845adb3f73b41db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173897
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #31010.
+    
+    Change-Id: Ib928890ab5ec2aebd8e30a030bc2b404387f9123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169257
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/s390x/ssa.go        |    7 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules |  277 ++-
- src/cmd/compile/internal/ssa/gen/S390XOps.go |    3 -
- src/cmd/compile/internal/ssa/opGen.go        |   28 -
- src/cmd/compile/internal/ssa/rewriteS390X.go | 3028 +++++++++++---------------
- test/codegen/memcombine.go                   |   16 +
- 6 files changed, 1435 insertions(+), 1924 deletions(-)
+ src/cmd/compile/internal/gc/order.go |  6 ++++++
+ test/fixedbugs/issue31010.go         | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

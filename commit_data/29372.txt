@@ -1,27 +1,29 @@
-commit 58e3bf11fb8af887a97a7329edfffb1126ba5fee
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:51:03 2016 +0200
+commit dfc56a4cd313c9c5de37f4fadb14912286edc42f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 12 17:22:47 2016 -0700
 
-    syscall: add support for GOARCH=mips{,le}
+    cmd/compile: statically initialize some interface values
     
-    Change-Id: I39a46b2a9412981db1780b688a86fec791f68b6f
-    Reviewed-on: https://go-review.googlesource.com/31488
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    When possible, emit static data rather than
+    init functions for interface values.
+    
+    This:
+    
+    * cuts 32k off cmd/go
+    * removes several error values from runtime init
+    * cuts the size of the image/color/palette compiled package from 103k to 34k
+    * reduces the time to build the package in #15520 from 8s to 1.5s
+    
+    Fixes #6289
+    Fixes #15528
+    
+    Change-Id: I317112da17aadb180c958ea328ab380f83e640b4
+    Reviewed-on: https://go-review.googlesource.com/26668
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/asm_linux_mipsx.s        |  142 +++
- src/syscall/endian_big.go            |    2 +-
- src/syscall/endian_little.go         |    2 +-
- src/syscall/flock_linux_32bit.go     |    2 +-
- src/syscall/mksysnum_linux.pl        |   14 +-
- src/syscall/syscall_linux_mipsx.go   |  222 ++++
- src/syscall/types_linux.go           |    2 +-
- src/syscall/zerrors_linux_mips.go    | 1834 ++++++++++++++++++++++++++++++++++
- src/syscall/zerrors_linux_mipsle.go  | 1834 ++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_mips.go   | 1759 ++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_mipsle.go | 1759 ++++++++++++++++++++++++++++++++
- src/syscall/zsysnum_linux_mips.go    |  357 +++++++
- src/syscall/zsysnum_linux_mipsle.go  |  357 +++++++
- src/syscall/ztypes_linux_mips.go     |  592 +++++++++++
- src/syscall/ztypes_linux_mipsle.go   |  592 +++++++++++
- 15 files changed, 9464 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |   4 +-
+ src/cmd/compile/internal/gc/sinit.go   |  78 +++++++++++++++++++-
+ test/fixedbugs/issue15528.go           | 131 +++++++++++++++++++++++++++++++++
+ 3 files changed, 208 insertions(+), 5 deletions(-)

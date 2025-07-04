@@ -1,17 +1,41 @@
-commit 56c9f8e8cfecafda3bd9f58c6421cd253a770d54
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 29 15:57:41 2019 -0800
+commit 77e503a3224ada21cc84ab9078980a7d4230492a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 12 18:07:51 2018 -0700
 
-    os: treat EACCES as a permission error in RemoveAll
+    cmd/vet: avoid internal error for implicitly declared type switch vars
     
-    Fixes #29983
+    For type switches using a short variable declaration of the form
     
-    Change-Id: I24077bde991e621c23d00973b2a77bb3a18e4ae7
-    Reviewed-on: https://go-review.googlesource.com/c/160180
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+       switch t := x.(type) {
+       case T1:
+       ...
+    
+    go/types doesn't declare the symbolic variable (t in this example)
+    with the switch; thus such variables are not found in types.Info.Defs.
+    
+    Instead they are implicitly declared with each type switch case,
+    and can be found in types.Info.Implicits.
+    
+    Adjust the shadowing code accordingly.
+    
+    Added a test case to verify that the issue is fixed, and a test
+    case verifying that the shadowing code now considers implicitly
+    declared variables introduces in type switch cases.
+    
+    While at it, also fixed the (internal) error reporting to provide
+    more accurate information.
+    
+    Fixe #26725.
+    
+    Change-Id: If408ed9e692bf47c640f81de8f46bf5eb43415b0
+    Reviewed-on: https://go-review.googlesource.com/135117
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/removeall_at.go   | 17 ++++++----
- src/os/removeall_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 91 insertions(+), 6 deletions(-)
+ src/cmd/vet/main.go            |  1 +
+ src/cmd/vet/shadow.go          |  9 +++------
+ src/cmd/vet/testdata/shadow.go | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/vet/types.go           | 24 ++++++++++++++++++++++--
+ 4 files changed, 58 insertions(+), 8 deletions(-)

@@ -1,21 +1,18 @@
-commit 47b403ad2dba61e653ec24da7d84cb9decea4939
-Author: amdahliu <zenghao235711@gmail.com>
-Date:   Mon Jul 3 10:09:36 2023 +0000
+commit d3b35a42429cec6d57d0d1e167d9443d0fbd6e97
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Aug 28 02:24:06 2022 +0800
 
-    slices: refactor DeleteFunc to improve code readability
+    runtime: convert mOS.profileTimerValid to internal atomic type
     
-    Reuse IndexFunc function to avoid confusing subscript indexing, and to reduce code nesting depth.
+    For #53821
     
-    Change-Id: I309416ebf928071f71054433e078f0fda802fba8
-    GitHub-Last-Rev: af54738bda7f27afda5f92496363c0a68493c369
-    GitHub-Pull-Request: golang/go#61154
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507635
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I6ef90867e918d4907baa83c5a811f1f93e8c09a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426196
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/slices/slices.go | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/runtime/os_linux.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,12 +1,17 @@
-commit e98f2179b17e4d5b4e416bf4856cf68813d17356
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Dec 22 23:44:41 2014 -0500
+commit 22293bb1a47205160175178ec0f386347740bebb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 23:19:59 2014 -0500
 
-    runtime: fix build for arm and ppc64/ppc64le
+    [dev.cc] runtime/cgo: add missing import _ "unsafe" for //go:linkname
     
-    Change-Id: I17ddcb541dfac8b1e48e01ee005563031b6ade2a
-    Reviewed-on: https://go-review.googlesource.com/2062
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Will prod freebsd build along.
+    Not claiming it will fix it.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/171580044
 
- src/runtime/noasm.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/cgo/freebsd.go | 2 ++
+ src/runtime/cgo/netbsd.go  | 2 ++
+ src/runtime/cgo/openbsd.go | 2 ++
+ 3 files changed, 6 insertions(+)

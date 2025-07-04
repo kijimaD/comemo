@@ -1,14 +1,13 @@
-commit c0abdd9f29aa584804ab98ff964cd7d590f81260
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 02:50:33 2014 -0500
+commit 891abf9cc7c9c33e6afccbc3f6cbd5ef17a223b5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Nov 14 11:43:01 2014 +1100
 
-    doc/go_spec: fix typo
+    net/http: add comment to clarify whether Dir is '/' or '\'.
     
-    Fixes #9445
-    
-    Change-Id: If7abd4d4d41cdfd5cf677f03533c930c8b965a01
-    Reviewed-on: https://go-review.googlesource.com/2128
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=bradfitz
+    R=bradfitz, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/168600044
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/fs.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

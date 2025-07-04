@@ -1,17 +1,23 @@
-commit da732dd1c0304819ae107754206eb9da7d282469
+commit 12e65dbdb112ac03049362bf8c0dbeeeb0392c0e
 Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 21 16:00:17 2024 -0500
+Date:   Wed Mar 15 13:09:10 2023 -0500
 
-    cmd/compile/internal/ssa: mark opPPC64ADDZE as having a flag input
+    runtime: cleanup ppc64le/linux library startup code
     
-    This was missed in CL 571055.
+    Fix the argument passing to runtime.newosproc0, the ABI0 argument
+    storing must account for the fixed frame size.
     
-    Change-Id: I58d6469c9ea323943e9c230a54fba8f7ec705d47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573515
+    Cleanup the _rt0_ppc64le_linux_lib definition, the assembler
+    should not generate a stack frame.  And convert it to use the
+    new ABI wrappers.
+    
+    Change-Id: Ibc0be8b37f6522900781a19980fa018dd89ba7b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479796
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/schedule.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/rt0_linux_ppc64le.s | 103 ++++------------------------------------
+ 1 file changed, 10 insertions(+), 93 deletions(-)

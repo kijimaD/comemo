@@ -1,12 +1,20 @@
-commit 7c86263be2ed0967313ec29c4130dccce7105e74
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 18 12:31:37 2016 -0700
+commit 980364b7a2425657a5c66dcad4e52f6cd3723a77
+Author: Kevin Kirsche <kev.kirsche@gmail.com>
+Date:   Fri Jan 22 11:04:07 2016 -0500
 
-    math/big: much simplified and faster Float rounding
+    crypto/cipher: Add AES-GCM encryption and decryption example
     
-    Change-Id: Iab0add7aee51a8c72a81f51d980d22d2fd612f5c
-    Reviewed-on: https://go-review.googlesource.com/20817
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Add example of how to use the aes package to
+    implement AES encryption and decryption
+    within an application.
+    
+    Per feedback, use more secure AES-GCM implementation as an
+    example in crypto/cipher instead of AES directly.
+    
+    Change-Id: I84453ebb18e0bc79344a24171a031ec0d7ccec2e
+    Reviewed-on: https://go-review.googlesource.com/18803
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/float.go | 134 ++++++++++++++++++--------------------------------
- 1 file changed, 49 insertions(+), 85 deletions(-)
+ src/crypto/cipher/example_test.go | 52 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

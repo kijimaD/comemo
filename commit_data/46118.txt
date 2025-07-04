@@ -1,34 +1,62 @@
-commit 457418b47556520d73148a9a5672ee380bd0b5a4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 23 09:31:54 2021 +0700
+commit 6db970e20acd7caeed268fdff458609570f21c90
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 6 18:13:43 2020 -0800
 
-    cmd/go: fix long test builders
+    [dev.regabi] cmd/compile: rewrite Aux uses of ir.Node to *ir.Name [generated]
     
-    CL 343732 enabled -G=3 by default. The types2 typechecker uses slighly
-    different error message format for language feature constraint.
+    Now that the only remaining ir.Node implementation that is stored
+    (directly) into ssa.Aux, we can rewrite all of the conversions between
+    ir.Node and ssa.Aux to use *ir.Name instead.
     
-    The old typechecker format:
+    rf doesn't have a way to rewrite the type switch case clauses, so we
+    just use sed instead. There's only a handful, and they're the only
+    times that "case ir.Node" appears anyway.
     
-            vendor/example.net/need117/need117.go:5:16: cannot convert s (type []byte) to type *[4]byte:
-                    conversion of slices to array pointers only supported as of -lang=go1.17
+    The next CL will move the tag method declarations so that ir.Node no
+    longer implements ssa.Aux.
     
-    The new format:
+    Passes buildall w/ toolstash -cmp.
     
-            vendor/example.net/need117/need117.go:5:17: conversion of slices to array pointers only supported as of -lang=go1.17
+    Updates #42982.
     
-    caused the long test builders failed.
+    [git-generate]
+    cd src/cmd/compile/internal
+    sed -i -e 's/case ir.Node/case *ir.Name/' gc/plive.go */ssa.go
     
-    This CL fixes the test by relaxing the regext pattern a bit, so it can
-    match both the format.
+    cd ssa
+    rf '
+    ex . ../gc {
+      import "cmd/compile/internal/ir"
     
-    Change-Id: I1c4acaa9e34b6c08dccbbc3ce7a99d4cd79f748a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344212
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+      var v *Value
+      v.Aux.(ir.Node) -> v.Aux.(*ir.Name)
+    
+      var n ir.Node
+      var asAux func(Aux)
+      strict n        # only match ir.Node-typed expressions; not *ir.Name
+      implicit asAux  # match implicit assignments to ssa.Aux
+      asAux(n)        -> n.(*ir.Name)
+    }
+    '
+    
+    Change-Id: I3206ef5f12a7cfa37c5fecc67a1ca02ea4d52b32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275789
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/arm/ssa.go       |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go     |  2 +-
+ src/cmd/compile/internal/gc/pgen.go       |  2 +-
+ src/cmd/compile/internal/gc/plive.go      |  6 ++---
+ src/cmd/compile/internal/gc/ssa.go        | 40 +++++++++++++++----------------
+ src/cmd/compile/internal/mips/ssa.go      |  2 +-
+ src/cmd/compile/internal/mips64/ssa.go    |  2 +-
+ src/cmd/compile/internal/riscv64/ssa.go   |  2 +-
+ src/cmd/compile/internal/ssa/deadstore.go | 10 ++++----
+ src/cmd/compile/internal/ssa/debug.go     |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go  |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go  |  2 +-
+ src/cmd/compile/internal/wasm/ssa.go      |  2 +-
+ 13 files changed, 38 insertions(+), 38 deletions(-)

@@ -1,71 +1,28 @@
-commit 92b2b8860dcc28461198c6125fbae2383161d2e5
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Aug 15 16:20:50 2020 +0200
+commit 2c859eae1da367ab292f65ca4fed4f6c89d644f9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 24 13:53:53 2020 -0800
 
-    cmd/go: avoid flag.FlagSet.VisitAll at init time
+    cmd/compile: ignore div/mod in prove on non-x86 architectures
     
-    We want to error early if GOFLAGS contains any flag that isn't known to
-    any cmd/go command. Thus, at init time we would recursively use VisitAll
-    on each of the flagsets to populate a map of all registered flags.
+    Instead of writing AuxInt during prove and then zeroing it during lower,
+    just don't write it in the first place.
     
-    This was unfortunate, as populating said map constituted a whole 5% of
-    the run-time of 'go env GOARCH'. This is because VisitAll is pretty
-    expensive; it copies all the maps from the flagset's map to a slice,
-    sorts the slice, then does one callback per flag.
+    Passes toolstash-check -all.
     
-    First, this was a bit wasteful. We only ever needed to query the
-    knownFlag map if GOFLAGS wasn't empty. If it's empty, there's no work to
-    do, thus we can skip the map populating work.
-    
-    Second and most important, we don't actually need the map at all. A
-    flag.FlagSet already has a Lookup method, so we can simply recursively
-    call those methods for each flag in GOFLAGS. Add a hasFlag func to make
-    that evident.
-    
-    This mechanism is different; its upfront cost is none, but it will
-    likely mean a handful of map lookups for each flag in GOFLAGS. However,
-    that tradeoff is worth it; we don't expect GOFLAGS to contain thousands
-    of flags. The most likely scenario is less than a dozen flags, in which
-    case constructing a "unified" map is not at all a net win.
-    
-    One possible reason the previous mechanism was that way could be
-    AddKnownFlag. Thankfully, the one and only use of that API was removed
-    last year when Bryan cleaned up flag parsing in cmd/go.
-    
-    The wins for the existing benchmark with an empty GOFLAGS are
-    significant:
-    
-            name         old time/op       new time/op       delta
-            ExecGoEnv-8        575µs ± 1%        549µs ± 2%  -4.44%  (p=0.000 n=7+8)
-    
-            name         old sys-time/op   new sys-time/op   delta
-            ExecGoEnv-8       1.69ms ± 1%       1.68ms ± 2%    ~     (p=0.281 n=7+8)
-    
-            name         old user-time/op  new user-time/op  delta
-            ExecGoEnv-8       1.80ms ± 1%       1.66ms ± 2%  -8.09%  (p=0.000 n=7+8)
-    
-    To prove that a relatively large number of GOFLAGS isn't getting
-    noticeably slower, we measured that as well, via benchcmd and GOFLAGS
-    containing 50 valid flags:
-    
-            GOFLAGS=$(yes -- -race | sed 50q) benchcmd -n 500 GoEnvGOFLAGS go env GOARCH
-    
-    And the result, while noisy, shows no noticeable difference (note that
-    it measures 3ms instead of 0.6ms since it's sequential):
-    
-            name          old time/op         new time/op         delta
-            GoEnvGOFLAGS         3.04ms ±32%         3.03ms ±35%    ~     (p=0.156 n=487+481)
-    
-    Finally, we've improved the existing Go benchmark. Now it's parallel,
-    and it also reports sys-time and user-time, which are useful metrics.
-    
-    Change-Id: I9b4551415cedf2f819eb184a02324b8bd919e2bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248757
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iea4b555029a9d69332e835536f9cf3a42b8223db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220682
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/init_test.go             | 26 +++++++++++++++++---------
- src/cmd/go/internal/base/base.go    | 14 ++++++++++++++
- src/cmd/go/internal/base/goflags.go | 37 +++++++------------------------------
- 3 files changed, 38 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  8 +--
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 +--
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  4 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    |  4 +-
+ src/cmd/compile/internal/ssa/prove.go          |  6 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 68 +++-----------------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 34 ++-----------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 68 +++-----------------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 34 ++-----------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 34 ++-----------
+ 11 files changed, 48 insertions(+), 224 deletions(-)

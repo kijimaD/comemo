@@ -1,20 +1,35 @@
-commit 6dc99aa7eb26e7cf9af0d2cab74c5027fec8cde2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 24 21:50:29 2024 -0700
+commit 1f8f2ab9661c78876d8a8cb0ccc4625728842b26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 21 15:50:18 2023 -0700
 
-    cmd/link: for asan align coverage counter section to 8 bytes
+    go/types, types2: remove order dependency in inference involving channels
     
-    Fixes #66966
+    In inexact unification, when a named type matches against an inferred
+    unnamed type, we change the previously inferred type to the named type.
+    This preserves the type name and assignability.
     
-    Change-Id: I92777a7d7d8afaa82ffcd605aa3e607289b645f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622477
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    We have to do the same thing when encountering a directional channel:
+    a bidirectional channel can always be assigned to a directional channel
+    but not the other way around. Thus, if we see a directional channel, we
+    must choose the directional channel.
+    
+    This CL extends the previously existing logic for named types to
+    directional channels and also makes the code conditional on inexact
+    unification. The latter is an optimization - if unification is exact,
+    type differences don't exist and updating an already inferred type has
+    no effect.
+    
+    Fixes #62157.
+    
+    Change-Id: I807e3b9f9ab363f9ed848bdb18b2577b1d680ea7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521500
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/testsanitizers/asan_test.go   | 100 +++++++++++----------
- .../testsanitizers/testdata/asan_fuzz_test.go      |  30 +++++++
- src/cmd/link/internal/ld/data.go                   |   6 ++
- 3 files changed, 91 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/types2/unify.go           |  44 +++++--
+ src/go/types/unify.go                              |  44 +++++--
+ .../types/testdata/fixedbugs/issue62157.go         | 128 +++++++++++++++++++++
+ 3 files changed, 194 insertions(+), 22 deletions(-)

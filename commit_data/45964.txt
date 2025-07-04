@@ -1,28 +1,17 @@
-commit f1dce319ffd9d3663f522141abfb9c1ec9d92e04
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Aug 5 15:18:42 2021 -0700
+commit 4ef78b09c9ea54019e13fd19b2368960b155399f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 14:03:54 2020 +0100
 
-    cmd/go: with -mod=vendor, don't panic if there are duplicate requirements
+    doc/go1.16: add runtime/debug changes to release notes
     
-    In loadModFile with -mod=vendor, load the vendor list and use it to
-    initialize the module graph before calling updateRoots.
+    For #40700
+    Fixes #42912
     
-    In updateLazyRoots with any mode other than "mod", return the original
-    *Requirements if no roots needed to be upgraded, even if there are
-    inconsistencies. This means 'go list -m -mod=readonly' and -mod=vendor
-    may succeed if there are duplicate requirements or requirements on
-    versions of the main module.
-    
-    Fixes #47565
-    
-    Change-Id: I4640dffc4a7359367cc910da0d29e3538bfd1ca4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340252
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifd36950136db1fc93a8de76a2717a473210418b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274473
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go           | 19 +++++++++++
- src/cmd/go/internal/modload/init.go                | 39 ++++++++++------------
- src/cmd/go/testdata/script/mod_tidy_lazy_self.txt  | 17 ++++------
- .../script/mod_vendor_redundant_requirement.txt    | 29 ++++++++++++++++
- 4 files changed, 72 insertions(+), 32 deletions(-)
+ doc/go1.16.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

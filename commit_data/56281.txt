@@ -1,19 +1,27 @@
-commit a62c290c5056d838c1a3c8f3a6375b5bc51c7666
-Author: gucio321 <gucio321@protonmail.com>
-Date:   Tue Apr 23 09:55:15 2024 +0000
+commit c2c787d73e6fadd57ebcc9fb07532332637b9164
+Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
+Date:   Wed Apr 12 11:09:01 2023 +0200
 
-    src/buildall.bash: use grep -E instead of egrep
+    runtime/metrics: set /sched/latencies:seconds as cumulative
     
-    according to https://www.phoronix.com/news/GNU-Grep-3.8-Stop-egrep-fgrep egrep and fgrep should not be used anymore. thats why using buildall.bash throws the following warning: egrep: warning: egrep is obsolescent; using grep -E
+    The current implementation for this metric populates a histogram
+    that is never reset, i.e. where each bucket count increases
+    monotonically.
     
-    Change-Id: I2f3be55ebaa7826a7f89a93d756e083b9bddfb03
-    GitHub-Last-Rev: 60be0651afd68671dce2e701f9b8bfe1c16a3da8
-    GitHub-Pull-Request: golang/go#66990
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581055
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The comment in the definition of the Cumulative attribute calls
+    out that cumulative means that if the metric is a distribution,
+    then each bucket count increases monotonically.
+    
+    In that sense, the cumulative attribute should be set to true for
+    this metric.
+    
+    Change-Id: Ifc34e965a62f2d7881b5c8e8cbb8b7207a4d5757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/buildall.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/metrics/description.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,12 +1,13 @@
-commit 9c3ecb361739e9ed2f1cd560197cc9dfab2e7b91
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 14 08:16:40 2011 -0400
+commit 2fca1a4049ad96cecaa1c35a44d11265cd2f7e45
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 13 23:12:48 2011 -0700
 
-    runtime: fix set and not used in chan.c
+    lib9/create.c: delete unused variable
+    fixes build with GCC4.6
     
-    R=rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4416042
+    https://golang.org/cl/4396048
 
- src/pkg/runtime/chan.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/lib9/create.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

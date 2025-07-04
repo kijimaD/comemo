@@ -1,13 +1,25 @@
-commit 654d5f4b5dfc30167bbffd0d7aeba3c1e29277c8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 30 09:29:45 2021 -0800
+commit f7afdfd48383c4f0ea8653ea9f8c7b9a3d93abee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 21 18:22:35 2021 -0700
 
-    spec: add section on type inference
+    go/types: cleanup and fix Checker.index
     
-    Change-Id: Ic338788d6410ed0d09ad129811377ee9ce5ed496
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367954
+    A couple minor spec compliance issues: constant, typed index operands
+    must still be representable as type "int", but should also be recorded
+    as their original type.
+    
+    Fixes #45667.
+    
+    Change-Id: Iefeb29f20a8e48350af83a62c9ae0e92198c5ef7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312591
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 385 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 382 insertions(+), 3 deletions(-)
+ src/go/types/builtins_test.go |  3 +++
+ src/go/types/check_test.go    | 15 +++++++++---
+ src/go/types/expr.go          | 56 +++++++++++++++++++++++++++----------------
+ 3 files changed, 51 insertions(+), 23 deletions(-)

@@ -1,32 +1,17 @@
-commit 3e1bda08fba871157c3c91a44437b7bd266371c1
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 23 17:28:09 2024 -0400
+commit 765bd691e26b52d79a42e30e1210f91fc0afca53
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jun 8 12:39:05 2023 +0200
 
-    runtime: run debuglog tests when debuglog tag is *not* set
+    doc/go1.21: NOFRAME heuristic changes
     
-    Currently, the debuglog tests only run when the debuglog build tag is
-    set because, until the last few CLs, all of debuglog was compiled away
-    without that build tag. This causes two annoying problems:
+    For #58378
     
-    1. The tests basically never run, because we don't regularly test this
-    configuration.
-    
-    2. If you do turn on the debuglog build tag, it's probably because
-    you're adding debuglogs into the runtime, which are very likely to
-    mess up these tests, so you wind up disabling the tests and they,
-    again, don't get coverage.
-    
-    Now we've set things up so the debuglog implementation is always
-    accessible, if you ask nicely enough. So we can switch these tests to
-    run when the tag is *not* set, and turn off when the tag *is* set (and
-    you're probably adding actual log statements).
-    
-    Change-Id: Ib68d7a5022d4f5db96e9c7c8010cbef21d11fe11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600697
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I960b97f33a8bf29d3a9622b58d278544d0970a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501516
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/debuglog.go             | 6 ++++--
- src/runtime/debuglog_test.go        | 4 ++--
- src/runtime/export_debuglog_test.go | 2 +-
- 3 files changed, 7 insertions(+), 5 deletions(-)
+ doc/go1.21.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

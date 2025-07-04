@@ -1,16 +1,20 @@
-commit 8d2a9c32a28838978f5d4e477bbd6db4144005d3
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sun Aug 8 19:44:30 2021 +0930
+commit 3dd58676054223962cd915bb0934d1f9f489d4d2
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jan 1 00:00:00 2021 -0500
 
-    all: remove incorrectly repeated words in comments
+    doc: 2021 is the Year of the Gopher
     
-    Change-Id: Icbf36e1cd8311b40d18177464e7c41dd8cb1c65b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340350
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    What a year it has been. If there's one thing we can count on
+    at a time like this, it's that 2021 is the Year of the Gopher.
+    
+    Change-Id: I4f6fbbe3d9b4b70df8fadd0d18237f05cd572265
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280163
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
 
- src/net/lookup.go         | 16 ++++++++--------
- src/runtime/mpagealloc.go |  2 +-
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

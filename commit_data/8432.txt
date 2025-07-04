@@ -1,12 +1,12 @@
-commit 8e26a644caa8644d3c1e3794cbd6b3971f505544
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed May 18 10:56:20 2011 -0700
+commit 9cd674be93a41be5f813eeb280afd1886a0c1999
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 18 13:28:01 2011 -0400
 
-    image/jpeg: make writeDQT do fewer array copies.
+    syscall: adjust freebsd syscalls.master URL properly
     
-    R=rsc, r
+    R=golang-dev, devon.odell
     CC=golang-dev
-    https://golang.org/cl/4536069
+    https://golang.org/cl/4552051
 
- src/pkg/image/jpeg/writer.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/pkg/syscall/mkall.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,27 +1,22 @@
-commit 75789880a6693a4a0645f1b5924d1ede87308a63
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 28 22:46:41 2020 -0400
+commit 8c00e07c01c9864506054dfe5916fd343057b3db
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 8 15:00:41 2020 -0400
 
-    cmd/link: put C static symbols in the symbol table, attempt 2
+    net/url: add URL.RawFragment, URL.EscapedFragment
     
-    We don't put Go static symbols in the symbol table, as they are
-    always compiler-generated (there is no way to define a static
-    symbol in user code in Go). We retain static symbols in assembly
-    code, as it may be user-defined. Also retain static symbols in C.
+    These are analogous to URL.RawPath and URL.EscapedPath
+    and allow users fine-grained control over how the fragment
+    section of the URL is escaped. Some tools care about / vs %2f,
+    same problem as in paths.
     
-    This is the second attempt of CL 263259, which was reverted
-    because it broke AIX tests in that it brought TOC.stmp symbols
-    in the symbol table. This time we use SymPkg(s) == "" to identify
-    non-Go symbols, instead of IsExternal(s), as the latter also
-    includes linker-modified Go symbols.
+    Fixes #37776.
     
-    Change-Id: I5c752c54f0fc6ac4cde6a0e8161dac5b72a47d56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266237
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie6f556d86bdff750c47fe65398cbafd834152b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227645
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/link/internal/ld/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.15.html             | 13 +++++++--
+ src/net/url/example_test.go | 24 ++++++++++++++--
+ src/net/url/url.go          | 69 ++++++++++++++++++++++++++++++++++-----------
+ src/net/url/url_test.go     | 32 ++++++++++++++++++---
+ 4 files changed, 112 insertions(+), 26 deletions(-)

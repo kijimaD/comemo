@@ -1,17 +1,26 @@
-commit 756fd56bbf4f965cfab29cc71e0853f0c48a331f
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Apr 28 18:10:22 2021 -0400
+commit c8c3c29daa74f2d3e1a26f2e289ad3d2b9ba20dd
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 22 18:26:14 2020 -0400
 
-    cmd/compile: remove an unused function
+    cmd/go: don't import requirements into existing go.mod files
     
-    Remove unused function AddrForParamSlot.
+    Previously, if a go.mod file was present, and it only contained a
+    module directive, any module-aware command would attempt to import
+    requirements from a vendor configuration file like Gopkg.lock.
     
-    Change-Id: I8e3ed8cc6607d30ad6da7bc6ccbaa87b7e001e79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314909
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    This CL removes that functionality. It was undocumented and untested,
+    and it can cause problems with -mod=readonly. It should never come up
+    for go.mod files created with 'go mod init', since they have a "go"
+    directive.
+    
+    For #40278
+    
+    Change-Id: I64c0d67d204560aa5c775d29553883d094fd3b72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264620
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 18 +-----------------
- 1 file changed, 1 insertion(+), 17 deletions(-)
+ src/cmd/go/internal/modload/init.go | 10 ----------
+ 1 file changed, 10 deletions(-)

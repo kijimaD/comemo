@@ -1,27 +1,17 @@
-commit c8ca793176cfae8a9fc501d6e37896304f483f2e
-Author: Austin Clements <austin@google.com>
-Date:   Wed Dec 5 15:21:17 2018 -0500
+commit 18034e6b9f0f623335e6358e0a4634a4eec04dd1
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Jul 24 15:17:54 2018 -0700
 
-    cmd/compile: mark memclrHasPointers calls as write barriers
+    debug/pe: support windows/arm
     
-    There are two places where the compiler generates memclrHasPointers
-    calls. These are effectively write barriers, but the compiler doesn't
-    currently record them as such in the function. As a result code like
+    Enable 'go tool objdump' to disassemble windows/arm images.
     
-      for i := range a {
-        a[i] = nil
-      }
+    Updates #26148
     
-    inserts a write barrier for the assignment to a[i], but the compiler
-    doesn't report this. Hence, it's not reported in the -d=wb output, and
-    it's not checked against //go:nowritebarrier annotations.
-    
-    Change-Id: I40299ebc9824f05cf516cba494d4c086b80ffb53
-    Reviewed-on: https://go-review.googlesource.com/c/152722
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7d11226f01d92288061f8e25980334b9bd82c41f
+    Reviewed-on: https://go-review.googlesource.com/125649
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/range.go | 1 +
- src/cmd/compile/internal/gc/walk.go  | 1 +
- 2 files changed, 2 insertions(+)
+ src/debug/pe/file.go | 2 +-
+ src/debug/pe/pe.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

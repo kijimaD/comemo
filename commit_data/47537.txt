@@ -1,17 +1,23 @@
-commit 3404ee3e86b9f4eab55d2451dcd9db5b4cd9ed4a
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:29:13 2021 -0500
+commit 2c8692d45f80f902a243732dda95f6561b72a49a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 14:30:57 2021 -0700
 
-    go/types: move match function to end of file (cleanup)
+    cmd/compile/internal/types2: review of example_test.go
     
-    This is a port of CL 363669 from types2 to go/types.
+    The changes between (equivalent, and reviewed) go/types/example_test.go
+    and example_test.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
     
-    Change-Id: Id1f375ff5708dab528144e30ce16d24d6fdf7d00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364900
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The primary differences to go/types/example_test.go are:
+    - use of syntax instead of go/ast package
+    - no ExampleMethodSet test (types2 doesn't have MethodSet)
+    - some code in ExampleInfo is disabled due to less precise
+      position information provided by the syntax tree
+    
+    Change-Id: I035284357acc8ecb7849022b5a9d873ae2235987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304249
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/type.go | 58 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 29 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/types2/example_test.go | 1 -
+ 1 file changed, 1 deletion(-)

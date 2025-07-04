@@ -1,12 +1,36 @@
-commit bcf43e956538e3709428b5b0a07407dbfcd26135
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 8 22:44:33 2015 +0900
+commit 69ddb7a40849f9330170144dc82a1da9627acaa9
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 13 14:21:18 2015 -0800
 
-    net: gofmt
+    [dev.cc] all: edit assembly source for ARM to be more regular
     
-    Change-Id: Ifcf7b96e67b63a08f410a7ba21e8bf4dd20e7d8e
-    Reviewed-on: https://go-review.googlesource.com/7122
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Several .s files for ARM had several properties the new assembler will not support.
+    These include:
+    
+    - mentioning SP or PC as a hardware register
+            These are always pseudo-registers except that in some contexts
+            they're not, and it's confusing because the context should not affect
+            which register you mean. Change the references to the hardware
+            registers to be explicit: R13 for SP, R15 for PC.
+    - constant creation using assignment
+            The files say a=b when they could instead say #define a b.
+            There is no reason to have both mechanisms.
+    - R(0) to refer to R0.
+            Some macros use this to a great extent. Again, it's easy just to
+            use a #define to rename a register.
+    
+    Change-Id: I002335ace8e876c5b63c71c2560533eb835346d2
+    Reviewed-on: https://go-review.googlesource.com/4822
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/ipsock_test.go | 68 +++++++++++++++++++++++++-------------------------
- 1 file changed, 34 insertions(+), 34 deletions(-)
+ src/crypto/md5/md5block_arm.s   | 348 ++++++++++++++++++++--------------------
+ src/crypto/rc4/rc4_arm.s        |  78 ++++-----
+ src/crypto/sha1/sha1block_arm.s | 274 +++++++++++++++----------------
+ src/runtime/asm_arm.s           |  30 ++--
+ src/runtime/memclr_arm.s        |  40 ++---
+ src/runtime/memmove_arm.s       | 252 ++++++++++++++---------------
+ src/runtime/rt0_linux_arm.s     |   2 +-
+ src/runtime/sys_linux_arm.s     |   2 +-
+ src/runtime/vlop_arm.s          | 203 ++++++++++++-----------
+ src/sync/atomic/asm_linux_arm.s |  12 +-
+ 10 files changed, 620 insertions(+), 621 deletions(-)

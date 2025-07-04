@@ -1,0 +1,18 @@
+commit a276c811a7c906d94ed5e468a17d277400e4e94b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 21 13:09:20 2024 -0800
+
+    internal/copyright: close files
+    
+    Fixes #70507
+    
+    Change-Id: I2ab1f221ebd45fedc70d1fded29b084147eadd28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630815
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/copyright/copyright_test.go | 1 +
+ 1 file changed, 1 insertion(+)

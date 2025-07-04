@@ -1,13 +1,20 @@
-commit bc0812486637abf68d66aca6535383b1bf5e5a33
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Thu Jun 13 17:04:47 2013 -0700
+commit 568c4617ec55b8f3634c002c9c04779338c0cf7a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 13 14:41:44 2013 -0400
 
-    strconv: corrected several bad references to err.Error in doc comments.
+    go/ast: add {L,R}paren token.Pos field to ast.TypeAssertExpr.
     
-    R=golang-dev, r
+    These are required to correctly determine the End() of the node.
+    
+    Also set these fields in go/parser and use them in go/printer.
+    
+    This is a backward-compatible API change.
+    
+    R=gri, r
     CC=golang-dev
-    https://golang.org/cl/10253051
+    https://golang.org/cl/10189043
 
- src/pkg/strconv/atof.go | 4 ++--
- src/pkg/strconv/atoi.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/go/ast/ast.go       | 41 +++++++++++++++++++----------------------
+ src/pkg/go/parser/parser.go |  6 +++---
+ src/pkg/go/printer/nodes.go |  4 ++--
+ 3 files changed, 24 insertions(+), 27 deletions(-)

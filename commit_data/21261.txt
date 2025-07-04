@@ -1,15 +1,12 @@
-commit 3423b7b40a568466a3566f8139d88f3a80e81e7e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 14 15:48:32 2015 -0500
+commit e5ee9a824db5dcf1c7220ca87d9bb1652f00ec5b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 15 10:17:00 2014 +1100
 
-    runtime: fix bugs in previous commit
+    misc/makerelease: remove mercurial-specific special case
     
-    These were fixed in my local commit,
-    but I forgot that the web Submit button can't see that.
-    
-    Change-Id: Iec3a70ce3ccd9db2a5394ae2da0b293e45ac2fb5
-    Reviewed-on: https://go-review.googlesource.com/2822
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2ae40e63bc78f3b6e4eb68ccbc928368db1e606f
+    Reviewed-on: https://go-review.googlesource.com/1535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/makerelease/makerelease.go | 23 +++++------------------
+ 1 file changed, 5 insertions(+), 18 deletions(-)

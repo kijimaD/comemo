@@ -1,13 +1,12 @@
-commit 2544d30973dbecec4fadd34884d0b7dabfc753f2
+commit ede613ac22073160830ddfe797dee0e808368cf7
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 8 12:08:07 2011 +1000
+Date:   Thu Sep 8 10:03:27 2011 +1000
 
-    doc: release.r60
+    doc: fix date in weekly snapshot history
     
-    R=dsymonds, r, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4981047
+    https://golang.org/cl/4978057
 
- doc/devel/release.html | 77 +++++++++++++++++++++++++++++++++++++++++++++++++-
- doc/devel/weekly.html  |  2 +-
- 2 files changed, 77 insertions(+), 2 deletions(-)
+ doc/devel/weekly.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,21 @@
-commit 34b1f210462409f8c05d927a80d973b5692c1d26
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 16 16:14:31 2019 -0400
+commit b41cdc4a591b19e09c09f062e785f2b7af06863d
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 23 13:29:59 2018 +0100
 
-    cmd/go/internal/renameio: mask spurious "Access is denied" errors on Windows
+    cmd/link: improve XCOFF dynamic symbols generation
     
-    Fixes #31247
+    This commit fixes and improves the generation of dynamic symbols for
+    XCOFF files.
+    This mainly adds for every dynamic symbols a new symbol named
+    s.Extname().
     
-    Change-Id: I85a760a5d36ae835c97a13f980804d06b658857e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172418
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5b788f076d9a05e5d42f08eb1a74fd3e3efa9a86
+    Reviewed-on: https://go-review.googlesource.com/c/151038
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/renameio/renameio.go | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go   |   8 +-
+ src/cmd/link/internal/ld/go.go     |   3 -
+ src/cmd/link/internal/ld/xcoff.go  | 215 ++++++++++++++++++++++++-------------
+ src/cmd/link/internal/ppc64/asm.go |   8 ++
+ 4 files changed, 154 insertions(+), 80 deletions(-)

@@ -1,13 +1,19 @@
-commit 3cfae34943bf1f12276b4816c86450adc3d5fec9
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 8 01:57:37 2015 -0400
+commit 0e31b4ed2646b2330aad33b959a527c1bbfe6b11
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 3 20:53:40 2015 -0500
 
-    go/types/internal/gcimporter: update for 7g and 9g
+    debug/dwarf: factor finding unit containing entry offset
     
-    Change-Id: Ied1582d8aabee2eb346e1c23bfd7781e4a091264
-    Reviewed-on: https://go-review.googlesource.com/8621
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This factors out the code for finding which unit contains an offset in
+    the "info" section.  The new code also replaces linear search with a
+    binary search.  The line table reader will also need this
+    functionality.
+    
+    Change-Id: I2076e4fc6719b6f06fd2796cbbc7548ec1876cb3
+    Reviewed-on: https://go-review.googlesource.com/6733
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/internal/gcimporter/gcimporter.go      |  2 +-
- src/go/types/internal/gcimporter/gcimporter_test.go | 15 +++------------
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ src/debug/dwarf/entry.go | 17 ++++++-----------
+ src/debug/dwarf/unit.go  | 22 +++++++++++++++++++++-
+ 2 files changed, 27 insertions(+), 12 deletions(-)

@@ -1,21 +1,23 @@
-commit de8ddd97accb417450db014d1f45723515cb5d80
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 8 11:13:37 2022 +0100
+commit f24eac47710b0170fd45611ab1867e87701e0a95
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 26 14:32:23 2021 -0700
 
-    syscall: add Pipe2 on solaris and use it for forkExecPipe
+    cmd/compile:  improving the documentation of various fields and functions
     
-    Other platforms already define Pipe2, so add it for solaris as well.
+    This is only changes to comments, so should be fine to go into 1.17.
     
-    Change-Id: If0d2dfc9a3613479fb4611a673a20a4aa0af0b2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390714
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Matt Layher <mdlayher@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I01e28dc76b03fb3ca846d976f8ac84bc2acb2ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318009
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/forkpipe.go               |  2 +-
- src/syscall/forkpipe2.go              |  2 +-
- src/syscall/syscall_solaris.go        | 15 +++++++++++++++
- src/syscall/zsyscall_solaris_amd64.go | 13 +++++++++++++
- 4 files changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/inline/inl.go          |  8 ++++----
+ src/cmd/compile/internal/ir/func.go             |  5 ++++-
+ src/cmd/compile/internal/typecheck/func.go      |  7 ++++---
+ src/cmd/compile/internal/typecheck/iimport.go   |  5 +++++
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 ++
+ src/cmd/compile/internal/types/sym.go           |  8 ++++++--
+ src/cmd/compile/internal/types/type.go          | 27 ++++++++++++++++---------
+ 7 files changed, 42 insertions(+), 20 deletions(-)

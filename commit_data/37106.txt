@@ -1,15 +1,23 @@
-commit 41d6315e34f677c7102c73253819b12cf6e3e209
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jul 10 09:23:46 2018 +0200
+commit b71ea0b7dd3009d1fd0a3edd1b80f605c727aa03
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Jun 27 17:37:38 2018 -0500
 
-    hash/crc64: use t.Fatalf in TestGolden
+    cmd/compile: mark CMOVLEQF, CMOVWEQF as cloberring AX
     
-    Use t.Fatalf instead of t.Errorf followed by t.FailNow.
+    Code generation for OpAMD64CMOV[WLQ]EQF uses AX as a scratch register,
+    but only CMOVQEQF, correctly lets compiler know. Mark other 2 as
+    clobbering AX.
     
-    Change-Id: Ie31f8006e7d9daca7f59bf6f0d5ae688222be486
-    Reviewed-on: https://go-review.googlesource.com/c/144111
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #26097
+    
+    Change-Id: I2a65bd67bf18a540898b4a0ae6c8766e0b767b19
+    Reviewed-on: https://go-review.googlesource.com/121336
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/hash/crc64/crc64_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 +--
+ src/cmd/compile/internal/ssa/opGen.go        | 10 +++---
+ test/fixedbugs/issue26097.go                 | 47 ++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 6 deletions(-)

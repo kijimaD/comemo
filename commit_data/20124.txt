@@ -1,49 +1,16 @@
-commit 613383c7651d490aae045eb70cd515b151735766
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 25 14:38:19 2014 -0400
+commit a6feaf3affcc83f77af1a2ad8c9418befcdec6ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 18 18:14:54 2014 -0700
 
-    cmd/gc, runtime: treat slices and strings like pointers in garbage collection
+    liblink: fix encoding of ASETPC in 6a, 8a
     
-    Before, a slice with cap=0 or a string with len=0 might have its
-    base pointer pointing beyond the actual slice/string data into
-    the next block. The collector had to ignore slices and strings with
-    cap=0 in order to avoid misinterpreting the base pointer.
+    It was incorrectly encoded as ASETLS.
     
-    Now, a slice with cap=0 or a string with len=0 still has a base
-    pointer pointing into the actual slice/string data, no matter what.
-    The collector can now always scan the pointer, which means
-    strings and slices are no longer special.
-    
-    Fixes #8404.
-    
-    LGTM=khr, josharian
-    R=josharian, khr, dvyukov
+    LGTM=ruiu, rsc
+    R=rsc, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/112570044
+    https://golang.org/cl/126400043
 
- src/cmd/5g/cgen.c              |  1 -
- src/cmd/5g/gsubr.c             |  1 -
- src/cmd/6g/cgen.c              |  1 -
- src/cmd/6g/gsubr.c             |  2 -
- src/cmd/8g/cgen.c              |  1 -
- src/cmd/8g/gsubr.c             |  1 -
- src/cmd/gc/fmt.c               |  2 +-
- src/cmd/gc/gen.c               | 55 +++++++++++++++++++-------
- src/cmd/gc/go.h                |  1 -
- src/cmd/gc/plive.c             |  7 +---
- src/cmd/gc/reflect.c           |  8 ++--
- src/cmd/gc/subr.c              |  8 +++-
- src/cmd/gc/typecheck.c         | 13 ------
- src/cmd/gc/walk.c              | 12 +++---
- src/pkg/reflect/all_test.go    | 18 +++++++++
- src/pkg/reflect/value.go       | 14 ++++++-
- src/pkg/runtime/gcinfo_test.go | 50 ++++++++++++-----------
- src/pkg/runtime/heapdump.c     | 22 +++--------
- src/pkg/runtime/malloc.h       |  4 +-
- src/pkg/runtime/mgc0.c         | 60 +++++++++-------------------
- src/pkg/runtime/mgc0.h         |  4 +-
- src/pkg/runtime/runtime.h      |  2 -
- src/pkg/runtime/stack.c        | 15 +------
- test/slice3.go                 | 18 +++++----
- test/slicecap.go               | 90 ++++++++++++++++++++++++++++++++++++++++++
- 25 files changed, 248 insertions(+), 162 deletions(-)
+ src/liblink/asm6.c | 2 +-
+ src/liblink/asm8.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

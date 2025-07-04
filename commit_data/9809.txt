@@ -1,12 +1,15 @@
-commit a1a3acbd956b5a70d644d21d1c36b31ae88c6c03
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 27 09:13:00 2011 -0400
+commit 45301ba8c04cca3501d2324a7e30481e3ce022c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 26 20:46:37 2011 -0700
 
-    test: fix windows build
+    runtime: check for nil value pointer in select syncsend case
     
-    TBR=bradfitz
+    Fixes #2309.
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5124049
+    https://golang.org/cl/5128053
 
- test/sigchld.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/chan.c |  3 ++-
+ test/chan/select7.go   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)

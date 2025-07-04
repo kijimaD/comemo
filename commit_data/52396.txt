@@ -1,19 +1,25 @@
-commit 33b634803b55d3a27798c8e42f547558efec0711
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Mar 23 10:57:26 2023 +0000
+commit a887579976c0f581ca0eb52094b2c5c63893dcdf
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon May 2 11:40:57 2022 -0700
 
-    crypto/x509: remove letters from the end of basic constraints parsing errors
+    compress/flate: move idempotent close logic to compressor
     
-    Change-Id: I84533d2df1a20f6337c43b1ca00d8022909a0018
-    GitHub-Last-Rev: 7dcc4e7296054df7fcbaebfdbd2a9895750f56ea
-    GitHub-Pull-Request: golang/go#59195
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478816
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    The compressor methods already have logic for handling a sticky error.
+    Merge the logic from CL 136475 into that.
+    
+    This slightly changes the error message to be more sensible
+    in the situation where it's returned by Flush.
+    
+    Updates #27741
+    
+    Change-Id: Ie34cf3164d0fa6bd0811175ca467dbbcb3be1395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403514
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/crypto/x509/parser.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/compress/flate/deflate.go      | 44 +++++++++++---------------------------
+ src/compress/flate/deflate_test.go |  4 ++--
+ 2 files changed, 14 insertions(+), 34 deletions(-)

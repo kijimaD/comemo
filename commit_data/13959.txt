@@ -1,21 +1,15 @@
-commit 60a6ae8c3c278c3e0fcb832f2e5c085825d867cc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 26 10:31:57 2012 -0700
+commit 5490814c3058f4cab756e353b8855e1ba155cdb3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Sep 26 22:34:25 2012 +0800
 
-    spec: permit trailing comma in conversions
+    cmd/go, cmd/ld: fix libgcc order and add __image_base__ symbol for windows
+            Fixes #4063.
     
-    Also: Adjust prose in Conversions section
-    to be consistent.
-    
-    This is a backward-compatible syntax change.
-    For a discussion see issue 2568.
-    
-    Fixes #2568.
-    Fixes #4123.
-    
-    R=golang-dev, r, iant, rsc
+    R=alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/6572049
+    https://golang.org/cl/6543066
 
- doc/go_spec.html | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 7 +++++--
+ src/cmd/ld/pe.c     | 3 +++
+ src/run.bat         | 9 ++++-----
+ 3 files changed, 12 insertions(+), 7 deletions(-)

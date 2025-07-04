@@ -1,43 +1,26 @@
-commit 7e60bdd7aada492c2f4a492d92439040974af2c5
+commit 49319ed5c7aa6de6dd4313887dc1494ae73439e2
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Apr 2 12:47:32 2025 +0200
+Date:   Fri Feb 23 14:01:34 2024 +0100
 
-    os: support overlapped IO with NewFile
+    os: avoid GetFileInformationByHandleEx call when stat'ing files on Windows
     
-    The runtime/poll package has just gained support for overlapped IO,
-    see CL 660595 and CL 661955. The only remaining piece was making it
-    visible to user code via os.NewFile.
+    os.Stat and os.Lstat on Windows use GetFileInformationByHandleEx to
+    retrieve file information for reparse points and files that
+    GetFileAttributesEx does not handle.
     
-    Some of the poll.FD.Init responsibility has been moved to os.NewFile
-    to avoid unnecessary syscalls for the common case of using os.Open,
-    os.Create, os.OpenFile, and os.Pipe, where we know that the file
-    is not opened for overlapped IO.
+    However, GetFileInformationByHandleEx is only necessary for
+    reparse points, so we can avoid the call for regular files.
     
-    Some internal/poll tests have been moved to the os package to exercise
-    public APIs rather than internal ones.
+    With this change we can drop the FAT hack that was added in CL 154377,
+    as files won't have the FILE_ATTRIBUTE_REPARSE_POINT attribute set
+    on that file system.
     
-    The os.NewFile function definition has been moved into an OS-agnostic
-    file to avoid having duplicated documentation and ensure that the
-    caller is aware of its behavior across all platforms.
-    
-    Closes #19098.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-amd64-race,gotip-windows-arm64
-    Change-Id: If043f8b34d588cd4b481777203107ed92d660fd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662236
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Id18639067a6c3fa1bb2c6706d5b79358c224fe37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566397
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/next/6-stdlib/99-minor/os/15388.md |  20 +-
- src/internal/poll/fd_windows.go        |  59 +++--
- src/internal/poll/fd_windows_test.go   | 334 +--------------------------
- src/os/file.go                         |  19 ++
- src/os/file_plan9.go                   |   6 +-
- src/os/file_unix.go                    |  12 +-
- src/os/file_windows.go                 |  23 +-
- src/os/os_windows_test.go              | 398 ++++++++++++++++++++++++++++++---
- src/os/removeall_windows.go            |   2 +-
- src/os/root_windows.go                 |   3 +-
- 10 files changed, 449 insertions(+), 427 deletions(-)
+ src/os/types_windows.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

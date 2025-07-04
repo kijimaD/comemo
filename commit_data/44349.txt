@@ -1,28 +1,16 @@
-commit e52149822b54811cedaaa87013de3fa4bc634e95
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 17 15:14:21 2021 +0700
+commit dd3bfb39eb19b1d48ec65b9816bbad1efc8cea2e
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Fri Jun 12 05:04:13 2020 +0000
 
-    cmd/compile: simplify assert{E,I}2I{,2} calling conventions
+    doc/go1.15: add missing slashes
     
-    This CL rebases CL 273694 on top of master with @mdempsky's permission.
+    This saves a redirect and makes the document more consistent.
     
-    For assertE2I and assertI2I, there's no need to pass through the
-    interface's data pointer: it's always going to come back unmodified.
+    For #37419
     
-    For assertE2I2 and assertI2I2, there's no need for an extra bool
-    result parameter: it's redundant with testing the returned interface
-    value for nil.
-    
-    Change-Id: Ic92d4409ad381952f875d3d74b8cf11c32702fa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292892
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic3bd62f8caacf67ffe43a359624e11bed8b8cfaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237540
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go             | 23 +++++++++++-------
- src/cmd/compile/internal/typecheck/builtin.go      | 10 ++++----
- .../compile/internal/typecheck/builtin/runtime.go  |  8 +++----
- src/runtime/iface.go                               | 28 +++++++---------------
- src/runtime/mfinal.go                              |  4 ++--
- 5 files changed, 34 insertions(+), 39 deletions(-)
+ doc/go1.15.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

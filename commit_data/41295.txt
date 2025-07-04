@@ -1,20 +1,30 @@
-commit 1ee337e9b1c4fd494d24340d6b55aabf7bbf6830
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 9 14:28:26 2020 -0500
+commit 34fe8295c5ac099109d7f8a1f967edec96f2a71d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 23 13:22:13 2019 +0000
 
-    cmd/go: convert TestGoTestJSON to the script framework
+    Revert "compile: prefer an AND instead of SHR+SHL instructions"
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    This reverts CL 194297.
     
-    Updates #36320
-    Updates #17751
+    Reason for revert: introduced register allocation failures on PPC64LE builders.
     
-    Change-Id: I72bbba0a20a8731a89e1b4f4c9ac13b21c080cd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214119
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #33826
+    Updates #32781
+    Updates #34468
+    
+    Change-Id: I7d0b55df8cdf8e7d2277f1814299b083c2692e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196957
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/go/go_test.go                        | 38 ---------------
- src/cmd/go/testdata/script/test_json.txt     | 70 ++++++++++++++++++++++++++++
- src/cmd/go/testdata/src/skipper/skip_test.go |  7 ---
- 3 files changed, 70 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   7 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   4 -
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  27 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 746 ++++++-------------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++-
+ test/codegen/math.go                           |   4 +-
+ 7 files changed, 289 insertions(+), 621 deletions(-)

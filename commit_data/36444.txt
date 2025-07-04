@@ -1,16 +1,34 @@
-commit 6ebc31f9fb0ade22c605c146f651f18f9fc0b61d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 12 11:22:00 2018 -0800
+commit 5af0b28a7308ed40af8e315b2a50ac6401bb24c9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 1 11:01:36 2018 -0700
 
-    runtime: remove unused function casp
+    runtime: iterate over set bits in adjustpointers
     
-    Change-Id: I7c9c83ba236e1050e04377a7591fef7174df698b
-    Reviewed-on: https://go-review.googlesource.com/130415
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    There are several things combined in this change.
+    
+    First, eliminate the gobitvector type in favor
+    of adding a ptrbit method to bitvector.
+    In non-performance-critical code, use that method.
+    In performance critical code, though, load the bitvector data
+    one byte at a time and iterate only over set bits.
+    To support that, add and use sys.Ctz8.
+    
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8      81.8ms ± 5%  78.9ms ± 3%   -3.58%  (p=0.000 n=97+96)
+    StackCopy-8         65.9ms ± 3%  62.8ms ± 3%   -4.67%  (p=0.000 n=96+92)
+    StackCopyNoCache-8   105ms ± 3%   102ms ± 3%   -3.38%  (p=0.000 n=96+95)
+    
+    Change-Id: I00b80f45612708bd440b1a411a57fa6dfa24aa74
+    Reviewed-on: https://go-review.googlesource.com/109716
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/atomic_pointer.go | 13 -------------
- src/runtime/proc.go           |  2 +-
- src/runtime/runtime1.go       | 17 +----------------
- 3 files changed, 2 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  2 +
+ src/runtime/heapdump.go                      |  5 +-
+ src/runtime/internal/sys/intrinsics.go       | 24 +++++++++
+ src/runtime/internal/sys/intrinsics_386.s    |  8 +++
+ src/runtime/internal/sys/intrinsics_stubs.go |  1 +
+ src/runtime/mbitmap.go                       |  3 +-
+ src/runtime/stack.go                         | 78 +++++++++++++---------------
+ 7 files changed, 75 insertions(+), 46 deletions(-)

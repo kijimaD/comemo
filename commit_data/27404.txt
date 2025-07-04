@@ -1,15 +1,14 @@
-commit b66b97e0a120880e37b03eba00c0c7679f0a70c1
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Mon May 16 10:11:59 2016 -0300
+commit 4e31221bd1ea3e35db4a236f656619dbba13ff6d
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 25 10:16:40 2016 +0100
 
-    net/http: mention ALPN in http.Server.TLSNextProto documentation
+    cmd/go: remove double space in template
     
-    Make clear negotiation can happen via NPN or ALPN, similar to
-    http.Transport.TLSNextProto and x/net/http2.NextProtoTLS.
-    
-    Change-Id: Ied00b842bc04e11159d6d2107beda921cefbc6ca
-    Reviewed-on: https://go-review.googlesource.com/23108
+    Change-Id: I6113145baa727b9fd103765f74dc5d7af86dfdf8
+    Reviewed-on: https://go-review.googlesource.com/21131
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go | 2 +-
+ src/cmd/go/main.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

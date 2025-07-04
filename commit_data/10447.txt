@@ -1,12 +1,14 @@
-commit c638813ef68a691aeafc0aefe36739bc0650d0db
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Nov 18 12:41:25 2011 -0500
+commit 151bcb11a8fe353530d614adcffa1f3ee2099ba4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 18 15:30:36 2011 +0300
 
-    Add huin@google.com to the CONTRIBUTORS
+    exp/terminal: fix Makefile formatting for deps.bash
+    deps.bash does not understand current format,
+    so make.bash fails (with MAKEFLAGS=-j20).
     
-    R=r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5413049
+    https://golang.org/cl/5410046
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/terminal/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

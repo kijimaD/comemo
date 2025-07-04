@@ -1,39 +1,20 @@
-commit 3a819e8998af1db3bdd34eb2ab059a3c534c6def
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Wed Oct 28 13:35:57 2020 -0700
+commit 2a029b3f26169be7c89cb2cdcc3db4b5d097a8b8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 19 14:48:17 2019 -0500
 
-    syscall: handle undefined r2 value on linux-ppc64x
+    runtime: tidy Context allocation
     
-    This change fixes two failng tests on linux-ppc64x:
+    The Context object we pass to GetThreadContext on Windows must be 16
+    byte-aligned. We also can't allocate in the contexts where we create
+    these, so they must be stack-allocated. There's no great way to do
+    this, but this CL makes the code at least a little clearer, and makes
+    profilem and preemptM more consistent with each other.
     
-    - TestAllThreadsSyscall() exposed a real bug in the ppc64x support:
-      - It turns out that the r2 syscall return value is not defined
-        on all architectures. Notably linux-ppc64x so address that by
-        introducing a private architectural constant in the syscall
-        package, archHonorsR2: true if r2 has a determanistic value.
-    
-    - TestSetuidEtc() was sensitive to /proc/<PID>/status content:
-      - The amount of padding space has changed with kernel vintage.
-      - Stress testing revealed a race with /proc files disappearing.
-    
-    Fixes #42178
-    
-    Change-Id: Ie6fc0b8f2f94a409ac0e5756e73bfce113274709
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266202
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I5ec47a27d7580ed6003030bf953e668e8cae2cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207967
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/syscall/syscall_linux.go         |  8 +++--
- src/syscall/syscall_linux_386.go     |  6 ++++
- src/syscall/syscall_linux_amd64.go   |  6 ++++
- src/syscall/syscall_linux_arm.go     |  6 ++++
- src/syscall/syscall_linux_arm64.go   |  6 ++++
- src/syscall/syscall_linux_mips64x.go |  6 ++++
- src/syscall/syscall_linux_mipsx.go   |  6 ++++
- src/syscall/syscall_linux_ppc64x.go  |  6 ++++
- src/syscall/syscall_linux_riscv64.go |  6 ++++
- src/syscall/syscall_linux_s390x.go   |  6 ++++
- src/syscall/syscall_linux_test.go    | 60 +++++++++++++++++++-----------------
- 11 files changed, 91 insertions(+), 31 deletions(-)
+ src/runtime/os_windows.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

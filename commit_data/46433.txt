@@ -1,21 +1,20 @@
-commit 8699425b5527e24dc184d61d949d7f6db37c0c5c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 14 08:56:54 2021 +0200
+commit 37babc97bb8f1d26dbbbc39e4ec5080a273fa2bb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Dec 30 00:18:35 2020 +0700
 
-    syscall: remove use of IN_KUBERNETES in test
+    [dev.regabi] cmd/compile: allow visitor visits *ir.Name
     
-    CL 201737 dropped the use of IN_KUBERNETES in tests, but it looks like
-    it did not catch all occurrences.
+    So future CLs can refactor ir.Node to *ir.Name when possible.
     
-    For #12815
-    For #34956
+    Passes toolstash -cmp.
     
-    Change-Id: I72b89bfb850ba2890e9e6aa39b87167291ab7e9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349789
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I91ae38417ba10de207ed84b65d1d69cf64f24456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279448
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/exec_linux_test.go | 16 ----------------
- 1 file changed, 16 deletions(-)
+ src/cmd/compile/internal/ir/mknode.go   |  5 +++-
+ src/cmd/compile/internal/ir/node_gen.go | 42 +++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

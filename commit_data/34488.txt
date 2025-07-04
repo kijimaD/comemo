@@ -1,17 +1,19 @@
-commit 8516ecd05f856f895dceeb7c150c98d706a0b326
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Mar 6 20:10:35 2018 +0100
+commit 507ca082d116c19cbe5cbdd457e6b37d851d2341
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Oct 14 11:43:17 2017 -0700
 
-    test/codegen: port math/bits.ReverseBytes tests to codegen
+    crypto/{ecdsa,rsa}: rename argument to PrivateKey.Sign.
     
-    And remove them from ssa_test.
+    The crypto.Signer interface takes pre-hased messages for ECDSA and RSA,
+    but the argument in the implementations was called “msg”, not “digest”,
+    which is confusing.
     
-    Change-Id: If767af662801219774d1bdb787c77edfa6067770
-    Reviewed-on: https://go-review.googlesource.com/98976
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    This change renames them to help clarify the intended use.
+    
+    Change-Id: Ie2fb8753ca5280e493810d211c7c66223f94af88
+    Reviewed-on: https://go-review.googlesource.com/70950
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
 
- src/cmd/compile/internal/gc/asm_test.go | 74 ++++-----------------------------
- test/codegen/mathbits.go                | 30 +++++++++++++
- 2 files changed, 37 insertions(+), 67 deletions(-)
+ src/crypto/ecdsa/ecdsa.go | 15 +++++++++------
+ src/crypto/rsa/rsa.go     | 16 +++++++++-------
+ 2 files changed, 18 insertions(+), 13 deletions(-)

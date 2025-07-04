@@ -1,37 +1,14 @@
-commit 12c3afc1ae55dffbac2f9dc28d55c1f53ca4cf65
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 12 11:21:34 2011 -0400
+commit 5f6e1cfca7f50a51afef68135ddefb97934ea78c
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Thu May 12 11:21:10 2011 -0400
 
-    dashboard: fix for branches
+    doc/codelab: correct typo.
     
-    In the new world, one builder runs
-            gobuilder -commit
-    which uploads information about commits to the dashboard,
-    which then hands the work out to the builders by hash.
-    There is no assumption anymore that the commit numbers
-    are consistent across builders.
+    s/Sprintf/Fprintf/
     
-    New builders will need to be deployed.  For now darwin-amd64
-    is running the new builder to test the code.
-    
-    The new JSON-based protocol for handing out work via /todo
-    should be easy to extend if we want to add support for sending
-    trial CLs to the builders.
-    
-    This code is already running on godashboard.appspot.com.
-    
-    R=adg, dave
-    CC=golang-dev
-    https://golang.org/cl/4519047
+    R=golang-dev, rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/4519053
 
- misc/dashboard/builder/Makefile       |   1 -
- misc/dashboard/builder/doc.go         |   7 +-
- misc/dashboard/builder/exec.go        |  14 +-
- misc/dashboard/builder/hg.go          |  86 ---------
- misc/dashboard/builder/http.go        | 156 +++++++++------
- misc/dashboard/builder/main.go        | 351 ++++++++++++++++++++++++----------
- misc/dashboard/builder/package.go     |  10 +-
- misc/dashboard/godashboard/app.yaml   |   2 +-
- misc/dashboard/godashboard/gobuild.py | 262 ++++++++++++++-----------
- misc/dashboard/godashboard/index.yaml |   6 +
- 10 files changed, 512 insertions(+), 383 deletions(-)
+ doc/codelab/wiki/wiki.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,29 @@
-commit a29437101c5c49841d22c0ee6bf8bcd4c7a5c925
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 4 15:18:32 2014 -0700
+commit 7f2e68e9822ce8736d66035d0a3ed3677c2db459
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Aug 29 12:36:30 2014 -0700
 
-    go/parser: fix "zero day" parse error
+    crypto: add Signer
     
-    (a b string, ok bool) is not a valid signature
+    Signer is an interface to support opaque private keys.
+    These keys typically result from being kept in special hardware
+    (i.e. a TPM) although sometimes operating systems provide a
+    similar interface using process isolation for security rather
+    than hardware boundaries.
     
-    Fixes #8656.
+    This changes provides interfaces for representing them and
+    alters crypto/tls so that client certificates can use
+    opaque keys.
     
-    LGTM=adonovan
-    R=adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/137140043
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews, jdeprez
+    https://golang.org/cl/114680043
 
- src/pkg/go/parser/parser.go     | 19 ++++++++++---------
- src/pkg/go/parser/short_test.go |  1 +
- 2 files changed, 11 insertions(+), 9 deletions(-)
+ src/pkg/crypto/crypto.go               | 33 +++++++++++++++++++++++++++++++++
+ src/pkg/crypto/ecdsa/ecdsa.go          | 24 ++++++++++++++++++++++++
+ src/pkg/crypto/rsa/pss.go              | 15 +++++++++++++++
+ src/pkg/crypto/rsa/rsa.go              | 19 +++++++++++++++++++
+ src/pkg/crypto/tls/common.go           |  7 ++++++-
+ src/pkg/crypto/tls/handshake_client.go | 30 ++++++++++++++++--------------
+ src/pkg/go/build/deps_test.go          |  2 +-
+ 7 files changed, 114 insertions(+), 16 deletions(-)

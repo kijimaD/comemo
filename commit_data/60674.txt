@@ -1,0 +1,27 @@
+commit b2cdaf73469d7f15181b3abfb7b168475375c373
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 13 09:01:05 2024 -0700
+
+    cmd/compile: improve unneeded zeroing removal
+    
+    After newobject, we don't need to write zeroes to initialize the
+    object.  It has already been zeroed by the allocator.
+    
+    This is already handled in most cases, but because we run builtin
+    decomposition after the opt pass, we don't handle cases where the zero
+    of a compound builtin is being written. Improve the zero detector to
+    handle those cases.
+    
+    Fixes #68845
+    
+    Change-Id: If3dde2e304a05e5a6a6723565191d5444b334bcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605255
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go |  6 ++++
+ test/codegen/issue68845.go              | 52 +++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

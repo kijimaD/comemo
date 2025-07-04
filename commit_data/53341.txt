@@ -1,18 +1,25 @@
-commit ee6b9dd47f6091b475dd85b3c989b2b940f24a15
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 25 14:09:45 2023 -0700
+commit 2340d371796f95acdcc399e60f9ecefec2add8df
+Author: Jeremy Quirke <qjeremy@uber.com>
+Date:   Tue Aug 9 17:20:33 2022 +0000
 
-    doc/go1.21: merge x/exp/slices issue into slices package
+    cmd/link: fix trampolines breaking DWARF line info
     
-    For #57348
+    When trampolines are needed (e.g. Darwin ARM64), the DWARF LPT (Line
+    Program Table - see DWARF section 6.1) generation fails because the
+    replacement symbols are marked as external symbols and skipped during
+    the DWARF LPT generation phase.
     
-    Change-Id: I84943711b033d63f0993133f93d9f09ce2af5965
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498395
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Fixes #54320
+    
+    Change-Id: I6c93f5378f50e5edf30d5121402a48214abb1ce2
+    GitHub-Last-Rev: 085bbc55dbc95d55456cc2acc46a0d02416c2848
+    GitHub-Pull-Request: golang/go#54321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422154
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.21.html | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 79 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/loader.go |  9 +---
+ 2 files changed, 81 insertions(+), 7 deletions(-)

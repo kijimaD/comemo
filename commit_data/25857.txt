@@ -1,17 +1,23 @@
-commit 5c096cc092013331022c33c5e3d31228edd17dab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 23 17:16:21 2016 -0800
+commit a0ea93dea5f5741addc8c96b7ed037d0e359e33f
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 27 13:50:36 2015 -0800
 
-    runtime: deflake TestCgoCheckBytes
+    crypto/x509: permit serial numbers to be negative.
     
-    Bump up the multiplier to 20.  Also run the fast version first, so that
-    the slow version is likely to start up faster.
+    Some software that produces certificates doesn't encode integers
+    correctly and, about half the time, ends up producing certificates with
+    serial numbers that are actually negative.
     
-    Change-Id: Ia0654cc1212ab03a45da1904d3e4b57d6a8d02a0
-    Reviewed-on: https://go-review.googlesource.com/19835
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This buggy software, sadly, appears to be common enough that we should
+    let these errors pass. This change allows a Certificate.SerialNumber to
+    be negative.
+    
+    Fixes #8265.
+    
+    Change-Id: Ief35dae23988fb6d5e2873e3c521366fb03c6af4
+    Reviewed-on: https://go-review.googlesource.com/17247
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_cgo_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/x509.go      | 4 ----
+ src/crypto/x509/x509_test.go | 6 +++++-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

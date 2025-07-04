@@ -1,30 +1,18 @@
-commit 176a2154aa185c6ab15d88f32d9c28dd3b5e5dd8
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri May 9 17:42:48 2025 +0200
+commit 4605dfaf76cd5a3cc4edceeeefa7b10406192af1
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 15 08:12:33 2024 +0000
 
-    cmd/link: use >4GB base address for 64-bit PE binaries
+    cmd/compile: fix typo in comment
     
-    Windows prefers 64-bit binaries to be loaded at an address above 4GB.
-    
-    Having a preferred base address below this boundary triggers a
-    compatibility mode in Address Space Layout Randomization (ASLR) on
-    recent versions of Windows that reduces the number of locations to which
-    ASLR may relocate the binary.
-    
-    The Go internal linker was using a smaller base address due to an issue
-    with how dynamic cgo symbols were relocated, which has been fixed in
-    this CL.
-    
-    Fixes #73561.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Change-Id: Ia8cb35d57d921d9be706a8975fa085af7996f124
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671515
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iec9ed110c4d5a417bd9de0434147665fd3633899
+    GitHub-Last-Rev: d2154f9ea12bc1fbb8f7c4feae2060e2534fa5d2
+    GitHub-Pull-Request: golang/go#66332
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571876
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/data.go |  9 +++++++--
- src/cmd/link/internal/ld/pe.go   | 15 +++++++--------
- test/nilptr.go                   |  4 ++--
- 3 files changed, 16 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

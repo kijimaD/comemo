@@ -1,16 +1,76 @@
-commit 31f50643c36b3d2a74cf4f8df3a943bbbc06dafe
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Tue Oct 25 14:10:47 2016 -0700
+commit 71ab9fa312f8266379dbb358b9ee9303cde7bd6b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 11 16:05:57 2016 -0700
 
-    context: add comments to the WithCancel example, apply minor improvements
+    all: fix assembly vet issues
     
-    Fixes #17534.
+    Add missing function prototypes.
+    Fix function prototypes.
+    Use FP references instead of SP references.
+    Fix variable names.
+    Update comments.
+    Clean up whitespace. (Not for vet.)
     
-    Change-Id: I28af74b287a5a09d5f6607a012f3d5d133b04ed2
-    Reviewed-on: https://go-review.googlesource.com/32017
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    All fairly minor fixes to make vet happy.
+    
+    Updates #11041
+    
+    Change-Id: Ifab2cdf235ff61cdc226ab1d84b8467b5ac9446c
+    Reviewed-on: https://go-review.googlesource.com/27713
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/example_test.go | 39 +++++++++++++++++++++++----------------
- 1 file changed, 23 insertions(+), 16 deletions(-)
+ src/crypto/rc4/rc4_arm.s                    |  4 +-
+ src/crypto/sha256/sha256block_386.s         |  2 +-
+ src/math/modf_386.s                         | 12 ++--
+ src/runtime/asm_386.s                       | 13 ++--
+ src/runtime/asm_amd64.s                     | 10 +--
+ src/runtime/asm_arm.s                       | 14 ++--
+ src/runtime/asm_arm64.s                     | 10 +--
+ src/runtime/asm_mips64x.s                   |  6 +-
+ src/runtime/asm_ppc64x.s                    | 10 +--
+ src/runtime/internal/atomic/asm_386.s       |  2 +-
+ src/runtime/internal/atomic/asm_amd64.s     |  2 +-
+ src/runtime/internal/atomic/asm_amd64p32.s  |  2 +-
+ src/runtime/internal/atomic/asm_arm.s       |  2 +-
+ src/runtime/internal/atomic/asm_arm64.s     |  2 +-
+ src/runtime/internal/atomic/atomic_arm.go   |  3 +
+ src/runtime/internal/atomic/atomic_ppc64x.s | 12 ++--
+ src/runtime/noasm.go                        |  1 +
+ src/runtime/os3_solaris.go                  |  4 +-
+ src/runtime/os_darwin.go                    |  6 +-
+ src/runtime/os_linux.go                     |  4 +-
+ src/runtime/stubs.go                        |  4 ++
+ src/runtime/stubs_asm.go                    | 11 ++++
+ src/runtime/sys_darwin_386.s                | 12 ++--
+ src/runtime/sys_darwin_amd64.s              |  2 +-
+ src/runtime/sys_darwin_arm.s                |  4 +-
+ src/runtime/sys_darwin_arm64.s              |  2 +-
+ src/runtime/sys_dragonfly_amd64.s           | 10 +--
+ src/runtime/sys_freebsd_amd64.s             | 10 +--
+ src/runtime/sys_linux_386.s                 |  8 +--
+ src/runtime/sys_linux_amd64.s               | 10 +--
+ src/runtime/sys_linux_arm.s                 | 23 ++++---
+ src/runtime/sys_linux_arm64.s               |  4 +-
+ src/runtime/sys_linux_mips64x.s             |  4 +-
+ src/runtime/sys_linux_ppc64x.s              |  4 +-
+ src/runtime/sys_nacl_386.s                  |  4 +-
+ src/runtime/sys_netbsd_amd64.s              | 10 +--
+ src/runtime/sys_openbsd_amd64.s             | 10 +--
+ src/runtime/sys_openbsd_arm.s               | 74 ++++++++++-----------
+ src/runtime/vlop_386.s                      | 18 +++---
+ src/sync/atomic/asm_arm.s                   | 42 ++++++------
+ src/sync/atomic/asm_mips64x.s               |  4 +-
+ src/sync/atomic/asm_ppc64x.s                |  4 +-
+ src/syscall/asm9_unix1_amd64.s              | 23 +++----
+ src/syscall/asm9_unix2_amd64.s              | 35 +++++-----
+ src/syscall/asm_darwin_arm64.s              | 30 ++++-----
+ src/syscall/asm_openbsd_arm.s               | 10 +--
+ src/syscall/asm_plan9_386.s                 | 28 ++++----
+ src/syscall/asm_plan9_amd64.s               | 20 +++---
+ src/syscall/asm_unix_386.s                  | 73 ++++++++++-----------
+ src/syscall/asm_unix_amd64.s                | 99 ++++++++++++++---------------
+ src/syscall/syscall_netbsd.go               |  2 +-
+ src/syscall/syscall_openbsd.go              |  2 +-
+ 52 files changed, 361 insertions(+), 356 deletions(-)

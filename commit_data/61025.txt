@@ -1,0 +1,20 @@
+commit 03fecda02bf7e2907c608a3a096184a203b967f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 24 10:57:49 2024 -0700
+
+    go/types, types2: follow-up on comment in CL 615195
+    
+    Restate deferred call for readability.
+    
+    Change-Id: I3725535b18fa4f1887e6c1976f8784e092b8f965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615535
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go  | 7 +++----
+ src/cmd/compile/internal/types2/object_test.go | 3 ++-
+ src/go/types/check_test.go                     | 7 +++----
+ src/go/types/object_test.go                    | 3 ++-
+ 4 files changed, 10 insertions(+), 10 deletions(-)

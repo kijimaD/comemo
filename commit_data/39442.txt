@@ -1,13 +1,28 @@
-commit 53a42d3c4a61d79415ceabc97ae77690cad79067
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 24 17:49:36 2019 -0400
+commit 6a72dd77f4f675ef7a162f0111e092faafc73ff3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 30 19:03:02 2018 +0100
 
-    doc/go1.13: describe new cmd/go environment variables
+    cmd/go: delay parsing the testmain template
     
-    Change-Id: I99669339b816a3ae56bbe082a8c47ae17e763d71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183632
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    The template is over a hundred lines and full of pipelines, and
+    text/template isn't optimised to parse quickly, so it's no wonder that
+    delaying the parsing to the first template use makes 'go env' much
+    faster.
+    
+    Like in the previous patches to get rid of global regexp.MustCompile
+    vars, use the newly introduced lazytemplate package. Close to two full
+    milliseconds are shaved off of 'go env' runs.
+    
+    name         old time/op    new time/op    delta
+    ExecGoEnv-8    4.27ms ± 0%    2.63ms ± 1%  -38.43%  (p=0.002 n=6+6)
+    
+    Updates #29382.
+    
+    Change-Id: I4e2569e51ddf2afe1b46eb1a9e9e5845f7a3b0bd
+    Reviewed-on: https://go-review.googlesource.com/c/155962
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 57 insertions(+)
+ src/cmd/go/internal/load/test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

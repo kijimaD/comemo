@@ -1,21 +1,13 @@
-commit 8480e6f476c70af47158983052a9325447e57ab3
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Mar 26 11:43:09 2013 -0700
+commit 02b755081764bd1cc36e5e7af2d485f5bc9cabe3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 11:05:06 2013 -0700
 
-    runtime: ensure forward progress when unwinding an arm stack frame
+    builtin: add linkable-to declarations for iota and nil
+    Aids godoc.
     
-    The arm gentraceback mishandled frame linkage values pointing
-    to the assembly return function.  This function is special as
-    its frame size is zero and it contains only one instruction.
-    These conditions would preserve the frame pointer and result
-    in an off by one error when unwinding the caller.
-    
-    Fixes #5124
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, gri, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8023043
+    https://golang.org/cl/7992044
 
- misc/cgo/test/callback.go       | 9 +--------
- src/pkg/runtime/traceback_arm.c | 5 +++--
- 2 files changed, 4 insertions(+), 10 deletions(-)
+ src/pkg/builtin/builtin.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

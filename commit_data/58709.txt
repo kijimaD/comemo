@@ -1,18 +1,17 @@
-commit 024c900b43e4531576e726ef1cdb1cc119e64203
-Author: Sean Liao <sean@liao.dev>
-Date:   Tue Feb 11 16:30:22 2025 +0000
+commit 3822e161a30ff4c6e288e10dbf3345a61ce1c3ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 10:45:50 2023 -0800
 
-    cmd/go: clarify vcs suffix to repo mapping
+    doc: add release note for math/big.Rat.FloatPrec
     
-    For #71635
+    For #50489.
     
-    Change-Id: I12ec2a810cfcaf2565b0d9c518b0921ec54e9f12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648475
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I4544a24327196eb3ed62af64ae5ddb1f60441d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546357
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/cmd/go/alldocs.go               | 4 ++--
- src/cmd/go/internal/help/helpdoc.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.22.html | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

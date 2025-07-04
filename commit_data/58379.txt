@@ -1,16 +1,34 @@
-commit 5424f2e200e022e5ddf95088118fb0914343492a
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Wed Dec 11 15:41:05 2024 +0000
+commit 450f469c3c3e0a328ab99380cc956a77e7943b89
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 1 23:08:53 2023 -0400
 
-    cmd/go: add more tests for GOAUTH's user provided authenticator
+    misc/wasm: silence Wasmtime 14 CLI warning
     
-    For #26232
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I4b6eb63d4c1d71983e1ae764a6a38744a5f01317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635255
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    The latest version of Wasmtime, 14.0.4 as of writing this, offers a new
+    CLI while also supporting the old CLI. Since this is known and tracked
+    in issue #63718, silence the warning that otherwise causes many tests
+    to fail.
+    
+    Since Wasmtime 13 and older don't pay attention to WASMTIME_NEW_CLI,
+    this change increases compatibility of the script, letting it work
+    with Wasmtime 9.0.1 as currently tested by the old cmd/coordinator, and
+    with Wasmtime 14.0.4 as currently tested in the new LUCI infrastructure.
+    
+    The rest of the transition is left as future work.
+    
+    For #63718.
+    For #61116.
+    
+    Change-Id: I77d4f74cc1d34a657e48dcaaceb6fbda7d1e9428
+    Cq-Include-Trybots: luci.golang.try:gotip-wasip1-wasm_wasmtime
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538699
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/testdata/script/goauth_userauth.txt | 94 ++++++++++++++++++++------
- 1 file changed, 75 insertions(+), 19 deletions(-)
+ misc/wasm/go_wasip1_wasm_exec | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

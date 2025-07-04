@@ -1,20 +1,14 @@
-commit bd43a2d9ff53c0cda30571df8241dcefb9bf6b88
+commit 36713a2a53b91e6fbf08af9ee583f49449857a33
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 14 10:42:48 2011 -0400
+Date:   Thu Apr 14 10:41:55 2011 -0400
 
-    ld: defend against some broken object files
+    compress/flate: dictionary support
     
-    Fixes #1698.
-    Fixes #1699.
-    
-    R=ken2
+    R=bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4419041
+    https://golang.org/cl/4397043
 
- src/cmd/5l/obj.c  |  2 +-
- src/cmd/6l/obj.c  | 11 ++++++++++-
- src/cmd/8l/obj.c  |  2 +-
- src/cmd/ld/data.c |  6 ++++--
- src/cmd/ld/lib.c  |  2 +-
- src/cmd/ld/lib.h  |  2 +-
- 6 files changed, 18 insertions(+), 7 deletions(-)
+ src/pkg/compress/flate/deflate.go      | 27 ++++++++++++++++++++
+ src/pkg/compress/flate/deflate_test.go | 46 ++++++++++++++++++++++++++++++++++
+ src/pkg/compress/flate/inflate.go      | 27 ++++++++++++++++++++
+ 3 files changed, 100 insertions(+)

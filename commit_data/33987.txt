@@ -1,16 +1,14 @@
-commit c5d744a4f6b12a858fe549ddafde7a5bb81c7082
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 10 19:15:36 2018 +0000
+commit 6171d055dc39b316fbc051a43ce7473798bb5561
+Author: Shawn Smith <shawnpsmith@gmail.com>
+Date:   Sat Sep 23 17:43:16 2017 +0900
 
-    os/exec: skip TestContextCancel on the Windows XP builder
+    cmd/vet: remove extraneous "//" in dead.go so its comment does not
     
-    Updates #17245
+    appear at the top of vet's godoc output
     
-    Change-Id: I3d7ea362809040fbbba4b33efd57bf2d27d4c390
-    Reviewed-on: https://go-review.googlesource.com/87257
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2593d294b0497aeb9e8c54a4dad052b5c33ecaee
+    Reviewed-on: https://go-review.googlesource.com/65630
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/exec/exec_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/vet/dead.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

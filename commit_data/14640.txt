@@ -1,13 +1,13 @@
-commit 0df58a4b50b923a220b9fda8ef94bebd5cdc0f9f
+commit e470b3354cb61332585cd85bf814fe1131abe14b
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Dec 14 02:19:33 2012 +0800
+Date:   Thu Dec 13 19:08:51 2012 +0800
 
-    test/nil.go: delete on nil maps no longer panics
-    Fix the build.
+    lib/godoc/example.html: htmlify the play code
+    Fixes #4539.
     
-    R=golang-dev
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6946044
+    https://golang.org/cl/6942043
 
- test/nil.go | 3 ---
- 1 file changed, 3 deletions(-)
+ lib/godoc/example.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

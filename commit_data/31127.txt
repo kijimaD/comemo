@@ -1,15 +1,17 @@
-commit b0e5a0c93ccf5166dab30864df7e5632a5973447
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 11 16:10:09 2017 -0700
+commit bb41b4d599f5758e25091666e123c41b401ac890
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Dec 15 09:58:30 2016 -0500
 
-    spec: clarify size hint for make of maps
+    net/http: make Server validate HTTP method
     
-    For #19903.
+    Fixes #18319
     
-    Change-Id: Ib28d08d45bfad653bcc1446f160b7b4a485529af
-    Reviewed-on: https://go-review.googlesource.com/40393
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If88e60a86828f60d8d93fc291932c19bab19e8dc
+    Reviewed-on: https://go-review.googlesource.com/34470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/net/http/request.go    |  3 +++
+ src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

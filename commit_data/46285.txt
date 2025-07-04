@@ -1,27 +1,31 @@
-commit 37d4532867b9c49f936cb8e394dec44d8985fe29
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Sep 2 00:06:42 2021 +0000
+commit 8438a5779b76620237d608282a99d17467b91f4c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 11 21:27:56 2020 -0500
 
-    cmd/internal/obj/riscv: simplify addition with constant
+    runtime: use _exit on darwin
     
-    This CL simplifies riscv addition (add r, imm) to
-    (ADDI (ADDI r, imm/2), imm-imm/2) if imm is in specific ranges.
-    (-4096 <= imm <= -2049 or 2048 <= imm <= 4094)
+    On darwin, where we use libc for syscalls, when the runtime exits,
+    it calls libc exit function, which may call back into user code,
+    e.g. invoking functions registered with atexit. In particular, it
+    may call back into Go. But at this point, the Go runtime is
+    already exiting, so this wouldn't work.
     
-    There is little impact to the go1 benchmark, while the total
-    size of pkg/linux_riscv64 decreased by about 11KB.
+    On non-libc platforms we use exit syscall directly, which doesn't
+    invoke any callbacks. Use _exit on darwin to achieve the same
+    behavior.
     
-    Change-Id: I236eb8af3b83bb35ce9c0b318fc1d235e8ab9a4e
-    GitHub-Last-Rev: a2f56a07635344a40d6b8a9571f236743122be34
-    GitHub-Pull-Request: golang/go#48110
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346689
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    No test for now, as it doesn't pass on all platforms (see trybot
+    run of PS2).
+    
+    May fix #42465.
+    May fix #43294.
+    
+    Change-Id: Ia1ada22b5da8cb64fdd598d0541eb90e195367eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269378
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 21 +++++++++++++++++++++
- test/codegen/arithmetic.go        |  8 ++++++++
- 2 files changed, 29 insertions(+)
+ src/runtime/sys_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

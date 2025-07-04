@@ -1,15 +1,20 @@
-commit 5ee4858a4c03148056bb7751e5ed21455b3eaf10
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 16 06:10:00 2017 +0000
+commit 0dafb7d9624c4c2bc876f03f2a6fa8d4a2ce6963
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 20 13:16:07 2017 -0700
 
-    A+C: add a missing name
+    cmd/compile: check for missing function body earlier
     
-    Per email from acoshift.
+    Tested by fixedbugs/issue3705.go.
     
-    Change-Id: Ieb79244d17623e112a385e6b43843d3ffb185cf6
-    Reviewed-on: https://go-review.googlesource.com/45995
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    This removes a dependency on lineno
+    from near the backend.
+    
+    Change-Id: I228bd0ad7295cf881b9bdeb0df9d18483fb96821
+    Reviewed-on: https://go-review.googlesource.com/38382
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 4 ++++
+ src/cmd/compile/internal/gc/pgen.go  | 6 ------
+ 2 files changed, 4 insertions(+), 6 deletions(-)

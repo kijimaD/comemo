@@ -1,20 +1,98 @@
-commit f87194cbd7e79eef07c897a6240fbf2dc115f9ff
-Author: ian woolf <btw515wolf2@gmail.com>
-Date:   Fri May 7 16:31:00 2021 +0800
+commit 06538fa723fc358462c5d7ae385b5b64ac76827b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 18 12:10:58 2020 -0400
 
-    doc/go1.17: document changes to net/http package
+    cmd/go/internal/modget: resolve paths at the requested versions
     
-    Changes include:
-    * ReadRequest function now returns an error when a request has multiple
-      Host headers.
+    Previously, we resolved each argument to 'go get' to a package path or
+    module path based on what was in the build list at existing versions,
+    even if the argument specified a different version explicitly. That
+    resulted in bugs like #37438, in which we variously resolved the wrong
+    version or guessed the wrong argument type for what is unambiguously a
+    package argument at the requested version.
     
-    For #44513.
-    Updates #46015.
+    We were also using a two-step upgrade/downgrade algorithm, which could
+    not only upgrade more that is strictly necessary, but could also
+    unintentionally upgrade *above* the requested versions during the
+    downgrade step.
     
-    Change-Id: I48ea7c5cee3f1d1a247035fd37191362a53d1f04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317914
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Heschi Kreinick <heschi@google.com>
+    This change instead uses an iterative approach, with an explicit
+    disambiguation step for the (rare) cases where an argument could match
+    the same package path in multiple modules. We use a hook in the
+    package loader to halt package loading as soon as an incorrect version
+    is found — preventing over-resolving — and verify that the result
+    after applying downgrades successfully obtained the requested versions
+    of all modules.
+    
+    Making 'go get' be correct and usable is especially important now that
+    we are defaulting to read-only mode (#40728), for which we are
+    recommending 'go get' more heavily.
+    
+    While I'm in here refactoring, I'm also reworking the API boundary
+    between the modget and modload packages. Previously, the modget
+    package edited the build list directly, and the modload package
+    accepted the edited build list without validation. For lazy loading
+    (#36460), the modload package will need to maintain additional
+    metadata about the requirement graph, so it needs tighter control over
+    the changes to the build list.
+    
+    As of this change, modget no longer invokes MVS directly, but instead
+    goes through the modload package. The resulting API gives clearer
+    reasons in case of updates, which we can use to emit more useful
+    errors.
+    
+    Fixes #37438
+    Updates #36460
+    Updates #40728
+    
+    Change-Id: I596f0020f3795870dec258147e6fc26a3292c93a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263267
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.17.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.16.html                                    |   10 +
+ src/cmd/go/alldocs.go                              |    6 +-
+ src/cmd/go/internal/modget/get.go                  | 1822 +++++++++++++-------
+ src/cmd/go/internal/modget/mvs.go                  |  202 ---
+ src/cmd/go/internal/modget/query.go                |  353 ++++
+ src/cmd/go/internal/modload/buildlist.go           |  157 +-
+ src/cmd/go/internal/modload/import.go              |    4 +-
+ src/cmd/go/internal/modload/load.go                |   17 +-
+ src/cmd/go/internal/modload/mvs.go                 |    8 +
+ src/cmd/go/internal/modload/query.go               |   54 +-
+ src/cmd/go/internal/modload/search.go              |   45 +-
+ src/cmd/go/testdata/script/get_update_all.txt      |    2 +
+ src/cmd/go/testdata/script/mod_bad_domain.txt      |    2 +-
+ src/cmd/go/testdata/script/mod_dot.txt             |    2 +-
+ src/cmd/go/testdata/script/mod_download.txt        |    6 +-
+ .../go/testdata/script/mod_get_ambiguous_arg.txt   |   51 +-
+ .../testdata/script/mod_get_ambiguous_import.txt   |    2 +-
+ .../go/testdata/script/mod_get_ambiguous_pkg.txt   |   46 +-
+ src/cmd/go/testdata/script/mod_get_downgrade.txt   |    3 +-
+ .../testdata/script/mod_get_downgrade_missing.txt  |    6 +-
+ src/cmd/go/testdata/script/mod_get_extra.txt       |   69 +
+ src/cmd/go/testdata/script/mod_get_issue37438.txt  |   37 +
+ src/cmd/go/testdata/script/mod_get_main.txt        |   26 +-
+ src/cmd/go/testdata/script/mod_get_moved.txt       |    4 +-
+ src/cmd/go/testdata/script/mod_get_newcycle.txt    |    3 +-
+ src/cmd/go/testdata/script/mod_get_patch.txt       |  130 ++
+ src/cmd/go/testdata/script/mod_get_patchbound.txt  |   84 +
+ src/cmd/go/testdata/script/mod_get_patchcycle.txt  |   64 +
+ src/cmd/go/testdata/script/mod_get_patchmod.txt    |   60 +-
+ src/cmd/go/testdata/script/mod_get_patterns.txt    |   12 +-
+ src/cmd/go/testdata/script/mod_get_replaced.txt    |    2 +-
+ src/cmd/go/testdata/script/mod_get_split.txt       |  157 ++
+ src/cmd/go/testdata/script/mod_get_wild.txt        |   95 +
+ src/cmd/go/testdata/script/mod_invalid_version.txt |    2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |    5 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |    4 +-
+ src/cmd/go/testdata/script/mod_query_empty.txt     |    4 +-
+ src/cmd/go/testdata/script/mod_query_exclude.txt   |    2 +-
+ .../go/testdata/script/mod_retract_pseudo_base.txt |    2 +-
+ src/cmd/go/testdata/script/mod_sumdb.txt           |    2 +-
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |    2 +-
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt   |   21 +-
+ 42 files changed, 2622 insertions(+), 963 deletions(-)

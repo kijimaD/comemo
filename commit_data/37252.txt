@@ -1,24 +1,20 @@
-commit 4bb9b61677e937d1f473c27607da3608d0fa7099
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sat Nov 3 22:57:52 2018 -0700
+commit 489a2632f49fd20312e56001f6322ed5741c4bef
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 15:57:56 2018 +1000
 
-    strings: lower running time of TestCompareStrings
+    doc: update Concurrency, Functions and Methods, and Control Flow sections
     
-    At each comparison, we're making a copy of the whole string.
-    Instead, use unsafe to share the string backing store with a []byte.
+    Many parts of the FAQ are dusty and need cleaning up.
+    This is the first of a series of changes to bring it up to date.
+    Since it was first written at the time of release, some of the
+    ideas and background have changed, and some historical
+    remarks are largely irrelevant now.
     
-    It reduces the test time from ~4sec to ~1sec on my machine
-    (darwin/amd64).  Some builders were having much more trouble with this
-    test (>3min), it may help more there.
+    Update #26107.
     
-    Fixes #26174
-    Fixes #28573
-    Fixes #26155
-    Update #26473
-    
-    Change-Id: Id5856fd26faf6ff46e763a088f039230556a4116
-    Reviewed-on: https://go-review.googlesource.com/c/147358
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1f36df7d8ecc8a1a033d5ac4fa1edeece25ed6b4
+    Reviewed-on: https://go-review.googlesource.com/123496
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strings/compare_test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ doc/go_faq.html | 97 ++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 69 insertions(+), 28 deletions(-)

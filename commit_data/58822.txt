@@ -1,20 +1,20 @@
-commit e15d14873f3e73fa82d1e3242113182035c135ba
-Author: Julian Zhu <jz531210@gmail.com>
-Date:   Fri Feb 21 16:48:07 2025 +0800
+commit 08bec0db3970319ef868b3c11d6cc077cab408b1
+Author: Irakli Safareli <i.safareli@gmail.com>
+Date:   Mon Dec 18 08:53:03 2023 +0000
 
-    internal/runtime/atomic: add Xchg8 for mipsx
+    builtin: mention PanicNilError in comments of recover
     
-    For #69735
+    As of CL 461956 `recover` will not return `nil` if `panic` is called with `nil`. I have updated  comments of `recover` to account for this change.
     
-    Change-Id: I2a0336214786e14b9a37834d81a0a0d14231451c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651315
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: Ibd0b27fe9b89fb29349b62ad34e762239a1d165b
+    GitHub-Last-Rev: c773abb75c8cd8e08c3470f064a3205573156fea
+    GitHub-Pull-Request: golang/go#64393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544975
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/runtime/atomic/atomic_mipsx.go |  3 +++
- src/internal/runtime/atomic/atomic_mipsx.s  | 33 +++++++++++++++++++++++++++++
- src/internal/runtime/atomic/xchg8_test.go   |  2 +-
- 3 files changed, 37 insertions(+), 1 deletion(-)
+ src/builtin/builtin.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

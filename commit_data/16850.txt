@@ -1,12 +1,15 @@
-commit e97c870692aa80feabd2e22c191476220fc1281f
+commit 6efb6b9e381405d0fcae6cd098ab59dfc98dc8c3
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 24 08:27:20 2013 +1000
+Date:   Tue Jul 23 16:07:28 2013 +1000
 
-    math/rand: mention that the default Source is thread-safe
+    math/rand: mention Seed in overview, add another top-level example
     
-    R=golang-dev, r
+    Fixes #5937.
+    
+    R=golang-dev, mirtchovski, r
     CC=golang-dev
-    https://golang.org/cl/11709043
+    https://golang.org/cl/11705043
 
- src/pkg/math/rand/rand.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/math/rand/example_test.go | 32 ++++++++++++++++++++++++++++--
+ src/pkg/math/rand/rand.go         | 41 ++++++++++++++++++++++++++-------------
+ 2 files changed, 58 insertions(+), 15 deletions(-)

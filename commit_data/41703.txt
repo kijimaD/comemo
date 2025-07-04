@@ -1,14 +1,24 @@
-commit 36b815edd6cd23d5aabdb488c24db2033bbdeea2
-Author: d-tsuji <dram.dt.shonan@gmail.com>
-Date:   Sat Mar 21 20:40:01 2020 +0900
+commit 10e7bc994f47a71472c49f84ab782fdfe44bf22e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 17:18:22 2019 -0700
 
-    net/http: remove period at end of error message
+    runtime: add wasm support for timers on P's
     
-    Change-Id: I4ff5411543c200344babb754fc089e10e29e0fe4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224697
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    When we put timers on P's, the wasm code will not be able to rely on
+    the timer goroutine. Use the beforeIdle hook to schedule a wakeup.
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: Idf6309944778b8c3d7178f5d09431940843ea233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171827
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/lock_futex.go |  2 +-
+ src/runtime/lock_js.go    | 29 ++++++++++++++++++++++++++++-
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/proc.go       |  2 +-
+ 4 files changed, 31 insertions(+), 4 deletions(-)

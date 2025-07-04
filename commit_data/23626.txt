@@ -1,14 +1,30 @@
-commit 2de67e9974b2d4be23e53d3aee1c969840e6baa2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 10 06:20:51 2015 -0700
+commit 3f6e69aca585ceaf82595170e5aea5b25a9d29ec
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 20 16:16:04 2015 -0400
 
-    runtime: clarify that NumCPU returns only available CPUs
+    runtime: steal space for stack barrier tracking from stack
     
-    Update #11609.
+    The stack barrier code will need a bookkeeping structure to keep track
+    of the overwritten return PCs. This commit introduces and allocates
+    this structure, but does not yet use the structure.
     
-    Change-Id: Ie363facf13f5e62f1af4a8bdc42a18fb36e16ebf
-    Reviewed-on: https://go-review.googlesource.com/12022
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    We don't want to allocate space for this structure during garbage
+    collection, so this commit allocates it along with the allocation of
+    the corresponding stack. However, we can't do a regular allocation in
+    newstack because mallocgc may itself grow the stack (which would lead
+    to a recursive allocation). Hence, this commit makes the bookkeeping
+    structure part of the stack allocation itself by stealing the
+    necessary space from the top of the stack allocation. Since the size
+    of this bookkeeping structure is logarithmic in the size of the stack,
+    this has minimal impact on stack behavior.
+    
+    Change-Id: Ia14408be06aafa9ca4867f4e70bddb3fe0e96665
+    Reviewed-on: https://go-review.googlesource.com/10313
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/debug.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go      | 13 +++++++++++++
+ src/runtime/mgcmark.go  | 21 +++++++++++++++++++++
+ src/runtime/proc1.go    |  6 ++++--
+ src/runtime/runtime2.go |  8 ++++++++
+ src/runtime/stack1.go   | 23 +++++++++++++++++++----
+ 5 files changed, 65 insertions(+), 6 deletions(-)

@@ -1,12 +1,14 @@
-commit 39f1ecd157941420693239fa269643ce8a34c267
-Author: Burcu Dogan <jbd@google.com>
-Date:   Thu Apr 7 10:50:47 2016 -0700
+commit c8579e57cb1f1c32a99dd57314c5ced1a457dde3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Feb 25 00:52:16 2016 -0500
 
-    C: fix jbd's identity
+    build: use go tool dist list
     
-    Change-Id: Ib4353710a742b1067723c7c6186e8639559668a3
-    Reviewed-on: https://go-review.googlesource.com/21655
+    Change-Id: I9b79bd301d0b75ca1f16d4a05e3cb687a8428c14
+    Reviewed-on: https://go-review.googlesource.com/19884
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/buildall.bash | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

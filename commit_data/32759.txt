@@ -1,24 +1,22 @@
-commit f2a5ed852bbde6c1bd21e3a716d6b8c834332015
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 14 11:36:21 2017 -0400
+commit 88a235042df2d8344bb4f49a8bfc1642b2cbf37b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 23 23:42:47 2017 +0000
 
-    cmd/cgo: use a named type to indicate syntactic context
+    net/http: permit incoming CONNECT requests without Host headers
     
-    We previously used bare strings, which made it difficult to see (and
-    to cross-reference) the set of allowed context values.
+    Apparently they exist in the wild. See:
+    https://github.com/golang/go/issues/18215#issuecomment-301182496
+    (Facebook / iOS)
     
-    This change is purely cosmetic, but makes it easier for me to
-    understand how to address #21878.
+    Fixes #18215
     
-    updates #21878
-    
-    Change-Id: I9027d94fd5997a0fe857c0055dea8719e1511f03
-    Reviewed-on: https://go-review.googlesource.com/63830
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I9ddad3896b5d784cb3f5b3ee9c6819081a4a2702
+    Reviewed-on: https://go-review.googlesource.com/44004
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/ast.go  | 210 +++++++++++++++++++++++++++++-----------------------
- src/cmd/cgo/gcc.go  |  18 ++---
- src/cmd/cgo/main.go |   4 +-
- 3 files changed, 127 insertions(+), 105 deletions(-)
+ src/net/http/serve_test.go | 3 +++
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,17 +1,25 @@
-commit 83b223ec3a4ddbcac0ba38692661ea0b76a79d2c
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Wed Aug 17 21:57:59 2022 +0930
+commit 13f3c57cefef59e5d94f678483aff527807fb33b
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Sep 23 12:19:05 2021 -0400
 
-    runtime: delete repeated word
+    go/types,types2: disallow illegal cycles through Unions
     
-    Change-Id: I0d7005481fc61b4c7f3286674c022334c8c0cae0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424494
-    Reviewed-by: hopehook <hopehook@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: hopehook <hopehook@qq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Checker.validType was not considering Unions when looking for illegal
+    cycles.
+    
+    Fixes #48582
+    
+    Change-Id: I11ad0279eeaaa56bb6d5731b0572c1c3a0c459eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351829
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgcpacer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/decl.go            |  7 ++++++
+ .../types2/testdata/fixedbugs/issue41124.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue48582.go2       | 29 ++++++++++++++++++++++
+ src/go/types/decl.go                               |  7 ++++++
+ src/go/types/testdata/fixedbugs/issue41124.go2     |  4 +--
+ src/go/types/testdata/fixedbugs/issue48582.go2     | 29 ++++++++++++++++++++++
+ 6 files changed, 75 insertions(+), 3 deletions(-)

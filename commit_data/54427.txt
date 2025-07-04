@@ -1,19 +1,19 @@
-commit d8b349ea6063a1c977e88cc25785b91d7f4b6237
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Sep 11 12:09:40 2023 -0400
+commit a81da928b4891f111e40dfca677d3c90d1411f0d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 14 15:36:58 2022 -0400
 
-    net/http: routing tree
+    runtime: improve coverage of TestCgoSigfwd
     
-    This CL implements a decision tree for efficient routing.
-    The tree holds all the registered patterns. To match
-    a request, we walk the tree looking for a match.
+    Currently, TestCgoSigfwd will pass incorrectly if the SIGSEGV that
+    originates in Go mistakenly goes to the C SIGSEGV handler. Fix this by
+    adding a signal-atomic variable that tracks what the expected behavior
+    is.
     
-    Change-Id: I7ed1cdf585fc95b73ef5ca2f942f278100a90583
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527315
+    Change-Id: Id2a9fa3b209299dccf90bb60720b89ad96838a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443072
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/net/http/routing_tree.go      | 222 ++++++++++++++++++++++++++++++++++++
- src/net/http/routing_tree_test.go | 234 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 456 insertions(+)
+ src/runtime/testdata/testprogcgo/sigfwd.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

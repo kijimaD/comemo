@@ -1,31 +1,19 @@
-commit 50520f1543194b591dd517f6c664aa31c29e3b3f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 14 09:46:45 2017 -0700
+commit ccd69d058278ef97dfd9b122d3832ec027455e90
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 11 15:01:58 2016 -0500
 
-    cmd/compile: use Fatalf for more internal errors
+    runtime/pprof: emit count profiles with debug=0 as proto profiles
     
-    There were a surprising number of places
-    in the tree that used yyerror for failed internal
-    consistency checks. Switch them to Fatalf.
+    count profiles with debug=1 retain their previous format.
+    Also add a test check for the proto profiles since all runtime/pprof
+    tests only look at the debug=1 profiles.
     
-    Updates #15756
-    Updates #19250
-    
-    Change-Id: Ie4278148185795a28ff3c27dacffc211cda5bbdd
-    Reviewed-on: https://go-review.googlesource.com/38153
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibe805585b597e5d3570807115940a1dc4535c03f
+    Reviewed-on: https://go-review.googlesource.com/33148
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go      |  2 +-
- src/cmd/compile/internal/gc/export.go   |  4 ++--
- src/cmd/compile/internal/gc/fmt.go      |  2 +-
- src/cmd/compile/internal/gc/gen.go      |  3 +--
- src/cmd/compile/internal/gc/mpfloat.go  |  4 ++--
- src/cmd/compile/internal/gc/mpint.go    | 24 ++++++++++++------------
- src/cmd/compile/internal/gc/order.go    |  6 +++---
- src/cmd/compile/internal/gc/pgen.go     |  2 +-
- src/cmd/compile/internal/gc/plive.go    |  6 +++---
- src/cmd/compile/internal/gc/racewalk.go |  7 ++-----
- src/cmd/compile/internal/gc/reflect.go  |  4 ++--
- src/cmd/compile/internal/gc/walk.go     | 12 ++++++------
- 12 files changed, 36 insertions(+), 40 deletions(-)
+ src/go/build/deps_test.go       |  2 +-
+ src/runtime/pprof/pprof.go      | 46 ++++++++++++++++++++++++++---------------
+ src/runtime/pprof/pprof_test.go | 40 ++++++++++++++++++++++++++++++++++-
+ 3 files changed, 69 insertions(+), 19 deletions(-)

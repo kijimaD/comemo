@@ -1,13 +1,18 @@
-commit e920f7d5c5becbc013908dd6b16fc3d7d1d996c4
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Oct 19 09:11:46 2015 -0400
+commit 573c791e81f4356698e604bb2fdba13518edc736
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 4 14:22:29 2015 -0700
 
-    cmd/cgo: don't print absolute path in comment
+    [dev.ssa] cmd/compile: treat control ops as live at end of block
     
-    Change-Id: Ib424e14cfaab35d37ebdd084d41151928bfd645e
-    Reviewed-on: https://go-review.googlesource.com/16051
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Failure to treat control ops as live can lead
+    to them being eliminated when they live in
+    other blocks.
+    
+    Change-Id: I604a1977a3d3884b1f4516bea4e15885ce38272d
+    Reviewed-on: https://go-review.googlesource.com/13138
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/godefs.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go         |  7 ++++++
+ src/cmd/compile/internal/ssa/regalloc.go      |  5 ++++-
+ src/cmd/compile/internal/ssa/regalloc_test.go | 32 +++++++++++++++++++++++++++
+ 3 files changed, 43 insertions(+), 1 deletion(-)

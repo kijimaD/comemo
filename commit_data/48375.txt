@@ -1,26 +1,23 @@
-commit b7041c7ad1c9d42078cfc376320e5b307e617a80
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 14 11:03:23 2022 -0400
+commit 9daf3cca8245a156b02da7bafef42637f8196f88
+Author: Dan Scales <danscales@google.com>
+Date:   Wed May 12 09:26:45 2021 -0700
 
-    cmd/api: require proposal # for new API features
+    [dev.typeparams] cmd/compile:  keep instantiated method as a method, rather than converting to function
     
-    Having the proposal numbers recorded in the API files
-    should help significantly when it comes time to audit
-    the new API additions at the end of each release cycle.
+    Previously, we were converting an instantitated method to a function, by
+    moving the receiver arg to the regular args, etc. But that made the type
+    of the method signature inconsistent with the signature on the method
+    fields, which leads to some problems with more complex programs with
+    instantiations. And things work fine if we leave the instantiated method
+    as a method. So, make the change to keep instantiated methods as real
+    methods (until they are transformed much later in the compiler).
     
-    Change-Id: Id18e8cbdf892228a10ac17e4e21c7e17de5d4ff7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392414
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If34be9e88c1b0ff819d557cf8dfbb31196542e7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319490
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- api/README           | 16 ++++++++++---
- api/next.txt         |  9 -------
- api/next/45754.txt   |  2 ++
- api/next/46059.txt   |  2 ++
- api/next/47005.txt   |  2 ++
- api/next/50601.txt   |  5 ++++
- src/cmd/api/goapi.go | 58 ++++++++++++++++++++++++++++++++-------------
- src/cmd/api/run.go   | 66 ++++++++++++++++++++++++++++++++--------------------
- 8 files changed, 107 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 51 +++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 20 deletions(-)

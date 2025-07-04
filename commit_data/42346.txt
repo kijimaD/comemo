@@ -1,17 +1,22 @@
-commit 910fee4ed55f1e9fa1386377c40f0b1eac63ee3f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 11 11:01:16 2020 -0700
+commit fa3a121a79f85a4c957f29372b5ebfde7211a980
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 2 17:32:01 2019 -0500
 
-    syscall: append to environment in tests, don't clobber it
+    runtime: add a simple version number parser
     
-    Fixes https://gcc.gnu.org/PR95061
+    This will be used to parse the Linux kernel versions, but this code is
+    generic and can be tested on its own.
     
-    Change-Id: I3cddfe5920b6da572ddeafa201617003c25175e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233318
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #35777.
+    
+    Change-Id: If1df48d07250e5855dde45bc9d57c66f777b9fb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209597
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/exec_linux_test.go    | 6 +++---
- src/syscall/syscall_linux_test.go | 9 ++++++---
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/runtime/export_test.go |  2 ++
+ src/runtime/string.go      | 34 ++++++++++++++++++++++++++++++++++
+ src/runtime/string_test.go | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)

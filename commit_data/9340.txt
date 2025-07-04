@@ -1,14 +1,27 @@
-commit b1d1da405af4ef7c928ef90712ba064248dd2794
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 12 11:47:44 2011 +1000
+commit 2e394c51d9453c2f94c19f444e2f056ba50a22af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 11 13:24:13 2011 -0700
 
-    exp/template: add builtin len function
+    godoc: moving to new template package
     
-    R=golang-dev, dsymonds
+    - first step; rough conversion of all template files
+    - there is plenty of opportunity for cleanups/simplifications (next CLs)
+    - html and text output as before
+    
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4868045
+    https://golang.org/cl/4852048
 
- src/pkg/exp/template/doc.go       |  2 ++
- src/pkg/exp/template/exec_test.go |  6 ++++++
- src/pkg/exp/template/funcs.go     | 16 ++++++++++++++++
- 3 files changed, 24 insertions(+)
+ lib/godoc/codewalk.html    |  24 +++----
+ lib/godoc/codewalkdir.html |   8 +--
+ lib/godoc/dirlist.html     |  11 +--
+ lib/godoc/error.html       |   2 +-
+ lib/godoc/godoc.html       |  48 ++++++-------
+ lib/godoc/package.html     | 169 +++++++++++++++++++++++----------------------
+ lib/godoc/package.txt      | 145 +++++++++++++++++++-------------------
+ lib/godoc/search.html      | 116 +++++++++++++++----------------
+ lib/godoc/search.txt       |  82 ++++++++--------------
+ src/cmd/godoc/codewalk.go  |   2 +-
+ src/cmd/godoc/format.go    |   2 +-
+ src/cmd/godoc/godoc.go     |  54 +++++++++------
+ 12 files changed, 323 insertions(+), 340 deletions(-)

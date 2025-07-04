@@ -1,19 +1,16 @@
-commit fcc164d783e04fbd330813f8e5622f0e70fe3877
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Feb 14 16:42:51 2015 +0300
+commit 5b806e58e2665ca18439ec89fdc47630eaa8606c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:20:29 2014 -0500
 
-    runtime: cleanup chan code
+    misc/cgo/test: skip test7978 when using unsupported compilers
     
-    Move type definitions from chan1.go to chan.go and select.go.
-    Remove underscores from names.
-    Make c.buf unsafe.Pointer instead of *uint8.
+    On Darwin/ARM, because libSystem doesn't provide functions for
+    __sync_fetch_and_add, and only clang can inline that function,
+    skip the test when building with GCC.
     
-    Change-Id: I75cf8385bdb9f79eb5a7f7ad319495abbacbe942
-    Reviewed-on: https://go-review.googlesource.com/4900
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Id5e9d8f9bbe1e6bcb2f381f0f66cf68aa95277c7
+    Reviewed-on: https://go-review.googlesource.com/2125
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/chan.go   |  27 +++++++++---
- src/runtime/chan1.go  |  61 ---------------------------
- src/runtime/select.go | 113 +++++++++++++++++++++++++++++++-------------------
- 3 files changed, 93 insertions(+), 108 deletions(-)
+ misc/cgo/test/issue7978.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

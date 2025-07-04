@@ -1,13 +1,71 @@
-commit cd80d04c5ce8e0e47e3bb6a32b4868076818b369
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 6 09:54:39 2011 -0700
+commit c14b2689f0d4e2250f4f57a5c2992c0a5e0f6823
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Oct 6 18:42:51 2011 +0300
 
-    C+A: Miki Tebeka miki.tebeka@gmail.com
+    runtime: faster finalizers
     
-    R=golang-dev, gri
-    CC=golang-dev, miki.tebeka
-    https://golang.org/cl/5225042
+    Linux/amd64, 2 x Intel Xeon E5620, 8 HT cores, 2.40GHz
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkFinalizer              420.00       261.00  -37.86%
+    BenchmarkFinalizer-2            985.00       201.00  -79.59%
+    BenchmarkFinalizer-4           1077.00       244.00  -77.34%
+    BenchmarkFinalizer-8           1155.00       180.00  -84.42%
+    BenchmarkFinalizer-16          1182.00       184.00  -84.43%
+    
+    BenchmarkFinalizerRun          2128.00      1378.00  -35.24%
+    BenchmarkFinalizerRun-2        1655.00      1418.00  -14.32%
+    BenchmarkFinalizerRun-4        1634.00      1522.00   -6.85%
+    BenchmarkFinalizerRun-8        2213.00      1581.00  -28.56%
+    BenchmarkFinalizerRun-16       2424.00      1599.00  -34.03%
+    
+    Darwin/amd64, Intel L9600, 2 cores, 2.13GHz
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkChanCreation          1451.00       926.00  -36.18%
+    BenchmarkChanCreation-2        3124.00      1412.00  -54.80%
+    BenchmarkChanCreation-4        6121.00      2628.00  -57.07%
+    
+    BenchmarkFinalizer              684.00       420.00  -38.60%
+    BenchmarkFinalizer-2          11195.00       398.00  -96.44%
+    BenchmarkFinalizer-4          15862.00       654.00  -95.88%
+    
+    BenchmarkFinalizerRun          2025.00      1397.00  -31.01%
+    BenchmarkFinalizerRun-2        3920.00      1447.00  -63.09%
+    BenchmarkFinalizerRun-4        9471.00      1545.00  -83.69%
+    
+    R=golang-dev, cw, rsc
+    CC=golang-dev
+    https://golang.org/cl/4963057
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/386/arch.h        |   3 +-
+ src/pkg/runtime/amd64/arch.h      |   3 +-
+ src/pkg/runtime/amd64/traceback.c |   1 +
+ src/pkg/runtime/arm/arch.h        |   3 +-
+ src/pkg/runtime/arm/traceback.c   |   1 +
+ src/pkg/runtime/cpuprof.c         |   1 +
+ src/pkg/runtime/darwin/mem.c      |   5 +
+ src/pkg/runtime/extern.go         |   7 +-
+ src/pkg/runtime/freebsd/mem.c     |   5 +
+ src/pkg/runtime/iface.c           |   1 +
+ src/pkg/runtime/linux/mem.c       |   5 +
+ src/pkg/runtime/malloc.goc        |  30 +++---
+ src/pkg/runtime/malloc.h          |  18 +---
+ src/pkg/runtime/mcache.c          |   1 +
+ src/pkg/runtime/mcentral.c        |   1 +
+ src/pkg/runtime/mfinal.c          | 193 ++++++++++++++++++++++----------------
+ src/pkg/runtime/mfinal_test.go    |  64 +++++++++++++
+ src/pkg/runtime/mfixalloc.c       |   1 +
+ src/pkg/runtime/mgc0.c            | 138 ++++++++++++++++++++-------
+ src/pkg/runtime/mheap.c           |   1 +
+ src/pkg/runtime/mprof.goc         |   1 +
+ src/pkg/runtime/msize.c           |   1 +
+ src/pkg/runtime/openbsd/mem.c     |   5 +
+ src/pkg/runtime/openbsd/os.h      |   4 +
+ src/pkg/runtime/plan9/mem.c       |   1 +
+ src/pkg/runtime/runtime.h         |   3 +-
+ src/pkg/runtime/sema.goc          |   7 +-
+ src/pkg/runtime/slice.c           |   1 +
+ src/pkg/runtime/string.goc        |   1 +
+ src/pkg/runtime/windows/mem.c     |   1 +
+ test/mallocfin.go                 |  10 ++
+ test/mallocrep.go                 |   1 +
+ 32 files changed, 359 insertions(+), 159 deletions(-)

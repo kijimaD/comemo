@@ -1,25 +1,32 @@
-commit 0eea25159fe58ab956198f3009e6ded875d2796e
-Author: Patrick Gundlach <gundlach@speedata.de>
-Date:   Mon Apr 19 12:51:04 2021 +0200
+commit de5d1aca5e61e49e0704213961c68bcf14e288b8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 26 19:52:31 2021 -0700
 
-    encoding/xml: expose decoder line and column
+    [dev.typeparams] cmd/compile: tweaks to match types2
     
-    The existing implementation of the xml decoder uses the line number
-    only for reporting syntax errors. The line number of the last read
-    token and the column within the line is useful for the users even
-    in non-error conditions.
+    This CL makes a handful of changes to either bring existing compiler
+    output consistent with what types2 produces or to make it easier to
+    reproduce with types2:
     
-    Fixes #45628
+    1. The position for embedded fields is corrected to the position of
+    the syntax.Field, rather than the syntax.Type.
     
-    Change-Id: I37b5033ff5ff8411793d8f5180f96aa4537e83f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311270
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    2. Methods and embedded types are sorted in export data the same way
+    that types2 sorts them.
+    
+    3. Don't write out position information for OLITERALs that don't have
+    their own position (i.e., references to named constants).
+    
+    Change-Id: Ic3979215ae9ef280cfbba7b44c236e03fc12a2ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323209
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- api/next/45628.txt           |  1 +
- src/encoding/xml/xml.go      |  9 +++++++++
- src/encoding/xml/xml_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 49 insertions(+)
+ src/cmd/compile/internal/noder/noder.go       |  6 ++++--
+ src/cmd/compile/internal/typecheck/iexport.go | 23 ++++++++++++++++++-----
+ src/cmd/compile/internal/types/size.go        |  7 ++++++-
+ src/cmd/compile/internal/types/sort.go        | 13 +++++++++----
+ 4 files changed, 37 insertions(+), 12 deletions(-)

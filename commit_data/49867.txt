@@ -1,21 +1,20 @@
-commit 88ef50e6623e55875d783e5715be1dc0683717e0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jul 25 15:31:03 2022 -0400
+commit 3fa7dbeff53b56edd98f295bd0c34423c080ac57
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 17 22:34:15 2021 +0200
 
-    runtime: convert schedt.gcwaiting to atomic type
+    cmd/go: fix GOARCH value in GOAMD64 docs
     
-    Note that this replaces numerous unsynchronized loads throughout the
-    scheduler.
+    GOAMD64 is for GOARCH=amd64. Fix the GOAMD64 environment variable docs
+    introduced by CL 349595.
     
-    For #53821.
-    
-    Change-Id: Ica80b04c9e8c184bfef186e549526fc3f117c387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419447
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I794990ebe2e306d21ed275446fc52373bfe4ae7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350534
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/mgcmark.go  |  4 ++--
- src/runtime/proc.go     | 24 ++++++++++++------------
- src/runtime/runtime2.go |  2 +-
- 3 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

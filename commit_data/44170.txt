@@ -1,29 +1,28 @@
-commit dab3e5affefb7e0b157ad27fe4797c4c6f3c4ea6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Nov 15 23:28:57 2020 +1100
+commit f7f9c8f2fb61fde1a109e277f27a30b610e67ed0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 19 01:29:11 2020 -0400
 
-    runtime: switch runtime to libc for openbsd/amd64
+    runtime: allocate fewer bytes during TestEINTR
     
-    Use libc rather than performing direct system calls for the runtime on
-    openbsd/amd64.
+    This will hopefully address the occasional "runtime: out of memory"
+    failures observed on the openbsd-arm-jsing builder:
+    https://build.golang.org/log/c296d866e5d99ba401b18c1a2ff3e4d480e5238c
     
-    Updates #36435
+    Also make the "spin" and "winch" loops concurrent instead of
+    sequential to cut down the test's running time.
     
-    Change-Id: Ib708009c3743f56a3fd6cb3bc731451e4a398849
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270379
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Finally, change Block to coordinate by closing stdin instead of
+    sending SIGINT. The SIGINT handler wasn't necessarily registered by
+    the time the signal was sent.
+    
+    Updates #20400
+    Updates #39043
+    
+    Change-Id: Ie12fc75b87e33847dc25a12edb4126db27492da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234538
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/defs_openbsd.go        |   5 +
- src/runtime/defs_openbsd_amd64.go  |   5 +
- src/runtime/mmap.go                |  11 +-
- src/runtime/os_openbsd.go          |  43 ---
- src/runtime/os_openbsd_syscall2.go |  95 +++++++
- src/runtime/proc.go                |   2 +
- src/runtime/signal_openbsd.go      |   2 +-
- src/runtime/stubs2.go              |   7 +-
- src/runtime/stubs3.go              |   7 +-
- src/runtime/sys_openbsd2.go        | 250 +++++++++++++++++
- src/runtime/sys_openbsd_amd64.s    | 552 ++++++++++++++++++-------------------
- src/runtime/timestub2.go           |   5 +-
- 12 files changed, 641 insertions(+), 343 deletions(-)
+ src/runtime/testdata/testprogcgo/eintr.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

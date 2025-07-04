@@ -1,20 +1,26 @@
-commit f5b5273190d2c38544298038c4fcc581dab3ae58
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu May 26 17:51:42 2022 -0700
+commit 456759b24682a41e282f73855377ac4f341da191
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Aug 11 12:43:27 2021 -0400
 
-    doc/go1.19: don't mention golang.org/x/crypto/ssh
+    cmd/compile/internal/types2: use the orig object for Named.Obj
     
-    CL 392134 appears to have been marked for the release notes by accident.
-    Remove mention of this package.
+    Exposing a synthetic type name for instantiated types is problematic:
+    there is no way to ensure that type instances are first created in the
+    same type checking pass, and therefore no guarantee that their
+    instantiation positions are the same. Even type checking a given package
+    with different file ordering could result in different positions being
+    associated with type instances. This is therefore an implementation
+    detail that we should not expose.
     
-    Change-Id: I62ae30512512ef8e20e9040b71e613be5ee5ee26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408819
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Alex Rakoczy <alex@golang.org>
+    Keep the synthetic type name for accurate error reporting, but hide it
+    in the API.
+    
+    Change-Id: I61f0e3ed322e97b157eb1ca316480f5719dcc174
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341858
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/compile/internal/types2/named.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

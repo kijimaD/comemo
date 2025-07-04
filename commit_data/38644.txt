@@ -1,23 +1,37 @@
-commit e9d12739976cbc25deb9226db25897c4824a8684
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 8 10:34:16 2019 -0500
+commit c5718b6b261a66aa47312037f17281d3d810c98c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 26 13:53:02 2018 -0400
 
-    cmd/go/internal/web: reject insecure redirects from secure origins
+    cmd/internal/obj, cmd/link: record ABIs and aliases in Go obj files
     
-    We rely on SSL certificates to verify the identity of origin servers.
-    If an HTTPS server redirects through a plain-HTTP URL, that hop can be
-    compromised. We should allow it only if the user set the -insecure
-    flag explicitly.
+    This repurposes the "version" field of a symbol reference in the Go
+    object file format to be an ABI field. Currently, this is just 0 or 1
+    depending on whether the symbol is static (the linker turns it into a
+    different internal version number), so it's already only tenuously a
+    symbol version. We change this to be -1 for static symbols and
+    otherwise by the ABI number.
     
-    Fixes #29591
+    This also adds a separate list of ABI alias symbols to be recorded in
+    the object file. The ABI aliases must be a separate list and not just
+    part of the symbol definitions because it's possible to have a symbol
+    defined in one package and the alias "defined" in a different package.
+    For example, this can happen if a symbol is defined in assembly in one
+    package and stubbed in a different package. The stub triggers the
+    generation of the ABI alias, but in a different package from the
+    definition.
     
-    Change-Id: I00639541cca2ca034c01c464385a43b3aa8ee84f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/156838
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    For #27539.
+    
+    Change-Id: I015c9fe54690c027de6ef77e22b5585976a01587
+    Reviewed-on: https://go-review.googlesource.com/c/147157
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/go_test.go                                | 16 ----------------
- src/cmd/go/internal/web/http.go                      | 20 ++++++++++++++------
- src/cmd/go/testdata/script/get_insecure_redirect.txt | 11 +++++++++++
- 3 files changed, 25 insertions(+), 22 deletions(-)
+ src/cmd/internal/goobj/read.go           | 29 +++++++++++++++++++++--------
+ src/cmd/internal/obj/link.go             | 31 ++++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/objfile.go          | 19 +++++++++++++++----
+ src/cmd/internal/objabi/doc.go           |  8 ++++----
+ src/cmd/link/internal/objfile/objfile.go | 20 ++++++++++++--------
+ src/cmd/link/internal/sym/symbol.go      | 15 ++++++++++++++-
+ 6 files changed, 96 insertions(+), 26 deletions(-)

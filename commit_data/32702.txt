@@ -1,15 +1,29 @@
-commit 1a706bbf055d78238ec33c381a12b71800dae92f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 12 14:20:17 2017 +0200
+commit 85b2940f5c82e00ccc7f60ba2816cea0d418a950
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 17 06:28:03 2017 -0700
 
-    doc: unify colons and spacing in diagnostics guide
+    cmd/compile: search for remaining WB ops from end to beginning
     
-    Unify colons (outside of <strong></strong>) and add a missing space in
-    the list of groups of diagnostics solutions.
+    The writebarrier pass processes WB ops from beginning to end,
+    replacing them by other values.
+    But it also checks whether there are more ops to process
+    by walking from beginning to end.
+    This is quadratic, so walk from end to beginning instead.
     
-    Change-Id: Icbcd94427d4905dd88c4ea82aaa5dbf064c00990
-    Reviewed-on: https://go-review.googlesource.com/63111
-    Reviewed-by: JBD <jbd@google.com>
+    This speeds up compiling the code in issue 13554:
+    
+    name  old time/op       new time/op       delta
+    Pkg         11.9s ± 2%         8.3s ± 3%  -29.88%  (p=0.000 n=18+17)
+    
+    Updates #13554
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5f8a872ddc4b783540220d89ea2ee188a6d2b2ff
+    Reviewed-on: https://go-review.googlesource.com/43571
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/diagnostics.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

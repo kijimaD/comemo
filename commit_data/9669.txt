@@ -1,16 +1,21 @@
-commit 15d47ce2194258021ad6f26da8ed866e42cbd1e9
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Tue Sep 13 17:53:55 2011 -0700
+commit 4e3b725cf06a3a2a5ddde8585f21c81d36c61c86
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 13 17:47:59 2011 -0700
 
-    exp/template/html: move transition functions to a separate file
+    path/filepath: new signature for Walk
+    This one uses a closure than an interface, and is much simpler to use.
+    It also enables a called function to return an error and (possibly)
+    halt processing.
     
-    This CL moves code but makes no changes otherwise.
+    Fixes #2237.
     
-    R=nigeltao, r
+    R=golang-dev, gri, rsc, r, cw, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5012045
+    https://golang.org/cl/5014043
 
- src/pkg/exp/template/html/Makefile      |   1 +
- src/pkg/exp/template/html/escape.go     | 553 -------------------------------
- src/pkg/exp/template/html/transition.go | 564 ++++++++++++++++++++++++++++++++
- 3 files changed, 565 insertions(+), 553 deletions(-)
+ src/cmd/gofix/main.go              |  30 +++-------
+ src/cmd/gofmt/gofmt.go             |  30 +++-------
+ src/cmd/govet/govet.go             |  30 +++-------
+ src/pkg/path/filepath/path.go      |  76 ++++++++++++++------------
+ src/pkg/path/filepath/path_test.go | 109 ++++++++++++++++++++-----------------
+ 5 files changed, 123 insertions(+), 152 deletions(-)

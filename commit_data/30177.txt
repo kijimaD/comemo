@@ -1,14 +1,20 @@
-commit 95011d4e018c9499c8a4739bc728e38ddc12b9e1
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 8 09:32:24 2017 -0800
+commit de4b06559119eac499906aaa4d42046b3beed52d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 27 13:36:48 2016 +1100
 
-    crypto/x509: sort the list of fields used by CreateCertificate.
+    image/png: allow tRNS chunk without a PLTE chunk.
     
-    Change-Id: I20f4419ca377ee9428075e42db0bad46a75d983f
-    Reviewed-on: https://go-review.googlesource.com/36557
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    While https://www.w3.org/TR/PNG/#5ChunkOrdering says that tRNS's
+    ordering constraint is "After PLTE; before IDAT", it is legal for a tRNS
+    chunk to occur without a PLTE chunk at all, for greyscale and truecolor
+    transparency as opposed to palette-based transparency. See
+    https://www.w3.org/TR/PNG/#11transinfo
+    
+    Fixes #17511.
+    
+    Change-Id: I047b0b01d78a1cda65e00eeac229bb972cda431d
+    Reviewed-on: https://go-review.googlesource.com/32139
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/x509/x509.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/image/png/reader.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

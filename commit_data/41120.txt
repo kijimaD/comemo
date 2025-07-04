@@ -1,21 +1,18 @@
-commit 3743d2127040c283114a247da1319c3155a81f10
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Jan 9 10:57:46 2020 +0100
+commit 3aae49b8b48a458837abb2dc6bb09f5e5ad976c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 16:04:06 2019 -0700
 
-    runtime: re-enable TestArenaCollision on darwin in race mode
+    cmd/dist: default to clang on OpenBSD
     
-    Go 1.14 will drop support for macOS 10.10, see #23011
+    OpenBSD ships with GCC 4.2, the last version of GCC that used GPLv2.
+    As that is quite old (current GCC version is GCC 9, GCC 4.2 was
+    released in 2007), default to clang.
     
-    This reverts CL 155097
-    
-    Updates #26475
-    Updates #29340
-    
-    Change-Id: I64d0275141407313b73068436ee81d13eacc4c76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214058
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib93e7b4f4f3ffb9e047e60ffca3696d26ab08aac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193621
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc_test.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/dist/main.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

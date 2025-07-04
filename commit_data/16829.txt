@@ -1,15 +1,15 @@
-commit dfbe467eda17d720ba33b83a0482a3fd03d52aa8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jul 20 12:43:50 2013 +1000
+commit c75884185332458242c03b17014bc3801977f684
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 19 18:52:35 2013 -0400
 
-    libmach,lib9: override unused parameter warnings (fixes windows build)
+    cmd/ld, runtime: remove unused fields from Func
     
-    R=golang-dev, dave
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11620044
+    https://golang.org/cl/11604043
 
- src/lib9/_p9dir.c     |  3 +++
- src/lib9/dirfwstat.c  |  2 ++
- src/lib9/windows.c    |  1 +
- src/libmach/windows.c | 16 ++++++++++++++++
- 4 files changed, 22 insertions(+)
+ src/cmd/ld/lib.c               |  9 +--------
+ src/libmach/sym.c              | 25 +++++++++++++++++--------
+ src/pkg/debug/gosym/pclntab.go |  8 ++++----
+ src/pkg/runtime/runtime.h      |  5 +----
+ 4 files changed, 23 insertions(+), 24 deletions(-)

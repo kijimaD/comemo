@@ -1,16 +1,26 @@
-commit b744a11a966ad3999c190fea9909ec8df0570b87
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Mar 17 15:05:53 2017 +0000
+commit 45f759500ec80a1362deecd3693cbe44a354bf98
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 28 16:19:03 2016 -0800
 
-    go/types: enforce Check path restrictions via panics
+    cmd/link: handle STT_COMMON symbols
     
-    Its godoc says that path must not be empty or dot, while the existing
-    implementation happily accepts both.
+    Tested by running
     
-    Change-Id: I64766271c35152dc7adb21ff60eb05c52237e6b6
-    Reviewed-on: https://go-review.googlesource.com/38262
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    GOTRACEBACK=2 CGO_CFLAGS="-Wa,--elf-stt-common=yes" go test -ldflags=-linkmode=internal
+    
+    in misc/cgo/test. That failed before this CL, succeeded after.
+    
+    I don't think it's worth doing that as a regular test, though,
+    especially since only recent versions of the GNU binutils support the
+    --elf-stt-common option.
+    
+    Fixes #18088.
+    
+    Change-Id: I893d86181faee217b1504c054b0ed3f7c8d977d3
+    Reviewed-on: https://go-review.googlesource.com/33653
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ld/ldelf.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

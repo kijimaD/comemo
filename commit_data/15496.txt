@@ -1,17 +1,25 @@
-commit 1300fb54491496ac19b33c5ef3b4e92fbe89b4e4
-Author: Matt Brown <mdbrown@google.com>
-Date:   Thu Feb 28 10:08:05 2013 -0800
+commit 087b708fd3c60a2ca753738c1cc8072978493a3a
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Thu Feb 28 09:29:50 2013 -0800
 
-    strconv: use Quote to escape the input string for failed conversion errors
+    net/http: fix handling of HEAD in ReadResponse and (*http.Response).Write
     
-    This reveals the presence of control and non-printable characters in the
-    errors returned by the Parse functions.  Also add unit tests for NumError.
+    The test suite for ReadResponse was not checking the error return on the io.Copy
+    on the body. This was masking two errors: the handling of chunked responses to
+    HEAD requests and the handling of Content-Length > 0 to HEAD.
     
-    R=golang-dev, r, rsc
+    The former manifested itself as an 'unexpected EOF' when doing the io.Copy
+    because a chunked reader was assigned but there were no chunks to read. The
+    latter cause (*http.Response).Write to report an error on HEAD requests
+    because it saw a Content-Length > 0 and expected a body.
+    
+    There was also a missing \r\n in one chunked test that meant that the chunked
+    encoding was malformed. This does not appear to have been intentional.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7393075
+    https://golang.org/cl/7407046
 
- src/pkg/strconv/atof_test.go |  1 +
- src/pkg/strconv/atoi.go      |  2 +-
- src/pkg/strconv/atoi_test.go | 24 ++++++++++++++++++++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ src/pkg/net/http/response_test.go | 33 +++++++++++++++++++++++++--------
+ src/pkg/net/http/transfer.go      |  8 ++++++--
+ 2 files changed, 31 insertions(+), 10 deletions(-)

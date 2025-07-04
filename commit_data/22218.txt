@@ -1,14 +1,23 @@
-commit 8a2545744b2662fc34c117e769f3dbd2f7167d19
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 19 15:57:03 2015 +0300
+commit cb37cfa01c24a554568fcc7bbe5dced325c3c50f
+Author: Jan Kratochvil <jan.kratochvil@redhat.com>
+Date:   Sat Feb 28 19:43:50 2015 +0100
 
-    test: add tests for escape analysis of closure arguments
+    runtime: TestGdbPython 'print mapvar' should not need unwinding
     
-    10 false positives (var incorrectly escapes to heap) are marked with BAD.
+    issue #10017: TestGdbPython 'print mapvar' is reported to fail on ppc64.
+    issue #10002: TestGdbPython 'print mapvar' is reported to fail on arm hardfloat.
     
-    Change-Id: I773b13a18ff55aaa499a2a28a979118422cc5322
-    Reviewed-on: https://go-review.googlesource.com/5293
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The testcase now uses plain line number in main.  Unwinding issues are
+    unrelated to the GDB map prettyprinter feature.
+    
+    Remove arch-specific t.Skip()s from those two issues.
+    
+    Fixes #10017
+    Fixes #10002
+    
+    Change-Id: I9d50ffe2f3eb7bf65dd17c8c76a2677571de68ba
+    Reviewed-on: https://go-review.googlesource.com/6267
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- test/escape_closure.go | 147 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 147 insertions(+)
+ src/runtime/runtime-gdb_test.go | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

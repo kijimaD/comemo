@@ -1,19 +1,29 @@
-commit 7efb0779be523f8629919abc90067382f370f4c0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 30 14:34:16 2017 -0700
+commit 0c942e8f2c6aeedfe672fdd0c2549ac39505cd75
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 19 22:43:38 2016 -0500
 
-    cmd/compile: remove scratchFpMem global
+    runtime: avoid incorrect panic when a signal arrives during STW
     
-    Instead, add a scratchFpMem field to ssafn,
-    so that it may be passed on to genssa.
+    Stop-the-world and freeze-the-world (used for unhandled panics) are
+    currently not safe to do at the same time. While a regular unhandled
+    panic can't happen concurrently with STW (if the P hasn't been
+    stopped, then the panic blocks the STW), a panic from a _SigThrow
+    signal can happen on an already-stopped P, racing with STW. When this
+    happens, freezetheworld sets sched.stopwait to 0x7fffffff and
+    stopTheWorldWithSema panics because sched.stopwait != 0.
     
-    Updates #15756
+    Fix this by detecting when freeze-the-world happens before
+    stop-the-world has completely stopped the world and freeze the STW
+    operation rather than panicking.
     
-    Change-Id: Icdeae290d3098d14d31659fa07a9863964bb76ed
-    Reviewed-on: https://go-review.googlesource.com/38728
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #17442.
+    
+    Change-Id: I646a7341221dd6d33ea21d818c2f7218e2cb7e20
+    Reviewed-on: https://go-review.googlesource.com/34611
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go |  7 ++-----
- src/cmd/compile/internal/gc/ssa.go  | 14 +++++++-------
- 2 files changed, 9 insertions(+), 12 deletions(-)
+ src/runtime/proc.go | 32 ++++++++++++++++++++++++++------
+ 1 file changed, 26 insertions(+), 6 deletions(-)

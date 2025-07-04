@@ -1,19 +1,15 @@
-commit 645a341b7d4210eece285c8dbe6e3e6cdbfbe35e
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 14 10:15:38 2014 +1100
+commit c36dd4abdcfd02bf9cd15e252e39f199f2586000
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 13 15:55:14 2014 -0500
 
-    net/http: increase panic stack trace buffer size from 4 KB to 64 KB.
+    cmd/go: fix cgo error output rewrite
+    for example, we now rewrite *_Ctype_int to *C.int.
+    Fixes #6781.
     
-    4 KB is a bit too small in some situations (e.g. panic during a
-    template execution), and ends up with an unhelpfully-truncated trace.
-    64 KB should be much more likely to capture the useful information.
-    There's not a garbage generation issue, since this code should only
-    be triggered when there's something seriously wrong with the program.
-    
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=iant
+    R=golang-codereviews, rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/63520043
+    https://golang.org/cl/36860043
 
- src/pkg/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

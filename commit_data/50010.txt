@@ -1,25 +1,20 @@
-commit d654117075d1dd0686aa6833b22f28275623c759
-Author: ruinan <ruinan.sun@arm.com>
-Date:   Thu Jul 21 05:16:11 2022 +0000
+commit 315cec25bc7b5045f6081545a63cb27d44fcbde9
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 24 15:07:59 2021 -0700
 
-    cmd/compile: add intrinsic for MulUintptr on arm64
+    cmd/compile: leave dictionary argument out of traceback argument list
     
-    This CL adds intrinsic for runtime/internal/math.MulUintptr on arm64
+    The dictionary argument is implicit; the user doesn't need to see it.
     
-    Benchmark         master     ThisCL(ns/op)   delta
-    MulUintptr/small  0.95ns     0.79ns          -16%
-    MulUintptr/large  1.31ns     0.95ns          -27.6%
+    Update #48578
     
-    Change-Id: Ic7b453ad502826beffe93ce5531b8ba752312a1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419556
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Change-Id: I367ba4b6622119d3e01aaded90463d16823915a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352119
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 29 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go       |  2 +-
- 3 files changed, 35 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

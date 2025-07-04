@@ -1,12 +1,17 @@
-commit 4bb337e5254f6c4d20748759109dade64c26f99a
+commit 3648a03b3a1ae7c73f1853a8413c6ce4d64ade2f
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 26 09:53:28 2011 -0700
+Date:   Thu May 26 09:01:05 2011 -0700
 
-    CONTRIBUTORS: add William Chan (Google CLA)
+    encoding/binary: add a non-reflect fast path for Read
     
-    R=golang-dev, gri
+    before/after:
+    binary.BenchmarkRead  200000     10860 ns/op
+    binary.BenchmarkRead  500000      2846 ns/op
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4552066
+    https://golang.org/cl/4547062
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/binary/binary.go      | 48 ++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/binary/binary_test.go | 41 +++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

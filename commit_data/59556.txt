@@ -1,33 +1,21 @@
-commit 524946d2475d0b541ba84396f759b9e4c7aa4a98
-Author: khr@golang.org <khr@golang.org>
-Date:   Tue May 13 17:53:45 2025 -0700
+commit 2c6773618d4d5ef8f93ccc890ad5154da7fda020
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 25 00:52:53 2024 +0000
 
-    cmd/compile: don't preload registers if destination already scheduled
+    crypto/rand: close /dev/random on plan9 after seeding
     
-    In regalloc, we allocate some values to registers before loop entry,
-    so that they don't need to be loaded (from spill locations) during
-    the loop.
-    
-    But it is pointless if we've already regalloc'd the loop body.
-    Whatever restores we needed for the body are already generated.
-    
-    It's not clear if this code is ever useful. No tests fail if I just
-    remove it. But at least this change is worthwhile. It doesn't help,
-    and it actively inserts more restores than we really need (mostly
-    because the desired register list is approximate - I have seen cases
-    where the loads implicated here end up being dead because the restores
-    hit the wrong registers and the edge shuffle pass knows it needs
-    the restores in different registers).
-    
-    While we are here, might as well have layoutRegallocOrder return
-    the standard layout order instead of recomputing it.
-    
-    Change-Id: Ia624d5121de59b6123492603695de50b272b277f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672735
+    Change-Id: I77241ed2ccace63062e862438dd9d7fcebc88201
+    GitHub-Last-Rev: dbff3282e06ac8a9af1635c750a37d1d69f18fc8
+    GitHub-Pull-Request: golang/go#66505
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573976
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/layout.go   | 2 +-
- src/cmd/compile/internal/ssa/regalloc.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/crypto/rand/rand_plan9.go | 1 +
+ 1 file changed, 1 insertion(+)

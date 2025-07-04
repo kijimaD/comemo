@@ -1,13 +1,13 @@
-commit 0acda4e87d85d389dde1ba97cd050e8b6b3cbfb7
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Mar 3 03:17:14 2013 +0800
+commit 01a5b66d95203f64b215de342487a8d522a3532b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Mar 2 10:41:53 2013 +0400
 
-    misc/dashboard/app: make the builders test go.talks and go.exp
+    runtime: deadlock tests now work with GOMAXPROCS>1
+    Fixes #4826.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7419048
+    https://golang.org/cl/7434046
 
- misc/dashboard/app/build/build.go | 2 +-
- misc/dashboard/app/build/init.go  | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/crash_test.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

@@ -1,22 +1,22 @@
-commit 389093feec0f71d3cd0cfe44e31600187ad24191
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Apr 3 08:26:08 2013 +1100
+commit 751a24e86e0044b75c075c21b13dce2db9a1f744
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 2 13:24:16 2013 -0700
 
-    cmd/gc: preserve safe annotation of package def.
+    net: delete DialOpt and DialOption; add struct Dialer
     
-    A package file may begin as either "package foo" or
-    "package foo safe". The latter is relevant when using -u.
-    https://golang.org/cl/6903059 resulted in the distinction
-    being dropped when a package was read for the second or later time.
-    This CL records whether that "safe" tag was present,
-    and includes it in the dummy statement generated for the lexer.
+    Per discussions on golang-nuts and golang-dev:
+    "Some concerns with DialOpt"
+    https://groups.google.com/d/msg/golang-nuts/Hfh9aqhXyUw/W3uYi8lOdKcJ
+    https://groups.google.com/d/msg/golang-dev/37omSQeWv4Y/KASGIfPpXh0J
     
-    R=golang-dev, r, minux.ma, daniel.morsing, iant
+    R=golang-dev, google, r
     CC=golang-dev
-    https://golang.org/cl/8255044
+    https://golang.org/cl/8274043
 
- src/cmd/gc/go.h    |   1 +
- src/cmd/gc/go.y    |   3 +-
- src/cmd/gc/lex.c   |  10 +-
- src/cmd/gc/y.tab.c | 589 +++++++++++++++++++++++++++--------------------------
- 4 files changed, 304 insertions(+), 299 deletions(-)
+ doc/go1.1.html            |  13 +--
+ src/pkg/net/dial.go       | 237 ++++++++++++----------------------------------
+ src/pkg/net/dial_gen.go   |  61 ++++++++++++
+ src/pkg/net/fd_plan9.go   |   4 +-
+ src/pkg/net/fd_unix.go    |   5 +-
+ src/pkg/net/fd_windows.go |   7 +-
+ 6 files changed, 132 insertions(+), 195 deletions(-)

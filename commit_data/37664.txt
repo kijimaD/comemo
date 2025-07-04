@@ -1,44 +1,28 @@
-commit 561923fa7a7d47bba99556aaa61e40dd38708773
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 11 22:46:55 2018 -0500
+commit 4a842f25590fca15a8c564ec6a8edfd9f71bc446
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu May 31 13:06:27 2018 +0100
 
-    cmd/go/internal/modfetch: skip symlinks in (*coderepo).Zip
+    crypto/{aes,cipher,rand}: use binary.{Big,Little}Endian methods
     
-    Tested manually.
+    Use the binary.{Big,Little}Endian integer encoding methods rather
+    than unsafe or local implementations. These methods are tested to
+    ensure they inline correctly and don't add unnecessary bounds checks,
+    so it seems better to use them wherever possible.
     
-    Before:
+    This introduces a dependency on encoding/binary to crypto/cipher. I
+    think this is OK because other "L3" packages already import
+    encoding/binary.
     
-            $ go mod init golang.org/issue/scratch
-            go: creating new go.mod: module golang.org/issue/scratch
-            $ go1.11.2 mod download github.com/rogpeppe/test2@latest
-            go: finding github.com/rogpeppe/test2 v0.0.11
-            $ find $GOPATH -name goodbye
-            /tmp/tmp.Y8a8UzX3zD/_gopath/pkg/mod/github.com/rogpeppe/test2@v0.0.11/tests/goodbye
-            $ cat $(find $GOPATH -name goodbye)
-            hello
-    
-    After:
-    
-            $ go mod init golang.org/issue/scratch
-            go: creating new go.mod: module golang.org/issue/scratch
-            $ go mod download github.com/rogpeppe/test2@latest
-            go: finding github.com/rogpeppe/test2 v0.0.11
-            $ find $GOPATH -name goodbye
-            $ find $GOPATH -name hello
-            /tmp/tmp.Zo0jhfLaRs/_gopath/pkg/mod/github.com/rogpeppe/test2@v0.0.11/tests/hello
-    
-    A proper regression test would require one of:
-    • a new entry in the vcs-test server (feasible but tedious, and not easily updated by open-source contributors), or
-    • a way to set up an HTTPS proxy in a script_test, or
-    • a way to explicitly populate the module cache from the contents of a local repository (#28835).
-    
-    Fixes #27093
-    Updates #28835
-    
-    Change-Id: I72702a7e791f8815965f0f87c82a30df4d6f0151
-    Reviewed-on: https://go-review.googlesource.com/c/153819
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I5cf01800d08554ca364e46cfc1d9445cf3c711a0
+    Reviewed-on: https://go-review.googlesource.com/115555
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/crypto/aes/block.go      | 48 ++++++++++++++++++++++-----------------
+ src/crypto/aes/ctr_s390x.go  | 14 ++++++------
+ src/crypto/aes/gcm_s390x.go  | 31 +++++--------------------
+ src/crypto/cipher/gcm.go     | 54 +++++++++++---------------------------------
+ src/crypto/rand/rand_unix.go | 10 ++------
+ src/go/build/deps_test.go    |  2 +-
+ 6 files changed, 56 insertions(+), 103 deletions(-)

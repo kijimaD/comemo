@@ -1,23 +1,14 @@
-commit dba9eb336930ccddafb4bec2ca67d6ea125b1f02
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 16 19:22:58 2015 -0500
+commit 79a4a779a7c2d90509ac05d31c959b7c9d7147de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 22 10:30:43 2014 +1100
 
-    build: implement GOEXPERIMENT again in runtime, and add to liblink
+    syscall: clean up TestStdcallAndCDeclCallbacks to have no warnings
     
-    For Austin's framepointer experiment.
+    Fixes #9188
     
-    Change-Id: I81b6f414943b3578924f853300b9193684f79bf4
-    Reviewed-on: https://go-review.googlesource.com/2994
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ifbf5d9fa78a4f4ceb7f92d42494fe37fa7878c45
+    Reviewed-on: https://go-review.googlesource.com/1930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- include/link.h               |  8 +++++
- src/cmd/dist/build.go        |  6 ++--
- src/cmd/dist/buildruntime.go | 17 ++---------
- src/cmd/gc/go.h              |  2 --
- src/cmd/gc/lex.c             | 69 +++-----------------------------------------
- src/cmd/gc/plive.c           | 34 ++++++++++------------
- src/cmd/gc/walk.c            |  4 +--
- src/liblink/go.c             | 60 ++++++++++++++++++++++++++++++++++++++
- src/liblink/sym.c            |  1 +
- src/runtime/proc1.go         |  2 --
- 10 files changed, 94 insertions(+), 109 deletions(-)
+ src/runtime/syscall_windows_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,15 +1,18 @@
-commit 3d86d45dd60358636c569e9cf06b23b5e0e04e8a
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Wed Apr 26 23:43:46 2017 +0200
+commit 0fe62e7575a342decef0d5a00f6740fde15d5d7b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 15 12:32:14 2017 -0800
 
-    build: fail nicely if somebody runs all.bash from a binary tarball package
+    os: skip TestPipeThreads on Plan 9
     
-    Fixes golang/go#20008.
+    It can't work since Plan 9 does not support the runtime poller.
     
-    Change-Id: I7a429490320595fc558a8c5e260ec41bc3a788e2
-    Reviewed-on: https://go-review.googlesource.com/41858
+    Fixes build.
+    
+    Change-Id: I9ec33eb66019d9364c6ff6519b61b32e59498559
+    Reviewed-on: https://go-review.googlesource.com/37091
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/all.bash | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/os_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

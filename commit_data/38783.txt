@@ -1,22 +1,37 @@
-commit 75308c98e3068691cdf21914bb4eca2c81ce1b15
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sun Apr 14 07:52:05 2019 +0200
+commit 41fd4c88ad900765716d17c14eb1b48b553589e2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 24 18:02:29 2018 +1100
 
-    cmd/go: remove auto-deriving module path for github.com
+    cmd/link: do not use _GLOBAL_OFFSET_TABLE_ on windows/386
     
-    This fix removes the special case of auto-deriving the module path
-    only for VCS github.com. Error message now explicitly requests
-    the module path. Documentation and its FAQ do not need an update
-    as only the beginning of the message is mentioned and is not modified.
+    When building windows/386 executable that imports "plugin" package,
+    cmd/link adds reference to DLL with blank name. Running
     
-    Fixes #27951
+    objdump -x a.exe
     
-    Change-Id: Icaf87a38b5c58451edba9beaa12ae9a68e288ca1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172019
-    Reviewed-by: Daniel Lublin <daniel@lublin.se>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    reports
+    
+    ...
+    The Import Tables (interpreted .idata section contents)
+    ...
+    DLL Name:
+    vma:  Hint/Ord Member-Name Bound-To
+    25308a     0  _GLOBAL_OFFSET_TABLE_
+    ...
+    
+    So, obviously, executable cannot run, because Windows complains
+    that it cannot find DLL when trying to run it.
+    
+    Stop using _GLOBAL_OFFSET_TABLE_ on windows/386.
+    
+    Fixes #28789
+    
+    Change-Id: Idd489eafd998f6e329f40c5d90a2a8965ab1d873
+    Reviewed-on: https://go-review.googlesource.com/c/151139
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/init.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/link/internal/ld/lib.go |  4 ++--
+ src/plugin/plugin_test.go       | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

@@ -1,23 +1,23 @@
-commit 8d966bad6e4e9e28295bccbd739bf5280f729a7b
-Author: Dmitri Popov <operator@cv.dp-net.com>
-Date:   Sun Jun 19 20:58:40 2016 -0700
+commit cd6b2b7451c6feb277d38820f41f81ce4a036af2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 10 20:01:49 2016 -0400
 
-    math/rand: fix io.Reader implementation
+    cmd/internal/obj/s390x: add MULHD instruction
     
-    Do not throw away the rest of Int63 value used for
-    generation random bytes. Save it in Rand struct and
-    re-use during the next Read call.
+    Emulate 64-bit signed high multiplication ((a*b)>>64). To do this
+    we use the 64-bit unsigned high multiplication method and then
+    fix the result as shown in Hacker's Delight 2nd ed., chapter 8-3.
     
-    Fixes #16124
+    Required to enable some division optimizations.
     
-    Change-Id: Ic70bd80c3c3a6590e60ac615e8b3c2324589bea3
-    Reviewed-on: https://go-review.googlesource.com/24251
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9194f428e09d3d029cb1afb4715cd5424b5d922e
+    Reviewed-on: https://go-review.googlesource.com/21774
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/rand/rand.go         | 34 ++++++++++++++++++++++++++--------
- src/math/rand/rand_test.go    | 40 +++++++++++++++++++++++++++++++++++++++-
- src/math/rand/regress_test.go | 38 +++++++++++++++++++-------------------
- 3 files changed, 84 insertions(+), 28 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s |  4 ++++
+ src/cmd/internal/obj/s390x/a.out.go       |  1 +
+ src/cmd/internal/obj/s390x/anames.go      |  1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 34 +++++++++++++++++++++++--------
+ 4 files changed, 32 insertions(+), 8 deletions(-)

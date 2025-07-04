@@ -1,20 +1,18 @@
-commit c391156f96357593fa18fccee305401e3f82a1a6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Jul 5 16:14:22 2022 +0100
+commit 605d1aaea26ef775369a3d1da6cf53f2a7b1e640
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 30 18:07:54 2021 -0700
 
-    cmd/go: set up git identity for build_buildvcs_auto.txt
+    go/types, types2: union terms must be instantiated
     
-    Just like in other tests like get_dotfiles.txt or
-    version_buildvcs_git.txt. Without it, I get a failure on my machine:
+    Fixes #48083.
     
-            fatal: empty ident name (for <mvdan@p14s.localdomain>) not allowed
-    
-    Change-Id: I1c17c0d58c539b59154570b5438c7bd850bac5aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416095
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I77899d3e6edc806dee770403b3c3c4e2974d0e50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346293
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/testdata/script/build_buildvcs_auto.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ .../compile/internal/types2/testdata/fixedbugs/issue48083.go2    | 9 +++++++++
+ src/cmd/compile/internal/types2/union.go                         | 2 +-
+ src/go/types/testdata/fixedbugs/issue48083.go2                   | 9 +++++++++
+ src/go/types/union.go                                            | 2 +-
+ 4 files changed, 20 insertions(+), 2 deletions(-)

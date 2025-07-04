@@ -1,19 +1,23 @@
-commit a4d3c73ac3cc109ac2088beadf4d51987a60c625
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 18 19:14:25 2022 -0800
+commit 7473a6a0ebb270c24c20994d3ea6e3fd96def223
+Author: Jinzhu <wosmvp@gmail.com>
+Date:   Tue Apr 20 02:47:54 2021 +0000
 
-    doc/go1.18: don't mention -buildinfo flag
+    reflect: fix stack overflow panic when using haveIdenticalUnderlyingType
     
-    It was removed in CL 378576.
+    haveIdenticalUnderlyingType raises stack overflow when compares
+    self-referential structs having same structure in different packages.
     
-    For #50501
-    
-    Change-Id: I26b8f0e99a40fa5c616aa4849a6ab15dd0d072f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379314
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I7c79ab988edcffadcf7e0730a50b4d31b136bb6a
+    GitHub-Last-Rev: 4d4217f0c16ef14aa1f38ff7cf88c98755bb8ddd
+    GitHub-Pull-Request: golang/go#45543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309729
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.18.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/reflect/all_test.go                  | 25 +++++++++++++++++++++++++
+ src/reflect/internal/example1/example.go |  6 ++++++
+ src/reflect/internal/example2/example.go |  6 ++++++
+ src/reflect/type.go                      |  2 +-
+ 4 files changed, 38 insertions(+), 1 deletion(-)

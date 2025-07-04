@@ -1,32 +1,32 @@
-commit ca19e55f9aa6f4b191b6b1e4a3e2b4b3a5cbdc49
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 28 17:23:58 2015 -0700
+commit e9ab343f0e762951b771fe68cb841a8c03f339d7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 11:51:47 2015 +1000
 
-    cmd/link: make stkcheck more flexible
+    cmd/internal/obj: clean up Biobuf
     
-    stkcheck is flow-insensitive: It processes calls in PC order.
-    Since morestack was always the first call in a function,
-    it was a safe, conservative approximation to simply adjust stack
-    space as we went, recognizing morestack when it showed up.
+    This is a follow up to rev 443a32e707d2 which reduces some of the
+    duplication between methods and functions that operate on obj.Biobuf.
     
-    Subsequent CLS will rearrange the function prologue;
-    morestack may no longer be the first call in a function.
+    obj.Biobuf has Flush and Write methods as well as helpers which duplicate
+    those methods, consolidate on the former and remove the latter.
     
-    Introducing flow-sensitivity to stkcheck would allow this,
-    and possibly allow a smaller stackguard.
-    It is also a high risk change and possibly expensive.
+    Also, address a final comment from CL 9525.
     
-    Instead, assume that all calls to morestack occur as
-    part of the function prologue, no matter where they
-    are located in the program text.
-    
-    Updates #10587.
-    
-    Change-Id: I4dcdd4256a980fc4bc433a68a10989ff57f7034f
-    Reviewed-on: https://go-review.googlesource.com/10496
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I67deaf3a163bb489a9bb21bb39524785d7a2f6c5
+    Reviewed-on: https://go-review.googlesource.com/9527
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 52 ++++++++++++++++++++++++++++++++---------
- 1 file changed, 41 insertions(+), 11 deletions(-)
+ src/cmd/8g/galign.go                      |  2 +-
+ src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
+ src/cmd/asm/main.go                       |  4 ++--
+ src/cmd/internal/asm/asm.go               |  4 ++--
+ src/cmd/internal/asm/lexbody.go           |  2 +-
+ src/cmd/internal/gc/obj.go                | 14 +++++++-------
+ src/cmd/internal/gc/subr.go               |  2 +-
+ src/cmd/internal/obj/arm/obj5.go          |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go        |  4 ++--
+ src/cmd/internal/obj/objfile.go           |  4 ++--
+ src/cmd/internal/obj/ppc64/obj9.go        |  4 ++--
+ src/cmd/internal/obj/util.go              |  8 --------
+ 12 files changed, 22 insertions(+), 30 deletions(-)

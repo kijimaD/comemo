@@ -1,14 +1,19 @@
-commit 8fd1634f443cebcb176c7a95104b61240733e420
-Author: Matt Bostock <matt@mattbostock.com>
-Date:   Tue Feb 16 18:53:46 2016 +0000
+commit c84ae1c49970453158b511c54d5df63e438d2ce9
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 10:28:59 2015 -0500
 
-    sort: Fix typo in stable sort comment
+    runtime: eliminate write barriers from mem_plan9.go
     
-    Fix `reverences`, which I believe should read as `references`.
+    This replaces *memHdr with memHdrPtr.
     
-    Change-Id: I450efcbeee0f8861a84b209f2e6636764034232a
-    Reviewed-on: https://go-review.googlesource.com/19469
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #10600.
+    
+    Change-Id: I673aa2cd20f29abec8ab91ed7e783718c8479ce1
+    Reviewed-on: https://go-review.googlesource.com/17009
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/sort/sort.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mem_plan9.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

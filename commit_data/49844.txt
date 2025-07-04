@@ -1,36 +1,42 @@
-commit db84f5315ff19fd2ad70f07193749ef377a028e2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 11 10:48:12 2022 -0700
+commit 5ed7dd0650cf32edd000d2268df961e2b825aab4
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Sep 13 12:23:43 2021 -0400
 
-    cmd/compile/internal/noder: fix implicit conversion position
+    [dev.fuzz] internal/fuzz: rework default test behavior before fuzzing
     
-    In go.dev/cl/413396, I implemented implicit conversions by setting the
-    conversion's position to the enclosing statement that necessitated the
-    conversion. However, users actually want the position information to
-    be at the expression itself, and this seems sensible anyway.
+    This change refactors some of the code to support skipping a run
+    of the seed corpus by the go command before runFuzzing occurs.
+    Previously, the go command would run all seed corpus for all targets
+    that match the provided `run` argument. This will be redundant when
+    fuzzing a target. Now, the seed corpus is only run by targets other than
+    the one that's about to be fuzzed, and the worker handles running and
+    reporting issues with the seed corpus.
     
-    This was noticed because x/tools had a test for:
+    Part of the logic that needed close inspection is what to do if a
+    failure occurs during a testing-only or coverage-only fail. If the input
+    is already in the seed corpus, the fuzzing engine shouldn't add it. If
+    the input is currently in the cache, then it should be written to
+    testdata. In all cases, if an error occurs, we need to report this to
+    the user with enough information for them to debug it.
     
-            fmt.Println(42)
+    This uncovered some issues with our code when fuzzing without
+    instrumentation, and when -run=None was provided. There are some logic
+    fixes in this change, and some small refactors.
     
-    and it was checking where the escape analysis diagnostic for
-    `42` (really `any(42)`) was reported.
+    Fixes golang/go#48327
+    Fixes golang/go#48296
     
-    Historically, we reported the column of the `4`; but CL 413396 caused
-    unified IR to instead report the column of the `(` instead (the
-    position associated with the call expression, which forced `42` to be
-    implicitly converted from `int` to `any`).
-    
-    I chalk this mistake up to being accustomed to working with ir, where
-    we can't reliably use n.Pos() because of how ONAME positions work, so
-    I was trying to avoid relying on the implicitly converted expression's
-    own position.
-    
-    Change-Id: I762076af6f65ebe6d444d64630722a5016dc2698
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422976
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9ce2be0219c5b09277ddd308df8bc5a46d4558fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349630
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt   |  30 +---
+ .../go/testdata/script/test_fuzz_seed_corpus.txt   | 168 +++++++++++++++++++++
+ src/internal/fuzz/coverage.go                      |  17 ++-
+ src/internal/fuzz/fuzz.go                          | 168 ++++++++++++---------
+ src/internal/fuzz/worker.go                        |  45 +++---
+ src/testing/fuzz.go                                |  24 ++-
+ 6 files changed, 327 insertions(+), 125 deletions(-)

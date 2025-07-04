@@ -1,16 +1,12 @@
-commit 619cc9fa4152399dde89d2a4700ee737cae444e0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 1 13:25:44 2019 -0800
+commit ffc7bc55f351976c9bb1e04aeba75397d40cbb53
+Author: Qais Patankar <qaisjp@gmail.com>
+Date:   Tue Oct 9 10:14:59 2018 +0100
 
-    go/internal/gccgoimporter: remove temporary directories in test
+    cmd/compile: fix Compiler Directives typo
     
-    Updates #30500
-    
-    Change-Id: I42716c2bfd7f087303bc63d7518e32b52fd0d762
-    Reviewed-on: https://go-review.googlesource.com/c/164862
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I098b3c627c2142affd4e800a2c1f37e00f3775c5
+    Reviewed-on: https://go-review.googlesource.com/c/140777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

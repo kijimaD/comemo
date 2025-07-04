@@ -1,30 +1,36 @@
-commit e48fc2665e2e95eddea612fa315403d50c7beb2b
-Author: Aleks Rudzitis <arudzitis@stripe.com>
-Date:   Thu Jul 21 11:19:42 2022 -0700
+commit 006d4e627812816123a5bb86ebf5a2fa57af8b4a
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Dec 13 16:15:52 2021 -0800
 
-    crypto: allow hash.Hash for OAEP and MGF1 to be specified independently
+    cmd/compile: fix case where we didn't delay transformAssign in varDecl
     
-    crypto/rsa assumes RSA OAEP uses the same hash to be used for both the label
-    and the mask generation function. However, implementations in other languages,
-    such as Java and Python, allow these parameters to be specified independently.
+    We delay all transformations on generic functions, and only do them on
+    instantiated functions, for several reasons, of which one is that
+    otherwise the compiler won't understand the relationship between
+    constrained type parameters. In an instantiation with shape arguments,
+    the underlying relationship between the type arguments are clear and
+    don't lead to compiler errors.
     
-    This change allows the MGF hash to be specified independently for decrypt
-    operations in order to allow decrypting ciphertexts generated in other
-    environments.
+    This issue is because I missed delaying assignment transformations for
+    variable declarations. So, we were trying to transform an assignment,
+    and the compiler doesn't understand the relationship between the T and U
+    type parameters.
     
-    Fixes: #19974
-    Change-Id: If453d628f0da354ceb3b52863f30087471670f7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418874
-    Auto-Submit: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    The fix is to delay assignment transformations for variable declarations
+    of generic functions, just as we do already for normal assignment
+    statements.
+    
+    A work-around for this issue would be to just separate the assignment
+    from the variable declaration in the generic function (for this case of
+    an assignment involving both of the constrained type parameters).
+    
+    Fixes #50147
+    
+    Change-Id: Icdbcda147e5c4b386e4715811761cbe73d0d837e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371534
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- api/next/19974.txt                      |  1 +
- src/crypto/internal/boring/notboring.go |  4 ++--
- src/crypto/internal/boring/rsa.go       | 29 ++++++++++++++++++-----------
- src/crypto/rsa/rsa.go                   | 23 ++++++++++++++++++-----
- src/crypto/rsa/rsa_test.go              | 28 ++++++++++++++++++++++++++--
- 5 files changed, 65 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/noder/decl.go | 24 ++++++++++++++----------
+ test/typeparam/issue50147.go           | 11 +++++++++++
+ 2 files changed, 25 insertions(+), 10 deletions(-)

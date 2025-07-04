@@ -1,21 +1,18 @@
-commit 240498d63551d0a58a71d5ada457c73a71983a7c
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sat Feb 8 19:43:58 2020 -0500
+commit 9740b60e140433c6ab2230ca4f53935818221445
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Sep 16 10:23:54 2019 +0200
 
-    test: close file in goFiles
+    cmd/compile: refactor some code in loopbce.go
     
-    Brad's battery died on a plane and the file stayed open for 8 years
-    without anyone noticing. 😄
+    This CL extracts the logic for pattern-matching an induction
+    variable into a separate function, in preparation for next CL
+    where we would need to call it multiple times.
     
-    Someone noticed in https://github.com/gopherjs/gopherjs/pull/950.
+    No functional changes, passes toolstash -cmp.
     
-    Updates #2833
-    
-    Change-Id: I46b28ac014a8c355be94e026615f119f96e5d51a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218700
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ic52391e6c1b2e72bae32a0f3f65dfea321caaf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195737
+    Reviewed-by: David Chase <drchase@google.com>
 
- test/run.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/loopbce.go | 58 ++++++++++++++++++++-------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)

@@ -1,16 +1,22 @@
-commit 8faa79e91f52727fdf6c3fa2e96d1068a8b2f3df
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Mon Jun 12 09:00:26 2023 -0700
+commit 84232b0b89a60d5f66156ddf5cbe9ab64dac4375
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 17:25:58 2022 -0700
 
-    sort: comments directing new code to use the slices package when applicable
+    go/types: match types2 errors for missing index expressions
     
-    Change-Id: I0d4e902736fb3a75d128a088901055bece6c1a71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502555
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Use "middle" and "final" rather than "2nd" and "3rd" in error messages
+    for invalid slice expressions. This is the original compiler error
+    message and many tests check for this specific message.
+    
+    For #54511.
+    
+    Change-Id: I86eb739aa7218b7f393fab1ab402732cb9e9a1f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424906
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/sort/sort.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/go/parser/parser.go              |  6 +++---
+ src/go/parser/short_test.go          | 10 +++++-----
+ src/go/types/testdata/check/expr3.go |  8 ++++----
+ 3 files changed, 12 insertions(+), 12 deletions(-)

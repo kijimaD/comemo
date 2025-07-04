@@ -1,0 +1,22 @@
+commit 76e4efdc77861954969ce192966e1595c268d8c1
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 19 10:42:11 2024 -0800
+
+    testing/synctest: add experimental synctest package
+    
+    The testing/synctest package is experimental,
+    subject to change or removal,
+    and only present when GOEXPERIMENT=synctest.
+    
+    Fixes #69687
+    
+    Change-Id: I6c79e7d1479a54bebcd2de754854c87bfd0a5fa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629735
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go          |  3 +-
+ src/internal/goexperiment/flags.go |  3 ++
+ src/internal/synctest/synctest.go  | 48 ++-------------------------
+ src/testing/synctest/synctest.go   | 67 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 47 deletions(-)

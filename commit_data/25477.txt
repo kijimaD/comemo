@@ -1,24 +1,38 @@
-commit 67fa7970c50f2a5b48fbdd38f8dff9b6d935131a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 7 00:51:13 2016 +0000
+commit 991873116e316f334f41343bb9bbd97720b0ee29
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 2 16:56:53 2015 -0800
 
-    net/http: update bundled http2; fixes TestTransportAndServerSharedBodyRace_h2
+    [dev.ssa] cmd/compile: better ANDAND and OROR in IF and FOR
     
-    Update bundled http2 to git rev d1ba260648 (https://golang.org/cl/18288).
+    For the statement
     
-    Fixes the flaky TestTransportAndServerSharedBodyRace_h2.
+        if a && b { target }
     
-    Also adds some debugging to TestTransportAndServerSharedBodyRace_h2
-    which I hope won't ever be necessary again, but I know will be.
+    the old code allocated a new variable v and did:
     
-    Fixes #13556
+        v = a
+        if a {
+           v = b
+        }
+        if v { goto target }
     
-    Change-Id: Ibcf2fc23ec0122dcac8891fdc3bd7f8acddd880e
-    Reviewed-on: https://go-review.googlesource.com/18289
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The new code does:
+    
+        if a {
+          if b { goto target }
+        }
+    
+    The new arrangement tends to generate much more efficient code.  In
+    particular, there is no temporary variable and there is only one join
+    point instead of two.
+    
+    The old code is still used for ANDAND and OROR which are not
+    direct descendents of IF or FOR statements.
+    
+    Change-Id: I082f246d27c823c6f32d1287300e4b0911607507
+    Reviewed-on: https://go-review.googlesource.com/16584
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/h2_bundle.go  | 53 ++++++++++++++++++++++++++++++++++++++++------
- src/net/http/serve_test.go | 53 +++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 95 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 69 ++++++++++++++++++++++++++------------
+ 1 file changed, 47 insertions(+), 22 deletions(-)

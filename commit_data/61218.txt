@@ -1,0 +1,23 @@
+commit 427d1a23ef8183a4e0c6714e391f53d35c614c4d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 8 17:59:29 2024 -0400
+
+    cmd/link: on ELF, generate GNU build ID by default
+    
+    On ELF, default to "-B gobuildid", so it generates GNU build ID
+    based on Go buildid by default.
+    
+    Updates #41004.
+    Fixes #63934.
+    Fixes #68652.
+    
+    Change-Id: I5619dfaa4eeb6575c52922ae1de3430b46e31db6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618601
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+
+ src/cmd/link/elf_test.go         | 54 +++++++++++++++++++++++++---------------
+ src/cmd/link/internal/ld/lib.go  |  8 ++++--
+ src/cmd/link/internal/ld/main.go |  2 +-
+ 3 files changed, 41 insertions(+), 23 deletions(-)

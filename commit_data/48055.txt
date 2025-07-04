@@ -1,20 +1,18 @@
-commit 36b81acfa19d9fedf6a0cd60c394fd7a7703834e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 28 15:48:32 2022 -0800
+commit 59ceb985c7f78ca5dba6b83ff126d97d86267d7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 12:44:04 2021 -0400
 
-    cmd/go: document that GOENV=off disables the default config file
+    cmd/link: make Loader.SymName not crash
     
-    Fixes #46840
+    Even if not presented with a valid symbol, recover gracefully,
+    so that debug prints do not crash.
     
-    Change-Id: Icc5475e312003e316dc039413a35089485163ba6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381894
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I06bbe4bec5f90b79b4830e772a7fc3d7c919df1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312036
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go               | 2 ++
- src/cmd/go/internal/help/helpdoc.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/link/internal/loader/loader.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,14 +1,41 @@
-commit 01fe1492712d53a9f0c47041736b6162a6ffa517
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 6 14:54:28 2015 +0900
+commit 20a10e7ddd1b2305f1279043ec281301c9199359
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 7 11:38:00 2015 -0500
 
-    syscall: gofmt
+    build: require old Go to build new Go (and convert cmd/dist to Go)
     
-    And the silence of the git-codereview.
+    This CL introduces the bootstrap requirement that in order to
+    build the current release (or development version) of Go, you
+    need an older Go release (1.4 or newer) already installed.
+    This requirement is the whole point of this CL.
     
-    Change-Id: If3f7fe2de2ab4c1756f3cef8267199049d468b31
-    Reviewed-on: https://go-review.googlesource.com/3983
-    Reviewed-by: Minux Ma <minux@golang.org>
+    To enforce the requirement, convert cmd/dist from C to Go.
+    
+    With this bootstrapping out of the way, we can move on to
+    replacing other, larger C programs like the Go compiler,
+    the assemblers, and the linker.
+    
+    See golang.org/s/go15bootstrap for details.
+    
+    Change-Id: I53fd08ddacf3df9fae94fe2c986dba427ee4a21d
+    Reviewed-on: https://go-review.googlesource.com/2470
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/syscall_darwin_arm.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/dist/README          |   62 +-
+ src/cmd/dist/build.go        | 2030 ++++++++++++++++++------------------------
+ src/cmd/dist/buildgc.go      |  304 +++----
+ src/cmd/dist/buildgo.go      |   48 +-
+ src/cmd/dist/buildruntime.go |   68 +-
+ src/cmd/dist/cpuid_386.s     |   14 +
+ src/cmd/dist/cpuid_amd64.s   |   14 +
+ src/cmd/dist/cpuid_default.s |   10 +
+ src/cmd/dist/main.go         |   89 +-
+ src/cmd/dist/sys_default.go  |   10 +
+ src/cmd/dist/sys_windows.go  |   49 +
+ src/cmd/dist/util.go         | 1132 ++++++++---------------
+ src/cmd/dist/vfp_arm.s       |   15 +
+ src/cmd/dist/vfp_default.s   |   14 +
+ src/make.bash                |   26 +-
+ src/sudo.bash                |   41 -
+ 16 files changed, 1632 insertions(+), 2294 deletions(-)

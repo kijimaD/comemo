@@ -1,20 +1,12 @@
-commit fc8076479205f467242eaaa67c51123b4dcc25ee
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 10 22:40:35 2013 +0400
+commit ed6dce6f9d5bfb109b46a11f6843f8391abb8678
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:02:42 2013 +0800
 
-    runtime/race: tell race detector what memory Read/Write syscalls touch
-    Fixes #5567.
+    cmd/5l: use guaranteed undefined instruction for UNDEF to match [68]l.
     
-    R=golang-dev, dave, iant
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/10085043
+    https://golang.org/cl/10085050
 
- src/pkg/runtime/race.c                    | 16 ++++++++++++
- src/pkg/runtime/race.go                   |  2 ++
- src/pkg/runtime/race/testdata/mop_test.go | 43 +++++++++++++++++++++++++++++++
- src/pkg/syscall/race.go                   |  8 ++++++
- src/pkg/syscall/race0.go                  |  6 +++++
- src/pkg/syscall/syscall_plan9.go          |  9 +------
- src/pkg/syscall/syscall_unix.go           | 15 ++++++++---
- src/pkg/syscall/syscall_windows.go        |  6 +++++
- 8 files changed, 94 insertions(+), 11 deletions(-)
+ src/cmd/5l/asm.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

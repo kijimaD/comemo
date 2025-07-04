@@ -1,18 +1,18 @@
-commit 6410e67a1eb38df3cc72cef818ed392bea907251
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Sep 17 10:43:18 2015 +1000
+commit 514ab7c385116564d005c592e7473ba46c3fac87
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 12 13:54:04 2015 -0700
 
-    runtime: account for cpu affinity in windows NumCPU
+    [dev.ssa] cmd/compile: log line numbers in generated rewrite rules
     
-    Fixes #11671
+    This makes it easier to investigate and
+    understand rewrite behavior.
     
-    Change-Id: Ide1f8d92637dad2a2faed391329f9b6001789b76
-    Reviewed-on: https://go-review.googlesource.com/14742
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I790e8964922caf98362ce8a6d6972f52d83eefa8
+    Reviewed-on: https://go-review.googlesource.com/13588
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/export_windows_test.go  |   8 ++
- src/runtime/os1_windows.go          |  17 ++++
- src/runtime/syscall_windows_test.go | 153 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 178 insertions(+)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   92 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |    5 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1229 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  113 +++
+ 4 files changed, 1398 insertions(+), 41 deletions(-)

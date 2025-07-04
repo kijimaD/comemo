@@ -1,16 +1,18 @@
-commit 0625fc8e8229f64a98c45c652fe35119048925cc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jun 8 10:17:38 2015 -0700
+commit a4cd0a49c7d1b9b09c3da15c62a5915eb4b45fa0
+Author: Aleksandr Demakin <alexander.demakin@gmail.com>
+Date:   Tue Oct 20 23:05:50 2015 +0300
 
-    cmd/compile: clean up getlinepragma
+    go/types: fix race-y initialization of Struct.offsets
     
-    Passes toolstash -cmp.
+    Use sync.Once to ensure, that 'offsets' field is initialized
+    once only in a threadsafe way.
     
-    Change-Id: Ia497b51c74a9c760a873e1ed690e4408fd0fe596
-    Reviewed-on: https://go-review.googlesource.com/19844
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #12887
+    
+    Change-Id: I90ef929c421ccd3094339c67a39b02d8f2e47211
+    Reviewed-on: https://go-review.googlesource.com/16013
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 89 ++++++++++++--------------------------
- 1 file changed, 28 insertions(+), 61 deletions(-)
+ src/go/types/sizes.go | 48 +++++++++++++++++++++++++++++-------------------
+ src/go/types/type.go  | 15 ++++++++-------
+ 2 files changed, 37 insertions(+), 26 deletions(-)

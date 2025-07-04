@@ -1,73 +1,30 @@
-commit a108b280bc724779ebaa6656d35f0fb307fb2a9b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 13 03:07:27 2021 +0000
+commit a829114b21b5a4238dea13dc97b030d650935ed8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 5 15:12:37 2021 -0500
 
-    runtime: implement GC pacer redesign
+    cmd/compile: match Aux and AuxInt explicitly in store combining rule
     
-    This change implements the GC pacer redesign outlined in #44167 and the
-    accompanying design document, behind a GOEXPERIMENT flag that is on by
-    default.
+    CL 280456 introduced a new store combining rule. On the LHS some
+    of the Aux and AuxInt of the stores are not specified, therefore
+    ignored during the matching. The rule is only correct if they
+    match. This CL adds explict match.
     
-    In addition to adding the new pacer, this CL also includes code to track
-    and account for stack and globals scan work in the pacer and in the
-    assist credit system.
+    TODO: maybe we want the rule matcher require Aux/AuxInt to be
+    always specified on the LHS (using _ to explicitly ignore)? Or
+    maybe we want it to match the zero value if not specified? The
+    current approach is error-prone.
     
-    The new pacer also deviates slightly from the document in that it
-    increases the bound on the minimum trigger ratio from 0.6 (scaled by
-    GOGC) to 0.7. The logic behind this change is that the new pacer much
-    more consistently hits the goal (good!) leading to slightly less
-    frequent GC cycles, but _longer_ ones (in this case, bad!). It turns out
-    that the cost of having the GC on hurts throughput significantly (per
-    byte of memory used), though tail latencies can improve by up to 10%! To
-    be conservative, this change moves the value to 0.7 where there is a
-    small improvement to both throughput and latency, given the memory use.
+    Fixes #44823.
     
-    Because the new pacer accounts for the two most significant sources of
-    scan work after heap objects, it is now also safer to reduce the minimum
-    heap size without leading to very poor amortization. This change thus
-    decreases the minimum heap size to 512 KiB, which corresponds to the
-    fact that the runtime has around 200 KiB of scannable globals always
-    there, up-front, providing a baseline.
-    
-    Benchmark results: https://perf.golang.org/search?q=upload:20211001.6
-    
-    tile38's KNearest benchmark shows a memory increase, but throughput (and
-    latency) per byte of memory used is better.
-    
-    gopher-lua showed an increase in both CPU time and memory usage, but
-    subsequent attempts to reproduce this behavior are inconsistent.
-    Sometimes the overall performance is better, sometimes it's worse. This
-    suggests that the benchmark is fairly noisy in a way not captured by the
-    benchmarking framework itself.
-    
-    biogo-igor is the only benchmark to show a significant performance loss.
-    This benchmark exhibits a very high GC rate, with relatively little work
-    to do in each cycle. The idle mark workers are quite active. In the new
-    pacer, mark phases are longer, mark assists are fewer, and some of that
-    time in mark assists has shifted to idle workers. Linux perf indicates
-    that the difference in CPU time can be mostly attributed to write-barrier
-    slow path related calls, which in turn indicates that the write barrier
-    being on for longer is the primary culprit. This also explains the memory
-    increase, as a longer mark phase leads to more memory allocated black,
-    surviving an extra cycle and contributing to the heap goal.
-    
-    For #44167.
-    
-    Change-Id: I8ac7cfef7d593e4a642c9b2be43fb3591a8ec9c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309869
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic12b4a0de63117f2f070039737f0c905f28561bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299289
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/internal/goexperiment/exp_pacerredesign_off.go |   9 +
- src/internal/goexperiment/exp_pacerredesign_on.go  |   9 +
- src/internal/goexperiment/flags.go                 |   6 +
- src/runtime/export_test.go                         |   4 +-
- src/runtime/mgc.go                                 |   2 +
- src/runtime/mgcmark.go                             | 117 +++--
- src/runtime/mgcpacer.go                            | 498 ++++++++++++++++++---
- src/runtime/mgcpacer_test.go                       | 127 +++++-
- src/runtime/mgcwork.go                             |  11 +-
- 9 files changed, 680 insertions(+), 103 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 12 +++++++-----
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 12 +++++++-----
+ test/fixedbugs/issue44823.go                 | 26 ++++++++++++++++++++++++++
+ 5 files changed, 50 insertions(+), 20 deletions(-)

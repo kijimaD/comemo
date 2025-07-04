@@ -1,35 +1,14 @@
-commit 74190735be5e722a0a977d056204307c2468cf21
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 9 22:51:11 2016 +0000
+commit e54dfc2ec4a057aa1bf06f9bef5cdb2e769a669d
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:03:22 2016 +0300
 
-    net: make LookupPort and lookupProtocol work on nacl
+    testing: fix vet warning
     
-    Also, flesh out the baked-in /etc/services table for LookupPort a bit.
+    Updates #11041
     
-    This services map moves from a unix-specific file to a portable file
-    where nacl can use it.
-    
-    Also, remove the duplicated entries in the protocol map in different
-    cases, and just canonicalize the input before looking in the map. Now
-    it handles any case, including MiXeD cAse.
-    
-    In the process, add a test that service names for LookupPort are case
-    insensitive. They were on Windows, but not cgo. Now there's a test and
-    they're case insensitive in all 3+ paths. Maybe it breaks plan9. We'll
-    see.
-    
-    Fixes #17045
-    
-    Change-Id: Idce7d68703f371727c7505cda03a32bd842298cd
-    Reviewed-on: https://go-review.googlesource.com/28951
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I32a381854e6a4fd791db380150efab57e6dfc38c
+    Reviewed-on: https://go-review.googlesource.com/23081
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/cgo_unix.go                        |  5 +++
- src/net/lookup.go                          | 71 +++++++++++++++++++++++++++---
- src/net/{lookup_stub.go => lookup_nacl.go} |  4 +-
- src/net/lookup_test.go                     | 53 ++++++++++++++++++++--
- src/net/lookup_unix.go                     |  6 +--
- src/net/port_unix.go                       | 25 ++---------
- 6 files changed, 127 insertions(+), 37 deletions(-)
+ src/testing/match_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

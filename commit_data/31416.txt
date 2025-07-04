@@ -1,14 +1,19 @@
-commit 85d6a29ae60fa914a5fb12d061422a63694aa9be
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 28 07:23:26 2017 -0700
+commit a9292b833bdc8d95f738db20a1fc7bcffc0b33d2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 17 11:36:08 2017 -0800
 
-    cmd/compile: prevent infinite recursion printing types in Fatalf
+    cmd/compile: fix 32-bit unsigned division on 64-bit machines
     
-    Updates #20162
+    The type of an intermediate multiply was wrong.  When that
+    intermediate multiply was spilled, the top 32 bits were lost.
     
-    Change-Id: Ie289bae0d0be8430e492ac73fd6e6bf36991d4a1
-    Reviewed-on: https://go-review.googlesource.com/42130
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19153
+    
+    Change-Id: Ib29350a4351efa405935b7f7ee3c112668e64108
+    Reviewed-on: https://go-review.googlesource.com/37212
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/align.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

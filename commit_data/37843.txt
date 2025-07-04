@@ -1,19 +1,20 @@
-commit 857b339993146f2eab5fd9b9bef8357de8db144a
-Author: Jason LeBrun <jblebrun@gmail.com>
-Date:   Fri Jan 4 01:30:15 2019 +0000
+commit dd5e9b32ff60f99f993953a74e39d505914c6a56
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 23:52:12 2018 +0200
 
-    crypto/sha1: fix casting of d.nx in UnmarshalBinary
+    cmd/compile: add testcase for #24876
     
-    Fixes #29543
+    This is still not fixed, the testcase reflects that there are still
+    a few boundchecks. Let's fix the good alternative with an explicit
+    test though.
     
-    Change-Id: Ib7f3c32cc1e57c583ee52c486673a5b9568c2df8
-    GitHub-Last-Rev: 0cb3dc536245bb4f414cf09bb353fbafd5ca7537
-    GitHub-Pull-Request: golang/go#29544
-    Reviewed-on: https://go-review.googlesource.com/c/156279
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Updates #24876
+    
+    Change-Id: I4da35eb353e19052bd7b69ea6190a69ced8b9b3d
+    Reviewed-on: https://go-review.googlesource.com/107355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/sha1/sha1.go      |  2 +-
- src/crypto/sha1/sha1_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+), 1 deletion(-)
+ test/checkbce.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

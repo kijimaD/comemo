@@ -1,31 +1,15 @@
-commit ca83cd2c2f75075b6b7b8b06d25dbe50a3659e9f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 11 12:11:32 2011 -0700
+commit 51e6aa1e885fc159343f980a0a709f660e27c2fa
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 11 11:12:45 2011 -0700
 
-    http: fix transport bug with zero-length bodies
+    image/bmp: implement a BMP decoder.
     
-    An optimization in Transport which re-uses TCP
-    connections early in the case where there is
-    no response body interacted poorly with
-    ErrBodyReadAfterClose.  Upon recycling the TCP
-    connection early we would Close the Response.Body
-    (in case the user forgot to), but in the case
-    of a zero-lengthed body, the user's handler might
-    not have run yet.
-    
-    This CL makes sure the Transport doesn't try
-    to Close requests when we're about to immediately
-    re-use the TCP connection.
-    
-    This also includes additional tests I wrote
-    while debugging.
-    
-    R=rsc, bradfitzgoog
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4529050
+    https://golang.org/cl/4521054
 
- src/pkg/http/serve_test.go               | 44 ++++++++++++++++++++++++++++++++
- src/pkg/http/transport.go                | 11 ++++++++
- src/pkg/io/multi_test.go                 |  5 ++--
- src/pkg/mime/multipart/multipart_test.go | 23 +++++++++++++++++
- 4 files changed, 81 insertions(+), 2 deletions(-)
+ src/pkg/Makefile             |   2 +
+ src/pkg/image/bmp/Makefile   |  11 ++++
+ src/pkg/image/bmp/reader.go  | 148 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/decode_test.go |   4 +-
+ 4 files changed, 163 insertions(+), 2 deletions(-)

@@ -1,18 +1,15 @@
-commit e3f3adedcdbe3649e5de2980e85ab054e9d67acf
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 1 13:00:51 2017 +1000
+commit 9dd70591c5a05f0b507f2b56ed9660fdd7965420
+Author: Adam Bender <abender@google.com>
+Date:   Wed May 3 18:57:40 2017 -0700
 
-    cmd/go: document the build flags properly for vet
+    doc: fix minor formatting issues in contribute.html
     
-    The "build flags" mentioned in the documentation are only those
-    that apply to analyzing packages and executing the tool.
+    - remove <code> from <pre>
+    - replace `` with <code></code>
     
-    Fixes #21711.
-    
-    Change-Id: Ie7b2a354f1e30c928b40888c51fc68e599a5444a
-    Reviewed-on: https://go-review.googlesource.com/60830
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I46f0aec8b7645e2ac8cb53bca73aed55441acd65
+    Reviewed-on: https://go-review.googlesource.com/42612
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go          | 4 +++-
- src/cmd/go/internal/vet/vet.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ doc/contribute.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

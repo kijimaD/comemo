@@ -1,12 +1,28 @@
-commit 0f706d39d4ece12aff931fe2656107864c398e5c
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 30 08:54:53 2013 -0700
+commit 75d5c4af7128e8fd6e2df71f631925715784de46
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Oct 29 22:17:14 2013 -0400
 
-    doc/go1.2.html: stack sizes, thread limits
+    undo CL 19010044 / dbcd720e5396
     
-    R=golang-dev, minux.ma, adg, rsc
+    bradfitz reports:
+    > It breaks go-mode on GNU Emacs 22.1.1 as ships with OS X 10.8.6.
+    
+    ««« original CL description
+    misc/emacs: various cleanups
+    
+    - Use #' for function symbols
+    - Remove unused variables
+    - Use declare-function to shut up byte compiler
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/19600043
+    https://golang.org/cl/19010044
+    
+    »»»
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/19640043
 
- doc/go1.2.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 49 insertions(+)
+ misc/emacs/go-mode.el | 46 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 23 deletions(-)

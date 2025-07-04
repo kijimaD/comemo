@@ -1,22 +1,19 @@
-commit 70dd90c4a93d26215a3514d975c2692724d05ac6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 29 12:35:59 2018 -0700
+commit ad4e6370fe801c7d7b97e893b87c7f3d5b05f955
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 3 10:16:03 2018 -0700
 
-    cmd/compile: revert "typecheck types and funcs before consts"
+    cmd/link: remove -rdynamic if -static appears in cgo LDFLAGS
     
-    This reverts commit 9ce87a63b9f440b452ada1ff89ccb1c4f3ca919f.
+    We already remove -rdynamic if -static appears in -extldflags.
+    Extend that to apply to CGO_LDFLAGS and #cgo LDFLAGS as well.
     
-    The fix addresses the specific test case, but not the general
-    problem.
+    Updates #26197
     
-    Updates #24755.
-    
-    Change-Id: I0ba8463b41b099b1ebf49759f88a423b40f70d58
-    Reviewed-on: https://go-review.googlesource.com/c/145617
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibb62d1b20726916a12fd889acb05c1c559a5ace2
+    Reviewed-on: https://go-review.googlesource.com/122135
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 21 ++++-----------------
- test/fixedbugs/issue24755.go        | 16 ----------------
- 2 files changed, 4 insertions(+), 33 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 36 +++++++++++++++++++++---------------
+ 1 file changed, 21 insertions(+), 15 deletions(-)

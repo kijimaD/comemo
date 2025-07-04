@@ -1,0 +1,23 @@
+commit b2f7a2154a36c6dd7d20c53205aab6348228618f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 22 03:12:52 2024 +0100
+
+    crypto/fips140: new package
+    
+    This package holds only the Enabled() function.
+    
+    Updates #70123
+    
+    Change-Id: If0e731724d9997001fa52002fa6ae72df4eb16ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631017
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ api/next/70123.txt                                 |  1 +
+ doc/next/6-stdlib/99-minor/crypto/fips140/70123.md |  1 +
+ src/crypto/fips140/fips140.go                      | 33 ++++++++++++++++++++++
+ src/go/build/deps_test.go                          |  2 ++
+ 4 files changed, 37 insertions(+)

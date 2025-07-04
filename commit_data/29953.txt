@@ -1,18 +1,32 @@
-commit 76f981c8d86ec122da50a140f8843eb636ac8240
+commit 0c12bdf73b1cf60ceb45f2a302cddba17e86a503
 Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Jan 14 14:13:58 2017 +0100
+Date:   Tue Oct 18 15:21:46 2016 +0200
 
-    net/http: skip TestServerHijackGetsBackgroundByte on Plan 9
+    net: always wake up the readers on close on Plan 9
     
-    CL 5232 added TestServerHijackGetsBackgroundByte, which is failing
-    on Plan 9, because CloseWrite is not implemented on Plan 9 yet.
+    Previously, in acceptPlan9 we set netFD.ctl to the listener's
+    /net/tcp/*/listen file instead of the accepted connection's
+    /net/tcp/*/ctl file.
     
-    Updates #17906.
-    Updates #18657.
+    In netFD.Read, we write "close" to netFD.ctl to close the
+    connection and wake up the readers. However, in the
+    case of an accepted connection, we got the error
+    "write /net/tcp/*/listen: inappropriate use of fd"
+    because the /net/tcp/*/listen doesn't handle the "close" message.
     
-    Change-Id: I3c2f73760b0f767f3f9ed2698c855372170e0481
-    Reviewed-on: https://go-review.googlesource.com/35178
+    In this case, the connection wasn't closed and the readers
+    weren't awake.
+    
+    We modified the netFD structure so that netFD.ctl represents
+    the accepted connection and netFD.listen represents the
+    listener.
+    
+    Change-Id: Ie38c7dbaeaf77fe9ff7da293f09e86d1a01b3e1e
+    Reviewed-on: https://go-review.googlesource.com/31390
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/fd_plan9.go     | 43 +++++++++++++++++++++++++++++++------------
+ src/net/file_plan9.go   |  2 +-
+ src/net/ipsock_plan9.go | 25 ++++++++++++++++---------
+ 3 files changed, 48 insertions(+), 22 deletions(-)

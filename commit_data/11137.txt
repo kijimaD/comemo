@@ -1,29 +1,23 @@
-commit b37de7387a32a707dad0ef0305ec686bc263ef24
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 12 14:40:29 2012 -0800
+commit c624fa691df0a7e59b89e9f3ca2333c28f65c4f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 13:44:02 2012 -0800
 
-    json: better error messages when the ,string option is misused
+    go/build: pass CgoLDFLAGS at end of link command
     
-    Fixes #2331
+    By the time a Unix linker gets to the end of the
+    command line it has forgotten what you told it
+    at the beginning of the command line, so you
+    have to put library arguments (like -lm) at the end.
     
-    R=golang-dev, rsc
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5544045
+    https://golang.org/cl/5541043
 
- src/buildscript_darwin_386.sh        | 60 ++++++++++++++++++------------------
- src/buildscript_darwin_amd64.sh      | 60 ++++++++++++++++++------------------
- src/buildscript_freebsd_386.sh       | 60 ++++++++++++++++++------------------
- src/buildscript_freebsd_amd64.sh     | 60 ++++++++++++++++++------------------
- src/buildscript_linux_386.sh         | 60 ++++++++++++++++++------------------
- src/buildscript_linux_amd64.sh       | 60 ++++++++++++++++++------------------
- src/buildscript_linux_arm.sh         | 60 ++++++++++++++++++------------------
- src/buildscript_netbsd_386.sh        | 60 ++++++++++++++++++------------------
- src/buildscript_netbsd_amd64.sh      | 60 ++++++++++++++++++------------------
- src/buildscript_openbsd_386.sh       | 60 ++++++++++++++++++------------------
- src/buildscript_openbsd_amd64.sh     | 60 ++++++++++++++++++------------------
- src/buildscript_plan9_386.sh         | 60 ++++++++++++++++++------------------
- src/buildscript_windows_386.sh       | 40 ++++++++++++------------
- src/buildscript_windows_amd64.sh     | 40 ++++++++++++------------
- src/pkg/encoding/json/decode.go      | 35 ++++++++++++++++-----
- src/pkg/encoding/json/decode_test.go |  9 ++----
- 16 files changed, 431 insertions(+), 413 deletions(-)
+ src/cmd/go/build.go | 42 +++++++++++++++++++-----------------------
+ src/cmd/go/fix.go   |  2 +-
+ src/cmd/go/fmt.go   |  2 +-
+ src/cmd/go/main.go  | 20 +++++++++++++++++++-
+ src/cmd/go/run.go   |  3 +--
+ src/cmd/go/test.go  |  5 ++---
+ src/cmd/go/vet.go   |  2 +-
+ 7 files changed, 44 insertions(+), 32 deletions(-)

@@ -1,14 +1,16 @@
-commit d17727bdb4b925427dd03d6b235b586418e47f89
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 24 11:49:31 2016 -0800
+commit 829425d3ce34615726de2c91725c891393370879
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 26 11:45:50 2015 -0500
 
-    cmd/compile: cleanup escape sequence lexing
+    bufio: clarify Read docs
     
-    Change-Id: I7fe4d0cdcc284d5319c130ee3c351f23489af273
-    Reviewed-on: https://go-review.googlesource.com/19902
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Or at least make them true.
+    
+    Fixes #12237.
+    
+    Change-Id: I3c92a07233b2174c5731d6fa7fbb9ca3a97beb6b
+    Reviewed-on: https://go-review.googlesource.com/17237
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 143 +++++++++++++++++--------------------
- 1 file changed, 65 insertions(+), 78 deletions(-)
+ src/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

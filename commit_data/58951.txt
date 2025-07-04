@@ -1,40 +1,18 @@
-commit 645ea530191105dc89dd8d67640d61a4d0526df9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 21 17:13:20 2025 -0800
+commit fee3f537b4209b1fae478cd29ae2f308b389493f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 4 20:40:23 2023 +1000
 
-    runtime: in asan mode call __lsan_do_leak_check when exiting
+    cmd/dist,internal/platform: enable openbsd/riscv64 port
     
-    This enables the ASAN default behavior of reporting C memory leaks.
-    It can be disabled with ASAN_OPTIONS=detect_leaks=0.
+    Fixes #55999
     
-    Fixes #67833
-    
-    Change-Id: I420da1b5d79cf70d8cf134eaf97bf0a22f61ffd0
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15,gotip-linux-arm64-asan-clang15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651755
+    Change-Id: If76b61b660db3fefe5f9ca97500782f2a650db25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518629
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- doc/next/3-tools.md                                |   8 ++
- src/cmd/cgo/internal/test/issue4029.go             |   6 +-
- src/cmd/cgo/internal/test/test.go                  |   7 +-
- src/cmd/cgo/internal/testsanitizers/cc_test.go     |   8 +-
- src/cmd/cgo/internal/testsanitizers/lsan_test.go   | 102 +++++++++++++++++++++
- .../cgo/internal/testsanitizers/testdata/lsan1.go  |  39 ++++++++
- .../cgo/internal/testsanitizers/testdata/lsan2.go  |  42 +++++++++
- .../cgo/internal/testsanitizers/testdata/lsan3.go  |  46 ++++++++++
- src/runtime/asan.go                                |   7 ++
- src/runtime/asan/asan.go                           |   9 ++
- src/runtime/asan0.go                               |   2 +
- src/runtime/asan_amd64.s                           |  14 +++
- src/runtime/asan_arm64.s                           |  14 +++
- src/runtime/asan_loong64.s                         |  14 +++
- src/runtime/asan_ppc64le.s                         |  14 +++
- src/runtime/asan_riscv64.s                         |  14 +++
- src/runtime/mem.go                                 |  20 +++-
- src/runtime/proc.go                                |  25 ++++-
- src/runtime/vdso_test.go                           |   5 +
- src/syscall/exec_linux_test.go                     |   5 +
- 20 files changed, 394 insertions(+), 7 deletions(-)
+ src/cmd/dist/build.go            | 1 -
+ src/internal/platform/zosarch.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

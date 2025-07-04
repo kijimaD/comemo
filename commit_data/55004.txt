@@ -1,19 +1,21 @@
-commit d573a8a8e86157d1d9ea43e6bcb03ce5b9baa9fb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 16 01:00:22 2023 -0500
+commit d71b1c3dcc2039f44fb2e3f271997ee260e6685b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:01:36 2022 -0500
 
-    internal/reflectlite: allow Value be stack allocated
+    archive/tar: use proper doc comment for Deprecated notes
     
-    Port CL 408826 and CL 413474 from reflect to internal/reflectlite.
-    It is a bit simpler as reflectlite has fewer methods.
+    End-of-line comments are not doc comments,
+    so Deprecated notes in them are not recognized
+    as deprecation notices. Rewrite the comments.
     
-    Change-Id: I479199c8984afd35f42c3d8e764340184c17948f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542976
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Idb19603d7fc2ec8e3a2f74bacb74fbbec5583d20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/reflectlite/all_test.go    | 18 +++++-----
- src/internal/reflectlite/export_test.go |  2 +-
- src/internal/reflectlite/type.go        |  8 ++++-
- src/internal/reflectlite/value.go       | 59 +++++++++++++++++++++------------
- 4 files changed, 54 insertions(+), 33 deletions(-)
+ api/go1.16.txt            | 1 +
+ src/archive/tar/common.go | 6 ++++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

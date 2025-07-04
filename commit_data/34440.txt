@@ -1,17 +1,15 @@
-commit 16398894dccf06e34af8fb1c7cff6eed9b163057
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Feb 22 13:27:39 2018 -0500
+commit 8bb333a9c0945666e7b2e162f85a5fff74ccf1b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 10:57:00 2017 -0400
 
-    internal/trace: remove backlinks from span/task end to start
+    [release-branch.go1.9] doc: document Go 1.9.2
     
-    Even though undocumented, the assumption is the Event's link field
-    points to the following event in the future. The new span/task event
-    processing breaks the assumption.
-    
-    Change-Id: I4ce2f30c67c4f525ec0a121a7e43d8bdd2ec3f77
-    Reviewed-on: https://go-review.googlesource.com/96395
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I7d63e747e798d588bdcf2b79b6ecd21fce7bbc9c
+    Reviewed-on: https://go-review.googlesource.com/73391
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/73490
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/trace/annotations.go | 103 +++++++++++++++++++++++++++++--------------
- src/internal/trace/parser.go |  11 +++--
- 2 files changed, 76 insertions(+), 38 deletions(-)
+ doc/devel/release.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

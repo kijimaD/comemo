@@ -1,12 +1,21 @@
-commit 1952eb50107c76b4d13ebaed85c29e927fb51a61
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Aug 29 10:45:37 2011 -0400
+commit 9ef17990c2e6e26f9abf6185428cc7a8bdb74c8f
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 29 10:42:16 2011 -0400
 
-    os: fix WNOHANG Waitmsg
+    runtime: add runtime support for openbsd 386
+    
+    Add openbsd 386 runtime support, partially based on the existing
+    freebsd 386 runtime.
+    
+    This requires change 4973043.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4962042
+    https://golang.org/cl/4951043
 
- src/pkg/os/exec_unix.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/openbsd/386/rt0.s    |   6 +
+ src/pkg/runtime/openbsd/386/signal.c | 189 ++++++++++++++++++++++++++
+ src/pkg/runtime/openbsd/386/sys.s    | 254 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/openbsd/defs.c       |   4 +-
+ src/pkg/runtime/openbsd/mem.c        |  20 ++-
+ 5 files changed, 464 insertions(+), 9 deletions(-)

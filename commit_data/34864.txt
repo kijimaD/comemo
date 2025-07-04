@@ -1,32 +1,18 @@
-commit 284c53498fd4f52967067eb7c2d0102467980155
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 5 21:28:06 2018 +0100
+commit 597213c87c70166e86753350b203622326728138
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Nov 21 15:53:47 2017 -0500
 
-    cmd: some semi-automated cleanups
+    time: rename TestLoadLocationFromTzinfo to TestLoadLocationFromTZData
     
-    * Remove some redundant returns
-    * Replace HasPrefix with TrimPrefix
-    * Remove some obviously dead code
+    Tzinfo was replaced with TZData during the review of CL 68890, but this
+    instance was forgotten. Update it for consistency.
     
-    Passes toolstash -cmp on std cmd.
+    Follows CL 68890.
+    Updates #20629.
     
-    Change-Id: Ifb0d70a45cbb8a8553758a8c4878598b7fe932bc
-    Reviewed-on: https://go-review.googlesource.com/105017
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id6d3c4f5f7572b01065f2db556db605452d1b570
+    Reviewed-on: https://go-review.googlesource.com/79176
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/arm.go     |  4 +---
- src/cmd/compile/internal/gc/ssa.go   |  1 -
- src/cmd/go/internal/test/test.go     |  4 +---
- src/cmd/internal/obj/arm/asm5.go     |  4 +---
- src/cmd/internal/obj/arm64/asm7.go   |  4 ----
- src/cmd/internal/obj/mips/asm0.go    |  4 ----
- src/cmd/internal/obj/ppc64/asm9.go   |  1 -
- src/cmd/internal/obj/x86/a.out.go    |  5 -----
- src/cmd/internal/obj/x86/asm6.go     |  5 -----
- src/cmd/internal/objabi/flag.go      | 15 ---------------
- src/cmd/internal/objfile/disasm.go   |  4 +---
- src/cmd/link/internal/loadpe/ldpe.go |  4 +---
- src/cmd/vet/method.go                |  4 +---
- 13 files changed, 6 insertions(+), 53 deletions(-)
+ src/time/zoneinfo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

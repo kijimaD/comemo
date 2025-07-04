@@ -1,43 +1,18 @@
-commit fb184a383e756cb57267590ac290be0d3bb64874
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Oct 16 09:22:31 2020 -0400
+commit 4d9ecde30a77f4a4197b585b42cc2117607a8c40
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 7 09:35:12 2020 -0500
 
-    cmd/link: emit include directories in DWARF line table prologue
+    regexp/syntax: fix comment on p.literal and simplify
     
-    This patch changes the way the linker emits the DWARF line table
-    prologue, specifically the file table. Previously files were left
-    unmodified, and the directory table was empty. For each compilation
-    unit we now scan the unit file table and build up a common set of
-    directories, emit them into the directory table, and then emit file
-    entries that refer to the dirs. This provides a modest binary size
-    savings.
+    p.literal's doc comment said it returned a value but it doesn't.
+    While we're here, p.newLiteral is only called from p.literal,
+    so simplify the code by merging the two.
     
-    For kubernetes kubelet:
-    
-    $ objdump -h /tmp/kubelet.old | fgrep debug_line
-     36 .zdebug_line  019a55f5  0000000000000000  0000000000000000  084a5123  2**0
-    $ objdump -h /tmp/kubelet.new | fgrep debug_line
-     36 .zdebug_line  01146fd2  0000000000000000  0000000000000000  084a510a  2**0
-    
-    [where the value following the section name above is the section size
-    in hex, so roughly a 30% decrease in this case.]
-    
-    The actual savings will depend on the length of the pathnames
-    involved, so it's hard to really pin down how much savings we'll see
-    here. In addition, emitting the files this way reduces the
-    "compressibility" of the line table, so there could even be cases
-    where we don't win at all.
-    
-    Updates #6853, #19784, #36495.
-    
-    Change-Id: I298d8561da5ed3ebc9d38aa772874851baa2f4f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263017
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: Ia357937a99f4e7473f0f1ec837113a39eaeb83d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222659
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 109 ++++++++++++++++++++++++++------------
- src/debug/dwarf/line.go           |   6 ++-
- src/debug/dwarf/line_test.go      |   8 +++
- 3 files changed, 88 insertions(+), 35 deletions(-)
+ src/regexp/syntax/parse.go | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)

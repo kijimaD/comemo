@@ -1,20 +1,21 @@
-commit 236a0b4ffb79854546b9f437499092cec23a5725
+commit 43a27a7e8cbde4270e3f2b4e6e1538b28882c2d0
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 12 11:31:49 2024 -0800
+Date:   Mon Nov 6 16:42:27 2023 -0800
 
-    spec: explain function invocation and passing of parameters more precisely
+    go/types: export Info.FileVersions
     
-    - Describe that function invocation allocates space for a functions'
-      variables.
-    - Explain parameter passing in terms of assignments.
+    For #62605.
     
-    Change-Id: Ia693d73a570f7d1aa2ac05e6095b4e602e4e9bf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635800
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: Icf1a8332e4b60d77607716b55893ea2f39ae2f10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540056
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ api/next/62605.txt       |  1 +
+ src/go/types/api.go      | 11 ++++++-----
+ src/go/types/api_test.go |  8 +-------
+ src/go/types/check.go    |  2 +-
+ 4 files changed, 9 insertions(+), 13 deletions(-)

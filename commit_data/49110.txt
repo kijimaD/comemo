@@ -1,28 +1,26 @@
-commit a971499a6234d94b5be93b573de64d1b4f36654e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 12 15:51:26 2021 -0700
+commit 7e714f448eaf2c489c32bfff5c00f5f5ad6ea289
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 20:57:10 2021 -0400
 
-    cmd/go: don't fail in ToSymbolFunc when using -n
+    [dev.typeparams] go/types: embedding stand-alone type parameters is not permitted
     
-    CL 214429, among other things, created gccgo_link_c.txt as a copy of a
-    test formerly in go_test.go, but accidentally did so incorrectly:
-    it used -r instead of -n. This was not noticed because the new test
-    also incorrectly used [gccgo] when it should have used [exec:gccgo].
+    This is a port of CL 334151 to go/types.
     
-    Fixing both of those, and also fixing the test to use a go.mod file,
-    revealed that "go build -n -compiler gccgo" doesn't work, because
-    it passes a non-existent tmpdir to pkgpath.ToSymbolFunc. This CL
-    fixes that too.
+    Fixes #47127
     
-    Change-Id: Id89296803b55412af3bd87aab992f32e26dbce0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341969
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I57d69c498d2649a9e1657559e4c0271333096c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335082
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/work/gccgo.go           |  6 +++++-
- src/cmd/go/testdata/script/gccgo_link_c.txt | 10 ++++++----
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/go/types/testdata/check/issues.go2         |  2 +-
+ src/go/types/testdata/check/tinference.go2     | 42 ++++++++++++++------------
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  7 +++--
+ src/go/types/testdata/fixedbugs/issue39680.go2 |  4 +++
+ src/go/types/testdata/fixedbugs/issue39948.go2 | 10 ++----
+ src/go/types/testdata/fixedbugs/issue47127.go2 | 37 +++++++++++++++++++++++
+ src/go/types/typeset.go                        |  8 ++---
+ src/go/types/union.go                          | 11 +++++--
+ 8 files changed, 81 insertions(+), 40 deletions(-)

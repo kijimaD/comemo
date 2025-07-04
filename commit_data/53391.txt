@@ -1,43 +1,24 @@
-commit 97a2ed74adbb389ce2e8da790dc3567e89e2af71
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 25 23:28:39 2023 -0400
+commit f3c39a83a3076eb560c7f687cbb35eef9b506e7d
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Sat Jun 11 22:14:37 2022 -0700
 
-    cmd/go: add detection of toolchain switch loops
+    all: replace hand-rolled atomicBool types with atomic.Bool
     
-    This happens mainly during testing because the virtual
-    toolchain switch is not terribly robust, and if you accidentally
-    try to exec "1.23" instead of "go1.23" it will let you, but it
-    won't work right.
+    Two packages construct atomic booleans from atomic integers.
+    Replace these implementations with the new atomic.Bool type.
+    Indeed, these packages were the impetus for the new atomic.Bool
+    type, having demonstrated a need to access boolean values
+    atomically.
     
-    Of course, although we feel pretty good about the non-test
-    implementation, perhaps it has a toolchain switch loop lurking too,
-    or perhaps one will be introduced in the future.
-    
-    To handle the test bug, and just in case we have a real bug later,
-    add detection of toolchain switch loops with clear messages.
-    
-    Also fixes a bug in setting the -lang flag properly when invoking
-    the Go compiler: this is the first test using 'go 1.21.x' lines
-    during a build.
-    
-    For #57001.
-    
-    Change-Id: I0ece3dd718596689a23b677cf08ddf32ea97bc57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498436
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I6a0314f8e7d660984a6daf36a62ed05a0eb74b2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411400
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/go_test.go                              |   7 +-
- src/cmd/go/internal/gover/{latest.go => local.go}  |  26 +++-
- src/cmd/go/internal/toolchain/exec.go              |   2 +-
- src/cmd/go/internal/toolchain/toolchain.go         | 148 ++++++++++++++++-----
- src/cmd/go/internal/work/exec.go                   |  13 +-
- src/cmd/go/internal/work/gc.go                     |   3 +-
- src/cmd/go/main.go                                 |   2 +-
- src/cmd/go/testdata/script/gotoolchain_local.txt   |   2 +-
- src/cmd/go/testdata/script/gotoolchain_loop.txt    |  65 +++++++++
- .../go/testdata/script/mod_get_exec_toolchain.txt  |   2 +-
- src/cmd/go/testdata/script/mod_toolchain.txt       |   2 +-
- 11 files changed, 211 insertions(+), 61 deletions(-)
+ src/internal/poll/fd_plan9.go | 26 +++++++-----------
+ src/net/http/client.go        |  7 +++--
+ src/net/http/server.go        | 64 ++++++++++++++++++++-----------------------
+ 3 files changed, 43 insertions(+), 54 deletions(-)

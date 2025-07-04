@@ -1,13 +1,17 @@
-commit 38445ca08915c0fb755f9f15f99a3226ed7f45f4
+commit a1bf5207af2270fe91934bda2f7b068634e9f1c2
 Author: Joel Sing <jsing@google.com>
-Date:   Fri May 11 03:48:16 2012 +1000
+Date:   Fri May 11 03:47:27 2012 +1000
 
-    runtime: fix netbsd sigaction struct
+    syscall: repair netbsd z* files
     
-    R=golang-dev, rsc
+    Manually repair/update z* files for netbsd - this allows Go to
+    compile again on 386.
+    
+    R=golang-dev, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6198063
+    https://golang.org/cl/6194064
 
- src/pkg/runtime/signal_netbsd_386.c   | 15 +++++++++------
- src/pkg/runtime/signal_netbsd_amd64.c | 15 +++++++++------
- 2 files changed, 18 insertions(+), 12 deletions(-)
+ src/pkg/syscall/zerrors_netbsd_386.go   | 106 ++++++++++++++++++++++----------
+ src/pkg/syscall/zerrors_netbsd_amd64.go |  70 +++++++++++----------
+ src/pkg/syscall/zsyscall_netbsd_386.go  |   2 +-
+ 3 files changed, 111 insertions(+), 67 deletions(-)

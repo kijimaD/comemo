@@ -1,24 +1,16 @@
-commit a07e28194a05800215efe192d2ff840f339924f0
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 15 22:52:56 2020 -0700
+commit 2d2590e94a831ee0d3bd13a76d4c4480f5b60174
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jan 8 12:57:41 2020 -0500
 
-    cmd/compile: redo flag constant ops for arm64
+    [dev.link] cmd/link: add loader methods to access unit, gotype
     
-    Fixes the *noov opcodes so they handle a constant argument properly.
+    Add loader hooks to get at the 'gotype' and 'unit' symbol properties.
     
-    Most of the infrastructure for this CL is in CL 238077 (the arm32 one).
-    
-    Fixes #39505
-    
-    Change-Id: Id424a4e18964b848f05aa42f4d78e5f2e2cdf43b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237999
+    Change-Id: Icdf5dd151e84a548fa2574efdb998c3b698a17d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214137
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/arm64/ssa.go        |    8 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules   |    8 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  216 ++--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   14 +-
- src/cmd/compile/internal/ssa/opGen.go        |   33 +-
- src/cmd/compile/internal/ssa/rewrite.go      |   74 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 1482 +++++++-------------------
- 7 files changed, 514 insertions(+), 1321 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 45 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

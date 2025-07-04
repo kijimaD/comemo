@@ -1,12 +1,15 @@
-commit 6c43c0c2fdc866bf6d85a4689ad42c42b9c527dd
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Sep 27 17:23:08 2016 +0200
+commit 14968bc1e52842b098408516472ebd3fb97e4714
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Jun 2 15:42:14 2016 +0200
 
-    cmd/compile: remove commented-out old c code
+    cmd/dist: skip an unsupported test on darwin/arm
     
-    Change-Id: I9b2e6c45f7e83543a06d0aafd08a911f7b6485fd
-    Reviewed-on: https://go-review.googlesource.com/29874
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes the darwin/arm builder (I hope)
+    
+    Change-Id: I8a3502a1cdd468d4bf9a1c895754ada420b305ce
+    Reviewed-on: https://go-review.googlesource.com/23684
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/init.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

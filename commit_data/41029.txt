@@ -1,12 +1,24 @@
-commit 53dede938b5c3322627a846e6c073d8d45dc21ac
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Dec 30 08:35:40 2019 -0800
+commit d56a86e01f2e771a4706f0a5cfbe2d87cd888f05
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Jul 31 14:33:57 2019 +0200
 
-    cmd/compile: fix typo in comment
+    runtime: don't forward SIGPIPE on macOS
     
-    Change-Id: I25fbd63f10ea9892589ad44cc45761926aff0648
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212841
+    macOS and iOS deliver SIGPIPE signals to the main thread and not
+    the thread that raised it by writing to a closed socket or pipe.
+    
+    SIGPIPE signals can be suppressed for sockets with the SO_NOSIGPIPE
+    option, but there is no similar option for pipes. We have no other
+    choice but to never forward SIGPIPE on macOS.
+    
+    Fixes #33384
+    
+    Change-Id: Ice3de75b121f00006ee11c26d560e619536460be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188297
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testcarchive/testdata/main3.c | 21 +++++++++++++++++++++
+ src/runtime/signal_unix.go             |  7 +++++++
+ 2 files changed, 28 insertions(+)

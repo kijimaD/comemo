@@ -1,31 +1,18 @@
-commit 7ca1e2aa56f23b1766e8f5f65c431d18abd58985
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Jan 10 02:15:25 2022 -0600
+commit 22a38ba5caa49fb7d494b09fedef90afb674cd77
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 14:54:21 2021 -0400
 
-    internal/bytealg: optimize index function for ppc64le/power9
+    [dev.typeparams] go/types: remove unnecessary guard from NewInterfaceType
     
-    Optimized index2to16 loop by unrolling the loop by 4.
-    Multiple benchmark tests show performance improvement on
-    POWER9. Similar improvements are seen on POWER10. Added
-    tests to ensure changes work fine.
+    This is a partial port of CL 322609, containing only changes to
+    go/types. Importer changes will be made in a separate CL.
     
-    name            old time/op   new time/op    delta
-    Index/10         18.3ns ± 0%    19.7ns ±25%     ~
-    Index/32         75.3ns ± 0%    69.2ns ± 0%   -8.22%
-    Index/4K         5.53µs ± 0%    3.69µs ± 0%  -33.20%
-    Index/4M         5.64ms ± 0%    3.75ms ± 0%  -33.55%
-    Index/64M        92.9ms ± 0%    61.6ms ± 0%  -33.69%
-    IndexHard2       1.41ms ± 0%    0.93ms ± 0%  -33.75%
-    CountHard2       1.41ms ± 0%    0.93ms ± 0%  -33.75%
-    
-    Change-Id: If9331df6a141a4716724b8cb648d2b91bdf17e5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377016
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Change-Id: I50af3c1ed5e949bb28a3462d717c0eb29a5f31ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335144
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bytes/bytes_test.go             |  30 ++++++
- src/internal/bytealg/index_ppc64x.s | 198 ++++++++++++++++++++++--------------
- 2 files changed, 149 insertions(+), 79 deletions(-)
+ src/go/types/interface.go | 11 -----------
+ 1 file changed, 11 deletions(-)

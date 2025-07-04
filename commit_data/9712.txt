@@ -1,19 +1,12 @@
-commit a39904022675aea61f3206d6b69a8df2e43e9876
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Fri Sep 16 00:34:26 2011 -0700
+commit da5511625e9a8c10194dcdfecb94ed129b12a461
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 16 17:23:31 2011 +1000
 
-    exp/template/html: type fixed point computation in template
+    tag weekly.2011-09-16
     
-    I found a simple test case that does require doing the fixed point TODO
-    in computeOutCtx.
-    
-    I found a way though to do this and simplify away the escapeRange
-    hackiness that was added in https://golang.org/cl/5012044/
-    
-    R=nigeltao
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5015052
+    https://golang.org/cl/5004052
 
- src/pkg/exp/template/html/escape.go      | 147 +++++++++++++++++++++----------
- src/pkg/exp/template/html/escape_test.go |  25 +++++-
- 2 files changed, 126 insertions(+), 46 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

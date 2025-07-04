@@ -1,41 +1,15 @@
-commit 6ea3a268b6263db0c98dbeb8076b1aa710d8f498
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 15:14:15 2011 -0800
+commit 1e5aecf6ce72fa16f9e834702d083325646108b7
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Dec 2 09:52:31 2011 +1100
 
-    go/doc: exclude lines ending in ':' from possible headings
+    godoc: improved output of examples in html.
     
-    This is a more conservative approach to heading detection and
-    removes 11 headings from the current repository (several in
-    fmt). The current headscan output is:
+    Fixes #2467.
+    Fixes #2464.
     
-    /home/gri/go3/src/cmd/goinstall (package documentation)
-            Remote Repositories
-            The GOPATH Environment Variable
-    /home/gri/go3/src/pkg/exp/gotype (package documentation)
-            Examples
-    /home/gri/go3/src/pkg/html/template (package template)
-            Introduction
-            Contexts
-            Errors
-            A fuller picture
-            Contexts
-            Typed Strings
-            Security Model
-    /home/gri/go3/src/pkg/text/template (package template)
-            Actions
-            Arguments
-            Pipelines
-            Variables
-            Examples
-            Functions
-            Associated templates
-            Nested template definitions
-    18 headings found
-    
-    R=golang-dev, adg, rsc
+    R=golang-dev, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5437105
+    https://golang.org/cl/5447051
 
- src/pkg/go/doc/comment.go      | 13 ++++---------
- src/pkg/go/doc/comment_test.go |  5 +++--
- 2 files changed, 7 insertions(+), 11 deletions(-)
+ lib/godoc/example.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

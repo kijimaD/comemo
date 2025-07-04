@@ -1,21 +1,55 @@
-commit 26049f6f9171d1190f3bbe05ec304845cfe6399f
-Author: Jed Denlea <jed@fastly.com>
-Date:   Mon Aug 3 18:00:44 2015 -0700
+commit 03a48ebe1c79ed0437dcdbc8bf3cd58e901a999d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Feb 8 18:11:35 2015 +0300
 
-    net/http: close server conn after broken trailers
+    sync: simplify WaitGroup
     
-    Prior to this change, broken trailers would be handled by body.Read, and
-    an error would be returned to its caller (likely a Handler), but that
-    error would go completely unnoticed by the rest of the server flow
-    allowing a broken connection to be reused.  This is a possible request
-    smuggling vector.
+    A comment in waitgroup.go describes the following scenario
+    as the reason to have dynamically created semaphores:
     
-    Fixes #12027.
+    // G1: Add(1)
+    // G1: go G2()
+    // G1: Wait() // Context switch after Unlock() and before Semacquire().
+    // G2: Done() // Release semaphore: sema == 1, waiters == 0. G1 doesn't run yet.
+    // G3: Wait() // Finds counter == 0, waiters == 0, doesn't block.
+    // G3: Add(1) // Makes counter == 1, waiters == 0.
+    // G3: go G4()
+    // G3: Wait() // G1 still hasn't run, G3 finds sema == 1, unblocked! Bug.
     
-    Change-Id: I077eb0b8dff35c5d5534ee5f6386127c9954bd58
-    Reviewed-on: https://go-review.googlesource.com/13148
+    However, the scenario is incorrect:
+    G3: Add(1) happens concurrently with G1: Wait(),
+    and so there is no reasonable behavior of the program
+    (G1: Wait() may or may not wait for G3: Add(1) which
+    can't be the intended behavior).
+    
+    With this conclusion we can:
+    1. Remove dynamic allocation of semaphores.
+    2. Remove the mutex entirely and instead pack counter and waiters
+       into single uint64.
+    
+    This makes the logic significantly simpler, both Add and Wait
+    do only a single atomic RMW to update the state.
+    
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkWaitGroupUncontended        30.6          32.7          +6.86%
+    BenchmarkWaitGroupActuallyWait       722           595           -17.59%
+    BenchmarkWaitGroupActuallyWait-2     396           319           -19.44%
+    BenchmarkWaitGroupActuallyWait-4     224           183           -18.30%
+    BenchmarkWaitGroupActuallyWait-8     134           106           -20.90%
+    
+    benchmark                          old allocs     new allocs     delta
+    BenchmarkWaitGroupActuallyWait     2              1              -50.00%
+    
+    benchmark                          old bytes     new bytes     delta
+    BenchmarkWaitGroupActuallyWait     48            16            -66.67%
+    
+    Change-Id: I28911f3243aa16544e99ac8f1f5af31944c7ea3a
+    Reviewed-on: https://go-review.googlesource.com/4117
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/serve_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/net/http/transfer.go   |  6 ++++++
- 2 files changed, 40 insertions(+)
+ src/sync/waitgroup.go      | 134 ++++++++++++++++++++++-----------------------
+ src/sync/waitgroup_test.go | 112 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 179 insertions(+), 67 deletions(-)

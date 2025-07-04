@@ -1,14 +1,12 @@
-commit a4f6ed3574c7c6edc673346c0629d866108ace7e
-Author: Kyle Lemons <kyle@kylelemons.net>
-Date:   Wed Jan 19 15:11:03 2011 -0500
+commit 73302bc190a13100b7b1ceccd158fc37aa3d4a6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 15:10:58 2011 -0500
 
-    net: add LookupAddr
+    CONTRIBUTORS: secondary email for Kyle Lemons
     
-    R=adg, rsc
+    R=r, gri
     CC=golang-dev
-    https://golang.org/cl/3851041
+    https://golang.org/cl/4072042
 
- src/pkg/net/dnsclient.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/net/hosts.go     | 31 ++++++++++++++++++++-------
- src/pkg/net/net_test.go  | 37 +++++++++++++++++++++++++++++++++
- 3 files changed, 114 insertions(+), 8 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

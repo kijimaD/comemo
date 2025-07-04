@@ -1,60 +1,34 @@
-commit bbccfddb84473c10e95b1b80f8c6f68a8238a7d5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Oct 6 21:01:49 2012 +1000
+commit 4cc7bf326a26d3cc18f049424729784812fe16b6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Oct 6 12:56:04 2012 +0400
 
-    cmd/5g: avoid temporary during constant asop
+    pprof: add goroutine blocking profiling
+    The profiler collects goroutine blocking information similar to Google Perf Tools.
+    You may see an example of the profile (converted to svg) attached to
+    http://code.google.com/p/go/issues/detail?id=3946
+    The public API changes are:
+    +pkg runtime, func BlockProfile([]BlockProfileRecord) (int, bool)
+    +pkg runtime, func SetBlockProfileRate(int)
+    +pkg runtime, method (*BlockProfileRecord) Stack() []uintptr
+    +pkg runtime, type BlockProfileRecord struct
+    +pkg runtime, type BlockProfileRecord struct, Count int64
+    +pkg runtime, type BlockProfileRecord struct, Cycles int64
+    +pkg runtime, type BlockProfileRecord struct, embedded StackRecord
     
-    func add() int {
-            var a int
-            a += 10
-            a += 20
-            a += 30
-            a -= 10
-            a -= 20
-            a -= 30
-            return a
-    }
-    
-    before
-    
-    --- prog list "add" ---
-    0000 (/home/dfc/src/add.go:5) TEXT      add+0(SB),$0-4
-    0001 (/home/dfc/src/add.go:6) MOVW      $0,R2
-    0002 (/home/dfc/src/add.go:7) MOVW      $10,R0
-    0003 (/home/dfc/src/add.go:7) ADD       R0,R2,R1
-    0004 (/home/dfc/src/add.go:8) MOVW      $20,R0
-    0005 (/home/dfc/src/add.go:8) ADD       R0,R1
-    0006 (/home/dfc/src/add.go:9) MOVW      $30,R0
-    0007 (/home/dfc/src/add.go:9) ADD       R0,R1
-    0008 (/home/dfc/src/add.go:10) MOVW     $10,R0
-    0009 (/home/dfc/src/add.go:10) SUB      R0,R1
-    0010 (/home/dfc/src/add.go:11) MOVW     $20,R0
-    0011 (/home/dfc/src/add.go:11) SUB      R0,R1
-    0012 (/home/dfc/src/add.go:12) MOVW     $30,R0
-    0013 (/home/dfc/src/add.go:12) SUB      R0,R1,R2
-    0014 (/home/dfc/src/add.go:12) MOVW     R2,R0
-    0015 (/home/dfc/src/add.go:13) MOVW     R2,R1
-    0016 (/home/dfc/src/add.go:13) MOVW     R2,.noname+0(FP)
-    0017 (/home/dfc/src/add.go:13) RET      ,
-    
-    after
-    
-    --- prog list "add" ---
-    0000 (/home/dfc/src/add.go:5) TEXT      add+0(SB),$0-4
-    0001 (/home/dfc/src/add.go:6) MOVW      $0,R0
-    0002 (/home/dfc/src/add.go:7) ADD       $10,R0
-    0003 (/home/dfc/src/add.go:8) ADD       $20,R0
-    0004 (/home/dfc/src/add.go:9) ADD       $30,R0
-    0005 (/home/dfc/src/add.go:10) SUB      $10,R0
-    0006 (/home/dfc/src/add.go:11) SUB      $20,R0
-    0007 (/home/dfc/src/add.go:12) SUB      $30,R0,R2
-    0008 (/home/dfc/src/add.go:13) MOVW     R2,R0
-    0009 (/home/dfc/src/add.go:13) MOVW     R2,.noname+0(FP)
-    0010 (/home/dfc/src/add.go:13) RET      ,
-    
-    R=rsc, minux.ma, remyoudompheng
-    CC=golang-dev
-    https://golang.org/cl/6584056
+    R=rsc, dave, minux.ma, r
+    CC=gobot, golang-dev, r, remyoudompheng
+    https://golang.org/cl/6443115
 
- src/cmd/5g/ggen.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/go/test.go                 |  12 ++++
+ src/cmd/go/testflag.go             |   4 ++
+ src/pkg/net/http/pprof/pprof.go    |   4 ++
+ src/pkg/runtime/chan.c             |  36 +++++++++++
+ src/pkg/runtime/debug.go           |  25 ++++++++
+ src/pkg/runtime/mprof.goc          | 121 +++++++++++++++++++++++++++++++------
+ src/pkg/runtime/pprof/pprof.go     |  65 ++++++++++++++++++++
+ src/pkg/runtime/runtime.c          |  37 ++++++++++++
+ src/pkg/runtime/runtime.h          |   3 +
+ src/pkg/runtime/sema.goc           |  48 ++++++++++-----
+ src/pkg/runtime/signal_linux_arm.c |  14 ++---
+ src/pkg/testing/testing.go         |  33 +++++++---
+ 12 files changed, 350 insertions(+), 52 deletions(-)

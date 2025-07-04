@@ -1,16 +1,16 @@
-commit 08e342d62c222b80c3a0480002eb71976218f589
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 10 17:14:20 2018 -0800
+commit 14a1d934b60549e7604637fb08e65d4685146bd9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Sep 23 17:04:51 2017 -0700
 
-    cmd/compile/internal/syntax: don't record semi position if there's none
+    database/sql: update minor sql docs
     
-    Fixes #23406.
+    Replace the work "session" with "connection" in docs. Fix
+    The ErrConnDone documentation. Clarify what the context is used
+    for in StmtContext.
     
-    Change-Id: Ief04e20357c9ca03a5e496f1742428394c8ee658
-    Reviewed-on: https://go-review.googlesource.com/87317
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2f07e58d0cd6321b386a73b038cf6070cb8e2572
+    Reviewed-on: https://go-review.googlesource.com/65732
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

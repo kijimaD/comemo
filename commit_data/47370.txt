@@ -1,19 +1,15 @@
-commit f981a9f7ded779749dca199e0893aa08529b52ec
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 9 14:10:37 2021 -0500
+commit 6ccb5c49cca52766f6d288d128db67be6392c579
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Sun Mar 14 00:09:05 2021 +0000
 
-    go/types: clearer object string for type parameters
+    cmd/link/internal/ld: fix typo in a comment
     
-    This is a port of CL 361401 to go/types.
-    
-    Change-Id: I5b1c7cf1d7a819b2902c304f884492ec02c7eaa1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362737
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9ae39aa2da2bfa6bb5d3f279bca764128d9cc401
+    GitHub-Last-Rev: 7a5945ae120b911793a1510f371945ac17611440
+    GitHub-Pull-Request: golang/go#44990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301529
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/go/types/object.go          | 21 +++++++----
- src/go/types/object_test.go     | 78 +++++++++++++++++++++++++++++++++++++++++
- src/go/types/typestring_test.go |  7 +++-
- 3 files changed, 98 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

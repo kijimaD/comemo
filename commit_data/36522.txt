@@ -1,17 +1,27 @@
-commit f9a4ae018d99c5afb0e4f128545ff26e01d7b498
-Author: Alexey Alexandrov <aalexand@google.com>
-Date:   Fri Jul 27 00:05:50 2018 -0700
+commit 7b83636800f46a484287796e5d7a7838c17375b6
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:40:08 2018 +0100
 
-    runtime/pprof: compute memory profile block size using sampled values
+    syscall/js: add package
     
-    Fixes #26638.
+    This commit adds the syscall/js package, which is used by the wasm
+    architecture to access the WebAssembly host environment (and the
+    operating system through it). Currently, web browsers and Node.js
+    are supported hosts, which is why the API is based on JavaScript APIs.
+    There is no common API standardized in the WebAssembly ecosystem yet.
     
-    Change-Id: I3c18d1298d99af8ea8c00916303efd2b5a5effc7
-    Reviewed-on: https://go-review.googlesource.com/126336
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This package is experimental. Its current scope is only to allow
+    tests to run, but not yet to provide a comprehensive API for users.
+    
+    Updates #18892
+    
+    Change-Id: I236ea10a70d95cdd50562212f2c18c3db5009230
+    Reviewed-on: https://go-review.googlesource.com/109195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/protomem.go      | 4 ++--
- src/runtime/pprof/protomem_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ misc/wasm/wasm_exec.js    |  36 ++++-----
+ src/go/build/deps_test.go |   5 +-
+ src/syscall/js/js.go      | 190 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/js/js_js.s    |  73 ++++++++++++++++++
+ src/syscall/js/js_test.go | 128 +++++++++++++++++++++++++++++++
+ 5 files changed, 412 insertions(+), 20 deletions(-)

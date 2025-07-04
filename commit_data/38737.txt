@@ -1,31 +1,13 @@
-commit 6d64dd731b55de5c018552d8e62cc75da5d05331
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 12 13:06:52 2019 -0700
+commit 552d7b918697e0a5ab1ff22f91abf3e1cfde2e1d
+Author: Santhosh Kumar Tekuri <santhosh.tekuri@gmail.com>
+Date:   Tue Feb 6 12:00:13 2018 +0530
 
-    cmd/link: make Pciter more idiomatic
+    encoding/pem: test getLine does not include trailing whitespace
     
-    Rename it to PCIter and convert it to use methods.
-    
-    Set pcscale once, during construction, to make call sites clearer.
-    
-    Change some ints to bools.
-    
-    Use a simple iteration termination condition,
-    instead of the cap comparison from the c2go translation.
-    
-    Instead of requiring a Pcdata, which requires one caller
-    to synthesize a fake Pcdata, just ask for a byte slice.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I811da0e929cf4a806bd6d70357ccf2911cd0c737
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171770
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7a1046f5e0aedbbdd1106a616de410fe4e0cb7d8
+    Reviewed-on: https://go-review.googlesource.com/c/92295
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 30 ++++++++++-----------
- src/cmd/link/internal/ld/lib.go   |  4 +--
- src/cmd/link/internal/ld/link.go  | 11 --------
- src/cmd/link/internal/ld/pcln.go  | 55 +++++++++++++++++++++++++--------------
- 4 files changed, 53 insertions(+), 47 deletions(-)
+ src/encoding/pem/pem_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

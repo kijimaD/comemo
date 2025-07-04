@@ -1,21 +1,31 @@
-commit e019d01d98cd4f42279b43c77c1a6c2a901a690f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 18 16:34:29 2023 -0700
+commit bd8a5b00fcf71fb711ba8996a880b5b07f7b3634
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 22 21:19:10 2022 -0400
 
-    encoding/csv: correct Column docs
+    os/exec: split parent I/O pipes by whether they are pumped by user code or internal goroutines
     
-    For #44221
-    Fixes #62147
+    The pipes pumped by goroutines can be closed as soon as their
+    respective goroutines are done.
     
-    Change-Id: Ibcc0d11c8253f51a8f5771791ea4173a38a61950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520917
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The pipes pumped by user code, however, are documented to be closed in
+    Wait. When we add the WaitDelay field, it isn't obvious that we should
+    terminate the user-pumped pipes when the WaitDelay expires, since Wait
+    itself isn't going to wait for those user-controlled goroutines to
+    complete.
+    
+    (It's a bit more complicated than that because the documentation
+    currently states that Wait must not be called while the pipes are
+    being read — but it isn't obvious to me that that advice is entirely
+    correct.)
+    
+    For #50436.
+    
+    Change-Id: I97909c91d2097fb75138a360747168c08609696d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401894
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/encoding/csv/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/exec/exec.go | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)

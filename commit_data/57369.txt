@@ -1,26 +1,24 @@
-commit dd2019528b669908f8ccc0c327a64d0e07fc2a1b
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Mon Jun 10 15:34:12 2024 -0700
+commit 76b8e80fab89e11c61e86a49ec65589b3cd06c91
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Aug 2 13:47:16 2023 +0000
 
-    go/parser: track depth in nested element lists
+    cmd/go: missing name in failed command error
     
-    Prevents stack exhaustion with extremely deeply nested literal values,
-    i.e. field values in structs.
+    Fixed the error reporting for an unknown command to
+    preserve the name when displaying the error message.
     
-    Fixes #69138
-    Fixes CVE-2024-34155
+    Fixes #61604
     
-    Change-Id: I2e8e33b44105cc169d7ed1ae83fb56df0c10f1ee
-    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1520
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611238
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I13defb84e61265ab48ab514e9d4f1626a4a3f758
+    GitHub-Last-Rev: 5d2889c60ceb3f43bb63b6641ecbcca08b7cd365
+    GitHub-Pull-Request: golang/go#61607
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513555
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/parser/parser.go      | 2 ++
- src/go/parser/parser_test.go | 9 +++++----
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/go/main.go                       | 6 +++++-
+ src/cmd/go/testdata/script/go_badcmd.txt | 2 ++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

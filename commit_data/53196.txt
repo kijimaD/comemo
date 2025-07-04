@@ -1,20 +1,21 @@
-commit e4e8f9b8ffff9d1bcbaaf4b98307d0b88c26678f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 22 23:28:50 2023 -0400
+commit e99f53fed98b0378c147588789b8c56b0305469b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Aug 1 13:38:27 2022 -0400
 
-    cmd/go: clear GOOS environment variable in TestScript/env_write
+    doc: move Go 1.19 release notes to x/website
     
-    Also clear the GOOS and GOARCH from the env file before testing other
-    environment variables.
+    Now that the development of the Go 1.19 release is almost done, its
+    release notes are moved to their eventual long-term home in x/website
+    in CL 420417. Delete the initial development copy here.
     
-    This fixes various builders after CL 496957.
+    For golang/go#51400.
     
-    Change-Id: Ib0308ca48f9e64c1c872f1d26a92a1dedf6330f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497256
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I741285555af28ce9a64e7f8d2b9fe2a0f3e13c26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420418
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/testdata/script/env_write.txt | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.19.html | 1008 -------------------------------------------------------
+ 1 file changed, 1008 deletions(-)

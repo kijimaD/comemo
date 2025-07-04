@@ -1,15 +1,20 @@
-commit a3e95f3b509e59a814bbc8073664d46739869e2e
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat May 13 19:05:03 2023 +0800
+commit e7219cc093aca07bdb7179fa1a42d44e56eaf9d4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 24 14:19:06 2022 -0700
 
-    cmd/compile/internal/walk: delete statement that don't need
+    [dev.unified] cmd/compile/internal/noder: refactor N:1 expression handling
     
-    Change-Id: I7253aed4808a06379caebf0949aec0f305245d23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494835
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Pull all multi-value expression handling logic into a new multiExpr
+    helper method.
+    
+    Change-Id: I78ec2dfc523abcfa3368a1064df7045aade8e468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415243
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/walk/expr.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go |  29 +++++---
+ src/cmd/compile/internal/noder/writer.go | 124 +++++++++++++++----------------
+ src/internal/pkgbits/sync.go             |   2 +
+ 3 files changed, 79 insertions(+), 76 deletions(-)

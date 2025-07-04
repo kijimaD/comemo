@@ -1,22 +1,21 @@
-commit ca264cdc6247141a1e042f38c83fff4783f03324
+commit 2dc680007e35f4cb87527582eb73a653392aa8c3
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Sep 4 19:07:22 2016 +0000
+Date:   Fri May 6 08:26:37 2016 -0700
 
-    syscall: avoid convT2I allocs for common Windows error values
+    runtime: merge the last four os-vs-os1 files together
     
-    This is was already done for Unix in https://golang.org/cl/6701 +
-    https://golang.org/cl/8192. Do it for Windows also.
-    
-    Fixes #16988
-    
-    Change-Id: Ia7832b0d0d48566b0cd205652b85130df529592e
-    Reviewed-on: https://go-review.googlesource.com/28484
+    Change-Id: Ib0ba691c4657fe18a4659753e70d97c623cb9c1d
+    Reviewed-on: https://go-review.googlesource.com/22850
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../syscall/windows/registry/zsyscall_windows.go   |  27 ++-
- src/internal/syscall/windows/zsyscall_windows.go   |  31 ++-
- src/syscall/mksyscall_windows.go                   |  27 ++-
- src/syscall/zsyscall_windows.go                    | 259 +++++++++++----------
- 4 files changed, 222 insertions(+), 122 deletions(-)
+ src/runtime/os1_freebsd.go |  30 ++++++++++
+ src/runtime/os1_nacl.go    |  62 +++++++++++++++++++
+ src/runtime/os1_openbsd.go |  33 +++++++++++
+ src/runtime/os1_plan9.go   | 143 ++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_freebsd.go  |  32 ----------
+ src/runtime/os_nacl.go     |  64 --------------------
+ src/runtime/os_openbsd.go  |  33 -----------
+ src/runtime/os_plan9.go    | 145 ---------------------------------------------
+ 8 files changed, 268 insertions(+), 274 deletions(-)

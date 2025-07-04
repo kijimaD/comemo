@@ -1,13 +1,17 @@
-commit 4c945c2cfc29ccc607f2f606053953813cd0c4b6
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 24 11:02:44 2011 +1000
+commit f5a011dd0c77a844187978b42ea51fa90b4eed71
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 23 14:27:51 2011 -0700
 
-    image/gif: simplify blockReader.Read.
-    Inverting the tests avoids recursion and simplifies the flow.
+    gophertool: also accept commit form 8486:ab29d2698a47
     
-    R=nigeltao
+    ... as "hg log" produces by default.
+    
+    And add a README.
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4551057
+    https://golang.org/cl/4529080
 
- src/pkg/image/gif/reader.go | 36 +++++++++++++++++-------------------
- 1 file changed, 17 insertions(+), 19 deletions(-)
+ misc/chrome/gophertool/README.txt | 8 ++++++++
+ misc/chrome/gophertool/popup.html | 7 ++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)

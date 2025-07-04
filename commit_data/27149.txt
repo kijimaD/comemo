@@ -1,21 +1,23 @@
-commit 6dfba5c7ce867583cbcea9da09dceacd2633bacc
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Feb 26 13:02:42 2016 +0100
+commit 43ed65f869828f8dfc2f860b8ca1f7648e6bb93d
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Mar 13 18:58:17 2016 +0100
 
-    runtime/race: improve TestNoRaceIOHttp test
+    runtime: speed up growslice by avoiding divisions
     
-    TestNoRaceIOHttp does all kinds of bad things:
-    1. Binds to a fixed port, so concurrent tests fail.
-    2. Registers HTTP handler multiple times, so repeated tests fail.
-    3. Relies on sleep to wait for listen.
+    Only compute the number of maximum allowed elements per slice once.
+    Special case newcap computation for slices with byte sized elements.
     
-    Fix all of that.
+    name              old time/op  new time/op  delta
+    GrowSliceBytes-2  61.1ns ± 1%  43.4ns ± 1%  -29.00%  (p=0.000 n=20+20)
+    GrowSliceInts-2   85.9ns ± 1%  75.7ns ± 1%  -11.80%  (p=0.000 n=20+20)
     
-    Change-Id: I1210b7797ef5e92465b37dc407246d92a2a24fe8
-    Reviewed-on: https://go-review.googlesource.com/19953
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I5d9c0d5987cdd108ac29dc32e31912dcefa2324d
+    Reviewed-on: https://go-review.googlesource.com/20653
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/race/testdata/io_test.go | 37 +++++++++++++++++++++---------------
- 1 file changed, 22 insertions(+), 15 deletions(-)
+ src/runtime/append_test.go | 18 ++++++++++++++++++
+ src/runtime/slice.go       | 22 ++++++++++++++++------
+ 2 files changed, 34 insertions(+), 6 deletions(-)

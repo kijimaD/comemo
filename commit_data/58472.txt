@@ -1,21 +1,23 @@
-commit 705b5a569acb9207fda8ea469387d88346b6817a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Aug 24 12:32:51 2022 +0200
+commit 8da6405e0db80fa0a4136fb816c7ca2db716c2b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 10 10:52:12 2023 -0800
 
-    crypto/ecdsa: drop SEC 1 reference from package doc
+    go/types, types2: implement Info.PkgNameOf
     
-    FIPS 186-4 used to defer to ANSI X9.62-2005, which is not freely
-    available, so we were referring to SEC 1 instead. Our new reference,
-    FIPS 186-5, actually specifies the full algorithm, so there is no need
-    to refer to SEC 1 anymore.
+    For #62037.
     
-    Change-Id: Ief499d0f7778f3221547993e9e8951ae873aacef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640115
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I354f6417232708278d3f2b2d5ea41ff48e08d6b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541575
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/crypto/ecdsa/ecdsa.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ api/next/62037.txt                          |  2 +
+ src/cmd/compile/internal/types2/api.go      | 17 +++++++
+ src/cmd/compile/internal/types2/api_test.go | 74 ++++++++++++++++++++++++++++
+ src/go/types/api.go                         | 17 +++++++
+ src/go/types/api_test.go                    | 75 +++++++++++++++++++++++++++++
+ 5 files changed, 185 insertions(+)

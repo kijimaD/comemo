@@ -1,33 +1,21 @@
-commit 4460291e0eb291ad90d814ae1e2e18140677ddcb
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Thu Mar 2 16:20:07 2023 -0500
+commit 740a490f71d026bb7d2d13cb8fa2d6d6e0572b70
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Apr 15 17:42:17 2022 +0000
 
-    runtime/trace: update outdated Task and Region documentation
+    net/http: correctly show error types in transfer test
     
-    A previous iteration of the tracer's user annotation API had different
-    names for tasks and regions, and used to return functions for ending
-    them rather than types with End methods. This CL updates the doc
-    comments to reflect those changes, and also fixes up the internal
-    documentation of the events (similar to go.dev/cl/465335, the stack
-    argument was in the wrong place in the list).
+    actualReader and tc.expectedReader are reflect.Type instances,
+    not the actual objects.
     
-    The User Log event internal documentation might also look wrong since
-    the value argument follows the stack argument. However, the User Log
-    event is a special case where the log message is appended immediately
-    following the normal event, including the stack argument. There isn't
-    much room to clarify this next to the event type definitions, so this CL
-    clarifies the comment where the event is encoded.
-    
-    Change-Id: I846c709f6026ef01c0a272557d6390b2c17074e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472955
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I7c9cfa489e3297b94c603b62bad1ed84bd207057
+    GitHub-Last-Rev: d581402375aea0c911fef663ec7e89a24c4e5524
+    GitHub-Pull-Request: golang/go#52339
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400235
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/internal/trace/parser.go    |  4 ++--
- src/runtime/trace.go            | 12 +++++++-----
- src/runtime/trace/annotation.go | 16 ++++++++--------
- 3 files changed, 17 insertions(+), 15 deletions(-)
+ src/net/http/transfer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

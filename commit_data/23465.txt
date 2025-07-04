@@ -1,16 +1,25 @@
-commit f2662f2c938f2f9fd21067169b2aaec89f8d0e9f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 23 13:05:25 2015 +1000
+commit 1467776b17c7dc232f5586944785f85f48862b49
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 13:32:40 2015 -0700
 
-    text/template: explain better the semantics of ParseFiles
+    cmd/internal/obj: update callers to Linkline{fmt,hist} and remove
     
-    Documentation change only.
+    Does the TODOs added by https://golang.org/cl/7623.
     
-    Fixes #11247.
+    Passes rsc.io/toolstash/buildall.
     
-    Change-Id: Ib412de2d643292dbe42b56dee955bdb877aee81b
-    Reviewed-on: https://go-review.googlesource.com/11329
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: I23913a8f03834640e9795d48318febb3f88c10f9
+    Reviewed-on: https://go-review.googlesource.com/9160
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/text/template/helper.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/lex/input.go     |  3 +--
+ src/cmd/asm/internal/lex/tokenizer.go |  6 ++----
+ src/cmd/internal/asm/lexbody.go       |  4 ++--
+ src/cmd/internal/asm/macbody.go       |  5 ++---
+ src/cmd/internal/gc/lex.go            |  8 +++----
+ src/cmd/internal/gc/subr.go           | 40 ++++++++++++++++++++---------------
+ src/cmd/internal/gc/util.go           |  3 +--
+ src/cmd/internal/obj/line_test.go     | 14 ++++++------
+ src/cmd/internal/obj/obj.go           | 33 -----------------------------
+ src/cmd/internal/obj/util.go          |  4 ++--
+ 10 files changed, 44 insertions(+), 76 deletions(-)

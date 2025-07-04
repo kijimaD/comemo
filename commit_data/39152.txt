@@ -1,27 +1,18 @@
-commit a9e107c85cf69d735ac81c29f4a354643e40b2b5
-Author: Keith Randall <khr@google.com>
-Date:   Mon May 13 13:43:49 2019 -0700
+commit 5efe9a8f11c81116f102f56c49a9415fd992c038
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jan 8 14:14:27 2019 +0100
 
-    cmd/compile: make sure to initialize static entries of slices
+    runtime: follow convention for generated code comment in fastlog2table
     
-    If a slice's entries are sparse, we decide to initialize it dynamically
-    instead of statically. That's CL 151319.
+    Follow the convertion (https://golang.org/s/generatedcode) for generated
+    code in fastlog2table.go
     
-    But if we do initialize it dynamically, we still need to initialize
-    the static entries. Typically we do that, but the bug fixed here is
-    that we don't if the entry's value is itself an array or struct.
-    
-    To fix, use initKindLocalCode to ensure that both static and
-    dynamic entries are initialized via code.
-    
-    Fixes #31987
-    
-    Change-Id: I1192ffdbfb5cd50445c1206c4a3d8253295201dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176904
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib40ae2848924d98afaf8d4fcaf180a4583edc3fe
+    Reviewed-on: https://go-review.googlesource.com/c/156817
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 15 ++++++++++++++-
- test/fixedbugs/issue31987.go         | 22 ++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/runtime/fastlog2table.go   | 2 +-
+ src/runtime/mkfastlog2table.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

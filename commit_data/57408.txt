@@ -1,16 +1,32 @@
-commit 42d1f08cbbe32f3734ed701975897654ae25efe6
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Sep 3 11:26:09 2024 -0400
+commit dfc1437580ed230c57892e895c3d7d46b712fdec
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Aug 6 23:34:18 2023 +0000
 
-    src/cmd/go/internal/load: remove PackageError.Hard
+    internal/bytealg: optimize Index/IndexString in amd64
     
-    This field isn't actually used. The last usage was deleted in CL 518775
-    and even then it wasn't actually being set.
+    Now with PCALIGN available on amd64 we can start optimizing some routines that benefit from instruction alignment.
     
-    Change-Id: Ifbe9da9c2a6d81a40c136a60028902176f443588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610255
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    ```
+                             │    sec/op     │    sec/op     vs base               │
+    IndexByte/4K-16             69.89n ± ∞ ¹   45.88n ± ∞ ¹  -34.35% (p=0.008 n=5)
+    IndexByte/4M-16             65.36µ ± ∞ ¹   47.32µ ± ∞ ¹  -27.60% (p=0.008 n=5)
+    IndexByte/64M-16            1.435m ± ∞ ¹   1.140m ± ∞ ¹  -20.57% (p=0.008 n=5)
+                             │      B/s      │      B/s       vs base               │
+    IndexByte/4K-16            54.58Gi ± ∞ ¹   83.14Gi ± ∞ ¹  +52.32% (p=0.008 n=5)
+    IndexByte/4M-16            59.76Gi ± ∞ ¹   82.54Gi ± ∞ ¹  +38.12% (p=0.008 n=5)
+    IndexByte/64M-16           43.56Gi ± ∞ ¹   54.84Gi ± ∞ ¹  +25.89% (p=0.008 n=5)
+    ```
+    
+    Change-Id: Iff3dfd542c55e7569242be81f38b2887b9e04e87
+    GitHub-Last-Rev: f309f898b13ad8fdf88a21f2f105382db9ada2f5
+    GitHub-Pull-Request: golang/go#61792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/load/pkg.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/bytealg/index_amd64.s | 2 ++
+ 1 file changed, 2 insertions(+)

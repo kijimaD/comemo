@@ -1,17 +1,21 @@
-commit 57df2f802f0417f08100ff8002f3b062e695e148
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 25 11:50:13 2016 -0700
+commit c6e0c49b4152ade7f8cc7368c82703a2d1c58f48
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Fri May 20 16:17:27 2016 -0700
 
-    cmd/compile: remove old lexer and parser
+    cmd/go: updates go get to return exit status 0 for test file only pkgs
     
-    Change-Id: I7306d28930dc4538a3bee31ff5d22f3f40681ec5
-    Reviewed-on: https://go-review.googlesource.com/32020
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates the behavior of `go get` to return exit status 0 when a
+    requested package only contains test files.
+    
+    Fixes #15093
+    
+    Change-Id: I76b80517d58748090f5e8c6f41178361e2d7ca54
+    Reviewed-on: https://go-review.googlesource.com/23314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    |   17 -
- src/cmd/compile/internal/gc/lex.go    | 1028 -------------
- src/cmd/compile/internal/gc/main.go   |    9 +-
- src/cmd/compile/internal/gc/parser.go | 2553 +--------------------------------
- 4 files changed, 6 insertions(+), 3601 deletions(-)
+ src/cmd/go/build.go   | 12 +++++++++++-
+ src/cmd/go/get.go     |  2 +-
+ src/cmd/go/go_test.go | 11 +++++++++++
+ 3 files changed, 23 insertions(+), 2 deletions(-)

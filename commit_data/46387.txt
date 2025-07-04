@@ -1,24 +1,22 @@
-commit a295b3cec80b048048bf51a0462764dc337ca6ef
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 8 14:03:53 2021 -0700
+commit 2018b68a65c32a12ed5f65983212bea175b7a0fa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 23 14:01:12 2020 -0800
 
-    test: re-enable AsmCheck tests for types2-based frontends
+    net/mail: don't use MDT in test
     
-    run.go has logic for being able to run tests with various -G flags,
-    but not all test types (in particular, "asmcheck" tests) support
-    configuring non-default -G levels. The intention was that these tests
-    would continue running in the default mode (at the time -G=0), but at
-    some point it seems like we accidentally disabled them all
-    together (if it ever worked correctly in the first place).
+    When time.Parse sees a timezone name that matches the local timezone,
+    it uses the local timezone. The tests weren't expecting that,
+    so using MDT broke with TZ=America/Boise (where MDT means Mountain
+    Daylight Time). Just use GMT instead.
     
-    Fixes #48247.
+    Fixes #43354
     
-    Change-Id: I13917cb0012cbe522d29b23b888de6136872ead4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348671
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ida70c8c867e2568b1535d1dfbf1fb0ed9e0e5c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280072
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- test/run.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/net/mail/message_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

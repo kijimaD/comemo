@@ -1,18 +1,22 @@
-commit d87813b51c667cf5169695ca4dc893d1976af888
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 30 11:59:06 2012 +1100
+commit 1e5b7e706e4cefea8d6fbc1b697119600ea96daf
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun Jan 29 17:22:20 2012 -0200
 
-    dashboard: add sub-repositories to init list
-    dashboard: add Kind to Package struct
-    dashboard: add kind parameter to /packages handler
+    cmd/goinstall: remove now that 'go get' works
     
-    R=rsc, bsiegert, rogpeppe
+    The changes to builder were not tested.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5572062
+    https://golang.org/cl/5572083
 
- misc/dashboard/app/build/build.go   | 14 +++++++--
- misc/dashboard/app/build/handler.go | 29 ++-----------------
- misc/dashboard/app/build/init.go    | 57 +++++++++++++++++++++++++++++++++++++
- misc/dashboard/app/build/test.go    |  4 +--
- misc/dashboard/app/build/ui.go      |  4 +--
- 5 files changed, 75 insertions(+), 33 deletions(-)
+ src/cmd/Makefile                   |   1 -
+ src/cmd/goinstall/Makefile         |  19 --
+ src/cmd/goinstall/doc.go           | 200 --------------
+ src/cmd/goinstall/download.go      | 537 -------------------------------------
+ src/cmd/goinstall/download_test.go | 149 ----------
+ src/cmd/goinstall/main.go          | 400 ---------------------------
+ src/cmd/goinstall/make.go          | 183 -------------
+ src/cmd/goinstall/tag_test.go      |  73 -----
+ src/pkg/Makefile                   |   1 -
+ 9 files changed, 1563 deletions(-)

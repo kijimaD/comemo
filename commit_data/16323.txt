@@ -1,16 +1,19 @@
-commit 21cf646bfcc35711ce0c728f3d1e44ffe6b054e8
-Author: Adam Langley <agl@golang.org>
-Date:   Thu May 16 12:29:23 2013 -0400
+commit 78f5b616fc308b969578cba5964fc8ae8c695c70
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu May 16 09:01:43 2013 +0200
 
-    crypto/tls: fix flakey test.
+    cmd/gc: repair make(T) in export data for inlining.
     
-    A test added in b37d2fdcc4d9 didn't work with some values of GOMAXPROCS
-    because the defer statements were in the wrong order: the Pipe could be
-    closed before the TLS Client was.
+    When T was an unexported type it could be forgotten.
+    
+    Fixes #5470.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/9187047
+    https://golang.org/cl/9303050
 
- src/pkg/crypto/tls/handshake_client_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/export.c               |  5 ++++-
+ test/fixedbugs/issue5470.dir/a.go | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue5470.dir/b.go | 13 +++++++++++++
+ test/fixedbugs/issue5470.go       | 10 ++++++++++
+ 4 files changed, 54 insertions(+), 1 deletion(-)

@@ -1,15 +1,16 @@
-commit 50f1e1a6b9317a975477bc89503e2e1c1fa6b1be
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Tue Mar 18 21:01:23 2014 -0700
+commit f34251a91c2d075def51b763c52a0c602f3e09c9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 19 10:16:48 2014 +1100
 
-    misc/bash/go: remove "doc" subcommand autocompletion
+    strconv: CanBackquote should reject \x7F
+    It's a control character.
+    Fixes #7565.
     
-    "go doc" has been removed in CL 17799.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/77420045
+    https://golang.org/cl/77300043
 
- misc/bash/go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/pkg/strconv/quote.go      | 3 ++-
+ src/pkg/strconv/quote_test.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,15 +1,19 @@
-commit 7556948ebf1c1d739c2fa3b06a0b9bc10e4f150d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Apr 29 22:58:52 2015 +1200
+commit a2d12201adb3143c8f1f3d1528c1c0ab961ab98d
+Author: Billie H. Cleek <bhcleek@gmail.com>
+Date:   Sat Dec 20 17:05:05 2014 -0800
 
-    cmd/internal/ld: put the list of packages built into a shared library into an ELF note
+    cmd/go: detect which VCS to use with Bitbucket when the API call fails.
     
-    Change-Id: I611f7dec2109dc7e2f090ced0a1dca3d4b577134
-    Reviewed-on: https://go-review.googlesource.com/9520
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+          The API call will fail when Bitbucket repositories are private. In
+    that case, probe for the repository using vcsCmd.ping.
+    
+          Fixes #5375
+    
+    Change-Id: Ia604ecf9014805579dfda4b5c8e627a52783d56e
+    Reviewed-on: https://go-review.googlesource.com/1910
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/ld/elf.go  | 49 ++++++++++++++++++++++++++++++++++++++++-----
- src/cmd/internal/ld/lib.go  |  9 +++++++++
- src/cmd/internal/ld/pobj.go |  4 ++++
- 3 files changed, 57 insertions(+), 5 deletions(-)
+ src/cmd/go/bootstrap.go |  8 ++++++++
+ src/cmd/go/http.go      | 14 +++++++++++++-
+ src/cmd/go/vcs.go       | 23 +++++++++++++++++++----
+ 3 files changed, 40 insertions(+), 5 deletions(-)

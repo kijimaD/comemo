@@ -1,29 +1,32 @@
-commit 3693fd255f44acc24efa2b45317473d4d1e1abde
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Aug 20 12:05:07 2022 -0700
+commit 86c8075675ed74c1f404894242c26b99800f1639
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Fri Mar 18 09:10:02 2022 +0100
 
-    net/netip: fix invalid representation of Prefix
+    runtime: combine wbuf checks in tryGetFast and putFast
     
-    For a given Addr, ensure there is exactly one invalid representation.
-    This allows invalid representations to be safely comparable.
-    To ensure that the zero value of Prefix is invalid,
-    we modify the encoding of bits to simply be the bit count plus one.
+    Less text and improves codegen a bit.
     
-    Since Addr is immutable, we check in the PrefixFrom constructor that
-    the provided Addr is valid and only store a non-zero bits length if so.
-    IsValid is simplified to just checking whether bitsPlusOne is non-zero.
+    compilecmp on ARM64:
     
-    Fixes #54525
+    runtime
+    (*gcWork).putFast 160 -> 144  (-10.00%)
+    (*gcWork).tryGetFast 144 -> 128  (-11.11%)
+    scanobject 784 -> 752  (-4.08%)
+    greyobject 800 -> 784  (-2.00%)
     
-    Change-Id: I9244cae2fd160cc9c81d007866992df2e422d3b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425035
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    AMD64:
+    
+    runtime
+    greyobject 765 -> 748  (-2.22%)
+    (*gcWork).tryGetFast 102 -> 85  (-16.67%)
+    scanobject 837 -> 820  (-2.03%)
+    (*gcWork).putFast 102 -> 89  (-12.75%)
+    
+    Change-Id: I6bb508afe1ba416823775c0bfc08ea9dc21de8a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393754
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/net/netip/netip.go          | 57 +++++++++++++++++------------------------
- src/net/netip/netip_pkg_test.go | 48 +++++++++++++++++++---------------
- 2 files changed, 50 insertions(+), 55 deletions(-)
+ src/runtime/mgcwork.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

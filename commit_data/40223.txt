@@ -1,24 +1,15 @@
-commit 2686e7494845dae877e0efb4ff786c672b2cd2ef
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Oct 10 22:38:26 2019 +0200
+commit 930d6ecb69d2a26c545d4ee6e4f217022b945d35
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Sat Apr 27 08:16:36 2019 -0500
 
-    runtime: make goroutine for wasm async events short-lived
+    bootstrap.bash: preserve file times when copying
     
-    An extra goroutine is necessary to handle asynchronous events on wasm.
-    However, we do not want this goroutine to exist all the time.
-    This change makes it short-lived, so it ends after the asynchronous
-    event was handled.
+    Preserve file modification times when copying bootstrap tree,
+    this makes generated bootstrap more friendly to rsyncing.
     
-    Fixes #34768
-    
-    Change-Id: I24626ff0af9d803a01ebe33fbb584d04d2059a44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200497
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I32cde58c25b48d3c00d4413860dbd49a265b0ff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174217
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/objabi/funcid.go |  6 +++---
- src/runtime/lock_js.go            | 45 ++++++++++++++++++++++-----------------
- src/runtime/symtab.go             |  2 +-
- src/runtime/traceback.go          |  4 ++--
- 4 files changed, 32 insertions(+), 25 deletions(-)
+ src/bootstrap.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

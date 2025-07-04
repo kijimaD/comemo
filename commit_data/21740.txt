@@ -1,25 +1,17 @@
-commit 6d1ebeb5271a06cd55f55a84e95709e2f4805bcc
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Feb 24 09:25:09 2015 -0800
+commit f17cd880895863e2c13396296819d0dce81fa43f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 14:53:53 2015 -0800
 
-    runtime: handle holes in the heap
+    math/big: split float conversion routines and tests into separate files
     
-    We need to distinguish pointers to free spans, which indicate bugs in
-    our pointer analysis, from pointers to never-in-the-heap spans, which
-    can legitimately arise from sysAlloc/mmap/etc.  This normally isn't a
-    problem because the heap is contiguous, but in some situations (32
-    bit, particularly) the heap must grow around an already allocated
-    region.
+    No other functional changes.
     
-    The bad pointer test is disabled so this fix doesn't actually do
-    anything, but it removes one barrier from reenabling it.
-    
-    Fixes #9872.
-    
-    Change-Id: I0a92db4d43b642c58d2b40af69c906a8d9777f88
-    Reviewed-on: https://go-review.googlesource.com/5780
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I7e0bb7452c6a265535297ec7ce6a629f1aff695c
+    Reviewed-on: https://go-review.googlesource.com/3674
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mbitmap.go |  5 ++++-
- src/runtime/mheap.go   | 13 ++++++++++---
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ src/math/big/float.go          | 245 ---------------------------------------
+ src/math/big/float_test.go     | 101 ----------------
+ src/math/big/floatconv.go      | 256 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/floatconv_test.go | 111 ++++++++++++++++++
+ 4 files changed, 367 insertions(+), 346 deletions(-)

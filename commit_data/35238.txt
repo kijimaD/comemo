@@ -1,24 +1,19 @@
-commit 7e960d06d202d6bfc63fbd6b2528feb4f2b77b4e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed May 2 12:58:18 2018 +0200
+commit 3810f5bfed72d401b5b78b6b1e281d671c599606
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Jan 19 22:47:23 2018 -0500
 
-    cmd/go: enable upx compression test on linux/386
+    doc: change anchor URLs from golang.org/dl/ to /dl/
     
-    We have a cmd/go test ensuring that upx (an executable
-    packer/compressor) works on linux/amd64 Go binaries.
+    When running locally, it will redirect properly to golang.org/dl/
+    (see https://github.com/golang/tools/blob/master/cmd/godoc/dl.go).
     
-    The linux-386-sid builder is built from the same dockerfile as the
-    linux-amd64-sid builder, so upx should also already be available on
-    the former. Since upx support 386 executables, we can enable the upx
-    test for GOARCH=386.
+    This is to support domains in prod other than golang.org.
     
-    Updates #16706
-    
-    Change-Id: I94e19ff1001de83a0386754a5104a377c72fb221
-    Reviewed-on: https://go-review.googlesource.com/110817
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6d3051fcd7e06a86442324a64d781d8ad95c624f
+    Reviewed-on: https://go-review.googlesource.com/88679
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.html     |  8 ++++----
+ doc/install.html | 14 +++++++-------
+ doc/root.html    |  2 +-
+ 3 files changed, 12 insertions(+), 12 deletions(-)

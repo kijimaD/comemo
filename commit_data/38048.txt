@@ -1,17 +1,25 @@
-commit acf786f4fb08bd75e4f40b8e89e60878b1f47de3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Jan 22 21:27:43 2019 +0000
+commit 6a6f4a46536e9b2fb2bfb825269d6bd5e823fe8f
+Author: Travis Bischel <travis.bischel@gmail.com>
+Date:   Sun Sep 9 14:45:34 2018 -0700
 
-    cmd/compile: remove unused func eqtypenoname
+    net/textproto: redo BenchmarkReadMIMEHeader
     
-    Its only use was removed in golang.org/cl/114797, committed in October
-    2018.
+    This benchmark is odd currently because it uses inconsistent cases
+    between benchmark iterations, and each iteration actually does a bit of
+    testing.
     
-    Change-Id: I6560ccfb10d7c763f6470b20c853716779c18cee
-    Reviewed-on: https://go-review.googlesource.com/c/158897
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    This separates the two benchmark cases into two separate benchmarks and
+    removes the testing done on each iteration. The unit tests above
+    suffice.
+    
+    The benchmark being more succinct will make it easier to gauge the
+    benefits of any future MIME header reading changes.
+    
+    Change-Id: I2399fab28067f1aeec3d9b16951d39d787f8b39c
+    Reviewed-on: https://go-review.googlesource.com/134225
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/subr.go | 20 --------------------
- 1 file changed, 20 deletions(-)
+ src/net/textproto/reader_test.go | 44 +++++++++++++++++-----------------------
+ 1 file changed, 19 insertions(+), 25 deletions(-)

@@ -1,13 +1,12 @@
-commit 121b428a7a56253d3fee252fa846ac5dbbb44158
-Author: Rob Pike <r@golang.org>
-Date:   Sun May 8 14:04:42 2011 -0700
+commit 8bf151582562eb9d70b46d1d999ab317444298fd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun May 8 16:33:44 2011 +1000
 
-    effective go: update to new Open signature.
-    Fixes #1788.
+    syscall: change Overlapped.HEvent type, it is a handle
     
-    R=rsc, adg
+    R=golang-dev, r, r2
     CC=golang-dev
-    https://golang.org/cl/4519042
+    https://golang.org/cl/4471046
 
- doc/effective_go.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/syscall/ztypes_windows_386.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

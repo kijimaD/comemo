@@ -1,18 +1,33 @@
-commit 48e05ee749256a6c618eff3ab0bb64a60a9901be
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 17 01:53:16 2023 -0700
+commit c70fd4b30aba5db2df7b5f6b0833c62b909f50eb
+Author: Charlie Vieth <charlie.vieth@gmail.com>
+Date:   Wed Aug 24 14:23:28 2022 -0400
 
-    cmd/compile/internal/pkginit: use typecheck.LookupRuntime for asan
+    bytes, strings: add ASCII fast path to EqualFold
     
-    Change-Id: Ie9c90aa4560c982902738659737ae125cfcb6ba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520397
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    This commit adds an ASCII fast path to bytes/strings EqualFold that
+    roughly doubles performance when all characters are ASCII.
+    
+    It also changes strings.EqualFold to use `for range` for the first
+    string since this is ~10% faster than using utf8.DecodeRuneInString for
+    both (see #31666).
+    
+    Performance (similar results on arm64 and amd64):
+    
+    name                        old time/op  new time/op  delta
+    EqualFold/Tests-10           238ns ± 0%   172ns ± 1%  -27.91%  (p=0.000 n=10+10)
+    EqualFold/ASCII-10          20.5ns ± 0%   9.7ns ± 0%  -52.73%  (p=0.000 n=10+10)
+    EqualFold/UnicodePrefix-10  86.5ns ± 0%  77.6ns ± 0%  -10.37%  (p=0.000 n=10+10)
+    EqualFold/UnicodeSuffix-10  86.8ns ± 2%  71.3ns ± 0%  -17.88%  (p=0.000 n=10+8)
+    
+    Change-Id: I058f3f97a08dc04d65af895674d85420f920abe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425459
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/pkginit/init.go               | 9 +--------
- src/cmd/compile/internal/typecheck/_builtin/runtime.go | 2 ++
- src/cmd/compile/internal/typecheck/builtin.go          | 1 +
- 3 files changed, 4 insertions(+), 8 deletions(-)
+ src/bytes/bytes.go          | 30 +++++++++++++++++++++++++++
+ src/strings/strings.go      | 49 ++++++++++++++++++++++++++++++++++++---------
+ src/strings/strings_test.go | 33 +++++++++++++++++++++++++-----
+ 3 files changed, 97 insertions(+), 15 deletions(-)

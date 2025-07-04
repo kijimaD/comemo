@@ -1,27 +1,31 @@
-commit a63cded5e413ffad1ec8088ef7abd10abb7b5252
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed May 12 11:03:48 2021 -0400
+commit e463c28cc116fb1f40a4e203bddf93b6ef52c8d9
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Thu Oct 22 22:32:20 2020 +0200
 
-    debug/dwarf: delay array type fixup to handle type cycles
+    cmd/link: avoid exporting all symbols on windows buildmode=pie
     
-    A user encountered a debug/dwarf crash when running the dwarf2json
-    tool (https://github.com/volatilityfoundation/dwarf2json) on a
-    debug-built copy of the linux kernel. In this crash, the DWARF type
-    reader was trying to examine the contents of an array type while that
-    array type was still in the process of being constructed (due to
-    cycles in the type graph).
+    Marking one functions with __declspec(dllexport) forces mingw to
+    create .reloc section without having to export all symbols.
     
-    To avoid such situations, this patch extends the mechanism introduced
-    in https://go-review.googlesource.com/18459 (which handles typedef
-    types) to delay fixup of array types as well.
+    See https://insights.sei.cmu.edu/cert/2018/08/when-aslr-is-not-really-aslr---the-case-of-incorrect-assumptions-and-bad-defaults.html for more info.
     
-    Change-Id: I303f6ce5db1ca4bd79da3581957dfc2bfc17cc01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319329
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Yi Chou <yich@google.com>
+    This change cuts 73kb of a "hello world" pie binary.
+    
+    Updates #6853
+    Fixes #40795
+    
+    Change-Id: I3cc57c3b64f61187550bc8751dfa085f106c8475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264459
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/debug/dwarf/type.go | 59 ++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 39 insertions(+), 20 deletions(-)
+ misc/cgo/testcshared/cshared_test.go |  9 +++++----
+ src/cmd/go/go_test.go                | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go      |  3 ---
+ src/runtime/cgo/gcc_windows_386.c    |  1 +
+ src/runtime/cgo/gcc_windows_amd64.c  |  1 +
+ src/runtime/cgo/libcgo_windows.h     | 12 ++++++++++++
+ 6 files changed, 52 insertions(+), 7 deletions(-)

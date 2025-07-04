@@ -1,12 +1,14 @@
-commit 6727a2ad78cc786e381589828a41f4c91fe0e238
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Mon Apr 2 11:27:50 2012 -0400
+commit 8a686792e08f1114fd7819a32d8c2e3c4ddddc14
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Mon Apr 2 11:00:55 2012 -0400
 
-    runtime: fix a comment
+    gc: improve error message for composite literals with unexpected newlines
     
-    R=golang-dev, rsc
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5975043
+    https://golang.org/cl/5857045
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/go.errors     |  3 +++
+ src/cmd/gc/yerr.h        |  3 +++
+ test/syntax/composite.go | 11 +++++++++++
+ 3 files changed, 17 insertions(+)

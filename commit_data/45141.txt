@@ -1,27 +1,23 @@
-commit 892cad7a9b6632533f87bf89d98c43f21c749a80
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 13 17:48:45 2021 -0700
+commit 3923460dda205721d9bee2714a7f0dd403082a90
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 16:18:43 2020 -0400
 
-    cmd/compile/internal/types2: add Named.SetTParams and Named.Orig methods
+    runtime/cgo: only build xx_cgo_panicmem on iOS
     
-    Named.SetTParams sets the type parameters for a named type.
+    On iOS, when running under lldb, we install xx_cgo_panicmem as
+    EXC_BAD_ACCESS handler so we can get a proper Go panic for
+    SIGSEGV. Only build it on iOS.
     
-    Named.Orig returns the original generic type an instantiated
-    type is derived from. Added a new field orig for that purpose
-    and renamed the already existing orig field to fromRHS.
+    Updates #38485.
     
-    Finally, updated various comments.
-    
-    Change-Id: Ic9d173e42740422d195713d8bdc62a54dc8c5f54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309832
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I801c477439e05920a4bb8fdf5eae6f4923ab8274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259440
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/decl.go        |  9 +++---
- src/cmd/compile/internal/types2/issues_test.go |  2 +-
- src/cmd/compile/internal/types2/sanitize.go    |  4 +--
- src/cmd/compile/internal/types2/stdlib_test.go |  2 +-
- src/cmd/compile/internal/types2/subst.go       |  5 ++-
- src/cmd/compile/internal/types2/type.go        | 42 ++++++++++++++++----------
- src/cmd/compile/internal/types2/typexpr.go     |  4 +--
- 7 files changed, 38 insertions(+), 30 deletions(-)
+ src/runtime/cgo/{gcc_signal2_darwin_arm64.c => gcc_signal2_ios_arm64.c} | 0
+ .../cgo/{gcc_signal_darwin_lldb.c => gcc_signal_darwin_nolldb.c}        | 2 +-
+ src/runtime/cgo/{gcc_signal_darwin_arm64.c => gcc_signal_ios_arm64.c}   | 0
+ src/runtime/cgo/{signal_darwin_arm64.go => signal_ios_arm64.go}         | 0
+ src/runtime/cgo/{signal_darwin_arm64.s => signal_ios_arm64.s}           | 0
+ 5 files changed, 1 insertion(+), 1 deletion(-)

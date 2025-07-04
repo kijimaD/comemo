@@ -1,23 +1,18 @@
-commit e73697b710b2fd41b14336837ac6fd2585ad2a04
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 17 22:54:13 2020 -0500
+commit 51ac260e5a92c75fc8fbdaa0e13958b26361b1a5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 20:49:35 2020 -0400
 
-    cmd/go: fix failing gccgo cases in TestScript/build_overlay
+    [dev.link] cmd/link: always run Asmb before reloc
     
-    The 'go install' command does not support the -gccgo flag.
-    (I'm not sure why, but it doesn't.)
+    Currently, we run Asmb before reloc, except on Wasm, where the
+    order is reversed. However, Asmb is no-op on Wasm. So we can
+    always run Asmb first.
     
-    gccgo also uses system-native assembly syntax instead of cmd/compile's
-    Plan 9 derivative. I've added an assembly file that seems to work on
-    Linux, but I haven't tested it on other platforms; if it fails on
-    other platforms, we can refine the test as needed.
-    
-    Fixes #42688
-    
-    Change-Id: I0693a6a9eb58975f20cdc4160ef5f9a948563c88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270978
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ifb8989d8150ebdd5777deb05cbccec16f8e36d82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229990
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/testdata/script/build_overlay.txt | 69 +++++++++++++++-------------
- 1 file changed, 37 insertions(+), 32 deletions(-)
+ src/cmd/link/internal/ld/main.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

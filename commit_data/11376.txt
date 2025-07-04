@@ -1,13 +1,13 @@
-commit c93ca600eca4cee6dae2495772ae910eb768cec3
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Wed Jan 25 00:15:44 2012 -0800
+commit 0ae9d812c850d6acb4f133773c024b3f49d3f034
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jan 25 14:13:11 2012 +1100
 
-    os: pass tests on Plan 9 again
+    runtime: move NumCPU declaration into debug.go.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5563046
+    https://golang.org/cl/5574060
 
- src/pkg/os/file_plan9.go | 12 ++++++------
- src/pkg/os/stat_plan9.go |  5 +++++
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ src/pkg/runtime/debug.go  | 3 +++
+ src/pkg/runtime/extern.go | 3 ---
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,20 +1,15 @@
-commit 7b79b3b2443a51e0b1853eae99d0de8e30f1b540
+commit 96bbcc4256b345ed7d30b1b5bac79dc31178950c
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 11 15:23:38 2011 +1000
+Date:   Mon Jul 11 14:43:21 2011 +1000
 
-    exp/template: fields and methods on variables.
-    Not strictly necessary (you could achieve the same, clumsily,
-    via with blocks) but great to have: $x.Field, $y.Method.
+    exp/template: documentation glitches and typos.
+    Also explain that len(v)==0 makes v a 'zero value'
+    in template execution.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds, adg, r
     CC=golang-dev
-    https://golang.org/cl/4678047
+    https://golang.org/cl/4691041
 
- src/pkg/exp/template/doc.go        |  6 +++++-
- src/pkg/exp/template/exec.go       | 29 +++++++++++++++++++++--------
- src/pkg/exp/template/exec_test.go  |  4 ++++
- src/pkg/exp/template/lex.go        |  2 +-
- src/pkg/exp/template/lex_test.go   |  3 ++-
- src/pkg/exp/template/parse.go      | 12 ++++++++----
- src/pkg/exp/template/parse_test.go |  9 ++++++---
- 7 files changed, 47 insertions(+), 18 deletions(-)
+ src/pkg/exp/template/doc.go    | 24 ++++++++++++++++++------
+ src/pkg/exp/template/helper.go |  8 ++++----
+ 2 files changed, 22 insertions(+), 10 deletions(-)

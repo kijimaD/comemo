@@ -1,21 +1,16 @@
-commit 5dde10c3044f75fbcc29193608a7b7156a3c9ef6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 2 22:12:38 2020 -0400
+commit 5c6db9a76ffe8ab9bf3bfc42dfb2dd51d89b7228
+Author: Aditya Harindar <aditya.harindar@gmail.com>
+Date:   Mon Oct 28 08:14:47 2019 +0000
 
-    cmd/internal/obj/mips: don't emit spurious CALLIND relocations
+    doc/articles: format error string as per go style
     
-    Generate a CALLIND relocation only for indirect calls, not for
-    indirect jumps. In particular, the RET instruction is lowered to
-    JMP (LR), an indirect jump, and occurs frequently. The large
-    amount of spurious relocations causes the linker to do a lot of
-    extra work.
+    First letter of an error string should not be capitalized, as prescribed in the [wiki](https://github.com/golang/go/wiki/Errors).
     
-    Change-Id: Ie0edc04609788f5a687fd00c22558c3f83867697
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227079
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Iea1413f19b5240d3bef79f216094d210b54bdb62
+    GitHub-Last-Rev: d8e167107122b603c4f647d722537668ad1c680d
+    GitHub-Pull-Request: golang/go#35203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/mips/asm0.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ doc/articles/wiki/final-noclosure.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

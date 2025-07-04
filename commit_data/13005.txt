@@ -1,22 +1,14 @@
-commit d472d3faf17490e1c9b1c38d78ebe65baead30fa
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed May 2 12:10:24 2012 +1000
+commit 82e30c681c5fcf9957c7f5d17c90b800ecd1a85e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 1 09:04:13 2012 -0700
 
-    bytes: add assembly version of Equal for ARM
+    cgo: rename C names for Go types to avoid conflicting with package
     
-    BenchmarkEqual32                       662          159  -75.98%
-    BenchmarkEqual4K                     76545        13719  -82.08%
-    BenchmarkEqual4M                  90136700     23588870  -73.83%
-    BenchmarkEqual64M               2147483647   1419616000  -42.63%
+    Fixes #3371.
     
-    BenchmarkEqual32                     48.32       201.15    4.16x
-    BenchmarkEqual4K                     53.51       298.56    5.58x
-    BenchmarkEqual4M                     46.53       177.81    3.82x
-    BenchmarkEqual64M                    27.12        47.27    1.74x
-    
-    R=golang-dev, qyzhai, minux.ma, rsc, iant, nigeltao
+    R=rsc, bsiegert, r, mtj, iant
     CC=golang-dev
-    https://golang.org/cl/6118049
+    https://golang.org/cl/6131060
 
- src/pkg/bytes/asm_arm.s | 28 +++++++++++++++++++++++++++-
- 1 file changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 60 ++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 33 insertions(+), 27 deletions(-)

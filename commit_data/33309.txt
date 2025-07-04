@@ -1,20 +1,26 @@
-commit 4b5018ce57095e3074c5cb88f9f15092e729ded1
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 30 19:53:58 2017 -0400
+commit 057a34a281a52b474184614ac63b808974e22549
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Aug 11 19:46:45 2017 +0200
 
-    cmd/compile: change ssa test to avoid go run -gcflags=-d=ssa/check/on
+    runtime: fix crashing with foreign signal handlers on Darwin
     
-    In the new content-based staleness world, setting -gcflags like this
-    recompiles all the packages involved in running the program, not just
-    the "stale" ones. So go run -gcflags=-d=ssa/check/on recompiles
-    runtime with those flags too, which is not what the test is trying
-    to check.
+    The dieFromSignal runtime function attempts to forward crashing
+    signals to a signal handler registered before the runtime was
+    initialized, if any. However, on Darwin, a special signal handler
+    trampoline is invoked, even for non-Go signal handlers.
     
-    Change-Id: I4dbd5bf2970c3a622c01de84bd8aa9d5e9ec5239
-    Reviewed-on: https://go-review.googlesource.com/74570
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Clear the crashing signal's handlingSig entry to ensure sigtramp
+    forwards the signal.
+    
+    Fixes the darwin/386 builder.
+    
+    Updates #20392
+    Updates #19389
+    
+    Change-Id: I441a3d30c672cdb21ed6d8f1e1322d7c0e5b9669
+    Reviewed-on: https://go-review.googlesource.com/55032
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go | 25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ src/runtime/signal_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,24 +1,15 @@
-commit d00bd1d1f4a39fb81b34150aca89dcc5e45b727e
+commit e8140bd03c154f8f9e894f5cb4be8b854c944412
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 19 11:49:59 2013 +1000
+Date:   Mon Aug 19 11:18:43 2013 +1000
 
-    cmd/gc: better error messages for C-style if statements.
-    Given
-            if (i == 0)
-                    x++
-    The old message was
-            x.go:6: syntax error: unexpected semicolon or newline before {
-    Now we see
-            x.go:6: syntax error: missing { after if clause
+    make.bash: exit if dist fails
+    The shell's -e doesn't work across "eval"; need to error-check by hand.
+    The recent spate of Darwin build failures pointed out that if the first
+    run of cmd/dist fails, we keep going. We shouldn't.
     
-    Fixes #5687
-    
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12822045
+    https://golang.org/cl/13098043
 
- src/cmd/gc/go.errors |    8 +-
- src/cmd/gc/y.tab.c   | 1866 +++++++++++++++++---------------------------------
- src/cmd/gc/y.tab.h   |   46 +-
- src/cmd/gc/yerr.h    |    8 +-
- 4 files changed, 662 insertions(+), 1266 deletions(-)
+ src/make.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

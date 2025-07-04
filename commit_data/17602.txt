@@ -1,13 +1,16 @@
-commit d237f3ce6ff414e2ce8ffea9a20dda6ba603495b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 16 10:28:53 2013 +1000
+commit 6d68fc8eeaf32375eda7208b62cedf6ee5d241d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 15 12:05:24 2013 -0400
 
-    doc/go1.2.html: net/http, encoding, performance, library changes
-    Everything is done except compiler changes and additional platforms, if any.
+    runtime: fix CPU profiling on Windows
     
-    R=golang-dev, dominik.honnef, adg
+    The test 'gp == m->curg' is not valid on Windows,
+    because the goroutine being profiled is not from the
+    current m.
+    
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/13484045
+    https://golang.org/cl/13718043
 
- doc/go1.2.html | 146 +++++++++++++++++++++++++++++++++------------------------
- 1 file changed, 85 insertions(+), 61 deletions(-)
+ src/pkg/runtime/proc.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

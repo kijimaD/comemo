@@ -1,13 +1,12 @@
-commit eb7d56965b0373f52eb0f4ac42f2973a329dc5a4
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Oct 22 16:26:47 2012 +1100
+commit 5d05c7800e0dccf0f05b49c13ce5120e0d070e53
+Author: Jingcheng Zhang <diogin@gmail.com>
+Date:   Sun Oct 21 20:32:43 2012 -0400
 
-    os: fix documentation typos: s/an array/a slice/.
+    runtime: sizeclass in MSpan should be int32.
     
-    R=dsymonds
+    R=golang-dev, minux.ma, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6736057
+    https://golang.org/cl/6643046
 
- src/pkg/os/doc.go  | 2 +-
- src/pkg/os/file.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

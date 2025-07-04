@@ -1,25 +1,21 @@
-commit f4ab8203bab58b3c4ae53a99535719a747d05332
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 18 10:27:59 2015 -0700
+commit 43618e62ca387faf2272308a46fed9378fa36a87
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 22 16:27:59 2015 -0400
 
-    cmd/internal/gc: separate Node param fields
+    log/syslog: make the BUG notes visible on golang.org
     
-    Param will be converted from an anonymous to a
-    named field in a subsequent, automated CL.
+    It was only visible when you run godoc with explicit GOOS=windows,
+    which is less useful for people developing portable application on
+    non-windows platforms.
     
-    Reduces Node size from 368 to 328.
-    Reduces inuse_space on the rotate tests by about 3%.
+    Also added a note that log/syslog is not supported on NaCl.
     
-    No functional changes. Passes toolstash -cmp.
-    
-    Updates #9933.
-    
-    Change-Id: I5867b00328abf17ee24aea6ca58876bae9d8bfed
-    Reviewed-on: https://go-review.googlesource.com/10210
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I81650445fb2a5ee161da7e0608c3d3547d5ac2a6
+    Reviewed-on: https://go-review.googlesource.com/9245
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/export.go    |  2 +-
- src/cmd/internal/gc/subr.go      |  4 ++++
- src/cmd/internal/gc/syntax.go    | 26 +++++++++++++++-----------
- src/cmd/internal/gc/typecheck.go |  8 ++++----
- 4 files changed, 24 insertions(+), 16 deletions(-)
+ src/log/syslog/doc.go            | 18 ++++++++++++++++++
+ src/log/syslog/syslog.go         |  7 -------
+ src/log/syslog/syslog_plan9.go   |  8 --------
+ src/log/syslog/syslog_windows.go |  8 --------
+ 4 files changed, 18 insertions(+), 23 deletions(-)

@@ -1,21 +1,17 @@
-commit c769a47291249bd0901d20b58f10ba62c444c926
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Sun Jul 5 01:03:16 2020 -0400
+commit 8d7be1e3c9a98191f8c900087025c5e78b73d962
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Thu Jan 23 23:00:29 2020 +0200
 
-    net: correct address when listening on IPv4zero tcp4/udp4 on Plan 9
+    text/template/parse: remove redundant return
     
-    Since Plan 9 doesn't allow us to listen on 0.0.0.0, the Listener
-    address that's read in from /net is the IPv6 address ::. Convert
-    this address to 0.0.0.0 when the network is tcp4 or udp4.
+    Change the `itemChar` clause to be like all other clauses
+    that don't return a different state function than the default.
     
-    Fixes #40045
-    
-    Change-Id: Icfb69b823e5b80603742d23c3762a812996fe43f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240918
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I56c863a7d699c1264b24b42ef23138ec47eaacd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216117
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/net/ipsock_plan9.go      | 20 +++++++++++++-------
- src/net/ipsock_plan9_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 7 deletions(-)
+ src/text/template/parse/lex.go | 1 -
+ 1 file changed, 1 deletion(-)

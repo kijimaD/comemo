@@ -1,15 +1,32 @@
-commit 366ba526e88f5b523298d3ad5014e04a495add82
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 18 16:54:59 2015 -0400
+commit 4a0ba7aa171a80fe798811a3fdc7c42b83dcda01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 16 14:33:25 2015 -0700
 
-    cmd/internal/gc: add missing write barrier in append(x, BigStructWithPointers)
+    net: use Go's DNS resolver when system configuration permits
     
-    Fixes #10897.
+    If the machine's network configuration files (resolv.conf,
+    nsswitch.conf) don't have any unsupported options, prefer Go's DNS
+    resolver, which doesn't have the cgo & thread over.
     
-    Change-Id: I5c2d1f9d26333e2b2a0613ebf496daa465e07c24
-    Reviewed-on: https://go-review.googlesource.com/10221
-    Reviewed-by: Austin Clements <austin@google.com>
+    It means users can have more than 500 DNS requests outstanding (our
+    current limit for cgo lookups) and not have one blocked thread per
+    outstanding request.
+    
+    Discussed in thread https://groups.google.com/d/msg/golang-dev/2ZUi792oztM/Q0rg_DkF5HMJ
+    
+    Change-Id: I3f685d70aff6b47bec30b63e9fba674b20507f95
+    Reviewed-on: https://go-review.googlesource.com/8945
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/cgen.go | 31 ++++++++++++++++++++++---------
- test/writebarrier.go        | 16 ++++++++++++++++
- 2 files changed, 38 insertions(+), 9 deletions(-)
+ src/net/conf.go                      | 237 +++++++++++++++++++++++++++++++++
+ src/net/conf_test.go                 | 245 +++++++++++++++++++++++++++++++++++
+ src/net/dnsclient_unix.go            |  90 +++++++++----
+ src/net/dnsconfig_unix.go            |  32 +++--
+ src/net/dnsconfig_unix_test.go       |  38 ++++--
+ src/net/lookup_unix.go               |  28 ++--
+ src/net/nss.go                       | 159 +++++++++++++++++++++++
+ src/net/nss_test.go                  | 169 ++++++++++++++++++++++++
+ src/net/parse.go                     | 129 ++++++++++++++++++
+ src/net/testdata/openbsd-resolv.conf |   5 +
+ 10 files changed, 1079 insertions(+), 53 deletions(-)

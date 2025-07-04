@@ -1,21 +1,24 @@
-commit b5904f3de0937aac72acd40d6c26494ebb9d7909
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Tue Oct 12 15:03:25 2021 -0400
+commit ddec18cf827f3e21868892e1b4df48281314d69a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 12:32:59 2021 -0800
 
-    net: remove timeout in TestDialTimeoutMaxDuration
+    [dev.typeparams] cmd/compile/internal/types2: overlapping embedded interfaces requires go1.14
     
-    This test seems only to be testing that Dial does not time out
-    immediately as a result of integer overflow; the precise time taken to
-    connect is immaterial. Replace naked loop with sub-tests.
+    Add respective check to type checker.
+    Enables another excluded test in test/run.go.
     
-    Fixes #43069.
+    This CL completes the currently required checks for
+    language compatibility in types2.
     
-    Change-Id: Ib5e38a1d8cd191b74c2bc7c26bef57b180e16f68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355390
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Updates #31793.
+    
+    Change-Id: Icececff9e6023d38f600c93bcb54cdcafcf501b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290911
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/timeout_test.go | 53 ++++++++++++++++++-------------------------------
- 1 file changed, 19 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/types2/stdlib_test.go      |  1 -
+ src/cmd/compile/internal/types2/testdata/go1_13.src | 21 +++++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go          |  8 ++++++--
+ test/run.go                                         |  1 -
+ 4 files changed, 27 insertions(+), 4 deletions(-)

@@ -1,30 +1,22 @@
-commit 86463c157b063de47c8faef51a2f7c6de5fe4e7c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 9 22:57:45 2019 -0400
+commit a2bb68de4d1cb1ca35279523365e9caf36fb9896
+Author: Sebastiaan van Stijn <github@gone.nl>
+Date:   Fri Jan 11 15:28:04 2019 +0000
 
-    cmd/vet/all: delete
+    cmd/go: remove note about GOCACHE=off in docs
     
-    The work of running full vet on std and cmd during local development
-    has moved to go test, which of course runs during all.bash.
+    This patch removes mention of GOCACHE=off from the help/docs.
+    It is no longer supported in Go 1.12, per the release notes.
     
-    For errors in other GOOS/GOARCH combinations, the misc-compile
-    builders (running buildall.bash) also now run go vet std cmd.
+    Fixes #29680
     
-    The vetall builder need not do anything anymore.
-    Make it a no-op until it can be retired, and remove
-    cmd/vet/all and its special case in the go command.
-    
-    Fixes #31916.
-    
-    Change-Id: I8f30d184c382ea7c2c8f520e5618f680db633968
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176440
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I53ab15a62743f2e55ae1d8aa50629b1bf1ae32ad
+    GitHub-Last-Rev: 31e904f51dece13645696a87b1164d86c984457f
+    GitHub-Pull-Request: golang/go#29681
+    Reviewed-on: https://go-review.googlesource.com/c/157517
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/dist/test.go                 |  16 --
- src/cmd/go/internal/modload/init.go  |   2 +-
- src/cmd/vet/all/main.go              | 423 -----------------------------------
- src/cmd/vet/all/whitelist/all.txt    |  20 --
- src/cmd/vet/all/whitelist/readme.txt |   4 -
- 5 files changed, 1 insertion(+), 464 deletions(-)
+ src/cmd/go/alldocs.go               | 1 -
+ src/cmd/go/internal/help/helpdoc.go | 1 -
+ 2 files changed, 2 deletions(-)

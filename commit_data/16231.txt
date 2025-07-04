@@ -1,12 +1,55 @@
-commit 3cef6979ee135397f4498beeea7b8bb89b0a2286
+commit 277047f52ae36f9364bf6d593931ee8732d96cb3
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 26 11:42:58 2013 -0700
+Date:   Thu Apr 25 14:45:56 2013 -0700
 
-    database/sql/driver: try to unstutter Value docs
+    database/sql: fix driver Conn refcounting with prepared statements
     
-    R=golang-dev, r
+    The refcounting of driver Conns was completedly busted and
+    would leak (be held open forever) with any reasonable
+    load. This was a significant regression from Go 1.0.
+    
+    The core of this patch is removing one line:
+    
+         s.db.addDep(dc, s)
+    
+    A database conn (dc) is a resource that be re-created any time
+    (but cached for speed) should not be held open forever with a
+    dependency refcount just because the Stmt (s) is alive (which
+    typically last for long periods of time, like forever).
+    
+    The meat of the patch is new tests. In fixing the real issue,
+    a lot of tests then failed due to the fakedb_test.go's paranoia
+    about closing a fakeConn while it has open fakeStmts on it. I
+    could've ignored that, but that's been a problem in the past for
+    other bugs.
+    
+    Instead, I now track per-Conn open statements and close them
+    when the the conn closes.  The proper way to do this would've
+    been making *driverStmt a finalCloser and using the dep mechanism,
+    but it was much more invasive. Added a TODO instead.
+    
+    I'd like to give a way for drivers to opt-out of caring about
+    driver.Stmt closes before a driver.Conn close, but that's a TODO
+    for the future, and that TODO is added in this CL.
+    
+    I know this is very late for Go 1.1, but database/sql is
+    currently nearly useless without this.
+    
+    I'd like to believe all these database/sql bugs in the past
+    release cycle are the result of increased usage, number of
+    drivers, and good feedback from increasingly-capable Go
+    developers, and not the result of me sucking.  It's also hard
+    with all the real drivers being out-of-tree, so I'm having to
+    add more and more hooks to fakedb_test.go to simulate things
+    which real drivers end up doing.
+    
+    Fixes #5323
+    
+    R=golang-dev, snaury, gwenn.kahz, google, r
     CC=golang-dev
-    https://golang.org/cl/8981043
+    https://golang.org/cl/8836045
 
- src/pkg/database/sql/driver/driver.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/database/sql/fakedb_test.go |  24 ++++-
+ src/pkg/database/sql/sql.go         | 125 ++++++++++++++++++------
+ src/pkg/database/sql/sql_test.go    | 183 +++++++++++++++++++++++++++++++++++-
+ 3 files changed, 296 insertions(+), 36 deletions(-)

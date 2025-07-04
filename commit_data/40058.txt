@@ -1,16 +1,19 @@
-commit 0a5116493c4892d6d107d17fa78e87bd3b18772d
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Sep 22 01:31:02 2019 +0200
+commit 09b2b6e9dd2ce009c3aafdff02727f200c63c574
+Author: bronze1man <bronze1man@gmail.com>
+Date:   Mon Jan 14 15:41:02 2019 +0000
 
-    cmd/compile: in poset, simplify usage of CheckIntegrity
+    net/http: remove unnecessary string replace operation in Cookie.String
     
-    Instead of returning an error, just panic: the function is
-    used only for debugging purposes anyway.
+    Fixes #29135
     
-    Change-Id: Ie81b2309daaf1efb9470992391534bce2141b3c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196779
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I4c10b0395047775e8488b8b0f00f74a7fa01b86c
+    GitHub-Last-Rev: 120977040506794f00c74383289f913b1e0edd4a
+    GitHub-Pull-Request: golang/go#29728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/poset.go      | 29 ++++++++---------------------
- src/cmd/compile/internal/ssa/poset_test.go |  4 +---
- 2 files changed, 9 insertions(+), 24 deletions(-)
+ src/net/http/cookie.go      |  2 +-
+ src/net/http/cookie_test.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

@@ -1,22 +1,21 @@
-commit 5cdf0da1bfc74ad1017a488044a865850f7c3c8e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Jan 27 01:00:05 2021 +1100
+commit 25b283bf8cbc6cee9b5fffa57470a0bb2431575a
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 13:13:20 2020 -0400
 
-    syscall: clean up mkasm related changes
+    [dev.link] cmd/link: move plan9 header out of architectures
     
-    The mkasm_darwin.go file was renamed to mkasm.go in CL 270380, with OpenBSD
-    support being added. The mkasm_openbsd.go file should not have been merged,
-    so remove it. Fix up references to mkasm_$GOOS.go and provide $GOOS as an
-    argument on invocation.
-    
-    Updates #36435
-    
-    Change-Id: I868d3f2146973d026e6a663d437749dbb6b312ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286812
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: I7ccd14e8faa84085e976d23f83b822c05ee6a0ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234877
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/mkall.sh         |  8 +++---
- src/syscall/mkasm_openbsd.go | 58 --------------------------------------------
- src/syscall/mksyscall.pl     |  2 +-
- 3 files changed, 5 insertions(+), 63 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  | 15 ++-------------
+ src/cmd/link/internal/arm/asm.go    |  9 +--------
+ src/cmd/link/internal/arm64/asm.go  | 16 ----------------
+ src/cmd/link/internal/ld/asmb.go    | 23 +++++++++++++++++++++++
+ src/cmd/link/internal/mips64/asm.go | 20 --------------------
+ src/cmd/link/internal/ppc64/asm.go  | 16 ----------------
+ src/cmd/link/internal/x86/asm.go    | 12 ++----------
+ 7 files changed, 28 insertions(+), 83 deletions(-)

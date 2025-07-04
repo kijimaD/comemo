@@ -1,16 +1,21 @@
-commit 585717b90e0bbff2b1f6020459eb4acfab8a1c9d
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 9 13:23:13 2018 -0800
+commit 9daee931214a7ad68579f4bb2695bba561067c58
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sun Sep 3 11:59:18 2017 +0200
 
-    cmd/compile: fix path for go tool in test
+    cmd/compile,cmd/link: export int global consts to DWARF
     
-    Fixes #23326
+    Updates #14517
     
-    Change-Id: I6abc353ab004aadc6a4cbefbff3198f848640d7f
-    Reviewed-on: https://go-review.googlesource.com/87036
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I23ef88e71c89da12dffcadf5562ea2d7557b62cf
+    Reviewed-on: https://go-review.googlesource.com/61019
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go | 61 +++++++++++++++++++++++++++++---------
+ src/cmd/dist/build.go              |  2 +-
+ src/cmd/internal/dwarf/dwarf.go    | 24 +++++++++++++++
+ src/cmd/internal/obj/objfile.go    | 13 ++++++++
+ src/cmd/link/internal/ld/dwarf.go  | 44 ++++++++++++++++++---------
+ src/runtime/runtime-gdb_test.go    | 58 ++++++++++++++++++++++++++++++++++++
+ 6 files changed, 173 insertions(+), 29 deletions(-)

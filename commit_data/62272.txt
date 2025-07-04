@@ -1,0 +1,20 @@
+commit 67903012f71b6ceff7a25758c33e77c47710fbf7
+Author: cuishuang <imcusg@gmail.com>
+Date:   Thu Nov 21 17:14:21 2024 +0800
+
+    cmd/go/internal: use pathpkg name more
+    
+    The package "path" is already imported under the name pathpkg and used
+    many times in these files. It's not worth it to also make it available
+    under the name path, so keep using pathpkg.
+    
+    Change-Id: I7f8fa7a11de338b9a7c0f58a48d5af68b5639cfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630475
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/modfetch/proxy.go | 3 +--
+ src/cmd/go/internal/modload/load.go   | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

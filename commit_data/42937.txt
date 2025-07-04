@@ -1,26 +1,19 @@
-commit b4944ef310ed43fad53c6128344e4bed2b346c88
-Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
-Date:   Sun Sep 6 09:43:34 2020 +0800
+commit e3b536a054603789ad8dc8481b88cf3c82eb4bf6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 03:17:01 2020 +1100
 
-    cmd: update golang.org/x/tools to v0.0.0-20200901153117-6e59e24738da
+    test: re-enable open-coded defer test on riscv64
     
-    Includes the latest fix on vet to warn unused context.WithValue result.
+    Open-coded defers were fixed and re-enabled on riscv64, however this test was
+    inadvertantly left disabled.
     
-    Fixes #41149
+    Updates #36786
     
-    Change-Id: I06c204f40ef12b0f62f59b1bbdf1fe06ccd6565d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252941
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I128fc84baa3d51f50d173e19e52051dc4d9a07c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220920
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |  15 +-
- .../go/analysis/passes/structtag/structtag.go      |   6 +-
- .../go/analysis/passes/unmarshal/unmarshal.go      |   7 +-
- .../analysis/passes/unusedresult/unusedresult.go   |   2 +-
- .../x/tools/internal/analysisinternal/analysis.go  | 343 +++++++++++++++++-
- .../golang.org/x/tools/internal/lsp/fuzzy/input.go | 168 +++++++++
- .../x/tools/internal/lsp/fuzzy/matcher.go          | 398 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   3 +-
- 9 files changed, 912 insertions(+), 32 deletions(-)
+ test/defererrcheck.go | 4 ----
+ 1 file changed, 4 deletions(-)

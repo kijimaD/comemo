@@ -1,24 +1,32 @@
-commit 73496e0df0ba4284f460d1955ddf6bb096957c9f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 22 21:24:57 2021 -0400
+commit ee6132a698172a063ad2aa5b8d603f589c16e019
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 11:25:29 2020 -0500
 
-    net: use absDomainName in the Windows lookupPTR test helper
+    [dev.regabi] cmd/compile: introduce OMETHEXPR instead of overloading ONAME
     
-    The real net code uses subtle heuristics to transform a domain name
-    to its absolute form. Since lookupPTR isn't checking that
-    transformation specifically, it should use the real code instead of
-    using a different heuristic.
+    A method expression today is an ONAME that has none of the
+    invariants or properties of other ONAMEs and is always a special case
+    (hence the Node.IsMethodExpression method).
+    Remove the special cases by making a separate Op.
     
-    Fixes #46882
+    Passes toolstash -cmp.
     
-    Change-Id: I503357e0f62059c37c359cd54b44d343c7d5ab2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330249
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7667693c9155d5486a6924dbf75ebb59891c4afc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272867
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/lookup_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/escape.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  8 ++++----
+ src/cmd/compile/internal/gc/iexport.go   | 14 ++++++-------
+ src/cmd/compile/internal/gc/initorder.go |  9 ++++----
+ src/cmd/compile/internal/gc/inl.go       | 35 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/scc.go       | 10 ++++++---
+ src/cmd/compile/internal/gc/sinit.go     | 14 ++++++-------
+ src/cmd/compile/internal/gc/ssa.go       |  3 +++
+ src/cmd/compile/internal/gc/syntax.go    | 18 ++++------------
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++-----
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ 11 files changed, 60 insertions(+), 65 deletions(-)

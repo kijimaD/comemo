@@ -1,41 +1,28 @@
-commit 84e091eef033255b4a3fdb515d677faa135714dc
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 8 23:56:28 2022 -0400
+commit 8f4c020660d4c8a7bab9a7363551d07176e638eb
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Aug 29 06:49:28 2021 -0700
 
-    cmd/go: record origin metadata during module download
+    cmd/compile: fix bug with Inferred targs
     
-    This change adds an "Origin" JSON key to the output of
-    go list -json -m and go mod download -json. The associated value is a
-    JSON object with metadata about the source control system. For Git,
-    that metadata is sufficient to evaluate whether the remote server has
-    changed in any interesting way that might invalidate the cached data.
-    In most cases, it will not have, and a fetch could then avoid
-    downloading a full repo from the server.
+    We were using the type from the wrong Node (the partially filled-in
+    FUNCINST) rather than the original function node - which is pointed to
+    by the OFUNCINST)) to set the final fully-substituted type of the
+    OFUNCINST. So fixed the node reference. Also, added check so we don't do
+    any work at all if the OFUNCINST already has all type args filled in.
     
-    This origin metadata is also now recorded in the .info file for a
-    given module@version, for informational and debugging purposes.
+    Added few extra cases to the test file issue48030.go, to cover
+    fully-specified type args, partially inferred type args, and fully
+    inferred type args.
     
-    This change only adds the metadata. It does not use it to optimize
-    away unnecessary git fetch operations. (That's the next change.)
+    Fixes #48030
     
-    For #53644.
-    
-    Change-Id: I4a1712a2386d1d8ab4e02ffdf0f72ba75d556115
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411397
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: If9e4f2e0514d68b9d241f30c423259133932b25b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346229
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modcmd/download.go            |   2 +-
- src/cmd/go/internal/modfetch/cache.go             |  44 +++++----
- src/cmd/go/internal/modfetch/codehost/codehost.go |  90 +++++++++++++++++-
- src/cmd/go/internal/modfetch/codehost/git.go      | 106 ++++++++++++++++++++--
- src/cmd/go/internal/modfetch/codehost/git_test.go |  87 +++++++++++++-----
- src/cmd/go/internal/modfetch/codehost/vcs.go      |  43 +++++++--
- src/cmd/go/internal/modfetch/coderepo.go          |  64 +++++++++----
- src/cmd/go/internal/modfetch/coderepo_test.go     |  12 ++-
- src/cmd/go/internal/modfetch/proxy.go             |  38 +++-----
- src/cmd/go/internal/modfetch/repo.go              |  39 ++++++--
- src/cmd/go/internal/modload/mvs.go                |   4 +-
- src/cmd/go/internal/modload/query.go              |  27 +++---
- 12 files changed, 435 insertions(+), 121 deletions(-)
+ src/cmd/compile/internal/noder/expr.go | 16 +++++++++-------
+ test/typeparam/issue48030.go           | 26 ++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 7 deletions(-)

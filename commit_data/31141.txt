@@ -1,55 +1,22 @@
-commit dc74f51c43f2b17186e2c338e8ee29be3f2dd8d4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 13 05:42:32 2017 +0900
+commit 34b563f447280f9d386f208646ac4f94cafc4ab6
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Jan 14 05:23:23 2017 -0700
 
-    net: don't enclose non-literal IPv6 addresses in square brackets
+    cmd/compile: improve error for wrong type in switch
     
-    The net package uses various textual representations for network
-    identifiers and locators on the Internet protocol suite as API.
-    In fact, the representations are the composition of subset of multple
-    RFCs: RFC 3986, RFC 4007, RFC 4632, RFC 4291 and RFC 5952.
+    Fixes #10561.
     
-    RFC 4007 describes guidelines for the use of textual representation of
-    IPv6 addressing/routing scope zone and doesn't prohibit the format for
-    implementation dependent purposes, as in, specifying a literal IPv6
-    address and its connected region of routing topology as application
-    user interface. However, a non-literal IPv6 address, for example, a
-    host name, with a zone enclosed in square brackets confuses us because
-    a zone is basically for non-global IPv6 addresses and a pair of square
-    brackets is used as a set of delimiters between a literal IPv6 address
-    and a service name or transport port number.
+    Provides a better diagnostic message for failed type switch
+    satisfaction in the case that a value receiver is being used
+    in place of the pointer receiver that implements and satisfies
+    the interface.
     
-    To mitigate such confusion, this change makes JoinHostPort not enclose
-    non-literal IPv6 addresses in square brackets and SplitHostPort accept
-    the form "host%zone:port" to recommend that anything enclosed in
-    square brackets should be a literal IPv6 address.
-    
-    Before this change:
-            JoinHostPort("name%zone", "80") = "[name%zone]:80"
-            JoinHostPort("[::1%zone]", "80") = "[::1%zone]:80"
-            SplitHostPort("name%zone:80") = "", "", "address name%zone:80: missing brackets in address"
-            SplitHostPort("[name%zone]:80") = "name%zone", "80", nil
-            SplitHostPort("[::1%zone]:80") = "::1%zone", "80", nil
-    
-    After this change:
-            JoinHostPort("name%zone", "80") = "name%zone:80"
-            JoinHostPort("[::1%zone]", "80") = "[::1%zone]:80"
-            SplitHostPort("name%zone:80") = "name%zone", "80", nil
-            SplitHostPort("[name%zone]:80") = "name%zone", "80", nil // for backwards compatibility
-            SplitHostPort("[::1%zone]:80") = "::1%zone", "80", nil
-    
-    Also updates docs and test cases on SplitHostPort and JoinHostPort for
-    clarification.
-    
-    Fixes #18059.
-    Fixes #18060.
-    
-    Change-Id: I5c3ccce4fa0fbdd58f698fc280635ea4a14d2a37
-    Reviewed-on: https://go-review.googlesource.com/40510
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: If8c13ba13f2a8d81bf44bac7c3a66c12921ba921
+    Reviewed-on: https://go-review.googlesource.com/35235
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/ip_test.go | 152 +++++++++++++++++++++++++++++++++++------------------
- src/net/ipsock.go  |  21 ++++----
- 2 files changed, 111 insertions(+), 62 deletions(-)
+ src/cmd/compile/internal/gc/swt.go |  9 +++++++--
+ test/switch6.go                    | 14 ++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

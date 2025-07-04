@@ -1,15 +1,53 @@
-commit 1b96091a050d605b900f83e1a28b660729400799
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jul 2 14:35:23 2015 +0200
+commit c413c45e6db73909ac506cb385b49b6b2cd90726
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 15:01:44 2015 -0400
 
-    internal/trace: add comment for stable sort
+    cmd/internal/obj: make Prog.From3 a pointer
     
-    As per comments in cl/11834.
+    It is almost never set and Addr is large, so having the full struct
+    in the Prog wastes memory most of the time.
     
-    Change-Id: I285536b882fa9496e15d77d0d4c16ee913aca581
-    Reviewed-on: https://go-review.googlesource.com/11861
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Before (on a 64-bit system):
+    
+    $ sizeof -p cmd/internal/obj Addr Prog
+    Addr 80
+    Prog 376
+    $
+    
+    After:
+    
+    $ sizeof -p cmd/internal/obj Addr Prog
+    Addr 80
+    Prog 304
+    $
+    
+    Change-Id: I491f201241f87543964a7d0f48b85830759be9d0
+    Reviewed-on: https://go-review.googlesource.com/10457
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/internal/trace/parser.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/asm/internal/asm/asm.go        |  23 ++-
+ src/cmd/compile/internal/arm64/peep.go |   4 +-
+ src/cmd/compile/internal/gc/gsubr.go   |   2 +
+ src/cmd/compile/internal/gc/obj.go     |   9 +
+ src/cmd/compile/internal/gc/pgen.go    |   1 +
+ src/cmd/compile/internal/gc/reg.go     |   2 +-
+ src/cmd/compile/internal/ppc64/peep.go |   4 +-
+ src/cmd/internal/obj/arm64/asm7.go     |   9 +-
+ src/cmd/internal/obj/go.go             |   2 +-
+ src/cmd/internal/obj/link.go           |  10 +-
+ src/cmd/internal/obj/pass.go           |   4 +-
+ src/cmd/internal/obj/ppc64/asm9.go     |  41 ++--
+ src/cmd/internal/obj/util.go           |   4 +-
+ src/cmd/internal/obj/x86/asm6.go       |  20 +-
+ src/cmd/internal/obj/x86/obj6.go       |  20 +-
+ src/cmd/old5a/a.y                      |   9 +
+ src/cmd/old5a/y.go                     | 331 +++++++++++++++++++--------------
+ src/cmd/old6a/a.y                      |   9 +
+ src/cmd/old6a/lex.go                   |   5 +-
+ src/cmd/old6a/y.go                     | 313 ++++++++++++++++++-------------
+ src/cmd/old8a/a.y                      |   9 +
+ src/cmd/old8a/y.go                     | 305 +++++++++++++++++-------------
+ src/cmd/old9a/a.y                      |  11 ++
+ src/cmd/old9a/lex.go                   |   5 +-
+ src/cmd/old9a/y.go                     | 259 ++++++++++++++++----------
+ 25 files changed, 863 insertions(+), 548 deletions(-)

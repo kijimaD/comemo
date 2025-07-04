@@ -1,27 +1,23 @@
-commit 9bba63bbbe43ee6370367220feb46717ec50ea9c
-Author: David Chase <drchase@google.com>
-Date:   Mon Nov 18 14:14:22 2019 -0500
+commit 4a2d3d06873559df2b6933f260dc8f75c54c9771
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 17:13:50 2018 -0500
 
-    cmd/compile: make a better bogus line for empty infinite loops
+    cmd/go: in module mode, populate PackagePublic.Root with the module root
     
-    The old recipe for making an infinite loop not be infinite
-    in the debugger could create an instruction (Prog) with a
-    line number not tied to any file (index == 0).  This caused
-    downstream failures in DWARF processing.
+    'go test' uses the Root field to determine the set of files that
+    invalidate test results, and there is no other sensible meaning of
+    “root” for code within a module.
     
-    So don't do that.  Also adds a test, also adds a check+panic
-    to ensure that the next time this happens the error is less
-    mystifying.
+    Fixes #29111
     
-    Fixes #35652
-    
-    Change-Id: I04f30bc94fdc4aef20dd9130561303ff84fd945e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207613
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Icf1be90a26d22665613e42cb968087b63c36e74c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154100
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/ssa.go |  3 +++
- src/cmd/internal/src/xpos.go       |  4 ++++
- test/fixedbugs/issue35652.go       | 15 +++++++++++++++
- 3 files changed, 22 insertions(+)
+ src/cmd/go/internal/load/pkg.go                   |  7 ++-
+ src/cmd/go/internal/test/test.go                  | 17 +++--
+ src/cmd/go/testdata/script/build_cache_output.txt |  7 ++-
+ src/cmd/go/testdata/script/mod_test_cached.txt    | 77 +++++++++++++++++++++++
+ 4 files changed, 100 insertions(+), 8 deletions(-)

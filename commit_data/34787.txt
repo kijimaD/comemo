@@ -1,20 +1,17 @@
-commit 917c33fe8672116b04848cf11545296789cafd3b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 20 10:21:36 2018 +0900
+commit b9dca1b165fad8d8ad8fcd47cfa7bf0d5ae60c63
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 15:14:07 2017 -0500
 
-    net: improve test coverage for syscall.RawConn
+    database/sql: fix ctx.Done() == nil check
     
-    An application using syscall.RawConn in a particular way must take
-    account of the operating system or platform-dependent behavior.
-    This change consolidates duplicate code and improves the test coverage
-    for applications that use socket options.
+    ctx.Done() == ctx.Background().Done() is just
+    a long way to write ctx.Done() == nil.
+    Use the short way.
     
-    Change-Id: Ie42340ac5373875cf1fd9123df0e99a1e7ac280f
-    Reviewed-on: https://go-review.googlesource.com/95335
+    Change-Id: I7b3198b5dc46b8b40086243aa61882bc8c268eac
+    Reviewed-on: https://go-review.googlesource.com/78128
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/rawconn_stub_test.go    |  24 ++++++
- src/net/rawconn_test.go         | 142 +++++++++++++++++++++++++++++++++
- src/net/rawconn_unix_test.go    | 169 ++++++++++++++--------------------------
- src/net/rawconn_windows_test.go | 108 ++++++++++---------------
- 4 files changed, 266 insertions(+), 177 deletions(-)
+ src/database/sql/ctxutil.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,52 @@
-commit 9358f7fa6117445af2775076600d8df76616a7fc
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Thu Oct 15 19:00:12 2015 -0700
+commit ecead89be9e4cbd75f2bceeb8c288db5fcad311a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 13:57:25 2015 +1000
 
-    runtime: merge panic1.go into panic.go
+    go/types: remove the renaming import of go/constant
     
-    A TODO to merge is removed from panic1.go.
-    The rest is appended to panic.go
+    For niceness, when go/exact was moved from x/tools, it
+    was renamed go/constant.
     
-    Updates #12952
+    For simplicity, when go/types was moved from x/tools, its
+    imports of (now) go/constant were done with a rename:
     
-    Change-Id: Ied4382a455abc20bc2938e34d031802e6b4baf8b
-    Reviewed-on: https://go-review.googlesource.com/15905
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+        import exact "go/constant"
+    
+    This kept the code just as it was before and avoided the issue
+    of what to call the internal constant called, um, constant.
+    
+    But not all was hidden, as the text of some fields of structs and
+    the like leaked the old name, so things like "exact.Value" appeared
+    in type definitions and function signatures in the documentation.
+    This is unacceptable.
+    
+    Fix the documentation issue by fixing the code. Rename the constant
+    constant constant_, and remove the renaming import.
+    
+    This should go into 1.5. It's mostly a mechanical change, is
+    internal to the package, and fixes the documentation. It contains
+    no semantic changes except to fix a benchmark that was broken
+    in the original transition.
+    
+    Fixes #11949.
+    
+    Change-Id: Ieb94b6558535b504180b1378f19e8f5a96f92d3c
+    Reviewed-on: https://go-review.googlesource.com/13051
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/panic.go  | 142 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/panic1.go | 150 --------------------------------------------------
- 2 files changed, 142 insertions(+), 150 deletions(-)
+ src/go/types/api.go         |   6 +--
+ src/go/types/assignments.go |   4 +-
+ src/go/types/builtins.go    |  52 ++++++++++-----------
+ src/go/types/call.go        |   4 +-
+ src/go/types/check.go       |  22 ++++-----
+ src/go/types/conversions.go |   8 ++--
+ src/go/types/decl.go        |   6 +--
+ src/go/types/expr.go        | 110 ++++++++++++++++++++++----------------------
+ src/go/types/object.go      |   8 ++--
+ src/go/types/operand.go     |  52 ++++++++++-----------
+ src/go/types/resolver.go    |   4 +-
+ src/go/types/self_test.go   |   2 +-
+ src/go/types/stmt.go        |   6 +--
+ src/go/types/typexpr.go     |   8 ++--
+ src/go/types/universe.go    |  10 ++--
+ 15 files changed, 151 insertions(+), 151 deletions(-)

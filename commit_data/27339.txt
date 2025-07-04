@@ -1,22 +1,17 @@
-commit 7ba54d45732219af86bde9a5b73c145db82b70c6
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Mar 28 02:29:18 2016 -0700
+commit 596949c18a29c51fcfa3ec2596cae72241e256e1
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Mar 21 11:02:55 2016 -0400
 
-    compress: update documentation regarding footer verification
+    cmd/dist: allow gohostarch to be s390x
     
-    Address two documentation issues:
-    1) Document that the GZIP and ZLIB footer is only verified when the
-    reader has been fully consumed.
-    2) The zlib reader is guaranteed to not read past the EOF if the
-    input io.Reader is also a io.ByteReader. This functionality was
-    documented in the flate and gzip packages but not on zlib.
+    Should let the s390x builder progress a little further.
     
-    Fixes #14867
-    
-    Change-Id: I43d46b93e38f98a04901dc7d4f18ed2f9e09f6fb
-    Reviewed-on: https://go-review.googlesource.com/21218
+    Change-Id: I5eab5f384b0b039f8e246ba69ecfb24de08625d2
+    Reviewed-on: https://go-review.googlesource.com/20965
+    Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/gzip/gunzip.go | 2 ++
- src/compress/zlib/reader.go | 5 ++++-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/dist/util.go | 2 ++
+ 1 file changed, 2 insertions(+)

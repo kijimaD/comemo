@@ -1,31 +1,15 @@
-commit bd07e4f25906f4443811e3b6bdb4ff2918beed0c
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Oct 27 09:45:53 2011 +1100
+commit 2cf5359830b3a79fcc67b054d5f5f5926a862ad1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 15:28:18 2011 -0700
 
-    html: close <option> element when opening <optgroup>
+    6l: remove mention of -e flag
     
-    Pass tests1.dat, test 34:
-    <!DOCTYPE html>A<option>B<optgroup>C<select>D</option>E
+    Emitting ELF symbol table is the default behavior now
+    and cannot be disabled.
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     "A"
-    |     <option>
-    |       "B"
-    |     <optgroup>
-    |       "C"
-    |       <select>
-    |         "DE"
-    
-    Also passes tests 35-48. Test 48 is:
-    </ COM--MENT >
-    
-    R=nigeltao
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5311063
+    https://golang.org/cl/5319050
 
- src/pkg/html/parse.go      | 6 ++++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/6l/doc.go | 3 ---
+ 1 file changed, 3 deletions(-)

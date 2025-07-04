@@ -1,0 +1,28 @@
+commit f18d046568496dd331657df4ba90218821cb9ffd
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Jun 9 17:04:55 2025 +0800
+
+    all.{bash,rc}: use "../bin/go tool dist" instead of "%GOTOOLDIR%/dist" print build info
+    
+    After CL 677558, when running all.bash, the binaries of commands such
+    as dist, nm, and pprof are no longer built by default, so when running
+    all.bash, "./all.bash: line 13: /home/golang/pkg/tool/linux_amd64/dist:
+    No such file or directory" will be printed, and the return result of
+    the all.bash script is non-zero.
+    
+    Although the "dist" command  won't be installed in $GOTOOLDIR anymore,
+    but it will be built and cached, and ../bin/go tool dist will reuse the
+    cached binary.
+    
+    For #71867
+    
+    Change-Id: I802eeafdb866e7d80c42da3e0955bb32def7b037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680135
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/all.bash | 2 +-
+ src/all.rc   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

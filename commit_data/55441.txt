@@ -1,21 +1,35 @@
-commit 67d30fc315f90207a7fd8cde465ab14687835f1c
-Author: kayos@tcp.direct <kayos@smoqueed.com>
-Date:   Mon Jan 8 07:42:00 2024 +0000
+commit 103f37497f2927eeb510789f63fe2a0319b6a49a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 3 09:59:55 2023 -0800
 
-    net/http: wrap client errors
+    cmd/compile: ensure first instruction in a function is not inlined
     
-    Fixes #50856
+    People are using this to get the name of the function from a function type:
     
-    Change-Id: I7fe89fcce223e1571debb73436f8aeb3bfbe4b9f
-    GitHub-Last-Rev: be570e7883be06adbd227a1dfe63a80e384d96f6
-    GitHub-Pull-Request: golang/go#63448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533119
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+    
+    Unfortunately, this technique falls down when the first instruction
+    of the function is from an inlined callee. Then the expression above
+    gets you the name of the inlined function instead of the function itself.
+    
+    To fix this, ensure that the first instruction is never from an inlinee.
+    Normally functions have prologs so those are already fine. In just the
+    cases where a function is a leaf with no local variables, and an instruction
+    from an inlinee appears first in the prog list, add a nop at the start
+    of the function to hold a non-inlined position.
+    
+    Consider the nop a "mini-prolog" for leaf functions.
+    
+    Fixes #58300
+    
+    Change-Id: Ie37092f4ac3167fe8e5ef4a2207b14abc1786897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465076
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/client.go      |  4 ++--
- src/net/http/client_test.go | 19 +++++++++++++++++++
- src/net/http/transport.go   | 12 +++++++-----
- 3 files changed, 28 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 44 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue58300.go           | 29 ++++++++++++++++++++++
+ test/fixedbugs/issue58300.out          |  2 ++
+ 3 files changed, 75 insertions(+)

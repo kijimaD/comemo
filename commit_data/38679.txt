@@ -1,20 +1,20 @@
-commit 7331edcef567bb9fdc848f3b8e18dd0da0987372
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Apr 7 19:53:30 2019 +0200
+commit c92e73b70253f5d88c473a7ad6c5b8d61b2debb7
+Author: Milan Knezevic <milan.knezevic@mips.com>
+Date:   Fri Nov 9 18:30:46 2018 +0100
 
-    os/exec: skip unsupported test on Android
+    cmd/compile/internal/gc: OMUL should be evaluated when using soft-float
     
-    The underlying system call tested by TestCredentialNoSetGroups
-    is blocked on Android.
+    When using soft-float, OMUL might be rewritten to function call
+    so we should ensure it was evaluated first.
     
-    Discovered while running all.bash from an Android device; the syscall
-    is only blocked in an app context.
+    Fixes #28688
     
-    Change-Id: I16fd2e64636a0958b0ec86820723c0577b8f8f24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170945
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I30b87501782fff62d35151f394a1c22b0d490c6c
+    Reviewed-on: https://go-review.googlesource.com/c/148837
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/exec/exec_posix_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ test/fixedbugs/issue28688.go        | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

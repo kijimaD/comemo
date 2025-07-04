@@ -1,12 +1,16 @@
-commit 9b1f1833de07763b8c07f838a44d7e44a8837b18
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 24 09:41:06 2013 -0700
+commit 9c6fecc2da35d3d4ee685cc7f56c69f4671e8888
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Jul 24 11:20:53 2013 -0400
 
-    cc: generate argument pointer maps for C functions.
+    misc/emacs: Make godef-jump behave more like find-tag by supporting pop-tag-mark
     
-    R=golang-dev, rsc
+    Push point to the find-tag marker ring to support pop-tag-mark.
+    
+    Fixes #5804.
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/11683043
+    https://golang.org/cl/11457044
 
- src/cmd/cc/pgen.c | 135 ++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 121 insertions(+), 14 deletions(-)
+ misc/emacs/go-mode.el | 3 +++
+ 1 file changed, 3 insertions(+)

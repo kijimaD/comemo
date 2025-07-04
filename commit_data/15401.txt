@@ -1,19 +1,18 @@
-commit 89ec3a610d2a1c9887fe9ee0bd622f3ab14c6750
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 24 22:45:53 2013 +0800
+commit 6a41b9983c2bce565d6fb5b62c7cfb3db7ec1037
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 24 12:07:20 2013 +0900
 
-    cmd/dist: avoid using %ebx on i386.
-    Or gcc (-fPIC) will complain:
-    cmd/dist/unix.c: In function ‘cansse2’
-    cmd/dist/unix.c:774: error: can't find a register in class ‘BREG’ while reloading ‘asm’
-    cmd/dist/unix.c:774: error: ‘asm’ operand has impossible constraints
+    syscall: add if_announce support for openbsd
     
-    This affects bootstrapping on native Darwin/386 where all code is
-    compiled with -fPIC.
+    Update #4866.
     
-    R=golang-dev, iant
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7394047
+    https://golang.org/cl/7382053
 
- src/cmd/dist/unix.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/syscall/types_openbsd.go         | 13 ++++++++-----
+ src/pkg/syscall/zerrors_openbsd_386.go   |  2 ++
+ src/pkg/syscall/zerrors_openbsd_amd64.go |  2 ++
+ src/pkg/syscall/ztypes_openbsd_386.go    | 21 ++++++++++++++++-----
+ src/pkg/syscall/ztypes_openbsd_amd64.go  | 21 ++++++++++++++++-----
+ 5 files changed, 44 insertions(+), 15 deletions(-)

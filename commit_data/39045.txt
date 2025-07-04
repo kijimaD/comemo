@@ -1,12 +1,12 @@
-commit e1f9e701be094741b234320cc49b8776cce27c3f
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon May 6 15:59:07 2019 -0400
+commit 9ded8b0e97588895e00e93299e4a4a748cfa3a4b
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Dec 18 21:32:48 2018 +0100
 
-    doc: document Go 1.11.10
+    doc/go1.12: note that syscall.Getdirentries is no longer supported on iOS
     
-    Change-Id: Icca4495f727e3921b717a4bbb441cd832d321d46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175439
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4277f4130b460b42c5b51fd5a5e07f6c0e62163b
+    Reviewed-on: https://go-review.googlesource.com/c/154720
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.12.html | 5 +++++
+ 1 file changed, 5 insertions(+)

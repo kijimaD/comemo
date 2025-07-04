@@ -1,28 +1,26 @@
-commit 34c67eb24e1b3cfe16a512ab2d4899c78032030b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 22 22:57:47 2013 +0400
+commit f6c7b339a6b7592aa83abe253a40825fcb7d3e39
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 22 11:42:04 2013 -0700
 
-    runtime: detect deadlocks in programs using cgo
-    When cgo is used, runtime creates an additional M to handle callbacks on threads not created by Go.
-    This effectively disabled deadlock detection, which is a right thing, because Go program can be blocked
-    and only serve callbacks on external threads.
-    This also disables deadlock detection under race detector, because it happens to use cgo.
-    With this change the additional M is created lazily on first cgo call. So deadlock detector
-    works for programs that import "C", "net" or "net/http/pprof" but do not use them in fact.
-    Also fixes deadlock detector under race detector.
-    It should be fine to create the M later, because C code can not call into Go before first cgo call,
-    because C code does not know when Go initialization has completed. So a Go program need to call into C
-    first either to create an external thread, or notify a thread created in global ctor that Go
-    initialization has completed.
-    Fixes #4973.
-    Fixes #5475.
+    undo CL 9658043 / ac7877558dce
     
-    R=golang-dev, minux.ma, iant
+    The original code was correct. The count returned must be the length
+    of the input slice, not the length of the formatted message.
+    
+    ««« original CL description
+    log/syslog: report errors from Fprintf
+    Thanks to chiparus for identifying this.
+    
+    Fixes #5541.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/9303046
+    https://golang.org/cl/9658043
+    »»»
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9644044
 
- src/pkg/runtime/cgo/iscgo.c |  1 +
- src/pkg/runtime/cgocall.c   |  4 ++++
- src/pkg/runtime/proc.c      | 14 ++++++++++----
- src/pkg/runtime/runtime.h   |  1 +
- 4 files changed, 16 insertions(+), 4 deletions(-)
+ src/pkg/log/syslog/syslog.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

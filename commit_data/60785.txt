@@ -1,0 +1,29 @@
+commit 9e8ea567c838574a0f14538c0bbbd83c3215aa55
+Author: Tim King <taking@google.com>
+Date:   Mon Aug 26 15:49:09 2024 -0700
+
+    cmd/compile/internal/noder: write V2 bitstream aliastypeparams=1
+    
+    Enables V2 unified IR bitstreams when GOEXPERIMENT aliastypeparams
+    are enabled.
+    
+    Allows pkgbits.NewPkgEncoder to set the output version.
+    Reenables support for writing V0 streams.
+    
+    Updates #68778
+    Updates #68526
+    
+    Change-Id: I590c494d81ab7db148232ceaba52229068d1e986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608595
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/unified.go |  8 ++++++-
+ src/cmd/compile/internal/noder/writer.go  | 10 ++++++---
+ src/internal/pkgbits/decoder.go           |  8 ++++---
+ src/internal/pkgbits/encoder.go           | 18 +++++++---------
+ src/internal/pkgbits/pkgbits_test.go      | 26 +++++++++++++---------
+ test/fixedbugs/issue68526.dir/a/a.go      |  3 +--
+ test/fixedbugs/issue68526.dir/main.go     | 36 +++++++++++++++----------------
+ 7 files changed, 62 insertions(+), 47 deletions(-)

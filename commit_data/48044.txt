@@ -1,18 +1,21 @@
-commit eab9a77a60f5b6aaba978b61fbb260f2fbb307fb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 31 12:51:45 2022 -0800
+commit c3e2ed711ce1e5758e5d01a26d74445813de2857
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Tue Feb 2 18:08:50 2021 +0100
 
-    go/types, types2: fix unification code for defined types
+    cmd/go: use builtin version and reexec for env
     
-    Fixes #50929.
+    Skip execing for version (most reliable) and attempt to reexec
+    for env, falling back to the go in GOROOT
     
-    Change-Id: I65b8eaf5e4b423839bc53c7b1db3679961498c8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382076
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #43981
+    
+    Change-Id: I17fb84d36036807274eecca3d4f64b3add9b9483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288693
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- .../types2/testdata/fixedbugs/issue50929.go2       | 68 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/unify.go           |  5 +-
- src/go/types/testdata/fixedbugs/issue50929.go2     | 68 ++++++++++++++++++++++
- src/go/types/unify.go                              |  7 ++-
- 4 files changed, 145 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/bug/bug.go     |  8 ++++++--
+ src/cmd/go/testdata/script/bug.txt | 14 +++++++++++++-
+ 2 files changed, 19 insertions(+), 3 deletions(-)

@@ -1,12 +1,12 @@
-commit 54eec3db2c631d6d3b16ba0316db0e0e6f3367a3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 17:42:14 2012 -0800
+commit 5fb82d8cf600ad7388306a0bf9899dc2a93aaafa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 24 11:55:31 2012 +1100
 
-    godoc: fine-tuning .css
+    net/http: add overlooked 418 status code, per RFC 2324.
     
-    R=adg
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5699057
+    https://golang.org/cl/5688067
 
- doc/style.css | 27 ++++++++-------------------
- 1 file changed, 8 insertions(+), 19 deletions(-)
+ src/pkg/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

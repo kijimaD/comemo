@@ -1,18 +1,20 @@
-commit 733ee91786ef4fd8a13a272745f0458a3ed74e50
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 13 15:55:43 2012 -0700
+commit 5468d164679fc5b0a1d988ca06ce41c9d6db61b2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jun 13 23:52:00 2012 +0200
 
-    encoding/gob: don't cache broken encoding engines.
-    Fixes a situation where a nested bad type would still
-    permit the outer type to install a working engine, leading
-    to inconsistent behavior.
+    strconv: extend fast parsing algorithm to ParseFloat(s, 32)
     
-    Fixes #3273.
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkAtof32Decimal           215           73  -65.72%
+    BenchmarkAtof32Float             233           83  -64.21%
+    BenchmarkAtof32FloatExp         3351          209  -93.76%
+    BenchmarkAtof32Random           1939          260  -86.59%
     
-    R=bsiegert, rsc
-    CC=golang-dev
-    https://golang.org/cl/6294067
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6294071
 
- src/pkg/encoding/gob/encode.go       | 13 ++++++++++++-
- src/pkg/encoding/gob/encoder_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 1 deletion(-)
+ src/pkg/strconv/atof.go      |  71 +++++++++++++++----------
+ src/pkg/strconv/atof_test.go | 120 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strconv/extfloat.go  |  14 ++---
+ 3 files changed, 172 insertions(+), 33 deletions(-)

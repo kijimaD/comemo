@@ -1,17 +1,19 @@
-commit 31da1d993a498acefcf3dd5fdfbefa8eec132791
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Wed Aug 19 01:38:43 2020 +0000
+commit d50429ab608798b0677ba6886f301ee3a98d3c41
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:05:02 2020 -0500
 
-    cmd/internal/objfile: cache computation of goobj.Arch
+    cmd/go: convert TestGoBuildTestOnly to the script framework
     
-    Change-Id: I23774cf185e5fa6b89398001cd0655fb0c5bdb46
-    GitHub-Last-Rev: ca8cae2469b5fad84bd636a3305a484dfdcb0db2
-    GitHub-Pull-Request: golang/go#40877
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249180
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I1832e15e6a15301e075d2ec9d5169a77f11328fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213822
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/archive/archive.go |  6 ++++++
- src/cmd/internal/objfile/goobj.go   | 32 +++++++++++++-------------------
- 2 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/go/go_test.go                          | 21 ---------------------
+ src/cmd/go/testdata/script/build_test_only.txt | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 21 deletions(-)

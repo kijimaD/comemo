@@ -1,17 +1,24 @@
-commit 3822e161a30ff4c6e288e10dbf3345a61ce1c3ff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 4 10:45:50 2023 -0800
+commit 045b33ecfe4db7af6344cb5227c3d31501eb8cba
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jan 11 13:47:38 2023 -0800
 
-    doc: add release note for math/big.Rat.FloatPrec
+    net/http: close Request.Body when pconn write loop exits early
     
-    For #50489.
+    The pconn write loop closes a request's body after sending the
+    request, but in the case where the write loop exits with an
+    unsent request in writech the body is never closed.
     
-    Change-Id: I4544a24327196eb3ed62af64ae5ddb1f60441d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546357
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Close the request body in this case.
+    
+    Fixes #49621
+    
+    Change-Id: Id94a92937bbfc0beb1396446f4dee32fd2059c7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.22.html | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/net/http/transport.go      |  6 ++++++
+ src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

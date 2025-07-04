@@ -1,17 +1,21 @@
-commit 7673e30503e3864265a842ec3e4200b317fc571d
-Author: Fangming.Fang <fangming.fang@arm.com>
-Date:   Mon Mar 19 06:52:28 2018 +0000
+commit 60a3c95dcb7ba40994a41baf48d64f2fae1c2313
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 4 13:14:19 2017 -0400
 
-    cmd/asm: fix bug about VMOV instruction (move register to vector element) on ARM64
+    cmd/go: do not print entire help text for unrecognized flag
     
-    This change fixes index error when encoding VMOV instruction which pattern is
-    VMOV Rn, V.<T>[index]. For example VMOV R1, V1.S[1] is assembled as VMOV R1, V1.S[0]
+    I typed 'go list -josn' without realizing I'd mistyped json, and I was confused for
+    quite a while as to why I was staring at the 'go help json' text: the actual problem
+    (a missing flag) scrolls far off the screen. If people want the full text, they can
+    easily ask for it, but don't drown the important bit - unrecognized flag or other
+    improper usage - with pages of supporting commentary. The help text does not
+    help people who just need to be told about a typo.
     
-    Fixes #24400
-    Change-Id: I82b5edc8af4e06862bc4692b119697c6bb7dc3fb
-    Reviewed-on: https://go-review.googlesource.com/101297
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I179c431baa831e330f3ee495ce0a5369319962d5
+    Reviewed-on: https://go-review.googlesource.com/76013
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
- src/cmd/internal/obj/arm64/asm7.go        | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/base/base.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

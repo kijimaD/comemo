@@ -1,45 +1,27 @@
-commit 3b860269eeb0b2d6176da5c972139b7c21d5251b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 15:17:05 2011 -0500
+commit fbfed49134bca038184dbc1a427e82647fc1f12e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 9 23:11:48 2011 +0300
 
-    runtime: add timer support, use for package time
+    cgo: fix g0 stack guard
+    Fixes crash when cgo consumes more than 8K
+    of stack and makes a callback.
     
-    This looks like it is just moving some code from
-    time to runtime (and translating it to C), but the
-    runtime can do a better job managing the goroutines,
-    and it needs this functionality for its own maintenance
-    (for example, for the garbage collector to hand back
-    unused memory to the OS on a time delay).
-    Might as well have just one copy of the timer logic,
-    and runtime can't depend on time, so vice versa.
+    Fixes #1328.
     
-    It also unifies Sleep, NewTicker, and NewTimer behind
-    one mechanism, so that there are no claims that one
-    is more efficient than another.  (For example, today
-    people recommend using time.After instead of time.Sleep
-    to avoid blocking an OS thread.)
-    
-    Fixes #1644.
-    Fixes #1731.
-    Fixes #2190.
-    
-    R=golang-dev, r, hectorchu, iant, iant, jsing, alex.brainman, dvyukov
-    CC=golang-dev
-    https://golang.org/cl/5334051
+    R=golang-dev, rogpeppe, rsc
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5371042
 
- src/pkg/runtime/darwin/os.h      |   2 +-
- src/pkg/runtime/darwin/thread.c  |  20 +++-
- src/pkg/runtime/freebsd/thread.c |  15 ++-
- src/pkg/runtime/linux/thread.c   |  18 ++-
- src/pkg/runtime/lock_futex.c     |  60 +++++++---
- src/pkg/runtime/lock_sema.c      | 125 ++++++++++++++++++---
- src/pkg/runtime/openbsd/thread.c |  47 ++++++--
- src/pkg/runtime/plan9/thread.c   |  45 +++++++-
- src/pkg/runtime/proc.c           |  11 +-
- src/pkg/runtime/runtime.h        |  51 ++++++++-
- src/pkg/runtime/time.goc         | 232 ++++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/windows/thread.c |  23 +++-
- src/pkg/time/sleep.go            | 194 +++++++++-----------------------
- src/pkg/time/sys.go              |  23 +---
- src/pkg/time/tick.go             | 182 +++++-------------------------
- 15 files changed, 660 insertions(+), 388 deletions(-)
+ misc/cgo/test/callback_c.c          |  5 +++++
+ src/pkg/runtime/386/asm.s           | 12 ++++++++++--
+ src/pkg/runtime/amd64/asm.s         |  6 ++++++
+ src/pkg/runtime/cgo/darwin_386.c    | 12 ++++++++++--
+ src/pkg/runtime/cgo/darwin_amd64.c  | 12 ++++++++++--
+ src/pkg/runtime/cgo/freebsd_386.c   | 11 +++++++++--
+ src/pkg/runtime/cgo/freebsd_amd64.c | 11 +++++++++--
+ src/pkg/runtime/cgo/linux_386.c     | 11 +++++++++--
+ src/pkg/runtime/cgo/linux_amd64.c   | 12 ++++++++++--
+ src/pkg/runtime/cgo/linux_arm.c     |  5 +++--
+ src/pkg/runtime/cgo/windows_386.c   |  6 ++++--
+ src/pkg/runtime/cgo/windows_amd64.c |  6 ++++--
+ 12 files changed, 89 insertions(+), 20 deletions(-)

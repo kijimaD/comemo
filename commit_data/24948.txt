@@ -1,19 +1,26 @@
-commit 3bf61fb2e53afaaec4386376c4d6e677767cfff4
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Oct 28 11:40:22 2015 +1300
+commit a00cec90cadb023637622905c3bbb867de494cf3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 10 13:41:03 2015 -0700
 
-    cmd/internal/obj/x86, cmd/link/internal/x86: support IE model TLS on linux/386
+    fmt: allow any type in a format's width argument
     
-    This includes the first parts of the general approach to PIC: load PC into CX
-    whenever it is needed. This is going to lead to large binaries and poor
-    performance but it's a start and easy to get right.
+    The construction
+            fmt.Printf("%*d", n, 4)
+    reads the argument n as a width specifier to use when printing 4.
+    Until now, only strict int type was accepted here and it couldn't
+    be fixed because the fix, using reflection, broke escape analysis
+    and added an extra allocation in every Printf call, even those that
+    do not use this feature.
     
-    Change-Id: Ic8bf1d0a74284cca0d94a68cf75024e8ab063b4e
-    Reviewed-on: https://go-review.googlesource.com/16383
+    The compiler has been fixed, although I am not sure when exactly,
+    so let's fix Printf and then write
+    
+    Fixes #10732.
+    
+    Change-Id: I79cf0c4fadd876265aa39d3cb62867247b36ab65
+    Reviewed-on: https://go-review.googlesource.com/14491
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 85 +++++++++++++++++++++++++++++++---------
- src/cmd/link/internal/ld/lib.go  |  2 +-
- src/cmd/link/internal/x86/asm.go | 33 ++++++++++++++++
- src/cmd/link/internal/x86/obj.go |  7 ++++
- 4 files changed, 108 insertions(+), 19 deletions(-)
+ src/fmt/fmt_test.go | 13 ++++++++++---
+ src/fmt/print.go    | 23 +++++++++++++++++++++--
+ 2 files changed, 31 insertions(+), 5 deletions(-)

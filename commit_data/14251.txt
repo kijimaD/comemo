@@ -1,13 +1,16 @@
-commit 9b0f4be2fbab4b428f435287e73a4c2709ae5dc4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 30 17:24:01 2012 -0700
+commit ad487dad75faca0c5cd6a152d9f04d9ff93aaff5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 31 10:02:11 2012 +1100
 
-    A+C: add Peter Waller (individual CLA)
+    image/jpeg: don't call ensureNBits unless we have to.
     
-    R=golang-dev, dsymonds
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkDecodeBaseline         3155638      2783998  -11.78%
+    BenchmarkDecodeProgressive      4008088      3660310   -8.68%
+    
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6775083
+    https://golang.org/cl/6775072
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/image/jpeg/huffman.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

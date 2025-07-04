@@ -1,19 +1,18 @@
-commit 4f4a9c7fff0b96d596c65f7997ab646b3ac42517
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Apr 6 17:36:05 2023 -0400
+commit 17dc7b487f2406261d638350e4652fc5df224cc2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 6 14:25:34 2022 -0700
 
-    runtime: correct GoCheckBindM's C declaration in EnsureBindM test
+    cmd/compile: update README.md
     
-    The test file has a C declaration which doesn't match the actual
-    definition. Remove it and include "_cgo_export.h" to have the
-    right declaration.
+    This CL updates the description of the frontend packages of the
+    compiler, which I'm more familiar with.
     
-    Change-Id: Iddf6d8883ee0e439147c7027029dd3e352ef090d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482975
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #30074.
+    
+    Change-Id: Ic279007f6102b21072d6558fa9035f0fcc267d93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404694
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/testdata/testprogcgo/bindm.c  | 34 +++++++++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/bindm.go | 30 +--------------------------
- 2 files changed, 35 insertions(+), 29 deletions(-)
+ src/cmd/compile/README.md | 86 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 63 insertions(+), 23 deletions(-)

@@ -1,22 +1,15 @@
-commit 8da66a35cab2de4f7ce0215c47929be624eeb03d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 2 19:05:27 2021 -0500
+commit a25c58462992704dbb6819769f530b6cc6a8ebe3
+Author: Charlie Moog <moogcharlie@gmail.com>
+Date:   Wed Mar 24 19:17:03 2021 -0500
 
-    cmd/compile: set PPC64's MAXWIDTH as other architectures
+    os: implement fs.StatFS for os.DirFS
     
-    PPC64's MAXWIDTH is set as 1<<60 whereas on other 64-bit
-    architetures it is set as 1<<50. Set to 1<<50 for consistency. The
-    toolchain cannot handle such large program anyway.
-    
-    May fix PPC64 build.
-    
-    Change-Id: Ic3972a089b2f14a96e4ded57ef218d763c924a6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368955
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I1d7382bf522aeda7148431b348f6ab9a162be097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304531
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ppc64/galign.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/file.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

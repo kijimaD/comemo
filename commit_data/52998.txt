@@ -1,48 +1,187 @@
-commit af64b75b67f15154ed13279212d40474cf061fff
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 5 22:29:11 2023 -0400
+commit e7100adbca33a654101a8fa5779f6d2f675e3675
+Merge: 09a838ad86 5a1c5b8ae7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 24 13:48:30 2022 -0700
 
-    misc/cgo/test: add cgo build constraints
+    [dev.unified] all: merge master (5a1c5b8) into dev.unified
     
-    We're about to move this package to cmd/cgo/internal, where it will
-    get caught up in the "CGO_ENABLED=0 go install cmd" done by make.bash.
-    Currently, building this package with CGO_ENABLED=0 fails because it
-    contains several source files that don't themselves import "C", but do
-    import a subdirectory where that package imports "C" and thus has no
-    exported API.
+    Conflicts:
     
-    Fix the CGO_ENABLED=0 build of this package by adding the necessary
-    cgo build tags. Not all source files need it, but this CL makes
-    "CGO_ENABLED=0 go test -c" work in this package.
+    - test/run.go
     
-    For #37486.
+      Textual conflict adding to the known failures list for the nounified
+      frontend.
     
-    Change-Id: Id137cdfbdd950eea802413536d990ab642ebcd7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493215
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Merge List:
+    
+    + 2022-06-24 5a1c5b8ae7 cmd/go: add per-package indexing for modules outside mod cache
+    + 2022-06-24 b9c4d94fdb cmd/go/internal/list: update help info with Deprecated field
+    + 2022-06-24 73475ef035 go/types, types2: print qualified object names in cycle errors
+    + 2022-06-24 3e58ef6cc7 go/types, types2: better errors for == when type sets are empty
+    + 2022-06-24 d38f1d13fa doc/go1.19: Linux race detector now requires glibc 2.17
+    + 2022-06-23 de5329f1de debug/dwarf: handle malformed line table with bad program offset
+    + 2022-06-23 15605ca827 embed: document additional file name restrictions
+    + 2022-06-22 2e773a3894 test: add test that causes gofrontend crash
+    + 2022-06-22 ff17b7d0d4 cmd/compile: don't use dictionary convert to shaped empty interface
+    + 2022-06-22 2a3b467d5f cmd/go: make module .zip files group/world readable
+    + 2022-06-22 bdab4cf47a cmd/go, cmd/link: support failure to create _cgo_import.go
+    + 2022-06-22 aca37d16a5 cmd/go: avoid indexing modules in GOROOT
+    + 2022-06-22 111cdb5848 all: update to current golang.org/x/sys revision
+    + 2022-06-22 4045b1bc3f cmd/compile: fix assert condition in generic method call
+    + 2022-06-22 6bad7e8243 compress/gzip: always close bodyReader in Example_compressingReader
+    + 2022-06-22 606c6c371a encoding/xml: check nil pointer in DecodeElement
+    + 2022-06-22 f571518139 cmd/cgo: dont override declared struct type
+    + 2022-06-22 92c9b81447 net: don't set netGo = true on Windows with no cgo
+    + 2022-06-22 be0b2a393a cmd/trace: add basic documentation to main page
+    + 2022-06-22 b004c739b5 go/types, types2: fix parameter order dependence in type inference
+    + 2022-06-21 f2c7e78592 spec: document operations which accept []byte|string constrained types
+    + 2022-06-21 ab422f2749 runtime/trace: ignore fallback stacks in test
+    + 2022-06-21 66685fb7dd doc/go1.19: use correct link to sync/atomic docs
+    + 2022-06-21 4b236b45d0 runtime: convert flaky semaphore linearity test into benchmark
+    + 2022-06-21 530511bacc cmd/go/internal/modindex: avoid walking modules when not needed
+    + 2022-06-21 c2d373d5d1 cmd/compile: allow 128-bit values to be spilled
+    + 2022-06-21 19ed442807 test: add regress test for #53477
+    + 2022-06-20 3fcbfb07a8 doc/go1.19: fix HTML validation issues
+    + 2022-06-18 527ace0ffa cmd/compile: skip substituting closures in unsafe builtins arguments
+    + 2022-06-17 ec58e3f327 test: add regress test for #53419
+    + 2022-06-17 103cc661f1 cmd/go/internal/modfetch: prevent duplicate hashes in go.sum
+    + 2022-06-17 d42a48828f sync: add more notes about Cond behavior
+    + 2022-06-17 9e2f289754 cmd/go/internal/work: log clearer detail for subprocess errors in (*Builder).toolID
+    + 2022-06-17 dd2d00f9d5 net: fix flaky *TimeoutMustNotReturn tests
+    + 2022-06-17 6c25ba624f go/token: delete unused File.set field
+    + 2022-06-16 9068c6844d cmd/dist: add package . to 'go test' commands
+    + 2022-06-16 7bad61554e runtime: write much more direct test for semaphore waiter scalability
+    + 2022-06-16 f38a580a51 cmd/go: add more tracing
+    
+    Change-Id: I912c5879165e03f4d7f8ac3ee9241d50fc92a419
 
- misc/cgo/test/cgo_linux_test.go         | 2 ++
- misc/cgo/test/cgo_test.go               | 2 ++
- misc/cgo/test/cgo_unix_test.go          | 2 +-
- misc/cgo/test/gcc68255.go               | 2 ++
- misc/cgo/test/issue18146.go             | 2 +-
- misc/cgo/test/issue23555.go             | 2 ++
- misc/cgo/test/issue24161_darwin_test.go | 2 ++
- misc/cgo/test/issue26430.go             | 2 ++
- misc/cgo/test/issue26743.go             | 2 ++
- misc/cgo/test/issue27340.go             | 2 ++
- misc/cgo/test/issue29563.go             | 2 +-
- misc/cgo/test/issue30527.go             | 2 ++
- misc/cgo/test/issue43639.go             | 2 ++
- misc/cgo/test/issue52611.go             | 2 ++
- misc/cgo/test/issue8828.go              | 4 ++--
- misc/cgo/test/issue9026.go              | 6 ++++++
- misc/cgo/test/issue9400/stubs.go        | 2 +-
- misc/cgo/test/issue9510.go              | 2 ++
- misc/cgo/test/test26213.go              | 2 ++
- misc/cgo/test/test_unix.go              | 2 +-
- 20 files changed, 39 insertions(+), 7 deletions(-)
+ doc/go1.19.html                                    |   6 +-
+ doc/go_spec.html                                   |  44 ++-
+ misc/cgo/test/testdata/issue52611.go               |  13 +
+ misc/cgo/test/testdata/issue52611a/a.go            |  16 ++
+ misc/cgo/test/testdata/issue52611a/b.go            |  11 +
+ misc/cgo/test/testdata/issue52611b/a.go            |  11 +
+ misc/cgo/test/testdata/issue52611b/b.go            |  16 ++
+ src/cmd/cgo/doc.go                                 |  10 +
+ src/cmd/cgo/gcc.go                                 |   5 +
+ src/cmd/compile/internal/amd64/ssa.go              |   2 +
+ src/cmd/compile/internal/dwarfgen/dwarf.go         |   5 +
+ src/cmd/compile/internal/noder/stencil.go          |  43 ++-
+ src/cmd/compile/internal/types/size.go             |   6 +
+ src/cmd/compile/internal/types/type.go             |   5 +
+ src/cmd/compile/internal/types2/decl.go            |  22 +-
+ src/cmd/compile/internal/types2/infer.go           |   7 +-
+ src/cmd/compile/internal/types2/predicates.go      |  12 +-
+ .../internal/types2/testdata/examples/functions.go |   2 +-
+ .../types2/testdata/fixedbugs/issue43056.go        |   4 +-
+ .../types2/testdata/fixedbugs/issue48712.go        |  14 +-
+ .../types2/testdata/fixedbugs/issue51525.go        |  16 ++
+ .../internal/types2/testdata/spec/comparisons.go   |  16 +-
+ src/cmd/dist/test.go                               |  44 +--
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |  27 +-
+ src/cmd/go/internal/list/list.go                   |  27 +-
+ src/cmd/go/internal/load/pkg.go                    |  10 +-
+ src/cmd/go/internal/modfetch/fetch.go              |   3 +-
+ src/cmd/go/internal/modindex/index_format.txt      |  13 +-
+ src/cmd/go/internal/modindex/read.go               | 308 ++++++++++++++-------
+ src/cmd/go/internal/modindex/scan.go               |  10 +-
+ src/cmd/go/internal/modindex/write.go              |  18 +-
+ src/cmd/go/internal/modload/import.go              |   6 +-
+ src/cmd/go/internal/modload/load.go                |   4 +-
+ src/cmd/go/internal/modload/query.go               |   3 +
+ src/cmd/go/internal/modload/search.go              |  15 +-
+ src/cmd/go/internal/work/buildid.go                |   7 +-
+ src/cmd/go/internal/work/exec.go                   |  45 ++-
+ src/cmd/go/testdata/script/cgo_undef.txt           |  68 +++++
+ src/cmd/go/testdata/script/mod_tidy_duplicates.txt |  38 +++
+ src/cmd/link/internal/ld/config.go                 |   9 +
+ src/cmd/link/internal/ld/lib.go                    |   9 +
+ src/cmd/trace/main.go                              | 194 ++++++++++++-
+ .../golang.org/x/sys/unix/asm_linux_loong64.s      |   4 +-
+ .../vendor/golang.org/x/sys/unix/ifreq_linux.go    |   9 +-
+ .../golang.org/x/sys/unix/syscall_solaris.go       |   1 +
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   2 +-
+ .../x/sys/unix/zerrors_linux_mips64le.go           |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   2 +-
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   2 +-
+ .../x/sys/unix/zsyscall_solaris_amd64.go           |  14 +
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_loong64.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_openbsd_386.go    |   8 +-
+ .../golang.org/x/sys/unix/ztypes_openbsd_amd64.go  |   8 +-
+ .../golang.org/x/sys/unix/ztypes_openbsd_arm.go    |   8 +-
+ .../golang.org/x/sys/unix/ztypes_openbsd_arm64.go  |   8 +-
+ .../golang.org/x/sys/unix/ztypes_openbsd_mips64.go |   8 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/compress/gzip/example_test.go                  |   5 +-
+ src/debug/dwarf/line.go                            |   6 +-
+ src/embed/embed.go                                 |   1 +
+ src/encoding/xml/read.go                           |   4 +
+ src/encoding/xml/read_test.go                      |  15 +
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/go/build/deps_test.go                          |   5 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |   2 +
+ src/go/token/position.go                           |   3 +-
+ src/go/token/serialize.go                          |   1 -
+ src/go/token/serialize_test.go                     |   6 -
+ src/go/types/decl.go                               |  22 +-
+ src/go/types/infer.go                              |   7 +-
+ src/go/types/predicates.go                         |  12 +-
+ src/go/types/testdata/examples/functions.go        |   2 +-
+ src/go/types/testdata/fixedbugs/issue43056.go      |   4 +-
+ src/go/types/testdata/fixedbugs/issue48712.go      |  14 +-
+ src/go/types/testdata/fixedbugs/issue51525.go      |  16 ++
+ src/go/types/testdata/spec/comparisons.go          |  16 +-
+ src/internal/testenv/testenv.go                    |  65 -----
+ src/internal/testmath/bench.go                     |  38 ---
+ src/internal/testmath/ttest.go                     | 213 --------------
+ src/net/cgo_stub.go                                |   2 -
+ src/net/netgo.go                                   |   6 +-
+ src/net/timeout_test.go                            |  21 +-
+ src/runtime/export_test.go                         |  30 +-
+ src/runtime/sema.go                                |  20 +-
+ src/runtime/sema_test.go                           |  67 +++++
+ src/runtime/trace/trace_test.go                    |  18 +-
+ src/sync/cond.go                                   |  14 +
+ src/sync/mutex_test.go                             | 112 --------
+ src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.c    |  29 +-
+ src/vendor/modules.txt                             |   2 +-
+ test/fixedbugs/issue50788.dir/a.go                 |   9 +
+ test/fixedbugs/issue50788.dir/b.go                 |   9 +
+ test/fixedbugs/issue50788.go                       |   7 +
+ test/fixedbugs/issue52846.go                       |  17 ++
+ test/fixedbugs/issue53454.go                       |  89 ++++++
+ test/run.go                                        |   2 +
+ test/typeparam/issue53254.go                       |  19 ++
+ test/typeparam/issue53390.go                       |  20 ++
+ test/typeparam/issue53406.go                       |  22 ++
+ test/typeparam/issue53419.go                       |  28 ++
+ test/typeparam/issue53477.go                       |  34 +++
+ 129 files changed, 1505 insertions(+), 815 deletions(-)

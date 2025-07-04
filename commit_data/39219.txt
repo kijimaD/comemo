@@ -1,18 +1,16 @@
-commit 648c7b592a30b2280e8d23419224c657ab0a8332
-Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
-Date:   Tue May 7 15:49:56 2019 +0200
+commit df719d9809daa2abcbce6a24ee8183a84cccf094
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 18:42:37 2019 -0800
 
-    regexp/syntax: exclude full range from String negation case
+    doc: go1.12: mention change in text/template user function panic
     
-    If the char class is 0x0-0x10ffff we mistakenly would String that to `[^]`,
-    which is not a valid regex.
+    Updates #28242
     
-    Fixes #31807
-    
-    Change-Id: I9ceeaddc28b67b8e1de12b6703bcb124cc784556
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175679
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib717b64f1f368cc889895a2437ff2943ed4eab0d
+    Reviewed-on: https://go-review.googlesource.com/c/159998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/regexp/syntax/parse_test.go | 1 +
- src/regexp/syntax/regexp.go     | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.12.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

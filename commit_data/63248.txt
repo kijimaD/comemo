@@ -1,0 +1,20 @@
+commit 555d425d177db7fa7123779d253aee42980cb8a3
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 28 10:55:26 2025 -0700
+
+    testing, testing/synctest: write bubble errors to parent test log
+    
+    Ensure that log messages written to the testing.T created by
+    synctest.Test appear in the test output when a test fails.
+    
+    Fixes #73902
+    
+    Change-Id: Ie97f5efe54eb003e6c0a5394c2def4cac1520ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676995
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/synctest/synctest_test.go | 42 ++++++++++++++++++++++++++---------
+ src/testing/testing.go                |  3 +--
+ 2 files changed, 32 insertions(+), 13 deletions(-)

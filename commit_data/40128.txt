@@ -1,20 +1,35 @@
-commit c1e46af62f2893a6beb2341ef71ffe8d3787975b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Oct 4 13:52:56 2019 +0200
+commit 248444d5eb91a26fa0b050172b22fc2cf7c72936
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 10 10:18:52 2019 -0400
 
-    test: add testcase for Issue 34520
+    cmd/link: apply DWARF relocations while doing compression
     
-    CL 188317 introduced a compiler crash during dwarf generation which
-    was reported as Issue #34520. After CL 188217, the issue appears to be
-    fixed. Add a testcase to avoid future regressions.
+    We are preparing for applying relocations to the output buffer.
+    However, for DWARF compression, relocations need to be applied
+    before compression, but we don't have an output buffer at that
+    time. We also cannot delay DWARF compression to when we mmap the
+    output file, because we need the size of the DWARF sections to
+    compute the file size.
     
-    Fixes #34520
+    Instead of applying all the relocations together, we apply
+    relocations in DWARF sections one symbol at a time, right before
+    it is writing out for compression. As the symbol content may be
+    in read-only memory (in the future), we use a temporary buffer
+    for applying the relocations, and immediately write it out.
     
-    Change-Id: I73544a9e9baf8dbfb85c19eb6d202beea05affb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198546
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    If compression is not used, relocations are still applied all
+    together.
+    
+    This is in preparation for mmap'ing input files read-only.
+    
+    Change-Id: Iae6d2dd71313897d5054bcc458d3bb78075b30c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/fixedbugs/issue34520.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/link/internal/ld/data.go  | 14 ++++++++++++++
+ src/cmd/link/internal/ld/dwarf.go |  7 ++++---
+ src/cmd/link/internal/ld/link.go  |  2 ++
+ src/cmd/link/internal/ld/main.go  |  2 +-
+ 4 files changed, 21 insertions(+), 4 deletions(-)

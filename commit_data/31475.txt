@@ -1,18 +1,21 @@
-commit 9f6fde3a23c7d40eb625ad3a58a6b1ad4e33265a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue May 2 12:38:59 2017 +0200
+commit d55f52882656122869b6b409be783bfb5a2fd2fb
+Author: David R. Jenni <david.r.jenni@gmail.com>
+Date:   Fri Feb 10 19:25:58 2017 +0100
 
-    doc/contribute: directly link to the Agreements page
+    cmd/compile: silence superfluous assignment error message
     
-    There's no Settings->Agreement path for PolyGerrit users, but if we
-    link directly to the page in the instructions, Gerrit will inform them
-    that they can access the page by switching to the old UI.
+    Avoid printing a second error message when a field of an undefined
+    variable is accessed.
     
-    Fixes #20207
+    Fixes #8440.
     
-    Change-Id: I0887ee854e4ac5975b5f305adb6259b81b41618f
-    Reviewed-on: https://go-review.googlesource.com/42412
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3fe0b11fa3423cec3871cb01b5951efa8ea7451a
+    Reviewed-on: https://go-review.googlesource.com/36751
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ test/fixedbugs/issue14010.go             |  2 +-
+ test/fixedbugs/issue8440.go              | 11 +++++++++++
+ 3 files changed, 14 insertions(+), 3 deletions(-)

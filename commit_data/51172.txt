@@ -1,34 +1,18 @@
-commit 821e31042a47a9f65529c16f76b392428329c20b
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Nov 9 19:53:15 2022 +0800
+commit 56817040d53187abcd568af0eea27cc21379c0ad
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 10 21:09:16 2021 -0500
 
-    all: add missing copyright header
+    os: document error returned by pending I/O operations on Close
     
-    Change-Id: Ia5a090953d324f0f8aa9c1808c88125ad5eb6f98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448955
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Currently, File.Close only documents that "an" error will be returned
+    by pending I/O operations. Update the documentation to say that error
+    is specifically ErrClosed.
+    
+    Change-Id: Ica817c9196ad6cb570c826789d37a4ff15a5d13d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371015
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/api/testdata/src/pkg/p1/p1.go            | 4 ++++
- src/cmd/api/testdata/src/pkg/p2/p2.go            | 4 ++++
- src/cmd/api/testdata/src/pkg/p3/p3.go            | 4 ++++
- src/cmd/compile/internal/compare/compare_test.go | 4 ++++
- src/cmd/compile/internal/ssa/fuse_test.go        | 4 ++++
- src/cmd/compile/internal/ssa/stmtlines_test.go   | 4 ++++
- src/cmd/dist/quoted.go                           | 4 ++++
- src/cmd/go/internal/fsys/fsys.go                 | 4 ++++
- src/cmd/go/internal/fsys/fsys_test.go            | 4 ++++
- src/cmd/go/internal/load/pkg_test.go             | 4 ++++
- src/cmd/go/internal/modindex/scan.go             | 4 ++++
- src/cmd/internal/obj/x86/obj6_test.go            | 4 ++++
- src/internal/goos/nonunix.go                     | 4 ++++
- src/internal/goos/unix.go                        | 4 ++++
- src/internal/profile/proto_test.go               | 4 ++++
- src/path/filepath/symlink_unix.go                | 4 ++++
- src/reflect/internal/example1/example.go         | 4 ++++
- src/reflect/internal/example2/example.go         | 4 ++++
- src/syscall/const_plan9.go                       | 4 ++++
- 19 files changed, 76 insertions(+)
+ src/os/file_plan9.go | 2 +-
+ src/os/file_posix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

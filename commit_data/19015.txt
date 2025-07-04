@@ -1,18 +1,15 @@
-commit 059c10b552d8e8331a5621fa73d1fcb914cc913e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 2 19:46:47 2014 -0700
+commit 568f50e3fcf3643cd5dd0ebf645ad2611cd34be5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 3 11:34:31 2014 +1100
 
-    cmd/ld: get rid of map.bucket's data field from dwarf info.
+    cmd/gc: fix build
     
-    The data field is the generic array that acts as a standin
-    for the keys and values arrays for the generic runtime code.
-    We want to substitute the keys and values arrays for the data
-    array, not just add keys and values in addition to it.
+    Darwin 10.6 (gcc 4.2) and some older versions of gcc default to C90 mode, not C99 mode. Silence the warning.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=aram, iant
+    R=golang-codereviews, aram, iant
     CC=golang-codereviews
-    https://golang.org/cl/81160044
+    https://golang.org/cl/83090050
 
- src/cmd/ld/dwarf.c | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ src/cmd/gc/plive.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

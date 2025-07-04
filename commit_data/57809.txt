@@ -1,32 +1,37 @@
-commit fdfb3067a8a27a7491c3b0f6eddedbd467495329
-Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-Date:   Wed Sep 11 09:44:16 2024 -0500
+commit c700c23cef4b6501c0ccce248db57e30683eea99
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 9 11:17:42 2023 -0700
 
-    cmd/internal/obj/ppc64: support for extended  mnemonics of BC
+    reflect: make Value.IsZero identical to v == zero
     
-    BGT, BLT, BLE, BGE, BNE, BVS, BVC, and BEQ support by assembler. This will simplify the usage of BC constructs like
-    BC 12, 30, LR    <=>  BEQ CR7, LR
-    BC 12, 2, LR     <=>  BEQ CR0, LR
-    BC 12, 0, target  <=>  BLT CR0, target
-    BC 12, 2, target  <=>  BEQ CR0, target
-    BC 12, 5, target  <=>  BGT CR1, target
-    BC 12, 30, target <=>  BEQ CR7, target
-    BC 4, 6, target   <=>  BNE CR1, target
-    BC 4, 5, target   <=>  BLE CR1, target
-    code cleanup based on the above additions.
+    The upcoming built-in zero value provides an idiomatic way
+    to test for zero by comparing to the zero literal: v == zero.
     
-    Change-Id: I02fdb212b6fe3f85ce447e05f4d42118c9ce63b5
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612395
+    The reflect package is meant to provide a programmatic way to perform
+    operations that the Go language itself provides.
+    Thus, it seems prudent that reflect.ValueOf(&v).Elem().IsZero() is
+    identical to v == zero.
+    
+    This change alters the behavior of Value.IsZero in two concrete ways:
+    * negative zero is identical to zero
+    * blank fields in a struct are ignored
+    
+    Prior to this change, we were already in an inconsistent state
+    due to a regression introduced by CL 411478.
+    The new behavior was already the case for comparable composite types.
+    This change makes it consistent for all other types
+    (in particular incomparable composite types and standalone numbers).
+    
+    Updates #61372
+    Fixes #61827
+    
+    Change-Id: Id23fb97eb3b8921417cc75a1d3ead963e22dc3d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517777
+    Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  9 +++++++
- src/cmd/internal/obj/ppc64/asm9.go        | 45 +++++++++++++++++++++++++++++++
- src/internal/bytealg/compare_ppc64x.s     | 10 +++----
- src/runtime/memclr_ppc64x.s               |  6 ++---
- src/runtime/memmove_ppc64x.s              | 28 +++++++++----------
- 5 files changed, 76 insertions(+), 22 deletions(-)
+ doc/go1.22.html         | 14 ++++++++++++++
+ src/reflect/all_test.go | 21 +++++++++++++++++----
+ src/reflect/value.go    |  7 +++----
+ 3 files changed, 34 insertions(+), 8 deletions(-)

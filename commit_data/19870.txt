@@ -1,20 +1,16 @@
-commit 77df26f0bd7b52f0edb06c0af9904d64faf787ae
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 4 16:12:55 2014 -0700
+commit fdaeec580ffb554b7314f814eaa2353459b1e400
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 3 15:14:59 2014 -0700
 
-    archive/zip: accept bogus trailing zeros in extras
+    encoding/gob: save a call to userType
+    Avoid some pressure on the global mutex by lifting the call to userType
+    out of the closure.
+    TOTH to Matt Harden.
     
-    Popular tools both add incorrect trailing zeroes to the zip
-    extras, and popular tools accept trailing zeros. We seemed to
-    be the only ones being strict here. Stop being strict. :(
-    
-    Fixes #8186
-    
-    LGTM=ruiu, adg, dave
-    R=adg, ruiu, dave
-    CC=frohrweck, golang-codereviews
-    https://golang.org/cl/117550044
+    LGTM=crawshaw, ruiu
+    R=golang-codereviews, crawshaw, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/117520043
 
- src/pkg/archive/zip/reader.go      |  9 +++++++--
- src/pkg/archive/zip/reader_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ src/pkg/encoding/gob/decode.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

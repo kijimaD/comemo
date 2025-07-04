@@ -1,25 +1,15 @@
-commit 9dde2de454b78e681dd7318dbf3ef68d6a3df2d1
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 5 11:19:51 2022 -0800
+commit 1fe8f47cc39aec39fca3e6f367a7c1c7b254014f
+Author: pierwill <pierwill@users.noreply.github.com>
+Date:   Thu Feb 3 15:44:53 2022 +0000
 
-    cmd/asm: improve assembler error messages
+    cmd/compile: correct doc comment name for OrderedOrEqual
     
-    Provide file/line numbers for errors when we have them.
-    Make the assembler error text closer to the equivalent errors from the compiler.
-    
-    Abort further processing when we come across errors.
-    Fixes #53994
-    
-    Change-Id: I4d6a037d6d713c1329923fce4c1189b5609f3660
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455276
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9ac2565f8d39a30c5f10d924a934441b30e12e98
+    GitHub-Last-Rev: 6943ac4ac52c29023da59965e5b2dcc5cb7b0b9a
+    GitHub-Pull-Request: golang/go#50983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382459
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/asm.go              |  2 +-
- src/cmd/asm/internal/asm/endtoend_test.go    |  4 ++++
- src/cmd/asm/internal/asm/testdata/duperror.s | 14 ++++++++++++++
- src/cmd/internal/obj/plist.go                | 16 +++++++++++-----
- 4 files changed, 30 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/poset.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

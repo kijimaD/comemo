@@ -1,18 +1,14 @@
-commit 1de0dcfc7b50a2e74e572374d3bbbf3d12d7ff4f
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sun Jun 10 12:27:47 2018 +0300
+commit 15b0d1376a4dba84e387e092ec0c8f576cdf8e8d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 27 11:53:35 2018 -0800
 
-    cmd/compile: fix wording in README
+    cmd/compile: clean up comments
     
-    "Syntax analysis" sounds more familiar and fits the
-    item before, which says "lexical analysis".
-    If there was specific intention to the original wording,
-    I, as a reader, would like to see it instead of this
-    confusing wording.
+    Follow-up to CL 94256.
     
-    Change-Id: Id32dbf75300a86b21cb9f35e54526184fe5df6cb
-    Reviewed-on: https://go-review.googlesource.com/117696
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I61c450dee5975492192453738f734f772e95c1a5
+    Reviewed-on: https://go-review.googlesource.com/97515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/config.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

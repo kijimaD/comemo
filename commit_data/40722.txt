@@ -1,22 +1,20 @@
-commit 4d4ddd862d26766711d24b91d92cbc4ee2f8b648
-Author: jsign <jsign.uy@gmail.com>
-Date:   Sat Nov 9 14:41:09 2019 +0000
+commit 3f1422c799edb143303c86c0e875d44c3612df64
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 20 09:02:05 2019 -0400
 
-    cmd/go: make env -w and -u validate GOOS and GOARCH values
+    cmd/link: revise previous __DWARF segment protection fix
     
-    This change makes go env -w and -u check invalid GOOS and GOARCH values and abort if that's the case.
+    Tweak the previous fix for issue 32673 (in CL 182958) to work around
+    problems with c-shared build mode that crop up on some of the builders
+    (10.11, 10.12).  We now consistently set vmaddr and vmsize to zero
+    for the DWARF segment regardless of build mode.
     
-    Fixes #34194
+    Updates #32673
     
-    Change-Id: Idca8e93bb0b190fd273bf786c925be7993c24a2b
-    GitHub-Last-Rev: ee67f09d75f4552001cb8b6506bc4af0894c9b05
-    GitHub-Pull-Request: golang/go#34221
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194617
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id1fc213590ad00c28352925e2d754d760e022b5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183237
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/envcmd/env.go        | 43 ++++++++++++++++++++++++++++++++
- src/cmd/go/internal/work/action.go       | 12 +++++++--
- src/cmd/go/testdata/script/env_write.txt | 21 ++++++++++++++++
- 3 files changed, 74 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 34 +++++++++++++------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

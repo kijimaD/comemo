@@ -1,29 +1,36 @@
-commit 60b12532932fe40a8d756619474a00f820faacc8
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Oct 29 19:05:56 2020 -0400
+commit 80ced393965eb74382c4df63e74461f0bf144c55
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 16:22:37 2020 -0700
 
-    cmd/go: pass in overlaid file paths to C compiler
+    cmd/compile: add more non-ID comparisons to schedule
     
-    This change moves the code in work.(*Builder).cgo that, when there is
-    an overlay, copies non-Go files to objdir into work.(*Builder).Build,
-    and creates an overlay structure mapping from the nominal file paths
-    into the copies in objdir. That's propagated through to
-    work.(*Builder).ccompile, which will use it to pass in the path to the
-    overlaid contents in objdir when calling the compiler.
+    These comparisons are fairly arbitrary,
+    but they should be more stable in the face
+    of other compiler changes than value ID.
     
-    This allows for overlays of C/C++/Fortran files.
+    This reduces the number of value ID
+    comparisons in schedule while running
+    make.bash from 542,442 to 99,703.
     
-    For #39958
+    There are lots of changes to generated code
+    from this change, but they appear to
+    be overall neutral.
     
-    Change-Id: I9a2e3d3ba6afdf7ce19be1dbf4eee34805cdc05f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266376
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    It is possible to further reduce the
+    number of comparisons in schedule;
+    I have changes locally that reduce the
+    number to about 25,000 during make.bash.
+    However, the changes are increasingly
+    complex and arcane, and reduce in much less
+    code churn. Given that the goal is stability,
+    that suggests that this is a reasonable
+    place to stop, at least for now.
+    
+    Change-Id: Ie3a75f84fd3f3fdb102fcd0b29299950ea66b827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229799
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/action.go           | 11 ++---
- src/cmd/go/internal/work/exec.go             | 65 ++++++++++++++--------------
- src/cmd/go/testdata/script/build_overlay.txt | 15 +++++--
- 3 files changed, 51 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

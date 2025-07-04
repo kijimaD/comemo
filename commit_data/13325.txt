@@ -1,15 +1,12 @@
-commit 014d036d84494f6613174ebe1bf118469a216b52
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 8 13:00:49 2012 -0700
+commit 56f5e6d845fe201cbd58351b610be55ab44c8c1c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 8 14:04:44 2012 -0400
 
-    math/big: added nat.trailingZeroBits, simplified some code
+    syscall: fix windows build
     
-    Will simplify implementation of binaryGCD.
-    
-    R=rsc, cswenson
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6299064
+    https://golang.org/cl/6303061
 
- src/pkg/math/big/nat.go      | 58 +++++++++++++++++++-------------------------
- src/pkg/math/big/nat_test.go | 19 +++++++++++----
- 2 files changed, 39 insertions(+), 38 deletions(-)
+ src/pkg/syscall/syscall_windows_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

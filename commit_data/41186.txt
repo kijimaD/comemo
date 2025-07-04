@@ -1,15 +1,31 @@
-commit 1319bb959c17b8e6c7b44b26c61e8f02850d9c46
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Jan 22 12:20:02 2020 +0000
+commit 8875fb97c5cadbc6f02e4ce89efa586023c0a777
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 10 16:06:12 2019 -0400
 
-    doc: add the change to json.Compact in the 1.14 changelog
+    cmd/go: strip trailing slash from versioned arguments
     
-    Fixes #36690.
+    'go get' accepts arguments of the form path@version, and it passes
+    them through search.CleanPatterns before querying proxies. With this
+    change, CleanPatterns preserves text after '@' and will strip trailing
+    slashes from the patn.
     
-    Change-Id: Id4234ab9467270d51f0411375b71ece7f41269b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215817
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Previously, we did not strip trailing slashes when a version was
+    present, which caused proxy base URL validation to fail. Module paths
+    that end with ".go" (for example, github.com/nats-io/nats.go) use
+    trailing slashes to prevent 'go build' and other commands from
+    interpreting packages as source file names, so this caused unnecessary
+    problems for them.
+    
+    Updates #32483
+    
+    Change-Id: Id3730c52089e52f1cac446617c20132a3021a808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194600
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.14.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/internal/modget/get.go                  |  9 ++++++
+ src/cmd/go/internal/search/search.go               | 26 ++++++++++++------
+ .../testdata/mod/example.com_dotgo.go_v1.0.0.txt   | 16 +++++++++++
+ .../go/testdata/script/mod_get_trailing_slash.txt  | 32 ++++++++++++++++++++++
+ 4 files changed, 75 insertions(+), 8 deletions(-)

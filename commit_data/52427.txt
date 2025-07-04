@@ -1,35 +1,19 @@
-commit abf9b112fd12e05da2d064554d51d140c2871741
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 22 11:59:39 2023 -0700
+commit 884530b374501b997422d08833c2a21966bd1069
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sun May 1 00:11:13 2022 +0800
 
-    go/types, types2: more systematic use of Checker.use und useLHS
+    cmd/compile: mark shape type dupok
     
-    This CL re-introduces useLHS because we don't want to suppress
-    correct "declared but not used" errors for variables that only
-    appear on the LHS of an assignment (using Checker.use would mark
-    them as used).
+    Fixes #52633
     
-    This CL also adjusts a couple of places where types2 differed
-    from go/types (and suppressed valid "declared and not used"
-    errors). Now those errors are surfaced. Adjusted a handful of
-    tests accordingly.
-    
-    Change-Id: Ia555139a05049887aeeec9e5221b1f41432c1a57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478635
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I3f19804cd7c00cee7e365062402c264d84b596c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403316
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
 
- src/cmd/compile/internal/types2/assignments.go | 30 ++----------
- src/cmd/compile/internal/types2/call.go        | 68 +++++++++++++++++++-------
- src/go/types/assignments.go                    |  6 +--
- src/go/types/call.go                           | 60 +++++++++++++++++------
- test/fixedbugs/bug062.go                       |  2 +-
- test/fixedbugs/bug131.go                       |  2 +-
- test/fixedbugs/bug289.go                       |  2 +
- test/fixedbugs/issue48471.go                   |  2 +-
- test/fixedbugs/issue9083.go                    |  1 +
- test/interface/pointer.go                      |  4 +-
- 10 files changed, 111 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

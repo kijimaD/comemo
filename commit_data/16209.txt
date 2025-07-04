@@ -1,14 +1,12 @@
-commit 994c486aa93a443a6cd32a4caa0884b2129392d5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 22 16:57:23 2013 +0200
+commit c546e9d2c22f8d6149bc8050a94eb0a22153d3e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 20 17:20:58 2013 -0700
 
-    doc: fix typo in Effective Go
+    api: update next.txt; add io.ErrNoProgress
     
-    Fixes #5329.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8897044
+    https://golang.org/cl/8887043
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next.txt | 1 +
+ 1 file changed, 1 insertion(+)

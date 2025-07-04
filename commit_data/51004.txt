@@ -1,23 +1,15 @@
-commit 3afba3124df90f1b2f56d3324793f16649a2d93a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 12:53:30 2022 -0400
+commit a3b8f627c258f34325d2284ce636f8d4fb103331
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 20 14:35:02 2021 -0800
 
-    all: remove uses of rand.Seed
+    spec: add section on instantiation
     
-    As of CL 443058, rand.Seed is not necessary to call,
-    nor is it a particular good idea.
-    
-    For #54880.
-    
-    Change-Id: If9d70763622c09008599db8c97a90fcbe285c6f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445395
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2770da87b4c977b51dfa046f2f08283917675e1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365916
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go |  9 ---------
- src/crypto/rand/rand_batched_test.go    |  5 -----
- src/math/rand/example_test.go           | 24 ------------------------
- src/strconv/atof_test.go                |  2 --
- 4 files changed, 40 deletions(-)
+ doc/go_spec.html | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 88 insertions(+), 2 deletions(-)

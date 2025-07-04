@@ -1,19 +1,36 @@
-commit f797e485e0acde9d2c5b458b61070985f4a3222d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Sep 11 07:51:57 2017 +0900
+commit 67e47124fc5a3ab80dd95dfdb980b6e24eb15467
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Mon May 1 17:28:33 2017 -0400
 
-    cmd/link: don't generate runtime.text twice for buildmode=plugin on darwin
+    go/build: return partial information on Import error, for local import paths
     
-    https://golang.org/cl/29394 changed to include runtime.text and
-    runtime.etext in ctxt.Textp as a work around.
-    But it seems that the CL forgot to change genasmsym.
-    As a result, we are generating runtime.text and runtime.etext twice.
+    Documentation of build.Import says:
     
-    Change-Id: If7f8faf496c1c489ffa4804da712f91a3d3f4be4
-    Reviewed-on: https://go-review.googlesource.com/62810
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+            // If the path is a local import path naming a package that can be imported
+            // using a standard import path, the returned package will set p.ImportPath
+            // to that path.
+            // ...
+            // If an error occurs, Import returns a non-nil error and a non-nil
+            // *Package containing partial information.
+    
+    That behavior was previously untested, and broken by change in CL 33158.
+    
+    Fix that by avoiding returning early on error for local import paths.
+    First, gather partial information, and only then check that the p.Dir
+    directory exists.
+    
+    Add tests for this behavior.
+    
+    Fixes #19769.
+    Fixes #20175 (duplicate of #19769).
+    Updates #17863.
+    
+    Change-Id: I169cb35291099d05e02aaa3cb23a7403d1cc3657
+    Reviewed-on: https://go-review.googlesource.com/42350
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/go/build/build.go      | 15 +++++++++++----
+ src/go/build/build_test.go | 12 +++++++++++-
+ 2 files changed, 22 insertions(+), 5 deletions(-)

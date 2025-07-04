@@ -1,26 +1,19 @@
-commit c9d2c7f0d26a9619069a3cb2291333174b6db63f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 10:54:53 2015 -0400
+commit 626188dd314c26746ad5525721875ac72ee49c9e
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Jun 18 14:28:54 2015 +0200
 
-    runtime: replace divide with multiply in runtime.usleep on arm
+    net/textproto: skip zero-length keys
     
-    We want to adjust the DIV calling convention to use m,
-    and usleep can be called without an m, so switch to a
-    multiplication by the reciprocal (and test).
+    A header of ": value" results in an empty key. Do not add
+    it to the headers, because RFC7230 (section 3.2) says that
+    field-names are tokens, which are one or more characters.
     
-    Step toward a fix for #6699 and #10486.
+    Fixes #11205.
     
-    Change-Id: Iccf76a18432d835e48ec64a2fa34a0e4d6d4b955
-    Reviewed-on: https://go-review.googlesource.com/12898
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I883be89da1489dc84f98523786b019d1d0169d46
+    Reviewed-on: https://go-review.googlesource.com/11242
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_arm.s          | 21 +++++++++++++++++++++
- src/runtime/export_arm_test.go |  9 +++++++++
- src/runtime/sys_arm.go         |  3 +++
- src/runtime/sys_darwin_arm.s   |  5 +----
- src/runtime/sys_freebsd_arm.s  |  7 ++-----
- src/runtime/sys_linux_arm.s    |  5 +----
- src/runtime/sys_netbsd_arm.s   |  7 ++-----
- src/runtime/sys_openbsd_arm.s  |  7 ++-----
- src/runtime/vlop_arm_test.go   | 16 +++++++++++++++-
- 9 files changed, 56 insertions(+), 24 deletions(-)
+ src/net/textproto/reader.go      | 7 +++++++
+ src/net/textproto/reader_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+)

@@ -1,23 +1,27 @@
-commit 8f7df2256e271c8d8d170791c6cd90ba9cc69f5e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 19 11:23:59 2024 +0100
+commit 22f9317f205efc0c86ec5107a19a53150d02e439
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Wed Mar 22 13:56:38 2023 +0800
 
-    internal/asan: match runtime.asan{read,write} len parameter type
+    cmd/internal/obj/loong64: assemble BEQ/BNEs comparing with 0 as beqz/bnez
     
-    The len parameter runtime.asan{read,write} is of type uintptr. Match its
-    type in Read and Write.
+    LoongArch (except for the extremely reduced LA32 Primary subset) has
+    dedicated beqz/bnez instructions as alternative encodings for beq/bne
+    with one of the source registers being R0, that allow the offset field
+    to occupy 5 more bits, giving 21 bits in total (equal to the FP
+    branches). Make use of them instead of beq/bne if one source operand is
+    omitted in asm, or if one of the registers being compared is R0.
     
-    For #64611
+    Multiple go1 benchmark runs indicate the change is not perf-sensitive.
     
-    Change-Id: I0be278c38a357e600521ced87c0e23038a11e8a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572755
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If6267623c82092e81d75578091fb4e013658b9f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478377
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
 
- src/internal/asan/asan.go      | 4 ++--
- src/internal/asan/noasan.go    | 6 ++----
- src/syscall/syscall_unix.go    | 8 ++++----
- src/syscall/syscall_windows.go | 4 ++--
- 4 files changed, 10 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 ++++-
+ src/cmd/internal/obj/loong64/asm.go             | 39 ++++++++++++++++++-------
+ 2 files changed, 36 insertions(+), 11 deletions(-)

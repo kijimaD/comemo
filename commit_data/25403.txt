@@ -1,12 +1,14 @@
-commit e2093cdeef8dcf0303ce3d8e79247c71ed53507d
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Sun Jan 3 21:34:49 2016 +0100
+commit 00f42437fdc68684f36412243adc1c1458369f0e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Oct 27 16:30:32 2015 +1300
 
-    doc: fix typo in install-source.html.
+    cmd/internal/obj/x86: remove REGTMP
     
-    Change-Id: I6ea7339ff9412111319e46f2962c6b3880987a1e
-    Reviewed-on: https://go-review.googlesource.com/18174
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Nothing uses this.
+    
+    Change-Id: Ibc13066940bd2ea5c74d955a67f9dc531bef2758
+    Reviewed-on: https://go-review.googlesource.com/16344
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install-source.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/a.out.go | 1 -
+ 1 file changed, 1 deletion(-)

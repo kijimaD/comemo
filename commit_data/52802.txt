@@ -1,24 +1,31 @@
-commit 635839a17aeb086b3e1eeba73973aac6ccdb8df2
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 20 08:55:12 2023 -0700
+commit 06261062e9a1875338b04aaea3b6335d73b513a7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 5 18:47:23 2022 -0400
 
-    cmd/compile: constant-fold loads from constant dictionaries and types
+    cmd/go: add functions to read index file
     
-    Update #59591
+    The data read is used for three primary functions: ImportPackage,
+    IsDirWithGoFiles and ScanDir. Functions are also provided to get this
+    information from the intermediate package representation to cache
+    the information from reads for non-indexed packages.
     
-    Change-Id: Id250a7779c5b53776fff73f3e678fec54d92a8e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486895
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I5eed629bb0d6ee5b88ab706d06b074475004c081
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403975
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/reader.go        |   2 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
- src/cmd/compile/internal/ssa/_gen/generic.rules |  27 +-
- src/cmd/compile/internal/ssa/rewrite.go         |  91 ++++--
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 357 ++++++++++++++++++++++--
- src/cmd/internal/obj/link.go                    |  18 +-
- 6 files changed, 453 insertions(+), 55 deletions(-)
+ src/cmd/go/internal/cache/cache.go               |  19 +
+ src/cmd/go/internal/imports/build.go             |  10 +
+ src/cmd/go/internal/mmap/mmap.go                 |  31 +
+ src/cmd/go/internal/mmap/mmap_other.go           |  21 +
+ src/cmd/go/internal/mmap/mmap_unix.go            |  36 +
+ src/cmd/go/internal/mmap/mmap_windows.go         |  41 ++
+ src/cmd/go/internal/modindex/read.go             | 820 +++++++++++++++++++++++
+ src/cmd/go/internal/modindex/scan.go             |  41 +-
+ src/cmd/go/internal/modindex/write.go            |   7 +-
+ src/internal/syscall/windows/memory_windows.go   |  16 +
+ src/internal/syscall/windows/syscall_windows.go  |   1 +
+ src/internal/syscall/windows/zsyscall_windows.go |   9 +
+ 12 files changed, 1039 insertions(+), 13 deletions(-)

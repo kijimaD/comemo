@@ -1,27 +1,16 @@
-commit 81d3c25c6cf39a76b17ab4eda97e8ad7b92a21e9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 15 23:07:41 2022 -0700
+commit 048cb4ceee652e358d84fbca260fc93d7a0dfbe3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 10 09:59:07 2021 -0700
 
-    cmd/compile: remove unused code from typecheckdef
+    crypto/x509: remove duplicate import
     
-    typecheckdef used to be used to handle references to package-level
-    declarations that hadn't yet been typechecked yet. It's no longer
-    needed, as the current IR frontends construct package-level
-    declarations with proper types upfront.
-    
-    Exception: this code is still used for compiler-generated function
-    declarations, so that code needs to be kept. Eventually that code can
-    be moved elsewhere, but for now this CL makes it obvious that the rest
-    of the code paths really are unused.
-    
-    Updates #51691.
-    
-    Change-Id: I5322edb686aaf5dc4627288f3d9ba910a017b41d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393256
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I86742ae7aa4ff49a38f8e3bc1d64fb223feae73e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318409
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 156 +-----------------------
- 1 file changed, 6 insertions(+), 150 deletions(-)
+ src/crypto/x509/parser.go | 115 +++++++++++++++++++++++-----------------------
+ 1 file changed, 57 insertions(+), 58 deletions(-)

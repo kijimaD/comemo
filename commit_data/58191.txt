@@ -1,19 +1,16 @@
-commit cf5ec0720f5b0996d4e2b429cdf82e7872593e1b
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Oct 9 16:44:17 2024 -0400
+commit 53d000d75b32bed4b7ee18afe169cb93217cb257
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Oct 9 23:56:48 2023 +0200
 
-    cmd/compile: remove types.Compare map bucket special cases
+    testing/fstest: add godoc links
     
-    runtime.hmap never directly refers to the bucket type (it uses an
-    unsafe.Pointer), thus it shouldn't be possible to have infinite
-    recursion here.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-linux-amd64-longtest-aliastypeparams
-    Change-Id: I457885e48bbc352acedae1c0c389078f39ed9d65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619037
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I611f04f12bb93197fea5ae40a08e5f60426f1c00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534076
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types/type.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/testing/fstest/mapfs.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

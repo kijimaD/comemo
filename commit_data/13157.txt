@@ -1,20 +1,18 @@
-commit 2b98401a83465214d0ca5f2d52ea9d890ec6fc81
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 24 14:10:54 2012 -0700
+commit ce69666273bab23b5b4597acb4dbd1c18aba7270
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 24 14:50:36 2012 -0400
 
-    archive/tar: add FileInfoHeader function
+    exp/locale/collate: avoid 16-bit math
     
-    Fixes #3295
+    There's no need for the 16-bit arithmetic here,
+    and it tickles a long-standing compiler bug.
+    Fix the exp code not to use 16-bit math and
+    create an explicit test for the compiler bug.
     
-    R=adg, rsc, mike.rosset
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5796073
+    https://golang.org/cl/6256048
 
- api/next.txt                          |  1 +
- src/pkg/archive/tar/common.go         | 63 ++++++++++++++++++++++++++++++++++-
- src/pkg/archive/tar/stat_atim.go      | 20 +++++++++++
- src/pkg/archive/tar/stat_atimespec.go | 20 +++++++++++
- src/pkg/archive/tar/stat_unix.go      | 32 ++++++++++++++++++
- src/pkg/archive/tar/tar_test.go       | 56 +++++++++++++++++++++++++++++++
- src/pkg/go/build/deps_test.go         |  2 +-
- 7 files changed, 192 insertions(+), 2 deletions(-)
+ src/pkg/exp/locale/collate/colelem.go |  2 +-
+ test/bugs/bug440.go                   | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

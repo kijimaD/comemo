@@ -1,21 +1,14 @@
-commit 1dcf658f6dbc6b09ead3fb7561cd1832d9a697a1
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Dec 20 23:27:28 2012 +0100
+commit 2874cc4eedf1e152f8327c1d93fb5d6a6a973a15
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 21 07:03:00 2012 +1100
 
-    cmd/gc: remove an incorrect assertion in escape analysis.
+    cmd/godoc: redirect for file with trailing /
     
-    A fatal error used to happen when escassign-ing a multiple
-    function return to a single node. However, the situation
-    naturally appears when using "go f(g())" or "defer f(g())",
-    because g() is escassign-ed to sink.
+    Fixes #4543.
     
-    Fixes #4529.
-    
-    R=golang-dev, lvd, minux.ma, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6920060
+    https://golang.org/cl/6971050
 
- src/cmd/gc/esc.c            |   8 +--
- test/escape2.go             | 117 +++++++++++++++++++++++++-------------------
- test/fixedbugs/issue4529.go |  33 +++++++++++++
- 3 files changed, 104 insertions(+), 54 deletions(-)
+ src/cmd/godoc/godoc.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

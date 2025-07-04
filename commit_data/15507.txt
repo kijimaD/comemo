@@ -1,12 +1,51 @@
-commit 72b09bd7aefa1602a9c14c9006442d696d962def
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 1 00:41:45 2013 +0200
+commit 5bffa3b88e0d84e45139a891f25169399bfe10cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 28 13:54:23 2013 -0800
 
-    runtime: add matrix multiplication benchmark
+    runtime/cgo: move common symbol overrides into 6c-compiled code
     
-    R=golang-dev, r
+    There are some function pointers declared by 6c in
+    package runtime without initialization and then also
+    declared in package runtime/cgo with initialization,
+    so that if runtime/cgo is linked in, the function pointers
+    are non-nil, and otherwise they are nil. We depend on
+    this property for implementing non-essential cgo hooks
+    in package runtime.
+    
+    The declarations in package runtime are 6c-compiled
+    and end up in .6 files. The declarations in package runtime/cgo
+    are gcc-compiled and end up in .o files. Since 6l links the .6
+    and .o files together, this all works.
+    
+    However, when we switch to "external linking" mode,
+    6l will not see the .o files, and it would be up to the host linker
+    to resolve the two into a single initialized symbol.
+    Not all host linkers will do this (in particular OS X gcc will not).
+    
+    To fix this, move the cgo declarations into 6c-compiled code,
+    so that they end up in .6 files, so that 6l gets them no matter what.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7431047
+    https://golang.org/cl/7440045
 
- src/pkg/runtime/proc_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 65 insertions(+)
+ src/pkg/runtime/cgo/callbacks.c         | 16 ++++++++++++++++
+ src/pkg/runtime/cgo/gcc_darwin_386.c    |  1 -
+ src/pkg/runtime/cgo/gcc_darwin_amd64.c  |  1 -
+ src/pkg/runtime/cgo/gcc_freebsd_386.c   |  1 -
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c |  1 -
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c   |  5 -----
+ src/pkg/runtime/cgo/gcc_linux_386.c     |  1 -
+ src/pkg/runtime/cgo/gcc_linux_amd64.c   |  1 -
+ src/pkg/runtime/cgo/gcc_linux_arm.c     |  5 -----
+ src/pkg/runtime/cgo/gcc_netbsd_386.c    |  1 -
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c  |  1 -
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c    |  5 -----
+ src/pkg/runtime/cgo/gcc_openbsd_386.c   |  1 -
+ src/pkg/runtime/cgo/gcc_openbsd_amd64.c |  1 -
+ src/pkg/runtime/cgo/gcc_setenv.c        |  4 +---
+ src/pkg/runtime/cgo/gcc_util.c          |  6 ------
+ src/pkg/runtime/cgo/gcc_windows_386.c   |  1 -
+ src/pkg/runtime/cgo/gcc_windows_amd64.c |  1 -
+ src/pkg/runtime/cgo/setenv.c            | 10 ++++++++++
+ 19 files changed, 27 insertions(+), 36 deletions(-)

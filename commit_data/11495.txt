@@ -1,23 +1,14 @@
-commit 00e9a54dad85724961dce513efbc835fd8365d5e
+commit 38e37011fc739487b551dff7f1f6dab5e7abcde5
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 23:42:41 2012 -0500
+Date:   Mon Jan 30 23:33:16 2012 -0500
 
-    go: improvements
+    build: force numerical comparison in version.bash
     
-    Add 'go clean'.
-    Make 'go build' write to pkgname, not a.out.
-    Make 'go test -c' write to pkgname.test, not test.out.
-    Make 'go install' write alternate binaries to .../bin/goos_goarch/.
+    Fixes #2436.
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5600048
+    https://golang.org/cl/5576075
 
- src/cmd/go/build.go    |  41 ++++++-----
- src/cmd/go/clean.go    | 195 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/doc.go      |  80 +++++++++++++++++---
- src/cmd/go/main.go     |   1 +
- src/cmd/go/pkg.go      |   8 ++
- src/cmd/go/test.go     |  26 +++++--
- src/cmd/go/testflag.go |   2 +-
- 7 files changed, 316 insertions(+), 37 deletions(-)
+ src/version.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

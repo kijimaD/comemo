@@ -1,73 +1,41 @@
-commit 8871c930bead174b942ce934677054f8958d0631
+commit 3675bff55d7c8ed0110423b0ca8ed8f529c58def
 Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 2 16:08:09 2018 -0400
+Date:   Fri Dec 8 17:12:41 2017 -0500
 
-    cmd/compile: don't lower OpConvert
+    runtime: mark heapBits.bits nosplit
     
-    Currently, each architecture lowers OpConvert to an arch-specific
-    OpXXXconvert. This is silly because OpConvert means the same thing on
-    all architectures and is logically a no-op that exists only to keep
-    track of conversions to and from unsafe.Pointer. Furthermore, lowering
-    it makes it harder to recognize in other analyses, particularly
-    liveness analysis.
+    heapBits.bits is used during bulkBarrierPreWrite via
+    heapBits.isPointer, which means it must not be preempted. If it is
+    preempted, several bad things can happen:
     
-    This CL eliminates the lowering of OpConvert, leaving it as the
-    generic op until code generation time.
+    1. This could allow a GC phase change, and the resulting shear between
+    the barriers and the memory writes could result in a lost pointer.
     
-    The main complexity here is that we still need to register-allocate
-    OpConvert operations. Currently, each arch's lowered OpConvert
-    specifies all GP registers in its register mask. Ideally, OpConvert
-    wouldn't affect value homing at all, and we could just copy the home
-    of OpConvert's source, but this can potentially home an OpConvert in a
-    LocalSlot, which neither regalloc nor stackalloc expect. Rather than
-    try to disentangle this assumption from regalloc and stackalloc, we
-    continue to register-allocate OpConvert, but teach regalloc that
-    OpConvert can be allocated to any allocatable GP register.
+    2. Since bulkBarrierPreWrite uses the P's local write barrier buffer,
+    if it also migrates to a different P, it could try to append to the
+    write barrier buffer concurrently with another write barrier. This can
+    result in the buffer's next pointer skipping over its end pointer,
+    which results in a buffer overflow that can corrupt arbitrary other
+    fields in the Ps (or anything in the heap, really, but it'll probably
+    crash from the corrupted P quickly).
     
-    For #24543.
+    Fix this by marking heapBits.bits go:nosplit. This would be the
+    perfect use for a recursive no-preempt annotation (#21314).
     
-    Change-Id: I795a6aee5fd94d4444a7bafac3838a400c9f7bb6
-    Reviewed-on: https://go-review.googlesource.com/108496
+    This doesn't actually affect any binaries because this function was
+    always inlined anyway. (I discovered it when I was modifying heapBits
+    and make h.bits() no longer inline, which led to rampant crashes from
+    problem 2 above.)
+    
+    Updates #22987 and #22988 (but doesn't fix because it doesn't actually
+    change the generated code).
+    
+    Change-Id: I60ebb928b1233b0613361ac3d0558d7b1cb65610
+    Reviewed-on: https://go-review.googlesource.com/83015
     Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go          |   4 -
- src/cmd/compile/internal/arm/ssa.go            |   2 +-
- src/cmd/compile/internal/arm64/ssa.go          |   2 +-
- src/cmd/compile/internal/gc/ssa.go             |   5 +
- src/cmd/compile/internal/mips/ssa.go           |   2 +-
- src/cmd/compile/internal/mips64/ssa.go         |   2 +-
- src/cmd/compile/internal/ppc64/ssa.go          |   2 +-
- src/cmd/compile/internal/s390x/ssa.go          |   2 +-
- src/cmd/compile/internal/ssa/gen/386.rules     |   1 -
- src/cmd/compile/internal/ssa/gen/386Ops.go     |   7 --
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 -
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   8 --
- src/cmd/compile/internal/ssa/gen/ARM.rules     |   1 -
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   1 -
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   7 --
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |   7 --
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |   1 -
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   1 -
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   7 --
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   7 --
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |   1 -
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   3 -
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   1 -
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |   7 --
- src/cmd/compile/internal/ssa/gen/genericOps.go |   5 +-
- src/cmd/compile/internal/ssa/gen/main.go       |   6 +-
- src/cmd/compile/internal/ssa/lower.go          |   2 +-
- src/cmd/compile/internal/ssa/opGen.go          | 140 +------------------------
- src/cmd/compile/internal/ssa/regalloc.go       |  24 ++++-
- src/cmd/compile/internal/ssa/rewrite386.go     |  18 ----
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |  43 --------
- src/cmd/compile/internal/ssa/rewriteARM.go     |  16 ---
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  16 ---
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |  16 ---
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  16 ---
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  18 ----
- src/cmd/compile/internal/ssa/rewriteS390X.go   |  18 ----
- src/cmd/compile/internal/x86/ssa.go            |   4 -
- 38 files changed, 44 insertions(+), 381 deletions(-)
+ src/runtime/mbitmap.go | 3 +++
+ 1 file changed, 3 insertions(+)

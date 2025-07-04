@@ -1,23 +1,17 @@
-commit 1705962cf976a001bb9929146e5690a957ed630e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Sep 9 14:21:25 2018 +1000
+commit 670cb7603a02f4955d2b53176f9114a13b778062
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 09:38:56 2018 -0400
 
-    internal/poll: handle zero-byte write in FD.WriteTo
+    cmd/go: remove import path debugging hooks
     
-    Zero-byte write was fixed by CL 132781, that was submitted 3 days ago.
-    But I just submitted CL 129137, and the CL broken zero-byte write
-    functionality without me noticing. CL 129137 was based on old commit
-    (older than 3 days ago), and try-bots did not discover the breakage.
+    These are no longer needed.
     
-    Fix zero-byte write again.
-    
-    Fixes windows build.
-    
-    Change-Id: Ib403b25fd25cb881963f25706eecca92b924aaa1
-    Reviewed-on: https://go-review.googlesource.com/134275
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie42a84f2bd24d2f59324bb66551c46e6af60c302
+    Reviewed-on: https://go-review.googlesource.com/109339
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/poll/fd_windows.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/internal/load/icfg.go  | 78 ---------------------------------------
+ src/cmd/go/internal/load/pkg.go   | 36 ++++--------------
+ src/cmd/go/internal/work/build.go |  1 -
+ 3 files changed, 7 insertions(+), 108 deletions(-)

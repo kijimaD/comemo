@@ -1,14 +1,16 @@
-commit bce795fb1f89df27241745a90b795b758cdda5af
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Aug 28 14:57:47 2017 +0900
+commit 37c2d6b277e6bd305115fbd69d99555cc7a053c4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 30 15:51:55 2017 +1000
 
-    cmd/link: unexport Elfadddynsym
+    os: skip TestNetworkSymbolicLink if Server service is not started
     
-    Change-Id: Ifc66bd8c32e788f35da3bd105bcdcfd04bd3dabc
-    Reviewed-on: https://go-review.googlesource.com/59414
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #20179
+    
+    Change-Id: I2b405c9a212a75aae628ad51885616d33c054191
+    Reviewed-on: https://go-review.googlesource.com/42190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 2 +-
- src/cmd/link/internal/ld/go.go  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/os/os_windows_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

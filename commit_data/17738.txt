@@ -1,15 +1,45 @@
-commit c4579635cf6aafdb5db231058dd0aedee14fe0ee
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 3 10:40:42 2013 -0700
+commit 408238e20bb794d91199c892c68a0989fc924d65
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 3 09:19:10 2013 -0400
 
-    sync/atomic: explain how to subtract an unsigned constant
-    Explain for those unfamiliar with twos-complement arithmetic how to
-    implement negation of signed positive constant.
-    Fixes #6408.
+    runtime: change default stack segment size to 8 kB
     
-    R=golang-dev, rsc
+    Changing from 4 kB to 8 kB brings significant improvement
+    on a variety of the Go 1 benchmarks, on both amd64
+    and 386 systems.
+    
+    Significant runtime reductions:
+    
+              amd64  386
+    GoParse    -14%  -1%
+    GobDecode  -12% -20%
+    GobEncode  -64%  -1%
+    JSONDecode  -9%  -4%
+    JSONEncode -15%  -5%
+    Template   -17% -14%
+    
+    In the longer term, khr's new stacks will avoid needing to
+    make this decision at all, but for Go 1.2 this is a reasonable
+    stopgap that makes performance significantly better.
+    
+    Demand paging should mean that if the second 4 kB is not
+    used, it will not be brought into memory, so the change
+    should not adversely affect resident set size.
+    The same argument could justify bumping as high as 64 kB
+    on 64-bit machines, but there are diminishing returns
+    after 8 kB, and using 8 kB limits the possible unintended
+    memory overheads we are not aware of.
+    
+    Benchmark graphs at
+    http://swtch.com/~rsc/gostackamd64.html
+    http://swtch.com/~rsc/gostack386.html
+    
+    Full data at
+    http://swtch.com/~rsc/gostack.zip
+    
+    R=golang-dev, khr, dave, bradfitz, dvyukov
     CC=golang-dev
-    https://golang.org/cl/14267044
+    https://golang.org/cl/14317043
 
- src/pkg/sync/atomic/doc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/stack.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

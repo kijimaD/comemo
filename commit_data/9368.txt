@@ -1,17 +1,18 @@
-commit e6ae13d35d38a19e9a0031114714a351a0d3e888
+commit 91fadbca17ac7e79bc60684c9f4d64c3892398e1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 15 15:42:27 2011 -0700
+Date:   Mon Aug 15 15:15:54 2011 -0700
 
-    godoc: fix lib/godoc/package.txt template
+    godoc: fix escaping in templates
     
-    - show documentation in text mode; e.g.:
-    http://localhost:7777/cmd/godoc/?f=text
+    - HTML-escape URL paths
+    - URL-escape URL parameters
     
-    - simplify template by using $ variable
-    
-    R=r, adg
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4873045
+    https://golang.org/cl/4890041
 
- lib/godoc/package.txt | 30 +++++++++++-------------------
- 1 file changed, 11 insertions(+), 19 deletions(-)
+ lib/godoc/codewalkdir.html |  7 ++++---
+ lib/godoc/dirlist.html     |  3 ++-
+ lib/godoc/search.html      | 25 +++++++++++++------------
+ src/cmd/godoc/godoc.go     |  2 +-
+ 4 files changed, 20 insertions(+), 17 deletions(-)

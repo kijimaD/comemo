@@ -1,21 +1,16 @@
-commit 6160fa59b6523e781db47eb1ee8f929398f2bb78
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 28 14:10:38 2025 -0400
+commit b1ae67501af6385856fe2d8812c030f34c69e55c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 5 14:56:54 2024 -0800
 
-    runtime: rename updateGOMAXPROCS to updateMaxProcsG
+    doc: fix tense in godebug (s/revert/reverted)
     
-    There are other parts to updating GOMAXPROCS than just the helper
-    goroutine, so make the naming more specific.
-    
-    For #73193.
-    
-    Change-Id: I6a6a636c31ac80c8d76afe90c0bfc29d3086af4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677035
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ida6ed22102a6da36739c7581aeab297fdd7bc9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561715
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/lockrank.go   | 58 +++++++++++++++++++++++------------------------
- src/runtime/mklockrank.go |  4 ++--
- src/runtime/proc.go       | 40 ++++++++++++++++----------------
- 3 files changed, 52 insertions(+), 50 deletions(-)
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

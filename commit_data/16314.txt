@@ -1,22 +1,23 @@
-commit 23ad56311977b4a4bfff78fb5f674616e0272445
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 15 18:35:05 2013 +0400
+commit a1dbfee15b7283a41ae01c482a3862d2148798b8
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 15 10:25:54 2013 -0400
 
-    runtime: transfer whole span from MCentral to MCache
-    Finer-grained transfers were relevant with per-M caches,
-    with per-P caches they are not relevant and harmful for performance.
-    For few small size classes where it makes difference,
-    it's fine to grab the whole span (4K).
+    crypto/tls: ignore empty TLS records.
     
-    benchmark          old ns/op    new ns/op    delta
-    BenchmarkMalloc           42           40   -4.45%
+    OpenSSL can be configured to send empty records in order to randomise
+    the CBC IV. This is an early version of 1/n-1 record splitting (that Go
+    does) and is quite reasonable, but it results in tls.Conn.Read
+    returning (0, nil).
     
-    R=golang-dev, bradfitz
+    This change ignores up to 100 consecutive, empty records to avoid
+    returning (0, nil) to callers.
+    
+    Fixes 5309.
+    
+    R=golang-dev, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9374043
+    https://golang.org/cl/8852044
 
- src/pkg/runtime/malloc.h   |  6 +-----
- src/pkg/runtime/mcache.c   |  5 ++---
- src/pkg/runtime/mcentral.c | 34 ++++++++--------------------------
- src/pkg/runtime/msize.c    | 11 -----------
- 4 files changed, 11 insertions(+), 45 deletions(-)
+ src/pkg/crypto/tls/conn.go                  |  35 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 594 ++++++++++++++++++++++++++++
+ 2 files changed, 617 insertions(+), 12 deletions(-)

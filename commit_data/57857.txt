@@ -1,20 +1,19 @@
-commit 378c48e6c7c9f62c80b4d627302fda978ece2a1d
-Author: khr@golang.org <khr@golang.org>
-Date:   Thu Oct 31 10:10:08 2024 -0700
+commit 584d646559eb6c5942410f2ba2d2806f2627c2a2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 28 12:41:02 2023 +0000
 
-    internal/runtime/maps: use matchEmptyOrDeleted instead of matchEmpty
+    encoding/gob: fix typo in comment for decAlloc
     
-    It's a bit more efficient.
-    
-    Change-Id: If813a597516c41fdac6f60e586641d0ee1cde025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623818
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I89c607ee40358d6d650ba0ea1f05ce7d1df698bd
+    GitHub-Last-Rev: e78a37118009dbd9468a0f656ad66b989f7c5ada
+    GitHub-Pull-Request: golang/go#62319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523376
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/runtime/maps/map.go                   |  7 ++++---
- src/internal/runtime/maps/runtime_fast32_swiss.go  |  7 ++++---
- src/internal/runtime/maps/runtime_fast64_swiss.go  | 14 ++++++++------
- src/internal/runtime/maps/runtime_faststr_swiss.go |  7 ++++---
- src/internal/runtime/maps/table.go                 |  8 ++++----
- 5 files changed, 24 insertions(+), 19 deletions(-)
+ src/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,23 +1,19 @@
-commit 839b28246f7ec04b6d5a8d747a84d6c8bb1c33ef
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Aug 17 08:16:57 2017 -0700
+commit 9d36163c0b35ddd384534f850fb04170e0d0c7c4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 21 11:45:44 2017 -0400
 
-    time: add leap year test for Date
+    runtime: consistently use atomic loads for heap_live
     
-    I'm writing a matching implementation of the time package and missed
-    the "add one day in a leap year" block. This test would have caught my
-    error.
+    heap_live is updated atomically without locking, so we should also use
+    atomic loads to read it. Fix the reads of heap_live that happen
+    outside of STW to be atomic.
     
-    I understand we can't add test cases for every Date but it seems like
-    "tripped up someone attempting to reimplement this" is a good
-    indicator it may trip up people in the future.
-    
-    Change-Id: I4c3b51e52e269215ec0e52199afe604482326edb
-    Reviewed-on: https://go-review.googlesource.com/56490
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Change-Id: Idca9451c348168c2a792a9499af349833a3c333f
+    Reviewed-on: https://go-review.googlesource.com/41371
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/time/time_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgc.go    | 10 +++++++---
+ src/runtime/mstats.go |  2 ++
+ 2 files changed, 9 insertions(+), 3 deletions(-)

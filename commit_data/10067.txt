@@ -1,31 +1,14 @@
-commit 792a55f5db30c7280b2910a9621ea78ec6bd2c1c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Oct 20 15:44:45 2011 -0400
+commit e8a426aebe4968d5a27068e5aed2970a4c38f686
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 20 12:37:13 2011 -0700
 
-    exp/ssh: add experimental ssh client
+    go/ast: use single-element map in test
     
-    Requires CL 5285044
+    Avoids test failure due to undefined map iteration order.
     
-    client.go:
-    * add Dial, ClientConn, ClientChan, ClientConfig and Cmd.
-    
-    doc.go:
-    * add Client documentation.
-    
-    server.go:
-    * adjust for readVersion change.
-    
-    transport.go:
-    * return an os.Error not a bool from readVersion.
-    
-    R=rsc, agl, n13m3y3r
+    R=rsc, iant, iant
     CC=golang-dev
-    https://golang.org/cl/5162047
+    https://golang.org/cl/5297048
 
- src/pkg/exp/ssh/Makefile          |   1 +
- src/pkg/exp/ssh/client.go         | 628 ++++++++++++++++++++++++++++++++++++++
- src/pkg/exp/ssh/doc.go            |  24 +-
- src/pkg/exp/ssh/server.go         |   6 +-
- src/pkg/exp/ssh/transport.go      |  17 +-
- src/pkg/exp/ssh/transport_test.go |  10 +-
- 6 files changed, 668 insertions(+), 18 deletions(-)
+ src/pkg/go/ast/print_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

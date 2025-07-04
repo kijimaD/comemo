@@ -1,16 +1,23 @@
-commit 40d8c3d3e81769550bcaf96ec0a3e3308abb8862
-Author: Wèi Cōngruì <crvv.mail@gmail.com>
-Date:   Wed Mar 6 03:23:46 2019 +0000
+commit 9f66b41beea82cc613cad9138c10a50f2b3ea137
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jun 16 01:22:07 2018 +0200
 
-    internal/poll: fix deadlock in Write if len(buf) > maxRW
+    cmd/compile: avoid implicit bounds checks after explicit checks for append
     
-    fd.l.Lock shouldn't be called in a loop.
+    The generated code for the append builtin already checks if the appended
+    to slice is large enough and calls growslice if that is not the case.
+    Trust that this ensures the slice is large enough and avoid the
+    implicit bounds check when slicing the slice to its new size.
     
-    Change-Id: I3afbc184aa06a60175c9a39319985b5810ecb144
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165598
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Removes 365 panicslice calls (-14%) from the go binary which
+    reduces the binary size by ~12kbyte.
+    
+    Change-Id: I1b88418675ff409bc0b956853c9e95241274d5a6
+    Reviewed-on: https://go-review.googlesource.com/c/119315
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/poll/fd_windows.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go  | 22 ++++++++++++----------
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ 2 files changed, 15 insertions(+), 10 deletions(-)

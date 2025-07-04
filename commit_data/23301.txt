@@ -1,12 +1,16 @@
-commit aff7a573d10cc544536a9e562e06984adebab548
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jun 9 12:10:10 2015 +0900
+commit 121489cbfd082161d86dd5e6f5653dc654beeaf7
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:03:09 2015 +0200
 
-    net: disable dualstack listener tests on dragonfly
+    runtime/cgo: add cgo support for solaris/amd64
     
-    Change-Id: Ia7914156e4369113dea7c17b3aa51096e25f1901
-    Reviewed-on: https://go-review.googlesource.com/10834
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic9744c7716cdd53f27c6e5874230963e5fff0333
+    Reviewed-on: https://go-review.googlesource.com/8260
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/listen_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/cgo/cgo.go              |  2 +
+ src/runtime/cgo/gcc_libinit.c       |  2 +-
+ src/runtime/cgo/gcc_setenv.c        |  2 +-
+ src/runtime/cgo/gcc_solaris_amd64.c | 75 +++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/setenv.go           |  2 +-
+ 5 files changed, 80 insertions(+), 3 deletions(-)

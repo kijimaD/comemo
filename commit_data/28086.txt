@@ -1,38 +1,26 @@
-commit 320bd562cbb24a01beb02706c42d06a290160645
-Author: Joonas Kuorilehto <joneskoo@derbian.fi>
-Date:   Sat Aug 20 14:41:42 2016 +0300
+commit d610d304f86021cc5f388b8f02d99bc73fca0d9b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 27 16:58:50 2016 -0700
 
-    crypto/tls: add KeyLogWriter for debugging
+    cmd/compile: reorg copyelim to avoid O(n^2) problem
     
-    Add support for writing TLS client random and master secret
-    in NSS key log format.
+    Make sure we don't do O(n^2) work to eliminate a chain
+    of n copies.
     
-    https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format
+    benchmark                     old ns/op       new ns/op     delta
+    BenchmarkCopyElim1-8          1418            1406          -0.85%
+    BenchmarkCopyElim10-8         5289            5162          -2.40%
+    BenchmarkCopyElim100-8        52618           41684         -20.78%
+    BenchmarkCopyElim1000-8       2473878         424339        -82.85%
+    BenchmarkCopyElim10000-8      269373954       6367971       -97.64%
+    BenchmarkCopyElim100000-8     31272781165     104357244     -99.67%
     
-    Normally this is enabled by a developer debugging TLS based
-    applications, especially HTTP/2, by setting the KeyLogWriter
-    to an open file. The keys negotiated in handshake are then
-    logged and can be used to decrypt TLS sessions e.g. in Wireshark.
-    
-    Applications may choose to add support similar to NSS where this
-    is enabled by environment variable, but no such mechanism is
-    built in to Go. Instead each application must explicitly enable.
-    
-    Fixes #13057.
-    
-    Change-Id: If6edd2d58999903e8390b1674ba4257ecc747ae1
-    Reviewed-on: https://go-review.googlesource.com/27434
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I680f906f70f2ee1a8615cb1046bc510c77d59284
+    Reviewed-on: https://go-review.googlesource.com/22535
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/crypto/tls/common.go                           | 19 +++++
- src/crypto/tls/handshake_client.go                 |  4 +
- src/crypto/tls/handshake_client_test.go            | 41 ++++++++++
- src/crypto/tls/handshake_server.go                 |  4 +
- src/crypto/tls/handshake_server_test.go            | 37 +++++++++
- src/crypto/tls/testdata/Client-TLSv10-KeyLogWriter | 82 ++++++++++++++++++++
- src/crypto/tls/testdata/Server-TLSv10-KeyLogWriter | 88 ++++++++++++++++++++++
- src/crypto/tls/tls_test.go                         |  4 +
- src/net/http/transport.go                          |  2 +
- 9 files changed, 281 insertions(+)
+ src/cmd/compile/internal/ssa/copyelim.go      | 91 ++++++++++++++++-----------
+ src/cmd/compile/internal/ssa/copyelim_test.go | 41 ++++++++++++
+ src/cmd/compile/internal/ssa/export_test.go   |  3 +-
+ src/cmd/compile/internal/ssa/rewrite.go       | 18 +-----
+ 4 files changed, 99 insertions(+), 54 deletions(-)

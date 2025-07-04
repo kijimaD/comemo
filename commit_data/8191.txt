@@ -1,20 +1,15 @@
-commit 4335bee42e5c45b3d6cb9919af9867d94c251486
+commit 81cfb4ec2b37a296722de4172a4a0d29cce06961
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 22 09:30:30 2011 -0700
+Date:   Fri Apr 22 09:09:37 2011 -0700
 
-    os/user: new package to look up users
+    http: fix FileServer's default text content type
     
-    Only for Unix presently. Other operating systems
-    are stubbed out, as well as arm (lacks cgo).
+    Fixes #1729
     
-    R=rsc, r, bradfitzwork
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4440057
+    https://golang.org/cl/4443057
 
- src/pkg/Makefile                |   1 +
- src/pkg/os/user/Makefile        |  26 ++++++++++
- src/pkg/os/user/lookup_stubs.go |  19 ++++++++
- src/pkg/os/user/lookup_unix.go  | 104 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/os/user/user.go         |  35 ++++++++++++++
- src/pkg/os/user/user_test.go    |  61 +++++++++++++++++++++++
- 6 files changed, 246 insertions(+)
+ src/pkg/http/fs.go      | 2 +-
+ src/pkg/http/fs_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,31 @@
-commit 5cc1e99f94be59a65ba291e06af6afec7a978427
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 12 13:52:42 2023 -0400
+commit 7ffc1e47b4e3b163f06fc33c9adbc29cb1622d47
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Oct 7 22:42:15 2022 +0800
 
-    runtime: fix off-by-1 error in textOff
+    reflect: panic when Value.Equal using two non-comparable values
     
-    The code meant to check if it is the last section, which is
-    i === len(md.textsectmap)-1. The -1 was missing.
+    Assuming the two values are valid and non-comparable, Equal should panic.
     
-    Change-Id: Ifbb9e40df730abe3bec20fde5f56f5c75dfd9e8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527795
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+            x := reflect.ValueOf([]int{1, 2, 3})
+            x.Equal(x) // can not report false, should panic
+    
+    Assuming one of them is non-comparable and the other is invalid, it should
+    always report false.
+    
+            x := reflect.ValueOf([]int{1, 2, 3})
+            y := reflect.ValueOf(nil)
+            x.Equal(y) // should report false
+    
+    For #46746.
+    
+    Change-Id: Ifecd77ca0b3de3019fae2be39048f9277831676c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440037
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/all_test.go | 50 ++++++++++++++++++++++++++++++++++---------------
+ src/reflect/value.go    |  5 +++--
+ 2 files changed, 38 insertions(+), 17 deletions(-)

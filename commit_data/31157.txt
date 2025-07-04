@@ -1,25 +1,19 @@
-commit 89a355c9306800df2062f9fb590cba2c2281948a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 08:11:38 2017 -0700
+commit f69a6defd1da6509b8f0f54f9ae60e4bf740891d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 2 16:00:26 2017 -0500
 
-    cmd/internal/obj: unify Setuintxx and WriteInt
+    runtime: skip flaky TestGdbPythonCgo on MIPS
     
-    They do basically the same work.
+    It seems the problem is on gdb and the dynamic linker. Skip the
+    test for now until we figure out what's going on with the system.
     
-    Setuintxx was only used in a single place,
-    so eliminate it in favor of WriteInt.
+    Updates #18784.
     
-    duintxxLSym's alignment rounding was not used in practice;
-    change it into alignment assertion.
-    
-    Passes toolstash-check. No compiler performance changes.
-    
-    Change-Id: I0f7410cf2ccffbdc02ad796eaf973ee6a83074f8
-    Reviewed-on: https://go-review.googlesource.com/40863
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic9320ffd463f6c231b2c4192652263b1cf7f4231
+    Reviewed-on: https://go-review.googlesource.com/36250
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 15 +++++++++------
- src/cmd/internal/obj/data.go       | 23 -----------------------
- 2 files changed, 9 insertions(+), 29 deletions(-)
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

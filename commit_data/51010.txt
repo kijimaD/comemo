@@ -1,20 +1,15 @@
-commit ed24b37fd2b0c242525eb2203d90627c4be1b149
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 26 13:38:07 2022 -0700
+commit 5527d7ff7935d8a58a693be5d1ec4a5312f0f07d
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Tue Nov 16 15:36:37 2021 +0800
 
-    runtime: add missing closing curly brace in runtime corruption error message
+    doc/go1.18: add Clone doc
     
-    (Fixing the most important part of this bug.)
+    For #47694
     
-    Updates #56426
-    
-    Change-Id: If657ae47a5fe7dacc31d2c487e53e9f2dd5d03bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445695
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I3b135f6ff199d7a9746726b131fbe7dd97a8e95e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364254
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/runtime/os_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

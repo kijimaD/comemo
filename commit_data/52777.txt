@@ -1,19 +1,20 @@
-commit 3f987ae61d4c52ddc364abf6472227d7821c9e43
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 24 10:09:17 2023 -0400
+commit f5b5273190d2c38544298038c4fcc581dab3ae58
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu May 26 17:51:42 2022 -0700
 
-    internal/testenv: actually try to exec on ios and wasm
+    doc/go1.19: don't mention golang.org/x/crypto/ssh
     
-    Due to a stray edit in CL 486275, the assignment to tryExecOk
-    in tryExec on ios would be immediately overwritten back to false.
-    This change fixes the stray edit.
+    CL 392134 appears to have been marked for the release notes by accident.
+    Remove mention of this package.
     
-    Change-Id: I4f45fbf130dc912305e5f453b0d1a622ba199ad4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488076
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I62ae30512512ef8e20e9040b71e613be5ee5ee26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408819
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Alex Rakoczy <alex@golang.org>
 
- src/internal/testenv/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.19.html | 8 --------
+ 1 file changed, 8 deletions(-)

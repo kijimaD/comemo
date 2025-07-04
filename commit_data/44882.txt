@@ -1,15 +1,19 @@
-commit 0e8a72b62efa44fa01eccb94d47a051366cb6d17
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 30 12:21:20 2021 -0700
+commit 86ee84c40e2770ff189b6a4d835849107d9c749a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 2 13:25:11 2020 -0400
 
-    runtime: check for sysAlloc failures in pageAlloc
+    cmd/go: move get.Insecure to cfg.Insecure to break dependency cycle
     
-    Change-Id: I78c5744bb01988f1f599569703d83fd21542ac7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305911
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If9c73ff5adc7e080a48ecc6b35ce40822193d66f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254363
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mpagealloc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/cfg/cfg.go           | 2 ++
+ src/cmd/go/internal/get/get.go           | 6 ++----
+ src/cmd/go/internal/modfetch/insecure.go | 3 +--
+ src/cmd/go/internal/modfetch/sumdb.go    | 3 +--
+ src/cmd/go/internal/modget/get.go        | 6 +++---
+ 5 files changed, 9 insertions(+), 11 deletions(-)

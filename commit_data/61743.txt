@@ -1,0 +1,15 @@
+commit 0c6dbd99c570874ef5ec353298708677c1675dd0
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 21 08:43:23 2024 -0800
+
+    os: fix Root tests on Plan9
+    
+    Fixes #70484
+    
+    Change-Id: I609834aca3e97bf494565da513cd2b8a83123c89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630216
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/root_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

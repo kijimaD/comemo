@@ -1,37 +1,35 @@
-commit 95df0c6ab93f6a42bdc9fd45500fd4d56bfc9add
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 28 21:51:10 2016 -0400
+commit c97ddf9c108adf0ca9c1aa2043a417885db411c2
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Mar 5 17:36:56 2016 -0300
 
-    cmd/compile, etc: use name offset in method tables
+    cmd/compile: don't emit conversion error in non-numeric increment/decrement
     
-    Introduce and start using nameOff for two encoded names. This pair
-    of changes is best done together because the linker's method decoder
-    expects the method layouts to match.
+    In increment and decrement statements, explicit check that the type
+    of operand is numeric earlier. This avoids a related but less clear
+    error about converting "1" to be emitted.
     
-    Precursor to converting all existing name and *string fields to
-    nameOff.
+    So, when compiling
     
-    linux/amd64:
-            cmd/go:  -45KB (0.5%)
-            jujud:  -389KB (0.6%)
+            package main
     
-    linux/amd64 PIE:
-            cmd/go: -170KB (1.4%)
-            jujud:  -1.5MB (1.8%)
+            func main() {
+                    var x bool
+                    x++
+            }
     
-    For #6853.
+    instead of emitting two errors
     
-    Change-Id: Ia044423f010fb987ce070b94c46a16fc78666ff6
-    Reviewed-on: https://go-review.googlesource.com/21396
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+            prog.go:5: cannot convert 1 to type bool
+            prog.go:5: invalid operation: x++ (non-numeric type bool)
+    
+    just emits the second error.
+    
+    Fixes #12525.
+    
+    Change-Id: I6e81330703765bef0d6eb6c57098c1336af7c799
+    Reviewed-on: https://go-review.googlesource.com/20245
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 14 ++---
- src/cmd/link/internal/ld/decodesym.go  | 18 +++----
- src/cmd/link/internal/ld/symtab.go     |  2 +-
- src/reflect/export_test.go             |  8 +--
- src/reflect/type.go                    | 96 +++++++++++++++++++++-------------
- src/reflect/value.go                   |  8 +--
- src/runtime/iface.go                   | 17 +++---
- src/runtime/runtime1.go                |  6 +++
- src/runtime/type.go                    | 46 ++++++++++------
- 9 files changed, 130 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 11 +++++------
+ test/fixedbugs/issue12525.go             | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 6 deletions(-)

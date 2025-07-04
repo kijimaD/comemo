@@ -1,21 +1,34 @@
-commit a6bade60b0475f3cb01103284b9c378f92490bf7
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Apr 8 13:14:15 2015 +0200
+commit 4224d81fae7bfce98629894d14f4644018037cfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 00:06:10 2015 -0400
 
-    cmd/7g: remove loads that only load an immediate to be later used by ADD/SUB
+    cmd/internal/gc: inline x := y.(*T) and x, ok := y.(*T)
     
-    Optimize the sequence:
-            MOV $imm, Rt
-            ADD Rt, Rs, Rd
+    These can be implemented with just a compare and a move instruction.
+    Do so, avoiding the overhead of a call into the runtime.
     
-    into:
-            ADD $imm, Rs, Rd
+    These assertions are a significant cost in Go code that uses interface{}
+    as a safe alternative to C's void* (or unsafe.Pointer), such as the
+    current version of the Go compiler.
     
-    Saves 66k in godoc.
+    *T here includes pointer to T but also any Go type represented as
+    a single pointer (chan, func, map). It does not include [1]*T or struct{*int}.
+    That requires more work in other parts of the compiler; there is a TODO.
     
-    Change-Id: I27b4aaa0ec80a59472fe2e5816efdf3db9c901ee
-    Reviewed-on: https://go-review.googlesource.com/8632
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7ff681c20d2c3eb6ad11dd7b3a37b1f3dda23965
+    Reviewed-on: https://go-review.googlesource.com/7862
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/7g/peep.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ src/cmd/internal/gc/builtin.go         |   1 +
+ src/cmd/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/internal/gc/cgen.go            |  38 ++++----
+ src/cmd/internal/gc/gen.go             | 163 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/go.go              |   1 +
+ src/cmd/internal/gc/lex.go             |   5 +-
+ src/cmd/internal/gc/order.go           |  12 ++-
+ src/cmd/internal/gc/typecheck.go       |   4 +-
+ src/cmd/internal/gc/walk.go            |  52 +++++++++--
+ src/runtime/error.go                   |  19 ----
+ src/runtime/iface.go                   |   8 ++
+ test/interface/assertinline.go         |  53 +++++++++++
+ 12 files changed, 303 insertions(+), 54 deletions(-)

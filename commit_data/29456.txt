@@ -1,22 +1,22 @@
-commit 9e2c3f4c7e78b01d635e16287789913d02807569
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Jun 22 10:00:31 2016 -0700
+commit e727e37090de987f2fafd48a02cd39455dff2ca5
+Author: Alberto Bertogli <albertito@blitiri.com.ar>
+Date:   Thu Sep 15 02:32:44 2016 +0100
 
-    sync: add example for Pool
+    net: document dummy byte in ReadMsgUnix and WriteMsgUnix
     
-    It was a little tricky to figure out how to go from the documentation
-    to figuring out the best way to implement a Pool, so I thought I'd
-    try to provide a simple example. The implementation is mostly taken
-    from the fmt package.
+    ReadMsgUnix and WriteMsgUnix both will read/write 1 byte from/to the
+    socket if they were given no buffer to read/write, to avoid a common
+    pitfall in out of band operations (they will usually block
+    indefinitely if there's no actual data to read).
     
-    I'm not happy with the verbosity of the calls to WriteString() etc,
-    but I wanted to provide a non-trivial example.
+    This patch adds a note about this behaviour in their documentation, so
+    users can be aware of it.
     
-    Change-Id: Id33a8b6cbf8eb278f71e1f78e20205b436578606
-    Reviewed-on: https://go-review.googlesource.com/24371
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I751f0e12bb4d80311e94ea8de023595c5d40ec3e
+    Reviewed-on: https://go-review.googlesource.com/29180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/example_pool_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ src/net/unixsock.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

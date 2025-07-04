@@ -1,12 +1,12 @@
-commit 900c5fa98e2010f3a80fda4d6cfa1531e5509046
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 9 18:28:27 2011 -0400
+commit fd2e24727efbaaa9062e6678f19c45b90152b46f
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Jun 10 00:08:57 2011 +0200
 
-    gc: compactframe breaks arm - fix build
+    gc: nit
     
-    R=lvd
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4591063
+    https://golang.org/cl/4604041
 
- src/cmd/gc/pgen.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gc/pgen.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

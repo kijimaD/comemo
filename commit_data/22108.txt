@@ -1,15 +1,20 @@
-commit 20b3a9b6eddfb7e3279a315a29f2b45f1ea603f6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Mar 15 18:38:56 2015 -0400
+commit c2317db2f9bf9f097f0bc297004a8f581b944206
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 14:27:50 2015 -0800
 
-    crypto/x509: document that DecryptPEMBlock cannot detect all cases of incorrect password
+    crypto/x509: don't reject certs with critical policy extensions.
     
-    Fixes #10171.
+    There was a missing continue that caused certificates with critical
+    certificate-policy extensions to be rejected. Additionally, that code
+    structure in general was prone to exactly that bug so I changed it
+    around to hopefully be more robust in the future.
     
-    Change-Id: I1b2e30ebbb2b9d66680008674baa96e550efe1f2
-    Reviewed-on: https://go-review.googlesource.com/7603
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Fixes #9964.
+    
+    Change-Id: I58fc6ef3a84c1bd292a35b8b700f44ef312ec1c1
+    Reviewed-on: https://go-review.googlesource.com/5670
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/crypto/x509/pem_decrypt.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go      | 75 +++++++++++++++++++++-----------------------
+ src/crypto/x509/x509_test.go | 46 +++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 40 deletions(-)

@@ -1,34 +1,26 @@
-commit 73a44f0456389c60db8459981868b4c64874ec0b
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Thu Mar 16 15:49:06 2017 -0700
+commit 06fcc32d1460dce6436e675a978eb269d4a5db26
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Nov 23 14:54:12 2016 -0500
 
-    cmd/compile: further clarify assignment count mismatch error message
+    runtime/cgo: save correct floating point registers on s390x
     
-    This is an evolution of https://go-review.googlesource.com/33616, as discussed
-    via email with Robert (gri):
+    When transitioning from C code to Go code we must respect the C
+    calling convention. On s390x this means that r6-r13, r15 and f8-f15
+    must be saved and restored by functions that use them.
     
-    $ cat foobar.go
-    package main
+    On s390x we were saving the wrong set of floating point registers
+    (f0, f2, f4 and f6) rather than f8-f15 which means that Go code
+    could clobber registers that C code expects to be restored. This
+    CL modifies the crosscall functions on s390x to save/restore the
+    correct floating point registers.
     
-    func main() {
-            a := "foo", "bar"
-    }
+    Fixes #18035.
     
-    before:
-    ./foobar.go:4:4: assignment count mismatch: want 1 values, got 2
-    
-    after:
-    ./foobar.go:4:4: assignment count mismatch: cannot assign 2 values to 1 variables
-    
-    We could likely also eliminate the "assignment count mismatch" prefix now
-    without losing any information, but that string is matched by a number of
-    tests.
-    
-    Change-Id: Ie6fc8a7bbd0ebe841d53e66e5c2f49868decf761
-    Reviewed-on: https://go-review.googlesource.com/38313
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5cc6f552c893a4e677669c8891521bf735492e97
+    Reviewed-on: https://go-review.googlesource.com/33571
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_s390x.s     | 14 +++--------
+ src/runtime/cgo/asm_s390x.s | 46 +++++++++++++++++++++--------------
+ src/runtime/cgo/gcc_s390x.S | 58 ++++++++++++++++++++++++++-------------------
+ 3 files changed, 65 insertions(+), 53 deletions(-)

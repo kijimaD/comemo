@@ -1,28 +1,19 @@
-commit 0452f9460f50f0f0aba18df43dc2b31906fb66cc
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Apr 25 18:53:53 2020 +0200
+commit d7b4428c1ff29920309571414b1f957df3206b3b
+Author: Gert Cuykens <gert.cuykens@gmail.com>
+Date:   Fri Oct 18 04:13:50 2019 +0200
 
-    runtime: fix race condition between timer and event handler
+    cmd/doc: flag usage() inconsistency
     
-    This change fixes a race condition between beforeIdle waking up the
-    innermost event handler and a timer causing a different goroutine to
-    wake up at the exact same moment. This messes up the wasm event handling
-    and leads to memory corruption. The solution is to make beforeIdle
-    return the goroutine that must run next and have findrunnable pick
-    this goroutine without considering timers again.
+    Inconsistency between cmd/doc/main.go and cmd/go/internal/doc/doc.go
     
-    Fixes #38093
-    Fixes #38574
+    Fixes #34976
     
-    Change-Id: Iffbe99411d25c2730953d1c8b0741fd892f8e540
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230178
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I429200f9305d473edb4505216bb4840ba92af818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201857
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/lock_futex.go    |  4 ++--
- src/runtime/lock_js.go       | 11 +++++-----
- src/runtime/lock_sema.go     |  4 ++--
- src/runtime/proc.go          | 14 ++++++++++---
- test/fixedbugs/issue38093.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 70 insertions(+), 12 deletions(-)
+ src/cmd/doc/main.go                |  7 ++--
+ src/cmd/go/testdata/script/doc.txt | 75 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 3 deletions(-)

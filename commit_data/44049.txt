@@ -1,18 +1,28 @@
-commit 6cff874c47bdb4567f5c84bc59d93311493caefe
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 7 15:11:46 2020 +0000
+commit 641918ee09cb44d282a30ee8b66f99a0b63eaef9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 17 13:01:38 2020 -0400
 
-    runtime/metrics: add Read examples
+    cmd/go: add positions for load errors in call to load
     
-    This change adds two examples of using the Read function: one that reads
-    one metric and one that reads all metrics.
+    This CL sets positions for errors from cals to load within the load
+    call itself, similar to how the rest of the code in pkg.go sets
+    positions right after the error is set on the package.
     
-    Change-Id: I4940a44c9b1d65f3f7a1554e3145ff07e6492fc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275855
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    This allows the code to ensure that we only add positions either for
+    ImportPathErrors, or if an error was passed into load, and was set
+    using setLoadPackageDataError. (Though I'm wondering if the call
+    to setLoadPackageDataError should be done before the call to load).
+    
+    Fixes #38034
+    
+    Change-Id: I0748866933b4c1a329954b4b96640bef702a4644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228784
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/metrics/example_test.go | 96 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 96 insertions(+)
+ src/cmd/go/internal/load/pkg.go                    | 83 ++++++++++++++--------
+ src/cmd/go/internal/load/test.go                   |  2 +-
+ src/cmd/go/internal/modload/load.go                | 17 +++--
+ src/cmd/go/testdata/script/list_case_collision.txt | 10 ++-
+ 4 files changed, 73 insertions(+), 39 deletions(-)

@@ -1,16 +1,16 @@
-commit 54af18708b4459beec6b54fcd9bb51848d3fbe6c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 27 15:27:44 2017 +1100
+commit c74392634c494b95edd15569bc432981409d72e6
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 22:54:19 2016 +0100
 
-    cmd/internal/obj/x86: clean up byteswapreg
+    cmd/objdump: disable objdump_test with external linking on GOARCH=mips{,le}
     
-    Make byteswapreg more Go like.
+    Updates #12559.
     
-    Change-Id: Ibdf3603cae9cad2b3465b4c224a28a4c4c745c2e
-    Reviewed-on: https://go-review.googlesource.com/38615
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: I5e8f4cf7071d0d71618527a6b6096e771d5eeb28
+    Reviewed-on: https://go-review.googlesource.com/34317
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 55 +++++++++++++++-------------------------
- 1 file changed, 20 insertions(+), 35 deletions(-)
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

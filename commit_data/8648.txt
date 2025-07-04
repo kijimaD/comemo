@@ -1,14 +1,16 @@
-commit a8fd3741874bb3c4a2bda6760d95239e63af8b94
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jun 7 16:06:36 2011 -0400
+commit be48115f48b4a8e827502771599ee274aaba3117
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 7 11:53:47 2011 -0700
 
-    net: fix bug in net.Interfaces: handle elastic sdl_data size correctly
+    gofix: fix diff regression from exec change
     
-    Fixes #1921.
+    Also pass -u to diff to be consistent with gofmt.
     
-    R=golang-dev, jeff
+    Fixes #1619
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4535120
+    https://golang.org/cl/4591041
 
- src/pkg/net/interface_bsd.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/gofix/main.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

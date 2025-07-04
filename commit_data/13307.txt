@@ -1,15 +1,15 @@
-commit 09b736a2ab56ee520e3f5909c09c8417fe61db26
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 01:48:55 2012 -0400
+commit c8fac7b9676a84778280b44684e76f930e7f0bd0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 7 13:46:57 2012 +1000
 
-    encoding/json: fix panic unmarshaling into non-nil interface value
+    exp/html: when parsing, compare atoms (ints) instead of strings.
     
-    Fixes #3614.
+    This is the mechanical part of the 2-part change that started with
+    https://golang.org/cl/6305053/
     
-    R=golang-dev, adg
-    CC=golang-dev
-    https://golang.org/cl/6306051
+    R=rsc
+    CC=andybalholm, golang-dev, r
+    https://golang.org/cl/6295055
 
- src/pkg/encoding/json/decode.go      |  9 +++++--
- src/pkg/encoding/json/decode_test.go | 46 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/parse.go | 730 +++++++++++++++++++++++-----------------------
+ 1 file changed, 368 insertions(+), 362 deletions(-)

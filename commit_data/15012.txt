@@ -1,20 +1,12 @@
-commit aa0b573ad610ea659902c8a54183e9fa30d8380e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Jan 29 10:49:16 2013 -0500
+commit 6c035469b5b00b1b5d557d4cdbed436e1f82405f
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Jan 28 21:46:49 2013 -0800
 
-    exp/ssa: make Parameters values, not addresses.
+    go/misc: Adding go-tour to the generated packages for every distribution.
     
-    We explicitly spill all parameters to the frame during initial
-    SSA construction.  (Later passes will remove spills.)
-    We now properly handle local Allocs escaping via Captures.
-    
-    Also: allocate BasicBlock.Succs inline.
-    
-    R=iant, iant
+    R=adg, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7231050
+    https://golang.org/cl/6976045
 
- src/pkg/exp/ssa/blockopt.go |  6 +-----
- src/pkg/exp/ssa/func.go     | 50 ++++++++++++++++++++++++++++-----------------
- src/pkg/exp/ssa/ssa.go      | 30 ++++++++-------------------
- 3 files changed, 41 insertions(+), 45 deletions(-)
+ misc/dist/bindist.go | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

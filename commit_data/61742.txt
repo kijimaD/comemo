@@ -1,0 +1,82 @@
+commit 5a22174eee959d8c2ec18581445195434a48464d
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Oct 18 17:16:00 2024 +0800
+
+    all: update golang.org/x/tools to v0.27.0
+    
+    Commands run:
+            cd $GOROOT/src/cmd
+            go get golang.org/x/tools@v0.27.0
+            go mod tidy
+            go mod vendor
+    
+    Needed for CL 623475. Introduced ABIInternal syscall support.
+    
+    Change-Id: I03d7576747826243c25658f360b24ef9b84f0f04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620738
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +-
+ src/cmd/vendor/golang.org/x/mod/sumdb/server.go    |   3 +
+ src/cmd/vendor/golang.org/x/mod/sumdb/tlog/note.go |   5 +-
+ src/cmd/vendor/golang.org/x/mod/zip/zip.go         |  89 ++-
+ .../vendor/golang.org/x/tools/cmd/bisect/go119.go  |  13 -
+ .../vendor/golang.org/x/tools/cmd/bisect/go120.go  |   2 -
+ .../vendor/golang.org/x/tools/cmd/bisect/rand.go   |  20 -
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |  20 +-
+ .../x/tools/go/analysis/passes/assign/assign.go    |   3 +-
+ .../x/tools/go/analysis/passes/bools/bools.go      |   3 +-
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go  |   5 +-
+ .../go/analysis/passes/composite/composite.go      |   5 +-
+ .../tools/go/analysis/passes/copylock/copylock.go  |   8 +-
+ .../analysis/passes/httpresponse/httpresponse.go   |   3 +-
+ .../analysis/passes/internal/analysisutil/util.go  |   3 +-
+ .../x/tools/go/analysis/passes/lostcancel/doc.go   |   4 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    |   4 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  16 +-
+ .../x/tools/go/analysis/passes/printf/types.go     |   5 +-
+ .../x/tools/go/analysis/passes/shift/shift.go      |   3 +-
+ .../x/tools/go/analysis/passes/slog/slog.go        |   6 +-
+ .../go/analysis/passes/stringintconv/string.go     |   3 +-
+ .../passes/testinggoroutine/testinggoroutine.go    |  12 +-
+ .../go/analysis/passes/testinggoroutine/util.go    |   3 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |   2 +-
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      |   8 +-
+ .../analysis/passes/unusedresult/unusedresult.go   |   3 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  17 +-
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go | 654 ---------------------
+ .../golang.org/x/tools/go/ast/astutil/imports.go   | 485 ---------------
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   | 486 ---------------
+ .../golang.org/x/tools/go/ast/astutil/util.go      |  19 -
+ .../x/tools/go/ast/inspector/inspector.go          |  13 +-
+ .../golang.org/x/tools/go/ast/inspector/iter.go    |  85 +++
+ .../x/tools/go/types/objectpath/objectpath.go      | 111 ++--
+ .../golang.org/x/tools/go/types/typeutil/callee.go |   3 +-
+ .../golang.org/x/tools/go/types/typeutil/map.go    |   9 +-
+ .../x/tools/go/types/typeutil/methodsetcache.go    |   6 +-
+ .../golang.org/x/tools/go/types/typeutil/ui.go     |   4 +-
+ .../golang.org/x/tools/internal/aliases/aliases.go |   2 +-
+ .../x/tools/internal/aliases/aliases_go121.go      |  37 --
+ .../x/tools/internal/aliases/aliases_go122.go      |  32 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |  51 +-
+ .../golang.org/x/tools/internal/facts/imports.go   |   6 +-
+ .../x/tools/internal/typeparams/common.go          |   8 +-
+ .../golang.org/x/tools/internal/typeparams/free.go |  19 +-
+ .../x/tools/internal/typesinternal/element.go      | 133 +++++
+ .../x/tools/internal/typesinternal/recv.go         |   8 +-
+ .../x/tools/internal/typesinternal/types.go        |  56 ++
+ .../x/tools/internal/versions/toolchain.go         |  14 -
+ .../x/tools/internal/versions/toolchain_go119.go   |  14 -
+ .../x/tools/internal/versions/toolchain_go120.go   |  14 -
+ .../x/tools/internal/versions/toolchain_go121.go   |  14 -
+ .../golang.org/x/tools/internal/versions/types.go  |  28 +-
+ .../x/tools/internal/versions/types_go121.go       |  30 -
+ .../x/tools/internal/versions/types_go122.go       |  41 --
+ src/cmd/vendor/modules.txt                         |  11 +-
+ 58 files changed, 621 insertions(+), 2058 deletions(-)

@@ -1,37 +1,25 @@
-commit 5a0f2a7a7c5658f4f3065c265cee61ec1bde9691
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 15 13:38:06 2023 -0800
+commit a94347a05c74de989c9eb92d759ebc14eb12e021
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 10:55:06 2023 -0400
 
-    cmd/compile: remove gc programs from stack frame objects
+    cmd/compile: implement range over integer
     
-    This is a two-pronged approach. First, try to keep large objects
-    off the stack frame. Second, if they do manage to appear anyway,
-    use straight bitmasks instead of gc programs.
+    Add compiler implementation of range over integers.
+    This is only reachable if GOEXPERIMENT=range is set,
+    because otherwise type checking will fail.
     
-    Generally probably a good idea to keep large objects out of stack frames.
-    But particularly keeping gc programs off the stack simplifies
-    runtime code a bit.
+    For proposal #61405 (but behind a GOEXPERIMENT).
+    For #61717.
     
-    This CL sets the limit of most stack objects to 131072 bytes (on 64-bit archs).
-    There can still be large objects if allocated by a late pass, like order, or
-    they are required to be on the stack, like function arguments.
-    But the size for the bitmasks for these objects isn't a huge deal,
-    as we have already have (probably several) bitmasks for the frame
-    liveness map itself.
-    
-    Change-Id: I6d2bed0e9aa9ac7499955562c6154f9264061359
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542815
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I4e35a73c5df1ac57f61ffb54033a433967e5be51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510538
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/main.go             |     2 +-
- src/cmd/compile/internal/ir/cfg.go              |     2 +-
- src/cmd/compile/internal/liveness/plive.go      |     7 +-
- src/cmd/compile/internal/reflectdata/reflect.go |    22 +-
- src/runtime/mgcmark.go                          |    25 +-
- src/runtime/stack.go                            |    38 +-
- src/runtime/stkframe.go                         |     2 +-
- test/fixedbugs/bug385_64.go                     | 32966 +++++++++++++++++++++-
- test/fixedbugs/issue39292.go                    |     9 +
- 9 files changed, 32794 insertions(+), 279 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 26 +-------------
+ src/cmd/compile/internal/types2/stmt.go  |  6 ++++
+ src/cmd/compile/internal/walk/order.go   | 11 +++---
+ src/cmd/compile/internal/walk/range.go   | 24 ++++++++++---
+ test/range3.go                           | 58 ++++++++++++++++++++++++++++++++
+ 5 files changed, 91 insertions(+), 34 deletions(-)

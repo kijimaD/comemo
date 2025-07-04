@@ -1,16 +1,12 @@
-commit fedc277013d7b8d2812c3ccb869e1a8530b5f6f5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 9 11:15:14 2012 +1100
+commit d082e5976ef9d2d4a7a60659afc19ae2dc9456b3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 9 07:47:48 2012 +0900
 
-    misc/dist: new hierarchy for binary distribution packaging scripts
+    text/template/parse: fix comment
     
-    R=golang-dev, rsc, bradfitz
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5639063
+    https://golang.org/cl/5644055
 
- misc/dist/README                     |  4 +++
- misc/dist/darwin/README              |  3 ++
- misc/dist/darwin/dist.bash           | 69 ++++++++++++++++++++++++++++++++++++
- misc/dist/darwin/etc/paths.d/go      |  1 +
- misc/dist/darwin/scripts/postinstall | 23 ++++++++++++
- 5 files changed, 100 insertions(+)
+ src/pkg/text/template/parse/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

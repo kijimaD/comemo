@@ -1,25 +1,29 @@
-commit e73f4894949c4ced611881329ff8f37805152585
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 28 22:25:06 2017 +0000
+commit cfd89164bb6af2d1a660b75ded8c0801372924e2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Nov 4 16:30:12 2016 -0400
 
-    os/exec: remove duplicate environment variables in Cmd.Start
+    all: make copyright headers consistent with one space after period
     
-    Nobody intends to have duplicates anyway because it's so undefined
-    and everything handles it so poorly.
+    Continuation of CL 20111.
     
-    Removing duplicates automatically simplifies code and makes existing
-    code do what people already expect.
-    
-    Fixes #12868
-    
-    Change-Id: I95eeba8c59ff94d0f018012a6f4e031aaabfd5d9
-    Reviewed-on: https://go-review.googlesource.com/37586
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie2f62237e6ec316989c021de9b267cc9d6ee6676
+    Reviewed-on: https://go-review.googlesource.com/32830
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/env_test.go     | 39 +++++++++++++++++++++++++++++++++++++++
- src/os/exec/example_test.go | 12 ++++++++++++
- src/os/exec/exec.go         | 40 ++++++++++++++++++++++++++++++++++++++--
- src/os/exec/exec_test.go    | 20 ++++++++++++++++++++
- 4 files changed, 109 insertions(+), 2 deletions(-)
+ src/bytes/bytes_amd64.go                           | 2 +-
+ src/bytes/bytes_generic.go                         | 2 +-
+ src/cmp.bash                                       | 2 +-
+ src/crypto/sha1/sha1block_amd64.go                 | 2 +-
+ src/crypto/sha256/sha256block_amd64.s              | 2 +-
+ src/crypto/sha256/sha256block_ppc64le.s            | 2 +-
+ src/debug/pe/string.go                             | 2 +-
+ src/internal/syscall/windows/mksyscall.go          | 2 +-
+ src/internal/syscall/windows/registry/mksyscall.go | 2 +-
+ src/runtime/cgo/asm_mips64x.s                      | 2 +-
+ src/runtime/cgo/gcc_context.c                      | 2 +-
+ src/runtime/cgo/gcc_linux_mips64x.c                | 2 +-
+ src/runtime/cgo/gcc_mips64x.S                      | 2 +-
+ src/runtime/cgo/gcc_s390x.S                        | 2 +-
+ src/runtime/testdata/testprogcgo/pprof.go          | 2 +-
+ src/runtime/testdata/testprogcgo/threadpprof.go    | 2 +-
+ 16 files changed, 16 insertions(+), 16 deletions(-)

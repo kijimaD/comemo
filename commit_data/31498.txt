@@ -1,55 +1,25 @@
-commit 3a2fee0389e8459e482e987a98f226a71c2ad5fb
-Author: Samuel Tan <samueltan@google.com>
-Date:   Mon Apr 17 16:10:54 2017 -0700
+commit 4b3e6fe123d95f461d8f9febfe782a138ba2387c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Nov 14 08:05:45 2016 +0100
 
-    html/template: allow safe usage of predefined escapers in pipelines
+    strings: speed up Map
     
-    Allow the predefined escapers "html", "urlquery", and "js" to be used
-    in pipelines when they have no potential to affect the correctness or
-    safety of the escaped pipeline output. Specifically:
-    - "urlquery" may be used if it is the last command in the pipeline.
-    - "html" may be used if it is the last command in the pipeline, and
-      the pipeline does not occur in an unquoted HTML attribute value
-      context.
-    - "js" may be used in any pipeline, since it does not affect the
-      merging of contextual escapers.
+    name                  old time/op  new time/op  delta
+    ByteByteMap-4         2.03µs ± 2%  1.03µs ± 2%  -49.24%  (p=0.000 n=10+10)
+    Map/identity/ASCII-4   246ns ± 0%   158ns ± 0%  -35.90%    (p=0.000 n=9+9)
+    Map/identity/Greek-4   367ns ± 1%   273ns ± 1%  -25.63%  (p=0.000 n=10+10)
+    Map/change/ASCII-4     582ns ± 1%   324ns ± 1%  -44.34%  (p=0.000 n=10+10)
+    Map/change/Greek-4     709ns ± 2%   623ns ± 2%  -12.16%  (p=0.000 n=10+10)
+    MapNoChanges-4         171ns ± 1%   111ns ± 1%  -35.36%   (p=0.000 n=8+10)
     
-    This change will loosens the restrictions on predefined escapers
-    introduced in golang.org/cl/37880, which will hopefully ease the
-    upgrade path for existing template users.
+    Updates #17859
     
-    This change brings back the escaper-merging logic, and associated
-    unit tests, that were removed in golang.org/cl/37880. However, a
-    few notable changes have been made:
-    - "_html_template_nospaceescaper" is no longer considered
-      equivalent to "html", since the former escapes spaces, while
-      the latter does not (see #19345). This change should not silently
-      break any templates, since pipelines where this substituion will
-      happen will already trigger an explicit error.
-    - An "_eval_args_" internal directive has been added to
-      handle pipelines containing a single explicit call to a
-      predefined escaper, e.g. {{html .X}} (see #19353).
-    
-    Also, the HTMLEscape function called by the predefined
-    text/template "html" function now escapes the NULL character as
-    well. This effectively makes it as secure as the internal
-    html/template HTML escapers (see #19345). While this change is
-    backward-incompatible, it will only affect illegitimate uses
-    of this escaper, since the NULL character is always illegal in
-    valid HTML.
-    
-    Fixes #19952
-    
-    Change-Id: I9b5570a80a3ea284b53901e6a1f842fc59b33d3a
-    Reviewed-on: https://go-review.googlesource.com/40936
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I55d7d261fdc1ce2dcd0ebe23b0fa20b9889bf54c
+    Reviewed-on: https://go-review.googlesource.com/33201
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/doc.go         |   4 +-
- src/html/template/error.go       |  27 +++++----
- src/html/template/escape.go      | 118 ++++++++++++++++++++++++++++++++-----
- src/html/template/escape_test.go | 122 ++++++++++++++++++++++++++++++++++-----
- src/text/template/doc.go         |   5 +-
- src/text/template/funcs.go       |   5 +-
- 6 files changed, 240 insertions(+), 41 deletions(-)
+ src/strings/replace_test.go | 41 ++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 61 ++++++++++++++++++++++++++++++---------------
+ 2 files changed, 82 insertions(+), 20 deletions(-)

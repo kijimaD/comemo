@@ -1,22 +1,17 @@
-commit 989eed28497cde7145958985f50bb3dd6ab698b6
-Author: Meng Zhuo <mengzhuo@iscas.ac.cn>
-Date:   Fri Nov 1 09:51:08 2024 +0800
+commit 834a6f9a338b25543cb736ebef03488e8d30a839
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 7 13:57:23 2023 -0700
 
-    slice, sort: correct triple of xorshift RNG
+    cmd/api: don't try to parse JSON from stderr of go list
     
-    The original triple is `[13,17,5]` which don't existed in the Xorshift
-    RNG paper.
-    This CL use the right triple `[13,7,17]` for 64 bits RNG.
+    Just send the go list stderr to our stderr.
     
-    Fixes #70144
-    
-    Change-Id: I3e3d475835980d9f28451ab73e3ce61eb2f1685e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624295
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Iacda573bbe7accbcecb6a957e5d42b55afd10c58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526775
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: yunhao zhang <zhangyunhao116@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/slices/sort.go | 4 ++--
- src/sort/sort.go   | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/api/main_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

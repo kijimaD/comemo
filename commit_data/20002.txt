@@ -1,13 +1,14 @@
-commit e9bbcea81d90890a04155d81300b59a71a47472d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 13 12:53:50 2014 -0700
+commit 26c9bbf736f97d8f72c20ed3853352484a77c72f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:32:08 2014 -0400
 
-    text/scanner: improve documentation
+    [dev.power64] runtime: rename traceback_arm.c to traceback_lr.c
+    Also make it more portable by not hardcoding pointer sizes.
     
-    LGTM=r
-    R=r
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/123390043
+    https://golang.org/cl/127780043
 
- src/pkg/text/scanner/scanner.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/{traceback_arm.c => traceback_lr.c} | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

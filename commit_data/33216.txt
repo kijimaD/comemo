@@ -1,24 +1,12 @@
-commit fcd32885dfd9f69d894f11e0802548071be5e326
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 24 14:45:41 2017 -0700
+commit 5495047223935bf3ec96d7a0bd804ea8ab6f5342
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Fri Aug 4 10:12:21 2017 +0200
 
-    cmd/compile: refactor method expression detection
+    doc/1.9: fix broken html link in CL 53030/53210
     
-    Eliminates lots of ad hoc code for recognizing the same thing in
-    different ways.
-    
-    Passes toolstash-check.
-    
-    Change-Id: Ic0bb005308e96331b4ef30f455b860e476725b61
-    Reviewed-on: https://go-review.googlesource.com/73190
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7176becd10ad84cbfc3fb9427e190028626e5baf
+    Reviewed-on: https://go-review.googlesource.com/53291
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   | 2 +-
- src/cmd/compile/internal/gc/export.go    | 6 +++---
- src/cmd/compile/internal/gc/inl.go       | 8 ++------
- src/cmd/compile/internal/gc/sinit.go     | 2 +-
- src/cmd/compile/internal/gc/syntax.go    | 5 +++++
- src/cmd/compile/internal/gc/typecheck.go | 2 +-
- 6 files changed, 13 insertions(+), 12 deletions(-)
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

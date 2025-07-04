@@ -1,14 +1,19 @@
-commit 590f948b64f1a9421a243ab185785ed6dfc9d5e4
+commit ff451e8670cff9f825706b193657c8b2129310f8
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 30 14:31:51 2012 -0800
+Date:   Mon Jan 30 14:07:50 2012 -0800
 
-    godoc: sort list of "other packages"
+    godoc: add URL mode m=methods
     
-    Fixes #2786.
+    If set, all methods are shown, not just those
+    of non-exported anonynous fields.
     
-    R=r, bradfitz
+    This change will only become functional once
+    CL 5576057 is submitted.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5581050
+    https://golang.org/cl/5599048
 
- src/cmd/godoc/godoc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/godoc/doc.go   |  3 ++-
+ src/cmd/godoc/godoc.go | 13 +++++++++----
+ 2 files changed, 11 insertions(+), 5 deletions(-)

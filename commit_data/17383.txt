@@ -1,18 +1,23 @@
-commit cb79c57dfa25b917c4ce1c08e2a9a6f9405a5998
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Aug 24 09:51:42 2013 -0500
+commit de8de8912efea014ceda6819ddf8da09b2a0d056
+Author: Nicolas Owens <mischief@offblast.org>
+Date:   Fri Aug 23 21:05:49 2013 -0500
 
-    cmd/api: ignore GOARCH when building cmd/api.
+    os/user: Current support on Plan 9
     
-    This was breaking people setting GOARCH=386 before running
-    all.bash on amd64 machines.
+    Current for Plan 9 is implemented with /dev/user for
+    Uid/Gid/Username/Name, and $home environment variable for
+    HomeDir.
     
-    cmd/go puts different architecture binaries where "go tool"
-    can't find them.
+    Implementing Lookup/LookupId is not done, which would
+    require parsing /adm/users. It is unclear of how much benefit
+    this would be.
     
-    R=golang-dev, r, khr
-    CC=golang-dev
-    https://golang.org/cl/13139044
+    R=golang-dev
+    CC=bradfitz, golang-dev, r
+    https://golang.org/cl/13203043
 
- src/cmd/api/run.go | 19 ++++++++++++++++++-
- 1 file changed, 18 insertions(+), 1 deletion(-)
+ src/pkg/os/user/lookup_plan9.go | 46 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/user/lookup_stubs.go |  2 +-
+ src/pkg/os/user/user.go         |  2 ++
+ src/pkg/os/user/user_test.go    | 10 ++++++++-
+ 4 files changed, 58 insertions(+), 2 deletions(-)

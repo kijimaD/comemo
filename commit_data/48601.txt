@@ -1,23 +1,35 @@
-commit cdee8004ab5fa71d705979eaaee0948200256ed0
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Feb 7 15:30:34 2022 -0500
+commit 848b58e47357965dc5a61fb0ae5535da717e2633
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 27 19:03:16 2021 -0700
 
-    cmd/link: resolve __CTOR_LIST__/__DTOR_LIST__ refs for PE
+    [dev.typeparams] cmd/compile/internal/types2: clean up type set/union intersection
     
-    When doing an internal link on Windows, it's possible to see
-    unresolved references to the symbols "__CTOR_LIST__" and/or
-    "__DTOR_LIST__" (which are needed in some circumstances). If these are
-    still unresolved at the point where we're done reading host objects,
-    then synthesize dummy versions of them.
+    - Eliminate the need for bottom type: This is now represented by
+      an empty union (denoting the set of no types).
     
-    Updates #35006.
+    - Clean up type set intersection and incorporate tilde information
+      in intersection operation and satisfaction tests.
     
-    Change-Id: I408bf18499bba05752710cf5a41621123bd84a3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383836
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    - Minor cleanups along the way.
+    
+    - Note: The intersection algorithm does not always compute the
+            largest possible intersection. To be addressed in a follow-up CL.
+    
+    Change-Id: I7fa19df5996da36a4d8f29300d30a0aa4d8a3e5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323354
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/compile/internal/types2/interface.go       |  10 --
+ src/cmd/compile/internal/types2/predicates.go      |  11 +--
+ src/cmd/compile/internal/types2/sanitize.go        |   2 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   1 -
+ src/cmd/compile/internal/types2/subst.go           |   4 +-
+ .../internal/types2/testdata/check/issues.go2      |   2 +-
+ .../types2/testdata/examples/constraints.go2       |  14 +++
+ src/cmd/compile/internal/types2/type.go            |  40 +++-----
+ src/cmd/compile/internal/types2/typestring.go      |   7 +-
+ src/cmd/compile/internal/types2/union.go           | 105 +++++++++++++++------
+ 10 files changed, 118 insertions(+), 78 deletions(-)

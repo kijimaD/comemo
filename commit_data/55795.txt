@@ -1,19 +1,21 @@
-commit cda1e40b44771f8a01f361672cba721d0f283683
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Feb 22 18:52:39 2024 +0700
+commit b5c8ae9816e705f2202242de9d570a33dabd3a0a
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Nov 4 13:27:23 2022 +0800
 
-    cmd/compile: add missing Unalias call when writing type alias
+    runtime: mark morestack_noctxt SPWRITE for linux/loong64
     
-    Fixes #65778
+    ref. CL 425396
     
-    Change-Id: I93af42967c7976d63b4f460b7ffbcb9a9c05ffe7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565995
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Updates #54332.
+    
+    Change-Id: I1a235b0cca4dbf79cf61cf5f40b594fc2d940857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
 
- src/cmd/compile/internal/noder/writer.go |  2 +-
- test/fixedbugs/issue65778.go             | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/runtime/asm_loong64.s | 7 +++++++
+ 1 file changed, 7 insertions(+)

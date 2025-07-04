@@ -1,39 +1,19 @@
-commit d1dcffdb4a40f8ea89d9e57744142f9805b64840
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 13 18:57:06 2023 +0000
+commit f721fa3be9bb52524f97b409606f9423437535e8
+Author: Shengjing Zhu <zsj950618@gmail.com>
+Date:   Thu Jan 5 15:00:25 2023 +0800
 
-    cmd/trace/v2: add support for pprof endpoints
+    syscall: skip TestUseCgroupFD if cgroupfs not mounted
     
-    This change adds support for the pprof endpoints to cmd/trace/v2.
+    When building in schroot (for building Debian package),
+    the cgroupfs is not mounted in schroot (only sysfs is mounted).
     
-    In the process, I realized we need to pass the goroutine summaries to
-    more places, and previous CLs had already done the goroutine analysis
-    during cmd/trace startup. This change thus refactors the goroutine
-    analysis API once again to operate in a streaming manner, and to run
-    at the same time as the initial trace parsing. Now we can include it in
-    the parsedTrace type and pass that around as the de-facto global trace
-    context.
-    
-    Note: for simplicity, this change redefines "syscall" profiles to
-    capture *all* syscalls, not just syscalls that block. IIUC, this choice
-    was partly the result of a limitation in the previous trace format that
-    syscalls don't all have complete durations and many short syscalls are
-    treated as instant. To this end, this change modifies the text on the
-    main trace webpage to reflect this change.
-    
-    For #60773.
-    For #63960.
-    
-    Change-Id: I601d9250ab0849a0bfaef233fd9b1e81aca9a22a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541999
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ieddac7b2f334d58d832f5d84d81af812badf3720
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460539
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/trace/v2/goroutines.go          |   2 +-
- src/cmd/trace/v2/main.go                |  48 +++-
- src/cmd/trace/v2/pprof.go               | 435 ++++++++++++++++++++++++++++++++
- src/internal/trace/goroutinesv2.go      |  98 ++++---
- src/internal/trace/goroutinesv2_test.go |  18 +-
- src/internal/trace/traceviewer/http.go  |   2 +-
- 6 files changed, 532 insertions(+), 71 deletions(-)
+ src/syscall/exec_linux_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

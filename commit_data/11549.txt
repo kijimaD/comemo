@@ -1,12 +1,12 @@
-commit 3692726f32f4cff4429e893830871d9b50b9816b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 1 15:24:15 2012 -0800
+commit 4ea5d62e5a0013b21c9d796b41a56e71b19159b6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Feb 2 10:17:52 2012 +1100
 
-    test: test append with two different named types with same element type
+    os: file windows use syscall.InvalidHandle instead of -1.
     
-    R=golang-dev, gri
+    R=golang-dev, adg, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5615045
+    https://golang.org/cl/5602050
 
- test/append.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/pkg/os/file_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

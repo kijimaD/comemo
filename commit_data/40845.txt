@@ -1,12 +1,20 @@
-commit 2ac9f1dbe24cc27c6668287aed0b9559097815c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 19 07:42:09 2019 -0800
+commit 68e28998d7f094e70cef7ec0bef9fabfa9e17d07
+Author: Jordi Martin <jordimartin@gmail.com>
+Date:   Tue Jul 23 18:27:06 2019 +0000
 
-    doc/go1.14: mention new, more efficient, timers
+    cmd/go: keep "go help" in unknown topic suggestion
     
-    Change-Id: I71fc3016106db733b888f3daccc00b493abe39b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207840
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixed missing concatenation to build the suggested command.
+    
+    Fixes #33153
+    
+    Change-Id: I26c02f2966247aa07d1447b8ec1a2203046842dd
+    GitHub-Last-Rev: 9631abf1d0d187cbd94495a2a789e5863b421441
+    GitHub-Pull-Request: golang/go#33245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187217
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/internal/help/help.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,23 @@
-commit 352a322a8356ef5f7d9392c401cd9f181a1cf80b
-Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
-Date:   Sat May 1 21:13:38 2021 +0000
+commit 3a63d04d2edcbdb0937d775e852692279f73a2e2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 19 18:55:10 2020 +1000
 
-    path/filepath: fix documentation typo (was "each each")
+    cmd/link,cmd/internal/obj/riscv: add TLS support for linux/riscv64
     
-    Change-Id: I8dcf6c4489e16e91b8685c31569297cfeb700f9d
-    GitHub-Last-Rev: f6b40e029874230789a7ae2b750a42a355ae42cf
-    GitHub-Pull-Request: golang/go#45905
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316009
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Kevin Burke <kev@inburke.com>
-    Trust: Kevin Burke <kev@inburke.com>
+    Add support for Thread Local Storage (TLS) for linux/riscv64 with external
+    linking, using the initial-exec model.
+    
+    Update #36641
+    
+    Change-Id: I3106ef9a29cde73215830b00deff43dbec1c76e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263478
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/path/filepath/path.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/riscv/obj.go           |  7 +++++++
+ src/cmd/internal/objabi/reloctype.go        |  8 ++++++++
+ src/cmd/internal/objabi/reloctype_string.go | 18 ++++++++++--------
+ src/cmd/link/internal/riscv64/asm.go        | 23 +++++++++++++++++++----
+ 4 files changed, 44 insertions(+), 12 deletions(-)

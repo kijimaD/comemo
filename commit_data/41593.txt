@@ -1,27 +1,14 @@
-commit a79ac2b819db2680ba835b9a76de9bcce10c5099
-Author: smasher164 <aindurti@gmail.com>
-Date:   Thu Feb 27 03:44:13 2020 -0500
+commit 233f45499b7f3a775311b824ac53bbe67e811e1f
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Oct 13 01:26:22 2019 +0200
 
-    cmd/vet: add ifaceassert and stringintconv checks
+    cmd/compile: in poset, improve panic strings and comments
     
-    This change re-vendors x/tools to add the ifaceassert and stringintconv
-    checks to cmd/vet.
+    No functional changes.
     
-    Fixes #32479.
-    Updates #4483.
-    
-    Change-Id: I6bd30b0a3278592dfab4bd247036404ddaff09e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221339
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6f5e811e141dd09dc5c47ff2d37fae4c640315e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200862
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go.mod                                     |   3 +-
- src/cmd/go.sum                                     |   7 +-
- .../tools/go/analysis/passes/errorsas/errorsas.go  |   2 +-
- .../go/analysis/passes/ifaceassert/ifaceassert.go  | 101 +++++++++++++++++
- .../go/analysis/passes/stringintconv/string.go     | 126 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   5 +-
- src/cmd/vet/main.go                                |   4 +
- 7 files changed, 240 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/poset.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

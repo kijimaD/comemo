@@ -1,25 +1,17 @@
-commit 84dc501d202194b7b166de8371161a6222025b01
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 27 14:11:21 2017 -0400
+commit 1d81251599fd1b8f9da888e10c1054c96d1e1fb1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 10 14:41:44 2017 -0700
 
-    test/run: use go tool compile + link instead of go run when possible
+    archive/tar: simplify toASCII and parseString
     
-    This cuts 6 seconds off all.bash with the new go command.
-    Not a ton, but also an easy 6 seconds to grab.
+    Use a simple []byte instead of bytes.Buffer to create a string.
+    Use bytes.IndexByte instead of our own for loop.
     
-    The -tags=use_go_run in the misc/cgo tests is just some
-    go command flag that will make run.go use go run,
-    but without making everything look stale.
-    (Those tests have relative imports,
-    so go tool compile+link is not enough.)
-    
-    Change-Id: I43bf4bb661d3adde2b2d4aad5e8f64b97bc69ba9
-    Reviewed-on: https://go-review.googlesource.com/73994
+    Change-Id: Ic4a1161d79017fd3af086a05c53d5f20a5f09326
+    Reviewed-on: https://go-review.googlesource.com/54752
+    Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
 
- misc/cgo/life/main.go   |  5 +++--
- misc/cgo/stdio/chain.go |  2 +-
- misc/cgo/stdio/fib.go   |  2 +-
- misc/cgo/stdio/hello.go |  2 +-
- test/run.go             | 37 +++++++++++++++++++++++++++++++------
- 5 files changed, 37 insertions(+), 11 deletions(-)
+ src/archive/tar/strconv.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

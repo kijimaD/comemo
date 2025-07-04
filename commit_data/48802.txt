@@ -1,21 +1,34 @@
-commit 740a490f71d026bb7d2d13cb8fa2d6d6e0572b70
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Fri Apr 15 17:42:17 2022 +0000
+commit b14fd720a8c3822161ed85447774e38fab835f6f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 16 16:23:44 2021 +0700
 
-    net/http: correctly show error types in transfer test
+    [dev.typeparams] cmd/compile: make types2 report better error for invalid untyped operation
     
-    actualReader and tc.expectedReader are reflect.Type instances,
-    not the actual objects.
+    This ports the fix in CL 328050 for typecheck to types2.
     
-    Change-Id: I7c9cfa489e3297b94c603b62bad1ed84bd207057
-    GitHub-Last-Rev: d581402375aea0c911fef663ec7e89a24c4e5524
-    GitHub-Pull-Request: golang/go#52339
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400235
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    The fix is not identical, due to code structure differences between
+    typecheck and types2, but the idea is the same. We only do the untyped
+    conversion when both operands can be mixed.
+    
+    Updates #46749
+    
+    Change-Id: Ib2c63ba0d5dd8bf02318b1bfdfe51dcaeeeb7f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328053
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/transfer_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/expr.go            | 28 ++++++++++++++++------
+ .../internal/types2/testdata/check/const0.src      |  2 +-
+ .../internal/types2/testdata/check/decls1.src      |  2 +-
+ .../internal/types2/testdata/check/expr1.src       |  4 ++--
+ .../internal/types2/testdata/check/expr2.src       |  2 +-
+ .../internal/types2/testdata/check/expr3.src       |  2 +-
+ .../internal/types2/testdata/check/stmt0.src       | 12 +++++-----
+ test/fixedbugs/issue41500.go                       |  8 +++----
+ test/fixedbugs/issue43762.go                       |  6 ++---
+ test/fixedbugs/issue46749.go                       | 10 ++++----
+ test/run.go                                        |  1 -
+ 11 files changed, 45 insertions(+), 32 deletions(-)

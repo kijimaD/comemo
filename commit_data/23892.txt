@@ -1,25 +1,31 @@
-commit 767e065809937229767bb3496fdce61b74b815e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 29 15:07:35 2015 -0400
+commit 9d968cb47b240f47b40809639a0a532e752f6a08
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 27 17:32:23 2015 +1000
 
-    cmd/link: fix nosplit stack overflow checks
+    runtime: rename cgocall_errno and asmcgocall_errno into cgocall and asmcgocall
     
-    The nosplit stack overflow checks were confused about morestack.
-    The comment about not having correct SP information at the call
-    to morestack was true, but that was a real bug, not something to
-    work around. I fixed that problem in CL 12144. With that fixed,
-    no need to special-case morestack in the way done here.
-    
-    This cleanup and simplification of the code was the first step
-    to fixing a bug that happened when I started working on the
-    arm64 frame size adjustments, but the cleanup was sufficient
-    to make the bug go away.
-    
-    For #9880.
-    
-    Change-Id: I16b69a5c16b6b8cb4090295d3029c42d606e3b9b
-    Reviewed-on: https://go-review.googlesource.com/12846
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5917bea8bb35b0e725dcc56a68f3a70137cfc180
+    Reviewed-on: https://go-review.googlesource.com/9387
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 47 +++++++++++------------------------------
- 1 file changed, 12 insertions(+), 35 deletions(-)
+ misc/cgo/test/callback.go      |  5 ++---
+ misc/cgo/test/issue7978.go     |  4 ++--
+ src/cmd/cgo/doc.go             |  4 ++--
+ src/cmd/cgo/out.go             |  6 +++---
+ src/runtime/asm_386.s          | 15 ++++++---------
+ src/runtime/asm_amd64.s        | 15 ++++++---------
+ src/runtime/asm_amd64p32.s     |  4 ++--
+ src/runtime/asm_arm.s          | 15 ++++++---------
+ src/runtime/asm_arm64.s        | 11 ++++-------
+ src/runtime/asm_ppc64x.s       | 15 ++++++---------
+ src/runtime/cgocall.go         |  8 ++++----
+ src/runtime/env_posix.go       |  4 ++--
+ src/runtime/os1_windows.go     |  2 +-
+ src/runtime/os3_solaris.go     |  8 ++++----
+ src/runtime/os_solaris.go      | 14 +++++++-------
+ src/runtime/proc.go            |  2 +-
+ src/runtime/proc1.go           |  2 +-
+ src/runtime/stubs.go           |  2 +-
+ src/runtime/syscall_solaris.go | 40 ++++++++++++++++++++--------------------
+ src/runtime/syscall_windows.go | 14 +++++++-------
+ 20 files changed, 87 insertions(+), 103 deletions(-)

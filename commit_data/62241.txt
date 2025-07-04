@@ -1,0 +1,36 @@
+commit a7e331e67105f1a8cc0236b7f3b1e6a3570dda27
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 13 08:04:03 2025 -0800
+
+    cmd/compile: implement signed loads from read-only memory
+    
+    In addition to unsigned loads which already exist.
+    
+    This helps code that does switches on strings to constant-fold
+    the switch away when the string being switched on is constant.
+    
+    Fixes #71699
+    
+    Change-Id: If3051af0f7255d2a573da6f96b153a987a7f159d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/386.rules    |  2 +
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules  |  7 +++-
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go  |  2 +-
+ src/cmd/compile/internal/ssa/_gen/ARM.rules    |  2 +
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules  |  3 ++
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  9 ++--
+ src/cmd/compile/internal/ssa/_gen/Wasm.rules   |  3 ++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 26 ++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 49 ++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 28 +++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 39 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 51 +++++++++++++++++++---
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 58 ++++++++++++++++++++++++++
+ test/codegen/switch.go                         | 14 +++++++
+ 14 files changed, 279 insertions(+), 14 deletions(-)

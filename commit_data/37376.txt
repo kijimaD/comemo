@@ -1,17 +1,13 @@
-commit a48a666bc89d355205550d43a9fdf1a9c507a123
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 12 22:20:17 2018 -0500
+commit f5425dc80052a3826880718198bed9bfdb2df128
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jul 20 11:00:28 2018 +0200
 
-    go/build: do not suggest runtime.Version in comment
+    doc/go1.11: fix unclosed html and typos in net section
     
-    The form of runtime.Version is not guaranteed to be helpful.
-    Do not suggest it. (The suggestion was added in CL 136215.)
-    
-    Change-Id: I3227d2e66b6ce860b7e62d7ba531c18fb173823c
-    Reviewed-on: https://go-review.googlesource.com/c/149258
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3bcf8850ad3873f2627ba017cbfb8b7a8c9cf467
+    Reviewed-on: https://go-review.googlesource.com/125256
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/doc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go1.11.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

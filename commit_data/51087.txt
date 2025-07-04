@@ -1,40 +1,15 @@
-commit bb3965695d3bc3586fba55c7b8d5e8a56cd4c0c9
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Wed Nov 2 16:55:51 2022 +0000
+commit d921bb21df43a9bf1a6c22ab208d6a4bc9d05146
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 3 09:04:26 2021 -0500
 
-    cmd/go/internal/vcs: also check file mode when identifying VCS root
+    doc/go1.18: reorganize runtime/compiler a little
     
-    Currently, FromDir identifies a VCS checkout directory just by checking
-    whether it contains a specified file. This is not enough. For example,
-    although there is a ".git" file (a plain file, not a directory) in a
-    git submodule directory, this directory is not a git repository root.
+    For #47694.
     
-    This change takes the file mode into account. As of now, the filename
-    and file mode for the supported VCS tools are:
-    
-    - Mercurial:    .hg             directory
-    - Git:          .git            directory
-    - Bazaar:       .bzr            directory
-    - Subversion:   .svn            directory
-    - Fossil:       .fslckout       plain file
-    - Fossil:       _FOSSIL_        plain file
-    
-    This CL effectively reverts CL 30948 for #10322.
-    
-    Fixes #53640.
-    
-    Change-Id: Iea316c7e983232903bddb7e7f6dbaa55e8498685
-    GitHub-Last-Rev: 7a2d6ff6f939c892f4740c57ea36c031bf7bd6be
-    GitHub-Pull-Request: golang/go#56296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443597
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Iedf85f522f7c79ae0a61b4fc1f2f092cf7b613df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368696
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/vcs/vcs.go                     | 84 +++++++++++-----------
- src/cmd/go/internal/vcs/vcs_test.go                | 14 ++--
- .../go/testdata/script/version_buildvcs_fossil.txt |  3 +-
- .../go/testdata/script/version_buildvcs_git.txt    | 18 +++++
- 4 files changed, 68 insertions(+), 51 deletions(-)
+ doc/go1.18.html | 48 +++++++++++++++++++++++++-----------------------
+ 1 file changed, 25 insertions(+), 23 deletions(-)

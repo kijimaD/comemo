@@ -1,24 +1,13 @@
-commit 45ca9ef5c1235a80ceffca459cbf1bd47032b35f
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 31 22:51:44 2021 -0400
+commit 37824212304992f0cbca37c397bf8d2f9a7fa405
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Sep 14 17:24:35 2020 +0200
 
-    cmd/compile: fix register/offset calculation for trailing empty field case.
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Includes test.
-    Long term, need to make the offending code be more in terms
-    of official types package offsets, instead of duplicating that
-    logic.
-    
-    For #40724.
-    
-    Change-Id: Id33a153f10aed3289cc48d1f99a8e0f6ece9474d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306469
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7e9ca8128f8b3e6d60f3307e2a588165b26f8287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254660
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go |  5 +++-
- test/abi/fuzz_trailing_zero_field.go     | 39 ++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ misc/boring/RELEASES | 6 ++++++
+ 1 file changed, 6 insertions(+)

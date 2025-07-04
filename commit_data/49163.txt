@@ -1,22 +1,29 @@
-commit 0d8345df6637b0fbd595eb8f7cb61be5ebeee314
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 12 09:30:54 2022 +0200
+commit 3dc0a0a2c5a7d8959a43265d4f73d7e2e509de5e
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Jul 23 17:19:51 2021 -0700
 
-    net/netip: skip some TestAddrStringAllocs tests on noopt builders
+    [dev.typeparams] cmd/compile: get rid of concretify use for bounds.
     
-    CL 403914 introduced TestAddrStringAllocs which checks that there is
-    only 1 alloc in Addr.String for v4-in-v6 addresses. This requires
-    optimizations to be enabled, otherwise there are 2 allocs. Skip the
-    ipv4-in-ipv6 sub-tests on noopt builders to fix failing
-    TestAddrStringAllocs on the noopt builders.
+    We just need to substitute from the typeparams to the shapes for the dst
+    type of the bound.
     
-    Change-Id: I0285264260b264b53cf822dc7cec4829e9854531
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405834
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Removed concretify substituter, not used anymore. Also removed
+    shape2params, not needed anymore.
+    
+    However, since the dst type is now not concrete, this gives more cases
+    where the linker can't find a method.
+    
+    I realized that we need to call MarkUsedIfaceMethod to mark a method as
+    used on a particular interface, else a type's method can be still
+    deadcoded even though MarkTypeUsedInInterface has been called on the
+    concrete type. I added a new version MarkUsedIfaceMethodIndex to fit my
+    use case.
+    
+    Change-Id: Id67b72b350889dd3688b42739c337d5d79a0d1a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337230
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/netip/netip_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go       | 36 ++++++++++++-------------
+ src/cmd/compile/internal/reflectdata/reflect.go | 12 ++++++++-
+ 2 files changed, 28 insertions(+), 20 deletions(-)

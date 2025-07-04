@@ -1,0 +1,17 @@
+commit 9921537a96deb3cdfc64478bc041dc97326590ab
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 23 22:58:05 2025 -0400
+
+    sync: WaitGroup.Go: document that f must not panic
+    
+    Fixes #63796
+    
+    Change-Id: Ib11d32574011e13aab3a0ad504f0d10009627503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/sync/waitgroup.go | 2 ++
+ 1 file changed, 2 insertions(+)

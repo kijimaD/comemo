@@ -1,24 +1,24 @@
-commit 362bf4fc6d3b456429e998582b15a2765e640741
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Nov 10 10:12:48 2023 -0800
+commit 648f3febf54465162e095da99149de7a839576c6
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 30 13:43:45 2022 -0500
 
-    crypto/tls: change default minimum version to 1.2
+    net/http: deflake and fix TestWrappedResponseController
     
-    Updates the default from 1.0 -> 1.2 for servers, bringing it in line
-    with clients. Add a GODEBUG setting, tls10server, which lets users
-    revert this change.
+    Read the full (empty) response body before closing it,
+    to avoid cancelling the request while the server handler
+    is still running.
     
-    Fixes #62459
+    Wrap the ResponseWriter before calling NewResponseController:
+    This test is intended to verify that wrapping the controller
+    works properly, but neglected to actually wrap the controller.
     
-    Change-Id: I2b82f85b1c2d527df1f9afefae4ab30a8f0ceb41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541516
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #56961.
+    
+    Change-Id: I00269f897448ab34676338707b7a04d19ff17963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453860
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/godebug.md                          |  4 ++++
- src/crypto/tls/common.go                | 23 +++++++++++++----------
- src/crypto/tls/handshake_server_test.go | 22 ++++++++++++----------
- src/crypto/tls/tls_test.go              |  2 ++
- src/internal/godebugs/table.go          |  1 +
- src/runtime/metrics/doc.go              |  4 ++++
- 6 files changed, 36 insertions(+), 20 deletions(-)
+ src/net/http/responsecontroller_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

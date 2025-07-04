@@ -1,12 +1,20 @@
-commit 85255f99426b97c6663db6c4a5387d7f958f0282
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Mon Nov 21 09:11:34 2011 -0800
+commit 6c9f466273e3214cce22bf4a94e662a3872b13ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 07:49:14 2011 -0800
 
-    bcrypt: Correct typo in package comment.
+    json: speed up encoding, caching reflect calls
     
-    R=golang-dev, gri
+    Before
+    json.BenchmarkCodeEncoder  10  181232100 ns/op  10.71 MB/s
+    json.BenchmarkCodeMarshal  10  184578000 ns/op  10.51 MB/s
+    
+    After:
+    json.BenchmarkCodeEncoder  10  146444000 ns/op  13.25 MB/s
+    json.BenchmarkCodeMarshal  10  151428500 ns/op  12.81 MB/s
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5415062
+    https://golang.org/cl/5416046
 
- src/pkg/crypto/bcrypt/bcrypt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/json/encode.go | 89 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 66 insertions(+), 23 deletions(-)

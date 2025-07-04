@@ -1,12 +1,12 @@
-commit 61aaadf2175ec58e91d1188c1986d71c1d853389
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 30 09:46:11 2011 -0700
+commit dba96cf411bc06cc3d75be160d420fc457b4a598
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Mar 30 09:45:51 2011 -0700
 
-    gotest: exclude . files when parsing directories (per r's suggestion)
+    go/parser: fix scoping for local type declarations
     
-    R=r, rsc1, iant2
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4329044
+    https://golang.org/cl/4332045
 
- src/cmd/gotest/gotest.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/parser/parser.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

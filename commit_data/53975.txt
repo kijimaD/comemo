@@ -1,23 +1,20 @@
-commit e3d7f7c3f8b0537d84e704986d88eb35271fa233
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 10 21:48:58 2023 +0200
+commit 242adb784cd64265ce803f6b0c59dbf126bcda9c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 10 01:43:16 2022 +0700
 
-    internal/itoa, os: move os.uitox to itoa.Uitox
+    syscall: simplify unsafe.Slice usage
     
-    This packages already contains other similar functions. Also add a test
-    for it.
+    Same as CL 429915.
     
-    Change-Id: Iafa8c14f5cb1f5ef89a0e16ccc855c568a3b5727
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518317
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I83f4d3bd980294d5bae387d875368b069be2d91a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429955
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
 
- src/internal/itoa/itoa.go      | 24 ++++++++++++++++++++++++
- src/internal/itoa/itoa_test.go | 11 +++++++++++
- src/os/exec_posix.go           |  2 +-
- src/os/str.go                  | 31 -------------------------------
- 4 files changed, 36 insertions(+), 32 deletions(-)
+ src/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

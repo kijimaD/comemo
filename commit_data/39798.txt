@@ -1,18 +1,24 @@
-commit 6719d889e1a333989c6f461a66090d5583eeaedf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 4 11:51:06 2019 -0400
+commit 700e969d5b23732179ea86cfe67e8d1a0a1cc10a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 21 09:16:56 2019 -0700
 
-    cmd/go/internal/get: avoid panic in metaImportsForPrefix if web.Get fails
+    cmd/compile: regenerate rewrite rules
     
-    Fixes #34049
-    
-    Change-Id: I817b83ee2d0ca6d01ec64998f14bc4f32e365d66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193259
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7e921b7b4665ff76dc8bae493b2a49318690770b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168637
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/get/vcs.go                           |  4 ++--
- src/cmd/go/testdata/script/get_insecure_redirect.txt     |  5 ++---
- src/cmd/go/testdata/script/mod_get_insecure_redirect.txt | 13 +++++++++++++
- 3 files changed, 17 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite386.go         | 18 ++++------
+ .../compile/internal/ssa/rewrite386splitload.go    | 30 ++++------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 18 ++++------
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 40 +++++-----------------
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 18 ++++------
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |  9 ++---
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        | 18 ++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |  9 ++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  9 ++---
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  9 ++---
+ 10 files changed, 50 insertions(+), 128 deletions(-)

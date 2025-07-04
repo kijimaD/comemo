@@ -1,15 +1,31 @@
-commit 94cf54e8619e03671b33113d39306646235feb60
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon May 4 01:21:27 2015 -0400
+commit 2d16e43158bb3f85eeaa983c7f12c7c81c6bc187
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 26 09:24:18 2016 -0700
 
-    cmd/internal/objfile: add ppc64/ppc64le disassembler support
+    [dev.ssa] cmd/compile: PPC64, basic support for all calls and "miscellaneous"
     
-    Change-Id: I7d213b4f8e4cda73ea7687fb97dbd22e58163948
-    Reviewed-on: https://go-review.googlesource.com/9682
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Added support for ClosureCall, DeferCall, InterCall
+    (GoCall not yet tested).
+    
+    Added support for GetClosurePtr, IsNonNil, IsInBounds, IsSliceInBounds, NilCheck
+    (Convert and GetG not yet tested)
+    
+    Still need to implement NilCheck optimizations.
+    Fixed move boolean constant, order of operands to subtract.
+    
+    Updates #16010.
+    
+    Change-Id: Ibe0f6a6e688df4396cd77de0e9095997e4ca8ed2
+    Reviewed-on: https://go-review.googlesource.com/25241
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/objfile/disasm.go | 33 +++++++++++++++++++++++++--------
- src/cmd/internal/objfile/elf.go    |  4 ++++
- 2 files changed, 29 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 226 +++++++++++-
+ src/cmd/compile/internal/ssa/config.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  19 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 102 ++++--
+ src/cmd/compile/internal/ssa/opGen.go        | 524 +++++++++++++++------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 183 +++++++++-
+ src/cmd/compile/internal/ssa/schedule.go     |   2 +-
+ 7 files changed, 780 insertions(+), 277 deletions(-)

@@ -1,18 +1,19 @@
-commit b582ef385555f88d41679a621d34bc260de4eb68
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Feb 24 17:19:09 2013 +0100
+commit 89ec3a610d2a1c9887fe9ee0bd622f3ab14c6750
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 24 22:45:53 2013 +0800
 
-    crypto/rsa: fix infinite loop in GenerateMultiPrimeKey for large nprimes
+    cmd/dist: avoid using %ebx on i386.
+    Or gcc (-fPIC) will complain:
+    cmd/dist/unix.c: In function ‘cansse2’
+    cmd/dist/unix.c:774: error: can't find a register in class ‘BREG’ while reloading ‘asm’
+    cmd/dist/unix.c:774: error: ‘asm’ operand has impossible constraints
     
-    The heuristics for BitLen of a product of randomly generated primes
-    are wrong, and the generated candidates never match the required
-    size for nprimes > 10. This corner case is not expected to be used in
-    practice.
+    This affects bootstrapping on native Darwin/386 where all code is
+    compiled with -fPIC.
     
-    R=agl
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7397052
+    https://golang.org/cl/7394047
 
- src/pkg/crypto/rsa/rsa.go      | 19 +++++++++++++++++--
- src/pkg/crypto/rsa/rsa_test.go | 26 ++++++++++++++++++++++----
- 2 files changed, 39 insertions(+), 6 deletions(-)
+ src/cmd/dist/unix.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

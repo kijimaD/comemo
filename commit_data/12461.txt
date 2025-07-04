@@ -1,16 +1,19 @@
-commit 105c5fa666fd29967a8818d3ccbc455722274496
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 01:54:39 2012 -0500
+commit 5aee1f3a0facf301230609008a61618a44cf4363
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 7 17:48:09 2012 +1100
 
-    test: invoke go command in run.go
+    exp/wingui: getting relocated to
     
-    Lets us run multifile tests and tests with arguments.
+    go get code.google.com/p/gowingui
     
-    R=golang-dev, r
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/5753068
+    https://golang.org/cl/5752067
 
- test/cmplxdivide.go |   2 +-
- test/run.go         | 109 ++++++++++++++++++++++++++--------------------------
- test/testlib        |  16 +++++++-
- 3 files changed, 70 insertions(+), 57 deletions(-)
+ doc/go1.html                  |   4 +
+ doc/go1.tmpl                  |   4 +
+ src/pkg/exp/wingui/Makefile   |   9 --
+ src/pkg/exp/wingui/gui.go     | 155 ----------------------------------
+ src/pkg/exp/wingui/winapi.go  | 134 -----------------------------
+ src/pkg/exp/wingui/zwinapi.go | 192 ------------------------------------------
+ 6 files changed, 8 insertions(+), 490 deletions(-)

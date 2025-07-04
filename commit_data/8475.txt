@@ -1,13 +1,18 @@
-commit bdbe0decc62dd63733ea37830aaa3c44ca16be43
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 25 06:00:07 2011 +1000
+commit b32ad8bff5be1170e044d6a7a9e34f56e1990ce9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 24 09:02:01 2011 -0700
 
-    spec: add missing comma.
-    A real humdinger.
+    http: Client test for streaming responses (no code changes)
+    
+    I had a report that this was broken. It seems fine.
+    
+    I think the reporter was just never flushing their response
+    headers.  If I omit the test server's initial Flush I get the
+    same behavior as reported. (a hang at Client.Get)
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4538089
+    https://golang.org/cl/4552062
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/client_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

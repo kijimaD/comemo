@@ -1,19 +1,18 @@
-commit 598c78967f26a0275a1f295ce3a96769f9be91bb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 5 15:04:05 2013 -0700
+commit 19e292268896c245c781e711ae3fff5ff5e127e5
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 5 13:24:33 2013 -0700
 
-    strings: use runtime assembly for IndexByte
+    cmd/gc: get rid of redundant slice bound check.
     
-    Fixes #3751
+    For normal slices a[i:j] we're generating 3 bounds
+    checks: j<={len(string),cap(slice)}, j<=j (!), and i<=j.
+    Somehow snuck in as part of the [i:j:k] implementation
+    where the second check does something.
+    Remove the second check when we don't need it.
     
-    R=golang-dev, khr
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/12483043
+    https://golang.org/cl/12311046
 
- src/pkg/runtime/asm_386.s       | 16 +++++++++++++++-
- src/pkg/runtime/asm_amd64.s     | 27 +++++++++++++++++++++++----
- src/pkg/runtime/asm_arm.s       | 24 ++++++++++++++++++++++++
- src/pkg/strings/strings.go      | 10 ----------
- src/pkg/strings/strings.s       |  5 +++++
- src/pkg/strings/strings_decl.go |  8 ++++++++
- 6 files changed, 75 insertions(+), 15 deletions(-)
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

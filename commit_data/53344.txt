@@ -1,29 +1,17 @@
-commit 145eec87683b4f09491bd4c6fc6448b920f4f4f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 25 14:52:01 2023 -0700
+commit f469f20e7962c9b580526ea9274bcd78689fcd42
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Wed Jul 27 02:38:34 2022 +0000
 
-    database/sql: fix regression from earlier RawBytes fix
+    internal/pprof/profile: simplify variable use
     
-    The earlier CL 497675 for #60304 introduced a behavior change
-    that, while not strictly a bug, caused a bunch of test failures
-    in a large codebase. Rather than add behavior changes in a 10 year
-    old package, revert to the old behavior: a context cancelation
-    between Rows.Next reporting false and a call to Rows.Err should
-    not result in Rows.Err returning the context error.
-    
-    That behavior was accidentally added in CL 497675 as part of changing
-    how contexts and Rows iteration worked.
-    
-    Updates #60304
-    Updates #53970
-    
-    Change-Id: I22f8a6a6b0b5a94b430576cf50e015efd01ec652
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498398
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I73b5d7602fccec00e68e4516f483f90163088ad1
+    GitHub-Last-Rev: 9366b89c47d5a209e2f239dbc473d851f9fed37e
+    GitHub-Pull-Request: golang/go#54083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419635
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/database/sql/sql.go      | 19 +++++++++++++++++--
- src/database/sql/sql_test.go | 19 +++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/internal/profile/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

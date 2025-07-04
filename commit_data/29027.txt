@@ -1,17 +1,21 @@
-commit 93bca632d9d4662c0e04f6ae24122579130a4bc2
+commit e2103adb6cf4e7d7d0905e513852407355967638
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 24 15:36:26 2016 -0700
+Date:   Sun Aug 7 14:14:47 2016 -0700
 
-    cmd/compile: preserve type information in inrange
+    crypto/*, runtime: nacl asm fixes
     
-    Fixes #17551.
+    Found by vet.
     
-    Change-Id: I84b7d82654cda3559c119aa56b07f30d0d224865
-    Reviewed-on: https://go-review.googlesource.com/31857
+    Updates #11041
+    
+    Change-Id: I5217b3e20c6af435d7500d6bb487b9895efe6605
+    Reviewed-on: https://go-review.googlesource.com/27493
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  3 +++
- test/fixedbugs/issue17551.go        | 21 +++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/crypto/md5/md5block_amd64p32.s   |  2 +-
+ src/crypto/sha1/sha1block_amd64p32.s |  2 +-
+ src/runtime/asm_amd64p32.s           | 28 ++++++++++++++--------------
+ src/runtime/sys_nacl_amd64p32.s      |  4 ++--
+ src/runtime/sys_nacl_arm.s           |  4 ++--
+ 5 files changed, 20 insertions(+), 20 deletions(-)

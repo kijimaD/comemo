@@ -1,17 +1,16 @@
-commit 633f9e206045176a12c301eb2c249c1c1d9a5d2e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Nov 2 12:01:33 2020 +0100
+commit 925516309128f20bb11a38f3e5265f23360a28ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 21 04:28:23 2020 +0000
 
-    internal/poll: treat copy_file_range EIO as not-handled
+    Revert "cmd/compile: use cheaper implementation of oneBit"
     
-    Fixes #42334
+    This reverts commit 066c47ca5fac1c49f754029f1e61323f74f6d93d.
     
-    Change-Id: Ife51df4e7d2539a04393abfdec45e3f902975fca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266940
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reason for revert: This appears to have broken a bunch of builders.
+    
+    Change-Id: I68b4decf3c1892766e195d8eb018844cdff69443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229177
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/internal/poll/copy_file_range_linux.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

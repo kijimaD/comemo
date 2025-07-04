@@ -1,15 +1,13 @@
-commit 8a146e707cc54a8e71758521085c6a2853ff8081
+commit b6618c118f33b2ade689ee1e77c52361f4657e33
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 8 21:54:46 2012 +1100
+Date:   Thu Mar 8 17:31:20 2012 +1100
 
-    misc/dashboard: remove obsolete package builder code
+    doc: drop google +1 button from the home page
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5790045
+    https://golang.org/cl/5784048
 
- misc/dashboard/builder/http.go      |  35 -----
- misc/dashboard/builder/main.go      | 121 +-----------------
- misc/dashboard/builder/package.go   | 121 ------------------
- misc/dashboard/googlecode_upload.py | 248 ------------------------------------
- 4 files changed, 2 insertions(+), 523 deletions(-)
+ doc/root.html | 2 --
+ doc/style.css | 3 ---
+ 2 files changed, 5 deletions(-)

@@ -1,19 +1,25 @@
-commit e87b0644db46c2b313f420c657a4b308fb6bc2cb
-Author: Keyan Pishdadian <kpishdadian@gmail.com>
-Date:   Tue Apr 28 20:06:29 2020 +0000
+commit d856e05d64591d3dec6411e3d86fe325e85eecc5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Nov 10 08:42:54 2019 +0100
 
-    cmd/go: add error for cross-compiled -race builds
+    cmd/link/internal/ld: set MachO platform to PLATFORM_IOS on iOS
     
-    Race builds require C dependencies, but cross-compiled cgo builds are
-    not always possible, so don't suggest enabling CGO in those cases.
+    CL 205340 changed the linker to skip certain flags when linking
+    for iOS. However, for host linking on iOS (such as on the Corellium
+    darwin/arm64 builders) the MachO platform defaults to PLATFORM_MACOS,
+    and the flags are not skipped.
     
-    Fixes #37021
+    Avoids warnings such as
     
-    Change-Id: I1fd675efc9cef958a926bd63eac8e6858bc59d0a
-    GitHub-Last-Rev: cbf43c1bbb0f209474cc323b3813cf270a2ba0a8
-    GitHub-Pull-Request: golang/go#38670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230202
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+        ld: warning: -no_pie ignored for arm64
+    
+    Updates #32963
+    
+    Change-Id: Ib6b4c2375fd14cf89410bf5ff1537b692b7a1c15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206337
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/init.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/macho.go | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

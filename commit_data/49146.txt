@@ -1,30 +1,28 @@
-commit d339d085c9d0cff099668d3a85ebae4e25c6afa2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 11 10:42:39 2022 -0400
+commit 80127a7dfe6951fb16d2b67dbe9badb5952e3a2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jul 18 15:51:31 2021 -0700
 
-    cmd/go: add timestamps to script test output
+    [dev.typeparams] cmd/compile/internal/types2: adjust unsafe.Alignof/Offsetof/Sizeof
     
-    Go tests don't include timestamps by default, but we would like to
-    have them in order to correlate builder failures with server and
-    network logs.
+    Changed the implementation such that the result is a variable rather than
+    a constant if the argument type (or the struct in case of unsafe.Offsetof)
+    has a size that depends on type parameters.
     
-    Since many of the Go tests with external network and service
-    dependencies are script tests for the 'go' command, logging timestamps
-    here adds a lot of logging value with one simple and very low-risk
-    change.
+    Minor unrelated adjustments.
     
-    For #50541.
-    For #52490.
-    For #52545.
-    For #52851.
+    For #40301.
     
-    Change-Id: If3fa86deb4a216ec6a1abc4e6f4ee9b05030a729
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405714
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I1e988f1479b95648ad95a455c764ead829d75749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335413
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/script_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/builtins.go        |  73 ++++++++++----
+ src/cmd/compile/internal/types2/builtins_test.go   |  13 ++-
+ src/cmd/compile/internal/types2/infer.go           |   4 +-
+ src/cmd/compile/internal/types2/sizes.go           |  10 +-
+ .../internal/types2/testdata/check/builtins.go2    | 107 +++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue40301.go2       |   4 +-
+ 6 files changed, 182 insertions(+), 29 deletions(-)

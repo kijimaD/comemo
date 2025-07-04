@@ -1,12 +1,14 @@
-commit 8627e5c0a1da23e0fe2eb10c306aed77c0743f08
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Sep 19 12:07:25 2012 +1000
+commit 51e85612f9beff6bb715199c1ddf5ff421c4ae77
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 18 14:19:31 2012 -0700
 
-    misc/cgo/test and test/bench/go1: enable these tests on windows
+    vet: add range variable misuse detection
     
-    R=golang-dev, r, bradfitz
+    R=fullung, r, remyoudompheng, minux.ma, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/6488127
+    https://golang.org/cl/6494075
 
- src/run.bat | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/vet/Makefile     |   2 +-
+ src/cmd/vet/main.go      |  26 ++++++++----
+ src/cmd/vet/rangeloop.go | 104 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 122 insertions(+), 10 deletions(-)

@@ -1,20 +1,25 @@
-commit 0a1a092c4b56a1d4033372fbd07924dad8cbb50b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 20 22:50:17 2022 +0000
+commit 40ba119e3f990fd570ec928307e92a5b6a76bd0e
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Aug 9 16:00:29 2021 -0700
 
-    Revert "cmd/cgo: use --no-gc-sections if available"
+    [dev.typeparams] cmd/compile: keep export format unchanged if no type params are exported
     
-    This reverts CL 405414.
+    Added new export tags 'G' and 'U' to export parameterized
+    functions/methods and parameterized types respectively. This has the
+    advantage that the Go 1.18 format remains backward-compatible with the
+    Go 1.17 format if no type parameters are exported.
     
-    Reason for revert: Breaks on AIX and iOS.
-    
-    Change-Id: I4681c6f2fd69616691660916ebf0853e3a6a67ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407634
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9dba8faaa65609eb3f9c693bd0c79daee98bd865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340989
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/exec.go | 29 +++++++----------------------
- 1 file changed, 7 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go  | 13 +++++++------
+ src/cmd/compile/internal/typecheck/iexport.go | 23 +++++++++++++----------
+ src/cmd/compile/internal/typecheck/iimport.go | 10 +++++-----
+ src/go/internal/gcimporter/iimport.go         | 19 ++++++-------------
+ 4 files changed, 31 insertions(+), 34 deletions(-)

@@ -1,14 +1,14 @@
-commit 6d175e243a0565b3b188dad118ca1e0f845a532a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jan 18 17:05:04 2013 +1100
+commit 11d16dc53545438067fef0103c10eae126c11535
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Fri Feb 1 10:02:23 2013 -0800
 
-    net: use windows GetAddrInfoW in LookupPort when possible
+    reflect: document that Value.Slice panics on an unaddressable array.
     
-    R=golang-dev, bradfitz
+    Fixes #4736.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7252045
+    https://golang.org/cl/7239045
 
- src/pkg/net/fd_windows.go     |  1 +
- src/pkg/net/lookup_windows.go | 43 ++++++++++++++++++++++++++++++++++++++++---
- src/pkg/net/port_test.go      |  2 +-
- 3 files changed, 42 insertions(+), 4 deletions(-)
+ src/pkg/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

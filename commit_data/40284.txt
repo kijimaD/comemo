@@ -1,19 +1,51 @@
-commit 3972f97d049edde37936d8b675e3600d10705dbc
-Author: Trung Nguyen <trung.n.k@gmail.com>
-Date:   Fri Oct 11 13:50:01 2019 -0400
+commit 65b89c3542fb3d36632e404f672b41f111b8b60a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Sun Apr 21 15:21:58 2019 -0400
 
-    net/http, net/textproto: add Header.Values, MIMEHeader.Values methods
+    cmd/go: make get -u upgrade only modules providing packages
     
-    Fixes #34799
+    Currently, 'go get -u' upgrades modules matching command line
+    arguments and any modules they transitively require. 'go get -u' with
+    no positional arguments upgrades all modules transitively required by
+    the main module. This usually adds a large number of indirect
+    requirements, which is surprising to users.
     
-    Change-Id: I134b2717fa90c8955902e7eeaaf8510dcc28340e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200760
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    With this change, 'go get' will load packages specified by
+    its arguments using a similar process to other commands
+    ('go build', etc). Only modules providing packages will be upgraded.
+    
+    'go get -u' now upgrades modules providing packages transitively
+    imported by the command-line arguments. 'go get -u' without arguments
+    will only upgrade modules needed by the package in the current
+    directory.
+    
+    'go get -m' will load all packages within a module. 'go get -m -u'
+    without arguments will upgrade modules needed by the main module. It
+    is equivalent to 'go get -u all'. Neither command will upgrade modules
+    that are required but not used.
+    
+    Note that 'go get -m' and 'go get -d' both download modules in order
+    to load packages.
+    
+    Fixes #26902
+    
+    Change-Id: I2bad686b3ca8c9de985a81fb42b16a36bb4cc3ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174099
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/header.go           | 14 ++++++++---
- src/net/textproto/header.go      | 15 +++++++++--
- src/net/textproto/header_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
- src/net/textproto/reader_test.go | 35 --------------------------
- 4 files changed, 78 insertions(+), 40 deletions(-)
+ src/cmd/go/alldocs.go                              |  18 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |   5 +-
+ src/cmd/go/internal/modget/get.go                  | 709 ++++++++++++---------
+ src/cmd/go/internal/modload/load.go                | 145 ++++-
+ src/cmd/go/internal/modload/query.go               |  10 +
+ src/cmd/go/testdata/script/mod_get_indirect.txt    |  15 +-
+ src/cmd/go/testdata/script/mod_get_local.txt       |  22 +-
+ src/cmd/go/testdata/script/mod_get_main.txt        |  10 +-
+ src/cmd/go/testdata/script/mod_get_upgrade.txt     |   9 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_load_badzip.txt     |   4 +
+ .../go/testdata/script/mod_upgrade_patch_mod.txt   |   7 +-
+ .../go/testdata/script/mod_upgrade_patch_pkg.txt   |  16 +-
+ 13 files changed, 610 insertions(+), 362 deletions(-)

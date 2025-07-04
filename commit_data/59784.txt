@@ -1,24 +1,24 @@
-commit 773701a853a3105696c59c2b92b2eff35e0e055b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jun 9 22:54:54 2025 +0000
+commit 5a3b6400ef053d52a3dd25e945f647bc7ea2b088
+Author: Lev Ustimenko <Leva3175@gmail.com>
+Date:   Mon Apr 22 20:09:05 2024 +0000
 
-    internal/trace: pass GOTRACEBACK=crash to testprogs
+    Refactor output message
     
-    The failures in #70310 are hard to decipher. The cases where the lock is
-    being held either don't really make sense (the STW failures) or the
-    goroutine that fails is 'running on another thread' and we don't get a
-    stack trace. In fact, such a goroutine exists even in the STW cases.
-    Since reproducing this is going to be hard (very few failures over a 2
-    year span) let's set GOTRACEBACK=crash for these testprogs so next time
-    it happens we can see why.
+    "/reflect/all_test.go : refactor message."
     
-    For #70310.
+    This PR corrects a syntax
     
-    Change-Id: I81a780aa82b173d42973f06911cb243f33352be1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680476
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    %value -> %v
+    
+    Change-Id: Ie56b93d238f090c564a88eb963dc9b7773054356
+    GitHub-Last-Rev: 023fde3ed4f31d5d702d76a593a63aaad1b4ac39
+    GitHub-Pull-Request: golang/go#66974
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580935
+    Reviewed-by: Joedian Reid <joedian@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/trace/trace_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

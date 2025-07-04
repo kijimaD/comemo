@@ -1,24 +1,40 @@
-commit 8d6fc84986cc0cb0bf77503828a2e7740f8ccac1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 10 16:44:56 2018 -0700
+commit 41402b59bd7401bf0b4ff3043dfe3d3fa712e05c
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Mar 23 13:00:47 2018 +0000
 
-    internal/poll: don't take read lock in SetBlocking
+    crypto/rc4: optimize generic implementation slightly
     
-    Taking a read lock in SetBlocking could cause SetBlocking to block
-    waiting for a Read in another goroutine to complete. Since SetBlocking
-    is called by os.(*File).Fd, that could lead to deadlock if the
-    goroutine calling Fd is going to use it to unblock the Read.
-    Use an atomic store instead.
+    The compiler can't currently figure out that it can eliminate both c.s
+    loads (using store to load forwarding) in the second line of the
+    following code:
     
-    Updates #24481
+            ...
+            c.s[i], c.s[j] = c.s[j], c.s[i]
+            x := c.s[j] + c.s[i]
+            ...
     
-    Change-Id: I79413328e06ddf28b6d5b8af7a0e29d5b4e1e6ff
-    Reviewed-on: https://go-review.googlesource.com/123176
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The compiler eliminates the second load of c.s[j] (using the original
+    value of c.s[i]), however the load of c.s[i] remains because the compiler
+    doesn't know that c.s[i] and c.s[j] either overlap completely or not at
+    all.
+    
+    Introducing temporaries to make this explicit improves the performance
+    of the generic code slightly, the goal being to remove the assembly in
+    this package in the future. This change also hoists a bounds check out
+    of the main loop which gives a slight performance boost and also makes
+    the behaviour identical to the assembly implementation when len(dst) <
+    len(src).
+    
+    name       old speed     new speed     delta
+    RC4_128-4  491MB/s ± 3%  596MB/s ± 5%  +21.51%  (p=0.000 n=9+9)
+    RC4_1K-4   504MB/s ± 2%  616MB/s ± 1%  +22.33%  (p=0.000 n=10+10)
+    RC4_8K-4   509MB/s ± 1%  630MB/s ± 2%  +23.85%  (p=0.000 n=8+9)
+    
+    Change-Id: I27adc775713b2e74a1a94e0c1de0909fb4379463
+    Reviewed-on: https://go-review.googlesource.com/102335
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go         |  2 +-
- src/internal/poll/fd_unix.go | 25 +++++++++++++------------
- src/os/pipe_test.go          | 42 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 56 insertions(+), 13 deletions(-)
+ src/crypto/rc4/rc4.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

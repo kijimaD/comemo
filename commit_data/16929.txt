@@ -1,14 +1,14 @@
-commit 3abaf5cae0557452264272331c7a7e308e14258f
-Author: Shivakumar GN <shivakumar.gn@gmail.com>
-Date:   Tue Jul 30 18:25:08 2013 -0700
+commit 3d6bce411c001bd7665a052045a376ba1cf30b63
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 30 23:48:18 2013 +0400
 
-    net/http: skip TestDirJoin on Windows, even if /etc/hosts exists
+    runtime: fix code formatting
+    This is mainly to force another build
+    with goroutine preemption.
     
-    Fixes #5460.
-    
-    R=golang-dev, rsc, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/12123043
+    https://golang.org/cl/12006045
 
- src/pkg/net/http/fs_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/runtime/runtime.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

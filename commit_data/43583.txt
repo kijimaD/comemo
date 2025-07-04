@@ -1,26 +1,17 @@
-commit 421d4e72de802ed65cb38317660654771cfb13e9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 28 13:44:53 2020 +0100
+commit e77c99ce4c377a0ea68a3c101ac143e9ae29841b
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Apr 10 14:53:01 2020 -0400
 
-    cmd/go/internal/modfetch: drop gopkg.in/russross/blackfriday.v2 from TestCodeRepoVersions
+    [dev.link] cmd/link: remove some globals from symtab.go
     
-    Follow-up for CL 265819.
-    
-    Given the -pre tag added recently, a new stable version is likely
-    tagged soon. This would break TestCodeRepoVersions on the longtest
-    builders again. Since the other test cases in codeRepoVersionsTests
-    already provide enough coverage, drop gopkg.in/russross/blackfriday.v2
-    to avoid breaking TestCodeRepoVersions once the release happens.
-    
-    Updates #28856
-    
-    Change-Id: If86a637b5e47f59faf9048fc1cbbae6e8f1dcc53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265917
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia2540779c1bf01248591568e1ddef1eef6edc20e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227917
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/link/internal/ld/dwarf2.go | 12 ++++++------
+ src/cmd/link/internal/ld/link.go   |  4 ++++
+ src/cmd/link/internal/ld/sym.go    |  1 +
+ src/cmd/link/internal/ld/symtab.go | 34 ++++++++++++++--------------------
+ 4 files changed, 25 insertions(+), 26 deletions(-)

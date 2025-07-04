@@ -1,36 +1,28 @@
-commit 9c9d74aba7eb4de2a253b04817ff26b32a6fea40
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 18 14:10:40 2015 -0500
+commit ea4e321d4daef32f4cd8df8ec799122ff3c6b9f0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 12 00:10:42 2015 +1000
 
-    runtime: prevent sigprof during all stack barrier ops
+    cmd/compile/internal/gc: avoid allocation in bnum
     
-    A sigprof during stack barrier insertion or removal can crash if it
-    detects an inconsistency between the stkbar array and the stack
-    itself. Currently we protect against this when scanning another G's
-    stack using stackLock, but we don't protect against it when unwinding
-    stack barriers for a recover or a memmove to the stack.
+    Although bnum was being called with a Bits value, a limitation
+    of the escape analyser (golang/go#12588) meant that taking the
+    address of the Bits.b array in the range statement caused the
+    formal parameter to escape to the heap.
     
-    This commit cleans up and improves the stack locking code. It
-    abstracts out the lock and unlock operations. It uses the lock
-    consistently everywhere we perform stack operations, and pushes the
-    lock/unlock down closer to where the stack barrier operations happen
-    to make it more obvious what it's protecting. Finally, it modifies
-    sigprof so that instead of spinning until it acquires the lock, it
-    simply doesn't perform a traceback if it can't acquire it. This is
-    necessary to prevent self-deadlock.
+    Passing the a pointer to a Bits, as with all the other Bits helper
+    methods avoids the allocation.
     
-    Updates #11863, which introduced stackLock to fix some of these
-    issues, but didn't go far enough.
+    Before:
+    BenchmarkBnum1-4        20000000                69.6 ns/op            32 B/op          1 allocs/op
     
-    Updates #12528.
+    After:
+    BenchmarkBnum1-4        100000000               10.1 ns/op             0 B/op          0 allocs/op
     
-    Change-Id: I9d1fa88ae3744d31ba91500c96c6988ce1a3a349
-    Reviewed-on: https://go-review.googlesource.com/17036
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I673bd57ddc032ee67d09474156d795fb1ba72018
+    Reviewed-on: https://go-review.googlesource.com/14501
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgcmark.go |  5 +++++
- src/runtime/mstkbar.go | 29 +++++++++++++++++++++++++++++
- src/runtime/proc.go    | 25 +++++++++++++------------
- 3 files changed, 47 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/reg.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

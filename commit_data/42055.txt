@@ -1,24 +1,25 @@
-commit b71eafbcece175db33acfb205e9090ca99a8f984
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 20 17:00:48 2020 -0800
+commit e5ce13c178cc0be72ca220b4c3f0c95f570c19ab
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Sep 12 18:24:56 2019 +0000
 
-    time: use extended time format past end of zone transitions
+    runtime: add option to scavenge with lock held throughout
     
-    This gives us better expected information for daylight savings time
-    transitions in year 2038 and beyond.
+    This change adds a "locked" parameter to scavenge() and scavengeone()
+    which allows these methods to be run with the heap lock acquired, and
+    synchronously with respect to others which acquire the heap lock.
     
-    Fixes #36654
+    This mode is necessary for both heap-growth scavenging (multiple
+    asynchronous scavengers here could be problematic) and
+    debug.FreeOSMemory.
     
-    Change-Id: I5a39aed3c40b184e1d7bb7d6ce3aff5307c4c146
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215539
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #35112.
+    
+    Change-Id: I24eea8e40f971760999c980981893676b4c9b666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195699
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/export_test.go   |  31 +++++
- src/time/time.go          |  50 ++++---
- src/time/time_test.go     |   7 +
- src/time/zoneinfo.go      | 348 ++++++++++++++++++++++++++++++++++++++++++++++
- src/time/zoneinfo_read.go |  15 +-
- src/time/zoneinfo_test.go |  94 +++++++++++++
- 6 files changed, 523 insertions(+), 22 deletions(-)
+ src/runtime/export_test.go      |  4 ++--
+ src/runtime/mgcscavenge.go      | 46 +++++++++++++++++++++++++++--------------
+ src/runtime/mgcscavenge_test.go | 10 +++++++--
+ 3 files changed, 41 insertions(+), 19 deletions(-)

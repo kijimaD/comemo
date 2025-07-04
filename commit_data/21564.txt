@@ -1,28 +1,24 @@
-commit b8a3e88ea73fded96fe9f5a72b4b3032bf2873ed
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 3 15:27:54 2015 -0500
+commit daa64ddfe64dda368e80cf224dc485fa63386f81
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 15 14:39:58 2015 -0800
 
-    cmd/gc: remove cgen_asop, no longer used
+    cmd/5g: make sure we normalize after unary ops on small types
     
-    gc/order.c rewrites OASOP nodes into ordinary assignments.
-    The back ends never see them anymore.
+    We were failing ^uint16(0xffff) == 0, as we computed 0xffff0000 instead.
     
-    Change-Id: I268ac8bdc92dccd7123110a21f99ada3ceeb2baa
-    Reviewed-on: https://go-review.googlesource.com/3882
-    Reviewed-by: Austin Clements <austin@google.com>
+    I could only trigger a failure for the above case, the other two tests
+    ^uint16(0xfffe) == 1 and -uint16(0xffff) == 1 didn't seem to fail
+    previously.  Somehow they get MOVHUs inserted for other reasons (used
+    by CMP instead of TST?).  I fixed OMINUS anyway, better safe than
+    sorry.
+    
+    Fixes #9604
+    
+    Change-Id: I4c2d5bdc667742873ac029fdbe3db0cf12893c27
+    Reviewed-on: https://go-review.googlesource.com/2940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/5g/galign.c |   1 -
- src/cmd/5g/gg.h     |   1 -
- src/cmd/5g/ggen.c   | 129 ------------------------------------------------
- src/cmd/6g/galign.c |   1 -
- src/cmd/6g/gg.h     |   1 -
- src/cmd/6g/ggen.c   | 139 ----------------------------------------------------
- src/cmd/8g/galign.c |   1 -
- src/cmd/8g/gg.h     |   1 -
- src/cmd/8g/ggen.c   | 136 --------------------------------------------------
- src/cmd/9g/galign.c |   1 -
- src/cmd/9g/gg.h     |   1 -
- src/cmd/9g/ggen.c   |   7 ---
- src/cmd/gc/gen.c    |   4 --
- src/cmd/gc/go.h     |   1 -
- 14 files changed, 424 deletions(-)
+ src/cmd/5g/cgen.c           | 11 +++++------
+ test/fixedbugs/issue9604.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 6 deletions(-)

@@ -1,20 +1,12 @@
-commit 16c59acb9790b0d1d17ed45256b95fa60c2e55f1
+commit a915cb47eef8acc8998414cd5f88c13614821e92
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 9 15:38:55 2014 -0400
+Date:   Thu Sep 4 01:05:32 2014 -0400
 
-    runtime: avoid read overrun in heapdump
+    runtime: fix onM test for curg on arm
     
-    Start the stack a few words below the actual top, so that
-    if something tries to read goexit's caller PC from the stack,
-    it won't fault on a bad memory address.
-    Today, heapdump does that.
-    Maybe tomorrow, traceback or something else will do that.
-    Make it not a bug.
-    
-    TBR=khr
-    R=khr
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/136450043
+    https://golang.org/cl/137130043
 
- src/runtime/proc.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

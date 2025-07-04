@@ -1,37 +1,19 @@
-commit 4dd9c7cadcbe689ef607931ed839456509e59104
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Dec 11 17:03:17 2020 -0500
+commit bf512685fee6282f1a50069ef444412bdf59611b
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Wed Aug 5 13:52:32 2020 +0800
 
-    cmd/go: remove some fsyncs when writing files
+    syscall: cap RLIMIT_NOFILE soft limit in TestRlimit on darwin
     
-    cache.Trim, dowloadZip, rewriteVersionList, writeDiskCache all use
-    renameio.WriteFile to write their respective files to disk. For the
-    uses in cache.Trim and downloadZip, instead do of renameio.WriteFile,
-    do a truncate to the length of the file, then write the relevant bytes
-    so that a corrupt file (which would contain null bytes because of
-    the truncate) could be detected. For rewriteVersionList, use
-    lockedfile.Transform to do the write (which does a truncate as part of
-    the write too. writeDiskCache stays the same in this CL.
+    On some machines, kern.maxfilesperproc is 4096. If Rlimit.Cur is larger
+    than that, Setrlimit will get an errEINVAL.
     
-    Also desete renameio methods that aren't used and remove the
-    renameio.WriteFile wrapper and just use renameio.WriteToFile which it
-    wraps.
+    Fixes #40564.
     
-    There is a possibility of corrupt files in the cache (which was true
-    even before this CL) so later CLs will add facilities to clear corrupt
-    files in the cache.
-    
-    Change-Id: I0d0bda40095e4cb898314315bf313e71650d8d25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277412
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib94303c790a489ff0559c88d41a021e514d18f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246658
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cache/cache.go            | 23 +++++++---
- src/cmd/go/internal/modfetch/cache.go         | 64 ++++++++++++++++++--------
- src/cmd/go/internal/modfetch/fetch.go         | 66 ++++++++++++++++++++++-----
- src/cmd/go/internal/renameio/renameio.go      |  8 +---
- src/cmd/go/internal/renameio/renameio_test.go |  2 +-
- 5 files changed, 118 insertions(+), 45 deletions(-)
+ src/syscall/syscall_unix_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

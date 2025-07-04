@@ -1,20 +1,20 @@
-commit c90a19a7601a201ac54be352608d46365adc0095
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 5 23:33:58 2022 +0700
+commit a1d27269d698d684497d0dc61c968a1c2dbe00b3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jun 19 03:35:15 2021 -0700
 
-    cmd/compile: set correct package for vars/params/results from nested instantiation
+    cmd/go: prep for 'go env' refactoring
     
-    Fixes #52117
+    This CL refactors code a little to make it easier to add GOEXPERIMENT
+    support in the future.
     
-    Change-Id: Ib5b2cdbdbce1d516aa10a0df349449b756f2f404
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398474
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I87903056f7863049e58be72047b2b8a60a213baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329654
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 10 ++++++++++
- test/typeparam/issue52117.dir/a.go        | 15 +++++++++++++++
- test/typeparam/issue52117.dir/b.go        |  7 +++++++
- test/typeparam/issue52117.go              |  7 +++++++
- 4 files changed, 39 insertions(+)
+ src/cmd/go/internal/envcmd/env.go        | 210 +++++++++++++++++--------------
+ src/cmd/go/main.go                       |  64 +++++-----
+ src/cmd/go/testdata/script/env_unset.txt |  23 ++++
+ 3 files changed, 170 insertions(+), 127 deletions(-)

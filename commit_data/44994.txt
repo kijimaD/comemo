@@ -1,16 +1,17 @@
-commit 4520da486b6d236090b1d98ce4707c5bcd19cb70
+commit d140c357442471ca0d56615811fb4226e99fadd5
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Apr 7 11:48:53 2021 +0200
+Date:   Tue Sep 22 09:19:04 2020 +0200
 
-    cmd/pack: use testing.T.TempDir in tests
+    syscall: use libc-based ioctl for Ioctl in tests on darwin
     
-    Change-Id: I7371259cf5d64f04698ae1477c3de1255664178d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307969
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Direct syscalls are no longer supported on darwin, instead wrap the
+    existing func ioctl for tests.
+    
+    Change-Id: Ie2c5b6e5f54e992f4d6b21513ca8f89fcf28ef10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256219
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/pack/pack_test.go | 36 +++++++++---------------------------
- 1 file changed, 9 insertions(+), 27 deletions(-)
+ src/syscall/export_darwin_test.go | 13 +++++++++++++
+ src/syscall/export_unix_test.go   |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

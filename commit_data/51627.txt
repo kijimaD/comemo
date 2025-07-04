@@ -1,31 +1,13 @@
-commit 1e0051658345a13ca9be9eeccdce2dabb016c627
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 7 16:57:27 2022 -0800
+commit b33592dcfd2c8cf1e574531ecb49af7755864e82
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 26 21:08:52 2022 -0800
 
-    cmd/compile/internal/syntax: rename ErrorMap to CommentMap, make more flexible
+    spec: the -'s possessive suffix is English, not code
     
-    Change the ErrorMap function to collect all comments with a comment
-    text that matches a given regexp pattern. Also rename it to CommentMap.
-    
-    Adjust uses and corresponding test.
-    
-    Adjust various type-checker tests with incorrect ERROR patterns.
-    
-    For #51006.
-    
-    Change-Id: I749e8f31b532edbf8568f27ba1546dc849efd143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456155
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2debcf926ef116c632c7366646d37de8686b7c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388174
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/testing.go         | 41 ++++++++++------------
- src/cmd/compile/internal/syntax/testing_test.go    | 37 ++++++++++---------
- src/cmd/compile/internal/types2/check_test.go      |  8 +++--
- src/internal/types/testdata/check/builtins0.go     |  2 +-
- src/internal/types/testdata/check/decls3.go        |  8 ++---
- src/internal/types/testdata/check/stmt0.go         |  2 +-
- .../types/testdata/fixedbugs/issue43190.go         |  2 +-
- 7 files changed, 52 insertions(+), 48 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

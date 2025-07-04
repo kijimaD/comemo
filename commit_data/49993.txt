@@ -1,22 +1,23 @@
-commit 5fcddf3997a89c1f82935cf65d919b7ef03df2c5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 15:06:56 2022 -0700
+commit 54079dfd7fff6c61d41c4832c074e8231f235fc3
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Sep 25 04:42:57 2021 +0800
 
-    go/types: match types2 error msg formatting for conversion errors
+    cmd/compile: fix stencil call expression
     
-    This resolves a TODO. Also, it allows go/types and types2 to use
-    identical test files in testdata/spec, a prerequisition for sharing
-    them eventually.
+    In CL 349613,we have supported types.IdentityStrict() that does strict
+    type comparison.
+    Therefore, OCONVNOP becomes a possible case in call.X.Op().
     
-    For #54511.
+    Fixes #48604
     
-    Change-Id: Ia9d11b15ada237c18b6ce8f72732f70134a1a06f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424537
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibab27ffcf09656e3380314662f05f38294c1c6ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351857
+    Trust: Dan Scales <danscales@google.com>
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/types/conversions.go               | 14 +++++++-------
- src/go/types/testdata/spec/conversions.go | 31 +++++++++++++++----------------
- 2 files changed, 22 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ test/typeparam/issue48604.go              | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

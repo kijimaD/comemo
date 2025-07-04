@@ -1,12 +1,15 @@
-commit c0a4ce52c604829f9b2b320a54bf0c41057c78ca
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jul 25 19:29:20 2013 +0900
+commit 93c6d0ef8f7c081f961ea3efe10e61a5b585cfbb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jul 25 11:29:13 2013 +1000
 
-    net: simplify probeIPv6Stack
+    bufio: check buffer availability before reading in ReadFrom
     
-    R=golang-dev, dave
+    Fixes #5947.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11807043
+    https://golang.org/cl/11801043
 
- src/pkg/net/ipsock_posix.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/pkg/bufio/bufio.go      | 17 +++++++++++------
+ src/pkg/bufio/bufio_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 6 deletions(-)

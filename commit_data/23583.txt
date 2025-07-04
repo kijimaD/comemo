@@ -1,42 +1,20 @@
-commit f11109fbc93bf2f31b5a948cc29c920b31184011
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Jun 30 15:07:20 2015 -0400
+commit f2c3957ed8b44f29aaf9a1a7ddc5208ae2168dc9
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 26 14:32:24 2015 -0400
 
-    go/types: change {Type,Object,Selection}String to accept a Qualifier function
+    runtime: disable GC around TestGoroutineParallelism
     
-    The optional Qualifier function determines what prefix to attach to
-    package-level names, enabling clients to qualify packages in different
-    ways, for example, using only the package name instead of its complete
-    path, or using the locally appropriate name for package given a set of
-    (possibly renaming) imports.
+    TestGoroutineParallelism can deadlock if the GC runs during the
+    test. Currently it tries to prevent this by forcing a GC before the
+    test, but this is best effort and fails completely if GOGC is very low
+    for testing.
     
-    Prior to this change, clients wanting this behavior had to copy
-    hundreds of lines of complex printing logic.
+    This change replaces this best-effort fix with simply setting GOGC to
+    off for the duration of the test.
     
-    Fun fact: (*types.Package).Path and (*types.Package).Name are valid
-    Qualifier functions.
-    
-    We provide the RelativeTo helper function to create Qualifiers so that
-    the old behavior remains a one-liner.
-    
-    Fixes golang/go#11133
-    
-    This CL is a copy of https://go-review.googlesource.com/#/c/11692/
-    to the golang.org/x/tools repository.
-    
-    Change-Id: I26d0f3644d077a26bfe350989f9c545f018eefbf
-    Reviewed-on: https://go-review.googlesource.com/11790
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I8229310833f241b149ebcd32845870c1cb14e9f8
+    Reviewed-on: https://go-review.googlesource.com/10454
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go |  2 +-
- src/go/internal/gcimporter/gcimporter_test.go  |  2 +-
- src/go/types/errors.go                         | 13 +++-
- src/go/types/example_test.go                   |  2 +-
- src/go/types/object.go                         | 68 ++++++++++--------
- src/go/types/operand.go                        |  8 +--
- src/go/types/selection.go                      | 14 ++--
- src/go/types/type.go                           | 22 +++---
- src/go/types/typestring.go                     | 96 ++++++++++++++++----------
- src/go/types/typestring_test.go                |  8 ++-
- 10 files changed, 143 insertions(+), 92 deletions(-)
+ src/runtime/proc_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,14 +1,19 @@
-commit 68fe6d40377a5746b6351a96aa795318a1343677
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 8 20:06:04 2016 +0000
+commit 26263354a3d607e1cc6c06be67530dad57f43074
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 4 18:20:57 2015 -0800
 
-    api: more go1.6 API additions
+    cmd/link: don't warn about unnamed symbols in .debug_str section
     
-    Change-Id: Ib838d2b98e3f84ffd240849817cafc69415ba74e
-    Reviewed-on: https://go-review.googlesource.com/18376
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    They reportedly occur with LLVM 3.7 on FreeBSD ARM.
+    
+    Fixes #13139.
+    
+    Change-Id: Ia7d053a8662696b1984e81fbd1d908c951c35a98
+    Reviewed-on: https://go-review.googlesource.com/16667
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- api/go1.6.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ld/ldelf.go | 7 +++++++
+ src/cmd/link/internal/ld/lib.go   | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

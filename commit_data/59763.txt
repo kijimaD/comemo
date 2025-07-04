@@ -1,19 +1,23 @@
-commit 1f2a4d192d71ae5eeaacaa72a8bb2df4e6c08edd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jun 4 00:04:26 2025 +0700
+commit 2ff89341f643920f827e4c45db8e4b507fedd9f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 2 19:27:21 2024 -0800
 
-    test: add another regression test for issue 73309
+    reflect: omit anonymous field name from StructOf type string
     
-    Fixed #73309
+    This makes the reflect package match the compiler for StructOf
+    with an embedded field.
     
-    Change-Id: Id715b9c71c95c92143a7fdb5a66b24305346dd3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/678415
+    Fixes #24781
+    
+    Change-Id: Ice64b167cbe0b9d30a953c5d8e2a86f3ad1158bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567897
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go |  1 +
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/issue73309b.go                  | 88 ++++++++++++++++++++++++++
- 3 files changed, 90 insertions(+)
+ src/reflect/all_test.go | 14 ++++++++++++++
+ src/reflect/type.go     |  5 +++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)

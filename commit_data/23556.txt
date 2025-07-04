@@ -1,14 +1,16 @@
-commit 5267bf075bcd0e4898f5414903c1b2180a852bac
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 13:58:18 2015 -0400
+commit 714291f2d80bab1599a866f266a4fc6546e61632
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 24 11:29:38 2015 -0700
 
-    cmd/go: disable TestIssue10952 without external network
+    cmd/link/internal/ld: if -v, display external linker output
     
-    Should fix arm64 build failure.
+    It can be useful when debugging to be able to see what the external
+    linker is doing even when it succeeds.  In particular this permits
+    passing -v to the external linker to see precisely what it is doing.
     
-    Change-Id: Ib35e4a69a1082e461a1eddf3265544a1d2ff98e5
-    Reviewed-on: https://go-review.googlesource.com/11710
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ifed441912d97bbebea20303fdb899e140b380215
+    Reviewed-on: https://go-review.googlesource.com/10363
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/go_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 3 +++
+ 1 file changed, 3 insertions(+)

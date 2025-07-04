@@ -1,18 +1,18 @@
-commit 806ea41fce0aec85fc092ec268ebbc729ca0930f
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Sun Mar 3 21:52:16 2024 +0200
+commit 455168d11391bf2b67833594ff6864c034107a59
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 14 11:34:51 2023 -0700
 
-    math/rand, math/rand/v2: rename receiver variables
+    cmd/asm: improve detector for incorrect R15 usage when dynamic linking
     
-    According to the https://go.dev/wiki/CodeReviewComments#receiver-names
+    Fixes #58632
     
-    Change-Id: Ib8bc57cf6a680e5c75d7346b74e77847945f6939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568635
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idb19af2ac693ea5920da57c1808f1bc02702929d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476295
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/math/rand/rand_test.go    | 10 +++++-----
- src/math/rand/v2/rand_test.go | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ .../asm/internal/asm/testdata/amd64dynlinkerror.s  |  97 ++++++++++++++
+ src/cmd/internal/obj/x86/obj6.go                   | 149 ++++++++++++++++-----
+ 2 files changed, 214 insertions(+), 32 deletions(-)

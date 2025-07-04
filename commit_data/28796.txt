@@ -1,15 +1,16 @@
-commit 90a750857c6146ce5d8d24cda5a1e70aa3d4cc58
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 12 15:10:15 2016 -0400
+commit d0256118de0b397494a3f4ca6d2e1e889b8c114e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jul 25 15:49:35 2016 -0700
 
-    syscall: update darwin/amd64 for timespec change
+    compress/flate: document HuffmanOnly
     
-    Change-Id: I74f47f519dfee10cd079ad9a4e09e36e8d74c6dc
-    Reviewed-on: https://go-review.googlesource.com/30937
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #16489
+    
+    Change-Id: I13e2ed6de59102f977566de637d8d09b4e541980
+    Reviewed-on: https://go-review.googlesource.com/25200
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_darwin_arm64.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ src/compress/flate/deflate.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

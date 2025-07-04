@@ -1,37 +1,19 @@
-commit 90031542068c9443e8cfe48149179c35b4c4afb7
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 19 11:46:41 2025 -0400
+commit 6a36e55d4aa54a34e5b8424e88b905f631b2b921
+Author: hi-rustin <rustin.liu@gmail.com>
+Date:   Mon Feb 19 15:22:37 2024 +0000
 
-    testing: separate b.Loop counter from b.N
+    runtime/pprof: update outdated google/pprof link
     
-    Currently, b.Loop uses b.N as the iteration count target. However,
-    since it updates the target as it goes, the behavior is quite
-    different from a b.N-style benchmark. To avoid user confusion, this CL
-    gives b.Loop a separate, unexported iteration count target. It ensures
-    b.N is 0 within the b.Loop loop to help catch misuses, and commits the
-    final iteration count to b.N only once the loop is done (as the
-    documentation states "After Loop returns false, b.N contains the total
-    number of iterations that ran, so the benchmark may use b.N to compute
-    other average metrics.")
+    Google/pprof changed the master branch to main, so it might be better to update it to the latest.
     
-    Since there are now two variables used by b.Loop, we put them in an
-    unnamed struct. Also, we rename b.loopN to b.loop.i because this
-    variable tracks the current iteration index (conventionally "i"), not
-    the target (conventionally "n").
-    
-    Unfortunately, a simple renaming causes B.Loop to be too large for the
-    inliner. Thus, we make one simplification to B.Loop to keep it under
-    the threshold. We're about to lean into that simplification anyway in
-    a follow-up CL, so this is just temporary.
-    
-    Prep for #72933 and #72971.
-    
-    Change-Id: Ide1c4f1b9ca37f300f3beb0e60ba6202331b183e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659655
+    Change-Id: Id29aca80a9a83a9c10da215180ad65816bc88936
+    GitHub-Last-Rev: 0023c28dc0d84a2529e24c694acfed7a363d2d0b
+    GitHub-Pull-Request: golang/go#65792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565177
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/testing/benchmark.go | 54 +++++++++++++++++++++++++++++++-----------------
- src/testing/loop_test.go | 12 +++++++++++
- 2 files changed, 47 insertions(+), 19 deletions(-)
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

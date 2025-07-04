@@ -1,34 +1,20 @@
-commit 5c6fbd2c3ee4a71493d3a7aa6f09a70ddcf0b230
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 16 18:56:41 2023 -0700
+commit b5fcb35b3197bc4d444ee0b9ad4ae6c5998864cf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 19 17:57:44 2022 +0200
 
-    cmd/compile: always construct typechecked closures
+    cmd/cgo: mention //go:build line in godoc
     
-    This CL extends ir.NewClosureFunc to take the signature type argument,
-    and to handle naming the closure and adding it to typecheck.Target.
+    Say "//go:build" instead of "// +build" in the package level godoc
+    comment.
     
-    It also removes the code for typechecking OCLOSURE and ODCLFUNC nodes,
-    by having them always constructed as typechecked. ODCLFUNC node
-    construction will be further simplified in the followup CL.
-    
-    Change-Id: Iabde4557d33051ee470a3bc4fd49599490024cba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520337
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4700227a03197ffbe29e4de04d068b4c63bb5bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431856
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/escape/call.go         |  4 +-
- src/cmd/compile/internal/ir/func.go             | 97 +++++++------------------
- src/cmd/compile/internal/noder/reader.go        | 36 +++------
- src/cmd/compile/internal/noder/unified.go       |  2 -
- src/cmd/compile/internal/pkginit/init.go        |  2 -
- src/cmd/compile/internal/reflectdata/alg.go     |  2 -
- src/cmd/compile/internal/ssagen/abi.go          |  1 -
- src/cmd/compile/internal/staticinit/sched.go    |  2 -
- src/cmd/compile/internal/typecheck/dcl.go       |  1 +
- src/cmd/compile/internal/typecheck/func.go      | 56 --------------
- src/cmd/compile/internal/typecheck/stmt.go      |  1 -
- src/cmd/compile/internal/typecheck/typecheck.go | 37 ----------
- 12 files changed, 41 insertions(+), 200 deletions(-)
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

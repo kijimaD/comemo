@@ -1,23 +1,21 @@
-commit 4f327f271d5cf0f6cc6e1bbac72aecaa25ca6e6f
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Wed Aug 28 10:16:10 2024 +0200
+commit 09c886d3936f5e1d34d7e467990622b9a1e0f858
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jul 24 10:26:10 2023 -0400
 
-    debug/macho: fix DWARF for section names longer than 16 chars
+    cmd/dist: fix broken link in README
     
-    The Mach-O file format truncates section names to 16 characters
-    maximum, which makes some sections unrecognizable to debug/dwarf.
-    This CL works around this problem by re-expanding the truncated section
-    names.
+    While here, also update the go15bootstrap link to use the
+    shorter go.dev domain and https:// prefix for consistency.
     
-    This problem was originally reported as:
-    https://github.com/go-delve/delve/issues/3797
+    For #54265.
     
-    Change-Id: I8c4a02493b8d5c3f63c831da43f6292124edf670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608995
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I881eeda235589511a93bf47186f91f6c47c12932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512720
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/debug/macho/file.go | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/cmd/dist/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

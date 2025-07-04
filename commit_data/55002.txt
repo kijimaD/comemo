@@ -1,19 +1,20 @@
-commit 23ca33009571a55eda926b7a41f5ceb04277bbd9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Nov 15 21:35:37 2023 -0500
+commit dadd80ae204bda1c3a48245d8a938f55f71259ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 29 15:13:52 2022 -0500
 
-    reflect: remove go121noForceValueEscape
+    runtime/debug: more complete BuildInfo documentation
     
-    Before Go 1.21, ValueOf always escapes and a Value's content is
-    always heap allocated. In Go 1.21, we made it no longer always
-    escape, guarded by go121noForceValueEscape. This behavior has
-    been released for some time and there is no issue so far. We can
-    remove the guard now.
+    A potential user did not realize Deps included all transitive dependencies,
+    not just direct dependencies of the main module. Clarify that and add
+    various other useful information.
     
-    Change-Id: I81f5366412390f6c63b642f4c7c016da534da76a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542795
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I5b8e1314bb26092edbcc090ba8eb9859f0a70662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453602
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/reflect/value.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/runtime/debug/mod.go | 44 ++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 36 insertions(+), 8 deletions(-)

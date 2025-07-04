@@ -1,25 +1,19 @@
-commit 8a5845e4e34c046758af3729acf9221b8b6c01ae
-Author: teivah <t.harsanyi@thebeat.co>
-Date:   Tue May 3 09:54:48 2022 +0000
+commit ef39edefe1c59c0d5dbe0c23e95a664a2ad46839
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 2 16:39:49 2021 -0700
 
-    encoding/base32: decoder output depends on chunking of underlying reader
+    [dev.typeparams] src,cmd: bump go.mod to 'go 1.18'
     
-    After an analysis, I figured that a way to do it could be to check, after
-    the call to readEncodedData whether the decoder already saw the end or not.
+    Necessary for building/testing generics code within src/ or src/cmd/
+    since CL 332373, and we'll need to do this eventually anyway.
     
-    Fixes #38657
-    
-    Change-Id: I06fd718ea4ee6ded2cb26c2866b28581ad86e271
-    GitHub-Last-Rev: d0b7bb38e4301a2ae9b8e588944488dbd88b39c4
-    GitHub-Pull-Request: golang/go#52631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403315
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia8c658c92d861fd3803fa18bfc80407c3381b411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332554
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/encoding/base32/base32.go      |  3 +++
- src/encoding/base32/base32_test.go | 52 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ src/cmd/go.mod | 2 +-
+ src/go.mod     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

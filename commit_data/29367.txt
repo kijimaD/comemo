@@ -1,16 +1,15 @@
-commit 9788e3d4d72792da22a12e54f8a86e25a03b58ab
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:51:06 2016 +0200
+commit 4ba2a4913c4e29754ade9d7329ff324a8f5de59a
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Tue Sep 6 10:49:26 2016 +0100
 
-    sync/atomic: add support for GOARCH=mips{,le}
+    crypto/rsa: remove unused variable y
     
-    Change-Id: I10f36710dd95b9bd31b3b82a3c32edcadb90ffa9
-    Reviewed-on: https://go-review.googlesource.com/31510
+    Change-Id: I70beb844cd6928dbfbfd8de365e0cb708e54f71e
+    Reviewed-on: https://go-review.googlesource.com/28496
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/internal/atomic/atomic_test.go |  7 +--
- src/sync/atomic/asm_mipsx.s                | 85 ++++++++++++++++++++++++++++++
- src/sync/atomic/atomic_test.go             | 15 +++---
- 3 files changed, 98 insertions(+), 9 deletions(-)
+ src/crypto/rsa/rsa.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,17 +1,17 @@
-commit cf0d8c0941308da40e54df73c16bffd1552a495d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 8 11:58:48 2011 +0400
+commit 571d3f50d398e50ca4dbe8f21cb9c19cffc76c0b
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Thu Sep 8 17:27:41 2011 +1000
 
-    sync/atomic: add 64-bit Load and Store
+    os: os.RemoveAll has to check for 2 error codes on Windows. ENOENT is not enough.
+    os.Lstat can return ENOTDIR as well.
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4977054
+    R=golang-dev, r, alex.brainman
+    CC=golang-dev, rsc
+    https://golang.org/cl/4984051
 
- src/pkg/sync/atomic/asm_386.s       |  28 ++++
- src/pkg/sync/atomic/asm_amd64.s     |  18 +++
- src/pkg/sync/atomic/asm_arm.s       |  24 ++++
- src/pkg/sync/atomic/asm_linux_arm.s |  12 ++
- src/pkg/sync/atomic/atomic_test.go  | 279 ++++++++++++++++++++++++++++++++++--
- src/pkg/sync/atomic/doc.go          |  14 +-
- 6 files changed, 362 insertions(+), 13 deletions(-)
+ src/pkg/os/file_posix.go            | 2 +-
+ src/pkg/os/file_windows.go          | 9 ---------
+ src/pkg/os/path.go                  | 2 +-
+ src/pkg/syscall/mkerrors_windows.sh | 2 +-
+ src/pkg/syscall/zerrors_windows.go  | 2 +-
+ 5 files changed, 4 insertions(+), 13 deletions(-)

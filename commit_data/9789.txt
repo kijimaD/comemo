@@ -1,16 +1,13 @@
-commit ecda69e66716582ef7ae341e22d21e24f541c7a0
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Sun Sep 25 20:48:03 2011 -0300
+commit d53afb8d835e3599b0e96d3bbd0a9c7fedf1cbdf
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Sun Sep 25 14:19:08 2011 +1000
 
-    archive/zip: read and write unix file modes
+    rpc:  fix typo in documentation client example
+    The example incorrectly dereferenced an integer variable
     
-    R=golang-dev, rsc, adg
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5124044
+    https://golang.org/cl/5129041
 
- src/pkg/archive/zip/reader.go      |  2 +-
- src/pkg/archive/zip/reader_test.go | 18 ++++++++++++
- src/pkg/archive/zip/struct.go      | 19 +++++++++++++
- src/pkg/archive/zip/writer.go      |  4 +--
- src/pkg/archive/zip/writer_test.go | 58 ++++++++++++++++++++++++++++++--------
- 5 files changed, 86 insertions(+), 15 deletions(-)
+ src/pkg/rpc/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

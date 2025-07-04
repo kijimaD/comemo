@@ -1,16 +1,19 @@
-commit 0bbc3dd4b5aa03b51114e6431541c83c6bc6b81d
-Author: Grant Griffiths <ggp493@gmail.com>
-Date:   Mon Oct 2 19:03:41 2017 -0700
+commit 4958f9e2fe6744a36188a9d97d7db1da696b848a
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Jun 14 09:10:51 2017 -0700
 
-    net/smtp: patch for SMTP injections
+    runtime: remove unused arm assembly for div/mod
     
-    Fixes #21159.
+    Also add runtime· prefixes to the code that is still used.
     
-    Change-Id: I2c5ad505d673e213a548e5d632a5b3ad706e0dde
-    Reviewed-on: https://go-review.googlesource.com/67635
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #19507
+    
+    Change-Id: Ib6da6b2a9e398061d3f93958ee1258295b6cc33b
+    Reviewed-on: https://go-review.googlesource.com/45699
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/smtp/smtp.go      | 28 ++++++++++++++++++++++++++++
- src/net/smtp/smtp_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/internal/obj/arm/obj5.go  |   4 +-
+ src/cmd/vet/all/whitelist/arm.txt |   1 -
+ src/runtime/softfloat_arm.go      |   5 ++
+ src/runtime/vlop_arm.s            | 130 +-------------------------------------
+ 4 files changed, 8 insertions(+), 132 deletions(-)

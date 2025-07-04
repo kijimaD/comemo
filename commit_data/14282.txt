@@ -1,15 +1,21 @@
-commit f07f9de8ec65763498410bb3c8778a87317278aa
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 1 11:12:15 2012 -0700
+commit 8d95245d0dadc1d44ac3567c210d2187e9a4aeea
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Nov 1 19:06:52 2012 +0100
 
-    go/build: support compiler as build constraint
+    cmd/gc: fix incomplete export data when inlining with local variables.
     
-    This supports writing different .c/.s code when using gccgo.
+    When local declarations needed unexported types, these could
+    be missing in the export data.
     
-    R=golang-dev, dsymonds, iant, rsc
+    Fixes build with -gcflags -lll, except for exp/gotype.
+    
+    R=golang-dev, rsc, lvd
     CC=golang-dev
-    https://golang.org/cl/6823055
+    https://golang.org/cl/6813067
 
- src/pkg/go/build/build.go | 4 +++-
- src/pkg/go/build/doc.go   | 1 +
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/gc/export.c             | 11 +++++++++++
+ test/fixedbugs/bug467.dir/p1.go |  5 +++++
+ test/fixedbugs/bug467.dir/p2.go |  5 +++++
+ test/fixedbugs/bug467.dir/p3.go |  7 +++++++
+ test/fixedbugs/bug467.go        | 10 ++++++++++
+ 5 files changed, 38 insertions(+)

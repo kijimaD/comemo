@@ -1,23 +1,21 @@
-commit 0ff9df6b53076a9402f691b07707f7d88d352722
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 20 16:39:09 2019 +0100
+commit 6761b1eb1b9fdbe5e2b865d683167dd5af3e5c0b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 23 14:45:09 2018 -0700
 
-    cmd: disable DWARF with old ld on aix/ppc64
+    cmd/compile: better errors for structs with conflicting fields and methods
     
-    DWARF relocations isn't working with some older ld, because of
-    -Wl,-bnoobjreorder which is needed on Go.
-    This commit checks ld's version and disable DWARF generation in cmd/link
-    if it's too old. Some tests must therefore be skipped.
+    If a field and method have the same name, mark the respective struct field
+    so that we don't report follow-on errors when the field/method is accessed.
     
-    Change-Id: I2e794c263eb0dfe0b42e7062fb80c26f086b44d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164007
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Per suggestion of @mdempsky.
+    
+    Fixes #28268.
+    
+    Change-Id: Ia1ca4cdfe9bacd3739d1fd7ca5e014ca094245ee
+    Reviewed-on: https://go-review.googlesource.com/c/144259
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go | 16 ++++++++++
- src/cmd/internal/dwarf/dwarf.go                | 42 ++++++++++++++++++++++++++
- src/cmd/link/dwarf_test.go                     | 14 +++++++++
- src/cmd/link/internal/ld/dwarf.go              |  5 +++
- src/cmd/link/internal/ld/lib.go                | 22 ++++++++------
- 5 files changed, 89 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       |  5 +++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue28268.go             | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 3 deletions(-)

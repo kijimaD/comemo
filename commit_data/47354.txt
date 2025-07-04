@@ -1,20 +1,18 @@
-commit 90f47dbba635802bb009404e321fa4759ac76d20
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Nov 9 10:59:32 2021 -0500
+commit a8a85281caf21831ee51ea8c879cbba94bcce256
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 12 16:58:10 2021 -0800
 
-    runtime/pprof: include labels in profile dump
+    runtime: fix documented alignment of 32KiB and 64KiB size classes
     
-    For tests of pprof label support having the sample labels in the output
-    is needed for effective debugging.
+    As Cherry pointed out on golang.org/cl/299909, the page allocator
+    doesn't guarantee any alignment for multi-page allocations, so object
+    alignments are thus implicitly capped at page alignment.
     
-    For #48577
-    
-    Change-Id: Ic7c5bc90cb33e8fb477f7db62d9b56a7a9d6ffa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362614
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6f5df27f269b095cde54056f876fe4240f69c5c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301292
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mksizeclasses.go | 6 +++++-
+ src/runtime/sizeclasses.go   | 6 +++---
+ 2 files changed, 8 insertions(+), 4 deletions(-)

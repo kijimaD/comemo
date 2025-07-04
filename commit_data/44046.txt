@@ -1,59 +1,21 @@
-commit 53c984d976f49b5671b11ff17f5d622572d4cf58
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Sat Dec 5 19:53:08 2020 +0000
+commit 21898524f66c075d7cfb64a38f17684140e57675
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 1 01:14:04 2020 -0400
 
-    runtime: skip wakep call in wakeNetPoller on Plan 9
+    net/http: use ASCII space trimming throughout
     
-    This was part of a performance improvement made by CL 232298 to
-    reduce timer latency. On multiprocessor Plan 9 machines, it triggers
-    memory faults often enough that the builder test suite never completes
-    successfully. See issue #42303 for discussion. As shown by the benchmark
-    result below, worst case latency on plan9_arm is very bad even with the
-    wakep call in place - in the tickers-per-P=1 case, a 3ms timer is 270ms late.
-    Skipping the wakep call and running the benchmark again shows some cases
-    worse, some better. The performance cost doesn't seem excessive for this
-    temporary workaround which makes the plan9_arm builders usable again.
+    Security hardening against HTTP request smuggling. Thank you to ZeddYu
+    for reporting this issue.
     
-    With wakep call:
-    
-    cpu% go test -bench Latency time
-    goos: plan9
-    goarch: arm
-    pkg: time
-    BenchmarkParallelTimerLatency-4              100          10985859 avg-late-ns    18630963 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=1-4                     195         270294688 avg-late-ns   542057670 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=2-4                     234         182452000 avg-late-ns   423933688 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=3-4                     280         193003004 avg-late-ns   408034405 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=4-4                     282         132819086 avg-late-ns   313624570 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=5-4                     339          71152187 avg-late-ns   189014519 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=6-4                     315          26860484 avg-late-ns   101759844 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=7-4                     357          19106739 avg-late-ns    59435620 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=8-4                     376           7246933 avg-late-ns    38888461 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=9-4                     267          40476892 avg-late-ns   205851926 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=10-4                    294          87836303 avg-late-ns   252059695 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=2ms/tickers-per-P=1-4                       379           4127144 avg-late-ns    10494927 max-late-ns
-    
-    Without wakep call:
-    
-    BenchmarkParallelTimerLatency-4               61          10775151 avg-late-ns    18668517 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=1-4                     199         299587535 avg-late-ns   597182307 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=2-4                     272         184561831 avg-late-ns   449739837 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=3-4                     235         154983257 avg-late-ns   370940553 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=4-4                     290         150034689 avg-late-ns   332399843 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=5-4                     298          47540764 avg-late-ns   133709031 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=6-4                     350          20379394 avg-late-ns    81742809 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=7-4                     363          14403223 avg-late-ns    98901212 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=8-4                     375          12293090 avg-late-ns    50266552 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=9-4                     336          40628820 avg-late-ns   150946099 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=300µs/tickers-per-P=10-4                    289          88265539 avg-late-ns   280770418 max-late-ns
-    BenchmarkStaggeredTickerLatency/work-dur=2ms/tickers-per-P=1-4                       375           8364937 avg-late-ns    22598421 max-late-ns
-    
-    Fixes #42303
-    
-    Change-Id: I70c63cb2a2bad46950a7cd9dfc7bb32943710d32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275672
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: I98bd9f8ffe58360fc3bca9dc5d9a106773e55373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231419
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/http/cgi/host.go              |  5 +++--
+ src/net/http/cookie.go                | 11 ++++++-----
+ src/net/http/fs.go                    |  4 ++--
+ src/net/http/httptest/recorder.go     |  3 ++-
+ src/net/http/httputil/reverseproxy.go |  3 ++-
+ src/net/http/transfer.go              |  8 ++++----
+ 6 files changed, 19 insertions(+), 15 deletions(-)

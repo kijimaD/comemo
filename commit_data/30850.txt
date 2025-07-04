@@ -1,17 +1,16 @@
-commit ef1ab0f0f4f56e9be490aaca43c799d2eeeed289
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 23 16:39:11 2017 -0700
+commit a0c5405c18568900a9b7365297adc1cd846bbdac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 9 14:28:49 2016 -0800
 
-    cmd/compile: enforce no uses of Curfn in backend
+    [dev.inline] cmd/compile/internal/syntax: add tests for //line directives
     
-    Updates #15756
-    
-    Change-Id: Id8d65ca9a3f1a7f9ea43e26cdd5e7d3befef8ba0
-    Reviewed-on: https://go-review.googlesource.com/38593
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I77dc73bfe79e43bbadf85d7eb3c5f8990ec72023
+    Reviewed-on: https://go-review.googlesource.com/34248
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/gen.go  | 4 +++-
- src/cmd/compile/internal/gc/pgen.go | 3 +++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go       |  4 +--
+ src/cmd/compile/internal/syntax/parser_test.go  | 44 +++++++++++++++++++++++++
+ src/cmd/compile/internal/syntax/scanner_test.go |  9 -----
+ 3 files changed, 46 insertions(+), 11 deletions(-)

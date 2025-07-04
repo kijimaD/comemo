@@ -1,23 +1,20 @@
-commit 8e478de4e6c91a0de763cf2e308f7598677f5c58
-Author: favonia <favonia@gmail.com>
-Date:   Tue Oct 1 05:49:19 2024 -0500
+commit b805e18fbf6dee945236159d89cf3d29fcd541c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 15:16:19 2023 -0700
 
-    net: document possible networks that can be passed to Control
+    cmd/compile/internal/escape: cleanup go/defer normalization cruft
     
-    Before this patch, the documentation of Dialer.Control and
-    ListenConfig.Control did not specify what networks would be
-    passed to the Control function other than the "tcp" case.
-    It was thus challenging to use the Control function to filter
-    out certain networks. This patch documents all known networks.
+    This CL removes the extra complexity from escape analysis that was
+    only needed to support go/defer normalization. It does not affect
+    analysis results at all.
     
-    Fixes #69693
-    
-    Change-Id: I2ab10d68c4e4fac66d51d2cc232f02cf3b305e89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617055
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I75785e0cb4c4ce19bea3b8df0bf95821bd885291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520261
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/dial.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/escape/call.go | 242 ++++++++++----------------------
+ 1 file changed, 71 insertions(+), 171 deletions(-)

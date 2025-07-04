@@ -1,19 +1,18 @@
-commit f3c2208e2cca69911fa72c22211361a6a57f4e26
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 29 21:02:46 2021 -0500
+commit 7f349e82a257737dac18b28eab69ce793969d9cd
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 17:02:10 2020 +0000
 
-    cmd/go: add script tests for potential upgrades due to downgrades
+    Revert "cmd/compile: improve generated eq algs for structs containing interfaces"
     
-    For #36460
+    This reverts commit 1cc7be89a94951cbd1b6db669cb5a278e7aea545.
     
-    Change-Id: I1620c23819263ef82e571fc4d4c778277842c02d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288535
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reason for revert: Undoing to get back to semantics discussed in #8606.
+    
+    Change-Id: Ib44a2e79cf113b3d15c3546cd8aa6fc27860819e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236146
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../testdata/script/mod_get_downadd_indirect.txt   |  81 +++++++++++++++++
- .../go/testdata/script/mod_get_downup_indirect.txt | 101 +++++++++++++++++++++
- 2 files changed, 182 insertions(+)
+ src/cmd/compile/internal/gc/alg.go | 8 --------
+ 1 file changed, 8 deletions(-)

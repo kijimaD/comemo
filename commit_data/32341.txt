@@ -1,25 +1,19 @@
-commit bf4d8d3d055c47c03d8e0e05e8d07fd94f793e53
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 17 12:23:34 2017 -0700
+commit 4a4398825f84af9e46400bc1ff6a5feaa38e9a58
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:06:46 2017 -0400
 
-    cmd/compile: rename SSA Register.Name to Register.String
+    runtime/pprof: accept fewer PCs
     
-    Just to get rid of lots of .Name() stutter in printf calls.
+    TestBlockProfile currently requires exactly five PCs in each sample.
+    With more aggressive inlining there may be fewer, so change this test
+    to use the same pattern as TestMutexProfile, which accepts one or more
+    PCs. With this change, this test passes when compiled with -l=4.
     
-    Change-Id: I86cf00b3f7b2172387a1c6a7f189c1897fab6300
-    Reviewed-on: https://go-review.googlesource.com/56630
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I1421a6d56c96b77111bdc671d88723a222672fd6
+    Reviewed-on: https://go-review.googlesource.com/41110
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/cmd/compile/fmt_test.go                |  6 ++---
- src/cmd/compile/internal/gc/ssa.go         |  2 +-
- src/cmd/compile/internal/ssa/debug.go      | 16 ++++++------
- src/cmd/compile/internal/ssa/decompose.go  |  2 +-
- src/cmd/compile/internal/ssa/html.go       |  6 ++---
- src/cmd/compile/internal/ssa/location.go   | 16 ++++++------
- src/cmd/compile/internal/ssa/print.go      |  2 +-
- src/cmd/compile/internal/ssa/regalloc.go   | 40 +++++++++++++++---------------
- src/cmd/compile/internal/ssa/stackalloc.go |  6 ++---
- src/cmd/compile/internal/ssa/value.go      |  4 +--
- 10 files changed, 50 insertions(+), 50 deletions(-)
+ src/runtime/pprof/pprof_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

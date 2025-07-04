@@ -1,16 +1,20 @@
-commit b8644e324355137bc7b2abe290235e0197df9b13
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Mon Jan 29 17:01:41 2018 -0500
+commit eab5bc9a46df5306dab7fe40ad21a7f9b65ecdc8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 5 16:52:04 2017 +1100
 
-    cmd/compile/internal: reuse memory for valueToProgAfter
+    image/gif: add BenchmarkDecode.
     
-    Not a big improvement, but does help edge cases like the SSA package.
-    Change-Id: I40e531110b97efd5f45955be477fd0f4faa8d545
-    Reviewed-on: https://go-review.googlesource.com/92396
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Also add some b.ReportAllocs calls to other image codec benchmarks.
+    
+    Change-Id: I0f055dc76bffb66329c621a5f1ccd239f0cdd30b
+    Reviewed-on: https://go-review.googlesource.com/68390
+    Reviewed-by: Jed Denlea <jed@fastly.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go    |  8 +++++++-
- src/cmd/compile/internal/ssa/cache.go | 18 +++++++++++-------
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ src/image/gif/reader_test.go  | 18 ++++++++++++++++++
+ src/image/gif/writer_test.go  |  9 ++++-----
+ src/image/jpeg/reader_test.go |  4 ++--
+ src/image/jpeg/writer_test.go |  8 ++++----
+ src/image/png/reader_test.go  |  9 ++++-----
+ src/image/png/writer_test.go  | 28 ++++++++++++++--------------
+ 6 files changed, 46 insertions(+), 30 deletions(-)

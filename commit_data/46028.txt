@@ -1,25 +1,24 @@
-commit aab1d1fcb9f7e77191085a192b2d0c061fd42df2
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 10:49:10 2021 -0400
+commit bacb307b80747deaf6a017f5b3cee4e3cb115f61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 3 12:02:00 2020 -0800
 
-    go/types: expand is only required for *Named types
+    test: match gofrontend error messages
     
-    This is a port of CL 340749 to go/types.
+    fixedbugs/bug487.go:17:17: error: function result count mismatch
+    fixedbugs/bug487.go:18:16: error: function result count mismatch
     
-    Change-Id: I2af602d357486ee2f45b91c11c4b02ec6b58ed38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342474
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    fixedbugs/issue6977.go:37:26: error: duplicate method ‘m’
+    fixedbugs/issue6977.go:38:21: error: duplicate method ‘m’
+    fixedbugs/issue6977.go:39:26: error: duplicate method ‘m’
+    fixedbugs/issue6977.go:40:21: error: duplicate method ‘m’
+    
+    Change-Id: Ie3c8a4650cd8f4c239bdceac25dc188a6a50ca34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275178
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/builtins.go   |  2 +-
- src/go/types/expr.go       |  1 -
- src/go/types/named.go      |  9 ---------
- src/go/types/predicates.go |  6 ++----
- src/go/types/signature.go  |  2 +-
- src/go/types/type.go       |  5 ++++-
- src/go/types/typexpr.go    |  3 +--
- src/go/types/unify.go      |  6 ++----
- src/go/types/union.go      | 11 +++++------
- 9 files changed, 16 insertions(+), 29 deletions(-)
+ test/fixedbugs/bug487.go    | 4 ++--
+ test/fixedbugs/issue6977.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

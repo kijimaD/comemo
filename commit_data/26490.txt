@@ -1,18 +1,19 @@
-commit 570a2b0eecc6ae8e398b2f1b56785cc9cacf0dbe
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 10:16:46 2016 +0100
+commit d326a9641994eccdac1c95901762af45ec801bf1
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 19:10:11 2016 +0000
 
-    cmd/dist: skip testcarchive test in Android and iOS
+    runtime: remove redundant empty function call from Breakpoint on arm
     
-    CL 20892 converted the misc/cgo/testcarchive test to Go.
-    Unfortunately, dist does not (yet) support tests running off the host
-    so the testcarchive is disabled for now.
+    CL 18964 included an extra patch (sorry, my first experience of
+    git-codereview) which defined the conventional breakpoint instruction
+    used by Plan 9 on arm, but also introduced a benign but unneeded
+    call to runtime.emptyfunc.  This CL removes the redundant call again.
     
-    For #14318
+    This completes the series of CLs which add support for Plan 9 on arm.
     
-    Change-Id: Iab3d0a7b5309187a603b48f22a7fa736f089f89d
-    Reviewed-on: https://go-review.googlesource.com/21070
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Id293cfd40557c9d79b4b6cb164ed7ed49295b178
+    Reviewed-on: https://go-review.googlesource.com/19010
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/asm_arm.s | 1 -
+ 1 file changed, 1 deletion(-)

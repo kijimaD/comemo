@@ -1,12 +1,23 @@
-commit fd80efee103b96ac9d5b70f3a1be363fa2234666
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 19 13:00:09 2011 +1000
+commit a986d98053a817600509b2c0088e1cf118cf573a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 12:51:23 2011 -0700
 
-    net: fix windows build
+    mime: ParseMediaType returns os.Error now, not a nil map
     
-    R=golang-dev
+    ParseMediaType previously documented that it always returned
+    a non-nil map, but also documented that it returned a nil map
+    to signal an error.
+    
+    That is confusing, contradictory and not Go-like.
+    
+    Now it returns (mediatype string, params map, os.Error).
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4873058
+    https://golang.org/cl/4867054
 
- src/pkg/syscall/ztypes_windows.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/http/request.go             | 18 ++++++++++++------
+ src/pkg/mime/mediatype.go           | 32 ++++++++++++++++++--------------
+ src/pkg/mime/mediatype_test.go      | 19 +++++++++++++------
+ src/pkg/mime/multipart/multipart.go |  5 +++--
+ 4 files changed, 46 insertions(+), 28 deletions(-)

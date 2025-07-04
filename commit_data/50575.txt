@@ -1,52 +1,21 @@
-commit c2ede92a0d461cca8ab5fba8840e15670710fbd9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 22 15:47:27 2022 -0400
+commit 62b29b035948c08041e4218d0b176d057c8a6f6f
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 15:11:31 2021 -0400
 
-    runtime/pprof: force use of 4-column profiles in pprof memprofile output
+    go/types: generalize assignability to generic types
     
-    Pprof's converter from legacy text format to protobuf format
-    assumes that if the alloc and inuse stats are equal, then what's
-    really going on is that the program makes no distinction, and it
-    reads them as a two-column profile: objects and bytes.
+    This is a port of CL 357917 to go/types. Some error messages in
+    assignability.go2 had to be adjusted. I left a TODO to investigate
+    whether we should align error messages.
     
-    Most of the time, some sampled object has been freed, and alloc != inuse.
-    In that case, pprof reads the profile as a four-column profile, with
-    alloc_objects, alloc_bytes, inuse_objects, inuse_bytes.
-    
-    The 2-column form causes problems in a few ways. One is that if
-    you are reading the proto form and expect samples with the 4-column
-    names, they're not there. Another is that pprof's profile merger insists
-    on having the same number of columns and same names. This means
-    that
-    
-            pprof *.memprofile
-    
-    works most of the time but fails if one of the memory profiles hit
-    the unlikely condition that alloc == inuse, since now its converted
-    form differs from the others.
-    
-    Most programs should simply not be using this output form at all,
-    but cmd/compile and cmd/link still do, because x/tools/cmd/compilebench
-    reads some extra values from the text form that we have not yet added
-    to the proto form.
-    
-    For the programs still writing this form, the easiest way to avoid the
-    column collapse issues is to ensure that the header never reports
-    alloc == inuse. The actual values in the header are ignored by pprof now,
-    except for the equality check (they should sum to the other values in the
-    file, so they are technically redundant). Because the actual values are not
-    used except for the equality check, we could hard-code different values
-    like 0 and 1, but just in case, to break as little as possible, this CL only
-    adjusts the values when they would otherwise be equal. In that case it
-    adds 1 to allocBytes. For most profiles, where alloc != inuse already, there
-    is no effect at all.
-    
-    Change-Id: Ia563e402573d0f6eb81ae496645db27c08f9fe31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432758
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ia323ffe18bc08e82de62044f35b8b0f3edd7dc08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360476
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/pprof/pprof.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/go/types/check_test.go                         |   1 +
+ src/go/types/operand.go                            | 107 +++++++---
+ src/go/types/testdata/spec/assignability.go2       | 236 +++++++++++++++++++++
+ .../testdata/{examples => spec}/conversions.go2    |   0
+ 4 files changed, 318 insertions(+), 26 deletions(-)

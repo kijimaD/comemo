@@ -1,58 +1,17 @@
-commit 4f1f503373cda7160392be94e3849b0c9b9ebbda
-Author: Vlad Krasnov <vlad@cloudflare.com>
-Date:   Sat Apr 14 04:01:02 2018 +0000
+commit f2abca90a20b57a552dbdaa7ac739e990fc9bc94
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 30 14:15:15 2018 +0200
 
-    crypto/aes: implement AES-GCM AEAD for arm64
+    test/codegen: port arm64 byte slice zeroing tests
     
-    Use the dedicated AES* and PMULL* instructions to accelerate AES-GCM
+    And delete them from asm_test.
     
-    name              old time/op    new time/op      delta
-    AESGCMSeal1K-46     12.1µs ± 0%       0.9µs ± 0%    -92.66%  (p=0.000 n=9+10)
-    AESGCMOpen1K-46     12.1µs ± 0%       0.9µs ± 0%    -92.43%  (p=0.000 n=10+10)
-    AESGCMSign8K-46     58.6µs ± 0%       2.1µs ± 0%    -96.41%  (p=0.000 n=9+8)
-    AESGCMSeal8K-46     92.8µs ± 0%       5.7µs ± 0%    -93.86%  (p=0.000 n=9+9)
-    AESGCMOpen8K-46     92.9µs ± 0%       5.7µs ± 0%    -93.84%  (p=0.000 n=8+9)
-    
-    name              old speed      new speed        delta
-    AESGCMSeal1K-46   84.7MB/s ± 0%  1153.4MB/s ± 0%  +1262.21%  (p=0.000 n=9+10)
-    AESGCMOpen1K-46   84.4MB/s ± 0%  1115.2MB/s ± 0%  +1220.53%  (p=0.000 n=10+10)
-    AESGCMSign8K-46    140MB/s ± 0%    3894MB/s ± 0%  +2687.50%  (p=0.000 n=9+10)
-    AESGCMSeal8K-46   88.2MB/s ± 0%  1437.5MB/s ± 0%  +1529.30%  (p=0.000 n=9+9)
-    AESGCMOpen8K-46   88.2MB/s ± 0%  1430.5MB/s ± 0%  +1522.01%  (p=0.000 n=8+9)
-    
-    This change mirrors the current amd64 implementation, and provides optimal performance
-    on a range of arm64 processors including Centriq 2400 and Apple A12. By and large it is
-    implicitly tested by the robustness of the already existing amd64 implementation.
-    
-    The implementation interleaves GHASH with CTR mode to achieve the highest possible
-    throughput, it also aggregates GHASH with a factor of 8, to decrease the cost of the
-    reduction step.
-    
-    Even thought there is a significant amount of assembly, the code reuses the go
-    code for the amd64 implementation, so there is little additional go code.
-    
-    Since AES-GCM is critical for performance of all web servers, this change is
-    required to level the playfield for arm64 CPUs, where amd64 currently enjoys an
-    unfair advantage.
-    
-    Ideally both amd64 and arm64 codepaths could be replaced by hypothetical AES and
-    CLMUL intrinsics, with a few additional vector instructions.
-    
-    Fixes #18498
-    Fixes #19840
-    
-    Change-Id: Icc57b868cd1f67ac695c1ac163a8e215f74c7910
-    Reviewed-on: https://go-review.googlesource.com/107298
-    Run-TryBot: Vlad Krasnov <vlad@cloudflare.com>
+    Change-Id: Id533130470da9176a401cb94972f626f43a62148
+    Reviewed-on: https://go-review.googlesource.com/103656
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/crypto/aes/aes_gcm.go                         |   11 +-
- src/crypto/aes/asm_arm64.s                        |  176 +++-
- src/crypto/aes/cipher_arm64.go                    |   80 --
- src/crypto/aes/{cipher_amd64.go => cipher_asm.go} |   21 +-
- src/crypto/aes/gcm_amd64.s                        |   50 -
- src/crypto/aes/gcm_arm64.s                        | 1021 +++++++++++++++++++++
- src/crypto/cipher/gcm_test.go                     |    2 +-
- src/crypto/tls/common.go                          |    7 +-
- 8 files changed, 1217 insertions(+), 151 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 90 ---------------------------------
+ test/codegen/memcombine.go              | 41 +++++++++++++++
+ 2 files changed, 41 insertions(+), 90 deletions(-)

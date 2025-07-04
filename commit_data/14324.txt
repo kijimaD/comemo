@@ -1,13 +1,19 @@
-commit 882eb608b1987e6a7b27256bd13d1c533798381d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Nov 7 05:07:46 2012 +0800
+commit 91651c1844a5c8ef02bd907aa830eb8703c098b3
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Wed Nov 7 04:59:21 2012 +0800
 
-    sort: fix comment for various Search routines
-    Fixes #4205 (again).
+    cmd/godoc: initialize filesystem and metadata for -url
     
-    R=r, 0xjnml
+    Unlike when using -http, godoc -url didn't initialize the "filesystem"
+    and metadata that are used when generating responses. This CL adds this
+    initialization, so that -url provides the same results as an HTTP
+    request when using -http.
+    
+    Fixes #4335.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6819082
+    https://golang.org/cl/6817075
 
- src/pkg/sort/search.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/godoc/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

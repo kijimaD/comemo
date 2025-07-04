@@ -1,16 +1,21 @@
-commit 28b09d5846da23ed3b8d2b2a93eca5ae94ce43f8
-Author: Sean Liao <sean@liao.dev>
-Date:   Wed Oct 16 00:47:44 2024 +0100
+commit c5569f09f22a6c002f1f6dc694272c3a84d4b16c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 28 05:24:44 2023 +0000
 
-    net/http/pprof: include Symbol in Index
+    cmd/compile/internal/types2: use ReplaceAll in *Context.instanceHash
     
-    Fixes #69897
+    strings.ReplaceAll is currently available.
     
-    Change-Id: I5887f34504b39018e16f269e087b43bc6a80964b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620455
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5e03ed43be123f9091a4e3b6bf05ffae8fb0d59b
+    GitHub-Last-Rev: 2cccdd0305fc709c8acfbb00eab744b28ca0c8fc
+    GitHub-Pull-Request: golang/go#62307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523298
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/net/http/pprof/pprof.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/context.go | 2 +-
+ src/go/types/context.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

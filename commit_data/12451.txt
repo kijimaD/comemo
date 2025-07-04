@@ -1,12 +1,14 @@
-commit 47ee98253e88805f7ff46c4b010818e1ca4c7713
+commit 881966d2a5ff74df442017097a849645b5112682
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 7 12:43:25 2012 +0800
+Date:   Wed Mar 7 12:41:43 2012 +0800
 
-    test/run: use all available cores on ARM system
+    cmd/go, cmd/godoc, net: fix typo
     
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5753054
+    https://golang.org/cl/5757050
 
- test/run.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/go/build.go         | 2 +-
+ src/cmd/godoc/godoc.go      | 2 +-
+ src/pkg/net/unicast_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,22 +1,15 @@
-commit 91cc484ea914fc75e7321d23017d59c9751f5066
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:22:02 2021 -0500
+commit 4489f4bc846392e85973ae30e662bd0f3cefbd9b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 4 09:53:21 2020 +0200
 
-    runtime: fix time on windows/arm under WINE
+    cmd/compile/internal: gofmt
     
-    This code has clearly never run successfully,
-    since one of the “tail calls" calls the wrong function,
-    and both of them appear in functions with stack frames
-    that are never going to be properly unwound.
-    Probably there is no windows/arm under WINE at all.
-    But might as well fix the code.
-    
-    Change-Id: I5fa62274b3661bc6bce098657b5bcf11d59655eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288811
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I67a4375d8eb976d48e4a57e482390f473658b4b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236457
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_windows_arm.s | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go            | 44 ++++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteCond_test.go |  2 +-
+ 2 files changed, 23 insertions(+), 23 deletions(-)

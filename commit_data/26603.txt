@@ -1,14 +1,49 @@
-commit dc5a7682f0ec9cc344fcdb61d67b9d37c6ad3cc6
+commit c67cac07035c6b4d0f48df4c1f19641589f50e74
 Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Wed Mar 30 18:17:45 2016 +0200
+Date:   Wed Feb 10 00:27:33 2016 +0100
 
-    cmd/compile: use inc/dec for bytes, too
+    [dev.ssa] cmd/compile/internal/ssa: transform degenerate control blocks
     
-    Change-Id: Ib2890ab1983cbef7c1c1ee5a10204ba3ace19b53
-    Reviewed-on: https://go-review.googlesource.com/21312
+    * In cases where we end up with empty branches like in
+    if a then jmp b else jmp b;
+    the flow can be replaced by a; jmp b.
+    
+    The following functions is optimized as follows:
+    func f(a bool, x int) int {
+            v := 0
+            if a {
+                    v = -1
+            } else {
+                    v = -1
+            }
+            return x | v
+    }
+    
+    Before this change:
+    02819 (arith_ssa.go:362)  VARDEF "".~r2+16(FP)
+    02820 (arith_ssa.go:362)  MOVQ  $0, "".~r2+16(FP)
+    02821 (arith_ssa.go:362)  MOVB  "".a(FP), AX
+    02822 (arith_ssa.go:362)  TESTB AX, AX
+    02823 (arith_ssa.go:364)  JEQ 2824
+    02824 (arith_ssa.go:369)  VARDEF "".~r2+16(FP)
+    02825 (arith_ssa.go:369)  MOVQ  $-1, "".~r2+16(FP)
+    02826 (arith_ssa.go:369)  RET
+    
+    After this change:
+    02819 (arith_ssa.go:362)  VARDEF "".~r2+16(FP)
+    02820 (arith_ssa.go:369)  VARDEF "".~r2+16(FP)
+    02821 (arith_ssa.go:369)  MOVQ  $-1, "".~r2+16(FP)
+    02822 (arith_ssa.go:369)  RET
+    
+    Updates #14277
+    
+    Change-Id: Ibe7d284f43406c704903632a4fcf2a4a64059686
+    Reviewed-on: https://go-review.googlesource.com/19464
+    Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/fuse.go          | 152 ++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/fuse_test.go     |  95 ++++++++++++++++
+ src/cmd/compile/internal/ssa/nilcheck_test.go |   3 +
+ 3 files changed, 218 insertions(+), 32 deletions(-)

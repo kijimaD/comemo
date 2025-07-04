@@ -1,19 +1,14 @@
-commit 242050d07f1becd35d5990d7728403ea4eece5c3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 13 16:33:55 2015 +1100
+commit da43976c8bd1fd86332c2401956c0b66c19282f0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 11 21:54:20 2014 +1100
 
-    runtime: allow fake time writes to both stdout and stderr
+    doc/play: update obsolete comment in peano.go.
     
-    In the previous sandbox implementation we read all sandboxed output
-    from standard output, and so all fake time writes were made to
-    standard output. Now we have a more sophisticated sandbox server
-    (see golang.org/x/playground/sandbox) that is capable of recording
-    both standard output and standard error, so allow fake time writes to
-    go to either file descriptor.
-    
-    Change-Id: I79737deb06fd8e0f28910f21f41bd3dc1726781e
-    Reviewed-on: https://go-review.googlesource.com/2713
+    Change-Id: Ibecc2ef1e70c927c325c48bc381091f52c09da85
+    Reviewed-on: https://go-review.googlesource.com/1355
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/sys_nacl_amd64p32.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/play/peano.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

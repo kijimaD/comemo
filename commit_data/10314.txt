@@ -1,12 +1,13 @@
-commit 98321731f2e09d71ea153e8c6ae8abdf6fa881bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 13:52:02 2011 -0500
+commit e99f68f0642e5abceffcad00b0dd9296acc5ddfc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 9 10:49:41 2011 -0800
 
-    doc: htmlescape weekly notes
+    builtin: document delete
+    Fixes #2434.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5370046
+    https://golang.org/cl/5370045
 
- doc/devel/weekly.html | 138 +++++++++++++++++++++++++-------------------------
- 1 file changed, 69 insertions(+), 69 deletions(-)
+ src/pkg/builtin/builtin.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

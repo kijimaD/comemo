@@ -1,23 +1,15 @@
-commit 31e7842f3d3f85f7aec5ca72f59befce9f58a3b6
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Oct 31 17:56:14 2018 +0100
+commit e86bbc2e27bc584c23acee7f26d6d5b8d27f143a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 06:47:44 2018 -0700
 
-    runtime: execute memory barrier conditionally when changing netpoll timers
+    os: clarify that Close cancels pending I/O
     
-    We only need the memory barrier in poll_runtime_pollSetDeadline only
-    when one of the timers has fired, which is not the expected case.
-    Memory barrier can be somewhat expensive on some archs,
-    so execute it only if one of the timers has in fact fired.
-    
-    name                  old time/op  new time/op  delta
-    TCP4OneShotTimeout-6  17.0µs ± 0%  17.1µs ± 0%  +0.35%  (p=0.032 n=5+5)
-    SetReadDeadline-6      232ns ± 0%   230ns ± 0%  -1.03%  (p=0.000 n=4+5)
-    
-    Update #25729
-    
-    Change-Id: Ifce6f505b9e7ba3717bad8f454077a2e94ea6e75
-    Reviewed-on: https://go-review.googlesource.com/c/146343
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6be6818d951a999f916c2266a6753a5ce5144ee7
+    Reviewed-on: https://go-review.googlesource.com/122955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/netpoll.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/os/file_plan9.go   | 3 ++-
+ src/os/file_unix.go    | 3 ++-
+ src/os/file_windows.go | 3 ++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

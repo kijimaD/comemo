@@ -1,17 +1,15 @@
-commit 26727b84d92db09843175a945b93ad46ff7d0a53
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Jun 11 09:34:57 2018 +0100
+commit 8ce74b7d119a74c5882ae88556991f59267cb947
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 19:16:34 2018 +0100
 
-    cmd/vet: simplify side effects func call logic
+    test: port a nil-check interface test from asm_test
     
-    Instead of first looking for values of unnamed signature type, first
-    treat the types and builtins. All the remaining cases will be what we're
-    after.
-    
-    Change-Id: I328e22ae0be1cccaeb45ed4ddaa360233d447e7e
-    Reviewed-on: https://go-review.googlesource.com/117835
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I69c1688506d1aeca655047acf35d1bff966fc01e
+    Reviewed-on: https://go-review.googlesource.com/98442
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/bool.go | 25 +++++++++----------------
- 1 file changed, 9 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 531 -------------------------------
+ test/codegen/issue22703.go              | 535 ++++++++++++++++++++++++++++++++
+ 2 files changed, 535 insertions(+), 531 deletions(-)

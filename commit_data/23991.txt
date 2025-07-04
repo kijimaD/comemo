@@ -1,12 +1,15 @@
-commit 91e3b3516837372fac630698b1efc06e60909f4d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 6 11:18:27 2015 +0900
+commit aea348a3af088bc3bc05c5ee5cfc567215008f6f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 13:39:09 2015 +1000
 
-    doc/go1.5.html: fix typo
+    cmd/asm: add tests for erroneous expressions
     
-    Change-Id: Ic61fd38e7d2e0821c6adcaa210199a7dae8849a7
-    Reviewed-on: https://go-review.googlesource.com/13281
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Also add a couple more errors, such as modulo with a zero divisor.
+    
+    Change-Id: If24c95477f7ae86cf4aef5b3460e9ec249ea5ae2
+    Reviewed-on: https://go-review.googlesource.com/11535
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/expr_test.go | 62 +++++++++++++++++++++++++++++++++--
+ src/cmd/asm/internal/asm/parse.go     | 24 ++++++++++++--
+ 2 files changed, 82 insertions(+), 4 deletions(-)

@@ -1,16 +1,13 @@
-commit 4f14d1520253bd5d3dc19ab8b8668308d5bdcd64
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 17 08:58:08 2014 -0700
+commit f2147cd740810ac50b56f96f429ef6b47245e904
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 00:45:39 2014 -0700
 
-    go/parser: don't accept trailing explicit semicolon
+    runtime: disable funky wide string test for now.
     
-    Fixes #8207.
-    
-    LGTM=gordon.klaus, bradfitz
-    R=golang-codereviews, wandakkelly, gordon.klaus, bradfitz
+    TBR=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/106010046
+    https://golang.org/cl/105280045
 
- src/pkg/go/parser/interface.go   |  2 +-
- src/pkg/go/parser/parser_test.go | 38 ++++++++++++++++++++++++++++----------
- 2 files changed, 29 insertions(+), 11 deletions(-)
+ src/pkg/runtime/string_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,18 @@
-commit 5d16f9751a1b947308d6ac4ab51c85c28e8c067d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 7 19:49:33 2017 +0000
+commit f3f5b10e06f6bb29731e9213dd8745a9b1857568
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Mar 14 00:47:03 2017 -0400
 
-    Revert "cmd/dist: disable plugin test on linux-arm with GOARM=5"
+    test: allow flags in run action
     
-    This reverts commit 168eb9cf3395583541224af0227c19ddb13e35be.
+    Previously, we could not run tests with -l=4 on NaCl since the buildrun
+    action is not supported on NaCl. This lets us run tests with build flags
+    on NaCl.
     
-    CL 47831 fixes the issue with plugins on ARMv5, so we can re-enable the test.
-    
-    Updates #19674.
-    
-    Change-Id: Idcb29f93ffb0460413f1fab5bb82fa2605795038
-    Reviewed-on: https://go-review.googlesource.com/47834
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I103370c7b823b4ff46f47df97e802da0dc2bc7c3
+    Reviewed-on: https://go-review.googlesource.com/38170
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 8 --------
- 1 file changed, 8 deletions(-)
+ test/run.go | 1 +
+ 1 file changed, 1 insertion(+)

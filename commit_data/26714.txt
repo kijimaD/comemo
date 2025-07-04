@@ -1,18 +1,21 @@
-commit 036d09d5bff8b9da789ba0c914e5966055d9d7fe
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Mar 29 13:53:34 2016 +0300
+commit c4cb365ea23f4e3bd571f63a16d59ad6c01df145
+Author: Prashant Varanasi <prashant@prashantv.com>
+Date:   Sat Feb 20 09:43:15 2016 -0800
 
-    cmd/compile/internal/amd64: Use 32-bit operands for byte operations
+    net: fix for DialTimeout errors with large timeout
     
-    We already generate ADDL for byte operations, reflect this in code.
-    This also allows inc/dec for +-1 operation, which are 1-byte shorter,
-    and enables lea for 3-operand addition/subtraction.
+    The existing implementation converts the deadline time to an int64,
+    but does not handle overflow. If the calculated deadline is negative
+    but the user specified deadline is in the future, then we can assume
+    the calculation overflowed, and set the deadline to math.MaxInt64.
     
-    Change-Id: Ibfdfee50667ca4cd3c28f72e3dece0c6d114d3ae
-    Reviewed-on: https://go-review.googlesource.com/21251
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #14431
+    
+    Change-Id: I54dbb4f02bc7ffb9cae8cf62e4e967e9c6541ec6
+    Reviewed-on: https://go-review.googlesource.com/19758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go | 58 ++++++++++++-----------------------
- 1 file changed, 20 insertions(+), 38 deletions(-)
+ src/net/fd_poll_runtime.go |  8 +++++++-
+ src/net/timeout_test.go    | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

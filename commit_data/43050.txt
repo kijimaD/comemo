@@ -1,25 +1,13 @@
-commit 331614c4daa5504ddfe35a96371cc34783d14cf1
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Fri Sep 18 19:15:41 2020 +0300
+commit b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 9 12:48:23 2017 -0700
 
-    runtime: improve error messages after allocating a stack that is too big
+    all: fix two minor typos in comments
     
-    In the current implementation, we can observe crashes after calling
-    debug.SetMaxStack and allocating a stack larger than 4GB since
-    stackalloc works with 32-bit sizes. To avoid this, we define an upper
-    limit as the largest feasible point we can grow a stack to and provide a
-    better error message when we get a stack overflow.
-    
-    Fixes #41228
-    
-    Change-Id: I55fb0a824f47ed9fb1fcc2445a4dfd57da9ef8d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255997
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iec6cd81c9787d3419850aa97e75052956ad139bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221789
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/debug/garbage.go |  2 ++
- src/runtime/proc.go          |  5 +++++
- src/runtime/stack.go         | 10 ++++++++--
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/x86/387.go | 2 +-
+ test/codegen/README                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

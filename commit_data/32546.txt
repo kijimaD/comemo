@@ -1,19 +1,31 @@
-commit 305fd9179d2199cd1bb64402405857d2f2d02478
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 29 13:46:38 2017 +1000
+commit 11eaf428867417b9d5fab4deadd0ef03c9fd9773
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 21 16:45:12 2017 -0400
 
-    flag: document that custom usage functions are free to call os.Exit
+    runtime: reduce Windows timer resolution when idle
     
-    Some custom usage functions call it for clarity; others rely on the default
-    behavior, which makes an explicit call redundant. Document that it's
-    safe to be explicit.
+    Currently Go sets the system-wide timer resolution to 1ms the whole
+    time it's running. This has negative affects on system performance and
+    power consumption. Unfortunately, simply reducing the timer resolution
+    to the default 15ms interferes with several sleeps in the runtime
+    itself, including sysmon's ability to interrupt goroutines.
     
-    Fixes #21671.
+    This commit takes a hybrid approach: it only reduces the timer
+    resolution when the Go process is entirely idle. When the process is
+    idle, nothing needs a high resolution timer. When the process is
+    non-idle, it's already consuming CPU so it doesn't really matter if
+    the OS also takes timer interrupts more frequently.
     
-    Change-Id: I08e9f47265582821cfd35995dff0c589cd85809d
-    Reviewed-on: https://go-review.googlesource.com/59792
-    Reviewed-by: Dominik Honnef <dominik@honnef.co>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #8687.
+    
+    Change-Id: I0652564b4a36d61a80e045040094a39c19da3b06
+    Reviewed-on: https://go-review.googlesource.com/38403
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/flag/flag.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/os_windows.go | 19 ++++++++++++++++++-
+ src/runtime/proc.go       |  2 ++
+ src/runtime/relax_stub.go | 11 +++++++++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)

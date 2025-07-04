@@ -1,25 +1,26 @@
-commit 3cf8e8e5e684e2f9233ed507f91d3d2e2fe38ab8
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 11 15:12:45 2023 -0400
+commit 981d5947aff1551a1c0787664b77c4ac1e8f6c6a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 30 13:39:57 2022 -0400
 
-    cmd/dist: put cgo tests under a "Testing cgo" heading
+    cmd/go: include module root in package index key
     
-    Currently the cgo tests mostly use their package name as a heading,
-    which means we get a large number of test sections that each have a
-    single test package in them.
+    The package index format includes the directory relative to the module
+    root. The module root for a given directory can change even if the
+    contents of the directory itself do not (by adding or removing a
+    go.mod file in some parent directory).
     
-    Unify them all under "Testing cgo" to reduce output noise.
+    Thus, we need to invalidate the index for a package when its module
+    root location changes.
     
-    This leaves just the cmd/api test without a heading, so we give it a
-    heading and require that all tests have a heading.
+    Fixes #53586 (I think).
     
-    Change-Id: I24cd9a96eb35bbc3ff9335ca8a382ec2426306c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494497
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I2d9f4de80e16bce75b3106a2bad4a11d8378d037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415475
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/test.go | 50 ++++++++++++++++++++++++--------------------------
- 1 file changed, 24 insertions(+), 26 deletions(-)
+ src/cmd/go/internal/modindex/read.go      | 11 ++++++++---
+ src/cmd/go/testdata/script/issue53586.txt | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

@@ -1,27 +1,34 @@
-commit 777ab5ce1a47bc7cc71e6a675c2dcc76e69e11d5
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 1 11:04:19 2015 -0400
+commit bd4fff63584df61428fac721fb0c9baf08fe27ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:42:55 2015 -0400
 
-    runtime: fix MemStats.{PauseNS,PauseEnd,PauseTotalNS,LastGC}
+    cmd/compile: move ODCLFUNC Node.Nname into Node.Func.Nname
     
-    These memstats are currently being computed by gcMark, which was
-    appropriate in Go 1.4, but gcMark is now just one part of a bigger
-    picture. In particular, it can't account for the sweep termination
-    pause time, it can't account for all of the mark termination pause
-    time, and the reported "pause end" and "last GC" times will be
-    slightly earlier than they really are.
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
     
-    Lift computing of these statistics into func gc, which has the
-    appropriate visibility into the process to compute them correctly.
-    
-    Fixes one of the issues in #10323. This does not add new statistics
-    appropriate to the concurrent collector; it simply fixes existing
-    statistics that are being misreported.
-    
-    Change-Id: I670cb16594a8641f6b27acf4472db15b6e8e086e
-    Reviewed-on: https://go-review.googlesource.com/11794
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7decd950fe068c0f294c6c9bff07ef809c394429
+    Reviewed-on: https://go-review.googlesource.com/10534
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/malloc_test.go | 17 ++++++++++++++++-
- src/runtime/mgc.go         | 42 ++++++++++++++++++++++++++----------------
- 2 files changed, 42 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   | 44 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dcl.go       |  6 ++---
+ src/cmd/compile/internal/gc/esc.go       |  8 +++---
+ src/cmd/compile/internal/gc/go.y         | 18 ++++++-------
+ src/cmd/compile/internal/gc/init.go      | 10 ++++----
+ src/cmd/compile/internal/gc/inl.go       | 16 ++++++------
+ src/cmd/compile/internal/gc/obj.go       |  2 +-
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      | 14 +++++-----
+ src/cmd/compile/internal/gc/plive.go     | 12 ++++-----
+ src/cmd/compile/internal/gc/popt.go      |  6 ++---
+ src/cmd/compile/internal/gc/racewalk.go  |  8 +++---
+ src/cmd/compile/internal/gc/reg.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 24 ++++++++---------
+ src/cmd/compile/internal/gc/syntax.go    |  1 +
+ src/cmd/compile/internal/gc/typecheck.go |  8 +++---
+ src/cmd/compile/internal/gc/walk.go      | 22 ++++++++--------
+ src/cmd/compile/internal/gc/y.go         | 18 ++++++-------
+ 18 files changed, 111 insertions(+), 110 deletions(-)

@@ -1,14 +1,12 @@
-commit 2001f0c28ef4f2b7b907d060901a6fad2f1e9eb0
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Mar 20 20:36:33 2013 +0100
+commit eeb9822457e398f59b3620e2b719a950dcf891ff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 20 08:06:58 2013 -0700
 
-    runtime: prevent garbage collection during hashmap insertion (fix 2)
+    misc/swig: remove old broken Makefile
     
-    Fixes #5074 in multi-threaded scenarios.
-    
-    R=golang-dev, daniel.morsing, dave, dvyukov, bradfitz, rsc
-    CC=golang-dev, remyoudompheng
-    https://golang.org/cl/7916043
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7786046
 
- src/pkg/runtime/malloc.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/swig/stdio/Makefile | 17 -----------------
+ 1 file changed, 17 deletions(-)

@@ -1,18 +1,14 @@
-commit c2025c4131a62bc034c663d2e8c22e37b09fce04
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Fri Feb 27 12:34:25 2015 -0500
+commit 5ab3823c6bbb3dfe95a4f72956e16c5149e0fc6d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 4 11:27:08 2015 +0900
 
-    os: fix LinkError creation on windows.
+    net: update TDDO
     
-    Not only carrying invalid info but also this caused Error to crash with
-    null pointer exception.
+    The issue #8432 has been marked as an issue for golang.org/x/net.
     
-    Change-Id: Ibfe63d20eb9b9178ea618e59c74111e9245a6779
-    Reviewed-on: https://go-review.googlesource.com/6270
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia39abd99b685c820ea6169ee6505b16028e7e77f
+    Reviewed-on: https://go-review.googlesource.com/3836
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_windows.go | 5 ++---
- src/os/os_test.go      | 8 ++++++++
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ src/net/net.go | 3 ---
+ 1 file changed, 3 deletions(-)

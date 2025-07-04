@@ -1,15 +1,26 @@
-commit bc9999337b0c54a8035c4f9e6ea13b1fe3f34706
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Feb 4 13:05:20 2013 +1100
+commit 2c09d6992f7a13d680ce8f3a0f19366dfcc93713
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 14:51:21 2013 -0500
 
-    net: prevent races during windows lookup calls
+    cmd/gc: slightly better code generation
     
-    This only affects code (with exception of lookupProtocol)
-    that is only executed on older versions of Windows.
+    * Avoid treating CALL fn(SB) as justification for introducing
+    and tracking a registerized variable for fn(SB).
     
-    R=rsc, bradfitz
+    * Remove USED(n) after declaration and zeroing of n.
+    It was left over from when the compiler emitted more
+    aggressive set and not used errors, and it was keeping
+    the optimizer from removing a redundant zeroing of n
+    when n was a pointer or integer variable.
+    
+    Update #597.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7293043
+    https://golang.org/cl/7277048
 
- src/pkg/net/lookup_windows.go | 76 +++++++++++++++++++++++++++++++++----------
- 1 file changed, 59 insertions(+), 17 deletions(-)
+ src/cmd/5g/reg.c | 4 ++++
+ src/cmd/6g/reg.c | 4 ++++
+ src/cmd/8g/reg.c | 4 ++++
+ src/cmd/gc/gen.c | 2 --
+ 4 files changed, 12 insertions(+), 2 deletions(-)

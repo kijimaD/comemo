@@ -1,24 +1,15 @@
-commit 60dd831103cbb98acc322804847306ab7ce8e048
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 16 11:17:01 2023 -0700
+commit d7df872267f9071e678732f9469824d629cac595
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Sep 21 11:56:44 2022 -0700
 
-    Revert "go/types, types2: remove internal constant enableInterfaceInference"
+    all: tidy std module
     
-    This reverts CL 514715.
-    
-    This will make it easier to make interface inference conditional
-    based on the current language version.
-    
-    For #61903.
-    
-    Change-Id: I07820c861d6ebfd04899e41eb4123f26af2da1ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520195
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I7350a608a198073673fb9b7e9b91dae6f1c861b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432495
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/types2/unify.go | 17 +++++++++++------
- src/go/types/unify.go                    | 17 +++++++++++------
- 2 files changed, 22 insertions(+), 12 deletions(-)
+ src/go.sum | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,29 +1,16 @@
-commit e61d1445ab2304e2d6e4711f8477061192d5942c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 16 02:15:28 2021 +0700
+commit bdc9a837e914a3bd684ef3a24588b2627b1c6c04
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 14:19:57 2020 +0100
 
-    cmd/compile: fix panic with dead hidden closures
+    doc/go1.16: add path, path/filepath changes to release notes
     
-    Currently, for hidden closures, we always push them to compile queue
-    during typechecking. If the hidden closure is discarded from the outer
-    function body during deadcode, any desugaring phase after deadcode won't
-    be applied to the closure. Thus, some un-expected OPs are passed to
-    downstream passes, which they can't handle, the compiler goes boom!
+    For #40700
+    Fixes #42910
     
-    To fix this, we keep track of discarded hidden closures during deadcode
-    pass, and won't compile them then.
-    
-    Fixes #47712
-    
-    Change-Id: I078717d5d1f4f2fa39cbaf610cfffbb042e70ceb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342350
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie380f5a03930d20dd5001c4cc184cadf2db33de7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274475
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/deadcode/deadcode.go | 13 +++++++++++++
- src/cmd/compile/internal/gc/main.go           |  4 ++++
- src/cmd/compile/internal/ir/func.go           |  3 +++
- test/fixedbugs/issue47712.go                  | 23 +++++++++++++++++++++++
- 4 files changed, 43 insertions(+)
+ doc/go1.16.html | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

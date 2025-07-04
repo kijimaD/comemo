@@ -1,0 +1,26 @@
+commit 8cb6d3b826e25619de2f57d0aaf850a4116a2511
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Sat Feb 8 23:35:51 2025 +0100
+
+    cmd/compile: mark PCMPEQB as commutative
+    
+    compilecmp linux/amd64:
+    
+    internal/runtime/maps
+    internal/runtime/maps.(*table).Delete changed
+    
+    internal/runtime/maps [cmd/compile]
+    internal/runtime/maps.(*Map).Delete changed
+    internal/runtime/maps.(*table).Delete changed
+    
+    Change-Id: Ic3c95411c23cab7427e63105170de41e5766f809
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go         | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

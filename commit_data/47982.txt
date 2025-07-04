@@ -1,44 +1,23 @@
-commit 32636cd1ffc6cd9ef81d09b8320d2aaad4a21117
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Jan 18 12:55:17 2022 -0800
+commit c18744377afa1f9c2310c122e6932fa663f9294a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 14 14:27:28 2021 -0700
 
-    cmd/compile: make sure multiple blank typeparams remain unique
+    go/types: allow conversion from slice to array ptr
     
-    In a method declaration "func (f *Foo[_, _]) String() string { ... }",
-    the two blank typeparams have the same name, but our current design with
-    types1 needs unique names for type params. Similarly, for export/import,
-    we need unique names to keep the type params straight in generic types
-    and connect the proper type param with the proper constraint. We make
-    blank type params unique by changing them to $1, $2, etc in noder.typ0()
-    via typecheck.TparamExportName(). We then revert $<num> back to _ during
-    type2 import via typecheck.TparamName(). We similarly revert
-    during gcimporter import. We don't need/want to revert in the types1
-    importer, since we want unique names for type params.
+    These match the changes to cmd/compile/internal/types2 in CL 301650.
     
-    Rob Findley has made a similar change to x/tools (and we tried to make
-    the source code changes similar for the gcimporter and types2 importer
-    changes).
+    Updates #395
     
-    Fixes #50419
-    
-    Change-Id: I855cc3d90d06bcf59541ed0c879e9a0e4ede45bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379194
+    Change-Id: I1e85b6355c8c8fdba0996c26a2505c65fab908d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301651
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/importer/iimport.go  | 11 +++++----
- src/cmd/compile/internal/noder/types.go       |  9 +++++---
- src/cmd/compile/internal/typecheck/iexport.go | 31 +++++++++++++++++++++++++
- src/cmd/compile/internal/types2/decl.go       | 11 ---------
- src/go/internal/gcimporter/iimport.go         | 28 ++++++++++++++++++-----
- src/go/types/decl.go                          | 13 -----------
- test/typeparam/issue50419.go                  | 33 +++++++++++++++++++++++++++
- test/typeparam/issue50481.go                  | 21 -----------------
- test/typeparam/issue50481b.dir/b.go           | 16 +++++++++++++
- test/typeparam/issue50481b.dir/main.go        | 23 +++++++++++++++++++
- test/typeparam/issue50481b.go                 |  7 ++++++
- test/typeparam/issue50481c.dir/a.go           | 30 ++++++++++++++++++++++++
- test/typeparam/issue50481c.dir/main.go        | 18 +++++++++++++++
- test/typeparam/issue50481c.go                 |  7 ++++++
- test/typeparam/issue50481c.out                |  1 +
- 15 files changed, 200 insertions(+), 59 deletions(-)
+ src/go/types/api_test.go    |  3 +++
+ src/go/types/conversions.go | 12 ++++++++++++
+ src/go/types/stdlib_test.go |  4 ----
+ 3 files changed, 15 insertions(+), 4 deletions(-)

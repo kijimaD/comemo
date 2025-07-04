@@ -1,14 +1,13 @@
-commit b3a3afc9b788597ead21ea4770c9679f31475f40
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jan 15 19:38:08 2014 +0400
+commit 0db71338ed23324015d5d0600d2670fb3ed440b4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 14 19:23:36 2014 -0500
 
-    runtime: fix data race in GC
-    Fixes #5139.
-    Update #7065.
+    runtime/debug: force GC after setting of GCPercent to make it effective.
+    See also discussion in CL 51010045.
     
-    R=golang-codereviews, bradfitz, minux.ma
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/52090045
+    https://golang.org/cl/52230043
 
- src/pkg/runtime/mgc0.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/runtime/debug/garbage.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

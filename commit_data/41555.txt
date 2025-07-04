@@ -1,14 +1,21 @@
-commit 96acb74655531794d6f563242736d25f4e716b11
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Tue Mar 3 07:08:06 2020 -0600
+commit ba108c93b864aaa10814e010b4e2efead21516ec
+Author: Francesco Renzi <rentziass@gmail.com>
+Date:   Fri Oct 11 13:59:15 2019 +0100
 
-    encoding/hex: remove unused variable from BenchmarkDump
+    encoding/json: add Decoder.InputOffset for offset access
     
-    Change-Id: I1fd47e5eab27346cec488098d4f6102a0749bd28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221788
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This makes Decoder.offset public while renaming it to
+    Decoder.InputOffset to match encoding/xml Decoder API
+    
+    Code changes made by Adam Stankiewicz [sheerun@sher.pl]
+    
+    Fixes #29688
+    
+    Change-Id: I86dbfd2b2da80160846e92bfa580c53d8d45e2db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200677
+    Run-TryBot: Johan Brandhorst <johan.brandhorst@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/hex/hex_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/encoding/json/stream.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

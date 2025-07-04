@@ -1,20 +1,42 @@
-commit c92f5ee170e6f9c639f1ca684061a0cedde54108
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 12 12:30:34 2021 -0400
+commit 7a1aa7dfaf9a7208a6cae7518037d885c9fabdbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 1 17:37:12 2020 -0800
 
-    cmd/link: start at address 0 when external linking
+    [dev.typeparams] test: adjust more test cases to match compiler -G output
     
-    When external linking, we are creating an object file, instead of
-    a executable. The absolute address is irrelevant. The external
-    linker will set it up. Start at address 0.
+    With this CL, the first ~500 errorcheck tests pass when running
     
-    Change-Id: I3a2e0b8087b328d5c3144f29ca8ba6311aa39cba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319830
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    go run run.go -v -G
+    
+    in the $GOROOT/test directory (the log output includes a few dozen
+    tests that are currently skipped).
+    
+    Change-Id: I9eaa2319fb39a090df54f8699ddc29ffe58b1bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274975
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/ld/lib.go | 4 +++-
- src/cmd/link/internal/ld/pe.go  | 2 ++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ test/chan/perm.go           |  2 +-
+ test/fixedbugs/bug040.go    |  2 +-
+ test/fixedbugs/bug062.go    |  1 +
+ test/fixedbugs/bug081.go    |  2 +-
+ test/fixedbugs/bug090.go    |  2 +-
+ test/fixedbugs/bug122.go    |  2 +-
+ test/fixedbugs/bug131.go    |  1 +
+ test/fixedbugs/bug132.go    |  2 +-
+ test/fixedbugs/bug13343.go  |  2 +-
+ test/fixedbugs/bug175.go    |  2 +-
+ test/fixedbugs/bug205.go    |  6 +++---
+ test/fixedbugs/bug215.go    |  2 +-
+ test/fixedbugs/bug223.go    |  2 +-
+ test/fixedbugs/bug224.go    |  2 +-
+ test/fixedbugs/bug280.go    |  2 +-
+ test/fixedbugs/bug289.go    |  4 ++--
+ test/interface/embed2.go    | 10 +++++-----
+ test/interface/explicit.go  | 22 +++++++++++++---------
+ test/interface/pointer.go   |  4 +++-
+ test/interface/receiver1.go |  4 ++--
+ test/run.go                 |  1 +
+ 21 files changed, 43 insertions(+), 34 deletions(-)

@@ -1,18 +1,13 @@
-commit 4fe43f814697a30b760c4a0a0e87688f6ad06ddc
-Author: griesemer <gri@golang.org>
-Date:   Mon Oct 16 18:01:47 2017 -0700
+commit aad7f7bfb7b088fdcdb51c9e384a5d9a2ea37838
+Author: Ross Light <light@google.com>
+Date:   Sat Jul 15 14:53:42 2017 -0600
 
-    cmd/compile/internal/parser: removed TODO (cleanup)
+    encoding/binary: add examples for ByteOrder functions
     
-    - checking for the correct closing token leads to slightly better
-      behavior for some randomly bogus programs
-    - removed `switch` in favor of an `if` statement
-    
-    Follow-up on https://go-review.googlesource.com/c/go/+/71250.
-    
-    Change-Id: I47f6c47b43baf790907f55ed97a947661687a9db
-    Reviewed-on: https://go-review.googlesource.com/71252
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iec9a7bf61566ee08c4d15adb39d43c7a29c79122
+    Reviewed-on: https://go-review.googlesource.com/48962
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ src/encoding/binary/example_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

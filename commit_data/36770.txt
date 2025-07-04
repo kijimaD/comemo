@@ -1,45 +1,17 @@
-commit 756c352963f4decbf898f244876855aab747afdc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 25 20:34:15 2018 -0700
+commit bdaadeb3878eebf672e240f4d2a37318594bc45e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 24 13:31:40 2018 -0700
 
-    sync: simplify (*entry).tryStore
+    cmd/compile: make -W and -w headers and footers clearer
     
-    The only change to the go build -gcflags=-m=2 output was to remove
-    these two lines:
+    -W and -w turn on printing of Nodes for both order and walk.
+    I have found their output mildly incomprehensible for years.
+    Improve it, at long last.
     
-    sync/map.go:178:26: &e.p escapes to heap
-    sync/map.go:178:26:     from &e.p (passed to call[argument escapes]) at sync/map.go:178:25
-    
-    Benchstat report for sync.Map benchmarks:
-    
-    name                                            old time/op  new time/op  delta
-    LoadMostlyHits/*sync_test.DeepCopyMap-12        10.6ns ±11%  10.2ns ± 3%    ~     (p=0.299 n=10+8)
-    LoadMostlyHits/*sync_test.RWMutexMap-12         54.6ns ± 3%  54.6ns ± 2%    ~     (p=0.782 n=10+10)
-    LoadMostlyHits/*sync.Map-12                     10.1ns ± 1%  10.1ns ± 1%    ~     (p=1.127 n=10+8)
-    LoadMostlyMisses/*sync_test.DeepCopyMap-12      8.65ns ± 1%  8.77ns ± 5%  +1.39%  (p=0.017 n=9+10)
-    LoadMostlyMisses/*sync_test.RWMutexMap-12       53.6ns ± 2%  53.8ns ± 2%    ~     (p=0.408 n=10+9)
-    LoadMostlyMisses/*sync.Map-12                   7.37ns ± 1%  7.46ns ± 1%  +1.19%  (p=0.000 n=9+10)
-    LoadOrStoreBalanced/*sync_test.RWMutexMap-12     895ns ± 4%   906ns ± 3%    ~     (p=0.203 n=9+10)
-    LoadOrStoreBalanced/*sync.Map-12                 872ns ±10%   804ns ±12%  -7.75%  (p=0.014 n=10+10)
-    LoadOrStoreUnique/*sync_test.RWMutexMap-12      1.29µs ± 2%  1.28µs ± 1%    ~     (p=0.586 n=10+9)
-    LoadOrStoreUnique/*sync.Map-12                  1.30µs ± 7%  1.40µs ± 2%  +6.95%  (p=0.000 n=9+10)
-    LoadOrStoreCollision/*sync_test.DeepCopyMap-12  6.98ns ± 1%  6.91ns ± 1%  -1.10%  (p=0.000 n=10+10)
-    LoadOrStoreCollision/*sync_test.RWMutexMap-12    371ns ± 1%   372ns ± 2%    ~     (p=0.679 n=9+9)
-    LoadOrStoreCollision/*sync.Map-12               5.49ns ± 1%  5.49ns ± 1%    ~     (p=0.732 n=9+10)
-    Range/*sync_test.DeepCopyMap-12                 2.49µs ± 1%  2.50µs ± 0%    ~     (p=0.148 n=10+10)
-    Range/*sync_test.RWMutexMap-12                  54.7µs ± 1%  54.6µs ± 3%    ~     (p=0.549 n=9+10)
-    Range/*sync.Map-12                              2.74µs ± 1%  2.76µs ± 1%  +0.68%  (p=0.011 n=10+8)
-    AdversarialAlloc/*sync_test.DeepCopyMap-12      2.52µs ± 5%  2.54µs ± 7%    ~     (p=0.225 n=10+10)
-    AdversarialAlloc/*sync_test.RWMutexMap-12        108ns ± 1%   107ns ± 1%    ~     (p=0.101 n=10+9)
-    AdversarialAlloc/*sync.Map-12                    712ns ± 2%   714ns ± 3%    ~     (p=0.984 n=8+10)
-    AdversarialDelete/*sync_test.DeepCopyMap-12      581ns ± 3%   578ns ± 3%    ~     (p=0.781 n=9+9)
-    AdversarialDelete/*sync_test.RWMutexMap-12       126ns ± 2%   126ns ± 1%    ~     (p=0.883 n=10+10)
-    AdversarialDelete/*sync.Map-12                   155ns ± 8%   158ns ± 2%    ~     (p=0.158 n=10+9)
-    
-    Change-Id: I1ed8e3109baca03087d0fad3df769fc7e38f6dbb
-    Reviewed-on: https://go-review.googlesource.com/137441
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia05d77e59aa741c2dfc9fcca07f45019420b655e
+    Reviewed-on: https://go-review.googlesource.com/114520
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/map.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

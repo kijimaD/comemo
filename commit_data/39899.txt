@@ -1,26 +1,22 @@
-commit 24781a1faf62ac5c9a553af6f46b787e972f5539
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 13 11:10:36 2019 -0400
+commit 2cc347382f4df3fb40d8d81ec9331f0748b1c394
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Thu Mar 28 23:37:54 2019 -0400
 
-    cmd/go: fix link error for -coverpkg in GOPATH mode
+    net/http/httputil: make ReverseProxy flush headers on FlushInterval
     
-    If a generated test main package transitively depends on a main
-    package, the main package will now always be rebuilt as a library and
-    will not be compiled with '-p main'.
+    A regression was introduced in CL 137335 (5440bfc) that caused FlushInterval
+    to not be honored until the first Write() call was encountered. This change
+    starts the flush timer as part of setting up the maxLatencyWriter.
     
-    This expands the fix for #30907, which only applied to packages with
-    the BuildInfo set (main packages built in module mode). Linking
-    multiple packages with BuildInfo caused link errors, but it appears
-    these errors apply to some symbols in GOPATH mode.
+    Fixes #31125
+    Fixes #31126
     
-    Fixes #34114
-    
-    Change-Id: Ic1e53437942269a950dd7e45d163707922c92edd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195279
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I75325bd926652922219bd1457b2b00ac6d0d41b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170066
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/test.go                    | 11 +++++++----
- .../testdata/script/cover_pkgall_multiple_mains.txt | 21 ++++++++++++---------
- 2 files changed, 19 insertions(+), 13 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  5 ++++
+ src/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

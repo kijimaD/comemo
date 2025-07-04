@@ -1,15 +1,16 @@
-commit 3513d8406815c090b80e1bba543617af60c60e3e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Nov 18 02:06:08 2012 +0800
+commit 4f250132f734f3686e1bff3b632e4598a82931a8
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Fri Nov 16 17:24:43 2012 -0800
 
-    runtime/cgo: fix compilation on Windows with CFLAGS -Wall -Werror
-    also fix one out-of-date comment in cmd/ld/pe.c as well.
+    archive/zip, crypto/tls, net/http: Fix print format errors.
     
-    R=golang-dev, alex.brainman
+    All of the errors were located using "go vet ./..." in "src/pkg".
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6843061
+    https://golang.org/cl/6856056
 
- src/cmd/ld/pe.c                         | 2 +-
- src/pkg/runtime/cgo/gcc_windows_386.c   | 6 +++---
- src/pkg/runtime/cgo/gcc_windows_amd64.c | 6 +++---
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/archive/zip/zip_test.go   | 4 ++--
+ src/pkg/crypto/tls/prf_test.go    | 2 +-
+ src/pkg/net/http/transfer_test.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

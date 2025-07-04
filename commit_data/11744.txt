@@ -1,16 +1,12 @@
-commit aca4a6c933c34f136408653c30595a9471372d5e
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Feb 10 09:19:22 2012 +1100
+commit eaf640dbc41ab96dbae5b55708b2e42eec22fd53
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 09:14:00 2012 +1100
 
-    database/sql: support ErrSkip in Tx.Exec
+    cmd/dist: do not use HEAP_GENERATE_EXCEPTIONS flag
     
-    If the database driver supports the Execer interface but returns
-    ErrSkip, calling Exec on a transaction was returning the error instead
-    of using the slow path.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5654044
+    https://golang.org/cl/5650048
 
- src/pkg/database/sql/sql.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/dist/windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

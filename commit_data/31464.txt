@@ -1,31 +1,52 @@
-commit a2da2108ee18a338cdcdea5e319156858031af08
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Fri Apr 28 15:20:38 2017 +0100
+commit 8c6643846ef5572cb138c8f7c9ac2b1b3cb1d06c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Dec 10 08:04:40 2016 +0100
 
-    cmd/internal/obj/x86: fix ANDPS encoding
+    math: speed up and improve accuracy of Pow10
     
-    ANDPS, like all others PS (Packed Single precision floats) instructions,
-    need Ym: they don't use the 0x66 prefix.
+    Removes init function from the math package.
     
-    From the manual:
+    Allows stripping of arrays with pre-computed values
+    used for Pow10 from binaries if Pow10 is not used.
+    cmd/go shrinks by 128 bytes.
     
-        NP 0F 54 /r        ANDPS xmm1, xmm2/m128
+    Fixed small values like 10**-323 being 0 instead of 1e-323.
     
-    NP meaning, quoting the manual:
+    Overall precision is increased but still not as good as
+    predefined constants for some inputs.
     
-      NP - Indicates the use of 66/F2/F3 prefixes (beyond those already part
-      of the instructions opcode) are not allowed with the instruction.
+    Samples:
     
-    And indeed, the same instruction prefixed by 0x66 is ANDPD.
+    Pow10(208)
+    before: 1.0000000000000006662e+208
+    after:  1.0000000000000000959e+208
     
-    Updates #14069
+    Pow10(202)
+    before 1.0000000000000009895e+202
+    after  1.0000000000000001193e+202
     
-    Change-Id: If312a6f1e77113ab8c0febe66bdb1b4171e41e0a
-    Reviewed-on: https://go-review.googlesource.com/42090
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Pow10(60)
+    before 1.0000000000000001278e+60
+    after  0.9999999999999999494e+60
+    
+    Pow10(-100)
+    before 0.99999999999999938551e-100
+    after  0.99999999999999989309e-100
+    
+    Pow10(-200)
+    before 0.9999999999999988218e-200
+    after  1.0000000000000001271e-200
+    
+    name        old time/op  new time/op  delta
+    Pow10Pos-4  44.6ns ± 2%   1.2ns ± 1%  -97.39%  (p=0.000 n=19+17)
+    Pow10Neg-4  50.8ns ± 1%   4.1ns ± 2%  -92.02%  (p=0.000 n=17+19)
+    
+    Change-Id: If094034286b8ac64be3a95fd9e8ffa3d4ad39b31
+    Reviewed-on: https://go-review.googlesource.com/36331
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 16 ++++++++--------
- src/cmd/internal/obj/x86/asm6.go             |  2 +-
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/math/all_test.go | 42 +++++++++++++++++++++++++++++++--------
+ src/math/pow10.go    | 56 +++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 65 insertions(+), 33 deletions(-)

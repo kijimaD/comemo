@@ -1,21 +1,25 @@
-commit 039e60ce4e0763f5c67e11227858a4d508df1299
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 4 15:01:09 2016 -0700
+commit 38d35e714a55f2e4bb67caadac7e61f8c1967d88
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 12 15:24:11 2016 -0400
 
-    go/types: revert user-visible changes related to aliases
+    cmd/compile, runtime/internal/atomic: intrinsify And8, Or8 on ARM64
     
-    Reason: Decision to back out current alias implementation.
-    For #16339 (comment).
+    Also add assembly implementation, in case intrinsics is disabled.
     
-    Change-Id: Ie04f24e529db2d29c5dd2e36413f5f37f628df39
-    Reviewed-on: https://go-review.googlesource.com/32819
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iff0a8a8ce326651bd29f6c403f5ec08dd3629993
+    Reviewed-on: https://go-review.googlesource.com/28979
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/internal/gcimporter/bimport.go |  6 +++++-
- src/go/types/api_test.go              |  6 +++---
- src/go/types/check_test.go            |  2 +-
- src/go/types/decl.go                  | 13 +++++++------
- src/go/types/object.go                | 31 ++++++++++++++++---------------
- src/go/types/resolver.go              | 11 ++++++-----
- src/go/types/typexpr.go               | 15 ++++++++-------
- 7 files changed, 46 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/arm64/prog.go       |  2 ++
+ src/cmd/compile/internal/arm64/ssa.go        | 34 +++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/ssa.go           |  4 +--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 19 ++++++++++----
+ src/cmd/compile/internal/ssa/opGen.go        | 24 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 38 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/asm7.go           |  4 +++
+ src/runtime/internal/atomic/atomic_arm64.go  | 36 ++++----------------------
+ src/runtime/internal/atomic/atomic_arm64.s   | 19 ++++++++++++++
+ 10 files changed, 143 insertions(+), 40 deletions(-)

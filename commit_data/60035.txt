@@ -1,0 +1,18 @@
+commit 69105d79efeb4d369f6de4962b1d871c80a3db7d
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu May 16 22:44:16 2024 +0000
+
+    cmd/go: unexport loadImport
+    
+    Complete a TODO.
+    
+    Change-Id: I39869df4d95a5a5f6019e281719b942fbf4ba7db
+    GitHub-Last-Rev: c664b5332e4f0afc84ae9bf1f91c0664903ebb7e
+    GitHub-Pull-Request: golang/go#67091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581939
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 29 ++++++++++++-----------------
+ 1 file changed, 12 insertions(+), 17 deletions(-)

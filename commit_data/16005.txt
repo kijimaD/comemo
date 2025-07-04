@@ -1,21 +1,12 @@
-commit 994f59666f0f79379d3b48bae7c1fb3e2b0f8dc1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 29 12:39:19 2013 -0700
+commit c1786a9e3b99f4d243425b9db3de726a3b01a8e0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Mar 29 10:28:37 2013 -0700
 
-    bytes: don't grow Buffer if capacity is available
+    doc: fix typo in effective_go.html
     
-    Also added a new benchmark from the same test:
-    
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkBufferNotEmptyWriteRead      2643698       709189  -73.17%
-    
-    Fixes #5154
-    
-    R=golang-dev, r, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8164043
+    https://golang.org/cl/7548045
 
- src/pkg/bytes/buffer.go      |  5 +++++
- src/pkg/bytes/buffer_test.go | 32 ++++++++++++++++++++++++++++++++
- src/pkg/bytes/export_test.go |  4 ++++
- 3 files changed, 41 insertions(+)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

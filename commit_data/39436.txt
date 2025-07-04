@@ -1,14 +1,15 @@
-commit 98e1bd2b79bb7da0743450d9e6c0b622ff1e681f
-Author: Andrew <andybons@golang.org>
-Date:   Mon Jun 24 15:28:00 2019 -0400
+commit e32203f647370897c6a28018c16cfd9584849569
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 27 14:13:55 2019 -0800
 
-    doc/go1.13: add release notes for the errors package
+    doc/go1.12: new go line in go.mod can break builds with Go 1.11 - 1.11.3
     
-    Also removes remaining TODOs
+    Fixes #30446
     
-    Change-Id: Id80021b7a64c923c4ebd69fb6e8831a43a76dc72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183625
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: If069f72fa9735f839df92f3ede3bf7b6d7a695a5
+    Reviewed-on: https://go-review.googlesource.com/c/164317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.13.html | 30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ doc/go1.12.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

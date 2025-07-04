@@ -1,19 +1,14 @@
-commit fd9fac2c7c9ca94795cfcb1270c8373d645af17b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Oct 12 13:49:49 2017 +0200
+commit fcc35147d5940d5b077586c02a97894c3edf870d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 7 03:45:50 2017 +0000
 
-    cmd/compile: add two error position tests for the typechecker
+    doc: note that Go 1.9 is last release to support FreeBSD 9.3
     
-    Follow CL 41477 and add two more line position tests for yyerror calls
-    in the typechecker which are currently not tested.
+    Fixes #20930
     
-    Update #19683
-    
-    Change-Id: Iacd865195a3bfba87d8c22655382af267aba47a9
-    Reviewed-on: https://go-review.googlesource.com/70251
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4a59de0556cffeae9af2eaa41609601e086211b2
+    Reviewed-on: https://go-review.googlesource.com/47731
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/method2.go |  4 ++++
- test/method6.go | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ doc/go1.9.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

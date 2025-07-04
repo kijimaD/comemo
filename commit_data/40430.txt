@@ -1,32 +1,17 @@
-commit 60586034713cc94477868fb6911f34cfcc6a1ba4
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 27 14:34:05 2019 -0400
+commit 7a43f8a5fb355a9cff73314d234da9a817695cbd
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Mon May 13 11:26:26 2019 -0400
 
-    runtime: only shrink stacks at synchronous safe points
+    runtime: resolve latent function type TODO
     
-    We're about to introduce asynchronous safe points, where we won't have
-    precise pointer maps for all stack frames. That's okay for scanning
-    the stack (conservatively), but not for shrinking the stack.
+    This was left over from the C->Go transition.
     
-    Hence, this CL prepares for this by only shrinking the stack as part
-    of the stack scan if the goroutine is stopped at a synchronous safe
-    point. Otherwise, it queues up the stack shrink for the next
-    synchronous safe point.
-    
-    We already have one condition under which we can't shrink the stack
-    for very similar reasons: syscalls. Currently, we just give up on
-    shrinking the stack if it's in a syscall. But with this mechanism, we
-    defer that stack shrink until the next synchronous safe point.
-    
-    For #10958, #24543.
-    
-    Change-Id: Ifa1dec6f33fdf30f9067be2ce3f7ab8a7f62ce38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201438
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I52494af3d49a388dc45b57210ba68292ae01cf84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176897
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mgcmark.go  | 13 +++++++++++--
- src/runtime/runtime2.go | 13 ++++++++-----
- src/runtime/stack.go    | 43 ++++++++++++++++++++++++++++++++-----------
- 3 files changed, 51 insertions(+), 18 deletions(-)
+ src/runtime/proc.go     |  5 ++---
+ src/runtime/runtime2.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 8 deletions(-)

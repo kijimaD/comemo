@@ -1,18 +1,13 @@
-commit d022266a9a2e77eaeccdbe25241250d559bdc903
+commit 535f29c68eadd1faff366ad22f10b7b1058fccd6
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 12 14:35:37 2015 -0400
+Date:   Fri Feb 6 05:57:42 2015 -0500
 
-    flag: use four spaces before tab, not three
+    [dev.cc] cmd/dist: write default GO386 for cmd/internal/obj
     
-    Four spaces is what works well for both 4- and 8-space tab stops.
-    
-    Screen with fixed-width font and 4-space tab stops:
-    http://imgur.com/lps5Lbb
-    
-    Change-Id: I7d2b813d674c3e0a68f79d63bc5d5ec5bd4f87bb
-    Reviewed-on: https://go-review.googlesource.com/7503
+    Change-Id: Ida60c30041505c321fbfc48b22b8ff5af1a3f474
+    Reviewed-on: https://go-review.googlesource.com/4837
     Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/flag/flag.go      |  4 ++--
- src/flag/flag_test.go | 14 +++++++-------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/dist/buildruntime.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

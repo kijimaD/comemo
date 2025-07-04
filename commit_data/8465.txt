@@ -1,12 +1,12 @@
-commit 78a7dda739edb2752215675980d6a950b6d6721b
-Author: Kyle Consalus <consalus@gmail.com>
-Date:   Mon May 23 12:38:51 2011 -0700
+commit ae22d30eaf759b3e4167713df660252d906b1454
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 23 16:32:58 2011 +1000
 
-    time: Remove unnecessary call to Nanoseconds() in after().
+    tag weekly.2011-05-22
     
-    R=golang-dev, bradfitz
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4528091
+    https://golang.org/cl/4550070
 
- src/pkg/time/sleep.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

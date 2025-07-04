@@ -1,24 +1,20 @@
-commit 13368ab56a75134910e70db4bc0e2860e6a97829
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 16 10:52:38 2021 -0500
+commit 7bda6154caa6f0c527f4a8302e38d450b44ae68b
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 12 23:47:57 2020 -0400
 
-    runtime: clarify which work needs spinning coordination
+    cmd/compile: add generic optimization patterns for late-expanded calls.
     
-    The overview comments discuss readying goroutines, which is the most
-    common source of work, but timers and idle-priority GC work also require
-    the same synchronization w.r.t. spinning Ms.
+    Repeats existing patterns for old calls, so that these will apply
+    during the optimization phases that precede call expansion.
     
-    This CL should have no functional changes.
-    
-    For #43997
-    Updates #44313
-    
-    Change-Id: I7910a7f93764dde07c3ed63666277eb832bf8299
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307912
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I1ca0a78c159aa1a51004db217edde4ecc772b646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248190
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go | 106 +++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 72 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  37 ++++++
+ src/cmd/compile/internal/ssa/rewrite.go        |   3 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 158 +++++++++++++++++++++++++
+ 3 files changed, 197 insertions(+), 1 deletion(-)

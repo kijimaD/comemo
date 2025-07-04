@@ -1,21 +1,50 @@
-commit bbdc65bb3825dfde90603d1b26a2034e8963356c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 25 17:30:26 2024 -0400
+commit 2fa7129836d65a3c44696747cc2cd9e9f391c66f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 24 09:07:03 2023 -0700
 
-    test: add a test for wasm memory usage
+    go/types, types2: use asNamed(t) instead of t.(*Named) type assertions
     
-    Test that a small Wasm program uses 8 MB of linear memory. This
-    reflects the current allocator. We test an exact value, but if the
-    allocator changes, we can update or relax this.
+    Preparation for the introduction of alias types.
+    Because asNamed is not exported, existing external
+    tests continue to use t.(*Named).
     
-    Updates #69018.
-    
-    Change-Id: Ifc0bb420af008bd30cde4745b3efde3ce091b683
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622378
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4754b406dd6b23030d3703a486d6f6620b2464fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522876
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/wasmmemsize.dir/asm_wasm.s | 11 +++++++++++
- test/wasmmemsize.dir/main.go    | 30 ++++++++++++++++++++++++++++++
- test/wasmmemsize.go             | 11 +++++++++++
- 3 files changed, 52 insertions(+)
+ src/cmd/compile/internal/types2/alias.go      | 17 +++++++++++++++++
+ src/cmd/compile/internal/types2/builtins.go   |  2 +-
+ src/cmd/compile/internal/types2/decl.go       |  6 +++---
+ src/cmd/compile/internal/types2/lookup.go     |  4 ++--
+ src/cmd/compile/internal/types2/named.go      |  8 ++++----
+ src/cmd/compile/internal/types2/predicates.go |  4 ++--
+ src/cmd/compile/internal/types2/signature.go  |  2 +-
+ src/cmd/compile/internal/types2/sizes.go      |  4 ++--
+ src/cmd/compile/internal/types2/typeparam.go  |  2 +-
+ src/cmd/compile/internal/types2/typestring.go |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go    |  4 ++--
+ src/cmd/compile/internal/types2/under.go      |  2 +-
+ src/cmd/compile/internal/types2/unify.go      | 10 +++++-----
+ src/cmd/compile/internal/types2/universe.go   |  2 +-
+ src/go/types/alias.go                         | 19 +++++++++++++++++++
+ src/go/types/builtins.go                      |  2 +-
+ src/go/types/decl.go                          |  6 +++---
+ src/go/types/generate_test.go                 |  1 +
+ src/go/types/interface.go                     |  2 +-
+ src/go/types/lookup.go                        |  4 ++--
+ src/go/types/methodset.go                     |  4 ++--
+ src/go/types/named.go                         |  8 ++++----
+ src/go/types/predicates.go                    |  4 ++--
+ src/go/types/signature.go                     |  2 +-
+ src/go/types/sizes.go                         |  4 ++--
+ src/go/types/typeparam.go                     |  2 +-
+ src/go/types/typestring.go                    |  2 +-
+ src/go/types/typexpr.go                       |  4 ++--
+ src/go/types/under.go                         |  2 +-
+ src/go/types/unify.go                         | 10 +++++-----
+ src/go/types/universe.go                      |  2 +-
+ 31 files changed, 92 insertions(+), 55 deletions(-)

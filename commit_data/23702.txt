@@ -1,14 +1,12 @@
-commit 29f03a37c116c9cfe8b6adfbac90e661bd0e42b5
+commit 3a1f163786db81b7051cb5bb39dc059151accb30
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 23:33:29 2015 -0400
+Date:   Fri Jun 5 01:31:52 2015 -0400
 
-    net/smtp: give example addrs in docs
+    doc/go1.5.txt: mention go test -count
     
-    Fixes #9140.
-    
-    Change-Id: I3b85053262cac3c30358f8e03a5aca65dbc67623
-    Reviewed-on: https://go-review.googlesource.com/12231
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1d7b728bd161da7bd6dd460862d8be072921e8b9
+    Reviewed-on: https://go-review.googlesource.com/10763
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/smtp/smtp.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

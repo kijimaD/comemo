@@ -1,16 +1,12 @@
-commit 7c46b62d0a6e2353db68da963c390b094e359a92
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 6 18:20:26 2017 +0000
+commit e91639285f404543d4e2fc9bd6ea9015f4314250
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Sat Sep 9 01:36:25 2017 -0700
 
-    syscall: make Seek use SetFilePointerEx on Windows, allowing large seek offsets
+    doc: fix typo in the diagnostics guide
     
-    Fixes #21681
-    Updates #21728
-    
-    Change-Id: I79cf4564c1355ecab891102d4215cbbffd8eb0ce
-    Reviewed-on: https://go-review.googlesource.com/82535
+    Change-Id: Ib1b93e55788168b574badeb84d0e6c4f3795055e
+    Reviewed-on: https://go-review.googlesource.com/62510
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go              | 20 ++++++++++++++++----
- src/syscall/syscall_windows.go | 30 +++++++++++++++++++++++-------
- 2 files changed, 39 insertions(+), 11 deletions(-)
+ doc/diagnostics.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

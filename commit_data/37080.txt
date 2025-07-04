@@ -1,32 +1,27 @@
-commit 6994731ec2babb6a4f2bbbb08dbe649767a25942
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Aug 27 17:15:39 2018 -0400
+commit 8997ec1c4e01b01f9950f0869085ef5be6d45ef0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Jun 24 17:23:38 2018 +0200
 
-    internal/bytealg: improve asm for memequal on ppc64x
+    syscall/js: use stable references to JavaScript values
     
-    This includes two changes to the memequal function.
+    This commit changes how JavaScript values are referenced by Go code.
+    After this change, a JavaScript value is always represented by the same
+    ref, even if passed multiple times from JavaScript to Go. This allows
+    Go's == operator to work as expected on js.Value (strict equality).
+    Additionally, the performance of some operations of the syscall/js
+    package got improved by saving additional roundtrips to JavaScript code.
     
-    Previously the asm implementation on ppc64x for Equal called the internal
-    function memequal using a BL, whereas the other asm implementations for
-    bytes functions on ppc64x used BR. The BR is preferred because the BL
-    causes the calling function to stack a frame. This changes Equal so it
-    uses BR and is consistent with the others.
+    Fixes #25802.
     
-    This also uses vsx instructions where possible to improve performance
-    of the compares for sizes over 32.
-    
-    Here are results from the sizes affected:
-    
-    Equal/32             8.40ns ± 0%     7.66ns ± 0%    -8.81%  (p=0.029 n=4+4)
-    Equal/4K              193ns ± 0%      144ns ± 0%   -25.39%  (p=0.029 n=4+4)
-    Equal/4M              346µs ± 0%      277µs ± 0%   -20.08%  (p=0.029 n=4+4)
-    Equal/64M            7.66ms ± 1%     7.27ms ± 0%    -5.10%  (p=0.029 n=4+4)
-    
-    Change-Id: Ib6ee2cdc3e5d146e2705e3338858b8e965d25420
-    Reviewed-on: https://go-review.googlesource.com/c/143060
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ide6ffe66c6aa1caf5327a2d3ddbe48fe7c180461
+    Reviewed-on: https://go-review.googlesource.com/120561
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/bytealg/equal_ppc64x.s | 64 +++++++++++++++----------------------
- 1 file changed, 26 insertions(+), 38 deletions(-)
+ misc/wasm/wasm_exec.js             | 118 ++++++++++++++++++++++---------------
+ src/cmd/vet/all/whitelist/wasm.txt |  22 +++----
+ src/syscall/js/js.go               | 106 ++++++++++++++++++++-------------
+ src/syscall/js/js_js.s             |  24 --------
+ src/syscall/js/js_test.go          |  28 +++++++++
+ 5 files changed, 174 insertions(+), 124 deletions(-)

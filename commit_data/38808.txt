@@ -1,29 +1,35 @@
-commit c226f6432d465ad9e2d21962353ba86834a2afcb
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 18 13:28:55 2019 +1000
+commit 4c51c937808ee2fb88d469cf89c85c8e700f665c
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Nov 28 22:05:08 2018 -0500
 
-    strconv: pre-allocate in appendQuotedWith
+    crypto/tls: prevent the test server from sending session tickets
     
-    The byte-at-a-time allocation done quoting strings in appendQuotedWith
-    grows the output incrementally, which is poor behavior for very large
-    strings. An easy fix is to make sure the buffer has enough room at
-    least for an unquoted string.
+    Since they are sent after the handshake in TLS 1.3, the client was not
+    actually consuming them, as it doesn't make any Read calls. They were
+    then sitting in the kernel receive buffer when the client would call
+    Close. The kernel would see that and send a RST, which would race the
+    closeNotify, causing errors.
     
-    Add a benchmark with a megabyte of non-ASCII data.
-            Before: 39 allocations.
-            After: 7 allocations.
+    Also, we get to trim 600 lines of useless test data.
     
-    We could do better by doing a lot more work but this seems like a big
-    result for little effort.
+    Fixes #28852
     
-    Fixes #31472.
-    
-    Change-Id: I852139e0a2bd13722c4dd329ded8ae1759abad5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172677
+    Change-Id: I7517feab77dabab7504bfc111098ba09ea07ae5e
+    Reviewed-on: https://go-review.googlesource.com/c/151659
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/quote.go        |  7 +++++++
- src/strconv/strconv_test.go | 10 ++++++++++
- 2 files changed, 17 insertions(+)
+ src/crypto/tls/handshake_client_test.go            | 239 ++++++++-------
+ .../tls/testdata/Client-TLSv13-AES128-SHA256       | 170 +++++------
+ .../tls/testdata/Client-TLSv13-AES256-SHA384       | 174 +++++------
+ src/crypto/tls/testdata/Client-TLSv13-ALPN         | 172 +++++------
+ .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     | 170 +++++------
+ .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 333 ++++++++-------------
+ .../testdata/Client-TLSv13-ClientCert-RSA-ECDSA    | 320 +++++++-------------
+ .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 324 +++++++-------------
+ src/crypto/tls/testdata/Client-TLSv13-ECDSA        | 160 ++++------
+ .../testdata/Client-TLSv13-ExportKeyingMaterial    | 170 +++++------
+ .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 169 +++++------
+ src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 184 +++++-------
+ src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   | 172 +++++------
+ src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE | 168 +++++------
+ 14 files changed, 1162 insertions(+), 1763 deletions(-)

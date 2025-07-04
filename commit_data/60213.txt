@@ -1,0 +1,33 @@
+commit a3a584e4abad776f4b8e5cab5b5923724fdf75d9
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sat May 25 23:08:37 2024 -0700
+
+    os: RemoveAll: fix symlink race for unix
+    
+    Since all the platforms now support O_DIRECTORY flag for open, it can be
+    used to (together with O_NOFOLLOW) to ensure we open a directory, thus
+    eliminating the need to call stat before open. This fixes the symlink race,
+    when a directory is replaced by a symlink in between stat and open calls.
+    
+    While at it, rename openFdAt to openDirAt, because this function is (and was)
+    meant for directories only.
+    
+    NOTE Solaris supports O_DIRECTORY since before Solaris 11 (which is the
+    only version Go supports since supported version now), and Illumos
+    always had it. The only missing piece was O_DIRECTORY flag value, which
+    is taken from golang.org/x/sys/unix.
+    
+    Updates #52745.
+    
+    Change-Id: Ic1111d688eebc8804a87d39d3261c2a6eb33f176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588495
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Aleksa Sarai <cyphar@cyphar.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/file_unix.go                  |  4 ++--
+ src/os/removeall_at.go               | 34 +++++++++++++---------------------
+ src/syscall/zerrors_solaris_amd64.go |  1 +
+ 3 files changed, 16 insertions(+), 23 deletions(-)

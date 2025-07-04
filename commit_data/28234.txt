@@ -1,20 +1,23 @@
-commit 83c73a85db84a04c8e60e52cfa348fc6b675fbf7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 6 21:08:21 2016 -0700
+commit 258a4c3daf992958f5d7dc5bccf2c5b41e236959
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri May 6 14:21:52 2016 +0100
 
-    cmd/compile: ignore contentEscapes for marking nodes as escaping
+    syscall,os,net: don't use ForkLock in plan9
     
-    Redo of CL 28575 with fixed test.
-    We're in a pre-KeepAlive world for a bit yet, the old tests
-    were in a client which was in a post-KeepAlive world.
+    This is the follow-on to CL 22610: now that it's the child instead of
+    the parent which lists unwanted fds to close in syscall.StartProcess,
+    plan9 no longer needs the ForkLock to protect the list from changing.
+    The readdupdevice function is also now unused and can be removed.
     
-    Change-Id: I114fd630339d761ab3306d1d99718d3cb973678d
-    Reviewed-on: https://go-review.googlesource.com/28582
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I904c8bbf5dbaa7022b0f1a1de0862cd3064ca8c7
+    Reviewed-on: https://go-review.googlesource.com/22842
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  2 +-
- test/live.go                       | 11 +++++++++++
- test/live_ssa.go                   |  9 +++++++++
- 3 files changed, 21 insertions(+), 1 deletion(-)
+ src/net/fd_plan9.go       |  2 --
+ src/net/file_plan9.go     |  2 --
+ src/os/file_plan9.go      |  5 ---
+ src/syscall/exec_plan9.go | 82 +----------------------------------------------
+ 4 files changed, 1 insertion(+), 90 deletions(-)

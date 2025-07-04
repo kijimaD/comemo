@@ -1,25 +1,14 @@
-commit 2a18e37c4e78e26c9f1e613dfa97aaf275ea0b4d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 17 15:27:42 2021 +0700
+commit 844bf11ecd362e50e62a81c93aa2ac602de59adc
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Tue Jun 16 21:48:43 2020 +0300
 
-    cmd/compile: remove backend's "scratch mem" support
+    doc/go1.15: fix two typos
     
-    This CL rebases CL 273987 on top of master with @mdempsky's permission.
+    Updates #37419.
     
-    The last (only?) use for this feature was 387 support, which was
-    removed in golang.org/cl/258957.
-    
-    Change-Id: I4f79fee8d0c336c9b6082bcd5eb6ece52c032dc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292893
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9ecc706d44950b7de3e8fe4dde8cfab1904eee58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238139
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/config.go     |  1 -
- src/cmd/compile/internal/ssa/gen/386Ops.go | 32 +++++++++---------
- src/cmd/compile/internal/ssa/gen/main.go   |  6 ----
- src/cmd/compile/internal/ssa/opGen.go      | 54 ++++++++++++------------------
- src/cmd/compile/internal/ssagen/pgen.go    | 10 ------
- src/cmd/compile/internal/ssagen/ssa.go     | 27 +++------------
- 6 files changed, 42 insertions(+), 88 deletions(-)
+ doc/go1.15.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

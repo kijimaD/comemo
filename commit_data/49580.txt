@@ -1,26 +1,18 @@
-commit 4a2a3bca180509bc39fe99992e16b5e0a45e0e43
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 10 15:58:22 2022 -0700
+commit af9009a989d69d3f5560dc7bd8ccf1574ea6a519
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 27 15:08:02 2021 -0400
 
-    cmd/go, go/build: clarify build constraint docs
+    cmd/go/internal/modload: remove go117LazyTODO
     
-    Clarify that the //go:build line is an expression of constraints,
-    not a constraint itself.
+    Replace the last remaining use with a reference to #48024.
     
-    Fixes #53308
-    
-    Change-Id: Ib67243c6ee5cfe3b688c12b943b5e7496f686035
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411697
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I699711b4e42abe9c6d3512c28d2ee81a84e3263a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345392
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go               | 22 +++++++++++-----------
- src/cmd/go/internal/help/helpdoc.go | 13 +++++++------
- src/cmd/go/internal/work/build.go   |  9 ++++-----
- src/go/build/doc.go                 |  7 ++++---
- 4 files changed, 26 insertions(+), 25 deletions(-)
+ src/cmd/go/internal/modload/edit.go    | 10 ++++------
+ src/cmd/go/internal/modload/modfile.go |  7 -------
+ 2 files changed, 4 insertions(+), 13 deletions(-)

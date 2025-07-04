@@ -1,15 +1,15 @@
-commit f09a3d822383e8ffc9e213d2e7d714b154da52ef
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Wed Nov 29 19:34:10 2017 +0100
+commit 9c307d8039b8b6513c8a8363347bf49c2e933993
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 25 21:24:15 2017 -0400
 
-    runtime: fix documentation typo for gostartcall
+    [dev.boringcrypto] crypto/internal/cipherhw: fix AESGCMSupport for BoringCrypto
     
-    This CL is a simple doc typo fix, uncovered while reviewing the go-wasm
-    port.
+    The override was not commented and was in the wrong file.
     
-    Change-Id: I0fce915c341aaaea3a7cc365819abbc5f2c468c3
-    Reviewed-on: https://go-review.googlesource.com/80715
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I739db561acff6d91b0f3559c8bb45437f11c0b04
+    Reviewed-on: https://go-review.googlesource.com/59250
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/sys_x86.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/internal/cipherhw/cipherhw_amd64.go | 8 ++++++++
+ src/crypto/internal/cipherhw/generic.go        | 4 +---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

@@ -1,18 +1,21 @@
-commit 600b982df992c38186ae43bd664ab58cd7042490
-Author: Revolution <35791913+zzdpk2@users.noreply.github.com>
-Date:   Tue Mar 7 08:32:32 2023 +0000
+commit cc43e191ce562cd879a9baaf7a2e4fb1a7216d31
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 14 14:02:25 2022 -0700
 
-    runtime: fix comment mismatch for currentConsMark
+    crypto/x509: don't allow too long serials
     
-    Change-Id: Ie0ed83e17be180100f144ce61bbd2c72a64d857b
-    GitHub-Last-Rev: 9db7a90a951c0fa9d18697fa93ae14267ab9b385
-    GitHub-Pull-Request: golang/go#58910
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473820
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Don't create certificates that have serial numbers that are longer
+    than 20 octets (when encoded), since these are explicitly disallowed
+    by RFC 5280.
+    
+    Change-Id: I292b7001f45bed0971b2d519b6de26f0b90860ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400377
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/mgcpacer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/x509.go      | 12 ++++++++++++
+ src/crypto/x509/x509_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

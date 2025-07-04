@@ -1,14 +1,22 @@
-commit e0405b73187fddbcd685490550681d4fb742105d
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 9 17:08:02 2013 +1000
+commit f2bc275525807e1c83f524325d03cd6e7e18fe7d
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Fri Aug 9 15:46:01 2013 +1000
 
-    encoding/binary: document its goals better
-    It's a modest package with modest goals and limitations.
-    Make that clear.
+    encoding/csv: always allow trailing commas
     
-    R=golang-dev, dsymonds
+    Original CL by rsc (11916045):
+    
+    The motivation for disallowing them was RFC 4180 saying
+    "The last field in the record must not be followed by a comma."
+    I believe this is an admonition to CSV generators, not readers.
+    When reading, anything followed by a comma is not the last field.
+    
+    Fixes #5892.
+    
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/12694043
+    https://golang.org/cl/12294043
 
- src/pkg/encoding/binary/binary.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/encoding/csv/reader.go      | 58 +++++++++----------------------------
+ src/pkg/encoding/csv/reader_test.go | 33 +++++++++++----------
+ 2 files changed, 32 insertions(+), 59 deletions(-)

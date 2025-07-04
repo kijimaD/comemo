@@ -1,20 +1,22 @@
-commit b761b07bf909d9ff7d1fdc11083104fd4e28f252
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jan 31 16:31:11 2017 -0800
+commit 5ce715fdfea635c2cb429166294fb005cefde896
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Oct 19 20:35:04 2016 +0300
 
-    cmd/compile: simplify noding const declarations
+    cmd/internal/obj/x86: add some missing AMD64 instructions
     
-    By grouping all the logic into constDecl, we're able to get rid of the
-    lastconst and lasttype globals, and simplify the logic slightly. Still
-    clunky, but much easier to reason about.
+    Add VBROADCASTSD, BROADCASTSS, MOVDDUP, MOVSHDUP, MOVSLDUP,
+    VMOVDDUP, VMOVSHDUP, VMOVSLDUP.
     
-    Change-Id: I446696c31084b3bfc1fd5d3651655a81ddd159ab
-    Reviewed-on: https://go-review.googlesource.com/36023
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #16007
+    
+    Change-Id: I9614e58eed6c1b6f299d9b4f0b1a7750aa7c1725
+    Reviewed-on: https://go-review.googlesource.com/31491
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/dcl.go   | 41 -------------------
- src/cmd/compile/internal/gc/go.go    |  4 --
- src/cmd/compile/internal/gc/noder.go | 76 ++++++++++++++++++++++++------------
- 3 files changed, 52 insertions(+), 69 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 192 +++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |   8 ++
+ src/cmd/internal/obj/x86/anames.go           |   8 ++
+ src/cmd/internal/obj/x86/asm6.go             |  15 ++-
+ 4 files changed, 126 insertions(+), 97 deletions(-)

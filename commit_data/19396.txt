@@ -1,19 +1,18 @@
-commit a663e0a0381c22d3b1ef58b411df5cfbf56c2930
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 19 15:08:04 2014 -0400
+commit 7b103c555f9200eed9329f433378e72c7909e398
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 19 09:54:47 2014 -0700
 
-    cmd/gc: fix <-<-expr
+    database/sql: more docs explaining that DB is a pool
     
-    The temporary-introducing pass was not recursing
-    into the argumnt of a receive operation.
+    This is the main point of confusion and the emphasis of
+    a recent Gophercon talk.
     
-    Fixes #8011.
+    Fixes #5886. (mostly fixed in previous commits)
     
     LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/91540043
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/100560043
 
- src/cmd/gc/order.c          |  1 +
- test/fixedbugs/issue8011.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/pkg/database/sql/sql.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

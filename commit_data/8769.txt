@@ -1,29 +1,18 @@
-commit 7f4c5ea7d8c7ba8df9af1c61ea6a4accd05e7525
+commit e852202f376ea4b6af99294586ae9c1e4471283f
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 17 15:25:05 2011 -0400
+Date:   Fri Jun 17 15:23:27 2011 -0400
 
-    gc: implement goto restriction
-    
-    Remove now-unnecessary zeroing of stack frames.
+    gc: descriptive panic for nil pointer -> value method call
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4641044
+    https://golang.org/cl/4646042
 
- src/cmd/5g/gobj.c        |   4 +
- src/cmd/5g/gsubr.c       |  15 ++++
- src/cmd/6g/gobj.c        |   4 +
- src/cmd/6g/gsubr.c       |  13 +++
- src/cmd/8g/gobj.c        |   4 +
- src/cmd/8g/gsubr.c       |  15 ++++
- src/cmd/gc/dcl.c         |  26 +++---
- src/cmd/gc/gen.c         | 214 +++++++++++++++++++++++++++++++----------------
- src/cmd/gc/go.h          |  23 ++---
- src/cmd/gc/go.y          |  47 +++++------
- src/cmd/gc/lex.c         |  18 +++-
- src/cmd/gc/pgen.c        |   6 +-
- src/cmd/gc/typecheck.c   |   7 +-
- test/fixedbugs/bug238.go |   1 -
- test/fixedbugs/bug274.go |   2 +-
- test/fixedbugs/bug344.go |   6 +-
- 16 files changed, 270 insertions(+), 135 deletions(-)
+ src/cmd/5g/reg.c          |  1 +
+ src/cmd/6g/reg.c          |  1 +
+ src/cmd/8g/reg.c          |  1 +
+ src/cmd/gc/builtin.c.boot |  4 +++-
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/subr.c         | 30 ++++++++++++++++++++++++++----
+ src/pkg/runtime/error.go  |  5 +++++
+ 7 files changed, 38 insertions(+), 5 deletions(-)

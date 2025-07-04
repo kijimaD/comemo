@@ -1,0 +1,22 @@
+commit 458ac1b01590506891b2ad2b300ead76aaa4e119
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Feb 20 15:10:06 2025 +0000
+
+    context: replace newAfterFuncContext with a global declaration using blank identifier
+    
+    newAfterFuncContext has never been used, the only reason I can imagine
+    for its existence is to guarantee that the implementation is correct.
+    
+    It is a small cleanup and make code more idiomatic.
+    
+    Change-Id: I61ee213a9284f3c3bda7f91196f3a1604babd0f6
+    GitHub-Last-Rev: c08bd69ef3f0dbc2f573f54095fea35dad2b1145
+    GitHub-Pull-Request: golang/go#71856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651015
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/context/afterfunc_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

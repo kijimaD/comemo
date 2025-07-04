@@ -1,24 +1,31 @@
-commit 3d94dd78d464e4e802fdc9db345daea35f230ba2
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Apr 27 03:02:25 2019 +1000
+commit ea6259d5e9d57f247b7d877d4d04602b74ae5155
+Author: David Chase <drchase@google.com>
+Date:   Tue Dec 4 10:00:16 2018 -0500
 
-    runtime: add support for openbsd/arm64
+    cmd/compile: check for negative upper bound to IsSliceInBounds
     
-    Updates #31656
+    IsSliceInBounds(x, y) asserts that y is not negative, but
+    there were cases where this is not true.  Change code
+    generation to ensure that this is true when it's not obviously
+    true.  Prove phase cleans a few of these out.
     
-    Change-Id: I0b7486f7381fd8bd16a76278c0e9ec9763671fcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174119
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    With this change the compiler text section is 0.06% larger,
+    that is, not very much.  Benchmarking still TBD, may need
+    to wait for access to a benchmarking box (next week).
+    
+    Also corrected run.go to handle '?' in -update_errors output.
+    
+    Fixes #28797.
+    
+    Change-Id: Ia8af90bc50a91ae6e934ef973def8d3f398fac7b
+    Reviewed-on: https://go-review.googlesource.com/c/152477
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_openbsd_arm64.go   | 150 +++++++++++++++
- src/runtime/os_openbsd_arm64.go     |  13 ++
- src/runtime/pprof/pprof_test.go     |   2 +-
- src/runtime/rt0_openbsd_arm64.s     | 105 +++++++++++
- src/runtime/signal_arm64.go         |   2 +-
- src/runtime/signal_openbsd_arm64.go |  75 ++++++++
- src/runtime/sys_openbsd_arm.s       |   4 +-
- src/runtime/sys_openbsd_arm64.s     | 352 ++++++++++++++++++++++++++++++++++++
- src/runtime/tls_arm64.h             |   5 +
- 9 files changed, 704 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 21 +++++++++
+ test/fixedbugs/issue28797.go       | 53 +++++++++++++++++++++
+ test/loopbce.go                    | 94 +++++++++++++++++++-------------------
+ test/prove.go                      | 18 ++++----
+ test/run.go                        |  2 +-
+ 5 files changed, 131 insertions(+), 57 deletions(-)

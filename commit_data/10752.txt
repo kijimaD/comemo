@@ -1,12 +1,188 @@
-commit 0e9ee93cea231186c565ab10e3e5f3161cd4c769
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Wed Dec 14 08:08:49 2011 +1100
+commit dd8dc6f0595ffc2c4951c0ce8ff6b63228effd97
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 15:20:12 2011 -0500
 
-    archive/tar: (test) structure comparison not reflect.DeepEqual
+    math: regularize build
     
-    R=dsymonds
+    This will be nicer to the automatic tools.
+    It requires a few more assembly stubs
+    but fewer Go files.
+    
+    There are a few instances where it looks like
+    there are new blobs of code, but they are just
+    being copied out of deleted files.
+    
+    There is no new code here.
+    
+    Suppose you have a portable implementation for Sin
+    and a 386-specific assembly one.  The old way to
+    do this was to write three files
+    
+    sin_decl.go
+       func Sin(x float64) float64  // declaration only
+    sin_386.s
+       assembly implementation
+    
+    sin_port.go
+       func Sin(x float64) float64 { ... }  // pure-Go impl
+    
+    and then link in either sin_decl.go+sin_386.s or
+    just sin_port.go.  The Makefile actually did the magic
+    of linking in only the _port.go files for those without
+    assembly and only the _decl.go files for those with
+    assembly, or at least some of that magic.
+    
+    The biggest problem with this, beyond being hard
+    to explain to the build system, is that once you do
+    explain it to the build system, godoc knows which
+    of sin_port.go or sin_decl.go are involved on a given
+    architecture, and it (correctly) ignores the other.
+    That means you have to put identical doc comments
+    in both files.
+    
+    The new approach, which is more like what we did
+    in the later packages math/big and sync/atomic,
+    is to have
+    
+    sin.go
+       func Sin(x float64) float64  // decl only
+       func sin(x float64) float64 {...}  // pure-Go impl
+    
+    sin_386.s
+       // assembly for Sin (ignores sin)
+    sin_amd64.s
+       // assembly for Sin: jmp sin
+    sin_arm.s
+       // assembly for Sin: jmp sin
+    
+    Once we abandon Makefiles we can put all the assembly
+    stubs in one source file, so the number of files will
+    actually go down.
+    
+    Chris asked whether the branches cost anything.
+    Given that they are branching to pure-Go implementations
+    that are not typically known for their speed, the single
+    direct branch is not going to be noticeable.  That is,
+    it's on the slow path.
+    
+    An alternative would have been to preserve the old
+    "only write assembly files when there's an implementation"
+    and still have just one copy of the declaration of Sin
+    (and thus one doc comment) by doing:
+    
+    sin.go
+       func Sin(x float64) float64 { return sin(x) }
+    
+    sin_decl.go
+       func sin(x float64) float64 // declaration only
+    sin_386.s
+       // assembly for sin
+    
+    sin_port.go
+       func sin(x float64) float64 { portable code }
+    
+    In this version everyone would link in sin.go and
+    then either sin_decl.go+sin_386.s or sin_port.go.
+    
+    This has an extra function call on all paths, including
+    the "fast path" to get to assembly, and it triples the
+    number of Go files involved compared to what I did
+    in this CL.  On the other hand you don't have to
+    write assembly stubs.  After starting down this path
+    I decided that the assembly stubs were the easier
+    approach.
+    
+    As for generating the assembly stubs on the fly, much
+    of the goal here is to eliminate magic from the build
+    process, so that zero-configuration tools like goinstall
+    or the new go tool can handle this package.
+    
+    R=golang-dev, r, cw, iant, r
     CC=golang-dev
-    https://golang.org/cl/5487064
+    https://golang.org/cl/5488057
 
- src/pkg/archive/tar/reader_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/math/Makefile                             |  70 +++-----
+ src/pkg/math/abs.go                               |   4 +-
+ src/pkg/math/{log_decl.go => abs_arm.s}           |   7 +-
+ src/pkg/math/all_test.go                          |  38 ++++-
+ src/pkg/math/asin.go                              |  10 +-
+ src/pkg/math/asin_amd64.s                         |   9 +
+ src/pkg/math/asin_arm.s                           |   9 +
+ src/pkg/math/asin_decl.go                         |   8 -
+ src/pkg/math/atan.go                              |   4 +-
+ src/pkg/math/atan2.go                             |   4 +-
+ src/pkg/math/{exp_decl.go => atan2_amd64.s}       |   7 +-
+ src/pkg/math/{tan_decl.go => atan2_arm.s}         |   7 +-
+ src/pkg/math/atan_amd64.s                         |   6 +
+ src/pkg/math/atan_arm.s                           |   6 +
+ src/pkg/math/dim.go                               |  14 +-
+ src/pkg/math/dim_386.s                            |  12 ++
+ src/pkg/math/dim_arm.s                            |  12 ++
+ src/pkg/math/dim_decl.go                          |   9 -
+ src/pkg/math/exp.go                               | 183 ++++++++++++++++++++-
+ src/pkg/math/exp2.go                              |  10 --
+ src/pkg/math/exp2_amd64.s                         |   6 +
+ src/pkg/math/exp2_arm.s                           |   6 +
+ src/pkg/math/exp_arm.s                            |   6 +
+ src/pkg/math/exp_port.go                          | 191 ----------------------
+ src/pkg/math/exp_test.go                          |  10 --
+ src/pkg/math/expm1.go                             |   4 +-
+ src/pkg/math/expm1_amd64.s                        |   6 +
+ src/pkg/math/expm1_arm.s                          |   6 +
+ src/pkg/math/expm1_decl.go                        |   7 -
+ src/pkg/math/export_test.go                       |  12 ++
+ src/pkg/math/floor.go                             |  14 +-
+ src/pkg/math/floor_amd64.s                        |  12 ++
+ src/pkg/math/floor_arm.s                          |  12 ++
+ src/pkg/math/floor_decl.go                        |   9 -
+ src/pkg/math/frexp.go                             |   4 +-
+ src/pkg/math/frexp_amd64.s                        |   6 +
+ src/pkg/math/frexp_arm.s                          |   6 +
+ src/pkg/math/frexp_decl.go                        |   7 -
+ src/pkg/math/hypot.go                             |  47 +++++-
+ src/pkg/math/{atan_decl.go => hypot_arm.s}        |   7 +-
+ src/pkg/math/hypot_decl.go                        |   7 -
+ src/pkg/math/hypot_port.go                        |  63 -------
+ src/pkg/math/hypot_test.go                        |   9 -
+ src/pkg/math/ldexp.go                             |   4 +-
+ src/pkg/math/ldexp_amd64.s                        |   6 +
+ src/pkg/math/ldexp_arm.s                          |   6 +
+ src/pkg/math/ldexp_decl.go                        |   7 -
+ src/pkg/math/log.go                               |   4 +-
+ src/pkg/math/log10.go                             |  12 +-
+ src/pkg/math/log10_amd64.s                        |   9 +
+ src/pkg/math/log10_arm.s                          |   9 +
+ src/pkg/math/log10_decl.go                        |   8 -
+ src/pkg/math/log1p.go                             |   4 +-
+ src/pkg/math/log1p_amd64.s                        |   6 +
+ src/pkg/math/log1p_arm.s                          |   6 +
+ src/pkg/math/log1p_decl.go                        |   7 -
+ src/pkg/math/log_arm.s                            |   6 +
+ src/pkg/math/mod.go                               |   4 +-
+ src/pkg/math/mod_amd64.s                          |   6 +
+ src/pkg/math/mod_arm.s                            |   6 +
+ src/pkg/math/mod_decl.go                          |   7 -
+ src/pkg/math/modf.go                              |   4 +-
+ src/pkg/math/modf_amd64.s                         |   6 +
+ src/pkg/math/modf_arm.s                           |   6 +
+ src/pkg/math/modf_decl.go                         |   7 -
+ src/pkg/math/remainder.go                         |   4 +-
+ src/pkg/math/{atan2_decl.go => remainder_amd64.s} |   7 +-
+ src/pkg/math/remainder_arm.s                      |   6 +
+ src/pkg/math/remainder_decl.go                    |   7 -
+ src/pkg/math/sin.go                               |   8 +-
+ src/pkg/math/{exp2_decl.go => sin_amd64.s}        |   6 +-
+ src/pkg/math/{abs_decl.go => sin_arm.s}           |   6 +-
+ src/pkg/math/sin_decl.go                          |   8 -
+ src/pkg/math/sincos.go                            |   4 +-
+ src/pkg/math/sincos_arm.s                         |   6 +
+ src/pkg/math/sincos_decl.go                       |   7 -
+ src/pkg/math/sqrt.go                              | 140 +++++++++++++++-
+ src/pkg/math/sqrt_decl.go                         |   7 -
+ src/pkg/math/sqrt_port.go                         | 147 -----------------
+ src/pkg/math/sqrt_test.go                         |   9 -
+ src/pkg/math/tan.go                               |   4 +-
+ src/pkg/math/tan_amd64.s                          |   6 +
+ src/pkg/math/tan_arm.s                            |   6 +
+ src/pkg/runtime/arm/softfloat.c                   |   4 +-
+ 84 files changed, 763 insertions(+), 655 deletions(-)

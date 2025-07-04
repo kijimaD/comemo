@@ -1,22 +1,37 @@
-commit bae2e968e2daadd39c1bdb1221648361d7277ddc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 30 14:10:40 2024 -0700
+commit e45397100584e0ca55901f203d16c2acadbb4447
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 17:23:52 2023 -0700
 
-    go/parser, syntax: better error message for parameter missing type
+    cmd/compile/internal/ir: add typ parameter to NewNameAt
     
-    Fixes #69506.
+    Start making progress towards constructing IR with proper types.
     
-    Change-Id: I18215e11f214b12d5f65be1d1740181e427f8817
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617015
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iad32c1cf60f30ceb8e07c31c8871b115570ac3bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520263
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/syntax/parser.go          | 27 +++++++++++++---------
- .../compile/internal/syntax/testdata/issue69506.go |  9 ++++++++
- .../compile/internal/syntax/testdata/tparams.go    |  2 +-
- src/go/parser/parser.go                            | 26 ++++++++++++---------
- src/go/parser/testdata/issue69506.go2              |  9 ++++++++
- test/fixedbugs/bug388.go                           |  2 +-
- test/func3.go                                      |  6 ++---
- 7 files changed, 54 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/inline/inl.go             |  3 +-
+ src/cmd/compile/internal/ir/expr.go                |  3 +-
+ src/cmd/compile/internal/ir/func.go                |  2 +-
+ src/cmd/compile/internal/ir/name.go                | 43 +++++++++++++++----
+ src/cmd/compile/internal/ir/node.go                |  2 +-
+ src/cmd/compile/internal/noder/reader.go           | 48 ++++++++--------------
+ src/cmd/compile/internal/noder/unified.go          |  2 +-
+ src/cmd/compile/internal/pkginit/init.go           | 13 +++---
+ .../compile/internal/pkginit/initAsanGlobals.go    | 15 +++----
+ src/cmd/compile/internal/ssa/export_test.go        |  5 +--
+ src/cmd/compile/internal/ssagen/ssa.go             | 20 +++------
+ src/cmd/compile/internal/staticdata/data.go        | 17 +++-----
+ src/cmd/compile/internal/staticinit/sched.go       |  3 +-
+ src/cmd/compile/internal/test/abiutilsaux_test.go  |  3 +-
+ src/cmd/compile/internal/typecheck/dcl.go          | 21 ++--------
+ src/cmd/compile/internal/typecheck/subr.go         |  7 ----
+ src/cmd/compile/internal/typecheck/syms.go         |  3 +-
+ src/cmd/compile/internal/typecheck/universe.go     | 19 +++------
+ src/cmd/compile/internal/walk/closure.go           |  3 +-
+ src/cmd/compile/internal/walk/switch.go            |  2 +-
+ 20 files changed, 96 insertions(+), 138 deletions(-)

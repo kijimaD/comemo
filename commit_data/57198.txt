@@ -1,18 +1,26 @@
-commit 5164f6169725bb88a29482f497e1bbf099a5dd29
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Aug 19 13:23:09 2024 -0700
+commit c30faf9c54a764b78db003de262517f0c7359ed2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 13 17:30:34 2023 -0400
 
-    os: simplify TestRemoveAllLongPath
+    cmd/covdata: format package comment for 'go doc' rendering
     
-    Simplify the test logic by using t.TempDir, t.Chdir, and Chdir to
-    startPath parent.
+    Due to an errant newline, both 'go doc' and pkg.go.dev currently
+    interpret the long comment in cmd/covdata/doc.go as a file comment
+    instead of package documentation.
     
-    Change-Id: Ibe71a8c26b8e54c22eb93510037605b69c67bc7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606896
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Removing the errant newline caused 'go doc' to render the comment, but
+    it does not strip out the interior '//' tokens from the '/* … */'
+    block.
+    
+    Removing those tokens and fixing up indentation seems to give
+    satisfactory rendering.
+    
+    Change-Id: I5757c649e7380b026f7d8d1b6fd3cb6dddfb27ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509635
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/os/removeall_test.go | 35 ++++++++++-------------------------
- 1 file changed, 10 insertions(+), 25 deletions(-)
+ src/cmd/covdata/doc.go | 150 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 73 insertions(+), 77 deletions(-)

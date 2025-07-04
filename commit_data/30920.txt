@@ -1,20 +1,12 @@
-commit e86168430f0aab8f971763e4b00c2aae7bec55f0
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Fri Feb 10 11:30:22 2017 +0200
+commit a1c835f57b9cf927628c4e3d3c2b69fd62e65682
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Dec 19 17:36:02 2016 -0800
 
-    cmd/fix,cmd/gofmt: flush to disk before diffing
+    doc: remove archive/zip changes from go1.8.html
     
-    Flush file content to disk before diffing files,
-    may cause unpredictable results on Windows.
-    
-    Convert from \r\n to \n when comparing diff result.
-    
-    Change-Id: Ibcd6154a2382dba1338ee5674333611aea16bb65
-    Reviewed-on: https://go-review.googlesource.com/36750
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I5670e9924b21fb2466b2b32aa01a922e9a0a0f8a
+    Reviewed-on: https://go-review.googlesource.com/34652
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/fix/main.go         | 39 ++++++++++++++++++++++++++++-----------
- src/cmd/gofmt/gofmt.go      | 35 ++++++++++++++++++++++-------------
- src/cmd/gofmt/gofmt_test.go |  5 +++++
- 3 files changed, 55 insertions(+), 24 deletions(-)
+ doc/go1.8.html | 17 -----------------
+ 1 file changed, 17 deletions(-)

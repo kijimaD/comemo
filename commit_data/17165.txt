@@ -1,47 +1,19 @@
-commit e838334beb38c20d2b4035b53ec4e3e3487844f9
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 12 13:47:18 2013 -0700
+commit fa4628346b78f8847f11166d52d250abb6cb50df
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 12 21:48:19 2013 +0400
 
-    runtime: change textflags from numbers to symbols
+    runtime: remove unused m->racepc
+    The original plan was to collect allocation stacks
+    for all memory blocks. But it was never implemented
+    and it's not in near plans and it's unclear how to do it at all.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12798043
+    https://golang.org/cl/12724044
 
- src/pkg/runtime/alg.c            |  3 ++-
- src/pkg/runtime/atomic_386.c     |  9 +++++----
- src/pkg/runtime/atomic_amd64.c   |  7 ++++---
- src/pkg/runtime/atomic_arm.c     | 25 +++++++++++++------------
- src/pkg/runtime/cgocall.c        |  3 ++-
- src/pkg/runtime/chan.c           | 31 ++++++++++++++++---------------
- src/pkg/runtime/hashmap.c        | 13 +++++++------
- src/pkg/runtime/hashmap_fast.c   |  4 ++--
- src/pkg/runtime/iface.c          | 15 ++++++++-------
- src/pkg/runtime/lock_futex.c     |  3 ++-
- src/pkg/runtime/lock_sema.c      |  3 ++-
- src/pkg/runtime/malloc.goc       |  3 ++-
- src/pkg/runtime/noasm_arm.goc    |  5 +++--
- src/pkg/runtime/os_darwin.c      |  7 ++++---
- src/pkg/runtime/os_freebsd.c     |  3 ++-
- src/pkg/runtime/os_freebsd_arm.c |  3 ++-
- src/pkg/runtime/os_linux.c       |  3 ++-
- src/pkg/runtime/os_linux_386.c   |  3 ++-
- src/pkg/runtime/os_linux_arm.c   |  5 +++--
- src/pkg/runtime/os_netbsd.c      |  3 ++-
- src/pkg/runtime/os_netbsd_arm.c  |  3 ++-
- src/pkg/runtime/os_openbsd.c     |  3 ++-
- src/pkg/runtime/os_plan9.c       |  9 +++++----
- src/pkg/runtime/os_windows.c     | 11 ++++++-----
- src/pkg/runtime/panic.c          |  7 ++++---
- src/pkg/runtime/print.c          |  5 +++--
- src/pkg/runtime/proc.c           | 21 +++++++++++----------
- src/pkg/runtime/race.c           | 21 +++++++++++----------
- src/pkg/runtime/runtime.c        |  3 ++-
- src/pkg/runtime/sigqueue.goc     |  3 ++-
- src/pkg/runtime/slice.c          |  9 +++++----
- src/pkg/runtime/softfloat_arm.c  |  3 ++-
- src/pkg/runtime/string.goc       |  5 +++--
- src/pkg/runtime/time_plan9_386.c |  3 ++-
- src/pkg/runtime/vlrt_386.c       |  4 +++-
- src/pkg/runtime/vlrt_arm.c       | 14 ++++++++------
- 36 files changed, 156 insertions(+), 119 deletions(-)
+ src/pkg/runtime/malloc.goc | 8 ++------
+ src/pkg/runtime/race.c     | 4 ++--
+ src/pkg/runtime/race.h     | 2 +-
+ src/pkg/runtime/race0.c    | 3 +--
+ src/pkg/runtime/runtime.h  | 1 -
+ 5 files changed, 6 insertions(+), 12 deletions(-)

@@ -1,14 +1,13 @@
-commit 149d3f06d8e4b38c7195a2e27f3479309c71bcb9
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Thu Jan 5 11:04:14 2012 -0800
+commit bab56ecb4dc9a2e03d3121c8a2c3582981b79175
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 5 09:44:25 2012 -0800
 
-    math: fix typo in all_test.go
+    net: fix incorrect mode on ListenIP, ListenUDP
     
-    Logb errors were reported as Ilogb errors.
-    
-    R=rsc, golang-dev, gri
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5517045
+    https://golang.org/cl/5523044
 
- src/pkg/math/all_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/iprawsock_posix.go | 2 +-
+ src/pkg/net/udpsock_posix.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

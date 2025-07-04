@@ -1,13 +1,13 @@
-commit 0d612a8572229d02e569a865e27e32e163c40ea2
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 18 11:00:38 2014 -0700
+commit ba593757508b3f748d4e33e4bbd86d7418d81578
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Apr 18 10:50:06 2014 +0200
 
-    doc/go1.3.html: go test always builds
+    doc/go1.3.html: new package debug/plan9obj
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/89370043
+    LGTM=r
+    R=r
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/86180046
 
- doc/go1.3.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.3.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

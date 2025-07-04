@@ -1,19 +1,17 @@
-commit 7511806ec2914f9d9b6a8941d420fb0443f5f5f6
-Author: Todd Neal <todd@tneal.org>
-Date:   Thu Jun 18 07:26:39 2015 -0500
+commit c344f751fced679add6eec87c4dc92020484e476
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 18:06:34 2015 -0700
 
-    net/http: fix race on postPendingDial test hook
+    math/big: gofmt nat_test.go
     
-    The race occurs rarely, but by putting some delays and more reads/writes
-    of prePendingDial/postPendingDial in the handlePendingDial function I
-    could reproduce it.
+    Was apparently checked in by https://go-review.googlesource.com/#/c/9253/
+    without being gofmt-ed.
     
-    Fixes #11136
+    TBR: agl
     
-    Change-Id: I8da9e66c88fbda049eaaaaffa2717264ef327768
-    Reviewed-on: https://go-review.googlesource.com/11250
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4d011dbaa15b7c5e73ca71f724f32951a0302dae
+    Reviewed-on: https://go-review.googlesource.com/10353
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/transport.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/math/big/nat_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

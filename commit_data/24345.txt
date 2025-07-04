@@ -1,16 +1,14 @@
-commit 143f3fd0ee71e6b015029b6792bc873b1013a8d4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Sep 1 17:51:39 2015 +1000
+commit d9ee9a0f6e4b83737013fff1551d0875c4442709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 23 19:00:15 2015 -0700
 
-    encoding/json: spell "marshaling" and "unmarshaling" consistently
+    runtime: fix runtime·raise for dragonfly amd64
     
-    Fixes #12431
+    Fixes #11847.
     
-    Change-Id: I67c42bf2cd9285f471387248fd9c22a16b158349
-    Reviewed-on: https://go-review.googlesource.com/14150
-    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I21736a4c6f6fb2f61aec1396ce2c965e3e329e92
+    Reviewed-on: https://go-review.googlesource.com/12621
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/encoding/json/decode.go      | 2 +-
- src/encoding/json/decode_test.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/sys_dragonfly_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

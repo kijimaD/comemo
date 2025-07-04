@@ -1,33 +1,24 @@
-commit 95bb00d1088767ed14e3bd1a5f533a690d619a5f
-Author: Carlos Alexandro Becker <caarlos0@gmail.com>
-Date:   Sun Sep 13 02:12:02 2020 +0000
+commit 1c4e5152ae4400409886e2e31f7dfbb6638b0495
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 10:43:09 2020 -0500
 
-    encoding/json: implement Is on all errors
+    cmd/go: convert TestGoTestBuildsAnXtestContainingOnly... to the script framework
     
-    Allows users to check:
+    The name of the test is too long to fit on the first line. It's
+    TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples.
     
-          errors.Is(err, &UnmarshalTypeError{})
-          errors.Is(err, &UnmarshalFieldError{})
-          errors.Is(err, &InvalidUnmarshalError{})
-          errors.Is(err, &UnsupportedValueError{})
-          errors.Is(err, &MarshalerError{})
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    which is the recommended way of checking for kinds of errors.
+    Updates #36320
+    Updates #17751
     
-    SyntaxError.Is was implemented in CL 253037.
-    As and Unwrap relevant methods will be added in future CLs.
-    
-    Change-Id: I1f8a503b8fdc0f3afdfe9669a91f3af8d960e028
-    GitHub-Last-Rev: 930cda5384c987a0b31f277ba3b4ab690ea74ac3
-    GitHub-Pull-Request: golang/go#41360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254537
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I490748271b10a85cbe1d34f9dbecb86ccf0101a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214423
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/encoding/json/decode.go      | 18 ++++++++++++++++++
- src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
- src/encoding/json/encode.go      | 12 ++++++++++++
- src/encoding/json/encode_test.go | 24 +++++++++++++++++++++++-
- 4 files changed, 84 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                              |  7 ------
+ src/cmd/go/testdata/norunexample/example_test.go   | 11 ---------
+ src/cmd/go/testdata/norunexample/test_test.go      | 10 ---------
+ src/cmd/go/testdata/script/test_no_run_example.txt | 26 ++++++++++++++++++++++
+ 4 files changed, 26 insertions(+), 28 deletions(-)

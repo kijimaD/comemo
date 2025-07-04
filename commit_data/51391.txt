@@ -1,24 +1,20 @@
-commit bda0235466a9e2e26332f9a2646678ccdc5edaa9
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 1 11:08:00 2022 -0400
+commit 0ef6dd74409506eb084bd8d2fe61e0e70ed9e5a4
+Author: Bryan Mills <bcmills@google.com>
+Date:   Sat Jan 22 03:42:40 2022 +0000
 
-    cmd/link: add capturehostobjs debugging flag
+    Revert "cmd/go: evaluate root symlink in matchPackages"
     
-    Add a new debugging flag "-capturehostobjs" that instructs the linker
-    to capture copies of all object files loaded in during the host object
-    loading portion of CGO internal linking. The intent is to make it
-    easier to analyze the objects after the fact (as opposed to having to
-    dig around inside archives, which can be a "find needle in haystack"
-    exercise).
+    This reverts CL 380057.
     
-    Change-Id: I7023a5b72b1b899ea9b3bd6501f069d1f21bbaf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451737
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reason for revert: appears to have broken x/tools tests on macOS.
+    
+    Change-Id: If1340bcb9b78f7271798c4dd923553e33db7f72e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380294
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/link/internal/ld/ar.go   |  3 +++
- src/cmd/link/internal/ld/lib.go  | 52 +++++++++++++++++++++++++++++++++++++++-
- src/cmd/link/internal/ld/main.go |  2 ++
- 3 files changed, 56 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/search.go               |  5 -----
+ src/cmd/go/testdata/script/work_root_is_symlink.txt | 20 --------------------
+ 2 files changed, 25 deletions(-)

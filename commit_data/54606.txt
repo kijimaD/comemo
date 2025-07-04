@@ -1,42 +1,24 @@
-commit d98f74b31eab9308c8c6e9d4a0ad6c04d5dac65a
-Author: Xianmiao Qu <cooper.qu@linux.alibaba.com>
-Date:   Sat Sep 30 16:12:34 2023 +0800
+commit 5c0d314adcc605e0198b2bb45a34db701c9e072c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Oct 2 13:24:34 2022 +0200
 
-    cmd/compile/internal: intrinsify publicationBarrier on riscv64
+    runtime: support control flow guard on windows/amd64
     
-    This enables publicationBarrier to be used as an intrinsic
-    on riscv64, optimizing the required function call and return
-    instructions for invoking the "runtime.publicationBarrier"
-    function.
+    The stack pointer must lie within system stack limits
+    when Control Flow Guard (CFG) is enabled on Windows.
     
-    This function is called by mallocgc. The benchmark results for malloc tested on Lichee-Pi-4A(TH1520, RISC-V 2.0G C910 x4) are as follows.
+    This CL updates runtime.sigtramp to honor this restriction by
+    porting some code from the windows/arm64 version, which
+    already supports CFG.
     
-    goos: linux
-    goarch: riscv64
-    pkg: runtime
-                        │   old.txt   │              new.txt               │
-                        │   sec/op    │   sec/op     vs base               │
-    Malloc8-4             92.78n ± 1%   90.77n ± 1%  -2.17% (p=0.001 n=10)
-    Malloc16-4            156.5n ± 1%   151.7n ± 2%  -3.10% (p=0.000 n=10)
-    MallocTypeInfo8-4     131.7n ± 1%   130.6n ± 2%       ~ (p=0.165 n=10)
-    MallocTypeInfo16-4    186.5n ± 2%   186.2n ± 1%       ~ (p=0.956 n=10)
-    MallocLargeStruct-4   1.345µ ± 1%   1.355µ ± 1%       ~ (p=0.093 n=10)
-    geomean               216.9n        214.5n       -1.10%
+    Fixes #53560
     
-    
-    Change-Id: Ieab6c02309614bac5c1b12b5ee3311f988ff644d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531719
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Change-Id: I7f88f9ae788b2bac38aac898b2567f1bea62f8f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437559
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go         | 4 ++++
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 3 +++
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go | 3 +++
- src/cmd/compile/internal/ssa/opGen.go           | 8 ++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 3 +++
- src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
- 6 files changed, 22 insertions(+), 1 deletion(-)
+ src/runtime/sys_windows_amd64.s | 49 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 47 insertions(+), 2 deletions(-)

@@ -1,22 +1,17 @@
-commit d2901205c15d5d839c95988497c190b652c5cf3a
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 1 17:24:35 2022 +0000
+commit 5d8c49a5a13d922c24dc30675d64f0c49b676535
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 12:02:40 2021 -0800
 
-    cmd: remove redundant _
+    spec: add definition of "specific types" of an interface
     
-    Change-Id: Ia7e1e3679e03d125feb9708cb05bbd32c4954edb
-    GitHub-Last-Rev: a62b72ea3edcf2b4f9f378cd03b1ac073ab80c74
-    GitHub-Pull-Request: golang/go#55957
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436879
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    The notion of specific types will be used to define rules for
+    assignability, convertability, etc. when type parameters are
+    involved.
+    
+    Change-Id: Ic5c134261e2a9fe05cdf25efd342f052458ab5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366754
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go | 2 +-
- src/cmd/go/internal/modload/load.go        | 2 +-
- src/cmd/go/internal/modload/query.go       | 2 +-
- src/cmd/go/internal/workcmd/use.go         | 2 +-
- src/cmd/internal/obj/ppc64/asm_test.go     | 2 +-
- src/cmd/link/internal/ld/data.go           | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ doc/go_spec.html | 64 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 57 insertions(+), 7 deletions(-)

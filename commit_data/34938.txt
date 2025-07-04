@@ -1,21 +1,24 @@
-commit 4af08e7a13f2423f689c74d0c0ed79165b639e1e
+commit 905b1c9804e0ed8ad6351966388cb8610bf5c3f1
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 6 21:02:01 2018 -0400
+Date:   Wed Nov 22 16:25:13 2017 -0500
 
-    cmd/link: set S_ATTR_PURE_INSTRUCTIONS bit for text section on darwin
+    cmd/vendor/golang.org/x/arch: revendor at commit dda8112
     
-    Mac otool and llvm-objdump distinguishes a Mach-O section is
-    text or data by looking at S_ATTR_PURE_INSTRUCTIONS bit. Without
-    this bit it thinks our function symbols are data, not functions.
-    Set this bit for text section to make otool/objdump happy.
+    Updates #20650 (CL 45099 introduced the feature to x86).
     
-    Fixes #24706.
-    
-    Change-Id: I5236482cb9a72474c23fbea0f35d5b5cc8491ea4
-    Reviewed-on: https://go-review.googlesource.com/105256
+    Change-Id: If40cc9d87417a05281d8633f05cd91f6f434b136
+    Reviewed-on: https://go-review.googlesource.com/80843
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ .../golang.org/x/arch/arm/armasm/ext_test.go       |  2 +-
+ .../vendor/golang.org/x/arch/arm/armasm/inst.go    |  2 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/ext_test.go   |  2 +-
+ .../golang.org/x/arch/x86/x86asm/decode_test.go    |  4 +-
+ .../golang.org/x/arch/x86/x86asm/ext_test.go       |  6 +-
+ .../golang.org/x/arch/x86/x86asm/format_test.go    | 68 ++++++++++++++++++++++
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go | 36 ++++++++++--
+ .../vendor/golang.org/x/arch/x86/x86asm/intel.go   | 40 +++++++++++--
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  | 35 ++++++++---
+ 9 files changed, 169 insertions(+), 26 deletions(-)

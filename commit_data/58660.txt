@@ -1,19 +1,30 @@
-commit 74c3b3784ea09e75f8c94ef5bf306c55c2e463a7
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Feb 8 13:51:31 2025 +0000
+commit 3e67f46d4f7d661504d281bdedbd1432c09bd751
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 22 14:31:37 2023 -0500
 
-    cmd/internal/bio: remove unused MustWriter
+    .github: try "import/path: issue title" instead of "affected/package: "
     
-    Change-Id: I70435781fbaeca2b6927a74afd79a3ff123b527b
-    GitHub-Last-Rev: cae569f4c4bf73a9a6cd8d26fb080962f94bf1b1
-    GitHub-Pull-Request: golang/go#71622
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647916
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The multiple issue templates pre-populate the issue title with a prefix
+    that Go issues customarily have. The "affected/package" phrase is short
+    for "the import path of the affected package". Let's try simplifying it
+    to just "import/path", and also include "issue title" to make the title
+    a more representative template of what the final title should look like.
+    
+    Updates #29839.
+    
+    Change-Id: I9736d24cf3d0a51536ac13dd07dd189fb51da021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544556
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
 
- src/cmd/internal/bio/must.go | 43 -------------------------------------------
- 1 file changed, 43 deletions(-)
+ .github/ISSUE_TEMPLATE/00-bug.yml             | 2 +-
+ .github/ISSUE_TEMPLATE/01-pkgsite.yml         | 2 +-
+ .github/ISSUE_TEMPLATE/03-gopls.yml           | 2 +-
+ .github/ISSUE_TEMPLATE/04-vuln.yml            | 2 +-
+ .github/ISSUE_TEMPLATE/10-proposal.yml        | 2 +-
+ .github/ISSUE_TEMPLATE/11-language-change.yml | 2 +-
+ .github/ISSUE_TEMPLATE/12-telemetry.yml       | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

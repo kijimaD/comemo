@@ -1,20 +1,18 @@
-commit 4f8094386c3c015f6b6f3efc3a002d188433d388
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 3 15:13:11 2022 -0500
+commit 137be7712f479dc820ef56c818913a98fa24b80e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 19 12:20:18 2021 -0700
 
-    cmd/go: error out of 'go work use' if no directories are given
+    embed/internal/embedtest: add test for embedded path starting with dash
     
-    Otherwise, the behavior of 'go work use -r' (without arguments)
-    may be surprising.
+    Fixes #45447
     
-    Change-Id: I50cf1339591720ec5bd333146b89c9944ce420d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389855
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1b1a0a844ee4345ced1a007bbe53db035183175f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311529
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go                          |  2 +-
- src/cmd/go/internal/workcmd/use.go             |  5 ++++-
- src/cmd/go/testdata/script/work_use_noargs.txt | 11 +++++++++++
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ src/embed/internal/embedtest/embed_test.go                    | 4 ++--
+ src/embed/internal/embedtest/testdata/-not-hidden/fortune.txt | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

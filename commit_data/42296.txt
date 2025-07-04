@@ -1,14 +1,24 @@
-commit 9e8157805fed930c292d5593aab3016ce6d9c8ed
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu May 7 10:17:08 2020 +0800
+commit 8324acadfe682ec72b3dd75e43ee174940817f28
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 21 16:55:11 2019 -0500
 
-    cmd/internal/obj/arm64: fix typos in document
+    cmd/go: fix and re-enable build_trimpath test
     
-    Correct "PCALING" to "PCALIGN".
+    The test was comparing a binary built from a list of files to a test
+    build from a named package. That should not (and did not) work. The
+    test now compares two binaries built the same way in different
+    directories.
     
-    Change-Id: Id80728142febd2a42e112dc06a6c1bc0759687e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232697
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also add a portion of the test for GOPATH and fix the gccgo portion of
+    the test (verified manually).
+    
+    Fixes #35435
+    
+    Change-Id: I2535a0011c9d97d2274e5550ae277302dbb91e6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208234
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm64/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/build_trimpath.txt | 115 +++++++++++++++++---------
+ 1 file changed, 77 insertions(+), 38 deletions(-)

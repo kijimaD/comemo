@@ -1,14 +1,19 @@
-commit 2cb80bdee0dcb4ff55f46ab7025a37546aef6b7a
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Tue Mar 31 19:44:19 2020 +0100
+commit 46e0d724b3f14fd0d350123bbf101e815b493791
+Author: pokutuna <popopopopokutuna@gmail.com>
+Date:   Fri Oct 25 18:58:48 2019 +0000
 
-    runtime: skip gdb tests on Plan 9
+    net/http: fix comment TimeoutHandler no longer supports Flusher
     
-    There's no gdb on Plan 9.
+    Fixes #35161
+    Updates #34439
     
-    Change-Id: Ibeb0fbd3c096a69181c19b1fb2bc6291612b6da3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226657
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I978534cbb8b9fb32c115dba0066cf099c61d8ee9
+    GitHub-Last-Rev: d60581635e8cefb7cfc4b571057542395034c575
+    GitHub-Pull-Request: golang/go#35162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203478
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime-gdb_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

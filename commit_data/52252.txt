@@ -1,23 +1,22 @@
-commit d9c29ec6a54f929f4b0736db6b7598a4c2305e5e
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Mar 10 16:19:58 2023 +0100
+commit 6de00888e4720b7fa23ef2ce294bc3e81b866b0f
+Author: Phil Kulin <schors@gmail.com>
+Date:   Wed Apr 20 14:13:29 2022 +0000
 
-    cmd/link: define correct complex types values for COFF symbols
+    reflect: remove unused overflowPad variable
     
-    This CL updates IMAGE_SYM_DTYPE_FUNCTION and IMAGE_SYM_DTYPE_ARRAY
-    definition and usage so their value can be set to what's defined in
-    the Microsoft PE docs [1], fixing a long-standing TODO.
+    overflowPad variable in bucketOf function is a holdover from a NaCl port
+    and never used now.
     
-    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#type-representation
-    
-    Change-Id: I93c19eb78e8a770e8c72245fe9495647e2c5ae5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475355
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib68fdb054e1b6a655ffbfd34521a3f8773a22694
+    GitHub-Last-Rev: f281be9c115a87605fd28b39c0b09eed54cc774a
+    GitHub-Pull-Request: golang/go#52449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401274
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/internal/ld/pe.go       | 11 ++++-------
- src/cmd/link/internal/loadpe/ldpe.go |  9 ++++-----
- 2 files changed, 8 insertions(+), 12 deletions(-)
+ src/reflect/type.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

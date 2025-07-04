@@ -1,51 +1,19 @@
-commit 5a61de3fe160cc8b327ee893cd74c4d0ce9dc13d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 8 18:13:23 2019 -0400
+commit ed7e43085ef2e2c6a1d62785b2d2b343a80039bc
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Oct 1 13:53:42 2019 -0300
 
-    cmd/go: rationalize errors in internal/load and internal/modload
+    cmd/go: respect -mod flag in fmt
     
-    This change is a non-minimal fix for #32917, but incidentally fixes
-    several other bugs and makes the error messages much more ergonomic.
+    Fixes #27841
     
-    Updates #32917
-    Updates #27122
-    Updates #28459
-    Updates #29280
-    Updates #30590
-    Updates #37214
-    Updates #36173
-    Updates #36587
-    Fixes #36008
-    Fixes #30992
-    
-    Change-Id: Iedb26d2e0963697c130df5d0f72e7f83ec2dcf06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185345
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ifcfd938aff8680cf7b44dfc09fde01d6105345a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198257
+    Run-TryBot: Dan Peterson <dpiddy@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/clean/clean.go                 |   2 +-
- src/cmd/go/internal/fmtcmd/fmt.go                  |   7 +-
- src/cmd/go/internal/list/list.go                   |   1 +
- src/cmd/go/internal/load/pkg.go                    |  91 +++++++---
- src/cmd/go/internal/modload/import.go              |   2 -
- src/cmd/go/internal/modload/load.go                | 197 +++++++++++----------
- src/cmd/go/internal/modload/query.go               |   7 +
- src/cmd/go/testdata/script/cmd_import_error.txt    |   2 +-
- src/cmd/go/testdata/script/import_cycle.txt        |  12 ++
- src/cmd/go/testdata/script/list_ambiguous_path.txt |   4 +-
- .../go/testdata/script/list_gofile_in_goroot.txt   |  73 +++++---
- .../go/testdata/script/list_test_non_go_files.txt  |   2 +-
- .../go/testdata/script/mod_ambiguous_import.txt    |   3 +-
- src/cmd/go/testdata/script/mod_dot.txt             |  97 +++++++++-
- src/cmd/go/testdata/script/mod_empty_err.txt       |   8 +-
- src/cmd/go/testdata/script/mod_fs_patterns.txt     |   4 +-
- src/cmd/go/testdata/script/mod_goroot_errors.txt   |   4 +-
- src/cmd/go/testdata/script/mod_import_cycle.txt    |  40 +++++
- src/cmd/go/testdata/script/mod_list_dir.txt        |   4 -
- .../go/testdata/script/mod_list_replace_dir.txt    |   4 +-
- src/cmd/go/testdata/script/mod_readonly.txt        |   4 +-
- src/cmd/go/testdata/script/mod_replace_import.txt  |   5 +-
- src/cmd/go/testdata/script/noncanonical_import.txt |   4 +-
- src/cmd/go/testdata/script/test_flags.txt          |   2 +-
- src/cmd/go/testdata/script/vet_internal.txt        |  71 ++++++++
- 25 files changed, 470 insertions(+), 180 deletions(-)
+ src/cmd/go/alldocs.go                     | 3 +++
+ src/cmd/go/internal/base/flag.go          | 5 +++++
+ src/cmd/go/internal/fmtcmd/fmt.go         | 4 ++++
+ src/cmd/go/testdata/script/mod_vendor.txt | 1 +
+ 4 files changed, 13 insertions(+)

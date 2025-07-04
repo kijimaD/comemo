@@ -1,25 +1,20 @@
-commit 26eac917dca240b318685ac019e606d02e79e600
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 23 19:51:03 2015 -0400
+commit 5750b7118f388b131c56367e261470b4783185d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 18:07:19 2015 -0700
 
-    runtime: start dedicated mark workers even if there's no work
+    cmd/internal/gc: move fix and flt functions into respective files (cleanups)
     
-    Currently, findRunnable only considers running a mark worker if
-    there's work in the work queue. In principle, this can delay the start
-    of the desired number of dedicated mark workers if there's no work
-    pending. This is unlikely to occur in practice, since there should be
-    work queued from the scan phase, but if it were to come up, a CPU hog
-    mutator could slow down or delay garbage collection.
+    Also:
+    - introduce Mpprec (remove old constants)
+    - no semantic changes
     
-    This check makes sense for fractional mark workers, since they'll just
-    return to the scheduler immediately if there's no work, but we want
-    the scheduler to start all of the dedicated mark workers promptly,
-    even if there's currently no queued work. Hence, this change moves the
-    pending work check after the check for starting a dedicated worker.
-    
-    Change-Id: I52b851cc9e41f508a0955b3f905ca80f109ea101
-    Reviewed-on: https://go-review.googlesource.com/9298
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ie0e77e8e09bd68e09bcf8747a3d875270e736081
+    Reviewed-on: https://go-review.googlesource.com/8171
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ src/cmd/internal/gc/const.go    |   2 -
+ src/cmd/internal/gc/go.go       |   6 +-
+ src/cmd/internal/gc/mparith1.go | 172 ----------------------------------------
+ src/cmd/internal/gc/mparith2.go | 158 +++++++++++++++++++++++++++++++-----
+ src/cmd/internal/gc/mparith3.go |  90 ++++++++++++++++++++-
+ 5 files changed, 231 insertions(+), 197 deletions(-)

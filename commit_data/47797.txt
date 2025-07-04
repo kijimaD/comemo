@@ -1,37 +1,31 @@
-commit af05064f978729f3b066e1d627633c11c5e267e2
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Dec 14 11:33:10 2021 -0500
+commit 117b1c84d3678a586c168a5f7f2f0a750c27f0c2
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sat Dec 26 02:25:13 2020 +0900
 
-    go/types: externalize union type sets
+    cmd/go/internal/work: remove '_test' from import paths in stacktraces when -trimpath is specified
     
-    Move calculated type sets for unions into a map, rather than storing
-    them on the Union type.
+    ExampleFrames with -trimpath failed since the content of Frame's File
+    changed when -trimpath is specified.
     
-    Type sets for unions only matter during calculation of interface type
-    sets, and to a lesser extent inside of Identical. The latter should not
-    be encountered during type checking, as Identical uses the precomputed
-    interface type set when comparing interfaces, and unions do not arise
-    outside of interface types.
+    This CL fixes the issue by adding a new field OrigImportPath to
+    PackageInternal, which represents the original import path before adding
+    '_test' suffix for an external test package, and always using it to
+    create paths for the build tools.
     
-    Removing the tset field from Union potentially frees up memory, and
-    eliminates a source of races via calls to NewUnion and Identical. It
-    also sets the stage for recording Unions for every subexpression of
-    union terms, which preserves an existing invariant that BinaryExprs and
-    UnaryExprs should have a recorded type.
+    Fixes golang/go#43380
     
-    Updates #50093
-    
-    Change-Id: I5956fa59be6b0907c3a71faeba9fa5dd8aae0d65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371756
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibbc947eb3ae08a7ba81f13f03af67c8745b5c69f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279440
+    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/check.go       |  2 ++
- src/go/types/predicates.go  |  7 +++++--
- src/go/types/sizeof_test.go |  2 +-
- src/go/types/subst.go       |  2 +-
- src/go/types/typeset.go     | 28 +++++++++++++++++++---------
- src/go/types/union.go       |  7 +++----
- 6 files changed, 31 insertions(+), 17 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    |  2 +
+ src/cmd/go/internal/load/test.go                   | 25 ++++++-----
+ src/cmd/go/internal/work/gc.go                     |  5 ++-
+ src/cmd/go/testdata/script/test_trimpath.txt       | 51 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/test_trimpath_main.txt  | 38 ++++++++++++++++
+ .../testdata/script/test_trimpath_test_suffix.txt  | 40 +++++++++++++++++
+ 6 files changed, 148 insertions(+), 13 deletions(-)

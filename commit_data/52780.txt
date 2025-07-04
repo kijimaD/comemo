@@ -1,21 +1,22 @@
-commit a1284d0185110b82b34200a13700fecacfa200fa
-Author: Alan Donovan <adonovan@google.com>
-Date:   Sun Apr 23 13:45:08 2023 -0400
+commit 0f57c88bce9899a91686646a1e9cd7aae55911ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 11:42:59 2022 -0400
 
-    go/ast: add IsGenerated(*File) predicate
+    misc/cgo/testsanitizers: buffer the signal channel in TestTSAN/tsan11
     
-    See https://go.dev/s/generatedcode for spec.
+    This fix is analogous to the one in CL 407888.
     
-    Fixes #28089
+    'go vet' catches the error, but it is not run on this file because the
+    file is (only) compiled when running testsanitizers/TestTSAN.
     
-    Change-Id: Ic9bb138bdd180f136f9e8e74e187319acca5dbac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487935
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Fixes #53113.
+    
+    Change-Id: I74f7b7390a9775ff00a06214c1019ba28846dd11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409094
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- api/next/28089.txt        |  1 +
- src/go/ast/ast.go         | 37 ++++++++++++++++++
- src/go/ast/issues_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 135 insertions(+)
+ misc/cgo/testsanitizers/testdata/tsan11.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

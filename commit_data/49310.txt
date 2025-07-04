@@ -1,22 +1,17 @@
-commit 715ba65563f9d2a6ecd349944b726a64f9aabeca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 23 16:27:13 2022 -0400
+commit d4c0ed26ace91cb21fc0a67f088648674052aa3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 11 09:10:55 2021 -0700
 
-    misc/cgo/testsanitizers: terminate commands with SIGQUIT if hung
+    doc/go1.17: linker passes -I to extld as -Wl,--dynamic-linker
     
-    If the test hangs due to a deadlock in a subprocess, we want a
-    goroutine dump of that process to figure out the nature of the
-    deadlock. SIGQUIT causes the Go runtime to produce exactly
-    such a dump (unless the runtime itself is badly deadlocked).
+    For #22446
     
-    For #52998.
-    
-    Change-Id: Id9b3ba89d8f705e14f6cd789353fc2b7f4774ad3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407954
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I71a30761a28e81c50b7089d5a28be99c736c2dc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341332
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/cgo/testsanitizers/cc_test.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ doc/go1.17.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

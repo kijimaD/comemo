@@ -1,32 +1,24 @@
-commit 9754521157caffde83f630410781abd9e35f18d5
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 17 15:43:29 2023 -0400
+commit 62e130226767a088ace196da90a774c9a9d14689
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 23 20:20:07 2022 -0400
 
-    internal/abi, runtime, cmd: merge funcID_* consts into internal/abi
+    misc/cgo/testsanitizers: use buffered channel in tsan12.go
     
-    For #59670.
+    os/signal.Notify requires that "the caller must ensure that c has
+    sufficient buffer space to keep up with the expected signal rate"
+    as it does a nonblocking send when it receives a signal. The test
+    currently using a unbuffered channel, which means it may miss the
+    signal if the signal arrives before the channel receive operation.
     
-    Change-Id: I517e97ea74cf232e5cfbb77b127fa8804f74d84b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485495
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes #52998.
+    
+    Change-Id: Icdcab9396d735506480ef880fb45a4669fa7cc8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407888
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/internal/goobj/funcinfo.go     |  5 +-
- src/cmd/internal/obj/link.go           |  3 +-
- src/cmd/internal/objabi/funcid.go      | 91 ++++++++++++----------------------
- src/cmd/link/internal/ld/pcln.go       |  5 +-
- src/cmd/link/internal/loader/loader.go |  3 +-
- src/internal/abi/symtab.go             | 39 +++++++++++++++
- src/runtime/mgcmark.go                 |  5 +-
- src/runtime/panic.go                   |  3 +-
- src/runtime/race.go                    |  2 +-
- src/runtime/runtime2.go                |  7 +--
- src/runtime/stack.go                   |  4 +-
- src/runtime/symtab.go                  | 39 ++-------------
- src/runtime/symtabinl.go               |  4 +-
- src/runtime/symtabinl_test.go          |  2 +-
- src/runtime/trace.go                   |  5 +-
- src/runtime/traceback.go               | 41 +++++++--------
- 16 files changed, 124 insertions(+), 134 deletions(-)
+ misc/cgo/testsanitizers/testdata/tsan12.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

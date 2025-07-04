@@ -1,17 +1,13 @@
-commit 07dc50b8f19d1a1750baf46685e375545591be85
-Author: Kay Zhu <kayzhu@google.com>
-Date:   Tue Mar 11 14:34:07 2014 -0700
+commit 2d9fab905b6380507f92e5dbd9b95107a86130f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 11 11:50:56 2014 -0700
 
-    path/filepath: fixed misaligned comment.
+    C: add Kay Zhu (Google CLA)
     
-    The comment for 'Clean' function is prepended with spaces instead of
-    a single tab, resulting in visually misaligned comment in the generated
-    documentation.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/73840043
+    https://golang.org/cl/74110043
 
- src/pkg/path/filepath/path.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

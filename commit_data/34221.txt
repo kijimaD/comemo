@@ -1,32 +1,20 @@
-commit 29e9c4d4a4064fcd5edcb47d4782bd96082a068e
+commit a212083eea9ee745a3c8e7befb7bba4f4c95396c
 Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 23 14:25:50 2016 -0600
+Date:   Thu Jun 15 15:02:32 2017 -0400
 
-    runtime: lay out heap bitmap forward in memory
+    runtime: mark mstart as nowritebarrierrec
     
-    Currently the heap bitamp is laid in reverse order in memory relative
-    to the heap itself. This was originally done out of "excessive
-    cleverness" so that computing a bitmap pointer could load only the
-    arena_start field and so that heaps could be more contiguous by
-    growing the arena and the bitmap out from a common center point.
+    mstart is the entry point for new threads, so it certainly can't
+    interact with GC enough to have write barriers. We move the one small
+    piece that is allowed to have write barriers out into its own
+    function.
     
-    However, this appears to have no actual performance benefit, it
-    complicates nearly every use of the bitmap, and it makes already
-    confusing code more confusing. Furthermore, it's still possible to use
-    a single field (the new bitmap_delta) for the bitmap pointer
-    computation by employing slightly different excessive cleverness.
-    
-    Hence, this CL puts the bitmap into forward order.
-    
-    This is a (very) updated version of CL 9404.
-    
-    Change-Id: I743587cc626c4ecd81e660658bad85b54584108c
-    Reviewed-on: https://go-review.googlesource.com/85881
+    Change-Id: Id9c31d6ffac31d0051fab7db15eb428c11cadbad
+    Reviewed-on: https://go-review.googlesource.com/46035
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/malloc.go  | 15 ++++++++-
- src/runtime/mbitmap.go | 87 ++++++++++++++++++++++++--------------------------
- src/runtime/mheap.go   |  5 +--
- 3 files changed, 59 insertions(+), 48 deletions(-)
+ src/runtime/proc.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

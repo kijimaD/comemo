@@ -1,25 +1,29 @@
-commit bea8ffdbb1ea4147c3f815243554afac90b6bb52
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:06:42 2017 -0700
+commit e24228af2566593a18932b563e548d288ea3cbb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 6 20:54:41 2016 -0800
 
-    cmd/compile: remove most uses of duintxx
+    runtime: enable/disable SIGPROF if needed when profiling
     
-    The only remaining uses of duintxx
-    are in the implementation of duintNN.
-    I hope to inline those once I figure out why
-    CL 40864 is broken.
+    This ensures that SIGPROF is handled correctly when using
+    runtime/pprof in a c-archive or c-shared library.
     
-    Note that some uses of duintxx with width Widthint
-    were converted into duintptr.
-    I did that, since #19954 is officially going to move forward.
+    Separate profiler handling into pre-process changes and per-thread
+    changes. Simplify the Windows code slightly accordingly.
     
-    Passes toolstash-check.
+    Fixes #18220.
     
-    Change-Id: Id25253b711ea589d0199b51be9a3c18ca1af59ce
-    Reviewed-on: https://go-review.googlesource.com/41398
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5060f7084c91ef0bbe797848978bdc527c312777
+    Reviewed-on: https://go-review.googlesource.com/34018
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/obj.go     |  4 ++--
- src/cmd/compile/internal/gc/reflect.go | 18 +++++++++---------
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go      | 35 ++++++++++++++++++++++++
+ misc/cgo/testcarchive/main6.c               | 34 ++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo6/sigprof.go | 25 ++++++++++++++++++
+ src/runtime/os3_plan9.go                    |  5 +++-
+ src/runtime/os_nacl.go                      |  3 ++-
+ src/runtime/os_windows.go                   |  8 +++---
+ src/runtime/proc.go                         | 15 ++++++-----
+ src/runtime/signal_unix.go                  | 41 ++++++++++++++++++++++++++++-
+ 8 files changed, 152 insertions(+), 14 deletions(-)

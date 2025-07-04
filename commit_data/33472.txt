@@ -1,14 +1,15 @@
-commit 0c0aed3c9f2c37523eaa7ba17432fdbe3d05ea52
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 7 07:53:55 2017 -0800
+commit 54f6911af507c7062e2f4ddbd0e7d88fff7d431b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 18 13:53:42 2017 +1000
 
-    cmd/vet: change docs to prefer "go vet" over "go tool vet"
+    misc/cgo/testcshared: use adb instead of ./adb on android
     
-    Updates #22530
+    Hopefully fixes build.
     
-    Change-Id: I161b5e706483744321e6089f747bd761310774eb
-    Reviewed-on: https://go-review.googlesource.com/76390
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If0629b95b923a65e4507073cf7aa44a5e178fc0f
+    Reviewed-on: https://go-review.googlesource.com/56711
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/doc.go | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

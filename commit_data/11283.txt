@@ -1,23 +1,12 @@
-commit 7fc4c07172b7b6feb2da345511ad439fedaf876b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 19 16:04:26 2012 -0800
+commit 369454d7b2f3b03ee5bdfde1eae6092bace14951
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jan 19 21:49:28 2012 -0200
 
-    database/sql: move from exp/sql
+    html/template: fix docs after API changes
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5536076
+    https://golang.org/cl/5528109
 
- src/pkg/Makefile                                   | 4 ++--
- src/pkg/{exp => database}/sql/Makefile             | 2 +-
- src/pkg/{exp => database}/sql/convert.go           | 2 +-
- src/pkg/{exp => database}/sql/convert_test.go      | 2 +-
- src/pkg/{exp => database}/sql/doc.txt              | 0
- src/pkg/{exp => database}/sql/driver/Makefile      | 2 +-
- src/pkg/{exp => database}/sql/driver/driver.go     | 0
- src/pkg/{exp => database}/sql/driver/types.go      | 0
- src/pkg/{exp => database}/sql/driver/types_test.go | 0
- src/pkg/{exp => database}/sql/fakedb_test.go       | 3 +--
- src/pkg/{exp => database}/sql/sql.go               | 3 +--
- src/pkg/{exp => database}/sql/sql_test.go          | 0
- 12 files changed, 8 insertions(+), 10 deletions(-)
+ src/pkg/html/template/doc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

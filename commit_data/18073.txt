@@ -1,16 +1,15 @@
-commit b682f6de5a9d645a92792e2ffad1956c64b7840f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 18 16:43:19 2013 -0800
+commit 2404b7f16866b302efb19083dae155e0f4764144
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 18 19:00:52 2013 -0500
 
-    regexp: use sync.Pool
+    debug/goobj: expand package prefix correctly
     
-    For machines, not threads.
-    
-    Update #4720
-    
-    R=golang-dev, rsc
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/44150043
+    https://golang.org/cl/43480049
 
- src/pkg/regexp/regexp.go | 20 ++++++--------------
- 1 file changed, 6 insertions(+), 14 deletions(-)
+ src/cmd/gc/subr.c                |  3 +-
+ src/cmd/ld/lib.c                 |  3 +-
+ src/pkg/debug/goobj/read.go      | 66 +++++++++++++++++++++++++++++++++++-----
+ src/pkg/debug/goobj/read_test.go | 28 +++++++++++++++++
+ 4 files changed, 90 insertions(+), 10 deletions(-)

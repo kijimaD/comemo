@@ -1,48 +1,13 @@
-commit a07c95a53c906e2d30762d76cd3e36c93d2c83f4
-Author: Marco Hennings <marco.hennings@freiheit.com>
-Date:   Mon Aug 19 10:45:44 2013 +1000
+commit 6fb9cc1f63dced4ad2022fb4eac9f722cd12c708
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 10:15:30 2013 +1000
 
-    archive/tar: Fix support for long links and improve PAX support.
+    testing: don't start timing a Parallel test until it's actually starting
+    Fixes #5285.
     
-    The tar/archive code from golang has a problem with linknames with length >
-    100. A pax header is added but the original header still written with a too
-    long field length.
-    
-    As it is clear that pax support is incomplete I have added missing
-    implementation parts.
-    
-    This commit contains code from the golang project in the folder tar/archiv.
-    
-    The following pax header records are now automatically written:
-    
-    - gname)
-    - linkpath
-    - path
-    - uname
-    
-    The following fields can be written with PAX, but the default is to use the
-    star binary extension.
-    
-    - gid  (value > 2097151)
-    - size (value > 8589934591)
-    - uid (value > 2097151)
-    
-    The string fields are written when the value is longer as the field or if the
-    string contains a char that is not encodable as 7-bit ASCII value.
-    
-    The change was tested against a current ubuntu-cloud image tarball comparing
-    the compressed result.
-    
-    + added some automated tests for the new functionality.
-    
-    Fixes #6056.
-    
-    R=dsymonds
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/12561043
+    https://golang.org/cl/13045044
 
- src/pkg/archive/tar/common.go      |  40 +++++++++
- src/pkg/archive/tar/reader.go      |  20 ++---
- src/pkg/archive/tar/writer.go      | 167 +++++++++++++++++++++++++------------
- src/pkg/archive/tar/writer_test.go | 101 +++++++++++++++++++++-
- 4 files changed, 262 insertions(+), 66 deletions(-)
+ src/pkg/testing/testing.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

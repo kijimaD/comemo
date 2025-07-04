@@ -1,37 +1,15 @@
-commit 6120ef079948340d6819b8f9a9d526ad4292e26e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 11 16:49:24 2013 -0400
+commit e7657de7177f92207b2a4f601996529bf415e3f2
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue Jun 11 21:19:29 2013 +0200
 
-    runtime: rename _rt0_$GOARCH to _rt0_go
+    cmd/gc: avoid creating circular lists when compiling with race detector.
     
-    There's no reason to use a different name on each architecture,
-    and doing so makes it impossible for portable code to refer to
-    the original Go runtime entry point. Rename it _rt0_go everywhere.
+    Fixes #5431.
     
-    This is a global search and replace only.
-    
-    R=golang-dev, bradfitz, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/10196043
+    R=dvyukov, remyoudompheng, rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/9910043
 
- src/pkg/runtime/asm_386.s           | 2 +-
- src/pkg/runtime/asm_amd64.s         | 2 +-
- src/pkg/runtime/asm_arm.s           | 2 +-
- src/pkg/runtime/rt0_darwin_386.s    | 2 +-
- src/pkg/runtime/rt0_darwin_amd64.s  | 2 +-
- src/pkg/runtime/rt0_freebsd_386.s   | 2 +-
- src/pkg/runtime/rt0_freebsd_amd64.s | 2 +-
- src/pkg/runtime/rt0_freebsd_arm.s   | 2 +-
- src/pkg/runtime/rt0_linux_386.s     | 2 +-
- src/pkg/runtime/rt0_linux_amd64.s   | 2 +-
- src/pkg/runtime/rt0_linux_arm.s     | 2 +-
- src/pkg/runtime/rt0_netbsd_386.s    | 2 +-
- src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
- src/pkg/runtime/rt0_netbsd_arm.s    | 2 +-
- src/pkg/runtime/rt0_openbsd_386.s   | 2 +-
- src/pkg/runtime/rt0_openbsd_amd64.s | 2 +-
- src/pkg/runtime/rt0_plan9_386.s     | 2 +-
- src/pkg/runtime/rt0_plan9_amd64.s   | 2 +-
- src/pkg/runtime/rt0_windows_386.s   | 2 +-
- src/pkg/runtime/rt0_windows_amd64.s | 2 +-
- 20 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/gc/racewalk.c                            |  6 +++++-
+ src/pkg/runtime/race/testdata/regression_test.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

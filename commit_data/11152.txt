@@ -1,13 +1,21 @@
-commit a4f7024e0af60c548ec1c066ef77e0b2fda2cb21
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jan 13 22:22:03 2012 +0400
+commit c7cdce13f55070383efd8251bce6e95118c32bb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 13 09:32:35 2012 -0800
 
-    cmd/go: fix data race during build
-    Fixes #2695.
+    godoc: make ?m=src mode deterministic
     
-    R=golang-dev, mpimenov, minux.ma, rsc
+    Merge package files in the go/ast MergePackageFiles
+    function always     in the same order (sorted by filename)
+    instead  of map iteration order to obtain the same
+    package  file each time.  This functionality is used
+    by godoc when displaying packages in ?m=src mode.
+    
+    Also: minor cleanup in godoc.go.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5545052
+    https://golang.org/cl/5540054
 
- src/cmd/go/build.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/godoc/godoc.go   | 12 ++++++------
+ src/pkg/go/ast/filter.go | 31 +++++++++++++++++++++----------
+ 2 files changed, 27 insertions(+), 16 deletions(-)

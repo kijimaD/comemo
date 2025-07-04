@@ -1,18 +1,20 @@
-commit 810a499bda958617bcfc42f6a2dad4739a607604
+commit 16993f24855ad89c3198dea87b84a9c329ffdcac
 Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Jan 16 01:23:56 2015 -0500
+Date:   Mon Jan 12 00:12:59 2015 -0500
 
-    cmd/ld: restore .debug_gdb_script section after runtime reorganization
+    cmd/cgo: also rewrite C.var in selector expressions
     
-    On some systems, gdb refuses to load Python plugin from arbitrary
-    paths, so we have to add $GOROOT/src/runtime to auto-load-safe-path
-    in the gdb script test.
+    While we're here, rename TestIssue7234 to Test7234 for consistency
+    with other tests.
     
-    Change-Id: Icc44baab8d04a65bd21ceac2ab8ddb13c8d083e8
-    Reviewed-on: https://go-review.googlesource.com/2905
+    Fixes #9557.
+    
+    Change-Id: I22b0a212b31e7b4f199f6a70deb73374beb80f84
+    Reviewed-on: https://go-review.googlesource.com/2654
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/ld/dwarf.c              |  4 ++--
- src/runtime/runtime-gdb_test.go | 12 +++++++-----
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ misc/cgo/test/cgo_test.go       |  1 +
+ misc/cgo/test/issue7234_test.go |  2 +-
+ misc/cgo/test/issue9557.go      | 36 ++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go              |  7 +++++++
+ 4 files changed, 45 insertions(+), 1 deletion(-)

@@ -1,25 +1,80 @@
-commit f70bd914353b2331a48eedb84aceb458982eaac0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 30 14:21:33 2018 -0800
+commit 2ce6da0be30c1888120a7f7e2a596c6de1892c0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 10 00:01:48 2018 -0400
 
-    cmd/cgo: use preprocessor macros to avoid prolog redefinitions
+    cmd/go: fix -gcflags, -ldflags not applying to current directory
     
-    Avoid redefinition errors when a Go file uses a cgo comment to
-    There is no particularly good reason to do this, but there is also no
-    particularly good reason that it should fail.
+    A flag setting like -gcflags=-e applies only to the packages
+    named on the command line, not to their dependencies.
+    The way we used to implement this was to remember the
+    command line arguments, reinterpret them as pattern matches
+    instead of package argument generators (globs), and apply them
+    during package load. The reason for this complexity was to
+    address a command-line like:
     
-    Fixes #27019
+            go build -gcflags=-e fmt runtime
     
-    Change-Id: Icd6f8197a89be4ee6b03ddae675667998a8b4189
-    Reviewed-on: https://go-review.googlesource.com/c/152079
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The load of fmt will load dependencies, including runtime,
+    and the load of runtime will reuse the result of the earlier load.
+    Because we were computing the effective -gcflags for each
+    package during the load, we had to have a way to tell, when
+    encountering runtime during the load of fmt, that runtime had
+    been named on the command line, even though we hadn't
+    gotten that far. That would be easy if the only possible
+    arguments were import paths, but we also need to handle
+    
+            go build -gcflags=-e fmt runt...
+            go build -gcflags=-e fmt $GOROOT/src/runtime
+            go build -gcflags=-e fmt $GOROOT/src/runt...
+            and so on.
+    
+    The match predicates usually did their job well, but not
+    always. In particular, thanks to symlinks and case-insensitive
+    file systems and unusual ways to spell file paths, it's always
+    been possible in various corner cases to give an argument
+    that evalutes to the runtime package during loading but
+    failed to match it when reused to determine "was this package
+    named on the command line?"
+    
+    CL 109235 fixed one instance of this problem by making
+    a directory pattern match case-insensitive on Windows, but that
+    is incorrect in some other cases and doesn't address the root problem,
+    namely that there will probably always be odd corner cases
+    where pattern matching and pattern globbing are not exactly aligned.
+    
+    This CL eliminates the assumption that pattern matching
+    and pattern globbing are always completely in agreement,
+    by simply marking the packages named on the command line
+    after the package load returns them. This means delaying
+    the computation of tool flags until after the load too,
+    for a few different ways packages are loaded.
+    The different load entry points add some complexity,
+    which is why the original approach seemed more attractive,
+    but the original approach had complexity that we simply
+    didn't recognize at the time.
+    
+    This CL then rolls back the CL 109235 pattern-matching change,
+    but it keeps the test introduced in that CL. That test still passes.
+    
+    In addition to fixing ambiguity due to case-sensitive file systems,
+    this new approach also very likely fixes various ambiguities that
+    might arise from abuse of symbolic links.
+    
+    Fixes #24232.
+    Fixes #24456.
+    Fixes #24750.
+    Fixes #25046.
+    Fixes #25878.
+    
+    Change-Id: I0b09825785dfb5112fb11494cff8527ebf57966f
+    Reviewed-on: https://go-review.googlesource.com/129059
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/cgo/testcshared/cshared_test.go         | 43 ++++++++++++++++++++++++++++
- misc/cgo/testcshared/src/go2c2go/go/shlib.go | 12 ++++++++
- misc/cgo/testcshared/src/go2c2go/m1/c.c      |  9 ++++++
- misc/cgo/testcshared/src/go2c2go/m1/main.go  | 22 ++++++++++++++
- misc/cgo/testcshared/src/go2c2go/m2/main.go  | 22 ++++++++++++++
- src/cmd/cgo/out.go                           | 23 ++++++++++++++-
- 6 files changed, 130 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                           | 31 ----------
+ src/cmd/go/internal/get/get.go                  |  4 +-
+ src/cmd/go/internal/load/flag.go                | 50 ----------------
+ src/cmd/go/internal/load/pkg.go                 | 80 +++++++++++++++++--------
+ src/cmd/go/internal/load/search.go              |  9 +--
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 71 ++++++++++++++++++++++
+ 6 files changed, 128 insertions(+), 117 deletions(-)

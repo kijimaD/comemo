@@ -1,21 +1,19 @@
-commit c80da0a33a240469892a0b0713f09607efb28752
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:00:21 2021 -0500
+commit 429d2c548d8fcceff95c29ea5074aab9498fa0c3
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 3 14:21:18 2020 -0400
 
-    runtime: handle nil gp in cpuprof
+    runtime: make runtime-gdb.py tolerant of creatively-named gdb versions
     
-    This can happen on Windows when recording profile samples for system threads.
+    "Fedora" and "Red Hat" are not numbers, it turns out.
+    Don't rely on version numbers, instead use a regexp to
+    handle variation across the 2 patterns thus far observed
+    for gdb-generated Go type names.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I5a7ba32b1900a69f3b7acada9cb6cf8396d8a03f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288797
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18c81aa2848265a47daf1180d8f6678566ae3f19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236280
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cpuprof.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/runtime-gdb.py | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)

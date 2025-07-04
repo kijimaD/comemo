@@ -1,19 +1,24 @@
-commit 9f52b5ab146572213bfd40463cbf2a513310a2bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 3 10:08:50 2017 -0400
+commit dcaac4b36535c9b80104c33567d775743f111c0b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 25 15:12:54 2017 -0700
 
-    cmd/dist: fix mkdeps
+    cmd/cgo: match note following error in compiler errors
     
-    Mistake introduced just before submitting CL 67650 that somehow
-    did not break a final pre-submit all.bash on my laptop.
+    With current GCC a macro that refers to another macro can report an
+    error on the macro definition line, with a note on the use.
+    When cgo is trying to decide which line an error refers to,
+    it is looking at the uses. So if we see an error on a line that we
+    don't recognize followed by a note on a line that we do recognize,
+    treat the note as an error.
     
-    Not sure why all.bash passes locally when mkdeps.go doesn't build.
-    I guess the test only runs on builders?
+    Fixes #20125.
     
-    Change-Id: I18fb91ada47605035345ba4b2f5e360a5c4b7f6e
-    Reviewed-on: https://go-review.googlesource.com/67850
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I389cd0eb7d56ad2d54bef70e278d9f76c4d36448
+    Reviewed-on: https://go-review.googlesource.com/44290
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/mkdeps.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/test/issue18720.go |  9 +++++++++
+ src/cmd/cgo/gcc.go          | 23 ++++++++++++++++++++---
+ 2 files changed, 29 insertions(+), 3 deletions(-)

@@ -1,14 +1,14 @@
-commit 8eb8ad245416f29c7f9848de288a0ece325d531b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Aug 12 13:03:50 2013 +1000
+commit ce00562607e0967ea8329aa4728a5bf4e1a8e666
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 12 12:52:23 2013 +1000
 
-    bufio: add Writer example
+    crypto/rand: simplify example to exploit properties of ReadFull
+    No need for the complex condition.
+    Fixes #6089
     
-    Update #5530
-    
-    R=golang-dev, r
+    R=golang-dev, mischief, adg
     CC=golang-dev
-    https://golang.org/cl/12504044
+    https://golang.org/cl/12731043
 
- src/pkg/bufio/example_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/crypto/rand/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

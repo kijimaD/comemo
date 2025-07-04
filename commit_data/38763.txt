@@ -1,18 +1,23 @@
-commit 9c843f031d31d85891d08f68ca5e6009a83bb0ce
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Apr 12 11:04:11 2019 +0100
+commit 04105ef1da9e23dc78d0a68b089ea8bdcb120d20
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 16 16:20:28 2018 -0500
 
-    cmd/internal/obj/s390x: handle RestArgs in s390x assembler
+    cmd/compile: decompose composite OpArg before decomposeUser
     
-    Allow up to 3 RestArgs arguments to be specified. This is needed to
-    for us to add the 'rotate and ... bits' instructions, which require
-    5 arguments, cleanly.
+    This makes it easier to track names of function arguments
+    for debugging purposes.
     
-    Change-Id: I76b89adfb5e3cd85a43023e412f0cc202d489e0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171726
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ic34856fe0b910005e1c7bc051d769d489a4b158e
+    Reviewed-on: https://go-review.googlesource.com/c/150098
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/s390x/asmz.go | 595 +++++++++++++++++++------------------
- 1 file changed, 302 insertions(+), 293 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go        |   1 +
+ src/cmd/compile/internal/ssa/decompose.go      |   4 +
+ src/cmd/compile/internal/ssa/gen/decArgs.rules |  58 +++++
+ src/cmd/compile/internal/ssa/gen/decArgsOps.go |  20 ++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  53 -----
+ src/cmd/compile/internal/ssa/rewritedecArgs.go | 288 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 255 ----------------------
+ 7 files changed, 371 insertions(+), 308 deletions(-)

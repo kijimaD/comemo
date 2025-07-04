@@ -1,43 +1,14 @@
-commit cb856adea965955c4d2424b2946b0db90a682b78
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 7 09:59:19 2012 -0500
+commit 63f29d17d15651b810dd15cf6f61587a6fc5a2a6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 7 21:55:29 2012 +0900
 
-    cmd/gc: annotate local variables with unique ids for inlining
+    net: fix protocol number for IPv6 test
     
-    Avoids problems with local declarations shadowing other names.
-    We write a more explicit form than the incoming program, so there
-    may be additional type annotations. For example:
+    The protocol number of ICMP for IPv6 is 58, not 1.
     
-            int := "hello"
-            j := 2
-    
-    would normally turn into
-    
-            var int string = "hello"
-            var j int = 2
-    
-    but the int variable shadows the int type in the second line.
-    
-    This CL marks all local variables with a per-function sequence number,
-    so that this would instead be:
-    
-            var int·1 string = "hello"
-            var j·2 int = 2
-    
-    Fixes #4326.
-    
-    R=ken2
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6816100
+    https://golang.org/cl/6810093
 
- src/cmd/gc/dcl.c                     | 21 +++++++++++++++++----
- src/cmd/gc/esc.c                     |  4 ++--
- src/cmd/gc/fmt.c                     | 23 ++++++++++++++++++++++-
- src/pkg/exp/types/gcimporter_test.go |  2 +-
- test/fixedbugs/issue4326.dir/p1.go   | 12 ++++++++++++
- test/fixedbugs/issue4326.dir/p2.go   |  5 +++++
- test/fixedbugs/issue4326.dir/q1.go   |  8 ++++++++
- test/fixedbugs/issue4326.dir/q2.go   | 11 +++++++++++
- test/fixedbugs/issue4326.dir/z.go    |  7 +++++++
- test/fixedbugs/issue4326.go          |  9 +++++++++
- 10 files changed, 94 insertions(+), 8 deletions(-)
+ src/pkg/net/ipraw_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

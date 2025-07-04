@@ -1,23 +1,38 @@
-commit 59699aa166b724cb9b7d3a2d3ba21c87bc7c376a
-Author: Jack <jackxbritton@gmail.com>
-Date:   Thu Jul 19 12:24:44 2018 +0000
+commit c4874aa2a207e8c9a3c79a9411a54cce4808aa9e
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Mar 29 17:58:07 2018 -0400
 
-    net/http/httptest: guarantee ResponseRecorder.Result returns a non-nil body
+    cmd/trace: implement /trace?focustask=<taskid> mode
     
-    The doc for ResponseRecorder.Result guarantees that the body of the returned
-    http.Response will be non-nil, but this only holds true if the caller's body is
-    non-nil. With this change, if the caller's body is nil then the returned
-    response's body will be an empty io.ReadCloser.
+    This mode is similar to the default traceview mode where the execution
+    trace is presented in P-oriented way. Each row represents a P, and each
+    slice represents the time interval of a goroutine's execution on the P.
     
-    Fixes #26442
+    The difference is that, in this mode, only the execution of goroutines
+    involved in the specified task is highlighted, and other goroutine
+    execution or events are greyed out. So, users can focus on how a task is
+    executed while considering other affecting conditions such as other
+    goroutines, network events, or process scheduling.
     
-    Change-Id: I3b2fe4a2541caf9997dbb8978bbaf1f58cd1f471
-    GitHub-Last-Rev: d802967d89e89c50077fb2d0d455163dcea0eb43
-    GitHub-Pull-Request: golang/go#26453
-    Reviewed-on: https://go-review.googlesource.com/124875
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Example: https://user-images.githubusercontent.com/4999471/38116793-a6f995f0-337f-11e8-8de9-88eec2f2c497.png
+    
+    Here, for a while the program remained idle after the first burst of
+    activity related to the task because all other goroutines were also
+    being blocked or waiting for events, or no incoming network traffic
+    (indicated by the lack of any network activity). This is a bit hard to
+    discover when the usual task-oriented view (/trace?taskid=<taskid>)
+    mode.
+    
+    Also, it simplifies the traceview generation mode logic.
+      /trace ---> 0
+      /trace?goid ---> modeGoroutineOriented
+      /trace?taskid ---> modeGoroutineOriented|modeTaskOriented
+      /trace?focustask ---> modeTaskOriented
+    
+    Change-Id: Idcc0ae31b708ddfd19766f4e26ee7efdafecd3a5
+    Reviewed-on: https://go-review.googlesource.com/103555
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/http/httptest/recorder.go      |  2 ++
- src/net/http/httptest/recorder_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/cmd/trace/trace.go | 108 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 66 insertions(+), 42 deletions(-)

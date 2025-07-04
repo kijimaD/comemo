@@ -1,23 +1,36 @@
-commit 84c0e5d47f46f2e1a7ce92341477d9801f0ef777
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 1 14:58:36 2021 -0700
+commit b2ef159db237ba09278704ec2970f6ae41f130b1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 27 18:12:03 2020 +0000
 
-    cmd/link: move issue 43830 tests out of TestScript
+    cmd/go: introduce the GOVERSION env variable
     
-    These tests pass or fail depending on the exact compiler version,
-    which the TestScript tests don't support. Rewrite into Go.
+    This is an extra variable available via 'go env', but not read from the
+    user's environment. It corresponds to the same string that
+    runtime.Version returns, assuming a program is built by the same version
+    of Go.
     
-    For #43830
-    For #46295
+    It's similar to the output of 'go version', but without the "go version"
+    prefix nor the "$GOOS/$GOARCH" suffix.
     
-    Change-Id: I91b61dfe329d518e461ee56f186f0e9b42858e77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324049
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The main use case here is tools, which often use 'go env' to query basic
+    information about the installed Go tree. Its version was one missing
+    piece of information, which required an extra call to 'go version'
+    before this change.
+    
+    Fixes #41116.
+    
+    Change-Id: I5c9d8c2ba856c816c9f4c462ba73c907b3441445
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265637
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/testdata/script/cgo_lto2_issue43830.txt |  33 -----
- src/cmd/go/testdata/script/cgo_lto_issue43830.txt  |  40 ------
- src/cmd/link/cgo_test.go                           | 138 +++++++++++++++++++++
- 3 files changed, 138 insertions(+), 73 deletions(-)
+ src/cmd/go/alldocs.go                    |  2 ++
+ src/cmd/go/go_test.go                    | 12 ++++++++++++
+ src/cmd/go/internal/envcmd/env.go        |  3 ++-
+ src/cmd/go/internal/help/helpdoc.go      |  2 ++
+ src/cmd/go/testdata/script/env_write.txt |  2 ++
+ 5 files changed, 20 insertions(+), 1 deletion(-)

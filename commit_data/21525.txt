@@ -1,17 +1,14 @@
-commit c71b3e0e880cba36f1fb3ac30f5856a8f1037a61
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Dec 15 11:08:37 2014 +1100
+commit bc244008afa9cb0bf6c900fe75673dc349b67a8c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 13 17:17:53 2015 +1100
 
-    Revert "cmd/api: treat a hex-y VERSION as devel and permit API changes"
+    runtime: move SetErrorMode constants into function so they are not exported
     
-    This reverts commit 11d1c05.
-    See #9296 for details.
-    
-    Change-Id: I89a36351cb007836662f28a611af5616818b95fe
-    Reviewed-on: https://go-review.googlesource.com/1536
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib1a2adbcdbd7d96f9b4177abc3c9cf0ab09c1df4
+    Reviewed-on: https://go-review.googlesource.com/2716
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/api/goapi.go | 16 +++-------------
- 1 file changed, 3 insertions(+), 13 deletions(-)
+ src/runtime/os1_windows.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

@@ -1,12 +1,13 @@
-commit 1e957b6245d1c204e333738383a6f4aca0b9d86b
+commit 1d7faf91dfe6aaa5f43b74b19bc014937ea92337
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Feb 23 10:07:41 2013 +0400
+Date:   Sat Feb 23 08:39:31 2013 +0400
 
-    runtime: fix windows cpu profiling
+    runtime: minor changes
+    to minimize diffs of new scheduler
     
-    R=golang-dev, alex.brainman
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7407044
+    https://golang.org/cl/7381048
 
- src/pkg/runtime/proc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/proc.c | 72 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 49 insertions(+), 23 deletions(-)

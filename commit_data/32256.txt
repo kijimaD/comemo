@@ -1,38 +1,14 @@
-commit e098e5142dd9554352171423f175381fd14fd943
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 15:33:46 2017 -0700
+commit 3d0a89838536fa828445df638c36c3f8034ac74d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 15:19:55 2017 -0700
 
-    archive/tar: properly handle header-only "files" in Writer
+    cmd/compile: improve output when TestAssembly build fails
     
-    Certain special type-flags, specifically 1, 2, 3, 4, 5, 6,
-    do not have a data section. Thus, regardless of what the size field
-    says, we should not attempt to write any data for these special types.
-    
-    The relevant PAX and USTAR specification says:
-    <<<
-    If the typeflag field is set to specify a file to be of type 1 (a link)
-    or 2 (a symbolic link), the size field shall be specified as zero.
-    If the typeflag field is set to specify a file of type 5 (directory),
-    the size field shall be interpreted as described under the definition
-    of that record type. No data logical records are stored for types 1, 2, or 5.
-    If the typeflag field is set to 3 (character special file),
-    4 (block special file), or 6 (FIFO), the meaning of the size field is
-    unspecified by this volume of POSIX.1-2008, and no data logical records shall
-    be stored on the medium.
-    Additionally, for type 6, the size field shall be ignored when reading.
-    If the typeflag field is set to any other value, the number of logical
-    records written following the header shall be (size+511)/512, ignoring
-    any fraction in the result of the division.
-    >>>
-    
-    Fixes #15565
-    
-    Change-Id: Id11886b723b3b13deb15221dca51c25cd778a6b5
-    Reviewed-on: https://go-review.googlesource.com/55553
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibee84399d81463d3e7d5319626bb0d6b60b86bd9
+    Reviewed-on: https://go-review.googlesource.com/40861
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/writer.go      | 16 +++++++++-------
- src/archive/tar/writer_test.go | 19 +++++++++++++++++++
- 2 files changed, 28 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

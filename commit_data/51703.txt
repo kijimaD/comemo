@@ -1,27 +1,29 @@
-commit 62a994837a57a7d0c58bb364b580a389488446c9
-Author: Anit Gandhi <agandhi@digitalocean.com>
-Date:   Mon Nov 21 17:17:44 2022 +0000
+commit 7c292ddf1f883698b3a0bab7004368cff62a04a5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 6 20:11:21 2022 -0800
 
-    crypto/tls: improve client auth failure alerts
+    cmd/compile: fix reentrancy issue in unified IR function body reading
     
-    This change makes it easier for clients to debug mutual TLS connection failures. Currently, there are a few situations where invalid client auth leads to a generic "bad certificate" alert. 3 specific situations have a more appropriate TLS alert code, based on the alert descriptions in the appendix of both RFC5246 and RFC8446.
-      1. The server is configured to require client auth, but no client cert was provided; the appropriate alert is "certificate required". This applies only to TLS 1.3, which first defined the certificate_required alert code.
-      2. The client provided a cert that was signed by an authority that is not in the server's trusted set of CAs; the appropriate alert is "unknown certificate authority".
-      3. The client provided an expired (or not yet valid) cert; the appropriate alert is "expired certificate".
-    Otherwise, we still fall back to "bad certificate".
+    We shouldn't need to read in function bodies for new functions found
+    during inlining, but something is expecting them to still be read
+    in. We should fix that code to not depend on them being read in, but
+    in the mean time reading them in anyway is at least correct, albeit
+    less efficient in time and space.
     
-    Fixes #52113
+    Fixes #49536.
+    Updates #50552.
     
-    Change-Id: I7d5860fe911cad8a1615f16bfe488a37e936dc36
-    GitHub-Last-Rev: 34eeab587b38549b2ba4a778f7f9894e9b715b43
-    GitHub-Pull-Request: golang/go#53251
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410496
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I949ef45e7be09406e5a8149e251d78e015aca5fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390335
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/tls/handshake_server.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/reader.go  | 14 ++++++-----
+ src/cmd/compile/internal/noder/unified.go | 40 +++++++++++++++++--------------
+ test/run.go                               |  1 -
+ test/typeparam/issue49536.dir/a.go        | 12 ++++++++++
+ test/typeparam/issue49536.dir/b.go        |  9 +++++++
+ test/typeparam/issue49536.go              |  7 ++++++
+ 6 files changed, 58 insertions(+), 25 deletions(-)

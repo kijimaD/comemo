@@ -1,25 +1,22 @@
-commit 607f99904e3f5565517eee452d9153a634a66369
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 23 11:55:16 2021 -0700
+commit ac55d58fca4312fe4f84fa3a4761800803bc25e0
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Sun Aug 30 18:15:03 2020 +0000
 
-    cmd/compile/internal/types2: review of api.go
+    cmd/go/internal/get: add GOINSECURE support
     
-    The changes between (equivalent, and reviewed) go/types/api.go
-    and api.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker.
+    Adds support for the GOINSECURE environment variable to GOPATH mode.
     
-    The primary differences to go/types/api.go are:
-    - use of syntax instead of go/ast package
-    - use of simpler Error type (for now)
-    - additional exported Config flags
-    - different handling of nil values (we can't use Typ[UntypedNil]
-      to represent an untyped nil because types2 gives such nil values
-      context-dependent types)
+    Updates #37519.
     
-    Change-Id: I7d46b29d460c656d7a36fe70108a370383266373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304050
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ibe3f52b7f30b1395edb000998905ee93abe6cada
+    GitHub-Last-Rev: e298c0009eb5eba537bb00185a8778d2aab696ba
+    GitHub-Pull-Request: golang/go#38628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229758
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/api.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/alldocs.go                           |  5 ++++-
+ src/cmd/go/internal/get/get.go                  | 16 ++++++++------
+ src/cmd/go/testdata/script/get_insecure_env.txt | 29 +++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 8 deletions(-)

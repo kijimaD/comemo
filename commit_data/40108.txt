@@ -1,21 +1,22 @@
-commit f0e940ebc985661f54d31c8d9ba31a553b87041b
-Author: Michael Hendricks <michael@ndrix.org>
-Date:   Wed Oct 2 09:30:51 2019 -0600
+commit 3235f7c0720338a160debe6e9c632b8af968b4dd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 17 22:41:51 2019 -0700
 
-    net: avoid an infinite loop in LookupAddr
+    cmd/link: don't fail if multiple ELF sections have the same name
     
-    If a request for a PTR record returned a response with a non-PTR
-    answer, goLookupPTR would loop forever.  Skipping non-PTR answers
-    guarantees progress through the DNS response.
+    New versions of clang can generate multiple sections named ".text"
+    when using vague C++ linkage. This is valid ELF, but would cause the
+    Go linker to report an error when using internal linking:
+        symbol PACKAGEPATH(.text) listed multiple times
+    Avoid the problem by renaming section symbol names if there is a name
+    collision.
     
-    Fixes #34660
-    
-    Change-Id: I56f9d21e5342d07e7d843d253267e93a29707904
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198460
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I41127e95003d5b4554aaf849177b3fe000382c02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/dnsclient_unix.go      |  8 +++++++
- src/net/dnsclient_unix_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ src/cmd/link/elf_test.go               | 112 +++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go |   8 +++
+ 2 files changed, 120 insertions(+)

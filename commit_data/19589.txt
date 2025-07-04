@@ -1,13 +1,7 @@
-commit a200e0b8fda46dadb1474248f21d44a16bd92dd2
+commit 3142861ff86a8b4064256f31a0f63dcd23c2f971
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Sun Jun 22 15:26:30 2014 -0700
+Date:   Sat Jun 21 22:08:43 2014 -0700
 
-    undo CL 101330053 / c19c9a063fe8
-    
-    sync.Pool is not supposed to be used everywhere, but is
-    a last resort.
-    
-    ««« original CL description
     strings: use sync.Pool to cache buffer
     
     benchmark                         old ns/op    new ns/op    delta
@@ -20,13 +14,7 @@ Date:   Sun Jun 22 15:26:30 2014 -0700
     R=bradfitz, dave, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/101330053
-    »»»
-    
-    LGTM=dave
-    R=r, dave
-    CC=golang-codereviews
-    https://golang.org/cl/102610043
 
- src/pkg/strings/replace.go      | 33 +++++++++++++-------------------
- src/pkg/strings/replace_test.go | 42 ++++++++++++-----------------------------
- 2 files changed, 25 insertions(+), 50 deletions(-)
+ src/pkg/strings/replace.go      | 33 +++++++++++++++++++-------------
+ src/pkg/strings/replace_test.go | 42 +++++++++++++++++++++++++++++------------
+ 2 files changed, 50 insertions(+), 25 deletions(-)

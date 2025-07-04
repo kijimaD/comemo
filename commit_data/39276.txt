@@ -1,39 +1,12 @@
-commit 545cd82734258af78c53eaa58be0edfaedf9ca73
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri May 17 10:59:34 2019 -0400
+commit 4c89a10fb9f4fcb2ed01b6e7325e53b4bc487fc2
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri Feb 15 16:41:33 2019 +0800
 
-    cmd/go: remove support for the 'go get -m' flag
+    database/sql/driver: fix typo
     
-    Fixes #32038
-    
-    Change-Id: Ib4981f76572405363f404ee5038a45cb1752a2ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177879
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6e7035db4b3e2a09e5655eb7646eea9d99fb7118
+    Reviewed-on: https://go-review.googlesource.com/c/162917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                              |  14 +--
- src/cmd/go/internal/modget/get.go                  | 128 +++++++--------------
- src/cmd/go/internal/modload/load.go                |  81 +------------
- src/cmd/go/testdata/script/mod_build_versioned.txt |   2 +-
- src/cmd/go/testdata/script/mod_get_commit.txt      |  11 +-
- src/cmd/go/testdata/script/mod_get_local.txt       |  12 +-
- src/cmd/go/testdata/script/mod_get_main.txt        |  12 +-
- src/cmd/go/testdata/script/mod_get_patterns.txt    |  14 +--
- src/cmd/go/testdata/script/mod_get_pseudo.txt      |  26 ++---
- .../script/mod_get_pseudo_other_branch.txt         |   2 +-
- .../go/testdata/script/mod_get_pseudo_prefix.txt   |   4 +-
- src/cmd/go/testdata/script/mod_get_upgrade.txt     |  12 +-
- .../go/testdata/script/mod_get_upgrade_pseudo.txt  |   2 +-
- src/cmd/go/testdata/script/mod_getmode_vendor.txt  |   2 +-
- src/cmd/go/testdata/script/mod_import_v1suffix.txt |   2 +-
- .../go/testdata/script/mod_list_upgrade_pseudo.txt |   2 +-
- src/cmd/go/testdata/script/mod_load_badchain.txt   |   4 +-
- src/cmd/go/testdata/script/mod_outside.txt         |   6 +-
- src/cmd/go/testdata/script/mod_sumdb.txt           |  10 +-
- src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  16 +--
- src/cmd/go/testdata/script/mod_sumdb_golang.txt    |   8 +-
- src/cmd/go/testdata/script/mod_sumdb_proxy.txt     |  10 +-
- ...upgrade_patch_pkg.txt => mod_upgrade_patch.txt} |   0
- .../go/testdata/script/mod_upgrade_patch_mod.txt   |  83 -------------
- 24 files changed, 117 insertions(+), 346 deletions(-)
+ src/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

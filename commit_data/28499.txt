@@ -1,34 +1,22 @@
-commit ad5d91c17a3c0bc4acf9e4036b050517972432f0
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Wed Sep 21 19:03:06 2016 -0700
+commit 17396575135ba71472ab8a5b82f31af50d8bf312
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 28 21:15:24 2016 -0700
 
-    net/url: prefix relative paths containing ":" in the first segment with "./"
+    cmd/compile: shift tests, fix triple-shift rules
     
-    This change modifies URL.String to prepend "./" to a relative URL which
-    contains a colon in the first path segment.
+    Add a bunch of tests for shifts.
     
-    Per RFC 3986 §4.2:
+    Fix triple-shift rules to always take constant shifts as 64 bits.
+    (Earlier rules always promote shift amounts to 64 bits.)
+    Add overflow checks.
     
-    > A path segment that contains a colon character (e.g., "this:that")
-    > cannot be used as the first segment of a relative-path reference, as
-    > it would be mistaken for a scheme name.  Such a segment must be
-    > preceded by a dot-segment (e.g., "./this:that") to make a relative-
-    > path reference.
+    Increases generic rule coverage to 91%
     
-    https://go-review.googlesource.com/27440 corrects the behavior for http.FileServer,
-    but URL.String will still return an invalid URL. This CL reverts the changes to
-    http.FileServer as they are unnecessary with this fix.
-    
-    Fixes #17184
-    
-    Change-Id: I9211ae20f82c91b785d1b079b2cd766487d94225
-    Reviewed-on: https://go-review.googlesource.com/29610
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6b42d368d19d36ac482dbb8e0d4f67e30ad7145d
+    Reviewed-on: https://go-review.googlesource.com/23555
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/net/http/fs.go      |  2 +-
- src/net/http/fs_test.go | 11 ++++++-----
- src/net/url/url.go      | 11 +++++++++++
- src/net/url/url_test.go | 51 ++++++++++++++++++++++++++++++++++++++++---------
- 4 files changed, 60 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/shift_test.go      | 907 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  94 ++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 692 ++++++++++++++++---
+ 3 files changed, 1588 insertions(+), 105 deletions(-)

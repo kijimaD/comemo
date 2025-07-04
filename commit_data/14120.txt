@@ -1,15 +1,12 @@
-commit bd31e62982461b9b5b10b8c2181eff56fe4085f9
+commit 7e196d08227edaa1c3b80dfdedbe5e4f0cbf211e
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 11 09:53:37 2012 +1100
+Date:   Thu Oct 11 09:18:23 2012 +1100
 
-    godoc: restore toy selection to playground widget
+    godoc: fix site for large displays
     
-    Fixes #4225.
-    
-    R=golang-dev
+    R=golang-dev, skybrian
     CC=golang-dev
-    https://golang.org/cl/6640054
+    https://golang.org/cl/6643062
 
- doc/play/playground.js | 30 ++++++++++++++++++++++++------
- doc/root.html          |  2 --
- 2 files changed, 24 insertions(+), 8 deletions(-)
+ doc/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

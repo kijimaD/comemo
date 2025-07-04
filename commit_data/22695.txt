@@ -1,18 +1,18 @@
-commit ccc76dba606e2325ad82ac0b15fb5c511a342abd
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Apr 23 20:04:14 2015 +1200
+commit f244a1471d468eb35fb982cd6b4518d38bebf678
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 1 13:47:35 2015 -0400
 
-    cmd/internal/ld: fix R_TLS handling now Xsym is not read from object file
+    runtime: add cumulative GC CPU % to gctrace line
     
-    I think this should fix the arm build. A proper fix involves making the handling
-    of tlsg less fragile, I'll try that tomorrow.
+    This tracks both total CPU time used by GC and the total time
+    available to all Ps since the beginning of the program and uses this
+    to derive a cumulative CPU usage percent for the gctrace line.
     
-    Update #10557
-    
-    Change-Id: I9b1b666737fb40aebb6f284748509afa8483cce5
-    Reviewed-on: https://go-review.googlesource.com/9272
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: Ica85372b8dd45f7621909b325d5ac713a9b0d015
+    Reviewed-on: https://go-review.googlesource.com/8350
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/ld/data.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/mgc.go      | 32 +++++++++++++++++++++++++-------
+ src/runtime/proc1.go    |  7 +++++++
+ src/runtime/runtime2.go |  3 +++
+ 3 files changed, 35 insertions(+), 7 deletions(-)

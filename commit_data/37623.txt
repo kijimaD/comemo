@@ -1,26 +1,12 @@
-commit 353795c83975d457f34c599bed20328a9b8f1cc8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 7 15:16:54 2018 -0800
+commit 77c575d2e2cc320b62cbbdefbc6840a8cff2163c
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Jul 30 18:59:08 2018 -0300
 
-    cmd/link/internal/ld: run tests in parallel
+    net/http: remove unnecessary return
     
-    Also skip TestNooptCgoBuild in short mode.
-    
-    Also fix a couple of obscure constants to use values named in
-    cmd/internal/dwarf.
-    
-    This brings the time of the cmd/link/internal/ld tests down to about 1
-    second on my laptop.
-    
-    Updates #26470
-    
-    Change-Id: I71c896f30fd314a81d9090f1b6d02edc4174a808
-    Reviewed-on: https://go-review.googlesource.com/c/153259
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I93bc5de6bcb23c2639d7c2f3f5252fb6f09ca6e4
+    Reviewed-on: https://go-review.googlesource.com/126797
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go        | 19 +++++++++++++++++--
- src/cmd/link/internal/ld/ld_test.go           |  1 +
- src/cmd/link/internal/ld/nooptcgolink_test.go |  5 +++++
- 3 files changed, 23 insertions(+), 2 deletions(-)
+ src/net/http/server.go | 1 -
+ 1 file changed, 1 deletion(-)

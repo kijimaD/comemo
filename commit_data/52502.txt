@@ -1,28 +1,21 @@
-commit ac571a388dce20068f6639067789b4fbac9c0e7d
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Mar 13 15:58:15 2023 -0500
+commit 5fcd1badf724db853784243b29711df209976873
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 4 18:08:36 2022 -0700
 
-    runtime: cleanup PPC64/linux runtime.sigtramp
+    go/printer: fix printing for possibly ambiguous type constraints
     
-    Add new helper macros to further simplify the transition from
-    the host's ABI to Go. Fortunately the same one should work for
-    all PPC64 targets.
+    This is a port of the printer changes from CLs 402256 and 404397
+    in the syntax package to go/printer, with adjustments for the
+    different AST structure and test framework.
     
-    Update the other site which uses these wrappers to further
-    consolidate. Also, update the call to runtime.sigtrampgo to
-    call the ABIInternal version directly.
+    For #52559.
     
-    Also, update the SAVE/RESTORE_VR macros to accept R0.
-    
-    Change-Id: I0046176029e1e1b25838688e4b7bf57805b01bd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476297
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib7165979a4bd9df91f7f0f1c23b756a41ca31eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404194
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/cgo/abi_ppc64x.h   | 130 +++++++++++++++++----------
- src/runtime/sys_linux_ppc64x.s | 198 +++++------------------------------------
- 2 files changed, 102 insertions(+), 226 deletions(-)
+ src/go/printer/nodes.go                 | 51 ++++++++++++++++++++++-----------
+ src/go/printer/testdata/generics.golden | 43 ++++++++++++++++++---------
+ src/go/printer/testdata/generics.input  | 43 ++++++++++++++++++---------
+ 3 files changed, 94 insertions(+), 43 deletions(-)

@@ -1,18 +1,25 @@
-commit 055f16a9e9fb7ba7e1360b40e5924cc7ba95317c
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Fri Mar 8 11:56:16 2019 +0530
+commit 138bfc28090ccf03450cf02cb24f06b60f57cd3b
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Oct 18 15:53:38 2018 +0200
 
-    cmd/doc: add a line gap after a method with no comment
+    syscall/js: make zero js.Value represent "undefined"
     
-    Fixes #30492
+    This commit changes the encoding of js.Value so that the zero js.Value
+    represents the JavaScript value "undefined". This is what users
+    intuitively expect.
     
-    Change-Id: Iec658bdf8bfac21e1bcc3eed900722cc535ec00a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166178
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Specifically, the encodings of "undefined" and the number zero have
+    been swapped.
+    
+    Fixes #27592.
+    
+    Change-Id: Icfc832c8cdf7a8a78bd69d20e00a04dbed0ccd10
+    Reviewed-on: https://go-review.googlesource.com/c/143137
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/doc_test.go     | 1 +
- src/cmd/doc/pkg.go          | 3 +++
- src/cmd/doc/testdata/pkg.go | 4 ++++
- 3 files changed, 8 insertions(+)
+ misc/wasm/wasm_exec.js    | 17 ++++++++++++-----
+ src/syscall/js/js.go      | 21 ++++++++++++++++-----
+ src/syscall/js/js_test.go | 14 ++++++++++++++
+ 3 files changed, 42 insertions(+), 10 deletions(-)

@@ -1,21 +1,26 @@
-commit 872a5479574f11d7ebe78118226f2a423e89c993
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 2 09:09:10 2018 -0400
+commit ec989337c5d3203d52de1a2314813996c711fce6
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 20 08:57:53 2018 -0700
 
-    regexp: fix BenchmarkMatch_onepass_regex
+    runtime: use libc's signal functions on Darwin
     
-    This benchmark - in contrast to all other benchmarks - was
-    running the regexp match on 1-byte substrings of the input
-    instead of the entire input. Worse, it was doing so by preallocating
-    a slice of slices of every 1-byte substring. Needless to say,
-    this does not accurately reflect what happens when the regexp
-    matcher is given a large input.
+    sigaction, sigprocmask, sigaltstack, and raiseproc.
     
-    Change-Id: Icd5b95f0e43f554a6b93164916745941366e03d6
-    Reviewed-on: https://go-review.googlesource.com/c/139778
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix bug in mstart_stub where we weren't saving callee-saved registers,
+    so if an m finished the pthread library calling mstart_stub would
+    sometimes fail.
+    
+    Update #17490
+    Update #22805
+    
+    Change-Id: Ie297ede0997910aa956834e49e85711b90cdfaa7
+    Reviewed-on: https://go-review.googlesource.com/116875
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/exec_test.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/runtime/defs_darwin.go     |   1 +
+ src/runtime/os_darwin.go       |  29 +++-----
+ src/runtime/sys_darwin.go      |  40 +++++++++++
+ src/runtime/sys_darwin_386.s   | 151 ++++++++++++++++++++++++++++-------------
+ src/runtime/sys_darwin_amd64.s | 141 +++++++++++++++++++++++++-------------
+ 5 files changed, 244 insertions(+), 118 deletions(-)

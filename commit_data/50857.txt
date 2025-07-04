@@ -1,26 +1,20 @@
-commit 2e0b97dde69cb66416844dba45c084bc13bd58fa
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Oct 6 16:14:47 2022 -0400
+commit c893a85f21d0e5448c687254e50cc6936b36548e
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 10 16:58:45 2021 -0500
 
-    cmd/go: set dependency go versions for go install --mod=readonly mod@vers
+    go/types: rename types.context to types.environment
     
-    When running go install --mod=readonly module@version. modfetch.GoSumFile
-    was not set, so the checksumOk check that's done when checking whether
-    we need to set the GoVersion from the go mod file was failing. Bypass
-    the checksumOk check when there's no GoSumFile.
+    Now that we have a Context type the context (unexported) type is
+    particularly confusing. Rename it to environment.
     
-    For #54908
-    
-    Change-Id: I56cf9d36a505b1223e6bf82a7d455746e2f09849
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439855
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I7d280439b8263d9ebfd561fc4d59c6d43c8d3e3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363176
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modload/build.go               |  2 +-
- src/cmd/go/internal/modload/import.go              |  8 +++++++-
- .../mod/example.com_depends_on_generics_v1.0.0.txt | 23 ++++++++++++++++++++++
- .../testdata/mod/example.com_generics_v1.0.0.txt   | 21 ++++++++++++++++++++
- src/cmd/go/testdata/script/install_dep_version.txt |  6 ++++++
- 5 files changed, 58 insertions(+), 2 deletions(-)
+ src/go/types/check.go | 17 +++++++++--------
+ src/go/types/decl.go  | 16 ++++++++--------
+ src/go/types/stmt.go  | 10 +++++-----
+ 3 files changed, 22 insertions(+), 21 deletions(-)

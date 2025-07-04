@@ -1,15 +1,16 @@
-commit 075ee299b19f6c7e9cc506f1c6420b4c71a61d12
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 10 12:26:49 2017 +0900
+commit 1db16711f595d291bdd22f7ca70f4e0df50ac0e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 09:56:57 2017 -0800
 
-    internal/poll: adjust panic messages
+    doc: clarify what to do with Go 1.4 when installing from source
     
-    Change-Id: Ic9be3249e76da7e86cc41baa88935249a94e4a16
-    Reviewed-on: https://go-review.googlesource.com/40073
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    You have to actually run make.bash (or make.bat).
+    
+    Update #18771.
+    
+    Change-Id: Ie6672a4e4abde0150c1ae57cabb1222de2c78716
+    Reviewed-on: https://go-review.googlesource.com/35632
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/poll/fd_mutex.go   | 12 ++++++------
- src/internal/poll/fd_windows.go |  2 +-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ doc/install-source.html | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,25 +1,19 @@
-commit 00dbcb33f8c20ce51de558cbc9de811b1ba0f70c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 1 14:15:08 2021 -0500
+commit dcf85b30ba422c50e6e96893a3ed930aea5b6b4a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 2 21:04:31 2021 -0400
 
-    os/exec: in TestContextCancel, dump goroutines on failure
+    cmd/link: mangle function name with ABI on Mach-O
     
-    If this test fails, we want to know exactly what the os/exec
-    goroutines are doing. Panicking gives us a goroutine dump,
-    whereas t.Fatal does not.
+    This is not strictly necessary. But as we already do this on
+    ELF and PE, do it here as well.
     
-    While we're here, use exponential backoff instead of a hard-coded 1ms
-    sleep. We want to give the OS enough time to actually terminate the
-    subprocess.
+    Updates #40724.
     
-    For #42061
-    
-    Change-Id: I3d50a71ac314853c68a935218e7f97ce18b08b5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368317
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie6e5211aba116634bc9ed82eb8d22a7fed3b7776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307229
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/exec/exec_test.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

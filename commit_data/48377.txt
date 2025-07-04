@@ -1,25 +1,23 @@
-commit 41a82aa9c36bffab2593d50aa55a462fef4e5bd4
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 15 10:21:08 2022 +1100
+commit b4833f7c06c332ad2ef30666144a20fb7838aba1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 13 16:48:50 2021 -0400
 
-    text/template/parse: allow space after continue or break
+    cmd/link: always mark runtime.unreachableMethod symbol
     
-    Trivial fix: We must skip space after either of these keywords
-    before we expect a closing delimiter.
+    In the deadcode path we mark runtime.unreachableMethod symbol,
+    which is a special symbol used for redirecting unreachable
+    methods. Currently this code is conditioned on not -linkshared.
+    This is wrong. It should be marked with -linkshared mode as well.
     
-    Also delete the stutter-generating extra 'in' in the error message.
-    (See what I did there?)
+    In fact, -linkshared should only affect the entry symbol. Change
+    the code accordingly.
     
-    Fixes #51670
-    
-    Change-Id: If5415632c36eaac6699bdc0aa6ce18be956c9b53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392615
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I252abf850212a930f275589ef0035a43e52cb9cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319893
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/text/template/parse/parse.go      | 8 ++++----
- src/text/template/parse/parse_test.go | 4 ++++
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 40 ++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

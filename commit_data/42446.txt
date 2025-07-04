@@ -1,24 +1,16 @@
-commit 3949cae4410aa05bc76ccab598ad63618b10416e
-Author: David Chase <drchase@google.com>
-Date:   Tue Jun 2 17:53:47 2020 -0400
+commit 48ed1e61139d4089d8991e1387cec392f0b8378b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 04:31:20 2019 +1100
 
-    runtime: repair gdb printing fix for 7.12, 8.{1,2,3}.1, 9.2
+    cmd/internal/obj/riscv: handle AGETCALLERPC
     
-    Hand-verified for listed gdb versions.  Gdb (apparently)
-    changed the way it names certain Go types, and this change
-    broke the pretty-printer-activating code in runtime-gdb.py
+    Updates #27532
     
-    runtime-gdb_test.go now checks channel, map, string, and slice
-    printing unconditionally (i.e., no opt-out for old versions).
-    
-    Updates #39368.
-    
-    Change-Id: I98d72e1291c66bd40d970990e1a377ff2ed0c5d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236164
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ib3e44ec524ed20bbfbbaf40df22cec335460f3ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204629
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/runtime-gdb.py      | 16 ++++++++++++++--
- src/runtime/runtime-gdb_test.go | 33 ++++++++++++++-------------------
- 2 files changed, 28 insertions(+), 21 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

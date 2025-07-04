@@ -1,16 +1,19 @@
-commit fb2e3b82f47dc9be89821d16f609df65e1f5f6ab
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 23 03:46:00 2020 +1100
+commit 83a78eb91118768d5bb3b536a274a215f5141023
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Sep 8 01:13:14 2019 +0200
 
-    cmd/dist: mark cgo as disabled on linux/riscv64
+    syscall: re-generate zsyscall_darwin_arm*.s
     
-    cgo is not currently supported on this platform.
+    I missed that in CL 193843.
     
-    Updates #27532 and #36641
+    Updates #34133
     
-    Change-Id: I4b35f887e869ebc5c156dd754b1c79897a8c5800
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215838
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I70b420f022cc7f8289f07375bfc2ade20cf3ffe7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193846
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/zsyscall_darwin_arm.s   | 2 --
+ src/syscall/zsyscall_darwin_arm64.s | 2 --
+ 2 files changed, 4 deletions(-)

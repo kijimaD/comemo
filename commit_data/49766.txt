@@ -1,25 +1,42 @@
-commit 84be09104883b6cf5d53e32f85834d5e71e954fa
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 8 22:20:16 2022 +0700
+commit ea434450c26431332c4cc376996e2b917fd09873
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 3 21:35:59 2021 +0000
 
-    cmd/compile: rename types.Rnd -> types.RoundUp
+    reflect: add hooks for dealing with narrow width floats
     
-    Base on gri@'s suggestion in CL 308971. "Rnd" is a bit random.
+    Currently on amd64 and arm64, float32 values just live in the bottom 32
+    bits of the register, so reflect simply places them there in a RegArgs
+    for reflectcall to load them. This works fine because both of these
+    platforms don't care what the upper 32 bits are, and have instructions
+    to operate on float32 values specifically that we use. In sum, the
+    representation of the float32 in memory is identical to that of the
+    representation in a register.
     
-    Change-Id: I4aad8b7992b31dfd26d20b3c332bc6e1e90f67db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422036
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    On other platforms, however, the representation of FP values differ
+    depending on whether they're in memory or in a register. For instance,
+    on ppc64, all floating point values get promoted to a float64 when
+    loaded to a register (i.e. there's only one set of FP instructions). As
+    another example, on riscv64, narrow-width floats in registers need to be
+    NaN-boxed.
+    
+    What all this means is that for supporting the register ABI on these
+    platforms, reflect needs to do a little extra work to ensure that the
+    representation of FP values in a RegArgs matches the representation it
+    takes on in a register. For this purpose, this change abstracts away the
+    action of storing values into a RegArgs a little bit and adds a
+    platform-specific hook which currently does nothing but copy the value.
+    
+    For #40724.
+    
+    Change-Id: I65dcc7d86d5602a584f86026ac204564617f4c5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347566
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go        |  8 ++++----
- src/cmd/compile/internal/noder/sizes.go         |  4 ++--
- src/cmd/compile/internal/objw/objw.go           |  4 ++--
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- src/cmd/compile/internal/ssagen/pgen.go         |  6 +++---
- src/cmd/compile/internal/ssagen/ssa.go          | 14 +++++++-------
- src/cmd/compile/internal/types/size.go          |  9 +++++----
- src/cmd/compile/internal/types/universe.go      |  8 ++++----
- 8 files changed, 28 insertions(+), 27 deletions(-)
+ src/internal/abi/abi.go           | 28 ++++++++------------------
+ src/reflect/abi.go                | 42 +++++++++++++++++++++++++++++++++++++++
+ src/reflect/float32reg_generic.go | 21 ++++++++++++++++++++
+ src/reflect/value.go              | 24 +++++++++++-----------
+ 4 files changed, 83 insertions(+), 32 deletions(-)

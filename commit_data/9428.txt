@@ -1,13 +1,12 @@
-commit ebf2b92e9a7fe7f8de079d8aa76fe88f89dee02b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 22 08:18:03 2011 +1000
+commit e5ddcaeb7b76530f135809e7772820553ad2c382
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 21 13:17:02 2011 -0700
 
-    effective_go: fix brace quotes.
+    gotry: add missing $
     
-    R=golang-dev, dsymonds
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4932044
+    https://golang.org/cl/4935046
 
- doc/effective_go.html | 5 +++--
- doc/effective_go.tmpl | 6 +++---
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/gotry/gotry | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

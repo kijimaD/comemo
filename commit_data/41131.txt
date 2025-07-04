@@ -1,34 +1,23 @@
-commit 98d2717499575afe13d9f815d46fcd6e384efb0c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 04:40:47 2019 +1100
+commit 5e43856aa9c3d17c79688415b1347650d711744b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 6 12:26:57 2019 -0700
 
-    cmd/compile: implement compiler for riscv64
+    cmd/compile: rename Etype to ctxType
     
-    Based on riscv-go port.
+    golang.org/cl/150140 renamed the other Efoo constants to ctxFoo, but
+    forgot about Etype.
     
-    Updates #27532
+    gorename -from '"cmd/compile/internal/gc".Etype -to ctxType
     
-    Change-Id: Ia329daa243db63ff334053b8807ea96b97ce3acf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204631
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I142dd42ca84a398f8d2316d75ead3331c023b820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193958
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/inl_test.go        |    2 +-
- src/cmd/compile/internal/gc/plive.go           |    6 +
- src/cmd/compile/internal/gc/ssa.go             |    2 +-
- src/cmd/compile/internal/riscv64/galign.go     |   25 +
- src/cmd/compile/internal/riscv64/ggen.go       |   48 +
- src/cmd/compile/internal/riscv64/gsubr.go      |   20 +
- src/cmd/compile/internal/riscv64/ssa.go        |  496 +++
- src/cmd/compile/internal/ssa/config.go         |   10 +
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  478 ++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  312 ++
- src/cmd/compile/internal/ssa/opGen.go          | 1882 +++++++-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 5561 ++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/schedule.go       |    4 +-
- src/cmd/compile/main.go                        |    2 +
- src/cmd/dist/buildtool.go                      |    3 +-
- src/cmd/internal/obj/riscv/list.go             |    4 +-
- src/cmd/internal/obj/riscv/obj.go              |   10 +-
- 17 files changed, 8682 insertions(+), 183 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       |  6 +--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  8 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 72 ++++++++++++++++----------------
+ 5 files changed, 45 insertions(+), 45 deletions(-)

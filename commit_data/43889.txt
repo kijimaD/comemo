@@ -1,21 +1,31 @@
-commit d6abf298cf1ef56dc8cbec2ee9a18c071bb6eb3c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Nov 28 17:51:18 2020 -0800
+commit dd34841de701d08632db27dabd9fac4aa104cb66
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 28 09:53:29 2020 -0400
 
-    test: recognize new gofrontend error message
+    [dev.link] cmd/link: write data sections to heap in Asmb on Wasm
     
-    As of https://golang.org/cl/273886:
+    Make Wasm more like other architectures, writing data sections to
+    heap in Asmb instead of Asmb2. Then we can remove the
+    copy-on-write logic in applying relocations.
     
-    fixedbugs/bug340.go:15:18: error: reference to method ‘x’ in interface with no methods
-    
-    For golang/go#10700
-    
-    Change-Id: Id29eb0e34bbb524117614229c4c27cfd17dae286
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273887
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I26d5315ea9fba032fe4bdb9b5c7fe483611c4373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230465
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- test/fixedbugs/bug340.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go   |  2 +-
+ src/cmd/link/internal/arm/asm.go     |  2 +-
+ src/cmd/link/internal/arm64/asm.go   |  2 +-
+ src/cmd/link/internal/ld/data2.go    |  9 --------
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/ld/main.go     |  2 +-
+ src/cmd/link/internal/mips/asm.go    |  2 +-
+ src/cmd/link/internal/mips64/asm.go  |  2 +-
+ src/cmd/link/internal/ppc64/asm.go   |  2 +-
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ src/cmd/link/internal/s390x/asm.go   |  2 +-
+ src/cmd/link/internal/wasm/asm.go    | 43 +++++++++++++++++++++++-------------
+ src/cmd/link/internal/x86/asm.go     |  2 +-
+ 13 files changed, 39 insertions(+), 35 deletions(-)

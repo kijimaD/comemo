@@ -1,40 +1,25 @@
-commit 7ea0520234aafb47d05bb4822cb7af54c6ac7554
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Sep 21 15:51:27 2022 -0400
+commit b95bff0318150e0b2869079bf2c0068fb4bcb17c
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:14:58 2021 -0500
 
-    go,cmd,internal: update to anticipate missing targets and .a files
+    go/types: remove tparamIsIface flag and corresponding dead code
     
-    go/build and cmd/go will stop returing Targets for stdlib .a files, and
-    stop producing the .a files is pkg/GOOS_GOARCH. update tests to
-    anticipate that and to pass in importcfgs instead of expecting the
-    compiler can find .a files in their old locations.
+    This is a port of CL 363654 from types2 to go/types.
     
-    Adds code to determine locations of .a files to internal/goroot. Also
-    adds internal/goroot to dist's bootstrap directories and changes
-    internal/goroot to build with a bootstrap version of Go.
-    
-    Change-Id: Ie81e51105bddb3f0e374cbf47e81c23edfb67fa5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442303
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I64041615ccc7f11f2e4ae395b063ec5141ccf2cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364896
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/importer/gcimporter.go    | 43 ++++++++++++--
- .../compile/internal/importer/gcimporter_test.go   | 26 +++++----
- src/cmd/dist/buildtool.go                          |  1 +
- src/cmd/internal/archive/archive_test.go           |  7 ++-
- src/cmd/link/link_test.go                          | 36 ++++++++----
- src/cmd/objdump/objdump_test.go                    |  5 +-
- src/cmd/pack/pack_test.go                          | 17 ++++--
- src/go/build/deps_test.go                          |  2 +-
- src/go/importer/importer_test.go                   |  9 +--
- src/go/internal/gcimporter/gcimporter.go           | 42 ++++++++++++--
- src/go/internal/gcimporter/gcimporter_test.go      | 30 ++++++----
- src/internal/abi/abi_test.go                       |  5 +-
- src/internal/goroot/gc.go                          |  4 +-
- src/internal/goroot/importcfg.go                   | 66 ++++++++++++++++++++++
- src/internal/testenv/testenv.go                    | 18 ++++++
- src/internal/types/errors/codes_test.go            |  3 +
- src/runtime/align_test.go                          |  3 +
- 17 files changed, 256 insertions(+), 61 deletions(-)
+ src/go/types/builtins.go   | 27 ++------------
+ src/go/types/decl.go       |  4 +++
+ src/go/types/expr.go       | 19 ++--------
+ src/go/types/index.go      | 89 ++--------------------------------------------
+ src/go/types/predicates.go | 18 ++--------
+ src/go/types/sizes.go      |  7 +++-
+ src/go/types/struct.go     | 11 +++---
+ src/go/types/type.go       |  4 +--
+ src/go/types/typeparam.go  | 17 ++-------
+ 9 files changed, 27 insertions(+), 169 deletions(-)

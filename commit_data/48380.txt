@@ -1,19 +1,16 @@
-commit e475cf2e705d4eda8647426e060898ab3f643610
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 14 17:39:35 2022 -0700
+commit 12d383c7c7406dda2cb969a89ce3801c220614c5
+Author: itchyny <itchyny@hatena.ne.jp>
+Date:   Thu May 13 04:03:18 2021 +0000
 
-    syscall: add race annotations to Windows ReadFile and WriteFile
+    debug/macho: fix a typo in macho.go
     
-    For #51618
-    Fixes #51673
-    
-    Change-Id: Ie63408d62303293d80afed8d5cf1cb164a8abecc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392774
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ica47b53decf6690fbd37e666e9de5098117b82de
+    GitHub-Last-Rev: 6aabb208a6499e29fe32a2f0d928c4e027d556b2
+    GitHub-Pull-Request: golang/go#46147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319592
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/syscall/syscall_windows.go  | 54 ++++++++++++++++++++++++-----------------
- src/syscall/zsyscall_windows.go |  4 +--
- 2 files changed, 34 insertions(+), 24 deletions(-)
+ src/debug/macho/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

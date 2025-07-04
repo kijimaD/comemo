@@ -1,16 +1,19 @@
-commit 51a2418f38fb285c57da238a2ba523c6f6684a9a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Feb 22 22:03:50 2024 +0100
+commit 8f92ae1c63771e42b60ff64ea39d8d6ba602d8b2
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 6 20:38:31 2023 +0000
 
-    net: use bytealg.IndexByte in cgoLookupAddrPTR
+    Revert "cmd/go: extend path shortening to all paths in messages"
     
-    Change-Id: I76f4dc1e8bda98936c1198cb45ce8141ca88845b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566235
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This reverts CL 465805 (commit 3eedba50b10ca9086646f12d7917912cff7d4d0a).
+    
+    Reason for revert: The longtest on Windows was typoed, silently ignored, and it turns out it fails there.
+    
+    Change-Id: I362e9a22a7ec569314a0da932730ba137a98ecda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473795
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/cgo_unix.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/work/exec.go                   | 29 ++------
+ .../script/build_shorten_sibling_package.txt       | 81 ----------------------
+ 2 files changed, 5 insertions(+), 105 deletions(-)

@@ -1,28 +1,31 @@
-commit 2be4b3913a3693958f95b520a309bfc4fda0ee21
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jun 3 18:42:12 2024 -0400
+commit 0aedfc196bcf14df6325185f8992adbeb3f5a504
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Apr 13 20:52:53 2023 -0400
 
-    cmd/go/internal/modload: respect overlays when loading go.work files
+    go/types: update TestStdlib to type-check concurrently
     
-    Before this change, we didn't initialize the overlays in the fsys
-    package or use the fsys logic to read the files, so overlays were not
-    respected for go.work files. Initialize fsys before loading the go.work
-    file (initialization is idempotent) and use the new fsys.ReadFile
-    function to read the file instead of os.ReadFile.
+    In order to have some test coverage of concurrent use of the go/types
+    APIs, update the Stdlib test to type-check concurrently. In combination
+    with non-deterministic ordering, this should hopefully provide moderate
+    test coverage of concurrent use.
     
-    fsys.ReadFile just opens the file with fsys.Open and then calls
-    io.ReadAll on it. (This is less efficient than what os.ReadFile does:
-    os.ReadFile reads into a buffer it allocated that's the file's size
-    while io.ReadAll doesn't know how big the file is so it just reads in
-    512 byte chunks.)
+    Also, remove the arbitrary 10ms timeout in short mode, in favor of
+    simply not running.
     
-    Change-Id: Ic40bcbb483a16c5d4dd1d896306ea99a16f370f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590755
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
+    After this change, TestStdlib went from taking 16s on my laptop to 2s,
+    in part because of the parallelism and in part because we are no longer
+    type-checking twice (once for the import er, once for the test).
+    
+    Fixes golang/go#47729
+    
+    Change-Id: Ie49743947ab2d5aec051c3d09ce045acf5b94ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484540
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/fsys/fsys.go            | 18 ++++++++-----
- src/cmd/go/internal/modload/init.go         |  7 ++++-
- src/cmd/go/testdata/script/work_overlay.txt | 41 +++++++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/self_test.go   |   2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go | 205 +++++++++++++++++++-----
+ src/go/types/self_test.go                      |   2 +-
+ src/go/types/stdlib_test.go                    | 209 +++++++++++++++++++------
+ 4 files changed, 334 insertions(+), 84 deletions(-)

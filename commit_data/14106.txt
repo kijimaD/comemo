@@ -1,16 +1,33 @@
-commit 84386416294922b948e91ebc3226271c1d049998
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 10 11:17:47 2012 +1100
+commit 241b23606c4c1d37071669c6e07c1918501835ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 9 17:08:09 2012 -0700
 
-    godoc: add dropdown playground to nav bar
+    go/printer: idempotent comment formatting
     
-    R=gri, dsymonds, skybrian
+    Also:
+    
+    - Refactored testing framework to permit easier
+    idempotency testing.
+    
+    - Applied gofmt -w src misc
+    
+    This CL depends on CL 6639044 being applied first.
+    
+    Formatting is not idempotent for all files: In those
+    files the comment position has changed (due to missing
+    precise location information) and/or the comment formatting
+    cannot/is not aware of independent code re-formatting.
+    In general it is very hard to make format idempotent when
+    running it in one pass only. Leaving that aside for now.
+    
+    Fixes #1835.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/6631057
+    https://golang.org/cl/6624051
 
- doc/godocs.js          | 32 ++++++++++++++++++++
- doc/style.css          | 79 +++++++++++++++++++++++++++++++++++++++++++++++---
- lib/godoc/godoc.html   | 32 ++++++++++++++++++--
- lib/godoc/package.html |  2 --
- src/cmd/godoc/godoc.go |  6 ++--
- 5 files changed, 140 insertions(+), 11 deletions(-)
+ src/pkg/go/printer/printer.go                |  33 ++++--
+ src/pkg/go/printer/printer_test.go           | 150 +++++++++++++++++----------
+ src/pkg/go/printer/testdata/comments2.golden |  79 ++++++++++++++
+ src/pkg/go/printer/testdata/comments2.input  |  79 ++++++++++++++
+ 4 files changed, 277 insertions(+), 64 deletions(-)

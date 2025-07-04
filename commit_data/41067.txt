@@ -1,21 +1,22 @@
-commit d5967a710094b4e901175948727bbda7a197565c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 2 15:39:28 2020 -0500
+commit 12dbd20a50f223aa3b7adc579e4db0fd9abfb8dd
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jul 31 11:45:32 2019 +0700
 
-    cmd/go: convert TestGoTestWithoutTests to the script framework
+    cmd/link: set .dynsym info field
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    .dynsym section info field is the index of first non-local symbol, mean
+    the number of local symbols.
     
-    Updates #36320
-    Updates #17751
+    The go linker have never ever set it before, so just set it.
     
-    Change-Id: Ibc3cb3823bd1c1b80058076f2c9933dc729447a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213127
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #33358
+    
+    Change-Id: Ifde2deb7c15471b04d565861f5d81daffb0c0d3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187979
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                        | 10 ----------
- src/cmd/go/testdata/script/test_no_tests.txt | 11 +++++++++++
- src/cmd/go/testdata/src/testnorun/p.go       |  5 -----
- 3 files changed, 11 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/elf.go      | 13 +++++-
+ src/cmd/link/internal/ld/elf_test.go | 79 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 2 deletions(-)

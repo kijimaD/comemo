@@ -1,41 +1,20 @@
-commit 61c57575cd01940d06a327ce61b8923bf4a7553a
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 8 16:10:47 2022 -0800
+commit f909f813a0c12fde089a6c5e18fdcb9e71759cf7
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Dec 10 14:03:20 2021 -0500
 
-    os: remove special casing of NUL in Windows file operations
+    testing: update docs for fuzzcachedir
     
-    Some file operations, notably Stat and Mkdir, special cased their
-    behavior when operating on a file named "NUL" (case-insensitive).
-    This check failed to account for the many other names of the NUL
-    device, as well as other non-NUL device files: "./nul", "//./nul",
-    "nul.txt" (on some Windows versions), "con", etc.
+    Although most of the code seems to be already implemented
+    to support this for general use, it didn't make it in for
+    Go 1.18, so for now we should at least document that it's
+    only for use by the go command.
     
-    Remove the special case.
-    
-    os.Mkdir("NUL") now returns no error. This is consonant with the
-    operating system's behavior: CreateDirectory("NUL") succeeds, as
-    does "MKDIR NUL" on the command line.
-    
-    os.Stat("NUL") now follows the existing path for FILE_TYPE_CHAR devices,
-    returning a FileInfo which correctly reports the file as being a
-    character device.
-    
-    os.Stat and os.File.Stat have common elements of their logic unified.
-    
-    For #24482.
-    For #24556.
-    For #56217.
-    
-    Change-Id: I7e70f45901127c9961166dd6dbfe0c4a10b4ab64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448897
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Id559e72d590aedeaaa50bcf880bca1a385d858dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370954
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/os/file.go            | 21 --------------------
- src/os/os_test.go         | 24 +++++++++--------------
- src/os/os_windows_test.go | 44 ++++++++++++++++++++++-------------------
- src/os/stat_windows.go    | 50 +++++++++++++++++++++++------------------------
- src/os/types_windows.go   | 12 ------------
- 5 files changed, 57 insertions(+), 94 deletions(-)
+ src/testing/fuzz.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

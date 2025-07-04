@@ -1,17 +1,25 @@
-commit 98d0634b7a50cf311de16606a9b56f6ae8ebf106
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 31 09:02:40 2017 -0700
+commit 89a355c9306800df2062f9fb590cba2c2281948a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 08:11:38 2017 -0700
 
-    runtime: remove bad field from itab
+    cmd/internal/obj: unify Setuintxx and WriteInt
     
-    Just use fun[0]==0 to indicate a bad itab.
+    They do basically the same work.
     
-    Change-Id: I28ecb2d2d857090c1ecc40b1d1866ac24a844848
-    Reviewed-on: https://go-review.googlesource.com/44473
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Setuintxx was only used in a single place,
+    so eliminate it in favor of WriteInt.
+    
+    duintxxLSym's alignment rounding was not used in practice;
+    change it into alignment assertion.
+    
+    Passes toolstash-check. No compiler performance changes.
+    
+    Change-Id: I0f7410cf2ccffbdc02ad796eaf973ee6a83074f8
+    Reviewed-on: https://go-review.googlesource.com/40863
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 6 ++----
- src/reflect/value.go                   | 3 +--
- src/runtime/iface.go                   | 4 ++--
- src/runtime/runtime2.go                | 5 ++---
- 4 files changed, 7 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/obj.go | 15 +++++++++------
+ src/cmd/internal/obj/data.go       | 23 -----------------------
+ 2 files changed, 9 insertions(+), 29 deletions(-)

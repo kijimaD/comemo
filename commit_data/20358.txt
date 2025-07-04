@@ -1,14 +1,21 @@
-commit 5103500d130b3b74c0c3a75ac8dab5285111ffbe
+commit 54138e1ac356d824fe669b593c9ec24d9c7bbd3a
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 18:07:33 2014 -0400
+Date:   Wed Sep 3 11:36:14 2014 -0400
 
-    runtime: mark endcgo go:nosplit
+    cmd/cgo, runtime: write cgo stub wrappers in Go, not C
     
-    Should help windows/amd64.
-    
-    TBR=khr
-    CC=golang-codereviews
-    https://golang.org/cl/134660043
+    LGTM=alex.brainman, iant
+    R=golang-codereviews, alex.brainman, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/139070043
 
- src/runtime/cgocall.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/test/callback.go      |   7 +-
+ src/cmd/cgo/out.go             | 202 ++++++++++++++++++++++-------------------
+ src/pkg/runtime/asm_386.s      |  11 ++-
+ src/pkg/runtime/asm_amd64.s    |  11 ++-
+ src/pkg/runtime/asm_amd64p32.s |   6 ++
+ src/pkg/runtime/asm_arm.s      |  11 ++-
+ src/pkg/runtime/cgocall.c      |  11 ++-
+ src/pkg/runtime/cgocall.h      |   1 +
+ src/pkg/runtime/runtime.h      |   1 +
+ 9 files changed, 160 insertions(+), 101 deletions(-)

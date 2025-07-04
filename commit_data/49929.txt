@@ -1,23 +1,26 @@
-commit c6be7103a5ab8cd45e08d822efa24da4fd88b9c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 5 15:44:15 2022 -0400
+commit 04572fa29ba689dcdd098cc6b7f84307bf1e171b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 2 21:02:30 2021 -0700
 
-    cmd/go: add go generate -skip flag
+    cmd/compile: use BMI1 instructions for GOAMD64=v3 and higher
     
-    Following proposal discussion in #38687, add go generate -skip
-    to allow easier skipping of specific //go:generate directives.
+    BMI1 includes four instructions (ANDN, BLSI, BLSMSK, BLSR) that are
+    easy to peephole optimize, and which GCC always seems to favor using
+    when available and applicable.
     
-    Fixes #38687.
+    Updates #45453.
     
-    Change-Id: Ied5b4042965dd6a2b93c1c517045fccae2d95c3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421440
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0274184057058f5c579e5bc3ea9c414396d3cf46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351130
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go                    |  9 ++++++++-
- src/cmd/go/internal/generate/generate.go | 29 ++++++++++++++++++++++++-----
- src/cmd/go/testdata/script/generate.txt  | 10 +++++++++-
- 3 files changed, 41 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |  17 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   7 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  10 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 122 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 175 +++++++++++++++++++++++++++
+ test/codegen/bmi.go                          |  47 +++++++
+ 6 files changed, 378 insertions(+)

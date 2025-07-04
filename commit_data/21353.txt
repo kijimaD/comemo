@@ -1,20 +1,17 @@
-commit 9a36beb2afa7291d705213cdee4e8aa6c5b6aeb7
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Jan 26 16:43:20 2015 +0300
+commit 1e4b642f8d0f2fe594d17700e8f556d2e323036b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 22 18:28:16 2014 -0800
 
-    cmd/gc: fix range typecheck order
+    cmd/api: work around Windows rename issue on the builders
     
-    Typecheck for range variables before typechecking for range body.
-    Body can refer to new vars declared in for range,
-    so it is preferable to typecheck them before the body.
-    Makes typecheck order consistent between ORANGE and OFOR.
+    More cmd/api/run.go hell.
     
-    This come up during another change that computes some predicates
-    on variables during typechecking.
+    Fixes #9407
     
-    Change-Id: Ic975db61b1fd5b7f9ee78896d4cc7d93c593c532
-    Reviewed-on: https://go-review.googlesource.com/3284
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If8fb446a2471d6372beb0534c9ab6824029b404c
+    Reviewed-on: https://go-review.googlesource.com/2054
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/gc/range.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/api/run.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

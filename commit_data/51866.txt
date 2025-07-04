@@ -1,18 +1,21 @@
-commit ac7efcb0caac712395adf602f69d2ff3ace6e16e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 1 02:11:01 2023 +0700
+commit 47efdcbf4c40a718ba6e1c28b8bb7b73e729f2b0
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Sun Mar 20 02:10:17 2022 +0800
 
-    test: enable inlining tests for functions with local type
+    internal/reflectlite: fix name of type parameter
     
-    Updates #57410
+    CL 372774 is for reflect, this CL is for internal/reflectlite.
     
-    Change-Id: Ibe1f5523a4635d2b844b9a5db94514e07eb0bc0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463998
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #50208
+    
+    Change-Id: Ib7e8b1bc031feab218d1addd78388fcfe9b675b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393918
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- test/escape4.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/internal/reflectlite/all_test.go | 5 +++++
+ src/internal/reflectlite/type.go     | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

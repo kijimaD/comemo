@@ -1,15 +1,17 @@
-commit 8e77a7ef6bce15e81b9a6ce5cb2fcbe47cd7ab84
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Sep 15 08:41:59 2014 +1000
+commit a09e61395ee5e71c4c4a37fa0faed87592a04834
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 15:27:26 2014 -0400
 
-    image/jpeg: reject invalid Ta and Td values.
+    runtime: move stubs.goc code into runtime.c
     
-    Fixes #8693.
+    Now that the calling conventions are the same,
+    there's no danger to using plain C for these.
     
-    LGTM=crawshaw
-    R=crawshaw
-    CC=golang-codereviews
-    https://golang.org/cl/141470043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=dvyukov, golang-codereviews, iant, khr, r
+    https://golang.org/cl/134580043
 
- src/image/jpeg/scan.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/runtime.c | 48 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stubs.goc | 57 -----------------------------------------------
+ 2 files changed, 48 insertions(+), 57 deletions(-)

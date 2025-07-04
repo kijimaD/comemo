@@ -1,14 +1,15 @@
-commit 77edde1a1ead9945a91c17c783cb09908077aeb3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 3 11:26:18 2014 +1100
+commit d9fc789df2a97137a56d305c61513cd33b1c910a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 3 07:08:44 2014 +0900
 
-    doc: document Go 1.2.1
+    runtime: make SIGSYS notifiable on FreeBSD
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    Update #7186
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/69970047
+    https://golang.org/cl/70490043
 
- doc/devel/release.html | 6 ++++++
- doc/install.html       | 4 ++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/runtime/signals_freebsd.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

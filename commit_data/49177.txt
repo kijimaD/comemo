@@ -1,29 +1,19 @@
-commit b553f51fcd959c9d2d113ce74eba6eac958e2a5b
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon May 9 10:44:07 2022 -0500
+commit 9c81fd53b3ae52e286d3020ee8b381328b6b9bd2
+Author: 180909 <734461790@qq.com>
+Date:   Sun Jul 25 11:21:14 2021 +0000
 
-    crypto/aes: enable aes-cbc asm for ppc64
+    cmd/vet: add missing copyright header
     
-    This reworks how we load/store vector registers using the new
-    bi-endian P9 instruction emulation macros. This also removes
-    quite a bit of asm used to align and reorder vector registers.
-    
-    This is also a slight improvement on P9 ppc64le/linux:
-    
-        name             old speed      new speed      delta
-        AESCBCEncrypt1K   936MB/s ± 0%   943MB/s ± 0%  +0.80%
-        AESCBCDecrypt1K  1.28GB/s ± 0%  1.37GB/s ± 0%  +6.76%
-    
-    Updates #18499
-    
-    Change-Id: Ic5ff71d217d7302b6ae4e8d877c25004bfda5ecd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405134
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I78942dde77547f91daebe763328f52b4c476ddaf
+    GitHub-Last-Rev: 423f1683fc7db8c1764383cf0a61c54ee21c06f2
+    GitHub-Pull-Request: golang/go#47334
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336434
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/crypto/aes/asm_ppc64x.s                      | 153 +++++++----------------
- src/crypto/aes/{cbc_ppc64le.go => cbc_ppc64x.go} |   2 +
- 2 files changed, 45 insertions(+), 110 deletions(-)
+ src/cmd/vet/main.go                               | 4 ++++
+ src/cmd/vet/testdata/copylock/copylock.go         | 4 ++++
+ src/cmd/vet/testdata/httpresponse/httpresponse.go | 4 ++++
+ src/cmd/vet/testdata/testingpkg/tests.go          | 4 ++++
+ src/cmd/vet/testdata/testingpkg/tests_test.go     | 4 ++++
+ 5 files changed, 20 insertions(+)

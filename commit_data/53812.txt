@@ -1,27 +1,25 @@
-commit f024e390bb0cb124487fd75f564ef8178ccba8f4
-Author: korzhao <korzhao95@gmail.com>
-Date:   Thu Jul 6 11:12:29 2023 +0800
+commit 9fc09d2ffb4384579998b5046a1d4aee32c5ca17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 1 16:58:15 2022 -0700
 
-    reflect: optimize DeepEqual() for maps
+    cmd/compile/internal/noder: optimize itabs section of runtime dicts
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkMapsDeepEqual-10     235           200           -15.05%
+    Currently, the itabs section for runtime dictionaries includes its own
+    redundant *runtime._type pointers for typ and iface, which were
+    sometimes necessary. This simplified the initial implementation, but
+    is a little wasteful of space when the same type or interface appeared
+    across multiple (typ, iface) pairs.
     
-    benchmark                     old allocs     new allocs     delta
-    BenchmarkMapsDeepEqual-10     7              6              -14.29%
+    This CL instead reuses the pointers from the rtypes section.
     
-    benchmark                     old bytes     new bytes     delta
-    BenchmarkMapsDeepEqual-10     96            48            -50.00%
-    
-    Change-Id: Ifa625ad25524cc9ee438711917606626b33a9597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512576
+    Change-Id: I48448515c319c0403c1a8e7706794d443176f0a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427754
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/benchmark_test.go | 12 ++++++++++++
- src/reflect/deepequal.go      |  7 ++++---
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 66 +++++++++++++++-----------------
+ src/cmd/compile/internal/noder/writer.go | 12 ++++--
+ 2 files changed, 39 insertions(+), 39 deletions(-)

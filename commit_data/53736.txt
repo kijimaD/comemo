@@ -1,18 +1,30 @@
-commit 16ec51471288f86d601efb9a2eb6b418cf634c16
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 15 16:56:45 2023 -0700
+commit e4b624eae5fa3c51b8ca808da29442d3e3aaef04
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 31 13:48:06 2022 -0700
 
-    time: document that AfterFunc Timer's C field is nil
+    cmd/compile: use HaveInlineBody for unified IR
     
-    Fixes #60811
+    In go.dev/cl/419674 I added a mechanism to the inliner to allow
+    inlining to fail gracefully when a function body is missing, but I
+    missed we already have a mechanism for that: typecheck.HaveInlineBody.
     
-    Change-Id: Ica947a4789e71826284f9f6e41c298baa3d033e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503922
+    This CL makes it overridable so that unified IR can plug in its
+    appropriate logic, like it does with the logic for building the
+    ir.InlinedCallExpr node.
+    
+    While here, rename inline.NewInline to inline.InlineCall, because the
+    name "NewInline" is now a misnomer since we initialize it to oldInline
+    (now named oldInlineCall).
+    
+    Change-Id: I4e65618d3725919f69e6f43cf409699d20fb797c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427234
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/time/sleep.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/inline/inl.go        | 12 ++++++------
+ src/cmd/compile/internal/noder/reader.go      | 22 ++++++++++++++--------
+ src/cmd/compile/internal/noder/unified.go     |  3 ++-
+ src/cmd/compile/internal/typecheck/iimport.go | 11 ++++-------
+ 4 files changed, 26 insertions(+), 22 deletions(-)

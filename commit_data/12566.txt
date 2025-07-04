@@ -1,16 +1,25 @@
-commit e8deb3f828886afe3dc7403f128cbafebe9fb1a1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 12 10:42:25 2012 -0700
+commit da8efae9fe6a3d5f5e6dffc2c70c835fa6724cbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 13:10:37 2012 -0400
 
-    net/http: return appropriate errors from ReadRequest
+    cmd/godoc: fix directory read
     
-    Fixes #3298
+    Undo CL 5783076 and apply correct fix.
     
-    R=golang-dev, rsc
+    The /doc hack is wrong.  The code to handle this case was
+    already there and just needs a simple fix:
+    
+            // We didn't find any directories containing Go files.
+            // If some directory returned successfully, use that.
+    -       if len(all) == 0 && first != nil {
+    +       if !haveGo {
+                    for _, d := range first {
+                            haveName[d.Name()] = true
+                            all = append(all, d)
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5783080
+    https://golang.org/cl/5783079
 
- src/pkg/net/http/request.go      |  6 ++++--
- src/pkg/net/http/request_test.go | 19 +++++++++++++++++++
- src/pkg/net/http/server.go       |  2 +-
- 3 files changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/godoc/filesystem.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

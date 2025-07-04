@@ -1,41 +1,22 @@
-commit 739bf6b929b66ac1715268e269da01c8199f034b
-Author: Hasit Bhatt <hasit.p.bhatt@gmail.com>
-Date:   Wed Sep 25 00:02:29 2019 +0530
+commit ae85ae5db2d3b6a3dfb75ade74e0f11234375594
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 16 08:52:42 2019 +0200
 
-    cmd: update x/tools version to enforce only one %w
+    runtime: avoid getg in preinit on Android
     
-    As mentioned in https://golang.org/issue/34062#issuecomment-529692313
-    src/cmd refers to older version of golang.org/x/tools.
-    Hence, not checking if multiple errors are used in the same fmt.Errorf.
-    Updating golang.org/x/tools version to latest in src/cmd.
+    sigaction is called as part of library mode initializers
+    (_rt0_*_lib). Sigaction in turn calls getg, but on Android the TLS
+    offset for g has not been initialized and getg might return garbage.
     
-    Fixes #34062
+    Add a check for initialization before calling getg.
     
-    Change-Id: I358dec2c3d3af2b19add766b8488b919109b81d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196843
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes the golang.org/x/mobile/bind/java tests on amd64 and 386.
+    
+    Fixes #31476
+    
+    Change-Id: Id2c41fdc983239eca039b49a54b8853c5669d127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172158
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  8 +--
- .../golang.org/x/tools/go/analysis/analysis.go     | 21 ++----
- .../golang.org/x/tools/go/analysis/diagnostic.go   | 48 ++++++++++++++
- .../vendor/golang.org/x/tools/go/analysis/doc.go   | 16 ++---
- .../go/analysis/internal/analysisflags/flags.go    |  6 +-
- .../x/tools/go/analysis/internal/facts/facts.go    | 22 ++++++-
- .../x/tools/go/analysis/passes/assign/assign.go    | 10 ++-
- .../x/tools/go/analysis/passes/cgocall/cgocall.go  |  4 +-
- .../go/analysis/passes/composite/whitelist.go      |  1 +
- .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  |  9 +--
- .../tools/go/analysis/passes/errorsas/errorsas.go  |  2 +-
- .../x/tools/go/analysis/passes/printf/printf.go    | 76 +++++++++++++++-------
- .../x/tools/go/analysis/passes/printf/types.go     |  8 ++-
- .../go/analysis/passes/structtag/structtag.go      |  6 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go |  8 +++
- .../golang.org/x/tools/go/analysis/validate.go     |  2 +-
- .../vendor/golang.org/x/tools/go/cfg/builder.go    |  2 +-
- .../x/tools/go/types/objectpath/objectpath.go      |  2 +-
- src/cmd/vendor/modules.txt                         |  2 +-
- src/fmt/errors_test.go                             | 10 ++-
- 21 files changed, 189 insertions(+), 76 deletions(-)
+ src/runtime/cgo_sigaction.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

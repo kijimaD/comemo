@@ -1,74 +1,24 @@
-commit 2666b815a33edf3a9a1b7c335f9baabf27179d9f
+commit efbeaedb64e426f6874468ea4095d509622514df
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 5 15:48:46 2011 -0500
+Date:   Mon Dec 5 15:48:21 2011 -0500
 
-    use new strconv API
+    strconv: new API
     
-    All but 3 cases (in gcimporter.go and hixie.go)
-    are automatic conversions using gofix.
-    
-    No attempt is made to use the new Append functions
-    even though there are definitely opportunities.
-    
-    R=golang-dev, gri
+    R=golang-dev, bradfitz, gri, r, agl
     CC=golang-dev
-    https://golang.org/cl/5447069
+    https://golang.org/cl/5434095
 
- doc/talks/io2010/eval1.go                    |  6 ++----
- doc/talks/io2010/eval2.go                    |  6 ++----
- misc/cgo/stdio/fib.go                        |  2 +-
- misc/dashboard/builder/http.go               |  2 +-
- src/cmd/cgo/gcc.go                           |  4 ++--
- src/cmd/goinstall/download.go                |  4 ++--
- src/cmd/gotest/flag.go                       |  2 +-
- src/pkg/archive/tar/reader.go                |  2 +-
- src/pkg/archive/tar/writer.go                |  4 ++--
- src/pkg/compress/flate/huffman_bit_writer.go |  4 ++--
- src/pkg/compress/flate/inflate.go            |  6 +++---
- src/pkg/crypto/openpgp/write.go              |  2 +-
- src/pkg/crypto/tls/handshake_server_test.go  |  4 ++--
- src/pkg/debug/dwarf/buf.go                   |  2 +-
- src/pkg/debug/dwarf/const.go                 |  4 ++--
- src/pkg/debug/dwarf/type.go                  | 10 +++++-----
- src/pkg/debug/elf/elf.go                     |  8 ++++----
- src/pkg/debug/macho/macho.go                 |  6 +++---
- src/pkg/encoding/ascii85/ascii85.go          |  2 +-
- src/pkg/encoding/asn1/common.go              |  2 +-
- src/pkg/encoding/base32/base32.go            |  2 +-
- src/pkg/encoding/base64/base64.go            |  2 +-
- src/pkg/encoding/git85/git.go                |  2 +-
- src/pkg/encoding/json/decode.go              | 12 ++++++------
- src/pkg/encoding/json/encode.go              |  6 +++---
- src/pkg/encoding/xml/marshal.go              |  8 ++++----
- src/pkg/encoding/xml/read.go                 |  8 ++++----
- src/pkg/encoding/xml/xml.go                  |  4 ++--
- src/pkg/exp/norm/maketables.go               | 12 ++++++------
- src/pkg/exp/norm/normregtest.go              |  2 +-
- src/pkg/exp/sql/convert.go                   |  6 +++---
- src/pkg/exp/sql/driver/types.go              |  4 ++--
- src/pkg/exp/types/gcimporter.go              |  5 +++--
- src/pkg/expvar/expvar.go                     |  4 ++--
- src/pkg/flag/flag.go                         | 12 ++++++------
- src/pkg/fmt/format.go                        | 24 ++++++++++++------------
- src/pkg/fmt/scan.go                          |  8 ++++----
- src/pkg/html/template/css_test.go            |  2 +-
- src/pkg/image/png/writer.go                  |  2 +-
- src/pkg/net/http/cgi/child.go                |  2 +-
- src/pkg/net/http/chunked.go                  |  4 ++--
- src/pkg/net/http/fs.go                       |  8 ++++----
- src/pkg/net/http/httputil/chunked.go         |  4 ++--
- src/pkg/net/http/pprof/pprof.go              |  4 ++--
- src/pkg/net/http/server.go                   |  2 +-
- src/pkg/net/http/transfer.go                 |  4 ++--
- src/pkg/net/mail/message.go                  |  2 +-
- src/pkg/old/template/parse.go                |  4 ++--
- src/pkg/reflect/tostring_test.go             | 10 +++++-----
- src/pkg/regexp/syntax/prog.go                |  2 +-
- src/pkg/regexp/syntax/regexp.go              |  4 ++--
- src/pkg/text/template/parse/node.go          |  8 ++++----
- src/pkg/time/time_test.go                    |  2 +-
- src/pkg/unicode/maketables.go                | 12 ++++++------
- src/pkg/websocket/hixie.go                   |  4 ++--
- test/fixedbugs/bug120.go                     |  8 ++++----
- test/fixedbugs/bug260.go                     | 12 ++++++------
- 57 files changed, 150 insertions(+), 153 deletions(-)
+ src/pkg/strconv/atob.go       |  17 +++++--
+ src/pkg/strconv/atob_test.go  |   4 +-
+ src/pkg/strconv/atof.go       |  49 ++++++++++----------
+ src/pkg/strconv/atof_test.go  |  38 ++++++----------
+ src/pkg/strconv/atoi.go       | 102 +++++++++++++++---------------------------
+ src/pkg/strconv/atoi_test.go  |  40 ++++++++---------
+ src/pkg/strconv/fp_test.go    |   7 +--
+ src/pkg/strconv/ftoa.go       |  29 +++++-------
+ src/pkg/strconv/ftoa_test.go  |  28 ++++++------
+ src/pkg/strconv/itoa.go       |  44 +++++++++---------
+ src/pkg/strconv/itoa_test.go  |  96 ++++++++++-----------------------------
+ src/pkg/strconv/quote.go      |  24 ++++++++++
+ src/pkg/strconv/quote_test.go |  12 +++++
+ 13 files changed, 221 insertions(+), 269 deletions(-)

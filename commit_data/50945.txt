@@ -1,47 +1,23 @@
-commit 27f094b17cf1e0495515614476ec9137c0ed0a82
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 12:34:50 2022 -0700
+commit 8d6c4e07fdd4a81c466450b51cda71a1bfab41fc
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:17:55 2021 -0500
 
-    go/types, types2: consolidate helper functions for tests (cleanup)
+    go/types: use "implements" rather than "satisfies" in error messages
     
-    Instead of having various inconsistent helper functions, rely on
-    4 helper functions with consistent naming and parameters:
+    This is a port of CL 363839 from types2 to go/types.
     
-    - parse and mustParse
-    - typecheck and mustTypecheck
-    
-    Panic rather than call t.Fatal in the mustX functions to simplify
-    their use.
-    
-    Use the new functions in tests consistently.
-    
-    Change-Id: Ib19dc5cc470b51512c23c09df32c379dc3eb8f4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443757
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I9efe412a6a602fd55170d1ee89c8e1513037c926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364936
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go        | 178 +++++++--------------
- src/cmd/compile/internal/types2/example_test.go    |  11 +-
- .../compile/internal/types2/instantiate_test.go    |  10 +-
- src/cmd/compile/internal/types2/issues_test.go     |  43 +++--
- src/cmd/compile/internal/types2/named_test.go      |   7 +-
- src/cmd/compile/internal/types2/object_test.go     |   7 +-
- src/cmd/compile/internal/types2/resolver_test.go   |   6 +-
- src/cmd/compile/internal/types2/sizes_test.go      |  14 +-
- src/cmd/compile/internal/types2/stdlib_test.go     |   6 +-
- src/cmd/compile/internal/types2/typestring_test.go |  17 +-
- src/go/types/api_test.go                           | 176 +++++++-------------
- src/go/types/example_test.go                       |  11 +-
- src/go/types/instantiate_test.go                   |  10 +-
- src/go/types/issues_test.go                        |  40 ++---
- src/go/types/methodset_test.go                     |   2 +-
- src/go/types/named_test.go                         |   8 +-
- src/go/types/object_test.go                        |   8 +-
- src/go/types/resolver_test.go                      |   7 +-
- src/go/types/sizes_test.go                         |  15 +-
- src/go/types/stdlib_test.go                        |   6 +-
- src/go/types/typestring_test.go                    |  21 +--
- 21 files changed, 197 insertions(+), 406 deletions(-)
+ src/go/types/instantiate.go                    | 21 +++++++++----------
+ src/go/types/testdata/check/issues.go2         |  6 +++---
+ src/go/types/testdata/check/typeinst2.go2      | 28 +++++++++++++-------------
+ src/go/types/testdata/examples/inference.go2   |  2 +-
+ src/go/types/testdata/fixedbugs/issue39754.go2 |  4 ++--
+ src/go/types/testdata/fixedbugs/issue45920.go2 |  4 ++--
+ src/go/types/testdata/fixedbugs/issue47411.go2 | 10 ++++-----
+ 7 files changed, 37 insertions(+), 38 deletions(-)

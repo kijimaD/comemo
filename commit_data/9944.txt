@@ -1,12 +1,22 @@
-commit aa2f439c6aa10c3e901afc41d895914cb91529ee
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 12 13:50:08 2011 -0700
+commit 707e5acd713702ca1067a48fe792aec53aef7a04
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Oct 12 13:42:04 2011 -0700
 
-    fmt: remove an obsolete reference to os.ErrorString in a comment
+    updates: append(y,[]byte(z)...) -> append(y,z...)"
     
-    R=golang-dev, bradfitz
+    (more are possible but omitted for now as they are part of
+    specific tests where rather than changing what is there we
+    should probably expand the tests to cover the new case)
+    
+    R=rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/5229057
+    https://golang.org/cl/5247058
 
- src/pkg/fmt/print.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/bytes/bytes_test.go         | 2 +-
+ src/pkg/exp/norm/normregtest.go     | 2 +-
+ src/pkg/exp/norm/readwriter_test.go | 4 ++--
+ src/pkg/exp/ssh/messages.go         | 4 ++--
+ src/pkg/json/scanner_test.go        | 2 +-
+ src/pkg/os/dir_plan9.go             | 2 +-
+ src/pkg/os/env.go                   | 4 ++--
+ 7 files changed, 10 insertions(+), 10 deletions(-)

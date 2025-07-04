@@ -1,18 +1,16 @@
-commit 7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Tue Apr 16 23:48:19 2019 +0300
+commit 3a60629a6d1aaf2962bd118994246463412ffbff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 27 17:04:47 2018 -0800
 
-    test: add regress test for issue 28369
+    net: use .invalid for an invalid domain name
     
-    Also gofmt test/escape5.go.
+    Fixes #25370
     
-    Fixes #28369.
-    
-    Change-Id: I0a11748fd2b5cf01cb5437ae15827d9db91c0c0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172358
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I12da0cc17f433ca12c85fb986d65ac9ecb2c3f20
+    Reviewed-on: https://go-review.googlesource.com/c/151359
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/escape5.go | 25 +++++++++++++++++++++----
- 1 file changed, 21 insertions(+), 4 deletions(-)
+ src/net/lookup_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

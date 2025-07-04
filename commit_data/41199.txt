@@ -1,15 +1,24 @@
-commit f68577f2941b7e331b8b702cd1e6ca100d3820c4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 19:15:15 2020 -0800
+commit c20eb96e6b990b455c73204a15489656106b1342
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 11 09:51:17 2019 -0400
 
-    doc/go1.14: mention new field net/http/httptest/Server.EnableHTTP2
+    cmd/go/internal/modload: add an Unwrap method on ImportMissingError
     
-    Updates #34939
-    Updates #36878
+    Jay suggested this in CL 189780, and it seems semantically correct.
     
-    Change-Id: Ifa9a17b5b16bfcfbfe1d113a2b66a63ea3a6b59c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217131
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    As far as I can tell this has no impact one way or the other right
+    now, but might prevent confusion (or at least give us more experience
+    with error handling!) in future changes.
+    
+    Updates #30748
+    Updates #28459
+    Updates #30322
+    
+    Change-Id: I5d7e9a08ea141628ed6a8fd03c62d0d3c2edf2bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194817
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.14.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/internal/modload/import.go | 4 ++++
+ 1 file changed, 4 insertions(+)

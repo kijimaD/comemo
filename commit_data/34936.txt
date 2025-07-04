@@ -1,47 +1,22 @@
-commit ab48574bab55eec033c4fed7f7eb4cedfaef90aa
-Author: David Chase <drchase@google.com>
-Date:   Thu Apr 5 16:14:42 2018 -0400
+commit 2f588ff08f0330864b2e8d16e850c51642d9c5ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 29 11:58:03 2017 -0800
 
-    cmd/compile: use Block.Likely to put likely branch first
+    cmd/compile: make -asmhdr work with type aliases
     
-    When a neither of a conditional block's successors follows,
-    the block must end with a conditional branch followed by a
-    an unconditional branch.  If the (conditional) branch is
-    "unlikely", invert it and swap successors to make it
-    likely instead.
+    For "type T = U" we were accidentally emitting a #define for "U__size"
+    instead of "T__size".
     
-    This doesn't matter to most benchmarks on amd64, but in one
-    instance on amd64 it caused a 30% improvement, and it is
-    otherwise harmless.  The problematic loop is
+    Fixes #22877.
     
-                    for i := 0; i < w; i++ {
-                            if pw[i] != 0 {
-                                    return true
-                            }
-                    }
-    
-    compiled under GOEXPERIMENT=preemptibleloops
-    This the very worst-case benchmark for that experiment.
-    
-    Also in this CL is a commoning up of heavily-repeated
-    boilerplate, which made it much easier to see that the
-    changes were applied correctly.  In the future this should
-    allow un-exporting of SSAGenState.Branches once the
-    boilerplate-replacement is done everywhere.
-    
-    Change-Id: I0e5ded6eeb3ab1e3e0138e12d54c7e056bd99335
-    Reviewed-on: https://go-review.googlesource.com/104977
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5ed6757d697753ed6d944077c16150759f6e1285
+    Reviewed-on: https://go-review.googlesource.com/80759
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go  | 22 ++++++--------
- src/cmd/compile/internal/arm/ssa.go    | 22 ++++++--------
- src/cmd/compile/internal/arm64/ssa.go  | 54 +++++++++++++---------------------
- src/cmd/compile/internal/gc/ssa.go     | 10 +++++++
- src/cmd/compile/internal/mips/ssa.go   | 21 ++++++-------
- src/cmd/compile/internal/mips64/ssa.go | 21 ++++++-------
- src/cmd/compile/internal/ppc64/ssa.go  | 41 +++++++++++---------------
- src/cmd/compile/internal/s390x/ssa.go  | 22 ++++++--------
- src/cmd/compile/internal/x86/ssa.go    | 23 ++++++---------
- 9 files changed, 102 insertions(+), 134 deletions(-)
+ src/cmd/compile/internal/gc/export.go |  8 ++++----
+ test/fixedbugs/issue22877.dir/p.go    | 14 ++++++++++++++
+ test/fixedbugs/issue22877.dir/p.s     |  8 ++++++++
+ test/fixedbugs/issue22877.go          |  7 +++++++
+ test/run.go                           |  3 +++
+ 5 files changed, 36 insertions(+), 4 deletions(-)

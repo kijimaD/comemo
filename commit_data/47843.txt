@@ -1,17 +1,21 @@
-commit 2d1d54808131b09da768ec334b3387ccb70562ec
-Author: Jing维 <chalvern@users.noreply.github.com>
-Date:   Mon Dec 20 00:36:55 2021 +0000
+commit b4881d930a653ffc72cfcdff2902a627ba3a205c
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 9 18:05:57 2021 -0400
 
-    reflect: update relative path in comment
+    cmd/compile: don't modify underlying type when creating bitmap for bodyless function
     
-    Fix it to avoid misunderstanding.
+    This fixes the build crash for
+        GOEXPERIMENT=regabi,regabiargs GOOS=windows go build syscall
     
-    Change-Id: I2a09cb9edfa8077c5c0c35e07000c0c7dc72755e
-    GitHub-Last-Rev: ae49d512eb7f58421ff2d3b9a8b04500a96ac831
-    GitHub-Pull-Request: golang/go#50260
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373334
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Updates #40724.
+    
+    Change-Id: I4400f6ff2e83e7e7e93ad5e58c6063b327532504
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309110
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/abi/abiutils.go   | 17 +++++++++++------
+ src/cmd/compile/internal/gc/compile.go     |  4 ++--
+ src/cmd/compile/internal/liveness/plive.go |  1 -
+ 3 files changed, 13 insertions(+), 9 deletions(-)

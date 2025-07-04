@@ -1,20 +1,16 @@
-commit d079144190085da29ace309164e30f5a2bee492e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 16 14:51:33 2014 -0400
+commit 6ddd995af536b348f1cf39abba6db1ef158925bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 16 11:32:16 2014 -0700
 
-    go/scanner: interpret //line directives sans filename sensibly
+    net/http: fix data race in TestTransportResponseHeaderTimeout
     
-    A //line directive without a filename now denotes the same
-    filename as the previous line (as in C).
-    Previously it denoted the file's directory (!).
+    Fixes #7264
     
-    Fixes #7765
-    
-    LGTM=gri
-    R=gri
+    LGTM=dvyukov
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/86990044
+    https://golang.org/cl/87970045
 
- src/pkg/go/scanner/scanner.go      | 16 +++++++++++-----
- src/pkg/go/scanner/scanner_test.go |  5 +++--
- 2 files changed, 14 insertions(+), 7 deletions(-)
+ src/pkg/net/http/httptest/server_test.go | 12 +++++-------
+ src/pkg/net/http/transport_test.go       | 12 +++++++++++-
+ 2 files changed, 16 insertions(+), 8 deletions(-)

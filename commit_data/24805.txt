@@ -1,18 +1,24 @@
-commit 9514285da9e97522e76ba053c1b7a929c5d1b7b6
+commit e92d0d82e05dfc47376fe3eea8df12cce0ba684f
 Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Oct 28 10:40:46 2015 +1300
+Date:   Tue Sep 1 12:26:42 2015 +1200
 
-    cmd/compile/internal/x86: avoid CX in a couple of places in the int64 code
+    cmd/link: remove some dead code
     
-    I want to use CX as a scratch register in position independent code and these
-    uses are easy to remove.
-    
-    Change-Id: I9e3cb470d7f0000d85786c30bd769d9ec86d532a
-    Reviewed-on: https://go-review.googlesource.com/16382
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I125a12a2cb7e792f357e4d841f55c0bed2971dce
+    Reviewed-on: https://go-review.googlesource.com/14140
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/x86/cgen64.go | 20 ++++++++++----------
- src/cmd/compile/internal/x86/gsubr.go  |  8 +++-----
- 2 files changed, 13 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |  2 --
+ src/cmd/link/internal/arm/l.go       |  3 ---
+ src/cmd/link/internal/arm64/l.go     |  3 ---
+ src/cmd/link/internal/ld/ar.go       |  4 +---
+ src/cmd/link/internal/ld/lib.go      | 42 ------------------------------------
+ src/cmd/link/internal/ld/link.go     |  4 ----
+ src/cmd/link/internal/ld/sym.go      |  4 ----
+ src/cmd/link/internal/ld/textflag.go | 29 -------------------------
+ src/cmd/link/internal/ld/util.go     | 18 ----------------
+ src/cmd/link/internal/ppc64/l.go     |  3 ---
+ src/cmd/link/internal/x86/l.go       |  2 --
+ 11 files changed, 1 insertion(+), 113 deletions(-)

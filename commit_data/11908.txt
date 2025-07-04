@@ -1,12 +1,16 @@
-commit a50315304d58ab73ea8267f940761f1372e21361
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 15 10:31:28 2012 +1100
+commit 0ab3ea9738bb28211c156faf38923bb6c28952cb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 15 09:06:24 2012 +1100
 
-    doc: grey out line numbers
+    build: create the correct $GOTOOLDIR.
     
-    R=gri
+    Before this, make.bash --dist-tool would fail,
+    because $GOROOT/bin/tool was being mkdir'd
+    instead of $GOROOT/pkg/tool/linux_amd64.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5675049
+    https://golang.org/cl/5666046
 
- doc/style.css | 3 +++
- 1 file changed, 3 insertions(+)
+ src/make.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

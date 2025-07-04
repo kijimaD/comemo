@@ -1,63 +1,146 @@
-commit 5c20ffbb2f8ede35af7700797281248c71968286
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 16:44:15 2017 -0700
+commit 1e3570ac86f6aeb7f8ce70b5ad236a5dd92ec804
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 18 12:53:25 2017 -0700
 
-    archive/tar: add support for long binary strings in GNU format
+    cmd/internal/objabi: extract shared functionality from obj
     
-    The GNU tar format defines the following type flags:
-            TypeGNULongName = 'L' // Next file has a long name
-            TypeGNULongLink = 'K' // Next file symlinks to a file w/ a long name
+    Now only cmd/asm and cmd/compile depend on cmd/internal/obj. Changing
+    the assembler backends no longer requires reinstalling cmd/link or
+    cmd/addr2line.
     
-    Anytime a string exceeds the field dedicated to store it, the GNU format
-    permits a fake "file" to be prepended where that file entry has a Typeflag
-    of 'L' or 'K' and the contents of the file is a NUL-terminated string.
+    There's also now one canonical definition of the object file format in
+    cmd/internal/objabi/doc.go, with a warning to update all three
+    implementations.
     
-    Contrary to previous TODO comments,
-    the GNU format supports arbitrary strings (without NUL) rather UTF-8 strings.
-    The manual says the following:
-    <<<
-    The name, linkname, magic, uname, and gname are
-    null-terminated character strings
-    >>>
-    <<<
-    All characters in header blocks are represented
-    by using 8-bit characters in the local variant of ASCII.
-    >>>
+    objabi is still something of a grab bag of unrelated code (e.g., flag
+    and environment variable handling probably belong in a separate "tool"
+    package), but this is still progress.
     
-    From this description, we gather the following:
-    * We must forbid NULs in any GNU strings
-    * Any 8-bit value (other than NUL) is permitted
+    Fixes #15165.
+    Fixes #20026.
     
-    Since the modern world has moved to UTF-8, it is really difficult to
-    determine what a "local variant of ASCII" means. For this reason,
-    we treat strings as just an arbitrary binary string (without NUL)
-    and leave it to the user to determine the encoding of this string.
-    (Practically, it seems that UTF-8 is the typical encoding used
-    in GNU archives seen in the wild).
-    
-    The implementation of GNU tar seems to confirm this interpretation
-    of the manual where it permits any arbitrary binary string to exist
-    within these fields so long as they do not contain the NUL character.
-    
-     $ touch `echo -e "not\x80\x81\x82\x83utf8"`
-     $ gnutar -H gnu --tar -cvf gnu-not-utf8.tar $(echo -e "not\x80\x81\x82\x83utf8")
-    
-    The fact that we permit arbitrary binary in GNU strings goes
-    hand-in-hand with the fact that GNU also permits a "base-256" encoding
-    of numeric fields, which is effectively two-complement binary.
-    
-    Change-Id: Ic037ec6bed306d07d1312f0058594bd9b64d9880
-    Reviewed-on: https://go-review.googlesource.com/55573
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ic4b92fac7d0d35438e0d20c9579aad4085c5534c
+    Reviewed-on: https://go-review.googlesource.com/40972
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/archive/tar/common.go                 |  29 +++++++++++--------------
- src/archive/tar/reader_test.go            |  35 ++++++++++++++++++++++++++++++
- src/archive/tar/strconv.go                |  10 ++++++---
- src/archive/tar/tar_test.go               |   8 +++++--
- src/archive/tar/testdata/gnu-not-utf8.tar | Bin 0 -> 1536 bytes
- src/archive/tar/testdata/gnu-utf8.tar     | Bin 0 -> 2560 bytes
- src/archive/tar/writer.go                 |  28 +++++++++++++++---------
- src/archive/tar/writer_test.go            |  29 +++++++++++++++++++++++++
- 8 files changed, 108 insertions(+), 31 deletions(-)
+ src/cmd/asm/internal/asm/asm.go                    |   3 +-
+ src/cmd/asm/internal/asm/operand_test.go           |   5 +-
+ src/cmd/asm/internal/lex/tokenizer.go              |   4 +-
+ src/cmd/asm/main.go                                |   5 +-
+ src/cmd/compile/internal/amd64/galign.go           |   4 +-
+ src/cmd/compile/internal/amd64/ggen.go             |   3 +-
+ src/cmd/compile/internal/arm64/ggen.go             |   3 +-
+ src/cmd/compile/internal/gc/gsubr.go               |   5 +-
+ src/cmd/compile/internal/gc/lex.go                 |   4 +-
+ src/cmd/compile/internal/gc/main.go                |  63 ++--
+ src/cmd/compile/internal/gc/noder.go               |   4 +-
+ src/cmd/compile/internal/gc/obj.go                 |   5 +-
+ src/cmd/compile/internal/gc/pgen.go                |   7 +-
+ src/cmd/compile/internal/gc/reflect.go             |  63 ++--
+ src/cmd/compile/internal/gc/ssa.go                 |   3 +-
+ src/cmd/compile/internal/gc/subr.go                |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go           |   4 +-
+ src/cmd/compile/internal/gc/walk.go                |   4 +-
+ src/cmd/compile/internal/mips/galign.go            |   4 +-
+ src/cmd/compile/internal/mips64/galign.go          |   4 +-
+ src/cmd/compile/internal/ppc64/galign.go           |   4 +-
+ src/cmd/compile/internal/ssa/compile.go            |   4 +-
+ src/cmd/compile/internal/ssa/config.go             |   7 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |   8 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   7 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |   4 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |   7 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |   7 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         |  23 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |   7 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |   7 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   7 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |   7 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |   7 +-
+ src/cmd/compile/internal/ssa/rewritedec.go         |   7 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go       |   7 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |   7 +-
+ src/cmd/compile/internal/x86/galign.go             |   4 +-
+ src/cmd/compile/main.go                            |   6 +-
+ src/cmd/dist/buildruntime.go                       |   6 +-
+ src/cmd/dist/buildtool.go                          |   3 +-
+ src/cmd/internal/goobj/read.go                     | 123 +------
+ src/cmd/internal/obj/arm/asm5.go                   |  31 +-
+ src/cmd/internal/obj/arm/obj5.go                   |  21 +-
+ src/cmd/internal/obj/arm64/asm7.go                 |  25 +-
+ src/cmd/internal/obj/arm64/obj7.go                 |  17 +-
+ src/cmd/internal/obj/data.go                       |   9 +-
+ src/cmd/internal/obj/go.go                         |  72 ----
+ src/cmd/internal/obj/line.go                       |  61 ----
+ src/cmd/internal/obj/link.go                       | 359 +------------------
+ src/cmd/internal/obj/mips/asm0.go                  |  31 +-
+ src/cmd/internal/obj/mips/obj0.go                  |  13 +-
+ src/cmd/internal/obj/objfile.go                    | 127 +------
+ src/cmd/internal/obj/plist.go                      |  25 +-
+ src/cmd/internal/obj/ppc64/asm9.go                 |  27 +-
+ src/cmd/internal/obj/ppc64/obj9.go                 |  19 +-
+ src/cmd/internal/obj/s390x/asmz.go                 |  17 +-
+ src/cmd/internal/obj/s390x/objz.go                 |  19 +-
+ src/cmd/internal/obj/sym.go                        |  23 +-
+ src/cmd/internal/obj/util.go                       |  53 +--
+ src/cmd/internal/obj/x86/asm6.go                   |  91 ++---
+ src/cmd/internal/obj/x86/obj6.go                   |  55 +--
+ src/cmd/internal/objabi/autotype.go                |  37 ++
+ src/cmd/internal/objabi/doc.go                     | 119 +++++++
+ src/cmd/internal/{obj => objabi}/flag.go           |   2 +-
+ src/cmd/internal/{obj => objabi}/funcdata.go       |   2 +-
+ src/cmd/internal/objabi/head.go                    | 104 ++++++
+ src/cmd/internal/objabi/line.go                    |  82 +++++
+ src/cmd/internal/objabi/reloctype.go               | 200 +++++++++++
+ .../internal/{obj => objabi}/reloctype_string.go   |   4 +-
+ src/cmd/internal/{obj => objabi}/stack.go          |   3 +-
+ src/cmd/internal/objabi/symkind.go                 | 137 ++++++++
+ src/cmd/internal/{obj => objabi}/symkind_string.go |   4 +-
+ src/cmd/internal/{obj => objabi}/typekind.go       |   2 +-
+ src/cmd/internal/objabi/util.go                    | 112 ++++++
+ src/cmd/internal/objfile/goobj.go                  |  11 +-
+ src/cmd/link/internal/amd64/asm.go                 | 196 +++++------
+ src/cmd/link/internal/amd64/obj.go                 |  24 +-
+ src/cmd/link/internal/arm/asm.go                   | 148 ++++----
+ src/cmd/link/internal/arm/obj.go                   |  16 +-
+ src/cmd/link/internal/arm64/asm.go                 | 100 +++---
+ src/cmd/link/internal/arm64/obj.go                 |  10 +-
+ src/cmd/link/internal/ld/ar.go                     |   6 +-
+ src/cmd/link/internal/ld/config.go                 |  30 +-
+ src/cmd/link/internal/ld/data.go                   | 390 ++++++++++-----------
+ src/cmd/link/internal/ld/deadcode.go               |  16 +-
+ src/cmd/link/internal/ld/decodesym.go              |  10 +-
+ src/cmd/link/internal/ld/dwarf.go                  |  98 +++---
+ src/cmd/link/internal/ld/elf.go                    |  96 ++---
+ src/cmd/link/internal/ld/go.go                     |  20 +-
+ src/cmd/link/internal/ld/ld.go                     |   3 +-
+ src/cmd/link/internal/ld/ldelf.go                  |  36 +-
+ src/cmd/link/internal/ld/ldmacho.go                |  20 +-
+ src/cmd/link/internal/ld/ldpe.go                   |  32 +-
+ src/cmd/link/internal/ld/lib.go                    | 182 +++++-----
+ src/cmd/link/internal/ld/link.go                   |  22 +-
+ src/cmd/link/internal/ld/macho.go                  |  22 +-
+ src/cmd/link/internal/ld/main.go                   |  30 +-
+ src/cmd/link/internal/ld/objfile.go                | 130 +------
+ src/cmd/link/internal/ld/pcln.go                   |  36 +-
+ src/cmd/link/internal/ld/pe.go                     |  38 +-
+ src/cmd/link/internal/ld/sym.go                    |  26 +-
+ src/cmd/link/internal/ld/symtab.go                 | 118 +++----
+ src/cmd/link/internal/ld/typelink.go               |   7 +-
+ src/cmd/link/internal/ld/util.go                   |  10 +
+ src/cmd/link/internal/mips/asm.go                  |  50 +--
+ src/cmd/link/internal/mips/obj.go                  |   6 +-
+ src/cmd/link/internal/mips64/asm.go                |  72 ++--
+ src/cmd/link/internal/mips64/obj.go                |  10 +-
+ src/cmd/link/internal/ppc64/asm.go                 | 146 ++++----
+ src/cmd/link/internal/ppc64/obj.go                 |  10 +-
+ src/cmd/link/internal/s390x/asm.go                 |  82 ++---
+ src/cmd/link/internal/s390x/obj.go                 |   4 +-
+ src/cmd/link/internal/x86/asm.go                   | 158 ++++-----
+ src/cmd/link/internal/x86/obj.go                   |  18 +-
+ src/cmd/link/linkbig_test.go                       |   8 +-
+ src/cmd/link/main.go                               |   6 +-
+ test/nosplit.go                                    |   2 +-
+ 118 files changed, 2420 insertions(+), 2408 deletions(-)

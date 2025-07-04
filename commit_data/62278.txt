@@ -1,0 +1,37 @@
+commit 586e205522279406a9fcd2ab6cd1a1f416f1eae4
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 12 11:18:30 2025 -0500
+
+    std: add //go:fix inline directives to some deprecated functions
+    
+    In particular, we apply it only to functions where it is always
+    a code improvement to inline the call.
+    We also apply it to some constants.
+    
+    In a few cases this may introduce a panic statement at the
+    caller, which is debatable, but making the potential for panic
+    evident is the purpose of the deprecation.
+    
+    The gofix analyzer in gopls v0.18 will show a diagnostic for calls
+    to the annotated functions, and will offer to inline the call.
+    
+    The new //go:fix annotation needs a special exemption in the
+    pragma check in the compiler.
+    
+    Updates #32816
+    
+    Change-Id: I43bf15648ac12251734109eb7102394f8a76d55e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648995
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/noder.go | 1 +
+ src/go/importer/importer.go             | 2 ++
+ src/go/types/signature.go               | 2 ++
+ src/io/ioutil/ioutil.go                 | 8 ++++++++
+ src/io/ioutil/tempfile.go               | 4 ++++
+ src/reflect/type.go                     | 4 ++++
+ 6 files changed, 21 insertions(+)

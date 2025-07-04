@@ -1,19 +1,19 @@
-commit faa549e4c7aeb997a7fa802f5f9398db5a57c32c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 20 13:14:11 2023 -0400
+commit b244b89d560051f8d4c4c2b90680477ec05f76c3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Sep 8 09:26:37 2022 +0000
 
-    cmd/go: keep BuildInfo list sorted even with -pgo
+    net/http: convert allowQuerySemicolonsInUse to atomic type
     
-    The -pgo build setting is added late, so sort it into place.
-    Noticed while working on CL 504536.
+    For #53821
     
-    Change-Id: I080d2389dc0b3176fb72c9e2434e5f3ae70e294e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504537
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I135783bd5472011f6a74d2f5ee34ce96ff49ad2b
+    GitHub-Last-Rev: 4da2d67ff3d19424c306e1de6a4152fc93785a97
+    GitHub-Pull-Request: golang/go#54863
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428336
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/load/pkg.go               | 6 +++++-
- src/cmd/go/testdata/script/build_pgo_auto.txt | 3 +++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

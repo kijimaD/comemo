@@ -1,14 +1,18 @@
-commit 4207897dcc27a6badb177df115455153f8d4e843
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 4 13:53:34 2013 +1000
+commit 48ba6fe553a5480de8a5fd6da1ab7709c0becc3b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 4 09:45:06 2013 +1000
 
-    runtime: collect profiles even while on g0 stack
+    doc: move spec and memory model back to /ref/
     
-    Fixes #6417
-    
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14231047
+    https://golang.org/cl/14364043
 
- src/pkg/runtime/os_windows.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/articles/wiki/index.html | 4 ++--
+ doc/docs.html                | 4 ++--
+ doc/effective_go.html        | 6 +++---
+ doc/go1.1.html               | 6 +++---
+ doc/go_faq.html              | 8 ++++----
+ doc/go_mem.html              | 2 +-
+ doc/go_spec.html             | 2 +-
+ 7 files changed, 16 insertions(+), 16 deletions(-)

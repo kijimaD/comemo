@@ -1,13 +1,18 @@
-commit a2bd5c5563261309cb14a7f233d9fc89a2873c8a
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Wed Nov 23 15:51:45 2016 -0800
+commit c1e06dcb611822ba3c881b170f278d18237372c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 29 08:51:29 2016 -0700
 
-    doc: add database/sql and os changes to go1.8 release notes
+    net/http: use atomic.Value for Transport's alternate protocol map
     
-    Change-Id: Ib936539946f43556a7dd501f8127054f6a27861f
-    Reviewed-on: https://go-review.googlesource.com/33553
+    Fix an old TODO and use atomic.Value for holding the Transport's
+    alternate protocol map. It is very frequently accessed and almost
+    never set or updated.
+    
+    Change-Id: Ic5a71c504bdac76678114c6390d1fc0673e07aa9
+    Reviewed-on: https://go-review.googlesource.com/29967
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.8.txt  | 19 ++++++++--------
- 2 files changed, 78 insertions(+), 10 deletions(-)
+ src/net/http/transport.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

@@ -1,18 +1,18 @@
-commit e6fb1905cb740b7d68b1c9676f058bf44266539d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 19 19:39:28 2023 +0000
+commit 7a8ba83b729e37d0bdddc9a3c93ae866d1ef199a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 30 18:48:02 2022 -0700
 
-    runtime: make traceClockNow nosplit
+    [dev.unified] cmd/compile/internal/reflectdata: remove hasRType's `required` param
     
-    It's called from exitsyscall, which is nosplit.
+    Unified IR now always provides RTTI needed by the backend, no need to
+    allow exceptions anymore. 🥳
     
-    Change-Id: I3f5f92e044497a88a72c1870beb2bdd15c4263c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496517
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie1ba42c81f92cc43e1b01b3289de10e261ccef57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415576
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/trace.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/reflectdata/helpers.go | 40 ++++++++++++++-----------
+ 1 file changed, 23 insertions(+), 17 deletions(-)

@@ -1,22 +1,32 @@
-commit 1b0a0316802b8048d69da49dc23c5a5ab08e8ae8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 22 20:36:05 2021 -0400
+commit ab541a0560408999ac65d12bec2a3057994eda38
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sat Oct 17 15:19:53 2020 +0000
 
-    cmd/compile: escape "go" wrapper closure everywhere
+    compress/flate: fix corrupted output
     
-    For go statement, the wrapper closure needs to esacpe because it
-    runs asynchronously. Currently, it is not allowed for closures to
-    escape in the runtime. We have worked around this in the runtime,
-    so it doesn't "go" any function with arguments and so doesn't
-    need wrapping. If it ever does, it is not that we can have the
-    closure not escape, which may lead to miscompilation. Instead,
-    make the closure escape (which will fail the compilation). In the
-    future we may allow go'd closure to escape in the runtime.
+    The fastest compression mode can pick up a false match for every 2GB
+    of input data resulting in incorrectly decompressed data.
     
-    Change-Id: I5bbe47b524371d2270c242f6c275013cd52abfc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312889
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Since matches are allowed to be up to and including at maxMatchOffset
+    we must offset the buffer by an additional element to prevent the first
+    4 bytes to match after an out-of-reach value after shiftOffsets has
+    been called.
+    
+    We offset by `maxMatchOffset + 1` so offset 0 in the table will now
+    fail the `if offset > maxMatchOffset` in all cases.
+    
+    Fixes #41420
+    
+    Change-Id: If1fbe01728e132b8a207e3f3f439edd832dcc710
+    GitHub-Last-Rev: 50fabab0da874c37543b139459a810e12e83cee2
+    GitHub-Pull-Request: golang/go#41477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255879
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/walk/order.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/compress/flate/deflate_test.go | 57 ++++++++++++++++++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  | 11 ++++++--
+ 2 files changed, 65 insertions(+), 3 deletions(-)

@@ -1,13 +1,19 @@
-commit 239ec73e66b4c4706b2261082857d5afa5c53da9
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Thu Jun 4 16:16:14 2015 -0700
+commit b4bc7b44ae58b5679135b66ae058544afea6c81b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 6 10:54:20 2015 -0700
 
-    cmd/go: reject relative paths that don't start with a dot (.)
+    time: deflake TestAfterQueuing
     
-    Change-Id: Idc4a7fdb561ba5b3b52094d895deaf3fcdf475bf
-    Reviewed-on: https://go-review.googlesource.com/10716
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Ramp up the delay on subsequent attempts. Fast builders have the same delay.
+    
+    Not a perfect fix, but should make it better. And this easy.
+    
+    Fixes #9903 maybe
+    Fixes #10680 maybe
+    
+    Change-Id: I967380c2cb8196e6da9a71116961229d37b36335
+    Reviewed-on: https://go-review.googlesource.com/9795
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go | 12 +++++++++++-
- src/cmd/go/main.go    |  2 +-
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/time/sleep_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

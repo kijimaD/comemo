@@ -1,21 +1,18 @@
-commit 7a634034c89c653bccd451e417db7034b34402b7
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 25 09:18:48 2018 -0700
+commit 57da8dd459e705888c4c49a487df5f6d58eb6877
+Author: Stephen L <36011612+steuhs@users.noreply.github.com>
+Date:   Fri Jun 29 16:36:04 2018 +0000
 
-    cmd/compile: fix Mul->Mul64 intrinsic alias
+    src/testing/cover: document the CoverBlock struct fields
     
-    The alias declaration needs to come after the function it is aliasing.
+    Fill in the missing descriptions for the CoverBlock struct fields
     
-    It isn't a big deal in this case, as bits.Mul inlines and has as its
-    body bits.Mul64, so the desired code gets generated regardless.
-    The alias should only have an effect on inlining cost estimates
-    (for functions that call bits.Mul).
-    
-    Change-Id: I0d814899ce7049a0fb36e8ce1ad5ababbaf6265f
-    Reviewed-on: https://go-review.googlesource.com/c/144597
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I9257881a19b01e5cfe61cf19a91375b6d7cc68ef
+    GitHub-Last-Rev: f5b9e1d49d1c00f59ce4d3684915e5e93ec0297a
+    GitHub-Pull-Request: golang/go#24079
+    Reviewed-on: https://go-review.googlesource.com/96756
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/cover.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

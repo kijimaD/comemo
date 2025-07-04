@@ -1,26 +1,28 @@
-commit 773a921ccbb26324db1161edceb38507ab0c96b6
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Nov 17 23:13:49 2011 +1100
+commit a1dbfa6f09d2463f421eaa91ee06e15848df7ba0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 17 13:12:13 2011 +1100
 
-    syscall: implement nametomib for openbsd.
+    html: parse <isindex>
     
-    Move the existing darwin/freebsd specific nametomib implementation
-    into the respective operating system dependent files.
+    Pass tests2.dat, test 42:
+    <isindex test=x name=x>
     
-    Provide a nametomib implementation for openbsd, which operates on a
-    sysctl MIB that has been pre-generated from the various system headers
-    by mksysctl_openbsd.pl.
+    | <html>
+    |   <head>
+    |   <body>
+    |     <form>
+    |       <hr>
+    |       <label>
+    |         "This is a searchable index. Enter search keywords: "
+    |         <input>
+    |           name="isindex"
+    |           test="x"
+    |       <hr>
     
-    R=rsc
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4935044
+    https://golang.org/cl/5399049
 
- src/pkg/syscall/Makefile            |   1 +
- src/pkg/syscall/mkall.sh            |   7 +
- src/pkg/syscall/mksysctl_openbsd.pl | 257 +++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_bsd.go      |  25 ---
- src/pkg/syscall/syscall_darwin.go   |  25 +++
- src/pkg/syscall/syscall_freebsd.go  |  25 +++
- src/pkg/syscall/syscall_openbsd.go  |  22 +++
- src/pkg/syscall/zsysctl_openbsd.go  | 292 ++++++++++++++++++++++++++++++++++++
- 8 files changed, 629 insertions(+), 25 deletions(-)
+ src/pkg/html/parse.go      | 38 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 39 insertions(+), 1 deletion(-)

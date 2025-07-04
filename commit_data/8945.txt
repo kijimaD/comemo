@@ -1,14 +1,15 @@
-commit 13d048a2219f422202f4dad108734b24c0b32cac
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Jul 6 00:02:03 2011 +0200
+commit eea5443572e7a10b7133f199be2551756e157865
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 5 17:05:15 2011 +1000
 
-    gc: fix %N for OGOTO nodes.
+    exp/template: add templates to sets; boolean logic.
     
-    6g -W crashed on any source with a goto. this fixes that.
-    
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4675052
+    https://golang.org/cl/4670045
 
- src/cmd/gc/subr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/template/exec.go      | 29 +++++++++++++++++++----------
+ src/pkg/exp/template/exec_test.go | 13 ++++++++++---
+ src/pkg/exp/template/funcs.go     | 31 ++++++++++++++++++++++++++++++-
+ src/pkg/exp/template/set.go       | 14 ++++++++++++++
+ 4 files changed, 73 insertions(+), 14 deletions(-)

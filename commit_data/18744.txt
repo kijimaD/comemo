@@ -1,23 +1,14 @@
-commit 1624c73c9d98ad3466db0648a8462e8720cfa4aa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 4 14:10:30 2014 -0800
+commit 3b015616f7623571cde190965c15bd60fd83ef72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 13:41:05 2014 -0800
 
-    go/parser: better error position for non-invoked gp/defer functions
+    net/http: improve Client.Timeout docs, quiet test
     
-    Added test cases and expanded test harness to handle token end
-    positions.
-    
-    Also: Make sure token end positions are never outside the valid
-          position range, as was possible in case of parse errors.
-    
-    Fixes #7458.
-    
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/70190046
+    https://golang.org/cl/70930043
 
- src/pkg/go/parser/error_test.go | 21 ++++++++++++++++++---
- src/pkg/go/parser/parser.go     | 40 ++++++++++++++++++++++++++++++----------
- src/pkg/go/parser/short_test.go |  3 +++
- 3 files changed, 51 insertions(+), 13 deletions(-)
+ src/pkg/net/http/client.go      | 11 +++++------
+ src/pkg/net/http/client_test.go |  2 +-
+ 2 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,19 +1,46 @@
-commit 48e22da1d24dc5b038bd83a78553173af5474e76
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Oct 4 16:32:21 2018 -0700
+commit 2c01b7d632030c89ee608259597f850dd89965a0
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon May 21 21:00:01 2018 +0300
 
-    cmd/link: fix deferreturn location on wasm
+    cmd/link: fix duplicated "undefined reloc" errors
     
-    On wasm, pcln tables are indexed by "resumption point ID" instead of
-    by pc offset. When finding a deferreturn call, we must find the
-    associated resumption point ID for the deferreturn call.
+    For given program with 2 undefined relocations (main and undefined):
     
-    Update #27518
-    Fixes wasm bug introduced in CL 134637.
+            package main
+            func undefined()
+            func defined() int {
+                    undefined()
+                    undefined()
+                    return 0
+            }
+            var x = defined()
     
-    Change-Id: I3d178a3f5203a06c0180a1aa2309bfb7f3014f0f
-    Reviewed-on: https://go-review.googlesource.com/c/139898
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    "go tool link" produces these errors:
+    
+            main.defined: relocation target main.undefined not defined
+            main.defined: relocation target main.undefined not defined
+            runtime.main_main·f: relocation target main.main not defined
+            main.defined: undefined: "main.undefined"
+            main.defined: undefined: "main.undefined"
+            runtime.main_main·f: undefined: "main.main"
+    
+    After this CL is applied:
+    
+            main.defined: relocation target main.undefined not defined
+            runtime.main_main·f: function main is undeclared in the main package
+    
+    Fixes #10978
+    Improved error message for main proposed in #24809.
+    
+    Change-Id: I4ba8547b1e143bbebeb4d6e29ea05d932124f037
+    Reviewed-on: https://go-review.googlesource.com/113955
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/data.go                   | 23 ++++++-
+ src/cmd/link/internal/ld/ld_test.go                | 70 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    | 12 ++++
+ .../link/internal/ld/testdata/issue10978/main.go   | 27 +++++++++
+ .../link/internal/ld/testdata/issue10978/main.s    |  1 +
+ 5 files changed, 131 insertions(+), 2 deletions(-)

@@ -1,18 +1,26 @@
-commit 4056934e483c51fa046f9c2d1ee35f0385b84d91
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Oct 25 23:57:46 2021 -0500
+commit a655208c9ecd2fee4de6deff35a863b1c28a091c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 25 20:01:53 2021 -0500
 
-    test/codegen: updated arithmetic tests to verify on ppc64,ppc64le
+    cmd/link: handle types as converted to interface when dynlink
     
-    Updated multiple tests in test/codegen/arithmetic.go to verify
-    on ppc64/ppc64le as well
+    When using plugins, a type (whose value) may be pass to a plugin
+    and get converted to interface there, or vice versa. We need to
+    treat the type as potentially converted to interface, and retain
+    its methods.
     
-    Change-Id: I79ca9f87017ea31147a4ba16f5d42ba0fcae64e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358546
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Should fix #44586.
+    
+    Change-Id: I80dd35e68baedaa852a317543ccd78d94628d13b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296709
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/codegen/arithmetic.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ misc/cgo/testplugin/plugin_test.go             | 13 +++++------
+ misc/cgo/testplugin/testdata/method2/main.go   | 32 ++++++++++++++++++++++++++
+ misc/cgo/testplugin/testdata/method2/p/p.go    |  9 ++++++++
+ misc/cgo/testplugin/testdata/method2/plugin.go | 11 +++++++++
+ src/cmd/link/internal/ld/deadcode.go           |  7 ++++++
+ 5 files changed, 65 insertions(+), 7 deletions(-)

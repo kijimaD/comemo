@@ -1,14 +1,16 @@
-commit 4ba4c5ae795f30f167faef7c15dba3e32afc53d0
-Author: esell <eujon.sellers@gmail.com>
-Date:   Thu Aug 30 12:22:53 2018 -0600
+commit 67b0bd7caff55555fad3d79f2f6dfc71ac33edf1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 24 19:02:39 2018 +0000
 
-    net/http: add http.NotFoundHandler example
+    net: skip test in full test mode when running in a container
     
-    Change-Id: I6a69c7a5b829a967d75e1c79210a4906c0d8f505
-    Reviewed-on: https://go-review.googlesource.com/132276
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #25546
+    
+    Change-Id: I00457b370ed6dcd7ee9efcae3fd914e4c384b12c
+    Reviewed-on: https://go-review.googlesource.com/114475
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/net/http/example_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/net/interface_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

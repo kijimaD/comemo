@@ -1,16 +1,12 @@
-commit e236b6721c03033a2d475bdb6e3a0123213ac6e9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 31 13:24:43 2017 -0700
+commit e9635103307aef265c05df2a07c06c0229dcb0f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 4 02:39:56 2017 +0000
 
-    doc/articles/wiki: fix final-test.patch
+    spec: remove an unnecessary semicolon from code example
     
-    Fixes test regression introduced by golang.org/cl/53071.
-    
-    Change-Id: Ibb085cf6d6be7b91b7c90b7bc6237c10f3097703
-    Reviewed-on: https://go-review.googlesource.com/60775
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie4c92da0e3cbb97d3d7e03c7d15196c34f58a2cd
+    Reviewed-on: https://go-review.googlesource.com/42613
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/articles/wiki/final-test.patch | 63 ++++++++++++++++----------------------
- 1 file changed, 27 insertions(+), 36 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

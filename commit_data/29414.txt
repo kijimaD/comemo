@@ -1,14 +1,17 @@
-commit 9d139ac3fa1f4c0c468042bdc6248a30044fb1bb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Nov 6 10:35:58 2016 -0800
+commit 2e675142dd269348da992c1862a28e56e0a87eb6
+Author: Jan Mercl <0xjnml@gmail.com>
+Date:   Wed Sep 14 13:17:37 2016 +0200
 
-    unsafe: remove incorrect type conversion in docs
+    test/float_lit2: fix expressions in comment
     
-    Fixes #17818.
+    The change corrects the values of the largest float32 value (f1) and the
+    value of the halfway point between f1 and the next, overflow value (f2).
     
-    Change-Id: Id7242b0bdd5e1db254b44ae29900fc4f3362c743
-    Reviewed-on: https://go-review.googlesource.com/32828
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #17012
+    
+    Change-Id: Idaf9997b69d61fafbffdb980d751c9857732e14d
+    Reviewed-on: https://go-review.googlesource.com/29171
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/unsafe/unsafe.go | 4 ++--
+ test/float_lit2.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

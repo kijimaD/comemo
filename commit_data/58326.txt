@@ -1,18 +1,135 @@
-commit 2a0aeb12345e4ca64315830ffe87e57e1a828570
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 3 13:55:47 2024 -0800
+commit f2e26372278eda8b272597c99be5fe1df8496896
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 10:51:09 2023 -0400
 
-    doc/next: minor grammar fix in release notes
+    math/rand/v2: simplify Perm
     
-    For #66626.
-    For #68545.
+    The compiler says Perm is being inlined into BenchmarkPerm,
+    and yet BenchmarkPerm30ViaShuffle, which you'd think is the
+    same code, still runs significantly faster.
     
-    Change-Id: I4fe21bdaa9580eb087c849de72e98f6145121dd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633282
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    The benchmarks are mystifying but this is clearly still a step in
+    the right direction, since BenchmarkPerm30ViaShuffle is still
+    the fastest and we avoid having two copies of that logic.
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ e1bbe739fb.amd64 │           8993506f2f.amd64           │
+                            │      sec/op      │    sec/op     vs base                │
+    SourceUint64-32                1.316n ± 2%    1.325n ± 1%        ~ (p=0.208 n=20)
+    GlobalInt64-32                 2.048n ± 1%    2.240n ± 1%   +9.38% (p=0.000 n=20)
+    GlobalInt64Parallel-32        0.1037n ± 1%   0.1041n ± 1%        ~ (p=0.774 n=20)
+    GlobalUint64-32                2.039n ± 2%    2.072n ± 3%        ~ (p=0.115 n=20)
+    GlobalUint64Parallel-32       0.1013n ± 1%   0.1008n ± 1%        ~ (p=0.417 n=20)
+    Int64-32                       1.692n ± 2%    1.716n ± 1%        ~ (p=0.122 n=20)
+    Uint64-32                      1.643n ± 2%    1.665n ± 1%        ~ (p=0.062 n=20)
+    GlobalIntN1000-32              3.287n ± 1%    3.335n ± 1%        ~ (p=0.147 n=20)
+    IntN1000-32                    2.678n ± 2%    2.484n ± 1%   -7.24% (p=0.000 n=20)
+    Int64N1000-32                  2.684n ± 2%    2.502n ± 2%   -6.80% (p=0.000 n=20)
+    Int64N1e8-32                   2.663n ± 2%    2.484n ± 2%   -6.76% (p=0.000 n=20)
+    Int64N1e9-32                   2.633n ± 1%    2.502n ± 0%   -4.98% (p=0.000 n=20)
+    Int64N2e9-32                   2.657n ± 1%    2.502n ± 0%   -5.87% (p=0.000 n=20)
+    Int64N1e18-32                  3.125n ± 2%    3.201n ± 1%   +2.43% (p=0.000 n=20)
+    Int64N2e18-32                  3.476n ± 1%    3.504n ± 1%   +0.83% (p=0.009 n=20)
+    Int64N4e18-32                  4.795n ± 1%    4.873n ± 1%        ~ (p=0.106 n=20)
+    Int32N1000-32                  2.485n ± 2%    2.639n ± 1%   +6.20% (p=0.000 n=20)
+    Int32N1e8-32                   2.457n ± 1%    2.686n ± 2%   +9.34% (p=0.000 n=20)
+    Int32N1e9-32                   2.452n ± 1%    2.636n ± 1%   +7.52% (p=0.000 n=20)
+    Int32N2e9-32                   2.453n ± 1%    2.660n ± 1%   +8.44% (p=0.000 n=20)
+    Float32-32                     2.254n ± 1%    2.261n ± 1%        ~ (p=0.888 n=20)
+    Float64-32                     2.262n ± 1%    2.280n ± 1%        ~ (p=0.040 n=20)
+    ExpFloat64-32                  3.777n ± 2%    3.891n ± 1%   +3.03% (p=0.000 n=20)
+    NormFloat64-32                 3.606n ± 1%    3.711n ± 1%   +2.91% (p=0.000 n=20)
+    Perm3-32                       33.12n ± 2%    32.60n ± 2%        ~ (p=0.045 n=20)
+    Perm30-32                      176.1n ± 1%    204.2n ± 0%  +15.96% (p=0.000 n=20)
+    Perm30ViaShuffle-32            109.3n ± 1%    121.7n ± 2%  +11.30% (p=0.000 n=20)
+    ShuffleOverhead-32             112.5n ± 1%    106.2n ± 2%   -5.56% (p=0.000 n=20)
+    Concurrent-32                  2.099n ± 0%    2.190n ± 5%   +4.36% (p=0.001 n=20)
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/rand/v2
+    cpu: Apple M1
+                           │ e1bbe739fb.arm64 │           8993506f2f.arm64           │
+                           │      sec/op      │    sec/op     vs base                │
+    SourceUint64-8                2.290n ± 1%    2.271n ± 0%        ~ (p=0.015 n=20)
+    GlobalInt64-8                 2.180n ± 1%    2.161n ± 1%        ~ (p=0.180 n=20)
+    GlobalInt64Parallel-8        0.4294n ± 0%   0.4303n ± 0%   +0.19% (p=0.001 n=20)
+    GlobalUint64-8                2.170n ± 1%    2.164n ± 1%        ~ (p=0.673 n=20)
+    GlobalUint64Parallel-8       0.4283n ± 0%   0.4287n ± 0%        ~ (p=0.128 n=20)
+    Int64-8                       2.481n ± 1%    2.478n ± 1%        ~ (p=0.867 n=20)
+    Uint64-8                      2.464n ± 1%    2.460n ± 1%        ~ (p=0.763 n=20)
+    GlobalIntN1000-8              2.814n ± 0%    2.814n ± 2%        ~ (p=0.969 n=20)
+    IntN1000-8                    2.934n ± 2%    3.003n ± 2%   +2.35% (p=0.000 n=20)
+    Int64N1000-8                  2.957n ± 1%    2.954n ± 0%        ~ (p=0.285 n=20)
+    Int64N1e8-8                   2.935n ± 2%    2.956n ± 0%   +0.73% (p=0.002 n=20)
+    Int64N1e9-8                   2.935n ± 2%    3.325n ± 0%  +13.29% (p=0.000 n=20)
+    Int64N2e9-8                   2.933n ± 4%    2.956n ± 2%        ~ (p=0.163 n=20)
+    Int64N1e18-8                  3.781n ± 1%    3.780n ± 1%        ~ (p=0.805 n=20)
+    Int64N2e18-8                  4.362n ± 0%    4.385n ± 0%        ~ (p=0.077 n=20)
+    Int64N4e18-8                  6.576n ± 1%    6.527n ± 0%        ~ (p=0.024 n=20)
+    Int32N1000-8                  2.942n ± 2%    2.964n ± 1%        ~ (p=0.073 n=20)
+    Int32N1e8-8                   2.941n ± 1%    2.964n ± 1%        ~ (p=0.058 n=20)
+    Int32N1e9-8                   2.938n ± 2%    2.963n ± 2%   +0.87% (p=0.003 n=20)
+    Int32N2e9-8                   2.982n ± 2%    2.961n ± 2%        ~ (p=0.056 n=20)
+    Float32-8                     3.441n ± 0%    3.442n ± 0%        ~ (p=0.030 n=20)
+    Float64-8                     3.441n ± 0%    3.442n ± 0%   +0.03% (p=0.001 n=20)
+    ExpFloat64-8                  4.472n ± 0%    4.472n ± 0%        ~ (p=0.877 n=20)
+    NormFloat64-8                 4.716n ± 0%    4.734n ± 0%   +0.38% (p=0.000 n=20)
+    Perm3-8                       26.66n ± 0%    26.55n ± 0%   -0.39% (p=0.000 n=20)
+    Perm30-8                      143.3n ± 0%    181.9n ± 0%  +26.97% (p=0.000 n=20)
+    Perm30ViaShuffle-8            142.9n ± 0%    143.1n ± 0%        ~ (p=0.669 n=20)
+    ShuffleOverhead-8             121.1n ± 1%    120.6n ± 1%   -0.41% (p=0.004 n=20)
+    Concurrent-8                  2.379n ± 2%    2.357n ± 2%        ~ (p=0.337 n=20)
+    
+    goos: linux
+    goarch: 386
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ e1bbe739fb.386 │            8993506f2f.386            │
+                            │     sec/op     │    sec/op     vs base                │
+    SourceUint64-32              2.087n ± 1%    2.102n ± 2%        ~ (p=0.507 n=20)
+    GlobalInt64-32               3.538n ± 2%    3.542n ± 2%        ~ (p=0.425 n=20)
+    GlobalInt64Parallel-32      0.3207n ± 1%   0.3202n ± 0%        ~ (p=0.963 n=20)
+    GlobalUint64-32              3.543n ± 1%    3.507n ± 1%        ~ (p=0.034 n=20)
+    GlobalUint64Parallel-32     0.3170n ± 0%   0.3170n ± 1%        ~ (p=0.920 n=20)
+    Int64-32                     2.548n ± 1%    2.516n ± 1%        ~ (p=0.139 n=20)
+    Uint64-32                    2.565n ± 2%    2.544n ± 1%        ~ (p=0.394 n=20)
+    GlobalIntN1000-32            6.300n ± 1%    6.237n ± 1%        ~ (p=0.029 n=20)
+    IntN1000-32                  4.750n ± 0%    4.670n ± 2%        ~ (p=0.034 n=20)
+    Int64N1000-32                5.515n ± 2%    5.412n ± 1%   -1.86% (p=0.009 n=20)
+    Int64N1e8-32                 5.527n ± 0%    5.414n ± 2%   -2.05% (p=0.002 n=20)
+    Int64N1e9-32                 5.531n ± 2%    5.473n ± 1%        ~ (p=0.047 n=20)
+    Int64N2e9-32                 5.514n ± 2%    5.487n ± 1%        ~ (p=0.298 n=20)
+    Int64N1e18-32                9.059n ± 1%    8.901n ± 2%        ~ (p=0.037 n=20)
+    Int64N2e18-32                9.594n ± 1%    9.521n ± 1%        ~ (p=0.051 n=20)
+    Int64N4e18-32                12.05n ± 2%    11.92n ± 1%        ~ (p=0.357 n=20)
+    Int32N1000-32                4.840n ± 2%    4.785n ± 1%        ~ (p=0.189 n=20)
+    Int32N1e8-32                 4.832n ± 2%    4.748n ± 1%        ~ (p=0.042 n=20)
+    Int32N1e9-32                 4.815n ± 2%    4.810n ± 1%        ~ (p=0.878 n=20)
+    Int32N2e9-32                 4.813n ± 1%    4.812n ± 1%        ~ (p=0.542 n=20)
+    Float32-32                   10.90n ± 2%    10.48n ± 4%   -3.85% (p=0.007 n=20)
+    Float64-32                   20.32n ± 4%    19.79n ± 3%        ~ (p=0.553 n=20)
+    ExpFloat64-32                12.95n ± 3%    12.91n ± 3%        ~ (p=0.909 n=20)
+    NormFloat64-32               7.570n ± 1%    7.462n ± 1%   -1.44% (p=0.004 n=20)
+    Perm3-32                     37.80n ± 2%    35.98n ± 2%   -4.79% (p=0.000 n=20)
+    Perm30-32                    214.0n ± 1%    241.5n ± 1%  +12.85% (p=0.000 n=20)
+    Perm30ViaShuffle-32          188.7n ± 2%    187.3n ± 2%        ~ (p=0.029 n=20)
+    ShuffleOverhead-32           160.8n ± 1%    160.2n ± 1%        ~ (p=0.180 n=20)
+    Concurrent-32                3.288n ± 0%    3.308n ± 3%        ~ (p=0.037 n=20)
+    
+    For #61716.
+    
+    Change-Id: I342b611456c3569520d3c91c849d29eba325d87e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502504
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/next/6-stdlib/99-minor/go/types/66626.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/rand/v2/example_test.go |  2 +-
+ src/math/rand/v2/rand.go         | 16 +++++-----------
+ src/math/rand/v2/regress_test.go | 28 ++++++++++++++--------------
+ 3 files changed, 20 insertions(+), 26 deletions(-)

@@ -1,39 +1,19 @@
-commit d83baa1aa22d074b44d8b705e1d8dafa30ecceb1
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon May 3 18:11:55 2021 +0000
+commit 02335cf4131f4eb1869f50f906e993676f7f414a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 27 21:05:13 2020 -0700
 
-    cmd/dist,cmd/go: set GOTRACEBACK to "system" for testing
+    runtime: move TestNeedmDeadlock to crash_cgo_test.go
     
-    If we're testing through dist, we're testing the implementation of Go,
-    so we're interested in any package failing with potential runtime
-    issues. In these cases, we'd like to have as much relevant detail as
-    possible, but currently runtime stack frames and goroutines are
-    suppressed due to the default GOTRACEBACK setting.
+    It requires cgo. Also, skip the test on windows and plan9.
     
-    So, try to set GOTRACEBACK to system if it's unset. Check if it's unset
-    first so we don't override the user asking for a lower or higher level.
+    For #42207
     
-    This change was brought up in the context of #45916, since there's an
-    apparent deadlock (or something!) in the runtime that appears when
-    running other code, but it's difficult to see exactly where it's
-    blocked. However, this change is very generally useful.
-    
-    This change also runs scripted tests with GOTRACEBACK=system, upgrading
-    from GOTRACEBACK=all. Often, script tests can trigger failures deep in
-    the runtime in interesting ways because they start many individual Go
-    processes, so being able to identify points of interest in the runtime
-    is quite useful.
-    
-    For #45916.
-    
-    Change-Id: I3d50658d0d0090fb4c9182b87200d266c7f8f915
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316469
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I8522773f93bc3f9826506a41a08b86a083262e31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265778
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go      | 28 ++++++++++++++++++++++++++++
- src/cmd/go/script_test.go |  2 +-
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go  | 13 +++++++++++++
+ src/runtime/crash_unix_test.go |  9 ---------
+ 2 files changed, 13 insertions(+), 9 deletions(-)

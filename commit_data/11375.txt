@@ -1,13 +1,22 @@
-commit 0ae9d812c850d6acb4f133773c024b3f49d3f034
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jan 25 14:13:11 2012 +1100
+commit e3e1804ed2af1163335369300cfc562c35ffa4c9
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Jan 25 13:44:53 2012 +1100
 
-    runtime: move NumCPU declaration into debug.go.
+    archive/tar: fix race in TestNonSeekable
     
-    R=rsc
+    Reimplement the test based on code from adg@golang.org.
+    
+    The previous version has a race since the file is closed via defer
+    rather than in the go routine. This meant that the file could be
+    closed before the go routine has actually received io.EOF. It then
+    receives EBADF and continues to do zero-byte writes to the pipe.
+    
+    This addresses an issue seen on FreeBSD and OpenBSD, where the test
+    passes but exits with a SIGPIPE, resulting in a failure.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5574060
+    https://golang.org/cl/5554083
 
- src/pkg/runtime/debug.go  | 3 +++
- src/pkg/runtime/extern.go | 3 ---
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/archive/tar/reader_test.go | 27 ++++++++-------------------
+ 1 file changed, 8 insertions(+), 19 deletions(-)

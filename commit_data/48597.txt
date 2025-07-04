@@ -1,28 +1,20 @@
-commit 821420d6bbc53d4cd8b3f9a903fccd0c6432eb6f
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Feb 3 08:11:53 2022 -0500
+commit c7b98115815a04d9efa664c163d39f5fea38b32c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 1 23:01:41 2021 -0700
 
-    cmd/link/internal/loadpe: generalize handling of "__imp_*" syms
+    [dev.typeparams] cmd/compile/internal/importer: review of gcimporter.go
     
-    The existing PE file loader has a special case for the symbol
-    "__acrt_iob_func", whose hosting object file contains both an actual
-    definition and also a DLL import symbol "__imp___acrt_iob_func". The
-    normal way of handling __imp_XXX symbols is for the host object loader
-    to rename them to their intended target (e.g. "XXX") however if the
-    target is also defined locally, you get a duplicate definition.
+    This CL removes the // UNREVIEWED disclaimer at the top of the
+    file. This file is essentially a copy of its reviewed version
+    at src/go/internal/gcimporter/gcimporter.go with adjustments to
+    make it work for the compiler and types2. To see the changes
+    made with respect to the original, compare patchset 1 against
+    patchset 2.
     
-    This patch generalizes the def/import symbol detection to apply to all
-    symbols in the object file being loaded (not just a hard-coded set),
-    since it will be needed when reading things like crt2.o.
-    
-    Updates #35006.
-    
-    Change-Id: I0d0607c27bb7d5f3cb415bc95db816aa13746ba2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382837
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0fd635730fb6bdee8cef1b89154f4049a6581751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324132
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/loadpe/ldpe.go | 68 +++++++++++++++++++++++++++---------
- 1 file changed, 51 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/importer/gcimporter.go | 1 -
+ 1 file changed, 1 deletion(-)

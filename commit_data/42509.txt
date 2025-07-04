@@ -1,39 +1,21 @@
-commit f7ba82d68f90e20aa9e6aa973cb6f12321abec71
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Tue Jun 9 23:03:35 2020 +0800
+commit cde230b8b354200678a79b0d5fe8263f34f46d45
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 3 17:03:42 2020 -0500
 
-    cmd/go/internal/web: don't follow an infinite number of redirects
+    cmd/go: remove tests using testdata/flag_test.go
     
-    We replaced http.DefaultClient with securityPreservingHTTPClient,
-    but we still need that too many redirects check. This issue introduced
-    by CL 156838.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    We introduce a special path to test rediret requests in the script test
-    framework. You can specify the number of redirects in the path.
+    Updates #36320
+    Updates #17751
     
-            $GOPROXY/redirect/<count>/...
-    
-    Redirect request sequence details(count=8):
-    
-     request:  $GOPROXY/mod/redirect/8/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/7/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/6/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/5/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/4/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/3/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/2/rsc.io/quote/@v/v1.2.0.mod
-    redirect:  $GOPROXY/mod/redirect/1/rsc.io/quote/@v/v1.2.0.mod
-    the last:  $GOPROXY/mod/rsc.io/quote/@v/v1.2.0.mod
-    
-    Fixes #39482
-    
-    Change-Id: I149a3702b2b616069baeef787b2e4b73afc93b0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237177
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6573185cf14f298c51f76265f18a75e4960ce791
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213220
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/web/http.go                       |  8 ++++++++
- src/cmd/go/proxy_test.go                              | 19 +++++++++++++++++++
- .../go/testdata/script/mod_get_too_many_redirects.txt | 10 ++++++++++
- 3 files changed, 37 insertions(+)
+ src/cmd/go/go_test.go                                    | 16 ----------------
+ .../go/testdata/{flag_test.go => script/test_flag.txt}   |  6 ++++++
+ src/cmd/go/testdata/script/test_minus_n.txt              | 14 ++++++++++++++
+ 3 files changed, 20 insertions(+), 16 deletions(-)

@@ -1,162 +1,31 @@
-commit 92d1afe9890056808ed074e28f0c26380c7e4141
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu Jul 9 11:27:03 2020 +0000
+commit a10fe9f6e750454c9f4fcae7f86bab0c9cca43c7
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Oct 21 14:36:21 2020 -0400
 
-    cmd/compile/ssa: optimize the derivable known branch of If block
+    go/ast: import AST changes supporting typeparams from dev.go2go
     
-    When the control value of a If block is known for a particular inbound edge
-    because its value can be inferred from the control value of its predecessor,
-    then this inbound edge can be redirected to the known successor directly,
-    This CL optimizes this kind of cases to eliminate unnecessary comparision.
+    Minimal changes are made to existing types in go/ast to support type
+    parameters. Namely:
+     + FieldList is overloaded to hold type parameter lists. In this case,
+       the field name becomes the type identifier, and the field type
+       becomes the constraint.
+     + FuncType and TypeSpec gain a TParams FieldList.
+     + CallExpr gains a 'Brackets' flag, signaling that it uses '[]' rather
+       than '()', representing a generic type expression with type
+       parameters.
     
-    For example, the following piece of code comes from runtime.atoi,
-    if !neg && un > uint(maxInt) {
-            return 0, false
-    }
-    if neg && un > uint(maxInt)+1 {
-            return 0, false
-    }
+    Modifications from dev.go2go: the 'UseBrackets' field was removed from
+    ast.File, as this support is no longer necessary.
     
-    Before this optimization, if the first "if" statement does not return, both
-    conditions of the second "if" statement will be checked. But obviously the
-    value of neg is known through the first "if" statement, and there is no need
-    to check neg repeatedly.
-    
-    After this optimization, this redundancy check is eliminated, and the execution
-    logic becomes as follows.
-    if !neg {
-            if un > uint(maxInt) {
-                    return 0, false
-            }
-    } else {
-            if un > uint(maxInt)+1 {
-                    return 0, false
-            }
-    }
-    
-    This CL does not bring significant performance changes, but it makes the code
-    structure look more reasonable.
-    
-    Statistical data from tool compilecmp on Linux/amd64:
-    name                      old time/op       new time/op       delta
-    Template                        380ms ± 4%        385ms ± 3%  +1.16%  (p=0.000 n=50+49)
-    Unicode                         168ms ± 9%        169ms ± 9%    ~     (p=0.421 n=49+46)
-    GoTypes                         1.99s ± 4%        2.02s ± 4%  +1.48%  (p=0.000 n=49+49)
-    Compiler                        188ms ± 8%        188ms ± 9%    ~     (p=0.997 n=49+50)
-    SSA                             11.8s ± 2%        12.0s ± 2%  +1.24%  (p=0.000 n=48+50)
-    Flate                           242ms ± 6%        244ms ± 9%    ~     (p=0.307 n=46+49)
-    GoParser                        361ms ± 3%        366ms ± 4%  +1.23%  (p=0.000 n=48+49)
-    Reflect                         836ms ± 3%        842ms ± 3%  +0.70%  (p=0.004 n=48+48)
-    Tar                             335ms ± 3%        340ms ± 4%  +1.47%  (p=0.000 n=49+46)
-    XML                             432ms ± 4%        437ms ± 4%  +1.11%  (p=0.002 n=49+49)
-    LinkCompiler                    701ms ± 4%        704ms ± 5%    ~     (p=0.278 n=49+50)
-    ExternalLinkCompiler            1.83s ± 3%        1.84s ± 3%  +0.51%  (p=0.034 n=48+49)
-    LinkWithoutDebugCompiler        436ms ± 6%        438ms ± 6%    ~     (p=0.419 n=48+49)
-    [Geo mean]                      612ms             617ms       +0.84%
-    
-    name                      old alloc/op      new alloc/op      delta
-    Template                       38.7MB ± 1%       39.1MB ± 1%  +1.19%  (p=0.000 n=50+50)
-    Unicode                        28.1MB ± 0%       28.1MB ± 0%  +0.20%  (p=0.000 n=49+45)
-    GoTypes                         168MB ± 1%        170MB ± 1%  +1.05%  (p=0.000 n=48+49)
-    Compiler                       23.0MB ± 1%       23.1MB ± 1%  +0.63%  (p=0.000 n=50+50)
-    SSA                            1.54GB ± 1%       1.55GB ± 1%  +0.85%  (p=0.000 n=50+50)
-    Flate                          23.6MB ± 1%       23.9MB ± 1%  +1.36%  (p=0.000 n=43+46)
-    GoParser                       35.0MB ± 1%       35.3MB ± 1%  +0.94%  (p=0.000 n=50+50)
-    Reflect                        84.7MB ± 1%       86.1MB ± 1%  +1.72%  (p=0.000 n=49+49)
-    Tar                            34.5MB ± 1%       34.9MB ± 1%  +1.07%  (p=0.000 n=47+48)
-    XML                            44.2MB ± 3%       44.6MB ± 3%  +0.70%  (p=0.003 n=50+49)
-    LinkCompiler                    128MB ± 0%        128MB ± 0%  +0.01%  (p=0.004 n=49+50)
-    ExternalLinkCompiler            120MB ± 0%        120MB ± 0%  +0.01%  (p=0.000 n=49+50)
-    LinkWithoutDebugCompiler       77.3MB ± 0%       77.3MB ± 0%  +0.02%  (p=0.000 n=50+50)
-    [Geo mean]                     69.1MB            69.6MB       +0.75%
-    
-    file      before    after     Δ       %
-    addr2line 4049276   4051308   +2032   +0.050%
-    api       5248940   5248996   +56     +0.001%
-    asm       4868093   4868037   -56     -0.001%
-    buildid   2627666   2626026   -1640   -0.062%
-    cgo       4614432   4615040   +608    +0.013%
-    compile   23298888  23301267  +2379   +0.010%
-    cover     4591609   4591161   -448    -0.010%
-    dist      3449638   3450254   +616    +0.018%
-    doc       3925667   3926363   +696    +0.018%
-    fix       3322936   3323464   +528    +0.016%
-    link      6628632   6629560   +928    +0.014%
-    nm        3991753   3996497   +4744   +0.119%
-    objdump   4396119   4395615   -504    -0.011%
-    pack      2399719   2399535   -184    -0.008%
-    pprof     13616418  13622866  +6448   +0.047%
-    test2json 2646121   2646081   -40     -0.002%
-    trace     10233087  10226359  -6728   -0.066%
-    vet       7117994   7121066   +3072   +0.043%
-    total     111026988 111039495 +12507  +0.011%
-    
-    On linux arm64:
-    name                      old time/op       new time/op       delta
-    Template                        284ms ± 1%        286ms ± 1%  +0.70%  (p=0.000 n=49+50)
-    Unicode                         125ms ± 3%        125ms ± 2%    ~     (p=0.548 n=50+50)
-    GoTypes                         1.69s ± 1%        1.71s ± 1%  +1.02%  (p=0.000 n=49+49)
-    Compiler                        125ms ± 1%        124ms ± 2%  -0.35%  (p=0.020 n=50+50)
-    SSA                             12.7s ± 1%        12.8s ± 1%  +1.21%  (p=0.000 n=49+49)
-    Flate                           172ms ± 1%        173ms ± 1%  +0.20%  (p=0.047 n=50+50)
-    GoParser                        265ms ± 1%        266ms ± 1%  +0.64%  (p=0.000 n=50+50)
-    Reflect                         651ms ± 1%        650ms ± 1%    ~     (p=0.079 n=48+48)
-    Tar                             246ms ± 1%        246ms ± 1%    ~     (p=0.202 n=50+46)
-    XML                             328ms ± 1%        332ms ± 1%  +1.28%  (p=0.000 n=50+49)
-    LinkCompiler                    600ms ± 1%        599ms ± 1%    ~     (p=0.264 n=50+50)
-    ExternalLinkCompiler            1.88s ± 1%        1.90s ± 0%  +1.36%  (p=0.000 n=50+50)
-    LinkWithoutDebugCompiler        365ms ± 1%        365ms ± 1%    ~     (p=0.602 n=50+46)
-    [Geo mean]                      490ms             492ms       +0.47%
-    
-    name                      old alloc/op      new alloc/op      delta
-    Template                       38.8MB ± 1%       39.1MB ± 1%  +0.92%  (p=0.000 n=44+42)
-    Unicode                        28.4MB ± 0%       28.4MB ± 0%  +0.22%  (p=0.000 n=44+45)
-    GoTypes                         169MB ± 1%        171MB ± 1%  +1.12%  (p=0.000 n=50+50)
-    Compiler                       23.2MB ± 1%       23.3MB ± 1%  +0.56%  (p=0.000 n=42+43)
-    SSA                            1.55GB ± 0%       1.56GB ± 0%  +0.91%  (p=0.000 n=48+49)
-    Flate                          23.7MB ± 2%       24.0MB ± 1%  +1.20%  (p=0.000 n=50+50)
-    GoParser                       35.3MB ± 1%       35.6MB ± 1%  +0.88%  (p=0.000 n=50+50)
-    Reflect                        85.0MB ± 0%       86.5MB ± 0%  +1.70%  (p=0.000 n=49+48)
-    Tar                            34.5MB ± 1%       34.9MB ± 1%  +1.03%  (p=0.000 n=47+50)
-    XML                            43.8MB ± 2%       44.0MB ± 0%  +0.41%  (p=0.002 n=49+38)
-    LinkCompiler                    136MB ± 0%        136MB ± 0%  +0.01%  (p=0.006 n=50+49)
-    ExternalLinkCompiler            127MB ± 0%        127MB ± 0%  +0.02%  (p=0.000 n=49+50)
-    LinkWithoutDebugCompiler       84.1MB ± 0%       84.1MB ± 0%    ~     (p=0.534 n=50+50)
-    [Geo mean]                     70.4MB            70.9MB       +0.69%
-    
-    file      before    after     Δ       %
-    addr2line 4006004   4004556   -1448   -0.036%
-    api       5029716   5028828   -888    -0.018%
-    asm       4936863   4934943   -1920   -0.039%
-    buildid   2594947   2594099   -848    -0.033%
-    cgo       4399702   4399502   -200    -0.005%
-    compile   22233139  22230486  -2653   -0.012%
-    cover     4443681   4443881   +200    +0.005%
-    dist      3365902   3365486   -416    -0.012%
-    doc       3776175   3776151   -24     -0.001%
-    fix       3218624   3218600   -24     -0.001%
-    link      6365001   6361409   -3592   -0.056%
-    nm        3923345   3923065   -280    -0.007%
-    objdump   4295473   4296673   +1200   +0.028%
-    pack      2390561   2389393   -1168   -0.049%
-    pprof     12866419  12865115  -1304   -0.010%
-    test2json 2587113   2585561   -1552   -0.060%
-    trace     9609814   9610846   +1032   +0.011%
-    vet       6790272   6789760   -512    -0.008%
-    total     106832751 106818354 -14397  -0.013%
-    
-    Update: #37608
-    
-    Change-Id: I2831238b12e3af5aef2261f64f804bf0a8b43f86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244737
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
+    Change-Id: I21fd7390f1800dece3c14e6ec015fb2419e9fc52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264181
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/fuse.go               |   8 +-
- .../compile/internal/ssa/fuse_branchredirect.go    | 110 ++++++++++++
- src/cmd/compile/internal/ssa/prove.go              |  26 +--
- test/fuse.go                                       | 190 +++++++++++++++++++++
- 4 files changed, 321 insertions(+), 13 deletions(-)
+ src/go/ast/ast.go          | 43 ++++++++++++++++++++++++++++---------------
+ src/go/ast/example_test.go | 33 +++++++++++++++++----------------
+ src/go/ast/walk.go         | 10 +++++++++-
+ 3 files changed, 54 insertions(+), 32 deletions(-)

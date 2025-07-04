@@ -1,35 +1,32 @@
-commit d310b2a6b8a66eeb5953b1e682cf27669c8a08c2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Apr 22 17:14:10 2021 +0700
+commit 4d1cecdee8360ef12a817c124d7a04c9d29741c3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 14 08:06:54 2020 -0400
 
-    cmd/compile: set correct Defn for inlined vars
+    cmd/dist,cmd/go: broaden use of asm macro GOEXPERIMENT_REGABI
     
-    Currently, when copying definition node of an inlined var, we do not
-    update var Defn field to point to new copied node. That causes all
-    inlined vars point to the same Defn, and ir.StaticValue can not find
-    inlined var in the lhs of its definition.
+    This extends a change made in https://golang.org/cl/252258 to the go
+    command (to define an asm macro when GOEXPERIMENT=regabi is in
+    effect); we need this same macro during the bootstrap build in order
+    to build the runtime correctly.
     
-    clovar creates new ONAME node for local variables or params of closure
-    inside inlined function, by copying most of the old node fields. So the
-    new Node.Defn is not modified, its lhs still refer to old node
-    instead of new one.
+    In addition, expand the set of packages where the macro is applied to
+    {runtime, reflect, syscall, runtime/internal/*}, and move the logic
+    for deciding when something is a "runtime package" out of the
+    assembler and into cmd/{go,dist}, introducing a new assembler command
+    line flag instead.
     
-    To fix this, we need to do two things:
+    Updates #27539, #40724.
     
-     - In subst.clovar, set a dummy Defn node for inlvar
-     - During subst.node, when seeing OAS/OAS2 nodes, after substituting, we
-       check if any node in lhs has the dummy Defn, then set it to the current
-       OAS/OAS2 node.
-    
-    Fixes #45606
-    
-    Change-Id: Ib517b753a7643756dcd61d36deae60f1a0fc53c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312630
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ifcc7f029f56873584de1e543c55b0d3e54ad6c49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262317
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 31 ++++++++++++++++++++++++++++++-
- test/fixedbugs/issue45606.go           | 17 +++++++++++++++++
- 2 files changed, 47 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/flags/flags.go | 19 ++++++++++---------
+ src/cmd/asm/main.go                 |  4 ++--
+ src/cmd/dist/build.go               | 35 +++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/gc.go      | 22 ++++++++++++++--------
+ 4 files changed, 61 insertions(+), 19 deletions(-)

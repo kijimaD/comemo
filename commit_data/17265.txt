@@ -1,17 +1,12 @@
-commit f195ae94caf21af5ed4409a3471de2821a6e0c81
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 15 14:32:10 2013 +0400
+commit 826a73965862c29fa1ce1fd413a3a07701cd139d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 15 10:31:18 2013 +0200
 
-    runtime: remove old preemption checks
-    runtime.gcwaiting checks are not needed anymore
+    doc: update go1.2.txt
     
-    R=golang-dev, khr
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12934043
+    https://golang.org/cl/12960043
 
- src/pkg/runtime/chan.c     | 11 -----------
- src/pkg/runtime/hashmap.c  |  8 --------
- src/pkg/runtime/malloc.goc |  2 --
- src/pkg/runtime/proc.c     | 28 ++++++++++++++--------------
- src/pkg/runtime/runtime.h  |  1 -
- 5 files changed, 14 insertions(+), 36 deletions(-)
+ doc/go1.2.txt | 2 ++
+ 1 file changed, 2 insertions(+)

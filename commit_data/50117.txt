@@ -1,30 +1,18 @@
-commit 83b5fe63514411f425061967fd8c1d506f2ac40f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 19 18:31:56 2022 -0700
+commit 17674e2f174280c38ea7ae8297571c09b6eb076b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 1 12:21:36 2021 -0400
 
-    go/types: match types2 string when printing composite literals
+    cmd/internal/obj, cmd/link: move symbol alignment logic to object file writer
     
-    Given a composite literal type S, rather than always printing
-    (S literal) for a composite literals, print S{} if the literal
-    has no elements, and print S{…} as a short form (suitable for
-    error messages) if there are elements. This matches types2 and
-    also Go1.17 compiler behavior (except that the original compiler
-    would print ... rather than …). Using … rather than ... makes
-    it clearer that we don't have real Go syntax, and it's also more
-    compact.
-    
-    For #54511.
-    
-    Change-Id: I5991e8060232f16ecbf4a1fe4ae091598fc76b68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425006
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I827a9702dfa01b712b88331668434f8db94df249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353569
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/api_test.go                      |  2 +-
- src/go/types/exprstring.go                    |  7 +++++--
- src/go/types/exprstring_test.go               |  2 +-
- src/go/types/testdata/check/decls3.go         | 10 +++++-----
- src/go/types/testdata/check/decls4.go         |  4 ++--
- src/go/types/testdata/check/issues0.go        |  2 +-
- src/go/types/testdata/fixedbugs/issue49579.go |  2 +-
- 7 files changed, 16 insertions(+), 13 deletions(-)
+ src/cmd/internal/obj/objfile.go    | 26 ++++++++++++++++++++------
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/cmd/link/internal/ld/pcln.go   |  1 +
+ src/cmd/link/internal/ld/symtab.go | 23 +++++------------------
+ 4 files changed, 27 insertions(+), 25 deletions(-)

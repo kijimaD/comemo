@@ -1,28 +1,20 @@
-commit c9faf3126e7521aadd45673961f9842abfc84926
-Author: Zhiyuan Zheng <zhzy0077@hotmail.com>
-Date:   Thu Oct 13 03:28:10 2022 +0000
+commit ea6cb02ae54fcf89026a2178720396f1277dd105
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 18 12:09:47 2022 -0400
 
-    net: filter disabled interfaces in Windows DNS client
+    cmd/go: propagate match errors in 'go run'
     
-    The Go DNS resolver on Windows should filter disabled
-    interfaces. Otherwise disabled TUN devices, VPNs will be also
-    considered as valid nameservers and finally timedout.
+    Fixes #51604.
     
-    Fixes #56160
-    
-    (Originally from Zhiyuan Zheng <zhzy0077@hotmail.com>
-     in https://go.dev/cl/442375)
-    
-    Co-authored-by: Zhiyuan Zheng <zhzy0077@hotmail.com>
-    GitHub-Last-Rev: db158625bb46692cbbc09e3fe4dfa023c733f4e6
-    GitHub-Pull-Request: golang/go#56161
-    Change-Id: I7becebc55c8ac612c670c533855f7e6ca397a496
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500375
+    Change-Id: I3bc86652c62d2b329d9c2db5ea443d56cf17f8d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418094
+    Reviewed-by: Nooras Saba‎ <saba@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/net/dnsconfig_windows.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/internal/load/pkg.go                           |  2 +-
+ src/cmd/go/internal/modload/load.go                       |  2 +-
+ src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 11 +++++++++--
+ 3 files changed, 11 insertions(+), 4 deletions(-)

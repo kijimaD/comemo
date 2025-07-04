@@ -1,25 +1,24 @@
-commit a3593685cf4d385bf9edf5306022e001e1eb6586
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu May 31 16:38:18 2018 -0500
+commit be88d117bdf3e463397b45a022ca47fac6959d1c
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Apr 17 07:52:19 2018 +0000
 
-    cmd/compile/internal/ssa: remove useless zero extension
+    cmd/internal/obj/arm64: optimize constant pool for 32-bit constants
     
-    We generate MOVBLZX for byte-sized LoadReg, so
-    (MOVBQZX (LoadReg (Arg))) is the same as
-    (LoadReg (Arg)). Remove those zero extension where possible.
-    Triggers several times during all.bash.
+    Current assembler encodes "ADD $0xaaaaaaaa, Rx" to "MOVD off(PC), Rtmp"
+     + "ADD Rtmp, Rx", and a 64-bit item is stored in the constant pool.
     
-    Fixes #25378
-    Updates #15300
+    This patch optimizes it to "MOVWU off(PC), Rtmp" + "ADD Rtmp, Rx",
+    and a 32-bit item is stored.
     
-    Change-Id: If50656e66f217832a13ee8f49c47997f4fcc093a
-    Reviewed-on: https://go-review.googlesource.com/115617
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    The total size of the executable binary go and the library files in
+    pkg/linux_arm64 decreased about 3KB by this patch.
+    
+    Change-Id: Ieb1592f78ef9ed52f5d3ad232d6cdf87d0923de1
+    Reviewed-on: https://go-review.googlesource.com/107516
+    Reviewed-by: Wei Xiao <Wei.Xiao@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewrite.go      | 48 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 +++++++++++++++
- test/codegen/issue25378.go                   | 22 +++++++++++++
- 4 files changed, 98 insertions(+)
+ src/cmd/internal/obj/arm64/asm7.go | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

@@ -1,15 +1,24 @@
-commit 00c48ad6155a209841dbfb6154f650c622aaa10b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Aug 28 18:13:05 2024 -0400
+commit a3a9b1049e59672e4bd56b597b273ef1b07313a0
+Author: Jabar Asadi <jasadi@d2iq.com>
+Date:   Sun May 28 06:45:23 2023 +0000
 
-    os/exec: document interaction of Dir, PWD, os.Getwd and C
+    os: ReadFile: don't check for re-allocation in the first iteration
     
-    Fixes #68000
+    At the beginning of the for-loop iteration cap(data) > len(data) always.
+    Therefore, in the first iteration, this check becomes unnecessary.
+    we can move this check to after the read operation.
     
-    Change-Id: Ie70a8ecc9573b2a4cf57119bda57e0af5e16c42f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609395
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I205e4a842ced74f31124b45a39b70523b56ad840
+    GitHub-Last-Rev: 2fdf25dff2e9984d3a8f8e5e612ea802c88e88a1
+    GitHub-Pull-Request: golang/go#60473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498915
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/os/exec/exec.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/os/file.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

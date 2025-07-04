@@ -1,13 +1,14 @@
-commit c9b36a87eb1928f9e4fbdfff052b08b56dc1c000
+commit f5ff5b4fcb4098eb16e7b2390cd3553dc3a51373
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 20 07:44:24 2012 +1100
+Date:   Mon Feb 20 07:43:16 2012 +1100
 
-    test/initcomma.go: restore what it's supposed to be testing
-    which is trailing commas in literals. They were gofmted away at some point.
+    test/hashmap.go: delete
+    It's in an odd style and it's unclear what true purpose it serves as
+    a test other than to be another Go program.
     
-    R=golang-dev, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5673103
+    https://golang.org/cl/5674111
 
- test/initcomma.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ test/hashmap.go | 181 --------------------------------------------------------
+ 1 file changed, 181 deletions(-)

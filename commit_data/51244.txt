@@ -1,35 +1,18 @@
-commit 01d12c947c2277a46477597c2148083744ccf284
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 24 12:06:27 2022 -0500
+commit 4dfbb89f585aac690a1c41dbb1604a567bc46f63
+Author: “kinggo” <1510613524@qq.com>
+Date:   Mon Dec 20 05:54:27 2021 +0000
 
-    crypto/aes: rewrite ppc64le asm-cbc routine
+    runtime: typo fix cyle -> cycle
     
-    This loads the keys once per call, not once per block. This
-    has the effect of unrolling the inner loop too. This allows
-    decryption to scale better with available hardware.
-    
-    Noteably, encryption serializes crypto ops, thus no
-    performance improvement is seen, but neither is it reduced.
-    
-    Care is also taken to explicitly clear keys from registers
-    as was done implicitly in the prior version.
-    
-    Also, fix a couple of typos from copying the asm used to
-    load ESPERM.
-    
-    Performance delta on POWER9:
-    
-    name             old time/op    new time/op    delta
-    AESCBCEncrypt1K    1.10µs ± 0%    1.10µs ± 0%   +0.55%
-    AESCBCDecrypt1K     793ns ± 0%     415ns ± 0%  -47.70%
-    
-    Change-Id: I52ca939fefa1d776a390a0869e7f4564058942b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441816
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I213fa8aa9b9c2537a189677394ddd30c62312518
+    GitHub-Last-Rev: ccafdee9440b06232cdfca83099bf0aeff62a4c0
+    GitHub-Pull-Request: golang/go#50268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373336
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Zhuo Meng <mzh@golangcn.org>
 
- src/crypto/aes/asm_ppc64x.s | 277 +++++++++++++++++++++++---------------------
- 1 file changed, 147 insertions(+), 130 deletions(-)
+ src/runtime/mgcmark.go  | 2 +-
+ src/runtime/mgcsweep.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

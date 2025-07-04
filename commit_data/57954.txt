@@ -1,17 +1,29 @@
-commit d7ea9ff50b6c0386c7784b27f66083396fa404af
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 12 21:13:20 2024 +0100
+commit c0e2a9dffdb6af116ec5184a680cb3b4e904d0fa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 21:13:10 2023 -0700
 
-    runtime/pprof: note different between go test -memprofile and WriteHeapProfile
+    cmd/compile/internal/abi: use Type.Registers
     
-    Fixes #65328
+    Now that types can self-report how many registers they need, it's much
+    easier to determine whether a parameter will fit into the available
+    registers: simply compare the number of registers needed against the
+    number of registers still available.
     
-    Change-Id: I11242be93a95e117a6758ac037e143c3b38aa71c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597980
+    This also eliminates the need for the NumParamRegs cache.
+    
+    Also, the new code in NumParamRegs is stricter in only allowing it to
+    be called on types that can actually be passed in registers, which
+    requires a test to be corrected for that. While here, change mkstruct
+    to a variadic function, so the call sites require less boilerplate.
+    
+    Change-Id: Iebe1a0456a8053a10e551e5da796014e5b1b695b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527339
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/pprof/pprof.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/abi/abiutils.go          | 245 +++++-----------------
+ src/cmd/compile/internal/test/abiutils_test.go    |  39 ++--
+ src/cmd/compile/internal/test/abiutilsaux_test.go |   2 +-
+ 3 files changed, 77 insertions(+), 209 deletions(-)

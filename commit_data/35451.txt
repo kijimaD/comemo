@@ -1,20 +1,20 @@
-commit 5c8f65b9ca3a7db5331083acf7808282a01aa74c
-Author: Martin Sucha <anty.sk+git@gmail.com>
-Date:   Sun May 20 21:01:31 2018 +0200
+commit beeab6ac02754a3fc0272425ebcc0df42f60c868
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Dec 7 22:01:42 2017 -0500
 
-    crypto/x509: reformat template members in docs
+    cmd/compile: fix go:uintptrescapes tag for unnamed parameters
     
-    It's easier to skim a list of items visually when the
-    items are each on a separate line. Separate lines also
-    help reduce diff size when items are added/removed.
+    The tag was overwritten by the code for special handling unnamed
+    parameters.
     
-    The list is indented so that it's displayed preformatted
-    in HTML output as godoc doesn't support formatting lists
-    natively yet (see #7873).
+    Fixes #23045.
     
-    Change-Id: Ibf9e92437e4b464ba58ea3ccef579e8df4745d75
-    Reviewed-on: https://go-review.googlesource.com/113915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie2e1db3e902a07a2bbbc2a3424cea300f0a42cc3
+    Reviewed-on: https://go-review.googlesource.com/82775
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/x509/x509.go | 40 ++++++++++++++++++++++++++++++++--------
- 1 file changed, 32 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  7 +++++++
+ test/uintptrescapes2.go            | 20 ++++++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

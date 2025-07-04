@@ -1,26 +1,20 @@
-commit 45f759500ec80a1362deecd3693cbe44a354bf98
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 28 16:19:03 2016 -0800
+commit 01661612e433deadec99229c6075baa4174ac743
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Sep 30 11:27:52 2016 +0200
 
-    cmd/link: handle STT_COMMON symbols
+    cmd/compile: update error messages in Mpint, Mpflt methods
     
-    Tested by running
+    CL 20909 gave Mpint methods nice go-like names, but it
+    didn't update the names in the error strings. Fix them.
     
-    GOTRACEBACK=2 CGO_CFLAGS="-Wa,--elf-stt-common=yes" go test -ldflags=-linkmode=internal
+    Same for a couple of Mpflt methods.
     
-    in misc/cgo/test. That failed before this CL, succeeded after.
-    
-    I don't think it's worth doing that as a regular test, though,
-    especially since only recent versions of the GNU binutils support the
-    --elf-stt-common option.
-    
-    Fixes #18088.
-    
-    Change-Id: I893d86181faee217b1504c054b0ed3f7c8d977d3
-    Reviewed-on: https://go-review.googlesource.com/33653
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9c99653d4b922e32fd5ba18aba768a589a4c7869
+    Reviewed-on: https://go-review.googlesource.com/30091
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/ldelf.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/mpfloat.go |  4 ++--
+ src/cmd/compile/internal/gc/mpint.go   | 22 +++++++++++-----------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

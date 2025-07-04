@@ -1,28 +1,29 @@
-commit 9f33dc3ca1b7b6bdb1a8e83c24d490f579bbbdc8
-Author: David Chase <drchase@google.com>
-Date:   Wed Feb 17 10:38:03 2021 -0500
+commit 4f217d5aaa88536f641910e2b97b24489132ee16
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 13 15:05:09 2020 -0400
 
-    cmd/compile: handle aggregate OpArg in registers
+    [dev.link] cmd/internal/goobj2, cmd/link: use short hash function for short symbols
     
-    Also handles case where OpArg does not escape but has its address
-    taken.
+    For symbols of size 8 bytes or below, we can map them to 64-bit
+    hash values using the identity function. There is no need to use
+    longer and more expensive hash functions.
     
-    May have exposed a lurking bug in 1.16 expandCalls,
-    if e.g., loading len(someArrayOfstructThing[0].secondStringField)
-    from a local.  Maybe.
+    For them, we introduce another pseudo-package, PkgIdxHashed64. It
+    is like PkgIdxHashed except that the hash function is different.
     
-    For #40724.
+    Note that the hash value is not affected with trailing zeros,
+    e.g. "A" and "A\0\0\0" have the same hash value. This allows
+    deduplicating a few more symbols. When deduplicating them, we
+    need to keep the longer one.
     
-    Change-Id: I0298c4ad5d652b5e3d7ed6a62095d59e2d8819c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293396
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iad0c2e9e569b6a59ca6a121fb8c8f0c018c6da03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242362
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |   2 -
- src/cmd/compile/internal/ssa/expand_calls.go | 250 ++++++++++++++++++---------
- src/cmd/compile/internal/ssa/op.go           |  10 ++
- src/cmd/compile/internal/ssa/regalloc.go     |   3 +
- src/cmd/compile/internal/ssa/stackalloc.go   |  15 +-
- src/cmd/compile/internal/ssa/tighten.go      |   2 +-
- src/cmd/compile/internal/ssagen/ssa.go       |  36 +++-
- 7 files changed, 225 insertions(+), 93 deletions(-)
+ src/cmd/internal/goobj/readnew.go      |   8 ++-
+ src/cmd/internal/goobj2/objfile.go     |  46 ++++++++++++---
+ src/cmd/internal/obj/link.go           |   9 +--
+ src/cmd/internal/obj/objfile2.go       |  23 +++++++-
+ src/cmd/internal/obj/sym.go            |  25 +++++---
+ src/cmd/link/internal/loader/loader.go | 102 ++++++++++++++++++++++++---------
+ 6 files changed, 160 insertions(+), 53 deletions(-)

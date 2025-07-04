@@ -1,15 +1,27 @@
-commit 03db2c24136939416903b284a19905d97ceea40d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 26 11:56:52 2021 -0700
+commit 8ce37e4110316030159972e17c67152e8f8e9359
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 10 21:04:41 2020 -0800
 
-    cmd/compile/internal/types2: implement TypeList.String (debugging support)
+    [dev.regabi] cmd/compile: fix noopt builder
     
-    Change-Id: Iaa203def3dac94a7d5ff6120e89315c3d7977ee1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345471
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The non-simple, phi-insertion algorithm can leave OpFwdRefs in the SSA
+    graph unresolved if they're in dead blocks. Normally, these would be
+    harmlessly removed later during SSA dead-code elimination, but those
+    passes are omitted for -N builds. And so they reach zcse, where the
+    Value.Aux is used within a hash map.
+    
+    This became a problem after golang.org/cl/275788, which added
+    FwdRefAux to wrap OpFwdRef's ir.Node, and to ensure that it's not
+    compared for equality / used as a map key.
+    
+    This CL adds a simple fix: if there are any OpFwdRefs remaining after
+    resolveFwdRef, then they must be dead code and we can simply replace
+    them with OpUnknown.
+    
+    Change-Id: I72e4116d52d3f6441ebb0bf6160906617cd59513
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277075
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/instantiate.go |  2 +-
- src/cmd/compile/internal/types2/subst.go       |  6 ------
- src/cmd/compile/internal/types2/typelists.go   | 13 +++++++++++++
- 3 files changed, 14 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/phi.go | 5 +++++
+ 1 file changed, 5 insertions(+)

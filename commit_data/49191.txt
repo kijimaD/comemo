@@ -1,33 +1,22 @@
-commit 364ced625593b7e48a3d4f211634228222ef0ed1
-Author: David Chase <drchase@google.com>
-Date:   Fri May 13 13:16:58 2022 -0400
+commit e00a6ec084605b773cdb87971de5b5536c0cc13e
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Jul 25 18:27:15 2021 -0700
 
-    runtime: tweak js and plan9 to avoid/disable write barrier & gc problems
+    [dev.typeparams] cmd/compile: mark methods of instantiated interface types as used
     
-    runtime code for js contains possible write barriers that fail
-    the nowritebarrierrec check when internal local package naming
-    conventions are changed.  The problem was there all already; this
-    allows the code to compile, and it seems to work anyway in the
-    (single-threaded) js/wasm environment.  The offending operations
-    are noted with TODO, which is an improvement.
+    Fix the cons.go missing method error. Mark all the methods of
+    instantiated interface types as used. We could try to record all the
+    exact methods used for generic interface types, but for now, just mark
+    all the methods as used so that their methods are not dead-code
+    eliminated.
     
-    runtime code for plan9 contained an apparent allocation that was
-    not really an allocation; rewrite to remove the potential allocation
-    to avoid nowritebarrierrec problems.
-    
-    This CL is a prerequisite for a pending code cleanup,
-    https://go-review.googlesource.com/c/go/+/393715
-    
-    Updates #51734.
-    
-    Change-Id: I93f31831ff9b92632137dd7b0055eaa721c81556
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405901
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I35685eda82476244371379b97691a1b8506ef0f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337349
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/lock_js.go  | 8 ++++++++
- src/runtime/os_js.go    | 2 +-
- src/runtime/os_plan9.go | 4 +++-
- 3 files changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 25 +++++++++++++++++++------
+ test/run.go                               |  1 -
+ 2 files changed, 19 insertions(+), 7 deletions(-)

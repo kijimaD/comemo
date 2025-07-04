@@ -1,12 +1,16 @@
-commit 7b0ba1cff86429f0eb39b916fba54e3061fa5787
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Apr 20 09:16:00 2016 +1000
+commit 199cc194acf58008c9d4ea9a106f6302a5503f9c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 03:40:50 2016 -0800
 
-    doc: document go1.6.2
+    cmd/compile: simplify eq and hash function generation
     
-    Change-Id: Ib3063719cf90dfad139dd723b3b16ef0b45e312e
-    Reviewed-on: https://go-review.googlesource.com/22251
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ie4675e6f713c3bbb90556f5347cbd7268a9c1a5d
+    Reviewed-on: https://go-review.googlesource.com/20357
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/alg.go | 186 ++++++++++++++++---------------------
+ 1 file changed, 80 insertions(+), 106 deletions(-)

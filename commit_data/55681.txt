@@ -1,19 +1,60 @@
-commit b899e0b8cc1afc4534758c9ebe1e051e5220bfbd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 23 09:55:31 2024 -0800
+commit 02411bcd7c8eda9c694a5755aff0a516d4983952
+Author: Evan Phoenix <evan@phx.io>
+Date:   Sun Jan 22 15:30:59 2023 -0800
 
-    go/types: generate errors_test.go from types2 source
+    all: implement wasmimport directive
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 50 LOC.
+    Go programs can now use the //go:wasmimport module_name function_name
+    directive to import functions from the WebAssembly runtime.
     
-    Change-Id: I022688d6db58bf58e7844487582725a23ca820be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566515
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For now, the directive is restricted to the runtime and syscall/js
+    packages.
+    
+    * Derived from CL 350737
+    * Original work modified to work with changes to the IR conversion code.
+    * Modification of CL 350737 changes to fully exist in Unified IR path (emp)
+    * Original work modified to work with changes to the ABI configuration code.
+    * Fixes #38248
+    
+    Co-authored-by: Vedant Roy <vroy101@gmail.com>
+    Co-authored-by: Richard Musiol <mail@richard-musiol.de>
+    Co-authored-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: I740719735d91c306ac718a435a78e1ee9686bc16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463018
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/go/types/errors_test.go   | 6 +++---
- src/go/types/generate_test.go | 3 ++-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ misc/wasm/wasm_exec.js                     |   9 +-
+ src/cmd/compile/internal/gc/compile.go     |   4 +
+ src/cmd/compile/internal/ir/func.go        |  10 +++
+ src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/noder/linker.go   |  11 +++
+ src/cmd/compile/internal/noder/noder.go    |  37 +++++++-
+ src/cmd/compile/internal/noder/reader.go   |  12 +++
+ src/cmd/compile/internal/noder/writer.go   |  26 +++++-
+ src/cmd/compile/internal/ssagen/abi.go     |  88 +++++++++++++++++++
+ src/cmd/internal/goobj/objfile.go          |   1 +
+ src/cmd/internal/obj/link.go               |  74 +++++++++++++++-
+ src/cmd/internal/obj/objfile.go            |  17 +++-
+ src/cmd/internal/obj/sym.go                |  12 +--
+ src/cmd/internal/obj/wasm/a.out.go         |   3 +-
+ src/cmd/internal/obj/wasm/anames.go        |   3 +-
+ src/cmd/internal/obj/wasm/wasmobj.go       | 135 +++++++++++++++++++++++++++--
+ src/cmd/link/internal/loader/loader.go     |  23 +++++
+ src/cmd/link/internal/wasm/asm.go          | 118 +++++++++++++++++++++----
+ src/runtime/lock_js.go                     |   8 +-
+ src/runtime/mem_js.go                      |   2 +
+ src/runtime/os_js.go                       |   2 +
+ src/runtime/rt0_js_wasm.s                  |   1 -
+ src/runtime/stubs3.go                      |   1 +
+ src/runtime/sys_wasm.go                    |   1 +
+ src/runtime/sys_wasm.s                     |  32 -------
+ src/runtime/timestub2.go                   |   1 +
+ src/syscall/js/js.go                       |  17 ++++
+ src/syscall/js/js_js.s                     |  68 +--------------
+ src/syscall/js/js_test.go                  |  12 +++
+ 29 files changed, 585 insertions(+), 145 deletions(-)

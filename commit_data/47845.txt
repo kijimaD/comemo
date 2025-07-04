@@ -1,17 +1,43 @@
-commit 9502339561fac403e0dd0b3d51409e97d44ac129
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 15 16:30:15 2021 -0800
+commit f2d5bd1ad306e87804d600d92105dc37279af83f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 31 22:55:06 2021 +0000
 
-    doc/go1.18: mention new debug/elf.R_PPC64_RELATIVE constant
+    runtime: move internal GC statistics from memstats to gcController
     
-    For #47694
+    This change moves certain important but internal-only GC statistics from
+    memstats into gcController. These statistics are mainly used in pacing
+    the GC, so it makes sense to keep them in the pacer's state.
     
-    Change-Id: I9f4838100741d3ba13e9374e70466fa405c6e4d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372634
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    This CL was mostly generated via
+    
+    rf '
+        ex . {
+            memstats.gc_trigger -> gcController.trigger
+            memstats.triggerRatio -> gcController.triggerRatio
+            memstats.heap_marked -> gcController.heapMarked
+            memstats.heap_live -> gcController.heapLive
+            memstats.heap_scan -> gcController.heapScan
+        }
+    '
+    
+    except for a few special cases, like updating names in comments and when
+    these fields are used within gcControllerState methods (at which point
+    they're accessed through the reciever).
+    
+    For #44167.
+    
+    Change-Id: I6bd1602585aeeb80818ded24c07d8e6fec992b93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306598
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.18.html | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/mcache.go   |  26 ++++-----
+ src/runtime/mgc.go      |  34 ++++++------
+ src/runtime/mgcpacer.go | 145 ++++++++++++++++++++++++++++++++++++------------
+ src/runtime/mgcsweep.go |   4 +-
+ src/runtime/mheap.go    |   8 +--
+ src/runtime/mstats.go   |  65 +---------------------
+ src/runtime/trace.go    |   2 +-
+ 7 files changed, 146 insertions(+), 138 deletions(-)

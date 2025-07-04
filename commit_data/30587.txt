@@ -1,23 +1,14 @@
-commit d50f892abca46b794a23f20777c0b2425467d407
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 7 15:36:49 2017 -0500
+commit 91461002f354a5fc8b3898bbb0ade90d2921441e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Nov 14 09:17:15 2016 +0900
 
-    runtime: join selectgo and selectgoImpl
+    os: gofmt -w -s
     
-    Currently selectgo is just a wrapper around selectgoImpl. This keeps
-    the hard-coded frame skip counts for tracing the same between the
-    channel implementation and the select implementation.
-    
-    However, this is fragile and confusing, so pass a skip parameter to
-    send and recv, join selectgo and selectgoImpl into one function, and
-    use decrease all of the skips in selectgo by one.
-    
-    Change-Id: I11b8cbb7d805b55f5dc6ab4875ac7dde79412ff2
-    Reviewed-on: https://go-review.googlesource.com/37860
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I9a42cb55544185ade20b2a4a9de5d39a6cfc6fc6
+    Reviewed-on: https://go-review.googlesource.com/33172
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/chan.go   | 12 ++++++------
- src/runtime/select.go | 14 ++++----------
- 2 files changed, 10 insertions(+), 16 deletions(-)
+ src/os/executable_procfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,45 +1,23 @@
-commit c1105cfd435c84f3454822fdccfe0c8ab7d8f621
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Sun Aug 15 16:01:31 2021 +0800
+commit 5cb84f0604797df436d8fde548d4f797b3a6c245
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 21 19:17:20 2021 -0700
 
-    cmd/internal/obj{,/loong64}: instructions and registers for loong64
+    [dev.typeparams] cmd/compile: make sure types added to the dictionary are instantiated correctly
     
-    Implemented an assembler for LoongArch64(loong64 is short name) -
-    this provides register definitions and instruction encoding as
-    defined in the LoongArch Instruction Set Manual.
+    Make sure the instantiating types are the type parameters of the containing
+    function (or types derived from those).
     
-    LoongArch Instruction Set Manual:
-      https://github.com/loongson/LoongArch-Documentation/releases
+    The one exception is the argument of a OFUNCINST, whose type
+    parameters are those of the declaration site of the function or method
+    being instantiated. We skip those types.
     
-    Contributors to the linux/loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
-    
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I930d2a19246496e3ca36d55539183c0f9f650ad9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342309
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4b3ff22eb8a81a76476930cf8ed2a7dd6489d8b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336352
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/internal/obj/link.go           |    1 +
- src/cmd/internal/obj/loong64/a.out.go  |  414 +++++++
- src/cmd/internal/obj/loong64/anames.go |  130 +++
- src/cmd/internal/obj/loong64/asm.go    | 1960 ++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/loong64/cnames.go |   43 +
- src/cmd/internal/obj/loong64/list.go   |   46 +
- src/cmd/internal/obj/loong64/obj.go    |  701 ++++++++++++
- src/cmd/internal/obj/util.go           |   19 +-
- 8 files changed, 3305 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

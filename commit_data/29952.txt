@@ -1,20 +1,32 @@
-commit e395e3246a2d643587dc53c61402d5413728c0c7
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Jan 14 14:27:40 2017 +0100
+commit c1a1328c5f004c62b8c08faf0d0d2845e0be5d37
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 12 22:58:47 2016 -0400
 
-    net/http: skip TestServerHijackGetsBackgroundByte_big on Plan 9
+    encoding/xml: add wildcard support for collecting all attributes
     
-    CL 35234 added TestServerHijackGetsBackgroundByte_big, which is failing
-    on Plan 9, because CloseWrite is not implemented on Plan 9 yet.
+    - Like ",any" for elements, add ",any,attr" for attributes to allow
+      a mop-up field that gets any otherwise unmapped attributes.
+    - Map attributes to fields of type slice by extending the slice,
+      just like for elements.
+    - Allow storing an attribute into an xml.Attr directly, to provide
+      a way to record the name.
     
-    Updates #17906.
-    Updates #18658.
+    Combined, these three independent features allow
     
-    Change-Id: Icaf3fe3600d586515ecd92aca874104ea81ce6b9
-    Reviewed-on: https://go-review.googlesource.com/35179
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            AllAttrs []Attr `xml:",any,attr"`
+    
+    to collect all attributes not otherwise spoken for in a particular struct.
+    
+    Tests based on CL 16292 by Charles Weill.
+    
+    Fixes #3633.
+    
+    Change-Id: I2d75817f17ca8752d7df188080a407836af92611
+    Reviewed-on: https://go-review.googlesource.com/30946
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/net/http/serve_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/encoding/xml/marshal.go      | 16 ++++++++
+ src/encoding/xml/marshal_test.go | 68 ++++++++++++++++++++++++++++++---
+ src/encoding/xml/read.go         | 81 +++++++++++++++++++++++++++++-----------
+ src/encoding/xml/typeinfo.go     |  2 +-
+ 4 files changed, 140 insertions(+), 27 deletions(-)

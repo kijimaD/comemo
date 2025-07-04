@@ -1,22 +1,39 @@
-commit db1514cbf242fccbb9e17ecae280ec5e829b1ed6
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Apr 29 00:23:16 2019 -0400
+commit cee9dfc39bef7b53ffa4ee584ec7fdec03c95a5a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 10 15:02:38 2018 -0500
 
-    net/http: remove "number:" from Response.Status string
+    cmd/go: fix 'go test' and 'go fmt' with files outside a module
     
-    The behavior of Value.String method on non-string JavaScript types has
-    changed after CL 169757.
+    Use the actual loader result in findModule instead of making
+    assumptions about nesting in the build list.
+    As a side-effect, this produces much clearer error messages for
+    packages that (for one reason or another) failed to load.
     
-    Update the implementation of Transport.RoundTrip method to construct the
-    Response.Status string without relying on result.Get("status").String(),
-    since that now returns strings like "<number: 200>" instead of "200".
+    Adjust the package and module path outside a module to
+    "command-line-arguments". That string already appears in the output of
+    a number of (module-mode and GOPATH-mode) commands for file arguments,
+    and as far as I can tell operation outside a module is currently the
+    only case in which the module path of a package is not actually a
+    prefix of the import path.
     
-    Fixes #31736
+    Fixes #28011
+    Fixes #27099
+    Fixes #28943
+    Updates #27102
+    Updates #28459
+    Updates #27063
     
-    Change-Id: I27b3e6cc95aa65fd1918b1400e88478a154aad12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174218
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: I61d5556df7b1b7d1efdaffa892f0e3e95b612d87
+    Reviewed-on: https://go-review.googlesource.com/c/153459
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/roundtrip_js.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/load/pkg.go               | 17 +++++-----
+ src/cmd/go/internal/modload/build.go          | 36 ++++++++++++--------
+ src/cmd/go/internal/modload/init.go           |  2 +-
+ src/cmd/go/testdata/script/mod_enabled.txt    |  4 +--
+ src/cmd/go/testdata/script/mod_get_svn.txt    |  3 +-
+ src/cmd/go/testdata/script/mod_outside.txt    | 12 ++++---
+ src/cmd/go/testdata/script/mod_test_files.txt | 49 +++++++++++++++++++++++++++
+ 7 files changed, 91 insertions(+), 32 deletions(-)

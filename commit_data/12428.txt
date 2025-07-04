@@ -1,12 +1,17 @@
-commit 2184137cf3569bd665f256d03aeee659244e2552
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 7 07:54:56 2012 +1100
+commit 73b8ccb0b0cd298da681df17ce1af7ac89c41798
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 7 07:40:21 2012 +1100
 
-    path/filepath/path_test.go: repair and enable TestAbs
+    doc: add "The go command" article based on Russ' mail
     
-    R=golang-dev, rsc
+    This is a philosophical document. We can soup it up at a later stage,
+    but for now it's nice to have a URL to point to that isn't a mailing
+    list post.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5759051
+    https://golang.org/cl/5676061
 
- src/pkg/path/filepath/path_test.go | 66 +++++++++++++++++++++++++++-----------
- 1 file changed, 47 insertions(+), 19 deletions(-)
+ doc/articles/go_command.html | 265 +++++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                |   1 +
+ 2 files changed, 266 insertions(+)

@@ -1,14 +1,15 @@
-commit d1e726c58325e9c9f40162a436decab40d77656a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 5 10:34:22 2012 +1100
+commit 4d355836610a2c675f02cfcf75771504a4b69586
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 5 07:42:07 2012 +0900
 
-    doc: change menu, tweak front page
+    net: move MAC address parser into distinct file
     
-    R=golang-dev, kyle, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5729052
+    https://golang.org/cl/5727054
 
- doc/root.html        | 44 ++++++++++++++++++++++----------------------
- doc/style.css        | 14 +++++++-------
- lib/godoc/godoc.html |  9 +++++----
- 3 files changed, 34 insertions(+), 33 deletions(-)
+ src/pkg/net/interface.go      | 77 +--------------------------------------
+ src/pkg/net/interface_test.go | 45 -----------------------
+ src/pkg/net/mac.go            | 84 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/mac_test.go       | 54 ++++++++++++++++++++++++++++
+ 4 files changed, 139 insertions(+), 121 deletions(-)

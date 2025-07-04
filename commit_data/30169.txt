@@ -1,14 +1,31 @@
-commit 5630d39f0c726037e28b16b6d80bba64b848067a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Feb 9 12:28:51 2017 +0900
+commit 1e6b12a201e5fa7009510bb036367dfb0f5a6320
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Wed Oct 26 18:35:12 2016 -0400
 
-    database/sql: fix nits in test
+    math/big: uses SIMD for some math big functions on s390x
     
-    Change-Id: I451b33d8da8d97917f2b257e6a25392c6e6582db
-    Reviewed-on: https://go-review.googlesource.com/36671
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The following benchmarks are improved by the amounts shown
+    (Others unaffected beyond the level of noise.)
+    Also adds a test to confirm non-SIMD implementation still correct,
+    even when run on SIMD-capable machine
+    
+    Benchmark                   old            new
+    BenchmarkAddVV/100-18    66148.08 MB/s 117546.19 MB/s 1.8x
+    BenchmarkAddVV/1000-18   70168.27 MB/s 133478.96 MB/s 1.9x
+    BenchmarkAddVV/10000-18  67489.80 MB/s 100010.79 MB/s 1.5x
+    BenchmarkAddVV/100000-18 54329.99 MB/s  69232.45 MB/s 1.3x
+    BenchmarkAddVW/100-18     9929.10 MB/s  14841.31 MB/s 1.5x
+    BenchmarkAddVW/1000-18   10583.31 MB/s  18674.44 MB/s 1.76x
+    BenchmarkAddVW/10000-18  10521.15 MB/s  17484.10 MB/s 1.66x
+    BenchmarkAddVW/100000-18 10616.56 MB/s  18084.27 MB/s 1.7x
+    
+    Change-Id: Ic9234c41a43f6c5e9d0e9377de8b4deeefc428a7
+    Reviewed-on: https://go-review.googlesource.com/32211
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql_test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/math/big/arith_decl_s390x.go |   23 +
+ src/math/big/arith_s390x.s       | 1222 +++++++++++++++++++++++++++++---------
+ src/math/big/arith_s390x_test.go |   44 ++
+ 3 files changed, 1019 insertions(+), 270 deletions(-)

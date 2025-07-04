@@ -1,15 +1,12 @@
-commit c2a53b1b82161aaff2f2e09a46cbee8eccea8cd8
-Author: tengufromsky <nick27surgut@gmail.com>
-Date:   Thu Apr 19 21:56:45 2018 +0300
+commit 66ba18bf2119bde33ce8cf8907cedd470566cce8
+Author: Paul Boyd <boyd.paul2@gmail.com>
+Date:   Fri Dec 8 12:48:26 2017 -0500
 
-    encoding/json: remove unnecessary if conditions
+    fix a typo in the runtime.MemStats documentation
     
-    Fixes gosimple warning "if err != nil { return err };
-    return nil' can be simplified to 'return err"
-    
-    Change-Id: Ife7f78a3a76ab7802b5561d1afec536e103b504a
-    Reviewed-on: https://go-review.googlesource.com/108275
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If553950446158cee486006ba85c3663b986008a6
+    Reviewed-on: https://go-review.googlesource.com/82936
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/decode.go | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ src/runtime/mstats.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

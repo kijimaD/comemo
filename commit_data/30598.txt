@@ -1,22 +1,41 @@
-commit 228438e0973b688829fdd601e31352920a5914f4
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Mar 8 21:56:57 2017 +0100
+commit 272032d0b245635ca0c5ca4c22e64496174b2ae3
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:01 2016 +0200
 
-    os/user: fake Current on Android
+    runtime: add support files for linux/mips{,le} port
     
-    On Android devices where the stub fallback for Current fails to
-    extract a User from the environment, return a dummy fallback instead
-    of failing.
+    Only exe buildmode without cgo supported.
     
-    While we're here, use / instead of /home/nacl for the NaCL fallback.
-    
-    Hopefully fixes the Android builder.
-    
-    Change-Id: Ia29304fbc224ee5f9c0f4e706d1756f765a7eae5
-    Reviewed-on: https://go-review.googlesource.com/37960
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id104a79a99d3285c04db00fd98b8affa94ea3c37
+    Reviewed-on: https://go-review.googlesource.com/31487
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/user/lookup_stubs.go | 16 ++++++++++++++--
- src/os/user/user_test.go    |  3 ---
- 2 files changed, 14 insertions(+), 5 deletions(-)
+ src/runtime/asm_mipsx.s             | 794 ++++++++++++++++++++++++++++++++++++
+ src/runtime/atomic_mipsx.s          |  11 +
+ src/runtime/cputicks.go             |   2 +
+ src/runtime/defs_linux_mipsx.go     | 188 +++++++++
+ src/runtime/gcinfo_test.go          |   2 +-
+ src/runtime/hash32.go               |   2 +-
+ src/runtime/lfstack_32bit.go        |   2 +-
+ src/runtime/malloc.go               |   3 +-
+ src/runtime/memclr_mipsx.s          |  71 ++++
+ src/runtime/memmove_mipsx.s         | 258 ++++++++++++
+ src/runtime/os_linux_generic.go     |   2 +
+ src/runtime/os_linux_mips64x.go     |   2 +-
+ src/runtime/os_linux_mipsx.go       |  62 +++
+ src/runtime/os_linux_noauxv.go      |   2 +-
+ src/runtime/rt0_linux_mipsx.s       |  27 ++
+ src/runtime/signal_linux_mipsx.go   |  65 +++
+ src/runtime/signal_mipsx.go         |  91 +++++
+ src/runtime/sigtab_linux_generic.go |   2 +
+ src/runtime/sigtab_linux_mips64x.go |  81 ----
+ src/runtime/sigtab_linux_mipsx.go   | 145 +++++++
+ src/runtime/stubs32.go              |   2 +-
+ src/runtime/sys_linux_mipsx.s       | 467 +++++++++++++++++++++
+ src/runtime/sys_mipsx.go            |  20 +
+ src/runtime/tls_mipsx.s             |  21 +
+ src/runtime/unaligned2.go           |   2 +-
+ src/runtime/vlrt.go                 |   7 +-
+ 26 files changed, 2241 insertions(+), 90 deletions(-)

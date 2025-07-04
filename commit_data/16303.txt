@@ -1,22 +1,13 @@
-commit fae362e97e852cf04c6c089e61e92c1ad559b29b
-Author: Alexey Borzenkov <snaury@gmail.com>
-Date:   Wed May 15 13:24:54 2013 +1000
+commit c691ae6764a862567e9157791f1ed84914ee0e57
+Author: Jonathan Hseu <jhseu@google.com>
+Date:   Tue May 14 17:14:59 2013 -0700
 
-    os/user: faster user lookup on Windows
+    testing/quick: fix for aliased types, delete duplicate uint8 test, and fix randFloat64() to give random numbers from (-math.MaxFloat64, math.MaxFloat64).
     
-    Trying to lookup user's display name with directory services can
-    take several seconds when user's computer is not in a domain.
-    As a workaround, check if computer is joined in a domain first,
-    and don't use directory services if it is not.
-    Additionally, don't leak tokens in user.Current().
-    Fixes #5298.
-    
-    R=golang-dev, bradfitz, alex.brainman, lucio.dere
-    CC=golang-dev
-    https://golang.org/cl/8541047
+    R=r, agl
+    CC=agl, bradfitz, golang-dev
+    https://golang.org/cl/9296046
 
- src/pkg/os/user/lookup_windows.go         | 77 +++++++++++++++++++++----------
- src/pkg/syscall/security_windows.go       |  9 ++++
- src/pkg/syscall/zsyscall_windows_386.go   |  9 ++++
- src/pkg/syscall/zsyscall_windows_amd64.go |  9 ++++
- 4 files changed, 79 insertions(+), 25 deletions(-)
+ src/pkg/testing/quick/quick.go      |  66 +++++++++++-----------
+ src/pkg/testing/quick/quick_test.go | 107 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 137 insertions(+), 36 deletions(-)

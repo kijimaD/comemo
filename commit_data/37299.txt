@@ -1,17 +1,22 @@
-commit 5d6e8f3142ae9cd118b887e02576943ce5544ed7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 2 16:38:11 2018 -0700
+commit b9a764ffdfa0fd41be6b0cfcd889f2349b14e2b5
+Author: Frank Schroeder <frank.schroeder@gmail.com>
+Date:   Sat Jul 14 21:58:07 2018 +0000
 
-    cmd/go: add goversion environment variable to testing script language
+    cmd/go: run git log with --no-show-signature
     
-    Updates #28221
+    Git timestamp parsing is broken when fetching modules if the
+    local git configuration has 'log.showsignature=true'.
     
-    Change-Id: I8a1e352cd9122bce200d45c6b19955cb50308d71
-    Reviewed-on: https://go-review.googlesource.com/c/147280
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #26388
+    
+    Change-Id: I47f92381784072335a2a465de56092106c616108
+    GitHub-Last-Rev: 96f988c0a2dd39a5747ec4a7bad05e7e8ee0d384
+    GitHub-Pull-Request: golang/go#26389
+    Reviewed-on: https://go-review.googlesource.com/123958
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/script_test.go         | 12 ++++++++++++
- src/cmd/go/testdata/script/README |  1 +
- 2 files changed, 13 insertions(+)
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

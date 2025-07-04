@@ -1,20 +1,31 @@
-commit 1a51b59c119034dfbcd98063bf775d92e6f76db4
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Sep 27 02:01:46 2023 +0000
+commit a3559f3301b54468c14d4997af0d617db60f4915
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 28 10:54:37 2022 -0400
 
-    internal/zstd: allow empty compressed blocks
+    net: use libc (not cgo) for DNS on macOS
     
-    For #62513
+    Change the macOS implementation to use libc calls.
+    Using libc calls directly is what we do for all the runtime and os syscalls.
+    Doing so here as well improves consistency and also makes it possible
+    to cross-compile (from non-Mac systems) macOS binaries that use the
+    native name resolver.
     
-    Change-Id: I295e72f71165665b8ea999e68a5586fa785b546d
-    GitHub-Last-Rev: 902e952d88dba505f87393fd3c97c433ae291709
-    GitHub-Pull-Request: golang/go#63252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531217
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #12524.
+    
+    Change-Id: I011f4fcc5c50fbb5396e494889765dcbb9342336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446178
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/zstd/block.go     | 9 +++------
- src/internal/zstd/zstd_test.go | 5 +++++
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/internal/syscall/unix/asm_darwin.s         |  12 +++
+ src/internal/syscall/unix/getentropy_darwin.go |   4 -
+ src/internal/syscall/unix/net_darwin.go        | 116 +++++++++++++++++++++++++
+ src/net/cgo_resnew.go                          |   2 +-
+ src/net/cgo_sockold.go                         |   2 +-
+ src/net/cgo_unix.go                            | 116 +++++++++++--------------
+ src/net/cgo_unix_cgo.go                        |  71 +++++++++++++++
+ src/net/cgo_unix_syscall.go                    |  85 ++++++++++++++++++
+ src/runtime/sys_darwin.go                      |  13 ++-
+ src/runtime/sys_darwin_amd64.s                 |  59 +++++++++++++
+ src/runtime/sys_darwin_arm64.s                 |  57 ++++++++++++
+ 11 files changed, 467 insertions(+), 70 deletions(-)

@@ -1,12 +1,27 @@
-commit f6615f1b5d7e2e3e621c32fa9f99521f1c3a5f2b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 9 13:19:23 2011 -0800
+commit ddc5ec642da599da5b942a174407bcd5ae32c673
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 10 08:09:54 2011 +1100
 
-    FAQ: rearrange and expand the discussion of testing
+    html: don't emit text token for empty raw text elements.
     
-    R=gri, r, bradfitz, rsc
+    Pass tests1.dat, test 99:
+    <script></script></div><title></title><p><p>
+    
+    | <html>
+    |   <head>
+    |     <script>
+    |     <title>
+    |   <body>
+    |     <p>
+    |     <p>
+    
+    Also pass tests through test 105:
+    <ul><li><ul></li><li>a</li></ul></li></ul>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5369052
+    https://golang.org/cl/5373043
 
- doc/go_faq.html | 59 ++++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 39 insertions(+), 20 deletions(-)
+ src/pkg/html/parse_test.go | 3 ++-
+ src/pkg/html/token.go      | 6 ++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

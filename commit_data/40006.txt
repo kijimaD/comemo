@@ -1,14 +1,21 @@
-commit 5477623031a3f2d1384a74d0cf6b47eb9f8275ff
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jun 29 13:32:54 2017 -0400
+commit eddb41eb2cb7699f3515a229ff069ca914c7c879
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 23:12:52 2019 +0200
 
-    log: mention names of flag constants in {Set,}Flags doc comments
+    runtime: correct the TLS base offset on Android
     
-    Change-Id: I1217f07530dc7586fd7b933bc6a65bad163782db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/47232
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    CL 170955 set tlsg to the Android Q free TLS slot offset in the linker
+    data (16 on amd64, 8 on 386), offsetting all TLS relative access.
+    We need the 0'th slot (TLS_SLOT_SELF) at initialization, so
+    compensate with a corresponding negative offset.
+    
+    Fixes the android/386 and android/amd64 builders broken by CL 170955.
+    
+    Change-Id: I9882088c0c8bc6a777d2aabc9404cb76f02b6cea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170956
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/log/log.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/asm_386.s   | 6 ++++--
+ src/runtime/asm_amd64.s | 4 +++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

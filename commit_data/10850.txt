@@ -1,18 +1,12 @@
-commit cfd17a1b57adb6f1602f6a635af7f50be688ed10
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 16 17:58:53 2011 -0500
+commit 32734f46641fff28ec6de34e759c650438fc76a1
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Dec 16 14:24:37 2011 -0800
 
-    runtime: fix build
+    websocket: fix a trivial example server
     
-    I am looking forward to not supporting two build
-    systems simultaneously.  Make complains about
-    a circular dependency still, but I don't understand it
-    and it's probably not worth the time to figure out.
-    
-    TBR=r
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5496058
+    https://golang.org/cl/5491063
 
- src/pkg/runtime/Makefile      |  6 ++++--
- src/pkg/runtime/Makefile.auto | 26 +++++++++++++++++++++++++-
- 2 files changed, 29 insertions(+), 3 deletions(-)
+ src/pkg/websocket/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

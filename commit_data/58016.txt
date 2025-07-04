@@ -1,18 +1,39 @@
-commit 90b1dc0192b62e4007031cf8b472023da08f7ca7
-Author: khr@golang.org <khr@golang.org>
-Date:   Sun Nov 17 13:24:43 2024 -0800
+commit cc904eb0e87a00430bec8d1918f649638553e5de
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 18 13:55:42 2023 -0400
 
-    internal/runtime/maps: fix noswiss builder
+    net/http: fix bugs in comparePaths and combineRelationships
     
-    Missed initializing a field in the stub that lets the noswiss
-    builder test the swiss implementation.
+    combineRelationships was wrong on one case: if one part of a pattern
+    overlaps and the other is disjoint, the result is disjoint, not overlaps.
+    For example:
     
-    Change-Id: Ie093478ad3e4301e4fe88ba65c132a9dbccd89a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628895
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+        /a/{x}/c
+        /{x}/b/d
+    
+    Here the prefix consisting of the first two segments overlaps, but the
+    third segments are disjoint. The patterns as a whole are disjoint.
+    
+    comparePaths was wrong in a couple of ways:
+    
+    First, the loop shouldn't exit early when it sees an overlap,
+    for the reason above: later information may change that.
+    
+    Once the loop was allowed to continue, we had to handle the "overlaps"
+    case at the end. The insight there, which generalized the existing
+    code, is that if the shorter path ends in a multi, that multi matches
+    the remainder of the longer path and more. (It must be "and more": the
+    longer path has at least two segments, so it couldn't match one
+    segment while the shorter path's multi can.) That means we can treat
+    the result as the combination moreGeneral and the relationship of the
+    common prefix.
+    
+    Change-Id: I11dab2c020d820730fb38296d9d6b072bd2a5350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529119
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/runtime/maps/export_noswiss_test.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/net/http/pattern.go      | 33 ++++++++++++++++++++++++---------
+ src/net/http/pattern_test.go |  3 +++
+ 2 files changed, 27 insertions(+), 9 deletions(-)

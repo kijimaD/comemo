@@ -1,32 +1,30 @@
-commit a3f99dc4e9499c88a784e94ada3c2bd419438c51
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 30 20:28:19 2015 +0000
+commit 59a6ba56347cb83c7e84e8d1eb9fbcd98ec99b59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 23 10:05:44 2015 -0700
 
-    mime: don't accept single-quoted strings in media type parameter values
+    math/big: factored out an internal accessor method (cleanup), added benchmark
     
-    Fix an old bug where media type parameter values could be escaped by
-    either double quotes (per the spec) or single quotes (due to my bug).
+    Current result of DecimalConversion benchmark (for future reference):
     
-    The original bug was introduced by me in git rev 90e4ece3
-    (https://golang.org/cl/4430049) in April 2011 when adding more tests
-    from http://greenbytes.de/tech/tc2231/ and misinterpreting the
-    expected value of test "attwithfntokensq" and not apparently thinking
-    about it enough.
+    BenchmarkDecimalConversion-8       10000            204770 ns/op
     
-    No known spec or existing software produces or expects single quotes
-    around values. In fact, it would have be a parsing ambiguity if it
-    were allowed: the string `a=', b='` could parse as two keys "a" and
-    "b" both with value "'", or it could be parse as a single key "a" with
-    value "', b=".
+    Measured on Mac Mini (late 2012) running OS X 10.10.5,
+    2.3 GHz Intel Core i7, 8 GB 1333 MHz DDR3.
     
-    Fixes #11291
+    Also: Removed comment suggesting to implement decimal by representing
+    digits as numbers 0..9 rather than ASCII chars '0'..'9' to avoid
+    repeated +/-'0' operations. Tried and it appears (per above benchmark)
+    that the +/-'0' operations are neglibile but the addition conversion
+    passes around it are not and that it makes things significantly slower.
     
-    Change-Id: I6de58009dd47dcabb120b017245d237cb7b1e89a
-    Reviewed-on: https://go-review.googlesource.com/17136
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6ee033b1172043248093cc5d02abff5fc54c2e7a
+    Reviewed-on: https://go-review.googlesource.com/14857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/mime/mediatype.go      | 13 ++++++-------
- src/mime/mediatype_test.go |  3 ++-
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/math/big/decimal.go      | 14 ++++++++------
+ src/math/big/decimal_test.go | 10 ++++++++++
+ src/math/big/ftoa.go         | 16 +++-------------
+ 3 files changed, 21 insertions(+), 19 deletions(-)

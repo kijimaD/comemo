@@ -1,13 +1,15 @@
-commit 90b76c0f3e3356e17c03baae3e20a4a11c2a6f10
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Nov 2 09:42:25 2011 +1100
+commit f753e3facda2a9845caf7e8aed0e8a122d6b6e48
+Author: Mike Solomon <msolo@gmail.com>
+Date:   Tue Nov 1 10:31:29 2011 -0700
 
-    html: refactor the blacklist for the "render and re-parse" test.
+    textproto: prevent long lines in HTTP headers from causing HTTP 400 responses.
     
-    R=andybalholm
-    CC=golang-dev, mikesamuel
-    https://golang.org/cl/5331056
+    This fixes the issue without an extra copy in the average case.
+    
+    R=golang-dev, ality, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5272049
 
- src/pkg/html/parse_test.go | 20 ++++++++++++++------
- src/pkg/html/render.go     | 31 +++++++++++++++++++++----------
- 2 files changed, 35 insertions(+), 16 deletions(-)
+ src/pkg/net/textproto/reader.go      | 18 ++++++++++++++++--
+ src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

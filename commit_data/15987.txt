@@ -1,12 +1,21 @@
-commit cb79b2cf22ecd84b51ee46ddc922b9214fccc3c0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 28 13:13:55 2013 -0700
+commit 42a840860f60b3e66c7bcd755795d193935a05cc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 13:07:14 2013 -0700
 
-    go/doc: fix typo in comment
+    net/http: remove two more server allocations per-request
     
-    R=golang-dev, bradfitz
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAliveLite        11031        10689   -3.10%
+    
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAliveLite           23           21   -8.70%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAliveLite         1668         1626   -2.52%
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/8113043
+    https://golang.org/cl/8110044
 
- src/pkg/go/doc/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/server.go | 44 ++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 40 insertions(+), 4 deletions(-)

@@ -1,15 +1,29 @@
-commit dc9ad5861d2ba0b57fea0998f2a85985096a5728
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Nov 4 10:41:05 2015 -0500
+commit 3526cf586be92cb4c741aed54ccfd37cf00ddfc5
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 24 23:52:03 2015 -0700
 
-    cmd/vet: use testenv
+    [dev.ssa] cmd/compile: implement OSLICESTR
     
-    Fix for iOS builder.
+    Add a new function and generic operation to handle
+    bounds checking for slices. Unlike the index
+    bounds checking the index can be equal to the upper
+    bound.
     
-    Change-Id: I5b6c977b187446c848182a9294d5bed6b5f9f6e4
-    Reviewed-on: https://go-review.googlesource.com/16633
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Do gc-friendly slicing that generates proper code for
+    0-length result slices.
+    
+    This is a takeover of Alexandru's original change,
+    (https://go-review.googlesource.com/#/c/12764/)
+    submittable now that the decompose phase is in.
+    
+    Change-Id: I17d164cf42ed7839f84ca949c6ad3289269c9160
+    Reviewed-on: https://go-review.googlesource.com/13903
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/vet/vet_test.go | 19 ++++++-------------
- 1 file changed, 6 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 86 +++++++++++++++++++-
+ src/cmd/compile/internal/gc/testdata/string_ssa.go | 92 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  2 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |  7 +-
+ src/cmd/compile/internal/ssa/opGen.go              | 12 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 39 +++++++++
+ 6 files changed, 234 insertions(+), 4 deletions(-)

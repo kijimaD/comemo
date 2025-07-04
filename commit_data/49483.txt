@@ -1,19 +1,24 @@
-commit ecc268aa26b81cb53f2f6f62ea9d074a610771fe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 15 15:42:47 2022 -0700
+commit f1d8ea1da3ef814ea57b545fc967865640a868ab
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Aug 20 07:01:50 2021 -0500
 
-    test: add test that gofrontend fails
+    reflect: fix memmove for big endian cases with new ABI
     
-    For #52870
+    Some memmoves in reflect/value.go for copying arguments
+    related to the new ABI were using the address of the target
+    or source instead of using IntArgRegAddr or FloatArgRegAddr
+    to adjust the address for big endian.
     
-    Change-Id: Ic0791af4283c9e426f7cbfab0514517ff84cfa80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412535
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This was found when testing patches for ppc64 and fixes the
+    failures that were found.
+    
+    Change-Id: I119aa090a2a8eb859020ff1a1736107a6d0b76f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343869
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- test/fixedbugs/issue52870.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/reflect/value.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

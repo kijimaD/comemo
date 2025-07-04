@@ -1,26 +1,19 @@
-commit a6a0ed3c4760fb6c59c55c1a01ddba8a558e04eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 14:31:48 2019 -0400
+commit e1d20ce25acfd8a1c5933453f34db5f589585eaa
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jan 9 21:01:41 2019 -0500
 
-    misc/cgo: disable testcarchive, testplugin during -short test (including all.bash)
+    misc/sortac: delete sortac command
     
-    These tests take 20 seconds each to rebuild the entire world
-    in their respective modes. That's too much for short mode,
-    including all.bash on developer machines.
+    The sortac command is no longer needed as of CL 157238, and
+    can be deleted. Its functionality has been directly integrated
+    into the new x/build/cmd/updatecontrib command. A previous version
+    of updatecontrib was the only user of sortac.
     
-    Keep doing it on builders and if someone runs 'go test' by hand
-    in that directory.
+    Updates #12042
     
-    For #26473.
-    
-    Change-Id: I3dc6955bc3aa7a20fd170efcde72a7d19b37bdbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177417
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If7442ebee11d05d095ff875a37eed3973c0fd9ca
+    Reviewed-on: https://go-review.googlesource.com/c/157257
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 6 ++++++
- misc/cgo/testcshared/cshared_test.go   | 6 ++++++
- misc/cgo/testplugin/plugin_test.go     | 6 ++++++
- src/cmd/dist/test.go                   | 2 +-
- 4 files changed, 19 insertions(+), 1 deletion(-)
+ misc/sortac/sortac.go | 79 ---------------------------------------------------
+ 1 file changed, 79 deletions(-)

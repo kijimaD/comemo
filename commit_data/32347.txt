@@ -1,26 +1,27 @@
-commit 59413d34c92cf5ce9b0e70e7105ed73a24849b3e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 17 15:51:35 2017 +0100
+commit 8aa31d5dae9644b3e8f6950af58c0cb83e8fc062
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue Apr 18 13:12:58 2017 +0300
 
-    all: unindent some big chunks of code
+    sync: align poolLocal to CPU cache line size
     
-    Found with mvdan.cc/unindent. Prioritized the ones with the biggest wins
-    for now.
+    Make poolLocal size multiple of 128, so it aligns to CPU cache line
+    on the most common architectures.
     
-    Change-Id: I2b032e45cdd559fc9ed5b1ee4c4de42c4c92e07b
-    Reviewed-on: https://go-review.googlesource.com/56470
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    This also has the following benefits:
+    
+    - It may help compiler substituting integer multiplication
+      by bit shift inside indexLocal.
+    - It shrinks poolLocal size from 176 bytes to 128 bytes on amd64,
+      so now it fits two cache lines (or a single cache line on certain
+      Intel CPUs - see https://software.intel.com/en-us/articles/optimizing-application-performance-on-intel-coret-microarchitecture-using-hardware-implemented-prefetchers).
+    
+    No measurable performance changes on linux/amd64 and linux/386.
+    
+    Change-Id: I11df0f064718a662e77a85d88b8a15a8919f25e9
+    Reviewed-on: https://go-review.googlesource.com/40918
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go              | 55 +++++++++++++-------------
- src/debug/dwarf/type.go         | 75 ++++++++++++++++++------------------
- src/go/build/build.go           | 35 ++++++++---------
- src/go/types/call.go            | 67 ++++++++++++++++----------------
- src/math/expm1.go               | 50 ++++++++++++------------
- src/runtime/mheap.go            | 51 +++++++++++++------------
- src/runtime/os_linux.go         | 71 +++++++++++++++++-----------------
- src/runtime/panic.go            | 57 +++++++++++++--------------
- src/runtime/stack.go            | 43 +++++++++++----------
- src/text/tabwriter/tabwriter.go | 85 +++++++++++++++++++++--------------------
- 10 files changed, 298 insertions(+), 291 deletions(-)
+ src/sync/pool.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,14 +1,16 @@
-commit 4c137b61629412f37ab2940c21dd9e396baaf98d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 15 13:09:57 2011 -0700
+commit 4787e70b7b112b067f2aede5d4c45f1928493292
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 12:53:32 2011 -0700
 
-    5g: correct size of reg array.
+    http: handler timeout support
     
-    Found by gcc 4.5.2 -Werror build reported on IRC by niemeyer.
+    Fixes #213
     
-    R=ken2, rsc, r2
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4438042
+    https://golang.org/cl/4432043
 
- src/cmd/5g/gg.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/export_test.go |  7 ++++
+ src/pkg/http/serve_test.go  | 51 ++++++++++++++++++++++++++
+ src/pkg/http/server.go      | 87 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 145 insertions(+)

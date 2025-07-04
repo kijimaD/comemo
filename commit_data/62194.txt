@@ -1,0 +1,36 @@
+commit 0c94c5fcae909de059ff5c9273e2839e0d5742bf
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu Dec 19 12:45:57 2024 -0500
+
+    crypto/internal/fips140test: add counter KDF ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-108r1 KDF counter mode algorithm
+    based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html
+    
+    The implementation in our FIPS module fixes some parameters, requiring
+    tailoring of the advertised capability to match. Notably:
+    
+    * We only support macModes CMAC-AES-128, -192, and -256
+    * We only support supportedLengths 256 (matching the [32]byte output
+      from CounterKDF.DeriveKey)
+    * We only support fixedDataOrder "before fixed data"
+    * We only support counterLength 16
+    
+    No acvp_test.config.json update accompanies this support because the
+    ACVP tests for this algorithm aren't amenable to fixed data testing.
+    
+    Updates #69642
+    
+    Change-Id: I9e02d6c8cb6e209ac8e4c9fba926fffbad916098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639776
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../internal/fips140test/acvp_capabilities.json    |  4 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 55 ++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

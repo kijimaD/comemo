@@ -1,33 +1,37 @@
-commit 157d8cfbc13fbc4c849075e905b0001fb248b5e6
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Jan 23 21:58:33 2018 +0100
+commit e900e275e8667fde18973cdebe94861353162b87
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 12:01:56 2017 -0400
 
-    os: homogenize error checks on Plan 9
+    runtime: clean up loops over allp
     
-    Remove leading space at the beginning of error strings,
-    so the strings are consistent between isExist, isNotExist
-    and isPermission functions.
+    allp now has length gomaxprocs, which means none of allp[i] are nil or
+    in state _Pdead. This lets replace several different styles of loops
+    over allp with normal range loops.
     
-    Here is a list of error strings returned on the most common
-    file servers on Plan 9:
+    for i := 0; i < gomaxprocs; i++ { ... } loops can simply range over
+    allp. Likewise, range loops over allp[:gomaxprocs] can just range over
+    allp.
     
-         match                     cwfs                      fossil                   ramfs
+    Loops that check for p == nil || p.state == _Pdead don't need to check
+    this any more.
     
-    "exists"            "create/wstat -- file exists"  "file already exists"    "file exists"
-    "is a directory"                                   "is a directory"         "file is a directory"
+    Loops that check for p == nil don't have to check this *if* dead Ps
+    don't affect them. I checked that all such loops are, in fact,
+    unaffected by dead Ps. One loop was potentially affected, which this
+    fixes by zeroing p.gcAssistTime in procresize.
     
-    "does not exist"                                   "file does not exist"    "file does not exist"
-    "not found"         "directory entry not found"
-    "has been removed"                                 "file has been removed"
+    Updates #15131.
     
-    "permission denied" "access permission denied"     "permission denied"      "permission denied"
-    
-    "no parent" is an error returned by lib9p when removing a file without parent.
-    
-    Change-Id: I2362ed4b6730b8bec7a707a1052bd1ad8921cd97
-    Reviewed-on: https://go-review.googlesource.com/89315
+    Change-Id: Ifa1c2a86ed59892eca0610360a75bb613bc6dcee
+    Reviewed-on: https://go-review.googlesource.com/45575
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/error_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go     | 10 ++--------
+ src/runtime/mgcmark.go |  3 ---
+ src/runtime/mstats.go  |  6 ------
+ src/runtime/proc.go    | 41 +++++++++++++++++------------------------
+ src/runtime/trace.go   |  6 ------
+ 5 files changed, 19 insertions(+), 47 deletions(-)

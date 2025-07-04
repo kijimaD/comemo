@@ -1,15 +1,14 @@
-commit fdc6376c001f29a1245ce3f692c35a852053924d
+commit e45e3244204a8c944e231a8e168e68b5b5134bea
 Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 18 12:26:09 2011 +1100
+Date:   Tue Oct 18 11:47:11 2011 +1100
 
-    reflect: fix test failure reporting.
+    fmt: fix test relying on map iteration order.
     
-    There's a problem that is manifesting on the 386 builders,
-    but this test bug is masking it.
+    This fixes the 386 builds.
     
-    R=adg
+    R=golang-dev, adg, r
     CC=golang-dev
-    https://golang.org/cl/5295042
+    https://golang.org/cl/5293043
 
- src/pkg/reflect/all_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

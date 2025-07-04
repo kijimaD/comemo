@@ -1,14 +1,31 @@
-commit 863035efceaf33e4b7ebfb162930119534e9e5eb
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Thu Feb 16 08:29:46 2017 -0800
+commit 7ba36f4adb43355ef4b870d64d23f9988b1279ea
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 26 21:25:56 2016 -0700
 
-    doc: document go1.8
+    runtime: compute size classes statically
     
-    Change-Id: Ie2144d001c6b4b2293d07b2acf62d7e3cd0b46a7
-    Reviewed-on: https://go-review.googlesource.com/37130
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    No point in computing this info on startup.
+    Compute it at build time.
+    This lets us spend more time computing & checking the size classes.
+    
+    Improve the div magic for rounding to the start of an object.
+    We can now use 32-bit multiplies & shifts, which should help
+    32-bit platforms.
+    
+    The static data is <1KB.
+    
+    The actual size classes are not changed by this CL.
+    
+    Change-Id: I6450cec7d1b2b4ad31fd3f945f504ed2ec6570e7
+    Reviewed-on: https://go-review.googlesource.com/32219
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/devel/release.html  | 7 +++++++
- doc/go1.8.html          | 7 +------
- doc/install-source.html | 4 ++--
- 3 files changed, 10 insertions(+), 8 deletions(-)
+ src/runtime/malloc.go        |  32 ++---
+ src/runtime/mbitmap.go       |   4 +-
+ src/runtime/mheap.go         |   4 +-
+ src/runtime/mksizeclasses.go | 309 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/msize.go         | 252 +----------------------------------
+ src/runtime/sizeclasses.go   |  27 ++++
+ 6 files changed, 356 insertions(+), 272 deletions(-)

@@ -1,33 +1,22 @@
-commit 60f83621fc357f9e838bee9811230339b9da493a
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Aug 24 17:07:20 2018 +0200
+commit c789ce3f75d56b005750dee99321cba2cb9f4f14
+Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
+Date:   Fri Apr 27 15:44:31 2018 -0400
 
-    internal/cpu: add a CacheLinePadSize constant
+    cmd/asm: add vector instructions for ChaCha20Poly1305 on ARM64
     
-    The new constant CacheLinePadSize can be used to compute best effort
-    alignment of structs to cache lines.
+    This change provides VZIP1, VZIP2, VTBL instruction for supporting
+    ChaCha20Poly1305 implementation later.
     
-    e.g. the runtime can use this in the locktab definition:
-    var locktab [57]struct {
-            l   spinlock
-            pad [cpu.CacheLinePadSize - unsafe.Sizeof(spinlock{})]byte
-    }
-    
-    Change-Id: I86f6fbfc5ee7436f742776a7d4a99a1d54ffccc8
-    Reviewed-on: https://go-review.googlesource.com/131237
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ife7c87b8ab1a6495a444478eeb9d906ae4c5ffa9
+    Reviewed-on: https://go-review.googlesource.com/110015
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/cpu/cpu.go          | 7 ++++++-
- src/internal/cpu/cpu_arm.go      | 2 +-
- src/internal/cpu/cpu_arm64.go    | 2 +-
- src/internal/cpu/cpu_mips.go     | 2 +-
- src/internal/cpu/cpu_mips64.go   | 2 +-
- src/internal/cpu/cpu_mips64le.go | 2 +-
- src/internal/cpu/cpu_mipsle.go   | 2 +-
- src/internal/cpu/cpu_ppc64x.go   | 2 +-
- src/internal/cpu/cpu_s390x.go    | 2 +-
- src/internal/cpu/cpu_wasm.go     | 2 +-
- src/internal/cpu/cpu_x86.go      | 2 +-
- 11 files changed, 16 insertions(+), 11 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go        |  7 +++++
+ src/cmd/asm/internal/asm/asm.go           |  9 ++++++
+ src/cmd/asm/internal/asm/testdata/arm64.s | 22 ++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  3 ++
+ src/cmd/internal/obj/arm64/anames.go      |  3 ++
+ src/cmd/internal/obj/arm64/asm7.go        | 48 ++++++++++++++++++++++++++++++-
+ 6 files changed, 91 insertions(+), 1 deletion(-)

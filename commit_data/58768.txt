@@ -1,20 +1,22 @@
-commit d5b75e40462c2b357df96de3083705d8ea4c8954
-Author: Artyom Litovets <artemltvc@gmail.com>
-Date:   Fri Feb 14 12:03:06 2025 +0000
+commit 20a03fc7130d8d99b513071c7e413b436ea649a2
+Author: Tolya Korniltsev <korniltsev.anatoly@gmail.com>
+Date:   Mon Dec 4 17:53:29 2023 +0700
 
-    runtime/maps: fix typo in group.go comment (H1 -> H2)
+    runtime/pprof: fix generics function names
     
-    Fixes a typo to correctly describe the hash bits of the control word.
+    profileBuilder is using Frame->Function as key for checking if we already
+    emitted a function. However for generics functions it has dots there [...],
+    so sometimes for different functions with different generics types,
+    the profileBuilder emits wrong functions.
     
-    Change-Id: Id3c2ae0bd529e579a95258845f9d8028e23d10d2
-    GitHub-Last-Rev: 1baa81be5d292d5625d5d7788b8ea090453f962c
-    GitHub-Pull-Request: golang/go#71730
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649416
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fixes #64528
+    
+    Change-Id: I8b39245e0b18f4288ce758c912c6748f87cba39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546815
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/runtime/maps/group.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/pprof/proto.go         |  7 +++--
+ src/runtime/pprof/protomem_test.go | 62 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

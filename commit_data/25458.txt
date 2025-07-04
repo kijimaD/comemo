@@ -1,21 +1,75 @@
-commit fb394017f1b5081f1243688c0686ba5faca96835
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 6 19:52:51 2016 +0000
+commit fbf273250fe6f7697db2c1bf24e743226537b266
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 19 14:15:16 2015 -0400
 
-    net/http: fix flaky TestTransportCancelBeforeResponseHeaders test
+    runtime: perform mark 2 root re-scanning in GC workers
     
-    Add a couple more cases where we convert random network I/O errors
-    into errRequestCanceled if the request was forcefully aborted.
+    This moves another root scanning task out of the GC coordinator and
+    parallelizes it on the GC workers.
     
-    It failed ~1/1000 times without -race, or very easily with -race.
-    (due to -race randomizing some scheduling)
+    This has negligible effect on the go1 benchmarks and the garbage
+    benchmark.
     
-    Fixes #11894
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  5.24ms ± 1%  5.26ms ± 1%  +0.30%  (p=0.007 n=18+17)
     
-    Change-Id: Ib1c123ce1eebdd88642da28a5948ca4f30581907
-    Reviewed-on: https://go-review.googlesource.com/18287
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              3.20s ± 5%     3.21s ± 5%    ~     (p=0.264 n=20+18)
+    Fannkuch11-12                2.46s ± 1%     2.54s ± 2%  +3.09%  (p=0.000 n=18+20)
+    FmtFprintfEmpty-12          49.9ns ± 4%    50.0ns ± 5%    ~     (p=0.356 n=20+20)
+    FmtFprintfString-12          170ns ± 1%     170ns ± 2%    ~     (p=0.815 n=19+20)
+    FmtFprintfInt-12             160ns ± 1%     159ns ± 1%  -0.63%  (p=0.003 n=18+19)
+    FmtFprintfIntInt-12          270ns ± 1%     267ns ± 1%  -1.00%  (p=0.000 n=19+18)
+    FmtFprintfPrefixedInt-12     238ns ± 1%     232ns ± 1%  -2.28%  (p=0.000 n=19+19)
+    FmtFprintfFloat-12           310ns ± 2%     313ns ± 2%  +0.93%  (p=0.000 n=19+19)
+    FmtManyArgs-12              1.06µs ± 1%    1.04µs ± 1%  -1.93%  (p=0.000 n=20+19)
+    GobDecode-12                8.63ms ± 1%    8.70ms ± 1%  +0.81%  (p=0.001 n=20+19)
+    GobEncode-12                6.52ms ± 1%    6.56ms ± 1%  +0.66%  (p=0.000 n=20+19)
+    Gzip-12                      318ms ± 1%     319ms ± 1%    ~     (p=0.405 n=17+18)
+    Gunzip-12                   42.1ms ± 2%    42.0ms ± 1%    ~     (p=0.771 n=20+19)
+    HTTPClientServer-12         62.6µs ± 1%    62.9µs ± 1%  +0.41%  (p=0.038 n=20+20)
+    JSONEncode-12               16.9ms ± 1%    16.9ms ± 1%    ~     (p=0.077 n=18+20)
+    JSONDecode-12               60.7ms ± 1%    62.3ms ± 1%  +2.73%  (p=0.000 n=20+20)
+    Mandelbrot200-12            3.86ms ± 1%    3.85ms ± 1%    ~     (p=0.084 n=19+20)
+    GoParse-12                  3.75ms ± 2%    3.73ms ± 1%    ~     (p=0.107 n=20+19)
+    RegexpMatchEasy0_32-12       100ns ± 2%     101ns ± 2%  +0.97%  (p=0.001 n=20+19)
+    RegexpMatchEasy0_1K-12       342ns ± 2%     332ns ± 2%  -2.86%  (p=0.000 n=19+19)
+    RegexpMatchEasy1_32-12      83.2ns ± 2%    82.8ns ± 2%    ~     (p=0.108 n=19+20)
+    RegexpMatchEasy1_1K-12       495ns ± 2%     490ns ± 2%  -1.04%  (p=0.000 n=18+19)
+    RegexpMatchMedium_32-12      130ns ± 2%     131ns ± 2%    ~     (p=0.291 n=20+20)
+    RegexpMatchMedium_1K-12     39.3µs ± 1%    39.9µs ± 1%  +1.54%  (p=0.000 n=18+20)
+    RegexpMatchHard_32-12       2.02µs ± 1%    2.05µs ± 2%  +1.19%  (p=0.000 n=19+19)
+    RegexpMatchHard_1K-12       60.9µs ± 1%    61.5µs ± 1%  +0.99%  (p=0.000 n=18+18)
+    Revcomp-12                   535ms ± 1%     531ms ± 1%  -0.82%  (p=0.000 n=17+17)
+    Template-12                 73.0ms ± 1%    74.1ms ± 1%  +1.47%  (p=0.000 n=20+20)
+    TimeParse-12                 356ns ± 2%     348ns ± 1%  -2.30%  (p=0.000 n=20+20)
+    TimeFormat-12                347ns ± 1%     353ns ± 1%  +1.68%  (p=0.000 n=19+20)
+    [Geo mean]                  62.3µs         62.4µs       +0.12%
+    
+    name                      old speed      new speed      delta
+    GobDecode-12              88.9MB/s ± 1%  88.2MB/s ± 1%  -0.81%  (p=0.001 n=20+19)
+    GobEncode-12               118MB/s ± 1%   117MB/s ± 1%  -0.66%  (p=0.000 n=20+19)
+    Gzip-12                   60.9MB/s ± 1%  60.8MB/s ± 1%    ~     (p=0.409 n=17+18)
+    Gunzip-12                  461MB/s ± 2%   462MB/s ± 1%    ~     (p=0.765 n=20+19)
+    JSONEncode-12              115MB/s ± 1%   115MB/s ± 1%    ~     (p=0.078 n=18+20)
+    JSONDecode-12             32.0MB/s ± 1%  31.1MB/s ± 1%  -2.65%  (p=0.000 n=20+20)
+    GoParse-12                15.5MB/s ± 2%  15.5MB/s ± 1%    ~     (p=0.111 n=20+19)
+    RegexpMatchEasy0_32-12     318MB/s ± 2%   314MB/s ± 2%  -1.27%  (p=0.000 n=20+19)
+    RegexpMatchEasy0_1K-12    2.99GB/s ± 1%  3.08GB/s ± 2%  +2.94%  (p=0.000 n=19+19)
+    RegexpMatchEasy1_32-12     385MB/s ± 2%   386MB/s ± 2%    ~     (p=0.105 n=19+20)
+    RegexpMatchEasy1_1K-12    2.07GB/s ± 1%  2.09GB/s ± 2%  +1.06%  (p=0.000 n=18+19)
+    RegexpMatchMedium_32-12   7.64MB/s ± 2%  7.61MB/s ± 1%    ~     (p=0.179 n=20+20)
+    RegexpMatchMedium_1K-12   26.1MB/s ± 1%  25.7MB/s ± 1%  -1.52%  (p=0.000 n=18+20)
+    RegexpMatchHard_32-12     15.8MB/s ± 1%  15.6MB/s ± 2%  -1.18%  (p=0.000 n=19+19)
+    RegexpMatchHard_1K-12     16.8MB/s ± 2%  16.6MB/s ± 1%  -0.90%  (p=0.000 n=19+18)
+    Revcomp-12                 475MB/s ± 1%   479MB/s ± 1%  +0.83%  (p=0.000 n=17+17)
+    Template-12               26.6MB/s ± 1%  26.2MB/s ± 1%  -1.45%  (p=0.000 n=20+20)
+    [Geo mean]                99.0MB/s       98.7MB/s       -0.32%
+    
+    Change-Id: I6ea44d7a59aaa6851c64695277ab65645ff9d32e
+    Reviewed-on: https://go-review.googlesource.com/16070
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/net/http/transport.go      | 6 ++++++
- src/net/http/transport_test.go | 1 -
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

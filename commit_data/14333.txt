@@ -1,26 +1,25 @@
-commit 1a19f01a683f8c62b7bd5f843a2e1b7ed6449542
+commit abb313f8c8980ed69d4618823d9f4a05c7acff9d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 7 12:48:58 2012 +0400
+Date:   Wed Nov 7 12:06:27 2012 +0400
 
-    runtime/race: lazily allocate shadow memory
-    Currently race detector runtime maps shadow memory eagerly at process startup.
-    It works poorly on Windows, because Windows requires reservation in swap file
-    (especially problematic if several Go program runs at the same, each consuming GBs
-    of memory).
-    With this change race detector maps shadow memory lazily, so Go runtime must notify
-    about all new heap memory.
-    It will help with Windows port, but also eliminates scary 16TB virtual mememory
-    consumption in top output (which sometimes confuses some monitoring scripts).
+    cmd/gc: racewalk: do not double function calls
+    Current racewalk transformation looks like:
+    x := <-makeChan().c
+    \/\/\/\/\/\/\/\/\/
+    runtime.raceread(&makeChan().c)
+    x := <-makeChan().c
+    and so makeChan() is called twice.
+    With this CL the transformation looks like:
+    x := <-makeChan().c
+    \/\/\/\/\/\/\/\/\/
+    chan *tmp = &(makeChan().c)
+    raceread(&*tmp)
+    x := <-(*tmp)
+    Fixes #4245.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6811085
+    https://golang.org/cl/6822075
 
- src/pkg/runtime/malloc.goc                  |   4 ++++
- src/pkg/runtime/race.c                      |  10 ++++++++++
- src/pkg/runtime/race.h                      |   1 +
- src/pkg/runtime/race/race.go                |   5 +++++
- src/pkg/runtime/race/race_darwin_amd64.syso | Bin 144548 -> 144876 bytes
- src/pkg/runtime/race/race_linux_amd64.syso  | Bin 141800 -> 142984 bytes
- src/pkg/runtime/race0.c                     |   8 ++++++++
- 7 files changed, 28 insertions(+)
+ src/cmd/gc/racewalk.c | 97 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 85 insertions(+), 12 deletions(-)

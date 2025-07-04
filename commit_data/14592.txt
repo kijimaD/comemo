@@ -1,12 +1,14 @@
-commit 9b5358af2d805336e103a743697eb6fad1ecf1c4
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Dec 10 12:38:20 2012 -0500
+commit 76de81da507118c1cca4de914bb8d0cf42230d98
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Mon Dec 10 10:59:15 2012 -0500
 
-    CONTRIBUTORS: add sledbetter (Google Corporate CLA).
+    encoding/xml: fix typo in Marshal documentation
+    
+    Fixes #4512.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6912062
+    https://golang.org/cl/6917043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

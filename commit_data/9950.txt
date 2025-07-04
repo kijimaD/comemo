@@ -1,14 +1,15 @@
-commit cd5f144fe26d05bf22f8129c312ce6f8ecaf3216
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Oct 13 10:09:43 2011 +0300
+commit c50182480db093e447f02e76a735ed23a80305bf
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Oct 13 13:34:01 2011 +1100
 
-    doc: remove link to http://golanguage.ru/
-    I check it for several months and it always says
-    ERR_NAME_RESOLUTION_FAILED
+    pkg: fix incorrect prints found by govet
     
-    R=golang-dev, bradfitz
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5272041
+    https://golang.org/cl/5266041
 
- doc/docs.html | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/exp/sql/fakedb_test.go           | 2 +-
+ src/pkg/exp/sql/sql_test.go              | 2 +-
+ src/pkg/exp/template/html/escape_test.go | 2 +-
+ src/pkg/template/exec_test.go            | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

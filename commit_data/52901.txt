@@ -1,17 +1,20 @@
-commit 13a59e36c0a224db15cf2e9b59797c1e0103cae7
-Author: David Chase <drchase@google.com>
-Date:   Fri May 5 11:23:29 2023 -0400
+commit 55590f3a2b89f001bcadf0df6eb2dde62618302b
+Author: Louis PORTAY <louisportay@gmail.com>
+Date:   Thu Jun 9 23:29:35 2022 +0000
 
-    cmd/dist: add explicit module version to generated go.mod
+    net/http: doc: update RFC reference for appropriate HTTP codes
     
-    This avoids bootstrapping problems with 1.20.
-    Tested w/ 1.19 and 1.20.
+    This documentation commit points to the latest RFC documenting HTTP codes
     
-    Change-Id: I0ca9e111719e8c1bcd1a0b53b9f16d9a2d77e836
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492982
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia7640664637f0c7846e2182353b787474bac7b4f
+    GitHub-Last-Rev: 5fb544ee32e1f16c871b08d9ff0a3cc6819418cd
+    GitHub-Pull-Request: golang/go#53318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411475
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/buildtool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/status.go | 92 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 46 insertions(+), 46 deletions(-)

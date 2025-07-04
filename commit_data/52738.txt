@@ -1,22 +1,23 @@
-commit 608f204ac79455bee144d6fa93162991bdb46b61
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Wed Apr 19 14:42:30 2023 -0400
+commit c3470ca83cfdbcc71ce162b00d6b9a0004a7f649
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Mon Apr 25 15:40:00 2022 +0930
 
-    runtime: turn frame pointer unwinding for tracing off by default
+    internal/fuzz: trim carriage return from version line
     
-    Frame pointer unwinding during execution tracing sometimes crashes.
-    Until this is diagnosed and fixed, it should be turned off by default.
+    On windows hosts, when code is checked out using git with the default
+    setting of autocrlf=true, carriage returns are appended to source lines
+    which then prevent the version check from being successful. This removes
+    carriage returns to allow version matching.
     
-    Updates #59692
+    Fixes #52268
     
-    Change-Id: I0f2ca24b6d48435b0acfd3da8e4f25b9cfa4ec19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486382
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9acc4e907c93a20305f8742cc01687a122a88645
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402074
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Dan Kortschak <dan@kortschak.io>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/runtime1.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/fuzz/encoding.go      | 6 ++++--
+ src/internal/fuzz/encoding_test.go | 5 +++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

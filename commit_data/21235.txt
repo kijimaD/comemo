@@ -1,20 +1,13 @@
-commit 16993f24855ad89c3198dea87b84a9c329ffdcac
+commit 026b5bbc8bf865324aed7a7746937e2dc3fa4903
 Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 12 00:12:59 2015 -0500
+Date:   Mon Dec 8 22:27:29 2014 -0500
 
-    cmd/cgo: also rewrite C.var in selector expressions
+    misc/cgo/test: skip test8694 on ARM.
     
-    While we're here, rename TestIssue7234 to Test7234 for consistency
-    with other tests.
-    
-    Fixes #9557.
-    
-    Change-Id: I22b0a212b31e7b4f199f6a70deb73374beb80f84
-    Reviewed-on: https://go-review.googlesource.com/2654
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=dave, bradfitz, rsc
+    R=golang-codereviews, dave, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/185130043
 
- misc/cgo/test/cgo_test.go       |  1 +
- misc/cgo/test/issue7234_test.go |  2 +-
- misc/cgo/test/issue9557.go      | 36 ++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go              |  7 +++++++
- 4 files changed, 45 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue8694.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

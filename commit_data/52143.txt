@@ -1,17 +1,29 @@
-commit ec26277aecfba112089b1bb54b522bf062059e22
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Feb 28 10:11:51 2023 -0800
+commit 494b79f39ab8e7b6f096b6c6088bd84bb8592dc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 07:55:25 2022 -0400
 
-    crypto/x509: fix ParsePKCS8PrivateKey comment
+    go/doc/comment: add data structures
     
-    Fixes #58789
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    Change-Id: I91cdd20c6d4f05baaacd6a38717aa7bed6682573
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472155
+    Implement just the data structures of the new API for
+    parsing and printing doc comments, as well as a syntax tree
+    form for inspecting and manipulating them.
+    
+    The API itself was discussed and accepted as part of the
+    proposal process in #51082.
+    
+    For #51082.
+    
+    Change-Id: Iae7fbc85705964585273b970c5c62e394feb1288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397276
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/x509/pkcs8.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next/51082.txt          |  35 +++++++++
+ src/go/build/deps_test.go   |   4 +-
+ src/go/doc/comment/parse.go | 169 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 206 insertions(+), 2 deletions(-)

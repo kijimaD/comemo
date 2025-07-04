@@ -1,15 +1,15 @@
-commit 41713b4d2b116edcc388dd9b12c15fd67db0efea
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 12:32:18 2015 +0000
+commit dabb268170e38870968ebf7247bd7efcb70060f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 17 22:29:44 2015 -0700
 
-    cmd/doc: slice/map literals janitoring
+    cmd/compile: ignore carriage return in magic comments
     
-    Simplify slice/map literal expression.
-    Caught with gofmt -d -s
+    Update #11771.
     
-    Change-Id: I7f38ef9fb528e2fd284bd0f190fbdf4a91956e55
-    Reviewed-on: https://go-review.googlesource.com/13834
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I3bb3262619765d3ca79652817e17e8f260f41907
+    Reviewed-on: https://go-review.googlesource.com/12379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/pkg.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/lex.go |  4 +--
+ test/fixedbugs/issue11771.go       | 64 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 2 deletions(-)

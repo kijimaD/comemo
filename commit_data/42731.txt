@@ -1,19 +1,20 @@
-commit ef9c8a38ad177fa7f48dfaad5d0e27f39a03529d
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jul 7 09:32:12 2020 -0700
+commit 363bcd0068bcc64ec09ab3d09921f559ca6d8070
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 12 13:03:18 2020 -0500
 
-    cmd/compile: don't rewrite (CMP (AND x y) 0) to TEST if AND has other uses
+    cmd/go: eliminate empty '()' when passing -mod=readonly explicitly to 'go list'
     
-    If the AND has other uses, we end up saving an argument to the AND
-    in another register, so we can use it for the TEST. No point in doing that.
+    Discovered while investigating #37197.
     
-    Change-Id: I73444a6aeddd6f55e2328ce04d77c3e6cf4a83e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241280
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #33326
+    Updates #34822
+    
+    Change-Id: I38b136a4ee762a580a554125066b9778491295f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219237
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  16 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 128 ++++++++++++++++++++-------
- test/codegen/logic.go                        |  24 +++++
- 3 files changed, 128 insertions(+), 40 deletions(-)
+ src/cmd/go/internal/modload/import.go       | 3 ++-
+ src/cmd/go/testdata/script/mod_readonly.txt | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit a5339da341b8f37c87b77c2fc1318d6ecd2331ff
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 22 17:44:04 2024 -0400
+
+    doc/next: document go mod tidy -diff flag
+    
+    Add a release note for the flag that CL 585401 added.
+    
+    For #27005.
+    For #65614.
+    
+    Change-Id: Ib26eb1b85c511d3cb41a29a8d9354577dd9a0e14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587695
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ doc/next/3-tools.md | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

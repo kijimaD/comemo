@@ -1,22 +1,13 @@
-commit bd1efd50991deb1e11e10d8232f609f8b8d13aef
-Author: MathiasB <git@denbeke.be>
-Date:   Fri Jul 31 12:25:06 2015 +0200
+commit 0dccee6061aad469d196e4abd3eafe53b379275d
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jun 18 20:58:50 2015 +0200
 
-    net/mail: fixed quoted-local
+    text/scanner: add runnable example for package
     
-    Fixes some minor issues regarding quoted-string when parsing
-    the local-part.
-    
-    Those strings should return an error:
-    - quoted-string without any content: `""@test.com`
-    - quoted-string containing tab: "\"\t\"@test.com"
-    
-    Fixes #11293
-    
-    Change-Id: Ied93eb6831915c9b1f8e727cea14168af21f8d3b
-    Reviewed-on: https://go-review.googlesource.com/12905
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I42a952b04a56fb888fa7d5d9c2b56cbdd3434034
+    Reviewed-on: https://go-review.googlesource.com/11246
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/mail/message.go      | 5 ++++-
- src/net/mail/message_test.go | 3 +++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/text/scanner/example_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/text/scanner/scanner.go      | 11 -----------
+ 2 files changed, 38 insertions(+), 11 deletions(-)

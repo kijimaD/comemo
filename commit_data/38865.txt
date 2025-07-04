@@ -1,27 +1,23 @@
-commit fd788a86b6427ef7ec1f25d4d4f0412bc883ccaf
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Mon Apr 22 18:21:37 2019 -0700
+commit ffac3d5a88352d4f6e8e47b9a2990352960eb5ca
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Dec 3 17:02:20 2018 -0500
 
-    cmd/compile: always mark atColumn1 results as statements
+    cmd/go: add missing gccgo checks for buildmodeInit
     
-    In 31618, we end up comparing the is-stmt-ness of positions
-    to repurpose real instructions as inline marks. If the is-stmt-ness
-    doesn't match, we end up not being able to remove the inline mark.
+    Some recent failures in gccgo on linux/ppc64 identified
+    an error in buildmodeInit when buildmode=c-archive.
+    A fix went into gofrontend, and this is the
+    corresponding change for master. This change also includes
+    two other updates related to gccgo in this function that
+    were in the file from gofrontend but missing from master.
     
-    Always use statement-full positions to do the matching, so we
-    always find a match if there is one.
+    Updates #29046
     
-    Also always use positions that are statements for inline marks.
-    
-    Fixes #31618
-    
-    Change-Id: Idaf39bdb32fa45238d5cd52973cadf4504f947d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173324
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I9a894e7d728e31fb9e9344cd61d50408df7faf4a
+    Reviewed-on: https://go-review.googlesource.com/c/152160
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  2 +-
- src/cmd/compile/internal/gc/ssa.go |  1 +
- src/cmd/internal/src/pos.go        |  2 +-
- test/codegen/issue31618.go         | 22 ++++++++++++++++++++++
- 4 files changed, 25 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/init.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

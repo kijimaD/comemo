@@ -1,17 +1,24 @@
-commit 8c827c045a0de36a7945cf33f3373f4b6a8a07cc
-Author: unknown <nonamezeil@gmail.com>
-Date:   Wed Nov 4 15:55:21 2015 +0300
+commit 8e601b23cd77f687407a358d2baba672f5a8e4d6
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 18 14:39:26 2015 -0400
 
-    crypto/md5: uniform Write func
+    [dev.ssa] cmd/compile: add FP comparison ops
     
-    Unification of implementation of existing md5.Write function
-    with other implementations (sha1, sha256, sha512).
+    Basic ops, no particular optimization in the pattern
+    matching yet (e.g. x!=x for Nan detection, x cmp constant,
+    etc.)
     
-    Change-Id: I58ae02d165b17fc221953a5b4b986048b46c0508
-    Reviewed-on: https://go-review.googlesource.com/16621
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0043564081d6dc0eede876c4a9eb3c33cbd1521c
+    Reviewed-on: https://go-review.googlesource.com/13704
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/md5/md5.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  188 ++++-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 1039 ++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/fuse.go           |    2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   39 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   30 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   12 +
+ src/cmd/compile/internal/ssa/gen/main.go       |    4 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  184 ++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  424 ++++++++++
+ 9 files changed, 1804 insertions(+), 118 deletions(-)

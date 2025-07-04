@@ -1,22 +1,29 @@
-commit 69368cece5a50056fbfc58010dd6e6ec585611e1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 30 10:47:24 2021 -0700
+commit 49a210eb87da6b7ac960cac990337ef4dc113b0d
+Author: imxyb <xyb4638@gmail.com>
+Date:   Wed Oct 28 21:26:04 2020 +0000
 
-    cmd/compile/internal/types2: make TestManual work for directories
+    net/url: improve performance for resolvePath
     
-    If no source argument is provided, test testdata/manual.go2
-    instead.
+    benchmark compare results:
     
-    Remove testdata/check/tmp/go2 in favor of testdata/manual.go2.
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkResolvePath-12     297           141           -52.53%
     
-    These changes affect testing only.
+    benchmark                   old allocs     new allocs     delta
+    BenchmarkResolvePath-12     5              3              -40.00%
     
-    Change-Id: I49aba4d8fc4cc5964911e38c55b4c5d013710aeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315769
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    benchmark                   old bytes     new bytes     delta
+    BenchmarkResolvePath-12     181           24            -86.74%
+    
+    Change-Id: Ia69e9fb36abb5930ed49217b5219be62b57ec429
+    GitHub-Last-Rev: e16dd9f7415178120f67f472bf45a2b006e00a93
+    GitHub-Pull-Request: golang/go#42180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264817
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/check_test.go      | 85 ++++++++++++++--------
- .../compile/internal/types2/testdata/check/tmp.go2 | 17 -----
- .../compile/internal/types2/testdata/manual.go2    |  8 ++
- 3 files changed, 64 insertions(+), 46 deletions(-)
+ src/net/url/url.go      | 55 ++++++++++++++++++++++++++++++++++++-------------
+ src/net/url/url_test.go |  8 +++++++
+ 2 files changed, 49 insertions(+), 14 deletions(-)

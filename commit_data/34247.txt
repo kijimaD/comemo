@@ -1,18 +1,27 @@
-commit 9402a2bff75907668f8488ea9d32c56fdf101f04
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Fri Feb 16 14:56:03 2018 +0200
+commit 44d9e96da9b7625be81f2c7eacf73fcc609874ce
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 17:04:26 2017 -0400
 
-    cmd/go: document 'go run' exit codes
+    runtime: don't try to free OS-created signal stacks
     
-    Updated docs that go run does not return the exit code of
-    the compiled binary.
+    Android's libc creates a signal stack for every thread it creates. In
+    Go, minitSignalStack picks up this existing signal stack and puts it
+    in m.gsignal.stack. However, if we later try to exit a thread (because
+    a locked goroutine is exiting), we'll attempt to stackfree this
+    libc-allocated signal stack and panic.
     
-    Fixes #23716
+    Fix this by clearing gsignal.stack when we unminitSignals in such a
+    situation.
     
-    Change-Id: Ib85459974c4c6d2760ddba957ef711628098661f
-    Reviewed-on: https://go-review.googlesource.com/94795
+    This should fix the Android build, which is currently broken.
+    
+    Change-Id: Ieea8d72ef063d22741c54c9daddd8bb84926a488
+    Reviewed-on: https://go-review.googlesource.com/70130
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go          | 2 ++
- src/cmd/go/internal/run/run.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/runtime/proc.go        | 8 +++++++-
+ src/runtime/signal_unix.go | 4 ++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

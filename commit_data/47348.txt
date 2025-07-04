@@ -1,18 +1,37 @@
-commit b7529c3617a64ed5d1e2a6c7a9366d4a4988a38d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Nov 9 10:37:43 2021 +0700
+commit 3eebc26700c8e9ccb7d9962ce1c7a02d605aba66
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Mar 9 23:27:11 2021 -0500
 
-    cmd/go: fix mod_get_direct
+    delete favicon.ico and robots.txt
     
-    https://github.com/googleapis/google-cloud-go has changed the default
-    branch from master to main, causing mod_get_direct failed on longtest.
+    The favicon.ico and robots.txt files have been with us in the root
+    directory since 2009 and 2011 respectively. Back then, the Go repo
+    had content for the golang.org website, which could be run locally.
+    Since these files were at the root of the website, they were added
+    to the corresponding location in the GOROOT tree—at the root.
     
-    Change-Id: I8fe0356b2ff532d1fdedbcb1e1832d7335babaa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361965
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    In 2018, work started on factoring out golang.org website content
+    and code into a new golang.org/x/website repository (issue 29206).
+    
+    The favicon.ico and robots.txt files were copied to x/website repo,
+    but some more work needed to be done before they would be picked up
+    and served when golangorg was executed in module mode. That work is
+    done by now (CL 293413 and CL 293414).
+    
+    The scope of the godoc tool has also been reduced to just serving
+    Go package documentation and not the website (issue 32011), so it
+    can provide its own favicon.ico as needed (CL 300394).
+    
+    This means these two files have no more use and can be deleted.
+    So long and goodbye!
+    
+    Change-Id: Id71bdab6317c1dc481c9d85beaaac4b4eb92d379
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300549
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/testdata/script/mod_get_direct.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ favicon.ico | Bin 5686 -> 0 bytes
+ robots.txt  |   2 --
+ 2 files changed, 2 deletions(-)

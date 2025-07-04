@@ -1,15 +1,19 @@
-commit 8ce8143f104a72718bdd8a53b4f8d3deba0df47e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 18 15:40:32 2017 +1100
+commit 28f650a2f7718b4fa7f55e06a0f75a85df90c517
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 19 23:42:27 2017 -0700
 
-    cmd/link: add TODO missing from CL 70310
+    runtime: don't call libc sigaction function in forked child
     
-    CL 70310 dropped TODO while moving code.
-    Add TODO back, so we do not forget.
+    If we are using vfork, and if something (such as TSAN) is intercepting
+    the sigaction function, then we must call the system call, not the
+    libc function. Otherwise the intercepted sigaction call in the child
+    may trash the data structures in the parent.
     
-    Change-Id: I3599ac02743bd35fb9556fdc238e9c72cf7f718f
-    Reviewed-on: https://go-review.googlesource.com/71590
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Id9588bfeaa934f32c920bf829c5839be5cacf243
+    Reviewed-on: https://go-review.googlesource.com/50251
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/pe.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/cgo_sigaction.go |  2 +-
+ src/runtime/proc.go          | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

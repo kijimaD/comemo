@@ -1,19 +1,20 @@
-commit 7520f0b4aa3efe9b5eea5bb79fe47c81051d478d
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Tue Jul 31 08:38:49 2012 +1000
+commit 36fe436cbac4d2a55d06063de966798fc2216156
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Tue Jul 31 08:21:24 2012 +1000
 
-    httputil: accumulate X-Forwarded-For header info
+    pkg/syscall: unexport Prlimit.
     
-    If the X-Forwarded-For header already exists on a request, we
-    should append our client's IP to it after a comma+space instead
-    of overwriting it.
+    This syscall was inadvertently exported when fixing
+    Getrlimit/Setrlimit on 32-bit platforms.
     
-    Fixes #3846.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6448053
+    https://golang.org/cl/6458051
 
- src/pkg/net/http/httputil/reverseproxy.go      | 10 ++++--
- src/pkg/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 2 deletions(-)
+ src/pkg/syscall/syscall_linux.go        | 2 +-
+ src/pkg/syscall/syscall_linux_386.go    | 4 ++--
+ src/pkg/syscall/syscall_linux_arm.go    | 4 ++--
+ src/pkg/syscall/zsyscall_linux_386.go   | 2 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go | 2 +-
+ src/pkg/syscall/zsyscall_linux_arm.go   | 2 +-
+ 6 files changed, 8 insertions(+), 8 deletions(-)

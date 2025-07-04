@@ -1,15 +1,13 @@
-commit 5519b5d7165afc39e9d908a3c9ae24f221e38f53
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Fri Nov 25 10:57:10 2011 -0500
+commit 1f83c2b6d5db4ae8bd053b16574edbb849d62385
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 25 10:50:19 2011 -0500
 
-    exp/sql/driver: Correct package name in comment.
+    C+A: add Gustav Paul (individual CLA)
     
-    IIRC, package sql used to be called db. There was one occurrence
-    of the old name in a comment.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5431075
+    https://golang.org/cl/5432076
 
- src/pkg/exp/sql/driver/driver.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,12 +1,14 @@
-commit 95b4f8284f31fbfe1408cab5bf3cf804e91565d9
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Oct 17 14:18:21 2011 -0700
+commit c5a6b05ba4500be3d977592e756538290defdf14
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 17 12:54:18 2011 -0700
 
-    build: add missing nuke target
+    go spec: clarifying variable declaractions w/ constants
     
-    R=golang-dev, r
+    Fixes #2377.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5266046
+    https://golang.org/cl/5267048
 
- src/cmd/Makefile | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go_spec.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

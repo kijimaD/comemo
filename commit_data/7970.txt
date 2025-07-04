@@ -1,17 +1,15 @@
-commit 60c4c3464b48b8238f29376c2911922fe207d853
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 4 13:09:34 2011 -0700
+commit 06ee80d6ebfc9ec2229d1e10f4d1a2951fb2600f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Apr 4 15:57:10 2011 -0400
 
-    path/filepath.Glob: add an error return.
-    The error will only occur for invalid patterns, but without this
-    error path there is no way to know that Glob has failed due to
-    an invalid pattern.
+    bufio: Write and WriteString cleanup
     
-    R=rsc
+    Write never writes less than the buffer size and WriteString takes advantage
+    of the copy built-in to improve write efficiency.
+    
+    R=rsc, ality, rog
     CC=golang-dev
-    https://golang.org/cl/4346044
+    https://golang.org/cl/4344060
 
- src/cmd/gotest/gotest.go            |  7 +++++--
- src/pkg/path/filepath/match.go      | 36 +++++++++++++++++++++-------------
- src/pkg/path/filepath/match_test.go | 39 ++++++++++++++++++++++++-------------
- 3 files changed, 53 insertions(+), 29 deletions(-)
+ src/pkg/bufio/bufio.go | 68 ++++++++++++++++++++------------------------------
+ 1 file changed, 27 insertions(+), 41 deletions(-)

@@ -1,0 +1,33 @@
+commit d4c6effaa7b95a2ea149ece4a400c0ace2773839
+Author: David Chase <drchase@google.com>
+Date:   Tue Jun 10 14:15:46 2025 -0400
+
+    cmd/compile: add up-to-date test for generated files
+    
+    This runs the ssa/_gen generator writing files into
+    a temporary directory, and then checks that there are
+    no differences with what is currently in the ssa directory,
+    and also checks that any file with the "generated from
+    _gen/..." header was actually generated, and checks that
+    the headers on the generated file match the expected
+    header prefix.
+    
+    Change-Id: Ic8eeb0b06cf6f2e576a013e865b331a12d3a77aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/README           |   5 +
+ src/cmd/compile/internal/ssa/_gen/allocators.go    |   2 +-
+ src/cmd/compile/internal/ssa/_gen/main.go          |  14 +-
+ src/cmd/compile/internal/ssa/_gen/rulegen.go       |   2 +-
+ .../ssa/_gen/vendor/golang.org/x/tools/LICENSE     |  27 +
+ .../ssa/_gen/vendor/golang.org/x/tools/PATENTS     |  22 +
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go | 654 +++++++++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/imports.go   | 490 +++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   | 486 +++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/util.go      |  11 +
+ .../compile/internal/ssa/_gen/vendor/modules.txt   |   3 +
+ src/cmd/compile/internal/ssa/generate_test.go      | 135 +++++
+ 12 files changed, 1848 insertions(+), 3 deletions(-)

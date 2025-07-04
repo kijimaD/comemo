@@ -1,14 +1,12 @@
-commit f1c409b98b8f9359d3e561a3a3f8d2ca514b1d44
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Feb 5 20:50:20 2013 +1100
+commit e7fe1944acb96de2fce832c11a1577a9e8e7a80a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Feb 5 15:39:55 2013 +1100
 
-    misc/dashboard/app: trim old builds from the history
+    archive/tar: small simplification using FileMode.
     
-    The dashboard is currently failing to store results of new builds for some keys, notable the go.codereview sub repository. This is causing the builders to mark the entire triggering commit as failed. With the help of David Symonds we think it is because the results value has breached the 1mb datastore limit on AppEngine.
-    
-    R=dsymonds, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6858094
+    https://golang.org/cl/7305043
 
- misc/dashboard/app/build/build.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/pkg/archive/tar/common.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

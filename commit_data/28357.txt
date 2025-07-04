@@ -1,16 +1,24 @@
-commit a562351e512682046623ecbd106f4973f3525be9
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Wed Sep 14 12:57:15 2016 +1000
+commit 2ba8fc5b086942dbb23282702f61c813298867f3
+Author: Monty Taylor <mordred@inaugust.com>
+Date:   Tue May 17 08:24:18 2016 -0500
 
-    net/http: clarify Request.ContentLength behavior on the client.
+    vcs: Add support for git.openstack.org
     
-    While you could argue the previous wording technically said that -1 is
-    an acceptable way to indicate "unknown" on the client, it could be read
-    as ambiguous. Now it's clear that both 0 and -1 mean unknown.
+    Go is being proposed as an officially supported language for elements of
+    OpenStack:
     
-    Change-Id: I3bc5a3fd5afd1999e487296ec121eb548415e6b0
-    Reviewed-on: https://go-review.googlesource.com/29130
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+      https://review.openstack.org/#/c/312267/
+    
+    As such, repos that exist in OpenStack's git infrastructure
+    are likely to become places from which people might want to go get
+    things. Allow optional .git suffixes to allow writing code that depends
+    on git.openstack.org repos that will work with older go versions while
+    we wait for this support to roll out.
+    
+    Change-Id: Ia64bdb1dafea33b1c3770803230d30ec1059df22
+    Reviewed-on: https://go-review.googlesource.com/23135
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/request.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/vcs.go      |  9 +++++++++
+ src/cmd/go/vcs_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

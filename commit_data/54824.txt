@@ -1,23 +1,20 @@
-commit e293c4b509de6e7ceaeabb0c8d9f2a4d3d3b4e6d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Oct 31 00:27:58 2023 +1100
+commit 40cb04c95bdf9a8da6aed8cfe8f32075e0ecc4ac
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 23 17:23:54 2022 -0400
 
-    runtime: allocate crash stack via stackalloc
+    cmd/dist: eliminate registerSeqTest
     
-    On some platforms (notably OpenBSD), stacks must be specifically allocated
-    and marked as being stack memory. Allocate the crash stack using stackalloc,
-    which ensures these requirements are met, rather than using a global Go
-    variable.
+    This is unused, and eliminating it lets us simplify the whole
+    registerTest mechanism.
     
-    Fixes #63794
+    Preparation for #37486.
     
-    Change-Id: I6513575797dd69ff0a36f3bfd4e5fc3bd95cbf50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538457
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia6221e48192cd17775a5d662bdb389d67a9265bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448800
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/proc.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/dist/test.go | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)

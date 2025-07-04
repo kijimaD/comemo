@@ -1,12 +1,16 @@
-commit 30ba286c6140ceec7793cfac0eb47a8c939b5044
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Jan 4 09:58:04 2014 +1100
+commit f2e94b58a01389cb9dcf51821b96435343594879
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jan 3 21:03:20 2014 +0100
 
-    os: add tests for operations on nil *File methods
+    cmd/gc: silence assignment errors to undefined symbols
     
-    R=shawn.p.smith, gobot, r
+    Fixes #6406.
+    
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/46820043
+    https://golang.org/cl/46900043
 
- src/pkg/os/os_test.go | 46 ++++++++++++++++++++++++++++++++--------------
- 1 file changed, 32 insertions(+), 14 deletions(-)
+ src/cmd/gc/typecheck.c      |  5 +++++
+ test/fixedbugs/issue6406.go | 12 ++++++++++++
+ test/typecheck.go           |  2 +-
+ 3 files changed, 18 insertions(+), 1 deletion(-)

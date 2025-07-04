@@ -1,58 +1,17 @@
-commit 063f97a6110079c2aaeb5f2c2a51d7f1bc7445ab
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 12:16:18 2018 +0100
+commit f42418b25da382382a35730eff68fd27d049c581
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Jan 26 10:18:16 2018 -0500
 
-    os: add js/wasm architecture
+    cmd/trace: add user log event in the task-oriented trace view
     
-    This commit adds the js/wasm architecture to the os package.
+    Also append stack traces to task create/end slices.
     
-    Access to the actual file system is supported through Node.js.
+    R=go1.11
     
-    Updates #18892
-    
-    Change-Id: I6fa642fb294ca020b2c545649d4324d981aa0408
-    Reviewed-on: https://go-review.googlesource.com/109977
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2adb342e92b36d30bee2860393618eb4064450cf
+    Reviewed-on: https://go-review.googlesource.com/90220
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- misc/wasm/wasm_exec.js                      |   5 +
- src/internal/poll/fd_poll_nacljs.go         |   5 +-
- src/internal/poll/fd_posix.go               |   2 +-
- src/internal/poll/fd_unix.go                |   2 +-
- src/internal/poll/sys_cloexec.go            |   2 +-
- src/internal/syscall/unix/nonblocking_js.go |   9 +
- src/os/dir_unix.go                          |   2 +-
- src/os/error_posix.go                       |   2 +-
- src/os/error_unix.go                        |   2 +-
- src/os/error_unix_test.go                   |   2 +-
- src/os/exec/lp_js.go                        |  23 ++
- src/os/exec_posix.go                        |   2 +-
- src/os/exec_unix.go                         |   2 +-
- src/os/executable_procfs.go                 |   2 +-
- src/os/file_posix.go                        |   2 +-
- src/os/file_unix.go                         |   2 +-
- src/os/os_test.go                           |   4 +-
- src/os/path_unix.go                         |   2 +-
- src/os/pipe_bsd.go                          |   2 +-
- src/os/pipe_test.go                         |   2 +-
- src/os/signal/signal_unix.go                |   2 +-
- src/os/{stat_nacl.go => stat_nacljs.go}     |   2 +
- src/os/stat_unix.go                         |   2 +-
- src/os/sys_bsd.go                           |   2 +-
- src/os/sys_js.go                            |  11 +
- src/os/timeout_test.go                      |   1 +
- src/os/user/lookup_unix.go                  |   2 +-
- src/os/wait_unimp.go                        |   2 +-
- src/path/filepath/path_unix.go              |   2 +-
- src/runtime/debug/heapdump_test.go          |   8 +-
- src/runtime/os_js.go                        | 145 ++++++++
- src/runtime/sys_wasm.s                      |   4 +
- src/runtime/trace/trace_test.go             |   6 +
- src/syscall/dirent.go                       |   2 +-
- src/syscall/endian_little.go                |   2 +-
- src/syscall/env_unix.go                     |   2 +-
- src/syscall/fs_js.go                        | 497 ++++++++++++++++++++++++++++
- src/syscall/syscall_js.go                   | 308 +++++++++++++++++
- src/syscall/tables_nacljs.go                | 131 +++++++-
- 39 files changed, 1175 insertions(+), 32 deletions(-)
+ src/cmd/trace/annotations.go | 17 ++++++++++++-----
+ src/cmd/trace/trace.go       | 40 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 44 insertions(+), 13 deletions(-)

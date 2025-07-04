@@ -1,21 +1,12 @@
-commit 672525a56e7d326ec986bc330a7accd8ec0395f4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Dec 28 09:37:54 2013 -0800
+commit 42cea1a452a227b0c08d5bc181b590e29b5beda9
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sat Dec 28 16:14:49 2013 +1100
 
-    net: work around Solaris connect issue when server closes socket
+    archive/tar: add test case for passing nil to FileInfoHeader
     
-    On Solaris, if you do a in-progress connect, and then the
-    server accepts and closes the socket, the client's later
-    attempt to complete the connect will fail with EINVAL.  Handle
-    this case by assuming that the connect succeeded.  This code
-    is weird enough that it is implemented as Solaris-only so that
-    it doesn't hide a real error on a different OS.
-    
-    Update #6828
-    
-    R=golang-codereviews, bradfitz, dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/46160043
+    https://golang.org/cl/44710044
 
- src/pkg/net/fd_unix.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/archive/tar/tar_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

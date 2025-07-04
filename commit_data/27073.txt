@@ -1,20 +1,27 @@
-commit 32302d6289e9721015d5d7ac99bbce30de47746c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 22 07:08:13 2016 -0700
+commit f91b832ab5324f6a10c3dd18b1b51e590704ede4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 20:54:59 2016 -0800
 
-    runtime/cgo: use normal libinit on PPC GNU/Linux
+    cmd/compile: rename Recv->Recvs and Recv0->Recv
     
-    The special case was because PPC did not support external linking, but
-    now it does.
-    
-    Fixes #10410.
-    
-    Change-Id: I9b024686e0f03da7a44c1c59b41c529802f16ab0
-    Reviewed-on: https://go-review.googlesource.com/22372
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ice3aa807169f4fec85745a3991b1084a9f85c1b5
+    Reviewed-on: https://go-review.googlesource.com/20499
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/gcc_libinit.c              |  1 -
- src/runtime/cgo/gcc_libinit_linux_ppc64x.c | 26 --------------------------
- 2 files changed, 27 deletions(-)
+ src/cmd/compile/internal/gc/align.go     |  4 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/esc.go       |  4 ++--
+ src/cmd/compile/internal/gc/export.go    |  4 ++--
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 +++---
+ src/cmd/compile/internal/gc/lex.go       |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      | 10 +++++-----
+ src/cmd/compile/internal/gc/type.go      | 15 +++++++--------
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go      |  4 ++--
+ 15 files changed, 42 insertions(+), 43 deletions(-)

@@ -1,16 +1,17 @@
-commit 9f343b1942356e0c87c6994118be298f634e6b4d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 24 13:13:38 2020 -0700
+commit b12703e052feb46faa3a5e4efd3d68837682717e
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Oct 16 19:15:39 2019 +0800
 
-    os/exec: for TestExtraFiles failure, print readlink of unexpected fd
+    cmd/compile: remove amd64p32 related SSA rules
     
-    For #25628
+    Updates golang/go#30439
     
-    Change-Id: If1dce7ba9310e1418e67b9954c989471b775a28e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225278
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iadc737e4c6bb05bb576fe4bb344ad92403697352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201380
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/exec/exec_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 --------------------------
+ 2 files changed, 29 deletions(-)

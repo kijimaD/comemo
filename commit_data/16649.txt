@@ -1,14 +1,16 @@
-commit 5cd5d88954a20c2f4792b6010f3ab7b82355e84b
+commit 4850f5d5ea5913af57c9ae37121ad88aba2d612c
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 26 11:36:18 2013 -0700
+Date:   Wed Jun 26 11:29:30 2013 -0700
 
-    crypto/sha256: provide top-level Sum and Sum224 functions
+    crypto/md5: provide a top-level Sum function
     Makes it easy to ask the simple question, what is the hash of this data?
+    Also mark block as non-escaping.
     
-    R=golang-dev, rsc
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/10629043
+    https://golang.org/cl/10624044
 
- src/pkg/crypto/sha256/sha256.go      | 32 ++++++++++++++++++++++++++++----
- src/pkg/crypto/sha256/sha256_test.go |  8 ++++++++
- 2 files changed, 36 insertions(+), 4 deletions(-)
+ src/pkg/crypto/md5/md5.go           | 14 +++++++++++++-
+ src/pkg/crypto/md5/md5_test.go      |  4 ++++
+ src/pkg/crypto/md5/md5block_decl.go |  2 ++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

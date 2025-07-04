@@ -1,12 +1,12 @@
-commit c7ad7a1af4ed8cb832f429eb57da182daf8427dd
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Thu Mar 21 20:03:27 2013 -0700
+commit dc71ace28261a37922afe02d36a02adf50ba2f94
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 21 19:59:49 2013 -0700
 
-    misc/emacs: Kill gofmt error buffer if the buffer was formatted correctly already.
+    bufio: add some tests
     
-    R=adonovan, cw, patrick.allen.higgins, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7844045
+    https://golang.org/cl/7927044
 
- misc/emacs/go-mode.el | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/bufio/bufio_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 44 insertions(+), 3 deletions(-)

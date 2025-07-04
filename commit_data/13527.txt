@@ -1,12 +1,18 @@
-commit e53351013df40af9a56380dc979762ce13851fa0
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 30 14:13:12 2012 +1000
+commit 538b2122f1d535e5a4ad11a69fddb1da3c10f9de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 30 13:57:30 2012 +1000
 
-    misc/dashboard/codereview: switch to using gobot to update CL reviewer info.
+    net/http: don't allow zero byte in FileServer paths
     
-    R=rsc
+    Should probably be fixed in the syscall package, either
+    additional or instead of this CL.
+    
+    Fixes #3842
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6453063
+    https://golang.org/cl/6442061
 
- misc/dashboard/codereview/dashboard/cl.go | 36 ++++++++++---------------------
- 1 file changed, 11 insertions(+), 25 deletions(-)
+ src/pkg/net/http/fs.go      |  3 ++-
+ src/pkg/net/http/fs_test.go | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

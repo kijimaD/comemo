@@ -1,23 +1,20 @@
-commit a9bb38222a06333176cafc5637083e0322277c09
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 22 21:48:11 2021 -0400
+commit ba2adc21e8c416c47dec5fbce76286758f15b177
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 20 17:09:23 2020 -0500
 
-    net: remove hard-coded timeout in dialClosedPort test helper
+    runtime/testdata/testprogcgo: refactor CrashTraceback
     
-    The helper function claims that dialing a closed port should be
-    "nearly instantaneous", but that is empirically not the case on
-    OpenBSD or Windows. The tests do not appear to be particularly
-    sensitive to the exact upper bound otherwise, so let's just
-    remove the arbitrary latency assumption.
+    This moves the C part of the CrashTraceback test into its own file in
+    preparation for adding a test that transitions back into Go.
     
-    Fixes #46884
-    
-    Change-Id: If00c9fdc3063da6aaf60d365d4a2ee2c94dc6df1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330250
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I9560dcfd80bf8a1d30809fd360f958f5261ebb01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272130
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/dial_test.go | 51 ++++++++++++++++-----------------------------------
- 1 file changed, 16 insertions(+), 35 deletions(-)
+ src/runtime/testdata/testprogcgo/traceback.go  | 58 +++-----------------------
+ src/runtime/testdata/testprogcgo/traceback_c.c | 58 ++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 53 deletions(-)

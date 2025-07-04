@@ -1,14 +1,38 @@
-commit 471b6ecf08377add373a3ee49878148bc23a0cab
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 18 23:00:12 2015 -0500
+commit c7e2eaff95bb4b9813a656c727337dc330af2c44
+Author: Gaurish Sharma <contact@gaurishsharma.com>
+Date:   Sun Jul 12 20:54:00 2015 +0530
 
-    api: fix typo in README
+    strings: Add examples for HasPrefix and HasSuffix
     
-    Fixes #13690.
+    These methods didn't had any examples, so added them. Examples makes things more clear
+    diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+    index 7243e16..b7763bb 100644
+    --- a/src/strings/example_test.go
+    +++ b/src/strings/example_test.go
+    @@ -223,3 +223,19 @@ func ExampleTrimPrefix() {
+            fmt.Print("Hello" + s)
+            // Output: Hello, world!
+     }
+    +
+    +func ExampleHasPrefix() {
+    +       fmt.Println(strings.HasPrefix("hello", "hell"))
+    +       fmt.Println(strings.HasPrefix("hello", "heaven"))
+    +       // Output:
+    +       // true
+    +       // false
+    +}
+    +
+    +func ExampleHasSuffix() {
+    +       fmt.Println(strings.HasSuffix("hello", "llo"))
+    +       fmt.Println(strings.HasSuffix("hello", "hell"))
+    +       // Output:
+    +       // true
+    +       // false
+    +}
     
-    Change-Id: I3b9b993a2e7ecf07bab7d1935d4c83a86bc6ba3a
-    Reviewed-on: https://go-review.googlesource.com/18054
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I5d451c669bd05e19a2afc33ed2ec59b280c2c2d9
+    Reviewed-on: https://go-review.googlesource.com/12065
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- api/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/strings/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

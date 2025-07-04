@@ -1,20 +1,56 @@
-commit 41bb7446dcc5179047512aa10c5e6d01eb870b54
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 22 13:38:05 2021 -0700
+commit 44d1a8523a50c30354e0b1ef70953567c26eed1a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 8 19:28:24 2021 -0800
 
-    cmd/compile/internal/types2: don't panic if targs don't match tparams when substituting
+    [dev.typeparams] cmd/compile/internal/types2: fixes for all.bash
     
-    This is a clean port of CL 351337 from go/types to types2.
+    This CL implements a number of minor fixes that were discovered in
+    getting -G=3 working for running all.bash.
     
-    Change-Id: I974bf79fcc1ec0016c38e4c0b361d05f7b44e649
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351466
+    1. Field tags were handled incorrectly. If a struct type had some
+    fields with tags, but later fields without tags, the trailing tag-less
+    fields would all copy the tag of the last tagged field. Fixed by
+    simply reinitializing `tag` to "" for each field visited.
+    
+    2. Change the ending of switch case clause scopes from the end of the
+    last statement to the next "case" token or the switch-ending "}"
+    token. I don't think this is strictly necessary, but it matches my
+    intuition about where case-clause scopes end and cmd/compile's current
+    scoping logic (admittedly influenced by the former).
+    
+    3. Change select statements to correctly use the scope of each
+    individual communication clause, instead of the scope of the entire
+    select statement. This issue appears to be due to the original
+    go/types code being written to rebind "s" from the *SelectStmt to the
+    Stmt in the range loop, and then being further asserted to "clause" of
+    type *CommClause. In most places within the loop body, "clause" was
+    used, but the rebound "s" identifier was used for the scope
+    boundaries.
+    
+    However, in the syntax AST, SelectStmt directly contains a
+    []*CommClause (rather than a *BlockStmt, with []Stmt), so no assertion
+    is necessary and instead of rebinding "s", the range loop was updated
+    to directly declare "clause".
+    
+    4. The end position for increment/decrement statements (x++/x--) was
+    incorrectly calculated. Within the syntax AST, these are represented
+    as "x += ImplicitOne", and for AssignStmts types2 calculated the end
+    position as the end position of the RHS operand. But ImplicitOne
+    doesn't have any position information.
+    
+    To workaround this, this CL detects ImplicitOne and then computes the
+    end position of the LHS operand instead, and then adds 2. In practice
+    this should be correct, though it could be wrong for ill-formatted
+    statements like "x ++".
+    
+    Change-Id: I13d4830af39cb3f3b9f0d996672869d3db047ed2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282914
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/named.go                      |  2 +-
- src/cmd/compile/internal/types2/subst.go                      |  4 +++-
- .../compile/internal/types2/testdata/fixedbugs/issue46461.go2 | 11 +++++++++++
- .../compile/internal/types2/testdata/fixedbugs/issue48529.go2 | 11 +++++++++++
- 4 files changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go |  4 ++--
+ src/cmd/compile/internal/types2/pos.go      |  4 ++++
+ src/cmd/compile/internal/types2/stmt.go     | 31 +++++++++++++++++++++--------
+ src/cmd/compile/internal/types2/typexpr.go  |  1 +
+ 4 files changed, 30 insertions(+), 10 deletions(-)

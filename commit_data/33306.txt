@@ -1,17 +1,30 @@
-commit 26e49e695f5df063f7f4e33718b22ce1cbc6e533
-Author: Jason Wangsadinata <jwangsadinata@gmail.com>
-Date:   Mon Oct 30 23:04:03 2017 +0700
+commit adc28cb1e03d4fd3e4750cdcc6215976e3e250c9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 10 11:35:34 2017 +0200
 
-    container/ring: fix example_test.go
+    cmd/dist: add doc file to fix go doc dist
     
-    The Len method is a linear operation. CL 73090 used Len to iterate over
-    a ring, resulting in a quadratic time operation.
+    $ go tool -h says:
     
-    Change-Id: Ib69c19190ba648311e6c345d8cb26292b50121ee
-    Reviewed-on: https://go-review.googlesource.com/74390
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+      For more about each tool command, see 'go tool command -h'.
+    
+    but it was suggested to change the suggestion to say:
+    
+      see 'go doc command'
+    
+    In #18313.
+    
+    That would work for every tool except dist, which has no doc.go.
+    
+    This change adds a doc.go file to cmd/dist.
+    
+    Updates #18313
+    
+    Change-Id: If67a21934b87647a69359d9c14d8de3775c587b7
+    Reviewed-on: https://go-review.googlesource.com/54351
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/container/ring/example_test.go | 37 ++++++++++++++++++++++++++++---------
- 1 file changed, 28 insertions(+), 9 deletions(-)
+ src/cmd/dist/doc.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

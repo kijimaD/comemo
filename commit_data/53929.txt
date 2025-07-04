@@ -1,41 +1,16 @@
-commit aca6577196d61073a74c2ba791aa89c166db9521
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 1 14:41:42 2023 -0400
+commit c263fa07b1b10bd7e5847fe9104467908df81114
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:11:11 2022 +0800
 
-    runtime: drop stack-allocated pcvalueCaches
+    cmd/pack: use strings.Builder
     
-    Now that pcvalue keeps its cache on the M, we can drop all of the
-    stack-allocated pcvalueCaches and stop carefully passing them around
-    between lots of operations. This significantly simplifies a fair
-    amount of code and makes several structures smaller.
-    
-    This series of changes has no statistically significant effect on any
-    runtime Stack benchmarks.
-    
-    I also experimented with making the cache larger, now that the impact
-    is limited to the M struct, but wasn't able to measure any
-    improvements.
-    
-    Change-Id: I4719ebf347c7150a05e887e75a238e23647c20cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515277
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I1c9f91e983fb26b3e46c65513a4f14508774e543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428291
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/debugcall.go      |  2 +-
- src/runtime/heapdump.go       |  2 +-
- src/runtime/mbitmap.go        |  2 +-
- src/runtime/mgcmark.go        |  2 +-
- src/runtime/mgcstack.go       |  2 --
- src/runtime/preempt.go        |  4 ++--
- src/runtime/race.go           |  2 +-
- src/runtime/stack.go          |  3 +--
- src/runtime/stkframe.go       |  4 ++--
- src/runtime/symtab.go         | 30 ++++++++++++++----------------
- src/runtime/symtabinl.go      |  7 +++----
- src/runtime/symtabinl_test.go |  3 +--
- src/runtime/trace.go          |  3 +--
- src/runtime/traceback.go      | 17 +++++++----------
- 14 files changed, 36 insertions(+), 47 deletions(-)
+ src/cmd/pack/pack_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

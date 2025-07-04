@@ -1,74 +1,18 @@
-commit 2b50ab2aee75d3c361fcd1eb39e830e2e73056b6
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Dec 7 19:15:15 2020 +0800
+commit 72735e7e05a79dd9272659e3095aa754c741a54e
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Thu Jul 9 09:55:49 2020 -0600
 
-    cmd/compile: optimize single-precision floating point square root
+    doc/go1.15: add line for testing streaming change
     
-    Add generic rule to rewrite the single-precision square root expression
-    with one single-precision instruction. The optimization will reduce two
-    times of precision converting between double-precision and single-precision.
+    Updates #37419.
+    Updates #38458.
+    Updates #24929.
     
-    On arm64 flatform.
-    
-    previous:
-      FCVTSD F0, F0
-      FSQRTD F0, F0
-      FCVTDS F0, F0
-    
-    optimized:
-      FSQRTS S0, S0
-    
-    And this patch adds the test case to check the correctness.
-    
-    This patch refers to CL 241877, contributed by Alice Xu
-    (dianhong.xu@arm.com)
-    
-    Change-Id: I6de5d02281c693017ac4bd4c10963dd55989bd7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276873
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I793bb20fa9db4432fc3a5b69956b7108e4695081
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241660
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |   4 +-
- src/cmd/compile/internal/arm/ssa.go            |   1 +
- src/cmd/compile/internal/arm64/ssa.go          |   1 +
- src/cmd/compile/internal/mips/ssa.go           |   1 +
- src/cmd/compile/internal/mips64/ssa.go         |   1 +
- src/cmd/compile/internal/s390x/ssa.go          |   2 +-
- src/cmd/compile/internal/ssa/gen/386.rules     |   1 +
- src/cmd/compile/internal/ssa/gen/386Ops.go     |   1 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   1 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   1 +
- src/cmd/compile/internal/ssa/gen/ARM.rules     |   1 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   2 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   1 +
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |   1 +
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |   1 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   1 +
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   1 +
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   1 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |   1 +
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |   1 +
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   2 +
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |   1 +
- src/cmd/compile/internal/ssa/gen/Wasm.rules    |   2 +
- src/cmd/compile/internal/ssa/gen/WasmOps.go    |  14 +--
- src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
- src/cmd/compile/internal/ssa/gen/genericOps.go |   5 +-
- src/cmd/compile/internal/ssa/opGen.go          | 134 ++++++++++++++++++++++---
- src/cmd/compile/internal/ssa/rewrite386.go     |   3 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |   3 +
- src/cmd/compile/internal/ssa/rewriteARM.go     |   3 +
- src/cmd/compile/internal/ssa/rewriteARM64.go   |   3 +
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |   3 +
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   3 +
- src/cmd/compile/internal/ssa/rewritePPC64.go   |   3 +
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |   3 +
- src/cmd/compile/internal/ssa/rewriteS390X.go   |   3 +
- src/cmd/compile/internal/ssa/rewriteWasm.go    |   3 +
- src/cmd/compile/internal/ssa/rewritegeneric.go |  20 ++++
- src/cmd/compile/internal/x86/ssa.go            |   2 +-
- src/math/all_test.go                           |  34 +++++++
- test/codegen/math.go                           |  11 ++
- 41 files changed, 255 insertions(+), 28 deletions(-)
+ doc/go1.15.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,29 +1,25 @@
-commit ed475fe53ba41c0c15b11565f8b9d00165345bc2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 27 22:59:55 2021 -0400
+commit 26001d109ed3da33c728b96e547fa380c7e2a300
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Feb 23 12:01:26 2021 -0500
 
-    cmd/go: update for //go:build lines
+    go/types: review of call.go
     
-    cmd/go has its own //go:build evaluator, which is needed for
-    patterns like 'all'. The code is a modified copy of some unexported
-    routines from the go/build package. Update it by copying those
-    again and re-modifying them. The modifications are primarily the new
-    func eval and also ignoring errors.
+    The changes from the (reviewed) dev.regabi copy of call.go can be seen
+    by comparing patchset 1 and 4. The actual changes are removing the
+    "// REVIEW INCOMPLETE" marker, deleting some leftover handling of type
+    instantiation in Checker.call, and adding a comment that exprOrTypeList
+    should be refactored.
     
-    This CL will need to be backported to Go 1.17, or else Go 1.17
-    will break when faced with certain //go:build-only repos during
-    'go list all' or 'go mod tidy'.
+    I started to refactor exprOrTypeList, but thought it best to mark this
+    code as reviewed before diverging from types2.
     
-    For #41184.
-    Fixes #49198.
-    
-    Change-Id: Ie0fe3caa8d49004935ecd76d7977f767fe50e317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359355
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Icf7fbff5a8def49c5f1781472fd7ba7b73dd9a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295531
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/imports/build.go            | 216 +++++++++++++++++-------
- src/cmd/go/testdata/script/list_all_gobuild.txt |  41 +++++
- 2 files changed, 192 insertions(+), 65 deletions(-)
+ src/go/types/call.go | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

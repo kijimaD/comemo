@@ -1,20 +1,19 @@
-commit ffe5f085cd8b289a7853fcdb3c26adbebda09fd6
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Mon Jul 25 12:32:24 2022 +0800
+commit 363f2f3df99f3edd15609cc6bea2a2c6f423ce2c
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Sep 10 13:16:32 2021 -0400
 
-    runtime: refine code reducing indents in netpollBreak()
+    [dev.fuzz] testing: allow -fuzzminimizetime to be 0
     
-    Change-Id: I2d1528910cb3660344c7a664d6f32306defe75d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419321
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Fixes golang/go#48321
+    
+    Change-Id: I1547379eb7a703f7f3c4594d27833eb3587796a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349089
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/netpoll_aix.go     |  9 ++++++---
- src/runtime/netpoll_epoll.go   | 33 ++++++++++++++++++---------------
- src/runtime/netpoll_kqueue.go  | 27 +++++++++++++++------------
- src/runtime/netpoll_solaris.go | 25 ++++++++++++++-----------
- src/runtime/netpoll_windows.go | 13 ++++++++-----
- 5 files changed, 61 insertions(+), 46 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 26 +++++++++++++++++++++++
+ src/testing/benchmark.go                          |  9 ++++----
+ src/testing/fuzz.go                               |  2 +-
+ 3 files changed, 32 insertions(+), 5 deletions(-)

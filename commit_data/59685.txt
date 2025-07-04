@@ -1,17 +1,19 @@
-commit d2db2372a2fd79d539719fa13422d83d6fdfcda1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 21 22:50:09 2025 -0400
+commit 5b5d6f87a8a19848b367a0e0d8e56c0141c02193
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Apr 10 12:19:36 2024 -0400
 
-    hash/maphash: move purego-only helper functions to build tagged file
+    doc/README.md: note simpler symbol links
     
-    Hash.float64 and btoi helper functions are used only in the purego
-    version. Move them to the build tagged file.
+    Document that links to symbols in the standard library can be
+    written as "[foo]", without the actual link.
     
-    Change-Id: I57f9a48966573ab0aee1de759eeddd2331967870
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675158
-    Reviewed-by: David Chase <drchase@google.com>
+    For #64169.
+    
+    Change-Id: I9d8a33e85df70037320a169d55a2bb4a8a981ebf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577915
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/hash/maphash/maphash.go        | 24 ------------------------
- src/hash/maphash/maphash_purego.go | 23 +++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 24 deletions(-)
+ doc/README.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

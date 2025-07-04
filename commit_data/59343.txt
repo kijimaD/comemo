@@ -1,22 +1,30 @@
-commit 95611c0eb4436102ab0dad3a705acff5f5eb7aca
-Author: Prabhav Dogra <prabhavdogra1@gmail.com>
-Date:   Sun Apr 20 07:52:58 2025 +0000
+commit e8b5bc63be22e2bebffabcfccaf54d4c19822fe6
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Tue Jan 30 19:18:24 2024 +0300
 
-    sync: use atomic.Bool for Once.done
+    cmd/dist,internal: add GOARM64 environment variable
     
-    Updated the use of atomic.Uint32 to atomic.Bool for sync package.
+    Adds GOARM64 environment variable with accepted range of values "v8.{0-9}",
+    "v9.{0-5}" and optional ",lse" and ",crypto" suffixes.
     
-    Change-Id: Ib8da66fea86ef06e1427ac5118016b96fbcda6b1
-    GitHub-Last-Rev: d36e0f431fcde988f90badf86bbf04a18a411947
-    GitHub-Pull-Request: golang/go#73447
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666895
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Right now it doesn't affect anything, but can be used in the future to
+    selectively target specific versions of different ARM64 hardware.
+    
+    For #60905
+    
+    Change-Id: I6d530041b6931aa884e34f719f8ec41b1cb03ece
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559555
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Shu-Chun Weng <scw@google.com>
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
 
- src/sync/once.go    | 8 ++++----
- test/inline_sync.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/dist/build.go               |  11 ++++
+ src/cmd/dist/buildruntime.go        |   1 +
+ src/cmd/go/alldocs.go               |   9 +++
+ src/cmd/go/internal/help/helpdoc.go |   9 +++
+ src/internal/buildcfg/cfg.go        | 117 ++++++++++++++++++++++++++++++++++++
+ src/internal/buildcfg/cfg_test.go   |  85 ++++++++++++++++++++++++++
+ src/internal/cfg/cfg.go             |   1 +
+ 7 files changed, 233 insertions(+)

@@ -1,19 +1,24 @@
-commit fe9fc408f4a523567405b25d7c45feeac4ec2f6e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 7 16:57:29 2023 -0700
+commit 0eb56ca4688caed10c422f1d2d3b364d75970b8c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Jul 8 16:30:41 2021 -0500
 
-    doc/go1.21: run relnotes again
+    internal/buildcfg: support GOPPC64=power10
     
-    Fill in some of the simpler entries, leave some more TODO entries.
+    This does not enable any new functionality. It should
+    behave identically to GOPPC64=power9.
     
-    For #58645
+    Updates #44549
     
-    Change-Id: I20eb09ba709520ab27301c568d777184a405ffdc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501695
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9a860544527fcfe97cbaf89686459d40dcf9593e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352791
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- doc/go1.21.html | 136 +++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 115 insertions(+), 21 deletions(-)
+ src/cmd/go/alldocs.go                   |  2 +-
+ src/cmd/go/internal/help/helpdoc.go     |  2 +-
+ src/cmd/go/testdata/script/tooltags.txt | 10 ++++++++++
+ src/internal/buildcfg/cfg.go            |  4 +++-
+ 4 files changed, 15 insertions(+), 3 deletions(-)

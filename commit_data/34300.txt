@@ -1,18 +1,23 @@
-commit ebeea20a49c7f75ede9cdd403d474ed8c667dbf3
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Feb 21 18:19:52 2018 +0100
+commit 5ddd3d588c589ae644cadd2d8e5341669dae888e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 14 08:46:50 2017 -0700
 
-    cmd/compile: use | in the most repetitive ppc64 rules
+    runtime: fix use of STREX in various exitThread implementations
     
-    For now, limited to the most repetitive rules that are also short and
-    simple, so that we can have a substantial conciseness win without
-    compromising rules readability.
+    STREX does not permit using the same register for the value to store
+    and the place where the result is returned. Also the code was wrong
+    anyhow if the first store failed.
     
-    Ran rulegen, no changes in the rewrite files.
+    Fixes #22248
     
-    Change-Id: I8d8cc67d02faca4756cc02402b763f1645ee31de
-    Reviewed-on: https://go-review.googlesource.com/95935
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I96013497410058514ffcb771c76c86faa1ec559b
+    Reviewed-on: https://go-review.googlesource.com/70911
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 102 +++++++--------------------
- 1 file changed, 25 insertions(+), 77 deletions(-)
+ src/runtime/sys_darwin_arm.s  | 4 ++--
+ src/runtime/sys_freebsd_arm.s | 4 ++--
+ src/runtime/sys_netbsd_arm.s  | 4 ++--
+ src/runtime/sys_openbsd_arm.s | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,14 +1,18 @@
-commit 4710e16d34354a555cc6ebe54c6855bf5502fcbf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 30 13:50:03 2016 -0700
+commit a5d3f7ece9033393166d0c74cd1121c15032ba4d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 29 15:17:34 2016 -0400
 
-    cmd/compile: cleanup addmethod
+    runtime: avoid conditional execution in morePointers and isPointer
     
-    Change-Id: Icb1671187d70edd962e2bda2cc45771b17a8e770
-    Reviewed-on: https://go-review.googlesource.com/28175
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    heapBits.bits is carefully written to produce good machine code. Use
+    it in heapBits.morePointers and heapBits.isPointer to get good machine
+    code there, too.
+    
+    Change-Id: I208c7d0d38697e7a22cad67f692162589b75f1e2
+    Reviewed-on: https://go-review.googlesource.com/22630
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 71 +++++++++++++++-----------------------
- 1 file changed, 28 insertions(+), 43 deletions(-)
+ src/runtime/mbitmap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,14 @@
-commit 462a17e0f3ac22174cba34dbfb488695f4ddfcd0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 22 15:36:04 2013 -0700
+commit ba0dd1f139c4344008a1cb184f0c5e02ad879ef5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 22 17:50:29 2013 -0400
 
-    spec: remove most §links for the now more common in-text links
+    cmd/gc: fix line number for 'missing return' in closure
     
-    Also:
-    - more consistenly use "xxx" statement rather than <code>xxx</code> statement
-    - fix/remove unnecessary links
-    
-    R=golang-dev, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7821050
+    https://golang.org/cl/7838048
 
- doc/go_spec.html | 83 ++++++++++++++++++++++++++++----------------------------
- 1 file changed, 42 insertions(+), 41 deletions(-)
+ src/cmd/gc/closure.c |    2 +
+ src/cmd/gc/fmt.c     |    2 +-
+ test/return.go       | 1436 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 1439 insertions(+), 1 deletion(-)

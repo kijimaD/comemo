@@ -1,25 +1,25 @@
-commit 78132a1f5731fcca5d2ee4535cebc15741946d1e
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu Nov 14 15:54:54 2024 -0500
+commit 059a9eedf45f4909db6a24242c106be15fb27193
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 21 23:16:56 2023 +0100
 
-    crypto/internal/fips140test: add ECDSA ACVP tests
+    crypto/tls: check and record godebugs more granularly
     
-    This commit adds ACVP test coverage for the non-deterministic ECDSA
-    vectors (keyGen, keyVer, sigGen, sigVer) based on the NIST spec:
+    We should call Value as late as possible to allow programs to set
+    GODEBUG with os.Setenv, and IncNonDefault only when (and every time) the
+    GODEBUG has an effect on a connection (that we'd have regularly
+    rejected).
     
-      https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html
-    
-    Updates #69642
-    
-    Change-Id: Iec8b18a247b0a652d13f9167a78de2cb74f4dfd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620935
+    Change-Id: If7a1446de407db7ca2d904d41dda13558b684dda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .../internal/fips140test/acvp_capabilities.json    |   7 +-
- .../internal/fips140test/acvp_test.config.json     |   4 +-
- src/crypto/internal/fips140test/acvp_test.go       | 231 +++++++++++++++++++++
- 3 files changed, 240 insertions(+), 2 deletions(-)
+ src/crypto/tls/cipher_suites.go    | 39 +++++++++++++++++++-------------------
+ src/crypto/tls/common.go           | 11 +++++++----
+ src/crypto/tls/conn.go             |  6 +++---
+ src/crypto/tls/handshake_client.go |  4 ++++
+ src/crypto/tls/handshake_server.go |  8 ++++++++
+ src/crypto/tls/tls_test.go         | 12 ++----------
+ 6 files changed, 43 insertions(+), 37 deletions(-)

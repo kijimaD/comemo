@@ -1,14 +1,21 @@
-commit 5235501c0509385c28294b3a314891e1e7165163
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jun 20 15:48:29 2019 -0400
+commit 7da03b9fbb5c0f8b771a90be3c3777ffbdde283a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 21 12:11:52 2017 -0400
 
-    crypto/x509: add Ed25519 to ExampleParsePKIXPublicKey
+    runtime: compute goal first in gcSetTriggerRatio
     
-    ParsePKIXPublicKey gained Ed25519 support in CL 175478.
+    This slightly rearranges gcSetTriggerRatio to compute the goal before
+    computing the other controls. This will simplify implementing the heap
+    limit, which needs to control the absolute goal and flow the rest of
+    the control parameters from this.
     
-    Change-Id: I11ffe0a62743292367b3adb103956e61bad57cc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183243
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    For #16843.
+    
+    Change-Id: I46b7c1f8b6e4edbee78930fb093b60bd1a03d75e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/46750
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/crypto/x509/example_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/mgc.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

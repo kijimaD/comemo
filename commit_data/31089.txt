@@ -1,15 +1,16 @@
-commit 20edbda5ea38a690d3260e5396c25135afc80069
-Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
-Date:   Mon Apr 10 13:12:51 2017 -0500
+commit 6bdb0c11c73ecf2337918d784c54f9dda2207ca7
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Jan 28 07:36:09 2017 -0800
 
-    cmd/go: add better error message when gccgo is missing
+    doc: update go1.8 release notes after TxOptions change
     
-    Fixes #19628
+    Missed the release notes when updating the sql API.
     
-    Change-Id: I19baf694c66aaca8e0d95297c97aacb40db24c47
-    Reviewed-on: https://go-review.googlesource.com/40250
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #18825
+    
+    Change-Id: I89056d46939ad4fc99590f3434d2881f5764e1b6
+    Reviewed-on: https://go-review.googlesource.com/35915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/build.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ doc/go1.8.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

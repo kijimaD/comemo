@@ -1,16 +1,32 @@
-commit d8b14c524303f8d28bc5b496e918cfbb2758cbc5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 16 19:08:25 2016 +0000
+commit 9d8522fdc72ecc8eaa2d318a2cc04abde9beeb42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 21 09:44:40 2016 -0700
 
-    math/rand: make floating point tests shorter on mips and mipsle
+    cmd/compile: don't instrument copy and append in runtime
     
-    Like GOARM=5 does.
+    Instrumenting copy and append for the race detector changes them to call
+    different functions. In the runtime package the alternate functions are
+    not marked as nosplit. This caused a crash in the SIGPROF handler when
+    invoked on a non-Go thread in a program built with the race detector. In
+    some cases the handler can call copy, the race detector changed that to
+    a call to a non-nosplit function, the function tried to check the stack
+    guard, and crashed because it was running on a non-Go thread. The
+    SIGPROF handler is written carefully to avoid such problems, but hidden
+    function calls are difficult to avoid.
     
-    Fixes #17944
+    Fix this by changing the compiler to not instrument copy and append when
+    compiling the runtime package. Change the runtime package to add
+    explicit race checks for the only code I could find where copy is used
+    to write to user data (append is never used).
     
-    Change-Id: Ica2a54a90fbd4a29471d1c6009ace2fcc5e82a73
-    Reviewed-on: https://go-review.googlesource.com/33326
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I11078a66c0aaa459a7d2b827b49f4147922050af
+    Reviewed-on: https://go-review.googlesource.com/29472
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/math/rand/rand_test.go | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go          |  6 +--
+ src/runtime/crash_cgo_test.go                | 28 ++++++++++
+ src/runtime/mprof.go                         | 12 +++++
+ src/runtime/testdata/testprogcgo/raceprof.go | 77 ++++++++++++++++++++++++++++
+ 4 files changed, 120 insertions(+), 3 deletions(-)

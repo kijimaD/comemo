@@ -1,16 +1,19 @@
-commit b21c837008a398fe23f06741946cf39e52dfdfa7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 26 13:16:50 2019 -0400
+commit aafa855fd3f50f8d5c69a9f0e1ff06c50cfdcd64
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 01:15:24 2019 +0100
 
-    doc/go1.13: describe the change in behavior of GO111MODULE=auto
+    misc/ios: evaluate symlinks before comparing GOROOT and GOPATH
     
-    Updates #31857
+    CL 163726 added workarounds to keep the iOS builders happy in
+    a symlinked temporary dir.
     
-    Change-Id: Id0dc66246f768a2c730c67cd7a4a7830547f22a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183922
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    The workarounds also made the tests more realistic and improved
+    performance. Keep them but also handle symlinks better in the
+    exec wrapper.
+    
+    Change-Id: Iaa2c03a1a3fb3aa5aaf62d79d52b63d5d8f11db5
+    Reviewed-on: https://go-review.googlesource.com/c/164698
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.13.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ misc/ios/go_darwin_arm_exec.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

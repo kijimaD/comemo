@@ -1,12 +1,21 @@
-commit 03929984b9b473aa1c2e7f86c89a9c3624667d59
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 15 11:32:02 2017 -0400
+commit 7b5e0b76886058cb7ce14658f1cf9be446fd8d05
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 18 05:05:25 2017 +0900
 
-    runtime: fix getclosureptr doc
+    syscall: add Accept4 and SOCK_{CLOEXEC,NONBLOCK} on dragonfly
     
-    Change-Id: I1b42fca2107b06e6fc95728f7bf3d08d005c4cb4
-    Reviewed-on: https://go-review.googlesource.com/55810
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change just picks a few constants from DragonfFly BSD 4.6 kernel
+    and doesn't synchronize all the existing constants with the latest
+    DragonFly BSD kernels.
+    
+    Updates #14222.
+    
+    Change-Id: Ie107a8bee1a09393b3b42b6f82489532f5d13290
+    Reviewed-on: https://go-review.googlesource.com/40894
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/stubs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/syscall_dragonfly.go        | 19 +++++++++++++++++++
+ src/syscall/zerrors_dragonfly_amd64.go  |  2 ++
+ src/syscall/zsyscall_dragonfly_amd64.go | 11 +++++++++++
+ src/syscall/zsysnum_dragonfly_amd64.go  |  1 +
+ 4 files changed, 33 insertions(+)

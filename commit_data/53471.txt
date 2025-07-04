@@ -1,28 +1,24 @@
-commit 46249e56e12ff7fadf118660860284bf20f053cc
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 5 20:04:31 2023 -0400
+commit b30ba3df9ff8969f934bec5016cfce4b91f6ea5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 10:37:48 2022 -0400
 
-    cmd/dist: remove stale files from gentab
+    crypto/internal/boring/bcache: make Cache type-safe using generics
     
-    There are several files in gentab that have a nil generator, which
-    means they used to be generated, but aren't any more, so dist should
-    delete them if it encounters them. However, cleaning only look for
-    these file names in the small number of directories listed in
-    cleanlist, and none of these files were originally generated into any
-    of the directories in cleanlist. Specifically, enam.c was generated
-    into $GOROOT/src/cmd/[568]l starting with CL 5620045 until CL 35740044
-    and the anames[5689].c files were generated into $GOROOT/src/liblink
-    starting with CL 35740044 and CL 120690043 until CL 6110. None of
-    these directories even exist any more, and if these files did somehow
-    exist, dist wouldn't delete them anyway.
+    Generics lets us write Cache[K, V] instead of using unsafe.Pointer,
+    which lets us remove all the uses of package unsafe around the
+    uses of the cache.
     
-    Hence, we can safely remove these files from gentab.
+    I tried to do Cache[*K, *V] instead of Cache[K, V] but that was not possible.
     
-    Change-Id: Ifed322d64a7a81a76537fcd9fc7020c7aca48050
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501135
+    Change-Id: If3b54cf4c8d2a44879a5f343fd91ecff096537e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423357
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/crypto/ecdsa/boring.go                      | 13 +++---
+ src/crypto/internal/boring/bcache/cache.go      | 57 ++++++++++++-------------
+ src/crypto/internal/boring/bcache/cache_test.go | 46 ++++++++++----------
+ src/crypto/rsa/boring.go                        | 13 +++---
+ 4 files changed, 64 insertions(+), 65 deletions(-)

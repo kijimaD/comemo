@@ -1,20 +1,17 @@
-commit bf151cc2aa4094b4633a7e5f07a34227d58231fe
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu May 5 16:51:54 2016 -0700
+commit 49be1ebab49c0608a6944c98feebc118432c598e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 21 19:32:57 2016 +1300
 
-    cmd/compile/internal/mips64: fix large uint -> float conversion
+    cmd/link: delete more unreachable code
     
-    Re-enable TestFP in cmd/compile/internal/gc on mips64.
+    Debugasm can never be set in cmd/link, so delete it and the code it enables.
     
-    Fixes #15552.
-    
-    Change-Id: I5c3a5564b94d28c723358f0862468fb6da371991
-    Reviewed-on: https://go-review.googlesource.com/22835
+    Change-Id: If828db0b09f1a9e512dc660ac2750657a769094c
+    Reviewed-on: https://go-review.googlesource.com/20971
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go  |  7 +------
- src/cmd/compile/internal/mips64/gsubr.go | 11 +++++++++--
- 2 files changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/link.go    |  1 -
+ src/cmd/link/internal/ld/objfile.go | 51 -------------------------------------
+ 2 files changed, 52 deletions(-)

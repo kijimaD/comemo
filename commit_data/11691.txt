@@ -1,13 +1,21 @@
-commit 9af4b0165486ec5b650ac28ff5d087908908cbc5
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 8 15:12:56 2012 +1100
+commit 0a7ad329e17331a0ca4776b6b9ac67dfc32ad24d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 8 01:57:44 2012 -0200
 
-    5l: attempt to fix arm build
-    TBR=rsc
+    encoding/xml: add support for the omitempty flag
     
-    R=golang-dev
+    This also changes the behavior of attribute marshalling so
+    that strings and byte slices are marshalled even if empty.
+    The omitempty flag may be used to obtain the previous behavior.
+    
+    Fixes #2899.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5647049
+    https://golang.org/cl/5645050
 
- src/cmd/5l/obj.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/xml/marshal.go      | 36 ++++++++++++---
+ src/pkg/encoding/xml/marshal_test.go | 86 +++++++++++++++++++++++++++++++++---
+ src/pkg/encoding/xml/read_test.go    |  4 +-
+ src/pkg/encoding/xml/typeinfo.go     | 17 ++++---
+ 4 files changed, 124 insertions(+), 19 deletions(-)

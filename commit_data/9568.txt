@@ -1,21 +1,13 @@
-commit 3f1269ff1ea56cd4d1608a2b6285d12b5b1dc7d2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 14:01:58 2011 -0700
+commit a31f317a990ad663e24b3521a958705280c14733
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 31 13:07:25 2011 -0400
 
-    godoc: more index size reduction
+    rpc: add benchmark for async rpc calls
+    Also makes sync benchmark concurrent.
     
-    - KindRuns don't need to repeat SpotKind,
-      it is stored in each Spot
-    - removed extra indirection from FileRuns
-      to KindRuns
-    - slight reduction of written index size
-      (~500KB)
-    
-    R=rsc
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4969052
+    https://golang.org/cl/4911043
 
- lib/godoc/search.html  |  6 +++---
- src/cmd/godoc/godoc.go |  4 ++--
- src/cmd/godoc/index.go | 37 +++++++++++++++++--------------------
- 3 files changed, 22 insertions(+), 25 deletions(-)
+ src/pkg/rpc/server_test.go | 91 ++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 80 insertions(+), 11 deletions(-)

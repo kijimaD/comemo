@@ -1,0 +1,18 @@
+commit bb07aa644be4805e799c076f054c0fc132bc4d27
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Tue Oct 22 12:57:13 2024 +0800
+
+    cmd/compile: add shift optimization test
+    
+    For #69635
+    
+    Change-Id: Id5696dc9724c3b3afcd7b60a6994f98c5309eb0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621755
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ test/codegen/issue69635.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,17 +1,27 @@
-commit 8c8948c375a97f8cc09b3b6c3a06c75c31d83aa0
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Sat Feb 10 21:51:12 2024 -0700
+commit b51a4dd6c43194d8680a05ea735a02d70af976af
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Aug 4 17:31:43 2023 -0400
 
-    cmd/go: add support for go get -u tool
+    runtime: restore caller's frame pointer when recovering from panic
     
-    Change-Id: I14d20c6c77d0d0a83cb547d954ba7f244166bc43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563176
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    When recovering from a panic, restore the caller's frame pointer before
+    returning control to the caller. Otherwise, if the function proceeds to
+    run more deferred calls before returning, the deferred functions will
+    get invalid frame pointers pointing to an address lower in the stack.
+    This can cause frame pointer unwinding to crash, such as if an execution
+    trace event is recorded during the deferred call on architectures which
+    support frame pointer unwinding.
+    
+    Fixes #61766
+    
+    Change-Id: I45f41aedcc397133560164ab520ca638bbd93c4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516157
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
 
- src/cmd/go/internal/modget/get.go                    | 17 +++++++++++++++++
- src/cmd/go/internal/modget/query.go                  |  3 +++
- src/cmd/go/testdata/mod/example.com_tools_v1.1.0.txt | 12 ++++++++++++
- src/cmd/go/testdata/script/mod_get_tool.txt          | 19 +++++++++++++++++--
- 4 files changed, 49 insertions(+), 2 deletions(-)
+ src/runtime/callers_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/export_test.go  |  2 ++
+ src/runtime/panic.go        | 12 +++++++++++-
+ 3 files changed, 49 insertions(+), 1 deletion(-)

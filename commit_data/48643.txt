@@ -1,15 +1,23 @@
-commit 2e8dc8f4725c84d352b718620628a4fb0f86e748
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Wed Mar 30 20:19:52 2022 -0700
+commit 79cd407f88f640b889df7645bf3e0491ed25eac7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 4 10:56:06 2021 -0400
 
-    cmd/pprof: point to -h in package documentation
+    syscall: regenerate zsyscall_windows.go
     
-    Change-Id: I820c72e31fbb6471481f4483e7f13bb8b3d5d00c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396881
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Eli Bendersky‎ <eliben@golang.org>
-    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    The declaration order in CL 319310 does not match what the generator
+    produces from scratch. That currently causes
+    cmd/internal/moddeps.TestAllDependencies to fail, since it is
+    explicitly checking for that kind of skew.
+    
+    Updates #45914
+    
+    Change-Id: If2a9cabc3d54e21deba7cb438fa364df205f38ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325112
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/pprof/doc.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/syscall/zsyscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

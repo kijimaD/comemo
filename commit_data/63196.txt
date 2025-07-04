@@ -1,0 +1,38 @@
+commit 5e6a868b28d3e7a71fa328c18ff5e93d72a1fb67
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 21 14:33:13 2025 -0400
+
+    cmd/compile, unique: model data flow of non-string pointers
+    
+    Currently, hash/maphash.Comparable escapes its parameter if it
+    contains non-string pointers, but does not escape strings or types
+    that contain strings but no other pointers. This is achieved by a
+    compiler intrinsic.
+    
+    unique.Make does something similar: it stores its parameter to a
+    central map, with strings cloned. So from the escape analysis's
+    perspective, the non-string pointers are passed through, whereas
+    string pointers are not. We currently cannot model this type of
+    type-dependent data flow directly in Go. So we do this with a
+    compiler intrinsic. In fact, we can unify this and the intrinsic
+    above.
+    
+    Tests are from Jake Bailey's CL 671955 (thanks!).
+    
+    Fixes #73680.
+    
+    Change-Id: Ia6a78e09dee39f8d9198a16758e4b5322ee2c56a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
+
+ src/cmd/compile/internal/escape/call.go | 12 ++++---
+ src/cmd/compile/internal/inline/inl.go  | 17 +++++----
+ src/cmd/compile/internal/walk/expr.go   |  4 +--
+ src/hash/maphash/maphash.go             | 18 ++--------
+ src/internal/abi/escape.go              | 32 +++++++++++++++++
+ src/unique/clone.go                     |  2 +-
+ src/unique/handle_test.go               |  6 ++--
+ test/escape_unique.go                   | 62 +++++++++++++++++++++++++++++++++
+ 8 files changed, 119 insertions(+), 34 deletions(-)

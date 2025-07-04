@@ -1,24 +1,31 @@
-commit a9a398220ff387fe4924aee08365ffc374767a3a
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Wed Sep 7 22:34:48 2022 +0800
+commit 1e2820a6d72b606eb4070eda6cc626bde122f9c8
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Aug 10 09:50:56 2021 -0500
 
-    all: use unsafe.{Slice, SliceData, String, StringData} to simplify code
+    cmd/internal/obj/ppc64: fix usage of CR bit arguments
     
-    Because most of these APIs are recently supported, we can only do some
-    advancement work as much as possible under the premise of compatibility.
+    CR bits and CR fields should be treated separately. Some instructions
+    modify an entire CR, a CR field, or a single CR bit.
     
-    For #54854.
+    Add a new argument class for CR bits, and teach the assembler the
+    recognize them as names like CR0LT or CR2SO, and update the CR
+    bit logic instructions to use them. They will no longer accept
+    register field (CRn) type arguments.
     
-    Change-Id: Id15d11288bf23902570d54eaf2704a5264210b2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429115
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #46422
+    Change-Id: Iaba127d88abada0c2a49b8d3b07a976180565ae4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357774
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modindex/read.go    | 10 +---------
- src/hash/maphash/maphash.go             |  7 +++----
- src/internal/fuzz/counters_supported.go | 10 +---------
- 3 files changed, 5 insertions(+), 22 deletions(-)
+ src/cmd/asm/internal/arch/arch.go         |  3 +++
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 16 ++++++-------
+ src/cmd/internal/obj/ppc64/a.out.go       | 39 +++++++++++++++++++++++++++++--
+ src/cmd/internal/obj/ppc64/anames9.go     |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go        |  5 +++-
+ src/cmd/internal/obj/ppc64/asm_test.go    |  2 ++
+ src/cmd/internal/obj/ppc64/doc.go         |  6 +++++
+ src/cmd/internal/obj/ppc64/list9.go       |  5 ++++
+ 8 files changed, 66 insertions(+), 11 deletions(-)

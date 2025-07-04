@@ -1,15 +1,18 @@
-commit 366268aa7951b81d55c4c8e69383758556917577
+commit 378d7ef59fd25d3003915ee2437de2274a61d505
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Oct 12 23:19:39 2012 +0800
+Date:   Fri Oct 12 16:26:42 2012 +0800
 
-    runtime: FreeBSD/ARM support
+    syscall: FreeBSD/ARM support
     
-    R=rsc
+    R=rsc, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6625071
+    https://golang.org/cl/6657048
 
- src/pkg/runtime/defs_freebsd_arm.h   | 183 ++++++++++++++++++++++++
- src/pkg/runtime/rt0_freebsd_arm.s    |   8 ++
- src/pkg/runtime/signal_freebsd_arm.c | 156 +++++++++++++++++++++
- src/pkg/runtime/sys_freebsd_arm.s    | 262 +++++++++++++++++++++++++++++++++++
- 4 files changed, 609 insertions(+)
+ src/pkg/syscall/asm_freebsd_arm.s       |  124 +++
+ src/pkg/syscall/mkall.sh                |    6 +
+ src/pkg/syscall/syscall_freebsd_arm.go  |   58 ++
+ src/pkg/syscall/zerrors_freebsd_arm.go  | 1650 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_arm.go | 1308 ++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_freebsd_arm.go  |  340 +++++++
+ src/pkg/syscall/ztypes_freebsd_arm.go   |  426 ++++++++
+ 7 files changed, 3912 insertions(+)

@@ -1,16 +1,24 @@
-commit 07c01e396894cc2b6d2528fe6b00e910d24a9384
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sun Oct 8 16:53:18 2017 +0200
+commit e00a38c89a4e0afa985072bdffe5dd30de7eccda
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Jun 16 11:19:01 2017 +0000
 
-    misc/cgo/testcarchive: skip flaky SIGPROF test on darwin
+    cmd/internal/obj/arm: fix setting U bit in shifted register offset of MOVBS
     
-    Updates #19320.
+    "MOVBS.U R0<<0(R1), R2" is assembled to 0xe19120d0 (ldrsb r2, [r1, r0]),
+    but it is expected to be 0xe11120d0 (ldrsb r2, [r1, -r0]).
     
-    Change-Id: Id38df033e3f0873986e668c8ff3855b6e08407a9
-    Reviewed-on: https://go-review.googlesource.com/69114
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    This patch fixes it and adds more encoding tests.
+    
+    fixes #20701
+    
+    Change-Id: Ic1fb46438d71a978dbef06d97494a70c95fcbf3a
+    Reviewed-on: https://go-review.googlesource.com/45996
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/testcarchive/carchive_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm.s      | 282 ++++++++++++++++++++++++++-
+ src/cmd/asm/internal/asm/testdata/armerror.s |  75 +++++++
+ src/cmd/asm/internal/asm/testdata/armv6.s    |  43 ++++
+ src/cmd/internal/obj/arm/asm5.go             |   5 +-
+ 4 files changed, 398 insertions(+), 7 deletions(-)

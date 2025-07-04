@@ -1,0 +1,26 @@
+commit 8969771cc3ceed634844dd6c911f3a5439424a97
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 3 15:16:36 2025 +0000
+
+    runtime: add thread exit plus vgetrandom stress test
+    
+    Add a regression test similar to the reproducer from #73141 to try to
+    help catch future issues with vgetrandom and thread exit. Though the
+    test isn't very precise, it just hammers thread exit.
+    
+    When the test reproduces #73141, it simply crashes with a SIGSEGV and no
+    output or stack trace, which would be very unfortunate on a builder.
+    https://go.dev/issue/49165 tracks collecting core dumps from builders,
+    which would make this more tractable to debug.
+    
+    For #73141.
+    
+    Change-Id: I6a6a636c7d7b41e2729ff6ceb30fd7f979aa9978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662636
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc_test.go                           | 11 ++++
+ .../testdata/testprog/lockosthread_linux.go        | 71 ++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

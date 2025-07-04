@@ -1,53 +1,27 @@
-commit ba8310cf29ee78576a3da8a3ce8e87075df834df
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Sun May 8 21:42:51 2022 -0700
+commit 72233d27c4dcbbbbb53f06bdafd4a0fb8d652662
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 20 14:37:53 2021 -0700
 
-    runtime/pprof: fix allFrames cache
+    [dev.cmdgo] cmd/go: add -testsum flag to update go.sum in script tests
     
-    The compiler may choose to inline multiple layers of function call, such
-    that A calling B calling C may end up with all of the instructions for B
-    and C written as part of A's function body.
+    -testsum may be set to "tidy", "listm", or "listall". When set,
+    TestScript runs 'go mod tidy', 'go list -m -mod=mod all', or
+    'go list -mod=mod all' at the beginning of each test that has a go.mod
+    file in its root directory. If the test passes and go.mod or go.sum
+    was updated, TestScript will rewrite the test file with the initial
+    content of go.mod and go.sum (after the above command).
     
-    Within that function body, some PCs will represent code from function A.
-    Some will represent code from function B, and for each of those the
-    runtime will have an instruction attributable to A that it can report as
-    its caller. Others will represent code from function C, and for each of
-    those the runtime will have an instruction attributable to B and an
-    instruction attributable to A that it can report as callers.
+    This is useful for writing tests that need a working go.sum and for
+    fixing tests that rely on -mod=mod.
     
-    When a profiling signal arrives at an instruction in B (as inlined in A)
-    that the runtime also uses to describe calls to C, the profileBuilder
-    ends up with an incorrect cache of allFrames results. That PC should
-    lead to a location record in the profile that represents the frames
-    B<-A, but the allFrames cache's view should expand the PC only to the B
-    frame.
+    For golang/go#41302
     
-    Otherwise, when a profiling signal arrives at an instruction in C (as
-    inlined in B in A), the PC stack C,B,A can get expanded to the frames
-    C,B<-A,A as follows: The inlining deck starts empty. The first tryAdd
-    call proposes PC C and frames C, which the deck accepts. The second
-    tryAdd call proposes PC B and, due to the incorrect caching, frames B,A.
-    (A fresh call to allFrames with PC B would return the frame list B.) The
-    deck accepts that PC and frames. The third tryAdd call proposes PC A and
-    frames A. The deck rejects those because a call from A to A cannot
-    possibly have been inlined. This results in a new location record in the
-    profile representing the frames C<-B<-A (good), as called by A (bad).
-    
-    The bug is the cached expansion of PC B to frames B<-A. That mapping is
-    only appropriate for the resulting protobuf-format profile. The cache
-    needs to reflect the results of a call to allFrames, which expands the
-    PC B to the single frame B.
-    
-    For #50996
-    For #52693
-    Fixes #52764
-    
-    Change-Id: I36d080f3c8a05650cdc13ced262189c33b0083b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404995
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I63a5667621a5082ccedfc1bff33c3969c29e8b3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336150
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/pprof/proto.go | 30 ++++++++++++++++++++++--------
- 1 file changed, 22 insertions(+), 8 deletions(-)
+ src/cmd/go/script_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)

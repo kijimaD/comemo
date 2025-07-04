@@ -1,16 +1,16 @@
-commit 90ffb7c806c049ececeb2c6ce7fa0dbb056ae4ca
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Nov 24 14:39:03 2015 +1100
+commit 1216e181352c76d93d0ac501d22a5b7175c4cbf2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 11:17:02 2015 -0700
 
-    doc: add Code of Conduct
+    encoding/gob: document allocation/merge behavior
     
-    Fixes #13073
+    This is understood, obvious (to me), and well known but has not been clearly documented.
     
-    Change-Id: I4fd9c6c61f1b9d49f66816839ca35209b4147ae3
-    Reviewed-on: https://go-review.googlesource.com/17167
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #11117.
+    
+    Change-Id: Ib2b1e318924748d1eac0d735ad6286533be7fd39
+    Reviewed-on: https://go-review.googlesource.com/14693
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/conduct.html | 273 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/contrib.html |   8 +-
- doc/help.html    |   6 ++
- 3 files changed, 286 insertions(+), 1 deletion(-)
+ src/encoding/gob/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

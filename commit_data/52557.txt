@@ -1,30 +1,19 @@
-commit 949fdd9f0dc53c32dc6a5a46ad7a85032df28055
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Apr 3 10:01:43 2023 +0200
+commit 508cb32d4be3f71f2975ee978a474eb7d95d868a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 6 16:05:06 2022 -0400
 
-    cmd/link/internal/ld: don't set IMAGE_FILE_DEBUG_STRIPPED on PE binaries
+    cmd/link: more cleanups for visibility hidden symbol handling
     
-    The IMAGE_FILE_DEBUG_STRIPPED characteristic is used to inform that
-    the debugging information have been removed from the PE files and moved
-    into a DBG file, but the Go linker doesn't generate DBG files.
+    CL 404296 removes the hidden visibility checks, but a few of them
+    were left. Remove them as well.
     
-    Having this characteristic can confuse debugging tools, so better
-    don't set it.
-    
-    While here, remove also IMAGE_FILE_LINE_NUMS_STRIPPED, which is
-    deprecated and should be zero [1].
-    
-    Fixes #59391
-    
-    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#characteristics
-    
-    Change-Id: Ia6b1dc3353bfa292a17c4bef17c9bac8dc95189a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481615
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Idbcf37429709c91403803d32684239d398e43543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404303
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/pe.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 2 +-
+ src/cmd/link/internal/s390x/asm.go | 4 +---
+ src/cmd/link/internal/x86/asm.go   | 4 +---
+ 3 files changed, 3 insertions(+), 7 deletions(-)

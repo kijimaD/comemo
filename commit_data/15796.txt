@@ -1,39 +1,12 @@
-commit 1d64d04da5f54f2fc0c9801c908380b633ea67d9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 16 04:01:56 2013 +0800
+commit 09cd13c51dabd709e79329a9b8591fc4d15b6f3f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 15 11:38:50 2013 -0700
 
-    net, runtime: enable runtime-integrated pollster on Linux/ARM.
+    doc/go_faq.html: add entry about pointer to interface
     
-    Results from linux/arm on a Samsung Chromebook (from dfc):
-    localhost(~/go/src/pkg/net) % ~/go/misc/benchcmp {old,new}.txt
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkTCP4OneShot                   568840       350526  -38.38%
-    BenchmarkTCP4OneShot-2                 359054       206708  -42.43%
-    BenchmarkTCP4OneShotTimeout            637464       363550  -42.97%
-    BenchmarkTCP4OneShotTimeout-2          374255       216695  -42.10%
-    BenchmarkTCP4Persistent                184974        64984  -64.87%
-    BenchmarkTCP4Persistent-2              109902        47195  -57.06%
-    BenchmarkTCP4PersistentTimeout         210039        64789  -69.15%
-    BenchmarkTCP4PersistentTimeout-2       124284        43374  -65.10%
-    BenchmarkTCP6OneShot                   672278       362116  -46.14%
-    BenchmarkTCP6OneShot-2                 383631       216400  -43.59%
-    BenchmarkTCP6OneShotTimeout            680740       378306  -44.43%
-    BenchmarkTCP6OneShotTimeout-2          397524       230152  -42.10%
-    BenchmarkTCP6Persistent                172346        65292  -62.12%
-    BenchmarkTCP6Persistent-2              106229        42096  -60.37%
-    BenchmarkTCP6PersistentTimeout         161149        65138  -59.58%
-    BenchmarkTCP6PersistentTimeout-2       152276        44548  -70.75%
-    
-    R=golang-dev, dave, bradfitz, dvyukov, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7820045
+    https://golang.org/cl/7546050
 
- src/pkg/net/fd_linux.go          | 194 ---------------------------------------
- src/pkg/net/fd_poll_runtime.go   |   2 +-
- src/pkg/net/fd_poll_unix.go      |   2 +-
- src/pkg/runtime/defs_linux_arm.h |  19 ++++
- src/pkg/runtime/netpoll.goc      |   2 +-
- src/pkg/runtime/netpoll_epoll.c  |   2 +-
- src/pkg/runtime/netpoll_stub.c   |   2 +-
- src/pkg/runtime/sys_linux_arm.s  |  49 +++++++++-
- 8 files changed, 72 insertions(+), 200 deletions(-)
+ doc/go_faq.html | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

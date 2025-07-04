@@ -1,20 +1,12 @@
-commit b76ddefee593c50c658f4d7b876c354296b1d31b
-Author: Josh Hoak <jhoak@google.com>
-Date:   Thu Jun 13 15:07:09 2013 +1000
+commit 55511d2b34918272ab5792f4776b3a6cde0b601e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 13 12:43:26 2013 +1000
 
-    misc/vim: Adding flag-guarding for Vim commands
+    doc: add go1.1.1 to the release notes
     
-    Default behavior is the same as before, but now a user may selectively disable some commands.
-    
-    Also: deleted the mappings for import.vim.
-    
-    Tested: by trying the commands for fmt, import and godoc in succession to make sure they still work. Also, ran test.sh in ftplugin/go.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/10124043
+    https://golang.org/cl/10236045
 
- misc/vim/ftplugin/go/fmt.vim    | 16 +++++++++++++++-
- misc/vim/ftplugin/go/import.vim | 35 ++++++++++++++++++++++++++---------
- misc/vim/plugin/godoc.vim       | 27 ++++++++++++++++++++++++---
- 3 files changed, 65 insertions(+), 13 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

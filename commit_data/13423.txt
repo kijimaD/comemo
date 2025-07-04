@@ -1,16 +1,15 @@
-commit ccbac5a48025a5ad911fa1a02e43486043c89038
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jun 30 12:25:38 2012 -0700
+commit c644a4ddfe9afe8ab79a6d3c776117cdb11dd2b7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 30 22:08:53 2012 +1000
 
-    api: update next.txt
+    path/filepath: avoid allocation in Clean of cleaned path even on windows (fix build)
     
-    Some accumulated changes from the past few weeks.
-    
-    Just cleans up all.bash output.
-    
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6354056
+    https://golang.org/cl/6344049
 
- api/next.txt | 25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ src/pkg/path/filepath/path.go         | 43 ++++++++++++++++++++++-------------
+ src/pkg/path/filepath/path_plan9.go   |  8 +++----
+ src/pkg/path/filepath/path_unix.go    |  8 +++----
+ src/pkg/path/filepath/path_windows.go | 22 ++++++++----------
+ 4 files changed, 45 insertions(+), 36 deletions(-)

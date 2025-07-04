@@ -1,30 +1,19 @@
-commit 5e774b0f5c9e9d5a0dab94620d2e0030226148c2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 18 16:07:13 2021 -0500
+commit 2abf280a282a24486a819b0a916dd77c50b48d22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 25 12:31:25 2021 -0700
 
-    net: simplify deadline fluctuation tests
+    cmd/compile/internal/types2: remove 'strict' argument from several methods
     
-    These tests were checking for fairly narrow timing windows, but were
-    running in parallel and heavily dependent on timer and goroutine
-    scheduling. This change eliminates unnecessary goroutines, runs the
-    tests sequentially (dramatically shortening the timeouts to reduce the
-    penalty of doing so), and uses timestamp comparison instead of
-    background timers to hopefully gain some robustness from monotonic
-    timestamps.
+    The value is always 'false'. Brings the code closer in line with go/types.
+    Follow-up on https://golang.org/cl/304129.
     
-    Many of the other tests from this package would benefit from similar
-    simplifications, which we can apply if and when we notice flaky
-    failures or want to improve the latency of running the test.
-    
-    Fixes #36108
-    
-    Change-Id: I17d8af7d2eefb1ec14fe0d9d891142a39599a562
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365334
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I8bea550033f3187b44e9a54258e0cf642c11c369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304849
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/mockserver_test.go |  71 ------------------
- src/net/timeout_test.go    | 178 +++++++++++++++++++++++++++++++++++----------
- 2 files changed, 141 insertions(+), 108 deletions(-)
+ src/cmd/compile/internal/types2/api.go    | 2 +-
+ src/cmd/compile/internal/types2/expr.go   | 6 +++---
+ src/cmd/compile/internal/types2/lookup.go | 8 ++++----
+ src/cmd/compile/internal/types2/stmt.go   | 6 +++---
+ 4 files changed, 11 insertions(+), 11 deletions(-)

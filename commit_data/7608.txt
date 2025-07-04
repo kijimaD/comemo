@@ -1,12 +1,15 @@
-commit 1a6b1dd0de3adc37e76300290dccc1a74bc5d7fc
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Mar 2 15:05:52 2011 -0500
+commit c1fdb6f156f2854c9391028ae73594de626de69d
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Mar 2 15:04:08 2011 -0500
 
-    xml: fix typo in test.
+    goinstall: protect against malicious filenames.
+    It was possible to make package run arbitrary
+    commands when installing if its filenames contained
+    make metacharacters.
     
-    R=golang-dev, rsc
+    R=rsc, niemeyer
     CC=golang-dev
-    https://golang.org/cl/4218042
+    https://golang.org/cl/4248041
 
- src/pkg/xml/read_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/goinstall/make.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

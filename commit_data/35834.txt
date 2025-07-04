@@ -1,18 +1,28 @@
-commit 578b961727e65787160af389272517098b37b4ef
-Author: Andrew Braunstein <awbraunstein@gmail.com>
-Date:   Thu Jun 28 18:49:30 2018 +0000
+commit c15b7b2a54a8899fac8277cef532676c9f8fb592
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 10 16:50:16 2018 +0000
 
-    text/template/parse: fix a comment around the assign operator
+    cmd: re-generate all stringer files
     
-    Fix a comment that misrepresented the Assign operator (=).
+    The tool has gotten better over time, so re-generating the files brings
+    some advantages like fewer objects, dropping the use of fmt, and
+    dropping unnecessary bounds checks.
     
-    Rename: colon-equals -> equals.
+    While at it, add the missing go:generate line for obj.AddrType.
     
-    Change-Id: I405b8acfb0bcd1b176a91a95f9bfb61a4e85815f
-    GitHub-Last-Rev: aec0bf594c63d7b015f88f97f9953ade976817a4
-    GitHub-Pull-Request: golang/go#26112
-    Reviewed-on: https://go-review.googlesource.com/121416
+    Change-Id: I120c9795ee8faddf5961ff0384b9dcaf58d831ff
+    Reviewed-on: https://go-review.googlesource.com/100015
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/parse/lex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go                    |  1 -
+ src/cmd/compile/internal/gc/class_string.go    |  4 ++--
+ src/cmd/compile/internal/gc/op_string.go       |  4 ++--
+ src/cmd/compile/internal/types/etype_string.go |  4 ++--
+ src/cmd/internal/obj/addrtype_string.go        | 25 +++++++------------------
+ src/cmd/internal/obj/link.go                   |  2 ++
+ src/cmd/internal/objabi/reloctype_string.go    |  4 ++--
+ src/cmd/internal/objabi/symkind_string.go      |  4 ++--
+ src/cmd/link/internal/sym/symkind_string.go    |  6 +++---
+ 9 files changed, 22 insertions(+), 32 deletions(-)

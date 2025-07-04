@@ -1,15 +1,21 @@
-commit 3b39f523e1181499827321cedd8b7370b14ee762
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Mar 22 12:38:09 2017 -0400
+commit d54b60a2b2470ea42559b58995e86ff20dd70471
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Dec 3 18:45:50 2016 -0800
 
-    cmd/vet: -lostcancel: fix crash in ill-typed code
+    html/template: lock in application/json as valid JS test
     
-    Fixes golang/go#19656
+    CL https://go-review.googlesource.com/33899 added
+    application/json as a mimeType for valid JS. Let's
+    lock that fix in with a test.
     
-    Change-Id: Ied20d3f25b6e147cc693a1dd1aeb9480adc6687e
-    Reviewed-on: https://go-review.googlesource.com/38405
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #18159
+    
+    Change-Id: Ic4dfd8929aebfc5410f796688f081ca06630f672
+    Reviewed-on: https://go-review.googlesource.com/33901
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Nodir Turakulov <nodir@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/lostcancel.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/html/template/js_test.go | 1 +
+ 1 file changed, 1 insertion(+)

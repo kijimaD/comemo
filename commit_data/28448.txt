@@ -1,20 +1,83 @@
-commit dcb954c3f7ab6d463882dbc3f88e075e8e096f74
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Sep 16 16:47:28 2016 +1200
+commit 3be48b4dc8c50a6568afcac0113e61a8f6e5224a
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 23 22:14:53 2016 -0400
 
-    cmd/link: remove size and version from genasmsym's argument
+    runtime: pass gcWork to scanstack
     
-    They are trivially available in the few places they are needed.
+    Currently scanstack obtains its own gcWork from the P for the duration
+    of the stack scan and then, if called during mark termination,
+    disposes the gcWork.
     
-    Change-Id: I6544692e9027076ec9e6e9a295c66457039e55e1
-    Reviewed-on: https://go-review.googlesource.com/29332
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    However, this means that the number of workbufs allocated will be at
+    least the number of stacks scanned during mark termination, which may
+    be very high (especially during a STW GC). This happens because, in
+    steady state, each scanstack will obtain a fresh workbuf (either from
+    the empty list or by allocating it), fill it with the scan results,
+    and then dispose it to the full list. Nothing is consuming from the
+    full list during this (and hence nothing is recycling them to the
+    empty list), so the length of the full list by the time mark
+    termination starts draining it is at least the number of stacks
+    scanned.
+    
+    Fix this by pushing the gcWork acquisition up the stack to either the
+    gcDrain that calls markroot that calls scanstack (which batches across
+    many stack scans and is the path taken during STW GC) or to newstack
+    (which is still a single scanstack call, but this is roughly bounded
+    by the number of Ps).
+    
+    This fix reduces the workbuf allocation for the test program from
+    issue #15319 from 213 MB (roughly 2KB * 1e5 goroutines) to 10 MB.
+    
+    Fixes #15319.
+    
+    Note that there's potentially a similar issue in write barriers during
+    mark 2. Fixing that will be more difficult since there's no broader
+    non-preemptible context, but it should also be less of a problem since
+    the full list is being drained during mark 2.
+    
+    Some overall improvements in the go1 benchmarks, plus the usual noise.
+    No significant change in the garbage benchmark (time/op or GC memory).
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.54s ± 1%     2.51s ± 1%  -1.09%  (p=0.000 n=20+19)
+    Fannkuch11-12                2.12s ± 0%     2.17s ± 0%  +2.18%  (p=0.000 n=19+18)
+    FmtFprintfEmpty-12          45.1ns ± 1%    45.2ns ± 0%    ~     (p=0.078 n=19+18)
+    FmtFprintfString-12          127ns ± 0%     128ns ± 0%  +1.08%  (p=0.000 n=19+16)
+    FmtFprintfInt-12             125ns ± 0%     122ns ± 1%  -2.71%  (p=0.000 n=14+18)
+    FmtFprintfIntInt-12          196ns ± 0%     190ns ± 1%  -2.91%  (p=0.000 n=12+20)
+    FmtFprintfPrefixedInt-12     196ns ± 0%     194ns ± 1%  -0.94%  (p=0.000 n=13+18)
+    FmtFprintfFloat-12           253ns ± 1%     251ns ± 1%  -0.86%  (p=0.000 n=19+20)
+    FmtManyArgs-12               807ns ± 1%     784ns ± 1%  -2.85%  (p=0.000 n=20+20)
+    GobDecode-12                7.13ms ± 1%    7.12ms ± 1%    ~     (p=0.351 n=19+20)
+    GobEncode-12                5.89ms ± 0%    5.95ms ± 0%  +0.94%  (p=0.000 n=19+19)
+    Gzip-12                      219ms ± 1%     221ms ± 1%  +1.35%  (p=0.000 n=18+20)
+    Gunzip-12                   37.5ms ± 1%    37.4ms ± 0%    ~     (p=0.057 n=20+19)
+    HTTPClientServer-12         81.4µs ± 4%    81.9µs ± 3%    ~     (p=0.118 n=17+18)
+    JSONEncode-12               15.7ms ± 1%    15.8ms ± 1%  +0.73%  (p=0.000 n=17+18)
+    JSONDecode-12               57.9ms ± 1%    57.2ms ± 1%  -1.34%  (p=0.000 n=19+19)
+    Mandelbrot200-12            4.12ms ± 1%    4.10ms ± 0%  -0.33%  (p=0.000 n=19+17)
+    GoParse-12                  3.22ms ± 2%    3.25ms ± 1%  +0.72%  (p=0.000 n=18+20)
+    RegexpMatchEasy0_32-12      70.6ns ± 1%    71.1ns ± 2%  +0.63%  (p=0.005 n=19+20)
+    RegexpMatchEasy0_1K-12       240ns ± 0%     239ns ± 1%  -0.59%  (p=0.000 n=19+20)
+    RegexpMatchEasy1_32-12      71.3ns ± 1%    71.3ns ± 1%    ~     (p=0.844 n=17+17)
+    RegexpMatchEasy1_1K-12       384ns ± 2%     371ns ± 1%  -3.45%  (p=0.000 n=19+20)
+    RegexpMatchMedium_32-12      109ns ± 1%     108ns ± 2%  -0.48%  (p=0.029 n=19+19)
+    RegexpMatchMedium_1K-12     34.3µs ± 1%    34.5µs ± 2%    ~     (p=0.160 n=18+20)
+    RegexpMatchHard_32-12       1.79µs ± 9%    1.72µs ± 2%  -3.83%  (p=0.000 n=19+19)
+    RegexpMatchHard_1K-12       53.3µs ± 4%    51.8µs ± 1%  -2.82%  (p=0.000 n=19+20)
+    Revcomp-12                   386ms ± 0%     388ms ± 0%  +0.72%  (p=0.000 n=17+20)
+    Template-12                 62.9ms ± 1%    62.5ms ± 1%  -0.57%  (p=0.010 n=18+19)
+    TimeParse-12                 325ns ± 0%     331ns ± 0%  +1.84%  (p=0.000 n=18+19)
+    TimeFormat-12                338ns ± 0%     343ns ± 0%  +1.34%  (p=0.000 n=18+20)
+    [Geo mean]                  52.7µs         52.5µs       -0.42%
+    
+    Change-Id: Ib2d34736c4ae2ec329605b0fbc44636038d8d018
+    Reviewed-on: https://go-review.googlesource.com/23391
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go  |  6 +++---
- src/cmd/link/internal/ld/lib.go    | 26 +++++++++++++-------------
- src/cmd/link/internal/ld/macho.go  |  4 ++--
- src/cmd/link/internal/ld/pe.go     |  6 +++---
- src/cmd/link/internal/ld/symtab.go | 13 +++++++++----
- 5 files changed, 30 insertions(+), 25 deletions(-)
+ src/runtime/mgcmark.go | 8 ++------
+ src/runtime/proc.go    | 4 ++--
+ src/runtime/stack.go   | 8 +++++++-
+ 3 files changed, 11 insertions(+), 9 deletions(-)

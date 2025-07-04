@@ -1,19 +1,26 @@
-commit fd83d7b8d26926f08a5cbffa177ed56272e75ca7
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Apr 8 08:03:51 2017 +1000
+commit 81a61a96c9c9c67ac1256b443bd5a55ad8fafa0e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 11 15:14:06 2017 -0800
 
-    cmd/compile/internal/gc: remove unused pkgByPath type
+    runtime: for plugins, don't add duplicate itabs
     
-    pkgByPath was added in d78c84c4 to eliminate the differences between the
-    export formats around the time of Go 1.7.
+    We already do this for shared libraries. Do it for plugins also.
+    Suggestions on how to test this would be welcome.
     
-    The last remnants of the textual export format was removed by Josh in
-    39850 making the pkgByPath sorting type unused.
+    I'd like to get this in for 1.8.  It could lead to mysterious
+    hangs when using plugins.
     
-    Change-Id: I168816d6401f45119475a4fe5ada00d9ce571a9e
-    Reviewed-on: https://go-review.googlesource.com/40050
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #18676
+    
+    Change-Id: I03209b096149090b9ba171c834c5e59087ed0f92
+    Reviewed-on: https://go-review.googlesource.com/35117
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/compile/internal/gc/reflect.go | 6 ------
- 1 file changed, 6 deletions(-)
+ .../issue18676/dynamodbstreamsevt/definition.go    | 13 +++++++++
+ misc/cgo/testplugin/src/issue18676/main.go         | 31 ++++++++++++++++++++++
+ misc/cgo/testplugin/src/issue18676/plugin.go       | 11 ++++++++
+ misc/cgo/testplugin/test.bash                      |  8 +++++-
+ src/runtime/plugin.go                              |  4 ++-
+ 5 files changed, 65 insertions(+), 2 deletions(-)

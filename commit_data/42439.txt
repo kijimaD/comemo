@@ -1,19 +1,18 @@
-commit ba6ccf3b04cbda5ac19412c933c69425ca828bfa
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Mon Jun 1 12:19:05 2020 -0600
+commit e4a8da499b0d5aa235abaddb09793546ba6b7446
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 12 08:08:40 2019 -0500
 
-    testing: capture testname on --- PASS and --- FAIL lines
+    [dev.link] cmd/link: add dynimp, localentry attributes for loader.Sym
     
-    This fixes an issue raised at https://github.com/golang/go/issues/38458#issuecomment-635617670
-    in which --- PASS and --- FAIL lines would not trigger --- CONT lines
-    of other tests.
+    Add new methods to get/set the "dynimplib", "dynimpvers" and
+    "localentry" attributes for an external Sym in loader.Loader. These
+    attribute values are stored sparsely, since we expect that most
+    symbols will not need them; they are set when processing cgo
+    directives and when dealing with host object symbols.
     
-    Change-Id: I0d8cc54d682a370d0a6ea6816a11b2e462a92efe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235997
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If0b3c173307801d39cb576bb99c83b9081c42d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211298
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- .../script/test_chatty_parallel_success_sleepy.txt | 39 ++++++++++++++++++++++
- src/testing/testing.go                             | 11 +++---
- 2 files changed, 44 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 83 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

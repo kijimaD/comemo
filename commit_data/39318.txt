@@ -1,34 +1,18 @@
-commit 037ac2bd84480e0a06c4d1e7a2c1f133109466a5
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 5 14:53:28 2019 -0400
+commit f5aecc1d1dfab8ad3397915f13920825e2ce6701
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Feb 24 15:51:48 2019 +0000
 
-    cmd/compile: add -smallframes gc flag for GC latency diagnosis
+    Revert "androidtest.bash: wait for device to be ready before using it"
     
-    Shrinks the size of things that can be stack allocated from
-    10M to 128k for declared variables and from 64k to 16k for
-    implicit allocations (new(T), &T{}, etc).
+    This reverts commit 27b9571de800c05a41081ea80cd934e48e0a8f70.
     
-    Usage: "go build -gcflags -smallframes hello.go"
+    Reason for revert: broke the multi-device Android builder. And the wait logic is moving to the exec wrapper anyway.
     
-    An earlier GOEXPERIMENT version of this caused only one
-    problem, when a gc-should-detect-oversize-stack test no
-    longer had an oversized stack to detect.  The change was
-    converted to a flag to make it easier to access (for
-    diagnosing "long" GC-related single-thread pauses) and to
-    remove interference with the test.
-    
-    Includes test to verify behavior.
-    
-    Updates #27732.
-    
-    Change-Id: I1255d484331e77185e07c78389a8b594041204c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180817
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3e429106bbe70b3a12286f8f229a2b558279eec4
+    Reviewed-on: https://go-review.googlesource.com/c/163620
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/go.go   |  8 ++++++--
- src/cmd/compile/internal/gc/main.go | 12 +++++++++++-
- src/cmd/compile/internal/gc/walk.go |  2 +-
- test/fixedbugs/issue27732a.go       | 23 +++++++++++++++++++++++
- 4 files changed, 41 insertions(+), 4 deletions(-)
+ src/androidtest.bash | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,14 +1,22 @@
-commit fc12bb263683e43c0b93eb00071f894f5cfcc772
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jun 30 14:55:01 2016 -0400
+commit 8edf4cb27d07a81ae340b0fda4e519c12f139618
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 8 13:30:41 2016 -0400
 
-    context: cancel the context in ExampleWithTimeout, with explanation
+    hash/crc32: invert build tags for go implementation
     
-    Fixes #16230
+    It seems cleaner and more consistent with other files to list the
+    architectures that have assembly implementations rather than to
+    list those that do not.
     
-    Change-Id: Ibb10234a6c3ab8bd0cfd93c2ebe8cfa66f80f6b0
-    Reviewed-on: https://go-review.googlesource.com/24682
+    This means we don't have to add s390x and future platforms to this
+    list.
+    
+    Change-Id: I2ad3f66b76eb1711333c910236ca7f5151b698e5
+    Reviewed-on: https://go-review.googlesource.com/21770
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/withtimeout_test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/hash/crc32/crc32_generic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

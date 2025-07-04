@@ -1,19 +1,14 @@
-commit b7bb1e32d84f45794b2106daa5c908bcb390461e
-Author: Jonathan Gold <jgold.bg@gmail.com>
-Date:   Mon Jun 25 17:36:09 2012 -0400
+commit dfbd42e4f881717a58309d59e40671a29572dd12
+Author: Michael Stapelberg <michael@stapelberg.de>
+Date:   Mon Jun 25 17:32:39 2012 -0400
 
-    encoding/json: add Number type
+    net: fix lookup of AAAA-only hosts without cgo
     
-    Number represents the actual JSON text,
-    preserving the precision and
-    formatting of the original input.
+    Fixes #3762.
     
-    R=rsc, iant
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6202068
+    https://golang.org/cl/6303106
 
- src/pkg/encoding/json/decode.go      | 44 +++++++++++++++--
- src/pkg/encoding/json/decode_test.go | 96 +++++++++++++++++++++++++++++++++---
- src/pkg/encoding/json/encode.go      | 10 +++-
- src/pkg/encoding/json/stream.go      |  4 ++
- 4 files changed, 143 insertions(+), 11 deletions(-)
+ src/pkg/net/dnsclient_unix.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

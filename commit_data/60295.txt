@@ -1,0 +1,19 @@
+commit 04b5d1325602cab8359db6dfe029a9c2162ba9ea
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 10:21:11 2024 -0400
+
+    doc/next: document GORISCV64 environment variable
+    
+    For #65614.
+    Updates #61476.
+    
+    Change-Id: Id677aa6d2a59366ab75a26f08a383d2d253f270e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/next/7-ports.md | 7 +++++++
+ doc/next/9-todo.md  | 3 ---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

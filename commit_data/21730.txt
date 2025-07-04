@@ -1,13 +1,15 @@
-commit 3e9e9b48223b2dcabf1d861af9904940bdbff929
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 24 18:04:40 2015 -0800
+commit 0381ba69da90d42b777a490171acc7d4eb63d71a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 27 19:50:00 2015 +1100
 
-    math/big: implemented Float.Rat
+    doc: remove redundant images
     
-    Change-Id: If516e12d4b5dfb6f9288437d270569f7e4e2a1cd
-    Reviewed-on: https://go-review.googlesource.com/5871
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    These are no longer used by anything.
+    
+    Change-Id: I50c971418b07cafc983242833a196ba2028a2723
+    Reviewed-on: https://go-review.googlesource.com/3603
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go      | 43 +++++++++++++++++++++++++++--
- src/math/big/float_test.go | 69 ++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 97 insertions(+), 15 deletions(-)
+ doc/logo-153x55.png | Bin 3382 -> 0 bytes
+ doc/sieve.gif       | Bin 11019 -> 0 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

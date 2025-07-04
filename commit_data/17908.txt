@@ -1,13 +1,33 @@
-commit b204448f7e5b97ee6c69dd455821c8e9a559e759
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 3 17:08:51 2013 -0800
+commit 48279bd567cc4d1efca9f69e713469fc6659eb26
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Dec 3 14:42:38 2013 -0800
 
-    doc/go1.3.txt: add file to track significant CLs for 1.3
-    Nothing significant so far (right?), but let's lay the keystone.
+    runtime: add an allocation and free tracing for gc debugging
     
-    R=golang-dev, bradfitz
+    Output for an allocation and free (sweep) follows
+    
+    MProf_Malloc(p=0xc2100210a0, size=0x50, type=0x0 <single object>)
+            #0 0x46ee15 runtime.mallocgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:141
+            #1 0x47004f runtime.settype_flush /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:612
+            #2 0x45f92c gc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2071
+            #3 0x45f89e mgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2050
+            #4 0x45258b runtime.mcall /usr/local/google/home/cshapiro/go/src/pkg/runtime/asm_amd64.s:179
+    
+    MProf_Free(p=0xc2100210a0, size=0x50)
+            #0 0x46ee15 runtime.mallocgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:141
+            #1 0x47004f runtime.settype_flush /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:612
+            #2 0x45f92c gc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2071
+            #3 0x45f89e mgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2050
+            #4 0x45258b runtime.mcall /usr/local/google/home/cshapiro/go/src/pkg/runtime/asm_amd64.s:179
+    
+    R=golang-dev, dvyukov, rsc, cshapiro
     CC=golang-dev
-    https://golang.org/cl/36830043
+    https://golang.org/cl/21990045
 
- doc/go1.3.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/extern.go  |  3 +++
+ src/pkg/runtime/malloc.goc |  5 ++++-
+ src/pkg/runtime/malloc.h   |  2 +-
+ src/pkg/runtime/mprof.goc  | 55 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/runtime.c  |  3 ++-
+ src/pkg/runtime/runtime.h  |  3 ++-
+ 6 files changed, 65 insertions(+), 6 deletions(-)

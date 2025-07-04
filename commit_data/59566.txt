@@ -1,29 +1,20 @@
-commit 326e5e1b7a9f421db972fed0a6e79a1c9601d0ae
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Wed Feb 12 18:39:08 2025 -0500
+commit f6b93a4c358b28b350dd8fe1780c1f78e520c09c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Mar 21 13:50:37 2024 +0800
 
-    cmd/compile/internal/escape: additional constant and zero value tests and logging
+    slices: add examples
     
-    This adds additional logging for the work that walk does to reduce
-    how often an interface conversion results in an allocation.
+    For Clone, Grow, Clip, Concat, Contains, Repeat.
     
-    Also, as part of #71359, we will be updating how escape analysis and
-    walk handle basic literals, composite literals, and zero values,
-    so add some tests that uses this new logging.
+    Fixes #66435
     
-    By the end of our CL stack, we address all of these tests.
-    
-    Updates #71359
-    
-    Change-Id: I43fde8343d9aacaec1e05360417908014a86c8bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649076
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: Ife8f61427e9cd18b7106c100de8f82f9d7840c9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573255
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/base/debug.go   |   1 +
- src/cmd/compile/internal/walk/convert.go |  13 ++
- test/escape_iface_data.go                | 257 +++++++++++++++++++++++++++++++
- 3 files changed, 271 insertions(+)
+ src/slices/example_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

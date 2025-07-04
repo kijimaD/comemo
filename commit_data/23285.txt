@@ -1,15 +1,29 @@
-commit 16310571d1b7c706e1b7a6a8d6e9ba7a39f70230
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 3 15:13:10 2015 -0400
+commit 21cb062540b337b9e3820e7a085604cf6277034e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 10:49:36 2015 +1000
 
-    cmd/asm: drop legacy RETURN mnemonic on ppc64
+    cmd/go: fix linux-amd64-clang builder
     
-    Change-Id: I999b57ef5535c18e02cc27c9bc9f896d73126b50
-    Reviewed-on: https://go-review.googlesource.com/10674
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #10660
+    
+    Fix the clang only builder by passing -extld down to the linker when needed.
+    The build passed on most hosts because gcc is almost always present. The bug
+    was verified by symlinking bin/false in place of gcc in my $PATH and running
+    the build.
+    
+    Also, resolve a TODO and move the support logic into its own function.
+    
+    Tested manually
+    
+        env CC=clang-3.5 ./all.bash # linux/amd64
+        env CC=gcc-4.8 ./all.bash   # linux/amd64
+        ./all.bash                  # linux/amd64
+        ./all.bash                  # darwin/amd64
+    
+    Change-Id: I4e27a1119356e295500a0d19ad7a4ec14207bf10
+    Reviewed-on: https://go-review.googlesource.com/9526
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/arch/arch.go         | 1 -
- src/cmd/asm/internal/asm/testdata/ppc64.s | 4 ++--
- src/cmd/internal/obj/ppc64/9.out.go       | 5 ++---
- 3 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 87 ++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 53 insertions(+), 34 deletions(-)

@@ -1,18 +1,22 @@
-commit a3e013b0824ba53168b5d91abdb6ce191510a89d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Oct 11 14:41:25 2017 -0700
+commit ef26021d30ffb7edf8d1da5a3155e66d6e845a94
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jun 20 03:03:12 2017 +0000
 
-    encoding/json: use Deprecated markers
+    cmd/internal/obj/arm: check illegal base registers in ARM instructions
     
-    In #10909, it was decided that "Deprecated:" is a magic string for
-    tools (e.g., #17056 for godoc) to detect deprecated identifiers.
-    Use those convention instead of custom written prose.
+    Wrong instructions "MOVW 8(F0), R1" and "MOVW R0<<0(F1), R1"
+    are silently accepted, and all Fx are treated as Rx.
     
-    Change-Id: Ia514fc3c88fc502e86c6e3de361c435f4cb80b22
-    Reviewed-on: https://go-review.googlesource.com/70110
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    The patch checks all those illegal base registers.
+    
+    fixes #20724
+    
+    Change-Id: I05d41bb43fe774b023205163b7daf4a846e9dc88
+    Reviewed-on: https://go-review.googlesource.com/46132
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/encoding/json/decode.go | 3 ++-
- src/encoding/json/encode.go | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/testdata/armerror.s | 26 ++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm/asm5.go             | 21 +++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

@@ -1,78 +1,47 @@
-commit bca17d16ca0dabbe1b533bb78f367d64e076fe73
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Jul 14 21:18:15 2022 -0700
+commit e5c512520bd0a51d59b39556795a47db888d69b5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 28 11:59:01 2021 -0700
 
-    syscall: add CgroupFD support for ForkExec on Linux
+    crypto/elliptic: use a const string for precomputed P256 table
     
-    Implement CLONE_INTO_CGROUP feature, allowing to put a child in a
-    specified cgroup in a clean and simple way. Note that the feature only
-    works for cgroup v2, and requires Linux kernel 5.7 or newer.
+    Const strings can be marked readonly. This is particularly
+    important for this relatively large table (88kb).
+    This is a follow-up to CL 315189.
     
-    Using the feature requires a new syscall, clone3. Currently this is the
-    only reason to use clone3, but the code is structured in a way so that
-    other cases may be easily added in the future.
+    The generation script is a bit awkward. It needs access to crypto/elliptic
+    internals, but also needs to be package main. Work around this by
+    exporting those internals with the "tablegen" build tag.
     
-    Add a test case.
+    This requires changing the function signature at the Go-asm bridge.
+    As long as we're here, shrink the point argument type as well;
+    the net result is three fewer words of params.
     
-    While at it, try to simplify the syscall calling code in
-    forkAndExecInChild1, which became complicated over time because:
+    Performance impact is probably noise.
     
-    1. It was using either rawVforkSyscall or RawSyscall6 depending on
-       whether CLONE_NEWUSER was set.
+    name                   old time/op    new time/op    delta
+    ScalarBaseMult/P256-8    11.4µs ± 2%    11.3µs ± 1%  -1.32%  (p=0.000 n=19+16)
+    ScalarBaseMult/P224-8     579µs ± 1%     577µs ± 0%  -0.30%  (p=0.024 n=19+20)
+    ScalarBaseMult/P384-8    2.31ms ± 4%    2.34ms ± 4%  +1.25%  (p=0.033 n=20+20)
+    ScalarBaseMult/P521-8    1.33ms ± 0%    1.33ms ± 1%    ~     (p=0.173 n=18+17)
+    ScalarMult/P256-8        42.7µs ± 0%    42.7µs ± 2%    ~     (p=0.989 n=20+20)
+    ScalarMult/P224-8         579µs ± 0%     579µs ± 0%    ~     (p=0.538 n=19+18)
+    ScalarMult/P384-8        2.32ms ± 3%    2.34ms ± 5%    ~     (p=0.235 n=19+20)
+    ScalarMult/P521-8        1.33ms ± 1%    1.34ms ± 2%    ~     (p=0.141 n=17+20)
     
-    2. On Linux/s390, the first two arguments to clone(2) system call are
-       swapped (which deserved a mention in Linux ABI hall of shame). It
-       was worked around in rawVforkSyscall on s390, but had to be
-       implemented via a switch/case when using RawSyscall6, making the code
-       less clear.
-    
-    Let's
-    
-     - modify rawVforkSyscall to have two arguments (which is also required
-       for clone3);
-    
-     - remove the arguments workaround from s390 asm, instead implementing
-       arguments swap in the caller (which still looks ugly but at least
-       it's done once and is clearly documented now);
-    
-     - use rawVforkSyscall for all cases (since it is essentially similar to
-       RawSyscall6, except for having less parameters, not returning r2, and
-       saving/restoring the return address before/after syscall on 386 and
-       amd64).
-    
-    Updates #51246.
-    
-    Change-Id: Ifcd418ebead9257177338ffbcccd0bdecb94474e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417695
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3bee56df34ae61ca8829791d2e67e058ecc8ddbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339591
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- api/next/51246.txt                   | 12 +++++
- src/syscall/asm_linux_386.s          | 14 +++---
- src/syscall/asm_linux_amd64.s        | 14 +++---
- src/syscall/asm_linux_arm.s          | 14 +++---
- src/syscall/asm_linux_arm64.s        | 14 +++---
- src/syscall/asm_linux_loong64.s      | 14 +++---
- src/syscall/asm_linux_mips64x.s      | 14 +++---
- src/syscall/asm_linux_mipsx.s        | 14 +++---
- src/syscall/asm_linux_ppc64x.s       | 14 +++---
- src/syscall/asm_linux_riscv64.s      | 14 +++---
- src/syscall/asm_linux_s390x.s        | 16 +++----
- src/syscall/exec_linux.go            | 50 ++++++++++++++++----
- src/syscall/exec_linux_test.go       | 92 ++++++++++++++++++++++++++++++++++++
- src/syscall/syscall_linux.go         |  1 +
- src/syscall/syscall_linux_386.go     |  3 +-
- src/syscall/syscall_linux_amd64.go   |  3 +-
- src/syscall/syscall_linux_arm.go     |  3 +-
- src/syscall/syscall_linux_arm64.go   |  3 +-
- src/syscall/syscall_linux_loong64.go |  3 +-
- src/syscall/syscall_linux_mips64x.go |  3 +-
- src/syscall/syscall_linux_mipsx.go   |  3 +-
- src/syscall/syscall_linux_ppc64x.go  |  3 +-
- src/syscall/syscall_linux_riscv64.go |  3 +-
- src/syscall/syscall_linux_s390x.go   |  3 +-
- 24 files changed, 228 insertions(+), 99 deletions(-)
+ src/crypto/elliptic/export_generate.go     |   17 +
+ src/crypto/elliptic/gen_p256_table.go      |  112 ++
+ src/crypto/elliptic/p256_asm.go            |    8 +-
+ src/crypto/elliptic/p256_asm_amd64.s       |    6 +-
+ src/crypto/elliptic/p256_asm_arm64.s       |    6 +-
+ src/crypto/elliptic/p256_asm_table.go      | 2886 ++++++++++++++--------------
+ src/crypto/elliptic/p256_asm_table_test.go |    8 +-
+ 7 files changed, 1569 insertions(+), 1474 deletions(-)

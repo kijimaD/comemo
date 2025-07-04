@@ -1,28 +1,32 @@
-commit db44044f75a8b6467c37dd99a944e0021a153e6b
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Thu Mar 7 14:37:15 2024 +0000
+commit 6e57ecdb03fba66007e081c7d5fce99d39d9fab8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 13 15:10:59 2023 +0100
 
-    internal/poll: change Fsync to fallback to syscall.Fsync on darwin
+    cmd/link/internal/ld: emit better complex types for COFF symbols
     
-    In certain scenarios, such as network mounts, calling Fsync results in
-    ENOTSUP in OSX. This issue was introduced in CL 130676 since
-    syscall.FSync was not properly flushing contents to disk, and it was
-    replaced with fcntl(fd, F_FULLSYNC). Most SMB servers, like Windows
-    Server and Samba don't support F_FULLSYNC.
+    The Go linker has always used IMAGE_SYM_TYPE_NULL as COFF symbol
+    type [1] when external linking and array of structs
+    (IMAGE_SYM_DTYPE_ARRAY<<4+IMAGE_SYM_TYPE_STRUCT) when internal linking.
+    This behavior seems idiosyncratic, and looking at the git history it
+    seems that it has probably been cargo culted from earlier toolchains.
     
-    To avoid such issues fallback to syscall.Fsync if fcntl returns ENOTSUP.
+    This CL updates the Go linker to use IMAGE_SYM_DTYPE_FUNCTION<<4 for
+    those symbols representing functions, and IMAGE_SYM_TYPE_NULL otherwise.
     
-    Fixes #64215
+    This new behavior better represents the symbol types, and can help
+    other tools interpreting the intent of each symbol, e.g. debuggers or
+    tools extracting debug info from Go binaries. It also mimics what other
+    toolchains do, i.e. MSVC, LLVM, and GCC.
     
-    Change-Id: I567191e1179b7e70ddffb6b881469de1872746ef
-    GitHub-Last-Rev: 62e6931cf79735a192ed57be05005e84720ed232
-    GitHub-Pull-Request: golang/go#64258
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543535
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#type-representation
+    
+    Change-Id: I6b39b2048e95f0324b2eb90c85802ce42db455d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/internal/poll/fd_fsync_darwin.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

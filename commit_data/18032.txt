@@ -1,20 +1,17 @@
-commit b2d43caa7a1a2697f09187a133ef724d9f822634
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 17 21:44:18 2013 -0500
+commit deb554934c0c2a87b24f4eb29cdcbbd4ea68a6d6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 17 16:55:06 2013 -0800
 
-    cmd/dist: avoid use of 'go tool pack'
+    runtime, gc: call interface conversion routines by reference.
     
-    All packages now use the -pack option to the compiler.
-    For a pure Go package, that's enough.
-    For a package with additional C and assembly files, the extra
-    archive entries can be added directly (by concatenation)
-    instead of by invoking go tool pack.
+    Part of getting rid of vararg C calls.
     
-    These changes make it possible to rewrite cmd/pack in Go.
-    
-    R=iant, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/42890043
+    https://golang.org/cl/23310043
 
- src/cmd/dist/build.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 57 insertions(+), 5 deletions(-)
+ src/cmd/gc/builtin.c    |  4 ++--
+ src/cmd/gc/runtime.go   |  4 ++--
+ src/cmd/gc/walk.c       | 15 ++++++++++++++-
+ src/pkg/runtime/iface.c | 31 ++++++++++---------------------
+ 4 files changed, 28 insertions(+), 26 deletions(-)

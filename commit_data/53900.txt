@@ -1,22 +1,20 @@
-commit b55e4a7e26a8663d427264b241a90a5213aa8392
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Aug 3 23:50:14 2023 +0000
+commit 5a9638692298deb45e7b95f51d5dd5a1be724874
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 7 10:20:57 2022 +0700
 
-    os: use t.Fatalf instead of t.Errorf in TestErrProcessDone
+    test: add regression test for issue 54911
     
-    If err is non-nil, use t.Fatalf to avoid panic when calling p.Wait().
+    It was fixed by CL 422196, and have been already worked in unified IR.
     
-    Change-Id: Ief4e43ba5ad782999063941ed3b12f3fe4d93621
-    GitHub-Last-Rev: 5d32b3c082e54a914360cb4434d4cc7682e7031e
-    GitHub-Pull-Request: golang/go#61740
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515655
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #54911
+    
+    Change-Id: Ie69044a64b296f6961e667e7661d8c4d1a24d84e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428758
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/exec_unix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue54911.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

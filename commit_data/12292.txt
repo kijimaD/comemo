@@ -1,18 +1,15 @@
-commit fd5718ce82c9dec47ad6243acf3b3cc237df4efa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 29 17:25:15 2012 -0800
+commit 5a5279e128e29edcbeec8fc3e36d1ec110ecb558
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 1 11:24:13 2012 +1100
 
-    go/printer, gofmt: improved comment placement
+    io: Pipes and ReadAt are safe to use concurrently.
     
-    Applied gofmt -w src misc (no changes).
+    Updates #1599.
     
-    Fixes #3147.
-    
-    R=r, rsc
+    R=golang-dev, bradfitz, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5710046
+    https://golang.org/cl/5708056
 
- src/pkg/go/printer/printer.go               | 64 +++++++++++-----------
- src/pkg/go/printer/testdata/comments.golden | 85 +++++++++++++++++++++++++++++
- src/pkg/go/printer/testdata/comments.input  | 85 +++++++++++++++++++++++++++++
- 3 files changed, 203 insertions(+), 31 deletions(-)
+ src/pkg/io/io.go   | 3 +++
+ src/pkg/io/pipe.go | 4 ++++
+ 2 files changed, 7 insertions(+)

@@ -1,39 +1,24 @@
-commit cd6f3a54e4aa1c608f27275cdbb23f8b2a839faa
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 8 11:35:35 2021 -0500
+commit daf39d06ee04414fa962aa61fd0e7bc4ee166bfd
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 7 15:16:25 2020 -0700
 
-    cmd/go: revise 'go help' documentation for modules
+    cmd/compile: restrict ppc64 constant shifts to amount 0-63
     
-    Module-related help pages now contain a brief summary and point to the
-    reference documentation at golang.org/ref/mod for details.
+    ... and 0-31 for 32-bit shifts.
     
-    Help pages for commands like 'go get' still describe the basic usage
-    and summarize flags but don't provide as much background detail.
+    Generally update the docs for ppc64 shift instructions to be
+    clearer about what they actually do.
     
-    Fixes #41427
-    Fixes #43419
+    This issue is causing problems for the subsequent CL. The shift
+    amount was <0 and caused the assembler to report an invalid instruction.
     
-    Change-Id: Icacd38e0f33c352c447cc5a496c99674493abde2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282615
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8c708a15e7f71931835e6e543d8db3c716186e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232858
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/go/alldocs.go                  | 836 +++++----------------------------
- src/cmd/go/internal/help/helpdoc.go    |  19 +-
- src/cmd/go/internal/list/list.go       |   2 +-
- src/cmd/go/internal/modcmd/download.go |   4 +-
- src/cmd/go/internal/modcmd/edit.go     |   4 +-
- src/cmd/go/internal/modcmd/graph.go    |   2 +
- src/cmd/go/internal/modcmd/init.go     |   2 +
- src/cmd/go/internal/modcmd/tidy.go     |   2 +
- src/cmd/go/internal/modcmd/vendor.go   |   2 +
- src/cmd/go/internal/modcmd/verify.go   |   2 +
- src/cmd/go/internal/modcmd/why.go      |   2 +
- src/cmd/go/internal/modfetch/fetch.go  | 108 +----
- src/cmd/go/internal/modfetch/proxy.go  |  61 +--
- src/cmd/go/internal/modget/get.go      | 125 ++---
- src/cmd/go/internal/modload/help.go    | 484 +------------------
- src/cmd/go/internal/work/build.go      |   5 +-
- 16 files changed, 212 insertions(+), 1448 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 27 ++++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 24 +++++-----
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 72 ++++++++++++++--------------
+ 3 files changed, 62 insertions(+), 61 deletions(-)

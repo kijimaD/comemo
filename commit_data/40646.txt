@@ -1,41 +1,32 @@
-commit 763d3ac75cd19f3484f4bb371175aac34ce1f271
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 4 20:01:18 2019 +0000
+commit 9bf9e7d4b279470c411562ef6ad015629dce6303
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jun 7 13:48:42 2019 -0400
 
-    runtime: make sysReserve return page-aligned memory on js-wasm
+    [dev.boringcrypto] crypto: move crypto/internal/boring imports to reduce merge conflicts
     
-    This change ensures js-wasm returns page-aligned memory. While today
-    its lack of alignment doesn't cause problems, this is an invariant of
-    sysAlloc which is documented in HACKING.md but isn't upheld by js-wasm.
+    As suggested by dmitshur@, move them to their own block so they don't
+    conflict with changes in the upstream imports.
     
-    Any code that calls sysAlloc directly for small structures expects a
-    certain alignment (e.g. debuglog, tracebufs) but this is not maintained
-    by js-wasm's sysAlloc.
-    
-    Where sysReserve comes into play is that sysAlloc is implemented in
-    terms of sysReserve on js-wasm. Also, the documentation of sysReserve
-    says that the returned memory is "OS-aligned" which on most platforms
-    means page-aligned, but the "OS-alignment" on js-wasm is effectively 1,
-    which doesn't seem right either.
-    
-    The expected impact of this change is increased memory use on wasm,
-    since there's no way to decommit memory, and any small structures
-    allocated with sysAlloc won't be packed quite as tightly. However, any
-    memory increase should be minimal. Most calls to sysReserve and sysAlloc
-    already aligned their request to physPageSize before calling it; there
-    are only a few circumstances where this is not true, and they involve
-    allocating an amount of memory returned by unsafe.Sizeof where it's
-    actually quite important that we get the alignment right.
-    
-    Updates #35112.
-    
-    Change-Id: I9ca171e507ff3bd186326ccf611b35b9ebea1bfe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205277
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id46fb7c766066c406023b0355f4c3c860166f0fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181277
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/mem_js.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/crypto/aes/cipher.go         | 3 ++-
+ src/crypto/aes/cipher_asm.go     | 3 ++-
+ src/crypto/ecdsa/ecdsa.go        | 7 +++++--
+ src/crypto/hmac/hmac.go          | 3 ++-
+ src/crypto/rand/rand_unix.go     | 3 ++-
+ src/crypto/rsa/pkcs1v15.go       | 3 ++-
+ src/crypto/rsa/pss.go            | 3 ++-
+ src/crypto/rsa/rsa.go            | 7 +++++--
+ src/crypto/rsa/rsa_test.go       | 3 ++-
+ src/crypto/sha1/sha1_test.go     | 3 ++-
+ src/crypto/sha256/sha256.go      | 3 ++-
+ src/crypto/sha256/sha256_test.go | 3 ++-
+ src/crypto/sha512/sha512.go      | 3 ++-
+ src/crypto/sha512/sha512_test.go | 3 ++-
+ src/crypto/tls/cipher_suites.go  | 3 ++-
+ src/crypto/tls/common.go         | 3 ++-
+ 16 files changed, 38 insertions(+), 18 deletions(-)

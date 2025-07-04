@@ -1,15 +1,16 @@
-commit 8c23c1ab8797e0b8270d618b0a107d19b8f9faa0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 28 16:28:23 2011 -0400
+commit 3de6228aea10f6229c9999e440fe9e9dc21435d6
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Jul 28 11:43:16 2011 -0700
 
-    5g: defer vs optimizer bug
+    http: make serveFile redirects relative to work with StripPrefix
     
-    Fixes #1924.
+    serveFile was using absolute redirects, which didn't work under StripPrefix.
+    Now it uses relative redirects.
     
-    R=ken2
-    CC=golang-dev
-    https://golang.org/cl/4802063
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev, kevlar
+    https://golang.org/cl/4789042
 
- src/cmd/5g/reg.c         |  8 +++++++-
- test/fixedbugs/bug364.go | 25 +++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/pkg/http/fs.go      | 18 +++++++++++++++---
+ src/pkg/http/fs_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 3 deletions(-)

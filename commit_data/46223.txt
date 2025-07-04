@@ -1,23 +1,15 @@
-commit 3342aa5f51e1299e9d86307e2dbf429cd2aca987
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Aug 29 10:57:06 2021 -0700
+commit 129bb1917b4914f0743ec9b4ef0dfb74df39c07d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 11 19:10:00 2020 -0800
 
-    cmd/compile/internal/types2: more systematic error handling in typeWriter
+    doc/go1.15: mention 1.15.3 cgo restriction on empty structs
     
-    When using a typeWriter for debugging/error message type strings,
-    it shouldn't crash in the presence of type-checker internal bugs.
-    But when a typeHasher is used, we don't want to silently ignore
-    errors.
+    For #40954
     
-    Introduce an error method that panics in type hashing mode but
-    prints an error value otherwise.
-    
-    Also fixed an incorrect 'if' statement in tParamList.
-    
-    Change-Id: I26c8b8e0b14396e91ad71bf903e36ce1ca55839e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346009
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I6a30aed31a16e820817f4ca5c7f591222e922946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277432
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/typestring.go | 82 +++++++++++++--------------
- 1 file changed, 40 insertions(+), 42 deletions(-)
+ doc/go1.15.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

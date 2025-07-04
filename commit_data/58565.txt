@@ -1,26 +1,20 @@
-commit 4ac729283c807cdbe0f6c7041f21606019b722cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 7 10:15:19 2025 -0800
+commit 28a8896d57f315b241b77eff26d9302cfe88c13b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 19 21:00:17 2023 -0800
 
-    go/types, types2: don't register interface methods in Info.Types map
+    cmd/compile/internal/inline: allow inlining of checkptr arguments
     
-    Methods declared in an interface have a signature and FuncType in the
-    AST, but they do not express a syntactic function type expression.
-    Treat them like ordinary function/method declarations and do not record
-    them in the Info.Types map. This removes an inconsistency in the way
-    function types are recorded.
+    The early return here is meant to suppress inlining of the function
+    call itself. However, it also suppresses recursing to visit the call
+    arguments, which are safe to inline.
     
-    Follow-up on CL 640776.
-    
-    For #70908.
-    
-    Change-Id: I60848f209b40b008039c014fb8b7b279361487b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640596
+    Change-Id: I75887574c00931cb622277d04a822bc84c29bfa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543658
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/types2/interface.go | 18 ++++++++++--------
- src/go/types/interface.go                    | 18 ++++++++++--------
- 2 files changed, 20 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/inline/inl.go           |  2 +-
+ test/fixedbugs/{issue35073.go => issue35073a.go} |  0
+ test/fixedbugs/issue35073b.go                    | 23 +++++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)

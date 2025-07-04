@@ -1,16 +1,22 @@
-commit 9d3b3416a4a1fe6778370d7ec050355cbaf30dfe
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 20 12:37:28 2023 -0400
+commit 3732a178061f44fbde277def693368ce43e5e779
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Nov 21 13:56:19 2022 +0100
 
-    cmd/compile/internal/inl: remove some spurious debugging code
+    cmd/go,internal/platform: enable pie buildmode for windows/arm64
     
-    Remove a bit of debugging code accidentally left in as
-    part of CL 521819.
+    This CL adds windows/arm64 to the list of ports that supports PIE
+    build mode. It is probably an oversight that this port is not marked
+    as pie-capable because windows/arm64 only supports PIE build mode.
     
-    Change-Id: I5c8aa490a00136360fb52d72f3f92d72e150ec0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530577
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #56872
+    
+    Change-Id: I2bdd3ac207280f47ddcf8c2582f13025dafb9278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452415
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/go_test.go              | 2 +-
+ src/internal/platform/supported.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

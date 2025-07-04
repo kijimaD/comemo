@@ -1,12 +1,16 @@
-commit aa716e36a6c0656730eeab753eaba9d07aab72e0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Feb 3 14:03:46 2012 +1100
+commit 107b0f12bc80967e7133bb971e818faed08f5274
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 3 13:36:38 2012 +1100
 
-    dashboard: don't send failing Go commits as todos for subrepos
+    encoding/base32: ignore new line characters during decode.
     
-    R=golang-dev, dsymonds
+    This is the analogue to the encoding/base64 change,
+    https://golang.org/cl/5610045.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5608044
+    https://golang.org/cl/5617056
 
- misc/dashboard/app/build/handler.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/pkg/encoding/base32/base32.go      | 45 ++++++++++++++++++++--------------
+ src/pkg/encoding/base32/base32_test.go | 28 ++++++++++++++++++++-
+ 2 files changed, 53 insertions(+), 20 deletions(-)

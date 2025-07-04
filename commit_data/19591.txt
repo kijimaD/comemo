@@ -1,13 +1,32 @@
-commit 2ca1f7d588e67fe82f1ca375241059c61a6ded1c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jun 23 14:33:33 2014 +0900
+commit a200e0b8fda46dadb1474248f21d44a16bd92dd2
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sun Jun 22 15:26:30 2014 -0700
 
-    syscall: don't display syscall prototype lines on godoc
+    undo CL 101330053 / c19c9a063fe8
+    
+    sync.Pool is not supposed to be used everywhere, but is
+    a last resort.
+    
+    ««« original CL description
+    strings: use sync.Pool to cache buffer
+    
+    benchmark                         old ns/op    new ns/op    delta
+    BenchmarkByteReplacerWriteString       3596         3094  -13.96%
+    
+    benchmark                        old allocs   new allocs    delta
+    BenchmarkByteReplacerWriteString          1            0  -100.00%
+    
+    LGTM=dvyukov
+    R=bradfitz, dave, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/101330053
+    »»»
     
     LGTM=dave
-    R=golang-codereviews, dave
+    R=r, dave
     CC=golang-codereviews
-    https://golang.org/cl/110020050
+    https://golang.org/cl/102610043
 
- src/pkg/syscall/syscall_bsd.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/strings/replace.go      | 33 +++++++++++++-------------------
+ src/pkg/strings/replace_test.go | 42 ++++++++++++-----------------------------
+ 2 files changed, 25 insertions(+), 50 deletions(-)

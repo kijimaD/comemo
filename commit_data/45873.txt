@@ -1,13 +1,24 @@
-commit 361159c05507b7f6c28e29575c02a6b7b6656f84
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Sun Jun 27 11:50:17 2021 +0900
+commit d166ef6876850571d08288c63315db2b47c851f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 11:18:45 2020 -0500
 
-    cmd/cgo: fix 'see gmp.go' to 'see doc.go'
+    [dev.regabi] cmd/compile: add Node field getters and setters
     
-    Change-Id: I303edc9dfbf4185b5b461b121ab504f6ed9f8630
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330839
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    The goal is to move Node to being an interface and then break
+    up the one big struct into many implementations.
+    
+    Step 1 is to convert all current uses of Node to only use methods,
+    so that the existing algorithms keep working even as the underlying
+    implementations are adjusted.
+    
+    Step 0 - this CL - is to add the getters and setters for Step 1.
+    
+    Change-Id: I0570d8727c3ccb64113627bb9bebcb0dc39da07a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273007
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/syntax.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

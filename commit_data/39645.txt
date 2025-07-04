@@ -1,26 +1,22 @@
-commit b963149d4eddaf92d9e2a9d3bf5474c2d0a3b55d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 22 19:09:33 2019 +1000
+commit 0fc89a72edc2c73651f7f6841b1146af723f517f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 20 18:25:37 2019 -0500
 
-    net: do not call Windows TransmitFile for large files
+    cmd,std: add go.mod files
     
-    TransmitFile does not allow for number of bytes that can be
-    transmitted to be larger than 2147483646. See
+    Updates #30241
+    Updates #30228
     
-    https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
-    
-    for details. So adjust sendFile accordingly.
-    
-    No test added, because this would require creating large file
-    (more than 2GB file).
-    
-    Fixes #33193.
-    
-    Change-Id: I82e0cb104d112264e4ea363bb20b6d02ac30b38e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187037
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ida0fe8263bf44e0498fed2048e22283ba5716835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164622
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/sendfile_windows.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go.mod                              | 12 ++++++++++++
+ src/cmd/go/testdata/script/mod_list_std.txt |  4 ++--
+ src/go.mod                                  |  3 +++
+ src/make.bash                               |  2 +-
+ src/make.bat                                |  1 +
+ src/make.rc                                 |  2 +-
+ 6 files changed, 20 insertions(+), 4 deletions(-)

@@ -1,12 +1,14 @@
-commit 09a3a092afc01bf411ed87bfd29adc25e0d0f250
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 4 15:49:43 2015 -0700
+commit 62bc2e4c2d9e289c1bdfd2415813d1776eb5c71b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 2 22:44:49 2015 -0400
 
-    cmd/go: fix fmt.Errorf call sites (latent bug)
+    syscall: fix little-endian assumptions
     
-    Change-Id: I4ff42113c5dda553d6f3d58f0e4836dce7c84710
-    Reviewed-on: https://go-review.googlesource.com/10730
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia38256998e544d620a342dabedd9289d61fb0551
+    Reviewed-on: https://go-review.googlesource.com/9672
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/note.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/syscall/exec_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

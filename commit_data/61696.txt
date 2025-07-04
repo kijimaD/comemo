@@ -1,0 +1,36 @@
+commit 91af7119cd33e59a04d96073bc0f40b588938163
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 18 12:45:17 2024 -0800
+
+    go/types, types2: disallow new methods on generic alias and instantiated types
+    
+    If the receiver is an alias declaring type parameters, report
+    an error and ensure that the receiver type remains invalid.
+    Collect type parameters etc. as before but do not attempt to
+    find their constraints or instantiate the receiver type.
+    The constraints of the type parameters will be invalid by
+    default. The receiver type will not be (lazily) instantiated
+    which causes problems with existing invariants.
+    
+    If a receiver denotes an instantiated (alias or defined) type,
+    report an error and ensure that the receiver type remains invalid.
+    
+    While at it, add more comments and bring go/types and types2
+    closer together where there were differences.
+    
+    Fixes #70417.
+    
+    Change-Id: I87ef0b42d2f70464664cacc410f4b7eb1c994241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629080
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/resolver.go        | 28 ++++++--
+ src/cmd/compile/internal/types2/signature.go       | 75 ++++++++++++++++------
+ src/go/types/resolver.go                           | 28 +++++---
+ src/go/types/signature.go                          | 71 ++++++++++++++------
+ .../types/testdata/fixedbugs/issue47968.go         | 10 +--
+ .../types/testdata/fixedbugs/issue70417.go         | 58 +++++++++++++++++
+ 6 files changed, 211 insertions(+), 59 deletions(-)

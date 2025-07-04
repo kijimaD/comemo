@@ -1,13 +1,17 @@
-commit 145c48c1d196dd3af6ca4841bbb48954257d7782
+commit e9fef33dd8b33c0948c6e7cb202a7192af186edb
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 23 11:56:54 2012 +1100
+Date:   Fri Mar 23 11:48:54 2012 +1100
 
-    weekly.2012-03-22
+    misc/dist: updates to installer script
     
-    R=golang-dev, r, dave
+    Now sets GOROOT.
+    
+    Fixes #3287.
+    Fixes #3361.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5876068
+    https://golang.org/cl/5877059
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 89 insertions(+), 2 deletions(-)
+ misc/dist/windows/installer.wxs | 50 ++++++++++++++++++++---------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

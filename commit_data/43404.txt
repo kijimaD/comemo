@@ -1,29 +1,26 @@
-commit 80182d45b5d2ff86da7b6587a2a09d8924dd0a95
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Oct 18 20:26:46 2020 -0400
+commit 7ffbea9fd838be851c287b2a21ee6ce1e2776b54
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 3 18:07:32 2020 +0000
 
-    go/build: refactor per-file info & reader
+    reflect: when Converting between float32s, don't lose signal NaNs
     
-    Make code cleaner and a bit more adaptable:
-    instead of an ever-growing list of arguments and results for readImports,
-    put everything in a fileInfo struct, and rename function to readGoInfo.
-    (Not a goInfo struct because it gets used for non-Go source files as well,
-    but that processing is much simpler.)
+    Trying this CL again, with a test that skips 387.
     
-    The refactoring simplifies the embed work in the next CL,
-    but this CL makes no semantic changes.
+    When converting from float32->float64->float32, any signal NaNs
+    get converted to quiet NaNs. Avoid that so using reflect.Value.Convert
+    between two float32 types keeps the signal bit of NaNs.
     
-    For #41191.
+    Skip the test on 387. I don't see any sane way of ensuring that a
+    float load + float store is faithful on that platform.
     
-    Change-Id: Id2de2a3b8d351adc1c919dcf79dfbe79fc3d5301
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243940
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #36400
+    
+    Change-Id: Ic316c74ddc155632e40424e207375b5d50dcd853
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221792
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/build/build.go     | 123 ++++++++++++++++++++++------------------------
- src/go/build/deps_test.go |  17 +++----
- src/go/build/read.go      |  81 ++++++++++++++++++++++--------
- src/go/build/read_test.go |  35 +++++++------
- 4 files changed, 145 insertions(+), 111 deletions(-)
+ src/reflect/all_test.go | 31 +++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 14 ++++++++++++++
+ 2 files changed, 45 insertions(+)

@@ -1,13 +1,25 @@
-commit 138498183cb53382c115fc761cbf2898fb72eac8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 14 11:36:19 2015 -0700
+commit b016eba489820b9091e4f39610a84f697d8eb0f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 7 15:50:34 2015 +0200
 
-    go/types: remove _ imports that are not needed anymore
+    net/http: fix Transport data race, double cancel panic, cancel error message
     
-    Change-Id: I392b0a0083d6bea80a65f9eef46dd06b02a70e1b
-    Reviewed-on: https://go-review.googlesource.com/10082
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #9496
+    Fixes #9946
+    Fixes #10474
+    Fixes #10405
+    
+    Change-Id: I4e65f1706e46499811d9ebf4ad6d83a5dfb2ddaa
+    Reviewed-on: https://go-review.googlesource.com/8550
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/eval_test.go | 1 -
- src/go/types/self_test.go | 1 -
- 2 files changed, 2 deletions(-)
+ src/net/http/client_test.go    |   1 +
+ src/net/http/export_test.go    |   2 +
+ src/net/http/main_test.go      |  24 +++++----
+ src/net/http/npn_test.go       |  22 +++++---
+ src/net/http/request_test.go   |   1 +
+ src/net/http/serve_test.go     |   1 +
+ src/net/http/transport.go      | 112 ++++++++++++++++++++++++-----------------
+ src/net/http/transport_test.go |  57 +++++++++++++++++++--
+ 8 files changed, 153 insertions(+), 67 deletions(-)

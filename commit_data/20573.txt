@@ -1,15 +1,22 @@
-commit dca460574f28bee2c096eaafb82cbc4f88069c0b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 29 12:24:06 2014 -0700
+commit f8474fa01d6995b9e442abff3f7b01a9119a22cc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 19 11:14:51 2014 +1000
 
-    net: fix misleading package comment example
+    runtime: remove useless code around of EXCEPTION_BREAKPOINT
     
-    Fixes #8607
+    This is to simplify VEH handler before making
+    changes to fix issue 8006.
     
-    LGTM=r
-    R=r
+    Update #8006
+    
+    LGTM=adg, rsc
+    R=golang-codereviews, adg, rsc
     CC=golang-codereviews
-    https://golang.org/cl/146470043
+    https://golang.org/cl/138630043
 
- src/net/net.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/defs_windows.go      |  1 -
+ src/runtime/defs_windows_386.h   |  1 -
+ src/runtime/defs_windows_amd64.h |  1 -
+ src/runtime/os_windows_386.c     | 13 -------------
+ src/runtime/os_windows_amd64.c   | 10 ----------
+ 5 files changed, 26 deletions(-)

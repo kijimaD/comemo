@@ -1,45 +1,31 @@
-commit 3a21f0a9c1d3b57608eca4950b77adaf834f250c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 16:27:03 2016 -0500
+commit 0de59c27ebda76d3e5121888acca304e49009266
+Author: Austin Clements <austin@google.com>
+Date:   Sun Nov 15 23:13:16 2015 -0500
 
-    runtime/cgo: more +build cgo tags
+    runtime: handle sysReserve returning a pointer below the arena
     
-    Followup to CL 19001.
+    In mheap.sysAlloc, if an allocation at arena_used would exceed
+    arena_end (but wouldn't yet push us past arena_start+_MaxArean32), it
+    trie to extend the arena reservation by another 256 MB. It extends the
+    arena by calling sysReserve, which, on 32-bit, calls mmap without
+    MAP_FIXED, which means the address is just a hint and the kernel can
+    put the mapping wherever it wants. In particular, mmap may choose an
+    address below arena_start (the kernel also chose arena_start, so there
+    could be lots of space below it). Currently, we don't detect this case
+    and, if it happens, mheap.sysAlloc will corrupt arena_end and
+    arena_used then return the low pointer to mheap.grow, which will crash
+    when it attempts to index in to h_spans with an underflowed index.
     
-    Change-Id: I7fa838b1ee8df53229e9dd29a231c2f9b2aa3f69
-    Reviewed-on: https://go-review.googlesource.com/19003
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fix this by checking not only that that p+p_size isn't too high, but
+    that p isn't too low.
+    
+    Fixes #13143.
+    
+    Change-Id: I8d0f42bd1484460282a83c6f1a6f8f0df7fb2048
+    Reviewed-on: https://go-review.googlesource.com/16927
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/gcc_android.c              | 2 ++
- src/runtime/cgo/gcc_android_386.c          | 2 ++
- src/runtime/cgo/gcc_android_amd64.c        | 2 ++
- src/runtime/cgo/gcc_android_arm.c          | 2 ++
- src/runtime/cgo/gcc_android_arm64.c        | 2 ++
- src/runtime/cgo/gcc_darwin_386.c           | 2 ++
- src/runtime/cgo/gcc_darwin_arm.c           | 2 ++
- src/runtime/cgo/gcc_darwin_arm64.c         | 2 ++
- src/runtime/cgo/gcc_dragonfly_amd64.c      | 2 ++
- src/runtime/cgo/gcc_fatalf.c               | 2 ++
- src/runtime/cgo/gcc_freebsd_386.c          | 2 ++
- src/runtime/cgo/gcc_freebsd_amd64.c        | 2 ++
- src/runtime/cgo/gcc_freebsd_arm.c          | 2 ++
- src/runtime/cgo/gcc_libinit_linux_ppc64x.c | 2 ++
- src/runtime/cgo/gcc_libinit_openbsd.c      | 2 ++
- src/runtime/cgo/gcc_libinit_windows.c      | 2 ++
- src/runtime/cgo/gcc_linux_386.c            | 2 ++
- src/runtime/cgo/gcc_linux_amd64.c          | 2 ++
- src/runtime/cgo/gcc_linux_arm.c            | 2 ++
- src/runtime/cgo/gcc_linux_arm64.c          | 2 ++
- src/runtime/cgo/gcc_linux_ppc64x.c         | 2 ++
- src/runtime/cgo/gcc_mmap.c                 | 2 ++
- src/runtime/cgo/gcc_netbsd_386.c           | 2 ++
- src/runtime/cgo/gcc_netbsd_amd64.c         | 2 ++
- src/runtime/cgo/gcc_netbsd_arm.c           | 2 ++
- src/runtime/cgo/gcc_openbsd_386.c          | 2 ++
- src/runtime/cgo/gcc_openbsd_amd64.c        | 2 ++
- src/runtime/cgo/gcc_signal_darwin_armx.c   | 2 ++
- src/runtime/cgo/gcc_signal_darwin_lldb.c   | 2 ++
- src/runtime/cgo/gcc_solaris_amd64.c        | 2 ++
- src/runtime/cgo/gcc_windows_386.c          | 2 ++
- src/runtime/cgo/gcc_windows_amd64.c        | 2 ++
- 32 files changed, 64 insertions(+)
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

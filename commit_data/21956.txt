@@ -1,31 +1,21 @@
-commit 44e903158faca58bf495dc2f263d6973f62b9d17
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Mar 6 21:18:41 2015 +1100
+commit 31e852402fdf36ccc9fd84436d082e960b755cd3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 12:47:44 2015 -0800
 
-    cmd/internal/gc: more Node cleanups
+    math/big: fix aliasing error in Add, Sub
     
-    More Node cleanups, these ones touch go.y.
+    Also:
+    - make representation more flexible (no need to store trailing 0 digits to match precision)
+    - simplify rounding as a consequence
+    - minor related fixes
     
-    - convert Node.Implicit to bool
-    - convert Node.Used to bool
+    TBR adonovan
     
-    Change-Id: I85c7ff9e66cee7122b560adedc995166c874f2f2
-    Reviewed-on: https://go-review.googlesource.com/7124
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie91075990688b506d28371ec3b633b8267397ebb
+    Reviewed-on: https://go-review.googlesource.com/4841
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/closure.go   |  8 ++++----
- src/cmd/internal/gc/esc.go       |  2 +-
- src/cmd/internal/gc/fmt.go       | 24 ++++++++++++------------
- src/cmd/internal/gc/gen.go       |  2 +-
- src/cmd/internal/gc/go.y         | 20 ++++++++++----------
- src/cmd/internal/gc/gsubr.go     |  8 ++++----
- src/cmd/internal/gc/inl.go       |  6 +++---
- src/cmd/internal/gc/lex.go       |  6 +++---
- src/cmd/internal/gc/pgen.go      | 10 +++++-----
- src/cmd/internal/gc/select.go    |  2 +-
- src/cmd/internal/gc/subr.go      |  6 +++---
- src/cmd/internal/gc/syntax.go    |  4 ++--
- src/cmd/internal/gc/typecheck.go | 26 +++++++++++++-------------
- src/cmd/internal/gc/walk.go      | 10 +++++-----
- src/cmd/internal/gc/y.go         | 20 ++++++++++----------
- 15 files changed, 77 insertions(+), 77 deletions(-)
+ src/math/big/float.go      | 90 ++++++++++++++++++++--------------------------
+ src/math/big/float_test.go | 22 +++++++-----
+ src/math/big/floatconv.go  |  4 +--
+ 3 files changed, 54 insertions(+), 62 deletions(-)

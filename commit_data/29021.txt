@@ -1,17 +1,25 @@
-commit a7cad4110ac229ecf5b0fcf0a035c5a03c699415
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sat Oct 8 06:57:49 2016 -0400
+commit 747a158ef314bb458b90da95f3e3d67aa4140622
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Aug 8 16:02:09 2016 +0200
 
-    net/http/httputil: log err encountered during reverseproxy body copying
+    runtime: speed up StartTrace with lots of blocked goroutines
     
-    Fixes #16659
+    In StartTrace we emit EvGoCreate for all existing goroutines.
+    This includes stack unwind to obtain current stack.
+    Real Go programs can contain hundreds of thousands of blocked goroutines.
+    For such programs StartTrace can take up to a second (few ms per goroutine).
     
-    Change-Id: I13dd797e93e0b572eaf8726f1be594870d40183b
-    Reviewed-on: https://go-review.googlesource.com/30692
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Obtain current stack ID once and use it for all EvGoCreate events.
+    
+    This speeds up StartTrace with 10K blocked goroutines from 20ms to 4 ms
+    (win for StartTrace called from net/http/pprof hander will be bigger
+    as stack is deeper).
+    
+    Change-Id: I9e5ff9468331a840f8fdcdd56c5018c2cfde61fc
+    Reviewed-on: https://go-review.googlesource.com/25573
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/net/http/httputil/reverseproxy.go      | 30 ++++++++++++++++++++-
- src/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 1 deletion(-)
+ src/runtime/trace.go | 61 ++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 38 insertions(+), 23 deletions(-)

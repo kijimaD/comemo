@@ -1,20 +1,105 @@
-commit 1da6b2ea197c9fcaa50e9465f3bf40c78b14703c
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Fri Oct 16 01:33:28 2015 -0700
+commit f91ff1a509c41ba0d14c3018f486fb64b3b54425
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 4 14:55:35 2015 -0700
 
-    fmt: clarify reflect.Value printing
+    [dev.ssa] cmd/compile: add SSA pass to move values closer to uses
     
-    fmt docs say:
+    Even this very simple, restricted initial implementation helps.
     
-      If the operand is a reflect.Value, the concrete value it
-      holds is printed as if it was the operand.
+    While running make.bash, it moves 84437 values
+    to new, closer homes.
     
-    It implies recursive application of this rule, which is not the case.
-    Clarify the docs.
+    As a concrete example:
     
-    Change-Id: I019277c7c6439095bab83e5536aa06403638aa51
-    Reviewed-on: https://go-review.googlesource.com/15952
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    func f_ssa(i, j int, b bool) int {
+            if !b {
+                    return 0
+            }
+            return i + j
+    }
+    
+    It cuts off one stack slot and two instructions:
+    
+    Before:
+    
+    "".f_ssa t=1 size=96 value=0 args=0x20 locals=0x18
+            0x0000 00000 (x.go:3)   TEXT    "".f_ssa(SB), $24-32
+            0x0000 00000 (x.go:3)   SUBQ    $24, SP
+            0x0004 00004 (x.go:3)   FUNCDATA        $0, "".gcargs·0(SB)
+            0x0004 00004 (x.go:3)   FUNCDATA        $1, "".gclocals·1(SB)
+            0x0004 00004 (x.go:5)   MOVQ    $0, AX
+            0x0006 00006 (x.go:3)   MOVQ    32(SP), CX
+            0x000b 00011 (x.go:3)   MOVQ    40(SP), DX
+            0x0010 00016 (x.go:3)   LEAQ    48(SP), BX
+            0x0015 00021 (x.go:3)   MOVB    (BX), BPB
+            0x0018 00024 (x.go:3)   MOVQ    $0, SI
+            0x001a 00026 (x.go:3)   MOVQ    SI, 56(SP)
+            0x001f 00031 (x.go:3)   TESTB   BPB, BPB
+            0x0022 00034 (x.go:5)   MOVQ    AX, (SP)
+            0x0026 00038 (x.go:3)   MOVQ    CX, 8(SP)
+            0x002b 00043 (x.go:3)   MOVQ    DX, 16(SP)
+            0x0030 00048 (x.go:4)   JEQ     74
+            0x0032 00050 (x.go:3)   MOVQ    8(SP), AX
+            0x0037 00055 (x.go:3)   MOVQ    16(SP), CX
+            0x003c 00060 (x.go:7)   LEAQ    (AX)(CX*1), DX
+            0x0040 00064 (x.go:7)   MOVQ    DX, 56(SP)
+            0x0045 00069 (x.go:3)   ADDQ    $24, SP
+            0x0049 00073 (x.go:3)   RET
+            0x004a 00074 (x.go:5)   MOVQ    (SP), AX
+            0x004e 00078 (x.go:5)   MOVQ    AX, 56(SP)
+            0x0053 00083 (x.go:3)   JMP     69
+    
+    After:
+    
+    "".f_ssa t=1 size=80 value=0 args=0x20 locals=0x10
+            0x0000 00000 (x.go:3)   TEXT    "".f_ssa(SB), $16-32
+            0x0000 00000 (x.go:3)   SUBQ    $16, SP
+            0x0004 00004 (x.go:3)   FUNCDATA        $0, "".gcargs·0(SB)
+            0x0004 00004 (x.go:3)   FUNCDATA        $1, "".gclocals·1(SB)
+            0x0004 00004 (x.go:3)   MOVQ    32(SP), AX
+            0x0009 00009 (x.go:3)   MOVQ    24(SP), CX
+            0x000e 00014 (x.go:3)   LEAQ    40(SP), DX
+            0x0013 00019 (x.go:3)   MOVB    (DX), BL
+            0x0015 00021 (x.go:3)   MOVQ    $0, BP
+            0x0017 00023 (x.go:3)   MOVQ    BP, 48(SP)
+            0x001c 00028 (x.go:3)   TESTB   BL, BL
+            0x001e 00030 (x.go:3)   MOVQ    AX, (SP)
+            0x0022 00034 (x.go:3)   MOVQ    CX, 8(SP)
+            0x0027 00039 (x.go:4)   JEQ     64
+            0x0029 00041 (x.go:3)   MOVQ    8(SP), AX
+            0x002e 00046 (x.go:3)   MOVQ    (SP), CX
+            0x0032 00050 (x.go:7)   LEAQ    (AX)(CX*1), DX
+            0x0036 00054 (x.go:7)   MOVQ    DX, 48(SP)
+            0x003b 00059 (x.go:3)   ADDQ    $16, SP
+            0x003f 00063 (x.go:3)   RET
+            0x0040 00064 (x.go:5)   MOVQ    $0, AX
+            0x0042 00066 (x.go:5)   MOVQ    AX, 48(SP)
+            0x0047 00071 (x.go:3)   JMP     59
+    
+    Of course, the old backend is still well ahead:
+    
+    "".f_ssa t=1 size=48 value=0 args=0x20 locals=0x0
+            0x0000 00000 (x.go:3)   TEXT    "".f_ssa(SB), $0-32
+            0x0000 00000 (x.go:3)   NOP
+            0x0000 00000 (x.go:3)   NOP
+            0x0000 00000 (x.go:3)   FUNCDATA        $0, gclocals·a8eabfc4a4514ed6b3b0c61e9680e440(SB)
+            0x0000 00000 (x.go:3)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:4)   CMPB    "".b+24(FP), $0
+            0x0005 00005 (x.go:4)   JNE     17
+            0x0007 00007 (x.go:5)   MOVQ    $0, "".~r3+32(FP)
+            0x0010 00016 (x.go:5)   RET
+            0x0011 00017 (x.go:7)   MOVQ    "".i+8(FP), BX
+            0x0016 00022 (x.go:7)   MOVQ    "".j+16(FP), BP
+            0x001b 00027 (x.go:7)   ADDQ    BP, BX
+            0x001e 00030 (x.go:7)   MOVQ    BX, "".~r3+32(FP)
+            0x0023 00035 (x.go:7)   RET
+    
+    Some regalloc improvements should help considerably.
+    
+    Change-Id: I95bb5dd83e56afd70ae4e983f1d32dffd0c3d46a
+    Reviewed-on: https://go-review.googlesource.com/13142
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/fmt/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go |  6 +++
+ src/cmd/compile/internal/ssa/tighten.go | 70 +++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+)

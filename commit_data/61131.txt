@@ -1,0 +1,30 @@
+commit 534d6a1a9c81b25bdad1052e736b2f072caa3903
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 1 19:59:07 2024 +0200
+
+    crypto/rand: prevent Read argument from escaping to heap
+    
+    Mateusz had this idea before me in CL 578516, but it got much easier
+    after the recent cleanup.
+    
+    It's unfortunate we lose the test coverage of batched, but the package
+    is significantly simpler than when we introduced it, so it should be
+    easier to review that everything does what it's supposed to do.
+    
+    Fixes #66779
+    
+    Co-authored-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Change-Id: Id35f1172e678fec184efb0efae3631afac8121d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602498
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/rand/rand.go                         | 30 ++++------
+ src/crypto/rand/rand_batched_test.go            | 75 -------------------------
+ src/crypto/rand/rand_getentropy.go              | 16 +++++-
+ src/crypto/rand/rand_js.go                      | 18 ++++++
+ src/crypto/rand/rand_test.go                    | 26 +++++++++
+ src/internal/syscall/unix/getentropy_openbsd.go |  1 +
+ 6 files changed, 70 insertions(+), 96 deletions(-)

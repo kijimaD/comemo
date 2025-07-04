@@ -1,19 +1,22 @@
-commit a690a5d75fee3b23e9ab80bd7b48cafb52ce4615
+commit 6f02578f9cff92e6c0fae4d86df01dcf99673c61
 Author: David Chase <drchase@google.com>
-Date:   Wed Apr 7 09:58:02 2021 -0400
+Date:   Fri Sep 25 13:30:51 2020 -0400
 
-    cmd/compile: ensure spills of int/float reg args land in abi slots
+    cmd/compile: fix logopt log directory naming for windows
     
-    We noticed a while ago that register argument spills were not always
-    landing where they should.
+    Allow Windows absolute paths, also fixed URI decoding on Windows.
+    Added a test, reorganized to make the test cleaner.
+    Also put some doc comments on exported functions that did not have them.
     
-    Updates #40724.
+    Fixes #41614.
     
-    Change-Id: I0b7c3279a2f6270577481c252bae4568cbb6e796
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308510
+    Change-Id: I2871be0e5183fbd53ffb309896d6fe56c15a7727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257677
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
 
- src/cmd/compile/internal/ssa/stackalloc.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/logopt/log_opts.go    | 89 ++++++++++++++++++--------
+ src/cmd/compile/internal/logopt/logopt_test.go | 28 ++++++++
+ 2 files changed, 89 insertions(+), 28 deletions(-)

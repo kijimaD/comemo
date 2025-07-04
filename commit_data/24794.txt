@@ -1,33 +1,14 @@
-commit 7407d8e582556edf43f30d34eabc049896d80689
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 30 14:25:28 2015 -0400
+commit 5483761c130dcd7e985c01dd82af93758732b3a7
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Mon Aug 31 09:40:25 2015 -0700
 
-    runtime: fix over-aggressive proportional sweep
+    syscall: remove unused kernelVersion function from tests
     
-    Currently, sweeping is performed before allocating a span by charging
-    for the entire size of the span requested, rather than the number of
-    bytes actually available for allocation from the returned span. That
-    is, if the returned span is 8K, but already has 6K in use, the mutator
-    is charged for 8K of heap allocation even though it can only allocate
-    2K more from the span. As a result, proportional sweep is
-    over-aggressive and tends to finish much earlier than it needs to.
-    This effect is more amplified by fragmented heaps.
-    
-    Fix this by reimbursing the mutator for the used space in a span once
-    it has allocated that span. We still have to charge up-front for the
-    worst-case because we don't know which span the mutator will get, but
-    at least we can correct the over-charge once it has a span, which will
-    go toward later span allocations.
-    
-    This has negligible effect on the throughput of the go1 benchmarks and
-    the garbage benchmark.
-    
-    Fixes #12040.
-    
-    Change-Id: I0e23e7a4ccf126cca000fed5067b20017028dd6b
-    Reviewed-on: https://go-review.googlesource.com/16515
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: If0d00999c58f7421e4da06e1822ba5abccf72cac
+    Reviewed-on: https://go-review.googlesource.com/14111
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mcentral.go |  4 ++++
- src/runtime/mgcsweep.go | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/syscall/exec_linux_test.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

@@ -1,22 +1,28 @@
-commit 27316739ac249bb07d47990ceb4013d442fd28dd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Nov 28 09:50:25 2023 +0700
+commit 7aa85e01376d840acc8bb931156d607a00b64a60
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 16:40:22 2023 -0500
 
-    types2, go/types: fix type checking of ~[]E passing to unsafe builtins
+    cmd/go: introduce GOROOT/go.env and move proxy/sumdb config there
     
-    Fixes #64406
+    Various Linux distributions edit cmd/go/internal/cfg/cfg.go to change
+    the default settings of GOPROXY and GOSUMDB. Make it possible for
+    them to do this without editing the go command source code by
+    introducing GOROOT/go.env and moving those defaults there.
     
-    Change-Id: I58002ad722a229fe6db0be08d745fbad86048c6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545395
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    With the upcoming changes for reproducible builds (#24904),
+    this should mean that Linux distributions distribute binaries
+    that are bit-for-bit identical to the Go distribution binaries,
+    even when rebuilding the distribution themselves.
+    
+    Fixes #57179.
+    
+    Change-Id: Ib2ecc61e6d036f97db6fd47dca757c94fdea5629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462198
+    Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        |  4 ++--
- src/go/types/builtins.go                           |  4 ++--
- .../types/testdata/fixedbugs/issue64406.go         | 23 ++++++++++++++++++++++
- 3 files changed, 27 insertions(+), 4 deletions(-)
+ go.env                         |  8 ++++++++
+ src/cmd/go/internal/cfg/cfg.go | 45 ++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 45 insertions(+), 8 deletions(-)

@@ -1,16 +1,27 @@
-commit 7299212a425d6c4a2df93ec4633ba1e1b7a5b9be
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 12 20:14:23 2024 +0100
+commit e14937866e0e4aa3fd296e13d1df2d883927ed28
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Jun 9 11:41:39 2023 +0000
 
-    net/http: match os.File.Readdir behavior in DotFileHiding
+    runtime: fix typos
     
-    Fixes #67697
-    
-    Change-Id: I26b26262d885d0704851c08c79e7b2b4872b65ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598075
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If13f4d4bc545f78e3eb8c23cf2e63f0eb273d71f
+    GitHub-Last-Rev: 32ca70f52a5c3dd66f18535c5e595e66afb3903c
+    GitHub-Pull-Request: golang/go#60703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502055
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/example_filesystem_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/asm_386.s     | 4 ++--
+ src/runtime/asm_amd64.s   | 4 ++--
+ src/runtime/asm_arm.s     | 4 ++--
+ src/runtime/asm_arm64.s   | 4 ++--
+ src/runtime/asm_loong64.s | 4 ++--
+ src/runtime/asm_mips64x.s | 4 ++--
+ src/runtime/asm_mipsx.s   | 4 ++--
+ src/runtime/asm_ppc64x.s  | 4 ++--
+ src/runtime/asm_riscv64.s | 4 ++--
+ src/runtime/asm_s390x.s   | 4 ++--
+ 10 files changed, 20 insertions(+), 20 deletions(-)

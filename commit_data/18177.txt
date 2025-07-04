@@ -1,26 +1,26 @@
-commit d227d680ece216603c31e36ee995b814259325dc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 6 20:43:44 2014 -0500
+commit 90e9669c50fc471e14b358382a60b6354182fb2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 6 12:38:04 2014 -0800
 
-    cmd/gc: use 100x less memory for []byte("string")
+    undo CL 44150043 / 198bdc0984dd
     
-    []byte("string") was simplifying to
-    []byte{0: 0x73, 1: 0x74, 2: 0x72, 3: 0x69, 4: 0x6e, 5: 0x67},
-    but that latter form takes up much more memory in the compiler.
-    Preserve the string form and recognize it to turn global variables
-    initialized this way into linker-initialized data.
+    See https://golang.org/cl/44150043/
     
-    Reduces the compiler memory footprint for a large []byte initialized
-    this way from approximately 10 kB/B to under 100 B/B.
+    ««« original CL description
+    regexp: use sync.Pool
     
-    See also issue 6643.
+    For machines, not threads.
     
-    R=golang-codereviews, r, iant, oleku.konko, dave, gobot, bradfitz
+    Update #4720
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/44150043
+    »»»
+    
+    TBR=golang-dev
     CC=golang-codereviews
-    https://golang.org/cl/15930045
+    https://golang.org/cl/48190043
 
- src/cmd/gc/go.h        |  1 +
- src/cmd/gc/obj.c       | 28 ++++++++++++++++++++++++++++
- src/cmd/gc/sinit.c     |  9 +++++++++
- src/cmd/gc/typecheck.c |  3 +++
- 4 files changed, 41 insertions(+)
+ src/pkg/regexp/regexp.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

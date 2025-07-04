@@ -1,16 +1,18 @@
-commit 15db3654b8e9fda6d41f4389879c8cd370f71a7e
-Author: Anmol Sethi <anmol@aubble.com>
-Date:   Wed Jun 1 22:35:09 2016 -0400
+commit 260ea689992c4d4eccbebdc2750c707213934f50
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Apr 5 11:29:15 2016 -0700
 
-    net/http: http.Request.Context doc fix
+    os: deprecate os.SEEK_SET, os.SEEK_CUR, and os.SEEK_END
     
-    The comment on http.Request.Context says that the context
-    is canceled when the client's connection closes even though
-    this has not been implemented. See #15927
+    CL/19862 introduced the same set of constants to the io package.
+    We should steer users away from the os.SEEK* versions and towards
+    the io.Seek* versions.
     
-    Change-Id: I50b68638303dafd70f77f8f778e6caff102d3350
-    Reviewed-on: https://go-review.googlesource.com/23672
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Updates #6885
+    
+    Change-Id: I96ec5be3ec3439e1295c937159dadaf1ebfb2737
+    Reviewed-on: https://go-review.googlesource.com/21540
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/os/file.go | 2 ++
+ 1 file changed, 2 insertions(+)

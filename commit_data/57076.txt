@@ -1,28 +1,22 @@
-commit c5f2e4e56e2d3b13737de597be62f3020d59c137
-Author: Manuel Sabin <msabin27@gmail.com>
-Date:   Thu Jun 27 15:06:55 2024 -0400
+commit c5463218a228b082661df3f5f1ba0492a4d3df18
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 9 17:41:36 2023 +0200
 
-    crypto/internal/cryptotest: add tests for the cipher.Stream interface
+    cmd/api: skip TestIssue29837 when -short is set
     
-    This CL creates tests for the cipher.Stream interface in the new
-    cryptotest package.  This set of tests is called from the tests of
-    implementations of the Stream interface e.g. ctr_test.go, ofb_test.go,
-    rc4_test.go, etc.
+    TestIssue29837 takes a long time to run, ~150s on my laptop
+    and ~40s on CI builders.
     
-    Updates #25309
+    While here, warm up the go list cache in parallel, which reduces the
+    test time by ~10%.
     
-    Change-Id: I57204ef9f4c0ec09b94e88466deb03c6715e411d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595564
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib8d45b086453ee03e6c9f3f070d6f6b0d324bfd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502095
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/crypto/cipher/cfb_test.go            |  47 ++++++
- src/crypto/cipher/ctr_test.go            |  38 +++++
- src/crypto/cipher/ofb_test.go            |  37 +++++
- src/crypto/internal/cryptotest/stream.go | 241 +++++++++++++++++++++++++++++++
- src/crypto/rc4/rc4_test.go               |   9 ++
- 5 files changed, 372 insertions(+)
+ src/cmd/api/api_test.go | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)

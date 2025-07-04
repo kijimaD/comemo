@@ -1,12 +1,25 @@
-commit 9a5789d499ffe180749d02d36ab015400067a256
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Jan 4 17:58:13 2015 -0500
+commit b76e836042dd65b39cfe7af0f8ff5f73f12142a2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 19 11:30:58 2014 -0500
 
-    fmt: fix two typos
+    [dev.cc] runtime: allow more address bits in lfstack on Power64
     
-    Change-Id: I7b65cf3b67bef8950115066d6d12b25cd0a5edfc
-    Reviewed-on: https://go-review.googlesource.com/2272
-    Reviewed-by: Rob Pike <r@golang.org>
+    Previously, lfstack assumed Linux limited user space addresses
+    to 43 bits on Power64 based on a paper from 2001.  It turns
+    out the limit is now 46 bits, so lfstack was truncating
+    pointers.
+    
+    Raise the limit to 48 bits (for some future proofing and to
+    make it match amd64) and add a self-test that will fail in a
+    useful way if ever unpack(pack(x)) != x.
+    
+    With this change, dev.cc passes all.bash on power64le.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/174430043
 
- src/fmt/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/lfstack.go                |  4 ++++
+ src/runtime/lfstack_linux_power64x.go | 20 +++++++++++++-------
+ 2 files changed, 17 insertions(+), 7 deletions(-)

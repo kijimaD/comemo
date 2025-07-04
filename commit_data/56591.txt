@@ -1,27 +1,23 @@
-commit c96159c25217c84a252be5d74d48861af715ecf8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 16 12:40:31 2024 +0200
+commit 6a675b9a7c73e01469b31bb1b1606b08463efeb9
+Author: Thuy Linh Luu <thuy-linh.luu@edg.ag>
+Date:   Tue May 16 12:30:43 2023 +0000
 
-    crypto/x509: cleanup signature generation
+    encoding/xml: wrap charsetReader errors
     
-    Centralizing some repetitive code, which would have prevented #45990.
+    This change wraps the errors from the CharsetReader function so the caller can distinguish different error conditions.
     
-    This also fixes the deprecated Certificate.CreateCRL for RSA-PSS, not
-    that anyone cared, probably.
+    Context: I have an XML file with an unknown encoding which I like to handle separately. I like to use the CharsetReader for this but the error type has not been forwarded.
     
-    This has two other minor observable behavior changes: MD2 is now treated
-    as a completely unknown algorithm (why did we even have that!? removing
-    lets us treat hash == 0 as always meaning no prehash); and we now do the
-    signature verification self-check for all signing operations.
-    
-    Change-Id: I3b34fe0c3b6eb6181d2145b0704834225cd45a27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586015
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6739a0dee04ec376cd20536be2806ce7f50c5213
+    GitHub-Last-Rev: ada9dd510f9a5b7f8c9473f6864077e0ed6898bd
+    GitHub-Pull-Request: golang/go#60199
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494897
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- doc/next/6-stdlib/99-minor/crypto/x509/45990.md |   3 +
- src/crypto/x509/x509.go                         | 293 ++++++++++--------------
- src/crypto/x509/x509_test.go                    |  25 +-
- 3 files changed, 138 insertions(+), 183 deletions(-)
+ src/encoding/xml/xml.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

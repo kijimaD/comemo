@@ -1,95 +1,12 @@
-commit 3f7276c029162043f938e173e63f55d26462a2ca
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Apr 27 00:03:00 2019 +1000
+commit 444887dde8393c3bbf94122c17ab7f005a7257c4
+Author: Julie Qiu <julie@golang.org>
+Date:   Thu Dec 6 14:13:28 2018 -0500
 
-    cmd: update vendored golang.org/x/sys
+    doc/go1.12: release notes for math/bits
     
-    This brings in support for openbsd/arm64.
-    
-    Updated via 'go get' and 'go mod vendor'.
-    
-    Updates #31656
-    
-    Change-Id: I18ffbc622d542f61ca0442b9dab28271fa2cfa85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174118
+    Change-Id: I930942c7e057a36332ac06762f6aadf07574a7d5
+    Reviewed-on: https://go-review.googlesource.com/c/152977
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go.mod                                     |    2 +-
- src/cmd/go.sum                                     |    2 +
- .../golang.org/x/sys/unix/asm_openbsd_arm64.s      |   29 +
- src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |    9 +
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    2 +
- .../unix/{openbsd_pledge.go => pledge_openbsd.go}  |    3 -
- .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  |    3 +
- .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   20 +-
- .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   17 +
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   13 +
- .../golang.org/x/sys/unix/syscall_openbsd_arm64.go |   37 +
- .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   17 +-
- .../unix/{openbsd_unveil.go => unveil_openbsd.go}  |    2 -
- .../golang.org/x/sys/unix/zerrors_aix_ppc.go       |    2 +
- .../golang.org/x/sys/unix/zerrors_aix_ppc64.go     |    4 +-
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |    4 +
- .../x/sys/unix/zerrors_linux_mips64le.go           |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |    4 +
- .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |    4 +
- .../golang.org/x/sys/unix/zerrors_openbsd_arm64.go | 1789 +++++
- .../golang.org/x/sys/unix/zsyscall_aix_ppc.go      |   42 +-
- .../golang.org/x/sys/unix/zsyscall_aix_ppc64.go    |   30 +-
- .../golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go |   40 +-
- .../x/sys/unix/zsyscall_aix_ppc64_gccgo.go         |   31 +-
- .../golang.org/x/sys/unix/zsyscall_linux_386.go    |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_amd64.go  |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_arm64.go  |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_mips.go   |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_mips64.go |   26 +
- .../x/sys/unix/zsyscall_linux_mips64le.go          |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_mipsle.go |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_ppc64.go  |   26 +
- .../x/sys/unix/zsyscall_linux_ppc64le.go           |   26 +
- .../x/sys/unix/zsyscall_linux_riscv64.go           |   26 +
- .../golang.org/x/sys/unix/zsyscall_linux_s390x.go  |   26 +
- .../x/sys/unix/zsyscall_linux_sparc64.go           |   26 +
- .../x/sys/unix/zsyscall_openbsd_arm64.go           | 1692 +++++
- .../golang.org/x/sys/unix/zsysctl_openbsd_arm64.go |  275 +
- .../golang.org/x/sys/unix/zsysnum_openbsd_arm64.go |  217 +
- .../golang.org/x/sys/unix/ztypes_aix_ppc64.go      |    4 -
- .../golang.org/x/sys/unix/ztypes_darwin_386.go     |   10 +
- .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |   10 +
- .../golang.org/x/sys/unix/ztypes_darwin_arm.go     |   10 +
- .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |   10 +
- .../golang.org/x/sys/unix/ztypes_linux_386.go      |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_arm.go      |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_mips.go     |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |  483 +-
- .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |  483 +-
- .../golang.org/x/sys/unix/ztypes_openbsd_arm64.go  |  564 ++
- .../vendor/golang.org/x/sys/windows/mkerrors.bash  |   64 +
- .../vendor/golang.org/x/sys/windows/mkerrors.go    |    7 +
- src/cmd/vendor/golang.org/x/sys/windows/service.go |    2 -
- .../golang.org/x/sys/windows/syscall_windows.go    |    1 +
- .../golang.org/x/sys/windows/types_windows.go      |   38 -
- .../golang.org/x/sys/windows/zerrors_windows.go    | 6853 ++++++++++++++++++++
- .../golang.org/x/sys/windows/zsyscall_windows.go   |   13 +
- src/cmd/vendor/modules.txt                         |    2 +-
- 76 files changed, 16725 insertions(+), 1810 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

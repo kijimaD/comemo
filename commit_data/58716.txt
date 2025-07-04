@@ -1,25 +1,20 @@
-commit 3e0f9e3973f6190cb63c511175e169543a466fe6
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jan 27 13:02:27 2025 +0100
+commit ed30ee6c56505905880e63266641de32666e1c0b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Dec 5 15:16:18 2023 -0500
 
-    crypto/internal/fips140test: add functional tests
+    doc/go1.22: document ast.Object deprecation
     
-    Running TestIntegrityCheckFailure|TestCASTFailures|TestFIPS140 with -v
-    and the appropriate GOFIPS140 environment variables will produce logs
-    sufficient for the functional testing session of the FIPS 140-3
-    validation. The tests can also be cross-compiled with -c and executed on
-    the target.
+    The api.txt changes were originally recorded by mistake (sorry)
+    into go1.21.txt; see CL 504915, which made the actual change
+    in August.
     
-    Change-Id: I6a6a465606518923d3f288e030c0f1b977aa6415
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648816
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: If46b48d9714f01605888a6e975c1a03ccfce3b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547637
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
 
- src/crypto/internal/fips140test/check_test.go  |  60 +++-
- src/crypto/internal/fips140test/fips_test.go   | 407 +++++++++++++++++++++++++
- src/crypto/internal/fips140test/nistec_test.go |   7 -
- src/crypto/internal/fips140test/sshkdf_test.go |  27 +-
- 4 files changed, 465 insertions(+), 36 deletions(-)
+ api/go1.22.txt  |  5 +++++
+ doc/go1.22.html | 30 ++++++++++++++++++++++++------
+ 2 files changed, 29 insertions(+), 6 deletions(-)

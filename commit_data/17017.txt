@@ -1,18 +1,21 @@
-commit 77f21eea597f374e025497c167caccfd72864e13
+commit a574822f8044204357236405dca60d1ca5123ab5
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 4 23:31:23 2013 +0400
+Date:   Sun Aug 4 14:08:13 2013 +0400
 
-    net: fix concurrent Accept on windows
-    Runtime netpoll supports at most one read waiter
-    and at most one write waiter. It's responsibility
-    of net package to ensure that. Currently windows
-    implementation allows more than one waiter in Accept.
-    It leads to "fatal error: netpollblock: double wait".
+    runtime: disable dynamic priority boosting on windows
+    Windows dynamic priority boosting assumes that a process has different types
+    of dedicated threads -- GUI, IO, computational, etc. Go processes use
+    equivalent threads that all do a mix of GUI, IO, computations, etc.
+    In such context dynamic priority boosting does nothing but harm, so turn it off.
+    In particular, if 2 goroutines do heavy IO on a server uniprocessor machine,
+    windows rejects to schedule timer thread for 2+ seconds when priority boosting is enabled.
+    Fixes #5971.
     
-    R=golang-dev, bradfitz
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12400045
+    https://golang.org/cl/12406043
 
- src/pkg/net/fd_windows.go |  2 ++
- src/pkg/net/tcp_test.go   | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ src/pkg/net/timeout_test.go       |  2 --
+ src/pkg/runtime/netpoll_windows.c |  3 +--
+ src/pkg/runtime/os_windows.c      | 16 ++++++++++++++++
+ 3 files changed, 17 insertions(+), 4 deletions(-)

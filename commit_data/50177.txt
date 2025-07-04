@@ -1,18 +1,31 @@
-commit b0144b384318e17b7b4facdbbd2fff3712085eab
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Aug 26 15:10:46 2022 -0700
+commit 197b32817b8619d18cd648a7ab487e933c7150df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 3 15:49:01 2021 -0700
 
-    sync: switch Map to use atomic.Pointer
+    go/build: ignore package main files in TestDependencies
     
-    There was no noticeable change in performance.
+    The tree has package main files scattered around
+    in it for the purposes of running go generate.
     
-    Change-Id: I9c57bf836c8b6066e0620afb3d536ce99e4b9d87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426074
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    They're all marked "// +build ignore",
+    which gets special handling in TestDependencies.
+    It would be nice to be able to use other build tags,
+    such as "generate", as suggested by the go generate
+    design doc. Plus the build tag syntax is changing.
+    
+    This change skips all "package main" files.
+    By definition these aren't importable,
+    so they can't contribute to the dependency tree.
+    
+    We can't quite eliminate the "// +build ignore"
+    check, as it is used by packages runtime and syscall.
+    But it's still a step in the right direction.
+    
+    Change-Id: Ib9449acfdba75f570b87a4200afe944910d76222
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339592
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/map.go | 39 +++++++++++++++++++++++----------------
- 1 file changed, 23 insertions(+), 16 deletions(-)
+ src/go/build/deps_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,27 +1,15 @@
-commit 13f74db304fdf6dc6241485d6e6f3f6a0327633c
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Mon Mar 14 19:11:19 2016 +0100
+commit f962fc0820f13d6a44b8ef88e0fe20c02123b1b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 21:28:06 2016 -0500
 
-    cmd/compile: fix no-opt build after moving decomposing user functions
+    doc: mention that Go no longer calls timeBeginPeriod(1) on Windows
     
-    decompose-builtin pass requires an opt pass, but -N disables
-    late-opt, the only opt pass (out of two) that happens
-    after decompose-builtin.  This CL enables both 'opt' and 'late opt'
-    passes. The extra compile time for 'late opt' in negligible
-    since most rewrites were already done in the first 'opt'
-    (also measured before). We should put some effort in splitting the
-    generic rules into required and optional.
+    Fixes #13731.
     
-    Also update generic.rules comments about lowering
-    of StringMake and SliceMake.
-    
-    Tested with GO_GCFLAGS=-N ./all.bash
-    
-    Change-Id: I92999681aaa02587b6dc6e32ce997a91f1fc9499
-    Reviewed-on: https://go-review.googlesource.com/20682
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: Iaf70a8b41c947f0d86013808564112ab676136e3
+    Reviewed-on: https://go-review.googlesource.com/18345
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/ssa/compile.go        | 2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules | 6 ++++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ doc/go1.6.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

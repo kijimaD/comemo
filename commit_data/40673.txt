@@ -1,28 +1,12 @@
-commit f5e89c2214af2c4340d03dc9fd8ca8f507eff3ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 8 02:40:10 2019 +0000
+commit b388d6868fba8a0764d4dbd940a0bd249133923f
+Author: Julie <julie@golang.org>
+Date:   Wed Jun 12 13:54:51 2019 -0400
 
-    Revert "math/cmplx: handle special cases"
+    doc: add release notes for reflect
     
-    This reverts CL 169501.
-    
-    Reason for revert: The new tests fail at least on s390x and MIPS. This is likely a minor bug in the compiler or runtime. But this point in the release cycle is not the time to debug these details, which are unlikely to be new. Let's try again for 1.15.
-    
-    Updates #29320
-    Fixes #35443
-    
-    Change-Id: I2218b2083f8974b57d528e3742524393fc72b355
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206037
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I71a6816f54f8ad0f8531bb3f9de552fd136a0ed4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181943
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/cmplx/abs.go        |   3 +-
- src/math/cmplx/asin.go       |  68 +---
- src/math/cmplx/cmath_test.go | 827 ++++++++-----------------------------------
- src/math/cmplx/exp.go        |  17 -
- src/math/cmplx/log.go        |   3 +-
- src/math/cmplx/sin.go        |  52 ---
- src/math/cmplx/sqrt.go       |   2 -
- src/math/cmplx/tan.go        |  20 --
- 8 files changed, 152 insertions(+), 840 deletions(-)
+ doc/go1.13.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

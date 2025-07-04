@@ -1,23 +1,25 @@
-commit 255fb521da978916da0d4a2052d7941d950e2a6a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 5 21:43:04 2013 +0800
+commit fd178d6a7e62796c71258ba155b957616be86ff4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 5 07:00:38 2013 -0500
 
-    cmd/dist: add -Wstrict-prototypes to CFLAGS and fix all the compiler errors
-    Plan 9 compilers insist this but as we don't have Plan 9
-    builders, we'd better let gcc check the prototypes.
+    cmd/gc: add way to specify 'noescape' for extern funcs
     
-    Inspired by CL 7289050.
+    A new comment directive //go:noescape instructs the compiler
+    that the following external (no body) func declaration should be
+    treated as if none of its arguments escape to the heap.
     
-    R=golang-dev, seed, dave, rsc, lucio.dere
-    CC=akumar, golang-dev
-    https://golang.org/cl/7288056
+    Fixes #4099.
+    
+    R=golang-dev, dave, minux.ma, daniel.morsing, remyoudompheng, adg, agl, iant
+    CC=golang-dev
+    https://golang.org/cl/7289048
 
- src/cmd/5g/gg.h      | 2 +-
- src/cmd/6g/gg.h      | 2 +-
- src/cmd/8g/gg.h      | 2 +-
- src/cmd/dist/build.c | 3 +++
- src/cmd/ld/lib.h     | 2 +-
- src/cmd/ld/macho.h   | 2 +-
- src/cmd/prof/main.c  | 8 ++++----
- src/libmach/darwin.c | 2 +-
- 8 files changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/gc/doc.go           |  27 ++++-
+ src/cmd/gc/esc.c            |  19 +++-
+ src/cmd/gc/go.h             |   2 +
+ src/cmd/gc/go.y             |   4 +
+ src/cmd/gc/lex.c            |  30 +++--
+ src/cmd/gc/y.tab.c          | 268 ++++++++++++++++++++++----------------------
+ test/escape2.go             |  26 +++++
+ test/fixedbugs/issue4099.go |  26 +++++
+ 8 files changed, 257 insertions(+), 145 deletions(-)

@@ -1,16 +1,17 @@
-commit 7033275e3742c31810bd2f8da13d0b3c90363837
-Author: Sean Liao <sean@liao.dev>
-Date:   Sun Jun 5 18:28:51 2022 +0100
+commit c526cf8c1ea535de6a30fc8c553c377bda4d6781
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 21 15:56:08 2021 -0700
 
-    .github: update issue label for pkgsite-removal
+    cmd/compile/internal/types2: range clause to accept type sets with single underlying types
     
-    Change-Id: Ie90013077068b8e61bd651f2e686b06b6dad9fc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410454
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Jamal Carvalho <jamal@golang.org>
-    Reviewed-by: Jamal Carvalho <jamal@golang.org>
-    Run-TryBot: Jamal Carvalho <jamal@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This generalizes range clauses. Removed some dead code and cleaned
+    up the surrounding bits.
+    
+    Change-Id: Icd8384205afa3f52b7e7df9abed5de2bb556861d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357778
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- .github/ISSUE_TEMPLATE/02-pkgsite-removal.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/stmt.go            | 70 +++++++++-------------
+ .../internal/types2/testdata/check/typeparams.go2  | 12 ++--
+ 2 files changed, 35 insertions(+), 47 deletions(-)

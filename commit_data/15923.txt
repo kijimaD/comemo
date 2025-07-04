@@ -1,12 +1,14 @@
-commit 1693e14bc4eaef34877191bfc6c370f55deaa031
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Mon Mar 25 08:43:51 2013 -0700
+commit 3add0fef1e7e398e73bd4a7bdcb278bef5683395
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 25 08:17:10 2013 +0100
 
-    math: modify a comment to the convention format.
+    net/http: deflake BenchmarkServerFakeConnNoKeepAlive.
+    
+    Fixes #5121.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8012043
+    https://golang.org/cl/7814046
 
- src/pkg/math/tanh.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/serve_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

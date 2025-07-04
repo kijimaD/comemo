@@ -1,19 +1,21 @@
-commit 2e1003e2f7e42efc5771812b9ee6ed264803796c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Mar 26 22:59:41 2024 +0200
+commit d7d235c92f1329359194a8c042b2099ef60ec17c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 6 16:38:47 2023 -0700
 
-    cmd/go: replace reflect.DeepEqual with slices.Equal and maps.Equal
+    runtime: permit core dumps in darwin-amd64
     
-    All of these maps and slices are made up of comparable types,
-    so we can avoid the overhead of reflection entirely.
+    Previously we did not permit them as Go programs generated enormous
+    core dumps on macOS. However, according to an investigation in #59446,
+    they are OK now.
     
-    Change-Id: If77dbe648a336ba729c171e84c9ff3f7e160297d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574597
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #59446
+    
+    Change-Id: I1d7a3f500a6bc525aa6de8dfa8a1d8dbb15feadc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modload/buildlist.go |  6 +++---
- src/cmd/go/internal/modload/load.go      | 11 ++++++-----
- src/cmd/go/internal/mvs/mvs.go           |  4 ++--
- 3 files changed, 11 insertions(+), 10 deletions(-)
+ src/runtime/signal_unix.go | 10 ----------
+ 1 file changed, 10 deletions(-)

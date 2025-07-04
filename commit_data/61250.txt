@@ -1,0 +1,44 @@
+commit a7650080302173d2de33ca35da20fc592c5fc0b6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Sep 19 20:04:30 2024 +0200
+
+    crypto/sha256,crypto/sha512: make assembly structure consistent
+    
+    Ensure separate implementations are implemented in different functions
+    called from Go, and that they can be turned off from a GODEBUG.
+    
+    This will be necessary to test implementations separately for #69536.
+    
+    Change-Id: I3e081deb7abb01b0665265e39c72fd4037dd48b3
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest,gotip-linux-amd64-longtest,gotip-linux-ppc64le_power8,gotip-linux-ppc64_power8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614495
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/crypto/sha256/_asm/sha256block_amd64_asm.go    | 906 +--------------------
+ src/crypto/sha256/_asm/sha256block_amd64_avx2.go   | 725 +++++++++++++++++
+ src/crypto/sha256/_asm/sha256block_amd64_shani.go  | 174 ++++
+ src/crypto/sha256/fallback_test.go                 |  35 -
+ src/crypto/sha256/sha256block_amd64.go             |  22 +-
+ src/crypto/sha256/sha256block_amd64.s              | 313 ++++---
+ src/crypto/sha256/sha256block_arm64.go             |  11 +-
+ src/crypto/sha256/sha256block_arm64.s              |  12 +-
+ .../{sha256block_decl.go => sha256block_asm.go}    |   2 +-
+ ...sha256block_generic.go => sha256block_noasm.go} |   0
+ src/crypto/sha256/sha256block_ppc64x.go            |  26 +
+ src/crypto/sha256/sha256block_ppc64x.s             |   4 +-
+ src/crypto/sha256/sha256block_s390x.go             |  11 +-
+ src/crypto/sha256/sha256block_s390x.s              |   9 +-
+ src/crypto/sha512/fallback_test.go                 |  37 -
+ src/crypto/sha512/sha512block_arm64.go             |  12 +-
+ src/crypto/sha512/sha512block_arm64.s              |   4 +-
+ .../{sha512block_decl.go => sha512block_asm.go}    |   2 +-
+ ...sha512block_generic.go => sha512block_noasm.go} |   0
+ src/crypto/sha512/sha512block_ppc64x.go            |  26 +
+ src/crypto/sha512/sha512block_ppc64x.s             |   4 +-
+ src/crypto/sha512/sha512block_s390x.go             |  11 +-
+ src/crypto/sha512/sha512block_s390x.s              |   9 +-
+ 23 files changed, 1182 insertions(+), 1173 deletions(-)

@@ -1,17 +1,20 @@
-commit 96d8ff00c2d6a88384863a656fb5e53716b614d3
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Aug 23 13:19:17 2024 +0000
+commit 8abc6e25979ee75e6e01086b94d456255fbe6a4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 20 15:45:24 2023 -0700
 
-    bytes: fix a typo
+    go/types, types2: a min/max value argument must not be untyped
     
-    Change-Id: Iecbfe986da386b5c9b8c366904f659acc8f34cfc
-    GitHub-Last-Rev: ed6c744bbd9ff61874e8dd92f4cef01851ed1f09
-    GitHub-Pull-Request: golang/go#69039
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608015
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #61486.
+    
+    Change-Id: I5770e238e44b724816894d914b3ea5dc78bc3ced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511835
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/builtins.go         | 5 +++++
+ src/go/types/builtins.go                            | 5 +++++
+ src/internal/types/testdata/fixedbugs/issue61486.go | 9 +++++++++
+ 3 files changed, 19 insertions(+)

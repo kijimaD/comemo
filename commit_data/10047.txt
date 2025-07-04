@@ -1,14 +1,15 @@
-commit 811d334a65fe7a8fce9680ed5e41878027d00bbc
+commit 4c56c30b78199c3313c1ee0042f0adcc685bae33
 Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 18 16:23:07 2011 -0700
+Date:   Tue Oct 18 15:52:49 2011 -0700
 
-    fmt: clean up after reflect.Interface change.
-    Store the reflect.Value in the internal print state. Code is simpler, cleaner,
-    and a little faster - back to what it was before the change.
+    rpc: don't panic on write error.
+    The mechanism to record the error in the call is already in place.
+    Fixes #2382.
     
-    R=golang-dev, iant
+    R=golang-dev, dsymonds, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5299046
+    https://golang.org/cl/5307043
 
- src/pkg/fmt/print.go | 128 +++++++++++++++++++++++++++------------------------
- 1 file changed, 68 insertions(+), 60 deletions(-)
+ src/pkg/rpc/client.go      | 23 ++++++++++++-----------
+ src/pkg/rpc/server_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 11 deletions(-)

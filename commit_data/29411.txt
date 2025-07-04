@@ -1,18 +1,17 @@
-commit 6c2a35ae0c29306b53a4a5925627ee7235a8c450
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Nov 7 11:08:36 2016 -0500
+commit 6fd8c006adf792e523232a026823a5444893f28f
+Author: David Stainton <dstainton415@gmail.com>
+Date:   Fri Aug 12 22:15:21 2016 +0000
 
-    test/fixedbugs: enable issue 10607 test on ppc64le
+    syscall: add bounds checking and error returns to ParseNetlinkMessage
     
-    ppc64le supports both internal and external linking so I don't
-    think there is any reason for it to skip this test.
+    Fixes #16681
     
-    Change-Id: I05c80cc25909c0364f0a1fb7d20766b011ea1ebb
-    Reviewed-on: https://go-review.googlesource.com/32854
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6ff7ec81fe48ab06be3aae5b7ff92e9dc70960c3
+    Reviewed-on: https://go-review.googlesource.com/26990
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- test/fixedbugs/issue10607.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/netlink_linux.go      |  5 +++--
+ src/syscall/syscall_linux_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

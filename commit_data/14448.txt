@@ -1,20 +1,14 @@
-commit cd37fecffbc937432d729510c2dda7e61e39adfb
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Nov 22 01:25:53 2012 +1100
+commit d28133dc9f452150c116793f3dd086bbe20db3d0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 21 15:04:22 2012 +1100
 
-    runtime: update openbsd runtime to use new tfork syscall
+    net: remove another unguarded sysfile == nil check
     
-    Update OpenBSD runtime to use the new version of the sys___tfork
-    syscall and switch TLS initialisation from sys_arch to sys___set_tcb
-    (note that both of these syscalls are available in OpenBSD 5.2).
+    Putting aside the unguarded access to fd.sysfile, the condition will never be true as fd.incref above handles the closed condition.
     
-    R=golang-dev, minux.ma
+    R=mikioh.mikioh, dvyukov
     CC=golang-dev
-    https://golang.org/cl/6843058
+    https://golang.org/cl/6845062
 
- src/pkg/runtime/defs_openbsd_386.h   |  2 +-
- src/pkg/runtime/defs_openbsd_amd64.h |  3 +--
- src/pkg/runtime/sys_openbsd_386.s    | 32 +++++++++++++++-----------------
- src/pkg/runtime/sys_openbsd_amd64.s  | 22 ++++++++--------------
- src/pkg/runtime/thread_openbsd.c     |  6 +++---
- 5 files changed, 28 insertions(+), 37 deletions(-)
+ src/pkg/net/fd_unix.go | 4 ----
+ 1 file changed, 4 deletions(-)

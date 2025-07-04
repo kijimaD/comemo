@@ -1,16 +1,24 @@
-commit cd24849e8b6c8a8079613cdb8a61fcc3e24f2154
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed May 29 14:30:23 2019 -0700
+commit 11af3535310ed1f92cb75f523082702988bbd7f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 21:21:38 2019 -0500
 
-    cmd/compile: fix fmt_test.go after CL 170062
+    strconv: add 0b, 0o integer prefixes in ParseInt, ParseUint
     
-    Updates #22326.
+    This CL modifies ParseInt and ParseUint to recognize
+    0b and 0o as binary and octal base prefixes when base == 0.
     
-    Change-Id: Ia9173b6eb29b2a4f90f4ba39bf53b6e9b7a6d6bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179398
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    See golang.org/design/19308-number-literals for background.
+    
+    For #19308.
+    For #12711.
+    
+    Change-Id: I8efe067f415aa517bdefbff7e230d3fa1694d530
+    Reviewed-on: https://go-review.googlesource.com/c/160244
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/fmtmap_test.go | 65 +++++++++++++++++++++---------------------
- 1 file changed, 33 insertions(+), 32 deletions(-)
+ src/strconv/atoi.go      | 33 +++++++++++++++++++--------------
+ src/strconv/atoi_test.go | 39 +++++++++++++++++++++++++++++++++------
+ 2 files changed, 52 insertions(+), 20 deletions(-)

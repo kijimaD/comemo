@@ -1,14 +1,19 @@
-commit 16c33992e0848209d0254bdb5c8f6c7b7ceb5c60
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Nov 22 21:15:52 2016 -0500
+commit f5b0012362f0ab801a657ff01d2d55f2391b1792
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 12:12:20 2016 -0700
 
-    doc/go1.8.html: announce 1.8 will be the last to support linux/arm prior to ARMv6K
+    go/types: ignore struct tags when converting structs
     
-    Updates #17082.
+    Implementation of spec change https://golang.org/cl/24190/.
     
-    Change-Id: I0bf330d1a1ebb7e31e42d03287160b474522c332
-    Reviewed-on: https://go-review.googlesource.com/33455
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #16085.
+    
+    Change-Id: I17bbbce38d98a169bc64e84983a7ebfe7142f6e9
+    Reviewed-on: https://go-review.googlesource.com/30190
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.8.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/go/types/check_test.go             |   1 +
+ src/go/types/conversions.go            |   9 +-
+ src/go/types/predicates.go             |  31 ++--
+ src/go/types/testdata/conversions2.src | 313 +++++++++++++++++++++++++++++++++
+ 4 files changed, 337 insertions(+), 17 deletions(-)

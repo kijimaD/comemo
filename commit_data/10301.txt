@@ -1,13 +1,12 @@
-commit 9c6a73e478e6e46859c68057144b8c3297e7a881
+commit e5373c01f81b7c4da885e51ff1271ad664564e6b
 Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Nov 9 15:48:05 2011 +1100
+Date:   Wed Nov 9 15:43:21 2011 +1100
 
-    net/http: fix sniffing when using ReadFrom.
+    doc: fix anchor ID in weekly.html.
     
-    R=golang-dev, rsc, bradfitz
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5362046
+    https://golang.org/cl/5359055
 
- src/pkg/net/http/server.go     | 10 ++++++----
- src/pkg/net/http/sniff_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 4 deletions(-)
+ doc/devel/weekly.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

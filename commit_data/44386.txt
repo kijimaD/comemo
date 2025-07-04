@@ -1,38 +1,33 @@
-commit 6ba4a300d894b33fd8bf076dec08a5e3245d3a2c
-Author: John Bampton <jbampton@gmail.com>
-Date:   Wed Feb 17 01:48:21 2021 +0000
+commit f0cf4d4d7f60ed5ae806e6ed410b346bb2fd0b5a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jun 22 13:26:15 2020 -0400
 
-    docs: fix spelling
+    [dev.link] cmd/{compile,link}: fix file/line of last instruction in DWARF line table
     
-    Change-Id: Ib689e5793d9cb372e759c4f34af71f004010c822
-    GitHub-Last-Rev: d63798388e5dcccb984689b0ae39b87453b97393
-    GitHub-Pull-Request: golang/go#44259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291949
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
+    The code in the compiler's DWARF line table generation emits line
+    table ops at the end of each function fragment to reset the state
+    machine registers back to an initial state, so that when the line
+    table fragments for each function are stitched together into a
+    compilation unit, each fragment will have a clean starting point. The
+    set-file/set-line ops emitted in this code were being applied to the
+    last row of the line table, however, meaning that they were
+    overwriting the existing values.
+    
+    To avoid this problem, add code to advance the PC past the end of the
+    last instruction in the function, and switch to just using an
+    end-of-sequence operator at the end of each function instead of
+    explicit set-file/set-line ops.
+    
+    Updates #39757.
+    
+    Change-Id: Ieb30f83444fa86fb1f2cd53862d8cc8972bb8763
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239286
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/value.go                               | 2 +-
- .../testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt   | 2 +-
- src/cmd/go/testdata/script/mod_empty_err.txt                        | 2 +-
- src/cmd/go/testdata/script/mod_outside.txt                          | 2 +-
- src/cmd/go/testdata/script/test_chatty_parallel_fail.txt            | 2 +-
- src/cmd/go/testdata/script/test_chatty_parallel_success.txt         | 2 +-
- src/cmd/go/testdata/script/test_chatty_parallel_success_sleepy.txt  | 2 +-
- src/cmd/internal/archive/archive_test.go                            | 4 ++--
- src/cmd/internal/goobj/objfile.go                                   | 2 +-
- src/cmd/internal/obj/objfile.go                                     | 4 ++--
- src/cmd/internal/obj/pcln.go                                        | 2 +-
- src/cmd/internal/obj/x86/asm6.go                                    | 2 +-
- src/cmd/link/internal/ld/pcln.go                                    | 4 ++--
- src/cmd/link/internal/loader/loader.go                              | 2 +-
- src/crypto/tls/handshake_client_test.go                             | 6 +++---
- src/internal/poll/copy_file_range_linux.go                          | 6 +++---
- src/os/readfrom_linux_test.go                                       | 6 +++---
- src/runtime/chan_test.go                                            | 4 ++--
- src/runtime/lockrank_on.go                                          | 2 +-
- src/runtime/metrics.go                                              | 2 +-
- src/runtime/mgcscavenge.go                                          | 2 +-
- test/prove.go                                                       | 2 +-
- 22 files changed, 32 insertions(+), 32 deletions(-)
+ src/cmd/internal/obj/dwarf.go                      |  46 ++++----
+ src/cmd/link/internal/ld/dwarf.go                  |  30 +-----
+ src/cmd/link/internal/ld/dwarf_test.go             | 119 +++++++++++++++++++++
+ .../ld/testdata/issue39757/issue39757main.go       |  15 +++
+ 4 files changed, 159 insertions(+), 51 deletions(-)

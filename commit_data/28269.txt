@@ -1,18 +1,18 @@
-commit 2a36f78e8795c939630e494319c5790bc519ba72
-Author: Jim Kingdon <jim@bolt.me>
-Date:   Thu Sep 8 11:27:04 2016 -0700
+commit e1a2ea88d02280e0661d66dc7483c95b39e18646
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 6 10:11:41 2016 -0700
 
-    doc: avoid mentioning non-existence of u flag to fmt.Printf.
+    [dev.ssa] cmd/compile: handle symbolic constant for SSA on ARM
     
-    It is better to document what golang does, rather than how it differs
-    from languages which readers may or may not know.
+    Progress on SSA backend for ARM. Still not complete. Now "helloworld"
+    function compiles and runs.
     
-    That the output format is based on the type is basically self-evident
-    if you consider this just in go terms.
+    Updates #15365.
     
-    Change-Id: I0223e9b4cb67cc83a9ebe4d424e6c151d7ed600f
-    Reviewed-on: https://go-review.googlesource.com/28393
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I02f66983cefdf07a6aed262fb4af8add464d8e9a
+    Reviewed-on: https://go-review.googlesource.com/22854
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/fmt/doc.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go | 31 ++++++++++++++++++++++++++++---
+ src/cmd/compile/internal/gc/ssa.go  |  2 +-
+ 2 files changed, 29 insertions(+), 4 deletions(-)

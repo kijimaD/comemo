@@ -1,15 +1,16 @@
-commit 10c36fbc9d413062de4a1ecd59b9c5f7dc82b0c9
+commit 87a6d75012986fb8867b746afcd42f742c119945
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 16:42:07 2013 -0400
+Date:   Mon Sep 9 16:17:44 2013 -0400
 
-    encoding/xml: fix panic in Marshal
+    log/syslog: use alternate format for logging to local syslog daemon
     
-    Fixes #6341.
+    Fixes #5803.
+    Is it correct behavior? Who knows.
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/13512048
+    R=golang-dev, bradfitz, jgc
+    CC=golang-dev, jgc
+    https://golang.org/cl/13248048
 
- src/pkg/encoding/xml/marshal.go      | 10 ++++++++--
- src/pkg/encoding/xml/marshal_test.go |  8 ++++++++
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/pkg/log/syslog/syslog.go      | 19 +++++++++++++++----
+ src/pkg/log/syslog/syslog_unix.go |  2 +-
+ 2 files changed, 16 insertions(+), 5 deletions(-)

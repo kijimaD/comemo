@@ -1,16 +1,17 @@
-commit ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Mon Feb 3 10:47:41 2020 +0200
+commit ab81efa3dcac8bc9dca9a051ce3f665cfaeb6dc3
+Author: Keith Randall <khr@google.com>
+Date:   Thu Oct 17 14:37:55 2019 -0700
 
-    time: fix time.Before to reuse t.sec(), u.sec()
+    runtime: save g register during arm64 race detector callbacks
     
-    Fixes #36987
+    The race detector C code expects the g register (aka R28) to be
+    preserved per the C calling convention. Make sure we save/restore it.
     
-    Change-Id: I91ea1a42f75302de5256a22d382ab7f1b307a498
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217360
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Once this is in we can revert the O3 -> O1 change to racebuild.
+    
+    Change-Id: Ia785b2717c136f565d45bed283e87b744e35c62d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201744
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/time.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/race_arm64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

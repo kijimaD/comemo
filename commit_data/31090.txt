@@ -1,14 +1,19 @@
-commit 092405a9affad56d18ee3d28b93b706c2887ba7d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Apr 12 16:03:46 2017 +1000
+commit 4cffe2b604d0980e6fb9b994b31f69c53045a460
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Jan 29 23:57:14 2017 +0100
 
-    runtime/cgo: actually remove gcc_libinit_openbsd.c
+    cmd/dist: use the target GOOS to skip the test for issue 18153
     
-    This was unintentionally emptied rather than removed in 9417c022.
+    Fixes (skips) the test on Android, where stdout/stderr are not
+    terminals.
     
-    Change-Id: Ie6fdcf7ef55e58f12e2a2750ab448aa2d9f94d15
-    Reviewed-on: https://go-review.googlesource.com/40413
+    Updates #18153
+    
+    Change-Id: Ieca65150362a5c423747ad751e00f76f0b890746
+    Reviewed-on: https://go-review.googlesource.com/35957
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgo/gcc_libinit_openbsd.c | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

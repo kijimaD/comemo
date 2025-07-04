@@ -1,16 +1,28 @@
-commit 3ff590ebf5f09d00e16abbcac5feec99879fe91f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Aug 30 10:06:21 2019 +0200
+commit 746f405f98ab8ad6e2e6a1ce162c831527aafd57
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Mar 17 16:07:25 2019 +0100
 
-    cmd/compile: regenerate known formats in fmtmap_test.go
+    cmd/go,misc/ios: fix tests on iOS
     
-    This fixes TestFormats after CL 192278.
+    Now that modules are always on, cmd/go tests require a valid
+    GOCACHE. However, on iOS where the go tool is not available, the
+    cmd/go test driver ends up setting GOCACHE to the empty string.
+    Fix it by falling back to the builtin default cache directory.
     
-    Change-Id: I7ffb8f76b4f6469d1b161d41687306e0d9e7abd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191786
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    The iOS exec wrapper passes the environment variables to the app
+    on the device, including $HOME used for the default cache directory.
+    Skip $HOME to let the device specific and writable $HOME be used
+    instead.
+    
+    Should fix cmd/go on the iOS builders that broke when GO111MODULE
+    defaulted to on.
+    
+    Change-Id: I0939f5b8aaa1d2db95e64c99f4130eee2d0b4d4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167938
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmtmap_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/ios/go_darwin_arm_exec.go | 4 ++--
+ src/cmd/go/go_test.go          | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,25 +1,19 @@
-commit 1aa9c31ffc8af3fd33bfa995ecf55f08daf33f81
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Mar 19 09:26:31 2025 -0700
+commit b6ca586181f3f1531c01d51d632b50b2c7c784ba
+Author: pgxiaolianzi <gnnu_d13@163.com>
+Date:   Wed Feb 7 07:45:14 2024 +0000
 
-    net/http/httputil: don't call WriteHeader after Hijack
+    log/slog: add test case for level_test.go
     
-    CL 637939 changed ReverseProxy to report errors encountered when
-    copying data on an hijacked connection. This is generally not useful,
-    and when using the default error handler results in WriteHeader
-    being called on a hijacked connection.
+    adds a test case for the MarshalJSON and MarshalText method of the Level type in the slog package.
     
-    While this is harmless with standard net/http ResponseWriter
-    implementations, it can confuse middleware layers.
-    
-    Fixes #72954
-    
-    Change-Id: I21f3d3d515e114dc5c298d7dbc3796c505d3c82f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659255
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I3f79f0b46c41252ad9d743e03e34503e19998f3e
+    GitHub-Last-Rev: dab00d4c206ca59fcca7ee8d97ca8cdc9475fdce
+    GitHub-Pull-Request: golang/go#65525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561315
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/net/http/httputil/reverseproxy.go      |  3 --
- src/net/http/httputil/reverseproxy_test.go | 80 ++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+), 3 deletions(-)
+ src/log/slog/level_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

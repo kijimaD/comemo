@@ -1,23 +1,101 @@
-commit 404899f6b56800c1d8e0521fc9ce0c856e459d94
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 24 13:05:31 2020 -0400
+commit b2790a2838fc4c15c3663e35efeb0ca5331840f3
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Thu Nov 21 10:44:23 2019 -0500
 
-    cmd/link: preserve alignment for stackmap symbols
+    cmd/compile: allow floating point Ops to produce flags on s390x
     
-    Stackmap symbols are content-addressable, so it may be dedup'd
-    with another symbol with same content. We want stackmap symbols
-    4-byte aligned. But if it dedup's with another symbol with larger
-    alignment, preserve that alignment.
+    On s390x, some floating point arithmetic instructions (FSUB, FADD)  generate flag.
+    This patch allows those related SSA ops to return a tuple, where the second argument of
+    the tuple is the generated flag. We can use the flag and remove the
+    subsequent comparison instruction (e.g: LTDBR).
     
-    Fixes #42071.
+    This CL also reduces the .text section for math.test binary by 0.4KB.
     
-    Change-Id: I1616dd2b0c175b2aac8f68782a5c7a62053c0b57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264897
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Benchmarks:
+    name                    old time/op  new time/op  delta
+    Acos-18                 12.1ns ± 0%  12.1ns ± 0%     ~     (all equal)
+    Acosh-18                18.5ns ± 0%  18.5ns ± 0%     ~     (all equal)
+    Asin-18                 13.1ns ± 0%  13.1ns ± 0%     ~     (all equal)
+    Asinh-18                19.4ns ± 0%  19.5ns ± 1%     ~     (p=0.444 n=5+5)
+    Atan-18                 10.0ns ± 0%  10.0ns ± 0%     ~     (all equal)
+    Atanh-18                19.1ns ± 1%  19.2ns ± 2%     ~     (p=0.841 n=5+5)
+    Atan2-18                16.4ns ± 0%  16.4ns ± 0%     ~     (all equal)
+    Cbrt-18                 14.8ns ± 0%  14.8ns ± 0%     ~     (all equal)
+    Ceil-18                 0.78ns ± 0%  0.78ns ± 0%     ~     (all equal)
+    Copysign-18             0.80ns ± 0%  0.80ns ± 0%     ~     (all equal)
+    Cos-18                  7.19ns ± 0%  7.19ns ± 0%     ~     (p=0.556 n=4+5)
+    Cosh-18                 12.4ns ± 0%  12.4ns ± 0%     ~     (all equal)
+    Erf-18                  10.8ns ± 0%  10.8ns ± 0%     ~     (all equal)
+    Erfc-18                 11.0ns ± 0%  11.0ns ± 0%     ~     (all equal)
+    Erfinv-18               23.0ns ±16%  26.8ns ± 1%  +16.90%  (p=0.008 n=5+5)
+    Erfcinv-18              23.3ns ±15%  26.1ns ± 7%     ~     (p=0.087 n=5+5)
+    Exp-18                  8.67ns ± 0%  8.67ns ± 0%     ~     (p=1.000 n=4+4)
+    ExpGo-18                50.8ns ± 3%  52.4ns ± 2%     ~     (p=0.063 n=5+5)
+    Expm1-18                9.49ns ± 1%  9.47ns ± 0%     ~     (p=1.000 n=5+5)
+    Exp2-18                 52.7ns ± 1%  50.5ns ± 3%   -4.10%  (p=0.024 n=5+5)
+    Exp2Go-18               50.6ns ± 1%  48.4ns ± 3%   -4.39%  (p=0.008 n=5+5)
+    Abs-18                  0.67ns ± 0%  0.67ns ± 0%     ~     (p=0.444 n=5+5)
+    Dim-18                  1.02ns ± 0%  1.03ns ± 0%   +0.98%  (p=0.008 n=5+5)
+    Floor-18                0.78ns ± 0%  0.78ns ± 0%     ~     (all equal)
+    Max-18                  3.09ns ± 1%  3.05ns ± 0%   -1.42%  (p=0.008 n=5+5)
+    Min-18                  3.32ns ± 1%  3.30ns ± 0%   -0.72%  (p=0.016 n=5+4)
+    Mod-18                  62.3ns ± 1%  65.8ns ± 3%   +5.55%  (p=0.008 n=5+5)
+    Frexp-18                5.05ns ± 2%  4.98ns ± 0%     ~     (p=0.683 n=5+5)
+    Gamma-18                24.4ns ± 0%  24.1ns ± 0%   -1.23%  (p=0.008 n=5+5)
+    Hypot-18                10.3ns ± 0%  10.3ns ± 0%     ~     (all equal)
+    HypotGo-18              10.2ns ± 0%  10.2ns ± 0%     ~     (all equal)
+    Ilogb-18                3.56ns ± 1%  3.54ns ± 0%     ~     (p=0.595 n=5+5)
+    J0-18                    113ns ± 0%   108ns ± 1%   -4.42%  (p=0.016 n=4+5)
+    J1-18                    115ns ± 0%   109ns ± 1%   -4.87%  (p=0.016 n=4+5)
+    Jn-18                    240ns ± 0%   230ns ± 2%   -4.41%  (p=0.008 n=5+5)
+    Ldexp-18                6.19ns ± 0%  6.19ns ± 0%     ~     (p=0.444 n=5+5)
+    Lgamma-18               32.2ns ± 0%  32.2ns ± 0%     ~     (all equal)
+    Log-18                  13.1ns ± 0%  13.1ns ± 0%     ~     (all equal)
+    Logb-18                 4.23ns ± 0%  4.22ns ± 0%     ~     (p=0.444 n=5+5)
+    Log1p-18                12.7ns ± 0%  12.7ns ± 0%     ~     (all equal)
+    Log10-18                18.1ns ± 0%  18.2ns ± 0%     ~     (p=0.167 n=5+5)
+    Log2-18                 14.0ns ± 0%  14.0ns ± 0%     ~     (all equal)
+    Modf-18                 10.4ns ± 0%  10.5ns ± 0%   +0.96%  (p=0.016 n=4+5)
+    Nextafter32-18          11.3ns ± 0%  11.3ns ± 0%     ~     (all equal)
+    Nextafter64-18          4.01ns ± 1%  3.97ns ± 0%     ~     (p=0.333 n=5+4)
+    PowInt-18               32.7ns ± 0%  32.7ns ± 0%     ~     (all equal)
+    PowFrac-18              33.2ns ± 0%  33.1ns ± 0%     ~     (p=0.095 n=4+5)
+    Pow10Pos-18             1.58ns ± 0%  1.58ns ± 0%     ~     (all equal)
+    Pow10Neg-18             5.81ns ± 0%  5.81ns ± 0%     ~     (all equal)
+    Round-18                0.78ns ± 0%  0.78ns ± 0%     ~     (all equal)
+    RoundToEven-18          0.78ns ± 0%  0.78ns ± 0%     ~     (all equal)
+    Remainder-18            40.6ns ± 0%  40.7ns ± 0%     ~     (p=0.238 n=5+4)
+    Signbit-18              1.57ns ± 0%  1.57ns ± 0%     ~     (all equal)
+    Sin-18                  6.75ns ± 0%  6.74ns ± 0%     ~     (p=0.333 n=5+4)
+    Sincos-18               29.5ns ± 0%  29.5ns ± 0%     ~     (all equal)
+    Sinh-18                 14.4ns ± 0%  14.4ns ± 0%     ~     (all equal)
+    SqrtIndirect-18         3.97ns ± 0%  4.15ns ± 0%   +4.59%  (p=0.008 n=5+5)
+    SqrtLatency-18          8.01ns ± 0%  8.01ns ± 0%     ~     (all equal)
+    SqrtIndirectLatency-18  11.6ns ± 0%  11.6ns ± 0%     ~     (all equal)
+    SqrtGoLatency-18        44.7ns ± 0%  45.0ns ± 0%   +0.67%  (p=0.008 n=5+5)
+    SqrtPrime-18            1.26µs ± 0%  1.27µs ± 0%   +0.63%  (p=0.029 n=4+4)
+    Tan-18                  11.1ns ± 0%  11.1ns ± 0%     ~     (all equal)
+    Tanh-18                 15.8ns ± 0%  15.8ns ± 0%     ~     (all equal)
+    Trunc-18                0.78ns ± 0%  0.78ns ± 0%     ~     (all equal)
+    Y0-18                    113ns ± 2%   108ns ± 3%   -5.11%  (p=0.008 n=5+5)
+    Y1-18                    112ns ± 3%   107ns ± 0%   -4.29%  (p=0.000 n=5+4)
+    Yn-18                    229ns ± 0%   220ns ± 1%   -3.76%  (p=0.016 n=4+5)
+    Float64bits-18          1.09ns ± 0%  1.09ns ± 0%     ~     (all equal)
+    Float64frombits-18      0.55ns ± 0%  0.55ns ± 0%     ~     (all equal)
+    Float32bits-18          0.96ns ±16%  0.86ns ± 0%     ~     (p=0.563 n=5+5)
+    Float32frombits-18      1.03ns ±28%  0.84ns ± 0%     ~     (p=0.167 n=5+5)
+    FMA-18                  1.60ns ± 0%  1.60ns ± 0%     ~     (all equal)
+    [Geo mean]              10.0ns        9.9ns        -0.41%
+    Change-Id: Ief7e63ea5a8ba404b0a4696e12b9b7e0b05a9a03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209160
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/s390x/ssa.go        |   8 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  19 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  34 +--
+ src/cmd/compile/internal/ssa/opGen.go        |   4 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 312 +++++++++++++++++++--------
+ test/codegen/floats.go                       |  12 ++
+ 6 files changed, 265 insertions(+), 124 deletions(-)

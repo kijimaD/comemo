@@ -1,20 +1,24 @@
-commit 94c95d3e52ed55ef57e60ace559b684e4d5ebcbf
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 29 10:16:50 2017 -0400
+commit c1ada22bc1ddf798a8931a09c8fa7c878c9ee6b9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Dec 14 14:48:58 2016 -0500
 
-    cmd/go: build test binaries with -s in addition to -w
+    cmd/go, plugin: disable plugins on darwin
     
-    Fixes #19753.
+    We are seeing a bad stack map in #18190. In a copystack, it is
+    mistaking a slot for a pointer.
     
-    Change-Id: Ib20a69b1d0bcc42aa9e924918bcb578d6a560a31
-    Reviewed-on: https://go-review.googlesource.com/38742
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Presumably this is caused either by our fledgling dynlink support on
+    darwin, or a consequence of having two copies of the runtime in the
+    process. But I have been unable to work out which in the 1.8 window,
+    so pushing darwin support to 1.9 or later.
+    
+    Change-Id: I7fa4d2dede75033d9a428f24c1837a4613bd2639
+    Reviewed-on: https://go-review.googlesource.com/34391
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/addr2line/addr2line_test.go | 17 +++++++++++++----
- src/cmd/go/internal/load/pkg.go     |  2 +-
- src/cmd/go/internal/run/run.go      |  2 +-
- src/cmd/go/internal/test/test.go    |  2 +-
- src/cmd/go/internal/work/build.go   |  4 ++--
- 5 files changed, 18 insertions(+), 9 deletions(-)
+ doc/go1.8.html       | 2 +-
+ doc/go1.8.txt        | 1 -
+ src/cmd/dist/test.go | 3 +--
+ src/cmd/go/build.go  | 3 +--
+ src/plugin/plugin.go | 2 +-
+ 5 files changed, 4 insertions(+), 7 deletions(-)

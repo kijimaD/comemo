@@ -1,30 +1,54 @@
-commit 171c794002bac46a22c74a846ef3328628ed5d49
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sat Mar 25 10:35:11 2023 -0700
+commit 5b4fafd5db1c13e5e2c9f836476015870b3ed30b
+Author: David Chase <drchase@google.com>
+Date:   Thu May 12 17:12:32 2022 -0400
 
-    crypto: add wasip1 support
+    cmd/compile: sort named types before unnamed in reflect
     
-    Adds crypto/dsa, crypto/rand, x509 files and changes for the new
-    wasip1 port.
+    When the local package has an explicit name instead of "",
+    this is necessary to get past a cgo plugin test that fails
+    because of a package signature mismatch.  There's something
+    questionable going on in the package hash generation, and
+    in particular it went wrong here.  Updating the sort order
+    helps.
     
-    For #58141
+    This CL is a prerequisite for a pending code cleanup,
+    https://go-review.googlesource.com/c/go/+/393715
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I9609e3d021cd7e06b813eedf5912febc52cc0f2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479624
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Updates #51734.
+    
+    The failure:
+    
+    GOROOT/misc/cgo/testplugin$ go test .
+    mkdir -p $TMPDIR/src/testplugin
+    rsync -a testdata/ $TMPDIR/src/testplugin
+    echo 'module testplugin' > $TMPDIR/src/testplugin/go.mod
+    mkdir -p $TMPDIR/alt/src/testplugin
+    rsync -a altpath/testdata/ $TMPDIR/alt/src/testplugin
+    echo 'module testplugin' > $TMPDIR/alt/src/testplugin/go.mod
+    cd $TMPDIR/alt/src/testplugin
+    ( PWD=$TMPDIR/alt/src/testplugin GOPATH=$TMPDIR/alt go build -gcflags '' -buildmode=plugin -o $TMPDIR/src/testplugin/plugin-mismatch.so ./plugin-mismatch )
+    cd $TMPDIR/src/testplugin
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin ./plugin1 )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin ./plugin2 )
+    cp plugin2.so plugin2-dup.so
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin -o=sub/plugin1.so ./sub/plugin1 )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin -o=unnamed1.so ./unnamed1/main.go )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -buildmode=plugin -o=unnamed2.so ./unnamed2/main.go )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go build -gcflags '' -o host.exe ./host )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go run -gcflags '' ./checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin go run -gcflags '' ./checkdwarf/main.go ./host.exe main.main )
+    ( PWD=$TMPDIR/src/testplugin GOPATH=$TMPDIR LD_LIBRARY_PATH=$TMPDIR/src/testplugin ./host.exe )
+    --- FAIL: TestRunHost (0.02s)
+        plugin_test.go:187: ./host.exe: exit status 1
+            2022/05/13 11:26:37 plugin.Open failed: plugin.Open("plugin1"): plugin was built with a different version of package runtime
+    
+    and many more after that.
+    
+    Change-Id: I0780decc5bedeea640ed0b3710867aeda5b3f725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405995
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/rand/rand.go                      |  3 ++-
- src/crypto/rand/rand_wasip1.go               | 27 +++++++++++++++++++++++++++
- src/crypto/x509/root_unix.go                 |  2 +-
- src/crypto/x509/{root_js.go => root_wasm.go} |  2 +-
- 4 files changed, 31 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

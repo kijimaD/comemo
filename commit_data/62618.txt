@@ -1,0 +1,23 @@
+commit deb6790fcfe943c640a4ef393036690eef5eef5c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 14 13:19:18 2025 -0700
+
+    cmd/compile: remove implicit deref from len(p) where p is ptr-to-array
+    
+    func f() *[4]int { return nil }
+    _ = len(f())
+    
+    should not panic. We evaluate f, but there isn't a dereference
+    according to the spec (just "arg is evaluated").
+    
+    Update #72844
+    
+    Change-Id: Ia32cefc1b7aa091cd1c13016e015842b4d12d5b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658096
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go |  6 +--
+ test/fixedbugs/issue72844.go               | 70 ++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 3 deletions(-)

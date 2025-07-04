@@ -1,16 +1,32 @@
-commit 633d8c120b8f9c2ce4a0d079cd700a152a27dad6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 16 08:39:44 2021 -0800
+commit 771c57e68ed5ef2bbb0eafc0d48419f59d143932
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 23 14:48:47 2021 -0700
 
-    cmd/compile/internal/types2: when type hashing, canonicalize interfaces
+    cmd/compile: disable shortcircuit optimization for intertwined phi values
     
-    This CL is a clean port of CL 363115 from go/types to types2.
+    We need to be careful that when doing value graph surgery, we not
+    re-substitute a value that has already been substituted. That can lead
+    to confusing a previous iteration's value with the current iteration's
+    value.
     
-    Change-Id: Ic2bd9388c57ffa02e75ab136d952e3ab49eb9018
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364394
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    The simple fix in this CL just aborts the optimization if it detects
+    intertwined phis (a phi which is the argument to another phi). It
+    might be possible to keep the optimization with a more complicated
+    CL, but:
+      1) This CL is clearly safe to backport.
+      2) There were no instances of this abort triggering in
+         all.bash, prior to the test introduced in this CL.
+    
+    Fixes #45175
+    
+    Change-Id: I2411dca03948653c053291f6829a76bec0c32330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304251
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- .../compile/internal/types2/instantiate_test.go    | 32 +++++++++++
- src/cmd/compile/internal/types2/typestring.go      | 66 ++++++++++++++++++----
- 2 files changed, 86 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/shortcircuit.go | 18 +++++++++++++++++
+ test/fixedbugs/issue45175.go                 | 29 ++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

@@ -1,20 +1,18 @@
-commit 97585092f590072209110bce336f57506984c02b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 10 03:31:22 2020 +1100
+commit 466547014769bbdf7d5a62ca1019bf52d809dfcd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:38:16 2019 -0700
 
-    cmd/compile: fold constants into immediate instructions on riscv64
+    runtime: add new cleantimers function
     
-    Where possible, fold constants into versions of instructions that take
-    an immediate. This avoids the need to allocate a register and load the
-    immediate into it.
+    Also add a skeleton of the runOneTimer function.
     
-    Change-Id: If911ca41235e218490679aed2ce5f48bf807a2b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222639
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Updates #27707
+    
+    Change-Id: Ic6a0279354a57295f823093704b7e152ce5d769d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171835
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  41 +-
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  12 +-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 514 ++++++++++++++++++++++++-
- 3 files changed, 549 insertions(+), 18 deletions(-)
+ src/runtime/time.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 52 insertions(+), 3 deletions(-)

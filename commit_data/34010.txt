@@ -1,26 +1,13 @@
-commit 2d6f941e8c380a0a37ade918dd76e652542e28ef
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Jan 13 02:22:05 2018 +0100
+commit 4038503543248016c288488c99a293b6b18e06d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 25 15:17:08 2017 -0400
 
-    runtime: fix time.Now on Sierra and older
+    [dev.boringcrypto] misc/boring: add go1.8.3b4
     
-    CL 67332 created the fast no-syscall path for time.Now in High Sierra
-    but managed to break Sierra and older by forcing them into the slow
-    syscall path: the version check based on commpage version was wrong.
-    
-    This CL uses the Darwin version number instead.
-    
-    The assembly diff is noisy because many variables had to be
-    renamed, but the only actual change is the version check.
-    
-    Fixes #23419.
-    
-    Change-Id: Ie31ef5fb88f66d1517a8693942a7fb6100c213b0
-    Reviewed-on: https://go-review.googlesource.com/87655
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I291d059920ec105c14b00916e34f41fd266fb390
+    Reviewed-on: https://go-review.googlesource.com/65993
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os_darwin.go       |  29 ++++++++++--
- src/runtime/sys_darwin_amd64.s | 102 ++++++++++++++++++++---------------------
- 2 files changed, 75 insertions(+), 56 deletions(-)
+ misc/boring/RELEASES | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,16 +1,13 @@
-commit 0b994a9037b8972fd1cec8a170cea58cb2f93232
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sun Sep 30 09:04:17 2018 -0700
+commit 33cfcf6afac867f4fbf94237b9219778e5fd51c7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 28 13:49:40 2018 -0700
 
-    reflect: fix s390x reflect method calls
+    cmd/compile: fix trivial typos in comments
     
-    R0 isn't the zero register any more. Oops.
-    
-    Update #27695.
-    
-    Change-Id: I46a975ed37d5e570afe2e228d3edf74949e08ad7
-    Reviewed-on: https://go-review.googlesource.com/138580
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I04880d87e317a1140ec12da6ec5e788991719760
+    Reviewed-on: https://go-review.googlesource.com/114936
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/asm_s390x.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/branchelim.go     | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

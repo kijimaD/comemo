@@ -1,14 +1,19 @@
-commit 67a9c0afd1cc38fb119c3c4787280668bad0f750
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 26 17:13:04 2018 -0700
+commit 6780042f0a30569abcc3c5e9e0376761ac928ef5
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 1 08:03:36 2018 +1000
 
-    cmd/compile/internal/gc: fix ONAME documentation
+    testing/cover: improve comments on CoverBlock
     
-    Named constants are represented as OLITERAL with n.Sym != nil.
+    The previous CL (https://go-review.googlesource.com/c/go/+/96756)
+    added comments that didn't really say much, but there is something
+    so say: what the units are and that they are indexed starting at 1.
     
-    Change-Id: If6bc8c507ef8c3e4e47f586d86fd1d0f20bf8974
-    Reviewed-on: https://go-review.googlesource.com/c/145198
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Add a more helpful comment on the type, and also follow proper
+    style by using initial capitals and a period.
+    
+    Change-Id: Id19cd5f392faf7c7bac034073f276cc770589075
+    Reviewed-on: https://go-review.googlesource.com/121875
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/syntax.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/cover.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

@@ -1,27 +1,26 @@
-commit 438b9544a079576c539cdc040cbf337966a0b25d
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 26 14:41:23 2018 -0500
+commit daeb0b4f538872a37787626816c47afcf71bfd2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 13 17:25:49 2018 -0700
 
-    runtime: check more work flushing races
+    go/printer: revert "make empty lines break table alignment"
     
-    This adds several new checks to help debug #27993. It adds a mechanism
-    for freezing write barriers and gcWork puts during the mark completion
-    algorithm. This way, if we do detect mark completion, we can catch any
-    puts that happened during the completion algorithm. Based on build
-    dashboard failures, this seems to be the window of time when these are
-    happening.
+    This reverts commit c116265eb3f2b1a8549e7ceef73b780439404030.
     
-    This also double-checks that all work buffers are empty immediately
-    upon entering mark termination (much earlier than the current check).
-    This is unlikely to trigger based on the current failures, but is a
-    good safety net.
+    The change, while addressing issue #26352, introduced another
+    regression (#26930), which is worse. Reverting this change in
+    favor of a better fix for the original issue.
     
-    Change-Id: I03f56c48c4322069e28c50fbc3c15b2fee2130c2
-    Reviewed-on: https://go-review.googlesource.com/c/151797
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Updates #26352.
+    Fixes #26930.
+    
+    Change-Id: I71ad12a8212992cce5c1e73907d1f7460f98d9e8
+    Reviewed-on: https://go-review.googlesource.com/129255
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go     | 64 +++++++++++++++++++++++++++++++++++++++++++++++++-
- src/runtime/mgcwork.go | 34 +++++++++++++++------------
- src/runtime/mwbbuf.go  |  2 +-
- 3 files changed, 83 insertions(+), 17 deletions(-)
+ src/go/printer/nodes.go                  | 17 ++++-------------
+ src/go/printer/testdata/alignment.golden |  9 ---------
+ src/go/printer/testdata/alignment.input  |  9 ---------
+ 3 files changed, 4 insertions(+), 31 deletions(-)

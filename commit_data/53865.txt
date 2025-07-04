@@ -1,18 +1,16 @@
-commit 431612eacb1089ad2e264e2aea3b8c9370e9bc62
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jul 26 10:40:12 2023 -0700
+commit 11c5bf521e676a379fbf17d956c61acd3d33eb31
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 07:09:54 2022 +0800
 
-    doc/go1.21: finish last TODO for go/types.Package.GoVersion
+    go/doc: using strings.Builder
     
-    Updates #58645.
-    
-    Change-Id: I7352bf7f03c478d92ebd0b8345d676d5b2dfccb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513475
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I9658c37a548a386c57d83dc13d5e9925a9c13211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428140
+    Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/doc/headscan.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

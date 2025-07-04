@@ -1,20 +1,28 @@
-commit be0b2a393a5a7297a3c8f42ca7d5ad3e4b15dcbe
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Jun 17 10:32:52 2022 -0400
+commit de1c934b9709728b15cc821a055155ee13e1d0ab
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 20 11:38:54 2021 +0700
 
-    cmd/trace: add basic documentation to main page
+    cmd/compile: fix checkptr false positive for (*[Big]T)(ptr)[:n:n] pattern
     
-    This change adds rudimentary explanation of the various
-    visualizations to main page of the trace server.
-    There is clearly a vast amount one could write here,
-    especially in the form of tutorials, but I've tried to
-    restrict it to just basic conceptual overview.
+    The checkptr instrumentation is currently inserted before slice
+    operation has validated that n <= Big. So instead of panic, checkptr
+    have false positive throws.
     
-    Change-Id: Id4dfe9d47f9b31ed5f8fe39f8b3a7c60c0ae8d5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412876
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    To fix this, just insert the checkptr instrumentation after the bound
+    checking during SSA generation.
+    
+    Fixes #46938
+    
+    Change-Id: I9dbf84441c711842ccc883f3654ca8766ac696d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343972
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/trace/main.go | 194 +++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 183 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ir/expr.go      |  9 +++++----
+ src/cmd/compile/internal/ssagen/ssa.go   |  3 +++
+ src/cmd/compile/internal/walk/convert.go | 13 +++++++++++--
+ src/cmd/compile/internal/walk/expr.go    |  2 +-
+ test/fixedbugs/issue46938.go             | 29 +++++++++++++++++++++++++++++
+ 5 files changed, 49 insertions(+), 7 deletions(-)

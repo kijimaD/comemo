@@ -1,12 +1,21 @@
-commit 44f7fd030fc0110b7fe727038a72bf6a0646be6f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 8 06:03:46 2017 -0700
+commit 41d0bbdc166b8ade1b91f5493e4ad7cb901020de
+Author: David Chase <drchase@google.com>
+Date:   Mon May 8 14:37:02 2017 -0400
 
-    math/rand: change http to https in comment
+    cmd/link: include DW_AT_producer in .debug_info
     
-    Change-Id: I19c1b0e1b238dda82e69bd47459528ed06b55840
-    Reviewed-on: https://go-review.googlesource.com/62310
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    This can make life easier for Delve (and other debuggers),
+    and can help them with bug reports.
+    
+    Sample producer field (from objdump):
+    <48> DW_AT_producer : Go cmd/compile devel +8a59dbf41a Mon May 8 16:02:44 2017 -0400
+    
+    Change-Id: I0605843c959b53a60a25a3b870aa8755bf5d5b13
+    Reviewed-on: https://go-review.googlesource.com/33588
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/rand/rand.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go   | 1 +
+ src/cmd/link/internal/ld/dwarf.go | 2 ++
+ 2 files changed, 3 insertions(+)

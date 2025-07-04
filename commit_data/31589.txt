@@ -1,29 +1,19 @@
-commit 7555a45dc2ef22f2afe7f1cc78fc313fd0365735
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue May 16 21:52:41 2017 +0900
+commit 7e74d432915a8f22b07f8d29aa8e02245f8d8cd1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 07:56:53 2017 -0800
 
-    cmd/cgo: support large unsigned macros
+    cmd/vet: refactor to support alternative importers
     
-    Currently, cgo converts integer macros into int64 if it's possible.
-    As a result, some macros which satisfy
+    Instead of constructing the importer in init, do it lazily as needed.
+    This lets us select the importer using a command line flag.
+    The addition of the command line flag will come in a follow-up CL.
     
-    math.MaxInt64 < x <= math.MaxUint64
-    
-    will lose their original values.
-    
-    This CL introduces the new probe to check signs,
-    so we can handle signed ints and unsigned ints separately.
-    
-    Fixes #20369
-    
-    Change-Id: I002ba452a82514b3a87440960473676f842cc9ee
-    Reviewed-on: https://go-review.googlesource.com/43476
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ieb3a5f01a34fb5bd220a95086daf5d6b37e83bb5
+    Reviewed-on: https://go-review.googlesource.com/37669
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue20369.go | 20 ++++++++++++++++++++
- src/cmd/cgo/gcc.go          | 36 ++++++++++++++++++++++++++++++------
- src/cmd/cgo/main.go         |  6 +++---
- 4 files changed, 54 insertions(+), 9 deletions(-)
+ src/cmd/vet/httpresponse.go | 20 ++++----------------
+ src/cmd/vet/types.go        | 26 ++++++++++++++++++--------
+ 2 files changed, 22 insertions(+), 24 deletions(-)

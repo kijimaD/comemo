@@ -1,30 +1,26 @@
-commit d838e4dcdf89124ed051e1c53e8472e900664a6b
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Mar 15 10:40:23 2024 +0000
+commit 91a40f43b629ac9237967f3faf0733de268ea652
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 22 20:57:52 2023 -0700
 
-    archive/tar: add FileInfoNames interface
+    go/types, types2: don't report assignment mismatch errors if there are other errors
     
-    An optional interface FileInfoNames has been added.
+    Change the Checker.use/useLHS functions to report if all "used"
+    expressions evaluated without error. Use that information to
+    control whether to report an assignment mismatch error or not.
+    This will reduce the number of errors reported per assignment,
+    where the assignment mismatch is only one of the errors.
     
-    If the parameter fi of FileInfoHeader implements the interface
-    the Gname/Uname of the return value Header
-    are provided by the method of the interface.
-    
-    Also added testing.
-    
-    Fixes #50102
-    
-    Change-Id: I47976e238eb20ed43113b060e4f83a14ae49493e
-    GitHub-Last-Rev: a213613c79e150d52a2f5c84dca7a49fe123fa40
-    GitHub-Pull-Request: golang/go#65273
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558355
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia0fc3203253b002e4e1d5759d8d5644999af6884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478756
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- api/next/50102.txt                              |  9 +++++
- doc/next/6-stdlib/99-minor/archive/tar/50102.md |  3 ++
- src/archive/tar/common.go                       | 32 +++++++++++++++-
- src/archive/tar/stat_unix.go                    | 34 ++++++++---------
- src/archive/tar/tar_test.go                     | 50 +++++++++++++++++++++++++
- 5 files changed, 109 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 29 ++++++++++++++------------
+ src/cmd/compile/internal/types2/call.go        | 25 ++++++++++++----------
+ src/go/types/assignments.go                    | 29 ++++++++++++++------------
+ src/go/types/call.go                           | 21 ++++++++++++-------
+ test/fixedbugs/issue19012.go                   |  2 +-
+ 5 files changed, 60 insertions(+), 46 deletions(-)

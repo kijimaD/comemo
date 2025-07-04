@@ -1,24 +1,24 @@
-commit 8df21a78027d54faa8014ce9040bd8007d1b23e0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 12 17:18:49 2022 +0200
+commit 56dcf976561ff6c666d9d1fe6231557ac2072883
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 22 09:49:15 2021 -0700
 
-    cmd/link/internal/ld: drop Go 1.12 compatibility on darwin
+    cmd/compile/internal/types2: generalize assignability to generic types
     
-    Go 1.17 is the minimum required version for bootstrap as of Go 1.20.
-    Also, the package no longer builds with Go 1.12 used for bootstrap.
-    Thus, drop the Go 1.12 compatibility and used linkname unconditionally.
+    Similar to conversions, handle ordinary cases first, followed by
+    type-by-type assignability tests in case of type parameters with
+    specific types in their type sets.
     
-    For #44505
+    Add a new class of type checker tests, in testdata/spec, which
+    I hope we can populate over time with tests following the spec
+    organization. Moved the conversions.go2 tests in the same dir.
     
-    Change-Id: Ic160aba4a33d580987b4633a3db03a025804d090
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430335
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Iac253ae375c08022bdc39e92e3951ec3f509e432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357917
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/ld/outbuf_darwin.go      | 3 ---
- src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 ++--
- src/cmd/link/internal/ld/outbuf_notdarwin.go   | 4 ++--
- 3 files changed, 4 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      |   1 +
+ src/cmd/compile/internal/types2/operand.go         | 107 +++++++---
+ .../types2/testdata/spec/assignability.go2         | 234 +++++++++++++++++++++
+ .../testdata/{examples => spec}/conversions.go2    |   0
+ 4 files changed, 316 insertions(+), 26 deletions(-)

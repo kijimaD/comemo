@@ -1,51 +1,17 @@
-commit 021fd86ce12ac694db778f6998d12c1e8d8c63ca
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 9 10:20:22 2022 +0200
+commit aa878ee49b6954a818cc00c26754c84b86a4215b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 20:50:48 2021 -0700
 
-    syscall: implement EpollCreate using EpollCreate1 on all linux platforms
+    cmd/compile/internal/syntax: assume generic code for std lib
     
-    Most newer architectures (e.g. arm64, riscv64, loong64) don't provide the
-    epoll_create syscall. Some systems (e.g. Android) block it even if it
-    were available. In the kernel, the epoll_create syscall is implemented
-    [1] the same way EpollCreate is implemented in this package for
-    platforms without the epoll_create syscall. The epoll_create1 syscall is
-    available since Linux kernel 2.6.27 and the minimum required kernel
-    version is 2.6.32 since Go 1.18 (see #45964). Thus, avoid the separate
-    wrapper and consistently implement EpollCreate using EpollCreate1.
-    
-    [1] https://elixir.bootlin.com/linux/v5.15-rc1/source/fs/eventpoll.c#L2006
-    
-    The same change was already done in CL 349809 for golang.org/x/sys/unix.
-    
-    For #45964
-    
-    Change-Id: I5463b208aa7ae236fa2c175d6d3ec6568f1840b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411594
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Also: improve some error message prints in testSyntaxErrors.
+    Change-Id: Iaa1d642398fa82975fefb4bde54f476dd5229eb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351791
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/syscall_linux.go           |  7 +++++++
- src/syscall/syscall_linux_386.go       |  1 -
- src/syscall/syscall_linux_amd64.go     |  1 -
- src/syscall/syscall_linux_arm.go       |  1 -
- src/syscall/syscall_linux_arm64.go     |  7 -------
- src/syscall/syscall_linux_loong64.go   |  7 -------
- src/syscall/syscall_linux_mips64x.go   |  1 -
- src/syscall/syscall_linux_mipsx.go     |  1 -
- src/syscall/syscall_linux_ppc64x.go    |  1 -
- src/syscall/syscall_linux_riscv64.go   |  7 -------
- src/syscall/syscall_linux_s390x.go     |  1 -
- src/syscall/zsyscall_linux_386.go      | 11 -----------
- src/syscall/zsyscall_linux_amd64.go    | 11 -----------
- src/syscall/zsyscall_linux_arm.go      | 11 -----------
- src/syscall/zsyscall_linux_mips.go     | 11 -----------
- src/syscall/zsyscall_linux_mips64.go   | 11 -----------
- src/syscall/zsyscall_linux_mips64le.go | 11 -----------
- src/syscall/zsyscall_linux_mipsle.go   | 11 -----------
- src/syscall/zsyscall_linux_ppc64.go    | 11 -----------
- src/syscall/zsyscall_linux_ppc64le.go  | 11 -----------
- src/syscall/zsyscall_linux_s390x.go    | 11 -----------
- 21 files changed, 7 insertions(+), 138 deletions(-)
+ src/cmd/compile/internal/syntax/error_test.go  | 4 ++--
+ src/cmd/compile/internal/syntax/parser_test.go | 7 ++-----
+ 2 files changed, 4 insertions(+), 7 deletions(-)

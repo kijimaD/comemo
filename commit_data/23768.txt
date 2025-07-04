@@ -1,17 +1,15 @@
-commit 72921c663d7df47bfc9b78766366dbfaa55a0915
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 21 11:17:08 2015 -0700
+commit ba8a146af443205876b087a8adb499aa7d4dd455
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 11 15:52:08 2015 -0700
 
-    cmd/go: skip TestGoInstallErrorOnCrossCompileToBin in short mode
+    [dev.ssa] cmd/compile/ssa: print reg names in generated code
     
-    That test will install cmd/pack for linux_386; we don't want to change
-    GOROOT in short mode.
-    
-    Change-Id: I4b00c578a99779a13c558208bfd4115f8f0513fa
-    Reviewed-on: https://go-review.googlesource.com/12481
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6c6196449dd3d5e036d420fa7ae90feb0cf8d417
+    Reviewed-on: https://go-review.googlesource.com/10928
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
+ src/cmd/compile/internal/ssa/gen/main.go       |  28 +++-
+ src/cmd/compile/internal/ssa/opGen.go          | 214 ++++++++++++-------------
+ 4 files changed, 131 insertions(+), 115 deletions(-)

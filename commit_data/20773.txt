@@ -1,16 +1,41 @@
-commit 18051c086012e3ea279994e987ffe826308f93df
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 22 08:06:15 2014 -0700
+commit b8fdaaf028c54c97be20fa9dfbe372578902fad8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Oct 8 13:51:12 2014 +0400
 
-    test: add more cases to recover.go
+    runtime: faster GC scan
+    The change contains 3 spot optimizations to scan loop:
+    1. Don't use byte vars, use uintptr's instead.
+    This seems to alleviate some codegen issue,
+    and alone accounts to a half of speedup.
+    2. Remove bitmap cache. Currently we cache only 1 byte,
+    so caching is not particularly effective anyway.
+    Removal of the cache simplifies code and positively affects regalloc.
+    3. Replace BitsMultiword switch with if and
+    do debug checks only in Debug mode.
+    I've benchmarked changes separately and ensured that
+    each of them provides speedup on top of the previous one.
+    This change as a whole fixes the unintentional regressions
+    of scan loop that were introduced during development cycle.
+    Fixes #8625.
+    Fixes #8565.
     
-    test16 used to fail with gccgo.  The withoutRecoverRecursive
-    test would have failed in some possible implementations.
+    On go.benchmarks/garbage benchmark:
+    GOMAXPROCS=1
+    time:           -3.13%
+    cputime:        -3.22%
+    gc-pause-one:   -15.71%
+    gc-pause-total: -15.71%
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/151630043
+    GOMAXPROCS=32
+    time:           -1.96%
+    cputime:        -4.43%
+    gc-pause-one:   -6.22%
+    gc-pause-total: -6.22%
+    
+    LGTM=khr, rsc
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/153990043
 
- test/recover.go | 44 +++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 41 insertions(+), 3 deletions(-)
+ src/runtime/mgc0.c | 50 ++++++++++++++++++--------------------------------
+ 1 file changed, 18 insertions(+), 32 deletions(-)

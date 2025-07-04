@@ -1,22 +1,27 @@
-commit 2572803899485e6d07490ae04b1eb5aa5c758699
+commit 2c6d3eaf78c9314fe49a550e765def95463179e8
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 17:08:56 2011 -0500
+Date:   Tue Dec 13 17:08:18 2011 -0500
 
-    math: delete non-Sqrt-based Hypot
+    undo CL 5414048 / f6b994f33cf4
     
-    I was confused by the existence of two portable Hypot
-    routines in the tree when I cleaned things up, and I made
-    ARM use the wrong (imprecise) one.  Use the right one,
-    and delete the wrong one.
+    breaks build
     
-    Fixes arm build.
+    ««« original CL description
+    http: close connection after printing panic stack trace
+    In a testing situation, it's possible for a local http
+    server to panic and the test exit without the stack trace
+    ever being printed.
+    Fixes #2480.
     
-    R=golang-dev, r
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5485065
+    https://golang.org/cl/5414048
+    
+    »»»
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5482061
 
- src/pkg/math/all_test.go    | 34 +++++++---------------------------
- src/pkg/math/export_test.go |  3 +--
- src/pkg/math/hypot.go       | 45 +--------------------------------------------
- src/pkg/math/hypot_arm.s    |  2 +-
- 4 files changed, 10 insertions(+), 74 deletions(-)
+ src/pkg/net/http/server.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

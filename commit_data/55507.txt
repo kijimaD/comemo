@@ -1,24 +1,22 @@
-commit 6d3c1ce885ab8b359100e0e8ef4a8338deba6704
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 31 11:17:58 2024 -0500
+commit b146d7626f869901f9dd841b9253e89a227c6465
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 13 14:35:34 2023 -0800
 
-    cmd: update golang.org/x/telemetry to 1cb064e and vendor it
+    Revert "io: detect Writers that access io.Copy's buffer after returning"
     
-    This brings in CL 559505 which adds a stub for counter.CountFlags so
-    it can be depended on and still build on Go 1.18 and earlier. This
-    will allow the go command to use counter.CountFlags and still be able
-    to build as the bootstrap command with an earlier version of Go.
+    This reverts CL 466865.
     
-    For #58894
+    Reason for revert: Causing trybot flakiness due to net/http race,
+    roll back until net/http is fixed.
     
-    Change-Id: I31d5b96bd47eef2e407ef97e6146adece403f2c0
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559795
+    For #58168
+    
+    Change-Id: I3129deb996abe6466eccf933fe93cbbaf72ae217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/go.mod                                             |  2 +-
- src/cmd/go.sum                                             |  4 ++--
- .../vendor/golang.org/x/telemetry/counter/counter_go118.go | 14 +++++++++-----
- src/cmd/vendor/modules.txt                                 |  2 +-
- 4 files changed, 13 insertions(+), 9 deletions(-)
+ src/io/io.go | 9 ---------
+ 1 file changed, 9 deletions(-)

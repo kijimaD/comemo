@@ -1,25 +1,18 @@
-commit 912c4e29d3cdabe11db70ed168ddaa4bcc515772
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 7 17:03:46 2021 -0400
+commit 58fa8075f551287d8d155354417c571c4ff3941e
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Sep 20 11:57:20 2020 +0200
 
-    reflect: fix typo in result-in-registers case
+    cmd/compile: enforce strongly typed rules for ARM (mem)
     
-    t is the type of the function that was called
-    tv is the type of the result
+    L274-L281, L293-L307, L312, L317, L319, L335, L341
     
-    This fixes the failures for
-    GOEXPERIMENT=regabi,regabiargs go test go test text/template
-    GOEXPERIMENT=regabi,regabiargs go test go test html/template
+    Toolstash-check successful
     
-    Updates #40724.
-    
-    Change-Id: Ic9b02d72d18ff48c9de1209987cc39da619c2241
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308189
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I69e8e9f964c1f35615e4e19401c3f661e1e64a3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256100
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  40 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 152 ++++++++++++++---------------
+ 2 files changed, 96 insertions(+), 96 deletions(-)

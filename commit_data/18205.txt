@@ -1,18 +1,13 @@
-commit 8a089c07ec13c2c9d3f721f2236624f6284b7877
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 9 14:51:23 2014 -0800
+commit 9847c065f493be193231c0482dca200247732ca9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 9 15:21:24 2014 -0500
 
-    go/parser: slightly improved error message by adding hint
+    testing: document that ResetTimer also zeros the allocation counters.
+    Fixes #6998.
     
-    It's difficult to make this much better w/o much
-    more effort. This is a rare case and probably not
-    worth it.
-    
-    Fixes #6052.
-    
-    R=golang-codereviews, bradfitz, adonovan
+    R=golang-codereviews, gobot, r
     CC=golang-codereviews
-    https://golang.org/cl/49740045
+    https://golang.org/cl/44880044
 
- src/pkg/go/parser/parser.go | 2 +-
+ src/pkg/testing/benchmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

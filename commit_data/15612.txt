@@ -1,13 +1,15 @@
-commit efd3d1ffe9d784b006f03e1961567149952b8f19
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 6 16:55:08 2013 -0500
+commit a25486e4b16b5a97a9dff552359c0bf716114b32
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 13:16:43 2013 -0800
 
-    runtime: fix netbsd, windows build
+    make.bash,bat: add -tags gotypes to the build
+    This installs type checking into go vet.
+    (To be removed before releasing Go 1.1)
     
-    TBR=golang-dev
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7539043
+    https://golang.org/cl/7528044
 
- src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
- src/pkg/runtime/rt0_windows_amd64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/make.bash | 6 ++++--
+ src/make.bat  | 6 ++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

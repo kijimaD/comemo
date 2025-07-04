@@ -1,14 +1,13 @@
-commit a9422651f9600c38b3f31f08f1be5a96cb338306
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 26 11:27:55 2014 -0700
+commit e3727df55001478b97afd3d5ec9eea6f78cfbda1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 9 15:00:23 2014 +0200
 
-    doc/go_faq.html: fix a couple of nits
-    Wrong article, one stylistic point that bothers someone (but not me).
+    C: add Hana Kim (Google CLA)
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/156680043
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews, iant
+    https://golang.org/cl/150690043
 
- doc/go_faq.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

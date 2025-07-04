@@ -1,12 +1,22 @@
-commit c14d255ac5ff06cb9258beebd5bdc6197a28fbd1
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Feb 26 08:34:47 2013 -0800
+commit 3f132a82365f49cda015b8c3ac694947d3ca54ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 25 20:43:35 2013 -0800
 
-    cmd/go: do not print GCC environment variables on Plan 9
+    go/types: more robust imports
     
-    R=seed, rminnich, r, minux.ma
+    - imported objects don't have position information
+    - gc exported data contains non-exported objects at
+      the top-level, guard against them
+    - better error message when dot-imports conflict
+      with local declarations
+    
+    R=adonovan, r
     CC=golang-dev
-    https://golang.org/cl/7397059
+    https://golang.org/cl/7379052
 
- src/cmd/go/env.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/go/types/expr.go             |  7 +++++--
+ src/pkg/go/types/objects.go          | 23 ++++++++++++++++++++---
+ src/pkg/go/types/resolve.go          | 27 +++++++++++++++++++++++----
+ src/pkg/go/types/testdata/decls0.src | 10 ++++++++++
+ src/pkg/go/types/testdata/decls1.src |  2 +-
+ 5 files changed, 59 insertions(+), 10 deletions(-)

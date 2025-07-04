@@ -1,36 +1,14 @@
-commit b58515baba3fedac7ef7ce1c3a8da600460b6c70
-Author: David Glasser <glasser@meteor.com>
-Date:   Wed Oct 14 14:25:00 2015 -0700
+commit a33b522485e263520d969a52df93e7df448f6f0f
+Author: ALTree <alb.donizetti@gmail.com>
+Date:   Sun Aug 2 17:59:31 2015 +0200
 
-    net/http: don't hang if RemoteAddr() blocks
+    doc: update install from source instructions for go1.5
     
-    The PROXY protocol is supported by several proxy servers such as haproxy
-    and Amazon ELB.  This protocol allows services running behind a proxy to
-    learn the remote address of the actual client connecting to the proxy,
-    by including a single textual line at the beginning of the TCP
-    connection.
-    http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt
+    Fixes #11983
     
-    There are several Go libraries for this protocol (such as
-    https://github.com/armon/go-proxyproto), which operate by wrapping a
-    net.Conn with an implementation whose RemoteAddr method reads the
-    protocol line before returning. This means that RemoteAddr is a blocking
-    call.
-    
-    Before this change, http.Serve called RemoteAddr from the main Accepting
-    goroutine, not from the per-connection goroutine. This meant that it
-    would not Accept another connection until RemoteAddr returned, which is
-    not appropriate if RemoteAddr needs to do a blocking read from the
-    socket first.
-    
-    Fixes #12943.
-    
-    Change-Id: I1a242169e6e4aafd118b794e7c8ac45d0d573421
-    Reviewed-on: https://go-review.googlesource.com/15835
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5ee930314a43356f5be31d758d90d7ddcafc7b37
+    Reviewed-on: https://go-review.googlesource.com/12908
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/serve_test.go | 101 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |   2 +-
- 2 files changed, 102 insertions(+), 1 deletion(-)
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,16 @@
-commit 5242bfa26afdd3541b9a70a16431ceb616f5510d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 20 10:25:44 2024 -0500
+commit 47a71d1ec9b650d864aa36c4642e5ffc500c3d78
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 11 12:02:28 2023 -0400
 
-    cmd/go: remove temporary crypto/internal/fips140 import relaxation
+    runtime: remove stale non-atomic access comment
     
-    Now that crypto/internal/fips140deps has been checked in,
-    we can enforce the full restrictions in the go command:
-    crypto/internal/fips can only import crypto/internal, not internal/...
+    CL 397014 converted this into an atomic access.
     
-    Change-Id: I035470dbd478a5997c37ffabd268117969ed00a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630135
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: Ib97716cd19ecd7d6bf8601baf0391755a5baf378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534159
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/runtime/mgc.go | 4 ----
+ 1 file changed, 4 deletions(-)

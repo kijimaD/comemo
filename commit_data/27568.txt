@@ -1,20 +1,25 @@
-commit b859a78e0a71d769274dac8cf0108bdf41ec55a5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat May 28 02:14:25 2016 -0700
+commit 163ff700b8ac3192fa1cb1424e5facf060683dd2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 16:57:54 2016 -0400
 
-    io: use SeekStart, SeekCurrent, and SeekEnd in io.Seeker documentation
+    cmd/link/internal/ld: add s390x support
     
-    The documentation previously used C style enumerations: 0, 1, 2.
-    While this is pretty much universally correct, it does not help a user
-    become aware of the existence of the SeekStart, SeekCurrent, and SeekEnd
-    constants. Thus, we should use them in the documentation to direct people's
-    attention to them.
+    Introduces the new relocation variant RV_390_DBL which indicates
+    that the relocation value should be shifted right by 1 (to make
+    it 2-byte aligned).
     
-    Updates #6885
-    
-    Change-Id: I44b5e78d41601c68a0a1c96428c853df53981d52
-    Reviewed-on: https://go-review.googlesource.com/23551
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I03fa96b4759ee19330c5298c3720746622fb1a03
+    Reviewed-on: https://go-review.googlesource.com/20878
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/io/io.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/arch.go   |   9 +++
+ src/cmd/link/internal/ld/data.go   |  16 ++++-
+ src/cmd/link/internal/ld/dwarf.go  |   4 +-
+ src/cmd/link/internal/ld/elf.go    | 118 +++++++++++++++++++++++++++++++------
+ src/cmd/link/internal/ld/ldelf.go  |  38 +++++++++++-
+ src/cmd/link/internal/ld/lib.go    |   4 +-
+ src/cmd/link/internal/ld/link.go   |   6 ++
+ src/cmd/link/internal/ld/symtab.go |   3 +-
+ 8 files changed, 170 insertions(+), 28 deletions(-)

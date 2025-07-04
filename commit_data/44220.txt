@@ -1,17 +1,22 @@
-commit 8869086d8f0a31033ccdc103106c768dc17216b1
-Author: Ikko Ashimine <eltociear@gmail.com>
-Date:   Thu Feb 4 02:47:37 2021 +0000
+commit 1519bc4457af7179557a4f04bb35a4e07bedd118
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue May 26 16:55:28 2020 +0200
 
-    runtime: fix typo in histogram.go
+    net/http: clarify that AddCookie only sanitizes the Cookie being added
     
-    indicies -> indices
+    AddCookie properly encodes a cookie and appends it to the Cookie header
+    field but does not modify or sanitize what the Cookie header field
+    contains already. If a user manualy sets the Cookie header field to
+    something not conforming to RFC 6265 then a cookie added via AddCookie
+    might not be retrievable.
     
-    Change-Id: Ia50ae5918fc7a53c23590a94a18087a99bfd9bb7
-    GitHub-Last-Rev: 98eb724275fd61d5f5ce5dad6b1010c10f76906d
-    GitHub-Pull-Request: golang/go#44095
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289529
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Fixes #38437
+    
+    Change-Id: I232b64ac489b39bb962fe4f7dbdc2ae44fcc0514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235141
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/histogram.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

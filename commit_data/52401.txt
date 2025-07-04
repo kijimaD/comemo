@@ -1,22 +1,39 @@
-commit 16544b83f8b4ef36fb9f93af7adb4b7135bdcc2d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Mar 23 00:29:08 2023 -0700
+commit b75e492b35746ca3b327f7b353f4912e705a3125
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon May 2 11:13:08 2022 -0400
 
-    log/slog: use Infinity instead of Inf
+    go/types,types2: delay the check for conflicting struct field names
     
-    JSON is derived from Javascript, so we should use Javascript-inspired
-    literals instead of ones more common to Go.
+    In #52529, we observed that checking types for duplicate fields and
+    methods during method collection can result in incorrect early expansion
+    of the base type. Fix this by delaying the check for duplicate fields.
+    Notably, we can't delay the check for duplicate methods as we must
+    preserve the invariant that added method names are unique.
     
-    In Javascript, infinity is declared as Infinity rather than Inf.
+    After this change, it may be possible in the presence of errors to have
+    a type-checked type containing a method name that conflicts with a field
+    name. With the previous logic conflicting methods would have been
+    skipped. This is a change in behavior, but only for invalid code.
+    Preserving the existing behavior would likely require delaying method
+    collection, which could have more significant consequences.
     
-    Change-Id: I6c81353d0c677640f3f11961a37d792408ac03fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478758
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    As a result of this change, the compiler test fixedbugs/issue28268.go
+    started passing with types2, being previously marked as broken. The fix
+    was not actually related to the duplicate method error, but rather the
+    fact that we stopped reporting redundant errors on the calls to x.b()
+    and x.E(), because they are now (valid!) methods.
+    
+    Fixes #52529
+    
+    Change-Id: I850ce85c6ba76d79544f46bfd3deb8538d8c7d00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403455
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/log/slog/json_handler.go      | 6 +++---
- src/log/slog/json_handler_test.go | 4 ++--
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/decl.go            | 59 +++++++++++++++-------
+ .../types2/testdata/fixedbugs/issue52529.go        | 15 ++++++
+ src/go/types/decl.go                               | 51 +++++++++++++------
+ src/go/types/testdata/fixedbugs/issue52529.go      | 15 ++++++
+ test/run.go                                        |  5 +-
+ 5 files changed, 107 insertions(+), 38 deletions(-)

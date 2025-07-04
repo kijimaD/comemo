@@ -1,42 +1,21 @@
-commit f93f6e501edaf8bf117109b8469af6af8586b393
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Feb 29 17:34:59 2024 -0500
+commit ada6ffca8399af9ad24e82502db1429b85b7405f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 3 01:23:52 2023 +1100
 
-    cmd/go: test that each script test increments at least one counter
+    internal/cpu: add default osinit for ppc64/ppc64le
     
-    Add code that will set a scriptGoInvoked bit for the testing.TB when
-    it invokes the go command. If the go command was invoked, make sure
-    that at least one counter was incremented.
+    This will be used for operating systems other than AIX and Linux (both of
+    which provide a more specific version).
     
-    Also add the counters cmd/go/gomodcache-entry-relative,
-    cmd/go/gopath-entry-relative, and cmd/go/invalid-toolchain-in-file so
-    we can increment counters when a test errors out before the flag
-    subcommand counters are processed. This enforces the invariant that at
-    least one counter is incremented by every test that invokes the go
-    command.
+    Updates #56001
     
-    Add the counter cmd/go/exec-go-toolchain for when a toolchain switch
-    happens.
-    
-    Add cmd/go/subcommand:help for invoking help without arguments and
-    cmd/go/help-unknown-topic for when an unknown command is provided
-    to help.
-    
-    Change-Id: Id90f2bbe4c7e89b846da00ec1ed9595ece2b269c
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568259
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia1de994866b66f03c83696faa92d0531a0b75273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473698
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/counters_test.go             | 13 ++++++++++++-
- src/cmd/go/internal/base/base.go        | 24 ++++++++++++++++++++++++
- src/cmd/go/internal/help/help.go        |  3 +++
- src/cmd/go/internal/modfetch/cache.go   |  3 +++
- src/cmd/go/internal/toolchain/select.go |  6 ++++++
- src/cmd/go/internal/toolchain/switch.go |  3 +++
- src/cmd/go/main.go                      |  4 ++++
- src/cmd/go/script_test.go               |  5 +++++
- src/cmd/go/scriptcmds_test.go           | 17 ++++++++++++++++-
- src/cmd/go/testdata/counters.txt        |  7 +++++++
- 10 files changed, 83 insertions(+), 2 deletions(-)
+ src/internal/cpu/cpu_ppc64x_other.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

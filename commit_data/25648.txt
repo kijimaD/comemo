@@ -1,12 +1,12 @@
-commit cedbbfaa45fac82a0088b3163c7137e814020a53
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jan 25 10:23:38 2016 -0800
+commit 64fbca41c8777b2b03f7e545be3bea34862ecf8f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 20:50:59 2015 +1300
 
-    runtime: update heap dumper header to 1.6.
+    cmd/internal/obj/ppc64: avoid calling morestack via a PLT when dynamically linking
     
-    Change-Id: Ic2a326d41783fb591148748dbcccfd3855091437
-    Reviewed-on: https://go-review.googlesource.com/18912
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie79f72786b1d7154f1910e717a0faf354b913b89
+    Reviewed-on: https://go-review.googlesource.com/15970
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/heapdump.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/ppc64/obj9.go | 59 ++++++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 8 deletions(-)

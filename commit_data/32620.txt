@@ -1,20 +1,18 @@
-commit 31ddd8a39d802c073c2bcf4b1f4e74f851fa80c4
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Jul 4 08:32:02 2017 +0200
+commit 1e732ca388054281f43183f01c233611dd938782
+Author: Rob Phoenix <rob@robphoenix.com>
+Date:   Tue May 9 10:26:08 2017 +0100
 
-    cmd/compile: more compact DWARF location for locals and arguments
+    net: fix ExampleParseCIDR IPv4 prefix length
     
-    Now that all functions have a DW_AT_frame_base defined we can use
-    DW_OP_fbreg to specify the location of variables and formal parameters,
-    instead of the DW_OP_call_frame_cfa/DW_OP_consts/DW_OP_plus, saving 2
-    bytes for every variable and 2 bytes for every formal parameter after
-    the first one.
+    Issue #15228 describes that reserved address blocks should be used for
+    documentation purposes. This change updates the prefix length so the
+    IPv4 address adheres to this.
     
-    Change-Id: I2c7395b67e4a814a0131ab1520df11ca48ff9327
-    Reviewed-on: https://go-review.googlesource.com/60550
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I237d9cce1a71f4fd95f927ec894ce53fa806047f
+    Reviewed-on: https://go-review.googlesource.com/42991
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/net/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

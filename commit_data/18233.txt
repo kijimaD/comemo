@@ -1,24 +1,31 @@
-commit 9c1aa658bfb73018805fde0c6224a289aced0d03
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 13 23:07:40 2014 -0500
+commit 1f0ca748c24e84fa6849e1d9669232dd99cd61ad
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jan 13 23:03:22 2014 +0100
 
-    cmd/link: replace golden binary files with hex dumps
+    os/exec: disable fd check in TestHelperProcess on Plan 9
     
-    The hex dumps will diff better, and I hope they will avoid
-    a repeat of http://bugs.debian.org/716853.
+    On Plan 9, we can observe the following open file descriptors:
     
-    The CL will probably show the testdata diffs as "binary",
-    but in fact the binary versions are being replaced by
-    textual hex dumps (output of hexdump -C).
+      0 r  c    0 (000000000000000a   0 00)     0        0 /dev/null
+      1 rw |    0 (0000000001df6742   0 00) 65536       54 #|/data1
+      2 rw |    0 (0000000001df6782   0 00) 65536        0 #|/data1
+      3 rw M 1956 (0000000000d66dd2   0 00)  8192       12 /tmp/333163398
+      4 r  c    0 (0000000000000001   0 00)     0      528 /dev/bintime
+      5 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      6 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      7 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      8 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+      9 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+     10 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+     11 r  c    0 (000000000000000f   0 00)     0       32 /dev/random
+     12 r  M 1956 (0000000000d66dd1 854 00)  8192        0 /tmp/go-build843954301/os/exec/_test/exec.test
+     13 r  c    0 (000000000000000a   0 00)     0        0 /dev/null
+     14 rw |    0 (0000000001df6801   0 00) 65536        0 #|/data
+     15 rw |    0 (0000000001df6802   0 00) 65536     1275 #|/data1
     
-    R=iant
+    R=rsc, bradfitz, aram
     CC=golang-codereviews
-    https://golang.org/cl/51000044
+    https://golang.org/cl/51420044
 
- src/cmd/link/hex_test.go                      |  74 ++++++++++++++++++++++++++
- src/cmd/link/prog_test.go                     |  12 +++--
- src/cmd/link/testdata/link.hello.darwin.amd64 | Bin 4140 -> 3890 bytes
- src/cmd/link/testdata/macho.amd64.exit9       | Bin 4109 -> 1669 bytes
- src/cmd/link/testdata/macho.amd64.hello       | Bin 8204 -> 2776 bytes
- src/cmd/link/testdata/macho.amd64.helloro     | Bin 8204 -> 2381 bytes
- 6 files changed, 81 insertions(+), 5 deletions(-)
+ src/pkg/os/exec/exec_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

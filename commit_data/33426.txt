@@ -1,42 +1,60 @@
-commit 8db19a496640db4c7c318007c82eaa5d65c85b93
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Fri Nov 3 05:48:43 2017 +0000
+commit 25b040c287b0935685ac16c05bd67f34436c3b12
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Fri Jul 28 22:29:30 2017 -0700
 
-    all: change github.com issue links to golang.org
+    math/big: recognize z.Mul(x, x) as squaring of x
     
-    The go repository contains a mix of github.com/golang/go/issues/xxxxx
-    and golang.org/issues/xxxxx URLs for references to issues in the issue
-    tracker. We should use one for consistency, and golang.org is preferred
-    in case the project moves the issue tracker in the future.
+    updates #13745
     
-    This reasoning is taken from a comment Sam Whited left on a CL I
-    recently opened: https://go-review.googlesource.com/c/go/+/73890.
+    Multiprecision squaring can be done in a straightforward manner
+    with about half the multiplications of a basic multiplication
+    due to the symmetry of the operands.  This change implements
+    basic squaring for nat types and uses it for Int multiplication
+    when the same variable is supplied to both arguments of
+    z.Mul(x, x). This has some overhead to allocate a temporary
+    variable to hold the cross products, shift them to double and
+    add them to the diagonal terms.  There is a speed benefit in
+    the intermediate range when the overhead is neglible and the
+    asymptotic performance of karatsuba multiplication has not been
+    reached.
     
-    In that CL I referenced an issue using its github.com URL, because other
-    tests in the file I was changing contained references to issues using
-    their github.com URL. Sam Whited left a comment on the CL stating I
-    should change it to the golang.org URL.
+    basicSqrThreshold = 20
+    karatsubaSqrThreshold = 400
     
-    If new code is intended to reference issues via golang.org and not
-    github.com, existing code should be updated so that precedence exists
-    for contributors who are looking at the existing code as a guide for the
-    code they should write.
+    Were set by running calibrate_test.go to measure timing differences
+    between the algorithms.  Benchmarks for squaring:
     
-    Change-Id: I3b9053fe38a1c56fc101a8b7fd7b8f310ba29724
-    Reviewed-on: https://go-review.googlesource.com/75673
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name           old time/op  new time/op  delta
+    IntSqr/1-4     51.5ns ±25%  25.1ns ± 7%  -51.38%  (p=0.008 n=5+5)
+    IntSqr/2-4     79.1ns ± 4%  72.4ns ± 2%   -8.47%  (p=0.008 n=5+5)
+    IntSqr/3-4      102ns ± 4%    97ns ± 5%     ~     (p=0.056 n=5+5)
+    IntSqr/5-4      161ns ± 4%   163ns ± 7%     ~     (p=0.952 n=5+5)
+    IntSqr/8-4      277ns ± 5%   267ns ± 6%     ~     (p=0.087 n=5+5)
+    IntSqr/10-4     358ns ± 3%   360ns ± 4%     ~     (p=0.730 n=5+5)
+    IntSqr/20-4    1.07µs ± 3%  1.01µs ± 6%     ~     (p=0.056 n=5+5)
+    IntSqr/30-4    2.36µs ± 4%  1.72µs ± 2%  -27.03%  (p=0.008 n=5+5)
+    IntSqr/50-4    5.19µs ± 3%  3.88µs ± 4%  -25.37%  (p=0.008 n=5+5)
+    IntSqr/80-4    11.3µs ± 4%   8.6µs ± 3%  -23.78%  (p=0.008 n=5+5)
+    IntSqr/100-4   16.2µs ± 4%  12.8µs ± 3%  -21.49%  (p=0.008 n=5+5)
+    IntSqr/200-4   50.1µs ± 5%  44.7µs ± 3%  -10.65%  (p=0.008 n=5+5)
+    IntSqr/300-4    105µs ±11%    95µs ± 3%   -9.50%  (p=0.008 n=5+5)
+    IntSqr/500-4    231µs ± 5%   227µs ± 2%     ~     (p=0.310 n=5+5)
+    IntSqr/800-4    496µs ± 9%   459µs ± 3%   -7.40%  (p=0.016 n=5+5)
+    IntSqr/1000-4   700µs ± 3%   710µs ± 5%     ~     (p=0.841 n=5+5)
+    
+    Show a speed up of 10-25% in the range where basicSqr is optimal,
+    improved single word squaring and no significant difference when
+    the fallback to standard multiplication is used.
+    
+    Change-Id: Iae2c82ca91cf890823f91e5c83bbe9a2c534b72b
+    Reviewed-on: https://go-review.googlesource.com/53638
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testshared/src/depBase/dep.go | 2 +-
- misc/cgo/testshared/src/exe/exe.go     | 2 +-
- src/crypto/elliptic/elliptic_test.go   | 2 +-
- src/crypto/x509/sec1_test.go           | 2 +-
- src/database/sql/convert_test.go       | 2 +-
- src/encoding/json/encode_test.go       | 2 +-
- src/encoding/xml/read_test.go          | 2 +-
- src/image/png/reader_test.go           | 4 ++--
- src/net/hosts_test.go                  | 2 +-
- src/net/port.go                        | 2 +-
- src/os/stat_windows.go                 | 2 +-
- src/sync/atomic/value.go               | 2 +-
- src/sync/cond.go                       | 2 +-
- 13 files changed, 14 insertions(+), 14 deletions(-)
+ src/math/big/calibrate_test.go | 86 +++++++++++++++++++++++++++++++++++++++---
+ src/math/big/int.go            |  5 +++
+ src/math/big/int_test.go       | 22 +++++++++++
+ src/math/big/nat.go            | 57 +++++++++++++++++++++++++++-
+ src/math/big/nat_test.go       | 46 ++++++++++++++++++++++
+ 5 files changed, 210 insertions(+), 6 deletions(-)

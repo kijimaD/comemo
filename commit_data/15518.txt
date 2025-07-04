@@ -1,22 +1,17 @@
-commit e72d1a9575e7b70b611c1f92319cb5a84d9e9267
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 1 14:49:23 2013 +1100
+commit abbbb4283a60df46abe11b898345bbe9bc724034
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 28 20:37:25 2013 -0500
 
-    libmach: many pe handling fixes
+    go/types: fix regression in type checking of RangeStmt.
     
-    - implement windows pread;
-    - set correct Fhdr.type;
-    - add ImageBase to all pe "virtual" addresses;
-    - correct settext parameter order;
-    - use pclntab/epclntab to find line numbers.
+    Now that untyped expressions are done in two phases, the
+    identity of operand.expr is used as a map key; when reusing
+    operand values we now must be careful to update the
+    expr field.
     
-    Fixes #4841.
-    Fixes #4926.
-    
-    R=golang-dev, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7405050
+    https://golang.org/cl/7444049
 
- src/libmach/executable.c | 33 +++++++++++++++++++++++++--------
- src/libmach/windows.c    |  8 ++++++--
- 2 files changed, 31 insertions(+), 10 deletions(-)
+ src/pkg/go/types/stmt.go | 2 ++
+ 1 file changed, 2 insertions(+)

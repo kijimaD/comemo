@@ -1,23 +1,36 @@
-commit 2f0da6d9e29d9b9d5a4d10427ca9f71d12bbacc8
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Feb 16 20:01:32 2021 -0500
+commit 58f017bcea3d2f3dbb898ba175fe09beb32b4eb6
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 29 16:01:08 2020 -0400
 
-    go/types: revert "no 'declared but not used' errors for invalid var decls"
+    cmd/{compile,link}: fix problem with DWARF end_sequence ops
     
-    This reverts commit CL 289712 (afd67f3). It breaks x/tools tests, and
-    those tests highlight that perhaps I didn't think through the
-    repercussions of this change as much as I should have.
+    During DWARF line table emission in the linker, prior to issuing a
+    DW_LNE_end_sequence op to mark the end of the line table for a
+    compilation unit, advance the PC to produce an address beyond the last
+    text address in the unit (this is required by the DWARF standard).
+    Because of the way that GDB interprets end-sequence ops, we were
+    effectively losing the last row in the line table for each unit, which
+    degraded the debugging experience.
     
-    Fixes #44316
+    This problem has been around for a while, but has surfaced recently
+    due to changes in line table generation. Prior to Go 1.14, the DWARF
+    line table was emitted entirely in the linker, and a single monolithic
+    line table was created for each Go package (including functions from
+    assembly). In 1.14 we moved to having the compiler emit line table
+    fragments for each function, and having the linker stitch together the
+    fragments. As part of this change we moved to a model in which each
+    "go tool compile/asm" output has its own DWARF line table instance,
+    meaning that there are many more "end sequence" ops, which made the
+    problem more visible.
     
-    Change-Id: I5db39b4e2a3714131aa22423abfe0f34a0376192
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292751
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #38192.
+    
+    Change-Id: Ic29e2f6e0ac952360c81fcba5268ad70b2b44184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235739
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/go/types/assignments.go       |  1 -
- src/go/types/decl.go              | 14 --------------
- src/go/types/testdata/vardecl.src | 14 +-------------
- 3 files changed, 1 insertion(+), 28 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

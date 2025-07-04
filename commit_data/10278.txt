@@ -1,12 +1,20 @@
-commit 2d89db65c0fe6d7f736bb2272b84bb9ab02c013d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Nov 8 06:56:35 2011 +0900
+commit 087bec3dcd38a5dedc16fc060a6921b8f18c34ad
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Nov 7 21:35:13 2011 +0100
 
-    net: fix build comment
+    gc: Clean up dostruct/stotype, detect broken fields and propagate up to structs and functions to supress spurious errors.
     
-    R=golang-dev, rsc
+    Fixes #1556.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5353045
+    https://golang.org/cl/5351042
 
- src/pkg/net/sock_bsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/dcl.c         | 386 +++++++++++++++++++++++++++++------------------
+ src/cmd/gc/go.h          |   3 +-
+ src/cmd/gc/go.y          |   4 +-
+ src/cmd/gc/subr.c        |   5 +
+ src/cmd/gc/typecheck.c   |   4 +-
+ test/fixedbugs/bug251.go |   2 +-
+ test/fixedbugs/bug374.go |  20 +++
+ 7 files changed, 268 insertions(+), 156 deletions(-)

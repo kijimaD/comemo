@@ -1,56 +1,72 @@
-commit 995c0f310c087c9cbc49112ecc48459a96310451
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Fri Sep 30 15:29:52 2022 +0300
+commit b66bc0a9d5eba193f7d7f4977ca64a77527f4b3b
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Jan 24 10:37:59 2022 -0500
 
-    crypto/{sha512,sha256,sha1}: reduce Write calls in Sum
+    go/types, types2: make each method instantiation independently lazy
     
-    crypto/sha512:
+    Method signatures can introduce a significant number of edges into the
+    type graph. One can imagine a generic type with many methods, each of
+    which may use other instantiated types, etc. For performance, when type
+    checking generic code, we should avoid unnecessary instantiation of
+    methods wherever possible.
     
-        name                  old time/op    new time/op    delta
-        Hash8Bytes/New-32        297ns ± 1%     288ns ± 1%  -3.09%  (p=0.000 n=10+10)
-        Hash8Bytes/Sum384-32     288ns ± 1%     282ns ± 1%  -2.16%  (p=0.000 n=10+9)
-        Hash8Bytes/Sum512-32     287ns ± 1%     278ns ± 1%  -3.18%  (p=0.000 n=9+10)
-        Hash1K/New-32           2.12µs ± 0%    2.11µs ± 1%    ~     (p=0.189 n=9+10)
-        Hash1K/Sum384-32        2.13µs ± 1%    2.11µs ± 1%  -1.07%  (p=0.006 n=10+10)
-        Hash1K/Sum512-32        2.12µs ± 1%    2.11µs ± 1%    ~     (p=0.209 n=10+10)
-        Hash8K/New-32           14.9µs ± 1%    14.9µs ± 1%    ~     (p=0.469 n=10+10)
-        Hash8K/Sum384-32        15.0µs ± 1%    14.9µs ± 1%    ~     (p=0.725 n=10+10)
-        Hash8K/Sum512-32        14.9µs ± 1%    15.0µs ± 1%    ~     (p=0.684 n=10+10)
+    This CL achieves this by making method instantiation lazy at the
+    individual method level. It abstracts method access into a methodList
+    type, which may be either eager or lazy. In the lazy case, methods are
+    only instantiated when they are accessed via the Named.Method,
+    MethodSet, or LookupFieldOrMethod APIs. Factoring out a methodList type
+    makes it easier to verify that we're not leaking the methods slice
+    anywhere, and as a side benefit reduces the size of *Named types in the
+    case where there are no methods. The effective memory footprint of Named
+    types with methods increases by a pointer (to hold the slice of guards),
+    and the footprint of instantiated named types increases additionally by
+    a sync.Once per method. We estimate that this memory increase is more
+    than offset by the reduction in the number of instantiated methods.
     
-    crypto/sha256:
+    This also simplifies the code. Previously we had to work around the fact
+    that named type expansion could occur before all signatures were set-up,
+    by stashing the instantiated receiver into a partially filled-out *Func.
+    With fully lazy methods, we can rely on the invariant that any use of
+    methods in valid code can only occur after all signatures can be type
+    checked. This means that we can fully instantiate the *Func, and don't
+    need to deal with partially instantiated stubs.
     
-        name                  old time/op    new time/op    delta
-        Hash8Bytes/New-32        190ns ± 1%     188ns ± 2%  -1.23%  (p=0.002 n=10+10)
-        Hash8Bytes/Sum224-32     198ns ± 1%     190ns ± 1%  -4.07%  (p=0.000 n=10+10)
-        Hash8Bytes/Sum256-32     196ns ± 1%     183ns ± 1%  -6.33%  (p=0.000 n=10+10)
-        Hash1K/New-32           2.35µs ± 1%    2.35µs ± 2%    ~     (p=0.897 n=10+10)
-        Hash1K/Sum224-32        2.38µs ± 1%    2.38µs ± 2%    ~     (p=0.363 n=10+10)
-        Hash1K/Sum256-32        2.38µs ± 1%    2.37µs ± 1%    ~     (p=0.203 n=10+9)
-        Hash8K/New-32           17.3µs ± 1%    17.3µs ± 1%    ~     (p=0.971 n=10+10)
-        Hash8K/Sum224-32        17.6µs ± 1%    17.6µs ± 1%    ~     (p=0.726 n=10+10)
-        Hash8K/Sum256-32        17.6µs ± 2%    17.6µs ± 1%    ~     (p=0.541 n=10+10)
+    Finally, this CL fixes a bug (issue #50619), where traversing
+    Method->Receiver Type->Method did not get us back where we started. This
+    is fixed by not instantiating a new method if t is already the receiver
+    base of the original method.
     
-    crypto/sha1:
+    A test is added to explicitly verify the invariant above, and more test
+    cases are added for the behavior of Info with respect to generic code.
     
-        name                 old time/op    new time/op    delta
-        Hash8Bytes/New-32       140ns ± 2%     134ns ± 1%  -4.26%  (p=0.000 n=10+10)
-        Hash8Bytes/Sum-32       136ns ± 1%     132ns ± 1%  -2.41%  (p=0.000 n=10+10)
-        Hash320Bytes/New-32     552ns ± 1%     550ns ± 1%    ~     (p=0.211 n=10+9)
-        Hash320Bytes/Sum-32     559ns ± 1%     560ns ± 2%    ~     (p=0.477 n=9+9)
-        Hash1K/New-32          1.15µs ± 1%    1.15µs ± 1%    ~     (p=0.588 n=9+10)
-        Hash1K/Sum-32          1.16µs ± 2%    1.15µs ± 1%    ~     (p=0.078 n=10+10)
-        Hash8K/New-32          7.53µs ± 1%    7.58µs ± 3%    ~     (p=0.382 n=10+10)
-        Hash8K/Sum-32          7.54µs ± 1%    7.55µs ± 1%    ~     (p=0.404 n=10+10)
+    Fixes #50619
     
-    Change-Id: I3fc06c9009f2eabc739102c14648ef93ea6783b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436917
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I5b6d2bdc4404c9f5dcb583a29cb64e8af9794c54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380499
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/sha1/sha1.go     | 12 +++++++-----
- src/crypto/sha256/sha256.go | 12 +++++++-----
- src/crypto/sha512/sha512.go | 16 ++++++++++------
- 3 files changed, 24 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        | 113 ++++++++++++++
+ src/cmd/compile/internal/types2/decl.go            |  12 +-
+ src/cmd/compile/internal/types2/instantiate.go     |   2 +-
+ src/cmd/compile/internal/types2/lookup.go          |   2 +-
+ src/cmd/compile/internal/types2/methodlist.go      |  79 ++++++++++
+ src/cmd/compile/internal/types2/methodlist_test.go |  40 +++++
+ src/cmd/compile/internal/types2/named.go           | 171 +++++++++++----------
+ src/cmd/compile/internal/types2/object.go          |   9 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   4 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   2 +-
+ src/go/types/api_test.go                           | 114 ++++++++++++++
+ src/go/types/decl.go                               |  12 +-
+ src/go/types/instantiate.go                        |   2 +-
+ src/go/types/lookup.go                             |   2 +-
+ src/go/types/methodlist.go                         |  78 ++++++++++
+ src/go/types/methodlist_test.go                    |  41 +++++
+ src/go/types/methodset.go                          |  35 +++--
+ src/go/types/named.go                              | 171 +++++++++++----------
+ src/go/types/object.go                             |   9 +-
+ src/go/types/sizeof_test.go                        |   4 +-
+ src/go/types/typexpr.go                            |   2 +-
+ 21 files changed, 698 insertions(+), 206 deletions(-)

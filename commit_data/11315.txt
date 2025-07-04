@@ -1,14 +1,15 @@
-commit 41914c1df8f8689f2fba59cbdd1f8d00e73dbeed
+commit e0213576732f5eb408d3301832a296c20176d330
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jan 22 10:35:15 2012 -0800
+Date:   Sun Jan 22 10:34:17 2012 -0800
 
-    6l, 8l: remove unused macro definition
-            Their last use is removed in rev 70ed048caad2.
+    runtime: update out-of-date comment
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5532115
+    https://golang.org/cl/5532118
 
- src/cmd/6l/asm.c | 2 --
- src/cmd/8l/asm.c | 2 --
- 2 files changed, 4 deletions(-)
+ src/pkg/runtime/asm_arm.s         | 2 +-
+ src/pkg/runtime/cgocall.c         | 4 ++--
+ src/pkg/runtime/sys_freebsd_386.s | 2 +-
+ src/pkg/runtime/thread_darwin.c   | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

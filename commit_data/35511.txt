@@ -1,19 +1,24 @@
-commit 4fe688c6a49e59e852f0bfebbb4cf71366987ce7
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon May 28 13:03:08 2018 +1000
+commit f4bb25c937cffb277e5ba87708d286ea7fd1b6ed
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jan 27 12:48:15 2018 +0100
 
-    cmd/cover: fix sorting of profile segment boundaries
+    runtime: rename map implementation and test files to use a common prefix
     
-    If a span of coverable code is empty (e.g. an empty select clause)
-    then there will be two Boundary values with the same offset. In that
-    case, the starting Boundary needs to come first so that the generated
-    HTML output will open the <span> tag before it tries to close it.
+    Rename all map implementation and test files to use "map"
+    as a file name prefix instead of "hashmap" for the implementation
+    and "map" for the test file names.
     
-    Change-Id: Ib44a8b7c36ae57757c18b6cceb7a88ffa4e95394
-    Reviewed-on: https://go-review.googlesource.com/114855
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I7b317c1f7a660b95c6d1f1a185866f2839e69446
+    Reviewed-on: https://go-review.googlesource.com/90336
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cover/profile.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go                  | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go                     |  6 +++---
+ src/reflect/type.go                                     |  4 ++--
+ src/runtime/{hashmap.go => map.go}                      |  0
+ src/runtime/{mapspeed_test.go => map_benchmark_test.go} |  0
+ src/runtime/{hashmap_fast.go => map_fast.go}            |  0
+ src/runtime/map_test.go                                 |  2 +-
+ 7 files changed, 12 insertions(+), 12 deletions(-)

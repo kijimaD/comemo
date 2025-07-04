@@ -1,21 +1,12 @@
-commit 791fb978ddde3bbe0117ad0eab2746d66b43d965
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Nov 12 15:31:23 2012 +0000
+commit 89ed40c44bf6818ec76108b95cf9268d88ca156b
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Mon Nov 12 07:25:54 2012 -0800
 
-    crypto/x509: implement EncryptPEMBlock
+    faq: mention go vet in "What happens with closures running as goroutines?"
     
-    Arbitrary decisions: order of the arguments and the
-    fact it takes a block-type argument (rather than
-    leaving to user to fill it in later); I'm happy whatever
-    colour we want to paint it.
-    
-    We also change DecryptPEMBlock so that it won't
-    panic when the IV has the wrong size.
-    
-    R=agl, agl
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6820114
+    https://golang.org/cl/6822111
 
- src/pkg/crypto/x509/pem_decrypt.go      | 137 +++++++++++++++++++++++++++-----
- src/pkg/crypto/x509/pem_decrypt_test.go | 111 +++++++++++++++++++++++---
- 2 files changed, 219 insertions(+), 29 deletions(-)
+ doc/go_faq.html | 2 ++
+ 1 file changed, 2 insertions(+)

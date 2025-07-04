@@ -1,15 +1,18 @@
-commit 707ab1347f114934d65b713e22fdd62b4a83ca36
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 25 12:43:03 2013 -0800
+commit f5afc7d44f5ef20316c9d1d7ec28b45117f3add3
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Mon Feb 25 10:43:04 2013 -0800
 
-    all: fix some vet-found printf errors
+    cmd/go: fix vet
     
-    R=golang-dev, iant
+    Now that vet does typechecking, it should use only pkg.gofiles, instead
+    of pkg.allgofiles. Ignored files should not be checked by vet, because
+    they wouldn't typecheck.
+    
+    Fixes #4906.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/7393059
+    https://golang.org/cl/7401051
 
- src/pkg/archive/tar/reader_test.go     | 2 +-
- src/pkg/encoding/gob/gobencdec_test.go | 2 +-
- src/pkg/encoding/json/decode_test.go   | 2 +-
- src/pkg/net/http/request_test.go       | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/vet.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,35 @@
-commit 74574623039f2369b3e4b3d717285a48c47b73c4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Mar 10 11:41:04 2021 -0500
+commit 9a759593d7a71b4c061fd9bd053bd79584c632dc
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jun 8 18:06:11 2020 -0400
 
-    runtime/race: update dead link
+    cmd/go: don't save sums for modules loaded for import resolution
     
-    LLVM changed their main branch name, so this link didn't work anymore.
+    modfetch.WriteGoSum now accepts a map[module.Version]bool parameter.
+    This is used to prevent some new sums from being saved to go.sum when
+    they would be removed by the next 'go mod tidy'. Previusly, sums were
+    saved for modules looked up during import resolution.
     
-    Change-Id: I4c3a67b26e2bda012071281e29ea3c932c185130
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300469
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    A new function, modload.TrimGoSum, is also introduced, which marks
+    sums for deletion. 'go mod tidy' now uses this. The new logic
+    distinguishes between go.mod sums and content sums, which lets 'go mod
+    tidy' delete sums for modules in the build graph but not the build
+    list.
+    
+    Fixes #31580
+    Fixes #36260
+    Fixes #33008
+    
+    Change-Id: I06c4125704a8bbc9969de05265967ec1d2e6d3e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237017
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/race/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modcmd/init.go            |  1 +
+ src/cmd/go/internal/modcmd/tidy.go            | 38 +-----------
+ src/cmd/go/internal/modfetch/fetch.go         | 83 +++++++++++++++++++--------
+ src/cmd/go/internal/modload/init.go           | 69 ++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_sum_lookup.txt | 33 +++++++++++
+ src/cmd/go/testdata/script/mod_tidy_old.txt   | 46 +++++++++++++++
+ 6 files changed, 204 insertions(+), 66 deletions(-)

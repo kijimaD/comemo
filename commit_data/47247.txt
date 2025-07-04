@@ -1,16 +1,17 @@
-commit b2149ac336987940b3f14c50c064a43bf9a761de
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Thu Nov 4 10:13:11 2021 +0800
+commit 44721f4565858526545c69b4846daeea40843a98
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 22:31:43 2021 +0700
 
-    net/netip: fix various typos in comment
+    test: enable "-d=panic" by default for errorcheck*
     
-    Change-Id: I02724dadacd9b3f23ca7e6bda581cba62ceff828
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361274
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Fixes #43311
+    
+    Change-Id: I134d6c0524c198998a3c093dd3a8144052e8f7a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298715
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/netip/netip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/run.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

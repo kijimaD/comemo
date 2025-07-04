@@ -1,14 +1,15 @@
-commit 33a4da89d38b97cdbb860caa5ec9790bf35a7b93
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 28 16:46:32 2011 -0700
+commit 71ba47ac9ee705a93dca9b4fba510b4a313e8834
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 19:38:14 2011 -0400
 
-    exp/template: fix build
-    TBR=gri
+    build: fix noclobber
     
-    R=gri
+    I got it backwards last time, and somehow
+    that was leaking into the parent shell?
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/4815070
+    https://golang.org/cl/4826054
 
- src/cmd/goinstall/make.go | 4 ++--
- src/pkg/rpc/debug.go      | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/env.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,27 @@
-commit 865689571d52fee0b4c910d54bd4ba1484ff2344
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Fri Nov 12 10:15:21 2021 +0800
+commit c819907754a30229da197546a36eb4a160e5908f
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jan 7 16:25:41 2021 -0500
 
-    doc/go1.18: add AppendRune doc
+    cmd/{compile,link}: relocate generation of DWARF for global vars
     
-    For #47694
+    Move DWARF generation for global variables from the linker to the
+    compiler. This effectively parallelizes this part of DWARF generation,
+    speeds up the linker minutely, and gives us a slightly more rational
+    implementation (there was really no compelling reason to do DWARF gen
+    for globals in the linker).
     
-    Change-Id: I39594c273aeb038702457587ee1c46e4b3920bb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363359
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I0c1c98d3a647258697e90eb91d1d8a9f6f7f376a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295011
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Trust: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.18.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go           |  2 +-
+ src/cmd/compile/internal/gc/obj.go            |  1 +
+ src/cmd/internal/dwarf/dwarf.go               |  9 +++++
+ src/cmd/internal/obj/dwarf.go                 | 25 ++++++++++++
+ src/cmd/link/internal/ld/dwarf.go             | 58 +++++++++++----------------
+ src/cmd/link/internal/sym/compilation_unit.go |  1 +
+ 6 files changed, 60 insertions(+), 36 deletions(-)

@@ -1,12 +1,32 @@
-commit b3a108879f3312eb289b66186b16f87bb300795f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Dec 9 12:31:41 2017 +0100
+commit 6a7c63a08ab353c7e41cb24ae66e73fb3cb7cb56
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue Sep 12 14:04:34 2017 +0300
 
-    os: fix typo in TestExecutable comment
+    runtime: optimize siftupTimer and siftdownTimer a bit
     
-    Change-Id: I2ad5d73deaee57ccbb2c75378dcc2884e43be3bb
-    Reviewed-on: https://go-review.googlesource.com/82899
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Write the moving timer only once, since it is overwritten
+    by swapped timers on all the iterations except the last one.
+    
+    Additionally, explicitly pass timers heap into siftupTimer
+    and siftdownTimer in order to make the code more clear.
+    
+    Relevant benchmark results on linux/amd64:
+    
+    Stop                      700µs ± 7%   608µs ± 1%  -13.13%  (p=0.000 n=10+10)
+    Stop-2                    440µs ± 4%   376µs ± 4%  -14.48%  (p=0.000 n=10+10)
+    Stop-4                    339µs ± 2%   330µs ± 3%   -2.66%  (p=0.015 n=10+10)
+    SimultaneousAfterFunc     702µs ± 9%   709µs ± 1%     ~     (p=0.436 n=9+9)
+    SimultaneousAfterFunc-2   573µs ± 2%   546µs ± 2%   -4.71%  (p=0.000 n=10+10)
+    SimultaneousAfterFunc-4   387µs ± 1%   368µs ± 1%   -4.89%  (p=0.000 n=8+10)
+    StartStop                 268µs ± 0%   270µs ± 0%   +0.91%  (p=0.000 n=9+9)
+    StartStop-2               155µs ± 6%   145µs ± 6%   -6.70%  (p=0.000 n=10+10)
+    StartStop-4               125µs ± 1%   124µs ± 1%     ~     (p=0.065 n=10+9)
+    
+    Change-Id: I3685835b5e3e82844e2e5e73ee03a1e22100bf0e
+    Reviewed-on: https://go-review.googlesource.com/63110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/executable_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

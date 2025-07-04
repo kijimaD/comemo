@@ -1,19 +1,17 @@
-commit 119fafcaa5ace647961b59d304b275d93a3e6e97
-Author: Weerasak Chongnguluam <singpor@gmail.com>
-Date:   Fri Jul 21 01:53:55 2017 +0700
+commit 7ea2c8cf1b8052b98532fe95c91fc685758bc249
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 30 21:54:36 2018 +0200
 
-    context: avoid duplicate removeChild
+    os/exec: gofmt
     
-    When deadline has already passed,
-    current context is canceled before return cancel function.
-    So is unnecessary to call cancel with remove from parent again
-    in return cancel function.
+    CL 109361 introduced some changes which were not properly gofmt'ed.
+    Because the CL was sent via Github no gofmt checks were performed
+    on it (cf. #24946, #18548).
     
-    Change-Id: I37c687c57a29d9f139c7fb648ce7de69093ed623
-    Reviewed-on: https://go-review.googlesource.com/c/50410
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I207065f01161044c420e272f4fd112e0a59be259
+    Reviewed-on: https://go-review.googlesource.com/115356
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context.go | 2 +-
+ src/os/exec/lp_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

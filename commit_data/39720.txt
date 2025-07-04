@@ -1,20 +1,61 @@
-commit 8f79ca1d1ae78d3cc8025f0901540c45848347ab
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Aug 28 09:46:11 2019 -0400
+commit c0cfe9687f4f1b862328c85b3a160bc86d200d32
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 12 11:15:37 2018 -0800
 
-    cmd/internal/obj/ppc64: add support for vmrgow,vmrgew
+    cmd/compile: rewrite f(g()) for multi-value g() during typecheck
     
-    This adds support for ppc64 instructions vmrgow and vmrgew which
-    are needed for an improved implementation of chacha20.
+    This is a re-attempt at CL 153841, which caused two regressions:
     
-    Change-Id: I967a2de54236bcc573a99f7e2b222d5a8bb29e03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192117
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    1. crypto/ecdsa failed to build with -gcflags=-l=4. This was because
+    when "t1, t2, ... := g(); f(t1, t2, ...)" was exported, we were losing
+    the first assignment from the call's Ninit field.
+    
+    2. net/http/pprof failed to run with -gcflags=-N. This is due to a
+    conflict with CL 159717: as of that CL, package-scope initialization
+    statements are executed within the "init.ializer" function, rather
+    than the "init" function, and the generated temp variables need to be
+    moved accordingly too.
+    
+    [Rest of description is as before.]
+    
+    This CL moves order.go's copyRet logic for rewriting f(g()) into t1,
+    t2, ... := g(); f(t1, t2, ...) earlier into typecheck. This allows the
+    rest of the compiler to stop worrying about multi-value functions
+    appearing outside of OAS2FUNC nodes.
+    
+    This changes compiler behavior in a few observable ways:
+    
+    1. Typechecking error messages for builtin functions now use general
+    case error messages rather than unnecessarily differing ones.
+    
+    2. Because f(g()) is rewritten before inlining, saved inline bodies
+    now see the rewritten form too. This could be addressed, but doesn't
+    seem worthwhile.
+    
+    3. Most notably, this simplifies escape analysis and fixes a memory
+    corruption issue in esc.go. See #29197 for details.
+    
+    Fixes #15992.
+    Fixes #29197.
+    
+    Change-Id: I930b10f7e27af68a0944d6c9bfc8707c3fab27a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166983
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  7 +++++++
- src/cmd/internal/obj/ppc64/a.out.go       |  2 ++
- src/cmd/internal/obj/ppc64/anames.go      |  2 ++
- src/cmd/internal/obj/ppc64/asm9.go        | 11 +++++++++++
- 4 files changed, 22 insertions(+)
+ src/cmd/compile/internal/gc/esc.go       |   7 -
+ src/cmd/compile/internal/gc/fmt.go       |  13 +-
+ src/cmd/compile/internal/gc/iexport.go   |   4 +-
+ src/cmd/compile/internal/gc/iimport.go   |   4 +-
+ src/cmd/compile/internal/gc/init.go      |  15 ++
+ src/cmd/compile/internal/gc/inl.go       |  18 +--
+ src/cmd/compile/internal/gc/order.go     |  60 +------
+ src/cmd/compile/internal/gc/typecheck.go | 258 +++++++++++--------------------
+ test/cmplx.go                            |   6 +-
+ test/copy1.go                            |   2 +-
+ test/fixedbugs/issue15992.go             |  38 +++++
+ test/fixedbugs/issue15992.out            |   4 +
+ test/fixedbugs/issue17038.go             |   2 +-
+ test/fixedbugs/issue9521.go              |   4 +-
+ 14 files changed, 167 insertions(+), 268 deletions(-)

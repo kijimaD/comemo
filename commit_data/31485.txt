@@ -1,38 +1,28 @@
-commit f2c5f57a87fe34a1fbe1a4226319619982ce75eb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 3 16:37:03 2017 -0700
+commit f8ae30c4a201dbdb6652cbb72cd51762863c7447
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 13:43:23 2017 -0800
 
-    cmd/compile: prevent panic while formatting func(...T) with unknown T
+    cmd/compile/internal/parser: improved a couple of error messages
     
-    Compile:
+    The new syntax tree introduced with 1.8 represents send statements
+    (ch <- x) as statements; the old syntax tree represented them as
+    expressions (and parsed them as such) but complained if they were
+    used in expression context. As a consequence, some of the errors
+    that in the past were of the form "ch <- x used as value" now look
+    like "unexpected <- ..." because a "<-" is not valid according to
+    Go syntax in those situations. Accept the new error message.
     
-    package p
+    Also: Fine-tune handling of misformed for loop headers.
     
-    var f = func(...A)
+    Also: Minor cleanups/better comments.
     
+    Fixes #17590.
     
-    Before this CL:
-    
-    x.go:3:13: type %!v(PANIC=runtime error: invalid memory address or nil pointer dereference) is not an expression
-    x.go:3:17: undefined: A
-    
-    
-    After this CL:
-    
-    x.go:3:13: type func(...<T>) is not an expression
-    x.go:3:17: undefined: A
-    
-    
-    Found with go-fuzz.
-    
-    Fixes #20233
-    
-    Change-Id: Ibb232b3954c4091071440eba48b44c4022a8083f
-    Reviewed-on: https://go-review.googlesource.com/42610
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia541dea1f2f015c1b21f5b3ae44aacdec60a8aba
+    Reviewed-on: https://go-review.googlesource.com/37386
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/fmt.go |  6 +++++-
- test/fixedbugs/issue20233.go       | 11 +++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go | 24 ++++++++++++------------
+ test/syntax/chan1.go                      |  4 ++--
+ test/syntax/semi4.go                      |  9 ++-------
+ 3 files changed, 16 insertions(+), 21 deletions(-)

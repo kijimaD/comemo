@@ -1,82 +1,27 @@
-commit e5615ad876aee4974aa1eb2683d545d82e173a58
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 16 10:39:38 2023 +0800
+commit cdc73f0679c1477c262430d3476ab88c76c4a516
+Author: Dan Peterson <danp@danp.net>
+Date:   Mon Sep 5 14:18:40 2022 -0300
 
-    cmd/compile, internal/buildcfg: enable regABI on loong64, and add loong64 in test func hasRegisterABI
+    .github: suggest using private browsing in pkgsite template
     
-    goos: linux
-    goarch: loong64
-    pkg: test/bench/go1
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                          │    bench.old   │    bench.new                         │
-                          │    sec/op      │    sec/op      vs base               │
-    Template                  116.4m ± 1%     101.3m ± 0%   -12.94% (p=0.000 n=20)
-    Gzip                      417.2m ± 0%     419.4m ± 0%    +0.53% (p=0.000 n=20)
-    Gunzip                    87.41m ± 0%     84.61m ± 0%    -3.20% (p=0.000 n=20)
-    FmtFprintfEmpty           97.87n ± 0%     81.05n ± 0%   -17.19% (p=0.000 n=20)
-    FmtFprintfString          151.1n ± 0%     140.9n ± 0%    -6.75% (p=0.000 n=20)
-    FmtFprintfInt             155.6n ± 0%     143.0n ± 0%    -8.10% (p=0.000 n=20)
-    FmtFprintfIntInt          236.9n ± 0%     225.1n ± 0%    -5.00% (p=0.000 n=20)
-    FmtFprintfPrefixedInt     316.8n ± 0%     331.9n ± 0%    +4.77% (p=0.000 n=20)
-    FmtFprintfFloat           401.5n ± 0%     380.0n ± 0%    -5.35% (p=0.000 n=20)
-    FmtManyArgs               925.3n ± 0%     910.1n ± 0%    -1.64% (p=0.000 n=20)
-    BinaryTree17               14.04 ± 1%      12.84 ± 0%    -8.52% (p=0.000 n=20)
-    RegexpMatchEasy0_32       133.1n ± 0%     121.3n ± 0%    -8.87% (p=0.000 n=20)
-    RegexpMatchEasy0_1K       1.363µ ± 0%     1.337µ ± 0%    -1.91% (p=0.000 n=20)
-    RegexpMatchEasy1_32       162.7n ± 0%     152.6n ± 0%    -6.24% (p=0.000 n=20)
-    RegexpMatchEasy1_1K       1.505µ ± 0%     1.740µ ± 0%   +15.61% (p=0.000 n=20)
-    RegexpMatchMedium_32      1.429µ ± 0%     1.299µ ± 0%    -9.10% (p=0.000 n=20)
-    RegexpMatchMedium_1K      41.76µ ± 0%     38.16µ ± 0%    -8.61% (p=0.000 n=20)
-    RegexpMatchHard_32        2.094µ ± 0%     2.157µ ± 0%    +3.01% (p=0.000 n=20)
-    RegexpMatchHard_1K        63.25µ ± 0%     64.72µ ± 0%    +2.33% (p=0.000 n=20)
-    JSONEncode                18.00m ± 1%     17.46m ± 1%    -3.05% (p=0.000 n=20)
-    JSONDecode                79.49m ± 0%     72.42m ± 0%    -8.89% (p=0.000 n=20)
-    Revcomp                    1.147 ± 0%      1.255 ± 0%    +9.39% (p=0.000 n=20)
-    Fannkuch11                 3.623 ± 0%      3.410 ± 0%    -5.87% (p=0.000 n=20)
-    Fannkuch11                 3.623 ± 0%      3.410 ± 0%    -5.87% (p=0.000 n=20)
-    GobDecode                 14.26m ± 0%     12.92m ± 0%    -9.36% (p=0.000 n=20)
-    GobEncode                 16.86m ± 1%     14.96m ± 0%   -11.28% (p=0.000 n=20)
-    GoParse                   8.721m ± 0%     8.125m ± 1%    -6.84% (p=0.000 n=20)
-    Mandelbrot200             7.203m ± 0%     7.171m ± 0%    -0.44% (p=0.000 n=20)
-    HTTPClientServer          83.96µ ± 0%     80.83µ ± 0%    -3.72% (p=0.000 n=20)
-    TimeParse                 415.3n ± 0%     389.1n ± 0%    -6.31% (p=0.000 n=20)
-    TimeFormat                506.4n ± 0%     495.9n ± 0%    -2.06% (p=0.000 n=20)
-    geomean                   102.6µ          98.04µ         -4.40%
+    I opened #54872 without considering my browser's extensions and one of
+    them ended up being the cause of my issue. This seems to be a common
+    error.
     
-                          │   bench.old    │   bench.new                          │
-                          │      B/s       │     B/s        vs base               │
-    Template                 15.90Mi ± 1%    18.26Mi ± 0%   +14.88% (p=0.000 n=20)
-    Gzip                     44.36Mi ± 0%    44.12Mi ± 0%    -0.53% (p=0.000 n=20)
-    Gunzip                   211.7Mi ± 0%    218.7Mi ± 0%    +3.31% (p=0.000 n=20)
-    RegexpMatchEasy0_32      229.3Mi ± 0%    251.6Mi ± 0%    +9.72% (p=0.000 n=20)
-    RegexpMatchEasy0_1K      716.4Mi ± 0%    730.3Mi ± 0%    +1.94% (p=0.000 n=20)
-    RegexpMatchEasy1_32      187.6Mi ± 0%    200.0Mi ± 0%    +6.64% (p=0.000 n=20)
-    RegexpMatchEasy1_1K      649.1Mi ± 0%    561.3Mi ± 0%   -13.52% (p=0.000 n=20)
-    RegexpMatchMedium_32     21.35Mi ± 0%    23.50Mi ± 0%   +10.05% (p=0.000 n=20)
-    RegexpMatchMedium_1K     23.38Mi ± 0%    25.59Mi ± 0%    +9.42% (p=0.000 n=20)
-    RegexpMatchHard_32       14.57Mi ± 0%    14.14Mi ± 0%    -2.95% (p=0.000 n=20)
-    RegexpMatchHard_1K       15.44Mi ± 0%    15.09Mi ± 0%    -2.29% (p=0.000 n=20)
-    JSONEncode               102.8Mi ± 1%    106.0Mi ± 1%    +3.15% (p=0.000 n=20)
-    JSONDecode               23.28Mi ± 0%    25.55Mi ± 0%    +9.75% (p=0.000 n=20)
-    Revcomp                  211.3Mi ± 0%    193.1Mi ± 0%    -8.58% (p=0.000 n=20)
-    GobDecode                51.34Mi ± 0%    56.64Mi ± 0%   +10.33% (p=0.000 n=20)
-    GobEncode                43.42Mi ± 1%    48.93Mi ± 0%   +12.71% (p=0.000 n=20)
-    GoParse                  6.337Mi ± 0%    6.800Mi ± 1%    +7.30% (p=0.000 n=20)
-    geomean                  61.24Mi         63.63Mi         +3.91%
+    To help that, add a suggestion to use a private/incognito tab/window
+    to the pkgsite issue template when reproducing issues. This probably
+    would have been enough for me to figure things out before opening my
+    issue.
     
-    Update #40724
+    Updates #54872, #47213
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I5993460da8c5926c70cb6fbe551b8e4655dea9d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521790
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ic61a3462cb902c91554cf9432aaae1222c6a991e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427962
+    Run-TryBot: Dan Peterson <danp@danp.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/ssa/config.go           | 4 ++--
- src/cmd/compile/internal/ssa/debug_lines_test.go | 2 +-
- src/internal/buildcfg/exp.go                     | 4 +++-
- 3 files changed, 6 insertions(+), 4 deletions(-)
+ .github/ISSUE_TEMPLATE/01-pkgsite.md | 2 ++
+ 1 file changed, 2 insertions(+)

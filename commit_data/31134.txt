@@ -1,23 +1,20 @@
-commit 42c121476217595d9eddbded70cfb6500eca8442
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 24 12:02:12 2017 -0400
+commit b443babad49f90e9507d91819736c97a7495e308
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jan 21 16:58:01 2017 -0800
 
-    runtime: eliminate write barriers from alloc/mark bitmaps
+    test: add extra test for issue18661
     
-    This introduces a new type, *gcBits, to use for alloc/mark bitmap
-    allocations instead of *uint8. This type is marked go:notinheap, so
-    uses of it correctly eliminate write barriers. Since we now have a
-    type, this also extracts some common operations to methods both for
-    convenience and to avoid (*uint8) casts at most use sites.
+    Make sure that the lack of an lvalue doesn't
+    cause extra side-effects.
     
-    For #19325.
+    Updates #18661
+    Updates #18739
     
-    Change-Id: Id51f734fb2e96b8b7715caa348c8dcd4aef0696a
-    Reviewed-on: https://go-review.googlesource.com/38580
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I52eb4b4a5c6f8ff5cddd2115455f853c18112c19
+    Reviewed-on: https://go-review.googlesource.com/36126
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mbitmap.go | 26 ++++++++++----------------
- src/runtime/mheap.go   | 28 ++++++++++++++++++++++------
- 2 files changed, 32 insertions(+), 22 deletions(-)
+ test/fixedbugs/issue18661.go | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

@@ -1,17 +1,17 @@
-commit 59493f32edb33181ededfe707e28190a095fe5a6
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Wed May 8 20:43:00 2024 +0300
+commit fe10464358057778732e9c958683039beb64e61a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 5 09:09:00 2023 -0400
 
-    internal/fuzz: fix names of noCopy methods
+    cmd/go/internal/modfetch/codehost: skip tests that fail due to tag mismatches
     
-    Must be Lock/Unlock to be flagged by vet.
+    For #56881.
     
-    Change-Id: I792ebd68b168621a660b9595b5d06a465d0d7bf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584355
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If9d8fa2942e4dd8da5e673631cdc277e0fe6c962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492975
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/fuzz/pcg.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

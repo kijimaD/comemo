@@ -1,25 +1,32 @@
-commit c2a9c55823b1ed14f84d8ce8880dbda3f5b01eb0
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 27 09:56:38 2022 -0700
+commit 7c648e2acb31363ea128b754503343cf2c82ba6f
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Sep 9 11:02:30 2021 -0400
 
-    cmd/compile: optimize unsafe.Slice generated code
+    [dev.fuzz] internal/fuzz: avoid incorrect bytes modification during minimization
     
-    We don't need a multiply when the element type is size 0 or 1.
+    During minimization, the "canonical inputs" (vals) are updated
+    as viable minimized values are found. Previously, these bytes
+    could be changed later during minimization. This patch updates
+    the minimization code to revert the bytes back when a candidate
+    doesn't pass the minimization checks.
     
-    The panic functions don't return, so we don't need any post-call
-    code (register restores, etc.).
+    Another approach was in CL 340630 which would make a new allocation
+    each time a candidate was attempted. This will get very expensive
+    very quickly, as minimization can run several thousand times for every
+    new crash and every newly discovered interesting input.
     
-    Change-Id: I0dcea5df56d29d7be26554ddca966b3903c672e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419754
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Credit to Steven Johnstone (steven.james.johnstone@gmail.com) for the
+    "single_bytes" test which was added to minimize_test.go.
+    
+    Fixes golang/go#47587
+    
+    Change-Id: Ibd12f73458ed812bab7d3f1d4118854a54fc4d0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348610
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go         |   2 +-
- test/codegen/slices.go                         |  15 +++
- 4 files changed, 172 insertions(+), 1 deletion(-)
+ src/internal/fuzz/minimize.go      | 13 ++++++++-----
+ src/internal/fuzz/minimize_test.go | 37 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 42 insertions(+), 8 deletions(-)

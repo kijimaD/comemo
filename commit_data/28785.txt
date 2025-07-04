@@ -1,45 +1,58 @@
-commit 0e36456bf9aa7b3041987634e478449215cdbd82
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Sep 2 16:17:37 2016 -0700
+commit 305a0ac123cf99d469f5519f8974f4911e690c48
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 18 23:06:04 2016 -0700
 
-    archive/tar: fix and cleanup readOldGNUSparseMap
+    cmd/compile: move phi args which are constants closer to the phi
     
-    * Assert that the format is GNU.
-    Both GNU and STAR have some form of sparse file support with
-    incompatible header structures. Worse yet, both formats use the
-    'S' type flag to indicate the presence of a sparse file.
-    As such, we should check the format (based on magic numbers)
-    and fail early.
+    entry:
+       x = MOVQconst [7]
+       ...
+    b1:
+       goto b2
+    b2:
+       v = Phi(x, y, z)
     
-    * Move realsize parsing logic into readOldGNUSparseMap.
-    This is related to the sparse parsing logic and belongs here.
+    Transform that program to:
     
-    * Fix the termination condition for parsing sparse fields.
-    The termination condition for reading the sparse fields
-    is to simply check if the first byte of the offset field is NULL.
-    This does not seem to be documented in the GNU manual, but this is
-    the check done by the both the GNU and BSD implementations:
-            http://git.savannah.gnu.org/cgit/tar.git/tree/src/sparse.c?id=9a33077a7b7ad7d32815a21dee54eba63b38a81c#n731
-            https://github.com/libarchive/libarchive/blob/1fa9c7bf90f0862036a99896b0501c381584451a/libarchive/archive_read_support_format_tar.c#L2207
+    entry:
+       ...
+    b1:
+       x = MOVQconst [7]
+       goto b2
+    b2:
+       v = Phi(x, y, z)
     
-    * Fix the parsing of sparse fields to use parseNumeric.
-    This is what GNU and BSD do. The previous two links show that
-    GNU and BSD both handle base-256 and base-8.
+    This CL moves constant-generating instructions used by a phi to the
+    appropriate immediate predecessor of the phi's block.
     
-    * Detect truncated streams.
-    The call to io.ReadFull does not check if the error is io.EOF.
-    Getting io.EOF in this method is never okay and should always be
-    converted to io.ErrUnexpectedEOF.
+    We used to put all constants in the entry block.  Unfortunately, in
+    large functions we have lots of constants at the start of the
+    function, all of which are used by lots of phis throughout the
+    function.  This leads to the constants being live through most of the
+    function (especially if there is an outer loop).  That's an O(n^2)
+    problem.
     
-    * Simplify the function.
-    The logic is essentially a do-while loop so we can remove
-    some redundant code.
+    Note that most of the non-phi uses of constants have already been
+    folded into instructions (ADDQconst, MOVQstoreconst, etc.).
     
-    Change-Id: Ib2f601b1a283eaec1e41b1d3396d649c80749c4e
-    Reviewed-on: https://go-review.googlesource.com/28471
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    This CL may be generally useful for other instances of compiler
+    slowness, I'll have to check.  It may cause some programs to run
+    slower, but probably not by much, as rematerializeable values like
+    these constants are allocated late (not at their originally scheduled
+    location) anyway.
+    
+    This CL is definitely a minimal change that can be considered for 1.7.
+    We probably want to do a better job in the tighten pass generally, not
+    just for phi args.  Leaving that for 1.8.
+    
+    Update #16407
+    
+    Change-Id: If112a8883b4ef172b2f37dea13e44bda9346c342
+    Reviewed-on: https://go-review.googlesource.com/25046
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/archive/tar/reader.go      | 78 ++++++++++++++++++++++--------------------
- src/archive/tar/reader_test.go | 61 +++++++++++++++++++++++++++++++--
- 2 files changed, 100 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go |  1 +
+ src/cmd/compile/internal/ssa/tighten.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

@@ -1,25 +1,32 @@
-commit 810868c9f646ace10aa37ba5ded4b5d07bd28a19
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 23 01:20:11 2022 +0700
+commit 39da9ae5130afa58f8b9e4ea609a57d516bd78db
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 6 22:28:37 2021 -0400
 
-    cmd/compile: remove AllowsGoVersion checks in old typechecker
+    go/types: ensure that Named.check is nilled out once it is expanded
     
-    types2 handles those checks instead.
+    To support lazy expansion of defined types, *Named holds on to a
+    *Checker field, which can pin the *Checker in memory. This can have
+    meaningful memory implications for applications that keep type
+    information around.
     
-    The only exception is noder.checkEmbed, since when types2
-    have not known about "//go:embed" pragma yet.
+    Ensure that the Checker field is nilled out for any Named types that are
+    instantiated during the type checking pass, by deferring a clean up to
+    'later' boundaries.
     
-    Updates #51691
+    In testing this almost exactly offset the ~6% memory footprint increase
+    I observed with 1.17.
     
-    Change-Id: I74ded03536023fe838f23fa7421e04513f904f66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394556
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #45580
+    
+    Change-Id: I8aa5bb777573a924afe36e79fa65f8729336bceb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318849
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/typecheck/expr.go |  4 ----
- src/cmd/compile/internal/typecheck/func.go | 12 ------------
- src/cmd/compile/internal/typecheck/subr.go |  3 ---
- src/cmd/compile/internal/types/size.go     | 13 +++++--------
- 4 files changed, 5 insertions(+), 27 deletions(-)
+ src/go/types/decl.go     | 53 ++++++++++++++++++++++++++++++++++++------------
+ src/go/types/sanitize.go |  3 +++
+ src/go/types/type.go     | 17 +++++++++++++++-
+ 3 files changed, 59 insertions(+), 14 deletions(-)

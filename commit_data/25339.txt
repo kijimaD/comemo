@@ -1,19 +1,29 @@
-commit 66fcf5672902678ca28e54a1a49c8b44d3a0395e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 17:56:46 2015 +0000
+commit 0c69f1303f3dbd4515f1cab0602aaafc3364a946
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 07:04:10 2015 -0700
 
-    net/http: update bundled http2, add tests reading response Body after Close
+    cmd/compile: add -msan option
     
-    Updates to golang.org/x/net/http2 git rev 28273ec9 for
-    https://golang.org/cl/17937
+    The -msan option causes the compiler to add instrumentation for the
+    C/C++ memory sanitizer.  Every memory read/write will be preceded by
+    a call to msanread/msanwrite.
     
-    Fixes #13648
+    This CL passes tests but is not usable by itself.  The actual
+    implementation of msanread/msanwrite in the runtime package, and support
+    for -msan in the go tool and the linker, and tests, will follow in
+    subsequent CLs.
     
-    Change-Id: I27c77524b2e4a172c5f8be08f6fbb0f2e2e4b200
-    Reviewed-on: https://go-review.googlesource.com/17938
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3d517fb3e6e65d9bf9433db070a420fd11f57816
+    Reviewed-on: https://go-review.googlesource.com/16160
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/clientserver_test.go | 22 ++++++++++++++
- src/net/http/h2_bundle.go         | 64 ++++++++++++++++++++++++++++-----------
- 2 files changed, 68 insertions(+), 18 deletions(-)
+ src/cmd/compile/doc.go                         |  2 ++
+ src/cmd/compile/internal/gc/builtin.go         |  2 ++
+ src/cmd/compile/internal/gc/builtin/runtime.go |  4 +++
+ src/cmd/compile/internal/gc/go.go              |  4 +++
+ src/cmd/compile/internal/gc/lex.go             | 12 +++++++
+ src/cmd/compile/internal/gc/racewalk.go        | 50 ++++++++++++++++----------
+ src/cmd/compile/internal/gc/reflect.go         |  3 ++
+ src/cmd/compile/internal/gc/subr.go            |  2 +-
+ src/cmd/compile/internal/gc/walk.go            |  2 +-
+ 9 files changed, 61 insertions(+), 20 deletions(-)

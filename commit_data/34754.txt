@@ -1,16 +1,29 @@
-commit 4907c62f99fbfc8608a79a17c20d89f50956d9fc
-Author: Eric Lagergren <eric@ericlagergren.com>
-Date:   Wed Mar 28 18:09:17 2018 -0700
+commit 7b8a7f8272fd1941a199af1adb334bd9996e8909
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jul 28 04:14:45 2017 +0000
 
-    testing: document -race goroutine limits
+    crypto/sha256: optimize arm64 sha256 implemention
     
-    -race sets a hard cap of 8,192, which is easily hit while testing.
+    Optimize with ARMv8 SHA256 instructions.
+    Result (Cortex-A72)
     
-    Fixes #23611
+    name           old time/op    new time/op      delta
+    Hash8Bytes-64    1.54µs ± 1%      0.61µs ± 9%    -60.67%  (p=0.008 n=5+5)
+    Hash1K-64        17.2µs ± 1%       1.4µs ± 2%    -91.91%  (p=0.008 n=5+5)
+    Hash8K-64         127µs ± 0%         7µs ± 1%    -94.42%  (p=0.008 n=5+5)
     
-    Change-Id: I0f720ec39c82c2194a485d437d6373f4bdc8a9c1
-    Reviewed-on: https://go-review.googlesource.com/103160
-    Reviewed-by: Rob Pike <r@golang.org>
+    name           old speed      new speed        delta
+    Hash8Bytes-64  5.20MB/s ± 1%   13.23MB/s ±10%   +154.58%  (p=0.008 n=5+5)
+    Hash1K-64      59.4MB/s ± 1%   735.1MB/s ± 2%  +1136.96%  (p=0.008 n=5+5)
+    Hash8K-64      64.5MB/s ± 0%  1156.3MB/s ± 1%  +1692.75%  (p=0.008 n=5+5)
+    
+    Change-Id: I47eca6471b75cd07cb0c77477053a07d0de7494f
+    Reviewed-on: https://go-review.googlesource.com/61570
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/testing.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/crypto/sha256/sha256block_arm64.go   |  22 ++++++
+ src/crypto/sha256/sha256block_arm64.s    | 119 +++++++++++++++++++++++++++++++
+ src/crypto/sha256/sha256block_generic.go |   2 +-
+ 3 files changed, 142 insertions(+), 1 deletion(-)

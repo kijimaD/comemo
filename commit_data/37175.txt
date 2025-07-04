@@ -1,33 +1,25 @@
-commit 0e0f7986241ad035ff5469d424a8c87bcb5b3873
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Oct 30 16:42:55 2018 +0000
+commit d6b56bb301470c62634d1747cc155489c4e0f18a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 6 09:55:33 2018 -0400
 
-    Revert "os: add support for long path names on unix RemoveAll"
+    runtime: account for guard zone in Windows stack size
     
-    This reverts commit 85143d355493c6bba994d49ed154b4df8b78874b.
+    Windows includes an 8K guard in system-allocated thread stacks, which
+    we currently don't account for when setting the g0 stack bounds. As a
+    result, if we do overflow the g0 stack bounds, we'll get a
+    STATUS_GUARD_PAGE_VIOLATION exception, which we're not expecting.
     
-    Reason for revert: Breaking all Darwin and FreeBSD builds. Trybots did not pass for this.
+    Fix the g0 stack bounds to include a total of 16K of slop to account
+    for this 8K guard.
     
-    Change-Id: I5494e14ad5ab9cf6e1e225a25b2e8b38f3359d13
-    Reviewed-on: https://go-review.googlesource.com/c/145897
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Updates #21382.
+    
+    Change-Id: Ia89b741b1413328e4681a237f5a7ee645531fe16
+    Reviewed-on: https://go-review.googlesource.com/122516
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/internal/syscall/unix/at.go                    |  58 -----
- src/internal/syscall/unix/at_sysnum_darwin.go      |  12 --
- src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 --
- src/internal/syscall/unix/at_sysnum_freebsd.go     |  14 --
- .../syscall/unix/at_sysnum_fstatat64_linux.go      |  11 -
- .../syscall/unix/at_sysnum_fstatat_linux.go        |  11 -
- src/internal/syscall/unix/at_sysnum_linux.go       |  13 --
- src/internal/syscall/unix/at_sysnum_netbsd.go      |  14 --
- .../syscall/unix/at_sysnum_newfstatat_linux.go     |  11 -
- src/internal/syscall/unix/at_sysnum_openbsd.go     |  14 --
- src/os/path.go                                     |  99 +++++++++
- src/os/path_test.go                                | 125 +++++++++++
- src/os/path_unix.go                                |  28 +--
- src/os/removeall_at.go                             | 139 ------------
- src/os/removeall_noat.go                           | 110 ----------
- src/os/removeall_test.go                           | 237 ---------------------
- 16 files changed, 225 insertions(+), 685 deletions(-)
+ src/runtime/os_windows.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,22 +1,25 @@
-commit a189516d3a1623f2560f80569c4b64bdffc4ac78
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jun 9 21:45:33 2025 +0000
+commit 9f9dd2bfd8a09083b21767d13df38ff67d7236d8
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 22 10:04:03 2024 -0700
 
-    runtime: don't do a direct G handoff in semrelease on systemstack
+    cmd/compile: fix cmpstring rewrite rule
     
-    semrelease is safe to call on the system stack (since it just readies
-    goroutines) except for the fact that it might perform a direct G
-    handoff and call into the scheduler. If handoff is set to false this is
-    exceptionally rare, but could happen, and has happened for the trace
-    reader goroutine which releases a trace.doneSema.
+    We need to ensure that the Select0 lives in the same block as
+    its argument. Divide up the rule into 2 so that we can put the
+    parts in the right places.
     
-    Fixes #73469.
+    (This would be simpler if we could use @block syntax mid-rule, but
+    that feature currently only works at the top level.)
     
-    Change-Id: I37ece678bc4721bbb6e5879d74daac762b7d742a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680315
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    This fixes the ssacheck builder after CL 578835
+    
+    Change-Id: Id26a01d9fac0684e0b732d35d0f7999f6de07825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580815
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/sema.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  8 ++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 80 +++++++++++++++----------
+ 2 files changed, 56 insertions(+), 32 deletions(-)

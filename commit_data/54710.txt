@@ -1,20 +1,29 @@
-commit bc9dc8d415fc1ecf8d0d63a01dd17b2b60bf4cf3
-Author: cui fliter <imcusg@gmail.com>
-Date:   Mon Jul 3 13:41:45 2023 +0800
+commit d33043d37dc8cc5d691ff590ebcd2fd42e356a66
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 7 11:02:08 2022 -0500
 
-    all: fix function names
+    cmd/compile: add ability to hash-debug on file:line, including inlining
     
-    Change-Id: Iba8878420c59d705066d1d9955e91a5c2eb4faf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507615
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Modified the fmahash gc debug flag to use this, and modified the
+    test to check for a hash match that includes inlining.  Also
+    made the test non-short to ensure portability.
+    
+    Note fma.go has been enhanced into an FMA test that requires
+    two separate FMAs in order to "fail"; if either one is 2-rounding,
+    then it "passes".  (It neither passes nor fails here; its role
+    is to demonstrate that the FMAs are correctly reported; the
+    enhanced failure mode was discovered while testing the search
+    tool.)
+    
+    Change-Id: I4e328e3654f442d498eac982135420abb59c5434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/internal/coverage/decodemeta/decodefile.go | 2 +-
- src/net/conf.go                                | 2 +-
- src/time/zoneinfo_read.go                      | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/base/hashdebug.go   | 84 ++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/fmahash_test.go | 15 ++---
+ src/cmd/compile/internal/ssa/func.go         |  5 +-
+ src/cmd/compile/internal/ssa/testdata/fma.go |  8 ++-
+ 4 files changed, 95 insertions(+), 17 deletions(-)

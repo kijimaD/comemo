@@ -1,14 +1,19 @@
-commit 89c59bc6f6bb8af66e8fb290c57081a18000f9cf
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 11 08:31:24 2011 -0700
+commit 55d43f0ce8156bb9f9da24ce4b61502eb388041b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 11 10:39:09 2011 -0400
 
-    effective go: explain about values/pointers in String() example
+    crypto/x509/crl: add package
     
-    Fixes #1796.
+    crl parses CRLs and exposes their details. In the future, Verify
+    should be able to use this for revocation checking.
     
-    R=rsc, r2, niemeyer
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4539049
+    https://golang.org/cl/4485045
 
- doc/effective_go.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/Makefile                    |  1 +
+ src/pkg/crypto/x509/crl/Makefile    | 11 +++++
+ src/pkg/crypto/x509/crl/crl.go      | 96 +++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/crl/crl_test.go | 63 ++++++++++++++++++++++++
+ src/pkg/crypto/x509/x509.go         | 35 +++++++++++---
+ 5 files changed, 199 insertions(+), 7 deletions(-)

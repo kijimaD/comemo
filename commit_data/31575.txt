@@ -1,39 +1,20 @@
-commit 256210c719608bb508a59b608a6ae615fbd7f8c0
-Author: Keith Randall <khr@golang.org>
-Date:   Mon May 15 09:00:55 2017 -0700
+commit 36f55a8b6125c9ae951487a0ad074b5c991f7b92
+Author: Michel Lespinasse <walken@google.com>
+Date:   Fri Jan 20 16:52:23 2017 -0800
 
-    cmd/compile: better check for single live memory
+    net/http: add support for socks5 proxy
     
-    Enhance the one-live-memory-at-a-time check to run during many
-    more phases of the SSA backend. Also make it work in an interblock
-    fashion.
+    See #18508
     
-    Change types.IsMemory to return true for tuples containing a memory type.
+    This commit adds http Client support for socks5 proxies.
     
-    Fix trim pass to build the merged phi correctly. Doesn't affect
-    code but allows the check to pass after trim runs.
-    
-    Switch the AddTuple* ops to take the memory-containing tuple argument second.
-    
-    Update #20335
-    
-    Change-Id: I5b03ef3606b75a9e4f765276bb8b183cdc172b43
-    Reviewed-on: https://go-review.googlesource.com/43495
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib015f3819801da13781d5acdd780149ae1f5857b
+    Reviewed-on: https://go-review.googlesource.com/35488
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/check.go             | 126 +++++++++++++++++++---
- src/cmd/compile/internal/ssa/deadstore.go         |   4 -
- src/cmd/compile/internal/ssa/gen/AMD64.rules      |  12 +--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |   4 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules      |  12 +--
- src/cmd/compile/internal/ssa/gen/S390XOps.go      |   4 +-
- src/cmd/compile/internal/ssa/loopreschedchecks.go |   4 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go      |  28 ++---
- src/cmd/compile/internal/ssa/rewriteS390X.go      |  28 ++---
- src/cmd/compile/internal/ssa/schedule.go          |  22 +---
- src/cmd/compile/internal/ssa/trim.go              |  20 +++-
- src/cmd/compile/internal/ssa/value.go             |   9 +-
- src/cmd/compile/internal/types/type.go            |  10 +-
- 13 files changed, 189 insertions(+), 94 deletions(-)
+ src/go/build/deps_test.go      |   1 +
+ src/net/http/transport.go      |  64 +++++++++++++++++++-----
+ src/net/http/transport_test.go | 107 +++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 158 insertions(+), 14 deletions(-)

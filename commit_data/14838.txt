@@ -1,12 +1,19 @@
-commit e0bf0374ca11e4a51315500a5b08cda492eb715b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jan 9 22:03:41 2013 +0100
+commit 4ba27df69c4bf9ce00eb34bb69860a248319be11
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 10 08:00:03 2013 +1100
 
-    go/types: don't parse imported packages multiple times.
+    cmd/dist: drop unneeded clang flags
     
-    R=dave, golang-dev, rsc
+    Our source no longer needs these flags set to build cleanly using clang.
+    
+    Tested with
+    
+    * Ubuntu clang version 3.0-6ubuntu3 (tags/RELEASE_30/final) (based on LLVM 3.0) on i386
+    * clang version 3.2 (tags/RELEASE_32/final) on amd64 cross compiling all platforms
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7068044
+    https://golang.org/cl/7058053
 
- src/pkg/go/types/check.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.c | 4 ----
+ 1 file changed, 4 deletions(-)

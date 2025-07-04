@@ -1,32 +1,18 @@
-commit c3db64c0f45e8f2d75c5b59401e0fc925701b6f4
-Author: Achille Roussel <achille.roussel@gmail.com>
-Date:   Sat Jun 10 11:31:43 2023 -0700
+commit 761db3e7f07ec358323589eab72b153339036086
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 21 16:57:53 2021 +0200
 
-    net: fix panic when calling net.Listen or net.Dial on wasip1
+    debug/buildinfo: add regression tests for different buildmodes
     
-    Address a panic that was caused by net.Dial/net.Listen entering the fake
-    network stack and assuming that the addresses would be of type *TCPAddr,
-    where in fact they could have been *UDPAddr or *UnixAddr as well.
+    Updates #48187
     
-    The fix consist in implementing the fake network facility for udp and
-    unix addresses, preventing the assumed type assertion to TCPAddr from
-    triggering a panic. New tests are added to verify that using the fake
-    network from the exported functions of the net package satisfies the
-    minimal requirement of being able to create a listener and establish a
-    connection for all the supported network types.
-    
-    Fixes #60012
-    Fixes #60739
-    
-    Change-Id: I2688f1a0a7c6c9894ad3d137a5d311192c77a9b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502315
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: I2364f248520e77c2e3a4832b9769b52e7aa62f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357569
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/net_fake.go      | 134 +++++++++++++++++++++++++------
- src/net/net_fake_test.go | 203 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 312 insertions(+), 25 deletions(-)
+ src/debug/buildinfo/buildinfo_test.go | 82 ++++++++++++++++++++++-------------
+ 1 file changed, 52 insertions(+), 30 deletions(-)

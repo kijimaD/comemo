@@ -1,26 +1,18 @@
-commit 97eab214d14054d9f174ab8b02ec3f7adb9cb2f9
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Tue Apr 29 17:41:53 2025 -0400
+commit c764d56ff1c8810b294c0a72a813858f33c75185
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Feb 25 14:22:52 2024 +0000
 
-    crypto/tls: enable more large record bogo tests
+    runtime: add crash stack support for 386
     
-    Previously a handful of large record tests were in the bogo config
-    ignore list. The ignored tests were failing because they used
-    insecure ciphersuites that aren't enabled by default.
-    
-    This commit adds the non-default insecure ciphersuites to the bogo
-    TLS configuration and re-enables the tests. Doing this uncovered
-    a handful of unrelated tests that needed to be fixed, each handled
-    before this commit.
-    
-    Updates #72006
-    
-    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669158
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ib787b27670ad0f10bcc94b3ce76e86746997af00
+    GitHub-Last-Rev: e5abb9a556ae709d30d6ffb5a13805923c215254
+    GitHub-Pull-Request: golang/go#65934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566715
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/tls/bogo_config.json  | 9 ---------
- src/crypto/tls/bogo_shim_test.go | 8 ++++++++
- 2 files changed, 8 insertions(+), 9 deletions(-)
+ src/runtime/asm.s     |  2 ++
+ src/runtime/asm_386.s | 50 ++++++++++++++++++++++++++++++++++++++++----------
+ src/runtime/proc.go   |  2 +-
+ 3 files changed, 43 insertions(+), 11 deletions(-)

@@ -1,12 +1,12 @@
-commit 1696b5fe2a740a873f2c31d8feabd6f40ceefd3f
+commit 8bf2ad757b1ba5ddb714a9ecfedac6dfa71f86af
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 22 14:07:27 2011 +1000
+Date:   Mon Aug 22 14:02:36 2011 +1000
 
-    cmd/gc/lex: remove reference to container/vector in comment
+    cmd/hgpatch: remove container/vector
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4921045
+    https://golang.org/cl/4921044
 
- src/cmd/gc/lex.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/hgpatch/main.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

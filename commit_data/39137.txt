@@ -1,18 +1,19 @@
-commit 9c86eae3844105c2e66ca6064ca70fd287894819
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Mon May 13 14:20:53 2019 -0400
+commit 857b339993146f2eab5fd9b9bef8357de8db144a
+Author: Jason LeBrun <jblebrun@gmail.com>
+Date:   Fri Jan 4 01:30:15 2019 +0000
 
-    runtime: resolve latent TODOs
+    crypto/sha1: fix casting of d.nx in UnmarshalBinary
     
-    These were added in https://go-review.googlesource.com/1224; according
-    to austin@google.com these annotations are not valuable - resolving by
-    removing the TODOs.
+    Fixes #29543
     
-    Change-Id: Icf3f21bc385cac9673ba29f0154680e970cf91f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176899
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib7f3c32cc1e57c583ee52c486673a5b9568c2df8
+    GitHub-Last-Rev: 0cb3dc536245bb4f414cf09bb353fbafd5ca7537
+    GitHub-Pull-Request: golang/go#29544
+    Reviewed-on: https://go-review.googlesource.com/c/156279
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go      | 1 -
- src/runtime/mgcmark.go  | 2 --
- src/runtime/mgcsweep.go | 1 -
- 3 files changed, 4 deletions(-)
+ src/crypto/sha1/sha1.go      |  2 +-
+ src/crypto/sha1/sha1_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

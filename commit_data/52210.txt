@@ -1,23 +1,26 @@
-commit 99f811ecca5674a6e6f423b97ea79f0a6eedf4b6
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Feb 27 16:05:34 2023 -0600
+commit 082cfabf126d63e952e1ac29d47c2a47f1c64bee
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 14 17:57:22 2022 -0700
 
-    cmd/internal/obj/ppc64: add SETB instruction
+    crypto/x509: don't create certs with negative serials
     
-    This ISA 3.0 (power9) instruction is helpful for some string functions
-    in a future change.
+    Refuse to create certificates with negative serial numbers, as they
+    are explicitly disallowed by RFC 5280.
     
-    Change-Id: I1a659488ffb5099f8c89f480c39af4ef9c4b556a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472635
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    We still allow parsing certificates with negative serial numbers,
+    because in the past there were buggy CA implementations which would
+    produce them (although there are currently *no* trusted certificates
+    that have this issue). We may want to revisit this decision if we can
+    find metrics about the prevalence of this issue in enterprise settings.
+    
+    Change-Id: I131262008db99b6354f542f335abc68775a2d6d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400494
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  2 ++
- src/cmd/internal/obj/ppc64/a.out.go       |  1 +
- src/cmd/internal/obj/ppc64/anames.go      |  1 +
- src/cmd/internal/obj/ppc64/asm9.go        | 10 ++++++++++
- 4 files changed, 14 insertions(+)
+ src/crypto/x509/x509.go      |  6 +++++-
+ src/crypto/x509/x509_test.go | 43 ++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 43 insertions(+), 6 deletions(-)

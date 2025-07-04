@@ -1,16 +1,12 @@
-commit c5de72b2135cd4ec59621fcfef9fa21111183f1f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 8 10:28:18 2014 -0800
+commit 260028fc0e55e47b66d9c21d7a703bec0066fd52
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 23:45:01 2014 -0400
 
-    test: write Go wrapper code so that bug302 can be run by run.go
+    cmd/gc: fix build - remove unused variables in walkprint
     
-    Issue #4139.
-    
-    Change-Id: I50d85a65b22c0cfb4d2a078cee45cf7adb23ba77
-    Reviewed-on: https://go-review.googlesource.com/1210
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/162420043
 
- test/fixedbugs/bug302.go | 40 ++++++++++++++++++++++++++++++++++++----
- test/run.go              |  1 -
- 2 files changed, 36 insertions(+), 5 deletions(-)
+ src/cmd/gc/walk.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,26 +1,21 @@
-commit e7ee3c1fa87556245e38b662ea5b3002bbeb32b9
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 30 07:27:24 2021 -0500
+commit 66e35c995bb68d62612644c6566f500c3df45026
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed May 13 17:44:20 2020 -0400
 
-    os: report Windows exit status in hex
+    crypto/tls: fix duplicate calls to VerifyConnection
     
-    We print things like “exit status 3221225477”
-    but the standard Windows form is 0xc0000005.
+    Also add a test that could reproduce this error and
+    ensure it doesn't occur in other configurations.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
+    Fixes #39012
     
-    Change-Id: Iefe447d4d1781b53bef9619f68d386f2866b2934
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288792
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If792b5131f312c269fd2c5f08c9ed5c00188d1af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233957
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/os/exec_posix.go |  7 ++++++-
- src/os/str.go        | 36 ++++++++++++++++++++++++++++++++++--
- 2 files changed, 40 insertions(+), 3 deletions(-)
+ src/crypto/tls/handshake_client_test.go  | 219 +++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go       |  27 ++--
+ src/crypto/tls/handshake_server_tls13.go |   7 +
+ 3 files changed, 238 insertions(+), 15 deletions(-)

@@ -1,17 +1,21 @@
-commit 9d77ad8d34ce56e182adc30cd21af50a4b00932c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 10 13:54:02 2016 +1100
+commit f41378e22578db38bb15009c50e3e05f7f9c4743
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 13:49:12 2015 -0500
 
-    cmd/compile/internal/gc: type.go cleanup
+    cmd/dist: run limited tests in race and libgcc=none modes
     
-    Follow up to CL 20494 addressing Type.Copy and a few other tiny
-    cleanups.
+    Mostly we just care that the test binaries link and start up.
+    No need to run the full test suites.
     
-    Change-Id: I3d0913a9f50a22ac2fd802858b1a94c15c5cb1bc
-    Reviewed-on: https://go-review.googlesource.com/20501
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Takes 12% off my all.bash run time.
+    
+    For #10571.
+    
+    Change-Id: I01af618f3d51deb841ea638424e1389a2df7d746
+    Reviewed-on: https://go-review.googlesource.com/18086
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/type.go | 29 ++++++++++-------------------
- 1 file changed, 10 insertions(+), 19 deletions(-)
+ src/cmd/dist/test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

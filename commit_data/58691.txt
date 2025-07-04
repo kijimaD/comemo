@@ -1,22 +1,38 @@
-commit fadfe2fc80f6b37e99b3e7aa068112ff539717c9
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Feb 1 04:52:57 2025 +0000
+commit 70c7fb75e9768630ca23ff5cbf79c9b597bc068e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 26 02:48:05 2023 +1100
 
-    internal/trace/tracev2: add test to validate spec invariants
+    cmd/compile: correct code generation for right shifts on riscv64
     
-    This change adds a test to help guide people adding experiments to this
-    package by validating that the spec is written correctly.
+    The code generation on riscv64 will currently result in incorrect
+    assembly when a 32 bit integer is right shifted by an amount that
+    exceeds the size of the type. In particular, this occurs when an
+    int32 or uint32 is cast to a 64 bit type and right shifted by a
+    value larger than 31.
     
-    Also, makes some minor tweaks to the package in order to get the tests
-    to pass.
+    Fix this by moving the SRAW/SRLW conversion into the right shift
+    rules and removing the SignExt32to64/ZeroExt32to64. Add additional
+    rules that rewrite to SRAIW/SRLIW when the shift is less than the
+    size of the type, or replace/eliminate the shift when it exceeds
+    the size of the type.
     
-    Change-Id: I3daa420c5a9ec3ea536415c8e5d06f41666a9566
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646015
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Add SSA tests that would have caught this issue. Also add additional
+    codegen tests to ensure that the resulting assembly is what we
+    expect in these overflow cases.
+    
+    Fixes #64285
+    
+    Change-Id: Ie97b05668597cfcb91413afefaab18ee1aa145ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545035
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/trace/tracev2/events.go      | 13 +++-
- src/internal/trace/tracev2/events_test.go | 98 +++++++++++++++++++++++++++++++
- src/internal/trace/tracev2/spec.go        |  7 ++-
- 3 files changed, 114 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules    | 100 ++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 409 ++++++++++++---------
+ .../compile/internal/test/testdata/arith_test.go   |  66 ++++
+ test/codegen/shift.go                              |  30 ++
+ 4 files changed, 383 insertions(+), 222 deletions(-)

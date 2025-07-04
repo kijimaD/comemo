@@ -1,20 +1,28 @@
-commit 1c82e236f5eed548ffc889ea4d7035a6ddc7b25c
-Author: Jan Kratochvil <jan.kratochvil@redhat.com>
-Date:   Sat Feb 21 18:18:33 2015 +0100
+commit 604138e87bb0d992319ed2ccc034f9a2591a8363
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:15:25 2015 -0500
 
-    gdb: fix map prettyprinter
+    cmd/6a, cmd/6g, cmd/6l, liblink: update for portable Prog, Addr
     
-    (gdb) p x
-    Python Exception <class 'gdb.error'> There is no member named b.:
-    $2 = map[string]string
-    ->
-    (gdb) p x
-    $1 = map[string]string = {["shane"] = "hansen"}
-    
-    Change-Id: I874d02a029f2ac9afc5ab666afb65760ec2c3177
-    Reviewed-on: https://go-review.googlesource.com/5522
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5535582660da3504663c6cba2637da132c65a400
+    Reviewed-on: https://go-review.googlesource.com/3517
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/runtime-gdb.py      |  2 +-
- src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/cmd/6a/a.y      |  92 +++---
+ src/cmd/6a/lex.c    | 237 +++++++-------
+ src/cmd/6a/y.tab.c  | 212 +++++++------
+ src/cmd/6g/cgen.c   |  35 ++-
+ src/cmd/6g/galign.c |   8 +-
+ src/cmd/6g/gg.h     |   2 +-
+ src/cmd/6g/ggen.c   | 111 +++----
+ src/cmd/6g/gobj.c   |  44 +--
+ src/cmd/6g/gsubr.c  | 199 ++++++------
+ src/cmd/6g/opt.h    |   8 +-
+ src/cmd/6g/peep.c   | 110 +++----
+ src/cmd/6g/prog.c   |  30 +-
+ src/cmd/6g/reg.c    |  89 +++---
+ src/cmd/6l/6.out.h  | 191 ++++++-----
+ src/liblink/asm6.c  | 888 +++++++++++++++++++++++++++-------------------------
+ src/liblink/list6.c | 138 ++++----
+ src/liblink/obj6.c  | 293 +++++++++--------
+ 17 files changed, 1362 insertions(+), 1325 deletions(-)

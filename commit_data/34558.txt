@@ -1,24 +1,36 @@
-commit 20046020c4f0b69e89411d9db35b78942392033e
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Mar 8 10:33:37 2018 +0000
+commit 371a5b494a7a0cb246a86e849b66ed022ef30c74
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 17:37:13 2017 +0200
 
-    cmd/compile: fix an issue in MNEG of ARM64
+    runtime: protect growslice against newcap*et.size overflow
     
-    There are two less optimized SSA rules in my previous CL
-    https://go-review.googlesource.com/c/go/+/95075 .
+    The check of uintptr(newcap) > maxSliceCap(et.size) in addition
+    to capmem > _MaxMem is needed to prevent a reproducible overflow
+    on 32bit architectures.
     
-    This CL fixes that issue and a test case gets about 10%
-    performance improvement.
-    name    old time/op  new time/op  delta
-    MNEG-4   263µs ± 3%   235µs ± 3%  -10.53%  (p=0.000 n=20+20)
-    (https://github.com/benshi001/ugo1/blob/master/mneg_7_test.go)
+    On 64bit platforms this problem is less likely to occur as allocation
+    of a sufficiently large array or slice to be append is likely to
+    already exhaust available memory before the call to append can be made.
     
-    Change-Id: I30087097e281dd9d9d1c870d32e13b4ef4a96ad3
-    Reviewed-on: https://go-review.googlesource.com/99495
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Example program that without the fix in this CL does segfault on 386:
+    
+    type T [1<<27 + 1]int64
+    
+    var d T
+    var s []T
+    
+    func main() {
+            s = append(s, d, d, d, d)
+            print(len(s), "\n")
+    }
+    
+    Fixes #21586
+    
+    Change-Id: Ib4185435826ef43df71ba0f789e19f5bf9a347e6
+    Reviewed-on: https://go-review.googlesource.com/55133
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 146 ++++++++++++---------------
- 2 files changed, 70 insertions(+), 86 deletions(-)
+ src/runtime/slice.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

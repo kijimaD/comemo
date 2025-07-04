@@ -1,30 +1,22 @@
-commit 1a89e6388c3f1994da17a1d91a45920663db2af5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 7 20:52:29 2014 +0400
+commit b08156cd874d9534776cd9ece8f6f4ab092a68a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 11:27:01 2014 -0500
 
-    runtime: refactor and fix stack management code
-    There are at least 3 bugs:
-    1. g->stacksize accounting is broken during copystack/shrinkstack
-    2. stktop->free is not properly maintained during copystack/shrinkstack
-    3. stktop->free logic is broken:
-            we can have stktop->free==FixedStack,
-            and we will free it into stack cache,
-            but it actually comes from heap as the result of non-copying segment shrink
-    This shows as at least spurious races on race builders (maybe something else as well I don't know).
+    runtime: fix memory leak in runfinq
     
-    The idea behind the refactoring is to consolidate stacksize and
-    segment origin logic in stackalloc/stackfree.
+    One reason the sync.Pool finalizer test can fail is that
+    this function's ef1 contains uninitialized data that just
+    happens to point at some of the old pool. I've seen this cause
+    retention of a single pool cache line (32 elements) on arm.
     
-    Fixes #7490.
+    Really we need liveness information for C functions, but
+    for now we can be more careful about data in long-lived
+    C functions that block.
     
-    LGTM=rsc, khr
-    R=golang-codereviews, rsc, khr
-    CC=golang-codereviews
-    https://golang.org/cl/72440043
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/72490043
 
- src/pkg/runtime/panic.c   |  5 +---
- src/pkg/runtime/proc.c    | 34 +++++++++++++++--------
- src/pkg/runtime/runtime.h |  6 ++--
- src/pkg/runtime/stack.c   | 71 ++++++++++++++++++++++++++++-------------------
- src/pkg/runtime/stack.h   |  2 +-
- 5 files changed, 69 insertions(+), 49 deletions(-)
+ src/pkg/runtime/mgc0.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

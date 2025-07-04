@@ -1,32 +1,25 @@
-commit 6796a7924c20d2c58b0cf78766b94543abfadc1b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Oct 30 00:27:51 2021 -0400
+commit ed647b16d02da4571c22baac23c302f2d888b88b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 25 10:15:40 2021 -0700
 
-    crypto/elliptic: refactor package structure
+    [dev.typeparams] cmd/compile: use Type.LinkString for map keys
     
-    Not quite golang.org/wiki/TargetSpecific compliant, but almost.
+    This CL changes typecheck and order to use Type.LinkString for
+    computing map keys instead of Type.NameString. As mentioned in the
+    LinkString docs (added by the previous CL), LinkString reliably maps
+    type identity to string equality as long as the LinkString calls all
+    happen within the same compilation unit (which they do here).
     
-    The only substantial code change is in randFieldElement: it used to use
-    Params().BitSize instead of Params().N.BitLen(), which is semantically
-    incorrect, even if the two values are the same for all named curves.
+    This eliminates the need for subsequent types.Identical checks.
     
-    For #52182
-    
-    Change-Id: Ibc47450552afe23ea74fcf55d1d799d5d7e5487c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315273
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I32ff591e69d6f23f2dc6ebd5af343618ebe89013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330911
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/ecdsa/ecdsa.go           |   16 +-
- src/crypto/elliptic/elliptic.go     |  289 ---------
- src/crypto/elliptic/p256.go         | 1178 +----------------------------------
- src/crypto/elliptic/p256_asm.go     |   25 +-
- src/crypto/elliptic/p256_generic.go | 1171 +++++++++++++++++++++++++++++++++-
- src/crypto/elliptic/p256_noasm.go   |   15 +
- src/crypto/elliptic/p256_ppc64le.go |    7 -
- src/crypto/elliptic/p256_s390x.go   |    1 -
- src/crypto/elliptic/params.go       |  296 +++++++++
- 9 files changed, 1496 insertions(+), 1502 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  9 +++++++--
+ src/cmd/compile/internal/typecheck/stmt.go      | 25 +++++++------------------
+ src/cmd/compile/internal/walk/order.go          | 24 +++++++++---------------
+ 3 files changed, 23 insertions(+), 35 deletions(-)

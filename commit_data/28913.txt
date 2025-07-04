@@ -1,21 +1,16 @@
-commit 321c312d8246dec6889f5fe334b6193c320baf0e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 12:34:19 2016 -0400
+commit a16a189fb96f824d1eaa53db9c0047c7ce334bd1
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 16 13:52:51 2016 -0700
 
-    os: reject Rename("old", "new") where new is a directory
+    test: remove unused variable
     
-    Unix rejects this when new is a non-empty directory.
-    Other systems reject this when new is a directory, empty or not.
-    Make Unix reject empty directory too.
+    ssaMain is no longer needed.
     
-    Fixes #14527.
-    
-    Change-Id: Ice24b8065264c91c22cba24aa73e142386c29c87
-    Reviewed-on: https://go-review.googlesource.com/31358
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I0b77f0bcd482329d73018bd80a6e068e622e191b
+    Reviewed-on: https://go-review.googlesource.com/27190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_unix.go |  4 ++++
- src/os/os_test.go   | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ test/run.go | 6 ------
+ 1 file changed, 6 deletions(-)

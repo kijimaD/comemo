@@ -1,17 +1,28 @@
-commit 5efbdd9d10908206d4e0351cb4724c5fefdfa2be
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jan 22 13:31:57 2016 -0800
+commit a7c09ad4fb656ec662bc4df28fa224663873ebc8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 11:29:56 2015 -0500
 
-    net: fix race in (*resolverConfig).tryUpdate
+    runtime: improve stack barrier debugging
     
-    Fixes #14072.
+    This improves stack barrier debugging messages in various ways:
     
-    Change-Id: Ie31caa06690ac621906fc5acd34da2efa4e2049f
-    Reviewed-on: https://go-review.googlesource.com/18860
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    1) Rather than printing only the remaining stack barriers (of which
+       there may be none, which isn't very useful), print all of the G's
+       stack barriers with a marker at the position the stack itself has
+       unwound to and a marker at the problematic stack barrier (where
+       applicable).
+    
+    2) Rather than crashing if we encounter a stack barrier when there are
+       no more stkbar entries, print the same debug message we would if we
+       had encountered a stack barrier at an unexpected location.
+    
+    Hopefully this will help with debugging #12528.
+    
+    Change-Id: I2e6fe6a778e0d36dd8ef30afd4c33d5d94731262
+    Reviewed-on: https://go-review.googlesource.com/17147
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/dnsclient_unix.go      | 22 ++++++----------------
- src/net/dnsconfig_unix.go      | 28 +++++++++++++++++++---------
- src/net/dnsconfig_unix_test.go |  2 ++
- 3 files changed, 27 insertions(+), 25 deletions(-)
+ src/runtime/mstkbar.go   | 28 ++++++++++++++++++++++------
+ src/runtime/traceback.go | 16 +++++++++-------
+ 2 files changed, 31 insertions(+), 13 deletions(-)

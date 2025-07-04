@@ -1,16 +1,16 @@
-commit 252161cadcfef4c42c133ba55c74672f520ab80e
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri May 31 12:18:43 2013 -0700
+commit ab5c762a4644c5701dfa14905802979b04cee4b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 31 11:21:37 2013 -0700
 
-    misc/dashboard/builder: add environment variables for Plan 9
+    spec: better wording re: receiving from closed channels
     
-    We require $objtype in make.rc and rc needs $path for finding commands.
+    As suggested by ej@evanjones.ca.
     
-    Also include $cputype which we may use in the future.
+    Fixes #5604.
     
-    R=golang-dev, minux.ma, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/9905043
+    https://golang.org/cl/9899043
 
- misc/dashboard/builder/main.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

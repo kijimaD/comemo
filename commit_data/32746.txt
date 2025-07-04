@@ -1,63 +1,26 @@
-commit 57c79febda993fe2f4b43db07476219e7b07b452
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 31 14:52:20 2017 -0700
+commit 8a2553e380196dda556608e2fe79881004770eb9
+Author: Wade Simmons <wade@wades.im>
+Date:   Mon May 22 20:31:17 2017 -0400
 
-    archive/tar: add Reader.WriteTo and Writer.ReadFrom
+    crypto/rand: only read necessary bytes for Int
     
-    To support the efficient packing and extracting of sparse files,
-    add two new methods:
-            func Reader.WriteTo(io.Writer) (int64, error)
-            func Writer.ReadFrom(io.Reader) (int64, error)
+    We only need to read the number of bytes required to store the value
+    "max - 1" to generate a random number in the range [0, max).
     
-    If the current archive entry is sparse and the provided io.{Reader,Writer}
-    is also an io.Seeker, then use Seek to skip past the holes.
-    If the last region in a file entry is a hole, then we seek to 1 byte
-    before the EOF:
-            * for Reader.WriteTo to write a single byte
-            to ensure that the resulting filesize is correct.
-            * for Writer.ReadFrom to read a single byte
-            to verify that the input filesize is correct.
+    Before, there was an off-by-one error where an extra byte was read from
+    the io.Reader for inputs like "256" (right at the boundary for a byte).
+    There was a similar off-by-one error in the logic for clearing bits and
+    thus for any input that was a power of 2, there was a 50% chance the
+    read would continue to be retried as the mask failed to remove a bit.
     
-    The downside of this approach is when the last region in the sparse file
-    is a hole. In the case of Reader.WriteTo, the 1-byte write will cause
-    the last fragment to have a single chunk allocated.
-    However, the goal of ReadFrom/WriteTo is *not* the ability to
-    exactly reproduce sparse files (in terms of the location of sparse holes),
-    but rather to provide an efficient way to create them.
+    Fixes #18165.
     
-    File systems already impose their own restrictions on how the sparse file
-    will be created. Some filesystems (e.g., HFS+) don't support sparseness and
-    seeking forward simply causes the FS to write zeros. Other filesystems
-    have different chunk sizes, which will cause chunk allocations at boundaries
-    different from what was in the original sparse file. In either case,
-    it should not be a normal expectation of users that the location of holes
-    in sparse files exactly matches the source.
-    
-    For users that really desire to have exact reproduction of sparse holes,
-    they can wrap os.File with their own io.WriteSeeker that discards the
-    final 1-byte write and uses File.Truncate to resize the file to the
-    correct size.
-    
-    Other reasons we choose this approach over special-casing *os.File because:
-            * The Reader already has special-case logic for io.Seeker
-            * As much as possible, we want to decouple OS-specific logic from
-            Reader and Writer.
-            * This allows other abstractions over *os.File to also benefit from
-            the "skip past holes" logic.
-            * It is easier to test, since it is harder to mock an *os.File.
-    
-    Updates #13548
-    
-    Change-Id: I0a4f293bd53d13d154a946bc4a2ade28a6646f6a
-    Reviewed-on: https://go-review.googlesource.com/60872
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I548c1368990e23e365591e77980e9086fafb6518
+    Reviewed-on: https://go-review.googlesource.com/43891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/common.go      |   9 +-
- src/archive/tar/reader.go      | 155 ++++++++++++-----------
- src/archive/tar/reader_test.go | 134 +++++++++++---------
- src/archive/tar/tar_test.go    | 178 +++++++++++++++++++++++++++
- src/archive/tar/writer.go      | 103 ++++++++++------
- src/archive/tar/writer_test.go | 270 ++++++++++++++++++++++-------------------
- 6 files changed, 558 insertions(+), 291 deletions(-)
+ src/crypto/rand/util.go      | 17 +++++++++-----
+ src/crypto/rand/util_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 5 deletions(-)

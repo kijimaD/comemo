@@ -1,12 +1,19 @@
-commit fe51d09bbe83f1ff42c8e428f4c2a7ce1817bc4e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 6 18:32:54 2013 +0800
+commit 33995fe59eddb3f84e537a8d44e39ef93bc764e8
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Tue Feb 5 09:54:01 2013 -0800
 
-    doc/articles/error_handling: no more os.Error
+    log/syslog: retry once if write fails
     
-    R=golang-dev, dsymonds
+    Implements deferred connections + single-attempt automatic
+    retry. Based on CL 5078042 from kuroneko.
+    
+    Fixes #2264.
+    
+    R=mikioh.mikioh, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7304053
+    https://golang.org/cl/6782140
 
- doc/progs/error4.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/log/syslog/syslog.go      | 142 ++++++++++++++--------
+ src/pkg/log/syslog/syslog_test.go | 245 ++++++++++++++++++++++++++++++++------
+ src/pkg/log/syslog/syslog_unix.go |   8 +-
+ 3 files changed, 306 insertions(+), 89 deletions(-)

@@ -1,12 +1,14 @@
-commit 62b10ad0ba0302c726ecc0795548d7f58aeeb9ca
+commit d45e808c91789e48ed0a54347a3198a56e0ef86d
 Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 6 15:59:21 2011 -0700
+Date:   Tue Sep 6 15:34:38 2011 -0700
 
-    template: slightly simplify the test for assignability of arguments
+    template: indirect or dereference function arguments if necessary to match the type of the formal.
+    Fixes #2235
     
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4951066
+    https://golang.org/cl/4967056
 
- src/pkg/template/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/template/exec.go      | 13 ++++++++++++-
+ src/pkg/template/exec_test.go | 11 +++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

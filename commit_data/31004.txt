@@ -1,19 +1,23 @@
-commit 10991fd5af24fd01483ab23c9b3d7de52de580b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 5 10:57:03 2017 -0400
+commit 3e119404372fd0d47de1458802b68522f593bf36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 16 16:28:30 2016 -0800
 
-    cmd/go: add test for test -race -i behavior
+    [dev.typealias] cmd/compile: recognize type aliases but complain for now (not yet supported)
     
-    This was fixed in CL 37598 but the test was (rightly) dropped
-    because it modified $GOROOT. Here's a variant that does not.
+    Added test file.
     
-    For #19151.
+    For #18130.
     
-    Change-Id: Iccdbbf9ae8ac4c252e52f4f8ff996963573c4682
-    Reviewed-on: https://go-review.googlesource.com/39592
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ifcfd7cd1acf9dd6a2f4f3d85979d232bb6b8c6b1
+    Reviewed-on: https://go-review.googlesource.com/34988
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/compile/internal/gc/noder.go            |  4 ++
+ src/cmd/compile/internal/syntax/nodes.go        |  1 +
+ src/cmd/compile/internal/syntax/parser.go       |  3 +-
+ src/cmd/compile/internal/syntax/printer.go      |  6 ++-
+ src/cmd/compile/internal/syntax/printer_test.go | 17 ++++++++
+ test/alias2.go                                  | 58 +++++++++++++++++++++++++
+ 6 files changed, 87 insertions(+), 2 deletions(-)

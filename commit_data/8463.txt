@@ -1,13 +1,12 @@
-commit f6742e7482c2b4fd1dada85c6318ecd59ccef8f6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 23 16:30:06 2011 +1000
+commit ccafd53ed35b64cfe32b191870e0523d1538f00a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 22 18:46:48 2011 -0700
 
-    weekly.2011-05-22
+    http: add docs/warning on incorrect use of NewChunkedWriter
     
-    R=golang-dev, r
+    R=golang-dev, adg, r
     CC=golang-dev
-    https://golang.org/cl/4523090
+    https://golang.org/cl/4536075
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 154 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 154 insertions(+), 1 deletion(-)
+ src/pkg/http/chunked.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

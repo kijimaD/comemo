@@ -1,29 +1,20 @@
-commit e7d203f494281a229a7d4ef769f14975e9b12e4e
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Tue Oct 4 07:10:09 2022 +0000
+commit 23dd389ac6ef59210580614c4a73e0d0a13c2911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 09:33:53 2021 -0800
 
-    reflect: avoid unnecessary copy of funcTypes
+    cmd/compile/internal/types2: refer to structural rather than single underlying type in errors
     
-    Imagine that initFuncTypes is called with n=3, funcTypes will be
-    [nil, nil, nil, **reflect.rtype] afterward, then it's called with n=2.
-    The current implementation will copy funcTypes because funcTypes[2] is
-    nil. This is unnecessary. It should make a new slice and copy funcTypes
-    into it only when n >= len(funcTypes).
+    This brings the error messages in sync with the terminology that
+    will be used it the spec.
     
-    Updates #56011.
-    
-    Change-Id: Ia093d2f550d6924a4c58bcd21325093e32b40baa
-    GitHub-Last-Rev: a599eae7c2f6a388dfe1ff39cf61fd645885a64d
-    GitHub-Pull-Request: golang/go#56024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438395
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia05993776c649be9eb2cdf948a583b9a49f9b192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362997
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/reflect/type.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go                  |  2 +-
+ src/cmd/compile/internal/types2/index.go                     |  2 +-
+ src/cmd/compile/internal/types2/stmt.go                      |  4 ++--
+ src/cmd/compile/internal/types2/testdata/check/builtins.go2  |  6 +++---
+ .../compile/internal/types2/testdata/check/typeparams.go2    | 12 ++++++------
+ 5 files changed, 13 insertions(+), 13 deletions(-)

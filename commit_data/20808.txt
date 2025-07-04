@@ -1,18 +1,41 @@
-commit 202bf8d94dfedfca3a404f5fe9dd19f19f760372
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 28 15:51:06 2014 -0400
+commit fe8f799ef7b0124ff0a50f5ec590a70ad20d6ef2
+Author: Chris Manghane <cmang@golang.org>
+Date:   Tue Oct 14 19:12:10 2014 -0700
 
-    doc/asm: explain coordination with garbage collector
+    cmd/gc: check for initialization cycles in method values
     
-    Also a few other minor changes.
+    Fixes #7960.
     
-    Fixes #8712.
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/164150043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, gri
+    https://golang.org/cl/159800045
 
- doc/asm.html           | 131 +++++++++++++++++++++++++++++++++++++++++--------
- src/runtime/funcdata.h |   3 ++
- 2 files changed, 114 insertions(+), 20 deletions(-)
+ src/cmd/gc/sinit.c           |  2 +-
+ test/fixedbugs/issue6703a.go | 16 ++++++++++++++++
+ test/fixedbugs/issue6703b.go | 16 ++++++++++++++++
+ test/fixedbugs/issue6703c.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703d.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703e.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703f.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703g.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue6703h.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue6703i.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue6703j.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue6703k.go | 21 +++++++++++++++++++++
+ test/fixedbugs/issue6703l.go | 21 +++++++++++++++++++++
+ test/fixedbugs/issue6703m.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue6703n.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue6703o.go | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue6703p.go | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue6703q.go | 28 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue6703r.go | 28 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue6703s.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703t.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703u.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703v.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue6703w.go | 21 +++++++++++++++++++++
+ test/fixedbugs/issue6703x.go | 21 +++++++++++++++++++++
+ test/fixedbugs/issue6703y.go | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue6703z.go | 23 +++++++++++++++++++++++
+ 27 files changed, 539 insertions(+), 1 deletion(-)

@@ -1,23 +1,29 @@
-commit aeaf4b0e5b21ea0819b4e862ed86ce44760516bf
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 10 16:09:54 2022 -0400
+commit 2fe4b14795fe20fa3ba8efbe92b88f2d564509d2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 20 12:55:51 2021 -0700
 
-    runtime: not mark save_g NOFRAME on ARM
+    [dev.typeparams] cmd/compile: ensure methods of generic types survive linker pruning
     
-    On ARM, when GOARM<=6 the TLS pointer is fetched via a call to a
-    kernel helper. This call clobbers LR, even just temporarily. If
-    the function is NOFRAME, if a profiling signal lands right after
-    the call returns, the unwinder will find the wrong LR. Not mark it
-    NOFRAME, so the LR will be saved in the usual way and stack
-    unwinding should work.
+    Calling MarkTypeUsedInInterface before inlining is problematic (when
+    using the containing function as the reference source), because we end
+    up attaching a relocation to the original function, which is then
+    deadcode removed because all instances of it were inlined. (All other
+    current uses of MarkTypeUsedInInterface happen after inlining, so they
+    don't have this problem.)
     
-    May fix #52829.
+    Instead, attach the relocation to the dictionary in which the type
+    appears.  This should always work, because if the dictionary is ever
+    deadcode eliminated, then the type can never be put in an interface,
+    which means we indeed don't need its methods.
     
-    Change-Id: I419a31dcf4afbcff8d7ab8f179eec3c477589e60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405482
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    This CL is a bit overkill, as not *all* types in the dictionary need
+    this mark, but it is sufficient for now.
+    
+    Change-Id: I2d39456691f1c3df8efe3bddc3b9017e0ef37a7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336012
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/tls_arm.s | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

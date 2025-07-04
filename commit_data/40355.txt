@@ -1,23 +1,23 @@
-commit 19d2a1cc2c76a14b4d5066c871b3f3c11125e147
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Oct 22 13:07:15 2019 +0200
+commit 6b1ac8290f189709273c9d4b402e14421f21eda0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 5 02:25:42 2019 +0000
 
-    cmd/go: fix TestScript/list_ambiguous_path on Plan 9
+    cmd/dist: allow builders to control granularity of test/ directory sharding
     
-    CL 198459 added TestScript/list_ambiguous_path. This
-    test is failing on Plan 9, because the expected error
-    doesn't match the error message returned on Plan 9.
+    Even with 10 shards on builders, it still takes about ~2.5 minutes per
+    shard (and getting slower all the time as the test/ directory grows).
+    I'm currently experimenting with massively sharding out testing on
+    Cloud Run (each dist test & normal TestFoo func all running in
+    parallel), and in such a setup, 2.5 minutes is an eternity. I'd like
+    to increase that dist test's sharding from 10 to more like 1,000.
     
-    This change fixes the test by matching the correct
-    error message on Plan 9.
+    Updates golang/go#31834
     
-    Fixes #35072.
-    
-    Change-Id: If8cdb641e0e9544ae4ac24f8d0c54859a3b23a69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202447
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8b02989727793b5b5b2013d67e1eb01ef4786e28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175297
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/list_ambiguous_path.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go |  5 ++++-
+ src/run.bash         | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

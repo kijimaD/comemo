@@ -1,14 +1,22 @@
-commit 68e2dbe8b7748ba4e9adcad61627da32e1f2141a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 10 09:13:04 2014 +1100
+commit 93fcb922570ac3b601f5addbe408866641783dac
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 22:04:12 2014 -0400
 
-    cmd/api: use golang.org/x/... import paths
+    cmd/gc: disallow call of *T method using **T variable
     
-    LGTM=bradfitz, rsc
-    R=rsc, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/169000043
+    This brings cmd/gc in line with the spec on this question.
+    It might break existing code, but that code was not conformant
+    with the spec.
+    
+    Credit to Rémy for finding the broken code.
+    
+    Fixes #6366.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=adonovan, golang-codereviews, gri
+    https://golang.org/cl/129550043
 
- src/cmd/api/goapi.go | 2 +-
- src/cmd/api/run.go   | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/typecheck.c   | 7 +++++--
+ test/fixedbugs/bug371.go | 6 +++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)

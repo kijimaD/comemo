@@ -1,14 +1,23 @@
-commit fb818eab7fde33270bbbcf06d984af6db1c3eb0a
+commit f611ae1c75b7696da141e55bf91a0acdcc853bf8
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 08:59:20 2014 -0400
+Date:   Mon Sep 1 17:25:10 2014 -0400
 
-    liblink: fix arm wrapper prologue
+    runtime: include os_*.h in the generated Go structs
     
-    Fixes arm build.
+    Adding the #include to defs.c makes it get processed
+    by cmd/dist, which writes out Go equivalent for all the
+    C data structures defined in defs.c.
     
-    TBR=khr
-    CC=golang-codereviews
-    https://golang.org/cl/132700043
+    This in turn makes it necessary to define the Plink type,
+    used in os_plan9.h, in os_plan9.go. Rename it to _Plink
+    to avoid being exported.
+    
+    LGTM=0intro, iant
+    R=golang-codereviews, iant, 0intro
+    CC=golang-codereviews, r
+    https://golang.org/cl/132490043
 
- src/liblink/obj5.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/defs.c      |  1 +
+ src/pkg/runtime/os_plan9.go |  2 ++
+ src/pkg/runtime/os_plan9.h  | 10 +++++-----
+ 3 files changed, 8 insertions(+), 5 deletions(-)

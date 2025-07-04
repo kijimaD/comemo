@@ -1,23 +1,20 @@
-commit 7e4ef4ebfc4f24bb030716c81e0f812aa3a36c97
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Wed Dec 14 13:32:18 2016 -0800
+commit 1a3b739b26e2742fd2febc7c0f87aa8115f390ab
+Author: Joshua Boelter <joshua.boelter@intel.com>
+Date:   Tue Aug 9 22:37:26 2016 -0700
 
-    cmd/pprof: search for sample types in profile
+    runtime: check for errors returned by windows sema calls
     
-    Search the sample types in the profile being processed to map
-    sample type options to indices in the profile sample type array.
+    Add checks for failure of CreateEvent, SetEvent or
+    WaitForSingleObject. Any failures are considered fatal and
+    will throw() after printing an informative message.
     
-    Previously these were hardcoded, which caused issues when the
-    sample types for a profile type changed. For instance, this was
-    triggered by the native generation of profiles in profile.proto
-    format.
+    Updates #16646
     
-    This fixes #18230. A similar mechanism already exists on the upstream
-    pprof.
-    
-    Change-Id: I945d8d842a0c2ca14299dabefe83124746ecd7e2
-    Reviewed-on: https://go-review.googlesource.com/34382
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I3bacf9001d2abfa8667cc3aff163ff2de1c99915
+    Reviewed-on: https://go-review.googlesource.com/26655
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/pprof/internal/driver/driver.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/runtime/os_windows.go | 51 +++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 47 insertions(+), 4 deletions(-)

@@ -1,25 +1,29 @@
-commit c77a9e0aa5a8a238d68aa82b3b7e052a314a0060
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sun May 19 12:07:45 2019 -0700
+commit 829c5df58694b3345cb5ea41206783c8ccf5c3ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 23 19:09:07 2019 +0000
 
-    runtime: In Frames.Next, delay file/line lookup until just before return
+    net/url, net/http: reject control characters in URLs
     
-    That way we will never have to look up the file/line for the frame
-    that's next to be returned when the user stops calling Next.
+    This is a more conservative version of the reverted CL 99135 (which
+    was reverted in CL 137716)
     
-    For the benchmark from #32093:
+    The net/url part rejects URLs with ASCII CTLs from being parsed and
+    the net/http part rejects writing them if a bogus url.URL is
+    constructed otherwise.
     
-    name      old time/op  new time/op  delta
-    Helper-4   948ns ± 1%   836ns ± 3%  -11.89%  (p=0.000 n=9+9)
+    Updates #27302
+    Updates #22907
     
-    (#32093 was fixed with a more specific, and better, fix, but this
-    fix is much more general.)
-    
-    Change-Id: I89e796f80c9706706d8d8b30eb14be3a8a442846
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178077
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I09a2212eb74c63db575223277aec363c55421ed8
+    Reviewed-on: https://go-review.googlesource.com/c/159157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/symtab.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/net/http/fs_test.go           | 15 +++++++++++----
+ src/net/http/http.go              |  6 ++++++
+ src/net/http/request.go           |  7 ++++++-
+ src/net/http/requestwrite_test.go | 11 +++++++++++
+ src/net/url/url.go                | 10 ++++++++++
+ src/net/url/url_test.go           | 17 ++++++++++++++++-
+ 6 files changed, 60 insertions(+), 6 deletions(-)

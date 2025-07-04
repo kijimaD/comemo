@@ -1,18 +1,16 @@
-commit 3efc7215cbf6c7842cba0f5ebe90f72f0b6de9e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 8 09:51:29 2022 -0500
+commit 8b0901fd32aa9c29a1fa4ed8cd517914920a1509
+Author: Jeff Widman <jeff@jeffwidman.com>
+Date:   Tue May 18 06:09:20 2021 +0000
 
-    fmt, strconv: document use of Unicode replacement character in %q
+    doc/go1.17: fix typo "avoding" -> "avoiding"
     
-    Fixes #51526.
-    
-    Change-Id: I365a763454bd201f804df29f800416b1731b8ebc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390436
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ice4a6e7ec8175caf3f049ac1ca39929059f90e9c
+    GitHub-Last-Rev: a2d59d55511ac7825cbeca6651a79b1060d90de3
+    GitHub-Pull-Request: golang/go#46227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320729
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/fmt/doc.go       | 4 ++++
- src/strconv/quote.go | 6 ++++++
- 2 files changed, 10 insertions(+)
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

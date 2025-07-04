@@ -1,19 +1,45 @@
-commit a22cb5cabe2bcc8ed02c43a66a1bd319cb28e89c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed May 15 17:41:56 2024 -0400
+commit 7db6d8a29d1f9bc4265ff4eb77547c7aa5f8c87e
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu May 11 11:54:28 2023 +0000
 
-    runtime/debug: eliminate temporary variadicity from SetCrashOutput
+    net: clear /etc/hosts cache on fs.ErrNotExist and fs.ErrPermission errors
     
-    Updates #67182
+    This was also the cause of my issues in CL 455275
     
-    Change-Id: I33fc8c515f4a9d120262ba30f61aea80ede5e9f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585420
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Before:
+    root@arch:~/aa# $(time sleep 5 && mv /etc/hosts /tmp/hosts) &
+    [1] 2214
+    root@arch:~/aa# go run main.go
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    (....)
+    
+    After:
+    root@arch:~/aa# $(time sleep 5 && mv /etc/hosts /tmp/hosts) &
+    [1] 2284
+    root@arch:~/aa# go run main.go
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [232.223.232.123] <nil>
+    [] lookup sth on 127.0.0.53:53: server misbehaving
+    [] lookup sth on 127.0.0.53:53: server misbehaving
+    
+    Change-Id: I3090fd8f3105db8c2d7c3bf5afe7b18ebca61cda
+    GitHub-Last-Rev: cb0dac6448bbc337cd015ad4b4b3d1da3f14a561
+    GitHub-Pull-Request: golang/go#59963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/42888.txt                        | 2 +-
- src/runtime/debug/example_monitor_test.go | 2 +-
- src/runtime/debug/stack.go                | 9 +--------
- src/runtime/debug/stack_test.go           | 3 ++-
- src/runtime/traceback_system_test.go      | 2 +-
- 5 files changed, 6 insertions(+), 12 deletions(-)
+ src/net/hosts.go | 79 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 43 insertions(+), 36 deletions(-)

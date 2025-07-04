@@ -1,24 +1,14 @@
-commit 390656affd8993ce6332dca3fa86d57659622fdf
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 8 16:44:16 2013 -0400
+commit 9a9e541c4db86bb1c590b0f4657929dde4312e2b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 13:36:22 2013 -0700
 
-    cmd/gc: fix stkptrsize calculation
+    cmd/api: show output of api tool even if exit status is 0
     
-    I moved the pointer block from one end of the frame
-    to the other toward the end of working on the last CL,
-    and of course that made the optimization no longer work.
+    We weren't seeing additions. (stuff to put in next.txt)
     
-    Now it works again:
-    
-    0030 (bug361.go:12) DATA    gclocals·0+0(SB)/4,$4
-    0030 (bug361.go:12) DATA    gclocals·0+4(SB)/4,$3
-    0030 (bug361.go:12) GLOBL   gclocals·0+0(SB),8,$8
-    
-    Fixes arm build (this time for sure!).
-    
-    TBR=golang-dev
-    CC=cshapiro, golang-dev, iant
-    https://golang.org/cl/12627044
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12678043
 
- src/cmd/gc/pgen.c | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ src/cmd/api/run.go | 1 +
+ 1 file changed, 1 insertion(+)

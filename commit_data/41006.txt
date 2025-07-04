@@ -1,25 +1,21 @@
-commit 5481a97ab097ad27e9eeb9d10feeae22fd20e5ec
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Dec 18 10:05:59 2019 +0000
+commit 89865f8ba64ccb27f439cce6daaa37c9aa38f351
+Author: empijei <RobClap8@gmail.com>
+Date:   Tue Mar 12 20:35:35 2019 +0100
 
-    text/template: indirect interfaces before slicing
+    crypto/x509: allow nil Certificates to be compared in Equal
     
-    The recently added slice function used indirectInterface, but then
-    forgot to actually call reflect.Value.Slice on its result. Calling the
-    Slice method on the original Value without indirectInterface would
-    result in a panic, if our slice was indeed behind an interface.
+    The current implementation panics on nil certificates,
+    so introduce a nil check and early return true if both
+    are nil, false if only one is.
     
-    Fix that, and add test cases for all three built-in functions that work
-    with slices.
+    Fixes #28743
     
-    Fixes #36199.
-    
-    Change-Id: I9a18f4f604a3b29967eefeb573f8960000936b88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211877
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I71b0dee3e505d3ad562a4470ccc22c3a2579bc52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167118
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/text/template/exec_test.go | 3 +++
- src/text/template/funcs.go     | 4 ++--
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/crypto/x509/x509.go      |  8 ++++++--
+ src/crypto/x509/x509_test.go | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

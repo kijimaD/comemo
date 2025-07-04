@@ -1,14 +1,12 @@
-commit 120c223822c2c4862cd5be282e12d2169c00a599
+commit aabf2ee8e1f18412de88ff199a4f721d59b92854
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Mar 3 12:53:37 2012 +1100
+Date:   Sat Mar 3 12:48:35 2012 +1100
 
-    doc: remove roadmap document
+    doc: change wording on references page
     
-    R=golang-dev, bradfitz
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5726047
+    https://golang.org/cl/5728050
 
- doc/contrib.html       |   3 --
- doc/devel/index.html   |  11 ----
- doc/devel/roadmap.html | 135 -------------------------------------------------
- 3 files changed, 149 deletions(-)
+ doc/reference.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

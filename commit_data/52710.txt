@@ -1,21 +1,35 @@
-commit 7e66a8ad400792bcf8049313a3142496ce5fd9a9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 18 14:48:36 2023 -0700
+commit 8542bd8938efc8bb1bc681f4a0603c9f392e70b0
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    net: check for NUL bytes in strings passed to C functions
+    runtime: support vdso for linux/loong64
     
-    Use syscall.BytePtrFromString and syscall.ByteSliceFromString.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: I9409ecd93aaca82390bf3f34be56ec354148a241
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486015
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: Ie9bb5ccfc28e65036e2088c232bb333dcb259a60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368076
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/net/cgo_unix.go         | 22 ++++++++++++++--------
- src/net/cgo_unix_cgo.go     |  1 -
- src/net/cgo_unix_syscall.go |  6 ------
- 3 files changed, 14 insertions(+), 15 deletions(-)
+ src/runtime/os_linux_novdso.go    |  2 +-
+ src/runtime/vdso_elf64.go         |  2 +-
+ src/runtime/vdso_in_none.go       |  2 +-
+ src/runtime/vdso_linux.go         |  2 +-
+ src/runtime/vdso_linux_loong64.go | 27 +++++++++++++++++++++++++++
+ 5 files changed, 31 insertions(+), 4 deletions(-)

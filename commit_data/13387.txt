@@ -1,18 +1,13 @@
-commit 689931c5b02f7509a125f06480d3673ac85f21d5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 25 11:28:24 2012 -0700
+commit b3382ec9e9cfbb20efd7bf7d6a369071a46c8dfe
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Jun 25 14:08:09 2012 -0400
 
-    spec: clarify receive operator
+    exp/inotify: prevent data race
+    Fixes #3713.
     
-    - receiving from a closed channel returns immediately
-    - in the ,ok form, the 2nd result is of type bool, not
-      just boolean (gc and ggcgo agree).
-    
-    Per dsymonds' suggestion.
-    
-    R=r, rsc, ken, iant, dsymonds
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6333057
+    https://golang.org/cl/6331055
 
- doc/go_spec.html | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/exp/inotify/inotify_linux.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

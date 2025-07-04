@@ -1,30 +1,21 @@
-commit 825ff1e3171a97fba1f29473d0be484ebfdc08b4
-Author: jfbus <jf@bustarret.com>
-Date:   Thu Apr 18 12:39:24 2019 +0000
+commit 75a7675ed6c85de5bd17060e39fb0cf1cb400ab1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 31 15:42:44 2018 -0400
 
-    net: use DNS over TCP when use-vc is set in resolv.conf
+    cmd/go/internal/renameio: add package
     
-    There is a DNS resolution bug in Kubernetes (UDP response packets get dropped by conntrack, causing timeouts in DNS queries).
+    renameio.WriteFile writes files atomically by renaming temporary files.
     
-    The recommended workaround on Linux is to configure the resolver to use TCP for DNS queries, by setting the use-vc option in resolv.conf.
+    See the subsequent changes for usage examples.
     
-    With this PR, the pure Go resolver searches for "use-vc" in resolv.conf and switches to TCP when found.
+    Updates #26794
+    Updates #22397
     
-    Fixes #29358
-    
-    Change-Id: I26b935cae2c80e5bb9955da83299a8dea84591de
-    GitHub-Last-Rev: 70bc00fe41f44f0b2b3cfebe67bbcc45701968cf
-    GitHub-Pull-Request: golang/go#29594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/156366
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4bfe3125a53f58060587f98afbb4260bb1cc3d32
+    Reviewed-on: https://go-review.googlesource.com/c/146377
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/dnsclient_unix.go                  | 18 +++++++++++++---
- src/net/dnsclient_unix_test.go             | 33 +++++++++++++++++++++++++++---
- src/net/dnsconfig_unix.go                  |  9 ++++++++
- src/net/dnsconfig_unix_test.go             | 33 ++++++++++++++++++++++++++++++
- src/net/testdata/freebsd-usevc-resolv.conf |  1 +
- src/net/testdata/linux-use-vc-resolv.conf  |  1 +
- src/net/testdata/openbsd-tcp-resolv.conf   |  1 +
- 7 files changed, 90 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/renameio/renameio.go | 63 ++++++++++++++++++++++++++++++++
+ 1 file changed, 63 insertions(+)

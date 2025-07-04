@@ -1,17 +1,16 @@
-commit aee6b1160e790b098b3aaac317a9a373058e871d
-Author: Peter Mundy <go.peter.90@gmail.com>
-Date:   Wed Apr 27 15:47:12 2011 -0400
+commit 87ac7c77c0e7ca1da242982ef4bc92940e5d681a
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Apr 27 12:34:34 2011 -0700
 
-    runtime: fix mkversion to output valid path separators
+    http/fcgi: New package
     
-    In a GOROOT path a backslash is a path separator
-    not an escape character. For example, `C:\go`.
-    Fixes gotest error:
-    version.go:3: unknown escape sequence: g
-    
-    R=rsc
+    R=golang-dev, bradfitzgo, bradfitzwork, nigeltao, rog
     CC=golang-dev
-    https://golang.org/cl/4437076
+    https://golang.org/cl/4271078
 
- src/pkg/runtime/mkversion.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/Makefile               |   1 +
+ src/pkg/http/fcgi/Makefile     |  12 ++
+ src/pkg/http/fcgi/child.go     | 328 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/fcgi/fcgi.go      | 271 ++++++++++++++++++++++++++++++++++
+ src/pkg/http/fcgi/fcgi_test.go | 114 ++++++++++++++
+ 5 files changed, 726 insertions(+)

@@ -1,0 +1,17 @@
+commit 01ba8bfe868df2eea10ea8dd5bfbe5af0549909d
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Feb 25 10:50:50 2025 +0800
+
+    runtime/cgo: use standard ABI call setg_gcc in crosscall1 on loong64
+    
+    Change-Id: Ie38583d667d579751d643b2da2aa56390b69904c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652255
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+
+ src/runtime/asm_loong64.s     | 4 ++--
+ src/runtime/cgo/gcc_loong64.S | 7 ++++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)

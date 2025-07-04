@@ -1,16 +1,14 @@
-commit b53b47f5ac9e11fdcd3f704bc2cb0828bdee6958
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 28 10:36:48 2014 -0400
+commit 0065cbe5d015aa155c2a3e91d8c17f6474fef5e8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 22 11:46:10 2014 +0400
 
-    runtime: finish converting iface.goc to iface.go
+    syscall: fix nacl build
+    Timer callback does not accept now as first arg anymore.
     
-    LGTM=bradfitz, dvyukov
-    R=golang-codereviews, bradfitz, dvyukov
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/131510043
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/126530043
 
- src/pkg/runtime/heapdump.c |   5 +-
- src/pkg/runtime/iface.go   |  13 ++++
- src/pkg/runtime/iface.goc  | 155 ---------------------------------------------
- src/pkg/runtime/runtime.h  |   2 +-
- 4 files changed, 18 insertions(+), 157 deletions(-)
+ src/pkg/syscall/net_nacl.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

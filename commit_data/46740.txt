@@ -1,17 +1,19 @@
-commit 5d946f1892dc4ae3d3220fb0bc4d61cdf6175ee6
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 5 10:21:09 2021 -0700
+commit 493eb6e6ec916288ff0ebd8ba9e5cc0cccbdfc74
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 24 23:31:25 2021 -0800
 
-    cmd/compile: add remaining >v1 instructions to v1-only test
+    [dev.typeparams] cmd/compile: fix -G=3 handling of blank methods
     
-    roundsd and FMA (vfmadd231sd).
+    Fixes "GO_GCFLAGS=-G=3 go run run.go -- blank.go interface/fail.go".
     
-    Change-Id: I2d91332667e577bd9bb903ac58904f62b8454128
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354069
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I669ab06ae29366ce96e2948c89a5c1620afd53db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286214
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/amd64/versions_test.go | 37 +++++++++++++++++++++++--
- 1 file changed, 35 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/object.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

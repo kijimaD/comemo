@@ -1,15 +1,13 @@
-commit 512ec7036ec497969bb085a520544ad61a4a5cc0
+commit 2eeab323ad516dca2fb6f222a1810b3fadd61fc1
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 15 12:33:29 2013 +0800
+Date:   Wed May 15 12:08:51 2013 +0800
 
-    misc/cgo/test: test for issue 5337.
-    Test for CL 9226043.
+    cmd/yacc: don't emit line comment when -l is given
+    Fixes #5447.
     
-    R=golang-dev, dave, iant, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9249043
+    https://golang.org/cl/9343045
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue5337.go  | 31 +++++++++++++++++++++++++++++++
- misc/cgo/test/issue5337w.go |  9 +++++++++
- 3 files changed, 41 insertions(+)
+ src/cmd/yacc/yacc.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

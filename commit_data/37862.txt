@@ -1,21 +1,79 @@
-commit 8765a786b6e8199959bba8244ac5f95aa3eb9474
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 8 22:39:13 2019 -0800
+commit 0e9f1de0b7c934d9061f05f4781994fbd3ebd301
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Jul 19 08:09:13 2018 +0000
 
-    go/types: don't create new context string for each argument of each call
+    cmd/compile: optimize arm64's comparison
     
-    The argument context string is only used in error messages. Don't format
-    the function AST into a string for every single argument of every single
-    call that is type-checked. Instead do it once per call (still not great,
-    but much much better).
+    Add more optimization with TST/CMN.
     
-    Performance optimization.
+    1. A tiny benchmark shows more than 12% improvement.
+    TSTCMN-4                    378µs ± 0%     332µs ± 0%  -12.15%  (p=0.000 n=30+27)
+    (https://github.com/benshi001/ugo1/blob/master/tstcmn_test.go)
     
-    Change-Id: Iec87f9ad34128d7b3eee58577ad37dbaa8e6db44
-    Reviewed-on: https://go-review.googlesource.com/c/157037
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    2. There is little regression in the go1 benchmark, excluding noise.
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              19.1s ± 0%     19.1s ± 0%    ~     (p=0.994 n=28+29)
+    Fannkuch11-4                10.0s ± 0%     10.0s ± 0%    ~     (p=0.198 n=30+25)
+    FmtFprintfEmpty-4           233ns ± 0%     233ns ± 0%  +0.14%  (p=0.002 n=24+30)
+    FmtFprintfString-4          428ns ± 0%     428ns ± 0%    ~     (all equal)
+    FmtFprintfInt-4             472ns ± 0%     472ns ± 0%    ~     (all equal)
+    FmtFprintfIntInt-4          725ns ± 0%     725ns ± 0%    ~     (all equal)
+    FmtFprintfPrefixedInt-4     889ns ± 0%     888ns ± 0%    ~     (p=0.632 n=28+30)
+    FmtFprintfFloat-4          1.20µs ± 0%    1.20µs ± 0%  +0.05%  (p=0.001 n=18+30)
+    FmtManyArgs-4              3.00µs ± 0%    2.99µs ± 0%  -0.07%  (p=0.001 n=27+30)
+    GobDecode-4                42.1ms ± 0%    42.2ms ± 0%  +0.29%  (p=0.000 n=28+28)
+    GobEncode-4                38.6ms ± 9%    38.8ms ± 9%    ~     (p=0.912 n=30+30)
+    Gzip-4                      2.07s ± 1%     2.05s ± 1%  -0.64%  (p=0.000 n=29+30)
+    Gunzip-4                    175ms ± 0%     175ms ± 0%  -0.15%  (p=0.001 n=30+30)
+    HTTPClientServer-4          872µs ± 5%     880µs ± 6%    ~     (p=0.196 n=30+29)
+    JSONEncode-4               88.5ms ± 1%    89.8ms ± 1%  +1.49%  (p=0.000 n=23+24)
+    JSONDecode-4                393ms ± 1%     390ms ± 1%  -0.89%  (p=0.000 n=28+30)
+    Mandelbrot200-4            19.5ms ± 0%    19.5ms ± 0%    ~     (p=0.405 n=29+28)
+    GoParse-4                  19.9ms ± 0%    20.0ms ± 0%  +0.27%  (p=0.000 n=30+30)
+    RegexpMatchEasy0_32-4       431ns ± 0%     431ns ± 0%    ~     (p=1.000 n=30+30)
+    RegexpMatchEasy0_1K-4      1.61µs ± 0%    1.61µs ± 0%    ~     (p=0.527 n=26+26)
+    RegexpMatchEasy1_32-4       443ns ± 0%     443ns ± 0%    ~     (all equal)
+    RegexpMatchEasy1_1K-4      2.58µs ± 1%    2.58µs ± 1%    ~     (p=0.578 n=27+25)
+    RegexpMatchMedium_32-4      740ns ± 0%     740ns ± 0%    ~     (p=0.357 n=30+30)
+    RegexpMatchMedium_1K-4      223µs ± 0%     223µs ± 0%  +0.16%  (p=0.000 n=30+29)
+    RegexpMatchHard_32-4       12.3µs ± 0%    12.3µs ± 0%    ~     (p=0.236 n=27+27)
+    RegexpMatchHard_1K-4        371µs ± 0%     371µs ± 0%  +0.09%  (p=0.000 n=30+27)
+    Revcomp-4                   2.85s ± 0%     2.85s ± 0%    ~     (p=0.057 n=28+25)
+    Template-4                  408ms ± 1%     409ms ± 1%    ~     (p=0.117 n=29+29)
+    TimeParse-4                1.93µs ± 0%    1.93µs ± 0%    ~     (p=0.535 n=29+28)
+    TimeFormat-4               1.99µs ± 0%    1.99µs ± 0%    ~     (p=0.168 n=29+28)
+    [Geo mean]                  306µs          307µs       +0.07%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4              18.3MB/s ± 0%  18.2MB/s ± 0%  -0.31%  (p=0.000 n=28+29)
+    GobEncode-4              19.9MB/s ± 8%  19.8MB/s ± 9%    ~     (p=0.923 n=30+30)
+    Gzip-4                   9.39MB/s ± 1%  9.45MB/s ± 1%  +0.65%  (p=0.000 n=29+30)
+    Gunzip-4                  111MB/s ± 0%   111MB/s ± 0%  +0.15%  (p=0.001 n=30+30)
+    JSONEncode-4             21.9MB/s ± 1%  21.6MB/s ± 1%  -1.45%  (p=0.000 n=23+23)
+    JSONDecode-4             4.94MB/s ± 1%  4.98MB/s ± 1%  +0.84%  (p=0.000 n=27+30)
+    GoParse-4                2.91MB/s ± 0%  2.90MB/s ± 0%  -0.34%  (p=0.000 n=21+22)
+    RegexpMatchEasy0_32-4    74.1MB/s ± 0%  74.1MB/s ± 0%    ~     (p=0.469 n=29+28)
+    RegexpMatchEasy0_1K-4     634MB/s ± 0%   634MB/s ± 0%    ~     (p=0.978 n=24+28)
+    RegexpMatchEasy1_32-4    72.2MB/s ± 0%  72.2MB/s ± 0%    ~     (p=0.064 n=27+29)
+    RegexpMatchEasy1_1K-4     396MB/s ± 1%   396MB/s ± 1%    ~     (p=0.583 n=27+25)
+    RegexpMatchMedium_32-4   1.35MB/s ± 0%  1.35MB/s ± 0%    ~     (all equal)
+    RegexpMatchMedium_1K-4   4.60MB/s ± 0%  4.59MB/s ± 0%  -0.14%  (p=0.000 n=30+26)
+    RegexpMatchHard_32-4     2.61MB/s ± 0%  2.61MB/s ± 0%    ~     (all equal)
+    RegexpMatchHard_1K-4     2.76MB/s ± 0%  2.76MB/s ± 0%    ~     (all equal)
+    Revcomp-4                89.1MB/s ± 0%  89.1MB/s ± 0%    ~     (p=0.059 n=28+25)
+    Template-4               4.75MB/s ± 1%  4.75MB/s ± 1%    ~     (p=0.106 n=29+29)
+    [Geo mean]               18.3MB/s       18.3MB/s       -0.07%
+    
+    Change-Id: I3cd76ce63e84b0c3cebabf9fa3573b76a7343899
+    Reviewed-on: https://go-review.googlesource.com/124935
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/call.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   48 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |    8 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   28 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 1224 ++++++++++++++++++++++++++
+ test/codegen/comparisons.go                  |   34 +-
+ 5 files changed, 1322 insertions(+), 20 deletions(-)

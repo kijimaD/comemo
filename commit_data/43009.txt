@@ -1,24 +1,20 @@
-commit f5d59d0e382dc59195537a128fe9423a49a4cea8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 16 15:41:47 2020 -0700
+commit 1e9665da8fd8e2e095eb0e99a3b83118f600dc0b
+Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+Date:   Thu Feb 20 09:07:48 2020 -0700
 
-    cmd/compile: skip looking for OCLOSURE nodes in xtop
+    cmd/compile: add a dark mode to ssa html generation which can be toggled
     
-    xtop holds package's top-level declaration statements, but OCLOSURE
-    only appears in expression contexts. xtop will instead hold the
-    synthetic ODCLFUNC representing OCLOSURE's function body.
+    add a tag that when clicked, toggles a dark mode. It keeps intact
+    the grayed out dead values/blocks, all the highlight colors, and ensures
+    text is always readable.
     
-    This CL makes the loop consistent with the later phases that only look
-    for ODCLFUNC nodes in xtop.
+    Fixes #34325
     
-    Passes toolstash-check.
-    
-    Change-Id: I852a10ef1bf75bb3351e3da0357ca8b2e26aec6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255340
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I4af1e4b5f4a5b63e54c992e90f8474cc51c63465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220260
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/html.go | 95 ++++++++++++++++++++++++++++++------
+ 1 file changed, 81 insertions(+), 14 deletions(-)

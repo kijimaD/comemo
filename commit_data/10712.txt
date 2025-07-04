@@ -1,23 +1,12 @@
-commit 728c16cf13ade25787c5c8f6bf89a2839411ec42
-Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
-Date:   Mon Dec 12 15:42:06 2011 -0500
+commit d56ca13c03b16eeeb3eb7cd379a2d05b9b9e4a2a
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Dec 12 15:42:02 2011 -0500
 
-    build: Changes to the build infrastructure for NetBSD.
+    gc: add varargck for %lN
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/5476048
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5476049
 
- src/Make.inc                   |  4 ++++
- src/cmd/cov/Makefile           |  1 +
- src/cmd/prof/Makefile          |  1 +
- src/pkg/crypto/tls/Makefile    |  1 +
- src/pkg/mime/Makefile          |  3 +++
- src/pkg/net/Makefile           | 21 +++++++++++++++++++++
- src/pkg/os/Makefile            | 11 +++++++++++
- src/pkg/os/exec/Makefile       |  3 +++
- src/pkg/path/filepath/Makefile |  3 +++
- src/pkg/runtime/Makefile       |  3 +++
- src/pkg/syscall/Makefile       | 11 +++++++++++
- src/pkg/time/Makefile          |  4 ++++
- 12 files changed, 66 insertions(+)
+ src/cmd/gc/go.h | 1 +
+ 1 file changed, 1 insertion(+)

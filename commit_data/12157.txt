@@ -1,17 +1,17 @@
-commit 6c20f5c0135483da1127d15e724b2bf1608833d7
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Feb 23 01:35:50 2012 -0200
+commit adbadf444dada2ac8d659818d82279252d2d1f35
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 23 12:16:43 2012 +0900
 
-    encoding/xml: add example and docs for anon fields
+    net: add a bit clarified multicast listener tests
     
-    Anonymous pointer fields is not yet supported.
-    The problem is documented in issue 3108.
+    Also adds -external flag to allow use of external networks on tests.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5694043
+    https://golang.org/cl/5693043
 
- src/pkg/encoding/xml/example_test.go | 34 ++++++++++++++++++++++++----------
- src/pkg/encoding/xml/marshal.go      |  2 ++
- src/pkg/encoding/xml/read.go         |  3 +++
- 3 files changed, 29 insertions(+), 10 deletions(-)
+ src/pkg/net/dialgoogle_test.go |   4 +-
+ src/pkg/net/lookup_test.go     |  12 +--
+ src/pkg/net/multicast_test.go  | 185 ++++++++++++++++++++++++-----------------
+ src/pkg/net/server_test.go     |   2 +-
+ 4 files changed, 120 insertions(+), 83 deletions(-)

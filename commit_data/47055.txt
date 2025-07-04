@@ -1,16 +1,17 @@
-commit bb49eb3e6a464fbbebd425c4b84c32609b27ecf2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 26 21:12:31 2021 -0700
+commit c4b771348c3e5c5372bd00254f2e796b627c13dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 22 12:56:33 2021 -0500
 
-    cmd/compile/internal/syntax: fix constraint literal parsing for generic functions
+    runtime: fix windows/arm signal handling assembly
     
-    Fixes #49174.
+    Bug introduced in CL 288799: R12 is used but not set.
     
-    Change-Id: I943c370f7abd5f50a541e682f130b3526c3b5bdb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359014
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes windows/arm builder.
+    
+    Change-Id: I015a5a83cfa3bdd23da1ffb73713623764f2f817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295109
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/syntax/parser.go            | 14 +++++++++++++-
- src/cmd/compile/internal/syntax/testdata/typeset.go2 | 13 ++++++++++++-
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/runtime/sys_windows_arm.s | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,29 +1,14 @@
-commit dcbc77d2cfb37985f1ccc712a7626945a6b1f5b2
+commit 2d13e1f16e4b6709dc98f2cc45d717af8807005a
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jan 30 22:59:10 2012 +1100
+Date:   Mon Jan 30 16:43:28 2012 +1100
 
-    os/user: windows implementation
+    build: use correct go-tool directory location
     
-    pjmlp gets credit for initial version.
-    
-    Fixes #1789.
-    
-    R=paulo.jpinto, bradfitz, remyoudompheng, rsc
+    R=golang-dev, rsc, cw, rsc
     CC=golang-dev
-    https://golang.org/cl/5543069
+    https://golang.org/cl/5576070
 
- src/buildscript/windows_386.sh            |   2 +-
- src/buildscript/windows_amd64.sh          |   2 +-
- src/pkg/os/user/Makefile                  |   7 +
- src/pkg/os/user/lookup_stubs.go           |  12 +-
- src/pkg/os/user/lookup_unix.go            |  18 +-
- src/pkg/os/user/lookup_windows.go         | 117 ++++++++++
- src/pkg/os/user/user.go                   |  10 +-
- src/pkg/os/user/user_test.go              |  74 ++++--
- src/pkg/syscall/Makefile                  |   3 +-
- src/pkg/syscall/mkall.sh                  |   3 +
- src/pkg/syscall/security_windows.go       | 359 ++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_windows_386.go   | 160 ++++++++++++-
- src/pkg/syscall/zsyscall_windows_amd64.go | 160 ++++++++++++-
- src/pkg/syscall/ztypes_windows.go         |   5 +-
- 14 files changed, 897 insertions(+), 35 deletions(-)
+ src/cmd/cov/Makefile  | 2 +-
+ src/cmd/go/tool.go    | 3 ++-
+ src/cmd/prof/Makefile | 4 ++--
+ 3 files changed, 5 insertions(+), 4 deletions(-)

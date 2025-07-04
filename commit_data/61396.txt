@@ -1,0 +1,17 @@
+commit d92e8fe25cd617257942e564c16ce367de46640b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 1 21:50:12 2024 -0700
+
+    io/fs: clarify that "." may only be used for root
+    
+    For #70155
+    
+    Change-Id: I648791c484e19bb12c6e4f84e2dc42eaaa4db546
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624595
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/io/fs/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

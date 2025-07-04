@@ -1,60 +1,28 @@
-commit acd17e9b2b9740ea374ec18bcc7a4cd488eb534c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Dec 14 11:59:33 2017 +0100
+commit 0b6b5641d7f30cc1cf6ec623793ec758861359dc
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Sep 29 14:14:03 2017 -0400
 
-    syscall: support Getwd on all BSDs
+    cmd/compile: use correct stack slots in location lists
     
-    All supported BSDs provide the SYS___GETCWD syscall which can be used to
-    implement syscall.Getwd. With this change os.Getwd can use a single
-    syscall instead of falling back to the current kludge solution on the
-    BSDs.
+    When variables need to be spilled to the stack, they usually get their
+    own stack slot. Local variables have a slot allocated if they need one,
+    and arguments start out on the stack. Before this CL, the debug
+    information made the assumption that this was always the case, and so
+    didn't bother storing an actual stack offset during SSA analysis.
     
-    This doesn't add any new exported functions to the frozen syscall
-    package, only ImplementsGetwd changes to true for dragonfly, freebsd,
-    netbsd and openbsd.
+    There's at least one case where this isn't true: variables that alias
+    arguments. Since the argument is the source of the variable, the
+    variable will begin its life on the stack in the argument's stack slot,
+    not its own. Therefore the debug info needs to track the actual stack
+    slot for each location entry.
     
-    As suggested by Ian, this follows CL 83755 which did the same for
-    golang.org/x/sys/unix.
+    No detectable performance change, despite the O(N) loop in getHomeSlot.
     
-    Also, an entry for netbsd/arm is added to mkall.sh which was used to
-    generate the syscall wrappers there.
-    
-    Change-Id: I84da1ec61a6b8625443699a63cde556b6442ad41
-    Reviewed-on: https://go-review.googlesource.com/84484
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2701adb7eddee17d4524336cb7aa6786e8f32b46
+    Reviewed-on: https://go-review.googlesource.com/67231
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- api/except.txt                          | 16 ++++++++++++++++
- src/syscall/mkall.sh                    |  6 ++++++
- src/syscall/syscall_dragonfly.go        |  1 +
- src/syscall/syscall_freebsd.go          |  1 +
- src/syscall/syscall_getwd_bsd.go        | 22 ++++++++++++++++++++++
- src/syscall/syscall_netbsd.go           |  1 +
- src/syscall/syscall_no_getwd.go         | 11 -----------
- src/syscall/syscall_openbsd.go          |  1 +
- src/syscall/syscall_solaris.go          |  9 ---------
- src/syscall/syscall_unix.go             | 10 ++++++++++
- src/syscall/types_dragonfly.go          |  6 ++++++
- src/syscall/types_freebsd.go            |  6 ++++++
- src/syscall/types_netbsd.go             |  6 ++++++
- src/syscall/types_openbsd.go            |  6 ++++++
- src/syscall/zsyscall_dragonfly_amd64.go | 17 +++++++++++++++++
- src/syscall/zsyscall_freebsd_386.go     | 17 +++++++++++++++++
- src/syscall/zsyscall_freebsd_amd64.go   | 17 +++++++++++++++++
- src/syscall/zsyscall_freebsd_arm.go     | 17 +++++++++++++++++
- src/syscall/zsyscall_netbsd_386.go      | 17 +++++++++++++++++
- src/syscall/zsyscall_netbsd_amd64.go    | 17 +++++++++++++++++
- src/syscall/zsyscall_netbsd_arm.go      | 17 +++++++++++++++++
- src/syscall/zsyscall_openbsd_386.go     | 17 +++++++++++++++++
- src/syscall/zsyscall_openbsd_amd64.go   | 17 +++++++++++++++++
- src/syscall/zsyscall_openbsd_arm.go     | 17 +++++++++++++++++
- src/syscall/ztypes_dragonfly_amd64.go   |  4 ++++
- src/syscall/ztypes_freebsd_386.go       |  4 ++++
- src/syscall/ztypes_freebsd_amd64.go     |  4 ++++
- src/syscall/ztypes_freebsd_arm.go       |  4 ++++
- src/syscall/ztypes_netbsd_386.go        |  4 ++++
- src/syscall/ztypes_netbsd_amd64.go      |  4 ++++
- src/syscall/ztypes_netbsd_arm.go        |  4 ++++
- src/syscall/ztypes_openbsd_386.go       |  4 ++++
- src/syscall/ztypes_openbsd_amd64.go     |  4 ++++
- src/syscall/ztypes_openbsd_arm.go       |  4 ++++
- 34 files changed, 292 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go   | 41 ++++++++++++++++------
+ src/cmd/compile/internal/ssa/debug.go | 65 ++++++++++++++++++++++++++---------
+ 2 files changed, 80 insertions(+), 26 deletions(-)

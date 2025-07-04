@@ -1,18 +1,20 @@
-commit 88da9ccb98ffaf84bb06b98c9a24af5d0a7025d2
-Author: Carrie Bynon <cbynon@gmail.com>
-Date:   Fri Feb 15 22:16:54 2019 +1100
+commit 69c5830c2b74b9bf0701352f2e5773227cb6f304
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 10 16:08:24 2018 -0400
 
-    doc: make path platform dependent
+    cmd/compile: repair display of values & blocks in prog column
     
-    Path should now appear with the correct slash, depending on which
-    platform install document is being viewed - keeping in line with the
-    rest of the document.
+    This restores the printing of vXX and bYY in the left-hand
+    edge of the last column of ssa.html, where the generated
+    progs appear.
     
-    Fixes #30160
-    
-    Change-Id: Ib10e5a4adf366c700bff6f8d246bd5e3111ed61c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/162918
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I81ab9b2fa5ae28e6e5de1b77665cfbed8d14e000
+    Reviewed-on: https://go-review.googlesource.com/c/141277
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yury Smolsky <yury@smolsky.by>
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go    | 13 ++++++-------
+ src/cmd/compile/internal/ssa/debug.go |  6 +++++-
+ src/cmd/compile/internal/ssa/func.go  |  7 ++++---
+ 3 files changed, 15 insertions(+), 11 deletions(-)

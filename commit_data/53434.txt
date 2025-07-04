@@ -1,23 +1,21 @@
-commit d0459766c8d6b503fda7a8d9983b4aaf92a63e01
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jun 1 12:34:20 2023 -0400
+commit 9e6cd3985dbcdcfe0ed2075be6dbe8c5d6de59cb
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Aug 10 06:52:22 2022 +0800
 
-    runtime: update skips for TestGdbBacktrace
+    all: clean up unreachable Continue after Fatal
     
-    One issue simply has a reworded message, probably from a new version of
-    GDB. Another is a new issue.
+    As CL 422214 did, this CL intends to clean up the rest
+    unreachable "Continue" after Fatal.
     
-    Fixes #60553.
-    Fixes #58698.
-    Updates #39204.
-    
-    Change-Id: I8389aa981fab5421f57ee761bfb5e1dd237709ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499975
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I3b7e1b59bdfccb185e20525ce113e241d277dad3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422514
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
 
- src/runtime/runtime-gdb_test.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/get/get.go | 1 -
+ src/reflect/all_test.go        | 2 --
+ 2 files changed, 3 deletions(-)

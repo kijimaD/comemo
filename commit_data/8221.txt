@@ -1,15 +1,33 @@
-commit 4684df520f787f6209b25d32511412f0d955b03e
+commit 8698bb6c8ca104f3f0fae437d5e609f75c4ef5b2
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 17:16:44 2011 -0400
+Date:   Mon Apr 25 16:58:00 2011 -0400
 
-    gc: explain why invalid receiver types are invalid
+    runtime: turn "too many EPIPE" into real SIGPIPE
     
-    Fixes #1680.
+    Tested on Linux and OS X, amd64 and 386.
     
-    R=ken2
+    R=r, iant
     CC=golang-dev
-    https://golang.org/cl/4446061
+    https://golang.org/cl/4452046
 
- src/cmd/gc/dcl.c | 26 ++++++++++++++++++++++++++
- test/method2.go  | 10 ++++++++--
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ src/pkg/os/file_posix.go               |  4 +++-
+ src/pkg/runtime/darwin/386/signal.c    |  7 +++++++
+ src/pkg/runtime/darwin/386/sys.s       | 10 ++++++++++
+ src/pkg/runtime/darwin/amd64/signal.c  |  7 +++++++
+ src/pkg/runtime/darwin/amd64/sys.s     |  9 +++++++++
+ src/pkg/runtime/darwin/os.h            |  2 ++
+ src/pkg/runtime/freebsd/386/signal.c   |  7 +++++++
+ src/pkg/runtime/freebsd/386/sys.s      | 14 ++++++++++++++
+ src/pkg/runtime/freebsd/amd64/signal.c |  7 +++++++
+ src/pkg/runtime/freebsd/amd64/sys.s    | 12 ++++++++++++
+ src/pkg/runtime/freebsd/os.h           |  2 ++
+ src/pkg/runtime/linux/386/signal.c     |  7 +++++++
+ src/pkg/runtime/linux/386/sys.s        |  8 ++++++++
+ src/pkg/runtime/linux/amd64/signal.c   |  7 +++++++
+ src/pkg/runtime/linux/amd64/sys.s      |  9 +++++++++
+ src/pkg/runtime/linux/arm/signal.c     |  7 +++++++
+ src/pkg/runtime/linux/arm/sys.s        | 11 +++++++++++
+ src/pkg/runtime/linux/os.h             |  2 ++
+ src/pkg/runtime/plan9/thread.c         |  5 +++++
+ src/pkg/runtime/windows/thread.c       |  6 ++++++
+ 20 files changed, 142 insertions(+), 1 deletion(-)

@@ -1,19 +1,20 @@
-commit 0d52401e2380125615d4a77df31498ce7fbd3b7f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Feb 27 11:23:03 2023 +0700
+commit 6f1dce0fcb03f22402dac00f66a42b8b0f5bef2b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 1 19:23:52 2022 -0400
 
-    os: checking for testable network before creating local listener
+    runtime/race: update PPC64LE syso file to new TSAN runtime (v3)
     
-    Fixes #58745
+    In CL 397494 Linux/PPC64LE syso was not updated due to  test
+    failure. It should be fixed by the previous CL and should work
+    now.
     
-    Change-Id: Id6666477b2c25f081d6f86047cea12bf8b3cb679
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471495
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ieb0993ded5541397094d3aecae28c5255c822eac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397676
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/readfrom_linux_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_linux_ppc64le.syso | Bin 624648 -> 669736 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

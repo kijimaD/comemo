@@ -1,15 +1,20 @@
-commit 61fe7d83089015eca494b789dff8c325bfbfb720
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 7 10:22:34 2014 +0900
+commit d3b9567a15cd0f20a927c87b8172902717020304
+Author: Jakub Ryszard Czarnowicz <j.czarnowicz@gmail.com>
+Date:   Fri Feb 7 10:49:10 2014 +1100
 
-    runtime/cgo: fix build on freebsd/arm
+    net/mail: correctly handle whitespaces when formatting an email address
     
-    This CL is in preparation to make cgo work on freebsd/arm.
+    Whitespace characters are allowed in quoted-string according to RFC 5322 without
+    being "Q"-encoding. Address.String() already always formats the name portion in
+    quoted string, so whitespace characters should be allowed in there.
     
-    LGTM=iant
-    R=iant
+    Fixes #6641.
+    
+    LGTM=dave, dsymonds
+    R=golang-codereviews, gobot, dsymonds, dave
     CC=golang-codereviews
-    https://golang.org/cl/60500044
+    https://golang.org/cl/55770043
 
- src/pkg/runtime/cgo/gcc_freebsd_arm.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/mail/message.go      | 12 ++++++++++--
+ src/pkg/net/mail/message_test.go |  8 ++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

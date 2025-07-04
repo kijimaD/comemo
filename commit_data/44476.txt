@@ -1,31 +1,20 @@
-commit 00cb841b83ad157bc21d36daf0626bbcd4af0d57
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 7 17:56:49 2019 +1000
+commit c5d7f2f1cbaca8938a31a022058b1a3300817e33
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 14 18:55:29 2020 -0400
 
-    syscall: implement rawVforkSyscall for remaining linux platforms
+    cmd/link: skip TestOldLink if the old linker does not exist
     
-    This allows the use of CLONE_VFORK and CLONE_VM for fork/exec, preventing
-    'fork/exec ...: cannot allocate memory' failures from occuring when attempting
-    to execute commands from a Go process that has a large memory footprint.
-    Additionally, this should reduce the latency of fork/exec on these platforms.
+    We don't ship the old linker in binary releases. Skip the test if
+    we cannot find the old linker.
     
-    Fixes #31936
+    Fixes #39509.
     
-    Change-Id: I4e28cf0763173145cacaa5340680dca9ff449305
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295849
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1af5552bc56aff5314a384bcb5f3717b725d68e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242604
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/syscall/asm_linux_386.s          | 20 ++++++++++++++++++++
- src/syscall/asm_linux_amd64.s        |  2 +-
- src/syscall/asm_linux_arm.s          | 21 +++++++++++++++++++++
- src/syscall/asm_linux_arm64.s        |  1 -
- src/syscall/asm_linux_mips64x.s      | 20 ++++++++++++++++++++
- src/syscall/asm_linux_mipsx.s        | 17 +++++++++++++++++
- src/syscall/exec_linux.go            |  8 +-------
- src/syscall/syscall_linux_386.go     |  4 +---
- src/syscall/syscall_linux_arm.go     |  4 +---
- src/syscall/syscall_linux_mips64x.go |  4 +---
- src/syscall/syscall_linux_mipsx.go   |  4 +---
- 11 files changed, 84 insertions(+), 21 deletions(-)
+ src/cmd/link/link_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,22 +1,18 @@
-commit c2d3e1123c2f49aab02260f125a940ed723e42a0
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Sat Feb 20 18:36:03 2016 -0200
+commit 606d9a7e18c951bb64ea460597894558ff3808c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 14:36:45 2015 -0500
 
-    cmd/go: better error for test functions with wrong signature
+    crypto/x509: introduce ErrInsecureAlgorithm for insecure algorithms
     
-    Check the function types before compiling the tests. Extend the same
-    approach taken by the type check used for TestMain function.
+    Until now we've used ErrUnknownAlgorithm but that's a bit confusing
+    when it is returned for obviously-known things like MD5.
     
-    To keep existing behavior, wrong arguments for TestMain are ignored
-    instead of causing an error.
+    Fixes #10431.
     
-    Fixes #14226.
-    
-    Change-Id: I488a2555cddb273d35c1a8c4645bb5435c9eb91d
-    Reviewed-on: https://go-review.googlesource.com/19763
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ief8a8ef46e5b99bd4fd18e1acd7ae398a484bac3
+    Reviewed-on: https://go-review.googlesource.com/17380
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/test.go | 23 +++++++++++++++--------
- 1 file changed, 15 insertions(+), 8 deletions(-)
+ src/crypto/x509/x509.go      |  6 ++++++
+ src/crypto/x509/x509_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

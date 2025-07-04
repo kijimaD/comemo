@@ -1,23 +1,34 @@
-commit c7c01efd96cd8f903b304c1504e9aab1c4e6ba2f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Feb 28 16:49:33 2018 +0100
+commit 1126d1483f0397648905fcd4590ae45352cabd69
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Oct 17 15:59:56 2017 -0700
 
-    runtime: clean up libc_* definitions on Solaris
+    database/sql: ensure all driver interfaces are called under single lock
     
-    All functions defined in syscall2_solaris.go have the respective libc_*
-    var in syscall_solaris.go, except for libc_close. Move it from
-    os3_solaris.go
+    Russ pointed out in a previous CL golang.org/cl/65731 that not only
+    was the locking incomplete, previous changes did not correctly
+    lock driver calls in other sections. After inspecting
+    driverConn, driverStmt, driverResult, Tx, and Rows structs
+    where driver interfaces are stored, I discovered a few more places
+    that failed to lock driver calls. The largest of these
+    was the parameter type converter "driverArgs".
     
-    Remove unused libc_fstat.
+    driverArgs was typically called right before another call to the
+    driver in a locked region, so I made the entire driverArgs expect
+    a locked driver mutex and combined the region. This should not
+    be a problem because the connection is pulled out of the connection
+    pool either way so there shouldn't be contention.
     
-    Order go:cgo_import_dynamic and go:linkname lists in
-    syscall2_solaris.go alphabetically.
+    Fixes #21117
     
-    Change-Id: I9f12fa473cf1ae351448ac45597c82a67d799c31
-    Reviewed-on: https://go-review.googlesource.com/97736
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I88d46f74dca25fb11a30f0bf8e79785a73133d23
+    Reviewed-on: https://go-review.googlesource.com/71433
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os3_solaris.go      | 6 ------
- src/runtime/syscall2_solaris.go | 4 ++--
- src/runtime/syscall_solaris.go  | 1 +
- 3 files changed, 3 insertions(+), 8 deletions(-)
+ src/database/sql/convert.go      | 15 ++-------
+ src/database/sql/convert_test.go |  2 +-
+ src/database/sql/fakedb_test.go  |  1 +
+ src/database/sql/sql.go          | 70 ++++++++++++++++++++++++++--------------
+ src/database/sql/sql_test.go     |  6 ++++
+ 5 files changed, 55 insertions(+), 39 deletions(-)

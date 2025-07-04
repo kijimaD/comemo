@@ -1,15 +1,41 @@
-commit 6134caf1f965045bcc009c0bdb26031ce5583892
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 30 16:59:09 2015 -0400
+commit f584c05fcc38fef1582681a7e2841b725f0a827d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 2 20:16:48 2015 -0800
 
-    runtime: improve MemStats comments
+    runtime: Update open/close/read/write to return -1 on error.
     
-    This tries to clarify that Alloc and HeapAlloc are tied to how much
-    freeing has been done by the sweeper.
+    Error detection code copied from syscall, where presumably
+    we actually do it right.
     
-    Change-Id: Id8320074bd75de791f39ec01bac99afe28052d02
-    Reviewed-on: https://go-review.googlesource.com/8354
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Note that we throw the errno away.  The runtime doesn't use it.
+    
+    Fixes #10052
+    
+    Change-Id: I8de77dda6bf287276b137646c26b84fa61554ec8
+    Reviewed-on: https://go-review.googlesource.com/6571
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mstats.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/export_test.go        |  5 +++++
+ src/runtime/os_nacl.go            |  5 +++++
+ src/runtime/os_windows.go         | 16 +++++++++++++++-
+ src/runtime/runtime_test.go       | 26 ++++++++++++++++++++++++++
+ src/runtime/sys_darwin_386.s      |  8 ++++++++
+ src/runtime/sys_darwin_amd64.s    |  8 ++++++++
+ src/runtime/sys_darwin_arm.s      |  4 ++++
+ src/runtime/sys_dragonfly_386.s   |  8 ++++++++
+ src/runtime/sys_dragonfly_amd64.s |  8 ++++++++
+ src/runtime/sys_freebsd_386.s     |  8 ++++++++
+ src/runtime/sys_freebsd_amd64.s   |  8 ++++++++
+ src/runtime/sys_freebsd_arm.s     |  4 ++++
+ src/runtime/sys_linux_386.s       | 12 ++++++++++++
+ src/runtime/sys_linux_amd64.s     | 12 ++++++++++++
+ src/runtime/sys_linux_arm.s       | 12 ++++++++++++
+ src/runtime/sys_linux_ppc64x.s    |  8 ++++++++
+ src/runtime/sys_netbsd_386.s      |  8 ++++++++
+ src/runtime/sys_netbsd_amd64.s    |  8 ++++++++
+ src/runtime/sys_netbsd_arm.s      |  4 ++++
+ src/runtime/sys_openbsd_386.s     |  8 ++++++++
+ src/runtime/sys_openbsd_amd64.s   |  8 ++++++++
+ 21 files changed, 187 insertions(+), 1 deletion(-)

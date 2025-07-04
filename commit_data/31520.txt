@@ -1,23 +1,17 @@
-commit 9eacd977a0d2329ea5856db7ab9bf5130f7bafcc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 9 06:40:04 2017 -0700
+commit f81466ce9c663ddc1d136d2c435c60d988cf316a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 20:25:09 2017 -0800
 
-    cmd/go: put user flags after code generation flag
+    go/importer: support importing directly from source
     
-    This permits the user to override the code generation flag when they
-    know better. This is always a good policy for all flags automatically
-    inserted by the build system.
+    For #11415.
     
-    Doing this now so that I can write a test for #20290.
-    
-    Update #20290
-    
-    Change-Id: I5c6708a277238d571b8d037993a5a59e2a442e98
-    Reviewed-on: https://go-review.googlesource.com/42952
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5da39dad059113cfc4276152390aa4925bd18862
+    Reviewed-on: https://go-review.googlesource.com/37405
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/go_test.go             | 28 ++++++++++++++++++++++++++++
- src/cmd/go/internal/work/build.go |  6 +++---
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ src/go/build/deps_test.go   |  2 +-
+ src/go/importer/importer.go | 32 +++++++++++++++++++++++++-------
+ 2 files changed, 26 insertions(+), 8 deletions(-)

@@ -1,12 +1,30 @@
-commit d4b19bdbed13f8261638ceafbeecb11d55778637
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 22 15:00:21 2011 +1100
+commit 4a33d440b891c4aaff5769b72c3d5edcc65d42dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 21 17:15:59 2011 -0700
 
-    ld: return > 0 exit code on unsafe import
+    go/printer, gofmt: avoid exponential layout algorithm
     
-    R=rsc
+    Use memoization to avoid repeated recomputation of nested
+    node sizes. Speeds up testdata/slow.input by several orders
+    of magnitude.
+    
+    - added respective test case
+    - added timeout to test code
+    - deleted some unrelated unused code
+    
+    Fixes #1628.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4273092
+    https://golang.org/cl/4274075
 
- src/cmd/ld/go.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/godoc/godoc.go                  |  2 +-
+ src/cmd/gofix/main.go                   |  2 +-
+ src/cmd/gofix/main_test.go              |  4 +-
+ src/cmd/gofmt/gofmt.go                  |  2 +-
+ src/pkg/go/printer/nodes.go             | 24 +++++-----
+ src/pkg/go/printer/printer.go           | 14 ++++--
+ src/pkg/go/printer/printer_test.go      | 30 +++++++++++-
+ src/pkg/go/printer/testdata/slow.golden | 85 +++++++++++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/slow.input  | 85 +++++++++++++++++++++++++++++++++
+ 9 files changed, 225 insertions(+), 23 deletions(-)

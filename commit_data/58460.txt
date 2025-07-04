@@ -1,22 +1,25 @@
-commit 20da34c6d2f6a4d03304f55a6d6f1418ca11b091
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 27 13:27:21 2024 -0500
+commit eda42f7c60adab26ed1a340414c726c4bf46b1f7
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 9 09:53:44 2023 -0800
 
-    cmd/go: move GOCACHEPROG protocol types to their own package
+    path/filepath: consider \\?\c: as a volume on Windows
     
-    This is a step toward making it easy to point to them in
-    documentation. The other option is that we copy-paste all of these
-    type definitions wholesale, which seems ridiculous.
+    While fixing several bugs in path handling on Windows,
+    beginning with \\?\.
     
-    Updates #71032
-    Updates #59719
+    Prior to #540277, VolumeName considered the first path component
+    after the \\?\ prefix to be part of the volume name.
+    After, it considered only the \\? prefix to be the volume name.
     
-    Change-Id: I7117e03308ae0adc721ed7a57792c33ba68ce827
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638995
-    Auto-Submit: Austin Clements <austin@google.com>
+    Restore the previous behavior.
+    
+    Fixes #64028
+    
+    Change-Id: I6523789e61776342800bd607fb3f29d496257e68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541175
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go/internal/cache/prog.go          | 163 ++++-------------------------
- src/cmd/go/internal/cacheprog/cacheprog.go | 137 ++++++++++++++++++++++++
- 2 files changed, 155 insertions(+), 145 deletions(-)
+ src/path/filepath/path_test.go    | 15 ++++++++++-----
+ src/path/filepath/path_windows.go | 20 +++++++-------------
+ 2 files changed, 17 insertions(+), 18 deletions(-)

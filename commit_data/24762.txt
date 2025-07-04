@@ -1,18 +1,13 @@
-commit 3953c1d84f2671615e842cb402e1aec6667530aa
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sun Nov 8 20:27:14 2015 +0100
+commit 707af252d9041a5a618e15d2f3683f7d57b4d34c
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Aug 28 15:56:43 2015 -0500
 
-    cmd/go: send all go build -n output to stderr
+    [dev.ssa] cmd/compile: implement len/cap(chan)
     
-    Also change a -v print, for consistency.
-    
-    Fixes #12913
-    
-    Change-Id: I6cc067d9f8dac66b1f9d1a675e0fbe0528371d0d
-    Reviewed-on: https://go-review.googlesource.com/16737
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1453ba226376ccd4d79780fc0686876d6dde01ee
+    Reviewed-on: https://go-review.googlesource.com/14027
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go               | 34 +++++++----
+ src/cmd/compile/internal/gc/testdata/chan_ssa.go | 76 ++++++++++++++++++++++++
+ 2 files changed, 97 insertions(+), 13 deletions(-)

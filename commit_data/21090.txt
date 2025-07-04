@@ -1,15 +1,58 @@
-commit 31f8310c45205a38311e4b82f24eabe29c7c79a0
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Dec 23 13:45:58 2014 -0800
+commit e088e16256a00447c6d5cded22ceb62bcdcc4698
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Thu Nov 13 16:07:10 2014 +0100
 
-    reflect: fix func layout test for nacl build
+    [dev.cc] runtime: convert Solaris port to Go
     
-    This test code is ugly.  There must be a better way.
-    But for now, fix the build.
+    Memory management was consolitated with the BSD ports, since
+    it was almost identical.
     
-    Change-Id: I33064145ea37f11abf040ec97caa87669be1a9fa
-    Reviewed-on: https://go-review.googlesource.com/2114
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Assembly thunks are gone, being replaced by the new //go:linkname
+    feature.
+    
+    This change supersedes CL 138390043 (runtime: convert solaris
+    netpoll to Go), which was previously reviewed and tested.
+    
+    This change is only the first step, the port now builds,
+    but doesn't run. Binaries fail to exec:
+    
+        ld.so.1: 6.out: fatal: 6.out: TLS requirement failure : TLS support is unavailable
+        Killed
+    
+    This seems to happen because binaries don't link with libc.so
+    anymore. We will have to solve that in a different CL.
+    
+    Also this change is just a rough translation of the original
+    C code, cleanup will come in a different CL.
+    
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews, iant, khr, minux, r, rlh
+    https://golang.org/cl/174960043
 
- src/reflect/all_test.go | 24 +++++++++++++-----------
- 1 file changed, 13 insertions(+), 11 deletions(-)
+ src/liblink/asm6.c                                 |   5 +-
+ src/runtime/defs1_solaris_amd64.go                 |   5 +
+ src/runtime/mem_bsd.go                             |   2 +-
+ src/runtime/mem_solaris.c                          | 101 ----
+ src/runtime/netpoll.go                             |  50 +-
+ .../{netpoll_solaris.c => netpoll_solaris.go}      | 259 +++++-----
+ src/runtime/os2_solaris.go                         |  13 +
+ src/runtime/os3_solaris.go                         | 493 ++++++++++++++++++
+ src/runtime/os_solaris.c                           | 557 ---------------------
+ src/runtime/os_solaris.go                          |  52 +-
+ src/runtime/os_solaris.h                           |  55 --
+ src/runtime/signal_solaris.go                      |  88 ++++
+ src/runtime/signal_solaris_amd64.go                |  46 ++
+ src/runtime/signal_solaris_amd64.h                 |  31 --
+ src/runtime/signals_solaris.h                      |  97 ----
+ src/runtime/stubs.go                               |  14 -
+ src/runtime/stubs2.go                              |  27 +
+ src/runtime/sys_solaris_amd64.s                    |  12 +-
+ src/runtime/syscall2_solaris.go                    |  47 ++
+ src/runtime/syscall_solaris.c                      |  23 -
+ src/runtime/syscall_solaris.go                     |  79 ++-
+ src/runtime/thunk_solaris_amd64.s                  |  89 ----
+ 22 files changed, 914 insertions(+), 1231 deletions(-)

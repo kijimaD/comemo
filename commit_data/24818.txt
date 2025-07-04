@@ -1,16 +1,21 @@
-commit a36dda7880179c09361cd7ec26f11dbb73dc2b78
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:21:57 2015 -0400
+commit 43a7a9cf43319b2a473c9c3f604a694965e78903
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 14:36:36 2015 -0700
 
-    runtime: added go files for linux/mips64{,le} support
+    cmd/vet: diagnose using Printf on a function value
     
-    Change-Id: I14b537922b97d4bce9e0523d98a822da906348f1
-    Reviewed-on: https://go-review.googlesource.com/14447
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Printing a function value is nearly useless outside of debugging, but
+    can occur by mistake when one forgets to call it. Diagnose this.
+    
+    I did this myself just the other day and it arose in cl/14031.
+    Easy to fix and seems worthwhile.
+    
+    Fixes #12295.
+    
+    Change-Id: Ice125a84559f0394f7fa7272b5d31ae602b07f83
+    Reviewed-on: https://go-review.googlesource.com/14122
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/defs_linux_mips64x.go    | 183 +++++++++++++++++++++++++++++++++++
- src/runtime/lfstack_linux_mips64x.go |  32 ++++++
- src/runtime/os_linux_mips64x.go      |  18 ++++
- src/runtime/signal_linux_mips64x.go  |  67 +++++++++++++
- src/runtime/signal_mips64x.go        | 180 ++++++++++++++++++++++++++++++++++
- 5 files changed, 480 insertions(+)
+ src/cmd/vet/print.go          | 19 ++++++++++++++++++-
+ src/cmd/vet/testdata/print.go | 11 +++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

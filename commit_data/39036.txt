@@ -1,17 +1,13 @@
-commit b41eee4c8a2fe692c1d9fb46972b9047b5dc02b7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun May 5 15:49:47 2019 +0200
+commit 5777e9700f023f1b464dc112b4e28be70da94253
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Dec 18 12:46:06 2018 +0100
 
-    syscall: remove unused {dragonfly,illumos,solaris}64Bit constants
+    doc/go1.12: add release notes for GODEBUG internal/cpu options
     
-    These are unused since CL 153837. illumos64Bit was added by CL 174457
-    but was never used.
-    
-    Change-Id: I34a1bd41cf70f8a07e57f93a71de3c6034fcaf7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175358
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Id68b62138e14d13bb352b14c7f42bcef5601eee3
+    Reviewed-on: https://go-review.googlesource.com/c/154717
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/syscall_unix.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ doc/go1.12.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

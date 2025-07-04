@@ -1,14 +1,12 @@
-commit 9d92676f63c3de78eeaab302bc5868308e6af5ad
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 4 17:14:56 2012 +1100
+commit dfedd34d4f0ba624f1637a07653f2bb8a274a0c2
+Author: Paul Borman <borman@google.com>
+Date:   Wed Jan 4 11:31:51 2012 +1100
 
-    unsafe: refer to correct reflect functions
+    doc: Fix URL to the Xcode web page
     
-    Fixes #2641.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, kevlar
     CC=golang-dev
-    https://golang.org/cl/5509043
+    https://golang.org/cl/5504113
 
- src/pkg/unsafe/unsafe.go | 2 +-
+ doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

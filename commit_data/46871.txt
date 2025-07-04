@@ -1,19 +1,19 @@
-commit 53260943eac49dde51e0ce28e50e9b4bc90661b8
-Author: Forest Johnson <forest.n.johnson@gmail.com>
-Date:   Fri Oct 8 19:03:35 2021 +0000
+commit b9c88eaab915874bc004f579940b10fe48bba36b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 9 10:30:02 2021 -0500
 
-    os: explain ProccessState.Exited()  SIGKILL interaction
+    [dev.fuzz] testing/internal/testdeps: use signal.NotifyContext
     
-    When a process is forcefully killed (for example, with SIGKILL on unix), its ProccessState.Exited() will return false.
+    In RunFuzzWorker and CoordinateFuzzing, use signal.NotifyContext
+    (new in 1.16) to cancel the context in response to SIGINT. This is
+    shorter and more correct than what we were doing before.
     
-    Change-Id: I8cebc8d28f2ba1b687c145f6d941647fc3a10665
-    GitHub-Last-Rev: 414ae1980fe61dd530c46cc2c7f4de3a5bc83ed5
-    GitHub-Pull-Request: golang/go#48871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354698
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Change-Id: Id7e9a58e9dd992dffb86e4e0f2e3efd117d03c47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290691
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/os/exec.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/testing/internal/testdeps/deps.go | 22 ++++++----------------
+ 1 file changed, 6 insertions(+), 16 deletions(-)

@@ -1,29 +1,27 @@
-commit b9704872d11ae224ca96a1bd2fab0da10ce806d7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 4 15:16:25 2019 -0700
+commit 724a86fcede55d0e80da4a779ef64a2eb5d235a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 20:08:36 2019 +0000
 
-    cmd/compile: better integrate parameter tagging with escape.go
+    context: don't depend on fmt
     
-    This CL moves parameter tagging to before escape analysis is complete,
-    so we still have access to EscLocation. This will be useful once
-    EscLocation starts tracking higher-fidelity escape details.
+    So the net package doesn't indirectly depend on unicode tables.
     
-    Notably, this CL stops using n.Esc to record parameter escape analysis
-    details. Now escape analysis only ever sets n.Esc to EscNone or
-    EscHeap. (It still defaults to EscUnknown, and is set to EscNever in
-    some places though.)
+    But we're still not quite there, because a new test added in this CL
+    reveals that we still have a path to unicode via:
     
-    Passes toolstash-check.
+    deps_test.go:570:
+      TODO(issue 30440): policy violation: net => sort => reflect => unicode
     
-    Updates #33981.
+    Updates #30440
     
-    Change-Id: I50a91ea1e38c442092de6cd14e20b211f8f818c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193178
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I710c2061dfbaa8e866c92e6c824bd8df35784165
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169080
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/esc.go    | 44 +++++++++++++++++++++----------
- src/cmd/compile/internal/gc/escape.go | 49 +++++++++++++----------------------
- test/uintptrescapes2.go               |  2 +-
- 3 files changed, 49 insertions(+), 46 deletions(-)
+ src/context/context.go           | 35 +++++++++++++++++++++++++++++++----
+ src/context/context_test.go      |  2 +-
+ src/go/build/deps_test.go        | 36 +++++++++++++++++++++++++++++++++++-
+ src/internal/reflectlite/type.go |  7 +++++++
+ 4 files changed, 74 insertions(+), 6 deletions(-)

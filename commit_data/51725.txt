@@ -1,16 +1,30 @@
-commit e2fe35363d070bf37326d04ed28964e6ba3892da
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jan 21 22:41:49 2023 +0000
+commit 31be6285a879af94c7283e6599e3f9b64266bc1a
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jan 18 08:49:56 2022 +0000
 
-    runtime: use copy as spotted by staticcheck
+    cmd/internal/obj/arm64: optimize stacksplit prologue for small stack
     
-    Change-Id: Ibffe46bad7d30df9380ba18d49eeb6782406a1aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463115
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    When framesize <= objabi.StackSmall, 128B, the stacksplit prologue is:
+      MOVD  16(g), R16
+      MOVD  SP, R17
+      CMP   R16, R17
+      BLS   morestack_label
+    
+    The second instruction is not necessary, we can compare R16 with SP
+    directly, so the sequence becomes:
+      MOVD  16(g), R16
+      CMP   R16, SP
+      BLS   morestack_label
+    
+    This CL removes this instruction.
+    
+    Change-Id: I0567ac52e9be124880957271951e1186da203612
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379076
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/trace.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

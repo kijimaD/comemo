@@ -1,18 +1,22 @@
-commit 04212a16d054a989560ca06a16b2edeb081ce2c3
-Author: Will Faught <will.faught@gmail.com>
-Date:   Sun Sep 10 01:39:23 2017 -0700
+commit 66b5a2f3f0b1d94f69763114a85a977f5bc0277a
+Author: Lars Jeppesen <jeppesen.lars@gmail.com>
+Date:   Sat Apr 29 23:25:34 2017 +0200
 
-    log: move Ldate doc to general declaration
+    archive/tar: remove file type bits from mode field
     
-    The Ldate doc refers to all the constants.
+    When writing tar files by using the FileInfoHeader
+    the type bits was set in the mode field of the header
+    This is not correct according to the standard (GNU/Posix) and
+    other implementations.
     
-    Note that I changed "Bits or'ed" to "Bits are or'ed".
+    Fixed #20150
     
-    Fixes #21810
-    
-    Change-Id: I82a66b589689e29063a39aa6d56000e00a5ed150
-    Reviewed-on: https://go-review.googlesource.com/62671
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3be7d946a1923ad5827cf45c696546a5e287ebba
+    Reviewed-on: https://go-review.googlesource.com/42093
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/log/log.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/archive/tar/common.go   | 20 +++++++++-----------
+ src/archive/tar/tar_test.go | 26 +++++++++++++-------------
+ 2 files changed, 22 insertions(+), 24 deletions(-)

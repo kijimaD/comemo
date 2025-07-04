@@ -1,17 +1,16 @@
-commit 258ee61c7240b7b147a672fdff9552981a182447
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Apr 6 12:18:01 2014 +1000
+commit 1daa2520bfc1b77a2d40c62133c9e4b666fcaee3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 4 08:15:27 2014 -0700
 
-    syscall: use unsafe.Pointer instead of uintptr on windows when possible
+    runtime: fix plan9 warning.
     
-    Fixes #7171
+    I have no idea what this code is for, but it pretty
+    clearly needs to be uint64, not uint32.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=aram
+    R=0intro, aram
     CC=golang-codereviews
-    https://golang.org/cl/84330043
+    https://golang.org/cl/84410043
 
- src/pkg/syscall/syscall_windows.go        | 24 ++++++++++++------------
- src/pkg/syscall/zsyscall_windows_386.go   |  4 ++--
- src/pkg/syscall/zsyscall_windows_amd64.go |  4 ++--
- 3 files changed, 16 insertions(+), 16 deletions(-)
+ src/pkg/runtime/os_plan9_amd64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

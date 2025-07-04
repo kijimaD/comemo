@@ -1,25 +1,25 @@
-commit 059c3ed09fb7f9feb479b71dc967219741ac7c06
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 15:43:54 2022 -0500
+commit 07ed86c57bb2aa5656ad7ab8df9c8b5faf089cbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 11:42:58 2021 -0800
 
-    os/signal/internal/pty: use libc (not cgo) on macOS
+    cmd/compile/internal/types2: record types for union subexpressions
     
-    This package is only used by tests anyway, but might as well
-    remove the cgo use on macOS so that it doesn't show up as
-    a cgo user, as part of our overall strategy to remove cgo use
-    in the standard library on macOS.
+    This is a port of CL 371757 from go/types to types2, with
+    minor adjustments for different error handling and AST.
     
-    Change-Id: I5a1a39ed56373385f9d43a5e17098035dc1a451a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449315
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    It also names the added API test cases more consistently.
+    The same renaming was applied to the respective go/types
+    file.
+    
+    Updates #50093
+    
+    Change-Id: Iaa132106a197a207f831525432e62e9d452b17c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372475
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/syscall/unix/asm_darwin.s   | 12 ++++++
- src/internal/syscall/unix/pty_darwin.go  | 65 ++++++++++++++++++++++++++++++++
- src/os/signal/internal/pty/pty.go        | 25 +-----------
- src/os/signal/internal/pty/pty_cgo.go    | 34 +++++++++++++++++
- src/os/signal/internal/pty/pty_darwin.go | 32 ++++++++++++++++
- 5 files changed, 145 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/types2/api.go      |  6 ----
+ src/cmd/compile/internal/types2/api_test.go | 15 ++++++++
+ src/cmd/compile/internal/types2/union.go    | 55 ++++++++++++++++++++---------
+ src/go/types/api_test.go                    | 22 ++++++------
+ 4 files changed, 65 insertions(+), 33 deletions(-)

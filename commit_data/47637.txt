@@ -1,20 +1,28 @@
-commit 1ab677a797ab5cdb5c0248b2d63b753820e6ed49
+commit a1e4657d5a89d683a2bc0c5c8d6c5d2698bb081a
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 26 12:43:06 2021 -0800
+Date:   Mon Mar 29 12:33:45 2021 -0700
 
-    go/types: produce empty type set for invalid ~T
+    cmd/compile/internal/types2: review of check_test.go
     
-    This is a clean port of CL 366278 from types2 to go/types.
+    The changes between (equivalent, and reviewed) go/types/check_test.go
+    and check_test.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, and minor adjustments
+    to get the code slightly closer to go/types/check_test.go.
     
-    For #49739.
+    The primary differences compared to go/types are:
+    - use of syntax rather than go/ast package
+    - re-implemented mechanism for error matching and elimination
+      based on the syntax.ErrorMap mechanism (there's no exported
+      access to the syntax scanner)
+    - error matching permits for column tolerances because types2
+      column information doesn't match go/types column information
     
-    Change-Id: I2e2cb739c02fcc07e012499c7b65b13b057875ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367197
+    Change-Id: I8ae6bc93dfa2b517673b642064a1f09166755286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305573
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/testdata/fixedbugs/issue49739.go2 | 23 +++++++++++++++++++++++
- src/go/types/typeset.go                        | 16 ++++++++++------
- 2 files changed, 33 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go | 62 ++++++++++++---------------
+ 1 file changed, 27 insertions(+), 35 deletions(-)

@@ -1,14 +1,34 @@
-commit fd9d2898bd3983baa94fd2100602b06d8c487466
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 5 22:46:36 2018 -0700
+commit 49322ca9ede175cbd62de601ddc1170edcaae1a7
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Nov 20 20:56:05 2017 +0300
 
-    cmd/compile: eliminate unused Sig.offset field
+    cmd/internal/obj/x86: fix /is4 encoding for VBLEND
     
-    Change-Id: If498d1fc6e8c0c4e8cf7ed38c4997adf05e003a6
-    Reviewed-on: https://go-review.googlesource.com/105043
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes VBLENDVP{D/S}, VPBLENDVB encoding for /is4 imm8[7:4]
+    encoded register operand.
+    
+    Explanation:
+    `reg[r]+regrex[r]+1` will yield correct values for 8..15 reg indexes,
+    but for 0..7 it gives `index+1` results.
+    There was no test that used lower 8 register with /is4 encoding,
+    so the bug passed the tests.
+    The proper solution is to get 4th bit from regrex with a proper shift:
+    `reg[r]|(regrex[r]<<1)`.
+    
+    Instead of inlining `reg[r]|(regrex[r]<<1)` expr,
+    using new `regIndex(r)` function.
+    
+    Test that reproduces this issue is added to
+    amd64enc_extra.s test suite.
+    
+    Bug came from https://golang.org/cl/70650.
+    
+    Change-Id: I846a25e88d5e6df88df9d9c3f5fe94ec55416a33
+    Reviewed-on: https://go-review.googlesource.com/78815
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/compile/internal/gc/reflect.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 ++
+ src/cmd/internal/obj/x86/asm6.go                   | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

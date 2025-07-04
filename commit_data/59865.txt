@@ -1,0 +1,20 @@
+commit ae6af9b3d8c88c29c81230abbe697cf61e2ae594
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat May 4 00:40:18 2024 +0000
+
+    strings: move Clone to stringslite
+    
+    Follow-up CL help package like unique use Clone.
+    
+    Change-Id: Ie64adf7e1a331f47c3cfe178c368d72fc72493ff
+    GitHub-Last-Rev: 499476cc4acdf58ecf0fec9f7281bfb90edc7c82
+    GitHub-Pull-Request: golang/go#67106
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581956
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/stringslite/strings.go | 14 +++++++++++++-
+ src/strings/clone.go                |  9 ++-------
+ 2 files changed, 15 insertions(+), 8 deletions(-)

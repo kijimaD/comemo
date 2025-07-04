@@ -1,26 +1,15 @@
-commit 20e97677fd61dbdca128e9628e28327988c39bb4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 25 07:05:45 2014 -0400
+commit 1a8c00ea213f4f5487735a5bb958114c09b55f29
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 18 11:19:05 2014 -0700
 
-    cmd/gc: fix order of channel evaluation of receive channels
+    internal/syscall: add support for getrandom on arm
     
-    Normally, an expression of the form x.f or *y can be reordered
-    with function calls and communications.
+    Added in linux commit eb6452537b28
     
-    Select is stricter than normal: each channel expression is evaluated
-    in source order. If you have case <-x.f and case <-foo(), then if the
-    evaluation of x.f causes a panic, foo must not have been called.
-    (This is in contrast to an expression like x.f + foo().)
-    
-    Enforce this stricter ordering.
-    
-    Fixes #8336.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
-    CC=golang-codereviews, r
-    https://golang.org/cl/126570043
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/130170043
 
- src/cmd/gc/order.c          |  8 ++++++++
- test/fixedbugs/issue8336.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/pkg/internal/syscall/getrandom_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

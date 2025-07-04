@@ -1,40 +1,17 @@
-commit a9b2651ade68733405cdc296d66d9b9d8ea68bf0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 27 22:53:28 2014 -0400
+commit a9cef4952f86cd00fbe16090e8aa61c6b3ef152a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 21 22:34:00 2014 +0200
 
-    cmd/5l, cmd/6l, cmd/8l: fix nacl binary corruption bug
+    runtime: give an explicit name to profiling Bucket sub-structs.
     
-    NaCl requires the addition of a 32-byte "halt sled" at the end
-    of the text segment. This means that segtext.len is actually
-    32 bytes shorter than reality. The computation of the file offset
-    of the end of the data segment did not take this 32 bytes into
-    account, so if len and len+32 rounded up (by 64k) to different
-    values, the symbol table overwrote the last page of the data
-    segment.
+    Fixes compilation of runtime on Solaris where the inner struct
+    was not called "_4_".
     
-    The last page of the data segment is usually the C .string
-    symbols, which contain the strings used in error prints
-    by the runtime. So when this happens, your program
-    probably crashes, and then when it does, you get binary
-    garbage instead of all the usual prints.
-    
-    The chance of hitting this with a randomly sized text segment
-    is 32 in 65536, or 1 in 2048.
-    
-    If you add or remove ANY code while trying to debug this
-    problem, you're overwhelmingly likely to bump the text
-    segment one way or the other and make the bug disappear.
-    
-    Correct all the computations to use segdata.fileoff+segdata.filelen
-    instead of trying to rederive segdata.fileoff.
-    
-    This fixes the failure during the nacl/amd64p32 build.
-    
-    TBR=iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/135050043
+    https://golang.org/cl/129460043
 
- src/cmd/5l/asm.c | 4 ++--
- src/cmd/6l/asm.c | 8 ++++----
- src/cmd/8l/asm.c | 8 ++++----
- 3 files changed, 10 insertions(+), 10 deletions(-)
+ src/pkg/runtime/mprof.go | 2 +-
+ src/pkg/runtime/mprof.h  | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

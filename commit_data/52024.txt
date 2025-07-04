@@ -1,23 +1,15 @@
-commit 209df389c215d9a1eee15ce1c1e4d82f43e026db
-Author: Dmitri Goutnik <dgoutnik@gmail.com>
-Date:   Fri Feb 17 11:44:16 2023 -0500
+commit 40504892c1720a3a36d82c492fd2302b7ccb870a
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Sun Mar 27 15:12:39 2022 +0800
 
-    cmd/api: add API checks for freebsd/riscv64
+    cmd/compile: clean up arm64 32bit pointer in Reverse
     
-    The freebsd/riscv64 port was added in go1.20, make cmd/api aware of it and
-    backfill API files.
-    
-    For #58582
-    
-    Change-Id: I242b161cdb6221c8f60a1868c6435be26fca0078
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469135
-    Run-TryBot: Dmitri Goutnik <dgoutnik@gmail.com>
+    Change-Id: I0751270c0f656a501b389f2e2bb0e959d6f5a0e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396054
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- api/go1.20.txt     | 8722 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/api/api.go |    2 +
- 2 files changed, 8724 insertions(+)
+ src/cmd/compile/internal/ssagen/ssa.go | 3 ---
+ 1 file changed, 3 deletions(-)

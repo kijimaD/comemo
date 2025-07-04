@@ -1,18 +1,24 @@
-commit e861c3e003b37622603ff690aba5e62c0ddb31c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 16 15:53:38 2018 -0700
+commit 2809b339b5da46529f3f4529379391f8dd8e3525
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 13 15:43:54 2018 +0200
 
-    cmd/compile: simplified test case (cleanup)
+    syscall/js: improve import functions
     
-    Follow-up on https://golang.org/cl/124595; no semantic changes.
+    1. Make import functions not use the js.Value type directly,
+    but only the ref field. This gives more flexibility on the Go side
+    for the js.Value type, which is a preparation for adding
+    garbage collection of js.Value.
     
-    Updates #26411.
+    2. Turn import functions which are methods of js.Value into
+    package-level functions. This is necessary to make vet happy.
     
-    Change-Id: Ic1c4622dbf79529ff61530f9c25ec742c2abe5ca
-    Reviewed-on: https://go-review.googlesource.com/c/142720
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I69959bf1fbea0a0b99a552a1112ffcd0c024e9b8
+    Reviewed-on: https://go-review.googlesource.com/118656
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue26411.go | 30 ++++++++++++++----------------
- 1 file changed, 14 insertions(+), 16 deletions(-)
+ misc/wasm/wasm_exec.js |  60 ++++++++++----------
+ src/syscall/js/js.go   | 145 ++++++++++++++++++++++++++++++-------------------
+ src/syscall/js/js_js.s |  26 ++++-----
+ 3 files changed, 132 insertions(+), 99 deletions(-)

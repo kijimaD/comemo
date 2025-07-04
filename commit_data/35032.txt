@@ -1,17 +1,20 @@
-commit 86827fd7a16aa4c972d886921c0e63d825ce876d
-Author: Ashish Gandhi <ag@ashishgandhi.org>
-Date:   Tue Apr 17 16:13:04 2018 -0700
+commit fe2869cbfe2028c69d1fb2a24a0406748f528b2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 7 09:56:11 2017 -0500
 
-    fmt: make %v doc for compound objects consistent
+    misc/cgo/testplugin: unskip test
     
-    The documentation for %v behavior for compound objects uses an ellipsis
-    to indicate indefinite lenght of elements. This is done for struct
-    fields as well as elements of arrays and slices. This adds the missing
-    ellipsis for maps.
+    Fixed by CL 76025 yesterday, without realizing it:
+    the testshared and testplugin builds of separate iface_i
+    packages were colliding incorrectly in the cache.
+    Including the build directory fixes that.
     
-    Change-Id: Ia433387fe189d2daf5095df32085a541458f00a1
-    Reviewed-on: https://go-review.googlesource.com/107623
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #22571.
+    
+    Change-Id: Id8193781c67c3150823dc1f48eae781dfe3702fb
+    Reviewed-on: https://go-review.googlesource.com/76371
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testplugin/test.bash | 3 ---
+ 1 file changed, 3 deletions(-)

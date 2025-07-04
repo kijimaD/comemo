@@ -1,23 +1,18 @@
-commit 575fd8817ae9817303a69065def80c574718169e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 19 10:32:54 2022 -0700
+commit 62095c66e042024fc631a3e9514b637ae4b5ae10
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jun 22 10:13:54 2021 -0400
 
-    regexp: change ErrInvalidDepth message to match proposal
+    [dev.typeparams] go/types: adjust logic for method expression arg naming
     
-    Also update the file in $GOROOT/api/next to use proposal number.
+    CL 325369 improved this logic in types2. Port this improvement back to
+    go/types.
     
-    For #51684
-    
-    Change-Id: I28bfa6bc1cee98a17b13da196d41cda34d968bb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401076
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5f859cbffd88bb3db09a81c2389269f7bd0869f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330069
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/next/51684.txt         | 2 ++
- api/next/regexpdepth.txt   | 3 ---
- src/regexp/syntax/parse.go | 2 +-
- 3 files changed, 3 insertions(+), 4 deletions(-)
+ src/go/types/call.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

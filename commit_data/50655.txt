@@ -1,20 +1,18 @@
-commit a48fc816e703989b54845c5ce557c54a45cbfe9c
-Author: Mikael Urankar <mikael@FreeBSD.org>
-Date:   Sun Sep 18 17:46:54 2022 +0200
+commit 71fc881cff79d0f3b352c20b947f4911892864fa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 3 10:39:54 2021 -0400
 
-    cmd/dist: enable cgo tests on freebsd/riscv64
+    cmd/go: ensure that 'go test' prints the FAIL line for a package on a new line
     
-    Updates #53466
+    Fixes #49317
     
-    Change-Id: I17a41adb93c22fa84a7bdcec9d8c65001c5a8ba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431657
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4038fd4c1d845d54ecbbf82bf73060db1b44c9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361095
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/test.go                 | 14 ++++-
+ src/cmd/go/testdata/script/test_fail_newline.txt | 65 ++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 2 deletions(-)

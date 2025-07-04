@@ -1,15 +1,16 @@
-commit 90a66fa6aff43214298bbb3e184b2eb8c2bd6850
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Mar 20 15:54:17 2014 +1100
+commit 14664050b9dc5284f120faa3ca054eb3d04b77bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 19 15:41:34 2014 -0700
 
-    base32: remove unnecessary "if" condition
+    cmd/6g: do small zeroings with straightline code.
     
-    This is a patch to apply the same change as CL 76610045.
+    Removes most uses of the REP prefix, which has a high startup cost.
     
-    LGTM=nigeltao
-    R=nigeltao
+    LGTM=iant
+    R=golang-codereviews, iant, khr
     CC=golang-codereviews
-    https://golang.org/cl/77460044
+    https://golang.org/cl/77920043
 
- src/pkg/encoding/base32/base32.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/6g/ggen.c | 26 ++++++++++++++++++++------
+ src/cmd/8g/ggen.c | 16 +++++++++++++++-
+ 2 files changed, 35 insertions(+), 7 deletions(-)

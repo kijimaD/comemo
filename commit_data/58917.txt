@@ -1,23 +1,37 @@
-commit 05354fc3b431a5ff8281a145552b3f62178d560c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 26 15:23:59 2025 -0800
+commit c46966653f6144e20f8b9bccb96e7a7f1d32aeb9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 22 16:34:41 2024 +0000
 
-    go/types, types2: remove remaining references to coreType in literals.go
+    runtime: use the correct M ID for syscalling goroutines in traces
     
-    For now, use commonUnder (formerly called sharedUnder) and update
-    error messages and comments. We can provide better error messages
-    in individual cases eventually.
+    Earlier in the development of the new tracer, m.id was used as a the
+    canonical ID for threads. Later, we switched to m.procid because it
+    matches the underlying OS resource. However, in that switch, we missed a
+    spot.
     
-    For #70128.
+    The tracer catches and emits statuses for goroutines that have remained
+    in either waiting or syscall across a whole generation, and emits a
+    thread ID for the latter set. The ID being used here, however, was m.id
+    instead of m.procid, like the rest of the tracer.
     
-    Change-Id: I906ba9a0c768f6499c1683dc9be3ad27da8007a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653156
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This CL also adds a regression test. In order to make the regression
+    test actually catch the failure, we also have to make the parser a
+    little less lenient about GoStatus events with GoSyscall: if this isn't
+    the first generation, then we should've seen the goroutine bound to an
+    M already when its status is getting emitted for its context. If we emit
+    the wrong ID, then we'll catch the issue when we emit the right ID when
+    the goroutine exits the syscall.
+    
+    Fixes #65196.
+    
+    Change-Id: I78b64fbea65308de5e1291c478a082a732a8bf9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557456
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/literals.go         | 6 +++---
- src/go/types/literals.go                            | 6 +++---
- src/internal/types/testdata/fixedbugs/issue51335.go | 4 ++--
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ src/internal/trace/v2/order.go                     |  7 +++
+ .../trace/v2/testdata/testprog/wait-on-pipe.go     | 66 ++++++++++++++++++++++
+ src/internal/trace/v2/trace_test.go                |  9 +++
+ src/runtime/trace2.go                              |  2 +-
+ 4 files changed, 83 insertions(+), 1 deletion(-)

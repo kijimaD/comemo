@@ -1,14 +1,31 @@
-commit 2c3c8c4247f84f53533dc61f606bbde09f783cdf
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jun 14 11:55:05 2017 +0200
+commit da8e939ba9707108d5a4100824546b8f26e9c6c3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 07:49:22 2017 -0700
 
-    doc: list html/template and text/template changes in 1.9 relnotes
+    cmd/compile: thread Curfn through SSA
     
-    Updates #20587
+    This is a first step towards eliminating the
+    Curfn global in the backend.
+    There's more to do.
     
-    Change-Id: I3d65a0124157990b302db8879ee1a4941124ea11
-    Reviewed-on: https://go-review.googlesource.com/45730
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp. No compiler performance impact.
+    
+    Updates #15756
+    
+    Change-Id: Ib09f550a001e279a5aeeed0f85698290f890939c
+    Reviewed-on: https://go-review.googlesource.com/38232
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.9.html | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go  |   6 +-
+ src/cmd/compile/internal/arm/ggen.go    |   6 +-
+ src/cmd/compile/internal/arm64/ggen.go  |   6 +-
+ src/cmd/compile/internal/gc/go.go       |   2 +-
+ src/cmd/compile/internal/gc/pgen.go     |  14 ++---
+ src/cmd/compile/internal/gc/ssa.go      | 104 +++++++++++++++++---------------
+ src/cmd/compile/internal/mips/ggen.go   |   6 +-
+ src/cmd/compile/internal/mips64/ggen.go |   6 +-
+ src/cmd/compile/internal/ppc64/ggen.go  |   6 +-
+ src/cmd/compile/internal/s390x/ggen.go  |   6 +-
+ src/cmd/compile/internal/x86/ggen.go    |   6 +-
+ 11 files changed, 86 insertions(+), 82 deletions(-)

@@ -1,15 +1,16 @@
-commit 4888781f2485e276938867c5d9fe6f5d0477520b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Mar 10 12:20:16 2014 +0900
+commit 7718c626926beb0e5fed152d8d1a86be22570a34
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 7 16:59:11 2014 -0800
 
-    runtime: fix flakiness on futexsleep test
+    net/rpc/jsonrpc: set exactly one of result or error to non-null in response
     
-    Fixes #7496.
+    Fixes #7442
     
-    LGTM=jsing
-    R=golang-codereviews, jsing
+    LGTM=gri
+    R=golang-codereviews, gri
     CC=golang-codereviews
-    https://golang.org/cl/72840043
+    https://golang.org/cl/72570044
 
- src/pkg/runtime/futex_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/net/rpc/jsonrpc/all_test.go | 1 -
+ src/pkg/net/rpc/jsonrpc/server.go   | 6 ++----
+ 2 files changed, 2 insertions(+), 5 deletions(-)

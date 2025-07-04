@@ -1,25 +1,12 @@
-commit affab3f3128558dd808247f01abfee4b2bfee712
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 7 10:40:56 2014 -0800
+commit 095de8795ab55184c2c0029a9609f9d114d27234
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jan 7 18:25:11 2014 +0100
 
-    net/http: fix data race when sharing request body between client and server
+    cmd/gc: add missing dupok flag for interface method wrappers.
     
-    A server Handler (e.g. a proxy) can receive a Request, and
-    then turn around and give a copy of that Request.Body out to
-    the Transport. So then two goroutines own that Request.Body
-    (the server and the http client), and both think they can
-    close it on failure.  Therefore, all incoming server requests
-    bodies (always *http.body from transfer.go) need to be
-    thread-safe.
-    
-    Fixes #6995
-    
-    R=golang-codereviews, r
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/46570043
+    https://golang.org/cl/48420044
 
- src/pkg/net/http/response_test.go |  7 +++--
- src/pkg/net/http/serve_test.go    | 58 +++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/transfer.go      | 41 +++++++++++++++++++++------
- src/pkg/net/http/transfer_test.go |  6 ++--
- 4 files changed, 99 insertions(+), 13 deletions(-)
+ src/cmd/gc/subr.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,14 +1,26 @@
-commit 7e72505173fee47cc2168a07dd6c04f8344e49b9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 12 11:28:07 2015 -0500
+commit eaea5ade2b5f60c6dfd72a08c9243e1651778332
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Sep 3 22:49:18 2015 +1200
 
-    cmd/dist: remove race binaries when rebuilding everything
+    cmd/asm: fix handling of nested #if[n]defs
     
-    Fixes #13214.
+    The lexer needs to process all #if[n]defs, even those found when processing is
+    disabled by a preceding failed conditional, or the first #endif in something
+    like:
     
-    Change-Id: Id8fbb252b8beadb0b41f839dcd85d6165dea86a3
-    Reviewed-on: https://go-review.googlesource.com/16845
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+        #ifdef <undefined>
+        #ifdef whatever
+        #endif
+        #endif
+    
+    terminates the first #ifdef and the second causes an error. And then the
+    processing of the inner #ifdefs needs to ignore their argument when they are
+    disabled by an outer failed condition.
+    
+    Change-Id: Iba259498f1e16042f5b7580b9c000bb0599733d0
+    Reviewed-on: https://go-review.googlesource.com/14253
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/build.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/asm/internal/lex/input.go    |  13 +++--
+ src/cmd/asm/internal/lex/lex_test.go | 106 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 115 insertions(+), 4 deletions(-)

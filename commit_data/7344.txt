@@ -1,15 +1,12 @@
-commit 6b93a92ac0ef864466254c58ffd1cbc9bc590ebc
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 2 22:53:10 2011 -0500
+commit 27191b558c74233da9b465249a295b8ac612647d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 2 22:43:40 2011 -0500
 
-    windows: fix build?
+    codereview: fix hgpatch on windows
     
-    Shot in the dark.
-    
-    TBR=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4126054
+    https://golang.org/cl/3989059
 
- src/pkg/runtime/386/asm.s       | 8 ++++++++
- src/pkg/runtime/linux/386/rt0.s | 8 --------
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ lib/codereview/codereview.py | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

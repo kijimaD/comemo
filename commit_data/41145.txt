@@ -1,37 +1,20 @@
-commit 9b5bd30716914a86619c050f0d75c0da4133b257
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 6 11:10:26 2020 -0500
+commit 844e642392e1586e6631aafeda5007f9f0f55145
+Author: Keisuke Kishimoto <keisuke.kishimoto@gmail.com>
+Date:   Sun Sep 8 16:39:46 2019 +0000
 
-    runtime: document special memmove requirements
+    syscall: minor cleanup of duplicated code
     
-    Unlike C's memmove, Go's memmove must be careful to do indivisible
-    writes of pointer values because it may be racing with the garbage
-    collector reading the heap.
+    Call the Nano methods of Timespec and Timeval in TimespecToNsec and
+    TimevalToNsec respectively, instead of duplicating the implementation.
     
-    We've had various bugs related to this over the years (#36101, #13160,
-     #12552). Indeed, memmove is a great target for optimization and it's
-    easy to forget the special requirements of Go's memmove.
-    
-    The CL documents these (currently unwritten!) requirements. We're also
-    adding a test that should hopefully keep everyone honest going
-    forward, though it's hard to be sure we're hitting all cases of
-    memmove.
-    
-    Change-Id: I2f59f8d8d6fb42d2f10006b55d605b5efd8ddc24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213418
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I17551ea54c59c1e45ce472e029c625093a67251a
+    GitHub-Last-Rev: fecf43d163f4ebe72e8bb1d3854d4ad962c08b03
+    GitHub-Pull-Request: golang/go#33390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188397
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/memmove_386.s         |  2 ++
- src/runtime/memmove_amd64.s       |  2 ++
- src/runtime/memmove_arm.s         |  2 ++
- src/runtime/memmove_arm64.s       |  2 ++
- src/runtime/memmove_mips64x.s     |  2 ++
- src/runtime/memmove_mipsx.s       |  2 ++
- src/runtime/memmove_plan9_386.s   |  2 ++
- src/runtime/memmove_plan9_amd64.s |  2 ++
- src/runtime/memmove_ppc64x.s      |  2 ++
- src/runtime/memmove_riscv64.s     |  2 ++
- src/runtime/memmove_s390x.s       |  2 ++
- src/runtime/memmove_wasm.s        |  2 ++
- src/runtime/stubs.go              | 12 +++++++++++-
- 13 files changed, 35 insertions(+), 1 deletion(-)
+ src/syscall/timestruct.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

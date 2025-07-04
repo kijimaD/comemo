@@ -1,23 +1,19 @@
-commit a36ba090fd647e741668629527e25c657c40f8f3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Nov 27 02:06:08 2020 +1100
+commit 71e0cd815def852085a1592fbd64a149b437be55
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 28 10:20:55 2020 -0700
 
-    cmd/link/internal/amd64: always generate R_X86_64_PLT32 for SDYNIMPORT calls
+    cmd/compile: simplify readonly sym checks in writebarrier pass
     
-    Currently, in the non-DynlinkingGo case with external linking, we generate a
-    R_X86_64_GOTPCREL relocation for the imported symbol. This results in the
-    external linker turning this into a R_X86_64_GLOB_DAT relocation, rather
-    than a R_X86_64_JUMP_SLOT. Always generate R_X86_64_PLT32 for SDYNIMPORT
-    calls so that these calls work correctly.
+    CL 220499 started marking readonly syms as SRODATA earlier,
+    so we can use that in the writebarrier pass now.
     
-    Update #36435
-    Fixes #42671
+    Passes toolstash-check.
     
-    Change-Id: I8a28884b7853cb4135053ed817bedc919482f4ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270377
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic4d49714b8bffbe03c8e9a75ca96df4475bae732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230559
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/amd64/asm.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

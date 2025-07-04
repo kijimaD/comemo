@@ -1,21 +1,25 @@
-commit 8666d89ca85fb0be4e41917dee31ad487e0f4ee6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Feb 11 11:19:59 2021 -0500
+commit 21de6bc463e52af01bcbfda478e2cb221e982e41
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Aug 30 22:26:54 2021 +0800
 
-    runtime: tricky replacements of _g_ in signal_unix.go
+    cmd/compile: simplify less with non-negative number and constant 0 or 1
     
-    sighandler has gp, the goroutine running when the signal arrived, and
-    gsignal, the goroutine executing the signal handler. The latter is
-    usually mp.gsignal, except in the case noted by the delayedSignal check.
+    The most common cases:
+    len(s) > 0
+    len(s) < 1
     
-    Like previous CLs, cases where the getg() G is used only to access the M
-    are replaced with direct uses of mp.
+    and they can be simplified to:
+    len(s) != 0
+    len(s) == 0
     
-    Change-Id: I2dc7894da7004af17682712e07a0be5f9a235d81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418580
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Fixes #48054
+    
+    Change-Id: I16e5b0cffcfab62a4acc2a09977a6cd3543dd000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346050
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/signal_unix.go | 36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 160 +++++++++++++++++++++++++
+ test/codegen/issue48054.go                     |  31 +++++
+ 3 files changed, 194 insertions(+)

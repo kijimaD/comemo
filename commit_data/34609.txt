@@ -1,24 +1,24 @@
-commit 463fe95bdd07e255a10ad36d5c51c8811cfee49f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 13 15:07:12 2018 -0700
+commit 25159d3af98335cfe574c66224a8c31df25ecc15
+Author: griesemer <gri@golang.org>
+Date:   Wed Nov 1 17:38:07 2017 -0700
 
-    cmd/compile: fix duplicate code generation in swt.go
+    cmd/compile: avoid spurious errors for invalid map key types
     
-    When combining adjacent type switch cases with the same type hash, we
-    failed to actually remove the combined cases, so we would generate
-    code for them twice.
+    Instead of trying to validate map key types eagerly in some
+    cases, delay their validation to the end of type-checking,
+    when we all type information is present.
     
-    We use MD5 for type hashes, so collisions are rare, but they do
-    currently appear in test/fixedbugs/bug248.dir/bug2.go, which is how I
-    noticed this failure.
+    Passes go build -toolexec 'toolstash -cmp' -a std .
     
-    Passes toolstash-check.
+    Fixes #21273.
+    Fixes #21657.
     
-    Change-Id: I66729b3366b96cb8ddc8fa6f3ebea11ef6d74012
-    Reviewed-on: https://go-review.googlesource.com/100461
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I532369dc91c6adca1502d6aa456bb06b57e6c7ff
+    Reviewed-on: https://go-review.googlesource.com/75310
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/swt.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/align.go     |  1 +
+ src/cmd/compile/internal/gc/main.go      |  2 ++
+ src/cmd/compile/internal/gc/typecheck.go | 47 +++++++-------------------------
+ test/fixedbugs/issue21273.go             | 28 +++++++++++++++++++
+ 4 files changed, 41 insertions(+), 37 deletions(-)

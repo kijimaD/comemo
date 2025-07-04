@@ -1,23 +1,19 @@
-commit 70331a31ed04144094f77a94676512d8829d84e2
-Author: Keith Randall <khr@google.com>
-Date:   Tue Oct 29 13:14:58 2019 -0700
+commit e22e2b371d5caa4144de1eedc8484def68f9d4d9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 17 12:00:05 2019 -0400
 
-    cmd/compile: fix typing of IData opcodes
+    crypto/tls: fix TestVerifyHostnameResumed
     
-    The rules for extracting the interface data word don't leave
-    the result typed correctly. If I do i.([1]*int)[0], the result
-    should have type *int, not [1]*int. Using (IData x) for the result
-    keeps the typing of the original top-level Value.
+    In TLS 1.3 session tickets are delivered after the handshake, and it
+    looks like now the Google servers wait until the first flight of data to
+    send them (or our timeout is too low). Cause some data to be sent so we
+    can avoid the guessing game.
     
-    I don't think this would ever cause a real codegen bug, bug fixing it
-    at least makes the typing shown in ssa.html more consistent.
+    Fixes #32090
     
-    Change-Id: I239d821c394e58347639387981b0510d13b2f7b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204042
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I54af4acb3a89cc70c9e14a5dfe18a44c29a841a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
- src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++------------
- 2 files changed, 15 insertions(+), 15 deletions(-)
+ src/crypto/tls/tls_test.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

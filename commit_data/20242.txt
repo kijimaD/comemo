@@ -1,14 +1,17 @@
-commit 60be96217d4192312295c89731ab1239a73235e7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 1 17:36:45 2014 -0400
+commit 9a5654abeff85c8ac9b1b43bf7da9aa9f4bdfa15
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 27 09:31:32 2014 -0700
 
-    runtime: fix windows build
+    runtime: restore header to first goroutine in Stack
     
-    #ifdef'ed out code wasn't updated for argp change.
+    It appears to have been accidentally lost when converting
+    Stack from C to Go in https://golang.org/cl/129510043
     
-    TBR=iant
-    CC=golang-codereviews
-    https://golang.org/cl/139040043
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, josharian, khr, remyoudompheng, rsc
+    https://golang.org/cl/136870043
 
- src/pkg/runtime/traceback_x86.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mprof.go | 1 +
+ src/pkg/runtime/stubs.go | 1 +
+ 2 files changed, 2 insertions(+)

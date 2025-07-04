@@ -1,30 +1,24 @@
-commit 91c82ff7c972d0bd6f67d49e11bcba25e7eb287e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 5 13:05:25 2023 -0500
+commit b941a10e384e6772792bc9e05e7ebe58e98bc20e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 19 12:05:10 2022 -0700
 
-    cmd/dist: reproducibility fixes
+    crypto/x509: use SAN when comparing certs during path building
     
-    Fix a few lingering reproducibility problems.
+    Per RFC 4158 Section 2.4.2, when we are discarding candidate
+    certificates during path building, use the SANs as well as subject and
+    public key when checking whether a certificate is already present in
+    the built path. This supports the case where a certificate in the chain
+    (typically a leaf) has the exact same subject and public key as another
+    certificate in the chain (typically its parent) but has SANs which don't
+    match.
     
-    - Do not set CC during go install std if it is unset,
-      so that the automatic disabling of cgo in cmd/go can run.
-    
-    - Since CC is not necessary, remove code insisting on it.
-    
-    - Use a fixed quoting algorithm instead of %q from the
-      bootstrap toolchain, which can differ from release to release.
-    
-    - Remove go_bootstrap tool successfully on Windows.
-    
-    For #24904.
-    
-    Change-Id: I5c29ba6a8592e93bfab37f123b69f55c02f12ce3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475377
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I212c234e94a1f6afbe9691e4a3ba257461db3a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401115
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/dist/build.go   | 13 +++++--------
- src/cmd/dist/buildgo.go | 39 ++++++++++++++++++++++++++++++---------
- 2 files changed, 35 insertions(+), 17 deletions(-)
+ src/crypto/x509/verify.go      | 58 ++++++++++++++++++++++++++++++++++--------
+ src/crypto/x509/verify_test.go | 23 +++++++++++++++++
+ 2 files changed, 70 insertions(+), 11 deletions(-)

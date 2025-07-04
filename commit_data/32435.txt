@@ -1,28 +1,17 @@
-commit f04d5836181dec3ec1b7e427607f02fa7a204a2d
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Jun 5 10:37:37 2017 +0200
+commit 34ee8ec193aa211883326aca7ba223f711da5fd1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 04:59:14 2017 +0000
 
-    testing: parallelize tests over count
+    runtime: ignore TestCgoPprofPIE test failures on Alpine (take 2)
     
-    Currently all package tests are executed once
-    with Parallel tests executed in parallel.
-    Then this process is repeated count*cpu times.
-    Tests are not parallelized over count*cpu.
-    Parallelizing over cpu is not possible as
-    GOMAXPROCS is a global setting. But it is
-    possible for count.
+    s/arm64/amd64/ in previous typo CL 41628
     
-    Parallelize over count.
+    Updates #19938
+    Updates #18243
     
-    Brings down testing of my package with -count=100
-    form 10s to 0.3s.
-    
-    Change-Id: I76d8322adeb8c5c6e70b99af690291fd69d6402a
-    Reviewed-on: https://go-review.googlesource.com/44830
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I282244ee3c94535f229a87b6246382385ff64428
+    Reviewed-on: https://go-review.googlesource.com/41675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/benchmark.go | 76 +++++++++++++++++++++++++-----------------------
- src/testing/testing.go   | 50 +++++++++++++++----------------
- 2 files changed, 63 insertions(+), 63 deletions(-)
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

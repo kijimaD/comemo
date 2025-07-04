@@ -1,21 +1,24 @@
-commit 120cf676caff29296de2dd16a2997463eb6e1579
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 17 16:39:11 2016 -0800
+commit 2098e5d39afc3e6f687fcabd7704e8013f9c0dbd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 15 14:30:31 2016 -0400
 
-    spec: clarify type elision rules for composite literals
+    runtime: eliminate memstats.heap_reachable
     
-    - organize examples better
-    - add an example illustrating behavior if element type is a named pointer type
-    - both compilers and go/types (per https://go-review.googlesource.com/33358)
-      follow this now
+    We used to compute an estimate of the reachable heap size that was
+    different from the marked heap size. This ultimately caused more
+    problems than it solved, so we pulled it out, but memstats still has
+    both heap_reachable and heap_marked, and there are some leftover TODOs
+    about the problems with this estimate.
     
-    See the issue for detailed discussion.
+    Clean this up by eliminating heap_reachable in favor of heap_marked
+    and deleting the stale TODOs.
     
-    Fixes #17954.
-    
-    Change-Id: I8d90507ff2347d9493813f75b73233819880d2b4
-    Reviewed-on: https://go-review.googlesource.com/33361
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I713bc20a7c90683d2b43ff63c0b21a440269cc4d
+    Reviewed-on: https://go-review.googlesource.com/29271
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go_spec.html | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go    | 23 ++++++++---------------
+ src/runtime/mstats.go |  4 ----
+ 2 files changed, 8 insertions(+), 19 deletions(-)

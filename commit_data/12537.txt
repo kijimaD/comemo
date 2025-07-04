@@ -1,12 +1,15 @@
-commit 26fa1c8248472e89cf61f7cb24ac0e7f4c876d72
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Mar 9 11:50:38 2012 +0900
+commit 08a5d7394054a4cb08e99f6bea0c007aed999a67
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 9 12:57:38 2012 +1100
 
-    net: fix typo
+    misc/dist: produce a zip file under windows
     
-    R=golang-dev, bradfitz
+    Updates #3254.
+    
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5782063
+    https://golang.org/cl/5783058
 
- src/pkg/net/interface.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dist/bindist.go         | 52 +++++++++++++++++++++++++++++++++++++-------
+ misc/dist/windows/README.txt |  1 +
+ 2 files changed, 45 insertions(+), 8 deletions(-)

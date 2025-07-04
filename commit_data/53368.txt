@@ -1,84 +1,18 @@
-commit bfa25c3f6c72829cd36f5701418f726702de9c06
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Wed May 24 13:20:11 2023 +0200
+commit 40fa2dabe0ee3a163c338dab1ea6036037287507
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jul 14 16:58:25 2022 -0400
 
-    internal/bytealg: fix alignment code in compare_riscv64.s
+    runtime: convert pendingPreemptSignals to atomic type
     
-    The riscv64 implementation of compare has an optimization that is
-    applied when both pointers share the same alignment but that alignment
-    is not 8 bytes.  In this case it tries to align both pointers to an 8 byte boundaries,
-    by individually comparing the first few bytes of each buffer.  Unfortunately,
-    the existing code is incorrect.  It adjusts the pointers by the wrong number
-    of bytes resulting, in most cases, in pointers that are not 8 byte aligned.
+    For #53821.
     
-    This commit fixes the issue by individually comparing the first
-    (8 - (pointer & 7)) bytes of each buffer rather than the first
-    (pointer & 7) bytes.
-    
-    We also remove an unnecessary immediate MOV instruction.
-    
-    This particular optimization is not covered by any of the existing
-    benchmarks so a new benchmark, benchmarkCompareBytesBigBothUnaligned,
-    is provided.  The benchmark tests the case where both pointers have
-    the same alignment but may not be 8 byte aligned.  Results of the
-    new benchmark along with some of the existing benchmarks generated on
-    a SiFive HiFive Unmatched A00 with 16GB of RAM running Ubuntu 23.04
-    are presented below.
-    
-    CompareBytesEqual-4                           70.00n ±  6%   68.32n ±  0%   -2.40% (p=0.020 n=10)
-    CompareBytesToNil-4                           19.31n ±  0%   18.47n ±  0%   -4.35% (p=0.000 n=10)
-    CompareBytesEmpty-4                           16.79n ±  0%   15.95n ±  0%   -4.97% (p=0.000 n=10)
-    CompareBytesIdentical-4                       19.94n ± 15%   18.32n ± 13%   -8.15% (p=0.040 n=10)
-    CompareBytesSameLength-4                      37.93n ±  0%   42.44n ±  1%  +11.91% (p=0.000 n=10)
-    CompareBytesDifferentLength-4                 37.93n ±  0%   42.44n ±  0%  +11.89% (p=0.000 n=10)
-    CompareBytesBigUnaligned/offset=1-4           3.881m ± 14%   3.880m ± 15%        ~ (p=0.436 n=10)
-    CompareBytesBigUnaligned/offset=2-4           3.884m ±  0%   3.875m ±  0%        ~ (p=0.190 n=10)
-    CompareBytesBigUnaligned/offset=3-4           3.858m ±  1%   3.868m ±  1%        ~ (p=0.105 n=10)
-    CompareBytesBigUnaligned/offset=4-4           3.877m ±  1%   3.876m ±  0%        ~ (p=0.529 n=10)
-    CompareBytesBigUnaligned/offset=5-4           3.859m ±  0%   3.874m ±  0%   +0.39% (p=0.009 n=10)
-    CompareBytesBigUnaligned/offset=6-4           3.878m ±  1%   3.876m ±  0%        ~ (p=0.353 n=10)
-    CompareBytesBigUnaligned/offset=7-4           3.868m ±  1%   3.877m ±  0%        ~ (p=0.190 n=10)
-    CompareBytesBigBothUnaligned/offset=0-4       1.586m ±  0%   1.765m ±  0%  +11.30% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=1-4     153.132m ±  1%   1.765m ±  1%  -98.85% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=2-4     152.930m ±  1%   1.765m ±  1%  -98.85% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=3-4     152.093m ±  1%   1.769m ±  0%  -98.84% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=4-4       1.602m ±  0%   1.764m ±  0%  +10.11% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=5-4     152.314m ±  1%   1.768m ±  0%  -98.84% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=6-4     152.905m ±  1%   1.764m ±  1%  -98.85% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=7-4     152.951m ±  1%   1.804m ±  2%  -98.82% (p=0.000 n=10)
-    CompareBytesBig-4                             1.441m ± 21%   1.373m ± 55%        ~ (p=0.481 n=10)
-    CompareBytesBigIdentical-4                    19.94n ±  1%   19.10n ±  0%   -4.21% (p=0.001 n=10)
-    geomean                                       243.7µ         76.65µ        -68.54%
-    
-    CompareBytesBigUnaligned/offset=1-4          257.7Mi ± 12%     257.7Mi ± 13%          ~ (p=0.424 n=10)
-    CompareBytesBigUnaligned/offset=2-4          257.5Mi ±  0%     258.1Mi ±  0%          ~ (p=0.190 n=10)
-    CompareBytesBigUnaligned/offset=3-4          259.2Mi ±  1%     258.5Mi ±  1%          ~ (p=0.105 n=10)
-    CompareBytesBigUnaligned/offset=4-4          257.9Mi ±  1%     258.0Mi ±  0%          ~ (p=0.529 n=10)
-    CompareBytesBigUnaligned/offset=5-4          259.1Mi ±  0%     258.1Mi ±  0%     -0.39% (p=0.008 n=10)
-    CompareBytesBigUnaligned/offset=6-4          257.9Mi ±  1%     258.0Mi ±  0%          ~ (p=0.353 n=10)
-    CompareBytesBigUnaligned/offset=7-4          258.5Mi ±  1%     257.9Mi ±  0%          ~ (p=0.190 n=10)
-    CompareBytesBigBothUnaligned/offset=0-4      630.6Mi ±  0%     566.6Mi ±  0%    -10.15% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=1-4      6.533Mi ±  1%   566.545Mi ±  1%  +8572.48% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=2-4      6.537Mi ±  1%   566.683Mi ±  1%  +8568.27% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=3-4      6.576Mi ±  1%   565.200Mi ±  0%  +8495.43% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=4-4      624.2Mi ±  0%     566.9Mi ±  0%     -9.18% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=5-4      6.566Mi ±  1%   565.758Mi ±  0%  +8516.41% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=6-4      6.542Mi ±  1%   567.036Mi ±  1%  +8567.35% (p=0.000 n=10)
-    CompareBytesBigBothUnaligned/offset=7-4      6.542Mi ±  1%   554.390Mi ±  2%  +8374.05% (p=0.000 n=10)
-    CompareBytesBig-4                            694.2Mi ± 18%     728.1Mi ± 35%          ~ (p=0.481 n=10)
-    CompareBytesBigIdentical-4                   47.83Ti ±  1%     49.92Ti ±  0%     +4.39% (p=0.002 n=10)
-    geomean                                      170.0Mi           813.8Mi         +378.66%
-    
-    Change-Id: I0a2d0386d5ca1ffa249682a12ebd1533508e31e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497838
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I106adbcb00b7b887d54001c2d7d97345a13cc662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419436
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/bytes/compare_test.go              | 26 ++++++++++++++++++++++++++
- src/internal/bytealg/compare_riscv64.s |  4 +++-
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/runtime/proc.go        | 6 +++---
+ src/runtime/signal_unix.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

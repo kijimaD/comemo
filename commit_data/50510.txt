@@ -1,17 +1,21 @@
-commit 1fc83690e68de1ce252975c5fd3a232629d6a3d6
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 16 12:05:57 2022 -0400
+commit 4a5d78ff8b7e777d70b18a61698b1ac07bbd623d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Apr 11 18:11:48 2021 +0000
 
-    testing: allow go test -run=^$ testing
+    runtime: move pacer time updates and state resets into methods
     
-    This should fix the ssacheck builder.
+    Currently GC pacer updates are applied somewhat haphazardly via direct
+    field access. To facilitate ease of testing, move these field updates
+    into methods. Further CLs will move more of these updates into methods.
     
-    Change-Id: I4b6172df33d6447f7ec8fd8e301c6380efb92588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431336
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #44167.
+    
+    Change-Id: I25b10d2219ae27b356b5f236d44827546c86578d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309274
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/testing/testing.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go      | 39 +++++++++++----------------------------
+ src/runtime/mgcpacer.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 51 insertions(+), 29 deletions(-)

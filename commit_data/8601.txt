@@ -1,14 +1,18 @@
-commit ce5c1cf0368a7b17254086ab00134e47137ee720
+commit 4e9e92500249258e9baa77fbaf8075f0c07e56b2
 Author: Rob Pike <r@golang.org>
-Date:   Fri Jun 3 07:53:50 2011 +1000
+Date:   Fri Jun 3 07:48:06 2011 +1000
 
-    fmt: fix bug in UnreadRune: must clear memory of previous
-    rune if input implements UnreadRune; otherwise the lookahead
-    will lie.
+    exec: change exec.PathError to exec.Error
+    There were two issues:
+    1) It might not be a path error, it might be 'permission denied'.
+    2) The concept of $PATH is Unix-specific.
     
-    R=golang-dev, rsc
+    R=alex.brainman, rsc, r, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4548082
+    https://golang.org/cl/4530096
 
- src/pkg/fmt/scan.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/pkg/exec/exec.go       | 23 ++++++++++++-----------
+ src/pkg/exec/lp_test.go    |  6 +++---
+ src/pkg/exec/lp_unix.go    | 21 ++++++++++++++-------
+ src/pkg/exec/lp_windows.go | 38 ++++++++++++++++++++++----------------
+ 4 files changed, 51 insertions(+), 37 deletions(-)

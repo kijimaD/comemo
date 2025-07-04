@@ -1,15 +1,27 @@
-commit 459da21603b965c7e2814d5012c361ce7c6e87c4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 3 20:35:14 2011 -0800
+commit 4ecebfea532fccb98db82adbe80613c00b44ecee
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 4 14:41:26 2011 +1100
 
-    issue 1402: added test case
+    os: implement new Process api
     
-    R=rsc
+    Fixes #1004.
+    Fixes #1460.
+    
+    R=mattn, r, niemeyer, rog, rsc
     CC=golang-dev
-    https://golang.org/cl/4079063
+    https://golang.org/cl/4029053
 
- test/bugs/bug322.dir/lib.go  | 15 ++++++++++++++
- test/bugs/bug322.dir/main.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
- test/bugs/bug322.go          |  8 ++++++++
- test/golden.out              |  6 ++++++
- 4 files changed, 76 insertions(+)
+ src/cmd/cgo/util.go                     |  5 +-
+ src/cmd/godoc/main.go                   |  9 ++--
+ src/pkg/exec/exec.go                    | 80 +++++++++++++++-------------
+ src/pkg/http/triv.go                    |  5 +-
+ src/pkg/os/Makefile                     |  4 ++
+ src/pkg/os/exec.go                      | 61 ++++++++++-----------
+ src/pkg/os/exec_unix.go                 | 63 ++++++++++++++++++++++
+ src/pkg/os/exec_windows.go              | 50 ++++++++++++++++++
+ src/pkg/os/os_test.go                   | 12 +++--
+ src/pkg/syscall/exec_unix.go            |  6 +++
+ src/pkg/syscall/exec_windows.go         | 25 +++------
+ src/pkg/syscall/syscall_windows.go      | 94 ++++++++++-----------------------
+ src/pkg/syscall/zsyscall_windows_386.go | 70 +++++++++++++-----------
+ 13 files changed, 282 insertions(+), 202 deletions(-)

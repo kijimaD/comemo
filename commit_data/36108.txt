@@ -1,19 +1,47 @@
-commit 62f401bf18d786b01fcef933610b43dd284e5095
-Author: marwan-at-work <marwan.sameer@gmail.com>
-Date:   Sun Jul 22 20:23:29 2018 +0000
+commit dead03b7947c79112ef6c2a91843d7b10e5ebcfe
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 13 17:39:38 2018 -0500
 
-    cmd/go/internal/modfetch: do not panic when zip is incorrect
+    cmd/link: process is_stmt data into dwarf line tables
     
-    Fixes #26536
+    To improve debugging, instructions should be annotated with
+    DWARF is_stmt.  The DWARF default before was is_stmt=1, and
+    to remove "jumpy" stepping the optimizer was tagging
+    instructions with a no-position position, which interferes
+    with the accuracy of profiling information.  This allows
+    that to be corrected, and also allows more "jumpy" positions
+    to be annotated with is_stmt=0 (these changes were not made
+    for 1.10 because of worries about further messing up
+    profiling).
     
-    Change-Id: I75d284bd39af0a06e31d18c7f7745c5a8ecbe6ac
-    GitHub-Last-Rev: 88040a9edb0cb547a498cb8c8b662eb8729eb8bf
-    GitHub-Pull-Request: golang/go#26537
-    Reviewed-on: https://go-review.googlesource.com/125436
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The is_stmt values are placed in a pc-encoded table and
+    passed through a symbol derived from the name of the
+    function and processed in the linker alongside its
+    processing of each function's pc/line tables.
+    
+    The only change in binary size is in the .debug_line tables
+    measured with "objdump -h --section=.debug_line go1.test"
+    For go1.test, these are 2614 bytes larger,
+    or 0.72% of the size of .debug_line,
+    or 0.025% of the file size.
+    
+    This will increase in proportion to how much the is_stmt
+    flag is used (toggled).
+    
+    Change-Id: Ic1f1aeccff44591ad0494d29e1a0202a3c506a7a
+    Reviewed-on: https://go-review.googlesource.com/93664
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/internal/modfetch/fetch.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go                |  2 +-
+ .../internal/ssa/testdata/hist.dlv-dbg.nexts       |  1 +
+ .../internal/ssa/testdata/hist.dlv-opt.nexts       |  1 +
+ src/cmd/internal/dwarf/dwarf.go                    |  3 +
+ src/cmd/internal/obj/link.go                       |  1 +
+ src/cmd/internal/obj/objfile.go                    |  8 ++-
+ src/cmd/internal/obj/pcln.go                       | 31 ++++++++++-
+ src/cmd/internal/obj/plist.go                      |  5 +-
+ src/cmd/internal/objabi/symkind.go                 |  4 ++
+ src/cmd/link/internal/ld/dwarf.go                  | 65 +++++++++++++++-------
+ src/cmd/link/internal/sym/symkind.go               |  4 ++
+ 11 files changed, 98 insertions(+), 27 deletions(-)

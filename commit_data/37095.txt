@@ -1,19 +1,26 @@
-commit eef0140137bae3bc059f598843b8777f9223fac8
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Oct 18 14:15:17 2018 +0530
+commit 63a4acba7d19a665f864b929eb8293858d1cee45
+Author: Grégoire Delattre <gregoire.delattre@gmail.com>
+Date:   Tue Dec 19 19:42:12 2017 +0100
 
-    time: return correct zone info on js/wasm
+    net: make concurrent resolver lookups independent
     
-    Fixes #28265
+    The current resolver uses a global lookupGroup which merges LookupIPAddr
+    calls together for lookups for the same hostname if used concurrently.
+    As a result only one of the resolvers is actually used to perform the
+    DNS lookup but the result is shared by all the resolvers.
     
-    Change-Id: I0a13e9f9c216647e42127a59a80b0f19618169c1
-    Reviewed-on: https://go-review.googlesource.com/c/143577
+    This commit limits the scope of the lookupGroup to the resolver itself
+    allowing each resolver to make its own requests without sharing the
+    result with other resolvers.
+    
+    Fixes #22908
+    
+    Change-Id: Ibba896eebb05e59f18ce4132564ea1f2b4b6c6d9
+    Reviewed-on: https://go-review.googlesource.com/80775
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/go/build/deps_test.go |  1 +
- src/time/zoneinfo_js.go   | 66 +++++++++++++++++++++++++++++++++++++++++++++++
- src/time/zoneinfo_unix.go |  2 +-
- 3 files changed, 68 insertions(+), 1 deletion(-)
+ src/net/lookup.go      | 22 ++++++++++++-------
+ src/net/lookup_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 8 deletions(-)

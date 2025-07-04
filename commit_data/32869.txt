@@ -1,16 +1,31 @@
-commit 97590aea672d2fccffc28162eddda19ec04fa328
-Author: Jean-Francois Cantin <jfcantin@gmail.com>
-Date:   Tue Sep 26 16:07:27 2017 -0600
+commit 11c61eb6afaf72c4919cc7806f1016c8bcdf311a
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Sun Jun 4 00:29:40 2017 -0400
 
-    path/filepath: add example for Walk
+    testing: show in-progress tests upon SIGINT
     
-    Fixes: #22052
+    Because of parallel tests, which have stalled executions, the RUN
+    output of a test can be much earlier than its completion output resulting
+    in hard-to-read verbose output.
     
-    Change-Id: Ia056871b35ecc1a8c5ac891402fc1c5702731623
-    Reviewed-on: https://go-review.googlesource.com/66330
+    The tests are displayed in the order in which the output shows
+    that they began, to make it easy to line up with the "RUN" output.
+    Similarly, the definitions of when tests begin and complete is
+    determined by when RUN and FAIL/SKIP/PASS are output since the
+    focus of this code is on enhancing readability.
+    
+    Fixes #19397
+    
+    Change-Id: I4d0ca3fd268b620484e7a190117f79a33b3dc461
+    Reviewed-on: https://go-review.googlesource.com/44352
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/example_unix_test.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/go/go_test.go                            | 11 ++++
+ src/cmd/go/testdata/inprogress_interrupt_test.go | 40 ++++++++++++++
+ src/go/build/deps_test.go                        |  2 +-
+ src/os/signal/signal_plan9_test.go               |  3 +-
+ src/os/signal/signal_test.go                     |  3 +-
+ src/os/signal/signal_windows_test.go             |  2 +-
+ src/testing/testing.go                           | 66 ++++++++++++++++++++++++
+ 7 files changed, 123 insertions(+), 4 deletions(-)

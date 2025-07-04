@@ -1,24 +1,22 @@
-commit 019ad98b5337992625327ea07185ad06a9c19169
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 4 16:20:57 2021 -0700
+commit ca6999e27c395a30edb277dbda9c5b3c5854aace
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Jan 31 10:05:03 2021 -0800
 
-    cmd/cgo: update to handle ast.IndexListExpr
+    [dev.regabi] test: add a test for inlining closures
     
-    Allows cgo to work with generics.
+    Add a test case for issue 43818. We don't want to mark as inlinable a
+    function with a closure that has an operation (such as OSELRECV2) that
+    we don't currently support for exporting. This test case fails to
+    compile without the fix for #43818.
     
-    Updates #47781.
+    Updates #43818
     
-    Change-Id: Id1a5d1a0a8193c5b157e3e671b1490d687d10384
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353882
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ief322a14aefaefc6913c40a6b8505214bd622fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288392
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- misc/cgo/test/typeparam.go | 17 +++++++++++++++++
- misc/go.mod                |  2 +-
- src/cmd/cgo/ast.go         |  3 +--
- src/cmd/cgo/ast_go1.go     | 17 +++++++++++++++++
- src/cmd/cgo/ast_go118.go   | 25 +++++++++++++++++++++++++
- src/cmd/cgo/gcc.go         |  2 +-
- 6 files changed, 62 insertions(+), 4 deletions(-)
+ test/closure7.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,24 +1,13 @@
-commit 2286471651c826280455e87dff0b2409dc668ce7
+commit 831c6844346cbd405f6c83a7e657dfff0f1cb831
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 10:18:49 2011 -0400
+Date:   Wed May 25 09:44:05 2011 -0400
 
-    5g: alignment fixes
-    
-    Makes all.bash work after echo 4 >/proc/cpu/alignment,
-    which means kill the process on an unaligned access.
-    
-    The default behavior on DreamPlug/GuruPlug/SheevaPlug
-    is to simulate an ARMv3 and just let the unaligned accesses
-    stop at the word boundary, resulting in all kinds of surprises.
-    
-    Fixes #1240.
+    5l: fix build
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4551064
+    https://golang.org/cl/4538095
 
- src/cmd/5g/cgen.c  | 217 ++++++++++++++++++++---------------------------------
- src/cmd/gc/align.c |  12 +--
- src/cmd/gc/gen.c   |   4 +
- src/cmd/gc/obj.c   |   1 +
- 4 files changed, 95 insertions(+), 139 deletions(-)
+ src/cmd/5l/asm.c | 6 ++++++
+ src/cmd/ld/lib.h | 1 +
+ 2 files changed, 7 insertions(+)

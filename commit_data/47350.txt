@@ -1,29 +1,36 @@
-commit e90fd9a597c03b993f900e4b1997de67b12bb4f3
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 8 13:09:41 2021 -0500
+commit 16ad1ea8417bb842204bf7c982e3f19969b67458
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 16:34:01 2021 -0800
 
-    go/types: rename isX predicates to allX, add simple is_X (step 1 of 2)
+    cmd/compile/internal/types2: simplify error reporting API (cleanup)
     
-    This is a port of CL 360955 to go/types. Note that go/types and types2
-    differ in handling of untyped nil within both Checker.shift and
-    Checker.implicitTypeAndValue.
+    - Remove specialized errorf functions for invalid AST/argument/operation.
+      Instead use prefix constants with the error message.
     
-    A missing comment was added to Checker.indexExpr.
+    - Replace several calls to Checker.errorf with calls to Checker.error
+      if there are no arguments to format.
     
-    Change-Id: Ia9149ff9c0af68213c579090902ab7989828ddd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362534
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    - Replace a handful of %s format verbs with %v to satisfy vet check.
+    
+    - Add a basic test that checks that we're not using Checker.errorf when
+      we should be using Checker.error.
+    
+    Change-Id: I7bc7c14f3cf774689ec8cd5782ea31b6e30dbcd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300995
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/builtins.go    | 14 +++----
- src/go/types/check.go       |  6 +--
- src/go/types/conversions.go | 12 +++---
- src/go/types/expr.go        | 94 ++++++++++++++++++++++-----------------------
- src/go/types/index.go       |  9 +++--
- src/go/types/predicates.go  | 66 ++++++++++++++++++++-----------
- src/go/types/sizes.go       |  2 +-
- src/go/types/stmt.go        |  8 ++--
- src/go/types/typexpr.go     |  2 +-
- 9 files changed, 117 insertions(+), 96 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go     |  2 +-
+ src/cmd/compile/internal/types2/builtins.go        | 44 +++++++-------
+ src/cmd/compile/internal/types2/call.go            |  4 +-
+ src/cmd/compile/internal/types2/check.go           |  2 +-
+ src/cmd/compile/internal/types2/decl.go            |  6 +-
+ src/cmd/compile/internal/types2/errorcalls_test.go | 49 ++++++++++++++++
+ src/cmd/compile/internal/types2/errors.go          | 28 ++++-----
+ src/cmd/compile/internal/types2/expr.go            | 68 +++++++++++-----------
+ src/cmd/compile/internal/types2/labels.go          |  2 +-
+ src/cmd/compile/internal/types2/resolver.go        | 16 ++---
+ src/cmd/compile/internal/types2/stmt.go            | 16 ++---
+ src/cmd/compile/internal/types2/typexpr.go         | 34 +++++------
+ src/cmd/compile/internal/types2/version.go         |  8 +--
+ 13 files changed, 162 insertions(+), 117 deletions(-)

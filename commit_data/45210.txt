@@ -1,18 +1,27 @@
-commit 43466399cbce877273c8dad2697772cdb443f32b
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 16 15:26:57 2021 -0400
+commit 7668f02dec44690ee61722f08b2d80b5b0c5eccd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 10 17:02:15 2020 -0700
 
-    internal/buildcfg: make regabi enable regabiargs
+    [dev.typeparams] cmd/compile/internal/syntax: add type parameter tests
     
-    For #40724.
+    The file endings are not .go so that gofmt leaves these files alone.
+    They are also not .src to distinguish them from regular go source tests.
     
-    Change-Id: I6e9d7eb91883857479699972a974a39ce3d9d2cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310849
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I741f5c037bad1ea9d6f7fda3673487d0be631350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261219
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/buildcfg/exp.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/parser_test.go     |  21 +-
+ .../compile/internal/syntax/testdata/go2/chans.go2 |  62 +++
+ .../internal/syntax/testdata/go2/linalg.go2        |  83 ++++
+ .../compile/internal/syntax/testdata/go2/map.go2   | 113 ++++++
+ .../compile/internal/syntax/testdata/go2/map2.go2  | 146 +++++++
+ .../internal/syntax/testdata/go2/slices.go2        |  68 ++++
+ .../internal/syntax/testdata/go2/smoketest.go2     |  83 ++++
+ .../internal/syntax/testdata/go2/typeinst.go2      |  60 +++
+ .../internal/syntax/testdata/go2/typeinst2.go2     | 256 ++++++++++++
+ .../internal/syntax/testdata/go2/typeparams.go2    | 451 +++++++++++++++++++++
+ 10 files changed, 1341 insertions(+), 2 deletions(-)

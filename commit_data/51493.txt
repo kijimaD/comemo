@@ -1,21 +1,32 @@
-commit 5a4e440f489d110c80e4265560cab2101a2fcdc4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 28 11:02:23 2022 -0500
+commit ef843ae49c8a8ad6494da294fc46b0e80147e715
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 21:36:50 2022 -0800
 
-    archive/zip: use proper doc comment for Deprecated notes
+    go/types, types2: simplify missingMethodReason
     
-    End-of-line comments are not doc comments,
-    so Deprecated notes in them are not recognized
-    as deprecation notices. Rewrite the comments.
+    Added a funcString helper so we don't need to rewrite strings
+    with strings.Replace.
     
-    Change-Id: Idc4681924f9a7e9ead62f672ef8a763e70db1f0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453616
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Use compiler format for error message about wrong method type;
+    this removes another unnecessary variation.
+    
+    Simplify conditions for pointer-to-interface related error:
+    if one of the involved types is an interface pointer, it can't
+    have any methods.
+    
+    Rewrite logic so we don't need all the else-if branches.
+    
+    Adjusted a test case for types2 accordingly. The go/types version
+    of this test case has a different error because the implementation
+    of Checker.typeAssertion is different in the two type checkers
+    (the types2 version gives errors closer to the 1.17 compiler).
+    
+    Change-Id: I19e604d7063c3e31e8290bd78384a9f38bb0d740
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382694
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- api/go1.16.txt            |  4 ++++
- src/archive/zip/struct.go | 56 ++++++++++++++++++++++++++++++++++++-----------
- 2 files changed, 47 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go          | 60 ++++++++++----------
+ .../internal/types2/testdata/check/issues.src      |  2 +-
+ src/go/types/lookup.go                             | 64 +++++++++++-----------
+ 3 files changed, 62 insertions(+), 64 deletions(-)

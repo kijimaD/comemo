@@ -1,0 +1,32 @@
+commit 5bb73e650496c229c9baf5b9a4fe3861c07c9302
+Author: Meng Zhuo <mengzhuo@iscas.ac.cn>
+Date:   Thu Mar 13 16:29:16 2025 +0800
+
+    debug/elf: add riscv attributes definitions
+    
+    This CL adds `riscv.attributes` related ELF section header
+    type and program header type according to
+    [RISC-V ELF Specification](https://github.com/riscv-non-isa/riscv-elf-psabi-doc/releases/download/v1.0/riscv-abi.pdf)
+    
+    Also an riscv64/linux testcase binary built from:
+    
+    ```
+    gcc -march=rv64g -no-pie -o gcc-riscv64-linux-exec hello.c
+    strip gcc-riscv64-linux-exec
+    ```
+    
+    Fixes #72843
+    
+    Change-Id: I7710a0516f69141c0efaba71dd997f05b4c88421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657515
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/72843.txt                            |   4 ++
+ doc/next/6-stdlib/99-minor/debug/elf/72843.md |   4 ++
+ src/debug/elf/elf.go                          |  65 ++++++++++++++------------
+ src/debug/elf/file_test.go                    |  46 ++++++++++++++++++
+ src/debug/elf/testdata/gcc-riscv64-linux-exec | Bin 0 -> 6184 bytes
+ 5 files changed, 89 insertions(+), 30 deletions(-)

@@ -1,19 +1,18 @@
-commit 8cb916f71d7d397905b9d8a5a0ea5c22871ac867
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Sat Apr 26 22:16:38 2014 -0700
+commit 4c129c083bd74dcd3192582551e168cde02e7914
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Sat Apr 26 19:59:00 2014 -0700
 
-    cmd/cgo: fix C.CString for strings containing null terminators under gccgo
+    net: Remove an unmatched unlock of ForkLock
     
-    Previously we used strndup(3) to implement C.CString for gccgo. This
-    is wrong because strndup assumes the string to be null terminated,
-    and stops at the first null terminator. Instead, use malloc
-    and memmove to create a copy of the string, as we do in the
-    gc implementation.
+    Remove an RUnlock of syscall.ForkLock with no matching RLock.
+    Holding ForkLock in netFD.dup is unnecessary: dupCloseOnExecOld
+    locks and unlocks the lock on its own and dupCloseOnExec doesn't
+    need the ForkLock to be held.
     
     LGTM=iant
-    R=iant
+    R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/96790047
+    https://golang.org/cl/99800044
 
- src/cmd/cgo/out.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

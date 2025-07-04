@@ -1,20 +1,17 @@
-commit 568c4617ec55b8f3634c002c9c04779338c0cf7a
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jun 13 14:41:44 2013 -0400
+commit e2d95c1f24cd32607458ba5d5bef689f2ee7b00e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 13 16:38:44 2013 +0400
 
-    go/ast: add {L,R}paren token.Pos field to ast.TypeAssertExpr.
+    runtime/race: remove now unused step parameter from range access functions
     
-    These are required to correctly determine the End() of the node.
-    
-    Also set these fields in go/parser and use them in go/printer.
-    
-    This is a backward-compatible API change.
-    
-    R=gri, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/10189043
+    https://golang.org/cl/10259043
 
- src/pkg/go/ast/ast.go       | 41 +++++++++++++++++++----------------------
- src/pkg/go/parser/parser.go |  6 +++---
- src/pkg/go/printer/nodes.go |  4 ++--
- 3 files changed, 24 insertions(+), 27 deletions(-)
+ src/pkg/runtime/race.c       | 22 +++++++++++-----------
+ src/pkg/runtime/race.h       |  4 ++--
+ src/pkg/runtime/race/race.go |  8 ++++----
+ src/pkg/runtime/race0.c      |  6 ++----
+ src/pkg/runtime/slice.c      | 18 +++++++++---------
+ src/pkg/runtime/string.goc   |  4 ++--
+ 6 files changed, 30 insertions(+), 32 deletions(-)

@@ -1,22 +1,17 @@
-commit 384329592a72e8ce7cfdacb1f3cf2d05af07562a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 19 12:57:49 2011 -0800
+commit 1d0f93b4be68263ec7e07255e8fe20e1168c9bba
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 19 15:52:15 2011 -0500
 
-    net, syscall, os: set CLOEXEC flag on epoll/kqueue descriptor
-    Enable new test in os.
+    gc: avoid unsafe in defn of package runtime
     
-    R=dave, iant, rsc
+    Keeps -u tracking simple.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5494061
+    https://golang.org/cl/5495094
 
- src/pkg/net/fd_darwin.go                |  1 +
- src/pkg/net/fd_freebsd.go               |  1 +
- src/pkg/net/fd_linux.go                 | 16 +++++++++++-----
- src/pkg/net/fd_netbsd.go                |  1 +
- src/pkg/net/fd_openbsd.go               |  1 +
- src/pkg/os/exec/exec_test.go            |  6 ------
- src/pkg/syscall/syscall_linux.go        |  1 +
- src/pkg/syscall/zsyscall_linux_386.go   | 11 +++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 11 +++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 11 +++++++++++
- 10 files changed, 49 insertions(+), 11 deletions(-)
+ src/cmd/gc/builtin.c.boot | 13 ++++++-------
+ src/cmd/gc/runtime.go     | 14 ++++++--------
+ src/cmd/gc/subr.c         | 21 +++++++++++++++------
+ src/cmd/gc/walk.c         | 16 ++++++++++------
+ 4 files changed, 37 insertions(+), 27 deletions(-)

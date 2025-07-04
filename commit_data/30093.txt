@@ -1,20 +1,25 @@
-commit 34b455da4484dee20e8c355b50d24680224b58f2
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jan 25 16:48:17 2017 +0900
+commit 80a034642e9eac3fde60dbff920a70c4aae7fbc9
+Author: shaharko <skohanim@gmail.com>
+Date:   Thu Oct 13 22:31:46 2016 +0300
 
-    path/filepath: ignore dot for Dir(`\\server\share`)
+    cmd/compile, cmd/link: stop generating unused go.string.hdr symbols.
     
-    Dir(`\\server\share`) returns `\\server\share.`. Change Dir so it
-    returns `\\server\share` instead.
+    name       old s/op    new s/op    delta
+    LinkCmdGo   0.29 ± 5%   0.29 ± 8%  -2.60%   (p=0.000 n=97+98)
     
-    Fixes #18783
+    name       old MaxRSS  new MaxRSS  delta
+    LinkCmdGo   106k ± 4%   105k ± 3%  -1.00%  (p=0.000 n=100+99)
     
-    Change-Id: I9e0dd71ea6aea85e6c6114aaa4bb3bea3270d818
-    Reviewed-on: https://go-review.googlesource.com/35690
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I75a1c3b24ea711a15a5d2eae026b70b97ee7bad4
+    Reviewed-on: https://go-review.googlesource.com/31030
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/path/filepath/path.go      | 4 ++++
- src/path/filepath/path_test.go | 1 +
- 2 files changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/obj.go     | 53 +++++-----------------------------
+ src/cmd/compile/internal/gc/ssa.go     |  2 +-
+ src/cmd/internal/obj/link.go           | 18 +++++-------
+ src/cmd/internal/obj/symkind_string.go |  4 +--
+ src/cmd/link/internal/ld/data.go       |  4 +--
+ src/cmd/link/internal/ld/lib.go        |  2 --
+ src/cmd/link/internal/ld/symtab.go     | 11 ++-----
+ 7 files changed, 23 insertions(+), 71 deletions(-)

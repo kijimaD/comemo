@@ -1,42 +1,28 @@
-commit cd9a300afc0be43f7ad1891a18ed9b690f7f97ab
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Sep 4 13:14:17 2024 -0400
+commit 845fff35c6c37186936eb34c5a08b1a99483d9b8
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Jul 27 23:11:59 2023 +0000
 
-    all: fix printf(var) mistakes detected by latest printf checker
+    archive/zip: add AddFS method to zip Writer
     
-    These will cause build failures once we vendor x/tools.
+    The method AddFS can be used to add the contents of a fs.FS filesystem
+    to a zip archive.
+    This method walks the directory tree starting at the root of the filesystem
+    and adds each file to the archive.
     
-    In once case I renamed a function err to errf to indicate
-    that it is printf-like.
+    Fixes #54898
     
-    Updates golang/go#68796
-    
-    Change-Id: I04d57b34ee5362f530554b7e8b817f70a9088d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610739
-    Commit-Queue: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: I80511cbd91a1d7e09ee52d2d1b09fb5eed25f45f
+    GitHub-Last-Rev: 1e17f2e6bae60cf5168d687dd1357ab58a883675
+    GitHub-Pull-Request: golang/go#61602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513438
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/api/main_test.go                           |  2 +-
- src/cmd/asm/internal/asm/parse.go                  |  8 +++----
- .../cgo/internal/testerrors/argposition_test.go    |  2 +-
- .../compile/internal/inline/inlheur/callsite.go    |  2 +-
- .../internal/ir/reassign_consistency_check.go      |  2 +-
- src/cmd/compile/internal/liveness/mergelocals.go   |  2 +-
- src/cmd/compile/internal/liveness/plive.go         |  2 +-
- src/cmd/compile/internal/logopt/log_opts.go        |  2 +-
- src/cmd/compile/internal/loopvar/loopvar_test.go   | 18 +++++++--------
- src/cmd/compile/internal/ssa/lca_test.go           |  2 +-
- src/cmd/compile/internal/syntax/branches.go        | 26 +++++++++++-----------
- src/cmd/compile/internal/test/mergelocals_test.go  |  4 ++--
- src/cmd/compile/internal/test/ssa_test.go          |  2 +-
- .../internal/test/testdata/addressed_test.go       |  2 +-
- src/cmd/go/internal/load/pkg.go                    |  2 +-
- src/cmd/go/internal/modload/init.go                |  2 +-
- src/cmd/internal/goobj/objfile_test.go             |  4 ++--
- src/cmd/internal/objabi/flag.go                    |  2 +-
- src/cmd/link/internal/loader/loader_test.go        |  2 +-
- src/cmd/link/linkbig_test.go                       |  2 +-
- 20 files changed, 45 insertions(+), 45 deletions(-)
+ api/next/54898.txt             |  1 +
+ src/archive/zip/writer.go      | 36 +++++++++++++++++++++++++++++++++
+ src/archive/zip/writer_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+)

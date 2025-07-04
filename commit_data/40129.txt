@@ -1,41 +1,23 @@
-commit 6145a80608087b309251b4edf1a612739331bdee
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 2 10:51:09 2019 -0400
+commit f957a7e3572435c7d7031df8c58f63ebb633ecf7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 3 23:35:44 2019 -0400
 
-    cmd/go: remove the -mod flag from 'go get'
+    cmd/link: apply relocations later
     
-    'GOFLAGS=-mod=vendor' currently causes 'go get' to always fail unless
-    the '-mod' flag is explicitly overwritten. Moreover, as of CL 198319
-    we plan to set -mod=vendor by default if a vendor directory is
-    present, so all users with vendor directories will be affected — not
-    just those who set 'GOFLAGS' explicitly.
+    Move the phase of applying relocations later, after the sections
+    and segments are written to the mmap'd output region. Then apply
+    relocations directly in the output region, instead of the input.
+    So the input slices we read in don't need to be modified.
     
-    Similarly, an explicit '-mod=readonly' argument to 'go get' is
-    currently ignored as a special case, but the fact that it is ignored
-    (rather than rejected) can be very surprising.
+    This is in preparation for mmap'ing input files read-only.
     
-    Rather than adding more special cases, we should remove the '-mod'
-    flag from 'go get' entirely.
-    
-    Fixes #30345
-    Fixes #32502
-    Updates #33848
-    
-    Change-Id: Iecd3233ca3ef580ca3a66bd5e6ee8d86d4cbd8a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198438
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If9c80657b4469da36aec5a9ab6acf664f5af8fa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170739
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.14.html                                   |  7 +++++++
- src/cmd/go/internal/clean/clean.go                |  2 +-
- src/cmd/go/internal/generate/generate.go          |  2 +-
- src/cmd/go/internal/get/get.go                    |  2 +-
- src/cmd/go/internal/list/list.go                  |  2 +-
- src/cmd/go/internal/modget/get.go                 | 12 +-----------
- src/cmd/go/internal/run/run.go                    |  2 +-
- src/cmd/go/internal/test/testflag.go              |  2 +-
- src/cmd/go/internal/vet/vetflag.go                |  2 +-
- src/cmd/go/internal/work/build.go                 | 17 +++++++++++++----
- src/cmd/go/testdata/script/mod_getmode_vendor.txt |  2 +-
- 11 files changed, 29 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/ld/data.go   |  2 +-
+ src/cmd/link/internal/ld/main.go   |  7 ++++++-
+ src/cmd/link/internal/ld/outbuf.go | 15 +++++++++++++++
+ 3 files changed, 22 insertions(+), 2 deletions(-)

@@ -1,25 +1,19 @@
-commit ad5eaa8c4cd952df0d4894f11ee0158a9a33a0f3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 22 22:00:16 2022 -0400
+commit f190a9280ddcaa958610e104a3f6c105fedd3fee
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 24 22:39:16 2021 +0700
 
-    os/exec: make skipStdinCopyError a function instead of a variable
+    [dev.typeparams] cmd/compile: simplify usemethod
     
-    This makes clearer that skipStdinCopyError is always defined and never
-    overridden in tests.
+    By checking for method name first.
     
-    Secondarily, it may also help reduce init-time work and allow the
-    linker and/or inliner to better optimize this package.
+    Passes toolstash -cmp
     
-    (Noticed while prototyping #50436.)
-    
-    Change-Id: I4f3c1bc146384a98136a4039f82165ed106c14b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401897
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1f4125157a8bc247e4766a882467b805a205a3c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330670
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/exec/exec.go         |  6 +-----
- src/os/exec/exec_plan9.go   | 20 ++++++++++----------
- src/os/exec/exec_unix.go    | 20 ++++++++++----------
- src/os/exec/exec_windows.go | 22 +++++++++++-----------
- 4 files changed, 32 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 67 ++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 37 deletions(-)

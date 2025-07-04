@@ -1,16 +1,52 @@
-commit c1679286c3911befd94f1ddb4b29fbdd12301da9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Aug 26 02:12:56 2017 -0700
+commit 18fb670e5ee038ab681562a6b018da516f6a6f9f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 08:22:44 2017 -0700
 
-    archive/tar: minor doc fixes
+    cmd/internal/obj: fix LSym.Type during compilation, not linking
     
-    Use "file" consistently instead of "entry".
+    Prior to this CL, the compiler and assembler
+    were sloppy about the LSym.Type for LSyms
+    containing static data.
     
-    Change-Id: Ia81c9665d0d956adb78f7fa49de40cdb87fba000
-    Reviewed-on: https://go-review.googlesource.com/60150
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The linker then fixed this up, converting
+    Sxxx and SBSS to SDATA, and SNOPTRBSS to SNOPTRDATA
+    if it noticed that the symbol had associated data.
+    
+    It is preferable to just get this right in cmd/compile
+    and cmd/asm, because it removes an unnecessary traversal
+    of the symbol table from the linker (see #14624).
+    Do this by touching up the LSym.Type fixes in
+    LSym.prepwrite and Link.Globl.
+    
+    I have confirmed by instrumenting the linker
+    that the now-eliminated code paths were unreached.
+    And an additional check in the object file writing code
+    will help preserve that invariant.
+    
+    There was a case in the Windows linker,
+    with internal linking and cgo,
+    where we were generating SNOPTRBSS symbols with data.
+    For now, convert those at the site at which they occur
+    into SNOPTRDATA, just like they were.
+    
+    Does not pass toolstash-check,
+    but does generate identical linked binaries.
+    
+    No compiler performance changes.
+    
+    Change-Id: I77b071ab103685ff8e042cee9abb864385488872
+    Reviewed-on: https://go-review.googlesource.com/40864
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/archive/tar/common.go | 9 ++++-----
- src/archive/tar/reader.go | 8 ++++----
- src/archive/tar/writer.go | 2 +-
- 3 files changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/obj.go |  4 ----
+ src/cmd/internal/obj/data.go       |  9 +++++++--
+ src/cmd/internal/obj/objfile.go    |  6 ++++++
+ src/cmd/internal/obj/plist.go      |  6 +++++-
+ src/cmd/link/internal/ld/data.go   | 25 ++++++++++---------------
+ src/cmd/link/internal/ld/ldpe.go   | 12 ++++++++++++
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/debug/pe/file_test.go          |  2 +-
+ 8 files changed, 42 insertions(+), 24 deletions(-)

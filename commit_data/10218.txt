@@ -1,12 +1,20 @@
-commit e4b464242ac94f4f6e49bc55f9278b68b2fa66b2
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Nov 3 14:34:35 2011 +1100
+commit de3d64725288c4baa083b804d51f4d7ef35ea130
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Thu Nov 3 14:13:39 2011 +1100
 
-    http: update mime sniffing doc reference.
+    websocket: return an error HTTP response for bad websocket request.
+    
+    websocket spec had changed server-side requiements to return
+    an HTTP response with an appropriate error code (such as 400 Bad
+    Request) when it finds client did not send a handshake that matches
+    websocket protocol, rather than just closing connection.
+    It needs to flush out response before closing connection.
+    Fixes issues 2396.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5303095
+    https://golang.org/cl/5318072
 
- src/pkg/http/sniff.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/websocket/server.go         |  6 ++++++
+ src/pkg/websocket/websocket_test.go | 19 +++++++++----------
+ 2 files changed, 15 insertions(+), 10 deletions(-)

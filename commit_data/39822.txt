@@ -1,29 +1,21 @@
-commit ad1f2c96189be58c3c3c248af279b63a4f2466c1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 4 17:45:50 2019 -0700
+commit e770b5b3aa9a2b6a7dcdc95cacd7ad3940ad34c9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 20 15:47:56 2019 +0000
 
-    cmd/compile: use CTNIL for pointer-typed OLITERALs
+    text/template: allow using -}} with many spaces
     
-    We used to be more aggressive about constant folding in the frontend,
-    handling expressions that the Go spec does not consider constant;
-    e.g., "(*int)(unsafe.Pointer(uintptr(200)))". However, that led to a
-    lot of subtle Go spec conformance issues, so we've since abandoned
-    that effort (CL 151320), leaving SSA to handle these cases instead.
+    lexSpace consumed all spaces, even if the last one was part of a right
+    delimiter like " -}}". Thus, "3  -}}" wouldn't lex as "3" and a right
+    delimiter, but as "3", "-", and "}}".
     
-    As such, the only time we now end up with pointer-typed OLITERALs is
-    when "nil" is implicitly converted to a pointer-typed variable.
-    Instead of representing these OLITERALs with an CTINT of 0, we can
-    just use CTNIL.
+    To fix that, make lexSpace stop if it encounters a right delimiter.
     
-    Saves a few bytes of memory and lines of code.
+    Fixes #30948.
     
-    Change-Id: Ibc5c756b992fdc89c3bdaf4fda3aa352e8e2b101
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193437
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I80a5546e5809e54f6823e2bf3a57a7e8808329be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168457
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/gc/const.go         | 25 ++-----------------------
- src/cmd/compile/internal/gc/iexport.go       |  5 ++---
- src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
- 3 files changed, 7 insertions(+), 29 deletions(-)
+ src/text/template/parse/lex.go        | 69 ++++++++++++++++++++++-------------
+ src/text/template/parse/parse_test.go |  1 +
+ 2 files changed, 44 insertions(+), 26 deletions(-)

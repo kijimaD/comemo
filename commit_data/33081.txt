@@ -1,19 +1,33 @@
-commit 6054f87f3ac704a59502176f4c16a5cef2e6cec2
+commit e7f86341fed2a378ace0c81499844f6ac30c9d42
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 11 21:34:02 2017 -0400
+Date:   Thu Jul 6 00:14:15 2017 -0400
 
-    cmd/go: delete p.Internal.Target in favor of p.Target
+    cmd/go: fix docs for -timeout
     
-    The two are not meaningfully different, and it is confusing to have two.
+    The text before CL 45816 was:
     
-    Change-Id: Ie6a355ea4d79fb4bb79bf5124071a866038b19ba
-    Reviewed-on: https://go-review.googlesource.com/70211
+            -timeout t
+                    If a test runs longer than t, panic.
+                    The default is 10 minutes (10m).
+    
+    CL 45816 was supposed to be about clarifying test vs test binary,
+    and it did add the clarification of referring to "duration d",
+    but it also introduced incorrect text about timeout 0.
+    
+    The new text in this CL preserves the good change and
+    eliminates the incorrect one:
+    
+            -timeout d
+                    If a test binary runs longer than duration d, panic.
+                    The default is 10 minutes (10m).
+    
+    For #14780.
+    
+    Change-Id: I4f79d6e48ed9295bc9f34a36aa90d3b03b40d7f5
+    Reviewed-on: https://go-review.googlesource.com/47571
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/clean/clean.go |  6 +++---
- src/cmd/go/internal/load/pkg.go    | 37 +++++++++++++++++--------------------
- src/cmd/go/internal/run/run.go     |  2 +-
- src/cmd/go/internal/test/test.go   |  4 ++--
- src/cmd/go/internal/work/build.go  | 30 +++++++++++++++---------------
- 5 files changed, 38 insertions(+), 41 deletions(-)
+ src/cmd/go/alldocs.go            | 3 +--
+ src/cmd/go/internal/test/test.go | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

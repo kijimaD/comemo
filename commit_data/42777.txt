@@ -1,17 +1,23 @@
-commit cbc0a7906cfb4c82f850d35ffdb7eb0d674cc9b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 20 16:48:21 2020 -0700
+commit 7e368b3f5ae7a11648dcf590ec1f14a4126169f4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 14:48:49 2020 -0500
 
-    go/types: update flag documentation for gotype command
+    cmd/go: convert TestGoBuildOutput to the script framework
     
-    The documentation refers to a non longer existing flag (-seq).
-    Remove those references.
+    Adds a in-script go binary called inarchive to check that an
+    archive is produced. A weaker could be done faster using grep,
+    but this is more faithful to the original test.
     
-    Change-Id: I480b6259f9199b47761dc655a90911eabfe07427
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249738
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I001fa0698063be80fe3da947c81d4eb0829be47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214295
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/gotype.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go                       | 76 -------------------------
+ src/cmd/go/testdata/script/build_output.txt | 87 +++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 76 deletions(-)

@@ -1,19 +1,18 @@
-commit 293ecd87c10eb5eed777d220394ed63a935b2c20
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 26 16:19:47 2022 -0800
+commit 1df309eb023973f52b4955ea5b001c0d44961743
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 23 22:30:38 2021 -0400
 
-    time: document that Parse truncates to nanosecond precision
+    cmd/compile: skip types.Sym for GC mask symbols
     
-    For #48685
-    Fixes #50806
+    For GC mask symbols, we don't need to create types.Sym, just the
+    LSym.
     
-    Change-Id: Ie8be40e5794c0998538890a651ef8ec92cb72d3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381155
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I285b518cfd60bfaa3202a02b3005a7122daeb338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313512
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/time/format.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

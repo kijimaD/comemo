@@ -1,30 +1,17 @@
-commit 5c6f42773cec9eb217e258e104ee058f67253f72
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 19 15:46:06 2019 -0500
+commit b3a1205a1133328068f002dd44141cb9efb2127b
+Author: Ayan George <ayan@ayan.net>
+Date:   Thu Aug 1 12:35:59 2019 -0400
 
-    cmd/go: relax validation for replacements for gopkg.in paths
+    runtime: simplify GOOS detection in mstart()
     
-    The 'go' command normally requires the 'go.mod' files for replacement
-    modules to have a major version compatible with the module they are
-    replacing.
+    The existing condition is long and repetitive.  Using select/case with
+    multiple values in the expression list is more concise and clearer.
     
-    However, prior to CL 206761, the 'go' command erroneously allowed
-    unversioned paths (which imply major version 0 or 1) to replace
-    'gopkg.in' paths with any major-version suffix.
-    
-    An analysis of proxy.golang.org suggests that these replacements,
-    while uncommon, are not unheard-of. Rather than breaking the modules
-    that rely on them, we will continue to allow the erroneous replacement
-    paths for this particular pairing.
-    
-    Updates #34254
-    
-    Change-Id: Icb4e745981803edaa96060f17a8720a058219ab1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212105
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I43f8abcf958e433468728f1d89ff1436332b29da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188519
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modfetch/coderepo.go           | 13 ++++-
- src/cmd/go/testdata/script/mod_replace_gopkgin.txt | 57 ++++++++++++++++++++--
- 2 files changed, 66 insertions(+), 4 deletions(-)
+ src/runtime/proc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

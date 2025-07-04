@@ -1,0 +1,20 @@
+commit c01fa0cc21caf2fee9b04154e5ee83cbc239cc98
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Feb 23 22:31:35 2025 +1100
+
+    test/codegen: add riscv64/rva23u64 specifiers to existing tests
+    
+    Tests that exist for riscv64/rva22u64 should also be applied to
+    riscv64/rva23u64.
+    
+    Change-Id: Ia529fdf0ac55b8bcb3dcd24fa80efef2351f3842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652315
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/codegen/arithmetic.go | 8 ++++----
+ test/codegen/shift.go      | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)

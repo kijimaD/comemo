@@ -1,19 +1,24 @@
-commit 5d82dbb59c97c8b5b9c5e5e8ef1b1e60d9f11563
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Aug 9 10:57:51 2024 +0200
+commit c6b5dce0d1ef35c1c35ab14f3e32ad55d7f83818
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 20 10:23:47 2023 -0400
 
-    os/user: test that Current does not depend on netapi32.dll
+    cmd/dist: apply timeout scale even if timeout isn't overridden
     
-    Updates #21867.
+    The timeout field is documented as being available so that it's possible
+    to override timeout by setting a non-zero value. If it's left at zero,
+    we don't need to override the default go test timeout, but we still need
+    to apply the timeout scale whenever it's something other than 1.
     
-    Change-Id: I1eb923ef66aa0f338bfa0d683159edc1d8ae2a6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604415
+    Fixes (via backport) #61468.
+    
+    Change-Id: I63634e9b3ef8c4ec7f334b5a6b4bf3cad121355c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511567
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  |  2 ++
- src/internal/syscall/windows/zsyscall_windows.go | 10 +++++++
- src/os/user/user_windows_test.go                 | 38 ++++++++++++++++++++++++
- 3 files changed, 50 insertions(+)
+ src/cmd/dist/test.go                 | 3 +++
+ src/cmd/go/internal/test/testflag.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

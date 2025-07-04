@@ -1,18 +1,24 @@
-commit 58ce655fd2efe2270ee852790eede952e179735e
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Wed Jul 17 18:16:44 2013 -0400
+commit 5887f142a33fbb8da94088e902ced4101a16aa8f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 17 12:52:37 2013 -0400
 
-    misc/emacs: Add godef-jump-other-window
+    runtime: more reliable preemption
+    Currently preemption signal g->stackguard0==StackPreempt
+    can be lost if it is received when preemption is disabled
+    (e.g. m->lock!=0). This change duplicates the preemption
+    signal in g->preempt and restores g->stackguard0
+    when preemption is enabled.
+    Update #543.
     
-    This will behave like similar "*-other-window" functions in Emacs.
-    
-    Default key bind is C-x 4 C-c C-j – while awkward, it follows both
-    the convention for other-window functions and the convention for
-    not using user- or emacs-reserved keys.
-    
-    R=golang-dev, adonovan
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10707045
+    https://golang.org/cl/10792043
 
- misc/emacs/go-mode.el | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/pkg/runtime/lock_futex.c |  3 +++
+ src/pkg/runtime/lock_sema.c  |  3 +++
+ src/pkg/runtime/malloc.goc   |  3 +++
+ src/pkg/runtime/mgc0.c       |  4 +++-
+ src/pkg/runtime/proc.c       | 14 ++++++++++++++
+ src/pkg/runtime/runtime.h    |  1 +
+ src/pkg/runtime/stack.c      |  2 +-
+ 7 files changed, 28 insertions(+), 2 deletions(-)

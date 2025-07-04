@@ -1,14 +1,12 @@
-commit 27a3dcd0d2320e171203294724def784a1ddead6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 20 11:11:57 2011 -0400
+commit df07b6d14aa72eee879d13f197dd861aad4b2465
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jul 20 19:46:05 2011 +1000
 
-    net/textproto: avoid 1 copy in ReadLine, ReadContinuedLine
+    exp/norm: API for normalization library.
     
-    Fixes #2083.
-    
-    R=msolo, bradfitz
+    R=r, r, mpvl, rsc
     CC=golang-dev
-    https://golang.org/cl/4812042
+    https://golang.org/cl/4678041
 
- src/pkg/net/textproto/reader.go | 44 ++++++++++++++++++++++++++++-------------
- 1 file changed, 30 insertions(+), 14 deletions(-)
+ src/pkg/exp/norm/normalize.go | 75 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 75 insertions(+)

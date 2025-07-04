@@ -1,20 +1,18 @@
-commit 76c18e2ed2e62f34a9afed5e6fa681837cc16b77
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Feb 4 11:16:40 2025 +0100
+commit 4a2408289c0a714fa57fa5921cf5dba518149637
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 21 15:37:49 2023 -0500
 
-    cmd/link: add -e (no limit on errors) flag
+    syscall: check SyscallIsNotSupported in TestPidFDWithUserNS
     
-    The compiler and assembler have a -e flag that disables the limit
-    on the number of errors before the build fails. This flag is useful
-    for debugging, the linker should have it too.
+    For #51246.
     
-    Change-Id: I892cfd6ee1519e9e86261af7d05e1af2ded21684
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646435
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ief2e2e14f039123a6580cb60be7ee74f4a20a649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544318
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/doc.go              | 2 ++
- src/cmd/link/internal/ld/main.go | 1 +
- src/cmd/link/internal/ld/util.go | 2 +-
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ src/syscall/exec_linux_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

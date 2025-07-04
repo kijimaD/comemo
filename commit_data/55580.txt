@@ -1,24 +1,25 @@
-commit 36fb6160ae128489c4fd793d7359370ea3eaf992
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jan 21 17:20:02 2024 +1100
+commit f60a2a9c9423222b52ecb5f6463787f913195127
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 22 17:50:20 2023 -0500
 
-    fmt: document how %#g handles infinities and NaNs
+    cmd/compile: adjust inlined DW_AT_call_line by //line
     
-    The %#g format prints a "Go-syntax representation", but there is
-    no such thing for IEEE754 infinities and NaNs, so just document
-    what happens, which is that it prints +Inf, -Inf, or NaN.  We could
-    show something like math.Inf(1) and math.Nan(), but that doesn't
-    sit right, and anyway for NaNs you can't even recover the original
-    value. Simpler and more honest to give up.
+    insertInlCall mistakenly uses the absolute line number of the call
+    rather than the relative line number (adjusted by //line). Switch to the
+    correct line number.
     
-    Fixes #51486
+    The call filename was already correct.
     
-    Change-Id: I8d4e8186f5d7acc3e0e7b51d0b322142908ea0a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557235
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #58648
+    
+    Change-Id: Id8d1848895233e972d8cfe9c5789a88e62d06556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470876
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/fmt/doc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/dwarfgen/dwinl.go |   6 +-
+ src/cmd/link/internal/ld/dwarf_test.go     | 166 ++++++++++++++++-------------
+ 2 files changed, 97 insertions(+), 75 deletions(-)

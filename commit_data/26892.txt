@@ -1,28 +1,32 @@
-commit 381e5eee39edfb3a43e294023957aff05e9ff349
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 13 04:35:37 2016 +0000
+commit 3601a1e77d7fdd4c98c3dbd6f1bfa0028bc24fdd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 29 13:07:50 2016 -0900
 
-    all: use new io.SeekFoo constants instead of os.SEEK_FOO
+    cmd/link: write DWARF PC table without seeking
     
-    Automated change.
+    This per-symbol table was written with the strategy:
     
-    Fixes #15269
+            1. record offset and write fake header
+            2. write body
+            3. seek back to fake header
+            4. write real header
     
-    Change-Id: I8deb2ac0101d3f7c390467ceb0a1561b72edbb2f
-    Reviewed-on: https://go-review.googlesource.com/21962
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    This CL collects the per-symbol body into a []byte, then writes the
+    real header followed by the body to the output file. This saves two
+    seeks per-symbol and overwriting the fake header.
+    
+    Small performance improvement (3.5%) in best-of-ten links of godoc:
+    
+    tip:  real 0m1.132s user 0m1.256s
+    this: real 0m1.090s user 0m1.210s
+    
+    I'm not sure if the performance measured here alone justifies it,
+    but I think this is an easier to read style of code.
+    
+    Change-Id: I1663901eb7c2ee330591b8b6550cdff0402ed5dc
+    Reviewed-on: https://go-review.googlesource.com/20074
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/reader.go     |  5 ++---
- src/archive/zip/reader.go     |  2 +-
- src/bytes/reader_test.go      | 21 ++++++++++-----------
- src/debug/elf/file.go         |  8 ++++----
- src/debug/pe/file.go          |  8 ++++----
- src/net/http/fs.go            | 10 +++++-----
- src/net/sendfile_dragonfly.go |  2 +-
- src/net/sendfile_freebsd.go   |  2 +-
- src/net/sendfile_solaris.go   |  2 +-
- src/os/exec/exec_test.go      |  2 +-
- src/strings/reader_test.go    | 21 ++++++++++-----------
- 11 files changed, 40 insertions(+), 43 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 145 ++++++++++++++++----------------------
+ 1 file changed, 59 insertions(+), 86 deletions(-)

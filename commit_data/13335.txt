@@ -1,12 +1,15 @@
-commit bb3af7554a17706a7efb66f19e18b2e2b33ae308
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 12 18:11:19 2012 -0700
+commit 66429dcf75f37cdae380081396b86b8f6787a96a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jun 13 10:13:05 2012 +1000
 
-    CONTRIBUTORS: added Christopher Swenson (Google CLA)
+    exp/html: simplify some of the parser's internal methods.
     
-    R=golang-dev, bradfitz
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkParser      4006888      3950604   -1.40%
+    
+    R=r, andybalholm
     CC=golang-dev
-    https://golang.org/cl/6302069
+    https://golang.org/cl/6301070
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/html/parse.go | 166 ++++++++++++++++++++++++----------------------
+ 1 file changed, 87 insertions(+), 79 deletions(-)

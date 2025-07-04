@@ -1,17 +1,42 @@
-commit 8a7ee4c51e992174d432ce0f40d9387a32d6ee4a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 31 15:39:08 2021 -0700
+commit 2d6ff998edc0f3877ee24d28647a494491742f25
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 29 14:06:17 2020 -0800
 
-    io/fs: don't use absolute path in DirEntry.Name doc
+    [dev.regabi] cmd/compile: process //go:linknames after declarations
     
-    Fixes #47485
+    Allows emitting errors about ineffectual //go:linkname directives.
     
-    Change-Id: I64ac00905a403b7594c706141679051a93058a31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338889
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    In particular, this exposed: a typo in os2_aix.go; redundant (but
+    harmless) directives for libc_pipe in both os3_solaris.go and
+    syscall2_solaris.go; and a bunch of useless //go:linkname directives
+    in macOS wrapper code.
+    
+    However, because there's also ineffectual directives in the vendored
+    macOS code from x/sys, that can't be an error just yet. So instead we
+    print a warning (including a heads up that it will be promoted to an
+    error in Go 1.17) to prevent backsliding while we fix and re-vendor
+    that code.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I59badeab5df0d8b3abfd14c6066e9bb00e840f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273986
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/io/fs/fs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go             |  43 +++++---
+ src/crypto/x509/internal/macos/corefoundation.go |   9 --
+ src/crypto/x509/internal/macos/security.go       |   4 -
+ src/go/types/stdlib_test.go                      |   1 +
+ src/runtime/os2_aix.go                           |   4 +-
+ src/runtime/syscall2_solaris.go                  |   2 -
+ src/syscall/mksyscall.pl                         |   3 -
+ src/syscall/syscall_darwin.go                    |   3 -
+ src/syscall/syscall_darwin_amd64.go              |   1 -
+ src/syscall/syscall_darwin_arm64.go              |   1 -
+ src/syscall/zsyscall_darwin_amd64.go             | 121 -----------------------
+ src/syscall/zsyscall_darwin_arm64.go             | 121 -----------------------
+ test/linkname2.go                                |  27 +++++
+ 13 files changed, 58 insertions(+), 282 deletions(-)

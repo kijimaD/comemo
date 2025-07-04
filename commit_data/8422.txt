@@ -1,22 +1,17 @@
-commit 8f57f493981704fa1118c1f916edc787d4c2bccd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 17 11:22:52 2011 -0700
+commit 1242c76794936f7bdd4406aa8914500eefe655d4
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 17 11:15:14 2011 -0400
 
-    go/ast resolver: properly maintain map of package global imports
+    reflect: make allocation test less fragile.
+    When GOMAXPROCS>1, the testing framework runs in parallel with the
+    test itself and may do a small number of allocations, so allow the
+    "noAllocs" condition to admit just a few.
     
-    - add Data field to ast.Object
-    - for package objects, the Data field holds the package scope
-    - resolve several TODOs
+    Fixes #1782.
     
     R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4538069
+    CC=golang-dev, rsc
+    https://golang.org/cl/4533041
 
- src/pkg/go/ast/ast.go               |  8 ++--
- src/pkg/go/ast/resolve.go           | 73 ++++++++++++++----------------
- src/pkg/go/ast/scope.go             | 11 +++++
- src/pkg/go/parser/parser.go         | 21 ++++-----
- src/pkg/go/types/gcimporter.go      | 90 +++++++++++++++++++++++--------------
- src/pkg/go/types/gcimporter_test.go |  7 ++-
- src/pkg/go/types/universe.go        | 16 ++++---
- 7 files changed, 131 insertions(+), 95 deletions(-)
+ src/pkg/reflect/all_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

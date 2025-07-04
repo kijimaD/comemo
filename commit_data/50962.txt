@@ -1,23 +1,25 @@
-commit 99fcacfe9a09c5df0787eda15ace0f473c50363c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Oct 21 14:28:46 2022 -0400
+commit be18cd51dec6ac460949e96231dd05becc2cbcf7
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Nov 19 12:13:04 2021 -0800
 
-    cmd/go: don't print cached output for non-build list commands
+    cmd/compile: ensure generic function is loaded when it needs to be re-exported
     
-    If a user is running a go list command that wouldn't trigger a build
-    (for example if -export was passed), don't print the cached stdout
-    outputs for previous builds of the artifacts.
+    In the case where we need to re-export a generic function/method from
+    another package in the export data of the current package, make sure it
+    is loaded before trying to write it out.
     
-    Fixes #56375
+    Fixed #49667
     
-    Change-Id: I1d3e6c01d0eb3dada941bb2783ce2ac69aa3d5d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444836
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I177754bb762689f34cf5c8ad246d43f1cdbbf195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365837
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/buildid.go                | 43 ++++++++++++----------
- src/cmd/go/internal/work/exec.go                   |  6 +--
- .../go/testdata/script/list_compiler_output.txt    | 16 ++++++++
- 3 files changed, 43 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  6 ++++++
+ test/typeparam/issue49667.dir/a.go            | 12 ++++++++++++
+ test/typeparam/issue49667.dir/b.go            | 11 +++++++++++
+ test/typeparam/issue49667.dir/main.go         | 11 +++++++++++
+ test/typeparam/issue49667.go                  |  7 +++++++
+ 5 files changed, 47 insertions(+)

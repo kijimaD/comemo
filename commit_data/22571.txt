@@ -1,14 +1,26 @@
-commit 449969a4ac5e9e1e5c41dac645e2b75a8a95fc08
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 16 10:08:20 2015 -0700
+commit b8caed823b39b5a86b694f9ec60a8b43323248e8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 24 09:22:35 2015 -0400
 
-    cmd/internal/ld, cmd/dist: support -buildmode=c-archive on linux
+    runtime: initialize extra M for cgo during mstart
     
-    Change-Id: I8c97751a79b57197428b0f0b66fc9575708a2eb0
-    Reviewed-on: https://go-review.googlesource.com/8979
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Previously the extra m needed for cgo callbacks was created on the
+    first callback. This works for cgo, however the cgocallback mechanism
+    is also borrowed by badsignal which can run before any cgo calls are
+    made.
+    
+    Now we initialize the extra M at runtime startup before any signal
+    handlers are registered, so badsignal cannot be called until the
+    extra M is ready.
+    
+    Updates #10207.
+    
+    Change-Id: Iddda2c80db6dc52d8b60e2b269670fbaa704c7b3
+    Reviewed-on: https://go-review.googlesource.com/7978
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/dist/test.go       | 23 +++++++++++++++++++++--
- src/cmd/internal/ld/lib.go |  4 +++-
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ src/runtime/cgocall.go  | 5 -----
+ src/runtime/proc1.go    | 5 +++++
+ src/runtime/sigqueue.go | 9 ---------
+ 3 files changed, 5 insertions(+), 14 deletions(-)

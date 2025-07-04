@@ -1,28 +1,24 @@
-commit c087121dafc1e0250d43b545e85d67e7e6762f74
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 18 15:15:33 2022 -0400
+commit 5dcb5e2cea883b1bd69b543841b137a287aa7037
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Aug 4 17:58:54 2021 -0700
 
-    runtime: relax the threshold for TestPingPongHog
+    [dev.typeparams] cmd/compile: dictionary/shape cleanup
     
-    The test checks that the scheduling of the goroutines are within
-    a small factor, to ensure the scheduler handing off the P
-    correctly. There have been flaky failures on the builder (probably
-    due to OS scheduling delays). Increase the threshold to make it
-    less flaky. The gap would be much bigger if the scheduler doesn't
-    work correctly.
+     - Removed gcshapeType - we're going with more granular shapes for now, and gradually
+       coarsening later if needed.
     
-    For the long term maybe it is better to test it more directly
-    with the scheduler, e.g. with scheduler instrumentation.
+     - Put in early return in getDictionarySym(), so the entire rest of the
+       function can be un-indented by one level.
     
-    May fix #52207.
+     - Removed some duplicated infoprint calls, and fixed one infoprint
+       message in getGfInfo.
     
-    Change-Id: I50278b70ab21b7f04761fdc8b38dd13304c67879
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407134
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I13acce8fdabdb21e903275b53ff78a1e6a378de2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339901
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 443 ++++++++----------------------
+ 1 file changed, 113 insertions(+), 330 deletions(-)

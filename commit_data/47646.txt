@@ -1,21 +1,21 @@
-commit 682435dd9991040073ae12021fac164b41376502
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Nov 19 16:33:42 2021 -0600
+commit 7bfd681c2f11918c6245ad2906b2efc12eda2914
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Thu Apr 1 10:06:05 2021 +0200
 
-    misc/cgo/test: reduce likeliness of hang in Test9400
+    runtime/pprof: skip tests for AIX
     
-    If a GC triggers while spinning in RewindAndSetgid, it may result in
-    this test hanging. Avoid it by disabling the collector before entering
-    the uninterruptable ASM conditional wait.
+    Most of the time, the pprof tests are passing, except
+    for the builder. The reason is still unknown but I'd rather release
+    the builder to avoid missing other more important bugs.
     
-    Fixes #49695
+    Updates #45170
     
-    Change-Id: Ie0a03653481fb746f862469361b7840f4bfa8b67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365836
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: I667543ee1ae309b7319c5b3676a0901b4d0ecf2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306489
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- misc/cgo/test/testdata/issue9400_linux.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/pprof/pprof_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

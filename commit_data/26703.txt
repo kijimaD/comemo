@@ -1,21 +1,43 @@
-commit c1c7547f6ad7264c1d6eea3fc1645b2eab104694
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 4 13:31:08 2016 -0700
+commit 4ded58bd5a00f9f751bfc02cc1b7dd5970632a02
+Author: Harshavardhana <hrshvardhana@gmail.com>
+Date:   Wed Jan 13 15:52:54 2016 -0800
 
-    net/http: add Request.Context and Request.WithContext
+    net/http/httputil: Keep response headers when response ContentLength is 0.
     
-    Currently only used by the client. The server is not yet wired up.  A
-    TODO remains to document how it works server-side, once implemented.
+    Current code does not print any response headers from httputil.DumpResponse().
     
-    Updates #14660
+       PUT /miniocloud/new-file HTTP/1.1
+       Host: s3.amazonaws.com
+       User-Agent: Go-http-client/1.1
+       Content-Length: 11
+       Accept-Encoding: gzip
     
-    Change-Id: I27c2e74198872b2720995fa8271d91de200e23d5
-    Reviewed-on: https://go-review.googlesource.com/21496
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+       HTTP/1.1 200 OK
+    
+    With this fix we get an appropriate output for httputil.DumpResponse().
+    
+       PUT /miniocloud/new-file HTTP/1.1
+       Host: s3.amazonaws.com
+       User-Agent: Go-http-client/1.1
+       Content-Length: 11
+       Accept-Encoding: gzip
+    
+       HTTP/1.1 200 OK
+       Content-Length: 0
+       Date: Thu, 14 Jan 2016 03:04:42 GMT
+       Etag: "3e25960a79dbc69b674cd4ec67a72c62"
+       Server: AmazonS3
+       X-Amz-Id-2: qnXyH6sknlovV0Myy3emFAXTNtI/sQIcu1ZXNq/6wd17K32tQ7WNGB1qb3nzCpW2DhfeZ/MbWfw=
+       X-Amz-Request-Id: 8422EACB0CC492BD
+    
+    Fixes #13942
+    
+    Change-Id: Ida063cc3524a96170d8a837893f7c9f49b6cf98e
+    Reviewed-on: https://go-review.googlesource.com/18624
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go      |  3 ++-
- src/net/http/request.go        | 37 +++++++++++++++++++++++++++++++++++++
- src/net/http/response_test.go  |  7 ++++++-
- src/net/http/transport.go      |  9 +++++++++
- src/net/http/transport_test.go | 21 +++++++++++++++++----
- 5 files changed, 71 insertions(+), 6 deletions(-)
+ src/net/http/httputil/dump.go      | 19 +++++++++++++------
+ src/net/http/httputil/dump_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 6 deletions(-)

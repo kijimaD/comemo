@@ -1,36 +1,24 @@
-commit f1deee0e8c5f31d86301fe3ec6554a93da0d7e42
-Author: Travis Bischel <travis.bischel@gmail.com>
-Date:   Sat Mar 31 21:51:00 2018 -0700
+commit 2a39d1e96a8d37d14ff23a2eb3ffc5b584a17cb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 23:55:15 2017 -0500
 
-    compress/gzip: do not count header bytes written in Write
+    cmd/cover: add //line comment pointing to original file
     
-    Before, if an underlying writer errored within 10 bytes (plus any gzip
-    header metadata), a gzip.Write would erroneously report up to 10 bytes
-    written that were not actually written of the input slice. This is
-    especially problematic when the input slice is less than 10 bytes.
+    Now that cover does not modify the formatting of the original file
+    or add any newline characters, we can make it print a //line comment
+    pointing back at the original, and compiler errors and panics will
+    report accurate line numbers.
     
-    The error came from counting the 10 header byte write. If writing the
-    header is completely successful, the 10 bytes written is overridden by
-    the flate write with the input slice.
+    Fixes #6329.
+    Fixes #15757.
     
-    This removes counting the 10 required header bytes, and also changes the
-    return to use zero until the slice is used.
-    
-    The old Write could return one byte written when it actually was not.
-    This is difficult to verify because the smallest input slice is one
-    byte; a test checking that the input slice was the byte written would be
-    quite involved. Thankfully, gzip's minimum header write is 10 bytes. If
-    we test that two bytes are not falsely written, we indirectly cover the
-    one byte case.
-    
-    Fixes #24625
-    
-    Change-Id: I1c1f8cd791e0c4cffc22aa8acd95186582c832ba
-    Reviewed-on: https://go-review.googlesource.com/103861
-    Reviewed-by: Joe Tsai <joetsai@google.com>
-    Run-TryBot: Joe Tsai <joetsai@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7b0e386112c69beafe69e0d47c5f9e9abc87c0f5
+    Reviewed-on: https://go-review.googlesource.com/77151
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/compress/gzip/gzip.go      | 10 +++++-----
- src/compress/gzip/gzip_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 5 deletions(-)
+ src/cmd/cover/cover.go                     |  1 +
+ src/cmd/go/go_test.go                      | 27 +++++++++++++++++++++++++++
+ src/cmd/go/testdata/src/coverbad/p.go      |  5 +++++
+ src/cmd/go/testdata/src/coverbad/p_test.go |  5 +++++
+ 4 files changed, 38 insertions(+)

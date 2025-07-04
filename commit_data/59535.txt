@@ -1,22 +1,29 @@
-commit bd299852121f997b8bff3c9de244df27427819f3
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 16 19:53:21 2025 -0400
+commit ac0b2f95a5f25e9e331352c93e38f9b29bee9ccc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 17 01:02:16 2024 +1100
 
-    cmd/distpack: use positive list of tools to keep
+    syscall: export Tc{get,set}pgrp for testing
     
-    Previously, distpack filtered out tools from the packaged distribution
-    using a list of tools to remove. Instead follow mpratt's suggestion on
-    CL 666755 and instead filter out tools that are not on a list of tools
-    to keep. This will make it easier to tell which tools are actually in
-    the distribution.
+    Provide appropriate implementations of Tc{get,set}pgrp and export
+    these for use in the TestForeground* tests in exec_unix_test.go.
+    This avoids calling ioctl via syscall.Syscall on BSDs.
     
-    For #71867
+    Fixes #59667
+    Updates #63900
     
-    Change-Id: I8336465703ac820028c3381a0a743c457997e78a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673696
+    Change-Id: Ice4dcedae1f0931c026bddf33043d3864a52d44e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572155
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/distpack/pack.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/syscall/exec_aix_test.go      | 11 ++++++++++-
+ src/syscall/exec_solaris_test.go  | 11 ++++++++++-
+ src/syscall/exec_unix_test.go     | 31 ++++++++++++-------------------
+ src/syscall/export_bsd_test.go    | 25 +++++++++++++++++++++++++
+ src/syscall/export_darwin_test.go | 15 ---------------
+ src/syscall/export_linux_test.go  | 20 ++++++++++++++++++++
+ src/syscall/export_unix_test.go   | 14 --------------
+ 7 files changed, 77 insertions(+), 50 deletions(-)

@@ -1,22 +1,20 @@
-commit 8f5fb95db6573f132bcfd0b3f9541faa84058fa0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Mar 6 13:04:52 2016 +1100
+commit a40281112cb38ada79bfe32bb150982abf57d0a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 15:09:26 2015 +0000
 
-    cmd/compile/internal/gc: assert size of important types
+    Revert "cmd/go: fix processing of flags for test binaries."
     
-    Add tests to ensure that the size of important types don't change
-    unexpectedly.
+    This broke a number of common "go test" invocations.
+    Will fix the original concern differently.
     
-    Skip the test on nacl platforms because of their unusual padding
-    requirements.
+    This reverts commit 6acb4d944dafa13a6c80faffc4e7ecc47d2bcdbc.
     
-    Change-Id: Iddb127a99499e089a309b721f5073356c0da8b24
-    Reviewed-on: https://go-review.googlesource.com/20285
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13583.
+    
+    Change-Id: If582b81061df28173c698bed1d7d8283b0713cae
+    Reviewed-on: https://go-review.googlesource.com/17773
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/sizeof_test.go | 43 ++++++++++++++++++++++++++++++
- src/cmd/internal/obj/sizeof_test.go        | 40 +++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+)
+ src/cmd/go/go_test.go  | 12 +++---------
+ src/cmd/go/testflag.go | 52 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 30 insertions(+), 34 deletions(-)

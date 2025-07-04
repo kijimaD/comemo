@@ -1,18 +1,17 @@
-commit 4b71660c5b84a2c47f206145a9913f4418330b59
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 29 12:48:33 2015 -0400
+commit 18d9a8d05f5c9f13b8c2a06ce3a11a2c04d19536
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 11 12:32:11 2015 -0700
 
-    runtime: always capture GC phase transition times
+    cmd/go: format temporary Go files in testsuite
     
-    Currently we only capture GC phase transition times if
-    debug.gctrace>0, but we're about to compute GC CPU utilization
-    regardless of whether debug.gctrace is set, so we need these
-    regardless of debug.gctrace.
+    Indent the temporary file source code embedded in go_test.go, so that
+    we don't have temporary Go code in the first column.
     
-    Change-Id: If3acf16505a43d416e9a99753206f03287180660
-    Reviewed-on: https://go-review.googlesource.com/12843
+    No real changes to the tests, just formatting.
+    
+    Change-Id: I416b4a812c8db452ea61afe63a00989ec598c228
+    Reviewed-on: https://go-review.googlesource.com/10926
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go | 45 +++++++++++++++------------------------------
- 1 file changed, 15 insertions(+), 30 deletions(-)
+ src/cmd/go/go_test.go | 83 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 41 insertions(+), 42 deletions(-)

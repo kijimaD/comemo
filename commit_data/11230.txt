@@ -1,12 +1,16 @@
-commit 20812c490736e18c454c807ed1c65304bd8b7e5d
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Wed Jan 18 15:25:00 2012 -0500
+commit dbebb08601ae43566ed19748a838b2a36481f61a
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 18 15:04:17 2012 -0500
 
-    time: add Since, which returns the time elapsed since some past time t.
+    exp/ssh: handle versions with just '\n'
     
-    R=rsc, r
+    djm recommend that we do this because OpenSSL was only fixed in 2008:
+    http://anoncvs.mindrot.org/index.cgi/openssh/sshd.c?revision=1.380&view=markup
+    
+    R=dave, jonathan.mark.pittman
     CC=golang-dev
-    https://golang.org/cl/5532088
+    https://golang.org/cl/5555044
 
- src/pkg/time/time.go | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ src/pkg/exp/ssh/transport.go      | 31 +++++++++++++------------------
+ src/pkg/exp/ssh/transport_test.go | 18 ++++++++++++++++--
+ 2 files changed, 29 insertions(+), 20 deletions(-)

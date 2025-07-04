@@ -1,80 +1,17 @@
-commit 2ce6da0be30c1888120a7f7e2a596c6de1892c0a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 10 00:01:48 2018 -0400
+commit 89d576c933442ce0e3e78686db17a05de0a3dc8c
+Author: Felix Kollmann <fk@konsorten.de>
+Date:   Sat Apr 14 23:01:10 2018 +0000
 
-    cmd/go: fix -gcflags, -ldflags not applying to current directory
+    doc: clarify package uninstall/clean command
     
-    A flag setting like -gcflags=-e applies only to the packages
-    named on the command line, not to their dependencies.
-    The way we used to implement this was to remember the
-    command line arguments, reinterpret them as pattern matches
-    instead of package argument generators (globs), and apply them
-    during package load. The reason for this complexity was to
-    address a command-line like:
+    Fixes #24864
     
-            go build -gcflags=-e fmt runtime
-    
-    The load of fmt will load dependencies, including runtime,
-    and the load of runtime will reuse the result of the earlier load.
-    Because we were computing the effective -gcflags for each
-    package during the load, we had to have a way to tell, when
-    encountering runtime during the load of fmt, that runtime had
-    been named on the command line, even though we hadn't
-    gotten that far. That would be easy if the only possible
-    arguments were import paths, but we also need to handle
-    
-            go build -gcflags=-e fmt runt...
-            go build -gcflags=-e fmt $GOROOT/src/runtime
-            go build -gcflags=-e fmt $GOROOT/src/runt...
-            and so on.
-    
-    The match predicates usually did their job well, but not
-    always. In particular, thanks to symlinks and case-insensitive
-    file systems and unusual ways to spell file paths, it's always
-    been possible in various corner cases to give an argument
-    that evalutes to the runtime package during loading but
-    failed to match it when reused to determine "was this package
-    named on the command line?"
-    
-    CL 109235 fixed one instance of this problem by making
-    a directory pattern match case-insensitive on Windows, but that
-    is incorrect in some other cases and doesn't address the root problem,
-    namely that there will probably always be odd corner cases
-    where pattern matching and pattern globbing are not exactly aligned.
-    
-    This CL eliminates the assumption that pattern matching
-    and pattern globbing are always completely in agreement,
-    by simply marking the packages named on the command line
-    after the package load returns them. This means delaying
-    the computation of tool flags until after the load too,
-    for a few different ways packages are loaded.
-    The different load entry points add some complexity,
-    which is why the original approach seemed more attractive,
-    but the original approach had complexity that we simply
-    didn't recognize at the time.
-    
-    This CL then rolls back the CL 109235 pattern-matching change,
-    but it keeps the test introduced in that CL. That test still passes.
-    
-    In addition to fixing ambiguity due to case-sensitive file systems,
-    this new approach also very likely fixes various ambiguities that
-    might arise from abuse of symbolic links.
-    
-    Fixes #24232.
-    Fixes #24456.
-    Fixes #24750.
-    Fixes #25046.
-    Fixes #25878.
-    
-    Change-Id: I0b09825785dfb5112fb11494cff8527ebf57966f
-    Reviewed-on: https://go-review.googlesource.com/129059
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Iaffd23b368aff663bfc09a4e6277c01e7b5ea48d
+    GitHub-Last-Rev: 98e39b7bff6e646d48c0bf961aee0075a9034ab2
+    GitHub-Pull-Request: golang/go#24865
+    Reviewed-on: https://go-review.googlesource.com/106986
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go                           | 31 ----------
- src/cmd/go/internal/get/get.go                  |  4 +-
- src/cmd/go/internal/load/flag.go                | 50 ----------------
- src/cmd/go/internal/load/pkg.go                 | 80 +++++++++++++++++--------
- src/cmd/go/internal/load/search.go              |  9 +--
- src/cmd/go/testdata/script/gcflags_patterns.txt | 71 ++++++++++++++++++++++
- 6 files changed, 128 insertions(+), 117 deletions(-)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

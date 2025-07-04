@@ -1,22 +1,63 @@
-commit 2de98eb8de2e97ec6a187c383435025a660f2502
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 15 17:06:43 2017 -0800
+commit 57c79febda993fe2f4b43db07476219e7b07b452
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 31 14:52:20 2017 -0700
 
-    go/types: rename (historic) flag "-list" used for go/types testing
+    archive/tar: add Reader.WriteTo and Writer.ReadFrom
     
-    Rename -list flag to -errlist to avoid confusion with the go
-    test flag -list (introduced later).
+    To support the efficient packing and extracting of sparse files,
+    add two new methods:
+            func Reader.WriteTo(io.Writer) (int64, error)
+            func Writer.ReadFrom(io.Reader) (int64, error)
     
-    This flag is only needed to get an error list when running the
-    go/types test harness manually on select files, e.g., as in:
+    If the current archive entry is sparse and the provided io.{Reader,Writer}
+    is also an io.Seeker, then use Seek to skip past the holes.
+    If the last region in a file entry is a hole, then we seek to 1 byte
+    before the EOF:
+            * for Reader.WriteTo to write a single byte
+            to ensure that the resulting filesize is correct.
+            * for Writer.ReadFrom to read a single byte
+            to verify that the input filesize is correct.
     
-            go test -run=Check -files=x.go -errlist
+    The downside of this approach is when the last region in the sparse file
+    is a hole. In the case of Reader.WriteTo, the 1-byte write will cause
+    the last fragment to have a single chunk allocated.
+    However, the goal of ReadFrom/WriteTo is *not* the ability to
+    exactly reproduce sparse files (in terms of the location of sparse holes),
+    but rather to provide an efficient way to create them.
     
-    Change-Id: I67febcf968d2d8f4ff00c81eea7b2df723560eac
-    Reviewed-on: https://go-review.googlesource.com/84378
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    File systems already impose their own restrictions on how the sparse file
+    will be created. Some filesystems (e.g., HFS+) don't support sparseness and
+    seeking forward simply causes the FS to write zeros. Other filesystems
+    have different chunk sizes, which will cause chunk allocations at boundaries
+    different from what was in the original sparse file. In either case,
+    it should not be a normal expectation of users that the location of holes
+    in sparse files exactly matches the source.
+    
+    For users that really desire to have exact reproduction of sparse holes,
+    they can wrap os.File with their own io.WriteSeeker that discards the
+    final 1-byte write and uses File.Truncate to resize the file to the
+    correct size.
+    
+    Other reasons we choose this approach over special-casing *os.File because:
+            * The Reader already has special-case logic for io.Seeker
+            * As much as possible, we want to decouple OS-specific logic from
+            Reader and Writer.
+            * This allows other abstractions over *os.File to also benefit from
+            the "skip past holes" logic.
+            * It is easier to test, since it is harder to mock an *os.File.
+    
+    Updates #13548
+    
+    Change-Id: I0a4f293bd53d13d154a946bc4a2ade28a6646f6a
+    Reviewed-on: https://go-review.googlesource.com/60872
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/check_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/common.go      |   9 +-
+ src/archive/tar/reader.go      | 155 ++++++++++++-----------
+ src/archive/tar/reader_test.go | 134 +++++++++++---------
+ src/archive/tar/tar_test.go    | 178 +++++++++++++++++++++++++++
+ src/archive/tar/writer.go      | 103 ++++++++++------
+ src/archive/tar/writer_test.go | 270 ++++++++++++++++++++++-------------------
+ 6 files changed, 558 insertions(+), 291 deletions(-)

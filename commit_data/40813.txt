@@ -1,24 +1,17 @@
-commit acb9ac07511e881b20727526e34351d9ef68b726
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 15 16:19:11 2019 -0500
+commit 7942671a5856233ce63a265e1a1441b7a0ea82f5
+Author: Norman B. Lancaster <qbradq@gmail.com>
+Date:   Wed Jul 10 10:33:12 2019 -0500
 
-    cmd/dist: skip GOCACHE and .git when making GOROOT read-only
+    doc/go1.13: document removal of NaCl targets in Go 1.14
     
-    When we run tests, we may need to write the test binary (and/or test
-    variants of its dependencies) to GOCACHE. (This also fixes several
-    test cases in cmd/go, which preserves the GOCACHE variable for
-    efficiency.)
+    Go 1.14 will no longer run on Native Client (NaCl). Updating the 1.13
+    release notes to indicate this. See #30439.
     
-    It is highly unlikely that tests will try to modify .git, and that
-    directory contains many files, so don't bother with it.
+    Fixes #32948
     
-    Updates #30316
-    
-    Change-Id: Id11136c6c64d8f0afc6c6ba5d94c9269df231052
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207441
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia147bb053adc098bd696dbdb01553c23222f8134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185537
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/dist/test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ doc/go1.13.html | 4 ++++
+ 1 file changed, 4 insertions(+)

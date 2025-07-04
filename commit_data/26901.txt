@@ -1,53 +1,63 @@
-commit c4807d4cc759025854e354fee99ac20d125f0d79
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Apr 13 08:58:10 2016 -0500
+commit 6969d9bf038deebefa556b90e7467b8636c16e91
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 2 12:32:38 2016 -0500
 
-    runtime: improve memmove performance ppc64,ppc64le
+    runtime/pprof: sort counted profiles by count
     
-    This change improves the performance of memmove
-    on ppc64 & ppc64le mainly for moves >=32 bytes.
-    In addition, the test to detect backward moves
-     was enhanced to avoid backward moves if source
-    and dest were in different types of storage, since
-    backward moves might not always be efficient.
+    This is especially helpful in programs with very large numbers of goroutines:
+    the bulk of the goroutines will show up at the top.
     
-    Fixes #14507
+    Before:
+            1 @ 0x86ab8 0x86893 0x82164 0x8e7ce 0x7b798 0x5b871
+            #       0x86ab8 runtime/pprof.writeRuntimeProfile+0xb8          /Users/rsc/go/src/runtime/pprof/pprof.go:545
+            #       0x86893 runtime/pprof.writeGoroutine+0x93               /Users/rsc/go/src/runtime/pprof/pprof.go:507
+            #       0x82164 runtime/pprof.(*Profile).WriteTo+0xd4           /Users/rsc/go/src/runtime/pprof/pprof.go:236
+            #       0x8e7ce runtime/pprof_test.TestGoroutineCounts+0x15e    /Users/rsc/go/src/runtime/pprof/pprof_test.go:603
+            #       0x7b798 testing.tRunner+0x98                            /Users/rsc/go/src/testing/testing.go:473
     
-    The following shows some of the improvements from the test
-    in the runtime package:
+            1 @ 0x2d373 0x2d434 0x560f 0x516b 0x7cd42 0x7b861 0x2297 0x2cf90 0x5b871
+            #       0x7cd42 testing.RunTests+0x8d2  /Users/rsc/go/src/testing/testing.go:583
+            #       0x7b861 testing.(*M).Run+0x81   /Users/rsc/go/src/testing/testing.go:515
+            #       0x2297  main.main+0x117         runtime/pprof/_test/_testmain.go:72
+            #       0x2cf90 runtime.main+0x2b0      /Users/rsc/go/src/runtime/proc.go:188
     
-    BenchmarkMemmove32                   4229.56      4717.13      1.12x
-    BenchmarkMemmove64                   6156.03      7810.42      1.27x
-    BenchmarkMemmove128                  7521.69      12468.54     1.66x
-    BenchmarkMemmove256                  6729.90      18260.33     2.71x
-    BenchmarkMemmove512                  8521.59      18033.81     2.12x
-    BenchmarkMemmove1024                 9760.92      25762.61     2.64x
-    BenchmarkMemmove2048                 10241.00     29584.94     2.89x
-    BenchmarkMemmove4096                 10399.37     31882.31     3.07x
+            10 @ 0x2d373 0x2d434 0x560f 0x516b 0x8e5b6 0x5b871
+            #       0x8e5b6 runtime/pprof_test.func1+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:582
     
-    BenchmarkMemmoveUnalignedDst16       1943.69      2258.33      1.16x
-    BenchmarkMemmoveUnalignedDst32       3885.08      3965.81      1.02x
-    BenchmarkMemmoveUnalignedDst64       5121.63      6965.54      1.36x
-    BenchmarkMemmoveUnalignedDst128      7212.34      11372.68     1.58x
-    BenchmarkMemmoveUnalignedDst256      6564.52      16913.59     2.58x
-    BenchmarkMemmoveUnalignedDst512      8364.35      17782.57     2.13x
-    BenchmarkMemmoveUnalignedDst1024     9539.87      24914.72     2.61x
-    BenchmarkMemmoveUnalignedDst2048     9199.23      21235.11     2.31x
-    BenchmarkMemmoveUnalignedDst4096     10077.39     25231.99     2.50x
+            50 @ 0x2d373 0x2d434 0x560f 0x516b 0x8e656 0x5b871
+            #       0x8e656 runtime/pprof_test.func3+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:584
     
-    BenchmarkMemmoveUnalignedSrc32       3249.83      3742.52      1.15x
-    BenchmarkMemmoveUnalignedSrc64       5562.35      6627.96      1.19x
-    BenchmarkMemmoveUnalignedSrc128      6023.98      10200.84     1.69x
-    BenchmarkMemmoveUnalignedSrc256      6921.83      15258.43     2.20x
-    BenchmarkMemmoveUnalignedSrc512      8593.13      16541.97     1.93x
-    BenchmarkMemmoveUnalignedSrc1024     9730.95      22927.84     2.36x
-    BenchmarkMemmoveUnalignedSrc2048     9793.28      21537.73     2.20x
-    BenchmarkMemmoveUnalignedSrc4096     10132.96     26295.06     2.60x
+            40 @ 0x2d373 0x2d434 0x560f 0x516b 0x8e606 0x5b871
+            #       0x8e606 runtime/pprof_test.func2+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:583
     
-    Change-Id: I73af59970d4c97c728deabb9708b31ec7e01bdf2
-    Reviewed-on: https://go-review.googlesource.com/21990
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    After:
+    
+            50 @ 0x2d373 0x2d434 0x560f 0x516b 0x8ecc6 0x5b871
+            #       0x8ecc6 runtime/pprof_test.func3+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:584
+    
+            40 @ 0x2d373 0x2d434 0x560f 0x516b 0x8ec76 0x5b871
+            #       0x8ec76 runtime/pprof_test.func2+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:583
+    
+            10 @ 0x2d373 0x2d434 0x560f 0x516b 0x8ec26 0x5b871
+            #       0x8ec26 runtime/pprof_test.func1+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:582
+    
+            1 @ 0x2d373 0x2d434 0x560f 0x516b 0x7cd42 0x7b861 0x2297 0x2cf90 0x5b871
+            #       0x7cd42 testing.RunTests+0x8d2  /Users/rsc/go/src/testing/testing.go:583
+            #       0x7b861 testing.(*M).Run+0x81   /Users/rsc/go/src/testing/testing.go:515
+            #       0x2297  main.main+0x117         runtime/pprof/_test/_testmain.go:72
+            #       0x2cf90 runtime.main+0x2b0      /Users/rsc/go/src/runtime/proc.go:188
+    
+            1 @ 0x87128 0x86f03 0x82164 0x8ee30 0x7b798 0x5b871
+            #       0x87128 runtime/pprof.writeRuntimeProfile+0xb8          /Users/rsc/go/src/runtime/pprof/pprof.go:566
+            #       0x86f03 runtime/pprof.writeGoroutine+0x93               /Users/rsc/go/src/runtime/pprof/pprof.go:528
+            #       0x82164 runtime/pprof.(*Profile).WriteTo+0xd4           /Users/rsc/go/src/runtime/pprof/pprof.go:236
+            #       0x8ee30 runtime/pprof_test.TestGoroutineCounts+0x150    /Users/rsc/go/src/runtime/pprof/pprof_test.go:603
+            #       0x7b798 testing.tRunner+0x98                            /Users/rsc/go/src/testing/testing.go:473
+    
+    Change-Id: I43de9eee2d96f9c46f7b0fbe099a0571164324f5
+    Reviewed-on: https://go-review.googlesource.com/20107
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/memmove_ppc64x.s | 117 +++++++++++++++++++++++++++----------------
- 1 file changed, 74 insertions(+), 43 deletions(-)
+ src/runtime/pprof/pprof.go      | 44 ++++++++++++++++++++++++++++++-----------
+ src/runtime/pprof/pprof_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 12 deletions(-)

@@ -1,18 +1,19 @@
-commit dbd51ce99c140766808c17b334b8795b8040c0b3
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Nov 2 17:20:22 2016 +0100
+commit 6eae03e136f031649683d359a0879f6d6ae5e023
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 20 09:48:24 2016 -0700
 
-    cmd/compile: intrinsify math.Sqrt by using only the ssa backend
+    net/http: drop custom tls.Config cloning code.
     
-    Change-Id: If3cb64f52fe0fd7331b6f1acf3d15dd705dfd633
-    Reviewed-on: https://go-review.googlesource.com/32591
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Now that we have the Clone method on tls.Config, net/http doesn't need
+    any custom functions to do that any more.
+    
+    Change-Id: Ib60707d37f1a7f9a7d7723045f83e59eceffd026
+    Reviewed-on: https://go-review.googlesource.com/31595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/opnames.go  |  1 -
- src/cmd/compile/internal/gc/racewalk.go |  3 +--
- src/cmd/compile/internal/gc/ssa.go      | 12 ++++++------
- src/cmd/compile/internal/gc/syntax.go   |  1 -
- src/cmd/compile/internal/gc/walk.go     | 10 ----------
- 5 files changed, 7 insertions(+), 20 deletions(-)
+ src/crypto/tls/common.go   |  8 ++++++--
+ src/crypto/tls/tls_test.go |  4 ++++
+ src/net/http/transport.go  | 48 ++++------------------------------------------
+ 3 files changed, 14 insertions(+), 46 deletions(-)

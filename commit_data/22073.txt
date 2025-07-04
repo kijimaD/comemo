@@ -1,17 +1,14 @@
-commit 00c73f5c6e4b80a24eb19218c006c8a3f08e1ed8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 5 17:32:57 2015 -0800
+commit 57cefa657d6e7ca0b1a286d6b0b0eb68037a2ec8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 23 15:24:49 2015 +0900
 
-    math/big: cleaner handling of exponent under/overflow
+    runtime: remove unneeded C header files
     
-    Fixed several corner-case bugs and added corresponding tests.
-    
-    Change-Id: I23096b9caeeff0956f65ab59fa91e168d0e47bb8
-    Reviewed-on: https://go-review.googlesource.com/7001
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I239ae86cfebfece607dce39a96d9123cbacbee7d
+    Reviewed-on: https://go-review.googlesource.com/5562
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/math/big/bits_test.go  |   7 +-
- src/math/big/float.go      | 202 ++++++++++++++++++++++-----------------------
- src/math/big/float_test.go |  62 ++++++++++++++
- src/math/big/floatconv.go  |  12 ++-
- 4 files changed, 176 insertions(+), 107 deletions(-)
+ src/runtime/cgocall.h     | 13 -------------
+ src/runtime/signal_unix.h | 14 --------------
+ 2 files changed, 27 deletions(-)

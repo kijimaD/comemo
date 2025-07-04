@@ -1,18 +1,16 @@
-commit b203f88c7f0b81043a3f387136147d8193a0a8b8
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 19 08:27:10 2016 -0800
+commit 3073797c37e168f3671880c683a228f9f8f942e3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 11 20:49:37 2015 -0800
 
-    crypto/tls: note in comment that Certificate.Leaf is nil after parsing.
+    runtime: fix vet warning about println
     
-    LoadX509KeyPair and X509KeyPair don't retain the parsed form of
-    certificates in their return value because it's generally not needed.
-    This change makes that clear in the comment.
+    lfstack.go:19: println call ends with newline
     
-    See https://groups.google.com/d/msg/golang-dev/VResvFj2vF8/Wt6WkVT2AwAJ
-    
-    Change-Id: Ibb759cd6e84c00f4450a012992088422c0546638
-    Reviewed-on: https://go-review.googlesource.com/18734
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2a903eef80a5300e9014999c2f0bc5d40ed5c735
+    Reviewed-on: https://go-review.googlesource.com/16836
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/crypto/tls/tls.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/lfstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,21 @@
-commit 96b943a483dca715ea0164644e1192052105881a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 18 17:05:02 2020 -0800
+commit d5c932762865de1d12cf522d5d7aad5280943bde
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 24 11:01:10 2020 -0400
 
-    go/types: report an error for invalid constant values
+    [dev.link] cmd/link: support new dodata for elf/{arm,arm64}
     
-    The parser reports syntactic errors in constant literals.
-    The go/constant package produces an "unknown" value for
-    syntactically correct numeric constants that are too small
-    or too large. Check for the unknown value and report an
-    error rather than silently continuing.
+    Add elf/ARM arch support for the new dodata() phase.
     
-    Fixes #42695.
-    
-    Change-Id: I414214559a285d67ed50184dc750f106960b5620
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271377
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iadd772b01036c6c5be95bcc6017f6c05d45a24c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229868
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/expr.go                  |  6 +++++-
- src/go/types/fixedbugs/issue42695.src | 17 +++++++++++++++++
- src/go/types/operand.go               |  8 +++++++-
- 3 files changed, 29 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/arm/asm.go    | 225 +++++++++++++-------------
+ src/cmd/link/internal/arm/asm2.go   | 246 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/arm/obj.go    |   1 +
+ src/cmd/link/internal/arm64/asm.go  | 213 +++++++++++++-----------
+ src/cmd/link/internal/arm64/asm2.go | 312 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/arm64/obj.go  |   1 +
+ src/cmd/link/internal/ld/main.go    |   3 +-
+ src/cmd/link/internal/ld/target.go  |   4 +
+ 8 files changed, 799 insertions(+), 206 deletions(-)

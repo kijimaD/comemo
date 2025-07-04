@@ -1,21 +1,28 @@
-commit 1e6ad65b43ee392676a69f769b1942edd8af0e86
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Sep 4 14:35:57 2020 -0400
+commit 0652c80e2afa14d62067be567c498c83a6485fd8
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 24 17:21:48 2020 -0500
 
-    cmd/link: enable DWARF combining on macOS ARM64
+    cmd/go: emit an error for extraneous files in GOROOT/src in module mode
     
-    It appears the machoCalcStart function is meant to align the
-    segment, but it doesn't. Replace it with an actual alignment
-    calculation. Also, use the alignment from the configuration,
-    instead of hardcode.
+    If there's a go file immediately in GOROOT/src, it was probably
+    accidentally added by the user. Since that package shouldn't
+    exist, return an error if a user tries to list it. We're only making
+    this change for GOPATH mode because we don't want to break cases
+    where users have been doing this historically, but want to fix
+    this case for the future.
     
-    With this fix we could enable DWARF combining on macOS ARM64.
+    This also leaves open the weird cases where files are placed directly
+    in vendor directories.
     
-    Change-Id: I19ec771b77d752b83a54c53b6ee65af78a31b8ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253558
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #36587
+    
+    Change-Id: I9738e47b1e89fd5048cbb8dd28e44648834b8ea7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216381
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/arm64/obj.go              |  2 +-
- src/cmd/link/internal/ld/lib.go                 |  4 ++--
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 17 ++---------------
- 3 files changed, 5 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/modload/import.go              |  2 +
+ src/cmd/go/internal/modload/load.go                |  6 +++
+ .../go/testdata/script/list_gofile_in_goroot.txt   | 46 ++++++++++++++++++++++
+ 3 files changed, 54 insertions(+)

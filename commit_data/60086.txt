@@ -1,0 +1,25 @@
+commit ba1c5b2c4573e10f3b5f0e0f25a27f17fba67eb0
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue May 14 12:32:14 2024 -0700
+
+    runtime: profile mutex contention during unlock
+    
+    When an M's use of a lock causes delays in other Ms, capture the stack
+    of the unlock call that caused the delay. This makes the meaning of the
+    mutex profile for runtime-internal mutexes match the behavior for
+    sync.Mutex: the profile points to the end of the critical section that
+    is responsible for delaying other work.
+    
+    Fixes #66999
+    
+    Change-Id: I4abc4a1df00a48765d29c07776481a1cbd539ff8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585638
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lock_futex.go |  15 ++--
+ src/runtime/lock_sema.go  |  15 ++--
+ src/runtime/mprof.go      | 178 ++++++++++++++++------------------------------
+ 3 files changed, 80 insertions(+), 128 deletions(-)

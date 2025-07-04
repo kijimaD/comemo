@@ -1,16 +1,49 @@
-commit 50c69cc3a9dfe4f268eebcf3dcbf7f3a93635842
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 26 01:15:23 2021 +1000
+commit 071ab0a14c294cda484e6f03140cb3cd27a5dca9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:48:08 2020 -0500
 
-    cmd/link/internal/riscv64,cmd/internal/obj/riscv: make error messages consistent
+    [dev.regabi] cmd/compile: split out package liveness [generated]
     
-    Be consistent with both style/wording and formatting of error messages.
+    [git-generate]
     
-    Change-Id: I23013d904333a67a8f17dd364bb5015f54f419c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345050
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    cd src/cmd/compile/internal/gc
+    rf '
+            # AutoVar is essentially an ssa helper; move it there.
+            mv AutoVar value.go
+            mv value.go cmd/compile/internal/ssa
+    
+            # Export liveness API and unexport non-API.
+            mv LivenessMap Map
+            mv Map.vals Map.Vals
+            mv Map.deferreturn Map.DeferReturn
+            mv livenessShouldTrack ShouldTrack
+            mv onebitwalktype1 SetTypeBits
+            mv allUnsafe IsUnsafe
+            mv liveness Compute
+            mv BlockEffects blockEffects
+            mv Liveness liveness
+            mv liveness _liveness # make room for import
+    
+            mv emitptrargsmap WriteFuncMap
+            mv WriteFuncMap plive.go
+    
+            mv bvset.go plive.go cmd/compile/internal/liveness
+    '
+    cd ../liveness
+    rf '
+            mv _liveness liveness
+    '
+    
+    Change-Id: I3b86e5025bd9d32a7e19f44714fa16be4125059e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279311
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go    | 16 ++++++++--------
- src/cmd/link/internal/riscv64/asm.go |  2 +-
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go                |  36 +----
+ src/cmd/compile/internal/gc/reflect.go             |   3 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  23 +--
+ src/cmd/compile/internal/{gc => liveness}/bvset.go |   2 +-
+ src/cmd/compile/internal/{gc => liveness}/plive.go | 163 ++++++++++++---------
+ src/cmd/compile/internal/ssa/value.go              |  11 ++
+ 6 files changed, 121 insertions(+), 117 deletions(-)

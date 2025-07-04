@@ -1,14 +1,13 @@
-commit c2e0d604ee9bb460975e915776e4f863c29e8d5c
+commit a733f0bcd11e33e9dde58034dd8bcc0461f68d56
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 29 13:55:49 2011 +1000
+Date:   Wed Jun 29 13:44:13 2011 +1000
 
-    exp/template: fix build
-    wrong path in Makefile. why didn't my all.bash fail?
-    TBR=dsymonds
+    exp/template: use MethodByName, add to build.
     
-    R=dsymonds
+    R=rsc, adg, r
     CC=golang-dev
-    https://golang.org/cl/4630075
+    https://golang.org/cl/4641081
 
- src/pkg/exp/template/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/Makefile             |  1 +
+ src/pkg/exp/template/exec.go | 16 ++++------------
+ 2 files changed, 5 insertions(+), 12 deletions(-)

@@ -1,19 +1,20 @@
-commit d0285161f0efb1837ba0942263c33e3d53f59ece
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Aug 19 20:17:46 2017 +1000
+commit 8f06e217eac10bae4993ca371ade35fecd26270e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 12 11:58:09 2017 -0700
 
-    misc/cgo/testcshared: use TestMain
+    text/scanner: use correct token position in example
     
-    This CL uses TestMain to create and remove
-    pkg directory and libgo.so file.
+    While at it, unindent source text so column values are easier
+    to read, remove unnecessary text in output, and simplify the
+    loop.
     
-    Fixes #21531
+    Fixes #20346.
     
-    Change-Id: I833cfb22b55d8eef98348dad4d56327ac4c07b36
-    Reviewed-on: https://go-review.googlesource.com/57270
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I0fde02b9e4242383da427f4cf4c6c13dd0ab3b47
+    Reviewed-on: https://go-review.googlesource.com/43450
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 145 ++++++++++++++++++++---------------
- 1 file changed, 84 insertions(+), 61 deletions(-)
+ src/text/scanner/example_test.go | 35 ++++++++++++++++-------------------
+ 1 file changed, 16 insertions(+), 19 deletions(-)

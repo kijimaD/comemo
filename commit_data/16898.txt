@@ -1,17 +1,15 @@
-commit 442e614caba7aee4f291e801b1d7ed4e8b2d9707
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jul 29 23:25:39 2013 +0900
+commit 6db195cae25904a8675804073f87c2b65e154370
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 29 14:31:21 2013 +1000
 
-    net: document sockaddr interface
+    misc/dashboard/builder: increase cmdTimeout to 10 minutes
     
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
+    It takes more then 5 minutes to clone go repo
+    on windows-386 builder now.
     
-    Update #5199
-    
-    R=golang-dev, fvbommel, dave
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/11984043
+    https://golang.org/cl/12007043
 
- src/pkg/net/sock_posix.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,36 +1,15 @@
-commit ee349b5d771b1c3e58f77b07e200a0a630667f22
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Apr 7 21:38:02 2015 +1000
+commit 4f489f59c28aa9d8e6114132869e49b0734bc6ec
+Author: Matt Joiner <anacrolix@gmail.com>
+Date:   Wed Mar 11 17:52:57 2015 +1100
 
-    runtime: add arm64 runtime.cmpstring and bytes.Compare
+    net/http/pprof: Use relative links to profiles in index html
     
-    Add arm64 assembly implementation of runtime.cmpstring and bytes.Compare.
+    This allows /debug/pprof/ and descendents to be used through
+    http.StripPrefix and other path rewriting handlers.
     
-    benchmark                                old ns/op     new ns/op     delta
-    BenchmarkCompareBytesEqual               98.0          27.5          -71.94%
-    BenchmarkCompareBytesToNil               9.38          10.0          +6.61%
-    BenchmarkCompareBytesEmpty               13.3          10.0          -24.81%
-    BenchmarkCompareBytesIdentical           98.0          27.5          -71.94%
-    BenchmarkCompareBytesSameLength          43.3          16.3          -62.36%
-    BenchmarkCompareBytesDifferentLength     43.4          16.3          -62.44%
-    BenchmarkCompareBytesBigUnaligned        6979680       1360979       -80.50%
-    BenchmarkCompareBytesBig                 6915995       1381979       -80.02%
-    BenchmarkCompareBytesBigIdentical        6781440       1327304       -80.43%
-    
-    benchmark                             old MB/s     new MB/s     speedup
-    BenchmarkCompareBytesBigUnaligned     150.23       770.46       5.13x
-    BenchmarkCompareBytesBig              151.62       758.76       5.00x
-    BenchmarkCompareBytesBigIdentical     154.63       790.01       5.11x
-    
-    * note, the machine we are benchmarking on has some issues. What is clear is
-    compared to a few days ago the old MB/s value has increased from ~115 to 150.
-    I'm less certain about the new MB/s number, which used to be close to 1Gb/s.
-    
-    Change-Id: I4f31b2c7a06296e13912aacc958525632cb0450d
-    Reviewed-on: https://go-review.googlesource.com/8541
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I53673876c107bbfaf430123ead78e6524b42ac21
+    Reviewed-on: https://go-review.googlesource.com/7351
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/asm_arm64.s | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/noasm.go    |  4 ++--
- 2 files changed, 52 insertions(+), 2 deletions(-)
+ src/net/http/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

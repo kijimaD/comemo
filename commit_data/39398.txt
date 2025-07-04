@@ -1,29 +1,34 @@
-commit e9188d1d18040bc6cb46065b2474664b8728a6df
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 12 18:07:32 2019 -0400
+commit 88343530720a52c96b21f2bd5488c8fb607605d7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 20 13:40:31 2019 -0500
 
-    cmd/go/internal/modfetch: re-resolve commit hashes in readDiskStat
+    Revert "crypto/tls: disable RSA-PSS in TLS 1.2"
     
-    Previously, when we resolved a commit hash (not a complete version),
-    we always checked the contents of the module cache for any
-    pseudo-version matching that commit.
+    In Go 1.13 we will enable RSA-PSS in TLS 1.2 at the same time as we make
+    TLS 1.3 enabled by default.
     
-    However, there are many possible names for a given commit. Generally
-    the semantically-highest valid name is the best, and that may change
-    over time as new tags are added, so if we are able to fetch a better
-    name from upstream we should do so. Otherwise, we should fall back to
-    the highest appropriate name found in the cache.
+    This reverts commit 7ccd3583eddcd79679fb29cfc83a6e6fb6973f1e.
     
-    Fixes #27171
-    Updates #27173
+    Updates #30055
     
-    Change-Id: Ib5c7d99eb463af84674e969813039cbbee7e395b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182178
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6f2ddf7652d1172a6b29f4e335ff3a71a89974bc
+    Reviewed-on: https://go-review.googlesource.com/c/163080
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go           | 42 ++++++++++++++++++++++---
- src/cmd/go/testdata/script/mod_pseudo_cache.txt | 29 +++++++++++++++++
- 2 files changed, 66 insertions(+), 5 deletions(-)
+ src/crypto/tls/common.go                           |   3 -
+ src/crypto/tls/handshake_client_test.go            |  24 ---
+ src/crypto/tls/handshake_server.go                 |   4 +-
+ src/crypto/tls/handshake_server_test.go            | 146 +++++------------
+ src/crypto/tls/key_agreement.go                    |   2 +-
+ .../Client-TLSv12-ClientCert-RSA-PSS-Disabled      | 137 ----------------
+ .../Client-TLSv13-ClientCert-RSA-PSS-Disabled      | 138 ----------------
+ ...TLSv12-ClientAuthRequestedAndGiven-PSS-Disabled | 126 --------------
+ ...ientAuthRequestedAndGiven-PSS-Disabled-Required |  74 ---------
+ .../tls/testdata/Server-TLSv12-RSA-PSS-Disabled    |  84 ----------
+ .../Server-TLSv12-RSA-PSS-Disabled-Required        |  54 ------
+ ...TLSv13-ClientAuthRequestedAndGiven-PSS-Disabled | 182 ---------------------
+ .../tls/testdata/Server-TLSv13-RSA-PSS-Disabled    | 103 ------------
+ src/crypto/tls/tls_test.go                         |   8 +-
+ 14 files changed, 42 insertions(+), 1043 deletions(-)

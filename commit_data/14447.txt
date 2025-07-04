@@ -1,16 +1,13 @@
-commit 1bd4a7dbcbf833a5e37cf8d0a6e7fc55c557543b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Nov 21 08:39:45 2012 +0100
+commit 7bce6f9386153d77ad1293ae1e39cfa214d9d02c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Nov 21 02:18:34 2012 +0800
 
-    cmd/8g: fix erroneous LEAL nil.
+    net/http, net/http/httputil: fix TestChunkReaderAllocs failure when GOMAXPROCS > 1
     
-    Fixes #4399.
-    
-    R=golang-dev, nigeltao
+    R=fullung, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/6845053
+    https://golang.org/cl/6846081
 
- src/cmd/8g/cgen.c           | 13 ++++++++-----
- src/cmd/8g/gsubr.c          |  2 +-
- test/fixedbugs/issue4399.go | 15 +++++++++++++++
- 3 files changed, 24 insertions(+), 6 deletions(-)
+ src/pkg/net/http/chunked_test.go          | 2 ++
+ src/pkg/net/http/httputil/chunked_test.go | 2 ++
+ 2 files changed, 4 insertions(+)

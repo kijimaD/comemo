@@ -1,14 +1,20 @@
-commit c0d48836eced2571222f49d78a27955da49590fb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:25:45 2015 -0400
+commit 5764befa5ace6e2dff623a79ba5a098d36fd1a86
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 14 09:13:42 2015 +1100
 
-    net/http/cgi: skip fork test on darwin/arm64
+    text/template: protect against explicit nil in field chains
     
-    Just like darwin/arm.
+    An explicit nil in an expression like nil.Foo caused a panic
+    because the evaluator attempted to reflect on the nil.
+    A typeless nil like this cannot be used to do anything, so
+    just error out.
     
-    Change-Id: Ib9a32bb0aed5f08b27de11a93aaf273cacdf5779
-    Reviewed-on: https://go-review.googlesource.com/8819
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #9426
+    
+    Change-Id: Icd2c9c7533dda742748bf161eced163991a12f54
+    Reviewed-on: https://go-review.googlesource.com/7643
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/net/http/cgi/matryoshka_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/text/template/exec.go      | 7 +++++--
+ src/text/template/exec_test.go | 2 ++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

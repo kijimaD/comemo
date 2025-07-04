@@ -1,34 +1,18 @@
-commit ea18a1c2126e5e94924f7f68771fd49876fa7d3a
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Mon Nov 18 12:44:33 2019 -0500
+commit 07b3e629cedb518533407628b64fe6fc96f5a9e4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 2 16:24:45 2019 -0400
 
-    runtime/pprof: avoid crash due to truncated stack traces
+    cmd/go: report loading errors from 'go mod tidy' and 'go mod vendor'
     
-    The profile proto message builder maintains a location entry cache
-    that maps a location (possibly involving multiple user frames
-    that represent inlined function calls) to the location id. We have
-    been using the first pc of the inlined call sequence as the key of
-    the cached location entry assuming that, for a given pc, the sequence
-    of frames representing the inlined call stack is deterministic and
-    stable. Then, when analyzing the new stack trace, we expected the
-    exact number of pcs to be present in the captured stack trace upon
-    the cache hit.
+    Fixes #27063
     
-    This assumption does not hold, however, in the presence of the stack
-    trace truncation in the runtime during profiling, and also with the
-    potential bugs in runtime.
-    
-    A better fix is to use all the pcs of the inlined call sequece as
-    the key instead of the first pc. But that is a bigger code change.
-    This CL avoids the crash assuming the trace was truncated.
-    
-    Fixes #35538
-    
-    Change-Id: I8c6bae98bc8b178ee51523c7316f56b1cce6df16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207609
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iedd14fd614a3d79d1387b923a0f123c2bc9e0b33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188763
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/pprof/pprof_test.go | 26 ++++++++++++++++++++++++++
- src/runtime/pprof/proto.go      | 18 +++++++++++++++++-
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/load.go           |  6 +++--
+ src/cmd/go/testdata/script/mod_tidy_error.txt | 39 +++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_vendor.txt     |  6 -----
+ 3 files changed, 43 insertions(+), 8 deletions(-)

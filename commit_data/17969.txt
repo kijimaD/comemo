@@ -1,12 +1,14 @@
-commit 9394629b897b81284d1a02ecf840c1a991bd3b96
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Dec 12 14:32:31 2013 -0500
+commit e5902fc70f1a50920ce0ac95ffbed3a9af2b80b5
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Dec 12 11:24:27 2013 -0800
 
-    crypto/rc4: fix type errors in pure Go implementation
+    image: add RGB and RGB48
     
-    R=golang-dev, agl
+    R=golang-dev, r, nigeltao
     CC=golang-dev
-    https://golang.org/cl/40540049
+    https://golang.org/cl/13239051
 
- src/pkg/crypto/rc4/rc4_ref.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/image/color/color.go |  45 ++++++++++++
+ src/pkg/image/image.go       | 170 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/image_test.go  |   3 +
+ 3 files changed, 218 insertions(+)

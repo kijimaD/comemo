@@ -1,21 +1,14 @@
-commit 90d536f3ca2d6456ee0ab45408e8499ea815ddb3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 15 01:36:34 2016 +0000
+commit e6158b3c469dc4ec5d6571f10fbd739acd493472
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 20 18:02:27 2016 -0700
 
-    net/http: update bundled http2 for write scheduling order fix
+    cmd/internal/obj: remove unused Textp and Etextp fields
     
-    Updates x/net/http2 to x/net git rev 00ed5e9 for:
-    
-        http2: schedule RSTStream writes onto its stream's queue
-        https://golang.org/cl/33238
-    
-    Fixes #17243
-    
-    Change-Id: I79cc5d15bf69ead28d549d4f798c12f4ee2a2201
-    Reviewed-on: https://go-review.googlesource.com/33241
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idcb5a8d6676aa38b4ebd0975edd2068386f5ca83
+    Reviewed-on: https://go-review.googlesource.com/29449
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/link.go | 2 --
+ 1 file changed, 2 deletions(-)

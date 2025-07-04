@@ -1,25 +1,13 @@
-commit 61d3b2db6292581fc07a3767ec23ec94ad6100d1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 14 08:59:43 2013 -0700
+commit bc0812486637abf68d66aca6535383b1bf5e5a33
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Thu Jun 13 17:04:47 2013 -0700
 
-    net: coalesce duplicate in-flight DNS lookups
+    strconv: corrected several bad references to err.Error in doc comments.
     
-    In Issue 5625, Russ says: "We should at least have a cache of
-    inflight lookups, so that 100 simultaneous dials of one host
-    name don't do the work 100x. That's easy and (assume we forget
-    the answer once they all get it) doesn't pose any consistency
-    problems. It just merges simultaneous work."
-    
-    This brings in singleflight (unexported) from Google /
-    Camlistore, but without its tests. Maybe we should put it
-    somewhere in the standard library. But not now.
-    
-    Update #5625
-    
-    R=golang-dev, iant, cespare, rsc, dave, rogpeppe, remyoudompheng
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10079043
+    https://golang.org/cl/10253051
 
- src/pkg/net/lookup.go       | 27 ++++++++++++++++++++---
- src/pkg/net/singleflight.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+), 3 deletions(-)
+ src/pkg/strconv/atof.go | 4 ++--
+ src/pkg/strconv/atoi.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

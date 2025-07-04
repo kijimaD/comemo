@@ -1,43 +1,20 @@
-commit d70b0ece2f208ff99efce87c07f5171617c29a13
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Tue Dec 11 05:32:50 2018 +0000
+commit e8daca4c482320cecff9c31bbd60f25351d49756
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 21 08:28:16 2018 +0200
 
-    encoding/xml, encoding/json: docs and examples using custom marshalers
+    syscall: add S_IRWXG and S_IRWXO on DragonflyBSD
     
-    Both the encoding/xml and encoding/json packages support custom
-    marshalers for JSON and XML, as well as the basic encoding.TextMarshaler
-    and encoding.TextUnmarshaler interfaces, but the docs and examples for
-    these are missing.
+    As discussed in CL 126621, these constants are already defined on Linux,
+    Darwin, FreeBSD and NetBSD. In order to ensure portability of existing
+    code using the syscall package, provide them for DragonflyBSD (and
+    OpenBSD, in a separate CL) as well.
     
-    There are docs for how to use encoding.TextMarshaler and
-    encoding.TextUnmarshaler in encoding/json, but not encoding/xml. There
-    are no examples for how to use them with either json or xml. This commit
-    includes docs for encoding/xml and examples for both encoding/json and
-    encoding/xml.
-    
-    There is an example using custom marshalers MarshalJSON and
-    UnmarshalJSON in encoding/json, but not MarshalXML and UnmarshalXML in
-    encoding/json. These docs are more so necessary for encoding/xml because
-    the complexities of XML documents is significantly greater than JSON
-    documents which more often leads to the need for custom marshaling. The
-    encoding/json package includes an example of how to write a custom
-    marshaler, and this commit includes the same example for the xml
-    package.
-    
-    All examples are mirrored off the existing custom marshaler example in
-    encoding/json.
-    
-    Fixes #6859
-    
-    Change-Id: Ic93abc27c0b4d5e48dea6ede4e20b1bedca4ab39
-    Reviewed-on: https://go-review.googlesource.com/c/76350
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I708c60f75f787a410bdfa4ceebd2825874e92511
+    Reviewed-on: https://go-review.googlesource.com/130335
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/example_text_marshaling_test.go | 67 ++++++++++++++++++
- src/encoding/xml/example_marshaling_test.go       | 84 +++++++++++++++++++++++
- src/encoding/xml/example_text_marshaling_test.go  | 79 +++++++++++++++++++++
- src/encoding/xml/marshal.go                       |  4 ++
- src/encoding/xml/read.go                          |  5 ++
- 5 files changed, 239 insertions(+)
+ src/syscall/types_dragonfly.go        | 2 ++
+ src/syscall/ztypes_dragonfly_amd64.go | 2 ++
+ 2 files changed, 4 insertions(+)

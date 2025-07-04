@@ -1,0 +1,19 @@
+commit c966f1c0c0e872773c38a6ddbd08df72726c8ba8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 25 15:30:53 2025 +0200
+
+    net: support IPv6 addresses in ListenMulticastUDP on Windows
+    
+    Fixes #63529.
+    
+    Change-Id: Id9246af1a72beef3149af571f0891437bba2f4e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668216
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/next/6-stdlib/99-minor/net/63529.md | 1 +
+ src/net/listen_test.go                  | 5 +++--
+ src/syscall/syscall_windows.go          | 4 +++-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

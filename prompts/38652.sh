@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38652: bead358611e36fe0991c171a8a4a4924f4f0e584
+# Index 38652: 70e3b1df4a5d5b91f6c0e7bd4f7879d6ae95fc12
 
 echo "🚀 Generating explanation for commit 38652..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 38652
-- **コミットハッシュ**: bead358611e36fe0991c171a8a4a4924f4f0e584
-- **GitHub URL**: https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584
+- **コミットハッシュ**: 70e3b1df4a5d5b91f6c0e7bd4f7879d6ae95fc12
+- **GitHub URL**: https://github.com/golang/go/commit/70e3b1df4a5d5b91f6c0e7bd4f7879d6ae95fc12
 
 ### 章構成
 

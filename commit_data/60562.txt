@@ -1,0 +1,23 @@
+commit 1b6bb779ef92de489a51b177035362795636624b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 31 09:59:28 2024 -0700
+
+    go/types, types2: factor out typechecker-specific code from recording.go
+    
+    With this CL, the go/types and types2 recording.go files are
+    mostly identical except for the use of different syntax trees.
+    Preparation for generating go/types/recording.go from types2
+    sources.
+    
+    Change-Id: Iea85f8554ee04f1e1f7da63f8019725ac8f6caf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602117
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/check.go     | 77 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/recording.go | 67 +-----------------------
+ src/go/types/check.go                        | 35 +++++++++++++
+ src/go/types/recording.go                    | 30 ++---------
+ 4 files changed, 117 insertions(+), 92 deletions(-)

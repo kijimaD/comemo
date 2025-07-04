@@ -1,22 +1,45 @@
-commit 0e9b2bc39a9f90c49ba7313e2af522dc058988b0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 17 14:06:10 2023 -0400
+commit b2116f748a7acd32facdbbdaf40117ed40564083
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue May 17 21:25:43 2022 +0000
 
-    Revert "runtime/cgo: use pthread_attr_get_np on Illumos"
+    all: fix spelling
     
-    This reverts CL 481795.
-    
-    Reason for revert: CL 481061 causes C TSAN failures and must be
-    reverted. See CL 485275. This CL depends on CL 481061.
-    
-    For #59678.
-    
-    Change-Id: I5ec1f495154205ebdf19cd44c6e6452a7a3606f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485315
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: Iee18987c495d1d4bde9da888d454eea8079d3ebc
+    GitHub-Last-Rev: ff5e01599ddf7deb3ab6ce190ba92eb02ae2cb15
+    GitHub-Pull-Request: golang/go#52949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406915
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/cgo/gcc_stack_unix.c | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ doc/go1.19.html                                     | 2 +-
+ src/cmd/asm/internal/asm/testdata/arm.s             | 2 +-
+ src/cmd/cgo/out.go                                  | 2 +-
+ src/cmd/compile/internal/pkginit/initAsanGlobals.go | 2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go     | 2 +-
+ src/cmd/compile/internal/ssa/cse.go                 | 2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules          | 2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules        | 2 +-
+ src/cmd/compile/internal/ssa/gen/LOONG64.rules      | 2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules         | 2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules       | 2 +-
+ src/cmd/compile/internal/ssa/poset.go               | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go             | 2 +-
+ src/cmd/compile/internal/types2/api_test.go         | 2 +-
+ src/cmd/go/testdata/script/list_load_err.txt        | 2 +-
+ src/cmd/link/internal/ld/data.go                    | 2 +-
+ src/crypto/x509/x509_test.go                        | 4 ++--
+ src/database/sql/fakedb_test.go                     | 2 +-
+ src/go/types/api_test.go                            | 2 +-
+ src/go/types/methodset_test.go                      | 2 +-
+ src/image/gif/writer_test.go                        | 4 ++--
+ src/net/http/httputil/reverseproxy.go               | 4 ++--
+ src/net/http/transport_test.go                      | 2 +-
+ src/net/netip/netip.go                              | 2 +-
+ src/runtime/mem.go                                  | 2 +-
+ src/runtime/mgclimit.go                             | 2 +-
+ src/runtime/mprof.go                                | 2 +-
+ src/runtime/symtab_test.go                          | 2 +-
+ 28 files changed, 31 insertions(+), 31 deletions(-)

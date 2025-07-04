@@ -1,20 +1,23 @@
-commit 52f111fb34a4f57404db53af4d89d4a25fcb114e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 18 17:50:21 2015 -0800
+commit 2cbd7072b18d7eb01c51ff05c7e12ca2bd555d01
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 13 12:49:05 2015 -0400
 
-    cmd/compile: print regular error message in BOM corner-case
+    debug/dwarf: add test for split DWARF
     
-    This never happens but for pathological input where a BOM sequence
-    is unfinished and ends in EOF (src: "package p\n\nfunc \xef\xef").
-    No test case added because the /test framework doesn't lend itself
-    easily to it in this case (file must end in EOF rather than comment).
-    Instead, tested manually.
+    This adds a test that debug/dwarf can read the skeleton DWARF data
+    from a split DWARF image (though it doesn't currently support piecing
+    the external DWARF data back together). This should work because
+    there's nothing particularly different about skeleton DWARF data, but
+    previously failed because of poor handling of unrecognized attributes.
     
-    Fixes #13268.
+    Updates #12592.
     
-    Change-Id: I049034e6dde7ad884b0a8c329921adac1866ff18
-    Reviewed-on: https://go-review.googlesource.com/17047
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I2fc5f4679883b05ebd7ec9f0b5c398a758181a32
+    Reviewed-on: https://go-review.googlesource.com/14542
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: jcd . <jcd@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/debug/dwarf/entry_test.go      |  36 ++++++++++++++++++++++++++++++++++++
+ src/debug/dwarf/testdata/split.c   |   5 +++++
+ src/debug/dwarf/testdata/split.elf | Bin 0 -> 9509 bytes
+ 3 files changed, 41 insertions(+)

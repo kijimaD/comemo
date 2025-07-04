@@ -1,20 +1,19 @@
-commit 77ce76d761debc4cd9d7d3f029ea27cbce3a2db5
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Feb 22 12:37:00 2025 +0000
+commit ead47b0ab39c5819aee207cda536531a8e44ddc7
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Jan 4 15:28:14 2024 +0800
 
-    all: gofmt -w
+    net/http: respond with 400 Bad Request for empty hex number of chunk length
     
-    Change-Id: Ie30a780cbd98bab1e80035b3dfddf92eb281759e
-    GitHub-Last-Rev: 369ada24ffc297efb47768e430b1bd0216706998
-    GitHub-Pull-Request: golang/go#71898
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651795
+    Fixes #64517
+    
+    Change-Id: I78b8a6a83301deee05c3ff052a6adcd1f965aef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553835
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Commit-Queue: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/routebsd/interface.go |  4 ++--
- src/syscall/exec_linux.go          |  2 +-
- src/text/template/exec_test.go     | 20 ++++++++++----------
- 3 files changed, 13 insertions(+), 13 deletions(-)
+ src/net/http/internal/chunked.go      | 3 +++
+ src/net/http/internal/chunked_test.go | 1 +
+ 2 files changed, 4 insertions(+)

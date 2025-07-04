@@ -1,20 +1,27 @@
-commit f739dae7db61e748c1a23e1fae32274e5431bbd2
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jan 10 01:33:24 2014 +0100
+commit 146897b031c00021fe78c0a9d76861cf5e27c5ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 9 19:29:10 2014 -0500
 
-    cmd/gc: mark OGOTO as a statement for formatters.
+    cmd/link: intial skeleton of linker written in Go
     
-    Nodes of goto statements were corrupted when written
-    to export data.
-    
-    Fixes #7023.
-    
-    R=rsc, dave, minux.ma
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/46190043
+    https://golang.org/cl/48870044
 
- src/cmd/gc/fmt.c                  |  1 +
- test/fixedbugs/issue7023.dir/a.go | 10 ++++++++++
- test/fixedbugs/issue7023.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue7023.go       | 10 ++++++++++
- 4 files changed, 32 insertions(+)
+ src/cmd/go/pkg.go                             |   1 +
+ src/cmd/link/dead.go                          |  11 ++
+ src/cmd/link/debug.go                         |  11 ++
+ src/cmd/link/layout.go                        | 158 ++++++++++++++++++++++
+ src/cmd/link/link_test.go                     |  32 +++++
+ src/cmd/link/load.go                          |  98 ++++++++++++++
+ src/cmd/link/main.go                          |   9 ++
+ src/cmd/link/prog.go                          | 182 ++++++++++++++++++++++++++
+ src/cmd/link/prog_test.go                     | 161 +++++++++++++++++++++++
+ src/cmd/link/runtime.go                       |  11 ++
+ src/cmd/link/scan.go                          | 119 +++++++++++++++++
+ src/cmd/link/testdata/hello.6                 | Bin 0 -> 269 bytes
+ src/cmd/link/testdata/hello.s                 |  15 +++
+ src/cmd/link/testdata/link.hello.darwin.amd64 | Bin 0 -> 4140 bytes
+ src/cmd/link/util.go                          |  11 ++
+ src/cmd/link/write.go                         |  14 ++
+ 16 files changed, 833 insertions(+)

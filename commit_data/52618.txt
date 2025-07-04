@@ -1,29 +1,32 @@
-commit eb2bc919760d7a3e5ffd6022756cd7bda2f2dc63
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Sat Mar 25 16:38:37 2023 -0700
+commit fd17a4dc0907967e31d4027e254bf195aeefe684
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Nov 24 16:41:33 2021 +0800
 
-    net/http, net/internal, net/smtp: add wasip1
+    cmd/compile: register Init function for loong64
     
-    For #58141
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: Ib49b7ccabe18de544455f7d09c7d715d6564a73d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479625
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: Ia3cb07af626e3422e43e3834baf15b7c8fad2326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349511
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/net/http/roundtrip.go                                           | 2 +-
- src/net/http/transport_default_other.go                             | 3 +--
- src/net/http/{transport_default_js.go => transport_default_wasm.go} | 3 +--
- src/net/internal/socktest/main_test.go                              | 2 +-
- src/net/internal/socktest/main_unix_test.go                         | 2 +-
- src/net/internal/socktest/switch_unix.go                            | 2 +-
- src/net/internal/socktest/sys_unix.go                               | 2 +-
- src/net/smtp/smtp_test.go                                           | 2 +-
- 8 files changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/compile/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

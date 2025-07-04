@@ -1,21 +1,22 @@
-commit e0f99775f24cd19ad96847b0a5b00952aac9d548
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Mon May 9 23:22:14 2022 +0300
+commit 4a97fe8c2298ae879904d3cf304ca29500abf169
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 20 14:52:19 2021 -0700
 
-    runtime: store pointer-size words in memclr
+    [dev.typeparams] cmd/compile: avoid adding incorrectly instantiated types to the dictionary
     
-    GC requires the whole zeroed word to be visible for a memory subsystem.
-    While the implementation of Enhanced REP STOSB tries to use as efficient
-    stores as possible, e.g writing the whole cache line and not byte-after-byte,
-    we should use REP STOSQ to guarantee the requirements of the GC.
+    FUNCINST nodes aren't instantiated correctly. Skip those types when
+    adding to the set of types considered for the dictionary.  Those types
+    include those which are uninstantiated(have tparams), and those with
+    type parameters that aren't a parameter of the containing function
+    (they are the type parameter of the function being called).
     
-    The performance is not affected.
+    Allow func types to be put in the dictionary.
     
-    Change-Id: I1b0fd1444a40bfbb661541291ab96eba11bcc762
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405274
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I26bab85d3eebc2f54d02b4bba5e31407faf7c5b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336129
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/memclr_amd64.s | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 63 ++++++++++++++++++++++++++++---
+ 1 file changed, 58 insertions(+), 5 deletions(-)

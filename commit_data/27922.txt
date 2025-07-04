@@ -1,18 +1,22 @@
-commit a25a7ad70323e8edea4b607aad7c9d2bb96fcc82
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 18 18:24:21 2016 -0700
+commit 46efe0bc7fb1933c74d80cd3fe7c47f21d042a5d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 15 18:45:17 2016 -0400
 
-    cmd/internal/obj: update Bool2int to the form optimized by the compiler
+    crypto/aes: add s390x assembly implementation
     
-    As of https://golang.org/cl/22711 the compiler optimizes this form.
+    Adds support for single block encryption using the cipher message
+    (KM) instruction. KM handles key expansion internally and
+    therefore it is not done up front when using the assembly
+    implementation on s390x.
     
-    Updates #6011
-    
-    Change-Id: Ibc6c529dfa24d42f4aab78ebd6722e1d72cb6038
-    Reviewed-on: https://go-review.googlesource.com/27395
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I69954b8ae36d549e1dc40d7acd5a10bedfaaef9c
+    Reviewed-on: https://go-review.googlesource.com/22194
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/util.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/crypto/aes/asm_s390x.s       | 35 +++++++++++++++++
+ src/crypto/aes/cipher_generic.go |  2 +-
+ src/crypto/aes/cipher_s390x.go   | 84 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 120 insertions(+), 1 deletion(-)

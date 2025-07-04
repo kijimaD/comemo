@@ -1,24 +1,23 @@
-commit 8e8219deb5166ee67c8ba4409692de6fd7b67303
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 4 23:00:01 2015 -0400
+commit 4e15092006b105c92678b440167ae005bd8511eb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 29 19:36:55 2015 +1000
 
-    runtime: update gcController.scanWork regularly
+    syscall: use fchownat(2) in place of lchown(2) for linux/arm64
     
-    Currently, gcController.scanWork is updated as lazily as possible
-    since it is only read at the end of the GC cycle. We're about to read
-    it during the GC cycle to improve the assist ratio revisions, so
-    modify gcDrain* to regularly flush to gcController.scanWork in much
-    the same way as we regularly flush to gcController.bgScanCredit.
+    Fixes #11918
     
-    One consequence of this is that it's difficult to keep gcw.scanWork
-    monotonic, so we give up on that and simply return the amount of scan
-    work done by gcDrainN rather than calculating it in the caller.
+    Replace calls to lchown(2) with fchownat(2) for linux/arm64 as the former is not suppored.
     
-    Change-Id: I7b50acdc39602f843eed0b5c6d2dacd7e762b81d
-    Reviewed-on: https://go-review.googlesource.com/15407
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    This change has also landed on the x/sys repo as CL 12837.
+    
+    Change-Id: I58d4b144e051e36dd650ec9b7f3a02610ea943e5
+    Reviewed-on: https://go-review.googlesource.com/12833
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go     | 19 ++++++++-------
- src/runtime/mgcmark.go | 65 +++++++++++++++++++++++++++++++-------------------
- src/runtime/mgcwork.go |  2 +-
- 3 files changed, 52 insertions(+), 34 deletions(-)
+ src/syscall/syscall_linux_arm64.go  |  5 ++++-
+ src/syscall/zsyscall_linux_arm64.go | 16 ----------------
+ 2 files changed, 4 insertions(+), 17 deletions(-)

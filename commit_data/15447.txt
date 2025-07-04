@@ -1,31 +1,36 @@
-commit b302d68ebcc2500e6e013ff5fed9c70b0e1ff3a4
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Feb 26 13:48:32 2013 -0500
+commit bd92dd6a5f2576fbf8144da0e531a57b4ebc8961
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 26 13:32:22 2013 -0500
 
-    misc/emacs: Greatly improve go-mode for Emacs.
+    exp/ssa: reimplement logic for field selection.
     
-    The original go-mode is plagued with odd behaviour, lack of
-    behaviour typical to modes in Emacs and bugs.
+    The previous approach desugared the ast.SelectorExpr
+    to make implicit field selections explicit.  But:
+    1) it was clunky since it required allocating temporary
+       syntax trees.
+    2) it was not thread-safe since it required poking
+       types into the shared type map for the new ASTs.
+    3) the desugared syntax had no place to represent the
+       package lexically enclosing each implicit field
+       selection, so it was as if they all occurred in the
+       same package as the explicit field selection.
+       This meant unexported field names changed meaning.
     
-    This change rewrites great parts of go-mode (basically only
-    keeping the gofmt and godoc functions).
+    This CL does what I should have done all along: just
+    generate the SSA instructions directly from the original
+    AST and the promoted field information.
     
-    Additionally it adds new features such as manipulating package
-    imports.
+    Also:
+    - add logStack util for paired start/end log messages.
+      Useful for debugging crashes.
     
-    For more information please see
-    https://groups.google.com/group/golang-nuts/browse_frm/thread/3a9d6dae3369c0b5/1efe65e2f7afb190
-    
-    Fixes #3618.
-    Fixes #4240.
-    Fixes #4322.
-    Fixes #4671.
-    Fixes #4726.
-    
-    R=golang-dev, fullung, sameer, cw, arthur, proppy, adonovan, rsc, bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7314113
+    https://golang.org/cl/7395052
 
- misc/emacs/go-mode-load.el |   88 ++-
- misc/emacs/go-mode.el      | 1293 +++++++++++++++++++-------------------------
- 2 files changed, 626 insertions(+), 755 deletions(-)
+ src/pkg/exp/ssa/builder.go | 183 +++++++++++++++++++++++++--------------------
+ src/pkg/exp/ssa/func.go    |   6 --
+ src/pkg/exp/ssa/promote.go |   4 +-
+ src/pkg/exp/ssa/ssa.go     |   2 +-
+ src/pkg/exp/ssa/util.go    |  17 +++++
+ 5 files changed, 120 insertions(+), 92 deletions(-)

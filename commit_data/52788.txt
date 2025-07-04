@@ -1,24 +1,20 @@
-commit ada0eec8277449ecd6383c86bc2e5fe7e7058fc7
-Author: ioworker0 <ioworker0@gmail.com>
-Date:   Mon Apr 24 06:37:52 2023 +0000
+commit cfd202c701d3c1fda740a8c3c725fbb704054591
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 17 08:17:38 2022 -0400
 
-    runtime: add a alignment check
+    cmd/link: call syscall.FlushFileBuffers on outbuf Unmap
     
-    The Linux implementation requires that the address addr be
-    page-aligned, and allows length to be zero.
+    In the windows version of OutBuf.munmap, call syscall.FlushFileBuffers
+    after the call to syscall.FlushViewOfFile, on the theory that this
+    will help flush all associated meta-data for the file the linker is
+    writing.
     
-    See Linux notes:
-    https://man7.org/linux/man-pages/man2/madvise.2.html
+    Updates #44817.
     
-    Change-Id: Ic49960c32991ef12f23de2de76e9689567c82d03
-    GitHub-Last-Rev: 35e7f8e5cc0b045043a88d9f304ef5bb1e9c1ab2
-    GitHub-Pull-Request: golang/go#59793
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488015
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibff7d05008a91eeed7634d2760153851e15e1c18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406814
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/mem_linux.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/outbuf_windows.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

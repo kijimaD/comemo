@@ -1,19 +1,32 @@
-commit 0306478fe57767530164b43c12969ca91496db47
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 19 16:33:14 2014 -0700
+commit 68c1c6afa002074219792689fef714d095f40fd6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 07:51:00 2014 -0400
 
-    runtime: Fix interaction between Goexit and defers
+    cmd/cc, cmd/gc: stop generating 'argsize' PCDATA
     
-    When running defers, we must check whether the defer
-    has already been marked as started so we don't run it twice.
+    The argsize PCDATA was specifying the number of
+    bytes passed to a function call, so that if the function
+    did not specify its argument count, the garbage collector
+    could use the call site information to scan those bytes
+    conservatively. We don't do that anymore, so stop
+    generating the information.
     
-    Fixes #8774.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/142280044
+    https://golang.org/cl/139530043
 
- src/runtime/crash_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/panic.go      | 18 +++++++++-
- 2 files changed, 105 insertions(+), 1 deletion(-)
+ src/cmd/5c/cgen.c      |  2 --
+ src/cmd/5g/gg.h        |  1 -
+ src/cmd/5g/ggen.c      | 19 -------------------
+ src/cmd/5g/gsubr.c     | 10 ----------
+ src/cmd/6c/cgen.c      |  4 ----
+ src/cmd/6g/gg.h        |  1 -
+ src/cmd/6g/ggen.c      | 19 -------------------
+ src/cmd/6g/gsubr.c     | 10 ----------
+ src/cmd/8c/cgen.c      |  2 --
+ src/cmd/8g/gg.h        |  1 -
+ src/cmd/8g/ggen.c      | 18 ------------------
+ src/cmd/8g/gsubr.c     | 10 ----------
+ src/runtime/funcdata.h |  8 +-------
+ 13 files changed, 1 insertion(+), 104 deletions(-)

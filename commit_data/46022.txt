@@ -1,20 +1,86 @@
-commit a0adf91d85bcb10fac394da063c8abc1c60d8eb2
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Mon Aug 9 17:12:37 2021 -0400
+commit a2058bac21f40925a33d7f99622c967b65827f29
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 2 19:26:56 2020 -0800
 
-    internal/syscall/unix: change Ioctl arg type to unsafe.Pointer on AIX
+    [dev.regabi] cmd/compile: add ConstExpr
     
-    Without this change, this code is technically in violation of the
-    unsafe.Pointer rules since the conversion from unsafe.Pointer to uintptr has
-    to happen when calling into the syscall6 assembly implementation.
+    Currently, we represent constant-folded expressions with Name, which
+    is suboptimal because Name has a lot of fields to support declared
+    names (which are irrelevant to constant-folded expressions), while
+    constant expressions are fairly common.
     
-    Change-Id: I4821f5bf9788c8fa2efeb041f811ed092e07ae74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340949
-    Trust: Matt Layher <mdlayher@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This CL introduces a new lightweight ConstExpr type that simply wraps
+    an existing expression and associates it with a value.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    name                      old time/op       new time/op       delta
+    Template                        252ms ± 3%        254ms ± 1%     ~     (p=0.821 n=12+10)
+    Unicode                         120ms ± 2%        107ms ± 7%  -11.09%  (p=0.000 n=12+12)
+    GoTypes                         918ms ± 2%        918ms ± 1%     ~     (p=0.974 n=12+10)
+    Compiler                        5.19s ± 1%        5.18s ± 0%     ~     (p=0.190 n=12+11)
+    SSA                             12.4s ± 1%        12.3s ± 1%     ~     (p=0.283 n=10+12)
+    Flate                           152ms ± 2%        148ms ± 4%   -2.68%  (p=0.007 n=10+12)
+    GoParser                        212ms ± 1%        211ms ± 2%     ~     (p=0.674 n=10+12)
+    Reflect                         543ms ± 3%        542ms ± 3%     ~     (p=0.799 n=12+12)
+    Tar                             224ms ± 2%        225ms ± 2%     ~     (p=0.378 n=12+12)
+    XML                             292ms ± 1%        299ms ± 3%   +2.18%  (p=0.006 n=10+12)
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        243ms ± 4%        244ms ± 5%     ~     (p=0.887 n=12+12)
+    Unicode                         112ms ± 6%        100ms ±10%  -10.76%  (p=0.000 n=12+12)
+    GoTypes                         898ms ± 3%        895ms ± 3%     ~     (p=0.671 n=12+12)
+    Compiler                        5.10s ± 1%        5.08s ± 1%     ~     (p=0.104 n=12+11)
+    SSA                             12.2s ± 2%        12.1s ± 1%     ~     (p=0.487 n=11+12)
+    Flate                           144ms ± 6%        145ms ± 5%     ~     (p=0.695 n=12+11)
+    GoParser                        205ms ± 5%        204ms ± 3%     ~     (p=0.514 n=12+12)
+    Reflect                         528ms ± 3%        531ms ± 4%     ~     (p=0.630 n=12+12)
+    Tar                             218ms ± 4%        219ms ± 3%     ~     (p=0.843 n=12+12)
+    XML                             284ms ± 5%        291ms ± 5%     ~     (p=0.069 n=11+12)
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       37.0MB ± 0%       36.7MB ± 0%   -0.72%  (p=0.000 n=12+12)
+    Unicode                        31.9MB ± 0%       29.5MB ± 0%   -7.60%  (p=0.000 n=12+12)
+    GoTypes                         119MB ± 0%        118MB ± 0%   -0.40%  (p=0.000 n=12+12)
+    Compiler                        629MB ± 0%        626MB ± 0%   -0.36%  (p=0.000 n=11+12)
+    SSA                            1.45GB ± 0%       1.43GB ± 0%   -0.78%  (p=0.000 n=12+12)
+    Flate                          22.2MB ± 0%       21.9MB ± 0%   -1.12%  (p=0.000 n=12+12)
+    GoParser                       29.4MB ± 0%       29.3MB ± 0%   -0.36%  (p=0.000 n=12+12)
+    Reflect                        76.1MB ± 0%       75.8MB ± 0%   -0.38%  (p=0.000 n=12+12)
+    Tar                            33.4MB ± 0%       33.2MB ± 0%   -0.61%  (p=0.000 n=12+12)
+    XML                            43.2MB ± 0%       42.8MB ± 0%   -1.03%  (p=0.000 n=11+12)
+    
+    name                      old allocs/op     new allocs/op     delta
+    Template                         375k ± 0%         375k ± 0%     ~     (p=0.854 n=12+12)
+    Unicode                          300k ± 0%         300k ± 0%     ~     (p=0.766 n=12+12)
+    GoTypes                         1.30M ± 0%        1.30M ± 0%     ~     (p=0.272 n=12+12)
+    Compiler                        5.89M ± 0%        5.89M ± 0%     ~     (p=0.478 n=12+12)
+    SSA                             14.0M ± 0%        14.0M ± 0%     ~     (p=0.266 n=12+12)
+    Flate                            226k ± 0%         226k ± 0%     ~     (p=0.898 n=12+12)
+    GoParser                         313k ± 0%         313k ± 0%   -0.01%  (p=0.042 n=12+11)
+    Reflect                          971k ± 0%         971k ± 0%     ~     (p=0.080 n=12+12)
+    Tar                              342k ± 0%         342k ± 0%     ~     (p=0.600 n=12+12)
+    XML                              416k ± 0%         416k ± 0%     ~     (p=0.217 n=11+12)
+    
+    name                      old maxRSS/op     new maxRSS/op     delta
+    Template                        43.1M ± 5%        42.5M ± 5%     ~     (p=0.086 n=12+12)
+    Unicode                         49.4M ± 2%        47.0M ± 2%   -4.88%  (p=0.000 n=12+12)
+    GoTypes                         85.3M ± 2%        84.6M ± 2%   -0.84%  (p=0.047 n=11+11)
+    Compiler                         394M ± 3%         386M ± 2%   -1.97%  (p=0.000 n=10+11)
+    SSA                              847M ± 4%         821M ± 2%   -2.98%  (p=0.000 n=11+12)
+    Flate                           36.0M ± 7%        35.2M ± 7%     ~     (p=0.128 n=12+12)
+    GoParser                        39.4M ± 7%        39.5M ± 4%     ~     (p=0.413 n=12+11)
+    Reflect                         64.0M ± 3%        63.6M ± 3%     ~     (p=0.413 n=11+12)
+    Tar                             43.3M ± 5%        43.3M ± 5%     ~     (p=0.503 n=12+12)
+    XML                             47.6M ± 4%        46.4M ± 2%   -2.46%  (p=0.013 n=11+12)
+    
+    Change-Id: If5781be346351c30b2228807211b5e57f777c506
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275033
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/syscall/unix/ioctl_aix.go | 2 +-
- src/net/interface_aix.go               | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 27 +++++++--------------------
+ src/cmd/compile/internal/ir/expr.go  | 25 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 20 deletions(-)

@@ -1,22 +1,19 @@
-commit 7bebc6b7222d21946a0b39b437c4a6a5e7b2eb27
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Mar 30 19:09:59 2018 -0400
+commit 47427d67d6be53b01177040480433308821d47d3
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Apr 5 00:26:38 2018 +0300
 
-    net/http: fix and normalize the [Server.][ListenAnd]Serve[TLS] docs
+    cmd/internal/obj/x86: cleanup comments and consts
     
-    The only inaccurate part was the HTTP/2 caveat in Server.ServeTLS, which
-    only applies to the plain Serve variant.
+    - Unexport MaxLoopPad and LoopAlign; associated comments updated
+    - Remove commented-out C code
+    - Replace C-style /**/ code comments with single-line comments
     
-    The restriction implemented in shouldConfigureHTTP2ForServe is not on
-    the setupHTTP2_ServeTLS codepath because ServeTLS owns the tls.Listener,
-    so we fix it for the user instead of disabling HTTP/2.
-    
-    Fixes #24607
-    
-    Change-Id: Ie5f207d0201f09db27bf81b75535e5f6fdaf91e2
-    Reviewed-on: https://go-review.googlesource.com/103815
+    Change-Id: I51bd92a05b4d3823757b12efd798951c9f252bd4
+    Reviewed-on: https://go-review.googlesource.com/104795
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/example_test.go | 22 ++++++++++++++
- src/net/http/server.go       | 72 +++++++++-----------------------------------
- 2 files changed, 36 insertions(+), 58 deletions(-)
+ src/cmd/internal/obj/x86/a.out.go |  18 +-
+ src/cmd/internal/obj/x86/asm6.go  | 337 +++++++++++++++++---------------------
+ src/cmd/internal/obj/x86/list6.go |  28 ++--
+ 3 files changed, 176 insertions(+), 207 deletions(-)

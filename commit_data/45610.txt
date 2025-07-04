@@ -1,17 +1,23 @@
-commit 73d5aef4d19486d5eb03730791bd21f47c6c7d2b
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Sat Dec 12 09:45:45 2020 +0000
+commit 89a6540d8a93b95620080a8145c9882b063e3e46
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Oct 29 16:03:57 2020 -0400
 
-    cmd/internal/objfile: add objabi.SNOPTRDATA to "D"
+    runtime: elide timer re-check if P has no timers
     
-    Change-Id: I65913534a4a3e2cbc0d4b00454dd3092eb908cb5
-    GitHub-Last-Rev: 39dc0d21b81eb6aeec4c29d4ea72e6c1ef7fea0d
-    GitHub-Pull-Request: golang/go#43151
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277452
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    In golang.org/cl/264477, I missed this new block after rebasing past
+    golang.org/cl/232298. These fields must be zero if there are no timers.
+    
+    Updates #28808
+    Updates #18237
+    
+    Change-Id: I2d9e1cbf326497c833daa26b11aed9a1e12c2270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266367
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Heschi Kreinick <heschi@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/internal/objfile/goobj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

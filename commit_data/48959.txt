@@ -1,32 +1,17 @@
-commit af99c2092a878500d508433baddcfcc12910c21b
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Wed Mar 30 15:47:04 2022 +0800
+commit b47cbc2ffec163f30690613b3a9c3f7f108cd512
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 28 17:37:41 2021 -0700
 
-    cmd/internal/objabi: define Go relocation types for loong64
+    [dev.typeparams] cmd/compile/internal/types2: move newTypeSet function into typeset.go
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    No functional changes except for import declaration and comment
+    adjustments.
     
-    This port has been updated to Go 1.15.6:
-    https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I8d31b3cd827325aa0ff748ca8c0c0da6df6ed99f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396734
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I75fb5edba8b89a5aad7c9b4ddb427c201265def0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331515
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/objabi/reloctype.go        | 30 ++++++++++++++++++++++++++++-
- src/cmd/internal/objabi/reloctype_string.go | 20 ++++++++++++-------
- 2 files changed, 42 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/interface.go | 190 +---------------------
+ src/cmd/compile/internal/types2/typeset.go   | 228 ++++++++++++++++++++++++---
+ 2 files changed, 209 insertions(+), 209 deletions(-)

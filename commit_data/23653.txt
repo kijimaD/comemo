@@ -1,16 +1,17 @@
-commit 3290e9c14551035f9be528e199f643a04ac7f047
+commit 3be7f28e821a2852f4149c260d40124942f6b113
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 00:41:18 2015 -0400
+Date:   Wed May 27 10:44:43 2015 -0400
 
-    runtime: fix build on non-x86 machines
+    cmd/compile: remove Node.Nname, now unused
     
-    Fixes #11656 (again).
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 160
+    $
     
-    Change-Id: I170ff10bfbdb0f34e57c11de42b6ee5291837813
-    Reviewed-on: https://go-review.googlesource.com/12142
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib0bd4230c8547f36972b2a9d81ba3eca81496e39
+    Reviewed-on: https://go-review.googlesource.com/10537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/signal_arm.go    | 14 ++++++++++++--
- src/runtime/signal_arm64.go  | 14 ++++++++++++--
- src/runtime/signal_ppc64x.go | 14 ++++++++++++--
- 3 files changed, 36 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/syntax.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

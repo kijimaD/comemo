@@ -1,36 +1,16 @@
-commit e46e8610aba89ed91896ab6ccc5349636e0b4df2
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Sep 1 09:26:56 2023 +0200
+commit b4ff4792989853b82150c1dc136ba024f6a09d0a
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Nov 13 20:41:58 2022 +0100
 
-    crypto/internal/boring: use noescape and nocallback cgo directives
+    cmd/compile: remove manually implemented popcount in _gen/main.go
     
-    The new noescape and nocallback directives can be used instead of the C
-    wrapper functions that are there just to avoid some parameters being
-    escaped to the heap.
-    
-    This CL also helps demonstrate the use of the new directives in real
-    code.
-    
-    I've added some benchmarks to demonstrate that this CL doesn't
-    introduce new heap allocations when using boringcrypto:
-    
-    ```
-    goos: linux
-    goarch: amd64
-    pkg: crypto/aes
-    cpu: AMD EPYC 7763 64-Core Processor
-    BenchmarkGCMSeal-32      8378692               143.3 ns/op       111.65 MB/s           0 B/op          0 allocs/op
-    BenchmarkGCMOpen-32      8383038               142.7 ns/op       112.11 MB/s           0 B/op          0 allocs/op
-    ```
-    
-    Change-Id: Ifd775484eb9a105afc5c3d4e75a6c6655cbadc53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525035
+    Change-Id: I7b4da26bace15c2b632c2dbfe56cc2799bbfdb02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450058
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/crypto/cipher/gcm_test.go     | 36 +++++++++++++++++++++++++
- src/crypto/internal/boring/aes.go | 55 ++++++++++-----------------------------
- 2 files changed, 50 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/main.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

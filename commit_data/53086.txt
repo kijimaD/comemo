@@ -1,19 +1,27 @@
-commit 8c822ac7e8e136f079359be1772c1ba3f06399e6
-Author: David Chase <drchase@google.com>
-Date:   Wed May 17 10:37:18 2023 -0400
+commit 180bcad33dcd3d59443fe8eda5ae7556b1b2945b
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 31 14:47:33 2022 -0700
 
-    cmd/link, internal/abi: minor follow-up cleanups
+    net/http: wait for listeners to exit in Server.Close and Shutdown
     
-    these address comments on CLs in the large refactoring stack
-    recently submitted.
+    Avoid race conditions when a new connection is accepted just after
+    Server.Close or Server.Shutdown is called by waiting for the
+    listener goroutines to exit before proceeding to clean up active
+    connections.
     
-    Change-Id: Ic9023c32aafe4dda953b42c9a36834d3ab3432eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495835
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    No test because the mechanism required to trigger the race condition
+    reliably requires such tight coupling to the Server internals that
+    any test would be quite fragile in the face of reasonable refactorings.
+    
+    Fixes #48642
+    Updates #33313, #36819
+    
+    Change-Id: I109a93362680991bf298e0a95637595dcaa884af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409537
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/decodesym.go | 4 ++--
- src/internal/abi/type.go              | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/server.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

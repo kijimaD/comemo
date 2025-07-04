@@ -1,36 +1,16 @@
-commit 0be2d52ebaa85c4d055bde4239a6698d7135ca3e
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 9 11:15:53 2017 -0400
+commit 7a8f1e2bc787542fe6b9e87ebec9b682a0ff9973
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 13 12:58:11 2017 +1000
 
-    cmd/go: use -importcfg to invoke compiler, linker
+    time: run genzabbrs.go to update zoneinfo_abbrs_windows.go
     
-    This is a step toward using cached build artifacts: the importcfg
-    will direct the compiler and linker to read them right from the cache
-    if necessary. However, this CL does not have a cache yet, so it still
-    reads them from the usual install location or build location.
-    Even so, this fixes a long-standing issue that -I and -L (no longer used)
-    are not expressive enough to describe complex GOPATH setups.
+    Last time zoneinfo_abbrs_windows.go was updated in CL 27832.
+    Time for another update.
     
-    Shared libraries are handled enough that all.bash passes, but
-    there may still be more work to do here. If so, tests and fixes
-    can be added in follow-up CLs.
-    
-    Gccgo will need updating to support -importcfg as well.
-    
-    Fixes #14271.
-    
-    Change-Id: I5c52a0a5df0ffbf7436e1130c74e9e24fceff80f
-    Reviewed-on: https://go-review.googlesource.com/56279
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8dc3a1de6f22e90e634b2176188f257a260b6463
+    Reviewed-on: https://go-review.googlesource.com/45450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go |   3 +-
- src/cmd/go/internal/cfg/cfg.go     |  25 +++++
- src/cmd/go/internal/load/pkg.go    |  23 +---
- src/cmd/go/internal/test/test.go   |   6 +-
- src/cmd/go/internal/work/build.go  | 217 ++++++++++++++++++++-----------------
- src/cmd/link/internal/ld/ld.go     |  28 +++--
- src/cmd/link/internal/ld/lib.go    |  73 ++++++++-----
- 7 files changed, 220 insertions(+), 155 deletions(-)
+ src/time/genzabbrs.go              |   4 +-
+ src/time/zoneinfo_abbrs_windows.go | 176 +++++++++++++++++++------------------
+ 2 files changed, 92 insertions(+), 88 deletions(-)

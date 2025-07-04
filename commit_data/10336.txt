@@ -1,15 +1,16 @@
-commit a50ee009f7513a0c0ee4e9ab50980e1181c77e8e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 10 14:02:14 2011 -0800
+commit d98970963081585c3c2e85fa68740cc854d08f92
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Nov 10 12:40:50 2011 -0800
 
-    tutorial: describe unidirectional channels
+    time: add ISOWeek method to Time
     
-    R=golang-dev, adg, gri
+    As the ISO 8601 week number is untrivial to compute a new method
+    on *Time provides year and number of week.
+    
+    R=golang-dev, rsc, r, r
     CC=golang-dev
-    https://golang.org/cl/5370058
+    https://golang.org/cl/5316074
 
- doc/go_tutorial.html | 32 ++++++++++++++++++++++++++++----
- doc/go_tutorial.tmpl | 26 +++++++++++++++++++++++++-
- doc/progs/server.go  |  4 ++--
- doc/progs/server1.go |  2 +-
- 4 files changed, 56 insertions(+), 8 deletions(-)
+ src/pkg/time/time.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 122 insertions(+)

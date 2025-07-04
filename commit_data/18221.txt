@@ -1,16 +1,15 @@
-commit c7ef348bad102b3427b4242018e92eba17d079ba
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Jan 12 12:20:16 2014 +1100
+commit 8aaca37383e4cf4157b999e117216006841978aa
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Jan 11 20:16:39 2014 +1100
 
-    net: ignore some errors in windows Accept
+    api: update except.txt and next.txt to reflect openbsd system ABI break
     
-    Fixes #6987
+    Update #7049
     
-    R=golang-codereviews, dvyukov
+    R=golang-codereviews, minux.ma, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/49490043
+    https://golang.org/cl/49470052
 
- src/pkg/net/fd_windows.go         |  48 ++++++++++---
- src/pkg/net/net_windows_test.go   | 146 ++++++++++++++++++++++++++++++++++++++
- src/pkg/syscall/ztypes_windows.go |   2 +
- 3 files changed, 188 insertions(+), 8 deletions(-)
+ api/except.txt | 300 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   | 342 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 642 insertions(+)

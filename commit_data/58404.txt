@@ -1,21 +1,30 @@
-commit 75736cc169631dfaaa48ad46a00e1bf31d830ec8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 16 15:38:43 2024 -0800
+commit b54cae276aa7997d91e1ce5de6e27ec60b19e4bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 19:51:18 2023 -0400
 
-    fmt, strconv: document that exponent is always two digits
+    go/version: add new package
     
-    Except for %b where it is only one.
+    go/version provides basic comparison of Go versions,
+    for use when deciding whether certain language features
+    are allowed, and so on.
     
-    Fixes #70862
+    See the proposal issue #62039 for more details.
     
-    Change-Id: Ic423a799b73bfa534f4083f6544bb9cd639fef06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636915
+    Fixes #62039
+    
+    Change-Id: Ibdfd4fe15afe406c46da568cb31feb42ec30b530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538895
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/fmt/doc.go      | 3 +++
- src/strconv/ftoa.go | 2 ++
- 2 files changed, 5 insertions(+)
+ api/next/62039.txt                      |   3 +
+ src/cmd/go/internal/gover/gover.go      | 201 ++--------------------------
+ src/cmd/go/internal/gover/gover_test.go |  20 +--
+ src/cmd/go/internal/gover/toolchain.go  |  10 ++
+ src/go/build/deps_test.go               |   2 +
+ src/go/version/version.go               |  55 ++++++++
+ src/go/version/version_test.go          | 102 +++++++++++++++
+ src/internal/gover/gover.go             | 223 ++++++++++++++++++++++++++++++++
+ src/internal/gover/gover_test.go        | 138 ++++++++++++++++++++
+ 9 files changed, 545 insertions(+), 209 deletions(-)

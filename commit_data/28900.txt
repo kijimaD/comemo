@@ -1,32 +1,17 @@
-commit c1a1328c5f004c62b8c08faf0d0d2845e0be5d37
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 12 22:58:47 2016 -0400
+commit 56752eb2b8cc52311c346f986a0f6e2a9577bfe4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Aug 16 07:44:57 2016 -0400
 
-    encoding/xml: add wildcard support for collecting all attributes
+    reflect: clear tflag on new types
     
-    - Like ",any" for elements, add ",any,attr" for attributes to allow
-      a mop-up field that gets any otherwise unmapped attributes.
-    - Map attributes to fields of type slice by extending the slice,
-      just like for elements.
-    - Allow storing an attribute into an xml.Attr directly, to provide
-      a way to record the name.
+    Fixes #16722
     
-    Combined, these three independent features allow
-    
-            AllAttrs []Attr `xml:",any,attr"`
-    
-    to collect all attributes not otherwise spoken for in a particular struct.
-    
-    Tests based on CL 16292 by Charles Weill.
-    
-    Fixes #3633.
-    
-    Change-Id: I2d75817f17ca8752d7df188080a407836af92611
-    Reviewed-on: https://go-review.googlesource.com/30946
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Change-Id: I50a0e69d3e79d13bc1860cd983267c3db087a4b8
+    Reviewed-on: https://go-review.googlesource.com/27119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/marshal.go      | 16 ++++++++
- src/encoding/xml/marshal_test.go | 68 ++++++++++++++++++++++++++++++---
- src/encoding/xml/read.go         | 81 +++++++++++++++++++++++++++++-----------
- src/encoding/xml/typeinfo.go     |  2 +-
- 4 files changed, 140 insertions(+), 27 deletions(-)
+ src/reflect/all_test.go | 2 ++
+ src/reflect/type.go     | 2 ++
+ 2 files changed, 4 insertions(+)

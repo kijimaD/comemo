@@ -1,15 +1,12 @@
-commit 41806ec26db3316c7ed4857bb3420cb34e61b28c
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Jan 9 21:42:24 2012 +0100
+commit 900b8becb3afbeffb5c8595b7b83e447ccf7c03f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 9 11:22:26 2012 -0800
 
-    gc: remove now redundant typecheck of ->ninit on switches.
+    cgo: if value for constant did not parse, get it from DWARF info
     
-    Fixes #2576.
-    
-    R=rsc
+    R=rsc, borman
     CC=golang-dev
-    https://golang.org/cl/5498105
+    https://golang.org/cl/5525043
 
- src/cmd/gc/swt.c         |  1 -
- test/fixedbugs/bug391.go | 14 ++++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

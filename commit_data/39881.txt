@@ -1,25 +1,24 @@
-commit 396d62533013a39b527db4b02195e816e36dbf9a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 23 16:28:23 2019 +1000
+commit 347af7f0605427acb096aa6d33bb2395b859e6fb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 26 20:26:53 2019 -0400
 
-    compress/lzw: fix comment re high-code invariant
+    [dev.boringcrypto] misc/boring: add go1.12.1b4 and update build scripts
     
-    The listed invariant, while technically true, was misleading, and the
-    invariant can be tightened. We never actually get to (d.hi ==
-    d.overflow), due to the "d.hi--" line in the decoder.decode method.
+    The inliner seems to have gotten a bit too smart in 1.12 and it made
+    sha1.boringNewSHA1 disappear. Replace it with the proper
+    crypto/internal/boring/sig.BoringCrypto signature. Also, switch the
+    negative signature to sha256.(*digest), since SHA-256 is used for sure
+    by cmd/go. Not using crypto/internal/boring/sig.StandardCrypto just to
+    be safe, in case the crypto/internal/boring/sig mechanism breaks.
     
-    This is a comment-only commit, changing the comment to match the code.
+    Also, had to fight #30833 and #30515 to get
+    golang.org/x/build/cmd/release to build in modules mode.
     
-    A follow-up commit could restore the comment, changing the code to match
-    the original intented invariant. But the first step is to have the
-    comment and the code say the same thing.
-    
-    Change-Id: Ifc9f78d5060454fc107af9be298026bf3043d400
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191358
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I46f1471582fd77daae47d00baab975109902052d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169517
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/compress/lzw/reader.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ misc/boring/RELEASES      |  2 ++
+ misc/boring/build.docker  |  8 ++++----
+ misc/boring/build.release | 14 +++++++-------
+ 3 files changed, 13 insertions(+), 11 deletions(-)

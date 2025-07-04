@@ -1,17 +1,14 @@
-commit f554c90cefd27ba6ee884d00dd4c55fa10a86202
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Sep 19 11:50:45 2011 -0400
+commit fc5889d4ffbd3b1252db4eee5cae16edb4692c54
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 11:50:41 2011 -0400
 
-    8l: remove left over debugging
+    json: skip nil in UnmarshalJSON and (for symmetry) MarshalJSON
     
-            This line was triggering a null dereference warning
-            under clang-3.0. The line was added in a46819aa9150
-            but compared to it's sibling in 6l it appears to be
-            leftover debugging.
-    
-    R=rsc
+    R=dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5049042
+    https://golang.org/cl/5050049
 
- src/cmd/8l/asm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/json/decode.go      | 21 +++++++++++----------
+ src/pkg/json/encode.go      |  9 ++++++---
+ src/pkg/json/stream_test.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 13 deletions(-)

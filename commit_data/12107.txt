@@ -1,12 +1,17 @@
-commit 7507f3f2578241b2f8f9be59cd7acb5cea3151fb
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Tue Feb 21 13:23:33 2012 -0500
+commit 30537789651be3e523bbdb4503f48a3b5b6ac48f
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 21 10:50:58 2012 -0500
 
-    cmd/go: 'go help test' remove documentation for incomplete -file flag
+    cmd/*: add -d option to bison.
     
-    R=golang-dev, rsc, r, r
+    Without -d, bison doesn't generate y.tab.h.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5673093
+    https://golang.org/cl/5685065
 
- src/cmd/go/test.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ src/cmd/5a/Makefile | 2 +-
+ src/cmd/6a/Makefile | 2 +-
+ src/cmd/8a/Makefile | 2 +-
+ src/cmd/cc/Makefile | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

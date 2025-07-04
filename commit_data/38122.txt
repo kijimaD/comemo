@@ -1,19 +1,36 @@
-commit 694cd005c3943027a4533a0a534837108ccd66f6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Dec 2 10:15:35 2018 -0800
+commit f74de24fbd94d021b047afe0dc62eddeb65ca384
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Aug 26 14:22:39 2018 +0200
 
-    runtime: speed up ifaceeq for direct ifaces
+    strings: correctly handle invalid utf8 sequences in Map
     
-    name                    old time/op  new time/op  delta
-    EfaceCmpDiff-8           421ns ± 3%   299ns ± 3%  -28.93%  (p=0.000 n=92+94)
-    EfaceCmpDiffIndirect-8   497ns ± 4%   496ns ± 3%     ~     (p=0.840 n=98+92)
+    When an invalid UTF-8 byte sequence is decoded in a range loop over a string
+    a utf8.RuneError rune is returned. This is not distinguishable from decoding
+    the valid '\uFFFD' sequence representing utf8.RuneError from a string without
+    further checks within the range loop.
     
-    Change-Id: Id1a8c779413ba35ab0f58d055870b6a0714b51b7
-    Reviewed-on: https://go-review.googlesource.com/c/152163
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The previous Map code did not do any extra checks and would thereby not map
+    invalid UTF-8 byte sequences correctly when those were mapping to utf8.RuneError.
+    
+    Fix this by adding the extra checks necessary to distinguish the decoding
+    of invalid utf8 byte sequences from decoding the sequence for utf8.RuneError
+    when the mapping of a rune is utf8.RuneError.
+    
+    This fix does not result in a measureable performance regression:
+    name                old time/op  new time/op  delta
+    ByteByteMap         1.05µs ± 3%  1.03µs ± 3%   ~     (p=0.118 n=10+10)
+    Map/identity/ASCII   169ns ± 2%   170ns ± 1%   ~     (p=0.501 n=9+10)
+    Map/identity/Greek   298ns ± 1%   303ns ± 4%   ~     (p=0.338 n=10+10)
+    Map/change/ASCII     323ns ± 3%   325ns ± 4%   ~     (p=0.679 n=8+10)
+    Map/change/Greek     628ns ± 5%   635ns ± 1%   ~     (p=0.460 n=10+9)
+    MapNoChanges         120ns ± 4%   119ns ± 1%   ~     (p=0.496 n=10+9)
+    
+    Fixes #26305
+    
+    Change-Id: I70e99fa244983c5040756fa4549ac1e8cb6022c3
+    Reviewed-on: https://go-review.googlesource.com/c/131495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/alg.go          |  8 ++++++--
- src/runtime/runtime_test.go | 12 ++++++++++++
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/strings/strings.go      | 24 ++++++++++++------------
+ src/strings/strings_test.go |  4 ++--
+ 2 files changed, 14 insertions(+), 14 deletions(-)

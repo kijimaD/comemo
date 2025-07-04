@@ -1,47 +1,23 @@
-commit 1ba26a33ceef7600e9801bbccf529b1112013c1a
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed May 23 15:31:52 2018 -0400
+commit b1dbce31d7bbd7c3fdff1679d6f08c107d0be9a5
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri Feb 16 15:20:04 2018 +0000
 
-    cmd/compile: fix DWARF inline debug issue with dead local vars
+    runtime: don't ignore address hint for sysReserve in Plan 9
     
-    Fix a problem in DWARF inline debug generation relating to handling of
-    statically unreachable local variables. For a function such as:
+    On Plan 9, sysReserve was ignoring the address hint and allocating
+    memory wherever it is available.  This causes the new
+    TestArenaCollision test to fail on 32-bit Plan 9.  We now use the
+    address hint in the specific case where sysReserve is extending the
+    process address space at its end, and similarly we contract the
+    address space in the case where sysFree is releasing memory at
+    the end.
     
-        const always = true
+    Fixes #23860
     
-        func HasDeadLocal() int {
-          if always {
-            return 9
-          }
-          x := new(Something)
-          ...
-          return x.y
-        }
-    
-    the variable "x" is placed onto the Dcl list for the function during
-    parsing, but the actual declaration node is deleted later on when
-    gc.Main invokes "deadcode". Later in the compile the DWARF code emits
-    an abstract function with "x" (since "x" was on the Dcl list at the
-    point of the inline), but the export data emitted does not contain
-    "x". This then creates clashing/inconsistant DWARF abstract function
-    DIEs later on if HasDeadLocal is inlined in somewhere else.
-    
-    As a fix, the inliner now pruned away variables such as "x" when
-    creating a copy of the Dcl list as part of the inlining; this means
-    that both the export data generator and the DWARF emitter wind up
-    seeing a consistent picture.
-    
-    Fixes #25459
-    
-    Change-Id: I753dc4e9f9ec694340adba5f43c907ba8cc9badc
-    Reviewed-on: https://go-review.googlesource.com/114090
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ia5254779ba8f1698c999832720a88de400b5f91a
+    Reviewed-on: https://go-review.googlesource.com/94776
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/compile/internal/gc/inl.go                 | 37 +++++++++-
- src/cmd/link/internal/ld/dwarf_test.go             | 79 ++++++++++++++--------
- .../internal/ld/testdata/httptest/src/main/main.go | 22 ++++++
- .../internal/ld/testdata/issue25459/src/a/a.go     | 27 ++++++++
- .../ld/testdata/issue25459/src/main/main.go        | 10 +++
- 5 files changed, 144 insertions(+), 31 deletions(-)
+ src/runtime/mem_plan9.go | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)

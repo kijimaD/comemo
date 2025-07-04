@@ -1,15 +1,12 @@
-commit 609d742e791eebceddaeae419b3b909594f4e404
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 31 14:09:19 2013 +1000
+commit fa673bd872d738a24a61ca8ed09c7c3b88d10682
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 31 12:34:14 2013 +0900
 
-    fmt: remove "Scan:" prefix from error messages
-    The prefix was not uniformly applied and is probably better left off anyway.
+    net: add simple SetKeepAlivePeriod call test
     
-    Fixes #4944.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12140043
+    https://golang.org/cl/12090043
 
- src/pkg/fmt/scan.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/net/protoconn_test.go | 1 +
+ 1 file changed, 1 insertion(+)

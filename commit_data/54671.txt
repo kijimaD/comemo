@@ -1,20 +1,29 @@
-commit e7015c9327c4d755651ed3de3fd34fd99a479924
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Oct 10 14:58:37 2023 +0200
+commit 12ab0ac184f45e4fc04ffa77a73e211a0aa86d5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 8 14:04:24 2022 -0500
 
-    runtime: quote -ex and -iex gdb arguments on Windows
+    net: pass C string to res_nsearch, in case it stores the pointer
     
-    On Windows, some gdb flavors expect -ex and -iex arguments containing
-    spaces to be double quoted.
+    The current code passes a Go pointer to a NUL-terminated C string
+    to the C function res_nsearch (or res_search), but that function may
+    in turn store the pointer into the res_state, which is a violation of the
+    cgo pointer rules and is being detected on the linux-amd64-wsl builder.
     
-    Change-Id: I2891e115f98c1df3a7a481bd9f9d9215bfbecd44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534097
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Allocating the string in C memory is safer and should resolve
+    the cgo pointer check. When using libc/syscall mode, the memory
+    is still allocated Go-side, which could potentially be a problem
+    if we ever add a moving collector. For now it is OK.
+    
+    Fixes #56658.
+    
+    Change-Id: Ibd84a9665be16c71994ddb1eedf09d45a6553a3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448795
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
 
- src/runtime/runtime-gdb_test.go | 30 ++++++++++++++++++++++++++++--
- 1 file changed, 28 insertions(+), 2 deletions(-)
+ src/net/cgo_unix.go         | 16 ++++++++--------
+ src/net/cgo_unix_cgo.go     |  8 +++++++-
+ src/net/cgo_unix_syscall.go | 17 +++++++++++++++++
+ 3 files changed, 32 insertions(+), 9 deletions(-)

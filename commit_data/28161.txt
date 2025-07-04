@@ -1,22 +1,24 @@
-commit 6fb4b15f98bba7ef3966c5edc6b8fe2cc99c6beb
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 31 20:44:42 2016 +0000
+commit e50346d26a935cd43023856d0df65a158d867c00
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 1 17:03:46 2016 -0700
 
-    Revert "runtime: improve memmove for amd64"
+    cmd/cgo, misc/cgo/test: make -Wdeclaration-after-statement clean
     
-    This reverts commit 3607c5f4f18ad4d423e40996ebf7f46b2f79ce02.
+    I got a complaint that cgo output triggers warnings with
+    -Wdeclaration-after-statement.  I don't think it's worth testing for
+    this--C has permitted declarations after statements since C99--but it is
+    easy enough to fix.  It may break again; so it goes.
     
-    This was causing failures on amd64 machines without AVX.
+    This CL also fixes errno handling to avoid getting confused if the tsan
+    functions happen to change the global errno variable.
     
-    Fixes #16939
-    
-    Change-Id: I70080fbb4e7ae791857334f2bffd847d08cb25fa
-    Reviewed-on: https://go-review.googlesource.com/28274
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0ec7c63a6be5653ef44799d134c8d27cb5efa441
+    Reviewed-on: https://go-review.googlesource.com/22686
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cpuflags_amd64.go |  75 -------------
- src/runtime/cpuidlow_amd64.s  |  22 ----
- src/runtime/memmove_amd64.s   | 243 +-----------------------------------------
- src/runtime/memmove_test.go   | 104 ------------------
- 4 files changed, 1 insertion(+), 443 deletions(-)
+ misc/cgo/test/issue3250.go |  2 +-
+ misc/cgo/test/issue5986.go |  3 ++-
+ src/cmd/cgo/out.go         | 20 +++++++++++++++-----
+ 3 files changed, 18 insertions(+), 7 deletions(-)

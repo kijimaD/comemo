@@ -1,0 +1,21 @@
+commit 8790372a8d7e777d23d6b77d248318d01f4d7c4d
+Author: wangshuo <wangshuo@kylinos.cn>
+Date:   Tue Dec 17 12:50:44 2024 +0000
+
+    cmd, go: fix some typos
+    
+    Change-Id: I0fd54ae5294eb4ef30cdef05adb8825f69077b14
+    GitHub-Last-Rev: ccfa48cbe4525dc2bd60e9ac7e2c150e480ba13f
+    GitHub-Pull-Request: golang/go#70823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/README.md                 | 2 +-
+ src/cmd/compile/internal/types2/signature.go              | 2 +-
+ src/cmd/go/testdata/script/build_version_stamping_git.txt | 4 ++--
+ src/cmd/vet/vet_test.go                                   | 2 +-
+ src/go/types/signature.go                                 | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,21 +1,26 @@
-commit 181cf3c95ec99a44babb0e64c8f66956d2ac3a78
-Author: pgxiaolianzi <gnnu_d13@163.com>
-Date:   Fri Feb 7 08:37:50 2025 +0000
+commit f4cb2ac3517b4f9947b18a19c72470b7d8880dec
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 22 15:09:57 2023 -0500
 
-    text/template: handle UnsafePointer in isTrue
+    .github: delete archived issue templates
     
-    Change-Id: I4d0b5919d109f768ba04ab519e8f948a5749a752
-    GitHub-Last-Rev: 6f27f1193c21bb10e3b81660b4271f2c1f33be1e
-    GitHub-Pull-Request: golang/go#70520
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631076
-    Run-TryBot: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    We can get the previous templates back from version control if needed.
+    Delete these unused copies to avoid confusion.
+    
+    For #63970.
+    
+    Change-Id: I44e54da06e259239745f4a493de1dae94cca3755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544536
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/text/template/exec.go      |  2 +-
- src/text/template/exec_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ .github/ISSUE_TEMPLATE/archived/00-bug.md          | 45 ----------------
+ .github/ISSUE_TEMPLATE/archived/01-pkgsite.md      | 49 -----------------
+ .../ISSUE_TEMPLATE/archived/02-pkgsite-removal.md  | 39 --------------
+ .github/ISSUE_TEMPLATE/archived/03-gopls.md        | 63 ----------------------
+ .github/ISSUE_TEMPLATE/archived/04-vuln.md         | 51 ------------------
+ .github/ISSUE_TEMPLATE/archived/10-proposal.md     | 13 -----
+ .../ISSUE_TEMPLATE/archived/11-language-change.md  | 55 -------------------
+ 7 files changed, 315 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 13818: 032e5bfb302714c4f9330540ca3d4087062bdc1a
+# Index 13818: d06dcd45959f83c3b82c10116acc9a64beff14cd
 
 echo "🚀 Generating explanation for commit 13818..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 13818
-- **コミットハッシュ**: 032e5bfb302714c4f9330540ca3d4087062bdc1a
-- **GitHub URL**: https://github.com/golang/go/commit/032e5bfb302714c4f9330540ca3d4087062bdc1a
+- **コミットハッシュ**: d06dcd45959f83c3b82c10116acc9a64beff14cd
+- **GitHub URL**: https://github.com/golang/go/commit/d06dcd45959f83c3b82c10116acc9a64beff14cd
 
 ### 章構成
 

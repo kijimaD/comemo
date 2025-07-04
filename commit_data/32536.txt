@@ -1,21 +1,16 @@
-commit 526f3420c2a25a2bc99ae4cc2750c2598a07c895
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Tue May 16 16:55:54 2017 -0500
+commit 390fdead0be0087d10e2e4faff7cb0a12b6a3ec8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 24 10:47:03 2017 -0700
 
-    cmd/asm, cmd/internal/obj/ppc64: add ISA 3.0 instructions
+    runtime: document runtime.Frames better
     
-    This change adds new ppc64 instructions from the POWER9 ISA. This includes
-    compares, loads, maths, register moves and the new random number generator and
-    copy/paste facilities.
+    In particular, this says that Frames.Function uniquely identifies a
+    function within a program. We depend on this in various places that
+    use runtime.Frames in std, but it wasn't actually written down.
     
-    Change-Id: Ife3720b90f5af184ff115bbcdcbce5c1302d39b6
-    Reviewed-on: https://go-review.googlesource.com/53930
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ie7ede348c17673e11ae513a094862b60c506abc5
+    Reviewed-on: https://go-review.googlesource.com/41610
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  40 +++++++++
- src/cmd/internal/obj/ppc64/a.out.go       |  15 ++++
- src/cmd/internal/obj/ppc64/anames.go      |  15 ++++
- src/cmd/internal/obj/ppc64/asm9.go        | 145 +++++++++++++++++++++++-------
- 4 files changed, 183 insertions(+), 32 deletions(-)
+ src/runtime/symtab.go | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

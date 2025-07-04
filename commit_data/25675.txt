@@ -1,20 +1,16 @@
-commit 4ec2fd3e6ac4f869d39348bf48016687b731d910
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 26 20:03:32 2016 -0500
+commit 12126752cce71b7d44a07bdb17ba5ff8e99e9229
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 16:28:46 2015 -0800
 
-    cmd/go: disable broken test for code.google.com
+    cmd/compile: associate tracking issue numbers with TODOs
     
-    For Go 1.7 we can remove all the code.google.com code
-    (except maybe the shutdown warning).
+    Comment changes only.
     
-    See #10193.
-    
-    Change-Id: I4b8182eb66494f0bf373b40ca5da6ae4738342be
-    Reviewed-on: https://go-review.googlesource.com/18974
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib365b3cd16af9995cb0a2cce48fbe35d73899438
+    Reviewed-on: https://go-review.googlesource.com/16898
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/go/go_test.go  | 1 +
- src/cmd/go/vcs_test.go | 4 ++--
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    |  6 +++---
+ src/cmd/compile/internal/gc/parser.go | 24 ++++++++++++++++++------
+ 2 files changed, 21 insertions(+), 9 deletions(-)

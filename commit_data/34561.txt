@@ -1,22 +1,35 @@
-commit f69ad10377b1817e3db57851226a23973caa584e
-Author: Henry Clifford <h.a.clifford@gmail.com>
-Date:   Fri Mar 9 22:28:55 2018 +0000
+commit 5617864900c397b9c0160a278ae35007e1d785ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 12:59:47 2017 -0400
 
-    mime/multipart: test for presence of filename instead of content-type
+    cmd/go: pass package config to vet during "go vet"
     
-    Fixes #24041
+    After this CL, "go vet" can be guaranteed to have complete type information
+    about the packages being checked, even if cgo or swig is in use,
+    which will in turn make it reasonable for vet checks to insist on type
+    information. It also fixes vet's understanding of unusual import paths
+    like relative paths and vendored packages.
     
-    Preserving the intended fix in https://go.googlesource.com/go/+/81ec7256072ed5e20b8827c583193258769aebc0
+    For now "go tool vet" will continue to cope without type information,
+    but the eventual plan is for "go tool vet" to query the go command for
+    what it needs, and also to be able to query alternate build systems
+    like bazel. But that's future work.
     
-    Change-Id: I600d3d7edc74ca072a066739e2ef3235877d808f
-    GitHub-Last-Rev: 14973d7c2bf4022c28ef4b4984ec3cd352c1d4d8
-    GitHub-Pull-Request: golang/go#24104
-    Reviewed-on: https://go-review.googlesource.com/96975
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #4889.
+    Fixes #12556 (if not already fixed).
+    Fixes #15182.
+    Fixes #16086.
+    Fixes #17571.
+    
+    Change-Id: I932626ee7da649b302cd269b82eb6fe5d7b9f0f2
+    Reviewed-on: https://go-review.googlesource.com/74750
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/multipart/formdata.go      |  3 +--
- src/mime/multipart/formdata_test.go | 24 ++++++++++++++++++++++++
- src/mime/multipart/multipart.go     | 10 ++++++++++
- 3 files changed, 35 insertions(+), 2 deletions(-)
+ src/cmd/dist/deps.go               |   3 --
+ src/cmd/go/go_test.go              |   4 +-
+ src/cmd/go/internal/load/pkg.go    |   2 +
+ src/cmd/go/internal/vet/vet.go     |  36 ++++++-------
+ src/cmd/go/internal/work/action.go |  48 +++++++++++++++++
+ src/cmd/go/internal/work/exec.go   | 108 ++++++++++++++++++++++++++++++++++++-
+ src/cmd/vet/all/whitelist/all.txt  |   4 --
+ 7 files changed, 177 insertions(+), 28 deletions(-)

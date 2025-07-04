@@ -1,48 +1,17 @@
-commit 1cc7be89a94951cbd1b6db669cb5a278e7aea545
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 24 11:01:38 2020 -0700
+commit 0e312f212c11b9f35fdd85bcbb6ec082bc341c17
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 11 14:34:36 2019 +1100
 
-    cmd/compile: improve generated eq algs for structs containing interfaces
+    strconv: reformat and tidy comments in example
     
-    type T struct {
-        s interface{}
-        i int
-    }
+    Apply the suggestions made in the too-late review of
+            golang.org/cl/137215
+    to move the comments to a separate line and use proper
+    punctuation.
     
-    Prior to this change, we generated this equality algorithm for T:
-    
-    func eqT(p, q *T) bool {
-        return p.s.type == q.s.type &&
-          runtime.efaceeq(p.s.type, p.s.data, q.s.data) &&
-          p.i == q.i
-    }
-    
-    This change splits the two halves of the interface equality,
-    so that we can do the cheap (type) half early and the expensive
-    (data) half late. We now generate:
-    
-    func eqT(p, q *T) bool {
-        return p.s.type == q.s.type &&
-          p.i == q.i &&
-          runtime.efaceeq(p.s.type, p.s.data, q.s.data)
-    }
-    
-    The generated code tends to be a bit smaller. Examples:
-    
-    go/ast
-    .eq."".ForStmt 306 -> 304  (-0.65%)
-    .eq."".TypeAssertExpr 221 -> 219  (-0.90%)
-    .eq."".TypeSwitchStmt 228 -> 226  (-0.88%)
-    .eq."".ParenExpr 150 -> 148  (-1.33%)
-    .eq."".IndexExpr 221 -> 219  (-0.90%)
-    .eq."".SwitchStmt 228 -> 226  (-0.88%)
-    .eq."".RangeStmt 334 -> 332  (-0.60%)
-    
-    Change-Id: Iec9e24f214ca772416202b9fb9252e625c22380e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230207
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If2b4e5ce8af8c78fa51280d5c87c852a76dae459
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206125
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/alg.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/strconv/example_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,22 +1,23 @@
-commit 17e6252c051e09a3a433620182fc54952a402d73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 10 21:32:04 2020 -0800
+commit 2df5cdbadf5fbcb23f017c9f00b75dc341a69adf
+Author: Jerrin Shaji George <jerrinsg@gmail.com>
+Date:   Mon Oct 7 12:27:33 2019 -0700
 
-    cmd/compile/internal/syntax: improved scanner tests
+    runtime: make nanotime use monotonic clock in Solaris
     
-    This is one of several changes that were part of a larger rewrite
-    which I made in early 2019 after switching to the new number literal
-    syntax implementation. The purpose of the rewrite was to simplify
-    reading of source code (Unicode character by character) and speed up
-    the scanner but was never submitted for review due to other priorities.
+    nanotime() currently uses the REALTIME clock to get the elapsed
+    time in Solaris. This commit changes it to use the MONOTONIC clock
+    instead, similar to how it's done in Linux and other OSs. Also changed
+    nanotime() and walltime() to call clock_gettime() library function
+    directly from Go code rather than from assembly.
     
-    Part 1 of 3:
+    Fixes #33674
     
-    This change contains improvements to the scanner tests.
-    
-    Change-Id: Iecfcaef00fdeb690b0db786edbd52e828417141b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221601
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie4a687b17d2140998ecd97af6ce048c86cf5fc02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199502
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/cmd/compile/internal/syntax/scanner_test.go | 151 +++++++++++++++---------
- 1 file changed, 97 insertions(+), 54 deletions(-)
+ src/runtime/os3_solaris.go      | 15 +++++++++++++--
+ src/runtime/sys_solaris_amd64.s | 40 ----------------------------------------
+ src/runtime/timestub2.go        |  1 +
+ 3 files changed, 14 insertions(+), 42 deletions(-)

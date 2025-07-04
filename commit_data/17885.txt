@@ -1,12 +1,19 @@
-commit 49f6415b956a79472dd0fbc6e6c8ed9004d66f8c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 15 11:01:54 2013 -0800
+commit 7dd086e52d237eaf46e88c723ba61d6a835ef1d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 13 21:29:19 2013 -0500
 
-    C: add Marko Mikulicic (Google CLA)
+    encoding/gob: do not use MarshalText, UnmarshalText
     
-    R=golang-dev, crawshaw
+    This seems to be the best of a long list of bad ways to fix this issue.
+    
+    Fixes #6760.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/27000043
+    https://golang.org/cl/22770044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.2.html                         |  3 ++-
+ src/pkg/encoding/gob/doc.go            | 12 ++++++------
+ src/pkg/encoding/gob/gobencdec_test.go | 15 +++++++++++++++
+ src/pkg/encoding/gob/type.go           | 15 +++++++++++----
+ 4 files changed, 34 insertions(+), 11 deletions(-)

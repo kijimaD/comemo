@@ -1,20 +1,20 @@
-commit 585590549a3c6e26e7963081e11478a1913744a6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 15 22:59:36 2016 +0000
+commit 65c4b55aba2ccbc26fcd143c29f6014b91616897
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 17:28:07 2016 -0800
 
-    net/http: add Transport.Dialer, plumb RoundTrip contexts to net package
+    cmd/compile: convert subr, swt, typecheck to nodeSeq
     
-    This simply connects the contexts, pushing them down the call stack.
-    Future CLs will utilize them.
+    Passes toolstash -cmp.
     
-    For #12580 (http.Transport tracing/analytics)
-    Updates #13021
+    Update #14473.
     
-    Change-Id: I5b2074d6eb1e87d79a767fc0609c84e7928d1a16
-    Reviewed-on: https://go-review.googlesource.com/22124
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I836197810405cde72cbb49fef7e163a517601f9c
+    Reviewed-on: https://go-review.googlesource.com/20242
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/transport.go | 28 ++++++++++++++++++++--------
- 1 file changed, 20 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       |  10 +-
+ src/cmd/compile/internal/gc/subr.go      |  56 +++---
+ src/cmd/compile/internal/gc/swt.go       | 128 ++++++------
+ src/cmd/compile/internal/gc/syntax.go    |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go | 334 ++++++++++++++-----------------
+ 5 files changed, 254 insertions(+), 278 deletions(-)

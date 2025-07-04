@@ -1,25 +1,28 @@
-commit 83b36ffb108cc6e6cc3282b94c090f70100b5ef0
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Sep 19 09:09:55 2021 -0700
+commit 77365c5ed739f4882020ff76b2a4f5bfe4e8fc9d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 06:43:38 2021 -0800
 
-    cmd/compile: implement constant rotates on arm64
+    [dev.regabi] cmd/compile: add Name.Canonical and move Byval
     
-    Explicit constant rotates work, but constant arguments to
-    bits.RotateLeft* needed the additional rule.
+    There's a bunch of code that wants to map closure variables back to
+    their original name, so add a single Name.Canonical method that they
+    can all use.
     
-    Fixes #48465
+    Also, move the Byval flag from being stored on individual closure
+    variables to being stored on the canonical variable.
     
-    Change-Id: Ia7544f21d0e7587b6b6506f72421459cd769aea6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350909
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ia3ef81af5a15783d09f04b4e274ce33df94518e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281541
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules   |  3 ++-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
- src/cmd/compile/internal/ssa/rewriteARM.go   | 33 ++++++++++++++---------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 40 ++++++++++++++++++++++++++++
- test/codegen/rotate.go                       | 19 +++++++++++--
- 5 files changed, 82 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  5 +----
+ src/cmd/compile/internal/escape/escape.go  | 20 ++++----------------
+ src/cmd/compile/internal/ir/expr.go        | 11 +++--------
+ src/cmd/compile/internal/ir/name.go        | 29 +++++++++++++++++++++++++++--
+ src/cmd/compile/internal/typecheck/func.go |  4 ++--
+ 5 files changed, 37 insertions(+), 32 deletions(-)

@@ -1,34 +1,18 @@
-commit f88c3b9f4d087895c3eab5ac4dd8459c76d0d0d8
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Jan 19 14:46:58 2022 -0800
+commit 7735ec96c17f0aa8b27c64d82115755e29214164
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 21 02:01:51 2021 +0700
 
-    cmd/compile: distinguish bound calls/field access in getInstInfo
+    cmd/compile: remove ir.OSTMTEXPR op
     
-    Given we have support for field access to type params with a single
-    structural type, we need to distinguish between methods calls and field
-    access when we have an OXDOT node on an expression which is a typeparam
-    (or correspondingly a shape). We were missing checks in getInstInfo,
-    which figures out the dictionary format, which then caused problems when
-    we generate the dictionaries. We don't need/want dictionary entries for
-    field access, only for bound method calls. Added a new function
-    isBoundMethod() to distinguish OXDOT nodes which are bound calls vs.
-    field accesses on a shape.
+    It is not used anywhere.
     
-    Removed isShapeDeref() - we can't have field access or method call on a
-    pointer to variable of type param type.
-    
-    Fixes #50690
-    
-    Change-Id: Id692f65e6f427f28cd2cfe474dd30e53c71877a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379674
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2b8d64902e16893ab5e1b84943f6d865c6e9c7bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311950
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 54 +++++++++++++++------------
- test/typeparam/issue50690a.go             | 62 +++++++++++++++++++++++++++++++
- test/typeparam/issue50690a.out            |  1 +
- test/typeparam/issue50690b.go             | 41 ++++++++++++++++++++
- test/typeparam/issue50690b.out            |  1 +
- test/typeparam/issue50690c.go             | 36 ++++++++++++++++++
- test/typeparam/issue50690c.out            |  1 +
- 7 files changed, 173 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/ir/node.go      |  1 -
+ src/cmd/compile/internal/ir/op_string.go | 87 ++++++++++++++++----------------
+ 2 files changed, 43 insertions(+), 45 deletions(-)

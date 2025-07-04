@@ -1,26 +1,20 @@
-commit 26b6833308548f78a0926309c3acf7fd59b287f5
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Oct 6 13:51:21 2021 -0400
+commit 813958f13cee9b2e7587f173e7a5e6cc9ff51850
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 4 12:10:02 2021 -0500
 
-    go/types: export TypeParam.Index and remove TypeParam._SetId
+    [dev.regabi] go/types: factor out sorting of methods
     
-    This change resolves a TODO regarding a couple uncertain APIs for
-    types.TypeParam. In the case of TypeParam._Index, we've decided it is
-    worth exporting. In the case of TypeParam._SetId, we've decided it is
-    unnecessary.
+    This is a port of CL 285993 to go/types.
     
-    This aligns go/types with types2 (a doc comment in types2 is also
-    updated).
-    
-    Updates #47916
-    
-    Change-Id: I705e8b3437d014775c473e2f8be6f32b1540bb0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354370
+    Change-Id: I7560cf1176fea5de2c54786a086e547c73294a60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289717
     Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/typeparam.go |  3 ++-
- src/go/types/typeparam.go                    | 13 +++----------
- 2 files changed, 5 insertions(+), 11 deletions(-)
+ src/go/types/predicates.go |  6 ++----
+ src/go/types/type.go       |  8 +++-----
+ src/go/types/typexpr.go    | 21 +++++++++++++++++++--
+ 3 files changed, 24 insertions(+), 11 deletions(-)

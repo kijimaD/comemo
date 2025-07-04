@@ -1,25 +1,22 @@
-commit 9c55792cf1bfa3cd26f9df99f8a251fa1cf3c3b7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 23 12:20:18 2015 -0400
+commit 5250279eb9a167cffbb667efed970067b47f71ac
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 18:14:57 2015 -0400
 
-    go/build: update deps list
+    runtime: detect and print corrupted free lists
     
-    A while back we discovered that the dependencies test allowed
-    arbitrary dependencies for packages we forgot to list.
-    To stop the damage we added a grandfathered list and fixed
-    the code to expect unlisted packages to have no dependencies.
+    Issues #10240, #10541, #10941, #11023, #11027 and possibly others are
+    indicating memory corruption in the runtime. One of the easiest places
+    to both get corruption and detect it is in the allocator's free lists
+    since they appear throughout memory and follow strict invariants. This
+    commit adds a check when sweeping a span that its free list is sane
+    and, if not, it prints the corrupted free list and panics. Hopefully
+    this will help us collect more information on these failures.
     
-    This CL replaces the grandfathered list with some more
-    careful placement of dependency rules.
-    
-    Thankfully, there were no terrible inversions.
-    
-    Fixes #10487.
-    
-    Change-Id: I5a6f92435bd2c66c47ec8ab629edbd88b189f028
-    Reviewed-on: https://go-review.googlesource.com/12575
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I6d417bcaeedf654943a5e068bd76b58bb02d4a64
+    Reviewed-on: https://go-review.googlesource.com/10713
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/go/build/deps_test.go | 146 +++++++++++++++++++++++-----------------------
- 1 file changed, 72 insertions(+), 74 deletions(-)
+ src/runtime/mgcsweep.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

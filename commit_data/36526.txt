@@ -1,17 +1,42 @@
-commit 289dce24c173fa2e87db83caa675c964c403553f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 29 14:49:42 2018 -0400
+commit 4a1baf8bd11c8804a22aa8364028ce8d81b6e1f3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 27 08:50:39 2018 -0700
 
-    test: fix nosplit test on 386
+    cmd/compile: optimize a - b == 0 into a == b
     
-    The 120->124 change in https://go-review.googlesource.com/c/go/+/61511/21/test/nosplit.go#143
-    looks accidental. Change back to 120.
+    These rules trigger 1141 times during make.bash.
     
-    Change-Id: I1690a8ae2d32756ba05544d2ed1baabfa64e1704
-    Reviewed-on: https://go-review.googlesource.com/131958
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Shrinks a few object files a tiny bit:
+    
+    name        old object-bytes  new object-bytes  delta
+    Template          476kB ± 0%        476kB ± 0%  +0.00%  (p=0.008 n=5+5)
+    Unicode           218kB ± 0%        218kB ± 0%    ~     (all equal)
+    GoTypes          1.58MB ± 0%       1.58MB ± 0%    ~     (all equal)
+    Compiler         6.25MB ± 0%       6.25MB ± 0%  -0.00%  (p=0.008 n=5+5)
+    Flate             304kB ± 0%        304kB ± 0%  -0.01%  (p=0.008 n=5+5)
+    GoParser          370kB ± 0%        370kB ± 0%    ~     (all equal)
+    Reflect          1.27MB ± 0%       1.27MB ± 0%    ~     (all equal)
+    Tar               421kB ± 0%        421kB ± 0%  -0.05%  (p=0.008 n=5+5)
+    XML               518kB ± 0%        518kB ± 0%    ~     (all equal)
+    
+    archive/tar benchmarks:
+    
+    name             old time/op    new time/op    delta
+    /Writer/USTAR-8    3.97µs ± 1%    3.88µs ± 0%  -2.26%  (p=0.000 n=26+26)
+    /Writer/GNU-8      4.67µs ± 0%    4.54µs ± 1%  -2.72%  (p=0.000 n=28+27)
+    /Writer/PAX-8      8.20µs ± 0%    8.01µs ± 0%  -2.32%  (p=0.000 n=29+29)
+    /Reader/USTAR-8    3.61µs ± 0%    3.54µs ± 1%  -2.04%  (p=0.000 n=25+28)
+    /Reader/GNU-8      2.27µs ± 2%    2.17µs ± 0%  -4.08%  (p=0.000 n=30+28)
+    /Reader/PAX-8      7.75µs ± 0%    7.63µs ± 0%  -1.60%  (p=0.000 n=28+28)
+    [Geo mean]         4.61µs         4.50µs       -2.51%
+    
+    Change-Id: Ib4dfade5069a7463ccaba073ea91c8213e9714a0
+    Reviewed-on: https://go-review.googlesource.com/110235
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/nosplit.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 432 +++++++++++++++++++++++++
+ 2 files changed, 435 insertions(+)

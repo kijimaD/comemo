@@ -1,19 +1,18 @@
-commit 503091a77c43263a5ce86f9358de3445524627b7
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Nov 28 13:38:02 2018 +0100
+commit 48462bb3c04f34c93689c047d4bc5319bc79b31b
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:36:55 2018 +0300
 
-    cmd: improve aix/ppc64 new symbol addressing
+    html/template: use named consts instead of their values
     
-    This commit updates the new symbol addressing made for aix/ppc64 according
-    to feedbacks given in CL 151039.
+    Use defined named constants instead of 0 literal in comparisons.
     
-    Change-Id: Ic4eb9943dc520d65f7d084adf8fa9a2530f4d3f9
-    Reviewed-on: https://go-review.googlesource.com/c/151302
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Found using https://go-critic.github.io/overview.html#namedConst-ref
+    
+    Change-Id: Ic075cece248f6e51db0b3d9d9eaba7d6409c9eef
+    Reviewed-on: https://go-review.googlesource.com/123376
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 12 +++++++-----
- src/cmd/internal/obj/ppc64/obj9.go |  1 +
- src/cmd/link/internal/ppc64/asm.go |  9 ++++++++-
- 3 files changed, 16 insertions(+), 6 deletions(-)
+ src/html/template/context.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

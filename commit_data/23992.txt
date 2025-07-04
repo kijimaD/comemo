@@ -1,38 +1,21 @@
-commit e8be9a170c3044d7460a6b2c8349a723b1a21dd2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 5 21:45:30 2015 -0400
+commit 258bf65d8b157bfe311ce70c93dd854022a25c9d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 23 21:40:33 2015 +0900
 
-    net/url: do not percent-encode valid host characters
+    net: relax IP interface address determination on linux
     
-    The code in question was added as part of allowing zone identifiers
-    in IPv6 literals like http://[ipv6%zone]:port/foo, in golang.org/cl/2431.
+    Linux allows to have a peer IP address on IP interface over ethernet
+    link encapsulation, though it only installs a static route with the peer
+    address as an on-link nexthop.
     
-    The old condition makes no sense. It refers to §3.2.1, which is the wrong section
-    of the RFC, it excludes all the sub-delims, which §3.2.2 (the right section)
-    makes clear are valid, and it allows ':', which is not actually valid,
-    without an explanation as to why (because we keep :port in the Host field
-    of the URL struct).
+    Fixes #11338.
     
-    The new condition allows all the sub-delims, as specified in RFC 3986,
-    plus the additional characters [ ] : seen in IP address literals and :port suffixes,
-    which we also keep in the Host field.
-    
-    This allows mysql://a,b,c/path to continue to parse, as it did in Go 1.4 and earlier.
-    
-    This CL does not break any existing tests, suggesting the over-conservative
-    behavior was not intended and perhaps not realized.
-    
-    It is especially important not to over-escape the host field, because
-    Go does not unescape the host field during parsing: it rejects any
-    host field containing % characters.
-    
-    Fixes #12036.
-    
-    Change-Id: Iccbe4985957b3dc58b6dfb5dcb5b63a51a6feefb
-    Reviewed-on: https://go-review.googlesource.com/13254
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Ie2583737e4c7cec39baabb89dd732463d3f10a61
+    Reviewed-on: https://go-review.googlesource.com/11352
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/url.go      | 23 ++++++++++++-----------
- src/net/url/url_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 11 deletions(-)
+ src/net/interface_bsd_test.go   |  4 +---
+ src/net/interface_linux.go      | 14 ++++++-------
+ src/net/interface_linux_test.go | 28 +++++++++++++++----------
+ src/net/interface_unix_test.go  | 45 +++++++++++++++++++++++++++++------------
+ 4 files changed, 56 insertions(+), 35 deletions(-)

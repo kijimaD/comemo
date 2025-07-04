@@ -1,15 +1,13 @@
-commit f80d8fbcf0851959c047d55d0b31bbeb256a9f0c
-Author: Miki Tebeka <miki.tebeka@gmail.com>
-Date:   Thu Oct 6 09:58:36 2011 -0700
+commit cd80d04c5ce8e0e47e3bb6a32b4868076818b369
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 6 09:54:39 2011 -0700
 
-    testing: Add support for running tests in parallel (t.Parallel API).
+    C+A: Miki Tebeka miki.tebeka@gmail.com
     
-    See discussion at https://groups.google.com/d/topic/golang-dev/RAKiqi44GEU/discussion
-    
-    R=golang-dev, bradfitz, dvyukov, rogpeppe, r, r, borman
-    CC=golang-dev
-    https://golang.org/cl/5071044
+    R=golang-dev, gri
+    CC=golang-dev, miki.tebeka
+    https://golang.org/cl/5225042
 
- src/cmd/gotest/flag.go     |   2 +
- src/pkg/testing/testing.go | 104 ++++++++++++++++++++++++++++++---------------
- 2 files changed, 72 insertions(+), 34 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

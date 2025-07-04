@@ -1,0 +1,15 @@
+commit 7008859ae15f112c2c69eaefab083b268d373d84
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 14 13:22:07 2024 +0200
+
+    os: use internal/byteorder
+    
+    Change-Id: Ic88535f05a55966e35e5da7abb499aa5fadb5cc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/dir_unix.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

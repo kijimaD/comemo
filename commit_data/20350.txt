@@ -1,14 +1,25 @@
-commit 3a3d47db370805205181da8f96ebf79c3507e953
+commit 3306d119b07e5b8b51a8ee5502bec859e62a5835
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 8 12:33:08 2014 -0700
+Date:   Tue Sep 2 14:33:33 2014 -0700
 
-    runtime: merge panic1.go back into panic.go
+    runtime: unify fastrand1 and fastrand2
     
-    LGTM=rsc
-    R=rsc
+    C and Go calling conventions are now compatible, so we
+    don't need two versions of this function.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/139370043
+    https://golang.org/cl/139080043
 
- src/runtime/panic.go  | 202 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/panic1.go | 209 --------------------------------------------------
- 2 files changed, 202 insertions(+), 209 deletions(-)
+ src/pkg/runtime/alg.go         |  4 ++--
+ src/pkg/runtime/asm_386.s      |  2 +-
+ src/pkg/runtime/asm_amd64.s    |  2 +-
+ src/pkg/runtime/asm_amd64p32.s |  2 +-
+ src/pkg/runtime/asm_arm.s      |  2 +-
+ src/pkg/runtime/hashmap.go     |  4 ++--
+ src/pkg/runtime/malloc.go      |  2 +-
+ src/pkg/runtime/runtime.c      | 13 -------------
+ src/pkg/runtime/select.go      |  2 +-
+ src/pkg/runtime/stubs.go       |  3 ---
+ 10 files changed, 10 insertions(+), 26 deletions(-)

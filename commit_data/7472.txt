@@ -1,15 +1,14 @@
-commit 1a96391971572b5d7b210559b99f6e2330c11af9
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Feb 16 08:14:41 2011 -0800
+commit a54cbcec88ed750c42e48793b1f0cf66cd548561
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 16 16:24:59 2011 +1100
 
-    netchan: allow use of arbitrary connections.
+    syscall: implement chmod() for win32.
     
-    R=r, r2, rsc
+    R=golang-dev, rsc, brainman
     CC=golang-dev
-    https://golang.org/cl/4119055
+    https://golang.org/cl/4175049
 
- src/pkg/netchan/common.go       |  15 +++--
- src/pkg/netchan/export.go       |  50 ++++++++------
- src/pkg/netchan/import.go       |  39 +++++------
- src/pkg/netchan/netchan_test.go | 146 ++++++++--------------------------------
- 4 files changed, 87 insertions(+), 163 deletions(-)
+ src/pkg/syscall/syscall_windows.go      | 31 ++++++++++++++++++++++++++-----
+ src/pkg/syscall/zsyscall_windows_386.go | 15 +++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   |  1 +
+ 3 files changed, 42 insertions(+), 5 deletions(-)

@@ -1,22 +1,13 @@
-commit f852034eb0e3f1397d5510b900d8c8dbf8b18746
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 28 08:53:25 2014 -0700
+commit d2165672ca8f9bf02389f02ad211ec34394cb722
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 22 22:22:16 2014 +0400
 
-    spec: move Method expr/value section near selectors
+    runtime: fix futex notes
     
-    Preparation for fixing issue 5769 (method selectors
-    do not auto-dereference): The actual fix may require
-    some cleanups in all these sections, and syntactically,
-    method expressions and method values are selector
-    expressions. Moving them next to each other so that
-    it's easy to see the actual changes (next CL).
-    
-    No content changes besides the section moves.
-    
-    LGTM=iant, rsc
-    R=r, rsc, iant, ken
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/132300043
+    https://golang.org/cl/126540043
 
- doc/go_spec.html | 455 ++++++++++++++++++++++++++++---------------------------
- 1 file changed, 228 insertions(+), 227 deletions(-)
+ src/pkg/runtime/lock_futex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

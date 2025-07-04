@@ -1,17 +1,18 @@
-commit e16ab38dc9dd788a17b989484d32dca0ef643c45
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 7 17:05:51 2015 -0800
+commit db406241107353323b5cf484d6abd05c4722a104
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 19:50:09 2014 -0500
 
-    build: increase Plan 9 timeout for runtime multi-CPU test, add temporary -v
+    [dev.garbage] runtime: raise StackGuard limit for Windows (again)
     
-    This isn't the final answer, but it will give us a clue about what's
-    going on.
+    640 bytes ought to be enough for anybody.
     
-    Update #9491
+    We'll bring this back down before Go 1.5. That's issue 9214.
     
-    Change-Id: I997f6004eb97e86a4a89a8caabaf58cfdf92a8f0
-    Reviewed-on: https://go-review.googlesource.com/2510
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TBR=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/188730043
 
- src/run.rc | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/stack.h   | 2 +-
+ src/runtime/stack2.go | 2 +-
+ test/nosplit.go       | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

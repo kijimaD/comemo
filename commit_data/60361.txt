@@ -1,0 +1,23 @@
+commit 5f319b75075a62ab176ab8c25f0e45f2ae4f0704
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 21 11:56:45 2024 -0400
+
+    cmd/link: don't let dsymutil delete our temp directory
+    
+    To work around #59026, where dsymutil may not clean up its temp
+    directory at exit, we set DSYMUTIL_REPRODUCER_PATH to our temp
+    directory so it uses that, and we can delete it at the end.
+    
+    In Xcode 16 beta, dsymutil deletes the DSYMUTIL_REPRODUCER_PATH
+    directory even if it is not empty. We still need our tmpdir at the
+    point, so give a subdirectory to dsymutil instead.
+    
+    For #68088.
+    
+    Change-Id: I18759cc39512819bbd0511793ce917eae72245d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593659
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/lib.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

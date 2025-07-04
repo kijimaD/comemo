@@ -1,17 +1,24 @@
-commit 9b57b33556e5d58807061b5b20757e88631d924b
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed May 17 16:12:42 2023 -0400
+commit 9a4685f22036b4e2577bb79dbfabd7c4e48146e3
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 22 20:57:50 2022 -0700
 
-    log/slog: add link to handler-writing guide
+    strings: avoid utf8.RuneError mangling in Split
     
-    Add a shortlink in the doc to a guide to writing handlers, which is a work
-    in progress.
+    Split should only split strings and not perform mangling
+    of invalid UTF-8 into ut8.RuneError.
+    The prior behavior is clearly a bug since mangling is not
+    performed in all other situations (e.g., separator is non-empty).
     
-    Change-Id: I1b01c90468382ffe53d9ad6f38253906e3f44857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495920
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #53511
+    
+    Change-Id: I112a2ef15ee46ddecda015ee14bca04cd76adfbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413715
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/log/slog/doc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/bytes/bytes_test.go     | 2 ++
+ src/strings/strings.go      | 7 ++-----
+ src/strings/strings_test.go | 2 ++
+ 3 files changed, 6 insertions(+), 5 deletions(-)

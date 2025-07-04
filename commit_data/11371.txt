@@ -1,14 +1,15 @@
-commit 8b60613b921364a3674f3ef4d7a373e87a9fa280
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 24 16:49:03 2012 -0800
+commit c3b9650caa7715c8961dcb5d7503b90b6dbae7cb
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Jan 25 11:42:00 2012 +1100
 
-    go/scanner: Use explicit scanner.Mode type.
+    net/http: parse CONNECT requests
     
-    R=r, bradfitz
+    Fixes #2755
+    
+    R=dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5574059
+    https://golang.org/cl/5571052
 
- src/pkg/go/parser/parser.go        |  2 +-
- src/pkg/go/scanner/scanner.go      | 12 +++++++-----
- src/pkg/go/scanner/scanner_test.go |  2 +-
- 3 files changed, 9 insertions(+), 7 deletions(-)
+ src/pkg/net/http/readrequest_test.go | 69 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/request.go          | 22 ++++++++++++
+ 2 files changed, 91 insertions(+)

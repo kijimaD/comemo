@@ -1,21 +1,17 @@
-commit 6ae378050356715a0f8a91f317030a728a89647b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 10 12:05:37 2013 -0800
+commit ddbad5ef207709ef4fed07e1deba585428588c63
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Dec 10 14:06:26 2013 -0500
 
-    test: don't rely on order of unrelated imports in bug191
+    crypto/x509: fix behaviour of KeyUsageAny.
     
-    There is no necessary relationship between the imports of the
-    packages a and b, and gccgo happens to import them in a
-    different order, leading to different output.  This ordering
-    is not the purpose of the test in any case.
+    (Reporter wasn't able to provide a certificate chain that uses this
+    feature for testing.)
     
-    R=golang-dev, rsc
+    Fixes #6831
+    
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/40400043
+    https://golang.org/cl/40340043
 
- test/fixedbugs/bug191.dir/a.go    | 4 +++-
- test/fixedbugs/bug191.dir/b.go    | 4 +++-
- test/fixedbugs/bug191.dir/main.go | 3 +++
- test/fixedbugs/bug191.go          | 2 +-
- test/fixedbugs/bug191.out         | 2 --
- 5 files changed, 10 insertions(+), 5 deletions(-)
+ src/pkg/crypto/x509/verify.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

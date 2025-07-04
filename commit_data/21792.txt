@@ -1,17 +1,13 @@
-commit 344f424007cc679dc06a25f918394b02a51e66a1
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Feb 27 19:52:11 2015 -0500
+commit 3fa90ea96468d561a527a186b032490a04936879
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 3 16:19:05 2015 -0800
 
-    os: fix tests on darwin/arm
+    cmd/go: add 9g and 9l to documentation
     
-    Tests that fork are skipped. Tests that create files do so in a
-    temporary directory, as the initial PWD is read-only. And
-    darwin/arm returns a strange mkdir error when trying to write to /.
-    
-    Change-Id: I2de661a85524300bbac226693d72142992dc188d
-    Reviewed-on: https://go-review.googlesource.com/6312
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I274c438ab168278dfbb34ada3ed9a7f7c66b66ef
+    Reviewed-on: https://go-review.googlesource.com/3834
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/os/os_test.go   | 153 +++++++++++++++++++++++++++++++++++++++++-----------
- src/os/path_test.go |   6 ++-
- 2 files changed, 127 insertions(+), 32 deletions(-)
+ src/cmd/go/build.go | 4 ++--
+ src/cmd/go/doc.go   | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

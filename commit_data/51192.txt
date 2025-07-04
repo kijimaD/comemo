@@ -1,42 +1,28 @@
-commit db259cdd80eff527e8f344d678031c516167d258
+commit c1f012a0d9b4c7bc9f2a1474f4935e53eccd1794
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 11 17:17:54 2022 -0500
+Date:   Tue Dec 14 10:49:07 2021 -0500
 
-    cmd/go: cache compiler flag info
+    cmd/compile: fix any in -G=0 mode
     
-    When you run 'go env' or any command that needs to consider
-    what the default gcc flags are (such as 'go list net' or
-    'go list <any package with net as a dependency>'),
-    the go command runs gcc (or clang) a few times to see what
-    flags are available.
+    Fixes go test -gcflags=all=-G=0 -short std,
+    except for the packages with generics in their tests
+    (constraints, encoding/xml), and except for the
+    go/internal/gcimporter and go/types tests,
+    because the compiler does not preserve any
+    in its -G=0 export information.
+    (That's probably acceptable for now.)
     
-    These runs can be quite expensive on some systems, particularly
-    Macs that seem to need to occasionally cache something before
-    gcc/clang can execute quickly.
+    Fixes cd test/; GO_BUILDER_NAME=longtest go run run.go
+    completely, which should fix the longtest builder.
     
-    To fix this, cache the derived information about gcc under a cache
-    key derived from the size and modification time of the compiler binary.
-    This is not foolproof, but it should be good enough.
+    Fixes #50159.
     
-    % go install cmd/go
-    % time go env >/dev/null
-            0.22 real         0.01 user         0.01 sys
-    % time go env >/dev/null
-            0.03 real         0.01 user         0.01 sys
-    %
-    
-    Fixes #50982.
-    
-    Change-Id: Iba7955dd10f610f2793e1accbd2d06922f928faa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392454
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I9390972239c18831833edd6530191da2842b876b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371715
+    Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/envcmd/env.go        |   1 +
- src/cmd/go/internal/work/action.go       |  11 +-
- src/cmd/go/internal/work/buildid.go      |  34 +++---
- src/cmd/go/internal/work/exec.go         | 186 ++++++++++++++++++++++++++-----
- src/cmd/go/testdata/script/env_cache.txt |   5 +
- 5 files changed, 189 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/types/universe.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

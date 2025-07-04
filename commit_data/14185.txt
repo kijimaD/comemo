@@ -1,20 +1,13 @@
-commit c1b7ddc6aa476340e9f1d61edc83102e87fc8f9b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Oct 22 01:08:13 2012 +0800
+commit 0ae408eb727e8abf25cd7e7001422dc7684c16f6
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Oct 21 14:20:17 2012 +1100
 
-    runtime: update docs for MemStats.PauseNs
-       PauseNs is a circular buffer of recent pause times, and the
-    most recent one is at [((NumGC-1)+256)%256].
+    A+C: add Willem van der Schyff (Individual CLA).
     
-       Also fix comments cross-linking the Go and C definition of
-    various structs.
-    
-    R=golang-dev, rsc, bradfitz
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/6657047
+    https://golang.org/cl/6733047
 
- src/pkg/runtime/malloc.goc | 2 +-
- src/pkg/runtime/malloc.h   | 2 +-
- src/pkg/runtime/mem.go     | 5 ++++-
- src/pkg/runtime/mprof.goc  | 3 +--
- 4 files changed, 7 insertions(+), 5 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

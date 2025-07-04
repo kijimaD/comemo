@@ -1,34 +1,21 @@
-commit 3b456ff42137df2b89295ede29c915d43c10b538
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Feb 20 17:05:04 2025 -0800
+commit 4aaa550ff5916ed9fbdf7a90d85237169402cad5
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Fri Feb 2 19:20:06 2024 +0000
 
-    crypto/x509,ecoding/asn1: better handling of weird encodings
+    cmd: vendor version error message changes from x/mod
     
-    For various cursed reasons we need to support the BMPString and
-    T61String ASN.1 string encodings. These types use the defunct UCS-2 and
-    T.61 character encodings respectively.
+    For golang/go#61888
     
-    This change rejects some characters when decoding BMPStrings which are
-    not valid in UCS-2, and properly parses T61Strings instead of treating
-    them as plain UTF-8.
-    
-    While still not perfect, this matches the behavior of most other
-    implementations, particularly BoringSSL. Ideally we'd just remove
-    support for these ASN.1 types (particularly in crypto/x509, where we
-    don't actually expose any API), but doing so is likely to break some
-    deploy certificates which unfortunately still use these types in DNs,
-    despite them being deprecated since 1999/2002.
-    
-    Fixes #71862
-    
-    Change-Id: Ib8f392656a35171e48eaf71a200be6d7605b2f02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651275
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: I254fe559f25ac643e842a935954d18744ae87b0b
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560855
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/crypto/x509/parser.go      | 35 +++++++++++++++++++++++++++++++--
- src/crypto/x509/parser_test.go | 28 +++++++++++++++++++++++++--
- src/encoding/asn1/asn1.go      | 37 ++++++++++++++++++++++++++++++++---
- src/encoding/asn1/asn1_test.go | 44 ++++++++++++++++++++++++++----------------
- 4 files changed, 120 insertions(+), 24 deletions(-)
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  4 +--
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go |  7 ++--
+ src/cmd/vendor/golang.org/x/mod/sumdb/client.go | 47 +------------------------
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 5 files changed, 9 insertions(+), 53 deletions(-)

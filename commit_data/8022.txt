@@ -1,12 +1,13 @@
-commit 0ada4a2d627ac84d6ff22d0b6e51a868a62fbf89
+commit 1baffa7da0b70cfc4a85fe319bb1f6b3dfa14d74
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 7 22:10:39 2011 -0700
+Date:   Thu Apr 7 21:42:30 2011 -0700
 
-    go/types: fix build: use the right compiler to compile test case
+    gotype: use go/types GcImporter
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4369050
+    https://golang.org/cl/4358043
 
- src/pkg/go/types/gcimporter_test.go | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/cmd/gotype/gotype.go      | 70 ++-----------------------------------------
+ src/cmd/gotype/gotype_test.go | 12 ++------
+ 2 files changed, 4 insertions(+), 78 deletions(-)

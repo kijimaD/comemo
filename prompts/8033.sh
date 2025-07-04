@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8033: 68ed122bf98c912fbd04fd8599106851725e8e06
+# Index 8033: d26e73646efed315597bb70cfb3233a68597ca9a
 
 echo "🚀 Generating explanation for commit 8033..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8033
-- **コミットハッシュ**: 68ed122bf98c912fbd04fd8599106851725e8e06
-- **GitHub URL**: https://github.com/golang/go/commit/68ed122bf98c912fbd04fd8599106851725e8e06
+- **コミットハッシュ**: d26e73646efed315597bb70cfb3233a68597ca9a
+- **GitHub URL**: https://github.com/golang/go/commit/d26e73646efed315597bb70cfb3233a68597ca9a
 
 ### 章構成
 

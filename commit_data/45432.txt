@@ -1,15 +1,26 @@
-commit f7c6f6210be16d6ecfdece7c283fcd4ddc28b151
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 27 14:57:11 2021 -0400
+commit 05b6118139d880a5bced23da9d07bdb0db8e7084
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Thu Jun 4 16:59:06 2020 +0200
 
-    cmd/link: test trampolines with cgo
+    debug/dwarf: add support for DWARFv5 to (*Data).Ranges
     
-    Updates #40492, #30949.
+    Updates the (*Data).Ranges method to work with DWARFv5 which uses the
+    new debug_rnglists section instead of debug_ranges.
     
-    Change-Id: I6d7923ac83275c5ab08958f7a501f7975aea151a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314456
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    This does not include supporting DW_FORM_rnglistx.
+    
+    General support for DWARFv5 was added by CL 175138.
+    
+    Change-Id: I01f919a865616a3ff12f5bf649c2c9abf89fcf52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236657
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/link/link_test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
+ src/debug/dwarf/const.go                |  12 ++
+ src/debug/dwarf/dwarf5ranges_test.go    |  36 +++++
+ src/debug/dwarf/entry.go                | 234 ++++++++++++++++++++++++--------
+ src/debug/dwarf/open.go                 |  94 ++++++++++++-
+ src/debug/dwarf/testdata/debug_rnglists | Bin 0 -> 23 bytes
+ 5 files changed, 317 insertions(+), 59 deletions(-)

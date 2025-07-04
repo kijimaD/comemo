@@ -1,16 +1,14 @@
-commit 80f575b78fceeba3ab5ec5a5f08b26725734b341
-Author: Aamir Khan <syst3m.w0rm@gmail.com>
-Date:   Wed Apr 22 19:24:48 2015 +0900
+commit bd09279c3fbe7617800da740103093fa75af522e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 17:48:08 2015 -0700
 
-    hash/crc32: clarify documentation
+    go/ast: fix ast.Inspect doc string
     
-    Explicitly specify that we represent polynomial in reversed notation
+    Fixes #10243.
     
-    Fixes #8229
-    
-    Change-Id: Idf094c01fd82f133cd0c1b50fa967d12c577bdb5
-    Reviewed-on: https://go-review.googlesource.com/9237
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I06ac53628980853faecbf1a57ff71b88098d65f2
+    Reviewed-on: https://go-review.googlesource.com/8382
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/hash/crc32/crc32.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/go/ast/walk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

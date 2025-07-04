@@ -1,23 +1,29 @@
-commit 202807789946a8f3f415bf00007ee100cf3ec710
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 1 14:12:31 2015 -0400
+commit df2809f04e6df31e2b36bac08704d8f27e04a0ad
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 29 12:13:50 2015 -0400
 
-    runtime: randomize scheduling in -race mode
+    runtime: document that runtime.GC() blocks until GC is complete
     
-    Basic randomization of goroutine scheduling for -race mode.
-    It is probably possible to do much better (there's a paper linked
-    in the issue that I haven't read, for example), but this suffices
-    to introduce at least some unpredictability into the scheduling order.
-    The goal here is to have _something_ for Go 1.5, so that we don't
-    start hitting more of these scheduling order-dependent bugs
-    if we change the scheduler order again in Go 1.6.
+    runtime.GC() is intentionally very weakly specified. However, it is so
+    weakly specified that it's difficult to know that it's being used
+    correctly for its one intended use case: to ensure garbage collection
+    has run in a test that is garbage-sensitive. In particular, it is
+    unclear whether it is synchronous or asynchronous. In the old STW
+    collector this was essentially self-evident; short of queuing up a
+    garbage collection to run later, it had to be synchronous. However,
+    with the concurrent collector, there's evidence that people are
+    inferring that it may be asynchronous (e.g., issue #10986), as this is
+    both unclear in the documentation and possible in the implementation.
     
-    For #11372.
+    In fact, runtime.GC() runs a fully synchronous STW collection. We
+    probably don't want to commit to this exact behavior. But we can
+    commit to the essential property that tests rely on: that runtime.GC()
+    does not return until the GC has finished.
     
-    Change-Id: Idf1154123fbd5b7a1ee4d339e93f97635cc2bacb
-    Reviewed-on: https://go-review.googlesource.com/11795
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ifc3045a505e1898ecdbe32c1f7e80e2e9ffacb5b
+    Reviewed-on: https://go-review.googlesource.com/10488
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/proc1.go           | 22 +++++++++++++++++++
- src/runtime/race/sched_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+)
+ src/runtime/mgc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

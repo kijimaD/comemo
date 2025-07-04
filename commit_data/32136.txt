@@ -1,23 +1,16 @@
-commit 254f8ea9eafd1678e178b3292a00b8aca517a864
-Author: Wei Congrui <crvv.mail@gmail.com>
-Date:   Sat Jul 29 18:23:00 2017 +0800
+commit ff3a4ef7ecabc651400e7b195c46739f6ad4b5e7
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Apr 7 09:09:17 2017 +0200
 
-    crypto/{aes,cipher,rc4}: fix out of bounds write in stream ciphers
+    cmd/compile: reduce reliance on implementation details of Mpint
     
-    Functions XORKeyStream should panic if len(dst) < len(src), but it
-    write to dst before bounds checking. In asm routines and fastXORBytes,
-    this is an out of bounds write.
-    
-    Fixes #21104
-    
-    Change-Id: I354346cda8d63910f3bb619416ffd54cd0a04a0b
-    Reviewed-on: https://go-review.googlesource.com/52050
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifdc41f6c77c83d22b9ad8811280f1e1db051c781
+    Reviewed-on: https://go-review.googlesource.com/39951
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/aes/ctr_s390x.go   |  4 +++
- src/crypto/cipher/xor.go      |  9 +++++--
- src/crypto/issue21104_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++
- src/crypto/rc4/rc4_asm.go     |  2 ++
- 4 files changed, 74 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go    |  9 +++++----
+ src/cmd/compile/internal/gc/mpfloat.go  |  2 +-
+ src/cmd/compile/internal/gc/swt_test.go | 10 +++++++---
+ 3 files changed, 13 insertions(+), 8 deletions(-)

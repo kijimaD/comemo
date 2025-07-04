@@ -1,21 +1,19 @@
-commit 0bbd05b8262624bb8e8aea43fa76934fbff8fc81
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Sat Mar 26 02:10:29 2022 +0000
+commit ab2ef4aaa77dff91cd98ded88aeba0bf5b5b2e80
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 18:06:26 2021 -0700
 
-    time: add Duration.Abs
+    doc/go1.17: document reflect changes
     
-    Fixes #51414
+    For #44513.
+    Fixes #46019.
     
-    Change-Id: Ia3b1674f2a902c8396fe029397536643a3bc1784
-    GitHub-Last-Rev: 67159648af09e7a8ac2825a1fe71b2de3fb9d748
-    GitHub-Pull-Request: golang/go#51739
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393515
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ica84edd5703a4ccf343ff01e10483f8d51d1c79f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323069
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- api/next/51414.txt    |  1 +
- src/time/time.go      | 13 +++++++++++++
- src/time/time_test.go | 24 ++++++++++++++++++++++++
- 3 files changed, 38 insertions(+)
+ doc/go1.17.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

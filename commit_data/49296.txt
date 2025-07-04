@@ -1,17 +1,36 @@
-commit 22a3209bc6efd5cc54da57f6125b91a32b6250b0
-Author: Wang Deyu <wangdeyu.2021@bytedance.com>
-Date:   Mon May 16 22:37:26 2022 +0800
+commit 9f4d6a83594a04f0fc82c33f373b7e7bcf64f7f2
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Aug 6 13:24:14 2021 -0700
 
-    runtime: update description of GODEBUG=scavtrace=1
+    [dev.typeparams] cmd/compile: call transformArgs before early typecheckaste in noder
     
-    For #48409.
+    In the cases where we do an early call to typecheckaste() in noder to
+    expose CONVIFACE nodes, we need a preceding call to transformArgs().
+    This is needed to allow typecheckaste() to run correctly, in the case of
+    f(g()), where g has multiple return values.
     
-    Change-Id: I056afcdbc417ce633e48184e69336213750aae28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406575
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    I also cleaned up the code a bit and commented the code in Call(), and
+    we do the call to typecheckaste() in several more cases.
+    
+    In stencil.go:stencil(), I moved the transformCall earlier for the
+    OCALLMETH/ODOTMETH case, just as I did in my previous CL for
+    OCALL/OFUNCINST. By doing this, transformArgs no longer needs to deal
+    with the extra dictionary args. Therefore, I was able to simply
+    transformArgs() to look like typecheckargs() again, and make use of
+    RewriteMultiValue directly.
+    
+    Updates #47514
+    
+    Change-Id: I49eb82ac05707e50c2e2fb03e39458a70491d406
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340531
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/extern.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go   | 45 +++++++++----------
+ src/cmd/compile/internal/noder/stencil.go   | 11 +++--
+ src/cmd/compile/internal/noder/stmt.go      |  1 +
+ src/cmd/compile/internal/noder/transform.go | 70 ++++-------------------------
+ test/typeparam/issue47514b.go               | 19 ++++++++
+ 5 files changed, 55 insertions(+), 91 deletions(-)

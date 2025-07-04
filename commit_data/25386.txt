@@ -1,12 +1,20 @@
-commit 6766a293ef1719a4b15f804b177b86e631e1eee5
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Dec 29 17:52:33 2015 +0900
+commit fb7178e7cc219062efe7d5da5df4f85b01b0f8ac
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Oct 23 14:49:56 2015 -0700
 
-    os: add missing copyright notice
+    runtime: copy sqrt normalization bugfix from math
     
-    Change-Id: I496b701e2fcc944c764002643c7b0b2ce9e08806
-    Reviewed-on: https://go-review.googlesource.com/18182
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    This copies the change from CL 16158 (applied as
+    22d4c8bf13d5edf4670dbdaf0854d653d9c2b81a).
+    
+    Updates #13013
+    
+    Change-Id: Id7d02e63d92806f06a4e064a91b2fb6574fe385f
+    Reviewed-on: https://go-review.googlesource.com/16291
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/os_windows_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/sqrt.go      | 2 +-
+ src/runtime/sqrt_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

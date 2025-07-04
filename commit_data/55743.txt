@@ -1,25 +1,20 @@
-commit 33013e8ea821629858643f24c55805f5ddf316b5
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Feb 27 22:39:35 2024 +0000
+commit 2d93805171275a4199bf74fe0e47671fb2f9aea4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 28 09:13:56 2023 -0500
 
-    reflect: add Overflow methods to Type
+    runtime: add a benchmark of Callers
     
-    This CL adds new methods synonymous with the method of the same name
-    in reflect.Value to reflect.Type: OverflowComplex, OverflowFloat, OverflowInt, OverflowUint.
+    We're about to make major changes to tracebacks. We have benchmarks of
+    stack copying, but not of PC buffer filling, so add some that we can
+    track through these changes.
     
-    Fixes #60427
+    For #54466.
     
-    Change-Id: I7a0bb35629e59a7429820f13fcd3a6f120194bc6
-    GitHub-Last-Rev: 26c11bcffe0f418e7d5c37e14587e738d5d939d6
-    GitHub-Pull-Request: golang/go#65955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567296
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3ed61d75144ba03b61517cd9834eeb71c99d74df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472956
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- api/next/60427.txt                          |  4 ++
- doc/next/6-stdlib/99-minor/reflect/60427.md |  6 +++
- src/reflect/all_test.go                     | 41 ++++++++++++++++-
- src/reflect/type.go                         | 68 +++++++++++++++++++++++++++++
- 4 files changed, 118 insertions(+), 1 deletion(-)
+ src/runtime/callers_test.go | 91 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

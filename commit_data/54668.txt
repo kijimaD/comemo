@@ -1,116 +1,35 @@
-commit f34964a5cfa02c4b3c8f7eddf33e8579e1a37443
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Oct 10 11:22:17 2023 -0400
+commit 4b43b741710eb87cbae25f19cbde7eb733b08df1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 28 18:50:01 2022 -0400
 
-    all: pull in x/net v0.17.0 and its dependencies
+    cmd/go: add -pgo build flag
     
-    Pull in a security fix from x/net/http2:
-    http2: limit maximum handler goroutines to MaxConcurrentStreams
+    Add a -pgo flag for "go build" (and other build actions), to
+    specify the file path of a profile used for PGO. Special name
+    "off" turns off PGO.
     
-    Fixes #63417.
-    Fixes CVE-2023-39325.
+    The given profile path is passed to the compiler.
     
-    Change-Id: I01e7774912e81007a7cf70f33e5989fb50a0b708
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534295
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    The build cache is sensitive to the content of the given PGO
+    profile.
+    
+    TODO: auto mode.
+    
+    For #55022.
+    
+    Change-Id: Ieee1b131b4c041f9502fd0a1acf112f3e44246be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go.mod                                     |   4 +-
- src/cmd/go.sum                                     |   8 +-
- .../x/sys/internal/unsafeheader/unsafeheader.go    |  30 ---
- .../vendor/golang.org/x/sys/unix/ptrace_darwin.go  |   6 -
- src/cmd/vendor/golang.org/x/sys/unix/ptrace_ios.go |   6 -
- .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   2 -
- .../vendor/golang.org/x/sys/unix/syscall_darwin.go | 186 ---------------
- .../golang.org/x/sys/unix/syscall_darwin_amd64.go  |   1 -
- .../golang.org/x/sys/unix/syscall_darwin_arm64.go  |   1 -
- .../golang.org/x/sys/unix/syscall_dragonfly.go     | 198 ----------------
- .../golang.org/x/sys/unix/syscall_freebsd.go       | 192 ---------------
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 115 +--------
- .../vendor/golang.org/x/sys/unix/syscall_netbsd.go | 261 ---------------------
- .../golang.org/x/sys/unix/syscall_openbsd.go       |  74 ------
- .../golang.org/x/sys/unix/syscall_solaris.go       |  18 --
- .../golang.org/x/sys/unix/syscall_zos_s390x.go     |   1 -
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   9 +
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   2 +
- .../x/sys/unix/zerrors_linux_mips64le.go           |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   2 +
- .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   2 +
- .../golang.org/x/sys/unix/zsyscall_aix_ppc.go      |  22 --
- .../golang.org/x/sys/unix/zsyscall_aix_ppc64.go    |  22 --
- .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  40 +---
- .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  | 149 ------------
- .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  40 +---
- .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  | 149 ------------
- .../x/sys/unix/zsyscall_dragonfly_amd64.go         |  22 --
- .../golang.org/x/sys/unix/zsyscall_freebsd_386.go  |  22 --
- .../x/sys/unix/zsyscall_freebsd_amd64.go           |  22 --
- .../golang.org/x/sys/unix/zsyscall_freebsd_arm.go  |  22 --
- .../x/sys/unix/zsyscall_freebsd_arm64.go           |  22 --
- .../x/sys/unix/zsyscall_freebsd_riscv64.go         |  22 --
- .../x/sys/unix/zsyscall_illumos_amd64.go           |  10 +-
- .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  22 --
- .../golang.org/x/sys/unix/zsyscall_netbsd_386.go   |  22 --
- .../golang.org/x/sys/unix/zsyscall_netbsd_amd64.go |  22 --
- .../golang.org/x/sys/unix/zsyscall_netbsd_arm.go   |  22 --
- .../golang.org/x/sys/unix/zsyscall_netbsd_arm64.go |  22 --
- .../golang.org/x/sys/unix/zsyscall_openbsd_386.go  |  32 +--
- .../x/sys/unix/zsyscall_openbsd_amd64.go           |  22 --
- .../golang.org/x/sys/unix/zsyscall_openbsd_arm.go  |  32 +--
- .../x/sys/unix/zsyscall_openbsd_arm64.go           |  32 +--
- .../x/sys/unix/zsyscall_openbsd_mips64.go          |  32 +--
- .../x/sys/unix/zsyscall_openbsd_ppc64.go           |  32 +--
- .../x/sys/unix/zsyscall_openbsd_riscv64.go         |  32 +--
- .../x/sys/unix/zsyscall_solaris_amd64.go           | 256 ++++++++++----------
- .../golang.org/x/sys/unix/zsyscall_zos_s390x.go    |  11 -
- .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   1 +
- .../x/sys/unix/zsysnum_linux_mips64le.go           |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   1 +
- .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   1 +
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   8 +-
- .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |   4 +
- .../golang.org/x/sys/windows/exec_windows.go       |  89 ++++++-
- .../golang.org/x/sys/windows/security_windows.go   |  21 +-
- .../golang.org/x/sys/windows/syscall_windows.go    |  42 ++--
- .../golang.org/x/sys/windows/types_windows.go      |   7 +
- .../golang.org/x/sys/windows/zsyscall_windows.go   |  28 ++-
- src/cmd/vendor/modules.txt                         |   5 +-
- src/go.mod                                         |   8 +-
- src/go.sum                                         |  16 +-
- src/net/http/h2_bundle.go                          |  89 +++++--
- .../golang.org/x/crypto/chacha20/chacha_arm64.go   |   4 +-
- .../golang.org/x/crypto/chacha20/chacha_arm64.s    |   4 +-
- .../golang.org/x/crypto/chacha20/chacha_noasm.go   |   4 +-
- .../golang.org/x/crypto/cryptobyte/builder.go      |   5 +
- .../golang.org/x/crypto/cryptobyte/string.go       |  11 +
- .../golang.org/x/net/dns/dnsmessage/message.go     | 131 ++++++-----
- src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go     |   2 +-
- src/vendor/golang.org/x/sys/cpu/hwcap_linux.go     |   4 +-
- src/vendor/golang.org/x/text/unicode/norm/trie.go  |   2 +-
- src/vendor/modules.txt                             |   8 +-
- 95 files changed, 583 insertions(+), 2223 deletions(-)
+ src/cmd/go/alldocs.go                    |  3 ++
+ src/cmd/go/internal/cfg/cfg.go           |  2 ++
+ src/cmd/go/internal/load/pkg.go          |  7 ++++
+ src/cmd/go/internal/work/build.go        |  4 +++
+ src/cmd/go/internal/work/exec.go         |  3 ++
+ src/cmd/go/internal/work/gc.go           |  3 ++
+ src/cmd/go/internal/work/init.go         | 20 +++++++++++
+ src/cmd/go/testdata/script/build_pgo.txt | 62 ++++++++++++++++++++++++++++++++
+ 8 files changed, 104 insertions(+)

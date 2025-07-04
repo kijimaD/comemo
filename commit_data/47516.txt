@@ -1,17 +1,15 @@
-commit 3c00a2839a8b577912f78d5fe1ba2d765d0f6c7c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 16 12:20:11 2021 -0800
+commit 179bcd787e4a5c4cfe475fd6fd33a41d77751113
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 24 13:18:13 2021 -0700
 
-    cmd/compile/internal/types2: return an error from Instantiate on incorrect len(targs)
+    test: only run bug513.go if cgo is enabled
     
-    This CL is a clean port of CL 363635 from go/types to types2.
-    
-    Updates #47916
-    
-    Change-Id: Ib46758435c31ad9a6a4a63f552503d5afa66b5c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364534
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I868eeb79edaba9e3afc1407ae18b89daf7e67037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304570
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/instantiate.go | 50 +++++++++++++++-----------
- 1 file changed, 30 insertions(+), 20 deletions(-)
+ test/fixedbugs/bug513.go | 1 +
+ 1 file changed, 1 insertion(+)

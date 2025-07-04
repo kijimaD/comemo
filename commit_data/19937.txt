@@ -1,13 +1,13 @@
-commit 689995a73e7a03038e977b5080666b561173e2b6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 7 08:17:41 2014 -0400
+commit 7ce3406c8fe1d71d0d595bcd0842bf27f6d1bf32
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 7 10:25:50 2014 +1000
 
-    cmd/gc: remove ignored debugging arguments in Fconv print
+    doc/go1.4.txt: implement monotonic clocks on windows
     
     LGTM=dave
     R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/123880043
+    https://golang.org/cl/126760043
 
- src/cmd/gc/mparith1.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

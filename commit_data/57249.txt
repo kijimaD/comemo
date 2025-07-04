@@ -1,41 +1,43 @@
-commit 08707d66c350927560faa11b0c195d37d281ab89
-Author: Nic Klaassen <nic@nicklaassen.ca>
-Date:   Thu Aug 22 23:37:00 2024 +0000
+commit 4f4c23512e2d5cddfa7024a7e9c217ba357b9978
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 27 15:47:18 2023 +0000
 
-    database/sql: fix panic with concurrent Conn and Close
+    runtime: fix debug non-concurrent sweep mode after activeSweep changes
     
-    The current implementation has a panic when the database is closed
-    concurrently with a new connection attempt.
+    Currently the GC creates a sweepLocker before restarting the world at
+    the end of the mark phase, so that it can safely flush mcaches without
+    the runtime incorrectly concluding that sweeping is done before that
+    happens.
     
-    connRequestSet.CloseAndRemoveAll sets connRequestSet.s to a nil slice.
-    If this happens between calls to connRequestSet.Add and
-    connRequestSet.Delete, there is a panic when trying to write to the nil
-    slice. This is sequence is likely to occur in DB.conn, where the mutex
-    is released between calls to db.connRequests.Add and
-    db.connRequests.Delete
+    However, with GODEBUG=gcstoptheworld=2, where sweeping happens during
+    that STW phase, creating that sweepLocker will fail, since the runtime
+    will conclude that sweeping is in fact complete (all the queues will be
+    drained). The problem however is that gcSweep, which does the
+    non-concurrent sweeping, doesn't actually flush mcaches.
     
-    This change updates connRequestSet.CloseAndRemoveAll to set the curIdx
-    to -1 for all pending requests before setting its internal slice to nil.
-    CloseAndRemoveAll already iterates the full slice to close all the request
-    channels. It seems appropriate to set curIdx to -1 before deleting the
-    slice for 3 reasons:
-    1. connRequestSet.deleteIndex also sets curIdx to -1
-    2. curIdx will not be relevant to anything after the slice is set to nil
-    3. connRequestSet.Delete already checks for negative indices
+    In essence, this failure to create a sweepLocker is indicating a real
+    issue: sweeping is marked as complete, but we haven't flush the mcaches
+    yet!
     
-    Fixes #68949
+    The fix to this is to flush mcaches in gcSweep when in a non-concurrent
+    sweep. Now that gcSweep actually completes a full sweep, it's safe to
+    ignore a failure to create a sweepLocker (and in fact, it *must* fail).
     
-    Change-Id: I6b7ebc5a71b67322908271d13865fa12f2469b87
-    GitHub-Last-Rev: 7d2669155b24043dd9d276f915689511572f2e49
-    GitHub-Pull-Request: golang/go#68953
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607238
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    While we're here, let's also remove _ConcurrentSweep, the debug flag.
+    There's already an alias for it called concurrentSweep, and there's only
+    one use of it in gcSweep.
+    
+    Lastly, add a dist test for the GODEBUG=gcstoptheworld=2 mode.
+    
+    Fixes #53885.
+    
+    Change-Id: I8a1e5b8f362ed8abd03f76e4950d3211f145ab1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479517
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/database/sql/sql.go      |  5 +++--
- src/database/sql/sql_test.go | 11 +++++++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go  | 18 ++++++++++++++++--
+ src/runtime/malloc.go |  2 --
+ src/runtime/mgc.go    | 49 ++++++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 54 insertions(+), 15 deletions(-)

@@ -1,25 +1,17 @@
-commit 9b299c1efd902842b788d7dc103512b6b2568ea9
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Thu Nov 5 17:52:53 2015 +0100
+commit f7b66fffc55be043bb2348b5db9d6ba7842b1abe
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 1 14:07:14 2015 +1200
 
-    unicode/utf8: removed uses of ranging over string
+    cmd/dist, cmd/link: force external linking for shared libs on arm
     
-    Ranging over string is much slower than using DecodeRuneInString.
-    See golang.org/issue/13162.
+    Also run testcshared.
     
-    Replacing ranging over a string with the implementation of the Bytes
-    counterpart results in the following performance improvements:
+    Fixes #12425
     
-    RuneCountInStringTenASCIIChars-8     43.0ns ± 1%  16.4ns ± 2%  -61.80%  (p=0.000 n=7+8)
-    RuneCountInStringTenJapaneseChars-8   161ns ± 2%   154ns ± 2%   -4.58%  (p=0.000 n=8+8)
-    ValidStringTenASCIIChars-8           52.2ns ± 1%  13.2ns ± 1%  -74.62%  (p=0.001 n=7+7)
-    ValidStringTenJapaneseChars-8         173ns ± 2%   153ns ± 2%  -11.78%  (p=0.000 n=7+8)
-    
-    Update golang/go#13162
-    
-    Change-Id: Ifc40a6a94bb3317f1f2d929d310bd2694645e9f6
-    Reviewed-on: https://go-review.googlesource.com/16695
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5baea8d772d3462f945aab96260b4197dbb20c0a
+    Reviewed-on: https://go-review.googlesource.com/14143
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/unicode/utf8/utf8.go | 24 ++++++++++++++++--------
- 1 file changed, 16 insertions(+), 8 deletions(-)
+ src/cmd/dist/test.go             | 2 +-
+ src/cmd/link/internal/arm/obj.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

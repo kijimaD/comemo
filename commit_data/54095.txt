@@ -1,18 +1,22 @@
-commit 2a47bc9e4f2f44f0fc741bd850cdad391abbeb84
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 17 23:01:42 2023 -0700
+commit 3dcf6e2c29f533865aad58488b60ae8d819a566e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 22 15:09:49 2022 +0200
 
-    cmd/compile/internal/typecheck: prune some useless code
+    net/netip: use slice-to-array conversions
     
-    This error checking code is all obsolete by types2.
+    Use slice-to-array conversions in AddrFromSlice and
+    (*Addr).UnmarshalBinary. This allows allows to use AddrFrom16 and drop
+    the redundant ipv6Slice helper.
     
-    Change-Id: I247cee2c847236dfbd5a878441ad712481692927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520607
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    For #46505
+    
+    Change-Id: I0e3a7d8825ad438115b7f23ee97cc74eec41a826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432735
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 141 +-----------------------
- 1 file changed, 2 insertions(+), 139 deletions(-)
+ src/net/netip/netip.go | 20 ++++----------------
+ 1 file changed, 4 insertions(+), 16 deletions(-)

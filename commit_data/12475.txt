@@ -1,28 +1,14 @@
-commit a385f38dfa0e05ef51422e2910e0928062258339
+commit 562bccf89e0cc7ca7e62cb1cde50aea6a231ad19
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 12:06:22 2012 -0500
+Date:   Wed Mar 7 11:57:54 2012 -0500
 
-    net: delete usableLocalPort from test
+    doc: update effective_go.tmpl
     
-    The old way to find a port was to listen :0 and then
-    look at what port it picked, close the listener, and then
-    immediately try to listen on that port.
+    Forgot this half in https://golang.org/cl/5764044
     
-    On some Windows 7 machines that sequence fails at
-    the second listen, because the first one is still lingering
-    in the TCP/IP stack somewhere.  (Ironically, most of these
-    are used in tests of a "second listen", which in this case
-    ends up being the third listen.)
-    
-    Instead of this race, just return the listener from the
-    function, replacing usableLocalPort+Listen with
-    usableListenPort.
-    
-    Fixes #3219.
-    
-    R=golang-dev, bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5769045
+    https://golang.org/cl/5770044
 
- src/pkg/net/unicast_test.go | 75 +++++++++++++++++++--------------------------
- 1 file changed, 31 insertions(+), 44 deletions(-)
+ doc/effective_go.tmpl | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,18 +1,35 @@
-commit a48ed66447d13d0a411114eaa987278ce90ab23b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 22 15:24:29 2013 -0500
+commit 18eb3cfdfd66b3055843b6718dcc4a06137ac399
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Feb 22 14:30:44 2013 -0500
 
-    runtime: delete old closure code
+    exp/ssa: support variadic synthetic methods.
     
-    Step 4 of http://golang.org/s/go11func.
+    We wrap the final '...' argument's type in types.Slice.
+    Added tests.
     
-    R=golang-dev, bradfitz
+    Also:
+    - Function.writeSignature: suppress slice '[]' when printing
+      variadic arg '...'.
+    - Eliminate Package.ImportPath field; redundant
+      w.r.t. Package.Types.Path.
+    - Use "TODO: (opt|fix)" notation more widely.
+    - Eliminate many redundant/stale TODOs.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7393049
+    https://golang.org/cl/7378057
 
- src/pkg/runtime/sys_freebsd_arm.s |  13 -----
- src/pkg/runtime/sys_linux_arm.s   |  10 ----
- src/pkg/runtime/sys_netbsd_arm.s  |  13 -----
- src/pkg/runtime/traceback_arm.c   |  39 +--------------
- src/pkg/runtime/traceback_x86.c   | 103 +-------------------------------------
- 5 files changed, 3 insertions(+), 175 deletions(-)
+ src/pkg/exp/ssa/blockopt.go                 |  2 +-
+ src/pkg/exp/ssa/builder.go                  | 33 ++++++++++------------
+ src/pkg/exp/ssa/doc.go                      |  9 +++---
+ src/pkg/exp/ssa/emit.go                     |  2 +-
+ src/pkg/exp/ssa/func.go                     |  6 ++--
+ src/pkg/exp/ssa/interp/reflect.go           |  7 ++---
+ src/pkg/exp/ssa/interp/testdata/coverage.go | 43 +++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/lift.go                     |  4 +--
+ src/pkg/exp/ssa/literal.go                  |  6 ++--
+ src/pkg/exp/ssa/lvalue.go                   |  6 ++--
+ src/pkg/exp/ssa/print.go                    |  6 ++--
+ src/pkg/exp/ssa/promote.go                  | 18 ++++++++----
+ src/pkg/exp/ssa/ssa.go                      | 15 +++++-----
+ 13 files changed, 100 insertions(+), 57 deletions(-)

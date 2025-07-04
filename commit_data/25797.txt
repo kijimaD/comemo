@@ -1,17 +1,25 @@
-commit 315f4c70f123cfbf061d097543af555547acd9c7
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Feb 18 16:29:39 2016 -0500
+commit 22e57c6655288e129fa807eecf936fdf5ac2ced8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 19 13:26:43 2015 -0500
 
-    runtime: use correct psABI SP alignment before calling libc mmap
+    runtime: make stack barrier locking more robust
     
-    Fixes #14384.
+    The stack barrier locking functions use a simple cas lock because they
+    need to support trylock, but currently don't increment g.m.locks. This
+    is okay right now because they always run on the system stack or the
+    signal stack and are hence non-preemtible, but this could lead to
+    difficult-to-reproduce deadlocks if these conditions change in the
+    future.
     
-    Change-Id: Ib025cf2d20754b4c2db52f0a8a4717fd303371d6
-    Reviewed-on: https://go-review.googlesource.com/19660
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Make these functions more robust by incrementing g.m.locks and making
+    them nosplit to enforce non-preemtibility.
+    
+    Change-Id: I73d60a35bd2ad2d81c73aeb20dbd37665730eb1b
+    Reviewed-on: https://go-review.googlesource.com/17058
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/sys_linux_amd64.s | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/mstkbar.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

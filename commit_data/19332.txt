@@ -1,26 +1,16 @@
-commit 2497c430d846d52dbfd2e8150c51e1ad59aeee3f
+commit f078711b412e9949d242e2bb54fc26d759232f5f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 12 16:52:55 2014 -0400
+Date:   Mon May 12 14:45:05 2014 -0400
 
-    cmd/go: detect import cycle caused by test code
+    cmd/gc: fix escape analysis for slice of array
     
-    The runtime was detecting the cycle already,
-    but we can give a better error without even
-    building the binary.
-    
-    Fixes #7789.
+    Fixes #7931.
     
     LGTM=iant
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/96290043
+    https://golang.org/cl/100390044
 
- src/cmd/go/pkg.go                               |  2 +-
- src/cmd/go/test.bash                            | 13 ++++++++++
- src/cmd/go/test.go                              | 33 ++++++++++++++++++++++++-
- src/cmd/go/testdata/src/testcycle/p1/p1.go      |  7 ++++++
- src/cmd/go/testdata/src/testcycle/p1/p1_test.go |  6 +++++
- src/cmd/go/testdata/src/testcycle/p2/p2.go      |  7 ++++++
- src/cmd/go/testdata/src/testcycle/p3/p3.go      |  5 ++++
- src/cmd/go/testdata/src/testcycle/p3/p3_test.go | 10 ++++++++
- 8 files changed, 81 insertions(+), 2 deletions(-)
+ src/cmd/gc/esc.c |  7 +++++--
+ test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

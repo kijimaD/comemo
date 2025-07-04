@@ -1,19 +1,16 @@
-commit 2641cffd4166ba6991830115efc468dc3f5974ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 6 20:18:26 2016 -0800
+commit c79ba22ece2cbb86b00325df7712ff0803cfd6e9
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 6 11:08:11 2016 -0700
 
-    misc/cgo/test: skip test18146 on Darwin
+    test: delete sliceopt.go
     
-    It is reported as failing for two people (issues #18202 and #18212).
-    The failure mode is that the system gets overloaded and other programs
-    fail to run.
+    It tests the behavior of the old deleted compiler.
     
-    Fixes #18202.
+    Fixes #17362.
     
-    Change-Id: I1f1ca1f5d8eed6cc3a9dffac3289851e09fa662b
-    Reviewed-on: https://go-review.googlesource.com/34017
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia2fdec734c5cbe724a9de562ed71598f67244ab3
+    Reviewed-on: https://go-review.googlesource.com/30593
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue18146.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ test/sliceopt.go | 60 --------------------------------------------------------
+ 1 file changed, 60 deletions(-)

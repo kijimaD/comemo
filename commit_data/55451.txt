@@ -1,50 +1,20 @@
-commit 8e02e7b26af46a1d113057ac49ad440a39a45d58
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 24 12:42:11 2024 -0800
+commit 9565d990f4e2630dbf37c636299b9ddbd58b4f6b
+Author: Xiangdong Ji <jixiangdong@bytedance.com>
+Date:   Thu Feb 2 14:20:16 2023 +0800
 
-    go/types, types2: use existing case-insensitive lookup (remove TODO)
+    cmd/go: honor user-specified -c=N
     
-    Rather than implementing a new, less complete mechanism to check
-    if a selector exists with different capitalization, use the
-    existing mechanism in lookupFieldOrMethodImpl by making it
-    available for internal use.
+    User-specified '-c=N' options should take precedence over the default one generated
+    by cmd/go.
     
-    Pass foldCase parameter all the way trough to Object.sameId and
-    thus make it consistently available where Object.sameId is used.
-    
-    From sameId, factor out samePkg functionality into stand-alone
-    predicate.
-    
-    Do better case distinction when reporting an error for an undefined
-    selector expression.
-    
-    Cleanup.
-    
-    Change-Id: I7be3cecb4976a4dce3264c7e0c49a320c87101e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558315
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I9021440b4a4286f8d6f92acb745a777cf234a82b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go   |  2 +-
- src/cmd/compile/internal/types2/call.go       | 27 +++++-----
- src/cmd/compile/internal/types2/expr.go       |  2 +-
- src/cmd/compile/internal/types2/lookup.go     | 33 ++++++------
- src/cmd/compile/internal/types2/object.go     | 23 +++++----
- src/cmd/compile/internal/types2/predicates.go | 12 ++++-
- src/cmd/compile/internal/types2/scope.go      | 34 ++++++-------
- src/cmd/compile/internal/types2/unify.go      |  2 +-
- src/go/types/builtins.go                      |  2 +-
- src/go/types/call.go                          | 28 +++++-----
- src/go/types/expr.go                          |  2 +-
- src/go/types/lookup.go                        | 33 ++++++------
- src/go/types/object.go                        | 23 +++++----
- src/go/types/predicates.go                    | 12 ++++-
- src/go/types/scope.go                         | 34 ++++++-------
- src/go/types/unify.go                         |  2 +-
- src/internal/types/testdata/check/issues0.go  |  2 +-
- src/internal/types/testdata/check/lookup.go   | 73 +++++++++++++++++++++++++++
- test/fixedbugs/issue22794.go                  |  6 +--
- 19 files changed, 223 insertions(+), 129 deletions(-)
+ src/cmd/go/internal/work/gc.go                     | 2 +-
+ src/cmd/go/testdata/script/build_gcflags_order.txt | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

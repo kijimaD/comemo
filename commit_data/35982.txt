@@ -1,19 +1,17 @@
-commit 5201b1ad225e7503e368386ae3ad4f94d7b04d8b
-Author: Julien Salleyron <julien.salleyron@gmail.com>
-Date:   Mon Nov 13 23:32:07 2017 +0100
+commit 165ebe65585ec7ae63695fab9e7aabaaad1af57c
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Mar 26 18:58:53 2018 -0400
 
-    http/http/httputil: add ReverseProxy.ErrorHandler
+    database/sql: fix docs to correctly refer to time.RFC3339Nano
     
-    This permits specifying an ErrorHandler to customize the RoundTrip
-    error handling if the backend fails to return a response.
+    It mentions time.Format3339Nano, which isn’t defined. The
+    underlying code uses time.RFC3339Nano.
     
-    Fixes #22700
-    Fixes #21255
+    Updates golang/go#24542
     
-    Change-Id: I8879f0956e2472a07f584660afa10105ef23bf11
-    Reviewed-on: https://go-review.googlesource.com/77410
+    Change-Id: Ia34ae8b66427139d9005f902c2eb60aac4bfa8c6
+    Reviewed-on: https://go-review.googlesource.com/102607
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 37 ++++++++++---
- src/net/http/httputil/reverseproxy_test.go | 87 ++++++++++++++++++++++++++++++
- 2 files changed, 117 insertions(+), 7 deletions(-)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,20 @@
-commit 370c8e983b49168b670ea4df76293738a833459b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:57:05 2024 -0500
+commit 53c91f9205e2b61d972ab1eaf5c9716aabe10306
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 10 14:21:01 2023 -0500
 
-    runtime: use methods for timer
+    os: skip TestExecutableDeleted earlier when 'go build' is not supported
     
-    Continuing conversion from C to Go, change timer API to use methods.
+    The test unconditionally calls testenv.GoToolPath, which will skip the
+    test anyway. Moving the skip earlier gets this test out of goroutine
+    dumps if the test process fails or times out, making it easier to
+    diagnose failures in the remaining tests.
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
-    
-    Change-Id: I4cb88a366993a77aa4fad739793a7db7213cc38c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564131
+    Change-Id: Ibd39546708a83b6f15616b2c4ae7af420e2401f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/netpoll.go | 16 ++++++++--------
- src/runtime/time.go    | 28 ++++++++++++++--------------
- 2 files changed, 22 insertions(+), 22 deletions(-)
+ src/os/executable_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

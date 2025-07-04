@@ -1,31 +1,24 @@
-commit c305e49e96deafe54a8e43010ea76fead6da0a98
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 26 14:32:13 2020 -0400
+commit ea7126fe141879e1065d196570c078fbec09f3b6
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 9 20:28:55 2020 -0700
 
-    cmd/go,cmd/compile,sync: remove special import case in cmd/go
+    cmd/compile: use a Sym type instead of interface{} for symbolic offsets
     
-    CL 253748 introduced a special case in cmd/go to allow sync to import
-    runtime/internal/atomic. Besides introducing unnecessary complexity
-    into cmd/go, this breaks other packages (like gopls) that understand
-    how imports work, but don't understand this special case.
+    Will help with strongly typed rewrite rules.
     
-    Fix this by using the more standard linkname-based approach to pull
-    the necessary functions from runtime/internal/atomic into sync. Since
-    these are compiler intrinsics, we also have to tell the compiler that
-    the linknamed symbols are intrinsics to get this optimization in sync.
-    
-    Fixes #42196.
-    
-    Change-Id: I1f91498c255c91583950886a89c3c9adc39a32f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265124
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ifbf316a49f4081322b3b8f13bc962713437d9aba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227785
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/gc/ssa.go |  4 ++++
- src/cmd/go/internal/load/pkg.go    |  5 -----
- src/sync/pool.go                   | 25 +++++++++++++++++--------
- 3 files changed, 21 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  1 -
+ src/cmd/compile/internal/gc/ssa.go             | 14 ------
+ src/cmd/compile/internal/gc/syntax.go          |  4 ++
+ src/cmd/compile/internal/ppc64/ssa.go          | 11 +----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 66 +++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/op.go             | 12 ++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 16 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  4 +-
+ src/cmd/internal/obj/link.go                   |  6 ++-
+ 9 files changed, 81 insertions(+), 53 deletions(-)

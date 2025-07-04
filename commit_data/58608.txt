@@ -1,30 +1,20 @@
-commit bcfa00cbd259a8653547b227f8207ab43bf7d5c8
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Fri Aug 25 11:22:02 2023 +0200
+commit 2e77b51df5b9f7753f500c6cbba8f0dab5bf2250
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 22 19:50:03 2023 +0800
 
-    cpu/internal: provide runtime detection of RISC-V extensions on Linux
+    runtime/internal/syscall: use ABIInternal for Syscall6 on loong64
     
-    Add a RISCV64 variable to cpu/internal that indicates both the presence
-    of RISC-V extensions and performance information about the underlying
-    RISC-V cores.  The variable is only populated with non false values on
-    Linux.  The detection code relies on the riscv_hwprobe syscall
-    introduced in Linux 6.4.  The patch can detect RVV 1.0 and whether
-    the CPU supports fast misaligned accesses.  It can only detect RVV 1.0
-    on a 6.5 kernel or later (without backports).
+    Updates #40724
     
-    Updates #61416
-    
-    Change-Id: I2d8289345c885b699afff441d417cae38f6bdc54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522995
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Ifcc2de35a797fd987a10f564206b14b54d736d1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521789
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/cpu/cpu.go               | 12 +++++
- src/internal/cpu/cpu_riscv64.go       | 11 +++++
- src/internal/cpu/cpu_riscv64_linux.go | 91 +++++++++++++++++++++++++++++++++++
- src/internal/cpu/cpu_riscv64_other.go | 11 +++++
- src/runtime/os_linux_riscv64.go       | 30 ++++++++++++
- 5 files changed, 155 insertions(+)
+ src/runtime/internal/syscall/asm_linux_loong64.s | 41 +++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

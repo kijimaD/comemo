@@ -1,0 +1,28 @@
+commit 3a7a856951c69e6c279b4305030c5da6ca8af913
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue May 20 16:21:22 2025 +0000
+
+    crypto/x509: disallow negative path length
+    
+    pathLenConstraint is restricted to unsigned integers.
+    Also the -1 value of cert.MaxPathLength has a special
+    meaning, so we shouldn't allow unmarshaling -1.
+    
+    BasicConstraints ::= SEQUENCE {
+         cA                      BOOLEAN DEFAULT FALSE,
+         pathLenConstraint       INTEGER (0..MAX) OPTIONAL }
+    
+    Change-Id: I485a6aa7223127becc86c423e1ef9ed2fbd48209
+    GitHub-Last-Rev: 75a11b47b963ac383d1ad67dfc001648632a05f0
+    GitHub-Pull-Request: golang/go#60706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502076
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/x509/parser.go      |  7 +++++--
+ src/crypto/x509/parser_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509.go        |  4 ++++
+ src/crypto/x509/x509_test.go   | 25 ++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 2 deletions(-)

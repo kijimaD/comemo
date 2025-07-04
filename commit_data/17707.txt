@@ -1,12 +1,23 @@
-commit d6eada282e23013e42e99330f46d257316a213e0
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Fri Sep 27 12:57:09 2013 +1000
+commit fa7791e92228326d947ff65195bdc11a0a4852ef
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 27 10:09:15 2013 +1000
 
-    misc/vim: "PACKAGE DOCUMENTATION" is not hilighted
+    all: fix some mistakes found by go tool vet .
     
-    R=golang-dev, r, dsymonds
+    R=golang-dev, iant, adg
     CC=golang-dev
-    https://golang.org/cl/14018043
+    https://golang.org/cl/14000043
 
- misc/vim/syntax/godoc.vim | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/gob/encoder_test.go   | 2 +-
+ src/pkg/encoding/gob/gobencdec_test.go | 2 +-
+ src/pkg/math/big/int_test.go           | 2 +-
+ src/pkg/net/http/header_test.go        | 2 +-
+ src/pkg/net/http/request_test.go       | 2 +-
+ src/pkg/net/http/serve_test.go         | 2 +-
+ src/pkg/net/ip_test.go                 | 2 +-
+ src/pkg/net/timeout_test.go            | 2 +-
+ src/pkg/regexp/all_test.go             | 8 ++++----
+ src/pkg/regexp/syntax/parse_test.go    | 2 +-
+ src/pkg/runtime/crash_test.go          | 3 +--
+ src/pkg/runtime/mfinal_test.go         | 2 +-
+ 12 files changed, 15 insertions(+), 16 deletions(-)

@@ -1,14 +1,13 @@
-commit d5bb4380c89bf688145204e0bc0dd1c2e1a77a9b
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:36:26 2015 -0400
+commit 01512b3edbab35a50a1a85eae772c7284b77246b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 18:46:28 2015 -0400
 
-    cmd/pack: skip fork test on darwin/arm64
+    cmd/internal/gc: add -d disablenil debug option to turn off nil checks
     
-    Just like darwin/arm.
-    
-    Change-Id: I5ed26975670d4189a46b585a56c66c199905d168
-    Reviewed-on: https://go-review.googlesource.com/8823
+    Change-Id: I18f2e2ee141ebb65a8579ee1e440cb9c2069ef86
+    Reviewed-on: https://go-review.googlesource.com/7626
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/pack/pack_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/internal/gc/lex.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,39 +1,45 @@
-commit aafd96408feef0785d32fd3e1c5a67d4159a98e7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 10 10:19:43 2017 -0700
+commit aea44109cf23946332319ba51a4a373a9de432e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 16 21:13:29 2017 -0700
 
-    runtime: speed up stack copying
+    strconv: replace small int string table with constant string
     
-    I was surprised to see readvarint show up in a cpu profile.
+    This reduces memory use yet still provides the significant
+    performance gain seen when using a fast path for small integers.
     
-    Use a few simple optimizations to speed up stack copying:
+    Improvement of this CL comparing to code without fast path:
     
-    * Avoid making a copy of the cache.entries array or any of its elements.
-    * Use a shift instead of a signed division in stackmapdata.
-    * Change readvarint to return the number of bytes consumed
-      rather than an updated slice.
-    * Make some minor optimizations to readvarint to help the compiler.
-    * Avoid called readvarint when the value fits in a single byte.
+    name              old time/op  new time/op  delta
+    FormatIntSmall-8  35.6ns ± 1%   4.5ns ± 1%  -87.30%  (p=0.008 n=5+5)
+    AppendIntSmall-8  17.4ns ± 1%   9.4ns ± 3%  -45.70%  (p=0.008 n=5+5)
     
-    The first and last optimizations are the most significant,
-    although they all contribute a little.
+    For comparison, here's the improvement before this CL to code without
+    fast path (1% better for FormatIntSmall):
     
-    Add a benchmark for stack copying that includes lots of different
-    functions in a recursive loop, to bust the cache.
+    name              old time/op  new time/op  delta
+    FormatIntSmall-8  35.6ns ± 1%   4.0ns ± 3%  -88.64%  (p=0.008 n=5+5)
+    AppendIntSmall-8  17.4ns ± 1%   8.2ns ± 1%  -52.80%  (p=0.008 n=5+5)
     
-    This might speed up other runtime operations as well;
-    I only benchmarked stack copying.
+    Thus, the code in this CL performs slower for small integers using fast
+    path then the prior version, but this is relative to an already very fast
+    version:
     
-    name                old time/op  new time/op  delta
-    StackCopy-8         96.4ms ± 2%  82.7ms ± 1%  -14.24%  (p=0.000 n=20+19)
-    StackCopyNoCache-8   167ms ± 1%   131ms ± 1%  -21.58%  (p=0.000 n=20+20)
+    name              old time/op  new time/op  delta
+    FormatIntSmall-8  4.05ns ± 3%  4.52ns ± 1%  +11.81%  (p=0.008 n=5+5)
+    AppendIntSmall-8  8.21ns ± 1%  9.45ns ± 3%  +15.05%  (p=0.008 n=5+5)
     
-    Change-Id: I13d5c455c65073c73b656acad86cf8e8e3c9807b
-    Reviewed-on: https://go-review.googlesource.com/43150
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Measured on 2.3 GHz Intel Core i7 running macOS Sierra 10.12.3.
+    
+    Overall, it's still ~88% faster than without fast path for small integers,
+    so probably worth it as it removes 100 global string slices in favor of
+    a single string.
+    
+    Credits: This is based on the original (but cleaned up) version of the
+    code by Aliaksandr Valialkin (https://go-review.googlesource.com/c/37963/).
+    
+    Change-Id: Icda78679c8c14666d46257894e9fa3d7f35e58b8
+    Reviewed-on: https://go-review.googlesource.com/38319
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/stack_test.go | 172 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/symtab.go     |  33 ++++++---
- 2 files changed, 195 insertions(+), 10 deletions(-)
+ src/strconv/itoa.go | 53 ++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 32 insertions(+), 21 deletions(-)

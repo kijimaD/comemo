@@ -1,16 +1,22 @@
-commit 67f181bfd84dfd5942fe9a29d8a20c9ce5eb2fea
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Thu Jun 27 22:19:15 2019 +0100
+commit 7c388cc89c76bc7167287fb488afcaf5a4aa12bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 1 09:23:44 2019 -0500
 
-    doc: fix spec links in Go 1.13 release notes
+    go/internal/srcimporter: set -mod=vendor before running tests
     
-    When reading tip.golang.org/doc/go1.13.html, the spec links in
-    the "Changes to the language" section should point to the updated
-    spec, not the old one.
+    Otherwise, if the working directory is inside a standard-library
+    module, the test may try to fetch module contents from GOPROXY or
+    upstream.
     
-    Change-Id: I6b13ca0b4c722ed52b84a12a680bece876a4e478
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184118
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #26924
+    Updates #30228
+    Updates #30241
+    
+    Change-Id: I4cb9a07721bd808fd094f7ed55a74cf7bce9cd6f
+    Reviewed-on: https://go-review.googlesource.com/c/164625
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.13.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/go/internal/srcimporter/srcimporter_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

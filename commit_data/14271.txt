@@ -1,17 +1,35 @@
-commit e4cef96be6f03aa3e7e4979f1d55f8e66289904b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 1 12:55:21 2012 -0400
+commit 022b361ae2399324a90659118fb721f29b190c01
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Nov 1 14:36:08 2012 +0100
 
-    cmd/gc: avoid %#x of 0
+    cmd/5g, cmd/6g, cmd/8g: remove width check for componentgen.
     
-    Plan 9 and Go's lib9/fmt disagree on whether %#x includes the 0x prefix
-    when printing 0, because ANSI C gave bad advice long ago.
+    The move to 64-bit ints in 6g made componentgen ineffective.
+    In componentgen, the code already selects which values it can handle.
     
-    Avoiding that case makes binaries compiled on different systems compatible.
+    On amd64:
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17    9477970000   9582314000   +1.10%
+    BenchmarkFannkuch11      5928750000   5255080000  -11.36%
+    BenchmarkGobDecode         37103040     31451120  -15.23%
+    BenchmarkGobEncode         16042490     16844730   +5.00%
+    BenchmarkGzip             811337400    741373600   -8.62%
+    BenchmarkGunzip           197928700    192844500   -2.57%
+    BenchmarkJSONEncode       224164100    140064200  -37.52%
+    BenchmarkJSONDecode       258346800    231829000  -10.26%
+    BenchmarkMandelbrot200      7561780      7601615   +0.53%
+    BenchmarkParse             12970340     11624360  -10.38%
+    BenchmarkRevcomp         1969917000   1699137000  -13.75%
+    BenchmarkTemplate         296182000    263117400  -11.16%
     
-    R=ken2
-    CC=akumar, golang-dev
-    https://golang.org/cl/6814066
+    R=nigeltao, dave, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/6821052
 
- src/cmd/gc/esc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/cgen.c | 11 ++++++-----
+ src/cmd/5g/ggen.c |  6 +++---
+ src/cmd/6g/cgen.c | 11 ++++++-----
+ src/cmd/6g/ggen.c |  6 +++---
+ src/cmd/8g/cgen.c | 12 ++++++------
+ src/cmd/8g/ggen.c |  6 +++---
+ 6 files changed, 27 insertions(+), 25 deletions(-)

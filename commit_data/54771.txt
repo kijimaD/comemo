@@ -1,28 +1,33 @@
-commit 1f3f851a6e965a867979a74f7ebefd03381505c0
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Aug 23 23:31:08 2023 +0800
+commit d52883f443e1d564b0300acdd382af1769bf0477
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Nov 14 20:50:02 2022 +0000
 
-    runtime: ignore ETIMEDOUT for kevent conservatively
+    net: use a consistent dnsConfig in hostLookupOrder
     
-    Fixes #59679
+    Use the same dnsConfig throughout a DNS lookup operation.
+    Before this CL it was possible to decide to re-read a
+    modified resolv.conf file during the DNS lookup,
+    which could lead to inconsistencies between the lookup order
+    and the name server list.
     
-    Change-Id: I1334b793825a2a57d239e3c98373bf4c93cc622a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522215
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0689749272b8263268d00b9a9cb4458cd68b23eb
+    GitHub-Last-Rev: 64810a22bc8a7dd5e804b5f5253d11b73942dfe3
+    GitHub-Pull-Request: golang/go#56690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449337
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/defs_dragonfly.go       | 9 +++++----
- src/runtime/defs_dragonfly_amd64.go | 9 +++++----
- src/runtime/defs_openbsd.go         | 7 ++++---
- src/runtime/defs_openbsd_386.go     | 7 ++++---
- src/runtime/defs_openbsd_amd64.go   | 7 ++++---
- src/runtime/defs_openbsd_arm.go     | 7 ++++---
- src/runtime/defs_openbsd_arm64.go   | 7 ++++---
- src/runtime/defs_openbsd_mips64.go  | 7 ++++---
- src/runtime/defs_openbsd_ppc64.go   | 7 ++++---
- src/runtime/defs_openbsd_riscv64.go | 7 ++++---
- src/runtime/netpoll_kqueue.go       | 5 ++++-
- 11 files changed, 46 insertions(+), 33 deletions(-)
+ src/net/conf.go                |  94 +++++++++++-----------
+ src/net/conf_test.go           | 178 ++++++++++++++++++++---------------------
+ src/net/dnsclient_unix.go      |  56 +++++++------
+ src/net/dnsclient_unix_test.go |  22 +++--
+ src/net/lookup.go              |   8 +-
+ src/net/lookup_plan9.go        |  19 +++--
+ src/net/lookup_unix.go         |  18 +++--
+ src/net/lookup_windows.go      |   9 ++-
+ src/net/net_fake.go            |   2 +-
+ 9 files changed, 213 insertions(+), 193 deletions(-)

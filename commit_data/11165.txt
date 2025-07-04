@@ -1,19 +1,12 @@
-commit d3c59f6ec851bd3adccf3a989ca57dc1958a1fc7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 14 13:42:18 2012 +0900
+commit c40314821bb0d99c24c516543bcdf01eea231c48
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Jan 13 18:05:47 2012 -0800
 
-    net: make use of the kernel state to listen on TCP, Unix
+    cmd/gofmt: fix simplify.go by running gofmt on cmd/gofmt
     
-    R=golang-dev, dave, minux.ma
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5545044
+    https://golang.org/cl/5539061
 
- src/pkg/net/Makefile          |  6 ++++++
- src/pkg/net/ipsock_posix.go   |  5 -----
- src/pkg/net/sock.go           |  2 ++
- src/pkg/net/sock_bsd.go       | 33 +++++++++++++++++++++++++++++++++
- src/pkg/net/sock_linux.go     | 27 +++++++++++++++++++++++++++
- src/pkg/net/sock_windows.go   | 14 ++++++++++++++
- src/pkg/net/tcpsock_posix.go  |  6 +++---
- src/pkg/net/unixsock_posix.go |  8 ++++----
- 8 files changed, 89 insertions(+), 12 deletions(-)
+ src/cmd/gofmt/simplify.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

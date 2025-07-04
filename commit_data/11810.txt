@@ -1,15 +1,15 @@
-commit 46dc76f5daa5e1186a5c4f2299bd4b4ff82e60d0
+commit 14efdea35986e47db79c8b1e8d5e57dc13e8727a
 Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 12 09:17:57 2012 +1100
+Date:   Sun Feb 12 09:11:44 2012 +1100
 
-    go1: update recipe for recovering Stat_t
+    effective_go: use new map deletion syntax
     
-    Fixes #2983.
+    Fixes #2984.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5654063
+    https://golang.org/cl/5652071
 
- doc/go1.html | 12 ++++--------
- doc/go1.tmpl | 12 ++++--------
- 2 files changed, 8 insertions(+), 16 deletions(-)
+ doc/effective_go.html | 8 ++++----
+ doc/effective_go.tmpl | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

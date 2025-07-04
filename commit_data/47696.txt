@@ -1,15 +1,20 @@
-commit fa88ba1e8adacda08973d112cca8d6e66c1390e1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 3 10:52:52 2021 -0800
+commit b56177a3037a035ee7f74e619838b6d853697100
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 5 22:20:41 2021 -0400
 
-    doc/go1.18: add documentation for changes to go/ast
+    cmd/compile: check for unused OpArg* and mark invalid (again)
     
-    Updates #47694
+    This caused a problem with
     
-    Change-Id: Ied26f6345df2c8640d4be5132a05db3897b59009
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369096
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    GOEXPERIMENT=regabi,regabiargs go test -c  crypto/x509
+    
+    Updates #40724.
+    
+    Change-Id: Ia3cdbe9968816c77836cb3e3ba89642aafd1b18d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307529
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/compile/internal/ssa/expand_calls.go | 63 ++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 31 deletions(-)

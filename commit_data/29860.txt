@@ -1,17 +1,15 @@
-commit 2eae691d56125c62e0e5f0e4a3bd42e67e423f01
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 20 17:59:37 2016 +0000
+commit 01bf5cc21912ff8642171d8255a7fff87f1da00b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 12 17:39:28 2016 -0700
 
-    net/http, doc: more redirect documentation
+    cmd/compile: cleanup toolstash hacks from previous CL
     
-    Updates #18347
-    Updates #9348
-    
-    Change-Id: I115203b0be3eb2e7e269ff28e2f3c47eeca86038
-    Reviewed-on: https://go-review.googlesource.com/34657
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I36cf3523e00b80e2d3a690f251edd5d6f665d156
+    Reviewed-on: https://go-review.googlesource.com/30975
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html          | 14 +++++++++++---
- src/net/http/client.go  | 21 +++++++++++++++++++++
- src/net/http/request.go |  6 ++++++
- 3 files changed, 38 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl.go    | 4 ----
+ src/cmd/compile/internal/gc/syntax.go | 4 +---
+ 2 files changed, 1 insertion(+), 7 deletions(-)

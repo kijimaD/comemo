@@ -1,15 +1,27 @@
-commit 58f52cbb79d6ed369bd3fed44fe615a23c721189
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Apr 29 20:17:06 2016 -0400
+commit bb3b10214d2d3a4403144d2edd420c27ca1a09e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 15 19:06:00 2016 -0700
 
-    runtime: fix cgocallback_gofunc on ppc64x
+    cmd/compile: faster parameter parsing with no OKEY nodes
     
-    Fix issues introduced in 5f9a870.
+    Step 2 of stream-lining parameter parsing
     
-    Change-Id: Ia75945ef563956613bf88bbe57800a96455c265d
-    Reviewed-on: https://go-review.googlesource.com/22661
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    - do parameter validity checks in parser
+    - two passes instead of multiple (and theoretically quadratic) passes
+      when checking parameters
+    - removes the need for OKEY and some ONONAME nodes in those passes
+    
+    This removes allocation of ~123K OKEY (incl. some ONONAME) nodes
+    out of a total of ~10M allocated nodes when running make.bash, or
+    a reduction of the number of alloacted nodes by ~1.2%.
+    
+    Change-Id: I4a8ec578d0ee2a7b99892ac6b92e56f8e0415f03
+    Reviewed-on: https://go-review.googlesource.com/20748
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_ppc64x.s     | 8 ++++----
- src/runtime/cgo/asm_ppc64x.s | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go    |  97 ------------------------
+ src/cmd/compile/internal/gc/fmt.go    |   5 --
+ src/cmd/compile/internal/gc/parser.go | 136 +++++++++++++++++++++++++++-------
+ test/fixedbugs/bug388.go              |   2 +-
+ 4 files changed, 112 insertions(+), 128 deletions(-)

@@ -1,12 +1,12 @@
-commit f2852ba618876639b2e85232d65edc9536c7ef7b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 17 16:08:52 2011 -0500
+commit 712888910b2fd458c5e2ca50313f473476abe321
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Thu Feb 17 15:14:41 2011 -0500
 
-    runtime: descriptive panics for use of nil map
+    crypto/rand: Added read buffer to speed up requests for small amounts of bytes.
     
-    R=r, r2
+    R=agl1, rsc
     CC=golang-dev
-    https://golang.org/cl/4173060
+    https://golang.org/cl/4170056
 
- src/pkg/runtime/hashmap.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/pkg/crypto/rand/rand_unix.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

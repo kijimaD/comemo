@@ -1,20 +1,49 @@
-commit e65db59c1214eda0449acff677dc4d311aabed44
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Wed Dec 2 13:27:44 2015 -0800
+commit c978f13a71fa7a23a896b34812bbfd6f2e0c1792
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 25 16:04:30 2015 -0700
 
-    cmd/go: allow buildmode=c-shared for android/arm64.
+    cmd/doc: rearrange the newlines to group better
     
-    Also, enable test misc/cgo/testcshared for android/arm64.
-    c/17245 and c/17246 provide the missing pieces for making
-    this test work.
+    Main change is that the comment for an item no longer has a blank line
+    before it, so it looks bound to the item it's about.
     
-    "androidtest.bash" now passes on a Nexus 9 (volantis)
-    device running Android build "LMY48T".
+    Motivating example: go doc.io.read changes from
     
-    Change-Id: Icb9fd2d17d97e0f04cb18d0cd91640c80fbd3fb4
-    Reviewed-on: https://go-review.googlesource.com/17333
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    <
+    func (l *LimitedReader) Read(p []byte) (n int, err error)
+    func (r *PipeReader) Read(data []byte) (n int, err error)
+    
+        Read implements the standard Read interface: it reads data from the pipe,
+        blocking until a writer arrives or the write end is closed. If the write end
+        is closed with an error, that error is returned as err; otherwise err is
+        EOF.
+    func (s *SectionReader) Read(p []byte) (n int, err error)
+    >
+    
+    to
+    
+    <
+    func (l *LimitedReader) Read(p []byte) (n int, err error)
+    func (r *PipeReader) Read(data []byte) (n int, err error)
+        Read implements the standard Read interface: it reads data from the pipe,
+        blocking until a writer arrives or the write end is closed. If the write end
+        is closed with an error, that error is returned as err; otherwise err is
+        EOF.
+    
+    func (s *SectionReader) Read(p []byte) (n int, err error)
+    >
+    
+    Now the comment about PipeReader.Read doesn't look like it's about
+    SectionReader.
+    
+    Based on a suggestion by dsnet@, a slight tweak from a CL he suggested
+    and abandoned.
+    
+    Fixes #12756,
+    
+    Change-Id: Iaf60ee9ae7f644c83c32d5e130acab0312b0c926
+    Reviewed-on: https://go-review.googlesource.com/14999
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/test.go | 6 +++---
- src/cmd/go/build.go  | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/doc/pkg.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

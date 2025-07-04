@@ -1,20 +1,22 @@
-commit 2184a76fb8e1aeb0eb2d5401828548a25f90beae
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Nov 2 22:15:25 2023 +0100
+commit fe67a21625ee811897077b32d4e75566ef74c6c4
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 6 10:22:09 2022 -0500
 
-    embed: fix variable name in example
+    cmd/link: pass -Wl,--no-insert-timestamp to external linker on windows
     
-    Use variable 'mux' for an http.ServeMux, not 'mutex'.
+    Pass -Wl,--no-insert-timestamp to the external linker on windows, so
+    as to suppress generation of the PE file header data/time stamp. This
+    is in order to make it possible to get reproducible CGO builds on
+    windows (note that we already zero the timestamp field in question for
+    internal linkage).
     
-    Change-Id: I58e9a8ebacbb61727ec4b8e4d0fd7f73e86ab381
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539515
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Updates #35006.
+    
+    Change-Id: I3d69cf1fd32e099bd9bb4b0431a4c5f43e4b08f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455535
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/embed/example_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,25 +1,35 @@
-commit 4889afe8f82433599a38b74808eb572f972d4ff9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 23 11:57:36 2021 -0400
+commit ab88d97deb216cdd93712dedca3be4d7a561743e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Aug 31 16:29:13 2020 -0400
 
-    cmd/go/internal/load: use setLoadPackageDataError in loadImport
+    cmd: update vendored golang.org/x/mod
     
-    This makes the error handling in loadImport somewhat more uniform,
-    with no discernable effect on reported errors.
+    This pulls in golang.org/cl/250920 which rejects Windows shortnames as
+    path components in module.CheckImportPath (as is already done in
+    cmd/go/internal/get's copy of CheckImportPath). This will allow us to replace
+    the copy of CheckImportPath with the original.
     
-    Noticed in CL 303869.
+    This also pulls in golang.org/cl/250919 which rejects + in CheckPath and
+    CheckImportPath, and golang.org/cl/235597, which adds methods to the zip
+    package for gorelease, but shouldn't affect cmd.
     
-    Updates #36087
-    Updates #38034
+    This change also updates the cmd/go test case TestScript/mod_bad_filenames
+    to reflect that golang.org/x/mod/zip error messages now include filenames
+    for bad file names that can't be included in zip archives.
     
-    This somewhat simplifies the code, with no discernable effect on
+    Updates #29101
     
-    Change-Id: I30521f658f264d6f99d1844d6701269bbb372246
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304069
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I7f654325dc33b19bc9c6f77a56546747add5a47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251877
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/load/pkg.go | 27 +++++++++++++++------------
- 1 file changed, 15 insertions(+), 12 deletions(-)
+ src/cmd/go.mod                                   |   2 +-
+ src/cmd/go.sum                                   |   4 +-
+ src/cmd/go/testdata/script/mod_bad_filenames.txt |   6 +-
+ src/cmd/vendor/golang.org/x/mod/module/module.go |  33 +-
+ src/cmd/vendor/golang.org/x/mod/zip/zip.go       | 621 ++++++++++++++++-------
+ src/cmd/vendor/modules.txt                       |   2 +-
+ 6 files changed, 477 insertions(+), 191 deletions(-)

@@ -1,18 +1,259 @@
-commit 35a71dc56dfd0426cb3e72f8803cf58160c602ec
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue May 23 11:23:48 2023 +0700
+commit d558507db42d600e5ad82748bda0cb91df57b97d
+Merge: c9f2150cfb 85d87b9c75
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 4 10:12:28 2022 -0700
 
-    cmd/compile: avoid slicebytetostring call in len(string([]byte))
+    [dev.unified] all: merge master (85d87b9) into dev.unified
     
-    Change-Id: Ie04503e61400a793a6a29a4b58795254deabe472
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497276
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Merge List:
+    
+    + 2022-08-04 85d87b9c75 all: update vendored golang.org/x dependencies for Go 1.20 development
+    + 2022-08-04 fb1bfd4d37 all: remove pre-Go 1.17 workarounds
+    + 2022-08-04 44ff9bff0c runtime: clean up panic and deadlock lock ranks
+    + 2022-08-04 f42dc0de74 runtime: make the lock rank DAG make more sense
+    + 2022-08-04 d29a0282e9 runtime: add mayAcquire annotation for finlock
+    + 2022-08-04 c5be4ed7df runtime: add missing trace lock edges
+    + 2022-08-04 2b8a9a484f runtime: generate the lock ranking from a DAG description
+    + 2022-08-04 ddfd639408 runtime: delete unused lock ranks
+    + 2022-08-04 426ea5702b internal/dag: add a Graph type and make node order deterministic
+    + 2022-08-04 d37cc9a8cd go/build, internal/dag: lift DAG parser into an internal package
+    + 2022-08-04 ab0a94c6d3 cmd/dist: require Go 1.17 for building Go
+    + 2022-08-04 1e3c19f3fe runtime: support riscv64 SV57 mode
+    + 2022-08-03 f28fa952b5 make.bat, make.rc: show bootstrap toolchain version
+    + 2022-08-03 87384801dc cmd/asm: update package doc to describe "-p" option
+    + 2022-08-03 c6a2dada0d net: disable TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion [sic] on DragonflyBSD
+    + 2022-08-02 29b9a328d2 runtime: trivial replacements of g in remaining files
+    + 2022-08-02 c647264619 runtime: trivial replacements of g in signal_unix.go
+    + 2022-08-02 399f50c9d7 runtime: tricky replacements of g in traceback.go
+    + 2022-08-02 4509e951ec runtime: tricky replacements of g in proc.go
+    + 2022-08-02 4400238ec8 runtime: trivial replacements of _g_ in remaining files
+    + 2022-08-02 5999a28de8 runtime: trivial replacements of _g_ in os files
+    + 2022-08-02 0e18cf6d09 runtime: trivial replacements of _g_ in GC files
+    + 2022-08-02 4358a53a97 runtime: trivial replacements of _g_ in proc.go
+    + 2022-08-02 b486518964 runtime: tricky replacements of _g_ in os3_solaris.go
+    + 2022-08-02 54a0ab3f7b runtime: tricky replacements of _g_ in os3_plan9.go
+    + 2022-08-02 4240ff764b runtime: tricky replacements of _g_ in signal_windows.go
+    + 2022-08-02 8666d89ca8 runtime: tricky replacements of _g_ in signal_unix.go
+    + 2022-08-02 74cee276fe runtime: tricky replacements of _g_ in trace.go
+    + 2022-08-02 222799fde6 runtime: tricky replacements of _g_ in mgc.go
+    + 2022-08-02 e9d7f54a1a runtime: tricky replacements of _g_ in proc.go
+    + 2022-08-02 5e8d261918 runtime: rename _p_ to pp
+    + 2022-08-02 0ad2ec6596 runtime: clean up dopanic_m
+    + 2022-08-02 7e952962df runtime: clean up canpanic
+    + 2022-08-02 9dbc0f3556 runtime: fix outdated g.m comment in traceback.go
+    + 2022-08-02 d723df76da internal/goversion: update Version to 1.20
+    + 2022-08-02 1b7e71e8ae all: disable tests that fail on Alpine
+    + 2022-08-01 f2a9f3e2e0 test: improve generic type assertion test
+    + 2022-08-01 27038b70f8 cmd/compile: fix wrong dict pass condition for type assertions
+    + 2022-08-01 e99f53fed9 doc: move Go 1.19 release notes to x/website
+    + 2022-08-01 8b13a073a1 doc: mention removal of cmd/compile's -importmap and -installsuffix flags
+    + 2022-08-01 e95fd4c238 doc/go1.19: fix typo: EM_LONGARCH -> EM_LOONGARCH
+    + 2022-08-01 dee3efd9f8 doc/go1.19: fix a few links that were missing trailing slashes
+    + 2022-07-30 f32519e5fb runtime: fix typos
+    + 2022-07-29 9a2001a8cc cmd/dist: always pass -short=true with -quick
+    + 2022-07-28 5c8ec89cb5 doc/go1.19: minor adjustments and links
+    + 2022-07-28 417be37048 doc/go1.19: improve the loong64 release notes
+    + 2022-07-28 027855e8d8 os/exec: add GODEBUG setting to opt out of ErrDot changes
+    
+    Change-Id: Idc0fbe93978c0dff7600b90a2c3ecc067fd9f5f2
 
- src/cmd/compile/internal/walk/builtin.go | 10 ++++++++++
- test/codegen/strings.go                  |  5 +++++
- 2 files changed, 15 insertions(+)
+ doc/go1.19.html                                    |  985 ---------
+ misc/cgo/test/issue1435.go                         |    6 +
+ misc/cgo/test/pkg_test.go                          |    4 +
+ misc/cgo/testcarchive/carchive_test.go             |    7 +
+ misc/cgo/testcshared/cshared_test.go               |    6 +
+ src/cmd/asm/doc.go                                 |    2 +
+ src/cmd/compile/internal/gc/bootstrap.go           |   17 -
+ src/cmd/compile/internal/gc/pprof.go               |   14 -
+ src/cmd/compile/internal/gc/trace.go               |   30 -
+ src/cmd/compile/internal/gc/util.go                |   16 +-
+ src/cmd/compile/internal/logopt/escape.go          |   14 -
+ .../compile/internal/logopt/escape_bootstrap.go    |   13 -
+ src/cmd/compile/internal/logopt/log_opts.go        |    4 +-
+ src/cmd/compile/internal/noder/stencil.go          |    3 +
+ src/cmd/dist/notgo117.go                           |   22 +
+ src/cmd/dist/test.go                               |    2 +-
+ src/cmd/go.mod                                     |   14 +-
+ src/cmd/go.sum                                     |   24 +-
+ src/cmd/vendor/golang.org/x/arch/AUTHORS           |    3 -
+ src/cmd/vendor/golang.org/x/arch/CONTRIBUTORS      |    3 -
+ src/cmd/vendor/golang.org/x/crypto/AUTHORS         |    3 -
+ src/cmd/vendor/golang.org/x/crypto/CONTRIBUTORS    |    3 -
+ src/cmd/vendor/golang.org/x/sync/AUTHORS           |    3 -
+ src/cmd/vendor/golang.org/x/sync/CONTRIBUTORS      |    3 -
+ src/cmd/vendor/golang.org/x/sys/AUTHORS            |    3 -
+ src/cmd/vendor/golang.org/x/sys/CONTRIBUTORS       |    3 -
+ .../vendor/golang.org/x/sys/unix/asm_bsd_riscv64.s |   29 +
+ .../golang.org/x/sys/unix/errors_freebsd_386.go    |  233 ---
+ .../golang.org/x/sys/unix/errors_freebsd_amd64.go  |  233 ---
+ .../golang.org/x/sys/unix/errors_freebsd_arm.go    |  226 --
+ .../golang.org/x/sys/unix/errors_freebsd_arm64.go  |   17 -
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |   13 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   10 +-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   61 +-
+ .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |   46 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |    7 +
+ .../golang.org/x/sys/unix/syscall_freebsd.go       |  327 +--
+ .../golang.org/x/sys/unix/syscall_freebsd_386.go   |    4 +-
+ .../golang.org/x/sys/unix/syscall_freebsd_amd64.go |    4 +-
+ .../golang.org/x/sys/unix/syscall_freebsd_arm.go   |    2 +-
+ .../golang.org/x/sys/unix/syscall_freebsd_arm64.go |    2 +-
+ .../x/sys/unix/syscall_freebsd_riscv64.go          |   63 +
+ .../golang.org/x/sys/unix/syscall_illumos.go       |    5 +-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   45 +-
+ .../golang.org/x/sys/unix/syscall_linux_loong64.go |   39 +-
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |    1 +
+ .../x/sys/unix/syscall_openbsd_mips64.go           |    4 +
+ .../golang.org/x/sys/unix/syscall_solaris.go       |   50 +-
+ .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   74 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_386.go   |  109 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_amd64.go |  107 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_arm.go   |  220 +-
+ .../golang.org/x/sys/unix/zerrors_freebsd_arm64.go |  100 +-
+ .../x/sys/unix/zerrors_freebsd_riscv64.go          | 2148 ++++++++++++++++++++
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  389 +++-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |    4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |    2 +
+ .../x/sys/unix/zerrors_linux_mips64le.go           |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |    2 +
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |    2 +
+ .../golang.org/x/sys/unix/zsyscall_freebsd_386.go  |  141 +-
+ .../x/sys/unix/zsyscall_freebsd_amd64.go           |  139 +-
+ .../golang.org/x/sys/unix/zsyscall_freebsd_arm.go  |  173 +-
+ .../x/sys/unix/zsyscall_freebsd_arm64.go           |  139 +-
+ .../x/sys/unix/zsyscall_freebsd_riscv64.go         | 1889 +++++++++++++++++
+ .../x/sys/unix/zsyscall_linux_loong64.go           |   25 -
+ .../x/sys/unix/zsyscall_linux_riscv64.go           |   11 +
+ .../golang.org/x/sys/unix/zsysnum_freebsd_386.go   |  107 +-
+ .../golang.org/x/sys/unix/zsysnum_freebsd_amd64.go |  107 +-
+ .../golang.org/x/sys/unix/zsysnum_freebsd_arm.go   |  107 +-
+ .../golang.org/x/sys/unix/zsysnum_freebsd_arm64.go |  107 +-
+ .../x/sys/unix/zsysnum_freebsd_riscv64.go          |  394 ++++
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |    2 -
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |    1 +
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |   73 +-
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |   73 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_386.go    |   97 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_amd64.go  |   94 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm.go    |  145 +-
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm64.go  |   92 +-
+ .../x/sys/unix/ztypes_freebsd_riscv64.go           |  626 ++++++
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   30 +-
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_loong64.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |    7 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |    6 +
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |    6 +
+ .../golang.org/x/sys/unix/ztypes_solaris_amd64.go  |    2 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |  104 +
+ .../golang.org/x/sys/windows/types_windows.go      |   81 +-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   18 +
+ src/cmd/vendor/golang.org/x/term/AUTHORS           |    3 -
+ src/cmd/vendor/golang.org/x/term/CONTRIBUTORS      |    3 -
+ src/cmd/vendor/golang.org/x/term/terminal.go       |    2 +-
+ src/cmd/vendor/golang.org/x/tools/AUTHORS          |    3 -
+ src/cmd/vendor/golang.org/x/tools/CONTRIBUTORS     |    3 -
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |    3 +
+ .../go/analysis/passes/composite/composite.go      |   41 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |    2 +
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go |   11 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |   65 +-
+ .../golang.org/x/tools/internal/lsp/fuzzy/input.go |  183 --
+ .../x/tools/internal/lsp/fuzzy/matcher.go          |  407 ----
+ .../x/tools/internal/lsp/fuzzy/symbol.go           |  237 ---
+ .../x/tools/internal/typeparams/coretype.go        |  122 ++
+ src/cmd/vendor/modules.txt                         |   15 +-
+ src/go.mod                                         |    8 +-
+ src/go.sum                                         |   12 +-
+ src/go/build/deps_test.go                          |  233 +--
+ src/internal/dag/alg.go                            |   63 +
+ src/internal/dag/alg_test.go                       |   46 +
+ src/internal/dag/parse.go                          |  314 +++
+ src/internal/dag/parse_test.go                     |   61 +
+ src/internal/goversion/goversion.go                |    2 +-
+ src/internal/pkgbits/frames_go1.go                 |   21 -
+ src/internal/pkgbits/frames_go17.go                |   28 -
+ src/internal/pkgbits/sync.go                       |   19 +
+ src/make.bat                                       |   10 +-
+ src/make.rc                                        |    6 +-
+ src/net/udpsock_test.go                            |    4 +-
+ src/os/exec/dot_test.go                            |   86 +-
+ src/os/exec/exec.go                                |    5 +
+ src/os/exec/lp_plan9.go                            |    3 +-
+ src/os/exec/lp_unix.go                             |    3 +-
+ src/os/exec/lp_windows.go                          |    6 +-
+ src/runtime/cgocheck.go                            |    6 +-
+ src/runtime/chan.go                                |    2 +-
+ src/runtime/debug.go                               |   16 +-
+ src/runtime/export_debuglog_test.go                |    8 +-
+ src/runtime/export_test.go                         |   24 +-
+ src/runtime/heapdump.go                            |    8 +-
+ src/runtime/lfstack_64bit.go                       |   12 +
+ src/runtime/lockrank.go                            |  291 +--
+ src/runtime/lockrank_on.go                         |    3 +
+ src/runtime/lockrank_test.go                       |   46 +-
+ src/runtime/malloc.go                              |    7 +-
+ src/runtime/mbitmap.go                             |    5 +-
+ src/runtime/mfinal.go                              |    6 +
+ src/runtime/mgc.go                                 |   27 +-
+ src/runtime/mgcmark.go                             |   12 +-
+ src/runtime/mgcpacer.go                            |   12 +-
+ src/runtime/mgcsweep.go                            |    8 +-
+ src/runtime/mklockrank.go                          |  360 ++++
+ src/runtime/msan.go                                |    4 +-
+ src/runtime/mwbbuf.go                              |   16 +-
+ src/runtime/os2_aix.go                             |   32 +-
+ src/runtime/os3_plan9.go                           |   10 +-
+ src/runtime/os3_solaris.go                         |   15 +-
+ src/runtime/os_js.go                               |    6 +-
+ src/runtime/os_netbsd.go                           |   16 +-
+ src/runtime/os_openbsd.go                          |    8 +-
+ src/runtime/os_plan9.go                            |   26 +-
+ src/runtime/panic.go                               |   40 +-
+ src/runtime/proc.go                                | 1028 +++++-----
+ src/runtime/race.go                                |   32 +-
+ src/runtime/rdebug.go                              |    6 +-
+ src/runtime/runtime.go                             |    1 +
+ src/runtime/runtime1.go                            |   22 +-
+ src/runtime/runtime_test.go                        |    7 +-
+ src/runtime/signal_unix.go                         |  116 +-
+ src/runtime/signal_windows.go                      |   31 +-
+ src/runtime/testdata/testprog/vdso.go              |    2 +-
+ src/runtime/trace.go                               |   85 +-
+ src/runtime/traceback.go                           |   12 +-
+ src/sort/slice.go                                  |   15 +-
+ src/sort/slice_go113.go                            |   13 -
+ src/sort/slice_go14.go                             |   23 -
+ src/sort/slice_go18.go                             |   13 -
+ src/syscall/syscall_linux_test.go                  |    3 +
+ src/vendor/golang.org/x/crypto/AUTHORS             |    3 -
+ src/vendor/golang.org/x/crypto/CONTRIBUTORS        |    3 -
+ .../golang.org/x/crypto/curve25519/curve25519.go   |    9 +-
+ src/vendor/golang.org/x/sys/AUTHORS                |    3 -
+ src/vendor/golang.org/x/sys/CONTRIBUTORS           |    3 -
+ .../golang.org/x/sys/cpu/cpu_other_riscv64.go      |   12 +
+ src/vendor/golang.org/x/text/AUTHORS               |    3 -
+ src/vendor/golang.org/x/text/CONTRIBUTORS          |    3 -
+ src/vendor/modules.txt                             |    6 +-
+ test/typeparam/issue54135.go                       |   32 +
+ 199 files changed, 9364 insertions(+), 5858 deletions(-)

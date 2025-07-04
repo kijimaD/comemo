@@ -1,30 +1,21 @@
-commit 31444a796a70530238b23d7603f85bf8d524d5da
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 25 16:25:34 2013 -0800
+commit 9e66ee456210024ad05ba95f3b245cdc974aba43
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 26 00:43:31 2013 +0100
 
-    cmd/vet: move the tests into separate files
-    Then mark them with a build tag so they're not compiled into the binary.
-    They are called test_*.go rather than *_test.go because they are not
-    for go test. Use make test to test the command.
+    cmd/gc: fix corruption in export of &T{} literals.
     
-    R=golang-dev, adg
+    Composite literals using the &T{} form were incorrectly
+    exported, leading to weird errors at import time.
+    
+    Fixes #4879.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7377052
+    https://golang.org/cl/7395054
 
- src/cmd/vet/Makefile          |   2 +-
- src/cmd/vet/atomic.go         |  31 ---------
- src/cmd/vet/buildtag.go       |   5 --
- src/cmd/vet/method.go         |   7 --
- src/cmd/vet/print.go          | 135 -------------------------------------
- src/cmd/vet/print_unsafe.go   |  19 ------
- src/cmd/vet/rangeloop.go      |  52 --------------
- src/cmd/vet/structtag.go      |   4 --
- src/cmd/vet/taglit.go         |  17 -----
- src/cmd/vet/test_atomic.go    |  43 ++++++++++++
- src/cmd/vet/test_buildtag.go  |  15 +++++
- src/cmd/vet/test_method.go    |  24 +++++++
- src/cmd/vet/test_print.go     | 153 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/vet/test_rangeloop.go |  61 +++++++++++++++++
- src/cmd/vet/test_structtag.go |  15 +++++
- src/cmd/vet/test_taglit.go    |  31 +++++++++
- 16 files changed, 343 insertions(+), 271 deletions(-)
+ src/cmd/gc/fmt.c                  |  8 ++++++--
+ src/cmd/gc/typecheck.c            |  6 ++++--
+ test/fixedbugs/issue4879.dir/a.go | 33 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue4879.dir/b.go |  9 +++++++++
+ test/fixedbugs/issue4879.go       | 10 ++++++++++
+ 5 files changed, 62 insertions(+), 4 deletions(-)

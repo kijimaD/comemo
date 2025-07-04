@@ -1,17 +1,16 @@
-commit 833dae6d26c56bde5fbae27fde0cdc6efa63fefa
+commit a43673cf8a237fa237c179aeb0862215b797b9df
 Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Mar 24 20:36:42 2014 +0100
+Date:   Mon Mar 24 10:10:29 2014 -0700
 
-    cmd/gc: fix spurious 'const initializer is not a constant' error
+    cmd/gc: round floats with a large negative exponent towards zero
     
-    Fixes #6403
+    Fixes #6902
     
-    LGTM=rsc
+    LGTM=iant
     R=iant, rsc
     CC=golang-codereviews
-    https://golang.org/cl/72840044
+    https://golang.org/cl/78730049
 
- src/cmd/gc/subr.c           |  1 +
- src/cmd/gc/typecheck.c      |  5 ++++-
- test/fixedbugs/issue6403.go | 14 ++++++++++++++
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/gc/mparith1.c       |  3 ++-
+ test/fixedbugs/issue6902.go | 21 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

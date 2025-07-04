@@ -1,13 +1,15 @@
-commit a9aef26a558f6e9c44d6aac5d85ad3c16f1bc0f9
+commit 217408abf37b54aad25c2566d3e44691bc72b699
 Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 9 14:40:49 2011 -0800
+Date:   Wed Nov 9 14:22:44 2011 -0800
 
-    effective_go: fix up the description of cipher blocks and streams
+    crypto: update incorrect references to Cipher interface; should be Block.
     
-    R=golang-dev, r, agl, dsymonds
+    R=gri, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5374046
+    https://golang.org/cl/5372050
 
- doc/effective_go.html | 56 ++++++++++++++++++++++++++++++---------------------
- doc/effective_go.tmpl | 53 +++++++++++++++++++++++++++++-------------------
- 2 files changed, 65 insertions(+), 44 deletions(-)
+ doc/go_spec.html                  | 8 ++++----
+ src/pkg/crypto/aes/cipher.go      | 2 +-
+ src/pkg/crypto/blowfish/cipher.go | 2 +-
+ src/pkg/crypto/xtea/cipher.go     | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

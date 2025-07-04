@@ -1,17 +1,12 @@
-commit 5664eda73368fc146f24609f518da22cad0d0b2a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 8 05:13:28 2015 -0500
+commit 779682107fc61c694ca97151c7e4dc2d301e690e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 8 14:19:38 2014 -0800
 
-    cmd/go: document import path checking
+    Fix whitespace (use blanks consistently).
     
-    This is a replay of CL 189760043 that is in release-branch.go1.4,
-    but not in master branch somehow.
-    
-    Change-Id: I11eb40a24273e7be397e092ef040e54efb8ffe86
-    Reviewed-on: https://go-review.googlesource.com/2541
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I73ecfe8f1e46e4821dafc6ed5788f48a1f0deeea
+    Reviewed-on: https://go-review.googlesource.com/1213
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/doc.go   | 21 ++++++++++++++++++++-
- src/cmd/go/help.go  | 21 ++++++++++++++++++++-
- src/cmd/go/mkdoc.sh |  2 +-
- 3 files changed, 41 insertions(+), 3 deletions(-)
+ test/fibo.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

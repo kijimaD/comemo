@@ -1,14 +1,40 @@
-commit 8b85a3d480d63c2700ac556f183fc05280380fab
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat May 18 15:47:49 2013 -0700
+commit 28882bbd339ac72b06e0b022311a30a7eef89e46
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 18 15:28:27 2013 -0700
 
-    runtime: mark usleep as NOSPLIT on Plan 9
+    compress/flate: faster version of forwardCopy
     
-    Usleep is called from lockextra, also marked NOSPLIT.
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkDecodeDigitsSpeed1e4          197767       203490   +2.89%
+    BenchmarkDecodeDigitsSpeed1e5         1873969      1912761   +2.07%
+    BenchmarkDecodeDigitsSpeed1e6        18922760     19021056   +0.52%
+    BenchmarkDecodeDigitsDefault1e4        194975       197054   +1.07%
+    BenchmarkDecodeDigitsDefault1e5       1704262      1719988   +0.92%
+    BenchmarkDecodeDigitsDefault1e6      16618354     16351957   -1.60%
+    BenchmarkDecodeDigitsCompress1e4       195281       194626   -0.34%
+    BenchmarkDecodeDigitsCompress1e5      1694364      1702372   +0.47%
+    BenchmarkDecodeDigitsCompress1e6     16463347     16492126   +0.17%
+    BenchmarkDecodeTwainSpeed1e4           200653       200127   -0.26%
+    BenchmarkDecodeTwainSpeed1e5          1861385      1759632   -5.47%
+    BenchmarkDecodeTwainSpeed1e6         18255769     17186679   -5.86%
+    BenchmarkDecodeTwainDefault1e4         189080       185157   -2.07%
+    BenchmarkDecodeTwainDefault1e5        1559222      1461465   -6.27%
+    BenchmarkDecodeTwainDefault1e6       14792125     13879051   -6.17%
+    BenchmarkDecodeTwainCompress1e4        188881       185151   -1.97%
+    BenchmarkDecodeTwainCompress1e5       1537031      1456945   -5.21%
+    BenchmarkDecodeTwainCompress1e6      14805972     13405094   -9.46%
+    BenchmarkPaeth                          4            4   -0.89%
+    BenchmarkDecodeGray                964679       937244   -2.84%
+    BenchmarkDecodeNRGBAGradient      3753769      3646416   -2.86%
+    BenchmarkDecodeNRGBAOpaque        3165856      2981300   -5.83%
+    BenchmarkDecodePaletted            713950       691984   -3.08%
+    BenchmarkDecodeRGB                3051718      2924260   -4.18%
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/9258043
+    R=nigeltao, bradfitz
+    CC=golang-dev, raph
+    https://golang.org/cl/9425046
 
- src/pkg/runtime/os_plan9.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/compress/flate/copy.go      | 27 +++++++++++++++++++++------
+ src/pkg/compress/flate/copy_test.go | 10 ++++++----
+ src/pkg/compress/flate/inflate.go   |  2 +-
+ 3 files changed, 28 insertions(+), 11 deletions(-)

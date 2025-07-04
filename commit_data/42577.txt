@@ -1,20 +1,37 @@
-commit db85615bfd7502206708b799e4aa73bf707ebafa
-Author: Alexander Nohe <alex.nohe427@gmail.com>
-Date:   Sat Jun 27 23:22:29 2020 +0000
+commit 8e0be05ec7c369387c0ed3c9cf37968c6d3afbbd
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 04:58:37 2019 +1100
 
-    doc: add alt attribute to gopher image in help.html
+    runtime: add support for linux/riscv64
     
-    This adds an alt tag for accessibility. The alt text is a visual
-    description of the text that is read out loud to users using a
-    screen reader. The HTML specifications indicate that alt tags for
-    decorative images should be left blank.
+    Based on riscv-go port.
     
-    Fixes #39861
+    Updates #27532
     
-    Change-Id: I76c39a461ceabe685826aa46e4f26ad893d50634
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240258
-    Reviewed-by: Alexander Nohe <alex.nohe427@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: If522807a382130be3c8d40f4b4c1131d1de7c9e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204632
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/help.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_riscv64.s                     | 670 ++++++++++++++++++++++++++
+ src/runtime/atomic_riscv64.s                  |  12 +
+ src/runtime/defs_linux_riscv64.go             | 209 ++++++++
+ src/runtime/gcinfo_test.go                    |   2 +-
+ src/runtime/hash64.go                         |   2 +-
+ src/runtime/internal/atomic/atomic_riscv64.go |  67 +++
+ src/runtime/internal/atomic/atomic_riscv64.s  | 242 ++++++++++
+ src/runtime/internal/sys/arch.go              |   1 +
+ src/runtime/internal/sys/arch_riscv64.go      |  18 +
+ src/runtime/lfstack_64bit.go                  |   2 +-
+ src/runtime/malloc.go                         |   1 +
+ src/runtime/memclr_riscv64.s                  |  44 ++
+ src/runtime/memmove_riscv64.s                 |  96 ++++
+ src/runtime/os_linux.go                       |   7 +
+ src/runtime/rt0_linux_riscv64.s               |  14 +
+ src/runtime/signal_linux_riscv64.go           |  68 +++
+ src/runtime/signal_riscv64.go                 |  85 ++++
+ src/runtime/sys_linux_riscv64.s               | 517 ++++++++++++++++++++
+ src/runtime/sys_riscv64.go                    |  18 +
+ src/runtime/tls_riscv64.s                     |  18 +
+ 20 files changed, 2090 insertions(+), 3 deletions(-)

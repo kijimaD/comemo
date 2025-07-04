@@ -1,19 +1,14 @@
-commit 09f6f05c1fdd394ec512642e0cf086e0cf2d3d79
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Oct 30 14:01:14 2014 -0400
+commit 4e1d1965435046192267a6a03dd14773517b28b5
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Oct 16 13:58:32 2014 -0700
 
-    cmd/cgo: avoid worklist nondeterminism.
+    reflect: fix struct size calculation to include terminal padding
     
-    + Regression test.
-    
-    Fixes #9026.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/162490043
+    https://golang.org/cl/160920045
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/issue9026.go | 33 +++++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go         | 24 +++++++++++++++---------
- 3 files changed, 49 insertions(+), 9 deletions(-)
+ src/reflect/all_test.go | 20 ++++++++++++++++++++
+ src/reflect/type.go     |  1 +
+ 2 files changed, 21 insertions(+)

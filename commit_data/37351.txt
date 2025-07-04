@@ -1,49 +1,104 @@
-commit 6435d0cfbf72f405f31430e60766add6d6762fe1
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 5 15:59:08 2018 -0500
+commit 472e92609a7fa6a1983052d1d8e07bc9e4dcb396
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 16 11:38:57 2018 -0400
 
-    crypto/tls: implement TLS 1.3 PSK authentication (server side)
+    cmd/go/internal/module: add new +incompatible version build annotation
     
-    Added some assertions to testHandshake, but avoided checking the error
-    of one of the Close() because the one that would lose the race would
-    write the closeNotify to a connection closed on the other side which is
-    broken on js/wasm (#28650). Moved that Close() after the chan sync to
-    ensure it happens second.
+    Repos written before the introduction of semantic import versioning
+    introduced tags like v2.0.0, v3.0.0, and so on, expecting that
+    (1) the import path would remain unchanged, and perhaps also
+    (2) there would be at most one copy of the package in a build.
     
-    Accepting a ticket with client certificates when NoClientCert is
-    configured is probably not a problem, and we could hide them to avoid
-    confusing the application, but the current behavior is to skip the
-    ticket, and I'd rather keep behavior changes to a minimum.
+    We've always accommodated these by mapping them into the
+    v0/v1 version range, so that if you ran
     
-    Updates #9671
+        go get k8s.io/client-go@v8.0.0
     
-    Change-Id: I93b56e44ddfe3d48c2bef52c83285ba2f46f297a
-    Reviewed-on: https://go-review.googlesource.com/c/147445
-    Reviewed-by: Adam Langley <agl@golang.org>
+    it would not complain about v8.x.x being a non-v1 version and
+    instead would map that version to a pseudo-version in go.mod:
+    
+        require k8s.io/client-go v0.0.0-20180628043050-7d04d0e2a0a1
+    
+    The pseudo-version fails to capture two important facts: first,
+    that this really is the v8.0.0 tag, and second, that it should be
+    preferred over any earlier v1 tags.
+    
+    A related problem is that running "go get k8s.io/client-go"
+    with no version will choose the latest v1 tag (v1.5.1), which
+    is obsolete.
+    
+    This CL introduces a new version suffix +incompatible that
+    indicates that the tag should be considered an (incompatible)
+    extension of the v1 version sequence instead of part of its
+    own major version with its own versioned module path.
+    The requirement above can now be written:
+    
+        require k8s.io/client-go v8.0.0+incompatible
+    
+    (The +metadata suffix is a standard part of semantic versioning,
+    and that suffix is ignored when comparing two versions for
+    precedence or equality. As part of canonicalizing versions
+    recorded in go.mod, the go command has always stripped all
+    such suffixes. It still strips nearly all: only +incompatible is
+    preserved now.)
+    
+    In addition to recognizing the +incompatible, the code that
+    maps a commit hash to a version will use that form when
+    appropriate, so that
+    
+        go get k8s.io/client-go@7d04d0
+    
+    will choose k8s.io/client-go@v8.0.0+incompatible.
+    
+    Also, the code that computes the list of available versions from
+    a given source code repository also maps old tags to +incompatible
+    versions, for any tagged commit in which a go.mod file does not exist.
+    Therefore
+    
+        go list -m -versions k8s.io/client-go@latest
+    
+    will show
+    
+        k8s.io/client-go v1.4.0 v1.5.0 v1.5.1 v2.0.0-alpha.0+incompatible ... v8.0.0+incompatible
+    
+    and similarly
+    
+        go get k8s.io/client-go
+    
+    will now choose v8.0.0+incompatible as the meaning of "latest tagged version".
+    
+    The extraction of +incompatible versions from source code repos
+    depends on a codehost.Repo method ReadFileRevs, to do a bulk read
+    of multiple revisions of a file. That method is only implemented for git in this CL.
+    Future CLs will need to add support for that method to the other repository
+    implementations.
+    
+    Documentation for this change is in CL 124515.
+    
+    Fixes #26238.
+    
+    Change-Id: I5bb1d7a46b5fffde34a3c0e6f8d19d9608188cea
+    Reviewed-on: https://go-review.googlesource.com/124384
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/common.go                           |  15 ++
- src/crypto/tls/handshake_client_test.go            |  51 +++--
- src/crypto/tls/handshake_client_tls13.go           |   2 +-
- src/crypto/tls/handshake_messages.go               | 126 +++++++----
- src/crypto/tls/handshake_messages_test.go          |  22 ++
- src/crypto/tls/handshake_server.go                 |  14 +-
- src/crypto/tls/handshake_server_test.go            | 110 ++++++++--
- src/crypto/tls/handshake_server_tls13.go           | 230 ++++++++++++++++++++-
- .../tls/testdata/Server-TLSv13-AES128-SHA256       | 158 +++++++-------
- .../tls/testdata/Server-TLSv13-AES256-SHA384       | 163 ++++++++-------
- src/crypto/tls/testdata/Server-TLSv13-ALPN         | 164 ++++++++-------
- src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch | 163 ++++++++-------
- .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 158 +++++++-------
- .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 150 +++++++-------
- .../testdata/Server-TLSv13-ExportKeyingMaterial    | 163 ++++++++-------
- .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 188 +++++++++--------
- src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 103 +++++++++
- .../testdata/Server-TLSv13-IssueTicketPreDisable   | 103 +++++++++
- src/crypto/tls/testdata/Server-TLSv13-P256         | 167 ++++++++-------
- src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 163 ++++++++-------
- src/crypto/tls/testdata/Server-TLSv13-Resume       |  66 ++++++
- .../Server-TLSv13-Resume-HelloRetryRequest         | 106 ++++++++++
- .../tls/testdata/Server-TLSv13-ResumeDisabled      | 104 ++++++++++
- src/crypto/tls/testdata/Server-TLSv13-X25519       | 163 ++++++++-------
- src/crypto/tls/ticket.go                           |  63 ++++--
- 25 files changed, 1960 insertions(+), 955 deletions(-)
+ src/cmd/go/internal/modconv/convert.go             |   5 +-
+ src/cmd/go/internal/modconv/convert_test.go        |   2 +-
+ src/cmd/go/internal/modfetch/cache.go              |   6 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  27 ++++
+ src/cmd/go/internal/modfetch/codehost/git.go       | 166 ++++++++++++++++++++-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |   4 +
+ src/cmd/go/internal/modfetch/coderepo.go           |  68 +++++++--
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  21 +--
+ src/cmd/go/internal/modfile/rule.go                |  52 +++----
+ src/cmd/go/internal/modload/init.go                |   3 +-
+ src/cmd/go/internal/modload/query.go               |   6 +-
+ src/cmd/go/internal/module/module.go               |  12 +-
+ src/cmd/go/internal/module/module_test.go          |   3 +
+ src/cmd/go/proxy_test.go                           |   3 +
+ src/cmd/go/testdata/mod/rsc.io_breaker_v1.0.0.txt  |  11 ++
+ .../mod/rsc.io_breaker_v2.0.0+incompatible.txt     |  11 ++
+ src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0.txt  |  11 ++
+ .../go/testdata/script/mod_get_incompatible.txt    |  26 ++++
+ 18 files changed, 375 insertions(+), 62 deletions(-)

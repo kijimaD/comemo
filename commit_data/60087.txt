@@ -1,0 +1,27 @@
+commit 87e930f7289136fad1310d4b63dd4127e409bac5
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue May 14 14:44:37 2024 -0700
+
+    runtime: remove GODEBUG=runtimecontentionstacks
+    
+    Go 1.22 promised to remove the setting in a future release once the
+    semantics of runtime-internal lock contention matched that of
+    sync.Mutex. That work is done, remove the setting.
+    
+    For #66999
+    
+    Change-Id: I3c4894148385adf2756d8754e44d7317305ad758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585639
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ doc/godebug.md                                    |  3 +++
+ doc/next/6-stdlib/99-minor/runtime/pprof/66999.md |  5 +++++
+ src/runtime/extern.go                             |  9 ---------
+ src/runtime/metrics_test.go                       | 18 +++---------------
+ src/runtime/mprof.go                              |  5 -----
+ src/runtime/pprof/pprof.go                        |  6 ------
+ src/runtime/runtime1.go                           |  2 --
+ 7 files changed, 11 insertions(+), 37 deletions(-)

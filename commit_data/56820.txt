@@ -1,21 +1,27 @@
-commit 477ad7dd5151a2cb54fb68aa84ccbe9bb96ffbee
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jun 20 22:58:24 2024 +0700
+commit 08458804fb6591397fe1c58f4e04fd490e70fbcb
+Author: Maksim Meshkov <subtle.byte.dev@gmail.com>
+Date:   Wed May 24 21:18:15 2023 +0000
 
-    cmd/compile: support generic alias type
+    compress/flate, archive/zip: reduce memory allocations
     
-    Type parameters on aliases are now allowed after #46477 accepted.
+    The existing implementation allocates a new 4KB buffer each time it opens flate-encoded file in a zip archive. This commit allows the flate reader to reuse the buffer on call Reset instead of allocating a new one.
     
-    Updates #46477
-    Fixes #68054
+    It is noticeable when a zip archive contains a huge amount of files, e.g. zip archive has 50_000 files, for each file 4KB buffer is allocated, so it is 200MB memory allocations. If files are read sequentially only one buffer is needed.
     
-    Change-Id: Ic2e3b6f960a898163f47666e3a6bfe43b8cc22e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593715
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #59774
+    
+    Change-Id: Ib16336b101ba58e8f0f30a45dc5fd4eeebc801a1
+    GitHub-Last-Rev: f3f395b2ad95b7ad7ce9df6f5e49c7b6a0627627
+    GitHub-Pull-Request: golang/go#59775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 13 ++++++++++++-
- test/fixedbugs/issue68054.go             | 23 +++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/archive/zip/zip_test.go        |  2 +-
+ src/compress/flate/inflate.go      | 23 ++++++++++++++++------
+ src/compress/flate/inflate_test.go | 40 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 7 deletions(-)

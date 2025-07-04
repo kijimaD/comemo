@@ -1,15 +1,18 @@
-commit 1cec0fec8caff1eacaba99ff71b2c57574887aab
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:18:44 2016 -0400
+commit 248c3a3c7b376e128c14fcb13eebf28733553d03
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 18 09:55:18 2016 +1100
 
-    cmd/dist: enable cgo and external linking on linux/mips64x
+    regexp: avoid copying mutex in (*Regexp).Copy.
     
-    Fixes #14126
+    There's nothing guaranteeing that the *Regexp isn't in active use,
+    and so copying the sync.Mutex value is invalid.
     
-    Change-Id: I21c8e06c01d3ef02ee09dc185d4443e2da8fd52b
-    Reviewed-on: https://go-review.googlesource.com/19809
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Updates #14839.
+    
+    Change-Id: Iddf52bf69df1b563377922399f64a571f76b95dd
+    Reviewed-on: https://go-review.googlesource.com/20841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/build.go | 4 ++--
- src/cmd/dist/test.go  | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/regexp/regexp.go | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

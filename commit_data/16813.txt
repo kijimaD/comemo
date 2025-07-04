@@ -1,22 +1,14 @@
-commit 58f12ffd79df8ae369afa7ec60ee26d72ce2d843
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 16:53:45 2013 -0400
+commit b6f841733bd00267074d5cc0e2043a382e920eef
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Jul 18 21:28:00 2013 +0200
 
-    runtime: handle morestack/lessstack in stack trace
+    regexp/syntax: update documentation for Parse.
     
-    If we start a garbage collection on g0 during a
-    stack split or unsplit, we'll see morestack or lessstack
-    at the top of the stack. Record an argument frame size
-    for those, and record that they terminate the stack.
+    Syntax description was moved to the top level comment of this package.
     
-    R=golang-dev, dvyukov
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11533043
+    https://golang.org/cl/11536043
 
- src/pkg/runtime/asm_386.s       | 12 ++++++++++--
- src/pkg/runtime/asm_amd64.s     | 12 ++++++++++--
- src/pkg/runtime/asm_arm.s       | 16 ++++++++++++----
- src/pkg/runtime/proc.c          | 13 ++-----------
- src/pkg/runtime/traceback_arm.c | 11 +++++++----
- src/pkg/runtime/traceback_x86.c | 13 ++++++++-----
- 6 files changed, 49 insertions(+), 28 deletions(-)
+ src/pkg/regexp/syntax/parse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

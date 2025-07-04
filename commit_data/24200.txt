@@ -1,16 +1,25 @@
-commit 43156627b5eeb08e896a24095d2565acfe430a8c
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 8 10:58:21 2015 -0700
+commit 307d6919bdc4254206b3376eef51d53f2a081970
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 01:08:30 2015 -0400
 
-    doc: mention that go install removes binaries built by go build
+    cmd/go: print all test flags in "go test -h"
     
-    Fixes #12288.
+    Originally 'go test -h' printed the output of 'go help test'.
+    Then issue #6576 was filed, because that output didn't list (for example) -bench.
+    CL 14502065 changed 'go test -h' to print the output of 'go help testflag'.
+    Then issue #9209 was filed, because that output didn't list (for example) -c.
     
-    For inclusion in the 1.5.1 release.
+    To print all the relevant flags, parts of both 'go help test' and 'go help testflag'
+    are needed. Refactor the help messages to make those parts available
+    and print them.
     
-    Change-Id: I9354b7eaa76000498465c4a5cbab7246de9ecb7c
-    Reviewed-on: https://go-review.googlesource.com/14382
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #9209.
+    
+    Change-Id: Ie8205b8fb37d00c10d25b3fc98f14286ec46c4e3
+    Reviewed-on: https://go-review.googlesource.com/12173
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/alldocs.go |  3 +--
+ src/cmd/go/main.go    |  4 +++-
+ src/cmd/go/test.go    | 43 ++++++++++++++++++++++++++-----------------
+ 3 files changed, 30 insertions(+), 20 deletions(-)

@@ -1,17 +1,20 @@
-commit 722ee1f4797a81916b19e80df479058897c44923
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Fri Feb 22 23:06:25 2013 +0100
+commit 48f79a95d08c3baff87f4fbc06d3f2cc9762ec5a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 22 13:32:43 2013 -0800
 
-    os: Plan 9: avoid doing zero-length writes.
+    cmd/vet: restructure to be package-driven
+    This is a simple refactoring of main.go that will enable the type checker
+    to be used during vetting.
+    The change has an unimportant effect on the arguments: it now assumes
+    that all files named explicitly on the command line belong to the same
+    package. When run by the go command, this was true already.
     
-    Plan 9 I/O preserves message boundaries, while Go
-    library code is written for UNIX-like operating
-    systems which do not. Avoid doing zero-length
-    writes in package os.
+    Also restore a missing parenthesis from an error message.
     
-    R=rsc, rminnich, ality, rminnich, r
+    R=golang-dev, gri, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7406046
+    https://golang.org/cl/7393052
 
- src/pkg/os/file_plan9.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/vet/main.go   | 125 +++++++++++++++++++++++++++++++++++++-------------
+ src/cmd/vet/method.go |   2 +-
+ 2 files changed, 93 insertions(+), 34 deletions(-)

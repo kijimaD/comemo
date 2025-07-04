@@ -1,17 +1,12 @@
-commit 046e035fcaf4727e9ac7af554beea87d02618f15
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Sat Feb 23 00:22:39 2013 +0100
+commit 56a0bafdb66c95f31de86d9a713fa819911d50a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 16:38:44 2013 -0500
 
-    all.rc: make sure the Go tools end up in /bin
+    runtime: fix arm build
     
-    At least one test (in package runtime) depends
-    on `go' being in $path. We simply bind GOROOT/bin
-    before /bin to make sure the latest copy of the
-    binary is accessible there.
-    
-    R=rsc, rminnich, ality
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7391047
+    https://golang.org/cl/7399050
 
- src/all.rc | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

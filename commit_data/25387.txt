@@ -1,24 +1,32 @@
-commit f70f277875a249dd5dace4ec5a320bc8811534e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Dec 20 14:29:20 2015 -0500
+commit 31115a5c98935b5dee2de73b991bc391141dfb9d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 23 19:12:49 2015 -0700
 
-    cmd/dist: make test default to --no-rebuild
+    [dev.ssa] cmd/compile: optimize nil checks
     
-    I'm tired of having to remember it on every command.
-    Rebuilding everything is the wrong default.
+    Use faulting loads instead of test/jeq to do nil checks.
+    Fold nil checks into a following load/store if possible.
     
-    This CL updates the build script, but the builders may
-    (or may not) need work, depending on whether they
-    rebuild using the test command (I doubt it).
+    Makes binaries about 2% smaller.
     
-    Change-Id: I21f202a2f13e73df3f6bd54ae6a317c467b68151
-    Reviewed-on: https://go-review.googlesource.com/18084
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I54af0f0a93c853f37e34e0ce7e3f01dd2ac87f64
+    Reviewed-on: https://go-review.googlesource.com/16287
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/test.go | 11 ++++++++---
- src/race.bash        |  2 +-
- src/race.bat         |  2 +-
- src/run.bash         |  2 +-
- src/run.bat          |  2 +-
- src/run.rc           |  2 +-
- 6 files changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 70 +++++++++++++++++---------
+ src/cmd/compile/internal/gc/type.go            |  1 +
+ src/cmd/compile/internal/ssa/check.go          | 10 ++++
+ src/cmd/compile/internal/ssa/dom.go            |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  4 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       | 24 +++++++--
+ src/cmd/compile/internal/ssa/opGen.go          | 25 +++++----
+ src/cmd/compile/internal/ssa/regalloc.go       |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 36 ++++++-------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 26 +++++-----
+ src/cmd/compile/internal/ssa/type.go           |  4 ++
+ src/cmd/compile/internal/ssa/type_test.go      |  1 +
+ 16 files changed, 136 insertions(+), 79 deletions(-)

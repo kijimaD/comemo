@@ -1,14 +1,20 @@
-commit 929ee59fce2a314a28a25629e6c99402ec97603e
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 25 11:19:25 2014 +1100
+commit 132e816734de8cb7d5c52ca3a5a707135fc81075
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 24 19:11:21 2014 -0400
 
-    regexp/syntax: document the upper limit of n in x{n}
-    Fixes #7252.
+    doc: allow buffered channel as semaphore without initialization
     
-    LGTM=rsc
-    R=rsc
+    This rule not existing has been the source of many discussions
+    on golang-dev and on issues. We have stated publicly that it is
+    true, but we have never written it down. Write it down.
+    
+    Fixes #6242.
+    
+    LGTM=r, dan.kortschak, iant, dvyukov
+    R=golang-codereviews, r, dominik.honnef, dvyukov, dan.kortschak, iant, 0xjnml
     CC=golang-codereviews
-    https://golang.org/cl/77990044
+    https://golang.org/cl/75130045
 
- src/pkg/regexp/syntax/doc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/effective_go.html | 40 ++++++++++++++++------------------------
+ doc/go_mem.html       | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 24 deletions(-)

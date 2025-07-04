@@ -1,12 +1,12 @@
-commit fea7f07e560b3a8dcc16c89f683eb907762fad6f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 23 12:07:59 2012 +1100
+commit 123130f7894993587d3049b90d93c2319e099a4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 17:36:25 2012 -0500
 
-    time: run full TestTicker test even during short tests
+    5a: fix same arm bug
     
-    R=golang-dev, r, bradfitz, r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5689076
+    https://golang.org/cl/5689073
 
- src/pkg/time/tick_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/5a/a.y | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

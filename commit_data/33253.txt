@@ -1,14 +1,15 @@
-commit 186872f3dacd017aed86fd57bb0bbbdaca35cd66
-Author: Christopher Koch <chrisko@google.com>
-Date:   Thu Oct 26 05:14:50 2017 +0000
+commit 8fb9cee3f1a6333ad50d7ca382e9a0bdafc1b5b6
+Author: molivier <olivier.matthieu@gmail.com>
+Date:   Tue Aug 8 17:39:52 2017 +0200
 
-    syscall: remove unnecessary use of unsafe.Pointer.
+    strings: add examples for Index functions
     
-    Change-Id: I43b32fbca8761d33927e7d0541bba123df0e0122
-    Reviewed-on: https://go-review.googlesource.com/73556
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ia0f0c8ab4f2f9e96faad6d88775ae19ca7fae53c
+    Reviewed-on: https://go-review.googlesource.com/53790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/syscall_linux.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/strings/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

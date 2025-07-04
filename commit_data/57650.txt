@@ -1,18 +1,23 @@
-commit 7634f0755c98f25228e3904ed760089c3b199c5d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 9 14:32:21 2024 -0700
+commit e7240ed8868f8c1df9e3421711eb8d0a537c3414
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 21 13:51:21 2023 -0700
 
-    os: handle umask comparing execute mode in verifyCopyFS
+    cmd/compile/internal/ssagen: share runtime._defer types
     
-    Fixes #69788
+    Rather than constructing a new runtime._defer struct type at each
+    defer statement, we can use a single shared one. Also, by naming it
+    runtime._defer, we avoid emitting new runtime and DWARF type
+    descriptors in every package that contains a "defer" statement.
     
-    Change-Id: I43cc4c0dc3c8aa2474cba26c84714d00828de08e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619176
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Shaves ~1kB off cmd/go.
+    
+    Change-Id: I0bd819aec9f856546e684abf620e339a7555e73f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521676
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/os/os_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 39 ++++++++++++++++++++++------------
+ 1 file changed, 25 insertions(+), 14 deletions(-)

@@ -1,53 +1,33 @@
-commit a80c5f0588e3835ff37c45a15d179571d9e403e0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 21 17:13:45 2019 -0700
+commit ca8354843ef9f30207efd0a40bb6c53e7ba86892
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Tue Nov 13 15:34:22 2018 +0900
 
-    go/types: allow embedding overlapping interfaces
+    sync: allow inlining the Once.Do fast path
     
-    Quietly drop duplicate methods from embedded interfaces
-    if they have an identical signature to existing methods.
+    Using Once.Do is now extremely cheap because the fast path is just an inlined
+    atomic load of a variable that is written only once and a conditional jump.
+    This is very beneficial for Once.Do because, due to its nature, the fast path
+    will be used for every call after the first one.
     
-    Instead of adjusting the prior syntax-based only method set
-    computation where methods don't have signature information
-    (and thus where de-duplication according to the new rules
-    would have been somewhat tricky to get right), this change
-    completely rewrites interface method set computation, taking
-    a page from the cmd/compiler's implementation. In a first
-    pass, when type-checking interfaces, explicit methods and
-    embedded interfaces are collected, but the interfaces are
-    not "expanded", that is the final method set computation
-    is done lazily, either when needed for method lookup, or
-    at the end of type-checking.
+    In a attempt to mimize code size increase, reorder the fields so that the
+    pointer to Once is also the pointer to Once.done, that is the only field used
+    in the hot path. This allows to use more compact instruction encodings or less
+    instructions in the hot path (that is inlined at every callsite).
     
-    While this is a substantial rewrite, it allows us to get
-    rid of the separate (duplicate and delicate) syntactical
-    method set computation and generally simplifies checking
-    of interface types significantly. A few (esoteric) test
-    cases now have slightly different error messages but all
-    tests that are accepted by cmd/compile are also accepted
-    by go/types.
+    name     old time/op  new time/op  delta
+    Once     4.54ns ± 0%  2.06ns ± 0%  -54.59%  (p=0.000 n=19+16)
+    Once-4   1.18ns ± 0%  0.55ns ± 0%  -53.39%  (p=0.000 n=15+16)
+    Once-16  0.53ns ± 0%  0.17ns ± 0%  -67.92%  (p=0.000 n=18+17)
     
-    (This is a replacement for golang.org/cl/190258.)
+    linux/amd64 bin/go 14675861 (previous commit 14663387, +12474/+0.09%)
     
-    Updates #6977.
-    
-    Change-Id: Ic8b9321374ab4f617498d97c12871b69d1119735
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191257
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie2708103ab473787875d66746d2f20f1d90a6916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/152697
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/types/builtins.go            |   2 +-
- src/go/types/call.go                |   6 +-
- src/go/types/check.go               |  25 +-
- src/go/types/check_test.go          |   1 +
- src/go/types/errors.go              |   4 +
- src/go/types/interfaces.go          | 451 ------------------------------------
- src/go/types/lookup.go              |  31 ++-
- src/go/types/methodset.go           |   5 +
- src/go/types/testdata/cycles2.src   |  16 +-
- src/go/types/testdata/decls0.src    |   2 +-
- src/go/types/testdata/issue6977.src |  82 +++++++
- src/go/types/testdata/issues.src    |   9 +-
- src/go/types/type.go                |  73 +++---
- src/go/types/typexpr.go             | 248 ++++++++------------
- test/fixedbugs/bug211.go            |  14 --
- 15 files changed, 287 insertions(+), 682 deletions(-)
+ src/sync/once.go    | 16 ++++++++++++----
+ test/inline_sync.go |  7 +++++++
+ 2 files changed, 19 insertions(+), 4 deletions(-)

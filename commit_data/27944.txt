@@ -1,20 +1,34 @@
-commit 1756b665980613cf655d6ecde709a032568963b0
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sun Jul 31 23:10:35 2016 +0700
+commit 7d56215bcbc5a2ef5e59805271b0ca6a4fd56e4d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Apr 19 14:02:21 2016 -0400
 
-    os: make ExpandEnv recognize '-' as a special shell parameter
+    cmd/link: convert textp into a slice
     
-    '-' is one of shell special parameters.
+    Updates #15374
     
-    The existing implementation of isShellSpecialVar missed '-'
-    from the list, causing "$-" and "${-}" expand differently.
-    
-    Fixes #16554
-    
-    Change-Id: Iafc7984692cc83cff58f7c1e01267bf78b3a20a9
-    Reviewed-on: https://go-review.googlesource.com/25352
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3ea715735862fe9550b88d7a29def6cb9d4419a6
+    Reviewed-on: https://go-review.googlesource.com/22243
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/os/env.go           |  2 +-
- src/os/env_unix_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go   |  7 +-----
+ src/cmd/link/internal/arm/asm.go     |  7 +-----
+ src/cmd/link/internal/arm64/asm.go   |  7 +-----
+ src/cmd/link/internal/ld/data.go     | 15 +++++------
+ src/cmd/link/internal/ld/deadcode.go | 22 ++++------------
+ src/cmd/link/internal/ld/dwarf.go    |  8 +++---
+ src/cmd/link/internal/ld/elf.go      |  2 +-
+ src/cmd/link/internal/ld/ldelf.go    | 10 ++------
+ src/cmd/link/internal/ld/ldmacho.go  | 10 ++------
+ src/cmd/link/internal/ld/ldpe.go     | 10 ++------
+ src/cmd/link/internal/ld/lib.go      | 38 ++++++++--------------------
+ src/cmd/link/internal/ld/link.go     |  3 +--
+ src/cmd/link/internal/ld/macho.go    |  2 +-
+ src/cmd/link/internal/ld/objfile.go  |  7 +-----
+ src/cmd/link/internal/ld/pcln.go     | 49 +++++++++++++++++-------------------
+ src/cmd/link/internal/ld/pe.go       |  2 +-
+ src/cmd/link/internal/ppc64/asm.go   | 23 +++--------------
+ src/cmd/link/internal/s390x/asm.go   |  7 +-----
+ src/cmd/link/internal/x86/asm.go     | 10 ++------
+ 19 files changed, 71 insertions(+), 168 deletions(-)

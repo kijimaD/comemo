@@ -1,16 +1,12 @@
-commit 28f65bf4a2ca23701f3c24c866b02bc473c0dd1e
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Mar 23 02:15:52 2013 +1100
+commit 79ae1ad48911ac6d36105cd5ec38247892f8a10b
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Fri Mar 22 14:54:20 2013 +1100
 
-    runtime: improve mmap return value checking for netbsd/openbsd
+    math: remove repeated comment.
     
-    Rather than just checking for ENOMEM, check for a return value of less
-    than 4096, so that we catch other errors such as EACCES and EINVAL.
-    
-    R=golang-dev, rsc
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/7942043
+    https://golang.org/cl/7835046
 
- src/pkg/runtime/mem_netbsd.c  | 2 +-
- src/pkg/runtime/mem_openbsd.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/math/sqrt.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

@@ -1,14 +1,23 @@
-commit fe49d100e465501557c58448c3eb4c7b9a92d0b3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 11 09:53:56 2018 -0800
+commit 0168fdb5520c0a77e9a27822caf307e739d4142a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 19:39:08 2017 +0100
 
-    misc/cgo/test: avoid endless loop when we can't parse notes
+    cmd/compile: refactor some more gotos away
     
-    Change-Id: I085870d978a3a560588711882c77060d136d867a
-    Reviewed-on: https://go-review.googlesource.com/87415
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The ones in racewalk.go are almost all useless, since they were just
+    breaks.
+    
+    typecheck.go wasn't trivial, but still doable with an if/else chain.
+    
+    Also remove a single silly goto in const.go, while at it.
+    
+    Change-Id: I776a78df6bb3b6bd4f7e5feec546c772baf4e02e
+    Reviewed-on: https://go-review.googlesource.com/65652
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/test/buildid_linux.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go     |  2 --
+ src/cmd/compile/internal/gc/racewalk.go  | 37 +-------------------------------
+ src/cmd/compile/internal/gc/typecheck.go | 15 +++++--------
+ 3 files changed, 6 insertions(+), 48 deletions(-)

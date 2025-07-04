@@ -1,18 +1,32 @@
-commit 046c65891952f1ee94c6580215eda7a4f21354e1
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 29 15:40:40 2017 +0000
+commit 200d0cc1929daa6331b552989b43d186d410d983
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 10:33:24 2017 -0400
 
-    misc/cgo/testplugin: add test for issue 18584
+    runtime: clean up some silly allp loops
     
-    Fixes #18584
+    Back in the day, allp was just a pointer to an array. As a result, the
+    runtime has a few loops of the form:
     
-    Change-Id: I5f9428758999cacee49f3449e596e0a88bc06f91
-    Reviewed-on: https://go-review.googlesource.com/67150
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+        for i := 0; ; i++ {
+            p := allp[i]
+            if p == nil {
+                break
+            }
+            ...
+        }
+    
+    This is silly now because it requires that allp be one longer than the
+    maximum possible number of Ps, but now that allp is in Go it has a
+    length.
+    
+    Replace these with range loops.
+    
+    Change-Id: I91ef4bc7bd3c9d4fda2264f4aa1b1d0271d7f578
+    Reviewed-on: https://go-review.googlesource.com/45571
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testplugin/src/issue18584/main.go   | 23 +++++++++++++++++++++++
- misc/cgo/testplugin/src/issue18584/plugin.go | 19 +++++++++++++++++++
- misc/cgo/testplugin/test.bash                |  9 +++++++--
- 3 files changed, 49 insertions(+), 2 deletions(-)
+ src/runtime/mstats.go | 3 +--
+ src/runtime/proc.go   | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

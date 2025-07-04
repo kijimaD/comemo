@@ -1,13 +1,14 @@
-commit 19e207d24d228f996dcc1317bba0ac2a811c877a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 14 11:00:23 2011 +1000
+commit 689a2ec8c3896b122907fcb5e3d1399ca4598099
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 13 17:41:33 2011 -0700
 
-    exp/template: simplify method and function calls by using the value's Method
-    rather than the type's, so a method's invocation works the same as a function's.
+    json: allow using '$' and '-' as the struct field's tag
     
-    R=golang-dev, rsc, r
+    R=adg, rsc, bradfitz, mattn.jp, gustavo
     CC=golang-dev
-    https://golang.org/cl/4704049
+    https://golang.org/cl/4625081
 
- src/pkg/exp/template/exec.go | 38 ++++++++++++++++++--------------------
- 1 file changed, 18 insertions(+), 20 deletions(-)
+ src/pkg/json/decode_test.go | 10 -----
+ src/pkg/json/encode.go      | 12 +++---
+ src/pkg/json/tagkey_test.go | 95 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 16 deletions(-)

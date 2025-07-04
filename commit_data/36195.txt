@@ -1,16 +1,21 @@
-commit 16ec18084e246b4a8dacf8bd1386e7f5c649eeab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 2 12:41:48 2018 -0700
+commit e0ac5f540bf0d5fff39ce05d60e82d97a011e935
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 11 09:57:18 2018 +0200
 
-    doc/go1.11: remove go/scanner note
+    runtime: use internal/cpu instead of support_avx
     
-    The relevant change was reverted in CL 127658.
+    After CL 104636 cpu.X86.HasAVX is set early enough that it can be used
+    to determine useAVXmemmove. Use it and remove support_avx.
     
-    Updates #26671
-    
-    Change-Id: I0c555c8e18f4c7e289de56d3ef840d79cf0adac2
-    Reviewed-on: https://go-review.googlesource.com/127659
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib7a627bede2bf96c92362507e742bd833cb42a74
+    Reviewed-on: https://go-review.googlesource.com/106235
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.11.html | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/runtime/asm_386.s         | 6 ------
+ src/runtime/asm_amd64.s       | 6 ------
+ src/runtime/asm_amd64p32.s    | 6 ------
+ src/runtime/cpuflags_amd64.go | 4 +++-
+ src/runtime/runtime2.go       | 1 -
+ 5 files changed, 3 insertions(+), 20 deletions(-)

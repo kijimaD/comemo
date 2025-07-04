@@ -1,12 +1,12 @@
-commit c989a0b2f7f7a51edbf4f46ae383ce78047a7500
+commit 351caa4b9109a3d307557b539427869abefbf815
 Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Sun Dec 29 11:05:30 2013 -0800
+Date:   Sun Dec 29 20:56:05 2013 +1100
 
-    reflect: remove length check for arrays in deepValueEqual
+    crypto/hmac: add tests for Size() and BlockSize()
     
-    R=golang-codereviews, iant
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/39910044
+    https://golang.org/cl/41320044
 
- src/pkg/reflect/deepequal.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/pkg/crypto/hmac/hmac_test.go | 66 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 62 insertions(+), 4 deletions(-)

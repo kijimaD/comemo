@@ -1,0 +1,19 @@
+commit 7ffa8d0a5b286add7b618b8177c8ce39414cb60a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 18 15:33:57 2024 -0700
+
+    cmd/go: accept -mcmodel and -mlarge-data-threshold compiler flags
+    
+    For #67475
+    
+    Change-Id: Ia90952eb7c19764306205928ead50bff22857378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/security.go      | 2 ++
+ src/cmd/go/internal/work/security_test.go | 4 ++++
+ 2 files changed, 6 insertions(+)

@@ -1,21 +1,16 @@
-commit ac0789c63e23b2f10adb3c162c75558cba51fc38
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Mar 11 23:07:38 2012 -0700
+commit 92d4af301e5c69b066b75475b3fce24e4fa51ab3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 12 15:55:39 2012 +1100
 
-    misc/dist: use archive/tar to generate tarballs
+    cmd/godoc: always include /doc files in union filesystems
     
-    For people untarring with -p or as root, preserving file permissions.
-    This way we don't make tars owned by adg/eng or adg/staff or whatever
-    machine Andrew was on. Instead, we always build tarballs owned by predictable
-    users.
+    Makes Path rewrites work, as the metadata was never being scanned.
     
-    Except archive/tar doesn't seem to work.
+    Fixes #3282.
     
-    Updates #3209.
-    
-    R=golang-dev, adg
-    CC=dsymonds, golang-dev
-    https://golang.org/cl/5796064
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5783076
 
- misc/dist/bindist.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 71 insertions(+), 1 deletion(-)
+ src/cmd/godoc/filesystem.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

@@ -1,18 +1,23 @@
-commit fcb75c8695f13d66be0865bf1bc62c12a15788b3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 29 12:15:23 2023 -0400
+commit 826efd7f25f789ab06f257eee19f02b1dc6c8a09
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 23 11:02:41 2022 +0700
 
-    runtime: log stderr in TestLockRankGenerated on failure
+    internal/singleflight: fix duplicate deleting key when ForgetUnshared called
     
-    For #62334.
+    A key may be forgotten while the call is still in flight. So when the
+    call finished, it should only delete the key if that key is associated
+    with the call. Otherwise, we may remove the wrong newly created call.
     
-    Change-Id: I6d93dacc914590ef9c5a034dd4633466ec0bde8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524056
+    Fixes #55343
+    
+    Change-Id: I4fa72d79cad006e5884e42d885d193641ef84e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433315
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/lockrank_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/internal/singleflight/singleflight.go      |  4 +-
+ src/internal/singleflight/singleflight_test.go | 56 ++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

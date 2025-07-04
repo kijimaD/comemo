@@ -1,20 +1,31 @@
-commit 8484d409ac8c4cf9d6c159d9bfbd1d00d908a66d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 7 17:18:33 2020 -0800
+commit 44e752c38ad507fd2725f58ae58802b39b45f1d8
+Author: Keith Randall <khr@google.com>
+Date:   Wed Sep 25 13:24:54 2019 -0700
 
-    cmd/compile: add ellipsis syntax for op-only rewrite rules
+    runtime: fix ppc64le race code
     
-    This change introduces a new syntax for rewrite rules
-    that only change a Value's Op. See #36380 for more discussion.
+    This code is not currently compiling, the asm vet checks fail. When running race.bash on ppc64le, I get:
     
-    Updating rewrite rules to use ellipses will happen
-    in follow-up CLs.
+    runtime/race_ppc64le.s:104:1: [ppc64le] RaceReadRange: wrong argument size 24; expected $...-16
+    runtime/race_ppc64le.s:514:1: [ppc64le] racecallbackthunk: unknown variable cmd; offset 0 is arg+0(FP)
+    runtime/race_ppc64le.s:515:1: [ppc64le] racecallbackthunk: unknown variable ctx
     
-    Change-Id: I8c56e85de24607579d79729575c89ca80805ba5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213898
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    I'm also not sure why it ever worked; it looks like it is writing
+    the arguments to racecallback in the wrong place (the race detector
+    itself probably still works, it would just have trouble symbolizing
+    any resulting race report).
+    
+    At a meta-level, we should really add a ppc64le/race builder.
+    Otherwise this code will rot, as evidenced by the rot this CL fixes :)
+    
+    Update #33309
+    
+    Change-Id: I3b49c2442aa78538fbb631a143a757389a1368fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197337
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 41 ++++++++++++++++++++++++++++-
- 1 file changed, 40 insertions(+), 1 deletion(-)
+ src/runtime/race_ppc64le.s | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

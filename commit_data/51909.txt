@@ -1,33 +1,22 @@
-commit 86c4b0a6ec70b07ab49d3813a5576ed295e269e9
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Thu Feb 2 11:07:34 2023 +0900
+commit 909a7a32138367abec92434872695fb65aa9b7d1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 20:07:06 2022 -0400
 
-    context: remove one allocation in timerCtx
+    cmd/compile: don't mark non-generic defined type symbol dupok
     
-    Embed the cancelCtx into timerCtx, instead of allocating both separately.
+    For a non-generic defined type, we generate its type descriptor
+    symbol only in the defining package. So there is no duplicate and
+    it doesn't need to be dupok.
     
-    name                               old time/op    new time/op    delta
-    WithTimeout/concurrency=40-16        2.21µs ±11%    2.08µs ± 5%   -5.76%  (p=0.011 n=10+10)
-    WithTimeout/concurrency=4000-16      1.94µs ± 6%    1.86µs ±10%     ~     (p=0.099 n=9+10)
-    WithTimeout/concurrency=400000-16    1.86µs ± 7%    1.83µs ±10%     ~     (p=0.353 n=10+10)
+    For unnamed types and instantiated types, the type descriptor can
+    be generated in multiple packages and so still need to be dupok.
     
-    name                               old alloc/op   new alloc/op   delta
-    WithTimeout/concurrency=40-16        2.56kB ± 0%    2.40kB ± 0%   -6.25%  (p=0.001 n=8+9)
-    WithTimeout/concurrency=4000-16      2.56kB ± 0%    2.40kB ± 0%   -6.25%  (p=0.000 n=9+10)
-    WithTimeout/concurrency=400000-16    2.56kB ± 0%    2.40kB ± 0%   -6.26%  (p=0.000 n=9+9)
-    
-    name                               old allocs/op  new allocs/op  delta
-    WithTimeout/concurrency=40-16          50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=10+10)
-    WithTimeout/concurrency=4000-16        50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=10+10)
-    WithTimeout/concurrency=400000-16      50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=10+10)
-    
-    Change-Id: Ia0460db3b8412fbaa6f1539fd6b4fb1b873896c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463999
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I92ed68c998ad68c5917b77b1dfd62eac4ced6bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394636
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/context/context.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

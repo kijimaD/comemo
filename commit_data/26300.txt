@@ -1,17 +1,24 @@
-commit 5305a329d8b6656d357d761afdd8067f61b1cad2
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 15 15:00:57 2016 -0700
+commit beb1741ae380d4e196f9d6e2e720fc0dc007ef00
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jan 8 23:22:12 2016 +1100
 
-    cmd/compile: turn off SSA internal consistency checks
+    cmd/dist: fix cgoTestSO on FreeBSD amd64 with GOHOSTARCH=386
     
-    They've been on for a few weeks of general use and nothing
-    has tripped up on them yet.
+    The cgoTestSO test currently fails when run on FreeBSD amd64 with
+    GOHOSTARCH=386. This is due to it failing to find the shared object.
     
-    Makes the compiler ~18% faster.
+    On FreeBSD 64-bit architectures, the linker for 32-bit objects
+    looks for a separate environment variable. Export both LD_LIBRARY_PATH
+    and LD_32_LIBRARY_PATH on FreeBSD when GOHOSTARCH=386.
     
-    Change-Id: I42d7bbc0581597f9cf4fb28989847814c81b08a2
-    Reviewed-on: https://go-review.googlesource.com/20741
+    Update issue #13873.
+    
+    Change-Id: I1fb20dd04eb2007061768b2e4530886521813d42
+    Reviewed-on: https://go-review.googlesource.com/18420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

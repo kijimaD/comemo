@@ -1,50 +1,23 @@
-commit b679e31cdbf09658388795c7b15c64fce86d6bd2
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 10 15:51:41 2023 -0400
+commit 351e0f4083779d8ac91c05afebded42a302a6893
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 13:22:02 2022 -0700
 
-    test/bench: delete
+    runtime: avoid fma in mkfastlog2table
     
-    Russ added test/bench/go1 in CL 5484071 to have a stable suite of
-    programs to use as benchmarks. For the compiler and runtime we had
-    back then, those were reasonable benchmarks, but the compiler and
-    runtime are now far more sophisticated and these benchmarks no longer
-    have good coverage. We also now have better benchmark suites
-    maintained outside the repo (e.g., golang.org/x/benchmarks). Keeping
-    test/bench/go1 at this point is actively misleading.
+    This lets us generate identical copies of fastlog2table.go on all hosts.
     
-    Indirectly related to #37486, as this also removes the last package
-    dist test runs outside of src/.
+    Tested by regenerating fastlog2table.go on linux-amd64 and darwin-arm64.
     
-    Change-Id: I2867ef303fe48a02acce58ace4ee682add8acdbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494193
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #49891
+    
+    Change-Id: I279d6b5abb5a5290c049d9658050fd9c8d0c0190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413976
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/test.go                     |    5 -
- src/cmd/internal/moddeps/moddeps_test.go |    1 -
- test/bench/garbage/Makefile              |   23 -
- test/bench/garbage/parser.go             |  280 -----
- test/bench/garbage/peano.go              |  121 --
- test/bench/garbage/stats.go              |   52 -
- test/bench/garbage/tree.go               |  100 --
- test/bench/garbage/tree2.go              |   95 --
- test/bench/go1/binarytree_test.go        |   63 --
- test/bench/go1/fannkuch_test.go          |   84 --
- test/bench/go1/fasta_test.go             |  177 ---
- test/bench/go1/fmt_test.go               |   68 --
- test/bench/go1/go.mod                    |    3 -
- test/bench/go1/gob_test.go               |   95 --
- test/bench/go1/gzip_test.go              |   68 --
- test/bench/go1/http_test.go              |   45 -
- test/bench/go1/json_test.go              |   86 --
- test/bench/go1/jsondata_test.go          | 1819 ------------------------------
- test/bench/go1/mandel_test.go            |   41 -
- test/bench/go1/parser_test.go            |   42 -
- test/bench/go1/parserdata_test.go        |  245 ----
- test/bench/go1/regexp_test.go            |   59 -
- test/bench/go1/revcomp_test.go           |   87 --
- test/bench/go1/template_test.go          |   81 --
- test/bench/go1/time_test.go              |   25 -
- 25 files changed, 3765 deletions(-)
+ src/runtime/mkfastlog2table.go | 59 +++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 58 insertions(+), 1 deletion(-)

@@ -1,17 +1,21 @@
-commit 9b95035654d620e1aafebd461fd976fe34adb72b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 10 15:47:10 2018 -0800
+commit bce1f12225b9a2a3d8e59f3b1f1776e5baec9edf
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Thu Jun 21 20:43:10 2018 +0300
 
-    cmd/nm: run tests in parallel, don't use Scanner on []byte
+    cmd/compile/internal/ssa: use math/bits in countRegs and pickReg
     
-    Saves about 35% on total test time on my laptop.
+    Makes code simpler and faster (at least on x86).
     
-    Fixes #26471
+            name               old time/op  new time/op  delta
+            CountRegs-8        7.40ns ± 1%  0.59ns ± 0%  -92.02%  (p=0.000 n=9+9)
+            PickReg/(1<<0)-8   2.07ns ± 0%  0.37ns ± 0%  -82.13%  (p=0.000 n=9+10)
+            PickReg/(1<<16)-8  11.8ns ± 0%   0.4ns ± 0%  -96.86%  (p=0.002 n=8+10)
     
-    Change-Id: I15b28b1bc00f889934d577dc7996864bbab10105
-    Reviewed-on: https://go-review.googlesource.com/c/153499
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic780b615b75c25b6e7632a0de93b16a8e9ed0f8f
+    Reviewed-on: https://go-review.googlesource.com/120318
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/nm/nm_test.go | 24 ++++++++----------------
- 1 file changed, 8 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)

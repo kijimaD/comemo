@@ -1,16 +1,14 @@
-commit 33fd319cbcf9f4809c6bc9a9d21a05b516824f0a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 19 14:20:52 2017 -0700
+commit 3e366ec6a7066567b4f747984389ab10cb6f1a46
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Feb 3 10:18:04 2017 +0000
 
-    cmd/compile: call fieldtrack after flushing Progs
+    testing: clarify T.Parallel() godoc wording
     
-    Fixes #20014
+    Fixes #18914.
     
-    Change-Id: Ie58d3e989f2d7388b3d8849fbcfbceed3c6aa084
-    Reviewed-on: https://go-review.googlesource.com/41132
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iec90d6aaa62595983db28b17794429f3c9a3dc36
+    Reviewed-on: https://go-review.googlesource.com/36272
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

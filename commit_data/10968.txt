@@ -1,14 +1,12 @@
-commit f1ebbf80bd8fcc6b38e958f170ee755cf28c27f7
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Dec 23 02:47:48 2011 +1100
+commit a626adce1e3ed2d87f35cf1ac9251c71b6add29c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 22 07:25:43 2011 -0800
 
-    syscall: make pipe work on netbsd
+    os: update package location of exec to os/exec in comments
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5504070
+    https://golang.org/cl/5503065
 
- src/pkg/syscall/syscall_netbsd.go        | 4 ++--
- src/pkg/syscall/zsyscall_netbsd_386.go   | 4 ++--
- src/pkg/syscall/zsyscall_netbsd_amd64.go | 4 ++--
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/os/exec_posix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

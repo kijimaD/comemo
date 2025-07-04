@@ -1,12 +1,12 @@
-commit 5e57954f8c57233f1217b14c1f479a8571f8d10d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 8 23:48:13 2012 -0800
+commit f668e0a5b3b1f393ecda995c92503da7b4c89e53
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 9 12:09:22 2012 +0900
 
-    runtime/pprof: fix typo in comment
+    net: consolidate multiple init functions
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6810102
+    https://golang.org/cl/6819117
 
- src/pkg/runtime/pprof/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go | 3 ---
+ 1 file changed, 3 deletions(-)

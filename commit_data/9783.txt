@@ -1,12 +1,12 @@
-commit 481e619c50219fda4118f644e966d1bbb0cd82c7
-Author: Eric Eisner <eric.d.eisner@gmail.com>
-Date:   Fri Sep 23 09:18:10 2011 -0700
+commit 17410d75d0a74c487a81ebde712ee69919bccb52
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Sep 23 23:39:19 2011 +0900
 
-    suffixarray: add benchmarks for construction
+    syscall: add GetsockoptByte, SetsockoptByte for openbsd
     
-    R=gri, jeff
+    R=golang-dev, fullung, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/5040048
+    https://golang.org/cl/5081044
 
- src/pkg/index/suffixarray/suffixarray_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/pkg/syscall/syscall_bsd.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

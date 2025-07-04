@@ -1,12 +1,12 @@
-commit aa798d26c46956f92042f8a6394c830b91f53f21
-Author: Anthony Starks <ajstarks@gmail.com>
-Date:   Wed Mar 23 16:29:40 2011 +1100
+commit aad62bf409da1890cff5591954099e7982bd2840
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 23 14:26:28 2011 +1100
 
-    misc/bbedit: remove closed keyword
+    misc/vim: remove 'closed' as a builtin function.
     
-    R=golang-dev, adg
+    R=adg, r
     CC=golang-dev
-    https://golang.org/cl/4284058
+    https://golang.org/cl/4285059
 
- misc/bbedit/Go.plist | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

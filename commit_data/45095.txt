@@ -1,18 +1,44 @@
-commit 444d28295b81c62dc40180a59aeb480bed43ca3a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 12 18:56:25 2021 -0400
+commit cc2a5cf4b8b0aeaccd3dd439f8d3d68f25eef358
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 28 18:20:12 2020 -0400
 
-    test: make codegen/memops.go work with both ABIs
+    cmd/compile,cmd/internal/obj/ppc64: fix some shift rules due to a regression
     
-    Following CL 309335, this fixes memops.go.
+    A recent change to improve shifts was generating some
+    invalid cases when the rule was based on an AND. The
+    extended mnemonics CLRLSLDI and CLRLSLWI only allow
+    certain values for the operands and in the mask case
+    those values were not being checked properly. This
+    adds a check to those rules to verify that the
+    'b' and 'n' values used when an AND was part of the rule
+    have correct values.
     
-    Change-Id: Ia2458b5267deee9f906f76c50e70a021ea2fcb5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309552
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    There was a bug in some diag messages in asm9. The
+    message expected 3 values but only provided 2. Those are
+    corrected here also.
+    
+    The test/codegen/shift.go was updated to add a few more
+    cases to check for the case mentioned here.
+    
+    Some of the comments that mention the order of operands
+    in these extended mnemonics were wrong and those have been
+    corrected.
+    
+    Fixes #41683.
+    
+    Change-Id: If5bb860acaa5051b9e0cd80784b2868b85898c31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258138
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- test/codegen/memops.go | 52 +++++++++++++++++---------------------------------
- 1 file changed, 18 insertions(+), 34 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  4 ++--
+ src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 ++++---
+ src/cmd/compile/internal/ssa/rewrite.go      |  4 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 34 +++++++--------------------
+ src/cmd/internal/obj/ppc64/asm9.go           | 35 ++++++++++++++--------------
+ test/codegen/shift.go                        | 17 ++++++++------
+ 7 files changed, 50 insertions(+), 65 deletions(-)

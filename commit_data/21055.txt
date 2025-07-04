@@ -1,40 +1,52 @@
-commit cda0ea1c0e06d1309f66423a8fd72e272d089b6c
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 10 17:02:58 2014 -0800
+commit 40818cfe1c3601a8b88d6935e255064aab07679b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 11 13:19:47 2014 -0800
 
-    runtime: a better fallback hash
+    spec: method selectors don't auto-deref named pointer types
     
-    For arm and powerpc, as well as x86 without aes instructions.
-    Contains a mixture of ideas from cityhash and xxhash.
+    Language clarification.
     
-    Compared to our old fallback on ARM, it's ~no slower on
-    small objects and up to ~50% faster on large objects.  More
-    importantly, it is a much better hash function and thus has
-    less chance of bad behavior.
+    The existing rules for selector expressions imply
+    automatic dereferencing of pointers to struct fields.
+    They also implied automatic dereferencing of selectors
+    denoting methods. In almost all cases, such automatic
+    dereferencing does indeed take place for methods but the
+    reason is not the selector rules but the fact that method
+    sets include both methods with T and *T receivers; so for
+    a *T actual receiver, a method expecting a formal T
+    receiver, also accepts a *T (and the invocation or method
+    value expression is the reason for the auto-derefering).
     
-    Fixes #8737
+    However, the rules as stated so far implied that even in
+    case of a variable p of named pointer type P, a selector
+    expression p.f would always be shorthand for (*p).f. This
+    is true for field selectors f, but cannot be true for
+    method selectors since a named pointer type always has an
+    empty method set.
     
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkHash5                    173           181           +4.62%
-    BenchmarkHash16                   252           212           -15.87%
-    BenchmarkHash64                   575           419           -27.13%
-    BenchmarkHash1024                 7173          3995          -44.31%
-    BenchmarkHash65536                516940        313173        -39.42%
-    BenchmarkHashStringSpeed          300           279           -7.00%
-    BenchmarkHashBytesSpeed           478           424           -11.30%
-    BenchmarkHashInt32Speed           217           207           -4.61%
-    BenchmarkHashInt64Speed           262           231           -11.83%
-    BenchmarkHashStringArraySpeed     609           631           +3.61%
+    Named pointer types may never appear as anonymous field
+    types (and method receivers, for that matter), so this
+    only applies to variables declared of a named pointer
+    type. This is exceedingly rare and perhaps shouldn't be
+    permitted in the first place (but we cannot change that).
     
-    Change-Id: I0a9335028f32b10ad484966e3019987973afd3eb
-    Reviewed-on: https://go-review.googlesource.com/1360
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Amended the selector rules to make auto-deref of values
+    of named pointer types an exception to the general rules
+    and added corresponding examples with explanations.
+    
+    Both gc and gccgo have a bug where they do auto-deref
+    pointers of named types in method selectors where they
+    should not:
+    
+    See http://play.golang.org/p/c6VhjcIVdM , line 45.
+    
+    Fixes #5769.
+    Fixes #8989.
+    
+    LGTM=r, rsc
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/168790043
 
- src/runtime/alg.go         | 25 ++----------
- src/runtime/export_test.go |  1 -
- src/runtime/hash32.go      | 93 ++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/hash64.go      | 96 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/hash_test.go   |  9 -----
- src/runtime/unaligned1.go  | 17 ++++++++
- src/runtime/unaligned2.go  | 20 ++++++++++
- 7 files changed, 229 insertions(+), 32 deletions(-)
+ doc/go_spec.html | 68 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 42 insertions(+), 26 deletions(-)

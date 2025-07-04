@@ -1,16 +1,12 @@
-commit e34079bb5919e1cf66b6008a1b7e8ee36a03c487
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jun 25 08:28:30 2012 +1000
+commit c123c6c3f628b64c227d2de6d45e780716682e27
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Jun 24 12:23:51 2012 -0700
 
-    runtime: avoid r9/r10 during memmove
+    flag: fix indexing doc.
     
-    Fixes #3718.
-    
-    Requires CL 6300043.
-    
-    R=rsc, minux.ma, extraterrestrial.neighbour
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6305100
+    https://golang.org/cl/6341046
 
- src/pkg/runtime/memmove_arm.s | 96 ++++++++++++++++++++++---------------------
- 1 file changed, 50 insertions(+), 46 deletions(-)
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

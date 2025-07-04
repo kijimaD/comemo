@@ -1,22 +1,35 @@
-commit ca2cb8d7a77c06530e2cef3931c195ad8abb2b4f
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 22:40:31 2024 -0700
+commit 611706b17136beb602711f7bfebd15622f73f58f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 1 14:32:56 2023 -0700
 
-    cmd/internal/testdir: remove temp files
+    cmd/compile: don't use BTS when OR works, add direct memory BTS operations
     
-    Function stdlibImportcfgFile creates a temporary directory and a file in
-    it, which are never deleted.
+    Stop using BTSconst and friends when ORLconst can be used instead.
+    OR can be issued by more function units than BTS can, so it could
+    lead to better IPC. OR might take a few more bytes to encode, but
+    not a lot more.
     
-    The easiest to fix this (without creating the file unnecessarily, or
-    creating it multiple times) is to add a global tmpDir and use it in
-    stdlibImportcfgFile.
+    Still use BTSconst for cases where the constant otherwise wouldn't
+    fit and would require a separate movabs instruction to materialize
+    the constant. This happens when setting bits 31-63 of 64-bit targets.
     
-    Change-Id: Ia971b4478d9e0fa7c3a9b4c66e13fd5a4af9cbaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610818
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Add BTS-to-memory operations so we don't need to load/bts/store.
+    
+    Fixes #61694
+    
+    Change-Id: I00379608df8fb0167cb01466e97d11dec7c1596c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515755
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/testdir/testdir_test.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go         |   9 +-
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  71 +--
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |  27 +-
+ src/cmd/compile/internal/ssa/opGen.go         |  72 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 658 ++++----------------------
+ test/codegen/bits.go                          |  12 +-
+ test/codegen/mathbits.go                      |   4 +-
+ test/codegen/memops.go                        |  29 ++
+ 8 files changed, 211 insertions(+), 671 deletions(-)

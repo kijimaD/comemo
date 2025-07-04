@@ -1,24 +1,15 @@
-commit e9b39417e4448d6001b2707d9cf42bba4673e9ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 22 10:54:38 2018 -0700
+commit b8d4d0218bae8881db2e1e2ea1de7b9f43d6c14d
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri Jun 22 05:31:06 2018 +0000
 
-    go/types: copy embedded methods unchanged when completing interfaces
+    runtime: fix comments style typo
     
-    The existing code adjusted the receivers of embedded interface methods
-    to match the embedding interface type. That required cloning (shallow
-    copying) the embedded methods and destroyed their object identity in
-    the process. Don't do this anymore. The consequence to clients is that
-    they might see different methods of an interface having different
-    receiver types; they are always the type of the interface that explicitly
-    declared the method (which is what one usually would want, anyway).
+    Code comments should have a space between comments characters and
+    actual words.
     
-    Fixes #28282.
-    
-    Change-Id: I2e6f1497f46affdf7510547a64601de3787367db
-    Reviewed-on: https://go-review.googlesource.com/c/143757
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I6274baf1fc09b37a32ec6c69ddbb8edca9eb5469
+    Reviewed-on: https://go-review.googlesource.com/120475
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/issues_test.go | 22 ++++++++++++++++++++++
- src/go/types/stdlib_test.go | 28 +++++++++++-----------------
- src/go/types/type.go        | 11 +++--------
- 3 files changed, 36 insertions(+), 25 deletions(-)
+ src/runtime/iface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

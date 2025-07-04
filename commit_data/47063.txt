@@ -1,26 +1,24 @@
-commit a155a307fbeda88fd44c5399d4fb7ea9e34db545
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 25 20:54:05 2021 -0700
+commit 811167e2c94e1480328513575cdddbc9ad9a7447
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 14 14:44:14 2021 +0100
 
-    cmd/compile/internal/types2: clean up asT converters (step 2 of 2)
+    cmd/link: do not pass -Bsymbolic for PE DLLs
     
-    This CL renames the toT converters back to their asT names.
+    This is only a valid option on ELF. Binutils accepts it, but LLVM
+    rejects it, so for Windows, it's best to just omit it.
     
-    Change-Id: If4bda5a78525f9722f044f5544f400fa8bb6f437
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358774
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Updates #44250.
+    Updates #39326.
+    Updates #38755.
+    Updates #36439.
+    Updates #43800.
+    
+    Change-Id: Iffd2345d757f23dd737e63bd464cd412527077c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291632
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/assignments.go |  2 +-
- src/cmd/compile/internal/types2/builtins.go    |  8 ++++----
- src/cmd/compile/internal/types2/call.go        |  2 +-
- src/cmd/compile/internal/types2/conversions.go | 20 ++++++++++----------
- src/cmd/compile/internal/types2/expr.go        |  6 +++---
- src/cmd/compile/internal/types2/index.go       |  6 +++---
- src/cmd/compile/internal/types2/lookup.go      |  8 ++++----
- src/cmd/compile/internal/types2/predicates.go  |  6 +++---
- src/cmd/compile/internal/types2/sizes.go       |  2 +-
- src/cmd/compile/internal/types2/type.go        | 20 ++++++++++----------
- src/cmd/compile/internal/types2/typestring.go  |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- 12 files changed, 42 insertions(+), 42 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

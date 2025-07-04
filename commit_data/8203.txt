@@ -1,16 +1,19 @@
-commit 7879d3118cdeaca1ef22c1592eddab102117f476
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Apr 23 10:54:05 2011 -0400
+commit c7008f47eca9fe29e85d522fa78731645390948d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Apr 23 10:53:49 2011 -0400
 
-    gc: fix line number at EOF
+    ld: fix Plan 9 symbol table
     
-    Fixes #1474.
+    Static symbols were not being marked as such.
     
-    R=ken2
+    I also made the 'z' symbols use the first byte of
+    the name instead of an explicit NUL so that if
+    the symbol table format is ever changed, the only
+    place that would need updating is addhist().
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4432061
+    https://golang.org/cl/4366047
 
- src/cmd/gc/go.h          |  1 +
- src/cmd/gc/lex.c         |  9 ++++++---
- test/fixedbugs/bug332.go | 17 +++++++++++++++++
- 3 files changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/ld/symtab.c | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

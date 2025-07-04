@@ -1,24 +1,24 @@
-commit 272ec231b722c5aa5eacf9c86ba30206fde3dd5e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Feb 11 20:06:54 2017 +0100
+commit f9238a76ff0082071527ce8ec94542a297f594f8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 26 15:44:19 2016 -0400
 
-    strings: make parameters names less confusing
+    cmd/compile: make LR allocatable in non-leaf functions on ARM
     
-    Using 'sep' as parameter name for strings functions that take a
-    separator argument is fine, but for functions like Index or Count that
-    look for a substring it's better to use 'substr' (like Contains
-    already does).
+    The mechanism is initially introduced (and reviewed) in CL 30597
+    on S390X.
     
-    Fixes #19039
+    Reduce number of "spilled value remains" by 0.4% in cmd/go.
     
-    Change-Id: Idd557409c8fea64ce830ab0e3fec37d3d56a79f0
-    Reviewed-on: https://go-review.googlesource.com/36874
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Disabled on ARMv5 because LR is clobbered almost everywhere with
+    inserted softfloat calls.
+    
+    Change-Id: I2934737ce2455909647ed2118fe2bd6f0aa5ac52
+    Reviewed-on: https://go-review.googlesource.com/32178
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/strings/strings.go         | 28 ++++++++++++++--------------
- src/strings/strings_amd64.go   | 26 +++++++++++++-------------
- src/strings/strings_generic.go | 16 ++++++++--------
- src/strings/strings_s390x.go   | 26 +++++++++++++-------------
- 4 files changed, 48 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |   10 +-
+ src/cmd/compile/internal/ssa/opGen.go      | 1038 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go   |    7 +
+ 3 files changed, 531 insertions(+), 524 deletions(-)

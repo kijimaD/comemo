@@ -1,21 +1,17 @@
-commit d7384f36121d52191097af50d6dc12c0eb08fd75
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sun Aug 16 13:48:09 2020 +0200
+commit c739bc487d94c0617b3e4454f29271d08d66613c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 3 17:12:32 2019 -0400
 
-    os: implement File.Chmod on Windows
+    cmd/go/internal/modload: make PackageNotInModuleError reasonable for the Target module
     
-    Fixes: #39606
+    Updates #28459
+    Updates #32917
     
-    Change-Id: I4def67ef18bd3ff866b140f6e76cdabe5d51a1c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250077
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Iced562cb7c2e0ac075d8345f1e4ad3b073842dcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185343
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/internal/poll/fd_posix.go                    | 11 ----------
- src/internal/poll/fd_unix.go                     | 11 ++++++++++
- src/internal/poll/fd_windows.go                  | 27 ++++++++++++++++++++++++
- src/internal/syscall/windows/syscall_windows.go  |  9 ++++++++
- src/internal/syscall/windows/zsyscall_windows.go | 13 ++++++++++++
- src/os/os_test.go                                | 27 ++++++++++++++----------
- 6 files changed, 76 insertions(+), 22 deletions(-)
+ src/cmd/go/internal/modload/query.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

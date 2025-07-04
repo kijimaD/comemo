@@ -1,34 +1,20 @@
-commit 9b6e9f0c8c66355c0f0575d808b32f52c8c6d21c
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Wed Mar 6 19:26:29 2019 +0100
+commit 9258c3f93c92d7b66abe84d2452ad1ce4d80ff7e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 17:21:57 2018 +0200
 
-    runtime: safely load DLLs
+    cmd/go: add AIX operating system
     
-    While many other call sites have been moved to using the proper
-    higher-level system loading, these areas were left out. This prevents
-    DLL directory injection attacks. This includes both the runtime load
-    calls (using LoadLibrary prior) and the implicitly linked ones via
-    cgo_import_dynamic, which we move to our LoadLibraryEx. The goal is to
-    only loosely load kernel32.dll and strictly load all others.
+    This commit adds AIX operating system to cmd/go package for ppc64
+    architecture.
     
-    Meanwhile we make sure that we never fallback to insecure loading on
-    older or unpatched systems.
+    Updates: #25893
     
-    This is CVE-2019-9634.
-    
-    Fixes #14959
-    Fixes #28978
-    Fixes #30642
-    
-    Change-Id: I401a13ed8db248ab1bb5039bf2d31915cac72b93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165798
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2605d10a7833fa2eb197f6db4a52d5919cf93614
+    Reviewed-on: https://go-review.googlesource.com/c/138732
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_windows.go       | 64 ++++++++++++++++++++++++++++++++++-------
- src/runtime/syscall_windows.go  | 14 ++++-----
- src/syscall/dll_windows.go      | 28 ++++++++++++++++--
- src/syscall/security_windows.go |  1 +
- src/syscall/zsyscall_windows.go | 14 +++++++++
- 5 files changed, 101 insertions(+), 20 deletions(-)
+ src/cmd/go/internal/base/signal_unix.go | 2 +-
+ src/cmd/go/internal/work/exec.go        | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

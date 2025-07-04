@@ -1,18 +1,22 @@
-commit 1cdf4bf33f57ca7910ab4ee1121ea7f05a6adcd1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 9 14:45:37 2017 -0800
+commit 35231ec7c6a6d9277bf6ac53cb0142e4d37c2ece
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 14:58:23 2016 +0000
 
-    cmd/compile/internal/ssa: add SymEffect attribute to SSA Ops
+    net/http: deflake TestClientTimeout
     
-    To replace the progeffects tables for liveness analysis.
+    Should fix flakes like:
     
-    Change-Id: Idc4b990665cb0a9aa300d62cdf8ad12e51c5b991
-    Reviewed-on: https://go-review.googlesource.com/38083
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    https://build.golang.org/log/c8da331317064227f38d5ef57ed7dba563ba1b38
+    
+    --- FAIL: TestClientTimeout_h1 (0.35s)
+        client_test.go:1263: timeout after 200ms waiting for timeout of 100ms
+    FAIL
+    
+    Change-Id: I0a4dba607524e8d7a00f498e27d9598acde5d222
+    Reviewed-on: https://go-review.googlesource.com/33420
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/main.go | 33 ++++++++++++++++++---------
- src/cmd/compile/internal/ssa/op.go       | 39 ++++++++++++++++++++++----------
- src/cmd/compile/internal/ssa/opGen.go    |  8 ++++---
- 3 files changed, 54 insertions(+), 26 deletions(-)
+ src/net/http/client_test.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

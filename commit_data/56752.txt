@@ -1,24 +1,22 @@
-commit 2f6ba0c294e8ab202666e34d833286eecaa26d2b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jun 6 12:51:33 2024 -0400
+commit 3c3a883667390c2f03dffb3fdcb4fa4172cb23e6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 22 20:37:05 2023 +0200
 
-    cmd/go/internal/modget: print a fatal error if -d=false
+    os: avoid second fcntl syscall in NewFile on unix
     
-    Between Go 1.18 and Go 1.22 go get printed a fatal error if -d was
-    explicitly set to false. That behavior was reverted in CL 572176, when
-    we made the -d flag a no-op, but it would make it easier to remove the
-    -d flag in the future if we continue to print a fatal error if -d is
-    explicitly set to false.
+    CL 494915 introduced an additional fcntl(F_GETFL) syscall to determine
+    whether the file is in append-only mode. The existing unix.IsNonblock
+    call also issues an fcntl(F_GETFL) syscall. The two can be combined and
+    both the append-only mode and the non-blocking flags can be determined
+    from that syscall's result.
     
-    This change brings back the fatal error for -d=false while keeping the
-    warning printed for -d=true.
-    
-    For #43684
-    
-    Change-Id: I38ae3a3619d408c0237ff485ddee4403b8188abd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591135
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I915589ed94e079f6abaa2fd0032ef01f78698f7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497075
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/internal/modget/get.go | 33 ++++++++++++++++++++++++++++++---
- 1 file changed, 30 insertions(+), 3 deletions(-)
+ src/os/file_unix.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

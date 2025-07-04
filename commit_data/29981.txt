@@ -1,21 +1,14 @@
-commit 165cfbc409d54154263c26fb0cc2b2acd75d8b53
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Wed Jan 25 08:27:45 2017 -0800
+commit 023bb034e93363492ef444fefcb1d38cdc61ede1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 09:56:53 2016 -0700
 
-    database/sql: let tests wait for db pool to come to expected state
+    spec: slightly more realistic example for type assertions
     
-    Slower builders were failing TestQueryContext because the cancel
-    and return to conn pool happens async. TestQueryContext already
-    uses a wait method for this reason. Use the same method for
-    other context tests.
+    For #17428.
     
-    Fixes #18759
-    
-    Change-Id: I84cce697392b867e4ebdfadd38027a06ca14655f
-    Reviewed-on: https://go-review.googlesource.com/35750
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia902b50cf0c40e3c2167fb573a39d328331c38c7
+    Reviewed-on: https://go-review.googlesource.com/31449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql_test.go | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ doc/go_spec.html | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

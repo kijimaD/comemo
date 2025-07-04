@@ -1,20 +1,52 @@
-commit 3475ec7f36b68126310878e611c8594514b98438
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon May 11 11:24:10 2015 +1200
+commit d2fd43aa770094e579bc394946e2ce9c75a44417
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 15 15:51:25 2015 -0700
 
-    cmd/internal/ld: change Cpos to not flush the output buffer
+    [dev.ssa] cmd/internal/gc: convert standard IR into SSA.
     
-    DWARF generation appears to assume Cpos is cheap and this makes linking godoc
-    about 8% faster and linking the standard library into a single shared library
-    about 22% faster on my machine.
+    Hook into the current compiler to convert the existing
+    IR (after walk) into SSA.  Any function ending in "_ssa"
+    will take this path.  The resulting assembly is printed
+    and then discarded.
     
-    Updates #10571
+    Use gc.Type directly in ssa instead of a wrapper for go types.
+    It makes the IR->SSA rewrite a lot simpler.
     
-    Change-Id: I3f81efd0174e356716e7971c4f59810b72378177
-    Reviewed-on: https://go-review.googlesource.com/9913
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Only a few opcodes are implemented in this change.  It is
+    enough to compile simple examples like
+        func f(p *int) int { return *p }
+        func g(a []int, i int) int { return a[i] }
+    
+    Change-Id: I5e18841b752a83ca0519aa1b2d36ef02ce1de6f9
+    Reviewed-on: https://go-review.googlesource.com/8971
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/ld/lib.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/dist/buildtool.go                      |   1 +
+ src/cmd/internal/gc/pgen.go                    |   9 +
+ src/cmd/internal/gc/ssa.go                     | 450 ++++++++++++++++++++
+ src/cmd/internal/gc/type.go                    |  62 +++
+ src/cmd/internal/ssa/cgen.go                   |  49 ++-
+ src/cmd/internal/ssa/check.go                  |   1 -
+ src/cmd/internal/ssa/config.go                 |  48 +++
+ src/cmd/internal/ssa/cse.go                    |   8 +-
+ src/cmd/internal/ssa/deadcode.go               |   1 +
+ src/cmd/internal/ssa/deadcode_test.go          |   6 +-
+ src/cmd/internal/ssa/func.go                   |  51 ++-
+ src/cmd/internal/ssa/fuse.go                   |   3 +
+ src/cmd/internal/ssa/generic.go                | 144 ++++---
+ src/cmd/internal/ssa/id.go                     |   2 -
+ src/cmd/internal/ssa/lower.go                  |  30 +-
+ src/cmd/internal/ssa/lowerAmd64.go             | 548 ++++++++++++++++++++-----
+ src/cmd/internal/ssa/op.go                     |  79 ++--
+ src/cmd/internal/ssa/op_string.go              |   4 +-
+ src/cmd/internal/ssa/rewrite.go                |  43 +-
+ src/cmd/internal/ssa/rulegen/generic.rules     |  14 +-
+ src/cmd/internal/ssa/rulegen/lower_amd64.rules |  51 ++-
+ src/cmd/internal/ssa/rulegen/rulegen.go        |  16 +-
+ src/cmd/internal/ssa/ssac/main.go              |  90 ++--
+ src/cmd/internal/ssa/type.go                   | 128 +++---
+ src/cmd/internal/ssa/types/object.go           |  39 --
+ src/cmd/internal/ssa/types/sizes.go            | 117 ------
+ src/cmd/internal/ssa/types/type.go             | 229 -----------
+ src/cmd/internal/ssa/value.go                  |  12 -
+ 28 files changed, 1458 insertions(+), 777 deletions(-)

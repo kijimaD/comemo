@@ -1,15 +1,28 @@
-commit 6fa12172d9f0696b6ae6a0155b63994ae23b8d21
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Mar 30 08:26:24 2021 -0400
+commit 6f45b39e4dbabf0b179a60ffacf434e55b2d5eab
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 19 18:55:31 2020 +1000
 
-    go/parser: add benchmarks for syntax-only parsing and object resolution
+    cmd/compile,cmd/internal/obj/riscv: move g register on riscv64
     
-    Change-Id: I73d1b2d18ab4051443d66c60df493d1163d0ba3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306150
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The original riscv64 port used the thread pointer (TP aka X4) register for
+    the g pointer, however this register is also used when TLS support is
+    required, resulting in a conflict (for example, when a signal is received
+    we have no way of readily knowing if X4 contains a pointer to the TCB or
+    a pointer to a g).
+    
+    In order to support cgo, free up the X4 register by moving g to X27.
+    This unfortunately means that the X4 register is unused in non-cgo mode,
+    however the alternative is to not support cgo on this platform.
+    
+    Update #36641
+    
+    Change-Id: Idcaf3e8ccbe42972a1b8943aeefde7149d9c960a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263477
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/parser/performance_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   7 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 406 ++++++++++++-------------
+ src/cmd/internal/obj/riscv/cpu.go              |  12 +-
+ src/runtime/asm_riscv64.s                      |  12 +-
+ 4 files changed, 219 insertions(+), 218 deletions(-)

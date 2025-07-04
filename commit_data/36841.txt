@@ -1,27 +1,19 @@
-commit 816e493495e7d86fc2d537b599feea5b8c368cc6
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:13:01 2018 +0200
+commit e4259d67b9e1f0180a923faa512a1781465faac4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 30 18:13:27 2018 -0700
 
-    internal/poll: add AIX operating system
+    go/types: report object path in trace mode
     
-    This commit adds AIX operating system to internal/poll package for ppc64
-    architecture.
+    For debugging only; disabled (dead code) by default
+    unless internal constant trace flag is set to true.
     
-    Updates: #25893
+    For #8699.
     
-    Change-Id: I9b1da9255012de58f16547c1b18f8840485da170
-    Reviewed-on: https://go-review.googlesource.com/c/138717
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib7b272c6ac8efacccbbbe24650ef500c5a9ddcf5
+    Reviewed-on: https://go-review.googlesource.com/115457
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/internal/poll/export_posix_test.go | 2 +-
- src/internal/poll/fd_poll_runtime.go   | 2 +-
- src/internal/poll/fd_posix.go          | 2 +-
- src/internal/poll/fd_posix_test.go     | 2 +-
- src/internal/poll/fd_unix.go           | 2 +-
- src/internal/poll/hook_unix.go         | 2 +-
- src/internal/poll/sockopt.go           | 2 +-
- src/internal/poll/sockopt_unix.go      | 2 +-
- src/internal/poll/sockoptip.go         | 2 +-
- src/internal/poll/sys_cloexec.go       | 2 +-
- 10 files changed, 10 insertions(+), 10 deletions(-)
+ src/go/types/check.go      | 12 ++++++++++++
+ src/go/types/decl.go       |  4 ++--
+ src/go/types/interfaces.go |  2 +-
+ 3 files changed, 15 insertions(+), 3 deletions(-)

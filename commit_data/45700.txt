@@ -1,17 +1,25 @@
-commit 0fbecece98977f6d0578cef1e8f3ae00a54c8ac4
-Author: Damien Neil <dneil@google.com>
-Date:   Wed May 26 11:12:43 2021 -0700
+commit afe7c8d0b25f26f0abd749ca52c7e1e7dfdee8cb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 08:48:23 2020 -0500
 
-    doc/go1.17: document syscall changes
+    testing: increase benchmark output to four significant figures
     
-    Fixes #46023
+    Currently, the benchmark output from the testing package prints small
+    values with three significant figures. This means it can only
+    distinguish 1 part in 100, or a 1% error, which can be enough to throw
+    off further analysis of the output. This CL increases it to four
+    significant figures. For time values, at least, anything beyond four
+    significant figures is almost certainly noise.
     
-    Change-Id: Ia63829d03afb0936862b16f0971175cbaa1095bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322890
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Fixes #34626.
+    
+    Change-Id: I3bcf305427130026276e6a4c78167989319f280c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267102
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.17.html | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/testing/benchmark.go      | 20 ++++++++++++--------
+ src/testing/benchmark_test.go | 21 +++++++++++----------
+ 2 files changed, 23 insertions(+), 18 deletions(-)

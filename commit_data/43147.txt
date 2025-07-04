@@ -1,23 +1,25 @@
-commit bb9b319228760f9e4b2517114b6eecc6fe0cef30
+commit c4113b64c2b21e55949f7b28249f03c25bf63072
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 23 16:32:59 2020 -0400
+Date:   Thu Mar 12 09:29:14 2020 -0400
 
-    cmd/go: add yet another test case for ambiguous arguments to 'go get'
+    cmd/go: fix test failures with -count=2
     
-    For #37438
+    In each test, either set the -n flag to avoid writing build artifacts
+    to the cache, or set GOCACHE explicitly to point to a clean cache.
     
-    Change-Id: Ie40971ff677d36ddadbf9834bba2d366a0fc34d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256922
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Tested manually with 'go test -count=2 cmd/go'.
+    
+    Fixes #37820
+    
+    Change-Id: I24403e738b1a10d5fe9dc8d98ef27a76ebe2704a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223140
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../mod/example.net_ambiguous_nested_v0.1.0.txt    |  19 ++++
- .../testdata/mod/example.net_ambiguous_v0.1.0.txt  |  19 ++++
- .../testdata/mod/example.net_ambiguous_v0.2.0.txt  |  18 ++++
- .../go/testdata/script/mod_get_ambiguous_arg.txt   |   8 +-
- .../go/testdata/script/mod_get_ambiguous_pkg.txt   | 101 +++++++++++++++++++++
- 5 files changed, 161 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/build_gcflags.txt           | 3 ++-
+ src/cmd/go/testdata/script/cgo_flag_contains_space.txt | 9 +++++----
+ src/cmd/go/testdata/script/gcflags_patterns.txt        | 2 ++
+ src/cmd/go/testdata/script/mod_get_commit.txt          | 3 +++
+ src/cmd/go/testdata/script/mod_get_tags.txt            | 3 ++-
+ 5 files changed, 14 insertions(+), 6 deletions(-)

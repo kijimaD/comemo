@@ -1,31 +1,43 @@
-commit d29d0314c1ee64b2cf925b9c8ee535a6e52c5386
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 25 10:15:28 2022 -0400
+commit fc27eb50ffcada3d4f5e7e00a5c120f474cc0da4
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 10 14:00:56 2021 -0400
 
-    runtime: don't inspect the stack for delayed signals from TSAN
+    cmd/compile/internal/types2: merge Instantiate and InstantiateLazy
     
-    Cgo TSAN (not the Go race detector) intercepts signals and calls
-    the signal handler at a later time. When the signal handler is
-    called, the memory may have changed, but the signal context
-    remains old. As the signal context and the memory don't match, it
-    is unsafe to unwind the stack from the signal PC and SP. We have
-    to ignore the signal.
+    Instantiate and InstantiateLazy have the same signature; on first
+    principles, if Instantiate should work for importers it should be
+    possible to consolidate these APIs.
     
-    It is probably also not safe to do async preemption, which relies
-    on the signal PC, and inspects and even writes to the stack (for
-    call injection).
+    This CL does this. In order to make it work, a typMap needs to be
+    threaded through type expansion to prevent infinite recursion in the
+    case that the Checker is nil.
     
-    We also inspect the stack for fatal signals (e.g. SIGSEGV), but I
-    think they are not delayed. For other signals we don't inspect
-    the stack, so they are probably fine.
+    Notably, Named types now must be expanded before returning from
+    Underlying(). This makes Underlying generally unsafe to call while type
+    checking a package, so a helper function safeUnderlying is added to
+    provide the previous behavior. This is probably overly conservative at
+    most call sites, but cleanup is deferred to a later CL.
     
-    Fixes #27540.
-    
-    Change-Id: I5c80a7512265b8ea4a91422954dbff32c6c3a0d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408218
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I03cfb75bea0750862cd6eea4e3cdc875a7daa989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341855
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/signal_unix.go | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/types2/api_test.go    |  4 +--
+ src/cmd/compile/internal/types2/call.go        |  4 +--
+ src/cmd/compile/internal/types2/decl.go        |  5 ++--
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/infer.go       |  6 ++--
+ src/cmd/compile/internal/types2/instantiate.go | 27 +++++++-----------
+ src/cmd/compile/internal/types2/lookup.go      |  4 +--
+ src/cmd/compile/internal/types2/named.go       | 39 +++++++++++++++++++++-----
+ src/cmd/compile/internal/types2/predicates.go  |  4 +--
+ src/cmd/compile/internal/types2/signature.go   |  4 +--
+ src/cmd/compile/internal/types2/subst.go       | 22 ++++++++++-----
+ src/cmd/compile/internal/types2/type.go        |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     | 14 +++++----
+ src/cmd/compile/internal/types2/unify.go       |  4 +--
+ 15 files changed, 87 insertions(+), 56 deletions(-)

@@ -1,20 +1,23 @@
-commit 9da530f11ac8331e9326290e42e9a39e7bd56d35
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Feb 3 09:59:25 2025 -0500
+commit 2551fffd2c06cf0655ebbbd11d9b1e70a5b2e9cb
+Author: go101 <tapir.liu@gmail.com>
+Date:   Thu Nov 16 15:34:32 2023 +0000
 
-    internal/goversion: update Version to 1.25
+    slices: improve Insert panic message for index out of range
     
-    Go 1.25 is in the process of being opened for development (to be
-    eventually released). This change marks the very beginning of its
-    development cycle, updating the Version value accordingly.
+    The panic message of the current implementation for index out of range is not ideal.
+    This PR tries to improve it.
     
-    For #40705.
-    For #70525.
+    Fixes #63913 and #64152
     
-    Change-Id: If673d4aeddc376fefe6bddc3ec2704ca91245777
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646155
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ibcf6c9c0f555c8b8bf46b7d6f20f0ccc5698acd4
+    GitHub-Last-Rev: 1bbec230f4b0ec547d21c8d38dd46007bd282855
+    GitHub-Pull-Request: golang/go#64163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542455
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/internal/goversion/goversion.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/slices/slices.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

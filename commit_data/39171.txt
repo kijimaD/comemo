@@ -1,22 +1,29 @@
-commit 018d9b42a789809198bb0bcc338d9948a479b108
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 14:31:10 2019 -0400
+commit 7502ed3b90eeb4d8f1f9bd781df3517f41ea912c
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 8 13:46:49 2019 -0800
 
-    runtime: disable some tests in -quick mode
+    cmd/compile: when merging instructions, prefer line number of faulting insn
     
-    Speeds up the "go test runtime -cpu=1,2,4 -short -quick" phase of all.bash.
+    Normally this happens when combining a sign extension and a load.  We
+    want the resulting combo-instruction to get the line number of the
+    load, not the line number of the sign extension.
     
-    For #26473.
+    For each rule, compute where we should get its line number by finding
+    a value on the match side that can fault.  Use that line number for
+    all the new values created on the right-hand side.
     
-    Change-Id: I090f5a5aa754462b3253a2156dc31fa67ce7af2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177399
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #27201
+    
+    Change-Id: I19b3c6f468fff1a3c0bfbce2d6581828557064a3
+    Reviewed-on: https://go-review.googlesource.com/c/156937
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/crash_unix_test.go | 4 ++++
- src/runtime/memmove_test.go    | 6 ++++++
- src/runtime/semasleep_test.go  | 3 +++
- src/runtime/stack_test.go      | 4 ++++
- 4 files changed, 17 insertions(+)
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  51 +++-
+ src/cmd/compile/internal/ssa/rewrite386.go   |  32 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 346 +++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 144 +++++-----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go  |   8 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 414 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 294 +++++++++----------
+ test/fixedbugs/issue27201.go                 |  37 +++
+ 8 files changed, 693 insertions(+), 633 deletions(-)

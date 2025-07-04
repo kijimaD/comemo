@@ -1,18 +1,15 @@
-commit 0c2f3b7ffdae1c796f077c08d0cf4b5e7830ee4a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 22 10:49:37 2012 -0800
+commit 215777b332b9ccf167ef90e2bdd3d241021eb791
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 22 19:08:19 2012 +0900
 
-    go/doc: move firstSentence into go/doc
+    net: replace error variable name oserr with err
     
-    - renamed firstSentence -> Synopsis
-    - also deal with common abbreviations
+    This CL replaces the last two in source tree.
     
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5676088
+    https://golang.org/cl/5685080
 
- src/cmd/go/pkg.go               | 29 ++---------------------
- src/cmd/godoc/dirtrees.go       |  3 ++-
- src/pkg/go/doc/synopsis.go      | 52 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/go/doc/synopsis_test.go | 44 ++++++++++++++++++++++++++++++++++
- 4 files changed, 100 insertions(+), 28 deletions(-)
+ src/pkg/net/ipsock_posix.go   | 11 +++++------
+ src/pkg/net/unixsock_posix.go |  6 +++---
+ 2 files changed, 8 insertions(+), 9 deletions(-)

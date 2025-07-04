@@ -1,15 +1,12 @@
-commit 48da6754e201373227bb977cab6b884b51a2c765
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Fri Sep 27 15:38:39 2013 +1000
+commit d6eada282e23013e42e99330f46d257316a213e0
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Sep 27 12:57:09 2013 +1000
 
-    encoding/json: Tweak documentation for Encoder.Encode.
+    misc/vim: "PACKAGE DOCUMENTATION" is not hilighted
     
-    The documentation for the Encoder type calls it a stream,
-    not a connection.
-    
-    R=golang-dev, adg
+    R=golang-dev, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/14015044
+    https://golang.org/cl/14018043
 
- src/pkg/encoding/json/stream.go | 2 +-
+ misc/vim/syntax/godoc.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

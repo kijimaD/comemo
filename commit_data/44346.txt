@@ -1,30 +1,17 @@
-commit 5e804ba17da12f53c0d66c1ce1e0e7845feb7f69
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Nov 28 02:46:00 2020 +0700
+commit 41bdb9357a5f7ea6ade9a68aba56ee31b0f8dbbc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 12 15:58:48 2020 -0700
 
-    cmd/compile: use transitive relations for slice len/cap in poset
+    doc/go1.15: document go/printer.StdFormat
     
-    Currently, we keep track of slice len by mapping from slice ID to
-    len/cap SSA value. However, slice len/cap can have multiple SSA values,
-    so when updating fact table for slice len/cap, we only update in one
-    place.
+    For #37419
+    For #37453
+    For #37476
     
-    Instead, we can take advantage of the transitive relations provided by
-    poset. So all duplicated slice lens are set as equal to one another.
-    When updating fact table for one, that fact will be reflected to all
-    others. The same mechanism is applied for slice cap.
-    
-    Removes 15 bounds checks from std/cmd.
-    
-    Fixes #42603
-    
-    Change-Id: I32c07968824cc33765b1e441b3ae2c4b5f5997c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273670
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia032ec844773af421bc4217d5dd6e60996d8e91f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237740
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 16 ++++++++++++++--
- test/prove.go                         | 16 ++++++++++++++++
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ doc/go1.15.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

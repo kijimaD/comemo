@@ -1,20 +1,24 @@
-commit 17befdcec01fcd9c629c2cebf3aab5d4b6d70dc7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 22 17:45:32 2015 -0700
+commit 44618b28d496b281c3966742eacfe3618f060d21
+Author: Alex Schroeder <alex@gnu.org>
+Date:   Sun Jun 14 12:54:05 2015 +0200
 
-    net: make GODEBUG=netdns=cgo force cgo as documented
+    wiki article: remove "flag" import from the code
     
-    It wasn't working. The wrong variable was used.
+    When reading along the article, the extra code added in the final
+    version is not explained. The main function calls flag.Parse(), for
+    example, which will cause an error, unless the readers looks at the
+    entirety of final.go to see the import added.
     
-    This would ideally have tests. It's also DEBUG.
+    The file shown to the users no longer has the extra flags. The testing
+    code is now in a patch that gets applied to final.go in order to create
+    final-test.go. This is the file that will be used to test the code,
+    matching final.go as much as possible.
     
-    Fixes #11816
-    
-    Change-Id: Iec42d229b81d78cece4ba5c73f3040e2356eb98f
-    Reviewed-on: https://go-review.googlesource.com/12544
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I022f5f6c88e107c8ba5623661d74a8d260d05266
+    Reviewed-on: https://go-review.googlesource.com/11061
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/conf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/articles/wiki/final-test.patch | 36 ++++++++++++++++++++++++++++++++++++
+ doc/articles/wiki/final.go         | 22 ----------------------
+ doc/articles/wiki/test.bash        | 14 ++++++++------
+ 3 files changed, 44 insertions(+), 28 deletions(-)

@@ -1,12 +1,28 @@
-commit 5ca4f5e48384fa9c483d1ed40364940e6cb4e355
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 9 14:45:03 2013 -0800
+commit 8fff2525cb37a71703b2e54efd3cfc74f7b96414
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jan 9 22:02:53 2013 +0100
 
-    cmd/go: get -m options from GOARCH when using gccgo
+    cmd/gc: add space to export data to match linker expectations
     
-    R=golang-dev, bradfitz, minux.ma
+    The linker split PKGDEF into (prefix, name, def) pairs,
+    and defines def to begin after a space following the identifier.
+    This is totally wrong for the following export data:
+    
+            func "".FunctionName()
+            var SomethingCompletelyUnrelated int
+    
+    The linker would parse
+        name=`"".FunctionName()\n\tvar`
+        def=`SomethingCompletelyUnrelated int`
+    since there is no space after FunctionName.
+    
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7057063
+    https://golang.org/cl/7068051
 
- src/cmd/go/build.go | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ src/cmd/gc/export.c             |  9 +++++----
+ test/fixedbugs/bug472.dir/p1.go | 17 +++++++++++++++++
+ test/fixedbugs/bug472.dir/p2.go | 17 +++++++++++++++++
+ test/fixedbugs/bug472.dir/z.go  | 13 +++++++++++++
+ test/fixedbugs/bug472.go        | 10 ++++++++++
+ 5 files changed, 62 insertions(+), 4 deletions(-)

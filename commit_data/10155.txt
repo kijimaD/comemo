@@ -1,15 +1,18 @@
-commit 739c442e42312ee843f4736d10f73f9c7d292226
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Mon Oct 31 14:26:05 2011 -0400
+commit 48c75c5f9c8e97b87fbd8f24dffa73d6b2148691
+Author: Alexander Reece <awreece@gmail.com>
+Date:   Mon Oct 31 13:59:23 2011 -0400
 
-    math: Improved accuracy for Sin and Cos.
+    json: Properly handle nil slices.
     
-    Fixes #1564.
+    Marshal nil slices as null and parse null value as a nil slice.
+    Fixes #2278.
     
-    R=rsc, dchest
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5320056
+    https://golang.org/cl/5257053
 
- src/pkg/math/all_test.go |   6 +-
- src/pkg/math/sin.go      | 238 +++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 201 insertions(+), 43 deletions(-)
+ src/pkg/json/decode.go      |  2 +-
+ src/pkg/json/decode_test.go | 14 +++++++-------
+ src/pkg/json/encode.go      | 10 +++++++++-
+ src/pkg/json/encode_test.go |  2 +-
+ 4 files changed, 18 insertions(+), 10 deletions(-)

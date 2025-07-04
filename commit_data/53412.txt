@@ -1,15 +1,19 @@
-commit fdd9911d1a97066752f0d889db8713bae0449a74
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 31 14:23:46 2023 -0700
+commit 8ec1aa889f4ee2b0569c573b23efd21fa2c4329b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 15 11:13:06 2022 +0200
 
-    doc/go1.21: remove math.Compare TODOs
+    net: use testenv.SkipIfOptimizationOff in TestAllocs
     
-    Change-Id: I975b437240df03da84f2ce7c47f7a0097a597f25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499638
+    Use the helper added by CL 422038 instead of manually detecting the
+    noopt builder.
+    
+    Change-Id: I353f1a9d5f0184d73869520eb1ae8d0bdbbe2006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423855
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go1.21.html | 18 +++---------------
- 1 file changed, 3 insertions(+), 15 deletions(-)
+ src/net/udpsock_test.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

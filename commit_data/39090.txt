@@ -1,35 +1,18 @@
-commit fe67ea32bf58fde5aae5609af12c71e547566513
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Oct 17 23:29:42 2018 +0000
+commit efbd01f1dc34a05136244886ed95eea318a8d053
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Dec 29 13:11:34 2018 +0100
 
-    runtime: add background scavenger
+    test: disable issue 29329 test when cgo is not enabled
     
-    This change adds a background scavenging goroutine whose pacing is
-    determined when the heap goal changes. The scavenger is paced to use
-    at most 1% of the mutator's time for most systems. Furthermore, the
-    scavenger's pacing is computed based on the estimated number of
-    scavengable huge pages to take advantage of optimizations provided by
-    the OS.
+    CL 155917 added a -race test that shouldn't be run when cgo is not
+    enabled. Enforce this in the test file, with a buildflag.
     
-    The purpose of this scavenger is to deal with a shrinking heap: if the
-    heap goal is falling over time, the scavenger should kick in and start
-    returning free pages from the heap to the OS.
+    Fixes the nocgo builder.
     
-    Also, now that we have a pacing system, the credit system used by
-    scavengeLocked has become redundant. Replace it with a mechanism which
-    only scavenges on the allocation path if it makes sense to do so with
-    respect to the new pacing system.
-    
-    Fixes #30333.
-    
-    Change-Id: I6203f8dc84affb26c3ab04528889dd9663530edc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/142960
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9fe0d8f21da4d6e2de3f8fe9395e1fa7e9664b02
+    Reviewed-on: https://go-review.googlesource.com/c/155957
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go         |  10 +-
- src/runtime/mgcscavenge.go | 365 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mheap.go       |  83 ++++++-----
- src/runtime/runtime2.go    |   2 +
- 4 files changed, 419 insertions(+), 41 deletions(-)
+ test/fixedbugs/issue29329.go | 1 +
+ 1 file changed, 1 insertion(+)

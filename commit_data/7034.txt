@@ -1,19 +1,13 @@
-commit e9c4f09985f064ffb9fc37dd28f207a4c13bb093
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 4 22:28:31 2011 -0800
+commit 3f38342e24ead62afb8834de965e4d8758b5051f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 5 13:00:08 2011 +1100
 
-    syscall: Make Access second argument consistently uint32.
+    doc: update contribution guidelines to prefix the change description
+    with the primary affected package.
     
-    Fixes #1377.
-    
-    R=rsc, adg, r
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/3868041
+    https://golang.org/cl/3867041
 
- src/pkg/syscall/syscall_darwin.go         | 2 +-
- src/pkg/syscall/syscall_freebsd.go        | 2 +-
- src/pkg/syscall/zsyscall_darwin_386.go    | 4 ++--
- src/pkg/syscall/zsyscall_darwin_amd64.go  | 4 ++--
- src/pkg/syscall/zsyscall_freebsd_386.go   | 4 ++--
- src/pkg/syscall/zsyscall_freebsd_amd64.go | 4 ++--
- 6 files changed, 10 insertions(+), 10 deletions(-)
+ doc/contribute.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

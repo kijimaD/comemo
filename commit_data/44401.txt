@@ -1,16 +1,17 @@
-commit c9d9b40b1355a8e6674aaaf6abaf362e66abae47
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Feb 24 09:12:34 2021 -0800
+commit b13774691cfb22b1cb18263c9a35176c4a0e94b2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 16:49:05 2020 -0400
 
-    context: avoid importing context package twice
+    crypto/x509: move and update the SSL_CERT_FILE and SSL_CERT_DIR docs
     
-    Change-Id: Id0a127e080dda8ee62738922c6de8caf3719dd68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295949
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Kevin Burke <kev@inburke.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #37907
+    
+    Change-Id: Ia077de6dcc74ed761d278eab4efbf45e151429b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239747
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/context/benchmark_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/crypto/x509/cert_pool.go | 12 ++++++++----
+ src/crypto/x509/x509.go      |  4 ----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

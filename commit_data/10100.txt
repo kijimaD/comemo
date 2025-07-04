@@ -1,21 +1,17 @@
-commit 8f5718176fdd3040d874f85fbd5c825fbd359173
+commit 0e513317b1fe148b4fd6604455bc89ecf44ed088
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:22:09 2011 -0700
+Date:   Tue Oct 25 22:21:49 2011 -0700
 
-    bytes, strings: use rune
+    big: update for fmt interface changes
     
-    Various rune-based APIs change.
+    Nothing terribly interesting here.
     
-    R=golang-dev, r
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5306044
+    https://golang.org/cl/5305046
 
- src/pkg/bytes/buffer.go         |   6 +-
- src/pkg/bytes/buffer_test.go    |   6 +-
- src/pkg/bytes/bytes.go          | 121 ++++++++++++++++++++--------------------
- src/pkg/bytes/bytes_test.go     |  60 ++++++++++----------
- src/pkg/strings/reader.go       |   6 +-
- src/pkg/strings/replace_test.go |   6 +-
- src/pkg/strings/strings.go      |  95 +++++++++++++++----------------
- src/pkg/strings/strings_test.go |  76 ++++++++++++-------------
- 8 files changed, 189 insertions(+), 187 deletions(-)
+ src/pkg/big/int.go      | 6 +++---
+ src/pkg/big/nat.go      | 8 ++++----
+ src/pkg/big/nat_test.go | 2 +-
+ src/pkg/big/rat.go      | 4 ++--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

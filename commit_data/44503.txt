@@ -1,22 +1,15 @@
-commit 9a40dee3ee9c69e8bb4952f9e14b1817195d1f3d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 4 10:39:32 2021 -0500
+commit 4c544ddaead12d331e5e0e6654ef2abc63d63869
+Merge: 9d22325681 074f2d800f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 24 13:18:51 2020 -0400
 
-    cmd/go: reject 'go list -m MOD@patch' when no existing version of MOD is required
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Noticed while debugging failing tests for #36460.
+    Clean merge.
     
-    Fixes #44788
-    
-    Change-Id: Ic2cf511d871b29284f7372920f6f7d452825dd63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298651
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ied3a0a9d098ab8dd28a38fdfb36c1f17b004fef7
 
- src/cmd/go/internal/modload/list.go                  | 2 +-
- src/cmd/go/internal/modload/query.go                 | 2 +-
- src/cmd/go/internal/modload/query_test.go            | 2 +-
- src/cmd/go/testdata/script/mod_prefer_compatible.txt | 4 ++--
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ doc/go1.15.html              | 46 +++++++++++++++++++++++++++++++++++---------
+ src/runtime/os_linux_x86.go  | 35 ++++++++++++++++++++++++++++++++-
+ test/fixedbugs/issue33308.go | 12 ++++++++++++
+ 3 files changed, 83 insertions(+), 10 deletions(-)

@@ -1,19 +1,17 @@
-commit 61fd11ef9658a214eb9c46ca2bd84aef7a994819
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 3 12:22:13 2011 -0800
+commit 9ebe384b71c8abffd64c50aa619fc4e4b9163261
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 3 14:51:49 2011 -0500
 
-    http: allow handlers to send non-chunked responses
+    io/ioutil: add TempDir
     
-    Currently all http handlers reply to HTTP/1.1 requests with
-    chunked responses.  This patch allows handlers to opt-out of
-    that behavior by pre-declaring their Content-Length (which is
-    then enforced) and unsetting their Transfer-Encoding or
-    setting it to the "identity" encoding.
+    It's a little confusing that os.TempDir and ioutil.TempDir have
+    different meanings.  I don't know what to change the names to,
+    if anything.  At least they also have different signatures.
     
-    R=rsc, bradfitzwork
+    R=golang-dev, bradfitzgo, r, gri
     CC=golang-dev
-    https://golang.org/cl/4245058
+    https://golang.org/cl/4247051
 
- src/pkg/http/serve_test.go |  83 +++++++++++++++++++++++++++++
- src/pkg/http/server.go     | 128 ++++++++++++++++++++++++++++++++-------------
- 2 files changed, 174 insertions(+), 37 deletions(-)
+ src/pkg/io/ioutil/tempfile.go      | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/io/ioutil/tempfile_test.go | 24 ++++++++++++++++++++++--
+ 2 files changed, 54 insertions(+), 2 deletions(-)

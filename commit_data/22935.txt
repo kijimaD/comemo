@@ -1,29 +1,20 @@
-commit fd392ee52b984e655390ad9147c9fe95e82bc459
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu May 7 00:48:09 2015 -0400
+commit 5f0ac4a456e8be27562262ebb52cfb137dd48844
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 13 15:31:28 2015 -0700
 
-    cmd/internal/ld: generate correct .debug_frames on RISC architectures
+    compress/flate: reject invalid Huffman encoding sequences
     
-    With this patch, gdb seems to be able to corretly backtrace Go
-    process on at least linux/{arm,arm64,ppc64}.
+    When decoding Huffman codes, if an invalid bit sequence is discovered,
+    reject the input instead of treating it as a 0-length code.
     
-    Change-Id: Ic40a2a70e71a19c4a92e4655710f38a807b67e9a
-    Reviewed-on: https://go-review.googlesource.com/9822
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Fixes #10426.
+    
+    Change-Id: Ie2f1a3a718afd7c6bee73a67480d4b84936c21c9
+    Reviewed-on: https://go-review.googlesource.com/8893
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/5l/l.go                 |  3 ++-
- src/cmd/5l/obj.go               |  1 +
- src/cmd/6l/l.go                 |  3 ++-
- src/cmd/6l/obj.go               |  1 +
- src/cmd/7l/l.go                 |  3 ++-
- src/cmd/7l/obj.go               |  1 +
- src/cmd/8l/l.go                 |  3 ++-
- src/cmd/8l/obj.go               |  1 +
- src/cmd/9l/l.go                 |  3 ++-
- src/cmd/9l/obj.go               |  1 +
- src/cmd/internal/ld/dwarf.go    | 44 +++++++++++++++++++++++++++++------------
- src/cmd/internal/ld/lib.go      |  1 +
- src/runtime/runtime-gdb_test.go |  2 +-
- 13 files changed, 48 insertions(+), 19 deletions(-)
+ src/compress/flate/flate_test.go | 17 +++++++++++++++++
+ src/compress/flate/inflate.go    |  4 ++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

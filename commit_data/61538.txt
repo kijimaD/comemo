@@ -1,0 +1,17 @@
+commit e64f7ef03fdfa1c0d847c21b16c9302cc824e79b
+Author: Sean Liao <sean@liao.dev>
+Date:   Wed Nov 13 18:54:54 2024 +0000
+
+    net/http/httputil: return after handling error
+    
+    Fixes #70237
+    
+    Change-Id: Ieb22b6e7284cb4a40d4987b0e4b9cfb6e5158161
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/reverseproxy.go | 1 +
+ 1 file changed, 1 insertion(+)

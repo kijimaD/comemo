@@ -1,58 +1,17 @@
-commit dbd8f3d739fe4ec34dd48f655edc15443c23a580
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 22 14:53:36 2018 -0500
+commit 4896fc2fa4ed9445e38475a8b1abe9676062d664
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Sep 21 10:53:08 2017 +0900
 
-    runtime: print hexdump on traceback failure
+    debug/macho: parse relocations
     
-    Currently, if anything goes wrong when printing a traceback, we simply
-    cut off the traceback without any further diagnostics. Unfortunately,
-    right now, we have a few issues that are difficult to debug because
-    the traceback simply cuts off (#21431, #23484).
+    Fixes #21957
     
-    This is an attempt to improve the debuggability of traceback failure
-    by printing a diagnostic message plus a hex dump around the failed
-    traceback frame when something goes wrong.
-    
-    The failures look like:
-    
-    goroutine 5 [running]:
-    runtime: unexpected return pc for main.badLR2 called from 0xbad
-    stack: frame={sp:0xc42004dfa8, fp:0xc42004dfc8} stack=[0xc42004d800,0xc42004e000)
-    000000c42004dea8:  0000000000000001  0000000000000001
-    000000c42004deb8:  000000c42004ded8  000000c42004ded8
-    000000c42004dec8:  0000000000427eea <runtime.dopanic+74>  000000c42004ded8
-    000000c42004ded8:  000000000044df70 <runtime.dopanic.func1+0>  000000c420001080
-    000000c42004dee8:  0000000000427b21 <runtime.gopanic+961>  000000c42004df08
-    000000c42004def8:  000000c42004df98  0000000000427b21 <runtime.gopanic+961>
-    000000c42004df08:  0000000000000000  0000000000000000
-    000000c42004df18:  0000000000000000  0000000000000000
-    000000c42004df28:  0000000000000000  0000000000000000
-    000000c42004df38:  0000000000000000  000000c420001080
-    000000c42004df48:  0000000000000000  0000000000000000
-    000000c42004df58:  0000000000000000  0000000000000000
-    000000c42004df68:  000000c4200010a0  0000000000000000
-    000000c42004df78:  00000000004c6400  00000000005031d0
-    000000c42004df88:  0000000000000000  0000000000000000
-    000000c42004df98:  000000c42004dfb8  00000000004ae7d9 <main.badLR2+73>
-    000000c42004dfa8: <00000000004c6400  00000000005031d0
-    000000c42004dfb8:  000000c42004dfd0 !0000000000000bad
-    000000c42004dfc8: >0000000000000000  0000000000000000
-    000000c42004dfd8:  0000000000451821 <runtime.goexit+1>  0000000000000000
-    000000c42004dfe8:  0000000000000000  0000000000000000
-    000000c42004dff8:  0000000000000000
-    main.badLR2(0x0)
-            /go/src/runtime/testdata/testprog/badtraceback.go:42 +0x49
-    
-    For #21431, #23484.
-    
-    Change-Id: I8718fc76ced81adb0b4b0b4f2293f3219ca80786
-    Reviewed-on: https://go-review.googlesource.com/89016
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I69ef9e257aa2b7b6c4fc4c115e99f8a7f93d8d9c
+    Reviewed-on: https://go-review.googlesource.com/65150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_test.go                     | 14 +++++++
- src/runtime/print.go                          | 53 +++++++++++++++++++++++++
- src/runtime/testdata/testprog/badtraceback.go | 47 ++++++++++++++++++++++
- src/runtime/traceback.go                      | 57 ++++++++++++++++++++++++++-
- 4 files changed, 169 insertions(+), 2 deletions(-)
+ src/debug/macho/file.go                         |  80 +++++++++++-
+ src/debug/macho/file_test.go                    | 165 ++++++++++++++++++------
+ src/debug/macho/testdata/clang-386-darwin.obj   | Bin 0 -> 464 bytes
+ src/debug/macho/testdata/clang-amd64-darwin.obj | Bin 0 -> 768 bytes
+ 4 files changed, 204 insertions(+), 41 deletions(-)

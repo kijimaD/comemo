@@ -1,16 +1,13 @@
-commit 0be59730fd9339f9c79601ce19a5323828e634c3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 22 08:41:32 2014 -0700
+commit f464573c70b4de3ebfa8a7c038b183e583af2434
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 14 12:01:14 2014 -0400
 
-    runtime: add Go symtab implementation
+    [dev.power64] runtime: add power64/power64le as supported arch to gcinfo_test.go
     
-    LGTM=khr
-    R=khr, dvyukov, dave
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/124300044
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122560043
 
- src/pkg/runtime/extern.go                |  31 -------
- src/pkg/runtime/runtime.h                |   2 +-
- src/pkg/runtime/{symtab.goc => symtab.c} |  53 +++++------
- src/pkg/runtime/symtab.go                | 153 +++++++++++++++++++++++++++++++
- 4 files changed, 176 insertions(+), 63 deletions(-)
+ src/pkg/runtime/gcinfo_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

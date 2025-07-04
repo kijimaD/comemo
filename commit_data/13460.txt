@@ -1,13 +1,16 @@
-commit 1fa32d21a947dbe00217baa5ff22a27dd54fbb9f
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 12 10:23:54 2012 -0700
+commit eb1c03eacbbd1e3a8000972f338122dc9d5748b9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jul 12 10:14:07 2012 +1000
 
-    encoding/gob: fix check for short input in slice decode
+    cmd/pack: remove unused paging logic
     
-    R=golang-dev, dsymonds, r, nigeltao
+    This is the remainder of https://golang.org/cl/4601051.
+    
+    Partially addresses issue 2705.
+    
+    R=golang-dev, r, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6374059
+    https://golang.org/cl/6354066
 
- src/pkg/encoding/gob/decode.go       |  6 +++---
- src/pkg/encoding/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 3 deletions(-)
+ src/cmd/pack/ar.c | 65 ++++++-------------------------------------------------
+ 1 file changed, 7 insertions(+), 58 deletions(-)

@@ -1,14 +1,12 @@
-commit 752960aa5c6ec12ca4d73b1d5b552466fdd77cce
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Sep 25 16:18:33 2013 -0400
+commit 4be17b7a7e43067f451cc1001f43495bcf2f6f45
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 25 16:17:54 2013 +1000
 
-    cmd/go: "go test -c -test.bench=XX fmt" shouldn't hang
-    Fixes #6480.
+    doc/go1.2.html: add go/ast.SliceExpr.Slice3
     
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13925043
+    https://golang.org/cl/13877044
 
- src/cmd/go/test.bash | 9 ++++++++-
- src/cmd/go/test.go   | 2 +-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ doc/go1.2.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

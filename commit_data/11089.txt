@@ -1,29 +1,12 @@
-commit aa033c20b356b608e2fcc51e284cf711f952309b
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Jan 11 10:15:40 2012 +1100
+commit dcdc309c7cec0785cd83ddeb752ccebc29a1f83d
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Jan 10 12:56:25 2012 -0800
 
-    html: propagate foreign namespaces only when adding foreign content.
+    runtime: fix typo in comment
     
-    Pass tests10.dat, test 31:
-    <div><svg><path><foreignObject><p></div>a
-    
-    | <html>
-    |   <head>
-    |   <body>
-    |     <div>
-    |       <svg svg>
-    |         <svg path>
-    |           <svg foreignObject>
-    |             <p>
-    |               "a"
-    
-    Also pass test 32:
-    <!DOCTYPE html><svg><desc><div><svg><ul>a
-    
-    R=andybalholm
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5527064
+    https://golang.org/cl/5529059
 
- src/pkg/html/parse.go      | 9 +++++----
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

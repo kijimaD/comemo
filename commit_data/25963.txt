@@ -1,41 +1,12 @@
-commit 1d5001afef65bdb48db751f474efab624b14c362
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Feb 27 14:31:33 2016 -0800
+commit b2963a545c78ddca5ea59c5e290f3c46f0a04773
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Dec 6 17:14:50 2015 +1100
 
-    cmd/compile: change Node.Nbody, Func.Inl from *NodeList to Nodes
+    doc: go1.6.txt: note windows path/filepath.Join behaviour change
     
-    Passes toolstash -cmp.
-    
-    Casual timings show about a 3% improvement in compile times.
-    
-    Update #14473.
-    
-    Change-Id: I584add2e8f1a52486ba418b25ba6122b7347b643
-    Reviewed-on: https://go-review.googlesource.com/19989
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I321eba716319bf88695ac49580837b6254f1279e
+    Reviewed-on: https://go-review.googlesource.com/17474
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go       |  28 +++----
- src/cmd/compile/internal/gc/bexport.go   |  12 +--
- src/cmd/compile/internal/gc/bimport.go   |   4 +-
- src/cmd/compile/internal/gc/closure.go   |  24 +++---
- src/cmd/compile/internal/gc/dcl.go       |  10 ++-
- src/cmd/compile/internal/gc/esc.go       |  37 ++++++---
- src/cmd/compile/internal/gc/export.go    |  20 +++--
- src/cmd/compile/internal/gc/fmt.go       |   8 +-
- src/cmd/compile/internal/gc/gen.go       |  16 ++--
- src/cmd/compile/internal/gc/init.go      |  38 ++++-----
- src/cmd/compile/internal/gc/inl.go       | 109 +++++++++++++++----------
- src/cmd/compile/internal/gc/lex.go       |   6 +-
- src/cmd/compile/internal/gc/order.go     | 133 +++++++++++++++++++------------
- src/cmd/compile/internal/gc/parser.go    |  14 ++--
- src/cmd/compile/internal/gc/pgen.go      |   6 +-
- src/cmd/compile/internal/gc/racewalk.go  |  14 +++-
- src/cmd/compile/internal/gc/range.go     |  38 ++++-----
- src/cmd/compile/internal/gc/select.go    |  45 ++++++-----
- src/cmd/compile/internal/gc/sinit.go     |  44 +++++-----
- src/cmd/compile/internal/gc/subr.go      |  30 +++++--
- src/cmd/compile/internal/gc/swt.go       |  80 ++++++++++---------
- src/cmd/compile/internal/gc/syntax.go    |  26 +++++-
- src/cmd/compile/internal/gc/typecheck.go |  77 +++++++++++++-----
- src/cmd/compile/internal/gc/walk.go      |  33 +++++---
- 24 files changed, 525 insertions(+), 327 deletions(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,28 +1,18 @@
-commit fd03e6ebc91fb0b6f4dc721a323dc0b408e3b30b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jun 5 22:28:48 2023 -0400
+commit 87d6a9ff920e55b72ac7f35a85fcf6e448e2cbd7
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Aug 17 17:02:06 2022 +0800
 
-    cmd/compile: check method name in PGO devirtualization
+    cmd/compile: gofmt -w -s
     
-    Currently, we devirtualize an interface call if the profile
-    indicates a concrete callee is hot on the same line, and the
-    concrete receiver implements the interface. But it is possible
-    that (likely due to another call on the same line, or possibly a
-    stale profile) the concrete call is to a different method.
-    
-    With the current AST construction we generate correct code, as we
-    extract the method name from the interface call and use that to
-    create the concrete call. But the devirtualization decision is
-    based on an unrelated call in the profile.
-    
-    Check the method name when finding the hottest callee, so we won't
-    use unrelated calls to different methods.
-    
-    Change-Id: I75c026997926f21bd6cc5266d3ffe99649a9b2d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500961
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4dad103d23121a21b04800ec157487fdf79f89a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424398
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/devirtualize/pgo.go | 20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/base/hashdebug.go | 26 ++++++++++++++++----------
+ src/cmd/compile/internal/ssa/func.go       |  4 +++-
+ 2 files changed, 19 insertions(+), 11 deletions(-)

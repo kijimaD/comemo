@@ -1,17 +1,21 @@
-commit 58093e8e2b5e22cf861c387d76333bccd1595065
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 21:24:10 2022 +0800
+commit 6f32d2050d7f0a9d0c529a1a7a21aa8c1d63fa20
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 25 21:49:05 2021 +0000
 
-    cmd/asm: optimize if statement to return directly
+    runtime: pace the scavenger according to 1% of overall CPU time
     
-    Change-Id: Ieb8fb7c623ecd8b9ddd15cdb6eb2c6326a9bbd3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435941
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Currently the scavenger is paced to 1% of 1 CPU because it had
+    scalability problems. As of the last few CLs, that should be largely
+    resolved. This change resolves the TODO and paces the scavenger
+    according to 1% of overall CPU time.
+    
+    This change is made separately to allow it to be more easily rolled
+    back.
+    
+    Change-Id: I1ab4de24ba41c564960701634a128a813c55ece9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358675
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/asm/internal/arch/arm64.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/runtime/mgcscavenge.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,19 +1,16 @@
-commit d3631955d454a8cfc0b63065ef1cc4c8db64ae46
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 20 15:54:11 2019 +0100
+commit 47e71f3b6917113660a65a180e66c91fc6318458
+Author: Plekhanov Maxim <kishtatix@gmail.com>
+Date:   Sat Dec 23 02:25:35 2017 +0300
 
-    cmd/link: set correct sizes for XCOFF outer symbols
+    math: use Abs in Pow rather than if x < 0 { x = -x }
     
-    This commit fixes the size of outer symbols like type.*.
-    Outer symbols cannot have a nil size on AIX or they will be
-    removed by ld as long as all their sub-symbols.
+    name     old time/op  new time/op  delta
+    PowInt   55.7ns ± 1%  53.4ns ± 2%  -4.15%  (p=0.000 n=9+9)
+    PowFrac   133ns ± 1%   133ns ± 2%    ~     (p=0.587 n=8+9)
     
-    Change-Id: I68ff3ce5a3a034e3c3eb23431aba31245073cf20
-    Reviewed-on: https://go-review.googlesource.com/c/163999
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ica0f4c2cbd554f2195c6d1762ed26742ff8e3924
+    Reviewed-on: https://go-review.googlesource.com/c/85375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go  | 21 ++++++++++++++++
- src/cmd/link/internal/ld/xcoff.go | 51 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 72 insertions(+)
+ src/math/pow.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

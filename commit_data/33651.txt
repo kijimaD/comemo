@@ -1,18 +1,16 @@
-commit 597213c87c70166e86753350b203622326728138
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Tue Nov 21 15:53:47 2017 -0500
+commit cf69867af44152f06b9a47a1c3129e4a314a00e7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 19 07:30:12 2017 -0700
 
-    time: rename TestLoadLocationFromTzinfo to TestLoadLocationFromTZData
+    runtime: speed up key copying in specialized evacuate routines
     
-    Tzinfo was replaced with TZData during the review of CL 68890, but this
-    instance was forgotten. Update it for consistency.
+    Similar to CL 59110.
     
-    Follows CL 68890.
-    Updates #20629.
-    
-    Change-Id: Id6d3c4f5f7572b01065f2db556db605452d1b570
-    Reviewed-on: https://go-review.googlesource.com/79176
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia2858541c86a44b105eacbca9a46b1044632c5ca
+    Reviewed-on: https://go-review.googlesource.com/59134
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/zoneinfo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/hashmap_fast.go | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)

@@ -1,25 +1,14 @@
-commit 5f7bec693d3d383061586d6f29f4fea2648399a7
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Aug 8 09:57:09 2012 +1000
+commit c8423f90029e24b9b714678f9d23f7497f97a1e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 7 16:10:10 2012 +1000
 
-    image/jpeg: send a correct Start Of Scan (SOS) header.
+    io: document ReaderFrom and WriterTo
     
-    Section B.2.3 of http://www.w3.org/Graphics/JPEG/itu-t81.pdf discusses
-    the End of spectral selection (Se) byte.
+    Fixes #3711
     
-    Apparently many JPEG decoders ignore the Se byte (or let it through
-    with a warning), but some configurations reject them. For example,
-    http://download.blender.org/source/chest/blender_2.03_tree/jpeg/jcmaster.c
-    has these lines:
-    
-    if (Ss != 0 || Se != DCTSIZE2-1 || Ah != 0 || Al != 0)
-      ERREXIT1(cinfo, JERR_BAD_PROG_SCRIPT, scanno);
-    
-    Fixes #3916.
-    
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6459052
+    https://golang.org/cl/6445083
 
- src/pkg/image/jpeg/writer.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/io/io.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

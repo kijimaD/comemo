@@ -1,13 +1,8 @@
-commit c1fcdb0e00f9163bc3f60069182f231afb83523e
+commit 8ad746d226b7a45060834c1e112e7777de8faa9e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 15:25:17 2014 -0400
+Date:   Wed Aug 6 14:57:34 2014 -0400
 
-    codereview: handle upload of merge
-    
-    LGTM=minux
-    R=minux
-    CC=golang-codereviews
-    https://golang.org/cl/118690043
+    [dev.power64] remove dummy file
 
- lib/codereview/codereview.py | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ dev.power64 | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

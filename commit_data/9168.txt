@@ -1,12 +1,18 @@
-commit e109a2bb8cde0f31cf58164d861407351ceaf1bc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 21 15:01:58 2011 -0700
+commit 12c736158affe5c112d119142bb9403d193080de
+Author: Michael T. Jones <mtj@google.com>
+Date:   Thu Jul 21 14:29:08 2011 -0700
 
-    big: minor comment adjustments
+    big: refine printf formatting and optimize string conversion
     
-    R=mtj, r
+    Now handles standard precision specifications, standard interactions of
+    redundant specifications (such as precision and zero-fill), handles the
+    special case of precision specified but equal to zero, and generates the
+    output without recursive calls to format/printf to be clearer and faster.
+    
+    R=gri, mtj, gri
     CC=golang-dev
-    https://golang.org/cl/4814044
+    https://golang.org/cl/4703050
 
- src/pkg/big/int.go | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ src/pkg/big/int.go      | 124 +++++++++++++++++++++++++++---------------------
+ src/pkg/big/int_test.go | 106 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 167 insertions(+), 63 deletions(-)

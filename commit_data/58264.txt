@@ -1,28 +1,26 @@
-commit fb432782f0017f59f6f2c5f620dfd8c67b5e35e3
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Nov 20 18:59:09 2024 +0100
+commit ab5bd15941f3cea3695338756d0b8be0ef2321fb
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 12:15:57 2023 -0400
 
-    crypto/ecdh: revamp FIPS ECDH API
+    cmd/go: clean up adding import path to command error
     
-    This makes it more similar to the ECDSA API, introducing proper key
-    types that can correctly "cache" the key check.
+    Currently, cmdError makes a somewhat fuzzy attempt to ensure the
+    package import path is part of the printed error, using a string
+    prefix check. Also, if it decides it does need to add the import path,
+    it prints it as a "go build" line, which could be misleading because
+    it can happen outside of "go build".
     
-    The new API also has a better compliance profile. Note how the old
-    ECDHPnnn functions were not doing the PCT, instead delegating to the
-    caller an invocation of ImportKeyPnnn.
+    Clean up the whole code path by explicitly checking the provided error
+    description against Package.Desc(), and instead of emitting "go build"
+    in the error message, print it as "# importPath" just like we do in
+    the common case.
     
-    Change-Id: Ic6cf834427fd790324919b4d92bdaa2aac840016
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630098
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Idb61ac8ffd6920a3d2d282697f4d7d5555ebae0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534655
+    Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/ecdh/ecdh.go                        |   3 +
- src/crypto/ecdh/nist.go                        |  91 +++++---
- src/crypto/internal/fips140/ecdh/cast.go       |   5 +-
- src/crypto/internal/fips140/ecdh/ecdh.go       | 298 ++++++++++++-------------
- src/crypto/internal/fips140/ecdh/order_test.go |   8 +-
- src/crypto/internal/fips140test/cast_test.go   |  10 +-
- 6 files changed, 221 insertions(+), 194 deletions(-)
+ src/cmd/go/internal/work/exec.go                   | 26 ++++++++++++----------
+ .../go/testdata/script/list_pkgconfig_error.txt    |  2 +-
+ 2 files changed, 15 insertions(+), 13 deletions(-)

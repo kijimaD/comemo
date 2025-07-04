@@ -1,13 +1,15 @@
-commit a9288d63ef47106132c76d3dcdf0ce132755fa37
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Apr 28 06:27:22 2014 -0700
+commit d873e642cd78cd4943157bcef7cc27f8f4e9d3cc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 28 11:34:52 2014 +0900
 
-    doc: fix broken link to RTEMS Go wiki page
+    syscall: add missing SendmsgN for NaCl
+    
+    Update #7645
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/98740046
+    https://golang.org/cl/98790044
 
- doc/gccgo_install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/net_nacl.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

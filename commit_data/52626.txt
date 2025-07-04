@@ -1,25 +1,23 @@
-commit de475e8a66b0f530e074c68031a364ad2ebe2a95
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Mar 29 10:28:33 2023 +0200
+commit cfccb5cb7cea77c5272115556e59dea374e4dbd1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 13 15:14:54 2022 +0000
 
-    syscall: implement Fchdir on Windows
+    runtime/metrics: add the last GC cycle that had the limiter enabled
     
-    This CL adds support for os.File.Chdir() on Windows by implementing
-    syscall.Fchdir, which is internally used by Chdir.
+    This metric exports the the last GC cycle index that the GC limiter was
+    enabled. This metric is useful for debugging and identifying the root
+    cause of OOMs, especially when SetMemoryLimit is in use.
     
-    Windows does not provide a function that sets the working directory
-    using a file handle, so we have to fallback to retrieving the file
-    handle path and then use it in SetCurrentDirectory.
+    For #48409.
     
-    Change-Id: I2ae93575e50411e5a9426ea531541958d7c9e812
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480135
+    Change-Id: Ic6383b19e88058366a74f6ede1683b8ffb30a69c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403614
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/os/os_test.go               | 21 ++++----------------
- src/syscall/syscall_windows.go  | 43 ++++++++++++++++++++++++++++++++++++++++-
- src/syscall/zsyscall_windows.go | 10 ++++++++++
- 3 files changed, 56 insertions(+), 18 deletions(-)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 9 +++++++++
+ src/runtime/metrics/doc.go         | 7 +++++++
+ src/runtime/mgclimit.go            | 9 +++++++--
+ 4 files changed, 29 insertions(+), 2 deletions(-)

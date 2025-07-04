@@ -1,14 +1,12 @@
-commit 2dfcbd0a3b216a793f3a450889e51781c142539b
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Sat Mar 24 08:16:57 2012 +1100
+commit ae8d8abfebd11450bde5722f22fc32320660bf6a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 24 08:12:52 2012 +1100
 
-    os: add missing byte to FileMode buffer
+    codewalk/sharemem.xml: fix references to files
     
-    32 bytes is enough for all FileMode bits.
-    
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5853044
+    https://golang.org/cl/5877064
 
- src/pkg/os/types.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/codewalk/sharemem.xml | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,14 +1,43 @@
-commit 0e0cd70ecf6b5f0d9c8271f68b8fcc9f85cd6598
-Author: Nikhil Benesch <nikhil.benesch@gmail.com>
-Date:   Mon Jul 2 11:29:11 2018 -0400
+commit eb3c44b2c44ee99c7e24b181ce6abbb7d63df946
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 06:25:04 2018 -0800
 
-    runtime: document when cgo traceback function is called
+    cmd/compile: cleanup closure.go
     
-    Fixes #24518.
+    The main thing is we now eagerly create the ODCLFUNC node for
+    closures, immediately cross-link them, and assign fields (e.g., Nbody,
+    Dcl, Parents, Marks) directly on the ODCLFUNC (previously they were
+    assigned on the OCLOSURE and later moved to the ODCLFUNC).
     
-    Change-Id: I99c79c5a2ab9dbe7f0d257c263da9d2b5d1d55c4
-    Reviewed-on: https://go-review.googlesource.com/121917
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This allows us to set Curfn to the ODCLFUNC instead of the OCLOSURE,
+    which makes things more consistent with normal function declarations.
+    (Notably, this means Cvars now hang off the ODCLFUNC instead of the
+    OCLOSURE.)
+    
+    Assignment of xfunc symbol names also now happens before typechecking
+    their body, which means debugging output now provides a more helpful
+    name than "<S>".
+    
+    In golang.org/cl/66810, we changed "x := y" statements to avoid
+    creating false closure variables for x, but we still create them for
+    struct literals like "s{f: x}". Update comment in capturevars
+    accordingly.
+    
+    More opportunity for cleanups still, but this makes some substantial
+    progress, IMO.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I65a4efc91886e3dcd1000561348af88297775cd7
+    Reviewed-on: https://go-review.googlesource.com/100197
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/traceback.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/gc/closure.go     | 331 ++++++++++-------------------
+ src/cmd/compile/internal/gc/esc.go         |   2 +-
+ src/cmd/compile/internal/gc/inl.go         |   2 +-
+ src/cmd/compile/internal/gc/order.go       |   2 +-
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/syntax.go      |   7 +-
+ 6 files changed, 122 insertions(+), 224 deletions(-)

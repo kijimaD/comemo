@@ -1,26 +1,30 @@
-commit d7473fd9076a978352d3bb29c13464c3c17d46c3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 30 17:21:22 2021 -0400
+commit 87eab74628bc23831bd783806e8ec16927bd9a50
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 15:32:05 2020 -0700
 
-    cmd/link: mangle ABI name for shared linkage
+    [dev.typeparams] cmd/compile: enable type-checking of generic code
     
-    Currently, when ABI wrappers are used, we don't use ABI aliases.
-    One exception is shared linkage. When loading a shared library, if
-    a symbol has only one ABI, and the name is not mangled, we don't
-    know what ABI it is, so we have to use ABI aliases.
+    This change makes a first connection between the compiler and types2.
+    When the -G flag is provided, the compiler accepts code using type
+    parameters; with this change generic code is also type-checked (but
+    then compilation ends).
     
-    This CL makes it always mangle ABIInternal function name in shared
-    linkage, so we know what ABI to choose when loading a shared
-    library. And we now can fully stop using ABI aliases when ABI
-    wrappers are used.
-    
-    Change-Id: Id15d9cd72a59f391f54574710ebba7dc44cb6e23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315869
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I0fa6f6213267a458a6b33afe8ff26869fd838a63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264303
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/lib.go    | 42 +++++---------------------------------
- src/cmd/link/internal/ld/macho.go  |  2 +-
- src/cmd/link/internal/ld/pe.go     |  2 +-
- src/cmd/link/internal/ld/symtab.go | 18 +++++++++++++---
- 4 files changed, 22 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/gc/dep_test.go      |  7 ++-
+ src/cmd/compile/internal/gc/noder.go         | 69 +++++++++++++++++++++++++---
+ src/cmd/compile/internal/importer/iimport.go | 18 ++++++--
+ src/cmd/compile/internal/types2/errors.go    |  4 +-
+ src/cmd/compile/internal/types2/infer.go     |  5 +-
+ src/cmd/compile/internal/types2/methodset.go |  5 +-
+ src/cmd/compile/internal/types2/object.go    | 12 +++--
+ src/cmd/compile/internal/types2/typexpr.go   |  2 +-
+ src/cmd/dist/buildtool.go                    |  3 ++
+ test/typeparam/smoketest.go                  |  5 +-
+ test/typeparam/tparam1.go                    | 42 +++++++++++++++++
+ 11 files changed, 147 insertions(+), 25 deletions(-)

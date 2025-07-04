@@ -1,15 +1,12 @@
-commit f59ea4e58b77e4540e87e42dc9192b8d424adf6b
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jan 4 08:43:17 2014 -0800
+commit 30ba286c6140ceec7793cfac0eb47a8c939b5044
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 4 09:58:04 2014 +1100
 
-    runtime: Fix race detector checks to ignore KindNoPointers bit
-    when comparing kinds.
+    os: add tests for operations on nil *File methods
     
-    R=dvyukov, dave, khr
+    R=shawn.p.smith, gobot, r
     CC=golang-codereviews
-    https://golang.org/cl/41660045
+    https://golang.org/cl/46820043
 
- src/pkg/runtime/hashmap.c | 45 +++++++++------------------------------------
- src/pkg/runtime/race.c    | 26 ++++++++++++++++++++++++++
- src/pkg/runtime/race.h    |  2 ++
- 3 files changed, 37 insertions(+), 36 deletions(-)
+ src/pkg/os/os_test.go | 46 ++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 14 deletions(-)

@@ -1,15 +1,51 @@
-commit f076ad893b70048cb4955bf04dbbec0adeb27dd7
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Mar 13 01:52:12 2015 +1100
+commit c7fa3c625ee0dd09d8ce88b060ffd883ac50582b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 11 20:37:56 2015 -0500
 
-    runtime: remove reference to openbsd kern.rthreads sysctl
+    [dev.cc] cmd/yacc: introduce yyParser to expose parser state
     
-    The kern.rthreads sysctl has not existed for a long time - there is no way to
-    disable rthreads and __tfork no longer returns ENOTSUP.
+    Historically, yacc has supported various kinds of inspections
+    and manipulations of the parser state, exposed as global variables.
+    The Go implementation of yacc puts that state (properly) in local
+    stack variables, so it can only be exposed explicitly.
     
-    Change-Id: Ia50ff01ac86ea83358e72b8f45f7818aaec1e4b1
-    Reviewed-on: https://go-review.googlesource.com/7490
-    Reviewed-by: Minux Ma <minux@golang.org>
+    There is now an explicit parser type, yyParser, returned by a
+    constructor, yyNewParser.
+    
+            type yyParser interface {
+                    Parse(yyLexer) int
+                    Lookahead() int
+            }
+    
+    Parse runs a parse. A call to the top-level func Parse
+    is equivalent to calling yyNewParser().Parse, but constructing
+    the parser explicitly makes it possible to access additional
+    parser methods, such as Lookahead.
+    
+    Lookahead can be called during grammar actions to read
+    (but not consume) the value of the current lookahead token,
+    as returned by yylex.Lex. If there is no current lookahead token,
+    Lookahead returns -1. Invoking Lookahead corresponds to
+    reading the global variable yychar in a traditional Unix yacc grammar.
+    
+    To support Lookahead, the internal parsing code now separates
+    the return value from Lex (yychar) from the reencoding used
+    by the parsing tables (yytoken). This has the effect that grammars
+    that read yychar directly in the action (possible since the actions
+    are in the same function that declares yychar) now correctly see values
+    from the Lex return value space, not the internal reencoding space.
+    This can fix bugs in ported grammars not even using SetParse and Lookahead.
+    (The reencoding was added on Plan 9 for large character sets.
+    No Plan 9 programs using yacc looked at yychar.)
+    
+    Other methods may be added to yyParser later as needed.
+    Obvious candidates include equivalents for the traditional
+    yyclearin and yyerrok macros.
+    
+    Change-Id: Iaf7649efcf97e09f44d1f5bc74bb563a11f225de
+    Reviewed-on: https://go-review.googlesource.com/4850
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os1_openbsd.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/yacc/doc.go  | 27 +++++++++++++++---
+ src/cmd/yacc/yacc.go | 77 +++++++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 78 insertions(+), 26 deletions(-)

@@ -1,64 +1,23 @@
-commit 6464e5dc4b84a4348e6698f97c5bfc462a0e3a5e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Feb 18 21:03:15 2017 -0500
+commit d0e408334be22158fbf58a4d02789a48f5cb911e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 30 23:53:09 2016 -0400
 
-    cmd/compile: do not fold offset into load/store for args on ARM64
+    cmd/link: support plugins with no exported symbols
     
-    Args may be not at 8-byte aligned offset to SP. When the stack
-    frame is large, folding the offset of args may cause large
-    unaligned offsets that does not fit in a machine instruction on
-    ARM64. Therefore disable folding offsets for args.
+    A plugin with no exported symbols is still potentially very useful.
+    Its init functions are called on load, and it so it can have visible
+    side effects.
     
-    This has small performance impact (see below). A better fix would
-    be letting the assembler backend fix up the offset by loading it
-    into a register if it doesn't fit into an instruction. And the
-    compiler can simply generate large load/stores with offset. Since
-    in most of the cases the offset is aligned or the stack frame is
-    small, it can fit in an instruction and no fixup is needed. But
-    this is too complicated for Go 1.8.
+    Fixes #17681
     
-    name                     old time/op    new time/op    delta
-    BinaryTree17-8              8.30s ± 0%     8.31s ± 0%    ~     (p=0.579 n=10+10)
-    Fannkuch11-8                6.14s ± 0%     6.18s ± 0%  +0.53%  (p=0.000 n=9+10)
-    FmtFprintfEmpty-8           117ns ± 0%     117ns ± 0%    ~     (all equal)
-    FmtFprintfString-8          196ns ± 0%     197ns ± 0%  +0.72%  (p=0.000 n=10+10)
-    FmtFprintfInt-8             204ns ± 0%     205ns ± 0%  +0.49%  (p=0.000 n=9+10)
-    FmtFprintfIntInt-8          302ns ± 0%     307ns ± 1%  +1.46%  (p=0.000 n=10+10)
-    FmtFprintfPrefixedInt-8     329ns ± 2%     326ns ± 0%    ~     (p=0.083 n=10+10)
-    FmtFprintfFloat-8           540ns ± 0%     542ns ± 0%  +0.46%  (p=0.000 n=8+7)
-    FmtManyArgs-8              1.20µs ± 1%    1.19µs ± 1%  -1.02%  (p=0.000 n=10+10)
-    GobDecode-8                17.3ms ± 1%    17.8ms ± 0%  +2.75%  (p=0.000 n=10+7)
-    GobEncode-8                15.3ms ± 1%    15.4ms ± 0%  +0.57%  (p=0.004 n=9+10)
-    Gzip-8                      789ms ± 0%     803ms ± 0%  +1.78%  (p=0.000 n=9+10)
-    Gunzip-8                    128ms ± 0%     130ms ± 0%  +1.73%  (p=0.000 n=10+9)
-    HTTPClientServer-8          202µs ± 6%     201µs ±10%    ~     (p=0.739 n=10+10)
-    JSONEncode-8               42.0ms ± 0%    42.1ms ± 0%  +0.19%  (p=0.028 n=10+9)
-    JSONDecode-8                159ms ± 0%     161ms ± 0%  +1.05%  (p=0.000 n=9+10)
-    Mandelbrot200-8            10.1ms ± 0%    10.1ms ± 0%  -0.07%  (p=0.000 n=10+9)
-    GoParse-8                  8.46ms ± 1%    8.61ms ± 1%  +1.77%  (p=0.000 n=10+10)
-    RegexpMatchEasy0_32-8       227ns ± 1%     226ns ± 0%  -0.35%  (p=0.001 n=10+9)
-    RegexpMatchEasy0_1K-8      1.63µs ± 0%    1.63µs ± 0%  -0.13%  (p=0.000 n=10+9)
-    RegexpMatchEasy1_32-8       250ns ± 0%     249ns ± 0%  -0.40%  (p=0.001 n=8+9)
-    RegexpMatchEasy1_1K-8      2.07µs ± 0%    2.08µs ± 0%  +0.05%  (p=0.027 n=9+9)
-    RegexpMatchMedium_32-8      350ns ± 0%     350ns ± 0%    ~     (p=0.412 n=9+8)
-    RegexpMatchMedium_1K-8      104µs ± 0%     104µs ± 0%  +0.31%  (p=0.000 n=10+7)
-    RegexpMatchHard_32-8       5.82µs ± 0%    5.82µs ± 0%    ~     (p=0.937 n=9+9)
-    RegexpMatchHard_1K-8        176µs ± 0%     176µs ± 0%  +0.03%  (p=0.000 n=9+8)
-    Revcomp-8                   1.36s ± 1%     1.37s ± 1%    ~     (p=0.218 n=10+10)
-    Template-8                  151ms ± 1%     156ms ± 1%  +3.21%  (p=0.000 n=10+10)
-    TimeParse-8                 737ns ± 0%     758ns ± 2%  +2.74%  (p=0.000 n=10+10)
-    TimeFormat-8                801ns ± 2%     789ns ± 1%  -1.51%  (p=0.000 n=10+10)
-    [Geo mean]                  142µs          143µs       +0.50%
-    
-    Fixes #19137.
-    
-    Change-Id: Ib8a21ea98c0ffb2d282a586535b213cc163e1b67
-    Reviewed-on: https://go-review.googlesource.com/37251
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Icdca31f48e5ab13c99020a2ef724f3de47dcd74b
+    Reviewed-on: https://go-review.googlesource.com/32437
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 120 +++++++++++++--------------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 120 +++++++++++++--------------
- test/fixedbugs/issue19137.go                 |  13 +++
- 3 files changed, 133 insertions(+), 120 deletions(-)
+ misc/cgo/testplugin/src/host/host.go       |  8 ++++++++
+ misc/cgo/testplugin/src/plugin2/plugin2.go | 18 ++++++++++++++++++
+ misc/cgo/testplugin/test.bash              |  1 +
+ src/cmd/link/internal/ld/deadcode.go       |  6 ++++--
+ src/cmd/link/internal/ld/symtab.go         |  3 +--
+ 5 files changed, 32 insertions(+), 4 deletions(-)

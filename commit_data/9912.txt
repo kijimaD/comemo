@@ -1,16 +1,13 @@
-commit cab53c899ce19305be4bfac730a9d1e9b7f0b1ce
+commit d3eefb8cf31f149b250ebd2c9297fc3fa40ff298
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Oct 10 11:16:04 2011 +1100
+Date:   Sun Oct 9 06:50:21 2011 +1100
 
-    doc: fix tutorial and Makefile PATH without dot
+    dashboard: include last 100 lines in build failure mail
     
-    Fixes #2351.
-    
-    R=r, bradfitz
+    R=golang-dev, rsc, iant, robert.hencke
     CC=golang-dev
-    https://golang.org/cl/5235056
+    https://golang.org/cl/5235041
 
- doc/Makefile         | 5 ++---
- doc/go_tutorial.html | 4 ++--
- doc/go_tutorial.tmpl | 4 ++--
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ misc/dashboard/godashboard/fail-notify.txt |  3 +++
+ misc/dashboard/godashboard/gobuild.py      | 12 ++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

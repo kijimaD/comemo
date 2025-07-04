@@ -1,33 +1,14 @@
-commit c3a50ad3c79ed15a413c24d4ae3497d4d629ff04
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 22 16:43:42 2017 -0700
+commit 8e0c4639f11e9febd34fc1e2465138b37411b9d5
+Author: Odin Ugedal <odin@ugedal.com>
+Date:   Wed Dec 7 09:54:42 2016 +0100
 
-    cmd/compile: eliminate Prog-related globals
+    fmt: remove unnecessary else statement
     
-    Introduce a new type, gc.Progs, to manage
-    generation of Progs for a function.
-    Use it to replace globals pc and pcloc.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: I2206998d7c58fe2a76b620904909f2e1cec8a57d
-    Reviewed-on: https://go-review.googlesource.com/38418
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If30ccfcf56d56fb40102ad567a980793bd39f320
+    Reviewed-on: https://go-review.googlesource.com/34071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go  |  52 ++++++++--------
- src/cmd/compile/internal/arm/ggen.go    |  38 ++++++------
- src/cmd/compile/internal/arm64/ggen.go  |  44 ++++++-------
- src/cmd/compile/internal/gc/dcl.go      |   1 -
- src/cmd/compile/internal/gc/go.go       |   8 +--
- src/cmd/compile/internal/gc/gsubr.go    | 107 +++++++++++++++++++++++++++-----
- src/cmd/compile/internal/gc/pgen.go     |  65 ++-----------------
- src/cmd/compile/internal/gc/ssa.go      |  44 ++++++-------
- src/cmd/compile/internal/mips/ggen.go   |  32 +++++-----
- src/cmd/compile/internal/mips64/ggen.go |  36 +++++------
- src/cmd/compile/internal/ppc64/ggen.go  |  48 +++++++-------
- src/cmd/compile/internal/s390x/ggen.go  |  36 +++++------
- src/cmd/compile/internal/x86/ggen.go    |  36 +++++------
- 13 files changed, 285 insertions(+), 262 deletions(-)
+ src/fmt/print.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

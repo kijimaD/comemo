@@ -1,42 +1,33 @@
-commit a22e77e6aefeaaa3302d995c647e76e04297e8c3
+commit 73b7afbebd4bc18084a334fa40ff957f1607e080
 Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 17 14:55:57 2011 +1000
+Date:   Wed Aug 17 14:34:48 2011 +1000
 
-    template: move exp/template into template.
-    (Leave exp/template/html where it is for now.)
+    template: delete old template code.
+    It's already in old/template; make that build.
+    Update a couple of references to point to the old template.
+    They can be updated later.
+    Update goplay to use exp/template.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4899048
+    https://golang.org/cl/4902046
 
- misc/goplay/goplay.go                             |  2 +-
- src/cmd/godoc/codewalk.go                         |  2 +-
- src/cmd/godoc/format.go                           |  2 +-
- src/cmd/godoc/godoc.go                            |  2 +-
- src/cmd/goinstall/make.go                         |  2 +-
- src/pkg/Makefile                                  |  4 ++--
- src/pkg/exp/template/html/reverse.go              |  4 ++--
- src/pkg/exp/template/html/reverse_test.go         |  2 +-
- src/pkg/go/doc/comment.go                         |  2 +-
- src/pkg/rpc/debug.go                              |  2 +-
- src/pkg/{exp/template/parse => template}/Makefile | 11 ++++++-----
- src/pkg/{exp => }/template/doc.go                 |  0
- src/pkg/{exp => }/template/exec.go                |  2 +-
- src/pkg/{exp => }/template/exec_test.go           |  0
- src/pkg/{exp => }/template/funcs.go               |  0
- src/pkg/{exp => }/template/helper.go              |  0
- src/pkg/{exp => }/template/parse.go               |  2 +-
- src/pkg/{exp/template => template/parse}/Makefile |  7 +++----
- src/pkg/{exp => }/template/parse/lex.go           |  0
- src/pkg/{exp => }/template/parse/lex_test.go      |  0
- src/pkg/{exp => }/template/parse/node.go          |  0
- src/pkg/{exp => }/template/parse/parse.go         |  2 +-
- src/pkg/{exp => }/template/parse/parse_test.go    |  0
- src/pkg/{exp => }/template/parse/set.go           |  0
- src/pkg/{exp => }/template/set.go                 |  2 +-
- src/pkg/{exp => }/template/set_test.go            |  0
- src/pkg/{exp => }/template/testdata/file1.tmpl    |  0
- src/pkg/{exp => }/template/testdata/file2.tmpl    |  0
- src/pkg/{exp => }/template/testdata/tmpl1.tmpl    |  0
- src/pkg/{exp => }/template/testdata/tmpl2.tmpl    |  0
- 30 files changed, 25 insertions(+), 25 deletions(-)
+ doc/codelab/wiki/final-noclosure.go |   2 +-
+ doc/codelab/wiki/final-noerror.go   |   2 +-
+ doc/codelab/wiki/final.go           |   2 +-
+ doc/codelab/wiki/htmlify.go         |   2 +-
+ doc/codelab/wiki/index.html         |  14 +-
+ doc/codelab/wiki/srcextract.go      |   2 +-
+ doc/codelab/wiki/wiki.html          |  14 +-
+ doc/effective_go.html               |   2 +-
+ misc/goplay/goplay.go               |  18 +-
+ src/pkg/Makefile                    |   2 +-
+ src/pkg/old/template/Makefile       |   4 +-
+ src/pkg/template/Makefile           |  14 -
+ src/pkg/template/doc.go             |  91 ----
+ src/pkg/template/execute.go         | 346 ----------------
+ src/pkg/template/format.go          |  77 ----
+ src/pkg/template/parse.go           | 743 ---------------------------------
+ src/pkg/template/template_test.go   | 804 ------------------------------------
+ test/chan/select5.go                |  11 +-
+ 18 files changed, 35 insertions(+), 2115 deletions(-)

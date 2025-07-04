@@ -1,24 +1,16 @@
-commit 6ba2674ddc5373f261211ba5ebc38496dc660604
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Thu Aug 25 04:17:00 2022 +0000
+commit 0b4d4998d57936cf8bb2566f5f3e36eb70892ca4
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 5 13:05:09 2021 -0400
 
-    cmd/go/internal/imports: include ToolTags in the Tags map
+    testing: document f.Fuzz requirement to not change underlying data
     
-    This fixes a regression introduced when the "race" mode tag was moved to
-    the ToolTags field in CL 358539.
+    Updates #48606
     
-    Fixes #54468
-    
-    Change-Id: I107771948a4fe9d743cc13d1c15f324212b08e03
-    GitHub-Last-Rev: d211e351ef3331f2c38b16d327d992a32ebbfe30
-    GitHub-Pull-Request: golang/go#54618
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425154
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6d555fdefccd842fb65ec8d630b4808bcb54a825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353977
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/imports/tags.go          |  3 +++
- src/cmd/go/testdata/script/test_race_tag.txt | 29 ++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/testing/fuzz.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

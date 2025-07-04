@@ -1,89 +1,27 @@
-commit bc92fe8b340c302db970fe8a42c8fcf6ccf7141a
-Author: Nao YONASHIRO <owan.orisano@gmail.com>
-Date:   Sun Jul 28 06:04:27 2019 +0900
+commit 82af9e67493b14ad1e10f28a384645e904a88d6f
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 28 18:00:01 2019 -0500
 
-    compress/flate: improve deflate performance by register allocating the index
+    cmd/compile: move statement marks from jumps to targets
     
-    Use local index variable to help the go compiler use a
-    register to for the hash index instead of continuous
-    memory read and write operations.
+    When a jump at the end of a block is about to be marked as
+    a statement, if the first real instruction in the target
+    block is also a statement for the same line, remove the
+    mark from the jump.
     
-    compress/flate:
-    Encode/Digits/Huffman/1e4-4        35.3µs ± 1%    32.7µs ± 0%  -7.48%  (p=0.000 n=17+19)
-    Encode/Digits/Huffman/1e5-4         330µs ± 0%     312µs ± 0%  -5.55%  (p=0.000 n=17+18)
-    Encode/Digits/Huffman/1e6-4        3.30ms ± 0%    3.12ms ± 0%  -5.64%  (p=0.000 n=18+19)
-    Encode/Digits/Speed/1e4-4           157µs ± 0%     156µs ± 0%  -0.41%  (p=0.000 n=17+19)
-    Encode/Digits/Speed/1e5-4          1.46ms ± 0%    1.46ms ± 1%    ~     (p=0.478 n=20+19)
-    Encode/Digits/Speed/1e6-4          14.4ms ± 0%    14.4ms ± 0%    ~     (p=0.835 n=19+20)
-    Encode/Digits/Default/1e4-4         309µs ± 0%     310µs ± 0%  +0.23%  (p=0.000 n=19+17)
-    Encode/Digits/Default/1e5-4        4.76ms ± 0%    4.76ms ± 0%    ~     (p=0.297 n=19+19)
-    Encode/Digits/Default/1e6-4        51.0ms ± 0%    51.0ms ± 1%    ~     (p=0.233 n=18+19)
-    Encode/Digits/Compression/1e4-4     309µs ± 0%     310µs ± 0%  +0.21%  (p=0.000 n=17+20)
-    Encode/Digits/Compression/1e5-4    4.76ms ± 0%    4.76ms ± 0%    ~     (p=0.749 n=20+19)
-    Encode/Digits/Compression/1e6-4    50.9ms ± 0%    50.9ms ± 0%    ~     (p=0.499 n=18+19)
-    Encode/Newton/Huffman/1e4-4        51.9µs ± 0%    48.0µs ± 0%  -7.61%  (p=0.000 n=19+19)
-    Encode/Newton/Huffman/1e5-4         396µs ± 0%     377µs ± 0%  -4.79%  (p=0.000 n=18+19)
-    Encode/Newton/Huffman/1e6-4        3.95ms ± 0%    3.74ms ± 0%  -5.21%  (p=0.000 n=20+17)
-    Encode/Newton/Speed/1e4-4           155µs ± 0%     154µs ± 0%  -0.67%  (p=0.000 n=17+18)
-    Encode/Newton/Speed/1e5-4          1.17ms ± 0%    1.16ms ± 0%  -0.64%  (p=0.000 n=20+16)
-    Encode/Newton/Speed/1e6-4          11.6ms ± 0%    11.5ms ± 0%  -0.63%  (p=0.000 n=19+20)
-    Encode/Newton/Default/1e4-4         347µs ± 0%     347µs ± 0%    ~     (p=0.744 n=20+19)
-    Encode/Newton/Default/1e5-4        5.06ms ± 0%    5.02ms ± 0%  -0.77%  (p=0.000 n=20+19)
-    Encode/Newton/Default/1e6-4        53.3ms ± 1%    52.8ms ± 0%  -0.91%  (p=0.000 n=18+16)
-    Encode/Newton/Compression/1e4-4     351µs ± 0%     351µs ± 0%    ~     (p=0.277 n=20+20)
-    Encode/Newton/Compression/1e5-4    6.90ms ± 0%    6.85ms ± 0%  -0.61%  (p=0.000 n=19+18)
-    Encode/Newton/Compression/1e6-4    73.2ms ± 0%    72.8ms ± 0%  -0.52%  (p=0.000 n=18+18)
+    This is a first effort at a minimal-harm heuristic.
+    A better heuristic might skip over any "not-statement"
+    values preceding a definitely marked value.
     
-    name                             old speed      new speed      delta
-    Encode/Digits/Huffman/1e4-4       283MB/s ± 1%   306MB/s ± 0%  +8.09%  (p=0.000 n=17+19)
-    Encode/Digits/Huffman/1e5-4       303MB/s ± 0%   321MB/s ± 0%  +5.87%  (p=0.000 n=18+18)
-    Encode/Digits/Huffman/1e6-4       303MB/s ± 0%   321MB/s ± 0%  +5.98%  (p=0.000 n=18+19)
-    Encode/Digits/Speed/1e4-4        63.9MB/s ± 0%  64.2MB/s ± 0%  +0.41%  (p=0.000 n=17+19)
-    Encode/Digits/Speed/1e5-4        68.5MB/s ± 0%  68.4MB/s ± 1%    ~     (p=0.481 n=20+19)
-    Encode/Digits/Speed/1e6-4        69.4MB/s ± 0%  69.3MB/s ± 0%    ~     (p=0.712 n=19+20)
-    Encode/Digits/Default/1e4-4      32.3MB/s ± 0%  32.3MB/s ± 0%  -0.23%  (p=0.000 n=19+17)
-    Encode/Digits/Default/1e5-4      21.0MB/s ± 0%  21.0MB/s ± 0%    ~     (p=0.460 n=19+19)
-    Encode/Digits/Default/1e6-4      19.6MB/s ± 0%  19.6MB/s ± 1%    ~     (p=0.180 n=18+19)
-    Encode/Digits/Compression/1e4-4  32.3MB/s ± 0%  32.3MB/s ± 0%  -0.21%  (p=0.000 n=17+20)
-    Encode/Digits/Compression/1e5-4  21.0MB/s ± 0%  21.0MB/s ± 0%    ~     (p=0.700 n=20+19)
-    Encode/Digits/Compression/1e6-4  19.6MB/s ± 0%  19.6MB/s ± 0%    ~     (p=0.486 n=18+19)
-    Encode/Newton/Huffman/1e4-4       193MB/s ± 0%   208MB/s ± 0%  +8.23%  (p=0.000 n=19+19)
-    Encode/Newton/Huffman/1e5-4       252MB/s ± 0%   265MB/s ± 0%  +5.04%  (p=0.000 n=18+19)
-    Encode/Newton/Huffman/1e6-4       253MB/s ± 0%   267MB/s ± 0%  +5.49%  (p=0.000 n=20+17)
-    Encode/Newton/Speed/1e4-4        64.5MB/s ± 0%  65.0MB/s ± 0%  +0.67%  (p=0.000 n=17+18)
-    Encode/Newton/Speed/1e5-4        85.7MB/s ± 0%  86.3MB/s ± 0%  +0.65%  (p=0.000 n=20+16)
-    Encode/Newton/Speed/1e6-4        86.2MB/s ± 0%  86.7MB/s ± 0%  +0.63%  (p=0.000 n=19+20)
-    Encode/Newton/Default/1e4-4      28.9MB/s ± 0%  28.9MB/s ± 0%    ~     (p=0.840 n=20+19)
-    Encode/Newton/Default/1e5-4      19.8MB/s ± 0%  19.9MB/s ± 0%  +0.78%  (p=0.000 n=20+19)
-    Encode/Newton/Default/1e6-4      18.8MB/s ± 1%  18.9MB/s ± 0%  +0.93%  (p=0.000 n=18+16)
-    Encode/Newton/Compression/1e4-4  28.5MB/s ± 0%  28.5MB/s ± 0%    ~     (p=0.244 n=20+20)
-    Encode/Newton/Compression/1e5-4  14.5MB/s ± 0%  14.6MB/s ± 0%  +0.61%  (p=0.000 n=19+18)
-    Encode/Newton/Compression/1e6-4  13.7MB/s ± 0%  13.7MB/s ± 0%  +0.53%  (p=0.000 n=18+18)
+    Fixes #29443.
     
-    image/png:
-    name                        old time/op    new time/op    delta
-    EncodeGray-4                  2.16ms ± 1%    1.85ms ± 1%  -14.17%  (p=0.000 n=86+91)
-    EncodeGrayWithBufferPool-4    1.99ms ± 0%    1.69ms ± 0%  -15.09%  (p=0.000 n=97+94)
-    EncodeNRGBOpaque-4            6.51ms ± 1%    5.62ms ± 1%  -13.66%  (p=0.000 n=90+92)
-    EncodeNRGBA-4                 7.33ms ± 1%    6.12ms ± 1%  -16.49%  (p=0.000 n=89+90)
-    EncodePaletted-4              5.10ms ± 1%    4.96ms ± 1%   -2.76%  (p=0.000 n=90+87)
-    EncodeRGBOpaque-4             6.51ms ± 1%    5.63ms ± 1%  -13.49%  (p=0.000 n=94+87)
-    EncodeRGBA-4                  24.3ms ± 2%    23.0ms ± 0%   -5.23%  (p=0.000 n=91+89)
-    
-    name                        old speed      new speed      delta
-    EncodeGray-4                 142MB/s ± 1%   166MB/s ± 1%  +16.50%  (p=0.000 n=86+91)
-    EncodeGrayWithBufferPool-4   154MB/s ± 0%   182MB/s ± 0%  +17.78%  (p=0.000 n=97+94)
-    EncodeNRGBOpaque-4           189MB/s ± 1%   219MB/s ± 1%  +15.82%  (p=0.000 n=90+93)
-    EncodeNRGBA-4                168MB/s ± 1%   201MB/s ± 1%  +19.75%  (p=0.000 n=89+90)
-    EncodePaletted-4            60.3MB/s ± 1%  62.0MB/s ± 1%   +2.84%  (p=0.000 n=90+87)
-    EncodeRGBOpaque-4            189MB/s ± 1%   218MB/s ± 1%  +15.60%  (p=0.000 n=94+87)
-    EncodeRGBA-4                50.6MB/s ± 2%  53.4MB/s ± 0%   +5.51%  (p=0.000 n=91+89)
-    
-    Change-Id: Ifed4486a7ba19a26abe5cbf2142f15cc7464e84f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187837
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ibd52783713b4936e0c2dfda8d708bf186f33b00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159977
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/compress/flate/deflate.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          |  3 +++
+ src/cmd/compile/internal/ssa/numberlines.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+)

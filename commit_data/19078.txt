@@ -1,12 +1,16 @@
-commit e688e7128d6e8b345dcc5fd7b06086008ad329fb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 9 10:02:55 2014 -0400
+commit 397f129daf81a74997397aa7d097d1c3039a5333
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Apr 9 08:36:27 2014 +0200
 
-    runtime: fix flaky linux/386 build
+    cmd/gc: avoid confusing error message "ovf in mpaddxx"
     
-    TBR=iant
+    Fixes #6889
+    
+    LGTM=rsc
+    R=gri, rsc
     CC=golang-codereviews
-    https://golang.org/cl/86030043
+    https://golang.org/cl/85080044
 
- src/pkg/runtime/runtime_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/mparith2.c       |  10 ++++-
+ test/fixedbugs/issue6889.go | 103 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 1 deletion(-)

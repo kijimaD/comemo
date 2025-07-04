@@ -1,15 +1,19 @@
-commit 3eabdd291d3f53c88fdd01aca30158d0c06420b6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 6 13:47:19 2019 -0800
+commit 62c309c54ccfdda4586a3ddb7e39b928a81ab04e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 6 17:08:07 2019 -0400
 
-    net: skip TestDialCancel if Dial fails with "connection refused"
+    runtime/internal/atomic: export more ABI0 wrappers
     
-    Fixes #15191
+    Somehow I missed these two functions in CL 179863. This should fix the
+    linux-arm builders.
     
-    Change-Id: I86214ede619400acd44f21138b5ddf6cef4649a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205698
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #31230.
+    
+    Change-Id: I3f8bef3fac331b505a55c0850b0fbc799b7c06c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181077
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dial_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/runtime/internal/atomic/atomic_arm.go | 4 ++++
+ 1 file changed, 4 insertions(+)

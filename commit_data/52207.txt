@@ -1,25 +1,24 @@
-commit 9f532dd0de78af91694a2d7e5e3c45b2978d1062
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 7 15:12:29 2023 -0500
+commit 35a92f92bd0ce15c658dd6794238ca90b71e4422
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Apr 13 13:21:30 2022 -0700
 
-    cmd/go: avoid running slow tests on non-longtest builders
+    encoding/binary: add AppendVarint AppendUvarint
     
-    Also annotate calls to tooSlow with specific reasons.
+    This adds a straight-forward implementation of the functionality.
+    A more performant version could be added that unrolls the loop
+    as is done in google.golang.org/protobuf/encoding/protowire,
+    but usages that demand high performance can use that package instead.
     
-    This will somewhat reduce test coverage on the 'darwin' builders until
-    we have darwin 'longtest' builders (#35678,#49055), but still seems
-    worthwhile to avoid alert fatigue from tests that really shouldn't be
-    running in the short configurations.
+    Fixes #51644
     
-    Fixes #58918.
-    Fixes #58919.
-    
-    Change-Id: I0000f0084b262beeec3eca3e9b8a45d61fab4313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474137
+    Change-Id: I9d3b615a60cdff47e5200e7e5d2276adf4c93783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400176
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 76 +++++++++++++++++++++++++++------------------------
- 1 file changed, 40 insertions(+), 36 deletions(-)
+ api/next/51644.txt                 |  2 ++
+ src/encoding/binary/varint.go      | 20 ++++++++++++++++++++
+ src/encoding/binary/varint_test.go | 12 ++++++++++++
+ 3 files changed, 34 insertions(+)

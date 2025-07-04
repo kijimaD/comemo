@@ -1,30 +1,33 @@
-commit a22bd3dc73bfcc9bf37cbd651933c54c82799c2a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Mar 1 19:23:42 2021 -0500
+commit 027d7241ce050d197e7fabea3d541ffbe3487258
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Aug 4 11:45:32 2020 -0400
 
-    cmd/compile: use getcallerpc for racefuncentry
+    encoding/binary: read at most MaxVarintLen64 bytes in ReadUvarint
     
-    Currently, when instrumenting for the race detector, the compiler
-    inserts racefuncentry/racefuncentryfp at the entry of instrumented
-    functions. racefuncentry takes the caller's PC. On AMD64, we synthesize
-    a node which points to -8(FP) which is where the return address is
-    stored. Later this node turns to a special Arg in SSA that is not
-    really an argument. This causes problems in the new ABI work so that
-    special node has to be special-cased.
+    This CL ensures that ReadUvarint consumes only a limited
+    amount of input (instead of an unbounded amount).
     
-    This CL changes the special node to a call to getcallerpc, which lowers
-    to an intrinsic in SSA. This also unifies AMD64 code path and LR machine
-    code path, as getcallerpc works on all platforms.
+    On some inputs, ReadUvarint could read an arbitrary number
+    of bytes before deciding to return an overflow error.
+    After this CL, ReadUvarint returns that same overflow
+    error sooner, after reading at most MaxVarintLen64 bytes.
     
-    Change-Id: I1377e140b91e0473cfcadfda221f26870c1b124d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297929
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fix authored by Robert Griesemer and Filippo Valsorda.
+    
+    Thanks to Diederik Loerakker, Jonny Rhea, Raúl Kripalani,
+    and Preston Van Loon for reporting this.
+    
+    Fixes #40618
+    Fixes CVE-2020-16845
+    
+    Change-Id: Ie0cb15972f14c38b7cf7af84c45c4ce54909bb8f
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/812099
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247120
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/compile/internal/base/base.go              |  2 +-
- src/cmd/compile/internal/ssa/rewrite.go            |  6 +--
- src/cmd/compile/internal/ssagen/ssa.go             |  3 ++
- src/cmd/compile/internal/typecheck/builtin.go      | 57 +++++++++++-----------
- .../compile/internal/typecheck/builtin/runtime.go  |  4 +-
- src/cmd/compile/internal/walk/race.go              | 27 ++--------
- 6 files changed, 44 insertions(+), 55 deletions(-)
+ src/encoding/binary/varint.go      |  5 +++--
+ src/encoding/binary/varint_test.go | 18 ++++++++++++------
+ 2 files changed, 15 insertions(+), 8 deletions(-)

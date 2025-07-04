@@ -1,41 +1,16 @@
-commit 165a96e28131b703a1d318da245285bd98546bf6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 20 19:00:14 2017 -0700
+commit 9fbfe7cca00a456541e9aa2b2cc1251d777f325b
+Author: David Lazar <lazard@golang.org>
+Date:   Wed Nov 30 17:09:07 2016 -0500
 
-    cmd/compile: fix pos of typenames created during SSA construction
+    cmd/compile: do not inline functions marked cgo_unsafe_args
     
-    Prior to this CL, the function's position was used.
-    The dottype Node's position is clearly better.
+    Now the net tests pass with -gcflags '-l=4'.
     
-    I'm not thrilled about introducing a reference to
-    lineno in the middle of SSA construction;
-    I will have to remove it later.
-    My immediate goal is stability and correctness of positions,
-    though, since that aids refactoring, so this is an improvement.
+    Fixes #18125.
     
-    An example from package io:
-    
-    func (t *multiWriter) WriteString(s string) (n int, err error) {
-            var p []byte // lazily initialized if/when needed
-            for _, w := range t.writers {
-                    if sw, ok := w.(stringWriter); ok {
-                            n, err = sw.WriteString(s)
-    
-    The w.(stringWriter) type assertion includes loading
-    the address of static type data for stringWriter:
-    
-    LEAQ    type."".stringWriter(SB), R10
-    
-    Prior to this CL, this instruction was given the line number
-    of the function declaration.
-    After this CL, this instruction is given the line number
-    of the type assertion itself.
-    
-    Change-Id: Ifcca274b581a5a57d7e3102c4d7b7786bf307210
-    Reviewed-on: https://go-review.googlesource.com/38389
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4e3a46eb0cb3a93b203e74f5bc99c5822331f535
+    Reviewed-on: https://go-review.googlesource.com/33722
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/inl.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,34 +1,17 @@
-commit 54b4b946b67ab28fc8695f1fa26b98f21d366fdb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 5 14:59:46 2016 -0800
+commit 6056cc5df602938a97e8d70176fa90e2b09f3020
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 28 12:10:28 2015 +1300
 
-    net/http: deflake TestCloseNotifierPipelined
+    runtime: handle volatility of CX when dynamically linking on linux/386
     
-    The test sends two HTTP/1.1 pipelined requests.  The first is
-    completedly by the second, and as such triggers an immediate call to the
-    CloseNotify channel.  The second calls the CloseNotify channel after the
-    overall connection is closed.
+    Mostly by avoiding CX entirely, sometimes by reloading it.
     
-    The test was passing fine on gc because the code would enter the select
-    loop before running the handler, so the send on gotReq would always be
-    seen first.  On gccgo the code would sometimes enter the select loop
-    after the handler had already finished, meaning that the select could
-    choose between gotReq and sawClose.  If it picked sawClose, it would
-    never close the overall connection, and the httptest server would hang.
-    The same hang could be induced with gc by adding a time.Sleep
-    immediately before the select loop.
+    I also vetted the assembly in other packages, it's all fine.
     
-    Deflake the test by 1) don't close the overall connection until both
-    requests have been seen; 2) don't exit the loop until both closes have
-    been seen.
-    
-    Fixes #14231.
-    
-    Change-Id: I9d20c309125422ce60ac545f78bcfa337aec1c7d
-    Reviewed-on: https://go-review.googlesource.com/19281
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I50059669aaaa04efa303cf22ac228f9d14d83db0
+    Reviewed-on: https://go-review.googlesource.com/16386
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/runtime/asm_386.s       | 76 ++++++++++++++++++++++++---------------------
+ src/runtime/sys_linux_386.s | 16 +++++-----
+ 2 files changed, 48 insertions(+), 44 deletions(-)

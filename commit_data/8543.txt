@@ -1,12 +1,15 @@
-commit 2c6a2a9773282a82a476146746b5e3a4da875822
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 30 18:23:16 2011 -0400
+commit 87dbec54bb0357a5de587e55d30ee0716b3def79
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon May 30 11:53:09 2011 -0300
 
-    goinstall: skip standard packages
+    template: fix and clean interaction between quotes and formatters
     
-    R=adg, n13m3y3r
+    Fixes issue #1897.
+    
+    R=r, gustavo, r
     CC=golang-dev
-    https://golang.org/cl/4526084
+    https://golang.org/cl/4561049
 
- src/cmd/goinstall/main.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/template/template.go      | 47 ++++++++++++++++++++++++++++-----------
+ src/pkg/template/template_test.go | 12 +++++-----
+ 2 files changed, 40 insertions(+), 19 deletions(-)

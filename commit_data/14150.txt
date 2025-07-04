@@ -1,15 +1,12 @@
-commit 6e0df254b0b2aed3840fc696f8c8f8fb16ad6c70
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Oct 16 14:28:18 2012 +0800
+commit bcf88de5ffa1119e8b56a765a076d6a302ae3ecc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 15 20:49:15 2012 -0700
 
-    doc/godoc.js: put focus on div#page when necessary
-    so that keyboard navigation events are sent to div#page.
+    pprof: filter out runtime.settype and fix --svg mode to produce valid XML
     
-            Fixes #4233.
-    
-    R=adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6652048
+    https://golang.org/cl/6642043
 
- doc/godocs.js | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ misc/pprof | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

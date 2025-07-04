@@ -1,27 +1,28 @@
-commit eab06e65f7c4a1e3acafc220d0e9b8eca50f0311
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Feb 14 14:56:39 2018 +0000
+commit 03614562ca5a16102be948c1b6808f5bc423de66
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 5 16:05:03 2017 +0200
 
-    syscall, os: use pipe2 syscall on NetBSD instead of pipe
+    cmd/compile: remove x86 arch-specific rules for +2ⁿ multiplication
     
-    The pipe2 syscall is part of NetBSD since version 6.0 and thus exists in
-    all officially supported versions (6.0 through 6.1 and 7.0+).
+    amd64 and 386 have rules to reduce multiplication by a positive power
+    of two, but a more general reduction (both for positive and negative
+    powers of two) is already performed by generic rules that were added
+    in CL 36323 to replace walkmul (see lines 166:173 in generic.rules).
     
-    Follows CL 38426
+    The x86 and amd64 rules are never triggered during all.bash and can be
+    removed, reducing rules duplication.
     
-    Change-Id: I7b62b507300c3dfbcc6ae56408a7d7088ddccc77
-    Reviewed-on: https://go-review.googlesource.com/94035
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    The change also adds a few code generation tests for amd64 and 386.
+    
+    Change-Id: I566d48186643bd722a4c0137fe94e513b8b20e36
+    Reviewed-on: https://go-review.googlesource.com/68450
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/{pipe_freebsd.go => pipe2_bsd.go}      |  2 ++
- src/os/pipe_bsd.go                            |  2 +-
- src/syscall/forkpipe.go                       |  2 +-
- src/syscall/{exec_freebsd.go => forkpipe2.go} |  2 ++
- src/syscall/syscall_netbsd.go                 | 13 ++++++++++---
- src/syscall/zsyscall_netbsd_386.go            |  6 ++----
- src/syscall/zsyscall_netbsd_amd64.go          |  6 ++----
- src/syscall/zsyscall_netbsd_arm.go            |  6 ++----
- 8 files changed, 22 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      | 38 +++++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/gen/386.rules   |  1 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 -
+ src/cmd/compile/internal/ssa/rewrite386.go   | 24 ++++--------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++--------------
+ 5 files changed, 45 insertions(+), 43 deletions(-)

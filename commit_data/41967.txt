@@ -1,17 +1,54 @@
-commit 3567f71b45810f433fe8199dd0ecca733939a5c3
-Author: Brad Fitzpatrick <brad@danga.com>
-Date:   Wed Apr 15 09:06:34 2020 -0700
+commit 5a7c571ea19a0d859222d6c92d108fdc68da9f13
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 4 13:29:29 2019 -0500
 
-    crypto/tls: help linker remove code when only Client or Server is used
+    hash/maphash: revise API to be more idiomatic
     
-    This saves 166 KiB for a tls.Dial hello world program (5382441 to
-    5212356 to bytes), by permitting the linker to remove TLS server code.
+    This CL makes these changes to the hash/maphash API to make it fit a bit
+    more into the standard library:
     
-    Change-Id: I16610b836bb0802b7d84995ff881d79ec03b6a84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228111
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+     - Move some of the package doc onto type Hash, so that `go doc maphash.Hash` shows it.
+    
+     - Instead of having identical AddBytes and Write methods,
+       standardize on Write, the usual name for this function.
+       Similarly, AddString -> WriteString, AddByte -> WriteByte.
+    
+     - Instead of having identical Hash and Sum64 methods,
+       standardize on Sum64 (for hash.Hash64). Dropping the "Hash" method
+       also helps because Hash is usually reserved to mean the state of a
+       hash function (hash.Hash etc), not the hash value itself.
+    
+     - Make an uninitialized hash.Hash auto-seed with a random seed.
+       It is critical that users not use the same seed for all hash functions
+       in their program, at least not accidentally. So the Hash implementation
+       must either panic if uninitialized or initialize itself.
+       Initializing itself is less work for users and can be done lazily.
+    
+     - Now that the zero hash.Hash is useful, drop maphash.New in favor of
+       new(maphash.Hash) or simply declaring a maphash.Hash.
+    
+     - Add a [0]func()-typed field to the Hash so that Hashes cannot be compared.
+       (I considered doing the same for Seed but comparing seeds seems OK.)
+    
+     - Drop the integer argument from MakeSeed, to match the original design
+       in golang.org/issue/28322. There is no point to giving users control
+       over the specific seed bits, since we want the interpretation of those
+       bits to be different in every different process. The only thing users
+       need is to be able to create a new random seed at each call.
+       (Fixes a TODO in MakeSeed's public doc comment.)
+    
+    This API is new in Go 1.14, so these changes do not violate the compatibility promise.
+    
+    Fixes #35060.
+    Fixes #35348.
+    
+    Change-Id: Ie6fecc441f3f5ef66388c6ead92e875c0871f805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205069
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/tls/conn.go      |  11 ++--
- src/crypto/tls/link_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++++
- src/crypto/tls/tls.go       |  15 +++++-
- 3 files changed, 138 insertions(+), 9 deletions(-)
+ src/hash/maphash/maphash.go       | 195 ++++++++++++++++++++++----------------
+ src/hash/maphash/maphash_test.go  |  54 ++++++-----
+ src/hash/maphash/smhasher_test.go |  44 +++++----
+ 3 files changed, 168 insertions(+), 125 deletions(-)

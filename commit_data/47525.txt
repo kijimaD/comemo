@@ -1,20 +1,25 @@
-commit 0981724eaeb9e3a4553473072c38cf11822bc7fd
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 09:38:16 2021 -0500
+commit 607f99904e3f5565517eee452d9153a634a66369
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 11:55:16 2021 -0700
 
-    go/types: check for non-negative index in tparamIndex
+    cmd/compile/internal/types2: review of api.go
     
-    There are code paths (particularly error formatting or tracing) that
-    call tparamIndex before the type parameter is bound. We cannot rely on
-    the index being non-negative.
+    The changes between (equivalent, and reviewed) go/types/api.go
+    and api.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
     
-    Change-Id: Ibad91c691b4f319b0c7b465a750b679a8a7af6a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364715
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The primary differences to go/types/api.go are:
+    - use of syntax instead of go/ast package
+    - use of simpler Error type (for now)
+    - additional exported Config flags
+    - different handling of nil values (we can't use Typ[UntypedNil]
+      to represent an untyped nil because types2 gives such nil values
+      context-dependent types)
+    
+    Change-Id: I7d46b29d460c656d7a36fe70108a370383266373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304050
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/unify.go | 15 +++++++--------
- src/go/types/unify.go                    | 10 ++++++++--
- 2 files changed, 15 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/api.go | 3 ---
+ 1 file changed, 3 deletions(-)

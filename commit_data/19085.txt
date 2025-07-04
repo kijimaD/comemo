@@ -1,16 +1,15 @@
-commit b38fba21f01558ac4834137f35af3b2a42aef4d1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 9 17:53:09 2014 -0700
+commit a8787cd820fb39575efed14617dde2fb8131b354
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 10 05:45:18 2014 +1000
 
-    bufio: fix potential endless loop in ReadByte
+    sync.Pool: better documentation
+    Explain what its purpose is and give examples of good and bad use.
+    Fixes #7167.
     
-    Fixes #7745.
-    
-    LGTM=bradfitz, r
-    R=r, bradfitz
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, rsc
     CC=golang-codereviews
-    https://golang.org/cl/86220044
+    https://golang.org/cl/85880044
 
- src/pkg/bufio/bufio.go      | 26 ++++++++++++++++++--------
- src/pkg/bufio/bufio_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 8 deletions(-)
+ src/pkg/sync/pool.go | 42 +++++++++++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 17 deletions(-)

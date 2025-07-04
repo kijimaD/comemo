@@ -1,17 +1,14 @@
-commit beb833f12456f8ae49e003df79f1e0813b610032
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 30 11:13:01 2017 -0700
+commit c5f16d4e40d0a2d9c2e32a866129d6a40535f57d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Dec 19 20:53:45 2016 -0800
 
-    cmd/compile: initialize SSA runtime functions in initssaconfig
+    crypto/x509: fix spelling/grammar in comments
     
-    This is a better home for it.
+    Also tweak one of the comment lines to fit in 80 characters.
     
-    Change-Id: I7ce96c16378d841613edaa53c07347b0ac99ea6e
-    Reviewed-on: https://go-review.googlesource.com/38970
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9c6d2028c29318ba9264486590056cb1ffc8219e
+    Reviewed-on: https://go-review.googlesource.com/34655
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 19 -------------------
- src/cmd/compile/internal/gc/ssa.go  | 18 ++++++++++++++++++
- 2 files changed, 18 insertions(+), 19 deletions(-)
+ src/crypto/x509/root_darwin.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

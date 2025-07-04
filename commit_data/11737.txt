@@ -1,14 +1,21 @@
-commit ce57ba9feec078191db2873017bd63f996afd835
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 9 16:45:24 2012 +1100
+commit 5c52404aca4f4c2800031ce60624c76b7058b245
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 00:26:08 2012 -0500
 
-    net/http/httptest: add a test
+    gc: implicit type bug fix in export data
     
-    Less ironic. Don't you think?
-    
-    R=golang-dev, rsc
+    TBR=lvd
     CC=golang-dev
-    https://golang.org/cl/5643069
+    https://golang.org/cl/5644064
 
- src/pkg/net/http/httptest/server_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/gc/fmt.c                   |  10 +-
+ src/cmd/gc/go.h                    |   9 +-
+ src/cmd/gc/go.y                    |   2 +-
+ src/cmd/gc/typecheck.c             |   7 +-
+ src/cmd/gc/y.tab.c                 | 861 ++++++++++++++++++++++++++++++-------
+ src/cmd/gc/y.tab.h                 |  44 +-
+ test/fixedbugs/bug392.dir/one.go   |   4 +-
+ test/fixedbugs/bug392.dir/three.go |  13 +
+ test/fixedbugs/bug392.dir/two.go   |   4 +
+ test/fixedbugs/bug392.go           |   2 +-
+ 10 files changed, 757 insertions(+), 199 deletions(-)

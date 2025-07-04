@@ -1,15 +1,38 @@
-commit a5d6b414493fdbd958dfbc973e6e890c2ee045d1
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Sep 15 21:50:28 2017 +0100
+commit e5a5c03f5bc9cae965d3e6e625fe7ac3726b0ff4
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 22 15:53:49 2017 -0400
 
-    cmd/compile: test constant folded integer to/from float conversions
+    runtime: don't corrupt arena bounds on low mmap
     
-    Improves test coverage of the rules added in CL 63795 and would have
-    detected the bug fixed by CL 63950.
+    If mheap.sysAlloc doesn't have room in the heap arena for an
+    allocation, it will attempt to map more address space with sysReserve.
+    sysReserve is given a hint, but can return any unused address range.
+    Currently, mheap.sysAlloc incorrectly assumes the returned region will
+    never fall between arena_start and arena_used. If it does,
+    mheap.sysAlloc will blindly accept the new region as the new
+    arena_used and arena_end, causing these to decrease and make it so any
+    Go heap above the new arena_used is no longer considered part of the
+    Go heap. This assumption *used to be* safe because we had all memory
+    between arena_start and arena_used mapped, but when we switched to an
+    arena_start of 0 on 32-bit, it became no longer safe.
     
-    Change-Id: I107ee8d8e0b6684ce85b2446bd5018c5a03d608a
-    Reviewed-on: https://go-review.googlesource.com/64130
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Most likely, we've only recently seen this bug occur because we
+    usually start arena_used just above the binary, which is low in the
+    address space. Hence, the kernel is very unlikely to give us a region
+    before arena_used.
+    
+    Since mheap.sysAlloc is a linear allocator, there's not much we can do
+    to handle this well. Hence, we fix this problem by simply rejecting
+    the new region if it isn't after arena_end. In this case, we'll take
+    the fall-back path and mmap a small region at any address just for the
+    requested memory.
+    
+    Fixes #20259.
+    
+    Change-Id: Ib72e8cd621545002d595c7cade1e817cfe3e5b1e
+    Reviewed-on: https://go-review.googlesource.com/43870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/float_test.go | 117 +++++++++++++++++++++++++++++-
- 1 file changed, 115 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

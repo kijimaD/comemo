@@ -1,24 +1,18 @@
-commit 0eb56ca4688caed10c422f1d2d3b364d75970b8c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Jul 8 16:30:41 2021 -0500
+commit ff8a7e513bda9e89dfbde8ecefaa4514c11ec596
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Mon Sep 20 00:23:40 2021 +0800
 
-    internal/buildcfg: support GOPPC64=power10
+    cmd/compile: print expression for invalid operation errors
     
-    This does not enable any new functionality. It should
-    behave identically to GOPPC64=power9.
+    For #48472
     
-    Updates #44549
-    
-    Change-Id: I9a860544527fcfe97cbaf89686459d40dcf9593e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352791
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I5072ebcf53e03fb5515c51a2ad01f02d72b30719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350929
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: David Chase <drchase@google.com>
 
- src/cmd/go/alldocs.go                   |  2 +-
- src/cmd/go/internal/help/helpdoc.go     |  2 +-
- src/cmd/go/testdata/script/tooltags.txt | 10 ++++++++++
- src/internal/buildcfg/cfg.go            |  4 +++-
- 4 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/expr.go                       |  2 +-
+ .../compile/internal/types2/testdata/fixedbugs/issue48472.go2 | 11 +++++++++++
+ src/go/types/expr.go                                          |  2 +-
+ src/go/types/testdata/fixedbugs/issue48472.go2                | 11 +++++++++++
+ 4 files changed, 24 insertions(+), 2 deletions(-)

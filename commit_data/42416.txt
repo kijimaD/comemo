@@ -1,23 +1,18 @@
-commit c2d1df6391a7b4bcdc6112c512c2fd9c365153c5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed May 6 12:59:18 2020 -0400
+commit ba4593ac47f4eaa22bd61f5e44e80eea6f965768
+Author: Oliver Powell <oliverpowell84@gmail.com>
+Date:   Sat Oct 5 13:05:56 2019 +0200
 
-    cmd/go: group 'go get' update messages together near the end of output
+    text/template: remove an incorrect comment and clarify docs for AddParseTree
     
-    In module mode, 'go get' prints a message for each version query it
-    resolves. This change groups those messages together near the end of
-    the output so they aren't mixed with other module "finding" and
-    "downloading" messages. They'll still be printed before build-related
-    messages.
+    The comment "If the name is the name of this template, overwrite this template."
+    is incorrect and should be "is not" instead. This comment is no longer
+    required once the docs are updated to mention this behaviour instead.
     
-    Fixes #37982
+    Fixes #34695
     
-    Change-Id: I107a9f2b2f839e896399df906e20d6fc77f280c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232578
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I773495b2194d7bb7619b13c1a28cbc76e8f69aac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199139
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modget/get.go                 | 31 ++++++++++++++++++++---
- src/cmd/go/testdata/script/mod_get_update_log.txt | 15 +++++++++++
- 2 files changed, 43 insertions(+), 3 deletions(-)
+ src/text/template/template.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

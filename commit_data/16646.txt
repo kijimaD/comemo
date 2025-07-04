@@ -1,25 +1,13 @@
-commit 53a00e2812891b2a3c91aaa6a12ac89c74ad42ea
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 26 10:48:04 2013 -0700
+commit be6556f787569c9ff8d8aa7aeee3611e2eee3421
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jun 26 18:05:02 2013 +0200
 
-    cmd/go: log compilation errors when scanning directories and packages
-    Before, some packages disappear silently if the package cannot be imported,
-    such as if the import statement is unparseable.
-    Before:
-            % ls src
-            foo   issue
-            % go list ./...
-            _/home/r/bug/src/foo
-            %
-    After:
-            % go list ./...
-            src/issue/issue.go:3:5: expected 'STRING', found newline
-            _/home/r/bug/src/foo
-            %
+    test: match gccgo error strings.
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10568043
+    https://golang.org/cl/10468043
 
- src/cmd/go/main.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ test/const6.go               | 12 ++++++------
+ test/fixedbugs/issue4085a.go | 10 +++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)

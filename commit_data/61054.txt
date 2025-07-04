@@ -1,0 +1,20 @@
+commit 3f2737f5ddea3375303b952e3d87843d7fc0f986
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Sep 26 08:23:13 2024 +0000
+
+    net/http: use sync.OnceFunc, sync.OnceValue
+    
+    Use sync.OnceFunc and sync.OnceValue to simplify the code.
+    
+    Change-Id: Ie47e0444c2b9d3260f6ef94cdc6ee8ee5bcf9f71
+    GitHub-Last-Rev: 520afbec2a392d73dfd9697035804be7c7cc8b77
+    GitHub-Pull-Request: golang/go#69634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616037
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/http/client.go         | 15 ++++++---------
+ src/net/http/transport_test.go | 24 +++++++++---------------
+ 2 files changed, 15 insertions(+), 24 deletions(-)

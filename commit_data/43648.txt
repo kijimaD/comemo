@@ -1,30 +1,18 @@
-commit b53df56001a6bd375b1dc2026908f331729cd731
+commit de2318e3c68530cd3ff6d3a1d378239598301fb0
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 29 11:27:17 2020 -0400
+Date:   Sat Apr 18 01:38:31 2020 -0400
 
-    runtime, cmd: support race detector on darwin/arm64
+    cmd/link: add a test that reflect.Value.Call does not bring methods live
     
-    https://reviews.llvm.org/D90435 is the counterpart in LLVM TSAN.
+    reflect.Value.Call, if reachable, used to bring all exported
+    methods live. CL 228792 fixes this, removing the check of
+    reflect.Value.Call. This CL adds a test.
     
-    race_linux_arm64.syso is built with LLVM commit
-    00da38ce2d36c07f12c287dc515d37bb7bc410e9 on a macOS/ARM64 machine.
-    (It is not built on a builder with golang.org/x/build/cmd/racebuild
-    as we don't have darwin/arm64 builder for now.)
+    Updates #38505.
     
-    Updates #38485.
-    
-    Change-Id: I391efdacd9480197e308370bfccd05777deb4aee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266373
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib4cab3c3c86c9c9702d041266e59b159d0ff0a97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228878
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go                       |   4 +++-
- src/cmd/go/internal/work/init.go           |   2 +-
- src/cmd/internal/sys/supported.go          |   4 +++-
- src/cmd/link/internal/ld/config.go         |   2 +-
- src/cmd/link/internal/loadmacho/ldmacho.go |  12 ++++++++++--
- src/runtime/race/README                    |   1 +
- src/runtime/race/race.go                   |   2 +-
- src/runtime/race/race_darwin_arm64.syso    | Bin 0 -> 438936 bytes
- src/runtime/race_arm64.s                   |  15 +++++++++++++++
- 9 files changed, 35 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/deadcode_test.go | 61 +++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

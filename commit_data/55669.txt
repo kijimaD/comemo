@@ -1,62 +1,70 @@
-commit db57e5a040922c9cd1dac26ebc0b48f310f84095
+commit 969c3ba83934e4d9253140b67c4d4ca35095039d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 22 11:00:31 2024 -0800
+Date:   Thu Feb 23 14:54:47 2023 -0800
 
-    go/types, types2: remove unreachable func (minor cleanup)
+    go/types, types2: use new type inference algorithm exclusively
     
-    In some places we can't use unreachable() because it does
-    not terminate control flow and we need to resort to panic.
-    Be consistent and just use panic("unreachable") everywhere.
-    This also opens the door to reporting more specific panic
-    messages.
+    The primary change is that type inference now always reports
+    an error if a unification step fails (rather than ignoring that
+    case, see infer2.go). This brings the implementation closely to
+    the description in #58650; but the implementation is more direct
+    by always maintaining a simple (type parameter => type) mapping.
     
-    Mechanical change: s/unreachable()/panic("unreachable")/
+    To make this work, there are two small but subtle changes in the
+    unifier:
     
-    Minor cleanup for better consistency.
+    1) When deciding whether to proceed with the underlying type of
+       a defined type, we also use the underlying type if the other
+       type is a basic type (switch from !hasName(x) to isTypeLit(x)
+       in unifier.go). This makes the case in issue #53650 work out.
+       See the comment in the code for a detailed explanation of this
+       change.
     
-    Change-Id: I6b52af7c21dcfaa1ca19839d14040552db5d4cb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566135
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    2) When we unify against an unbound type parameter, we always
+       proceed with its core type (if any).
+       Again, see the comment in the code for a detailed explanation
+       of this change.
+    
+    The remaining changes are comment and test adjustments. Because
+    the new logic now results in failing type inference where it
+    succeeded before or vice versa, and then instatiation or parameter
+    passing failed, a handful of error messages changed.
+    As desired, we still have the same number of errors for the same
+    programs.
+    
+    Also, because type inference now produces different results, we
+    cannot easily compare against infer1 anymore (also infer1 won't
+    work correctly anymore due to the changes in the unifier). This
+    comparison (together with infer1) is now disabled.
+    
+    Because some errors and their positions have changed, we need a
+    slightly larger error position tolerance for types2 (which produces
+    less accurate error positions than go/types). Hence the change in
+    types2/check_test.go.
+    
+    Finally, because type inference is now slightly more relaxed,
+    issue #51139 doesn't produce a type unification failure anymore
+    for a (previously correctly) inferred type argument.
+    
+    Fixes #51139.
+    
+    Change-Id: Id796eea42f1b706a248843ad855d9d429d077bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470916
     Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/builtins.go   |  6 +++---
- src/cmd/compile/internal/types2/call.go       |  4 ++--
- src/cmd/compile/internal/types2/check.go      |  4 ++--
- src/cmd/compile/internal/types2/const.go      |  6 +++---
- src/cmd/compile/internal/types2/decl.go       | 10 +++++-----
- src/cmd/compile/internal/types2/errors.go     |  4 ----
- src/cmd/compile/internal/types2/expr.go       | 10 +++++-----
- src/cmd/compile/internal/types2/gcsizes.go    |  4 ++--
- src/cmd/compile/internal/types2/lookup.go     |  2 +-
- src/cmd/compile/internal/types2/operand.go    |  2 +-
- src/cmd/compile/internal/types2/predicates.go |  2 +-
- src/cmd/compile/internal/types2/return.go     |  4 ++--
- src/cmd/compile/internal/types2/selection.go  |  2 +-
- src/cmd/compile/internal/types2/signature.go  |  2 +-
- src/cmd/compile/internal/types2/sizes.go      |  4 ++--
- src/cmd/compile/internal/types2/stmt.go       |  2 +-
- src/cmd/compile/internal/types2/subst.go      |  2 +-
- src/cmd/compile/internal/types2/typexpr.go    |  2 +-
- src/cmd/compile/internal/types2/universe.go   |  2 +-
- src/go/types/builtins.go                      |  6 +++---
- src/go/types/call.go                          |  4 ++--
- src/go/types/check.go                         |  4 ++--
- src/go/types/const.go                         |  6 +++---
- src/go/types/decl.go                          | 10 +++++-----
- src/go/types/errors.go                        |  4 ----
- src/go/types/expr.go                          |  8 ++++----
- src/go/types/gcsizes.go                       |  4 ++--
- src/go/types/lookup.go                        |  2 +-
- src/go/types/operand.go                       |  2 +-
- src/go/types/predicates.go                    |  2 +-
- src/go/types/return.go                        |  4 ++--
- src/go/types/selection.go                     |  2 +-
- src/go/types/signature.go                     |  2 +-
- src/go/types/sizes.go                         |  4 ++--
- src/go/types/stmt.go                          |  2 +-
- src/go/types/subst.go                         |  2 +-
- src/go/types/typexpr.go                       |  2 +-
- src/go/types/universe.go                      |  2 +-
- 38 files changed, 69 insertions(+), 77 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/infer2.go          | 38 +++-------
+ src/cmd/compile/internal/types2/unify.go           | 88 +++++++++++++++++-----
+ src/go/types/infer2.go                             | 38 +++-------
+ src/go/types/unify.go                              | 88 +++++++++++++++++-----
+ src/internal/types/testdata/examples/functions.go  |  2 +-
+ src/internal/types/testdata/examples/inference.go  |  2 +-
+ .../types/testdata/fixedbugs/issue45985.go         |  2 +-
+ .../types/testdata/fixedbugs/issue49112.go         |  2 +-
+ .../types/testdata/fixedbugs/issue51139.go         | 26 +++++++
+ .../types/testdata/fixedbugs/issue51472.go         |  2 +-
+ 11 files changed, 192 insertions(+), 98 deletions(-)

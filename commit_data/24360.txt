@@ -1,12 +1,21 @@
-commit 2c96e5d2fc0a0765397a86d1e0d7c9329479d4bb
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Sep 23 18:53:16 2015 -0400
+commit db5232620a1722ae1bcdf5f0d8cd15ba0bac2077
+Author: Todd Neal <todd@tneal.org>
+Date:   Sat Jul 25 12:53:58 2015 -0500
 
-    cmd/dist: fix build after "go test" argument order change
+    [dev.ssa] cmd/compile: only fold 32 bit integers for add/multiply
     
-    Change-Id: I332cd4a4b48cbb52d2beeb16c4a24833bb7069d7
-    Reviewed-on: https://go-review.googlesource.com/14890
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fix an issue where doasm fails if trying to multiply by a larger
+    than 32 bit const (doasm: notfound ft=9 tt=14 00008 IMULQ
+    $34359738369, CX 9 14).  Fix truncation of 64 to 32 bit integer
+    when generating LEA causing incorrect values to be computed.
+    
+    Change-Id: I1e65b63cc32ac673a9bb5a297b578b44c2f1ac8f
+    Reviewed-on: https://go-review.googlesource.com/12678
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go           |  3 ++
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 47 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  9 +++--
+ src/cmd/compile/internal/ssa/rewrite.go           |  7 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 45 +++++++++++++---------
+ 5 files changed, 88 insertions(+), 23 deletions(-)

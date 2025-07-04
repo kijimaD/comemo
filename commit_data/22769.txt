@@ -1,17 +1,15 @@
-commit ea426dcae194cc796a8054d0c4cca5f488a3e857
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 29 10:59:22 2015 -0400
+commit 0accc80fbbf483a8d120079bc4bc91cade8b87f2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:20 2015 -0400
 
-    cmd/internal/ld: use a simpler cout writer
+    runtime/cgo: linux/arm64 cgo support
     
-    Removes the unused *bufio.Reader from the object controlling the
-    linker's primary output.
-    
-    Change-Id: If91d9f60752f3dc4b280f35d6eb441f3c47574b2
-    Reviewed-on: https://go-review.googlesource.com/9362
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f2
+    Reviewed-on: https://go-review.googlesource.com/8439
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/cmd/internal/ld/elf.go |  2 +-
- src/cmd/internal/ld/lib.go | 56 +++++++++++++++++++++++++++++++---------------
- src/cmd/internal/ld/pe.go  |  2 +-
- 3 files changed, 40 insertions(+), 20 deletions(-)
+ src/runtime/cgo/asm_arm64.s       | 57 ++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_arm64.S       | 53 ++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_arm64.c | 73 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 183 insertions(+)

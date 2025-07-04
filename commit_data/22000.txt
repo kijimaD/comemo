@@ -1,47 +1,19 @@
-commit 363617c7d3afdc9df3caf49a240679d6b6c7cc4b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 4 17:00:41 2015 -0800
+commit aa55bd44b9ed8ec8412c346977f414ee50e3e819
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 14:49:04 2015 -0800
 
-    math/big: added (internal) Float.form field for easier case distinctions
+    [dev.cc] cmd/asm: clean up jumps
     
-    This is a fairly significant _internal_ representation change. Instead
-    of encoding 0, finite, infinite, and NaN values with special mantissa
-    and exponent values, a new (1 byte) 'form' field is used (without making
-    the Float struct bigger). The form field permits simpler and faster
-    case distinctions. As a side benefit, for zero and non-finite floats,
-    fewer fields need to be set. Also, the exponent range is not the full
-    int32 range (in the old format, infExp and nanExp were used to represent
-    Inf and NaN values and tests for those values sometimes didn't test
-    for the empty mantissa, so the range was reduced by 2 values).
+    Set TYPE_BRANCH for x(PC) in the parser and the assembler has less work to do.
+    This also makes the operand test handle -4(PC) correctly.
     
-    The correspondence between the old and new fields is as follows.
-    Old representation:
+    Also add a special test case for AX:DX, which should be fixed in obj really.
     
-    x                 neg      mant         exp
-    ---------------------------------------------------------------
-    +/-0              sign     empty        0
-    0 < |x| < +Inf    sign     mantissa     exponent
-    +/-Inf            sign     empty        infExp
-    NaN               false    empty        nanExp
-    
-    New representation (- stands for ignored fields):
-    
-    x                 neg      mant         exp         form
-    ---------------------------------------------------------------
-    +/-0              sign     -            -           zero
-    0 < |x| < +Inf    sign     mantissa     exponent    finite
-    +/-Inf            sign     -            -           inf
-    NaN               -        -            -           nan
-    
-    Client should not be affected by this change.
-    
-    Change-Id: I7e355894d602ceb23f9ec01da755fe6e0386b101
-    Reviewed-on: https://go-review.googlesource.com/6870
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If195e3a8cf3454a73508633e9b317d66030da826
+    Reviewed-on: https://go-review.googlesource.com/5071
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/decimal.go    |   3 +
- src/math/big/float.go      | 641 +++++++++++++++++++++++----------------------
- src/math/big/float_test.go |  34 ++-
- src/math/big/floatconv.go  |  16 +-
- src/math/big/ftoa.go       |  10 +-
- 5 files changed, 369 insertions(+), 335 deletions(-)
+ src/cmd/asm/internal/asm/asm.go          | 15 +++++++--------
+ src/cmd/asm/internal/asm/operand_test.go | 20 ++++++++++++++++++--
+ src/cmd/asm/internal/asm/parse.go        |  5 ++---
+ 3 files changed, 27 insertions(+), 13 deletions(-)

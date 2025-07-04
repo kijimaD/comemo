@@ -1,20 +1,124 @@
-commit 3a34395363ffe1e95748fbabff2917c908f2670c
+commit 54c32590f0369f1b67ad3c988424676d3f1eebb8
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 12 15:37:21 2020 -0400
+Date:   Fri Mar 20 11:54:24 2020 -0400
 
-    cmd/link: always mark runtime.buildVersion and runtime.modinfo reachable
+    [dev.link] cmd/oldlink: add back the old linker
     
-    runtime.buildVersion and runtime.modinfo are referenced in the
-    .go.buildinfo section, therefore reachable. They should normally
-    be reachable from the runtime. Just make it explicit, in case.
+    Basically a "cp -r" from tip's cmd/link (at commit
+    776a9d0958973bff6a66e61baa6a9a240ada4255), and fix up import
+    paths.
     
-    Change-Id: I60ff3132e0bbb690f4a3cba8bb18735921fbe951
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261637
-    Trust: Cherry Zhang <cherryyz@google.com>
+    It is not used for now. A flag will be introduced in followup
+    CLs, which will allow to switch between the old and new linker.
+    
+    Some adjustments to make it still build:
+    - Adjust accessor of NoSplit attribute to match the change in
+      goobj2 package (cmd/oldlink/internal/loader/loader.go:1206).
+    - Change sym.Symbol's Len method to Length to match the new
+      interface in cmd/internal/dwarf
+      (cmd/oldlink/internal/sym/symbol.go:102).
+    - Add a TODO for deletion (cmd/oldlink/main.go:5).
+    
+    Change-Id: I76e62f259cb6b494280f5511f75913bc37874746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224622
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/oldlink/doc.go                             |  129 +
+ src/cmd/oldlink/dwarf_test.go                      |  201 ++
+ src/cmd/oldlink/elf_test.go                        |  416 +++
+ src/cmd/oldlink/internal/amd64/asm.go              |  874 +++++++
+ src/cmd/oldlink/internal/amd64/l.go                |   43 +
+ src/cmd/oldlink/internal/amd64/obj.go              |  117 +
+ src/cmd/oldlink/internal/arm/asm.go                |  891 +++++++
+ src/cmd/oldlink/internal/arm/l.go                  |   75 +
+ src/cmd/oldlink/internal/arm/obj.go                |  116 +
+ src/cmd/oldlink/internal/arm64/asm.go              |  946 +++++++
+ src/cmd/oldlink/internal/arm64/l.go                |   74 +
+ src/cmd/oldlink/internal/arm64/obj.go              |  110 +
+ src/cmd/oldlink/internal/ld/ar.go                  |  193 ++
+ src/cmd/oldlink/internal/ld/config.go              |  272 ++
+ src/cmd/oldlink/internal/ld/data.go                | 2505 ++++++++++++++++++
+ src/cmd/oldlink/internal/ld/deadcode.go            |  408 +++
+ src/cmd/oldlink/internal/ld/deadcode2.go           |  441 ++++
+ src/cmd/oldlink/internal/ld/decodesym.go           |  374 +++
+ src/cmd/oldlink/internal/ld/dwarf.go               | 2044 +++++++++++++++
+ src/cmd/oldlink/internal/ld/dwarf_test.go          | 1365 ++++++++++
+ src/cmd/oldlink/internal/ld/elf.go                 | 2415 +++++++++++++++++
+ src/cmd/oldlink/internal/ld/elf_test.go            |   79 +
+ src/cmd/oldlink/internal/ld/execarchive.go         |   37 +
+ src/cmd/oldlink/internal/ld/execarchive_noexec.go  |   13 +
+ src/cmd/oldlink/internal/ld/go.go                  |  442 ++++
+ src/cmd/oldlink/internal/ld/issue33808_test.go     |   54 +
+ src/cmd/oldlink/internal/ld/ld.go                  |  217 ++
+ src/cmd/oldlink/internal/ld/ld_test.go             |  136 +
+ src/cmd/oldlink/internal/ld/lib.go                 | 2749 ++++++++++++++++++++
+ src/cmd/oldlink/internal/ld/link.go                |  187 ++
+ src/cmd/oldlink/internal/ld/macho.go               | 1119 ++++++++
+ src/cmd/oldlink/internal/ld/macho_combine_dwarf.go |  462 ++++
+ src/cmd/oldlink/internal/ld/main.go                |  338 +++
+ src/cmd/oldlink/internal/ld/nooptcgolink_test.go   |   37 +
+ src/cmd/oldlink/internal/ld/outbuf.go              |  177 ++
+ src/cmd/oldlink/internal/ld/outbuf_mmap.go         |   44 +
+ src/cmd/oldlink/internal/ld/outbuf_nommap.go       |   15 +
+ src/cmd/oldlink/internal/ld/outbuf_windows.go      |   49 +
+ src/cmd/oldlink/internal/ld/pcln.go                |  530 ++++
+ src/cmd/oldlink/internal/ld/pe.go                  | 1562 +++++++++++
+ src/cmd/oldlink/internal/ld/sym.go                 |  115 +
+ src/cmd/oldlink/internal/ld/symtab.go              |  713 +++++
+ .../internal/ld/testdata/httptest/main/main.go     |   22 +
+ .../internal/ld/testdata/issue10978/main.go        |   27 +
+ .../oldlink/internal/ld/testdata/issue10978/main.s |    1 +
+ .../oldlink/internal/ld/testdata/issue25459/a/a.go |   27 +
+ .../internal/ld/testdata/issue25459/main/main.go   |   10 +
+ .../internal/ld/testdata/issue26237/b.dir/b.go     |   16 +
+ .../internal/ld/testdata/issue26237/main/main.go   |   16 +
+ .../internal/ld/testdata/issue32233/lib/ObjC.m     |   16 +
+ .../internal/ld/testdata/issue32233/lib/lib.go     |   19 +
+ .../internal/ld/testdata/issue32233/main/main.go   |   11 +
+ src/cmd/oldlink/internal/ld/typelink.go            |   49 +
+ src/cmd/oldlink/internal/ld/util.go                |   97 +
+ src/cmd/oldlink/internal/ld/xcoff.go               | 1685 ++++++++++++
+ src/cmd/oldlink/internal/loadelf/ldelf.go          | 1282 +++++++++
+ src/cmd/oldlink/internal/loader/loader.go          | 1350 ++++++++++
+ src/cmd/oldlink/internal/loadmacho/ldmacho.go      |  891 +++++++
+ src/cmd/oldlink/internal/loadpe/ldpe.go            |  513 ++++
+ src/cmd/oldlink/internal/loadxcoff/ldxcoff.go      |  238 ++
+ src/cmd/oldlink/internal/mips/asm.go               |  230 ++
+ src/cmd/oldlink/internal/mips/l.go                 |   74 +
+ src/cmd/oldlink/internal/mips/obj.go               |   89 +
+ src/cmd/oldlink/internal/mips64/asm.go             |  278 ++
+ src/cmd/oldlink/internal/mips64/l.go               |   74 +
+ src/cmd/oldlink/internal/mips64/obj.go             |   98 +
+ src/cmd/oldlink/internal/objfile/objfile.go        |  659 +++++
+ src/cmd/oldlink/internal/ppc64/asm.go              | 1181 +++++++++
+ src/cmd/oldlink/internal/ppc64/l.go                |   74 +
+ src/cmd/oldlink/internal/ppc64/obj.go              |  106 +
+ src/cmd/oldlink/internal/riscv64/asm.go            |  168 ++
+ src/cmd/oldlink/internal/riscv64/l.go              |   14 +
+ src/cmd/oldlink/internal/riscv64/obj.go            |   60 +
+ src/cmd/oldlink/internal/s390x/asm.go              |  574 ++++
+ src/cmd/oldlink/internal/s390x/l.go                |   74 +
+ src/cmd/oldlink/internal/s390x/obj.go              |   88 +
+ src/cmd/oldlink/internal/sym/attribute.go          |  117 +
+ src/cmd/oldlink/internal/sym/compilation_unit.go   |   23 +
+ src/cmd/oldlink/internal/sym/library.go            |   25 +
+ src/cmd/oldlink/internal/sym/reloc.go              |  128 +
+ src/cmd/oldlink/internal/sym/segment.go            |   58 +
+ src/cmd/oldlink/internal/sym/sizeof_test.go        |   37 +
+ src/cmd/oldlink/internal/sym/symbol.go             |  543 ++++
+ src/cmd/oldlink/internal/sym/symbols.go            |  135 +
+ src/cmd/oldlink/internal/sym/symkind.go            |  168 ++
+ src/cmd/oldlink/internal/sym/symkind_string.go     |   76 +
+ src/cmd/oldlink/internal/wasm/asm.go               |  583 +++++
+ src/cmd/oldlink/internal/wasm/obj.go               |   35 +
+ src/cmd/oldlink/internal/x86/asm.go                |  745 ++++++
+ src/cmd/oldlink/internal/x86/l.go                  |   43 +
+ src/cmd/oldlink/internal/x86/obj.go                |  113 +
+ src/cmd/oldlink/link_test.go                       |  449 ++++
+ src/cmd/oldlink/linkbig_test.go                    |  112 +
+ src/cmd/oldlink/main.go                            |   71 +
+ src/cmd/oldlink/testdata/lib.go                    |    8 +
+ src/cmd/oldlink/testdata/main.m                    |    5 +
+ 96 files changed, 36669 insertions(+)

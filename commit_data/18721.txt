@@ -1,13 +1,19 @@
-commit 56b983c112ddca28cf29e4d1b0ab9f590ea69976
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 3 19:55:40 2014 -0500
+commit a918c2c6d82c115fdcbc14e7ae754b3c278c1ae4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:27:48 2014 +0900
 
-    cmd/gc: fix internal crash
+    syscall: add Accept4 for freebsd
     
-    TBR=ken2
+    Update #7186
+    Update #7428
+    
+    LGTM=r, bradfitz
+    R=golang-codereviews, rsc, minux.ma, r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/70200053
+    https://golang.org/cl/68880043
 
- src/cmd/gc/typecheck.c      |  2 ++
- test/fixedbugs/issue7310.go | 15 +++++++++++++++
- 2 files changed, 17 insertions(+)
+ src/pkg/syscall/syscall_freebsd.go        | 19 +++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 11 +++++++++++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 11 +++++++++++
+ src/pkg/syscall/zsyscall_freebsd_arm.go   | 11 +++++++++++
+ 4 files changed, 52 insertions(+)

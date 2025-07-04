@@ -1,17 +1,16 @@
-commit 4c8589c328ea68ddb551abb4696c20016ed57d99
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 8 13:26:44 2016 -0500
+commit 4577cfcb0b861b70e5d503ffb14dba1ac2a66314
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 14:01:17 2015 -0800
 
-    cmd/compile: attach correct line number for fallthru-return
+    src: remove reference to since-deleted dist -s flag
     
-    Fixes #14646.
+    (Found while debugging release problems with go1.6beta1)
     
-    Change-Id: I0bb82ed6d3533633cd8369ba37aa467948bbe155
-    Reviewed-on: https://go-review.googlesource.com/20381
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #12002
+    
+    Change-Id: Iec197a754205e7fd28be154f27f17f3315886364
+    Reviewed-on: https://go-review.googlesource.com/18011
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  1 +
- test/fixedbugs/issue14646.go       | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/make.bash | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

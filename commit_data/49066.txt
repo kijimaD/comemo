@@ -1,23 +1,16 @@
-commit 119da6358bf8cc01bb8bc7556d616bd0fe723ad4
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Thu May 5 23:31:20 2022 +0000
+commit aa4e0f528e1e018e2847decb549cfc5ac07ecf20
+Author: shota3506 <s.shota.710.3506@gmail.com>
+Date:   Tue Jul 13 21:27:05 2021 +0000
 
-    debug/buildinfo: avoid nil defererence for invalid XCOFF
+    net/http:  correct capitalization in cancelTimeBody comment
     
-    I've made it return 0 following what the other DataStart implementation
-    do when they do not found the section.
-    
-    Fixes #52718
-    
-    Change-Id: I44292fed15bb21b9aba712ad15ed74e0ce231b5a
-    GitHub-Last-Rev: 081a35ebec9b94c0fa6a1347806d84111e58210a
-    GitHub-Pull-Request: golang/go#52722
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404254
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7acda22c01c5350ebf5ddabb1c12af96d368de5d
+    GitHub-Last-Rev: 3e5c022f8764d4abf91c964ceb4fc0e01ebd1352
+    GitHub-Pull-Request: golang/go#47160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334229
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/debug/buildinfo/buildinfo.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/http/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,22 @@
-commit 1b651556c3f3cbf3d2d98dc30d76a164f850d19b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 16:17:59 2013 -0400
+commit f0ff63ea64c878ebe67db70be8f41f73f21bbaff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 9 12:50:49 2013 -0700
 
-    syslog: fix data race on 'crashy' in test function
+    cmd/go: if there are C++ sources, use g++ as default external linker
     
-    Fixes #5894.
+    This will bring in the C++ standard library without requiring
+    any special #cgo LDFLAGS options.
     
-    R=golang-dev, iant
+    When using gccgo, just add -lstdc++ to link line; this should
+    do no harm if it is not needed.
+    
+    No tests, since we don't want to assume a C++ compiler.
+    
+    Update #5629
+    
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/13303051
+    https://golang.org/cl/13394045
 
- src/pkg/log/syslog/syslog_test.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/go/build.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 51 insertions(+), 1 deletion(-)

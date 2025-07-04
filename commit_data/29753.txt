@@ -1,17 +1,15 @@
-commit 0be4ef3ea6a915e3b2ab0cac35209566a1ae3068
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 6 18:22:42 2016 +0000
+commit fc47ee23322d668b3b023cd8c1d3541b1ad9703e
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Fri Oct 7 02:06:33 2016 +0900
 
-    cmd/go: ensure streaming test's stdout, stderr are same as cmd/go's
+    cmd/compile/internal/gc: unexport global variable Pc
     
-    Fixes #18153
-    
-    Change-Id: Ie8a32dd6fe306f00e51cde77dd4ea353f7109940
-    Reviewed-on: https://go-review.googlesource.com/34010
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id2a9fc1e9e70eaf5f25ddc7476061e06abcf60e4
+    Reviewed-on: https://go-review.googlesource.com/30573
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go                               | 26 +++++++++++++++
- src/cmd/dist/test_linux.go                         | 27 +++++++++++++++
- src/cmd/go/test.go                                 | 15 +++------
- .../go/testdata/testterminal18153/terminal_test.go | 39 ++++++++++++++++++++++
- 4 files changed, 96 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go   |  2 +-
+ src/cmd/compile/internal/gc/go.go    |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/ssa.go   | 14 +++++++-------
+ 4 files changed, 16 insertions(+), 16 deletions(-)

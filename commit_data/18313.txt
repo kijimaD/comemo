@@ -1,15 +1,16 @@
-commit abd556ab70c652f480936540ed6598a3048c0669
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 21 19:44:51 2014 -0500
+commit 5d3033c5907956fd982409dd4a543f6866dd675e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 21 14:52:44 2014 -0800
 
-    misc/cgo/testtls: make test less flaky
+    syscall: add Flock_t.Lock method
     
-    Now it should always fail on ARM.
-    (The fix is on its way too.)
+    Fixes #7059
     
-    R=iant, r, dave
+    R=golang-codereviews, iant, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/55140043
+    https://golang.org/cl/53470043
 
- misc/cgo/testtls/tls.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/pkg/syscall/consistency_unix_test.go |  4 ++--
+ src/pkg/syscall/flock.go                 | 22 ++++++++++++++++++++++
+ src/pkg/syscall/flock_linux_32bit.go     | 13 +++++++++++++
+ 3 files changed, 37 insertions(+), 2 deletions(-)

@@ -1,21 +1,23 @@
-commit 9126c6570ce293761a4e5eefd61427902f291263
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 13 11:25:56 2012 -0800
+commit 9a4487458a6a7f434b21bac375aaf2af06f33e86
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 13 13:58:17 2012 -0500
 
-    spec: clarify implementation restrictions on untyped floats
+    all: update 'gotest' to 'go test'
     
-    Drop reference to "machine type."  Specify that integer
-    overflow must be an error.  Drop requirement that exponent
-    must be 128 bits--that's a lot.  Clarify that floating point
-    expressions may be rounded, including intermediate values.
-    
-    This is a reworking of https://golang.org/cl/5577068/ .
-    
-    Fixes #2789.
-    
-    R=r, rsc, r, gri, ken, ken, iant
-    CC=golang-dev, remyoudompheng
-    https://golang.org/cl/5655049
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5645099
 
- doc/go_spec.html | 38 +++++++++++++++++++++++++++++++++++---
- 1 file changed, 35 insertions(+), 3 deletions(-)
+ src/pkg/crypto/tls/handshake_client_test.go | 2 +-
+ src/pkg/crypto/tls/handshake_server_test.go | 8 ++++----
+ src/pkg/go/printer/performance_test.go      | 2 +-
+ src/pkg/go/printer/printer.go               | 2 +-
+ src/pkg/go/printer/printer_test.go          | 2 +-
+ src/pkg/math/big/calibrate_test.go          | 2 +-
+ src/pkg/math/big/nat.go                     | 2 +-
+ src/pkg/net/http/httptest/server.go         | 2 +-
+ src/pkg/path/filepath/path_test.go          | 2 +-
+ src/pkg/runtime/softfloat64.go              | 2 +-
+ src/pkg/sync/mutex_test.go                  | 2 +-
+ src/pkg/sync/rwmutex_test.go                | 2 +-
+ 12 files changed, 15 insertions(+), 15 deletions(-)

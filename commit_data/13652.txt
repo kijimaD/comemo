@@ -1,17 +1,14 @@
-commit a8357f0160681d02e7b9abaf3a6ad3b87bb5a933
+commit 2845e5881f80a717b33b3ab515e1306a7c0001dd
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Aug 20 10:56:41 2012 +0200
+Date:   Mon Aug 20 10:56:06 2012 +0200
 
-    exp/locale/collate/build: fixed bug that was exposed by experimenting
-    with table changes.
-    NOTE: there is no test for this, but 1) the code has now the same
-    control flow as scan in exp/locale/collate/contract.go, which is
-    tested and 2) Builder verifies the generated table so bugs in this
-    code are quickly and easily found (which is how this bug was discovered).
+    exp/locale/collate: changed default AlternateHandling to non-ignorable, the same
+    default as ICU.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6461082
+    https://golang.org/cl/6445080
 
- src/pkg/exp/locale/collate/build/contract.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/exp/locale/collate/collate.go      | 10 +++++-----
+ src/pkg/exp/locale/collate/collate_test.go | 17 +++++++++--------
+ 2 files changed, 14 insertions(+), 13 deletions(-)

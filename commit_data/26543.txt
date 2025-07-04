@@ -1,21 +1,18 @@
-commit 7e88826a69366bbcb64f2f89dbe02c57f7ebf678
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Mar 27 19:44:06 2016 -0700
+commit c58c20f30f5b34af6b36b21b1348a5d8011612ac
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Feb 3 21:06:21 2016 -0500
 
-    cmd/compile: clear OTFUNC info when converting to OTYPE
+    [dev.ssa] cmd/compile: use sparsetree in checkFunc
     
-    I want to get rid of OTFUNC, which serves no useful purpose.  However,
-    it turns out that the escape analysis pass looks at the node slices set
-    up for OTFUNC, even though by the time escape analysis runs the OTFUNC
-    has been converted to OTYPE.  This CL converts the escape analysis code
-    to look at the function decls instead, and clears the OTFUNC info when
-    converting to OTYPE to ensure that nothing else looks at it.
+    Modify the simple domCheck to use the sparse tree code.  This
+    speeds up compilation of one of the generated test cases from
+    1m48s to 17s.
     
-    Change-Id: I3f2f5997ea8ea7a127a858e94b20aabfab84a5bf
-    Reviewed-on: https://go-review.googlesource.com/21202
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If577410ee77b54918147a66917a8e3721297ee0a
+    Reviewed-on: https://go-review.googlesource.com/19187
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/esc.go       | 69 +++++++++++++++++---------------
- src/cmd/compile/internal/gc/typecheck.go |  3 ++
- 2 files changed, 39 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/ssa/check.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

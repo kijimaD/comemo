@@ -1,44 +1,25 @@
-commit 370cadd0e43ddfcfd494eefefc5bd4e85d7efcf8
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Fri Apr 8 13:37:40 2022 +0800
+commit 8eeaf961c50973b0aa2065d2c31dfa5d9949bf93
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jun 12 18:44:51 2021 -0700
 
-    cmd/compile: add a test case and some comments for deadlock on syntax error
+    [dev.typeparams] cmd/compile: move //go:embed -lang check to noder
     
-    After CL 398014 fixed a compiler deadlock on syntax errors,
-    this CL adds a test case and more details for that.
+    User errors should be reported in noder and/or typecheck, we already
+    know the -lang flag's value during noding, and checking it then works
+    better for unified IR.
     
-    How it was fixed:
+    The "multiple files for type" and "cannot apply to var of type" errors
+    should also be moved to typecheck, but then they'd have to be
+    duplicated for -G=3 mode (because it avoids typecheck). So those are
+    left behind for now.
     
-    CL 57751 introduced a channel "sem" to limit the number of
-    simultaneously open files.
-    
-    Unfortunately, when the number of syntax processing goroutines
-    exceeds this limit, will easily trigger deadlock.
-    
-    In the original implementation, "sem" only limited the number
-    of open files, not the number of concurrent goroutines, which
-    will cause extra goroutines to block on "sem". When the p.err
-    of the following iteration happens to be held by the blocking
-    goroutine, it will fall into a circular wait, which is a deadlock.
-    
-    CL 398014 fixed the above deadlock, also see issue #52127.
-    
-    First, move "sem <- struct{}{}" to the outside of the syntax
-    processing goroutine, so that the number of concurrent goroutines
-    does not exceed the number of open files, to ensure that all
-    goroutines in execution can eventually write to p.err.
-    
-    Second, move the entire syntax processing logic into a separate
-    goroutine to avoid blocking on the producer side.
-    
-    Change-Id: I1bb89bfee3d2703784f0c0d4ded82baab2ae867a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399054
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7caf16163c9faf975784acacdb8147514d2e698e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327609
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/noder.go |  1 +
- test/fixedbugs/issue52127.go            | 62 +++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+)
+ src/cmd/compile/internal/noder/noder.go      | 2 ++
+ src/cmd/compile/internal/staticdata/embed.go | 7 -------
+ 2 files changed, 2 insertions(+), 7 deletions(-)

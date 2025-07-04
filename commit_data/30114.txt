@@ -1,22 +1,17 @@
-commit 53c6ac54190ae21dd1a7dacf7f066785834407b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 6 22:01:07 2017 -0800
+commit a850dbdef2f1875d81ad09024480f648ce3eac32
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 15:49:00 2016 -0400
 
-    cmd/compile/internal/syntax: avoid follow-up error for incorrect if statement
+    cmd/vet: accept space-separated tag lists for compatibility with cmd/go
     
-    This is a follow-up on https://go-review.googlesource.com/36470
-    and leads to a more stable fix. The above CL relied on filtering
-    of multiple errors on the same line to avoid more than one error
-    for an `if` statement of the form `if a := 10 {}`. This CL avoids
-    the secondary error ("missing condition in if statement") in the
-    first place.
+    Fixes #17148.
     
-    For #18915.
-    
-    Change-Id: I8517f485cc2305965276c17d8f8797d61ef9e999
-    Reviewed-on: https://go-review.googlesource.com/36479
+    Change-Id: I4c66aa0733c249ee6019d1c4e802a7e30457d4b6
+    Reviewed-on: https://go-review.googlesource.com/32030
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/vet/main.go     |  7 +++++--
+ src/cmd/vet/vet_test.go | 35 +++++++++++++++++++----------------
+ 2 files changed, 24 insertions(+), 18 deletions(-)

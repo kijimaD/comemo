@@ -1,23 +1,22 @@
-commit c07511585e37695d750a1e2efd44033b1160863a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 13 09:06:25 2019 -0500
+commit fbde753a58e286c405a04388816ed044486151bb
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Jun 25 22:24:34 2019 -0400
 
-    cmd/dist: remove chatty log.Print
+    cmd/compile: make duplicate anonymous interface output deterministic
     
-    In CL 206757 I added a log.Printf to identify when GOROOT is not read-only.
-    However, it interacts badly with test sharding in the builders:
-    the log is repeated for every shard.
+    Taking over CL 162240, the original CL hasn't been making progress.
+    I just took the parts that fix the immediate issue. I left the
+    signatslice changes out, I don't think they are necessary.
     
-    Since the log statement isn't particularly high-value, just remove it.
+    Fixes #30202
     
-    Updates #30316
-    
-    Change-Id: I385a7f35da59e38ad8b9beef92dc11af931d9571
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206898
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I5b347605f0841dd925d5a73150b8bf269fa82464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183852
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go                  | 12 +++++++++++-
+ src/cmd/compile/internal/gc/reproduciblebuilds_test.go  |  5 ++++-
+ .../internal/gc/testdata/reproducible/issue30202.go     | 17 +++++++++++++++++
+ 3 files changed, 32 insertions(+), 2 deletions(-)

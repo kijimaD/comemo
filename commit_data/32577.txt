@@ -1,21 +1,24 @@
-commit d39649087b9a55ddb1105274963f50842448c3d9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 30 18:49:18 2017 -0700
+commit f9531448b8abf7bb3c2702761bd8792a3bef33a0
+Author: Filip Gruszczynski <gruszczy@gmail.com>
+Date:   Sat Apr 15 15:17:29 2017 -0700
 
-    compress/flate: remove non-standard extensions to flate
+    runtime: don't panic for bad size hint in hashmap
     
-    Some constants were added to flate that seem to be an experimental
-    attempt at increasing the window size. However, according to RFC1951,
-    the largest window size is 32KiB, so these constants are non-standard.
-    Delete them.
+    Because the hint parameter is supposed to be treated
+    purely as a hint, if it doesn't meet the requirements
+    we disregard it and continue as if there was no hint
+    at all.
     
-    Fixes #18458
+    Fixes #19926
     
-    Change-Id: Ia94989637ca031a56bce2548624fa48044caa7b9
-    Reviewed-on: https://go-review.googlesource.com/60490
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I86e7f99472fad6b99ba4e2fd33e4a9e55d55115e
+    Reviewed-on: https://go-review.googlesource.com/40854
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/flate/huffman_bit_writer.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/runtime/hashmap.go   |  5 ++---
+ src/runtime/map_test.go  |  8 ++++++++
+ test/fixedbugs/bug273.go | 11 -----------
+ 3 files changed, 10 insertions(+), 14 deletions(-)

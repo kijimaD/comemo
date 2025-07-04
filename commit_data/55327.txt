@@ -1,28 +1,21 @@
-commit a2a2c5b947263ee9328674d229892841197a0a94
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 19 13:32:07 2023 -0800
+commit 007d8f4db1f890f0d34018bb418bdc90ad4a8c35
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 27 19:12:43 2023 +0100
 
-    doc: update unsafe.Pointer rule in spec
+    time: update windows zoneinfo_abbrs
     
-    The valid conversions consider the core types of operands, not just
-    their underlying type.
+    zoneinfo_abbrs hasn't been updated since go 1.14, it's time to
+    regenerate it.
     
-    This also explains the valid arguments for unsafe.Slice which are
-    explained in terms of unsafe.Pointer conversions.
+    Updates #58113
     
-    unsafe.SliceData simply refers to "slice argument" and we use
-    similar terminology elsewhere in the spec to denote values that
-    have a core type of slice (or any other type for that matter).
-    Leaving alone for now.
-    
-    Fixes #64452.
-    
-    Change-Id: I0eed3abbc0606f22358835e5d434f026fe0909c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551379
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: Ic156ae607c46f1f5a9408b1fc0b56de6c14a4ed4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463838
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/go_spec.html | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/time/zoneinfo_abbrs_windows.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

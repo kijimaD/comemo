@@ -1,21 +1,21 @@
-commit 0b4e8d00fe6267550e7e11149f6cd992e6edd04d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 21 20:58:00 2017 -0700
+commit d29f72f4728b75314b72337e9768c73eb22338e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 2 23:30:09 2016 +0000
 
-    cmd/compile: pass an explicit position to namedAuto
+    cmd/dist: remove special test timeout scale for Windows
     
-    To enable this, inline the call to nod and simplify.
-    Eliminates a reference to lineno from the backend.
+    In https://golang.org/cl/33804 I screwed up a GOOS == "windows"
+    check into a bogus comparison against GOARCH == "windows".
     
-    Passes toolstash-check -all.
+    But turns out the builders are happy anyway, so remove the windows
+    special case.
     
-    Updates #15756
-    
-    Change-Id: I9c4bd77d10d727aa8f5e6c6bb16b0e05de165631
-    Reviewed-on: https://go-review.googlesource.com/38441
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I820b1d49d5b3e8cbffe4516fc39f514326dc39f8
+    Reviewed-on: https://go-review.googlesource.com/33893
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

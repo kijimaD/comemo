@@ -1,12 +1,15 @@
-commit c18d1a78a4cb8e0052fb272964bbf94b5855c6f4
+commit 06862617c13614f6af96c27b9e648b2002b6dd60
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 12:17:55 2011 -0400
+Date:   Thu Oct 13 12:17:18 2011 -0400
 
-    gc: implement new return restriction
+    build: fix for new return restriction
     
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5245056
+    https://golang.org/cl/5257057
 
- src/cmd/gc/go.y | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/crypto/openpgp/s2k/s2k.go |  4 ++--
+ src/pkg/exp/gui/x11/auth.go       | 12 +++++++-----
+ src/pkg/exp/gui/x11/conn.go       | 25 ++++++++++++++-----------
+ src/pkg/net/textproto/reader.go   |  2 +-
+ 4 files changed, 24 insertions(+), 19 deletions(-)

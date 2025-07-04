@@ -1,15 +1,14 @@
-commit bbad6900ce21f6f9dc323185155e3f938ec60d27
+commit 8e1fa76047e93bf2816520af52759137972a534f
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 10 10:19:11 2011 -0800
+Date:   Thu Mar 10 08:46:57 2011 -0800
 
-    http: run tests even with DISABLE_NET_TESTS=1
+    http: don't hit external network in client_test.go
     
-    All tests are now localhost only.
+    More reliable.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4271042
+    https://golang.org/cl/4249068
 
- src/pkg/Makefile             |  2 +-
- src/pkg/http/request_test.go | 37 +++++++++++++++++++++++++++++--------
- 2 files changed, 30 insertions(+), 9 deletions(-)
+ src/pkg/http/client_test.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

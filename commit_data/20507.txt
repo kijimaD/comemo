@@ -1,13 +1,27 @@
-commit dcb594ec30f428b4b116682a7536ed694526f0e5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Sep 22 19:51:53 2014 -0700
+commit 2eccf0d18fcbb2f369b80567bb43da58054313b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 14 21:25:44 2014 -0400
 
-    runtime: remove unused function declaration
+    runtime: convert syscall_windows.c to Go
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    This is necessary because syscall.Syscall blocks, and the
+    garbage collector needs to be able to scan that frame while
+    it is blocked, and C frames have no garbage collection
+    information.
+    
+    Windows builders are broken now due to this problem:
+    http://build.golang.org/log/152ca9a4be6783d3a8bf6e2f5b9fc265089728b6
+    
+    LGTM=alex.brainman
+    R=alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/145970043
+    https://golang.org/cl/144830043
 
- src/runtime/mgc0.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/os_windows.c       |  32 +++++---
+ src/runtime/runtime.h          |   4 +-
+ src/runtime/syscall_windows.c  | 166 -----------------------------------------
+ src/runtime/syscall_windows.go |  82 ++++++++++++++++++++
+ src/runtime/thunk_windows.s    |  30 ++++++++
+ src/syscall/asm_windows.s      |  13 ----
+ src/syscall/dll_windows.go     |   2 +-
+ 7 files changed, 138 insertions(+), 191 deletions(-)

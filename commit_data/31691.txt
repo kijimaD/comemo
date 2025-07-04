@@ -1,17 +1,33 @@
-commit 1948b7f8069d881822bf700185dd19dcb4b14482
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu May 25 11:50:40 2017 +0200
+commit c797256a8f7dcf24fdc798b1e0845d58aeeef7a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 6 20:39:57 2017 -0500
 
-    math/big: fix Add, Sub when receiver aliases 2nd operand
+    runtime/pprof: add GNU build IDs to Mappings recorded from /proc/self/maps
     
-    Fixes #20490
+    This helps systems that maintain an external database mapping
+    build ID to symbol information for the given binary, especially
+    in the case where /proc/self/maps lists many different files
+    (for example, many shared libraries).
     
-    Change-Id: I9cfa604f9ff94df779cb9b4cbbd706258fc473ac
-    Reviewed-on: https://go-review.googlesource.com/44150
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Avoid importing debug/elf to avoid dragging in that whole
+    package (and its dependencies like debug/dwarf) into the
+    build of every program that generates a profile.
+    
+    Fixes #19431.
+    
+    Change-Id: I6d4362a79fe23e4f1726dffb0661d20bb57f766f
+    Reviewed-on: https://go-review.googlesource.com/37855
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/float.go      | 13 +++++++++++--
- src/math/big/float_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go           |   2 +-
+ src/runtime/pprof/elf.go            | 109 ++++++++++++++++++++++++++++++++++++
+ src/runtime/pprof/proto.go          |  10 ++--
+ src/runtime/pprof/proto_test.go     |   2 +
+ src/runtime/pprof/testdata/README   |   9 +++
+ src/runtime/pprof/testdata/test32   | Bin 0 -> 528 bytes
+ src/runtime/pprof/testdata/test32be | Bin 0 -> 520 bytes
+ src/runtime/pprof/testdata/test64   | Bin 0 -> 760 bytes
+ src/runtime/pprof/testdata/test64be | Bin 0 -> 856 bytes
+ 9 files changed, 127 insertions(+), 5 deletions(-)

@@ -1,16 +1,16 @@
-commit a9b49537771c05b82923a256a47b73af98c3e87e
-Author: Alexander Döring <email@alexd.ch>
-Date:   Sun Oct 2 21:07:40 2016 +0200
+commit 0ce100dc9646eb9015e31502e184e45605df1393
+Author: Vladimir Mihailenco <vladimir.webdev@gmail.com>
+Date:   Thu Jun 23 07:42:22 2016 +0000
 
-    os/exec: add example for CommandContext
+    compress/flate: don't ignore dict in Reader.Reset
     
-    Updates #16360
+    Fixes #16162.
     
-    Change-Id: I0e0afe7a89f2ebcb3e5bbc345f77a605d3afc398
-    Reviewed-on: https://go-review.googlesource.com/30103
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6f4ae906630079ef5fc29ee5f70e2e3d1c962170
+    Reviewed-on: https://go-review.googlesource.com/24390
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec/example_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/compress/flate/inflate.go      |  2 +-
+ src/compress/flate/inflate_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

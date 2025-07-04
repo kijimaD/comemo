@@ -1,22 +1,33 @@
-commit 21eb3dcf93fc3698c9b8cd3ba83c9ddbef31e880
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 2 22:13:14 2020 +0200
+commit e8ecda8a38a1705d2ead985743f287acad34b542
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 11 15:14:38 2020 -0400
 
-    doc/go1.16: announce netbsd/arm64 support
+    context: deflake time-sensitive tests
     
-    netbsd/arm64 now complies with all the requirements for a port as
-    specified on https://golang.org/wiki/PortingPolicy
+    Many of tests in this package assumed reasonable scheduling latency.
+    Unfortunately, scheduling latency on builders and CI systems is not
+    always reasonable.
     
-    Note that this was preliminarily announced in the Go 1.13 release notes
-    (CL 183637) but then removed again due to the port lacking a builder at
-    that time (CL 192997).
+    Rather than expecting that a timeout is detected within a fixed short
+    interval, we can use (*testing.T).Deadline to portably scale the time
+    we're willing to wait to something appropriate to the builder.
     
-    Updates #30824
+    Some of the tests also included arbitrary-duration sleeps, which are
+    no longer needed after CL 196521; we can remove those instead of
+    extending them.
     
-    Change-Id: I2f40fabc84fe9cb699282e6a9d13ed9b64478e36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259277
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Promptness of timeouts is also an important property, but testing that
+    property is better suited to benchmarks than to tests proper: unlike
+    tests, we generally expect benchmarks to be run in a quiet,
+    low-contention environment.
+    
+    Fixes #13956
+    
+    Change-Id: I0797e2267fb778c8ad94add56d797de9e2c885e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223019
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.16.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/context/context_test.go | 117 ++++++++++++++++++++++++++++----------------
+ 1 file changed, 75 insertions(+), 42 deletions(-)

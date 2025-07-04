@@ -1,15 +1,12 @@
-commit f80f97a351f0450a981edc6adf10dd1a5f2b0770
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Mon Apr 18 11:19:47 2011 -0400
+commit 8e8edff7852ef84157503358b747d14fcaf21f20
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Apr 18 18:40:01 2011 +1000
 
-    net: fix dialgoogle_test.go
-    ~$ nslookup www.google.com
-    Server: 8.8.8.8
-    cannonical name = www-g-com-chn.l.google.com.
+    CONTRIBUTORS: Raph Levien (Google CLA)
     
-    R=adg, rsc
-    CC=golang-dev
-    https://golang.org/cl/4445045
+    R=adg
+    CC=golang-dev, raph
+    https://golang.org/cl/4443046
 
- src/pkg/net/dialgoogle_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

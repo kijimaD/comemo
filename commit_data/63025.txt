@@ -1,0 +1,15 @@
+commit fac2ccbed320ef9fdca251d63b759b61bbc21f2a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 9 19:54:01 2025 +0000
+
+    doc: add a release note for greenteagc GOEXPERIMENT
+    
+    For #71661.
+    
+    Change-Id: I802b0c36cac3bbd87b35ff216f06822e87fb7b5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671439
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/4-runtime.md | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

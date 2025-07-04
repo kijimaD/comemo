@@ -1,18 +1,19 @@
-commit c622d1d3f68369ec5f8ce9694fa27e7acb025004
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 10 20:28:45 2021 -0800
+commit 0bd308ff27822378dc2db77d6dd0ad3c15ed2e08
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Mar 17 12:42:19 2021 -0400
 
-    go/build: skip rune literals when looking for go:embed
+    go/parser: avoid formatting a panic message if an assertion succeeds
     
-    Fixes #49514
+    tryResolve is an extremely hot method on the parser. Eliminating this
+    formatting led to a 20% performance improvement in BenchmarkParse.
     
-    Change-Id: Id687eead731ba49974f11d2e5b489f11eff7d07b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363275
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idf8850404bd72d45d1351356427a85086422ea68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302629
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/embed/internal/embedtest/embed_test.go |  5 +++++
- src/go/build/read.go                       | 21 +++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/go/parser/parser.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

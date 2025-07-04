@@ -1,23 +1,23 @@
-commit 3d19e8da7997eaf4ba18bfdf489c3bdb373a0c4d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 18 00:01:24 2022 +0100
+commit 3b40183806a30e44076dd052f25bf0ed247c45f2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue May 11 18:05:43 2021 -0400
 
-    syscall: unskip TestDirentRepeat on freebsd
+    [dev.fuzz] cmd/go/internal/cfg: enable "gofuzzbeta" tag by default
     
-    TestDirentRepeat fails on FreeBSD 11, but seems to pass on newer
-    versions. Go 1.18 is the last release to support FreeBSD 11 per
-    https://golang.org/doc/go1.18#freebsd and there are no FreeBSD 11
-    builders anymore. Thus unskip TestDirentRepeat to verify the issue is
-    indeed fixed on FreeBSD 12 and later.
+    This lets users check in fuzz targets for use with this branch without
+    breaking the build for developers using a regular version of Go.
     
-    For #31416
+    Before we merge this branch to master, this CL should be reverted. At
+    that point, users should change the tag to go1.18 (or whichever
+    version we land on).
     
-    Change-Id: I189ef06719ff830ffe2e402c74a75874c9e5b97b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393618
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0e21a21e415e4fb7c599abe11e61de754c74a3d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319872
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/syscall/dirent_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go               |  4 ++++
+ src/cmd/go/testdata/script/test_fuzz_tag.txt | 31 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

@@ -1,50 +1,20 @@
-commit 937f91e1daadfe55aa57e3482485494a0765c849
-Author: Donovan Hide <donovanhide@gmail.com>
-Date:   Tue Feb 19 10:36:15 2013 -0500
+commit f19cf640d482480432e65a451477cd3bcf818288
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 19 10:18:16 2013 -0500
 
-    strings: faster Count, Index
+    codereview: give up on http fetch after 30 seconds
     
-    Slightly better benchmarks for when string and separator are equivalent and also less branching in inner loops.
-    benchmark                        old ns/op    new ns/op    delta
-    BenchmarkGenericNoMatch               3430         3442   +0.35%
-    BenchmarkGenericMatch1               23590        22855   -3.12%
-    BenchmarkGenericMatch2              108031       105025   -2.78%
-    BenchmarkSingleMaxSkipping            2969         2704   -8.93%
-    BenchmarkSingleLongSuffixFail         2826         2572   -8.99%
-    BenchmarkSingleMatch                205268       197832   -3.62%
-    BenchmarkByteByteNoMatch               987          921   -6.69%
-    BenchmarkByteByteMatch                2014         1749  -13.16%
-    BenchmarkByteStringMatch              3083         3050   -1.07%
-    BenchmarkHTMLEscapeNew                 922          915   -0.76%
-    BenchmarkHTMLEscapeOld                1654         1570   -5.08%
-    BenchmarkByteByteReplaces            11897        11556   -2.87%
-    BenchmarkByteByteMap                  4485         4255   -5.13%
-    BenchmarkIndexRune                     174          121  -30.46%
-    BenchmarkIndexRuneFastPath              41           41   -0.24%
-    BenchmarkIndex                          45           44   -0.22%
-    BenchmarkMapNoChanges                  433          431   -0.46%
-    BenchmarkIndexHard1                4015336      3316490  -17.40%
-    BenchmarkIndexHard2                3976254      3395627  -14.60%
-    BenchmarkIndexHard3                3973158      3378329  -14.97%
-    BenchmarkCountHard1                4403549      3448512  -21.69%
-    BenchmarkCountHard2                4387437      3413059  -22.21%
-    BenchmarkCountHard3                4403891      3382661  -23.19%
-    BenchmarkIndexTorture                28354        25864   -8.78%
-    BenchmarkCountTorture                29625        27463   -7.30%
-    BenchmarkFields                   38752040     39169840   +1.08%
-    BenchmarkFieldsFunc               38797765     38888060   +0.23%
+    If Python blocks in the SSL handshake it seems to be
+    completely uninterruptible, and I've been seeing it
+    block for at least hours recently. I don't know if the
+    problem is on the client side or the server side or
+    somewhere in the network, but setting the timeout
+    at least means you're guaranteed a new shell prompt
+    (after printing some errors).
     
-    benchmark                         old MB/s     new MB/s  speedup
-    BenchmarkSingleMaxSkipping         3367.07      3697.62    1.10x
-    BenchmarkSingleLongSuffixFail       354.51       389.47    1.10x
-    BenchmarkSingleMatch                 73.07        75.82    1.04x
-    BenchmarkFields                      27.06        26.77    0.99x
-    BenchmarkFieldsFunc                  27.03        26.96    1.00x
-    
-    R=dave, fullung, remyoudompheng, rsc
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7350045
+    https://golang.org/cl/7337048
 
- src/pkg/strings/strings.go      | 67 ++++++++++++++++++++++++-----------------
- src/pkg/strings/strings_test.go |  8 +++++
- 2 files changed, 47 insertions(+), 28 deletions(-)
+ lib/codereview/codereview.py | 2 ++
+ 1 file changed, 2 insertions(+)

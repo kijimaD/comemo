@@ -1,25 +1,18 @@
-commit 51711d1429cb592c9ddc772e6362e74ac8545dc8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 31 11:33:04 2017 -0400
+commit c63ad970f6dc497b2cd529357201dd46bc3ee9b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 8 12:45:12 2017 -0800
 
-    cmd/link: fix accidentally-quadratic library loading
+    cmd/compile: rename Func.constVal arg for clarity
     
-    Programs built from N libraries required O(N²) time to do the
-    deduplication checks, even if there were never any duplicates.
-    In most programs N is small enough not to worry, but this may
-    affect large programs.
+    Values have an Aux and an AuxInt.
+    We're setting AuxInt, not Aux.
+    Say so.
     
-    Noticed by inspection, not any specific bug report.
-    
-    Fixes #20578.
-    
-    Change-Id: Ic4108f1058be39da990a79b1e0b8ce95fde44cef
-    Reviewed-on: https://go-review.googlesource.com/44852
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I41aa783273bb7e1ba47c941aa4233f818e37dadd
+    Reviewed-on: https://go-review.googlesource.com/37997
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/ld.go   | 17 +++++++----------
- src/cmd/link/internal/ld/link.go | 17 +++++++++--------
- src/cmd/link/internal/ld/sym.go  |  3 ++-
- 3 files changed, 18 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/ssa/func.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

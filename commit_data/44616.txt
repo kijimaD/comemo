@@ -1,31 +1,22 @@
-commit b0733ba12d1190859a95ee93edac940de8052fed
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Dec 16 20:28:43 2020 -0800
+commit 9138a2a67f7f29948f6f608bf904b3605f1b45d0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 26 14:40:44 2020 +1000
 
-    hash/maphash: increase the buffer size
+    cmd/link: avoid duplicate DT_NEEDED entries
     
-    This helps a lot for larger writes.
+    When adding a new library entry, ensure we record it as seen to avoid
+    adding duplicates of it.
     
-    name            old time/op    new time/op    delta
-    Hash8Bytes-8      16.5ns ± 4%    16.8ns ± 2%   +1.76%  (p=0.000 n=29+30)
-    Hash320Bytes-8    55.0ns ± 2%    41.4ns ± 2%  -24.64%  (p=0.000 n=28+28)
-    Hash1K-8           190ns ± 2%     130ns ± 3%  -31.65%  (p=0.000 n=30+30)
-    Hash8K-8          1.57µs ± 2%    1.05µs ± 3%  -33.01%  (p=0.000 n=30+29)
+    Fixes #39256
     
-    name            old speed      new speed      delta
-    Hash8Bytes-8     485MB/s ± 4%   476MB/s ± 2%   -1.73%  (p=0.000 n=29+30)
-    Hash320Bytes-8  5.82GB/s ± 2%  7.72GB/s ± 3%  +32.55%  (p=0.000 n=28+29)
-    Hash1K-8        5.39GB/s ± 2%  7.88GB/s ± 3%  +46.32%  (p=0.000 n=30+30)
-    Hash8K-8        5.21GB/s ± 2%  7.77GB/s ± 3%  +49.28%  (p=0.000 n=30+29)
-    
-    Updates #42710
-    
-    Change-Id: Idaf4b2a8a41fc62fc16b54c9358cf2cc7009cf29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278760
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id309adf80c533d78fd485517c18bc9ab5f1d29fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235257
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/hash/maphash/maphash.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/elf.go                   |  1 +
+ src/cmd/link/internal/ld/elf_test.go              | 55 +++++++++++++++++++++++
+ src/cmd/link/internal/ld/testdata/issue39256/x.go | 20 +++++++++
+ src/cmd/link/internal/ld/testdata/issue39256/x.s  | 10 +++++
+ 4 files changed, 86 insertions(+)

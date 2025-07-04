@@ -1,20 +1,19 @@
-commit 887d9ef6101c6efeef00b0c7c80e634ff983fdcc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Feb 10 23:54:56 2025 +0000
+commit 446a5dcf5a3230ce9832682d8f521071d8a34a2b
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 5 12:20:11 2023 -0700
 
-    internal/trace: increment sync counter before final Sync on error
+    bytes: add a boundary test for Count of 1 byte
     
-    CL 648195 was supposed to have fixed #71615, but it didn't include an
-    update to r.syncs. I can confirm this CL fixes the issue even when
-    running the test many times in a row.
+    This bottoms out in internal/bytealg.Count, which does a fair amount
+    of avx shenanigans. Make sure we're not reading out of bounds.
     
-    Fixes #71615.
-    
-    Change-Id: I97db3d639dc5bc8648a191696f90b0e5087307c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648315
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ied0e461f536f75acc24c6797f7fc74e3f3901c10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533116
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/trace/reader.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/bytes/boundary_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

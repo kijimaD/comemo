@@ -1,16 +1,21 @@
-commit 1e9835f5b1806e8e6197f87c1696dc773b68a98a
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Sat Dec 28 13:56:04 2024 +0900
+commit e14b96cb511ab3437dedf2be2fa49d4516189bbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 13 16:46:47 2023 -0800
 
-    internal/sync: fix typo of panic message
+    math/big: update comment in the implementation of FloatPrec
     
-    Change-Id: I3e7a8498514da1d278acd566d526fdf6278f7d41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638916
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Follow-up on CL 539299: missed to incorporate the updated
+    comment per feedback on that CL.
+    
+    For #50489.
+    
+    Change-Id: Ib035400038b1d11532f62055b5cdb382ab75654c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542115
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/internal/sync/hashtriemap.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/math/big/ratconv.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

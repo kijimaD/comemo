@@ -1,17 +1,38 @@
-commit a330ca5c541e99e4561420c852b14df63574a065
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 12:14:58 2022 -0700
+commit d032b2b2c8235ef25275405f6655866f2c81661d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Oct 6 14:58:22 2021 -0700
 
-    cmd/compile/internal/syntax: more tolerant parsing of import declarations
+    testing: don't create unique subtest names while fuzzing
     
-    Change-Id: I114548640d51bf69833259578609901fa1602510
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427156
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    T.Run uses a map[string]int64 to keep track of subtest names that may
+    be returned through T.Name. T.Name can't return duplicate names for
+    subtests started with T.Run.
+    
+    If a fuzz target calls T.Run, this map takes a large amount of memory,
+    since there are a very large number of subtests that would
+    otherwise have duplicate names, and the map stores one entry per subtest.
+    The unique suffixes are not useful (and may be confusing) since the
+    full sequence of tests cannot be re-run deterministically.
+    
+    This change deletes all entries in the map before each call to the
+    function being fuzzed. There is a slight change in the contract of
+    T.Name while fuzzing.
+    
+    This change was discussed in CL 351452.
+    
+    Fixes #44517
+    
+    Change-Id: I3093a2e5568099ce54aca1006fac84a6fd2c3ddf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354430
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go          | 25 +++++++++++++---------
- .../types2/testdata/fixedbugs/issue43190.go        | 12 +++++++++--
- 2 files changed, 25 insertions(+), 12 deletions(-)
+ src/testing/fuzz.go    |  9 ++++++++-
+ src/testing/match.go   | 11 +++++++++++
+ src/testing/testing.go | 20 +++++++-------------
+ 3 files changed, 26 insertions(+), 14 deletions(-)

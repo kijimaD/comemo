@@ -1,26 +1,12 @@
-commit 9ee6ba089dc9dd2402bccd9ed28b07140f76de15
-Author: Keith Randall <khr@google.com>
-Date:   Mon Sep 23 14:36:48 2019 -0700
+commit 832959ffcc1d99f8364e75b02d433cb72de63fc1
+Author: Andrew <andybons@golang.org>
+Date:   Tue Jun 18 13:32:04 2019 -0400
 
-    runtime: fix line number for faulting instructions
+    doc/go1.13: add release notes for the testing package
     
-    Unlike function calls, when processing instructions that directly
-    fault we must not subtract 1 from the pc before looking up the
-    file/line information.
-    
-    Since the file/line lookup unconditionally subtracts 1, add 1 to
-    the faulting instruction PCs to compensate.
-    
-    Fixes #34123
-    
-    Change-Id: Ie7361e3d2f84a0d4f48d97e5a9e74f6291ba7a8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196962
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I4ddbe22061579383ca47e14d0b64a74365fb3d19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182797
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/pprof/proto.go      |  6 ------
- src/runtime/pprof/proto_test.go |  6 +++---
- src/runtime/traceback.go        | 15 +++++++++++++-
- test/fixedbugs/issue34123.go    | 43 +++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 60 insertions(+), 10 deletions(-)
+ doc/go1.13.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

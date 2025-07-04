@@ -1,26 +1,31 @@
-commit 1513e57b704056b794f0706362fa3c949f2972a4
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 19 13:20:21 2022 -0700
+commit 771b8ea4f4c56b3e27351807ade7ef72c3a15750
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 18 23:46:47 2021 +0700
 
-    net/http/httputil: add X-Forwarded-{Host,Proto} headers in ReverseProxy
+    cmd/compile: fix missing markHiddenClosureDead in deadcode pass
     
-    X-Forwarded-Host contains the original request's host.
+    CL 342350 fixed panic with dead hidden closures, by marking discarded
+    hidden closure as dead, and won't compile them. However, the fix is
+    incomplete. In case the "if" or "else" block end with panic or return
+    statement:
     
-    X-Forwarded-Proto contains "http" or "https", depending on whether the
-    original request was made on a TLS-secured connection.
+            if true { return }
+            # All nodes starts from here are dead
     
-    Setting either header to nil in Director disables adding the header,
-    same as for X-Forwarded-For.
+    the dead nodes must be processed with markHiddenClosureDead, but they
+    are not, causing the compiler crashes.
     
-    Fixes #50465.
+    This CL adds that missing part.
     
-    Change-Id: If8ed1f48d83f8ea0389c53519bc7994cb53891db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407414
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #48459
+    
+    Change-Id: Ibdd10a61fc6459d139bbf4a66b0893b523ac6b67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350695
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 26 ++++++++++---
- src/net/http/httputil/reverseproxy_test.go | 61 +++++++++++++++++++++++++-----
- 2 files changed, 72 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go |  1 +
+ test/fixedbugs/issue48459.go                  | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)

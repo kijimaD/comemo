@@ -1,17 +1,15 @@
-commit fc5c1f0a181dd620bfc3c48d93e6b2fcba234c7c
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Feb 3 09:17:42 2011 -0500
+commit 31ccf19612f0392e9d2795e32c1957e48e349db7
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Thu Feb 3 00:42:03 2011 -0500
 
-    crypto/cipher: add resync open to OCFB mode.
+    build: fix spaces in GOROOT
     
-    OpenPGP changed its OCFB mode for more modern packets (for example, the
-    MDC symmetrically encrypted packet). This change adds a bool to
-    determine which mode is used.
+    Fixes #1413.
     
-    R=bradfitzgo, r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4126041
+    https://golang.org/cl/4007041
 
- src/pkg/crypto/cipher/ocfb.go      | 36 ++++++++++++++++++++++++++++++------
- src/pkg/crypto/cipher/ocfb_test.go | 17 +++++++++++------
- 2 files changed, 41 insertions(+), 12 deletions(-)
+ src/Make.pkg             | 2 +-
+ src/pkg/runtime/Makefile | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

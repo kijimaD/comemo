@@ -1,15 +1,17 @@
-commit 1837419f302da9b36055bf12b6a7f92c420cb32b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 13 01:03:32 2014 +0400
+commit 28cf62ed8565b481b94326321793614b544dfc17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 8 20:15:52 2014 +0400
 
-    runtime: remove FlagNoProfile
-    Turns out to be unused as well.
+    runtime: mark functions as static where possible
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, khr
-    https://golang.org/cl/127170044
+    Update #8092
+    
+    LGTM=dvyukov
+    R=golang-codereviews, minux, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/122250043
 
- src/pkg/runtime/malloc.go | 19 ++++++++-----------
- src/pkg/runtime/malloc.h  |  3 +--
- 2 files changed, 9 insertions(+), 13 deletions(-)
+ src/pkg/runtime/cpuprof.goc | 2 +-
+ src/pkg/runtime/mheap.c     | 2 +-
+ src/pkg/runtime/proc.c      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

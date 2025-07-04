@@ -1,21 +1,21 @@
-commit ab169c6e3f3acfdf9e9176968825d398820f40f1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 27 11:18:00 2012 -0800
+commit 0706d00cb8af873b82a0a0878e595a4369a76e52
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Feb 27 10:01:45 2012 -0800
 
-    godoc: don't show directories w/o packages in flat dir mode
+    go/printer: fix test for new import path restrictions
     
-    The main change is simple: Both the Directory and DirEntry
-    struct have an extra field 'HasPkg' indicating whether the
-    directory contains any package files. The remaining changes
-    are more comments and adjustments to the template files.
+    Import paths with spaces are now invalid.
     
-    Fixes #3121.
+    The builders would've caught this if they were running
+    the long tests.  I've removed the check for short tests
+    in this package since the current tests are fast enough
+    already.
     
-    R=golang-dev, bradfitz, sameer
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5699072
+    https://golang.org/cl/5694082
 
- lib/godoc/package.html    | 28 +++++++++++++++++-----------
- lib/godoc/package.txt     |  4 ++--
- src/cmd/godoc/dirtrees.go | 36 +++++++++++++++++++++++++-----------
- 3 files changed, 44 insertions(+), 24 deletions(-)
+ src/pkg/go/printer/printer_test.go              | 5 +----
+ src/pkg/go/printer/testdata/declarations.golden | 6 +++---
+ src/pkg/go/printer/testdata/declarations.input  | 6 +++---
+ 3 files changed, 7 insertions(+), 10 deletions(-)

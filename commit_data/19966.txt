@@ -1,20 +1,14 @@
-commit 298c623e8caadf68198ba7bc4e6b128cb87983d7
-Author: Joel Stemmer <stemmertech@gmail.com>
-Date:   Fri Aug 8 12:42:20 2014 -0700
+commit 5ecbdb049bc9f33be49e1fd2e7279b6d84f801d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 7 13:51:29 2014 -0700
 
-    time: Fix missing colon when formatting time zone offsets with seconds
+    cmd/go: don't pass --buildid=none on FreeBSD
     
-    When formatting time zone offsets with seconds using the stdISO8601Colon
-    and stdNumColon layouts, the colon was missing between the hour and minute
-    parts.
+    According to the FreeBSD builder, it doesn't work.
     
-    Fixes #8497.
-    
-    LGTM=r
-    R=golang-codereviews, iant, gobot, r
+    TBR=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/126840043
+    https://golang.org/cl/121400043
 
- src/pkg/time/format.go      |  2 +-
- src/pkg/time/format_test.go | 11 ++++++-----
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

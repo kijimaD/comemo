@@ -1,16 +1,28 @@
-commit d10ab13c18e1c7ec990a7878a6d1a0dadb089f90
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 25 18:08:16 2018 +0000
+commit 14393c5cd4fed812c87ba45fe4e2b8d07c02e8fa
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 3 15:52:30 2018 +0100
 
-    net/http: expand a TimeoutHandler test a bit
+    cmd: remove a few more unused parameters
     
-    Updates #22821
+    ssa's pos parameter on the Const* funcs is unused, so remove it.
     
-    Change-Id: I2d0d483538174a90f56c26d99bea89fe9ce4d144
-    Reviewed-on: https://go-review.googlesource.com/125855
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    ld's alloc parameter on elfnote is always true, so remove the arguments
+    and simplify the code.
+    
+    Finally, arm's addpltreloc never has its return parameter used, so
+    remove it.
+    
+    Change-Id: I63387ecf6ab7b5f7c20df36be823322bb98427b8
+    Reviewed-on: https://go-review.googlesource.com/104456
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go           | 24 ++++++-------
+ src/cmd/compile/internal/ssa/func.go         | 51 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/func_test.go    |  8 ++---
+ src/cmd/compile/internal/ssa/shortcircuit.go |  4 +--
+ src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
+ src/cmd/link/internal/arm/asm.go             |  4 +--
+ src/cmd/link/internal/ld/elf.go              | 14 ++++----
+ 7 files changed, 51 insertions(+), 56 deletions(-)

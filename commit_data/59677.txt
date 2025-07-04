@@ -1,20 +1,20 @@
-commit a473a0dbc48e9c2f08408e1736d40b6f660eb34b
-Author: Damien Neil <dneil@google.com>
-Date:   Wed May 21 13:24:49 2025 -0700
+commit ecfddf4841ceaa7fd253aae0b6d9d0d59625674b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 5 20:17:17 2024 +0000
 
-    net/http: use synctest.Test rather than Run
+    cmd/compile/internal/base: enable stack slot merging by default
     
-    Use the non-experimental Test function.
-    As a bonus, this lets us drop the hacks we were doing to support
-    t.Cleanup inside bubbles.
+    Flag flip to enable stack slot merging by default when optimizing.
+    Please see the earlier CL for details on what this is doing.
     
-    Change-Id: I070624e1384494e9d5fcfee594cfbb7680c1beda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675315
+    Updates #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Change-Id: I8e30d553e74ace43d418f883199721f05320d3d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576681
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/clientserver_test.go | 32 ++++++--------------------------
- src/net/http/serve_test.go        |  2 +-
- src/net/http/transport_test.go    |  6 +++---
- 3 files changed, 10 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

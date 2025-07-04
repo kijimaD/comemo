@@ -1,27 +1,16 @@
-commit e49e8764553bf510b5d9f6fb38aeec0850ec6672
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 6 18:40:17 2022 -0700
+commit 1367a60b064ea9ca2ba35affddfcfc1a3c3a6fbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 20 20:28:01 2021 -0700
 
-    runtime: process ptr bitmaps one word at a time
+    cmd/compile/internal/types2: remove report parameter from infer and inferB
     
-    [This is a retry of CL 407036 + its revert CL 422394. The only
-    content change is the 1-line change in cmd/internal/obj/objfile.go.]
+    This is a clean port of CL 350049 from go/types to types2.
     
-    Read the bitmaps one uintptr at a time instead of one byte at a time.
-    
-    Performance so far:
-     Allocation heavy, no retention: ~30% faster in heapBitsSetType
-     Scan heavy, ~no allocation: ~even in scanobject
-    
-    Change-Id: I04d899e1dbd23e989e9f552cdc1880318779c14c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422635
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifc8551a772535f7b8e943bfbd9febbb78333fa68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351169
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
- src/cmd/internal/obj/objfile.go                 |  1 -
- src/reflect/type.go                             | 19 ++++--
- src/runtime/mbitmap.go                          | 83 +++++++++++++++++++++----
- 4 files changed, 91 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/types2/call.go  |  4 ++--
+ src/cmd/compile/internal/types2/infer.go | 23 +++++++----------------
+ 2 files changed, 9 insertions(+), 18 deletions(-)

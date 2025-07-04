@@ -1,24 +1,22 @@
-commit 485673188dc6c3ee3113990ed1e96ca8f8f0df51
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 6 09:17:20 2012 -0800
+commit 53d091c5ffdcf2f587274e7e97914fe96b183338
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 5 22:36:23 2012 -0800
 
-    spec: type assertions and type switches must be valid
+    net/http: populate ContentLength in HEAD responses
     
-    The spec didn't preclude invalid type assertions and
-    type switches, i.e., cases where a concrete type doesn't
-    implement the interface type in the assertion in the first
-    place. Both, the gc and gccgo compiler exclude these cases.
-    This is documenting the status quo.
+    Also fixes a necessary TODO in the process.
     
-    Also:
-    - minor clean up of respective examples
-    - added sentence about default case in select statements
+    Fixes #4126
     
-    Fixes #4472.
-    
-    R=rsc, iant, r, ken
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6869050
+    https://golang.org/cl/6869053
 
- doc/go_spec.html | 73 ++++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 50 insertions(+), 23 deletions(-)
+ src/pkg/net/http/client_test.go    | 35 +++++++++++++++++++++++++++++++++
+ src/pkg/net/http/response.go       |  4 ++--
+ src/pkg/net/http/response_test.go  |  2 +-
+ src/pkg/net/http/server.go         |  2 +-
+ src/pkg/net/http/transfer.go       | 40 ++++++++++++++++++++++++++++++--------
+ src/pkg/net/http/transport.go      |  5 +----
+ src/pkg/net/http/transport_test.go |  2 +-
+ 7 files changed, 73 insertions(+), 17 deletions(-)

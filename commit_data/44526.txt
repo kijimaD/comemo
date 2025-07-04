@@ -1,35 +1,71 @@
-commit 302a400316319501748c0f034464fa70e7815272
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Mar 3 16:30:22 2021 -0500
+commit 7388956b76ce15a11346cebefcf6193db044caaf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 30 18:35:00 2020 -0700
 
-    cmd/go/internal/modfetch: detect and recover from missing ziphash file
+    cmd/cgo: fix mangling of enum and union types
     
-    Previously, if an extracted module directory existed in the module
-    cache, but the corresponding ziphash file did not, if the sum was
-    missing from go.sum, we would not verify the sum. This caused 'go get'
-    not to write missing sums. 'go build' in readonly mode (now the
-    default) checks for missing sums and doesn't attempt to fetch modules
-    that can't be verified against go.sum.
+    Consider this test package:
     
-    With this change, when requesting the module directory with
-    modfetch.DownloadDir, if the ziphash file is missing, the go command
-    will re-hash the zip without downloading or re-extracting it again.
+        package p
     
-    Note that the go command creates the ziphash file before the module
-    directory, but another program could remove it separately, and it
-    might not be present after a crash.
+        // enum E { E0 };
+        // union U { long x; };
+        // void f(enum E e, union U* up) {}
+        import "C"
     
-    Fixes #44749
+        func f() {
+            C.f(C.enum_E(C.E0), (*C.union_U)(nil))
+        }
     
-    Change-Id: I64551e048a3ba17d069de1ec123d5b8b2757543c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298352
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    In Go 1.14, cgo translated this to (omitting irrelevant details):
+    
+        type _Ctype_union_U [8]byte
+    
+        func f() {
+            _Cfunc_f(uint32(_Ciconst_E0), (*[8]byte)(nil))
+        }
+    
+        func _Cfunc_f(p0 uint32, p1 *[8]byte) (r1 _Ctype_void) { ... }
+    
+    Notably, _Ctype_union_U was declared as a defined type, but uses were
+    being rewritten into uses of the underlying type, which matched how
+    _Cfunc_f was declared.
+    
+    After CL 230037, cgo started consistently rewriting "C.foo" type
+    expressions as "_Ctype_foo", which caused it to start emitting:
+    
+        type _Ctype_enum_E uint32
+        type _Ctype_union_U [8]byte
+    
+        func f() {
+            _Cfunc_f(_Ctype_enum_E(_Ciconst_E0), (*_Ctype_union_U)(nil))
+        }
+    
+        // _Cfunc_f unchanged
+    
+    Of course, this fails to type-check because _Ctype_enum_E and
+    _Ctype_union_U are defined types.
+    
+    This CL changes cgo to emit:
+    
+        type _Ctype_enum_E = uint32
+        type _Ctype_union_U = [8]byte
+    
+        // f unchanged since CL 230037
+        // _Cfunc_f still unchanged
+    
+    It would probably be better to fix this in (*typeConv).loadType so
+    that cgo generated code uses the _Ctype_foo aliases too. But as it
+    wouldn't have any effect on actual compilation, it's not worth the
+    risk of touching it at this point in the release cycle.
+    
+    Updates #39537.
+    Fixes #40494.
+    
+    Change-Id: I88269660b40aeda80a9a9433777601a781b48ac0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246057
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go              | 17 +++++
- src/cmd/go/internal/modfetch/fetch.go              | 77 ++++++++++++++--------
- .../go/testdata/script/mod_get_missing_ziphash.txt | 55 ++++++++++++++++
- src/cmd/go/testdata/script/mod_verify.txt          |  7 +-
- 4 files changed, 125 insertions(+), 31 deletions(-)
+ misc/cgo/test/test.go | 13 +++++++++++++
+ src/cmd/cgo/out.go    |  4 +++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

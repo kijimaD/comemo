@@ -1,14 +1,17 @@
-commit ca6f7e45cbe33a1952a47d0846b1a9096bda5db7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 13:39:30 2015 -0400
+commit cb3e2bf0baba3f056322d31e0edd0432eb34ea10
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 21 05:10:05 2015 +1000
 
-    runtime/trace: report negative frequency as a time-ordering problem
+    cmd/doc: fix copy/paste error in test
     
-    This should fix the solaris/amd64 builder.
+    Some of those consts were supposed to be vars.
     
-    Change-Id: Idd6460cc9e842f7b874c9757379986aa723c974c
-    Reviewed-on: https://go-review.googlesource.com/12922
-    Reviewed-by: Austin Clements <austin@google.com>
+    Caught by Ingo Oeser.
+    
+    Change-Id: Ifc12e4a8ee61ebf5174e4ad923956c546dc096e2
+    Reviewed-on: https://go-review.googlesource.com/11296
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/internal/trace/parser.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/doc/doc_test.go     | 12 ++++++------
+ src/cmd/doc/testdata/pkg.go |  6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)

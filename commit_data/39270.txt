@@ -1,14 +1,13 @@
-commit a0c96a926122f4437f0eba8ae42cc0369511cb58
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Thu Apr 11 16:20:27 2019 -0700
+commit c75ee696c341cef94b00409b3692f3df82af1c71
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 12 18:33:24 2019 +0000
 
-    cmd/link/internal/ld: improve messages for testDWARF failures
+    doc/go1.12: soften, expand crypto/rc4 assembly removal text
     
-    Change-Id: I60af7a6477d1b25c43b311246ae4a79bf691460e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171819
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I46fa43f6c5ac49386f4622e1363d8976f49c0894
+    Reviewed-on: https://go-review.googlesource.com/c/162019
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/dwarf_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.12.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

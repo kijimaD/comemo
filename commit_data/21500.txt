@@ -1,19 +1,21 @@
-commit 56e8f8e8224a718ae005321b65986e72a695e7f2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 01:07:10 2014 -0500
+commit ececbe89d4d5ab151333cbadae725619c0ad9dd8
+Author: Peter Waller <p@pwaller.net>
+Date:   Tue Dec 30 12:19:43 2014 +0000
 
-    runtime: darwin/arm support
+    net/http/httputil: ReverseProxy request cancellation
     
-    Change-Id: I63110daad2d62ae72ab1f33a40464d76e6205627
-    Reviewed-on: https://go-review.googlesource.com/2121
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    If an inbound connection is closed, cancel the outbound http request.
+    
+    This is particularly useful if the outbound request may consume resources
+    unnecessarily until it is cancelled.
+    
+    Fixes #8406
+    
+    Change-Id: I738c4489186ce342f7e21d0ea3f529722c5b443a
+    Signed-off-by: Peter Waller <p@pwaller.net>
+    Reviewed-on: https://go-review.googlesource.com/2320
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_darwin_arm.go   | 245 ++++++++++++++++++++
- src/runtime/os_darwin_arm.go     |  17 ++
- src/runtime/rt0_darwin_arm.s     |  18 ++
- src/runtime/signal_darwin_arm.go |  44 ++++
- src/runtime/stack.h              |  22 +-
- src/runtime/stack2.go            |   6 +-
- src/runtime/sys_darwin_arm.s     | 481 +++++++++++++++++++++++++++++++++++++++
- src/runtime/tls_arm.s            |   7 +-
- 8 files changed, 829 insertions(+), 11 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 46 ++++++++++++++++++++++++
+ src/net/http/httputil/reverseproxy_test.go | 56 ++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)

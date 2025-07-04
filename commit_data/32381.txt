@@ -1,21 +1,31 @@
-commit fc583c542b99b3b1a41ac22964b8f48fc340fc95
+commit a544df33fd24dc3c093594aafab917621f2c317d
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 24 09:53:26 2017 -0700
+Date:   Fri Apr 21 13:59:51 2017 -0700
 
-    .github: update ISSUE_TEMPLATE to be closer to 'go bug'
+    cmd/compile: rename dxxx -> dxxxLSym
     
-    Ask whether the issue reproduces with the latest release.
+    Follow-up to previous CL.
     
-    'go bug' places the version and system details last,
-    in part because they're automatically filled.
-    I'd like to do the same here, but I worry
-    that they'll get ignored.
+    gorename -from '"cmd/compile/internal/gc".duintxxLSym' -to duintxx
+    gorename -from '"cmd/compile/internal/gc".duint8LSym' -to duint8
+    gorename -from '"cmd/compile/internal/gc".duint16LSym' -to duint16
+    gorename -from '"cmd/compile/internal/gc".duint32LSym' -to duint32
+    gorename -from '"cmd/compile/internal/gc".duintptrLSym' -to duintptr
+    gorename -from '"cmd/compile/internal/gc".dbvecLSym' -to dbvec
+    gorename -from '"cmd/compile/internal/gc".dsnameLSym' -to dsname
+    gorename -from '"cmd/compile/internal/gc".dsymptrLSym' -to dsymptr
+    gorename -from '"cmd/compile/internal/gc".dsymptrOffLSym' -to dsymptrOff
+    gorename -from '"cmd/compile/internal/gc".dsymptrWeakOffLSym' -to dsymptrWeakOff
     
-    Change-Id: Iec636a27e6e36d61dca421deaf24ed6fe35d4b11
-    Reviewed-on: https://go-review.googlesource.com/50931
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Avelino <t@avelino.xxx>
+    Passes toolstash-check.
+    
+    Change-Id: I007f57340f9e8b1468553242556ae25a71167e8c
+    Reviewed-on: https://go-review.googlesource.com/41397
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .github/ISSUE_TEMPLATE | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go     |  42 ++++----
+ src/cmd/compile/internal/gc/pgen.go    |   8 +-
+ src/cmd/compile/internal/gc/plive.go   |  12 +--
+ src/cmd/compile/internal/gc/reflect.go | 170 ++++++++++++++++-----------------
+ 4 files changed, 116 insertions(+), 116 deletions(-)

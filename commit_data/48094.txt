@@ -1,17 +1,21 @@
-commit 334a591a3f4d868368913328b3e81ddf5b0f46fa
+commit 7d22c2181b4343b58e40962cefd52af1284b4294
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 6 19:34:32 2022 -0800
+Date:   Mon Apr 26 17:27:58 2021 -0700
 
-    os: don't repeat dir argument in CreateTemp error
+    syscall: restore signal mask after setting foreground process group
     
-    The dir argument is already in prefix, we shouldn't add it again.
+    Fixes #37217
     
-    Change-Id: I42a158bec3a43950fce24f57b808da3ad8c5ef5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383636
+    Change-Id: I0151bb77fc4c4552d1b19c31d784943b72f84b80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313653
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/os/tempfile.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/exec_bsd.go       |  6 ++++--
+ src/syscall/exec_libc.go      |  6 ++++--
+ src/syscall/exec_libc2.go     |  6 ++++--
+ src/syscall/exec_linux.go     |  6 ++++--
+ src/syscall/exec_unix_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 56 insertions(+), 9 deletions(-)

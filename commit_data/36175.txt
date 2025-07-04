@@ -1,22 +1,17 @@
-commit 27e546be86fbe98e0c19ad8a59186582cbbdff53
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 30 13:51:35 2018 -0400
+commit 7cb7d62950630a5a878ee6665258275fc935ef2f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 10 09:57:14 2018 +0200
 
-    cmd/go: add list -find to find packages but not resolve imports
+    debug/elf: add missing EM_AARCH64 to machineStrings
     
-    This is needed by golang.org/x/tools/go/packages
-    and also gives a way to do a quicker scan for
-    packages with a given final path element:
+    EM_AARCH64 is defined as a constant, but the corresponding entry in
+    machineStrings is missing. Add it.
     
-            go list -find .../template
-    
-    Change-Id: I092f4ac5ba7af7d727eb8204379fa436667061b9
-    Reviewed-on: https://go-review.googlesource.com/126716
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6506404386efe608877095e635a290bbc0686215
+    Reviewed-on: https://go-review.googlesource.com/106035
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/list/list.go         | 16 ++++++++++++++++
- src/cmd/go/internal/load/pkg.go          |  1 +
- src/cmd/go/testdata/script/list_find.txt | 10 ++++++++++
- 3 files changed, 27 insertions(+)
+ src/debug/elf/elf.go | 1 +
+ 1 file changed, 1 insertion(+)

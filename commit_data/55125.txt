@@ -1,36 +1,16 @@
-commit b6b72c775ab562c632abf5d93e8c541385edfffc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 21 03:23:05 2023 +0000
+commit 16cec4e7a0ed4b1e5cf67a07a1bf24bdf2f6b04c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 13 11:40:13 2023 -0500
 
-    runtime: emit a ProcSteal from entersyscall_gcwait
+    doc/go1.20: mention build speed improvements
     
-    Currently entersyscall_gcwait always emits a ProcStop event. Most of the
-    time, this is correct, since the thread that just put the P into
-    _Psyscall is the same one that is putting it into _Pgcstop. However it's
-    possible for another thread to steal the P, start running a goroutine,
-    and then enter another syscall, putting the P back into _Psyscall. In
-    this case ProcStop is incorrect; the P is getting stolen. This leads to
-    broken traces.
+    For #49569.
+    For #54202.
     
-    Fix this by always emitting a ProcSteal event from entersyscall_gcwait.
-    This means that most of the time a thread will be 'stealing' the proc
-    from itself when it enters this function, but that's theoretically fine.
-    A ProcSteal is really just a fancy ProcStop.
-    
-    Well, it would be if the parser correctly handled a self-steal. This is
-    a minor bug that just never came up before, but it's an update order
-    error (the mState is looked up and modified, but then it's modified
-    again at the end of the function to match newCtx). There's really no
-    reason a self-steal shouldn't be allowed, so fix that up and add a test.
-    
-    Change-Id: Iec3d7639d331e3f2d127f92ce50c2c4a7818fcd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Iac45338bc4e45617e8ac7425076cf4cd0af157a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461957
+    TryBot-Bypass: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/trace/v2/order.go                     | 11 +++++++
- .../generators/go122-syscall-steal-proc-self.go    | 37 ++++++++++++++++++++++
- .../tests/go122-syscall-steal-proc-self.test       | 17 ++++++++++
- src/runtime/proc.go                                | 19 ++++++++---
- src/runtime/trace2runtime.go                       | 15 +++++----
- 5 files changed, 89 insertions(+), 10 deletions(-)
+ doc/go1.20.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

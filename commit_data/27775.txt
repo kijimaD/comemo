@@ -1,20 +1,28 @@
-commit 94477121bd1a758a70393773c6ae40c58c54f005
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 6 13:07:53 2016 -0700
+commit 022548cfe82915e5bf14ce7cb28f3ec651550662
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Apr 12 16:58:56 2016 -0300
 
-    path/filepath: document Clean behavior for each function
+    all: standardize RFC mention format
     
-    Document explicitly which functions Clean the result rather than
-    documenting it in the package comment.
+    Standardize on space between "RFC" and number. Additionally change
+    the couple "a RFC" instances to "an RFC."
     
-    Updates #10122.
-    Fixes #16111.
+    Fixes #15258
     
-    Change-Id: Ia589c7ee3936c9a6a758725ac7f143054d53e41e
-    Reviewed-on: https://go-review.googlesource.com/24747
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2b17ecd06be07dfbb4207c690f52a59ea9b04808
+    Reviewed-on: https://go-review.googlesource.com/21902
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/path.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/crypto/tls/common.go     | 2 +-
+ src/crypto/tls/prf.go        | 2 +-
+ src/crypto/x509/pkcs8.go     | 2 +-
+ src/crypto/x509/sec1.go      | 4 ++--
+ src/mime/encodedword.go      | 2 +-
+ src/net/dnsname_test.go      | 2 +-
+ src/net/http/request.go      | 2 +-
+ src/net/http/response.go     | 2 +-
+ src/net/http/server.go       | 2 +-
+ src/net/http/transfer.go     | 4 ++--
+ src/net/mail/message.go      | 4 ++--
+ src/net/mail/message_test.go | 2 +-
+ 12 files changed, 15 insertions(+), 15 deletions(-)

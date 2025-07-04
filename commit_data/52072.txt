@@ -1,59 +1,28 @@
-commit 21d82e6ac80fc2aea1eac9c8eec9afdd79cb5bdd
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 1 16:46:43 2022 -0700
+commit 345184496ce358e663b0150f679d5e5cf1337b41
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Nov 28 15:19:15 2021 +0100
 
-    cmd/compile: batch write barrier calls
+    os: add handling of os.Interrupt for windows
     
-    Have the write barrier call return a pointer to a buffer into which
-    the generated code records pointers that need write barrier treatment.
+    Add GenerateConsoleCtrlEvent call to internal syscall package.
+    Define ErrProcessDone while reviewing handling of os.Signal().
+    Update test to run for windows using the added call.
     
-    Change-Id: I7871764298e0aa1513de417010c8d46b296b199e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447781
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Bypass: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #42311
+    Fixes #46354
+    
+    Change-Id: I460955efc76c4febe04b612ac9a0670e62ba5ff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367495
+    Trust: Patrik Nyblom <pnyb@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go           |   4 +-
- src/cmd/compile/internal/arm/ssa.go             |   3 +-
- src/cmd/compile/internal/arm64/ssa.go           |   4 +-
- src/cmd/compile/internal/ir/symtab.go           |   2 +-
- src/cmd/compile/internal/loong64/ssa.go         |   3 +-
- src/cmd/compile/internal/mips/ssa.go            |   3 +-
- src/cmd/compile/internal/mips64/ssa.go          |   3 +-
- src/cmd/compile/internal/ppc64/ssa.go           |   3 +-
- src/cmd/compile/internal/riscv64/ssa.go         |   3 +-
- src/cmd/compile/internal/s390x/ssa.go           |   4 +-
- src/cmd/compile/internal/ssa/_gen/386Ops.go     |   5 +-
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go   |   5 +-
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go   |   5 +-
- src/cmd/compile/internal/ssa/_gen/ARMOps.go     |   6 +-
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   5 +-
- src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go  |   5 +-
- src/cmd/compile/internal/ssa/_gen/MIPSOps.go    |   5 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go   |   7 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |   5 +-
- src/cmd/compile/internal/ssa/_gen/S390XOps.go   |   6 +-
- src/cmd/compile/internal/ssa/_gen/WasmOps.go    |   2 +-
- src/cmd/compile/internal/ssa/_gen/genericOps.go |   4 +-
- src/cmd/compile/internal/ssa/opGen.go           | 138 ++++++++++-------------
- src/cmd/compile/internal/ssa/writebarrier.go    | 139 +++++++++++++++++++-----
- src/cmd/compile/internal/ssagen/ssa.go          |  29 ++---
- src/cmd/compile/internal/wasm/ssa.go            |   8 +-
- src/cmd/compile/internal/x86/ssa.go             |   3 +-
- src/cmd/internal/obj/wasm/wasmobj.go            |  55 ++++++----
- src/cmd/link/internal/wasm/asm.go               |  34 +++---
- src/runtime/asm_386.s                           |  60 ++++++++--
- src/runtime/asm_amd64.s                         | 120 ++++++++------------
- src/runtime/asm_arm.s                           |  44 ++++++--
- src/runtime/asm_arm64.s                         |  51 ++++++---
- src/runtime/asm_loong64.s                       |  44 ++++++--
- src/runtime/asm_mips64x.s                       |  44 ++++++--
- src/runtime/asm_mipsx.s                         |  44 ++++++--
- src/runtime/asm_ppc64x.s                        |  43 ++++++--
- src/runtime/asm_riscv64.s                       |  38 +++++--
- src/runtime/asm_s390x.s                         |  44 ++++++--
- src/runtime/asm_wasm.s                          |  64 +++++++----
- src/runtime/mwbbuf.go                           |   2 +-
- src/runtime/stubs.go                            |   9 +-
- 42 files changed, 711 insertions(+), 394 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go  |  1 +
+ src/internal/syscall/windows/zsyscall_windows.go |  9 +++++++++
+ src/os/exec/exec_windows_test.go                 | 18 ++++++++++++++++++
+ src/os/exec_posix.go                             |  4 +---
+ src/os/exec_windows.go                           | 21 ++++++++++++++-------
+ src/os/signal/signal_windows_test.go             | 17 +----------------
+ src/runtime/signal_windows_test.go               | 18 +-----------------
+ 7 files changed, 45 insertions(+), 43 deletions(-)

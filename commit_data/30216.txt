@@ -1,14 +1,29 @@
-commit 60d7d247a1a5d96152061aa9cfeb5466b90a6787
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Fri Feb 10 14:34:37 2017 -0800
+commit 0acefdbea07252191aa24b8bbbddeecbfa3e7ed9
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Jul 21 18:09:48 2016 -0300
 
-    cmd/nm: extend help text to document the flags
+    cmd/asm, cmd/internal/obj/ppc64: Add vector scalar (VSX) registers and instructions
     
-    Change-Id: Ia2852666ef44e7ef0bba2360e92caccc83fd0e5c
-    Reviewed-on: https://go-review.googlesource.com/36796
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The current implementation for Power architecture does not include the vector
+    scalar (VSX) registers.  This adds the 63 VSX registers and the most commonly
+    used instructions: load/store VSX vector/scalar, move to/from VSR, logical
+    operations, select, merge, splat, permute, shift, FP-FP conversion, FP-integer
+    conversion and integer-FP conversion.
+    
+    Change-Id: I0f7572d2359fe7f3ea0124a1eb1b0bebab33649e
+    Reviewed-on: https://go-review.googlesource.com/30510
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/nm/nm.go | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go         |   3 +
+ src/cmd/asm/internal/arch/ppc64.go        |   4 +
+ src/cmd/asm/internal/asm/operand_test.go  |  64 +++++
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 135 +++++++++-
+ src/cmd/internal/obj/ppc64/a.out.go       | 152 +++++++++++
+ src/cmd/internal/obj/ppc64/anames.go      |  79 ++++++
+ src/cmd/internal/obj/ppc64/anames9.go     |   1 +
+ src/cmd/internal/obj/ppc64/asm9.go        | 419 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/list9.go       |   3 +
+ 9 files changed, 859 insertions(+), 1 deletion(-)

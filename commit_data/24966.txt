@@ -1,14 +1,15 @@
-commit e8e0d906dc9fef255cb97943c1208ecab3b209b4
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Oct 28 12:16:41 2015 +1300
+commit 9552295833ddec28f1e4dffc8f3e80b6448e6f83
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 11 10:28:33 2015 -0700
 
-    cmd/dist: run testshared on linux/386
+    [dev.ssa] cmd/compile: minor CSE cleanup
     
-    Change-Id: I22d40248e83fcad5ab73c0d402183d06e91064c7
-    Reviewed-on: https://go-review.googlesource.com/16388
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Remove unnecessary local var split.
+    
+    Change-Id: I907ef682b5fd9b3a67771edd1fe90c558f8937ea
+    Reviewed-on: https://go-review.googlesource.com/14523
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/cse.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

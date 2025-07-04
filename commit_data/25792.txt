@@ -1,15 +1,24 @@
-commit 699a2ba137fec09371da431907431ec2020a58af
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 19 18:36:02 2016 -0800
+commit aad18b849bd925c2d7cfdda45384d71fe0153d98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 16:49:30 2015 -0800
 
-    cmd/compile: switch cannedimports to use a Biobuf
+    cmd/compile: address several more 1.6 TODOs in parser
     
-    Allows eliminating the separate lexer code paths for reading from cp
-    in the next CL.
+    - fix/check location of popdcl calls where questioned
+    - remove unnecessary handling of ... (LDDD) in ntype (couldn't be reached)
+    - inlined and fnret_type and simplified fnres as a consequence
+    - leave handling of ... (LDDD) in arg_list alone (remove TODO)
+    - verify that parser requires a ';' after last statement in a case/default
+      (added test case)
     
-    Change-Id: I49098ecef32b735c4a01374443c2f847235ff964
-    Reviewed-on: https://go-review.googlesource.com/19750
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #13243.
+    
+    Change-Id: Iad94b498591a5e85f4cb15bbc01e8e101415560d
+    Reviewed-on: https://go-review.googlesource.com/17155
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 68 +++--------------------------------
+ test/switch2.go                       | 19 ++++++++--
+ 2 files changed, 22 insertions(+), 65 deletions(-)

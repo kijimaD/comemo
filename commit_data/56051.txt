@@ -1,39 +1,19 @@
-commit 3659b8756a2b81766e589e34d4fe9613b5917de0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 19 22:36:42 2024 +1100
+commit 8d68b388d4d1debec8d349adac58dd9f1cb03d25
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 28 19:53:20 2022 +0000
 
-    cmd/internal/obj/riscv: use native rotation instructions for rva22u64
+    runtime: flush each idle P's page cache at the end of each GC cycle
     
-    When rva22u64 is available, we can now use the native rotation instructions
-    from the Zbb extension. Use these instead of synthesising rotation
-    instructions.
+    Currently pages may linger in an idle P's page cache, hiding the memory
+    from the scavenger precisely when it's useful to return memory to the OS
+    and reduce the application's footprint.
     
-    This provides a significant performance gain for SHA-512, the following
-    benchmarked on a StarFive VisionFive 2:
-    
-                        │ sha512.rva20u64 │            sha512.rva22u64            │
-                        │       B/s       │      B/s       vs base                │
-    Hash8Bytes/New-4         859.4Ki ± 0%   1337.9Ki ± 0%  +55.68% (p=0.000 n=10)
-    Hash8Bytes/Sum384-4      888.7Ki ± 1%   1308.6Ki ± 1%  +47.25% (p=0.000 n=10)
-    Hash8Bytes/Sum512-4      869.1Ki ± 0%   1269.5Ki ± 1%  +46.07% (p=0.000 n=10)
-    Hash1K/New-4             19.83Mi ± 0%    29.03Mi ± 0%  +46.38% (p=0.000 n=10)
-    Hash1K/Sum384-4          20.00Mi ± 0%    28.86Mi ± 0%  +44.30% (p=0.000 n=10)
-    Hash1K/Sum512-4          19.93Mi ± 0%    28.72Mi ± 0%  +44.11% (p=0.000 n=10)
-    Hash8K/New-4             23.85Mi ± 0%    34.12Mi ± 0%  +43.09% (p=0.000 n=10)
-    Hash8K/Sum384-4          23.88Mi ± 0%    34.09Mi ± 0%  +42.77% (p=0.000 n=10)
-    Hash8K/Sum512-4          23.87Mi ± 0%    34.07Mi ± 0%  +42.71% (p=0.000 n=10)
-    geomean                  7.399Mi         10.78Mi       +45.77%
-    
-    Change-Id: I9dca8e3f311eea101684c806cb998872dc697288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572716
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I49fbcd806b6c66991d1ca87949f76a9f06708e70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453622
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/mgc.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,27 +1,17 @@
-commit 9fe17a0340b1609355aa5ce1828a0cf39e0a8092
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Oct 12 16:24:34 2022 -0400
+commit 865689571d52fee0b4c910d54bd4ba1484ff2344
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Fri Nov 12 10:15:21 2021 +0800
 
-    cmd/link: don't reset variable size when handling -X flag
+    doc/go1.18: add AppendRune doc
     
-    The linker's -X flag allows setting/changing a string variable's
-    content at link time. Currently it resets its size then write a
-    new string header pointing to the new content. This mostly works.
-    But under ASAN build the string variable can have larger size
-    than the usual 2 words, due to the red zone. Resetting the size
-    can cause the variable to "overlap" (in ASAN's view) with other
-    variables. Don't reset the size.
+    For #47694
     
-    Fixes #56175.
-    
-    Change-Id: Ib364208201a7a2fd7f44f9b1797834198736a405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442635
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I39594c273aeb038702457587ee1c46e4b3920bb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363359
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
 
- misc/cgo/testsanitizers/asan_test.go               | 42 ++++++++++++++++++++++
- .../testsanitizers/testdata/asan_linkerx/main.go   | 28 +++++++++++++++
- .../testsanitizers/testdata/asan_linkerx/p/p.go    | 12 +++++++
- src/cmd/link/internal/ld/data.go                   | 10 +++---
- 4 files changed, 88 insertions(+), 4 deletions(-)
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

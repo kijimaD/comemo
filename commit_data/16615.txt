@@ -1,18 +1,26 @@
-commit fc0b5ef0fdc3bc90d93759b068f9be486f4252da
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Fri Jun 21 18:07:57 2013 -0700
+commit de47f68c99e9c86a32261b45752819a86cac74f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 21 16:11:13 2013 -0700
 
-    time: handle integer overflow in Sub
+    spec: fix spec on conversions to match implementations
     
-    If time.Sub results in a value that won't fit in a Duration (int64),
-    return either the min or max int64 value as appropriate.
+    The existing compilers convert empty strings to empty
+    but non-nil byte and rune slices. The spec required
+    a nil byte and rune slice in those cases. That seems
+    an odd additional requirement. Adjust the spec to
+    match the reality.
     
-    Fixes #5011.
+    Also, removed over-specification for conversions of
+    nil []byte and []rune: such nil slices already act
+    like empty slices and thus don't need extra language.
+    Added extra examples instead.
     
-    R=golang-dev, bradfitz, r, rsc
+    Fixes #5704.
+    
+    R=rsc, r, iant
     CC=golang-dev
-    https://golang.org/cl/10328043
+    https://golang.org/cl/10440045
 
- src/pkg/time/time.go      | 20 ++++++++++++++++++--
- src/pkg/time/time_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 2 deletions(-)
+ doc/go_spec.html            | 23 ++++++++++++++---------
+ test/fixedbugs/issue5704.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 9 deletions(-)

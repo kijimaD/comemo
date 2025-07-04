@@ -1,15 +1,24 @@
-commit 50f66fbb66c2f3cdfc9f942c5e11cc1b9ec17a73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 27 12:53:25 2016 -0700
+commit 6dd0b2d70292fc57e5664e2806f1d46cd621f531
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 08:56:06 2016 -0700
 
-    cmd/compile: disallow "init" as alias
+    androidtest.bash: fix pkg dir
     
-    Fixes #17637.
+    CL 24930 altered the default InstallSuffix
+    for mobile platforms.
+    Update androidtest.bash to reflect this.
+    This reverts CL 16151.
     
-    Change-Id: I5af63b8277c0a0f9fef4880992bcb925ca088687
-    Reviewed-on: https://go-review.googlesource.com/32106
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    A subsequent CL will make this more robust,
+    but it will take more discussion and review.
+    In the meantime, this fixes the build.
+    
+    Change-Id: Ia19ca2c9bab7b79c9cf24beeca64ecddaa60289c
+    Reviewed-on: https://go-review.googlesource.com/27927
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 8 ++++++--
- test/alias2.go                       | 7 +++++++
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/androidtest.bash | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

@@ -1,19 +1,92 @@
-commit b7c3d06a1fbad0df04773e8b6825689ae6bde41b
+commit 05026c4ebd67ccf82d5cb2238bdebce8f0fde363
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jul 29 01:25:51 2013 +0200
+Date:   Sun Jul 28 09:42:40 2013 +0200
 
-    all: move examples into package *_test.
+    compress/flate: reduce tiny allocs done by encoder.
     
-    Fixes #5677.
+    benchmark                          old allocs   new allocs    delta
+    BenchmarkEncodeDigitsSpeed1e4             942           91  -90.34%
+    BenchmarkEncodeDigitsSpeed1e5            1919          178  -90.72%
+    BenchmarkEncodeDigitsSpeed1e6           18539         1517  -91.82%
+    BenchmarkEncodeDigitsDefault1e4           734          100  -86.38%
+    BenchmarkEncodeDigitsDefault1e5          1958          193  -90.14%
+    BenchmarkEncodeDigitsDefault1e6         17338         1426  -91.78%
+    BenchmarkEncodeDigitsCompress1e4          734          100  -86.38%
+    BenchmarkEncodeDigitsCompress1e5         1958          193  -90.14%
+    BenchmarkEncodeDigitsCompress1e6        17338         1426  -91.78%
+    BenchmarkEncodeTwainSpeed1e4             1865          109  -94.16%
+    BenchmarkEncodeTwainSpeed1e5             3943          211  -94.65%
+    BenchmarkEncodeTwainSpeed1e6            31279         1595  -94.90%
+    BenchmarkEncodeTwainDefault1e4           1811          103  -94.31%
+    BenchmarkEncodeTwainDefault1e5           3708          199  -94.63%
+    BenchmarkEncodeTwainDefault1e6          26738         1330  -95.03%
+    BenchmarkEncodeTwainCompress1e4          1811          103  -94.31%
+    BenchmarkEncodeTwainCompress1e5          3693          190  -94.86%
+    BenchmarkEncodeTwainCompress1e6         26902         1333  -95.04%
     
-    R=golang-dev, bradfitz
+    benchmark                           old bytes    new bytes    delta
+    BenchmarkEncodeDigitsSpeed1e4         1469438      1453920   -1.06%
+    BenchmarkEncodeDigitsSpeed1e5         1490898      1458961   -2.14%
+    BenchmarkEncodeDigitsSpeed1e6         1858819      1542407  -17.02%
+    BenchmarkEncodeDigitsDefault1e4       1465903      1454160   -0.80%
+    BenchmarkEncodeDigitsDefault1e5       1491841      1459361   -2.18%
+    BenchmarkEncodeDigitsDefault1e6       1825424      1531545  -16.10%
+    BenchmarkEncodeDigitsCompress1e4      1465903      1454160   -0.80%
+    BenchmarkEncodeDigitsCompress1e5      1491681      1459361   -2.17%
+    BenchmarkEncodeDigitsCompress1e6      1825424      1531545  -16.10%
+    BenchmarkEncodeTwainSpeed1e4          1485308      1454400   -2.08%
+    BenchmarkEncodeTwainSpeed1e5          1526065      1459878   -4.34%
+    BenchmarkEncodeTwainSpeed1e6          2066627      1536296  -25.66%
+    BenchmarkEncodeTwainDefault1e4        1484380      1454240   -2.03%
+    BenchmarkEncodeTwainDefault1e5        1521793      1459558   -4.09%
+    BenchmarkEncodeTwainDefault1e6        1977504      1523388  -22.96%
+    BenchmarkEncodeTwainCompress1e4       1484380      1454240   -2.03%
+    BenchmarkEncodeTwainCompress1e5       1521457      1459318   -4.08%
+    BenchmarkEncodeTwainCompress1e6       1980000      1523609  -23.05%
+    
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkEncodeDigitsSpeed1e4         1472128      1384343   -5.96%
+    BenchmarkEncodeDigitsSpeed1e5         8283663      8112304   -2.07%
+    BenchmarkEncodeDigitsSpeed1e6        77459311     76364216   -1.41%
+    BenchmarkEncodeDigitsDefault1e4       1813090      1746552   -3.67%
+    BenchmarkEncodeDigitsDefault1e5      26221292     26052516   -0.64%
+    BenchmarkEncodeDigitsDefault1e6     286512472    286099039   -0.14%
+    BenchmarkEncodeDigitsCompress1e4      1809373      1747230   -3.43%
+    BenchmarkEncodeDigitsCompress1e5     26231580     26038456   -0.74%
+    BenchmarkEncodeDigitsCompress1e6    286140002    286025372   -0.04%
+    BenchmarkEncodeTwainSpeed1e4          1594094      1438600   -9.75%
+    BenchmarkEncodeTwainSpeed1e5          7669724      7316288   -4.61%
+    BenchmarkEncodeTwainSpeed1e6         68731353     65938994   -4.06%
+    BenchmarkEncodeTwainDefault1e4        2063497      1866488   -9.55%
+    BenchmarkEncodeTwainDefault1e5       22602689     22221377   -1.69%
+    BenchmarkEncodeTwainDefault1e6      233376842    232114297   -0.54%
+    BenchmarkEncodeTwainCompress1e4       2062441      1949676   -5.47%
+    BenchmarkEncodeTwainCompress1e5      28264344     27930627   -1.18%
+    BenchmarkEncodeTwainCompress1e6     304369641    303704330   -0.22%
+    
+    benchmark                            old MB/s     new MB/s  speedup
+    BenchmarkEncodeDigitsSpeed1e4            6.79         7.22    1.06x
+    BenchmarkEncodeDigitsSpeed1e5           12.07        12.33    1.02x
+    BenchmarkEncodeDigitsSpeed1e6           12.91        13.10    1.01x
+    BenchmarkEncodeDigitsDefault1e4          5.52         5.73    1.04x
+    BenchmarkEncodeDigitsDefault1e5          3.81         3.84    1.01x
+    BenchmarkEncodeDigitsDefault1e6          3.49         3.50    1.00x
+    BenchmarkEncodeDigitsCompress1e4         5.53         5.72    1.03x
+    BenchmarkEncodeDigitsCompress1e5         3.81         3.84    1.01x
+    BenchmarkEncodeDigitsCompress1e6         3.49         3.50    1.00x
+    BenchmarkEncodeTwainSpeed1e4             6.27         6.95    1.11x
+    BenchmarkEncodeTwainSpeed1e5            13.04        13.67    1.05x
+    BenchmarkEncodeTwainSpeed1e6            14.55        15.17    1.04x
+    BenchmarkEncodeTwainDefault1e4           4.85         5.36    1.11x
+    BenchmarkEncodeTwainDefault1e5           4.42         4.50    1.02x
+    BenchmarkEncodeTwainDefault1e6           4.28         4.31    1.01x
+    BenchmarkEncodeTwainCompress1e4          4.85         5.13    1.06x
+    BenchmarkEncodeTwainCompress1e5          3.54         3.58    1.01x
+    BenchmarkEncodeTwainCompress1e6          3.29         3.29    1.00x
+    
+    R=imkrasin, golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/11992043
+    https://golang.org/cl/10006043
 
- src/pkg/crypto/des/des_test.go      | 18 ------------------
- src/pkg/crypto/des/example_test.go  | 25 +++++++++++++++++++++++++
- src/pkg/crypto/md5/example_test.go  | 19 +++++++++++++++++++
- src/pkg/crypto/md5/md5_test.go      |  8 --------
- src/pkg/crypto/sha1/example_test.go | 18 ++++++++++++++++++
- src/pkg/crypto/sha1/sha1_test.go    |  7 -------
- 6 files changed, 62 insertions(+), 33 deletions(-)
+ src/pkg/compress/flate/huffman_code.go | 92 +++++++++++++++++-----------------
+ 1 file changed, 45 insertions(+), 47 deletions(-)

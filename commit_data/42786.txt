@@ -1,21 +1,17 @@
-commit 0c3bf27b9789e6e6e7d10c47f08163111ce6d9de
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 22 23:26:32 2020 +0700
+commit 8a8adc23d4ee3b7e8aac8e2506f7ae0de72ce95f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 30 17:13:01 2020 -0500
 
-    test: remove nacl checking condition
+    cmd/internal/moddeps: check for consistent versioning among all modules in GOROOT
     
-    go1.14 drop nacl support, as go1.15 was released, go1.13 is not
-    supported anymore, nacl is absolutely gone.
+    Updates #36851
+    Fixes #36907
     
-    Change-Id: I05efb46891ec875b08da8f2996751a8e9cb57d0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249977
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I29627729d916e3b8132d46cf458ba856ffb0beeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217218
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- test/fixedbugs/issue13268.go  | 6 ------
- test/fixedbugs/issue21317.go  | 2 +-
- test/fixedbugs/issue22660.go  | 2 +-
- test/fixedbugs/issue22662b.go | 2 +-
- test/fixedbugs/issue9355.go   | 2 +-
- 5 files changed, 4 insertions(+), 10 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go | 223 +++++++++++++++++++++++++++++++
+ 1 file changed, 223 insertions(+)

@@ -1,17 +1,30 @@
-commit 2e79e8e54920c005af29447a85d7b241460c34cb
+commit 7b04471dfaaddc49efad470275fcc45546870a73
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 00:29:41 2011 -0400
+Date:   Tue Nov 1 00:29:16 2011 -0400
 
-    rpc: avoid infinite loop on input error
+    gopack: change archive file name length back to 16
     
-    Fixes #1828.
-    Fixes #2179.
+    This CL grew the archive file name length from 16 to 64:
+    
+            changeset:   909:58574851d792
+            user:        Russ Cox <rsc@golang.org>
+            date:        Mon Oct 20 13:53:56 2008 -0700
+    
+    Back then, every x.go file in a package became an x.6 file
+    in the archive.  It was important to be able to allow the
+    use of long Go source file names, hence the increase in size.
+    
+    Today, all Go source files compile into a single _go_.6 file
+    regardless of their names, so the archive file name length
+    no longer needs to be long.  The longer name causes some
+    problems on Plan 9, where the native archive format is the
+    same but with 16-byte names, so revert back to 16.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5305084
+    https://golang.org/cl/5333050
 
- src/pkg/rpc/jsonrpc/all_test.go | 65 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/rpc/server.go           | 20 ++++++++-----
- src/pkg/rpc/server_test.go      |  3 +-
- 3 files changed, 79 insertions(+), 9 deletions(-)
+ include/ar.h                    |  2 +-
+ src/cmd/ld/lib.c                | 10 ++--------
+ src/pkg/exp/types/exportdata.go |  6 +++---
+ 3 files changed, 6 insertions(+), 12 deletions(-)

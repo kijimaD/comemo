@@ -1,16 +1,15 @@
-commit 7718c626926beb0e5fed152d8d1a86be22570a34
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 7 16:59:11 2014 -0800
+commit a594f7ddd719eaf5b610bd8ed34662ed43585761
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 8 07:34:40 2014 +0900
 
-    net/rpc/jsonrpc: set exactly one of result or error to non-null in response
+    runtime: fix futexsleep test on freebsd/386
     
-    Fixes #7442
+    Fixes #7194.
     
-    LGTM=gri
-    R=golang-codereviews, gri
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/72570044
+    https://golang.org/cl/72310043
 
- src/pkg/net/rpc/jsonrpc/all_test.go | 1 -
- src/pkg/net/rpc/jsonrpc/server.go   | 6 ++----
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/pkg/runtime/futex_test.go | 69 +++++++++++++++++++++++++++++++++----------
+ 1 file changed, 53 insertions(+), 16 deletions(-)

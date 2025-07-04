@@ -1,13 +1,12 @@
-commit f3ed1ad50c7de8f909ea630a2da62d956a756f46
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Mar 8 17:15:20 2011 -0500
+commit ce0de4229fc33e96550f2195b2f255fb55c2d3e3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 8 11:47:41 2011 -0800
 
-    5l, 8l: output missing section symbols
+    FAQ: hello, world is now 1.1MB, down from 1.8MB
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4252067
+    https://golang.org/cl/4235061
 
- src/cmd/5l/asm.c | 3 +++
- src/cmd/8l/asm.c | 3 +++
- 2 files changed, 6 insertions(+)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

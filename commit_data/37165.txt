@@ -1,20 +1,14 @@
-commit 5dd4d1f820a8e6a6407fac08cb41f1dec6a9f079
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 25 18:11:54 2018 +0000
+commit d32b305e7b480aaff0951aab24b65e5f6affc4a9
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Jul 6 09:56:04 2018 +0100
 
-    runtime: add predecessor method to treap
+    CONTRIBUTORS: replace old e-mail address
     
-    This change adds a method for computing a treap node's predecessor
-    to the treap, which will simplify the implementation of algorithms
-    used for heap growth scavenging.
+    I don't have access to this e-mail inbox anymore.
     
-    For #14045.
-    
-    Change-Id: Id203e4bd246db3504f2f0c5163ec36f4579167df
-    Reviewed-on: https://go-review.googlesource.com/c/144717
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ia3dff6a56c7f6c782be74a998a622ef0611eca7e
+    Reviewed-on: https://go-review.googlesource.com/122456
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/mgclarge.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

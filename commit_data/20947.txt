@@ -1,13 +1,12 @@
-commit e8f13700b70c99278fa42586f5785c09a3ae19b0
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Dec 9 00:13:10 2014 -0500
+commit 08b7805e458b4e205005d18d7e75dc73c27a3442
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 00:03:17 2014 -0400
 
-    test/fixedbugs/bug302: fix test on windows.
+    cmd/objdump: skip extld test on plan9
     
-    Change-Id: I74c2578d1620b37a6486eca00a774b9a736a8899
-    Reviewed-on: https://go-review.googlesource.com/1222
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/164180043
 
- test/fixedbugs/bug302.dir/main.go | 4 ++--
- test/fixedbugs/bug302.go          | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

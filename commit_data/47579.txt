@@ -1,23 +1,26 @@
-commit 17aa21279965f5d088606639c17aa60208a34b7d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 22 14:30:40 2021 -0500
+commit 032ef4bbfc5b976085c561eb4a134b780625f410
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 10 15:25:21 2021 -0800
 
-    runtime: in TestSpuriousWakeupsNeverHangSemasleep, wait for the runtime to register handlers
+    cmd/compile: fix creation of named generic types (setting of t.nod)
     
-    According to https://man7.org/linux/man-pages/man7/signal.7.html, the
-    default behavior of SIGIO is to terminate the program. The Go runtime
-    changes that behavior with its own signal handler, so the program will
-    terminate if we send the signal before the runtime has finished
-    setting up.
+    The correct setting of t.nod is needed when exporting types. Make sure
+    we create instantiated named types correctly so t.nod is set.
     
-    Fixes #49727
+    New test file interfacearg.go that tests this (by instantiating a type
+    with an interface). Also has tests for various kinds of method
+    expressions.
     
-    Change-Id: I65db66f5176831c8d7454eebc0138d825c68e100
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366255
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia7fd9debd495336b73788af9e35d72331bb7d2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305730
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/semasleep_test.go          | 41 +++++++++++++++++++++++++---------
- src/runtime/testdata/testprog/sleep.go |  7 +++++-
- 2 files changed, 37 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 20 +++++++++-----
+ src/cmd/compile/internal/noder/types.go   |  4 +--
+ src/cmd/compile/internal/types/type.go    |  9 ++++---
+ test/typeparam/interfacearg.go            | 44 +++++++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 13 deletions(-)

@@ -1,15 +1,21 @@
-commit 9cddb486433bfb3e149df98f2940b25b00b8ed52
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Mon Jun 23 10:29:56 2014 +1000
+commit 5b342f78043389e35a6c8c6ee1030ae733570da1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jun 22 17:33:00 2014 +1000
 
-    image/png: remove unnecessary function call
+    test: add test case for issue 8074.
     
-    paeth(0, x, 0) == x for any uint8 value.
+    Fixes #8074.
     
-    LGTM=nigeltao
-    R=golang-codereviews, bradfitz, nigeltao
+    The issue was not reproduceable by revision
+    
+    go version devel +e0ad7e329637 Thu Jun 19 22:19:56 2014 -0700 linux/arm
+    
+    But include the original test case in case the issue reopens itself.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/105290049
+    https://golang.org/cl/107290043
 
- src/pkg/image/png/writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue8074.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

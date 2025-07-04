@@ -1,14 +1,22 @@
-commit 3a342af977ccf8604f49fc776d17c5f3f3e6d293
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 27 18:58:37 2017 +0900
+commit 98061fa5f3a2410c97625cf5eb5a2cd8816bb558
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 20 10:38:05 2017 -0500
 
-    net: simplify probeWindowsIPStack
+    cmd/compile: re-enable nilcheck removal in same block
     
-    Change-Id: Ia45f05c63611ade4fe605b389c404953a7afbd1d
-    Reviewed-on: https://go-review.googlesource.com/41837
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Nil check removal in the same block is disabled due to issue 18725:
+    because the values are not ordered, a nilcheck may influence a
+    value that is logically before it. This CL re-enables same-block
+    nilcheck removal by ordering values in store order first.
+    
+    Updates #18725.
+    
+    Change-Id: I287a38525230c14c5412cbcdbc422547dabd54f6
+    Reviewed-on: https://go-review.googlesource.com/35496
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/interface_windows.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go | 189 ++++++++++++++++++++++++++++---
+ test/nilptr3.go                          |  36 +++---
+ 2 files changed, 191 insertions(+), 34 deletions(-)

@@ -1,18 +1,45 @@
-commit 48f1cde942959e2fc3c56973a2986c24d554c82c
-Author: Pavel <kositsyn.pa@phystech.edu>
-Date:   Mon Nov 8 14:29:16 2021 +0000
+commit 119d76d98e4a367ad9b35dfa436692e2976c99aa
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Mar 16 16:31:08 2021 +0800
 
-    database/sql: prevent closes slices from assigning to free conn
+    math/bits: folded reverse tables by using const string
     
-    In function connectionCleanerRunLocked append to closing slice affects db.freeConns and vise versa. Sometimes valid connections are closed and some invalid not.
+    linux/mips64le
     
-    Change-Id: I5282f15be3e549533b7d994b17b2060db3c0e7da
-    GitHub-Last-Rev: b3eb3ab6f49c036519f777fc7189e9507010c166
-    GitHub-Pull-Request: golang/go#49429
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362214
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name            old time/op  new time/op  delta
+    Reverse         2.31ns ± 1%  2.27ns ± 1%  -1.53%  (p=0.001 n=10+10)
+    Reverse8        0.65ns ± 1%  0.65ns ± 1%  -1.19%  (p=0.000 n=9+10)
+    Reverse16       1.15ns ± 2%  1.14ns ± 2%    ~     (p=0.062 n=9+10)
+    Reverse32       1.96ns ± 1%  1.94ns ± 1%  -1.16%  (p=0.000 n=10+9)
+    Reverse64       2.29ns ± 1%  2.26ns ± 0%  -0.94%  (p=0.000 n=9+9)
+    ReverseBytes    0.66ns ± 3%  0.65ns ± 1%  -1.58%  (p=0.006 n=9+10)
+    ReverseBytes16  0.66ns ± 2%  0.65ns ± 1%  -2.05%  (p=0.000 n=10+9)
+    ReverseBytes32  0.41ns ± 1%  0.40ns ± 0%  -1.68%  (p=0.000 n=10+10)
+    ReverseBytes64  0.66ns ± 1%  0.65ns ± 1%  -1.50%  (p=0.000 n=10+9)
+    
+    cpu=1 benchtime=100ms count=100
+    
+    name            old time/op  new time/op  delta
+    Reverse         28.0ns ± 3%  27.7ns ± 3%   -0.80%  (p=0.000 n=100+98)
+    Reverse8        2.24ns ± 1%  2.24ns ± 1%     ~     (p=0.142 n=98+100)
+    Reverse16       4.07ns ± 3%  4.05ns ± 3%   -0.66%  (p=0.000 n=99+99)
+    Reverse32       11.3ns ± 0%  11.3ns ± 0%     ~     (p=0.283 n=94+97)
+    Reverse64       12.6ns ± 0%  12.6ns ± 0%   +0.60%  (p=0.000 n=100+98)
+    ReverseBytes    5.25ns ± 1%  5.24ns ± 1%   -0.18%  (p=0.000 n=100+100)
+    ReverseBytes16  2.00ns ± 0%  2.21ns ± 3%  +10.07%  (p=0.000 n=88+100)
+    ReverseBytes32  4.08ns ± 2%  4.13ns ± 2%   +1.39%  (p=0.000 n=99+99)
+    ReverseBytes64  5.48ns ± 1%  5.45ns ± 1%   -0.50%  (p=0.000 n=98+99)
+    
+    Update #43403
+    
+    Change-Id: I7e7e00bb17608739d9f6b927c6dfef2580493a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280645
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/database/sql/sql.go      |  2 +-
- src/database/sql/sql_test.go | 61 +++++++++++++++++++++++++++++++++++---------
- 2 files changed, 50 insertions(+), 13 deletions(-)
+ src/math/bits/bits_tables.go | 140 +++++++++++++++++++++----------------------
+ src/math/bits/make_tables.go |  13 ++--
+ 2 files changed, 74 insertions(+), 79 deletions(-)

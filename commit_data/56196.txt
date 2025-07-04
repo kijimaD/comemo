@@ -1,17 +1,27 @@
-commit c71d2a8d8fcb50ed8ab0e1c4af211a0dcea16a75
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Sun Apr 14 10:06:49 2024 +0000
+commit 2068d5658e99f6cf13dd2648f3542d2c5bcdabfc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:09:39 2023 -0400
 
-    cmd/cover: fix typo in comment
+    Revert "Revert "Revert "runtime: consolidate function descriptor definitions on PPC64"""
     
-    Change-Id: I7507e6cff00d027fd7840e0661499efc63353f6e
-    GitHub-Last-Rev: 81348ed39d055e445d943eedfe4b4db3a1fd73d8
-    GitHub-Pull-Request: golang/go#66820
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578441
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This reverts CL 481075 (a re-apply of previously reverted CL 478917).
+    
+    Reason for revert: CL 481061 causes C TSAN failures and must be
+    reverted. See CL 485275. This CL depends on CL 481061.
+    
+    For #59678.
+    
+    Change-Id: I4bf7f43d9df1ae28e04cd4065552bcbee82ef13f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485316
     Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/cover/cfg_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_ppc64x.h       | 20 ++------------------
+ src/runtime/asm_ppc64x.s       | 21 ++++++++++++++++++---
+ src/runtime/cgo/asm_ppc64x.s   | 25 +++++++++++++------------
+ src/runtime/rt0_aix_ppc64.s    | 17 +++++++++++++----
+ src/runtime/rt0_linux_ppc64.s  | 13 ++++++++++---
+ src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++++------
+ 6 files changed, 73 insertions(+), 46 deletions(-)

@@ -1,25 +1,28 @@
-commit a253b38de3aa8408f7d5f6f443f2b3ad92be1c00
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Dec 5 17:13:21 2019 +0300
+commit 82d6e2eab8ea12962f2ad5f1d446350a7572d57c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 22 14:47:01 2019 -0700
 
-    doc: add CherryPickApproved filter to Release History links
+    go/types: NewInterface/NewInterfaceType complete empty interfaces
     
-    Not all closed issues in a given minor milestone are included in that
-    release, only the ones that have been labeled as CherryPickApproved are.
+    When creating a new interface via the exported API calls, a shared
+    empty and completed Interface value is returned if there are no
+    methods or embedded interfaces. This is a minor optimization and
+    matches the internal behavior when creating empty interfaces.
     
-    Update the links to the GitHub issue tracker to include a filter on the
-    CherryPickApproved label, so that the default view shows only the
-    backports that were included in a given release. This should more useful
-    to most people than seeing all backports (considered and approved).
+    Since calling Interface.Complete is idempotent, and since there
+    are no other legitimate ways to create Interface values externally
+    but via NewInterface/NewInterfaceType calls, and completed Interfaces
+    are considered "immutable", this change is not expected to affect
+    clients. The only observable behavior that changed is the string
+    value for empty interfaces created via the above API calls; those
+    empty interfaces now don't show "incomplete" anymore even before
+    Interface.Complete is called. Except in special test cases, this
+    behavior is unlikely to affect clients.
     
-    Do this only for Go 1.9.1 and newer releases, as that is when we started
-    using the CherryPickCandidate and CherryPickApproved labels.
-    
-    Fixes #35988
-    
-    Change-Id: I51e07c1bc3ab9c4a5744e8f668c5470adf78bffe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209918
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Change-Id: Idf7f2cd112241c5b81a43b4544bbe3f2e003d8d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191417
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/devel/release.html | 78 +++++++++++++++++++++++++-------------------------
- 1 file changed, 39 insertions(+), 39 deletions(-)
+ src/go/types/type.go            |  5 ++---
+ src/go/types/typestring_test.go | 12 ++++++------
+ 2 files changed, 8 insertions(+), 9 deletions(-)

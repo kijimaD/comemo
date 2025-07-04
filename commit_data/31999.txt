@@ -1,23 +1,17 @@
-commit 6f83b75be2bf038a3a919ad7bd64eda2ee9a934a
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Sun Jul 9 17:03:45 2017 +0200
+commit f0a3018b00bb535259e7d46f0f1503048130f51c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 12:12:02 2017 -0400
 
-    cmd/compile: fix lexical scope of escaped variables
+    cmd/go: fix bug in test of go get ./path needing to download path
     
-    When a local variable is moved to the heap the declaration position
-    should be preserved so that later on we can assign it to the correct
-    DW_TAG_lexical_block.
+    rsc.io/toolstash is gone; use rsc.io/pprof_mac_fix.
     
-    Fixes #20959
+    This fixes a bug in the test. It turns out the code being tested here
+    is also broken, so the test still doesn't pass after this CL (filed #19769).
     
-    Change-Id: I3700ef53c68ccd506d0633f11374ad88a52b2898
-    Reviewed-on: https://go-review.googlesource.com/47852
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ieb725c321d7fab600708e133ae28f531e55521ad
+    Reviewed-on: https://go-review.googlesource.com/38743
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/esc.go        |  1 +
- src/cmd/compile/internal/gc/scope_test.go | 11 +++++++++++
- 2 files changed, 12 insertions(+)
+ src/cmd/go/go_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

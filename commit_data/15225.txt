@@ -1,12 +1,12 @@
-commit ee9d148ce159581dfd0005dede6c56d1d4afeafe
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Feb 14 07:02:32 2013 +0900
+commit a3855013a24c79b571f672fc031b78816802c3a3
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Feb 13 16:47:33 2013 -0500
 
-    net: add test for Dial and Listen arguments
+    cmd/5l: fix print format
     
-    R=dave, bradfitz
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7305081
+    https://golang.org/cl/7304065
 
- src/pkg/net/dial_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/5l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

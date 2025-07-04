@@ -1,0 +1,18 @@
+commit 106c804751992ccbba94c1dbdea4845a96659aa5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Dec 2 20:08:12 2024 +0100
+
+    crypto/rsa: fix keys with p < q
+    
+    Updates #70643
+    
+    Change-Id: I4aee8373dbddf774564902b3957c6eba11d15fc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632955
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/rsa/rsa.go |  8 +++++--
+ src/crypto/rsa/rsa_test.go             | 43 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 2 deletions(-)

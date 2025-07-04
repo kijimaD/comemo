@@ -1,17 +1,19 @@
-commit 54e18f1c2a44f9f2664486e8053c4ee40d41fb8a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 28 10:34:16 2020 -0700
+commit 4e8badbbc2fe7854bb1c12a9ee42315b4d535051
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Feb 7 14:44:58 2020 -0500
 
-    testing: run a Cleanup registered by a Cleanup
+    crypto/cipher: require non-zero nonce size for AES-GCM
     
-    Fixes #41085
+    Also fix typo in crypto/cipher/gcm_test.go.
     
-    Change-Id: Ieafc60cbc8e09f1935d38b1767b084d78dae5cb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251457
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #37118
+    
+    Change-Id: I8544d1eeeb1f0336cebb977b8c5bfa5e4c5ad8c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218500
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/testing/sub_test.go | 27 ++++++++++++++++++
- src/testing/testing.go  | 76 ++++++++++++++++++++++++++++++-------------------
- 2 files changed, 74 insertions(+), 29 deletions(-)
+ src/crypto/cipher/gcm.go      |  7 ++++++-
+ src/crypto/cipher/gcm_test.go | 19 +++++++++++++++++--
+ 2 files changed, 23 insertions(+), 3 deletions(-)

@@ -1,33 +1,14 @@
-commit 66dd20845675a70e75e8ef04ea14e85a6870b228
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 19 13:48:35 2019 -0500
+commit 5235501c0509385c28294b3a314891e1e7165163
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 20 15:48:29 2019 -0400
 
-    cmd/go: consolidate TestInstalls into gopath_install script test
+    crypto/x509: add Ed25519 to ExampleParsePKIXPublicKey
     
-    TestInstalls was already mostly redundant with
-    TestInstallInto{GOPATH,GOBIN}, except for one additional check for the
-    install location of cmd/fix.
+    ParsePKIXPublicKey gained Ed25519 support in CL 175478.
     
-    We can't assume that GOROOT is writable in general, so we also can't
-    assume that the test will be able to reinstall cmd/fix at run time.
-    Moreover, other processes running in parallel may expect to invoke
-    cmd/fix themselves, so this test temporarily removing it could induce
-    systemwide flakes.
-    
-    We could carefully construct a parallel GOROOT and install cmd/fix
-    into it, but we can get *almost* as much coverage — at a much lower
-    cost — by checking the output of 'go list' instead of actually
-    rebuilding and reinstalling the binary.
-    
-    Updates #28387
-    Updates #30316
-    
-    Change-Id: Id49f44a68b0c52dfabb84c665f63c4e7db58dd49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207965
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I11ffe0a62743292367b3adb103956e61bad57cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183243
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/go/go_test.go                         | 42 ---------------------------
- src/cmd/go/testdata/script/gopath_install.txt | 11 +++++++
- 2 files changed, 11 insertions(+), 42 deletions(-)
+ src/crypto/x509/example_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

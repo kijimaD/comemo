@@ -1,30 +1,16 @@
-commit 42f9ee904caf6681ee32e7b048f15ab7cddf3eb3
-Author: Ville Vesilehto <ville@vesilehto.fi>
-Date:   Wed May 14 18:16:54 2025 +0000
+commit b4f37e18b6fa53e63ee0da8ba72cb51d95bb58ae
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Nov 5 18:48:27 2023 +0800
 
-    text/template: limit expression parenthesis nesting
+    unsafe: add available godoc link
     
-    Deeply nested parenthesized expressions could cause a stack
-    overflow during parsing. This change introduces a depth limit
-    (maxStackDepth) tracked in Tree.stackDepth to prevent this.
-    
-    Additionally, this commit clarifies the security model in
-    the package documentation, noting that template authors
-    are trusted as text/template does not auto-escape.
-    
-    Fixes #71201
-    
-    Change-Id: Iab2c2ea6c193ceb44bb2bc7554f3fccf99a9542f
-    GitHub-Last-Rev: f4ebd1719ff966ae3c6516e3fb935dfea2f5362e
-    GitHub-Pull-Request: golang/go#73670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671755
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    Change-Id: I1391ec36063dc609a61cc3b37827a56c7cf97c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539839
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/doc.go              |  5 +++++
- src/text/template/parse/parse.go      | 18 ++++++++++++++++++
- src/text/template/parse/parse_test.go | 14 ++++++++++++++
- 3 files changed, 37 insertions(+)
+ src/unsafe/unsafe.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,17 +1,23 @@
-commit 9edabbe03832e1203d0819c27542b6316ca39d0d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 14:10:42 2012 -0800
+commit 6b3462820f5a1c97adfa148df0e1e37c37a3716c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 18 13:20:55 2012 -0800
 
-    go/token: replaced Files() with Iterate()
+    test: gofmt a few tests
     
-    - Use a faster closure-based iterator rather than a channel-based one.
-    - Otherwise: better code organization, but no other API changes.
+    I'm planning to change these tests, but the gofmt changes are
+    fairly extensive, so I'm separating the gofmt changes from the
+    substantive changes.
     
-    R=r, r
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5557051
+    https://golang.org/cl/5557052
 
- src/pkg/exp/types/check_test.go   |  18 +--
- src/pkg/go/token/position.go      | 271 ++++++++++++++++++++------------------
- src/pkg/go/token/position_test.go |   9 +-
- 3 files changed, 152 insertions(+), 146 deletions(-)
+ test/fixedbugs/bug027.go |  58 ++++++-----
+ test/fixedbugs/bug070.go |  26 ++---
+ test/ken/label.go        |  28 +++---
+ test/ken/rob1.go         |  49 +++++----
+ test/ken/rob2.go         | 251 +++++++++++++++++++++++------------------------
+ test/ken/simpswitch.go   |  21 ++--
+ test/peano.go            |  12 ---
+ test/turing.go           |  49 ++++-----
+ 8 files changed, 244 insertions(+), 250 deletions(-)

@@ -1,16 +1,12 @@
-commit 21d3721eb873c7a99e570e75deb9046a9aadd0bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 19 01:24:01 2012 -0500
+commit e3e93b0f4398e57aae02a9eb05b1226731fc05e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 14:52:28 2012 +0900
 
-    regexp: add SubexpNames
+    syscall: fix plan9 build
     
-    Fixes #2440.
-    
-    R=r, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5559043
+    https://golang.org/cl/5532097
 
- src/pkg/regexp/all_test.go      | 59 ++++++++++++++++++++++++++---------------
- src/pkg/regexp/regexp.go        | 23 ++++++++++++----
- src/pkg/regexp/syntax/regexp.go | 16 +++++++++++
- 3 files changed, 71 insertions(+), 27 deletions(-)
+ src/pkg/syscall/syscall_plan9.go | 5 +++++
+ 1 file changed, 5 insertions(+)

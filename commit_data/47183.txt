@@ -1,24 +1,31 @@
-commit 629ffebd451613b32e6b9578ff4c807791197b38
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Nov 1 10:28:52 2021 -0700
+commit 00cb841b83ad157bc21d36daf0626bbcd4af0d57
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 7 17:56:49 2019 +1000
 
-    cmd/go: disallow profile flags when using -fuzz
+    syscall: implement rawVforkSyscall for remaining linux platforms
     
-    Disallow the usage of coverprofile, blockprofile, cpuprofile, memprofile,
-    mutexprofile, and trace when fuzzing, since these currently do not work
-    as the user would expect.
+    This allows the use of CLONE_VFORK and CLONE_VM for fork/exec, preventing
+    'fork/exec ...: cannot allocate memory' failures from occuring when attempting
+    to execute commands from a Go process that has a large memory footprint.
+    Additionally, this should reduce the latency of fork/exec on these platforms.
     
-    Fixes #48178
+    Fixes #31936
     
-    Change-Id: Ibe6dfaef9b28a91c60c26fcad38c33a2a959d869
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360395
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I4e28cf0763173145cacaa5340680dca9ff449305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295849
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/test/test.go                   |  6 ++++
- .../go/testdata/script/test_fuzz_profile_flags.txt | 38 ++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/syscall/asm_linux_386.s          | 20 ++++++++++++++++++++
+ src/syscall/asm_linux_amd64.s        |  2 +-
+ src/syscall/asm_linux_arm.s          | 21 +++++++++++++++++++++
+ src/syscall/asm_linux_arm64.s        |  1 -
+ src/syscall/asm_linux_mips64x.s      | 20 ++++++++++++++++++++
+ src/syscall/asm_linux_mipsx.s        | 17 +++++++++++++++++
+ src/syscall/exec_linux.go            |  8 +-------
+ src/syscall/syscall_linux_386.go     |  4 +---
+ src/syscall/syscall_linux_arm.go     |  4 +---
+ src/syscall/syscall_linux_mips64x.go |  4 +---
+ src/syscall/syscall_linux_mipsx.go   |  4 +---
+ 11 files changed, 84 insertions(+), 21 deletions(-)

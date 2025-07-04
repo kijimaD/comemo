@@ -1,20 +1,19 @@
-commit 55d10acb72c2dc5524aae69ade560f3cf308a864
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jan 10 19:18:39 2022 +0000
+commit 52df9291aa72c2db77f6a339b3a99c8a65875a47
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 15 17:12:34 2021 -0400
 
-    Revert "cmd/compile: unique LinkString for renamed, embedded fields"
+    test/abi: reenable test on windows
     
-    This reverts CL 372914.
+    Reverses CL 308889.
+    Fixes #45465.
+    Updates #40724.
     
-    Reason for revert: missing synchronization
-    
-    Change-Id: I7ebb6de082cebb73741d803ff00e3465bbafab81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377379
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I34b0d396dc34d0ec8c216e9b6a668de9dfce677c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310649
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types/fmt.go | 37 ++---------------------------------
- test/fixedbugs/issue50190.go          | 21 --------------------
- 2 files changed, 2 insertions(+), 56 deletions(-)
+ test/abi/bad_select_crash.go | 3 ---
+ 1 file changed, 3 deletions(-)

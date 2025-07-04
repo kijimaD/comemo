@@ -1,21 +1,23 @@
-commit f938b9b33bc51eec6a16cfb13b5c3ef5e266db17
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Fri Jun 21 15:43:23 2019 -0400
+commit 40df9cc6062492cd323f2251dd1583d200d1207e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 27 20:43:29 2019 -0500
 
-    cmd/go: fix typo in sumdb cache path
+    cmd/compile: make KeepAlive work on stack object
     
-    Put the sumdb cache in the usual pkg/mod/cache/download dir, rather
-    than the new pkg/mod/download/cache dir which I presume was a typo.
+    Currently, runtime.KeepAlive applied on a stack object doesn't
+    actually keeps the stack object alive, and the heap object
+    referenced from it could be collected. This is because the
+    address of the stack object is rematerializeable, and we just
+    ignored KeepAlive on rematerializeable values. This CL fixes it.
     
-    Change-Id: Id162f24db30f509353178ca0c8cc7a4dabc927e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183318
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #30476.
+    
+    Change-Id: Ic1f75ee54ed94ea79bd46a8ddcd9e81d01556d1d
+    Reviewed-on: https://go-review.googlesource.com/c/164537
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modfetch/sumdb.go              |  6 +++---
- src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  2 +-
- src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 14 +++++++++++++-
- src/cmd/go/testdata/script/mod_sumdb_proxy.txt     | 10 +++++-----
- 4 files changed, 22 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go |  7 +++++++
+ test/fixedbugs/issue30476.go             | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

@@ -1,25 +1,21 @@
-commit 1a349fc92b0d1ea652a164243f850eb542d0924c
-Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
-Date:   Thu May 16 23:04:29 2024 +0200
+commit 54031132c87931d7a5844a1ce05e637b03703c38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 12 14:39:42 2023 -0700
 
-    unsafe: document the behavior of Sizeof on an interface
+    internal/abi: update type name in comment
     
-    unsafe.Sizeof() can return a different value than
-    reflect.TypeOf(x).Size() for a variable of an interface static type.
-    This change points out the difference in behavior, by emphasizing that
-    unsafe.Sizeof() only returns the size of the interface value itself,
-    rather than the size of the value stored in the interface.
+    method -> Method
     
-    Fixes #67465.
+    For #59670
     
-    Change-Id: Ia6a809debb7970be171b0fc186209e5d161784e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586275
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I78e0410f3d5094aa12b2f3ccd6735fec0d696190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494795
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/unsafe/unsafe.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/internal/abi/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

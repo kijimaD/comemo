@@ -1,16 +1,18 @@
-commit 28269796c8ef6c59cca746b090080d99043cdeef
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 00:02:33 2016 -0400
+commit 4187e1f49f45b1cfa66e7cdf8c118ee926285019
+Author: Billy Lynch <wlynch@google.com>
+Date:   Fri Aug 19 01:40:08 2016 -0400
 
-    cmd/internal/objfile: remove debugging print
+    net/http/httptrace: add simple example and fix copyright header
     
-    Crept into CL 9682, committed last week.
+    Partially addresses #16360
     
-    Change-Id: I5b8e9119dbfeb0bc3005623ab74dbd29311d17ae
-    Reviewed-on: https://go-review.googlesource.com/31814
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I67a328302d7d91231f348d934e4232fcb844830a
+    Reviewed-on: https://go-review.googlesource.com/27398
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/objfile/disasm.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/net/http/httptrace/example_test.go | 25 +++++++++++++++++++++++++
+ src/net/http/httptrace/trace.go        |  2 +-
+ src/net/http/httptrace/trace_test.go   |  2 +-
+ 3 files changed, 27 insertions(+), 2 deletions(-)

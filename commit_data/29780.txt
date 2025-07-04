@@ -1,18 +1,17 @@
-commit c586630d993f6136d3166837669b26f4210a79d5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Dec 8 23:21:48 2016 -0800
+commit 0ff40a76ad81e2b02c24e83eee8aa93352498f6f
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon May 30 00:41:03 2016 -0700
 
-    doc: update go1.8.html
+    crypto/x509: check that the issuer name matches the issuer's subject name.
     
-    Made many minor changes so that the document is consistent with itself.
+    Fixes #14955.
     
-    Some more noticeable changes:
-    * CL/34141: Revert "testing: add T.Context method"
-    * CL/33630: net/http: document restrictions on ETag as expected by ServeContent
-    
-    Change-Id: I39ae5e55c56e374895c115e6852998c940beae35
-    Reviewed-on: https://go-review.googlesource.com/34243
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I157432584bb51088bec565f6bb9e64348345cff9
+    Reviewed-on: https://go-review.googlesource.com/23571
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- doc/go1.8.html | 260 +++++++++++++++++++++++++++------------------------------
- 1 file changed, 125 insertions(+), 135 deletions(-)
+ src/crypto/x509/verify.go      |  13 ++++
+ src/crypto/x509/verify_test.go | 139 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 152 insertions(+)

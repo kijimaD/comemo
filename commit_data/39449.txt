@@ -1,26 +1,27 @@
-commit 24f7d89a73b7bd77127a56e8a8552c48278d251b
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jun 25 17:25:01 2019 -0400
+commit 7fa195c1b9650db3e91b90af6b16405e7e0ba9ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 17:12:23 2019 -0800
 
-    cmd/go: 'go get' should not delete binaries when run from $GOBIN
+    cmd/compile: fix false positives in isGoConst
     
-    When 'go install' is run without arguments in a directory containing a
-    main package, it deletes an executable file with the same name as the
-    package (presumably created by 'go build' previously).
+    isGoConst could spuriously return true for variables that shadow a
+    constant declaration with the same name.
     
-    'go get' in module mode executes the same code after updating and
-    downloading modules. However, the special case was misfiring because
-    we passed an empty list of patterns to InstallPackages.
+    Because even named constants are always represented by OLITERAL nodes,
+    the easy fix is to just ignore ONAME nodes in isGoConst. We can
+    similarly ignore ONONAME nodes.
     
-    Fixes #32766
+    Confirmed that k8s.io/kubernetes/test/e2e/storage builds again with
+    this fix.
     
-    Change-Id: I19aca64ee1fb5a216777dd7d559e8e6a45b3e90c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183846
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Fixes #30430.
+    
+    Change-Id: I899400d749982d341dc248a7cd5a18277c2795ec
+    Reviewed-on: https://go-review.googlesource.com/c/164319
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modget/get.go                    |  3 +--
- src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt | 12 ++++++++++++
- src/cmd/go/testdata/script/mod_get_cmd.txt           | 20 ++++++++++++++++++++
- 3 files changed, 33 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 13 -------------
+ test/fixedbugs/issue30430.go         | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 13 deletions(-)

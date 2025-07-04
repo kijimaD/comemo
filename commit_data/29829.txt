@@ -1,12 +1,23 @@
-commit 94e0f06fbcd5b39840bf0d8fa4519ac818ca2c3e
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Dec 12 19:32:58 2016 -0800
+commit 898ca6ba0af0ea1180fea1f226ff6ef731018ac2
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 11 19:05:29 2016 -0700
 
-    doc/help: tweak descriptions, make official channels clearer
+    runtime: update mkduff legacy comments
     
-    Change-Id: I5c8df05a25421489ec5122de85dbda756483c536
-    Reviewed-on: https://go-review.googlesource.com/34289
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Update comments for duffzero and duffcopy
+    which referred to legacy locations:
+    + cmd/?g/cgen.go
+    + cmd/?g/ggen.go
+    
+    Remnants of the old days when we had 5g, 6g etc.
+    
+    Those locations have since moved to:
+    + cmd/compile/internal/<arch>/cgen.go
+    + cmd/compile/internal/<arch>/ggen.go
+    
+    Change-Id: Ie2ea668559d52d42b747260ea69a6d5b3d70e859
+    Reviewed-on: https://go-review.googlesource.com/29073
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/help.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/mkduff.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

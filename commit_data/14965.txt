@@ -1,14 +1,24 @@
-commit 86a8d59a014287c899a14ef9ed6fdfb7d1b8d586
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 22 17:25:58 2013 -0800
+commit cdd6ae128894abbaf3fef0401cdef319f3ec1d3d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 23 11:37:06 2013 +1100
 
-    time: make TestReset more reliable
+    net/url: generate correct Path when hostname empty
     
-    Fixes #4690
+    Parse("file:///foo") previously returned a URL with Scheme "file"
+    and Path "///foo". Now it returns a URL with Path "/foo",
+    such that
+            &URL{Scheme: "file", Path: "/foo"}.String() == "file:///foo"
     
-    R=golang-dev, alex.brainman, mikioh.mikioh
+    This means that parsing and stringifying the URL "file:/foo"
+    returns "file:///foo", technically a regression but one that only
+    affects a corner case.
+    
+    Fixes #4189.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/7181052
+    https://golang.org/cl/7135051
 
- src/pkg/time/sleep_test.go | 43 +++++++++++++++++++++++++++++++++----------
- 1 file changed, 33 insertions(+), 10 deletions(-)
+ src/pkg/net/url/url.go      |  8 +++++---
+ src/pkg/net/url/url_test.go | 13 +++++++++++--
+ 2 files changed, 16 insertions(+), 5 deletions(-)

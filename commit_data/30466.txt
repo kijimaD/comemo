@@ -1,13 +1,14 @@
-commit a6a0b1903d7029abe14f00c6cf2138cde9d81160
-Author: Andreas Auernhammer <aead@mail.de>
-Date:   Sun Feb 12 21:41:29 2017 +0100
+commit 9d139ac3fa1f4c0c468042bdc6248a30044fb1bb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 6 10:35:58 2016 -0800
 
-    crypto: add BLAKE2b and BLAKE2s hash constants
+    unsafe: remove incorrect type conversion in docs
     
-    Fixes golang/go#19060
-    Change-Id: I1844edc3dcccc8d83a11d1145b60b2b92f2658ca
-    Reviewed-on: https://go-review.googlesource.com/36876
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Fixes #17818.
+    
+    Change-Id: Id7242b0bdd5e1db254b44ae29900fc4f3362c743
+    Reviewed-on: https://go-review.googlesource.com/32828
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/crypto.go | 68 +++++++++++++++++++++++++++++-----------------------
- 1 file changed, 38 insertions(+), 30 deletions(-)
+ src/unsafe/unsafe.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

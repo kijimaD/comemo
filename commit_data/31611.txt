@@ -1,12 +1,35 @@
-commit 7f6ce5168d7b26dde5067408daa2c22d9115da48
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue May 9 22:09:08 2017 -0700
+commit 02e36f8c87901fde841cb5e82e0409b7914572b8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 11:35:44 2017 -0800
 
-    cmd/compile/internal/ssa: fix spelling mistake
+    cmd/compile/internal/ssa: remove Hmul{8,16}{,u} ops
     
-    Change-Id: I4b8f1b61c10f60ddb3687759af0be1641c1f78ce
-    Reviewed-on: https://go-review.googlesource.com/43111
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I90865921584ae4bdfb6c220d439b14593d72b6f9
+    Reviewed-on: https://go-review.googlesource.com/37752
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/cse.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go          |   3 +-
+ src/cmd/compile/internal/ssa/gen/386.rules     |   4 -
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 -
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   4 -
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   4 -
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   4 -
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   4 -
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   4 -
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |   4 -
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   4 -
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 -
+ src/cmd/compile/internal/ssa/opGen.go          | 160 -------------------------
+ src/cmd/compile/internal/ssa/rewrite386.go     |  68 -----------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  68 -----------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  96 ---------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  96 ---------------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  96 ---------------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 104 ----------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  96 ---------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  96 ---------------
+ src/cmd/compile/internal/x86/ssa.go            |   3 +-
+ 22 files changed, 2 insertions(+), 928 deletions(-)

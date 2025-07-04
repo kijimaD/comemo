@@ -1,32 +1,49 @@
-commit dfbbe06a205e7048a8541c4c97b250c24c40db96
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Aug 10 11:06:46 2016 +1000
+commit d713e8e8069ee052ef4d9eac49a0c74a3b5c2c92
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 28 15:01:41 2016 -0700
 
-    cmd/link, cmd/go: delay linking of mingwex and mingw32 until very end
+    archive/zip: improve BenchmarkCompressedZipGarbage
     
-    cmd/go links mingwex and mingw32 libraries to every package it builds.
-    This breaks when 2 different packages call same gcc standard library
-    function pow. gcc linker appends pow implementation to the compiled
-    package, and names that function "pow". But when these 2 compiled
-    packages are linked together into the final executable, linker
-    complains, because it finds two "pow" functions with the same name.
+    Before this CL:
     
-    This CL stops linking of mingwex and mingw32 during package build -
-    that leaves pow function reference unresolved. pow reference gets
-    resolved as final executable is built, by having both internal and
-    external linker use mingwex and mingw32 libraries.
+    $ go test -bench=CompressedZipGarbage -count=5 -run=NONE archive/zip
+    BenchmarkCompressedZipGarbage-8        50  20677087 ns/op   42973 B/op      47 allocs/op
+    BenchmarkCompressedZipGarbage-8       100  20584764 ns/op   24294 B/op      47 allocs/op
+    BenchmarkCompressedZipGarbage-8        50  20859221 ns/op   42973 B/op      47 allocs/op
+    BenchmarkCompressedZipGarbage-8       100  20901176 ns/op   24294 B/op      47 allocs/op
+    BenchmarkCompressedZipGarbage-8        50  21282409 ns/op   42973 B/op      47 allocs/op
     
-    Fixes #8756
+    The B/op number is effectively meaningless. There
+    is a surprisingly large one-time cost that gets
+    divided by the number of iterations that your
+    machine can get through in a second.
     
-    Change-Id: I50ddc79529ea5463c67118d668488345ecf069bc
-    Reviewed-on: https://go-review.googlesource.com/26670
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL discards the first run, which helps.
+    It is not a panacea. Running with -benchtime=10s
+    will allow the sync.Pool to be emptied,
+    which brings the problem back.
+    However, since there are more iterations to divide
+    the cost through, it’s not quite as bad,
+    and running with a high benchtime is rare.
+    
+    This CL changes the meaning of the B/op number,
+    which is unfortunate, since it won’t have the
+    same order of magnitude as previous Go versions.
+    But it wasn’t really comparable before anyway,
+    since it didn’t have any reliable meaning at all.
+    
+    After this CL:
+    
+    $ go test -bench=CompressedZipGarbage -count=5 -run=NONE archive/zip
+    BenchmarkCompressedZipGarbage-8              100          20881890 ns/op            5616 B/op         47 allocs/op
+    BenchmarkCompressedZipGarbage-8               50          20622757 ns/op            5616 B/op         47 allocs/op
+    BenchmarkCompressedZipGarbage-8               50          20628193 ns/op            5616 B/op         47 allocs/op
+    BenchmarkCompressedZipGarbage-8              100          20756612 ns/op            5616 B/op         47 allocs/op
+    BenchmarkCompressedZipGarbage-8              100          20639774 ns/op            5616 B/op         47 allocs/op
+    
+    Change-Id: Iedee04f39328974c7fa272a6113d423e7ffce50f
+    Reviewed-on: https://go-review.googlesource.com/22585
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/cgo_test.go            |  1 +
- misc/cgo/test/issue8756.go           | 17 ++++++++++
- misc/cgo/test/issue8756/issue8756.go | 11 ++++++
- src/cmd/go/build.go                  |  7 ----
- src/cmd/link/internal/ld/lib.go      | 65 ++++++++++++++++++++++++++----------
- 5 files changed, 76 insertions(+), 25 deletions(-)
+ src/archive/zip/writer_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,13 +1,14 @@
-commit 17ca32e9db2f58a6ed431c4502f6ab031147673f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 9 11:44:28 2011 -0400
+commit 3a0a86888a0bd371931a10493a7c5b25e6774085
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 9 17:47:01 2011 +1000
 
-    gc: nits
+    AC: s/Jeffrey M Hodges/Jeff Hodges/
+    Formality rejected.
     
-    R=ken2
+    R=jeff
     CC=golang-dev
-    https://golang.org/cl/4572052
+    https://golang.org/cl/4591057
 
- src/cmd/gc/pgen.c  | 6 ++----
- src/cmd/gc/print.c | 4 ++++
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

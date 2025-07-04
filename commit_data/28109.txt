@@ -1,21 +1,14 @@
-commit db1fef7b2afd12625e3edd90f879e5d05511d1d6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 10 17:51:27 2016 -0700
+commit c884f6594a594d2d18c4d21106592bd3cdfcbe9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 28 22:04:30 2016 -0500
 
-    cmd/go: for -msan build runtime/cgo with -fsanitize=memory
+    context: produce a nicer panic message for a nil WithValue key
     
-    The go tool used to avoid passing -fsanitize=memory when building
-    runtime/cgo. That was originally to avoid an msan error, but that error
-    was fixed anyhow for issue #13815. And building runtime/cgo with
-    -fsanitize=memory corrects the handling of the context traceback
-    function when the traceback function itself is built with
-    -fsanitize=memory.
-    
-    Change-Id: I4bf5c3d21de6b2eb540600435ae47f5820d17464
-    Reviewed-on: https://go-review.googlesource.com/24855
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e8ae403622ba7131cadaba506100d79613183f1
+    Reviewed-on: https://go-review.googlesource.com/22601
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/context/context.go      | 3 +++
+ src/context/context_test.go | 4 ++++
+ 2 files changed, 7 insertions(+)

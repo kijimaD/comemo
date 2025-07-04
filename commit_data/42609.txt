@@ -1,18 +1,20 @@
-commit 72735e7e05a79dd9272659e3095aa754c741a54e
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Thu Jul 9 09:55:49 2020 -0600
+commit 37981da9a4c649fe0570c84e78d9bf38a0bb90f0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:32:52 2020 +1100
 
-    doc/go1.15: add line for testing streaming change
+    cmd/vendor: cherry pick asm_linux_riscv64.s for x/sys/unix
     
-    Updates #37419.
-    Updates #38458.
-    Updates #24929.
+    Manually cherry pick asm_linux_riscv64.s from x/sys/unix rev 4c3a92842,
+    as needed for the linux/riscv64 port.
     
-    Change-Id: I793bb20fa9db4432fc3a5b69956b7108e4695081
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241660
-    Run-TryBot: Jean de Klerk <deklerk@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Normally this would be a vendor update, however this is significantly
+    more risky at this point in time - a full update can be done post release.
+    
+    Updates #27532
+    
+    Change-Id: I03bb191bc44dcd24b9a29243957b88d7a9091852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216260
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ .../golang.org/x/sys/unix/asm_linux_riscv64.s      | 54 ++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

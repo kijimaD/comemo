@@ -1,22 +1,12 @@
-commit 645c661a54e35cf0e4ee7fb480b00a4b4d2b1ba0
-Author: griesemer <gri@golang.org>
-Date:   Wed Oct 11 16:57:39 2017 -0700
+commit 8cb40fa4215c736aed011fe8b580ade7150acffa
+Author: Adam Kisala <adam.kisala@gmail.com>
+Date:   Sat Jul 15 19:27:56 2017 +0100
 
-    cmd/compile/internal/syntax: factor out list parsing
+    strconv: adds missing comment to neg flag, formats comment on trunc flag
     
-    Instead of repeating the same list parsing pattern for parenthesized
-    of braced comma or semicolon-separated lists, introduce a single list
-    parsing function that can be parametrized and which takes a closure
-    to parse list elements.
-    
-    This ensures the same error handling and recovery logic is used across
-    all lists and simplifies the code.
-    
-    No semantic change.
-    
-    Change-Id: Ia738d354d6c2e0c3d84a5f1c7269a6eb95685edc
-    Reviewed-on: https://go-review.googlesource.com/70492
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibdd57489543d57a24d1e3c41210abd9fbc930b8f
+    Reviewed-on: https://go-review.googlesource.com/48867
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 141 ++++++++++++------------------
- 1 file changed, 58 insertions(+), 83 deletions(-)
+ src/strconv/decimal.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,32 @@
-commit 80e7dddffafa6c5eb8e98d642b87546eb8e445ab
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Apr 15 16:29:43 2016 +1000
+commit afd835434c34178eb8b8b8a89a7a41f5ec35c47c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 27 08:33:14 2016 -0900
 
-    compress/flate: fix a fmt.Fprintf style nit in a test.
+    cmd/link: deduplicate read-only string data
     
-    It's not a big deal (the for loop drops from 130-ish to 120-ish
-    milliseconds for me) but it's not a big change either.
+    Many read-only strings in Go binaries are substrings of other read-only
+    strings. A common source is the text form of type information, which
+    will include both "struct { X int }" and "*struct { X int }" or
+    "*bytes.Reader" and "func(*bytes.Reader)" in the same binary.
     
-    Change-Id: I161a49caab5cae5a2b87866ed1dfb93627be8013
-    Reviewed-on: https://go-review.googlesource.com/22110
-    Reviewed-by: Klaus Post <klauspost@gmail.com>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Because this character data is referred to by separate string headers,
+    we can skip writing the smaller string and modify the pointer
+    relocation to point to the larger string. This CL does this
+    deduplication in the linker after the reachable set of strings has
+    been determined.
+    
+    This removes 765KB from juju (1.4% without DWARF).
+    
+    Link time goes at tip goes form 4.6s to 6.3s, but note that this CL
+    is part of a series that recently reduced link time from 9.6s.
+    
+    For #6853.
+    
+    Change-Id: Ib2087cf627c9f1e9a1181f9b4c8f81d1a3f42191
+    Reviewed-on: https://go-review.googlesource.com/19987
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/flate/writer_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/mergestrings.go | 91 +++++++++++++++++++++++++++++++-
+ 1 file changed, 90 insertions(+), 1 deletion(-)

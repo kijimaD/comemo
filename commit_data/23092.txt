@@ -1,15 +1,16 @@
-commit c013417a45fbf950e8eb5a5e2ae37d2219c9e1d8
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue May 19 02:48:15 2015 -0400
+commit 80f575b78fceeba3ab5ec5a5f08b26725734b341
+Author: Aamir Khan <syst3m.w0rm@gmail.com>
+Date:   Wed Apr 22 19:24:48 2015 +0900
 
-    misc/cgo/testshared: when checking for RPATHs also look for DT_RUNPATH
+    hash/crc32: clarify documentation
     
-    On my systems, ld -rpath sets DT_RUNPATH instead of DT_RPATH.
+    Explicitly specify that we represent polynomial in reversed notation
     
-    Change-Id: I5047e795fb7ef9336f5fa13ba24bb6245c0b0582
-    Reviewed-on: https://go-review.googlesource.com/10260
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #8229
+    
+    Change-Id: Idf094c01fd82f133cd0c1b50fa967d12c577bdb5
+    Reviewed-on: https://go-review.googlesource.com/9237
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/testshared/shared_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/hash/crc32/crc32.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

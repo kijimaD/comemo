@@ -1,21 +1,20 @@
-commit c193279e2c9e62e8ddc0893484251b4411461d62
-Author: Chris Waldon <christopher.waldon.dev@gmail.com>
-Date:   Sun Nov 29 23:58:29 2020 +0000
+commit 3e8975172f0cf72be89d5bbeb46dd3084faa9b06
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 25 14:17:10 2020 -0400
 
-    os: return proper user directories on iOS
+    [dev.link] cmd/link: convert dwarfcompress to using the loader
     
-    Separating iOS into its own runtime constant broke the logic
-    here to derive the correct home, cache, and config directories
-    on iOS devices.
-    
-    Fixes #42878
-    
-    Change-Id: Ie4ff57895fcc34b0a9af45554ea3a346447d2e7a
-    GitHub-Last-Rev: 5e74e64917fa46e9c6e0d963cab5194ab89e2f64
-    GitHub-Pull-Request: golang/go#42879
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273947
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I34f806b54e8e0985a30ef38ea4324352aabfc845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229995
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/os/file.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 654 ++++++++++++++++++-------------------
+ src/cmd/link/internal/ld/data2.go  | 443 +++++++++++++++++++++++++
+ src/cmd/link/internal/ld/dwarf2.go |  59 ++--
+ src/cmd/link/internal/ld/errors.go |  50 ++-
+ src/cmd/link/internal/ld/lib.go    |   2 +-
+ src/cmd/link/internal/ld/main.go   |   4 +-
+ 6 files changed, 839 insertions(+), 373 deletions(-)

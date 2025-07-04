@@ -1,19 +1,23 @@
-commit ab28b834c4a38bd2295ee43eca4f9e38c28d54a2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 16 13:12:10 2023 +0100
+commit 8619d3b2ec5d23d39acb4968ce7938230e0728ad
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 25 12:25:59 2022 -0400
 
-    cmd/go/internal/lockedfile/internal/filelock: re-use filelock_other.go for plan9
+    runtime: fix stack-move sensitivity in some tests
     
-    The implementation for lockType, lock, unlock and isNotSupported is the
-    same on plan9 as on other platforms where filelocks are unsupported.
+    There are a few tests of the scheduler run queue API that allocate a
+    local []g and test using those G's. However, the run queue API
+    frequently converts between *g and guintptr, which is safe for "real"
+    Gs because they're heap-allocated and hence don't move, but if these
+    tests get a stack movement while holding one of these local *g's as a
+    guintptr, it won't get updated and the test will fail.
     
-    Change-Id: I8b9c0bdc429e23346ab9145ec3814622319427fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476915
+    Updates #48297.
+    
+    Change-Id: Ifd424147ce1a1b53732ff0cf55a81df1a9beeb3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402157
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .../lockedfile/internal/filelock/filelock_other.go |  2 +-
- .../lockedfile/internal/filelock/filelock_plan9.go | 36 ----------------------
- 2 files changed, 1 insertion(+), 37 deletions(-)
+ src/runtime/export_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

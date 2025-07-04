@@ -1,22 +1,19 @@
-commit 618bfb28dc02c410659312f38cd3500352ba15ed
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Thu Aug 23 14:01:59 2018 +0200
+commit 78cb5d7a68f994978b1520baf724c8a7008a97c0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed May 2 23:26:58 2018 +0200
 
-    cmd/link: move type name mangling after deadcode elimination
+    misc/ios: retry app install
     
-    Moves type name mangling after deadcode elimination. The motivation for
-    doing this is to create a space between deadcode elimination and type name
-    mangling where DWARF generation for types and variables can exist, to fix
-    issue #23733.
+    Sometimes ideviceinstaller fails to install the app. Retry a few
+    times before giving up.
     
-    Change-Id: I9db8ecc0f4efe3df6c1e4025f02642fd452f9a39
-    Reviewed-on: https://go-review.googlesource.com/111236
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    For the iOS builder.
+    
+    Change-Id: Ib066ffd4f97ae8d22c0fa9a78ea4d04f67c17410
+    Reviewed-on: https://go-review.googlesource.com/111055
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go      | 45 ++++++++++++++++--------------------
- src/cmd/link/internal/ld/main.go     |  1 +
- src/cmd/link/internal/sym/symbols.go | 10 +++++++-
- 3 files changed, 30 insertions(+), 26 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

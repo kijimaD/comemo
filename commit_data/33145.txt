@@ -1,25 +1,16 @@
-commit 47193dcc0c91a6e1a2d6f58d55b123fa626c19d6
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Oct 14 14:02:05 2017 +0000
+commit 91afca94e07aa1366afba9ece04c2def9f99d4c4
+Author: closs <the.cody.oss@gmail.com>
+Date:   Sat Jul 15 16:07:30 2017 -0600
 
-    cmd/internal/obj/arm: better solution of .S/.P/.U/.W suffix check
+    ast: make ExampleCommentMap a runnable example
     
-    Current suffix check is based on instruction, which is not very
-    accurate. For example, "MOVW.S R1, R2" is valid, but
-    "MOVW.S $0xaaaaaaaa, R1" and "MOVW.P CPSR, R9" are not.
+    Fixes #20450
     
-    This patch fixes the above kinds of issues by checking suffix
-    based on []optab. And also more test cases are added.
-    
-    fixes #20509
-    
-    Change-Id: Ibad91be72c78eefa719412a83b4d44370d2202a8
-    Reviewed-on: https://go-review.googlesource.com/70910
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2256282a8880e99508e98fefedfb94a7cccacbcf
+    Reviewed-on: https://go-review.googlesource.com/48969
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm.s      |  13 +-
- src/cmd/asm/internal/asm/testdata/armerror.s |  97 ++++-
- src/cmd/internal/obj/arm/asm5.go             | 574 ++++++++++++---------------
- 3 files changed, 361 insertions(+), 323 deletions(-)
+ src/go/ast/example_test.go | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)

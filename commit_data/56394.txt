@@ -1,26 +1,20 @@
-commit 11047345f53fb1484e76fd59d6e044c219d204e5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 24 15:50:43 2024 +0000
+commit 1e51b1fac3b65562ed4d6cf357f96665da55fed1
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 30 11:11:39 2023 -0500
 
-    runtime: remove allocfreetrace
+    runtime/cgo: preserve nonvolatile VRs when crosscalling into Go on PPC64
     
-    allocfreetrace prints all allocations and frees to stderr. It's not
-    terribly useful because it has a really huge overhead, making it not
-    feasible to use except for the most trivial programs. A follow-up CL
-    will replace it with something that is both more thorough and also lower
-    overhead.
+    ELFv1 and ELFv2 declare V20-V31 as nonvolatile (callee save) registers.
+    Go does not. Preserve them before calling into Go.
     
-    Change-Id: I1d668fee8b6aaef5251a5aea3054ec2444d75eb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583376
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If60a6d8f71b51b1136a86eab2b90d964900becd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480657
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/arena.go    |  4 ----
- src/runtime/extern.go   |  3 ---
- src/runtime/malloc.go   |  4 ----
- src/runtime/mgc.go      |  4 ----
- src/runtime/mgcsweep.go |  8 ++-----
- src/runtime/mprof.go    | 58 -------------------------------------------------
- src/runtime/runtime1.go | 10 ++++-----
- 7 files changed, 6 insertions(+), 85 deletions(-)
+ src/runtime/cgo/asm_ppc64x.s | 112 ++++---------------------------------------
+ 1 file changed, 9 insertions(+), 103 deletions(-)

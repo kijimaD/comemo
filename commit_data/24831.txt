@@ -1,16 +1,24 @@
-commit eebf7d279bd2991d54f18a629d4f3c32d7a58f2b
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:33:31 2015 -0400
+commit d737639c4acce7c9f28de22eabfd623d0ae7ed50
+Author: Chris Hines <chris.cs.guy@gmail.com>
+Date:   Mon Aug 24 21:48:39 2015 -0400
 
-    net/http: fixed TestLinuxSendfile for mips64
+    database/sql: close bad connections in commit or rollback:
     
-    mips64 strace doesn't support sendfile64 and will error out if we
-    specify that with `-e trace='. So we use sendfile for mips64 here.
+    Previously Tx.close always passed a nil error to tx.db.putConn. As a
+    result bad connections were reused, even if the driver returned
+    driver.ErrBadConn. Adding an err parameter to Tx.close allows it to
+    receive the driver error from Tx.Commit and Tx.Rollback and pass it
+    to tx.db.putConn.
     
-    Change-Id: If5e2bb39866ca3a77dcc40e4db338ba486921d89
-    Reviewed-on: https://go-review.googlesource.com/14455
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #11264
+    
+    Change-Id: I142b6b2509fa8d714bbc135cef7281a40803b3b8
+    Reviewed-on: https://go-review.googlesource.com/13912
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/fs_test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/database/sql/fakedb_test.go | 12 +++++++
+ src/database/sql/sql.go         |  8 ++---
+ src/database/sql/sql_test.go    | 71 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 4 deletions(-)

@@ -1,21 +1,37 @@
-commit 62ff72d87669b85f89417186bd79ad31aa0c3055
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 13 15:39:20 2020 -0500
+commit a0894ea5b5c326f1ddc7c4c6674d5858f8761dc8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 17:21:50 2019 -0700
 
-    cmd/go: convert TestLinkXImportPathEscape to the script framework
+    cmd/compile: reimplement parameter leak encoding
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Currently, escape analysis is able to record at most one dereference
+    when a parameter leaks to the heap; that is, at call sites, it can't
+    distinguish between any of these three functions:
     
-    Updates #36320
-    Updates #17751
+        func x1(p ****int) { sink = *p }
+        func x2(p ****int) { sink = **p }
+        func x3(p ****int) { sink = ***p }
     
-    Change-Id: Ib386838081abad8bc6b01c1f0a4656553d0b6ff3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214579
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Similarly, it's limited to recording parameter leaks to only the first
+    4 parameters, and only up to 6 dereferences.
+    
+    All of these limitations are due to the awkward encoding scheme used
+    at the moment.
+    
+    This CL replaces the encoding scheme with a simple [8]uint8 array,
+    which can handle up to the first 7 parameters, and up to 254
+    dereferences, which ought to be enough for anyone. And if not, it's
+    much more easily increased.
+    
+    Shrinks export data size geometric mean for Kubernetes by 0.07%.
+    
+    Fixes #33981.
+    
+    Change-Id: I10a94b9accac9a0c91490e0d6d458316f5ca1e13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197680
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go                              | 44 ----------------------
- .../script/build_link_x_import_path_escape.txt     | 18 +++++++++
- src/cmd/go/testdata/src/my.pkg/main/main.go        |  7 ----
- src/cmd/go/testdata/src/my.pkg/pkg.go              |  3 --
- 4 files changed, 18 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/gc/esc.go    |  83 ++------------------
+ src/cmd/compile/internal/gc/escape.go | 139 +++++++++++++++-------------------
+ test/escape_param.go                  |   2 +-
+ 3 files changed, 67 insertions(+), 157 deletions(-)

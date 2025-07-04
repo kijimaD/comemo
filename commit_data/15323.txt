@@ -1,15 +1,16 @@
-commit 06a488fa97445414b727c5a7f1825e81e6c671ea
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 20 12:15:02 2013 +0400
+commit 92ab6fb4e1e994c951749e4ed82c88d99bd10f0c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 19 22:40:54 2013 -0800
 
-    runtime: fix deadlock detector false negative
-    Fixes #4819.
+    doc: fix old broken link
     
-    R=golang-dev, rsc
+    The Camlistore code tree rearranged after the go tool came
+    out. (I didn't know this link was here until I saw it in
+    some logs.)
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/7322086
+    https://golang.org/cl/7374043
 
- src/pkg/runtime/crash_cgo_test.go |   2 +-
- src/pkg/runtime/crash_test.go     | 113 +++++++++++++++++++++++++++++++++-----
- src/pkg/runtime/proc.c            |   7 +--
- 3 files changed, 103 insertions(+), 19 deletions(-)
+ doc/articles/error_handling.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

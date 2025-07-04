@@ -1,12 +1,34 @@
-commit c86dbbe1b989a05381d2635c97566d3e7b06eb62
-Author: kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Sun Feb 28 14:55:29 2016 +1030
+commit f25f6eab0cb732d24759b2e166a9a644ae96dffe
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Sep 19 16:43:43 2015 +0300
 
-    misc/cgo/fortran: clean up after successful helloworld.90 build
+    syscall: route_freebsd switch routing socket sysctl to use NET_RT_IFLISTL
     
-    Change-Id: If03185a21e088c9b383a82c14d649805f00c8042
-    Reviewed-on: https://go-review.googlesource.com/20000
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Switch IfMsghdr and IfaMsghdr to their 'l' variants, make the IfData layout
+    to be based on FreeBSD-11.0 (freebsdVersion >= 1100011).
+    Using freebsdVersion, detect the appropriate layout at runtime and decode
+    routing socket messages into the new IfData layout.
+    
+    Fixes #11641
+    
+    Change-Id: Ic7ec550f00c0d15f46a36f560d835e4f138f61e1
+    Reviewed-on: https://go-review.googlesource.com/14757
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/fortran/test.bash | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/interface_bsd.go             |   4 +-
+ src/net/interface_darwin.go          |   2 +
+ src/net/interface_dragonfly.go       |   4 +
+ src/net/interface_freebsd.go         |   2 +
+ src/net/interface_netbsd.go          |   4 +
+ src/net/interface_openbsd.go         |   4 +
+ src/syscall/route_bsd_test.go        |   7 +-
+ src/syscall/route_freebsd.go         | 123 +++++++++++++++++++-
+ src/syscall/route_freebsd_32bit.go   |  15 ---
+ src/syscall/route_freebsd_64bit.go   |   5 -
+ src/syscall/syscall_freebsd_386.go   |   6 +
+ src/syscall/syscall_freebsd_amd64.go |   6 +
+ src/syscall/syscall_freebsd_arm.go   |   6 +
+ src/syscall/types_freebsd.go         | 217 +++++++++++++++++++++++++++--------
+ src/syscall/ztypes_freebsd_386.go    | 167 +++++++++++++++++----------
+ src/syscall/ztypes_freebsd_amd64.go  | 168 +++++++++++++++++----------
+ 16 files changed, 542 insertions(+), 198 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39128: db2bf154cc06fe67c79164f225592b06660fa02c
+# Index 39128: 86e31bc5fdde06d406b95cf8b5971755c78ec549
 
 echo "🚀 Generating explanation for commit 39128..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 39128
-- **コミットハッシュ**: db2bf154cc06fe67c79164f225592b06660fa02c
-- **GitHub URL**: https://github.com/golang/go/commit/db2bf154cc06fe67c79164f225592b06660fa02c
+- **コミットハッシュ**: 86e31bc5fdde06d406b95cf8b5971755c78ec549
+- **GitHub URL**: https://github.com/golang/go/commit/86e31bc5fdde06d406b95cf8b5971755c78ec549
 
 ### 章構成
 

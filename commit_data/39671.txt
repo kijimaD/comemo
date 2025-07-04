@@ -1,25 +1,19 @@
-commit 22355d6cd2421f13e560f90e77ca04ef816456da
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Aug 7 05:20:32 2019 +0000
+commit af13cfc3a21a56e50f651dd9c1edcb6d30fc6e45
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 16:28:03 2019 -0400
 
-    cmd/compile: optimize 386's math.bits.TrailingZeros16
+    ../test: set GOPATH in nosplit.go
     
-    This CL optimizes math.bits.TrailingZeros16 on 386 with
-    a pair of BSFL and ORL instrcutions.
+    This test invokes 'go build', so in module mode it needs a module
+    cache to guard edits to go.mod.
     
-    The case TrailingZeros16-4 of the benchmark test in
-    math/bits shows big improvement.
-    name               old time/op  new time/op  delta
-    TrailingZeros16-4  1.55ns ± 1%  0.87ns ± 1%  -43.87%  (p=0.000 n=50+49)
+    Fixes #30776
     
-    Change-Id: Ia899975b0e46f45dcd20223b713ed632bc32740b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189277
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I89ebef1fad718247e7f972cd830e31d6f4a83e4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167085
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go         |  2 +-
- src/cmd/compile/internal/ssa/gen/386.rules |  2 ++
- src/cmd/compile/internal/ssa/rewrite386.go | 18 ++++++++++++++++++
- test/codegen/mathbits.go                   |  1 +
- 4 files changed, 22 insertions(+), 1 deletion(-)
+ test/nosplit.go | 1 +
+ 1 file changed, 1 insertion(+)

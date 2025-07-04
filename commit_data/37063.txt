@@ -1,33 +1,15 @@
-commit 13d5cd784748f8849c75ec23ed6e3d40dc7d2ce7
-Author: ChrisALiles <caveryliles@gmail.com>
-Date:   Mon Aug 6 19:50:38 2018 +1000
+commit 899e0e35253e8463ca74d75638c07bd54dca251c
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Jun 22 14:25:08 2018 -0400
 
-    cmd/compile: use proved bounds to remove signed division fix-ups
+    api: promote next to go1.11
     
-    prove is able to find 94 occurrences in std cmd where a divisor
-    can't have the value -1. The change removes
-    the extraneous fix-up code for these cases.
-    
-    Fixes #25239
-    
-    Change-Id: Ic184de971f47cc57c702eb72805b8e291c14035d
-    Reviewed-on: https://go-review.googlesource.com/c/130215
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib8fa0a12363993033201ff707c315f4030811f89
+    Reviewed-on: https://go-review.googlesource.com/120595
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go              | 85 ++++++++++++----------
- src/cmd/compile/internal/gc/testdata/arith_test.go | 36 +++++++++
- src/cmd/compile/internal/ssa/gen/386.rules         |  8 +-
- src/cmd/compile/internal/ssa/gen/386Ops.go         | 19 ++---
- src/cmd/compile/internal/ssa/gen/AMD64.rules       |  4 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  8 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go     | 15 ++--
- src/cmd/compile/internal/ssa/opGen.go              | 13 ++++
- src/cmd/compile/internal/ssa/prove.go              | 23 ++++++
- src/cmd/compile/internal/ssa/rewrite.go            | 10 +++
- src/cmd/compile/internal/ssa/rewrite386.go         | 24 ++++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 36 ++++++---
- src/cmd/compile/internal/x86/ssa.go                | 33 +++++----
- test/codegen/arithmetic.go                         | 81 +++++++++++++++++++++
- 14 files changed, 298 insertions(+), 97 deletions(-)
+ api/go1.11.txt | 546 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 546 insertions(+)

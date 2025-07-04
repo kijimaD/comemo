@@ -1,16 +1,22 @@
-commit 99df7c9caa19d99747c4766be171c9487c9645cf
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Feb 6 11:03:58 2017 +0000
+commit 5915ce66742415d96d5a082c41d31f965b719f26
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 4 16:22:41 2016 -0400
 
-    cmd/link, crypto/tls: don't use append loops
+    runtime: use len(h.spans) to indicate mapped region
     
-    Change-Id: Ib47e295e8646b769c30fd81e5c7f20f964df163e
-    Reviewed-on: https://go-review.googlesource.com/36335
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently we set the len and cap of h.spans to the full reserved
+    region of the address space and track the actual mapped region
+    separately in h.spans_mapped. Since we have both the len and cap at
+    our disposal, change things so len(h.spans) tracks how much of the
+    spans array is mapped and eliminate h.spans_mapped. This simplifies
+    mheap and means we'll get nice "index out of bounds" exceptions if we
+    do try to go off the end of the spans rather than a SIGSEGV.
+    
+    Change-Id: I8ed9a1a9a844d90e9fd2e269add4704623dbdfe6
+    Reviewed-on: https://go-review.googlesource.com/30533
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 4 +---
- src/crypto/tls/common.go             | 4 +---
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/runtime/mheap.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

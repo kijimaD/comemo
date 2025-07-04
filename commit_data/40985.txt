@@ -1,25 +1,23 @@
-commit c39cd41e5e0c8cdbc910e0e0214a360ec7829c07
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 11 12:14:31 2019 -0500
+commit e7a4ab427d0df0f1b18c5899552bed6e3bc75266
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Jun 13 10:29:39 2019 +0530
 
-    cmd/go: restore default vet analyzers for targets in GOROOT
+    net/http/httputil: fix goroutine leak for DumpRequestOut
     
-    This fixes a regression introduced in CL 209498,
-    found while investigating #32471.
+    When an invalid URL was passed to DumpRequestOut, it would directly return
+    without gracefully shutting down the reader goroutine.
     
-    Also fix $WORK replacement in cmd/go/internal/work.(*Builder).Showcmd
-    when b.WorkDir includes a backslash and appears in a quoted string.
-    That fix is needed in order to write a precise test that passes under Windows,
-    since Windows directories nearly always include backslashes.
+    So we create a channel and signal the reader goroutine to exit
+    if an error occurs during roundtrip.
     
-    Updates #35837
+    Fixes #32571
     
-    Change-Id: I5fddc5435d5d283a3e598989209d873b59b0a39c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210937
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I8c2970f1601e599f3d1ebfed298faf5f5716fc2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182037
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/vet/vet.go           |  1 +
- src/cmd/go/internal/work/exec.go         |  7 +++++-
- src/cmd/go/testdata/script/vet_flags.txt | 38 +++++++++++++++++++++++++++-----
- 3 files changed, 39 insertions(+), 7 deletions(-)
+ src/net/http/httputil/dump.go      | 11 ++++++++++-
+ src/net/http/httputil/dump_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

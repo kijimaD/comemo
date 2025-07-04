@@ -1,20 +1,14 @@
-commit e32d1154ec3176a81659720c1ca665e68ac95c42
-Author: Georg Reinke <guelfey@gmail.com>
-Date:   Thu Jan 10 17:04:55 2013 -0800
+commit 9204eb4d3ce3ba49cce7d24f4e373d230f865848
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Jan 10 15:45:46 2013 -0500
 
-    syscall: implement Pipe2 on Linux and use it in ForkExec
+    runtime: interpret type information during garbage collection
     
-    Fixes #2656.
-    
-    R=golang-dev, bradfitz, iant, minux.ma
+    R=rsc, dvyukov, remyoudompheng, dave, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7062057
+    https://golang.org/cl/6945069
 
- src/pkg/syscall/exec_bsd.go             | 14 ++++++++++++++
- src/pkg/syscall/exec_linux.go           | 17 +++++++++++++++++
- src/pkg/syscall/exec_unix.go            |  8 +-------
- src/pkg/syscall/syscall_linux.go        | 12 ++++++++++++
- src/pkg/syscall/zsyscall_linux_386.go   | 10 ++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 10 ++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 10 ++++++++++
- 7 files changed, 74 insertions(+), 7 deletions(-)
+ src/pkg/runtime/malloc.h |   1 +
+ src/pkg/runtime/mgc0.c   | 259 ++++++++++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/mgc0.go  |   5 +
+ 3 files changed, 228 insertions(+), 37 deletions(-)

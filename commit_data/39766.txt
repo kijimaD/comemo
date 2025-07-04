@@ -1,26 +1,14 @@
-commit 85f3ca74882703042bcc2f17353eda192d649920
-Author: William Poussier <william.poussier@gmail.com>
-Date:   Sun Sep 1 15:38:31 2019 +0000
+commit faa7fa03b1e694258d40f8f62076dd96843b861e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:49:22 2019 +0100
 
-    encoding/json: fix panic for nil instances of TextMarshaler in map keys
+    cmd/internal/goobj: add XCOFF support to TestParseCGOArchive
     
-    This change adds a a check in the encodeWithString.resolve method
-    to ensure that a reflect.Value with kind Ptr is not nil before
-    the type assertion to TextMarshaler.
-    
-    If the value is nil, the method returns a nil error, and the map key
-    encodes to an empty string.
-    
-    Fixes #33675
-    
-    Change-Id: I0a04cf690ae67006f6a9c5f8cbb4cc99d236bca8
-    GitHub-Last-Rev: 6c987c90846f854e21814dbfb3a073605ec8a94c
-    GitHub-Pull-Request: golang/go#33700
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190697
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I9d14142977b4f2e8cb7ed33582249d0448bae023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164016
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/encode.go      |  3 +++
- src/encoding/json/encode_test.go | 15 +++++++++++++++
- 2 files changed, 18 insertions(+)
+ src/cmd/internal/goobj/goobj_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

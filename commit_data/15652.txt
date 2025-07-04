@@ -1,12 +1,36 @@
-commit 30b89a84acc86fbb6c69b053eb00ce155084d164
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 8 21:18:06 2013 -0800
+commit cd94cabad6091af76c2d4950f11442bdb40b7b46
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 20:22:38 2013 -0800
 
-    net: if accept4 returns EINVAL fall back to accept
+    cmd/ld: external linking fixes for linux/386
     
-    R=golang-dev, andybalholm, mikioh.mikioh
+    The sticking point on 386 has been the "PC relative" relocations
+    used to point the garbage collection metadata at the type info.
+    These aren't in the code segment, and I don't trust that the linker
+    isn't doing something special that would be okay in code but
+    not when interpreting the pointers as data (for example, a PLT
+    jump table would be terrible).
+    
+    Solve the problem in two steps:
+    
+    1. Handle "PC relative" relocations within a section internally,
+    so that the external linker never sees them.
+    
+    2. Move the gcdata and gcbss tables into the rodata section,
+    where the type information lives, so that the relocations can
+    be handled internally.
+    
+    (To answer the obvious question, we make the gc->type
+    references relative so that they need not be relocated
+    individually when generating a shared object file.)
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7485045
+    https://golang.org/cl/7629043
 
- src/pkg/net/sock_cloexec.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/data.c   | 63 +++++++++++++++--------------------------------------
+ src/cmd/ld/elf.c    |  4 +++-
+ src/cmd/ld/lib.c    |  2 --
+ src/cmd/ld/lib.h    |  2 --
+ src/cmd/ld/symtab.c |  6 ++---
+ 5 files changed, 22 insertions(+), 55 deletions(-)

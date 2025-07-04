@@ -1,22 +1,27 @@
-commit 679690f348a38591ccf180d9f699fc40a544e6af
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 11 11:03:25 2018 +1000
+commit 2013ad897dc26e413948d18138f50050857b141a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 27 08:14:53 2018 +0100
 
-    net: add TestSendfileParts
+    os, syscall: use pipe2 instead of pipe syscall on OpenBSD
     
-    Add test for freebsd issue #25809.
+    The pipe2 syscall is part of OpenBSD since version 5.7 and thus exists in
+    all officially supported versions.
     
-    This test also fails on my Windows 10 Version 1803.
-    My hope is that adding new test will break one of our builders.
+    Follows CL 38426 and CL 94035
     
-    Updates #25722
-    Updates #25809
-    
-    Change-Id: Ia103bc708b8fa3b9af57613acc44893f90b3fa18
-    Reviewed-on: https://go-review.googlesource.com/117775
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8f93ecbc89664241f1b6b0d069e948776941b1d0
+    Reviewed-on: https://go-review.googlesource.com/97356
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/sendfile_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 64 insertions(+)
+ src/os/pipe2_bsd.go                   |  2 +-
+ src/os/pipe_bsd.go                    |  2 +-
+ src/syscall/forkpipe.go               |  2 +-
+ src/syscall/forkpipe2.go              |  2 +-
+ src/syscall/syscall_openbsd.go        | 12 ++++++++----
+ src/syscall/zsyscall_openbsd_386.go   |  4 ++--
+ src/syscall/zsyscall_openbsd_amd64.go |  4 ++--
+ src/syscall/zsyscall_openbsd_arm.go   |  4 ++--
+ src/syscall/zsysnum_openbsd_386.go    |  1 +
+ src/syscall/zsysnum_openbsd_amd64.go  |  1 +
+ 10 files changed, 20 insertions(+), 14 deletions(-)

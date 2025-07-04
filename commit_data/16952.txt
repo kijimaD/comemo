@@ -1,26 +1,17 @@
-commit 441ef7978d262745fd275e29cede0522f88955d0
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jul 31 22:06:48 2013 +0200
+commit 98d94b589cfb03104c0bfd7d4e89b23b1d3ddf73
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 31 22:03:59 2013 +0400
 
-    crypto/des: faster permutation.
+    runtime: better debug output for inconsistent Note
+    Update #5139.
+    Double wakeup on Note was reported several times,
+    but no reliable reproducer.
+    There also was a strange report about weird value of epoll fd.
+    Maybe it's corruption of global data...
     
-    This patch introduces specialized functions for initial
-    and final permutations, and precomputes the output of the
-    third permutation on the S-box elements.
-    
-    benchmark           old ns/op    new ns/op    delta
-    BenchmarkEncrypt         3581         1226  -65.76%
-    BenchmarkDecrypt         3590         1224  -65.91%
-    
-    benchmark            old MB/s     new MB/s  speedup
-    BenchmarkEncrypt         2.23         6.52    2.92x
-    BenchmarkDecrypt         2.23         6.53    2.93x
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12072045
+    https://golang.org/cl/12182043
 
- src/pkg/crypto/des/block.go    | 123 +++++++++++++++++++++++++++++++++++++++--
- src/pkg/crypto/des/const.go    |  11 ++++
- src/pkg/crypto/des/des_test.go |  33 +++++++++++
- 3 files changed, 162 insertions(+), 5 deletions(-)
+ src/pkg/runtime/lock_futex.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

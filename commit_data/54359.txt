@@ -1,18 +1,26 @@
-commit 2f0b28da1900909a2c3ddf646bb508fc7effb8f2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 7 08:42:50 2023 +0100
+commit fce449680a241a283f7661edb94eef5427bf595c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 8 12:32:06 2022 +0700
 
-    fmt: adjust comment after CL 524940
+    cmd/compile: fix missing walk pass for static initialization slice
     
-    https://go.dev/cl/524940 swapped a call to Slice with Bytes,
-    but the comment below still referenced Slice.
+    CL 403995 fixed static init of literal contains dynamic exprs, by
+    ensuring their init are ordered properly. However, we still need to walk
+    the generated init codes before appending to parent init. Otherwise,
+    codes that requires desugaring will be unhandled, causing the compiler
+    backend crashing.
     
-    Change-Id: Iedc772e1c49c4108bcd06f4cea0e637f011d053c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526356
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: t hepudds <thepudds1460@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #56105
+    
+    Change-Id: Ic25fd4017473f5412c8e960a91467797a234edfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440455
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/fmt/print.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/complit.go |  1 +
+ test/fixedbugs/issue56105.go             | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

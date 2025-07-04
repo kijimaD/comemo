@@ -1,42 +1,16 @@
-commit f0d44dbeaf28d157f8eba85ec9f9bffdc84ce3e0
+commit f93e21ac24935304bf0e05ea6c7e36c56077011e
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 07:29:19 2014 -0400
+Date:   Fri Sep 5 14:38:29 2014 -0400
 
-    runtime: look up arg stackmap for makeFuncStub/methodValueStub during traceback
+    runtime: clean up sigqueue.go
     
-    makeFuncStub and methodValueStub are used by reflect as
-    generic function implementations. Each call might have
-    different arguments. Extract those arguments from the
-    closure data instead of assuming it is the same each time.
+    Minor changes to make logic clearer.
+    Observed while working on the conversion.
     
-    Because the argument map is now being extracted from the
-    function itself, we don't need the special cases in reflect.Call
-    anymore, so delete those.
-    
-    Fixes an occasional crash seen when stack copying does
-    not update makeFuncStub's arguments correctly.
-    
-    Will also help make it safe to require stack maps in the
-    garbage collector.
-    
-    Derived from CL 142000044 by khr.
-    
-    LGTM=khr
-    R=khr
+    LGTM=iant, dvyukov
+    R=dvyukov, iant
     CC=golang-codereviews
-    https://golang.org/cl/143890044
+    https://golang.org/cl/140250043
 
- src/reflect/all_test.go    | 25 ++++++++++++++
- src/reflect/asm_386.s      |  3 ++
- src/reflect/asm_amd64.s    |  7 ++--
- src/reflect/asm_amd64p32.s |  3 ++
- src/reflect/asm_arm.s      |  3 ++
- src/reflect/makefunc.go    | 17 +++++++---
- src/reflect/type.go        | 82 ++++++++++++++++++++++++++++++++++++++++++----
- src/reflect/value.go       | 31 ++----------------
- src/runtime/malloc.h       |  1 -
- src/runtime/mgc0.c         |  6 ++--
- src/runtime/runtime.h      |  2 ++
- src/runtime/stack.c        | 14 +++++---
- src/runtime/traceback.go   | 16 +++++++++
- 13 files changed, 161 insertions(+), 49 deletions(-)
+ src/pkg/runtime/sigqueue.go | 112 +++++++++++++++++++++-----------------------
+ 1 file changed, 53 insertions(+), 59 deletions(-)

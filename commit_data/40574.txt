@@ -1,32 +1,23 @@
-commit 383b447e0da5bd1fcdc2439230b5a1d3e3402117
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 28 16:44:07 2019 +0000
+commit 220552f6624f530079b81ba866cd1ffb2f240370
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Tue May 28 21:51:54 2019 +0100
 
-    runtime: clean up power-of-two rounding code with align functions
+    net/http: enable WASM fetch where supported
     
-    This change renames the "round" function to the more appropriately named
-    "alignUp" which rounds an integer up to the next multiple of a power of
-    two.
+    The existing check was introduced to allow tests to pass
+    on WASM without an environment where the fetch RoundTripper
+    could run. However, the check now prohibits the use of the
+    Fetch RoundTripper in all WASM tests, even where the
+    RoundTripper could run. The new change should only disable
+    the RoundTripper when used in an environment without fetch.
     
-    This change also adds the alignDown function, which is almost like
-    alignUp but rounds down to the previous multiple of a power of two.
+    Fixes #32289
     
-    With these two functions, we also go and replace manual rounding code
-    with it where we can.
-    
-    Change-Id: Ie1487366280484dcb2662972b01b4f7135f72fec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190618
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I30d2e0dbcb0e64d4b1a46b583f7e984c2a57d5e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179118
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go |  3 ++-
- src/runtime/malloc.go                   | 22 +++++++++++-----------
- src/runtime/mem_linux.go                |  8 ++++----
- src/runtime/mfinal.go                   |  4 ++--
- src/runtime/mheap.go                    | 20 ++++++++++----------
- src/runtime/msize.go                    |  2 +-
- src/runtime/race.go                     |  2 +-
- src/runtime/stack.go                    |  2 +-
- src/runtime/stubs.go                    |  9 +++++++--
- src/runtime/trace.go                    |  2 +-
- 10 files changed, 40 insertions(+), 34 deletions(-)
+ src/net/http/roundtrip_js.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

@@ -1,12 +1,13 @@
-commit 034711ed763339e4a9bc068fba09d0441fde348f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Aug 1 14:20:02 2011 -0700
+commit 6ed27d4770c8141e31c665089772090117c32b97
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Aug 1 09:03:35 2011 -0700
 
-    tag release.r59
+    exp/template: make index function on maps return zero value when key not present.
     
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4841044
+    https://golang.org/cl/4808065
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/exec_test.go | 2 +-
+ src/pkg/exp/template/funcs.go     | 7 ++++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

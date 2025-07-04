@@ -1,13 +1,14 @@
-commit 7eaecb89157f8e9bd9abaacf74a9a7084acf36fb
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Mar 1 22:38:18 2011 +1100
+commit 4b0ecd3f49bc003ec19df69be51eee585032d30a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 1 21:35:46 2011 +1100
 
-    http: export parseHTTPVersion.
+    doc: add FAQ about large binaries and stack vs heap allocation
+    doc: add internationalization to roadmap
     
-    R=rsc, adg
+    R=rsc, r, r2
     CC=golang-dev
-    https://golang.org/cl/4244045
+    https://golang.org/cl/4251047
 
- src/pkg/http/request.go  | 8 ++++----
- src/pkg/http/response.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ doc/devel/roadmap.html |  2 ++
+ doc/go_faq.html        | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

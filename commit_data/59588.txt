@@ -1,18 +1,56 @@
-commit fa42585dadb8d70191820549435820cb70691cf6
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon May 19 16:06:42 2025 -0400
+commit 77d9cb8937ba54a8bc82efd7f56b2bda617e4f38
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 27 21:46:12 2024 -0400
 
-    internal/pkgbits: rename RelocEnt to RefTableEntry
+    runtime: adjust when timers.adjust is called
     
-    Change-Id: I9b1c9a0499ad3444e8cb3e4be187f9fab816c90c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674159
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    This new logic more closely mimics what we did before my CL stack.
+    I had reasoned that certainly
+    
+            ts.adjust(now, force=true)
+            ts.run(now)
+    
+    would be faster than
+    
+            ts.adjust(now, force=false)
+            ts.run(now)
+            ts.adjust(now, force=true)
+    
+    But certainty is just an emotion, and that turns out not to be the case.
+    
+    I don't really understand why the second sequence is faster,
+    but it definitely is, so put it back.
+    
+    goos: linux
+    goarch: amd64
+    pkg: time
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                                       │ s7base.txt  │               s7.txt               │
+                                       │   sec/op    │   sec/op     vs base               │
+    AdjustTimers10000-32                 263.3µ ± 4%   239.9µ ± 5%  -8.87% (p=0.000 n=10)
+    AdjustTimers10000SingleThread-32     1.742m ± 3%   1.686m ± 8%       ~ (p=0.105 n=10)
+    AdjustTimers10000NoReset-32          192.2µ ± 2%   194.1µ ± 1%  +1.00% (p=0.009 n=10)
+    AdjustTimers10000NoSleep-32          237.0µ ± 2%   226.2µ ± 3%  -4.55% (p=0.001 n=10)
+    AdjustTimers10000NoResetNoSleep-32   185.2µ ± 1%   182.9µ ± 1%  -1.23% (p=0.003 n=10)
+    
+    
+    goos: darwin
+    goarch: arm64
+    pkg: time
+    cpu: Apple M3 Pro
+                                       │ m3base.txt  │               m3.txt               │
+                                       │   sec/op    │   sec/op     vs base               │
+    AdjustTimers10000-12                 272.6µ ± 3%   269.3µ ± 2%       ~ (p=0.063 n=10)
+    AdjustTimers10000SingleThread-12     1.126m ± 1%   1.176m ± 1%  +4.42% (p=0.000 n=10)
+    AdjustTimers10000NoReset-12          255.1µ ± 2%   262.6µ ± 2%  +2.96% (p=0.000 n=10)
+    AdjustTimers10000NoSleep-12          250.2µ ± 2%   247.8µ ± 1%       ~ (p=0.063 n=10)
+    AdjustTimers10000NoResetNoSleep-12   230.3µ ± 1%   231.0µ ± 1%       ~ (p=0.280 n=10)
+    
+    Change-Id: I67b5765f97dfca0142ee38e15a9904b520f51e83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574740
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/noder/doc.go    | 32 ++++++++++++++------------------
- src/cmd/compile/internal/noder/linker.go |  4 ++--
- src/internal/pkgbits/decoder.go          | 12 ++++++------
- src/internal/pkgbits/encoder.go          |  8 ++++----
- src/internal/pkgbits/reloc.go            |  8 ++++----
- 5 files changed, 30 insertions(+), 34 deletions(-)
+ src/runtime/time.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

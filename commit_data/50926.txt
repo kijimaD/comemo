@@ -1,22 +1,15 @@
-commit 9fedc481ea09a0539cd2669312429ef5416a8949
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 15:33:29 2022 -0400
+commit aa34ea2f4c57ea2648286463ef3f891e49b64fa8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 17 09:40:11 2021 -0800
 
-    runtime/internal/atomic: add write barrier-enabled pointer atomics
+    runtime: don't run TestCheckPtr/TestCheckPtr2 in short mode
     
-    UnsafePointer.Store, UnsafePointer.CompareAndSwap were missing,
-    although .StoreNoWB and .CompareAndSwapNoWB existed.
-    Same for Pointer[T}.
-    
-    Do the linkname tricks necessary to add those methods.
-    
-    Change-Id: I925ee27673288accb15ebe93898f9eb01ab46a98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443379
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I02c9bea1637c2694a76e7747cb8a2e3562301566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364755
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/atomic_pointer.go        | 21 +++++++++++++
- src/runtime/internal/atomic/types.go | 60 ++++++++++++++++++++++++++----------
- 2 files changed, 65 insertions(+), 16 deletions(-)
+ src/runtime/checkptr_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

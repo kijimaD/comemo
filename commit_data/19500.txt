@@ -1,16 +1,14 @@
-commit c22ed1290c55e7ca0e8cbd7028ddd4c397a71174
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 5 10:42:03 2014 -0700
+commit ae1b5c7bd9c907a4f8d097b88a3e882fdfd5a349
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jun 4 19:53:37 2014 -0400
 
-    cmd/cgo: for typedef of untagged struct, use typedef name in C code
+    doc/install-source.html: document that GO386 will be auto-detected when building on both 386 and amd64.
+    Fixes #8152.
     
-    Fixes #8148.
-    
-    LGTM=cookieo9, rsc
-    R=rsc, cookieo9
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/103080043
+    https://golang.org/cl/102150046
 
- misc/cgo/test/issue8148.go | 31 +++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go         |  5 +++++
- 2 files changed, 36 insertions(+)
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,14 @@
-commit 3a872a2262de47cb921e3ae3da6e4487ba652129
-Author: nilsocket <nilsocket@gmail.com>
-Date:   Sun Apr 16 14:51:22 2023 +0530
+commit 19d71acd978891b201bc5ce79bdcd20b36d04a2e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 7 16:35:13 2022 -0400
 
-    slog: fix grammatical mistakes in docs
+    doc/go1.19: document that the assembler requires -p
     
-    Change-Id: I183dda71fcec04fc1e622c66f719bd745d8b4eea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484975
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    For #51400.
+    
+    Change-Id: I50fb4313105ae6dbbbe2c98cbe4a8f8e2563eba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410824
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/log/slog/doc.go     | 4 ++--
- src/log/slog/handler.go | 3 +--
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ doc/go1.19.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

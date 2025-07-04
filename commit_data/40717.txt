@@ -1,31 +1,20 @@
-commit 7148478f1b433caa11c8827657ee1bc61f0b1c5d
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Fri Nov 8 10:30:24 2019 -0800
+commit 3ed5a53f9d1c9713c7d2748f7744534e404b80de
+Author: Daniel Cormier <danielc@knowbe4.com>
+Date:   Wed Jun 19 12:32:30 2019 -0400
 
-    sync: yield to the waiter when unlocking a starving mutex
+    bufio: Reader.Read may return io.EOF even when it has data buffered
     
-    When we have already assigned the semaphore ticket to a specific
-    waiter, we want to get the waiter running as fast as possible since
-    no other G waiting on the semaphore can acquire it optimistically.
+    If reading 0 bytes, don't return the error from the underlying
+    io.Reader if there is still data buffered.
     
-    The net effect is that, when a sync.Mutex is contended, the code in
-    the critical section guarded by the Mutex gets a priority boost.
+    Fixes #32693
     
-    Fixes #33747
-    
-    The original work was done in CL 200577 by Carlo Alberto Ferraris. The
-    change was reverted in CL 205817 because it broke the linux-arm64-packet
-    and solaris-amd64-oraclerel builders.
-    
-    Change-Id: I76d79b1d63fd206ed1c57fe6900cb7ae9e4d46cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206180
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I12a97bd6003c638c15d41028942f27edf88340e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182997
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/export_test.go |  8 ++++
- src/runtime/proc.go        | 15 +++++++
- src/runtime/sema.go        | 21 +++++++++-
- src/runtime/sema_test.go   | 97 ++++++++++++++++++++++++++++++++++++++++++++++
- src/sync/mutex.go          |  3 +-
- 5 files changed, 142 insertions(+), 2 deletions(-)
+ src/bufio/bufio.go      |  3 +++
+ src/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)

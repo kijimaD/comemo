@@ -1,29 +1,14 @@
-commit e61c5e2f2044c7bc606ebdfbd0187598b90c50e5
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Sep 25 17:21:39 2017 +0100
+commit 6a34765a16156d1ab9f5c31a97fb6f9af56c67ab
+Author: Sam Whited <sam@samwhited.com>
+Date:   Mon Jun 5 09:21:10 2017 -0500
 
-    net/http: error if Transport.Proxy returns https
+    bufio: clarify WriteTo docs
     
-    Transport.Proxy is documented as only supporting the http and socks5
-    schemes. If one tries to use it for https URLs, they end up with a
-    cryptic error like:
+    Fixes #19092
     
-            http: TLS handshake error from [...]: tls: oversized record received with length 20037
-    
-    This is because Transport simply skips TLS if Proxy is non-nil, since it
-    knows it doesn't support Proxy with https.
-    
-    However, that error is very confusing and it can take a while to figure
-    out what's going on. Instead, error if Proxy is used and it returns an
-    unsupported scheme.
-    
-    Updates #19493.
-    
-    Change-Id: Ia036357011752f45bb9b8282a4ab5e31bc8d1a69
-    Reviewed-on: https://go-review.googlesource.com/66010
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I7c0fde6a4cf460017619dbcce1c1ddaa7af1022a
+    Reviewed-on: https://go-review.googlesource.com/44811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/bufio/bufio.go | 1 +
+ 1 file changed, 1 insertion(+)

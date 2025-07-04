@@ -1,23 +1,17 @@
-commit 77343fa646c5d2a01fb3cbeabda1b3ff008c3b03
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 6 00:38:51 2025 +1100
+commit f360ffd95a9c2a40901a53956901681ef53b7049
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 8 15:33:14 2023 -0500
 
-    runtime: use return for async preemption resumption on arm64
+    doc/go1.22: document that reflect.PtrTo is deprecated
     
-    Use return with register for async preemption resumption on arm64.
-    This has the same behaviour as the current use of JMP, however
-    is permitted when Branch Target Identification is being enforced,
-    while a JMP with register is considered an indirect call and
-    requires a `BTI J` marker at the resumption address.
+    Updates #59599.
+    For #61422.
     
-    Updates #66054
-    
-    Change-Id: I135ac577073467bedd9efd8df15b76c97dc08767
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646782
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I923be38b719a78dd983372acad93f710a53b0922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548036
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mkpreempt.go    | 2 +-
- src/runtime/preempt_arm64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.22.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

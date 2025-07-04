@@ -1,21 +1,32 @@
-commit 53a5d2541c6c071634792c1ca87622682b139499
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 15:42:57 2023 -0800
+commit c58f1bb65f2187d79a5842bb19f4db4cafd22794
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 14 13:21:06 2022 +1100
 
-    go/types, types2: fix comment in Checker.renameTParams
+    text/template: permit eq and ne funcs to check against nil
     
-    The original comment examples didn't pass the correct number
-    of function arguments. Rather than fixing that, use a simpler
-    example and adjust prose a bit.
+    The existing code errors out immediately if the argument is not
+    "comparable", making it impossible to test a slice, map, and so
+    on from being compared to nil.
     
-    Change-Id: I2806737a2b8f9c4b876911b214f3d9e28213fc27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470918
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Fix by delaying the "comparable" error check until we encounter
+    an actual check between two non-comparable, non-nil values.
+    
+    Note for the future: reflect makes it unnecessarily clumsy
+    to deal with nil values in cases like this. For instance, it
+    should be possible to check if a value is nil without stepping
+    around a panic. See the new functions isNil and canCompare
+    for my (too expensive) workaround.
+    
+    Fixes #51642
+    
+    Change-Id: Ic4072698c4910130ea7e3d76e7a148d8a8b88162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392274
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 41 ++++++++++++++++----------------
- src/go/types/infer.go                    | 41 ++++++++++++++++----------------
- 2 files changed, 40 insertions(+), 42 deletions(-)
+ src/html/template/exec_test.go | 34 ++++++++++++++++++++--------------
+ src/text/template/exec_test.go | 34 ++++++++++++++++++++--------------
+ src/text/template/funcs.go     | 40 +++++++++++++++++++++++++++++++---------
+ 3 files changed, 71 insertions(+), 37 deletions(-)

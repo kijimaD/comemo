@@ -1,16 +1,17 @@
-commit 69905c62139546c178156cde13f379c9b6eac0cc
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sun Jun 26 08:48:53 2011 +1000
+commit f70e8ed0f3e9eec7d67c16b93e53919b21942ee5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 17:29:19 2011 -0700
 
-    gofix: fixes for sort changes
+    ebnflint: better handling of stdin
     
-    Fixes #1969.
+    - don't rely on /dev/stdin as the name for standard input
+    - employ EBNF extraction if the source contains tags
     
-    R=gri, rsc, r
+    "cat source.html | ebnflint" works now
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4634076
+    https://golang.org/cl/4641075
 
- src/cmd/gofix/Makefile          |  9 ++++----
- src/cmd/gofix/sortslice.go      | 50 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/sortslice_test.go | 35 +++++++++++++++++++++++++++++
- 3 files changed, 90 insertions(+), 4 deletions(-)
+ src/cmd/ebnflint/ebnflint.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

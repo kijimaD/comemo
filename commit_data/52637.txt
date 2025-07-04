@@ -1,27 +1,26 @@
-commit d528f72d4c391309b2cb938707837b0da386b67c
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Mar 27 09:27:43 2023 -0400
+commit aa6b75dd7d15c99368e7f51f3da2fb4b212ce33a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 10 16:26:41 2022 -0700
 
-    log/slog: require entire Attr to be empty to elide
+    cmd/compile/internal/types: remove Type.sym and rename Type.nod to Type.obj
     
-    Specify that Handlers should ignore zero-valued Attrs.
+    Now that Ntype is gone, we no longer require separate sym and nod
+    fields for Type. It's now always the case that t.sym == t.nod.Sym(),
+    or that t.sym and t.nod are both nil.
     
-    Implement that policy in the built-in handlers.
+    While here, rename nod to obj, to better reflect that in fact it's
+    always an object (i.e., *ir.Name), not merely a type literal (which no
+    longer exists in package ir).
     
-    Fixes #59282.
-    
-    Change-Id: I4430686b61f49bdac849ee300daaabfac9895849
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484095
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Iba4c1590ca585b816ff6b70947ad2a1109918955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405656
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/log/slog/attr.go                       |  2 ++
- src/log/slog/example_wrap_test.go          |  2 +-
- src/log/slog/handler.go                    | 28 ++++++++++++----------------
- src/log/slog/handler_test.go               | 12 ++++++++----
- src/log/slog/internal/slogtest/slogtest.go |  2 +-
- src/log/slog/text_handler.go               |  3 +++
- src/log/slog/text_handler_test.go          |  2 +-
- src/log/slog/value_test.go                 |  1 -
- 8 files changed, 28 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/types/identity.go    |  2 +-
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 36 +++++++++++++--------------
+ src/cmd/compile/internal/types/universe.go    |  3 +--
+ 4 files changed, 20 insertions(+), 23 deletions(-)

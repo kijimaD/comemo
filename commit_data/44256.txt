@@ -1,21 +1,13 @@
-commit 609d82b28992e6a7fac48add680f170c4eee83fd
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Feb 12 21:34:11 2021 +0100
+commit 9e56bcb9fe23bbd75d8896e845a9129251d4fca5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 2 21:51:39 2020 -0400
 
-    cmd/dist: set GOARM=7 for windows/arm
+    doc/go1.15: runtime release notes
     
-    GOARM=6 executables fail to launch on windows/arm, so set this to ARMv7
-    like we do for Android.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    
-    Change-Id: Ifa13685e7ab6edd367f3dfec10296e376319dbd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291629
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ie37e993e840df2c063dee98fa3f6eca8e8713ca3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236177
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/util.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.15.html | 51 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 46 insertions(+), 5 deletions(-)

@@ -1,24 +1,17 @@
-commit 85a068fdf21bd2e4475a87ee049af4fbe797bcbe
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Sep 30 10:46:03 2021 -0700
+commit f1777cf84c5406fc25e1a0c194775e4fe96f34f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 17:06:33 2021 -0800
 
-    runtime/debug: add GoVersion to BuildInfo
+    [dev.typeparams] cmd/compile/internal/types: review of builtin.go
     
-    BuildInfo now includes the version of Go used to build a binary, as
-    reported by runtime.Version() or 'go version'.
+    The changes between (equivalent, and reviewed) go/types/builtin.go
+    and builtin.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    For #37475
-    
-    Change-Id: Id07dda357dc70599d64a9202dab894c7288de1de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353888
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibecf2b5bc982f6bf92310267b9f06b588b7148a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291169
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- api/next.txt                          |  1 +
- src/cmd/go/internal/load/pkg.go       |  3 +++
- src/debug/buildinfo/buildinfo.go      |  3 ++-
- src/debug/buildinfo/buildinfo_test.go |  7 ++++---
- src/runtime/debug/mod.go              | 20 ++++++++++++++++----
- 5 files changed, 26 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 1 -
+ 1 file changed, 1 deletion(-)

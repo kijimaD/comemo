@@ -1,32 +1,20 @@
-commit 829ca10f9205ee57158062de823121624deb8988
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Aug 31 16:12:35 2020 -0400
+commit 4f074b58d2016eee2b63ffb668f6ed28156ecf62
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 22 20:48:21 2020 -0800
 
-    cmd/go/internal/get: disallow non-ASCII unicode letters from import paths
+    runtime/cgo: fix unsetenv wrapper
     
-    The copy of CheckImportPath in path.go and the regular expression for github
-    repos in vcsPaths together allow import paths with unicode letters with import
-    paths. These all come from github repos with non-ASCII unicode letters
-    with paths in directories. This mainly shows up in GOPATH mode, but could
-    also show up in Module mode when getting a module in GOPROXY=direct mode.
+    The wrapper takes a pointer to the argument, not the argument itself.
     
-    We expect there to not be any significant affected users of this change--
-    an investingation of github repos that would produce import paths that
-    would comply with the copy CheckImportPaths that's being removed, but not
-    modload.CheckImportPaths only surfaced a handful of cases, all of which
-    seemed to be small test or demonstation repos. But this CL is being
-    submitted early in the cycle so that it can be backed out if need be.
+    Fixes #36705
     
-    Updates #29101
-    
-    Change-Id: I719df4af5b318e1330e90d8a0bffe5bb8d816f4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251878
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I566d4457d00bf5b84e4a8315a26516975f0d7e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215942
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/get/get.go  |   4 +-
- src/cmd/go/internal/get/path.go | 192 ----------------------------------------
- src/cmd/go/internal/get/vcs.go  |   2 +-
- 3 files changed, 4 insertions(+), 194 deletions(-)
+ src/runtime/cgo/gcc_setenv.c |  4 ++--
+ test/fixedbugs/issue36705.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

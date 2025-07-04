@@ -1,28 +1,18 @@
-commit 676550d040fcd91d080df5df85b61b3f32393e6f
-Author: Paul Marks <pmarks@google.com>
-Date:   Mon Feb 8 20:25:38 2016 -0800
+commit e9081b3c76f21efb0538cce54f04cf1a9a8cdb31
+Author: sergey.arseev <sergey.arseev@intel.com>
+Date:   Mon Nov 2 14:53:31 2015 +0300
 
-    net: use dialTCP cancelation for DualStack dialing.
+    cmd/internal/obj/x86: add support for TSX instructions
     
-    The previous Happy Eyeballs implementation would intentionally leak
-    connections, because dialTCP could not be reliably terminated upon
-    losing the race.
+    Transactional memory, will later be used for semaphore implementation.
+    Nacl not supported yet.
     
-    Now that dialTCP supports cancelation (plan9 excluded), dialParallel can
-    wait for responses from both the primary and fallback racers, strictly
-    before returning control to the caller.
-    
-    In dial_test.go, we no longer need Sleep to avoid leaks.
-    Also, fix a typo in the Benchmark IPv4 address.
-    
-    Updates #11225
-    Fixes #14279
-    
-    Change-Id: Ibf3fe5c7ac2f7a438c1ab2cdb57032beb8bc27b5
-    Reviewed-on: https://go-review.googlesource.com/19390
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic18453dcaa08d07bb217c0b95461584f007d518b
+    Reviewed-on: https://go-review.googlesource.com/16479
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/dial.go      |  95 ++++++++++++++++++++++++---------------
- src/net/dial_test.go | 123 +++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 149 insertions(+), 69 deletions(-)
+ src/cmd/asm/internal/arch/arch.go  |  2 +-
+ src/cmd/internal/obj/x86/a.out.go  |  8 ++++++++
+ src/cmd/internal/obj/x86/anames.go |  6 ++++++
+ src/cmd/internal/obj/x86/asm6.go   | 31 ++++++++++++++++++++++++++++---
+ 4 files changed, 43 insertions(+), 4 deletions(-)

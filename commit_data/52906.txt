@@ -1,20 +1,26 @@
-commit 75136fc14c0d3ec64a2f6728e96fc86066d853c9
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 4 17:11:46 2023 -0400
+commit 4703546a294b28e4e23043fe9cb745f27e55edab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 10:18:38 2022 -0700
 
-    cmd/link: remove zdebug from ELF section header table
+    spec: add missing optional type arguments after TypeName in syntax
     
-    We now use SHF_COMPRESSED sections for DWARF compression, and no
-    longer generate zdebug sections on ELF platforms. No need to
-    generate them in the section header string table.
+    Types may be generic, so each occurrence of a TypeName may be
+    followed by optional type arguments. Add the missing syntactic
+    (EBNF) factor.
     
-    Updates #50796.
+    The syntax of type names followed by type arguments matches the
+    syntax of operand names followed by type arguments (operands may
+    also be types, or generic functions, among other things). This
+    opens the door to factoring out this shared syntax, but it will
+    also require some adjustments to prose to make it work well.
+    Leaving for another change.
     
-    Change-Id: I5c79ccd43f803c75dbd86e28195d0db1c0beb087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492719
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #53240.
+    
+    Change-Id: I15212225c28b27f7621e3ca80dfbd131f6b7eada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411918
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 2 --
- 1 file changed, 2 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

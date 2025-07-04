@@ -1,30 +1,14 @@
-commit d770aadee5063ecc54ca8f57fc4906972a2de033
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 4 08:31:03 2011 -0400
+commit 62d4b8ebd2c00e3c3d54d05dc7fe56d829b5aa01
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Aug 4 08:20:53 2011 -0400
 
-    runtime: faster chan creation on Linux/FreeBSD/Plan9
-    The change removes chan finalizer (Lock destructor)
-    if it is not required on the platform.
+    http: correct path to serve index.html.
+    calling filepath.FromSlash(x) make invalid character to serve file.
+    Fixes #2128
     
-    benchmark                    old ns/op    new ns/op    delta
-    BenchmarkChanCreation          1132.00       381.00  -66.34%
-    BenchmarkChanCreation-2        1215.00       243.00  -80.00%
-    BenchmarkChanCreation-4        1084.00       186.00  -82.84%
-    BenchmarkChanCreation-8        1415.00       154.00  -89.12%
-    BenchmarkChanCreation-16       1386.00       144.00  -89.61%
-    (on 2 x Intel Xeon E5620, 8 HT cores, 2.4 GHz, Linux)
-    
-    R=golang-dev, rsc
+    R=golang-dev, alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/4841041
+    https://golang.org/cl/4810064
 
- src/pkg/runtime/chan.c           |  8 +++-----
- src/pkg/runtime/chan_test.go     | 22 ++++++++++++++++++++++
- src/pkg/runtime/darwin/thread.c  |  5 +++--
- src/pkg/runtime/freebsd/thread.c |  5 -----
- src/pkg/runtime/linux/thread.c   |  5 -----
- src/pkg/runtime/plan9/thread.c   |  6 ------
- src/pkg/runtime/runtime.c        |  1 +
- src/pkg/runtime/runtime.h        |  2 +-
- src/pkg/runtime/windows/thread.c |  6 ++++--
- 9 files changed, 34 insertions(+), 26 deletions(-)
+ src/pkg/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

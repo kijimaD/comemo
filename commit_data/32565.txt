@@ -1,20 +1,31 @@
-commit 2ac43d5be2e6b48b9806f9456d932d2884705e10
-Author: griesemer <gri@golang.org>
-Date:   Tue Aug 29 15:48:07 2017 +0200
+commit a2da2108ee18a338cdcdea5e319156858031af08
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Fri Apr 28 15:20:38 2017 +0100
 
-    doc: minor clarification regarding the sharing of underlying arrays
+    cmd/internal/obj/x86: fix ANDPS encoding
     
-    The last sentence in the section on slice expressions could be read
-    as if it might apply to strings. Changed the sentence a bit to
-    emphasize its applicability to slices only. See also the issue for
-    more background.
+    ANDPS, like all others PS (Packed Single precision floats) instructions,
+    need Ym: they don't use the 0x66 prefix.
     
-    Fixes #19220.
+    From the manual:
     
-    Change-Id: I8551f34230e4ed93f951e7b871cc81f54a5874a9
-    Reviewed-on: https://go-review.googlesource.com/59890
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        NP 0F 54 /r        ANDPS xmm1, xmm2/m128
+    
+    NP meaning, quoting the manual:
+    
+      NP - Indicates the use of 66/F2/F3 prefixes (beyond those already part
+      of the instructions opcode) are not allowed with the instruction.
+    
+    And indeed, the same instruction prefixed by 0x66 is ANDPD.
+    
+    Updates #14069
+    
+    Change-Id: If312a6f1e77113ab8c0febe66bdb1b4171e41e0a
+    Reviewed-on: https://go-review.googlesource.com/42090
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 16 ++++++++--------
+ src/cmd/internal/obj/x86/asm6.go             |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

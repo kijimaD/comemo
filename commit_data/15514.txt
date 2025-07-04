@@ -1,12 +1,13 @@
-commit 523cb45c9d46dc7765c7626303e8a80210bbc5bc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 28 16:58:14 2013 -0800
+commit 17d12d6cb648d57b3a2094004e6eacc5473bc8f1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 1 11:22:13 2013 +1100
 
-    net/http: document net/http/cookiejar on CookieJar
+    doc: fix root.html styles
     
-    R=golang-dev, nigeltao, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/7444048
+    https://golang.org/cl/7442045
 
- src/pkg/net/http/jar.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/root.html | 6 +++---
+ doc/style.css | 2 ++
+ 2 files changed, 5 insertions(+), 3 deletions(-)

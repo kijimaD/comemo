@@ -1,0 +1,25 @@
+commit 282a14ec617ea663740026687d0ec5130066d75c
+Author: Than McIntosh <thanm@golang.org>
+Date:   Thu Dec 5 19:01:22 2024 -0500
+
+    cmd/internal/objabi,cmd/link/internal/sym: add SDWARFADDR symbol type
+    
+    Add a new symbol type: SDWARFADDR. This kind of symbol stores content
+    to be added to the DWARF .debug_addr section (new with DWARF5). At the
+    moment these symbols are created only in the linker, but it's not hard to
+    imagine other implementations in which the compiler would create them,
+    so they are added to both the compiler and linker symbol kind space.
+    
+    Updates #26379.
+    
+    Change-Id: I4a82ead0d59fe6028abfd6d6e3fc3df2e28c0ef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634415
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/objabi/symkind.go          |  1 +
+ src/cmd/internal/objabi/symkind_string.go   | 13 +++++++------
+ src/cmd/link/internal/sym/symkind.go        |  4 +++-
+ src/cmd/link/internal/sym/symkind_string.go |  9 +++++----
+ 4 files changed, 16 insertions(+), 11 deletions(-)

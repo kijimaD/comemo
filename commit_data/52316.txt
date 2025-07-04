@@ -1,24 +1,32 @@
-commit 23e8f43cb1e865edeab2bad08dc01cceac3ba0b0
-Author: David Chase <drchase@google.com>
-Date:   Tue Feb 28 17:36:38 2023 -0500
+commit 60178e6240d6d0e52ca0556fcab29a1d3effef4d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 4 21:06:06 2021 -0400
 
-    cmd/compile: restore return-in-loop loopvar optimization
+    cmd/dist: add maymorestack tests
     
-    but this time, correctly.
-    children of Returns can have For/Range loops in them,
-    and those must be visited.
+    These tests run the runtime, reflect, and sync package tests with the
+    two maymorestack hooks we have.
     
-    Includes test to verify that the optimization occurs,
-    and also that the problematic case that broke the original
-    optimization is now correctly handled.
+    These tests only run on the longtest builders (or with
+    GO_TEST_SHORT=false) because we're running the runtime test two
+    additional times and the mayMoreStackMove hook makes it about twice as
+    slow (~230 seconds).
     
-    Change-Id: If5a94fd51c862d4bfb318fec78456b7b202f3fcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472355
-    Run-TryBot: David Chase <drchase@google.com>
+    To run just these tests by hand, do
+    
+      GO_TEST_SHORT=false go tool dist test -run mayMoreStack
+    
+    Updates #48297.
+    
+    This detected #49354, which was found as a flake on the dashboard, but
+    was reliably reproducible with these tests; and #49395.
+    
+    Change-Id: If785a8b8d6e1b9ad4d2ae67493b54055ab6cbc85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361212
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/loopvar/loopvar.go      | 23 +++++++++++++
- src/cmd/compile/internal/loopvar/loopvar_test.go | 38 +++++++++++++++++++++
- src/cmd/compile/internal/loopvar/testdata/opt.go | 42 ++++++++++++++++++++++++
- 3 files changed, 103 insertions(+)
+ src/cmd/dist/test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

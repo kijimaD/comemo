@@ -1,28 +1,18 @@
-commit 12e60452e9f7c21933aad1a864e1433736de807e
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 4 10:26:57 2016 -0800
+commit a766d8e59c2c43b4c6795404d303b64b9fe69a0f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 16 00:06:45 2015 -0500
 
-    cmd/compile: Combine smaller loads into a larger load
+    cmd/cgo: map C unsigned char back to _Ctype_uchar in error messages
     
-    This only deals with the loads themselves.  The bounds checks
-    are a separate issue.  Also doesn't handle stores, those are
-    harder because we need to make sure intermediate memory states
-    aren't observed (which is hard to do with rewrite rules).
+    Fixes #13635.
     
-    Use one byte shorter instructions for zero-extending loads.
-    
-    Update #14267
-    
-    Change-Id: I40af25ab5208488151ba7db32bf96081878fa7d9
-    Reviewed-on: https://go-review.googlesource.com/20218
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Icab4a45567f435f002a8f6c85db9538acf054a70
+    Reviewed-on: https://go-review.googlesource.com/17863
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  22 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  12 +-
- src/cmd/compile/internal/ssa/opGen.go          |   6 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 303 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go |  26 +--
- 6 files changed, 350 insertions(+), 25 deletions(-)
+ misc/cgo/errors/issue13635.go | 24 ++++++++++++++++++++++++
+ misc/cgo/errors/test.bash     | 15 +++++++++------
+ src/cmd/cgo/gcc.go            |  1 +
+ 3 files changed, 34 insertions(+), 6 deletions(-)

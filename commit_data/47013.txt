@@ -1,28 +1,16 @@
-commit bc0eb5789e01817823fd9707d2d4857691f898ad
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Oct 19 18:40:27 2021 -0400
+commit 01eb70e3dd4d7bf00ee915841e6b3c56fc94fe44
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 05:29:51 2021 -0500
 
-    cmd/compile/internal/typecheck: record whether an interface is implicit
+    os: fix hex exit code print on 32-bit windows
     
-    In preparation for capturing the implicit interface bit in export data,
-    thread through the IsImplicit property from types2 into typecheck.
+    We want to print hex exit codes for the large values,
+    but on 32-bit Windows the large values are negative.
     
-    Change-Id: I9b46fe73de102935a127e6ececaacd76738b557e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357109
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I0e350b128414a9468c93eddc62d660f552c1ee05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294070
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/reader.go       |  2 +-
- src/cmd/compile/internal/noder/stencil.go      |  2 +-
- src/cmd/compile/internal/noder/types.go        |  2 +-
- src/cmd/compile/internal/test/abiutils_test.go |  2 +-
- src/cmd/compile/internal/typecheck/iimport.go  |  2 +-
- src/cmd/compile/internal/typecheck/subr.go     |  4 ++--
- src/cmd/compile/internal/typecheck/type.go     |  2 +-
- src/cmd/compile/internal/types/sizeof_test.go  |  2 +-
- src/cmd/compile/internal/types/type.go         | 13 +++++++++++--
- src/cmd/compile/internal/types/universe.go     |  8 ++++----
- 10 files changed, 24 insertions(+), 15 deletions(-)
+ src/os/exec_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

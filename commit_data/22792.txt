@@ -1,70 +1,31 @@
-commit 09b238f15516191486c65525d2e449ae00d4d921
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Apr 28 09:13:38 2015 -0700
+commit b0a85f5d93c3f0f5a53f09cdef1bdb72bfa313de
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 14:16:26 2015 -0400
 
-    crypto/tls: decouple handshake signatures from the handshake hash.
+    runtime: darwin/amd64 library entry point
     
-    Prior to TLS 1.2, the handshake had a pleasing property that one could
-    incrementally hash it and, from that, get the needed hashes for both
-    the CertificateVerify and Finished messages.
+    This is a practice run for darwin/arm.
     
-    TLS 1.2 introduced negotiation for the signature and hash and it became
-    possible for the handshake hash to be, say, SHA-384, but for the
-    CertificateVerify to sign the handshake with SHA-1. The problem is that
-    one doesn't know in advance which hashes will be needed and thus the
-    handshake needs to be buffered.
+    Similar to the linux/amd64 shared library entry point. With several
+    pending linker changes I am successfully using this to implement
+    -buildmode=c-archive on darwin/amd64 with external linking.
     
-    Go ignored this, always kept a single handshake hash, and any signatures
-    over the handshake had to use that hash.
+    The same entry point can be reused to implement -buildmode=c-shared
+    on darwin/amd64, however that will require further ld changes to
+    remove all text relocations.
     
-    However, there are a set of servers that inspect the client's offered
-    signature hash functions and will abort the handshake if one of the
-    server's certificates is signed with a hash function outside of that
-    set. https://robertsspaceindustries.com/ is an example of such a server.
+    One extra runtime change will follow this. According to the Go
+    execution modes document, -buildmode=c-archive should ignore the Go
+    main function. Right now it is being executed (and the process exits
+    if it doesn't block). I'm still searching for the right way to do
+    this.
     
-    Clearly not a lot of thought happened when that server code was written,
-    but its out there and we have to deal with it.
-    
-    This change decouples the handshake hash from the CertificateVerify
-    hash. This lays the groundwork for advertising support for SHA-384 but
-    doesn't actually make that change in the interests of reviewability.
-    Updating the advertised hash functions will cause changes in many of the
-    testdata/ files and some errors might get lost in the noise. This change
-    only needs to update four testdata/ files: one because a SHA-384-based
-    handshake is now being signed with SHA-256 and the others because the
-    TLS 1.2 CertificateRequest message now includes SHA-1.
-    
-    This change also has the effect of adding support for
-    client-certificates in SSLv3 servers. However, SSLv3 is now disabled by
-    default so this should be moot.
-    
-    It would be possible to avoid much of this change and just support
-    SHA-384 for the ServerKeyExchange as the SKX only signs over the nonces
-    and SKX params (a design mistake in TLS). However, that would leave Go
-    in the odd situation where it advertised support for SHA-384, but would
-    only use the handshake hash when signing client certificates. I fear
-    that'll just cause problems in the future.
-    
-    Much of this code was written by davidben@ for the purposes of testing
-    BoringSSL.
-    
-    Partly addresses #9757
-    
-    Change-Id: I5137a472b6076812af387a5a69fc62c7373cd485
-    Reviewed-on: https://go-review.googlesource.com/9415
-    Run-TryBot: Adam Langley <agl@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Id97901ddd4d46970996f222bd79731dabff66a3d
+    Reviewed-on: https://go-review.googlesource.com/8652
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/cipher_suites.go                    |  43 ++---
- src/crypto/tls/common.go                           |  24 +--
- src/crypto/tls/handshake_client.go                 |  56 +++---
- src/crypto/tls/handshake_messages_test.go          |   2 +-
- src/crypto/tls/handshake_server.go                 |  73 ++++++--
- src/crypto/tls/key_agreement.go                    |  68 ++++----
- src/crypto/tls/prf.go                              | 187 ++++++++++++++-------
- src/crypto/tls/prf_test.go                         |  24 ++-
- .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  80 ++++-----
- .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  76 ++++-----
- .../Server-TLSv12-ClientAuthRequestedAndGiven      |  75 ++++-----
- .../Server-TLSv12-ClientAuthRequestedNotGiven      |  57 +++----
- 12 files changed, 445 insertions(+), 320 deletions(-)
+ src/runtime/os1_darwin.go      | 32 +++++++++++++++++++++++++++++++-
+ src/runtime/os_darwin.go       |  2 +-
+ src/runtime/rt0_darwin_amd64.s | 34 ++++++++++++++++++++++++++++++++++
+ src/runtime/sys_darwin_amd64.s |  8 ++++----
+ 4 files changed, 70 insertions(+), 6 deletions(-)

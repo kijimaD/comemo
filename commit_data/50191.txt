@@ -1,24 +1,24 @@
-commit 3c6a5cdb9a29c0e3b12cdaa8ab81ba22d989e3b0
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Mon Aug 29 23:29:48 2022 +0000
+commit 019ad98b5337992625327ea07185ad06a9c19169
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 4 16:20:57 2021 -0700
 
-    cmd/go/internal/imports: recognize "unix" build tag
+    cmd/cgo: update to handle ast.IndexListExpr
     
-    For #20322
-    For #51572
-    Fixes #54712
+    Allows cgo to work with generics.
     
-    Change-Id: I22fcfa820e83323bfdf1a40deee7286240f02b3e
-    GitHub-Last-Rev: cd2c6536b0298baf3c54e5bdbc456a814545cff4
-    GitHub-Pull-Request: golang/go#54716
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426296
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Updates #47781.
+    
+    Change-Id: Id1a5d1a0a8193c5b157e3e671b1490d687d10384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353882
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go                          |  3 +-
- src/cmd/go/internal/imports/build.go           | 42 ++++++++++++++++++++------
- src/cmd/go/testdata/script/import_unix_tag.txt | 32 ++++++++++++++++++++
- src/go/build/syslist.go                        |  3 +-
- 4 files changed, 69 insertions(+), 11 deletions(-)
+ misc/cgo/test/typeparam.go | 17 +++++++++++++++++
+ misc/go.mod                |  2 +-
+ src/cmd/cgo/ast.go         |  3 +--
+ src/cmd/cgo/ast_go1.go     | 17 +++++++++++++++++
+ src/cmd/cgo/ast_go118.go   | 25 +++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         |  2 +-
+ 6 files changed, 62 insertions(+), 4 deletions(-)

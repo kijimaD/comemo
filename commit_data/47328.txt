@@ -1,24 +1,31 @@
-commit 61d789db3a52e4570596f1fd15122358deb73b77
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 4 21:31:08 2021 -0700
+commit ae9cd1299cd927dca511344eec1ca16cf91ca758
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 16 20:22:58 2020 -0800
 
-    cmd/compile/internal/types2: report error for incomplete struct composite literal type
+    hash/maphash: manually inline setSeed
     
-    Mark a struct as "complete" with a non-nil (but possibly zero length)
-    fields list. Add a test when type-checking struct composite literals,
-    the same way we do for other composite literal types.
+    Provides a minor performance win.
     
-    Fixes #49276.
+    name            old time/op    new time/op    delta
+    Hash8Bytes-8      16.5ns ± 2%    16.5ns ± 4%    ~     (p=0.407 n=27+29)
+    Hash320Bytes-8    58.5ns ± 2%    55.0ns ± 2%  -6.01%  (p=0.000 n=29+28)
+    Hash1K-8           195ns ± 1%     190ns ± 2%  -2.23%  (p=0.000 n=30+30)
+    Hash8K-8          1.59µs ± 2%    1.57µs ± 2%  -0.88%  (p=0.002 n=30+30)
     
-    Change-Id: If44a3d790bf7032ddcd155af49bdc47b1cdff4fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361412
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    name            old speed      new speed      delta
+    Hash8Bytes-8     484MB/s ± 2%   485MB/s ± 4%    ~     (p=0.417 n=27+29)
+    Hash320Bytes-8  5.47GB/s ± 2%  5.82GB/s ± 2%  +6.39%  (p=0.000 n=29+28)
+    Hash1K-8        5.26GB/s ± 1%  5.39GB/s ± 2%  +2.29%  (p=0.000 n=30+30)
+    Hash8K-8        5.16GB/s ± 2%  5.21GB/s ± 2%  +0.89%  (p=0.002 n=30+30)
+    
+    Updates #42710
+    
+    Change-Id: Ia0d7264b648f96099202de21c6b69a9c1776f6c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278759
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/expr.go            |  6 +++
- src/cmd/compile/internal/types2/struct.go          | 14 ++++++-
- src/cmd/compile/internal/types2/subst.go           |  4 +-
- .../types2/testdata/fixedbugs/issue49276.go        | 46 ++++++++++++++++++++++
- 4 files changed, 67 insertions(+), 3 deletions(-)
+ src/hash/maphash/maphash.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

@@ -1,36 +1,50 @@
-commit 77c473f4197b5ad4d90689d665534e598f3c0750
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Nov 9 13:31:45 2021 -0500
+commit 061a6903a232cb868780b1e724a75bf92a728489
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 13 16:52:16 2021 -0800
 
-    all: update vendored golang.org/x/{net,text} for Go 1.18 release
+    all: add internal/itoa package
     
-    The Go 1.18 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    This replaces five implementations scattered across low level packages.
+    (And I plan to use it in a sixth soon.)
+    Three of the five were byte-for-byte identical.
     
-    This CL updates only the net, text modules.
-    The next CL will update further ones.
-    
-    For #36905.
-    
-    Change-Id: I9a5ac3cca22da961cfd09f3202e01e1187d42bdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362735
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I3bbbeeac63723a487986c912b604e10ad1e042f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301549
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/go.mod                                         |   4 +-
- src/go.sum                                         |   8 +-
- src/net/http/h2_bundle.go                          | 368 ++++++++++++++-------
- .../golang.org/x/net/http/httpproxy/proxy.go       |   4 +-
- src/vendor/golang.org/x/net/http2/hpack/huffman.go |  38 ++-
- src/vendor/golang.org/x/net/idna/go118.go          |  14 +
- src/vendor/golang.org/x/net/idna/idna10.0.0.go     |   6 +-
- src/vendor/golang.org/x/net/idna/idna9.0.0.go      |   4 +-
- src/vendor/golang.org/x/net/idna/pre_go118.go      |  12 +
- src/vendor/golang.org/x/net/idna/punycode.go       |  36 +-
- src/vendor/golang.org/x/net/nettest/nettest.go     |  14 +-
- src/vendor/golang.org/x/text/unicode/bidi/core.go  |   6 +-
- src/vendor/modules.txt                             |   4 +-
- 13 files changed, 347 insertions(+), 171 deletions(-)
+ src/go/build/deps_test.go          |  1 +
+ src/internal/itoa/itoa.go          | 33 +++++++++++++++++++++++++++++++
+ src/internal/itoa/itoa_test.go     | 40 ++++++++++++++++++++++++++++++++++++++
+ src/internal/poll/fd_io_plan9.go   |  3 ++-
+ src/internal/poll/strconv.go       | 28 --------------------------
+ src/net/dnsclient.go               |  3 ++-
+ src/net/dnsclient_unix.go          |  3 ++-
+ src/net/interface.go               |  3 ++-
+ src/net/interface_plan9.go         |  5 +++--
+ src/net/ip.go                      |  7 +++++--
+ src/net/ipsock_plan9.go            |  5 +++--
+ src/net/lookup_plan9.go            |  3 ++-
+ src/net/parse.go                   | 26 -------------------------
+ src/net/tcpsock.go                 |  5 +++--
+ src/net/tcpsockopt_plan9.go        |  3 ++-
+ src/net/udpsock.go                 |  5 +++--
+ src/os/exec_plan9.go               |  3 ++-
+ src/os/exec_posix.go               |  5 +++--
+ src/os/executable_plan9.go         |  7 +++++--
+ src/os/signal/signal_plan9_test.go | 18 ++---------------
+ src/os/str.go                      | 26 -------------------------
+ src/os/tempfile.go                 |  7 +++++--
+ src/syscall/dll_windows.go         |  3 ++-
+ src/syscall/exec_linux.go          |  9 +++++----
+ src/syscall/exec_plan9.go          |  3 ++-
+ src/syscall/export_test.go         |  7 -------
+ src/syscall/str.go                 | 24 -----------------------
+ src/syscall/syscall_js.go          |  5 +++--
+ src/syscall/syscall_linux.go       |  7 +++++--
+ src/syscall/syscall_test.go        | 17 ----------------
+ src/syscall/syscall_unix.go        |  5 +++--
+ src/syscall/syscall_windows.go     |  5 +++--
+ 32 files changed, 143 insertions(+), 181 deletions(-)

@@ -1,26 +1,15 @@
-commit dbf533a5460d7fcc7d7be77014fd74a8aff8c412
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 13 19:27:59 2015 -0700
+commit 98f610fe094ad3fd4b36133ea99771451c5c2d48
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 20 09:33:25 2015 -0400
 
-    encoding/json: make BenchmarkSkipValue more stable
+    misc/cgo/testcarchive: enable test on darwin/arm
     
-    BenchmarkSkipValue was sensitive to the value of
-    b.N due to its significant startup cost.
-    
-    Two adjacent runs before this CL:
-    
-    BenchmarkSkipValue            50          21047499 ns/op          93.37 MB/s
-    BenchmarkSkipValue           100          17260554 ns/op         118.05 MB/s
-    
-    After this CL, using benchtime to recreate the
-    difference in b.N:
-    
-    BenchmarkSkipValue            50          15204797 ns/op         131.67 MB/s
-    BenchmarkSkipValue           100          15332319 ns/op         130.58 MB/s
-    
-    Change-Id: Iac86f86dd774d535302fa5e4c08f89f8da00be9e
-    Reviewed-on: https://go-review.googlesource.com/10053
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I0d3f9841500e0a41f1c427244869bf3736a31e18
+    Reviewed-on: https://go-review.googlesource.com/9075
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/encoding/json/scanner_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testcarchive/main.c             |  1 +
+ misc/cgo/testcarchive/src/libgo/libgo.go |  6 ++----
+ misc/cgo/testcarchive/test.bash          |  2 +-
+ src/cmd/dist/test.go                     | 12 +++++++++---
+ 4 files changed, 13 insertions(+), 8 deletions(-)

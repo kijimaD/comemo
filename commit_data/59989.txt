@@ -1,0 +1,20 @@
+commit 0222a028f19d9f497cf407bcf07f3ec56a032bdb
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed May 1 15:03:34 2024 -0500
+
+    cmd/compile/internal/ssa: combine more shift and masking on PPC64
+    
+    Investigating binaries, these patterns seem to show up frequently.
+    
+    Change-Id: I987251e4070e35c25e98da321e444ccaa1526912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583302
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  13 ++
+ src/cmd/compile/internal/ssa/rewrite.go       |  50 ++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 176 ++++++++++++++++++++++++++
+ test/codegen/shift.go                         |  23 +++-
+ 4 files changed, 261 insertions(+), 1 deletion(-)

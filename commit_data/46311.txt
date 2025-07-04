@@ -1,17 +1,21 @@
-commit 5c224ec92102d7803c03ed2b482a68fad91b954b
-Author: korzhao <korzhao95@gmail.com>
-Date:   Mon Aug 2 16:53:25 2021 +0000
+commit 0aa9b4709acd609c1a3e9cb028e7f4c4da3f0357
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 22 12:40:32 2020 -0500
 
-    database/sql: improve the documentation of Conn.Raw
+    cmd/pack: r command create output file if not exist
     
-    Fixes #47500
+    Go 1.15 pack's r command creates the output file if it does not
+    exist. The system "ar" command does this as well. Do the same.
     
-    Change-Id: Ibd44e4db15ea45bb53a6651a6567edfe6104d3d6
-    GitHub-Last-Rev: 61b8abbc28908fc807af7188e19089ac454b4817
-    GitHub-Pull-Request: golang/go#47503
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338970
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Trust: Cherry Mui <cherryyz@google.com>
+    For bazelbuild/rules_go#2762.
+    
+    Change-Id: Icd88396b5c714b735c859a29ab29851e4301f4d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279516
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/database/sql/sql.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/pack/pack.go      |  7 +++++--
+ src/cmd/pack/pack_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 3 deletions(-)

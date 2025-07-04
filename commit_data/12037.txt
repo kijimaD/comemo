@@ -1,13 +1,12 @@
-commit 228d941157e744c1416cafc354c8d33bdd068de0
+commit 95b0fe141c29e9188dbffd27db6e228e22f61c0c
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 18 20:33:58 2012 -0500
+Date:   Sat Feb 18 20:31:19 2012 -0500
 
-    lib/time: add README, update.bash script
+    cmd/api: s/ideal-bool/bool/
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5674104
+    https://golang.org/cl/5674105
 
- lib/time/README      |  9 +++++++++
- lib/time/update.bash | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+)
+ src/cmd/api/goapi.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

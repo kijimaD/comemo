@@ -1,17 +1,14 @@
-commit 3ee9672955b163075e96d959635d1912952030e6
-Author: esell <eujon.sellers@gmail.com>
-Date:   Wed Sep 26 10:19:16 2018 -0600
+commit 377567edd01572a3ce7ff263fd7923a5ba7a9217
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue May 29 14:36:28 2018 +0200
 
-    net/http: add Handle example
+    reflect: document that StructOf panics on unexported fields
     
-    Currently there is no example for http.Handle in the
-    documentation. This adds an example.
+    Fixes #25401
     
-    Change-Id: I66ee9983bea1f5237757e1ef4956eae9a056e963
-    Reviewed-on: https://go-review.googlesource.com/137715
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0b61ecfcee43ebfe0a84b5c1e28a3817f96b94ed
+    Reviewed-on: https://go-review.googlesource.com/115015
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/example_handle_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/reflect/type.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

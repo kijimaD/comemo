@@ -1,22 +1,46 @@
-commit 32275013645aa3d5dc0fa9f2ed529bc201b79759
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Apr 18 18:14:51 2022 -0400
+commit 574ec1c6457c7779cd20db873fef2e2ed7e31ff1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 13:44:18 2021 -0700
 
-    go/types: use error_.errorf for reporting related error information
+    [dev.typeparams] cmd/compile: desugar ORECOVER into ORECOVERFP
     
-    Use error_.errorf for reporting related error information rather than
-    inlining the "\n\t". This aligns go/types with types2 in cases where the
-    related information has no position information. In other cases,
-    go/types needs to report a "continuation error" (starting with '\t') so
-    that users can access multiple error positions.
+    Currently ORECOVER is a single operation that both (1) calculates
+    the (logical) caller frame pointer and (2) calls runtime.gorecover.
+    This is normally fine, but it's inconvenient for regabi, which wants
+    to wrap "defer recover()" into "defer func() { recover() }" and
+    needs (1) and (2) to happen at different times.
     
-    Change-Id: Ica98466596c374e0c1e502e7227c8d8c803b4c22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400825
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    The current solution is to apply walkRecover early to split it into
+    the two steps, but calling it during order is a minor layering
+    violation. It works well today because the order and walk phases are
+    closely related anyway and walkRecover is relatively simple, but it
+    won't work for go/defer wrapping earlier into the frontend.
+    
+    This CL adds a new, lower-level ORECOVERFP primitive, which represents
+    just part (2); and OGETCALLER{PC,SP} primitives, which provide a way
+    to compute (1) in the frontend too.
+    
+    OGETCALLERPC isn't needed/used today, but it seems worth including for
+    completeness. Maybe it will be useful at some point for intrinsifying
+    runtime.getcaller{pc,sp}, like we already do for runtime.getg.
+    
+    Change-Id: Iaa8ae51e09306c45c147b6759a5b7c24dcc317ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330192
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/assignments.go | 10 +++++-----
- src/go/types/call.go        |  9 ++++-----
- src/go/types/conversions.go |  5 ++++-
- 3 files changed, 13 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/escape/call.go         |  3 ++
+ src/cmd/compile/internal/escape/desugar.go      | 37 +++++++++++++++++++++++++
+ src/cmd/compile/internal/escape/expr.go         |  7 ++---
+ src/cmd/compile/internal/ir/expr.go             |  8 ++++--
+ src/cmd/compile/internal/ssagen/ssa.go          |  8 ++++++
+ src/cmd/compile/internal/typecheck/func.go      | 15 ++++++++++
+ src/cmd/compile/internal/typecheck/typecheck.go | 12 ++++++++
+ src/cmd/compile/internal/walk/builtin.go        | 13 ++-------
+ src/cmd/compile/internal/walk/expr.go           |  6 ++--
+ src/cmd/compile/internal/walk/order.go          | 13 ++-------
+ src/cmd/compile/internal/walk/stmt.go           |  2 +-
+ src/cmd/compile/internal/walk/walk.go           |  2 +-
+ 12 files changed, 94 insertions(+), 32 deletions(-)

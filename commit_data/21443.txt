@@ -1,39 +1,30 @@
-commit c9321f3fb13aec7af5c72d3d11a6e3b4d88dced3
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jan 29 12:47:30 2015 +0300
+commit df027aceb970a2e9dcafb6e79f8581efb2f30c86
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 30 13:59:55 2014 -0500
 
-    runtime: fix nosplit stack overflow
+    reflect: add write barriers
     
-    The overflow happens only with -gcflags="-N -l"
-    and can be reproduced with:
+    Use typedmemmove, typedslicecopy, and adjust reflect.call
+    to execute the necessary write barriers.
     
-    $ go test -gcflags="-N -l" -a -run=none net
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
     
-    runtime.cgocall: nosplit stack overflow
-            504     assumed on entry to runtime.cgocall
-            480     after runtime.cgocall uses 24
-            472     on entry to runtime.cgocall_errno
-            408     after runtime.cgocall_errno uses 64
-            400     on entry to runtime.exitsyscall
-            288     after runtime.exitsyscall uses 112
-            280     on entry to runtime.exitsyscallfast
-            152     after runtime.exitsyscallfast uses 128
-            144     on entry to runtime.writebarrierptr
-            88      after runtime.writebarrierptr uses 56
-            80      on entry to runtime.writebarrierptr_nostore1
-            24      after runtime.writebarrierptr_nostore1 uses 56
-            16      on entry to runtime.acquirem
-            -24     after runtime.acquirem uses 40
-    
-    Move closure creation into separate function so that
-    frames of writebarrierptr_shadow and writebarrierptr_nostore1
-    are overlapped.
-    
-    Fixes #9721
-    
-    Change-Id: I40851f0786763ee964af34814edbc3e3d73cf4e7
-    Reviewed-on: https://go-review.googlesource.com/3418
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iec5b5b0c1be5589295e28e5228e37f1a92e07742
+    Reviewed-on: https://go-review.googlesource.com/2312
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mbarrier.go | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ misc/cgo/test/callback.go  |  3 ++
+ src/reflect/value.go       | 78 +++++++++++++++++++++++++------------------
+ src/runtime/asm_386.s      | 30 +++++++++++------
+ src/runtime/asm_amd64.s    | 34 ++++++++++++-------
+ src/runtime/asm_amd64p32.s | 30 +++++++++++------
+ src/runtime/asm_arm.s      | 37 ++++++++++++++-------
+ src/runtime/asm_ppc64x.s   | 37 ++++++++++++++-------
+ src/runtime/cgocall.go     |  7 +++-
+ src/runtime/malloc.go      |  2 +-
+ src/runtime/mgc0.go        | 82 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/panic.go       |  4 +--
+ src/runtime/stubs.go       | 12 ++++++-
+ 12 files changed, 263 insertions(+), 93 deletions(-)

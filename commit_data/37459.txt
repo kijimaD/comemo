@@ -1,46 +1,33 @@
-commit 3068fcfa0d6535d081a6fe3fb3dc8dd30bff370f
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Tue Oct 16 13:03:35 2018 +0300
+commit a2ef8b9c6c9ca9a84586017514e23ce6b58086bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 1 19:48:58 2018 +0000
 
-    cmd/compile: add control flow graphs to ssa.html
+    vendor: update golang.org/x/net/http2/hpack
     
-    This CL adds CFGs to ssa.html.
-    It execs dot to generate SVG,
-    which then gets inlined into the html.
-    Some standard naming and javascript hacks
-    enable integration with the rest of ssa.html.
-    Clicking on blocks highlights the relevant
-    part of the CFG, and vice versa.
+    Updates bundled golang.org/x/net/http2/hpack to x/net git rev 22bb95c5e for:
     
-    Sample output and screenshots can be seen in #28177.
+       http2/hpack: lazily build huffman table on first use
+       https://golang.org/cl/127275
     
-    CFGs can be turned on with the suffix mask:
-    :*            - dump CFG for every phase
-    :lower        - just the lower phase
-    :lower-layout - lower through layout
-    :w,x-y        - phases w and x through y
+       http2/hpack: reduce memory for huffman decoding table
+       https://golang.org/cl/127235
     
-    Calling dot after every pass is noticeably slow,
-    instead use the range of phases.
+       http2/hpack: dynamic table updates must occur first
+       https://golang.org/cl/111681
     
-    Dead blocks are not displayed on CFG.
+    And a typo & gofmt CL.
     
-    User can zoom and pan individual CFG
-    when the automatic adjustment has failed.
+    Updates #25023
     
-    Dot-related errors are reported
-    without bringing down the process.
-    
-    Fixes #28177
-    
-    Change-Id: Id52c42d86c4559ca737288aa10561b67a119c63d
-    Reviewed-on: https://go-review.googlesource.com/c/142517
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7027fdb4982305aa671d811fe87f61e5df0f8e0e
+    Reviewed-on: https://go-review.googlesource.com/127355
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go    |  13 +-
- src/cmd/compile/internal/gc/ssa.go     |   3 +-
- src/cmd/compile/internal/ssa/func.go   |   1 +
- src/cmd/compile/internal/ssa/html.go   | 344 +++++++++++++++++++++++++++++++--
- src/cmd/compile/internal/ssa/layout.go |   2 +
- 5 files changed, 348 insertions(+), 15 deletions(-)
+ src/vendor/golang_org/x/net/http2/hpack/encode.go  |   2 +-
+ src/vendor/golang_org/x/net/http2/hpack/hpack.go   |   6 +
+ .../golang_org/x/net/http2/hpack/hpack_test.go     |  40 +++++++
+ src/vendor/golang_org/x/net/http2/hpack/huffman.go |  20 +++-
+ src/vendor/golang_org/x/net/http2/hpack/tables.go  | 122 ++++++++++-----------
+ 5 files changed, 123 insertions(+), 67 deletions(-)

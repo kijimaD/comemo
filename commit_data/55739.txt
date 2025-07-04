@@ -1,20 +1,38 @@
-commit 5e00352b9b8919836f5793a2fe2db690fb7507c1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 27 09:21:44 2024 -0800
+commit f5c7416511de979433a500735c1617cf03dc46c2
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 9 09:59:26 2023 -0500
 
-    go/types, types2: consistently use singular when reporting version errors
+    cmd/compile: reorder operations in SCCs to enable more inlining
     
-    Change-Id: I39af932b789cd18dc4bfc84f9667b1c32c9825f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567476
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This patch changes the relative order of "CanInline" and "InlineCalls"
+    operations within the inliner for clumps of functions corresponding to
+    strongly connected components in the call graph. This helps increase
+    the amount of inlining within SCCs, particularly in Go's runtime
+    package, which has a couple of very large SCCs.
+    
+    For a given SCC of the form { fn1, fn2, ... fnk }, the inliner would
+    (prior to this point) walk through the list of functions and for each
+    function first compute inlinability ("CanInline") and then perform
+    inlining ("InlineCalls"). This meant that if there was an inlinable
+    call from fn3 to fn4 (for example), this call would never be inlined,
+    since at the point fn3 was visited, we would not have computed
+    inlinability for fn4.
+    
+    We now do inlinability analysis for all functions in an SCC first,
+    then do actual inlining for everything. This results in 47 additional
+    inlines in the Go runtime package (a fairly modest increase
+    percentage-wise of 0.6%).
+    
+    Updates #58905.
+    
+    Change-Id: I48dbb1ca16f0b12f256d9eeba8cf7f3e6dd853cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474955
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/types2/conversions.go |  4 ++--
- src/cmd/compile/internal/types2/version.go     |  8 ++++----
- src/go/types/conversions.go                    |  4 ++--
- src/go/types/version.go                        |  8 ++++----
- src/internal/types/testdata/check/go1_12.go    | 18 +++++++++---------
- test/fixedbugs/issue31747.go                   | 18 +++++++++---------
- 6 files changed, 30 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/base/debug.go |  1 +
+ src/cmd/compile/internal/inline/inl.go | 46 ++++++++++++++++++++++++++--------
+ test/inline.go                         |  6 ++---
+ 3 files changed, 39 insertions(+), 14 deletions(-)

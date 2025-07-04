@@ -1,21 +1,17 @@
-commit 99c757adb591b5fe3d94673cf7bd8b5fab9e5fce
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 30 11:12:52 2017 -0400
+commit 1948b7f8069d881822bf700185dd19dcb4b14482
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu May 25 11:50:40 2017 +0200
 
-    cmd/compile: use a counter to track whether writebarrier rewriting is done
+    math/big: fix Add, Sub when receiver aliases 2nd operand
     
-    Use a counter, instead of a loop, to see whether there are more
-    writebarrier ops in the current block that need to be rewritten.
+    Fixes #20490
     
-    No visible change in normal compiler speed benchmarks.
-    
-    Passes toolstash -cmp on std cmd.
-    
-    Fixes #20416.
-    
-    Change-Id: Ifbbde23611cd668c35b8a4a3e9a92726bfe19956
-    Reviewed-on: https://go-review.googlesource.com/60310
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I9cfa604f9ff94df779cb9b4cbbd706258fc473ac
+    Reviewed-on: https://go-review.googlesource.com/44150
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/math/big/float.go      | 13 +++++++++++--
+ src/math/big/float_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

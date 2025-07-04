@@ -1,23 +1,30 @@
-commit 83e0704c50c4269d90ec654b6590ae4db554f4eb
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 6 11:15:27 2023 -0400
+commit 7398c3c0c6d66a95d0c29c8fa59322e675ce7c86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 26 21:27:20 2022 -0700
 
-    cmd/compile: add all runtime package dependencies to NoInstrumentPkgs
+    cmd/compile: use "method T.m already declared" for method redeclaration errors
     
-    Currently, this list includes *almost* all runtime packages, but not
-    quite all.
+    Compromise between old compiler error "T.m redeclared in this block"
+    (where the "in this block" is not particularly helpful) and the old
+    type-checker error "method m already declared for type T ...".
+    In the case where we have position information for the original
+    declaration, the error message is "method T.m already declared at
+    <position>". The new message is both shorter and more precise.
     
-    We leave out internal/bytealg for reasons explained in the code.
+    For #55326.
     
-    Compiling with or without race instrumentation has no effect on the
-    other packages added to the list here, so this is a no-op change
-    today, but makes this more robust.
-    
-    Change-Id: Iaec585b2efbc72983d8cb3929394524c42dd664d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521701
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id4a7f326fe631b11db9e8030eccb417c72d6c7db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435016
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/base/base.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/types2/decl.go | 10 +++-------
+ src/go/types/decl.go                    |  7 +++++--
+ test/alias2.go                          |  6 +++---
+ test/fixedbugs/bug350.go                |  4 ++--
+ test/fixedbugs/issue18655.go            | 16 ++++++++--------
+ test/method1.go                         |  4 ++--
+ 6 files changed, 23 insertions(+), 24 deletions(-)

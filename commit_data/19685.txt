@@ -1,17 +1,14 @@
-commit f2b59a3483e3d7638b55f4e01a20edac75890759
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 8 14:09:35 2014 -0700
+commit 1648df672824f64f30070d0c6b671329ce0e2b77
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 14:47:52 2014 -0400
 
-    test: add test for gccgo comment lexing failure
+    runtime: skip crash test on android
     
-    http://gcc.gnu.org/PR61746
-    
-    http://code.google.com/p/gofrontend/issues/detail?id=35
-    
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, minux
     CC=golang-codereviews
-    https://golang.org/cl/111980043
+    https://golang.org/cl/110400043
 
- test/fixedbugs/bug486.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/pkg/runtime/crash_test.go   | 5 +++--
+ src/pkg/runtime/runtime_test.go | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

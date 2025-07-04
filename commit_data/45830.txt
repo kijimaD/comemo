@@ -1,23 +1,19 @@
-commit 97cee43c93cfccded197cd281f0a5885cdb605b4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jun 8 15:33:54 2021 +0200
+commit 48a1a5189843571a08461a5756e5fe553f966c94
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 23 19:25:32 2020 +0000
 
-    testing: drop unusual characters from TempDir directory name
+    runtime/metrics: tweak wording of stack and unused memory metrics
     
-    Only use safe characters of the test name for the os.MkdirTemp pattern.
-    This currently includes the alphanumeric characters and ASCII
-    punctuation characters known not to interact with globs.
+    This change tweaks and simplifies the descriptions of a couple metrics
+    to make them easier to parse (for humans).
     
-    Fixes #46624
-    
-    Change-Id: I402c34775b943fed9b97963c52f79245cc16dc1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326010
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I852654c7e7042c662ebdfa6334e3baf49ca4b33c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272566
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/testing.go      | 34 ++++++++++++++++++++++------------
- src/testing/testing_test.go | 10 +++++++++-
- 2 files changed, 31 insertions(+), 13 deletions(-)
+ src/runtime/metrics/description.go | 9 ++++-----
+ src/runtime/metrics/doc.go         | 7 +++----
+ 2 files changed, 7 insertions(+), 9 deletions(-)

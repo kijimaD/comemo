@@ -1,19 +1,19 @@
-commit 73667209c1c83bd48fe7338c3b4caaa05c073202
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Jul 30 11:42:14 2023 +0800
+commit 92b8f4e293421b3b61e868d593a89315c788c327
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:28:35 2022 +0800
 
-    log/slog: catch panics during formatting
+    internal/fuzz: simplify code using unsafe.{SliceData,Slice}
     
-    Fixes #61648
+    Updates #54854
     
-    Change-Id: I6b7f4948ca89142a358d74624607daf42ea8b304
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514135
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Change-Id: If70b11c0fc920b7214fcff249da9e3c4ac1de991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428156
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/log/slog/handler.go     | 18 ++++++++++++
- src/log/slog/logger_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+)
+ src/internal/fuzz/mutator.go     | 5 +----
+ src/internal/fuzz/sys_windows.go | 7 +------
+ 2 files changed, 2 insertions(+), 10 deletions(-)

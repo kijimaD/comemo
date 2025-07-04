@@ -1,33 +1,21 @@
-commit 33ac854481c49632a4b924b184f83e068014b486
+commit d97b11f12fb36ae8117519ee983a8f811360ee1a
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 11 14:27:43 2019 -0800
+Date:   Mon Sep 17 13:43:35 2018 -0700
 
-    cmd/compile: do not export float or complex constants with -asmhdr
+    go/types: don't report cycle error if clearer error follows
     
-    The -asmhdr flag is used to generate header files for assembly code
-    such that that code has access to compile-time constants. During
-    the build these constants end up in the (ephemeral) file go_asm.h.
+    If a cyclic declaration uses a non-type object where it expects
+    a type, don't report the cycle error in favor of the clearer and
+    more informative error about the missing type.
     
-    For historical reasons, floating-point and complex constants are
-    printed with a 'p' exponent but with decimal mantissa; also, because
-    of the compiler-internal precision of 512 bits, the mantissae are quite
-    large (and conversions are comparatively slow).
+    Fixes #25790.
     
-    With the changes to the new Go 2 number literals, the respective
-    upcoming changes to text/scanner (which in turn is used by the assembler)
-    will make text/scanner newly accept hexadecimal floats; but also decimal
-    floats using the incorrect 'p' exponent and report an error in that case.
-    
-    As a consequence, the assembler will report an error when trying to parse
-    the before-mentioned decimal floating-point values which are using 'p'
-    exponents. Since these constants are never needed in the assembly code,
-    do not emit them in the first place.
-    
-    Change-Id: I06c7c96b04e8d062441120107992472f87a651b2
-    Reviewed-on: https://go-review.googlesource.com/c/161904
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If937078383def878efb4c69686e5b4b2a495fd5d
+    Reviewed-on: https://go-review.googlesource.com/135700
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/export.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/types/expr.go              |  2 +-
+ src/go/types/testdata/cycles5.src | 21 +++++++++++++++------
+ src/go/types/testdata/decls0.src  | 10 +++++-----
+ src/go/types/typexpr.go           | 18 +++++++++++++++---
+ 4 files changed, 36 insertions(+), 15 deletions(-)

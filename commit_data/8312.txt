@@ -1,14 +1,20 @@
-commit 37dca9d41774a996f390af3e200f0384b7b3f53a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed May 4 11:16:55 2011 +1000
+commit 4b30d7cead579335c486573f154567f813279b5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 11:25:35 2011 -0700
 
-    make.bash: remove old bash version of gotest on Windows
+    http: improve a test
     
-    The file is called gotest.exe now.
+    Should prevent failures on slow machines, such as:
+    http://godashboard.appspot.com/log/47b5cae591b7ad8908704e327f3b9b41945d7d5fecfc0c8c945d5545ece1a813
     
-    R=golang-dev, r
+    Verified the change (on a fast machine) by removing the
+    existing sleep, in which case the race happens ~50% of the
+    time with GOMAXPROCS > 1, but recovers gracefully with
+    retries.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4444090
+    https://golang.org/cl/4441089
 
- src/make.bash | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/http/transport_test.go | 44 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

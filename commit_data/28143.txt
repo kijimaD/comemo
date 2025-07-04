@@ -1,19 +1,33 @@
-commit 8e6948fe88f8300c8a939f062b9c58d688bbab62
-Author: Bryan Alexander <Kozical@msn.com>
-Date:   Sun Aug 28 14:11:31 2016 -0500
+commit 981395103e9addfc494245979063dc59a327e888
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:02 2016 -0400
 
-    crypto/x509: Fix bug in UnknownAuthorityError.Error
+    cmd/internal/obj/mips et al.: introduce SB register on mips64x
     
-    Fix bug in UnknownAuthorityError.Error that would never allow Org
-    Name to be inserted into error message if the Common Name was empty.
-    Create tests for all three paths in UnknownAuthorityError.Error
+    SB register (R28) is introduced for access external addresses with shorter
+    instruction sequences. It is loaded at entry points. External data within
+    2G of SB can be accessed this way.
     
-    Change-Id: Id8afc444e897ef549df682d93a8563fd9de22a2b
-    Reviewed-on: https://go-review.googlesource.com/27992
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    cmd/internal/obj: relocaltion R_ADDRMIPS is split into two relocations
+    R_ADDRMIPS and R_ADDRMIPSU, handling the low 16 bits and the "upper" 16
+    bits of external addresses, respectively, since the instructios may not
+    be adjacent. It might be better if relocation Variant could be used.
+    
+    cmd/link/internal/mips64: support new relocations.
+    
+    cmd/compile/internal/mips64: reserve SB register.
+    
+    runtime: initialize SB register at entry points.
+    
+    Change-Id: I5f34868f88c5a9698c042a8a1f12f76806c187b9
+    Reviewed-on: https://go-review.googlesource.com/19802
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/x509/verify.go      |  3 +-
- src/crypto/x509/verify_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 90 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/mips64/gsubr.go |   1 +
+ src/cmd/compile/internal/mips64/reg.go   |   2 +-
+ src/cmd/internal/obj/link.go             |   8 +-
+ src/cmd/internal/obj/mips/asm0.go        | 214 ++++++++++++++++---------------
+ src/cmd/link/internal/mips64/asm.go      |  21 +--
+ src/runtime/rt0_linux_mips64x.s          |   5 +
+ src/runtime/sys_linux_mips64x.s          |   8 +-
+ 7 files changed, 138 insertions(+), 121 deletions(-)

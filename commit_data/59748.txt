@@ -1,18 +1,17 @@
-commit 711ff943afc572c6b0e800aa1e73aaf336568c2d
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat May 31 16:41:15 2025 +0200
+commit 276d28fe40dc8b4e0a9964a52dec426d4ed6fff0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Apr 18 02:29:55 2024 +0800
 
-    testing: add Output method to TB
+    net/http: add case for TestParseSetCookie
     
-    Updates #59928
-    Fixes #73937
+    Updates #66008
     
-    Change-Id: Ibf7ec61758edccd245841c3acc9096563b44fcd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677875
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Idd36a7f0b4128adfd0a3d7fe76eb6c2cea4306a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579795
     Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- api/go1.25.txt         | 1 +
- src/testing/testing.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/net/http/cookie_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,55 +1,24 @@
-commit 1081f8c05807728738e1e6bf9097a41796fe5a05
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 21 12:55:43 2023 -0400
+commit f6e1677428e3df28e936cb000b58fca377f67d72
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Sep 23 21:29:44 2022 +0000
 
-    context: fix synchronization in ExampleAfterFunc_cond
+    cmd/go/internal: use time.DateTime constant
     
-    Condition variables are subtle and error-prone, and this example
-    demonstrates exactly the sorts of problems that they introduce.
-    Unfortunately, we're stuck with them for the foreseeable future.
+    Use the newly defined time.Datetime constant instead of a string literal.
     
-    As previously implemented, this example was racy: since the callback
-    passed to context.AfterFunc did not lock the mutex before calling
-    Broadcast, it was possible for the Broadcast to occur before the
-    goroutine was parked in the call to Wait, causing in a missed wakeup
-    resulting in deadlock.
+    Updates #52746
     
-    The example also had a more insidious problem: it was not safe for
-    multiple goroutines to call waitOnCond concurrently, but the whole
-    point of using a sync.Cond is generally to synchronize concurrent
-    goroutines. waitOnCond must use Broadcast to ensure that it wakes up
-    the target goroutine, but the use of Broadcast in this way would
-    produce spurious wakeups for all of the other goroutines waiting on
-    the same condition variable. Since waitOnCond did not recheck the
-    condition in a loop, those spurious wakeups would cause waitOnCond
-    to spuriously return even if its own ctx was not yet done.
-    
-    Fixing the aforementioned bugs exposes a final problem, inherent to
-    the use of condition variables in this way. This one is a performance
-    problem: for N concurrent calls to waitOnCond, the resulting CPU cost
-    is at least O(N²). This problem cannot be addressed without either
-    reintroducing one of the above bugs or abandoning sync.Cond in the
-    example entirely. Given that this example was already published in Go
-    1.21, I worry that Go users may think that it is appropriate to use a
-    sync.Cond in conjunction with context.AfterFunc, so I have chosen to
-    retain the Cond-based example and document its pitfalls instead of
-    removing or replacing it entirely.
-    
-    I described this class of bugs and performance issues — and suggested
-    some channel-based alternatives — in my GopherCon 2018 talk,
-    “Rethinking Classical Concurrency Patterns”. The section on condition
-    variables starts on slide 37. (https://youtu.be/5zXAHh5tJqQ?t=679)
-    
-    Fixes #62180.
-    For #20491.
-    
-    Change-Id: If987cd9d112997c56171a7ef4fccadb360bb79bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521596
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2722415ecc67fd2adfdab2eaba3298774032bff3
+    GitHub-Last-Rev: 65d3aa9bc229cf6d07d6d0c1aaee4ada9056cd49
+    GitHub-Pull-Request: golang/go#55833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433277
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/context/example_test.go | 61 +++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 50 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 2 +-
+ src/cmd/go/internal/vcs/vcs.go               | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

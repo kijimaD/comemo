@@ -1,14 +1,44 @@
-commit 7f76c00fc5678fa782708ba8fece63750cb89d03
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 19 16:14:54 2024 -0400
+commit e23322e2ccd19b5802a823d20a089540afef79ce
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Apr 17 10:02:48 2023 -0500
 
-    internal/reflectlite: remove unused mapType
+    cmd/internal/obj/ppc64: modify PCALIGN to ensure alignment
     
-    Change-Id: I715186c053bc9911b912e69904735c9498bf9c13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580376
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    The initial purpose of PCALIGN was to identify code
+    where it would be beneficial to align code for performance,
+    but avoid cases where too many NOPs were added. On p10, it
+    is now necessary to enforce a certain alignment in some
+    cases, so the behavior of PCALIGN needs to be slightly
+    different.  Code will now be aligned to the value specified
+    on the PCALIGN instruction regardless of number of NOPs added,
+    which is more intuitive and consistent with power assembler
+    alignment directives.
+    
+    This also adds 64 as a possible alignment value.
+    
+    The existing values used in PCALIGN were modified according to
+    the new behavior.
+    
+    A testcase was updated and performance testing was done to
+    verify that this does not adversely affect performance.
+    
+    Change-Id: Iad1cf5ff112e5bfc0514f0805be90e24095e932b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485056
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/reflectlite/reflect_mirror_test.go |  1 -
- src/internal/reflectlite/type.go                | 14 --------------
- 2 files changed, 15 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go     | 43 ++++++++--------------------------
+ src/cmd/internal/obj/ppc64/asm_test.go |  2 +-
+ src/cmd/internal/obj/ppc64/doc.go      | 11 +++++++--
+ src/crypto/aes/asm_ppc64x.s            |  4 ++--
+ src/internal/bytealg/compare_ppc64x.s  |  2 +-
+ src/internal/bytealg/equal_ppc64x.s    |  2 +-
+ src/internal/bytealg/index_ppc64x.s    |  4 ++--
+ src/math/big/arith_ppc64x.s            | 14 +++++------
+ src/runtime/memclr_ppc64x.s            |  2 +-
+ src/runtime/memmove_ppc64x.s           |  4 ++--
+ 10 files changed, 36 insertions(+), 52 deletions(-)

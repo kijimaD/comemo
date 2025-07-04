@@ -1,22 +1,24 @@
-commit 66432e1b62c440b16b76e920aa59f1658678df93
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 16 14:15:07 2023 -0700
+commit 08c46ed43d80bbb67cb904944ea3417989be4af3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Mar 28 18:41:26 2022 -0700
 
-    go/types, types2: remove argument "getter" use from Checker.builtins (cleanup)
+    encoding/xml: use iterative Skip, rather than recursive
     
-    Check all arguments for validity once, in the beginning.
-    Conservatively replace arg(x, i) calls with *x = args[i].
-    Use y (2nd arguments) directly, w/o copying.
-    Remove unnecessary copies and slice creations in append.
+    Prevents exhausting the stack limit in _incredibly_ deeply nested
+    structures.
     
-    Change-Id: I1e2891cba9658f5b3cdf897e81db2f690a99b16b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495515
+    Fixes #53614
+    Fixes CVE-2022-28131
+    
+    Change-Id: I47db4595ce10cecc29fbd06afce7b299868599e6
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1419912
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417062
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/builtins.go | 102 ++++++++++-----------------
- src/go/types/builtins.go                    | 104 ++++++++++------------------
- 2 files changed, 71 insertions(+), 135 deletions(-)
+ src/encoding/xml/read.go      | 15 ++++++++-------
+ src/encoding/xml/read_test.go | 17 +++++++++++++++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

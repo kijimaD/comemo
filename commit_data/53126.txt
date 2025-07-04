@@ -1,22 +1,21 @@
-commit b42ce3a65fd0ea323a67bc8bdbb2a88e7148dcc7
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 18 16:26:13 2023 -0400
+commit 783ff7dfc49d207114bb80e565e50ea6ff079326
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jul 14 12:09:19 2022 -0700
 
-    cmd/cgo/internal/testtls: cleanup and support more arches
+    encoding/xml: skip TestCVE202230633 for short tests
     
-    Currently, this test only enabled on non-Darwin UNIX platforms because
-    it uses the non-standard _thread attribute for thread-local storage.
-    C11 introduced a standard way to declare something thread-local, so
-    this CL takes advantage of that to generalize the test to Darwin and
-    Windows.
+    TestCVE202230633 uses a bunch of memory, and the input cannot be
+    feasibly reduced while maintaining the behavior hasn't regressed. This
+    test could be reasonably removed, but I'd rather keep it around if we
+    can.
     
-    Change-Id: Iba31b6216721df6eb8e978d7487cd3a787cae588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496295
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #53814
+    
+    Change-Id: Ie8b3f306efd20b2d9c0fb73122c26351a55694c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417655
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/cgo/internal/testtls/tls.c       | 32 ++++++++++++++++++++++++++++----
- src/cmd/cgo/internal/testtls/tls.go      |  8 +++++---
- src/cmd/cgo/internal/testtls/tls_none.go |  4 ++--
- 3 files changed, 35 insertions(+), 9 deletions(-)
+ src/encoding/xml/read_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,21 +1,16 @@
-commit 0a49d4a7786dcc77b6ff4d687b6d4b14f307b5ef
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 16:03:38 2023 -0700
+commit f1e50a169708db11ad03516070740ca1392f2531
+Author: Park Zhou <buildpaas@gmail.com>
+Date:   Tue May 17 02:10:45 2022 +0800
 
-    cmd/compile/internal/ir: simplify formatting of CompLitExpr
+    go/parser: simplify code (cleanup)
     
-    Composite literals always have a type now, so the extra fallback code
-    isn't necessary. But also, to prepare for the upcoming removal of
-    OrigNode, we need to print OSLICELIT with Implicit set as
-    "... argument" to satisfy existing regress tests.
-    
-    Change-Id: I365e879066903eebf1b78e10c1b505565cea3ce3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526396
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0c8823b9c3c12f0f581b24db6a7aa5a0cd913224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407537
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/ir/fmt.go | 24 ++++--------------------
- 1 file changed, 4 insertions(+), 20 deletions(-)
+ src/go/parser/parser.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

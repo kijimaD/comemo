@@ -1,26 +1,15 @@
-commit 14f3284ddb682ccf111716b50f43dc6ee072cf4c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 28 18:40:38 2016 +0000
+commit 55875977eb7e4f5b926127ec76217f37c7fd3713
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 14:48:01 2016 -0700
 
-    Revert "runtime/pprof: write profiles in protobuf format."
+    cmd/compile: dedup Pragma switch
     
-    This reverts commit 7d14401bcbee4a8ff33ac869ef5ebb156a179ab6.
-    
-    Reason for revert: Doesn't build.
-    
-    Change-Id: I766179ab9225109d9232f783326e4d3843254980
-    Reviewed-on: https://go-review.googlesource.com/32256
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2d01f692ae30a166079976b86bf0b7a439f05d5c
+    Reviewed-on: https://go-review.googlesource.com/28178
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                          |  14 +-
- src/runtime/crash_cgo_test.go                      |   3 +-
- src/runtime/pprof/decoder_for_test.go              | 807 ---------------------
- src/runtime/pprof/internal/profile/encode.go       | 187 -----
- src/runtime/pprof/internal/profile/profile.go      | 112 ---
- .../pprof/internal/profile/profile_memmap.go       | 302 --------
- src/runtime/pprof/internal/profile/proto.go        | 156 ----
- .../pprof/internal/protopprof/protopprof.go        | 295 --------
- src/runtime/pprof/mprof_test.go                    |  64 +-
- src/runtime/pprof/pprof.go                         | 382 +++++-----
- src/runtime/pprof/pprof_test.go                    | 227 ++++--
- 11 files changed, 409 insertions(+), 2140 deletions(-)
+ src/cmd/compile/internal/gc/lex.go   | 92 ++++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/noder.go | 46 +-----------------
+ 2 files changed, 51 insertions(+), 87 deletions(-)

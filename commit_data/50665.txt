@@ -1,22 +1,33 @@
-commit 6e1b769377245f706c9c1471fa95276762e8edbf
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Sep 12 17:07:00 2022 -0500
+commit 1c4cfd80109da81a2c6cf49b4d3ff49c45af8e03
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 17 10:07:41 2021 -0400
 
-    cmd/compile: remove some lines from PPC64.rules
+    cmd/compile,cmd/internal/objabi: move -d flag parser to objabi
     
-    In CL 429035 Keith suggested removing some
-    rules that were covered by generic rules. This
-    follows up on that comment.
+    This moves and slightly generalizes the -d debug flag parser from
+    cmd/compile/internal/base to cmd/internal/objabi so that we can use
+    the same debug flag syntax in other tools.
     
-    Change-Id: I57b6c9ae0cd85f33a0eb2fef8356575d3d7820fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430417
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This makes a few minor tweaks to implementation details. The flag
+    itself is now just a flag.Value that gets constructed explicitly,
+    rather than at init time, and we've cleaned up the implementation a
+    little (e.g., using a map instead of a linear search of a slice). The
+    help text is now automatically alphabetized. Rather than describing
+    the values of some flags in the help text footer, we simply include it
+    in the flags' help text and make sure multi-line help text renders
+    sensibly.
+    
+    For #48297.
+    
+    Change-Id: Id373ee3b767e456be483fb28c110d025149be532
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359956
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   34 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 1208 +-------------------------
- 2 files changed, 30 insertions(+), 1212 deletions(-)
+ src/cmd/compile/internal/base/debug.go | 146 +----------------------------
+ src/cmd/compile/internal/base/flag.go  |  36 ++++----
+ src/cmd/internal/objabi/flag.go        | 164 +++++++++++++++++++++++++++++++++
+ 3 files changed, 187 insertions(+), 159 deletions(-)

@@ -1,17 +1,12 @@
-commit 6ed2b6c47d7c6b66af3fb2f93dd3e66a758ec76d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 15 08:59:03 2012 -0500
+commit 988968262dcbd0d625d57f00714c655ffb7c56e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 00:59:01 2012 -0800
 
-    5c, 6c, 8c, 6g, 8g: correct boundary checking
-        CL 5666043 fixed the same checking for 5g.
+    doc: fix links
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5666045
+    https://golang.org/cl/5671051
 
- src/cmd/5c/txt.c   | 2 +-
- src/cmd/6c/txt.c   | 2 +-
- src/cmd/6g/gsubr.c | 2 +-
- src/cmd/8c/txt.c   | 2 +-
- src/cmd/8g/gsubr.c | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ lib/godoc/package.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

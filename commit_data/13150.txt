@@ -1,13 +1,69 @@
-commit 34ad3995e06fb4a4e209adfbd11367cc3d22f8b8
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 25 00:08:52 2012 +0800
+commit b0702bd0dba1451f908f9d503a82a8fd3cf3f2c9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu May 24 10:55:50 2012 +0400
 
-    cmd/cc: fix uint right shift in constant evaluation
-            Fixes #3664.
+    runtime: faster GC mark phase
+    Also bump MaxGcproc to 8.
     
-    R=golang-dev, bradfitz, rsc
+    benchmark             old ns/op    new ns/op    delta
+    Parser               3796323000   3763880000   -0.85%
+    Parser-2             3591752500   3518560250   -2.04%
+    Parser-4             3423825250   3334955250   -2.60%
+    Parser-8             3304585500   3267014750   -1.14%
+    Parser-16            3313615750   3286160500   -0.83%
+    
+    Tree                  984128500    942501166   -4.23%
+    Tree-2                932564444    883266222   -5.29%
+    Tree-4                835831000    799912777   -4.30%
+    Tree-8                819238500    789717333   -3.73%
+    Tree-16               880837833    837840055   -5.13%
+    
+    Tree2                 604698100    579716900   -4.13%
+    Tree2-2               372414500    356765200   -4.20%
+    Tree2-4               187488100    177455900   -5.56%
+    Tree2-8               136315300    102086700  -25.11%
+    Tree2-16               93725900     76705800  -22.18%
+    
+    ParserPause           157441210    166202783   +5.56%
+    ParserPause-2          93842650     85199900   -9.21%
+    ParserPause-4          56844404     53535684   -5.82%
+    ParserPause-8          35739446     30767613  -16.15%
+    ParserPause-16         32718255     27212441  -16.83%
+    
+    TreePause              29610557     29787725   +0.60%
+    TreePause-2            24001659     20674421  -13.86%
+    TreePause-4            15114887     12842781  -15.03%
+    TreePause-8            13128725     10741747  -22.22%
+    TreePause-16           16131360     12506901  -22.47%
+    
+    Tree2Pause           2673350920   2651045280   -0.83%
+    Tree2Pause-2         1796999200   1709350040   -4.88%
+    Tree2Pause-4         1163553320   1090706480   -6.67%
+    Tree2Pause-8          987032520    858916360  -25.11%
+    Tree2Pause-16         864758560    809567480   -6.81%
+    
+    ParserLastPause       280537000    289047000   +3.03%
+    ParserLastPause-2     183030000    166748000   -8.90%
+    ParserLastPause-4     105817000     91552000  -13.48%
+    ParserLastPause-8      65127000     53288000  -18.18%
+    ParserLastPause-16     45258000     38334000  -15.30%
+    
+    TreeLastPause          45072000     51449000  +12.39%
+    TreeLastPause-2        39269000     37866000   -3.57%
+    TreeLastPause-4        23564000     20649000  -12.37%
+    TreeLastPause-8        20881000     15807000  -24.30%
+    TreeLastPause-16       23297000     17309000  -25.70%
+    
+    Tree2LastPause       6046912000   5797120000   -4.13%
+    Tree2LastPause-2     3724034000   3567592000   -4.20%
+    Tree2LastPause-4     1874831000   1774524000   -5.65%
+    Tree2LastPause-8     1363108000   1020809000  -12.79%
+    Tree2LastPause-16     937208000    767019000  -22.18%
+    
+    R=rsc, 0xe2.0x9a.0x9b
     CC=golang-dev
-    https://golang.org/cl/6249048
+    https://golang.org/cl/6223050
 
- src/cmd/cc/scon.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.h |   4 +-
+ src/pkg/runtime/mgc0.c   | 264 ++++++++++++++++++++---------------------------
+ 2 files changed, 113 insertions(+), 155 deletions(-)

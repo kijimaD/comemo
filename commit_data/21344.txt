@@ -1,52 +1,24 @@
-commit 349ecfb0d664c0ec59f4d4b396d4a9c37608f5eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 22 00:52:01 2015 -0500
+commit 3ffc9756d1963e834fbce63ff969de8959216c2b
+Author: George Shammas <george@shamm.as>
+Date:   Wed Dec 17 23:22:49 2014 -0500
 
-    cmd/gc: make cmd/gc a real library
+    net/http/cgi: Correctly pass down the REMOTE_PORT value for CGI requests.
     
-    cmd/gc contains symbol references into the back end dirs like 6g.
-    It also contains a few files that include the back end header files and
-    are compiled separately for each back end, despite being in cmd/gc.
-    cmd/gc also defines main, which makes at least one reverse symbol
-    reference unavoidable. (Otherwise you can't get into back-end code.)
+    Currently when we get a CGI or FCGI request, the remote port of the client
+    is hard coded to zero, despite nearly every webserver passing down the
+    REMOTE_PORT variable.
     
-    This was all expedient, but it's too tightly coupled, especially for a
-    program written Go.
+    This was likely originally excluded because the CGI RFC (rfc3875) does not
+    mention anything about the remote port of the client. However every webserver
+    tested does pass REMOTE_PORT down. This includes Apache 2.2, Apache 2.4,
+    nginx and lighttpd.
     
-    Make cmd/gc into a true library, letting the back end define main and
-    call into cmd/gc after making the necessary references available.
-    cmd/gc being a real library will ease the transition to Go.
+    Fixes #8351
     
-    Change-Id: I4fb9a0e2b11a32f1d024b3c56fc3bd9ee458842c
-    Reviewed-on: https://go-review.googlesource.com/3277
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4c6366cb39f0ccc05e038bd31d85f93b76e8d0c8
+    Reviewed-on: https://go-review.googlesource.com/1750
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/galign.c   |  84 +++++++++++++++++
- src/cmd/5g/gg.h       |  57 ++++++++++--
- src/cmd/5g/opt.h      |  48 ----------
- src/cmd/6g/galign.c   |  90 ++++++++++++++++++-
- src/cmd/6g/gg.h       |  58 ++++++++++--
- src/cmd/6g/opt.h      |  56 ------------
- src/cmd/8g/galign.c   |  84 +++++++++++++++++
- src/cmd/8g/gg.h       |  57 ++++++++++--
- src/cmd/8g/opt.h      |  57 ------------
- src/cmd/9g/galign.c   |  86 ++++++++++++++++++
- src/cmd/9g/gg.h       |  58 ++++++++++--
- src/cmd/9g/opt.h      |  54 -----------
- src/cmd/dist/build.go |  25 ------
- src/cmd/gc/align.c    |  18 ++--
- src/cmd/gc/cplx.c     |  52 +++++------
- src/cmd/gc/export.c   |   2 +-
- src/cmd/gc/gen.c      | 122 ++++++++++++-------------
- src/cmd/gc/go.h       | 243 ++++++++++++++++++++++++++++++++++++++++++--------
- src/cmd/gc/lex.c      |  38 ++++----
- src/cmd/gc/obj.c      |  24 ++---
- src/cmd/gc/pgen.c     |  85 +++++++++---------
- src/cmd/gc/plive.c    |  88 ++++++++----------
- src/cmd/gc/popt.c     |  83 ++++++++---------
- src/cmd/gc/popt.h     |  46 ----------
- src/cmd/gc/reflect.c  | 130 +++++++++++++--------------
- src/cmd/gc/sinit.c    |  44 ++++-----
- src/cmd/gc/subr.c     |   4 +-
- src/cmd/gc/walk.c     |  20 ++---
- 28 files changed, 1103 insertions(+), 710 deletions(-)
+ src/net/http/cgi/child.go      |  6 +++---
+ src/net/http/cgi/child_test.go | 21 ++++++++++++++++++++-
+ 2 files changed, 23 insertions(+), 4 deletions(-)

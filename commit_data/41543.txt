@@ -1,16 +1,18 @@
-commit 4f989323a5571e29c27f5ef86154676bd889fe15
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 2 13:57:17 2020 -0800
+commit ffca64dcf35e6298d25c87f3ab42c182c355c268
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 8 21:43:20 2019 -0400
 
-    cmd/compile: regenerate rules
+    [dev.link] cmd/internal/obj: support -S flag in newobj mode
     
-    CL 210897 went in concurrently with some rulegen.go changes.
-    Regenerate.
+    When the compiler's -S flag is specified, it dumps the
+    disassembly. Add this when writing the new style object file.
     
-    Change-Id: I39ffa8bdffdfcc7f60cc8158d188fb1a3e70fcb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221787
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4cf85e57d22d0ceea1fda6d3b59fe363573659e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200100
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/objfile.go  | 5 ++---
+ src/cmd/internal/obj/objfile2.go | 4 ++++
+ 2 files changed, 6 insertions(+), 3 deletions(-)

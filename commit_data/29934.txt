@@ -1,19 +1,20 @@
-commit 0724aa813fe485684e5eac15c2a317d9d8482f82
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 11 11:36:07 2017 -0500
+commit f6cdfc7987d9f3ee7380b3e6f52e433608f342c5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 17 21:59:10 2016 +0200
 
-    crypto/dsa: gofmt
+    math/big: add benchmarks for big.Float String
     
-    Somehow this file didn't get gofmted after the last change, which
-    interferes with merges.
+    In addition to the DecimalConversion benchmark, that exercises the
+    String method of the internal decimal type on a range of small shifts,
+    add a few benchmarks for the big.Float String method. They can be used
+    to obtain more realistic data on the real-world performance of
+    big.Float printing.
     
-    Change-Id: I965cfdbf27a01124a6ed300be9687ff84f68f9a1
-    Reviewed-on: https://go-review.googlesource.com/35064
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Adam Langley <agl@chromium.org>
+    Change-Id: I7ada324e7603cb1ce7492ccaf3382db0096223ba
+    Reviewed-on: https://go-review.googlesource.com/31275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/dsa/dsa_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/big/decimal_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

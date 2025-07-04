@@ -1,17 +1,19 @@
-commit 845a91dc491095e042020a60143e86eedc4cfd91
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 29 17:18:13 2020 -0500
+commit 55c0ad4b62289e243e37d86e9cc16ae8289bd8b0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 11 13:25:29 2019 +0700
 
-    doc/go1.14: edit "Go command" section, move zone CPU cap note
+    cmd/compile: allow iota inside function in a ConstSpec
     
-    Minor edits to text on go command changes.
+    Fixes #22344
     
-    Also, moved a note about runtime respecting zone CPU caps from
-    Native Client section to Runtime section.
-    
-    Change-Id: Ic21e59d7ffecb4b5676a841e7f3743203a82d266
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216878
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7c400d9d4ebcab279d08a8c190508d82cbd20899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194717
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.14.html | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   |  6 +++
+ src/cmd/compile/internal/gc/syntax.go    |  1 +
+ src/cmd/compile/internal/gc/typecheck.go | 22 +++++++--
+ test/fixedbugs/issue22344.go             | 83 ++++++++++++++++++++++++++++++++
+ 4 files changed, 108 insertions(+), 4 deletions(-)

@@ -1,14 +1,22 @@
-commit 89fb80f7fae1359a57968fbe600fc69b7296dd2d
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Fri Aug 23 11:56:32 2019 +0000
+commit b37b35edd75af0c175079029bfa3d302637a9c8e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Jan 5 01:42:44 2019 +0700
 
-    doc/go1.13: add missing slashes
+    debug/gosym: simplify parsing symbol name rule
     
-    This saves a redirect and makes the document more consistent.
+    Symbol name with linker prefix like "type." and "go." is not parsed
+    correctly and returns the prefix as parts of package name.
     
-    Change-Id: Ib7f68b1967275c0c676a044314919449680297f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191537
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    So just returns empty string for symbol name start with linker prefix.
+    
+    Fixes #29551
+    
+    Change-Id: Idb4ce872345e5781a5a5da2b2146faeeebd9e63b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156397
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.13.html | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/debug/gosym/symtab.go      | 14 +++++++++++---
+ src/debug/gosym/symtab_test.go | 15 +++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

@@ -1,34 +1,30 @@
-commit 72970f7f52b1f8d14f10df40098175763a556ebe
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 6 15:57:35 2015 -0700
+commit a9cec30fdcc549282e0a5d520edb2eaf60f3061a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 28 16:45:33 2015 -0700
 
-    net/http/httputil: make ReverseProxy support Trailers
+    [dev.ssa] cmd/compile/internal/ssa: Implement block rewriting rules
     
-    Go's continuous build system depends on HTTP trailers for the buildlet
-    interface.
-    
-    Andrew rewrote the makerelease tool to work in terms of Go's builder
-    system (now at x/build/cmd/release), but it previously could only
-    create GCE-based buildlets, which meant x/build/cmd/release couldn't
-    build the release for Darwin.
-    
-    https://golang.org/cl/11901 added support for proxying buildlet
-    connections via the coordinator, but that exposed the fact that
-    httputil.ReverseProxy couldn't proxy Trailers. A fork of that code
-    also wasn't possible because net/http needlessly deleted the "Trailer"
-    response header in the Transport code.  This mistake goes back to
-    "release-branch.r56" and earlier but was never noticed because nobody
-    ever uses Trailers, and servers via ResponseWriter never had the
-    ability to even set trailers before this Go 1.5. Note that setting
-    trailers requires pre-declaring (in the response header) which
-    trailers you'll set later (after the response body). Because you could
-    never set them, before this release you could also never proxy them.
-    
-    Change-Id: I2410a099921790dcd391675ae8610300efa19108
-    Reviewed-on: https://go-review.googlesource.com/11940
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I47e5349e34fc18118c4d35bf433f875b958cc3e5
+    Reviewed-on: https://go-review.googlesource.com/10495
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 21 ++++++++++++++++++++-
- src/net/http/httputil/reverseproxy_test.go | 10 ++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/TODO                  |   9 +
+ src/cmd/compile/internal/ssa/block.go              |  36 +--
+ src/cmd/compile/internal/ssa/blockkind_string.go   |  24 +-
+ src/cmd/compile/internal/ssa/config.go             |  15 +-
+ src/cmd/compile/internal/ssa/deadcode.go           |  24 +-
+ src/cmd/compile/internal/ssa/deadcode_test.go      |   5 +-
+ src/cmd/compile/internal/ssa/export_test.go        |   1 +
+ src/cmd/compile/internal/ssa/fuse.go               |   2 +-
+ src/cmd/compile/internal/ssa/generic.go            |  57 +++-
+ src/cmd/compile/internal/ssa/lower.go              |  92 +-----
+ src/cmd/compile/internal/ssa/lowerAmd64.go         | 331 ++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/op.go                 |   2 +-
+ src/cmd/compile/internal/ssa/op_string.go          |  18 +-
+ src/cmd/compile/internal/ssa/opamd64.go            |  23 +-
+ src/cmd/compile/internal/ssa/opt.go                |   4 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |  20 +-
+ src/cmd/compile/internal/ssa/rulegen/generic.rules |  19 ++
+ .../compile/internal/ssa/rulegen/lower_amd64.rules |  31 +-
+ src/cmd/compile/internal/ssa/rulegen/rulegen.go    | 151 ++++++++--
+ 19 files changed, 658 insertions(+), 206 deletions(-)

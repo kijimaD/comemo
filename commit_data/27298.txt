@@ -1,21 +1,16 @@
-commit 6db98a3c51549eb5e1e481e9bca6ede7e8e15f54
-Author: David Chase <drchase@google.com>
-Date:   Thu May 5 13:35:10 2016 -0700
+commit 78fc59ef4235dab10119e77a0297d321ea54ae11
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Sun Mar 20 09:44:18 2016 +0200
 
-    cmd/compile: repair MININT conversion bug in arm softfloat
+    cmd/compile, cmd/link: remove unused fields from relocations
     
-    Negative-case conversion code was wrong for minimum int32,
-    used negate-then-widen instead of widen-then-negate.
+    Reduces size of archives in pkg/linux_amd64 by 3% from 41.5MB to 40.2MB
     
-    Test already exists; this fixes the failure.
-    
-    Fixes #15563.
-    
-    Change-Id: I4b0b3ae8f2c9714bdcc405d4d0b1502ccfba2b40
-    Reviewed-on: https://go-review.googlesource.com/22830
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id64ca7995de8dd84c9e7ce1985730927cf4bfd66
+    Reviewed-on: https://go-review.googlesource.com/20912
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/softfloat_arm.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/goobj/read.go      | 2 --
+ src/cmd/internal/obj/objfile.go     | 4 ----
+ src/cmd/link/internal/ld/objfile.go | 4 ----
+ 3 files changed, 10 deletions(-)

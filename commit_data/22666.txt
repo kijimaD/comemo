@@ -1,32 +1,23 @@
-commit 4a0ba7aa171a80fe798811a3fdc7c42b83dcda01
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 16 14:33:25 2015 -0700
+commit 9a3ee2d217ef573426b57da1e4309900db140e76
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Wed Mar 4 14:20:32 2015 +0100
 
-    net: use Go's DNS resolver when system configuration permits
+    cmd/gofmt, go/format: refactor common pieces into internal/format
     
-    If the machine's network configuration files (resolv.conf,
-    nsswitch.conf) don't have any unsupported options, prefer Go's DNS
-    resolver, which doesn't have the cgo & thread over.
+    cmd/gofmt and go/format had 3 functions (parse, format and isSpace)
+    that had to be kept in-sync.
     
-    It means users can have more than 500 DNS requests outstanding (our
-    current limit for cgo lookups) and not have one blocked thread per
-    outstanding request.
+    This CL extracts these 3 functions and refactors them into a new
+    internal/format package.
+    This CL is just code reorganization with no behavior nor semantic
+    change.
     
-    Discussed in thread https://groups.google.com/d/msg/golang-dev/2ZUi792oztM/Q0rg_DkF5HMJ
-    
-    Change-Id: I3f685d70aff6b47bec30b63e9fba674b20507f95
-    Reviewed-on: https://go-review.googlesource.com/8945
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I593f24e9d3cadbbd9559a67e3b1d2ff190b4fd90
+    Reviewed-on: https://go-review.googlesource.com/6760
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/conf.go                      | 237 +++++++++++++++++++++++++++++++++
- src/net/conf_test.go                 | 245 +++++++++++++++++++++++++++++++++++
- src/net/dnsclient_unix.go            |  90 +++++++++----
- src/net/dnsconfig_unix.go            |  32 +++--
- src/net/dnsconfig_unix_test.go       |  38 ++++--
- src/net/lookup_unix.go               |  28 ++--
- src/net/nss.go                       | 159 +++++++++++++++++++++++
- src/net/nss_test.go                  | 169 ++++++++++++++++++++++++
- src/net/parse.go                     | 129 ++++++++++++++++++
- src/net/testdata/openbsd-resolv.conf |   5 +
- 10 files changed, 1079 insertions(+), 53 deletions(-)
+ src/cmd/gofmt/gofmt.go        | 156 +---------------------------------------
+ src/cmd/gofmt/long_test.go    |   5 +-
+ src/go/format/format.go       | 157 +---------------------------------------
+ src/internal/format/format.go | 161 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 170 insertions(+), 309 deletions(-)

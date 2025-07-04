@@ -1,21 +1,21 @@
-commit b029e943448c2ddf6faa9007a8ba4ab76238f18b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 10 06:22:39 2017 +0900
+commit 37dbc7b49cbc9934c8dde54b65e5f417ce3faae9
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Sat Dec 3 11:37:05 2016 -0800
 
-    net/http: fix possible nil pointer dereference in TestOnlyWriteTimeout
+    html/template: escape JS in application/json script tag
     
-    TestOnlyWriteTimeout assumes wrongly that:
-    - the Accept method of trackLastConnListener is called only once
-    - the shared variable conn never becomes nil
-    and crashes on some circumstances.
+    Since ffd1c781b77aab542713b66ef387fa9307e4060b HTML templates check
+    MIME type in the "type" attribute of "script" tag to decide if contents
+    should be escaped as JavaScript. The whitelist of MIME types did not
+    include application/json. Include it in this CL.
     
-    Updates #19032.
+    Fixes #18159
     
-    Change-Id: I61de22618cd90b84a2b6401afdb6e5d9b3336b12
-    Reviewed-on: https://go-review.googlesource.com/36735
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I17a8a38f2b7789b4b7e941d14279de222eaf2b6a
+    Reviewed-on: https://go-review.googlesource.com/33899
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ src/html/template/js.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

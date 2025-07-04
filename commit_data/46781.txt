@@ -1,74 +1,30 @@
-commit 17c513e722e72739a59851e3a052952de36315aa
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Sep 13 15:28:55 2021 -0700
+commit 667e08ba8ccce4c00b0cde4a777030167295faf9
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 14 13:05:33 2020 -0400
 
-    cmd/compile: make encoding/binary loads/stores cheaper to inline
+    [dev.regabi] cmd/go: Use GOMAXPROCS to limit default build, compile parallelism
     
-    The encoding/binary little- and big-endian load and store routines are
-    frequently used in performance sensitive code. They look fairly complex
-    to the inliner. Though the routines themselves can be inlined,
-    code using them typically cannot be.
-    Yet they typically compile down to an instruction or two
-    on architectures that support merging such loads.
+    When people want deterministic/single-process builds, they probably
+    assume that GOMAXPROCS=1 will do that.  It currently does not,
+    neither for build parallelism nor for compiler internal parallelism.
+    (Current incantation for that is "go build -p=1 -gcflags=all=-c=1 ... ")
     
-    This change teaches the inliner to treat calls to these methods as cheap,
-    so that code using them will be more inlineable.
+    This CL makes
+      "GOMAXPROCS=1 go build ..."
+    behave like
+      "go build -p=1 -gcflags=all=-c=1 ... "
     
-    It'd be better to teach the inliner that this pattern of code is cheap,
-    rather than these particular methods. However, that is difficult to do
-    robustly when working with the IR representation. And the broader project
-    of which that would be a part, namely to model the rest of the compiler
-    in the inliner, is probably a non-starter. By way of contrast, imperfect
-    though it is, this change is an easy, cheap, and useful heuristic.
-    If/when we base inlining decisions on more accurate information obtained
-    later in the compilation process, or on PGO/FGO, we can remove this
-    and other such heuristics.
+    RELNOTE=yes
     
-    Newly inlineable functions in the standard library:
-    
-    crypto/cipher.gcmInc32
-    crypto/sha512.appendUint64
-    crypto/md5.appendUint64
-    crypto/sha1.appendUint64
-    crypto/sha256.appendUint64
-    vendor/golang.org/x/crypto/poly1305.initialize
-    encoding/gob.(*encoderState).encodeUint
-    vendor/golang.org/x/text/unicode/norm.buildRecompMap
-    net/http.(*http2SettingsFrame).Setting
-    net/http.http2parseGoAwayFrame
-    net/http.http2parseWindowUpdateFrame
-    
-    Benchmark impact for encoding/gob (the only package I measured):
-    
-    name                       old time/op  new time/op  delta
-    EndToEndPipe-8             2.25µs ± 1%  2.21µs ± 3%   -1.79%  (p=0.000 n=28+27)
-    EndToEndByteBuffer-8       93.3ns ± 5%  94.2ns ± 5%     ~     (p=0.174 n=30+30)
-    EndToEndSliceByteBuffer-8  10.5µs ± 1%  10.6µs ± 1%   +0.87%  (p=0.000 n=30+30)
-    EncodeComplex128Slice-8    1.81µs ± 0%  1.75µs ± 1%   -3.23%  (p=0.000 n=28+30)
-    EncodeFloat64Slice-8        900ns ± 1%   847ns ± 0%   -5.91%  (p=0.000 n=29+28)
-    EncodeInt32Slice-8         1.02µs ± 0%  0.90µs ± 0%  -11.82%  (p=0.000 n=28+26)
-    EncodeStringSlice-8        1.16µs ± 1%  1.04µs ± 1%  -10.20%  (p=0.000 n=29+26)
-    EncodeInterfaceSlice-8     28.7µs ± 3%  29.2µs ± 6%     ~     (p=0.067 n=29+30)
-    DecodeComplex128Slice-8    7.98µs ± 1%  7.96µs ± 1%   -0.27%  (p=0.017 n=30+30)
-    DecodeFloat64Slice-8       4.33µs ± 1%  4.34µs ± 1%   +0.24%  (p=0.022 n=30+29)
-    DecodeInt32Slice-8         4.18µs ± 1%  4.18µs ± 0%     ~     (p=0.074 n=30+28)
-    DecodeStringSlice-8        13.2µs ± 1%  13.1µs ± 1%   -0.64%  (p=0.000 n=28+28)
-    DecodeStringsSlice-8       31.9µs ± 1%  31.8µs ± 1%   -0.34%  (p=0.001 n=30+30)
-    DecodeBytesSlice-8         8.88µs ± 1%  8.84µs ± 1%   -0.48%  (p=0.000 n=30+30)
-    DecodeInterfaceSlice-8     64.1µs ± 1%  64.2µs ± 1%     ~     (p=0.173 n=30+28)
-    DecodeMap-8                74.3µs ± 0%  74.2µs ± 0%     ~     (p=0.131 n=29+30)
-    
-    Fixes #42958
-    
-    Change-Id: Ie048b8976fb403d8bcc72ac6bde4b33e133e2a47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349931
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9cfe50b7deee7334d2f1057b58385f6c98547b9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284695
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/inline/inl.go   |  33 +++--
- src/cmd/compile/internal/walk/compare.go |  21 +--
- src/cmd/internal/sys/arch.go             | 215 +++++++++++++++++--------------
- test/inline_endian.go                    |  22 ++++
- 4 files changed, 166 insertions(+), 125 deletions(-)
+ src/cmd/go/alldocs.go             |  2 +-
+ src/cmd/go/internal/cfg/cfg.go    | 24 ++++++++++++------------
+ src/cmd/go/internal/work/build.go |  2 +-
+ src/cmd/go/internal/work/gc.go    | 17 ++++++++++-------
+ 4 files changed, 24 insertions(+), 21 deletions(-)

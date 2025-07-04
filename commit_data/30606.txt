@@ -1,25 +1,27 @@
-commit 4210930a2861c8938baabaa5b8097e8b28d92934
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 7 18:50:52 2017 -0500
+commit 7ee793652307269c9fdee2c0cb222509371a6e36
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Nov 13 21:20:58 2016 -0500
 
-    runtime/cgo: return correct sa_flags
+    cmd/link: handle R_GOTPCREL separately on darwin
     
-    A typo in the previous revision ("act" instead of "oldact") caused us
-    to return the sa_flags from the new (or zeroed) sigaction rather than
-    the old one.
+    To generate the correct section offset the shared code path for
+    R_CALL, R_PCREL, and R_GOTPCREL on darwin when externally linking
+    walks up the symbol heirarchy adding the differences. This is fine,
+    except in the case where we are generating a GOT lookup, because
+    the topmost symbol is left in r.Xsym instead of the symbol we are
+    looking up. So all funcsym GOT lookups were looking up the outer
+    "go.func.*" symbol.
     
-    In the presence of a signal handler registered before
-    runtime.libpreinit, this caused setsigstack to erroneously zero out
-    important sa_flags (such as SA_SIGINFO) in its attempt to re-register
-    the existing handler with SA_ONSTACK.
+    Fix this by separating out the R_GOTPCREL code path.
     
-    Change-Id: I3cd5152a38ec0d44ae611f183bc1651d65b8a115
-    Reviewed-on: https://go-review.googlesource.com/37852
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    For #17828 (and may fix it).
+    
+    Change-Id: I2c9f4d135e77c17270aa064d8c876dc6d485d659
+    Reviewed-on: https://go-review.googlesource.com/33211
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testsanitizers/test.bash      | 23 ++++++++++++-
- misc/cgo/testsanitizers/tsan_shared.go | 63 ++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_sigaction.c        |  4 +--
- 3 files changed, 87 insertions(+), 3 deletions(-)
+ misc/cgo/testplugin/src/plugin1/plugin1.go | 10 +++++++++-
+ src/cmd/link/internal/ld/data.go           | 14 +++++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

@@ -1,40 +1,22 @@
-commit 12ed0ddec198db0eaabbaaef28bb5ffb17204e11
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 11 16:13:04 2018 -0400
+commit 385d936fb287cfe3a491ced2d77d52d71b7705a8
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Mar 13 00:21:57 2018 +0100
 
-    cmd/link: use BestSpeed for DWARF compression
+    cmd/compile: in prove, fail fast when unsat is found
     
-    DWARF compression accounts for roughly 30% of the linker's time. This
-    CL switches from DefaultCompression to BestSpeed, which virtually
-    eliminates this time. This roughly halves the overhead of handling
-    DWARF in the linker:
+    When an unsatisfiable relation is recorded in the facts table,
+    there is no need to compute further relations or updates
+    additional data structures.
     
-    name \ time/op         nodwarf     dwarf        dwarf-speed
-    BuildCmdGoAll          10.0s ±11%   10.6s ± 5%   10.8s ± 5%
-                 nodwarf                  +6.41%       +8.03%
-                   dwarf                                 ~
-    LinkCmdGo              626ms ± 5%  1096ms ± 2%   860ms ± 2%
-                 nodwarf                 +75.17%      +37.36%
-                   dwarf                              -21.59%
+    Since we're about to transitively propagate relations, make
+    sure to fail as fast as possible to avoid doing useless work
+    in dead branches.
     
-    Previously, enabling DWARF had a 75% overhead in link time for cmd/go.
-    This change reduces this overhead to 37% (a 22% reduction).
+    Passes toolstash -cmp.
     
-    The effect on binary size is minimal compared to DefaultCompression,
-    and still substantially better than no compression:
-    
-                 cmd/go bytes
-    nodwarf      10106953
-    dwarf        12159049 nodwarf+20%
-    dwarf-speed  12408905 nodwarf+23%
-    dwarf-nozlib 17766473 nodwarf+76%
-    
-    Updates #26318.
-    
-    Change-Id: I33bb7caa038a2753c29104501663daf4839e7054
-    Reviewed-on: https://go-review.googlesource.com/123356
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I23eed376d62776824c33088163c7ac9620abce85
+    Reviewed-on: https://go-review.googlesource.com/100275
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/data.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

@@ -1,19 +1,21 @@
-commit bd7249766617fda12d112c3ad3ae2857ff97c71e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 10 15:45:34 2016 +0000
+commit d62d8318826e17fff09fb2188dcb22fbb121fb19
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 23 11:34:16 2015 -0500
 
-    context: document that WithValue's key must be comparable
+    runtime: clean up adjustpointer and eliminate write barrier
     
-    Also, check it and explode earlier, rather than cryptic failures later.
+    Commit a5c3bbe modified adjustpointers to use *uintptrs instead of
+    *unsafe.Pointers for manipulating stack pointers for clarity and to
+    eliminate the unnecessary write barrier when writing the updated stack
+    pointer.
     
-    Change-Id: I319a425f60e2bc9d005a187fbdbd153faa96411c
-    Reviewed-on: https://go-review.googlesource.com/21799
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This commit makes the equivalent change to adjustpointer.
+    
+    Change-Id: I6dc309590b298bdd86ecdc9737db848d6786c3f7
+    Reviewed-on: https://go-review.googlesource.com/17148
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/context/context.go      |  8 +++++++-
- src/context/context_test.go | 13 +++++++++++++
- src/go/build/deps_test.go   |  2 +-
- 3 files changed, 21 insertions(+), 2 deletions(-)
+ src/runtime/stack.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

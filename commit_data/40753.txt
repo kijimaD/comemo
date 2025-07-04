@@ -1,19 +1,26 @@
-commit dd0173845f939dc532e8e8348b8360914dbca216
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 1 19:00:33 2019 -0400
+commit 24f7d89a73b7bd77127a56e8a8552c48278d251b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 25 17:25:01 2019 -0400
 
-    crypto/tls: implement (*ClientHelloInfo).SupportsCertificate
+    cmd/go: 'go get' should not delete binaries when run from $GOBIN
     
-    We'll also use this function for a better selection logic from
-    Config.Certificates in a later CL.
+    When 'go install' is run without arguments in a directory containing a
+    main package, it deletes an executable file with the same name as the
+    package (presumably created by 'go build' previously).
     
-    Updates #32426
+    'go get' in module mode executes the same code after updating and
+    downloading modules. However, the special case was misfiring because
+    we passed an empty list of patterns to InstallPackages.
     
-    Change-Id: Ie239574d02eb7fd2cf025ec36721c8c7e082d0bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205057
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Fixes #32766
+    
+    Change-Id: I19aca64ee1fb5a216777dd7d559e8e6a45b3e90c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183846
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/tls/common.go           | 169 +++++++++++++++++++++++++++++++++++++
- src/crypto/tls/handshake_server.go |   1 +
- src/crypto/tls/tls_test.go         | 159 ++++++++++++++++++++++++++++++++++
- 3 files changed, 329 insertions(+)
+ src/cmd/go/internal/modget/get.go                    |  3 +--
+ src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt | 12 ++++++++++++
+ src/cmd/go/testdata/script/mod_get_cmd.txt           | 20 ++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

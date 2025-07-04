@@ -1,52 +1,15 @@
-commit 5d8d3878496918d51347422d651629975343b18e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Feb 15 14:27:13 2022 -0500
+commit e99dfb0e5cd964c94d946cabeca9856634416737
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 24 01:05:19 2021 -0400
 
-    cmd/go: set go.work path using GOWORK, and remove -workfile flag
+    cmd/compile: make GC prog symbol content-addressable
     
-    This change removes the -workfile flag and allows the go.work file path
-    to be set using GOWORK (which was previously read-only). This removes
-    the potential discrepancy and confusion between the flag and environment
-    variable.
-    
-    GOWORK will still return the actual path of the go.work file found if it
-    is set to '' or 'auto'. GOWORK will return 'off' if it is set to 'off'.
-    
-    For #45713
-    Fixes #51171
-    
-    Change-Id: I72eed65d47c63c81433f2b54158d514daeaa1ab3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385995
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I759ac021ae5882429f26455fd849613a33e41783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313513
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html                                    |  4 ++--
- src/cmd/go/alldocs.go                              | 16 +++++++--------
- src/cmd/go/internal/base/flag.go                   |  7 -------
- src/cmd/go/internal/cfg/cfg.go                     |  6 ++----
- src/cmd/go/internal/envcmd/env.go                  |  4 ++++
- src/cmd/go/internal/help/helpdoc.go                |  8 ++++++++
- src/cmd/go/internal/list/list.go                   |  1 -
- src/cmd/go/internal/modcmd/download.go             |  1 -
- src/cmd/go/internal/modcmd/graph.go                |  1 -
- src/cmd/go/internal/modcmd/verify.go               |  1 -
- src/cmd/go/internal/modcmd/why.go                  |  1 -
- src/cmd/go/internal/modload/init.go                | 10 ++++-----
- src/cmd/go/internal/run/run.go                     |  1 -
- src/cmd/go/internal/test/testflag.go               |  1 -
- src/cmd/go/internal/work/build.go                  |  9 --------
- src/cmd/go/internal/workcmd/edit.go                |  4 +---
- src/cmd/go/internal/workcmd/init.go                |  6 ------
- src/cmd/go/internal/workcmd/sync.go                |  3 +--
- src/cmd/go/internal/workcmd/use.go                 |  3 +--
- src/cmd/go/testdata/script/work.txt                |  8 ++++++--
- src/cmd/go/testdata/script/work_edit.txt           |  3 ++-
- src/cmd/go/testdata/script/work_env.txt            |  4 ++++
- src/cmd/go/testdata/script/work_gowork.txt         | 24 ++++++++++++++++++++++
- ...work_init_workfile.txt => work_init_gowork.txt} |  8 ++++++--
- src/cmd/go/testdata/script/work_nowork.txt         | 10 ++++-----
- src/cmd/go/testdata/script/work_workfile.txt       | 21 -------------------
- src/internal/cfg/cfg.go                            |  1 +
- 27 files changed, 80 insertions(+), 86 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 1 +
+ 1 file changed, 1 insertion(+)

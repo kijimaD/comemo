@@ -1,87 +1,18 @@
-commit 76f4fd8a5251b4f63ea14a3c1e2fe2e78eb74f81
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Fri Jan 6 15:44:17 2017 +0200
+commit 2d1829b5398559f3ffe9123efeb08c2489f7e17d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu May 4 11:25:01 2017 +0200
 
-    runtime: improve timers scalability on multi-CPU systems
+    cmd/compile: don't panic in complex division
     
-    Use per-P timers, so each P may work with its own timers.
+    Updates #20227
     
-    This CL improves performance on multi-CPU systems
-    in the following cases:
-    
-    - When serving high number of concurrent connections
-      with read/write deadlines set (for instance, highly loaded
-      net/http server).
-    
-    - When using high number of concurrent timers. These timers
-      may be implicitly created via context.WithDeadline
-      or context.WithTimeout.
-    
-    Production servers should usually set timeout on connections
-    and external requests in order to prevent from resource leakage.
-    See https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/
-    
-    Below are relevant benchmark results for various GOMAXPROCS values
-    on linux/amd64:
-    
-    context package:
-    
-    name                                     old time/op  new time/op  delta
-    WithTimeout/concurrency=40      4.92µs ± 0%  5.17µs ± 1%  +5.07%  (p=0.000 n=9+9)
-    WithTimeout/concurrency=4000    6.03µs ± 1%  6.49µs ± 0%  +7.63%  (p=0.000 n=8+10)
-    WithTimeout/concurrency=400000  8.58µs ± 7%  9.02µs ± 4%  +5.02%  (p=0.019 n=10+10)
-    
-    name                                     old time/op  new time/op  delta
-    WithTimeout/concurrency=40-2      3.70µs ± 1%  2.78µs ± 4%  -24.90%  (p=0.000 n=8+9)
-    WithTimeout/concurrency=4000-2    4.49µs ± 4%  3.67µs ± 5%  -18.26%  (p=0.000 n=10+10)
-    WithTimeout/concurrency=400000-2  6.16µs ±10%  5.15µs ±13%  -16.30%  (p=0.000 n=10+10)
-    
-    name                                     old time/op  new time/op  delta
-    WithTimeout/concurrency=40-4      3.58µs ± 1%  2.64µs ± 2%  -26.13%  (p=0.000 n=9+10)
-    WithTimeout/concurrency=4000-4    4.17µs ± 0%  3.32µs ± 1%  -20.36%  (p=0.000 n=10+10)
-    WithTimeout/concurrency=400000-4  5.57µs ± 9%  4.83µs ±10%  -13.27%  (p=0.001 n=10+10)
-    
-    time package:
-    
-    name                     old time/op  new time/op  delta
-    AfterFunc                6.15ms ± 3%  6.07ms ± 2%     ~     (p=0.133 n=10+9)
-    AfterFunc-2              3.43ms ± 1%  3.56ms ± 1%   +3.91%  (p=0.000 n=10+9)
-    AfterFunc-4              5.04ms ± 2%  2.36ms ± 0%  -53.20%  (p=0.000 n=10+9)
-    After                    6.54ms ± 2%  6.49ms ± 3%     ~     (p=0.393 n=10+10)
-    After-2                  3.68ms ± 1%  3.87ms ± 0%   +5.14%  (p=0.000 n=9+9)
-    After-4                  6.66ms ± 1%  2.87ms ± 1%  -56.89%  (p=0.000 n=10+10)
-    Stop                      698µs ± 2%   689µs ± 1%   -1.26%  (p=0.011 n=10+10)
-    Stop-2                    729µs ± 2%   434µs ± 3%  -40.49%  (p=0.000 n=10+10)
-    Stop-4                    837µs ± 3%   333µs ± 2%  -60.20%  (p=0.000 n=10+10)
-    SimultaneousAfterFunc     694µs ± 1%   692µs ± 7%     ~     (p=0.481 n=10+10)
-    SimultaneousAfterFunc-2   714µs ± 3%   569µs ± 2%  -20.33%  (p=0.000 n=10+10)
-    SimultaneousAfterFunc-4   782µs ± 2%   386µs ± 2%  -50.67%  (p=0.000 n=10+10)
-    StartStop                 267µs ± 3%   274µs ± 0%   +2.64%  (p=0.000 n=8+9)
-    StartStop-2               238µs ± 2%   140µs ± 3%  -40.95%  (p=0.000 n=10+8)
-    StartStop-4               320µs ± 1%   125µs ± 1%  -61.02%  (p=0.000 n=9+9)
-    Reset                    75.0µs ± 1%  77.5µs ± 2%   +3.38%  (p=0.000 n=10+10)
-    Reset-2                   150µs ± 2%    40µs ± 5%  -73.09%  (p=0.000 n=10+9)
-    Reset-4                   226µs ± 1%    33µs ± 1%  -85.42%  (p=0.000 n=10+10)
-    Sleep                     857µs ± 6%   878µs ± 9%     ~     (p=0.079 n=10+9)
-    Sleep-2                   617µs ± 4%   585µs ± 2%   -5.21%  (p=0.000 n=10+10)
-    Sleep-4                   689µs ± 3%   465µs ± 4%  -32.53%  (p=0.000 n=10+10)
-    Ticker                   55.9ms ± 2%  55.9ms ± 2%     ~     (p=0.971 n=10+10)
-    Ticker-2                 28.7ms ± 2%  28.1ms ± 1%   -2.06%  (p=0.000 n=10+10)
-    Ticker-4                 14.6ms ± 0%  13.6ms ± 1%   -6.80%  (p=0.000 n=9+10)
-    
-    Fixes #15133
-    
-    Change-Id: I6f4b09d2db8c5bec93146db6501b44dbfe5c0ac4
-    Reviewed-on: https://go-review.googlesource.com/34784
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idadc3137490181a5d380367660cee21e8313cf3b
+    Reviewed-on: https://go-review.googlesource.com/42650
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/context/benchmark_test.go |  56 ++++++++++-
- src/internal/trace/parser.go  |   7 +-
- src/runtime/proc.go           |  12 +--
- src/runtime/time.go           | 229 ++++++++++++++++++++++++++++--------------
- src/runtime/trace.go          |   9 +-
- src/syscall/net_nacl.go       |  13 ++-
- src/time/sleep.go             |   4 +-
- src/time/sleep_test.go        |  53 ++++++++--
- src/time/tick_test.go         |  15 ++-
- 9 files changed, 285 insertions(+), 113 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 21 +++++++++++++++++----
+ src/go/types/stdlib_test.go          |  1 +
+ test/fixedbugs/issue20227.go         | 16 ++++++++++++++++
+ 3 files changed, 34 insertions(+), 4 deletions(-)

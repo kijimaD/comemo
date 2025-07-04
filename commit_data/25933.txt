@@ -1,14 +1,23 @@
-commit 0f5d78f6784a728c3544282faebdcf5689d478ef
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Feb 21 15:49:52 2016 -0800
+commit 1ea31c7baf070adf1f2b8e970c011256890b4b9f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 3 17:43:10 2015 -0800
 
-    cmd/compile: factor shared code from geneq and genhash
+    net/http: convert TestSetsRemoteAddr to use clientServerTest
     
-    Passes toolstash -cmp.
+    This is an example of converting an old HTTP/1-only test to test
+    against both HTTP/1 and HTTP/2.
     
-    Change-Id: Ifae69e5ba673f01da3dfc1fd30cdc51873481623
-    Reviewed-on: https://go-review.googlesource.com/19840
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Please send more of these!
+    
+    Also, for comparing the http.Transport's responses between HTTP/1 and
+    HTTP/2, see clientserver_test.go's h12Compare type and tests using
+    h12Compare. Sometimes that's the more appropriate option.
+    
+    Change-Id: Iea24d844481efd5849173b60e15dcc561a32b88f
+    Reviewed-on: https://go-review.googlesource.com/17409
+    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 77 +++++++++++++++++--------------------
- 1 file changed, 36 insertions(+), 41 deletions(-)
+ src/net/http/serve_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

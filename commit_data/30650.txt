@@ -1,15 +1,20 @@
-commit 8ee37c6a66fd71fa0204204719b0489085f85ca0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 7 11:52:21 2016 -0800
+commit f42929ce9fcf8b32656900764881cfb84fdbe46b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 14:47:51 2016 -0800
 
-    cmd/compile: eliminate format string FmtUnsigned support
+    go/internal/gccgoimporter: handle conversions in exported const values
     
-    Passes toolstash -cmp.
+    Also: handle version "v2" of export data format.
     
-    Change-Id: I678fc40c0f2a6e9a434bcdd4ea17bb7f319a6063
-    Reviewed-on: https://go-review.googlesource.com/38144
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #17981.
+    
+    Change-Id: I8042ce18c4a27c70cc1ede675daca019b047bcf3
+    Reviewed-on: https://go-review.googlesource.com/33412
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/go/internal/gccgoimporter/importer.go          |  5 +--
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ src/go/internal/gccgoimporter/parser.go            | 40 ++++++++++++++++++----
+ .../internal/gccgoimporter/testdata/conversions.go |  5 +++
+ .../gccgoimporter/testdata/conversions.gox         |  6 ++++
+ 5 files changed, 48 insertions(+), 9 deletions(-)

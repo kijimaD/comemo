@@ -1,23 +1,26 @@
-commit 1959703dddffef61760d5d4fdedc4df8d2d73438
-Author: Carlos Ramos Carreño <vnmabus@gmail.com>
-Date:   Fri Feb 14 10:14:29 2025 +0000
+commit dca2ef236151e5606a5863d82f1a10289ce77105
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 7 11:11:01 2023 -0500
 
-    syscall: skip testAmbientCaps tests if there is no nobody user
+    runtime: put runtime.fastrand back temporarily
     
-    When there is not a nobody user (for example inside Docker), the
-    tests TestAmbientCaps and TestAmbientCapsUserns should be skipped
-    instead of failing.
+    Callers should be using math/rand/v2.Uint64 instead,
+    but there are lots of linkname references to runtime.fastrand
+    in public code. If we break it all now, that will require people
+    to use //go:build tags to use rand/v2.Uint64 with Go 1.22
+    and keep using the linkname for earlier versions.
+    Instead, leave the linkname working and then we can remove
+    it in Go 1.24, at which point everyone should be able to use
+    math/rand/v2.Uint64 unconditionally.
     
-    Fixes #71644
-    
-    Change-Id: I7f92db19e2b6f449d8d897650a0ecd89f5150f4a
-    GitHub-Last-Rev: a4c4f5bb61929b4981dc0b92d773bd4ef13d7d3d
-    GitHub-Pull-Request: golang/go#71729
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649396
+    Change-Id: I7287ca4f67c270b009562313661cc28a4c2219a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548235
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/syscall/exec_linux_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/rand.go      | 22 ++++++++++++++++++++++
+ src/runtime/rand_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

@@ -1,24 +1,27 @@
-commit 5a3048bf0eefd2f99382a980f975d6a1fb6b921a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 16 11:18:02 2023 -0400
+commit 1c19c5602bc5d5f54463b1a0133965fa25ebcd56
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 16 19:54:51 2022 -0400
 
-    cmd/api: rename api.go to main_test.go
+    cmd/dist: add old style build tags
     
-    This makes cmd/api no longer an importable package.
-    In CL 453258 I forgot that there was no direct prohibition
-    on importing packages from cmd - we just rely on the
-    fact that cmd/* is all package main and everything else
-    is cmd/internal.
+    If one (accidentally) uses Go 1.16 as bootstrap toolchain, we
+    want it to print the error
     
-    Fixes #62069.
+    found packages main (build.go) and building_Go_requires_Go_1_17_or_later (notgo117.go)
     
-    Change-Id: Ifed738d333b40663f85eca8f83025fcea5df89a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520038
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    But because some files lack old style build tags, Go 1.16 instead
+    prints
+    
+    //go:build comment without // +build comment
+    
+    Add the build tags to make the error message work.
+    
+    Change-Id: Iaa9b3c12e71842bb40f8687b2fda2cc4cb15b113
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431057
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/api/api_test.go              | 2 +-
- src/cmd/api/boring_test.go           | 2 +-
- src/cmd/api/{api.go => main_test.go} | 5 +++--
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/dist/exec_118.go | 1 +
+ src/cmd/dist/exec_119.go | 1 +
+ 2 files changed, 2 insertions(+)

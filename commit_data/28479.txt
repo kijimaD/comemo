@@ -1,14 +1,20 @@
-commit e7191479ec57e89aa1967e75a87f9da4d1d8b734
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 20 21:52:11 2016 +0000
+commit 36a80c5941ec36d9c44d6f3c068d13201e023b5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 00:56:19 2016 -0400
 
-    doc: add some missing HTML tags in the FAQ
+    cmd/compile: clean up, document Node closure fields
     
-    Fixes #17170
+    Requested during CL 23431.
     
-    Change-Id: I939f087df133710495fdf6f09040051cb9b176d7
-    Reviewed-on: https://go-review.googlesource.com/29442
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I513ae42166b3a9fcfe51231ff55c163ab672e7d2
+    Reviewed-on: https://go-review.googlesource.com/23485
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go_faq.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/closure.go   | 49 ++++++++++++++----
+ src/cmd/compile/internal/gc/dcl.go       | 23 +++++----
+ src/cmd/compile/internal/gc/esc.go       |  8 +--
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 89 ++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++---
+ 7 files changed, 144 insertions(+), 45 deletions(-)

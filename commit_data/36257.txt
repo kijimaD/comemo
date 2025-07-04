@@ -1,15 +1,18 @@
-commit f1c7faacf0dfa97e372bc74a140e800595d13df5
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Aug 9 16:10:41 2018 -0400
+commit 01aa1d7dbe3a5b9f9a96f84cc625cbb7e372b0f0
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 19:17:41 2018 +0200
 
-    A+C: second and final round of updates for Go 1.11
+    test: migrate plan9 tests to codegen
     
-    Updates #12042
+    And remove it from asmtest. Next CL will remove the whole
+    asmtest infrastructure.
     
-    Change-Id: Ia8d2214caad50560c4d46d723f8b94c954059b98
-    Reviewed-on: https://go-review.googlesource.com/128877
+    Change-Id: I5851bf7c617456d62a3c6cffacf70252df7b056b
+    Reviewed-on: https://go-review.googlesource.com/107335
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- AUTHORS      | 28 ++++++++++++++++++++++++++++
- CONTRIBUTORS | 52 +++++++++++++++++++++++++++++++++++++++++-----------
- 2 files changed, 69 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 34 +--------------------------------
+ test/codegen/floats.go                  | 22 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 33 deletions(-)

@@ -1,20 +1,17 @@
-commit ea143c299040f8a270fb782c5efd3a3a5e6057a4
-Author: Thomas de Zeeuw <thomasdezeeuw@gmail.com>
-Date:   Thu Sep 1 14:54:08 2016 +0200
+commit e149624ebb00a2fcc59bc02b9f122e3c4bae6e9c
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 27 14:24:26 2016 -0400
 
-    net/http/httptest: fill ContentLength in recorded Response
+    cmd/compile/internal/gc: gofmt
     
-    This change fills the ContentLength field in the http.Response returned by
-    ResponseRecorder.Result.
+    Commit 36a80c5 introduced formatting errors.
     
-    Fixes #16952.
-    
-    Change-Id: I9c49b1bf83e3719b5275b03a43aff5033156637d
-    Reviewed-on: https://go-review.googlesource.com/28302
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6d5b231200cd7abcd5b94c1a3f4e99f10ee11c4f
+    Reviewed-on: https://go-review.googlesource.com/23513
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/net/http/httptest/recorder.go      | 20 ++++++++++++++++++++
- src/net/http/httptest/recorder_test.go | 20 +++++++++++++++++++-
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     |  7 +++----
+ src/cmd/compile/internal/gc/syntax.go  | 20 ++++++++++----------
+ 3 files changed, 14 insertions(+), 15 deletions(-)

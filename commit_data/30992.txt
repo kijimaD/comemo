@@ -1,36 +1,31 @@
-commit 5cadc91b3ced9614b1055c448f7784a15907fff5
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Mar 16 21:33:03 2017 -0700
+commit 067bab00a80e028f1d7ce553b27aba2aa3e9675f
+Author: shawnps <shawnpsmith@gmail.com>
+Date:   Sat Jan 7 08:23:11 2017 -0800
 
-    cmd/compile: intrinsics for math/bits.OnesCount
+    all: fix misspellings
     
-    Popcount instructions on amd64 are not guaranteed to be
-    present, so we must guard their call.  Rewrite rules can't
-    generate control flow at the moment, so the intrinsifier
-    needs to generate that code.
-    
-    name           old time/op  new time/op  delta
-    OnesCount-8    2.47ns ± 5%  1.04ns ± 2%  -57.70%  (p=0.000 n=10+10)
-    OnesCount16-8  1.05ns ± 1%  0.78ns ± 0%  -25.56%    (p=0.000 n=9+8)
-    OnesCount32-8  1.63ns ± 5%  1.04ns ± 2%  -35.96%  (p=0.000 n=10+10)
-    OnesCount64-8  2.45ns ± 0%  1.04ns ± 1%  -57.55%   (p=0.000 n=6+10)
-    
-    Update #18616
-    
-    Change-Id: I4aff2cc9aa93787898d7b22055fe272a7cf95673
-    Reviewed-on: https://go-review.googlesource.com/38320
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I429637ca91f7db4144f17621de851a548dc1ce76
+    Reviewed-on: https://go-review.googlesource.com/34923
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          | 15 ++++++
- src/cmd/compile/internal/gc/asm_test.go        | 28 +++++++++++
- src/cmd/compile/internal/gc/builtin.go         |  1 +
- src/cmd/compile/internal/gc/builtin/runtime.go |  3 ++
- src/cmd/compile/internal/gc/ssa.go             | 48 +++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  5 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++
- src/cmd/compile/internal/ssa/opGen.go          | 54 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 64 ++++++++++++++++++++++++++
- 10 files changed, 228 insertions(+)
+ src/bytes/buffer.go                           | 2 +-
+ src/cmd/compile/internal/gc/bexport.go        | 2 +-
+ src/cmd/compile/internal/gc/sinit.go          | 2 +-
+ src/cmd/compile/internal/gc/type.go           | 2 +-
+ src/cmd/compile/internal/ssa/checkbce.go      | 2 +-
+ src/cmd/compile/internal/ssa/config.go        | 2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go  | 2 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go    | 2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go | 2 +-
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go  | 2 +-
+ src/cmd/compile/internal/ssa/op.go            | 2 +-
+ src/cmd/compile/internal/ssa/regalloc.go      | 2 +-
+ src/database/sql/sql.go                       | 2 +-
+ src/path/filepath/symlink_windows.go          | 2 +-
+ src/runtime/fastlog2.go                       | 4 ++--
+ src/testing/sub_test.go                       | 4 ++--
+ 17 files changed, 19 insertions(+), 19 deletions(-)

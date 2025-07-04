@@ -1,44 +1,14 @@
-commit 8d03acce544a2301eecec83a88396e568f4c8c75
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 23 21:07:33 2015 -0400
+commit 8a2545744b2662fc34c117e769f3dbd2f7167d19
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 15:57:03 2015 +0300
 
-    runtime: multi-threaded, utilization-scheduled background mark
+    test: add tests for escape analysis of closure arguments
     
-    Currently, the concurrent mark phase is performed by the main GC
-    goroutine. Prior to the previous commit enabling preemption, this
-    caused marking to always consume 1/GOMAXPROCS of the available CPU
-    time. If GOMAXPROCS=1, this meant background GC would consume 100% of
-    the CPU (effectively a STW). If GOMAXPROCS>4, background GC would use
-    less than the goal of 25%. If GOMAXPROCS=4, background GC would use
-    the goal 25%, but if the mutator wasn't using the remaining 75%,
-    background marking wouldn't take advantage of the idle time. Enabling
-    preemption in the previous commit made GC miss CPU targets in
-    completely different ways, but set us up to bring everything back in
-    line.
+    10 false positives (var incorrectly escapes to heap) are marked with BAD.
     
-    This change replaces the fixed GC goroutine with per-P background mark
-    goroutines. Once started, these goroutines don't go in the standard
-    run queues; instead, they are scheduled specially such that the time
-    spent in mutator assists and the background mark goroutines totals 25%
-    of the CPU time available to the program. Furthermore, this lets
-    background marking take advantage of idle Ps, which significantly
-    boosts GC performance for applications that under-utilize the CPU.
-    
-    This requires also changing how time is reported for gctrace, so this
-    change splits the concurrent mark CPU time into assist/background/idle
-    scanning.
-    
-    This also requires increasing the size of the StackRecord slice used
-    in a GoroutineProfile test.
-    
-    Change-Id: I0936ff907d2cee6cb687a208f2df47e8988e3157
-    Reviewed-on: https://go-review.googlesource.com/8850
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I773b13a18ff55aaa499a2a28a979118422cc5322
+    Reviewed-on: https://go-review.googlesource.com/5293
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go               | 244 +++++++++++++++++++++++++++++++++++++--
- src/runtime/mgcmark.go           |  66 +++++++++++
- src/runtime/proc1.go             |  28 +++++
- src/runtime/runtime2.go          |   4 +-
- src/runtime/runtime_unix_test.go |   2 +-
- src/runtime/traceback.go         |   5 +-
- 6 files changed, 335 insertions(+), 14 deletions(-)
+ test/escape_closure.go | 147 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 147 insertions(+)

@@ -1,18 +1,22 @@
-commit 7aeb915d6b1f90657e67e4722d13624b7109b8d5
+commit c3163d23f038a595dc4dd8e1218f412a443a39fa
 Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 9 11:36:25 2017 -0500
+Date:   Wed Oct 19 16:16:40 2016 -0400
 
-    runtime: remove unused debug.wbshadow
+    runtime: eliminate write barriers from save
     
-    The wbshadow implementation was removed a year and a half ago in
-    1635ab7dfe, but the GODEBUG setting remained. Remove the GODEBUG
-    setting since it doesn't do anything.
+    As for dropg, save is writing a nil pointer that will generate a write
+    barrier with the hybrid barrier. However, in this case, ctxt always
+    should already be nil, so replace the write with an assertion that
+    this is the case.
     
-    Change-Id: I19cde324a79472aff60acb5cc9f7d4aa86c0c0ed
-    Reviewed-on: https://go-review.googlesource.com/36618
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    At this point, we're ready to disable the write barrier elision
+    optimizations that interfere with the hybrid barrier.
+    
+    Updates #17503.
+    
+    Change-Id: I83208e65aa33403d442401f355b2e013ab9a50e9
+    Reviewed-on: https://go-review.googlesource.com/31571
     Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/runtime1.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/proc.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

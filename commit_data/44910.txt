@@ -1,24 +1,31 @@
-commit 6996bae5d1d34ea9e2ab6399f70adb402697ed94
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 1 11:11:04 2021 -0400
+commit 03875bd9bc112d25a4496f7ff22888f23a26baea
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 11 13:30:43 2020 -0400
 
-    cmd/compile: use ABI0 for cgo_unsafe_args functions
+    cmd/go: add modload.NeedRoot mode for commands that need module root
     
-    cgo_unsafe_args paragma indicates that the function (or its
-    callee) uses address and offsets to dispatch arguments, which
-    currently using ABI0 frame layout. Pin them to ABI0.
+    This makes error reporting a bit more consistent for 'go mod'
+    subcommands. Most of these commands only work in module mode when a
+    go.mod file is present.
     
-    With this, "GOEXPERIMENT=regabi,regabiargs go run hello.go" works
-    on Darwin/AMD64.
+    Setting modload.ForceUseModules reports an error when GO111MODULE=off.
     
-    Change-Id: I3eadd5a3646a9de8fa681fa0a7f46e7cdc217d24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306609
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Setting modload.RootMode to modload.NeedRoot reports an error when no
+    go.mod file is present.
+    
+    Change-Id: I1daa8d2971cb8658e0c804765839d903734a412e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254369
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        | 14 ++++----------
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 +++--
- src/cmd/compile/internal/ssagen/abi.go       |  7 +++++++
- 4 files changed, 15 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/modcmd/download.go      |  4 +---
+ src/cmd/go/internal/modcmd/graph.go         | 11 ++---------
+ src/cmd/go/internal/modcmd/init.go          |  4 +---
+ src/cmd/go/internal/modcmd/tidy.go          |  2 ++
+ src/cmd/go/internal/modcmd/vendor.go        |  2 ++
+ src/cmd/go/internal/modcmd/verify.go        | 11 ++---------
+ src/cmd/go/internal/modcmd/why.go           |  2 ++
+ src/cmd/go/internal/modload/init.go         |  8 ++++++--
+ src/cmd/go/testdata/script/mod_off.txt      |  4 ++--
+ src/cmd/go/testdata/script/mod_off_init.txt |  2 +-
+ 10 files changed, 21 insertions(+), 29 deletions(-)

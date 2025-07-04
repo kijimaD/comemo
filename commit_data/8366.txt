@@ -1,16 +1,18 @@
-commit d376935a18fcc5c377b17469ba4073eba80a9af5
+commit 26bbb2b2f7aa12fb04b348d62924bb97dac64845
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 12 09:01:32 2011 -0700
+Date:   Thu May 12 09:01:10 2011 -0700
 
-    go/ast: consider anonymous fields and set Incomplete bit when filtering ASTs
+    go/doc, godoc: when filtering for godoc, don't remove elements of a declaration
     
-    Also:
-    - fieldListExports: don't require internal pointer to StructType/InterfaceType node
-    - filterFieldLists: make structure match fieldListExports
+    Partially revert CL 4518050. In go/doc.go, instead of calling the go/ast filter
+    functions, implement the corresponding match functions that do no remove
+    declaration elements.
+    
+    Fixes #1803.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4527050
+    https://golang.org/cl/4517055
 
- src/pkg/go/ast/filter.go | 89 +++++++++++++++++++++++++++++++-----------------
- 1 file changed, 57 insertions(+), 32 deletions(-)
+ src/pkg/go/doc/doc.go | 58 +++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 52 insertions(+), 6 deletions(-)

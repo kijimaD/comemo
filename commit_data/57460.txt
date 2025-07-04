@@ -1,19 +1,28 @@
-commit bc7c35a6d3bb0074d07beebedc0afcbdcebb8d3f
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Sep 13 13:07:16 2024 +0000
+commit d32b4798f844882d20920b7e75e9a889d3d0036c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Jun 9 22:59:48 2023 +0800
 
-    archive/tar: make use of maps.Clone
+    runtime: improve performance of empty map with interface key type
     
-    Change-Id: I2a9d849410002dae1f49a53597298c1903954d12
-    GitHub-Last-Rev: 20a56b4161dd0864f67d427301cb28563f2c3d50
-    GitHub-Pull-Request: golang/go#69427
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612737
-    Reviewed-by: Keith Randall <khr@golang.org>
+    name                            old time/op    new time/op    delta
+    MegEmptyMapWithInterfaceKey-10    15.5µs ± 0%     0.0µs ± 0%  -99.97%  (p=0.000 n=20+16)
+    
+    name                            old alloc/op   new alloc/op   delta
+    MegEmptyMapWithInterfaceKey-10     0.00B          0.00B          ~     (all equal)
+    
+    name                            old allocs/op  new allocs/op  delta
+    MegEmptyMapWithInterfaceKey-10      0.00           0.00          ~     (all equal)
+    
+    Change-Id: I46248223100e98b7877464da640075d272c14802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502075
     Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/archive/tar/common.go | 15 +++------------
- 1 file changed, 3 insertions(+), 12 deletions(-)
+ src/runtime/alg.go                |  68 ++++++++++++++++
+ src/runtime/map.go                |  12 +--
+ src/runtime/map_benchmark_test.go |   9 +++
+ src/runtime/map_test.go           | 163 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 246 insertions(+), 6 deletions(-)

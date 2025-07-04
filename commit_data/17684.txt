@@ -1,15 +1,12 @@
-commit d9f034dc9eeea52e42a3138dcc8677db3554c879
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 23 17:16:59 2013 -0400
+commit 547e4f9b2e1e58285ea50db9fc099ab5b4d2f0b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 23 13:56:21 2013 -0700
 
-    net/http: accept Content-Range for entire file
+    api: update next.txt
     
-    Fixes a bug reported privately.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/13846043
+    https://golang.org/cl/13820046
 
- src/pkg/net/http/fs.go      | 2 +-
- src/pkg/net/http/fs_test.go | 7 +++++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ api/next.txt | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

@@ -1,17 +1,16 @@
-commit c0ccf6f314a1658e148d1aae4db5ac2be249fbe8
-Author: Derek Parker <parkerderek86@gmail.com>
-Date:   Wed Aug 6 12:11:37 2014 -0700
+commit 69c2e2b9e0e9c7caee98c4e71cf3c663360d61ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 14:52:12 2014 -0400
 
-    debug/dwarf: fix Reader panic on DW_TAG_unspecified_type
+    codereview: enable work and code reviews in development branches
     
-    The linker currently produces the DWARF 3 DW_TAG_unspecified_type tag, however the Reader in debug/dwarf will panic whenever that tag is encountered.
+    This is an experiment. See mail on golang-dev
+    (subject: "an experiment: development branches").
     
-    Fixes #8437.
-    
-    LGTM=rsc
-    R=golang-codereviews, bradfitz, iant, rsc
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/117280043
+    https://golang.org/cl/117660043
 
- src/pkg/debug/dwarf/type.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ lib/codereview/codereview.py | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

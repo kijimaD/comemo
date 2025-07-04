@@ -1,31 +1,18 @@
-commit 27ee719fb32b47b9bc59921e457f4b1e7f767968
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Mon Sep 14 14:03:45 2015 -0700
+commit 861af80458e846bc535f262cca23649e703b7885
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 29 12:55:19 2015 +0900
 
-    pprof: improve sampling for heap profiling
+    cmd/internal/asm: delete
     
-    The current heap sampling introduces some bias that interferes
-    with unsampling, producing unexpected heap profiles.
-    The solution is to use a Poisson process to generate the
-    sampling points, using the formulas described at
-    https://en.wikipedia.org/wiki/Poisson_process
+    Updates #10510.
     
-    This fixes #12620
-    
-    Change-Id: If2400809ed3c41de504dd6cff06be14e476ff96c
-    Reviewed-on: https://go-review.googlesource.com/14590
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: Ib4d39943969d18517b373292b83d87650d5df12a
+    Reviewed-on: https://go-review.googlesource.com/12787
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_test.go     |   2 +
- src/runtime/fastlog2.go        |  33 ++++++++
- src/runtime/fastlog2_test.go   |  28 +++++++
- src/runtime/fastlog2table.go   |  43 +++++++++++
- src/runtime/malloc.go          |  55 +++++++++-----
- src/runtime/mcache.go          |  11 +--
- src/runtime/mkfastlog2table.go |  52 +++++++++++++
- src/runtime/runtime.go         |   1 +
- test/heapsampling.go           | 166 +++++++++++++++++++++++++++++++++++++++++
- 9 files changed, 362 insertions(+), 29 deletions(-)
+ src/cmd/internal/asm/asm.go     | 307 ---------------
+ src/cmd/internal/asm/lexbody.go | 710 ---------------------------------
+ src/cmd/internal/asm/macbody.go | 855 ----------------------------------------
+ 3 files changed, 1872 deletions(-)

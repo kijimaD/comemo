@@ -1,22 +1,31 @@
-commit 5a379654952f8103d801cbccb5112c3e9976b104
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 7 20:14:46 2022 +0000
+commit 49fda9e4f5cd3a05fd5fa0b3a2047a9d24873bd6
+Author: Fannie Zhang <fannie.zhang@arm.com>
+Date:   Wed Jan 6 08:57:44 2021 +0000
 
-    runtime: make mheap.pagesInUse an atomic.Uintptr
+    cmd/go: add -asan option
     
-    This change fixes an old TODO that made it a uint64 because it would
-    make alignment within mheap more complicated. Now that we don't have to
-    worry about it since we're using atomic types as much as possible,
-    switch to using a Uintptr. This likely will improve performance a tiny
-    bit on 32-bit platforms, but really it's mostly cleanup.
+    The -asan option compiles Go code to use the address sanitizer.  This is
+    intended for use when linking with C/C++ code compiled with -fsanitize=address.
+    When memory blocks are passed back and forth between C/C++ and Go, code in
+    both languages will agree as to whether the memory is validly allocated or not,
+    and will report errors for any use of invalid memory.
     
-    Change-Id: Ie705799a111ccad977fc1f43de8b50cf611be303
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429221
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Updates #44853.
+    
+    Change-Id: I0209002ef795cc1c823daae557fb80c906158db3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298612
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mheap.go | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ src/cmd/go/alldocs.go                              |  7 +++--
+ src/cmd/go/go_test.go                              |  2 ++
+ src/cmd/go/internal/cfg/cfg.go                     |  1 +
+ src/cmd/go/internal/load/pkg.go                    |  5 ++++
+ src/cmd/go/internal/work/build.go                  |  8 ++++--
+ src/cmd/go/internal/work/exec.go                   |  6 ++++-
+ src/cmd/go/internal/work/init.go                   | 30 +++++++++++++++++-----
+ src/cmd/go/script_test.go                          |  2 ++
+ src/cmd/go/testdata/script/README                  |  2 +-
+ src/cmd/go/testdata/script/goflags.txt             |  2 +-
+ .../script/install_msan_and_race_require_cgo.txt   |  6 +++--
+ 11 files changed, 55 insertions(+), 16 deletions(-)

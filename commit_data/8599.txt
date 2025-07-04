@@ -1,15 +1,18 @@
-commit 31c79c4effb40ea938d2c740ad7149e4ac4a45a6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 2 13:36:52 2011 -0700
+commit 5bf57c1b416ec5031f48cbc3300beebdffaacc70
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 2 12:58:26 2011 -0700
 
-    http: ServeFile shouldn't send Content-Length when Content-Encoding is set
-    
-    Fixes #1905
+    big: remove some unnecessary conversions
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4538111
+    https://golang.org/cl/4529110
 
- src/pkg/http/fs.go      |  4 +++-
- src/pkg/http/fs_test.go | 17 ++++++++++++++++-
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/pkg/big/arith.go      |  4 ++--
+ src/pkg/big/arith_386.s   |  8 ++++----
+ src/pkg/big/arith_amd64.s | 12 ++++++------
+ src/pkg/big/arith_arm.s   | 12 +++++++++---
+ src/pkg/big/arith_decl.go |  4 ++--
+ src/pkg/big/arith_test.go | 19 +++++++++++++++----
+ src/pkg/big/nat.go        | 43 ++++++++++++++++++++++---------------------
+ 7 files changed, 60 insertions(+), 42 deletions(-)

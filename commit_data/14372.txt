@@ -1,12 +1,17 @@
-commit a8accda52d2e63ff146169e0d25fb58f632f4133
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Nov 12 12:20:42 2012 +0100
+commit e9a3087e290b52212af1ca2001ea9b24d8797fd0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 10 11:19:06 2012 -0800
 
-    doc/install: document system requirements for the FreeBSD/ARM port
+    runtime, runtime/cgo: track memory allocated by non-Go code
     
-    R=golang-dev, r, mikioh.mikioh
+    Otherwise a poorly timed GC can collect the memory before it
+    is returned to the Go program.
+    
+    R=golang-dev, dave, dvyukov, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6816080
+    https://golang.org/cl/6819119
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/cgo/callbacks.c |  6 ++++++
+ src/pkg/runtime/cgocall.c       | 10 ++++++++++
+ src/pkg/runtime/runtime.h       | 13 ++++++++++++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)

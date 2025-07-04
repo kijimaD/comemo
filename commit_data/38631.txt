@@ -1,75 +1,52 @@
-commit 64f22e4bd6a1c7fe8a2dcf52cc8ac4c39d5abbb4
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Mon Jan 7 22:15:47 2019 +0530
+commit dc0be727dc6182fb258f9f1048e9a9eef966c563
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 3 20:04:44 2018 -0400
 
-    image/jpeg: reduce bound checks from idct and fdct
+    crypto/tls: implement TLS 1.3 middlebox compatibility mode
     
-    Before -
-    $gotip build -gcflags="-d=ssa/check_bce/debug=1" fdct.go idct.go
-    ./fdct.go:89:10: Found IsInBounds
-    ./fdct.go:90:10: Found IsInBounds
-    ./fdct.go:91:10: Found IsInBounds
-    ./fdct.go:92:10: Found IsInBounds
-    ./fdct.go:93:10: Found IsInBounds
-    ./fdct.go:94:10: Found IsInBounds
-    ./fdct.go:95:10: Found IsInBounds
-    ./fdct.go:96:10: Found IsInBounds
-    ./idct.go:77:9: Found IsInBounds
-    ./idct.go:77:27: Found IsInBounds
-    ./idct.go:77:45: Found IsInBounds
-    ./idct.go:78:7: Found IsInBounds
-    ./idct.go:78:25: Found IsInBounds
-    ./idct.go:78:43: Found IsInBounds
-    ./idct.go:78:61: Found IsInBounds
-    ./idct.go:79:13: Found IsInBounds
-    ./idct.go:92:13: Found IsInBounds
-    ./idct.go:93:12: Found IsInBounds
-    ./idct.go:94:12: Found IsInBounds
-    ./idct.go:95:12: Found IsInBounds
-    ./idct.go:97:12: Found IsInBounds
-    ./idct.go:98:12: Found IsInBounds
-    ./idct.go:99:12: Found IsInBounds
+    Looks like the introduction of CCS records in the client second flight
+    gave time to s_server to send NewSessionTicket messages in between the
+    client application data and close_notify. There seems to be no way of
+    turning NewSessionTicket messages off, neither by not sending a
+    psk_key_exchange_modes extension, nor by command line flag.
     
-    After -
-    $gotip build -gcflags="-d=ssa/check_bce/debug=1" fdct.go idct.go
-    ./fdct.go:90:9: Found IsSliceInBounds
-    ./idct.go:76:11: Found IsSliceInBounds
-    ./idct.go:145:11: Found IsSliceInBounds
+    Interleaving the client write like that tickled an issue akin to #18701:
+    on Windows, the client reaches Close() before the last record is drained
+    from the send buffer, the kernel notices and resets the connection,
+    cutting short the last flow. There is no good way of synchronizing this,
+    so we sleep for a RTT before calling close, like in CL 75210. Sigh.
     
-    name                 old time/op    new time/op    delta
-    FDCT-4                 1.85µs ± 2%    1.74µs ± 1%  -5.95%  (p=0.000 n=10+10)
-    IDCT-4                 1.94µs ± 2%    1.89µs ± 1%  -2.67%  (p=0.000 n=10+9)
-    DecodeBaseline-4       1.45ms ± 2%    1.46ms ± 1%    ~     (p=0.156 n=9+10)
-    DecodeProgressive-4    2.21ms ± 1%    2.21ms ± 1%    ~     (p=0.796 n=10+10)
-    EncodeRGBA-4           24.9ms ± 1%    25.0ms ± 1%    ~     (p=0.075 n=10+10)
-    EncodeYCbCr-4          26.1ms ± 1%    26.2ms ± 1%    ~     (p=0.573 n=8+10)
+    Updates #9671
     
-    name                 old speed      new speed      delta
-    DecodeBaseline-4     42.5MB/s ± 2%  42.4MB/s ± 1%    ~     (p=0.162 n=9+10)
-    DecodeProgressive-4  27.9MB/s ± 1%  27.9MB/s ± 1%    ~     (p=0.796 n=10+10)
-    EncodeRGBA-4         49.4MB/s ± 1%  49.1MB/s ± 1%    ~     (p=0.066 n=10+10)
-    EncodeYCbCr-4        35.3MB/s ± 1%  35.2MB/s ± 1%    ~     (p=0.586 n=8+10)
-    
-    name                 old alloc/op   new alloc/op   delta
-    DecodeBaseline-4       63.0kB ± 0%    63.0kB ± 0%    ~     (all equal)
-    DecodeProgressive-4     260kB ± 0%     260kB ± 0%    ~     (all equal)
-    EncodeRGBA-4           4.40kB ± 0%    4.40kB ± 0%    ~     (all equal)
-    EncodeYCbCr-4          4.40kB ± 0%    4.40kB ± 0%    ~     (all equal)
-    
-    name                 old allocs/op  new allocs/op  delta
-    DecodeBaseline-4         5.00 ± 0%      5.00 ± 0%    ~     (all equal)
-    DecodeProgressive-4      13.0 ± 0%      13.0 ± 0%    ~     (all equal)
-    EncodeRGBA-4             4.00 ± 0%      4.00 ± 0%    ~     (all equal)
-    EncodeYCbCr-4            4.00 ± 0%      4.00 ± 0%    ~     (all equal)
-    
-    Updates #24499
-    
-    Change-Id: I6828d077b851817503a7c1a08235763f81bdadf9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167417
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: I44dc1cca17b373695b5a18c2741f218af2990bd1
+    Reviewed-on: https://go-review.googlesource.com/c/147419
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/image/jpeg/fdct.go | 34 ++++++++++---------
- src/image/jpeg/idct.go | 88 ++++++++++++++++++++++++++------------------------
- 2 files changed, 63 insertions(+), 59 deletions(-)
+ src/crypto/tls/conn.go                             |   2 +-
+ src/crypto/tls/handshake_client_test.go            |  14 +-
+ src/crypto/tls/handshake_client_tls13.go           |  22 ++-
+ src/crypto/tls/handshake_server_tls13.go           |  21 ++
+ .../tls/testdata/Client-TLSv13-AES128-SHA256       | 169 +++++++++-------
+ .../tls/testdata/Client-TLSv13-AES256-SHA384       | 173 ++++++++++-------
+ src/crypto/tls/testdata/Client-TLSv13-ALPN         | 171 ++++++++++-------
+ .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     | 169 +++++++++-------
+ src/crypto/tls/testdata/Client-TLSv13-ECDSA        | 159 +++++++++-------
+ .../testdata/Client-TLSv13-ExportKeyingMaterial    | 169 +++++++++-------
+ .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 205 +++++++++++---------
+ src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 212 +++++++++++----------
+ src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   | 171 ++++++++++-------
+ src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE | 167 +++++++++-------
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       | 150 +++++++--------
+ .../tls/testdata/Server-TLSv13-AES256-SHA384       | 154 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 156 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch | 154 +++++++--------
+ .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 150 +++++++--------
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 142 +++++++-------
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 154 +++++++--------
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 181 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 156 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 154 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 154 +++++++--------
+ 25 files changed, 1935 insertions(+), 1594 deletions(-)

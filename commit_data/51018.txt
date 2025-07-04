@@ -1,57 +1,21 @@
-commit 537c4354cb9fdf8812c0448bd8f8a3b9f9ab1736
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Jul 11 02:40:14 2022 +0000
+commit a0506bdf7c9741974c54d9dac55517025ba2572d
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Fri Nov 26 07:45:44 2021 +0000
 
-    cmd/internal/obj/arm64: optimize ADRP+ADD+LD/ST to ADRP+LD/ST(offset)
+    test/fixedbugs: fix go directive of issue16008.go
     
-    This CL optimizes the sequence of instructions ADRP+ADD+LD/ST to the
-    sequence of ADRP+LD/ST(offset). This saves an ADD instruction.
+    This change modifies issue16008.go
+    I fixed // go:noinline to //go:noinline
     
-    The test result of compilecmp:
-    
-    name       old text-bytes  new text-bytes  delta
-    HelloSize      763kB ± 0%      755kB ± 0%  -1.06%  (p=0.000 n=20+20)
-    
-    name       old data-bytes  new data-bytes  delta
-    HelloSize     13.5kB ± 0%     13.5kB ± 0%    ~     (all equal)
-    
-    name       old bss-bytes   new bss-bytes   delta
-    HelloSize      227kB ± 0%      227kB ± 0%    ~     (all equal)
-    
-    name       old exe-bytes   new exe-bytes   delta
-    HelloSize     1.33MB ± 0%     1.33MB ± 0%  -0.02%  (p=0.000 n=20+20)
-    
-    file      before    after     Δ       %
-    addr2line 3760392   3759504   -888    -0.024%
-    api       5361511   5295351   -66160  -1.234%
-    asm       5014157   4948674   -65483  -1.306%
-    buildid   2579949   2579485   -464    -0.018%
-    cgo       4492817   4491737   -1080   -0.024%
-    compile   23359229  23156074  -203155 -0.870%
-    cover     4823337   4756937   -66400  -1.377%
-    dist      3332850   3331794   -1056   -0.032%
-    doc       3902649   3836745   -65904  -1.689%
-    fix       3269708   3268828   -880    -0.027%
-    link      6510760   6443496   -67264  -1.033%
-    nm        3670740   3604348   -66392  -1.809%
-    objdump   4069599   4068967   -632    -0.016%
-    pack      2374824   2374208   -616    -0.026%
-    pprof     13874860  13805700  -69160  -0.498%
-    test2json 2599210   2598530   -680    -0.026%
-    trace     13231640  13162872  -68768  -0.520%
-    vet       7360899   7292267   -68632  -0.932%
-    total     113589131 112775517 -813614 -0.716%
-    
-    Change-Id: Ie1cf277e149ddd3f352d05fa0753d0ced7e0b894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444715
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ic133eec51f0a7c4acf8cb22d25473ca08f1e916c
+    GitHub-Last-Rev: dd1868f2ca1f9ca7e2d6d1bfc15c601649896fdd
+    GitHub-Pull-Request: golang/go#49801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367174
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go          |  85 +++++++++++++++++-----
- src/cmd/internal/objabi/reloctype.go        |  16 ++++
- src/cmd/internal/objabi/reloctype_string.go |  70 +++++++++---------
- src/cmd/internal/objabi/symkind_string.go   |   2 +-
- src/cmd/link/internal/arm64/asm.go          | 109 +++++++++++++++++++++++++---
- 5 files changed, 222 insertions(+), 60 deletions(-)
+ test/fixedbugs/issue16008.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

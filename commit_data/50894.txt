@@ -1,24 +1,22 @@
-commit a401468b0092446d537edc2000c23e8015ce6b58
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 30 17:08:43 2022 -0400
+commit 46e98d489fda3bc1e36af92ee625b2fce3c1f88e
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 22:33:22 2021 -0500
 
-    runtime/pprof: set Function.start_line field
+    go/types: refer to structural rather than single underlying type in errors
     
-    Now that we plumb the start line to the runtime, we can include in pprof
-    files. Since runtime.Frame.startLine is not (currently) exported, we
-    need a runtime helper to get the value.
+    This is a port of CL 362997 from types2 to go/types. Some error
+    positions were adjusted in tests.
     
-    For #55022.
-    Updates #56135.
-    
-    Change-Id: Ifc5b68a7b7170fd7895e4099deb24df7977b22ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438255
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6a932aee1a8d9bcbf4cd8c16a95bbb41b5c7e13f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363990
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/pprof/proto.go   | 9 ++++++++-
- src/runtime/pprof/runtime.go | 4 ++++
- src/runtime/symtab.go        | 7 +++++++
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ src/go/types/builtins.go                   |  2 +-
+ src/go/types/index.go                      |  2 +-
+ src/go/types/stmt.go                       |  4 ++--
+ src/go/types/testdata/check/builtins.go2   |  6 +++---
+ src/go/types/testdata/check/typeparams.go2 | 12 ++++++------
+ 5 files changed, 13 insertions(+), 13 deletions(-)

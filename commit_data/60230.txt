@@ -1,0 +1,17 @@
+commit c8cb31a36e58f552697735da0d559b977aa639f2
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu May 30 13:40:26 2024 -0400
+
+    doc/next: document proposal 62518 as not relevant
+    
+    For #65614.
+    
+    Change-Id: I03dc3a46052f1e55dc1ab46b45c886c96c4a1b39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589216
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/next/9-todo.md | 1 +
+ 1 file changed, 1 insertion(+)

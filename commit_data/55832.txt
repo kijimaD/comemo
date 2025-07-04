@@ -1,88 +1,26 @@
-commit f048829d706df6c1ca4d6fd22de9bd2609d3ed7c
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Fri Feb 9 18:41:21 2024 +0100
+commit e91876f4406a89eb0b0c07e93a6ae4e4f32d48b6
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 20:53:10 2023 -0700
 
-    cmd/compile: mark DIEs of captured variables
+    internal/fuzz: release lock when reading file fails
     
-    Adds a new custom attribute to the DIE of captured variables,
-    containing the offset for the variable inside the closure struct. This
-    can be used by debuggers to display the contents of a closure variable.
+    When corpusEntryData failed in workerClient.fuzz and
+    workerClient.minimize, the shared memory mutex wasn't properly given up,
+    which would cause a deadlock when worker.cleanup was called.
     
-    Based on a sample program (delve) this increases the executable size by 0.06%.
+    This was tickled by #59062, wherein the fuzz cache directory would be
+    removed during operation of the fuzzer, causing corpusEntryData to fail
+    because the entry files no longer existed.
     
-    benchstat output:
+    Updates #51484
     
-                             │   old.txt    │                new.txt                │
-                             │    sec/op    │     sec/op      vs base               │
-    Template                   153.0m ±  6%    152.5m ±  14%       ~ (p=0.684 n=10)
-    Unicode                    100.2m ± 15%    104.9m ±   7%       ~ (p=0.247 n=10)
-    GoTypes                    943.6m ±  8%    986.2m ±  10%       ~ (p=0.280 n=10)
-    Compiler                   97.79m ±  6%   101.63m ±  12%       ~ (p=0.393 n=10)
-    SSA                         6.872 ± 37%     9.413 ± 106%       ~ (p=0.190 n=10)
-    Flate                      128.0m ± 36%    125.0m ±  56%       ~ (p=0.481 n=10)
-    GoParser                   214.9m ± 26%    201.4m ±  68%       ~ (p=0.579 n=10)
-    Reflect                    452.6m ± 22%    412.2m ±  74%       ~ (p=0.739 n=10)
-    Tar                        166.2m ± 27%    155.9m ±  73%       ~ (p=0.393 n=10)
-    XML                        219.3m ± 24%    211.3m ±  76%       ~ (p=0.739 n=10)
-    LinkCompiler               523.2m ± 13%    513.5m ±  47%       ~ (p=0.631 n=10)
-    ExternalLinkCompiler        1.684 ±  2%     1.659 ±  25%       ~ (p=0.218 n=10)
-    LinkWithoutDebugCompiler   304.9m ± 12%    309.1m ±   7%       ~ (p=0.631 n=10)
-    StdCmd                      70.76 ± 14%     68.66 ±  53%       ~ (p=1.000 n=10)
-    geomean                    511.5m          515.4m         +0.77%
-    
-                             │   old.txt    │               new.txt                │
-                             │ user-sec/op  │  user-sec/op   vs base               │
-    Template                   269.6m ± 13%   292.3m ±  17%       ~ (p=0.393 n=10)
-    Unicode                    110.2m ±  8%   101.7m ±  18%       ~ (p=0.247 n=10)
-    GoTypes                     2.181 ±  9%    2.356 ±  12%       ~ (p=0.280 n=10)
-    Compiler                   119.1m ± 11%   121.9m ±  15%       ~ (p=0.481 n=10)
-    SSA                         17.75 ± 52%    26.94 ± 123%       ~ (p=0.190 n=10)
-    Flate                      256.2m ± 43%   226.8m ±  73%       ~ (p=0.739 n=10)
-    GoParser                   427.0m ± 24%   422.3m ±  72%       ~ (p=0.529 n=10)
-    Reflect                    990.5m ± 23%   905.5m ±  75%       ~ (p=0.912 n=10)
-    Tar                        307.9m ± 27%   308.9m ±  64%       ~ (p=0.393 n=10)
-    XML                        432.8m ± 24%   427.6m ±  89%       ~ (p=0.796 n=10)
-    LinkCompiler               796.9m ± 14%   800.4m ±  56%       ~ (p=0.481 n=10)
-    ExternalLinkCompiler        1.666 ±  4%    1.671 ±  28%       ~ (p=0.971 n=10)
-    LinkWithoutDebugCompiler   316.7m ± 12%   325.6m ±   8%       ~ (p=0.579 n=10)
-    geomean                    579.5m         594.0m         +2.51%
-    
-              │   old.txt    │                new.txt                │
-              │  text-bytes  │  text-bytes   vs base                 │
-    HelloSize   842.9Ki ± 0%   842.9Ki ± 0%       ~ (p=1.000 n=10) ¹
-    CmdGoSize   10.95Mi ± 0%   10.95Mi ± 0%       ~ (p=1.000 n=10) ¹
-    geomean     3.003Mi        3.003Mi       +0.00%
-    ¹ all samples are equal
-    
-              │   old.txt    │                new.txt                │
-              │  data-bytes  │  data-bytes   vs base                 │
-    HelloSize   15.08Ki ± 0%   15.08Ki ± 0%       ~ (p=1.000 n=10) ¹
-    CmdGoSize   314.7Ki ± 0%   314.7Ki ± 0%       ~ (p=1.000 n=10) ¹
-    geomean     68.88Ki        68.88Ki       +0.00%
-    ¹ all samples are equal
-    
-              │   old.txt    │                new.txt                │
-              │  bss-bytes   │  bss-bytes    vs base                 │
-    HelloSize   396.8Ki ± 0%   396.8Ki ± 0%       ~ (p=1.000 n=10) ¹
-    CmdGoSize   428.8Ki ± 0%   428.8Ki ± 0%       ~ (p=1.000 n=10) ¹
-    geomean     412.5Ki        412.5Ki       +0.00%
-    ¹ all samples are equal
-    
-              │   old.txt    │               new.txt               │
-              │  exe-bytes   │  exe-bytes    vs base               │
-    HelloSize   1.310Mi ± 0%   1.310Mi ± 0%  +0.02% (p=0.000 n=10)
-    CmdGoSize   16.37Mi ± 0%   16.38Mi ± 0%  +0.01% (p=0.000 n=10)
-    geomean     4.631Mi        4.632Mi       +0.02%
-    
-    Change-Id: Ib416ee2d916ec61ad4a5c26bab09597595f57e04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563816
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iea284041c20d1581c662bddbbc7e12191771a364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476815
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go | 70 ++++++++++++++++++---------
- src/cmd/compile/internal/ssagen/ssa.go     | 12 ++---
- src/cmd/compile/internal/typecheck/func.go | 45 +++++++++++++++--
- src/cmd/internal/dwarf/dwarf.go            | 10 +++-
- src/cmd/internal/dwarf/putvarabbrevgen.go  | 78 +++++++++++++++++++++++++++---
- 5 files changed, 171 insertions(+), 44 deletions(-)
+ .../go/testdata/script/test_fuzz_err_deadlock.txt  | 50 ++++++++++++++++++++++
+ src/internal/fuzz/worker.go                        |  3 +-
+ 2 files changed, 52 insertions(+), 1 deletion(-)

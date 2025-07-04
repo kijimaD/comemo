@@ -1,48 +1,14 @@
-commit 3d198bd7be771ed0722af577eef840b24d62374a
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Sep 9 10:43:06 2015 +0200
+commit 5bf1369c9ba09df6df2fbd3b8221f22b1d52d2ee
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Thu Aug 13 15:39:43 2015 -0700
 
-    unicode/utf8: added benchmarks
+    cmd/go: make "go test" recognize -exec flag again.
     
-    Cover some functions that weren't benched before and add InString
-    variants if the underlying implementation is different.
+    Fixes #12144.
     
-    Note: compare (Valid|RuneCount)InString* to their (Valid|RuneCount)*
-    counterparts. It shows, somewhat unexpectedly, that ranging over
-    a string is *much* slower than using calls to DecodeRune.
-    
-    Results:
-    In order to avoid a discrepancy in measuring the performance
-    of core we could leave the names of the string-based measurements
-    unchanged and suffix the added alternatives with Bytes.
-    
-    Compared to old:
-    BenchmarkRuneCountTenASCIIChars-8        44.3          12.4          -72.01%
-    BenchmarkRuneCountTenJapaneseChars-8     167           67.1          -59.82%
-    BenchmarkEncodeASCIIRune-8               3.37          3.44          +2.08%
-    BenchmarkEncodeJapaneseRune-8            7.19          7.24          +0.70%
-    BenchmarkDecodeASCIIRune-8               5.41          5.53          +2.22%
-    BenchmarkDecodeJapaneseRune-8            8.17          8.41          +2.94%
-    
-    All benchmarks:
-    BenchmarkRuneCountTenASCIIChars-8               100000000               12.4 ns/op
-    BenchmarkRuneCountTenJapaneseChars-8            20000000                67.1 ns/op
-    BenchmarkRuneCountInStringTenASCIIChars-8       30000000                44.5 ns/op
-    BenchmarkRuneCountInStringTenJapaneseChars-8    10000000               165 ns/op
-    BenchmarkValidTenASCIIChars-8                   100000000               12.5 ns/op
-    BenchmarkValidTenJapaneseChars-8                20000000                71.1 ns/op
-    BenchmarkValidStringTenASCIIChars-8             30000000                50.0 ns/op
-    BenchmarkValidStringTenJapaneseChars-8          10000000               161 ns/op
-    BenchmarkEncodeASCIIRune-8                      500000000                3.44 ns/op
-    BenchmarkEncodeJapaneseRune-8                   200000000                7.24 ns/op
-    BenchmarkDecodeASCIIRune-8                      300000000                5.53 ns/op
-    BenchmarkDecodeJapaneseRune-8                   200000000                8.41 ns/op
-    BenchmarkFullASCIIRune-8                        500000000                3.91 ns/op
-    BenchmarkFullJapaneseRune-8                     300000000                4.22 ns/op
-    
-    Change-Id: I674d2ee4917b975a37717bbfa1082cc84dcd275e
-    Reviewed-on: https://go-review.googlesource.com/14431
+    Change-Id: I112c6517371215c9797db8f1dffca0f3047c39e3
+    Reviewed-on: https://go-review.googlesource.com/13633
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/unicode/utf8/utf8_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 55 insertions(+), 1 deletion(-)
+ src/cmd/go/testflag.go | 1 +
+ 1 file changed, 1 insertion(+)

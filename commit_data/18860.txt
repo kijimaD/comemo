@@ -1,18 +1,24 @@
-commit 4c6d2d6aa8aff8876a511882dd2a1facf4965667
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 13 14:04:29 2014 -0700
+commit c115cda22c82e219654056f6864e9819b922febc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 13 19:04:00 2014 +0400
 
-    debug/macho: handle missing __debug_str section
-    
-    debug/elf does the same thing, use []byte{} for
-    any missing sections.
-    
-    Fixes #7510
+    runtime: improve efence
+    Mark free memory blocks as unused.
+    On amd64 it allows the process to eat all 128 GB of heap
+    without killing the machine.
     
     LGTM=rsc
-    R=golang-codereviews, iant
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/75230043
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/74070043
 
- src/pkg/debug/macho/file.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/mem_darwin.c    | 2 +-
+ src/pkg/runtime/mem_dragonfly.c | 2 +-
+ src/pkg/runtime/mem_freebsd.c   | 2 +-
+ src/pkg/runtime/mem_linux.c     | 2 +-
+ src/pkg/runtime/mem_nacl.c      | 2 +-
+ src/pkg/runtime/mem_netbsd.c    | 2 +-
+ src/pkg/runtime/mem_openbsd.c   | 2 +-
+ src/pkg/runtime/mem_solaris.c   | 2 +-
+ src/pkg/runtime/mem_windows.c   | 7 ++-----
+ 9 files changed, 10 insertions(+), 13 deletions(-)

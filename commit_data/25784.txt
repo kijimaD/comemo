@@ -1,18 +1,14 @@
-commit 0e34737c9aea6680b0a2a135cdf80557d61b83ce
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Feb 19 09:58:22 2016 -0800
+commit de2bc5722dc82455c47a267c8d44dc5b6bf97eed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 13:54:40 2015 -0800
 
-    cmd/go: don't assume cc supports -gno-record-gcc-switches
+    cmd/compile: no need to keep ()'s for all pseudocalls
     
-    NetBSD's C compiler appears to support -fdebug-prefix-map but
-    not -gno-record-gcc-switches. Remove assumption that support
-    for the former implies the latter.
+    Minor internal optimization.
     
-    Change-Id: Iecad9e4f497ea4edc1ce440010e6fe19dc3e0566
-    Reviewed-on: https://go-review.googlesource.com/19686
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I229d4a9df3da542b77f830c2830f63ec23ec1d61
+    Reviewed-on: https://go-review.googlesource.com/17065
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/go/build.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

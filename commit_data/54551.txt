@@ -1,22 +1,36 @@
-commit 80e642cb7a73a7bc1169655bc299abe8629475dc
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Fri Sep 22 21:03:27 2023 +0000
+commit 84cd7ab3c388fb3280cf426a35045d85cda99ff8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 26 12:18:13 2022 -0400
 
-    cmp: add Or
+    internal/testenv: add CommandContext and Command
     
-    Fixes #60204
+    This adds a testenv.CommandContext function, with timeout behavior
+    based on the existing logic in cmd/go.TestScript: namely, the command
+    is terminated with SIGQUIT (if supported) with an arbitrary grace
+    period remaining until the test's deadline.
     
-    Change-Id: I1234cacf0f25097d034038bcfb33f6630373a057
-    GitHub-Last-Rev: e9098ed8b3dd9125661e4340ffe01d846670ba0f
-    GitHub-Pull-Request: golang/go#60931
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504883
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    If the test environment does not support executing subprocesses,
+    CommandContext skips the test.
+    
+    If the command is terminated due to the timout expiring or the test
+    fails to wait for the command after starting it, CommandContext marks
+    the test as failing.
+    
+    For tests where a shorter timeout is desired (such as for fail-fast
+    behavior), one may be supplied using context.WithTimeout.
+    
+    The more concise Command helper is like CommandContext but without
+    the need to supply an explicit Context.
+    
+    Updates #50436.
+    
+    Change-Id: Ifd81fb86c402f034063c9e9c03045b4106eab81a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445596
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
 
- api/next/60204.txt  |  1 +
- src/cmp/cmp.go      | 12 +++++++++
- src/cmp/cmp_test.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 85 insertions(+)
+ src/internal/testenv/testenv.go | 98 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)

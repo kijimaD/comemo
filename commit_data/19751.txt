@@ -1,35 +1,26 @@
-commit 7a9e7c0afa79caf4a2dc8a70b14745d6c8f912bb
-Author: Cristian Staretu <unclejacksons@gmail.com>
-Date:   Thu Jul 17 10:00:29 2014 +1000
+commit 8d504c4e97a0ff560208aa58b5d01e225412d821
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 16 19:27:10 2014 -0400
 
-    archive/tar: fix writing of pax headers
+    cmd/gc: implement 'for range x {'
     
-    "archive/tar: reuse temporary buffer in writeHeader" introduced a
-    change which was supposed to help lower the number of allocations from
-    512 bytes for every call to writeHeader. This change broke the writing
-    of PAX headers.
+    Fixes #6102.
     
-    writeHeader calls writePAXHeader and writePAXHeader calls writeHeader
-    again. writeHeader will end up writing the PAX header twice.
-    
-    example broken header:
-    PaxHeaders.4007/NetLock_Arany_=Class_Gold=_Ftanstvny.crt0000000000000000000000000000007112301216634021512 xustar0000000000000000
-    PaxHeaders.4007/NetLock_Arany_=Class_Gold=_Ftanstvny.crt0000000000000000000000000000007112301216634021512 xustar0000000000000000
-    
-    example correct header:
-    PaxHeaders.4290/NetLock_Arany_=Class_Gold=_Ftanstvny.crt0000000000000000000000000000007112301216634021516 xustar0000000000000000
-    0100644000000000000000000000270412301216634007250 0ustar0000000000000000
-    
-    This commit adds a dedicated buffer for pax headers to the Writer
-    struct. This change increases the size of the struct by 512 bytes, but
-    allows tar/writer to avoid allocating 512 bytes for all written
-    headers and it avoids allocating 512 more bytes for pax headers.
-    
-    LGTM=dsymonds
-    R=dsymonds, dave, iant
+    LGTM=gri
+    R=ken, r, gri
     CC=golang-codereviews
-    https://golang.org/cl/110480043
+    https://golang.org/cl/113120043
 
- src/pkg/archive/tar/writer.go      | 15 +++++++++++++--
- src/pkg/archive/tar/writer_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ src/cmd/gc/esc.c                      |    2 +-
+ src/cmd/gc/fmt.c                      |    6 +-
+ src/cmd/gc/go.y                       |    5 +
+ src/cmd/gc/range.c                    |   48 +-
+ src/cmd/gc/y.tab.c                    | 2524 ++++++++++++++++-----------------
+ src/cmd/gc/yerr.h                     |   22 +-
+ test/bench/shootout/chameneosredux.go |    2 +-
+ test/chan/perm.go                     |    3 +
+ test/fixedbugs/bug173.go              |    2 +
+ test/fixedbugs/bug406.go              |    2 +
+ test/range.go                         |   92 ++
+ test/stress/maps.go                   |    2 +
+ 12 files changed, 1416 insertions(+), 1294 deletions(-)

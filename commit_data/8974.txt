@@ -1,12 +1,18 @@
-commit e67a2504a15ac579758f8dc494d4d4e2b5fc13ab
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jul 8 10:51:56 2011 +1000
+commit 3236097ab02943068c7d29c5fd43e97962363b7d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 7 17:45:28 2011 -0700
 
-    gob: export fields in structs in the package documentation.
+    cgi: don't depend on CGI.pm for tests
     
-    R=r
+    CGI.pm used to be part of the Perl core,
+    but some distros now bundle perl-core
+    and perl-modules separately.
+    
+    It's not worth depending on.
+    
+    R=golang-dev, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4648075
+    https://golang.org/cl/4675063
 
- src/pkg/gob/doc.go | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ src/pkg/http/cgi/testdata/test.cgi | 37 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 35 insertions(+), 2 deletions(-)

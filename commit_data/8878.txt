@@ -1,15 +1,12 @@
-commit cf3eeb29841d671c63d4d308bf8f5a99906d33d8
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Tue Jun 28 16:10:39 2011 +1000
+commit 546c78b74441475a933300ce5e0a1ff50f35941d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 28 16:01:52 2011 +1000
 
-    io.WriteString: if the object has a WriteString method, use it
+    builder: minor fixes
     
-    This avoids allocation when writing to bytes.Buffers and bufio.Writers, for
-    example.
-    
-    R=golang-dev, rsc, r, consalus, r
+    R=golang-dev, gri, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4625068
+    https://golang.org/cl/4634050
 
- src/pkg/io/io.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ misc/dashboard/builder/package.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

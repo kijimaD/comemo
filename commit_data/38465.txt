@@ -1,14 +1,23 @@
-commit d24d25b4e43badc38539b563f5264b341ccf3746
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Feb 21 10:45:40 2019 +0100
+commit 5cc80899486027db5f0de00870f1e022e1cfb9c5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 26 18:44:17 2018 +1100
 
-    runtime: enable external linker tests for aix/ppc64
+    os: use Stat instead of Lstat in Symlink
     
-    Change-Id: Icc42843adb15c2aba1cfea854fad049c6704344b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164014
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Windows implementation of Symlink uses CreateSymbolicLink Windows
+    API. The API requires to identify the target type: file or
+    directory. Current Symlink implementation  uses Lstat to determine
+    symlink type, but Lstat will not be able to determine correct
+    result if destination is symlink. Replace Lstat call with Stat.
+    
+    Fixes #28432
+    
+    Change-Id: Ibee6d8ac21e2246bf8d0a019c4c66d38b09887d4
+    Reviewed-on: https://go-review.googlesource.com/c/145217
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_cgo_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/file_windows.go |  2 +-
+ src/os/stat_test.go    | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

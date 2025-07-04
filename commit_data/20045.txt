@@ -1,20 +1,18 @@
-commit fb44fb6cb7fdadced51db03403b9f5d93fefa5a5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 19 15:59:42 2014 +0400
+commit 53b78c84bc118d514c95794770c87dcb850368fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 12 21:41:42 2014 -0400
 
-    runtime: always pass type to mallocgc when allocating scannable memory
-    We allocate scannable memory w/o type only in few places in runtime.
-    All these cases are not-performance critical (e.g. G or finq args buffer),
-    and in long term they all need to go away.
-    It's not worth it to have special code for this case in mallocgc.
-    So use special fake "notype" type for such allocations.
+    [dev.power64] cmd/9a: use new flag parser
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rlh, rsc
-    https://golang.org/cl/127450044
+    Copy main from 6a. Fixes various things, but the
+    main thing is the use of the new flag parser.
+    The go command expects to be able to use -trimpath
+    and not have it be interpreted as -t rimpath.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/126100043
 
- src/pkg/runtime/malloc.c  |  9 +++++
- src/pkg/runtime/malloc.go | 88 +++++++++++++++++++++--------------------------
- src/pkg/runtime/mgc0.go   |  9 +++++
- 3 files changed, 57 insertions(+), 49 deletions(-)
+ src/cmd/9a/lex.c | 129 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 65 insertions(+), 64 deletions(-)

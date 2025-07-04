@@ -1,20 +1,25 @@
-commit a3c4ac0fbca51fc2e3369c93738419fc947bda77
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Fri Oct 22 17:00:46 2021 +0800
+commit 42cd40ee74050391e4714eefa8aeb0242b93b0f5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 12 15:55:25 2021 -0800
 
-    reflect: skip duplicate check in StructOf when the name of a field is "_"
+    cmd/compile: improve bit test code
     
-    Fixes #49110
+    Some bit test instruction generation stopped triggering after
+    the change to addressing modes. I suspect this was just because
+    ANDQload was being generated before the rewrite rules could discover
+    the BTQ. Fix that by decomposing the ANDQload when it is surrounded
+    by a TESTQ (thus re-enabling the BTQ rules).
     
-    Change-Id: I32c2cb26cca067a4a676ce4bbc3e51f1e0cdb259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357959
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dan Kortschak <dan@kortschak.io>
-    Reviewed-by: Sebastien Binet <s@sbinet.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #44228
+    
+    Change-Id: I489b4a5a7eb01c65fc8db0753f8cec54097cadb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291749
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/reflect/type.go          |  2 +-
- test/fixedbugs/issue49110.go | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 54 ++++++++++++++++++++++++++++
+ test/codegen/bits.go                         |  9 +++++
+ 3 files changed, 68 insertions(+)

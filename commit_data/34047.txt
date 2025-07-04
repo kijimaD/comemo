@@ -1,14 +1,24 @@
-commit 5348aed83e39bd1d450d92d7f627e994c2db6ebf
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Jan 25 11:22:38 2018 -0500
+commit 39e523792e33a0bd9217161ca53c6c0cb2324a99
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 27 10:51:24 2017 +0100
 
-    [release-branch.go1.10] go1.10rc1
+    cmd/compile: fix another invalid switch case panic
     
-    Change-Id: I49ec1e476e02d403a4b46f55ea48a9c3cee54efa
-    Reviewed-on: https://go-review.googlesource.com/89855
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Very similar fix to the one made in golang.org/cl/65655. This time it's
+    for switches on interface values, as we look for duplicates in a
+    different manner to keep types in mind.
+    
+    As before, add a small regression test.
+    
+    Updates #22001.
+    Fixes #22063.
+    
+    Change-Id: I9a55d08999aeca262ad276b4649b51848a627b02
+    Reviewed-on: https://go-review.googlesource.com/66450
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- VERSION | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/swt.go |  5 +++++
+ test/fixedbugs/issue22063.go       | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+)

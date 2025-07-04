@@ -1,18 +1,15 @@
-commit 881d693c8603510bee3b88205a90ca97942ee0b9
-Author: Erik Westrup <erik.westrup@gmail.com>
-Date:   Wed Mar 26 15:23:31 2014 -0700
+commit 4271dd4550311c05bb3523865bb123645033c265
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 26 14:20:18 2014 -0400
 
-    cmd/go: Use exported CgoLDFlags when compiler=gccgo
-    
-    If you compile a program that has cgo LDFLAGS directives, those are exported to an environment variable to be used by subsequent compiler tool invocations. The linking phase when using the gccgo toolchain did not consider the envvar CGO_LDFLAGS's linking directives resulting in undefined references when using cgo+gccgo.
-    
-    Fixes #7573
+    cmd/dist: set -Wuninitialized only when -O is also set.
+    GCC on OS X 10.6 doesn't support -Wuninitialized without -O.
+    Fixes #7492.
     
     LGTM=iant
-    R=golang-codereviews, iant
+    R=golang-codereviews, dave, iant
     CC=golang-codereviews
-    https://golang.org/cl/80780043
+    https://golang.org/cl/72360045
 
- src/cmd/go/build.go  |  1 +
- src/cmd/go/test.bash | 25 +++++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/cmd/dist/build.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

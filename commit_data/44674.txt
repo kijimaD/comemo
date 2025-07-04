@@ -1,19 +1,20 @@
-commit 661f3f15d5c96704a2fe9e91c6c40f73ff896606
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Mar 15 23:10:21 2021 +0100
+commit a40171857595db60e95a04b64aad8ba262cf64a7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 16:45:48 2020 -0700
 
-    net: fix BenchmarkWriteToReadFromUDP on Windows
+    cmd/compile/internal/gc: cleanup walkselectcases slightly
     
-    Using 0.0.0.0 for ListenUDP listens on all addresses. Calling LocalAddr
-    on that Conn returns 0.0.0.0. Sending to 0.0.0.0 doesn't seem to work on
-    Windows. See #22827.
+    Remove some unnecessary code. Most significantly, we can skip testing
+    "if ch == nil { block() }", because this is already the semantics
+    implied by normal send/receive operations.
     
-    Change-Id: I4a48fbabe65a63e07600a65309977cec08a9c1e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301850
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Filippo Valsorda <filippo@golang.org>
+    Updates #40410.
+    
+    Change-Id: I4acd33383cc876719fc3b998d85244d4ac1ff9d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245126
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/udpsock_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/select.go | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)

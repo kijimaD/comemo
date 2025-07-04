@@ -1,19 +1,25 @@
-commit 4a70ff425b3c16c19785b04bb89ca856749ed65b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 5 11:14:25 2020 -0500
+commit 9f4fb6815237f3e66057d175bd15cb167513de83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Oct 12 16:58:01 2019 -0700
 
-    cmd/go/internal/renameio: skip test affected by kernel bug on macOS 10.14 builders
+    cmd/compile: remove PDISCARD class
     
-    The test will remain flaky on the -nocgo builder until #37695 is addressed.
+    This pseudo-Class was previously used by the importer code to optimize
+    processing duplicate inline bodies, since we didn't actually care
+    about the declarations in those contexts.
     
-    Updates #37695
-    Fixes #33041
+    This functionality is no longer needed with indexed exports, since we
+    now only process function bodies as needed (and never more than once).
     
-    Change-Id: I5d661ef39e82ab1dce3a76e0e4059cf556135e89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222158
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: I7eab0cb16925ab777079c2a20731dbcfd63cf195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200899
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/renameio/renameio_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/class_string.go | 5 ++---
+ src/cmd/compile/internal/gc/dcl.go          | 4 ----
+ src/cmd/compile/internal/gc/go.go           | 9 +--------
+ 3 files changed, 3 insertions(+), 15 deletions(-)

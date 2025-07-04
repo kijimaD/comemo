@@ -1,11 +1,17 @@
-commit 18c7fbdfd7a0842ca601231266b6582f957c982b
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 19 10:33:50 2014 -0700
+commit 55df81d37f632e5f45f95b210f862c73a758b124
+Author: Evan Kroske <evankroske@google.com>
+Date:   Mon Oct 6 17:16:39 2014 -0400
 
-    doc/go1.4.txt: flags can now be set at most once
+    cmd/gc: prohibit short variable declarations containing duplicate symbols
     
+    Fixes #6764.
+    Fixes #8435.
+    
+    LGTM=rsc
+    R=golang-codereviews, r, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/161820043
+    https://golang.org/cl/116440046
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/dcl.c | 11 +++++++++++
+ test/assign.go   | 12 ++++++++++++
+ 2 files changed, 23 insertions(+)

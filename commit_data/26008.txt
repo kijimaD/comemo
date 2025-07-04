@@ -1,63 +1,19 @@
-commit 6969d9bf038deebefa556b90e7467b8636c16e91
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 2 12:32:38 2016 -0500
+commit 5ef899111e581b1e57aa1546caa204d48bdf5503
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 10 10:41:08 2015 -0800
 
-    runtime/pprof: sort counted profiles by count
+    time: reject invalid day of month in Parse
     
-    This is especially helpful in programs with very large numbers of goroutines:
-    the bulk of the goroutines will show up at the top.
+    There was back-and-forth on this but it has been decided to fix the original
+    complaint, which was easy.
     
-    Before:
-            1 @ 0x86ab8 0x86893 0x82164 0x8e7ce 0x7b798 0x5b871
-            #       0x86ab8 runtime/pprof.writeRuntimeProfile+0xb8          /Users/rsc/go/src/runtime/pprof/pprof.go:545
-            #       0x86893 runtime/pprof.writeGoroutine+0x93               /Users/rsc/go/src/runtime/pprof/pprof.go:507
-            #       0x82164 runtime/pprof.(*Profile).WriteTo+0xd4           /Users/rsc/go/src/runtime/pprof/pprof.go:236
-            #       0x8e7ce runtime/pprof_test.TestGoroutineCounts+0x15e    /Users/rsc/go/src/runtime/pprof/pprof_test.go:603
-            #       0x7b798 testing.tRunner+0x98                            /Users/rsc/go/src/testing/testing.go:473
+    Fixes #7268.
     
-            1 @ 0x2d373 0x2d434 0x560f 0x516b 0x7cd42 0x7b861 0x2297 0x2cf90 0x5b871
-            #       0x7cd42 testing.RunTests+0x8d2  /Users/rsc/go/src/testing/testing.go:583
-            #       0x7b861 testing.(*M).Run+0x81   /Users/rsc/go/src/testing/testing.go:515
-            #       0x2297  main.main+0x117         runtime/pprof/_test/_testmain.go:72
-            #       0x2cf90 runtime.main+0x2b0      /Users/rsc/go/src/runtime/proc.go:188
-    
-            10 @ 0x2d373 0x2d434 0x560f 0x516b 0x8e5b6 0x5b871
-            #       0x8e5b6 runtime/pprof_test.func1+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:582
-    
-            50 @ 0x2d373 0x2d434 0x560f 0x516b 0x8e656 0x5b871
-            #       0x8e656 runtime/pprof_test.func3+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:584
-    
-            40 @ 0x2d373 0x2d434 0x560f 0x516b 0x8e606 0x5b871
-            #       0x8e606 runtime/pprof_test.func2+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:583
-    
-    After:
-    
-            50 @ 0x2d373 0x2d434 0x560f 0x516b 0x8ecc6 0x5b871
-            #       0x8ecc6 runtime/pprof_test.func3+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:584
-    
-            40 @ 0x2d373 0x2d434 0x560f 0x516b 0x8ec76 0x5b871
-            #       0x8ec76 runtime/pprof_test.func2+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:583
-    
-            10 @ 0x2d373 0x2d434 0x560f 0x516b 0x8ec26 0x5b871
-            #       0x8ec26 runtime/pprof_test.func1+0x36   /Users/rsc/go/src/runtime/pprof/pprof_test.go:582
-    
-            1 @ 0x2d373 0x2d434 0x560f 0x516b 0x7cd42 0x7b861 0x2297 0x2cf90 0x5b871
-            #       0x7cd42 testing.RunTests+0x8d2  /Users/rsc/go/src/testing/testing.go:583
-            #       0x7b861 testing.(*M).Run+0x81   /Users/rsc/go/src/testing/testing.go:515
-            #       0x2297  main.main+0x117         runtime/pprof/_test/_testmain.go:72
-            #       0x2cf90 runtime.main+0x2b0      /Users/rsc/go/src/runtime/proc.go:188
-    
-            1 @ 0x87128 0x86f03 0x82164 0x8ee30 0x7b798 0x5b871
-            #       0x87128 runtime/pprof.writeRuntimeProfile+0xb8          /Users/rsc/go/src/runtime/pprof/pprof.go:566
-            #       0x86f03 runtime/pprof.writeGoroutine+0x93               /Users/rsc/go/src/runtime/pprof/pprof.go:528
-            #       0x82164 runtime/pprof.(*Profile).WriteTo+0xd4           /Users/rsc/go/src/runtime/pprof/pprof.go:236
-            #       0x8ee30 runtime/pprof_test.TestGoroutineCounts+0x150    /Users/rsc/go/src/runtime/pprof/pprof_test.go:603
-            #       0x7b798 testing.tRunner+0x98                            /Users/rsc/go/src/testing/testing.go:473
-    
-    Change-Id: I43de9eee2d96f9c46f7b0fbe099a0571164324f5
-    Reviewed-on: https://go-review.googlesource.com/20107
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6b607c49ad44579086aba2c4f4c5424b97fbed64
+    Reviewed-on: https://go-review.googlesource.com/17710
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/pprof/pprof.go      | 44 ++++++++++++++++++++++++++++++-----------
- src/runtime/pprof/pprof_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 76 insertions(+), 12 deletions(-)
+ src/time/format.go      |  5 +++++
+ src/time/format_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

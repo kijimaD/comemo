@@ -1,27 +1,12 @@
-commit 710028d3a4400d1ab24a5b8a08cafdb0359dbafc
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 7 13:03:06 2011 -0400
+commit b3a4d58ba8e0acf23199fa986a872270626e26a7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 6 23:07:32 2011 -0400
 
-    codereview: drop Author: line on self-clpatch
+    syscall: fix typo in mmap comment
     
-    Right now if a Go developer makes a patch on one machine
-    and then clpatches it onto another machine, changes
-    subsequently made to the description are kept only
-    locally, under the assumption that you are running
-    clpatch because someone else wrote the CL, so you
-    don't have permission to update the web.
-    
-    This change makes clpatch discard the "this was a
-    clpatch" information from the metadata when you
-    clpatch your own CLs from one machine to another.
-    
-    This should eliminate some confusion (for example
-    in CL 4314054) but will no doubt introduce other
-    confusion.
-    
-    R=golang-dev, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4387041
+    https://golang.org/cl/4377043
 
- lib/codereview/codereview.py | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/syscall/syscall_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

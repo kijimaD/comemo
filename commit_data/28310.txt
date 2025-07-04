@@ -1,16 +1,12 @@
-commit 1a42d8fbd6fdce1ef9122c2c4c60833eee9cefa0
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Sep 6 08:08:47 2016 -0400
+commit be5782c330f2c743f81942f5bc1b9c1e04296d44
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri May 13 09:25:25 2016 +0200
 
-    cmd/link: allow internal PIE linking
+    doc/go1.7.txt: add cmd/trace changes
     
-    Part of adding PIE internal linking on linux/amd64.
-    
-    Change-Id: I5ce01d1974e5d4b1a8cbcc8b08157477631d8d24
-    Reviewed-on: https://go-review.googlesource.com/28543
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaf455d1a2863ff752e0c398e1c364373b4d36614
+    Reviewed-on: https://go-review.googlesource.com/23084
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/link/internal/ld/lib.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ doc/go1.7.txt | 3 +++
+ 1 file changed, 3 insertions(+)

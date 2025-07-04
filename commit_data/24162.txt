@@ -1,15 +1,18 @@
-commit c788a8e05df9b75c53fac9d588d595329912c38b
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Sep 3 21:04:04 2015 +0000
+commit e66d04ea59117e4b981d905ccb453b38589a2c51
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 14 17:35:58 2015 -0700
 
-    Revert "cmd/link: only embed runtime.goarm in the module that contains the runtime package"
+    A+C: update for release
     
-    This reverts commit bf99d8f843ae3dfa7a3a4cd5c17aec79e2b9997f.
+    This is an automated update for the main branch of the main repo.
+    Some special cases and other repos will follow.
     
-    Change-Id: Id4374ed35802cfbfe11e015ccd9526d3497dc8cc
-    Reviewed-on: https://go-review.googlesource.com/14239
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Updates #10639
+    
+    Change-Id: I4b149c037e9292b7e323a9f4c009092ce6b70ce5
+    Reviewed-on: https://go-review.googlesource.com/12159
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/link/internal/arm/obj.go |  6 ++++++
- src/cmd/link/internal/ld/lib.go  | 31 ++++++++++---------------------
- 2 files changed, 16 insertions(+), 21 deletions(-)
+ AUTHORS      | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 161 insertions(+), 1 deletion(-)

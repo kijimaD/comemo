@@ -1,29 +1,17 @@
-commit eb330020dc42930e99d9a8c8ea3cc0972cbd230f
+commit 1024cabc4833fb654f3e2661a416367342277f95
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jan 14 12:29:16 2021 -0500
+Date:   Tue May 12 18:53:55 2020 -0400
 
-    cmd/dist, cmd/go: pass -arch for C compilation on Darwin
+    [dev.link] cmd/link: remove extSymPayload.gotype field
     
-    On Apple Silicon Mac, the C compiler has an annoying default
-    target selection, depending on the ancestor processes'
-    architecture. In particular, if the shell or IDE is x86, when
-    running "go build" even with a native ARM64 Go toolchain, the C
-    compiler defaults to x86, causing build failures. We pass "-arch"
-    flag explicitly to avoid this situation.
+    We have the information from auxs. Remove the field, slightly
+    reduce memory usage.
     
-    Fixes #43692.
-    Fixes #43476.
-    Updates golang/vscode-go#1087.
-    
-    Change-Id: I80b6a116a114e11e273c6886e377a1cc969fa3f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283812
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3881777cfb40b03d0e2b0e7a326b0738080548b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233778
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/cgo/gcc.go                                 |  7 +++++++
- src/cmd/go/internal/work/exec.go                   |  9 +++++++-
- .../go/testdata/script/build_darwin_cc_arch.txt    | 24 ++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go                    | 11 ++++++++--
- 4 files changed, 48 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)

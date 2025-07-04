@@ -1,16 +1,16 @@
-commit 0816432918ee0e4f1cf06b2a3100935e6293788b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 7 09:52:31 2015 -0500
+commit a2119aca7dc82dc5b5cd40b1a2f56e82323da002
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 5 16:33:53 2015 -0700
 
-    math/big: fix misuse of Unicode
+    cmd/compile/internal/gc: make funcsyms a []*Node
     
-    ˆ (U+02C6) is a circumflex accent, not an exponentiation operator.
-    In the rest of the source code for this package, exponentation is
-    written as **, so do the same here.
+    Remove another use of NodeList.
     
-    Change-Id: I107b85be242ab79d152eb8a6fcf3ca2b197d7658
-    Reviewed-on: https://go-review.googlesource.com/17671
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ice07eff862caf715f722dec7829006bf71715b07
+    Reviewed-on: https://go-review.googlesource.com/15432
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/math/big/nat.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ src/cmd/compile/internal/gc/go.go  | 2 +-
+ src/cmd/compile/internal/gc/obj.go | 5 +----
+ 3 files changed, 3 insertions(+), 6 deletions(-)

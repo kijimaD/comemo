@@ -1,0 +1,24 @@
+commit fa7343aca326aad061ab877c1a4cebb96c4355c1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Oct 8 18:10:17 2024 +0200
+
+    runtime: reduce syscall.SyscallX stack usage
+    
+    syscall.SyscallX consumes a lot of stack space, which is a problem
+    because they are nosplit functions. They used to use less stack space,
+    but CL 563315, that landed in Go 1.23, increased the stack usage by a
+    lot.
+    
+    This CL reduces the stack usage back to the previous level.
+    
+    Fixes #69813.
+    
+    Change-Id: Iddedd28b693c66a258da687389768055c493fc2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618497
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/syscall_windows.go      | 30 ++++++++++++++++--------------
+ src/runtime/syscall_windows_test.go |  7 +++++++
+ 2 files changed, 23 insertions(+), 14 deletions(-)

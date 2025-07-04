@@ -1,20 +1,19 @@
-commit 0aeda5afe5972c1b5f76d5ee78cbc5c96474ca89
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 22:16:52 2022 -0400
+commit d514411625bdd437c7d1997b92685bb03bfbf2a8
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 12:44:04 2021 -0500
 
-    cmd/link: remove unnecessary use of sync.Once alongside sync.Mutex
+    doc/go1.18: add information on new pacer.
     
-    There does not seem to be any point to this sync.Once.
-    I noticed because I was surveying uses of sync.Once to
-    understand usage patterns. This seems to be a dreg left over
-    from some earlier instance of the code.
+    This is based off Michael's notes.
     
-    Change-Id: I99dd258d865a41d0e8f6cfa55887855e477fb9c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445755
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Updates #47694
+    
+    Change-Id: I6e7944f85b776e8481829a2fafd177a49557c6ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368156
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/ld/errors.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ doc/go1.18.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,15 +1,15 @@
-commit af92b29fe63bd68b3892f6773b3da5896db52e6e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Aug 9 08:47:43 2012 +0800
+commit e4a50195c389e67d6d3277b46d4179602bec8c41
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Aug 9 09:43:10 2012 +1000
 
-    cmd/5l: add PT_PAX_FLAGS ELF header
-    Although I don't use PAX enabled ARM kernels, PAX
-    does have support for ARM, so we're better off add
-    PT_PAX_FLAGS now in case people use PAX kernels.
+    exp/html: when ignoring <textarea> tag, switch tokenizer out of raw text mode
     
-    R=golang-dev, rsc
+    Pass 1 additional test.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6453092
+    https://golang.org/cl/6459060
 
- src/cmd/5l/asm.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/exp/html/parse.go                           | 2 ++
+ src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

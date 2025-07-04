@@ -1,16 +1,15 @@
-commit f2e946f9ed28e85f6f6dcd2862c9247240390ecd
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Jan 4 08:25:09 2014 +1100
+commit 880442f110ce33b2981561461841979d58848b78
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Fri Jan 3 10:13:28 2014 -0800
 
-    os: return ErrInvalid if receiver is nil.
+    encoding/json: Fix missing error when trying to unmarshal null string into int, for successive ,string option
     
-    Fixes #7043.
+    Fixes #7046.
     
-    Test coming in https://golang.org/cl/46820043
-    
-    R=r, bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/38330045
+    https://golang.org/cl/47260043
 
- src/pkg/os/file_posix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/json/decode.go      |  1 +
+ src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

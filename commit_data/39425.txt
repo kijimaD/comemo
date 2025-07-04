@@ -1,12 +1,30 @@
-commit fafc92d4a6756c00683513a21a8f055b01595792
-Author: Andrew <andybons@golang.org>
-Date:   Mon Jun 24 10:11:26 2019 -0400
+commit 9650726e79e20386b59b253e98dcaaa768e06c95
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:48:17 2019 +0100
 
-    doc/go1.13: remove bytes TODO since it does not require a release note
+    internal/reflectlite: lite version of reflect package
     
-    Change-Id: I8c19c6df6fec74dcc8c3bfdc667576ea00e86ec1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183617
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    to be used by errors package for checking assignability
+    and setting error values in As.
+    
+    Updates #29934.
+    
+    Change-Id: I8c1d02a2c6efa0919d54b286cfe8b4edc26da059
+    Reviewed-on: https://go-review.googlesource.com/c/161759
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.13.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/go/build/deps_test.go                 |    2 +
+ src/internal/reflectlite/all_test.go      | 1046 +++++++++++++++++++++++++++++
+ src/internal/reflectlite/asm.s            |    5 +
+ src/internal/reflectlite/export_test.go   |  115 ++++
+ src/internal/reflectlite/set_test.go      |   92 +++
+ src/internal/reflectlite/tostring_test.go |   98 +++
+ src/internal/reflectlite/type.go          |  904 +++++++++++++++++++++++++
+ src/internal/reflectlite/value.go         |  448 ++++++++++++
+ src/runtime/iface.go                      |    5 +
+ src/runtime/malloc.go                     |    5 +
+ src/runtime/mbarrier.go                   |    5 +
+ src/runtime/runtime1.go                   |   12 +
+ 12 files changed, 2737 insertions(+)

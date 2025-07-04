@@ -1,14 +1,19 @@
-commit 5fc43c94bf3ba6158d970488bff715e60f37e33f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 26 15:41:42 2015 -0700
+commit 239273d963395676484693328b17961f2f862b08
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 24 09:15:36 2015 +1300
 
-    net/url: simplify value lookup
+    runtime: mark {g,m,p}uintptr methods as nosplit
     
-    Change-Id: Ic998c189003d4dee758fca3b5ac954d5b54d3d36
-    Reviewed-on: https://go-review.googlesource.com/19764
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    These are methods that are "obviously" going to get inlined -- until you build
+    with -l, when they can trigger a stack split at a bad time.
+    
+    Fixes #11482
+    
+    Change-Id: Ia065c385978a2e7fe9f587811991d088c4d68325
+    Reviewed-on: https://go-review.googlesource.com/17165
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/url.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/runtime2.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

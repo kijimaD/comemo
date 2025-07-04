@@ -1,12 +1,19 @@
-commit 3714d69b1505b54683a8b28e64b8aece3796a1d2
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 13 13:17:47 2013 +1000
+commit 913f1f1557541f2b16ca13a71d498a85fa585374
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 12 21:47:56 2013 -0400
 
-    C: Jamie Wilkinson (Googler CLA)
+    cmd/go: do not support code.google.com/r/zzz projects
     
-    R=golang-dev, dave, adg, dsymonds
+    This reverts CL 13261048. I have just learned that these are
+    no longer supported on code.google.com (that is, it is impossible
+    to create them), so there is little reason to add support in
+    Go 1.2.
+    
+    Update #5408
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/13692043
+    https://golang.org/cl/13317046
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

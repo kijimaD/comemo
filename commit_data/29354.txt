@@ -1,44 +1,25 @@
-commit a4a4d43028ba20ecec50ef761012d17800553cde
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 20:18:47 2016 -0400
+commit 13dc4d378bb40261fb2e7f9e1f0eb2f840250040
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Sep 11 01:32:22 2016 +0000
 
-    cmd/cover: change covered block for switch/select case to exclude expression
+    vendor: add golang.org/x/net/idna to the vendor directory for Punycode
     
-    Consider a switch like
+    Adds golang.org/x/net/idna to the Go repo from the
+    golang.org/x/net repo's git rev 7db922ba (Dec 2012).
     
-            switch x {
-            case foo:
-                    f()
-                    g()
-            }
+    Punycode is needed for http.Get("привет.рф") etc., which will
+    come in separate commits.
     
-    Before, the coverage annotation for the block calling f and g included
-    in its position span the text for 'case foo:'. This looks nice in the coverage
-    report, but it breaks the invariant that coverage blocks are disjoint if
-    you have a more complex expression like:
+    Updates #13835
     
-            switch x {
-            case func() int { return foo }():
-                    f()
-                    g()
-            }
-    
-    Then the coverage analysis wants to annotate the func literal body,
-    which overlaps with the case body, because the case body is considered
-    to begin at the case token.
-    
-    Change the annotation for a case body to start just after the colon of
-    the case clause, avoiding any potential conflict with complex case
-    expressions. Could have started at the colon instead, but it seemed
-    less weird to start just after it.
-    
-    Fixes #16540.
-    
-    Change-Id: I1fec4bc2a53c7092e649dc0d4be1680a697cb79b
-    Reviewed-on: https://go-review.googlesource.com/32612
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I313ed82d292737579a3ec5dcf8a9e766f2f75138
+    Reviewed-on: https://go-review.googlesource.com/28961
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cover/cover.go         |  4 ++--
- src/cmd/cover/testdata/test.go | 12 ++++++++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/vendor/golang_org/x/net/idna/idna.go          |  68 ++++++++
+ src/vendor/golang_org/x/net/idna/idna_test.go     |  43 +++++
+ src/vendor/golang_org/x/net/idna/punycode.go      | 200 ++++++++++++++++++++++
+ src/vendor/golang_org/x/net/idna/punycode_test.go | 198 +++++++++++++++++++++
+ 4 files changed, 509 insertions(+)

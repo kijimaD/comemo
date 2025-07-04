@@ -1,19 +1,13 @@
-commit 0ad241dd550d224f65c634f767f5e73a025fc2bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 9 15:38:07 2012 -0800
+commit 1421b4ceff1a9229914c2a03e0fc7e6b8520fe5c
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jan 9 15:09:40 2012 -0800
 
-    cmd/go: fix import directory list for compilation
+    syscall: ignore godefs input when building on Plan 9
     
-    This fixes the most annoying bug in the go command,
-    that 'go build' sometimes ignored packages it had just
-    rebuilt in favor of stale installed ones.
-    
-    This part of the code needs more thought, but this small
-    change is an important improvement.
-    
-    R=golang-dev, adg
+    R=golang-dev, akumar, rsc
     CC=golang-dev
-    https://golang.org/cl/5531053
+    https://golang.org/cl/5534055
 
- src/cmd/go/build.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/buildscript_plan9_386.sh  | 3 +--
+ src/pkg/syscall/types_plan9.c | 2 ++
+ 2 files changed, 3 insertions(+), 2 deletions(-)

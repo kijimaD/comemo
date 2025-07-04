@@ -1,14 +1,16 @@
-commit 214a1ca3c5d7f8d633587cf6faff2868f341b31b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 14 15:08:54 2012 +1100
+commit 9eeb90945eb56edc9095c662741b89170e522419
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 14 13:07:25 2012 +0900
 
-    html/template: fix nil pointer bug
-    Fixes #3272.
+    runtime/cgo: linux signal masking
+    
+    Fixes #3314.
+    Fixes #3101 (again).
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5819046
+    https://golang.org/cl/5820047
 
- src/pkg/html/template/escape_test.go |  9 +++++++++
- src/pkg/html/template/template.go    | 12 +++++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/pkg/runtime/cgo/gcc_linux_386.c   | 8 ++++++++
+ src/pkg/runtime/cgo/gcc_linux_amd64.c | 8 ++++++++
+ 2 files changed, 16 insertions(+)

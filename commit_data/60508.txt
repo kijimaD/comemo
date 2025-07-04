@@ -1,0 +1,28 @@
+commit 33b247437f871a850a778dc214245ba5d1a0c9a0
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Jan 11 15:04:45 2024 +0800
+
+    cmd/internal/obj/loong64, cmd/asm: remove invalid optab items
+    
+    Cases 27 and 28 are used to handle floating point operations, MOVW is usually
+    used for integer processing, and, in two cases there is code like this:
+            a :=AMOVF
+            if p.As == AMOVD {
+                    a=AMOVD
+            }
+    This means that MOVW was eventually replaced by MOVF, so removed MOVW from cases 27 and 28.
+    
+    Change-Id: Ib438febab88058e98b569e0dfe70b8610668ee31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565622
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  4 ---
+ src/cmd/asm/internal/asm/testdata/loong64enc3.s |  8 ------
+ src/cmd/internal/obj/loong64/asm.go             | 35 +++----------------------
+ 3 files changed, 4 insertions(+), 43 deletions(-)

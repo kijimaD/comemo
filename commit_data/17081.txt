@@ -1,17 +1,25 @@
-commit 6ac93e2ac8bb0e0eea58f691c949b81cb66b5d5d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 8 11:50:58 2013 +1000
+commit d5e97ea2f51f145e041a86db9eb7bfbc3f1adb75
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 7 13:49:37 2013 -0700
 
-    flag: export commandLine, the previously internal default FlagSet
-    s/commandLine/CommandLine/g
+    build: change how cmd/api is run in run.bash and run.bat
     
-    Fixes #4209.
+    In prep for Robert's forthcoming cmd/api rewrite which
+    depends on the go.tools subrepo, we'll need to be more
+    careful about how and when we run cmd/api.
     
-    R=golang-dev, dsymonds, bradfitz
+    Rather than implement this policy in both run.bash and
+    run.bat, this change moves the policy and mechanism into
+    cmd/api/run.go, which will then evolve.
+    
+    The plan is in a TODO in run.go.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/12587043
+    https://golang.org/cl/12482044
 
- src/pkg/flag/export_test.go |  7 +----
- src/pkg/flag/flag.go        | 70 +++++++++++++++++++++++----------------------
- src/pkg/flag/flag_test.go   |  6 ++--
- 3 files changed, 40 insertions(+), 43 deletions(-)
+ misc/dist/bindist.go |  1 -
+ src/cmd/api/run.go   | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/run.bash         |  9 +++-----
+ src/run.bat          |  2 +-
+ 4 files changed, 69 insertions(+), 8 deletions(-)

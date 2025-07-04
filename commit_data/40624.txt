@@ -1,22 +1,46 @@
-commit db6b66edc87fcbb2cead03ed693ea8073536d622
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 6 11:42:29 2019 -0500
+commit b402bd4499a59c6f1fac4dc2684390b5d4d1c2eb
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 31 15:32:22 2019 -0400
 
-    cmd/go: use lockedfile instead of renameio for go.mod and go.sum files
+    cmd/compile: generate ABI wrappers for //go:linkname'd symbols
     
-    This change is based on the previous discussion in CL 202442.
+    Calling a Go symbol from assembly in another package currently results
+    in a link failure because the Go symbol is defined as ABIInternal, but
+    the assembly call is from ABI0. In general this is okay because you
+    shouldn't do this anyway, but there are special cases where this is
+    necessary, especially between the runtime and packages closely tied to
+    the runtime in std.
     
-    Fixes #34634
+    Currently, we address this for runtime symbols with a hack in cmd/go
+    that knows to scan related packages when building the symabis file for
+    the runtime and runtime/internal/atomic. However, in addition to being
+    a messy solution in the first place, this hack causes races in cmd/go
+    that are difficult to work around.
     
-    Change-Id: I1319aa26d5cfcd034bc576555787b3ca79968c38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205637
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    We considered creating dummy references from assembly in the runtime
+    to these symbols, just to make sure they get ABI0 wrappers. However,
+    there are a fairly large number of these symbols on some platforms,
+    and it can vary significantly depending on build flags (e.g., race
+    mode), so even this solution is fairly unpalatable.
+    
+    This CL addresses this by providing a way to mark symbols in Go code
+    that should be made available to assembly in other packages. Rather
+    than introduce a new pragma, we lightly expand the meaning of
+    "//go:linkname", since that pragma already generally indicates that
+    you're making the symbol available in a way it wasn't before. This
+    also dovetails nicely with the behavior of go:linkname in gccgo, which
+    makes unexported symbols available to other packages.
+    
+    Follow-up CLs will make use of this and then remove the hack from
+    cmd/go.
+    
+    Updates #31230.
+    
+    Change-Id: I23060c97280626581f025c5c01fb8d24bb4c5159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179860
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/lockedfile/lockedfile.go   | 65 ++++++++++++++++++++
- src/cmd/go/internal/modcmd/edit.go             | 23 ++++---
- src/cmd/go/internal/modfetch/cache.go          | 19 +++---
- src/cmd/go/internal/modfetch/fetch.go          | 84 +++++++++++---------------
- src/cmd/go/internal/modload/init.go            | 50 ++++++++-------
- src/cmd/go/testdata/script/mod_permissions.txt | 57 +++++++++++++++++
- 6 files changed, 209 insertions(+), 89 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

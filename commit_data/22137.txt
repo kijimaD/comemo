@@ -1,15 +1,17 @@
-commit 5bf9249edafa26eb2b4d7768a48e5ace8656a01a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 23 10:15:35 2015 -0400
+commit 6eaa09501282b347dc37590f3581557e3b5f1b41
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 17:34:49 2015 -0500
 
-    net/http: enable segfaulting test on darwin/arm
+    cmd/internal/gc: expand DBG macro in lex.go
     
-    Issue #10043 was resolved by https://golang.org/cl/7072.
-    This test now passes.
+    The dummy implementation was causing lots of argument lists
+    to be prepared and thrown away.
     
-    Change-Id: I7bdef63d9ee4edcede23613a14a2ddce14018f34
-    Reviewed-on: https://go-review.googlesource.com/7931
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id0040dec6b0937f3daa8a8d8911fa3280123e863
+    Reviewed-on: https://go-review.googlesource.com/5700
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/transport_test.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/internal/gc/go.go  |  2 --
+ src/cmd/internal/gc/lex.go | 44 +++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 33 insertions(+), 13 deletions(-)

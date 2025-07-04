@@ -1,26 +1,26 @@
-commit 17fbc818ff0f528d60d1abec2087af714de6e050
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Apr 19 10:45:04 2020 +0200
+commit f5949b60676bc253aca36fea91f9542e6d517f9e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Feb 12 22:21:42 2019 -0700
 
-    cmd/compile: switch to typed aux for 386 optimization rules
+    math/big: allow all values for GCD
     
-    Convert first section of 386 optimization rules to the typed aux form.
+    Allow the inputs a and b to be zero or negative to GCD
+    with the following definitions.
     
-    Adds addOffset{32,64} functions that returns ValAndOffs and a
-    ValAndOff.canAdd32 function that takes an int32.
+    If x or y are not nil, GCD sets their value such that z = a*x + b*y.
+    Regardless of the signs of a and b, z is always >= 0.
+    If a == b == 0, GCD sets z = x = y = 0.
+    If a == 0 and b != 0, GCD sets z = |b|, x = 0, y = sign(b) * 1.
+    If a != 0 and b == 0, GCD sets z = |a|, x = sign(a) * 1, y = 0.
     
-    Passes
+    Fixes #28878
     
-      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
-    
-    Change-Id: I69d2a8ace6936d5e8ba6ba047183002bf07dd5be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228825
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ia83fce66912a96545c95cd8df0549bfd852652f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164972
+    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules |  509 +++---
- src/cmd/compile/internal/ssa/op.go         |   19 +
- src/cmd/compile/internal/ssa/rewrite.go    |    2 +
- src/cmd/compile/internal/ssa/rewrite386.go | 2674 ++++++++++++++--------------
- 4 files changed, 1615 insertions(+), 1589 deletions(-)
+ src/math/big/int.go      | 46 +++++++++++++++++++++++++++++++++++-----------
+ src/math/big/int_test.go | 12 +++++++-----
+ 2 files changed, 42 insertions(+), 16 deletions(-)

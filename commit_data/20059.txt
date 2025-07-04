@@ -1,16 +1,14 @@
-commit 1f5800673bd95a9f912262134d651a319ab6224b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 21 12:34:26 2014 +0400
+commit b6d6eb21ec37f2eba998572f858acaf7324ec245
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 13 01:23:00 2014 -0400
 
-    cmd/gc: fix undefined behavior
-    UndefinedBehaviorSanitizer claims it is UB in C:
-    src/cmd/gc/racewalk.c:422:37: runtime error: member access within null pointer of type 'Node' (aka 'struct Node')
-    src/cmd/gc/racewalk.c:423:37: runtime error: member access within null pointer of type 'Node' (aka 'struct Node')
+    [dev.power64] runtime: switch back to old initial stack size, and disable debugging messages for rewindmorestack
     
     LGTM=rsc
-    R=dave, rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/125570043
+    https://golang.org/cl/129850044
 
- src/cmd/gc/racewalk.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/runtime/stack.h        | 2 +-
+ src/pkg/runtime/sys_power64x.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

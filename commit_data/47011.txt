@@ -1,25 +1,26 @@
-commit 52b10ab79451df78797b87e40eb9371127bad260
-Author: Charlotte Brandhorst-Satzkorn <charlotte@catzkorn.dev>
-Date:   Fri Oct 22 22:46:46 2021 -0400
+commit fce2a94d84dd5e39e0d53e60beda22da7b6f55b0
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 17 15:51:05 2021 -0500
 
-    net/http: correct Content-Length parsing for js/wasm
+    cmd/compile: fix buglet in inlined info abstract function dwarf-gen
     
-    The Content-Length was incorrectly set to 0 for ill-formed and invalid
-    values. In these cases, return an error.
+    When generating DWARF inlined info records, it's possible to have a
+    local function whose only callsites are inlined away, meaning that we
+    emit an abstract function DIE but no regular subprogram DIE. When
+    emitting DWARF scope info we need to handle this case (specifically
+    when scoping PCs, check for the case that the func in question has
+    been entirely deleted).
     
-    If the Content-Length header was omitted, it was incorrectly set to 0.
-    In this case, set the Content-Length value to -1.
+    Fixes #44344.
     
-    Fixes #49108
-    
-    Change-Id: I24fe9a31ed5b6ddb53f2b2bd10f2c84e428823e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358134
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9f5bc692f225aa4c5c23f7bd2e50bcf7fe4fc5f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293309
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/net/http/roundtrip_js.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/dwarfgen/scope.go |  4 +++-
+ test/fixedbugs/issue44344.go               | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

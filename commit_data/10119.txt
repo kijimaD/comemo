@@ -1,13 +1,13 @@
-commit 8658b36ba2cab730e1717d61a88f72d92b27a286
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 15:27:47 2011 -0700
+commit 0d8fb375edfa0840b4b44bce6f39cfe52011c402
+Author: Jongmin Kim <atomaths@gmail.com>
+Date:   Thu Oct 27 09:13:06 2011 +1100
 
-    test/alias.go: additional tests
+    misc/vim: Add rune keyword
+    According to adding rune type
     
-    R=ken2
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5327045
+    https://golang.org/cl/5319048
 
- test/alias.go  | 18 +++++++++++++++++-
- test/alias1.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 1 deletion(-)
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

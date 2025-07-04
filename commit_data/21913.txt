@@ -1,25 +1,13 @@
-commit a0ac493852e22408114d530105ffe89dc7dba98b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 4 16:50:59 2015 -0500
+commit 3b67e9c29922e3b192113206abd40d983fa2bfe8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 11 12:44:50 2015 +1100
 
-    runtime: poison pcln.frame value
+    doc: update pre-requisites for bootstrapping
     
-    Nothing uses it, nothing should start using it.
-    Stop leaving plausible-looking values there.
-    It would be nice to remove entirely, but that would
-    require a new version number for the object file format,
-    in order not to break external readers like debug/gosym.
-    It's easier to leave and poison.
-    
-    I came across an old mail thread suggesting we start using it
-    to speed up tracebacks. I want to make sure that doesn't happen.
-    
-    (The values there were never quite right, and the number is
-    fundamentally PC-specific anyway.)
-    
-    Change-Id: Iaf38e8a6b523cbae30b69c28497c4588ef397519
-    Reviewed-on: https://go-review.googlesource.com/6890
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Id86994c8692e29f9d073b6322733ce9219887dc3
+    Reviewed-on: https://go-review.googlesource.com/4520
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/ld/pcln.go | 17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+ doc/install-source.html | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

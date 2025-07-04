@@ -1,20 +1,23 @@
-commit e6f1a886bc49e920533b3e95e96f4965000b9821
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Aug 16 12:14:54 2016 -0400
+commit 7f52b43954d75aa0c444d57b9d0eb7ff36eb3dd0
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Fri Feb 19 10:12:44 2016 -0800
 
-    cmd/compile: fix uint<->float conversion on 386
+    net/mail: allow utf-8 in ParseAddress
     
-    The frontend rewriting lowers them to runtime calls on 386. It
-    matches explicitly uint32, but missed uint.
+    The existing implementation correctly supported RFC 5322, this
+    change adds support for UTF-8 while parsing as specified by
+    RFC 6532. The serialization code is unchanged, so emails created
+    by go remain compatible with very legacy systems.
     
-    Fixes #16738.
+    Fixes #14260
     
-    Change-Id: Iece7a45edf74615baca052a53273c208f057636d
-    Reviewed-on: https://go-review.googlesource.com/27085
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib57e510f5834d273605e1892679f2df19ea931b1
+    Reviewed-on: https://go-review.googlesource.com/19687
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/float_test.go | 33 +++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/walk.go       |  4 ++--
- 2 files changed, 35 insertions(+), 2 deletions(-)
+ src/net/mail/message.go      | 164 ++++++++++++++++++++++++-------------------
+ src/net/mail/message_test.go |  54 +++++++++++++-
+ 2 files changed, 144 insertions(+), 74 deletions(-)

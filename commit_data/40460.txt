@@ -1,24 +1,37 @@
-commit 91f3997ec09d6502f88471f384aad2fe3ddcecb9
-Author: Joshua M. Clulow <josh@sysmgr.org>
-Date:   Mon Oct 28 09:19:48 2019 -0700
+commit 38431f1044880b936e35034ded19a6a8bc9faa21
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 21:56:53 2019 -0400
 
-    runtime: make NumCPU respect zone CPU cap on illumos
+    cmd/go: do not build test packages unnecessarily during go vet
     
-    On illumos systems, check for the "zone.cpu-cap" resource control when
-    determining how many usable CPUs are available.  If the resource control
-    is not set, or we are unable to read it, ignore the failure and return
-    the value we used to return; i.e., the CPU count from
-    sysconf(_SC_NPROCESSORS_ONLN).
+    Vet needs export data for the imports of the package it is analyzing.
+    Vet does not need export data for the package itself, since vet will
+    do its own type checking. Assuming that vet is just as good as the compiler
+    at detecting invalid programs, don't run the compiler unnecessarily.
     
-    Fixes golang/go#35199
+    This especially matters for tests without external test files or for
+    which the external test files do not import the test-augmented original
+    package. In that case, the test-augmented original package need not
+    be compiled at all.
     
-    Change-Id: Ic8a408f84cd140d544d128f1281baad527fb5e35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203758
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Cuts time for 'go clean -cache && go vet -x cmd/compile/internal/ssa'
+    from 7.6r 24.3u 2.8s to 3.5r 8.5u 1.9s, by not running the compiler
+    on the augmented test package.
+    
+    There is still more to be done here - if we do need to build a
+    test-augmented package, we rerun cgo unnecessarily.
+    But this is a big help.
+    
+    Cuts time for 'go vet std cmd' by about 30%.
+    
+    For #31916.
+    
+    Change-Id: If6136b4d384f1da77aed90b43f1a6b95f09b5d86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176438
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_illumos_amd64.go |  14 ++++
- src/runtime/os3_solaris.go        |   8 ---
- src/runtime/os_illumos.go         | 132 ++++++++++++++++++++++++++++++++++++++
- src/runtime/os_only_solaris.go    |  18 ++++++
- 4 files changed, 164 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go              | 10 +++++++--
+ src/cmd/go/internal/work/action.go | 29 ++++++++++++++++++++-----
+ src/cmd/go/internal/work/exec.go   | 43 +++++++++++++++++++-------------------
+ 3 files changed, 53 insertions(+), 29 deletions(-)

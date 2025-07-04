@@ -1,0 +1,15 @@
+commit 5d759ac902925011e3266d318751686e47c6fe5b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 11:17:05 2024 -0400
+
+    doc/next: reword linker -bindnow release notes
+    
+    For #65614.
+    
+    Change-Id: I1a2a4bc18601526053840a280e0604a8e1028ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591899
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/next/5-toolchain.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

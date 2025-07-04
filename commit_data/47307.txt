@@ -1,18 +1,35 @@
-commit 755ede0c5b6a9398170e1da0dae94df1b98352aa
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Oct 19 14:05:29 2021 -0400
+commit ccf9acefa8b61fb58daad233a6e0478d092d55ef
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Mar 8 10:07:17 2021 -0600
 
-    cmd/go: fix bugs in replacement path handling
+    cmd/compile/internal: improve handling of DS form offsets on ppc64x
     
-    These are tested in golang.org/cl/357169 and golang.org/cl/358540.
+    In the ppc64 ISA DS form loads and stores are restricted to offset
+    fields that are a multiple of 4. This is currently handled with checks
+    in the rules that generate MOVDload, MOVWload, MOVDstore and
+    MOVDstorezero to prevent invalid instructions from getting to the
+    assembler.
     
-    Change-Id: I5add3f202db71731487f2688234c547abe1fd287
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361416
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    An unhandled case was discovered which led to the search for a better
+    solution to this problem. Now, instead of checking the offset in the
+    rules, this will be detected when processing these Ops in
+    ssaGenValues in ppc64/ssa.go. If the offset is not valid, the address
+    of the symbol to be loaded or stored will be computed using the base
+    register + offset, and that value used in the new base register.
+    With the full address in the base register, the offset field can be
+    zero in the instruction.
+    
+    Updates #44739
+    
+    Change-Id: I4f3c0c469ae70a63e3add295c9b55ea0e30ef9b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299789
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/init.go    | 2 +-
- src/cmd/go/internal/modload/modfile.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 124 ++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  48 ++++-------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 107 +++++------------------
+ test/fixedbugs/issue44739.go                 |  61 +++++++++++++
+ 4 files changed, 192 insertions(+), 148 deletions(-)

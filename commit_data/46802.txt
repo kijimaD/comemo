@@ -1,35 +1,18 @@
-commit 77f2750f4398990eed972186706f160631d7dae4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 2 16:51:59 2021 -0400
+commit 1426a571b79bfcb3c0339e2fd96c893cd1549af6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 1 16:46:49 2021 -0500
 
-    misc/wasm, cmd/link: do not let command line args overwrite global data
+    cmd/link: fix off-by-1 error in findShlibSection
     
-    On Wasm, wasm_exec.js puts command line arguments at the beginning
-    of the linear memory (following the "zero page"). Currently there
-    is no limit for this, and a very long command line can overwrite
-    the program's data section. Prevent this by limiting the command
-    line to 4096 bytes, and in the linker ensuring the data section
-    starts at a high enough address (8192).
+    We want to find a section that contains addr. sect.Addr+sect.Size
+    is the exclusive upper bound.
     
-    (Arguably our address assignment on Wasm is a bit confusing. This
-    is the minimum fix I can come up with.)
-    
-    Thanks to Ben Lubar for reporting this issue.
-    
-    Fixes #48797
-    Fixes CVE-2021-38297
-    
-    Change-Id: I0f50fbb2a5b6d0d047e3c134a88988d9133e4ab3
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1205933
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354571
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If2cd6bdd6e03174680e066189b0f4bf9e2ba6630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288592
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/wasm/wasm_exec.js           |  7 +++++++
- src/cmd/link/internal/ld/data.go | 11 ++++++++++-
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/decodesym.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,26 @@
-commit 8641e6fe2131ac342647fa34398a727f96d15fb5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 28 16:25:45 2016 -0700
+commit 07669d2737aa51107a4e54b61d6704f6ad8035b5
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Apr 7 08:01:47 2016 +0200
 
-    net/http: update bundled http2
+    cmd/compile: cleanup pragcgo
     
-    Updates x/net/http2 to git rev ef2e00e88 for https://golang.org/cl/24560,
-    "http2: make Transport return server's GOAWAY error back to the user"
+    Removes dynimport, dynexport, dynlinker cases since they can not
+    be reached due to prefix check for "go:cgo_" in getlinepragma.
     
-    Fixes #14627
+    Replaces the if chains for verb distinction by a switch statement.
+    Replaces fmt.Sprintf by fmt.Sprintln for string concatenation.
     
-    Change-Id: I2bb123a3041e168db7c9446beef4ee47638f17ee
-    Reviewed-on: https://go-review.googlesource.com/24561
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Removes the more, getimpsym and getquoted functions by introducing a
+    pragmaFields function that partitions a pragma into its components.
+    
+    Adds tests for cgo pragmas.
+    
+    Change-Id: I43c7b9550feb3ddccaff7fb02198a3f994444123
+    Reviewed-on: https://go-review.googlesource.com/21607
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go | 29 ++++++++++++++++++++++++++---
- 1 file changed, 26 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/lex.go      | 218 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/lex_test.go |  79 ++++++++++++
+ 2 files changed, 173 insertions(+), 124 deletions(-)

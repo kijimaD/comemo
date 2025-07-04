@@ -1,23 +1,15 @@
-commit 07ff596404b03a8e01ed53f1553c59eb215dc697
-Author: Jonathan Swinney <jswinney@amazon.com>
-Date:   Sat Apr 17 01:12:28 2021 +0000
+commit 9933f6655589b1da9da7f61f04f74d921a2d67bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 30 18:44:22 2020 -0400
 
-    runtime/internal/atomic: add LSE atomics instructions to arm64
+    runtime: remove residual !go115NewMCentralImpl fields
     
-    As a follow up to an earlier change[1] to add ARMv8+LSE instructions in
-    the compiler generated atomic intrinsics, make the same change in the
-    runtime library. Since not all ARMv8 systems support LSE instructions,
-    they are protected by a feature-flag branch.
-    
-    [1]: golang.org/cl/234217 commit: ecc3f5112eba
-    
-    Change-Id: I0e2fb22e78d5eddb6547863667a8865946679a00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310591
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I1685721c82be4ac3c854084592e5e0f182b367ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266858
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/internal/atomic/atomic_arm64.go |  9 ++-
- src/runtime/internal/atomic/atomic_arm64.s  | 93 ++++++++++++++++++++++++-----
- 2 files changed, 85 insertions(+), 17 deletions(-)
+ src/runtime/mcentral.go | 4 ----
+ 1 file changed, 4 deletions(-)

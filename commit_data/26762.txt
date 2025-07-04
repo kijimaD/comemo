@@ -1,13 +1,12 @@
-commit 81aacb80d55eddcb95cbe2c87392cc922e026e45
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 6 15:27:30 2016 -0700
+commit 13d6414e9dd070e6479d3244ca376cbb891c8751
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 11:43:45 2016 -0800
 
-    cmd/compile, go/importer: minor cleanups
+    doc/go1.7: mention CallersFrames and Frames
     
-    Change-Id: I4ffb79d8cb08b0b44f59757fb7f0ec3ed1e4479f
-    Reviewed-on: https://go-review.googlesource.com/21624
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I73ae6a6837a6dcf75b3b8f431d97a18348e01a42
+    Reviewed-on: https://go-review.googlesource.com/19921
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 8 +++-----
- src/go/internal/gcimporter/bimport.go  | 5 ++---
- 2 files changed, 5 insertions(+), 8 deletions(-)
+ doc/go1.7.txt | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

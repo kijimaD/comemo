@@ -1,23 +1,35 @@
-commit 1f411e9b6d8849014653c89a9df77b8aadd082e6
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jan 7 12:18:30 2022 -0800
+commit dc76c4756599ac4bd9644e407aa2af9f9c8a3bdc
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 15 18:06:45 2021 -0400
 
-    testing: only snapshot coverage during fuzzing
+    cmd/go/internal/load: convert two global flags to an options struct
     
-    Only snapshot/reset coverage counters when we are actually fuzzing.
-    This prevents a race when running corpus/seed values during the testing
-    phase.
+    PackageOpts is a new struct type accepted by package loading
+    functions. It initially has two fields: IgnoreImports, and
+    ModResolveTests. Previously, these were global variables set by
+    clients. We'll add more to this in the future.
     
-    Fixes #50488
+    For #40775
     
-    Change-Id: I7dd5a0353a296c0b13eede29ad9af7c78814fa2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376554
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6956e56502de836d3815ce788bdf16fc5f3e5338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310669
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_test_race.txt | 38 ++++++++++++++++++++++
- src/testing/fuzz.go                                |  6 ++--
- 2 files changed, 42 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/clean/clean.go       |  2 +-
+ src/cmd/go/internal/fix/fix.go           |  2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
+ src/cmd/go/internal/generate/generate.go |  5 +-
+ src/cmd/go/internal/get/get.go           |  6 +--
+ src/cmd/go/internal/list/list.go         | 12 +++--
+ src/cmd/go/internal/load/pkg.go          | 88 ++++++++++++++++----------------
+ src/cmd/go/internal/load/test.go         | 14 ++---
+ src/cmd/go/internal/modget/get.go        |  4 +-
+ src/cmd/go/internal/run/run.go           |  4 +-
+ src/cmd/go/internal/test/test.go         | 15 +++---
+ src/cmd/go/internal/vet/vet.go           |  7 ++-
+ src/cmd/go/internal/work/build.go        |  6 +--
+ src/cmd/go/internal/work/exec.go         |  2 +-
+ 14 files changed, 85 insertions(+), 84 deletions(-)

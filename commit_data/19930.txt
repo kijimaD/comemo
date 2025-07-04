@@ -1,13 +1,17 @@
-commit 9f07456c138f606350ff73f25a55ab65210e5b38
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 7 11:21:32 2014 +1000
+commit 5fbcdb26613a819ba693ee3933f6e283e139630b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 16:47:54 2014 -0400
 
-    C: add Paul Nasrat (Google CLA)
+    runtime: use better hash for floating point inputs
     
-    TBR=gobot
-    R=golang-codereviews
-    CC=golang-codereviews
-    https://golang.org/cl/125790043
+    Hashing on the bytes instead of the words does
+    a (much) better job of using all the bits, so that
+    maps of floats have linear performance.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=adonovan, golang-codereviews
+    https://golang.org/cl/126720044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/alg.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

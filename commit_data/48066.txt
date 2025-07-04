@@ -1,23 +1,34 @@
-commit 475ce826b75f113aff2810f3d27cb861adee0caa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 2 17:09:28 2022 -0500
+commit e7db792fc539603a61b89ae27104730a0a92c1e6
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 23 18:11:52 2021 +0000
 
-    net: remove an arbitrary timeout in TestUDPReadSizeError
+    runtime: simplify TestSelectStackAdjust
     
-    Looking at the condition actually exercised by the test it seems
-    unnecessary: assuming that the Write succeeds (checked earlier in the
-    test), the Read must have a nonzero number of bytes available to read
-    immediately. (That is not the case in TestUDPZeroByteBuffer, from
-    which this test appears to have been derived.)
+    Currently this test attempts to trigger a concurrent GC in a very
+    indirect way, but the way it does so is extremely error-prone. This test
+    is virtually always prone to flaking based on test order. For example if
+    the test that executed immediately before this one made a big heap but
+    didn't clean it up, then this test could easily fail to trigger a GC.
+    I was able to prove this with a small reproducer.
     
-    Fixes #50870
+    This roundabout way of triggering a GC is also way overkill for this
+    test. It just wants to get goroutines in a select and shrink their
+    stacks. Every GC will schedule a stack for shrinking if it can.
     
-    Change-Id: Ia6040a2d5dc320f0b86ec9d6f6b91dc72e8f3b84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382537
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Replace all the complicated machinery with a single runtime.GC call.
+    I've confirmed that the test consistently triggers a stack shrink,
+    noting that both shrinkstack's copystack call is made and that
+    syncadjustsudogs (the relevant function that's being indirectly tested)
+    are both called.
+    
+    Fixes #44610.
+    
+    Change-Id: Ib1c091e0d1475bf6c596f56dc9b85eaea366fc73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313109
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/udpsock_test.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/runtime/chan_test.go | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

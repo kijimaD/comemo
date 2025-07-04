@@ -1,22 +1,15 @@
-commit f510cddcd153ea83890b89227275648c04e65a1a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 22 21:47:49 2020 -0800
+commit 9a926911fea73017a25d6d38035946c59cf1b047
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 1 11:10:22 2019 -0400
 
-    cmd/compile: constant fold SHLxconst of a constant on amd64
+    cmd/compile: attempt to preserve statements when prove removes code
     
-    These rules fire in particular when comparing to a constant
-    string of length two. They should trigger even more after CL 220499.
+    This was a cause of some statements being lost.
     
-    file    before    after     Δ       %
-    compile 20639976  20635880  -4096   -0.020%
-    total   116003456 115999360 -4096   -0.004%
-    
-    Change-Id: I21c1c02cf32d710d7a4eb12efab00f02796ccb84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220694
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I81c95dcf3df6ed8a03b7578a27f9b21d33b3cf39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198484
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++++++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit 7eeb0a188eb644486da9f77bae0375d91433d0bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 12 23:23:12 2024 +0100
+
+    runtime: reserve 4kB for system stack on windows-386
+    
+    The failures in #70288 are consistent with and strongly imply
+    stack corruption during fault handling, and debug prints show
+    that the Go code run during fault handling is running about
+    300 bytes above the bottom of the goroutine stack.
+    That should be okay, but that implies the DLL code that called
+    Go's handler was running near the bottom of the stack too,
+    and maybe it called other deeper things before or after the
+    Go handler and smashed the stack that way.
+    
+    stackSystem is already 4096 bytes on amd64;
+    making it match that on 386 makes the flaky failures go away.
+    It's a little unsatisfying not to be able to say exactly what is
+    overflowing the stack, but the circumstantial evidence is
+    very strong that it's Windows.
+    
+    Fixes #70288.
+    
+    Change-Id: Ife89385873d5e5062a71629dbfee40825edefa49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627375
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/stack.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,16 @@
-commit f5df0a95751e92efcc5adb301603781035eac5b3
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 19 18:09:42 2018 +0200
+commit 1507502ff2a9d18c90a293728773015804992752
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 21 12:01:54 2018 -0700
 
-    cmd/internal/xcoff: don't use io.SeekCurrent for go1.4 compatibility
+    cmd/go: re-enable a couple of tests of gccgo
     
-    This fixes the build with go1.4 during bootstrap.
+    Updates #22472
     
-    Change-Id: I35fa1dc3d877d31d5ffe515f5f19188f4a8b77f4
-    Reviewed-on: https://go-review.googlesource.com/c/143377
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I526d131f2ef8e0200f7a5634c75b31e0ee083f93
+    Reviewed-on: https://go-review.googlesource.com/120375
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/xcoff/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,37 +1,17 @@
-commit 0d838ea5a2b69255d0a486dd9df27d14ad680aba
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Sep 22 10:05:33 2021 -0700
+commit ca2f15289337f57dcfb938000af249532f79e4d4
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Feb 3 21:57:06 2021 -0500
 
-    cmd/compile: allow delaying of transformCompLit, new transformAddr
+    [dev.typeparams] go/types: add missing test from dev.go2go
     
-    For this unusual case, where a constraint specifies exactly one type, we
-    can have a COMPLIT expression with a type that is/has typeparams.
+    errors_test.go was missed during merging. Add it.
     
-    Therefore, we add code to delay transformCompLit for generic functions.
-    We also need to break out transformAddr (which corresponds to tcAddr),
-    and added code for delaying it as well. Also, we now need to export
-    generic functions containing untransformed OCOMPLIT and OKEY nodes, so
-    added support for that in iexport.go/iimport.go. Untransformed OKEY
-    nodes include an ir.Ident/ONONAME which we can now export.
-    
-    Had to adjust some code/asserts in transformCompLit(), since we may now
-    be transforming an OCOMPLIT from an imported generic function (i.e. from
-    a non-local package).
-    
-    Fixes #48537
-    
-    Change-Id: I09e1b3bd08b4e013c0b098b8a25d082efa1fef51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354354
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I321f08ae16ca02586875e1c7776f5d78f8690b4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289549
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/expr.go        | 20 ++++++++++++++++++--
- src/cmd/compile/internal/noder/helpers.go     |  4 ----
- src/cmd/compile/internal/noder/stencil.go     |  6 ++++++
- src/cmd/compile/internal/noder/transform.go   | 20 ++++++++++++++++++--
- src/cmd/compile/internal/typecheck/iexport.go | 14 ++++++++++++--
- src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
- test/typeparam/issue48537.go                  | 21 +++++++++++++++++++++
- 7 files changed, 80 insertions(+), 11 deletions(-)
+ src/go/types/errors_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

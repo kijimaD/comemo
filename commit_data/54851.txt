@@ -1,43 +1,30 @@
-commit 285ac5a11e36ca4d85a7e97c9040a1e3de0ecc11
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 31 14:22:05 2023 -0700
+commit 42d975e5fe91fbe7719422248ad320c04dda5414
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Thu Nov 17 12:19:49 2022 +0000
 
-    go/parser: better error messages for incorrect type parameter list
+    time: avoid creating a parse error from the next chunk of the value
     
-    This is a port of CL 538856 from the syntax parser to go/parser.
-    As part of the port, make more portions of parseParameterList
-    matching the equivalent paramList method (from the syntax parser).
-    As a result, this now also produces a better error message in cases
-    where the missing piece might not be a type parameter name but a
-    constraint (this fixes a TODO in a test).
+    When it reports a parse error, it uses the "value" variable as the
+    value element of the parse error. Previously, in some of the cases,
+    the "value" variable is always updated to the next chunk of the value
+    to be parsed (even if an earlier chunk is invalid). The reported
+    parse error is confusing in this case.
     
-    Improve comments in the code and adjust the corresponding comments
-    in the syntax parser.
+    This CL addresses this issue by holding the original value, and when
+    it fails to parse the time, use it to create the parse error.
     
-    Change references to issues to use the format go.dev/issue/ddddd.
+    Fixes #56730.
     
-    For #60812.
-    
-    Change-Id: Ia243bd78161ed8543d3dc5deb20ca4a215c5b1e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538858
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I445b1d8a1b910208d0608b2186881746adb550e0
+    GitHub-Last-Rev: 67b1102b5e9b345beb2ddcc529a8e608e5afc865
+    GitHub-Pull-Request: golang/go#56754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450936
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/syntax/parser.go        | 28 ++++----
- src/go/parser/parser.go                          | 81 ++++++++++++++----------
- src/go/parser/parser_test.go                     |  6 +-
- src/go/parser/resolver.go                        |  6 +-
- src/go/parser/short_test.go                      | 15 ++---
- src/go/parser/testdata/issue11377.src            |  2 +-
- src/go/parser/testdata/issue23434.src            |  2 +-
- src/go/parser/testdata/issue3106.src             |  2 +-
- src/go/parser/testdata/issue34946.src            |  2 +-
- src/go/parser/testdata/issue44504.src            |  2 +-
- src/go/parser/testdata/issue49175.go2            |  2 +-
- src/go/parser/testdata/resolution/typeparams.go2 |  2 +-
- src/go/parser/testdata/tparams.go2               | 23 +++++--
- src/go/parser/testdata/typeset.go2               | 16 ++---
- 14 files changed, 109 insertions(+), 80 deletions(-)
+ src/time/format.go      |  9 +++++----
+ src/time/format_test.go | 22 ++++++++++++++--------
+ 2 files changed, 19 insertions(+), 12 deletions(-)

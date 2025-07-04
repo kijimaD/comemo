@@ -1,24 +1,21 @@
-commit 9208ed322459809cf26f65485d0e6d248dadb830
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jun 15 01:09:51 2016 +0900
+commit 68ac1f774624faf99e7f6ec6592acb50f23b7874
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 7 10:21:35 2016 -0700
 
-    os: fix blockUntilWaitable on freebsd/{386,arm}
+    cmd/compile: Fix constant-folding of unsigned shifts
     
-    The previous fix was wrong because it had two misunderstandings on
-    freebsd32 calling convention like the following:
-    - 32-bit id1 implies that it is the upper half of 64-bit id, indeed it
-      depends on machine endianness.
-    - 32-bit ARM calling convension doesn't conform to freebsd32_args,
-      indeed it does.
+    Make sure the results of unsigned constant-folded
+    shifts are sign-extended into the AuxInt field.
     
-    This change fixes the bugs and makes blockUntilWaitable work correctly
-    on freebsd/{386,arm}.
+    Fixes #15175
     
-    Fixes #16064.
-    
-    Change-Id: I820c6d01d59a43ac4f2ab381f757c03b14bca75e
-    Reviewed-on: https://go-review.googlesource.com/24064
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3490d1bc3d9b2e1578ed30964645508577894f58
+    Reviewed-on: https://go-review.googlesource.com/21586
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/wait_wait6.go | 19 +++++++------------
- 1 file changed, 7 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++---
+ test/fixedbugs/issue15175.go                   | 66 ++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 9 deletions(-)

@@ -1,24 +1,12 @@
-commit 89d334ffe1fe7667505033f4ca49ff50954d9e7e
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Jun 22 15:12:22 2011 -0400
+commit 5dfdccf2b0d499881b9453eb4a1e8b91a3f1e706
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 22 11:33:30 2011 -0700
 
-    ld: don't attempt to build dynamic sections unnecessarily
+    Fix Windows build; ErrorString->NewError
     
-    This prevents ld from generating zeroed symtab entries for
-    sections that aren't going to be generated because dynamic
-    linkage has been disabled (-d was used or no dynamic libs
-    were seen).  Even though they were not explicitly added by
-    doelf, the section creation process was making them
-    reachable again.
-    
-    The windows head is being disconsidered for this because
-    apparently it's not taking into account debug['d'].
-    
-    This makes elflint 0.1% happier.
-    
-    R=golang-dev, rsc, gustavo
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4638050
+    https://golang.org/cl/4634080
 
- src/cmd/ld/data.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/os/exec_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

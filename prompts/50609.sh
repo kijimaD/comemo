@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50609: 2da95e0ec80cb7df1f89a7b7f147dde42ad17a19
+# Index 50609: c143661568dc23badd4ba04f4193658fc1fd9c33
 
 echo "🚀 Generating explanation for commit 50609..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 50609
-- **コミットハッシュ**: 2da95e0ec80cb7df1f89a7b7f147dde42ad17a19
-- **GitHub URL**: https://github.com/golang/go/commit/2da95e0ec80cb7df1f89a7b7f147dde42ad17a19
+- **コミットハッシュ**: c143661568dc23badd4ba04f4193658fc1fd9c33
+- **GitHub URL**: https://github.com/golang/go/commit/c143661568dc23badd4ba04f4193658fc1fd9c33
 
 ### 章構成
 

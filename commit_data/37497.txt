@@ -1,21 +1,13 @@
-commit b41cdc4a591b19e09c09f062e785f2b7af06863d
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 23 13:29:59 2018 +0100
+commit 9ef5ee911c2265cde86887032fc56ce4c335d580
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 13:59:30 2018 -0400
 
-    cmd/link: improve XCOFF dynamic symbols generation
+    cmd/go/internal/load: remove unused argument from Lookup
     
-    This commit fixes and improves the generation of dynamic symbols for
-    XCOFF files.
-    This mainly adds for every dynamic symbols a new symbol named
-    s.Extname().
-    
-    Change-Id: I5b788f076d9a05e5d42f08eb1a74fd3e3efa9a86
-    Reviewed-on: https://go-review.googlesource.com/c/151038
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia2948a88c6d45a31be17b3d7415559cd53c289ce
+    Reviewed-on: https://go-review.googlesource.com/128015
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/data.go   |   8 +-
- src/cmd/link/internal/ld/go.go     |   3 -
- src/cmd/link/internal/ld/xcoff.go  | 215 ++++++++++++++++++++++++-------------
- src/cmd/link/internal/ppc64/asm.go |   8 ++
- 4 files changed, 154 insertions(+), 80 deletions(-)
+ src/cmd/go/internal/load/pkg.go     | 26 +++++++++++---------------
+ src/cmd/go/internal/modload/load.go |  6 ++++--
+ 2 files changed, 15 insertions(+), 17 deletions(-)

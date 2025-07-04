@@ -1,20 +1,18 @@
-commit d647b612d6ec69269600ff59d364e778db98d99e
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Aug 15 15:22:28 2017 -0400
+commit 7821be59519b65182e4399425b6e6d908252c11b
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Apr 18 10:47:27 2017 -0400
 
-    .gitignore: include only Go project artifiacts
+    runtime: make example independent of inlining
     
-    This effectively reverts
+    Otherwise, with -l=4, runtime.Callers gets inlined and the example
+    prints too many frames. Now the example passes with -l=4.
     
-    https://golang.org/cl/53770
-    
-    and adds a guide on what not to add in this file.
-    
-    Update #21458
-    
-    Change-Id: I7c740d492b70628b5d9f9e1622014995a3f6f8ec
-    Reviewed-on: https://go-review.googlesource.com/55871
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9e420af9371724ac3ec89efafd76a658cf82bb4a
+    Reviewed-on: https://go-review.googlesource.com/40876
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- .gitignore | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/example_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

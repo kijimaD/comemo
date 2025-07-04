@@ -1,18 +1,13 @@
-commit 2653386ce8dfd497fb9b8f65bc75ef9adf8e7b58
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 21 15:54:51 2014 -0700
+commit 800d8adf35ebf340c8bc4769318531717aaab88e
+Author: Mark Zavislak <zavislak@google.com>
+Date:   Mon Apr 21 08:55:23 2014 -0700
 
-    math/big: fix Int.Exp
+    runtime: fix typo in error message
     
-    Fixes #7814.
-    
-    LGTM=agl, adonovan
-    R=agl, adonovan
+    LGTM=robert.hencke, iant
+    R=golang-codereviews, robert.hencke, iant
     CC=golang-codereviews
-    https://golang.org/cl/90080043
+    https://golang.org/cl/89760043
 
- src/pkg/math/big/int.go      | 13 +++++++------
- src/pkg/math/big/int_test.go | 13 +++++++++++++
- src/pkg/math/big/nat.go      | 11 ++++++++---
- src/pkg/math/big/nat_test.go |  8 +++++++-
- 4 files changed, 35 insertions(+), 10 deletions(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

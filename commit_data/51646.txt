@@ -1,17 +1,18 @@
-commit 71971be034ae47f56682c26129711c29a17f3441
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 12 10:04:38 2023 -0800
+commit ad523565369af0005c59232e5d2dd7359073f0f4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 14:35:52 2022 -0800
 
-    go/types: generate util_test.go, cosmetic changes to generator.go
+    cmd/compile: remove a bunch of dead noder code
     
-    Change-Id: I80e4bbda302b9170d2367af2442ee282bdf51b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461679
+    This code was only needed for supporting -G=0 mode, which is now gone.
+    
+    Change-Id: I504887ab179e357a3cd21ef582f9edae49f6cbb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388536
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/generator.go | 8 +++++---
- src/go/types/util_test.go | 2 ++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/import.go |  175 ----
+ src/cmd/compile/internal/noder/noder.go  | 1333 +-----------------------------
+ 2 files changed, 1 insertion(+), 1507 deletions(-)

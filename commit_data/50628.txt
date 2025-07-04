@@ -1,16 +1,23 @@
-commit 6c3567873c4c58fe5b9e9abe77fed826a8e2ac97
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Tue Sep 27 23:06:11 2022 +0800
+commit d9bb5f6f109a4342c52958f30acfc3f3d633ee4f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 3 18:18:18 2021 +0000
 
-    runtime: using bytes.CutPrefix
+    syscall: fix and document uses of RegEnumKeyEx
     
-    Change-Id: I3f2dae17496b5b4efbdc022802f941a616abd87a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435276
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    RegEnumKeyEx has an undocumented requirement that subsequent calls need
+    to be made from the same thread. This change documents that requirement
+    and fixes uses of it in std.
+    
+    Fixes #49320.
+    
+    Change-Id: I6d182227e22dd437996a878b3a978943f01b2d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361154
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/testdata/testprog/traceback_ancestors.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/internal/syscall/windows/registry/key.go | 11 +++++++++-
+ src/syscall/syscall_windows.go               | 30 +++++++++++++++++++++++++++-
+ src/syscall/zsyscall_windows.go              |  2 +-
+ 3 files changed, 40 insertions(+), 3 deletions(-)

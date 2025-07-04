@@ -1,27 +1,27 @@
-commit 9dcf41908f9e315368fd043ccd9d67f2774b31e9
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Nov 26 18:59:03 2024 -0500
+commit b5f87b5407916c4049a3158cc944cebfd7a883a9
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Oct 10 12:43:40 2023 +0000
 
-    doc/next: update with reviewed output from relnote todo
+    runtime: use max/min func
     
-    This is the result of running relnote todo today and reviewing its
-    output. Most of the remaining items that still need to be added to
-    Go 1.24 release notes are now tracked in release blocking issues.
-    For a few where it's less clear, I opted to comment on issues.
-    A good number of items were proposals that affect golang.org/x repos
-    and don't need to be mentioned in Go 1.24 release notes; they're now
-    annotated as such.
-    
-    For #68545.
-    
-    Change-Id: I4dc7f6d2cf5ab9e68bce83d01413224f80384e2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631684
+    Change-Id: I3f0b7209621b39cee69566a5cc95e4343b4f1f20
+    GitHub-Last-Rev: af9dbbe69ad74e8c210254dafa260a886b690853
+    GitHub-Pull-Request: golang/go#63321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531916
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/next/3-tools.md |  6 +++++
- doc/next/7-ports.md |  2 ++
- doc/next/9-todo.md  | 64 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 72 insertions(+)
+ src/runtime/export_test.go   |  8 +++-----
+ src/runtime/memmove_test.go  |  4 +---
+ src/runtime/mfixalloc.go     |  4 +---
+ src/runtime/mgcmark.go       |  4 +---
+ src/runtime/mgcpacer.go      | 12 +++---------
+ src/runtime/mgcscavenge.go   | 25 +++++++++++--------------
+ src/runtime/mksizeclasses.go |  8 +++-----
+ src/runtime/mpagealloc.go    | 13 ++++---------
+ src/runtime/mpallocbits.go   | 21 +++++++++------------
+ src/runtime/symtab.go        |  8 +++-----
+ 10 files changed, 39 insertions(+), 68 deletions(-)

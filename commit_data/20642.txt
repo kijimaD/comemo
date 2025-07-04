@@ -1,15 +1,14 @@
-commit 5b829cca12d029ca25a363637479373a6583dc93
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 6 15:49:07 2014 -0400
+commit 0211771f2b3a36626646d08b6b8db3d1ad1ebd7a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 17:30:12 2014 -0700
 
-    net/url: document result of String
+    .hgignore: delete some dregs
+    I'd rather delete the file but I doubt that will be popular.
     
-    Fixes #8742.
-    
-    LGTM=bradfitz
-    R=golang-codereviews
-    CC=adg, bradfitz, golang-codereviews, iant
-    https://golang.org/cl/155910043
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/150100043
 
- src/net/url/url.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ .hgignore | 5 -----
+ 1 file changed, 5 deletions(-)

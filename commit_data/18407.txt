@@ -1,23 +1,36 @@
-commit 9ed5995cfe4c217c1291ced9c4a70334383df226
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon Feb 3 14:49:57 2014 -0800
+commit e6d8bfe218a5f387d7aceddcaee5067a59181838
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 3 16:32:13 2014 -0500
 
-    liblink, cmd/5l: restore flag_shared
+    os/exec: fix Command with relative paths
     
-    CL 56120043 fixed and cleaned up TLS on ARM after introducing liblink, but
-    left flag_shared broken. This CL restores the (unsupported) flag_shared
-    behaviour by simply rewriting access to $runtime.tlsgm(SB) with
-    runtime.tlsgm(SB), to compensate for the extra indirection when going from
-    the R_ARM_TLS_LE32 relocation to the R_ARM_TLS_IE32 relocation.
+    Command was (and is) documented like:
+    "If name contains no path separators, Command uses LookPath to
+    resolve the path to a complete name if possible. Otherwise it
+    uses name directly."
     
-    Also, remove unnecessary symbol lookup left after 56120043.
+    But that wasn't true. It always did LookPath, and then
+    set a sticky error that the user couldn't unset.
+    And then if cmd.Dir was changed, Start would still fail
+    due to the earlier sticky error being set.
+    
+    This keeps LookPath in the same place as before (so no user
+    visible changes in cmd.Path after Command), but only does
+    it when the documentation says it will happen.
+    
+    Also, clarify the docs about a relative Dir path.
+    
+    No change in any existing behavior, except using Command
+    is now possible with relative paths. Previously it only
+    worked if you built the *Cmd by hand.
+    
+    Fixes #7228
     
     LGTM=iant
-    R=iant, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/57000043
+    R=iant
+    CC=adg, golang-codereviews
+    https://golang.org/cl/59580044
 
- src/cmd/5l/5.out.h |  2 +-
- src/liblink/asm5.c |  3 +--
- src/liblink/obj5.c | 18 +++++++++++++++---
- 3 files changed, 17 insertions(+), 6 deletions(-)
+ src/pkg/os/exec/exec.go      | 40 ++++++++++++++++++++++++++--------------
+ src/pkg/os/exec/exec_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 14 deletions(-)

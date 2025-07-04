@@ -1,19 +1,16 @@
-commit 9f24388a7d57a79d0d68c1c04cf3fa4f86338e21
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Oct 4 00:25:17 2020 -0400
+commit 7b2f0ba5b91b4b2b659fb46638ff56f51be9b2b5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 3 03:43:02 2020 +1100
 
-    cmd/dist: test c-archive mode on ios/arm64
+    cmd/compile: use NOT pseudo-instruction on riscv64
     
-    It is tested on darwin/arm64. Don't lose it when using GOOS=ios.
-    
-    Updates #38485.
-    
-    Change-Id: I7157d6b6f2850f2fd361e35ae310dd1ba9f31aa4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259439
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I24a72c3fb8d72a47cfded4b523c5d7aa2d40419d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221690
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/riscv64/ssa.go        |  3 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 ++--
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 14 ++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 60 ++++----------------------
+ 5 files changed, 29 insertions(+), 57 deletions(-)

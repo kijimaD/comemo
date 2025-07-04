@@ -1,23 +1,24 @@
-commit 755a2927d8f5bb79952db8fd17bbdec1aed91518
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 3 20:08:11 2022 -0700
+commit 8c73f80400d04a320165f4c1e535524cc50e20b4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 9 19:50:47 2021 -0500
 
-    os: if dirFS.Open fails, undo use of backslashes in error message
+    runtime: bypass scheduler when doing traceback for goroutine profile
     
-    This fixes a bug introduced by CL 426094 that caused the
-    golang.org/x/website/internal/web tests to fail.
+    When acquire a goroutine profile, we stop the world then acquire a
+    stack trace for each goroutine. When cgo traceback is used, the
+    traceback code may call the cgo traceback function using cgocall.
+    As the world is stopped, cgocall will be blocked at exitsyscall,
+    causing a deadlock. Bypass the scheduler (using asmcgocall) to fix
+    this.
     
-    Fixes #56034
-    
-    Change-Id: Ic64967c6d440ad260b7283a18972b20023320ab6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437976
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic4e596adc3711310b6a983d73786d697ef15dd72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362757
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file.go    |  7 +++++++
- src/os/os_test.go | 16 ++++++++++++++--
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/runtime/crash_cgo_test.go              |  8 ++++++
+ src/runtime/mprof.go                       |  6 +++-
+ src/runtime/testdata/testprogcgo/gprof.go  | 46 ++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/gprof_c.c | 29 +++++++++++++++++++
+ 4 files changed, 88 insertions(+), 1 deletion(-)

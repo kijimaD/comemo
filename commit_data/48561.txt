@@ -1,15 +1,18 @@
-commit 1724077b789ad92972ab1ac03788389645306cbb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 28 15:28:41 2022 -0700
+commit 2e59cc5fb4e81fbd2ee9f662caa707c1138bf5ae
+Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
+Date:   Sat May 29 13:49:51 2021 +0000
 
-    doc/go1.19: mention new unix build constraint
+    cmd/go: add [-src] to documentation
     
-    For #51572
-    
-    Change-Id: Ib27be79379c8b3f72e29365b58067d7ee1919e52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396295
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I554b5021386575af6ff44571a95bb31b38a0547f
+    GitHub-Last-Rev: 20aaec3aa0baee6112fc2e4d72e83f78b72a44ea
+    GitHub-Pull-Request: golang/go#45956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317109
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.19.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/go/alldocs.go          | 2 +-
+ src/cmd/go/internal/doc/doc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,111 @@
-commit 2c987e16937a6abf907ab230b04d42c071a388f5
-Author: Emil Hessman <emil@hessman.se>
-Date:   Sat Dec 27 20:52:17 2014 +0100
+commit 3dcc62e1dad3c62a1c8df1b6f613f93521124764
+Merge: 18ed947ee1 c99616fc67
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 11:37:54 2014 -0500
 
-    encoding/json: address go vet reports
+    [dev.garbage] all: merge default (f38460037b72) into dev.garbage
     
-    The error message for decoding a unquoted value into a struct field with
-    the ,string option specified has two arguments when one is needed.
-    Make the error message take one argument and add a test in order to cover
-    the case when a unquoted value is specified.
+    This is the revision that dev.cc is branched from.
     
-    Also add error value as the missing argument for Fatalf call in test.
-    
-    Fixes the following go vet reports:
-    
-    decode.go:602: wrong number of args for format in Errorf call: 1 needed but 2 args
-    decode_test.go:1088: missing argument for Fatalf("%v"): format reads arg 1, have only 0 args
-    
-    Change-Id: Id036e10c54c4a7c1ee9952f6910858ecc2b84134
-    Reviewed-on: https://go-review.googlesource.com/2109
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    LGTM=austin
+    R=austin
+    CC=golang-codereviews
+    https://golang.org/cl/169590043
 
- src/encoding/json/decode.go      | 2 +-
- src/encoding/json/decode_test.go | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ .hgtags                              |    1 +
+ AUTHORS                              |    4 +
+ CONTRIBUTORS                         |    4 +
+ doc/articles/go_command.html         |   13 +-
+ doc/cmd.html                         |    6 +-
+ doc/code.html                        |  183 +-
+ doc/contribute.html                  |    2 +-
+ doc/go1.4.html                       |  343 ++-
+ doc/go1compat.html                   |    6 +-
+ doc/go_faq.html                      |    4 +-
+ doc/install-source.html              |    6 +-
+ lib/codereview/codereview.py         |    3 +-
+ misc/benchcmp                        |    2 +-
+ misc/cgo/test/cgo_test.go            |    1 +
+ misc/cgo/test/issue6997_linux.go     |    2 +-
+ misc/cgo/test/issue9026.go           |    9 +
+ misc/cgo/test/issue9026/issue9026.go |   36 +
+ misc/makerelease/makerelease.go      |   10 +-
+ misc/pprof                           | 5100 ----------------------------------
+ src/bufio/scan.go                    |   13 +
+ src/bufio/scan_test.go               |   67 +
+ src/cmd/5g/reg.c                     |    2 +-
+ src/cmd/cgo/gcc.go                   |   24 +-
+ src/cmd/dist/build.c                 |    9 -
+ src/cmd/gc/lex.c                     |    4 +-
+ src/cmd/go/build.go                  |   10 +-
+ src/cmd/go/doc.go                    |    6 +-
+ src/cmd/go/generate.go               |    2 +-
+ src/cmd/go/pkg.go                    |   24 +-
+ src/cmd/go/test.bash                 |   18 +-
+ src/cmd/go/tool.go                   |    2 +-
+ src/cmd/go/vet.go                    |    2 +-
+ src/cmd/internal/objfile/disasm.go   |  248 ++
+ src/cmd/internal/objfile/elf.go      |   25 +
+ src/cmd/internal/objfile/goobj.go    |   12 +
+ src/cmd/internal/objfile/macho.go    |   24 +
+ src/cmd/internal/objfile/objfile.go  |   24 +-
+ src/cmd/internal/objfile/pe.go       |   31 +
+ src/cmd/internal/objfile/plan9obj.go |   22 +
+ src/cmd/objdump/Makefile             |   10 -
+ src/cmd/objdump/elf.go               |   65 -
+ src/cmd/objdump/macho.go             |   77 -
+ src/cmd/objdump/main.go              |  467 +---
+ src/cmd/objdump/objdump_test.go      |  100 +-
+ src/cmd/objdump/pe.go                |   99 -
+ src/cmd/objdump/plan9obj.go          |   70 -
+ src/cmd/pprof/README                 |    8 +
+ src/cmd/pprof/doc.go                 |   12 +
+ src/cmd/pprof/pprof.go               |   41 +-
+ src/compress/lzw/reader.go           |    2 +-
+ src/crypto/crypto.go                 |   12 +-
+ src/database/sql/fakedb_test.go      |    2 +
+ src/database/sql/sql.go              |    5 +
+ src/debug/goobj/read_test.go         |    2 +-
+ src/net/http/cookiejar/jar.go        |    2 +-
+ src/net/http/main_test.go            |    2 +-
+ src/net/http/serve_test.go           |    1 +
+ src/os/exec/exec_test.go             |    2 +-
+ src/os/file_plan9.go                 |    3 +-
+ src/os/file_unix.go                  |    1 +
+ src/os/file_windows.go               |    1 +
+ src/runtime/asm_386.s                |    6 +
+ src/runtime/asm_amd64.s              |    6 +
+ src/runtime/asm_amd64p32.s           |    6 +
+ src/runtime/asm_arm.s                |    6 +
+ src/runtime/cgo/dragonfly.c          |    2 +
+ src/runtime/cgo/freebsd.c            |    2 +
+ src/runtime/cgo/netbsd.c             |    2 +
+ src/runtime/cgo/openbsd.c            |    2 +
+ src/runtime/crash_cgo_test.go        |   29 +-
+ src/runtime/extern.go                |   11 +-
+ src/runtime/heapdump.c               |    6 +-
+ src/runtime/malloc.go                |    6 +-
+ src/runtime/mgc0.c                   |    4 +-
+ src/runtime/mprof.go                 |   45 +-
+ src/runtime/os_android.c             |    2 +-
+ src/runtime/os_plan9_386.c           |    2 +-
+ src/runtime/os_plan9_amd64.c         |    2 +-
+ src/runtime/os_windows_386.c         |    2 +-
+ src/runtime/os_windows_amd64.c       |    2 +-
+ src/runtime/proc.c                   |   23 +-
+ src/runtime/runtime.h                |    8 +-
+ src/runtime/sema.go                  |    1 +
+ src/runtime/signal_386.c             |    2 +-
+ src/runtime/signal_amd64x.c          |    2 +-
+ src/runtime/signal_arm.c             |    2 +-
+ src/runtime/stack.c                  |    2 +-
+ src/runtime/stubs.go                 |   28 +
+ src/runtime/traceback.go             |   53 +-
+ src/sync/atomic/value.go             |    2 +-
+ test/fixedbugs/issue7690.go          |   49 +
+ test/linkx.go                        |   14 +-
+ test/linkx_run.go                    |   33 +
+ test/run.go                          |    2 -
+ test/sinit.go                        |   77 +-
+ test/sinit_run.go                    |   40 +
+ 96 files changed, 1478 insertions(+), 6291 deletions(-)

@@ -1,15 +1,12 @@
-commit 93c6d0ef8f7c081f961ea3efe10e61a5b585cfbb
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jul 25 11:29:13 2013 +1000
+commit 188ddaa4872f70e2859331655442fca3bfd5128a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 24 16:39:38 2013 -0700
 
-    bufio: check buffer availability before reading in ReadFrom
+    C: add Kevin Klues (Google CLA)
     
-    Fixes #5947.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/11801043
+    https://golang.org/cl/11797043
 
- src/pkg/bufio/bufio.go      | 17 +++++++++++------
- src/pkg/bufio/bufio_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 6 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

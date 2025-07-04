@@ -1,12 +1,21 @@
-commit 29be58039577a69bfe239a8aaf2cf26d8debf566
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Thu Feb 2 11:48:22 2017 -0800
+commit 37020dd510cf7da36e9eb1827a20890234e4ea79
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 12 05:58:52 2016 +0000
 
-    doc: add link to the setting GOPATH guide
+    runtime/internal/atomic: add TestUnaligned64
     
-    Change-Id: I4718c82540ef214728393824b89c8c7f6656823b
-    Reviewed-on: https://go-review.googlesource.com/36210
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Add a variant of sync/atomic's TestUnaligned64 to
+    runtime/internal/atomic.
+    
+    Skips the test on arm for now where it's currently failing.
+    
+    Updates #17786
+    
+    Change-Id: If63f9c1243e9db7b243a95205b2d27f7d1dc1e6e
+    Reviewed-on: https://go-review.googlesource.com/33159
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/code.html | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/internal/atomic/atomic_test.go | 36 ++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

@@ -1,18 +1,12 @@
-commit 9ec0c01e19db38f809403858fbd4ef6e6d6e03b8
+commit 378c806c31ad47b67918f18f75c8b096aa090757
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 1 09:49:51 2011 +1000
+Date:   Wed Jun 1 07:24:33 2011 +1000
 
-    unicode: guarantee that the 32-bit range tables contain only
-    values >= 16 bits, so the lookup code can be smaller in the
-    common case.
-    Also make CaseRange uint32s rather than ints, so if we go to
-    64-bit ints we don't waste more space.
+    gophertool: make the keyword 'golang'
     
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4550094
+    https://golang.org/cl/4529102
 
- src/pkg/unicode/letter.go     | 24 ++++++++---------------
- src/pkg/unicode/maketables.go | 45 ++++++++++++++++++++++++++++---------------
- src/pkg/unicode/tables.go     | 13 ++++++++-----
- 3 files changed, 45 insertions(+), 37 deletions(-)
+ misc/chrome/gophertool/manifest.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

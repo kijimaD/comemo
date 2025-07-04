@@ -1,23 +1,19 @@
-commit c2021c3004708d07165c39981e1edb43867d6476
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 15 12:56:05 2024 -0400
+commit 541ef422e24c8010f95151f241224fa16cdce210
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Aug 26 14:19:06 2022 +0800
 
-    net/http: revert header changes in Error
+    runtime: add comment for sys_linux_loong64
     
-    This reverts CL 544019 and CL 569815, because they break a variety
-    of tests inside Google that do not expect the Cache-Control header
-    to be set to no-cache.
-    
-    A followup CL will add this functionality back after a proposal.
-    
-    For #50905.
-    
-    Change-Id: Ie377bfb72ce2c77d11bf31f9617ab6db342a408a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571975
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I617d6d788cb213c1405f81d9f689fd6846ee105a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425300
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/net/http/fs_test.go | 62 -------------------------------------------------
- src/net/http/server.go  | 19 +++------------
- 2 files changed, 3 insertions(+), 78 deletions(-)
+ src/runtime/sys_linux_loong64.s | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

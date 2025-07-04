@@ -1,40 +1,28 @@
-commit 6a9c674a09b057a641527ac847cbdf1a3824b753
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 29 13:21:44 2022 -0700
+commit 2f70ce36d79ee94855daf7c6feb9a1296f9adfac
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 20 16:29:50 2021 -0700
 
-    runtime: redo heap bitmap
+    internal/fuzz: temporarily work around test failures after dev.fuzz merge
     
-    [this is a retry of CL 407035 + its revert CL 422395. The content is unchanged]
+    - Skip test_fuzz_cache and test_fuzz_seed_corpus on 386.
+    - Skip worker benchmarks when race mode is enabled.
+    - Stub coverage function on platforms we haven't tested yet. It's
+      causing package initialization to panic on aix/ppc64.
     
-    Use just 1 bit per word to record the ptr/nonptr bitmap.
-    Use word-sized operations to manipulate the bitmap, so we can operate
-    on up to 64 ptr/nonptr bits at a time.
+    For #48504
     
-    Use a separate bitmap, one bit per word of the ptr/nonptr bitmap,
-    to encode a no-more-pointers signal. Since we can check 64 ptr/nonptr
-    bits at once, knowing the exact last pointer location is not necessary.
-    
-    As a followon CL, we should make the gcdata bitmap an array of
-    uintptr instead of an array of byte, so we can load 64 bits of it at once.
-    Similarly for the processing of gc programs.
-    
-    Change-Id: Ica5eb622f5b87e647be64f471d67b02732ef8be6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422634
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I79318b52b11a33fca66476b5050445d07422ef36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351117
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go |    8 +-
- src/reflect/all_test.go                   |   21 +-
- src/runtime/cgocall.go                    |   11 +-
- src/runtime/cgocheck.go                   |   18 +-
- src/runtime/heapdump.go                   |   20 +-
- src/runtime/malloc.go                     |   10 +-
- src/runtime/mbitmap.go                    | 1492 +++++++++--------------------
- src/runtime/mcache.go                     |    2 +-
- src/runtime/mcentral.go                   |    2 +-
- src/runtime/mgcmark.go                    |   31 +-
- src/runtime/mheap.go                      |   19 +-
- src/runtime/slice.go                      |    2 +
- 12 files changed, 520 insertions(+), 1116 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_cache.txt     |  3 +++
+ .../go/testdata/script/test_fuzz_seed_corpus.txt   |  3 +++
+ src/internal/fuzz/counters_supported.go            | 29 ++++++++++++++++++++++
+ src/internal/fuzz/counters_unsupported.go          | 16 ++++++++++++
+ src/internal/fuzz/coverage.go                      | 19 --------------
+ src/internal/fuzz/worker_test.go                   | 10 ++++++++
+ 6 files changed, 61 insertions(+), 19 deletions(-)

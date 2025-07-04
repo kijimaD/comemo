@@ -1,26 +1,12 @@
-commit b8caed823b39b5a86b694f9ec60a8b43323248e8
+commit 8b1bd75e66a818ff9d844c57ba82899ac563c3f9
 Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Mar 24 09:22:35 2015 -0400
+Date:   Thu Feb 26 09:21:19 2015 -0500
 
-    runtime: initialize extra M for cgo during mstart
+    go/build: disable deps test on darwin/arm
     
-    Previously the extra m needed for cgo callbacks was created on the
-    first callback. This works for cgo, however the cgocallback mechanism
-    is also borrowed by badsignal which can run before any cgo calls are
-    made.
-    
-    Now we initialize the extra M at runtime startup before any signal
-    handlers are registered, so badsignal cannot be called until the
-    extra M is ready.
-    
-    Updates #10207.
-    
-    Change-Id: Iddda2c80db6dc52d8b60e2b269670fbaa704c7b3
-    Reviewed-on: https://go-review.googlesource.com/7978
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ief78a10c4aaa43f300f34519911ff73b6f510d73
+    Reviewed-on: https://go-review.googlesource.com/6100
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/cgocall.go  | 5 -----
- src/runtime/proc1.go    | 5 +++++
- src/runtime/sigqueue.go | 9 ---------
- 3 files changed, 5 insertions(+), 14 deletions(-)
+ src/go/build/deps_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

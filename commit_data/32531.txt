@@ -1,17 +1,180 @@
-commit 29d11ef43611312311af6ecf551d83a37175f1bf
-Author: Manish Goregaokar <manishsmail@gmail.com>
-Date:   Fri Aug 25 23:10:50 2017 -0700
+commit d6ce7e4feca75d2833f0790260ea46e194c55170
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 17:41:13 2017 -0500
 
-    cmd/vet: add test that copylock catches copying a sync.Map
+    encoding/json: replace encoderCache RWMutex with a sync.Map
     
-    fixes #21635
+    This provides a moderate speedup for encoding when using many CPU cores.
     
-    Change-Id: I78716d47b6a930074e5394f7171d5f545dfba0bc
-    Reviewed-on: https://go-review.googlesource.com/59690
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    name                    old time/op    new time/op    delta
+    CodeEncoder               14.1ms ±10%    13.5ms ± 4%      ~     (p=0.867 n=8+7)
+    CodeEncoder-6             2.58ms ± 8%    2.72ms ± 6%      ~     (p=0.065 n=8+8)
+    CodeEncoder-48             629µs ± 1%     629µs ± 1%      ~     (p=0.867 n=8+7)
+    CodeMarshal               14.9ms ± 5%    14.9ms ± 5%      ~     (p=0.721 n=8+8)
+    CodeMarshal-6             3.28ms ±11%    3.24ms ±12%      ~     (p=0.798 n=8+8)
+    CodeMarshal-48             739µs ± 1%     745µs ± 2%      ~     (p=0.328 n=8+8)
+    CodeDecoder               49.7ms ± 4%    49.2ms ± 4%      ~     (p=0.463 n=7+8)
+    CodeDecoder-6             10.1ms ± 8%    10.4ms ± 3%      ~     (p=0.232 n=7+8)
+    CodeDecoder-48            2.60ms ± 3%    2.61ms ± 2%      ~     (p=1.000 n=8+8)
+    DecoderStream              352ns ± 5%     344ns ± 4%      ~     (p=0.077 n=8+8)
+    DecoderStream-6            485ns ± 8%     503ns ± 6%      ~     (p=0.123 n=8+8)
+    DecoderStream-48           522ns ± 7%     520ns ± 5%      ~     (p=0.959 n=8+8)
+    CodeUnmarshal             52.2ms ± 5%    54.4ms ±18%      ~     (p=0.955 n=7+8)
+    CodeUnmarshal-6           12.4ms ± 6%    12.3ms ± 6%      ~     (p=0.878 n=8+8)
+    CodeUnmarshal-48          3.46ms ± 7%    3.40ms ± 9%      ~     (p=0.442 n=8+8)
+    CodeUnmarshalReuse        48.9ms ± 6%    50.3ms ± 7%      ~     (p=0.279 n=8+8)
+    CodeUnmarshalReuse-6      10.3ms ±11%    10.3ms ±10%      ~     (p=0.959 n=8+8)
+    CodeUnmarshalReuse-48     2.68ms ± 3%    2.67ms ± 4%      ~     (p=0.878 n=8+8)
+    UnmarshalString            476ns ± 7%     474ns ± 7%      ~     (p=0.644 n=8+8)
+    UnmarshalString-6          164ns ± 9%     160ns ±10%      ~     (p=0.556 n=8+8)
+    UnmarshalString-48         181ns ± 0%     177ns ± 2%    -2.36%  (p=0.001 n=7+7)
+    UnmarshalFloat64           414ns ± 4%     418ns ± 4%      ~     (p=0.382 n=8+8)
+    UnmarshalFloat64-6         147ns ± 9%     143ns ±16%      ~     (p=0.457 n=8+8)
+    UnmarshalFloat64-48        176ns ± 2%     174ns ± 2%      ~     (p=0.118 n=8+8)
+    UnmarshalInt64             369ns ± 4%     354ns ± 1%    -3.85%  (p=0.005 n=8+7)
+    UnmarshalInt64-6           132ns ±11%     132ns ±10%      ~     (p=0.982 n=8+8)
+    UnmarshalInt64-48          177ns ± 3%     174ns ± 2%    -1.84%  (p=0.028 n=8+7)
+    Issue10335                 540ns ± 5%     535ns ± 0%      ~     (p=0.330 n=7+7)
+    Issue10335-6               159ns ± 8%     164ns ± 8%      ~     (p=0.246 n=8+8)
+    Issue10335-48              186ns ± 1%     182ns ± 2%    -1.89%  (p=0.010 n=8+8)
+    Unmapped                  1.74µs ± 2%    1.76µs ± 6%      ~     (p=0.181 n=6+8)
+    Unmapped-6                 414ns ± 5%     402ns ±10%      ~     (p=0.244 n=7+8)
+    Unmapped-48                226ns ± 2%     224ns ± 2%      ~     (p=0.144 n=7+8)
+    NumberIsValid             20.1ns ± 4%    19.7ns ± 3%      ~     (p=0.204 n=8+8)
+    NumberIsValid-6           20.4ns ± 8%    22.2ns ±16%      ~     (p=0.129 n=7+8)
+    NumberIsValid-48          23.1ns ±12%    23.8ns ± 8%      ~     (p=0.104 n=8+8)
+    NumberIsValidRegexp        629ns ± 5%     622ns ± 0%      ~     (p=0.148 n=7+7)
+    NumberIsValidRegexp-6      757ns ± 2%     725ns ±14%      ~     (p=0.351 n=8+7)
+    NumberIsValidRegexp-48     757ns ± 2%     723ns ±13%      ~     (p=0.521 n=8+8)
+    SkipValue                 13.2ms ± 9%    13.3ms ± 1%      ~     (p=0.130 n=8+8)
+    SkipValue-6               15.1ms ±10%    14.8ms ± 2%      ~     (p=0.397 n=7+8)
+    SkipValue-48              13.9ms ±12%    14.3ms ± 1%      ~     (p=0.694 n=8+7)
+    EncoderEncode              433ns ± 4%     410ns ± 3%    -5.48%  (p=0.001 n=8+8)
+    EncoderEncode-6            221ns ±15%      75ns ± 5%   -66.15%  (p=0.000 n=7+8)
+    EncoderEncode-48           161ns ± 4%      19ns ± 7%   -88.29%  (p=0.000 n=7+8)
+    
+    name                    old speed      new speed      delta
+    CodeEncoder              139MB/s ±10%   144MB/s ± 4%      ~     (p=0.844 n=8+7)
+    CodeEncoder-6            756MB/s ± 8%   714MB/s ± 6%      ~     (p=0.065 n=8+8)
+    CodeEncoder-48          3.08GB/s ± 1%  3.09GB/s ± 1%      ~     (p=0.867 n=8+7)
+    CodeMarshal              130MB/s ± 5%   130MB/s ± 5%      ~     (p=0.721 n=8+8)
+    CodeMarshal-6            594MB/s ±10%   601MB/s ±11%      ~     (p=0.798 n=8+8)
+    CodeMarshal-48          2.62GB/s ± 1%  2.60GB/s ± 2%      ~     (p=0.328 n=8+8)
+    CodeDecoder             39.0MB/s ± 4%  39.5MB/s ± 4%      ~     (p=0.463 n=7+8)
+    CodeDecoder-6            189MB/s ±13%   187MB/s ± 3%      ~     (p=0.505 n=8+8)
+    CodeDecoder-48           746MB/s ± 2%   745MB/s ± 2%      ~     (p=1.000 n=8+8)
+    CodeUnmarshal           37.2MB/s ± 5%  35.9MB/s ±16%      ~     (p=0.955 n=7+8)
+    CodeUnmarshal-6          157MB/s ± 6%   158MB/s ± 6%      ~     (p=0.878 n=8+8)
+    CodeUnmarshal-48         561MB/s ± 7%   572MB/s ±10%      ~     (p=0.442 n=8+8)
+    SkipValue                141MB/s ±10%   139MB/s ± 1%      ~     (p=0.130 n=8+8)
+    SkipValue-6              131MB/s ± 3%   133MB/s ± 2%      ~     (p=0.662 n=6+8)
+    SkipValue-48             138MB/s ±11%   132MB/s ± 1%      ~     (p=0.281 n=8+7)
+    
+    name                    old alloc/op   new alloc/op   delta
+    CodeEncoder               45.9kB ± 0%    45.9kB ± 0%    -0.02%  (p=0.002 n=7+8)
+    CodeEncoder-6             55.1kB ± 0%    55.1kB ± 0%    -0.01%  (p=0.002 n=7+8)
+    CodeEncoder-48             110kB ± 0%     110kB ± 0%    -0.00%  (p=0.030 n=7+8)
+    CodeMarshal               4.59MB ± 0%    4.59MB ± 0%    -0.00%  (p=0.000 n=8+8)
+    CodeMarshal-6             4.59MB ± 0%    4.59MB ± 0%    -0.00%  (p=0.000 n=8+8)
+    CodeMarshal-48            4.59MB ± 0%    4.59MB ± 0%    -0.00%  (p=0.001 n=7+8)
+    CodeDecoder               2.28MB ± 5%    2.21MB ± 0%      ~     (p=0.257 n=8+7)
+    CodeDecoder-6             2.43MB ±11%    2.51MB ± 0%      ~     (p=0.473 n=8+8)
+    CodeDecoder-48            2.93MB ± 0%    2.93MB ± 0%      ~     (p=0.554 n=7+8)
+    DecoderStream              16.0B ± 0%     16.0B ± 0%      ~     (all equal)
+    DecoderStream-6            16.0B ± 0%     16.0B ± 0%      ~     (all equal)
+    DecoderStream-48           16.0B ± 0%     16.0B ± 0%      ~     (all equal)
+    CodeUnmarshal             3.28MB ± 0%    3.28MB ± 0%      ~     (p=1.000 n=7+7)
+    CodeUnmarshal-6           3.28MB ± 0%    3.28MB ± 0%      ~     (p=0.593 n=8+8)
+    CodeUnmarshal-48          3.28MB ± 0%    3.28MB ± 0%      ~     (p=0.670 n=8+8)
+    CodeUnmarshalReuse        1.87MB ± 0%    1.88MB ± 1%    +0.48%  (p=0.011 n=7+8)
+    CodeUnmarshalReuse-6      1.90MB ± 1%    1.90MB ± 1%      ~     (p=0.589 n=8+8)
+    CodeUnmarshalReuse-48     1.96MB ± 0%    1.96MB ± 0%    +0.00%  (p=0.002 n=7+8)
+    UnmarshalString             304B ± 0%      304B ± 0%      ~     (all equal)
+    UnmarshalString-6           304B ± 0%      304B ± 0%      ~     (all equal)
+    UnmarshalString-48          304B ± 0%      304B ± 0%      ~     (all equal)
+    UnmarshalFloat64            292B ± 0%      292B ± 0%      ~     (all equal)
+    UnmarshalFloat64-6          292B ± 0%      292B ± 0%      ~     (all equal)
+    UnmarshalFloat64-48         292B ± 0%      292B ± 0%      ~     (all equal)
+    UnmarshalInt64              289B ± 0%      289B ± 0%      ~     (all equal)
+    UnmarshalInt64-6            289B ± 0%      289B ± 0%      ~     (all equal)
+    UnmarshalInt64-48           289B ± 0%      289B ± 0%      ~     (all equal)
+    Issue10335                  312B ± 0%      312B ± 0%      ~     (all equal)
+    Issue10335-6                312B ± 0%      312B ± 0%      ~     (all equal)
+    Issue10335-48               312B ± 0%      312B ± 0%      ~     (all equal)
+    Unmapped                    344B ± 0%      344B ± 0%      ~     (all equal)
+    Unmapped-6                  344B ± 0%      344B ± 0%      ~     (all equal)
+    Unmapped-48                 344B ± 0%      344B ± 0%      ~     (all equal)
+    NumberIsValid              0.00B          0.00B           ~     (all equal)
+    NumberIsValid-6            0.00B          0.00B           ~     (all equal)
+    NumberIsValid-48           0.00B          0.00B           ~     (all equal)
+    NumberIsValidRegexp        0.00B          0.00B           ~     (all equal)
+    NumberIsValidRegexp-6      0.00B          0.00B           ~     (all equal)
+    NumberIsValidRegexp-48     0.00B          0.00B           ~     (all equal)
+    SkipValue                  0.00B          0.00B           ~     (all equal)
+    SkipValue-6                0.00B          0.00B           ~     (all equal)
+    SkipValue-48              15.0B ±167%      0.0B           ~     (p=0.200 n=8+8)
+    EncoderEncode              8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=8+8)
+    EncoderEncode-6            8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=8+8)
+    EncoderEncode-48           8.00B ± 0%     0.00B       -100.00%  (p=0.000 n=8+8)
+    
+    name                    old allocs/op  new allocs/op  delta
+    CodeEncoder                 1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    CodeEncoder-6               1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    CodeEncoder-48              1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    CodeMarshal                 17.0 ± 0%      16.0 ± 0%    -5.88%  (p=0.000 n=8+8)
+    CodeMarshal-6               17.0 ± 0%      16.0 ± 0%    -5.88%  (p=0.000 n=8+8)
+    CodeMarshal-48              17.0 ± 0%      16.0 ± 0%    -5.88%  (p=0.000 n=8+8)
+    CodeDecoder                89.6k ± 0%     89.5k ± 0%      ~     (p=0.154 n=8+7)
+    CodeDecoder-6              89.8k ± 0%     89.9k ± 0%      ~     (p=0.467 n=8+8)
+    CodeDecoder-48             90.5k ± 0%     90.5k ± 0%      ~     (p=0.533 n=8+7)
+    DecoderStream               2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    DecoderStream-6             2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    DecoderStream-48            2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    CodeUnmarshal               105k ± 0%      105k ± 0%      ~     (all equal)
+    CodeUnmarshal-6             105k ± 0%      105k ± 0%      ~     (all equal)
+    CodeUnmarshal-48            105k ± 0%      105k ± 0%      ~     (all equal)
+    CodeUnmarshalReuse         89.5k ± 0%     89.6k ± 0%      ~     (p=0.246 n=7+8)
+    CodeUnmarshalReuse-6       89.8k ± 0%     89.8k ± 0%      ~     (p=1.000 n=8+8)
+    CodeUnmarshalReuse-48      90.5k ± 0%     90.5k ± 0%      ~     (all equal)
+    UnmarshalString             2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalString-6           2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalString-48          2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalFloat64            2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalFloat64-6          2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalFloat64-48         2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalInt64              2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalInt64-6            2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    UnmarshalInt64-48           2.00 ± 0%      2.00 ± 0%      ~     (all equal)
+    Issue10335                  3.00 ± 0%      3.00 ± 0%      ~     (all equal)
+    Issue10335-6                3.00 ± 0%      3.00 ± 0%      ~     (all equal)
+    Issue10335-48               3.00 ± 0%      3.00 ± 0%      ~     (all equal)
+    Unmapped                    4.00 ± 0%      4.00 ± 0%      ~     (all equal)
+    Unmapped-6                  4.00 ± 0%      4.00 ± 0%      ~     (all equal)
+    Unmapped-48                 4.00 ± 0%      4.00 ± 0%      ~     (all equal)
+    NumberIsValid               0.00           0.00           ~     (all equal)
+    NumberIsValid-6             0.00           0.00           ~     (all equal)
+    NumberIsValid-48            0.00           0.00           ~     (all equal)
+    NumberIsValidRegexp         0.00           0.00           ~     (all equal)
+    NumberIsValidRegexp-6       0.00           0.00           ~     (all equal)
+    NumberIsValidRegexp-48      0.00           0.00           ~     (all equal)
+    SkipValue                   0.00           0.00           ~     (all equal)
+    SkipValue-6                 0.00           0.00           ~     (all equal)
+    SkipValue-48                0.00           0.00           ~     (all equal)
+    EncoderEncode               1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    EncoderEncode-6             1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    EncoderEncode-48            1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    
+    https://perf.golang.org/search?q=upload:20170427.2
+    
+    updates #17973
+    updates #18177
+    
+    Change-Id: I5881c7a2bfad1766e6aa3444bb630883e0be467b
+    Reviewed-on: https://go-review.googlesource.com/41931
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/testdata/copylock_func.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/encoding/json/encode.go | 34 +++++++++++++---------------------
+ 1 file changed, 13 insertions(+), 21 deletions(-)

@@ -1,18 +1,14 @@
-commit f4c22b29d498c2e942a15cc8b3d2ef30b6bab1e0
-Author: Patrick Crosby <patrick@stathat.com>
-Date:   Tue Sep 4 11:27:20 2012 +1000
+commit 1a5cf867ce1b0c98e016ac4d4183ffd84c8fa291
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 3 10:33:48 2012 +1000
 
-    net/http/pprof: updated documentation (run an http server)
+    run.bat: do not run misc\cgo\stdio test on windows (fix build)
     
-    Added instructions for starting an http server
-    to the godoc header for this package.  With the old
-    instructions, the example "go tool pprof..." commands
-    wouldn't work unless you happen to be running an http
-    server on port 6060 in your application.
+    It is enabled by mistake and should be part of CL 5847068 instead.
     
-    R=golang-dev, minux.ma, adg, giacomo.tartari
-    CC=golang-dev
-    https://golang.org/cl/6483049
+    R=golang-dev
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6488073
 
- src/pkg/net/http/pprof/pprof.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

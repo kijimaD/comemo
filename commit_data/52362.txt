@@ -1,21 +1,43 @@
-commit c013ed5b527924a0632babe1296849a63940fad5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 20 21:04:14 2023 -0700
+commit fe006d641079e8943833573bd1275ef51eb7fb60
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:03:28 2022 -0400
 
-    go/types, types2: refactor multiExpr and exprList
+    [dev.boringcrypto] cmd/internal/notsha256: add new package
     
-    Preparation for simpler exprList use.
+    Package notsha256 implements the NOTSHA256 hash,
+    defined as bitwise NOT of SHA-256.
     
-    Change-Id: I2d62bbaba006aa3a378ec743564d46c5edcb8b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478016
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    It will be used from the Go compiler toolchain where an
+    arbitrary hash is needed and the code currently reaches
+    for MD5, SHA1, or SHA256. The problem with all of those
+    is that when we add GOEXPERIMENT=boringcrypto, the
+    bootstrap process will not converge if the compiler itself
+    depends on the boringcrypto cgo code.
+    Using notsha256 avoids boringcrypto.
+    
+    It is possible that I don't fully understand the convergence
+    problem and that there is a way to make the compiler converge
+    when using cgo, but keeping cgo out of the compiler seems safest.
+    It also makes clear that (except for the hack in codesign)
+    the code using this package doesn't care which hash is used.
+    
+    For #51940.
+    
+    Change-Id: Ie7c661183eacf8413a9d2074c96cbb9361e125ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402594
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/call.go | 27 +-------------------------
- src/cmd/compile/internal/types2/expr.go | 34 +++++++++++++++++++++++++++++----
- src/go/types/call.go                    | 27 +-------------------------
- src/go/types/expr.go                    | 34 +++++++++++++++++++++++++++++----
- 4 files changed, 62 insertions(+), 60 deletions(-)
+ src/cmd/internal/notsha256/example_test.go        |  41 +++
+ src/cmd/internal/notsha256/sha256.go              | 141 +++++++
+ src/cmd/internal/notsha256/sha256_test.go         | 175 +++++++++
+ src/cmd/internal/notsha256/sha256block.go         | 128 +++++++
+ src/cmd/internal/notsha256/sha256block_386.s      | 283 +++++++++++++++
+ src/cmd/internal/notsha256/sha256block_amd64.go   |   7 +
+ src/cmd/internal/notsha256/sha256block_amd64.s    | 424 ++++++++++++++++++++++
+ src/cmd/internal/notsha256/sha256block_arm64.s    | 119 ++++++
+ src/cmd/internal/notsha256/sha256block_decl.go    |  12 +
+ src/cmd/internal/notsha256/sha256block_generic.go |  12 +
+ src/cmd/internal/notsha256/sha256block_ppc64x.s   | 424 ++++++++++++++++++++++
+ 11 files changed, 1766 insertions(+)

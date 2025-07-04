@@ -1,13 +1,20 @@
-commit 55f19ed866d55ebfdbed59893ff93fb00a7c35fe
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Nov 18 09:55:15 2014 +1100
+commit 32c75a2d3d121f31ace325d48d9fcbdde58cc042
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 27 15:25:40 2014 -0400
 
-    runtime: fix getcallersp documentation
+    [dev.power64] liblink: power64 fixes and ports of changes
     
-    LGTM=bradfitz
-    R=rsc, bradfitz
+    Ports of platform-specific changes that happened on default
+    after dev.power64 forked (fixes for c2go, wrapper math fixes,
+    moved stackguard field, stackguard1 support, precise stacks).
+    Bug fixes (missing AMOVW in instruction table, correct
+    unsigned 32-bit remainder).
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/180760043
+    https://golang.org/cl/164920044
 
- src/runtime/stubs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/liblink/asm9.c |  69 ++++++-----------------
+ src/liblink/obj9.c | 159 ++++++++++++++++++++++++++++-------------------------
+ 2 files changed, 102 insertions(+), 126 deletions(-)

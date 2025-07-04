@@ -1,12 +1,14 @@
-commit e5ee9a824db5dcf1c7220ca87d9bb1652f00ec5b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 15 10:17:00 2014 +1100
+commit 6a0a47539072b8ba4a7cfa585e4a0d71fba8c4c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 1 08:27:55 2014 -0700
 
-    misc/makerelease: remove mercurial-specific special case
+    A+C: add Benoit Sigoure (individual CLA)
     
-    Change-Id: I2ae40e63bc78f3b6e4eb68ccbc928368db1e606f
-    Reviewed-on: https://go-review.googlesource.com/1535
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/164410043
 
- misc/makerelease/makerelease.go | 23 +++++------------------
- 1 file changed, 5 insertions(+), 18 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

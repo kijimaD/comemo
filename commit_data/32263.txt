@@ -1,23 +1,25 @@
-commit 9223adcc2c48f4b7f60ff10001bb35f028e6126a
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 15:39:19 2017 -0700
+commit eed6938cbbac17169ad15f6d4fe6bb9c1c0175fe
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Mar 28 16:14:02 2017 -0400
 
-    archive/tar: add support for atime and ctime to Writer
+    cmd/asm, cmd/internal/obj/s390x, math: add LGDR and LDGR instructions
     
-    Both the GNU and PAX formats support atime and ctime fields.
-    The implementation is trivial now that we have:
-    * support for formatting PAX records for timestamps
-    * dedicated methods that only handle one format (e.g., GNU)
+    The instructions allow moves between floating point and general
+    purpose registers without any conversion taking place.
     
-    Fixes #17876
-    
-    Change-Id: I0c604fce14a47d722098afc966399cca2037395d
-    Reviewed-on: https://go-review.googlesource.com/55570
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I82c6f3ad9c841a83783b5be80dcf5cd538ff49e6
+    Reviewed-on: https://go-review.googlesource.com/38777
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/archive/tar/common.go   | 10 +++++-----
- src/archive/tar/tar_test.go | 28 ++++++++++++++++++++++++++++
- src/archive/tar/writer.go   |  8 ++++++--
- 3 files changed, 39 insertions(+), 7 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
+ src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
+ src/cmd/internal/obj/s390x/anames.go      |  2 ++
+ src/cmd/internal/obj/s390x/asmz.go        | 14 ++++++++++++--
+ src/math/cosh_s390x.s                     | 10 +++++-----
+ src/math/log10_s390x.s                    |  2 +-
+ src/math/sin_s390x.s                      |  4 ++--
+ src/math/sinh_s390x.s                     | 14 +++++++-------
+ src/math/tanh_s390x.s                     |  8 ++++----
+ 9 files changed, 40 insertions(+), 21 deletions(-)

@@ -1,24 +1,18 @@
-commit ed41054b6d1306537df0ba3a34d11579ae2c1829
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Apr 18 14:50:14 2016 -0400
+commit bf44c4c889935b3ef1db9b7fd0a14ce4e5508cab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 22:10:28 2016 +0000
 
-    cmd/link: process data symbols with slices
+    crypto/tls: test for timeout error using the net.Error interface
     
-    First (and largest single) step to switching cmd/link from linked
-    lists of symbols to slices.
+    Don't do a substring search to test for a timeout error.
     
-    Sort sections independently and concurrently.
-    This reduces jujud link times on linux/amd64 by ~4%.
+    Fixes #14722 (maybe)
     
-    Updates #15374
-    
-    Change-Id: I452bc8f33081039468636502fe3c1cc8d6ed9efa
-    Reviewed-on: https://go-review.googlesource.com/22205
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I4e18c749d6fd92c084a1b0b83a805119e1ae5ff2
+    Reviewed-on: https://go-review.googlesource.com/20403
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go  | 626 ++++++++++++++++++++++----------------
- src/cmd/link/internal/ld/elf.go   |  17 +-
- src/cmd/link/internal/ld/lib.go   |   3 +-
- src/cmd/link/internal/ld/macho.go |  16 +-
- src/cmd/link/internal/ld/pe.go    |  14 +-
- 5 files changed, 380 insertions(+), 296 deletions(-)
+ src/crypto/tls/tls_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,25 +1,19 @@
-commit 3e1db32657844bccb85237fc6918d2f3ab9b6893
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Sat Sep 9 00:20:40 2023 +0000
+commit b6e1a563fc142d7129a0ea6a3c6137ee12ff43f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 13:46:26 2022 -0400
 
-    internal/zstd: fix window resizing
+    cmd/go: fix longtest builder after runtime/internal/atomic
     
-    Incorrect window resizing led to checksum error and invalid result.
-    To demonstrate the problem bigData must be a bit bigger, 3x is enough.
+    Loosen test to accept staleness in any runtime/internal package.
+    Fixes longtest builder.
     
-    This change fixes window resizing, increases bigData size and decouples
-    TestLargeXXHash from bigData because it uses hardcoded hash value.
-    
-    Change-Id: I50f74315b083f42e1ccd7ab2093e084f44631bb6
-    GitHub-Last-Rev: dbc90ba7a5f24db198cc3eab1c38aad665e41d06
-    GitHub-Pull-Request: golang/go#62543
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iffda9c1d1816f76c782aecc4d53c0ea3e6580587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/internal/zstd/xxhash_test.go | 6 +++++-
- src/internal/zstd/zstd.go        | 1 +
- src/internal/zstd/zstd_test.go   | 5 ++++-
- 3 files changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

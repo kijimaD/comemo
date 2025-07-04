@@ -1,18 +1,14 @@
-commit b3b174ffcf8ab4977dba1e9e18b91993a8c5a253
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 18 16:32:31 2020 -0700
+commit d960de0b6f61a486576dbd5a49151bc6125c7010
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Mon Oct 21 01:45:43 2019 -0700
 
-    runtime: minor updates to netpoll comments
+    runtime: temporarily skip gdb python-related tests on illumos
     
-    In Go 1.4 we renamed READY to pdReady and WAIT to pdWait as part of
-    rewriting netpoll from C to Go. Finish updating the comments to use
-    the new names.
+    Updates golang/go#20821
     
-    Change-Id: I6cefc698b46c58211fd6be1489bdd70419454962
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223998
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I186356a78ac385a15b4604e0ea6110c4c212ebc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202357
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/netpoll.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/runtime-gdb_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

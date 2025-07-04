@@ -1,12 +1,12 @@
-commit 30f9c99e3e96c22c57a5ef120d442a1d186a4ade
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Mon Mar 5 10:58:43 2012 +1100
+commit bc1e89008d84eab2d661c6add8ef12e1dba32c93
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 5 10:57:58 2012 +1100
 
-    html/template: fix comment typo
+    misc: update usage message in benchcmp for go tool
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5730051
+    https://golang.org/cl/5727052
 
- src/pkg/html/template/html.go | 2 +-
+ misc/benchcmp | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

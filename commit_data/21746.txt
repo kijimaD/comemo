@@ -1,14 +1,28 @@
-commit 7e93610b0794f2b7c5d6d47ee35f8634bb9c5c9c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Feb 25 17:30:40 2015 -0500
+commit 928c83ff2cd13e5973827b2abde43b6dc901ec85
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Mon Feb 2 01:28:10 2015 -0800
 
-    runtime/cgo: fix darwin/arm build
+    go/printer: set prefix correctly when all comment lines blank
     
-    Macro definition ordering.
+    In stripCommonPrefix, the prefix was correctly calculated in all cases,
+    except one. That unhandled case is when there are more than 2 lines,
+    but all lines are blank (other than the first and last lines,
+    which contain /* and */ respectively).
+    This change detects that case and correctly sets the prefix calculated
+    from the last line. This is consistent with the (correct) behavior
+    that happens when there's at least one non-blank line.
+    That fixes issue #9751 that occurs for problematic input,
+    where cmd/gofmt and go/source would insert extra indentation on
+    every format operation. It also allows go/printer itself to print
+    such parsed files in an expected way.
     
-    Change-Id: I0def4702d19a21a68ffa52ea5b7c22578830c578
-    Reviewed-on: https://go-review.googlesource.com/6030
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Fixes #9751.
+    
+    Change-Id: Id3dfb945beb59ffad3705085a3c285fca30a5f87
+    Reviewed-on: https://go-review.googlesource.com/3684
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/cgo/gcc_darwin_arm.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/printer/printer.go               | 11 ++++--
+ src/go/printer/testdata/comments.golden | 62 +++++++++++++++++++++++++++++++++
+ src/go/printer/testdata/comments.input  | 62 +++++++++++++++++++++++++++++++++
+ 3 files changed, 132 insertions(+), 3 deletions(-)

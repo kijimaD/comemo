@@ -1,16 +1,32 @@
-commit a55edb7b55e2db1744fc939d57a01d0458306e76
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu May 16 17:28:52 2024 -0400
+commit 949d0f4f99c15541d7cd43f3e9812fb7ac9c73db
+Author: Laurent Senta <laurent@singulargarden.com>
+Date:   Fri Mar 10 12:33:59 2023 +0000
 
-    cmd/go: add telemetry for a predefined set of GOROOT values
+    net/http: do not force the Content-Length header if nilled
     
-    For #58894
+    According to the ResponseWriter documentation:
     
-    Change-Id: Ia30a3a1a9c7b611f55701956c08caa967634cd5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586138
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+      To suppress automatic response headers (such as "Date"), set
+      their value to nil.
+    
+    In some cases, this documentation is incorrect: chunkWriter writes
+    a Content-Length header even if the value was set to nil. Meaning
+    there is no way to suppress this header.
+    
+    This patch replaces the empty string comparison with a call to
+    `header.has` which takes into account nil values as expected.
+    This is similar to the way we handle the "Date" header.
+    
+    Change-Id: Ie10d54ab0bb7d41270bc944ff867e035fe2bd0c5
+    GitHub-Last-Rev: e0616dd46388a724df7c6ea821b3808ed1663cab
+    GitHub-Pull-Request: golang/go#58578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469095
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/main.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/net/http/serve_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  2 +-
+ 2 files changed, 35 insertions(+), 1 deletion(-)

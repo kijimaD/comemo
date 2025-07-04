@@ -1,23 +1,17 @@
-commit 92c732e901a732855f4b813e6676264421eceae9
-Author: David Chase <drchase@google.com>
-Date:   Fri Nov 13 16:54:48 2020 -0500
+commit 79bb41aed6892bb73ee01c5ed1335a4992c219f5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:13:29 2020 -0700
 
-    cmd/compile: fix load of interface{}-typed OpIData in expand_calls
+    cmd/compile: convert reassociation optimizations to typed aux, part two
     
-    In certain cases, the declkared type of an OpIData is interface{}.
-    This was not expected (since interface{} is a pair, right?) and
-    thus caused a crash.  What is intended is that these be treated as
-    a byteptr, so do that instead (this is what happens in 1.15).
+    Passes toolstash-check.
     
-    Fixes #42568.
-    
-    Change-Id: Id7c9e5dc2cbb5d7c71c6748832491ea62b0b339f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270057
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ia8fad6973983eebe6d78d9dd8de8c99b8edcecdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229684
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |  4 ++--
- src/cmd/compile/internal/ssa/expand_calls.go |  3 +++
- test/fixedbugs/issue42568.go                 | 25 +++++++++++++++++++++++++
- 3 files changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  72 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 270 ++++++++++++-------------
+ 2 files changed, 171 insertions(+), 171 deletions(-)

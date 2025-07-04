@@ -1,15 +1,28 @@
-commit d9fd9201ad214e8da769a9338b9d3a5f3e1bc980
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Wed Jan 26 20:23:11 2022 +0800
+commit 844e1fc6f1d0dacd92534dba7f8d71f377017742
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon May 3 02:19:10 2021 +0700
 
-    cmd/compile: avoid generating unreachable branch for select cases
+    cmd/compile: make typecheckaste correctly report invalid use of "..."
     
-    Fixes #50823
+    Currently, when "..." argument is passed to non-variadic function, the
+    compiler may skip that check, but continue checking whether the number
+    of arguments matches the function signature.
     
-    Change-Id: I1c12e875b840eecadefb0d9e044ff2a268ccfbaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380894
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    That causes the sanity check which was added in CL 255241 trigger.
+    
+    Instead, we should report an invalid use of "...", which matches the
+    behavior of new type checker and go/types.
+    
+    Fixes #45913
+    
+    Change-Id: Icbb254052cbcd756bbd41f966c2c8e316c44420f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315796
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/walk/select.go | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go |  5 +++++
+ test/ddd1.go                                    |  2 +-
+ test/fixedbugs/issue45913.go                    | 17 +++++++++++++++++
+ 3 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,21 +1,22 @@
-commit 26baed6af78fb5ec80b945ed11875e245403c7fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 6 13:44:37 2015 -0400
+commit a444da033c0bc1fa5fb1973bd6d0c131ec3c1ccd
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed May 6 17:54:50 2015 -0400
 
-    runtime: fix race that dropped GoSysExit events from trace
+    cmd/go: fetch git submodules in `go get`
     
-    This makes TestTraceStressStartStop much less flaky.
-    Running under stress, it changes the failure rate from
-    above 1/100 to under 1/50000. That very unlikely
-    failure happens when an unexpected GoSysExit is
-    written. Not sure how that happens yet, but it is much
-    less important.
+    Change createCmd, downloadCmd, tagSyncCmd, tagSyncDefault to allow
+    multiple commands.
     
-    Fixes #11953.
+    When using the vendoring experiment, fetch git submodules in `go get`,
+    and update them in `go get -u`.
     
-    Change-Id: I034671936334b4f3ab733614ef239aa121d20247
-    Reviewed-on: https://go-review.googlesource.com/13321
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    This is a reincarnation of https://codereview.appspot.com/142180043.
+    
+    For #7764.
+    
+    Change-Id: I8248efb851130620ef762a765ab8716af430572a
+    Reviewed-on: https://go-review.googlesource.com/9815
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/proc1.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/go/vcs.go | 82 +++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 58 insertions(+), 24 deletions(-)

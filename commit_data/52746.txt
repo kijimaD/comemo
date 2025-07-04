@@ -1,18 +1,37 @@
-commit de788efeac46f18bd3372666cfc2c698de69d8b6
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Jan 12 15:57:51 2023 -0600
+commit 2138124143e27f72e1ad8fdcee0405d8e8647c76
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 16 17:43:38 2022 -0700
 
-    cmd/link/internal/ppc64: Use PCrel relocs in runtime.addmoduledata if supported
+    go/types, types2: detect dupl. map keys in comp. literals with generic key type
     
-    This is another step towards supporting TOC-free operations.
+    For map composite literals where the key type is a suitably constrained
+    type parameter, the existing key duplicate detection mechanism doesn't
+    work when the keys are numeric values of different types but equal value.
+    For instance, given
     
-    Change-Id: I77edcf066c757b8ec815c701d7f6d72cd645eca9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483437
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+            func _[P int64|float64]() {
+                    _ = map[P]string{0: "foo", 0.0: "bar"}
+            }
+    
+    the key values 0 and 0.0 have the same numeric value 0 but currently
+    are treated as different values int64(0) and float64(0.0). For any
+    valid instantiation of P, the keys will collide.
+    
+    This CL changes the keyVal function to map numeric types to the
+    "smallest" numeric type in which a value can be represented. For
+    instance, float64(0.0) is mapped to int64(0). This ensures that
+    numerically equal values are always represented the same way so
+    that they can be detected as duplicates.
+    
+    Fixes #51610.
+    
+    Change-Id: I3eb71142bbe6b13453282a7f71ee48950e58ecbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/link/internal/ppc64/asm.go | 77 ++++++++++++++++++++------------------
- 1 file changed, 40 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 44 ++++++++++++++-------
+ .../types2/testdata/fixedbugs/issue51610.go        |  9 +++++
+ src/go/types/expr.go                               | 46 ++++++++++++++--------
+ src/go/types/testdata/fixedbugs/issue51610.go      |  9 +++++
+ 4 files changed, 77 insertions(+), 31 deletions(-)

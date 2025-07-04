@@ -1,118 +1,24 @@
-commit 5c08b9e8bd5367a4e2942b6ab3b939b2349cc570
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 2 16:58:37 2018 -0800
+commit 7dcf406cfea0dd1f84fed0c69d3472b21e1c490d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 17 22:33:21 2017 -0400
 
-    cmd/compile/internal/syntax: remove dependency on cmd/internal/src
+    cmd/go: delete ETXTBSY hack that is no longer needed
     
-    For dependency reasons, the data structure implementing source
-    positions in the compiler is in cmd/internal/src. It contains
-    highly compiler specific details (e.g. inlining index).
+    This hack existed because cmd/go used to install (write) and then run
+    cmd/cgo in the same invocation, and writing and then running a program
+    is a no-no in modern multithreaded Unix programs (see #22315).
     
-    This change introduces a parallel but simpler position
-    representation, defined in the syntax package, which removes
-    that package's dependency on cmd/internal/src, and also removes
-    the need to deal with certain filename-specific operations
-    (defined by the needs of the compiler) in the syntax package.
-    As a result, the syntax package becomes again a compiler-
-    independent, stand-alone package that at some point might
-    replace (or augment) the existing top-level go/* syntax-related
-    packages.
+    As of CL 68338, cmd/go no longer installs any programs that it then
+    tries to use. It never did this for any program other than cgo, and
+    CL 68338 removed that special case for cgo.
     
-    Additionally, line directives that update column numbers
-    are now correctly tracked through the syntax package, with
-    additional tests added. (The respective changes also need to
-    be made in cmd/internal/src; i.e., the compiler accepts but
-    still ignores column numbers in line directives.)
+    Now this special case, added for #3001 long ago, can be removed too.
     
-    This change comes at the cost of a new position translation
-    step, but that step is cheap because it only needs to do real
-    work if the position base changed (i.e., if there is a new file,
-    or new line directive).
-    
-    There is no noticeable impact on overall compiler performance
-    measured with `compilebench -count 5 -alloc`:
-    
-    name       old time/op       new time/op       delta
-    Template         220ms ± 8%        228ms ±18%    ~     (p=0.548 n=5+5)
-    Unicode          119ms ±11%        113ms ± 5%    ~     (p=0.056 n=5+5)
-    GoTypes          684ms ± 6%        677ms ± 3%    ~     (p=0.841 n=5+5)
-    Compiler         3.19s ± 7%        3.01s ± 1%    ~     (p=0.095 n=5+5)
-    SSA              7.92s ± 8%        7.79s ± 1%    ~     (p=0.690 n=5+5)
-    Flate            141ms ± 7%        139ms ± 4%    ~     (p=0.548 n=5+5)
-    GoParser         173ms ±12%        171ms ± 4%    ~     (p=1.000 n=5+5)
-    Reflect          417ms ± 5%        411ms ± 3%    ~     (p=0.548 n=5+5)
-    Tar              205ms ± 5%        198ms ± 2%    ~     (p=0.690 n=5+5)
-    XML              232ms ± 4%        229ms ± 4%    ~     (p=0.690 n=5+5)
-    StdCmd           28.7s ± 5%        28.2s ± 2%    ~     (p=0.421 n=5+5)
-    
-    name       old user-time/op  new user-time/op  delta
-    Template         269ms ± 4%        265ms ± 5%    ~     (p=0.421 n=5+5)
-    Unicode          153ms ± 7%        149ms ± 3%    ~     (p=0.841 n=5+5)
-    GoTypes          850ms ± 7%        862ms ± 4%    ~     (p=0.841 n=5+5)
-    Compiler         4.01s ± 5%        3.86s ± 0%    ~     (p=0.190 n=5+4)
-    SSA              10.9s ± 4%        10.8s ± 2%    ~     (p=0.548 n=5+5)
-    Flate            166ms ± 7%        167ms ± 6%    ~     (p=1.000 n=5+5)
-    GoParser         204ms ± 8%        206ms ± 7%    ~     (p=0.841 n=5+5)
-    Reflect          514ms ± 5%        508ms ± 4%    ~     (p=0.548 n=5+5)
-    Tar              245ms ± 6%        244ms ± 3%    ~     (p=0.690 n=5+5)
-    XML              280ms ± 4%        278ms ± 4%    ~     (p=0.841 n=5+5)
-    
-    name       old alloc/op      new alloc/op      delta
-    Template        37.9MB ± 0%       37.9MB ± 0%    ~     (p=0.841 n=5+5)
-    Unicode         28.8MB ± 0%       28.8MB ± 0%    ~     (p=0.841 n=5+5)
-    GoTypes          113MB ± 0%        113MB ± 0%    ~     (p=0.151 n=5+5)
-    Compiler         468MB ± 0%        468MB ± 0%  -0.01%  (p=0.032 n=5+5)
-    SSA             1.50GB ± 0%       1.50GB ± 0%    ~     (p=0.548 n=5+5)
-    Flate           24.4MB ± 0%       24.4MB ± 0%    ~     (p=1.000 n=5+5)
-    GoParser        30.7MB ± 0%       30.7MB ± 0%    ~     (p=1.000 n=5+5)
-    Reflect         76.5MB ± 0%       76.5MB ± 0%    ~     (p=0.548 n=5+5)
-    Tar             38.9MB ± 0%       38.9MB ± 0%    ~     (p=0.222 n=5+5)
-    XML             41.6MB ± 0%       41.6MB ± 0%    ~     (p=0.548 n=5+5)
-    
-    name       old allocs/op     new allocs/op     delta
-    Template          382k ± 0%         382k ± 0%  +0.01%  (p=0.008 n=5+5)
-    Unicode           343k ± 0%         343k ± 0%    ~     (p=0.841 n=5+5)
-    GoTypes          1.19M ± 0%        1.19M ± 0%  +0.01%  (p=0.008 n=5+5)
-    Compiler         4.53M ± 0%        4.53M ± 0%  +0.03%  (p=0.008 n=5+5)
-    SSA              12.4M ± 0%        12.4M ± 0%  +0.00%  (p=0.008 n=5+5)
-    Flate             235k ± 0%         235k ± 0%    ~     (p=0.079 n=5+5)
-    GoParser          318k ± 0%         318k ± 0%    ~     (p=0.730 n=5+5)
-    Reflect           978k ± 0%         978k ± 0%    ~     (p=1.000 n=5+5)
-    Tar               393k ± 0%         393k ± 0%    ~     (p=0.056 n=5+5)
-    XML               405k ± 0%         405k ± 0%    ~     (p=0.548 n=5+5)
-    
-    name       old text-bytes    new text-bytes    delta
-    HelloSize        672kB ± 0%        672kB ± 0%    ~     (all equal)
-    CmdGoSize       7.12MB ± 0%       7.12MB ± 0%    ~     (all equal)
-    
-    name       old data-bytes    new data-bytes    delta
-    HelloSize        133kB ± 0%        133kB ± 0%    ~     (all equal)
-    CmdGoSize        390kB ± 0%        390kB ± 0%    ~     (all equal)
-    
-    name       old exe-bytes     new exe-bytes     delta
-    HelloSize       1.07MB ± 0%       1.07MB ± 0%    ~     (all equal)
-    CmdGoSize       11.2MB ± 0%       11.2MB ± 0%    ~     (all equal)
-    
-    Passes toolstash compare.
-    
-    For #22662.
-    
-    Change-Id: I19edb53dd9675af57f7122cb7dba2a6d8bdcc3da
-    Reviewed-on: https://go-review.googlesource.com/94515
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I338f1f8665e9aca823e33ef7dda9d19f665e4281
+    Reviewed-on: https://go-review.googlesource.com/71571
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/fmt_test.go                     |   4 +-
- src/cmd/compile/internal/gc/closure.go          |   2 +-
- src/cmd/compile/internal/gc/lex.go              |   2 +-
- src/cmd/compile/internal/gc/lex_test.go         |   7 +-
- src/cmd/compile/internal/gc/noder.go            |  99 +++++++++++++++------
- src/cmd/compile/internal/gc/swt.go              |   2 +-
- src/cmd/compile/internal/syntax/branches.go     |  17 ++--
- src/cmd/compile/internal/syntax/nodes.go        |  22 +++--
- src/cmd/compile/internal/syntax/nodes_test.go   |   2 +-
- src/cmd/compile/internal/syntax/parser.go       |  74 ++++++++--------
- src/cmd/compile/internal/syntax/parser_test.go  | 102 ++++++++++++----------
- src/cmd/compile/internal/syntax/pos.go          | 109 ++++++++++++++++++++++++
- src/cmd/compile/internal/syntax/printer_test.go |   2 +-
- src/cmd/compile/internal/syntax/syntax.go       |  18 ++--
- 14 files changed, 310 insertions(+), 152 deletions(-)
+ src/cmd/go/internal/work/exec.go | 83 ++++++++--------------------------------
+ 1 file changed, 16 insertions(+), 67 deletions(-)

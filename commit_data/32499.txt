@@ -1,19 +1,25 @@
-commit 7dd279013b8da9fac12a97607b53a0a607648b44
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Aug 9 13:43:34 2017 -0500
+commit f5c878e0300829bf47b9be5cae711339c29e522a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 07:37:40 2017 -0700
 
-    cmd/compile/internal/ssa: Mark ADD[Q|L]const as rematerializeable
+    cmd/compile: randomize compilation order when race-enabled
     
-    We can rematerialize only ops that have SP or SB as their only argument.
-    There are some ADDQconst(SP) that can be rematerialized, but are spilled/filled instead,
-    so mark addconst as rematerializeable. This shaves ~1kb from go tool.
+    There's been one failure on the race builder so far,
+    before we started sorting functions by length.
     
-    Change-Id: Ib4cf4fe5f2ec9d3d7e5f0f77f1193eba66ca2f08
-    Reviewed-on: https://go-review.googlesource.com/54393
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    The race detector can only detect actual races,
+    and ordering functions by length might reduce the odds
+    of catching some kinds of races. Give it more to chew on.
+    
+    Updates #20144
+    
+    Change-Id: I0206ac182cb98b70a729dea9703ecb0fef54d2d0
+    Reviewed-on: https://go-review.googlesource.com/41973
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 22 ++++++++++++----------
- 2 files changed, 14 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/norace.go |  9 +++++++++
+ src/cmd/compile/internal/gc/pgen.go   | 23 +++++++++++++++++------
+ src/cmd/compile/internal/gc/race.go   |  9 +++++++++
+ 3 files changed, 35 insertions(+), 6 deletions(-)

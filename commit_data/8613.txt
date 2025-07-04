@@ -1,21 +1,84 @@
-commit 518331dfeadfe60b7ccb7402030ac8883858c54b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jun 3 14:35:42 2011 -0400
+commit 84f291b1bd90e2fedd66000042d656e8e595a816
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 3 14:10:39 2011 -0400
 
-    net: add network interface identification API
+    8g: compute register liveness during regopt
     
-    This CL introduces new API into package net to identify the network
-    interface.  A functionality of new API is very similar to RFC3493 -
-    "Interface Identification".
+    Input code like
     
-    R=r, gri, bradfitz, robert.hencke, fullung, rsc
+    0000 (x.go:2) TEXT    main+0(SB),$36-0
+    0001 (x.go:3) MOVL    $5,i+-8(SP)
+    0002 (x.go:3) MOVL    $0,i+-4(SP)
+    0003 (x.go:4) MOVL    $1,BX
+    0004 (x.go:4) MOVL    i+-8(SP),AX
+    0005 (x.go:4) MOVL    i+-4(SP),DX
+    0006 (x.go:4) MOVL    AX,autotmp_0000+-20(SP)
+    0007 (x.go:4) MOVL    DX,autotmp_0000+-16(SP)
+    0008 (x.go:4) MOVL    autotmp_0000+-20(SP),CX
+    0009 (x.go:4) CMPL    autotmp_0000+-16(SP),$0
+    0010 (x.go:4) JNE     ,13
+    0011 (x.go:4) CMPL    CX,$32
+    0012 (x.go:4) JCS     ,14
+    0013 (x.go:4) MOVL    $0,BX
+    0014 (x.go:4) SHLL    CX,BX
+    0015 (x.go:4) MOVL    BX,x+-12(SP)
+    0016 (x.go:5) MOVL    x+-12(SP),AX
+    0017 (x.go:5) CDQ     ,
+    0018 (x.go:5) MOVL    AX,autotmp_0001+-28(SP)
+    0019 (x.go:5) MOVL    DX,autotmp_0001+-24(SP)
+    0020 (x.go:5) MOVL    autotmp_0001+-28(SP),AX
+    0021 (x.go:5) MOVL    autotmp_0001+-24(SP),DX
+    0022 (x.go:5) MOVL    AX,(SP)
+    0023 (x.go:5) MOVL    DX,4(SP)
+    0024 (x.go:5) CALL    ,runtime.printint+0(SB)
+    0025 (x.go:5) CALL    ,runtime.printnl+0(SB)
+    0026 (x.go:6) RET     ,
+    
+    is problematic because the liveness range for
+    autotmp_0000 (0006-0009) is nested completely
+    inside a span where BX holds a live value (0003-0015).
+    Because the register allocator only looks at 0006-0009
+    to see which registers are used, it misses the fact that
+    BX is unavailable and uses it anyway.
+    
+    The n->pun = anyregalloc() check in tempname is
+    a workaround for this bug, but I hit it again because
+    I did the tempname call before allocating BX, even
+    though I then used the temporary after storing in BX.
+    This should fix the real bug, and then we can remove
+    the workaround in tempname.
+    
+    The code creates pseudo-variables for each register
+    and includes that information in the liveness propagation.
+    Then the regu fields can be populated using that more
+    complete information.  With that approach, BX is marked
+    as in use on every line in the whole span 0003-0015,
+    so that the decision about autotmp_0000
+    (using only 0006-0009) still has all the information
+    it needs.
+    
+    This is not specific to the 386, but it only happens in
+    generated code of the form
+    
+            load R1
+            ...
+            load var into R2
+            ...
+            store R2 back into var
+            ...
+            use R1
+    
+    and for the most part the other compilers generate
+    the loads for a given compiled line before any of
+    the stores.  Even so, this may not be the case everywhere,
+    so the change is worth making in all three.
+    
+    R=ken2, ken, ken
     CC=golang-dev
-    https://golang.org/cl/4437087
+    https://golang.org/cl/4529106
 
- src/pkg/net/Makefile           |   6 ++
- src/pkg/net/interface.go       | 133 +++++++++++++++++++++++++++++++++
- src/pkg/net/interface_bsd.go   | 148 ++++++++++++++++++++++++++++++++++++
- src/pkg/net/interface_linux.go | 165 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/interface_stub.go  |  23 ++++++
- src/pkg/net/interface_test.go  |  90 ++++++++++++++++++++++
- 6 files changed, 565 insertions(+)
+ src/cmd/5g/reg.c | 180 +++++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/6g/reg.c | 153 ++++++++++++++++++++++++++++++++++++++++------
+ src/cmd/8g/reg.c | 109 ++++++++++++++++++++++++++++-----
+ src/cmd/gc/gen.c |   1 -
+ 4 files changed, 396 insertions(+), 47 deletions(-)

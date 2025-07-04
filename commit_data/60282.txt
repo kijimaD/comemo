@@ -1,0 +1,18 @@
+commit 4256ec16616827b8ef5a19f74599aa44ffe6111a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 10 10:27:26 2024 -0700
+
+    cmd/compile/internal/syntax: return correct start pos for KeyValueExprs
+    
+    Fixes #67866.
+    
+    Change-Id: Id9d345aab87e493b8ed94319c5acaa1900362648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591695
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/syntax/issues_test.go | 51 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/syntax/positions.go   |  3 +-
+ 2 files changed, 53 insertions(+), 1 deletion(-)

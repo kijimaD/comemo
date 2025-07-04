@@ -1,22 +1,24 @@
-commit dac936a4ab8490d90afb9786a69854818f634dc5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 18 15:33:17 2019 +0000
+commit 85d56c3096636cebd6e0aea846d78599edbbb9e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 13 12:49:03 2019 -0700
 
-    runtime: make more page sweeper operations atomic
+    runtime: use dispatch semaphores on Darwin
     
-    This change makes it so that allocation and free related page sweeper
-    metadata operations (e.g. pageInUse and pagesInUse) are atomic rather
-    than protected by the heap lock. This will help in reducing the length
-    of the critical path with the heap lock held in future changes.
+    Changes Darwin semaphore support from using pthread mutexes and
+    condition variables to using dispatch semaphores. Signaling a dispatch
+    semaphore is async-signal-safe.
     
-    Updates #35112.
+    Fixes #31264
     
-    Change-Id: Ie82bff024204dd17c4c671af63350a7a41add354
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196640
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If0ce47623501db13e3804b14ace5f4d8eaef461e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182258
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go   |  3 ++-
- src/runtime/mheap.go | 20 ++++++++++++--------
- 2 files changed, 14 insertions(+), 9 deletions(-)
+ src/runtime/os_darwin.go       | 60 ++++++++---------------------
+ src/runtime/sys_darwin.go      | 58 +++++++++-------------------
+ src/runtime/sys_darwin_386.s   | 85 +++++++++++++-----------------------------
+ src/runtime/sys_darwin_amd64.s | 62 +++++++++++-------------------
+ src/runtime/sys_darwin_arm.s   | 54 +++++++++++----------------
+ src/runtime/sys_darwin_arm64.s | 53 +++++++++++---------------
+ 6 files changed, 123 insertions(+), 249 deletions(-)

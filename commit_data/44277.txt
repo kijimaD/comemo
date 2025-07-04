@@ -1,31 +1,17 @@
-commit a54f7fc0fde79e8edc696de002fe8a73604f077f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 29 09:55:03 2021 -0500
+commit 7e477573244000da3cfe60c0d4cb4007097245d9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 11:16:43 2020 -0400
 
-    runtime: do not treat asmcgocall as a topofstack on g0
+    syscall: hide internal comment from Syscall documentation
     
-    This was added in 2018 to fix a runtime crash during unwind
-    during a unhandled-panic-induced crash.
-    (See https://golang.org/cl/90895 and #23576.)
-    Clearly we cannot unwind past this function, and the change
-    did stop the unwind. But it's not a top-of-stack function, and
-    the real issue is that SP is changed.
+    There's a comment on the Syscall function that's supposed to be an
+    internal implementation note, but since it's not separated from the
+    function definition, it appears in godoc. Add a blank line to prevent
+    this.
     
-    The new SPWRITE bit takes care of this instead, so we can drop
-    it from the topofstack function.
-    
-    At this point the topofstack function is only checking the
-    TOPFRAME bit, so we can inline that into the one call site.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I856552298032770e48e06c95a20823a1dbd5e38c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288805
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iba307f1cc3844689ec3c6d82c21d441852e35bca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236561
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/traceback.go | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ src/syscall/dll_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,24 +1,20 @@
-commit c44da14440e5a2e412f9b1d3f5f2f562591d8e49
-Author: Kirill Smelkov <kirr@nexedi.com>
-Date:   Thu Dec 1 21:40:57 2016 +0300
+commit 61f1a38bcb52ad5e1753b43c405bb5b144b6966c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Oct 13 17:08:54 2016 -0400
 
-    cmd/compile/internal/ssa: add tests for BSWAP on stores on AMD64
+    crypto/{aes,cipher}: fix panic in CBC on s390x when src length is 0
     
-    Commit 10f75748 (CL 32222) taught AMD64 backend to rewrite series of
-    byte loads or stores with corresponding shifts into a single long or
-    quad load or store + appropriate BSWAP. However it did not added test
-    for stores - only loads were tested.
+    Adds a test to check that block cipher modes accept a zero-length
+    input.
     
-    Fix it.
+    Fixes #17435.
     
-    NOTE Tests for indexed stores are not added because 10f75748 did not add
-    support for indexed stores - only indexed loads were handled then.
-    
-    Change-Id: I48c867ebe7622ac8e691d43741feed1d40cca0d7
-    Reviewed-on: https://go-review.googlesource.com/34634
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie093c4cdff756b5c2dcb79342e167b3de5622389
+    Reviewed-on: https://go-review.googlesource.com/31070
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/crypto/aes/cbc_s390x.go      |  4 ++-
+ src/crypto/cipher/cipher_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

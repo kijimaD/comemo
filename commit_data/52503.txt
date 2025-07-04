@@ -1,22 +1,25 @@
-commit ca26c9835109f8f3e72bbc069a6361bdf24e271d
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Thu Mar 30 12:14:55 2023 -0700
+commit 0aee59736f53ca1ef29d53163f26c2fc21a4c415
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 2 12:00:36 2022 -0700
 
-    cmd/go: add wasip1 to modindex syslist
+    crypto/x509: fix EKU nesting enforcement
     
-    This was intended to be merged together with changes in CL 479616.
+    The path building rework broke the enforcement of EKU nesting, this
+    change goes back to using the old method of enforcement, since it ends
+    up being more efficient to check the chains after building, rather than
+    at each step during path building.
     
-    For #58141
+    Fixes #52659
     
-    Change-Id: I76c38d3d4dfee93a1a170e28af28f0c9d6382830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480656
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic7c3717a10c33905677cf7bc4bc0a20f5f15f259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403554
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go/internal/modindex/syslist.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/crypto/x509/name_constraints_test.go | 195 +++++++++++++------------
+ src/crypto/x509/verify.go                |  57 ++++----
+ src/crypto/x509/verify_test.go           | 240 +++++++++++++++++++++++++++++++
+ 3 files changed, 373 insertions(+), 119 deletions(-)

@@ -1,15 +1,19 @@
-commit e18ed3c111cfeeb6dd6664e9f47cb4a6f935befd
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Aug 24 01:32:01 2013 +1000
+commit 180da80e9004cd6e1bbfc026890a12e86d0f9f5d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 23 19:31:24 2013 +0900
 
-    cmd/5l,cmd/8l: unbreak arm and 386 linkers
+    net: fix dial to raw IP networks on Windows
     
-    Add dragonflydynld to 5l and 8l so that they compile again.
+    Also avoids platform-dependent datagram truncation in raw IP tests.
+    At least it's different between Windows and others.
     
-    R=golang-dev, bradfitz
+    Fixes #6122.
+    
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12739048
+    https://golang.org/cl/12843043
 
- src/cmd/5l/asm.c | 1 +
- src/cmd/8l/asm.c | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/net/fd_windows.go     |  3 ++-
+ src/pkg/net/ipraw_test.go     | 61 ++++++++++++++++++++++++++++++-------------
+ src/pkg/net/protoconn_test.go | 10 ++++---
+ 3 files changed, 51 insertions(+), 23 deletions(-)

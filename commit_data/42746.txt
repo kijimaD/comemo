@@ -1,21 +1,20 @@
-commit cdc77d34d7770ed02d84b9193380f9646017dce6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 17 17:31:21 2020 -0400
+commit a0cf2c872fd3b8fd34979d13b41115f9be8c90a1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 18 18:28:35 2020 +0000
 
-    testing: treat PAUSE lines as changing the active test name
+    doc/go1.14: remove TODO comment for CL 200439
     
-    We could instead fix cmd/test2json to treat PAUSE lines as *not*
-    changing the active test name, but that seems like it would be more
-    confusing to humans, and also wouldn't fix tools that parse output
-    using existing builds of cmd/test2json.
+    Based on https://golang.org/issue/36878#issuecomment-587533153
+    and https://golang.org/issue/36878#issuecomment-587549692,
+    this is not a CL that needs to be mentioned in the release notes.
     
-    Fixes #40657
+    Updates #36878
     
-    Change-Id: I937611778f5b1e7dd1d6e9f44424d7e725a589ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248727
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Change-Id: Icaa9153da7481a1d3ebabc237411539dd770cef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219898
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../go/testdata/script/test_json_interleaved.txt   | 27 ++++++++++++++++++++++
- src/testing/testing.go                             | 25 ++++++++++++++++----
- 2 files changed, 47 insertions(+), 5 deletions(-)
+ doc/go1.14.html | 2 --
+ 1 file changed, 2 deletions(-)

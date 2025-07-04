@@ -1,30 +1,12 @@
-commit b851ded09a300033849b60ab47a468087ce557a1
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Aug 24 10:34:16 2016 +0900
+commit 52c2db7e6d68b68938d904864ee484e7b5dd5d52
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 12:15:04 2016 -0400
 
-    os: use GetConsoleCP() instead of GetACP()
+    doc/go1.7.html: fix broken sentence
     
-    It is possible (and common) for Windows systems to use a different codepage
-    for console applications from that used on normal windowed application
-    (called ANSI codepage); for instance, most of the western Europe uses
-    CP850 for console (for backward compatibility with MS-DOS), while
-    windowed applications use a different codepage depending on the country
-    (eg: CP1252 aka Latin-1). The usage being changed with this commit is
-    specifically related to decoding input coming from the console, so the
-    previous usage of the ANSI codepage was wrong.
-    
-    Also fixes an issue that previous did convert bytes as NFD. Go is
-    designed to handle single Unicode code point. This fix change behaivor
-    to NFC.
-    
-    Fixes #16857.
-    
-    Change-Id: I4f41ae83ece47321b6e9a79a2087ecbb8ac066dd
-    Reviewed-on: https://go-review.googlesource.com/27575
-    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ia540c890767dcb001d3b3b55d98d9517b13b21da
+    Reviewed-on: https://go-review.googlesource.com/23510
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  | 1 +
- src/internal/syscall/windows/zsyscall_windows.go | 7 +++++++
- src/os/file_windows.go                           | 8 +++++---
- 3 files changed, 13 insertions(+), 3 deletions(-)
+ doc/go1.7.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

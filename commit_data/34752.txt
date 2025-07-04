@@ -1,12 +1,17 @@
-commit 03d1dd8c2afb42bc59185275abfedc4225496740
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Mar 28 21:11:05 2018 -0400
+commit 2955a8a6cccc4afe53da266bbb0b8f6fe52974aa
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Mon Nov 13 22:05:45 2017 -0800
 
-    doc: update release notes for Go 1.9.5
+    math/big: clarify comment on lehmerGCD overflow
     
-    Change-Id: Idf88d289bac9603d852a9d19eb4b764f8589f8d9
-    Reviewed-on: https://go-review.googlesource.com/103159
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    A clarifying comment was added to indicate that overflow of a
+    single Word is not possible in the single digit calculation.
+    Lehmer's paper includes a proof of the bounds on the size of the
+    cosequences (u0, u1, u2, v0, v1, v2).
+    
+    Change-Id: I98127a07aa8f8fe44814b74b2bc6ff720805194b
+    Reviewed-on: https://go-review.googlesource.com/77451
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/devel/release.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/math/big/int.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

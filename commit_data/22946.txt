@@ -1,26 +1,15 @@
-commit cbcc7584de99dbefd3e019d2a53442b30d5af989
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun May 10 23:11:04 2015 +0900
+commit 110fa22c4562b0f9ada3c81b9bceeb76763f5608
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Apr 11 05:57:15 2015 -0400
 
-    net: increase timeout in TestWriteTimeoutFluctuation on darwin/arm
+    misc/cgo/test: skip issue3261 test on darwin/arm64
     
-    On darwin/arm, the test sometimes fails with:
+    Because there is no libgcc.
     
-    Process 557 resuming
-    --- FAIL: TestWriteTimeoutFluctuation (1.64s)
-            timeout_test.go:706: Write took over 1s; expected 0.1s
-    FAIL
-    Process 557 exited with status = 1 (0x00000001)
-    go_darwin_arm_exec: timeout running tests
-    
-    This change increaes timeout on iOS builders from 1s to 3s as a
-    temporarily fix.
-    
-    Updates #10775.
-    
-    Change-Id: Ifdaf99cf5b8582c1a636a0f7d5cc66bb276efd72
-    Reviewed-on: https://go-review.googlesource.com/9915
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f07
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8786
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/timeout_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ misc/cgo/test/issue3261.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

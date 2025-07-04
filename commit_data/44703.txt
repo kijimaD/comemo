@@ -1,85 +1,39 @@
-commit 72b501cb0326f62a20621636942e5a95fc3c1466
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Fri Nov 27 11:25:00 2020 +0530
+commit 5d7261870e73f10c90c903a329eeb99b151d9f9f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Aug 20 11:35:17 2020 -0400
 
-    compress/lzw: add Reset method to Reader and Writer
+    go/doc: support examples on methods from embedded unexported types
     
-    We add a Reset method which clears any internal state of an encoder
-    or a decoder to let it be reused again as a new Writer or Reader respectively.
+    In
     
-    We also export the encoder and decoder structs, renaming them
-    to be Reader and Writer, and we guarantee that the underlying types
-    from the constructors will always be Reader and Writer respectively.
+      type T1 struct { t2 }
+      type t2 int
+      func (t2) M()
     
-    Benchmark results by reusing the encoder:
-    on cpu: Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
+    T1 has method M because it embeds t2, which has M. Classify
+    the example
     
-    name                 time/op
-    Decoder/1e4-8          93.6µs ± 1%
-    Decoder/1e-Reuse4-8    87.7µs ± 1%
-    Decoder/1e5-8           877µs ± 1%
-    Decoder/1e-Reuse5-8     860µs ± 3%
-    Decoder/1e6-8          8.79ms ± 1%
-    Decoder/1e-Reuse6-8    8.82ms ± 4%
-    Encoder/1e4-8           168µs ± 2%
-    Encoder/1e-Reuse4-8     160µs ± 1%
-    Encoder/1e5-8          1.64ms ± 1%
-    Encoder/1e-Reuse5-8    1.61ms ± 2%
-    Encoder/1e6-8          16.2ms ± 6%
-    Encoder/1e-Reuse6-8    15.8ms ± 2%
+      func ExampleT1_M
     
-    name                 speed
-    Decoder/1e4-8         107MB/s ± 1%
-    Decoder/1e-Reuse4-8   114MB/s ± 1%
-    Decoder/1e5-8         114MB/s ± 1%
-    Decoder/1e-Reuse5-8   116MB/s ± 3%
-    Decoder/1e6-8         114MB/s ± 1%
-    Decoder/1e-Reuse6-8   113MB/s ± 5%
-    Encoder/1e4-8        59.7MB/s ± 2%
-    Encoder/1e-Reuse4-8  62.4MB/s ± 1%
-    Encoder/1e5-8        61.1MB/s ± 1%
-    Encoder/1e-Reuse5-8  62.0MB/s ± 2%
-    Encoder/1e6-8        61.7MB/s ± 5%
-    Encoder/1e-Reuse6-8  63.4MB/s ± 2%
+    with T1 instead of ignoring it, as is done currently. There is no
+    other way to provide an example for such a method, since its original
+    type is unexported.
     
-    name                 alloc/op
-    Decoder/1e4-8          21.8kB ± 0%
-    Decoder/1e-Reuse4-8     50.0B ± 0%
-    Decoder/1e5-8          21.8kB ± 0%
-    Decoder/1e-Reuse5-8     70.4B ± 2%
-    Decoder/1e6-8          21.9kB ± 0%
-    Decoder/1e-Reuse6-8      271B ± 3%
-    Encoder/1e4-8          77.9kB ± 0%
-    Encoder/1e-Reuse4-8    4.17kB ± 0%
-    Encoder/1e5-8          77.9kB ± 0%
-    Encoder/1e-Reuse5-8    4.27kB ± 0%
-    Encoder/1e6-8          77.9kB ± 0%
-    Encoder/1e-Reuse6-8    5.22kB ± 0%
+    Continue to ignore examples on methods from embedded types that are
+    exported, unless in AllMethods mode. Examples for those methods could
+    be written on the original type.
     
-    name                 allocs/op
-    Decoder/1e4-8            2.00 ± 0%
-    Decoder/1e-Reuse4-8      1.00 ± 0%
-    Decoder/1e5-8            2.00 ± 0%
-    Decoder/1e-Reuse5-8      1.00 ± 0%
-    Decoder/1e6-8            2.00 ± 0%
-    Decoder/1e-Reuse6-8      1.00 ± 0%
-    Encoder/1e4-8            3.00 ± 0%
-    Encoder/1e-Reuse4-8      2.00 ± 0%
-    Encoder/1e5-8            3.00 ± 0%
-    Encoder/1e-Reuse5-8      2.00 ± 0%
-    Encoder/1e6-8            3.00 ± 0%
-    Encoder/1e-Reuse6-8      2.00 ± 0%
+    The change involves removing a check in classifyExamples. The check
+    isn't necessary to get the above behavior because
+    reader.collectEmbeddedMethods and sortedFuncs already generate the
+    appropriate list of methods.
     
-    Fixes #26535
+    For #40172.
     
-    Change-Id: Icde613fea6234a5bdce95f1e49910f5687e30b22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273667
-    Trust: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ibe7d965ecba6426466184e6e6655fc05989e9caf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249557
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/compress/lzw/reader.go      | 207 ++++++++++++++++++++++------------------
- src/compress/lzw/reader_test.go |  88 ++++++++++++++---
- src/compress/lzw/writer.go      | 206 ++++++++++++++++++++-------------------
- src/compress/lzw/writer_test.go |  54 +++++++++++
- 4 files changed, 349 insertions(+), 206 deletions(-)
+ src/go/doc/example.go      | 2 +-
+ src/go/doc/example_test.go | 9 ++++++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

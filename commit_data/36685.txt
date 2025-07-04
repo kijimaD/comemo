@@ -1,21 +1,24 @@
-commit d97b11f12fb36ae8117519ee983a8f811360ee1a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 17 13:43:35 2018 -0700
+commit 529362e1e2d68c1740ee71a7d5ece3f2c5190791
+Author: David Chase <drchase@google.com>
+Date:   Fri May 18 15:11:30 2018 -0400
 
-    go/types: don't report cycle error if clearer error follows
+    cmd/compile: refactor and cleanup of common code/workaround
     
-    If a cyclic declaration uses a non-type object where it expects
-    a type, don't report the cycle error in favor of the clearer and
-    more informative error about the missing type.
+    There's a glitch in how attributes from procs that do not
+    generate code are combined, and the workaround for this
+    glitch appeared in two places.
     
-    Fixes #25790.
+    "One big pile is better than two little ones."
     
-    Change-Id: If937078383def878efb4c69686e5b4b2a495fd5d
-    Reviewed-on: https://go-review.googlesource.com/135700
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Updates #25426.
+    
+    Change-Id: I252f9adc5b77591720a61fa22e6f9dda33d95350
+    Reviewed-on: https://go-review.googlesource.com/113717
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/types/expr.go              |  2 +-
- src/go/types/testdata/cycles5.src | 21 +++++++++++++++------
- src/go/types/testdata/decls0.src  | 10 +++++-----
- src/go/types/typexpr.go           | 18 +++++++++++++++---
- 4 files changed, 36 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go        |  9 +++------
+ src/cmd/compile/internal/gc/ssa.go          |  4 +---
+ src/cmd/compile/internal/ssa/numberlines.go | 10 ++++++++++
+ 3 files changed, 14 insertions(+), 9 deletions(-)

@@ -1,23 +1,20 @@
-commit d145456b168029188ffc654ce2e9f1bbc62f8b99
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Jan 27 18:43:36 2016 +0000
+commit 64de502caa3f89560756f1fa8534c665cca9ea6c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 01:39:28 2015 +0000
 
-    runtime: signal handling support for plan9_arm
+    net/http: update Response.Trailer doc
     
-    Plan 9 trap/signal handling differs on ARM from other architectures
-    because ARM has a link register.  Also trap message syntax varies
-    between different architectures (historical accident?).
-    Revised 7 March to clarify a comment.
+    I updated this in the previous commit (https://golang.org/cl/17931)
+    but noticed a typo. and it still wasn't great.
     
-    Change-Id: Ib6485f82857a2f9a0d6b2c375cf0aaa230b83656
-    Reviewed-on: https://go-review.googlesource.com/18969
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The Go 1.5 text was too brief to know how to use it:
+    
+        // Trailer maps trailer keys to values, in the same
+        // format as the header.
+    
+    Change-Id: I33c49b6a4a7a3596735a4cc7865ad625809da900
+    Reviewed-on: https://go-review.googlesource.com/17932
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/defs_plan9_386.go   |  6 ++++++
- src/runtime/defs_plan9_amd64.go |  6 ++++++
- src/runtime/os3_plan9.go        | 35 +++++++++++++++++++++++++----------
- src/runtime/os_plan9.go         | 10 +++++++++-
- src/runtime/signal_plan9.go     |  4 ++--
- 5 files changed, 48 insertions(+), 13 deletions(-)
+ src/net/http/response.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

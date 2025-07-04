@@ -1,12 +1,19 @@
-commit 5efcbba9eecf3d9b7a620b7b183840ba74e5e571
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 20 15:03:16 2015 +1100
+commit 1303f0d3d89729e9bb9c6a13027a137e42728245
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 19 17:21:14 2014 -0800
 
-    misc/makerelease: send file size when uploading
+    cmd/cgo: don't #include cgo_export.h in gccgo _cgo_main.c
     
-    Change-Id: I1a1ed1e23067268a2bac08fc4c99c594fb723837
-    Reviewed-on: https://go-review.googlesource.com/3050
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Instead of relying on the asm names declared in the gccgo version of
+    cgo_export.h, just emit a dummy symbol with the right asm name.  This
+    is enough to let the _cgo_main link succeed, which is all that matters
+    here.
+    
+    Fixes #9294.
+    
+    Change-Id: I803990705b6b226ed0adf17dc57b58a9f501b213
+    Reviewed-on: https://go-review.googlesource.com/1901
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/makerelease/makerelease.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/cgo/out.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

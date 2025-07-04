@@ -1,22 +1,19 @@
-commit 059c68bf0cccea85bea19c44c15d7fec9e9cbd21
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 12 10:29:22 2011 +1100
+commit d69b820e01f5706037d94f9a4155e7f5d96e435d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 11 16:17:21 2011 -0700
 
-    net: implement ip protocol name to number resolver for windows
+    try: delete
+    A fun experiment but not carrying its weight.
     
-    Fixes #2215.
-    Fixes #2216.
-    
-    R=golang-dev, dave, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5248055
+    https://golang.org/cl/5246054
 
- src/pkg/net/ipraw_test.go                 |  3 ++-
- src/pkg/net/iprawsock_posix.go            | 38 +++-------------------------
- src/pkg/net/lookup_unix.go                | 42 +++++++++++++++++++++++++++++++
- src/pkg/net/lookup_windows.go             | 18 +++++++++++--
- src/pkg/syscall/syscall_windows.go        |  1 +
- src/pkg/syscall/zsyscall_windows_386.go   | 16 ++++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 16 ++++++++++++
- src/pkg/syscall/ztypes_windows.go         |  6 +++++
- 8 files changed, 103 insertions(+), 37 deletions(-)
+ src/cmd/Makefile        |   1 -
+ src/cmd/gotry/Makefile  |  18 -----
+ src/cmd/gotry/gotry     | 168 ----------------------------------------------
+ src/pkg/Makefile        |   2 -
+ src/pkg/try/Makefile    |  11 ---
+ src/pkg/try/try.go      | 174 ------------------------------------------------
+ src/pkg/try/try_test.go |  60 -----------------
+ 7 files changed, 434 deletions(-)

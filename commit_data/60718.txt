@@ -1,0 +1,41 @@
+commit 819b1b45756086a1ad5c36551ce33e526c05c027
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Aug 19 20:02:37 2024 +0000
+
+    time: implement the encoding.(Binary|Text)Appender for Time
+    
+    "Time.Marshal(Binary|Text)" could also gain some performance
+    improvements. Here is the benchmark highlight:
+    
+                    │     old      │                 new                 │
+                    │    sec/op    │   sec/op     vs base                │
+    MarshalText-8     104.00n ± 3%   67.27n ± 2%  -35.32% (p=0.000 n=10)
+    MarshalBinary-8    31.77n ± 2%   12.13n ± 1%  -61.82% (p=0.000 n=10)
+    geomean            57.48n        28.57n       -50.30%
+    
+                    │    old     │                  new                   │
+                    │    B/op    │   B/op     vs base                     │
+    MarshalText-8     48.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=10)
+    MarshalBinary-8   16.00 ± 0%   0.00 ± 0%  -100.00% (p=0.000 n=10)
+    
+                    │    old     │                   new                   │
+                    │ allocs/op  │ allocs/op   vs base                     │
+    MarshalText-8     1.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
+    MarshalBinary-8   1.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
+    
+    For #62384
+    
+    Change-Id: I320421878a341abf8d668fd57b27292cdfa61330
+    GitHub-Last-Rev: e04f8df9c277481f5678208d3f1f59643bf5e429
+    GitHub-Pull-Request: golang/go#68942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606655
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/62384.txt                       |  2 +
+ doc/next/6-stdlib/99-minor/time/62384.md |  1 +
+ src/time/time.go                         | 69 +++++++++++++++++++-------------
+ src/time/time_test.go                    | 22 ++++++++++
+ 4 files changed, 67 insertions(+), 27 deletions(-)

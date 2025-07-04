@@ -1,37 +1,21 @@
-commit 260ae19c894257749303104ad15a504d529e2d04
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sat May 5 09:35:44 2018 +0900
+commit 2a8229d96eb76ec4c20dadd913b17053c30faad4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 2 05:38:08 2018 -0800
 
-    net/http: update bundled http2
+    misc/cgo/test: get uintptr, not pointer, from dlopen
     
-    Updates http2 to x/net/http2 git rev 5f9ae10 for:
+    The dlopen function returns an opaque handle, and it is possible for
+    it to look like a Go pointer, causing garbage collector and cgo
+    confusion.
     
-        http2: terminate await request cancel goroutine on conn close
-        https://golang.org/cl/108415
+    Fixes #23663
     
-        http2: don't sniff Content-type in Server when X-Content-Type-Options:nosniff
-        https://golang.org/cl/107295
-    
-        http2, http/httpguts: move ValidTrailerHeader to new common package http/httpguts
-        https://golang.org/cl/104042
-    
-        all: remove "the" duplications
-        https://golang.org/cl/94975
-    
-        http2: use RFC 723x as normative reference in docs
-        https://golang.org/cl/94555
-    
-        all: use HTTPS for iana.org links
-        https://golang.org/cl/89415
-    
-    Fixes #24795
-    Fixes #24776
-    Updates #23908
-    Fixes #21974
-    
-    Change-Id: I7985617a7dde56cc5ed8670d73b26f8307be83d6
-    Reviewed-on: https://go-review.googlesource.com/111655
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id080e2bbcee8cfa7ac4a457a927f96949eb913f8
+    Reviewed-on: https://go-review.googlesource.com/91596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/h2_bundle.go | 76 ++++++++++++++++-------------------------------
- 1 file changed, 25 insertions(+), 51 deletions(-)
+ misc/cgo/test/issue4029.c  | 19 +++++++++++++++++++
+ misc/cgo/test/issue4029.go | 17 +++++++++++------
+ 2 files changed, 30 insertions(+), 6 deletions(-)

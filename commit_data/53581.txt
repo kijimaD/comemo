@@ -1,27 +1,37 @@
-commit c1bc44642db321c2f125fd043c220cac08877e95
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 16 14:46:37 2023 -0400
+commit 0a6e1fa986e04add090afa50b8e566dca40df760
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 21:38:08 2022 -0700
 
-    path/filepath: avoid assuming that GOROOT/test is present
+    cmd/compile: fix "expression has untyped type" ICE in generic code
     
-    GOROOT/test is pruned out by cmd/distpack. It isn't really needed for
-    the test anyway; the test can instead use the "src/unicode" subdirectory,
-    which is even within the same module.
+    During walk, we sometimes desugar OEQ nodes into multiple "untyped
+    bool" expressions, and then use typecheck.Conv to convert back to the
+    original OEQ node's type.
     
-    This test was previously adjusted in CL 13467045 and CL 31859.
+    However, typecheck.Conv had a short-circuit path that if the type is
+    already identical to the target type according to types.Identical,
+    then we skipped the conversion. This short-circuit is normally fine;
+    but with generic code and shape types, it considers "untyped bool" and
+    "go.shape.bool" to be identical types. And we could end up leaving an
+    expression of "untyped bool", which then fails an internal consistency
+    check later.
     
-    Unlike in previous iterations of the test, the directories used in
-    this revision are covered by the Go 1 compatibility policy and thus
-    unlikely to disappear.
+    The simple fix is to change Conv to use types.IdenticalStrict, so that
+    we ensure "untyped bool" gets converted to "go.shape.bool". And for
+    good measure, make the same change to ConvNop.
     
-    For #24904.
+    This issue was discovered and reported against unified IR, but the
+    issue was latent within the non-unified frontend too.
     
-    Change-Id: I156ae18354bcbc2ddd8d22b210f16ba1e97cd5d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504116
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #54537.
+    
+    Change-Id: I7559a346b063349b35749e8a2da704be18e51654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424937
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/path/filepath/path_test.go | 31 ++++++++++++++-----------------
- 1 file changed, 14 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ++--
+ test/typeparam/issue54537.go                    | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

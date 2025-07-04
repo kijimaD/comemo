@@ -1,40 +1,19 @@
-commit d9f23cfe78eadcdbde31fd931e90bebb72455648
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 4 12:31:23 2023 -0500
+commit 3140625606f83328a5c7754fd952ed8d52a76404
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 22 12:54:57 2022 -0500
 
-    runtime/pprof: improve output of TestLabelSystemstack
+    doc/go1.18: correct "go build -asan" HTML tag
     
-    The current output of TestLabelSystemstack is a bit cryptic. This CL
-    improves various messages and hopefully simplifies the logic in the
-    test.
+    The tag was "go-mod-vendor", which doesn't match the content.
     
-    Simplifying the logic leads to three changes in possible outcomes,
-    which I verified by running the logic before and after this change
-    through all 2^4 possibilities (https://go.dev/play/p/bnfb-OQCT4j):
+    Also move that section later, so "go mod" sections stay together.
     
-    1. If a sample both must be labeled and must not be labeled, the test
-    now reports that explicitly rather than giving other confusing output.
+    For #47694.
     
-    2. If a sample must not be labeled but is, the current logic will
-    print two identical error messages. The new logic prints only one.
-    
-    3. If the test finds no frames at all that it recognizes, but the
-    sample is labeled, it will currently print a confusing "Sample labeled
-    got true want false" message. The new logic prints nothing. We've seen
-    this triggered by empty stacks in profiles.
-    
-    Fixes #51550. This bug was caused by case 3 above, where it was
-    triggered by a profile label on an empty stack. It's valid for empty
-    stacks to appear in a profile if we sample a goroutine just as it's
-    exiting (and that goroutine may have a profile label), so the test
-    shouldn't fail in this case.
-    
-    Change-Id: I1593ec4ac33eced5bb89572a3ba7623e56f2fb3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460516
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id4fa7ee0768682a9aadfeb1b2f1d723e7521896b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387354
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/pprof_test.go | 46 +++++++++++++++++++++++------------------
- 1 file changed, 26 insertions(+), 20 deletions(-)
+ doc/go1.18.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

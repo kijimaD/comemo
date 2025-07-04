@@ -1,18 +1,19 @@
-commit cbf4f4b8d03493c112b472b8fcf3d499dc4e6bc9
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Mon Jan 9 19:55:18 2012 -0500
+commit 1320ce00c44eef3b477f40a409f654ac145cfac5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 16:54:24 2012 -0800
 
-    strconv: return ErrSyntax when unquoting illegal octal sequences.  This
-    is consistent with what the Go compiler returns when such sequences
-    appear in string literals.
+    spec: pointer comparison for pointers to 0-sized variables
     
-    Fixes #2658.
+    - define "0-sized"
+    - add clarifying sentence to pointer comparison
+    - removed notion "location" which was used only in pointer comparisons
+      and which was never defined
     
-    R=golang-dev, rsc, r, r, nigeltao
+    Fixes #2620.
+    
+    R=r, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5530051
+    https://golang.org/cl/5528053
 
- src/pkg/html/template/escape_test.go | 22 ++++++++++++----------
- src/pkg/strconv/quote.go             |  1 +
- src/pkg/strconv/quote_test.go        |  6 ++++++
- 3 files changed, 19 insertions(+), 10 deletions(-)
+ doc/go_spec.html | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

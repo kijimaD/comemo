@@ -1,20 +1,22 @@
-commit 97711bfd60575b2f51e212b0b5181729597e9091
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 6 09:07:03 2020 -0700
+commit 9f93fd225ffbafa2194303334b38c7db9ded3800
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 29 15:25:22 2019 -0400
 
-    runtime: skip TestPingPongHog in race mode
+    cmd/go/internal/modfile: don't use cmd/internal/diff
     
-    TestPingPongHog tests properties of the scheduler.
-    But the race detector intentionally does randomized scheduling,
-    so the test is not applicable.
+    This is a partial revert of CL 203218.
     
-    Fixes #38266
+    cmd/go/internal/modfile is about to be deleted and replaced with
+    golang.org/x/mod/modfile in CL 202698. cmd/internal/diff is not
+    visible from golang.org/x/mod/modfile, and it doesn't make sense to
+    extract it into a new package there.
     
-    Change-Id: Ib06aa317b2776cb1faa641c4e038e2599cf70b2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227344
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #31761
+    
+    Change-Id: I3bbbc4cae81120020e1092c1138524729530b415
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204103
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/proc_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/internal/modfile/read_test.go | 33 +++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)

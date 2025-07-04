@@ -1,19 +1,50 @@
-commit c7917de0bb9c280ffb4d80c8551f8b790c30259e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 10 19:05:45 2016 -0800
+commit 7fa984674971e801c549e4e2f1715f6f39c962e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 5 19:40:25 2016 +0000
 
-    cmd/compile: simplify transformclosure
+    net/http: tighten protocol between Transport.roundTrip and persistConn.readLoop
     
-    Use idiomatic slicing operations instead of incrementally building a
-    linked list.
+    In debugging the flaky test in #13825, I discovered that my previous
+    change to tighten and simplify the communication protocol between
+    Transport.roundTrip and persistConn.readLoop in
+    https://golang.org/cl/17890 wasn't complete.
     
-    Passes toolstash -cmp.
+    This change simplifies it further: the buffered-vs-unbuffered
+    complexity goes away, and we no longer need to re-try channel reads in
+    the select case. It was trying to prioritize channels in the case that
+    two were readable in the select. (it was only failing in the race builder
+    because the race builds randomize select scheduling)
     
-    Change-Id: Idb0e40c7b4d7d1110d23828afa8ae1d157ba905f
-    Reviewed-on: https://go-review.googlesource.com/20556
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The problem was that in the bodyless response case we had to return
+    the idle connection before replying to roundTrip. But putIdleConn
+    previously both added it to the free list (which we wanted), but also
+    closed the connection, which made the caller goroutine
+    (Transport.roundTrip) have two readable cases: pc.closech, and the
+    response. We guarded against similar conditions in the caller's select
+    for two readable channels, but such a fix wasn't possible here, and would
+    be overly complicated.
+    
+    Instead, switch to unbuffered channels. The unbuffered channels were only
+    to prevent goroutine leaks, so address that differently: add a "callerGone"
+    channel closed by the caller on exit, and select on that during any unbuffered
+    sends.
+    
+    As part of the fix, split putIdleConn into two halves: a part that
+    just returns to the freelist, and a part that also closes. Update the
+    four callers to the variants each wanted.
+    
+    Incidentally, the connections were closing on return to the pool due
+    to MaxIdleConnsPerHost (somewhat related: #13801), but this bug
+    could've manifested for plenty of other reasons.
+    
+    Fixes #13825
+    
+    Change-Id: I6fa7136e2c52909d57a22ea4b74d0155fdf0e6fa
+    Reviewed-on: https://go-review.googlesource.com/18282
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 27 +++++++++++----------------
- 1 file changed, 11 insertions(+), 16 deletions(-)
+ src/net/http/export_test.go |   4 +-
+ src/net/http/transport.go   | 176 ++++++++++++++++++++++++++------------------
+ 2 files changed, 108 insertions(+), 72 deletions(-)

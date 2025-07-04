@@ -1,16 +1,24 @@
-commit 77faa652c1d3b351272940fe9bb0e6400dfc9f63
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 14 00:46:03 2018 -0700
+commit 76dc4b1952b93a4e804ecb9a6126620ef9399d36
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 12:17:37 2017 -0500
 
-    net: use retry in TestLookupGmailNS
+    cmd/go: ignore vet typecheck failure during go test
     
-    There are two flakes present on the dashboard for this test.
+    For Go 1.10, works around a go/types bug that can't typecheck
+    a corner-case type cycle. Once we are confident that bugs like
+    this are gone from go/types then we can stop ignoring these
+    failures.
     
-    Change-Id: I4abec972586314fbafe7db5760b91afd7ae47fd3
-    Reviewed-on: https://go-review.googlesource.com/106980
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    For #22890.
+    
+    Change-Id: I38da57e01a0636323e1af4484c30871786125df3
+    Reviewed-on: https://go-review.googlesource.com/81500
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_test.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                 |  3 +++
+ src/cmd/go/internal/work/exec.go      |  9 +++++++++
+ src/cmd/go/testdata/src/vetcycle/p.go | 12 ++++++++++++
+ src/cmd/vet/main.go                   |  8 ++++++++
+ 4 files changed, 32 insertions(+)

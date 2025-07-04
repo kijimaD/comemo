@@ -1,23 +1,54 @@
-commit 048de7b1fdfbedd99af4b1f14133ac7e221cb79a
-Author: Florian Uekermann <florian@uekermann.me>
-Date:   Fri Dec 1 20:01:55 2017 +0100
+commit fffb3a5c20b31a8d6916697ebac19ac9e8d3f6e7
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue May 15 09:55:46 2018 +0300
 
-    time: return first error in unsuccessful calls to LoadLocation
+    testing: make indentation consistent in sub-tests
     
-    Unsuccessful calls to LoadLocation previously returned the first
-    error encountered while traversing the default list of sources, but
-    ignored errors from sources specified by ZONEINFO. Whether errors
-    indicating missing zones or sources were ignored in this process
-    differed between kinds of sources.
-    With this change, unsuccessful calls to LoadLocation always return
-    the first error, not counting errors indicating missing zones or
-    sources.
+    Instead of mixed usage of spaces and tabs for indentation,
+    just use 4 spaces instead of one tab.
     
-    Change-Id: Ief2c088f1df53d974b837e6565e784c2b9928ef4
-    Reviewed-on: https://go-review.googlesource.com/c/81595
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This test:
+    
+    func TestX(t *testing.T) {
+            t.Error("1\nnew line")
+            t.Error("2")
+            t.Error("3")
+            t.Run("Y", func(t *testing.T) {
+                    t.Error("2")
+                    t.Error("2b\nnew line")
+                    t.Run("Z", func(t *testing.T) {
+                            t.Error("3\nnew line")
+                    })
+            })
+            t.Error("4")
+    }
+    
+    produces following output:
+    
+    --- FAIL: TestX (0.00s)
+        indent_test.go:6: 1
+            new line
+        indent_test.go:7: 2
+        indent_test.go:8: 3
+        --- FAIL: TestX/Y (0.00s)
+            indent_test.go:10: 2
+            indent_test.go:11: 2b
+                new line
+            --- FAIL: TestX/Y/Z (0.00s)
+                indent_test.go:13: 3
+                    new line
+        indent_test.go:16: 4
+    FAIL
+    
+    Fixes #25369
+    
+    Change-Id: Ib3b5da45ab3ee670c6e8a23172e7cbefb94c5e60
+    Reviewed-on: https://go-review.googlesource.com/113177
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/time/zoneinfo.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go   | 32 ++++++++++++++++----------------
+ src/testing/sub_test.go | 32 ++++++++++++++++----------------
+ src/testing/testing.go  | 10 +++++-----
+ 3 files changed, 37 insertions(+), 37 deletions(-)

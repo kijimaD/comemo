@@ -1,20 +1,55 @@
-commit 7b57e21a075b876903c735b3988a5be86c01f078
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 1 19:26:33 2017 +0000
+commit 50f1f639a42e0713c224b1937ebcda81f9f76e7b
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Aug 21 12:12:41 2017 +0300
 
-    runtime: skip gdb tests earlier before blocking goroutines in a t.Parallel
+    cmd/asm: add most SSE4 missing instructions
     
-    Minor.
+    Instructions added:
+      INSERTPS immb, r/m, xmm
+      MPSADBW immb, r/m, xmm
+      BLENDPD immb, r/m, xmm
+      BLENDPS immb, r/m, xmm
+      DPPD immb, r/m, xmm
+      DPPS immb, r/m, xmm
+      MOVNTDQA r/m, xmm
+      PACKUSDW r/m, xmm
+      PBLENDW immb, r/m, xmm
+      PCMPEQQ r/m, xmm
+      PCMPGTQ r/m, xmm
+      PCMPISTRI immb, r/m, xmm
+      PCMPISTRM immb, r/m, xmm
+      PMAXSB r/m, xmm
+      PMAXSD r/m, xmm
+      PMAXUD r/m, xmm
+      PMAXUW r/m, xmm
+      PMINSB r/m, xmm
+      PMINSD r/m, xmm
+      PMINUD r/m, xmm
+      PMINUW r/m, xmm
+      PTEST r/m, xmm
+      PCMPESTRM immb, r/m, xmm
     
-    Makes reading failing runtime test stacktraces easier (by having fewer
-    goroutines to read) on machines where these gdb tests wouldn't have
-    ever run anyway.
+    Note: only 'optab' table is extended.
     
-    Change-Id: I3fab0667e017f20ef3bf96a8cc4cfcc614d25b5c
-    Reviewed-on: https://go-review.googlesource.com/81575
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    `EXTRACTPS immb, xmm, r/m` is not included in this
+    change due to new ytab set 'yextractps'. This should simplify
+    code review.
+    
+    4-operand instructions are a subject of upcoming changes that
+    make 4-th (and so on) operands explicit.
+    Related TODO note in asm6.go:
+    "dont't hide 4op, some version have xmm version".
+    
+    Part of the mission to add missing amd64 SSE4 instructions to Go asm.
+    
+    Change-Id: I71716df14a8a5332e866dd0f0d52d43d7714872f
+    Reviewed-on: https://go-review.googlesource.com/57470
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/runtime/runtime-gdb_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 360 +++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  23 ++
+ src/cmd/internal/obj/x86/anames.go           |  23 ++
+ src/cmd/internal/obj/x86/asm6.go             |  28 +++
+ 4 files changed, 254 insertions(+), 180 deletions(-)

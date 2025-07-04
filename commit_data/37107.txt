@@ -1,41 +1,18 @@
-commit 66bb8ddb956c5ee55b471a019fac2c6817c08ef5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 24 12:01:13 2018 -0400
+commit 578b961727e65787160af389272517098b37b4ef
+Author: Andrew Braunstein <awbraunstein@gmail.com>
+Date:   Thu Jun 28 18:49:30 2018 +0000
 
-    cmd/go, cmd/link: silence bogus Apple Xcode warning
+    text/template/parse: fix a comment around the assign operator
     
-    Certain installations of Xcode are affected by a bug that causes
-    them to print an inconsequential link-time warning that looks like:
+    Fix a comment that misrepresented the Assign operator (=).
     
-            ld: warning: text-based stub file /System/Library/Frameworks//Security.framework/Security.tbd and library file /System/Library/Frameworks//Security.framework/Security are out of sync. Falling back to library file for linking.
+    Rename: colon-equals -> equals.
     
-    This has nothing to do with Go, and we've sent this repro case
-    to Apple:
-    
-            $ pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | grep version
-            version: 10.0.0.0.1.1535735448
-            $ clang --version
-            Apple LLVM version 10.0.0 (clang-1000.10.44.2)
-            Target: x86_64-apple-darwin17.7.0
-            Thread model: posix
-            InstalledDir: /Library/Developer/CommandLineTools/usr/bin
-            $ cat > issue.c
-            int main() { return 0; }
-            ^D
-            $ clang issue.c -framework CoreFoundation
-            ld: warning: text-based stub file /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation.tbd and library file /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation are out of sync. Falling back to library file for linking.
-            $
-    
-    Even if Apple does release a fixed Xcode, many people are seeing
-    this useless warning, and we might as well make it go away.
-    
-    Fixes #26073.
-    
-    Change-Id: Ifc17ba7da1f6b59e233c11ebdab7241cb6656324
-    Reviewed-on: https://go-review.googlesource.com/c/144112
+    Change-Id: I405b8acfb0bcd1b176a91a95f9bfb61a4e85815f
+    GitHub-Last-Rev: aec0bf594c63d7b015f88f97f9953ade976817a4
+    GitHub-Pull-Request: golang/go#26112
+    Reviewed-on: https://go-review.googlesource.com/121416
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/work/exec.go | 27 +++++++++++++++++++++++++--
- src/cmd/link/internal/ld/lib.go  | 19 +++++++++++++++++--
- 2 files changed, 42 insertions(+), 4 deletions(-)
+ src/text/template/parse/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

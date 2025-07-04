@@ -1,13 +1,20 @@
-commit 5bfafff03f42df38c3088c266ca23d57c9fc3342
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:51:11 2016 +0200
+commit e42ae65a85079a9f39d0fb4837a78172ad898d84
+Author: Quentin Smith <quentin@golang.org>
+Date:   Wed Sep 7 18:07:45 2016 -0400
 
-    cmd/vet: add support for GOARCH=mips{,le}
+    time: improve Truncate and Round documentation
     
-    Change-Id: Ie7b40cc67e9901e252a4a48225bbd745a66d2673
-    Reviewed-on: https://go-review.googlesource.com/31511
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Truncate and Round operate on absolute time, which means that
+    Truncate(Hour) may return a time with non-zero Minute(). Document that
+    more clearly, and remove the misleading example which suggests it is
+    safe.
+    
+    Updates #16647
+    
+    Change-Id: I930584ca030dd12849195d45e49ed2fb74e0c9ac
+    Reviewed-on: https://go-review.googlesource.com/28730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/asmdecl.go      |   6 +-
- src/cmd/vet/testdata/asm8.s | 165 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 170 insertions(+), 1 deletion(-)
+ src/time/example_test.go | 18 ++++++++----------
+ src/time/time.go         | 10 ++++++++++
+ 2 files changed, 18 insertions(+), 10 deletions(-)

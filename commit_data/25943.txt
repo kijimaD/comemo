@@ -1,21 +1,14 @@
-commit ccf39a23b17f5b5ed301c0016d520e44310fced3
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Feb 27 00:49:08 2016 +0100
+commit c6d660a330cc12849aceb27b72abc74eb54393fe
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 16:31:20 2015 -0700
 
-    debug/gosym: fix TestPCLine on Plan 9
+    net/http: make TestRedirect also test in http2 mode
     
-    Plan 9 doesn't define main, so the INITENTRY
-    symbol remains with the SXREF type, which leads
-    Entryvalue to fail on "entry not text: main".
-    
-    Fixes #14536.
-    
-    Change-Id: Id9b7d61e5c2202aba3ec9cd52f5b56e0a38f7c47
-    Reviewed-on: https://go-review.googlesource.com/19973
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idfbe91abc11b2b3b735cd8d11fb1938f9e5c0473
+    Reviewed-on: https://go-review.googlesource.com/17437
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/gosym/pclntab_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

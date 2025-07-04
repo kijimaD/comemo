@@ -1,19 +1,20 @@
-commit 14abe8aa7324bdf0e09e1dfebfb3519cc30f4918
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jul 1 16:33:54 2022 +0700
+commit 18c288ef8b8a3e7d2c02d3bb4c06e9f7c006b9da
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Aug 16 16:16:51 2021 -0700
 
-    cmd/compile: don't convert to interface{} for un-comparable types in generic switch
+    [dev.fuzz] internal/fuzz: ensure crash is written if minimization interrupted
     
-    Fixes #53635
+    If any error occurs when minimizing a crash, for example, the user
+    presses ^C because minimization is taking too long, the coordinator
+    will now write the unminimized crash to testdata.
     
-    Change-Id: I41f383be8870432fc0d29fa83687911ddd8217f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415634
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0c754125781eb184846e496c728e0505a28639d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342995
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  3 +++
- test/fixedbugs/issue53635.go              | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/internal/fuzz/fuzz.go | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)

@@ -1,17 +1,23 @@
-commit 2955a8a6cccc4afe53da266bbb0b8f6fe52974aa
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Mon Nov 13 22:05:45 2017 -0800
+commit d05a1238d6811aa11abf117e668cd9c4f4c15e6a
+Author: Kashav Madan <kshvmdn@gmail.com>
+Date:   Tue Jun 27 19:29:59 2017 -0400
 
-    math/big: clarify comment on lehmerGCD overflow
+    cmd/compile: avoid duplicate cast error
     
-    A clarifying comment was added to indicate that overflow of a
-    single Word is not possible in the single digit calculation.
-    Lehmer's paper includes a proof of the bounds on the size of the
-    cosequences (u0, u1, u2, v0, v1, v2).
+    If an error was already printed during LHS conversion step, we don't reprint
+    the "cannot convert" error.
     
-    Change-Id: I98127a07aa8f8fe44814b74b2bc6ff720805194b
-    Reviewed-on: https://go-review.googlesource.com/77451
+    In particular, this prevents `_ = int("1")` (and all similar casts) from
+    resulting in multiple identical error messages being printed.
+    
+    Fixes #20812.
+    
+    Change-Id: If6e52c59eab438599d641ecf6f110ebafca740a9
+    Reviewed-on: https://go-review.googlesource.com/46912
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/int.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go     |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue20812.go             | 15 +++++++++++++++
+ test/rename1.go                          |  4 ++--
+ 4 files changed, 19 insertions(+), 4 deletions(-)

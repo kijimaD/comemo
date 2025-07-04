@@ -1,16 +1,25 @@
-commit 33d20760a23acffd3b200b922c5687ed2aeb74cc
-Author: Alex Harford <alex.harford@saucelabs.com>
-Date:   Fri Dec 6 23:27:29 2019 +0000
+commit 483d6d99256b3c486e0c99106e232b4909938328
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 22:00:42 2019 +1000
 
-    crypto/tls: fix a typo in TLS handshake comment
+    archive/zip: remove unused special case
     
-    Fix a minor typo in the TLS handshake comment.
+    This removes a special case that was added to fix issue #10956, but that
+    was never actually effective. The code in the test case still fails to
+    read, so perhaps the zip64 support added in CL 6463050 inadvertently
+    caught this particular case.
     
-    Change-Id: I0fd243e5440f6c77c97e844e6669a7974a2c8798
-    GitHub-Last-Rev: 21e91a1a48e8a9200e6fca89a988e1383ded7bb2
-    GitHub-Pull-Request: golang/go#36030
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210289
+    It's possible that the original theorized bug still exists, but I'm not
+    convinced it was ever fixed.
+    
+    Update #28700
+    
+    Change-Id: I4854de616364510f64a6def30b308686563f8dbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179757
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/conn.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/zip/reader.go      |  4 ----
+ src/archive/zip/reader_test.go | 12 +++++++-----
+ 2 files changed, 7 insertions(+), 9 deletions(-)

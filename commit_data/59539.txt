@@ -1,19 +1,73 @@
-commit bc5aa2f7d3e1deb5468432230c438a8a9e8de316
-Author: Mark Freeman <mark@golang.org>
-Date:   Fri Apr 4 10:44:38 2025 -0700
+commit c9c88d73f5cb58d0e40cb1b0481c102e6b8b24f1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 20 21:16:33 2024 +0000
 
-    go/types, types2: improve error message for init without body
+    runtime: add tracing for iter.Pull
     
-    Change-Id: I8a684965e88e0e33a6ff33a16e08d136e3267f7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663636
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    This change resolves a TODO in the coroutine switch implementation (used
+    exclusively by iter.Pull at the moment) to enable tracing. This was
+    blocked on eliminating the atomic load in the tracer's "off" path
+    (completed in the previous CL in this series) and the addition of new
+    tracer events to minimize the overhead of tracing in this circumstance.
+    
+    This change introduces 3 new event types to support coroutine switches:
+    GoCreateBlocked, GoSwitch, and GoSwitchDestroy.
+    
+    GoCreateBlocked needs to be introduced because the goroutine created for
+    the coroutine starts out in a blocked state. There's no way to represent
+    this in the tracer right now, so we need a new event for it.
+    
+    GoSwitch represents the actual coroutine switch, which conceptually
+    consists of a GoUnblock, a GoBlock, and a GoStart event in series
+    (unblocking the next goroutine to run, blocking the current goroutine,
+    and then starting the next goroutine to run).
+    
+    GoSwitchDestroy is closely related to GoSwitch, implementing the same
+    semantics except that GoBlock is replaced with GoDestroy. This is used
+    when exiting the coroutine.
+    
+    The implementation of all this is fairly straightforward, and the trace
+    parser simply translates GoSwitch* into the three constituent events.
+    
+    Because GoSwitch and GoSwitchDestroy imply a GoUnblock and a GoStart,
+    they need to synchronize with other past and future GoStart events to
+    create a correct partial ordering in the trace. Therefore, these events
+    need a sequence number for the goroutine that will be unblocked and
+    started.
+    
+    Also, while implementing this, I noticed that the coroutine
+    implementation is actually buggy with respect to LockOSThread. In fact,
+    it blatantly disregards its invariants without an explicit panic. While
+    such a case is likely to be rare (and inefficient!) we should decide how
+    iter.Pull behaves with respect to runtime.LockOSThread.
+    
+    Lastly, this change also bumps the trace version from Go 1.22 to Go
+    1.23. We're adding events that are incompatible with a Go 1.22 parser,
+    but Go 1.22 traces are all valid Go 1.23 traces, so the newer parser
+    supports both (and the CL otherwise updates the Go 1.22 definitions of
+    events and such). We may want to reconsider the structure and naming of
+    some of these packages though; it could quickly get confusing.
+    
+    For #61897.
+    
+    Change-Id: I96897a46d5852c02691cde9f957dc6c13ef4d8e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565937
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/resolver.go                   | 4 +---
- src/go/internal/srcimporter/srcimporter_test.go               | 2 +-
- src/go/internal/srcimporter/testdata/issue20855/issue20855.go | 2 +-
- src/go/types/resolver.go                                      | 4 +---
- src/internal/types/testdata/check/decls0.go                   | 2 +-
- test/fixedbugs/issue3705.go                                   | 2 +-
- 6 files changed, 6 insertions(+), 10 deletions(-)
+ src/internal/trace/v2/event.go                     | 16 +++-
+ src/internal/trace/v2/event/go122/event.go         | 21 +++++
+ src/internal/trace/v2/order.go                     | 94 +++++++++++++++++++---
+ src/internal/trace/v2/reader.go                    |  2 +-
+ .../trace/v2/testdata/testprog/iter-pull.go        | 85 +++++++++++++++++++
+ src/internal/trace/v2/trace_test.go                |  6 +-
+ src/internal/trace/v2/version/version.go           |  7 +-
+ src/runtime/coro.go                                | 38 +++++++--
+ src/runtime/debugcall.go                           |  2 +-
+ src/runtime/proc.go                                | 19 +++--
+ src/runtime/trace.go                               | 12 ++-
+ src/runtime/trace2.go                              |  2 +-
+ src/runtime/trace2event.go                         |  5 ++
+ src/runtime/trace2runtime.go                       | 40 +++++++--
+ 14 files changed, 306 insertions(+), 43 deletions(-)

@@ -1,16 +1,14 @@
-commit 8818b4d27e3a076ae779051cce4d5831581269a6
-Author: Ryan Slade <ryanslade@gmail.com>
-Date:   Thu Apr 5 13:27:44 2018 +0000
+commit 5051671c7e1dd026c6b19a83e944b6b43f5fe5c3
+Author: Tom Lanyon <tomlanyon@google.com>
+Date:   Tue Nov 7 16:16:24 2017 +1100
 
-    net/http: fix comment on LocalAddrContextKey
+    os/exec: update docs for cmd.Std{out,err} and cmd.Wait to clarify how copying is done
     
-    Change-Id: Ibb793158a190758cebc00b58c12e3b8b106c0548
-    GitHub-Last-Rev: 6a6d949eb252ec6d3e76920fc2f50ef5ac3cdb5a
-    GitHub-Pull-Request: golang/go#24702
-    Reviewed-on: https://go-review.googlesource.com/104896
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #22610.
+    
+    Change-Id: I172fe1d1941a8a2750af7ee75f7af7e81a702c40
+    Reviewed-on: https://go-review.googlesource.com/76320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/exec/exec.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

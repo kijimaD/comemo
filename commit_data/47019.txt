@@ -1,31 +1,337 @@
-commit c26a32a5004afd4598f844ab49332c25d7613133
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 21 18:04:55 2021 -0700
+commit 7cdfa4969a5a13cd4b81daa2acad7574a14dfb2e
+Merge: 6521c7b378 06b86e9803
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 11:56:01 2021 -0800
 
-    cmd/compile,cmd/link: introduce generic interface call relocations
+    [dev.typeparams] all: merge master (06b86e9) into dev.typeparams
     
-    To capture the fact that a method was called on a generic interface,
-    so we can make sure the linker doesn't throw away any implementations
-    that might be the method called.
+    Merge List:
     
-    See the comment in reflect.go for details.
+    + 2021-02-19 06b86e9803 cmd/compile:  fix check to avoid creating new closure function when typechecking inline body
+    + 2021-02-19 9322eec8a2 codereview.cfg: add codereview.cfg for master branch
+    + 2021-02-19 02e5a8fdfc runtime: ignore SPWRITE in syscall functions
+    + 2021-02-19 fa18f224c3 runtime/pprof: disable TestMorestack on macOS under race detector
+    + 2021-02-19 01eb70e3dd os: fix hex exit code print on 32-bit windows
+    + 2021-02-19 49add6ad90 runtime: fix spurious stack overflow detection
+    + 2021-02-19 fce2a94d84 cmd/compile: fix buglet in inlined info abstract function dwarf-gen
+    + 2021-02-19 7764ee5614 runtime: fix invalid nil g check for for mips64x
+    + 2021-02-19 87f425da14 cmd/go/internal/mvs: split Reqs into narrower per-function interfaces
+    + 2021-02-19 4da0188c6c cmd/go/internal/modget: split resolveCandidates into two methods
+    + 2021-02-19 5f2e24efb3 cmd/internal/diff: skip over Cygwin warning in diff output
+    + 2021-02-19 ee7038f6a5 net: disable Windows netsh tests when netsh won't run
+    + 2021-02-19 40765ffa95 os/exec: disable failing LookPathTest on windows/arm64
+    + 2021-02-19 b445d6ea34 runtime/pprof: expect tests to pass on macOS
+    + 2021-02-19 b110a43628 runtime: delete gosave (dead code)
+    + 2021-02-19 474d5f4f4d math: remove most 387 implementations
+    + 2021-02-19 c7c6c113be runtime: convert windows/arm64 assembly
+    + 2021-02-19 3527caa7d6 runtime: initial windows/arm64 implementation files
+    + 2021-02-19 427bd7599d runtime: generate windows/arm64 callback asm
+    + 2021-02-19 f6c4b4bf96 syscall: add windows/arm64 support
+    + 2021-02-19 ac024a0c7b cmd/vendor: get golang.org/x/sys@beda7e5e158
+    + 2021-02-19 a3b97e7628 test: disable nilptr on windows/arm64
+    + 2021-02-19 985d087782 cmd/link: add windows/arm64 support
+    + 2021-02-19 95a44d2409 cmd/internal/objfile: recognize Windows ARM64 executables
+    + 2021-02-19 0ca0551f02 debug/pe: recognize arm64 executables
+    + 2021-02-19 0c633125f2 cmd/dist: add windows/arm64 support
+    + 2021-02-19 bb6efb9609 build: set GOPATH consistently in run.bash, run.bat, run.rc
+    + 2021-02-19 a1222b7535 cmd/link: add debug print in deadcode
+    + 2021-02-19 1c659f2525 cmd/link: clean up windows PE generation
+    + 2021-02-19 b6379f190b syscall: clean up windows a bit
+    + 2021-02-19 09e059afb1 runtime: enable framepointer on all arm64
+    + 2021-02-19 b19e7b518e runtime: clean up windows a bit
+    + 2021-02-19 5421c37a1d runtime: fix windows/arm externalthreadhandler
+    + 2021-02-19 91cc484ea9 runtime: fix time on windows/arm under WINE
+    + 2021-02-19 38672d3dcf runtime: crash earlier on windows for runtime.abort
+    + 2021-02-19 a1e9148e3d runtime: print hex numbers with hex prefixes in traceback debug
+    + 2021-02-19 75e273fc2c runtime: fix windows/arm CONTEXT_CONTROL
+    + 2021-02-19 76ab626bfc runtime: factor common code out of defs_windows_*.go
+    + 2021-02-19 ece954d8b8 runtime: find g in Windows profiler using SP
+    + 2021-02-19 a54f7fc0fd runtime: do not treat asmcgocall as a topofstack on g0
+    + 2021-02-19 776ee4079a runtime: do not treat morestack as a topofstack
+    + 2021-02-19 5ecd9e34df runtime: do not treat mcall as a topofstack
+    + 2021-02-19 54da3ab385 runtime: use TOPFRAME to identify top-of-frame functions
+    + 2021-02-19 fbe74dbf42 runtime: use FuncInfo SPWRITE flag to identify untraceable profile samples
+    + 2021-02-19 4dd77bdc91 cmd/asm, cmd/link, runtime: introduce FuncInfo flag bits
+    + 2021-02-19 aa0388f2ed runtime: remove unnecessary writes to gp.sched.g
+    + 2021-02-19 6fe8981620 cmd/internal/obj/riscv: fix JMP name<>(SB)
+    + 2021-02-19 01f05d8ff1 runtime: unify asmcgocall and systemstack traceback setup
+    + 2021-02-19 229695a283 runtime: clean up funcID assignment
+    + 2021-02-19 c80da0a33a runtime: handle nil gp in cpuprof
+    + 2021-02-19 a78879ac67 runtime: move sys.DefaultGoroot to runtime.defaultGOROOT
+    + 2021-02-19 8ac23a1f15 runtime: document, clean up internal/sys
+    + 2021-02-19 678568a5cf runtime: delete windows setlasterror (unused)
+    + 2021-02-19 0d94f989d1 runtime: clean up system calls during cgo callback init
+    + 2021-02-19 e7ee3c1fa8 os: report Windows exit status in hex
     
-    Fixes #49049
-    
-    Change-Id: I0be74b6e727c1ecefedae072b149f59d539dc1e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357835
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ib27e232dabac0604b588f27749bd8ad45a281fe3
 
- src/cmd/compile/internal/reflectdata/reflect.go | 28 ++++++++-
- src/cmd/compile/internal/walk/expr.go           | 12 +---
- src/cmd/internal/objabi/reloctype.go            |  5 ++
- src/cmd/internal/objabi/reloctype_string.go     | 79 +++++++++++++------------
- src/cmd/link/internal/ld/deadcode.go            | 24 ++++++--
- test/typeparam/issue49049.go                    | 27 +++++++++
- 6 files changed, 119 insertions(+), 56 deletions(-)
+ misc/cgo/test/callback.go                          |    2 +-
+ src/cmd/asm/internal/asm/endtoend_test.go          |    2 +
+ src/cmd/asm/internal/flags/flags.go                |    2 +
+ src/cmd/asm/main.go                                |    1 +
+ src/cmd/compile/internal/dwarfgen/dwarf.go         |    3 +-
+ src/cmd/compile/internal/dwarfgen/scope.go         |    4 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |    3 +-
+ src/cmd/compile/internal/test/fixedbugs_test.go    |    2 +-
+ src/cmd/compile/internal/test/global_test.go       |    4 +-
+ src/cmd/compile/internal/typecheck/func.go         |   11 +-
+ src/cmd/dist/build.go                              |    1 +
+ src/cmd/dist/sys_windows.go                        |    5 +
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ src/cmd/go/internal/modget/get.go                  |  106 +-
+ src/cmd/go/internal/mvs/mvs.go                     |   16 +-
+ src/cmd/internal/diff/diff.go                      |   20 +
+ src/cmd/internal/goobj/funcinfo.go                 |   60 +-
+ src/cmd/internal/goobj/objfile.go                  |    2 -
+ src/cmd/internal/obj/arm/obj5.go                   |   16 +
+ src/cmd/internal/obj/arm64/a.out.go                |    2 +-
+ src/cmd/internal/obj/arm64/obj7.go                 |  307 +-
+ src/cmd/internal/obj/link.go                       |   23 +-
+ src/cmd/internal/obj/mips/obj0.go                  |   16 +
+ src/cmd/internal/obj/objfile.go                    |   12 +-
+ src/cmd/internal/obj/plist.go                      |   10 +-
+ src/cmd/internal/obj/ppc64/obj9.go                 |   16 +
+ src/cmd/internal/obj/riscv/obj.go                  |   22 +-
+ src/cmd/internal/obj/s390x/objz.go                 |   16 +
+ src/cmd/internal/obj/util.go                       |    2 +-
+ src/cmd/internal/obj/x86/obj6.go                   |   15 +
+ src/cmd/internal/objabi/funcid.go                  |  124 +-
+ src/cmd/internal/objabi/util.go                    |    2 +-
+ src/cmd/internal/objfile/pe.go                     |    2 +
+ src/cmd/link/internal/arm64/asm.go                 |   34 +
+ src/cmd/link/internal/arm64/obj.go                 |    5 +
+ src/cmd/link/internal/ld/config.go                 |    6 +-
+ src/cmd/link/internal/ld/deadcode.go               |    4 +
+ src/cmd/link/internal/ld/dwarf.go                  |    4 +-
+ src/cmd/link/internal/ld/main.go                   |    2 +-
+ src/cmd/link/internal/ld/pcln.go                   |    9 +-
+ src/cmd/link/internal/ld/pe.go                     |   98 +-
+ src/cmd/link/internal/loader/loader.go             |   37 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    6 +-
+ .../vendor/golang.org/x/sys/unix/ptrace_darwin.go  |   11 +
+ src/cmd/vendor/golang.org/x/sys/unix/ptrace_ios.go |   11 +
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   10 +-
+ .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |    8 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   24 +-
+ .../golang.org/x/sys/unix/syscall_darwin_386.go    |    2 +-
+ .../golang.org/x/sys/unix/syscall_darwin_amd64.go  |    2 +-
+ .../golang.org/x/sys/unix/syscall_darwin_arm.go    |    2 +-
+ .../golang.org/x/sys/unix/syscall_darwin_arm64.go  |    2 +-
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |   17 +-
+ .../golang.org/x/sys/unix/syscall_freebsd.go       |    8 +-
+ .../golang.org/x/sys/unix/syscall_illumos.go       |   13 -
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   18 +-
+ .../golang.org/x/sys/unix/syscall_linux_386.go     |    6 +-
+ .../golang.org/x/sys/unix/syscall_linux_amd64.go   |    2 +-
+ .../golang.org/x/sys/unix/syscall_linux_arm.go     |   10 +-
+ .../golang.org/x/sys/unix/syscall_linux_arm64.go   |    2 +-
+ .../golang.org/x/sys/unix/syscall_linux_mips64x.go |    2 +-
+ .../golang.org/x/sys/unix/syscall_linux_mipsx.go   |    8 +-
+ .../golang.org/x/sys/unix/syscall_linux_ppc64x.go  |    4 +-
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |    2 +-
+ .../golang.org/x/sys/unix/syscall_linux_s390x.go   |    2 +-
+ .../golang.org/x/sys/unix/syscall_linux_sparc64.go |    4 +-
+ .../vendor/golang.org/x/sys/unix/syscall_netbsd.go |   21 +-
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |    4 +-
+ .../golang.org/x/sys/unix/syscall_solaris.go       |   16 +-
+ src/cmd/vendor/golang.org/x/sys/unix/timestruct.go |   26 +-
+ .../golang.org/x/sys/unix/zerrors_darwin_amd64.go  |   62 +-
+ .../golang.org/x/sys/unix/zerrors_darwin_arm64.go  |   62 +-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  157 +-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |    9 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |    6 +-
+ .../x/sys/unix/zerrors_linux_mips64le.go           |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |    6 +-
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |    6 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_386.go   |    8 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |    8 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm.go   |    6 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |    8 +-
+ .../x/sys/unix/zsyscall_dragonfly_amd64.go         |    6 +-
+ .../x/sys/unix/zsyscall_illumos_amd64.go           |   15 +-
+ .../golang.org/x/sys/unix/zsyscall_netbsd_386.go   |   10 +
+ .../golang.org/x/sys/unix/zsyscall_netbsd_amd64.go |   10 +
+ .../golang.org/x/sys/unix/zsyscall_netbsd_arm.go   |   10 +
+ .../golang.org/x/sys/unix/zsyscall_netbsd_arm64.go |   10 +
+ .../x/sys/unix/zsyscall_solaris_amd64.go           |   27 +
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |    2 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |    2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |    2 +
+ .../vendor/golang.org/x/sys/unix/ztypes_aix_ppc.go |    1 +
+ .../golang.org/x/sys/unix/ztypes_aix_ppc64.go      |    1 +
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |    8 +
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |    8 +
+ .../x/sys/unix/ztypes_dragonfly_amd64.go           |    1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_386.go    |    1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_amd64.go  |    1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm.go    |    1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm64.go  |    1 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 1496 ++++++--
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |    2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |    2 +-
+ .../golang.org/x/sys/unix/ztypes_netbsd_386.go     |    1 +
+ .../golang.org/x/sys/unix/ztypes_netbsd_amd64.go   |    1 +
+ .../golang.org/x/sys/unix/ztypes_netbsd_arm.go     |    1 +
+ .../golang.org/x/sys/unix/ztypes_netbsd_arm64.go   |    1 +
+ .../golang.org/x/sys/unix/ztypes_openbsd_386.go    |    1 +
+ .../golang.org/x/sys/unix/ztypes_openbsd_amd64.go  |    1 +
+ .../golang.org/x/sys/unix/ztypes_openbsd_arm.go    |    1 +
+ .../golang.org/x/sys/unix/ztypes_openbsd_arm64.go  |    1 +
+ .../golang.org/x/sys/unix/ztypes_openbsd_mips64.go |    1 +
+ .../golang.org/x/sys/unix/ztypes_solaris_amd64.go  |    1 +
+ .../golang.org/x/sys/windows/syscall_windows.go    |   35 +-
+ .../golang.org/x/sys/windows/types_windows.go      |  311 +-
+ .../x/sys/windows/types_windows_arm64.go           |   34 +
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |  154 +-
+ src/cmd/vendor/modules.txt                         |    2 +-
+ src/debug/pe/file.go                               |   15 +-
+ src/go.mod                                         |    2 +-
+ src/go.sum                                         |    4 +-
+ src/math/asin_386.s                                |   30 -
+ src/math/atan2_386.s                               |   13 -
+ src/math/atan_386.s                                |   13 -
+ src/math/exp2_386.s                                |   40 -
+ src/math/expm1_386.s                               |   57 -
+ src/math/frexp_386.s                               |   25 -
+ src/math/ldexp_386.s                               |   14 -
+ src/math/log10_386.s                               |   21 -
+ src/math/log1p_386.s                               |   27 -
+ src/math/log_386.s                                 |   13 -
+ src/math/mod_386.s                                 |   17 -
+ src/math/modf_386.s                                |   34 -
+ src/math/remainder_386.s                           |   17 -
+ src/math/stubs_386.s                               |   45 +
+ src/net/net_windows_test.go                        |   17 +-
+ src/os/exec/lp_windows_test.go                     |   19 +-
+ src/os/exec_posix.go                               |    7 +-
+ src/os/str.go                                      |   36 +-
+ src/run.bash                                       |   10 +-
+ src/run.bat                                        |    4 +-
+ src/run.rc                                         |    9 +-
+ src/runtime/asm_386.s                              |   52 +-
+ src/runtime/asm_amd64.s                            |   56 +-
+ src/runtime/asm_arm.s                              |   76 +-
+ src/runtime/asm_arm64.s                            |   69 +-
+ src/runtime/asm_mips64x.s                          |   52 +-
+ src/runtime/asm_mipsx.s                            |   45 +-
+ src/runtime/asm_ppc64x.s                           |   46 +-
+ src/runtime/asm_riscv64.s                          |   44 +-
+ src/runtime/asm_s390x.s                            |   46 +-
+ src/runtime/asm_wasm.s                             |   15 +-
+ src/runtime/cgocall.go                             |    9 +-
+ src/runtime/cpuprof.go                             |   11 +-
+ src/runtime/defs_windows.go                        |  128 +-
+ src/runtime/defs_windows_386.go                    |   84 +-
+ src/runtime/defs_windows_amd64.go                  |   87 +-
+ src/runtime/defs_windows_arm.go                    |   85 +-
+ src/runtime/defs_windows_arm64.go                  |   83 +
+ src/runtime/export_test.go                         |    2 -
+ src/runtime/extern.go                              |    4 +-
+ src/runtime/internal/sys/arch.go                   |   34 +
+ src/runtime/internal/sys/arch_386.go               |   13 +-
+ src/runtime/internal/sys/arch_amd64.go             |   13 +-
+ src/runtime/internal/sys/arch_arm.go               |   13 +-
+ src/runtime/internal/sys/arch_arm64.go             |   13 +-
+ src/runtime/internal/sys/arch_mips.go              |   13 +-
+ src/runtime/internal/sys/arch_mips64.go            |   13 +-
+ src/runtime/internal/sys/arch_mips64le.go          |   13 +-
+ src/runtime/internal/sys/arch_mipsle.go            |   13 +-
+ src/runtime/internal/sys/arch_ppc64.go             |   13 +-
+ src/runtime/internal/sys/arch_ppc64le.go           |   13 +-
+ src/runtime/internal/sys/arch_riscv64.go           |   15 +-
+ src/runtime/internal/sys/arch_s390x.go             |   13 +-
+ src/runtime/internal/sys/arch_wasm.go              |   13 +-
+ src/runtime/internal/sys/stubs.go                  |   16 -
+ src/runtime/memclr_arm.s                           |    1 +
+ src/runtime/memclr_arm64.s                         |    1 +
+ src/runtime/os2_aix.go                             |   42 +-
+ src/runtime/os3_plan9.go                           |    4 -
+ src/runtime/os3_solaris.go                         |   20 +-
+ src/runtime/os_darwin.go                           |    5 +
+ src/runtime/os_dragonfly.go                        |    5 +
+ src/runtime/os_freebsd.go                          |    5 +
+ src/runtime/os_js.go                               |   10 +
+ src/runtime/os_linux.go                            |    5 +
+ src/runtime/os_netbsd.go                           |    5 +
+ src/runtime/os_openbsd_syscall1.go                 |    5 +
+ src/runtime/os_openbsd_syscall2.go                 |    5 +
+ src/runtime/os_plan9.go                            |   10 +
+ src/runtime/os_windows.go                          |   76 +-
+ src/runtime/os_windows_arm64.go                    |   14 +
+ src/runtime/pprof/pprof_test.go                    |   49 +-
+ src/runtime/print.go                               |   26 +-
+ src/runtime/proc.go                                |  146 +-
+ src/runtime/rt0_windows_arm64.s                    |   12 +
+ src/runtime/runtime2.go                            |   13 +-
+ src/runtime/runtime_test.go                        |    4 +-
+ src/runtime/signal_arm64.go                        |    2 +-
+ src/runtime/signal_windows.go                      |   63 +-
+ src/runtime/stack.go                               |    6 +-
+ src/runtime/stubs.go                               |    1 +
+ src/runtime/stubs2.go                              |    5 +
+ src/runtime/stubs_386.go                           |    3 +
+ src/runtime/stubs_amd64.go                         |    5 +
+ src/runtime/stubs_arm.go                           |    5 +
+ src/runtime/stubs_arm64.go                         |    7 +
+ src/runtime/stubs_mips64x.go                       |    5 +
+ src/runtime/symtab.go                              |   49 +-
+ src/runtime/sys_darwin.go                          |    6 +
+ src/runtime/sys_openbsd1.go                        |    5 +
+ src/runtime/sys_openbsd2.go                        |    6 +
+ src/runtime/sys_wasm.go                            |    6 +-
+ src/runtime/sys_windows_386.s                      |   98 +-
+ src/runtime/sys_windows_amd64.s                    |   91 +-
+ src/runtime/sys_windows_arm.s                      |  204 +-
+ src/runtime/sys_windows_arm64.s                    |  579 +++
+ src/runtime/sys_x86.go                             |    6 +-
+ src/runtime/syscall_windows.go                     |    8 +-
+ src/runtime/tls_arm64.h                            |   12 +-
+ src/runtime/tls_arm64.s                            |    8 +-
+ src/runtime/traceback.go                           |  113 +-
+ src/runtime/wincallback.go                         |   29 +
+ src/runtime/zcallback_windows_arm64.s              | 4012 ++++++++++++++++++++
+ src/syscall/syscall_windows.go                     |   27 +-
+ src/syscall/syscall_windows_386.go                 |    5 -
+ src/syscall/syscall_windows_amd64.go               |    5 -
+ src/syscall/types_windows_arm64.go                 |   22 +
+ src/syscall/zerrors_windows_386.go                 |    5 -
+ src/syscall/zerrors_windows_amd64.go               |    5 -
+ src/syscall/zsysnum_windows_386.go                 |    3 -
+ src/syscall/zsysnum_windows_amd64.go               |    3 -
+ src/vendor/modules.txt                             |    2 +-
+ test/fixedbugs/issue44325.dir/a.go                 |   13 +
+ test/fixedbugs/issue44325.dir/b.go                 |   13 +
+ test/fixedbugs/issue44325.go                       |    7 +
+ test/fixedbugs/issue44344.go                       |   30 +
+ test/nilptr.go                                     |    3 +-
+ 269 files changed, 8785 insertions(+), 2733 deletions(-)

@@ -1,30 +1,23 @@
-commit ddb648fdf6c21e7e56a2252df3e3913a212ca4ab
-Author: Eddie Scholtz <escholtz@google.com>
-Date:   Wed Apr 21 11:11:02 2021 -0600
+commit 9fcb5e0c527337c830e95d48d4574930cac53093
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 27 12:59:54 2020 -0700
 
-    archive/zip: add File.OpenRaw, Writer.CreateRaw, Writer.Copy
+    go/internal/gccgoimporter: support notinheap annotation
     
-    These new methods provide support for cases where performance is a
-    primary concern. For example, copying files from an existing zip to a
-    new zip without incurring the decompression and compression overhead.
-    Using an optimized, external compression method and writing the output
-    to a zip archive. And compressing file contents in parallel and then
-    sequentially writing the compressed bytes to a zip archive.
+    The gofrontend has started emitting a notinheap annotation for types
+    marked go:notinheap.
     
-    TestWriterCopy is copied verbatim from https://github.com/rsc/zipmerge
+    For #41761
     
-    Fixes #34974
-    
-    Change-Id: Iade5bc245ba34cdbb86364bf59f79f38bb9e2eb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312310
+    Change-Id: Ic8f7ffc32dbfe98ec09b3d835957f1be8e6c1208
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265702
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/archive/zip/reader.go      | 115 +++++++++++++++++++--------
- src/archive/zip/reader_test.go | 165 ++++++++++++++++++++++++++++++++++++++-
- src/archive/zip/struct.go      |  14 +++-
- src/archive/zip/writer.go      | 135 +++++++++++++++++++++++++++-----
- src/archive/zip/writer_test.go | 173 ++++++++++++++++++++++++++++++++++++++++-
- 5 files changed, 541 insertions(+), 61 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go       | 1 +
+ src/go/internal/gccgoimporter/parser.go              | 7 +++++++
+ src/go/internal/gccgoimporter/testdata/notinheap.go  | 4 ++++
+ src/go/internal/gccgoimporter/testdata/notinheap.gox | 7 +++++++
+ 4 files changed, 19 insertions(+)

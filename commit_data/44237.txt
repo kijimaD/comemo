@@ -1,17 +1,23 @@
-commit ff0e93ea313e53f08018b90bada2edee267a8f55
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 11 16:24:26 2021 -0500
+commit 8be0de1e7e1f1c3f0d2b4b1ab2b4bc96377a3772
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 14 15:03:26 2020 -0400
 
-    doc/go1.16: note that package path elements beginning with '.' are disallowed
+    cmd/go/internal/modload: document mvsReqs.Max
     
-    For #43985
+    The version "" denotes the main module, which has no version. The
+    mvs.Reqs interface documentation hints this is allowed, but it's not
+    obvious from the implementation in modload.mvsReqs.Max.
     
-    Change-Id: I1a16f66800c5c648703f0a0d2ad75024525a710f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291389
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Also, replace a related TODO with a comment in mvs.Downgrade.
+    
+    Fixes #39042
+    
+    Change-Id: I11e10908c9b3d8c2283eaa5c04bd8e1b936851fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234003
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.16.html | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/mvs.go |  6 ++++++
+ src/cmd/go/internal/mvs/mvs.go     | 23 ++++++++++++++++++-----
+ 2 files changed, 24 insertions(+), 5 deletions(-)

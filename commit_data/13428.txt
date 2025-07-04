@@ -1,14 +1,18 @@
-commit a732cbb593c832a72e87c0ab19b6b06369cb7073
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Jul 2 09:33:22 2012 +0800
+commit ed516df4e43c5e3467bd6a39ffc9277157574788
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jul 1 13:10:01 2012 +0400
 
-    cmd/gc: add missing case for OCOM in defaultlit()
-            Fixes #3765.
+    runtime: add freemcache() function
+    It will be required for scheduler that maintains
+    GOMAXPROCS MCache's.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6349064
+    https://golang.org/cl/6350062
 
- src/cmd/gc/const.c       |  3 ++-
- test/fixedbugs/bug445.go | 14 ++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.goc | 18 +++++++++++++-----
+ src/pkg/runtime/malloc.h   |  2 +-
+ src/pkg/runtime/mgc0.c     |  4 ++--
+ src/pkg/runtime/mheap.c    |  4 ++--
+ src/pkg/runtime/runtime.h  |  1 +
+ 5 files changed, 19 insertions(+), 10 deletions(-)

@@ -1,18 +1,19 @@
-commit cb34026a95f0637a0f9eadb5e1d7aa301635f943
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 26 22:08:06 2021 -0700
+commit 755d6de1d8cf9d7fff3a64eac30090cdfebe7c14
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 21:49:57 2020 -0700
 
-    cmd/compile: tighten exportWriter.qualifiedIdent signature
+    [dev.typeparams] cmd/compile/internal/types2: add some more tests
     
-    It always takes an *ir.Name and would panic given anything else
-    anyway, so tighten the signature to match.
-    
-    Change-Id: I44fec5c5cc6d7f0b9c59eb91c9f9633137485360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314009
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I36fce5462d11dd2e8fc9a619118c6a63eed4980a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263633
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .../internal/types2/testdata/issue23203a.src       | 14 ++++
+ .../internal/types2/testdata/issue23203b.src       | 14 ++++
+ .../internal/types2/testdata/issue26390.src        | 11 +++
+ .../internal/types2/testdata/issue28251.src        | 65 +++++++++++++++++
+ .../compile/internal/types2/testdata/issue6977.src | 82 ++++++++++++++++++++++
+ 5 files changed, 186 insertions(+)

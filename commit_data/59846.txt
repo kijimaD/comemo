@@ -1,25 +1,18 @@
-commit 86fca3dcb63157b8e45e565e821e7fb098fcf368
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jun 24 19:00:23 2025 -0700
+commit c5698e31552953a0487ec23e0a015c02067065d3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 15:03:12 2023 +0800
 
-    encoding/json/jsontext: use bytes.Buffer.AvailableBuffer
+    cmd/pprof: fix exception when file or path contains colon
     
-    This logic was added in October, 2021:
+    Fixes #63924
     
-            https://github.com/go-json-experiment/json/commit/0b3bd4e1ed96587be346b7f964d6bb3fcfed65f4
-    
-    before the introduction of bytes.Buffer.AvailableBuffer in March, 2023.
-    
-            https://go.dev/cl/474635
-    
-    Updates #71845
-    
-    Change-Id: I96800e1ba8fce15cc78316779db4ddcd4fe1d510
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/685136
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I4ea17979faaca04eb6b046abffca2dd77397e0cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/json/jsontext/encode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pprof/pprof.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

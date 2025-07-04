@@ -1,23 +1,16 @@
-commit 8bbb08533dab0dcf627db0b76ba65c3fb9b1d682
+commit 081129e286fcda2c9525dd08bd90ff6883df0698
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 28 22:14:47 2013 +0400
+Date:   Tue May 28 21:10:10 2013 +0400
 
-    runtime: make mheap statically allocated again
-    This depends on: 9791044: runtime: allocate page table lazily
-    Once page table is moved out of heap, the heap becomes small.
-    This removes unnecessary dereferences during heap access.
-    No logical changes.
+    runtime: allocate internal symbol table eagerly
+    we need it for GC anyway.
     
-    R=golang-dev, khr
+    R=golang-dev, khr, dave, khr
     CC=golang-dev
-    https://golang.org/cl/9802043
+    https://golang.org/cl/9728044
 
- src/pkg/runtime/malloc.goc |  61 +++++++++++++-------------
- src/pkg/runtime/malloc.h   |   2 +-
- src/pkg/runtime/mcache.c   |   6 +--
- src/pkg/runtime/mcentral.c |   8 ++--
- src/pkg/runtime/mgc0.c     | 106 ++++++++++++++++++++++-----------------------
- src/pkg/runtime/mheap.c    |   8 ++--
- src/pkg/runtime/panic.c    |   2 +-
- src/pkg/runtime/race.c     |   2 +-
- 8 files changed, 96 insertions(+), 99 deletions(-)
+ src/pkg/runtime/cpuprof.c |  4 ----
+ src/pkg/runtime/proc.c    |  6 ++----
+ src/pkg/runtime/runtime.h |  1 +
+ src/pkg/runtime/symtab.c  | 26 ++------------------------
+ 4 files changed, 5 insertions(+), 32 deletions(-)

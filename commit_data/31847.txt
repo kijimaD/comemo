@@ -1,24 +1,17 @@
-commit 6ce5067117268eff1c9ca6077371d7c8f4d749e3
-Author: Marko Mudrinic <mudrinic.mare@gmail.com>
-Date:   Thu Jun 15 19:15:47 2017 +0200
+commit 5dc14af6824ed31eab5a8a16e8e08082c5ddcb14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 17 13:48:56 2017 -0700
 
-    cmd/go: improve documentation on defaults for get
+    runtime: clear signal stack on main thread
     
-    The existing docs states that, get looks for a branch or tag
-    that matches the locally installed version of Go.
-    First, this is only working for "go1", so it could be confusing.
-    Second, "If no such version exists it retrieves the most recent
-    version of the package". It's more the default branch, by git defaults,
-    rather than most recent version.
+    This is a workaround for a FreeBSD kernel bug. It can be removed when
+    we are confident that all people are using the fixed kernel. See #15658.
     
-    This should address the potential unclear parts.
+    Updates #15658.
     
-    Fixes #20320
-    
-    Change-Id: Id7d727d88dc350c9902974b64fa28c3766f7e245
-    Reviewed-on: https://go-review.googlesource.com/45890
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0ecdccb77ddd0c270bdeac4d3a5c8abaf0449075
+    Reviewed-on: https://go-review.googlesource.com/38325
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go          | 4 ++--
- src/cmd/go/internal/get/get.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/os_freebsd.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

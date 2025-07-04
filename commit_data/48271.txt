@@ -1,22 +1,32 @@
-commit 86371b0360302b68c29f5eb39b02b82a52e0e341
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 1 16:30:46 2022 -0600
+commit f62739b8611a0f1c96e59eb6574422562bb46233
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 4 13:24:11 2021 -0400
 
-    cmd/asm,cmd/compile: generate preferred nop on PPC64
+    cmd/compile: establish regabi name/value mapping for small in-params
     
-    The preferred form of nop is ori 0,0,0. What was being generated was
-    or 0,0,0.
+    When the expand_calls phase in the SSA backend lowers prolog OpArg
+    values into OpArgIntReg/OpArgFloatReg values, we don't always record
+    the assocation between the new lowered value and the parameter name.
     
-    Fix a quirk in the assembler which effectively treats OR $0,Rx,Ry as
-    OR R0,Rx,Ry, and update the compiler to generate the preferred form.
+    This patch handles the simple case where a given parameter fits into
+    exactly one register; in this scenario it makes sense to manufacture a
+    new pseudo-slot for the value that points to the param, and install
+    the slot/value mapping in the NamedValues table for the function. More
+    work will be needed to deal with params that span multiple registers;
+    that will need to be addressed in a subsequent patch.
     
-    Change-Id: I5ac4bf0258cff05b9eba516a767daebfc9e31bc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388974
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This change improves the parameter error rate "optargorder" benchmark
+    by about 7-8% (when run on the optargorder binary).
+    
+    Updates #45945.
+    
+    Change-Id: Ic9adbe20b6f91145d49651348818f0f5cba92b18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316890
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ppc64/ggen.go | 7 +++----
- src/cmd/internal/obj/ppc64/asm9.go     | 8 +++++++-
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

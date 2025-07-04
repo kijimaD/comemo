@@ -1,34 +1,19 @@
-commit 036b615c2c69c0e800d0cc4e1a18ac086b1e7ea6
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 16:16:46 2022 -0400
+commit e2dc6dd5c9b6799c9bb987f3a4600fb0df686d09
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 10 14:40:58 2021 -0700
 
-    go/doc/comment: parse and print explicit links
+    doc/go1.17: clean up formatting of gofmt section
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    It was the only h3 in <code>, and it lacked <p> around its content.
     
-    Implement parsing and printing of explicit links, like:
+    It looked like it was part of the prior section:
     
-            Visit the [Go home page].
+        https://tip.golang.org/doc/go1.17#gofmt
     
-            [Go home page]: https://go.dev
-    
-    For #51082.
-    
-    Change-Id: If8104e45558314dae0346df614b03d5664421cf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397282
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7e9ef70e9a03474225833f44420aabd70dab3cd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326774
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/doc/comment/parse.go           | 50 ++++++++++++++++++++++-
- src/go/doc/comment/print.go           | 31 +++++++++++++-
- src/go/doc/comment/testdata/link2.txt | 29 +++++++++++++
- src/go/doc/comment/testdata/link3.txt | 14 +++++++
- src/go/doc/comment/testdata/link4.txt | 77 +++++++++++++++++++++++++++++++++++
- src/go/doc/comment/testdata/link5.txt | 36 ++++++++++++++++
- src/go/doc/comment/testdata/link6.txt | 47 +++++++++++++++++++++
- src/go/doc/comment/testdata/link7.txt | 25 ++++++++++++
- src/go/doc/comment/text.go            | 15 +++++++
- 9 files changed, 321 insertions(+), 3 deletions(-)
+ doc/go1.17.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

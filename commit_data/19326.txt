@@ -1,26 +1,17 @@
-commit c91aea6c31374852c2d50a2a94b286c6c5d55ae0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 12 08:48:19 2014 -0700
+commit f409681925407db843d4c9e314ca9edadd6a625b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 11:04:28 2014 -0400
 
-    undo CL 92210044 / 5cb21eee2d35
+    cmd/go: better error for install of 'test-only' package
     
-    <enter reason for undo>
+    Fixes #7915.
     
-    ««« original CL description
-    net: make use of SO_LINGER_SEC on darwin
-    
-    Fixes #7971.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/92210044
-    »»»
-    
-    TBR=iant
-    R=golang-codereviews
-    CC=golang-codereviews
-    https://golang.org/cl/96220049
+    https://golang.org/cl/96210044
 
- src/pkg/net/sockopt_posix.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/cmd/go/build.go                    | 26 ++++++++++++++------------
+ src/cmd/go/test.bash                   | 11 +++++++++++
+ src/cmd/go/testdata/testonly/p_test.go |  1 +
+ 3 files changed, 26 insertions(+), 12 deletions(-)

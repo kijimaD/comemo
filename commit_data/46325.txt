@@ -1,25 +1,27 @@
-commit 21de6bc463e52af01bcbfda478e2cb221e982e41
-Author: wdvxdr <wdvxdr1123@gmail.com>
-Date:   Mon Aug 30 22:26:54 2021 +0800
+commit 223331fc0cf5b23fbb9999eb1164b23695ef612a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Dec 22 16:57:46 2020 -0500
 
-    cmd/compile: simplify less with non-negative number and constant 0 or 1
+    cmd/go/internal/modload: add hint for missing implicit dependency
     
-    The most common cases:
-    len(s) > 0
-    len(s) < 1
+    By default (and with -mod=readonly), the go command imports an error
+    if a package provided by an implicitly required module is
+    imported by a package in the main module. This import requires an
+    update to go.mod: the module must be required explicitly.
     
-    and they can be simplified to:
-    len(s) != 0
-    len(s) == 0
+    The package loader now provides a hint that 'go get' should be run on
+    the importing package. This is preferred to 'go get' on the imported
+    package, since that would add an "// indirect" requirement.
     
-    Fixes #48054
+    For #43131
     
-    Change-Id: I16e5b0cffcfab62a4acc2a09977a6cd3543dd000
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346050
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0b353ce8ac8c4ddf1a9863544dfaf6c1964daf42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279528
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 160 +++++++++++++++++++++++++
- test/codegen/issue48054.go                     |  31 +++++
- 3 files changed, 194 insertions(+)
+ src/cmd/go/internal/modload/load.go                | 11 ++-
+ .../testdata/script/mod_get_promote_implicit.txt   | 82 ++++++++++++++++++++++
+ 2 files changed, 92 insertions(+), 1 deletion(-)

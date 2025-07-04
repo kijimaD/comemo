@@ -1,16 +1,26 @@
-commit 976ca1a47d91a6d07fcae2abcbb59e8300c3adea
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Oct 22 10:09:52 2012 +0200
+commit 9714691a3f1862f09cd8d8536131c01c15ab32c3
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Oct 22 08:58:27 2012 +0100
 
-    cmd/gc: track parameter flow, step 0: synthesize name nodes for anonymous PPARAMOUTs without breaking anything.
+    cmd/go: add join template function.
     
-    further work on parameter flow tracking for escape analysis depends on this.
+    It's common to use the go list command in shell scripts, but
+    currently it's awkward to print a string slice from the Package
+    type in a way that's easily parseable by the shell.  For example:
     
-    R=rsc
+            go list -f '{{range .Deps}}{{.}}
+            {{end}}'
+    
+    (and even that prints an unwanted new line at the end|).
+    
+    To make this easier, this CL adds a "join" function to the
+    format template.
+    
+            go list -f '{{join .Deps "\n"}}'
+    
+    R=rsc, dsymonds, minux.ma, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/6600044
+    https://golang.org/cl/6680044
 
- src/cmd/gc/closure.c |  7 +++++--
- src/cmd/gc/dcl.c     | 45 +++++++++++++++++++++++++++++----------------
- src/cmd/gc/fmt.c     | 10 ++++++++--
- 3 files changed, 42 insertions(+), 20 deletions(-)
+ src/cmd/go/list.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

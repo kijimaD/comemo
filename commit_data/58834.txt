@@ -1,25 +1,16 @@
-commit fba83cdfc6c4818af5b773afa39e457d16a6db7a
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Sep 5 00:01:52 2024 +1000
+commit 339177aa3119c5de653aff7773fd05553e68719c
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Dec 19 09:44:43 2023 -0500
 
-    cmd/compile/internal/ssa: correct MOVDnop handling for arm64
+    doc: typo fix for net/http.ServeMux
     
-    The extension-removing rules for ARM64 were moved to late lower in
-    CL 568616. This means that the late lower pass can now generate
-    MOVDreg, however the rules that potentially eliminate MOVDreg only
-    exist in the earlier pass. Fix this by duplicating the MOVDreg/NOVDnop
-    rules in late lower, such that we can potentially eliminate conversions.
+    Updates #61422
     
-    Removes 400+ instructions from the Go binary on openbsd/arm64.
-    
-    Change-Id: I14aad06b994c9179f3ecdda566629793ba167511
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651819
+    Change-Id: I2d86863db70792122b5168935e76d9ca38f761b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551256
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
 
- .../compile/internal/ssa/_gen/ARM64latelower.rules |  8 +++++
- .../compile/internal/ssa/rewriteARM64latelower.go  | 35 ++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ doc/go1.22.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

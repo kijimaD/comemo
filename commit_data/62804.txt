@@ -1,0 +1,28 @@
+commit e278a789b61ffbdf4f6ca8accf43ab04148cd551
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 11 16:35:13 2025 -0700
+
+    path: add Join benchmark
+    
+    This is a case where CL 653856 saves an allocation.
+    
+            │     old     │                 new                 │
+            │   sec/op    │   sec/op     vs base                │
+    Join-24   73.57n ± 1%   60.27n ± 1%  -18.07% (p=0.000 n=10)
+    
+            │    old     │                new                 │
+            │    B/op    │    B/op     vs base                │
+    Join-24   48.00 ± 0%   24.00 ± 0%  -50.00% (p=0.000 n=10)
+    
+            │    old     │                new                 │
+            │ allocs/op  │ allocs/op   vs base                │
+    Join-24   2.000 ± 0%   1.000 ± 0%  -50.00% (p=0.000 n=10)
+    
+    Change-Id: I56308262ca73a7ab9698b54fd8681f5b44626995
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665075
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/path/path_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

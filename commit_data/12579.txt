@@ -1,16 +1,17 @@
-commit 4e18bfb9306e80fd16522bfb6a4a98c3f2b42c0d
+commit b70925d6999bbe455cfa012401561fa19969153f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 16:35:15 2012 -0400
+Date:   Mon Mar 12 16:34:24 2012 -0400
 
-    cmd/go: make go get new.code/... work
+    cmd/go: make net/... match net too
     
-    Fixes #2909.
+    Otherwise there's no good way to get both, and it comes up often.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5796072
+    https://golang.org/cl/5794064
 
- src/cmd/go/get.go  | 121 +++++++++++++++++++++++++++++++++++++++++------------
- src/cmd/go/http.go |   1 -
- src/cmd/go/vcs.go  |  17 ++++++++
- 3 files changed, 112 insertions(+), 27 deletions(-)
+ src/cmd/go/doc.go        |  5 ++---
+ src/cmd/go/help.go       |  5 ++---
+ src/cmd/go/main.go       | 56 +++++++++++++++++++++++++++++++++++-------------
+ src/cmd/go/match_test.go | 36 +++++++++++++++++++++++++++++++
+ 4 files changed, 81 insertions(+), 21 deletions(-)

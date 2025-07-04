@@ -1,26 +1,23 @@
-commit 4c8f48ed4f3db0e3ba376e6b7a261d26b41d8dd0
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Apr 29 15:38:56 2021 +1000
+commit f7e26467b4e7ee0bb3219c26e71292ff4aac7da9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 29 15:50:53 2020 -0400
 
-    syscall: do not change stdio handle inheritance
+    runtime: allocate at desired address when race detector is on
     
-    Before the CL 288297 all Go process handles had to be made
-    non-inheritable - otherwise they would escape into the child process.
-    But now this is not necessary.
+    Currently, on all supported platforms, the race detector (LLVM
+    TSAN) expects the Go heap is at 0xc000000000 - 0xe000000000.
+    Move the raceenabled condition first, so we always allocate
+    there.
     
-    This CL stops changing inheritance flag of stdint, stdout and stderr
-    handles.
+    This means on Linux/ARM64 when race detector is on we will
+    allocate to 0xc000000000 - 0xe000000000, instead of 0x4000000000.
+    The old address is meant for 39-bit VMA. But the race detector
+    only supports 48-bit VMA anyway. So this is fine.
     
-    Fixes #44876
-    
-    Change-Id: Ib8fcf8066c30282293d96c34486b01b4c04f7116
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316269
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I51ac8eff68297b37c8c651a93145cc94f83a939d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266372
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_windows.go      |  1 -
- src/syscall/syscall_windows_test.go | 65 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

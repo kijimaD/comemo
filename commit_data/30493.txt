@@ -1,25 +1,23 @@
-commit 87649d32ad16a9a0b7bd5dbd1c124b2032a270f1
-Author: Mike Danese <mikedanese@google.com>
-Date:   Wed Mar 1 10:43:57 2017 -0800
+commit 247fc4a98ee7e41bc317ba2245516f279927ae65
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:42 2016 +0200
 
-    crypto/tls: make Config.Clone also clone the GetClientCertificate field
+    cmd/compile/internal/ssa: add support for GOARCH=mips{,le}
     
-    Using GetClientCertificate with the http client is currently completely
-    broken because inside the transport we clone the tls.Config and pass it
-    off to the tls.Client. Since tls.Config.Clone() does not pass forward
-    the GetClientCertificate field, GetClientCertificate is ignored in this
-    context.
-    
-    Fixes #19264
-    
-    Change-Id: Ie214f9f0039ac7c3a2dab8ffd14d30668bdb4c71
-    Signed-off-by: Mike Danese <mikedanese@google.com>
-    Reviewed-on: https://go-review.googlesource.com/37541
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I632d4aef7295778ba5018d98bcb06a68bcf07ce1
+    Reviewed-on: https://go-review.googlesource.com/31478
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/tls/common.go   |  1 +
- src/crypto/tls/tls_test.go | 90 ++++++++++++++++++++++++++++++++++------------
- 2 files changed, 69 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssa/config.go       |   25 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules  |  739 ++
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go  |  413 ++
+ src/cmd/compile/internal/ssa/gen/dec64.rules |   38 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |    4 +-
+ src/cmd/compile/internal/ssa/nilcheck.go     |    2 +
+ src/cmd/compile/internal/ssa/opGen.go        | 1889 ++++-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go  | 9831 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritedec64.go |  142 +-
+ src/cmd/compile/internal/ssa/schedule.go     |    4 +-
+ 10 files changed, 12892 insertions(+), 195 deletions(-)

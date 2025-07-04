@@ -1,21 +1,30 @@
-commit 499cd3371997bdb6e33377266754d20782ef134d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon May 2 14:46:40 2016 +1200
+commit 65b4020403aae13676e2f84e868f35d2f72629ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 16 22:22:58 2016 -0700
 
-    cmd/cgo: an approach to tsan that works with gcc
+    cmd/compile: don't create 2 Sym's and 2 Node's for every string
     
-    GCC, unlike clang, does not provide any way for code being compiled to tell if
-    -fsanitize-thread was passed. But cgo can look to see if that flag is being
-    passed and generate different code in that case.
+    For every string constant the compiler was creating 2 Sym's and 2
+    Node's.  It would never refer to them again, but would keep them alive
+    in gostringpkg.  This changes the code to just use obj.LSym's instead.
     
-    Fixes #14602
+    When compiling x/tools/go/types, this yields about a 15% reduction in
+    the number of calls to newname and a 3% reduction in the total number of
+    Node objects.  Unfortunately I couldn't see any change in compile time,
+    but reducing memory usage is desirable anyhow.
     
-    Change-Id: I86cb5318c2e35501ae399618c05af461d1252d2d
-    Reviewed-on: https://go-review.googlesource.com/22688
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I24f1cb1e6cff0a3afba4ca66f7166874917a036b
+    Reviewed-on: https://go-review.googlesource.com/20792
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/main.go |  6 ++++++
- src/cmd/cgo/out.go  | 13 ++++++-------
- 2 files changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/go.go      |  2 -
+ src/cmd/compile/internal/gc/gsubr.go   |  6 ++-
+ src/cmd/compile/internal/gc/main.go    |  5 ---
+ src/cmd/compile/internal/gc/obj.go     | 80 ++++++++++++++++++++++------------
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go     |  9 +++-
+ src/cmd/internal/obj/link.go           |  6 +++
+ 7 files changed, 72 insertions(+), 38 deletions(-)

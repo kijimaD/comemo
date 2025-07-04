@@ -1,19 +1,21 @@
-commit 9774fa6f4020dba924d63991f572aa89325e1c9c
-Author: Keith Randall <khr@google.com>
-Date:   Mon Sep 24 10:23:53 2018 -0700
+commit 3d15f768814e8b06ae159b4da8f34a0c702a4cf1
+Author: Zhongpeng Lin <zplin@uber.com>
+Date:   Mon May 21 19:04:00 2018 +0000
 
-    cmd/compile: fix precedence order bug
+    go/build: call ctxt.match for checking file name constraints
     
-    &^ and << have equal precedence.  Add some parentheses to make sure
-    we shift before we andnot.
+    This makes the checking of build tags in file names consistent to that of the build tags in `// +build` line.
     
-    Fixes #27829
+    Fixed #25461
     
-    Change-Id: Iba8576201f0f7c52bf9795aaa75d15d8f9a76811
-    Reviewed-on: https://go-review.googlesource.com/136899
+    Change-Id: Iba14d1050f8aba44e7539ab3b8711af1980ccfe4
+    GitHub-Last-Rev: 11b14e239dd85e11e669919aab45494aee7c59a3
+    GitHub-Pull-Request: golang/go#25480
+    Reviewed-on: https://go-review.googlesource.com/113818
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++--------
- test/fixedbugs/issue27829.go                 | 27 +++++++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 10 deletions(-)
+ src/go/build/build.go      | 28 +++-------------------------
+ src/go/build/build_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 25 deletions(-)

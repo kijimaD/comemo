@@ -1,18 +1,19 @@
-commit 50c4dbced991a01d4d707c00dc40c1a6366e9458
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 22 15:50:03 2016 -0800
+commit d58219e50ba1fd9bf577be7332bdcabe0ef8b7d5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 29 18:46:24 2016 +0200
 
-    reflect: fix size of StructOf ending in zero-sized field
+    cmd/compile: delete unused IntLiteral function
     
-    Update #9401.
-    Fixes #18016.
+    IntLiteral was only called by the gins functions in
+    cmd/compile/internal/{arm64,mips64,ppc64}/gsubr.go
+    but CL 29220 (cmd/compile: remove gins) deleted them,
+    so IntLiteral is now unused.
     
-    Change-Id: Icc24dd10dab1ad8e5cf295e0727d437afa5025c0
-    Reviewed-on: https://go-review.googlesource.com/33475
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2652b6d2ace6fdadc1982f65e749f3982513371e
+    Reviewed-on: https://go-review.googlesource.com/29996
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 32 ++++++++++++++++++++++++++++++++
- src/reflect/type.go     | 14 ++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 13 -------------
+ 1 file changed, 13 deletions(-)

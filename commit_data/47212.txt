@@ -1,27 +1,16 @@
-commit 6458b2e8db7c4529248934f7e491df02d1e89318
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jul 16 03:06:18 2021 +1000
+commit 9c54f878d26e106f8e375c31aabceb1e36ff4050
+Author: LeonardWang <wangdeyu0907@gmail.com>
+Date:   Thu Jan 7 00:36:34 2021 +0800
 
-    all: add support for c-archive and c-shared on linux/riscv64
+    runtime: remove GODEBUG=scavenge mode
     
-    This provides the runtime glue (_rt0_riscv64_linux_lib) for c-archive and c-shared
-    support, along with enabling both of these buildmodes on linux/riscv64.
-    
-    Both misc/cgo/testcarchive and misc/cgo/testcshared now pass on this platform.
-    
-    Fixes #47100
-    
-    Change-Id: I7ad75b23ae1d592dbac60d15bba557668287711f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334872
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic4c7b5086303c7faa49f4cbf6738e66d5de35c7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282012
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/cgo/testcshared/testdata/libgo2/dup2.go |  2 +-
- misc/cgo/testcshared/testdata/libgo2/dup3.go |  2 +-
- src/cmd/compile/internal/ssa/regalloc.go     |  2 +
- src/cmd/dist/test.go                         |  4 +-
- src/cmd/internal/sys/supported.go            |  2 +-
- src/cmd/link/internal/ld/config.go           |  2 +-
- src/runtime/rt0_linux_riscv64.s              | 98 ++++++++++++++++++++++++++++
- 7 files changed, 106 insertions(+), 6 deletions(-)
+ src/runtime/extern.go   | 2 --
+ src/runtime/runtime1.go | 2 --
+ 2 files changed, 4 deletions(-)

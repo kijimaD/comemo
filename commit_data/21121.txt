@@ -1,21 +1,26 @@
-commit 5da9c8cd0a0427d1771b3a9a6d8d931430ce50dd
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Dec 27 19:15:38 2014 -0500
+commit 7aa89ea79835cfb3d144407b3721761a9640ce13
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Nov 16 22:55:07 2014 +0100
 
-    runtime: ignore SIGPROF to foreign threads before cgocallback is fully initialized
+    [dev.cc] cmd/8g: work around "out of fixed registers" on Plan 9
     
-    Some libraries, for example, OpenBLAS, create work threads in a global constructor.
-    If we're doing cpu profiling, it's possible that SIGPROF might come to some of the
-    worker threads before we make our first cgo call. Cgocallback used to terminate the
-    process when that happens, but it's better to miss a couple profiling signals than
-    to abort in this case.
+    This change works around the "out of fixed registers"
+    issue with the Plan 9 C compiler on 386, introduced by
+    the Bits change to uint64 in CL 169060043.
     
-    Fixes #9456.
+    The purpose of this CL is to be able to properly
+    follow the conversion of the Plan 9 runtime to Go
+    on the Plan 9 builders.
     
-    Change-Id: I112b8e1a6e10e6cc8ac695a4b518c0f577309b6b
-    Reviewed-on: https://go-review.googlesource.com/2141
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL could be reverted once the Go compilers will
+    be converted to Go.
+    
+    Thanks to Nick Owens for investigating this issue.
+    
+    LGTM=rsc
+    R=rsc
+    CC=austin, golang-codereviews, mischief
+    https://golang.org/cl/177860043
 
- src/runtime/crash_cgo_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
- src/runtime/sigqueue.go       |  9 +++++++
- 2 files changed, 64 insertions(+)
+ src/cmd/8g/reg.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

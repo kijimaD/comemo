@@ -1,17 +1,21 @@
-commit 148755a27b50134d1db72c3c0bdf500815569531
+commit 1ff89009f198ad5bae3549dd3b992882bd97e5f8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 2 11:44:43 2024 -0700
+Date:   Thu May 25 11:31:28 2023 -0700
 
-    cmd/link: document -checklinkname option
+    io: clarify that Read(nil) can return 0, EOF
     
-    For #67401
+    Fixes #40385
     
-    Change-Id: I04bff1c942a4033325450c0b7dddc7980f3373cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596216
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I965b5db985fd4418a992e883073cbc8309b2cb88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/doc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/io/io.go | 3 +++
+ 1 file changed, 3 insertions(+)

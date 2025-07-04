@@ -1,24 +1,14 @@
-commit 770a13546e2e98f59310297462115d0163a1cf1a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 11 14:49:39 2017 +0200
+commit 480df2c2b4bc668e6b3a9d2f9ade1593da875be9
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Apr 12 11:32:48 2019 +0200
 
-    cmd/compile: use yyerrorl in some typechecking functions
+    runtime: remove debug prints in netpoll_aix.go
     
-    Replace usage of yyerror with yyerrorl in checkdefergo and copytype in
-    typecheck.go.
-    
-    All covered error messages already appear in the tests and the yyerror
-    replacement did not lead to any tests failing.
-    
-    Passes toolstash-check
-    
-    Updates #19683
-    
-    Change-Id: I735e83bcda7ddc6a14afb22e50200bcbb9192fc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/69910
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I80cca386de23cde39ab4ed3be9878374dc7607ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171721
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/netpoll_aix.go | 41 -----------------------------------------
+ 1 file changed, 41 deletions(-)

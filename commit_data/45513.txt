@@ -1,23 +1,26 @@
-commit e8eb1d82690c5c70df770df41ca237e5756f21d5
-Author: Colin Arnott <colin@urandom.co.uk>
-Date:   Thu Aug 6 02:57:15 2020 +0000
+commit 009d71409821a6ac4f1b32aaae2c856c20a29f92
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 22 16:37:19 2020 -0700
 
-    math: add MaxUint, MinInt, MaxInt
+    cmd/compile, runtime: store pointers to go:notinheap types indirectly
     
-    Since we have int8 to int64 min max and uint8 to uint64 max constants,
-    we should probably have some for the word size types too. This change
-    also adds tests to validate the correctness of all integer limit
-    values.
+    pointers to go:notinheap types should be treated as scalars. That
+    means they shouldn't be stored directly in interfaces, or directly
+    in reflect.Value.ptr.
     
-    Fixes #28538
+    Also be sure to use uintpr to compare such pointers in reflect.DeepEqual.
     
-    Change-Id: Idd25782e98d16c2abedf39959b7b66e9c4c0c98b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247058
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #42076
+    
+    Change-Id: I53735f6d434e9c3108d4940bd1bae14c61ef2a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264480
+    Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
 
- src/math/const.go      |  5 +++++
- src/math/const_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ src/cmd/compile/internal/gc/subr.go      |  6 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/reflect/deepequal.go                 | 12 +++++++-
+ src/reflect/value.go                     | 12 +++++++-
+ src/runtime/netpoll.go                   | 47 ++++++++++++++++++++++----------
+ test/fixedbugs/issue42076.go             | 21 ++++++++++++++
+ 6 files changed, 81 insertions(+), 19 deletions(-)

@@ -1,32 +1,34 @@
-commit f5921d48f1f98a4803b1b9c112cab501bfb1713b
-Author: Kamil Rytarowski <krytarowski@users.noreply.github.com>
-Date:   Sat Jun 30 23:29:41 2018 +0000
+commit c6e69ec7f930191022f1369761a680eecc2e89f1
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Mar 20 16:56:20 2018 -0400
 
-    runtime/cgo: Add initial NetBSD Thread Sanitizer support
+    cmd/vendor/.../pprof: refresh from upstream@a74ae6f
     
-    Recognize NetBSD in:
-     - go/internal/work/init.go
-     - race.bash
-     - runtime/race/race.go
+    Merges updates listed in
+    https://github.com/google/pprof/compare/0e0e5b725...a74ae6f
     
-    Add __ps_strings symbol in runtime/cgo/netbsd.go as this is
-    used internally in the TSan library for NetBSD and used for
-    ReExec().
+    Update #24443
     
-    Tested on NetBSD/amd64 v. 8.99.12.
+    cmd/vendor/vendor.json was updated manually.
     
-    Around 98% tests are passing for the ./race.bash target.
-    
-    Updates #19273
-    
-    Change-Id: Ic0e48d2fb159a7868aab5e17156eeaca1225e513
-    GitHub-Last-Rev: d6e082707b9b18df1fe63f723666f4d2eb5e6cfe
-    GitHub-Pull-Request: golang/go#24322
-    Reviewed-on: https://go-review.googlesource.com/99835
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I15d5fe82ac18263d4d54f5773cee0e197e93dd59
+    Reviewed-on: https://go-review.googlesource.com/101736
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/go/internal/work/init.go | 4 ++--
- src/race.bash                    | 7 ++++++-
- src/runtime/cgo/netbsd.go        | 2 ++
- src/runtime/race/race.go         | 2 +-
- 4 files changed, 11 insertions(+), 4 deletions(-)
+ .../google/pprof/internal/binutils/addr2liner.go   |  25 +++++++++++------
+ .../google/pprof/internal/binutils/binutils.go     |  11 ++++++--
+ .../pprof/internal/binutils/binutils_test.go       |   4 +--
+ .../pprof/internal/binutils/testdata/build_mac.sh  |  31 +++++++++++++++++++++
+ .../pprof/internal/binutils/testdata/exe_mac_64    | Bin 0 -> 8648 bytes
+ .../testdata/exe_mac_64.dSYM/Contents/Info.plist   |  20 +++++++++++++
+ .../Contents/Resources/DWARF/exe_mac_64            | Bin 0 -> 8840 bytes
+ .../pprof/internal/binutils/testdata/lib_mac_64    | Bin 0 -> 4496 bytes
+ .../testdata/lib_mac_64.dSYM/Contents/Info.plist   |  20 +++++++++++++
+ .../Contents/Resources/DWARF/lib_mac_64            | Bin 0 -> 8934 bytes
+ .../google/pprof/internal/driver/driver.go         |   2 +-
+ .../google/pprof/internal/driver/fetch.go          |   3 +-
+ .../google/pprof/internal/driver/interactive.go    |   9 ++++--
+ .../google/pprof/internal/elfexec/elfexec.go       |   2 +-
+ .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
+ src/cmd/vendor/vendor.json                         |   4 +--
+ 16 files changed, 110 insertions(+), 23 deletions(-)

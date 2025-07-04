@@ -1,13 +1,19 @@
-commit 89f249a40d6317620243bc2dac083dffafcb4448
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Feb 26 03:05:57 2020 +1100
+commit 5fe3b49a0540aacf685273a43b0fb31b44cf5dd6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 3 18:07:53 2019 +0000
 
-    math: implement Sqrt in assembly for riscv64
+    Revert "cmd/compile: walk the progs to generate debug_lines"
     
-    Change-Id: I9a5dc33271434e58335f5562a30cc131c6a8332c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220918
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This reverts CL 196661.
+    
+    Reason for revert: broke TestGdb* tests on mips64le, ppc64le, and s390x builders.
+    
+    Change-Id: I3b5c97c840819a0d407b943f7cf7e2d97f06042d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198697
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/sqrt_riscv64.s  | 14 ++++++++++++++
- src/math/stubs_riscv64.s |  3 ---
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/dwarf.go | 117 +++++++++++++++++++++++++++++-------------
+ src/cmd/internal/obj/pcln.go  |  29 +++++++++++
+ 2 files changed, 109 insertions(+), 37 deletions(-)

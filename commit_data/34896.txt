@@ -1,19 +1,24 @@
-commit c5dd2543932878e23228ca38d3e3bd621a47fbb5
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Apr 7 16:24:52 2018 +0100
+commit be589f8d2b721aa86fd5e406733f61a5ed245d3a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 24 10:12:44 2017 -0500
 
-    api: remove unnecessary lines from except.txt
+    runtime: fix final stack split in exitsyscall
     
-    When I added the text/template/parse lines, I thought that both removed
-    and added APIs should be listed here (i.e. both -pkg and +pkg lines).
-    However that was wrong, as one can see by reading cmd/api/goapi.go, or
-    seeing how removing the +pkg lines does not break the API test.
+    exitsyscall should be recursively nosplit, but we don't have a way to
+    annotate that right now (see #21314). There's exactly one remaining
+    place where this is violated right now: exitsyscall -> casgstatus ->
+    print. The other prints in casgstatus are wrapped in systemstack
+    calls. This fixes the remaining print.
     
-    Change-Id: I0a8dcd6db44762dadb58728acfb844bf118c9d45
-    Reviewed-on: https://go-review.googlesource.com/105376
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Updates #21431 (in theory could fix it, but that would just indicate
+    that we have a different G status-related crash and we've *never* seen
+    that failure on the dashboard.)
+    
+    Change-Id: I9a5e8d942adce4a5c78cfc6b306ea5bda90dbd33
+    Reviewed-on: https://go-review.googlesource.com/79815
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/except.txt | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/runtime/proc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

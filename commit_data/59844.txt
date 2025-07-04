@@ -1,29 +1,26 @@
-commit e46d586eddfdd2186d77a5e996bbd6415cfcf2f5
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Sat Jun 28 16:53:37 2025 -0400
+commit cf058730293ac95ce0df40db8068219fe21cbb8a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Apr 27 08:04:28 2024 -0400
 
-    cmd/compile/internal/escape: add debug hash for literal allocation optimizations
+    net/http: represent multi wildcards properly
     
-    Several CLs earlier in this stack added optimizations to reduce
-    user allocations by recognizing and taking advantage of literals,
-    including CL 649555, CL 649079, and CL 649035.
+    The routing tree used for matching ServeMux patterns used the
+    key "*" to hold a child node for a multi-segment wildcard.
+    The problem is that "*" is a valid path segment, which confused
+    the matching algorithm: it would fetch the multi wildcard child
+    when looking for the literal child for "*".
     
-    This CL adds debug hashing of those changes, which enables use of the
-    bisect tool, such as 'bisect -compile=literalalloc go test -run=Foo'.
-    This also allows these optimizations to be manually disabled via
-    '-gcflags=all=-d=literalallochash=n'.
+    Eschew clever encodings. Use a separate field in the node to
+    represent the multi wildcard child.
     
-    Updates #71359
+    Fixes #67067.
     
-    Change-Id: I854f7742a6efa5b17d914932d61a32b2297f0c88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675415
+    Change-Id: I300ca08b8628f5367626cf41979f6c238ed8c831
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582115
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/base/debug.go     | 1 +
- src/cmd/compile/internal/base/flag.go      | 4 ++++
- src/cmd/compile/internal/base/hashdebug.go | 1 +
- src/cmd/compile/internal/escape/escape.go  | 8 ++++++++
- src/cmd/compile/internal/walk/order.go     | 8 ++++++--
- 5 files changed, 20 insertions(+), 2 deletions(-)
+ src/net/http/request_test.go      |  8 ++++++++
+ src/net/http/routing_tree.go      |  8 +++++---
+ src/net/http/routing_tree_test.go | 11 +++++++++--
+ 3 files changed, 22 insertions(+), 5 deletions(-)

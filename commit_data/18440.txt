@@ -1,12 +1,12 @@
-commit db9fb7b9abf3e82481300eb83aa2631cd79b4d0d
+commit e56e4e01935be3c310e5767e90411c76aaa1690d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 10 21:48:43 2014 +0400
+Date:   Mon Feb 10 18:59:07 2014 +0400
 
-    cmd/go: fix comment
+    cmd/go: better advice for heap profiling
     
-    R=r
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/61650044
+    https://golang.org/cl/60760048
 
- src/cmd/go/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

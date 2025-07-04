@@ -1,21 +1,12 @@
-commit 04341b246e14608472527f73577f46024e6c3ec1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 28 13:05:30 2013 -0700
+commit 8877a2dfee4cd37825f0df2fa7bb53573d04ae5b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 28 09:37:32 2013 -0700
 
-    cmd/godoc: cleanups
+    cmd/ld: when using host linker pass -r option as -rpath
     
-    - removed gratuitous empty lines that creeped into command line output
-    - changed comment color to a dark green so that links don't visually melt into them
-    - removed some TODOs
-    - updated doc.go
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/8108044
+    https://golang.org/cl/8070043
 
- doc/style.css          |  2 +-
- lib/godoc/package.txt  | 15 +++++++--------
- src/cmd/godoc/doc.go   |  2 ++
- src/cmd/godoc/index.go |  2 --
- src/cmd/godoc/utils.go |  2 --
- 5 files changed, 10 insertions(+), 13 deletions(-)
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,17 +1,18 @@
-commit 3ec7be64c55d4bc0de27889a2a8b47181317a193
-Author: Uriel Mangado <uriel@berlinblue.org>
-Date:   Sun Sep 23 16:18:19 2012 -0500
+commit 36df358a309a7a95438c701ec5687bf4f22d0b28
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Sep 23 18:22:03 2012 +0200
 
-    doc: Remove obsolete references to weekly releases.
+    cmd/6g: fix internal error with SSE registers.
     
-    This was misleading and often confusing for new users.
+    Revision 63f7abcae015 introduced a bug caused by
+    code assuming registers started at X5, not X0.
     
-    Leaving the actual weekly release history page for historical reference.
+    Fixes #4138.
     
-    R=golang-dev, rsc, adg
-    CC=golang-dev
-    https://golang.org/cl/6555053
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6558043
 
- doc/contrib.html       | 3 ---
- doc/devel/release.html | 7 ++-----
- 2 files changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/6g/reg.c         | 10 +++++-----
+ test/fixedbugs/bug453.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 5 deletions(-)

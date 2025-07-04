@@ -1,31 +1,24 @@
-commit 58734039bdddbdfd3c7cd4f9fc232a75f5cef32a
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Fri Mar 23 15:00:34 2018 +0000
+commit f10d99f51da73721dd0b9ab1c03c4a868a991756
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 1 11:31:04 2016 -0400
 
-    Revert "cmd/vendor/.../pprof: refresh from upstream@a74ae6f"
+    runtime: flush assist credit on goroutine exit
     
-    This reverts commit c6e69ec7f930191022f1369761a680eecc2e89f1.
+    Currently dead goroutines retain their assist credit. This credit can
+    be used if the goroutine gets recycled, but in general this can make
+    assist pacing over-aggressive by hiding an amount of credit
+    proportional to the number of exited (and not reused) goroutines.
     
-    Reason for revert: Broke builders. #24508
+    Fix this "hidden credit" by flushing assist credit to the global
+    credit pool when a goroutine exits.
     
-    Change-Id: I66abff0dd14ec6e1f8d8d982ccfb0438633b639d
-    Reviewed-on: https://go-review.googlesource.com/102316
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Updates #14812.
+    
+    Change-Id: I65f7f75907ab6395c04aacea2c97aea963b60344
+    Reviewed-on: https://go-review.googlesource.com/24703
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- .../google/pprof/internal/binutils/addr2liner.go   |  25 ++++++-----------
- .../google/pprof/internal/binutils/binutils.go     |  11 ++------
- .../pprof/internal/binutils/binutils_test.go       |   4 ++-
- .../pprof/internal/binutils/testdata/build_mac.sh  |  31 ---------------------
- .../pprof/internal/binutils/testdata/exe_mac_64    | Bin 8648 -> 0 bytes
- .../testdata/exe_mac_64.dSYM/Contents/Info.plist   |  20 -------------
- .../Contents/Resources/DWARF/exe_mac_64            | Bin 8840 -> 0 bytes
- .../pprof/internal/binutils/testdata/lib_mac_64    | Bin 4496 -> 0 bytes
- .../testdata/lib_mac_64.dSYM/Contents/Info.plist   |  20 -------------
- .../Contents/Resources/DWARF/lib_mac_64            | Bin 8934 -> 0 bytes
- .../google/pprof/internal/driver/driver.go         |   2 +-
- .../google/pprof/internal/driver/fetch.go          |   3 +-
- .../google/pprof/internal/driver/interactive.go    |   9 ++----
- .../google/pprof/internal/elfexec/elfexec.go       |   2 +-
- .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
- src/cmd/vendor/vendor.json                         |   4 +--
- 16 files changed, 23 insertions(+), 110 deletions(-)
+ src/runtime/proc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

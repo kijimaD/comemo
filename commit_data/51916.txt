@@ -1,18 +1,25 @@
-commit 4636c57fe147e4b5db9935aa72588bea6c0ab530
+commit 810868c9f646ace10aa37ba5ded4b5d07bd28a19
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 30 11:01:43 2022 +0700
+Date:   Wed Mar 23 01:20:11 2022 +0700
 
-    cmd/compile: factor out code to generate hash func
+    cmd/compile: remove AllowsGoVersion checks in old typechecker
     
-    Passes toolstash-check.
+    types2 handles those checks instead.
     
-    Change-Id: I86a078ffc5948cbcbec84ce8012f3dfb1c2269b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436960
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    The only exception is noder.checkEmbed, since when types2
+    have not known about "//go:embed" pragma yet.
+    
+    Updates #51691
+    
+    Change-Id: I74ded03536023fe838f23fa7421e04513f904f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394556
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/reflectdata/alg.go | 25 ++++++++++++++++---------
- 1 file changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/typecheck/expr.go |  4 ----
+ src/cmd/compile/internal/typecheck/func.go | 12 ------------
+ src/cmd/compile/internal/typecheck/subr.go |  3 ---
+ src/cmd/compile/internal/types/size.go     | 13 +++++--------
+ 4 files changed, 5 insertions(+), 27 deletions(-)

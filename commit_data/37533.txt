@@ -1,17 +1,22 @@
-commit 20950dba2609a1aff01a4bf950e2d0d2792f1b87
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 5 10:49:22 2018 -0500
+commit 5c11480631f5654e9e6937ff08c453660138c64d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 10 15:25:15 2018 -0400
 
-    cmd/go/testdata/mod: remove unused research.swtch.com/vgo-tour
+    cmd/go: don't let ... match GOROOT/src/cmd in module mode
     
-    The test that used that module was removed in
-    https://golang.org/cl/128900.
+    GOROOT/src/cmd uses GOROOT/src/cmd/vendor, which module
+    mode simply cannot handle.
     
-    Change-Id: Id96270a52398c8ccc09821efb2a6a6b4764f44d9
-    Reviewed-on: https://go-review.googlesource.com/c/151560
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Exposed by making ... match the standard library, which it still should.
+    
+    But for now it's fine to just exclude commands.
+    
+    Change-Id: I2201b94445f11239022de8a2473aa3b573f405c0
+    Reviewed-on: https://go-review.googlesource.com/129055
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- .../mod/research.swtch.com_vgo-tour_v1.0.0.txt     | 23 ----------------------
- 1 file changed, 23 deletions(-)
+ src/cmd/go/internal/modload/search.go       | 12 ++++++++++++
+ src/cmd/go/testdata/script/mod_patterns.txt |  2 ++
+ 2 files changed, 14 insertions(+)

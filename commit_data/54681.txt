@@ -1,16 +1,18 @@
-commit eff7aef4eb290d8a35f1c3fa16471d8830b1a88b
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Mon Jul 3 23:13:44 2023 +0200
+commit 6b45863e47ad1a27ba3051ce0407f0bdc7b46113
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Nov 8 11:37:59 2022 +0800
 
-    regexp: add godoc links
+    all: fix some comments
     
-    Change-Id: I087162f866e781258f9fbb96215c1ff6a5c315a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507776
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I163ea3a770f2228f67d4fb1374653566e64b91f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448575
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/regexp/regexp.go | 94 +++++++++++++++++++++++++---------------------------
- 1 file changed, 46 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/ir/cfg.go | 4 ++--
+ src/net/http/transport.go          | 6 ++----
+ src/net/net.go                     | 2 +-
+ 3 files changed, 5 insertions(+), 7 deletions(-)

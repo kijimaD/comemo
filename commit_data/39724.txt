@@ -1,29 +1,17 @@
-commit e87fe0f1f521150641c8c64db6b919555c255c65
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 25 23:29:32 2019 +0700
+commit d06704a3c2c3bb668926c8d20b9d4855b7131148
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 12 19:10:43 2019 -0700
 
-    cmd/compile: make typecheck set n.Type.Nod when returning OTYPE
+    cmd/cover: don't assume duplicate positions are in order
     
-    typecheck only set n.Type.Nod for declared type, and leave it nil for
-    anonymous types, type alias. It leads to compiler crashes, because
-    n.Type.Nod is nil at the time dowidth was called.
+    Fixes #30746
     
-    Fixing it by set n.Type.Nod right after n.Type initialization if n.Op is
-    OTYPE.
-    
-    When embedding interface cycles involve in type alias, it also helps
-    pointing the error message to the position of the type alias
-    declaration, instead of position of embedding interface.
-    
-    Fixes #31872
-    
-    Change-Id: Ia18391e987036a91f42ba0c08b5506f52d07f683
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191540
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I63f2d82f14eeaab6b14e956e21ddeec56fee025b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/align.go     | 11 +-------
- src/cmd/compile/internal/gc/typecheck.go | 43 ++++++++++++++------------------
- test/fixedbugs/issue23823.go             |  4 +--
- 3 files changed, 22 insertions(+), 36 deletions(-)
+ src/cmd/cover/cover.go      | 52 +++++++++++++++++--------
+ src/cmd/cover/cover_test.go | 94 ++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 120 insertions(+), 26 deletions(-)

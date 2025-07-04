@@ -1,15 +1,16 @@
-commit 9c8f11ff96dbef5ad6020f1c47d9e55b3284ec21
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 1 20:24:53 2014 -0400
+commit 2f3776ac2765a6d9cede9894efafb980c670ddb1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 2 08:23:35 2014 +1100
 
-    cmd/5g, cmd/8g: fix build
+    time: increase timeout in negative sleep duration test
     
-    Botched during CL 83090046.
+    There's enough jitter in the scheduler on overloaded machines
+    that 25ms is not enough.
     
-    TBR=khr
+    LGTM=dave
+    R=golang-codereviews, gobot, rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/83070046
+    https://golang.org/cl/83300044
 
- src/cmd/5g/ggen.c | 12 ++++++------
- src/cmd/8g/ggen.c | 12 ++++++------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/pkg/time/sleep_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

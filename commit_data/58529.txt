@@ -1,24 +1,23 @@
-commit 3aa7c5ef01e147fb482f4b3e79c6f875a4b1b9fb
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Jan 20 17:38:26 2025 -0800
+commit 5b6d3dea8744311825fd544a73edb8d26d9c7e98
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 16 22:19:37 2023 +0700
 
-    testing: fix reference to B.N in docstring
+    cmd/compile: use internal/buildcfg for checking newinliner enable
     
-    Currently, a documentation reference to a struct member (such as [B.N])
-    does not result in it being rendered as a link, and thus the square
-    brackets remain in the rendered documentation which is mildly confusing.
+    internal/goexperiment reports what GOEXPERIMENT the compiler itself was
+    compiled with, not what experiment to use for the object code that the
+    compiler is compiling.
     
-    The issue can be seen at
-    https://pkg.go.dev/testing@master#hdr-b_N_style_benchmarks
+    Fixes #64189
     
-    Remove the square brackets to fix.
-    
-    Change-Id: Id374fd2085bd511018220c5d663650f89672302e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643496
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I892d78611f8c76376032fd7459e755380afafac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542995
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 4 ++--
+ src/cmd/compile/internal/noder/linker.go           | 3 +--
+ src/cmd/compile/internal/noder/reader.go           | 3 +--
+ 3 files changed, 4 insertions(+), 6 deletions(-)

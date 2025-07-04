@@ -1,43 +1,44 @@
-commit 2e8d84f148c69404b8eec86d9149785a3f4e3e92
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Mar 12 12:26:53 2024 +0100
+commit 09408a5b454a4382cde223f6bfa6b5cde64ba026
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 25 10:58:05 2023 +0000
 
-    os: support UNC paths and .. segments in fixLongPath
+    encoding/gob: avoid filling userTypeCache at init time
     
-    This CL reimplements fixLongPath using syscall.GetFullPathName instead
-    of a custom implementation that was not handling UNC paths and ..
-    segments correctly. It also fixes a bug here multiple trailing \
-    were removed instead of replaced by a single one.
+    Doing this work at init time does make the first encode or decode call
+    slightly faster, but the cost is still paid upfront.
     
-    The new implementation is slower than the previous one, as it does a
-    syscall and needs to convert UTF-8 to UTF-16 (and back), but it is
-    correct and should be fast enough for most use cases.
+    However, not all programs which directly or indirectly import
+    encoding/gob end up encoding or decoding any values.
+    For example, a program might only be run with the -help flag,
+    or it might only use gob encoding when a specific mode is enabled.
     
-    goos: windows
-    goarch: amd64
-    pkg: os
-    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
-                │   old.txt    │                new.txt                 │
-                │    sec/op    │    sec/op      vs base                 │
-    LongPath-12   1.007µ ± 53%   4.093µ ± 109%  +306.41% (p=0.000 n=10)
+    Moreover, any work done at init time needs to happen sequentially and
+    before the main function can start, blocking the entire program.
     
-                │  old.txt   │               new.txt                │
-                │    B/op    │    B/op      vs base                 │
-    LongPath-12   576.0 ± 0%   1376.0 ± 0%  +138.89% (p=0.000 n=10)
+    Using benchinit, we see a moderate saving at init time:
     
-                │  old.txt   │              new.txt               │
-                │ allocs/op  │ allocs/op   vs base                │
-    LongPath-12   2.000 ± 0%   3.000 ± 0%  +50.00% (p=0.000 n=10)
+            goos: linux
+            goarch: amd64
+            cpu: AMD Ryzen 7 PRO 5850U with Radeon Graphics
+                                    │     old     │                new                 │
+                                    │   sec/op    │   sec/op     vs base               │
+            EncodingGob   188.9µ ± 0%   175.4µ ± 0%  -7.15% (p=0.000 n=10)
     
-    Fixes #41734.
+                                    │     old      │                 new                 │
+                                    │     B/op     │     B/op      vs base               │
+            EncodingGob   39.78Ki ± 0%   38.46Ki ± 0%  -3.32% (p=0.000 n=10)
     
-    Change-Id: Iced5cf47f56f6ab0ca74a6e2374c31a75100902d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570995
-    Reviewed-by: Damien Neil <dneil@google.com>
+                                    │    old     │                new                │
+                                    │ allocs/op  │ allocs/op   vs base               │
+            EncodingGob   668.0 ± 0%   652.0 ± 0%  -2.40% (p=0.000 n=10)
+    
+    Change-Id: I75a5df18c9b1d02566e5885a966360d8a525913a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479396
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- src/os/path_windows.go      | 81 ++++++++++++++++++++-------------------------
- src/os/path_windows_test.go | 29 +++++++++++-----
- 2 files changed, 57 insertions(+), 53 deletions(-)
+ src/encoding/gob/type.go | 1 -
+ 1 file changed, 1 deletion(-)

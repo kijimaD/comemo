@@ -1,14 +1,15 @@
-commit 12104807de0894433b92f8e7399fead03a52a23c
+commit 8c6dc5fea5de0bac57b088e0aa6b8f419079c338
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun May 22 10:09:07 2011 -0700
+Date:   Sun May 22 09:48:04 2011 -0700
 
-    syscall: add IPv6 scope zone ID support
+    net: re-enable wildcard listening
     
-    R=golang-dev, bradfitz
+    Fixes #1854.
+    
+    R=bradfitz, golang-dev
     CC=golang-dev
-    https://golang.org/cl/4515124
+    https://golang.org/cl/4550062
 
- src/pkg/syscall/syscall_bsd.go     | 9 ++++++---
- src/pkg/syscall/syscall_linux.go   | 9 ++++++---
- src/pkg/syscall/syscall_windows.go | 5 +++--
- 3 files changed, 15 insertions(+), 8 deletions(-)
+ src/pkg/net/ipsock.go      | 49 +++++++++++++++++++++++++++++++---------------
+ src/pkg/net/server_test.go | 31 ++++++++++++++++++++++++++---
+ 2 files changed, 61 insertions(+), 19 deletions(-)

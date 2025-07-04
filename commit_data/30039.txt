@@ -1,14 +1,22 @@
-commit ba1a65fc518c367bd4a3e18324036d457e6a07c3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Feb 2 21:53:52 2017 +0900
+commit b7477f386926e65bb99db4eb90820576f6533614
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 23 16:58:31 2016 +1000
 
-    cmd/cgo: don't track same node twice in guessKinds
+    syscall: use ERROR_IO_PENDING value in errnoErr
     
-    Change-Id: Ib2c1490a42e3485913a05a0b2fecdcc425d42871
-    Reviewed-on: https://go-review.googlesource.com/36083
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    So errnoErr can be used in other packages.
+    This is something I missed when I sent CL 28990.
+    
+    Fixes #17539
+    
+    Change-Id: I8ee3b79c4d70ca1e5b29e5b40024f7ae9a86061e
+    Reviewed-on: https://go-review.googlesource.com/29690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/gcc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/internal/syscall/windows/registry/zsyscall_windows.go | 8 ++++----
+ src/internal/syscall/windows/zsyscall_windows.go          | 8 ++++----
+ src/syscall/mksyscall_windows.go                          | 8 ++++++--
+ src/syscall/zsyscall_windows.go                           | 8 ++++++--
+ 4 files changed, 20 insertions(+), 12 deletions(-)

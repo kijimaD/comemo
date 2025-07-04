@@ -1,33 +1,40 @@
-commit dd7ab5ec5d6329dd5da052d2438274572ad7113b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 29 16:27:49 2024 +0100
+commit 29b80397a8f385ead0a9b3c11060a571438ef026
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Oct 26 16:43:42 2023 +0000
 
-    crypto/internal/fips140/rsa: do trial divisions in key generation
+    crypto/subtle: use PCALIGN in xorBytes
     
-    This is optimized to be cheap in terms of extra code and complexity,
-    rather than performance, so we reuse the GCD we have for inverting d.
+    goos: linux
+    goarch: amd64
+    pkg: crypto/subtle
+    cpu: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
+                          │   master    │                HEAD                 │
+                          │   sec/op    │   sec/op     vs base                │
+    XORBytes/8Bytes-8       10.90n ± 1%   10.96n ± 5%        ~ (p=0.617 n=10)
+    XORBytes/128Bytes-8     14.85n ± 2%   12.05n ± 2%  -18.82% (p=0.000 n=10)
+    XORBytes/2048Bytes-8    88.30n ± 2%   72.64n ± 1%  -17.73% (p=0.000 n=10)
+    XORBytes/32768Bytes-8   1.489µ ± 2%   1.442µ ± 1%   -3.12% (p=0.000 n=10)
+    geomean                 67.91n        60.99n       -10.19%
     
-    Recovers most of the performance loss since CL 630516, although
-    benchmarking key generation is by nature extremely noisy.
+                          │    master    │                 HEAD                 │
+                          │     B/s      │     B/s       vs base                │
+    XORBytes/8Bytes-8       700.5Mi ± 1%   696.5Mi ± 5%        ~ (p=0.631 n=10)
+    XORBytes/128Bytes-8     8.026Gi ± 2%   9.890Gi ± 2%  +23.22% (p=0.000 n=10)
+    XORBytes/2048Bytes-8    21.60Gi ± 2%   26.26Gi ± 1%  +21.55% (p=0.000 n=10)
+    XORBytes/32768Bytes-8   20.50Gi ± 2%   21.16Gi ± 1%   +3.21% (p=0.000 n=10)
+    geomean                 7.022Gi        7.819Gi       +11.34%
     
-    goos: darwin
-    goarch: arm64
-    pkg: crypto/rsa
-    cpu: Apple M2
-                       │ 3b42687c56  │           b3d018a1e8-dirty           │
-                       │   sec/op    │    sec/op     vs base                │
-    GenerateKey/2048-8   104.1m ± 7%   139.7m ± 20%  +34.10% (p=0.000 n=20)
+    For #63678
     
-    Updates #69799
-    For #69536
-    
-    Change-Id: I00347610935db8feb0597529a301ad7ace5b2f22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632479
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3996873773748a6f78acc6575e70e09bb6aea979
+    GitHub-Last-Rev: d9129cb8eae363792b6a6236d597465fcf8d4d6b
+    GitHub-Pull-Request: golang/go#63754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537856
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/internal/fips140/rsa/keygen.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/crypto/subtle/xor_amd64.s | 2 ++
+ 1 file changed, 2 insertions(+)

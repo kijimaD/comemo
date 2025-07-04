@@ -1,22 +1,22 @@
-commit 07717247d8decf5a5793f04c368eab3f43fad44f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 16:25:54 2019 -0500
+commit 014901c5bab2f99af3b1019d5776fa5da6f5bef7
+Author: Mark Rushakoff <mark@influxdata.com>
+Date:   Thu Aug 30 02:15:39 2018 +0000
 
-    strconv: parse hex floats
+    cmd/go: don't mention -mod=release
     
-    This CL updates ParseFloat to recognize
-    standard hexadecimal floating-point constants.
-    See golang.org/design/19308-number-literals for background.
+    The -mod=release flag is not supported, so this appears to be a
+    documentation mistake.
     
-    For #29008.
+    Fixes #27354.
     
-    Change-Id: I45f3b0c36b5d92c0e8a4b35c05443a83d7a6d4b3
-    Reviewed-on: https://go-review.googlesource.com/c/160241
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I895e8d5b4918adcb1f605361773173f312fa7b65
+    GitHub-Last-Rev: 42bfe0c11e38c90e76887771654ea81af98d50ec
+    GitHub-Pull-Request: golang/go#27358
+    Reviewed-on: https://go-review.googlesource.com/132116
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/strconv/atof.go      | 205 ++++++++++++++++++++++++++++++++++++-----------
- src/strconv/atof_test.go | 176 ++++++++++++++++++++++++++++++++++++++++
- src/strconv/atoi.go      |   8 ++
- 3 files changed, 341 insertions(+), 48 deletions(-)
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/work/build.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

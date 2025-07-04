@@ -1,14 +1,16 @@
-commit eec1e5d9c6d00fc493714a09b71e2bca2d7e7fa4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 31 11:16:15 2016 -0700
+commit 6bcca5e91836cae42fc9a88c4ac9a6a5ffed67f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 6 07:43:15 2016 -0700
 
-    go/types: don't expose types.Alias kind field - only used by go/types
+    cmd/go: run mkalldocs.sh
     
-    Change-Id: I8a28a88a655d9929f8641f71573dc01dc53be00f
-    Reviewed-on: https://go-review.googlesource.com/32443
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This should have happened as part of CL 28485.
+    
+    Change-Id: I63cd31303e542ceaec3f4002c5573f186a1e9a52
+    Reviewed-on: https://go-review.googlesource.com/28547
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/internal/gcimporter/bimport.go |  2 +-
- src/go/types/object.go                | 13 +++++++------
- src/go/types/resolver.go              |  3 ++-
- 3 files changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/go/alldocs.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

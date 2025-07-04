@@ -1,32 +1,36 @@
-commit e03ee85ef434f307500a71927dfb3e876161847a
-Author: Max Altgelt <max.altgelt@nextron-systems.com>
-Date:   Fri Feb 10 11:38:42 2023 +0100
+commit eee6f9f825596a769ff163e098d2656cbed09d4f
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Dec 23 06:53:50 2021 +0000
 
-    runtime: Allow handling of EXCEPTION_IN_PAGE_ERROR
+    runtime: unify C->Go ABI transitions on arm64
     
-    Currently, access faults on memory mapped files on Windows (e.g.
-    from the drive the memory mapped file is on being ejected) cause
-    a runtime fault that can not be caught by debug.SetPanicOnFault.
+    There are several of places that save and restore the C callee-saved registers,
+    the operation is the same everywhere, so this CL defines several macros
+    to do this, which will help reduce code redundancy and unify the operation.
     
-    On Unix systems, on the other hand, this causes a SIGBUS signal,
-    which can be caught by debug.SetPanicOnFault. Given that the
-    documentation of debug.SetPanicOnFault mentions handling memory
-    mapped files, this is arguably the correct behaviour.
+    This CL also replaced consecutive MOVD instructions with STP and LDP instructions
+    in several places where these macros do not apply.
     
-    Add handling, analogous to SIGBUS, to EXCEPTION_IN_PAGE_ERROR
-    on Windows, to allow for users to handle this error.
-    
-    Fixes #58457
-    
-    Change-Id: Ic7695fc01271f3552782089ac75c403d5279811f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467195
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I815f39fe484a9ab9b6bd157dfcbc8ad99c1420fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374397
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/defs_windows.go   | 1 +
- src/runtime/signal_windows.go | 3 ++-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/asm_arm64.s         | 178 +++++++++++++---------------------------
+ src/runtime/cgo/abi_arm64.h     |  43 ++++++++++
+ src/runtime/cgo/asm_arm64.s     |  55 +++----------
+ src/runtime/race_arm64.s        |  22 +++--
+ src/runtime/rt0_darwin_arm64.s  |  43 ++--------
+ src/runtime/rt0_freebsd_arm64.s |  41 ++-------
+ src/runtime/rt0_linux_arm64.s   |  41 ++-------
+ src/runtime/rt0_netbsd_arm64.s  |  41 ++-------
+ src/runtime/rt0_openbsd_arm64.s |  41 ++-------
+ src/runtime/sys_darwin_arm64.s  |  87 +++-----------------
+ src/runtime/sys_freebsd_arm64.s |  45 ++--------
+ src/runtime/sys_linux_arm64.s   |  91 +++-----------------
+ src/runtime/sys_netbsd_arm64.s  |  45 ++--------
+ src/runtime/sys_openbsd_arm64.s |  87 +++-----------------
+ src/runtime/sys_windows_arm64.s |  53 +++---------
+ 15 files changed, 205 insertions(+), 708 deletions(-)

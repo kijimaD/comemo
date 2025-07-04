@@ -1,0 +1,36 @@
+commit 979c1cfbe8880e302d5a73df47f4efc3d34ee416
+Author: Antonio Ojea <aojea@google.com>
+Date:   Wed Dec 11 15:03:59 2024 +0000
+
+    net: avoid unnecessary interface lookup fetching all interface addresses
+    
+    InterfaceAddrs returns a list of the system's unicast interface addresses.
+    
+    In order to do so, the function reuses the existing helpers and
+    list first all addresses with the netlink call RTM_GETADDR, then
+    all interfaces with RTM_GETLINK, and later it merge both lists
+    (each address references an interface).
+    
+    However, the list of interfaces and addresses are obtained at
+    different times and there can be inconsistencies and, if an
+    address references an interface that is not present in the list
+    of interfaces, the function fails with an error.
+    
+    Since the function InterfaceAddress is only about the system
+    addresses, there is no need to list all the interfaces, and we can
+    obtain the list of addresses directly from the netlink call RTM_GETADDR.
+    There is no need to correlate this list with the list of interfaces, as
+    the OS is the source of truth and should be the one providing the
+    consistency between addresses and interfaces.
+    
+    Fixes #51934
+    
+    Change-Id: I3b816e8146b1c07fdfe1bf6af338f001ef75734f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635196
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/interface_linux.go | 21 +++------------------
+ 1 file changed, 3 insertions(+), 18 deletions(-)

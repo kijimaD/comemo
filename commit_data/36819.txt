@@ -1,17 +1,24 @@
-commit c3304edf10223364bc1989bc1daa6908dbdd9c03
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Sep 29 08:35:32 2018 +0000
+commit b12e341616365cafd6f7eab9aaaa29c4155c1a76
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Wed May 30 17:11:31 2018 +0000
 
-    cmd/internal/obj/arm: delete unnecessary code
+    net/http: add js/wasm compatible DefaultTransport
     
-    In the arm assembler, "AMOVW" never falls into optab
-    case 13, so the check "if p.As == AMOVW" is useless.
+    Adds a new Transport type for the js/wasm target that uses the
+    JavaScript Fetch API for sending HTTP requests. Support for
+    streaming response bodies is used when available, falling back
+    to reading the entire response into memory at once.
     
-    Change-Id: Iec241d5b4cffb358a1477f470619dc9a6287884a
-    Reviewed-on: https://go-review.googlesource.com/c/138575
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #25506
+    
+    Change-Id: Ie9ea433a1a2ed2f65b03c6cc84a16e70c06fcf5c
+    GitHub-Last-Rev: 6df646745b8e0474781f4b1a3084536e573e8e8c
+    GitHub-Pull-Request: golang/go#25550
+    Reviewed-on: https://go-review.googlesource.com/114515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go    |   1 +
+ src/net/http/roundtrip.go    |  15 +++
+ src/net/http/roundtrip_js.go | 267 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transport.go    |   7 +-
+ 4 files changed, 285 insertions(+), 5 deletions(-)

@@ -1,20 +1,19 @@
-commit 64c1be144fdf804c5cfc6cb06eb68cc9496eedba
-Author: montag451 <montag451@laposte.net>
-Date:   Fri Aug 4 22:04:10 2023 +0000
+commit cf4edac16e21273591e25d1d6ba04810d8dca958
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:55:43 2022 +0800
 
-    testing: improve the usage message of -benchtime
+    cmd/asm: use strings.Builder
     
-    Specify that -benchtime can take the form Nx.
-    
-    Change-Id: I1e711cdb2e19e3ff5eb2cea4e7c8843bc58696b1
-    GitHub-Last-Rev: 1cb13f7dba829497c5cbb3d4c578f4984e1cbd28
-    GitHub-Pull-Request: golang/go#61756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515801
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2ec419f475f9c5d5ef1d4557cb5862a55a699d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428284
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/testing/benchmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/asm.go           | 4 ++--
+ src/cmd/asm/internal/asm/endtoend_test.go | 4 ++--
+ src/cmd/asm/internal/asm/pseudo_test.go   | 3 +--
+ src/cmd/asm/internal/lex/lex_test.go      | 3 +--
+ 4 files changed, 6 insertions(+), 8 deletions(-)

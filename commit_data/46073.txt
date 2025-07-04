@@ -1,29 +1,29 @@
-commit 4a0fd73eaded9f395b3e5025ab9e1c5c5f124143
-Author: Yuki Osaki <yuki.osaki7@gmail.com>
-Date:   Wed Aug 18 05:05:55 2021 +0000
+commit 133b03e1c386dc69e46fa36f9053ff6993125ace
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 3 16:57:56 2020 -0800
 
-    cmd/go/internal/work/exec: throw an error when buildP is negative
+    [dev.regabi] cmd/compile: rewrite code to use DeclaredBy
     
-    Fixed a problem where an error would not occur
-    when a negative value was specified for the p flag.
+    Passes buildall w/ toolstash -cmp.
     
-    `go build -p=0`
-    now should throw an error.
+    Updates #42990.
     
-    this is my first pr to this project.
-    If there's anything I'm missing, please let me know 🙏
-    Fixes #46686
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+    ex {
+      import "cmd/compile/internal/ir"
+      var x, stmt ir.Node
+      x.Name() != nil && x.Name().Defn == stmt ->  ir.DeclaredBy(x, stmt)
+      x.Name() == nil || x.Name().Defn != stmt -> !ir.DeclaredBy(x, stmt)
+    }
+    '
     
-    Change-Id: I3b19773ef095fad0e0419100d317727c2268699a
-    GitHub-Last-Rev: e5c57804d9995f5c858aa42d9de21b25de246eb5
-    GitHub-Pull-Request: golang/go#47360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336751
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I222a757296dbcb5d0889d617d221a9d7319f2d74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275306
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/init.go                | 4 ++++
- src/cmd/go/testdata/script/build_negative_p.txt | 5 +++++
- 2 files changed, 9 insertions(+)
+ src/cmd/compile/internal/gc/range.go     |  8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++--------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,18 +1,25 @@
-commit efbe17d6f1f016616453d43208200ebf4a45d87c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Apr 4 14:07:36 2022 +0700
+commit 7406180012d828f536112c9bffb7d3edd9ea5c7e
+Author: Branden J Brown <zephyrtronium@gmail.com>
+Date:   Wed Jun 2 14:55:34 2021 -0400
 
-    cmd/compile: support reading union type for compiler backend in unified IR
+    fmt: split package documentation into more sections
     
-    Fixes #52124
+    The package-level documentation on fmt previously had only two formal
+    sections, for printing and scanning. Because of this, the section on
+    printing was very long, including some pseudo-sections describing
+    particular features. This feature makes those pseudo-sections into
+    proper sections, both to improve readability and so that those sections
+    have hyperlinks on documentation sites.
     
-    Change-Id: I5749822d41d8e51f476bceb277b1d2cf7350dcc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397874
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #46522
+    
+    Change-Id: I38b7bc3447610faca446051da235edcbbd063f61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324349
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/noder/reader.go | 12 ++++++++++++
- test/typeparam/issue52124.go             |  9 +++++++++
- 2 files changed, 21 insertions(+)
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

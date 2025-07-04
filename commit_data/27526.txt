@@ -1,18 +1,14 @@
-commit 8a1dc3244725c2afd170025fc616df840b464a99
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 14:54:21 2016 -0400
+commit 00289c296c52eb1a849f28bc6d60fef5898cb7b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 31 09:29:32 2016 -0700
 
-    runtime: add library startup support for ppc64le
+    cmd/compile: dump stack trace in Fatalf during development
     
-    I have been running this patch inside Google against Go 1.6 for the last month.
+    See discussion in #15029.
     
-    The new tests will probably break the builders but let's see
-    exactly how they break.
-    
-    Change-Id: Ia65cf7d3faecffeeb4b06e9b80875c0e57d86d9e
-    Reviewed-on: https://go-review.googlesource.com/23452
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5cc8be5737ddb7c1f5e4a6cd92cf557af45e961d
+    Reviewed-on: https://go-review.googlesource.com/21347
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go            |   6 +-
- src/runtime/rt0_linux_ppc64le.s | 129 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 133 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

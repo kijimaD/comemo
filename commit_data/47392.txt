@@ -1,18 +1,48 @@
-commit b2d826c09f0f73cd9dc0022a2b052543e8bf4c06
-Author: emahiro <ema.hiro@gmail.com>
-Date:   Thu Oct 21 18:01:10 2021 +0900
+commit f02a26bed0f21de7aeef7a60cf62dac2e3dab737
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Mar 11 17:34:09 2021 -0800
 
-    internal/cache: document 'go clean -fuzzcache' in README
+    time: support "," as separator for fractional seconds
     
-    Fixes: #48900
+    Accepts comma "," as a separator for fractional seconds
+    hence we now accept:
+    * 2006-01-02 15:04:05,999999999 -0700 MST
+    * Mon Jan _2 15:04:05,120007 2006
+    * Mon Jan 2 15:04:05,120007 2006
     
-    Change-Id: I9235441886ed7cbdfdcbd283480f52d9216c3ea2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357233
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This change follows the recommendations of ISO 8601 per
+    
+       https://en.wikipedia.org/wiki/ISO_8601#cite_note-26
+    
+    which states
+    
+       ISO 8601:2004(E), ISO, 2004-12-01, "4.2.2.4 ...
+       the decimal fraction shall be divided from the integer
+       part by the decimal sign specified in ISO 31-0, i.e.
+       the comma [,] or full stop [.]. Of these, the comma
+       is the preferred sign."
+    
+    Unfortunately, I couldn't directly access the ISO 8601 document
+    because suddenly it is behind a paywall on the ISO website,
+    charging CHF 158 (USD 179) for 38 pages :-(
+    
+    However, this follows publicly available cited literature, as well
+    as the recommendations from the proposal approval.
+    
+    Fixes #6189
+    Updates #27746
+    Updates #26002
+    Updates #36145
+    Updates #43813
+    Fixes #43823
+    
+    Change-Id: Ibe96064e8ee27c239be78c880fa561a1a41e190c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300996
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
 
- src/cmd/go/internal/cache/default.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/time/format.go      | 30 ++++++++++++++++++------------
+ src/time/format_test.go | 18 +++++++++++++++---
+ 2 files changed, 33 insertions(+), 15 deletions(-)

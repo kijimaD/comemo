@@ -1,16 +1,16 @@
-commit e0ac75d2ab9da30d41a76a4ed89b89cb79cb5c60
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 30 16:15:41 2019 +0000
+commit 09da2801578519ee5597bdd4cbfa22d4d127cc6d
+Author: dupoxy <dupoxy@users.noreply.github.com>
+Date:   Wed Dec 12 22:49:31 2018 +0000
 
-    cmd/dist: disable cgo for darwin/386
+    strings: add ReplaceAll example
     
-    Fixes #31751
-    
-    Change-Id: Id002f14557a34accc3597cb1b9a42e838a027da4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174497
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6b0d470bdedb92844943c8e5823e214d6a7471cf
+    GitHub-Last-Rev: 4a135000ba9c23a588b960e5b2989710cc71e3e2
+    GitHub-Pull-Request: golang/go#29199
+    Reviewed-on: https://go-review.googlesource.com/c/153840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/strings/example_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

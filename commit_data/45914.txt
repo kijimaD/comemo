@@ -1,23 +1,33 @@
-commit ab4085ce84f8378b4ec2dfdbbc44c98cb92debe5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jul 9 17:34:07 2021 +0000
+commit 171787efcd7a59c90f05a191c74bf5844f1c542a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 00:36:44 2020 -0500
 
-    runtime/pprof: call runtime.GC twice in memory profile test
+    [dev.regabi] cmd/compile: remove Orig, SetOrig from Node interface
     
-    This change fixes #46500 by working around #45315 which may cause freed
-    objects to get missed in the heap profile published for the test.
+    These are only needed for a few opcodes, and we can avoid
+    wasting storage in every implementation by using the extension
+    interface pattern with a helper function for access.
     
-    By calling runtime.GC one more time this change ensures that all freed
-    objects are accounted for.
+    Of course, in the current codebase, there is only one Node
+    implementation (*node) and it has these methods, so there
+    is no danger of a functional change in this particular CL.
     
-    Fixes #46500.
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: Iedcd0b37dbaffa688b0ff8631a8b79f7a1169634
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333549
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I440c6c232f1fe7b56b852a00dc530f8f49a6b12d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274089
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/mprof_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/const.go     |  4 +--
+ src/cmd/compile/internal/gc/escape.go    |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/iexport.go   |  4 +--
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++----
+ src/cmd/compile/internal/ir/fmt.go       |  8 +++---
+ src/cmd/compile/internal/ir/node.go      | 42 ++++++++++++++++++++++++++------
+ 9 files changed, 52 insertions(+), 24 deletions(-)

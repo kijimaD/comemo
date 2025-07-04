@@ -1,22 +1,18 @@
-commit 1fdae32407191af004252d5fadb0bfaf92202ce6
+commit fef14fdd1dc9106f872e75aae4fcd814abc47080
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 21 10:37:37 2022 -0800
+Date:   Thu Jan 20 17:23:07 2022 -0800
 
-    go/types, types2: better variable names, cleanups in test
+    go/types, types2: slightly better tracing output (debugging support)
     
-    For #54258.
-    
-    Change-Id: Ib0d326af2719bca1579f84c125f6573f87dce982
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452455
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I48804eba94ec455c4764d52af148f4210faf7d94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379836
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go | 16 ++++++++--------
- src/go/types/issues_test.go                    | 17 +++++++++--------
- src/go/types/object.go                         |  7 -------
- src/go/types/typestring.go                     |  2 +-
- 4 files changed, 18 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/types2/decl.go    | 4 +++-
+ src/cmd/compile/internal/types2/typexpr.go | 2 +-
+ src/go/types/decl.go                       | 4 +++-
+ src/go/types/typexpr.go                    | 2 +-
+ 4 files changed, 8 insertions(+), 4 deletions(-)

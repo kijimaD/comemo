@@ -1,92 +1,19 @@
-commit d1b1145cace8b968307f9311ff611e4bb810710c
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Mon Dec 9 21:50:16 2019 -0800
+commit 64f19d70805a6da347a55dab5ab4f4c57ddb3278
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Apr 7 15:52:05 2020 +0300
 
-    syscall: support POSIX semantics for Linux syscalls
+    cmd/compile/internal/logopt: preserve env while running command
     
-    This change adds two new methods for invoking system calls
-    under Linux: syscall.AllThreadsSyscall() and
-    syscall.AllThreadsSyscall6().
+    The test was not preserving temporary directory flags leading to a
+    failure on windows with:
     
-    These system call wrappers ensure that all OSThreads mirror
-    a common system call. The wrappers serialize execution of the
-    runtime to ensure no race conditions where any Go code observes
-    a non-atomic OS state change. As such, the syscalls have
-    higher runtime overhead than regular system calls, and only
-    need to be used where such thread (or 'm' in the parlance
-    of the runtime sources) consistency is required.
+        mkdir C:\WINDOWS\go-build315158903: Access is denied.
     
-    The new support is used to enable these functions under Linux:
+    Fixes #38251
     
-      syscall.Setegid(), syscall.Seteuid(), syscall.Setgroups(),
-      syscall.Setgid(), syscall.Setregid(), syscall.Setreuid(),
-      syscall.Setresgid(), syscall.Setresuid() and syscall.Setuid().
-    
-    They work identically to their glibc counterparts.
-    
-    Extensive discussion of the background issue addressed in this
-    patch can be found here:
-    
-       https://github.com/golang/go/issues/1435
-    
-    In the case where cgo is used, the C runtime can launch pthreads that
-    are not managed by the Go runtime. As such, the added
-    syscall.AllThreadsSyscall*() return ENOTSUP when cgo is enabled.
-    However, for the 9 syscall.Set*() functions listed above, when cgo is
-    active, these functions redirect to invoke their C.set*() equivalents
-    in glibc, which wraps the raw system calls with a nptl:setxid fixup
-    mechanism. This achieves POSIX semantics for these functions in the
-    combined Go and C runtime.
-    
-    As a side note, the glibc/nptl:setxid support (2019-11-30) does not
-    extend to all security related system calls under Linux so using
-    native Go (CGO_ENABLED=0) and these AllThreadsSyscall*()s, where
-    needed, will yield more well defined/consistent behavior over all
-    threads of a Go program. That is, using the
-    syscall.AllThreadsSyscall*() wrappers for things like setting state
-    through SYS_PRCTL and SYS_CAPSET etc.
-    
-    Fixes #1435
-    
-    Change-Id: Ib1a3e16b9180f64223196a32fc0f9dce14d9105c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210639
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6ee31b31e84b7f6e75ea6ee0f3b8c094835bf5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227497
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/test/cgo_linux_test.go        |   1 +
- misc/cgo/test/issue1435.go             | 152 ++++++++++++++++++++
- src/runtime/cgo/linux.go               |  74 ++++++++++
- src/runtime/cgo/linux_syscall.c        |  85 ++++++++++++
- src/runtime/cgocall.go                 |  16 +++
- src/runtime/proc.go                    | 210 +++++++++++++++++++++++++++-
- src/runtime/runtime2.go                |  12 ++
- src/syscall/setuidgid_32_linux.go      |   6 +
- src/syscall/setuidgid_linux.go         |   6 +
- src/syscall/syscall_linux.go           | 247 +++++++++++++++++++++++++++++++--
- src/syscall/syscall_linux_386.go       |   5 -
- src/syscall/syscall_linux_amd64.go     |   5 -
- src/syscall/syscall_linux_arm.go       |   5 -
- src/syscall/syscall_linux_arm64.go     |   4 -
- src/syscall/syscall_linux_mips64x.go   |   5 -
- src/syscall/syscall_linux_mipsx.go     |   6 -
- src/syscall/syscall_linux_ppc64x.go    |   5 -
- src/syscall/syscall_linux_riscv64.go   |   5 -
- src/syscall/syscall_linux_s390x.go     |   5 -
- src/syscall/syscall_linux_test.go      | 226 ++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_386.go      |  50 -------
- src/syscall/zsyscall_linux_amd64.go    |  50 -------
- src/syscall/zsyscall_linux_arm.go      |  50 -------
- src/syscall/zsyscall_linux_arm64.go    |  50 -------
- src/syscall/zsyscall_linux_mips.go     |  50 -------
- src/syscall/zsyscall_linux_mips64.go   |  50 -------
- src/syscall/zsyscall_linux_mips64le.go |  50 -------
- src/syscall/zsyscall_linux_mipsle.go   |  50 -------
- src/syscall/zsyscall_linux_ppc64.go    |  50 -------
- src/syscall/zsyscall_linux_ppc64le.go  |  50 -------
- src/syscall/zsyscall_linux_riscv64.go  |  50 -------
- src/syscall/zsyscall_linux_s390x.go    |  50 -------
- 32 files changed, 1020 insertions(+), 660 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

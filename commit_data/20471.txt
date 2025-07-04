@@ -1,17 +1,24 @@
-commit 45143aeca47da4595367e9ab0f1d0194f7847a96
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Sep 18 23:25:11 2014 +0200
+commit 1a5e394ab74672f59dd10623717fc3e08b17f0ab
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 9 14:32:53 2014 -0700
 
-    runtime: fix handling of GOTRACEBACK
+    runtime: more cleanups
     
-    Since CL 130990043, the GOTRACEBACK variable is
-    only used when the GODEBUG variable is set.
-    This change restores the original behavior.
+    Move timenow thunk into time.s
+    Move declarations for generic c/asm services into stubs.go
     
-    LGTM=rsc
-    R=golang-codereviews, aram, gobot, r, rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/132520043
+    https://golang.org/cl/137360043
 
- src/runtime/runtime.c | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/runtime/asm_386.s      | 3 ---
+ src/runtime/asm_amd64.s    | 3 ---
+ src/runtime/asm_amd64p32.s | 3 ---
+ src/runtime/asm_arm.s      | 3 ---
+ src/runtime/extern.go      | 2 --
+ src/runtime/mgc0.go        | 2 --
+ src/runtime/mprof.go       | 3 ---
+ src/runtime/stubs.go       | 7 +++++++
+ src/runtime/thunk.s        | 3 +++
+ 9 files changed, 10 insertions(+), 19 deletions(-)

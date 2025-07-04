@@ -1,24 +1,20 @@
-commit 232b2e3352b0e3913421dc43cb29003eac1c5130
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 1 13:19:39 2017 -0500
+commit 13772edbbdba1fa9dc904dbf41846d2b06519a18
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 5 18:49:36 2017 -0700
 
-    cmd/go: fix reuse of cached objects during cover
+    cmd/compile: simplify exporting universal 'error' type
     
-    The cover variable indices could vary from build to build,
-    but they were not included in the build ID hash, so that
-    reusing the previously built package was not safe.
-    Make the indices no longer vary from build to build,
-    so that caching is safe.
+    There shouldn't be any problems setting error's "Orig" (underlying)
+    type to a separate anonymous interface, as this is already how
+    go/types defines it.
     
-    Fixes #22652.
-    
-    Change-Id: Ie26d73c648aadd285f97e0bf39619cabc3da54f2
-    Reviewed-on: https://go-review.googlesource.com/81515
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I44e9c4048ffe362ce329e8306632e38b5ccfecff
+    Reviewed-on: https://go-review.googlesource.com/61790
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/go_test.go               | 16 ++++++++++++++++
- src/cmd/go/internal/test/test.go    |  3 +--
- src/cmd/go/internal/work/buildid.go |  5 ++++-
- 3 files changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go  | 16 +---------------
+ src/cmd/compile/internal/gc/universe.go |  5 +----
+ 2 files changed, 2 insertions(+), 19 deletions(-)

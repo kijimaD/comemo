@@ -1,18 +1,17 @@
-commit a6701d81a04bc84b5851e104b27783395a348832
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 28 22:57:18 2020 +0000
+commit 85c60bd0f3b375448dd38579acbaafdddc20b42f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Sep 9 03:17:43 2019 +1000
 
-    cmd/dist: remove riscv64 from set of incomplete ports
+    cmd/internal/obj/riscv: fix up instruction groupings
     
-    Fixes #27532
-    Fixes #36853
-    Updates #28944
+    Some of the instructions were incorrectly grouped - untangle this and
+    separate the RV64I instructions, which are under separate sections of
+    the RISC-V specification.
     
-    Change-Id: I4d0f212deb361c941ce7e5999e237a951c89a296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216758
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: I232962ab4054bf0b4745887506f51e74ea73f73d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194238
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/dist/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/internal/obj/riscv/anames.go | 60 ++++++++++++++++----------------
+ src/cmd/internal/obj/riscv/cpu.go    | 67 +++++++++++++++++++-----------------
+ 2 files changed, 66 insertions(+), 61 deletions(-)

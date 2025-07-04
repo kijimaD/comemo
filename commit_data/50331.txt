@@ -1,24 +1,21 @@
-commit 07b19bf5ab1160814ffedd448ce65c0eb6e9643a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 17:59:50 2022 +0800
+commit ee92daae25029882979eb694bd7246491e364d3c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Sep 20 20:44:50 2021 +0800
 
-    html/template: use strings.Builder
+    runtime: ensure at least 1 tick between events
     
-    Change-Id: Iab6ef8c6c74c09e8358f7d7088a82089725479ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428260
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    ticks might be same after tick division, although the real cputicks
+    is linear growth
+    
+    Fixes #46737
+    
+    Change-Id: I1d98866fbf21b426c6c1c96cc9cf802d7f440f18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330849
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/html/template/clone_test.go    |  5 ++---
- src/html/template/content_test.go  |  4 ++--
- src/html/template/escape_test.go   | 16 ++++++++--------
- src/html/template/exec_test.go     | 18 +++++++++---------
- src/html/template/html.go          |  2 +-
- src/html/template/js_test.go       |  3 +--
- src/html/template/multi_test.go    |  6 +++---
- src/html/template/template_test.go |  4 ++--
- src/html/template/url.go           | 11 +++++------
- 9 files changed, 33 insertions(+), 36 deletions(-)
+ src/runtime/trace.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

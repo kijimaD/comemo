@@ -1,23 +1,39 @@
-commit b4833f7c06c332ad2ef30666144a20fb7838aba1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 13 16:48:50 2021 -0400
+commit cb65c8d58ac76abdaa6d14cc0742ca23d00ff524
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 12 10:51:34 2020 -0400
 
-    cmd/link: always mark runtime.unreachableMethod symbol
+    syscall: switch go:generate directives back to mksyscall_windows.go
     
-    In the deadcode path we mark runtime.unreachableMethod symbol,
-    which is a special symbol used for redirecting unreachable
-    methods. Currently this code is conditioned on not -linkshared.
-    This is wrong. It should be marked with -linkshared mode as well.
+    Adjust mksyscall_windows.go to activate module mode and set
+    -mod=readonly, and to suppress its own deprecation warning when run
+    from within GOROOT/src.
     
-    In fact, -linkshared should only affect the entry symbol. Change
-    the code accordingly.
+    We can't vendor the mkwinsyscall tool in to the std module directly,
+    because std-vendored dependencies (unlike the dependencies of all
+    other modules) turn into actual, distinct packages in 'std' when
+    viewed from outside the 'std' module. We don't want to introduce a
+    binary in the 'std' meta-pattern, but we also don't particularly want
+    to add more special-cases to the 'go' command right now when we have
+    an existing wrapper program that can do the job.
     
-    Change-Id: I252abf850212a930f275589ef0035a43e52cb9cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319893
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    I also regenerated the affected packages to ensure that they are
+    consistent with the current version of mksyscall, which produced some
+    declaration-order changes in
+    internal/syscall/windows/zsyscall_windows.go.
+    
+    Fixes #41916
+    Updates #25922
+    
+    Change-Id: If6e6f8ba3dd372a7ecd6820ee6c0ca38d55f0f35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261499
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/link/internal/ld/deadcode.go | 40 ++++++++++++++++++------------------
- 1 file changed, 20 insertions(+), 20 deletions(-)
+ src/internal/syscall/windows/mksyscall.go          |  2 +-
+ src/internal/syscall/windows/registry/mksyscall.go |  2 +-
+ src/internal/syscall/windows/zsyscall_windows.go   | 26 +++++++-------
+ src/syscall/mksyscall_windows.go                   | 40 ++++++++++++++++++++--
+ src/syscall/syscall.go                             |  2 +-
+ 5 files changed, 53 insertions(+), 19 deletions(-)

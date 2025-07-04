@@ -1,22 +1,29 @@
-commit fbaf71f36bda00fc9eba71720a3c903d15988046
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Thu Aug 31 10:16:01 2023 -0400
+commit 2837ffe8d8a48cb321842721a8531ed870ace1d3
+Author: kxxt <rsworktech@gmail.com>
+Date:   Sat Oct 1 00:19:12 2022 +0000
 
-    cmd/compile/internal/dwarfgen: make scope test less sensitive to changes in escape analysis
+    all: use grep -E/-F instead of fgrep/egrep
     
-    The test function fi is used in TestEscape, and the intent of fi
-    seems to be to leak its argument, but fi is currently
-    sensitive to changes in escape analysis regarding interface receivers.
+    egrep and fgrep are obsolescent now.
     
-    Make fi less sensitive by directly leaking its argument.
+    This PR updates all egrep and fgrep commands to grep -E and grep -F.
+    Running egrep/fgrep command with grep v3.8 will output the following warning to stderr:
+    egrep: warning: egrep is obsolescent; using grep -E
     
-    Change-Id: I16cc3d3a6bd7b08a08c8fc292b0b99c9a54d68d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524943
-    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    see also:
+    https://www.phoronix.com/news/GNU-Grep-3.8-Stop-egrep-fgrep
+    https://lists.gnu.org/archive/html/info-gnu/2022-09/msg00001.html
+    
+    Change-Id: Iea1ca9ae72264530c67727b5e27cf1b7a362dd97
+    GitHub-Last-Rev: 3584884bd48cca97271ab86010fce8e4e063c0e4
+    GitHub-Pull-Request: golang/go#55299
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432256
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/dwarfgen/scope_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/buildall.bash       | 2 +-
+ src/syscall/mkerrors.sh | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

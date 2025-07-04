@@ -1,25 +1,27 @@
-commit 25ad137cf4f0823b877a19f36479dbde005bfa10
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Tue Oct 17 22:54:27 2023 +0000
+commit 1fcd4e9099c33b4baa74713d5639e61158d10b49
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Oct 15 12:06:48 2022 +0200
 
-    runtime/internal/atomic: add memory barrier for mips Cas on failure
+    crypto/rsa: add a test walking through every key size
     
-    Add a memory barrier on the failure case of the
-    compare-and-swap for mips, this avoids potential
-    race conditions.
+    We already had some tests for special cases such as PSS with 513 bit
+    keys. The upcoming backend rewrite also happened to crash at 63 and 504
+    bits for different reasons. Might as well be systematic about it.
     
-    For #63506
+    Also, make sure SignPSS returns ErrMessageTooLong like SignPKCS1v15 when
+    the key is too small, instead of panicking or returning an unnamed error.
     
-    Change-Id: I3df1479d1438ba72aa72567eb3dea76ff745e98d
-    GitHub-Last-Rev: 2101b9fd446f28f856986b27d20f92cd4a1f4fef
-    GitHub-Pull-Request: golang/go#63604
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536116
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    -all takes a couple minutes on my M1.
+    
+    Change-Id: I656239a00d0831fa7d187a6d3bb30341d41602f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443195
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/internal/atomic/atomic_mipsx.go | 7 +------
- src/runtime/internal/atomic/atomic_mipsx.s  | 1 +
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/crypto/rsa/pss.go      |   2 +-
+ src/crypto/rsa/rsa.go      |   7 ++-
+ src/crypto/rsa/rsa_test.go | 149 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 154 insertions(+), 4 deletions(-)

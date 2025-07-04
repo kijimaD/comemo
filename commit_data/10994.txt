@@ -1,18 +1,14 @@
-commit eef71840460669105aca633ad0d22c8ac5281166
+commit 3800b14071643951643f0b681b329b4ed30c0b98
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 22 22:24:43 2011 -0500
+Date:   Thu Dec 22 22:24:34 2011 -0500
 
-    cmd/go: two testing fixes
+    runtime: delete old asm_*.h if still around
     
-    1. Show passing output for "go test" (no args) and with -v flag.
-    2. Warn about out-of-date packages being rebuilt.
+    Fixes bug Robert ran into.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5504080
+    https://golang.org/cl/5501070
 
- src/cmd/go/build.go    | 39 ++++++++++++++++++++-------------
- src/cmd/go/pkg.go      |  1 +
- src/cmd/go/test.go     | 59 ++++++++++++++++++++++++++++++++++++++------------
- src/cmd/go/testflag.go | 33 +++++++++++++++++++++++++++-
- 4 files changed, 102 insertions(+), 30 deletions(-)
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

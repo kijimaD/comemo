@@ -1,23 +1,19 @@
-commit cb986def671cd244e4682a476cff51c4cff2d8f8
-Author: Quentin Smith <quentin@golang.org>
-Date:   Wed Oct 5 14:37:25 2016 -0400
+commit b43fe463ff93e5ab0849d9d31bf53f87b42a9b28
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Sat Jun 25 20:32:40 2016 +0800
 
-    syscall: relax TestUnshare
+    net/http/httptest: show usage of httptest.NewRequest in example
     
-    Fixes #17224.
+    Change ExampleResponseRecorder to use httptest.NewRequest instead of
+    http.NewRequest. This makes the example shorter and shows how to use
+    one more function from the httptest package.
     
-    Some systems have more than just "lo" in a fresh network namespace, due
-    to IPv6. Instead of testing for exactly 3 lines of output (implying 1
-    interface), just test to make sure that the unshare call resulted in
-    fewer interfaces than before. This should still verify that unshare did
-    something.
-    
-    Change-Id: Iaf84c2b0e673fc207059d62e2f4dd7583a753419
-    Reviewed-on: https://go-review.googlesource.com/30372
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Jessica Frazelle <me@jessfraz.com>
+    Change-Id: I3d35869bd0a4daf1c7551b649428bb2f2a45eba2
+    Reviewed-on: https://go-review.googlesource.com/24480
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/net/http/httptest/example_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

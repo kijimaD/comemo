@@ -1,18 +1,19 @@
-commit 42426ed41167d6a99cfc9e5a91a4aff1b95093ca
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 3 16:14:26 2017 -0700
+commit 1fbdae5c3ad9aaaf827bed14a5e1e4cbd547a37c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Jan 6 15:09:10 2017 -0800
 
-    cmd/compile: Fatal instead of panic in large bvbulkalloc
+    cmd/go: add link to env varible guide to set custom GOPATH
     
-    This provides better diagnostics when it occurs.
+    Also moves the GOPATH env variable guide to
+    golang.org/wiki/SettingGOPATH.
     
-    Updates #19751
+    Fixes #18294.
     
-    Change-Id: I87db54c22e1345891b418c1741dc76ac5fb8ed00
-    Reviewed-on: https://go-review.googlesource.com/39358
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I88a2ce550df7466f8d2388d86bc8476dcf3c2ad6
+    Reviewed-on: https://go-review.googlesource.com/34918
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bv.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ doc/code.html         | 2 +-
+ src/cmd/go/alldocs.go | 2 ++
+ src/cmd/go/help.go    | 2 ++
+ 3 files changed, 5 insertions(+), 1 deletion(-)

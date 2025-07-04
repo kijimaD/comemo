@@ -1,20 +1,18 @@
-commit 4a0eee2faa3c54dd267c76fe8d8c332cb6badc80
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 09:59:16 2016 -0500
+commit f84420c20daddf5f0a3e73f64bd2d39cebd22218
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 29 22:40:36 2015 -0400
 
-    cmd/link: add LC_VERSION_MIN_MACOSX to linkmode=internal OS X binaries
+    runtime: clean up park messages
     
-    This makes lldb willing to debug them.
-    The minimum version is hard-coded at OS X 10.7,
-    because that is the minimum that Go requires.
-    For more control over the version, users can
-    use linkmode=external and pass the relevant flags to the host linker.
+    This changes "mark worker (idle)" to "GC worker (idle)" so it's more
+    clear to users that these goroutines are GC-related. It changes "GC
+    assist" to "GC assist wait" to make it clear that the assist is
+    blocked.
     
-    Fixes #12941.
-    
-    Change-Id: I20027be8aa034d07dd2a3326828f75170afe905f
-    Reviewed-on: https://go-review.googlesource.com/18588
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iafbc0903c84f9250ff6bee14baac6fcd4ed5ef76
+    Reviewed-on: https://go-review.googlesource.com/16511
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/runtime/mgc.go     | 2 +-
+ src/runtime/mgcmark.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,18 +1,37 @@
-commit d7a1261d62f56c98614c161c289ccca85c5ba9b5
-Author: Alan Yee <alanyee@users.noreply.github.com>
-Date:   Fri Feb 21 20:37:59 2025 +0000
+commit a7097243e462802f3055da9f843013e450a75092
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 12 16:26:45 2023 -0500
 
-    crypto/rand: add example for Int
+    internal/syscall/windows: fix the signature of SetFileInformationByHandle
     
-    Change-Id: I401e6092b1cbbd332406ffa7f923c46de0a3ff49
-    GitHub-Last-Rev: ef2057888465be3cff7fb60bc6ffe3d7573ec348
-    GitHub-Pull-Request: golang/go#71773
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650035
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Also fix its call site in internal/poll to pass the length of the
+    actual buffer instead of an unrelated variable, and update the
+    definition of FILE_BASIC_INFO to match the documented field types
+    and add padding that is empirically needed on the 386 architecture.
+    
+    Passing a pointer to a Go-allocated buffer as type uintptr violates
+    the unsafe.Pointer conversion rules, which allow such a conversion
+    only in the call expression itself for a call to syscall.Syscall or
+    equivalent. That can allow the buffer to be corrupted arbitrarily if
+    the Go runtime happens to garbage-collect it while the call to
+    SetFileInformationByHandle is in progress.
+    
+    The Microsoft documentation for SetFileInformationByHandle specifies
+    its third argument type as LPVOID, which corresponds to Go's
+    unsafe.Pointer, not uintptr.
+    
+    Fixes #58933 (maybe).
+    
+    Change-Id: If577b57adea9922f5fcca55e46030c703d8f035c
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549256
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/rand/example_test.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_windows.go                  |  3 +--
+ src/internal/syscall/windows/syscall_windows.go  | 21 ++++++++++++++++-----
+ src/internal/syscall/windows/zsyscall_windows.go |  2 +-
+ 3 files changed, 18 insertions(+), 8 deletions(-)

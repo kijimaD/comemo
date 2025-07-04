@@ -1,26 +1,22 @@
-commit e4f1d9cf2e948eb0f0bb91d7c253ab61dfff3a59
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Mar 27 17:29:53 2016 -0700
+commit b30e1d728ce99bcf12877ef7e1010e53c8766e2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 26 14:56:31 2016 -0800
 
-    runtime: make execution error panic values implement the Error interface
+    cmd/compile: consolidate alg code
     
-    Make execution panics implement Error as
-    mandated by https://golang.org/ref/spec#Run_time_panics,
-    instead of panics with strings.
+    Pull all alg-related code into its own file.
+    subr.go is a Hobbesian Leviathan.
     
-    Fixes #14965
+    100% code movement. Cleanup and improvements to follow.
     
-    Change-Id: I7827f898b9b9c08af541db922cc24fa0800ff18a
-    Reviewed-on: https://go-review.googlesource.com/21214
+    Change-Id: Ib9c8f66563fdda90c6e8cf646d366a9487a4648d
+    Reviewed-on: https://go-review.googlesource.com/19980
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/chan.go       | 10 +++++-----
- src/runtime/crash_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/error.go      | 13 ++++++++++++-
- src/runtime/hashmap.go    |  4 ++--
- src/runtime/malloc.go     |  2 +-
- src/runtime/proc.go       |  2 +-
- src/runtime/select.go     |  2 +-
- 7 files changed, 68 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/alg.go  | 626 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/go.go   |  19 --
+ src/cmd/compile/internal/gc/subr.go | 600 ----------------------------------
+ 3 files changed, 626 insertions(+), 619 deletions(-)

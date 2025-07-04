@@ -1,18 +1,18 @@
-commit eb4e17b73b4ad486f9e9b0ea0fe2a6050ceb54fc
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Nov 8 13:59:25 2016 -0500
+commit 9f447c20efeaab1e60e1da03feee2fa0935cf95c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 11:26:41 2016 -0700
 
-    cmd/link: use plugin path in visibility analysis
+    cmd/compile: remove unused Label fields
     
-    CL 32355 switched from using the output file as a
-    plugin prefix to the full package path. The linker dead code analysis
-    was not updated.
+    Updates #16357.
     
-    Updates #17821
-    
-    Change-Id: I13fc45e0264b425d28524ec54c829e2c3e895b0b
-    Reviewed-on: https://go-review.googlesource.com/32916
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I37f04d83134b5e1e7f6ba44eb9a566758ef594d3
+    Reviewed-on: https://go-review.googlesource.com/29350
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/gen.go  | 10 ----------
+ src/cmd/compile/internal/gc/go.go   | 10 ----------
+ src/cmd/compile/internal/gc/pgen.go |  3 ---
+ 3 files changed, 23 deletions(-)

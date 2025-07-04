@@ -1,14 +1,15 @@
-commit feab3f4986016dc9043a07bf57f6ca4d38fc5bc8
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 24 16:53:13 2013 -0700
+commit 3eaaed5030a531d11a228353b3f964e4b0227ba7
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jun 24 13:23:02 2013 -0700
 
-    hash: tweak the package docs
-    No semantic change.
-    I found the wording distracting in a couple of instances and was moved to improve it.
+    net/rpc: fix RegisterName rejects "." character.
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/10478048
+    Fixes #5617.
+    
+    R=r, rsc
+    CC=gobot, golang-dev
+    https://golang.org/cl/10370043
 
- src/pkg/hash/hash.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/rpc/server.go      | 11 +++++++----
+ src/pkg/net/rpc/server_test.go | 13 +++++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

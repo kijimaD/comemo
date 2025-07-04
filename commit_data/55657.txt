@@ -1,23 +1,30 @@
-commit b27d02c07b7bdb896f279a386fde8cb5ce284ec9
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jan 31 14:01:12 2024 -0500
+commit 0384235a15110bb3f8bf3a65eff4543d4d3e837b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jan 11 18:56:31 2023 -0500
 
-    runtime/debug: clarify SetCrashOutput dup behavior
+    cmd/compile: don't mark uintptr->unsafe.Pointer conversion unsafe points
     
-    SetCrashOutput dup's the input file for safety, but I don't think that
-    the docs are very clear about what the caller can/should do with f. "it
-    does not close the previous file" is particularly confusing, as it does
-    close the previous FD (but not the previous passed os.File).
+    In the past, we planned to implement asynchronous preemption using
+    precise register pointer maps. In this strategy, conversions between
+    unsafe.Pointer and uintptr would need to be marked as unsafe points,
+    as if a pointer value is temporarily converted to uintptr (and not
+    live otherwise), the GC would not be able to see it when scanning
+    the stack (and registers).
     
-    Expand and attempt to clarify the explanation, borrowing wording from
-    net.FileConn, which also dup's the input os.File.
+    But now we actually implemented asynchronous preemption with inner
+    frame conservative scan. So even if a pointer value lives as an
+    integer the GC can still see it. There is no need to mark the
+    conversion as unsafe points. This allows more places to be
+    preempted, as well as for debugger to inject a call.
     
-    For #42888.
+    Fixes #57719.
     
-    Change-Id: I1c96d2dce7899e335d8f1cd464d2d9b31aeb4e5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559800
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I375ab820d8d74d122b565cf72ecc7cdb225dbc01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461696
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/debug/stack.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 60 ------------------------------
+ 1 file changed, 60 deletions(-)

@@ -1,12 +1,14 @@
-commit 814978a013e0a11512b5f9fc103e522e506db113
+commit a0233fdbdae82de924ea2a20bd575ef08dc38001
 Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Feb 23 23:15:57 2016 -0500
+Date:   Fri Nov 27 23:10:29 2015 -0500
 
-    .gitignore: ignore src/go/build/zcgo.go
+    path: fix typo
     
-    Change-Id: I6d5db2781d05d6e7e49f5059db1fd84ad6ec328e
-    Reviewed-on: https://go-review.googlesource.com/19839
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #13419.
+    
+    Change-Id: I530d0b714ea0743c72eacd07b390c3f8cc556e21
+    Reviewed-on: https://go-review.googlesource.com/17239
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- .gitignore | 1 +
- 1 file changed, 1 insertion(+)
+ src/path/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,33 @@
-commit eecb5fd10e519e7ed498bf652d2289047369f7b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 24 14:43:52 2018 -0700
+commit 955cc07dde70415489fb2096eb575654181e21fe
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 29 14:56:48 2018 -0400
 
-    go/types: automatically ignore $GOROOT/test files that contain build tags
+    runtime: remap stack spans with MAP_STACK on OpenBSD
     
-    These files were already ignored via a hard-coded list of excluded files.
-    Instead of trying to interpret the build tags for these (few) files,
-    recognize the tags automatically and continue to exclude them.
+    OpenBSD 6.4 is going to start requiring that the SP points to memory
+    that was mapped with MAP_STACK on system call entry, traps, and when
+    switching to the alternate signal stack [1]. Currently, Go doesn't map
+    any memory MAP_STACK, so the kernel quickly kills Go processes.
     
-    Fixes #10370.
+    Fix this by remapping the memory that backs stack spans with
+    MAP_STACK, and re-remapping it without MAP_STACK when it's returned to
+    the heap.
     
-    Change-Id: If7a112ede02e3fa90afe303473d9ea51c5c6609d
-    Reviewed-on: https://go-review.googlesource.com/c/144457
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    [1] http://openbsd-archive.7691.n7.nabble.com/stack-register-checking-td338238.html
+    
+    Fixes #26142.
+    
+    Change-Id: I656eb84385a22833445d49328bb304f8cdd0e225
+    Reviewed-on: https://go-review.googlesource.com/121657
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/stdlib_test.go | 34 +++++++++++++++++++---------------
- 1 file changed, 19 insertions(+), 15 deletions(-)
+ src/runtime/defs_openbsd.go       |  1 +
+ src/runtime/defs_openbsd_386.go   |  1 +
+ src/runtime/defs_openbsd_amd64.go |  1 +
+ src/runtime/defs_openbsd_arm.go   |  1 +
+ src/runtime/os_nonopenbsd.go      | 17 ++++++++++++++
+ src/runtime/os_openbsd.go         | 47 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/stack.go              |  6 +++++
+ 7 files changed, 74 insertions(+)

@@ -1,25 +1,25 @@
-commit 163ff700b8ac3192fa1cb1424e5facf060683dd2
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 16:57:54 2016 -0400
+commit 8caf19c46f9d7cc9011d7acdc464768b5fb15d7e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 20:33:34 2016 -0800
 
-    cmd/link/internal/ld: add s390x support
+    net: fix TestUpdateResolvConf after CL 18860
     
-    Introduces the new relocation variant RV_390_DBL which indicates
-    that the relocation value should be shifted right by 1 (to make
-    it 2-byte aligned).
+    When writing a fake dnsConfig to conf.dnsConfig, set lastChecked to an
+    hour into the future.  This causes dnsclient_unix.go's
+    tryUpdate("/etc/resolv.conf") calls to short-circuit and ignore that
+    /etc/resolv.conf's mtime differs from the test's fake resolv.conf
+    file.  We only need to zero out lastChecked in teardown.
     
-    Change-Id: I03fa96b4759ee19330c5298c3720746622fb1a03
-    Reviewed-on: https://go-review.googlesource.com/20878
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    While here, this makes two other tryUpdate(conf.path) test calls
+    pointless, since they'll now short circuit too.
+    
+    Fixes #14437.
+    
+    Change-Id: Ieb520388e319b9826dfa49f134907f4927608a53
+    Reviewed-on: https://go-review.googlesource.com/19777
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/link/internal/ld/arch.go   |   9 +++
- src/cmd/link/internal/ld/data.go   |  16 ++++-
- src/cmd/link/internal/ld/dwarf.go  |   4 +-
- src/cmd/link/internal/ld/elf.go    | 118 +++++++++++++++++++++++++++++++------
- src/cmd/link/internal/ld/ldelf.go  |  38 +++++++++++-
- src/cmd/link/internal/ld/lib.go    |   4 +-
- src/cmd/link/internal/ld/link.go   |   6 ++
- src/cmd/link/internal/ld/symtab.go |   3 +-
- 8 files changed, 170 insertions(+), 28 deletions(-)
+ src/net/dnsclient_unix_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

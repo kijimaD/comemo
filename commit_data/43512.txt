@@ -1,27 +1,19 @@
-commit ad863ba32a2ede207d708fa15897e9de1d14dd87
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 3 19:23:30 2020 +0000
+commit 88d6d37b77c9fa5a9b499596210cf285287955c7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 8 13:24:27 2020 -0400
 
-    runtime: break down memstats.gc_sys
+    [dev.link] cmd/internal/obj: change writer to use new-style accessors
     
-    This change breaks apart gc_sys into three distinct pieces. Two of those
-    pieces are pieces which come from heap_sys since they're allocated from
-    the page heap. The rest comes from memory mapped from e.g.
-    persistentalloc which better fits the purpose of a sysMemStat. Also,
-    rename gc_sys to gcMiscSys.
+    Introduce field setters and use them on the writer side. Now we
+    are able to eliminate the old-style types.
     
-    Change-Id: I098789170052511e7b31edbcdc9a53e5c24573f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246973
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I650d837328dc02f9be839d16a31812be86721b91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227640
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/heapdump.go   |  5 ++++-
- src/runtime/malloc.go     |  6 +++---
- src/runtime/mcheckmark.go |  2 +-
- src/runtime/mfinal.go     |  2 +-
- src/runtime/mheap.go      | 16 ++++++++++------
- src/runtime/mspanset.go   |  4 ++--
- src/runtime/mstats.go     | 31 ++++++++++++++++++-------------
- 7 files changed, 39 insertions(+), 27 deletions(-)
+ src/cmd/internal/goobj2/objfile.go | 31 ++++++++++++++-
+ src/cmd/internal/obj/objfile2.go   | 77 +++++++++++++-------------------------
+ 2 files changed, 56 insertions(+), 52 deletions(-)

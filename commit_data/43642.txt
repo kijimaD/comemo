@@ -1,20 +1,24 @@
-commit e02ab89eb8994fa6f2dfa2924cdadb097633fcc1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 29 16:23:27 2020 -0700
+commit 670cb9c37769f07fd8c2aac6270a9f2342d2b970
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 3 13:57:01 2020 +1100
 
-    runtime: simplify nobarrierWakeTime
+    cmd/doc: don't print package clauses on error
     
-    Also use the simplified nobarrierWakeTime in findrunnable, as it no
-    longer needs the current time.
+    Everybody was deferring a flush when main already
+    did that, so drop all that nonsense. (Flush was doing
+    the package clause stuff.) But then make sure we do
+    get a package clause when there is correctly no output,
+    as for an empty package. Do that by triggering a
+    package clause in allDoc and packageDoc.
     
-    Change-Id: I77b125d6a184dde0aeb517fc068164c274f0a046
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266304
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Slightly tricky but way less intricate than before.
+    
+    Fixes #37969.
+    
+    Change-Id: Ia86828436e6c4ab46e6fdaf2c550047f37f353f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226998
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/proc.go | 15 +++------------
- src/runtime/time.go | 13 ++++++-------
- 2 files changed, 9 insertions(+), 19 deletions(-)
+ src/cmd/doc/doc_test.go | 19 +++++++++++++++++++
+ src/cmd/doc/pkg.go      | 13 ++-----------
+ 2 files changed, 21 insertions(+), 11 deletions(-)

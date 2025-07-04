@@ -1,14 +1,13 @@
-commit 9ada841f4d7a67621760080caef8b7fd6a08b46a
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 13 16:25:31 2011 -0700
+commit cd4d0004fadd61a860fbb9ef70e42bcf956e0b49
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 13 15:43:46 2011 -0700
 
-    contrib*.html: make "golang-dev" the default reviewer.
-    also make a couple of links more visible and fix an id= href.
+    http: add Request.SetBasicAuth method
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/4517063
+    https://golang.org/cl/4543050
 
- doc/contrib.html    | 6 +++---
- doc/contribute.html | 3 ++-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/http/request.go      | 13 +++++++++++++
+ src/pkg/http/request_test.go |  8 ++++++++
+ 2 files changed, 21 insertions(+)

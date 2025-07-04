@@ -1,31 +1,120 @@
-commit 9d2b988e4aeb59424411a314748aa8ffd1e71033
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 1 10:58:30 2016 -0700
+commit 7345fa54c17e979c4dc9d5c26c385d77ad614592
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Mon Mar 21 14:36:21 2016 +0100
 
-    cmd/compile: accept literals in samesafeexpr
+    fmt: optimize struct layout and intbuf size
     
-    This only triggers a few places in the stdlib,
-    but it helps a lot when it does.
+    Move boolean fields to the end of the pp struct for better packing.
     
-    Before:
+    Increase the fmt.intbuf size to leave no padding space unused
+    at the end of the fmt struct on 32 bit architectures.
     
-    runtime.mapassign1 t=1 size=2400 args=0x20 locals=0xe0
+    The size of the pp struct on amd64 is decreased from 192 byte
+    to 184 byte and on 386 from 132 byte to 128 byte.
     
-    After:
+    Simplify buffer size calculation in fmt_integer.
     
-    runtime.mapassign1 t=1 size=2352 args=0x20 locals=0xd8
+    Consolidate test cases for intbuf overflow checks.
     
-    name           old time/op  new time/op  delta
-    MapPop100-8    19.8µs ±11%  18.4µs ± 9%  -7.16%  (p=0.000 n=20+19)
-    MapPop1000-8    367µs ±17%   335µs ±11%  -8.63%  (p=0.000 n=19+19)
-    MapPop10000-8  7.29ms ±15%  6.86ms ±12%  -5.84%  (p=0.020 n=20+20)
+    amd64 Haswell:
     
-    Change-Id: I9faf32f95a6ba6a6d5d0818eab32cc271e01d10a
-    Reviewed-on: https://go-review.googlesource.com/26666
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    name                     old time/op  new time/op  delta
+    SprintfPadding-2          227ns ± 2%   227ns ± 1%    ~     (p=0.941 n=25+25)
+    SprintfEmpty-2           38.4ns ± 6%  35.8ns ±23%  -6.71%  (p=0.030 n=24+25)
+    SprintfString-2           100ns ± 0%   101ns ± 0%  +1.00%  (p=0.000 n=19+18)
+    SprintfTruncateString-2   142ns ± 1%   142ns ± 1%  +0.37%  (p=0.028 n=25+25)
+    SprintfQuoteString-2      397ns ± 0%   393ns ± 0%  -0.82%  (p=0.000 n=21+24)
+    SprintfInt-2              101ns ± 2%   102ns ± 4%    ~     (p=0.159 n=21+24)
+    SprintfIntInt-2           155ns ± 3%   155ns ± 3%    ~     (p=0.934 n=25+25)
+    SprintfPrefixedInt-2      252ns ± 2%   251ns ± 2%    ~     (p=0.198 n=25+25)
+    SprintfFloat-2            184ns ± 3%   179ns ± 2%  -3.07%  (p=0.000 n=24+25)
+    SprintfComplex-2          532ns ± 2%   535ns ± 2%  +0.64%  (p=0.046 n=25+24)
+    SprintfBoolean-2         90.5ns ± 3%  91.6ns ± 2%  +1.17%  (p=0.000 n=22+22)
+    SprintfHexString-2        164ns ± 2%   165ns ± 3%    ~     (p=0.066 n=25+25)
+    SprintfHexBytes-2         171ns ± 3%   170ns ± 3%    ~     (p=0.941 n=25+24)
+    SprintfBytes-2            320ns ± 1%   313ns ± 1%  -2.31%  (p=0.000 n=24+21)
+    SprintfStringer-2         347ns ± 2%   348ns ± 2%    ~     (p=0.426 n=24+24)
+    SprintfStructure-2        753ns ± 1%   742ns ± 1%  -1.49%  (p=0.000 n=24+25)
+    FprintInt-2               145ns ± 0%   144ns ± 0%  -0.69%  (p=0.000 n=24+23)
+    FprintfBytes-2            163ns ± 0%   163ns ± 0%  -0.27%  (p=0.000 n=25+25)
+    FprintIntNoAlloc-2        108ns ± 0%   105ns ± 0%  -2.78%  (p=0.000 n=25+2
+    
+    386 Haswell:
+    
+    name                     old time/op  new time/op  delta
+    SprintfPadding-2          426ns ± 2%   422ns ± 1%  -0.89%  (p=0.000 n=25+24)
+    SprintfEmpty-2           24.6ns ± 1%  24.5ns ± 0%  -0.39%  (p=0.000 n=22+15)
+    SprintfString-2          99.1ns ± 3%  95.6ns ± 0%  -3.52%  (p=0.000 n=25+24)
+    SprintfTruncateString-2   156ns ± 4%   153ns ± 1%  -1.65%  (p=0.000 n=24+23)
+    SprintfQuoteString-2      500ns ± 2%   493ns ± 1%  -1.49%  (p=0.000 n=25+24)
+    SprintfInt-2             92.6ns ± 9%  88.3ns ± 1%  -4.72%  (p=0.000 n=25+25)
+    SprintfIntInt-2           143ns ± 7%   137ns ± 2%  -4.01%  (p=0.000 n=23+25)
+    SprintfPrefixedInt-2      268ns ±19%   264ns ±16%    ~     (p=0.826 n=24+24)
+    SprintfFloat-2            242ns ± 4%   246ns ± 2%  +1.60%  (p=0.000 n=25+25)
+    SprintfComplex-2         1.04µs ± 3%  1.03µs ± 1%  -0.89%  (p=0.026 n=25+25)
+    SprintfBoolean-2         82.2ns ± 9%  80.7ns ± 2%    ~     (p=0.163 n=24+24)
+    SprintfHexString-2        240ns ± 5%   224ns ± 2%  -6.94%  (p=0.000 n=25+25)
+    SprintfHexBytes-2         245ns ± 3%   234ns ± 2%  -4.55%  (p=0.000 n=25+25)
+    SprintfBytes-2            432ns ±13%   419ns ± 2%    ~     (p=0.081 n=23+25)
+    SprintfStringer-2         356ns ± 4%   356ns ± 4%    ~     (p=0.988 n=25+25)
+    SprintfStructure-2        968ns ± 5%   948ns ± 2%  -2.11%  (p=0.000 n=25+25)
+    FprintInt-2               206ns ± 0%   201ns ± 0%  -2.43%  (p=0.000 n=25+21)
+    FprintfBytes-2            187ns ± 1%   187ns ± 1%    ~     (p=0.420 n=25+25)
+    FprintIntNoAlloc-2        173ns ± 0%   168ns ± 0%  -2.89%  (p=0.000 n=25+2
+    
+    amd64 Ivy Bridge:
+    
+    name                     old time/op  new time/op  delta
+    SprintfPadding-4          203ns ± 4%   210ns ± 8%  +3.27%  (p=0.000 n=23+25)
+    SprintfEmpty-4           24.4ns ± 2%  24.4ns ± 3%    ~     (p=0.487 n=24+25)
+    SprintfString-4          92.4ns ± 2%  93.1ns ± 3%    ~     (p=0.087 n=22+25)
+    SprintfTruncateString-4   137ns ± 3%   136ns ± 2%  -1.02%  (p=0.002 n=25+25)
+    SprintfQuoteString-4      378ns ± 1%   373ns ± 1%  -1.32%  (p=0.000 n=24+22)
+    SprintfInt-4             89.9ns ± 3%  90.3ns ± 4%    ~     (p=0.444 n=25+25)
+    SprintfIntInt-4           137ns ± 4%   138ns ± 3%    ~     (p=0.112 n=25+23)
+    SprintfPrefixedInt-4      155ns ±14%   154ns ±14%    ~     (p=0.791 n=25+25)
+    SprintfFloat-4            154ns ± 2%   154ns ± 3%    ~     (p=0.789 n=25+25)
+    SprintfComplex-4          396ns ± 2%   402ns ± 3%  +1.53%  (p=0.001 n=23+25)
+    SprintfBoolean-4         71.0ns ± 3%  71.2ns ± 2%    ~     (p=0.515 n=25+24)
+    SprintfHexString-4        156ns ± 3%   150ns ± 5%  -3.69%  (p=0.000 n=24+25)
+    SprintfHexBytes-4         154ns ± 3%   157ns ± 5%  +1.72%  (p=0.003 n=24+25)
+    SprintfBytes-4            297ns ± 4%   291ns ± 3%  -1.86%  (p=0.000 n=25+25)
+    SprintfStringer-4         275ns ± 3%   265ns ± 3%  -3.51%  (p=0.000 n=25+25)
+    SprintfStructure-4        878ns ± 2%   823ns ± 2%  -6.21%  (p=0.000 n=25+22)
+    FprintInt-4               145ns ± 1%   147ns ± 2%  +0.94%  (p=0.001 n=23+25)
+    FprintfBytes-4            166ns ± 1%   168ns ± 2%  +0.81%  (p=0.000 n=24+25)
+    FprintIntNoAlloc-4        113ns ± 2%   109ns ± 2%  -3.79%  (p=0.000 n=24+25)
+    
+    386 Ivy Bridge:
+    
+    name                     old time/op  new time/op  delta
+    SprintfPadding-4          353ns ± 4%   354ns ± 4%    ~     (p=0.769 n=25+24)
+    SprintfEmpty-4           21.9ns ± 6%  21.1ns ± 3%  -3.45%  (p=0.000 n=24+25)
+    SprintfString-4          94.7ns ± 1%  93.0ns ± 3%  -1.77%  (p=0.000 n=24+23)
+    SprintfTruncateString-4   150ns ± 2%   147ns ± 0%  -1.71%  (p=0.000 n=25+21)
+    SprintfQuoteString-4      472ns ± 1%   479ns ± 1%  +1.48%  (p=0.000 n=25+23)
+    SprintfInt-4             87.0ns ± 2%  85.3ns ± 2%  -1.95%  (p=0.000 n=25+25)
+    SprintfIntInt-4           137ns ± 2%   134ns ± 2%  -1.97%  (p=0.000 n=24+23)
+    SprintfPrefixedInt-4      166ns ± 8%   161ns ± 8%  -3.07%  (p=0.023 n=24+24)
+    SprintfFloat-4            226ns ± 1%   219ns ± 1%  -2.97%  (p=0.000 n=24+25)
+    SprintfComplex-4          867ns ± 1%   784ns ± 1%  -9.47%  (p=0.000 n=24+23)
+    SprintfBoolean-4         77.2ns ± 2%  76.0ns ± 2%  -1.63%  (p=0.000 n=25+25)
+    SprintfHexString-4        212ns ± 2%   214ns ± 2%  +0.96%  (p=0.000 n=25+25)
+    SprintfHexBytes-4         221ns ± 2%   218ns ± 1%  -1.42%  (p=0.000 n=25+24)
+    SprintfBytes-4            423ns ± 3%   417ns ± 1%  -1.49%  (p=0.000 n=25+24)
+    SprintfStringer-4         306ns ± 3%   298ns ± 3%  -2.57%  (p=0.000 n=24+25)
+    SprintfStructure-4       1.00µs ± 2%  0.98µs ± 2%  -1.34%  (p=0.000 n=24+24)
+    FprintInt-4               202ns ± 3%   197ns ± 2%  -2.04%  (p=0.000 n=25+25)
+    FprintfBytes-4            186ns ± 2%   184ns ± 2%  -0.88%  (p=0.000 n=24+25)
+    FprintIntNoAlloc-4        170ns ± 2%   166ns ± 2%  -2.26%  (p=0.000 n=24+25)
+    
+    Change-Id: I46e62bf8b6afa90a24f75b40f1d354b2084b910b
+    Reviewed-on: https://go-review.googlesource.com/20984
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 28 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go |  3 +++
- 2 files changed, 31 insertions(+)
+ src/fmt/fmt_test.go | 58 ++++++++++++++---------------------------------------
+ src/fmt/format.go   | 42 ++++++++++++++++++--------------------
+ src/fmt/print.go    | 19 ++++++++++++------
+ 3 files changed, 47 insertions(+), 72 deletions(-)

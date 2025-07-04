@@ -1,21 +1,25 @@
-commit a42bb79dd41bb1fb2276bef2829d2413d0ae7805
-Author: cui fliter <imcusg@gmail.com>
-Date:   Tue Mar 7 23:04:26 2023 +0800
+commit 62b8ec744b8e10b80f9271fed93116387c9128ef
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Apr 13 13:31:24 2022 -0700
 
-    cmd: fix mismatched symbols
+    math: improve documentation of Copysign
     
-    Change-Id: Ib2c4ddec9740f7c21c180c9f0980394dceeedfaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473975
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Name the arguments in a way that is more self-describing.
+    Many code editor tools show a snippet of the function and
+    its arguments. However, "x" and "y" are not helpful in determining
+    which is the sign and which is the magnitude,
+    short of reading the documentation itself.
+    
+    Name the sign argument as "sign" to be explicit.
+    This follows the same naming convention as IsInf.
+    
+    Change-Id: Ie3055009e475f96c92d5ea7bfe9828eed908c78b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400177
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go    | 2 +-
- src/cmd/compile/internal/compare/compare.go | 2 +-
- src/cmd/compile/internal/ssa/debug.go       | 2 +-
- src/cmd/compile/internal/walk/order.go      | 2 +-
- src/cmd/covdata/metamerge.go                | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/math/copysign.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

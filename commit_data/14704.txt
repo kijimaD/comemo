@@ -1,15 +1,15 @@
-commit 080d31cc50f4be0cbdbcaa74b43f019887b75cd0
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Dec 21 19:12:00 2012 +0400
+commit ebcaf081a7a58bbe0f7599aeb3e075202205f082
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 21 14:19:33 2012 +0900
 
-    runtime/race: update linux runtime to r170876.
-    This disables checks for limited address space
-    and unlimited stack. They are not required for Go.
-    Fixes #4577.
+    net: make unix connection tests more robust
     
-    R=golang-dev, iant
-    CC=golang-dev, kamil.kisiel, minux.ma
-    https://golang.org/cl/7003045
+    Avoids unlink the underlying file before the socket close.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7004044
 
- src/pkg/runtime/race/race_linux_amd64.syso | Bin 149080 -> 148760 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/net/conn_test.go       | 16 +++++++++-------
+ src/pkg/net/packetconn_test.go | 21 ++++++++++++---------
+ 2 files changed, 21 insertions(+), 16 deletions(-)

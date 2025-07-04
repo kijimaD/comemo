@@ -1,14 +1,13 @@
-commit 212914f573654693dbe2ffe44f7ac5aaba96ddb2
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 8 13:50:16 2014 -0800
+commit ce7c8fe0fd171bb09296c3dd4d8ca419e28ac5d0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 28 20:12:17 2014 -0700
 
-    runtime: test for linear enqueue/dequeue behavior
+    doc/go1.4.html: GODEBUG and assembler changes
     
-    Make sure dequeueing from a channel queue does not exhibit quadratic time behavior.
-    
-    Change-Id: Ifb7c709b026f74c7e783610d4914dd92909a441b
-    Reviewed-on: https://go-review.googlesource.com/1212
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/160660046
 
- test/chanlinear.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 94 insertions(+)
+ doc/go1.4.html | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 56 insertions(+), 9 deletions(-)

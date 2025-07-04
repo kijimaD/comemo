@@ -1,14 +1,13 @@
-commit 53056c37c2e3720666742f516ef148432313e28a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 19 11:49:36 2014 +0400
+commit 560cf4c6de08228f18fbf32e5c7f939c0b4885ba
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 20:57:54 2014 -0400
 
-    cmd/gc: fix heap buffer overflow
-    Fixes #8528.
+    [dev.power64] cmd/9l: remove MAXIO (fix build)
     
     LGTM=rsc
-    R=rsc, r, iant, bradfitz
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/128230045
+    https://golang.org/cl/124270043
 
- src/cmd/gc/bv.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/9l/l.h | 1 -
+ 1 file changed, 1 deletion(-)

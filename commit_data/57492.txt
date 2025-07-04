@@ -1,24 +1,26 @@
-commit c208b913954514ac7cab0fa701fba9c89af70392
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Aug 9 15:00:35 2024 -0400
+commit 59037ac93a49889eb6a7d6b3b8fbc70321615f1f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 04:05:35 2023 -0700
 
-    go/types, types2: clarify Named, Alias, TypeName, Object
+    cmd/compile: move early deadcode into unified writer
     
-    Updates #65855
-    Updates #66890
+    This CL moves the early deadcode elimination pass into the unified
+    writer. This allows shrinking the export data, by simplifying
+    expressions and removing unreachable statements. It also means we
+    don't need to repeatedly apply deadcode elimination on inlined calls
+    or instantiated generics.
     
-    Change-Id: I167c9de818049cae02f0d99f8e0fb4017e07bea9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604476
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I19bdb04861e50815fccdab39790f4aaa076121fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517775
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/alias.go     | 35 ++++++++++++++++++++++++----
- src/cmd/compile/internal/types2/named.go     | 11 +++++++++
- src/cmd/compile/internal/types2/object.go    | 19 +++++++++++----
- src/cmd/compile/internal/types2/typeparam.go |  5 +++-
- src/go/types/alias.go                        | 35 ++++++++++++++++++++++++----
- src/go/types/named.go                        | 11 +++++++++
- src/go/types/object.go                       | 19 +++++++++++----
- src/go/types/typeparam.go                    |  5 +++-
- 8 files changed, 120 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go | 247 --------------------------
+ src/cmd/compile/internal/gc/main.go           |  14 --
+ src/cmd/compile/internal/noder/reader.go      |  42 ++---
+ src/cmd/compile/internal/noder/writer.go      | 188 +++++++++++++++++++-
+ 4 files changed, 204 insertions(+), 287 deletions(-)

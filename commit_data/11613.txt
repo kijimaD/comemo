@@ -1,15 +1,12 @@
-commit 4c1abd6c64085a005b0d9d54eee97cd0c06151b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 4 00:48:31 2012 -0500
+commit 67b277c3b92daa16777d307f3c48aff06abe1305
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 4 13:27:12 2012 +0900
 
-    build: dist-based build for windows
+    cmd/dist: fix build on openbsd
     
-    R=golang-dev, bradfitz, iant, alex.brainman, go.peter.90
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5630047
+    https://golang.org/cl/5608060
 
- src/all.bat            |  18 ++++
- src/cmd/dist/windows.c | 229 ++++++++++++++++++++++++++++++++++++-------------
- src/make.bat           |  52 +++++++++++
- src/run.bat            |  47 ++++++++++
- 4 files changed, 288 insertions(+), 58 deletions(-)
+ src/cmd/dist/windows.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

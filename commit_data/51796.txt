@@ -1,18 +1,17 @@
-commit 5ad799ef8a8178f1f958206dc587b37d8406fbcb
-Author: Oleksii Sholik <alcosholik@gmail.com>
-Date:   Sat Jan 14 22:03:38 2023 +0000
+commit 201a2e9c2f82dd2c57c8e79bbe2c028d7c13b8ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 2 15:49:27 2022 -0800
 
-    net/http: fix missing word in ServeMux doc
+    compress/gzip: add example of compressing reader
     
-    Change-Id: I324cedfcdfa1d7eac7be43dc89febb584359c8e3
-    GitHub-Last-Rev: 7724cd84f323b531215db0406f72481394d0b206
-    GitHub-Pull-Request: golang/go#57799
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462039
+    For #51092
+    
+    Change-Id: If0a233651ac75f113569ddfffd056084f6092564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389514
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/gzip/example_test.go | 87 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

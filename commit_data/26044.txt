@@ -1,42 +1,71 @@
-commit def1e7276a7636c1eafafdee7e32f2bcbd27d685
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 3 15:49:04 2016 -0800
+commit d0c17461a785a03781e4cdbd18f7f3ba04d4b9db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 2 17:41:39 2015 -0800
 
-    cmd/compile: remove unnecessary conversions
+    go/constant: switch to floating-point representation when fractions become too large
     
-    Automated CL prepared by github.com/mdempsky/unconvert, except for
-    reverting changes to ssa/rewritegeneric.go (generated file) and
-    package big (vendored copy of math/big).
+    Use two internal representations for Float values (similar to what is done
+    for Int values). Transparently switch to a big.Float representation when
+    big.Rat values become unwieldy. This is almost never needed for real-world
+    programs but it is trivial to create test cases that cannot be handled with
+    rational arithmetic alone.
     
-    Change-Id: I64dc4199f14077c7b6a2f334b12249d4a785eadd
-    Reviewed-on: https://go-review.googlesource.com/20089
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    As a consequence, the go/constant API semantics changes slightly: Until now,
+    a value could always be represented in its "smallest" form (e.g., float values
+    that happened to be integers would be represented as integers). Now, constant
+    Kind depends on how the value was created, rather than its actual value. (The
+    reason why we cannot automatically "normalize" values to their smallest form
+    anymore is because floating-point numbers are not exact in general; and thus
+    normalization is often not possible in the first place, or would throw away
+    precision when it is not desired.) This has repercussions as to how constant
+    Values are used go/types and required corresponding adjustments.
+    
+    Details of the changes:
+    
+    go/constant package:
+    - use big.Rat and big.Float values to represent floating-point values
+      (internal change)
+    - changed semantic of Value.Kind accordingly
+    - String now returns a short, human-readable form of a value
+      (this leads to better error messages in go/types)
+    - added ToInt, ToFloat, and ToComplex conversion functions
+    - added ExactString to obtain an exact string form of a value
+    
+    go/types:
+    - adjusted and simplified implementation of representableConst
+    - adjusted various places where Value.Kind was expected to be "smallest"
+      by calling the respective ToInt/Float/Complex conversion functions
+    - enabled 5 disabled tests in stdlib_test.go that now work
+    
+    api checker:
+    - print all constant values in a short human-readable form (floats are
+      printed in floating-point form), but also print an exact form if it
+      is different from the short form
+    - adjusted test golden file and go.1.1.text reference file
+    
+    Fixes #11327.
+    
+    Change-Id: I492b704aae5b0238e5b7cee13e18ffce61193587
+    Reviewed-on: https://go-review.googlesource.com/17360
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/peep.go   | 46 +++++++++++++-------------
- src/cmd/compile/internal/arm/cgen.go     |  2 +-
- src/cmd/compile/internal/arm/peep.go     | 56 ++++++++++++++++----------------
- src/cmd/compile/internal/arm64/cgen.go   |  2 +-
- src/cmd/compile/internal/arm64/ggen.go   | 24 +++++++-------
- src/cmd/compile/internal/arm64/gsubr.go  |  2 +-
- src/cmd/compile/internal/arm64/peep.go   | 22 ++++++-------
- src/cmd/compile/internal/arm64/reg.go    |  2 +-
- src/cmd/compile/internal/gc/cgen.go      |  2 +-
- src/cmd/compile/internal/gc/parser.go    |  4 +--
- src/cmd/compile/internal/gc/pgen.go      |  4 +--
- src/cmd/compile/internal/gc/plive.go     | 26 +++++++--------
- src/cmd/compile/internal/gc/reg.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      |  4 +--
- src/cmd/compile/internal/gc/type.go      |  2 +-
- src/cmd/compile/internal/mips64/cgen.go  |  2 +-
- src/cmd/compile/internal/mips64/ggen.go  | 22 ++++++-------
- src/cmd/compile/internal/mips64/gsubr.go |  2 +-
- src/cmd/compile/internal/mips64/peep.go  | 20 ++++++------
- src/cmd/compile/internal/mips64/reg.go   |  2 +-
- src/cmd/compile/internal/ppc64/cgen.go   |  2 +-
- src/cmd/compile/internal/ppc64/ggen.go   | 24 +++++++-------
- src/cmd/compile/internal/ppc64/gsubr.go  | 16 ++++-----
- src/cmd/compile/internal/ppc64/peep.go   | 22 ++++++-------
- src/cmd/compile/internal/ppc64/reg.go    |  2 +-
- src/cmd/compile/internal/x86/cgen.go     |  2 +-
- 26 files changed, 158 insertions(+), 158 deletions(-)
+ api/go1.1.txt                                  |  30 +-
+ src/cmd/api/goapi.go                           |   9 +-
+ src/cmd/api/testdata/src/pkg/p1/golden.txt     |   2 +-
+ src/go/constant/value.go                       | 675 +++++++++++++++++++------
+ src/go/constant/value_test.go                  | 115 ++++-
+ src/go/internal/gccgoimporter/importer_test.go |   8 +-
+ src/go/types/api_test.go                       |  32 +-
+ src/go/types/builtins.go                       |   2 +-
+ src/go/types/conversions.go                    |   2 +-
+ src/go/types/eval_test.go                      |   2 +-
+ src/go/types/expr.go                           | 129 ++---
+ src/go/types/operand.go                        |  21 +-
+ src/go/types/stdlib_test.go                    |  11 +-
+ src/go/types/testdata/const0.src               |  13 +
+ src/go/types/testdata/decls0.src               |   5 +-
+ src/go/types/testdata/errors.src               |   4 +-
+ src/go/types/typexpr.go                        |  21 +-
+ 17 files changed, 753 insertions(+), 328 deletions(-)

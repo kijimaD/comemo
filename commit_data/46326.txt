@@ -1,24 +1,18 @@
-commit bca8c6ffa2dd19d49685531650ea6553262837e3
-Author: Vyacheslav Pachkov <slava.pach@gmail.com>
-Date:   Mon Aug 23 08:40:32 2021 +0000
+commit d1d1099c917de7387db9c9435e35ff14c4a63a91
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 17:22:28 2020 -0500
 
-    cmd/link: resolve magic value in gdbscript section generation
+    [dev.regabi] cmd/compile: fixes for big rewrite
     
-    According to the .debug_gdb_scripts section specification
-    [https://sourceware.org/gdb/onlinedocs/gdb/dotdebug_005fgdb_005fscripts-section.html],
-    each entry begins with a non-null prefix byte that specifies the kind of entry.
-    This commit resolves a question about magic byte and replaces a
-    hardcoded value with a meaningful constant "GdbScriptPythonFileId"
-    inside writegdbscript function.
+    Adjust the new regabi code a bit to make the rewrites apply cleanly.
     
-    Change-Id: I456c742bcb539a5853b9e2a6811033f35c37e7d4
-    GitHub-Last-Rev: 2f1c4cb9eec582a6e381fa866738aa17278005c2
-    GitHub-Pull-Request: golang/go#47646
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341391
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ice5378e94d94ab45ca0572f44ab8c94b847271b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279530
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/gsubr.go | 11 ++++++-----
+ src/cmd/compile/internal/gc/ssa.go   | 10 ++++++----
+ 2 files changed, 12 insertions(+), 9 deletions(-)

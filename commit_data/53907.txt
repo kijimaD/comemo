@@ -1,18 +1,16 @@
-commit cd162d27dcc5fb8e75ccec2b1015849399a626e9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 4 12:37:52 2023 -0700
+commit 7033275e3742c31810bd2f8da13d0b3c90363837
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Jun 5 18:28:51 2022 +0100
 
-    cmd/compile/internal/ir: remove unused Name.{Offset,SetOffset}
+    .github: update issue label for pkgsite-removal
     
-    These aren't used and don't do anything useful anyway.
-    
-    Change-Id: I2865f6bbb0409fa59b1fde32abb7c5f81a6bdb7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516195
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie90013077068b8e61bd651f2e686b06b6dad9fc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410454
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Jamal Carvalho <jamal@golang.org>
+    Reviewed-by: Jamal Carvalho <jamal@golang.org>
+    Run-TryBot: Jamal Carvalho <jamal@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/name.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ .github/ISSUE_TEMPLATE/02-pkgsite-removal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

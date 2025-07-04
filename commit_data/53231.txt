@@ -1,20 +1,34 @@
-commit a63afe4720e5eb4fbb76baf38a41cbf60e739fd4
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue May 23 12:35:48 2023 +0200
+commit d29a0282e9b7340ba2ed3f506e66304e92580238
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 20 15:06:31 2022 -0400
 
-    runtime/metrics: add /gc/scan/globals:bytes
+    runtime: add mayAcquire annotation for finlock
     
-    For #56857
+    We're missing lock edges to finlock that happen only rarely. Anything
+    that calls mallocgc can potentially trigger sweeping, which can
+    potentially queue a finalizer, which acquires finlock. While this can
+    happen on any malloc, it happens relatively rarely, so we simply
+    haven't seen some of the lock edges that could happen.
     
-    Change-Id: I748fd2a33ee76d9a83ea42f2ebf6d9edda243301
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497320
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Add a mayAcquire annotation to mallocgc to capture the possibility of
+    acquiring finlock.
+    
+    With this change, we add "fin" to the set of "malloc" locks. Several
+    of these edges were already there, but not quite all of them.
+    
+    This was found by inspecting the rank graph for things that didn't
+    make sense.
+    
+    For #53789.
+    
+    Change-Id: Idc10ce6f250596b0c07ba07ac93f2198fb38c22b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418717
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 5 +++++
- src/runtime/metrics/doc.go         | 3 +++
- 3 files changed, 14 insertions(+)
+ src/runtime/lockrank.go   | 24 ++++++++++++------------
+ src/runtime/malloc.go     |  5 +++++
+ src/runtime/mfinal.go     |  6 ++++++
+ src/runtime/mklockrank.go |  3 +--
+ 4 files changed, 24 insertions(+), 14 deletions(-)

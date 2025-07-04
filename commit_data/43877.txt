@@ -1,28 +1,31 @@
-commit 4481ad6eb6c2b4ee52d949289da82cc00cc829fa
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Nov 25 14:07:30 2020 -0500
+commit 5c22c01d450c2da859644d2c020b75860308bf71
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Mon Apr 27 19:41:14 2020 -0400
 
-    doc/go1.16: consolidate stdlib changes in "Minor changes" section
+    go/types: improve errors for method calls with pointer receivers
     
-    Many of the standard library changes that were added before CL 272871
-    ended up in the "Core library" section. That section is meant for
-    major changes like new packages, and most of these aren't.
+    The compiler has better error messages for methods called without a
+    pointer receiver when one is expected. This change is similar to
+    CL 229801, but for method calls.
     
-    Consolidate all changes in the "Minor changes to the library" section
-    for now, so that it's easier to get a complete picture of changes for
-    each package, along with the remaining TODOs. Add a TODO to read them
-    over at the end and factor out items that are worth highlighting.
+    Also, added better error messages for functions called with the wrong
+    capitalization. I left the third TODO in this switch statement almost
+    as-is because I'm not sure that the extra complexity is worth it -
+    I adjusted the error to look like the one the compiler reports.
     
-    Apply minor other fixups to improve consistency.
+    Fixes golang/go#38658
     
-    For #40700.
-    
-    Change-Id: I7dc2e7ebf2ea3385fce0c207bae4ce467998a717
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273267
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ie0ca2503e12f3659f112f0135cc27db1b027fdcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230380
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.16.html | 303 ++++++++++++++++++++++++++++----------------------------
- 1 file changed, 153 insertions(+), 150 deletions(-)
+ src/go/types/call.go                 | 21 +++++++++++++++++----
+ src/go/types/testdata/decls3.src     | 18 +++++++++---------
+ src/go/types/testdata/decls4.src     |  4 ++--
+ src/go/types/testdata/expr3.src      |  4 ++--
+ src/go/types/testdata/issue28251.src |  4 ++--
+ src/go/types/testdata/issues.src     |  8 ++++++--
+ src/go/types/testdata/methodsets.src | 12 ++++++------
+ 7 files changed, 44 insertions(+), 27 deletions(-)

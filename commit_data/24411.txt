@@ -1,21 +1,16 @@
-commit 745cdc3ad7556ba073d2a55fa7cebb3fc683b94f
-Author: David Chase <drchase@google.com>
-Date:   Mon Sep 28 16:13:57 2015 -0400
+commit d7223c6cc162d89d56b3a23902033aaa93f052db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 10:41:41 2015 -0700
 
-    cmd/compile: repair escape analysis of range &fixedArray
+    runtime: correct implementation of raiseproc on Solaris
     
-    The existing test did not take into account the implicit
-    dereference of &fixedArray and thus heap-escaped when it
-    was not necessary.
+    I forgot that the libc raise function only sends the signal to the
+    current thread.  We need to actually use kill and getpid here, as we
+    do on other systems.
     
-    Also added a detailed test for this and related cases.
-    
-    Fixes #12588
-    
-    Change-Id: I951e9684a093082ccdca47710f69f4366bd6b3cf
-    Reviewed-on: https://go-review.googlesource.com/15130
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Iac34af822c93468bf68cab8879db3ee20891caaf
+    Reviewed-on: https://go-review.googlesource.com/12704
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  9 +++-
- test/fixedbugs/issue12588.go       | 88 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 95 insertions(+), 2 deletions(-)
+ src/runtime/os3_solaris.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,28 +1,20 @@
-commit 82d6e2eab8ea12962f2ad5f1d446350a7572d57c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 22 14:47:01 2019 -0700
+commit 0e9d7d430b1aa74a58054a6a69aa3fb37353168d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Mar 9 14:11:40 2019 +0100
 
-    go/types: NewInterface/NewInterfaceType complete empty interfaces
+    bytes: return early in Repeat if count is 0
     
-    When creating a new interface via the exported API calls, a shared
-    empty and completed Interface value is returned if there are no
-    methods or embedded interfaces. This is a minor optimization and
-    matches the internal behavior when creating empty interfaces.
+    This matches the implementation of strings.Repeat and slightly increases
+    performance:
     
-    Since calling Interface.Complete is idempotent, and since there
-    are no other legitimate ways to create Interface values externally
-    but via NewInterface/NewInterfaceType calls, and completed Interfaces
-    are considered "immutable", this change is not expected to affect
-    clients. The only observable behavior that changed is the string
-    value for empty interfaces created via the above API calls; those
-    empty interfaces now don't show "incomplete" anymore even before
-    Interface.Complete is called. Except in special test cases, this
-    behavior is unlikely to affect clients.
+    name      old time/op  new time/op  delta
+    Repeat-8   145ns ±12%   125ns ±29%  -13.35%  (p=0.009 n=10+10)
     
-    Change-Id: Idf7f2cd112241c5b81a43b4544bbe3f2e003d8d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191417
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic0a0e2ea9e36591286a49def320ddb67fe0b2c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166399
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/type.go            |  5 ++---
- src/go/types/typestring_test.go | 12 ++++++------
- 2 files changed, 8 insertions(+), 9 deletions(-)
+ src/bytes/bytes.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

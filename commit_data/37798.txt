@@ -1,19 +1,27 @@
-commit 3e89272f9c87f69dc687b96687b1e3d29e9f5d84
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Sat Dec 29 16:19:16 2018 -0800
+commit c64006ab5d054396bd86c1c2a71931bb4ecce5ca
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 29 16:46:19 2018 +0200
 
-    runtime: use EnumTimeFormatsEx instead of EnumWindows in callback tests
+    bytes: note that NewBuffer's initial size can change
     
-    Use EnumTimeFormatsEx() to test panics across callback boundaries
-    instead of EnumWindows(). EnumWindows() is incompatible with Go's panic
-    unwinding mechanism. See the associated issue for more information.
+    bytes.NewBuffer's documentation says it can be used to set the initial
+    size of the buffer. The current wording is:
     
-    Updates #26148
+    > It can also be used to size the internal buffer for writing.
     
-    Change-Id: If1dd70885d9c418b980b6827942cb1fd16c73803
-    Reviewed-on: https://go-review.googlesource.com/c/155923
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    This may led users to believe that the buffer (its backing array) is
+    fixed in size and won't grow, which isn't true (subsequent Write calls
+    will expand the backing array as needed).
+    
+    Change the doc to make it clearer that NewBuffer just sets the initial
+    size of the buffer.
+    
+    Fixes #27242
+    
+    Change-Id: I2a8cb5bee02ca2c1657ef59e2cf1434c7a9bd397
+    Reviewed-on: https://go-review.googlesource.com/132035
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/syscall_windows_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/bytes/buffer.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

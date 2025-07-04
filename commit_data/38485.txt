@@ -1,16 +1,12 @@
-commit b41eef244319df4f7431728ac7671cdbe8449778
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Mar 18 08:06:49 2019 -0400
+commit 02aa1aeeb1baf9bcfb8b9eeff9c92e93426ae512
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Oct 31 12:03:15 2018 -0400
 
-    os: add PathError.Unwrap
+    doc/go1.12: initial add of release notes for Go 1.12
     
-    Add an Unwrap method to PathError so it works with the errors.Is/As
-    functions.
-    
-    Change-Id: Ia6171c0418584f3cd53ee99d97c687941a9e3109
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168097
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I9cb3c80ea397d964fe745b74d595df3fd8982a47
+    Reviewed-on: https://go-review.googlesource.com/c/146257
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/error.go      | 2 ++
- src/os/error_test.go | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ doc/go1.12.html | 282 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 282 insertions(+)

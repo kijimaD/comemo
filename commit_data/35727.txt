@@ -1,15 +1,25 @@
-commit f70d1e76cc0ed2550d83fbc04356f7d2308044c4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 12 20:25:07 2018 +0000
+commit 29fcd57a9f4b345bf155f04c0f5b4ccf7a61401e
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Mar 2 02:24:41 2018 +0100
 
-    net/http: ensure that Listener.Close is called only once in Server.Serve
+    cmd/compile: fold offsets into memory ops
     
-    Fixes #24803
+    Fold offsets for:
     
-    Change-Id: I8b1e7c5a74018a0c333f8c38a7ec5f5827ab1606
-    Reviewed-on: https://go-review.googlesource.com/106715
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+      {ADD,SUB,MUL}[SD]mem
+      ADD[LQ]constmem
+      {ADD,SUB,AND,OR,XOR}[LQ]mem
+    
+    Cumulatively, the rules trigger ~900 times in all.bash.
+    
+    Fixes #23325
+    
+    Change-Id: If6c701f68fa0b57907a353a07a516b914127d0d8
+    Reviewed-on: https://go-review.googlesource.com/98035
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 22 ++++++++++++++++++++--
- 2 files changed, 58 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  25 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 946 +++++++++++++++++++++++++++
+ 2 files changed, 971 insertions(+)

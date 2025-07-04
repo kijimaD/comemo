@@ -1,0 +1,18 @@
+commit f0b8d79c96be6f8557fd8b42d51996327cf1ecdc
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Sat Nov 30 22:08:44 2024 -0700
+
+    cmd/go: add tool meta-pattern to go help packages
+    
+    For #48429
+    
+    Change-Id: I6932853c3156a68d099a749431d15d2c37785649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632555
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go               | 4 +++-
+ src/cmd/go/internal/help/helpdoc.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

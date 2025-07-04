@@ -1,30 +1,27 @@
-commit df1cdbf7933ae03d716e4ce657f15d8e77309da5
+commit 760ac1dd33f460a1e73c912913eb0c3da7afb286
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Apr 12 14:20:21 2019 +0200
+Date:   Sat Nov 17 14:09:24 2018 +0100
 
-    bootstrap.bash: fix build if no exec wrapper exists
+    os: make RemoveAll("") fail silently on unix
     
-    Since CL 170941 bootstrap.bash fails if no exec wrapper exists for a
-    given GOOS/GOARCH yet:
+    CL 146020 changed the behavior of RemoveAll("") on unix systems using
+    the *at functions to return syscall.EINVAL instead of nil. Adjust the
+    *at implementation to retain this behavior as is the case on the *noat
+    systems.
     
-      #### Building ../../go-linux-arm-bootstrap
+    Additionally, also make sure RemoveAll("") on systems not using the "at
+    functions (e.g. nacl and js/wasm) follow the same behavior (which wasn't
+    the case previously).
     
-      Building Go cmd/dist using /usr/local/go.
-      Building Go toolchain1 using /usr/local/go.
-      Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
-      Building Go toolchain2 using go_bootstrap and Go toolchain1.
-      Building Go toolchain3 using go_bootstrap and Go toolchain2.
-      Building packages and commands for host, linux/amd64.
-      Building packages and commands for target, linux/arm.
-      rm: cannot remove 'bin/go_linux_arm_exec': No such file or directory
+    Fixes #28830
     
-    Fix it by using 'rm -f' to ignore nonexisting files.
-    
-    Change-Id: Ib4b1e19747052fa4dca06319f35cc25a0545c4f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171722
+    Change-Id: I8383c1423fefe871d18ff49134a1d23077ec6867
+    Reviewed-on: https://go-review.googlesource.com/c/150158
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/bootstrap.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/removeall_at.go   | 8 +++++++-
+ src/os/removeall_noat.go | 6 ++++++
+ src/os/removeall_test.go | 4 ++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

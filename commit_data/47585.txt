@@ -1,16 +1,56 @@
-commit 0244343088e074c5f92b42a9812521f711a69410
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 22 11:43:46 2021 -0800
+commit 6cadfe2fee9b063651f163aaa4734979944e7a9f
+Author: Ignacio Hagopian <jsign.uy@gmail.com>
+Date:   Tue Mar 30 17:18:06 2021 +0000
 
-    spec: fix Swap example (correctly swap type arguments and parameters)
+    reflect: cache IsVariadic calls in Call
     
-    Thanks to @danscales for noticing the mistake.
+    These calls are cacheable, so do that to avoid doing extra work.
     
-    Change-Id: I547ee80a78419765b82d39d7b34dc8d3bf962c35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366215
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    This opportunity was discovered while taking a look at a CPU profile
+    while investigating #7818.
+    
+    I added a BenchmarkCallMethod, which is similar to BechmarkCall but
+    for a method receiver.
+    
+    Benchmark results, including the new BenchmarkCallMethod:
+    
+            name                       old time/op    new time/op    delta
+            Call-16                      22.0ns ±19%    20.2ns ±17%  -8.08%  (p=0.000 n=40+40)
+            CallMethod-16                 100ns ± 3%      91ns ± 2%  -9.13%  (p=0.000 n=40+39)
+            CallArgCopy/size=128-16      15.7ns ± 1%    14.3ns ± 4%  -8.98%  (p=0.000 n=38+37)
+            CallArgCopy/size=256-16      15.9ns ± 3%    15.0ns ± 5%  -6.12%  (p=0.000 n=39+39)
+            CallArgCopy/size=1024-16     18.8ns ± 6%    17.1ns ± 6%  -9.03%  (p=0.000 n=38+38)
+            CallArgCopy/size=4096-16     26.6ns ± 3%    25.2ns ± 4%  -5.19%  (p=0.000 n=39+40)
+            CallArgCopy/size=65536-16     379ns ± 3%     371ns ± 5%  -2.11%  (p=0.000 n=39+40)
+    
+            name                       old alloc/op   new alloc/op   delta
+            Call-16                       0.00B          0.00B         ~     (all equal)
+            CallMethod-16                 0.00B          0.00B         ~     (all equal)
+    
+            name                       old allocs/op  new allocs/op  delta
+            Call-16                        0.00           0.00         ~     (all equal)
+            CallMethod-16                  0.00           0.00         ~     (all equal)
+    
+            name                       old speed      new speed      delta
+            CallArgCopy/size=128-16    8.13GB/s ± 1%  8.92GB/s ± 4%  +9.77%  (p=0.000 n=38+38)
+            CallArgCopy/size=256-16    16.1GB/s ± 3%  17.1GB/s ± 5%  +6.56%  (p=0.000 n=39+39)
+            CallArgCopy/size=1024-16   54.6GB/s ± 6%  60.1GB/s ± 5%  +9.93%  (p=0.000 n=38+38)
+            CallArgCopy/size=4096-16    154GB/s ± 5%   163GB/s ± 4%  +5.63%  (p=0.000 n=40+40)
+            CallArgCopy/size=65536-16   173GB/s ± 3%   177GB/s ± 5%  +2.18%  (p=0.000 n=39+40)
+    
+    Updates #7818.
+    
+    Change-Id: I94f88811ea9faf3dc2543984a13b360b5db66a4b
+    GitHub-Last-Rev: 9bbaa1854aa32cade905eddb05737e6224c372a1
+    GitHub-Pull-Request: golang/go#43475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281252
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 16 ++++++++++++++++
+ src/reflect/value.go    |  9 +++++----
+ 2 files changed, 21 insertions(+), 4 deletions(-)

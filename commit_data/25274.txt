@@ -1,25 +1,22 @@
-commit 22a204dd0fd9003ae51318f5f67f43937b59ee87
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Dec 14 12:37:26 2015 -0800
+commit 69a99ccc6215334d3e4bec16c50dd6f19c2a3940
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 15 21:48:11 2015 +1300
 
-    cmd/compile: change dead code into assert
+    cmd/link: always disable lazy PLT resolution when dynamically linking Go
     
-    After fixing #13587, I noticed that the "OAS2FUNC in disguise" block
-    looked like it probably needed write barriers too.  However, testing
-    revealed the multi-value "return f()" case was already being handled
-    correctly.
+    Go cannot allow lazy PLT resolution when calling between Go functions because
+    the lazy resolution can use more stack than is available. Lazy resolution is
+    disabled by passing -z now to the system linker, but unfortunately was only
+    passed when linking to a Go shared library. That sounds fine, but the shared
+    library containing the runtime is not linked to any other Go shared library but
+    calls main.init and main.main via a PLT, and before this fix this did use lazy
+    resolution. (For some reason this never caused a problem on intel, but it
+    breaks on ppc64le). Fortunately the fix is very simple: always pass -z now to
+    the system linker when dynamically linking Go.
     
-    It turns out this block is dead code due to "return f()" already being
-    transformed into "t1, t2, ..., tN := f(); return t1, t2, ..., tN" by
-    orderstmt when f is a multi-valued function.
-    
-    Updates #13587.
-    
-    Change-Id: Icde46dccc55beda2ea5fd5fcafc9aae26cec1552
-    Reviewed-on: https://go-review.googlesource.com/17759
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7806d40aac80dcd1e56b95864d1cfeb1c42614e2
+    Reviewed-on: https://go-review.googlesource.com/15870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,29 +1,24 @@
-commit 23f760fd58a0609b9e03da944e7949f7e26a7e29
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed May 1 13:51:20 2024 -0400
+commit a9a01ea280892e69c3722eebbc60d14c17a77e8d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 1 12:47:15 2023 -0400
 
-    cmd/go: remove checks that all counters incremented are in counters.txt
+    cmd/link: work around dsymutils not cleaning temp file
     
-    This change removes cmd/go/testdata/counters.txt. It also removes the
-    code that prepares it and checks that it contains all registered
-    counters as well as counters for all flags and subcommands. It removes
-    the counter registration mechanism, and uses telemetry.NewCounter to
-    create new counters instead. It keeps the tests that check that at least
-    one counter is incremented if the go command is invoked in a script test.
+    Some versions of dsymutils, notably the one in clang 14.0.3, which
+    is shipped in some versions of Xcode, have a bug that it creates a
+    temporary directory but doesn't clean it up at exit. The temporary
+    directory is created in DSYMUTIL_REPRODUCER_PATH (if set,
+    otherwise TMPDIR). Work around the issue by setting
+    DSYMUTIL_REPRODUCER_PATH to the linker's temporary directory, so
+    the linker will clean it up at exit anyway.
     
-    Change-Id: Ic6bda5c64e90f0dd7e221968fce0e375e84d6e17
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582715
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Fixes #59026.
+    
+    Change-Id: Ie3e90a2d6a01f90040dc2eac91e8e536ccdda5a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490818
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/counters_test.go             | 140 -------
- src/cmd/go/internal/base/base.go        |  27 --
- src/cmd/go/internal/help/help.go        |   3 +-
- src/cmd/go/internal/modfetch/cache.go   |   3 +-
- src/cmd/go/internal/toolchain/select.go |   5 +-
- src/cmd/go/internal/toolchain/switch.go |   3 +-
- src/cmd/go/main.go                      |   5 +-
- src/cmd/go/script_test.go               |  20 -
- src/cmd/go/testdata/counters.txt        | 689 --------------------------------
- 9 files changed, 11 insertions(+), 884 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

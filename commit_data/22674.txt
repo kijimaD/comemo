@@ -1,23 +1,12 @@
-commit 04829a413850eddc81191837bee79ef5699d406e
+commit fb4b46738cfc0adf4e02781c25603ca16764cdbf
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 16:36:52 2015 -0700
+Date:   Wed Apr 1 16:33:43 2015 -0700
 
-    cmd/9g, etc: remove // fallthrough comments
+    doc/go1.5: add Stats to database/sql
     
-    They are vestiges of the c2go transition.
-    
-    Change-Id: I22672e40373ef77d7a0bf69cfff8017e46353055
-    Reviewed-on: https://go-review.googlesource.com/9265
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7b0c186ea292655f7ff45c15ac29f6d1b71ef132
+    Reviewed-on: https://go-review.googlesource.com/8370
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/9g/gsubr.go           | 3 +--
- src/cmd/internal/gc/dcl.go    | 1 -
- src/cmd/internal/gc/esc.go    | 2 --
- src/cmd/internal/gc/export.go | 2 --
- src/cmd/internal/gc/fmt.go    | 4 ----
- src/cmd/internal/gc/gen.go    | 2 --
- src/cmd/internal/gc/inl.go    | 2 --
- src/cmd/internal/gc/walk.go   | 1 -
- src/cmd/internal/ld/dwarf.go  | 1 -
- src/cmd/internal/ld/elf.go    | 1 -
- 10 files changed, 1 insertion(+), 18 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

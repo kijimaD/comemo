@@ -1,19 +1,18 @@
-commit 4e2b4d7fb2343ea5a05fcb9da821b6912ca86893
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Apr 10 16:29:57 2019 +0200
+commit a889aaf8bfcf803eaed411ebae672cc6c52252bc
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Nov 17 10:00:14 2018 +0100
 
-    runtime: move libcall to stack for syscall package on aix/ppc64
+    runtime: don't use thread local storage before it is set up on iOS
     
-    Inside syscall_syscall6 function, libcall can directly be on the stack.
-    This is first function called with //go:nosplit, unlike runtime syscalls
-    which can be called during the sigtramp or by others //go:nosplit
-    functions.
+    CL 138675 added a call to runtime.save_g which uses thread local
+    storage to store g. On iOS however, that storage was not initialized
+     yet. Move the call to below _cgo_init where it is set up.
     
-    Change-Id: Icc28def1a63e525850ec3bfb8184b995dfeaa736
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171338
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I14538d3e7d56ff35a6fa02c47bca306d24c38010
+    Reviewed-on: https://go-review.googlesource.com/c/150157
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/syscall_aix.go | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ src/runtime/asm_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

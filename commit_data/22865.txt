@@ -1,17 +1,20 @@
-commit ceefebd7952e7a65ec1da82caf13c101debc369d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 4 21:43:30 2015 -0400
+commit e6092d64a7a196e6e228a36eb3b243b379aa2520
+Author: Colin Kennedy <moshen.colin@gmail.com>
+Date:   Wed Feb 11 16:58:55 2015 -0600
 
-    runtime: rename ptrsize to ptrdata
+    image/gif: expose disposal, bg index and Config
     
-    I forgot there is already a ptrSize constant.
-    Rename field to avoid some confusion.
+    The background index in the global palette (located in the image.Config)
+    is necessary for interpreting GIF frames properly
     
-    Change-Id: I098fdcc8afc947d6c02c41c6e6de24624cc1c8ff
-    Reviewed-on: https://go-review.googlesource.com/9700
-    Reviewed-by: Austin Clements <austin@google.com>
+    Frame disposal information is necessary for interpreting GIF frames in
+    the context of a sequence (or animation)
+    
+    Removes decoder.flags as it can be a local variable
+    
+    Change-Id: I6790a7febf6ba0859175c834c807bc6413e6b194
+    Reviewed-on: https://go-review.googlesource.com/4620
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/internal/gc/reflect.go | 12 ++++++------
- src/reflect/type.go            | 12 ++++++------
- src/runtime/type.go            |  2 +-
- 3 files changed, 13 insertions(+), 13 deletions(-)
+ src/image/gif/reader.go | 41 ++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 34 insertions(+), 7 deletions(-)

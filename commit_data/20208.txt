@@ -1,35 +1,26 @@
-commit 3a7f6646cfdc19ca4f33efe48d33eb1731b49ca8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 29 16:20:48 2014 -0400
+commit ebac0e6f302c52e97a212fab8837a73f31edc884
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 20:12:26 2014 +0400
 
-    runtime: convert lock*.c to Go
+    runtime: convert async semaphores to Go
     
-    LGTM=r, iant
-    R=golang-codereviews, r, iant
-    CC=dvyukov, golang-codereviews, khr
-    https://golang.org/cl/139930043
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/126210046
 
- src/pkg/runtime/alg.go               |   4 +-
- src/pkg/runtime/asm_386.s            |   3 +
- src/pkg/runtime/asm_amd64.s          |   3 +
- src/pkg/runtime/asm_amd64p32.s       |   3 +
- src/pkg/runtime/asm_arm.s            |   3 +
- src/pkg/runtime/export_futex_test.go |   3 -
- src/pkg/runtime/export_test.go       |   1 -
- src/pkg/runtime/lock_futex.c         | 227 ---------------------------
- src/pkg/runtime/lock_futex.go        | 205 ++++++++++++++++++++++++
- src/pkg/runtime/lock_sema.c          | 295 -----------------------------------
- src/pkg/runtime/lock_sema.go         | 264 +++++++++++++++++++++++++++++++
- src/pkg/runtime/os_darwin.go         |   2 +
- src/pkg/runtime/os_dragonfly.go      |   2 +
- src/pkg/runtime/os_freebsd.go        |   2 +
- src/pkg/runtime/os_linux.go          |   2 +
- src/pkg/runtime/os_nacl.go           |   2 +
- src/pkg/runtime/os_netbsd.go         |   2 +
- src/pkg/runtime/os_openbsd.go        |   2 +
- src/pkg/runtime/os_plan9.go          |   4 +
- src/pkg/runtime/os_solaris.go        |   2 +
- src/pkg/runtime/os_windows.go        |   2 +
- src/pkg/runtime/stack.go             | 105 +++++++++++++
- src/pkg/runtime/stubs.go             |  23 ++-
- 23 files changed, 620 insertions(+), 541 deletions(-)
+ src/cmd/gc/select.c              |   1 +
+ src/pkg/runtime/arch_386.go      |   9 ++
+ src/pkg/runtime/arch_amd64.go    |   9 ++
+ src/pkg/runtime/arch_amd64p32.go |   9 ++
+ src/pkg/runtime/arch_arm.go      |   9 ++
+ src/pkg/runtime/chan.go          |   8 +-
+ src/pkg/runtime/chan.goc         |  10 +-
+ src/pkg/runtime/proc.go          |   4 +-
+ src/pkg/runtime/runtime.h        |   5 +-
+ src/pkg/runtime/sema.go          | 165 +++++++++++++++++++++++++++++--
+ src/pkg/runtime/sema.goc         | 204 ---------------------------------------
+ src/pkg/runtime/stubs.go         |   7 +-
+ src/pkg/runtime/stubs.goc        |  15 +++
+ src/pkg/runtime/thunk.s          |  12 +++
+ 14 files changed, 242 insertions(+), 225 deletions(-)

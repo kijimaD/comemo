@@ -1,21 +1,34 @@
-commit b64c7fc6832902acb8eebc67c887d2ef9114f644
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 3 13:58:28 2016 -0700
+commit c837761b522e8d60031dcd282739d6dc89eea414
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 01:47:16 2016 -0700
 
-    cmd/compile: never CSE two memories
+    cmd/compile: get rid of Type's {This,In,Out}tuple fields
     
-    It never makes sense to CSE two ops that generate memory.
-    We might as well start those ops off in their own partition.
+    Boolean expressions involving t.Thistuple were converted to use
+    t.Recv(), because it's a bit clearer and will hopefully reveal cases
+    where we could remove redundant calls to t.Recv() (in followup CLs).
     
-    Fixes #15520
+    The other cases were all converted to use t.Recvs().NumFields(),
+    t.Params().NumFields(), or t.Results().NumFields().
     
-    Change-Id: I0091ed51640f2c10cd0117f290b034dde7a86721
-    Reviewed-on: https://go-review.googlesource.com/22741
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4df91762e7dc4b2ddae35995f8dd604a52c09b09
+    Reviewed-on: https://go-review.googlesource.com/20796
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/subr.go    |  4 ----
- src/cmd/compile/internal/ssa/config.go |  6 ------
- src/cmd/compile/internal/ssa/cse.go    | 11 ++++-------
- 3 files changed, 4 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/closure.go     |  2 +-
+ src/cmd/compile/internal/gc/dcl.go         | 49 ++++++++++++------------------
+ src/cmd/compile/internal/gc/esc.go         |  2 +-
+ src/cmd/compile/internal/gc/export.go      |  2 +-
+ src/cmd/compile/internal/gc/fmt.go         |  4 +--
+ src/cmd/compile/internal/gc/inl.go         | 14 ++++-----
+ src/cmd/compile/internal/gc/order.go       |  4 +--
+ src/cmd/compile/internal/gc/pgen.go        | 10 +++---
+ src/cmd/compile/internal/gc/reflect.go     |  8 ++---
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        |  8 ++---
+ src/cmd/compile/internal/gc/type.go        | 13 +++-----
+ src/cmd/compile/internal/gc/typecheck.go   | 12 ++++----
+ src/cmd/compile/internal/gc/universe.go    |  4 ---
+ src/cmd/compile/internal/gc/walk.go        |  6 ++--
+ 15 files changed, 60 insertions(+), 80 deletions(-)

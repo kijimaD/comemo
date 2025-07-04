@@ -1,18 +1,13 @@
-commit 68f3344fe95dde95685b0d7fbbf74d13f3e9ee04
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Mar 2 06:05:00 2021 +0000
+commit ccc951637be806e6e7a3c2c922bf4746b60e7395
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 13 12:56:57 2020 +0200
 
-    cmd/compile: remove 8-byte alignment requirement of stack slot on ppc64
+    cmd/link: move comma outside quotes
     
-    This CL applies CL 267999 to ppc64.
-    
-    Fixes #42385
-    
-    Change-Id: I6462d647d1abdf7cec99607c40ef4d1fed1941e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297770
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: eric fang <eric.fang@arm.com>
+    Change-Id: I2ecf8976a6289924ac7bfe7ace129a462537e11d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248339
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/link/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,16 @@
-commit 7294ccb54eab05c24b04801a4785505ad68c8a15
+commit a0da2d242c0830daf9de469f2db7f1b85523bf05
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 22 16:29:17 2016 -0700
+Date:   Thu Feb 4 15:08:47 2016 -0800
 
-    cmd/compile: join indexed byte loads into larger loads
+    [dev.ssa] cmd/compile: Use ADD instead of LEA when we can
     
-    Fixes #14920
+    If the output register is one of the input registers,
+    we can use a real add instead of LEA.
     
-    Change-Id: I1535dc529779e26141d92d9e2b6ba7b016590c1a
-    Reviewed-on: https://go-review.googlesource.com/21005
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Ahmed Waheed <oneofone@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ide58f1536afb077c0b939d3a8c7555807fd1c5e3
+    Reviewed-on: https://go-review.googlesource.com/19234
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  19 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 396 +++++++++++++++++++++++++++
- 2 files changed, 415 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 75 ++++++++++++++++++++++++--------------
+ src/cmd/compile/internal/ssa/TODO  |  2 -
+ 2 files changed, 47 insertions(+), 30 deletions(-)

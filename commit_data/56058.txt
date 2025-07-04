@@ -1,17 +1,20 @@
-commit 8bf9f4bb66785bbb8ccfdfaafbc79b6b17f66743
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Mar 26 06:38:55 2024 +0000
+commit 96d2e416171845f114f8f865e42c427030bc807e
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 6 17:03:24 2023 +0000
 
-    cmd/link: close memory profile
+    Revert "cmd/compile: use correct type in amd64 late-lower rules"
     
-    Change-Id: If17e982dd0272e90972d2d4a94b1a744343ae2ec
-    GitHub-Last-Rev: c8d03566b3e66a6de58e778102fa60f5d46ab2d9
-    GitHub-Pull-Request: golang/go#66531
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574335
+    This reverts CL 482536.
+    
+    Reason for revert: breaks windows-amd64-race
+    
+    Change-Id: I033c52fe0d6bbbc879ed2a33d91fb1357f4874bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482817
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/main.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ .../compile/internal/ssa/_gen/AMD64latelower.rules | 10 ++--
+ .../compile/internal/ssa/rewriteAMD64latelower.go  | 66 ++++++++++------------
+ 2 files changed, 35 insertions(+), 41 deletions(-)

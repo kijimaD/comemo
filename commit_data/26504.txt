@@ -1,19 +1,18 @@
-commit 139fad21b937dc0b405d243e3abe33429890947f
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Mar 23 17:33:32 2016 -0700
+commit 056c09bb88008f683904e88cea582722eeac2f27
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 28 15:54:45 2016 -0800
 
-    all: zero mtimes in testdata gz files
+    [dev.ssa] cmd/compile: add backing store buffers for block.{Preds,Succs,Values}
     
-    Fixes #14937.
+    Speeds up compilation by 6%.
     
-    Change-Id: Iea11a32230d44d5a43f8aec812d25f13bce85895
-    Reviewed-on: https://go-review.googlesource.com/21038
+    Change-Id: Ibaad95710323ddbe13c1b0351843fe43a48d776e
+    Reviewed-on: https://go-review.googlesource.com/19080
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/gzip/issue14937_test.go       |  52 +++++++++++++++++++++++++++++
- src/compress/gzip/testdata/issue6550.gz    | Bin 65536 -> 65536 bytes
- src/debug/elf/testdata/hello-world-core.gz | Bin 12678 -> 12678 bytes
- src/encoding/json/testdata/code.json.gz    | Bin 120432 -> 120432 bytes
- 4 files changed, 52 insertions(+)
+ src/cmd/compile/internal/ssa/block.go    |  5 +++++
+ src/cmd/compile/internal/ssa/check.go    |  2 +-
+ src/cmd/compile/internal/ssa/deadcode.go |  9 +--------
+ src/cmd/compile/internal/ssa/func.go     | 16 +++++++++++-----
+ src/cmd/compile/internal/ssa/fuse.go     |  7 ++++++-
+ 5 files changed, 24 insertions(+), 15 deletions(-)

@@ -1,123 +1,21 @@
-commit e18d07ddc5c9005738c3063130f0f5ccf127849e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Aug 28 05:35:31 2022 +1000
+commit 2a061fdd47ccb5420229ce5f9f057e194be76995
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 14 11:15:28 2022 -0500
 
-    runtime: optimise memmove on riscv64
+    cmd/go: fix TestScript/version_buildvcs_git_gpg
     
-    Implement a more optimised memmove on riscv64, where up to 64 bytes are moved
-    per loop after achieving alignment. In the unaligned case, memory is moved at
-    up to 8 bytes per loop.
+    This test was missed in CL 358539, presumably because the 'longtest'
+    builders lack a 'gpg' executable.
     
-    This also avoids doing unaligned loads and stores, which results in kernel
-    traps and a significant performance penality.
+    Updates #49168
+    Fixes #50675
     
-    Fixes #48248.
-    
-    name                               old speed      new speed        delta
-    Memmove/1-4                        31.3MB/s _ 0%    26.6MB/s _ 0%    -14.95%  (p=0.000 n=3+3)
-    Memmove/2-4                        50.6MB/s _ 1%    42.6MB/s _ 0%    -15.75%  (p=0.000 n=3+3)
-    Memmove/3-4                        64.5MB/s _ 1%    53.4MB/s _ 2%    -17.11%  (p=0.001 n=3+3)
-    Memmove/4-4                        74.9MB/s _ 0%    99.2MB/s _ 0%    +32.55%  (p=0.000 n=3+3)
-    Memmove/5-4                        82.3MB/s _ 0%    99.0MB/s _ 1%    +20.29%  (p=0.000 n=3+3)
-    Memmove/6-4                        88.2MB/s _ 0%   102.3MB/s _ 1%    +15.87%  (p=0.000 n=3+3)
-    Memmove/7-4                        93.4MB/s _ 0%   102.0MB/s _ 0%     +9.18%  (p=0.000 n=3+3)
-    Memmove/8-4                         188MB/s _ 3%     188MB/s _ 6%       ~     (p=0.964 n=3+3)
-    Memmove/9-4                         182MB/s _ 6%     163MB/s _ 1%       ~     (p=0.069 n=3+3)
-    Memmove/10-4                        177MB/s _ 0%     149MB/s _ 4%    -15.93%  (p=0.012 n=3+3)
-    Memmove/11-4                        171MB/s _ 6%     148MB/s _ 0%    -13.65%  (p=0.045 n=3+3)
-    Memmove/12-4                        166MB/s _ 5%     209MB/s _ 0%    +26.12%  (p=0.009 n=3+3)
-    Memmove/13-4                        170MB/s _ 1%     188MB/s _ 4%    +10.76%  (p=0.039 n=3+3)
-    Memmove/14-4                        158MB/s _ 0%     185MB/s _ 0%    +17.13%  (p=0.000 n=3+3)
-    Memmove/15-4                        166MB/s _ 0%     175MB/s _ 0%     +5.38%  (p=0.000 n=3+3)
-    Memmove/16-4                        320MB/s _ 6%     343MB/s _ 0%       ~     (p=0.149 n=3+3)
-    Memmove/32-4                        493MB/s _ 5%     628MB/s _ 1%    +27.51%  (p=0.008 n=3+3)
-    Memmove/64-4                        706MB/s _ 0%    1132MB/s _ 0%    +60.32%  (p=0.000 n=3+3)
-    Memmove/128-4                       837MB/s _ 1%    1623MB/s _ 1%    +93.96%  (p=0.000 n=3+3)
-    Memmove/256-4                       960MB/s _ 0%    2070MB/s _ 6%   +115.68%  (p=0.003 n=3+3)
-    Memmove/512-4                      1.04GB/s _ 0%    2.55GB/s _ 0%   +146.05%  (p=0.000 n=3+3)
-    Memmove/1024-4                     1.08GB/s _ 0%    2.76GB/s _ 0%   +155.62%  (p=0.000 n=3+3)
-    Memmove/2048-4                     1.10GB/s _ 0%    2.90GB/s _ 1%   +164.31%  (p=0.000 n=3+3)
-    Memmove/4096-4                     1.11GB/s _ 0%    2.98GB/s _ 0%   +169.77%  (p=0.000 n=3+3)
-    MemmoveOverlap/32-4                 443MB/s _ 0%     500MB/s _ 0%    +12.81%  (p=0.000 n=3+3)
-    MemmoveOverlap/64-4                 635MB/s _ 0%     908MB/s _ 0%    +42.92%  (p=0.000 n=3+3)
-    MemmoveOverlap/128-4                789MB/s _ 0%    1423MB/s _ 0%    +80.28%  (p=0.000 n=3+3)
-    MemmoveOverlap/256-4                925MB/s _ 0%    1941MB/s _ 0%   +109.86%  (p=0.000 n=3+3)
-    MemmoveOverlap/512-4               1.01GB/s _ 2%    2.37GB/s _ 0%   +134.86%  (p=0.000 n=3+3)
-    MemmoveOverlap/1024-4              1.06GB/s _ 0%    2.68GB/s _ 1%   +151.67%  (p=0.000 n=3+3)
-    MemmoveOverlap/2048-4              1.09GB/s _ 0%    2.89GB/s _ 0%   +164.82%  (p=0.000 n=3+3)
-    MemmoveOverlap/4096-4              1.11GB/s _ 0%    3.01GB/s _ 0%   +171.30%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/1-4            24.1MB/s _ 1%    21.3MB/s _ 0%    -11.76%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/2-4            41.6MB/s _ 1%    35.9MB/s _ 0%    -13.72%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/3-4            54.0MB/s _ 0%    45.5MB/s _ 2%    -15.76%  (p=0.004 n=3+3)
-    MemmoveUnalignedDst/4-4            63.9MB/s _ 1%    81.6MB/s _ 0%    +27.70%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/5-4            69.4MB/s _ 6%    84.8MB/s _ 0%    +22.08%  (p=0.015 n=3+3)
-    MemmoveUnalignedDst/6-4            77.8MB/s _ 2%    89.0MB/s _ 0%    +14.53%  (p=0.004 n=3+3)
-    MemmoveUnalignedDst/7-4            83.0MB/s _ 0%    90.7MB/s _ 1%     +9.30%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/8-4            6.97MB/s _ 2%  127.73MB/s _ 0%  +1732.57%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/9-4            7.81MB/s _ 1%  125.41MB/s _ 0%  +1506.45%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/10-4           8.59MB/s _ 2%  123.52MB/s _ 0%  +1337.43%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/11-4           9.23MB/s _ 6%  119.81MB/s _ 4%  +1197.55%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/12-4           10.3MB/s _ 0%   155.9MB/s _ 7%  +1416.08%  (p=0.001 n=3+3)
-    MemmoveUnalignedDst/13-4           10.9MB/s _ 3%   155.1MB/s _ 0%  +1321.26%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/14-4           11.4MB/s _ 5%   151.0MB/s _ 0%  +1229.37%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/15-4           12.6MB/s _ 0%   147.0MB/s _ 0%  +1066.39%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/16-4           7.17MB/s _ 0%  184.33MB/s _ 5%  +2470.90%  (p=0.001 n=3+3)
-    MemmoveUnalignedDst/32-4           7.26MB/s _ 0%  252.00MB/s _ 2%  +3371.12%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/64-4           7.25MB/s _ 2%  306.37MB/s _ 1%  +4125.75%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/128-4          7.32MB/s _ 1%  338.03MB/s _ 1%  +4517.85%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/256-4          7.31MB/s _ 0%  361.06MB/s _ 0%  +4841.47%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/512-4          7.35MB/s _ 0%  373.55MB/s _ 0%  +4982.36%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/1024-4         7.33MB/s _ 0%  379.00MB/s _ 2%  +5068.18%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/2048-4         7.31MB/s _ 2%  383.05MB/s _ 0%  +5142.47%  (p=0.000 n=3+3)
-    MemmoveUnalignedDst/4096-4         7.35MB/s _ 1%  385.97MB/s _ 1%  +5151.25%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/32-4    9.43MB/s _ 0%  233.72MB/s _ 0%  +2377.56%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/64-4    8.13MB/s _ 3%  288.77MB/s _ 0%  +3451.91%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/128-4   7.77MB/s _ 0%  326.62MB/s _ 3%  +4103.65%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/256-4   7.28MB/s _ 6%  357.24MB/s _ 0%  +4804.85%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/512-4   7.44MB/s _ 0%  363.63MB/s _ 7%  +4787.54%  (p=0.001 n=3+3)
-    MemmoveUnalignedDstOverlap/1024-4  7.37MB/s _ 0%  383.17MB/s _ 0%  +5101.40%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/2048-4  7.29MB/s _ 2%  387.69MB/s _ 0%  +5215.68%  (p=0.000 n=3+3)
-    MemmoveUnalignedDstOverlap/4096-4  7.18MB/s _ 5%  389.22MB/s _ 0%  +5320.84%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/1-4            24.2MB/s _ 0%    21.4MB/s _ 1%    -11.70%  (p=0.001 n=3+3)
-    MemmoveUnalignedSrc/2-4            41.7MB/s _ 0%    36.0MB/s _ 0%    -13.71%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/3-4            52.1MB/s _ 6%    46.4MB/s _ 1%       ~     (p=0.074 n=3+3)
-    MemmoveUnalignedSrc/4-4            60.4MB/s _ 0%    76.4MB/s _ 0%    +26.39%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/5-4            71.2MB/s _ 1%    84.7MB/s _ 0%    +18.90%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/6-4            77.7MB/s _ 0%    88.7MB/s _ 0%    +14.06%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/7-4            82.9MB/s _ 1%    90.7MB/s _ 1%     +9.42%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/8-4            74.6MB/s _ 0%   120.6MB/s _ 0%    +61.62%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/9-4            78.7MB/s _ 1%   123.9MB/s _ 1%    +57.42%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/10-4           82.1MB/s _ 0%   121.7MB/s _ 0%    +48.21%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/11-4           83.7MB/s _ 5%   122.0MB/s _ 0%    +45.79%  (p=0.003 n=3+3)
-    MemmoveUnalignedSrc/12-4           88.6MB/s _ 0%   160.8MB/s _ 0%    +81.56%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/13-4           91.0MB/s _ 0%   155.0MB/s _ 0%    +70.29%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/14-4           92.0MB/s _ 2%   151.0MB/s _ 0%    +64.09%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/15-4           12.6MB/s _ 0%   146.6MB/s _ 0%  +1063.32%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/16-4           13.3MB/s _ 0%   188.8MB/s _ 2%  +1319.02%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/32-4           9.44MB/s _ 0%  254.24MB/s _ 1%  +2594.21%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/64-4           8.27MB/s _ 0%  302.33MB/s _ 2%  +3555.78%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/128-4          7.73MB/s _ 3%  338.82MB/s _ 0%  +4281.29%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/256-4          7.58MB/s _ 0%  362.19MB/s _ 0%  +4678.23%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/512-4          7.44MB/s _ 1%  374.49MB/s _ 0%  +4933.51%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/1024-4         7.30MB/s _ 2%  379.74MB/s _ 0%  +5099.54%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/2048-4         7.34MB/s _ 2%  385.50MB/s _ 0%  +5154.38%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrc/4096-4         7.35MB/s _ 1%  383.64MB/s _ 0%  +5119.59%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/32-4    7.22MB/s _ 0%  254.94MB/s _ 0%  +3432.66%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/64-4    7.29MB/s _ 1%  296.99MB/s _ 5%  +3973.89%  (p=0.001 n=3+3)
-    MemmoveUnalignedSrcOverlap/128-4   7.32MB/s _ 1%  336.73MB/s _ 1%  +4500.09%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/256-4   7.30MB/s _ 1%  361.41MB/s _ 0%  +4850.82%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/512-4   7.34MB/s _ 0%  374.92MB/s _ 0%  +5007.90%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/1024-4  7.34MB/s _ 0%  380.15MB/s _ 0%  +5079.16%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/2048-4  7.36MB/s _ 0%  383.78MB/s _ 0%  +5116.76%  (p=0.000 n=3+3)
-    MemmoveUnalignedSrcOverlap/4096-4  7.35MB/s _ 0%  386.32MB/s _ 0%  +5156.05%  (p=0.000 n=3+3)
-    
-    Change-Id: Ibc13230af7b1e205ed95a6470e2cf64ff4251405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426256
+    Change-Id: Ie3bfc761a5e4304531119625742f3def9df8af3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378575
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/memmove_riscv64.s | 372 +++++++++++++++++++++++++++++++++---------
- 1 file changed, 296 insertions(+), 76 deletions(-)
+ src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

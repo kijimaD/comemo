@@ -1,18 +1,28 @@
-commit 09e9a9eac9f3d347e3a204ae3ca309b5340028c4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 21 17:28:36 2023 -0700
+commit 11a650bb4aabfd7998b61df3ac33f61831d7abff
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Apr 16 22:45:06 2022 +0930
 
-    test: add test that caused gofrontend crash
+    reflect: ensure map keys match key type in MapIndex and SetMapIndex
     
-    For #59169
+    name                          old time/op    new time/op    delta
+    Map/StringKeys/MapIndex-8           2.36µs ± 5%    2.55µs ±11%  +7.98%  (p=0.006 n=10+9)
+    Map/StringKeys/SetMapIndex-8        4.86µs ± 7%    4.77µs ± 1%    ~     (p=0.211 n=10+9)
+    Map/StringKindKeys/MapIndex-8       2.29µs ± 3%    2.28µs ± 4%    ~     (p=0.631 n=10+10)
+    Map/StringKindKeys/SetMapIndex-8    4.44µs ± 3%    4.61µs ± 1%  +3.78%  (p=0.000 n=10+10)
+    Map/Uint64Keys/MapIndex-8           3.42µs ± 9%    3.11µs ± 2%  -9.20%  (p=0.000 n=10+9)
+    Map/Uint64Keys/SetMapIndex-8        5.17µs ± 3%    5.00µs ± 1%  -3.23%  (p=0.000 n=9+10)
     
-    Change-Id: Id72ad9fe8b6e1d7cf64f972520ae8858f70c025a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478217
+    Fixes #52379
+    
+    Change-Id: I545c71ea3145280828ca4186aad036a6c02016ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400635
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- test/fixedbugs/issue59169.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/reflect/all_test.go | 12 ++++++++++++
+ src/reflect/value.go    |  6 ++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)

@@ -1,20 +1,18 @@
-commit 7e92b80c21ea22b9dcfb27cc68c61b805485f379
-Author: Chaoshuai Lü <lcs@meta.com>
-Date:   Wed Nov 30 12:29:46 2022 +0000
+commit 02224c8ce471b9618081c69d952fb8597f71b7e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 4 12:22:19 2022 -0800
 
-    crypto/des: fix a typo in the comment for permuteFinalBlock
+    cmd/go: accept "-F dir" in compiler flags
     
-    The comment copy pasted from the permuteInitialBlock and should be fixed.
+    Fixes #51008
     
-    Change-Id: I101f1deceadf9b0480e5b679e4e237bda601950b
-    GitHub-Last-Rev: 7662df772e4ac171c79467678861ac4d7547da78
-    GitHub-Pull-Request: golang/go#56982
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453995
+    Change-Id: I5e47c7be59d4aae1d5059d99231422212cffa23a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383217
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/des/block.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/security.go      | 1 +
+ src/cmd/go/internal/work/security_test.go | 1 +
+ 2 files changed, 2 insertions(+)

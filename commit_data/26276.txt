@@ -1,18 +1,44 @@
-commit 2a46b08a027a20014d5178c070f759692e59a464
+commit 27691fa46735f642b7580d92b80bbf35dc40db97
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 14 10:17:03 2016 -0700
+Date:   Thu Jan 7 03:06:49 2016 -0800
 
-    cmd/dist: build bootstrap toolchain with -l
+    cmd/compile: recognize !typedbool is typed
     
-    Workaround Go 1.4 compiler bugs.  See discussion at:
-    https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
+    Adding the evconst(n) call for OANDAND and OOROR in
+    golang.org/cl/18262 was originally just to parallel the above iscmp
+    branch, but upon further inspection it seemed odd that removing it
+    caused test/fixedbugs/issue6671.go's
     
-    Change-Id: I842335fddffb67a6e21c000fe5bef258ea61c77a
-    Reviewed-on: https://go-review.googlesource.com/20690
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+        var b mybool
+        // ...
+        b = bool(true) && true // ERROR "cannot use"
+    
+    to start failing (i.e., by not emitting the expected "cannot use"
+    error).
+    
+    The problem is that evconst(n)'s settrue and setfalse paths always
+    reset n.Type to idealbool, even for logical operators where n.Type
+    should preserve the operand type.  Adding the evconst(n) call for
+    OANDAND/OOROR inadvertantly worked around this by turning the later
+    evconst(n) call at line 2167 into a noop, so the "n.Type = t"
+    assignment at line 739 would preserve the operand type.
+    
+    However, that means evconst(n) was still clobbering n.Type for ONOT,
+    so declarations like:
+    
+        const _ bool = !mybool(true)
+    
+    were erroneously accepted.
+    
+    Update #13821.
+    
+    Change-Id: I18e37287f05398fdaeecc0f0d23984e244f025da
+    Reviewed-on: https://go-review.googlesource.com/18362
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/buildtool.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 19 +++++++++++++------
+ src/cmd/compile/internal/gc/typecheck.go |  2 --
+ test/fixedbugs/issue13821b.go            |  2 ++
+ 3 files changed, 15 insertions(+), 8 deletions(-)

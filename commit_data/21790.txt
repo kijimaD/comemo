@@ -1,32 +1,14 @@
-commit 5f55011aeaa221407430503a09b1ee3fe020a679
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 27 22:44:15 2015 +0000
+commit d2abbf3ccfeeaffddd421f82d37fb414c6821235
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 11:20:58 2015 +0300
 
-    cmd/internal/gc, cmd/internal/obj: clean up string returns
+    runtime: cleanup some left-overs of the C past
     
-    An artifact of the c2go translation was
-    a handful of instances of code like:
-    
-    var s string
-    s += "foo"
-    return s
-    
-    This CL converts those to simply 'return "foo"'.
-    
-    The conversion was done mechanically with the
-    quick-and-dirty cleanup script at
-    https://gist.github.com/josharian/1fa4408044c163983e62.
-    
-    I then manually moved a couple of comments in fmt.go.
-    
-    toolstash -cmp thinks that there are no functional changes.
-    
-    Change-Id: Ic0ebdd10f0fb8de0360a1041ce5cd10ae1168be9
-    Reviewed-on: https://go-review.googlesource.com/6265
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3e280ca7d922f6ab14b2477361327ed076a95779
+    Reviewed-on: https://go-review.googlesource.com/3743
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/gc/fmt.go         | 308 ++++++++++---------------------------
- src/cmd/internal/gc/mparith1.go    |   5 +-
- src/cmd/internal/obj/i386/list8.go |   5 +-
- src/cmd/internal/obj/x86/list6.go  |   5 +-
- 4 files changed, 82 insertions(+), 241 deletions(-)
+ src/runtime/malloc2.go |   5 ---
+ src/runtime/proc.go    |  12 ------
+ src/runtime/proc1.go   | 112 ++++++++++---------------------------------------
+ 3 files changed, 21 insertions(+), 108 deletions(-)

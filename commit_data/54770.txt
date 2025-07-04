@@ -1,18 +1,19 @@
-commit bc2124dab14fa292e18df2937037d782f7868635
-Author: favonia <favonia@gmail.com>
-Date:   Wed May 24 21:43:15 2023 -0400
+commit f977ffe82dad0d8d296e898141b37c8af22f2eef
+Author: Tim King <taking@google.com>
+Date:   Mon Nov 14 14:56:13 2022 -0800
 
-    bufio: allow terminating Scanner early cleanly without a final token or an error
+    cmd/vet: enable timeformat analyzer
     
-    Fixes #56381
+    Fixes #48801
     
-    Change-Id: I95cd603831a7032d764ab312869fe9fb05848a4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498117
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6230b62f77252a9a694b79caacb38ef15af36e39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tim King <taking@google.com>
 
- src/bufio/example_test.go | 34 ++++++++++++++++++++++++++++++++++
- src/bufio/scan.go         | 25 ++++++++++++++++---------
- 2 files changed, 50 insertions(+), 9 deletions(-)
+ .../go/analysis/passes/timeformat/timeformat.go    | 129 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   1 +
+ src/cmd/vet/main.go                                |   2 +
+ 3 files changed, 132 insertions(+)

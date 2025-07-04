@@ -1,22 +1,20 @@
-commit 0d50a49f5c3fb6292b43d71579455cf68a1939d9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 07:58:03 2017 -0700
+commit a146dd3a2fdf87bab90ee1f636c38cd3444e55fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 8 15:31:24 2017 -0500
 
-    cmd/compile: unexport types.Sym.LSym
+    cmd/compile: handle DOT STRUCTLIT for zero-valued struct in SSA
     
-    Response to code review feedback on CL 40693.
+    CL 35261 makes SSA handle zero-valued STRUCTLIT, but DOT operation
+    was not handled.
     
-    Remove the final reference to it from package gc,
-    and manually unexport.
+    Fixes #18994.
     
-    Passes toolstash-check.
-    
-    Change-Id: I7fc48edd43263d8f7c56b47aeb7573408463dc22
-    Reviewed-on: https://go-review.googlesource.com/41303
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic7976036acca1523b0b14afac4d170797e8aee20
+    Reviewed-on: https://go-review.googlesource.com/36565
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 3 ++-
- src/cmd/compile/internal/types/sym.go  | 8 ++++----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  9 +++++++++
+ test/fixedbugs/issue18994.go       | 22 ++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

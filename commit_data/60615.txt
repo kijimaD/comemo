@@ -1,0 +1,44 @@
+commit e705a2d16e4ece77e08e80c168382cdb02890f5b
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Apr 1 17:13:42 2024 +0800
+
+    cmd/compile, math: make math.{Abs,Copysign} intrinsics on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A6000 @ 2500.00MHz
+             │  old.bench   │              new.bench               │
+             │    sec/op    │    sec/op     vs base                │
+    Copysign   1.9710n ± 0%   0.8006n ± 0%  -59.38% (p=0.000 n=10)
+    Abs        1.8745n ± 0%   0.8006n ± 0%  -57.29% (p=0.000 n=10)
+    geomean     1.922n        0.8006n       -58.35%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A5000 @ 2500.00MHz
+             │  old.bench   │              new.bench               │
+             │    sec/op    │    sec/op     vs base                │
+    Copysign   2.4020n ± 0%   0.9006n ± 0%  -62.51% (p=0.000 n=10)
+    Abs        2.4020n ± 0%   0.8005n ± 0%  -66.67% (p=0.000 n=10)
+    geomean     2.402n        0.8491n       -64.65%
+    
+    Updates #59120.
+    
+    Change-Id: Ic409e1f4d15ad15cb3568a5aaa100046e9302842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580280
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go         |  6 +++--
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 +++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  3 +++
+ src/cmd/compile/internal/ssa/opGen.go           | 29 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  |  6 +++++
+ src/cmd/compile/internal/ssagen/ssa.go          |  4 ++--
+ 6 files changed, 47 insertions(+), 4 deletions(-)

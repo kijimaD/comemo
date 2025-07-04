@@ -1,17 +1,22 @@
-commit 157ce90abe24e7ff8ac51b05660eb7190101138c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 10:06:54 2016 -0400
+commit 376d9665a80e96f0b550c24be7ffedf0b467e40d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 5 11:45:27 2016 -0700
 
-    go/build: allow % in ${SRCDIR} expansion for Jenkins
+    cmd/compile: don’t consider recursive calls for inlining
     
-    Fixes #16959.
+    We will never inline recursive calls.
+    Rather than simulate the recursion until we hit
+    the complexity ceiling, just bail early.
     
-    Change-Id: Ibbb28fdf26c53788a0edb3e3ea54ec030fa2a8cf
-    Reviewed-on: https://go-review.googlesource.com/31611
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also, remove a pointless n.Op check.
+    visitBottomUp guarantees that n will be an
+    ODCLFUNC, and caninl double-checks it.
+    
+    Change-Id: Ifa48331686b24289d34e68cf5bef385f464b6b92
+    Reviewed-on: https://go-review.googlesource.com/27462
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/build.go      | 3 ++-
- src/go/build/build_test.go | 1 +
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

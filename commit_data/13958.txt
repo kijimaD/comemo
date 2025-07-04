@@ -1,12 +1,18 @@
-commit 3c9eb5b48e1f94b7d16b280afb9411fd309c809d
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Wed Sep 26 08:49:36 2012 -0700
+commit e80fccb441ac73a206bd99fb7f0dbea3eb9cc149
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Sep 27 00:00:50 2012 +1000
 
-    doc/go1.1: fix metadata json format
+    cmd/go: assume that code in $GOROOT is up to date
     
-    R=golang-dev, bradfitz
+    Do not check compiler/linker timestamps for packages that are in the
+    $GOROOT. Avoids trying to rebuild non-writable standard packages when
+    timestamps have not been retained on the Go binaries.
+    
+    Fixes #4106.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6570054
+    https://golang.org/cl/6533053
 
- doc/go1.1.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/pkg.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

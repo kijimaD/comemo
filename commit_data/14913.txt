@@ -1,22 +1,15 @@
-commit d795f07718f0011b035adad4a8fb5f5a33cb7ba1
+commit c64469f8e8d035207e629d925b3124dce068e907
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 18 15:10:36 2013 -0500
+Date:   Fri Jan 18 14:08:42 2013 -0500
 
-    build: change GO386=sse to GO386=sse2
+    doc/contribute.html: mention hg mail during hg change discussion
     
-    sse2 is a more precise description of the requirement,
-    and it matches what people will see in, for example
-            grep sse2 /proc/cpuinfo # linux
-            sysctl hw.optional.sse2 # os x
+    People keep not reading all the way to the bottom of the doc
+    and not running hg mail.
     
-    R=golang-dev, dsymonds, iant
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7057050
+    https://golang.org/cl/7137057
 
- src/cmd/dist/a.h       |  2 +-
- src/cmd/dist/build.c   |  4 ++--
- src/cmd/dist/plan9.c   |  2 +-
- src/cmd/dist/unix.c    |  2 +-
- src/cmd/dist/windows.c |  2 +-
- src/cmd/gc/lex.c       | 15 ++++++++++++---
- 6 files changed, 18 insertions(+), 9 deletions(-)
+ doc/contribute.html | 5 +++++
+ 1 file changed, 5 insertions(+)

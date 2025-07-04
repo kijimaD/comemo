@@ -1,15 +1,14 @@
-commit 85b7419211d9d46cc7a73c3f8595f2a3e9ca15ff
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Nov 10 11:42:01 2011 -0800
+commit 120f3b7b9d08f05950fd57f25a48adbde877c099
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Thu Nov 10 14:41:24 2011 -0500
 
-    runtime: fix semasleep() duration for openbsd
+    math/big: Correcting typo in SetBit() documentation
     
-    The timespec passed to thrsleep() needs to be an absolute/realtime
-    value, so add the current nanotime to ns.
+    z is set to x+bit change, not z+bit change
     
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5374048
+    https://golang.org/cl/5374056
 
- src/pkg/runtime/openbsd/thread.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

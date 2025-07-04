@@ -1,14 +1,12 @@
-commit d4dc26c0adbe7976ac625c01bb21e85511cd00fd
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Aug 20 10:43:14 2017 +0200
+commit 3fa133f482a7bfcf033a118c85121fef9902492b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Apr 24 14:30:31 2017 +0900
 
-    cmd/compile: extend documentation and sync hiter and hmap with runtime
+    cmd/compile: fix comments in transformclosure
     
-    Change-Id: I71b24dd0293dd1e26a5c799161a7f9af48fb3c7d
-    Reviewed-on: https://go-review.googlesource.com/57295
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7a18798180405504dc064424d63dac49634168fb
+    Reviewed-on: https://go-review.googlesource.com/41530
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 121 ++++++++++++++++++++-------------
- 1 file changed, 73 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

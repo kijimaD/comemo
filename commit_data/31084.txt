@@ -1,22 +1,19 @@
-commit d6dd7ce1c5eb0df4694f9f8ad09dc47d8d689690
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Tue Apr 11 15:37:38 2017 -0300
+commit 78860b2ad2261b6e3dc29006d2ffbdc4da14cb2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 25 06:25:17 2017 -0800
 
-    crypto/aes: fix wrong instruction on ppc64le implementation
+    cmd/go: don't reject ./... matching top-level file outside GOPATH
     
-    In the newest AES implementation in asm for ppc64le, this part
+    This unwinds a small part of CL 31668: we now accept "./." in cleanImport.
     
-    MOVW $·rcon(SB), PTR
+    Fixes #18778.
     
-    should be
-    
-    MOVD $·rcon(SB), PTR
-    
-    since it is loading a doubleword value into PTR.
-    
-    Change-Id: I7e3d6ad87a2237015aeeb30c68fb409a18f2801c
-    Reviewed-on: https://go-review.googlesource.com/40298
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ia7f1fde1cafcea3cc9e0b597a95a0e0bb410a3ed
+    Reviewed-on: https://go-review.googlesource.com/35646
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/aes/asm_ppc64le.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 23 +++++++++++++++++++++++
+ src/cmd/go/pkg.go     |  2 +-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

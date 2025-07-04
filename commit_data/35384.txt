@@ -1,91 +1,17 @@
-commit c2c1822b12fa1c86dcf067c845e9cae0a9725c12
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 23 22:46:06 2018 -0400
+commit 4b8a7eafef039af1834ef9bfa879257c4a72b7b5
+Author: Ryuma Yoshida <ryuma.y1117@gmail.com>
+Date:   Sun Feb 11 16:50:48 2018 +0900
 
-    cmd/compile: assign and preserve statement boundaries.
+    net/http: add StatusMisdirectedRequest (421)
     
-    A new pass run after ssa building (before any other
-    optimization) identifies the "first" ssa node for each
-    statement. Other "noise" nodes are tagged as being never
-    appropriate for a statement boundary (e.g., VarKill, VarDef,
-    Phi).
+    Fixes #23776
     
-    Rewrite, deadcode, cse, and nilcheck are modified to move
-    the statement boundaries forward whenever possible if a
-    boundary-tagged ssa value is removed; never-boundary nodes
-    are ignored in this search (some operations involving
-    constants are also tagged as never-boundary and also ignored
-    because they are likely to be moved or removed during
-    optimization).
-    
-    Code generation treats all nodes except those explicitly
-    marked as statement boundaries as "not statement" nodes,
-    and floats statement boundaries to the beginning of each
-    same-line run of instructions found within a basic block.
-    
-    Line number html conversion was modified to make statement
-    boundary nodes a bit more obvious by prepending a "+".
-    
-    The code in fuse.go that glued together the value slices
-    of two blocks produced a result that depended on the
-    former capacities (not lengths) of the two slices.  This
-    causes differences in the 386 bootstrap, and also can
-    sometimes put values into an order that does a worse job
-    of preserving statement boundaries when values are removed.
-    
-    Portions of two delve tests that had caught problems were
-    incorporated into ssa/debug_test.go.  There are some
-    opportunities to do better with optimized code, but the
-    next-ing is not lying or overly jumpy.
-    
-    Over 4 CLs, compilebench geomean measured binary size
-    increase of 3.5% and compile user time increase of 3.8%
-    (this is after optimization to reuse a sparse map instead
-    of creating multiple maps.)
-    
-    This CL worsens the optimized-debugging experience with
-    Delve; we need to work with the delve team so that
-    they can use the is_stmt marks that we're emitting now.
-    
-    The reference output changes from time to time depending
-    on other changes in the compiler, sometimes better,
-    sometimes worse.
-    
-    This CL now includes a test ensuring that 99+% of the lines
-    in the Go command itself (a handy optimized binary) include
-    is_stmt markers.
-    
-    Change-Id: I359c94e06843f1eb41f9da437bd614885aa9644a
-    Reviewed-on: https://go-review.googlesource.com/102435
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Iff03d8b295afc1fd9435694b10246c723d323eda
+    Reviewed-on: https://go-review.googlesource.com/93296
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/gsubr.go               |  11 ++
- src/cmd/compile/internal/gc/ssa.go                 |  63 +++++---
- src/cmd/compile/internal/ssa/biasedsparsemap.go    | 112 ++++++++++++++
- src/cmd/compile/internal/ssa/compile.go            |   1 +
- src/cmd/compile/internal/ssa/cse.go                |  10 ++
- src/cmd/compile/internal/ssa/deadcode.go           |  61 ++++++--
- src/cmd/compile/internal/ssa/func.go               |  18 ++-
- src/cmd/compile/internal/ssa/func_test.go          |   1 +
- src/cmd/compile/internal/ssa/fuse.go               |  42 +++++-
- src/cmd/compile/internal/ssa/nilcheck.go           |  40 +++++
- src/cmd/compile/internal/ssa/numberlines.go        | 162 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/regalloc.go           |   2 +-
- src/cmd/compile/internal/ssa/rewrite.go            |  46 +++++-
- src/cmd/compile/internal/ssa/stmtlines_test.go     | 107 ++++++++++++++
- .../internal/ssa/testdata/hist.dlv-dbg.nexts       |   1 -
- .../internal/ssa/testdata/hist.dlv-opt.nexts       |  52 ++++++-
- .../internal/ssa/testdata/hist.gdb-opt.nexts       |  16 +-
- .../internal/ssa/testdata/i22558.gdb-dbg.nexts     |   7 -
- .../internal/ssa/testdata/scopes.dlv-dbg.nexts     |  73 +++++++---
- .../internal/ssa/testdata/scopes.dlv-opt.nexts     |  88 +++++++----
- .../internal/ssa/testdata/scopes.gdb-dbg.nexts     |  69 +++++++--
- .../internal/ssa/testdata/scopes.gdb-opt.nexts     |  73 ++++++----
- src/cmd/compile/internal/ssa/testdata/scopes.go    |  73 +++++++++-
- src/cmd/compile/internal/ssa/value.go              |  30 ++--
- src/cmd/internal/src/pos.go                        |   5 +-
- src/cmd/internal/src/xpos.go                       |   5 +
- test/codegen/stack.go                              |   4 +-
- 27 files changed, 1016 insertions(+), 156 deletions(-)
+ src/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

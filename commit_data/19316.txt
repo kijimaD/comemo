@@ -1,13 +1,25 @@
-commit d6a1fb0b0c7f148773e02f40f1ef61852e4e6e16
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sat May 10 13:41:05 2014 -0400
+commit b600de755d0c6fd01d8168654e5d77d13ee5596e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 9 17:31:35 2014 -0700
 
-    cmd/go: remove merge markers
+    undo CL 100330043 / e4248ed0037c
     
-    LGTM=minux.ma
-    R=cespare, rsc, minux.ma
+    <enter reason for undo>
+    
+    ««« original CL description
+    runtime/race: fix the link for the race detector.
+    
+    LGTM=bradfitz
+    R=golang-dev, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/96210043
+    https://golang.org/cl/100330043
+    
+    »»»
+    
+    TBR=minux
+    R=minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/96200044
 
- src/cmd/go/test.bash | 16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
+ src/pkg/runtime/race/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,29 @@
-commit 594b4a3bfef24ed207e058fb522ed51e65cb93bf
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Nov 4 00:29:39 2020 +1100
+commit 4974ac6874a1fdeb50a025e84f03bb354a400ea7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 15:40:38 2020 -0700
 
-    cmd/dist: enable additional cgo tests on openbsd architectures
+    cmd/compile: use cheaper implementation of oneBit
     
-    OpenBSD gained __thread support quite some time ago.
+    This is the second attempt. The first attempt was CL 229127,
+    which got rolled back by CL 229177, because it caused
+    an infinite loop during compilation on some platforms.
+    I didn't notice that the trybots hadn't completed when I submitted; mea culpa.
     
-    Change-Id: I7de0a5c0c4de1a7ce59e48ac939fc2daf56be8f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267318
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The bug was that we were checking x&(x-1)==0, which is also true of 0,
+    which does not have exactly one bit set.
+    This caused an infinite rewrite rule loop.
+    
+    Updates #38547
+    
+    file    before    after     Δ       %
+    compile 19678112  19669808  -8304   -0.042%
+    total   113143160 113134856 -8304   -0.007%
+    
+    Change-Id: I417a4f806e1ba61277e31bab2e57dd3f1ac7e835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229197
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

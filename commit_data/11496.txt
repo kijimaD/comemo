@@ -1,195 +1,23 @@
-commit 2050a9e47865450299d50d1364744b0945546dce
+commit 00e9a54dad85724961dce513efbc835fd8365d5e
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 23:43:46 2012 -0500
+Date:   Mon Jan 30 23:42:41 2012 -0500
 
-    build: remove Make.pkg, Make.tool
+    go: improvements
     
-    Consequently, remove many package Makefiles,
-    and shorten the few that remain.
-    
-    gomake becomes 'go tool make'.
-    
-    Turn off test phases of run.bash that do not work,
-    flagged with $BROKEN.  Future CLs will restore these,
-    but this seemed like a big enough CL already.
+    Add 'go clean'.
+    Make 'go build' write to pkgname, not a.out.
+    Make 'go test -c' write to pkgname.test, not test.out.
+    Make 'go install' write alternate binaries to .../bin/goos_goarch/.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5601057
+    https://golang.org/cl/5600048
 
- misc/dashboard/builder/Makefile      |  13 +-
- misc/goplay/Makefile                 |  11 +-
- src/Make.pkg                         | 244 ---------------------------------
- src/Make.tool                        |  32 -----
- src/buildscript/darwin_386.sh        |   6 +-
- src/buildscript/darwin_amd64.sh      |   2 +-
- src/buildscript/freebsd_386.sh       |   6 +-
- src/buildscript/freebsd_amd64.sh     |   6 +-
- src/buildscript/linux_386.sh         |   6 +-
- src/buildscript/linux_amd64.sh       |   6 +-
- src/buildscript/linux_arm.sh         |   6 +-
- src/buildscript/netbsd_386.sh        |   6 +-
- src/buildscript/netbsd_amd64.sh      |   6 +-
- src/buildscript/openbsd_386.sh       |   6 +-
- src/buildscript/openbsd_amd64.sh     |   6 +-
- src/buildscript/plan9_386.sh         |   6 +-
- src/buildscript/windows_386.sh       |   6 +-
- src/buildscript/windows_amd64.sh     |   6 +-
- src/clean.bash                       |  19 ++-
- src/cmd/Makefile                     |   9 +-
- src/cmd/cgo/Makefile                 |  16 ---
- src/cmd/fix/Makefile                 |  53 -------
- src/cmd/go/Makefile                  |  26 ----
- src/cmd/godoc/Makefile               |  25 ----
- src/cmd/gofmt/Makefile               |  19 ---
- src/cmd/vet/Makefile                 |  16 +--
- src/cmd/yacc/Makefile                |  17 +--
- src/env.bash                         |   4 -
- src/make.bash                        |  51 +++----
- src/pkg/Makefile                     | 259 -----------------------------------
- src/pkg/archive/tar/Makefile         |  13 --
- src/pkg/archive/zip/Makefile         |  13 --
- src/pkg/bufio/Makefile               |  11 --
- src/pkg/bytes/Makefile               |  16 ---
- src/pkg/compress/bzip2/Makefile      |  14 --
- src/pkg/compress/flate/Makefile      |  16 ---
- src/pkg/compress/gzip/Makefile       |  12 --
- src/pkg/compress/lzw/Makefile        |  12 --
- src/pkg/compress/zlib/Makefile       |  12 --
- src/pkg/container/heap/Makefile      |  11 --
- src/pkg/container/list/Makefile      |  11 --
- src/pkg/container/ring/Makefile      |  11 --
- src/pkg/crypto/Makefile              |  11 --
- src/pkg/crypto/aes/Makefile          |  13 --
- src/pkg/crypto/cipher/Makefile       |  17 ---
- src/pkg/crypto/des/Makefile          |  13 --
- src/pkg/crypto/dsa/Makefile          |  11 --
- src/pkg/crypto/ecdsa/Makefile        |  11 --
- src/pkg/crypto/elliptic/Makefile     |  12 --
- src/pkg/crypto/hmac/Makefile         |  11 --
- src/pkg/crypto/md5/Makefile          |  12 --
- src/pkg/crypto/rand/Makefile         |  30 ----
- src/pkg/crypto/rc4/Makefile          |  11 --
- src/pkg/crypto/rsa/Makefile          |  12 --
- src/pkg/crypto/sha1/Makefile         |  12 --
- src/pkg/crypto/sha256/Makefile       |  12 --
- src/pkg/crypto/sha512/Makefile       |  12 --
- src/pkg/crypto/subtle/Makefile       |  11 --
- src/pkg/crypto/tls/Makefile          |  39 ------
- src/pkg/crypto/x509/Makefile         |  15 --
- src/pkg/crypto/x509/pkix/Makefile    |  11 --
- src/pkg/database/sql/Makefile        |  12 --
- src/pkg/database/sql/driver/Makefile |  12 --
- src/pkg/debug/dwarf/Makefile         |  16 ---
- src/pkg/debug/elf/Makefile           |  12 --
- src/pkg/debug/macho/Makefile         |  12 --
- src/pkg/debug/pe/Makefile            |  12 --
- src/pkg/encoding/ascii85/Makefile    |  11 --
- src/pkg/encoding/asn1/Makefile       |  13 --
- src/pkg/encoding/base32/Makefile     |  11 --
- src/pkg/encoding/base64/Makefile     |  11 --
- src/pkg/encoding/binary/Makefile     |  12 --
- src/pkg/encoding/csv/Makefile        |  12 --
- src/pkg/encoding/gob/Makefile        |  24 +---
- src/pkg/encoding/gob/debug.go        |   4 +-
- src/pkg/encoding/hex/Makefile        |  11 --
- src/pkg/encoding/json/Makefile       |  16 ---
- src/pkg/encoding/pem/Makefile        |  11 --
- src/pkg/encoding/xml/Makefile        |  15 --
- src/pkg/errors/Makefile              |  11 --
- src/pkg/exp/ebnf/Makefile            |  12 --
- src/pkg/exp/ebnflint/Makefile        |  15 --
- src/pkg/exp/gotype/Makefile          |  17 ---
- src/pkg/exp/html/Makefile            |  20 ---
- src/pkg/exp/inotify/Makefile         |  14 --
- src/pkg/exp/norm/Makefile            |  29 +---
- src/pkg/exp/proxy/Makefile           |  14 --
- src/pkg/exp/terminal/Makefile        |  16 ---
- src/pkg/exp/types/Makefile           |  18 ---
- src/pkg/exp/utf8string/Makefile      |  11 --
- src/pkg/exp/winfsnotify/Makefile     |  11 --
- src/pkg/expvar/Makefile              |  11 --
- src/pkg/flag/Makefile                |  11 --
- src/pkg/fmt/Makefile                 |  14 --
- src/pkg/go/ast/Makefile              |  17 ---
- src/pkg/go/build/Makefile            |  13 --
- src/pkg/go/doc/Makefile              |  17 +--
- src/pkg/go/parser/Makefile           |  12 --
- src/pkg/go/printer/Makefile          |  12 --
- src/pkg/go/scanner/Makefile          |  12 --
- src/pkg/go/token/Makefile            |  13 --
- src/pkg/hash/Makefile                |  11 --
- src/pkg/hash/adler32/Makefile        |  11 --
- src/pkg/hash/crc32/Makefile          |  20 ---
- src/pkg/hash/crc64/Makefile          |  11 --
- src/pkg/hash/fnv/Makefile            |  11 --
- src/pkg/html/Makefile                |  12 --
- src/pkg/html/template/Makefile       |  23 ----
- src/pkg/image/Makefile               |  15 --
- src/pkg/image/color/Makefile         |  12 --
- src/pkg/image/draw/Makefile          |  11 --
- src/pkg/image/gif/Makefile           |  11 --
- src/pkg/image/jpeg/Makefile          |  15 --
- src/pkg/image/png/Makefile           |  12 --
- src/pkg/index/suffixarray/Makefile   |  12 --
- src/pkg/io/Makefile                  |  13 --
- src/pkg/io/ioutil/Makefile           |  12 --
- src/pkg/log/Makefile                 |  11 --
- src/pkg/log/syslog/Makefile          |  12 --
- src/pkg/math/Makefile                |  77 -----------
- src/pkg/math/big/Makefile            |  18 ---
- src/pkg/math/cmplx/Makefile          |  25 ----
- src/pkg/math/rand/Makefile           |  15 --
- src/pkg/mime/Makefile                |  36 -----
- src/pkg/mime/multipart/Makefile      |  13 --
- src/pkg/net/Makefile                 | 207 ----------------------------
- src/pkg/net/http/Makefile            |  25 ----
- src/pkg/net/http/cgi/Makefile        |  12 --
- src/pkg/net/http/fcgi/Makefile       |  12 --
- src/pkg/net/http/httptest/Makefile   |  12 --
- src/pkg/net/http/httputil/Makefile   |  14 --
- src/pkg/net/http/pprof/Makefile      |  11 --
- src/pkg/net/mail/Makefile            |  11 --
- src/pkg/net/rpc/Makefile             |  13 --
- src/pkg/net/rpc/jsonrpc/Makefile     |  12 --
- src/pkg/net/smtp/Makefile            |  12 --
- src/pkg/net/textproto/Makefile       |  15 --
- src/pkg/net/url/Makefile             |  11 --
- src/pkg/old/netchan/Makefile         |  13 --
- src/pkg/old/regexp/Makefile          |  11 --
- src/pkg/old/template/Makefile        |  14 --
- src/pkg/os/Makefile                  |  92 -------------
- src/pkg/os/exec/Makefile             |  34 -----
- src/pkg/os/signal/Makefile           |  11 --
- src/pkg/os/user/Makefile             |  33 -----
- src/pkg/path/Makefile                |  12 --
- src/pkg/path/filepath/Makefile       |  35 -----
- src/pkg/path/filepath/path_test.go   |   8 +-
- src/pkg/reflect/Makefile             |  13 --
- src/pkg/regexp/Makefile              |  12 --
- src/pkg/regexp/syntax/Makefile       |  16 ---
- src/pkg/runtime/Makefile             | 122 +----------------
- src/pkg/runtime/cgo/Makefile         |  60 --------
- src/pkg/runtime/debug/Makefile       |  11 --
- src/pkg/runtime/pprof/Makefile       |  11 --
- src/pkg/sort/Makefile                |  12 --
- src/pkg/strconv/Makefile             |  18 ---
- src/pkg/strings/Makefile             |  13 --
- src/pkg/sync/Makefile                |  15 --
- src/pkg/sync/atomic/Makefile         |  18 ---
- src/pkg/syscall/Makefile             |  90 ------------
- src/pkg/testing/Makefile             |  13 --
- src/pkg/testing/iotest/Makefile      |  13 --
- src/pkg/testing/quick/Makefile       |  11 --
- src/pkg/testing/script/Makefile      |  11 --
- src/pkg/text/scanner/Makefile        |  11 --
- src/pkg/text/tabwriter/Makefile      |  11 --
- src/pkg/text/template/Makefile       |  15 --
- src/pkg/text/template/parse/Makefile |  13 --
- src/pkg/time/Makefile                |  45 ------
- src/pkg/unicode/Makefile             |  22 +--
- src/pkg/unicode/utf16/Makefile       |  11 --
- src/pkg/unicode/utf8/Makefile        |  11 --
- src/run.bash                         |  92 +++++--------
- test/run                             |   2 +-
- 175 files changed, 146 insertions(+), 3464 deletions(-)
+ src/cmd/go/build.go    |  41 ++++++-----
+ src/cmd/go/clean.go    | 195 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/doc.go      |  80 +++++++++++++++++---
+ src/cmd/go/main.go     |   1 +
+ src/cmd/go/pkg.go      |   8 ++
+ src/cmd/go/test.go     |  26 +++++--
+ src/cmd/go/testflag.go |   2 +-
+ 7 files changed, 316 insertions(+), 37 deletions(-)

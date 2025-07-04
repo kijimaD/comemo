@@ -1,20 +1,22 @@
-commit 380525598ca917fe3226842f91695f4851b34e89
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 6 06:17:42 2017 -0700
+commit 257b01f8f47ace2ddd75efe37d8a0353888bce14
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 6 09:36:23 2017 -0400
 
-    all: remove some manual hyphenation
+    cmd/compile: use ANDconst to mask out leading/trailing bits on ARM64
     
-    Manual hyphenation doesn't work well when text gets reflown,
-    for example by godoc.
+    For an AND that masks out leading or trailing bits, generic rules
+    rewrite it to a pair of shifts. On ARM64, the mask actually can
+    fit into an AND instruction. So we rewrite it back to AND.
     
-    There are a few other manual hyphenations in the tree,
-    but they are in local comments or comments for unexported functions.
+    Fixes #19857.
     
-    Change-Id: I17c9b1fee1def650da48903b3aae2fa1e1119a65
-    Reviewed-on: https://go-review.googlesource.com/53510
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I479d7320ae4f29bb3f0056d5979bde4478063a8f
+    Reviewed-on: https://go-review.googlesource.com/39651
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/ast/ast.go       | 8 ++++----
- src/go/parser/parser.go | 4 ++--
- src/math/big/ratconv.go | 4 ++--
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      | 16 +++++++++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  7 +++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 42 +++++++++++++++++++++-------
+ 3 files changed, 53 insertions(+), 12 deletions(-)

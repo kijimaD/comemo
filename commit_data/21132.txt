@@ -1,17 +1,14 @@
-commit 79c4fad8c2416bd7c7865b337d70bc7f92153415
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Wed Dec 31 21:18:59 2014 +0100
+commit f03f0cba2ba03d5e0ddb88c7b1f98d7bbbabb9ce
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 18 13:32:00 2014 +1100
 
-    os: replace itod on posix with general itoa and fix possible infinite recursion
+    doc/go1.4.html: rewrite first sentence to make it clearer
+    The grammar was atrocious, probably the victim of an editing error.
     
-    Remove use of itod on posix systems and replace with call to itoa.
-    Build and use same itoa function on all systems.
-    Fix infinite recursion in iota function for the case -1<<63.
-    
-    Change-Id: I89d7e742383c5c4aeef8780501c78a3e1af87a6f
-    Reviewed-on: https://go-review.googlesource.com/2213
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/178910043
 
- src/os/exec_posix.go | 31 ++-----------------------------
- src/os/str.go        | 25 ++++++++++++++++++-------
- 2 files changed, 20 insertions(+), 36 deletions(-)
+ doc/go1.4.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,24 +1,42 @@
-commit 76b8bec6dbea9d56edbb5b2e8ab2fcf100ac1cd0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 19 09:42:00 2023 -0500
+commit c3b4c27fd31b51226274a0c038e9c10a65f11657
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Feb 1 13:23:02 2023 -0800
 
-    cmd/go: add test case for issue 64738
+    log: reduce lock contention
     
-    The straight revert in CL 551215 fixed this issue.
-    Add a test case to make sure we don't reintroduce it.
+    Logger.Log methods are called in a highly concurrent manner in many servers.
+    Acquiring a lock in each method call results in high lock contention,
+    especially since each lock covers a non-trivial amount of work
+    (e.g., formatting the header and outputting to the writer).
     
-    Test case copied from CL 550237 (by bcmills).
+    Changes made:
+    * Modify the Logger to use atomics so that the header formatting
+      can be moved out of the critical lock section.
+      Acquiring the flags does not occur in the same critical section
+      as outputting to the underlying writer, so this introduces
+      a very slight consistency instability where concurrently calling
+      multiple Logger.Output along with Logger.SetFlags may cause
+      the older flags to be used by some ongoing Logger.Output calls
+      even after Logger.SetFlags has returned.
+    * Use a sync.Pool to buffer the intermediate buffer.
+      This approach is identical to how fmt does it,
+      with the same max cap mitigation for #23199.
+    * Only protect outputting to the underlying writer with a lock
+      to ensure serialized ordering of output.
     
-    Fixes #64738.
+    Performance:
+            name           old time/op  new time/op  delta
+            Concurrent-24  19.9µs ± 2%   8.3µs ± 1%  -58.37%  (p=0.000 n=10+10)
     
-    Change-Id: I9654a1fd46fe1a1cc63ee6645a552ec21d720ad0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551255
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Updates #19438
+    
+    Change-Id: I091beb7431d8661976a6c01cdb0d145e37fe3d22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464344
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/mod_run_flags_issue64738.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/log/log.go      | 120 +++++++++++++++++++++++++++++++---------------------
+ src/log/log_test.go |  35 ++++++++++++++-
+ 2 files changed, 104 insertions(+), 51 deletions(-)

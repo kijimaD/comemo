@@ -1,14 +1,19 @@
-commit cbc9ab75cb0da5c5848fd495ef2a2ff87f345735
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 7 09:31:51 2012 -0700
+commit acbe6c94d710932706fb67d6caaa6dbe6cbd4dad
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Sep 7 06:54:42 2012 +0200
 
-    cmd/yacc: allow leading underscore in token name
-    Fixes #4037.
+    cmd/6g: avoid taking the address of slices unnecessarily.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6488093
+    The main case where it happens is when evaluating &s[i] without
+    bounds checking, which usually happens during range loops (i=0).
+    
+    This allows registerization of the corresponding variables,
+    saving 16 bytes of stack frame for each such range loop and a
+    LEAQ instruction.
+    
+    R=golang-dev, rsc, dave
+    CC=golang-dev, remy
+    https://golang.org/cl/6497073
 
- src/cmd/yacc/units.y | 10 +++++-----
- src/cmd/yacc/yacc.go |  6 +++---
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/6g/cgen.c | 73 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 39 insertions(+), 34 deletions(-)

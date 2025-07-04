@@ -1,24 +1,22 @@
-commit d9725f549f48ae6e4eaf70311f6827173453935b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 25 18:18:59 2020 +1000
+commit 435b9dd1a1bae81a32eafb59a9de7fb2873cd51e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 6 18:19:03 2019 +0000
 
-    syscall: add support for openbsd/mips64
+    text/template: avoid a global map to help the linker's deadcode elimination
     
-    Update #40995
+    Fixes #36021
+    Updates #2559
+    Updates #26775
     
-    Change-Id: I7afa520ab5ddd6d1b8c7960f400b7b3a1b67d976
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250581
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I2e6708691311035b63866f25d5b4b3977a118290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210284
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/asm_openbsd_mips64.s       |  129 +++
- src/syscall/mkall.sh                   |   11 +
- src/syscall/mksysnum_openbsd.pl        |    2 +-
- src/syscall/syscall_openbsd_mips64.go  |   38 +
- src/syscall/zerrors_openbsd_mips64.go  | 1682 ++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_openbsd_mips64.go | 1300 ++++++++++++++++++++++++
- src/syscall/zsysnum_openbsd_mips64.go  |  218 +++++
- src/syscall/ztypes_openbsd_mips64.go   |  443 +++++++++
- 8 files changed, 3822 insertions(+), 1 deletion(-)
+ src/text/template/funcs.go      | 71 ++++++++++++++++++++++++++---------------
+ src/text/template/link_test.go  | 64 +++++++++++++++++++++++++++++++++++++
+ src/text/template/multi_test.go |  2 +-
+ src/text/template/template.go   |  2 +-
+ 4 files changed, 111 insertions(+), 28 deletions(-)

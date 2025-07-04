@@ -1,28 +1,28 @@
-commit 890a62bf1b8022833d3cb616d3d7911b7f1d289a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 24 15:10:39 2023 +0200
+commit 9861e8b2fd83dec24a6ced44998dca52abd6ccff
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 29 09:19:38 2022 -0400
 
-    internal/bytealg: add generic LastIndexByte{,String}
+    cmd/{cover,go}: avoid use of os.PathListSeparator in cmd/cover flag
     
-    To avoid duplicating them in net/netip and os and to allow these
-    packages automatically benefiting from future performance improvements
-    when optimized native LastIndexByte{,String} implementations are added.
+    Rework the mechanism for passing a list of output files from cmd/go to
+    cmd/cover when running new-style package-scope coverage
+    instrumentation (-pkgcfg mode). The old scheme passed a single string
+    with all output files joined together with os.PathListSeparator, but
+    this scheme is not viable on plan9, where strings containing the
+    separator character are not permitted when running exec.Command().
+    Instead, switch cmd/cover to use an arguments file (a file containing
+    a list of names) to specify names of instrumented output files. This
+    fixes the cmd/cover test failures on the plan9 builders.
     
-    For #36891
+    Updates #51430.
     
-    Change-Id: I4905a4742273570c2c36b867df57762c5bfbe1e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522475
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I919f5e0a79500e28648fb9177225a9b938e4fdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436675
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/bytes/bytes.go                            |  9 ++-------
- src/internal/bytealg/lastindexbyte_generic.go | 23 +++++++++++++++++++++++
- src/net/netip/leaf_alts.go                    |  9 ---------
- src/net/netip/netip.go                        |  4 ++--
- src/os/file_plan9.go                          |  5 +++--
- src/os/tempfile.go                            | 13 ++-----------
- src/strings/strings.go                        |  9 ++-------
- 7 files changed, 34 insertions(+), 38 deletions(-)
+ src/cmd/cover/cfg_test.go        | 25 ++++++++++++++++------
+ src/cmd/cover/cover.go           | 46 ++++++++++++++++++++++++++++------------
+ src/cmd/go/internal/work/exec.go | 20 +++++++++++------
+ 3 files changed, 65 insertions(+), 26 deletions(-)

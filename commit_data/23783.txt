@@ -1,15 +1,19 @@
-commit 1e9f59a7da374b24b5512cd7fcf1f605df4f862d
-Author: Ingo Krabbe <ikrabbe.ask@gmail.com>
-Date:   Wed Jul 22 09:23:21 2015 +0200
+commit 38e3427b2ffd90c4eca3643069a21c6e936566de
+Author: Kyle Isom <kyle@gokyle.net>
+Date:   Thu Jun 4 13:23:25 2015 -0700
 
-    cmd/dist: add command output for dist tests
+    encoding/asn1: check bounds when parsing tag and length
     
-    It is very useful to see which test commands are executed.
-    This is of global use, but I wrote it for #11654.
+    This was found while fuzzing another program, triggering a panic in
+    x509.ParseECPrivateKey.
     
-    Change-Id: I9bfc8e55d5bef21f4c49b917f58bc9a44aefcade
-    Reviewed-on: https://go-review.googlesource.com/12510
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #11154
+    
+    Change-Id: Ief35ead38adf14caec4d37b9eacf8a92e67cd1e6
+    Reviewed-on: https://go-review.googlesource.com/10712
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/dist/test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/encoding/asn1/asn1.go      | 11 +++++++++++
+ src/encoding/asn1/asn1_test.go | 19 +++++++++++++++++++
+ 2 files changed, 30 insertions(+)

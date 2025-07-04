@@ -1,14 +1,21 @@
-commit ace6074593e877a416f166ca298b597e588ee321
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Jul 31 17:28:35 2017 -0700
+commit 51012314251a8b1f1dfe9737091a37c0e1f6b9d5
+Author: griesemer <gri@golang.org>
+Date:   Mon Apr 24 22:17:03 2017 -0700
 
-    doc: add go1.9 to golang.org/project
+    cmd/compile: factor out access to thisT
     
-    Pre-emptive. Go 1.9 is expected to be released in August.
+    isifacemethod accessed thisT without checking if it was initialized,
+    opening the possibility for a bug during type checking. Give better
+    name, move it to package types, and provide accessor instead.
     
-    Change-Id: I0f58c012c4110bf490022dc2c1d69c0988d73bfa
-    Reviewed-on: https://go-review.googlesource.com/52351
+    Change-Id: I29ffc408252a4ba4ef1de218fa154397786c9be6
+    Reviewed-on: https://go-review.googlesource.com/41673
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/contrib.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/bimport.go  |  2 +-
+ src/cmd/compile/internal/gc/dcl.go      | 25 ++++++++-----------------
+ src/cmd/compile/internal/gc/noder.go    |  2 +-
+ src/cmd/compile/internal/gc/universe.go |  2 +-
+ src/cmd/compile/internal/types/type.go  | 10 ++++++++++
+ 5 files changed, 21 insertions(+), 20 deletions(-)

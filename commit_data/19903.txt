@@ -1,13 +1,13 @@
-commit bf13b711bd56367486f01d76ae344b8620a04694
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Aug 6 17:24:03 2014 +1000
+commit bbc6bb9a995b2eb2b08520732a780e5691501863
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Aug 5 21:38:41 2014 -0700
 
-    runtime: burn cpu before calling yield in windows runtime.systime
+    liblink: encode MOVBQZX as MOVZBL instead of MOVZBQ
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/117670043
+    https://golang.org/cl/118480046
 
- src/pkg/runtime/os_windows.c | 2 +-
+ src/liblink/asm6.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

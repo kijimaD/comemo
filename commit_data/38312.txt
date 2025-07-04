@@ -1,22 +1,21 @@
-commit 361a01983f01790694d5c7773d56a560c01b96cb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 5 16:52:48 2019 -0500
+commit 95dda75bde8a6625b857b5f8013eed5e9563fd02
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Oct 18 05:11:38 2018 +0000
 
-    cmd/api: use 'go list' to locate transitive dependencies of std
+    cmd/compile: optimize store combination on 386/amd64
     
-    With standard-library modules and vendoring, the mapping from import
-    path to directory within the standard library is no longer entirely
-    trivial. Fortunately, 'go list' makes that mapping straightforward to
-    compute.
+    This CL add 3 rules to combine byte-store to word-store on386 and
+    amd64.
     
-    Updates #30241
-    Updates #30228
-    
-    Change-Id: Iddd77c21a527b7acdb30c17bec8b4bbd43e23756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165497
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iffd9cda42f1961680c81def4edc773ad58f211b3
+    Reviewed-on: https://go-review.googlesource.com/c/143057
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/api/goapi.go | 84 +++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 77 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules   |  10 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  19 +++
+ src/cmd/compile/internal/ssa/rewrite386.go   |  62 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 236 ++++++++++++++++++++++++++-
+ test/codegen/memcombine.go                   |   6 +
+ 5 files changed, 332 insertions(+), 1 deletion(-)

@@ -1,26 +1,28 @@
-commit 26222ddc8b37909e97c45965f4fe2f6bd68b9e00
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 4 17:22:29 2018 -0500
+commit 589ea93678850ad1e5c1192df5768177c3104937
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 16 15:28:14 2017 +0900
 
-    cmd/go: skip long tests in -short mode
+    cmd/nm: handle cgo archive
     
-    I marked every test that takes more than 0.5 seconds on my machine
-    as something to run only when not in -short mode, or in -short mode
-    on the beefy linux/amd64, windows/amd64, and darwin/amd64 builders.
+    This CL also make cmd/nm accept PE object file.
     
-    I also shortened a few needlessly-expensive tests where possible.
+    Fixes #21706
     
-    Cuts the time for go test -short cmd/go from 45s to 15s on my machine.
-    Should help even more on some of our builders and slower user machines.
-    
-    Fixes #23287.
-    
-    Change-Id: I0e36003ef947b0ebe4224a1373731f9fa9216843
-    Reviewed-on: https://go-review.googlesource.com/86252
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a528b7d53da1082e61523ebeba02c4c514a43a7
+    Reviewed-on: https://go-review.googlesource.com/64890
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go     | 122 +++++++++++++++++++++++++++++++++++++---------
- src/cmd/go/vendor_test.go |   5 +-
- 2 files changed, 101 insertions(+), 26 deletions(-)
+ src/cmd/internal/goobj/read.go       | 24 +++++++----
+ src/cmd/internal/objfile/disasm.go   | 10 ++---
+ src/cmd/internal/objfile/elf.go      |  4 +-
+ src/cmd/internal/objfile/goobj.go    | 25 +++++++++++-
+ src/cmd/internal/objfile/macho.go    |  4 +-
+ src/cmd/internal/objfile/objfile.go  | 78 ++++++++++++++++++++++++++++--------
+ src/cmd/internal/objfile/pe.go       | 10 +----
+ src/cmd/internal/objfile/plan9obj.go |  4 +-
+ src/cmd/nm/nm.go                     | 71 ++++++++++++++++++--------------
+ src/cmd/nm/nm_cgo_test.go            | 11 +++++
+ src/cmd/nm/nm_test.go                | 55 ++++++++++++++++++++-----
+ 11 files changed, 211 insertions(+), 85 deletions(-)

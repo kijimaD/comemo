@@ -1,26 +1,17 @@
-commit 31f0af1e5ea7be0d332ca82d483b1ee6a727e089
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Nov 13 15:12:30 2023 -0500
+commit 318e75bb7c42640d4fbd5c253b84d1226021654d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 28 12:22:26 2022 -0500
 
-    cmd/api: use api/next directory for beta versions
+    doc/go1.20: add release notes for PGO
     
-    Even though we don't issue beta pre-releases of Go at this time,
-    it can still be useful to build them without publishing as part
-    of testing the release infrastructure.
+    For #54202.
+    For #55022.
     
-    For such versions, use the next directory content so that the
-    API check doesn't produce a false positive during the earlier
-    stages of the development cycle, before the next directory is
-    merged into a combined and eventually frozen api file.
-    
-    For #29205.
-    
-    Change-Id: Ib5e962670de1df22f7df64dd237b555953096808
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542000
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ia3183e48536fa707c091094880d52fb75e7f6666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453636
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/api/main_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.20.html | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

@@ -1,20 +1,22 @@
-commit f8654408d65cc9dd839df9589d7d01c1af9d51f0
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Thu Feb 15 08:13:43 2024 -0500
+commit 5acd2d658ee87e5b4d73ff815e5ed41d4e4b77f3
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 17 15:43:01 2022 -0400
 
-    go/build: add check for allowed vendor packages
+    runtime: eliminate waspanic from gentraceback
     
-    Add a test that checks that all vendored packages in both src/ and
-    src/cmd are on an allowlist.
+    gentraceback also tracks the funcID of the callee, which is more
+    general. Fix this up to happen in all cases and eliminate waspanic in
+    favor of checking the funcID of the caller.
     
-    For #65678.
+    For #54466.
     
-    Change-Id: Ie9982f8b69c9c0fc6fef41c9dadeb464ecd7781a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564355
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Idc98365a6f05022db18ddcd5b3ed8684a6872a88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458216
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/vendor_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ src/runtime/traceback.go | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)

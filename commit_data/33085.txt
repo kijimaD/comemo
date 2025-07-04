@@ -1,28 +1,34 @@
-commit ce6e0b089f14131889b8e0960f958d07e7bb9108
+commit f3b5a2bc1983ddb83d72e741b176993d9b800faf
 Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 11 15:57:58 2017 -0400
+Date:   Thu Jul 6 11:55:39 2017 -0400
 
-    cmd/link: remove silly sym.R[:0] truncation
+    runtime: prevent descheduling while holding rwmutex read lock
     
-    The DWARF code currently clears all section relocations every time it
-    creates a section. This is unnecessary and confusing, so don't do it.
+    Currently only the rwmutex write lock prevents descheduling. The read
+    lock does not. This leads to the following situation:
     
-    This dates back to
-    https://codereview.appspot.com/7891044/diff/26001/src/cmd/ld/dwarf.c.
-    At the time, this was only done for one symbol and that symbol was
-    used solely for collecting relocations (which is why it made sense to
-    clear the relocations but not the actual data). Furthermore, DWARF
-    generation potentially required two passes, so it was important to
-    clear the state from the first pass. None of this is true now, but
-    this pattern had been cargo-culted all over the dwarf.go.
+    1. A reader acquires the lock and gets descheduled.
     
-    Change-Id: I87d4ff8ccd5c807796241559be46168ce3ccb49a
-    Reviewed-on: https://go-review.googlesource.com/70312
+    2. GOMAXPROCS writers attempt to acquire the lock (or at least one
+    writer does, followed by readers). This blocks all of the Ps.
+    
+    3. There is no 3. The descheduled reader never gets to run again
+    because there are no Ps, so it never releases the lock and the system
+    deadlocks.
+    
+    Fix this by preventing descheduling while holding the read lock. This
+    requires also rewriting TestParallelRWMutexReaders to always create
+    enough GOMAXPROCS and to use non-blocking operations for
+    synchronization.
+    
+    Fixes #20903.
+    
+    Change-Id: Ibd460663a7e5a555be5490e13b2eaaa295fac39f
+    Reviewed-on: https://go-review.googlesource.com/47632
     Run-TryBot: Austin Clements <austin@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/rwmutex.go      |  8 +++++++-
+ src/runtime/rwmutex_test.go | 25 ++++++++++++-------------
+ 2 files changed, 19 insertions(+), 14 deletions(-)

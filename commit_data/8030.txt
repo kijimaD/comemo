@@ -1,27 +1,12 @@
-commit 740051ae75e9a97ae86b9ff2374477e84b5972ed
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 13:00:40 2011 -0400
+commit ddd0fa17446aa510dd48df7fd07ccce9a9b156d0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 8 09:50:20 2011 -0700
 
-    codereview: automatically port old diffs forward
+    gotest: Fix fix for \r\n on windows.
     
-    In the current codereview, if a patch was written against
-    a version of a file that had subsequently been edited,
-    hg clpatch would fail, even if the patch and the edits were
-    in different parts of the file.  In this situation the reviewer
-    typically wrote back saying "please hg sync and hg mail
-    to update the patch".
-    
-    This change rewrites the patch automatically, using the
-    same transformation that hg sync + hg mail would.
-    
-    If the interim changes (since the patch was created)
-    affect the same line ranges as the patch, clpatch will
-    still refuse to apply it.  But this CL should make
-    of the trivial conflicts we see just go away.
-    
-    R=golang-dev, r
+    R=rsc, brainman, rh, r2
     CC=golang-dev
-    https://golang.org/cl/4377046
+    https://golang.org/cl/4366045
 
- lib/codereview/codereview.py | 114 +++++++++++++++++++++++++++++++++++++------
- 1 file changed, 100 insertions(+), 14 deletions(-)
+ src/cmd/gotest/gotest.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

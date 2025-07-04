@@ -1,16 +1,24 @@
-commit 92dd05682c514bc84352ec716280b5d3a66399e4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 21 09:54:36 2024 -0700
+commit 89265f98948718c0d4d3d4763decf02914188ae6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jul 7 11:17:28 2023 +0200
 
-    internal/pkgbits: fix incorrect doc comment
+    net: remove unused error result from newRawConn
     
-    Change-Id: I71d1dfec11657ffa8ffe12e87f6dbd65cbb1854b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607475
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    It's currently always nil, and the code gets generally less verbose.
+    
+    Change-Id: Id4f5f9ac6eac0218dda34b8bd5ef41c633cfaf2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508396
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/internal/pkgbits/encoder.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/iprawsock.go  |  2 +-
+ src/net/rawconn.go    |  8 ++++----
+ src/net/sock_posix.go | 17 ++++-------------
+ src/net/tcpsock.go    |  4 ++--
+ src/net/udpsock.go    |  2 +-
+ src/net/unixsock.go   |  4 ++--
+ 6 files changed, 14 insertions(+), 23 deletions(-)

@@ -1,14 +1,19 @@
-commit 2f69a7359159171c0fe2ddede22a1328f71bc4ef
-Author: Evan Martin <evan.martin@gmail.com>
-Date:   Mon Jul 11 07:31:08 2011 -0700
+commit f19b24a182c445ceb3d998b2ebc20f1d8718df9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 07:25:45 2011 -0700
 
-    json: encode \r and \n in strings as e.g. "\n", not "\u000A"
+    strconv: handle [-+]Infinity in atof
     
-    This is allowed by the JSON spec and is shorter/easier to read.
+    This is the form as returned by Postgres, as well
+    as JavaScript.
     
-    R=golang-dev, bradfitz, rsc
+    I've tried and failed to find authorative docs online
+    about the proper string serialization, if any.
+    
+    R=golang-dev, gri, r, r, rsc
     CC=golang-dev
-    https://golang.org/cl/4678046
+    https://golang.org/cl/4650077
 
- src/pkg/json/encode.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/pkg/strconv/atof.go      | 10 ++++++----
+ src/pkg/strconv/atof_test.go |  3 +++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

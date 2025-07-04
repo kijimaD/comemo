@@ -1,17 +1,29 @@
-commit 4ffa5eb8764b9c811bff329e7d2e392dc1e8972c
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sat Mar 26 14:23:56 2016 +0100
+commit 03f42ee3a561100f99bd98c3a52780536a422ab7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 3 16:58:43 2016 +0000
 
-    cmd/vet: don't treat fields like variables in rangeloop check
+    sync: deflake TestWaitGroupMisuse3
     
-    Fixes #13236
+    Previous flakes:
+    https://build.golang.org/log/223365dedb6b6aa0cfdf5afd0a50fd433a16bade
+    https://build.golang.org/log/edbea4cd3f24e707ef2ae8378559bb0fcc453c22
     
-    Change-Id: If902ac66718e0a0790fab9835921ce4ef980965b
-    Reviewed-on: https://go-review.googlesource.com/21183
-    Run-TryBot: Rob Pike <r@golang.org>
+    Dmitry says in email about this:
+    
+    > The stack trace points to it pretty clearly. Done can indeed unblock
+    > Wait first and then panic. I guess we need to recover after first
+    > Done as well.
+    
+    And it looks like TestWaitGroupMisuse2 was already hardened against
+    this.  Do the same in TestWaitGroupMisuse3.
+    
+    Change-Id: I317800c7e46f13c97873f0873c759a489dd5f47d
+    Reviewed-on: https://go-review.googlesource.com/19183
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/rangeloop.go          | 4 ++++
- src/cmd/vet/testdata/rangeloop.go | 9 +++++++++
- 2 files changed, 13 insertions(+)
+ src/sync/waitgroup_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

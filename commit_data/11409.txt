@@ -1,13 +1,15 @@
-commit 7b5048570a32f477cd946298a643ae89c7a01f3c
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Jan 26 00:59:50 2012 -0200
+commit bcb976c5b277b30dab6e771659c01bddec8c8a72
+Author: Blake Mizerany <blake.mizerany@gmail.com>
+Date:   Wed Jan 25 17:49:30 2012 -0800
 
-    doc/go1: add encoding/xml changes
+    database/sql: fix Tx.Query
     
-    R=golang-dev, r
+    Fixes #2784
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5569067
+    https://golang.org/cl/5574073
 
- doc/go1.html | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++------
- doc/go1.tmpl | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 100 insertions(+), 12 deletions(-)
+ src/pkg/database/sql/sql.go      |  7 +++++--
+ src/pkg/database/sql/sql_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

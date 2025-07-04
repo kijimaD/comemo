@@ -1,0 +1,19 @@
+commit c3591cb30ce1680b97921a20a1a4aa8d96bf6292
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 20 14:00:06 2024 -0700
+
+    internal/goexperiment: add aliastypeparams GOEXPERIMENT flag
+    
+    For #46477.
+    
+    Change-Id: Ic917272cb2cd28dcb39f173b3cdcfb72e52eae2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586955
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/internal/goexperiment/exp_aliastypeparams_off.go | 8 ++++++++
+ src/internal/goexperiment/exp_aliastypeparams_on.go  | 8 ++++++++
+ src/internal/goexperiment/flags.go                   | 5 +++++
+ 3 files changed, 21 insertions(+)

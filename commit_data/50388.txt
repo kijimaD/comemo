@@ -1,20 +1,22 @@
-commit 5a9638692298deb45e7b95f51d5dd5a1be724874
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 7 10:20:57 2022 +0700
+commit 5d414d180bfb631d3835f819f7f524ec271f11eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 19 18:09:30 2021 -0700
 
-    test: add regression test for issue 54911
+    cmd/compile/internal/types2: more detailed error messages for generic conversions
     
-    It was fixed by CL 422196, and have been already worked in unified IR.
+    - slightly refactor convertibleTo and convertibleToImpl
+    - provide ability to return a conversion failure cause
+    - add detailed cause for generic conversions
     
-    Fixes #54911
+    For #47150.
     
-    Change-Id: Ie69044a64b296f6961e667e7661d8c4d1a24d84e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428758
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie97d89be0234414ef4df22a6920e18acc944a102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357249
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/fixedbugs/issue54911.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/compile/internal/types2/api.go             |  2 +-
+ src/cmd/compile/internal/types2/conversions.go     | 84 ++++++++++++++--------
+ src/cmd/compile/internal/types2/operand.go         |  1 +
+ .../types2/testdata/examples/conversions.go2       | 22 +++---
+ 4 files changed, 67 insertions(+), 42 deletions(-)

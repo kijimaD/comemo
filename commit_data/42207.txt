@@ -1,54 +1,37 @@
-commit faafdf5115c994ff6d5ab3fe2eaf70ee47186f54
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 21 14:23:04 2020 -0400
+commit fc3eae52810f8a89ed656b30a98ad7a08104dc33
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 14 14:32:24 2019 -0500
 
-    cmd/compile: fix unsafe-points with stack maps
+    doc: convert remaining bash tests to Go
     
-    The compiler currently conflates whether a Value has a stack map with
-    whether it's an unsafe point. For the most part, unsafe-points don't
-    have stack maps, so this is mostly fine, but call instructions can be
-    both an unsafe-point *and* have a stack map. For example, none of the
-    instructions in a nosplit function should be preemptible, but calls
-    must still have stack maps in case the called function grows the stack
-    or get preempted.
+    Updates #28387
+    Updates #30316
+    Fixes #35574
     
-    Currently, the compiler can't distinguish this case, so calls in
-    nosplit functions are marked as safe-points just because they have
-    stack maps. This is particularly problematic if a nosplit function
-    calls another nosplit function, since this can introduce a preemption
-    point where there should be none.
-    
-    We realized this was a problem for split-stack prologues a while back,
-    and CL 207349 changed the encoding of unsafe-points to use the
-    register map index instead of the stack map index so we could record
-    both a stack map and an unsafe-point at the same instruction. But this
-    was never extended into the compiler.
-    
-    This CL fixes this problem in the compiler. We make LivenessIndex
-    slightly more abstract by separating unsafe-point marks from stack and
-    register map indexes. We map this to the PCDATA encoding later when
-    producing Progs. This isn't enough to fix the whole problem for
-    nosplit functions, because obj still adds prologues and marks those as
-    preemptible, but it's a step in the right direction.
-    
-    I checked this CL by comparing maps before and after this change in
-    the runtime and net/http. In net/http, unsafe-points match exactly; at
-    anything that isn't an unsafe-point, both the stack and register maps
-    are unchanged by this CL. In the runtime, at every point that was a
-    safe-point before this change, the stack maps agree (and mostly the
-    runtime doesn't have register maps at all now). In both, all CALLs
-    (except write barrier calls) have stack maps.
-    
-    For #36365.
-    
-    Change-Id: I066628938b02e78be5c81a6614295bcf7cc566c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230541
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I21c9e18573909e092ed8dcec91b8542bb97e9f5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207263
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go |   9 ++-
- src/cmd/compile/internal/gc/plive.go | 134 +++++++++++++++++++++--------------
- src/cmd/compile/internal/gc/ssa.go   |   4 +-
- src/cmd/internal/objabi/funcdata.go  |   6 ++
- 4 files changed, 96 insertions(+), 57 deletions(-)
+ doc/articles/wiki/final-noclosure.go     |   2 +
+ doc/articles/wiki/final-noerror.go       |   2 +
+ doc/articles/wiki/final-parsetemplate.go |   2 +
+ doc/articles/wiki/final-template.go      |   2 +
+ doc/articles/wiki/final-test.patch       |  27 -----
+ doc/articles/wiki/final.go               |   2 +
+ doc/articles/wiki/final_test.go          |  24 +++++
+ doc/articles/wiki/get.go                 |  63 ------------
+ doc/articles/wiki/go.mod                 |   3 +
+ doc/articles/wiki/http-sample.go         |   2 +
+ doc/articles/wiki/notemplate.go          |   2 +
+ doc/articles/wiki/part1-noerror.go       |   2 +
+ doc/articles/wiki/part1.go               |   2 +
+ doc/articles/wiki/part2.go               |   2 +
+ doc/articles/wiki/part3-errorhandling.go |   2 +
+ doc/articles/wiki/part3.go               |   2 +
+ doc/articles/wiki/test.bash              |  58 -----------
+ doc/articles/wiki/wiki_test.go           | 165 +++++++++++++++++++++++++++++++
+ doc/codewalk/codewalk_test.go            |  52 ++++++++++
+ doc/codewalk/run                         |  21 ----
+ doc/progs/run.go                         |   8 +-
+ src/cmd/dist/test.go                     |   8 +-
+ 22 files changed, 279 insertions(+), 174 deletions(-)

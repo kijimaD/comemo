@@ -1,14 +1,16 @@
-commit 4bd79e742a50281a2897eb84de7cf81a211c5dd4
-Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
-Date:   Mon Jun 17 14:56:45 2013 -0700
+commit 2af974777d8e771e5c58f172876ac4c6d9fb7256
+Author: Nicolas Owens <mischief@offblast.org>
+Date:   Mon Jun 17 11:38:07 2013 -0700
 
-    crypto/x509: Added RFC 5280, section 4.2.1.14 to parseCertificate and buildExtensions
-    Support for CRL Distribution Points
+    net: fix LookupNS on Plan 9
     
-    R=golang-dev, agl, bradfitz
+    use correct field count when resolving nameservers via /net/dns on Plan 9.
+    
+    we incorrectly check for 4 fields instead of 3 when parsing the result of /net/dns, and get no results
+    
+    R=golang-dev, ality
     CC=golang-dev
-    https://golang.org/cl/10258043
+    https://golang.org/cl/10182044
 
- src/pkg/crypto/x509/x509.go      | 89 ++++++++++++++++++++++++++++++++++++----
- src/pkg/crypto/x509/x509_test.go |  6 +++
- 2 files changed, 86 insertions(+), 9 deletions(-)
+ src/pkg/net/lookup_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

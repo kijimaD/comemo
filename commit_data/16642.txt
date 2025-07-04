@@ -1,14 +1,26 @@
-commit 4cf73890a2cc4a75cd8cd2ad726690a2ef60cf1d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 25 17:04:18 2013 -0700
+commit a14e143c2173e106b1155905a41f5144e1a864b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 25 17:23:33 2013 -0400
 
-    crypto/sha1: provide a top-level Sum function
-    Makes it easy to ask the simple question, what is the hash of this data?
+    cmd/ld: fix line numbers when using fieldtrack
     
-    R=golang-dev, rsc, bradfitz
+    USEFIELD is a special kind of NOP, so treat it like a NOP
+    when generating the pc-ln table.
+    
+    There are more invasive fixes that could be applied here.
+    I am going for minimum number of lines changed.
+    
+    The smallest test case we know of is five distinct Go files
+    in four packages, and the bug only happens with
+    GOEXPERIMENT=fieldtrack enabled, which we don't
+    normally build with, so the test would never run
+    meaningfully anyway.
+    
+    Fixes #5762.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10571043
+    https://golang.org/cl/10495044
 
- src/pkg/crypto/sha1/sha1.go      | 16 ++++++++++++++--
- src/pkg/crypto/sha1/sha1_test.go |  4 ++++
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/ld/lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

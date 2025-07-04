@@ -1,18 +1,22 @@
-commit 333f3de2a10f22269b567d82144ab3528a3e6c07
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Sep 22 14:05:49 2021 -0500
+commit 2e8f29b79d4bce097ebe0c822b469d4714657395
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 8 19:27:51 2021 -0800
 
-    cmd/compile: update PPC64 CALL* ops for register ABI
+    [dev.typeparams] cmd/compile: add types2.Sizes implementation
     
-    Allow the CALL ops to take variable number of arguments.
+    This CL adds an implementation of types2.Sizes that calculates sizes
+    using the same sizing algorithm as cmd/compile. In particular, it
+    matches how cmd/compile pads structures and includes padding in size
+    calculations.
     
-    Change-Id: I6753c2fcb434ce2ebbce51dd595fbcbb39a60bed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351589
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I4dd8e51f95c90f9d7bd1e7463e40edcd3955a219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282915
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
- src/cmd/compile/internal/ssa/opGen.go        | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/noder/noder.go |   1 +
+ src/cmd/compile/internal/noder/sizes.go | 150 ++++++++++++++++++++++++++++++++
+ 2 files changed, 151 insertions(+)

@@ -1,12 +1,15 @@
-commit 6c44036c1feb2f5bb97c9a2a4b42c1dfd19d520d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 16 18:22:26 2018 +0000
+commit 9d84e0edd042bc6ca2a9cf3e402b81d5f27103d5
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Sun Mar 25 23:10:37 2018 +0100
 
-    doc: add more to go1.11, sort, remove dups
+    regexp: document behavior of FindAll* functions when n < 0
     
-    Change-Id: I20a82f6b47cd3ab4ca22d222e6d8a2c59d57e2a4
-    Reviewed-on: https://go-review.googlesource.com/124095
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #24526
+    
+    Change-Id: I0e38322fca12f9c88db836776920b9dfb66ff844
+    Reviewed-on: https://go-review.googlesource.com/102423
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.11.html | 166 ++++++++++++++------------------------------------------
- 1 file changed, 40 insertions(+), 126 deletions(-)
+ src/regexp/regexp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

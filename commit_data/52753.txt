@@ -1,28 +1,32 @@
-commit 03ad1f1a340841e7c60ee635ff894fe19cd99506
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 19 13:21:02 2023 -0400
+commit 7ce38641564e5c0183bb09df8c523caf5e0ab8e1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 16 15:25:28 2022 -0400
 
-    internal/abi, runtime, cmd: merge StackSmall, StackBig consts into internal/abi
+    cmd/go/internal/modfetch: wrap errors from HTTP response bodies
     
-    For #59670.
+    The Read method on the Body returned from a net/http.Transport does
+    not wrap errors returned by the underlying io.Reader and returns a
+    bare io.ErrUnexpectedEOF if the body is shorter than the declared
+    Content-Length.
     
-    Change-Id: I91448363be2fc678964ce119d85cd5fae34a14da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486975
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Since we can't feasibly add detail on the net/http side without
+    breaking established users, we must instead add detail on the caller
+    side. Since the net/http client uses url.Error for most of its own
+    errors, we use that same error type here.
+    
+    I have not added a regression test for this change. (While it is
+    theoretically possible to set up a GOPROXY that returns incorrect
+    Content-Length headers, the change seems straightforward enough that
+    it isn't worth the complex test setup.)
+    
+    Fixes #52727.
+    
+    Change-Id: Id00b04ae4fd518148106a49188fe169aadbcce2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406675
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
 
- src/cmd/internal/obj/arm/obj5.go     |  8 ++++----
- src/cmd/internal/obj/arm64/obj7.go   | 10 +++++-----
- src/cmd/internal/obj/loong64/obj.go  |  7 +++----
- src/cmd/internal/obj/mips/obj0.go    |  7 +++----
- src/cmd/internal/obj/ppc64/obj9.go   |  8 ++++----
- src/cmd/internal/obj/riscv/obj.go    |  6 +++---
- src/cmd/internal/obj/s390x/objz.go   |  8 ++++----
- src/cmd/internal/obj/wasm/wasmobj.go |  5 +++--
- src/cmd/internal/obj/x86/obj6.go     | 12 ++++++------
- src/cmd/internal/objabi/stack.go     |  9 +++++----
- src/internal/abi/stack.go            | 25 +++++++++++++++++++++++++
- src/runtime/stack.go                 | 14 +-------------
- 12 files changed, 66 insertions(+), 53 deletions(-)
+ src/cmd/go/internal/modfetch/proxy.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

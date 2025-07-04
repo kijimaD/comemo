@@ -1,13 +1,12 @@
-commit 98f5fc5e866886a8d4db81581345071b2a8dea9f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 18 20:30:44 2011 -0700
+commit 208e6e6dfc542bd3c9a8a1ac520c66683ab871aa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 19 13:18:21 2011 +1000
 
-    archive/zip: support functions to get modified time in ns from MS-DOS time
+    exp/wingui: make sure it builds again
     
-    R=rsc, r, bradfitz, r, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4748056
+    https://golang.org/cl/4770041
 
- src/pkg/archive/zip/reader_test.go | 38 ++++++++++++++++++++++++++++++++++----
- src/pkg/archive/zip/struct.go      | 29 +++++++++++++++++++++++++++--
- 2 files changed, 61 insertions(+), 6 deletions(-)
+ src/pkg/exp/wingui/winapi.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,39 +1,18 @@
-commit f088f4962e628992833444df7486d392715ea73d
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed May 4 17:41:39 2022 -0400
+commit 82f875d735fd07957a2224d2c73c677ddfdeef0d
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 20:50:18 2021 -0400
 
-    go/types, types2: use a type lookup by identity in method lookup
+    [dev.typeparams] go/types: fix generic type indirection
     
-    Named type identity is no longer canonical. For correctness, named types
-    need to be compared with types.Identical. Our method set algorithm was
-    not doing this: it was using a map to de-duplicate named types, relying
-    on their pointer identity. As a result it was possible to get incorrect
-    results or even infinite recursion, as encountered in #52715.
+    This is a port of CL 333890 to go/types.
     
-    To fix this, look up types by identity in NewMethodSet and
-    LookupFieldOrMethod. This does a linear search among types with equal
-    origin. Alternatively we could use a *Context to do a hash lookup, but
-    in practice we will be considering a small number of types, and so
-    performance is not a concern and a linear lookup is simpler. This also
-    means we don't have to rely on our type hash being perfect, which we
-    don't depend on elsewhere.
-    
-    Also add more tests for NewMethodSet and LookupFieldOrMethod involving
-    generics.
-    
-    Fixes #52715
-    Fixes #51580
-    
-    Change-Id: I04dfeff54347bc3544d95a30224c640ef448e9b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404099
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I8ee20f405dad98083bb5e91636044d132a95d909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335081
+    Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 53 +++++++++++++++++++++++
- src/cmd/compile/internal/types2/lookup.go   | 45 +++++++++++--------
- src/go/types/api_test.go                    | 56 +++++++++++++++++++++++-
- src/go/types/lookup.go                      | 45 +++++++++++--------
- src/go/types/methodset.go                   | 19 +++-----
- src/go/types/methodset_test.go              | 67 +++++++++++++++++++++++++----
- 6 files changed, 230 insertions(+), 55 deletions(-)
+ src/go/types/expr.go                          | 21 ++++++++++++++-----
+ src/go/types/testdata/examples/operations.go2 | 29 +++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 5 deletions(-)

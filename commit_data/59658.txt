@@ -1,21 +1,25 @@
-commit a1a151496503cafa5e4c672e0e9c1e1bb3516702
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 21 21:01:07 2025 +0200
+commit 5d18f889276fec9fd478124a0691bd7d1bca37c1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Apr 3 15:52:28 2024 -0400
 
-    crypto/internal/fips140/nistec: remove dead s390x p256OrdMul
+    all: update vendored golang.org/x/net to v0.23.0
     
-    The p256_ordinv.go file is build tagged to only amd64 and arm64, and
-    there is no p256OrdSqr.
+    Pull in CL 576155:
     
-    Also, none of it will matter after CL 669895.
+            ba872109 http2: close connections when receiving too many headers
     
-    Change-Id: I6a6a465653c18673e3a2c7f41d2e4ac54915b365
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675195
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Fixes CVE-2023-45288.
+    Fixes #65051.
+    
+    Change-Id: I3f4e3d565189b4ed552935fe1d96f94ebac86d48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576295
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- .../internal/fips140/nistec/p256_asm_s390x.s       | 393 ---------------------
- 1 file changed, 393 deletions(-)
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 ++--
+ src/net/http/h2_bundle.go | 35 +++++++++++++++++++++++++++++++++--
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 37 insertions(+), 6 deletions(-)

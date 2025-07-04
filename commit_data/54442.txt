@@ -1,29 +1,32 @@
-commit c0e2a9dffdb6af116ec5184a680cb3b4e904d0fa
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 11 21:13:10 2023 -0700
+commit 7ae652b7c0cddb8f6e04bfa6f5805baac823dd64
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Wed Oct 5 15:29:29 2022 +0800
 
-    cmd/compile/internal/abi: use Type.Registers
+    runtime: replace all uses of CtzXX with TrailingZerosXX
     
-    Now that types can self-report how many registers they need, it's much
-    easier to determine whether a parameter will fit into the available
-    registers: simply compare the number of registers needed against the
-    number of registers still available.
+    Replace all uses of Ctz64/32/8 with TrailingZeros64/32/8, because they
+    are the same and maybe duplicated. Also renamed CtzXX functions in 386
+    assembly code.
     
-    This also eliminates the need for the NumParamRegs cache.
-    
-    Also, the new code in NumParamRegs is stricter in only allowing it to
-    be called on types that can actually be passed in registers, which
-    requires a test to be corrected for that. While here, change mkstruct
-    to a variadic function, so the call sites require less boilerplate.
-    
-    Change-Id: Iebe1a0456a8053a10e551e5da796014e5b1b695b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527339
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I19290204858083750f4be589bb0923393950ae6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438935
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go          | 245 +++++-----------------
- src/cmd/compile/internal/test/abiutils_test.go    |  39 ++--
- src/cmd/compile/internal/test/abiutilsaux_test.go |   2 +-
- 3 files changed, 77 insertions(+), 209 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go        | 12 +---
+ src/cmd/compile/internal/test/inl_test.go     | 12 ++--
+ src/runtime/internal/sys/intrinsics.go        | 93 ++++++++++++++++-----------
+ src/runtime/internal/sys/intrinsics_386.s     |  6 +-
+ src/runtime/internal/sys/intrinsics_common.go | 87 +++++--------------------
+ src/runtime/internal/sys/intrinsics_stubs.go  |  6 +-
+ src/runtime/internal/sys/intrinsics_test.go   | 12 ++--
+ src/runtime/malloc.go                         |  2 +-
+ src/runtime/mbitmap.go                        | 12 ++--
+ src/runtime/slice.go                          |  4 +-
+ src/runtime/stack.go                          |  2 +-
+ test/intrinsic.dir/main.go                    | 24 +++----
+ 12 files changed, 114 insertions(+), 158 deletions(-)

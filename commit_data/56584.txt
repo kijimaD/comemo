@@ -1,25 +1,24 @@
-commit 7164fad87a3be06220771f2ae497cb15ef467e31
-Author: Damien Neil <dneil@google.com>
-Date:   Tue May 21 14:12:15 2024 -0700
+commit c213c905a29b3bce31b99ae91326bbaea106cc16
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 20:12:35 2023 +0000
 
-    net/http: disable flaky 100-continue tests
+    runtime: capture per-g trace state in a type
     
-    Disable three 100-continue tests that aren't exercising the
-    intended behavior because they don't set ExpectContinueTimeout.
-    The tests are flaky right now; setting ExpectContinueTimeout
-    makes them consistently fail.
+    More tightening up of the tracer's interface.
     
-    Set ExpectContinueTimeout and t.Skip the tests for now.
+    This increases the size of each G very slightly, which isn't great, but
+    we stay within the same size class, so actually memory use will be
+    unchanged.
     
-    Fixes #67382
-    For #67555
-    
-    Change-Id: I459a19a927e14af03881e89c73d20c93cf0da43e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587155
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I7d1f5798edcf437c212beb1e1a2619eab833aafb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494188
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/net/http/serve_test.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/runtime/proc.go        | 14 +++++------
+ src/runtime/runtime2.go    | 49 +++++++++++++++++++--------------------
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/trace.go       | 58 ++++++++++++++++++++++++++--------------------
+ 4 files changed, 65 insertions(+), 58 deletions(-)

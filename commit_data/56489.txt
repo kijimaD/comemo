@@ -1,29 +1,24 @@
-commit 3d80761531a6eb02934bc6b7236d77723f0b54fe
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue May 14 19:19:48 2024 +0000
+commit 2e7d864f43b957673f50e648b27c46074ed43404
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun May 7 13:51:15 2023 +0000
 
-    go/types, types2: add additional documentation for Underlying
+    net: use the lookupOrder for go resolver LookupAddr
     
-    The concept of an underlying type has become more complicated with the
-    addition of TypeParam and Alias types. Update the documentation to
-    clarify that it strips off Named, TypeParam, and Alias types, and to
-    reference the spec.
+    To mach the cgo version behaviour and the LookupHost (go resolver).
     
-    Fixes #65774
-    
-    Change-Id: I40a8efe15b45591b95068acbf4ef9eae17a4cef1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585456
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
+    Change-Id: I7dc3424d508a62e67f20c7810743399c35a9b60c
+    GitHub-Last-Rev: 29924c13a6c0598bf58b7fc3fae74b10bab0f0ee
+    GitHub-Pull-Request: golang/go#60024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/syntax/type.go      |  5 ++++-
- src/cmd/compile/internal/types2/alias.go     | 10 ++++++++--
- src/cmd/compile/internal/types2/named.go     | 14 +++++++++++---
- src/cmd/compile/internal/types2/typeparam.go |  4 ++++
- src/go/types/alias.go                        | 10 ++++++++--
- src/go/types/named.go                        | 14 +++++++++++---
- src/go/types/type.go                         |  3 +++
- src/go/types/typeparam.go                    |  4 ++++
- 8 files changed, 53 insertions(+), 11 deletions(-)
+ src/net/dnsclient_unix.go | 29 +++++++++++++++++++++--------
+ src/net/lookup_plan9.go   |  4 ++--
+ src/net/lookup_unix.go    |  2 +-
+ src/net/lookup_windows.go |  4 ++--
+ 4 files changed, 26 insertions(+), 13 deletions(-)

@@ -1,12 +1,12 @@
-commit fce2416b135b47119ceb9171aa5ddc3326346206
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 24 11:24:55 2012 -0800
+commit 59ae15106a2ae0a409f710a16a8180ae81f81a3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 24 14:15:37 2012 -0500
 
-    go/build: typo
+    cmd/go: fix get github
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5575049
+    https://golang.org/cl/5569054
 
- src/pkg/go/build/dir.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/vcs.go | 1 +
+ 1 file changed, 1 insertion(+)

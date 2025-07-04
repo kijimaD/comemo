@@ -1,39 +1,17 @@
-commit 7615b20d06500fe5c95c061f6ff32e0c97639a60
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Aug 20 15:06:23 2020 -0500
+commit e9956791bfabcb0db0035a1e1479f9ca1b2e32c2
+Author: Jon Johnson <jonjohnson@google.com>
+Date:   Mon Feb 3 18:15:41 2020 +0000
 
-    cmd/compile: generate subfic on ppc64
+    encoding/json: fix broken link to json.org
     
-    This merges an lis + subf into subfic, and for 32b constants
-    lwa + subf into oris + ori + subf.
+    This updates the link to a newer image.
     
-    The carry bit is no longer used in code generation, therefore
-    I think we can clobber it as needed.  Note, lowered borrow/carry
-    arithmetic is self-contained and thus is not affected.
-    
-    A few extra rules are added to ensure early transformations to
-    SUBFCconst don't trip up earlier rules, fold constant operations,
-    or otherwise simplify lowering.  Likewise, tests are added to
-    ensure all rules are hit.  Generic constant folding catches
-    trivial cases, however some lowering rules insert arithmetic
-    which can introduce new opportunities (e.g BitLen or Slicemask).
-    
-    I couldn't find a specific benchmark to demonstrate noteworthy
-    improvements, but this is generating subfic in many of the default
-    bent test binaries, so we are at least saving a little code space.
-    
-    Change-Id: Iad7c6e5767eaa9dc24dc1c989bd1c8cfe1982012
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249461
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Change-Id: Ibdfe8c57d9217a325bcfde98cb6f952ca63d588a
+    GitHub-Last-Rev: f5970ba395781c0d299dfdaa1ed75e46125b8268
+    GitHub-Pull-Request: golang/go#36938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217297
+    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/ppc64/ssa.go        |   8 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  31 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   1 +
- src/cmd/compile/internal/ssa/opGen.go        |  15 +
- src/cmd/compile/internal/ssa/rewritePPC64.go | 571 ++++++++++++++++++++++++++-
- test/codegen/arithmetic.go                   |  42 ++
- test/codegen/mathbits.go                     |  14 +
- test/codegen/slices.go                       |  21 +
- 8 files changed, 686 insertions(+), 17 deletions(-)
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

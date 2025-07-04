@@ -1,92 +1,39 @@
-commit 08f19bbde1b01227fdc2fa2d326e4029bb74dd96
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 19 17:31:31 2017 -0700
+commit c59b495963851d971036eb88a77b5c81db3a0982
+Author: philhofer <phofer@umich.edu>
+Date:   Wed Aug 9 05:01:26 2017 +0000
 
-    go/printer: forbid empty line before first comment in block
+    cmd/compile: add support for arm64 bit-test instructions
     
-    To improve readability when exported fields are removed,
-    forbid the printer from emitting an empty line before the first comment
-    in a const, var, or type block.
-    Also, when printing the "Has filtered or unexported fields." message,
-    add an empty line before it to separate the message from the struct
-    or interfact contents.
+    Add support for generating TBZ/TBNZ instructions.
     
-    Before the change:
-    <<<
-    type NamedArg struct {
+    The bit-test-and-branch pattern shows up in a number of
+    important places, including the runtime (gc bitmaps).
     
-            // Name is the name of the parameter placeholder.
-            //
-            // If empty, the ordinal position in the argument list will be
-            // used.
-            //
-            // Name must omit any symbol prefix.
-            Name string
+    Before this change, there were 3 TB[N]?Z instructions in the Go tool,
+    all of which were in hand-written assembly. After this change, there
+    are 285. Also, the go1 benchmark binary gets about 4.5kB smaller.
     
-            // Value is the value of the parameter.
-            // It may be assigned the same value types as the query
-            // arguments.
-            Value interface{}
-            // contains filtered or unexported fields
-    }
-    >>>
+    Fixes #21361
     
-    After the change:
-    <<<
-    type NamedArg struct {
-            // Name is the name of the parameter placeholder.
-            //
-            // If empty, the ordinal position in the argument list will be
-            // used.
-            //
-            // Name must omit any symbol prefix.
-            Name string
-    
-            // Value is the value of the parameter.
-            // It may be assigned the same value types as the query
-            // arguments.
-            Value interface{}
-    
-            // contains filtered or unexported fields
-    }
-    >>>
-    
-    Fixes #18264
-    
-    Change-Id: I9fe17ca39cf92fcdfea55064bd2eaa784ce48c88
-    Reviewed-on: https://go-review.googlesource.com/71990
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I170c138b852754b9b8df149966ca5e62e6dfa771
+    Reviewed-on: https://go-review.googlesource.com/54470
+    Run-TryBot: Philip Hofer <phofer@umich.edu>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/buildid_linux.go              |   1 -
- src/cmd/compile/internal/ssa/gen/rulegen.go |   1 -
- src/cmd/internal/obj/ppc64/asm9.go          |   1 -
- src/cmd/internal/obj/x86/asm6.go            |   1 -
- src/cmd/link/internal/ld/data.go            |   1 -
- src/cmd/link/internal/ppc64/asm.go          |   2 -
- src/encoding/base32/base32.go               |   1 -
- src/go/doc/testdata/blank.0.golden          |   1 +
- src/go/doc/testdata/blank.2.golden          |   1 +
- src/go/doc/testdata/testing.0.golden        |   1 +
- src/go/doc/testdata/testing.2.golden        |   1 +
- src/go/printer/nodes.go                     |   2 +
- src/go/printer/printer.go                   |   9 ++-
- src/go/printer/testdata/comments.golden     | 103 ++++++++++++++++++++++++++
- src/go/printer/testdata/comments.input      | 107 ++++++++++++++++++++++++++++
- src/go/printer/testdata/comments.x          |  70 ++++++++++++++++++
- src/hash/crc32/crc32_ppc64le.go             |   1 -
- src/image/internal/imageutil/impl.go        |   2 -
- src/net/http/httputil/dump_test.go          |   1 -
- src/net/http/httputil/persist.go            |   1 -
- src/net/http/internal/chunked.go            |   1 -
- src/net/http/requestwrite_test.go           |   1 -
- src/net/http/server.go                      |   1 -
- src/net/mail/message_test.go                |   1 -
- src/regexp/syntax/parse.go                  |   1 -
- src/runtime/symtab.go                       |   2 -
- src/syscall/syscall_netbsd.go               |   1 -
- src/syscall/syscall_openbsd.go              |   1 -
- src/time/sleep_test.go                      |   1 -
- src/unicode/example_test.go                 |   1 -
- 30 files changed, 293 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go          |  59 ++++++---
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   6 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  10 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  51 +++++---
+ src/cmd/compile/internal/ssa/opGen.go          |  32 ++---
+ src/cmd/compile/internal/ssa/rewrite.go        |   4 +
+ src/cmd/compile/internal/ssa/rewrite386.go     | 103 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 119 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  81 ++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 165 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  37 ++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  33 +++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  49 ++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  41 ++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +
+ 15 files changed, 743 insertions(+), 50 deletions(-)

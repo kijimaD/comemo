@@ -1,31 +1,28 @@
-commit 067dd573b2deba45a02383139bd2885321b2f71d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 24 12:43:09 2023 -0400
+commit 0a86cd6857b9fb12a798b3dbcfb6974384aa07d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 5 11:37:47 2022 +0200
 
-    cmd/go: fix PGO script flag matching
+    all: use io.Seek* instead of deprecated os.SEEK_*
     
-    build_pgo.txt hard-coded a check for / rather than using ${/}, causing a
-    failure on Windows
+    These are available since Go 1.7. The version used for bootstrap is Go
+    1.17 for Go 1.20.
     
-    The failure in build_pgo_auto_multi.txt is more interesting. If the
-    first argument to stdout starts with `-` the script engine expects it to
-    be a flag to grep, and thus doesn't regexp-escape `\` in the expansion
-    of `${/}`.
+    For #44505
     
-    The script engine doesn't _require_ that these are flags to grep, so it
-    is still possible to use them for matching, but this ideally will change
-    in the future, so change all patterns to avoid starting with `-`.
-    
-    Fixes #60408.
-    
-    Change-Id: Ie4041a730d22ce40a4436abae7713f211dcb42e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497881
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I497c9f617baefdeb273cd115b08b6e31bd10aad2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421634
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/testdata/script/build_pgo.txt            |  6 ++++--
- src/cmd/go/testdata/script/build_pgo_auto.txt       | 20 +++++++++++---------
- src/cmd/go/testdata/script/build_pgo_auto_multi.txt |  8 +++++---
- 3 files changed, 20 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |  3 +--
+ src/cmd/internal/archive/archive.go           | 10 +++++-----
+ src/cmd/link/internal/loader/loader.go        |  3 ++-
+ src/internal/pkgbits/decoder.go               |  2 +-
+ src/internal/xcoff/ar.go                      |  6 +++---
+ src/internal/xcoff/file.go                    | 26 +++++++++++++-------------
+ src/net/sendfile_test.go                      |  2 +-
+ src/testing/run_example_js.go                 |  2 +-
+ 8 files changed, 27 insertions(+), 27 deletions(-)

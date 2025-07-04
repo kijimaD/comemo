@@ -1,14 +1,12 @@
-commit 39c476cbf874c1936e82731abd4511bb8364c00c
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Sat Feb 23 11:39:01 2013 -0800
+commit 1e957b6245d1c204e333738383a6f4aca0b9d86b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Feb 23 10:07:41 2013 +0400
 
-    archive/tar: simplify use of constants in test case.
+    runtime: fix windows cpu profiling
     
-    Replace setsid with c_ISGID since the constant is already defined.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7403048
+    https://golang.org/cl/7407044
 
- src/pkg/archive/tar/tar_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

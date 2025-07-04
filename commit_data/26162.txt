@@ -1,30 +1,15 @@
-commit dfcb853d9d75116e939b31fa12316fc3e8494845
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Thu Mar 3 11:13:43 2016 +0100
+commit f80f6e4580b63fd837a5f9c0e9538b97d7520a7b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 21 16:35:05 2015 +0900
 
-    cmd/compile/internal/ssa: lower builtins much later
+    net/internal/socktest: simplify log message format
     
-    * Move lowering into a separate pass.
-    * SliceLen/SliceCap is now available to various intermediate passes
-    which use useful for bounds checking.
-    * Add a second opt pass to handle the new opportunities
+    This change replaces the existing log format separated by commas and
+    spaces with space-separated one.
     
-    Decreases the code size of binaries in pkg/tool/linux_amd64
-    by ~45K.
-    
-    Updates #14564 #14606
-    
-    Change-Id: I5b2bd6202181c50623a3585fbf15c0d6db6d4685
-    Reviewed-on: https://go-review.googlesource.com/20172
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I9a4b38669025430190c9a1a6b5c82b862866559d
+    Reviewed-on: https://go-review.googlesource.com/17999
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go        |   2 +
- src/cmd/compile/internal/ssa/gen/dec.rules     |   6 ++
- src/cmd/compile/internal/ssa/gen/decOps.go     |  13 +++
- src/cmd/compile/internal/ssa/gen/generic.rules |  10 +--
- src/cmd/compile/internal/ssa/opt.go            |   4 +
- src/cmd/compile/internal/ssa/rewritedec.go     | 118 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go |  80 ++++++++++-------
- 7 files changed, 198 insertions(+), 35 deletions(-)
+ src/net/internal/socktest/switch.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

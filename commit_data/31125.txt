@@ -1,19 +1,23 @@
-commit 7b5f94e76c2d2adc0bc380aa50dfd7b5227cb958
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 13 08:00:09 2017 -0700
+commit 7ef746961cec772635b83553fec6836956387954
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 12:11:54 2017 +0100
 
-    cmd/internal/obj: cache dwarfSym
+    syscall: regenerate zsyscall_darwin_arm64.go with mksyscall.pl
     
-    Follow-up to review feedback from
-    mdempsky on CL 40507.
+    Notably, this change fixes the TestTCPReadWriteAllocs test because
+    the errnoErr wrapper is now used, elimitating the allocation for
+    common errnos.
     
-    Reduces mutex contention by about 1%.
+    The change to Dup is caused by a CL 8095 that changed the Dup* calls
+    to use Syscall instead of RawSyscall.
     
-    Change-Id: I540ea6772925f4a59e58f55a3458eff15880c328
-    Reviewed-on: https://go-review.googlesource.com/40575
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Found while working on the new iOS builders.
+    
+    Change-Id: I44ab9dcad27db190e175aa149865b33944f48674
+    Reviewed-on: https://go-review.googlesource.com/36061
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go    | 11 ++++++-----
- src/cmd/internal/obj/objfile.go |  5 ++++-
- 2 files changed, 10 insertions(+), 6 deletions(-)
+ src/syscall/zsyscall_darwin_arm64.go | 212 +++++++++++++++++------------------
+ 1 file changed, 105 insertions(+), 107 deletions(-)

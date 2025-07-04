@@ -1,32 +1,23 @@
-commit 1b53f15ebb00dd158af674df410c7941abb2b933
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 23 05:22:25 2017 +0000
+commit 2ef88f7fcf5cebccdf9a20a5af6a374864ccf149
+Author: Austin Clements <austin@google.com>
+Date:   Sat Dec 17 22:07:27 2016 -0500
 
-    cmd/go: include GOARM and GO386 in computed build ID
+    runtime: lock-free fast path for mark bits allocation
     
-    Now:
-    $ GOARCH=arm GOARM=5 go install -x cmd/go
-    ... followed by:
-    $ GOARCH=arm GOARM= go install -x cmd/go
+    Currently we acquire a global lock for every newMarkBits call. This is
+    unfortunate since every span sweep operation calls newMarkBits.
     
-    ... actually does work. Previously the second "go install" would reuse
-    the cached binaries from the GOARM=5 command and not rebuild.
-    (Or vice versa from GOARM= to GOARM=5)
+    However, most allocations are simply linear allocations from the
+    current arena. Take advantage of this to add a lock-free fast path for
+    allocating from the current arena. With this change, the global lock
+    only protects the lists of arenas, not the free offset in the current
+    arena.
     
-    And do the same for GO386.
-    
-    Fixes #9737
-    
-    Change-Id: I9630aab34d06465d5033e6743dfe6592c8247aa0
-    Reviewed-on: https://go-review.googlesource.com/43855
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6cf6182af8492c8bfc21276114c77275fe3d7826
+    Reviewed-on: https://go-review.googlesource.com/34595
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/dist/deps.go              | 45 ++++++++++++++++++++-------------------
- src/cmd/go/go_test.go             | 39 +++++++++++++++++++++++++++++++++
- src/cmd/go/internal/cfg/cfg.go    |  7 ++++++
- src/cmd/go/internal/envcmd/env.go |  4 ++--
- src/cmd/go/internal/load/pkg.go   |  8 +++++++
- 5 files changed, 79 insertions(+), 24 deletions(-)
+ src/runtime/mheap.go | 40 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 29 insertions(+), 11 deletions(-)

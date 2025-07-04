@@ -1,0 +1,37 @@
+commit 123141166bf77b60062d830224b85131791647fd
+Author: Julian Zhu <julian.oerv@isrc.iscas.ac.cn>
+Date:   Sat May 17 21:45:50 2025 +0800
+
+    cmd/compile: add generic simplifications on riscv64
+    
+    file      before    after     Δ       %
+    addr2line 3636263   3636215   -48     -0.001%
+    asm       6318110   6317966   -144    -0.002%
+    buildid   3463352   3463224   -128    -0.004%
+    cgo       5672502   5672214   -288    -0.005%
+    compile   26904997  26905719  +722    +0.003%
+    cover     6405603   6405467   -136    -0.002%
+    dist      4092630   4092494   -136    -0.003%
+    doc       9728281   9723977   -4304   -0.044%
+    fix       4014891   4014835   -56     -0.001%
+    link      8327674   8327426   -248    -0.003%
+    nm        3628718   3628494   -224    -0.006%
+    objdump   5951778   5951626   -152    -0.003%
+    pack      2896080   2896040   -40     -0.001%
+    pprof     17596796  17591908  -4888   -0.028%
+    test2json 3346622   3346566   -56     -0.002%
+    trace     16179738  16175706  -4032   -0.025%
+    vet       9603472   9603264   -208    -0.002%
+    total     156070021 156055655 -14366  -0.009%
+    
+    Change-Id: Ie4a79a3c410eb79155ce2418ae64fa670d1ccd53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673477
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  9 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 87 +++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+)

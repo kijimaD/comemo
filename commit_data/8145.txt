@@ -1,15 +1,25 @@
-commit 857f17d346b41979d7f1db8a1d21f4fd2a6e79b1
+commit cded21a337daada5cad779ea8720efb72c00d407
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 18 16:03:24 2011 -0400
+Date:   Mon Apr 18 14:36:22 2011 -0400
 
-    http: fix IP confusion in TestServerTimeouts
+    changes for more restricted reflect.SetValue
     
-    Don't assume that localhost == 127.0.0.1.
-    It might be ::1.
-    
-    R=bradfitzgo
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4430055
+    https://golang.org/cl/4423043
 
- src/pkg/http/serve_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gofmt/rewrite.go       |  6 +++---
+ src/pkg/asn1/asn1_test.go      | 14 +++++---------
+ src/pkg/gob/codec_test.go      |  1 -
+ src/pkg/gob/decode.go          | 39 +++++++++++++++++++++++++++++++--------
+ src/pkg/gob/decoder.go         | 20 +++++++++++++-------
+ src/pkg/gob/encode.go          |  6 +++---
+ src/pkg/gob/encoder_test.go    |  2 +-
+ src/pkg/json/decode.go         | 19 +++++++++++++------
+ src/pkg/json/decode_test.go    |  3 +--
+ src/pkg/netchan/export.go      |  2 +-
+ src/pkg/netchan/import.go      |  2 +-
+ src/pkg/rpc/server.go          | 10 ++--------
+ src/pkg/testing/quick/quick.go |  6 +++---
+ src/pkg/xml/read_test.go       |  4 +---
+ 14 files changed, 78 insertions(+), 56 deletions(-)

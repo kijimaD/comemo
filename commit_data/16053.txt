@@ -1,17 +1,19 @@
-commit 019c8fc6255c21e4b7aa556269ae51d355728ef6
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Apr 2 13:45:56 2013 -0700
+commit 9115e411f596df35c0b1ba5a2335bd4bbfbdc1fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 2 13:18:32 2013 -0700
 
-    runtime: fix a comment regarding default floating point precision
+    cmd/gofmt: handle ... in rewrite of calls
     
-    The expected precision setting for the x87 on Win32 is 53-bit
-    but MinGW resets the floating point unit to 64-bit.  Win32
-    object code generally expects values to be rounded to double,
-    not double extended, precision.
+    Fixes #5059.
     
-    R=golang-dev, khr
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8175044
+    https://golang.org/cl/8284043
 
- src/pkg/runtime/asm_386.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofmt/gofmt_test.go            |  2 ++
+ src/cmd/gofmt/rewrite.go               | 12 +++++++++++-
+ src/cmd/gofmt/testdata/rewrite6.golden | 15 +++++++++++++++
+ src/cmd/gofmt/testdata/rewrite6.input  | 15 +++++++++++++++
+ src/cmd/gofmt/testdata/rewrite7.golden | 15 +++++++++++++++
+ src/cmd/gofmt/testdata/rewrite7.input  | 15 +++++++++++++++
+ 6 files changed, 73 insertions(+), 1 deletion(-)

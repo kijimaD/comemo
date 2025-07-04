@@ -1,12 +1,14 @@
-commit 4c89a10fb9f4fcb2ed01b6e7325e53b4bc487fc2
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Fri Feb 15 16:41:33 2019 +0800
+commit 9850ad045fced1346a049df4baec7d4b7ab0db8c
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Sep 18 01:28:58 2018 +0300
 
-    database/sql/driver: fix typo
+    cmd/compile/internal/ssa: fix `a == a` to `a == b`
     
-    Change-Id: I6e7035db4b3e2a09e5655eb7646eea9d99fb7118
-    Reviewed-on: https://go-review.googlesource.com/c/162917
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4ee4f702e1bfc9ad9ea899c255104d5e18cf2c96
+    Reviewed-on: https://go-review.googlesource.com/135838
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/driver/driver.go | 2 +-
+ src/cmd/compile/internal/ssa/html.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

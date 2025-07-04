@@ -1,19 +1,18 @@
-commit 18888751828c329ddf5efdd7ec1b39adf0b6ea00
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Sep 30 09:38:39 2022 +0000
+commit b93220c9ca1935c56c01afc1d72d063f1e026f15
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 12 16:50:35 2021 -0700
 
-    regexp: fix a few function names on comments
+    encoding/xml: add generic encoding test
     
-    Change-Id: I192dd34c677e52e16f0ef78e1dae58a78f6d1aac
-    GitHub-Last-Rev: 1638a7468951df72f13fea34855b6a4fcbb08226
-    GitHub-Pull-Request: golang/go#55967
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436885
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #48521
+    
+    Change-Id: Id8402bcff243c0ab19e4ec0b138b9af8c111f88d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355492
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/regexp/onepass.go      | 6 +++---
- src/regexp/syntax/parse.go | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/encoding/xml/marshal_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

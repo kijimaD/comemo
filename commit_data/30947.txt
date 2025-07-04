@@ -1,31 +1,12 @@
-commit 9ffbdabdb02c1fd95eabee82457aaa0dd79d46ac
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 23 21:50:19 2017 -0500
+commit db07c9ecb617117a86364e9e03acd6f7937e1732
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Dec 22 17:21:31 2016 -0800
 
-    runtime: make runtime.GC() trigger a concurrent GC
+    net: Fix spelling of function name in doc
     
-    Currently runtime.GC() triggers a STW GC. For common uses in tests and
-    benchmarks, it doesn't matter whether it's STW or concurrent, but for
-    uses in servers for things like collecting heap profiles and
-    controlling memory footprint, this pause can be a bit problem for
-    latency.
-    
-    This changes runtime.GC() to trigger a concurrent GC. In order to
-    remain as close as possible to its current meaning, we define it to
-    always perform a full mark/sweep GC cycle before returning (even if
-    that means it has to finish up a cycle we're in the middle of first)
-    and to publish the heap profile as of the triggered mark termination.
-    While it must perform a full cycle, simultaneous runtime.GC() calls
-    can be consolidated into a single full cycle.
-    
-    Fixes #18216.
-    
-    Change-Id: I9088cc5deef4ab6bcf0245ed1982a852a01c44b5
-    Reviewed-on: https://go-review.googlesource.com/37520
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I24c6d312f7d0ce52e1958e8031fc8249af0dfca9
+    Reviewed-on: https://go-review.googlesource.com/34669
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/mgc.go   | 125 ++++++++++++++++++++++++++++++++++++++++++++++++---
- src/runtime/mprof.go |  21 +++++++++
- 2 files changed, 141 insertions(+), 5 deletions(-)
+ src/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,15 @@
-commit 26557579005f0e70e31e2c24dd272013f47f3cd6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 3 12:23:50 2011 -0700
+commit 0015e8eb5ee192df0a9907aa4d0741a0803992fd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jun 3 15:16:05 2011 -0400
 
-    http: don't fail on accept hitting EMFILE
-    
-    Fixes #1891
+    net: fix windows build
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4550112
+    https://golang.org/cl/4539108
 
- src/pkg/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
- src/pkg/http/server.go     |  4 ++++
- src/pkg/os/error_posix.go  |  2 +-
- 3 files changed, 42 insertions(+), 1 deletion(-)
+ src/pkg/net/interface.go       | 44 ------------------------------------------
+ src/pkg/net/interface_bsd.go   | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_linux.go | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_stub.go  | 28 +++++++++++++++++++++++++++
+ 4 files changed, 114 insertions(+), 44 deletions(-)

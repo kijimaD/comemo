@@ -1,19 +1,15 @@
-commit ee7038f6a5f12d68a49b8b8193702341e5b8b151
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 18 11:47:47 2021 -0500
+commit 063ce0f2f774563ff2143bd8b974ce7f89caa365
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jun 5 12:48:26 2020 -0400
 
-    net: disable Windows netsh tests when netsh won't run
+    doc/go1.15: add release notes for crypto/x509
     
-    On my Surface Pro X running the insider preview,
-    running "netsh help" from Powershell started from the task bar works.
-    But running "powershell" at a cmd.exe prompt and then running
-    "netsh help" produces missing DLL errors.
-    These aren't our fault, so just skip the netsh-based tests if this happens.
+    Updates #37419
     
-    Change-Id: I13a17e01143d823d3b5242d827db056bd253e3e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293849
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iedfd4b238980675be115c7e6e0a327d7745b5bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236737
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/net_windows_test.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ doc/go1.15.html | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 46 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit 83b5f067e88589b4eb5794df5f3ba28b72bce6f1
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Thu Feb 23 15:29:17 2012 -0500
+commit 999c77d78a7f179ec1ef13b4ab6b07853f21deb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 12:23:17 2012 -0800
 
-    binary: remove unnecessary dummy type.
+    godoc: don't show testdata directories
     
-    R=rsc
+    R=golang-dev, bradfitz, dsymonds, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/5698052
+    https://golang.org/cl/5700043
 
- src/pkg/encoding/binary/binary.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/godoc/dirtrees.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

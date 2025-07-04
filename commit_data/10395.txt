@@ -1,14 +1,14 @@
-commit a619da9f4af538194a0b31e10e0f77340511fe1f
+commit 301701d8a71926e23e0c07c840c96818609f0a42
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Nov 15 10:28:01 2011 +0900
+Date:   Tue Nov 15 10:27:43 2011 +0900
 
-    xml: fix build
+    go/build: fix build
     
     empty is already not a nil.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5376098
+    https://golang.org/cl/5375097
 
- src/pkg/encoding/xml/xml_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/go/build/build_test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

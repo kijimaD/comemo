@@ -1,18 +1,17 @@
-commit 77aaa3555dd420c79bafa88de60dee31717949c3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 11 00:34:01 2012 -0500
+commit 53e139c7a058c0491716e1fca96e33ee850ac15c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 21:24:14 2012 -0800
 
-    gc: fix import of struct type in struct literal
+    runtime: put lockorder before pollorder in Select memory block.
     
-    Fixes #2716.
+    Otherwise lockorder may be misaligned, since lockorder is a
+    list of pointers and pollorder is a list of uint16.
+    Discovered running gccgo (which uses a modified copy of this
+    code) on SPARC.
     
-    R=ken2
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5652065
+    https://golang.org/cl/5655054
 
- src/cmd/gc/go.y                   |  18 +-
- src/cmd/gc/y.tab.c                | 342 ++++++++++++++++++++------------------
- test/fixedbugs/bug415.dir/main.go |   9 +
- test/fixedbugs/bug415.dir/p.go    |  14 ++
- test/fixedbugs/bug415.go          |   9 +
- 5 files changed, 228 insertions(+), 164 deletions(-)
+ src/pkg/runtime/chan.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

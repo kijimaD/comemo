@@ -1,0 +1,32 @@
+commit 89a5a60da623ca9e7f91a93cd34b35785e30ab7e
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Aug 27 20:46:33 2024 +0200
+
+    internal/trace: refactor Stack.Frames to return iter.Seq
+    
+    The Frames function is almost an iter.Seq, except for its bool return
+    value.
+    
+    Since none of the callers in the Go tree rely on the bool, we can remove
+    it. However, doing so might still obscure the intended usage as an iterator.
+    
+    This refactor changes the API to return iter.Seq, making the intended
+    usage explicit. Refactoring the existing callers to take advantage of
+    the new interface will be done in a follow-up CL.
+    
+    Change-Id: I03e4d6d762910e418cc37d59a6c519eb7f39b3b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/trace/gstate.go                    |  2 +-
+ src/cmd/trace/pprof.go                     |  4 ++--
+ src/cmd/trace/regions.go                   |  2 +-
+ src/cmd/trace/viewer.go                    |  2 +-
+ src/internal/trace/event.go                | 36 ++++++++++++++++--------------
+ src/internal/trace/summary.go              |  2 +-
+ src/internal/trace/testtrace/validation.go |  2 +-
+ src/internal/trace/trace_test.go           |  4 ++--
+ src/runtime/trace_cgo_test.go              |  2 +-
+ 9 files changed, 29 insertions(+), 27 deletions(-)

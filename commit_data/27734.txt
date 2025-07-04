@@ -1,17 +1,27 @@
-commit 3e9d6e064d554edeed9c55325832844403ae5d3f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 10:28:08 2016 -0700
+commit b04e145248d5d3721a41d4bb26704fdb43caaf38
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 31 21:24:10 2016 -0700
 
-    net/http: reject faux HTTP/0.9 and HTTP/2+ requests
+    cmd/compile: fix naming of decomposed structs
     
-    Fixes #16197
+    When a struct is SSAable, we will name its component parts
+    by their field names.  For example,
+    type T struct {
+         a, b, c int
+    }
+    If we ever need to spill a variable x of type T, we will
+    spill its individual components to variables named x.a, x.b,
+    and x.c.
     
-    Change-Id: Icaabacbb22bc18c52b9e04b47385ac5325fcccd1
-    Reviewed-on: https://go-review.googlesource.com/24505
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I857286ff1f2597f2c4bbd7b4c0b936386fb37131
+    Reviewed-on: https://go-review.googlesource.com/21389
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/serve_test.go |  7 +++++++
- src/net/http/server.go     | 21 +++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go          | 16 ++++++++-
+ src/cmd/compile/internal/gc/type.go         |  3 ++
+ src/cmd/compile/internal/ssa/config.go      |  1 +
+ src/cmd/compile/internal/ssa/decompose.go   | 27 ++++++++++----
+ src/cmd/compile/internal/ssa/export_test.go |  3 ++
+ src/cmd/compile/internal/ssa/type.go        | 56 +++++++++++++++--------------
+ src/cmd/compile/internal/ssa/type_test.go   | 49 ++++++++++++-------------
+ 7 files changed, 97 insertions(+), 58 deletions(-)

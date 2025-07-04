@@ -1,23 +1,12 @@
-commit eec8fb5ef3a60fae575f18ec05e7c21f5589f05f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 1 12:42:11 2018 -0700
+commit 68ce117cf17b8debf5754bfd476345779b5b6616
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Jan 19 12:50:40 2018 -0500
 
-    cmd/compile: explicitly disallow mixing -iexport={false,true}
+    doc: document Go 1.9.3
     
-    flagiexport currently controls not just whether to use the indexed
-    export format when writing out package data, but also how symbol
-    import logic works. In particular, it enables lazy loading logic that
-    currently doesn't work with packages imported via bimport.
-    
-    We could change the import logic to base decisions on the export data
-    format used by the packages that individual symbols were loaded from,
-    but since we expect to deprecate and remove bimport anyway and there's
-    no need for mixing bimport and iimport, it's simpler to just disallow
-    mixing them.
-    
-    Change-Id: I02dbac45062e9dd85a1a647ee46bfa0efbb67e9d
-    Reviewed-on: https://go-review.googlesource.com/110715
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic7a5d3118754b34ab0652fcef889259a03baebc3
+    Reviewed-on: https://go-review.googlesource.com/88536
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

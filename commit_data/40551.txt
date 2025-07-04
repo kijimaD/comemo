@@ -1,23 +1,34 @@
-commit 7955ecebfc85851d43913f9358fa5f6a7bbb7c59
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 25 14:10:29 2019 -0400
+commit c7385e270473244ef5aa312a172f1912e99800be
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 16 09:21:49 2019 -0400
 
-    runtime: add a test for asynchronous safe points
+    cmd/go: when resolving packages, try all module paths before falling back to the next proxy
     
-    This adds a test of preempting a loop containing no synchronous safe
-    points for STW and stack scanning.
+    Since we're mucking with error-propagation in modload.Query* anyway,
+    simplify the classification logic. Ensure that “module not found”
+    errors are reported as such in various places, since non-“not found”
+    errors terminate the module search.
     
-    We couldn't add this test earlier because it requires scheduler, STW,
-    and stack scanning preemption to all be working.
+    Fixes #31785
     
-    For #10958, #24543.
-    
-    Change-Id: I73292db78ca3d14aab11bdafd26d03986920ef0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201777
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie3ca5f4eec10a5f2a6037ec7e1c2cf47bd37a232
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177958
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/export_test.go               |  2 ++
- src/runtime/proc_test.go                 | 11 ++++++++
- src/runtime/testdata/testprog/preempt.go | 44 ++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+)
+ src/cmd/go/internal/modconv/convert_test.go       |   2 +-
+ src/cmd/go/internal/modfetch/cache.go             |  55 ++++--
+ src/cmd/go/internal/modfetch/coderepo_test.go     |   8 +-
+ src/cmd/go/internal/modfetch/fetch.go             |  11 +-
+ src/cmd/go/internal/modfetch/proxy.go             | 180 ++++-------------
+ src/cmd/go/internal/modfetch/repo.go              |  69 +++++--
+ src/cmd/go/internal/modfetch/sumdb.go             |   3 +
+ src/cmd/go/internal/modload/import.go             |   8 +-
+ src/cmd/go/internal/modload/import_test.go        |   2 +-
+ src/cmd/go/internal/modload/load.go               |  14 +-
+ src/cmd/go/internal/modload/query.go              | 227 ++++++++++++----------
+ src/cmd/go/internal/modload/query_test.go         |   2 +-
+ src/cmd/go/proxy_test.go                          |   7 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt |  16 +-
+ 14 files changed, 305 insertions(+), 299 deletions(-)

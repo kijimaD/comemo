@@ -1,23 +1,29 @@
-commit 9a7278ae47fd2ef9675e4303409e726e429d64e3
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Jan 3 18:33:36 2019 -0500
+commit 43469ddf7450a056edf536494f6a05272662ba94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 21 12:01:32 2018 -0700
 
-    cmd/go: fix failure in TestScript/build_runtime_gcflags
+    go/types: remove explicit path parameter from most type-checker functions (cleanup)
     
-    This test case failed on the longtest builder. It relied on
-    runtime/internal/atomic not being compiled with the -l flag in the
-    cache. The test case now creates its own GOCACHE, similar to
-    build_cache_compile and a few others.
+    Now that most of the type-checker is using the object-coloring mechanism
+    to detect cycles, remove the explicit path parameter from the functions
+    that don't rely on it anymore.
     
-    Also, mention the correct issue the test case verifies.
+    Some of the syntactic-based resolver code (for aliases, interfaces)
+    still use an explicit path; leaving those unchanged for now.
     
-    Fixes #29395
+    The function cycle was moved from typexpr.go (where it is not used
+    anymore) to resolver.go (where it's still used). It has not changed.
     
-    Change-Id: Id50e9dfc50db03fb11582d3dd6b69c3e1ed750eb
-    Reviewed-on: https://go-review.googlesource.com/c/156237
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #25773.
+    
+    Change-Id: I2100adc8d66d5da9de9277dee94a1f08e5a88487
+    Reviewed-on: https://go-review.googlesource.com/130476
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/testdata/script/build_runtime_gcflags.txt | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/go/types/check.go      |  5 ----
+ src/go/types/decl.go       | 20 +++++++--------
+ src/go/types/expr.go       |  6 ++---
+ src/go/types/interfaces.go |  2 +-
+ src/go/types/resolver.go   | 25 ++++++++++++++++---
+ src/go/types/typexpr.go    | 62 ++++++++++++++--------------------------------
+ 6 files changed, 54 insertions(+), 66 deletions(-)

@@ -1,29 +1,28 @@
-commit 5930c7de933c4d826926396f715bae63333143a2
-Author: Andrei Vagin <avagin@google.com>
-Date:   Mon Jan 7 10:18:42 2019 -0800
+commit ff99a61e5e892dedb88f9f80bce9cc102d2f50b2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 1 09:50:36 2018 +0200
 
-    syscall: add all ambient capabilities into permitted and inheritable sets
+    runtime: port assembly files for aix/ppc64
     
-    According to the prctl man page, each capability from the ambient set
-    must already be present in both  the  permitted  and  the  inheritable
-    sets  of the process.
+    This commit adds the change on asm_ppc64.s and tls_ppc64.s files for AIX
+    operating system.
     
-    exec_linux_test suggests configuring the capabilities in the parent
-    process. This doesn't look nice, because:
-    * Capabilities are a per-thread attribute, so we need to use
-    LockOSThread.
-    * Need to restore capabilities after creating a process.
-    * Doesn't work with user namespaces, because a process gets capabilities
-    when a namespace is created.
+    R2 does not need to be set for aix/ppc64 since it should remain valid
+    througout Go execution, except after a call to a C function.
+    Moreover, g must always be saved on the tls as syscalls are made with
+    C functions.
     
-    Fixes #23152
+    Some modifications on asm_ppc64.s are due to AIX stack layout.
     
-    Change-Id: Iba23e530fc7b9f5182d602fe855f82218f354219
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/156577
+    It also removes a useless part in asmcgocall which was done twice.
+    
+    Change-Id: Ie037ab73da00562bb978f2d0f17fcdabd4a40aa2
+    Reviewed-on: https://go-review.googlesource.com/c/138735
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux.go      | 51 +++++++++++++++++++++++++++++++++++---
- src/syscall/exec_linux_test.go | 56 +++++++++++++++++++++++++++++-------------
- 2 files changed, 87 insertions(+), 20 deletions(-)
+ src/runtime/asm_ppc64x.s | 52 +++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/tls_ppc64x.s |  2 ++
+ 2 files changed, 47 insertions(+), 7 deletions(-)

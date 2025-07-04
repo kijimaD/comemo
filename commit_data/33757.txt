@@ -1,14 +1,23 @@
-commit 08176b28a3330c9f5c7b310dd400ffe3898ca739
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Dec 1 14:02:53 2017 +0100
+commit 6675fadfb880bd0a3fa1d5524819db02d200bda2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 2 08:33:21 2017 +0200
 
-    os: drop unused return value in TestLookupEnv
+    runtime: cleanup amd64p32 memmove and memclr file organization
     
-    Change-Id: Ibf227dcfefa179b1c3378476bcd17100b1b1c01e
-    Reviewed-on: https://go-review.googlesource.com/81375
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Move memclr to a separate file to make it consistent
+    with other platforms asm function to file organization.
+    
+    Remove nacl from the memmove filename as the implementation
+    is generic for the amd64p32 platform even if currently only
+    nacl is supported for amd64p32.
+    
+    Change-Id: I8930b76da430a5cf2664801974e4f5185fc0f82f
+    Reviewed-on: https://go-review.googlesource.com/61031
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/env_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_amd64p32.s                         | 18 -----------------
+ src/runtime/memclr_amd64p32.s                      | 23 ++++++++++++++++++++++
+ ...{memmove_nacl_amd64p32.s => memmove_amd64p32.s} |  0
+ 3 files changed, 23 insertions(+), 18 deletions(-)

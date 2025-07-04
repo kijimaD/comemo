@@ -1,15 +1,32 @@
-commit 19a7490e568824302b271f6e27dde3f1cd92ffc7
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Wed Oct 9 23:48:31 2019 +0300
+commit 4598c23c6c7a0062a21da1bad9fe73d149733da5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 19 17:50:37 2019 -0400
 
-    dog/go1.14: properly close code tags
+    runtime: switch to P 0 before destroying current P
     
-    Some code tags in the HTML were not properly closed. Close them so that
-    the text is rendered correctly.
+    Ps are strictly numbered from 0 to GOMAXPROCS-1, so if procresize
+    happens to be running on a P that's being destroyed, it moves itself
+    to P 0.
     
-    Change-Id: I5c2170ffced313417f65004d53518128c34f7979
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200117
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    However, currently procresize destroys the unused Ps *before* moving
+    itself to P 0. This means it may briefly run on a destroyed P. This is
+    basically harmless, but has at least one very confusing consequence:
+    since destroying a P has write barriers, it may enqueue pointers to a
+    destroyed write barrier buffer. As far as I can tell, there are no
+    negative consequences of this, but this seems really fragile.
+    
+    This CL swaps the order of things, so now procresize moves itself to P
+    0 if necessary before destroying Ps. This ensures it always has a
+    valid P.
+    
+    This is part of refactoring for #10958 and #24543, but is a good
+    cleanup regardless.
+    
+    Change-Id: I91a23dd6ed27e372f8d6291feec9bc991bcf9812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173941
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.14.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 48 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 27 insertions(+), 21 deletions(-)

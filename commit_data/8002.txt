@@ -1,26 +1,13 @@
-commit cf56f06ab6d79ab2bf189081482329d22c609952
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 6 15:44:40 2011 -0400
+commit 1e1e2f0971178e2a42a6c186ed3e1274fdf4ab81
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 6 12:37:17 2011 -0700
 
-    os, syscall: refactor Unix directory parsing
+    exec: add a little package commentary explaining its
+    relationship to os.Process.
     
-    Moved the details of how to read a directory
-    and how to parse the results behind the new
-    syscall functions ReadDirent and ParseDirent.
-    
-    Now os needs just one copy of Readdirnames
-    for the three Unix variants, and it no longer
-    imports "unsafe".
-    
-    R=r, r2
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4368048
+    https://golang.org/cl/4384041
 
- src/pkg/os/Makefile                       |  6 ++-
- src/pkg/os/dir_freebsd.go                 | 65 -----------------------------
- src/pkg/os/dir_linux.go                   | 68 -------------------------------
- src/pkg/os/{dir_darwin.go => dir_unix.go} | 32 ++++-----------
- src/pkg/os/os_test.go                     |  3 +-
- src/pkg/syscall/syscall_bsd.go            | 35 ++++++++++++++++
- src/pkg/syscall/syscall_linux.go          | 34 ++++++++++++++++
- 7 files changed, 83 insertions(+), 160 deletions(-)
+ src/pkg/exec/exec.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,16 +1,18 @@
-commit f58c48f83419941251b96389cd6ca1705e712e11
+commit 1df777f6a425d9e61f8094cfb1d96fd90bb0bdf1
 Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sat Sep 9 11:23:29 2017 +0900
+Date:   Wed May 10 15:35:33 2017 +0900
 
-    cmd/link: extract windows-specific code from dynrelocsym
+    go/build: accept spaces in cgo directives
     
-    No functional changes.
+    Fixes #7906
     
-    Change-Id: Ib31bb3f01b515aac6428ec61e0ef02b269623890
-    Reviewed-on: https://go-review.googlesource.com/62470
+    Change-Id: Ibcf9cd670593241921ab3c426ff7357f799ebc3e
+    Reviewed-on: https://go-review.googlesource.com/43072
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/data.go | 77 +++++++++++++++++++++-------------------
- 1 file changed, 40 insertions(+), 37 deletions(-)
+ src/cmd/go/go_test.go      | 64 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/build.go      | 20 +++++----------
+ src/go/build/build_test.go |  4 ++-
+ 3 files changed, 73 insertions(+), 15 deletions(-)

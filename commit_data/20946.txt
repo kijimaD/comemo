@@ -1,12 +1,12 @@
-commit e67a39ed08fbc64938043ff0406a31ea02c3d8a1
-Author: Brad Fitzpatrick <brad@danga.com>
-Date:   Tue Dec 9 11:45:19 2014 +1100
+commit 3ce6a4fb971491b58ec8157496a1f56348cc62c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 00:02:29 2014 -0400
 
-    net/http: avoid some allocations in DetectContentType
+    runtime: fix windows build
     
-    Change-Id: I64985f8de7ca09e63208e8c949a5d4f4fc09073f
-    Reviewed-on: https://go-review.googlesource.com/1230
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/167820043
 
- src/net/http/sniff.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/crash_cgo_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

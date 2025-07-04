@@ -1,20 +1,14 @@
-commit 6433bff205f24c0f527f87284b8c09c6476e5812
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 5 12:40:13 2014 -0800
+commit ca4873a5e6ae9c4fcf56575bb2706e2c832dca8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 5 15:27:36 2014 -0500
 
-    net/http: minor fixes and optimization for Response.TLS
+    A+C: Manoj Dayaram (Moov Corporation, corporate CLA)
     
-    Also add it to doc/go1.3.txt.
-    
-    Update #7289
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/71740043
+    https://golang.org/cl/71700043
 
- doc/go1.3.txt                   | 1 +
- src/pkg/net/http/client_test.go | 7 +++----
- src/pkg/net/http/response.go    | 8 ++++----
- src/pkg/net/http/transport.go   | 8 +++++---
- 4 files changed, 13 insertions(+), 11 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

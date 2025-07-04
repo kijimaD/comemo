@@ -1,12 +1,29 @@
-commit 739a78f2b8de3139ec253719d0a688c08b8e5324
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Apr 8 15:42:30 2019 -0400
+commit 89a791749389f196d15ca873ae50b81a30780287
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Nov 14 14:58:27 2018 -0500
 
-    doc: document Go 1.11.8
+    cmd/vendor/golang.org/x/tools: update to 7d6b83ca
     
-    Change-Id: Ia06f7005f466e55a22c76bf2b47d74ee8eb77dd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171139
+    Also, add a script for future updates.
+    
+    Change-Id: I2565d1f26532b9dd7cf9d8ce198ba08fb3d53407
+    Reviewed-on: https://go-review.googlesource.com/c/149604
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ .../x/tools/go/analysis/cmd/vet-lite/main.go       |  47 +++-
+ .../go/analysis/internal/analysisflags/flags.go    |  42 ++-
+ .../go/analysis/internal/analysisflags/help.go     | 100 +++++++
+ .../analysis/internal/unitchecker/unitchecker.go   |   2 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |  13 +-
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go  | 296 ++++++++++++++++-----
+ .../go/analysis/passes/lostcancel/lostcancel.go    |  10 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  44 ++-
+ .../x/tools/go/analysis/passes/printf/types.go     |  23 +-
+ .../go/analysis/passes/stdmethods/stdmethods.go    |  55 +---
+ .../go/analysis/passes/unmarshal/unmarshal.go      |  92 +++++++
+ .../golang.org/x/tools/go/ast/astutil/imports.go   |  54 ++--
+ src/cmd/vendor/update-xtools.sh                    |  27 ++
+ 13 files changed, 647 insertions(+), 158 deletions(-)

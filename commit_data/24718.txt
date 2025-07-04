@@ -1,23 +1,17 @@
-commit afab7716962181de2171f2b45959604a44a63759
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Nov 4 11:21:55 2015 -0500
+commit a2f8b0d0e4f0dea41ff8dad29c249d8b204140f1
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 25 14:02:30 2015 -0700
 
-    misc/ios: keep whole buffer in go_darwin_arm_exec
+    [dev.ssa] cmd/compile/internal/ssa: add more critical edges
     
-    The existing go_darwin_arm_exec.go script does not work with Xcode 7,
-    not due to any significant changes, but just ordering and timing of
-    statements from lldb. Unfortunately the current design of
-    go_darwin_arm_exec.go makes it not obvious what gets stuck where, so
-    this moves from a moving buffer window to a complete buffer of the
-    lldb output.
+    Add blocks to remove critical edges, even when it looks like
+    there's no phi that requires it.  Regalloc still likes to have
+    critical-edge-free graphs for other reasons.
     
-    The result is easier code to follow, and it works with Xcode 7.
-    
-    Updates #12660.
-    
-    Change-Id: I3b8b890b0bf4474119482e95d84e821a86d1eaed
-    Reviewed-on: https://go-review.googlesource.com/16634
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I69f8eaecbc5d79ab9f2a257c2e289d60b18e43c8
+    Reviewed-on: https://go-review.googlesource.com/13933
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- misc/ios/go_darwin_arm_exec.go | 366 +++++++++++++++++------------------------
- 1 file changed, 149 insertions(+), 217 deletions(-)
+ src/cmd/compile/internal/ssa/check.go    |  3 ---
+ src/cmd/compile/internal/ssa/critical.go | 13 -------------
+ 2 files changed, 16 deletions(-)

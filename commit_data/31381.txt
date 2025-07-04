@@ -1,13 +1,14 @@
-commit 3ddf65015aea7dfcde2774b615784cc068442ece
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 26 09:24:50 2017 -0700
+commit 35a95df5710e485f0621cb123dc2e528d0a6146c
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Feb 7 15:49:43 2017 -0500
 
-    runtime/pprof: ignore dummy huge page mapping in /proc/self/maps
+    cmd/compile/internal/ssa: display NamedValues in SSA html output.
     
-    Change-Id: I72bea1450386100482b4681b20eb9a9af12c7522
-    Reviewed-on: https://go-review.googlesource.com/41816
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: If268b42b32e6bcd6e7913bffa6e493dc78af40aa
+    Reviewed-on: https://go-review.googlesource.com/36539
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/proto.go      | 11 +++++++++--
- src/runtime/pprof/proto_test.go | 13 ++++++++++++-
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

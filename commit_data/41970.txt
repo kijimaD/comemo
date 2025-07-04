@@ -1,27 +1,38 @@
-commit 03ba6b070d625bf00eac5350c4f363e5e87828b2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 15 18:01:00 2020 +0000
+commit b6245cef3c5046e143ba9360b839db63c29b8696
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Oct 7 13:14:57 2019 -0700
 
-    runtime: prevent preemption while releasing worldsema in gcStart
+    internal/bytealg: add SIMD byte count implementation for s390x
     
-    Currently, as a result of us releasing worldsema now to allow STW events
-    during a mark phase, we release worldsema between starting the world and
-    having the goroutine block in STW mode. This inserts preemption points
-    which, if followed through, could lead to a deadlock. Specifically,
-    because user goroutine scheduling is disabled in STW mode, the goroutine
-    will block before properly releasing worldsema.
+    Add a 'single lane' SIMD implemementation of the single byte count
+    function for use on machines that support the vector facility. This
+    allows up to 16 bytes to be counted per loop iteration.
     
-    The fix here is to prevent preemption while releasing the worldsema.
+    We can probably improve performance further by adding more 'lanes'
+    (i.e. counting more bytes in parallel) however this will increase
+    the complexity of the function so I'm not sure it is worth doing
+    yet.
     
-    Fixes #38404.
-    Updates #19812.
+    name                old speed      new speed       delta
+    pkg:strings goos:linux goarch:s390x
+    CountByte/10         789MB/s ± 0%   1131MB/s ± 0%    +43.44%  (p=0.000 n=9+9)
+    CountByte/32         936MB/s ± 0%   3236MB/s ± 0%   +245.87%  (p=0.000 n=8+9)
+    CountByte/4096      1.06GB/s ± 0%  21.26GB/s ± 0%  +1907.07%  (p=0.000 n=10+10)
+    CountByte/4194304   1.06GB/s ± 0%  20.54GB/s ± 0%  +1838.50%  (p=0.000 n=10+10)
+    CountByte/67108864  1.06GB/s ± 0%  18.31GB/s ± 0%  +1629.51%  (p=0.000 n=10+10)
+    pkg:bytes goos:linux goarch:s390x
+    CountSingle/10       800MB/s ± 0%    986MB/s ± 0%    +23.21%  (p=0.000 n=9+10)
+    CountSingle/32       925MB/s ± 0%   2744MB/s ± 0%   +196.55%  (p=0.000 n=9+10)
+    CountSingle/4K      1.26GB/s ± 0%  19.44GB/s ± 0%  +1445.59%  (p=0.000 n=10+10)
+    CountSingle/4M      1.26GB/s ± 0%  20.28GB/s ± 0%  +1510.26%  (p=0.000 n=8+10)
+    CountSingle/64M     1.23GB/s ± 0%  17.78GB/s ± 0%  +1350.67%  (p=0.000 n=9+10)
     
-    Change-Id: I8ed5b3aa108ab2e4680c38e77b0584fb75690e3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228337
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I230d57905db92a8fdfc50b1d5be338941ae3a7a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199979
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/internal/bytealg/count_generic.go |   2 +-
+ src/internal/bytealg/count_native.go  |   2 +-
+ src/internal/bytealg/count_s390x.s    | 169 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 171 insertions(+), 2 deletions(-)

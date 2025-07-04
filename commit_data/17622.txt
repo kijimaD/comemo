@@ -1,18 +1,14 @@
-commit 6a1022a094ce66c5fe101d53d1953a5b6f91c3c0
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Sep 16 16:39:42 2013 -0400
+commit e9453e05454acd5039ac0d499990fd93b11ff43b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 15:55:16 2013 -0400
 
-    crypto/tls: fix TLS 1.2 client certificates.
+    cmd/gc: do not report fields when looking for methods
     
-    With TLS 1.2, when sending client certificates the code was omitting
-    the new (in TLS 1.2) signature and hash fields.
+    Fixes #6395.
     
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/13413050
+    https://golang.org/cl/13470046
 
- src/pkg/crypto/tls/handshake_client.go      |  13 +-
- src/pkg/crypto/tls/handshake_client_test.go | 564 ++++++++++++++++++++++++++++
- src/pkg/crypto/tls/handshake_server.go      |   4 +-
- src/pkg/crypto/tls/prf.go                   |  12 +-
- 4 files changed, 582 insertions(+), 11 deletions(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

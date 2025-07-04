@@ -1,18 +1,19 @@
-commit ae250ab227311aab7fd8dff22ae05592abd13bde
+commit 9f4084278fd0038ef4deedab78ee4d7d2bc1a636
 Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 14 20:03:35 2014 -0700
+Date:   Wed Oct 1 21:35:12 2014 +0000
 
-    encoding/gob: make encoding structs a little faster
-    FieldByIndex never returns an invalid Value, so the validity
-    test can be avoided if the field is not indirect.
-    
-    BenchmarkGobEncode     12768642      12424022      -2.70%
-    BenchmarkGobEncode     60.11        61.78        1.03x
+    fmt: fix internal unknownType function
+    This thing should never be called, but before
+    151960044 it was being called, incorrectly.
+    This is now just a precaution but let's pretend it
+    Fixes #8843
+    even though that was fixed by 151960044.
+    The test case was already there and ran, another mystery.
     
     LGTM=rsc
     R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/158890045
+    https://golang.org/cl/151970043
 
- src/encoding/gob/encode.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/fmt/print.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

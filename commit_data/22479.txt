@@ -1,20 +1,20 @@
-commit d1eee2cebf47816f53132d86ef6f3850fa22eefd
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Fri Apr 3 09:48:51 2015 -0700
+commit 2e7f0a00c337c0a536fafc1d5cb831cb4c76efad
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Mar 13 16:02:47 2015 +0300
 
-    runtime: shared library init support for android/arm.
+    runtime: fix comment
     
-    Follows http://golang.org/cl/8454, a similar CL for arm architectures.
-    This CL involves android-specific changes, namely, synthesizing
-    argv/auxv, as android doesn't provide those to the init functions.
+    IRIW requires 4 threads: first writes x, second writes y,
+    third reads x and y, fourth reads y and x.
+    This is Peterson/Dekker mutual exclusion algorithm based on
+    critical store-load sequences:
+    http://en.wikipedia.org/wiki/Dekker's_algorithm
+    http://en.wikipedia.org/wiki/Peterson%27s_algorithm
     
-    This code is based on crawshaw@ android code in golang.org/x/mobile.
-    
-    Change-Id: I32364efbb2662e80270a99bd7dfb1d0421b5417d
-    Reviewed-on: https://go-review.googlesource.com/8457
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I30a00865afbe895f7617feed4559018f81ff4528
+    Reviewed-on: https://go-review.googlesource.com/7561
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/rt0_android_arm.s | 24 +++++++++++++++++++++---
- src/runtime/rt0_linux_amd64.s |  4 ++--
- src/runtime/rt0_linux_arm.s   |  2 ++
- 3 files changed, 25 insertions(+), 5 deletions(-)
+ src/runtime/mbarrier.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

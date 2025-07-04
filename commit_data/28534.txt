@@ -1,21 +1,26 @@
-commit 3390294308462d5ddab95feaf42acc8fde767c98
-Author: David Chase <drchase@google.com>
-Date:   Mon Sep 26 10:06:10 2016 -0700
+commit 6de014b9e2a655e093c2e3b5617a90b97d66c152
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jun 1 20:58:02 2016 +0200
 
-    cmd/compile: PPC64, find compare-with-immediate
+    misc/cgo/test,cmd/dist: enable (most) Cgo tests on Android
     
-    Added rules for compare double and word immediate,
-    including those that use invertflags to cope with
-    flipped operands.
+    Some tests cannot build for Android; use build tags and stubs to
+    skip them.
     
-    Change-Id: I594430a210e076e52299a2cc6ab074dbb04a02bd
-    Reviewed-on: https://go-review.googlesource.com/29763
-    Run-TryBot: David Chase <drchase@google.com>
+    For #15919
+    
+    Change-Id: Ieedcb73d4cabe23c3775cfb1d44c1276982dccd9
+    Reviewed-on: https://go-review.googlesource.com/23634
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   9 ++
- src/cmd/compile/internal/ssa/rewrite.go      |   5 +
- src/cmd/compile/internal/ssa/rewritePPC64.go | 180 +++++++++++++++++++++++++++
- 3 files changed, 194 insertions(+)
+ misc/cgo/test/cgo_stubs_android_test.go | 13 +++++++++++++
+ misc/cgo/test/issue3775.go              |  2 ++
+ misc/cgo/test/issue6997_linux.c         |  2 ++
+ misc/cgo/test/issue6997_linux.go        |  2 ++
+ misc/cgo/test/issue7978.go              |  3 +++
+ misc/cgo/test/issue8694.go              |  2 ++
+ misc/cgo/test/sigaltstack.go            |  2 +-
+ src/cmd/dist/test.go                    | 26 +++++++++++++++-----------
+ 8 files changed, 40 insertions(+), 12 deletions(-)

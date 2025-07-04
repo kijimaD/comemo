@@ -1,16 +1,29 @@
-commit e22d24131c8075c344fef790a93ec1addc2663e6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 20 00:10:08 2018 +0000
+commit 9f3991714af63043b01fa0004ae30b42b3c30e2f
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 31 11:08:40 2017 -0400
 
-    Revert "bytes: add optimized Compare for arm64"
+    crypto/aes: use s390x KMA instruction for AES-GCM if available
     
-    This reverts commit bfa8b6f8ffa49b3e5796af45a2f0bf9714a37bb9.
+    Adds support for the cipher message with authentication (KMA)
+    instruction added in message-security-assist extension 8. This
+    instruction encapsulates most of the operations required for
+    AES-GCM and is faster than executing the operations independently.
     
-    Reason for revert: This depends on another CL which is not yet submitted.
+    name          old speed      new speed       delta
+    AESGCMSeal1K  1.96GB/s ± 0%   6.79GB/s ± 0%  +246.47%  (p=0.000 n=8+10)
+    AESGCMOpen1K  1.85GB/s ± 0%   5.76GB/s ± 0%  +211.18%  (p=0.000 n=10+10)
+    AESGCMSign8K  12.0GB/s ± 0%   14.5GB/s ± 0%   +20.43%  (p=0.000 n=10+8)
+    AESGCMSeal8K  3.75GB/s ± 0%  14.16GB/s ± 0%  +277.57%  (p=0.000 n=9+10)
+    AESGCMOpen8K  3.70GB/s ± 0%  13.57GB/s ± 0%  +266.50%  (p=0.000 n=10+9)
     
-    Change-Id: I50e7594f1473c911a2079fe910849a6694ac6c07
-    Reviewed-on: https://go-review.googlesource.com/101496
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I57c46573fc5a0bd63c32ce5cba6e37cab85e3de6
+    Reviewed-on: https://go-review.googlesource.com/73550
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Volodymyr Paprotski <paprots@gmail.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/bytealg/compare_arm64.s | 106 +++++++----------------------------
- 1 file changed, 19 insertions(+), 87 deletions(-)
+ src/crypto/aes/asm_s390x.s  |  62 +++++++++++++++++++++++++++
+ src/crypto/aes/gcm_s390x.go | 100 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 160 insertions(+), 2 deletions(-)

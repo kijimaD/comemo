@@ -1,23 +1,23 @@
-commit e533b5793f43ed44f1562a10d974cb3bc3688226
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 16:55:37 2021 -0500
+commit 79b2e14b1a08d5c5a6a6153c5fa85b6cab0fcbf4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 24 14:41:25 2021 +0100
 
-    doc/go1.18: add docs on new reflect.Value methods
+    crypto/ed25519: add comprehensive edge-case test vectors
     
-    From:
+    This will allow us to make changes to the internals confidently, without
+    risking causing issues in consensus applications. It will also prevent
+    architecture-specific divergence, like #40475.
     
-    https://go-review.googlesource.com/c/go/+/352131/
+    Fixes #40478
     
-    Updates #47694
-    
-    Change-Id: I7c7811c49900049f5ef7fc906fe25d2ffd73c7b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368363
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Fabio Falzoi <fabio.falzoi84@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8c2b31406ca88add6941f14d8df8cecb96379cde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304349
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
 
- doc/go1.18.html | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/crypto/ed25519/ed25519vectors_test.go | 109 ++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)

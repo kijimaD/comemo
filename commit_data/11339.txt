@@ -1,17 +1,12 @@
-commit 77cb8956a061181619e661a530955dd93e65cb64
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jan 24 02:59:43 2012 +0900
+commit c1b4be6a4dbbdce9c69d028a8652731652d7babc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 23 11:50:39 2012 -0500
 
-    net: consistent OpError message
+    dashboard: fix -commit for new xml package
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5562047
+    https://golang.org/cl/5571046
 
- src/pkg/net/iprawsock_posix.go |  6 +++---
- src/pkg/net/tcpsock_plan9.go   |  4 ++--
- src/pkg/net/tcpsock_posix.go   |  4 ++--
- src/pkg/net/udpsock_plan9.go   |  6 +++---
- src/pkg/net/udpsock_posix.go   | 32 ++++++++++++++++----------------
- src/pkg/net/unixsock_posix.go  |  6 +++---
- 6 files changed, 29 insertions(+), 29 deletions(-)
+ misc/dashboard/builder/main.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

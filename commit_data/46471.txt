@@ -1,18 +1,60 @@
-commit 6602c86a38ff0d8889257e908489162de38ebbd8
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Sep 14 02:21:22 2021 +1000
+commit f2538033c08a8c215a19610680d66f5909c5bcdd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 2 01:27:29 2021 -0800
 
-    cmd/internal/obj/riscv: improve instruction validation
+    [dev.regabi] cmd/compile: remove Nodes.Set [generated]
     
-    Ensure that rs2 is none for various instruction encodings. Fix a couple of cases
-    where it should have been but is not.
+    Just "=". It's cleaner.
     
-    Change-Id: I9f8211a0257e49643dbbc89e158e048050ebe6f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349649
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Passes toolstash -cmp.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    pkgs=$(go list . ../...)
+    rf '
+            ex '"$(echo $pkgs)"' {
+                    var l Nodes
+                    var p *Nodes
+    
+                    p.Set(l) -> *p = l
+            }
+    
+            ex '"$(echo $pkgs)"' {
+                    var n InitNode
+                    var l Nodes
+    
+                    *n.PtrInit() = l -> n.SetInit(l)
+            }
+    
+            rm Nodes.Set
+    '
+    
+    Change-Id: Ic97219792243667146a02776553942ae1189ff7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281002
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/internal/obj/riscv/obj.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go   |  4 ++--
+ src/cmd/compile/internal/inline/inl.go          | 16 ++++++++--------
+ src/cmd/compile/internal/ir/expr.go             | 10 +++++-----
+ src/cmd/compile/internal/ir/node.go             |  4 ----
+ src/cmd/compile/internal/ir/stmt.go             | 16 ++++++++--------
+ src/cmd/compile/internal/noder/noder.go         | 14 +++++++-------
+ src/cmd/compile/internal/pkginit/init.go        |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/ssagen/abi.go          |  2 +-
+ src/cmd/compile/internal/typecheck/const.go     |  4 ++--
+ src/cmd/compile/internal/typecheck/func.go      |  8 ++++----
+ src/cmd/compile/internal/typecheck/iimport.go   | 16 ++++++++--------
+ src/cmd/compile/internal/typecheck/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/walk/assign.go         |  4 ++--
+ src/cmd/compile/internal/walk/builtin.go        |  6 +++---
+ src/cmd/compile/internal/walk/closure.go        |  4 ++--
+ src/cmd/compile/internal/walk/expr.go           |  6 +++---
+ src/cmd/compile/internal/walk/order.go          | 12 ++++++------
+ src/cmd/compile/internal/walk/range.go          |  2 +-
+ src/cmd/compile/internal/walk/select.go         |  8 ++++----
+ src/cmd/compile/internal/walk/stmt.go           |  4 ++--
+ 21 files changed, 74 insertions(+), 78 deletions(-)

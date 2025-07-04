@@ -1,37 +1,31 @@
-commit 2668a190baa302a1fd7e22285cdb343af67530ad
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 17 15:58:47 2023 -0400
+commit eb3ac1f5a471c07a84353ae693024a251db9845f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 23 17:26:24 2022 -0700
 
-    internal/abi, runtime, cmd: merge funcFlag_* consts into internal/abi
+    cmd/compile/internal/types2: mention go.mod file when using undeclared any
     
-    For #59670.
+    Use the existing versionErrorf mechanism to report use of undeclared
+    any and comparable.
     
-    Change-Id: Ie784ba4dd2701e4f455e1abde4a6bfebee4b1387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485496
-    Reviewed-by: David Chase <drchase@google.com>
+    Also, port versionErrorf mechanism to go/types and use it in this
+    case as well.
+    
+    Adjust tests as needed.
+    
+    For #52880.
+    
+    Change-Id: I6a646f16a849692ee0cb57e362d5f3d77e2c25f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407896
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/goobj/funcinfo.go     |  5 ++---
- src/cmd/internal/obj/arm/obj5.go       |  5 +++--
- src/cmd/internal/obj/arm64/obj7.go     |  5 +++--
- src/cmd/internal/obj/link.go           |  4 ++--
- src/cmd/internal/obj/loong64/obj.go    |  5 +++--
- src/cmd/internal/obj/mips/obj0.go      |  5 +++--
- src/cmd/internal/obj/objfile.go        |  5 +++--
- src/cmd/internal/obj/plist.go          |  9 +++++----
- src/cmd/internal/obj/ppc64/obj9.go     |  5 +++--
- src/cmd/internal/obj/riscv/obj.go      |  5 +++--
- src/cmd/internal/obj/s390x/objz.go     |  5 +++--
- src/cmd/internal/obj/x86/obj6.go       |  5 +++--
- src/cmd/internal/objabi/funcid.go      | 10 ----------
- src/cmd/link/internal/ld/pcln.go       |  2 +-
- src/cmd/link/internal/loader/loader.go |  4 ++--
- src/internal/abi/symtab.go             | 25 +++++++++++++++++++++++++
- src/runtime/preempt.go                 |  2 +-
- src/runtime/proc.go                    |  2 +-
- src/runtime/runtime2.go                |  2 +-
- src/runtime/symtab.go                  | 26 --------------------------
- src/runtime/traceback.go               | 12 ++++++------
- 21 files changed, 73 insertions(+), 75 deletions(-)
+ .../internal/types2/testdata/fixedbugs/issue46090.go   |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue47818.go   | 18 ++++++++++--------
+ src/cmd/compile/internal/types2/typexpr.go             |  2 +-
+ src/go/types/errors.go                                 | 11 +++++++++++
+ src/go/types/testdata/fixedbugs/issue46090.go          |  2 +-
+ src/go/types/testdata/fixedbugs/issue47818.go          | 16 ++++++++--------
+ src/go/types/typexpr.go                                |  2 +-
+ 7 files changed, 33 insertions(+), 20 deletions(-)

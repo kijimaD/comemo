@@ -1,18 +1,43 @@
-commit ab7c174183b05e36dabe0aa1943a0a4302b940d0
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Feb 6 08:47:20 2020 +0000
+commit 04fb929a5b7991ed0945d05ab8015c1721958d82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 16 14:34:02 2019 -0700
 
-    testing: make Cleanup work for benchmarks too.
+    go/types: make sure interfaces are complete before comparing them
     
-    Fixes #37073.
+    Complete interfaces before comparing them with Checker.identical.
+    This requires passing through a *Checker to various functions that
+    didn't need this before.
     
-    Change-Id: I6fb24a3f9d7b7adf3213ac6a8bcbf5fb43975b7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218117
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Verified that none of the exported API entry points for interfaces
+    that rely on completed interfaces are used internally except for
+    Interface.Empty. Verified that interfaces are complete before
+    calling Empty on them, and added a dynamic check in the exported
+    functions.
+    
+    Unfortunately, this fix exposed another problem with an esoteric
+    test case (#33656) which we need to reopen.
+    
+    Fixes #34151.
+    Updates #33656.
+    
+    Change-Id: I4e14bae3df74a2c21b565c24fdd07135f22e11c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195837
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/benchmark.go |  1 +
- src/testing/sub_test.go  | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
+ src/go/types/builtins.go          |  4 ++--
+ src/go/types/call.go              |  5 ++++
+ src/go/types/conversions.go       |  4 ++--
+ src/go/types/expr.go              |  8 +++----
+ src/go/types/issues_test.go       | 28 ++++++++++++++++++++++
+ src/go/types/lookup.go            | 16 ++++++-------
+ src/go/types/methodset.go         |  7 +++++-
+ src/go/types/operand.go           |  7 +++---
+ src/go/types/predicates.go        | 49 ++++++++++++++++++++++++++++-----------
+ src/go/types/stdlib_test.go       |  1 +
+ src/go/types/stmt.go              |  4 ++--
+ src/go/types/testdata/cycles2.src |  4 +++-
+ src/go/types/type.go              | 15 +++++++++---
+ src/go/types/typexpr.go           | 10 ++++----
+ 14 files changed, 116 insertions(+), 46 deletions(-)

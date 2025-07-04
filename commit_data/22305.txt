@@ -1,19 +1,17 @@
-commit 7b850ec6917acada87482bbdea76abb57aa5f9cd
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Apr 2 16:19:46 2015 -0700
+commit d2918cbcaaecfc923f0794ebbcad3b4952af510b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 4 16:16:26 2015 +1100
 
-    crypto/tls: tidy up a little and add test.
+    cmd/dist: execute misc/cgo/testso again on windows
     
-    This is a follow on to 28f33b4a which removes one of the boolean flags
-    and adds a test for the key-driven cipher selection.
+    Fixes #10072
     
-    Change-Id: If2a400de807eb19110352912a9f467491cc8986c
-    Reviewed-on: https://go-review.googlesource.com/8428
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Jacob Haven <jacob@cloudflare.com>
+    Change-Id: I1f73c8829a89144d49433a36a4e64223c74af954
+    Reviewed-on: https://go-review.googlesource.com/6585
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/common.go                |  8 ++---
- src/crypto/tls/handshake_server.go      | 17 ++++------
- src/crypto/tls/handshake_server_test.go | 59 ++++++++++++++++++++++++++++++++-
- 3 files changed, 69 insertions(+), 15 deletions(-)
+ misc/cgo/testso/test.bat |  2 +-
+ src/cmd/dist/test.go     | 34 ++++++++++++++++++----------------
+ 2 files changed, 19 insertions(+), 17 deletions(-)

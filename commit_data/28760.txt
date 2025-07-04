@@ -1,17 +1,50 @@
-commit d07345a6334def1a8273107f8bffab33f7a701bc
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 11 13:50:44 2016 -0700
+commit 6adb97bde72b97310f9a75a4e286cd2ef236b271
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 13 09:22:48 2016 -0600
 
-    cmd/compile: update ssa html help text
+    [dev.ssa] cmd/compile: fix argument size of runtime call in SSA for ARM
     
-    Update the description of the conditions under which highlighting might
-    be misleading.
+    The argument size for runtime call was incorrectly includes the size
+    of LR (FixedFrameSize in general). This makes the stack frame
+    sometimes unnecessarily 4 bytes larger on ARM.
+    For example,
+            func f(b []byte) byte { return b[0] }
+    compiles to
+            0x0000 00000 (h.go:6)   TEXT    "".f(SB), $4-16 // <-- framesize = 4
+            0x0000 00000 (h.go:6)   MOVW    8(g), R1
+            0x0004 00004 (h.go:6)   CMP     R1, R13
+            0x0008 00008 (h.go:6)   BLS     52
+            0x000c 00012 (h.go:6)   MOVW.W  R14, -8(R13)
+            0x0010 00016 (h.go:6)   FUNCDATA        $0, gclocals·8355ad952265fec823c17fcf739bd009(SB)
+            0x0010 00016 (h.go:6)   FUNCDATA        $1, gclocals·69c1753bd5f81501d95132d08af04464(SB)
+            0x0010 00016 (h.go:6)   MOVW    "".b+4(FP), R0
+            0x0014 00020 (h.go:6)   CMP     $0, R0
+            0x0018 00024 (h.go:6)   BLS     44
+            0x001c 00028 (h.go:6)   MOVW    "".b(FP), R0
+            0x0020 00032 (h.go:6)   MOVBU   (R0), R0
+            0x0024 00036 (h.go:6)   MOVB    R0, "".~r1+12(FP)
+            0x0028 00040 (h.go:6)   MOVW.P  8(R13), R15
+            0x002c 00044 (h.go:6)   PCDATA  $0, $1
+            0x002c 00044 (h.go:6)   CALL    runtime.panicindex(SB)
+            0x0030 00048 (h.go:6)   UNDEF
+            0x0034 00052 (h.go:6)   NOP
+            0x0034 00052 (h.go:6)   MOVW    R14, R3
+            0x0038 00056 (h.go:6)   CALL    runtime.morestack_noctxt(SB)
+            0x003c 00060 (h.go:6)   JMP     0
     
-    Fixes #16754
+    Note that the frame size is 4, but there is actually no local. It
+    incorrectly thinks call to runtime.panicindex needs 4 bytes space
+    for argument.
     
-    Change-Id: I3078a09e0b9a76d12078352e15a3f26ba3f1bbee
-    Reviewed-on: https://go-review.googlesource.com/30818
+    This CL fixes it.
+    
+    Updates #15365.
+    
+    Change-Id: Ic65d55283a6aa8a7861d7a3fbc7b63c35785eeec
+    Reviewed-on: https://go-review.googlesource.com/24909
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/html.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

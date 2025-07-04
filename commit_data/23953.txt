@@ -1,12 +1,16 @@
-commit 2bd523707062b6059fcd11b9ec8fdf2237b14894
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Mon Aug 3 17:48:43 2015 -0700
+commit 055e1a3ae7884df71da17dadc2acae227444e4d6
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jun 24 18:51:06 2015 +0200
 
-    doc: link to the release cycle from contribute.html
+    runtime/race: fix test driver
     
-    Change-Id: Ia5d41b66006682084fcbfac3da020946ea3dd116
-    Reviewed-on: https://go-review.googlesource.com/13093
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    At some point it silently stopped recognizing test output.
+    Meanwhile two tests degraded...
+    
+    Change-Id: I90a0325fc9aaa16c3ef16b9c4c642581da2bb10c
+    Reviewed-on: https://go-review.googlesource.com/11416
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/contribute.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/race/race_test.go         | 5 ++++-
+ src/runtime/race/testdata/mop_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

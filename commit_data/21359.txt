@@ -1,20 +1,16 @@
-commit f4a2617765273add97fb52c101baaf071fdb9705
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 26 16:08:51 2015 -0800
+commit 10be797578925708afb140ceb771c8e2d6346332
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 23 11:09:15 2014 +0100
 
-    math/big: various fixes, enable tests for 32bit platforms
+    runtime: fix exit on Plan 9
     
-    - fixed Float.Add, Float.Sub
-    - fixed Float.PString to be platform independent
-    - fixed Float.Uint64
-    - fixed various test outputs
+    Add a nil byte at the end of the itoa buffer,
+    before calling gostringnocopy. This prevents
+    gostringnocopy to read past the buffer size.
     
-    TBR: adonovan
-    
-    Change-Id: I9d273b344d4786f1fed18862198b23285c358a39
-    Reviewed-on: https://go-review.googlesource.com/3321
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I87494a8dd6ea45263882536bf6c0f294eda6866d
+    Reviewed-on: https://go-review.googlesource.com/2033
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/math/big/float.go      | 131 +++++++++++++++++++++++----------------------
- src/math/big/float_test.go |  47 ++++++----------
- 2 files changed, 81 insertions(+), 97 deletions(-)
+ src/runtime/os1_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

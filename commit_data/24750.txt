@@ -1,31 +1,15 @@
-commit 4b7d5f0b941c75e678d60e84602155ea9e73bab6
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Nov 5 12:39:56 2015 -0800
+commit 16cf8802f87de8738a585d7cd46a388e2afc9388
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 28 14:51:13 2015 +1000
 
-    runtime: memmove/memclr pointers atomically
+    doc/go1.6.txt: start go1.6.txt with a note about nacl
     
-    Make sure that we're moving or zeroing pointers atomically.
-    Anything that is a multiple of pointer size and at least
-    pointer aligned might have pointers in it.  All the code looks
-    ok except for the 1-pointer-sized moves.
+    Start go1.6.txt with a note that nacl ports are no longer
+    restricted to pepper_41 and a record of the text/template change.
     
-    Fixes #13160
-    Update #12552
-    
-    Change-Id: Ib97d9b918fa9f4cc5c56c67ed90255b7fdfb7b45
-    Reviewed-on: https://go-review.googlesource.com/16668
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I21dda64aec113c35caf1d565f29e3aac8171480a
+    Reviewed-on: https://go-review.googlesource.com/14004
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/asm_amd64p32.s          |  3 ++
- src/runtime/memclr_386.s            | 11 ++++--
- src/runtime/memclr_amd64.s          |  9 +++--
- src/runtime/memclr_plan9_386.s      | 11 ++++--
- src/runtime/memmove_386.s           | 14 +++++---
- src/runtime/memmove_amd64.s         | 10 ++++--
- src/runtime/memmove_nacl_amd64p32.s |  3 ++
- src/runtime/memmove_plan9_386.s     | 14 +++++---
- src/runtime/memmove_plan9_amd64.s   | 10 ++++--
- test/fixedbugs/issue13160.go        | 70 +++++++++++++++++++++++++++++++++++++
- 10 files changed, 135 insertions(+), 20 deletions(-)
+ doc/go1.6.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,26 +1,24 @@
-commit f4494522dc067bc930dc73b91e3ef931ce4583da
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Fri Oct 6 13:02:40 2023 -0400
+commit da5a3146ec903cdcb779d501be4ff88fd775820e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 8 23:18:38 2023 -0400
 
-    runtime: use frame pointer unwinding for block and mutex profilers
+    cmd/compile: use more of internal/bisect in HashDebug
     
-    Use frame pointer unwinding, where supported, to collect call stacks for
-    the block, and mutex profilers. This method of collecting call stacks is
-    typically an order of magnitude faster than callers/tracebackPCs. The
-    marginal benefit for these profile types is likely small compared to
-    using frame pointer unwinding for the execution tracer. However, the
-    block profiler can have noticeable overhead unless the sampling rate is
-    very high. Additionally, using frame pointer unwinding in more places
-    helps ensure more testing/support, which benefits systems like the
-    execution tracer which rely on frame pointer unwinding to be practical
-    to use.
+    Using more of internal/bisect gives us more that will be deleted
+    from base/hashdebug.go when we have updated the tools that
+    need the old protocol. It is also cheaper: there is no allocation to
+    make a decision about whether to enable, and no locking unless
+    printing is needed.
     
-    Change-Id: I4b36c90cd2df844645fd275a41b247352d635727
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533258
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I43ec398461205a1a9e988512a134ed6b3a3b1587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493736
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mprof.go | 55 ++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 43 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/base/hashdebug.go       | 198 ++++++++++-------------
+ src/cmd/compile/internal/base/hashdebug_test.go  | 110 +++++--------
+ src/cmd/compile/internal/loopvar/loopvar.go      |   4 +-
+ src/cmd/compile/internal/loopvar/loopvar_test.go |   2 +-
+ src/cmd/compile/internal/ssa/func.go             |   5 +-
+ 5 files changed, 132 insertions(+), 187 deletions(-)

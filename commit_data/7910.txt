@@ -1,16 +1,13 @@
-commit 0bc37a6d22223fcae11af4af66ff19cd4ebdb60c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 29 06:47:39 2011 -0700
+commit 47f4ae1a78cb09999f57b34a38913047d5d99a53
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Mar 29 01:27:38 2011 -0400
 
-    test: match gccgo error messages for syntax/chan.go.
+    bytes, strings: simplify Join
     
-    chan.go:11:1: error: unexpected ‘}’ in channel type
-    chan.go:13:16: error: unexpected ‘)’ in channel type
-    chan.go:16:16: error: unexpected comma in channel type
-    
-    R=golang-dev, rsc1
+    R=gri, rsc
     CC=golang-dev
-    https://golang.org/cl/4313055
+    https://golang.org/cl/4300044
 
- test/syntax/chan.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/bytes/bytes.go     | 18 ++++--------------
+ src/pkg/strings/strings.go | 18 ++++--------------
+ 2 files changed, 8 insertions(+), 28 deletions(-)

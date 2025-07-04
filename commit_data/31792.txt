@@ -1,17 +1,20 @@
-commit d1211b9a9f65ea3f184ceb34f1833d4d1a623f7c
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 8 16:27:00 2017 -0800
+commit 3c7a812485334eb57c0856e6b152aa3d50f9f0a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 16 17:07:26 2017 -0700
 
-    crypto/x509: support excluded domains in name constraints.
+    cmd/compile: eliminate "assignment count mismatch" - not needed anymore
     
-    Change-Id: I4c2c82cb0354f843a3283a650ed2cd2b6aef5895
-    Reviewed-on: https://go-review.googlesource.com/36900
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    See https://go-review.googlesource.com/#/c/38313/ for background.
+    It turns out that only a few tests checked for this.
+    
+    The new error message is shorter and very clear.
+    
+    Change-Id: I8ab4ad59fb023c8b54806339adc23aefd7dc7b07
+    Reviewed-on: https://go-review.googlesource.com/38314
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/x509/verify.go      |  8 +++-
- src/crypto/x509/verify_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/x509.go        | 45 +++++++++++++-------
- src/crypto/x509/x509_test.go   |  5 +++
- 4 files changed, 138 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ test/fixedbugs/bug289.go                 | 4 ++--
+ test/fixedbugs/bug487.go                 | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

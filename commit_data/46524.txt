@@ -1,21 +1,13 @@
-commit fa5c5043bca5264fabbdc47d780cfb53b1f5d9a3
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Sep 11 06:50:06 2021 -0700
+commit d92f8add32f79efe7e46af55172d4c703a778938
+Author: yangwenmai <yangwen.yw@gmail.com>
+Date:   Thu Jan 7 17:45:36 2021 +0800
 
-    encoding/xml: truncate generic type names
+    archive/tar: fix typo in comment
     
-    xml names can't have any of '[],' in them, which might appear in
-    generic type names. Truncate at the first '[' so the names are still valid.
-    
-    Fixes #48318
-    
-    Change-Id: I110ff4269f763089467e7cf84b0f0c5075fb44b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349349
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifcc565b34b3c3bb7ee62bb0525648a5d2895bf0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282013
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/encoding/xml/marshal.go  |  4 ++++
- test/typeparam/issue48318.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/archive/tar/strconv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,23 +1,18 @@
-commit 607147d000d9455113f28bb529ab5932e4274ba3
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Dec 10 10:35:44 2017 +1100
+commit 80b2ae5878c7b08b605128cc885305bf86bc5475
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 6 14:33:36 2017 -0500
 
-    net: skip some tests on Windows XP
+    crypto: simplify amd64 asm for sha{1,256,512} a bit
     
-    Parts of TestUDPConnSpecificMethods and TestWriteToUDP fail, because
-    UDPConn.WriteMsgUDP is broken on Windows XP. UDPConn.WriteMsgUDP uses
-    Windows WSASendMsg API, but that call is not implemented on Windows XP (see
-    https://msdn.microsoft.com/en-us/library/windows/desktop/ms741692(v=vs.85).aspx
-    for details)
+    Use constants directly, instead of loading address to e. g. AX
+    and using (AX). Shouldn't affect performance, but makes code a bit
+    nicer.
     
-    Update #23072
-    
-    Change-Id: I4e8f149bc62bd87cd7c199e6832b9ce479af0a3e
-    Reviewed-on: https://go-review.googlesource.com/83077
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifa138e54d3d2b2f4ad71e4ef4b9368ea79eb30f4
+    Reviewed-on: https://go-review.googlesource.com/62010
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/net/protoconn_test.go | 15 ++++++++++-----
- src/net/udpsock_test.go   | 10 ++++++++++
- 2 files changed, 20 insertions(+), 5 deletions(-)
+ src/crypto/sha1/sha1block_amd64.s     |  4 +---
+ src/crypto/sha256/sha256block_amd64.s | 20 +++++---------------
+ src/crypto/sha512/sha512block_amd64.s | 16 +++++-----------
+ 3 files changed, 11 insertions(+), 29 deletions(-)

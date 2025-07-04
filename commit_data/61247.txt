@@ -1,0 +1,20 @@
+commit 263b5ecba78f5fa503d1e47ad469d12b45e0a149
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Oct 21 15:28:25 2024 +0000
+
+    os: use sync.OnceValue
+    
+    Simplify the code and reduce global variables.
+    
+    Change-Id: Id322836e8b6b6c4434136b95700ed4070ba52300
+    GitHub-Last-Rev: 7c9d409855c682b6de1f338f69d9193a7887f9f0
+    GitHub-Pull-Request: golang/go#69962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621456
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file_windows.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

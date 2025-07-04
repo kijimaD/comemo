@@ -1,26 +1,13 @@
-commit 862179b0f58a0f245a820be6c767a7e8ec0f6e88
+commit d604cf780814f1f216f653a677d7a3e5eea7d88b
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 14:55:50 2011 -0400
+Date:   Tue Oct 18 14:55:28 2011 -0400
 
-    gc: preserve uint8 and byte distinction in errors, import data
-    
-    There is no semantic change here, just better errors.
-    If a function says it takes a byte, and you pass it an int,
-    the compiler error now says that you need a byte, not
-    that you need a uint8.
-    
-    Groundwork for rune.
+    5g, 6g: comment out uses of -r
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/5300042
+    https://golang.org/cl/5299043
 
- src/cmd/gc/builtin.c.boot | 84 +++++++++++++++++++++++------------------------
- src/cmd/gc/export.c       |  2 +-
- src/cmd/gc/go.h           |  1 +
- src/cmd/gc/lex.c          | 22 ++++++++++++-
- src/cmd/gc/reflect.c      |  2 +-
- src/cmd/gc/subr.c         | 37 ++++++++++++++-------
- src/cmd/gc/typecheck.c    |  4 +--
- test/alias.go             | 19 +++++++++++
- 8 files changed, 112 insertions(+), 59 deletions(-)
+ src/cmd/5g/gsubr.c | 4 ++--
+ src/cmd/6g/gobj.c  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

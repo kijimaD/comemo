@@ -1,18 +1,14 @@
-commit 4eb2fa17659fb6a2337c72841b8695317813ad8f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 30 13:43:37 2016 -0700
+commit 7a60a962b9284763f8ff239aae54d1d858dd4543
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 29 17:10:02 2016 -0700
 
-    cmd/compile: eliminate methtype's mustname parameter
+    cmd/compile: ecx is reserved for PIC, don't let peep work on it
     
-    Change-Id: Idd3e677dec00eb36a2cf7baa34e772335e1f2bc8
-    Reviewed-on: https://go-review.googlesource.com/28173
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15496
+    
+    Change-Id: Ieb5be1caa4b1c23e23b20d56c1a0a619032a9f5d
+    Reviewed-on: https://go-review.googlesource.com/22652
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go       |  4 +--
- src/cmd/compile/internal/gc/reflect.go   |  2 +-
- src/cmd/compile/internal/gc/subr.go      | 44 +++++++++++++-------------------
- src/cmd/compile/internal/gc/typecheck.go |  4 +--
- 4 files changed, 23 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/x86/peep.go | 4 ++++
+ 1 file changed, 4 insertions(+)

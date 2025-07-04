@@ -1,15 +1,22 @@
-commit 9cd3372f9b605a7acae2b4a10f6c3f6d80a81d1a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 26 11:02:07 2011 -0700
+commit abb970ef57f3370f92c5079c073ec8a9414d5b17
+Author: William Chan <willchan@chromium.org>
+Date:   Thu May 26 09:54:54 2011 -0700
 
-    strings: implement UnreadByte, UnreadRune
+    http/spdy: redo interfaces, flesh out implementation & frame types
     
-    Added corresponding tests.
+    Added a new Framer to handle reading/writing Frames. This is necessary since we have to maintain a compression context across streams.
     
-    R=rsc
+    TODO:
+    * Separate the types and read/write routines into different files.
+    * Improve error handling.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4560045
+    https://golang.org/cl/4503042
 
- src/pkg/strings/reader.go       | 66 +++++++++++++++++++++++++++++------------
- src/pkg/strings/strings_test.go | 65 +++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 111 insertions(+), 20 deletions(-)
+ src/pkg/http/spdy/Makefile         |   1 +
+ src/pkg/http/spdy/framer.go        | 422 ++++++++++++++++++++++++
+ src/pkg/http/spdy/framer_test.go   | 496 ++++++++++++++++++++++++++++
+ src/pkg/http/spdy/protocol.go      | 639 ++++++++++++++++++++++---------------
+ src/pkg/http/spdy/protocol_test.go | 259 ---------------
+ 5 files changed, 1297 insertions(+), 520 deletions(-)

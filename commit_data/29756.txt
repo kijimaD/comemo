@@ -1,26 +1,18 @@
-commit bc075e61cb90585c34ae696aca7c0f2476f01c77
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Nov 30 08:30:31 2016 -0800
+commit 122abe6b122a885c52a53044eedbd3b6905b6124
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Oct 6 13:49:57 2016 -0400
 
-    crypto/dsa: don't allow signing with degenerate private keys to loop forever.
+    cmd/compile: fold extensions into constants on s390x
     
-    Previously it was possible to craft a DSA private key that would cause
-    Sign() to loop forever because no signature could be valid. This change
-    does some basic sanity checks and ensures that Sign will always
-    terminate.
+    We insert extensions when lowering comparisons and they were
+    blocking constant folding.
     
-    Thanks to Yolan Romailler for highing this.
-    
-    Be aware, however, that it's still possible for an attacker to simply
-    craft a private key with enormous values and thus cause Sign to take an
-    arbitrary amount of time.
-    
-    Change-Id: Icd53939e511eef513a4977305dd9015d9436d0ce
-    Reviewed-on: https://go-review.googlesource.com/33725
-    Reviewed-by: Yolan Romailler <y@romailler.ch>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I804bbf91c7606612ffe921a90853844a57e55955
+    Reviewed-on: https://go-review.googlesource.com/30541
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/dsa/dsa.go      | 18 ++++++++++++++++--
- src/crypto/dsa/dsa_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  8 +++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 78 ++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+)

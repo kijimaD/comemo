@@ -1,25 +1,18 @@
-commit 1108cbe60b87196ce739ff8bce08c9862d6b61f0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Apr 30 23:10:26 2021 -0400
+commit 8b517983048205932305905bc01a29bd146cb8d6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 27 23:03:11 2020 +1100
 
-    crypto/ecdsa,crypto/elliptic: improve tests and benchmarks
+    cmd/asm: remove X27 and S11 register names on riscv64
     
-    Ensured all tests and benchmarks run over all curves.
+    The X27 register (known as S11 via its ABI name) is the g register on riscv64.
+    Prevent assembly from referring to it by either of these names.
     
-    Change-Id: Idcbe14a50c60ff6c2cd56793bced6b428d049c39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315272
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Iba389eb8e44e097c0142c5b3d92e72bcae8a244a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265519
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/ecdsa/ecdsa_s390x.go      |   6 +
- src/crypto/ecdsa/ecdsa_s390x_test.go |  19 +-
- src/crypto/ecdsa/ecdsa_test.go       | 284 +++++++-------
- src/crypto/elliptic/elliptic_test.go | 703 ++++++-----------------------------
- src/crypto/elliptic/fuzz_test.go     |   1 -
- src/crypto/elliptic/p224_test.go     | 315 ++++++++++++++++
- src/crypto/elliptic/p256_test.go     | 155 ++++++++
- 7 files changed, 752 insertions(+), 731 deletions(-)
+ src/cmd/asm/internal/arch/arch.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

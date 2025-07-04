@@ -1,16 +1,19 @@
-commit 91a1b55489dfdc720ee4043390777e903c69222a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 17:47:17 2022 +0800
+commit 8838a3b53fccc7b3aa83312326bfd38bcb8f2281
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Oct 8 20:28:58 2021 +1100
 
-    flag: use strings.Builder
+    cmd/internal/obj/riscv: fix and enable test in short mode
     
-    Change-Id: Iee846c4ac0f111ff97aa618dd42f6b2d14aa4342
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428259
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    The branch test only takes a few seconds so enable it in short mode. Also fix a
+    typo that currently prevents the code from compiling.
+    
+    Change-Id: I25fc646b002a66c042c61fb1f56d5efa8e47903c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356249
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/flag/flag_test.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/riscv/asm_test.go                        | 3 ---
+ src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go | 2 +-
+ 2 files changed, 1 insertion(+), 4 deletions(-)

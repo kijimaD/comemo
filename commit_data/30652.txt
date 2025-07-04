@@ -1,17 +1,33 @@
-commit ccae744f8017971b59303f62702ecd5c269891ec
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 14 08:18:11 2017 -0700
+commit 49ea9207b6512c2400de11bc097d974bb527ba63
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 30 20:20:17 2016 -0400
 
-    cmd/compile/internal/gc: better loop var names in esc.go
+    runtime: exit idle worker if there's higher-priority work
     
-    Used gorename.
+    Idle GC workers trigger whenever there's a GC running and the
+    scheduler doesn't find any other work. However, they currently run for
+    a full scheduler quantum (~10ms) once started.
     
-    Change-Id: Ib33305dc95876ec18e2473ad2999788a32eb21c0
-    Reviewed-on: https://go-review.googlesource.com/38146
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    This is really bad for event-driven applications, where work may come
+    in on the network hundreds of times during that window. In the
+    go-gcbench rpc benchmark, this is bad enough to often cause effective
+    STWs where all Ps are in the idle worker. When this happens, we don't
+    even poll the network any more (except for the background 10ms poll in
+    sysmon), so we don't even know there's more work to do.
+    
+    Fix this by making idle workers check with the scheduler roughly every
+    100 µs to see if there's any higher-priority work the P should be
+    doing. This check includes polling the network for incoming work.
+    
+    Fixes #16528.
+    
+    Change-Id: I6f62ebf6d36a92368da9891bafbbfd609b9bd003
+    Reviewed-on: https://go-review.googlesource.com/32433
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 56 ++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 29 deletions(-)
+ src/runtime/mgc.go     |  4 +++-
+ src/runtime/mgcmark.go | 34 +++++++++++++++++++++++++++++++---
+ src/runtime/proc.go    | 21 +++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 4 deletions(-)

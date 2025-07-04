@@ -1,17 +1,18 @@
-commit 770fac4586a9c8c4647cb6ff79443ec246ae32c4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 17 15:45:40 2019 -0700
+commit b0bcd7aeb0060361fc8ff04cc4b6764aa146b086
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Apr 3 14:58:05 2019 +0200
 
-    math/big: avoid MinExp exponent wrap-around in 'x' Text format
+    cmd/go: add a note in help buildmode for c-archive on AIX
     
-    Fixes #34343.
+    As ld on AIX doesn't keep the same layout in .text section,
+    -Wl,-bnoobjreoder must be passed to gcc when building a C program with a
+    Go archive.
     
-    Change-Id: I74240c8f431f6596338633a86a7a5ee1fce70a65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196057
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I89b584cce43ab5792f315192b073923c10d5690e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170538
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/floatconv_test.go | 4 ++++
- src/math/big/ftoa.go           | 3 +--
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go               | 3 +++
+ src/cmd/go/internal/help/helpdoc.go | 3 +++
+ 2 files changed, 6 insertions(+)

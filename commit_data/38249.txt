@@ -1,31 +1,39 @@
-commit 5c22842cf2761811058f6b2477cf074e544c629c
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 25 15:29:08 2017 -0400
+commit 653a4bd8d46a8a329f37e8a9fc909c3bb92b02bc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 9 22:55:36 2018 -0700
 
-    runtime: introduce effective GOGC, eliminate heap_marked hacks
+    cmd/compile: optimize loads from readonly globals into constants
     
-    Currently, the pacer assumes the goal growth ratio is always exactly
-    GOGC/100. But sometimes this isn't the case, like when the heap is
-    very small (limited by heapminimum). So to placate the pacer, we lie
-    about the value of heap_marked in such situations.
+    Instead of
+       MOVB go.string."foo"(SB), AX
+    do
+       MOVB $102, AX
     
-    Right now, these two lies make a truth, but GOGC is about to get more
-    complicated with the introduction of heap limits.
+    When we know the global we're loading from is readonly, we can
+    do that read at compile time.
     
-    Rather than introduce more lies into the system to handle this,
-    introduce the concept of an "effective GOGC", which is the GOGC we're
-    actually using for pacing (we'll need this concept anyway with heap
-    limits). This commit changes the pacer to use the effective GOGC
-    rather than the user-set GOGC. This way, we no longer need to lie
-    about heap_marked because its true value is incorporated into the
-    effective GOGC.
+    I've made this arch-dependent mostly because the cases where this
+    happens often are memory->memory moves, and those don't get
+    decomposed until lowering.
     
-    Change-Id: I5b005258f937ab184ffcb5e76053abd798d542bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/66092
-    Run-TryBot: Austin Clements <austin@google.com>
+    Did amd64/386/arm/arm64. Other architectures could follow.
+    
+    Update #26498
+    
+    Change-Id: I41b1dc831b2cd0a52dac9b97f4f4457888a46389
+    Reviewed-on: https://go-review.googlesource.com/c/141118
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgc.go | 37 +++++++++++++++++++------------------
- 1 file changed, 19 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   5 +
+ src/cmd/compile/internal/ssa/rewrite.go      |  44 ++++++
+ src/cmd/compile/internal/ssa/rewrite386.go   |  54 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 215 +++++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go   |  54 +++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go |  72 +++++++++
+ test/codegen/strings.go                      |  27 ++++
+ 10 files changed, 459 insertions(+), 31 deletions(-)

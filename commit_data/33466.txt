@@ -1,24 +1,18 @@
-commit f10d99f51da73721dd0b9ab1c03c4a868a991756
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 1 11:31:04 2016 -0400
+commit b1f201e951a7c1051de3e4ab5cef0d2367ab828e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 3 15:49:33 2017 -0400
 
-    runtime: flush assist credit on goroutine exit
+    [dev.boringcrypto] crypto/ecdsa: use BoringCrypto
     
-    Currently dead goroutines retain their assist credit. This credit can
-    be used if the goroutine gets recycled, but in general this can make
-    assist pacing over-aggressive by hiding an amount of credit
-    proportional to the number of exited (and not reused) goroutines.
-    
-    Fix this "hidden credit" by flushing assist credit to the global
-    credit pool when a goroutine exits.
-    
-    Updates #14812.
-    
-    Change-Id: I65f7f75907ab6395c04aacea2c97aea963b60344
-    Reviewed-on: https://go-review.googlesource.com/24703
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I108e0a527bddd673b16582d206e0697341d0a0ea
+    Reviewed-on: https://go-review.googlesource.com/55478
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/proc.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/crypto/ecdsa/boring.go              | 109 ++++++++++++++++++
+ src/crypto/ecdsa/ecdsa.go               |  42 +++++++
+ src/crypto/internal/boring/boring.go    |  12 ++
+ src/crypto/internal/boring/ecdsa.go     | 188 ++++++++++++++++++++++++++++++++
+ src/crypto/internal/boring/notboring.go |  23 ++++
+ 5 files changed, 374 insertions(+)

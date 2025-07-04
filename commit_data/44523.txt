@@ -1,22 +1,31 @@
-commit 31df4e3fcd0c961684a027188a391f6db1ab3439
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Nov 16 17:50:01 2020 +0800
+commit 6ac9914383bc88d014cbc681dae758372e6ca823
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Jul 16 16:18:49 2020 -0400
 
-    cmd/link: add relocs type for mips64x
+    [dev.link] create runtime.funcnametab
     
-    The race detector of llvm adds four reloc types even with -fPIC
+    Move the function names out of runtime.pclntab_old, creating
+    runtime.funcnametab.  There is an unfortunate artifact in this change in
+    that calculating the funcID still requires loading the name. Future work
+    will likely pull this out and put it into the object file Funcs.
     
-    elf.R_MIPS_CALL16
-    elf.R_MIPS_GPREL32
-    elf.R_MIPS_64
-    elf.R_MIPS_GOT_DISP
+    ls -l cmd/compile (darwin):
+      before: 18524016
+      after:  18519952
     
-    Change-Id: If73119dcba14ef74395273eb680f52a0aa853217
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270297
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The difference in size can be attributed to alignment in pclntab_old.
+    
+    Change-Id: Ibcbb230d4632178f8fcd0667165f5335786381f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243223
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/loadelf/ldelf.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj2/objfile.go            |   5 +
+ src/cmd/link/internal/ld/data.go              |  56 +++++++----
+ src/cmd/link/internal/ld/lib.go               |  13 ++-
+ src/cmd/link/internal/ld/pcln.go              | 138 ++++++++++++++++++++------
+ src/cmd/link/internal/ld/symtab.go            |   4 +
+ src/cmd/link/internal/loader/loader.go        |  16 +++
+ src/cmd/link/internal/loader/symbolbuilder.go |  10 ++
+ src/debug/gosym/pclntab.go                    |  40 +++++---
+ src/runtime/symtab.go                         |  18 ++--
+ 9 files changed, 221 insertions(+), 79 deletions(-)

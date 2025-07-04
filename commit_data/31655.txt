@@ -1,18 +1,19 @@
-commit 59096edb4aa4a43e984439682cc9b379a1d0c2c0
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue May 23 19:40:52 2017 -0600
+commit 61d9cd73fb3f3748be84320a4e78841c445a38f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 3 17:15:11 2017 -0800
 
-    net/http: polish gzip case insensitive test
+    internal/poll: only start Windows goroutines when we need them
     
-    Avoid directly using the binary of the
-    gzipped encoded string in the handler.
+    We don't need to start the goroutines if the program isn't going to do
+    any I/O.
     
-    Follow up of CL 37431.
+    Fixes #19390.
     
-    Change-Id: Idcd04acb7940e67b7a35b2d6cb163d75b0e22e04
-    Reviewed-on: https://go-review.googlesource.com/44008
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I47eef992d3ad05ed5f3150f4d6e5b3e0cb16a551
+    Reviewed-on: https://go-review.googlesource.com/37762
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/transport_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/internal/poll/fd_windows.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

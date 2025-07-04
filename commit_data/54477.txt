@@ -1,22 +1,26 @@
-commit a278550c40ef3f01a5fcbef43414dc49009201f8
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed Sep 13 20:52:51 2023 -0400
+commit d5efd0dd63a8beb5cc57ae7d25f9c60d5dea5c65
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Wed Jun 15 16:21:07 2022 -0400
 
-    .github: issue template for telemetry proposals
+    net/netip: add IPv6LinkLocalAllRouters and IPv6Loopback
     
-    This uses the github's newer template syntax.
+    Fixes #51766
+    Fixes #51777
     
-    https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
-    
-    See
-    https://github.com/hyangah/go/issues/new?assignees=&labels=Telemetry-Proposal&projects=hyangah%2F3&template=12-telemetry.yml&title=x%2Ftelemetryconfig%3A+
-    for demo.
-    
-    Change-Id: I13105711b1fe97680b505eefa1f0e7082e76e92c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528357
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I0510175c20c06442d78b2581cfe218e66be1c35b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412475
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- .github/ISSUE_TEMPLATE/12-telemetry.yml | 68 +++++++++++++++++++++++++++++++++
- 1 file changed, 68 insertions(+)
+ api/next/51766.txt          |  1 +
+ api/next/51777.txt          |  1 +
+ src/net/netip/netip.go      |  7 +++++++
+ src/net/netip/netip_test.go | 12 ++++++++++++
+ 4 files changed, 21 insertions(+)

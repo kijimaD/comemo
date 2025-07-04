@@ -1,16 +1,24 @@
-commit 862fde81fc015720741fcb4ba9593bcc511f9aaf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 14 10:28:40 2017 -0800
+commit 4b130f92d248cfa37dceeb45622d36d9c90331ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 29 18:44:07 2016 +0000
 
-    cmd/compile/internal/gc: document (*state).checkgoto
+    net/http: update bundled http2 for IdleTimeout config sync change
     
-    No behavior change.
+    Updates http2 to x/net git rev 76c1a11e for:
     
-    Change-Id: I595c15ee976adf21bdbabdf24edf203c9e446185
-    Reviewed-on: https://go-review.googlesource.com/36958
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+         http2: initialize Server.IdleTimeout from http.Server as http1 does
+         https://golang.org/cl/32230
+    
+         http2: change how Server.IdleTimeout is initialized from http.Server
+         https://golang.org/cl/32323
+    
+    Fixes #14204
+    
+    Change-Id: I099f89fcd0d8bc0e42da163ae0a3b786fd81292f
+    Reviewed-on: https://go-review.googlesource.com/32322
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 105 +++++++++++++++++++++++--------------
- 1 file changed, 66 insertions(+), 39 deletions(-)
+ src/net/http/h2_bundle.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

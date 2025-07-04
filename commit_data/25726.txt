@@ -1,12 +1,12 @@
-commit fd9fd4c39d92f6f177d22b39e8ee000ae01a9511
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 5 15:05:35 2016 +0000
+commit c8abb02178315303ee20f4d32fea91f50a4ac74c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Nov 18 12:04:32 2015 +1300
 
-    net/http: fix doc typo
+    cmd/go: enable -buildmode=pie on linux/386
     
-    Change-Id: I93201fa4152f2d60b3eedb8d321a152819033121
-    Reviewed-on: https://go-review.googlesource.com/19270
+    Change-Id: Ie4cdf50fdaf7b368a189a84f4e2aea4cedd5ca7d
+    Reviewed-on: https://go-review.googlesource.com/17013
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go | 2 +-
+ src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

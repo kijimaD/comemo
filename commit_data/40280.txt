@@ -1,21 +1,16 @@
-commit 24494440e0d265b9c88ebf6d7b450bdc42e5ff0c
-Author: Artem Alekseev <artem.alekseev@intel.com>
-Date:   Fri Jun 21 11:15:21 2019 +0300
+commit 08318f5942f361ea6d017ece52c177c4c475cd6c
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 22:15:46 2019 +0200
 
-    cmd/asm: add missing x86 instructions
+    os: fix tests on self-hosted Go builds
     
-    Instructions added: CLDEMOTE, CLWB, TPAUSE, UMWAIT, UMONITOR.
+    Updates #31722
     
-    Change-Id: I1ba550d4d5acc41a2fd97068ff5834e0412d3bcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183225
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I467bb2539f993fad642abf96388a58a263fbe007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174311
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 6 ++++++
- src/cmd/asm/internal/asm/testdata/amd64error.s     | 8 ++++++++
- src/cmd/internal/obj/x86/aenum.go                  | 5 +++++
- src/cmd/internal/obj/x86/anames.go                 | 5 +++++
- src/cmd/internal/obj/x86/asm6.go                   | 6 +++++-
- src/cmd/internal/obj/x86/obj6.go                   | 2 ++
- 6 files changed, 31 insertions(+), 1 deletion(-)
+ src/os/os_test.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

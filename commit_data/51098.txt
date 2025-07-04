@@ -1,22 +1,20 @@
-commit c065bc70ef45003216271ba42bdd4a4c321ac38a
-Author: Bryan Mills <bcmills@google.com>
-Date:   Thu Nov 3 19:13:31 2022 +0000
+commit cd5f2cf50f6372e31dde0b407c1c3be57a2ce90f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 3 12:20:33 2021 -0800
 
-    Revert "cmd/go: update TestScripts/svn to not depend on TZ database"
+    doc/go1.18: add documentation for changes to go/types
     
-    This reverts CL 447335.
+    The number of involved CLs is too large (hundreds) so
+    no CLs are mentioned in (html) comments.
     
-    Reason for revert: broke test on solaris-amd64-oraclerel, which does have a TZ database but has a non-UTC system time zone.
+    Updates #47694
     
-    Change-Id: Id61f182d331fc5ca8475845fe0ebf3f1d105d8a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447756
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I655d800a1e56a71e9d70a190f1c42c17baf6861e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369099
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/testdata/vcstest/svn/hello.txt         |  5 ++---
- src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 14 ++++++--------
- src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 10 ++++------
- 3 files changed, 12 insertions(+), 17 deletions(-)
+ doc/go1.18.html | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

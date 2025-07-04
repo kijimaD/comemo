@@ -1,12 +1,33 @@
-commit 9876fd99d6e95ef2fc983ee3f2fc68a5e5b685a1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 12 12:20:54 2012 +0100
+commit 3f26c5e1248d53d1e46566e40bb1a21ab6ed9f05
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 11 07:51:20 2012 +1100
 
-    C: add David McLeish (Google CLA)
+    cmd/5g: enable xtramodes optimisation
     
-    R=golang-dev, dsymonds
+    xtramodes' C_PBIT optimisation transforms:
+    
+    MOVW          0(R3),R1
+    ADD           $4,R3,R3
+    
+    into:
+    
+    MOVW.P        4(R3),R1
+    
+    and the AADD optimisation tranforms:
+    
+    ADD          R0,R1
+    MOVBU        0(R1),R0
+    
+    into:
+    
+    MOVBU        R0<<0(R1),R0
+    
+    5g does not appear to generate sequences that
+    can be transformed by xtramodes' AMOVW.
+    
+    R=remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6814120
+    https://golang.org/cl/6817085
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5g/peep.c | 73 +++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 49 insertions(+), 24 deletions(-)

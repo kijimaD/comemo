@@ -1,15 +1,12 @@
-commit 82accf44bffcb4834c6ec794596fc8b335f99c2b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 9 11:31:57 2013 -0800
+commit be36ab339f5f11f2daaec29e46e9e1ce25c74688
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Wed Jan 9 11:07:13 2013 -0800
 
-    go/parser: better error message for declaration error
+    utf8: fix typo.
     
-    Fixes #4616.
-    
-    R=rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7069049
+    https://golang.org/cl/7063056
 
- src/pkg/go/parser/parser.go     | 2 +-
- src/pkg/go/parser/short_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/unicode/utf8/utf8.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

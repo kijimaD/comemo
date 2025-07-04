@@ -1,48 +1,33 @@
-commit ee465831eccef9d8380a0cbfbb526684399d35eb
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Feb 6 14:34:32 2018 -0500
+commit 15d6ab69fbd8c84cde109def59c7e002296c19e8
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 27 15:20:21 2017 -0400
 
-    cmd/trace: generate jsontrace data in a streaming fashion
+    runtime: make systemstack tail call if already switched
     
-    Update #21870
+    Currently systemstack always calls its argument, even if we're already
+    on the system stack. Unfortunately, traceback with _TraceJump stops at
+    the first systemstack it sees, which often cuts off runtime stacks
+    early in profiles.
     
-    The Sys went down to 4.25G from 6.2G.
+    Fix this by performing a tail call if we're already on the system
+    stack. This eliminates it from the traceback entirely, so it won't
+    stop prematurely (or all get mushed into a single node in the profile
+    graph).
     
-    $ DEBUG_MEMORY_USAGE=1 go tool trace trace.out
-    2018/03/07 08:49:01 Parsing trace...
-    after parsing trace
-     Alloc: 3385757184 Bytes
-     Sys:   3661195896 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       3488841728 Bytes
-     HeapInUse:     3426516992 Bytes
-     HeapAlloc:     3385757184 Bytes
-    Enter to continue...
-    2018/03/07 08:49:18 Splitting trace...
-    after spliting trace
-     Alloc: 2352071904 Bytes
-     Sys:   4243825464 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       4025712640 Bytes
-     HeapInUse:     2377703424 Bytes
-     HeapAlloc:     2352071904 Bytes
-    Enter to continue...
-    after httpJsonTrace
-     Alloc: 3228697832 Bytes
-     Sys:   4250379064 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       4025647104 Bytes
-     HeapInUse:     3260014592 Bytes
-     HeapAlloc:     3228697832 Bytes
-    
-    Change-Id: I546f26bdbc68b1e58f1af1235a0e299dc0ff115e
-    Reviewed-on: https://go-review.googlesource.com/92375
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibc69e8765e899f8d3806078517b8c7314da196f4
+    Reviewed-on: https://go-review.googlesource.com/74050
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/trace/main.go            |  13 +-
- src/cmd/trace/trace.go           | 262 ++++++++++++++++++++++++++++-----------
- src/cmd/trace/trace_test.go      |  31 +++--
- src/cmd/trace/trace_unix_test.go |  19 +--
- 4 files changed, 217 insertions(+), 108 deletions(-)
+ src/runtime/asm_386.s      |  7 ++++---
+ src/runtime/asm_amd64.s    |  7 ++++---
+ src/runtime/asm_amd64p32.s |  5 +++--
+ src/runtime/asm_arm.s      |  6 ++++--
+ src/runtime/asm_arm64.s    |  6 ++++--
+ src/runtime/asm_mips64x.s  |  7 +++++--
+ src/runtime/asm_mipsx.s    |  7 +++++--
+ src/runtime/asm_ppc64x.s   |  3 +++
+ src/runtime/asm_s390x.s    |  7 +++++--
+ src/runtime/export_test.go | 13 +++++++++++++
+ src/runtime/stack_test.go  | 33 +++++++++++++++++++++++++++++++++
+ 11 files changed, 83 insertions(+), 18 deletions(-)

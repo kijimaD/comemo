@@ -1,32 +1,28 @@
-commit 3723d080220080dcc5b40737eaf1970af29165b7
-Author: Tom Levy <tomlevy93@gmail.com>
-Date:   Thu Aug 24 13:44:04 2017 +1200
+commit 0d3143ea781298172cd432b637e8b8f0b0526951
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 20:36:07 2017 +0000
 
-    sort: fix TestAdversary
+    net/http: update bundled x/net/http2
     
-    There are some major problems with TestAdversary (based on "A Killer
-    Adversary for Quicksort"[1] by M. D. McIlroy). See #21581 for details.
+    This updates the bundled http2 package from git rev
+    5602c733f70afc6dcec6766be0d5034d4c4f14de of the x/net repo for:
     
-    Rewrite the test to closely match the version in the paper so it can
-    be verified as correct by virtue of similarity.
+      http2: Use NO_ERROR instead of CANCEL when responding before the request is finished
+      https://golang.org/cl/40630
     
-    The only major difference between this new version and the version in
-    the paper is that this version swaps the values directly instead of
-    permuting an array of indices because we don't need to recover the
-    original permutation.
+      http2: enforce write deadline per stream
+      https://golang.org/cl/34727
     
-    This new version also counts the number of calls to Less() and fails
-    the test if there are too many.
+    Updates golang/go#19948
+    Fixes golang/go#18437
     
-    Fixes #21581.
-    
-    [1]: http://www.cs.dartmouth.edu/~doug/mdmspe.pdf
-    
-    Change-Id: Ia94b5b6d288b8fa3805a5fa27661cebbc5bad9a7
-    Reviewed-on: https://go-review.googlesource.com/58330
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I14500476e91551fa8f27a1aeb8ae3cac9600b74c
+    Reviewed-on: https://go-review.googlesource.com/41753
+    Reviewed-by: Kale Blankenship <kale@lemnisys.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Kale Blankenship <kale@lemnisys.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sort/sort_test.go | 60 ++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 40 insertions(+), 20 deletions(-)
+ src/net/http/h2_bundle.go  | 34 ++++++++++++++++++++++++++++------
+ src/net/http/serve_test.go |  2 --
+ 2 files changed, 28 insertions(+), 8 deletions(-)

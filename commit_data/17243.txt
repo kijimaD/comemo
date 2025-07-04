@@ -1,12 +1,14 @@
-commit 3a93626b49a762867ddedf1033c90747d479b7ec
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 15 05:07:35 2013 +0900
+commit 0d9db86f74aa58efed564963d64684252a7e94ea
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Aug 14 21:24:48 2013 +0200
 
-    net: fix TestTCPLookup
+    cmd/5g, cmd/6g, cmd/8g: restore occurrences of R replaced by nil in comments.
     
-    R=golang-dev, dvyukov, dave
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/12766044
+    https://golang.org/cl/12842043
 
- src/pkg/net/dnsclient_unix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/peep.c | 10 +++++-----
+ src/cmd/6g/peep.c |  6 +++---
+ src/cmd/8g/peep.c |  6 +++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)

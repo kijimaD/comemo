@@ -1,12 +1,14 @@
-commit e9016bb8a7e5cf173556c51a173ae04f91da168a
+commit 7c9662f4612979298642a17cb4e8a52559e204ba
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 16 13:08:35 2012 +1100
+Date:   Thu Feb 16 12:43:22 2012 +1100
 
-    go/ast: return Examples in name order
+    godoc: show example function doc comments in UI
     
-    R=bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5673061
+    https://golang.org/cl/5677061
 
- src/pkg/go/ast/example.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ lib/godoc/example.html    | 5 +++--
+ src/cmd/godoc/godoc.go    | 4 ++--
+ src/pkg/go/ast/example.go | 6 ++++++
+ 3 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,19 +1,16 @@
-commit 53493a22fe7fa4f66a04728ea9835f69c04f5341
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 12:35:56 2011 -0700
+commit 41dc7d3a99da6894110085e78c07e711f925948e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 15:30:57 2011 -0400
 
-    http: don't use ClientConn in Transport
+    container/heap: document what Push and Pop do
     
-    ClientConn's main feature (pipelining support)
-    wasn't being used anyway.  Ends up simpler to
-    just not use it.
+    Now that vector is gone, there is no precedent to refer to.
+    This is a confusing point for people looking to use the
+    package.
     
-    This is prep for the http diet, moving ClientConn,
-    ServerConn, etc into http/httputil.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r, cw
     CC=golang-dev
-    https://golang.org/cl/5305088
+    https://golang.org/cl/5322069
 
- src/pkg/http/transport.go | 54 ++++++++++++++++++++++-------------------------
- 1 file changed, 25 insertions(+), 29 deletions(-)
+ src/pkg/container/heap/heap.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

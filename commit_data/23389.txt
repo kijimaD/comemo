@@ -1,19 +1,12 @@
-commit 73549789506121fda0dd4b43f7e5826f2efdb042
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Thu May 28 16:13:23 2015 +0900
+commit 64b1aa12b3c9a524179a583da13fa82dd4812559
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 11 18:02:27 2015 +0900
 
-    doc: replace references to {5..9}{g,l} with go tool compile and go tool link
+    net: drop unnecessary cast
     
-    I updated some references to 6g, 6l and friends that I came across, as those
-    programs don't exist anymore. I also fixed some echos in make.rc to match other make.* scripts while I was there.
-    
-    Change-Id: Ib84532cd4688cf65174dd9869e5d42af98a20a48
-    Reviewed-on: https://go-review.googlesource.com/11162
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9b058472f5b4943db6e6f1c1243411ce61624c18
+    Reviewed-on: https://go-review.googlesource.com/9916
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go |  6 +++---
- src/cmd/go/build.go   |  6 +++---
- src/make.bash         |  4 ++--
- src/make.bat          |  4 ++--
- src/make.rc           | 10 +++++-----
- 5 files changed, 15 insertions(+), 15 deletions(-)
+ src/net/fd_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

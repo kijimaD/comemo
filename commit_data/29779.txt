@@ -1,17 +1,29 @@
-commit c6228ef7e2167a9330a822c48a6f134b92da1437
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Wed Dec 7 15:36:22 2016 -0800
+commit 13c829e5f6c541359c7bb213774ef9bbba9ddb77
+Author: Wedson Almeida Filho <wedsonaf@google.com>
+Date:   Tue May 3 00:28:23 2016 +0100
 
-    runtime/pprof: track locations for goroutine profiles
+    cmd/internal/obj/x86: On amd64, relocation type for and indirect call is pc-relative.
     
-    Must add locations to the profile when generating a profile.proto.
-    This fixes #18229
+    With this change, the code in bug #15609 compiles and runs properly:
     
-    Change-Id: I49cd63a30759d3fe8960d7b7c8bd5a554907f8d1
-    Reviewed-on: https://go-review.googlesource.com/34028
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    0000000000401070 <main.jump>:
+      401070:       ff 15 aa 7e 06 00       callq  *0x67eaa(%rip)        # 468f20 <main.pointer>
+      401076:       c3                      retq
+    
+    0000000000468f20 g     O .rodata        0000000000000008 main.pointer
+    
+    Fixes #15609
+    
+    Change-Id: Iebb4d5a9f9fff335b693f4efcc97882fe04eefd7
+    Reviewed-on: https://go-review.googlesource.com/22950
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/pprof/pprof.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/asm6.go           |  6 +++++-
+ test/fixedbugs/issue15609.dir/call.go      |  7 +++++++
+ test/fixedbugs/issue15609.dir/call_386.s   |  8 ++++++++
+ test/fixedbugs/issue15609.dir/call_amd64.s |  8 ++++++++
+ test/fixedbugs/issue15609.dir/call_decl.go |  5 +++++
+ test/fixedbugs/issue15609.dir/main.go      | 14 ++++++++++++++
+ 6 files changed, 47 insertions(+), 1 deletion(-)

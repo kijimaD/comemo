@@ -1,95 +1,16 @@
-commit 831db8d9881041dba8e0046495edb99212b2caeb
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 2 11:13:24 2013 -0800
+commit 46890f60cee89ffef7a9b5f2b8d5e263650f61f7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Mar 2 08:36:06 2013 +0200
 
-    exp: delete all packages except norm
-    They are moving to code.google.com/p/go.exp.
-    See also https://golang.org/cl/7463043
+    runtime: move TestGcSys into a separate process
+    Fixes #4904.
+    The problem was that when the test runs the heap had grown to ~100MB,
+    so GC allows it to grow to 200MB, and so the test fails.
+    Moving the test to a separate process makes it much more isolated and stable.
     
     R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7456047
+    https://golang.org/cl/7441046
 
- src/pkg/exp/README                                 |     3 -
- src/pkg/exp/ebnf/ebnf.go                           |   269 -
- src/pkg/exp/ebnf/ebnf_test.go                      |    71 -
- src/pkg/exp/ebnf/parser.go                         |   190 -
- src/pkg/exp/ebnflint/doc.go                        |    22 -
- src/pkg/exp/ebnflint/ebnflint.go                   |   122 -
- src/pkg/exp/ebnflint/ebnflint_test.go              |    16 -
- src/pkg/exp/gotype/doc.go                          |    63 -
- src/pkg/exp/gotype/gotype.go                       |   205 -
- src/pkg/exp/gotype/gotype_test.go                  |   216 -
- src/pkg/exp/gotype/testdata/test1.go               |    27 -
- src/pkg/exp/inotify/inotify_linux.go               |   300 -
- src/pkg/exp/inotify/inotify_linux_test.go          |   107 -
- src/pkg/exp/locale/collate/Makefile                |    16 -
- src/pkg/exp/locale/collate/build/builder.go        |   690 -
- src/pkg/exp/locale/collate/build/builder_test.go   |   290 -
- src/pkg/exp/locale/collate/build/colelem.go        |   293 -
- src/pkg/exp/locale/collate/build/colelem_test.go   |   214 -
- src/pkg/exp/locale/collate/build/contract.go       |   307 -
- src/pkg/exp/locale/collate/build/contract_test.go  |   264 -
- src/pkg/exp/locale/collate/build/order.go          |   392 -
- src/pkg/exp/locale/collate/build/order_test.go     |   228 -
- src/pkg/exp/locale/collate/build/table.go          |   120 -
- src/pkg/exp/locale/collate/build/trie.go           |   290 -
- src/pkg/exp/locale/collate/build/trie_test.go      |   107 -
- src/pkg/exp/locale/collate/collate.go              |   588 -
- src/pkg/exp/locale/collate/collate_test.go         |   515 -
- src/pkg/exp/locale/collate/colltab/colelem.go      |   369 -
- src/pkg/exp/locale/collate/colltab/colelem_test.go |   162 -
- src/pkg/exp/locale/collate/colltab/colltab.go      |    31 -
- src/pkg/exp/locale/collate/colltab/contract.go     |   145 -
- .../exp/locale/collate/colltab/contract_test.go    |   132 -
- src/pkg/exp/locale/collate/colltab/export.go       |    36 -
- src/pkg/exp/locale/collate/colltab/table.go        |   274 -
- src/pkg/exp/locale/collate/colltab/trie.go         |   160 -
- src/pkg/exp/locale/collate/colltab/trie_test.go    |   106 -
- src/pkg/exp/locale/collate/export_test.go          |    50 -
- src/pkg/exp/locale/collate/index.go                |    44 -
- src/pkg/exp/locale/collate/maketables.go           |   718 -
- src/pkg/exp/locale/collate/regtest.go              |   268 -
- src/pkg/exp/locale/collate/sort.go                 |    81 -
- src/pkg/exp/locale/collate/sort_test.go            |    53 -
- src/pkg/exp/locale/collate/table_test.go           |   290 -
- src/pkg/exp/locale/collate/tables.go               | 51898 -------------------
- src/pkg/exp/locale/collate/tools/colcmp/Makefile   |     7 -
- src/pkg/exp/locale/collate/tools/colcmp/chars.go   |   937 -
- src/pkg/exp/locale/collate/tools/colcmp/col.go     |    95 -
- src/pkg/exp/locale/collate/tools/colcmp/colcmp.go  |   528 -
- src/pkg/exp/locale/collate/tools/colcmp/darwin.go  |   111 -
- src/pkg/exp/locale/collate/tools/colcmp/gen.go     |   179 -
- src/pkg/exp/locale/collate/tools/colcmp/icu.go     |   209 -
- src/pkg/exp/ssa/blockopt.go                        |   173 -
- src/pkg/exp/ssa/builder.go                         |  2821 -
- src/pkg/exp/ssa/doc.go                             |   115 -
- src/pkg/exp/ssa/dom.go                             |   296 -
- src/pkg/exp/ssa/emit.go                            |   254 -
- src/pkg/exp/ssa/func.go                            |   591 -
- src/pkg/exp/ssa/importer.go                        |   110 -
- src/pkg/exp/ssa/interp/external.go                 |   343 -
- src/pkg/exp/ssa/interp/external_plan9.go           |    48 -
- src/pkg/exp/ssa/interp/external_unix.go            |   136 -
- src/pkg/exp/ssa/interp/external_windows.go         |    42 -
- src/pkg/exp/ssa/interp/interp.go                   |   622 -
- src/pkg/exp/ssa/interp/interp_test.go              |   226 -
- src/pkg/exp/ssa/interp/map.go                      |   101 -
- src/pkg/exp/ssa/interp/ops.go                      |  1370 -
- src/pkg/exp/ssa/interp/reflect.go                  |   440 -
- src/pkg/exp/ssa/interp/testdata/coverage.go        |   447 -
- src/pkg/exp/ssa/interp/value.go                    |   465 -
- src/pkg/exp/ssa/lift.go                            |   512 -
- src/pkg/exp/ssa/literal.go                         |   177 -
- src/pkg/exp/ssa/lvalue.go                          |    86 -
- src/pkg/exp/ssa/print.go                           |   398 -
- src/pkg/exp/ssa/promote.go                         |   446 -
- src/pkg/exp/ssa/sanity.go                          |   306 -
- src/pkg/exp/ssa/ssa.go                             |  1309 -
- src/pkg/exp/ssa/ssadump.go                         |   155 -
- src/pkg/exp/ssa/util.go                            |   227 -
- src/pkg/exp/utf8string/string.go                   |   203 -
- src/pkg/exp/utf8string/string_test.go              |   123 -
- src/pkg/exp/winfsnotify/winfsnotify.go             |   580 -
- src/pkg/exp/winfsnotify/winfsnotify_test.go        |   130 -
- 82 files changed, 76060 deletions(-)
+ src/pkg/runtime/gc_test.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

@@ -1,21 +1,22 @@
-commit 6901b084824244122ea108eb7305295e44136be8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 3 07:11:52 2016 -0700
+commit 0f08dd21831a71292dc306cfc05e28a3a9d73786
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:02:52 2016 -0400
 
-    cmd/link: avoid name collision with DWARF .def suffix
+    runtime: add s390x support (modified files only)
     
-    Adding a .def suffix for DWARF info collided with the DWARF info,
-    without the suffix, for a method named def. Change the suffix to ..def
-    instead.
-    
-    Fixes #15926.
-    
-    Change-Id: If1bf1bcb5dff1d7f7b79f78e3f7a3bbfcd2201bb
-    Reviewed-on: https://go-review.googlesource.com/23733
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib79ad4a890994ad64edb1feb79bd242d26b5b08a
+    Reviewed-on: https://go-review.googlesource.com/20945
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go |  6 +++---
- test/fixedbugs/issue15926.go      | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ src/runtime/cgocall.go           | 6 +++---
+ src/runtime/extern.go            | 2 +-
+ src/runtime/gcinfo_test.go       | 2 +-
+ src/runtime/hash64.go            | 2 +-
+ src/runtime/noasm.go             | 2 +-
+ src/runtime/os1_linux_generic.go | 1 +
+ src/runtime/os2_linux_generic.go | 1 +
+ src/runtime/runtime-gdb_test.go  | 2 +-
+ src/runtime/unaligned1.go        | 2 +-
+ 9 files changed, 11 insertions(+), 9 deletions(-)

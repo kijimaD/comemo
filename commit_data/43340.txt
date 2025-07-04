@@ -1,15 +1,35 @@
-commit 689a7a13780dc7a5138215aa4d369bdcf789fee8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 16 19:11:42 2020 -0400
+commit e4a1cf8a5698d7351af0e33d61e4f7078f3ab1ce
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Mar 26 16:01:40 2020 -0400
 
-    runtime/cgo: fix build tag placement vet warning
+    cmd/compile: add rules to eliminate unnecessary signed shifts
     
-    Change-Id: Ie6583b46213caae897fc2189d4973c88759f5f4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263258
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change to the rules removes some unnecessary signed shifts
+    that appear in the math/rand functions. Existing rules did not
+    cover some of the signed cases.
+    
+    A little improvement seen in math/rand due to removing 1 of 2
+    instructions generated for Int31n, which is inlined quite a bit.
+    
+    Intn1000                 46.9ns ± 0%  45.5ns ± 0%   -2.99%  (p=1.000 n=1+1)
+    Int63n1000               33.5ns ± 0%  32.8ns ± 0%   -2.09%  (p=1.000 n=1+1)
+    Int31n1000               32.7ns ± 0%  32.6ns ± 0%   -0.31%  (p=1.000 n=1+1)
+    Float32                  32.7ns ± 0%  30.3ns ± 0%   -7.34%  (p=1.000 n=1+1)
+    Float64                  21.7ns ± 0%  20.9ns ± 0%   -3.69%  (p=1.000 n=1+1)
+    Perm3                     205ns ± 0%   202ns ± 0%   -1.46%  (p=1.000 n=1+1)
+    Perm30                   1.71µs ± 0%  1.68µs ± 0%   -1.35%  (p=1.000 n=1+1)
+    Perm30ViaShuffle         1.65µs ± 0%  1.65µs ± 0%   -0.30%  (p=1.000 n=1+1)
+    ShuffleOverhead          2.83µs ± 0%  2.83µs ± 0%   -0.07%  (p=1.000 n=1+1)
+    Read3                    18.7ns ± 0%  16.1ns ± 0%  -13.90%  (p=1.000 n=1+1)
+    Read64                    126ns ± 0%   124ns ± 0%   -1.59%  (p=1.000 n=1+1)
+    Read1000                 1.75µs ± 0%  1.63µs ± 0%   -7.08%  (p=1.000 n=1+1)
+    
+    Change-Id: I11502dfca7d65aafc76749a8d713e9e50c24a858
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225917
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/cgo/gcc_libinit_windows.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 85 ++++++++++++++++++++++++++++
+ test/codegen/shift.go                        | 23 ++++++++
+ 3 files changed, 113 insertions(+)

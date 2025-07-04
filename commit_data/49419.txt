@@ -1,17 +1,20 @@
-commit f3e051a184ddd060f1e17200b0081648411fa073
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jun 6 17:20:44 2022 -0400
+commit 0f85b0c0e1dc96a165645bf6da3693e8a3603ebc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 17 11:55:39 2021 -0700
 
-    runtime: document GOMEMLIMIT in environment variables section
+    go/types: fix method lookup for type-parameter based types
     
-    For #48409.
+    This is a clean port of CL 342990.
     
-    Change-Id: Ia6616a377bc4c871b7ffba6f5a59792a09b64809
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410734
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #47747.
+    
+    Change-Id: I2e86fb8b70d42a220ac1ba25798d9e58227ba5f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342991
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/extern.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/go/types/lookup.go                         |  9 ++--
+ src/go/types/testdata/fixedbugs/issue47747.go2 | 68 ++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 3 deletions(-)

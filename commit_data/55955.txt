@@ -1,18 +1,32 @@
-commit 6f1216234003a549e71103ab9794c4630f52aafd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 16:40:34 2024 -0400
+commit 5fa65d8c93f259827b931047a28db70c15f7d0b8
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Aug 26 14:05:31 2022 +0800
 
-    runtime: fixes to traceback_system_test.go
+    runtime: save/restore callee-saved registers in loong64's sigtramp
     
-    Minor cleanups to CL 561635's test for better debuggability
-    when it crashes. In a separate CL so that it's clear this CL is
-    not changing the code under test.
+    Loong64's R22-R31 and F24-F31 are callee saved registers, which
+    should be saved in the beginning of sigtramp, and restored at
+    the end.
     
-    Change-Id: I12b72ae538f8454b5c382127eafd766c22c69b67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571799
+    In reviewing comments about sigtramp in sys_linux_arm64 it was
+    noted that a previous issue in arm64 due to missing callee save
+    registers could also be a problem on loong64, so code was added
+    to save and restore those.
+    
+    Updates #31827
+    
+    Change-Id: I3ae58fe8a64ddb052d0a89b63e82c01ad328dd15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426356
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/traceback_system_test.go | 64 +++++++++++++++++++++++++++++-------
- 1 file changed, 53 insertions(+), 11 deletions(-)
+ src/runtime/cgo/abi_loong64.h   | 60 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/asm_loong64.s   | 55 ++++++++++---------------------------
+ src/runtime/sys_linux_loong64.s | 28 +++++++++++++------
+ 3 files changed, 94 insertions(+), 49 deletions(-)

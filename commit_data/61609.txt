@@ -1,0 +1,23 @@
+commit c9408a154a0cd4624c09bd4a78a44485fc3224ff
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 9 17:21:42 2024 +0100
+
+    crypto/internal/fips/tls12: implement TLS 1.2 KDF
+    
+    For #69536
+    
+    Change-Id: If2477c5249a7c7db45c1af05e715ae0b61e7d940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626837
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/internal/fips/cast_external_test.go |  1 +
+ src/crypto/internal/fips/tls12/cast.go         | 37 ++++++++++++++
+ src/crypto/internal/fips/tls12/tls12.go        | 69 ++++++++++++++++++++++++++
+ src/crypto/tls/prf.go                          | 63 +++++++++++------------
+ src/go/build/deps_test.go                      |  1 +
+ 5 files changed, 138 insertions(+), 33 deletions(-)

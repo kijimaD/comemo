@@ -1,19 +1,32 @@
-commit cb07f492db5eae374901f94d8e55d8aeda1fca58
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Oct 25 11:23:53 2018 +0200
+commit 3d5703babe9c5344252db3fb8e96f20cd036535a
+Author: Stephan Renatus <srenatus@chef.io>
+Date:   Mon Nov 27 12:41:10 2017 +0100
 
-    internal/cpu, runtime: add CPU feature detection support for AIX
+    net/http: add support for SameSite option in http.Cookie
     
-    AIX doesn't have HWCAP/HWCAP2 variables like Linux. Therefore, it relies on
-    getsystemcfg syscall which can provide some information about the CPU.
+    The same-site cookie attribute prevents a cookie from being sent along with
+    cross-site requests. The main goal is mitigate the risk of cross-origin
+    information leakage and provides some protection against cross-site request
+    forgery attacks.
     
-    Change-Id: Ic0dc927e80890d4bf8f0bdfb43fad1e2b890d7a0
-    Reviewed-on: https://go-review.googlesource.com/c/144959
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This change adds the option to http.Cookie so it can be stored and
+    passed to HTTP clients.
+    
+    Spec: https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00
+    
+    Fixes #15867
+    
+    Based on
+    https://github.com/reedloden/go/commit/eb31a0f063c80058bbb3abff4ca09b3565985500
+    by Reed Loden <reed@hackerone.com>
+    
+    Change-Id: I98c8a9a92358b2f632990576879759e3aff38cff
+    Reviewed-on: https://go-review.googlesource.com/79919
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/cpu/cpu_ppc64x.go | 17 +++++++++--------
- src/runtime/os2_aix.go         |  9 +++++++++
- src/runtime/os_aix.go          | 21 +++++++++++++++++++++
- 3 files changed, 39 insertions(+), 8 deletions(-)
+ src/net/http/cookie.go        | 34 ++++++++++++++++++++++++++++++++++
+ src/net/http/cookie_test.go   | 39 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/cookiejar/jar.go | 10 ++++++++++
+ 3 files changed, 83 insertions(+)

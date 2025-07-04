@@ -1,0 +1,28 @@
+commit 4ce8c0604ee1c36c221b1a3d767dfa131d5cce8c
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Sep 26 19:11:50 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}SEQ.{B,H,W,D} instructions support
+    
+    Go asm syntax:
+             VSEQ{B,H,W,V}  VJ, VK, VD
+            XVSEQ{B,H,W,V}  XJ, XK, XD
+    
+    Equivalent platform assembler syntax:
+             vseq.{b,w,h,d}  vd, vj, vk
+            xvseq.{b,w,h,d}  xd, xj, xk
+    
+    Change-Id: Ia87277b12c817ebc41a46f4c3d09f4b76995ff2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616076
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 +++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 27 +++++++++++++++++++++++++
+ 4 files changed, 55 insertions(+)

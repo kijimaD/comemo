@@ -1,15 +1,14 @@
-commit 8e340695c15715ecd226c047e360d2e58af3f63e
+commit bb7eb4002e54720e829cc9e2344252741411ccd0
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 2 18:07:11 2011 -0700
+Date:   Mon May 2 17:23:18 2011 -0700
 
-    godoc: if there is no search box, don't run the respective JS code
+    go spec: clarify semantics of integer division
     
-    Fixes a JS crash which prevented the automatically generated
-    table of contents to not appear.
+    Fixes #1764.
     
-    R=adg, bradfitz
+    R=rsc, r, iant, ken2
     CC=golang-dev
-    https://golang.org/cl/4460041
+    https://golang.org/cl/4431082
 
- doc/godocs.js | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go_spec.html | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

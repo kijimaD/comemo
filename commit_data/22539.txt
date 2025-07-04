@@ -1,27 +1,31 @@
-commit 2f0828ef7c083bce7b912217762a872257022011
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sun Mar 29 23:11:47 2015 +0000
+commit 7727dee44565bed441c9fc09a2e2441ecd6b9fe7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 8 16:01:31 2015 -0800
 
-    reflect, cmd/internal/gc: look for pointer types by string before synthesizing
+    spec: extend type omission rules for composite literal element values
+          to map element keys
     
-    The ptrto field of the type data cannot be relied on when dynamic linking: a
-    type T may be defined in a module that makes no use of pointers to that type,
-    but another module can contain a package that imports the first one and does use
-    *T pointers.  The second module will end up defining type data for *T and a
-    type.*T symbol pointing at it. It's important that calling .PtrTo() on the
-    refect.Type for T returns this type data and not some synthesized object, so we
-    need reflect to be able to find it!
+    Composite literals containing element values that are themselves composite
+    literals may leave away the element's literal types if they are identical
+    to the enclosing composite literal's element type.
     
-    Fortunately, the reflect package already has a mechanism for doing this sort of
-    thing: ChanOf/MapOf/etc look for pre-existing type data by name.  So this change
-    just extends PtrTo() to consult this too, and changes the compiler to include
-    pointer types in the data consulted when compiling for dynamic linking.
+    (http://golang.org/ref/spec#Composite_literals)
     
-    Change-Id: I3773c066fd0679a62e9fc52a84bf64f1d67662b7
-    Reviewed-on: https://go-review.googlesource.com/8232
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    When we made this change, we forgot to apply the analogous rule to map
+    literal keys. This change generalizes that rule. Added more examples,
+    including one showing the recursive application of the elision rules.
+    
+    This is a fully backward-compatible language change. It was discussed
+    some time back.
+    
+    Fixes #8589.
+    
+    To be submitted once all compilers accept the extension.
+    
+    Change-Id: I4d45b64b5970f0d5501572945d5a097e64a9458b
+    Reviewed-on: https://go-review.googlesource.com/2591
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/reflect.go | 14 ++++++++++++++
- src/reflect/type.go            | 12 +++++++++++-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

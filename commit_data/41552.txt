@@ -1,13 +1,37 @@
-commit d28b8524a4d5d86d7b1e2df790abff6244de2a00
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 2 04:24:35 2020 +1100
+commit 0b25ab5d96230b8ec5debbf9880527885e0c7573
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 11 08:56:19 2019 -0400
 
-    cmd/compile: optimize subtraction of zero on riscv64
+    [dev.link] cmd/link/internal/objfile: new loader method for reloc queries
     
-    Change-Id: I9a994b01e9fecb13077c30df4b7677d40d179cce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221681
+    Second change of several to update the loader API to reflect the final
+    consensus version of the loader API as described in Cherry's doc.
+    This piece:
+    
+     - define new loader.Relocs() method that returns a struct
+       encapsulating a set of relocations on a global symbol
+    
+    Old way of examining relocations:
+    
+      nreloc := loader.NReloc(someGlobalSymbolIndex)
+      for i := 0; i < nreloc; i++ {
+        tgtIdx := loader.RelocSym(someGlobalSymbolIndex, i))
+        ... <do something with tgtIdx>
+      }
+    
+    New way of examining relocations:
+    
+      relocs := d.loader.Relocs(someGlobalSymbolIndex)
+      for i := 0; i < relocs.Count; i++ {
+        r := relocs.At(i).Sym
+        ... <do something with r.Sym>
+      }
+    
+    Change-Id: I5bead1d729655ea13b3396647e53aafcd3e60f97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200717
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 ++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 59 ++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/cmd/link/internal/objfile/objfile2.go | 76 ++++++++++++++++++++++++++-----
+ 1 file changed, 65 insertions(+), 11 deletions(-)

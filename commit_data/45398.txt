@@ -1,29 +1,24 @@
-commit 5b328c4a2fbae10ec10d233d691435fe0295fc39
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 28 11:00:15 2021 -0400
+commit 44dbeaf35600ae70f3e6296914ea31147d5f010c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 9 12:41:50 2020 -0400
 
-    cmd/compile: use desired register only if it satisfies register mask
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on AMD64
     
-    In the register allocator, if possible, we allocate a value to its
-    desired register (the ideal register for its next use). In some
-    cases the desired register does not satisfies the value's output
-    register mask. We should not use the register in this case.
+    These are identical to And8 and Or8, just using ANDL/ORL instead of
+    ANDB/ORB.
     
-    In the following example, v33 is going to be returned as a
-    function result, so it is allocated to its desired register AX.
-    However, its Op cannot use AX as output, causing miscompilation.
-    
-    v33 = CMOVQEQF <int> v24 v28 v29 : AX (~R0[int])
-    v35 = MakeResult <int,int,mem> v33 v26 v18
-    Ret v35
-    
-    Change-Id: Id0f4f27c4b233ee297e83077e3c8494fe193e664
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314630
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I99cf90a8b0b5f211fb23325dddd55821875f0c8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263140
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go |  7 +++--
- test/abi/result_regalloc.go              | 46 ++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  2 +-
+ src/cmd/compile/internal/gc/ssa.go             | 12 +++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  6 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 48 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 34 ++++++++++++++++++
+ 7 files changed, 103 insertions(+), 3 deletions(-)

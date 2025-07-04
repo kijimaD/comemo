@@ -1,14 +1,14 @@
-commit d7e3d69e1cf4e50429956c89fba71399eea9d416
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Mar 14 18:26:39 2015 -0400
+commit 6acd5a65b2c8a27326528f5a9bb109e194c82258
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 18 20:02:16 2015 -0800
 
-    runtime: skip TestStdcallAndCDeclCallbacks when gcc is missing
+    [dev.cc] runtime: fix FP reference in atomic_ppc64x.s
     
-    Fixes #10167.
+    References to FP must now have a symbol.
     
-    Change-Id: Ib6c6b2b5dde47744b69f65482a21964fa3c12090
-    Reviewed-on: https://go-review.googlesource.com/7600
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I3f06b99cc48cbd4ccd6f23f2e4b0830af40f7f3d
+    Reviewed-on: https://go-review.googlesource.com/5281
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/syscall_windows_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/atomic_ppc64x.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

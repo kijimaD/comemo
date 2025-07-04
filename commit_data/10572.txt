@@ -1,14 +1,12 @@
-commit 744fb52102642382d09968d8bc0fe4090af20360
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 11:23:39 2011 -0800
+commit fad57c0c030b5f5b6204b781b33d4343f95d6c40
+Author: Gustav Paul <gustav.paul@gmail.com>
+Date:   Thu Dec 1 14:06:15 2011 -0500
 
-    os: be consistent with receiver names for godoc TOC alignment
+    exp/ssh: export type signal. Renamed to Signal
     
-    R=golang-dev, r
+    R=dave, agl, rsc, golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5449056
+    https://golang.org/cl/5450059
 
- src/pkg/os/file.go       | 50 ++++++++++++++++++++++++------------------------
- src/pkg/os/file_posix.go |  6 +++---
- src/pkg/os/file_unix.go  | 24 +++++++++++------------
- 3 files changed, 40 insertions(+), 40 deletions(-)
+ src/pkg/exp/ssh/session.go | 64 +++++++++++++++++++++++-----------------------
+ 1 file changed, 32 insertions(+), 32 deletions(-)

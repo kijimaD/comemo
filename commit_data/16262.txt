@@ -1,12 +1,15 @@
-commit 988236ba86c8cb7ceb027cd2eaf091b4363f20e2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 3 17:15:43 2013 +0800
+commit 7cc0581f86e3f77de44700a0a56c384d9d3677a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 2 18:59:39 2013 -0700
 
-    runtime/cgo: fix build for ARM
+    regexp: doc fix
     
-    TBR=iant
+    This must have been from when "error" was a good variable
+    name for an "os.Error". But we use "err" these days.
+    
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/9048048
+    https://golang.org/cl/9132045
 
- src/pkg/runtime/cgo/gcc_arm.S | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/regexp/regexp.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

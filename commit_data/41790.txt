@@ -1,42 +1,19 @@
-commit 3ee782b11da3fb0313603ad0e3be8ab6755802a9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 27 15:04:09 2020 -0400
+commit 376ef734a7d2cec8764ec34ab51902028101b630
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 17 09:22:01 2019 -0400
 
-    os/signal: rework test timeouts and concurrency
+    [dev.link] cmd/link: rework relocation handling in new deadcode
     
-    Use a uniform function (named “quiesce”) to wait for possible signals
-    in a way that gives the kernel many opportunities to deliver them.
+    Do a better job of reading relocations in the new deadcode pass.
+    Specifically, during method type processing, read relocations for the
+    symbol we're working on into a slice, and then pass the slice to
+    helper functions, as opposed to rereading relocs at each stage.
     
-    Simplify channel usage and concurrency in stress tests.
-    
-    Use (*testing.T).Deadline instead of parsing the deadline in TestMain.
-    
-    In TestStop, sleep forever in a loop if we expect the test to die from
-    a signal. That should reduce the flakiness of TestNohup, since
-    TestStop will no longer spuriously pass when run as a subprocess of
-    TestNohup.
-    
-    Since independent signals should not interfere, run the different
-    signals in TestStop in parallel when testing in short mode.
-    
-    Since TestNohup runs TestStop as a subprocess, and TestStop needs to
-    wait many times for signals to quiesce, run its test subprocesses
-    concurrently and in short mode — reducing the latency of that test by
-    more than a factor of 2.
-    
-    The above two changes reduce the running time of TestNohup on my
-    workstation to ~345ms, making it possible to run much larger counts of
-    the test in the same amount of wall time. If the test remains flaky
-    after this CL, we can spend all or part of that latency improvement on
-    a longer settle time.
-    
-    Updates #33174
-    
-    Change-Id: I09206f213d8c1888b50bf974f965221a5d482419
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226138
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I95e3737ae91bb09b4da8e6ee68112ec255ceb0fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201722
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/signal/signal_test.go | 359 +++++++++++++++++++++++++------------------
- 1 file changed, 212 insertions(+), 147 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go | 81 +++++++++++++++++++++--------------
+ 1 file changed, 48 insertions(+), 33 deletions(-)

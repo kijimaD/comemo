@@ -1,15 +1,15 @@
-commit b1c5bafda37a21216ee8e6f6d5bcfc6e1db08084
-Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Mon Feb 24 18:17:07 2014 +0400
+commit 699aa37d033b6f94f106152aaf17d05849fed2dd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 24 20:35:01 2014 +0900
 
-    net/http: don't pile up defers in b.N loop
+    syscall: add fcntl test
     
-    One defer was not removed in CL61150043.
+    Also updates documentation.
     
-    LGTM=dvyukov
-    R=bradfitz, dvyukov
+    LGTM=minux.ma
+    R=iant, bradfitz, nightlyone, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/64600044
+    https://golang.org/cl/58660044
 
- src/pkg/net/http/serve_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/syscall/syscall_unix_test.go | 51 ++++++++++++++++++++++++++----------
+ 1 file changed, 37 insertions(+), 14 deletions(-)

@@ -1,22 +1,67 @@
-commit 864aa8644879983d903e59995e6a31c95c50e8ff
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jul 16 23:56:56 2024 +0700
+commit a38a0839bdf7884a5085f04137ff266cec2543fb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 1 19:22:00 2023 +0000
 
-    cmd/compile: run checkbce after fuseLate pass
+    api: promote next to go1.21
     
-    So the bounds check which are eliminated during late fuse pass could be
-    detected correctly.
-    
-    Fixes #67329
-    
-    Change-Id: Id7992fbb8c26e0d43e7db66a0a3a2c0d9ed937a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598635
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I30cbd14bd2b3903d7960c5d860d76ce7f3d4730a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499981
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/checkbce.go |  3 +++
- src/cmd/compile/internal/ssa/compile.go  |  2 +-
- test/fixedbugs/issue67329.go             | 27 +++++++++++++++++++++++++++
- 3 files changed, 31 insertions(+), 1 deletion(-)
+ api/go1.21.txt     | 420 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next/25448.txt |   3 -
+ api/next/28089.txt |   1 -
+ api/next/34648.txt |   5 -
+ api/next/40221.txt |   1 -
+ api/next/41198.txt |   2 -
+ api/next/44855.txt |   1 -
+ api/next/44886.txt |  41 ------
+ api/next/46159.txt |   2 -
+ api/next/46259.txt |  10 --
+ api/next/46308.txt |   1 -
+ api/next/46787.txt |   3 -
+ api/next/52221.txt |   8 -
+ api/next/52600.txt |   1 -
+ api/next/53573.txt |   9 --
+ api/next/53685.txt |   2 -
+ api/next/53747.txt |   2 -
+ api/next/54386.txt |   2 -
+ api/next/54451.txt |   2 -
+ api/next/54768.txt |   1 -
+ api/next/55002.txt |   1 -
+ api/next/55079.txt |   8 -
+ api/next/55107.txt |   2 -
+ api/next/56102.txt |   3 -
+ api/next/56345.txt | 153 -------------------
+ api/next/56539.txt |   4 -
+ api/next/56661.txt |   2 -
+ api/next/56887.txt |  65 ---------
+ api/next/56892.txt |   1 -
+ api/next/56906.txt |   2 -
+ api/next/56921.txt |   2 -
+ api/next/56984.txt |   1 -
+ api/next/56986.txt |   6 -
+ api/next/57237.txt |   1 -
+ api/next/57433.txt |  14 --
+ api/next/57436.txt |   7 -
+ api/next/57708.txt |   1 -
+ api/next/57786.txt |   1 -
+ api/next/57928.txt |   1 -
+ api/next/58565.txt |   1 -
+ api/next/59033.txt |   3 -
+ api/next/59060.txt |   2 -
+ api/next/59166.txt |   1 -
+ api/next/59204.txt |   1 -
+ api/next/59280.txt |   5 -
+ api/next/59339.txt |   2 -
+ api/next/59488.txt |   3 -
+ api/next/59584.txt |   2 -
+ api/next/60091.txt |  13 --
+ api/next/60105.txt |  10 --
+ api/next/60107.txt |   6 -
+ api/next/60348.txt |   2 -
+ 52 files changed, 420 insertions(+), 423 deletions(-)

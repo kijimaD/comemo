@@ -1,17 +1,21 @@
-commit 0f3becf62f3935846490e60e5005e1e4a55bec67
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 21 12:23:53 2021 -0800
+commit e7ab1a5ba83cd013af24b011d9d3a88dc5b05c07
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 18:09:59 2021 +0000
 
-    doc/go1.18: list new net/netip and net functions and methods
+    runtime: create setGCPercent method for gcControllerState
     
-    For #46518
-    For #47694
+    This change breaks out the computations done by setGCPercent into
+    a method on gcControllerState for easier testing later. It leaves behind
+    the global implementation details.
     
-    Change-Id: I4848556674baf85ceec350645d9eddcd83f1b2e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373834
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #44167.
+    
+    Change-Id: I3b0cf1475b032fcd4ebbd01cf4e80de0b55ce7b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306602
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.18.html | 34 ++++++++++++++++++++++++++++++++--
- 1 file changed, 32 insertions(+), 2 deletions(-)
+ src/runtime/mgcpacer.go | 30 +++++++++++++++++++++---------
+ 1 file changed, 21 insertions(+), 9 deletions(-)

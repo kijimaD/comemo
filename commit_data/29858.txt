@@ -1,20 +1,18 @@
-commit 2f9dee9293e68fe588ffad445efae38e33be8d59
+commit 032e2bd1eb215cdeec605b33e42878ec7186cb53
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Dec 19 13:05:53 2016 -0800
+Date:   Wed Oct 12 23:28:36 2016 -0700
 
-    net: make LookupCNAME's native behavior match its cgo behavior
+    cmd/compile: replace aindex with typArray
     
-    Fixes #18172.
+    aindex is overkill when it's only ever used with known integer
+    constants, so just use typArray directly instead.
     
-    Change-Id: I4a21fb5c0753cced025a03d88a6dd1aa3ee01d05
-    Reviewed-on: https://go-review.googlesource.com/34650
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I43fc14e604172df859b3ad9d848d219bbe48e434
+    Reviewed-on: https://go-review.googlesource.com/30979
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsclient_unix.go      | 44 +++++++++++------------
- src/net/dnsclient_unix_test.go | 81 ++++++++++++++++++------------------------
- src/net/lookup.go              | 24 +++++++++----
- src/net/lookup_test.go         |  7 ++--
- src/net/lookup_unix.go         |  3 +-
- src/net/lookup_windows_test.go |  8 ++---
- 6 files changed, 83 insertions(+), 84 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 24 ------------------------
+ src/cmd/compile/internal/gc/walk.go | 14 +++++++-------
+ 2 files changed, 7 insertions(+), 31 deletions(-)

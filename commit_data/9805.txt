@@ -1,14 +1,27 @@
-commit c68ae9d4675c35e3795c79349c67f653e5082db9
+commit 4bdf1fc02bd44d539301d19c2781411d2c745b64
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 19:35:32 2011 -0400
+Date:   Mon Sep 26 19:35:21 2011 -0400
 
-    bytes: add EqualFold
+    test: silence/coalesce some tests
     
-    R=golang-dev, r, r
+    Add copyright notice to nilptr.go.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5123047
+    https://golang.org/cl/5139048
 
- src/pkg/bytes/bytes.go      | 55 +++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/bytes/bytes_test.go | 28 +++++++++++++++++++++++
- src/pkg/strings/strings.go  |  3 ++-
- 3 files changed, 85 insertions(+), 1 deletion(-)
+ test/chan/doubleselect.go    |  1 -
+ test/chan/nonblock.go        |  1 -
+ test/{cmp1.go => cmp.go}     | 40 ++++++++++++++++++++++++++++++++++++++++
+ test/cmp2.go                 | 15 ---------------
+ test/cmp3.go                 | 15 ---------------
+ test/cmp4.go                 | 14 --------------
+ test/cmp5.go                 | 14 --------------
+ test/fixedbugs/bug093.go     |  1 -
+ test/fixedbugs/bug113.go     | 18 +++++++++++++++++-
+ test/fixedbugs/bug148.go     | 19 +++++++++++++++++--
+ test/golden.out              | 34 ----------------------------------
+ test/interface/fail.go       | 16 ++++++++++++++--
+ test/interface/returntype.go | 15 ++++++++++++++-
+ test/nilptr.go               |  4 ++++
+ 14 files changed, 106 insertions(+), 101 deletions(-)

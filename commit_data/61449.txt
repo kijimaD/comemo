@@ -1,0 +1,21 @@
+commit 95c729cf06d2d8d73832f9c9cfc83c0fb0051f54
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 8 16:03:52 2024 -0800
+
+    time: regenerate zoneinfo_abbrs_windows.go
+    
+    For #58113
+    
+    Change-Id: I5833a898991d8ac1f564863c1c63eb3e2e86f7c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/time/zoneinfo_abbrs_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

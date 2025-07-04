@@ -1,19 +1,17 @@
-commit ddc64def0f3e8cfdd5e6705e5f1c454a8d5e24d4
-Author: griesemer <gri@golang.org>
-Date:   Tue Oct 17 13:38:10 2017 -0700
+commit 8bb88fdcc2b5a6c1b02f601ff8652cef82c78124
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 11:12:20 2017 -0400
 
-    spec: explicitly state the import path for package unsafe
+    strconv: apply Brad's review comment
     
-    Nowhere in the spec did we mention the import path for package
-    unsafe. Now we do.
+    Missed in CL 49253 because I submitted from the Gerrit UI and
+    had not mailed the latest copy. Sigh.
     
-    Fixes #22308.
-    
-    Change-Id: Ifd42c873188e898c597cdee4284e7a9d234a9282
-    Reviewed-on: https://go-review.googlesource.com/71373
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I540f960278df43e2eaf1aac188eb124a1ff240dd
+    Reviewed-on: https://go-review.googlesource.com/49256
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/strconv/atof_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

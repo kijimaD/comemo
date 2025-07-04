@@ -1,28 +1,27 @@
-commit b95ea201d54953055e7d5d29cf68bb5f19f21f93
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 20 15:56:11 2022 -0700
+commit 465b4028082339bb7aa64ed6e30aef4c0b0413b4
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 23 08:19:45 2021 -0500
 
-    cmd/compile: add support for alternative comparable semantics
+    cmd/compile/internal/inline: revise closure inl position fix
     
-    Add the experimental compiler flag -altcomparable. If set, the
-    compiler uses alternative comparable semantics: any ordinary
-    (non-type parameter) interface implements the comparable
-    constraint.
+    This patch revises the fix for issue 46234, fixing a bug that was
+    accidentally introduced by CL 320913. When inlining a chunk of code
+    with a closure expression, we want to avoid updating the source
+    positions in the function being closed over, but we do want to update
+    the position for the ClosureExpr itself (since it is part of the
+    function we are inlining). CL 320913 unintentionally did away with the
+    closure expr source position update; here we restore it again.
     
-    This permits experimenting with this alternative semantics
-    akin to what is proposed in #52509.
+    Updates #46234.
+    Fixes #49171.
     
-    For #52509.
-    
-    Change-Id: I64192eee6f2a550eeb50de011079f2f0b994cf94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444636
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iaa51bc498e374b9e5a46fa0acd7db520edbbbfca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366494
+    Trust: Than McIntosh <thanm@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/base/flag.go   | 3 ++-
- src/cmd/compile/internal/noder/irgen.go | 5 +++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 15 ++++++++++-----
+ test/closure3.dir/main.go              |  8 ++++----
+ test/inline.go                         |  4 ++--
+ 3 files changed, 16 insertions(+), 11 deletions(-)

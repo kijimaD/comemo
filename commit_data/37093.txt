@@ -1,17 +1,14 @@
-commit 536a7d6712933255a3bafe946f199aa809f4b1e0
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Oct 24 15:43:45 2018 +0200
+commit 87b7b667e566403c2ccc5801b94aadae471f5738
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 27 16:50:39 2018 +0000
 
-    internal/traceparser: skip test on iOS
+    net/http/httptrace: add clarification never added to CL 67430
     
-    The iOS test harness only include files from the tested package or
-    below. Skip a test on iOS that required files outside the package.
+    Updates #19761
     
-    Change-Id: Iaee7e488eb783b443f2b2b84d8be2de01227ab62
-    Reviewed-on: https://go-review.googlesource.com/c/144110
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: Iac3bd4c40002f8e348452b50bff54dee3210d447
+    Reviewed-on: https://go-review.googlesource.com/121236
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/traceparser/parser_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/http/httptrace/trace.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

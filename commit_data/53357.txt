@@ -1,24 +1,44 @@
-commit 142b012e94c6be50ee07ca42686c4121d188bde5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 25 20:26:00 2023 -0400
+commit d4a34665192b7cdfac6b51978c15053ff2ec1bd9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 11 11:41:16 2022 -0400
 
-    cmd/internal/testdir: stop manually adding GOROOT/bin to PATH
+    runtime: write trace stack tab directly to trace buffer
     
-    The go command already places $GOROOT/bin at the beginning of $PATH in
-    the test's environment as of Go 1.19¹, so there's no need for the test
-    to do it anymore. Start enjoying yet another benefit of using 'go test'.
+    Currently, the stack frame of (*traceStackTable).dump is 68KiB. We're
+    about to move (*traceStackTable).dump to the system stack, where we
+    often don't have this much room.
     
-    ¹ See go.dev/issue/57050.
+    5140 bytes of this is an on-stack temporary buffer for constructing
+    potentially large trace events before copying these out to the actual
+    trace buffer.
     
-    For #56844.
+    Reduce the stack frame size by writing these events directly to the
+    trace buffer rather than temporary space. This introduces a couple
+    complications:
     
-    Change-Id: If7732cd8b8979eabf185485d3c73858a4e546d69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498271
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    - The trace event starts with a varint encoding the event payload's
+      length in bytes. These events are large and somewhat complicated, so
+      it's hard to know the size ahead of time. That's not a problem with
+      the temporary buffer because we can just construct the event and see
+      how long it is. In order to support writing directly to the trace
+      buffer, we reserve enough bytes for a maximum size varint and add
+      support for populating a reserved space after the fact.
+    
+    - Emitting a stack event calls traceFrameForPC, which can itself emit
+      string events. If these were emitted in the middle of the stack
+      event, it would corrupt the stream. We already allocate a []Frame to
+      convert the PC slice to frames, and then convert each Frame into a
+      traceFrame with trace string IDs, so we address this by combining
+      these two steps into one so that all trace string events are emitted
+      before we start constructing the stack event.
+    
+    For #53979.
+    
+    Change-Id: Ie60704be95199559c426b551f8e119b14e06ddac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422954
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/internal/testdir/testdir_test.go | 16 ----------------
- 1 file changed, 16 deletions(-)
+ src/runtime/trace.go | 76 ++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 53 insertions(+), 23 deletions(-)

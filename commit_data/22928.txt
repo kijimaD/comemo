@@ -1,40 +1,12 @@
-commit e45aebd6dda1830e0a5f31248de70f03f611ccf2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 6 22:06:19 2015 -0700
+commit 07f00cf11e208510fd83b8d7328a52f9c1c97eee
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 15 14:47:08 2015 -0400
 
-    cmd/go: install headers for c-archive/c-shared cgo exports
+    cmd/test: require external linking for c-archive
     
-    When
-      using -buildmode=c-archive or c-shared, and
-      when installing packages that use cgo, and
-      when those packages export some functions via //export comments,
-    then
-      for each such package, install a pkg.h header file that declares the
-      functions.
-    
-    This permits C code to #include the header when calling the Go
-    functions.
-    
-    This is a little awkward to use when there are multiple packages that
-    export functions, as you have to "go install" your c-archive/c-shared
-    object and then pull it out of the package directory.  When compiling
-    your C code you have to -I pkg/$GOOS_$GOARCH.  I haven't thought of
-    any more convenient approach.  It's simpler when only the main package
-    has exported functions.
-    
-    When using c-shared you currently have to use a _shared suffix in the
-    -I option; it would be nice to fix that somehow.
-    
-    Change-Id: I5d8cf08914b7d3c2b194120c77791d2732ffd26e
-    Reviewed-on: https://go-review.googlesource.com/9798
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9ceceb29291ea9f5d7b675dfabd665c5e3618471
+    Reviewed-on: https://go-review.googlesource.com/8955
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcarchive/main.c    |  6 +--
- misc/cgo/testcarchive/test.bash | 19 +++++++--
- misc/cgo/testcshared/main0.c    |  5 +--
- misc/cgo/testcshared/test.bash  | 18 +++++++--
- src/cmd/go/build.go             | 90 ++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/pkg.go               | 10 ++++-
- 6 files changed, 131 insertions(+), 17 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

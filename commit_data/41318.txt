@@ -1,22 +1,36 @@
-commit 8fa2b6dcde6008c107c097e44eb0ee94a2a8af3d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 13 13:14:49 2020 -0500
+commit ee3dded36d69264998c39af0ec851371850d842b
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Jul 31 10:33:11 2019 -0400
 
-    cmd/go: convert TestShadowingLogic to the script framework
+    cmd/compile: generate debug_lines in compiler
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    This is mostly a copy-paste jobs from the linker to generate the debug
+    information in the compiler instead of the linker. The new data is
+    inserted into the debug line numbers symbol defined in CL 188238.
     
-    Updates #36320
-    Updates #17751
+    Generating the debug information BEFORE deadcode results in one subtle
+    difference, and that is that the state machine needs to be reset at the
+    end of every function's debug line table. The reasoning is that
+    generating the table AFTER dead code allows the producer and consumer of
+    the table to agree on the state of the state machine, and since these
+    blocks will (eventually) be concatenated in the linker, we don't KNOW
+    the state of the state machine unless we reset it. So,
+    generateDebugLinesSymbol resets the state machine at the end of every
+    function.
     
-    Change-Id: I6db652a4a515daf6e87645d34191dc9a441f5720
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214431
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Right now, we don't do anything with this line information, or the file
+    table -- we just populate the symbols.
+    
+    Change-Id: If9103eda6cc5f1f7a11e7e1a97184a060a4ad7fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188317
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/go_test.go                             | 45 -----------------------
- src/cmd/go/testdata/script/list_shadow.txt        | 25 +++++++++++++
- src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 -
- src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 -
- src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 -
- 5 files changed, 25 insertions(+), 48 deletions(-)
+ src/cmd/internal/obj/dwarf.go            | 249 +++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/objfile.go          |  28 +++-
+ src/cmd/internal/obj/plist.go            |   5 +-
+ src/cmd/internal/objabi/symkind.go       |   2 +-
+ src/cmd/internal/src/xpos.go             |  25 ++++
+ src/cmd/link/internal/objfile/objfile.go |   3 +-
+ 6 files changed, 308 insertions(+), 4 deletions(-)

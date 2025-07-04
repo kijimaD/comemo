@@ -1,12 +1,19 @@
-commit f22911f35e2d5bc4736c2869493e83f23c64d62e
-Author: Dave Day <djd@golang.org>
-Date:   Thu Apr 16 15:37:51 2015 +1000
+commit 06de3f52a76dba85cf5cc71a2cb644e8fb8b0269
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 19 14:37:30 2015 -0400
 
-    Add reflect.FuncOf to docs/go1.5.text
+    runtime: document subtlety around entering mark termination
     
-    Change-Id: I6089cebf7de73ce9c4e53ad3e8ef2673d970bda2
-    Reviewed-on: https://go-review.googlesource.com/8908
-    Reviewed-by: Rob Pike <r@golang.org>
+    The barrier in gcDrain does not account for concurrent gcDrainNs
+    happening in gchelpwork, so it can actually return while there is
+    still work being done. It turns out this is okay, but for subtle
+    reasons involving gcDrainN always being run on the system
+    stack. Document these reasons.
+    
+    Change-Id: Ib07b3753cc4e2b54533ab3081a359cbd1c3c08fb
+    Reviewed-on: https://go-review.googlesource.com/7736
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgc.go     | 6 ++++++
+ src/runtime/mgcmark.go | 3 +++
+ 2 files changed, 9 insertions(+)

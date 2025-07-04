@@ -1,12 +1,23 @@
-commit 6e33abbdbb8549184f80d60bbbe39be6004279ed
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Dec 12 19:30:32 2018 -0500
+commit c374984e99888bb2e2dd6c331a1328275debe19d
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu Jul 26 12:46:50 2018 +0300
 
-    doc/go1.12: release notes for "go doc -all"
+    cmd/compile: export the Func.Endlineno field
     
-    Change-Id: If65518c76a865c03266be76b1c21c76e1c8b4763
-    Reviewed-on: https://go-review.googlesource.com/c/153828
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL exports the Func.Endlineno value for inlineable functions.
+    It is needed to grab the source code of an imported function
+    inlined into the function specified in $GOSSAFUNC.
+    
+    See CL 126606 for details.
+    
+    Updates #25904
+    
+    Change-Id: I1e259e20445e4109b4621a95abb5bde1be457af1
+    Reviewed-on: https://go-review.googlesource.com/126605
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go | 10 ++++++++++
+ src/cmd/compile/internal/gc/iimport.go |  1 +
+ 2 files changed, 11 insertions(+)

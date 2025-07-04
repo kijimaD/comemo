@@ -1,15 +1,14 @@
-commit 36f84809656d92ebe9a7c43e7395239903fcde1a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 20 15:15:43 2013 -0400
+commit 81dc0b65b2f6b5b86fa4f4b02a5c26c8956ff3d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 20 09:40:56 2013 -0700
 
-    cmd/gc: print expression in 'duplicate case in switch' error
+    test/fixedbugs/bug295.go: fix test in anticipation of future gc fix
     
-    The line number alone does not help when the line is
-    case '~', '*', '(', ')', '[', ']', '{', '}', '?', ':', ';', ',', '*', '%', '^', '!', '=', '<', '>', '+', '-', '&', '|':
+    See also issue 6428.
     
-    R=ken2
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/13431046
+    https://golang.org/cl/13794043
 
- src/cmd/gc/swt.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug295.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

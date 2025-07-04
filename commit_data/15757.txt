@@ -1,15 +1,15 @@
-commit a11d7d4e11207be9186c6dbeda11fedfef3cbe4d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 14 10:32:42 2013 +0400
+commit f74eb6dbf73ff7c3caebcd339d250d6e4630a848
+Author: Olivier Saingre <osaingre@gmail.com>
+Date:   Wed Mar 13 23:26:03 2013 -0400
 
-    net: prepare connect() for new network poller
-    The problem is that new network poller can have spurious
-    rediness notifications. This implementation ensures that
-    the socket is actually connected.
+    encoding/xml: rewrite invalid code points to U+FFFD in Marshal, Escape
     
-    R=golang-dev, rsc, akumar
+    Fixes #4235.
+    
+    R=rsc, dave, r, dr.volker.dobler
     CC=golang-dev
-    https://golang.org/cl/7785043
+    https://golang.org/cl/7438051
 
- src/pkg/net/fd_unix.go | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ src/pkg/encoding/xml/xml.go      | 15 +++++++++++----
+ src/pkg/encoding/xml/xml_test.go | 18 +++++++++++++++++-
+ 2 files changed, 28 insertions(+), 5 deletions(-)

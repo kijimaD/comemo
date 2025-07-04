@@ -1,15 +1,16 @@
-commit 8a4efed63c02f18c14b3e445f399d421d23dfa32
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Mon Jun 17 19:31:58 2013 +1000
+commit 4bb491b12e1461252c9375d6b796c8658b10965f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jun 15 16:06:28 2013 +0400
 
-    run.bash: raise ulimit for the number of threads.
+    runtime: improve scheduler fairness
+    Currently global runqueue is starved if a group of goroutines
+    constantly respawn each other (local runqueue never becomes empty).
+    Fixes #5639.
     
-    This is needed on NetBSD-current. Support for
-    ulimit -T in bash was added in 4.2nb3.
-    
-    R=golang-dev, minux.ma, rsc, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/10078047
+    https://golang.org/cl/10042044
 
- src/run.bash | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/runtime/proc.c       | 31 ++++++++++++++++++++-------
+ src/pkg/runtime/proc_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 7 deletions(-)

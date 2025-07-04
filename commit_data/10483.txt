@@ -1,13 +1,15 @@
-commit 422e247332e2a234feaceec52aa7e3eef60a2e7b
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 22 11:53:30 2011 -0800
+commit fe838c2ddb89014202299f9ab95685097753784e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 12:31:33 2011 -0500
 
-    tutorial: update go_tutorial.html
-    There's version skew with respect to the programs in doc/progs.
+    encoding/xml: fix copy bug
     
-    R=golang-dev, rsc
+    Fixes #2484.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5433048
+    https://golang.org/cl/5417059
 
- doc/go_tutorial.html | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/pkg/encoding/xml/xml.go      | 2 +-
+ src/pkg/encoding/xml/xml_test.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

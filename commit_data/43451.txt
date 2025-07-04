@@ -1,83 +1,19 @@
-commit 4a2cc73f8789e3df43c1c96944c90f55757a23b0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Oct 1 15:21:37 2020 -0400
+commit a4451e11437c2375c7451d90aac5419903629b16
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sat Apr 4 22:51:15 2020 +0100
 
-    runtime: don't attempt to steal from idle Ps
+    cmd/compile: print block auxint value in HTML output
     
-    Work stealing is a scalability bottleneck in the scheduler. Since each P
-    has a work queue, work stealing must look at every P to determine if
-    there is any work. The number of Ps scales linearly with GOMAXPROCS
-    (i.e., the number of Ps _is_ GOMAXPROCS), thus this work scales linearly
-    with GOMAXPROCS.
+    The auxint value was being printed in LongString() but not LongHTML().
     
-    Work stealing is a later attempt by a P to find work before it goes
-    idle. Since the P has no work of its own, extra costs here tend not to
-    directly affect application-level benchmarks. Where they show up is
-    extra CPU usage by the process as a whole. These costs get particularly
-    expensive for applications that transition between blocked and running
-    frequently.
+    Fixes #38250.
     
-    Long term, we need a more scalable approach in general, but for now we
-    can make a simple observation: idle Ps ([1]) cannot possibly have
-    anything in their runq, so we need not bother checking at all.
-    
-    We track idle Ps via a new global bitmap, updated in pidleput/pidleget.
-    This is already a slow path (requires sched.lock), so we don't expect
-    high contention there.
-    
-    Using a single bitmap avoids the need to touch every P to read p.status.
-    Currently, the bitmap approach is not significantly better than reading
-    p.status. However, in a future CL I'd like to apply a similiar
-    optimization to timers. Once done, findrunnable would not touch most Ps
-    at all (in mostly idle programs), which will avoid memory latency to
-    pull those Ps into cache.
-    
-    When reading this bitmap, we are racing with Ps going in and out of
-    idle, so there are a few cases to consider:
-    
-    1. _Prunning -> _Pidle: Running P goes idle after we check the bitmap.
-    In this case, we will try to steal (and find nothing) so there is no
-    harm.
-    
-    2. _Pidle -> _Prunning while spinning: A P that starts running may queue
-    new work that we miss. This is OK: (a) that P cannot go back to sleep
-    without completing its work, and (b) more fundamentally, we will recheck
-    after we drop our P.
-    
-    3. _Pidle -> _Prunning after spinning: After spinning, we really can
-    miss work from a newly woken P. (a) above still applies here as well,
-    but this is also the same delicate dance case described in findrunnable:
-    if nothing is spinning anymore, the other P will unpark a thread to run
-    the work it submits.
-    
-    Benchmark results from WakeupParallel/syscall/pair/race/1ms (see
-    golang.org/cl/228577):
-    
-    name                            old msec          new msec   delta
-    Perf-task-clock-8               250 ± 1%          247 ± 4%     ~     (p=0.690 n=5+5)
-    Perf-task-clock-16              258 ± 2%          259 ± 2%     ~     (p=0.841 n=5+5)
-    Perf-task-clock-32              284 ± 2%          270 ± 4%   -4.94%  (p=0.032 n=5+5)
-    Perf-task-clock-64              326 ± 3%          303 ± 2%   -6.92%  (p=0.008 n=5+5)
-    Perf-task-clock-128             407 ± 2%          363 ± 5%  -10.69%  (p=0.008 n=5+5)
-    Perf-task-clock-256             561 ± 1%          481 ± 1%  -14.20%  (p=0.016 n=4+5)
-    Perf-task-clock-512             840 ± 5%          683 ± 2%  -18.70%  (p=0.008 n=5+5)
-    Perf-task-clock-1024          1.38k ±14%        1.07k ± 2%  -21.85%  (p=0.008 n=5+5)
-    
-    [1] "Idle Ps" here refers to _Pidle Ps in the sched.pidle list. In other
-    contexts, Ps may temporarily transition through _Pidle (e.g., in
-    handoffp); those Ps may have work.
-    
-    Updates #28808
-    Updates #18237
-    
-    Change-Id: Ieeb958bd72e7d8fb375b0b1f414e8d7378b14e29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259578
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Change-Id: I28e819feef8710f912bee424d1b900eb07f3abb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227160
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/proc.go     | 78 +++++++++++++++++++++++++++++++++++++++++++++----
- src/runtime/runtime2.go | 12 ++++++--
- 2 files changed, 82 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/block.go | 24 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/html.go  |  3 +++
+ 2 files changed, 18 insertions(+), 9 deletions(-)

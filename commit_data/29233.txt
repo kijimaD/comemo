@@ -1,35 +1,19 @@
-commit 1773cdd0811620fd59b44136a77ecef4d728ae18
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 08:59:35 2016 -0400
+commit cd285f1c6fc613fa0f097443ae1d21d6c4491386
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Aug 8 16:17:14 2016 +0200
 
-    cmd/link: fix -X importpath.name=value when import path needs escaping
+    runtime: fix global buffer reset in StopTrace
     
-    After the final slash, dots are %-escaped when constructing a symbol name,
-    so that in the actual symbol table, the import path githost.com/my.git
-    becomes githost.com/my%2egit. In this case, -X githost.com/my.git.Value=foo
-    needs to set githost.com/my%2egit.Value. This is a detail of the object format
-    and not something users should know or depend on, so apply the escaping
-    as needed.
+    We reset global buffer only if its pos != 0.
+    We ought to do it always, but queue it only if pos != 0.
+    This is a latent bug. Currently it does not fire because
+    whenever we create a global buffer, we increment pos.
     
-    People who have run across this already and figured out and started using
-    the escaped forms with -X will find those forms not working anymore.
-    That is, -X githost.com/my%2egit.Value=foo is the Go 1.7 workaround but
-    will stop working in Go 1.8 once this proper fix is in place.
-    People who need to keep scripts working with older and newer versions of Go
-    can safely pass both forms, and one will be ignored:
-    
-        -X githost.com/my%2egit.Value=foo -X githost.com/my.git.Value=foo
-    
-    Fixes #16710.
-    
-    Change-Id: I0e994ccdd412a4eb8349fefce9aeb3bfc9a83cd8
-    Reviewed-on: https://go-review.googlesource.com/31970
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I01e28ae88ce9a5412497c524391b8b7cb443ffd9
+    Reviewed-on: https://go-review.googlesource.com/25574
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/go_test.go                       | 18 ++++++++++++++++++
- src/cmd/go/testdata/src/my.pkg/main/main.go |  5 +++++
- src/cmd/go/testdata/src/my.pkg/pkg.go       |  2 ++
- src/cmd/link/internal/ld/data.go            |  7 ++++---
- 4 files changed, 29 insertions(+), 3 deletions(-)
+ src/runtime/trace.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

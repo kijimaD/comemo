@@ -1,20 +1,19 @@
-commit 0f5dfbcfd789c2217f40dc59d1882149a8502960
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 22 11:21:56 2018 -0400
+commit 9092511cf795dd82713cd328403a106fc3e6870c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 19 18:01:10 2018 +0000
 
-    cmd/go, cmd/dist: plumb symabis from assembler to compiler
+    net/http: update bundled http2
     
-    For #27539.
+    Updates http2 to x/net/http2 git rev a680a1efc54 for:
     
-    Change-Id: I0e27f142224e820205fb0e65ad03be7eba93da14
-    Reviewed-on: https://go-review.googlesource.com/c/146999
-    Run-TryBot: Austin Clements <austin@google.com>
+       http2: reject large SETTINGS frames or those with duplicates
+       https://golang.org/cl/124735
+    
+    Change-Id: I2168d1d1eef9c63b1a9c06b514b77fae16f920ed
+    Reviewed-on: https://go-review.googlesource.com/125036
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go             | 79 ++++++++++++++++++++++++---------------
- src/cmd/go/internal/work/exec.go  | 23 ++++++++++--
- src/cmd/go/internal/work/gc.go    | 41 ++++++++++++++++++--
- src/cmd/go/internal/work/gccgo.go |  6 ++-
- test/run.go                       | 15 +++++++-
- 5 files changed, 124 insertions(+), 40 deletions(-)
+ src/net/http/h2_bundle.go | 69 +++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 55 insertions(+), 14 deletions(-)

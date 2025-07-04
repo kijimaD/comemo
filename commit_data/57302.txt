@@ -1,22 +1,18 @@
-commit f49fe2955de792377d2a0411531bb95d745e1d9b
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Aug 7 22:16:00 2024 +0200
+commit 27927ed7498b6fa29d72428b825a3cc86703f84d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Jun 30 23:23:03 2023 +0000
 
-    cmd/compile: compute bits.TrailingZeros*'s limits from argument's limits
+    cmd/asm/internal/asm: fix comment grammar
     
-    y := bits.TrailingZeros(x)
-    if y > bits.Len(x.umax)-1 {
-     then must always be true 1 << y > x.umax which is impossible
-    }
-    
-    Change-Id: Iab4fce1c2ef828bee3a8a4a977cbadb5f9333136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603996
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6fc0ae765c347669d1b061de018eb97d8e43461c
+    GitHub-Last-Rev: 9e6c1f1f97c2c7edcc1dddd58db6d4d7bff57f1c
+    GitHub-Pull-Request: golang/go#61131
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507515
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go |  8 +--
- test/prove.go                         | 97 +++++++++++++++++++++++++++++++++++
- 2 files changed, 101 insertions(+), 4 deletions(-)
+ src/cmd/asm/internal/asm/asm.go   | 4 ++--
+ src/cmd/asm/internal/asm/parse.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,23 +1,20 @@
-commit 52af6550c92b1023e64c48e7b0fd947e539fb30f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 18 15:20:06 2022 -0800
+commit 5bb2628c6f143be065776727cef03276c0e516f7
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Tue Apr 5 20:28:16 2022 +0000
 
-    os: don't try to put directory into non-blocking mode
+    bytes: limit allocation in SplitN
     
-    Fixes #56843
+    So that bytes.SplitN("", "T", int(144115188075855872)) does not panic.
     
-    Change-Id: I3cb3e8397499cd8c57a3edddd45f38c510519b36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451997
+    Change-Id: I7c068852bd708416164fc2ed8b84cf6b2d593666
+    GitHub-Last-Rev: f8df09d65e2bc889fbd0c736bfb5e9a9078dfced
+    GitHub-Pull-Request: golang/go#52147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398076
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: mzh <mzh@golangcn.org>
 
- src/os/file_unix.go      | 10 ++++++++
- src/os/removeall_at.go   |  3 ++-
- src/os/removeall_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 76 insertions(+), 1 deletion(-)
+ src/bytes/bytes.go      | 3 +++
+ src/bytes/bytes_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

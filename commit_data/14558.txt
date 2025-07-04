@@ -1,14 +1,18 @@
-commit a7c57b05e9b51194c534d41a232739921aa2f45d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 4 20:14:58 2012 -0800
+commit feb95a802e7a2d31f50389e1eca4b536e279203f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 4 16:51:51 2012 -0800
 
-    net/http: clarify DefaultTransport docs
+    test: tweak bug273.go to not have constant len < cap when calling make
     
-    Fixes #4281
+    The current spec says that when calling make, if both len and
+    cap are constant, it is an error if len > cap.  The gc
+    compiler does not yet implement that, but when it does this
+    will need to change.  Changing it now for the benefit of
+    gccgo.
     
-    R=golang-dev, adg
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6872053
+    https://golang.org/cl/6867064
 
- src/pkg/net/http/transport.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ test/fixedbugs/bug273.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

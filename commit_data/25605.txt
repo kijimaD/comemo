@@ -1,20 +1,12 @@
-commit 5e7110b92b959d22eba421953beaf1de8580f8f5
-Author: OneOfOne <oneofone@gmail.com>
-Date:   Fri Jan 15 19:24:44 2016 +0200
+commit d58081cf0a2fecb3917a3032d8c2fff9e312b0b8
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 08:08:48 2015 -0400
 
-    cmd/link: fix elf64phdr to allow using upx (and other broken ELF loaders).
+    sync/atomic: added support for mips64{,le}
     
-    The linker already applies the fix for elf32, so this just extends it to elf64.
-    
-    Inspired by https://github.com/pwaller/goupx
-    
-    Fixes #13974
-    
-    Change-Id: I65d92b5be9590657060a0e8e80ff5b86ba40017f
-    Reviewed-on: https://go-review.googlesource.com/18690
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibe6c345afd4cbae7e2542a350043fbb6b81d5678
+    Reviewed-on: https://go-review.googlesource.com/14450
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 30 ++++++++++++++++++++----------
- 1 file changed, 20 insertions(+), 10 deletions(-)
+ src/sync/atomic/asm_mips64x.s | 181 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 181 insertions(+)

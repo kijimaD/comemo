@@ -1,25 +1,20 @@
-commit 058fa255bcbe414011f5b9f469f44ec64a168224
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 5 11:26:25 2021 -0700
+commit 00f2ff5c942e8f3e68cd10b5909278cda15c6bb5
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Wed Jan 27 15:26:02 2021 -0500
 
-    cmd/link,runtime: make textsectmap fields more convenient for runtime
+    api/go1.16: add go/build/constraint APIs
     
-    They're only used in a single place.
-    Instead of calculating the end every time,
-    calculate it in the linker.
+    These APIs were added in CL 240604 as part of an approved proposal. It
+    was submitted after the initial api/go1.16.txt creation.
     
-    It'd be nice to recalculate baseaddr-vaddr,
-    but that generates relocations that are too large.
+    For #41184
+    For #43407
     
-    While we're here, remove some pointless uintptr -> uintptr conversions.
-    
-    Change-Id: I91758f9bff11b365bc3a63fee172dbdc3d90b966
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354089
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ifb54df2b61c554c32bd9d17afbb74f4e42e0b228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287412
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 29 ++++++++++++++---------------
- src/runtime/symtab.go              | 14 ++++++--------
- 2 files changed, 20 insertions(+), 23 deletions(-)
+ api/go1.16.txt | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

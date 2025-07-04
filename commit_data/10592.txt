@@ -1,12 +1,16 @@
-commit 4dfe976d974669e1234fbcd4f95341be41c1e575
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 12:30:20 2011 -0500
+commit bd9dc3d55f65dce03be6d4ebbc7baaeb8e2a8964
+Author: Gustav Paul <gustav.paul@gmail.com>
+Date:   Fri Dec 2 10:34:42 2011 -0500
 
-    spec: avoid slice of array literal
+    exp/ssh: allow for msgUserAuthBanner during authentication
     
-    R=gri
+    The SSH spec allows for the server to send a banner message to the client at any point during the authentication process. Currently the ssh client auth types all assume that the first response from the server after issuing a userAuthRequestMsg will be one of a couple of possible authentication success/failure messages. This means that client authentication breaks if the ssh server being connected to has a banner message configured.
+    
+    This changeset refactors the noneAuth, passwordAuth and publickeyAuth types' auth() function and allows for msgUserAuthBanner during authentication.
+    
+    R=golang-dev, rsc, dave, agl
     CC=golang-dev
-    https://golang.org/cl/5451078
+    https://golang.org/cl/5432065
 
- doc/go_spec.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/exp/ssh/client_auth.go | 183 +++++++++++++++++++++++------------------
+ 1 file changed, 102 insertions(+), 81 deletions(-)

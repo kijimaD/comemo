@@ -1,16 +1,16 @@
-commit 7eb45d3c4a0956fc2207001360472ad048e544bc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 19 10:00:15 2013 +0900
+commit 4890502af647b3df6995dda55cff3345836c7d67
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 18 19:36:14 2013 -0500
 
-    net: don't return a nested error when happy eyeballs dialing
+    liblink: use explicit field for globl duplicate detection
     
-    Also removes an unused variable.
+    Overloading size leads to problems if clients
+    try to set up an LSym by hand.
     
-    Fixes #6795.
-    
-    R=adg, dave, bradfitz, gobot
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/29440043
+    https://golang.org/cl/44140043
 
- src/pkg/net/dial.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ include/link.h        | 1 +
+ src/liblink/objfile.c | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

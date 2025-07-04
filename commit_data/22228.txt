@@ -1,23 +1,14 @@
-commit 22701339817a591cd352ecd43b0439b84dbe8095
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 27 11:21:14 2015 -0400
+commit a773fae808709764bf03e0ba42238880fac639e4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Mar 2 11:27:57 2015 +1100
 
-    cmd/gc: allocate backing storage for non-escaping interfaces on stack
+    image/jpeg: distinguish between FormatError and UnsupportedError when
+    encountering unknown markers.
     
-    Extend escape analysis to convT2E and conT2I. If the interface value
-    does not escape supply runtime with a stack buffer for the object copy.
-    
-    This is a straight port from .c to .go of Dmitry's patch
-    
-    Change-Id: Ic315dd50d144d94dd3324227099c116be5ca70b6
-    Reviewed-on: https://go-review.googlesource.com/8201
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ica86013308d69da2f5b486119235ff693135b2f1
+    Reviewed-on: https://go-review.googlesource.com/6393
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
 
- src/cmd/internal/gc/builtin.go         |  4 ++--
- src/cmd/internal/gc/builtin/runtime.go |  4 ++--
- src/cmd/internal/gc/esc.go             |  5 ++---
- src/cmd/internal/gc/walk.go            | 18 ++++++++++++++-
- src/runtime/iface.go                   | 12 ++++++----
- src/runtime/iface_test.go              | 40 ++++++++++++++++++++++++++++++++++
- test/escape2.go                        |  2 +-
- 7 files changed, 72 insertions(+), 13 deletions(-)
+ src/image/jpeg/reader.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

@@ -1,15 +1,13 @@
-commit d5a36cd6bb14a3bf00c58779848beeaeb87ade7d
+commit d76a1e593c221e147fd5d51c98f068a60bb8f74a
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 21 10:53:51 2014 +0400
+Date:   Tue Jan 21 10:44:08 2014 +0400
 
-    runtime: zero 2-word memory blocks in-place
-    Currently for 2-word blocks we set the flag to clear the flag. Makes no sense.
-    In particular on 32-bits we call memclr always.
+    runtime: fix test on windows
+    The test prints an excessive \n when /dev/null is not present.
     
-    R=golang-codereviews, dave, iant
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/41170044
+    R=golang-codereviews, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/54890043
 
- src/pkg/runtime/malloc.goc | 6 ++++--
- src/pkg/runtime/mgc0.c     | 6 ++++--
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/runtime/proc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

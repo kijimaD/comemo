@@ -1,16 +1,19 @@
-commit 1af388f1c0a3f61903ea55098c135d153aac5ae7
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 29 12:03:18 2020 +0100
+commit 646b4ac06583396bb296f9b3f855fdab4ebe0060
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 17 15:25:03 2020 -0400
 
-    cmd/compile: replace int32(a.Off()) calls with a.Off32()
+    runtime: explictly state lock ordering direction
     
-    Change-Id: Ib833954e8400a63624359a81f5196ca9080199a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266081
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    At least as far as I can tell, this file never explicitly states whether
+    locks with higher or lower rank should be taken first. It is implied in
+    some comments, and clear from the code, of course.
+    
+    Add an explicit comment to make things more clear and hopefully reduce
+    new locks being adding in the wrong spot.
+    
+    Change-Id: I17c6fd5fc216954e5f3550cf91f17e25139f1587
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228785
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/gen/386.rules | 16 +++++++--------
- src/cmd/compile/internal/ssa/rewrite386.go | 32 +++++++++++++++---------------
- 2 files changed, 24 insertions(+), 24 deletions(-)
+ src/runtime/lockrank.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

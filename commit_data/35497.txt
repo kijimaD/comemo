@@ -1,14 +1,24 @@
-commit 16de91d35135aeb77af774a224ec8e9ad49d581c
-Author: Jonathan Chen <dijonkitchen@users.noreply.github.com>
-Date:   Thu May 24 14:49:29 2018 +0000
+commit d7691d055a7ab39a0d437eb5e20751dc1e339c2a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 1 21:51:47 2018 -0500
 
-    doc: clarify sentence
+    runtime: replace _MaxMem with maxAlloc
     
-    Change-Id: I6eb182968a8e00fe359d812f1eefc9bda896395b
-    GitHub-Last-Rev: a354b4d2168ed4f1f1744c99c36ece276a24e046
-    GitHub-Pull-Request: golang/go#25540
-    Reviewed-on: https://go-review.googlesource.com/114318
-    Reviewed-by: Rob Pike <r@golang.org>
+    Now that we have memLimit, also having _MaxMem is a bit confusing.
+    
+    Replace it with maxAlloc, which better conveys what it limits. We also
+    define maxAlloc slightly differently: since it's now clear that it
+    limits allocation size, we can account for a subtle difference between
+    32-bit and 64-bit.
+    
+    Change-Id: Iac39048018cc0dae7f0919e25185fee4b3eed529
+    Reviewed-on: https://go-review.googlesource.com/85890
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/chan.go   |  2 +-
+ src/runtime/malloc.go |  8 +++++++-
+ src/runtime/slice.go  | 24 ++++++++++++------------
+ src/runtime/string.go |  8 ++++----
+ 4 files changed, 24 insertions(+), 18 deletions(-)

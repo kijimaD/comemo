@@ -1,17 +1,16 @@
-commit cce00643992995ce3ca4eca301bac77a72e10d8e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 3 15:17:32 2022 -0700
+commit e5faa8d84ba8583dd16758227249fab42ef3a1e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 16:02:45 2021 -0700
 
-    cmd/compile/internal/typecheck: trim unused code
+    [dev.typeparams] cmd/compile/internal/types2: move methods on *Named into named.go (cleanup)
     
-    Unused since CL 403839.
+    No other code changes except for an additional comment.
     
-    Change-Id: Ib416778738523be11213c82a9e1a4cdaa8afb294
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403847
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ica3cea446c6c88f4f81a86d77b289a0b54b1e76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333671
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/typecheck/dcl.go | 29 -----------------------------
- 1 file changed, 29 deletions(-)
+ src/cmd/compile/internal/types2/decl.go  | 96 -------------------------------
+ src/cmd/compile/internal/types2/named.go | 99 ++++++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 96 deletions(-)

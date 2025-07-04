@@ -1,0 +1,21 @@
+commit 58083b57d4f8047d2749196a09b366926e8698da
+Author: Julian Zhu <julian.oerv@isrc.iscas.ac.cn>
+Date:   Mon Nov 25 22:08:41 2024 +0800
+
+    internal/runtime/atomic: add Xchg8 for riscv64
+    
+    For #69735
+    
+    Change-Id: I34ca2b027494525ab64f94beee89ca373a5031ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631615
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/atomic/atomic_riscv64.go |  3 +++
+ src/internal/runtime/atomic/atomic_riscv64.s  | 21 +++++++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go     |  2 +-
+ 3 files changed, 25 insertions(+), 1 deletion(-)

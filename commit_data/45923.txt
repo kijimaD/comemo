@@ -1,25 +1,33 @@
-commit 0941dbca6ae805dd7b5f7871d5811b7b7f14f77f
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Wed Jul 14 22:42:31 2021 +0200
+commit 4eaef981b5b5bac873256d63ffecaaa73fb5f28b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 26 00:47:44 2020 -0500
 
-    testing: clarify in docs that TestMain is advanced
+    [dev.regabi] cmd/compile: add ir.Closure, ir.ClosureRead
     
-    Beginner and intermediate Go users periodically use TestMain when
-    requirements do not necessitate TestMain (exceeding least-mechanism
-    design). This commit expands package testing's documentation to convey
-    that the TestMain feature itself is somewhat low-level and potentially
-    unsuitable for casual testing where ordinary test functions would
-    suffice.
+    Closures are another reference to Funcs,
+    and it cleans up the code quite a bit to be clear about types.
     
-    Fixes #42161
-    Updates #44200
+    OCLOSUREVAR is renamed to OCLOSUREREAD to make
+    clearer that it is unrelated to the list Func.ClosureVars.
     
-    Change-Id: I91ba0b048c3d6f79110fe8f0fbb58d896edca366
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334649
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Id0d28df2d4d6e9954e34df7a39ea226995eee937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274098
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/testing.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/closure.go     | 32 ++++++++++--------------
+ src/cmd/compile/internal/gc/escape.go      |  4 +--
+ src/cmd/compile/internal/gc/inl.go         |  4 +--
+ src/cmd/compile/internal/gc/ssa.go         |  4 +--
+ src/cmd/compile/internal/gc/typecheck.go   |  6 ++---
+ src/cmd/compile/internal/gc/walk.go        |  2 +-
+ src/cmd/compile/internal/ir/expr.go        | 39 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/func.go        |  4 +--
+ src/cmd/compile/internal/ir/node.go        | 30 +++++++++++------------
+ src/cmd/compile/internal/ir/op_string.go   |  6 ++---
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ 11 files changed, 82 insertions(+), 51 deletions(-)

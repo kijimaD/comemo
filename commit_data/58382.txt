@@ -1,31 +1,36 @@
-commit 0ca521f9c1a6357578b501615f073adb2da6b527
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 10 19:48:11 2024 -0800
+commit e2d9574b14b3db044331da0c6fadeb62315c644a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Nov 2 10:04:21 2023 -0700
 
-    debug/elf: adjust version API per issue discussion
+    crypto/x509: fix certificate policy marshaling
     
-    This updates the new version API for the discussion on #63952.
+    CL 520535 added the new OID type, and the Certificate field Policies to
+    replace PolicyIdentifiers. During review I missed three problems: (1)
+    the marshaling of Certificate didn't take into account the case where
+    both fields were populated with the same OIDs (which would be the case
+    if you parsed a certificate and used it as a template), (2)
+    buildCertExtensions only generated the certificate policies extension if
+    PolicyIdentifiers was populated, and (3) how we would marshal an empty
+    OID (i.e. OID{}).
     
-    This change reveals that in fact none of the tests set the
-    VERSYM_HIDDEN bit. The code before this CL set the hidden flag
-    for symbols that appear in DynamicVersionNeed, but that is not
-    an accurate representation of the ELF. The readelf program
-    does print undefined symbols that way (with a single '@'),
-    but that doesn't mean that the hidden flag is set.
-    Leaving tests with the hidden bit set for later.
+    This change makes marshaling a certificate with an empty OID an error,
+    and only adds a single copy of any OID that appears in both Policies and
+    PolicyIdentifiers to the certificate policies extension. This should
+    make the round trip behavior for certificates reasonable.
     
-    For #63952
+    Additionally this change documents that CreateCertificate uses the
+    Policies field from the template, and fixes buildCertExtensions to
+    populate the certificate policies extension if _either_
+    PolicyIdentifiers or Policies is populated, not just PolicyIdentifiers.
     
-    Change-Id: Ida60831e0c9922dfc10f10c7a64bc76a2b197537
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635079
-    Reviewed-by: Austin Clements <austin@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #63909
+    
+    Change-Id: I0fcbd3ceaab7a376e7e991ff8b37e2145ffb4a61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539297
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/go1.24.txt                |  27 +--
- src/debug/elf/file.go         | 178 +++++++++++++-------
- src/debug/elf/file_test.go    | 384 +++++++++++++++++++++---------------------
- src/debug/elf/symbols_test.go | 242 +++++++++++++-------------
- 4 files changed, 440 insertions(+), 391 deletions(-)
+ src/crypto/x509/x509.go      | 19 ++++++++++++++++++-
+ src/crypto/x509/x509_test.go | 21 +++++++++++++++++++--
+ 2 files changed, 37 insertions(+), 3 deletions(-)

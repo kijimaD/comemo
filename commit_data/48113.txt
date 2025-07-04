@@ -1,33 +1,16 @@
-commit c5bce7445e1792f134413ad312fd1f2211c0a55d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 7 18:37:02 2022 -0800
+commit 30002e665658b4b2c147caaee6bf7734042952e8
+Author: SataQiu <shidaqiu2018@gmail.com>
+Date:   Thu Apr 15 23:39:30 2021 +0800
 
-    go/types, types2: AssertableTo is undefined for generalized interfaces
+    cmd/go/internal/modload: treat \ as a path separator instead of a shell special character
     
-    Document that AssertableTo is undefined (at least for 1.18) if
-    the first argument is a generalized interface; i.e., an interface
-    that may only be used as a constraint in Go code.
+    According to the code comment, \ should be treated as a path separator.
+    See fileNameOK in golang.org/x/mod/module/module.go.
     
-    Still, implement it as we might expect it to be defined in the
-    future, to prevent problems down the road due to Hyrum's Law.
-    
-    While at it, also removed the internal flag forceStrict and its
-    one use in Checker.assertableTo; forceStrict was never enabled
-    and if it would have been enabled, the behavior would not have
-    been correct.
-    
-    Change-Id: Ie4dc9345c88d04c9640f881132154a002db22643
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383917
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I05e05246005191ecccfecf46848aba5cb1359956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310429
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/api.go      | 10 +++++--
- src/cmd/compile/internal/types2/api_test.go | 42 ++++++++++++++++++-----------
- src/cmd/compile/internal/types2/check.go    | 13 ---------
- src/cmd/compile/internal/types2/lookup.go   | 19 ++++++++++---
- src/go/types/api.go                         | 10 +++++--
- src/go/types/api_test.go                    | 42 ++++++++++++++++++-----------
- src/go/types/check.go                       | 13 ---------
- src/go/types/lookup.go                      | 19 ++++++++++---
- 8 files changed, 102 insertions(+), 66 deletions(-)
+ src/cmd/go/internal/modload/init.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

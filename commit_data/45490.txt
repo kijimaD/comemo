@@ -1,38 +1,24 @@
-commit bb09f8a29b04b8fe4465d0b5d92f164979ee9213
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Thu Mar 25 12:33:35 2021 -0700
+commit 1095dd6339dbaf8d7c92214396c0a4dbcfa38521
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 13 10:58:13 2020 -0400
 
-    time: make time.Time print a valid Go string with %#v
+    cmd/go/internal/modload: embed PackageOpts in loaderParams
     
-    Previously calling fmt.Sprintf("%#v", t) on a time.Time value would
-    yield a result like:
+    Instead of duplicating PackageOpts fields in the loaderParams struct,
+    embed the PackageOpts directly. Many of the fields are duplicated, and
+    further fields that would also be duplicated will be added in
+    subsequent changes.
     
-        time.Time{wall:0x0, ext:63724924180, loc:(*time.Location)(nil)}
+    For #36460
     
-    which does not compile when embedded in a Go program, and does not
-    tell you what value is represented at a glance.
-    
-    This change adds a GoString method that returns much more legible
-    output:
-    
-        "time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.UTC)"
-    
-    which gives you more information about the time.Time and also can be
-    usefully embedded in a Go program without additional work.
-    
-    Update Quote() to hex escape non-ASCII characters (copying logic
-    from strconv), which makes it safer to embed them in the output of
-    GoString().
-    
-    Fixes #39034.
-    
-    Change-Id: Ic985bafe4e556f64e82223c643f65143c9a45c3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267017
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I3b0770d162e901d23ec1643183eb07c413d51e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263138
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.17.html         |  9 ++++++
- src/time/format.go      | 85 +++++++++++++++++++++++++++++++++++++++++++++----
- src/time/format_test.go | 30 ++++++++++++++++-
- 3 files changed, 117 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go |  4 +++-
+ src/cmd/go/internal/modload/load.go      | 24 ++++++++++++------------
+ 2 files changed, 15 insertions(+), 13 deletions(-)

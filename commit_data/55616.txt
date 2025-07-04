@@ -1,21 +1,120 @@
-commit af5943f90cc919c38188067bbe006bdc148b576c
-Author: ALX99 <alx245669@gmail.com>
-Date:   Sat Feb 17 04:43:34 2024 +0000
+commit 132fae93b789ce512068ff4300c665b40635b74e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Dec 8 03:51:04 2022 -0800
 
-    context: update doc comment to link to context interface
+    bytes, strings: avoid unnecessary zero initialization
     
-    Linking to the Context interface in the WithCancel doc comment makes
-    it more consistent with the WithDeadline and WithTimeout doc comments.
+    Add bytealg.MakeNoZero that specially allocates a []byte
+    without zeroing it. It assumes the caller will populate every byte.
+    From within the bytes and strings packages, we can use
+    bytealg.MakeNoZero in a way where our logic ensures that
+    the entire slice is overwritten such that uninitialized bytes
+    are never leaked to the end user.
     
-    Change-Id: Ic935c63e8262784be5f3564816402221ba2fbd63
-    GitHub-Last-Rev: 9c6bb607a94f6f4cd27cc3f5e39c192e088ab386
-    GitHub-Pull-Request: golang/go#65768
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564996
+    We use bytealg.MakeNoZero from within the following functions:
+    
+    * bytes.Join
+    * bytes.Repeat
+    * bytes.ToUpper
+    * bytes.ToLower
+    * strings.Builder.Grow
+    
+    The optimization in strings.Builder transitively benefits the following:
+    
+    * strings.Join
+    * strings.Map
+    * strings.Repeat
+    * strings.ToUpper
+    * strings.ToLower
+    * strings.ToValidUTF8
+    * strings.Replace
+    * any user logic that depends on strings.Builder
+    
+    This optimization is especially notable on large buffers that
+    do not fit in the CPU cache, such that the cost of
+    runtime.memclr and runtime.memmove are non-trivial since they are
+    both limited by the relatively slow speed of physical RAM.
+    
+    Performance:
+    
+            RepeatLarge/256/1             66.0ns ± 3%    64.5ns ± 1%      ~     (p=0.095 n=5+5)
+            RepeatLarge/256/16            55.4ns ± 5%    53.1ns ± 3%    -4.17%  (p=0.016 n=5+5)
+            RepeatLarge/512/1             95.5ns ± 7%    87.1ns ± 2%    -8.78%  (p=0.008 n=5+5)
+            RepeatLarge/512/16            84.4ns ± 9%    76.2ns ± 5%    -9.73%  (p=0.016 n=5+5)
+            RepeatLarge/1024/1             161ns ± 4%     144ns ± 7%   -10.45%  (p=0.016 n=5+5)
+            RepeatLarge/1024/16            148ns ± 3%     141ns ± 5%      ~     (p=0.095 n=5+5)
+            RepeatLarge/2048/1             296ns ± 7%     288ns ± 5%      ~     (p=0.841 n=5+5)
+            RepeatLarge/2048/16            298ns ± 8%     281ns ± 5%      ~     (p=0.151 n=5+5)
+            RepeatLarge/4096/1             593ns ± 8%     539ns ± 8%    -8.99%  (p=0.032 n=5+5)
+            RepeatLarge/4096/16            568ns ±12%     526ns ± 7%      ~     (p=0.056 n=5+5)
+            RepeatLarge/8192/1            1.15µs ± 8%    1.08µs ±12%      ~     (p=0.095 n=5+5)
+            RepeatLarge/8192/16           1.12µs ± 4%    1.07µs ± 7%      ~     (p=0.310 n=5+5)
+            RepeatLarge/8192/4097         1.77ns ± 1%    1.76ns ± 2%      ~     (p=0.310 n=5+5)
+            RepeatLarge/16384/1           2.06µs ± 7%    1.94µs ± 5%      ~     (p=0.222 n=5+5)
+            RepeatLarge/16384/16          2.02µs ± 4%    1.92µs ± 6%      ~     (p=0.095 n=5+5)
+            RepeatLarge/16384/4097        1.50µs ±15%    1.44µs ±11%      ~     (p=0.802 n=5+5)
+            RepeatLarge/32768/1           3.90µs ± 8%    3.65µs ±11%      ~     (p=0.151 n=5+5)
+            RepeatLarge/32768/16          3.92µs ±14%    3.68µs ±12%      ~     (p=0.222 n=5+5)
+            RepeatLarge/32768/4097        3.71µs ± 5%    3.43µs ± 4%    -7.54%  (p=0.032 n=5+5)
+            RepeatLarge/65536/1           7.47µs ± 8%    6.88µs ± 9%      ~     (p=0.056 n=5+5)
+            RepeatLarge/65536/16          7.29µs ± 4%    6.74µs ± 6%    -7.60%  (p=0.016 n=5+5)
+            RepeatLarge/65536/4097        7.90µs ±11%    6.34µs ± 5%   -19.81%  (p=0.008 n=5+5)
+            RepeatLarge/131072/1          17.0µs ±18%    14.1µs ± 6%   -17.32%  (p=0.008 n=5+5)
+            RepeatLarge/131072/16         15.2µs ± 2%    16.2µs ±17%      ~     (p=0.151 n=5+5)
+            RepeatLarge/131072/4097       15.7µs ± 6%    14.8µs ±11%      ~     (p=0.095 n=5+5)
+            RepeatLarge/262144/1          30.4µs ± 5%    31.4µs ±13%      ~     (p=0.548 n=5+5)
+            RepeatLarge/262144/16         30.1µs ± 4%    30.7µs ±11%      ~     (p=1.000 n=5+5)
+            RepeatLarge/262144/4097       31.2µs ± 7%    32.7µs ±13%      ~     (p=0.310 n=5+5)
+            RepeatLarge/524288/1          67.5µs ± 9%    63.7µs ± 3%      ~     (p=0.095 n=5+5)
+            RepeatLarge/524288/16         67.2µs ± 5%    62.9µs ± 6%      ~     (p=0.151 n=5+5)
+            RepeatLarge/524288/4097       65.5µs ± 4%    65.2µs ±18%      ~     (p=0.548 n=5+5)
+            RepeatLarge/1048576/1          141µs ± 6%     137µs ±14%      ~     (p=0.421 n=5+5)
+            RepeatLarge/1048576/16         140µs ± 2%     134µs ±11%      ~     (p=0.222 n=5+5)
+            RepeatLarge/1048576/4097       141µs ± 3%     134µs ±10%      ~     (p=0.151 n=5+5)
+            RepeatLarge/2097152/1          258µs ± 2%     271µs ±10%      ~     (p=0.222 n=5+5)
+            RepeatLarge/2097152/16         263µs ± 6%     273µs ± 9%      ~     (p=0.151 n=5+5)
+            RepeatLarge/2097152/4097       270µs ± 2%     277µs ± 6%      ~     (p=0.690 n=5+5)
+            RepeatLarge/4194304/1          684µs ± 3%     467µs ± 6%   -31.69%  (p=0.008 n=5+5)
+            RepeatLarge/4194304/16         682µs ± 1%     471µs ± 7%   -30.91%  (p=0.008 n=5+5)
+            RepeatLarge/4194304/4097       685µs ± 2%     465µs ±20%   -32.12%  (p=0.008 n=5+5)
+            RepeatLarge/8388608/1         1.50ms ± 1%    1.16ms ± 8%   -22.63%  (p=0.008 n=5+5)
+            RepeatLarge/8388608/16        1.50ms ± 2%    1.22ms ±17%   -18.49%  (p=0.008 n=5+5)
+            RepeatLarge/8388608/4097      1.51ms ± 7%    1.33ms ±11%   -11.56%  (p=0.008 n=5+5)
+            RepeatLarge/16777216/1        3.48ms ± 4%    2.66ms ±13%   -23.76%  (p=0.008 n=5+5)
+            RepeatLarge/16777216/16       3.37ms ± 3%    2.57ms ±13%   -23.72%  (p=0.008 n=5+5)
+            RepeatLarge/16777216/4097     3.38ms ± 9%    2.50ms ±11%   -26.16%  (p=0.008 n=5+5)
+            RepeatLarge/33554432/1        7.74ms ± 1%    4.70ms ±19%   -39.31%  (p=0.016 n=4+5)
+            RepeatLarge/33554432/16       7.90ms ± 4%    4.78ms ± 9%   -39.50%  (p=0.008 n=5+5)
+            RepeatLarge/33554432/4097     7.80ms ± 2%    4.86ms ±11%   -37.60%  (p=0.008 n=5+5)
+            RepeatLarge/67108864/1        16.4ms ± 3%     9.7ms ±15%   -41.29%  (p=0.008 n=5+5)
+            RepeatLarge/67108864/16       16.5ms ± 1%     9.9ms ±15%   -39.83%  (p=0.008 n=5+5)
+            RepeatLarge/67108864/4097     16.5ms ± 1%    11.0ms ±18%   -32.95%  (p=0.008 n=5+5)
+            RepeatLarge/134217728/1       35.2ms ±12%    19.2ms ±10%   -45.58%  (p=0.008 n=5+5)
+            RepeatLarge/134217728/16      34.6ms ± 6%    19.3ms ± 7%   -44.07%  (p=0.008 n=5+5)
+            RepeatLarge/134217728/4097    33.2ms ± 2%    19.3ms ±14%   -41.79%  (p=0.008 n=5+5)
+            RepeatLarge/268435456/1       70.9ms ± 2%    36.2ms ± 5%   -48.87%  (p=0.008 n=5+5)
+            RepeatLarge/268435456/16      77.4ms ± 7%    36.1ms ± 8%   -53.33%  (p=0.008 n=5+5)
+            RepeatLarge/268435456/4097    75.8ms ± 4%    37.0ms ± 4%   -51.15%  (p=0.008 n=5+5)
+            RepeatLarge/536870912/1        163ms ±14%      77ms ± 9%   -52.94%  (p=0.008 n=5+5)
+            RepeatLarge/536870912/16       156ms ± 4%      76ms ± 6%   -51.42%  (p=0.008 n=5+5)
+            RepeatLarge/536870912/4097     151ms ± 2%      76ms ± 6%   -49.64%  (p=0.008 n=5+5)
+            RepeatLarge/1073741824/1       293ms ± 5%     149ms ± 8%   -49.18%  (p=0.008 n=5+5)
+            RepeatLarge/1073741824/16      308ms ± 9%     150ms ± 8%   -51.19%  (p=0.008 n=5+5)
+            RepeatLarge/1073741824/4097    299ms ± 5%     151ms ± 6%   -49.51%  (p=0.008 n=5+5)
+    
+    Updates #57153
+    
+    Change-Id: I024553b7e676d6da6408278109ac1fa8def0a802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456336
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/context/context.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/bytes.go              | 34 ++++++++++++++++++++++------------
+ src/internal/bytealg/bytealg.go |  5 +++++
+ src/runtime/slice.go            |  8 ++++++++
+ src/strings/builder.go          |  3 ++-
+ src/strings/strings.go          | 29 ++++++++++++++++++++---------
+ 5 files changed, 57 insertions(+), 22 deletions(-)

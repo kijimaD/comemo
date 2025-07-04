@@ -1,18 +1,23 @@
-commit c99483feb816856da1d8f3fc5a59467c0e359f3f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jun 3 08:25:15 2017 -0700
+commit 91563ced5897faf729a34be7081568efcfedda31
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 9 13:20:54 2017 +0100
 
-    cmd/compile: add valState to ssa sizeof tests
+    time: make the ParseInLocation test more robust
     
-    I learned from CL 41770 that valState’s size
-    matters to compiler performance.
-    Encode that knowledge in a test.
+    The tzdata 2017a update (2017-02-28) changed the abbreviation of the
+    Asia/Baghdad time zone (used in TestParseInLocation) from 'AST' to the
+    numeric '+03'.
     
-    Change-Id: I7c0fde6a4cf460017619dbcce1c1ddaa7af10239
-    Reviewed-on: https://go-review.googlesource.com/44737
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Update the test so that it skips the checks if we're using a recent
+    tzdata release.
+    
+    Fixes #19457
+    
+    Change-Id: I45d705a5520743a611bdd194dc8f8d618679980c
+    Reviewed-on: https://go-review.googlesource.com/37964
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/sizeof_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/time/format_test.go | 41 +++++++++++++++++++++++++++++++----------
+ 1 file changed, 31 insertions(+), 10 deletions(-)

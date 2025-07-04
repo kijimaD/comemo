@@ -1,23 +1,45 @@
-commit f01c20bf2ba889e5c9e3565175cc4276f9c11516
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 30 22:18:43 2022 +0000
+commit 6dec18cc75021bfbfac267941a567b257721208b
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jun 28 18:04:58 2021 -0700
 
-    runtime/debug: export SetMemoryLimit
+    [dev.typeparams] cmd/compile: start using sub-dictionary entries where needed
     
-    This change also adds an end-to-end test for SetMemoryLimit as a
-    testprog.
+    Added new struct instInfo for information about an instantiation (of a
+    generic function/method with gcshapes or concrete types). We use this to
+    remember the dictionary param node, the nodes where sub-dictionaries
+    need to be used, etc. The instInfo map replaces the Stencil map in
+    Package.
     
-    Fixes #48409.
+    Added code to access sub-dictionary entries at the appropriate call
+    sites. We are currently still calculating the corresponding main
+    dictionary, even when we really only need a sub-dictionary. I'll clean
+    that up in a follow-up CL.
     
-    Change-Id: I102d64acf0f36a43ee17b7029e8dfdd1ee5f057d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397018
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Added code to deal with "generic" closures (closures that reference some
+    generic variables/types). We decided that closures will share the same
+    dictionary as the containing function (accessing the dictionary via a
+    closure variable). So, the getGfInfo function now traverses all the
+    nodes of each closure in a function that it is analyzing, so that a
+    function's dictionary has all the entries needed for all its closures as
+    well. Also, the instInfo of a closure is largely shared with its
+    containing function. A good test for generic closures already exists
+    with orderedmap.go.
+    
+    Other improvements:
+     - Only create sub-dictionary entries when the function/method
+       call/value or closure actually has type params in it. Added new test
+       file subdict.go with an example where a generic method has an
+       instantiated method call that does not depend not have type params.
+    
+    Change-Id: I691b9dc024a89d2305fcf1d8ba8540e53c9d103f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331516
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- api/next/48409.txt                  |   1 +
- src/runtime/debug/garbage.go        |  64 +++++++++++++++++++-
- src/runtime/gc_test.go              |  28 +++++++++
- src/runtime/mgc.go                  |   2 +-
- src/runtime/testdata/testprog/gc.go | 115 ++++++++++++++++++++++++++++++++++++
- 5 files changed, 208 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/package.go    |   3 -
+ src/cmd/compile/internal/noder/irgen.go   |  32 ++-
+ src/cmd/compile/internal/noder/stencil.go | 344 ++++++++++++++++++++----------
+ test/typeparam/subdict.go                 |  42 ++++
+ 4 files changed, 309 insertions(+), 112 deletions(-)

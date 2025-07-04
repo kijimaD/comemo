@@ -1,17 +1,17 @@
-commit ea3353b64c04a12a284fba10f6927e970849a33a
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Mar 28 10:36:52 2014 -0400
+commit a05ffd85aa6f8cc532bd50df8dbdee8e8040afcc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 28 13:27:51 2014 +0900
 
-    crypto/x509: unbreak Windows build.
+    net: make IPv6 capability test more suitable for address family selection on the dual IP stack node
     
-    This change sets systemSkip on a test where Go and CAPI have different
-    chain building behaviour. CAPI is correct, but aligning the Go code is
-    probably too large a change prior to 1.3.
+    For now we strictly use IPV6_V6ONLY=1 for IPv6-only communications
+    and IPV6_V6ONLY=0 for both IPv4 and IPv6 communications. So let the
+    capability test do the same.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, gobot, iant
     CC=golang-codereviews
-    https://golang.org/cl/81620043
+    https://golang.org/cl/80140044
 
- src/pkg/crypto/x509/verify_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/net/ipsock_posix.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

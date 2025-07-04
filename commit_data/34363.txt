@@ -1,23 +1,20 @@
-commit fd5bf0393eb7b3a21b55adf2c0f1e293b24cf308
-Author: motemen <motemen@gmail.com>
-Date:   Mon Feb 26 18:22:46 2018 +0000
+commit 6db4950dc57deb899bf5550411c01ce32f16bdd0
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Oct 11 22:05:03 2017 -0300
 
-    cmd/go: fix formatting of file paths under cwd
+    encoding/hex: add NewEncoder, NewDecoder
     
-    The output of go with -x flag is formatted in a manner that file paths
-    under current directory are modified to start with a dot (.), but when
-    the directory path ends with a slash (/), the formatting goes wrong.
+    NewEncoder returns an io.Writer that writes all incoming bytes as
+    hexadecimal characters to the underlying io.Writer. NewDecoder returns an
+    io.Reader that does the inverse.
     
-    Fixes #23982
+    Fixes #21590
     
-    Change-Id: I8f8d15dd52bee882a9c6357eb9eabdc3eaa887c3
-    GitHub-Last-Rev: 1493f38bafdf2c40f16392b794fd1a12eb12a151
-    GitHub-Pull-Request: golang/go#23985
-    Reviewed-on: https://go-review.googlesource.com/95755
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iebe0813faf365b42598f19a9aa41768f571dc0a8
+    Reviewed-on: https://go-review.googlesource.com/70210
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go            | 8 ++++++++
- src/cmd/go/internal/work/exec.go | 6 +++++-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/encoding/hex/hex.go      | 75 ++++++++++++++++++++++++++++++++++++++++++--
+ src/encoding/hex/hex_test.go | 60 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+), 2 deletions(-)

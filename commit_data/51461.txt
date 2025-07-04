@@ -1,19 +1,17 @@
-commit 8c0f9ed4ce0b56c13fb1e1c52a3f48298775937e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 28 18:03:20 2022 -0500
+commit edbe4742a296239c06cd99721bb0dbc5008d35a1
+Author: pierwill <pierwill@users.noreply.github.com>
+Date:   Wed Feb 2 18:21:04 2022 +0000
 
-    doc/go1.20: quote code in Bootstrap and Cgo sections
+    cmd/compile: edit README
     
-    Add code tag for environment variables and file paths in the
-    Bootstrap section.
+    Make some small edits for clarification of important concepts.
     
-    Add code tag for packages in the Cgo section.
-    
-    Change-Id: Ib0fad1c09fbc497a097ef43cbf5850a27b9a6532
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453621
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1f78f2a59489ac71e3948dc924641540508613ce
+    GitHub-Last-Rev: 1819140ee607edf8be3ed35f846848178065391a
+    GitHub-Pull-Request: golang/go#50980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382458
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.20.html | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ src/cmd/compile/README.md | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

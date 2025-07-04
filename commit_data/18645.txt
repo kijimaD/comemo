@@ -1,21 +1,18 @@
-commit ab26623182bb94e1b29668d86b5ee387991926fe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 25 09:13:37 2014 -0800
+commit 441c4bb939666555f697c1d5abf30b2f78528962
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 25 11:22:22 2014 -0500
 
-    spec: clarify default "true" condition/tag in for/switch statements
+    cmd/go: fix bug in remote package discovery
     
-    An absent condition/tag in for and switch statements is equivalent
-    to the predeclared constant true; not simply the expression true
-    (which might lead to a locally defined true).
+    The parser was assuming it would find <body> or </head>.
+    If the entire response is just <meta> tags, it finds EOF and
+    treats that as an error. It's not.
     
-    Not a language change.
-    
-    Fixes #7404.
-    
-    LGTM=iant, r
-    R=r, iant, rsc, ken
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68150046
+    https://golang.org/cl/68520044
 
- doc/go_spec.html | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/go/discovery.go |  3 +++
+ src/cmd/go/pkg_test.go  | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 50 insertions(+), 1 deletion(-)

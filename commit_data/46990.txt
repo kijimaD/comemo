@@ -1,29 +1,22 @@
-commit 9ff91b90988945c7bbe85fdef4a16d5f1af6b2c2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 21 14:31:40 2021 +0700
+commit 985d0877829bf13f51120c4743c08ac82c0c8d62
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 12:35:16 2021 -0500
 
-    cmd/compile: only look for struct type when crawling inline body
+    cmd/link: add windows/arm64 support
     
-    CL 356254 fixed crawling of embeddable types during inline. However, we
-    are too agressive, since when we call markEmbed for every type seen
-    during inlining function body. That leads to false positive that for a
-    non-embedded type, its unexported methods are also marked inline.
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
     
-    Instead, we should only look at struct type that we seen during inlining
-    function body, and calling markEmbed for all of its embedded fields.
-    
-    Fixes #49094
-    
-    Change-Id: I6ef9a8bf1fc649ec6bf75e4883f6031ec8560ba1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357232
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I397c1d238bb18cbe78b3fca00910660cf1d66b8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288822
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/typecheck/crawler.go |  8 +++++++-
- test/fixedbugs/issue49094.dir/a.go            | 11 +++++++++++
- test/fixedbugs/issue49094.dir/b.go            | 11 +++++++++++
- test/fixedbugs/issue49094.dir/p.go            | 15 +++++++++++++++
- test/fixedbugs/issue49094.go                  |  7 +++++++
- 5 files changed, 51 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/arm64/asm.go | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/arm64/obj.go |  5 +++++
+ src/cmd/link/internal/ld/config.go |  6 +++---
+ src/cmd/link/internal/ld/pe.go     | 28 +++++++++++++++++++++++++++-
+ 4 files changed, 69 insertions(+), 4 deletions(-)

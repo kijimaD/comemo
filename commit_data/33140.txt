@@ -1,19 +1,20 @@
-commit 151c66b59fb657c90d2cad4c72b2059319806a9c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 16 11:11:34 2017 -0700
+commit ba6cd156f30ad9d5b42663cdd93e58f0b91b9811
+Author: Iccha Sethi <icchasethi@gmail.com>
+Date:   Sat Jul 15 13:28:12 2017 -0500
 
-    debug/dwarf: support 64-bit DWARF in byte order check
+    encoding/json: fix indentation in Decode stream example
     
-    Also fix 64-bit DWARF to read a 64-bit abbrev offset in the
-    compilation unit.
+    The existing example for Decoder.Decode (Stream) had excessive
+    indentation in the godoc interface for the const jsonStream,
+    making it hard to read. This fixes the indentation in the
+    example_test.go to improve the readability in godoc.
     
-    Change-Id: Idc22e59ffb354d58e9973b62fdbd342acf695859
-    Reviewed-on: https://go-review.googlesource.com/71171
-    Reviewed-by: Austin Clements <austin@google.com>
+    Helps #21026.
+    
+    Change-Id: I16f56b82182da1dcc73cca44e535a7f5695e975d
+    Reviewed-on: https://go-review.googlesource.com/48910
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/dwarf/entry.go      |  4 +--
- src/debug/dwarf/entry_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++
- src/debug/dwarf/open.go       | 17 +++++++++---
- src/debug/dwarf/typeunit.go   | 11 +++-----
- src/debug/dwarf/unit.go       | 11 ++++++--
- 5 files changed, 87 insertions(+), 16 deletions(-)
+ src/encoding/json/example_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

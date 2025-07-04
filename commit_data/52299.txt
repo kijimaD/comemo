@@ -1,23 +1,18 @@
-commit 70308d1375414d6224752214d2dbf4517e0c7632
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Mar 15 11:22:53 2023 -0700
+commit 65d7345e8ba77bea9dd3d694d0015308416e3280
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Apr 18 17:54:40 2022 -0400
 
-    internal/fuzz: improve debugging messages
+    go/types: introduce the error_ type to match types2
     
-    Also enable debugging information in TestScript/test_fuzz_cov, which
-    hits a deadlock on builders, but I am unable to trigger locally. This
-    should make it somewhat easier to track down where the issue actually
-    is.
+    To begin aligning with types2 error reporting, use an error_ type to
+    hold unevaluated error information, to report via Checker.report.
     
-    Updates #51484
-    
-    Change-Id: I98124f862242798f2d9eba15cacefbd02924cfe2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476595
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ic5ac515759961e55b81acc9eeaac4db25b61804c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400824
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_cov.txt |  5 +-
- src/internal/fuzz/fuzz.go                    | 68 ++++++++++++++++++----------
- 2 files changed, 47 insertions(+), 26 deletions(-)
+ src/go/types/errors.go      | 105 +++++++++++++++++++++++++++++++++++---------
+ src/go/types/errors_test.go |  25 ++++++++++-
+ 2 files changed, 108 insertions(+), 22 deletions(-)

@@ -1,15 +1,15 @@
-commit 1a8c00ea213f4f5487735a5bb958114c09b55f29
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 18 11:19:05 2014 -0700
+commit b049dc3074704856305bf12f421144b04d6844f9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 15:45:35 2014 -0700
 
-    internal/syscall: add support for getrandom on arm
+    doc/compat1.html: link to go.sys
+    You talked me into it. This and other links should be updated
+    once the new import paths for the subrepos are established.
     
-    Added in linux commit eb6452537b28
-    
-    LGTM=agl
-    R=agl
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/130170043
+    https://golang.org/cl/124260043
 
- src/pkg/internal/syscall/getrandom_linux.go | 3 ++-
+ doc/go1compat.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

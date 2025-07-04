@@ -1,36 +1,16 @@
-commit 06314b620d782bf295a07745c7f14b4738e7109a
-Author: David Chase <drchase@google.com>
-Date:   Mon Nov 11 13:18:38 2019 -0500
+commit 24e9c53396bccbe2c525bd9421e426c47fe858ce
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 31 15:52:41 2019 -0400
 
-    cmd/compile: add explanations to escape-analysis JSON/LSP logging
+    cmd/go/internal/modfetch: add zip sums and hashes to TestCodeRepo
     
-    For 1.15.
+    Updates #35290
     
-    From the test:
-    
-    {"range":{"start":{"line":7,"character":13},"end":{...},"severity":3,"code":"leaks","source":"go compiler","message":"parameter z leaks to ~r2 with derefs=0","relatedInformation":[
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:    flow: y = z:"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from y = \u003cN\u003e (assign-pair)"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:    flow: ~r1 = y:"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":4,"character":11},"end":{...}},"message":"inlineLoc"},
-    
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from y.b (dot of pointer)"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":4,"character":11},"end":{...}},"message":"inlineLoc"},
-    
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from \u0026y.b (address-of)"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":4,"character":9},"end":...}},"message":"inlineLoc"},
-    
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":3},"end":...}},"message":"escflow:    flow: ~r2 = ~r1:"},
-            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":3},"end":...}},"message":"escflow:      from return (*int)(~r1) (return)"}]}
-    
-    Change-Id: Idf02438801f63e487c35a928cf5a0b6d3cc48674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206658
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I09cad17f09e78c2bf6a9de98b01f13ed383ca006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204643
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/escape.go          | 78 +++++++++++++++++++------
- src/cmd/compile/internal/logopt/log_opts.go    | 80 +++++++++++++++++++-------
- src/cmd/compile/internal/logopt/logopt_test.go | 22 ++++++-
- 3 files changed, 139 insertions(+), 41 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo_test.go | 388 +++++++++++++++-----------
+ 1 file changed, 231 insertions(+), 157 deletions(-)

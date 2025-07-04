@@ -1,12 +1,19 @@
-commit d1882c986673b5bd5fb6775548990d4e11917c1e
-Author: Julie Qiu <julie@golang.org>
-Date:   Thu Dec 6 11:02:49 2018 -0500
+commit 4e1b11e2c9bdb0ddea1141eed487be1a626ff5be
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 21 10:48:00 2018 +0200
 
-    doc/go1.12: release notes for testing
+    syscall: add S_IRWXG and S_IRWXO on Solaris
     
-    Change-Id: I81ffe7ee88354efeabb24f091db66c7c4892876c
-    Reviewed-on: https://go-review.googlesource.com/c/152919
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    As discussed in CL 126621, these constants are already defined on Linux,
+    Darwin, FreeBSD and NetBSD. In order to ensure portability of existing
+    code using the syscall package, provide them for Solaris as well.
+    
+    Change-Id: Id49f6991f36775b152b9c47b9923cd0a08053bcb
+    Reviewed-on: https://go-review.googlesource.com/130356
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/syscall/types_solaris.go        | 2 ++
+ src/syscall/ztypes_solaris_amd64.go | 2 ++
+ 2 files changed, 4 insertions(+)

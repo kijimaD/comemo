@@ -1,29 +1,20 @@
-commit ea403bc237657e160e628e2670bbbb62016bf2b2
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 2 11:42:54 2021 -0400
+commit 95ff296a11606cec32fb697c74aee520f23498b0
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 17 18:01:52 2021 -0500
 
-    go/types: disallow lone type parameter on RHS of type declaration
+    cmd/compile: pass arguments as register parameters to StaticCall.
     
-    This is a clean port of CL 359177 to go/types.
+    Additional register-parameter plumbing, not all the way to the end;
+    if you test register parameter-passing, it fails mid-compilation.
     
-    Change-Id: I6c1574e3a1c23ea326eb8d4aacea0e78415703ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360758
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For #40724.
+    
+    Change-Id: Ibb675022c9156779a451726329890e52fca1cb33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293398
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/go/types/api_test.go                       | 14 ------
- src/go/types/decl.go                           |  9 ++--
- src/go/types/testdata/check/linalg.go2         | 61 ++++++++++++-----------
- src/go/types/testdata/check/typeinst.go2       |  5 +-
- src/go/types/testdata/check/typeinst2.go2      | 30 ++++++------
- src/go/types/testdata/check/typeparams.go2     | 19 ++++----
- src/go/types/testdata/examples/methods.go2     | 31 ++++++------
- src/go/types/testdata/examples/types.go2       | 13 ++---
- src/go/types/testdata/fixedbugs/issue39634.go2 |  7 +--
- src/go/types/testdata/fixedbugs/issue39768.go2 | 17 ++++---
- src/go/types/testdata/fixedbugs/issue39938.go2 |  2 +-
- src/go/types/testdata/fixedbugs/issue45639.go2 | 13 ++---
- src/go/types/testdata/fixedbugs/issue47747.go2 | 67 ++++++++++++++------------
- 13 files changed, 143 insertions(+), 145 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 49 ++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 24 deletions(-)

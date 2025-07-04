@@ -1,22 +1,23 @@
-commit 4dd5f0994f2e2079582876db4af1cba95fe3b6c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 13 15:40:11 2021 -0700
+commit 41352fd401f4f22eceeca375361e018ea787f0fd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 12:12:27 2021 -0800
 
-    constraints: new package
+    [dev.regabi] cmd/compile: transform closures during walk
     
-    The constraint packages defined a set of useful constraints to be used
-    with type parameters.
+    We used to transform directly called closures in a separate pass
+    before walk, because we couldn't guarantee whether we'd see the
+    closure call or the closure itself first. As of the last CL, this
+    ordering is always guaranteed, so we can rewrite calls and the closure
+    at the same time.
     
-    Fixes #45458
-    
-    Change-Id: Id4f4e6c55debb90e6b10ea0dbe2319be1e888746
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349709
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia6f4d504c24795e41500108589b53395d301123b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283315
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/constraints/constraints.go      |  65 +++++++++++++++
- src/constraints/constraints_test.go | 155 ++++++++++++++++++++++++++++++++++++
- src/go/build/deps_test.go           |   2 +-
- 3 files changed, 221 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go      | 15 -----
+ src/cmd/compile/internal/walk/closure.go | 99 +++++++++++++++++++-------------
+ src/cmd/compile/internal/walk/expr.go    | 23 +-------
+ 3 files changed, 61 insertions(+), 76 deletions(-)

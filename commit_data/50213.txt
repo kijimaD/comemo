@@ -1,17 +1,37 @@
-commit 3f65ddbfd36af7aa0b1e28aebe9eb054462f7d8a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Aug 26 11:00:06 2022 +0800
+commit 0d838ea5a2b69255d0a486dd9df27d14ad680aba
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 22 10:05:33 2021 -0700
 
-    runtime: convert rwmutex.{readerCount,readerWait} to atomic type
+    cmd/compile: allow delaying of transformCompLit, new transformAddr
     
-    For #53821
+    For this unusual case, where a constraint specifies exactly one type, we
+    can have a COMPLIT expression with a type that is/has typeparams.
     
-    Change-Id: Ib10a745799e8bc0dc1d02a9c3e5d00b2842a9edd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425779
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Therefore, we add code to delay transformCompLit for generic functions.
+    We also need to break out transformAddr (which corresponds to tcAddr),
+    and added code for delaying it as well. Also, we now need to export
+    generic functions containing untransformed OCOMPLIT and OKEY nodes, so
+    added support for that in iexport.go/iimport.go. Untransformed OKEY
+    nodes include an ir.Ident/ONONAME which we can now export.
+    
+    Had to adjust some code/asserts in transformCompLit(), since we may now
+    be transforming an OCOMPLIT from an imported generic function (i.e. from
+    a non-local package).
+    
+    Fixes #48537
+    
+    Change-Id: I09e1b3bd08b4e013c0b098b8a25d082efa1fef51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354354
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/rwmutex.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/noder/expr.go        | 20 ++++++++++++++++++--
+ src/cmd/compile/internal/noder/helpers.go     |  4 ----
+ src/cmd/compile/internal/noder/stencil.go     |  6 ++++++
+ src/cmd/compile/internal/noder/transform.go   | 20 ++++++++++++++++++--
+ src/cmd/compile/internal/typecheck/iexport.go | 14 ++++++++++++--
+ src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
+ test/typeparam/issue48537.go                  | 21 +++++++++++++++++++++
+ 7 files changed, 80 insertions(+), 11 deletions(-)

@@ -1,13 +1,16 @@
-commit 7001fad55bdb27aed039ceead10fd54dc4b248aa
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 17 11:20:53 2014 +1100
+commit fdf458436af89b8052489fd9ba53ef16e693d12b
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Oct 24 15:49:17 2014 -0200
 
-    tag go1.4rc1
+    cmd/go: add bzr support for vcs root checking
     
-    LGTM=dsymonds
-    R=rsc, dsymonds
+    Complements the logic introduced in CL 147170043.
+    
+    LGTM=rsc
+    R=rsc, gustavo
     CC=golang-codereviews
-    https://golang.org/cl/175840043
+    https://golang.org/cl/147240043
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/get.go | 11 +++++++++--
+ src/cmd/go/vcs.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 5 deletions(-)

@@ -1,19 +1,18 @@
-commit 23e9e0c7f09bb50a870cbd1a2543a33df49b37b6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 7 18:26:26 2020 -0400
+commit 7f3ca5dfebbf292580d292461815ee184fb32385
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 19 13:58:48 2020 -0700
 
-    syscall: support ptrace on macOS/ARM64
+    os: merge common Unix/Windows methods
     
-    Updates #38485.
+    Several method implementations were identical in file_unix.go and
+    file_windows.go. Merge them into file_posix.go.
     
-    Change-Id: I853966d934a8ee05cf62c7321f3e6271811d47b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260718
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8bcfad468829530f81f52fe426b3a8c042e7bbd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/syscall/syscall_darwin_arm64.go  | 14 ++++----------
- src/syscall/zsyscall_darwin_arm64.go | 16 ++++++++++++++++
- src/syscall/zsyscall_darwin_arm64.s  |  2 ++
- 3 files changed, 22 insertions(+), 10 deletions(-)
+ src/os/file_posix.go   | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file_unix.go    | 44 --------------------------------------------
+ src/os/file_windows.go | 44 --------------------------------------------
+ 3 files changed, 45 insertions(+), 88 deletions(-)

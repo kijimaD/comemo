@@ -1,22 +1,20 @@
-commit 7830a19a4fcbb79c7a3a27e80449a3b15cb26e31
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Mon Oct 9 10:08:54 2017 -0700
+commit 03305a9e0c786dab67a373106a81df56dda21e25
+Author: Yasha Bubnov <girokompass@gmail.com>
+Date:   Mon Nov 28 23:16:16 2016 +0300
 
-    cmd/compile: add ideal int constants to dwarf
+    net/http/httptest: close client connections in separate goroutines
     
-    The core dump reader would like a bunch of ideal int
-    constants to be available in dwarf.
+    The existing implementation sequentially closes connection in the loop
+    and until the previous client connections is not closed the next one
+    would not be processed. Instead, the algorithm modified to spawn the
+    function that closes single connection in a standalone goroutine, thus
+    making at least a try to close it.
     
-    Makes the go binary 0.9% bigger.
-    
-    Update #14517
-    
-    Change-Id: I00cdfc7f53bcdc56fccba576c1d33010f03bdd95
-    Reviewed-on: https://go-review.googlesource.com/69270
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib96b5b477f841926450d122b67f14f1a2da36ee1
+    Reviewed-on: https://go-review.googlesource.com/33614
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/obj.go | 17 ++++++++++++++---
- src/runtime/runtime-gdb_test.go    |  3 ++-
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ src/net/http/httptest/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,39 +1,24 @@
-commit 0e7c9846c430c2952e51ba7b1085fae9bec26f81
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Feb 23 09:20:03 2024 -0500
+commit 09852e75acc8228887713e75e9c88dc864978065
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 15:04:35 2023 -0800
 
-    cmd: don't require build tags in relnote pathnames
+    go/types, types2: add predicate to missingMethod signature
     
-    Due to a bug in golang.org/x/build/relnote, API features affecting
-    specific builds would need to include those build tags in relnote
-    pathnames.
+    This allows us to use missingMethod with different type comparers,
+    such as the global Identical predicate, or a unifier.
     
-    This CL vendors in the fixed golang.org/x/build. (That caused other
-    modules to be vendored in as well.)
+    Preparation for the next CL.
     
-    It also renames the syscall relnote file to remove the build tags
-    from its pathname.
-    
-    For #64169.
-    
-    Change-Id: Iaf6cd9099df1156f4e20c63d519a862ea19a7a3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566455
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I237fd9dd7feb3708847ae6d9a112bcdd0aa1ecb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472297
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- .../99-minor/syscall (windows-amd64)/62254.md      |   1 -
- .../{syscall (windows-386) => syscall}/62254.md    |   0
- src/cmd/go.mod                                     |   8 +-
- src/cmd/go.sum                                     |  20 +-
- src/cmd/vendor/golang.org/x/build/relnote/dump.go  |  46 ++++
- src/cmd/vendor/golang.org/x/build/relnote/links.go | 242 +++++++++++++++++++++
- .../vendor/golang.org/x/build/relnote/relnote.go   |  34 ++-
- .../go/analysis/passes/stringintconv/string.go     |   8 +-
- .../golang.org/x/tools/go/types/typeutil/map.go    |   7 +
- .../x/tools/go/types/typeutil/methodsetcache.go    |   6 +-
- .../golang.org/x/tools/internal/aliases/aliases.go |  28 +++
- .../x/tools/internal/aliases/aliases_go121.go      |  30 +++
- .../x/tools/internal/aliases/aliases_go122.go      |  72 ++++++
- src/cmd/vendor/modules.txt                         |   9 +-
- 14 files changed, 478 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/lookup.go      | 14 ++++++++------
+ src/go/types/instantiate.go                    |  2 +-
+ src/go/types/lookup.go                         | 14 ++++++++------
+ 4 files changed, 18 insertions(+), 14 deletions(-)

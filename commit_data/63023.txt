@@ -1,0 +1,26 @@
+commit b338f6bfa68da6fc8dfb7a38a975337e659424dc
+Author: Zxilly <zxilly@outlook.com>
+Date:   Thu May 15 10:50:40 2025 +0000
+
+    cmd/link: fix outdated output mmap check
+    
+    Outbuf.View used to perform a mmap check by default
+    and return an error if the check failed,
+    this behavior has been changed so that now
+    the View never returns any error,
+    so the usage needs to be modified accordingly.
+    
+    Change-Id: I76ffcda5476847f6fed59856a5a5161734f47562
+    GitHub-Last-Rev: 6449f2973d28c3b4a5c9e289c38dfcc38f83b3d9
+    GitHub-Pull-Request: golang/go#73730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673095
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/asmb.go   |  5 +----
+ src/cmd/link/internal/ld/data.go   | 12 +++++++-----
+ src/cmd/link/internal/ld/outbuf.go |  6 ++----
+ 3 files changed, 10 insertions(+), 13 deletions(-)

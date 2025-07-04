@@ -1,0 +1,22 @@
+commit c5e205e928bd4b70c90698b5ca1dd583a8036864
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 13 16:21:29 2025 -0800
+
+    internal/runtime/maps: re-enable some tests
+    
+    Re-enable tests for stack-allocated maps and fast map accessors.
+    Those are implemented now.
+    
+    Update #54766
+    
+    Change-Id: I8c019702bd9fb077b2fe3f7c78e8e9e10d2263a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/internal/runtime/maps/map_swiss_test.go | 1 -
+ src/runtime/map_test.go                     | 4 ----
+ test/codegen/maps.go                        | 5 -----
+ 3 files changed, 10 deletions(-)

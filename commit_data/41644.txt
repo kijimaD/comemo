@@ -1,33 +1,19 @@
-commit e8ecda8a38a1705d2ead985743f287acad34b542
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 11 15:14:38 2020 -0400
+commit 3972f97d049edde37936d8b675e3600d10705dbc
+Author: Trung Nguyen <trung.n.k@gmail.com>
+Date:   Fri Oct 11 13:50:01 2019 -0400
 
-    context: deflake time-sensitive tests
+    net/http, net/textproto: add Header.Values, MIMEHeader.Values methods
     
-    Many of tests in this package assumed reasonable scheduling latency.
-    Unfortunately, scheduling latency on builders and CI systems is not
-    always reasonable.
+    Fixes #34799
     
-    Rather than expecting that a timeout is detected within a fixed short
-    interval, we can use (*testing.T).Deadline to portably scale the time
-    we're willing to wait to something appropriate to the builder.
-    
-    Some of the tests also included arbitrary-duration sleeps, which are
-    no longer needed after CL 196521; we can remove those instead of
-    extending them.
-    
-    Promptness of timeouts is also an important property, but testing that
-    property is better suited to benchmarks than to tests proper: unlike
-    tests, we generally expect benchmarks to be run in a quiet,
-    low-contention environment.
-    
-    Fixes #13956
-    
-    Change-Id: I0797e2267fb778c8ad94add56d797de9e2c885e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223019
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I134b2717fa90c8955902e7eeaaf8510dcc28340e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200760
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context_test.go | 117 ++++++++++++++++++++++++++++----------------
- 1 file changed, 75 insertions(+), 42 deletions(-)
+ src/net/http/header.go           | 14 ++++++++---
+ src/net/textproto/header.go      | 15 +++++++++--
+ src/net/textproto/header_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
+ src/net/textproto/reader_test.go | 35 --------------------------
+ 4 files changed, 78 insertions(+), 40 deletions(-)

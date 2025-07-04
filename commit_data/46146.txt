@@ -1,35 +1,22 @@
-commit 4a9f0cec2918c855a23d5581c0b1da95eb11dd17
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 24 00:32:30 2021 -0700
+commit dbce27d29c8479d969aad5be4658fde32ff3f1e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 15:49:04 2020 -0800
 
-    cmd/compile: change irgen to generate exprs/stmts after decls processed
+    [dev.typeparams] cmd/compile/internal/types2: report correct line number for missing key
     
-    This CL changes irgen to wait until all top-level declarations have
-    been processed before constructing any expressions or statements that
-    reference them. This is the same approach that typecheck used.
+    Use the Key position of a syntax.KeyValueExpr (not the position of the
+    ":") when reporting an error for a missing key.
     
-    Mechanically, it splits varDecl and funcDecl (the two top-level
-    declarations that can generate/contain code) into a part that runs
-    immediately for constructing the ir.ONAME, and then a separate task
-    that runs later to handle the code.
+    (In go/types, the KeyValueExpr position is the start of the expression
+    not the ":", so there this works as expected.)
     
-    It also adds an exprStmtOK flag to indicate when it's actually safe to
-    start constructing (non-trivial) expressions and statements.
-    
-    Fixes #47928.
-    
-    Change-Id: I51942af6823aa561d341e2ffc1142948da025fa2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344649
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I74147d245927847274cf4e53b4f03dbb5110c324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276813
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/decl.go  | 122 ++++++++++++++++++--------------
- src/cmd/compile/internal/noder/expr.go  |   2 +
- src/cmd/compile/internal/noder/irgen.go |  27 ++++++-
- src/cmd/compile/internal/noder/stmt.go  |   6 +-
- test/fixedbugs/issue47928.go            |  21 ++++++
- 5 files changed, 120 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/types2/expr.go | 4 ++--
+ test/run.go                             | 1 -
+ 2 files changed, 2 insertions(+), 3 deletions(-)

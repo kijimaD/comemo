@@ -1,18 +1,15 @@
-commit 416804f3e24b25cf3e291fbbe5857cc28644a852
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 25 17:24:30 2018 -0400
+commit 96faeb0bb01ad6fcc04dc7ef07ba10d4ec6aecff
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Jun 8 18:28:37 2018 +0200
 
-    runtime: simplify free count calculation in (un)cacheSpan
+    misc/wasm: set non-empty default for os.Args
     
-    For unclear reasons, cacheSpan and uncacheSpan compute the number of
-    elements in a span by dividing its size by the element size. This
-    number is simply available in the mspan structure, so just use it.
+    os.Args is usually never empty and the flag package panics if it is.
+    This commit makes os.Args default to ["js"] for js/wasm.
     
-    Change-Id: If2e5de6ecec39befd3324bf1da4a275ad000932f
-    Reviewed-on: https://go-review.googlesource.com/c/138656
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iba527145686487b052da438fca40159e57e61a81
+    Reviewed-on: https://go-review.googlesource.com/117475
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mcentral.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ misc/wasm/wasm_exec.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,16 @@
-commit 68170aa677b9fc70ce3d0fc152354e0a7e63c8cf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 26 16:42:15 2018 -0400
+commit 8818b4d27e3a076ae779051cce4d5831581269a6
+Author: Ryan Slade <ryanslade@gmail.com>
+Date:   Thu Apr 5 13:27:44 2018 +0000
 
-    cmd/go: forbid use of one module with two different paths
+    net/http: fix comment on LocalAddrContextKey
     
-    If a single module is imported via two different paths (e.g., as itself and as a
-    replacement for something else), some users may be surprised if the two paths
-    do not share the same package-level state. Others may be surprised if the two
-    paths do share state.
-    
-    Punt on the question for now by rejecting that condition explicitly.
-    
-    Fixes #26607.
-    
-    Change-Id: I15c3889f61f8dd4ba5e5c48ca33ad63aeecac04e
-    Reviewed-on: https://go-review.googlesource.com/126156
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibb793158a190758cebc00b58c12e3b8b106c0548
+    GitHub-Last-Rev: 6a6d949eb252ec6d3e76920fc2f50ef5ac3cdb5a
+    GitHub-Pull-Request: golang/go#24702
+    Reviewed-on: https://go-review.googlesource.com/104896
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modload/load.go        | 19 +++++++
- src/cmd/go/testdata/script/mod_replace.txt | 89 ++++++++++++++++++++++++++++++
- 2 files changed, 108 insertions(+)
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

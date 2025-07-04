@@ -1,16 +1,24 @@
-commit 7632c6e2bd67b37a943f2714f3e53eebb354e18a
-Author: cuishuang <imcusg@gmail.com>
-Date:   Sun Nov 24 19:34:30 2024 +0800
+commit 8c92897e15d15fbc664cd5a05132ce800cf4017f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 16 22:36:57 2023 -0400
 
-    cmd/go: add go prefix in base.Fatalf
+    cmd/compile: rework TestPGOHash to not rebuild dependencies
     
-    For #70537
+    TestPGOHash may rebuild dependencies as we pass -trimpath to the
+    go command. This CL makes it pass -trimpath compiler flag to only
+    the current package instead, as we only need the current package
+    to have a stable source file path.
     
-    Change-Id: I20e239611f07aa13915367c3a44994a43b5482d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631535
+    Also refactor buildPGOInliningTest to only take compiler flags,
+    not go flags, to avoid accidental rebuild.
+    
+    Should fix #63733.
+    
+    Change-Id: Iec6c4e90cf659790e21083ee2e697f518234c5b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535915
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Veronica Silina <veronicasilina@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/auth/auth.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/test/pgo_inl_test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

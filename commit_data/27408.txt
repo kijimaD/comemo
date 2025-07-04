@@ -1,19 +1,28 @@
-commit 466cae6ca9f28c971a2d716a5a49dc76bbd1d5bb
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 16 15:27:48 2016 -0400
+commit 41e176fbe09de9487fad9577df8222d2073d6d21
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 25 07:33:39 2016 -0700
 
-    runtime: use GOTRACEBACK=system for TestStackBarrierProfiling
+    cmd/compile/ssa: generate less garbage in schedule
     
-    This should help with debugging failures.
+    Passes toolstash -cmp.
     
-    For #15138 and #15477.
+    name       old alloc/op    new alloc/op    delta
+    Template      58.5MB ± 0%     57.8MB ± 0%  -1.15%        (p=0.000 n=10+10)
+    Unicode       41.3MB ± 0%     41.2MB ± 0%  -0.17%        (p=0.000 n=10+10)
+    GoTypes        196MB ± 0%      193MB ± 0%  -1.26%        (p=0.000 n=10+10)
+    Compiler       863MB ± 0%      850MB ± 0%  -1.49%        (p=0.000 n=10+10)
     
-    Change-Id: I77db2b6375d8b4403d3edf5527899d076291e02c
-    Reviewed-on: https://go-review.googlesource.com/23134
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name       old allocs/op   new allocs/op   delta
+    Template        522k ± 0%       507k ± 0%  -2.99%        (p=0.000 n=10+10)
+    Unicode         403k ± 0%       401k ± 0%  -0.42%        (p=0.000 n=10+10)
+    GoTypes        1.58M ± 0%      1.52M ± 0%  -3.61%        (p=0.000 n=10+10)
+    Compiler       6.47M ± 0%      6.17M ± 0%  -4.62%        (p=0.000 n=10+10)
+    
+    Change-Id: Ia7a6242e8d226b41966c344d253814dcce6424a8
+    Reviewed-on: https://go-review.googlesource.com/21141
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/schedule.go | 47 +++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 22 deletions(-)

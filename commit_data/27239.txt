@@ -1,12 +1,18 @@
-commit 5776c20164e5852ec13828db10277019db86180b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon May 2 04:44:46 2016 +0900
+commit d33e37a7e3fd3e1d6dc697d7ec594068ff26d383
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 14:03:57 2016 -0700
 
-    net/http: gofmt -w -s
+    cmd/compile: further sinit.go cleanup
     
-    Change-Id: I7e07888e90c7449f119e74b97995efcd7feef76e
-    Reviewed-on: https://go-review.googlesource.com/22682
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Follow-up to CL 20674.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I065fd4cd80d996c1e6566773189401ca4630c1ca
+    Reviewed-on: https://go-review.googlesource.com/20692
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/http/transport_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 116 +++++++++++++++--------------------
+ 1 file changed, 51 insertions(+), 65 deletions(-)

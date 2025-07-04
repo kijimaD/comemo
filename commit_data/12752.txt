@@ -1,15 +1,12 @@
-commit 6421bdeb71b3900b495535959259fbb24d83d407
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 26 17:47:39 2012 +1100
+commit bfdc45a456d5931e670f299ab7b4f68ecf570bff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 26 17:32:20 2012 +1100
 
-    cmd/go: explain versions better
-    Summarize the desiderata for selecting versions of remote packages to get.
-    Fixes #3394.
+    misc/dist: add -wxs flag to provide custom installer.wxs file
     
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5902058
+    https://golang.org/cl/5908055
 
- src/cmd/go/doc.go | 10 +++++++++-
- src/cmd/go/get.go | 10 +++++++++-
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ misc/dist/bindist.go | 4 ++++
+ 1 file changed, 4 insertions(+)

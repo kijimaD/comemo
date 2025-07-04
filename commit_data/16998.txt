@@ -1,21 +1,14 @@
-commit 2ddb672ddcbb050521a2c031630c6dc884a78314
+commit ebc5513be607165c4d676283d76b3284f103dbd8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 2 14:58:27 2013 -0400
+Date:   Fri Aug 2 13:51:28 2013 -0400
 
-    build: on OS X 10.8 and later, use clang instead of gcc
+    runtime: in newstack, double-check calling goroutine
     
-    Fixes #5822.
-    Will no doubt cause other problems, but Apple has forced our hand.
+    Checking this condition helped me find the arm problem last night.
     
-    R=golang-dev, bradfitz, khr
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12350044
+    https://golang.org/cl/12267043
 
- src/cmd/cgo/gcc.go   | 28 ++++++++++++++--------------
- src/cmd/cgo/out.go   |  2 +-
- src/cmd/dist/a.h     |  5 +++++
- src/cmd/dist/build.c | 29 +++++++++++++++++++++++------
- src/cmd/dist/unix.c  | 21 ++++++++++++++-------
- src/cmd/go/build.go  |  5 +++--
- src/run.bash         |  5 ++++-
- 7 files changed, 64 insertions(+), 31 deletions(-)
+ src/pkg/runtime/stack.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,30 +1,27 @@
-commit c69f5c0d7632381dfc6dc78f0af4f54e7673176d
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Thu Sep 9 23:47:14 2021 +0100
+commit 2ecf52b841cd48e76df1fe721d29a972c22bf93f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 22:42:17 2020 -0800
 
-    cmd/compile: add support for Abs and Copysign intrinsics on riscv64
+    [dev.regabi] cmd/compile: separate CommStmt from CaseStmt
     
-    Also, add the FABSS and FABSD pseudo instructions to the assembler.
-    The compiler could use FSGNJX[SD] directly but there doesn't seem
-    to be much advantage to doing so and the pseudo instructions are
-    easier to understand.
+    Like go/ast and cmd/compile/internal/syntax before it, package ir now
+    has separate concrete representations for switch-case clauses and
+    select-communication clauses.
     
-    Change-Id: Ie8825b8aa8773c69cc4f07a32ef04abf4061d80d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348989
-    Trust: Michael Munday <mike.munday@lowrisc.org>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I32667cbae251fe7881be0f434388478433b2414f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280443
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s    |  2 ++
- src/cmd/compile/internal/riscv64/ssa.go        |  5 +++--
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go          | 29 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++++++
- src/cmd/compile/internal/ssagen/ssa.go         |  4 ++--
- src/cmd/internal/obj/riscv/anames.go           |  2 ++
- src/cmd/internal/obj/riscv/cpu.go              |  2 ++
- src/cmd/internal/obj/riscv/obj.go              | 10 +++++++++
- test/codegen/math.go                           |  4 ++++
- 11 files changed, 66 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/mknode.go         |  7 +++
+ src/cmd/compile/internal/ir/node_gen.go       | 31 +++++++++++---
+ src/cmd/compile/internal/ir/stmt.go           | 62 +++++++++++++++++++++------
+ src/cmd/compile/internal/noder/noder.go       |  6 +--
+ src/cmd/compile/internal/typecheck/iexport.go | 11 ++++-
+ src/cmd/compile/internal/typecheck/iimport.go | 10 ++++-
+ src/cmd/compile/internal/walk/select.go       |  8 ++--
+ 7 files changed, 109 insertions(+), 26 deletions(-)

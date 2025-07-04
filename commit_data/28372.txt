@@ -1,16 +1,24 @@
-commit 83676b93fb9591fb452612b55237ffdeb2a59119
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 14 11:35:29 2016 -0700
+commit ebbe4f8db76b947663cc535602054c84b01b080d
+Author: David Benjamin <davidben@google.com>
+Date:   Mon Feb 15 11:41:40 2016 -0500
 
-    cmd/compile, cmd/link: fix printf verbs
+    crypto/tls: Never resume sessions across different versions.
     
-    Found by vet.
+    Instead, decline the session and do a full handshake. The semantics of
+    cross-version resume are unclear, and all major client implementations
+    treat this as a fatal error. (This doesn't come up very much, mostly if
+    the client does the browser version fallback without sharding the
+    session cache.)
     
-    Change-Id: I9dbc6208ddbb5b407f4ddd20efbc166aac852cf7
-    Reviewed-on: https://go-review.googlesource.com/29162
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    See BoringSSL's bdf5e72f50e25f0e45e825c156168766d8442dde and OpenSSL's
+    9e189b9dc10786c755919e6792e923c584c918a1.
+    
+    Change-Id: I51ca95ac1691870dd0c148fd967739e2d4f58824
+    Reviewed-on: https://go-review.googlesource.com/21152
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/decompose.go | 2 +-
- src/cmd/link/internal/ld/data.go          | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/tls/handshake_server.go      |  6 ++--
+ src/crypto/tls/handshake_server_test.go | 58 +++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 4 deletions(-)

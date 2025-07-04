@@ -1,20 +1,17 @@
-commit 412dc2f4d330a519fb7c26e6ecb0f2bbcb876bbb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 14 21:56:25 2020 -0800
+commit a1ffbe9c69c716c597f74bd281ca9166e0d54ff5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 5 03:16:46 2020 +1000
 
-    test: adjust issue11371 to fit in required precision
+    runtime: mark riscv64 goexit with TOPFRAME
     
-    The language spec only requires that floating point values be
-    represented with 256 bits, which is about 1e75. The issue11371 test
-    was assuming that the compiler could represent 1e100. Adjusting the
-    test so that it only assumes 256 bits of precision still keeps the
-    test valid, and permits it to pass when using the gofrontend.
+    This corrects backtraces in gdb, making the runtime gdb tests pass on
+    linux/riscv64.
     
-    Change-Id: I9d1006e9adc9438277f4b8002488c912e5d61cc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278116
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Icdb71450f2ab58debb1fe18455793133108971d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231998
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue11371.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/asm_riscv64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

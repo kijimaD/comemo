@@ -1,14 +1,17 @@
-commit aecf73fc3193cbcb1d6b02c64dcd3bf7f0317bd2
-Author: Fangming.Fang <fangming.fang@arm.com>
-Date:   Fri Apr 14 10:40:30 2017 +0000
+commit d2fea0447fbfb26fa675baa8c628da48a23e52b4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Feb 14 12:46:37 2017 -0500
 
-    cmd/internal: fix bug getting wrong indicator in DRconv()
+    math/big: fix s390x test build tags
     
-    Change-Id: I251ae497b0ab237d4b3fe98e397052394142d437
-    Reviewed-on: https://go-review.googlesource.com/41653
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    The tests failed to compile when using the math_big_pure_go tag on
+    s390x.
+    
+    Change-Id: I2a09f53ff6562ab9bc9b886cffc0f6205bbfcfbb
+    Reviewed-on: https://go-review.googlesource.com/36956
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm64/anames7.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/math/big/arith_s390x_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

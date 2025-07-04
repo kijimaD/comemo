@@ -1,0 +1,20 @@
+commit fcb27f717b0eccb2a3de1bc05a7d222325ad5aeb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 18 20:21:51 2025 +0100
+
+    cmd/compile/internal/amd64: disable FIPS 140-3 mode for TestGoAMD64v1
+    
+    TestGoAMD64v1 modifies the binary, which will make the FIPS 140-3
+    integrity self-check fail. Disable FIPS 140-3 mode when running the
+    modified binary.
+    
+    Change-Id: I6a6a46566a38f8c44f996f6e1155dac5f67c56e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658915
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

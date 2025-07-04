@@ -1,33 +1,18 @@
-commit a1f6208e56436281ce5e26ad745f8fc3f7a9b280
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 8 16:03:57 2021 -0700
+commit 49d0b239cb83e62c7b67e68ef9440ddc055a9c53
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Mon Dec 21 16:33:55 2020 +0000
 
-    go/types, types2: add Environment to Config
+    doc: fix a typo in contribute.html
     
-    Port to types2 and adjust compiler accordingly.
+    A fix for a trivial (yet still confusing for neophytes like me!) typo in
+    contribute.html.
     
-    Change-Id: I2e72b151ef834977dca64cb2e62cedcac4e46062
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348578
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ic68673fb2a3855c2b9e8042047087450e8793e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279452
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/import.go       | 10 +++++-----
- src/cmd/compile/internal/noder/irgen.go        |  7 ++++---
- src/cmd/compile/internal/noder/reader2.go      | 10 ++++------
- src/cmd/compile/internal/noder/unified.go      |  4 ++--
- src/cmd/compile/internal/types2/api.go         |  5 +++++
- src/cmd/compile/internal/types2/check.go       |  7 +++++--
- src/cmd/compile/internal/types2/decl.go        |  2 +-
- src/cmd/compile/internal/types2/instantiate.go |  2 +-
- src/cmd/compile/internal/types2/named.go       |  2 +-
- src/cmd/compile/internal/types2/subst.go       |  2 +-
- src/go/types/api.go                            |  5 +++++
- src/go/types/check.go                          |  7 +++++--
- src/go/types/decl.go                           |  2 +-
- src/go/types/instantiate.go                    |  2 +-
- src/go/types/named.go                          |  2 +-
- src/go/types/subst.go                          |  2 +-
- 16 files changed, 43 insertions(+), 28 deletions(-)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

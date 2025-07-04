@@ -1,16 +1,20 @@
-commit b4447a1e819e1c76d338d4597858013ede2e2280
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Nov 5 09:41:55 2015 +0100
+commit 8261c887aaf997655b95591c17b1068bb627dc9d
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Aug 26 20:45:28 2015 -0700
 
-    cmd/go: skip TestGoGenerateEnv on Plan 9
+    syscall: don't call Setgroups if Credential.Groups is empty
     
-    TestGoGenerateEnv was added in CL 16537.
-    However, Plan 9 doesn't have the env command.
+    Setgroups with zero-length groups is no-op for changing groups and
+    supposed to be used only for determining curent groups length. Also
+    because we deny setgroups by default if use GidMappings we have
+    unnecessary error from that no-op syscall.
     
-    Change-Id: I5f0c937a1b9b456dcea41ceac7865112f2f65c45
-    Reviewed-on: https://go-review.googlesource.com/16690
+    Change-Id: I8f74fbca9190a3dcbbef1d886c518e01fa05eb62
+    Reviewed-on: https://go-review.googlesource.com/13938
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/syscall/exec_linux.go      | 11 +++++------
+ src/syscall/exec_linux_test.go |  8 ++++++++
+ 2 files changed, 13 insertions(+), 6 deletions(-)

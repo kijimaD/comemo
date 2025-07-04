@@ -1,21 +1,20 @@
-commit 7f9255c2120f784c334431661145ee89e75f64fe
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 23 20:40:52 2016 -0400
+commit 152a08c531a3219489136df71a8d75ff9ba3bf06
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Mar 29 23:37:59 2016 -0700
 
-    net: revise IP.String result for malformed IP address to add ? back
+    compress/gzip: fix error handling in Read
     
-    In earlier versions of Go the result was simply "?".
-    A change in this cycle made the result echo back the hex bytes
-    of the address, which is certainly useful, but now the result is
-    not clearly indicating an error. Put the "?" back, at the beginning
-    of the hex string, to make the invalidity of the string clearer.
+    The Read logic should not assume that only (0, io.EOF) is returned
+    instead of (n, io.EOF) where n is positive.
     
-    Change-Id: I3e0f0b6a005601cd98d982a62288551959185b40
-    Reviewed-on: https://go-review.googlesource.com/23376
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The fix done here is very similar to the fix to compress/zlib
+    in CL/20292.
+    
+    Change-Id: Icb76258cdcf8cfa386a60bab330fefde46fc071d
+    Reviewed-on: https://go-review.googlesource.com/21308
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/ip.go      | 4 ++--
- src/net/ip_test.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/compress/gzip/gunzip.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

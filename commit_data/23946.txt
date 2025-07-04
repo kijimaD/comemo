@@ -1,25 +1,14 @@
-commit 7aa4e29dce2b941644ff1f19e528ccc4790c519e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 3 10:04:42 2015 +0200
+commit dbe9ab69d946be2c324430c8ed7717276780b533
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 24 07:23:40 2015 -0700
 
-    net/http: fix server/transport data race when sharing the request body
+    cmd/compile/internal/gc: make sure nonzero-sized objects have nonzero alignment
     
-    Introduced in https://go-review.googlesource.com/12865 (git rev c2db5f4c).
+    See issue #11354.
     
-    This fix doesn't add any new lock acquistions: it just moves the
-    existing one taken by the unreadDataSize method and moves it out
-    wider.
-    
-    It became flaky at rev c2db5f4c, but now reliably passes again:
-    $ go test -v -race -run=TestTransportAndServerSharedBodyRace -count=100 net/http
-    
-    Fixes #11985
-    
-    Change-Id: I6956d62839fd7c37e2f7441b1d425793f4a0db30
-    Reviewed-on: https://go-review.googlesource.com/12909
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6817d499e6c02e4a9c83f80bc66a2bee368a69ec
+    Reviewed-on: https://go-review.googlesource.com/11406
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/server.go   | 4 +++-
- src/net/http/transfer.go | 7 +++----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/align.go | 4 ++++
+ 1 file changed, 4 insertions(+)

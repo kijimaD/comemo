@@ -1,16 +1,21 @@
-commit c90739e41ebb7e0c0adc1bbdad61a08dc240dffe
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Mon Nov 12 15:35:11 2012 -0500
+commit 791fb978ddde3bbe0117ad0eab2746d66b43d965
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Nov 12 15:31:23 2012 +0000
 
-    encoding/json: skip unexpected null values
+    crypto/x509: implement EncryptPEMBlock
     
-    As discussed in issue 2540, nulls are allowed for any type in JSON so they should not result in an error during Unmarshal.
-    Fixes #2540.
+    Arbitrary decisions: order of the arguments and the
+    fact it takes a block-type argument (rather than
+    leaving to user to fill it in later); I'm happy whatever
+    colour we want to paint it.
     
-    R=rsc
+    We also change DecryptPEMBlock so that it won't
+    panic when the IV has the wrong size.
+    
+    R=agl, agl
     CC=golang-dev
-    https://golang.org/cl/6759043
+    https://golang.org/cl/6820114
 
- src/pkg/encoding/json/decode.go      |  4 +--
- src/pkg/encoding/json/decode_test.go | 47 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 3 deletions(-)
+ src/pkg/crypto/x509/pem_decrypt.go      | 137 +++++++++++++++++++++++++++-----
+ src/pkg/crypto/x509/pem_decrypt_test.go | 111 +++++++++++++++++++++++---
+ 2 files changed, 219 insertions(+), 29 deletions(-)

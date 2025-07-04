@@ -1,17 +1,22 @@
-commit bf3ee57d27f7542808f8a153c7b547efaba355b0
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Mon Dec 2 09:38:30 2019 +0800
+commit 53c088fbf05f42b24e1f7aa40889ca51055f9f29
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Aug 19 13:17:34 2019 -0400
 
-    cmd/compile: declare with type for fmtMode constant
+    cmd/go: fix "go help build -o" docs
     
-    Like FmtFlag constant in fmt.go
+    The docs refer to "the last two paragraphs", but in fact should refer to
+    the first two of the previous three paragraphs. Moved up the out of place
+    paragraph.
     
-    Change-Id: I351bcb27095549cf19db531f532ea72d5c682610
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209497
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Updates #14295
+    
+    Change-Id: I066da7a665bc6754d246782b941af214a385017a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190839
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go  | 2 +-
- src/cmd/compile/internal/gc/main.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/work/build.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

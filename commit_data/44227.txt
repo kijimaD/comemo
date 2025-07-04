@@ -1,19 +1,29 @@
-commit cea4e21b525ad6b465f62741680eaa0a44e9cc3e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 8 16:32:39 2021 -0800
+commit 6ad5f4e334a7b2cecf319d7f4aecfaa8d790395e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 8 11:57:44 2020 -0400
 
-    io/fs: backslash is always a glob meta character
+    go/build: move build constraint docs to 'go help buildconstraint'
     
-    Fixes #44171
+    CL 228017 added a new help page 'go help buildconstraint' which
+    summarized the information on build constraints in the go/build
+    documentation. The summary was almost as long as the go/build
+    documentation, since there's very little that can be left out.
     
-    Change-Id: I2d3437a2f5b9fa0358e4664e1a8eacebed975eed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290512
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This CL moves the original go/build documentation to
+    'go help buildconstraint' to eliminate redundnancy. The text
+    describing enabled tags is slightly different (targeting command-line
+    users more than go/build users), but the rest of the documentation is
+    unchanged.
+    
+    Fixes #37018
+    
+    Change-Id: Ic0ed4c6fdae2395dd58852e1600c701247c9c4cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232981
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/io/fs/glob.go      | 5 ++---
- src/io/fs/glob_test.go | 3 ++-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go               | 103 ++++++++++++++++++++++++------------
+ src/cmd/go/internal/help/helpdoc.go | 103 ++++++++++++++++++++++++------------
+ src/go/build/doc.go                 |  98 +++-------------------------------
+ 3 files changed, 145 insertions(+), 159 deletions(-)

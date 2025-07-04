@@ -1,27 +1,44 @@
-commit e0d029f75846f84f79e63f6100c57047f4a3fa98
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jun 2 17:44:43 2021 -0400
+commit f2e58c6d4239f27db284dfe442fa62bb3c0c5b23
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Mon Nov 9 19:28:04 2020 -0800
 
-    runtime: avoid gp.lockedm race in exitsyscall0
+    syscall: improve TestSetuidEtc() /proc/ parsing against races
     
-    Following https://golang.org/cl/291329, exitsyscall0 accesses gp.lockedm
-    after releasing gp to the global runq. This creates a race window where
-    another M may schedule the (unlocked) G, which subsequently calls
-    LockOSThread, setting gp.lockedm and thus causing exitsyscall0 to think
-    it should call stoplockedm.
+    TestSetuidEtc() was failing sporadically on linux-ppc64. From the
+    three https://build.golang.org/ logs, it looked like the logged
+    errors could be associated with threads dying, but proc reads
+    were, in some way, racing with their demise.
     
-    Avoid this race by checking if gp is locked before releasing it to the
-    global runq.
+    Exploring ways to increase thread demise, revealed that races
+    of this type can happen on non-ppc64 systems, and that
+    os.IsNotExist(err) was not a sufficient error condition test
+    for a thread's status file disappearing. This change includes a
+    fix for that to.
     
-    Fixes #46524
+    The actual issue on linux-ppc64 appears to be tied to PID reaping
+    and reuse latency on whatever the build test environment is for
+    linux-ppc64-buildlet. I suspect this can happen on any linux
+    system, however, especially where the container has a limited PID
+    range.
     
-    Change-Id: I3acdaf09e7a2178725adbe61e985130e9ebd0680
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324350
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The fix for this, limited to the test (the runtime syscall support
+    is unchanged), is to confirm that the Pid for the interrogated
+    thread's /proc/<TID>/status file confirms that it is still
+    associated with the test-process' PID.
+    
+    linux-ppc64-buildlet:
+      go/bin/go test syscall -run=TestSetuidEtc -count=10000
+      ok      syscall 104.285s
+    
+    Fixes #42462
+    
+    Change-Id: I55c84ab8361003570a405fa52ffec4949bf91113
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268717
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/proc.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue1435.go        | 80 +++++++++++++++++++++++++++------------
+ src/syscall/syscall_linux_test.go | 40 ++++++++++++++++----
+ 2 files changed, 88 insertions(+), 32 deletions(-)

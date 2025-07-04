@@ -1,24 +1,32 @@
-commit 807a7ebd5107b44ca93849f2b12b61bc4cacca10
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Oct 7 12:16:26 2016 -0400
+commit bdb3b790c66444c388529fa1d9b3f4d6aaa4c13f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 7 03:23:20 2016 +0000
 
-    cmd/compile: improve s390x rules for folding ADDconst into loads/stores
+    Revert of cmd/compile: ignore contentEscapes for marking nodes as escaping
     
-    There is no benefit to folding ADDconsts unless the resultant immediate
-    will fit into a 20-bit signed integer, so limit these rules accordingly.
+    Reason for revert: broke the build due to cherrypick;
+    relies on an unsubmitted parent CL.
     
-    Also the signed load operations were missing, so I've added them, and
-    I've also removed some MOVDaddr rules that were dead code (MOVDaddrs
-    are rematerializable on s390x which means they can't take inputs other
-    than SP or SB).
+    Original issue's description:
+    > cmd/compile: ignore contentEscapes for marking nodes as escaping
+    >
+    > We can still stack allocate and VarKill nodes which don't
+    > escape but their content does.
+    >
+    > Fixes #16996
+    >
+    > Change-Id: If8aa0fcf2c327b4cb880a3d5af8d213289e6f6bf
+    > Reviewed-on: https://go-review.googlesource.com/28575
+    > Run-TryBot: Keith Randall <khr@golang.org>
+    > TryBot-Result: Gobot Gobot <gobot@golang.org>
+    > Reviewed-by: David Chase <drchase@google.com>
+    >
     
-    Change-Id: Iebeba78da37d3d71d32d4b7f49fe4ea9095d40ec
-    Reviewed-on: https://go-review.googlesource.com/30616
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie1a325209de14d70af6acb2d78269b7a0450da7a
+    Reviewed-on: https://go-review.googlesource.com/28578
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  50 +++--
- src/cmd/compile/internal/ssa/rewriteS390X.go | 267 +++++++++++----------------
- 2 files changed, 132 insertions(+), 185 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  2 +-
+ test/live.go                       | 10 ----------
+ test/live_ssa.go                   |  8 --------
+ 3 files changed, 1 insertion(+), 19 deletions(-)

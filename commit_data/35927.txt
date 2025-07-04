@@ -1,19 +1,27 @@
-commit 5f256dc8e62bbfda861bf404678f653c14970540
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Jul 9 16:15:01 2018 -0400
+commit 041c5d83486fce4a1c8b549a3c6f9c1951b0aea8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 21 11:53:51 2018 +0100
 
-    test: add test for gccgo bug #26248
+    cmd/trace: remove unused variable in tests
     
-    The fix is CL 122756.
+    Unused variables in closures are currently not diagnosed by the
+    compiler (this is Issue #3059), while go/types catches them.
     
-    Updates #26248.
+    One unused variable in the cmd/trace tests is causing the go/types
+    test that typechecks the whole standard library to fail:
     
-    Change-Id: Ic4250ab5d01da9f65d0bc033e2306343d9c87a99
-    Reviewed-on: https://go-review.googlesource.com/122757
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+      FAIL: TestStdlib (8.05s)
+        stdlib_test.go:223: cmd/trace/annotations_test.go:241:6: gcTime
+        declared but not used
+      FAIL
+    
+    Remove it.
+    
+    Updates #24464
+    
+    Change-Id: I0f1b9db6ae1f0130616ee649bdbfdc91e38d2184
+    Reviewed-on: https://go-review.googlesource.com/101815
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- test/fixedbugs/issue26248.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/cmd/trace/annotations_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

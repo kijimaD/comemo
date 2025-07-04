@@ -1,14 +1,13 @@
-commit a0645fcaf9a1a6b76483806f66eedb09ed7c71b5
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Tue Feb 14 08:11:07 2017 -0800
+commit 91c1cdfbdbecbc33ad396f55d9e8b5619959fde1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 28 13:16:25 2016 -0700
 
-    net/http: document ErrServerClosed
+    cmd/compile: add Param to Sizeof test
     
-    Fixes #19085
-    
-    Change-Id: Ib11b9a22ea8092aca9e1c9c36b1fb015dd555c4b
-    Reviewed-on: https://go-review.googlesource.com/36943
+    Change-Id: I2a710f0e9b484b3dfc581d3a9a23aa13321ec267
+    Reviewed-on: https://go-review.googlesource.com/32316
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/sizeof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

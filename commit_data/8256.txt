@@ -1,14 +1,19 @@
-commit 200bd0a057851a2569b1049229771bab20dd0809
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 28 15:21:54 2011 +1000
+commit ba43be30c4786c52c12a290fe397b83bdc558cfc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 21:36:11 2011 -0700
 
-    http: add MultipartForm, FormFile, and ParseMultipartForm to Request
+    adler32: speed up ~40% by avoiding bounds checks
     
-    R=rsc, bradfitz
+    before & after:
+    adler32.BenchmarkGolden   100000             14747 ns/op
+    adler32.BenchmarkGolden   200000              8761 ns/op
+    
+    Found by profiling PNG encoding.
+    
+    R=rsc, bradfitzwork, eds
     CC=golang-dev
-    https://golang.org/cl/4431068
+    https://golang.org/cl/4441073
 
- src/pkg/http/request.go      | 107 ++++++++++++++++++++++++++++++++++---
- src/pkg/http/request_test.go | 122 ++++++++++++++++++++++++++++++++++++++++---
- src/pkg/http/server.go       |   3 ++
- 3 files changed, 217 insertions(+), 15 deletions(-)
+ src/pkg/hash/adler32/adler32.go      |  4 ++--
+ src/pkg/hash/adler32/adler32_test.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

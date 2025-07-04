@@ -1,37 +1,18 @@
-commit bf68f6623afd589ebaed1f868729f707701c6ddc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 16 12:15:32 2014 -0400
+commit 23e8c0d28135f9d22af1c3ad0ab7fcef7632a22f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri May 16 16:51:27 2014 +0200
 
-    syscall: fix a few Linux system calls
+    cmd/addr2line, cmd/objdump: handle Plan 9 a.out object files
     
-    These functions claimed to return error (an interface)
-    and be implemented entirely in assembly, but it's not
-    possible to create an interface from assembly
-    (at least not easily).
+    Update #7947.
     
-    In reality the functions were written to return an errno uintptr
-    despite the Go prototype saying error.
-    When the errno was 0, they coincidentally filled out a nil error
-    by writing the 0 to the type word of the interface.
-    If the errno was ever non-zero, the functions would
-    create a non-nil error that would crash when trying to
-    call err.Error().
-    
-    Luckily these functions (Seek, Time, Gettimeofday) pretty
-    much never fail, so it was all kind of working.
-    
-    Found by go vet.
-    
-    LGTM=bradfitz, r
-    R=golang-codereviews, bradfitz, r
+    LGTM=iant
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/99320043
+    https://golang.org/cl/91500044
 
- src/pkg/syscall/asm_linux_386.s        |  2 +-
- src/pkg/syscall/asm_linux_amd64.s      | 10 +---------
- src/pkg/syscall/asm_linux_arm.s        |  2 +-
- src/pkg/syscall/syscall_linux_386.go   | 10 +++++++++-
- src/pkg/syscall/syscall_linux_amd64.go | 24 ++++++++++++++++++++++--
- src/pkg/syscall/syscall_linux_arm.go   | 14 +++++++++++---
- src/pkg/syscall/syscall_unix_test.go   | 12 ++++++++++++
- 7 files changed, 57 insertions(+), 17 deletions(-)
+ src/cmd/addr2line/addr2line_test.go |  3 --
+ src/cmd/addr2line/main.go           | 54 +++++++++++++++++++++++++++++++++++
+ src/cmd/objdump/main.go             | 57 +++++++++++++++++++++++++++++++++++++
+ src/cmd/objdump/objdump_test.go     |  3 --
+ 4 files changed, 111 insertions(+), 6 deletions(-)

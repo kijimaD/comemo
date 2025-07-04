@@ -1,19 +1,31 @@
-commit 853b514417dab2cf0383e48207caff2ce0305618
-Author: 1911860538 <alxps1911@gmail.com>
-Date:   Thu Mar 13 11:57:51 2025 +0000
+commit c2de2912cb7805e859f98651fb7e8ed219661352
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 8 12:34:44 2024 -0500
 
-    time: optimize quote using byte(c) for ASCII
+    cmd: update golang.org/x/telemetry and its dependencies
     
-    Since c < runeSelf && c >= ' ' (i.e., 32 <= c < 128), using buf = append(buf, byte(c)) instead of buf = append(buf, string(c)...) is a better choice, as it provides better performance.
+    This change was produced with
+            go get golang.org/x/telemetry@latest
+            go mod tidy
+            go mod vendor
     
-    Change-Id: Ic0ab25c71634a1814267f4d85be2ebd8a3d44676
-    GitHub-Last-Rev: 5445b547712bbfc77a5c17d76194291c22eb4a05
-    GitHub-Pull-Request: golang/go#72820
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657055
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For golang/go#65586,golang/go#58894
+    
+    Change-Id: I631a424ebb726fb0999d4b5d1e6e7a288b475344
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-386,gotip-windows-amd64-longtest,gotip-solaris-amd64,gotip-openbsd-amd64,gotip-wasip1-wasm_wazero,gotip-js-wasm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562715
+    TryBot-Bypass: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Commit-Queue: Michael Matloob <matloob@golang.org>
 
- src/time/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../golang.org/x/telemetry/counter/counter.go      |  2 +-
+ .../{counter_go118.go => counter_disabled.go}      | 10 +--
+ .../x/telemetry/internal/counter/file.go           | 15 ++--
+ .../x/telemetry/internal/counter/parse.go          | 35 +--------
+ .../x/telemetry/internal/counter/stackcounter.go   | 91 +++++++++++++++-------
+ .../x/telemetry/internal/telemetry/mode.go         | 15 ++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 9 files changed, 91 insertions(+), 85 deletions(-)

@@ -1,20 +1,27 @@
-commit 77680a064491dd54bd61ef0663276d6f64f66153
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Mar 21 15:46:32 2022 -0400
+commit c89f1224a544cde464fcb86e78ebb0cc97eedba2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon May 17 10:06:51 2021 -0700
 
-    cmd/link: simplify content hashed symbol handling
+    net: verify results from Lookup* are valid domain names
     
-    Symbol's content hash used to depend on package path expansion in
-    symbol names, so we have special logic handling hashed symbols
-    when path expansion is needed. As we required -p in the compiler
-    the symbol names are now fully expanded. Remove that logic.
+    For the methods LookupCNAME, LookupSRV, LookupMX, LookupNS, and
+    LookupAddr check that the returned domain names are in fact valid DNS
+    names using the existing isDomainName function.
     
-    Change-Id: I888574f63ea3789455d96468a6abd500e0958230
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394218
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Thanks to Philipp Jeitner and Haya Shulman from Fraunhofer SIT for
+    reporting this issue.
+    
+    Fixes #46241
+    Fixes CVE-2021-33195
+    
+    Change-Id: Icf231acd93178a3b6aec3f178cff7e693f74ef8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320949
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/link/internal/loader/loader.go | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ src/net/dnsclient_unix_test.go | 121 +++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go              |  98 ++++++++++++++++++++++++++++++---
+ 2 files changed, 211 insertions(+), 8 deletions(-)

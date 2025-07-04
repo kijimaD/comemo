@@ -1,15 +1,12 @@
-commit d6dfb0295b2c72cb65c1e03bcdb7fb2989fb1079
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 9 11:14:35 2015 -0700
+commit bbf38e931a8a4e8a49b45206ff7ed679eece70d7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 18 11:59:16 2015 -0800
 
-    cmd/internal/gc: remove unused fields
+    doc: add cgi change go1.5.txt
     
-    Change-Id: I3096a7497955bc475739739ee23be387e9162867
-    Reviewed-on: https://go-review.googlesource.com/7210
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I829529929906d4758c7ba10d356c251b44e35a8d
+    Reviewed-on: https://go-review.googlesource.com/5190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/go.go     | 2 --
- src/cmd/internal/gc/syntax.go | 1 -
- 2 files changed, 3 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

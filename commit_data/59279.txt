@@ -1,18 +1,19 @@
-commit c3a0859720469087e1542e8e00a60700f2f8847b
-Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
-Date:   Thu Apr 10 15:31:03 2025 +0000
+commit 28e0052ee7f3623c28aa08afc41416b29cbddebc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 28 01:28:43 2024 -0800
 
-    runtime: use built-in min function
+    cmd/compile/internal/inline: refactor fixpoint algorithm
     
-    Change-Id: I625c392864c97cefc2ac8f23612e3f62f7fbba23
-    GitHub-Last-Rev: 779f756850e7bf0cf2059ed0b4d412638c872f7e
-    GitHub-Pull-Request: golang/go#73313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664016
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    This CL refactors the interleaved fixpoint algorithm so that calls can
+    be inlined in any order. This has no immediate effect, but it will
+    allow a subsequent CL to prioritize calls by inlheur score.
+    
+    Change-Id: I11a84d228e9c94732ee75f0d3c99bc90d83fea09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567695
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/proc.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ .../internal/inline/interleaved/interleaved.go     | 117 ++++++++++++++++-----
+ src/cmd/compile/internal/ir/expr.go                |  20 ++--
+ 2 files changed, 106 insertions(+), 31 deletions(-)

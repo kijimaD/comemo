@@ -1,29 +1,24 @@
-commit 6fff980cf1f9af9f4b11e7fc7ead4987cc5fc560
-Author: Keith Randall <khr@google.com>
-Date:   Mon Nov 26 14:33:32 2018 -0800
+commit 9594ba4fe58e9d790ba8dbaa452132d5c4034fd3
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 1 06:38:54 2018 +0000
 
-    cmd/compile: initialize sparse slice literals dynamically
+    cmd/internal/obj/arm64: fix incorrect rejection of legal instructions
     
-    When a slice composite literal is sparse, initialize it dynamically
-    instead of statically.
+    "BFI $0, R1, $7, R2" is expected to copy bit 0~6 from R1 to R2, and
+    left R2's other bits unchanged.
     
-    s := []int{5:5, 20:20}
+    But the assembler rejects it with error "illegal bit number", and
+    BFIW/SBFIZ/SBFIZW/UBFIZ/UBFIZW have the same problem.
     
-    To initialize the backing store for s, use 2 constant writes instead
-    of copying from a static array with 21 entries.
+    This CL fixes that issue and adds corresponding test cases.
     
-    This CL also fixes pathologies in the compiler when the slice is
-    *very* sparse.
+    fixes #26736
     
-    Fixes #23780
-    
-    Change-Id: Iae95c6e6f6a0e2994675cbc750d7a4dd6436b13b
-    Reviewed-on: https://go-review.googlesource.com/c/151319
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie0090a0faa38a49dd9b096a0f435987849800b76
+    Reviewed-on: https://go-review.googlesource.com/127159
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/sinit.go  | 11 ++++++++++-
- src/cmd/compile/internal/gc/syntax.go |  2 +-
- test/fixedbugs/issue23780.go          | 17 +++++++++++++++++
- 3 files changed, 28 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s |  8 ++++++++
+ src/cmd/internal/obj/arm64/asm7.go        | 30 ++++++++++++++++++++++++------
+ 2 files changed, 32 insertions(+), 6 deletions(-)

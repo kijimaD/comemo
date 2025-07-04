@@ -1,0 +1,20 @@
+commit b2a856e82cf889cdba26476b5d55f8dd340604d0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 1 11:33:50 2024 +0200
+
+    all: use slices.Delete
+    
+    Change-Id: Ifb6aa07b32127907cdc2df44b2dbddd6296775c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616737
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/internal/testerrors/ptr_test.go | 2 +-
+ src/cmd/compile/internal/ssa/debug.go       | 2 +-
+ src/cmd/compile/internal/ssa/poset.go       | 3 ++-
+ src/cmd/fix/netipv6zone.go                  | 7 +++++--
+ src/cmd/go/go_test.go                       | 3 ++-
+ src/go/token/position.go                    | 2 +-
+ 6 files changed, 12 insertions(+), 7 deletions(-)

@@ -1,16 +1,19 @@
-commit 4284edb999716c408c99e9b5dc56734c31e4dcd5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 8 15:57:48 2016 -0800
+commit 303b69feb7b26b583b53a3a82d824088064bbf2b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 11 11:34:20 2016 -0700
 
-    cmd/link: explain how to find the name to use for -X
+    cmd/compile, runtime: stop padding stackmaps to 4 bytes
     
-    Doc change only.
+    Shrinks cmd/go's text segment by 0.9%.
     
-    Fixes #18246.
+       text    data     bss     dec     hex filename
+    6447148  231643  146328 6825119  68249f go.before
+    6387404  231643  146328 6765375  673b3f go.after
     
-    Change-Id: I2c7b181bcec81e124d30702f6fac5aa43bb57c04
-    Reviewed-on: https://go-review.googlesource.com/34230
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I431e8482dbb11a7c1c77f2196cada43d5dad2981
+    Reviewed-on: https://go-review.googlesource.com/30817
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/obj.go | 10 +++-------
+ src/runtime/symtab.go              |  2 +-
+ 2 files changed, 4 insertions(+), 8 deletions(-)

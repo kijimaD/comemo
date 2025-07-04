@@ -1,22 +1,20 @@
-commit 50bc3d5bbc6710663c082aa72c8ba4f9ee515ab3
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 15 14:39:28 2014 -0800
+commit 516d9ef53b656aa5e6eebdc2c09e8d257b13e033
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 4 09:43:37 2014 -0500
 
-    runtime: fix deadlock in runtime.Stack
+    gc: abort if given an unknown debug (-d) flag
     
-    It shouldn't semacquire() inside an acquirem(), the runtime
-    thinks that means deadlock.  It actually isn't a deadlock, but it
-    looks like it because acquirem() does m.locks++.
+    The check for unknown command line debug flags in gc was
+    incorrect: the loop over debugtab terminates when it reaches a
+    nil entry, but it was only reporting an error if the parser
+    had passed the last entry of debugtab (which it never did).
+    Fix this by reporting the usage error if the loop reaches a
+    nil entry.
     
-    Candidate for inclusion in 1.4.1.  runtime.Stack with all=true
-    is pretty unuseable in GOMAXPROCS>1 environment.
-    
-    fixes #9321
-    
-    Change-Id: Iac6b664217d24763b9878c20e49229a1ecffc805
-    Reviewed-on: https://go-review.googlesource.com/1600
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166110043
 
- src/runtime/mprof.go        | 14 +++++---------
- test/fixedbugs/issue9321.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 9 deletions(-)
+ src/cmd/gc/lex.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

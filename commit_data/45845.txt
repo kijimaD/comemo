@@ -1,23 +1,19 @@
-commit 2e542c3c061950dbaf202645fb00bcf4aa5861a0
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jun 21 12:09:43 2021 -0400
+commit 1abb12fc97d87ea67ce87a04ad6500bdfe1dbb7d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 17 12:53:34 2020 -0800
 
-    runtime/pprof: deflake TestMorestack more
+    [dev.regabi] go/constant: optimize BitLen
     
-    Apparently, TestMorestack is still flaky on darwin/arm64 builder
-    after CL 307730. Let it spend more time in copying the stack.
-    With this CL, on my Apple M1 machine it passes reliably in short
-    mode for 1000 runs, and reliably gets 250+ samples in the 5-second
-    interval in long mode.
+    Avoids an unnecessary heap allocation when computing the bit length of
+    int64 values.
     
-    May fix #46755.
-    
-    Change-Id: I07b36c1cf63ad35f7820e1f8e837e29376a37b2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329869
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I69dfc510e461daf3e83b0b7b6c0707f6526a32d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272646
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/pprof/pprof_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/constant/value.go      |  7 ++++++-
+ src/go/constant/value_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

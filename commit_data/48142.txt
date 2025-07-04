@@ -1,21 +1,19 @@
-commit e50f0f372b07149e9cf16b8fec80d2d72efe2a87
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 10 20:10:33 2022 -0800
+commit 168dd4e6aa8ad375748ade7613f2f75d6ef4204f
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 09:54:56 2021 -0400
 
-    spec: describe processing of function arguments for type inference more precisely
+    go/types: add example test for type inference
     
-    The outcome of type inference depends critically on when function
-    argument type inference stops processing arguments. Describe this
-    and explain an example with some detail.
+    This is a port of CL 308973. The only change is to remove a TODO at
+    inference.go2:100 to improve the error position. The go/types error
+    position is fine.
     
-    Also: In the section on the built-in function delete, refer to the
-    value rather than the type of the second argument, as it may be an
-    untyped constant.
-    
-    Change-Id: Ice7fbb33f985afe082380b8d37eaf763238a3818
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385034
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibf61f3458adde91dec9c7531cbd892ca654a5497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314593
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/go/types/examples/inference.go2 | 101 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

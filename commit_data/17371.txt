@@ -1,35 +1,14 @@
-commit 8f3f4c96a3d13be7cd9e4a82e2df51d840cda756
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Aug 24 01:51:25 2013 +1000
+commit ad50f6b2139d4d505a853415e6d9c346176f685d
+Author: Jan Mercl <0xjnml@gmail.com>
+Date:   Fri Aug 23 10:40:01 2013 -0500
 
-    syscall: dragonfly/amd64 support
+    doc: correct a minor go_mem.html mistake
     
-    Add syscall support for dragonfly/amd64.
+    Fixes #6227
     
-    Also add support for generating syscall z* files for dragonfly.
-    
-    R=bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13188043
+    https://golang.org/cl/13183043
 
- src/pkg/syscall/asm_dragonfly_amd64.s      | 133 ++++++++++
- src/pkg/syscall/bpf_bsd.go                 |   2 +-
- src/pkg/syscall/consistency_unix_test.go   |   2 +-
- src/pkg/syscall/env_unix.go                |   2 +-
- src/pkg/syscall/exec_bsd.go                |   2 +-
- src/pkg/syscall/exec_unix.go               |   2 +-
- src/pkg/syscall/mkall.sh                   |   8 +-
- src/pkg/syscall/mkerrors.sh                |  19 ++
- src/pkg/syscall/mksyscall.pl               |  16 ++
- src/pkg/syscall/mksysnum_dragonfly.pl      |  43 ++++
- src/pkg/syscall/passfd_test.go             |   7 +-
- src/pkg/syscall/route_bsd.go               |   2 +-
- src/pkg/syscall/route_dragonfly.go         |  72 ++++++
- src/pkg/syscall/sockcmsg_unix.go           |   2 +-
- src/pkg/syscall/syscall_bsd.go             |   6 +-
- src/pkg/syscall/syscall_dragonfly.go       | 394 +++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_dragonfly_amd64.go |  58 +++++
- src/pkg/syscall/syscall_no_getwd.go        |   2 +-
- src/pkg/syscall/syscall_unix.go            |   2 +-
- src/pkg/syscall/types_dragonfly.go         | 241 ++++++++++++++++++
- 20 files changed, 1002 insertions(+), 13 deletions(-)
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

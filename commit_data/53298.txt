@@ -1,35 +1,21 @@
-commit 15a4e0d9703033e0b2be4dc6830f03570df7943e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 24 11:42:57 2023 -0700
+commit 98277f30e4365f3b35d856fa9cdee2fe01ab862b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 9 10:17:54 2022 +0200
 
-    spec: re-order built-ins sections alphabetically (more or less)
+    syscall: add Mmap and Munmap on solaris
     
-    Put the sections for the various built-ins into alphabetical order
-    based on the built-in name, while keeping built-ins that belong
-    together together.
+    They exist on all other Unix ports, define them on GOOS=solaris as well.
     
-    The order is now (captialized letter determines order):
+    Fixes #52875
     
-    - Append
-    - Clear
-    - Close
-    - Complex, real, imag
-    - Delete
-    - Len, cap
-    - Make
-    - Min, max (to be inserted here)
-    - New
-    - Panic, recover
-    - Print, println
-    
-    There are some white space adjustments but no changes to the prose
-    of the moved sections.
-    
-    Change-Id: Iaec509918c6bc965df3f28656374de03279bdc9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498135
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7285156b3b48ce12fbcc6d1d88865540a5c51a21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413374
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go_spec.html | 384 ++++++++++++++++++++++++++++---------------------------
- 1 file changed, 195 insertions(+), 189 deletions(-)
+ src/syscall/mmap_unix_test.go  |  2 +-
+ src/syscall/syscall_solaris.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

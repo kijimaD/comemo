@@ -1,18 +1,29 @@
-commit c3c10f5d6748b25c13f475de427e2f17806ce5bb
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 17:42:49 2022 +0700
+commit 0626ac064d9300d16e1e5878777efc0430088569
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 17:08:00 2021 -0700
 
-    runtime: convert profbuf.overflow to atomic type
+    cmd/compile: restore original assignment error messages
     
-    Updates #53821
+    When used with the compiler, types2 will report assignment error
+    messages that closely match what the compiler type checker (types1)
+    produces.
     
-    Change-Id: Ib9c3be3d25c836636a59fdfacc63ba75edd9e016
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423889
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Also, mark lhs variables as used in invalid variable initializations
+    to avoid a class of follow-on errors.
+    
+    Fixes #48558.
+    
+    Change-Id: I92d1de006c66b3a2364bb1bea773a312963afe75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351669
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/profbuf.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 40 ++++++++++++-
+ src/cmd/compile/internal/types2/expr.go        |  6 +-
+ test/fixedbugs/issue19323.go                   |  2 +-
+ test/fixedbugs/issue26616.go                   |  6 +-
+ test/fixedbugs/issue27595.go                   |  2 +-
+ test/fixedbugs/issue48558.go                   | 77 ++++++++++++++++++++++++++
+ 6 files changed, 124 insertions(+), 9 deletions(-)

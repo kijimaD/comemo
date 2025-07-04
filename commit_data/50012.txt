@@ -1,84 +1,32 @@
-commit 572941942026e705a685860a170a60ce371b050e
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Aug 16 16:06:23 2022 +0800
+commit dfd875d015fb67671a2374c229e2159388d37693
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 22 20:20:09 2021 -0700
 
-    strings: speed up ToUpper()/ToLower() by batch writing data with Builder
+    cmd/compile: allow methods on shape types (but no bodies)
     
-    Updates #52371
-    Updates CL 423874
+    In a previous change, I was too aggressive in substInstType() in not
+    generating methods for shape types during import. We do actually want to
+    generate the method nodes - we just don't want to generate method bodies
+    (which we would never use). We may need the method nodes for checking
+    types later in the compile (especially with inlining).
     
-    name                                                                    old time/op    new time/op    delta
-    ToUpper/#00-10                                                            2.85ns ± 0%    2.81ns ± 0%   -1.31%  (p=0.000 n=10+10)
-    ToUpper/ONLYUPPER-10                                                      12.7ns ± 0%    12.5ns ± 0%   -1.35%  (p=0.000 n=10+10)
-    ToUpper/abc-10                                                            20.9ns ± 1%    20.1ns ± 1%   -3.92%  (p=0.000 n=8+10)
-    ToUpper/AbC123-10                                                         26.9ns ± 1%    28.5ns ± 0%   +5.78%  (p=0.000 n=9+9)
-    ToUpper/azAZ09_-10                                                        27.4ns ± 1%    24.5ns ± 0%  -10.82%  (p=0.000 n=9+9)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps-10                                95.9ns ± 1%   100.3ns ± 0%   +4.52%  (p=0.000 n=9+10)
-    ToUpper/RENAN_BASTOS_93_AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO-10     188ns ± 0%     121ns ± 0%  -35.52%  (p=0.000 n=9+10)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars-10                                 168ns ± 0%     164ns ± 0%   -2.02%  (p=0.000 n=8+10)
-    ToUpper/ɐɐɐɐɐ-10                                                           134ns ± 0%     132ns ± 0%   -1.59%  (p=0.000 n=9+10)
-    ToUpper/a\u0080\U0010ffff-10                                              67.6ns ± 0%    66.4ns ± 0%   -1.73%  (p=0.000 n=10+10)
-    ToLower/#00-10                                                            2.87ns ± 4%    2.83ns ± 0%   -1.46%  (p=0.004 n=9+9)
-    ToLower/abc-10                                                            6.35ns ± 0%    6.29ns ± 0%   -0.98%  (p=0.000 n=9+9)
-    ToLower/AbC123-10                                                         25.6ns ± 1%    28.1ns ± 1%   +9.81%  (p=0.000 n=10+10)
-    ToLower/azAZ09_-10                                                        29.9ns ± 1%    30.1ns ± 1%   +0.64%  (p=0.023 n=9+10)
-    ToLower/longStrinGwitHmixofsmaLLandcAps-10                                96.7ns ± 1%    73.0ns ± 0%  -24.50%  (p=0.000 n=10+10)
-    ToLower/renan_bastos_93_AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO-10     177ns ± 0%     118ns ± 0%  -33.61%  (p=0.000 n=7+8)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-10                                 159ns ± 1%     158ns ± 0%   -0.97%  (p=0.000 n=8+10)
-    ToLower/ⱭⱭⱭⱭⱭ-10                                                           125ns ± 1%     123ns ± 1%   -1.67%  (p=0.000 n=9+9)
-    ToLower/A\u0080\U0010ffff-10                                              68.4ns ± 1%    67.1ns ± 0%   -1.95%  (p=0.000 n=9+9)
+    So, we do generate method nodes for shape types during import. In
+    order to avoid the name collision we previously had, we now add
+    ".nofunc." to the method nodes for shape types (during import and in the
+    type substituter). We do that by passing in a 'isMethodNode' arg to
+    MakeInstSym. We keep the normal name (without ".nofunc") for any other
+    method nodes, and for the instantiated functions that help with
+    implementing the methods of fully-instantiated types. The ".nofunc"
+    names will never appear in the executable, since we don't generate any
+    method bodies for the method nodes of shape types.
     
-    name                                                                    old alloc/op   new alloc/op   delta
-    ToUpper/#00-10                                                             0.00B          0.00B          ~     (all equal)
-    ToUpper/ONLYUPPER-10                                                       0.00B          0.00B          ~     (all equal)
-    ToUpper/abc-10                                                             3.00B ± 0%     3.00B ± 0%     ~     (all equal)
-    ToUpper/AbC123-10                                                          8.00B ± 0%     8.00B ± 0%     ~     (all equal)
-    ToUpper/azAZ09_-10                                                         8.00B ± 0%     8.00B ± 0%     ~     (all equal)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps-10                                 32.0B ± 0%     32.0B ± 0%     ~     (all equal)
-    ToUpper/RENAN_BASTOS_93_AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO-10     64.0B ± 0%     64.0B ± 0%     ~     (all equal)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars-10                                 48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    ToUpper/ɐɐɐɐɐ-10                                                           48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    ToUpper/a\u0080\U0010ffff-10                                               16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    ToLower/#00-10                                                             0.00B          0.00B          ~     (all equal)
-    ToLower/abc-10                                                             0.00B          0.00B          ~     (all equal)
-    ToLower/AbC123-10                                                          8.00B ± 0%     8.00B ± 0%     ~     (all equal)
-    ToLower/azAZ09_-10                                                         8.00B ± 0%     8.00B ± 0%     ~     (all equal)
-    ToLower/longStrinGwitHmixofsmaLLandcAps-10                                 32.0B ± 0%     32.0B ± 0%     ~     (all equal)
-    ToLower/renan_bastos_93_AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO-10     64.0B ± 0%     64.0B ± 0%     ~     (all equal)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-10                                 48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    ToLower/ⱭⱭⱭⱭⱭ-10                                                           24.0B ± 0%     24.0B ± 0%     ~     (all equal)
-    ToLower/A\u0080\U0010ffff-10                                               16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    
-    name                                                                    old allocs/op  new allocs/op  delta
-    ToUpper/#00-10                                                              0.00           0.00          ~     (all equal)
-    ToUpper/ONLYUPPER-10                                                        0.00           0.00          ~     (all equal)
-    ToUpper/abc-10                                                              1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/AbC123-10                                                           1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/azAZ09_-10                                                          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps-10                                  1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/RENAN_BASTOS_93_AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO-10      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars-10                                  1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/ɐɐɐɐɐ-10                                                            2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    ToUpper/a\u0080\U0010ffff-10                                                1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/#00-10                                                              0.00           0.00          ~     (all equal)
-    ToLower/abc-10                                                              0.00           0.00          ~     (all equal)
-    ToLower/AbC123-10                                                           1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/azAZ09_-10                                                          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/longStrinGwitHmixofsmaLLandcAps-10                                  1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/renan_bastos_93_AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO-10      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-10                                  1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/ⱭⱭⱭⱭⱭ-10                                                            1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/A\u0080\U0010ffff-10                                                1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    Change-Id: Id3998ac4bae054ba3e6cf30545a257d5992b48be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424139
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Change-Id: I3e57e328691214140ca5f48d32011552d2a0d45d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352470
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strings/strings.go      | 28 ++++++++++++++++++++++++----
- src/strings/strings_test.go |  2 ++
- 2 files changed, 26 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go       |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go   |  7 +------
+ src/cmd/compile/internal/typecheck/subr.go      | 21 ++++++++++++++++-----
+ 4 files changed, 19 insertions(+), 13 deletions(-)

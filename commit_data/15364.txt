@@ -1,12 +1,20 @@
-commit 6138e368f81f67f79d7b9039bf40009e28cd3e09
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Feb 22 10:28:03 2013 +1100
+commit 782cbb4f90dc873eced4248e100e69a6502d7aee
+Author: Robert Dinu <r@oktett.se>
+Date:   Thu Feb 21 14:17:43 2013 -0800
 
-    cmd/gc: fix FreeBSD build
+    testing: fix output formatting
     
-    R=jsing, mikioh.mikioh, bradfitz
+    Revision 5e7fd762f356 has changed the output formatting in a way that
+    is no longer in line with the format described by the revision
+    ff0ade0b937b which has introduced this functionality.
+    When decorating the first line, instead of indenting the whole line,
+    the current implementation adds indentation right after the "decorate"
+    part and  before the "log" message.
+    The fix addresses this issue.
+    
+    R=golang-dev, iant, minux.ma, r, rsc, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/7390048
+    https://golang.org/cl/7304094
 
- src/cmd/gc/dcl.c | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/testing/testing.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

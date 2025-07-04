@@ -1,13 +1,19 @@
-commit de479267ef9db0911dac68e94d75186313bae11d
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Wed Feb 1 19:57:11 2017 +0000
+commit 930ab0afd787214d379aca230944d0d41c8b90e6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Oct 14 11:37:55 2016 -0400
 
-    doc: mention SHA-256 CBC suites are off by default
+    cmd/asm, cmd/internal/obj/s390x: fix VFMA and VFMS encoding
     
-    Change-Id: I82c41bd1d82adda457ddb5dd08caf0647905da22
-    Reviewed-on: https://go-review.googlesource.com/36091
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The m5 and m6 fields were the wrong way round.
+    
+    Fixes #17444.
+    
+    Change-Id: I10297064f2cd09d037eac581c96a011358f70aae
+    Reviewed-on: https://go-review.googlesource.com/31130
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.8.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 5 ++++-
+ src/cmd/internal/obj/s390x/asmz.go        | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

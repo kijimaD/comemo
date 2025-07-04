@@ -1,26 +1,20 @@
-commit d3853fb4e6ee2b9f873ab2e41adc0e62a82e73e4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 22 11:12:21 2021 -0400
+commit 9499a2e10840e3878bff06e7f9a3bdaa56c5ca45
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 26 03:18:30 2020 +1000
 
-    runtime: call cgocallbackg indirectly
+    cmd/dist: detect gohostarch for openbsd/mips64
     
-    cgocallback calls cgocallbackg after switching the stack. Call it
-    indirectly to bypass the linker's nosplit check.
+    On OpenBSD/octeon `uname -m` returns 'octeon' and we need `uname -p` to determine
+    the processor type (mips64).
     
-    Apparently (at least on Windows) cgocallbackg can use quite a bit
-    stack space in a nosplit chain. We have been running over the
-    nosplit limit, or very close to the limit. Since it switches
-    stack in cgocallback, it is not meaningful to count frames above
-    cgocallback and below cgocallbackg together. Bypass the check.
+    Update #40995
     
-    For #45658.
-    
-    Change-Id: Ie22017e3f82d2c1fcc37336696f2d02757856399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312669
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I37c53ca2c372ab958fff17917d82d41f4b0a0393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250583
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_amd64.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/main.go | 4 ++++
+ 1 file changed, 4 insertions(+)

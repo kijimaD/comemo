@@ -1,23 +1,13 @@
-commit caef4496fcdaca8dc5b86f60b07760e5434ca1f3
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Fri Apr 22 12:44:31 2016 +0200
+commit 211cc40b11e8dc74243b4ac3c03c63aa06ef49b5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 20:36:02 2016 -0800
 
-    cmd/compile: convert some Phis into And8.
+    cmd/compile: change ignorecase param types to bool
     
-    See discussion at [1]. True value must have a fixed non-zero
-    representation meaning that a && b can be implemented as a & b.
-    
-    [1] https://groups.google.com/forum/#!topic/golang-dev/xV0vPuFP9Vg
-    
-    This change helps with m := a && b, but it's more common to see
-    if a && b { do something } which is not handled.
-    
-    Change-Id: Ib6f9ff898a0a8c05d12466e2464e4fe781035394
-    Reviewed-on: https://go-review.googlesource.com/22313
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I93b4821254c9b0a3cebd912f447ed58f20adeb58
+    Reviewed-on: https://go-review.googlesource.com/19937
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/phiopt.go | 17 ++++++++++++++
- test/phiopt.go                         | 43 ++++++++++++++++++++++++++++++----
- 2 files changed, 55 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

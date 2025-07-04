@@ -1,14 +1,12 @@
-commit ba57c8800318d3378b438f5bf79ac276960c03e7
+commit 9cfb845af662c34d8b070506af6b53c408050fd7
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat May 19 10:42:54 2012 +0900
+Date:   Sat May 19 08:35:51 2012 +0900
 
-    net: fix leak in test
+    syscall: add comment
     
-    Also change the Listner variable name from l to ln.
-    
-    R=golang-dev, rsc, dave
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5918046
+    https://golang.org/cl/6215046
 
- src/pkg/net/net_test.go | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/pkg/syscall/types_darwin.go | 2 ++
+ 1 file changed, 2 insertions(+)

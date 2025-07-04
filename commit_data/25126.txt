@@ -1,21 +1,19 @@
-commit 92cc3c4e7657e9834f91f30029c81c679b35fa50
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 25 17:01:49 2015 +1000
+commit 38c5fd5cf872cf2eabad1361342097e11d292c91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 16:35:54 2015 -0700
 
-    net: return rooted DNS names on windows
+    math/big: implement Float.Text(Un)Marshaler
     
-    This CL also changes windows LookupSRV to return
-    _xmpp-server._tcp.google.com. as cname instead of google.com
-    similar to linux. Otherwise TestLookupDots still fails.
+    Fixes #12256.
     
-    Updates #12193 (with plan9 still to do)
-    
-    Change-Id: Id225e15bee95037cdb4226803506cce690c5d341
-    Reviewed-on: https://go-review.googlesource.com/13887
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie4a3337996da5c060b27530b076048ffead85f3b
+    Reviewed-on: https://go-review.googlesource.com/15040
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/lookup_windows.go      | 30 +++++++++++++++++++-----------
- src/net/lookup_windows_test.go | 15 ++++-----------
- 2 files changed, 23 insertions(+), 22 deletions(-)
+ src/math/big/floatmarsh.go      | 33 +++++++++++++++++++++++++
+ src/math/big/floatmarsh_test.go | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/intmarsh.go        | 27 ++++++++-------------
+ src/math/big/intmarsh_test.go   |  6 ++++-
+ src/math/big/ratmarsh.go        |  8 +++---
+ src/math/big/ratmarsh_test.go   |  4 ++-
+ 6 files changed, 109 insertions(+), 23 deletions(-)

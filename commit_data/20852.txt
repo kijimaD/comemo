@@ -1,21 +1,51 @@
-commit 590f5283762a6e80796c3ae2bde410319162cb45
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 6 09:57:46 2014 +1100
+commit 193d09a659c8d0a894fa682a879adb8fac1a4d82
+Author: James Robinson <jamesr@google.com>
+Date:   Mon Oct 20 12:58:02 2014 +1100
 
-    bufio: don't loop generating empty tokens
+    compress/flate: add Reset() to allow reusing large buffers to compress multiple buffers
     
-    The new rules for split functions mean that we are exposed
-    to the common bug of a function that loops forever at EOF.
-    Pick these off by shutting down the scanner if too many
-    consecutive empty tokens are delivered.
+    This adds a Reset() to compress/flate's decompressor and plumbs that through
+    to compress/zlib and compress/gzip's Readers so callers can avoid large
+    allocations when performing many inflate operations. In particular this
+    preserves the allocation of the decompressor.hist buffer, which is 32kb and
+    overwritten as needed while inflating.
     
-    Fixes #9020.
+    On the benchmark described in issue 6317, produces the following speedup on
+    my 2.3ghz Intel Core i7 MBP with go version devel +6b696a34e0af Sun Aug 03
+    15:14:59 2014 -0700 darwin/amd64:
     
-    LGTM=rsc, adg
-    R=golang-codereviews, rsc, adg, bradfitz
+    blocked.text w/out patch vs blocked.text w/ patch:
+    benchmark           old ns/op      new ns/op      delta
+    BenchmarkGunzip     8371577533     7927917687     -5.30%
+    
+    benchmark           old allocs     new allocs     delta
+    BenchmarkGunzip     176818         148519         -16.00%
+    
+    benchmark           old bytes     new bytes     delta
+    BenchmarkGunzip     292184936     12739528      -95.64%
+    
+    flat.text vs blocked.text w/patch:
+    benchmark           old ns/op      new ns/op      delta
+    BenchmarkGunzip     7939447827     7927917687     -0.15%
+    
+    benchmark           old allocs     new allocs     delta
+    BenchmarkGunzip     90702          148519         +63.74%
+    
+    benchmark           old bytes     new bytes     delta
+    BenchmarkGunzip     9959528       12739528      +27.91%
+    
+    Similar speedups to those bradfitz saw in  https://golang.org/cl/13416045.
+    
+    Fixes #6317.
+    Fixes #7950.
+    
+    LGTM=nigeltao
+    R=golang-codereviews, bradfitz, dan.kortschak, adg, nigeltao, jamesr
     CC=golang-codereviews
-    https://golang.org/cl/169970043
+    https://golang.org/cl/97140043
 
- src/bufio/scan.go      | 12 +++++++++++
- src/bufio/scan_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+)
+ src/compress/flate/inflate.go      | 27 +++++++++++++
+ src/compress/flate/inflate_test.go | 39 +++++++++++++++++++
+ src/compress/gzip/gunzip.go        |  6 ++-
+ src/compress/zlib/reader.go        | 80 +++++++++++++++++++++++++-------------
+ 4 files changed, 125 insertions(+), 27 deletions(-)

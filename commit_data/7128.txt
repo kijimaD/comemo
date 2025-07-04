@@ -1,12 +1,12 @@
-commit 6432471497475f1ae4044a89a7272eb1e84662c4
+commit 2c35e548bb170421b1463b0a4bb5d6ab653e1d14
 Author: Ken Thompson <ken@golang.org>
-Date:   Sat Jan 15 17:11:24 2011 -0800
+Date:   Sat Jan 15 16:55:47 2011 -0800
 
-    disable reg - tar test failed
+    arm reg bug MOVW into bool variable
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/3969042
+    https://golang.org/cl/4034042
 
- src/cmd/5g/reg.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/5g/reg.c | 32 +++++++++++++++++---------------
+ 1 file changed, 17 insertions(+), 15 deletions(-)

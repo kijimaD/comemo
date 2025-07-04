@@ -1,21 +1,20 @@
-commit 23b687eccbcc68f44acf34fd5971f0f5c04d90de
-Author: Dave Russell <forfuncsake@gmail.com>
-Date:   Sat May 19 00:54:43 2018 +0000
+commit 4313d7767d830e863e8f8b53a2b48ca8d0bf0a79
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jan 22 09:43:27 2018 -0800
 
-    bytes: re-slice buffer to its previous length after call to grow()
+    cmd/compile: reset branch prediction when deleting a branch
     
-    Fixes #25435
+    When we go from a branch block to a plain block, reset the
+    branch prediction bit. Downstream passes asssume that if the
+    branch prediction is set, then the block has 2 successors.
     
-    The added test fails without the re-slice and passes with it.
+    Fixes #23504
     
-    Change-Id: I5ebc2a737285eb116ecc5938d8bf49050652830f
-    GitHub-Last-Rev: 454ddad7df8d56a1d0e05a999ed8277c5516ce01
-    GitHub-Pull-Request: golang/go#25436
-    Reviewed-on: https://go-review.googlesource.com/113495
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2898ec002228b2e34fe80ce420c6939201c0a5aa
+    Reviewed-on: https://go-review.googlesource.com/88955
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/bytes/buffer.go      |  1 +
- src/bytes/buffer_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/cmd/compile/internal/ssa/check.go |  2 +-
+ src/cmd/compile/internal/ssa/fuse.go  |  1 +
+ test/fixedbugs/issue23504.go          | 15 +++++++++++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)

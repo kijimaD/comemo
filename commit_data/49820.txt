@@ -1,22 +1,27 @@
-commit 9f8685f49e9e04e4734a4b1cec2505983af774a5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 10 23:24:54 2022 +0700
+commit 137543bb93e15286b54d58d17d51e609ed49339a
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 14 08:39:08 2021 -0700
 
-    all: remove remaining UNREVIEWED files for Unified IR
+    cmd/compile: set IsShape based on type being in the Shapes pkg
     
-    Those ureader.go files have enough documents and in stable
-    developement/review as other parts of Unified IR.
+    Move ShapePkg to types, and change types.NewNamed to automatically set
+    IsShape/HasShape if a type is in the shapes pkg. This means that
+    imported shape types will automatically have the correct
+    IsShape/HasShape flags, even though we are not explicitly
+    exporting/importing those flags.
     
-    Fixes #48194
+    Updates #48337
     
-    Change-Id: I08a0cbfef05401135b5390e00fe808e838a96170
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422617
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I8b6131a663205f73f395943c9d0c8bdb2a213401
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349869
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/importer/ureader.go | 2 --
- src/go/internal/gcimporter/ureader.go        | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go | 10 +++++++---
+ src/cmd/compile/internal/types/type.go     |  6 ++++++
+ test/typeparam/issue48337b.dir/a.go        | 25 +++++++++++++++++++++++++
+ test/typeparam/issue48337b.dir/main.go     | 11 +++++++++++
+ test/typeparam/issue48337b.go              |  7 +++++++
+ 5 files changed, 56 insertions(+), 3 deletions(-)

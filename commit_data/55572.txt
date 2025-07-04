@@ -1,18 +1,20 @@
-commit bf821f65cfd61dcc431922eea2cb97ce0825d60c
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Feb 1 11:28:44 2024 +0800
+commit 6af9635fb8a002f563a1765f7ab2bd97d4e4d4df
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 14:23:48 2023 -0500
 
-    io/fs: set ErrInvalid for FS.Open from SubFS when it fails ValidPath
+    cmd/go: enable vet directive analyzer during 'go test'
     
-    Fixes #65419
+    For #56986, run the new directive analyzer during 'go test',
+    to diagnose problems that would otherwise be missed,
+    like //go:debug appearing in the wrong place in a file
+    or in the wrong files.
     
-    Change-Id: I8f9f82ab0387d8bb39aaca4f9e60e36ee15c587d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560137
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1ac230c3c67e58b5e584128e0ec6ff482cb225f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464135
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/io/fs/sub.go      | 4 ++--
- src/io/fs/sub_test.go | 6 ++++++
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go            | 4 ++--
+ src/cmd/go/internal/test/test.go | 5 +++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)

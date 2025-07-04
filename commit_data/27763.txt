@@ -1,19 +1,17 @@
-commit 7ea62121a7de25559cb88389983086f45910aed6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 30 19:24:06 2016 +0000
+commit 811ebb6ac961162b815f4fd50976df81ba4c47b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 12 09:22:26 2016 -0700
 
-    all: be consistent about spelling of cancelation
+    cmd/compile: temporarily disable inplace append special case
     
-    We had ~30 one way, and these four new occurrences the other way.
+    Fixes #15246
+    Re-opens #14969
     
-    Updates #11626
-    
-    Change-Id: Ic6403dc4905874916ae292ff739d33482ed8e5bf
-    Reviewed-on: https://go-review.googlesource.com/24683
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic0b41c5aa42bbb229a0d62b7f3e5888c6b29293d
+    Reviewed-on: https://go-review.googlesource.com/21891
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.7.html                     | 2 +-
- src/cmd/compile/internal/gc/ssa.go | 4 ++--
- src/cmd/vet/doc.go                 | 4 ++--
- src/cmd/vet/lostcancel.go          | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

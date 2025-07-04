@@ -1,15 +1,16 @@
-commit fb37821014fae9fe849689a900049361158111f0
+commit 5f509148b13f196b12109d03809691cd1ed40284
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 5 08:06:28 2019 -0800
+Date:   Mon Jun 3 19:35:40 2019 -0700
 
-    runtime/cgo: add -Wno-nullability-completeness on Darwin
+    misc/cgo/test: add test for issue 31093
     
-    Fixes #35247
+    Updates #31093
     
-    Change-Id: I4f2e243c89e9f745b82bcd181add87fad1443171
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205457
+    Change-Id: I7962aaca0b012de01768b7b42dc2283d5845eeea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180377
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/cgo/cgo.go | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/cgo/test/test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

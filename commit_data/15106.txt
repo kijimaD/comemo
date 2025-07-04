@@ -1,18 +1,12 @@
-commit d82dcadb57836bb9b1d66a3c9a5de77bf9f41f3f
+commit e87cc3dc5b3bbfeb018744902516e5684ca31a7f
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 02:01:05 2013 -0500
+Date:   Sun Feb 3 01:25:58 2013 -0500
 
-    cmd/gc: clean up string index errors
+    exp/gotype: disable broken test
     
-    Unify with array/slice errors, which were already good.
-    
-    Fixes #4232.
-    
-    R=ken2
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7271046
+    https://golang.org/cl/7275045
 
- src/cmd/gc/typecheck.c      | 34 +++++++++++++++++++---------------
- test/fixedbugs/bug205.go    |  6 +++---
- test/fixedbugs/issue4232.go | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 55 insertions(+), 18 deletions(-)
+ src/pkg/exp/gotype/gotype_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

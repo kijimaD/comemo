@@ -1,23 +1,28 @@
-commit 5616ab602566b0daa87dfd250a76c61960c4b634
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Apr 30 14:41:49 2024 +0200
+commit 0fd6ae548f550bdbee4a434285ff052fb9dc7417
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 28 15:52:16 2023 -0400
 
-    os: use filepathlite.VolumeName
+    cmd/compile: escape package path for PGO symbol matching
     
-    It is better to have a single implementation of VolumeName, which is
-    quite tricky to get right on Windows.
+    Symbol names in the final executable apply escaping to the final
+    component of a package path (main in example.com becomes
+    example%2ecom.main).
     
-    Change-Id: Ibba82dd71fe10b594cb6f782582430aa422e7078
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582499
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    ir.PkgFuncName does not perform this escaping, meaning we'd fail to
+    match functions that are escaped in the profile.
+    
+    Add ir.LinkFuncName which does perform escaping and use it for PGO.
+    
+    Fixes #59887.
+    
+    Change-Id: I10634d63d99d0a6fd2f72b929ab35ea227e1336f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490555
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/file_windows.go |  4 ++--
- src/os/path.go         |  3 ++-
- src/os/path_plan9.go   |  4 ----
- src/os/path_unix.go    |  4 ----
- src/os/path_windows.go | 40 +---------------------------------------
- 5 files changed, 5 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/inline/inl.go  |  4 ++--
+ src/cmd/compile/internal/ir/func.go     | 25 ++++++++++++++++++++-----
+ src/cmd/compile/internal/pgo/irgraph.go | 26 +++++++++++++-------------
+ 3 files changed, 35 insertions(+), 20 deletions(-)

@@ -1,14 +1,63 @@
-commit aff37662d1f70f2bf9e47b4f962e85521e7c18d1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 4 10:06:14 2016 -0700
+commit 90c3cf4b52cc9373a96009da0d013019c1f5bcd8
+Author: Radu Berinde <radu@cockroachlabs.com>
+Date:   Sat Aug 27 13:17:30 2016 -0400
 
-    spec: add new language for alias declarations
+    hash/crc32: improve the AMD64 implementation using SSE4.2
     
-    For #16339.
+    The algorithm is explained in the comments. The improvement in
+    throughput is about 1.4x for buffers between 500b-4Kb and 2.5x-2.6x
+    for larger buffers.
     
-    Change-Id: I7d912ea634bbfacfc0217f97dccb270fde06f16b
-    Reviewed-on: https://go-review.googlesource.com/30601
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Additionally, we no longer initialize the software tables if SSE4.2 is
+    available.
+    
+    Adding a test for the SSE implementation (restricted to amd64 and
+    amd64p32).
+    
+    Benchmarks on a Haswell i5-4670 @ 3.4 GHz:
+    
+    name                           old time/op    new time/op     delta
+    CastagnoliCrc15B-4               21.9ns ± 1%     22.9ns ± 0%    +4.45%
+    CastagnoliCrc15BMisaligned-4     22.6ns ± 0%     23.4ns ± 0%    +3.43%
+    CastagnoliCrc40B-4               23.3ns ± 0%     23.9ns ± 0%    +2.58%
+    CastagnoliCrc40BMisaligned-4     25.4ns ± 0%     26.1ns ± 0%    +2.86%
+    CastagnoliCrc512-4               72.6ns ± 0%     52.8ns ± 0%   -27.33%
+    CastagnoliCrc512Misaligned-4     76.3ns ± 1%     56.3ns ± 0%   -26.18%
+    CastagnoliCrc1KB-4                128ns ± 1%       89ns ± 0%   -30.04%
+    CastagnoliCrc1KBMisaligned-4      130ns ± 0%       88ns ± 0%   -32.65%
+    CastagnoliCrc4KB-4                461ns ± 0%      187ns ± 0%   -59.40%
+    CastagnoliCrc4KBMisaligned-4      463ns ± 0%      191ns ± 0%   -58.77%
+    CastagnoliCrc32KB-4              3.58µs ± 0%     1.35µs ± 0%   -62.22%
+    CastagnoliCrc32KBMisaligned-4    3.58µs ± 0%     1.36µs ± 0%   -61.84%
+    
+    name                           old speed      new speed       delta
+    CastagnoliCrc15B-4              684MB/s ± 1%    655MB/s ± 0%    -4.32%
+    CastagnoliCrc15BMisaligned-4    663MB/s ± 0%    641MB/s ± 0%    -3.32%
+    CastagnoliCrc40B-4             1.72GB/s ± 0%   1.67GB/s ± 0%    -2.69%
+    CastagnoliCrc40BMisaligned-4   1.58GB/s ± 0%   1.53GB/s ± 0%    -2.82%
+    CastagnoliCrc512-4             7.05GB/s ± 0%   9.70GB/s ± 0%   +37.59%
+    CastagnoliCrc512Misaligned-4   6.71GB/s ± 1%   9.09GB/s ± 0%   +35.43%
+    CastagnoliCrc1KB-4             7.98GB/s ± 1%  11.46GB/s ± 0%   +43.55%
+    CastagnoliCrc1KBMisaligned-4   7.86GB/s ± 0%  11.70GB/s ± 0%   +48.75%
+    CastagnoliCrc4KB-4             8.87GB/s ± 0%  21.80GB/s ± 0%  +145.69%
+    CastagnoliCrc4KBMisaligned-4   8.83GB/s ± 0%  21.39GB/s ± 0%  +142.25%
+    CastagnoliCrc32KB-4            9.15GB/s ± 0%  24.22GB/s ± 0%  +164.62%
+    CastagnoliCrc32KBMisaligned-4  9.16GB/s ± 0%  24.00GB/s ± 0%  +161.94%
+    
+    Fixes #16107.
+    
+    Change-Id: Ibe50ea76574674ce0571ef31c31015e0ed66b907
+    Reviewed-on: https://go-review.googlesource.com/27931
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 69 insertions(+), 6 deletions(-)
+ src/hash/crc32/crc32.go            |  10 ++-
+ src/hash/crc32/crc32_amd64.go      | 170 +++++++++++++++++++++++++++++++++++--
+ src/hash/crc32/crc32_amd64.s       |  49 ++++++++++-
+ src/hash/crc32/crc32_amd64_test.go |  45 ++++++++++
+ src/hash/crc32/crc32_amd64p32.go   |   9 +-
+ src/hash/crc32/crc32_generic.go    |   4 +
+ src/hash/crc32/crc32_s390x.go      |   4 +
+ src/hash/crc32/crc32_test.go       |  24 ++++++
+ 8 files changed, 301 insertions(+), 14 deletions(-)

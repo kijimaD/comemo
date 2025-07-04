@@ -1,21 +1,20 @@
-commit a858d15f11f87b53792a6afb156716b80f9634c7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 27 09:32:52 2020 +1100
+commit 8fb9fa36f5b7cf161d0694fdb418af7c83b946d5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 5 14:32:46 2019 -0400
 
-    cmd/compile: disable open-coded defers on riscv64
+    cmd/go/internal/get: make the implementation of charsetReader match its comment
     
-    Open-coded defers are currently broken on riscv64 - disable them for the
-    time being. All of the standard package tests now pass on linux/riscv64.
+    The doc comment for charsetReader claims that it supports UTF-8,
+    but in practice it does not: instead, it is never invoked for UTF-8.
     
-    Updates issue #27532 and #36786
+    We could update the comment to clarify that fact, but it seems simpler
+    to change the implementation to match the comment.
     
-    Change-Id: I20fc25ce91dfad48be32409ba5c64ca9a6acef1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216517
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I39b11395ccef3feff96480b9294e8f2a232728dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189777
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 7 ++++++-
- test/defererrcheck.go              | 4 ++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/get/discovery.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

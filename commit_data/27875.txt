@@ -1,17 +1,14 @@
-commit 04e76f295f434bf1bd5ef3b01eed42b638a8b321
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 17 10:32:39 2016 -0400
+commit 5c434e93a16fae3edc4f0494bc796eb80bfbd0b2
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Apr 17 11:24:57 2016 -0700
 
-    test: add test for CL 26831
+    fmt: remove extra space in doc for compound objects
     
-    Test nil check removal for access of PAUTOHEAP.
+    Fixes #15339
     
-    Change-Id: Id739a9cda7cd3ff173bdcccfedcad93ee90711ef
-    Reviewed-on: https://go-review.googlesource.com/27232
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0b006deefb58ccfc47beae4e1b8da3d77fafda6b
+    Reviewed-on: https://go-review.googlesource.com/22148
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/nilptr3.go     | 8 ++++++++
- test/nilptr3_ssa.go | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

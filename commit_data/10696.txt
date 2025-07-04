@@ -1,12 +1,13 @@
-commit d8d321068b1bff68fc796036c491d82f2148a3fe
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sat Dec 10 14:42:29 2011 -0800
+commit fdb09d289a149214caf4afb82f5b9280c7ca59cb
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Dec 10 21:55:38 2011 +0000
 
-    gotest: use build.ArchChar()
+    time: fix Time.Add
     
-    R=golang-dev, r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5480060
+    https://golang.org/cl/5448121
 
- src/cmd/gotest/gotest.go | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ src/pkg/time/time.go      |  2 +-
+ src/pkg/time/time_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

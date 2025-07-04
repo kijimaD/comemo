@@ -1,29 +1,16 @@
-commit 1e607f225eb2ecf819bed92201c21377a75ba48b
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Tue May 9 06:44:25 2017 +0100
+commit 9f03e89552075d88184469fa7701007ed8b36130
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 14:50:12 2017 -0400
 
-    cmd/internal/obj/x86: add ADDSUBPS/PD
+    runtime: remove unused copies of special stack guards
     
-    These are the last instructions missing to complete SSE3 support.
+    There are two copies each of the stackPreempt/_StackPreempt and
+    stackFork/_StackFork constants. Remove the ones left over from C that
+    are no longer used.
     
-    For reference what was missing was found by a tool [1]:
-    
-    $ x86db-gogen list --extension SSE3 --not-known
-    ADDSUBPD xmmreg,xmmrm [rm: 66 0f d0 /r] PRESCOTT,SSE3,SO
-    ADDSUBPS xmmreg,xmmrm [rm: f2 0f d0 /r] PRESCOTT,SSE3,SO
-    
-    [1] https://github.com/dlespiau/x86db
-    
-    Fixes #20293
-    
-    Change-Id: Ib5a91bf64dcc5282cdb60eae740ae52b4db16ebd
-    Reviewed-on: https://go-review.googlesource.com/42990
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I849604c72c11e4a0cb08e45e9817eb3f5a6ce8ba
+    Reviewed-on: https://go-review.googlesource.com/43638
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |  2 ++
- src/cmd/internal/obj/x86/anames.go           |  2 ++
- src/cmd/internal/obj/x86/asm6.go             |  2 ++
- 4 files changed, 22 insertions(+), 16 deletions(-)
+ src/runtime/stack.go | 9 ---------
+ 1 file changed, 9 deletions(-)

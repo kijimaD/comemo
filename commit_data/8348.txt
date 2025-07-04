@@ -1,26 +1,13 @@
-commit d6b2925923debdf96fa641308e90065686e18e56
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed May 11 16:35:11 2011 +0200
+commit b276293abae9c3694038b6228c05dc156c98d82b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 11 04:30:05 2011 -0700
 
-    gc: inline append when len<cap
+    http: don't Clean query string in relative redirects
     
-    issue 1604
-    
-    R=rsc, bradfitz
+    R=adg, rsc, kevlar, r
     CC=golang-dev
-    https://golang.org/cl/4313062
+    https://golang.org/cl/4476045
 
- src/cmd/6g/cgen.c              |  38 +++++++++---
- src/cmd/6g/ggen.c              |  34 +++++++----
- src/cmd/6g/gsubr.c             |  41 ++++++++++---
- src/cmd/6g/reg.c               |   5 +-
- src/cmd/8g/cgen.c              |  40 ++++++++----
- src/cmd/8g/ggen.c              |  29 ++++++---
- src/cmd/8g/gsubr.c             |  64 +++++++++++++++----
- src/cmd/gc/builtin.c.boot      |   3 +
- src/cmd/gc/runtime.go          |   1 +
- src/cmd/gc/subr.c              |  12 ++--
- src/cmd/gc/walk.c              | 136 +++++++++++++++++++++++++++++++++--------
- src/pkg/runtime/append_test.go |  51 ++++++++++++++++
- src/pkg/runtime/slice.c        |  77 ++++++++++++++++-------
- 13 files changed, 419 insertions(+), 112 deletions(-)
+ src/pkg/http/serve_test.go | 17 +++++++++++++++++
+ src/pkg/http/server.go     |  6 ++++++
+ 2 files changed, 23 insertions(+)

@@ -1,24 +1,29 @@
-commit 36ce197c858ea9e187ee59fc18576c73a0a513e7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 13:18:56 2017 -0500
+commit 0c02280fe0b4a178f78633721201f899e5213414
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 25 00:12:57 2016 +0200
 
-    cmd/go: split out cmd/go/internal/fmt
+    net: fix TestCloseError on Plan 9
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Since CL 30614, TestCloseError is failing on Plan 9,
+    because File.Write now checks f.fd == badFd before
+    calling syscall.Write.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
+    The f.fd == badFd check returns os.ErrClosed, while
+    syscall.Write returned a syscall.ErrorString error.
     
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
+    TestCloseError was failing because it expected a
+    syscall.ErrorString error.
     
-    For #18653.
+    We add a case in parseCloseError to handle the
+    os.ErrClosed case.
     
-    Change-Id: I8e325d75f553b5d0b6224b56a705d2e2cb895de4
-    Reviewed-on: https://go-review.googlesource.com/36199
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #17569.
+    
+    Change-Id: I6b4d956d18ed6d3c2ac5211ffd50a4888f7521e1
+    Reviewed-on: https://go-review.googlesource.com/31872
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/{ => internal/fmt}/fmt.go | 11 ++++++-----
- src/cmd/go/main.go                   |  3 ++-
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/net/error_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

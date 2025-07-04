@@ -1,19 +1,16 @@
-commit 50ca1a52ca39bdd76bb5f999a67450f5984ebba2
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Mar 25 13:32:18 2014 +1100
+commit 3b27343c14fdfeaa19b20b26ce660aafa814d01d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 24 20:34:17 2014 -0400
 
-    database/sql: add "defer rows.Close()" to the example code.
+    time: add comment explaining rejection of years outside [0000,9999]
     
-    Strictly speaking, it's not necessary in example_test.go, as the
-    Rows.Close docs say that "If Next returns false, the Rows are closed
-    automatically". However, if the for loop breaks or returns early, it's
-    not obvious that you'll leak unless you explicitly call Rows.Close.
+    This has come up twice now. Redirect future questions
+    to the explanation in the issue tracker.
     
-    LGTM=bradfitz
-    R=bradfitz
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/79330043
+    LGTM=iant, r
+    R=r, iant
+    CC=golang-codereviews
+    https://golang.org/cl/79550043
 
- src/pkg/database/sql/example_test.go | 1 +
- src/pkg/database/sql/sql.go          | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/time/time.go | 2 ++
+ 1 file changed, 2 insertions(+)

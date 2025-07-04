@@ -1,20 +1,12 @@
-commit c1a16b7dadfee27b03a2a70a20c3cf339a069a40
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Oct 28 11:19:33 2018 -0700
+commit e07e9c4fd50687370a4027fb9f319edb75f5ac04
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 16 16:35:04 2018 +0000
 
-    cmd/compile: loop in disjoint OpOffPtr check
+    doc: add net/http additions to go1.11 notes
     
-    We collapse OpOffPtrs during generic rewrites.
-    However, we also use disjoint at the same time.
-    Instead of waiting for all OpOffPtrs to be collapsed
-    before the disjointness rules can kick in,
-    burrow through all OpOffPtrs immediately.
-    
-    Change-Id: I60d0a70a9b4605b1817db7c4aab0c0d789651c90
-    Reviewed-on: https://go-review.googlesource.com/c/145206
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib2da2b0ceb33867a41b0b9b7e4dcecb11f964b73
+    Reviewed-on: https://go-review.googlesource.com/124035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.11.html | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

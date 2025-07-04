@@ -1,55 +1,36 @@
-commit 2d3599e57daf5816ee5b74553afd11decc611d44
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jul 7 15:59:20 2018 +0100
+commit 3d6647d6f8d27df84dfc29a4734fcd8a69a36ce6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 17 09:09:07 2018 -0700
 
-    encoding/json: encode struct field names ahead of time
+    cmd/compile: improve regalloc live values debug printing
     
-    Struct field names are static, so we can run HTMLEscape on them when
-    building each struct type encoder. Then, when running the struct
-    encoder, we can select either the original or the escaped field name to
-    write directly.
+    Before:
     
-    When the encoder is not escaping HTML, using the original string works
-    because neither Go struct field names nor JSON tags allow any characters
-    that would need to be escaped, like '"', '\\', or '\n'.
+    live values at end of each block
+      b1: v3 v2 v7 avoid=0
+      b2: v3 v13 avoid=81
+      b3: v19[AX] v3 avoid=81
+      b6: avoid=0
+      b7: avoid=0
+      b5: avoid=0
+      b4: v3 v18 avoid=81
     
-    When the encoder is escaping HTML, the only difference is that '<', '>',
-    and '&' are allowed via JSON struct field tags, hence why we use
-    HTMLEscape to properly escape them.
+    After:
     
-    All of the above lets us encode field names with a simple if/else and
-    WriteString calls, which are considerably simpler and faster than
-    encoding an arbitrary string.
+    live values at end of each block
+      b1: v3 v2 v7
+      b2: v3 v13 avoid=AX DI
+      b3: v19[AX] v3 avoid=AX DI
+      b6:
+      b7:
+      b5:
+      b4: v3 v18 avoid=AX DI
     
-    While at it, also include the quotes and colon in these strings, to
-    avoid three WriteByte calls in the loop hot path.
-    
-    Also added a few tests, to ensure that the behavior in these edge cases
-    is not broken. The output of the tests is the same if this optimization
-    is reverted.
-    
-    name           old time/op    new time/op    delta
-    CodeEncoder-4    7.12ms ± 0%    6.14ms ± 0%  -13.85%  (p=0.004 n=6+5)
-    
-    name           old speed      new speed      delta
-    CodeEncoder-4   272MB/s ± 0%   316MB/s ± 0%  +16.08%  (p=0.004 n=6+5)
-    
-    name           old alloc/op   new alloc/op   delta
-    CodeEncoder-4    91.9kB ± 0%    93.2kB ± 0%   +1.43%  (p=0.002 n=6+6)
-    
-    name           old allocs/op  new allocs/op  delta
-    CodeEncoder-4      0.00           0.00          ~     (all equal)
-    
-    Updates #5683.
-    
-    Change-Id: I6f6a340d0de4670799ce38cf95b2092822d2e3ef
-    Reviewed-on: https://go-review.googlesource.com/122460
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ibec5c76a16151832b8d49a21c640699fdc9a9d28
+    Reviewed-on: https://go-review.googlesource.com/109000
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode_test.go |  2 +-
- src/encoding/json/encode.go      | 27 +++++++++++++++++++++++----
- src/encoding/json/encode_test.go | 15 +++++++++++++++
- src/encoding/json/stream_test.go |  9 +++++++++
- 4 files changed, 48 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

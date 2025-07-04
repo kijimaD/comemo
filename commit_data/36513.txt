@@ -1,19 +1,15 @@
-commit c7271c0c258634982ac4e18cdac287fcc43f93e1
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jul 6 12:45:03 2018 -0400
+commit 28b40f3528bf1f45e68da85b1d338a89e61f91b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 2 11:16:47 2018 -0700
 
-    cmd/link: improve comments for relocsym
+    go/types: add doc strings to various undocumented exported objects
     
-    This patch contains the remnants of CL (122482), which was intended to
-    reduce memory allocation in 'relocsym'. Another CL (113637) went in
-    first that included pretty much all of the code changes in 122482,
-    however there are some changes to comments that are worth preserving.
+    Fixes #22747.
     
-    Change-Id: Iacdbd2bfe3b7ca2656596570f06ce9a646211913
-    Reviewed-on: https://go-review.googlesource.com/122482
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I498cb29f18bd9b59b13dc2ddc3a613cc12ac2a14
+    Reviewed-on: https://go-review.googlesource.com/110975
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/data.go | 15 +++++++++-
- src/cmd/link/internal/ld/lib.go  | 63 ++++++++++++++++++++++++++--------------
- 2 files changed, 55 insertions(+), 23 deletions(-)
+ src/go/types/object.go   | 38 +++++++++++++++++++++++++++++---------
+ src/go/types/universe.go | 10 ++++++++--
+ 2 files changed, 37 insertions(+), 11 deletions(-)

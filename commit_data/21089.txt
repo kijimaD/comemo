@@ -1,15 +1,14 @@
-commit 9371babdd842a50067ee4ab22eec1d002ef94eab
-Author: Marko Tiikkaja <marko@joh.to>
-Date:   Sun Dec 14 03:57:14 2014 +0100
+commit a0862a175dc1d4df280f4ae08a847d1e74680955
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 13 14:53:13 2014 +1100
 
-    database/sql: Remove unnecessary call to maybeOpenNewConnections
+    [dev.cc] runtime: convert mem_windows.c to Go
     
-    numCanOpen will never be larger than 0 in maybeOpenNewConnections() when this
-    code path is taken, so no new connections can ever be opened.
-    
-    Change-Id: Id1302e8d9afb3a67be61b5e738fe07ef81d20fe0
-    Reviewed-on: https://go-review.googlesource.com/1550
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175000043
 
- src/database/sql/sql.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/mem_windows.c  | 132 ---------------------------------------------
+ src/runtime/mem_windows.go | 119 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+), 132 deletions(-)

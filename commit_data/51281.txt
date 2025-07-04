@@ -1,23 +1,17 @@
-commit 5ccee1199e11b830ae32772d5ebc7b35e356b7f3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:14:16 2022 -0500
+commit f0099106254e288db62de3e3b030915af7decc25
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 4 15:13:33 2022 -0800
 
-    cmd/internal/obj: use testenv.Command instead of exec.Command in tests
+    cmd/compile/internal/types2: better error message for invalid range clause
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    Fixes #50372.
     
-    Change-Id: Ica1a9985f9abb1935434367c9c8ba28fc50f331d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450699
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I8e4c0020dae42744cce016433e398e0b884bb044
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375475
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/obj/arm64/asm_arm64_test.go |  9 ++++-----
- src/cmd/internal/obj/objfile_test.go         |  5 ++---
- src/cmd/internal/obj/ppc64/asm_test.go       |  9 ++++-----
- src/cmd/internal/obj/riscv/asm_test.go       | 13 ++++++-------
- src/cmd/internal/obj/x86/obj6_test.go        |  3 +--
- src/cmd/internal/obj/x86/pcrelative_test.go  |  5 ++---
- 6 files changed, 19 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/stmt.go            | 30 ++++++++++++++--------
+ .../types2/testdata/fixedbugs/issue50372.go        | 27 +++++++++++++++++++
+ test/fixedbugs/issue50372.go                       | 29 +++++++++++++++++++++
+ 3 files changed, 76 insertions(+), 10 deletions(-)

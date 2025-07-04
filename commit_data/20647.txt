@@ -1,11 +1,21 @@
-commit cce2d8891a75db7cdf82af9d4f0df77af8241b2b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 6 14:58:59 2014 -0700
+commit f3a98dee27540afab414d3201aff18f30c2b163e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 12:10:13 2014 -0400
 
-    doc/go1.4.txt: GOOS suffixes require underscores to act as build tags
+    cmd/go: re-resolve and check vcs roots during go get -u
     
-    CC=golang-codereviews
-    https://golang.org/cl/151490043
+    If you do 'go get -u rsc.io/pdf' and then rsc.io/pdf's redirect
+    changes to point somewhere else, after this CL a later
+    'go get -u rsc.io/pdf' will tell you that.
+    
+    Fixes #8548.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=adg, golang-codereviews, n13m3y3r, r
+    https://golang.org/cl/147170043
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/get.go    | 12 ++++++++
+ src/cmd/go/test.bash | 50 +++++++++++++++++++++++++++++++++
+ src/cmd/go/vcs.go    | 79 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 135 insertions(+), 6 deletions(-)

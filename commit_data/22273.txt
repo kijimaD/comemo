@@ -1,40 +1,28 @@
-commit a1bb3030c8d8256c5c45c0caad25f171bd15031a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 12 15:20:33 2015 -0700
+commit 4bbd7ae8e04eb874f4866b198a287bb06eb5d5a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 15:22:19 2015 -0500
 
-    cmd/yacc: generate arrays instead of slices where possible
+    cmd/internal/gc: change proginfo to return ProgInfo instead of writing to param
     
-    Yacc generates a bunch of global variables of the form
+    This avoids the argument appearing to escape
+    (due to the fact that proginfo is always called
+    via a function pointer).
     
-        var yyFoo = []int{...}
-    
-    where yyFoo is never subsequently modified to point to a different
-    slice.  Since these variables are implicitly compiled as
-    
-        var yyFoo = ([...]int{...})[:]
-    
-    anyway, by simply converting them all to
-    
-        var yyFoo = [...]int{...}
-    
-    we save sizeof(sliceStruct) bytes of data memory for each variable and
-    also make len(yyFoo) into compile-time constant expressions, which
-    shaves some bytes off text size:
-    
-        $ size 6g.before 6g.after
-           text        data     bss     dec     hex filename
-        4598019      605968  342700 5546687  54a2bf 6g.before
-        4597810      605552  342700 5546062  54a04e 6g.after
-    
-    Change-Id: I53c7aa6efdb2d52738013e9d337a59afbfcb2494
-    Reviewed-on: https://go-review.googlesource.com/7520
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib9351ba18c80fd89e6a1d4f19dea386d4c657337
+    Reviewed-on: https://go-review.googlesource.com/6518
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/go.y |  2 --
- src/cmd/internal/gc/y.go | 26 +++++++++++++-------------
- src/cmd/yacc/yacc.go     | 10 +++++-----
- 3 files changed, 18 insertions(+), 20 deletions(-)
+ src/cmd/5g/peep.go           |  2 +-
+ src/cmd/5g/prog.go           |  6 ++++--
+ src/cmd/6g/peep.go           |  8 ++++----
+ src/cmd/6g/prog.go           |  6 ++++--
+ src/cmd/8g/peep.go           |  6 +++---
+ src/cmd/8g/prog.go           |  6 ++++--
+ src/cmd/9g/peep.go           |  2 +-
+ src/cmd/9g/prog.go           |  8 +++++---
+ src/cmd/internal/gc/go.go    |  2 +-
+ src/cmd/internal/gc/lex.go   |  5 ++++-
+ src/cmd/internal/gc/plive.go |  2 +-
+ src/cmd/internal/gc/popt.go  | 20 +++++++++++---------
+ src/cmd/internal/gc/reg.go   |  2 +-
+ 13 files changed, 44 insertions(+), 31 deletions(-)

@@ -1,20 +1,36 @@
-commit aed2c06dcbc21a305fb96418a97fcd935e27272d
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Wed Sep 7 15:49:56 2011 -0400
+commit 08ae1a5a23e68056dad09ea48e53c4fae36e37b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 7 15:48:06 2011 -0400
 
-    5a, 5c, 6a, 6c, 8a, 8c: fix Windows file paths
+    exp/regexp: bug fixes and RE2 tests
     
-    Verified with objdump -W.
+    Also add exp/regexp to build (forgot before).
     
-    R=alex.brainman, rsc
+    At this point I am very confident in exp/regexp's
+    behavior.  It should be usable as a drop-in
+    replacement for regexp now.
+    
+    Later CLs could introduce a CompilePOSIX
+    to get at traditional POSIX ``extended regular expressions''
+    as in egrep and also an re.MatchLongest method to
+    change the matching mode to leftmost longest
+    instead of leftmost first.  On the other hand, I expect
+    very few people to use either.
+    
+    R=r, r, gustavo
     CC=golang-dev
-    https://golang.org/cl/4974061
+    https://golang.org/cl/4990041
 
- include/libc.h   |  2 ++
- src/cmd/5a/lex.c | 16 ++++++++--------
- src/cmd/5c/swt.c | 12 ++++--------
- src/cmd/6a/lex.c | 16 ++++++++--------
- src/cmd/6c/swt.c | 12 ++++--------
- src/cmd/8a/lex.c | 16 ++++++++--------
- src/cmd/8c/swt.c | 12 ++++--------
- 7 files changed, 38 insertions(+), 48 deletions(-)
+ src/pkg/Makefile                        |   1 +
+ src/pkg/exp/regexp/exec.go              |  29 +---
+ src/pkg/exp/regexp/exec_test.go         | 271 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/regexp/find_test.go         |  17 ++
+ src/pkg/exp/regexp/re2.txt.gz           | Bin 0 -> 764518 bytes
+ src/pkg/exp/regexp/regexp.go            |  72 +++++++--
+ src/pkg/exp/regexp/syntax/compile.go    |  22 ++-
+ src/pkg/exp/regexp/syntax/parse.go      |  26 +--
+ src/pkg/exp/regexp/syntax/parse_test.go |  12 ++
+ src/pkg/exp/regexp/syntax/prog.go       |  58 ++++++-
+ src/pkg/exp/regexp/syntax/prog_test.go  |  10 ++
+ src/pkg/exp/regexp/syntax/regexp.go     |  14 ++
+ 12 files changed, 474 insertions(+), 58 deletions(-)

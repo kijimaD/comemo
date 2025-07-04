@@ -1,14 +1,19 @@
-commit 3a6842a0ecf66cf06ce4f0a5fcb9c09fbfdbecc1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Feb 9 12:32:33 2017 +0900
+commit f8a3444388a223eb4db9df61c07fd15e142e7044
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Oct 26 11:44:26 2016 +0900
 
-    database/sql: replace the expr of timeunit * N with N * timeunit in test
+    cmd/compile/internal/gc: remove EscScope
     
-    Change-Id: I97981b30a9629916f896cb989cc2a42a8bdbef47
-    Reviewed-on: https://go-review.googlesource.com/36672
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    EscScope behaves like EscHeap in current code.
+    There are no need to handle it specially.
+    So remove it and use EscHeap instead.
+    
+    Change-Id: I910106fd147f00e5f4fd52c7dde05128141a5160
+    Reviewed-on: https://go-review.googlesource.com/32130
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/database/sql/sql_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 28 ++++++++++------------------
+ src/cmd/compile/internal/gc/fmt.go |  3 ---
+ 2 files changed, 10 insertions(+), 21 deletions(-)

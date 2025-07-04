@@ -1,41 +1,25 @@
-commit 3580c212c2e3276077540afdab3478a7336d698b
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Jun 20 11:16:56 2023 +0800
+commit 62043a6cd5fa39b29298c9f03beceb65ffe167e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 27 15:30:42 2023 -0800
 
-    cmd/asm, cmd/internal/obj: enable rounding mode suffix for riscv64
+    internal/xcoff: use saferio to allocate slices
     
-    This CL adds rounding modes for riscv64 floating point conversion
-    instructions by suffix with 5 modes: RNE, RTZ, RDN, RUP and RMM.
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
     
-    For example, for round to nearest (RNE), we can use `FCVTLD.RNE`
-    According to RISCV manual 8.7 and 9.5, we changed these
-    conversion instructions:
+    For #47653
+    Fixes #58754
     
-    FCVTWS
-    FCVTLS
-    FCVTWUS
-    FCVTLUS
-    FCVTWD
-    FCVTLD
-    FCVTWUD
-    FCVTLUD
-    
-    Note: Round towards zero (RTZ) by default for all these instructions above.
-    
-    Change-Id: I491e522e14d721e24aa7f528ee0c4640c54c5808
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504736
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic3ef58b204b946f8bff80310d4c8dfcbb2939a1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471678
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/asm.go             |  7 +++-
- src/cmd/asm/internal/asm/parse.go           |  4 +--
- src/cmd/asm/internal/asm/testdata/riscv64.s | 40 ++++++++++++++++++++++
- src/cmd/internal/obj/link.go                |  2 +-
- src/cmd/internal/obj/riscv/cpu.go           | 51 ++++++++++++++++++++++++++++-
- src/cmd/internal/obj/riscv/list.go          | 16 +++++++++
- src/cmd/internal/obj/riscv/obj.go           | 17 ++++++++--
- 7 files changed, 130 insertions(+), 7 deletions(-)
+ src/internal/xcoff/file.go | 43 +++++++++++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 16 deletions(-)

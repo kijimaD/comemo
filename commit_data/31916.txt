@@ -1,21 +1,14 @@
-commit 3c0f69a52101c69b5a8288195fa74c7ecfa2fa43
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 26 19:07:24 2017 +0000
+commit 899532487f88a68ed6b7861fb701a1d4fab9456b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 20:33:23 2017 -0700
 
-    net/http/httputil: always deep copy the Request.Header map in ReverseProxy
+    cmd/compile: don't crash when calling String on a TFUNCARGS Type
     
-    We used to do it sometimes as an optimization, but the optimization is
-    flawed: in all non-contrived cases we need to deep clone the map
-    anyway. So do it always, which both simplifies the code but also fixes
-    the X-Forward-For value leaking to the caller's Request, as well as
-    modifications from the optional Director func.
-    
-    Fixes #18327
-    
-    Change-Id: I0c86d10c557254bf99fdd988227dcb15f968770b
-    Reviewed-on: https://go-review.googlesource.com/46716
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If5eabd622700a6b82dc4961ae9174c9d907eedb7
+    Reviewed-on: https://go-review.googlesource.com/38465
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 26 +++++++++++------------
- src/net/http/httputil/reverseproxy_test.go | 33 ++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

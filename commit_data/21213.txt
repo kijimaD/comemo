@@ -1,26 +1,18 @@
-commit db7fd1c1420d5ef2f874f40c0349b35007568c77
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Jan 6 14:58:49 2015 -0500
+commit 0f2db8217471d01fa5fa525242eeb8ca17674e36
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 8 22:05:57 2014 +1100
 
-    runtime: increase GC concurrency.
+    doc: add CONRIBUTORS.md
     
-    run GC in its own background goroutine making the
-    caller runnable if resources are available. This is
-    critical in single goroutine applications.
-    Allow goroutines that allocate a lot to help out
-    the GC and in doing so throttle their own allocation.
-    Adjust test so that it only detects that a GC is run
-    during init calls and not whether the GC is memory
-    efficient. Memory efficiency work will happen later
-    in 1.5.
+    This file is known to GitHub and will be linked prominently when
+    potential contributors try to open pull requests.
     
-    Change-Id: I4306f5e377bb47c69bda1aedba66164f12b20c2b
-    Reviewed-on: https://go-review.googlesource.com/2349
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Here's how it should appear:
+            https://gist.github.com/adg/e0ffcc922a32f20af3db
+    
+    Change-Id: I41c5aadf284a0a24c485f96b7fe2caa338ad1e4f
+    Reviewed-on: https://go-review.googlesource.com/1178
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/malloc.go |  76 ++++++++++++++++++++++++++++++-------
- src/runtime/mgc.go    | 103 +++++++++++++++++++++++++++++++++++++++++++-------
- src/runtime/mgc0.go   |  13 +++++++
- test/init1.go         |   2 +-
- 4 files changed, 166 insertions(+), 28 deletions(-)
+ CONTRIBUTING.md | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

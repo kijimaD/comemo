@@ -1,15 +1,15 @@
-commit ac1608a2f96afdc372aeb9553c54347bcd4cb0b6
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Mar 10 12:05:44 2016 +0100
+commit 043ae50feb7b5e33e3a665124a6532cc1dd6859e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 1 00:00:00 2016 +1100
 
-    bytes: correct comment about usage of bytes.Buffer by Printf
+    doc: 2016 is the Year of the Gopher.
     
-    The fmt package does not use bytes.Buffer
-    anymore as an internal buffer.
-    
-    Change-Id: I34c7a52506290ccbcb10ea2e85dea49a0a8b8203
-    Reviewed-on: https://go-review.googlesource.com/20511
+    Change-Id: I85caba8c743dcd82954de75df947053b3d206bdc
+    Reviewed-on: https://go-review.googlesource.com/18117
+    Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/bytes/buffer.go | 2 +-
+ doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

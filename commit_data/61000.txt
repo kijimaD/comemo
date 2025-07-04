@@ -1,0 +1,18 @@
+commit e190638f204366bb509b77931aa58543b6300910
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 17 10:42:08 2024 +0200
+
+    net/netip: cover more AddrPort.String cases in tests
+    
+    TestInvalidAddrPortString currently only tests for invalid AddrPorts.
+    Add some valid cases as well to improve test coverage.
+    
+    Change-Id: Iaa9192e48a61daed6f7ce7d680d602a021570bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/netip/netip_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

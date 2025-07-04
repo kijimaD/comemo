@@ -1,12 +1,12 @@
-commit d9763147764400c6fb7a0701a5c9cbdd6682062d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 8 23:53:57 2011 +1000
+commit 0ada4a2d627ac84d6ff22d0b6e51a868a62fbf89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 7 22:10:39 2011 -0700
 
-    gotest: handle \r\n returned by gomake on Windows (fixes build)
+    go/types: fix build: use the right compiler to compile test case
     
-    R=golang-dev, peterGo, rsc1
-    CC=Joe Poirier, golang-dev
-    https://golang.org/cl/4370048
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4369050
 
- src/cmd/gotest/gotest.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/go/types/gcimporter_test.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

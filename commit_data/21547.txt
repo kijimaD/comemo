@@ -1,20 +1,21 @@
-commit f77696a7f04cf39c973f455fead2af49d5d0c0f6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 9 16:59:31 2015 -0800
+commit f6d0054e718817df636a1281a2f8de04ac663ee8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 16:36:41 2015 -0500
 
-    math/big: implemented Frexp, Ldexp, IsInt, Copy, bug fixes, more tests
+    runtime: avoid race checking for preemption
     
-    - Frexp, Ldexp are equivalents to the corresponding math functions.
-    - Set now has the same prec behavior as the other functions
-    - Copy is a true assignment (replaces old version of Set)
-    - Cmp now handles infinities
-    - more tests
+    Moving the "don't really preempt" check up earlier in the function
+    introduced a race where gp.stackguard0 might change between
+    the early check and the later one. Since the later one is missing the
+    "don't really preempt" logic, it could decide to preempt incorrectly.
+    Pull the result of the check into a local variable and use an atomic
+    to access stackguard0, to eliminate the race.
     
-    Change-Id: I0d33980c08be3095b25d7b3d16bcad1aa7abbd0f
-    Reviewed-on: https://go-review.googlesource.com/4292
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    I believe this will fix the broken OS X and Solaris builders.
+    
+    Change-Id: I238350dd76560282b0c15a3306549cbcf390dbff
+    Reviewed-on: https://go-review.googlesource.com/2823
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/float.go      | 225 +++++++++++++++++++++++++++++++--------------
- src/math/big/float_test.go | 126 ++++++++++++++++++++++++-
- src/math/big/floatconv.go  |   1 +
- 3 files changed, 284 insertions(+), 68 deletions(-)
+ src/runtime/stack1.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

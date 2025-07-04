@@ -1,24 +1,28 @@
-commit beb1741ae380d4e196f9d6e2e720fc0dc007ef00
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Jan 8 23:22:12 2016 +1100
+commit 12e23f05ff39e25193f554c5fa81eebd0b8dbb7d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 17:44:11 2015 -0400
 
-    cmd/dist: fix cgoTestSO on FreeBSD amd64 with GOHOSTARCH=386
+    runtime: eliminate mark completion in scheduler
     
-    The cgoTestSO test currently fails when run on FreeBSD amd64 with
-    GOHOSTARCH=386. This is due to it failing to find the shared object.
+    Currently, findRunnableGCWorker will perform mark completion if there
+    is no remaining work and no running workers. This used to be necessary
+    to resolve a race in the transition from mark 1 to mark 2 where we
+    would enter mark 2 with no mark work (and no dedicated workers), so no
+    workers would run, so no worker would signal mark completion.
     
-    On FreeBSD 64-bit architectures, the linker for 32-bit objects
-    looks for a separate environment variable. Export both LD_LIBRARY_PATH
-    and LD_32_LIBRARY_PATH on FreeBSD when GOHOSTARCH=386.
+    However, we're about to make mark completion also perform the entire
+    follow-on process, which includes mark termination. We really don't
+    want to do that in the scheduler if it happens to detect completion.
     
-    Update issue #13873.
+    Conveniently, this hack is no longer necessary because we always
+    enqueue root scanning work at the beginning of both mark 1 and mark 2,
+    so a mark worker will always run. Hence, we can simply eliminate it.
     
-    Change-Id: I1fb20dd04eb2007061768b2e4530886521813d42
-    Reviewed-on: https://go-review.googlesource.com/18420
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3fc8f27c8da632f0fb732c9f6425e1f457f5652e
+    Reviewed-on: https://go-review.googlesource.com/16358
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/mgc.go | 26 ++++----------------------
+ 1 file changed, 4 insertions(+), 22 deletions(-)

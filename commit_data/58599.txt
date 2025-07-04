@@ -1,39 +1,21 @@
-commit 5cb5437b6daee8971be0bd393535e263333ef311
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 4 11:56:38 2025 -0800
+commit bd224fa5222ffb5f8dcbba59400d36f1f777b3ec
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 20:10:33 2023 +0800
 
-    cmd/go/internal/vcsweb/vcstest: skip bzr test if deps not found
+    cmd/compile/internal: add spill support for loong64 regABI
     
-    The linux-arm64 trybots are consistently failing with
+    Update #40724
     
-        vcstest_test.go:155: 2025/01/30 21:50:41 hello.txt:
-            > handle bzr
-            > env BZR_EMAIL='Russ Cox <rsc@google.com>'
-            > env EMAIL='Russ Cox <rsc@google.com>'
-            > bzr init-repo .
-            [stderr]
-            brz: ERROR: Couldn't import breezy and dependencies.
-            Please check the directory containing breezy is on your PYTHONPATH.
-    
-            Error: PyErr { type: <class 'ModuleNotFoundError'>, value: ModuleNotFoundError("No module named 'breezy'"), traceback: None }
-    
-        vcstest_test.go:161: hello.txt:6: bzr init-repo .: exit status 1
-    
-    This seems to be a problem with the builder.
-    
-    For now, skip the test if we see that error message, just as we already
-    skip the test if the bzr executable is not found.
-    
-    For #71504
-    
-    Change-Id: If8b6d4dea02dc16198ba6067595dff3340a81299
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646635
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Ic01d59bd81420b89c6d4b90c5975bf069d08e7cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521780
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/go/internal/vcweb/vcstest/vcstest_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/loong64/galign.go |  2 ++
+ src/cmd/compile/internal/loong64/ssa.go    | 31 +++++++++++++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

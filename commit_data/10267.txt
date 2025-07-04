@@ -1,13 +1,13 @@
-commit 1371ac2f0b5ed324f0f6a2ff2c124041a4feaa70
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Mon Nov 7 10:47:44 2011 -0500
+commit ad0e8b31d82f2a220cd98463014a79211d173df7
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Mon Nov 7 16:33:53 2011 +1100
 
-    xml: allow parsing of <_> </_>.
+    archive/zip: actually close file opened with OpenReader.
     
-    R=rsc, nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5298061
+    https://golang.org/cl/5341044
 
- src/pkg/encoding/xml/read.go      | 4 ++--
- src/pkg/encoding/xml/read_test.go | 9 +++++++++
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/pkg/archive/zip/reader.go      | 1 +
+ src/pkg/archive/zip/reader_test.go | 6 +++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,18 +1,28 @@
-commit 075880a8e8f6363a554c100ad09a85d108953eea
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 18 13:28:48 2016 -0700
+commit 85bbabd9c49253846f10d08876f9e15338cfe6b4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sat Mar 19 00:44:17 2016 -0400
 
-    cmd/compile: fix build
+    cmd/asm: add s390x support
     
-    Run live vars test only on ssa builds.
-    We can't just drop KeepAlive ops during regalloc.  We need
-    to replace them with copies.
+    s390x doesn't introduce any new assembly syntax. There are a few
+    instructions which require the operands to be reordered, notably
+    the storage-storage instructions that put the length into From3 so
+    that the memory operands can be put into From and To.
     
-    Change-Id: Ib4b3b1381415db88fdc2165fc0a9541b73ad9759
-    Reviewed-on: https://go-review.googlesource.com/23225
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The assembly test currently covers a subset of instructions but
+    tries to hit edge cases as much as possible. Unlike the other ports
+    it can be linked as an executable to make disassembling it easy.
+    It would be nice to autogenerate it at some point in the future.
+    
+    Change-Id: I7615ac6ecf239e3f347fad9ae1f8eede91742859
+    Reviewed-on: https://go-review.googlesource.com/20934
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 5 +++--
- test/fixedbugs/issue15277.go             | 1 +
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/arch.go         |  58 ++++++++
+ src/cmd/asm/internal/arch/s390x.go        | 139 +++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go           |  30 +++++
+ src/cmd/asm/internal/asm/endtoend_test.go |   4 +
+ src/cmd/asm/internal/asm/operand_test.go  | 103 ++++++++++++++
+ src/cmd/asm/internal/asm/testdata/s390x.s | 215 ++++++++++++++++++++++++++++++
+ 6 files changed, 549 insertions(+)

@@ -1,31 +1,19 @@
-commit db576c9f3a33d043b4dc6cd8177f4e0b25ded8ec
-Author: Johan Jansson <johan.jansson@iki.fi>
-Date:   Fri Apr 1 14:00:09 2022 +0300
+commit e4e7807d240eb62e1d4a73eec2706975c8cc847b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 9 07:43:57 2021 -0400
 
-    net/textproto: initialize commonHeader in canonicalMIMEHeaderKey
+    net/http: add AllowQuerySemicolons
     
-    Call initCommonHeader in canonicalMIMEHeaderKey to ensure that
-    commonHeader is initialized before use. Remove all other calls to
-    initCommonHeader, since commonHeader is only used in
-    canonicalMIMEHeaderKey.
+    Fixes #45973
     
-    This prevents a race condition: read of commonHeader before
-    commonHeader has been initialized.
-    
-    Add regression test that triggers the race condition which can be
-    detected by the race detector.
-    
-    Fixes #46363
-    
-    Change-Id: I00c8c52c6f4c78c0305978c876142c1b388174af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397575
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6cbe05f5d1d3c324900c74314b0ea0e12524d7f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326309
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/textproto/reader.go      |  4 +---
- src/net/textproto/reader_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 84 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 45 ++++++++++++++++++++++---
+ 2 files changed, 125 insertions(+), 4 deletions(-)

@@ -1,24 +1,18 @@
-commit 132ebeac3f865e14955b27caf12f641e80734577
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 3 20:48:00 2016 -0800
+commit d26a0952a8f91e1c10c53a1cc910ca7d6b0c1d84
+Author: Péter Szilágyi <peterke@gmail.com>
+Date:   Sun Dec 13 21:04:06 2015 +0200
 
-    cmd/compile: convert walk.go and friends to use nodeSeq
+    runtime: init argc/argv for android/arm64 c-shared
     
-    Pases toolstash -cmp.
+    Analogous to https://go-review.googlesource.com/#/c/8457/ this
+    code synthesizes an set of program arguments for Android on the
+    arm64 architecture.
     
-    Update #14473.
-    
-    Change-Id: I450d9f51fd280da91952008cd917b749d88960a3
-    Reviewed-on: https://go-review.googlesource.com/20210
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I851958b4b0944ec79d7a1426a3bb2cfc31746797
+    Reviewed-on: https://go-review.googlesource.com/17782
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/closure.go |   4 +-
- src/cmd/compile/internal/gc/select.go  |   2 +-
- src/cmd/compile/internal/gc/sinit.go   |  60 ++---
- src/cmd/compile/internal/gc/subr.go    |  18 +-
- src/cmd/compile/internal/gc/swt.go     |   4 +-
- src/cmd/compile/internal/gc/syntax.go  |   6 +-
- src/cmd/compile/internal/gc/walk.go    | 402 ++++++++++++++++-----------------
- 7 files changed, 247 insertions(+), 249 deletions(-)
+ src/runtime/rt0_android_arm64.s | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

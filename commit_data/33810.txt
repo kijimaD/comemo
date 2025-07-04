@@ -1,12 +1,19 @@
-commit 8114a855da66750ebebfe4bcaf3516b688c375c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 23:36:53 2017 -0500
+commit 083ad28622580195a97cbe83a877c7d49b1dadfa
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Aug 18 13:51:07 2017 -0700
 
-    doc/go1.10: process comments from CL 78131 PS 5
+    crypto/x509: get hash information from signatureAlgorithmDetails and check that it matches
     
-    Change-Id: Ie246756452cd872961aeb659b35297c229504a3c
-    Reviewed-on: https://go-review.googlesource.com/81936
+    signatureAlgorithmDetails already knows the hash function for each
+    signature algorithm so there's no point in duplicating that. Also, check
+    that the public key type of the signature algorithm actually matches the
+    given public key.
+    
+    Change-Id: I7aab4ea71691fb815d67ba790b721ce02de11b85
+    Reviewed-on: https://go-review.googlesource.com/57211
+    Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.10.html | 113 +++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 70 insertions(+), 43 deletions(-)
+ src/crypto/x509/x509.go      | 37 +++++++++++++++++++++++++------------
+ src/crypto/x509/x509_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 12 deletions(-)

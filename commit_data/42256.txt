@@ -1,15 +1,12 @@
-commit e0e0dab41184763899d9068f375151d97d6c5caa
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri May 1 14:12:48 2020 -0400
+commit 2ac9f1dbe24cc27c6668287aed0b9559097815c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 19 07:42:09 2019 -0800
 
-    cmd/link: expand a TODO comment
+    doc/go1.14: mention new, more efficient, timers
     
-    CL 231397 is submitted too fast... Expand the comment to make it
-    a little clearer.
-    
-    Change-Id: Ica9737aa7b51f97320bab74457388dcab8188370
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231597
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I71fc3016106db733b888f3daccc00b493abe39b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/go1.14.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

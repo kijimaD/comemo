@@ -1,34 +1,20 @@
-commit 2c2cbb69c8dad1325f0a4b289417da73fd90f4b0
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu May 21 13:07:19 2015 +1200
+commit e6a0c21e7d1970431c4b0e82acc9b0ec34dee29f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jul 2 08:36:45 2015 +0200
 
-    cmd/internal/ld: put read-only relocated data into .data.rel.ro when making a shared object
+    net: fix setKeepAlivePeriod on Plan 9
     
-    Currently Go produces shared libraries that cannot be shared between processes
-    because they have relocations against the text segment (not text section). This
-    fixes this by moving some data to sections with magic names recognized by the
-    static linker.
+    The interface to set TCP keepalive on Plan 9 is
+    writing the "keepalive n" string to the TCP ctl file,
+    where n is the milliseconds between keepalives.
     
-    Fixes #10914
-    Updates #9210
+    Fixes #11266.
     
-    Change-Id: I7178daadc0ae87953d5a084aa3d580f4e3b46d47
-    Reviewed-on: https://go-review.googlesource.com/10300
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: Ic96f6c584063665a1ddf921a9a4ddfa13cc7501b
+    Reviewed-on: https://go-review.googlesource.com/11860
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testcshared/test.bash         |   7 +++
- misc/cgo/testshared/shared_test.go     |  39 +++++++++++++++++
- src/cmd/internal/obj/link.go           |  20 +++++++++
- src/cmd/link/internal/ld/data.go       |  77 ++++++++++++++++++++++++++++++---
- src/cmd/link/internal/ld/elf.go        |  33 ++++++++++----
- src/cmd/link/internal/ld/lib.go        |  20 ++++++++-
- src/cmd/link/internal/ld/symtab.go     |  28 ++++++++++--
- src/cmd/newlink/testdata/autosection.6 | Bin 897 -> 937 bytes
- src/cmd/newlink/testdata/autoweak.6    | Bin 346 -> 386 bytes
- src/cmd/newlink/testdata/dead.6        | Bin 809 -> 849 bytes
- src/cmd/newlink/testdata/hello.6       | Bin 189 -> 229 bytes
- src/cmd/newlink/testdata/layout.6      | Bin 356 -> 396 bytes
- src/cmd/newlink/testdata/pclntab.6     | Bin 3764 -> 3804 bytes
- 13 files changed, 206 insertions(+), 18 deletions(-)
+ src/net/tcpsockopt_plan9.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

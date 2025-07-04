@@ -1,13 +1,16 @@
-commit c9dd2e41b14e8ef4867fda5b4daf2d7b5916c776
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Oct 10 20:48:24 2011 +0900
+commit be8b4d943ff5fc9c169b91410ce11a377c8aa6b9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Oct 10 14:44:37 2011 +1100
 
-    A+C: Chris Farmiloe (individual CLA)
+    html: add a Render function.
     
-    R=adg
+    R=mikesamuel, andybalholm
     CC=golang-dev
-    https://golang.org/cl/5237058
+    https://golang.org/cl/5218041
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/html/Makefile       |   1 +
+ src/pkg/html/escape.go      |  14 ++--
+ src/pkg/html/parse_test.go  |  23 +++++--
+ src/pkg/html/render.go      | 159 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/render_test.go | 111 +++++++++++++++++++++++++++++++
+ 5 files changed, 300 insertions(+), 8 deletions(-)

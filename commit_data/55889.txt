@@ -1,29 +1,22 @@
-commit 74726defe99bb1e19cee35e27db697085f06fda1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 8 21:01:17 2024 -0500
+commit 4a3071696ddfb13e1a8f35f76197b7b3143492f4
+Author: Collin Wright <1011collin@gmail.com>
+Date:   Mon Mar 20 23:27:04 2023 +0000
 
-    internal/godebugs: test for use of IncNonDefault
+    sync: fix TestCondSignalStealing flake
     
-    A few recent godebugs are missing IncNonDefault uses.
-    Test for that, so that people remember to do it.
-    Filed bugs for the missing ones.
+    Fixes: #59043
     
-    For #66215.
-    For #66216.
-    For #66217.
-    
-    Change-Id: Ia3fd10fd108e1b003bb30a8bc2f83995c768fab6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570275
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I8215948a772566641dab1079a9837128450deb1b
+    GitHub-Last-Rev: 0fa6f08a70658e1272da0c82812de752350d394d
+    GitHub-Pull-Request: golang/go#59160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/cache/cache.go     | 18 ++++++-------
- src/crypto/x509/x509.go                |  8 +++---
- src/internal/godebug/godebug.go        | 24 +++++++++++++++--
- src/internal/godebugs/godebugs_test.go | 48 ++++++++++++++++++++++++++++++++++
- src/internal/godebugs/table.go         |  8 +++---
- src/mime/multipart/formdata.go         | 12 ++++-----
- src/mime/multipart/multipart.go        |  8 +++---
- src/net/http/transfer.go               |  6 ++---
- src/runtime/metrics/doc.go             | 17 ------------
- 9 files changed, 100 insertions(+), 49 deletions(-)
+ src/sync/cond_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

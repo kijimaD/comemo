@@ -1,27 +1,17 @@
-commit 699a7c0fe9c1b75340f2ef05949529ec4b43dc4e
-Author: Aofei Sheng <aofei@aofeisheng.com>
-Date:   Fri Apr 2 14:45:26 2021 +0800
+commit d4a5797b8863185230d0e89da9a00fd17f04152a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 9 12:44:07 2020 -0400
 
-    cmd/go/internal/modconv: involve GOPROXY in ConvertLegacyConfig
+    cmd/compile: drop SSA atomics TODO
     
-    Fixes #33767
+    These ops have been used for sync/atomic since golang.org/cl/28076.
     
-    Change-Id: Ia2d6dd32bcb0e142f59346232b3b1aa3babb034a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306809
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Aofei Sheng <aofei@aofeisheng.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic1445c073273f6b191b97018e8eb6f7ad9c48922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261077
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modconv/convert.go             |   9 +-
- src/cmd/go/internal/modconv/convert_test.go        | 189 ---------------------
- src/cmd/go/internal/modfetch/repo.go               |  56 ------
- src/cmd/go/internal/modload/init.go                |  13 +-
- src/cmd/go/testdata/script/mod_convert.txt         |  64 +++++++
- .../testdata/script/mod_convert_tsv_insecure.txt   |   2 +
- src/cmd/go/testdata/script/mod_init_dep.txt        |   4 -
- src/cmd/go/testdata/script/mod_init_glide.txt      |   1 +
- 8 files changed, 82 insertions(+), 256 deletions(-)
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

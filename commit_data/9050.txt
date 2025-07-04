@@ -1,17 +1,13 @@
-commit dcdaeebdfb233758f7c22c2cad9c0e41dac765a6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 13 10:54:51 2011 -0700
+commit e3a773479dd59e4722108377078c2c8404e9234c
+Author: Sam Thorogood <thorogood@google.com>
+Date:   Wed Jul 13 10:15:00 2011 -0700
 
-    docs: fix wrong it's -> its
+    exp/regexp/syntax: add Prog.NumCap
     
-    R=golang-dev, iant
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4702046
+    https://golang.org/cl/4662083
 
- src/cmd/godoc/godoc.go         | 2 +-
- src/cmd/godoc/index.go         | 2 +-
- src/cmd/ld/dwarf.c             | 4 ++--
- src/pkg/encoding/pem/pem.go    | 2 +-
- src/pkg/exp/datafmt/datafmt.go | 4 ++--
- src/pkg/net/fd_windows.go      | 2 +-
- 6 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/exp/regexp/syntax/compile.go | 4 ++++
+ src/pkg/exp/regexp/syntax/prog.go    | 5 +++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

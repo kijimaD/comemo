@@ -1,21 +1,19 @@
-commit 7a4022ee36ec1b45233f6d9ae19e336f8a64a215
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 3 12:14:07 2015 -0800
+commit b72a4a07c257f394f5a96dff29a4fc862601a41f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Sep 30 13:35:03 2015 -0700
 
-    cmd/compile: fix live variable reuse in orderstmt
+    encoding/binary: document that Read returns io.EOF iff zero bytes are read
     
-    The call "poptemp(t, order)" at line 906 should match up with the
-    assignment "t := marktemp(order)" at line 770, so use a new temporary
-    variable for stripping the ODCL nodes from a "case x := <-ch" node's
-    Ninit list.
+    Also add a unit test to lock this behavior into the API.
     
-    Fixes #13469.
-    Passes toolstash/buildall.
+    Fixes #12016
     
-    Change-Id: Ia7eabd40c79cfdcb83df00b6fbd0954e0c44c5c7
-    Reviewed-on: https://go-review.googlesource.com/17393
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib6ec6e7948f0705f3504ede9143b5dc4e790fc44
+    Reviewed-on: https://go-review.googlesource.com/15171
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/encoding/binary/binary.go      |  4 ++++
+ src/encoding/binary/binary_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,16 +1,17 @@
-commit 6677a2a1fc5814417c3ab319e1717104e07a4c3f
-Author: Praveen Kumar <praveen+git@kumar.in>
-Date:   Thu Apr 23 21:49:53 2020 +0000
+commit c5fac1edc4fbcf3fff8e8a53b8348437b86c4c59
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 12:37:17 2019 -0500
 
-    strings: remove an obsolete doc note for FieldsFunc
+    cmd/go/internal/modload: use lockedfile.Read for the initial read of the go.mod file
     
-    Fixes #38630
+    Updates #34634
+    Fixes #35425
     
-    Change-Id: I0b2b693dd88821dcfc035cf552b687565bb55ef6
-    GitHub-Last-Rev: 291b1b4dcf074860492bb67008f4e8228c655652
-    GitHub-Pull-Request: golang/go#38631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229763
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I878a8d229b33dcde9e7d4dfd82ddf9815d38a465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206142
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/strings.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/internal/modload/init.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

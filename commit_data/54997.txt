@@ -1,19 +1,20 @@
-commit 0011342590391655bd0cd732cf89c385c30c1278
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 15 21:05:02 2023 +0000
+commit 93587d3591f6cb5cd21951a03c3aa750873f2601
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Dec 1 17:54:49 2022 +0000
 
-    test: ignore MemProfileRecords with no live objects in finprofiled.go
+    net: retry with bigger buffer in resSearch
     
-    This test erroneously assumes that there will always be at least one
-    live object accounted for in a MemProfileRecord. This is not true; all
-    memory allocated from a particular location could be dead.
+    Glibc returns size > bufSize, when the entire dns reply does not fit inside the provided buffer.
     
-    Fixes #64153.
-    
-    Change-Id: Iadb783ea9b247823439ddc74b62a4c8b2ce8e33e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542736
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie1c1c6a3411880bd8bdb4371f1f1b7bcce837ea2
+    GitHub-Last-Rev: 488cd3ed0db2a86433aa921117b8f1e9192b1fa5
+    GitHub-Pull-Request: golang/go#57020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- test/finprofiled.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/cgo_unix.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

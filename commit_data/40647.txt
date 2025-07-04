@@ -1,17 +1,26 @@
-commit ee2268c6bce9fabf3330c832e90edf1601828ace
+commit ec3ebf7bc31271b52c82b3fac193139b2788ed68
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 7 12:42:43 2019 -0500
+Date:   Thu Jun 6 11:08:37 2019 -0400
 
-    cmd/go: add math/bits to runtime packages in TestNewReleaseRebuildsStalePackagesInGOPATH
+    cmd/go/internal/web: support file:// URLs
     
-    This fixes a test failure introduced in CL 190620.
+    Fixes #27698
+    Fixes #32227
     
-    Updates #35112
-    
-    Change-Id: I568ae85a456ccd8103563b0ce2e42b7348776a5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205877
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2416408b3de2f9f1ae1af2911cc327a65d2c0170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181037
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/go_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/get/vcs.go                     |  3 +
+ src/cmd/go/internal/modfetch/proxy.go              | 15 ----
+ src/cmd/go/internal/web/file_test.go               | 58 +++++++++++++
+ src/cmd/go/internal/web/http.go                    | 42 ++++++++++
+ src/cmd/go/internal/web/url.go                     | 95 ++++++++++++++++++++++
+ src/cmd/go/internal/web/url_other.go               | 21 +++++
+ src/cmd/go/internal/web/url_other_test.go          | 36 ++++++++
+ src/cmd/go/internal/web/url_test.go                | 77 ++++++++++++++++++
+ src/cmd/go/internal/web/url_windows.go             | 43 ++++++++++
+ src/cmd/go/internal/web/url_windows_test.go        | 94 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_file_proxy.txt      |  7 +-
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 41 ++++++++++
+ 12 files changed, 514 insertions(+), 18 deletions(-)

@@ -1,25 +1,12 @@
-commit 252ef18d04a2560e66aef7b560bd02db92bed912
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Nov 11 14:04:33 2011 -0500
+commit 791aef1821638824cd135a0d6828bd873c06be6b
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Nov 12 05:19:09 2011 +1100
 
-    exp/terminal: rename shell to terminal and add SetSize
+    syscall: fix zerrors for openbsd 386
     
-    It was never really a shell, but the name carried
-    over from SSH's ServerShell.
-    
-    Two small functional changes:
-    
-    Add SetSize, which allows the size of the terminal
-    to be changed in response, say, to an SSH message.
-    
-    Don't write the prompt if there's already something
-    on the current line.
-    
-    R=rsc
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5376066
+    https://golang.org/cl/5369076
 
- src/pkg/exp/terminal/Makefile                      |   2 +-
- src/pkg/exp/terminal/{shell.go => terminal.go}     | 220 +++++++++++----------
- .../terminal/{shell_test.go => terminal_test.go}   |   4 +-
- 3 files changed, 116 insertions(+), 110 deletions(-)
+ src/pkg/syscall/zerrors_openbsd_386.go | 303 +++++++++++++++++----------------
+ 1 file changed, 153 insertions(+), 150 deletions(-)

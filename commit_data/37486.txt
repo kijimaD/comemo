@@ -1,30 +1,16 @@
-commit eb6c433eb38d9a0e9ecfcc1604f9ff8e035768f6
-Author: Keith Randall <khr@google.com>
-Date:   Mon Nov 26 15:58:03 2018 -0800
+commit 669ac1228a51f7724baab9325d57ac04025db493
+Author: Benjamin Cable <cable.benjamin@gmail.com>
+Date:   Thu Aug 2 14:54:16 2018 +0100
 
-    cmd/compile: don't convert non-Go-constants to OLITERALs
+    math/rand: improve package documentation
     
-    Don't convert values that aren't Go constants, like
-    uintptr(unsafe.Pointer(nil)), to a literal constant. This avoids
-    assuming they are constants for things like indexing, array sizes,
-    case duplication, etc.
+    Notify readers that interval notation is used.
+    Fixes: #26765
     
-    Also, nil is an allowed duplicate in switches. CTNILs aren't Go constants.
-    
-    Fixes #28078
-    Fixes #28079
-    
-    Change-Id: I9ab8af47098651ea09ef10481787eae2ae2fb445
-    Reviewed-on: https://go-review.googlesource.com/c/151320
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id02a7fcffbf41699e85631badeee083f5d4b2201
+    Reviewed-on: https://go-review.googlesource.com/127549
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/const.go     |  2 +-
- src/cmd/compile/internal/gc/swt.go       |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  6 +++---
- test/fixedbugs/issue28078.go             | 34 ++++++++++++++++++++++++++++++++
- test/fixedbugs/issue28079a.go            | 20 +++++++++++++++++++
- test/fixedbugs/issue28079b.go            | 17 ++++++++++++++++
- test/fixedbugs/issue28079c.go            | 15 ++++++++++++++
- 7 files changed, 91 insertions(+), 5 deletions(-)
+ src/math/rand/normal.go | 6 +++---
+ src/math/rand/rand.go   | 3 +++
+ 2 files changed, 6 insertions(+), 3 deletions(-)

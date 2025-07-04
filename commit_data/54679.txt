@@ -1,16 +1,28 @@
-commit 53d000d75b32bed4b7ee18afe169cb93217cb257
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Mon Oct 9 23:56:48 2023 +0200
+commit f13849a7af4c058caa6af14f7d3f9aa81982c124
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Apr 15 11:26:32 2018 +0200
 
-    testing/fstest: add godoc links
+    encoding/xml: error when closing tag does not match opening tag
     
-    Change-Id: I611f04f12bb93197fea5ae40a08e5f60426f1c00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534076
+    Comparing opening and closing tag is done using the prefix when available.
+    Documentation states that Token returns URI in the Space part of the Name.
+    Translation has been moved for the End tag before the namespace is removed
+    from the stack.
+    
+    After closing a tag using a namespace, the valid namespace must be taken
+    from the opening tag. Tests added.
+    
+    Fixes #20685
+    
+    Change-Id: I4d90b19f7e21a76663f0ea1c1db6c6bf9fd2a389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/107255
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/testing/fstest/mapfs.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/encoding/xml/xml.go      |  5 +++--
+ src/encoding/xml/xml_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 2 deletions(-)

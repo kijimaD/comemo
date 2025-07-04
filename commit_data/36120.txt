@@ -1,24 +1,30 @@
-commit 5f5402b72313463a25c1bcacd559254834690d7e
-Author: Ian Gudger <igudger@google.com>
-Date:   Tue Jul 24 16:19:19 2018 -0700
+commit 6703addeee7dfe514329289c9150df14ab2ed452
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 4 21:49:49 2018 -0700
 
-    net: fix handling of Conns created by Resolver.Dial
+    cmd/compile: drop legacy code for generating iface wrappers
     
-    The DNS client in net is documented to treat Conns returned by
-    Resolver.Dial which implement PacketConn as UDP and those which don't as
-    TCP regardless of what was requested. golang.org/cl/37879 changed the
-    DNS client to assume that the Conn returned by Resolver.Dial was the
-    requested type which broke compatibility.
+    Originally, scalar values were directly stored within interface values
+    as long as they fit into a pointer-sized slot of memory. And since
+    interface method calls always pass the full pointer-sized value as the
+    receiver argument, value-narrowing wrappers were necessary to adapt to
+    the calling convention for methods with smaller receiver types.
     
-    Fixes #26573
-    Updates #16218
+    However, for precise garbage collection, we now only store actual
+    pointers within interface values, so these wrappers are no longer
+    necessary.
     
-    Change-Id: Idf4f073a4cc3b1db36a3804898df206907f9c43c
-    Reviewed-on: https://go-review.googlesource.com/125735
-    Run-TryBot: Ian Gudger <igudger@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: I5303bfeb8d0f11db619b5a5d06b37ac898588670
+    Reviewed-on: https://go-review.googlesource.com/104875
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/dnsclient_unix.go      |  6 ++--
- src/net/dnsclient_unix_test.go | 77 ++++++++++++++++++++++++++++++------------
- 2 files changed, 58 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       | 14 +++-----------
+ src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/subr.go      | 18 +++---------------
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ 4 files changed, 16 insertions(+), 36 deletions(-)

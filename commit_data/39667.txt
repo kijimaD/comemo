@@ -1,19 +1,17 @@
-commit b91b3d9c31c14f55d7ddcbcbf8ffcb2539018f38
-Author: Keith Randall <khr@google.com>
-Date:   Tue Aug 27 15:06:07 2019 -0700
+commit fda1dc2939a245cae354fbac68a5c47d7b152c87
+Author: Shubham Sharma <shubham.sha12@gmail.com>
+Date:   Mon Mar 11 11:39:25 2019 +0530
 
-    cmd/compile: remove auxSymInt32
+    cmd/go: document GOGCCFLAGS
     
-    We never used it, might as well get rid of it.
+    Fixes #30123
     
-    Change-Id: I5c23c93e90173bff9ac1fc1b8ae1e2025215d6eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191938
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I310b89a344a262bb758d39dfdd485ed2940cc6aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166577
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/check.go       | 6 ------
- src/cmd/compile/internal/ssa/gen/rulegen.go | 4 ++--
- src/cmd/compile/internal/ssa/op.go          | 2 --
- src/cmd/compile/internal/ssa/value.go       | 2 +-
- 4 files changed, 3 insertions(+), 11 deletions(-)
+ src/cmd/go/alldocs.go               | 2 ++
+ src/cmd/go/internal/help/helpdoc.go | 2 ++
+ 2 files changed, 4 insertions(+)

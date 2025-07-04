@@ -1,28 +1,14 @@
-commit e367ba9eaea80917c877709da365ff8f13cc60bd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 10 16:57:06 2017 -0700
+commit 9259f3073afe0830ab1484bfee46bfa1f322e7e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 12:43:52 2017 -0800
 
-    cmd/internal/obj: refactor ATEXT symbol initialization
+    [dev.typealias] test: match gccgo error messages on alias2.go
     
-    This makes the core Flushplist loop clearer.
+    For #18130.
     
-    We may also want to move the Sym initialization
-    much earlier in the compiler (see discussion on
-    CL 40254), for which this paves the way.
-    
-    While we're here, eliminate package log in favor of ctxt.Diag.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: Ieaf848d196764a5aa82578b689af7bc6638c385a
-    Reviewed-on: https://go-review.googlesource.com/40313
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I9561ee2b8a9f7b11f0851f281a899f78b9e9703e
+    Reviewed-on: https://go-review.googlesource.com/35640
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/asm.go      |  1 +
- src/cmd/compile/internal/gc/gsubr.go |  2 ++
- src/cmd/internal/obj/plist.go        | 61 +++++++++++++++++++++---------------
- 3 files changed, 38 insertions(+), 26 deletions(-)
+ test/alias2.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

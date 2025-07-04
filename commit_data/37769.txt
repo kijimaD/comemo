@@ -1,13 +1,17 @@
-commit 1e708337b21c43c14d3ac46dd29181a4af0548da
-Author: Osamu TONOMORI <osamingo@gmail.com>
-Date:   Thu Dec 20 22:39:01 2018 +0900
+commit 541620409dee210c5498cc38433dcf690f58f888
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 24 19:08:28 2018 +0000
 
-    compress/flate: fix the old url for the flate algorithm
+    net/http: make Transport return Writable Response.Body on protocol switch
     
-    Change-Id: I84b74bc96516033bbf4a01f9aa81fe60d5a41355
-    Reviewed-on: https://go-review.googlesource.com/c/155317
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #26937
+    Updates #17227
+    
+    Change-Id: I79865938b05c219e1947822e60e4f52bb2604b70
+    Reviewed-on: https://go-review.googlesource.com/131279
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/compress/flate/inflate.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/response.go       | 25 ++++++++++++++++++++
+ src/net/http/transport.go      | 52 ++++++++++++++++++++++++++++++++++++++++--
+ src/net/http/transport_test.go | 51 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 126 insertions(+), 2 deletions(-)

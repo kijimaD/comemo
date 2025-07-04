@@ -1,13 +1,75 @@
-commit 64f064cac6e3e89f75873b7fa05af16537d28ccf
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 19 15:12:49 2017 +1000
+commit 699175a11adfe57e859f4b995f4f5dfdaa5a5911
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 12:28:05 2017 -0500
 
-    net: make syscall name consistent with others
+    cmd/compile,link: generate PC-value tables with inlining information
     
-    Change-Id: Ic6d2de92e1f533a9f9a0cd6d7dab463bdafb0e11
-    Reviewed-on: https://go-review.googlesource.com/43691
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    In order to generate accurate tracebacks, the runtime needs to know the
+    inlined call stack for a given PC. This creates two tables per function
+    for this purpose. The first table is the inlining tree (stored in the
+    function's funcdata), which has a node containing the file, line, and
+    function name for every inlined call. The second table is a PC-value
+    table that maps each PC to a node in the inlining tree (or -1 if the PC
+    is not the result of inlining).
+    
+    To give the appearance that inlining hasn't happened, the runtime also
+    needs the original source position information of inlined AST nodes.
+    Previously the compiler plastered over the line numbers of inlined AST
+    nodes with the line number of the call. This meant that the PC-line
+    table mapped each PC to line number of the outermost call in its inlined
+    call stack, with no way to access the innermost line number.
+    
+    Now the compiler retains line numbers of inlined AST nodes and writes
+    the innermost source position information to the PC-line and PC-file
+    tables. Some tools and tests expect to see outermost line numbers, so we
+    provide the OutermostLine function for displaying line info.
+    
+    To keep track of the inlined call stack for an AST node, we extend the
+    src.PosBase type with an index into a global inlining tree. Every time
+    the compiler inlines a call, it creates a node in the global inlining
+    tree for the call, and writes its index to the PosBase of every inlined
+    AST node. The parent of this node is the inlining tree index of the
+    call. -1 signifies no parent.
+    
+    For each function, the compiler creates a local inlining tree and a
+    PC-value table mapping each PC to an index in the local tree.  These are
+    written to an object file, which is read by the linker.  The linker
+    re-encodes these tables compactly by deduplicating function names and
+    file names.
+    
+    This change increases the size of binaries by 4-5%. For example, this is
+    how the go1 benchmark binary is impacted by this change:
+    
+    section             old bytes   new bytes   delta
+    .text               3.49M ± 0%  3.49M ± 0%   +0.06%
+    .rodata             1.12M ± 0%  1.21M ± 0%   +8.21%
+    .gopclntab          1.50M ± 0%  1.68M ± 0%  +11.89%
+    .debug_line          338k ± 0%   435k ± 0%  +28.78%
+    Total               9.21M ± 0%  9.58M ± 0%   +4.01%
+    
+    Updates #19348.
+    
+    Change-Id: Ic4f180c3b516018138236b0c35e0218270d957d3
+    Reviewed-on: https://go-review.googlesource.com/37231
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl.go  | 55 +++++++++++++++++++-------
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ src/cmd/compile/internal/gc/util.go |  2 +
+ src/cmd/internal/obj/funcdata.go    |  2 +
+ src/cmd/internal/obj/inl.go         | 78 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/link.go        |  3 ++
+ src/cmd/internal/obj/objfile.go     | 19 +++++++++
+ src/cmd/internal/obj/pcln.go        | 60 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/util.go        |  2 +-
+ src/cmd/internal/src/pos.go         | 35 ++++++++++++++++-
+ src/cmd/internal/src/xpos_test.go   | 17 ++++++++
+ src/cmd/link/internal/ld/link.go    | 10 +++++
+ src/cmd/link/internal/ld/objfile.go | 12 ++++++
+ src/cmd/link/internal/ld/pcln.go    | 73 ++++++++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/symtab.go  |  5 ++-
+ src/runtime/funcdata.h              |  2 +
+ src/runtime/symtab.go               |  2 +
+ 17 files changed, 354 insertions(+), 25 deletions(-)

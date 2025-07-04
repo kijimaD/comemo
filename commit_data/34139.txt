@@ -1,23 +1,19 @@
-commit 8693b4f095b2efdbd11967655579606bc3192c59
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 29 12:22:32 2018 -0500
+commit d24a36cc4caf51c88082c9b17201b6088b9bfc86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 10:06:30 2017 -0400
 
-    runtime: remove unused memlimit function
+    debug/elf: make safe for Go 1.4 compilers
     
-    Change-Id: Id057dcc85d64e5c670710fbab6cacd4b906cf594
-    Reviewed-on: https://go-review.googlesource.com/93655
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    We're going to start building cmd/cgo as part of the bootstrap,
+    and with it debug/elf, so the copy here needs to work with Go 1.4.
+    It does except for the use of the new io.SeekStart etc constants,
+    so remove that use.
+    
+    Change-Id: Ib7fcf46e1e9060f96d2bacaaf349c9b0df347550
+    Reviewed-on: https://go-review.googlesource.com/68337
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os3_solaris.go  | 31 -------------------------------
- src/runtime/os_darwin.go    |  8 --------
- src/runtime/os_dragonfly.go | 31 -------------------------------
- src/runtime/os_freebsd.go   | 31 -------------------------------
- src/runtime/os_linux.go     | 32 --------------------------------
- src/runtime/os_nacl.go      |  4 ----
- src/runtime/os_netbsd.go    |  4 ----
- src/runtime/os_openbsd.go   |  4 ----
- src/runtime/os_plan9.go     |  4 ----
- src/runtime/os_windows.go   |  4 ----
- 10 files changed, 153 deletions(-)
+ src/debug/elf/file.go   | 19 +++++++++++++++----
+ src/debug/elf/reader.go |  6 +++---
+ 2 files changed, 18 insertions(+), 7 deletions(-)

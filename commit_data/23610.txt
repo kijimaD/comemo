@@ -1,17 +1,21 @@
-commit d6e6baa702269ea6d2e61d4fa726bff48560c82c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 25 16:11:14 2015 -0700
+commit e15f89c526ec464a78b5e76279090cba785c1326
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Sun May 17 12:07:04 2015 +0800
 
-    net/http: fix MaxBytesReader at EOF
+    cmd/doc: try better when looking for package dir
     
-    Fixes #10884
+    When go doc is invoked with a single package name argument (e.g. go doc pkgname)
+    it needs to find the directory of the requested package sources in GOPATH.
     
-    Change-Id: I7cab3c96548867612f579d2cd4ec736309787443
-    Reviewed-on: https://go-review.googlesource.com/11961
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    GOPATH might contain directories with the same name as the requested package
+    that do no contain any *.go files. This change makes "go doc" ignore such
+    directories when looking for possible package directories.
+    
+    This fixes #10882
+    
+    Change-Id: Ib3d4ea69a25801c34cbe7b044de9870ba12f9aa8
+    Reviewed-on: https://go-review.googlesource.com/10190
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/request.go      | 47 +++++++++++++++++++++++++++++++++++---------
- src/net/http/request_test.go | 32 ++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 9 deletions(-)
+ src/cmd/doc/main.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

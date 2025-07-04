@@ -1,22 +1,21 @@
-commit 17396575135ba71472ab8a5b82f31af50d8bf312
-Author: Keith Randall <khr@golang.org>
-Date:   Sat May 28 21:15:24 2016 -0700
+commit 7c15b2ab4bfec46b07794c5406a438f993cdc56e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 3 00:44:39 2016 +0000
 
-    cmd/compile: shift tests, fix triple-shift rules
+    os: make IsExists also recognize syscall.ENOTEMPTY
     
-    Add a bunch of tests for shifts.
+    And adds missing tests.
     
-    Fix triple-shift rules to always take constant shifts as 64 bits.
-    (Earlier rules always promote shift amounts to 64 bits.)
-    Add overflow checks.
+    Fixes #14970
     
-    Increases generic rule coverage to 91%
-    
-    Change-Id: I6b42d368d19d36ac482dbb8e0d4f67e30ad7145d
-    Reviewed-on: https://go-review.googlesource.com/23555
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: I0dba02603bc245f555498cb5dd3e0a9d87c52353
+    Reviewed-on: https://go-review.googlesource.com/21467
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/shift_test.go      | 907 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/generic.rules |  94 ++-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 692 ++++++++++++++++---
- 3 files changed, 1588 insertions(+), 105 deletions(-)
+ src/os/error_test.go         | 12 ++++++++----
+ src/os/error_unix.go         |  2 +-
+ src/os/error_unix_test.go    | 39 +++++++++++++++++++++++++++++++++++++++
+ src/os/error_windows_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 83 insertions(+), 5 deletions(-)

@@ -1,18 +1,43 @@
-commit c2f0fe5854bbae49327f8222098142ab6db74a99
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 22 17:18:12 2025 -0700
+commit 15cec430d75741960829e7e227c1b7c3e1f79114
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 15 14:10:40 2024 -0700
 
-    internal/synctest: speed up TestWeak
+    types2: flip the default value of GODEBUG=gotypesalias=1
     
-    Run TestWeak for fewer iterations. Five is enough reproduce #73817,
-    which was the motivation for this test. runtime.GC is ridiculously
-    slow on wasm, and not especially fast anywhere else.
+    This CL changes the interpretation of the unset value
+    of gotypesalias to not equal "0".
     
-    Change-Id: Ieb5235d064b123cbc22a306425e385c273b54493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675716
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This is a port of CL 577715 from go/types to types2,
+    with adjustments to go/types to keep the source code
+    in sync. Specifically:
+    
+    - Re-introduce testing of both modes (gotypesalias=0,
+      gotypesalias=1) in go/types.
+    - Re-introduce setting of gotypesalias in some of the
+      tests for explicit documentation in go/types.
+    
+    The compiler still uses the (now) non-default setting
+    due to a panic with the default setting that needs to
+    be debugged.
+    
+    Also, the type checkers still don't call IncNonDefault
+    when the non-default setting of gotypesalias is used.
+    
+    Change-Id: I1feed3eb334c202950ac5aadf49a74adcce0d8c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579076
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/internal/synctest/synctest_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/irgen.go       |  5 +++++
+ src/cmd/compile/internal/types2/check.go      |  7 +++++--
+ src/cmd/compile/internal/types2/check_test.go |  4 ++--
+ src/cmd/compile/internal/types2/decl.go       |  2 +-
+ src/cmd/compile/internal/types2/named_test.go |  2 +-
+ src/go/types/api_test.go                      |  1 +
+ src/go/types/check.go                         | 13 ++++---------
+ src/go/types/check_test.go                    | 11 +++++++++++
+ src/go/types/issues_test.go                   |  2 +-
+ 9 files changed, 31 insertions(+), 16 deletions(-)

@@ -1,18 +1,18 @@
-commit 04c628935d1487632f903e4e0688fb7a34063752
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri May 19 19:04:07 2023 +0100
+commit 60d3276a944c3a6a65a8e462bc432d1e9cb040ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 8 22:00:30 2022 -0700
 
-    encoding/json: document unsupported float values
+    test: test method expressions promoted to derived types
     
-    Fixes #59627
+    This CL adds a test that method expressions where the receiver type is
+    a derived type and embeds a promoted method work correctly.
     
-    Change-Id: Icd6a9803e213596de6136ec980b0a352c450e6f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496142
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2e7c96007b6d9e6f942dc14228970ac508ff5c15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/json/encode.go | 1 +
- 1 file changed, 1 insertion(+)
+ test/run.go                   |  1 +
+ test/typeparam/mdempsky/20.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

@@ -1,19 +1,15 @@
-commit 4fd9a3fdbb4a3466000ea63d28fa09043272ed2e
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 10 21:28:09 2015 -0400
+commit 43dfb879a3154cd9e87ce752f9b9f1662eb7931e
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Thu Feb 26 21:23:31 2015 +0100
 
-    cmd/internal/obj, cmd/internal/ld, cmd/7l: external linking for darwin/arm64
+    mime/quotedprintable: add writer
     
-    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f02
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8781
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Updates #4943
+    
+    Change-Id: I082b97ccd787cf91245d39b8d93783732db6f42c
+    Reviewed-on: https://go-review.googlesource.com/6171
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/7l/asm.go            | 148 +++++++++++++++++++++++++++++++++++++++----
- src/cmd/7l/obj.go            |  21 +++++-
- src/cmd/internal/ld/data.go  |  12 +++-
- src/cmd/internal/ld/lib.go   |   3 +-
- src/cmd/internal/ld/macho.go |  40 ++++++++++--
- src/cmd/internal/ld/sym.go   |   9 ++-
- src/cmd/internal/obj/sym.go  |   9 ++-
- 7 files changed, 213 insertions(+), 29 deletions(-)
+ src/mime/quotedprintable/writer.go      | 168 ++++++++++++++++++++++++++++++++
+ src/mime/quotedprintable/writer_test.go | 141 +++++++++++++++++++++++++++
+ 2 files changed, 309 insertions(+)

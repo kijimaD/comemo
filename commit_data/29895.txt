@@ -1,18 +1,18 @@
-commit f64b7d301d8f22efb9b539f8ac4db60aedf182c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 4 09:24:33 2017 -0500
+commit 05471e9ee64a300bd2dcc4582ee1043c055893bb
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Oct 7 17:10:53 2016 +0900
 
-    cmd/link: use 64k segment alignment on linux/arm
+    crypto/x509: implement SystemCertPool on Windows
     
-    Otherwise 64k pages don't map correctly.
+    Fixes #16736
     
-    Fixes #18408.
-    
-    Change-Id: I85f56682531566d1ff5c655640cd58509514aee8
-    Reviewed-on: https://go-review.googlesource.com/34629
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I335d201e3f6738d838de3881087cb640fc7670e8
+    Reviewed-on: https://go-review.googlesource.com/30578
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/arm/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/cert_pool.go    |  5 -----
+ src/crypto/x509/root_windows.go | 35 ++++++++++++++++++++++++++++++++++-
+ src/crypto/x509/x509_test.go    |  7 +++++++
+ 3 files changed, 41 insertions(+), 6 deletions(-)

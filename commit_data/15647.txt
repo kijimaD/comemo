@@ -1,13 +1,15 @@
-commit 33e8ca4d67ecd1fb02d9189160cb3a91b4285748
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 8 13:53:17 2013 -0800
+commit 3cdf8bae1a47948804d782ef5e8c4de38ea0ac9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 8 10:04:17 2013 -0800
 
-    effective_go.html: add a section on type assertions
-    The information was missing, oddly enough.
+    database/sql: fix Conn leak
     
-    R=golang-dev, rsc, iant
+    Fixes #4902
+    
+    R=golang-dev, alex.brainman, r, google
     CC=golang-dev
-    https://golang.org/cl/7636044
+    https://golang.org/cl/7579045
 
- doc/effective_go.html | 94 +++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 88 insertions(+), 6 deletions(-)
+ src/pkg/database/sql/sql.go      |  1 +
+ src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

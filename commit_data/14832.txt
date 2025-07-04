@@ -1,12 +1,14 @@
-commit be36ab339f5f11f2daaec29e46e9e1ce25c74688
-Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Wed Jan 9 11:07:13 2013 -0800
+commit a6e4aa3ef2f0a0132bb7294a7a662b4b96143742
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 9 07:31:25 2013 -0800
 
-    utf8: fix typo.
+    doc: Mention godoc's handling of example functions.
     
-    R=golang-dev, iant
+    Fixes #4625.
+    
+    R=iant, adg
     CC=golang-dev
-    https://golang.org/cl/7063056
+    https://golang.org/cl/7064052
 
- src/pkg/unicode/utf8/utf8.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/articles/godoc_documenting_go_code.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

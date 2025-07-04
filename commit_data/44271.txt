@@ -1,39 +1,113 @@
-commit aa0388f2ed937669e9f938da8a65c75ea144ebfd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 15 09:25:55 2021 -0500
+commit bffb8818e76e830697e183219523aa25a32480f0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 3 13:17:17 2020 +0200
 
-    runtime: remove unnecessary writes to gp.sched.g
+    all: fix dead links to inferno-os bitbucket repository
     
-    A g's sched.g is set in newproc1:
+    Generated using:
     
-            newg.sched.g = guintptr(unsafe.Pointer(newg))
+      perl -i -npe 's#inferno-os/src/default#inferno-os/src/master#' $(git grep -l "inferno-os/src/default" | grep -v vendor)
     
-    After that, it never changes. Yet lots of assembly code does
-    "g.sched.g = g" unnecessarily. Remove all those lines to avoid
-    confusion about whether it ever changes.
-    
-    Also, split gogo into two functions, one that does the nil g check
-    and a second that does the actual switch. This way, if the nil g check
-    fails, we get a stack trace showing the call stack that led to the failure.
-    (The SP write would otherwise cause the stack trace to abort.)
-    
-    Also restore the proper nil g check in a handful of assembly functions.
-    (There is little point in checking for nil g *after* installing it as the real g.)
-    
-    Change-Id: I22866b093f901f765de1d074e36eeec10366abfb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292109
-    Trust: Russ Cox <rsc@golang.org>
+    Change-Id: I4b6443bd09a8ea4c8aaeb40a1c73520d1f7ca648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235821
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/asm_386.s     |  7 ++++---
- src/runtime/asm_amd64.s   |  7 ++++---
- src/runtime/asm_arm.s     | 19 +++++--------------
- src/runtime/asm_arm64.s   | 12 +++++++-----
- src/runtime/asm_mips64x.s | 11 +++++++----
- src/runtime/asm_mipsx.s   | 13 +++++++------
- src/runtime/asm_ppc64x.s  | 12 +++++++-----
- src/runtime/asm_riscv64.s | 12 +++++++-----
- src/runtime/asm_s390x.s   | 11 +++++++----
- src/runtime/asm_wasm.s    |  7 +++----
- src/runtime/proc.go       | 24 ++++++++++++++++++++----
- 11 files changed, 78 insertions(+), 57 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go    | 2 +-
+ src/cmd/internal/obj/arm/a.out.go       | 2 +-
+ src/cmd/internal/obj/arm/asm5.go        | 2 +-
+ src/cmd/internal/obj/arm/list5.go       | 2 +-
+ src/cmd/internal/obj/arm/obj5.go        | 2 +-
+ src/cmd/internal/obj/data.go            | 4 ++--
+ src/cmd/internal/obj/ld.go              | 4 ++--
+ src/cmd/internal/obj/link.go            | 2 +-
+ src/cmd/internal/obj/pass.go            | 2 +-
+ src/cmd/internal/obj/sym.go             | 4 ++--
+ src/cmd/internal/obj/x86/a.out.go       | 2 +-
+ src/cmd/internal/obj/x86/asm6.go        | 2 +-
+ src/cmd/internal/obj/x86/list6.go       | 2 +-
+ src/cmd/internal/obj/x86/obj6.go        | 2 +-
+ src/cmd/internal/objabi/autotype.go     | 2 +-
+ src/cmd/internal/objabi/head.go         | 2 +-
+ src/cmd/internal/objabi/reloctype.go    | 2 +-
+ src/cmd/internal/objabi/symkind.go      | 2 +-
+ src/cmd/link/internal/amd64/asm.go      | 2 +-
+ src/cmd/link/internal/amd64/l.go        | 2 +-
+ src/cmd/link/internal/amd64/obj.go      | 2 +-
+ src/cmd/link/internal/arm/asm.go        | 2 +-
+ src/cmd/link/internal/arm/l.go          | 4 ++--
+ src/cmd/link/internal/arm/obj.go        | 2 +-
+ src/cmd/link/internal/arm64/asm.go      | 2 +-
+ src/cmd/link/internal/arm64/l.go        | 2 +-
+ src/cmd/link/internal/arm64/obj.go      | 2 +-
+ src/cmd/link/internal/ld/ar.go          | 2 +-
+ src/cmd/link/internal/ld/data.go        | 4 ++--
+ src/cmd/link/internal/ld/ld.go          | 4 ++--
+ src/cmd/link/internal/ld/lib.go         | 4 ++--
+ src/cmd/link/internal/ld/link.go        | 2 +-
+ src/cmd/link/internal/ld/main.go        | 2 +-
+ src/cmd/link/internal/ld/sym.go         | 4 ++--
+ src/cmd/link/internal/ld/symtab.go      | 2 +-
+ src/cmd/link/internal/mips/asm.go       | 2 +-
+ src/cmd/link/internal/mips/l.go         | 2 +-
+ src/cmd/link/internal/mips/obj.go       | 2 +-
+ src/cmd/link/internal/mips64/asm.go     | 2 +-
+ src/cmd/link/internal/mips64/l.go       | 2 +-
+ src/cmd/link/internal/mips64/obj.go     | 2 +-
+ src/cmd/link/internal/ppc64/asm.go      | 2 +-
+ src/cmd/link/internal/ppc64/l.go        | 2 +-
+ src/cmd/link/internal/ppc64/obj.go      | 2 +-
+ src/cmd/link/internal/s390x/asm.go      | 2 +-
+ src/cmd/link/internal/s390x/l.go        | 2 +-
+ src/cmd/link/internal/s390x/obj.go      | 2 +-
+ src/cmd/link/internal/sym/segment.go    | 2 +-
+ src/cmd/link/internal/sym/symbols.go    | 2 +-
+ src/cmd/link/internal/sym/symkind.go    | 2 +-
+ src/cmd/link/internal/x86/asm.go        | 2 +-
+ src/cmd/link/internal/x86/l.go          | 2 +-
+ src/cmd/link/internal/x86/obj.go        | 2 +-
+ src/cmd/oldlink/internal/amd64/asm.go   | 2 +-
+ src/cmd/oldlink/internal/amd64/l.go     | 2 +-
+ src/cmd/oldlink/internal/amd64/obj.go   | 2 +-
+ src/cmd/oldlink/internal/arm/asm.go     | 2 +-
+ src/cmd/oldlink/internal/arm/l.go       | 4 ++--
+ src/cmd/oldlink/internal/arm/obj.go     | 2 +-
+ src/cmd/oldlink/internal/arm64/asm.go   | 2 +-
+ src/cmd/oldlink/internal/arm64/l.go     | 2 +-
+ src/cmd/oldlink/internal/arm64/obj.go   | 2 +-
+ src/cmd/oldlink/internal/ld/ar.go       | 2 +-
+ src/cmd/oldlink/internal/ld/data.go     | 4 ++--
+ src/cmd/oldlink/internal/ld/ld.go       | 4 ++--
+ src/cmd/oldlink/internal/ld/lib.go      | 4 ++--
+ src/cmd/oldlink/internal/ld/link.go     | 2 +-
+ src/cmd/oldlink/internal/ld/main.go     | 2 +-
+ src/cmd/oldlink/internal/ld/sym.go      | 4 ++--
+ src/cmd/oldlink/internal/ld/symtab.go   | 2 +-
+ src/cmd/oldlink/internal/mips/asm.go    | 2 +-
+ src/cmd/oldlink/internal/mips/l.go      | 2 +-
+ src/cmd/oldlink/internal/mips/obj.go    | 2 +-
+ src/cmd/oldlink/internal/mips64/asm.go  | 2 +-
+ src/cmd/oldlink/internal/mips64/l.go    | 2 +-
+ src/cmd/oldlink/internal/mips64/obj.go  | 2 +-
+ src/cmd/oldlink/internal/ppc64/asm.go   | 2 +-
+ src/cmd/oldlink/internal/ppc64/l.go     | 2 +-
+ src/cmd/oldlink/internal/ppc64/obj.go   | 2 +-
+ src/cmd/oldlink/internal/s390x/asm.go   | 2 +-
+ src/cmd/oldlink/internal/s390x/l.go     | 2 +-
+ src/cmd/oldlink/internal/s390x/obj.go   | 2 +-
+ src/cmd/oldlink/internal/sym/segment.go | 2 +-
+ src/cmd/oldlink/internal/sym/symbols.go | 2 +-
+ src/cmd/oldlink/internal/sym/symkind.go | 2 +-
+ src/cmd/oldlink/internal/x86/asm.go     | 2 +-
+ src/cmd/oldlink/internal/x86/l.go       | 2 +-
+ src/cmd/oldlink/internal/x86/obj.go     | 2 +-
+ src/runtime/memclr_arm.s                | 2 +-
+ src/runtime/memmove_386.s               | 2 +-
+ src/runtime/memmove_amd64.s             | 2 +-
+ src/runtime/memmove_arm.s               | 2 +-
+ src/runtime/memmove_plan9_386.s         | 2 +-
+ src/runtime/memmove_plan9_amd64.s       | 2 +-
+ src/runtime/vlop_386.s                  | 2 +-
+ src/runtime/vlop_arm.s                  | 2 +-
+ src/runtime/vlrt.go                     | 2 +-
+ 97 files changed, 110 insertions(+), 110 deletions(-)

@@ -1,22 +1,18 @@
-commit aed1f925f24d4ad6ff2f2d77c04e4c5b72fdb49f
-Author: Ben Hoyt <benhoyt@gmail.com>
-Date:   Mon Jun 10 20:49:33 2024 +1200
+commit c7f0a8c443d91a7dcf5962936903aff7e43124cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 24 08:35:18 2023 -0400
 
-    os/user: make Lookup* functions properly handle ENOENT
+    cmd/go: accept trailing text in compiler errors in tests
     
-    The libc docs say that these functions can return ENOENT, and
-    per issue #67912, this does happen in practice sometimes. Handle
-    both the ENOENT and !found cases the same way, for Lookup,
-    LookupId, LookupGroup, LookupGroupId.
+    This fixes tests that were broken in CL 497716.
     
-    Fixes #67912
-    
-    Change-Id: I993935af44c83ad785b6cd735fc313a3647daa19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591555
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I85fa8f093e04a97b7b83e2f6840f6261e08f59e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/os/user/cgo_lookup_unix.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt | 2 +-
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

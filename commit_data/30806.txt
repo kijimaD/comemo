@@ -1,21 +1,19 @@
-commit c46226a6222eb8bc8b30b40e8ce09ebe00f5dade
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 23 03:56:23 2017 +0000
+commit 2641cffd4166ba6991830115efc468dc3f5974ff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 6 20:18:26 2016 -0800
 
-    net: mark TestDialerDualStack as flaky
+    misc/cgo/test: skip test18146 on Darwin
     
-    It was already marked flaky for everything but the dashboard.
-    Remove that restriction. It's just flaky overall.
+    It is reported as failing for two people (issues #18202 and #18212).
+    The failure mode is that the system gets overloaded and other programs
+    fail to run.
     
-    It's doing more harm than good.
+    Fixes #18202.
     
-    Updates #13324
-    
-    Change-Id: I36feff32a1b8681e77700f74b9c70cb4073268eb
-    Reviewed-on: https://go-review.googlesource.com/38459
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1f1ca1f5d8eed6cc3a9dffac3289851e09fa662b
+    Reviewed-on: https://go-review.googlesource.com/34017
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_test.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ misc/cgo/test/issue18146.go | 4 ++++
+ 1 file changed, 4 insertions(+)

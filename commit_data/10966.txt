@@ -1,23 +1,15 @@
-commit 0b702937f1fae92818531c601e366bf6a767672b
+commit 550856c59d153b8a92a5e26b6a5db1e06ff848ba
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 22 10:22:38 2011 -0500
+Date:   Thu Dec 22 10:21:59 2011 -0500
 
-    dashboard: horizontal crunch
+    dashboard: do not require key in source code
     
-    * group builders in to columns by OS
-    * drop builder suffix (moved to hover title)
-    * cut all domain names from email (full name+email in hover title)
-    * make ok smaller
-    
-    This should easily give us room for netbsd and plan9,
-    even on small laptop screens.
-    
-    Running at http://build-rsc.golang.org/.
+    Or else eventually someone will check it in.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5501064
+    https://golang.org/cl/5504071
 
- misc/dashboard/app/build/ui.go   | 96 +++++++++++++++++++++++++++++++++++-----
- misc/dashboard/app/build/ui.html | 37 ++++++++++++++--
- 2 files changed, 117 insertions(+), 16 deletions(-)
+ misc/dashboard/app/build/handler.go | 15 +++++-----
+ misc/dashboard/app/build/key.go     | 60 ++++++++++++++++++++++++++++++++-----
+ 2 files changed, 61 insertions(+), 14 deletions(-)

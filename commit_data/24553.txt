@@ -1,18 +1,22 @@
-commit c23c8d58d694d03b6411f7cccad476f330cb5448
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Sep 23 21:02:50 2015 +1200
+commit 7d9faaa19f4870ed0ac92af26f5552a09a504218
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 10:19:12 2015 -0400
 
-    cmd/compile: allow -shared/-dynlink on ppc64
+    cmd/go: skip external tests on freebsd-arm builder
     
-    Only effect is register related: do not allocate R2 or R12, put function
-    entrypoint in R12 before indirect call.
+    It is just far too slow.
+    I have a CL for Go 1.6 that makes many of these into internal tests.
+    That will improve the coverage.
     
-    Change-Id: I9cdd553bab022601c9cb5bb43c9dc0c368c6fb0a
-    Reviewed-on: https://go-review.googlesource.com/15961
+    It does not matter much, because basically none of the go command
+    tests are architecture dependent, so the other builders will catch
+    any problems.
+    
+    Fixes freebsd-arm builder.
+    
+    Change-Id: I8b2f6ac2cc1e7657019f7731c6662dc43e20bfb5
+    Reviewed-on: https://go-review.googlesource.com/13166
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/lex.go       |  4 +++-
- src/cmd/compile/internal/ppc64/galign.go |  5 +++++
- src/cmd/compile/internal/ppc64/gsubr.go  | 12 ++++++++++++
- src/cmd/compile/internal/ppc64/reg.go    |  6 ++++++
- 4 files changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

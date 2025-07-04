@@ -1,16 +1,16 @@
-commit 0e47460915a887f7b251c0d9512ed25d3ff31624
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 1 08:29:21 2011 -0500
+commit 5887ef75713e3f3291f7880809ae2b91c9944ce9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 11:12:57 2011 +1100
 
-    gc: fix send precedence
+    misc/vim: Define import commands on buffer switch
     
-    Test and fix case found by Robert.
-    Add receive inside send to tree too.
+    This change fixes the import plugin so that the
+    defined commands are available when opening a new
+    Go buffer from within Vim itself.
     
-    R=ken2
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/3973052
+    https://golang.org/cl/3998053
 
- src/cmd/gc/go.y       |  3 ++-
- test/chan/sendstmt.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ misc/vim/ftplugin/go/import.vim | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,29 +1,19 @@
-commit d34548e0b6acc14a99bc6ffc225eedbb56e03d60
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Mar 18 18:35:44 2019 -0400
+commit cb07f492db5eae374901f94d8e55d8aeda1fca58
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Oct 25 11:23:53 2018 +0200
 
-    cmd/go: avoid link error when -coverpkg covers main packages (more)
+    internal/cpu, runtime: add CPU feature detection support for AIX
     
-    This fixes two problems missed in CL 164877.
+    AIX doesn't have HWCAP/HWCAP2 variables like Linux. Therefore, it relies on
+    getsystemcfg syscall which can provide some information about the CPU.
     
-    First, p.Internal.BuildInfo is now part of the cache key. This is
-    important since p.Internal.BuildInfo causes the build action to
-    synthesize a new source file, which affects the output.
-    
-    Second, recompileForTest is always called for test
-    packages. Previously, it was only called when there were internal test
-    sources, so the fix in CL 164877 did not apply to packages that only
-    had external tests.
-    
-    Fixes #30374
-    
-    Change-Id: Iac2d7e8914f0313f9ab4222299a866f67889eb2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168200
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic0dc927e80890d4bf8f0bdfb43fad1e2b890d7a0
+    Reviewed-on: https://go-review.googlesource.com/c/144959
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/go/internal/load/test.go                   | 23 +++++++++---------
- src/cmd/go/internal/work/exec.go                   |  1 +
- .../script/cover_pkgall_multiple_mains.txt         | 28 +++++++++++++---------
- 3 files changed, 29 insertions(+), 23 deletions(-)
+ src/internal/cpu/cpu_ppc64x.go | 17 +++++++++--------
+ src/runtime/os2_aix.go         |  9 +++++++++
+ src/runtime/os_aix.go          | 21 +++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 8 deletions(-)

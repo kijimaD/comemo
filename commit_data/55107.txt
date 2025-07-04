@@ -1,35 +1,17 @@
-commit c785be4c6ac8f042e91d7333862737078831ece4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sun Nov 12 23:10:04 2023 +0000
+commit 119f679a3bd2e60cfc990920f82fd1a5cb006f4c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 5 17:08:07 2023 +0100
 
-    cmd/trace: common up the mmu page and add it to cmd/trace/v2
+    crypto/tls: fix typo in cacheEntry godoc
     
-    This change moves the MMU HTTP handlers and functionality into the
-    traceviewer package, since unlike the goroutine pages the vast majority
-    of that functionality is identical between v1 and v2. This change
-    involves some refactoring so that callers can plug in their own mutator
-    utilization computation functions (which is the only point of difference
-    between v1 and v2). The new interface isn't especially nice, but part of
-    the problem is the MMU handlers depend on specific endpoints to exist. A
-    follow-up CL will clean this up a bit.
-    
-    Like the previous CL did for goroutine analysis, modify the v2 mutator
-    utilization API to accept a slice of trace events. Again, we might as
-    well reuse what was already parsed and will be needed for other
-    purposes. It also simplifies the API slightly.
-    
-    For #60773.
-    For #63960.
-    
-    Change-Id: I6c21ec8d1bf7e95eff5363d0e0005c9217fa00e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541258
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idcea184a5b0c205efd3c91c60b5d954424f37679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460540
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/trace/main.go                              |  15 ++-
- src/cmd/trace/v2/main.go                           |   6 ++
- src/internal/trace/gc.go                           |  28 ++----
- src/internal/trace/gc_test.go                      |  22 ++++-
- .../trace => internal/trace/traceviewer}/mmu.go    | 104 +++++++++++----------
- 5 files changed, 100 insertions(+), 75 deletions(-)
+ src/crypto/tls/cache.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

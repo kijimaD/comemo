@@ -1,48 +1,19 @@
-commit 957259b7e2c40cf9955469ce93b35bdc0289e942
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 8 09:58:42 2020 -0500
+commit 88ca80b32286eb337185151249606dec302fe1d9
+Author: Ayan George <ayan@ayan.net>
+Date:   Fri Aug 23 11:38:12 2019 -0400
 
-    runtime: protect against external code calling ExitProcess
+    plugin: add freebsd/amd64 plugin support
     
-    On Windows, we implement asynchronous preemption using SuspendThread
-    to suspend other threads in our process. However, SuspendThread is
-    itself actually asynchronous (it enqueues a kernel "asynchronous
-    procedure call" and returns). Unfortunately, Windows' ExitProcess API
-    kills all threads except the calling one and then runs APCs. As a
-    result, if SuspendThread and ExitProcess are called simultaneously,
-    the exiting thread can be suspended and the suspending thread can be
-    exited, leaving behind a ghost process consisting of a single thread
-    that's suspended.
-    
-    We've already protected against the runtime's own calls to
-    ExitProcess, but if Go code calls external code, there's nothing
-    stopping that code from calling ExitProcess. For example, in #35775,
-    our own call to racefini leads to C code calling ExitProcess and
-    occasionally causing a deadlock.
-    
-    This CL fixes this by introducing synchronization between calling
-    external code on Windows and preemption. It adds an atomic field to
-    the M that participates in a simple CAS-based synchronization protocol
-    to prevent suspending a thread running external code. We use this to
-    protect cgocall (which is used for both cgo calls and system calls on
-    Windows) and racefini.
-    
-    Tested by running the flag package's TestParse test compiled in race
-    mode in a loop. Before this change, this would reliably deadlock after
-    a few minutes.
-    
-    Fixes #35775.
-    Updates #10958, #24543.
-    
-    Change-Id: I50d847abcdc2688b4f71eee6a75eca0f2fee892c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213837
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I4e7b0e99fd0f6f7d6a8ef60e9d3cb5baeb80a2b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191617
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgocall.go            | 19 +++++++++++
- src/runtime/os_windows.go         | 67 +++++++++++++++++++++++++++++++++++++++
- src/runtime/preempt_nonwindows.go | 13 ++++++++
- src/runtime/race.go               |  3 ++
- 4 files changed, 102 insertions(+)
+ src/cmd/dist/test.go               | 2 ++
+ src/cmd/go/internal/work/init.go   | 1 +
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/plugin/plugin.go               | 2 +-
+ src/plugin/plugin_dlopen.go        | 2 +-
+ src/plugin/plugin_stubs.go         | 2 +-
+ 6 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,27 +1,19 @@
-commit af558acc470dc1590788bbd695b0727e382cb74c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Feb 25 22:10:48 2016 -0800
+commit e8cc083ede9120c70b9d38b603ba07b3e62bd95d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 16:00:04 2015 -0500
 
-    cmd/compile: fix contrived line number errors
+    net/mail: do not parse RFC 2047 tokens in quoted strings
     
-    If a general comment contains multiple newline characters, we can't
-    simply unread one and then re-lex it via the general whitespace lexing
-    phase, because then we'll reset lineno to the line before the "*/"
-    marker, rather than keeping it where we found the "/*" marker.
+    RFC 2047 tokens like =?utf-8?B?whatever?= can only appear
+    unquoted, but this code was trying to decode them even when
+    they came out of quoted strings. Quoted strings must be left alone.
     
-    Also, for processing imports, call importfile before advancing the
-    lexer with p.next(), so that lineno reflects the line where we found
-    the import path, and not the token afterwards.
+    Fixes #11294.
     
-    Fixes #14520.
-    
-    Change-Id: I785a2d83d632280113d4b757de0d57c88ba2caf4
-    Reviewed-on: https://go-review.googlesource.com/19934
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I41b371f5b1611f1e56d93623888413d07d4ec878
+    Reviewed-on: https://go-review.googlesource.com/17381
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/lex.go    | 30 +++++++++++++++---------------
- src/cmd/compile/internal/gc/parser.go | 16 +++++++++-------
- test/fixedbugs/issue14520.go          | 14 ++++++++++++++
- 3 files changed, 38 insertions(+), 22 deletions(-)
+ src/net/mail/message.go      |  7 +++----
+ src/net/mail/message_test.go | 27 ++++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 5 deletions(-)

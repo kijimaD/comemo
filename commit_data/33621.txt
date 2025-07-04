@@ -1,20 +1,15 @@
-commit 12e2933bbea8e19a733b100aea14ab7919a5bdbd
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Nov 14 15:50:38 2017 -0500
+commit 85deaf60776b686b550ed413c37fda9cc9615c05
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Fri Aug 18 13:26:41 2017 +0300
 
-    cmd/dist: return dropped tests from misc/cgo/test
+    crypto/tls: fix docstring of Config.ClientSessionCache
     
-    In a previous change to cmd/dist/test.go to fix some pie
-    testcases, a few other tests were incorrectly dropped.
-    This returns the testcases that shouldn't have been removed.
+    Closes #21519
     
-    Fixes #22708
-    
-    Change-Id: I2f735f4fd3a378f0f45d12a99768638aeb4787c7
-    Reviewed-on: https://go-review.googlesource.com/77650
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1247e9435de93aae7e4db2b6e8e5be1b010c296b
+    Reviewed-on: https://go-review.googlesource.com/56832
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/dist/test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/crypto/tls/common.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

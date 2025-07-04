@@ -1,31 +1,16 @@
-commit 39377013cb9b49b39e55c83a5b221547f14d04dd
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Thu Dec 18 15:05:48 2014 +0100
+commit 0d6a0d6c3f98fcdd5f5826106bc9c49f348e3d75
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Mar 11 12:07:50 2015 -0400
 
-    net/http: handle close/response race more gracefully
+    runtime: don't return a slice with nil ptr but non-zero len from growslice
     
-    There was a logical race in Transport.RoundTrip where a roundtrip with
-    a pending response would race with the channel for the connection
-    closing. This usually happened for responses with connection: close
-    and no body.
+    Fixes #10135.
     
-    We handled this race by reading the close channel, setting a timer
-    for 100ms and if no response was returned before then, we would then
-    return an error.
-    
-    This put a lower bound on how fast a connection could fail. We couldn't
-    fail a request faster than 100ms.
-    
-    Reordering the channel operations gets rid of the logical race. If
-    the readLoop causes the connection to be closed, it would have put
-    its response into the return channel already and we can fetch it with
-    a non-blocking receive.
-    
-    Change-Id: Idf09e48d7a0453d7de0120d3055d0ce5893a5428
-    Reviewed-on: https://go-review.googlesource.com/1787
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic4c5ab15bcb7b9c3fcc685a788d3b59c60c26e1e
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7400
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/export_test.go    |  4 ++++
- src/net/http/transport.go      | 40 ++++++++++++++++++++++--------------
- src/net/http/transport_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 75 insertions(+), 15 deletions(-)
+ src/runtime/slice.go         |  4 +++-
+ test/fixedbugs/issue10135.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

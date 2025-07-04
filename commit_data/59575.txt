@@ -1,26 +1,24 @@
-commit 913c069819b77c0cfda78806654696508baf7f32
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 1 19:38:39 2025 +0000
+commit 50dcffb384cf1693fb113de01c8a36debc6086d1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Mar 25 17:11:26 2024 +0100
 
-    runtime: annotate checkfinalizers reports with source and type info
+    crypto/internal/boring: don't shadow named returns
     
-    This change adds a new special kind called CheckFinalizer which is used
-    to annotate finalizers and cleanups with extra information about where
-    that cleanup or finalizer came from.
+    In setupRSA we use named returns so that we can defer freeing of the
+    boring private key and context, but were using returns of the form
+    `return nil, nil, ...` which nil'd the named returns, preventing them
+    from actually being freed.
     
-    For #72949.
+    Update all of the returns to not shadow the named variables.
     
-    Change-Id: I3c1ace7bd580293961b7f0ea30345a6ce956d340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662135
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Thanks to Quim Muntal of Microsoft for reporting this issue.
+    
+    Change-Id: Iaf0f0b17e123a7df730cb1e91a324fe622611f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574195
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/runtime/gc_test.go                           |   8 +-
- src/runtime/mcheckmark.go                        |  76 ++++++++--
- src/runtime/mcleanup.go                          |  12 +-
- src/runtime/mfinal.go                            |   9 ++
- src/runtime/mheap.go                             | 168 +++++++++++++++++++++--
- src/runtime/testdata/testprog/checkfinalizers.go |   8 ++
- 6 files changed, 247 insertions(+), 34 deletions(-)
+ src/crypto/internal/boring/rsa.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

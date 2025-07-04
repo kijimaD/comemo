@@ -1,22 +1,21 @@
-commit cc71aa9ac4f2f1dc62f395a6f13ada8709d58213
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 10 22:09:43 2017 -0800
+commit a34fddf46c47a86e7a7cab32be858f7e8d0feb70
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Mon Nov 14 17:05:46 2016 -0800
 
-    cmd/compile/internal/ssa: make ARM's udiv like other calls
+    cmd/compile: in cse, allow for new ssa values
     
-    Passes toolstash-check -all.
+    The table of rewrites in ssa/cse is not sized appropriately for
+    ssa IDs that are created during copying of selects into new blocks.
     
-    Change-Id: Id389f8158cf33a3c0fcef373615b5351e7c74b5b
-    Reviewed-on: https://go-review.googlesource.com/38082
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #17918
+    
+    Change-Id: I65fe86c6aab5efa679aa473aadc4ee6ea882cd41
+    Reviewed-on: https://go-review.googlesource.com/33240
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/arm/ssa.go        |  7 +----
- src/cmd/compile/internal/ssa/config.go     |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules | 20 +++++++-------
- src/cmd/compile/internal/ssa/gen/ARMOps.go |  5 +++-
- src/cmd/compile/internal/ssa/opGen.go      |  5 ++--
- src/cmd/compile/internal/ssa/rewriteARM.go | 44 ++++++++++++++++--------------
- src/cmd/internal/obj/sym.go                |  6 +++-
- 7 files changed, 48 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go |  5 ++++-
+ test/fixedbugs/issue17918.go        | 41 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 1 deletion(-)

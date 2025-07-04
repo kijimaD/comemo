@@ -1,56 +1,20 @@
-commit 89dff118ada91061350aa149b54a2ab4fdbd6810
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 30 19:22:46 2022 -0500
+commit 4cf7f5f6947c1e3200d669ae7b8016f7431d718c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 4 11:09:25 2021 -0400
 
-    all: fix TODO comment hanging indents
+    [dev.typeparams] test: test regabidefers in live.go
     
-    For whatever reason (perhaps some tool does this), a handful of comments,
-    including some doc comments, have TODOs formatted like:
+    Previously, live.go is conditioned on not using regabidefers. Now
+    we have regabidefers enabled by default everywhere, and we may
+    remove the fallback path in the near future, test that
+    configuration instead.
     
-            // TODO(name): Text here and
-            //             more text aligned
-            //             under first text.
-    
-    In doc comments the second line turns into a <pre> block,
-    which is undesirable in this context.
-    
-    Rewrite those to unindent, like this instead:
-    
-            // TODO(name): Text here and
-            // more text aligned
-            // at left column.
-    
-    For #51082.
-    
-    Change-Id: Ibf5145659a61ebf9496f016752a709a7656d2d4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384258
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Idf910aee323bdd6478bc7a2062b2052d82ce003f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325111
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/func_test.go      |  2 +-
- src/cmd/compile/internal/syntax/nodes.go       |  2 +-
- src/cmd/compile/internal/syntax/pos.go         |  2 +-
- src/cmd/compile/internal/syntax/tokens.go      |  4 ++--
- src/cmd/compile/internal/syntax/walk.go        |  2 +-
- src/cmd/compile/internal/types2/assignments.go |  4 ++--
- src/cmd/compile/internal/types2/lookup.go      |  6 +++---
- src/cmd/compile/internal/types2/named.go       |  2 +-
- src/cmd/compile/internal/types2/return.go      |  4 ++--
- src/cmd/compile/internal/types2/stmt.go        |  2 +-
- src/cmd/compile/internal/types2/validtype.go   | 10 +++++-----
- src/go/ast/walk.go                             |  2 +-
- src/go/constant/value.go                       |  6 +++---
- src/go/parser/performance_test.go              |  4 ++--
- src/go/printer/nodes.go                        | 14 +++++++-------
- src/go/printer/testdata/parser.go              |  2 +-
- src/go/types/lookup.go                         |  6 +++---
- src/go/types/named.go                          |  2 +-
- src/go/types/return.go                         |  4 ++--
- src/go/types/stmt.go                           |  2 +-
- src/go/types/validtype.go                      | 10 +++++-----
- src/math/big/arith_test.go                     |  2 +-
- src/net/http/transport_test.go                 |  2 +-
- src/reflect/type.go                            |  2 +-
- 24 files changed, 49 insertions(+), 49 deletions(-)
+ test/live.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

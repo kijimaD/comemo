@@ -1,22 +1,27 @@
-commit e43ef8dda2d2baeca7f42a50cc92f527e6826b9f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 12 17:19:49 2020 -0700
+commit ed7a4919404e56a7e15b029fed12c88f6e02fb43
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Mar 21 13:50:46 2020 -0400
 
-    test: add test that fails with gofrontend
+    [dev.link] cmd/link: convert mangleTypeSym to new style
     
-    The gofrontend code doesn't correctly handle inlining a function that
-    refers to a constant with methods.
+    Use symbol's Extname, instead of symbol renaming, for the mangled
+    names.
     
-    For #35739
+    The old symbol Rename has an interesting logic of "merging"
+    symbols, when a symbol is renamed to the name of an existing
+    symbol. It turns out that this is needed for linking against
+    shared libraries, where the Go object has a reference to a symbol
+    with the original name, and the shared libary provides a symbol
+    under the mangled name. Implement this logic with the loader.
     
-    Change-Id: I6bd0b5cd4272dbe9969634b4821e668acacfdcf9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261662
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib95d7a9c93a52f8e02f4a51ac67240d6ebfc1c6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224939
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/fixedbugs/issue35739.dir/a.go | 15 +++++++++++++++
- test/fixedbugs/issue35739.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue35739.go       |  9 +++++++++
- 3 files changed, 35 insertions(+)
+ src/cmd/link/internal/ld/lib.go        | 27 +++++++++++++++++++++++----
+ src/cmd/link/internal/ld/main.go       |  6 +++---
+ src/cmd/link/internal/ld/symtab.go     |  7 +++++++
+ src/cmd/link/internal/loader/loader.go | 18 ++++++++++++++++++
+ 4 files changed, 51 insertions(+), 7 deletions(-)

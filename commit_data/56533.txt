@@ -1,53 +1,22 @@
-commit 664088b898330a2c73121c5a6f2d4dbec5b180d7
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Tue May 7 15:37:10 2024 -0400
+commit f2fcea5009d06d14b9869879f897c4ffb11cf953
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue May 2 18:40:56 2023 +0000
 
-    internal/trace: remove remnanats of v1 tracer
+    net: add tests for forceGoDNS and forceCgoDNS
     
-    This change removes unused parts of the v1 tracer in preperation of
-    the move of the v2 tracer into the trace package.
+    There was a bug in forceCgoDNS (CL 479416), it was fixed by CL 487196, so
+    add a test case for it.
     
-    Updates #67367
-    
-    Change-Id: I3e53a8afdef72dc90c2d5b514380d1077d284bc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584537
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2010374451ef236dc2898d9e9ea006eb8b40d02e
+    GitHub-Last-Rev: 34a84fad33404c66c3ee20cb63803214c42e991d
+    GitHub-Pull-Request: golang/go#59922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/trace/gc.go                           |  158 ---
- src/internal/trace/gc_test.go                      |   37 -
- src/internal/trace/goroutines.go                   |  358 -------
- src/internal/trace/mkcanned.bash                   |   20 -
- src/internal/trace/order.go                        |  285 -----
- src/internal/trace/parser.go                       | 1102 --------------------
- src/internal/trace/parser_test.go                  |  123 ---
- src/internal/trace/summary.go                      |    8 +
- src/internal/trace/testdata/http_1_10_good         |  Bin 2201 -> 0 bytes
- src/internal/trace/testdata/http_1_11_good         |  Bin 2779 -> 0 bytes
- src/internal/trace/testdata/http_1_19_good         |  Bin 28172 -> 0 bytes
- src/internal/trace/testdata/http_1_21_good         |  Bin 6744 -> 0 bytes
- src/internal/trace/testdata/http_1_5_good          |  Bin 42218 -> 0 bytes
- src/internal/trace/testdata/http_1_7_good          |  Bin 1971 -> 0 bytes
- src/internal/trace/testdata/http_1_9_good          |  Bin 2187 -> 0 bytes
- src/internal/trace/testdata/stress_1_10_good       |  Bin 370999 -> 0 bytes
- src/internal/trace/testdata/stress_1_11_good       |  Bin 370129 -> 0 bytes
- src/internal/trace/testdata/stress_1_19_good       |  Bin 322338 -> 0 bytes
- src/internal/trace/testdata/stress_1_21_good       |  Bin 353725 -> 0 bytes
- src/internal/trace/testdata/stress_1_5_good        |  Bin 7446 -> 0 bytes
- src/internal/trace/testdata/stress_1_5_unordered   |  Bin 8194 -> 0 bytes
- src/internal/trace/testdata/stress_1_7_good        |  Bin 396526 -> 0 bytes
- src/internal/trace/testdata/stress_1_9_good        |  Bin 365129 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_10_good     |  Bin 6338 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_11_good     |  Bin 4882 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_19_good     |  Bin 7448 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_21_good     |  Bin 5002 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_5_good      |  Bin 6997 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_7_good      |  Bin 2055 -> 0 bytes
- .../trace/testdata/stress_start_stop_1_9_good      |  Bin 6271 -> 0 bytes
- .../trace/testdata/user_task_region_1_11_good      |  Bin 2000 -> 0 bytes
- .../trace/testdata/user_task_region_1_19_good      |  Bin 1922 -> 0 bytes
- .../trace/testdata/user_task_region_1_21_good      |  Bin 2404 -> 0 bytes
- src/internal/trace/writer.go                       |   49 -
- src/runtime/testdata/testprogcgo/issue29707.go     |   60 --
- src/runtime/trace_cgo_test.go                      |   52 +-
- 36 files changed, 11 insertions(+), 2241 deletions(-)
+ src/net/main_conf_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

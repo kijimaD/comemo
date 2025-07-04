@@ -1,21 +1,29 @@
-commit 28ddfb090c2824d60e30007cf171b5dc1e8935e2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 2 13:02:25 2014 -0700
+commit 3c94b1d305967d260b31ec3fdda51b705db752cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 19:04:06 2014 -0400
 
-    math/big: math.Exp should return result >= 0 for |m| > 0
+    runtime: more NOPTR
     
-    The documentation states that Exp(x, y, m)
-    computes x**y mod |m| for m != nil && m > 0.
-    In math.big, Mod is the Euclidean modulus,
-    which is always >= 0.
+    Fixes linux builds (_vdso); may fix others.
+    I can at least cross-compile cmd/go for every
+    implemented system now.
     
-    Fixes #8822.
-    
-    LGTM=agl, r, rsc
-    R=agl, r, rsc
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/145650043
+    https://golang.org/cl/142630043
 
- src/math/big/int.go      |  6 ++++++
- src/math/big/int_test.go | 14 +++++++++++---
- 2 files changed, 17 insertions(+), 3 deletions(-)
+ src/runtime/mem_plan9.c         | 1 +
+ src/runtime/rt0_linux_386.s     | 2 +-
+ src/runtime/rt0_linux_arm.s     | 2 +-
+ src/runtime/rt0_plan9_386.s     | 8 ++++----
+ src/runtime/rt0_plan9_amd64.s   | 8 ++++----
+ src/runtime/rt0_solaris_amd64.s | 2 +-
+ src/runtime/sys_dragonfly_386.s | 2 +-
+ src/runtime/sys_freebsd_386.s   | 2 +-
+ src/runtime/sys_netbsd_386.s    | 2 +-
+ src/runtime/sys_openbsd_386.s   | 2 +-
+ src/runtime/sys_windows_386.s   | 2 +-
+ src/runtime/sys_windows_amd64.s | 2 +-
+ src/sync/atomic/asm_arm.s       | 2 +-
+ src/sync/atomic/asm_linux_arm.s | 2 +-
+ 14 files changed, 20 insertions(+), 19 deletions(-)

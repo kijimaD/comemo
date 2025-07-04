@@ -1,18 +1,22 @@
-commit 93d5f43a29dea00a5dffd1fa8faed911a31b55fb
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Oct 7 09:35:04 2016 -0700
+commit 29f0984a3558ef6e3e58a621791473a71b510365
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 30 06:36:31 2016 -0400
 
-    cmd/compile: do regalloc check only when checkEnabled
+    cmd/compile: don't set line number to 0 when building SSA
     
-    No point doing this check all the time.
+    The frontend may emit node with line number missing. In this case,
+    use the parent line number. Instead of changing every call site of
+    pushLine, do it in pushLine itself.
     
-    Fixes #15621
+    Fixes #16214.
     
-    Change-Id: I1966c061986fe98fe9ebe146d6b9738c13cef724
-    Reviewed-on: https://go-review.googlesource.com/30670
+    Change-Id: I80390550b56e4d690fc770b01ff725b892ffd6dc
+    Reviewed-on: https://go-review.googlesource.com/24641
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 35 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/ssa.go      |  8 ++++++++
+ 2 files changed, 43 insertions(+)

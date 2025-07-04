@@ -1,13 +1,13 @@
-commit 06f1be65a158632f78cc046124c40db09e4cf263
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 25 17:24:08 2012 -0800
+commit 805d6206829abfb483e2fca88c88171b777de7dc
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 25 23:11:25 2012 -0200
 
-    A+C: add Blake Mizerany (Individual CLA)
+    doc/go1: add net/url changes
     
-    R=golang-dev, iant, adg
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5574072
+    https://golang.org/cl/5575056
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/go1.html | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 136 insertions(+)

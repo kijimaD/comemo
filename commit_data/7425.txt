@@ -1,14 +1,12 @@
-commit 047cf3161e2c1801fd1ba7a67f3125d8136d7956
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 10 13:48:14 2011 -0500
+commit 44bcc1fcd9027025726021bfb04de591c4a65b63
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Feb 10 10:22:32 2011 -0500
 
-    json: correct Marshal documentation
+    debug/pe: ImportedSymbols fixes
     
-    Fixes #1488.
-    
-    R=r, rsc, rog
+    R=golang-dev, brainman, mattn, rsc
     CC=golang-dev
-    https://golang.org/cl/4168043
+    https://golang.org/cl/4001058
 
- src/pkg/json/encode.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/debug/pe/file.go | 33 +++++++++++++--------------------
+ 1 file changed, 13 insertions(+), 20 deletions(-)

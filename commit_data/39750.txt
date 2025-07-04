@@ -1,29 +1,19 @@
-commit e5e5fb024a228b200d474b030deb4998af4c45f1
-Author: Simon Ferquel <simon.ferquel@docker.com>
-Date:   Mon Aug 5 11:28:52 2019 +0000
+commit 689544c0b9287852c3ace3c7bd106a8996bbf28f
+Author: Keith Randall <khr@google.com>
+Date:   Mon Mar 18 12:49:49 2019 -0700
 
-    runtime: do not crash in lastcontinuehandler when running as DLL
+    runtime: fix registers for bounds check calling convention on arm
     
-    If Go DLL is used by external C program, and lastcontinuehandler
-    is reached, lastcontinuehandler will crash the process it is
-    running in.
+    Some of the registers in which indexes + length were supposed to
+    be passed were wrong.
     
-    But it should not be up to Go runtime to decide if process to be
-    crashed or not - it should be up to C runtime. This CL adjusts
-    lastcontinuehandler to not to crash when running as DLL.
+    Update #30116
     
-    Fixes #32648.
-    
-    Change-Id: Ia455e69b8dde2a6f42f06b90e8af4aa322ca269a
-    GitHub-Last-Rev: dbdffcb43206e94ef130ecadd1c82a8763225ac2
-    GitHub-Pull-Request: golang/go#32574
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181839
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I1089366b7429c1e0ecad9219b847db069ce6b5d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168041
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/signal_windows.go           |  6 ++++
- src/runtime/signal_windows_test.go      | 61 +++++++++++++++++++++++++++++++++
- src/runtime/testdata/testwinlib/main.c  | 57 ++++++++++++++++++++++++++++++
- src/runtime/testdata/testwinlib/main.go | 28 +++++++++++++++
- 4 files changed, 152 insertions(+)
+ src/runtime/asm_arm.s | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,20 +1,27 @@
-commit b075d1fc2eaacde75261969372fb3275ef694668
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Mon Apr 13 13:21:00 2015 +0300
+commit 8b0e38ffb44cd9a000db38510925a2cada074e26
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 29 20:19:20 2015 +0900
 
-    encoding/base64: Optimize EncodeToString and DecodeString.
+    net: deflake TestDialTimeout
     
-    benchmark                   old ns/op     new ns/op     delta
-    BenchmarkEncodeToString     31281         23821         -23.85%
-    BenchmarkDecodeString       156508        82254         -47.44%
+    This change makes TestDialTimeout work on almost all the supported
+    platforms.
     
-    benchmark                   old MB/s     new MB/s     speedup
-    BenchmarkEncodeToString     261.88       343.89       1.31x
-    BenchmarkDecodeString       69.80        132.81       1.90x
+    Updates #3016.
+    Updates #3307.
+    Updates #3867.
+    Updates #5380.
+    Updates #5349.
     
-    Change-Id: I115e0b18c3a6d5ef6bfdcb3f637644f02f290907
-    Reviewed-on: https://go-review.googlesource.com/8808
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Iacf0ebea23cdd8f6c0333d70c667a5a5f5eb0ed2
+    Reviewed-on: https://go-review.googlesource.com/8220
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/base64/base64.go | 155 ++++++++++++++++++++++--------------------
- 1 file changed, 83 insertions(+), 72 deletions(-)
+ src/net/dial_gen.go      | 10 ++----
+ src/net/dial_gen_test.go | 11 -------
+ src/net/dial_test.go     | 83 ------------------------------------------------
+ src/net/hook_plan9.go    |  9 ++++++
+ src/net/hook_unix.go     |  2 ++
+ src/net/hook_windows.go  |  7 +++-
+ src/net/timeout_test.go  | 48 ++++++++++++++++++++++++++++
+ 7 files changed, 67 insertions(+), 103 deletions(-)

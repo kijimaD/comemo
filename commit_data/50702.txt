@@ -1,21 +1,19 @@
-commit 545adcfe89458c5df714c27992064733b07491f9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 29 11:18:09 2022 -0700
+commit 75952abc6a8a8ad09e6bb1966c66b9a68b5d6c4e
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Thu Oct 7 15:30:03 2021 +0800
 
-    go/types, types2: use "generic" rather than "parameterized" in error messages
+    unicode/utf8: add AppendRune Example
     
-    Fix a couple of places where we still use "parameterized".
+    Also, correct TestAppendRune error message.
     
-    Change-Id: I2c70356d4e363ee709c5ef19ec8786956d5e9001
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436815
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I3ca3ac7051af1ae6d449381b78efa86c2f6be8ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354529
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/decl.go           | 2 +-
- src/cmd/compile/internal/types2/operand.go        | 2 +-
- src/go/types/decl.go                              | 2 +-
- src/go/types/operand.go                           | 2 +-
- src/internal/types/testdata/examples/functions.go | 4 ++--
- 5 files changed, 6 insertions(+), 6 deletions(-)
+ src/unicode/utf8/example_test.go | 10 ++++++++++
+ src/unicode/utf8/utf8_test.go    |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

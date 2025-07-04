@@ -1,12 +1,24 @@
-commit a9c48f3b031c2dc3a3a0aa47987137e1fdf76024
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Feb 21 15:42:38 2016 -0500
+commit 97f854cd7bb6c06046d386469a2b56c9b0e16406
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 18 12:39:57 2015 +0900
 
-    doc: security fixes are prepared for two most recent stable releases
+    net: make use of IPv4 for parsing routing information on windows
     
-    Change-Id: Ia22f681b0e90876ec87363c50c6a284db050f649
-    Reviewed-on: https://go-review.googlesource.com/19793
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    In general the package net deals IPv4 addresses as IPv6 IPv4-mapped
+    addresses internally for the dual stack era, when we need to support
+    various techniques on IPv4/IPv6 translation.
+    
+    This change makes windows implementation follow the same pattern which
+    BSD variants and Linux do.
+    
+    Updates #13544.
+    
+    Also fixes an unintentionally formatted line by accident by gofmt.
+    
+    Change-Id: I4953796e751fd8050c73094468a0d7b0d33f5516
+    Reviewed-on: https://go-review.googlesource.com/17992
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- doc/security.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/interface_test.go    | 16 ++++++++++++++--
+ src/net/interface_windows.go | 16 ++++------------
+ 2 files changed, 18 insertions(+), 14 deletions(-)

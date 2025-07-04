@@ -1,15 +1,12 @@
-commit 9e8e4a9313f8bff5c40d82166818f98b4a8cc9ed
+commit 3a065c5a739dad41113a6e02838133f48f2b7baf
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 7 10:19:32 2012 -0800
+Date:   Wed Mar 7 10:19:16 2012 -0800
 
-    go/parser: better error sync. if commas are missing
+    godoc: update documentation
     
-    This time for sure.
-    Runs all tests.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5752060
+    https://golang.org/cl/5758057
 
- src/pkg/go/parser/parser.go | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ src/cmd/godoc/doc.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

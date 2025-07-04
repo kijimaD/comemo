@@ -1,51 +1,15 @@
-commit 475d92ba4d5a88b1bba44f80dcd6a2dfc96b948e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Oct 4 17:54:04 2017 -0400
+commit 5ee4858a4c03148056bb7751e5ed21455b3eaf10
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 16 06:10:00 2017 +0000
 
-    cmd/link: put symbol data types in new package
+    A+C: add a missing name
     
-    For #22095
+    Per email from acoshift.
     
-    Change-Id: I07c288208d94dabae164c2ca0a067402a8e5c2e6
-    Reviewed-on: https://go-review.googlesource.com/68331
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ieb79244d17623e112a385e6b43843d3ffb185cf6
+    Reviewed-on: https://go-review.googlesource.com/45995
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/cmd/dist/buildtool.go                          |   1 +
- src/cmd/link/internal/amd64/asm.go                 |  85 ++--
- src/cmd/link/internal/arm/asm.go                   |  81 ++--
- src/cmd/link/internal/arm64/asm.go                 |  37 +-
- src/cmd/link/internal/ld/ar.go                     |   3 +-
- src/cmd/link/internal/ld/data.go                   | 497 +++++++++++----------
- src/cmd/link/internal/ld/deadcode.go               |  23 +-
- src/cmd/link/internal/ld/decodesym.go              |  71 +--
- src/cmd/link/internal/ld/dwarf.go                  | 223 ++++-----
- src/cmd/link/internal/ld/elf.go                    | 143 +++---
- src/cmd/link/internal/ld/go.go                     |  25 +-
- src/cmd/link/internal/ld/ldelf.go                  | 169 +++----
- src/cmd/link/internal/ld/ldmacho.go                |  64 +--
- src/cmd/link/internal/ld/ldpe.go                   |  57 +--
- src/cmd/link/internal/ld/lib.go                    | 222 ++++-----
- src/cmd/link/internal/ld/link.go                   | 219 +--------
- src/cmd/link/internal/ld/macho.go                  |  73 +--
- src/cmd/link/internal/ld/objfile.go                |  89 ++--
- src/cmd/link/internal/ld/pcln.go                   |  59 +--
- src/cmd/link/internal/ld/pe.go                     |  53 +--
- src/cmd/link/internal/ld/sym.go                    |  10 +-
- src/cmd/link/internal/ld/symtab.go                 | 181 ++++----
- src/cmd/link/internal/ld/typelink.go               |   9 +-
- src/cmd/link/internal/ld/util.go                   |   3 +-
- src/cmd/link/internal/mips/asm.go                  |  15 +-
- src/cmd/link/internal/mips64/asm.go                |  13 +-
- src/cmd/link/internal/ppc64/asm.go                 | 113 ++---
- src/cmd/link/internal/s390x/asm.go                 |  69 +--
- src/cmd/link/internal/sym/attribute.go             |  83 ++++
- src/cmd/link/internal/sym/reloc.go                 |  97 ++++
- src/cmd/link/internal/sym/segment.go               |  58 +++
- src/cmd/link/internal/{ld => sym}/symbol.go        |  46 +-
- src/cmd/link/internal/{ld => sym}/symbols.go       |  17 +-
- src/cmd/link/internal/{ld => sym}/symkind.go       |  14 +-
- .../link/internal/{ld => sym}/symkind_string.go    |   2 +-
- src/cmd/link/internal/x86/asm.go                   |  79 ++--
- 36 files changed, 1541 insertions(+), 1462 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

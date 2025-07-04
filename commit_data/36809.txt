@@ -1,25 +1,29 @@
-commit 29b21ec4c371061a99dfaac356e54b3c62c5853f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 13 16:08:03 2018 -0400
+commit c6295e72bf9536d75d3528ad17bdd49f2856b58d
+Author: Audrius Butkevicius <audrius.butkevicius@gmail.com>
+Date:   Tue May 29 23:53:19 2018 +0100
 
-    runtime: add a more stable isSystemGoroutine mode
+    net: move dial and listen functions under sysDialer, sysListener
     
-    Currently, isSystemGoroutine varies on whether it considers the
-    finalizer goroutine a user goroutine or a system goroutine. For the
-    next CL, we're going to want to always consider the finalier goroutine
-    a user goroutine, so add a flag that indicates that.
+    Updates #9661
     
-    Updates #26903. This is preparation for unifying STW GC and concurrent
-    GC.
-    
-    Change-Id: Iafc92e519c13d9f8d879332cb5f0d12164104c33
-    Reviewed-on: https://go-review.googlesource.com/c/134778
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I237e7502cb9faad6dece1e25b1a503739c54d826
+    Reviewed-on: https://go-review.googlesource.com/115175
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/heapdump.go  |  2 +-
- src/runtime/mprof.go     |  2 +-
- src/runtime/proc.go      |  6 +++---
- src/runtime/traceback.go | 13 +++++++++++--
- 4 files changed, 16 insertions(+), 7 deletions(-)
+ src/net/dial.go            | 53 +++++++++++++++++++++++++---------------------
+ src/net/dial_test.go       | 18 +++++++++-------
+ src/net/iprawsock.go       | 12 +++++++++--
+ src/net/iprawsock_plan9.go |  4 ++--
+ src/net/iprawsock_posix.go | 15 ++++++-------
+ src/net/tcpsock.go         |  6 ++++--
+ src/net/tcpsock_plan9.go   | 18 ++++++++--------
+ src/net/tcpsock_posix.go   | 16 +++++++-------
+ src/net/udpsock.go         |  9 +++++---
+ src/net/udpsock_plan9.go   | 12 +++++------
+ src/net/udpsock_posix.go   | 12 +++++------
+ src/net/unixsock.go        |  9 +++++---
+ src/net/unixsock_plan9.go  |  6 +++---
+ src/net/unixsock_posix.go  | 12 +++++------
+ 14 files changed, 111 insertions(+), 91 deletions(-)

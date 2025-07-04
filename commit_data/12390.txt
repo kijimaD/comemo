@@ -1,20 +1,14 @@
-commit 6e3a7930eb0fd16c10df1d12cf386b50e9dbb75e
+commit c0a842e57f38b632ae492174519851036979c988
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 16:13:33 2012 -0500
+Date:   Mon Mar 5 16:13:15 2012 -0500
 
-    cmd/gc: if $GOROOT_FINAL is set, rewrite file names in object files
+    runtime/debug: fix test when source cannot be found
     
-    GOROOT_FINAL is a build parameter that means "eventually
-    the Go tree will be installed here".  Make the file name information
-    match that eventual location.
+    This happens with GOROOT_FINAL=/somewhere/else
     
-    Fixes #3180.
-    
-    R=ken, ken
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5742043
+    https://golang.org/cl/5727069
 
- src/cmd/dist/build.c |  3 +++
- src/cmd/gc/obj.c     | 32 +++++++++++++++++++++++++++++++-
- test/run             |  2 ++
- 3 files changed, 36 insertions(+), 1 deletion(-)
+ src/pkg/runtime/debug/stack_test.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

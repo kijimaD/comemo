@@ -1,12 +1,15 @@
-commit b3caa2ba3ca1591f7545a78c0010103ad8376409
-Author: Yves Junqueira <yves.junqueira@gmail.com>
-Date:   Mon Aug 6 20:40:43 2012 -0700
+commit 0bfa31e9619d8d372e62446e204600f34ac45f4b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 7 13:19:49 2012 +1000
 
-    text/template: fix range example.
+    net/http: disable TestServeFileFromCWD test on windows
     
-    R=r
-    CC=adg, gobot, golang-dev
-    https://golang.org/cl/6449096
+    This is an attempt to fix windows build. Will restore
+    once we know what the problem is.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6461046
 
- src/pkg/text/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/fs_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

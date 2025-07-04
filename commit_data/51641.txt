@@ -1,20 +1,17 @@
-commit 925182263164f44ec02bc90498da4b8dab4c9810
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 10 14:18:06 2023 -0800
+commit 620a3c0596a2c0dd04964c3655e4f631fb85c0bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 15 15:59:43 2021 -0800
 
-    go/types, types2: factor out under.go, generate it for go/types
+    cmd/compile: use bool->uint8 op instead of copy
     
-    Change-Id: I581be544de313618ccd1e3ef4dc38f1ebf201b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461495
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Just a cleanup to make sure that generic SSA is properly typed.
+    
+    Change-Id: Ie75fa972ae4e5fdaca535968769bca36044191c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372574
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/type.go  | 109 -----------------------------
- src/cmd/compile/internal/types2/under.go | 114 ++++++++++++++++++++++++++++++
- src/go/types/generator.go                |   1 +
- src/go/types/type.go                     | 109 -----------------------------
- src/go/types/under.go                    | 116 +++++++++++++++++++++++++++++++
- 5 files changed, 231 insertions(+), 218 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,28 @@
-commit 1312d9e6da8d5d41bf8f2238c166deb1c5db10c3
-Author: Rob Findley <rfindley@google.com>
-Date:   Thu Apr 13 10:22:46 2023 -0400
+commit 3caf67d247c102edfb8347f010e44afa143f46b5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 13 17:00:00 2022 -0700
 
-    go/types,types2: add a test for const initializer panic
+    go/importer: disable TestForCompiler/LookupCustom for GOEXPERIMENT=unified
     
-    Updates #59603
+    The TestForCompiler/LookupCustom test tries to read in the export data
+    for "math/big", but with a package path of "math/bigger" instead. This
+    has historically worked because the export data formats were designed
+    to not assume the package's own path, but I expect we can safely
+    remove support for this now.
     
-    Change-Id: Iff99f45a72a259b57b2ebbc6c0f9ed710add3ae3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484376
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    However, since that would be a user-visible change, for now just
+    disable the test for GOEXPERIMENT=unified so we can land CL 393715. We
+    can revisit whether it's actually safe to break that go/importer use
+    case later.
+    
+    Updates #51734.
+    
+    Change-Id: I5e89314511bd1352a9f5e14a2e218a5ab00cab3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406319
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/api_test.go | 27 +++++++++++++++++++++++++++
- src/go/types/api_test.go                    | 28 ++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ src/go/importer/importer_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

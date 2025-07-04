@@ -1,17 +1,22 @@
-commit 94b3fd06cb431358f45786246cd279c8bdb9370b
-Author: Michele Di Pede <michele.di.pede@gmail.com>
-Date:   Fri Oct 30 11:55:18 2020 +0100
+commit af9ab6b2e852c4177db06cf91edc7a869b4cb93e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 18 23:08:36 2020 -0400
 
-    cmd/compile: code cleanup
+    cmd/link: check for reflect.Value.MethodByName explicitly
     
-    Change-Id: Ibf68e663f29a5cb3b64a7d923c005c16da647769
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266537
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Currently we only check for reflect.Value.Method. And
+    reflect.Value.MethodByName is covered since it calls
+    reflect.Value.Method internally. But it is brittle to rely on
+    implementation detail of the reflect package. Check for
+    MethodByName explicitly.
+    
+    Change-Id: Ifa8920e997524003dade03abc4fb3c4e64723643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228881
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go   |  9 ++++----
- src/cmd/compile/internal/ssa/compile.go | 40 +++++++++++++++++----------------
- src/cmd/compile/internal/x86/ssa.go     |  7 +++---
- 3 files changed, 30 insertions(+), 26 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go  | 5 +++--
+ src/cmd/link/internal/ld/deadcode2.go | 3 ++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

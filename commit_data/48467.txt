@@ -1,18 +1,24 @@
-commit 3ebb1720d92f194d23ff9ba838715cfcf8fc90e1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 14 12:10:11 2022 -0700
+commit 6a81e063dd0bf28d21b7085cc1d9e76eaeb78460
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 20 21:40:32 2021 -0400
 
-    go/types, types2: alias type declarations may refer to constraint types
+    [dev.typeparams] runtime: fix misuse of funcPC
     
-    Fixes #51616.
+    funcPC expects a func value. There are places where we pass an
+    unsafe.Pointer, which is technically undefined.
     
-    Change-Id: I388a6d91d9bfe5410b5eb32e1606257ec668d618
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392715
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    In proc.go it is actually representing a func value, so the
+    expression does the right thing. Cast to a func value so it is
+    clearer.
+    
+    In os_freebsd.go it is a raw function pointer. Using funcPC on a
+    raw function pointer is incorrect. Just use it directly instead.
+    
+    Change-Id: I3c5d61cea08f0abf5737834b520f9f1b583c1d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321953
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/decl.go               |  2 +-
- .../internal/types2/testdata/fixedbugs/issue51616.go2 | 19 +++++++++++++++++++
- src/go/types/decl.go                                  |  2 +-
- src/go/types/testdata/fixedbugs/issue51616.go2        | 19 +++++++++++++++++++
- 4 files changed, 40 insertions(+), 2 deletions(-)
+ src/runtime/os_freebsd.go | 2 +-
+ src/runtime/proc.go       | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

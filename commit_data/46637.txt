@@ -1,29 +1,25 @@
-commit 5511f14a735736e88c5fc832975f9b27244c56e1
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Sep 27 19:23:17 2021 -0400
+commit 0ffa1ead6e281932697154d4ea45413b2ba8fa53
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jan 17 16:41:19 2021 +0700
 
-    go/types: add a NewSignatureType constructor accepting type parameters
+    [dev.regabi] cmd/compile: use *obj.LSym instead of *ir.Name for staticdata functions
     
-    In #47916, consensus has emerged that adding a new constructor is
-    preferable to using setters for type parameters. This is more consistent
-    with the rest of the type API, which is immutable except in cases where
-    mutation is necessary to break cycles (such as Named.SetUnderlying).
+    Those functions only use (*ir.Name).Linksym(), so just change them to
+    get an *obj.LSym directly. This helps get rid of un-necessary
+    validations that their callers have already done.
     
-    This CL adds a new constructor NewSignatureType that accepts type
-    parameters and receiver type parameters, deprecating the existing
-    NewSignature constructor. SetTypeParams and SetRecvTypeParams are not
-    yet removed: this will be done in a follow-up CL once x/tools no longer
-    has a dependency on the old APIs.
+    Passes toolstash -cmp.
     
-    Updates #47916
+    For #43737.
     
-    Change-Id: I9d04dcfd304344d2aa08e527b371c3faa9d738e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352615
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ifd6c2525e472f8e790940bc167665f9d74dd1bc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284121
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/internal/gcimporter/iimport.go | 19 +++++++++----------
- src/go/types/signature.go             | 26 +++++++++++++++++++++++++-
- 2 files changed, 34 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/staticdata/data.go  | 48 +++++++++++-----------------
+ src/cmd/compile/internal/staticinit/sched.go | 25 +++++++--------
+ src/cmd/compile/internal/walk/complit.go     |  6 ++--
+ 3 files changed, 34 insertions(+), 45 deletions(-)

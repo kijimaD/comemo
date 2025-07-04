@@ -1,19 +1,24 @@
-commit 731a015ab8c8f44c7196123fd65b184a63d6835a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon May 3 18:17:38 2021 -0400
+commit 091257def92b0280b07bde9536b7cdf5f3b02aec
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 27 14:15:00 2020 -0700
 
-    internal/syscall/unix: use internal/abi.FuncPC for syscall wrapper
+    cmd/compile: print pointers to go:notinheap types without converting to unsafe.Pointer
     
-    Following CL 313230, this is for internal/syscall/unix package.
+    Pretty minor concern, but after auditing the compiler/runtime for
+    conversions from pointers to go:notinheap types to unsafe.Pointer,
+    this is the only remaining one I found.
     
-    Updates #45702.
+    Update #42076
     
-    Change-Id: Ie6d8c1923dfeae56896212393c5c2a6e257648d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316649
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I81d5b893c9ada2fc19a51c2559262f2e9ff71c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265757
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/syscall/unix/getentropy_darwin.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 431 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/compile/internal/gc/walk.go            |  12 +-
+ src/runtime/print.go                           |   3 +
+ 4 files changed, 231 insertions(+), 216 deletions(-)

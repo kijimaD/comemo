@@ -1,48 +1,17 @@
-commit 50af50d136551e2009b2b52e829570536271cdaa
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Oct 14 08:36:11 2020 -0400
+commit 3567f71b45810f433fe8199dd0ecca733939a5c3
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Apr 15 09:06:34 2020 -0700
 
-    reflect,runtime: use internal ABI for selected ASM routines
+    crypto/tls: help linker remove code when only Client or Server is used
     
-    Change the definitions of selected runtime assembly routines
-    from ABI0 (the default) to ABIInternal. The ABIInternal def is
-    intended to indicate that these functions don't follow the existing Go
-    runtime ABI. In addition, convert the assembly reference to
-    runtime.main (from runtime.mainPC) to ABIInternal. Finally, for
-    functions such as "runtime.duffzero" that are called directly from
-    generated code, make sure that the compiler looks up the correct
-    ABI version.
+    This saves 166 KiB for a tls.Dial hello world program (5382441 to
+    5212356 to bytes), by permitting the linker to remove TLS server code.
     
-    This is intended to support the register abi work, however these
-    changes should not have any issues even when GOEXPERIMENT=regabi is
-    not in effect.
-    
-    Updates #27539, #40724.
-    
-    Change-Id: I9846f8dcaccc95718cf2e61a18b7e924a0677e4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262319
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I16610b836bb0802b7d84995ff881d79ec03b6a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228111
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go   | 86 ++++++++++++++++----------------
- src/cmd/internal/obj/wasm/wasmobj.go |  6 +--
- src/reflect/asm_amd64.s              | 12 +++--
- src/runtime/asm_amd64.s              | 96 ++++++++++++++++++++++--------------
- src/runtime/asm_wasm.s               |  4 +-
- src/runtime/duff_amd64.s             |  4 +-
- src/runtime/mkpreempt.go             |  3 +-
- src/runtime/preempt_386.s            |  3 +-
- src/runtime/preempt_amd64.s          |  3 +-
- src/runtime/preempt_arm.s            |  3 +-
- src/runtime/preempt_arm64.s          |  3 +-
- src/runtime/preempt_mips64x.s        |  3 +-
- src/runtime/preempt_mipsx.s          |  3 +-
- src/runtime/preempt_ppc64x.s         |  3 +-
- src/runtime/preempt_riscv64.s        |  3 +-
- src/runtime/preempt_s390x.s          |  3 +-
- src/runtime/preempt_wasm.s           |  3 +-
- src/runtime/race_amd64.s             | 12 +++--
- src/runtime/sys_linux_amd64.s        | 13 +++--
- 19 files changed, 154 insertions(+), 112 deletions(-)
+ src/crypto/tls/conn.go      |  11 ++--
+ src/crypto/tls/link_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/tls/tls.go       |  15 +++++-
+ 3 files changed, 138 insertions(+), 9 deletions(-)

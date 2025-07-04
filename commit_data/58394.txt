@@ -1,24 +1,21 @@
-commit c4f356dd863c449835248c24f6dc653323010a1c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Dec 13 16:59:20 2024 +0100
+commit 934104630291d3bb8b1023e44fe06687e1c0b9c8
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Wed Nov 1 14:43:42 2023 -0500
 
-    crypto/ecdsa: fix s390x assembly with P-521
+    cmd/compile: adding rule to eliminate ANDCCconst
     
-    I had incorrectly assumed that the blocksize was always the same as the
-    curve field size. This is true of P-256 and P-384, but not P-521.
+    For example, the Slicemask rule in PPC64 generates a sequence wherein there is andi operation, after an  sradi, which can be replaced by srdi. This new rule eliminates ANDCCconst.
     
-    Fixes #70660
-    Fixes #70771
-    
-    Change-Id: Idb6b510fcd3dd42d9b1e6cf42c1bb92e0ce8bd07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636015
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I27aaadf76b9c749a60bcdc5e87b1ebb8167d2fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539055
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/internal/fips140/ecdsa/ecdsa.go       |  4 +-
- src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go | 53 +++++++++++++++++++-----
- 2 files changed, 44 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

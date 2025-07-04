@@ -1,18 +1,17 @@
-commit 79a16a3b70f0de2efbd45952a51e9b30524d7ad3
+commit 2cb8dcea5c18730425c0f7ceb40c56a4c15f0d5e
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 1 21:02:15 2013 -0500
+Date:   Fri Feb 1 21:01:32 2013 -0500
 
-    cmd/gc: clearer error for defer/go of conversion or invalid function call
+    testing: SkipNow, FailNow must be called from test goroutine
     
-    Fixes #4654.
+    Impossible for us to check (without sleazily reaching into the
+    runtime) but at least document it.
     
-    R=ken2
+    Fixes #3800.
+    
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7229072
+    https://golang.org/cl/7268043
 
- src/cmd/gc/const.c          | 29 ++++++++++++++----
- src/cmd/gc/fmt.c            | 14 ++++++---
- src/cmd/gc/typecheck.c      | 70 +++++++++++++++++++++++++++++++++++++++++---
- test/fixedbugs/issue4463.go | 44 ++++++++++++++--------------
- test/fixedbugs/issue4654.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 192 insertions(+), 36 deletions(-)
+ src/pkg/testing/testing.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

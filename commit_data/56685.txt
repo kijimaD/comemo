@@ -1,15 +1,32 @@
-commit 1c924572d07df9c267028a20ee8934a94bfd7f8c
-Author: Andy Pan <i@andypan.me>
-Date:   Sat Apr 13 12:51:37 2024 +0800
+commit 374bd6a3ac7a201cfb37230942fedaa0451e4de6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 15 13:42:13 2023 -0400
 
-    runtime: fix the inconsistency of kq parameter of addWakeupEvent
+    cmd/compile/internal/typecheck: remove base.Errorf from Assignop
     
-    Change-Id: I4f1668ed9085cf19c3eff17c237601a91d0660db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587876
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The documentation for Assignop specifies that if the assignment is not
+    valid, the reason for the failure is returned via a reason string
+    without failing the build.
+    
+    A few cases in Assignop1 -> implements -> ifacelookdot directly call
+    base.Errorf rather than plumbing through the reason string as they
+    should. Drop these calls. Since error messages are mostly unreachable
+    here (it only applies to generated code), don't maintain them and allow
+    them to just fallthrough to the generic "missing method" message.
+    
+    This is important for PGO specialization, which opportunistically checks
+    if candidate interface call targets implement the interface. Many of
+    these will fail, which should not break the build.
+    
+    For #59959.
+    
+    Change-Id: I1891ca0ebebc1c1f51a0d0285035bbe8753036bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494959
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/runtime/netpoll_kqueue_event.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/subr.go | 26 ++++++++------------------
+ 1 file changed, 8 insertions(+), 18 deletions(-)

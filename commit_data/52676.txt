@@ -1,18 +1,36 @@
-commit 0853f8caec60f59df234c287be7f5971ab62133f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Dec 28 11:21:47 2022 +0700
+commit d28bf6c9a2ea9b992796738d03eb3d15ffbfc0b4
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 16:31:52 2021 +0800
 
-    cmd/compile: add test that non-name call does not allocate
+    internal/bytealg: support basic byte operation on loong64
     
-    Updates #57434
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: Ib90c228f95c3d61204e60f63d7de55884d839e05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459496
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I4ac6d38dc632abfa0b698325ca0ae349c0d7ecd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342316
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/test/issue57434_test.go | 38 ++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/internal/bytealg/compare_generic.go   |  2 +-
+ src/internal/bytealg/compare_loong64.s    | 86 +++++++++++++++++++++++++++++++
+ src/internal/bytealg/compare_native.go    |  2 +-
+ src/internal/bytealg/equal_loong64.s      | 52 +++++++++++++++++++
+ src/internal/bytealg/indexbyte_generic.go |  2 +-
+ src/internal/bytealg/indexbyte_loong64.s  | 52 +++++++++++++++++++
+ src/internal/bytealg/indexbyte_native.go  |  2 +-
+ 7 files changed, 194 insertions(+), 4 deletions(-)

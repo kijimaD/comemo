@@ -1,22 +1,16 @@
-commit eb4f4d16ae6333171c14f8da304f2bfa2829e4ff
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Nov 12 23:56:11 2012 +0100
+commit c90739e41ebb7e0c0adc1bbdad61a08dc240dffe
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Mon Nov 12 15:35:11 2012 -0500
 
-    cmd/5g, cmd/6g: pass the full torture test.
+    encoding/json: skip unexpected null values
     
-    The patch adds more cases to agenr to allocate registers later,
-    and makes 6g generate addresses for sgen in something else than
-    SI and DI. It avoids a complex save/restore sequence that
-    amounts to allocate a register before descending in subtrees.
+    As discussed in issue 2540, nulls are allowed for any type in JSON so they should not result in an error during Unmarshal.
+    Fixes #2540.
     
-    Fixes #4207.
-    
-    R=golang-dev, dave, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6817080
+    https://golang.org/cl/6759043
 
- src/cmd/5g/cgen.c  | 15 +++++++++++++++
- src/cmd/5g/gsubr.c |  1 +
- src/cmd/6g/cgen.c  | 44 ++++++++++++++++++++++++++------------------
- test/torture.go    | 31 +++++++++++++++----------------
- 4 files changed, 57 insertions(+), 34 deletions(-)
+ src/pkg/encoding/json/decode.go      |  4 +--
+ src/pkg/encoding/json/decode_test.go | 47 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 3 deletions(-)

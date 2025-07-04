@@ -1,19 +1,21 @@
-commit 4aca8b00fffe2d228d6dc9d4d061148bb721efd4
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Apr 28 08:07:56 2017 +1200
+commit cfb0d349921a8f1ce3af8eb56188fc020d8828e5
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 19 00:16:27 2017 -0800
 
-    cmd/internal/objabi: shrink SymType down to a uint8
+    cmd/compile: amd64, allow XCHG on stack pointers
     
-    Now that it only takes small values.
+    XCHG needs to allow the stack pointer as an argument because we have a
+    rewrite that incorporates the address of a local variable into the
+    instruction.
     
-    Change-Id: I08086d392529d8775b470d65afc2475f8d0e7f4a
-    Reviewed-on: https://go-review.googlesource.com/42030
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Fixes #19184
+    
+    Change-Id: Ic438e6e1946332cdce3864d15abecd41b911b2a9
+    Reviewed-on: https://go-review.googlesource.com/37253
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/objfile.go           | 2 +-
- src/cmd/internal/objabi/symkind.go        | 2 +-
- src/cmd/internal/objabi/symkind_string.go | 2 +-
- src/cmd/link/internal/ld/objfile.go       | 9 +++++++--
- 4 files changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++--------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,29 +1,22 @@
-commit 5e6ccd12236167fb28b72040dacef6859d4a8710
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 21 14:42:18 2023 -0800
+commit ff6b6c61d7818e4a32402acbf65940afa372368e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 31 14:58:20 2022 -0400
 
-    go/types, types2: point out type parameters with predeclared names in errors
+    net: skip tests that use netsh on the windows-arm64-10 builder
     
-    If a type parameter has the same name as a predeclared type, error
-    messages can be very confusing. In these rare cases, explicitly
-    point out where the type parameter is declared (types2) or that it
-    is a type parameter (go/types).
+    These tests sometimes hang on Windows 10 on ARM64, due to what appears
+    to be a platform bug. Since we have not yet observed any such hangs on
+    the windows-arm64-11 builder, I am leaving the tests otherwise enabled
+    on the theory that the platform bug may have been fixed in Windows 11.
     
-    (We can't point out where the type parameter is declared in go/types
-    because we don't have access to the file set in the type writer at
-    the moment.)
+    Fixes #52082 (at least for now).
     
-    Fixes #58611.
-    
-    Change-Id: I5c150c2b0afae5fad320821e7e5935090dc2ef4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470075
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I79161f485b1921f083ebcf01865d6e7b0178ef70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397315
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/typestring.go      |  7 ++++++
- src/go/types/typestring.go                         |  9 ++++++++
- .../types/testdata/fixedbugs/issue58611.go         | 27 ++++++++++++++++++++++
- 3 files changed, 43 insertions(+)
+ src/net/net_windows_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

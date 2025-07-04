@@ -1,24 +1,27 @@
-commit cb458c05a82aefb253034558b34f16dee8713274
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Mar 25 23:29:44 2022 +0700
+commit 5ecbd811b54f478244b7e54a621f32b5b8e3ea95
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 28 16:58:57 2021 -0700
 
-    cmd/compile: don't inline fn with shape params, but passed no shape arg
+    [dev.typeparams] cmd/compile/internal/types2: (TypeParam) SetBound -> SetConstraint
     
-    This is the same fix as CL 36126, but for the reverse case, function
-    with shape params but passed no shape arg. The same conversion problem
-    may occur in this case, see details explanation there.
+    This matches the accessor named Constraint, and any documentation we have so far.
+    Use iface instead of Bound internally to types2; keep Bound because of two external
+    uses but mark it as deprecated. Adjust clients.
     
-    Fixes #51909
-    Fixes #51925
-    
-    Change-Id: Ib0c1973c7511d85b4918a252c80060f1864180cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395854
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id1a2c2f28259a16082e875eee0534d46cf157336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338196
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 19 ++++++++++++-
- test/typeparam/issue51909.go           | 30 ++++++++++++++++++++
- test/typeparam/issue51925.go           | 52 ++++++++++++++++++++++++++++++++++
- 3 files changed, 100 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go   |  2 +-
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/types2/builtins.go    |  2 +-
+ src/cmd/compile/internal/types2/call.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go |  6 +++---
+ src/cmd/compile/internal/types2/lookup.go      |  2 +-
+ src/cmd/compile/internal/types2/predicates.go  |  2 +-
+ src/cmd/compile/internal/types2/type.go        |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go   | 26 ++++++++++++++++----------
+ 9 files changed, 26 insertions(+), 20 deletions(-)

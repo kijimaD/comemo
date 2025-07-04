@@ -1,52 +1,17 @@
-commit 6f62f852efca58b99fc421fdbb405f2620a46e0f
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Mar 19 22:01:10 2021 -0700
+commit 54e18f1c2a44f9f2664486e8053c4ee40d41fb8a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 28 10:34:16 2020 -0700
 
-    net/http: fix request cancellation race
+    testing: run a Cleanup registered by a Cleanup
     
-    When a in-flight request is cancelled, (*Transport).cancelRequest is
-    called. The cancelRequest function looks up and invokes a cancel
-    function before returning. The function lookup happens with reqMu held,
-    but the cancel function is invoked after dropping the mutex.
+    Fixes #41085
     
-    If two calls to cancelRequest are made at the same time, it is possible
-    for one to return before the cancel function has been invoked.
-    
-    This race causes flakiness in TestClientTimeoutCancel:
-      - The test cancels a request while a read from the request body is
-        pending.
-      - One goroutine calls (*Transport).cancelRequest. This goroutine
-        will eventually invoke the cancel function.
-      - Another goroutine calls (*Transport).cancelRequest and closes the
-        request body. The cancelRequest call returns without invoking
-        the cancel function.
-      - The read from the request body returns an error. The reader
-        checks to see if the request has been canceled, but concludes
-        that it has not (because the cancel function hasn't been invoked
-        yet).
-    
-    To avoid this race condition, call the cancel function with the
-    transport reqMu mutex held.
-    
-    Calling the cancel function with the mutex held does not introduce any
-    deadlocks that I can see. The only non-noop request cancel functions
-    are:
-    
-    A send to a buffered channel:
-    https://go.googlesource.com/go/+/refs/heads/master/src/net/http/transport.go#1362
-    
-    The (*persistConn).cancelRequest function, which does not cancel any
-    other requests:
-    https://go.googlesource.com/go/+/refs/heads/master/src/net/http/transport.go#2526
-    
-    Fixes #34658.
-    
-    Change-Id: I1b83dce9b0b1d5cf7c7da7dbd03d0fc90c9f5038
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303489
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ieafc60cbc8e09f1935d38b1767b084d78dae5cb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/transport.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/testing/sub_test.go | 27 ++++++++++++++++++
+ src/testing/testing.go  | 76 ++++++++++++++++++++++++++++++-------------------
+ 2 files changed, 74 insertions(+), 29 deletions(-)

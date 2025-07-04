@@ -1,17 +1,18 @@
-commit 281088b1f087aff44c4a928734871fe94f82b88b
+commit 07e2b4049be2f99ff3dca57b942769c017b12360
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 28 12:12:51 2014 -0800
+Date:   Fri Feb 28 08:31:12 2014 -0800
 
-    net/http: add Server.ErrorLog; log and test TLS handshake errors
+    os: don't allow Process.Kill after Process.Release
     
-    Fixes #7291
+    This is a user error, but killing -1 kills everything, which
+    is a pretty bad failure mode.
     
-    LGTM=agl
-    R=golang-codereviews, agl
-    CC=agl, golang-codereviews
-    https://golang.org/cl/70250044
+    Fixes #7434
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/70140043
 
- src/pkg/net/http/client_test.go | 31 +++++++++++++++++++++++++++++++
- src/pkg/net/http/serve_test.go  | 11 +++++++++++
- src/pkg/net/http/server.go      | 29 ++++++++++++++++++++++-------
- 3 files changed, 64 insertions(+), 7 deletions(-)
+ src/pkg/os/exec_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

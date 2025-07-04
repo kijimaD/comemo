@@ -1,25 +1,34 @@
-commit 6c98ecda100c2e3f8325d0b958f53aeaeb92c101
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 8 14:41:44 2021 -0400
+commit ea106cc07ac73110a8a25fcc5aef07b283159db0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 24 14:25:21 2020 -0700
 
-    cmd/compile: don't use fast32/64 map functions for aggregates
+    cmd/compile: prevent 387+float32+pie from clobbering registers
     
-    Under register ABI, aggregates like [2]uint32 is passed
-    differently than a uint64. For now, don't use the fast version
-    of the map functions for non-trivial aggregates.
+    The 387 port needs to load a floating-point control word from a
+    global location to implement float32 arithmetic.
+    When compiling with -pie, loading that control word clobbers an
+    integer register. If that register had something important in it, boom.
     
-    GOEXPERIMENT=regabi,regabiargs can now pass make.bash, modulo
-    staleness checks.
+    Fix by using LEAL to materialize the address of the global location
+    first. LEAL with -pie works because the destination register is
+    used as the scratch register.
     
-    TODO: maybe find some way to use the fast functions. Maybe
-    unsafe-cast to uint32/64 then call the map function. But need to
-    make the type checker happy.
+    387 support is about to go away (#40255), so this will need to be
+    backported to have any effect.
     
-    Change-Id: If42717280dde12636fb970798cf1ca8fb29a3d06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308650
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    No test. I have one, but it requires building with -pie, which
+    requires cgo. Our testing infrastructure doesn't make that easy.
+    Not worth it for a port which is about to vanish.
+    
+    Fixes #41503
+    
+    Change-Id: I140f9fc8fdce4e74a52c2c046e2bd30ae476d295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257277
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/walk/walk.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/x86/387.go | 68 ++++++++++++++++++++++++++-----------
+ 1 file changed, 48 insertions(+), 20 deletions(-)

@@ -1,17 +1,26 @@
-commit 5f83b2d14a0f551b47a987eea203e750e5ba2e9c
-Author: Author Name <brett.j.merrill94@gmail.com>
-Date:   Sat Sep 30 13:47:48 2017 -0700
+commit ff0748670c42c025c5eb8a0f8bc8b6266e90a38f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 14 19:57:11 2017 -0700
 
-    net: increase expected time to dial a closed port on all Darwin ports
+    cmd/compile: fix exporting of function bodies
     
-    All current darwin architectures seem to take at least 100ms to dial a closed port,
-    and that was making the all.bash script fail.
+    Before CL 36170, we identified all function bodies that needed to be
+    exported before writing any export data.
     
-    Fixes #22062
+    With CL 36170, we started identifying additional functions while
+    exporting function bodies. As a consequence, we cannot use a
+    range-based for loop for iterating over function bodies anymore.
     
-    Change-Id: Ib79c4b7a5db2373c95ce5d993cdcbee55cc0667f
-    Reviewed-on: https://go-review.googlesource.com/67350
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #18895.
+    
+    Change-Id: I9cbefa8d311ca8c9898c8272b2ac365976b02396
+    Reviewed-on: https://go-review.googlesource.com/45817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/dial_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go |  5 +++--
+ test/fixedbugs/issue18895.dir/p.go     | 14 ++++++++++++++
+ test/fixedbugs/issue18895.dir/q.go     | 11 +++++++++++
+ test/fixedbugs/issue18895.go           |  7 +++++++
+ 4 files changed, 35 insertions(+), 2 deletions(-)

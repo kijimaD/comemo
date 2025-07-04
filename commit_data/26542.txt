@@ -1,28 +1,16 @@
-commit aa482f971508d1bfdedf293a85968d80fd80fae2
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Mon Mar 28 02:44:43 2016 +0200
+commit 1f7e3cfdbcc4b12ba769bb5e9e09887145870187
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 3 21:49:45 2016 -0800
 
-    cmd/go: remove code specific to Google Code
+    runtime: skip TestSignalExitStatus on Solaris
     
-    Remove all special handling of Google Code, which has shut down.
+    Update #14063.
     
-    Commit 4ec2fd3e6ac4f869d39348bf48016687b731d910 suggested that maybe the
-    shutdown warning should remain. However, it has been missing from Go 1.6
-    already, and by Go 1.7 people will most likely have realised that Google
-    Code has shut down.
-    
-    Updates #10193.
-    
-    Change-Id: I5749bbbe2fe3b07cff4edd20303bbedaeaa8d77b
-    Reviewed-on: https://go-review.googlesource.com/21189
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id13456deb15c90a8af282b77d78ff5cdbd1de8bf
+    Reviewed-on: https://go-review.googlesource.com/19208
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go  |  8 --------
- src/cmd/go/get.go      | 10 ----------
- src/cmd/go/go_test.go  | 16 ---------------
- src/cmd/go/help.go     |  8 --------
- src/cmd/go/vcs.go      | 53 --------------------------------------------------
- src/cmd/go/vcs_test.go | 14 -------------
- 6 files changed, 109 deletions(-)
+ src/runtime/crash_unix_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

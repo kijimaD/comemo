@@ -1,20 +1,31 @@
-commit 80bedb848092c993182f79a946d54776dc251549
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Fri Oct 29 15:24:28 2021 +0800
+commit 19f96e73bf655764b57424cc9e00657f364ffb89
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 18:14:56 2021 +0100
 
-    go/types: fix TypeName.IsAlias for type parameter names
+    syscall: introduce SysProcAttr.ParentProcess on Windows
     
-    Fixes #49213
+    This allows users to specify which process should be used as the parent
+    process when creating a new process.
     
-    Change-Id: I2bfc151b74b0d14efbd00e5d28584f4180126c5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359656
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Note that this doesn't just trivially pass the handle onward to
+    PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, because inherited handles must be
+    valid in the parent process, so if we're changing the destination
+    process, then we must also change the origin of the parent handles. And,
+    the StartProcess function must clean up these handles successfully when
+    exiting, regardless of where the duplication happened. So, we take care
+    in this commit to use DuplicateHandle for both duplicating and for
+    closing the inherited handles.
+    
+    The test was taken originally from CL 288272 and adjusted for use here.
+    
+    Fixes #44011.
+    
+    Change-Id: Ib3b132028dcab1aded3dc0e65126c8abebfa35eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288300
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/go/types/object.go                         | 2 ++
- src/go/types/object_test.go                    | 3 +++
- src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
- 3 files changed, 6 insertions(+), 1 deletion(-)
+ src/syscall/exec_windows.go      | 17 ++++++++--
+ src/syscall/exec_windows_test.go | 73 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 3 deletions(-)

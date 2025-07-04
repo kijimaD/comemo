@@ -1,31 +1,16 @@
-commit 61014f00f24df8b144d9d235fe3e25ff64b96521
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 5 15:46:31 2022 -0800
+commit 083a26c7d2faa8194782856c6f4efce47703df01
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 14 16:18:58 2021 -0700
 
-    go/types, types2: implement field access for struct structural constraints
+    cmd/compile: propagate pragmas from generic function to stenciled implementation
     
-    This change implements field the access p.f where the type of p
-    is a type parameter with a structural constraint that is a struct
-    with a field f. This is only the fix for the type checker. The
-    compiler will need a separate CL.
-    
-    This makes the behavior consistent with the fact that we can
-    write struct composite literals for type parameters with a
-    struct structural type.
-    
-    For #50417.
-    For #50233.
-    
-    Change-Id: I87d07e016f97cbf19c45cde19165eae3ec0bad2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375795
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I28a1910890659aaa449ffd2a847cd4ced5a8600d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310211
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/types2/lookup.go          | 18 +++++-
- .../types2/testdata/fixedbugs/issue50417.go2       | 64 ++++++++++++++++++++
- src/go/types/lookup.go                             | 18 +++++-
- src/go/types/testdata/fixedbugs/issue50417.go2     | 64 ++++++++++++++++++++
- test/typeparam/issue50417.go                       | 70 ++++++++++++++++++++++
- 5 files changed, 230 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  1 +
+ test/typeparam/pragma.go                  | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)

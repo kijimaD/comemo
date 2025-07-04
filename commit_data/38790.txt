@@ -1,40 +1,34 @@
-commit 5781df421e721088f3ff6229f0e8d4e4c04765b8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 28 16:15:14 2019 -0700
+commit 4295ed9bef1f2b15837bdeb52766952c464f225d
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 23 14:20:19 2018 +0100
 
-    all: s/cancelation/cancellation/
+    cmd: fix symbols addressing for aix/ppc64
     
-    Though there is variation in the spelling of canceled,
-    cancellation is always spelled with a double l.
+    This commit changes the code generated for addressing symbols on AIX
+    operating system.
     
-    Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
+    On AIX, every symbol accesses must be done via another symbol near the TOC,
+    named TOC anchor or TOC entry. This TOC anchor is a pointer to the symbol
+    address.
+    During Progedit function, when a symbol access is detected, its instructions
+    are modified to create a load on its TOC anchor and retrieve the symbol.
     
-    Change-Id: I240f1a297776c8e27e74f3eca566d2bc4c856f2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170060
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I00cf8f49c13004bc99fa8af13d549a709320f797
+    Reviewed-on: https://go-review.googlesource.com/c/151039
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                                | 4 ++--
- .../x/tools/go/analysis/passes/lostcancel/lostcancel.go           | 4 ++--
- src/context/context.go                                            | 6 +++---
- src/context/context_test.go                                       | 4 ++--
- src/context/example_test.go                                       | 2 +-
- src/database/sql/sql.go                                           | 2 +-
- src/internal/poll/fd_windows.go                                   | 6 +++---
- src/math/j0.go                                                    | 4 ++--
- src/math/j1.go                                                    | 4 ++--
- src/net/dial.go                                                   | 2 +-
- src/net/dial_test.go                                              | 4 ++--
- src/net/http/client.go                                            | 6 +++---
- src/net/http/http.go                                              | 2 +-
- src/net/http/request.go                                           | 2 +-
- src/net/http/socks_bundle.go                                      | 2 +-
- src/net/http/transport.go                                         | 8 ++++----
- src/net/http/transport_test.go                                    | 2 +-
- src/net/lookup.go                                                 | 2 +-
- src/net/net.go                                                    | 2 +-
- src/os/timeout_test.go                                            | 4 ++--
- src/runtime/signal_solaris.go                                     | 2 +-
- src/vendor/golang.org/x/net/nettest/conntest.go                   | 6 +++---
- 22 files changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/internal/obj/link.go                |   2 +
+ src/cmd/internal/obj/objfile.go             |  11 +++
+ src/cmd/internal/obj/ppc64/a.out.go         |   1 +
+ src/cmd/internal/obj/ppc64/anames9.go       |   2 +
+ src/cmd/internal/obj/ppc64/asm9.go          |  28 ++++++-
+ src/cmd/internal/obj/ppc64/obj9.go          | 113 ++++++++++++++++++++++++++++
+ src/cmd/internal/obj/util.go                |  11 +++
+ src/cmd/link/internal/ld/data.go            |  16 ++--
+ src/cmd/link/internal/ld/xcoff.go           |  29 +++++--
+ src/cmd/link/internal/ppc64/asm.go          |  37 ++++++++-
+ src/cmd/link/internal/sym/symkind.go        |   2 +-
+ src/cmd/link/internal/sym/symkind_string.go |   4 +-
+ 12 files changed, 240 insertions(+), 16 deletions(-)

@@ -1,68 +1,24 @@
-commit 3100dc1a7fe3f3302cf2419298b0585bc8e83890
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Sep 27 14:27:20 2021 -0700
+commit 6de8443f3b324be69a3082a67ce71fa869d1a32b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 22 10:58:12 2021 -0500
 
-    cmd/link,runtime: remove relocations from stkobjs
+    doc/asm: add a section on go_asm.h, clean up go_tls.h section
     
-    Use an offset from go.func.* instead.
-    This removes the last relocation from funcdata symbols,
-    which lets us simplify that code.
+    Currently the only mention of go_asm.h is buried in a confusing
+    section about the runtime-specific go_tls.h header. We actually want
+    people to use go_asm.h, so this CL adds a section with a proper
+    discussion of this header. As part of this, we remove the discussion
+    of go_asm.h from the go_tls.h section and clean up what remains.
     
-    size      before    after     Δ       %
-    addr2line 3683218   3680706   -2512   -0.068%
-    api       4951074   4944850   -6224   -0.126%
-    asm       4744258   4757586   +13328  +0.281%
-    buildid   2419986   2418546   -1440   -0.060%
-    cgo       4218306   4197346   -20960  -0.497%
-    compile   22132066  22076882  -55184  -0.249%
-    cover     4432834   4411362   -21472  -0.484%
-    dist      3111202   3091346   -19856  -0.638%
-    doc       3583602   3563234   -20368  -0.568%
-    fix       3023922   3020658   -3264   -0.108%
-    link      6188034   6164642   -23392  -0.378%
-    nm        3665826   3646818   -19008  -0.519%
-    objdump   4015234   4012450   -2784   -0.069%
-    pack      2155010   2153554   -1456   -0.068%
-    pprof     13044178  13011522  -32656  -0.250%
-    test2json 2402146   2383906   -18240  -0.759%
-    trace     9765410   9736514   -28896  -0.296%
-    vet       6681250   6655058   -26192  -0.392%
-    total     104217556 103926980 -290576 -0.279%
+    I stumbled on this when working on the internal ABI specification. I
+    wanted to refer to stable documentation on how to access struct fields
+    from assembly and found there was none.
     
-    relocs    before  after   Δ       %
-    addr2line 25563   25066   -497    -1.944%
-    api       18409   17176   -1233   -6.698%
-    asm       18903   18271   -632    -3.343%
-    buildid   9513    9233    -280    -2.943%
-    cgo       17103   16222   -881    -5.151%
-    compile   64825   60421   -4404   -6.794%
-    cover     19464   18479   -985    -5.061%
-    dist      10798   10135   -663    -6.140%
-    doc       13503   12735   -768    -5.688%
-    fix       11465   10820   -645    -5.626%
-    link      23214   21849   -1365   -5.880%
-    nm        25480   24987   -493    -1.935%
-    objdump   26610   26057   -553    -2.078%
-    pack      7951    7665    -286    -3.597%
-    pprof     63964   60761   -3203   -5.008%
-    test2json 8735    8389    -346    -3.961%
-    trace     39639   37180   -2459   -6.203%
-    vet       25970   24044   -1926   -7.416%
-    total     431108  409489  -21619  -5.015%
-    
-    Change-Id: I43c26196a008da6d1cb3a782eea2f428778bd569
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353138
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0d53741e7685e65794611939e76285f7c82e1d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286052
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/liveness/plive.go |  2 +-
- src/cmd/link/internal/ld/data.go           |  5 +++
- src/cmd/link/internal/ld/pcln.go           | 22 ++--------
- src/cmd/link/internal/ld/symtab.go         | 15 ++-----
- src/runtime/mgcmark.go                     |  7 +--
- src/runtime/proc.go                        |  1 +
- src/runtime/stack.go                       | 68 +++++++++++++++++++++---------
- src/runtime/symtab.go                      |  9 ++--
- 8 files changed, 69 insertions(+), 60 deletions(-)
+ doc/asm.html | 72 ++++++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 58 insertions(+), 14 deletions(-)

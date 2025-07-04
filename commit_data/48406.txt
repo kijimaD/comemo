@@ -1,20 +1,21 @@
-commit e5e638e512e1ec27673d5e01e99eb870899be7f7
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 16 09:24:06 2022 -0700
+commit bbc0059b037c22c27fe42ed0a97d1400ebd7785d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 17 13:59:25 2021 -0700
 
-    cmd/compile: allow noop conversions when comparing expressions
+    [dev.typeparams] test: run more tests with -G=3
     
-    Allows mapclear optimization to trigger in more cases, including
-    some generic instantiations.
+    This CL expands the current logic for re-running "errorcheck" tests
+    with -G=3 to run (almost) all regress tests that way. This exposes a
+    handful of additional failures, so the excluded-files list is expanded
+    accordingly. (The next CL addresses several of the easy test cases.)
     
-    Fixes #51699
-    
-    Change-Id: Ic54f7686e5fcb8fbcad640aa77ed326d7338b938
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393434
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia5ce399f225d83e817a046a3bd1a41b9681be3af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320609
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ir/expr.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ test/run.go | 293 +++++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 199 insertions(+), 94 deletions(-)

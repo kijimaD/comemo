@@ -1,23 +1,30 @@
-commit cb6e0639fb090ea0e129b1ddb956a7e645cff285
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Jan 1 03:08:48 2017 -0700
+commit 659570915481c87559f0197c9980e8cbac8e2c33
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 14:06:54 2016 -0400
 
-    cmd/compile: improve error message if init is directly invoked
+    net/url: make URL implement encoding.BinaryMarshaler, BinaryUnmarshaler
     
-    Fixes #8481.
+    This makes it possible to use URLs with gob.
     
-    Inform the user that init functions cannot be directly invoked
-    in user code, as mandated by the spec at:
-    http://golang.org/ref/spec#Program_initialization_and_execution.
+    Ideally we'd also implement TextMarshaler and TextUnmarshaler,
+    but that would change the JSON encoding of a URL from something like:
     
-    Change-Id: Ib12c0c08718ffd48b76b6f9b13c76bb6612d2e7b
-    Reviewed-on: https://go-review.googlesource.com/34790
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+            {"Scheme":"https","Opaque":"","User":null,"Host":"www.google.com","Path":"/x","RawPath":"","ForceQuery":false,"RawQuery":"y=z","Fragment":""}
+    
+    to something like:
+    
+            "https://www.google.com/x?y=z"
+    
+    That'd be nice, but it would break code expecting the old form.
+    
+    Fixes #10964.
+    
+    Change-Id: I83f06bc2bedd2ba8a5d8eef03ea0056d045c258f
+    Reviewed-on: https://go-review.googlesource.com/31467
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++----
- test/fixedbugs/issue8481.go              | 14 ++++++++++++++
- test/init.go                             |  4 ++--
- 3 files changed, 28 insertions(+), 6 deletions(-)
+ src/net/url/url.go      | 16 ++++++++++++++
+ src/net/url/url_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

@@ -1,28 +1,31 @@
-commit d4430f6913b0eacb662a69884d12850864616c37
-Author: Davis Goodin <dagood@microsoft.com>
-Date:   Tue Nov 21 17:12:48 2023 -0800
+commit 1e0051658345a13ca9be9eeccdce2dabb016c627
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 16:57:27 2022 -0800
 
-    cmd/link/internal/loadpe: fix .xdata unwind info parsing
+    cmd/compile/internal/syntax: rename ErrorMap to CommentMap, make more flexible
     
-    Unwind info in .xdata was being parsed incorrectly, causing targetOff to
-    be incorrect and miss finding data in .xdata that it should have found.
-    This causes a linker issue when using the MinGW MSVCRT compiler.
+    Change the ErrorMap function to collect all comments with a comment
+    text that matches a given regexp pattern. Also rename it to CommentMap.
     
-    Contains several fixes based on the exception handling docs: the offset
-    used to get the number of unwind codes, the calculation of the target
-    offset based on the dynamic size of the unwind data, and the
-    UNW_FLAG_CHAININFO flag's value.
+    Adjust uses and corresponding test.
     
-    Fixes #64200
+    Adjust various type-checker tests with incorrect ERROR patterns.
     
-    Change-Id: I6483d921b2bf8a2512a95223bf3c8ce8bc63dc4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544415
+    For #51006.
+    
+    Change-Id: I749e8f31b532edbf8568f27ba1546dc849efd143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456155
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/loadpe/seh.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/syntax/testing.go         | 41 ++++++++++------------
+ src/cmd/compile/internal/syntax/testing_test.go    | 37 ++++++++++---------
+ src/cmd/compile/internal/types2/check_test.go      |  8 +++--
+ src/internal/types/testdata/check/builtins0.go     |  2 +-
+ src/internal/types/testdata/check/decls3.go        |  8 ++---
+ src/internal/types/testdata/check/stmt0.go         |  2 +-
+ .../types/testdata/fixedbugs/issue43190.go         |  2 +-
+ 7 files changed, 52 insertions(+), 48 deletions(-)

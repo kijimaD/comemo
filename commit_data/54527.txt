@@ -1,43 +1,84 @@
-commit bebf82cbf696002acfde605735e0f454b730df9d
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Fri Sep 15 06:45:15 2023 +0000
+commit da0913f814dd4dcd28698dc5b85a3347b77b5550
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Tue Oct 18 09:32:41 2022 +0800
 
-    internal/zstd: use circular buffer for backreference window
+    hash/crc64: use slicing by 8 when the size is greater or equal than 2k
     
-    Use circular buffer to reduce data movements.
-    The CL also increases size of bigData to make changes of benchmark results apparent.
+    In the previous, we will only use the slicing by 8 look up table when
+    the data size is greater than 16k, but the threshold seems to be too
+    large. We may lose some performance for the small data size.
+    In this CL, we change the threshold to 2k, it shows that the performance
+    is improved greatly when the data size is 2k ~ 16k.
     
-    goos: linux
-    goarch: amd64
-    pkg: internal/zstd
-            │ /tmp/BenchmarkLarge.old │       /tmp/BenchmarkLarge.new       │
-            │         sec/op          │   sec/op     vs base                │
-    Large-8              12.672m ± 1%   9.521m ± 0%  -24.87% (p=0.000 n=10)
+    We did some tests for the Random2K ~ Random16K between various
+    cores(mostly on x86 and arm architecture). Here are the benchmark and
+    some results:
     
-            │ /tmp/BenchmarkLarge.old │       /tmp/BenchmarkLarge.new        │
-            │           B/s           │     B/s       vs base                │
-    Large-8              13.43Mi ± 1%   17.88Mi ± 0%  +33.08% (p=0.000 n=10)
+    1. The benchmark for testing:
     
-            │ /tmp/BenchmarkLarge.old │       /tmp/BenchmarkLarge.new        │
-            │          B/op           │     B/op      vs base                │
-    Large-8              58.23Ki ± 5%   41.72Ki ± 1%  -28.35% (p=0.000 n=10)
+    func BenchmarkRandom(b *testing.B) {
+            poly := 0x58993511
+            b.Run("Random256", func(b *testing.B) {
+                    bench(b, uint64(poly), 256)
+            })
+            b.Run("Random512", func(b *testing.B) {
+                    bench(b, uint64(poly), 512)
+            })
+            b.Run("Random1KB", func(b *testing.B) {
+                    bench(b, uint64(poly), 1<<10)
+            })
+            b.Run("Random2KB", func(b *testing.B) {
+                    bench(b, uint64(poly), 2<<10)
+            })
+            b.Run("Random4KB", func(b *testing.B) {
+                    bench(b, uint64(poly), 4<<10)
+            })
+            b.Run("Random8KB", func(b *testing.B) {
+                    bench(b, uint64(poly), 8<<10)
+            })
+            b.Run("Random16KB", func(b *testing.B) {
+                    bench(b, uint64(poly), 16<<10)
+            })
+    }
     
-            │ /tmp/BenchmarkLarge.old │    /tmp/BenchmarkLarge.new     │
-            │        allocs/op        │ allocs/op   vs base            │
-    Large-8                0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10)
+    2. Some results:
     
-    Change-Id: Ic03fabfc575c5e6d18bcd5ba1c845aa502c12497
-    GitHub-Last-Rev: 16cb1e13ff61f0fc8c9209cb034f31ec6c37f596
-    GitHub-Pull-Request: golang/go#62625
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528318
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Apple silicon M1:
+    Benchmark                old         new         delta
+    Random/Random2KB-10      362MB/s     801MB/s    +121.41%
+    Random/Random4KB-10      360MB/s    1083MB/s    +200.93%
+    Random/Random8KB-10      359MB/s    1309MB/s    +264.88%
+    Random/Random16KB-10     358MB/s    1466MB/s    +309.79%
+    
+    Neoverse N1:
+    Benchmark                old         new         delta
+    Random/Random2KB-160     397MB/s     493MB/s     +24.23%
+    Random/Random4KB-160     397MB/s     742MB/s     +86.86%
+    Random/Random8KB-160     398MB/s     995MB/s    +150.12%
+    Random/Random16KB-160    398MB/s    1196MB/s    +200.58%
+    
+    Silver 4116:
+    Benchmark                old         new         delta
+    Random/Random2KB-48      252MB/s     418MB/s     +65.79%
+    Random/Random4KB-48      253MB/s     621MB/s    +145.72%
+    Random/Random8KB-48      254MB/s     796MB/s    +213.07%
+    Random/Random16KB-48     258MB/s     929MB/s    +260.46%
+    
+    EPYC 7251:
+    Benchmark                old         new         delta
+    Random/Random2KB-32      255MB/s     380MB/s     +48.88%
+    Random/Random4KB-32      255MB/s     561MB/s    +119.73%
+    Random/Random8KB-32      255MB/s     738MB/s    +189.18%
+    Random/Random16KB-32     255MB/s     877MB/s    +243.80%
+    
+    Change-Id: Ib7b4f6826c3edd6f315cac8057d52b6da252a652
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445475
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/internal/zstd/block.go       |  6 +--
- src/internal/zstd/window.go      | 90 ++++++++++++++++++++++++++++++++++++++++
- src/internal/zstd/window_test.go | 72 ++++++++++++++++++++++++++++++++
- src/internal/zstd/zstd.go        | 41 ++++--------------
- src/internal/zstd/zstd_test.go   |  2 +-
- 5 files changed, 173 insertions(+), 38 deletions(-)
+ src/hash/crc64/crc64.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

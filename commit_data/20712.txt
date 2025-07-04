@@ -1,40 +1,13 @@
-commit 42c3130780327299cb8a89f30b8e5c3d6b96d2c2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 15 17:51:30 2014 +0200
+commit 714461740cafdcdc16e675f761544022dc25c723
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 2 16:15:36 2014 +1000
 
-    net/http: don't send implicit gzip Accept-Encoding on Range requests
+    run.bat: comment text properly
     
-    The http package by default adds "Accept-Encoding: gzip" to outgoing
-    requests, unless it's a bad idea, or the user requested otherwise.
-    Only when the http package adds its own implicit Accept-Encoding header
-    does the http package also transparently un-gzip the response.
-    
-    If the user requested part of a document (e.g. bytes 40 to 50), it appears
-    that Github/Varnish send:
-            range(gzip(content), 40, 50)
-    
-    And not:
-            gzip(range(content, 40, 50))
-    
-    The RFC 2616 set of replacements (with the purpose of
-    clarifying ambiguities since 1999) has an RFC about Range
-    requests (http://tools.ietf.org/html/rfc7233) but does not
-    mention the interaction with encodings.
-    
-    Regardless of whether range(gzip(content)) or gzip(range(content)) is
-    correct, this change prevents the Go package from asking for gzip
-    in requests if we're also asking for Range, avoiding the issue.
-    If the user cared, they can do it themselves. But Go transparently
-    un-gzipping a fragment of gzip is never useful.
-    
-    Fixes #8923
-    
-    LGTM=adg
-    R=adg
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/155420044
+    https://golang.org/cl/153830044
 
- src/net/http/response_test.go  | 28 ++++++++++++++++++++++++++++
- src/net/http/transport.go      | 11 +++++++++--
- src/net/http/transport_test.go | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 70 insertions(+), 2 deletions(-)
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

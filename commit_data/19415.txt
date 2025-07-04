@@ -1,16 +1,13 @@
-commit ca6be91cbc39574a3f422a07dc4f0f4922c6668f
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue May 20 14:42:07 2014 -0400
+commit 2fed8c7667a1411a4415d5a28672836e9b31fd07
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 20 11:21:19 2014 -0700
 
-    all: fix "the the" typos.
+    src: make nacltest.bash executable
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/93470043
+    https://golang.org/cl/98480043
 
- doc/articles/wiki/index.html             | 2 +-
- src/cmd/gofmt/testdata/typeswitch.golden | 2 +-
- src/cmd/gofmt/testdata/typeswitch.input  | 2 +-
- src/pkg/runtime/runtime-gdb.py           | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/nacltest.bash | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

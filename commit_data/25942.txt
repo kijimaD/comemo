@@ -1,12 +1,14 @@
-commit 31f2ed2cae4df04d9180574f75ec94a80578f8ed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Feb 27 01:22:53 2016 +0000
+commit c2290feeeb02b6b730efe4087572bf6c51c51503
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 16:24:35 2015 -0700
 
-    doc: go1.7.txt updates
+    net/http: sniff tests ported to h2
     
-    Change-Id: I6ac3d11ee8896f636235fe10c2556f93584019b5
-    Reviewed-on: https://go-review.googlesource.com/19984
+    Change-Id: Icad6cc130252ac177946b23c12f36d6ba3275bf0
+    Reviewed-on: https://go-review.googlesource.com/17436
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.7.txt | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/net/http/sniff_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

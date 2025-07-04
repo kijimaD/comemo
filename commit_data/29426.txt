@@ -1,15 +1,22 @@
-commit 119c30eaf24c3d4f46ba1411f5cddbabb86bd840
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Nov 1 04:17:34 2015 -0500
+commit 6f135bfd922cafd000497467c73cc03cfa788fa6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 14 18:44:59 2016 +0000
 
-    internal/syscall/windows: add GetModuleFileName
+    math/big: cut 2 minutes off race tests
     
-    For os.Executable. Updates #12773.
+    No need to test so many sizes in race mode, especially for a package
+    which doesn't use goroutines.
     
-    Change-Id: Iff6593514b7453b6c5e1f20079e35cb4992cc74a
-    Reviewed-on: https://go-review.googlesource.com/32877
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reduces test time from 2.5 minutes to 25 seconds.
+    
+    Updates #17104
+    
+    Change-Id: I7065b39273f82edece385c0d67b3f2d83d4934b8
+    Reviewed-on: https://go-review.googlesource.com/29163
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  |  1 +
- src/internal/syscall/windows/zsyscall_windows.go | 14 ++++++++++++++
- 2 files changed, 15 insertions(+)
+ src/math/big/arith_test.go   | 13 +++++++++++++
+ src/math/big/gcd_test.go     |  3 +++
+ src/math/big/int_test.go     |  6 ++++++
+ src/math/big/natconv_test.go |  6 ++++++
+ 4 files changed, 28 insertions(+)

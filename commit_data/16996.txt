@@ -1,14 +1,12 @@
-commit ebc5513be607165c4d676283d76b3284f103dbd8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 2 13:51:28 2013 -0400
+commit 6f8acd5fb93f26f59739343d945c6e26021cce57
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 2 15:55:21 2013 +1000
 
-    runtime: in newstack, double-check calling goroutine
+    cmd/go: change error message to refer to correct bootstrap command
     
-    Checking this condition helped me find the arm problem last night.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12267043
+    https://golang.org/cl/12317043
 
- src/pkg/runtime/stack.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/build.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

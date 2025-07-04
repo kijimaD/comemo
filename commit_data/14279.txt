@@ -1,12 +1,14 @@
-commit 95329d4cd4c036f5b0ab77eaea7927f124d81c97
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Nov 1 22:02:52 2012 +0400
+commit c7873ff2a64982a4fa4f3c9177d4ec80f66e7db6
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Thu Nov 1 13:57:24 2012 -0400
 
-    run.bash: add sanity test for race detector
+    compress/flate: shrink decompressor struct for better performance
     
-    R=golang-dev, rsc
+    Helps with issue 2703.
+    
+    R=dave, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6612064
+    https://golang.org/cl/5536078
 
- src/run.bash | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/compress/flate/inflate.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

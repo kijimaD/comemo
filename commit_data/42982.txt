@@ -1,25 +1,21 @@
-commit 3b64e6b010775839f2daef4ac3fb607bf1519e05
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 14 11:06:39 2020 +0200
+commit 8955a56da015890f317d5f6919391503b854d93a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 04:00:10 2020 +1100
 
-    internal/poll, internal/syscall/unix, net: enable writev on illumos
+    cmd/compile: improve SignExt32to64 on riscv64
     
-    Illumos supports iovec read/write. Add the writev wrapper to
-    internal/syscall/unix and use it to implement internal/poll.writev for
-    net.(*netFD).writeBuffers.
+    SignExt32to64 can be implemented with a single ADDIW instruction, rather than
+    the two shifts that are in use currently.
     
-    Change-Id: Ie256c2f96aba8e61fb21991788789a049425f792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254638
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ie1bbaef4018f1ba5162773fc64fa5a887457cfc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220922
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_writev_illumos.go      | 16 +++++++++++++++
- src/internal/poll/iovec_illumos.go          | 16 +++++++++++++++
- src/internal/poll/iovec_unix.go             | 13 +++++++++++++
- src/internal/poll/writev.go                 |  4 ++--
- src/internal/syscall/unix/writev_illumos.go | 30 +++++++++++++++++++++++++++++
- src/net/writev_test.go                      |  2 +-
- src/net/writev_unix.go                      |  2 +-
- 7 files changed, 79 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 13 ++++---------
+ 5 files changed, 22 insertions(+), 11 deletions(-)

@@ -1,17 +1,15 @@
-commit 2dd7a6d41f2d28d7eb2209e8887ca80c461b52cb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 13 21:47:10 2015 -0800
+commit 7522e135a3b294c9f85b1bea901f5fe062b6f73a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 21 21:19:58 2015 +0100
 
-    math/big: always round after the sign is set
+    include: declare getgohostos and getgohostarch on Plan 9
     
-    Some rounding modes are affected by the sign of the value to
-    be rounded. Make sure the sign is set before round is called.
-    Added tests (that failed before the fix).
+    The function getgohostos and getgohostarch
+    were declared in include/libc.h in CL 3042.
     
-    Change-Id: Idd09b8fcbab89894fede0b9bc922cda5ddc87930
-    Reviewed-on: https://go-review.googlesource.com/4876
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib4ff5182cb71cc79a99663ce727fa4c28d15d7ad
+    Reviewed-on: https://go-review.googlesource.com/3122
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/float.go      | 16 +++++++-------
- src/math/big/float_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+), 7 deletions(-)
+ include/plan9/libc.h | 2 ++
+ 1 file changed, 2 insertions(+)

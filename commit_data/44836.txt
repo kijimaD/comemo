@@ -1,15 +1,26 @@
-commit d10241fcf63826d51e8d9c914ab0ad2ef9173151
-Author: qcrao <qcrao91@gmail.com>
-Date:   Sun Mar 28 12:17:35 2021 +0000
+commit 617f2c3e35cdc8483b950aa3ef18d92965d63197
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Jun 27 13:31:34 2020 -0600
 
-    runtime: fix some typos
+    net/http: mark http/2 connections active
     
-    Change-Id: I18b9508904f19d5aa68355c937c30b5fdf35442c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305249
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    On Server.Shutdown, all idle connections are closed.
+    A caveat for new connections is that they are marked idle
+    after 5 seconds.
+    Previously new HTTP/2 connections were marked New, and after 5 seconds,
+    they would then become idle. With this change, we now mark HTTP/2
+    connections as Active to allow the proper shutdown sequence to occur.
+    
+    Fixes #36946
+    Fixes #39776
+    
+    Change-Id: I31efbf64b9a2850ca544da797f86d7e1b3378e8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240278
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/proc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/export_test.go | 11 +++++++++++
+ src/net/http/serve_test.go  | 18 ++++++++++++++++--
+ src/net/http/server.go      | 24 ++++++++++++++++++------
+ 3 files changed, 45 insertions(+), 8 deletions(-)

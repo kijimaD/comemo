@@ -1,22 +1,21 @@
-commit 87e4dcd446df2ab1985ef61ce15da329493248a1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 19 13:51:53 2021 -0700
+commit 7930d39f5802fd93a651a51f905efe58d3bc9caf
+Author: imxyb <xyb4638@gmail.com>
+Date:   Sun Oct 25 03:42:20 2020 +0000
 
-    archive/zip: only return directory once via io/fs.FS
+    log/syslog: set local to true if network is any of "unix", or "unixgram"
     
-    While we're here fix the ModTime value for directories.
+    Fixes #41960
     
-    Fixes #43872
-    Fixes #45345
-    
-    Change-Id: I155e6517713ef6a9482b9431f1167a44337c6ad2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311530
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0e0f0e11610dd2658a8f6b7e345a4aae2c19c85d
+    GitHub-Last-Rev: 8cac718e4854773ca411116043b4b832e0468f09
+    GitHub-Pull-Request: golang/go#42135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264297
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/archive/zip/reader.go           |  54 ++++++++++++++++++++++++----------
- src/archive/zip/reader_test.go      |  56 ++++++++++++++++++++++++++++++++++--
- src/archive/zip/testdata/subdir.zip | Bin 0 -> 428 bytes
- 3 files changed, 92 insertions(+), 18 deletions(-)
+ src/log/syslog/syslog.go      |  5 ++++-
+ src/log/syslog/syslog_test.go | 33 ++++++++++++++++++++++++---------
+ 2 files changed, 28 insertions(+), 10 deletions(-)

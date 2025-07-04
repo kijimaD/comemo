@@ -1,16 +1,23 @@
-commit 82ca3087439399737f66395a568ba9f5642b295b
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Sun May 11 14:46:44 2014 -0700
+commit 4118665775dd21b2f244e763bfcccba18902d682
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Sat May 10 18:06:58 2014 -0700
 
-    net/rpc: do not leak client socket on closed connection
+    cmd/go: simplify code, reduce allocations.
     
-    Fixes #6897.
+    This is a trivial change to make use of an existing `nl` byte slice
+    containing a single '\n' character. It's already declared and
+    used in another place in this file, so it might as well be used
+    in the other location instead of
+    a new slice literal. There should be no change in behavior,
+    aside from potentially less allocations.
+    
+    This is my first CL, so I wanted to use a simple, hopefully non-controversial,
+    minor improvement to get more comfortable with golang contribution process.
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz, r, rsc
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/91230045
+    https://golang.org/cl/97280043
 
- src/pkg/net/rpc/client.go      | 14 ++++++++------
- src/pkg/net/rpc/client_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 6 deletions(-)
+ src/cmd/go/list.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

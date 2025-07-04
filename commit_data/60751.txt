@@ -1,0 +1,21 @@
+commit d2879efd0227df32d6aeee1be58c325b477f22d4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Aug 22 12:00:10 2024 -0400
+
+    cmd/go: document unsettable GOTELEMETRY and GOTELEMETRYDIR go env vars
+    
+    This change adds documentation to "go help telemetry" and "go help
+    environment" for the unsettable GOTELEMETRY and GOTELEMETRYDIR go env
+    variables.
+    
+    For #68928
+    
+    Change-Id: I8c139bd8585ffb0c45b9dd722ef6e7a9a33df192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607855
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                         | 10 ++++++++++
+ src/cmd/go/internal/help/helpdoc.go           |  5 +++++
+ src/cmd/go/internal/telemetrycmd/telemetry.go |  5 +++++
+ 3 files changed, 20 insertions(+)

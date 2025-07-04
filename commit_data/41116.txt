@@ -1,22 +1,20 @@
-commit cfe3cd903f018dec3cb5997d53b1744df4e53909
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 13 12:17:26 2020 -0800
+commit 547021d723364451f5a248d6d42da7d9f67bf7a6
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Aug 21 21:57:59 2019 +0200
 
-    runtime: keep P's first timer when in new atomically accessed field
+    cmd/internal/obj/wasm: refactor handling of wasm variables
     
-    This reduces lock contention when only a few P's are running and
-    checking for whether they need to run timers on the sleeping P's.
-    Without this change the running P's would get lock contention
-    while looking at the sleeping P's timers. With this change a single
-    atomic load suffices to determine whether there are any ready timers.
+    This commit improves how registers get mapped to wasm variables. This
+    is a preparation for future improvements (e.g. adding 32 bit float
+    registers).
     
-    Change-Id: Ie843782bd56df49867a01ecf19c47498ec827452
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214185
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I374c80b2d6c9bcce6b0e373fe921b5ad4dee40ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191777
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/proc.go     |  53 +++++++++++++++--------
- src/runtime/runtime2.go |   5 +++
- src/runtime/time.go     | 110 +++++++++++++++++-------------------------------
- 3 files changed, 79 insertions(+), 89 deletions(-)
+ src/cmd/internal/obj/wasm/a.out.go   |   6 +
+ src/cmd/internal/obj/wasm/anames.go  |   5 +
+ src/cmd/internal/obj/wasm/wasmobj.go | 292 ++++++++++++++++++-----------------
+ 3 files changed, 163 insertions(+), 140 deletions(-)

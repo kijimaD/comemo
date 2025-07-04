@@ -1,23 +1,16 @@
-commit a5ca63528793a8e0f248d9a95a07845328c3d800
+commit 7c270aef08fa22935265540614532258d58fccb4
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 09:38:13 2011 -0700
+Date:   Wed Apr 13 09:37:13 2011 -0700
 
-    gofmt: avoid endless loops
+    go/ast: fixed bug in NotNilFilter, added test
     
-    With the (partial) resolution of identifiers done
-    by the go/parser, ast.Objects point may introduce
-    cycles in the AST. Don't follow *ast.Objects, and
-    replace them with nil instead (they are likely
-    incorrect after a rewrite anyway).
-    
-    - minor manual cleanups after reflect change automatic rewrite
-    - includes fix by rsc related to reflect change
-    
-    Fixes #1667.
+    - fixed a couple of comments
+    - cleanups after reflect change
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4387044
+    https://golang.org/cl/4389041
 
- src/cmd/gofmt/rewrite.go | 48 ++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 36 insertions(+), 12 deletions(-)
+ src/pkg/go/ast/print.go      | 54 +++++++++++++++++++-----------
+ src/pkg/go/ast/print_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 20 deletions(-)

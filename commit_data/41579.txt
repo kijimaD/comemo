@@ -1,33 +1,21 @@
-commit 7e1028a9ffaf577bfa527385b96f9063ca9d2984
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 1 18:12:27 2019 +0700
+commit 902d5aa84f8340752c20b93bfd450a6cefcf3952
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Oct 13 20:33:47 2019 +0530
 
-    cmd/compile: avoid range over copy of array
+    cmd/go/internal/work: fix error while passing custom vet tool
     
-    Passes toostash-check.
+    For GOROOT packages, we were adding -unsafeptr=false to prevent unsafe.Pointer
+    checks. But the flag also got passed to invocations of go vet with a custom
+    vet tool. To prevent this from happening, we add this flag only when no
+    tools are passed.
     
-    Slightly reduce compiler binary size:
+    Fixes #34053
     
-    file    before    after     Δ       %
-    compile 21087288  21070776  -16512  -0.078%
-    total   131847020 131830508 -16512  -0.013%
-    
-    file                      before    after     Δ       %
-    cmd/compile/internal/gc.a 9007472   8999640   -7832   -0.087%
-    total                     127117794 127109962 -7832   -0.006%
-    
-    Change-Id: I4aadd68d0a7545770598bed9d3a4d05899b67b52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205777
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I8bcd637fd8ec423d597fcdab2a0ceedd20786019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200957
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/escape.go   |  2 +-
- src/cmd/compile/internal/gc/iexport.go  |  2 +-
- src/cmd/compile/internal/gc/iimport.go  |  2 +-
- src/cmd/compile/internal/gc/main.go     |  4 ++--
- src/cmd/compile/internal/gc/noder.go    |  2 +-
- src/cmd/compile/internal/gc/plive.go    |  2 +-
- src/cmd/compile/internal/gc/ssa.go      |  2 +-
- src/cmd/compile/internal/gc/universe.go | 10 +++++-----
- 8 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

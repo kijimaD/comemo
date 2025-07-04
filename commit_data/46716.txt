@@ -1,24 +1,21 @@
-commit e8a85e90aca4adb472c66f8c42f6d4a41b8cca99
-Author: Amelia Downs <adowns@vmware.com>
-Date:   Thu Sep 30 11:35:30 2021 -0400
+commit 25c39e4fb5e5fc7c3840228158cd6f2345c9dc07
+Author: Pantonshire <tom@tomandtally.co.uk>
+Date:   Mon Jan 18 17:41:36 2021 +0000
 
-    internal/fuzz: print size of interesting cache
+    io/ioutil: fix example test for WriteFile to allow it to run in the playground
     
-    This change updates the log lines to clarify that the printed
-    interesting count is only for newly discovered cache entries, and prints
-    the total cache size. It only prints information about interesting
-    entries when coverageEnabled is true.
+    The example for WriteFile assumed the existence of a testdata/ directory, which is not present on the playground. The example now writes the file to the current working directory, rather than to testdata/.
     
-    Fixes #48669
+    Fixes #32916
     
-    Change-Id: I2045afc204764c1842d323e8ae42016fb21b6fb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353172
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I577caac7e67ba9d9941b2dd19346ad5ff61e78d9
+    GitHub-Last-Rev: 40f14e0adc4ebc00fb2946fe0cbaf8e0cb99f62c
+    GitHub-Pull-Request: golang/go#43757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284452
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/internal/fuzz/fuzz.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/io/ioutil/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

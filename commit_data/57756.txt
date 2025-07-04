@@ -1,22 +1,19 @@
-commit 4646556ba49367b3ea19181ac7d5f8ba1b5928b8
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jun 28 00:03:53 2024 +1000
+commit 3db23523b81a25264a7f3170fd60c09374db7717
+Author: Christian Höppner <hoeppi@google.com>
+Date:   Mon Aug 28 15:12:08 2023 +0200
 
-    cmd/internal/obj,cmd/asm: add vector registers to riscv64 assembler
+    encoding/json: adjust comment about encoding \b and \f
     
-    This adds V0 through V31 as vector registers, which are available on CPUs
-    that support the V extension.
+    The encoding for the control characters \b and \f was
+    changed in http://go.dev/cl/521675. This CL adjusts the
+    corresponding comment about encoding bytes < 0x20.
     
-    Change-Id: Ibffee3f9a2cf1d062638715b3744431d72d451ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595404
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: 鹏程汪 <wangpengcheng.pp@bytedance.com>
+    Change-Id: I83b7311e4fa0731f6601ca64a66042425b4cecac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523435
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/asm/internal/arch/arch.go  |  4 ++++
- src/cmd/internal/obj/riscv/cpu.go  | 36 +++++++++++++++++++++++++++++++++++-
- src/cmd/internal/obj/riscv/list.go |  2 ++
- src/cmd/internal/obj/riscv/obj.go  | 10 ++++++++++
- 4 files changed, 51 insertions(+), 1 deletion(-)
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,17 @@
-commit fd234d68230373c735995e2af0a919cbf522cc09
+commit f1f37f93d08ca24dc9769dc448b6f96bc3667aaf
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jun 21 20:19:32 2014 +0400
+Date:   Fri Jun 20 20:20:56 2014 -0400
 
-    doc: say that race detector is supported on freebsd
+    runtime/race: support freebsd
+    All tests pass except one test in regexp package.
     
-    LGTM=ruiu
-    R=golang-codereviews, ruiu
+    LGTM=iant
+    R=golang-codereviews, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/109100046
+    https://golang.org/cl/107270043
 
- doc/articles/race_detector.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go                          |   6 +++---
+ src/cmd/go/doc.go                            |   2 +-
+ src/pkg/runtime/race/race.go                 |   2 +-
+ src/pkg/runtime/race/race_freebsd_amd64.syso | Bin 0 -> 261096 bytes
+ 4 files changed, 5 insertions(+), 5 deletions(-)

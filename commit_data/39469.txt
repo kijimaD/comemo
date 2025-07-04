@@ -1,24 +1,21 @@
-commit b97ec8e57f7a27eea76814bad5c74aa8f0617bb6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 27 13:26:51 2019 -0700
+commit 8eef74b493e48f3dfac6619b01ac7efe26c134b5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 08:25:35 2019 +0100
 
-    text/scanner: remove AllowDigitSeparator flag again
+    misc/android,misc/ios: evaluate current working directory symlinks
     
-    The scanner was changed to accept the new Go number literal syntax
-    of which separators are a part. Making them opt-in is inconsistent
-    with the rest of the changes. For comparison, the strconv package
-    also accepts the new number literals including separators with the
-    various conversion routines, if no explicit number base is given.
+    Previous CLs added symlink evaulation to GOROOT and GOPATH.
+    Unfortunately that only fixed tests that ran outside GOROOT.
     
-    Updates #28493.
+    To fix the standard library tests, evaluate symlinks in the current
+    working directory as well.
     
-    Change-Id: Ifaae2225a9565364610813658bfe692901dd3ccd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184080
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia406a968235ae4321a1002567520105998582d15
+    Reviewed-on: https://go-review.googlesource.com/c/164699
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/go1.13.txt                   |  3 ---
- src/text/scanner/scanner.go      | 30 +++++++++++++++---------------
- src/text/scanner/scanner_test.go |  3 +--
- 3 files changed, 16 insertions(+), 20 deletions(-)
+ misc/android/go_android_exec.go | 4 ++++
+ misc/ios/go_darwin_arm_exec.go  | 4 ++++
+ 2 files changed, 8 insertions(+)

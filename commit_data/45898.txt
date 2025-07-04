@@ -1,22 +1,31 @@
-commit 03761ede028d811dd7d7cf8a2690d4bfa2771d85
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jun 30 14:28:18 2021 -0700
+commit ba9c35aa12ea2a5e1689edeced0efed3de0b0256
+Merge: 5c2e14872c 40f5bc4d55
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 17:00:38 2020 -0500
 
-    net: don't reject null mx records
+    [dev.typeparams] merge dev.regabi 40f5bc4d556a into dev.typeparams
     
-    Bypass hostname validity checking when a null mx record is returned as,
-    defined in RFC 7505.
-    
-    Updates #46979
-    
-    Change-Id: Ibe683bd6b47333a8ff30909fb2680ec8e10696ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332094
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: Id243ab676e148bd8edcbdf6515ac86b048a40a19
 
- src/net/dnsclient_unix_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/net/lookup.go              |  4 +++-
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ doc/go1.16.html                                | 484 +++++++++++++++++--------
+ src/cmd/compile/internal/ssa/expand_calls.go   |   3 +
+ src/cmd/internal/objabi/reloctype.go           |   3 +
+ src/cmd/internal/objabi/reloctype_string.go    |  47 +--
+ src/cmd/internal/objabi/util.go                |   7 +-
+ src/cmd/link/internal/arm64/asm.go             |  16 +
+ src/cmd/link/internal/loadelf/ldelf.go         |   1 +
+ src/go/constant/value.go                       |  13 +-
+ src/go/constant/value_test.go                  |  71 +++-
+ src/regexp/syntax/doc.go                       |   3 +-
+ src/runtime/chan.go                            |  48 ++-
+ src/runtime/crash_cgo_test.go                  |  18 +
+ src/runtime/race/testdata/chan_test.go         |  22 ++
+ src/runtime/select.go                          |   4 +-
+ src/runtime/stack_test.go                      |  41 +++
+ src/runtime/sys_windows_386.s                  |  11 +-
+ src/runtime/sys_windows_amd64.s                |  11 +-
+ src/runtime/testdata/testprogcgo/traceback.go  |  79 ++--
+ src/runtime/testdata/testprogcgo/traceback_c.c |  65 ++++
+ src/runtime/traceback.go                       |  15 +-
+ test/fixedbugs/issue42784.go                   |  26 ++
+ 21 files changed, 732 insertions(+), 256 deletions(-)

@@ -1,22 +1,12 @@
-commit 09dd5bf13bdf6365e364e81f9122b837670de080
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 23 14:05:18 2011 -0700
+commit 78a7dda739edb2752215675980d6a950b6d6721b
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Mon May 23 12:38:51 2011 -0700
 
-    gophertool: Chrome extension to aid in Go development
+    time: Remove unnecessary call to Nanoseconds() in after().
     
-    Contains common links & a smart text box that recognizes various
-    identifiers and jumps to one of:
-    
-    * issue URL,
-    * codereview URL,
-    * commit URL,
-    * package docs
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4553058
+    https://golang.org/cl/4528091
 
- misc/chrome/gophertool/gopher.png    | Bin 0 -> 5588 bytes
- misc/chrome/gophertool/manifest.json |  12 ++++++
- misc/chrome/gophertool/popup.html    |  69 +++++++++++++++++++++++++++++++++++
- 3 files changed, 81 insertions(+)
+ src/pkg/time/sleep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

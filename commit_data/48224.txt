@@ -1,25 +1,38 @@
-commit acc5f55bac6884f8b27c5b73c4a15d777a7169a0
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Feb 28 16:39:28 2022 -0500
+commit bb09f8a29b04b8fe4465d0b5d92f164979ee9213
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Thu Mar 25 12:33:35 2021 -0700
 
-    cmd/go: make work and work_edit script tests version-independent
+    time: make time.Time print a valid Go string with %#v
     
-    The work and work_edit script tests ran go work init, which put the
-    current Go version into the go.work files. Before this change, the tests
-    used cmp to compare the outputs with a file that contained a literal
-    "go 1.18" line. Instead, use cmpenv so we can compare with
-    "go $goversion". (Some of the test cases still compare against files
-    that contain "go 1.18" lines, but these tests explicitly set the version
-    to go 1.18 either in the original go.work files or using go work edit.)
+    Previously calling fmt.Sprintf("%#v", t) on a time.Time value would
+    yield a result like:
     
-    Change-Id: Iea2caa7697b5fe5939070558b1664f70130095ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388514
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+        time.Time{wall:0x0, ext:63724924180, loc:(*time.Location)(nil)}
+    
+    which does not compile when embedded in a Go program, and does not
+    tell you what value is represented at a glance.
+    
+    This change adds a GoString method that returns much more legible
+    output:
+    
+        "time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.UTC)"
+    
+    which gives you more information about the time.Time and also can be
+    usefully embedded in a Go program without additional work.
+    
+    Update Quote() to hex escape non-ASCII characters (copying logic
+    from strconv), which makes it safer to embed them in the output of
+    GoString().
+    
+    Fixes #39034.
+    
+    Change-Id: Ic985bafe4e556f64e82223c643f65143c9a45c3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267017
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/testdata/script/work.txt      | 4 ++--
- src/cmd/go/testdata/script/work_edit.txt | 8 ++++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ doc/go1.17.html         |  9 ++++++
+ src/time/format.go      | 85 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/time/format_test.go | 30 ++++++++++++++++-
+ 3 files changed, 117 insertions(+), 7 deletions(-)

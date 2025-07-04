@@ -1,12 +1,16 @@
-commit 58ce93b6bfe1e24539d621ef326876f1f6758cf8
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 27 21:59:08 2012 +0400
+commit a93b15cad90828a8706e79eb00e7962da09c1317
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 27 12:21:10 2012 -0500
 
-    runtime/race: add test case for issue 4453
+    misc/emacs: fix go-mode hang
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/6854103
+    Fix suggested by serbaut.
+    
+    Fixes #4445.
+    
+    R=sameer
+    CC=golang-dev, serbaut
+    https://golang.org/cl/6842102
 
- src/pkg/runtime/race/testdata/mop_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

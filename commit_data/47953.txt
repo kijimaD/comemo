@@ -1,28 +1,24 @@
-commit 5b3ebc8b72f496a5c6892d76fdeee3d9029b55cc
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 16 12:58:45 2022 -0500
+commit bc5de81e70f9572d7b1d63040c95b999dac57f50
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Mon Apr 12 18:34:04 2021 -0600
 
-    cmd/dist: avoid lapsing into x86 builds on ARM64 Macs
+    testing: remove data races so that parallel benchmarks can safely call .Fatal* and .Skip*
     
-    We use uname -m to decide the GOHOSTARCH default,
-    and on my ARM64 Mac laptop, uname -m prints x86_64.
+    Protects the usages of (*common).finished with locks
+    to prevent data races, thus allowing benchmarks to safely invoke
+    .Fatal* and .Skip* concurrently.
     
-    uname -a prints:
+    Fixes #45526
     
-    Darwin p1.local 21.1.0 Darwin Kernel Version 21.1.0: Wed Oct 13 17:33:01 PDT 2021; root:xnu-8019.41.5~1/RELEASE_ARM64_T6000 x86_64
-    
-    (Note the x86_64 at the end, consistent with uname -m.)
-    
-    The effect of this is that make.bash builds an x86 toolchain
-    even when I start with an ARM64 bootstrap toolchain!
-    Avoid being tricked by looking for RELEASE_ARM64 instead.
-    
-    Fixes #50643.
-    
-    Change-Id: I76eded84bde8009d29419d5982bf964a0bf1c8fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378894
-    Trust: Russ Cox <rsc@golang.org>
+    Change-Id: I2b4846f525c426d6c7d3418f8f6c86446adbf986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309572
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/dist/main.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/testing/benchmark.go      |  7 +++++--
+ src/testing/benchmark_test.go | 24 ++++++++++++++++++++++++
+ src/testing/testing.go        | 26 ++++++++++++++++----------
+ 3 files changed, 45 insertions(+), 12 deletions(-)

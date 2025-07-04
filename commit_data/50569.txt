@@ -1,15 +1,21 @@
-commit d7df872267f9071e678732f9469824d629cac595
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Sep 21 11:56:44 2022 -0700
+commit c6a0b6f2de9a778b03a29c656531617a606761f0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 2 15:38:47 2021 +0000
 
-    all: tidy std module
+    Revert "runtime: fix missing pprof labels"
     
-    Change-Id: I7350a608a198073673fb9b7e9b91dae6f1c861b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432495
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    This reverts CL 351751.
+    
+    Reason for revert: new test is failing on many builders.
+    
+    Change-Id: I066211c9f25607ca9eb5299aedea2ecc5069e34f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360757
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/go.sum | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/cpuprof.go          | 11 ++++++-
+ src/runtime/pprof/pprof_test.go | 67 -----------------------------------------
+ src/runtime/proc.go             |  9 +-----
+ 3 files changed, 11 insertions(+), 76 deletions(-)

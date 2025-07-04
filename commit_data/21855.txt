@@ -1,18 +1,13 @@
-commit 85c6f71b08f43ba8ceea4bc64c53d6873ac0eaad
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 27 20:44:45 2015 +0000
+commit 9e6869b93bba5c04e9536e26944d657f15a88386
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 9 09:26:56 2015 +1100
 
-    cmd/internal/gc: clean up switch code
+    Build fix for plan9 after 8bf13838eb21.
     
-    This CL makes the switch walking and typechecking code
-    more idiomatic and adds documentation.
-    It also removes all but one global variable.
-    
-    No functional changes. Confirmed with toolstash -cmp on the stdlib.
-    
-    Change-Id: Ic3f38acc66e906edd722498839aeb557863639cf
-    Reviewed-on: https://go-review.googlesource.com/6268
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I66d923abbef13ba35c76c6f6da5b14c6d534127c
+    Reviewed-on: https://go-review.googlesource.com/4165
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/internal/gc/swt.go | 1255 +++++++++++++++++++-------------------------
- 1 file changed, 549 insertions(+), 706 deletions(-)
+ src/time/zoneinfo_plan9.go | 1 -
+ 1 file changed, 1 deletion(-)

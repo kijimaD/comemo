@@ -1,21 +1,29 @@
-commit dc59469f5178a0715a582cbfcc4cf9c06a2c9e82
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 17 22:53:39 2020 +0700
+commit 6c64b188a53afec79563cf4ad3c5bc373036d3ae
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 18:24:23 2020 -0500
 
-    cmd/compile: move validation from unary/binaryOp to typecheck
+    [dev.boringcrypto] crypto/internal/boring: update BoringCrypto module to certificate 3318
     
-    CL 254400 makes typecheck set untyped type correctly. We now have enough
-    information to check valid operators for a type in typecheck.
+    Use OPENSSL_malloc for set0 functions as OPENSSL_free now catches us
+    using the libc malloc and aborts.
     
-    Passes toolstash-check.
+    While at it, move the runtime.KeepAlive to the location of the key use.
     
-    Change-Id: I01a7606ee6ce9964ec52430d53eaa886442bd17f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255617
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #30158
+    
+    Change-Id: I968a98d8974ca5f220e822841beb6c34290eefe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218000
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 19 +-------------
- src/cmd/compile/internal/gc/typecheck.go | 44 +++++++++++++-------------------
- 2 files changed, 19 insertions(+), 44 deletions(-)
+ README.boringcrypto.md                             |  16 +++++++++-------
+ misc/boring/VERSION                                |   2 +-
+ src/crypto/internal/boring/LICENSE                 |   2 +-
+ src/crypto/internal/boring/build/.gitignore        |   1 -
+ src/crypto/internal/boring/build/build.sh          |  13 +++++++------
+ .../internal/boring/build/build_in_chroot.sh       |  18 +++++++++---------
+ .../internal/boring/build/root_setup_in_chroot.sh  |   2 +-
+ src/crypto/internal/boring/build/sources.list      |  20 ++++++++++----------
+ src/crypto/internal/boring/goboringcrypto.h        |   3 ++-
+ .../boring/goboringcrypto_linux_amd64.syso         | Bin 7576096 -> 9713384 bytes
+ src/crypto/internal/boring/rsa.go                  |  12 +++++++-----
+ 11 files changed, 47 insertions(+), 42 deletions(-)

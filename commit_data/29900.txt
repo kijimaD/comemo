@@ -1,15 +1,16 @@
-commit 2815045a50862276082048714337f95c46e98605
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 4 21:23:00 2017 +0000
+commit b97b7537bc5cf77b8781bd699b17747ca2f02e1a
+Author: Victor Vrantchan <vrancean+github@gmail.com>
+Date:   Sun Oct 16 09:55:33 2016 -0400
 
-    net/http/httputil: make DumpRequest and DumpRequestOut recognize http.NoBody
+    encoding/pem: add Decode example
     
-    Fixes #18506
+    For #16360.
     
-    Change-Id: I6b0b107296311178938609e878e1ef47a30a463f
-    Reviewed-on: https://go-review.googlesource.com/34814
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I99d1e5ab1f814f65b3066a498158a442f1bd477f
+    Reviewed-on: https://go-review.googlesource.com/31137
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/dump.go      | 13 +++++++++----
- src/net/http/httputil/dump_test.go | 12 ++++++++++++
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/encoding/pem/example_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

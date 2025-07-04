@@ -1,22 +1,30 @@
-commit aec5cc52add9d8da0b5ac4e51758d10ee35589db
-Author: limeidan <limeidan@loongson.cn>
-Date:   Tue Oct 24 16:41:25 2023 +0800
+commit 96d8d3eb3294e85972aed190aec1806ef3c30712
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 11:19:03 2023 -0400
 
-    cmd/link/internal/loadelf: remove useless relocation size information of loong64
+    cmd/go: handle -C properly during toolchain switches
     
-    As of CL 455017 we have switched to following the new style relocations on
-    loong64, these stack based relocations should be removed.
+    The -C dir flag was added in Go 1.20.
+    This CL adds a new restriction: the -C must appear as the first flag on the command line.
+    This restriction makes finding the -C flag robust and matches the general way
+    people tend to think about and use the -C flag anyway.
+    It may break a few scripts that have been written since Go 1.20
+    but hopefully they will not be hard to find and fix.
+    (There is no strict compatibility guarantee for the command line.)
     
-    Change-Id: Ic129a5665cf6f183a32e13b6f1a55d712a99d721
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537335
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Commit-Queue: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    For #57001.
+    
+    Change-Id: Ice2e5982c58d41eabdaef42a80d3624cde2c9873
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500915
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/link/internal/loadelf/ldelf.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/go/alldocs.go                              |   9 +-
+ src/cmd/go/internal/base/base.go                   |  14 +++
+ src/cmd/go/internal/base/flag.go                   |  10 +-
+ src/cmd/go/internal/vet/vet.go                     |   8 +-
+ src/cmd/go/internal/work/build.go                  |   1 +
+ src/cmd/go/main.go                                 | 119 ++++++++++++++++-----
+ src/cmd/go/testdata/script/chdir.txt               |  10 +-
+ .../go/testdata/script/mod_get_exec_toolchain.txt  |  15 +++
+ 8 files changed, 140 insertions(+), 46 deletions(-)

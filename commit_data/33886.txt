@@ -1,22 +1,13 @@
-commit 94d7c884c38561dba467feef3acf6ada50713e59
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 13 21:46:03 2017 -0500
+commit 37fc70bac3a02e38859a09996e7ea95c3c64aed4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 15 12:04:34 2017 -0700
 
-    testing: do not crash when m.Run is called twice and -test.testlogfile is used
+    cmd/internal/objabi: remove unused flag funcs
     
-    Tests exist that call m.Run in a loop‽
-    Now we have one too.
-    
-    Fixes #23129.
-    
-    Change-Id: I8cbecb724f239ae14ad45d75e67d12c80e41c994
-    Reviewed-on: https://go-review.googlesource.com/83956
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I728c5606882ece949d58e86f9558fc16ae4ffd85
+    Reviewed-on: https://go-review.googlesource.com/64052
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                               | 12 ++++++++++++
- src/cmd/go/testdata/src/multimain/multimain_test.go | 16 ++++++++++++++++
- src/testing/internal/testdeps/deps.go               | 18 +++++++++++++-----
- src/testing/testing.go                              | 19 ++++++++++++++++++-
- 4 files changed, 59 insertions(+), 6 deletions(-)
+ src/cmd/internal/objabi/flag.go | 26 --------------------------
+ 1 file changed, 26 deletions(-)

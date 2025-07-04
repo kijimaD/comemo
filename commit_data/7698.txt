@@ -1,12 +1,14 @@
-commit 87aa93457ed62b55b90ee9c52662b68df12fafd6
-Author: Peter Mundy <go.peter.90@gmail.com>
-Date:   Tue Mar 8 12:33:49 2011 -0500
+commit da423122685446a25c1e639ceb2b7f7320ea2745
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Mar 8 18:28:42 2011 +0100
 
-    time: fix Time.ZoneOffset documentation
+    6l,8l: fix gdb crash.
+    DWARF function types no longer need to be pointer-ified explicitly.
+    Fixes #1579.
     
-    R=rsc
+    R=rsc, lvd1
     CC=golang-dev
-    https://golang.org/cl/4240090
+    https://golang.org/cl/4247065
 
- src/pkg/time/time.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/dwarf.c | 1 -
+ 1 file changed, 1 deletion(-)

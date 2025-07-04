@@ -1,12 +1,15 @@
-commit 1e4515a3239666b043751cdd20bc8abf61d75ef3
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Sun Oct 21 17:04:07 2012 -0400
+commit d7a3407e3d6543f3884c181a6b1135fa0fcc882b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sun Oct 21 20:50:31 2012 +0200
 
-    build: u.h for plan9 arm
+    cmd/gc: fix confusing error when using variable as type.
     
-    R=golang-dev, minux.ma, ality
+    Fixes #3783.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6743052
+    https://golang.org/cl/6737053
 
- include/plan9/arm/u.h | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue3783.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

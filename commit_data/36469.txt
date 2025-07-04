@@ -1,23 +1,35 @@
-commit e6c15945dee0661dee6111183d4951853c4c2d98
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 23 16:33:53 2018 +0200
+commit 1b44167d055464f79c026d2023953ba7efdbcfe6
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 28 22:00:36 2018 -0400
 
-    syscall, os: use pipe2 syscall on DragonflyBSD instead of pipe
+    cmd/internal/obj/arm: fix/rationalize checkpool distance check
     
-    Follow the implementation used by the other BSDs ith os.Pipe and
-    syscall.forkExecPipe consisting of a single syscall instead of three.
+    When deciding whether to flush the constant pool, the distance check
+    in checkpool can fail to account for padding inserted before the next
+    instruction by nacl.
     
-    Change-Id: I602187672f244cbd8faaa3397904d71d15452d9f
-    Reviewed-on: https://go-review.googlesource.com/130996
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    For example, see this failure:
+    https://go-review.googlesource.com/c/go/+/109350/2#message-07085b591227824bb1d646a7192cbfa7e0b97066
+    Here, the pool should be flushed before a CALL instruction, but
+    checkpool only considers the CALL instruction to be 4 bytes and
+    doesn't account for the 8 extra bytes of alignment padding added
+    before it by asmoutnacl. As a result, it flushes the pool after the
+    CALL instruction, which is 4 bytes too late.
+    
+    Furthermore, there's no explanation for the rather convoluted
+    expression used to decide if we need to emit the constant pool.
+    
+    This CL modifies checkpool to take the PC following the tentative
+    instruction as an argument. The caller knows this already and this way
+    checkpool doesn't have to guess (and get it wrong in the presence of
+    padding). In the process, it rewrites the test to be structured and
+    commented.
+    
+    Change-Id: I32a3d50ffb5a94d42be943e9bcd49036c7e9b95c
+    Reviewed-on: https://go-review.googlesource.com/110017
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/pipe2_bsd.go                     |  2 +-
- src/os/pipe_bsd.go                      |  2 +-
- src/syscall/forkpipe.go                 |  2 +-
- src/syscall/forkpipe2.go                |  2 +-
- src/syscall/syscall_dragonfly.go        | 10 +++++++---
- src/syscall/zsyscall_dragonfly_amd64.go |  4 ++--
- src/syscall/zsysnum_dragonfly_amd64.go  |  1 +
- 7 files changed, 14 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go | 42 +++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

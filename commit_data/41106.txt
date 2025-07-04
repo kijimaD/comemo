@@ -1,17 +1,40 @@
-commit 1d4d7825a70168492e440af59556bfd6734fa883
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 10 09:37:32 2020 -0500
+commit 7b294cdd8df0a9523010f6ffc80c59e64578f34b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jun 17 19:03:09 2019 +0000
 
-    cmd/go/internal/modload: fix an erroneous comment about the test repo
+    runtime: don't hold worldsema across mark phase
     
-    Updates #36489
+    This change makes it so that worldsema isn't held across the mark phase.
+    This means that various operations like ReadMemStats may now stop the
+    world during the mark phase, reducing latency on such operations.
     
-    Change-Id: I1ca215ba0a64a31d662134385b8be46bb4ba4434
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214282
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Only three such operations are still no longer allowed to occur during
+    marking: GOMAXPROCS, StartTrace, and StopTrace.
+    
+    For the former it's because any change to GOMAXPROCS impacts GC mark
+    background worker scheduling and the details there are tricky.
+    
+    For the latter two it's because tracing needs to observe consistent GC
+    start and GC end events, and if StartTrace or StopTrace may stop the
+    world during marking, then it's possible for it to see a GC end event
+    without a start or GC start event without an end, respectively.
+    
+    To ensure that GOMAXPROCS and StartTrace/StopTrace cannot proceed until
+    marking is complete, the runtime now holds a new semaphore, gcsema,
+    across the mark phase just like it used to with worldsema.
+    
+    Fixes #19812.
+    
+    Change-Id: I15d43ed184f711b3d104e8f267fb86e335f86bf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182657
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/query_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/debug.go                  |  4 ++--
+ src/runtime/mgc.go                    |  9 +++++++
+ src/runtime/proc.go                   | 44 +++++++++++++++++++++++++++++++----
+ src/runtime/trace.go                  | 17 ++++++++------
+ src/runtime/trace/trace_stack_test.go |  1 +
+ 5 files changed, 62 insertions(+), 13 deletions(-)

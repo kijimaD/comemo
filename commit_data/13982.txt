@@ -1,12 +1,144 @@
-commit de782dd146ede31408b8212f8f5b72457c132387
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 28 10:58:46 2012 -0700
+commit 6ed800c01d0587413b9d103ea939f406e5e85efc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 28 08:30:30 2012 -0700
 
-    container/list: slightly better code factoring
+    test: match gccgo error messages
     
-    R=golang-dev, adg
+    const1.go:31:12: error: integer constant overflow
+    const1.go:31:12: error: integer constant overflow
+    const1.go:33:12: error: integer constant overflow
+    const1.go:33:12: error: integer constant overflow
+    const1.go:34:14: error: integer constant overflow
+    const1.go:35:17: error: integer constant overflow
+    const1.go:35:17: error: integer constant overflow
+    const1.go:35:17: error: integer constant overflow
+    const1.go:35:17: error: integer constant overflow
+    const1.go:35:17: error: integer constant overflow
+    const1.go:36:19: error: integer constant overflow
+    const1.go:37:15: error: integer constant overflow
+    const1.go:37:15: error: integer constant overflow
+    const1.go:37:24: error: integer constant overflow
+    const1.go:37:15: error: integer constant overflow
+    const1.go:37:15: error: integer constant overflow
+    const1.go:37:15: error: integer constant overflow
+    const1.go:37:24: error: integer constant overflow
+    const1.go:37:15: error: integer constant overflow
+    const1.go:38:12: error: integer constant overflow
+    const1.go:38:12: error: integer constant overflow
+    const1.go:38:12: error: integer constant overflow
+    const1.go:38:12: error: integer constant overflow
+    const1.go:41:20: error: integer constant overflow
+    const1.go:41:20: error: integer constant overflow
+    const1.go:42:20: error: integer constant overflow
+    const1.go:42:20: error: integer constant overflow
+    const1.go:44:28: error: integer constant overflow
+    const1.go:44:28: error: integer constant overflow
+    const1.go:45:14: error: integer constant overflow
+    const1.go:49:14: error: integer constant overflow
+    const1.go:50:14: error: integer constant overflow
+    const1.go:51:14: error: integer constant overflow
+    const1.go:54:23: error: integer constant overflow
+    const1.go:54:23: error: integer constant overflow
+    const1.go:54:23: error: integer constant overflow
+    const1.go:54:23: error: integer constant overflow
+    const1.go:56:14: error: integer constant overflow
+    const1.go:57:24: error: integer constant overflow
+    const1.go:57:24: error: integer constant overflow
+    const1.go:58:24: error: integer constant overflow
+    const1.go:58:24: error: integer constant overflow
+    const1.go:59:22: error: integer constant overflow
+    const1.go:59:22: error: integer constant overflow
+    const1.go:61:24: error: integer constant overflow
+    const1.go:62:20: error: division by zero
+    const1.go:65:19: error: floating point constant overflow
+    const1.go:65:19: error: floating point constant overflow
+    const1.go:66:28: error: floating point constant overflow
+    const1.go:66:28: error: floating point constant overflow
+    const1.go:67:19: error: floating point constant overflow
+    const1.go:67:19: error: floating point constant overflow
+    const1.go:68:19: error: division by zero
+    const1.go:33:14: error: integer constant overflow
+    const1.go:35:19: error: integer constant overflow
+    const1.go:42:22: error: integer constant overflow
+    const1.go:53:17: error: integer constant overflow
+    const1.go:55:14: error: integer constant overflow
+    const1.go:59:24: error: integer constant overflow
+    const1.go:69:20: error: expected integer type
+    const1.go:75:4: error: argument 1 has incompatible type (cannot use type int8 as type int)
+    const1.go:76:4: error: argument 1 has incompatible type (cannot use type int8 as type int)
+    const1.go:77:4: error: argument 1 has incompatible type (cannot use type uint8 as type int)
+    const1.go:79:4: error: argument 1 has incompatible type (cannot use type float32 as type int)
+    const1.go:80:4: error: argument 1 has incompatible type (cannot use type float64 as type int)
+    const1.go:81:4: error: floating point constant truncated to integer
+    const1.go:83:4: error: argument 1 has incompatible type (cannot use type float64 as type int)
+    const1.go:84:4: error: argument 1 has incompatible type (cannot use type string as type int)
+    const1.go:85:4: error: argument 1 has incompatible type (cannot use type bool as type int)
+    const1.go:88:7: error: const initializer cannot be nil
+    
+    const2.go:14:8: error: expected ‘=’
+    
+    const5.go:27:7: error: expression is not constant
+    const5.go:28:7: error: expression is not constant
+    const5.go:30:7: error: expression is not constant
+    const5.go:31:7: error: expression is not constant
+    
+    ddd1.go:57:23: error: invalid use of ‘...’ in type conversion
+    ddd1.go:59:6: error: invalid use of ‘...’ in type conversion
+    ddd1.go:60:12: error: use of ‘[...]’ outside of array literal
+    ddd1.go:21:15: error: argument 1 has incompatible type
+    ddd1.go:22:10: error: argument 1 has incompatible type
+    ddd1.go:30:6: error: invalid use of ‘...’ with non-slice
+    ddd1.go:30:6: error: invalid use of ‘...’ with non-slice
+    ddd1.go:46:2: error: invalid use of %<...%> with builtin function
+    ddd1.go:47:2: error: invalid use of %<...%> with builtin function
+    ddd1.go:49:2: error: invalid use of %<...%> with builtin function
+    ddd1.go:50:6: error: invalid use of %<...%> with builtin function
+    ddd1.go:51:6: error: invalid use of %<...%> with builtin function
+    ddd1.go:53:6: error: invalid use of %<...%> with builtin function
+    ddd1.go:58:13: error: invalid use of %<...%> with builtin function
+    ddd1.go:20:10: error: floating point constant truncated to integer
+    ddd1.go:32:6: error: invalid use of ‘...’ calling non-variadic function
+    
+    declbad.go:20:3: error: variables redeclared but no variable is new
+    declbad.go:38:3: error: variables redeclared but no variable is new
+    declbad.go:44:3: error: variables redeclared but no variable is new
+    declbad.go:51:3: error: variables redeclared but no variable is new
+    declbad.go:57:3: error: variables redeclared but no variable is new
+    declbad.go:63:3: error: variables redeclared but no variable is new
+    declbad.go:26:3: error: incompatible types in assignment (cannot use type float32 as type int)
+    declbad.go:32:3: error: incompatible types in assignment (cannot use type int as type float32)
+    declbad.go:44:3: error: incompatible types in assignment (different number of results)
+    
+    fixedbugs/bug223.go:21:5: error: initialization expression for ‘m’ depends upon itself
+    
+    fixedbugs/bug412.go:10:2: error: duplicate field name ‘x’
+    
+    fixedbugs/bug413.go:11:5: error: initialization expression for ‘i’ depends upon itself
+    
+    fixedbugs/bug416.go:13:1: error: method ‘X’ redeclares struct field name
+    
+    fixedbugs/bug435.go:15:49: error: missing ‘)’
+    fixedbugs/bug435.go:15:2: error: reference to undefined name ‘bar’
+    
+    fixedbugs/bug451.go:9:9: error: expected package
+    
+    typeswitch3.go:39:9: error: no new variables on left side of ‘:=’
+    typeswitch3.go:24:2: error: impossible type switch case (type has no methods)
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6569077
+    https://golang.org/cl/6560063
 
- src/pkg/container/list/list.go | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ test/const1.go           | 2 +-
+ test/const2.go           | 4 ++--
+ test/const5.go           | 8 ++++----
+ test/ddd1.go             | 4 ++--
+ test/declbad.go          | 3 ++-
+ test/fixedbugs/bug223.go | 2 +-
+ test/fixedbugs/bug412.go | 4 ++--
+ test/fixedbugs/bug413.go | 2 +-
+ test/fixedbugs/bug416.go | 2 +-
+ test/fixedbugs/bug435.go | 2 +-
+ test/fixedbugs/bug451.go | 2 +-
+ test/typeswitch3.go      | 2 +-
+ 12 files changed, 19 insertions(+), 18 deletions(-)

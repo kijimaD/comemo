@@ -1,31 +1,18 @@
-commit 816199e421f743324e9c1c82bda22d1d0f53845c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jun 10 21:44:56 2025 +0000
+commit 4792ca7b93d5745647a95ac73a93f9c9b97db499
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Apr 23 05:27:54 2024 +0000
 
-    runtime: don't let readTrace spin on trace.shutdown
+    doc: fix typos in docs
     
-    Issue #74045 describes a scenario in which gopark is inlined into
-    readTrace, such that there are no preemption points. This is only a
-    problem because readTrace spins if trace.shutdown is set, through
-    traceReaderAvailable. However, trace.shutdown is almost certainly
-    overkill for traceReaderAvailable. The first condition, checking whether
-    the reader gen and the flushed gen match, should be sufficient to ensure
-    the reader wakes up and finishes flushing all buffers. The first
-    condition is also safe because it guarantees progress. In the case of
-    shutdown, all the trace work that will be flushed has been flushed, and
-    so the trace reader will exit into a regular goroutine context when
-    it's finished. If not shutting down, then the trace reader will release
-    doneSema, increase readerGen, and then the gopark unlockf will let it
-    block until new work actually comes in.
-    
-    Fixes #74045.
-    
-    Change-Id: Id9b15c277cb731618488771bd484577341b68675
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680738
+    Change-Id: Ib51283b35d6d35acd7a90cd531ff6897a23d9894
+    GitHub-Last-Rev: dd485f332e58c9467d68ed571317dfd56eea9d16
+    GitHub-Pull-Request: golang/go#66985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580797
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
 
- src/runtime/trace.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ doc/next/6-stdlib/2-unique.md           | 2 +-
+ doc/next/6-stdlib/99-minor/net/63116.md | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

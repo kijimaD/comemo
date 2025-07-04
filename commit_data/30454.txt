@@ -1,22 +1,18 @@
-commit 15442178c801476f873b0678a99b27f06c8e38d6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 28 15:01:38 2017 -0800
+commit 65269e7066c0e97532bf0fd082e95cf8444ee378
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 16:37:24 2016 -0700
 
-    os: don't use waitid on Darwin
+    cmd/go/internal/syntax: reintroduce reverted comments
     
-    According to issue #19314 waitid on Darwin returns if the process is
-    stopped, even though we specify WEXITED.
+    These comments were originally introduced together with the changes
+    for alias declarations, and then reverted when we backed out alias
+    support.
     
-    Fixes #19314.
+    Reintroduce them.
     
-    Change-Id: I95faf196c11e43b7741efff79351bab45c811bc2
-    Reviewed-on: https://go-review.googlesource.com/37610
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3ef2c4f4672d6af8a900f5d73df273edf28d1a14
+    Reviewed-on: https://go-review.googlesource.com/32826
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/exec/exec_posix_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/os/exec/exec_test.go       |  3 +++
- src/os/wait_unimp.go           |  2 +-
- src/os/wait_waitid.go          |  5 ++++-
- 4 files changed, 46 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/nodes.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

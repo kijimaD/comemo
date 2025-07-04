@@ -1,12 +1,25 @@
-commit 1761e250117e9917c3927fec06475fe98651c564
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 26 08:23:52 2013 -0700
+commit 148fac79a33bf7e9be279002aa289eacad41cb8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 25 17:28:49 2013 -0400
 
-    test/shift1.go: recognize gccgo errors
+    cmd/gc: fix escape analysis ordering
     
-    R=golang-dev, remyoudompheng, iant
+    Functions without bodies were excluded from the ordering logic,
+    because when I wrote the ordering logic there was no reason to
+    analyze them.
+    
+    But then we added //go:noescape tags that need analysis, and we
+    didn't update the ordering logic.
+    
+    So in the absence of good ordering, //go:noescape only worked
+    if it appeared before the use in the source code.
+    
+    Fixes #5773.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10524045
+    https://golang.org/cl/10570043
 
- test/shift1.go | 185 +++++++++++++++++++++++++++++----------------------------
- 1 file changed, 93 insertions(+), 92 deletions(-)
+ src/cmd/gc/esc.c |  2 +-
+ test/escape2.go  | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

@@ -1,16 +1,22 @@
-commit 89ae7045f395de8eb4085e3ac8c1ebf59b029965
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Mar 3 19:17:20 2018 +0100
+commit 40649e697907d928316efac47902a1c7554c3196
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 25 13:46:38 2017 -0700
 
-    test: convert all math-related tests from asm_test
+    cmd/compile: make sure not to use SP as an index register
     
-    Change-Id: If542f0b5c5754e6eb2f9b302fe5a148ba9a57338
-    Reviewed-on: https://go-review.googlesource.com/98443
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    ...because that's an illegal addressing mode.
+    
+    I double-checked handling of this code, and 387 is the only
+    place where this check is missing.
+    
+    Fixes #22429
+    
+    Change-Id: I2284fe729ea86251c6af2f04076ddf7a5e66367c
+    Reviewed-on: https://go-review.googlesource.com/73551
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 347 +-------------------------------
- test/codegen/math.go                    | 140 +++++++++++++
- test/codegen/rotate.go                  |   8 -
- 3 files changed, 151 insertions(+), 344 deletions(-)
+ src/cmd/compile/internal/x86/387.go |  6 ++++++
+ test/fixedbugs/issue22429.go        | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+)

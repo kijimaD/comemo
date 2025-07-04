@@ -1,12 +1,19 @@
-commit 396d3af8d0f7d28beedebcff28276f564884341d
+commit e4c4edf6819726886d05f33a01f98a117863bfb2
 Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 30 00:19:21 2013 -0700
+Date:   Mon Apr 29 22:44:20 2013 -0700
 
-    cmd/ld: disable relocation range check so build can go green while we debug the issue.
+    cmd/ld: fix some 64-bit issues
+    A few places in the linker pushed 64-bit values through 32-bit holes,
+    including in relocation.
+    Clean them up, and check for a few other overflows as well.
+    Tests to follow.
     
-    R=golang-dev, dsymonds, dave
-    CC=golang-dev
-    https://golang.org/cl/9038043
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/9032043
 
- src/cmd/ld/data.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/ld/data.c    | 76 +++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/ld/elf.c     |  2 +-
+ src/cmd/ld/ldmacho.c |  4 +--
+ src/cmd/ld/lib.h     |  6 ++---
+ 4 files changed, 58 insertions(+), 30 deletions(-)

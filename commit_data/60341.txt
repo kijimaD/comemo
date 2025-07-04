@@ -1,0 +1,22 @@
+commit d73a8a206a7d3c179cdc498a29be215fa48a1ec2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 22:29:35 2024 -0700
+
+    cmd/cgo: fail on v, err := C.fn when fn is a builtin function
+    
+    We were already checking for _CMalloc, but in fact none of the
+    builtin functions support returning an error.
+    
+    Fixes #67707
+    
+    Change-Id: I0ee432a9f13ace472c3f36f641efc7d18eda0631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589575
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/gcc.go                                     |  4 ++--
+ src/cmd/cgo/internal/testerrors/errors_test.go         |  1 +
+ src/cmd/cgo/internal/testerrors/testdata/issue67707.go | 15 +++++++++++++++
+ 3 files changed, 18 insertions(+), 2 deletions(-)

@@ -1,19 +1,17 @@
-commit 7263540146c75de8037501b3d6fb64f59a0d1956
-Author: Oleg Bulatov <oleg@bulatov.me>
-Date:   Fri Feb 23 16:55:19 2018 +0100
+commit 4c8e8fc301c798c7150d41e96213a17534092ca0
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sat Jan 7 23:42:23 2017 -0800
 
-    regexp: Regexp shouldn't keep references to inputs
+    cmd/compile: fix segfault in race instrumentation
     
-    If you try to find something in a slice of bytes using a Regexp object,
-    the byte array will not be released by GC until you use the Regexp object
-    on another slice of bytes. It happens because the Regexp object keep
-    references to the input data in its cache.
+    Fixes #13265.
     
-    Change-Id: I873107f15c1900aa53ccae5d29dbc885b9562808
-    Reviewed-on: https://go-review.googlesource.com/96715
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I792eb4ee26bef8a56e279e23f9802cb39019e0d0
+    Reviewed-on: https://go-review.googlesource.com/34929
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/regexp.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ test/fixedbugs/issue13265.go        | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

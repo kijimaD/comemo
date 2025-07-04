@@ -1,26 +1,34 @@
-commit bb5075a5259baeaa75f09db64c3860c5876a00fd
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Jan 15 00:04:10 2021 +0100
+commit 14bec27743365511495eadb2accf76efaccbc525
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 6 16:22:15 2020 -0400
 
-    syscall: remove RtlGenRandom and move it into internal/syscall
+    cmd/go: do not ignore permission errors when matching patterns
     
-    There's on need to expose this to the frozen syscall package, and it
-    also doesn't need to be unsafe. So we move it into internal/syscall and
-    have the generator make a safer function signature.
+    While reviewing CL 228784, I noticed that various filepath.WalkFunc
+    implementations within cmd/go were dropping non-nil errors.
     
-    Fixes #43704.
+    Those errors turn out to be significant, at least in some cases: for
+    example, they can cause packages to appear to be missing when any
+    parent of the directory had the wrong permissions set.
     
-    Change-Id: Iccae69dc273a0aa97ee6846eb537f1dc1412f2de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283992
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    (This also turned up a bug in the existing list_dedup_packages test,
+    which was accidentally passing a nonexistent directory instead of the
+    intended duplicate path.)
+    
+    Change-Id: Ia09a0a33aa7a966d9f132d3747d6c674a5370b2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232579
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- api/go1.16.txt                                   |  2 --
- src/crypto/rand/rand_windows.go                  |  4 ++--
- src/internal/syscall/windows/syscall_windows.go  |  2 ++
- src/internal/syscall/windows/zsyscall_windows.go | 13 +++++++++++++
- src/syscall/syscall_windows.go                   |  1 -
- src/syscall/zsyscall_windows.go                  |  9 ---------
- 6 files changed, 17 insertions(+), 14 deletions(-)
+ src/cmd/go/go_test.go                              |   7 +-
+ src/cmd/go/internal/modget/get.go                  |  12 ++-
+ src/cmd/go/internal/modload/import.go              | 104 +++++++++++++++------
+ src/cmd/go/internal/modload/load.go                |  21 +++--
+ src/cmd/go/internal/modload/query.go               |  51 ++++++----
+ src/cmd/go/internal/modload/search.go              |  44 +++++----
+ src/cmd/go/internal/search/search.go               |  12 ++-
+ src/cmd/go/testdata/script/list_dedup_packages.txt |   2 +-
+ .../go/testdata/script/list_gofile_in_goroot.txt   |   3 +
+ src/cmd/go/testdata/script/list_permissions.txt    |  84 +++++++++++++++++
+ 10 files changed, 264 insertions(+), 76 deletions(-)

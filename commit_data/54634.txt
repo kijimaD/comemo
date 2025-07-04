@@ -1,30 +1,20 @@
-commit b455e239aeeeb1d33eaa34e62c397f3408245a0c
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 18 10:13:18 2023 -0700
+commit d9cc39b25c8ebef5a976e34848dc3c5216108f07
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 21:11:23 2022 -0400
 
-    cmd/compile: use descriptors for type assertion runtime calls
+    cmd/compile/internal/pgo: use a slice for locations
     
-    Mostly a reorganization to make further changes easier.
+    Currently locations are stored in a map and looked up by ID from
+    the map. The IDs are usually small sequential integers (the Go
+    pprof CPU profiles are so). Using a slice is more efficient (with
+    a fallback map to handle weirdly large IDs).
     
-    This reorganization will make it easier to add a cache in front
-    of the runtime call.
-    
-    Leave the old code alone for dynamic type assertions (aka generics).
-    
-    Change-Id: Ia7dcb7aeb1f63baf93584ccd792e8e31510e8aea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529196
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I9e20d5cebca3a5239636413e1bf2f0b273038031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447803
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/expr.go                |  3 +
- src/cmd/compile/internal/ir/symtab.go              |  1 +
- src/cmd/compile/internal/objw/objw.go              |  8 +++
- src/cmd/compile/internal/ssagen/ssa.go             | 75 +++++++++++++++++-----
- .../compile/internal/typecheck/_builtin/runtime.go |  3 +-
- src/cmd/compile/internal/typecheck/builtin.go      |  3 +-
- src/cmd/compile/internal/walk/expr.go              | 28 ++++++++
- src/internal/abi/switch.go                         |  5 ++
- src/runtime/iface.go                               | 28 ++++----
- 9 files changed, 119 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/pgo/graph.go   | 37 +++++++++++++++++++++++++--------
+ src/cmd/compile/internal/pgo/irgraph.go |  2 +-
+ 2 files changed, 29 insertions(+), 10 deletions(-)

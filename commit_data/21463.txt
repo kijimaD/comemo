@@ -1,28 +1,14 @@
-commit aafb5bcaddf1fa917b470cb7f51b8989da894664
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 3 15:12:26 2015 -0800
+commit ec767c10b30819d907b010a8cfb4831420db7718
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 6 08:41:55 2015 -0800
 
-    go/doc: don't treat _ consts as exported
+    runtime: add comment about channels already handling zero-sized objects correctly.
     
-    golang.org/cl/144110044 made _ consts treated
-    as exported as a small, safe fix for #5397.
-    It also introduced issue #9615.
+    update #9401
     
-    golang.org/cl/2091 then fixed the underlying issue,
-    which was missing type information when the type
-    was specified only for _.
-    
-    This cl reverts the original fix.
-    
-    Fixes #9615.
-    
-    Change-Id: I4815ad8292bb5bec18beb8c131b48949d9af8876
-    Reviewed-on: https://go-review.googlesource.com/3832
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I634a772814e7cd066f631a68342e7c3dc9d27e72
+    Reviewed-on: https://go-review.googlesource.com/2370
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/doc/exports.go              | 24 ++++++++++--------------
- src/go/doc/testdata/blank.0.golden |  6 ++----
- src/go/doc/testdata/blank.1.golden |  6 ++++++
- src/go/doc/testdata/blank.2.golden |  6 ++----
- src/go/doc/testdata/blank.go       |  7 +++++++
- 5 files changed, 27 insertions(+), 22 deletions(-)
+ src/runtime/chan.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,19 +1,28 @@
-commit fad4a16fd43f6a72b6917eff656be27522809074
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 15 11:22:03 2021 -0400
+commit b81efb7ec4348951211058cf4fdfc045c75255d6
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 11 10:23:41 2021 -0500
 
-    cmd/go: use portable flags in TestScript/version_build_settings
+    [dev.regabi] go/types: add support for language version checking
     
-    This fixes a test failure on the 386-longtest builder.
+    This is a port of CL 289509 to go/types. It differs from that CL in
+    codes added to errors, to fit the new factoring of check_test.go, and to
+    allow go/types to import regexp in deps_test.go
     
-    For #37475
+    For #31793
     
-    Change-Id: Icd1d3474968fcf85ef893190760fb488302abc3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356209
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia9e4c7f5aac1493001189184227c2ebc79a76e77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291317
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/testdata/script/version_build_settings.txt | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/go/build/deps_test.go        |  2 +-
+ src/go/types/api.go              |  7 ++++
+ src/go/types/check.go            | 32 ++++++++++------
+ src/go/types/check_test.go       | 36 ++++++++++++++----
+ src/go/types/expr.go             |  5 +++
+ src/go/types/stdlib_test.go      | 10 +++--
+ src/go/types/testdata/go1_12.src | 35 +++++++++++++++++
+ src/go/types/version.go          | 82 ++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 186 insertions(+), 23 deletions(-)

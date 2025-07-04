@@ -1,14 +1,18 @@
-commit 1308f7c94f8e5af49c809840af796129f97ce6c8
+commit cbd6c34131a138c25e33ef038fb7485190637793
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 14:37:20 2012 +1100
+Date:   Fri Feb 10 14:31:08 2012 +1100
 
-    testing/iotest: adjust adverbial imprecision in package comment
+    testing/script: delete
+    Dead code.
     
-    Fixes #2959.
+    Fixes #2961.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5651053
+    https://golang.org/cl/5650053
 
- src/pkg/testing/iotest/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.html                          |  11 ++
+ doc/go1.tmpl                          |  11 ++
+ src/pkg/testing/script/script.go      | 358 ----------------------------------
+ src/pkg/testing/script/script_test.go |  75 -------
+ 4 files changed, 22 insertions(+), 433 deletions(-)

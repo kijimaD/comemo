@@ -1,20 +1,20 @@
-commit 269e0df5f315bd24943d2607bed7b7c0200037e9
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Sat Feb 24 10:29:13 2024 +0000
+commit 99914db5eea927c7694276169585f1fff9e614c8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Mar 7 08:37:31 2023 +0100
 
-    syscall: fix typo in comment
+    cmd/internal/objabi: regenerate RelocType stringer file
     
-    Change-Id: I1804315fd3ec50ab1e3f480efd92c59e36fd47d0
-    GitHub-Last-Rev: 07d969ab71eabfe7034b62f45a1f4058b66ee014
-    GitHub-Pull-Request: golang/go#65921
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566615
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    reloctype_strings.go is out-of-date since CL 462035, regenerate it.
+    
+    Found while working on CL 461737.
+    
+    Change-Id: I5cf910ab14c3618d6653c87861a4d53d3c91feff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473875
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/syscall/exec_linux_test.go | 4 ++--
- src/syscall/fs_wasip1.go       | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/objabi/reloctype_string.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

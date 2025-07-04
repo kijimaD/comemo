@@ -1,16 +1,23 @@
-commit 7d3d0334f9f58db5a0819da0963abb9ca0cba695
-Author: Hiroaki Sano <hiroaki.sano.9stories@gmail.com>
-Date:   Tue Nov 26 16:43:04 2024 +0900
+commit 2d9e8ded9464932b8a296164506b64f58908c6cf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 9 13:34:51 2023 -0700
 
-    crypto/tls: fix a broken link
+    cmd/compile: reorganize compiler type descriptor generation
     
-    Change-Id: I5d4baa454487a810f138334b613b412a5273311e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631875
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Use the new rttype mechanism to share internal/abi types between
+    the compiler and runtime.
+    
+    Change-Id: I2bbba4d8090c6f7ff20dca15b7b665f5d04e5bfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534936
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/crypto/tls/cipher_suites.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 335 +++++++++++++-----------
+ src/cmd/compile/internal/rttype/rttype.go       | 241 ++++++++++-------
+ src/cmd/compile/internal/types/type.go          |  15 ++
+ src/cmd/compile/internal/walk/switch.go         |   2 +-
+ src/internal/abi/compiletype.go                 | 133 ----------
+ 5 files changed, 354 insertions(+), 372 deletions(-)

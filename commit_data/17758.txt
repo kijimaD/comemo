@@ -1,17 +1,15 @@
-commit e121de2f016df84f635c6bfb8b32e3b781e9f51f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 7 10:43:28 2013 -0700
+commit fc1bea321de31243c2f68316941e0f99eeb86557
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Oct 7 09:21:33 2013 -0700
 
-    spec: unsafe.Pointers are pointers
+    os/user: fix user lookups on dragonfly
     
-    But they cannot be dereferenced.
-    See also issue 6116.
+    Like FreeBSD, DragonFly does not provide a sysconf value for
+    _SC_GETPW_R_SIZE_MAX.
     
-    Fixes #6358.
-    
-    R=r, rsc, iant, ken
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14374046
+    https://golang.org/cl/14469043
 
- doc/go_spec.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/os/user/lookup_unix.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

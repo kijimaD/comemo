@@ -1,53 +1,26 @@
-commit 6f2e1be1320940ffce998011ee2d81190cec8bca
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 18 11:07:03 2023 +0200
+commit 7f255ba065ee7bd41da806b297cd643e3ead3fee
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Sep 28 11:50:41 2022 -0400
 
-    syscall: remove unused writelen
+    cmd/dist: produce intermedate .a files in a temporary location
     
-    Change-Id: I3c0e9e405120ef595712741a2f8e963cbb0733dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529035
+    Before this change, the .a files for the intermediate go toolchains
+    were produced in the same location as the install target. This change
+    has them produced in a temporary location instead. This change,
+    combined with go install not producing .a files for most stdlib
+    packages by default results in a build of the distribution only
+    producing .a's for the five packages in std that require cgo. (Before
+    this change, the .a's for the final build were not being produced, but
+    stale ones from the intermediate builds were left behind.)
+    
+    For #47257
+    
+    Change-Id: I91b826cd1ce9aad9c492fb865e36d34dc8bb188e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436135
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/syscall/syscall_darwin.go           |  9 ---------
- src/syscall/syscall_dragonfly.go        |  1 -
- src/syscall/syscall_freebsd.go          |  1 -
- src/syscall/syscall_linux.go            |  1 -
- src/syscall/syscall_netbsd.go           |  1 -
- src/syscall/syscall_openbsd1.go         |  1 -
- src/syscall/syscall_openbsd_libc.go     |  1 -
- src/syscall/syscall_solaris.go          |  9 ---------
- src/syscall/zsyscall_dragonfly_amd64.go | 11 -----------
- src/syscall/zsyscall_freebsd_386.go     | 11 -----------
- src/syscall/zsyscall_freebsd_amd64.go   | 11 -----------
- src/syscall/zsyscall_freebsd_arm.go     | 11 -----------
- src/syscall/zsyscall_freebsd_arm64.go   | 11 -----------
- src/syscall/zsyscall_freebsd_riscv64.go | 11 -----------
- src/syscall/zsyscall_linux_386.go       | 11 -----------
- src/syscall/zsyscall_linux_amd64.go     | 11 -----------
- src/syscall/zsyscall_linux_arm.go       | 11 -----------
- src/syscall/zsyscall_linux_arm64.go     | 11 -----------
- src/syscall/zsyscall_linux_loong64.go   | 11 -----------
- src/syscall/zsyscall_linux_mips.go      | 11 -----------
- src/syscall/zsyscall_linux_mips64.go    | 11 -----------
- src/syscall/zsyscall_linux_mips64le.go  | 11 -----------
- src/syscall/zsyscall_linux_mipsle.go    | 11 -----------
- src/syscall/zsyscall_linux_ppc64.go     | 11 -----------
- src/syscall/zsyscall_linux_ppc64le.go   | 11 -----------
- src/syscall/zsyscall_linux_riscv64.go   | 11 -----------
- src/syscall/zsyscall_linux_s390x.go     | 11 -----------
- src/syscall/zsyscall_netbsd_386.go      | 11 -----------
- src/syscall/zsyscall_netbsd_amd64.go    | 11 -----------
- src/syscall/zsyscall_netbsd_arm.go      | 11 -----------
- src/syscall/zsyscall_netbsd_arm64.go    | 11 -----------
- src/syscall/zsyscall_openbsd_386.go     | 11 -----------
- src/syscall/zsyscall_openbsd_amd64.go   | 11 -----------
- src/syscall/zsyscall_openbsd_arm.go     | 11 -----------
- src/syscall/zsyscall_openbsd_arm64.go   | 11 -----------
- src/syscall/zsyscall_openbsd_mips64.go  | 11 -----------
- src/syscall/zsyscall_openbsd_ppc64.go   | 11 -----------
- 37 files changed, 343 deletions(-)
+ src/cmd/dist/build.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,21 +1,25 @@
-commit c9a4b01f424d5c1b13ddf9eb900c664ea2bf7d98
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 11 12:41:01 2019 -0500
+commit 599aa6dd6d2d3d35a596302d8c109d0c15b6e8be
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 17 11:07:39 2019 +0700
 
-    cmd/go: in 'go build -o', allow the destination file to exist if it is empty
+    cmd/go: validate path in mod init path
     
-    This allows the target of 'go build' to be a filename constructed
-    using ioutil.TempFile or similar, without racily deleting the file
-    before rebuilding it.
+    When mod init with given module path, validate that module path is a
+    valid import path.
     
-    Updates #32407
-    Updates #28387
+    Note that module.CheckImportPath is used, because module.CheckPath
+    verifies that module path is something that "go get" can fetch, which is
+    strictly stronger condition than "a valid module path".
     
-    Change-Id: I4c5072830a02b93f0c4186b50bffa9de00257afe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206477
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #28389
+    Fixes #32644
+    
+    Change-Id: Ia60f218dd7d79186f87be723c28a96d6cb63017e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182560
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/exec.go                     |  4 ++--
- src/cmd/go/testdata/script/test_compile_tempfile.txt | 11 +++++++++++
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/init.go          |  3 +++
+ src/cmd/go/testdata/script/mod_init_path.txt | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

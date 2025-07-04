@@ -1,28 +1,32 @@
-commit 8a1ff5182780af72d08c3e6b91694425a1498014
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Jun 6 17:55:58 2023 +0800
+commit 121344ac338ef21d87eee4f64a60d0ae8a7f6fe3
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Wed Jul 13 09:00:57 2022 +0000
 
-    cmd/asm: add the fifth argument of the instruction to Optab on arm64
+    cmd/compile: optimize RotateLeft8/16 on arm64
     
-    Currently the Optab structure contains four arguments of an instruction,
-    excludes the fifth argument p.RegTo2. It does not participate in
-    instruction matching and is usually handled separately.
+    This CL optimizes RotateLeft8/16 on arm64.
     
-    Instructions with five operands are common in the newer arm instruction
-    set, so this CL adds the fifth argument to Optab, so that instruction
-    matching is easier. This caused the oplook function also needs to be
-    updated synchronously, this CL also made some cleaning and modifications
-    to this function.
+    For 16 bits, we form a 32 bits register by duplicating two 16 bits
+    registers, then use RORW instruction to do the rotate shift.
     
-    Change-Id: I1d95ad99e72a44dfad1e00db182cfc369a0e55c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505975
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For 8 bits, we just use LSR and LSL instead of RORW because the code is
+    simpler.
+    
+    Benchmark          Old          ThisCL       delta
+    RotateLeft8-46     2.16 ns/op   1.73 ns/op   -19.70%
+    RotateLeft16-46    2.16 ns/op   1.54 ns/op   -28.53%
+    
+    Change-Id: I09cde4383d12e31876a57f8cdfd3bb4f324fadb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420976
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64error.s |  176 ++--
- src/cmd/internal/obj/arm64/a.out.go            |   30 +-
- src/cmd/internal/obj/arm64/anames7.go          |    1 +
- src/cmd/internal/obj/arm64/asm7.go             | 1104 ++++++++++++------------
- 4 files changed, 656 insertions(+), 655 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |  4 +--
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 45 ++++++++++++++++++++++++++--
+ test/codegen/mathbits.go                     | 10 ++++---
+ 4 files changed, 54 insertions(+), 8 deletions(-)

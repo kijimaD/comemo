@@ -1,30 +1,12 @@
-commit e25ef35254cc4372256d0c7f4521df3cf3d092bf
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 14 17:08:27 2018 -0400
+commit b0ac2546b1851a4835ad687e649dead7f610f6a9
+Author: Carl Mastrangelo <notcarl@google.com>
+Date:   Thu Mar 15 14:15:54 2018 -0700
 
-    runtime: don't disable GC work caching during mark termination
+    context: add benchmarks for context cancellation
     
-    Currently, we disable GC work caching during mark termination. This is
-    no longer necessary with the new mark completion detection because
-    
-    1. There's no way for any of the GC mark termination helpers to have
-    any real work queued and,
-    
-    2. Mark termination has to explicitly flush every P's buffers anyway
-    in order to flush Ps that didn't run a GC mark termination helper.
-    
-    Hence, remove the code that disposes gcWork buffers during mark
-    termination.
-    
-    Updates #26903. This is a follow-up to eliminating mark 2.
-    
-    Change-Id: I81f002ee25d5c10f42afd39767774636519007f9
-    Reviewed-on: https://go-review.googlesource.com/c/134320
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I539c9226eb7e493b52c50e1e431954567d43bcfb
+    Reviewed-on: https://go-review.googlesource.com/100847
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go     | 2 --
- src/runtime/mgcmark.go | 5 -----
- src/runtime/mwbbuf.go  | 5 -----
- 3 files changed, 12 deletions(-)
+ src/context/benchmark_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

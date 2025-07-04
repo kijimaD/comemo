@@ -1,19 +1,31 @@
-commit 18019dffd215ef3741f19657472c5234e3897b35
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Mar 6 00:08:03 2014 +1100
+commit 9a7cd11bc8f1763710a18bd90e9db00f8281d69b
+Author: Patrick Mézard <patrick@mezard.eu>
+Date:   Wed Mar 5 12:19:56 2014 +1100
 
-    net: disable "udp" to IPv6 unicast address loopback test on dragonfly
+    os: try openFile before openDir in windows os.OpenFile
     
-    Disable the "udp" to IPv6 unicast address on the loopback interface
-    test under DragonFly BSD. This currently returns a local address of
-    0.0.0.1, rather than an IPv6 address with zone identifier.
+    Logging calls when running "go install -a std" turns:
     
-    Update #7473
+      547  openDir succeeded
+      3593 openDir failed and fell back to openFile
+      3592 openFile succeeded
+      1    both failed
     
-    LGTM=mikioh.mikioh
-    R=golang-codereviews, mikioh.mikioh
+    into:
+    
+      3592 openFile succeeded
+      548  openFile failed and fell back
+      547  openDir succeeded
+      1    both failed
+    
+    Here the change trades 3593 failed openDir for 548 failed openFile.
+    
+    Fix issue 7426.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/71500044
+    https://golang.org/cl/70480044
 
- src/pkg/net/udp_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/os/file_windows.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

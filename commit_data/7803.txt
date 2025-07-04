@@ -1,19 +1,15 @@
-commit 42bc7fc8caf7c5e367cdfc7b8a2b952281ed89ae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 17 13:42:40 2011 -0700
+commit c0f3b6c8a8f3902683abca4637dc1af83182936f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 17 11:49:56 2011 -0700
 
-    net: Don't force epoll/kqueue to wake up in order to add new events.
+    go/scanner: to interpret line comments with Windows filenames
     
-    In conjunction with the non-blocking system call CL, this
-    gives about an 8% performance improvement on a client/server
-    test running on my local machine.
+    Fixes #1614.
     
-    R=rsc, iant2
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4272057
+    https://golang.org/cl/4290054
 
- src/pkg/net/fd.go         | 62 +++++++++++++++++++++++------------------------
- src/pkg/net/fd_darwin.go  |  6 ++++-
- src/pkg/net/fd_freebsd.go |  6 ++++-
- src/pkg/net/fd_linux.go   | 14 ++++++++++-
- 4 files changed, 53 insertions(+), 35 deletions(-)
+ src/pkg/go/scanner/scanner.go      |  2 +-
+ src/pkg/go/scanner/scanner_test.go | 15 +++++++++++++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)

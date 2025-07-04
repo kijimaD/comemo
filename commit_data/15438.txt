@@ -1,38 +1,13 @@
-commit a5e42f2611e0daae92a699091ce8c6525e9dc5e9
+commit 1caaff6b5a4e9c1d8d8ac19e89e1f740d919f3b6
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 25 22:06:58 2013 -0800
+Date:   Mon Feb 25 20:42:29 2013 -0800
 
-    go/types: fix sizeof computations
+    go/types: embedded fields can be predeclared types
     
-    Context.Alignof/Offsetsof/Sizeof now provide means
-    to customize the type checker for a given platform.
-    
-    - provide Context.Offsetsof to specify the
-      offsets of struct fields
-    - use the correct sizes for ints, uint, uintptrs
-      in constant computations
-    - moved all size computations into separate file
-      (sizes.go)
-    - fixed a bug with string constant slicing
-    
-    R=adonovan, axwalk
+    R=adonovan, r
     CC=golang-dev
-    https://golang.org/cl/7363054
+    https://golang.org/cl/7376055
 
- src/pkg/exp/ssa/importer.go            |   2 +-
- src/pkg/go/types/api.go                |  23 +++--
- src/pkg/go/types/builtins.go           | 103 ++-------------------
- src/pkg/go/types/check.go              |   4 +-
- src/pkg/go/types/const.go              |  70 ++++++--------
- src/pkg/go/types/conversions.go        |   6 +-
- src/pkg/go/types/expr.go               |  59 ++++--------
- src/pkg/go/types/gcimporter.go         |  14 ++-
- src/pkg/go/types/gcimporter_test.go    |   4 +-
- src/pkg/go/types/operand.go            |  50 +++++-----
- src/pkg/go/types/sizes.go              | 162 +++++++++++++++++++++++++++++++++
- src/pkg/go/types/stmt.go               |   4 +-
- src/pkg/go/types/testdata/builtins.src |  64 ++++++++++---
- src/pkg/go/types/testdata/decls1.src   |   4 +-
- src/pkg/go/types/testdata/expr3.src    |  10 ++
- src/pkg/go/types/types.go              |  10 +-
- 16 files changed, 339 insertions(+), 250 deletions(-)
+ src/pkg/go/types/operand.go          | 12 ++++++++++--
+ src/pkg/go/types/testdata/decls3.src | 22 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

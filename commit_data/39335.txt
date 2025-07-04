@@ -1,26 +1,29 @@
-commit b23ff2c8f98cb0c8d93397623243ce53b937ac72
+commit be9c534cdef07630606fde23344fc8a5d769a04e
 Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri May 31 10:46:00 2019 +0100
+Date:   Sun Dec 16 18:44:31 2018 +0100
 
-    cmd/go: recommend -d when -m is used
+    cmd/compile: don't crash on -d=ssa/
     
-    In #32038, it was decided to remove get's -m, since one former use case
-    is removed, and the other can be done via -d, as pointed by Russ.
+    I forgot how to pull up the ssa debug options help, so instead of
+    writing -d=ssa/help, I just wrote -d=ssa/. Much to my amusement, the
+    compiler just crashed, as shown below. Fix that.
     
-    However, a user getting this short error might not realise that they can
-    switch to -d to skip building packages. Add a short mention to point
-    them in the right direction.
+            panic: runtime error: index out of range
     
-    It's important to note "packages", because -m was a flag that acted on
-    modules, while -d acts on packages. Simply replacing -m with -d might
-    not be enough in some cases because of that distinction.
+            goroutine 1 [running]:
+            cmd/compile/internal/ssa.PhaseOption(0x7ffc375d2b70, 0x0, 0xdbff91, 0x5, 0x1, 0x0, 0x0, 0x1, 0x1)
+                /home/mvdan/tip/src/cmd/compile/internal/ssa/compile.go:327 +0x1876
+            cmd/compile/internal/gc.Main(0xde7bd8)
+                /home/mvdan/tip/src/cmd/compile/internal/gc/main.go:411 +0x41d0
+            main.main()
+                /home/mvdan/tip/src/cmd/compile/main.go:51 +0xab
     
-    Change-Id: I0947b25c4223bdad3cd0e535848527da8db8a16d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179361
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia2ad394382ddf8f4498b16b5cfb49be0317fc1aa
+    Reviewed-on: https://go-review.googlesource.com/c/154421
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modget/get.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go         | 3 ++-
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 4 ++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,25 +1,26 @@
-commit ba965640a45f5d94976c3ad6c92396cab539155a
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Mar 17 17:48:57 2019 +0100
+commit a9280fa2de5b9dc13f75dd3aebdf4a218fca451e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 11:31:31 2018 +0100
 
-    cmd/link/internal/ld: enable bitcode builds for iOS, tvOS, watchOS
+    runtime: don't wake timeproc needlessly
     
-    The Go toolchain cannot output bitcode, but there is a trick where
-    object code can be marked with an __asm section, persuading the
-    Apple toolchain to include our object code in bitcode builds.
+    It's not always necessary to wake timerproc even if we add
+    a new timer to the top of the heap. Since we don't wake and
+    reset timerproc when we remove timers, it still can be sleeping
+    with shorter timeout. It such case it's more profitable to let it
+    sleep and then update timeout when it wakes on its own rather than
+    proactively wake it, let it update timeout and go to sleep again.
     
-    This enables Go builds with bitcode enabled; the next CL adds
-    the necessary plumbing for building on tvOS and watchOS.
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  18.6µs ± 1%  17.2µs ± 0%   -7.66%  (p=0.008 n=5+5)
+    SetReadDeadline-6      562ns ± 5%   319ns ± 1%  -43.27%  (p=0.008 n=5+5)
     
-    Thanks to Aman Gupta for the trick.
+    Update #25729
     
-    Test is added two CLs from here.
-    
-    Fixes #22395 (at least until Apple tightens bitcode requirements.)
-    
-    Change-Id: Ic1c1448c4d46222bb3dd097b1f4df80848051e5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168320
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iec8eacb8563dbc574a82358b3bac7ac479c16826
+    Reviewed-on: https://go-review.googlesource.com/c/146337
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/net/tcpsock_test.go | 31 +++++++++++++++++++++++++++++++
+ src/runtime/time.go     | 10 +++++-----
+ 2 files changed, 36 insertions(+), 5 deletions(-)

@@ -1,32 +1,15 @@
-commit ff468a43be1740890a0f3b64a6ab920ea92c2c17
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Fri Jul 27 19:32:17 2018 +0300
+commit a8a050819bd4693ea7c6fdc1744038f172c2a439
+Author: Keith Randall <khr@google.com>
+Date:   Mon May 7 13:42:28 2018 -0700
 
-    cmd/compile/internal/gc: better handling of self-assignments in esc.go
+    cmd/compile: mention the AuxInt field for bounded shifts
     
-    Teach escape analysis to recognize these assignment patterns
-    as not causing the src to leak:
+    This comment needs updating after moving the "bounded" mark from
+    Aux to AuxInt.
     
-            val.x = val.y
-            val.x[i] = val.y[j]
-            val.x1.x2 = val.x1.y2
-            ... etc
-    
-    Helps to avoid "leaking param" with assignments showed above.
-    The implementation is based on somewhat similiar xs=xs[a:b]
-    special case that is ignored by the escape analysis.
-    
-    We may figure out more generalized version of this,
-    but this one looks like a safe step into that direction.
-    
-    Updates #14858
-    
-    Change-Id: I6fe5bfedec9c03bdc1d7624883324a523bd11fde
-    Reviewed-on: https://go-review.googlesource.com/126395
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I924fb22a81fffcd6944b93f0e3357c3aa2c4c49e
+    Reviewed-on: https://go-review.googlesource.com/111880
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 68 ++++++++++++++++++++++++++++++++++
- test/escape_param.go               | 75 +++++++++++++++++++++++++++++++++++---
- 2 files changed, 138 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

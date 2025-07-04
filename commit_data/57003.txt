@@ -1,31 +1,18 @@
-commit 5feca4554fb23b21871077ac0b1e5d5be254944f
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 22 15:09:57 2024 +0000
+commit b52950f6f76068df0e1facf83689c407f9339d67
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 20:47:05 2023 -0400
 
-    cmd: relocate cmd/go/internal/robustio to cmd/internal/robustio
+    cmd/go: fix Script/build_cwd_newline test
     
-    Relocate cmd/go's internal/robustio package up a level into
-    cmd/internal/robustio, so that it can be used by other cmd/internal
-    packages. No change in functionality. This change is intended to be in
-    support of making the cmd/go script test framework available to other
-    commands in addition to just the Go command.
+    This test is fundamentally about testing cgo.
+    Skip on nocgo builders.
+    Fixes CGO_ENABLED=0 go test -run=Script/newline
     
-    Updates #68606.
-    
-    Change-Id: Ic8421ef59d9b7d79a50c3679d180cfa2546c4cd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601356
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ic02349e0acd8cf67508c1bd788333f42b30e84fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501395
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/go_test.go                                  | 2 +-
- src/cmd/go/go_windows_test.go                          | 2 +-
- src/cmd/go/internal/modfetch/cache.go                  | 2 +-
- src/cmd/go/internal/modfetch/fetch.go                  | 2 +-
- src/cmd/go/internal/script/cmds.go                     | 2 +-
- src/cmd/go/internal/work/action.go                     | 8 ++++----
- src/cmd/{go => }/internal/robustio/robustio.go         | 0
- src/cmd/{go => }/internal/robustio/robustio_darwin.go  | 0
- src/cmd/{go => }/internal/robustio/robustio_flaky.go   | 0
- src/cmd/{go => }/internal/robustio/robustio_other.go   | 0
- src/cmd/{go => }/internal/robustio/robustio_windows.go | 0
- 11 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/build_cwd_newline.txt | 1 +
+ 1 file changed, 1 insertion(+)

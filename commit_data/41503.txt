@@ -1,22 +1,18 @@
-commit 719b1ba27822e01cbef0d418d26a321a25948313
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 27 07:36:39 2020 -0800
+commit 868de9a11179190f9830ece27de5a8eb63b2f3de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 1 12:34:06 2019 -0700
 
-    net: report port number correctly in Plan 9 error
+    go/types: remove objSet type in favor of explicit map type (cleanup)
     
-    The code was incorrectly using a string conversion of a numeric port
-    to display the port number.
+    Avoid confusion between (now gone) objSet and objset types.
+    Also: rename visited -> seen in initorder.go.
     
-    No test because as far as I can tell this code is only executed if
-    there is some error in a /net file.
+    No functional changes.
     
-    Updates #32479
-    
-    Change-Id: I0b8deebbf3c0b7cb1e1eee0fd059505f3f4c1623
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221377
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib0aa25e006eee55a79a739194d0d26190354a9f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198044
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/ipsock_plan9.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/initorder.go | 12 ++++++------
+ src/go/types/resolver.go  |  7 ++-----
+ 2 files changed, 8 insertions(+), 11 deletions(-)

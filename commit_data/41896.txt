@@ -1,14 +1,18 @@
-commit a3ef804891ab8185f604d4ae1a2fbb2449e61b2c
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Apr 5 22:21:11 2020 +0800
+commit d5caea771e917e13c4d05a6d7c5a009bf719d299
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 29 13:45:40 2019 +0700
 
-    cmd/internal/obj/ppc64: leverage AND operation to calculate remainder
+    bufio: save error from underlying ReadFrom
     
-    Change-Id: I03e2a573eb778591071db4f783585a5d71a14c03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227005
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Updates #35194
+    
+    Change-Id: Ib854bc6250ddeb606d6ff6240179e23b98e4ac62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203999
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/internal/obj/ppc64/asm9.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/bufio/bufio.go      |  4 +++-
+ src/bufio/bufio_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,20 +1,20 @@
-commit 450472989b318b7242d2c3d0db4c09d84727c065
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 9 17:08:27 2017 -0500
+commit 6c242c52d355772f66466505dd7555d4601f1c5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 16:58:00 2016 -0400
 
-    cmd/compile: disallow combining nosplit and systemstack
+    net/rpc: fix method requirement docs
     
-    go:systemstack works by tweaking the stack check prologue to check
-    against a different bound, while go:nosplit removes the stack check
-    prologue entirely. Hence, they can't be used together. Make the build
-    fail if they are.
+    The receiver itself is not transmitted and does not need to be
+    marshalable by encoding/gob.
     
-    Change-Id: I2d180c4b1d31ff49ec193291ecdd42921d253359
-    Reviewed-on: https://go-review.googlesource.com/36710
-    Run-TryBot: Austin Clements <austin@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16803.
+    
+    Change-Id: I42a3603fb7d3b36c97dcc2e51a398cd65ec3227d
+    Reviewed-on: https://go-review.googlesource.com/32094
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/rpc/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

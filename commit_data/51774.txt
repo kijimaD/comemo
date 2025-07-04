@@ -1,23 +1,36 @@
-commit 6d4101ea68477bf1d762f7466523de0b95bec0ca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 20 12:00:36 2022 -0800
+commit baf61e4a67789e20f019507287a324cca06bed42
+Author: eh-steve <eh.steve.99@gmail.com>
+Date:   Fri Mar 11 21:14:27 2022 +0000
 
-    cmd/compile/internal/pkginit: remove dependency on typecheck.Resolve
+    encoding/hex: implement Decode with a lookup table
     
-    The use of typecheck.Resolve was previously necessary to interoperate
-    with the non-unified frontend, because it hooked into iimport. It's no
-    longer necessary with unified IR, where we can just lookup the
-    ".inittask" symbol and access Def directly.
+    Implement hex decode using a 256 byte lookup table instead of branching logic.
     
-    Updates #57410.
+    In happy flow, uses 3x 64 byte (or 5x 32 byte) cache lines.
     
-    Change-Id: I73bdfd53f65988ececd2b777743cd8b591a6db48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458616
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+            name             old time/op    new time/op    delta
+            Decode/256-64       223ns ± 3%     135ns ± 2%  -39.64%  (p=0.000 n=8+8)
+            Decode/1024-64      872ns ± 2%     512ns ± 2%  -41.25%  (p=0.000 n=8+8)
+            Decode/4096-64     3.43µs ± 1%    2.01µs ± 2%  -41.31%  (p=0.001 n=7+7)
+            Decode/16384-64    13.9µs ± 1%     8.0µs ± 1%  -42.69%  (p=0.000 n=8+7)
+    
+            name             old speed      new speed      delta
+            Decode/256-64    1.15GB/s ± 3%  1.90GB/s ± 2%  +65.66%  (p=0.000 n=8+8)
+            Decode/1024-64   1.17GB/s ± 2%  2.00GB/s ± 2%  +70.22%  (p=0.000 n=8+8)
+            Decode/4096-64   1.20GB/s ± 1%  2.04GB/s ± 2%  +70.39%  (p=0.001 n=7+7)
+            Decode/16384-64  1.18GB/s ± 1%  2.06GB/s ± 1%  +74.49%  (p=0.000 n=8+7)
+    
+    Also reduces amd64 object size by 766 bytes, despite the extra RODATA due to removal of `fromHexChar()` and duplicated inlined versions of it and simplification of `Decode()`.
+    
+    Change-Id: I0988c7a30562ec154eff11db6e27954e0ce2b611
+    GitHub-Last-Rev: 64818018afc83ab07ec128a46aaea6a16f11400e
+    GitHub-Pull-Request: golang/go#51432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390037
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/pkginit/init.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/encoding/hex/hex.go | 55 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 32 insertions(+), 23 deletions(-)

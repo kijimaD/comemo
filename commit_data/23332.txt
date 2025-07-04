@@ -1,34 +1,13 @@
-commit 57f4b43078e5f24a08088fb5ef91bc9f0e432015
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jun 5 14:23:54 2015 -0700
+commit aebd123e8c98ce58beb8d59eaf4dd6990aafb5c6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 15:55:22 2015 +0900
 
-    fmt: require newlines to match when scanning with a format
+    doc: mention returned error types and values on the net package in go1.5.txt
     
-    The documentation says that newlines behave like this:
-    
-    Scan etc.: newlines are spaces.
-    Scanln etc.: newlines terminate the scan.
-    Scanf etc.: newlines must match in input and format.
-    
-    The code did not implement this behavior in all cases,
-    especially for Scanf. Make it behave:
-    
-    - Fix the handling of spaces and newlines in ss.Advance.
-    The code is longer but now behaves as it should.
-    
-    - Delete the reuse of the current ss in newScanState.
-    There is really no need, since it's only used in recursive
-    calls to Scan etc., and the flags are likely wrong. Simpler
-    just to allocate a new one every time, and likelier to
-    be correct.
-    
-    Fixes #10862.
-    
-    Change-Id: If060ac021017346723b0d62de4e5a305da898f68
-    Reviewed-on: https://go-review.googlesource.com/10991
+    Change-Id: I70dfc2bad13c513c376c7c41058774b40af73dce
+    Reviewed-on: https://go-review.googlesource.com/9775
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/fmt/doc.go       | 30 +++++++++++--------
- src/fmt/scan.go      | 74 ++++++++++++++++++++++++++++-------------------
- src/fmt/scan_test.go | 82 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 144 insertions(+), 42 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

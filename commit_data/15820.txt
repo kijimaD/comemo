@@ -1,15 +1,19 @@
-commit 3a2fe62f44a8a8513a087f75798425db7f9cc7bd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 18 15:33:04 2013 -0700
+commit 2667dcd113545593f785ca928d91161444248101
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Mar 18 22:22:35 2013 +0100
 
-    database/sql: add DB.SetMaxIdleConns
+    cmd/gc: steal escape analysis info when inlining
     
-    Update #4805
+    Usually, there is no esc info when inlining, but there will be when generating inlined wrapper functions.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/7634045
+    If we don't use this information, we get invalid addresses on the stack.
+    
+    Fixes #5056.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/7850045
 
- src/pkg/database/sql/sql.go      | 47 +++++++++++++++++++++++++++++++++++-----
- src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 6 deletions(-)
+ src/cmd/gc/inl.c            |  6 ++++++
+ test/fixedbugs/issue5056.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

@@ -1,18 +1,18 @@
-commit 23573d0ea225d4b93ccd2b946b1de121c3a6cee5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Sep 21 12:00:24 2020 +0700
+commit 588ee7987d7f6be605166872ff8c478aa125bc58
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 4 11:14:53 2020 -0500
 
-    cmd/compile: clearer error when non-bool used as "||" and "&&" operand
+    runtime: don't save/restore FP registers in softfloat mode on MIPS(64)
     
-    Fixes #41500
+    Fixes #37653.
     
-    Change-Id: I658d8921b7769b6e4288ca781cbdca5ff14a84ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255899
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6188e44b4bc4aba7b56f29d9ce9de4618c70fd7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222057
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++++++
- test/fixedbugs/issue41500.go             | 20 ++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/runtime/mkpreempt.go      | 24 +++++++++++++++++-------
+ src/runtime/preempt_mips64x.s |  4 ++++
+ src/runtime/preempt_mipsx.s   |  4 ++++
+ 3 files changed, 25 insertions(+), 7 deletions(-)

@@ -1,18 +1,18 @@
-commit 5ed44e9d4d06091a9e53128534ce389eb9754e80
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 27 19:32:00 2015 -0700
+commit 0c8fe3463fe5dc49361d7fdcaa2a4d23a38c3151
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 6 15:58:26 2015 -0700
 
-    net/http: test and document suppressing implicit Content-Type response header
+    encoding/gob: more cleanups handling slice length
     
-    No code changes.
+    Fix the other places the slice length was being believed, and refactor
+    the code to use a single function to unify the check.
     
-    Fixes #8992
+    Fixes #10273.
     
-    Change-Id: I10c8340a4f8e3e7add9b3ac5aa0a1e8d8aa49f40
-    Reviewed-on: https://go-review.googlesource.com/9412
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia62b25203fbe87c95d71a70ebc1db8d202eaa4a4
+    Reviewed-on: https://go-review.googlesource.com/8511
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 14 +++++++++-----
- src/net/http/server.go     |  1 +
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/encoding/gob/decode.go       | 44 ++++++++++++++++++++++------------------
+ src/encoding/gob/encoder_test.go | 14 +++++++++++++
+ 2 files changed, 38 insertions(+), 20 deletions(-)

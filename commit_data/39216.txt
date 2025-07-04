@@ -1,35 +1,12 @@
-commit 02fe6ba95867b3858d62958ce487a47798bef1b5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 21 08:24:27 2019 -0400
+commit c53aecaaeaf8992bf8cafa7c8729228d7e4d2fee
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 22 13:44:32 2019 -0800
 
-    all: remove PEM-encoded private keys from tests
+    doc: describe change to eliminate method expression wrappers from stack traces
     
-    Gerrit is complaining about pushes that affect these files
-    and forcing people to use -o nokeycheck, which defeats
-    the point of the check. Hide the keys from this kind of scan
-    by marking them explicitly as testing keys.
-    
-    This is a little annoying but better than training everyone
-    who ever edits one of these test files to reflexively override
-    the Gerrit check.
-    
-    The only remaining keys explicitly marked as private instead
-    of testing are in examples, and there's not much to do
-    about those. Hopefully they are not edited as much.
-    
-    Change-Id: I4431592b5266cb39fe6a80b40e742d97da803a0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178178
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I824b42a1c1fdcee8712681ffc6316470761be065
+    Reviewed-on: https://go-review.googlesource.com/c/159858
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rsa/pkcs1v15_test.go         |  6 ++---
- src/crypto/tls/handshake_server_test.go | 22 ++++++++---------
- src/crypto/tls/tls_test.go              | 22 +++++++++--------
- src/crypto/x509/pem_decrypt_test.go     | 44 +++++++++++++++++----------------
- src/crypto/x509/x509_test.go            | 12 ++++-----
- src/crypto/x509/x509_test_import.go     |  9 ++++---
- src/encoding/pem/pem_test.go            | 36 ++++++++++++++-------------
- src/net/http/internal/testcert.go       |  8 ++++--
- src/net/smtp/smtp_test.go               |  8 +++---
- 9 files changed, 91 insertions(+), 76 deletions(-)
+ doc/go1.12.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

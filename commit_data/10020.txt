@@ -1,19 +1,12 @@
-commit c9bf048337c1a68d467195b3b747073f76e5f063
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Tue Oct 18 15:31:55 2011 +1100
+commit 82704f04ef0a8d6dcc437c9e4a9740abbb813485
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 18 14:10:41 2011 +1100
 
-    ld: bump pe linker version to 3.0 to allow code signing
+    tag release.r58.2
     
-    The Windows signtool.exe thinks our binaries are 'invalid
-    Win32 programs' unless the PE linker version field is 3.0
-    or greater.
-    
-    This minor change makes it possible to successfully sign
-    gc-built binaries on Windows.
-    
-    R=golang-dev, alex.brainman, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5268045
+    https://golang.org/cl/5299041
 
- src/cmd/ld/pe.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

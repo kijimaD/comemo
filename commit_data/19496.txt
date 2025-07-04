@@ -1,16 +1,15 @@
-commit 68bbf9d4642e7df8523a06b0cff37b64ea5fba57
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 3 15:40:12 2014 -0700
+commit 19fe9a2c722ee7612e86b46b7bf8e6b409295ecc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 3 18:11:17 2014 +1000
 
-    compress/gzip: allow Reset on Reader without NewReader
+    crypto/tls: fix typo referencing the required Config field
     
-    Fixes #8126.
+    Thanks to Frithjof Schulze for noticing.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/103020044
+    LGTM=adg
+    R=adg
+    CC=agl, golang-codereviews, r
+    https://golang.org/cl/107740043
 
- src/pkg/compress/gzip/gunzip.go      |  6 +++++-
- src/pkg/compress/gzip/gunzip_test.go | 14 ++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/crypto/tls/tls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

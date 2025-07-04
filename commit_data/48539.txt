@@ -1,15 +1,32 @@
-commit 737837c9d45946e6a43f4de5fe3309b9e06ba83f
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Oct 28 15:39:11 2021 +0800
+commit 0ece95a0feafe151cadf1346464952bb5c95fab3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon May 24 16:47:45 2021 -0400
 
-    regexp: use input.step() to advance one rune in Regexp.allMatches()
+    cmd/go: don't let 'go mod download' save sums for inconsistent requirements
     
-    Change-Id: I32944f4ed519419e168e62f9ed6df63961839259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359197
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    'go mod download' calls modload.LoadModFile early to find the main
+    module path in order to validate arguments. LoadModFile may write
+    go.mod and go.sum to fix formatting and add a go directive. This calls
+    keepSums, which, in eager mode, loaded the complete module graph in
+    order to find out what sums are needed to load the complete module
+    graph. If go.mod requires a lower version of a module than will be
+    selected later, keepSums causes the sum for that version's go.mod to
+    be retained, even though it isn't needed later after a consistent
+    go.mod is written.
+    
+    This CL fixes keepSums not to load the graph if it hasn't already been
+    loaded (whether eager or lazy), addressing comments from CL 318629.
+    
+    For #45332
+    
+    Change-Id: I20d4404004e4ad335450fd0fd753e7bc0060f702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322369
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/regexp/regexp.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modcmd/download.go      | 16 ++++++++--------
+ src/cmd/go/internal/modload/init.go         | 11 +++++------
+ src/cmd/go/testdata/script/mod_download.txt |  1 -
+ 3 files changed, 13 insertions(+), 15 deletions(-)

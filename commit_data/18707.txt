@@ -1,13 +1,14 @@
-commit 92d5483391c0ac381d2c997deddcef250e596fd7
+commit 77edde1a1ead9945a91c17c783cb09908077aeb3
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 3 13:22:13 2014 +1100
+Date:   Mon Mar 3 11:26:18 2014 +1100
 
-    tag go1.2.1
+    doc: document Go 1.2.1
     
-    LGTM=r
-    R=minux.ma, r
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/70660043
+    https://golang.org/cl/69970047
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 6 ++++++
+ doc/install.html       | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

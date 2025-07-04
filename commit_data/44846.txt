@@ -1,23 +1,21 @@
-commit 1e8fff0f7b4577dcb7192928e2db4af7a11e9c0e
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 24 10:32:13 2021 -0400
+commit 1e6ad65b43ee392676a69f769b1942edd8af0e86
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Sep 4 14:35:57 2020 -0400
 
-    cmd/compile: assert that function values reference ABIInternal
+    cmd/link: enable DWARF combining on macOS ARM64
     
-    Function values must always point to the ABIInternal entry point of a
-    function. It wasn't entirely obvious to me we were getting this right,
-    so this CL adds checks for this.
+    It appears the machoCalcStart function is meant to align the
+    segment, but it doesn't. Replace it with an actual alignment
+    calculation. Also, use the alignment from the configuration,
+    instead of hardcode.
     
-    Updates #40724.
+    With this fix we could enable DWARF combining on macOS ARM64.
     
-    Change-Id: Idd854e996d63d9151c28ec5c9251b690453b1024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305272
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I19ec771b77d752b83a54c53b6ee65af78a31b8ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253558
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go      | 5 +++++
- src/cmd/compile/internal/staticdata/data.go | 8 +++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/arm64/obj.go              |  2 +-
+ src/cmd/link/internal/ld/lib.go                 |  4 ++--
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 17 ++---------------
+ 3 files changed, 5 insertions(+), 18 deletions(-)

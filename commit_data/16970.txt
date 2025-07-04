@@ -1,34 +1,16 @@
-commit 2961d229de95e8d62e673080a616396fe4da9a3f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 31 22:25:47 2013 -0700
+commit f4f2cf16b0d7dd2f1841122c15e9e0388470fca7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 00:23:30 2013 -0400
 
-    spec: clarify index and selector expressions
+    runtime: mark arm _lsvh nosplit (may fix arm build)
     
-    (Replacement for CL 11884043.)
+    Mark the 386 one too for consistency,
+    although most of that code is no longer used.
     
-    1) Explain a[i] and a[i:j] where a is of type *A as
-       shortcut for (*a)[i] and (*a)[i:j], respectively.
-    
-    2) Together with 1), because len() of nil slices is
-       well defined, there's no need to special case nil
-       operands anymore.
-    
-    3) The result of indexing or slicing a constant string
-       is always a non-constant byte or string value.
-    
-    4) The result of slicing an untyped string is a value
-       of type string.
-    
-    5) If the operand of a valid slice a[i:j] is nil (i, j
-       must be 0 for it to be valid - this already follows
-       from the in-range rules), the result is a nil slice.
-    
-    Fixes #4913.
-    Fixes #5951.
-    
-    R=r, rsc, iant, ken
+    TBR=dvyukov
     CC=golang-dev
-    https://golang.org/cl/12198043
+    https://golang.org/cl/12227043
 
- doc/go_spec.html | 68 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 40 insertions(+), 28 deletions(-)
+ src/pkg/runtime/vlrt_386.c | 1 +
+ src/pkg/runtime/vlrt_arm.c | 1 +
+ 2 files changed, 2 insertions(+)

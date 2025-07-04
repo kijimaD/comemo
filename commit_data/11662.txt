@@ -1,14 +1,13 @@
-commit 32f011e46b8bf188db0d485cfd38d4e7cf19eb75
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 6 18:04:12 2012 -0500
+commit fc06cadd8865f4b6db068cbcd45b2a04e559c422
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 06:59:36 2012 +1100
 
-    syscall: add Timeval.Nano, Timespec.Nano, for conversion to Duration
+    go_spec: primality is elusive
+    This time for sure.
     
-    Fixes #2534.
-    
-    R=golang-dev, dsymonds, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5635051
+    https://golang.org/cl/5634046
 
- src/pkg/syscall/syscall.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

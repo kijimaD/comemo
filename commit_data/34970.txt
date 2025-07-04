@@ -1,26 +1,14 @@
-commit 1d8fc211f99ea813e3c6517c12d7758691bf0529
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Apr 12 17:06:33 2018 -0400
+commit 08176b28a3330c9f5c7b310dd400ffe3898ca739
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 1 14:02:53 2017 +0100
 
-    cmd/trace: change span id computation for trace view use
+    os: drop unused return value in TestLookupEnv
     
-    golang.org/cl/102697 attempted to fix the span presentation by utilizing
-    the position of the span in the span slices of a task. But it is
-    not complete either.
-    
-    First, id=0 is omitted in json encoding and the trace viewer silently
-    drops entries with the missing id field, so we must avoid zero-value id.
-    Second, it is possible that a goroutine handles multiple tasks. Then,
-    id collisions will happen.
-    
-    This takes a simpler approach - have a counter that increments for every
-    emitSpan call, and use the value as the id value.
-    
-    Change-Id: Idaa9505634acf6d327c6f00af32d8260955b85e1
-    Reviewed-on: https://go-review.googlesource.com/106755
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ibf227dcfefa179b1c3378476bcd17100b1b1c01e
+    Reviewed-on: https://go-review.googlesource.com/81375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/trace.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/os/env_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

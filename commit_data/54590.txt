@@ -1,21 +1,23 @@
-commit 595deec3dda8e81d514389efdbb4ee2bc38dcabe
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Sep 29 19:16:38 2023 +0000
+commit a5b4283dfd90687d4263b38001e06bd3acf8b752
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 15:52:07 2022 -0400
 
-    runtime: don't eagerly collapse hugepages
+    README: update from CC-BY-3.0 to CC-BY-4.0
     
-    This has caused performance issues in production environments.
+    CC-BY-3.0 was shiny and new back in 2009, but CC-BY-4.0 is
+    generally preferred now. Update our CC-BY uses to CC-BY-4.0.
     
-    Disable it until further notice.
+    Google lawyers signed off on the overall CC-BY-4.0 update
+    and Renee French signed off on the update of the gopher license.
     
-    Fixes #63334.
-    Related to #61718 and #59960.
+    See also CL 447156.
     
-    Change-Id: If84c5a8685825d43c912a71418f2597e44e867e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531816
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3908910d6011ed733271e595f761c773351b30f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/mgcscavenge.go | 20 +++++---------------
- 1 file changed, 5 insertions(+), 15 deletions(-)
+ README.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

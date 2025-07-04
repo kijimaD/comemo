@@ -1,16 +1,14 @@
-commit acce4558a0168e625e9c70f20018dad6225adc0e
-Author: Andy Pan <i@andypan.me>
-Date:   Thu Aug 29 12:58:35 2024 +0800
+commit e4fdb437f659a47b3bc124a480eff7f40c0e34f8
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 26 11:01:29 2023 -0700
 
-    os: update the linux minimal version and fix a typo for zero-copy
+    cmd/compile: update README for unified IR
     
-    Change-Id: Ia6a2768be0e044112831c278d88ff31ba3caa9f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609298
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie84e88db4b84f04f2c6f7750a2a413ecad6d817a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513436
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@google.com>
 
- src/os/zero_copy_freebsd.go | 2 +-
- src/os/zero_copy_linux.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/README.md | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

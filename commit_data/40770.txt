@@ -1,22 +1,12 @@
-commit 1fe33e3cb20295b5120f82b02b0a9ab4ad303cc0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 12 09:48:38 2019 -0800
+commit 0d4de70c1c2522bb965cb683070b316d77909649
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 15:00:01 2019 -0400
 
-    math/big: ensure correct test input
+    misc/cgo/errors: align code snippets in ptr_test.go
     
-    There is a (theoretical, but possible) chance that the
-    random number values a, b used for TestDiv are 0 or 1,
-    in which case the test would fail.
-    
-    This CL makes sure that a >= 1 and b >= 2 at all times.
-    
-    Fixes #35523.
-    
-    Change-Id: I6451feb94241249516a821cd0066e95a0c65b0ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206818
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic3e2819617375df653116d21d7361a46085250d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183986
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/nat_test.go | 24 ++++++++++++++++++++----
- 1 file changed, 20 insertions(+), 4 deletions(-)
+ misc/cgo/errors/ptr_test.go | 70 ++++++++++++++++++++++-----------------------
+ 1 file changed, 35 insertions(+), 35 deletions(-)

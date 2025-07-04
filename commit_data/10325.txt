@@ -1,12 +1,12 @@
-commit 6c10aa19b88d3a3c602c725821f73b02d0cd2d58
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Wed Nov 9 13:50:13 2011 -0800
+commit f6615f1b5d7e2e3e621c32fa9f99521f1c3a5f2b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 9 13:19:23 2011 -0800
 
-    os/exec: Fix documentation references to os.DevNull
+    FAQ: rearrange and expand the discussion of testing
     
-    R=golang-dev, bradfitz, r
+    R=gri, r, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5372049
+    https://golang.org/cl/5369052
 
- src/pkg/os/exec/exec.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go_faq.html | 59 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 39 insertions(+), 20 deletions(-)

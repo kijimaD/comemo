@@ -1,28 +1,17 @@
-commit 67a03fd6a2c6d13154d7f27c464023422b83c05d
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 3 09:09:56 2015 -0500
+commit e5ef657264ef9b7c0bcd9b5c437fea2d602a2030
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 11:47:04 2014 -0500
 
-    runtime: use 2*regSize for saved frame pointer check
+    cmd/gc: add write barrier in copy of function parameters to heap
     
-    Previously, we checked for a saved frame pointer by looking for a
-    2*ptrSize gap between the argument pointer and the locals pointer.
-    The intent of this check was to look for a two stack slot gap (caller
-    IP and saved frame pointer), but stack slots are regSize, not ptrSize.
+    Found with GODEBUG=wbshadow=2 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
     
-    Correct this by checking instead for a 2*regSize gap.
-    
-    On most platforms, this made no difference because ptrSize==regSize.
-    However, on amd64p32 (nacl), the saved frame pointer check incorrectly
-    fired when there was no saved frame pointer because the one stack slot
-    for the caller IP left an 8 byte gap, which is 2*ptrSize (but not
-    2*regSize) on amd64p32.
-    
-    Fixes #9760.
-    
-    Change-Id: I6eedcf681fe5bf2bf924dde8a8f2d9860a4d758e
-    Reviewed-on: https://go-review.googlesource.com/3781
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1320d5340a9e421c779f24f3b170e33974e56e4f
+    Reviewed-on: https://go-review.googlesource.com/2278
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/stack1.go    | 3 ++-
- src/runtime/traceback.go | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/gc/typecheck.c |  1 +
+ src/cmd/gc/walk.c      | 12 +++++++++---
+ 2 files changed, 10 insertions(+), 3 deletions(-)

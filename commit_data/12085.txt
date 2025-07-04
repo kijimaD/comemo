@@ -1,14 +1,25 @@
-commit 6ba77ecb6ac2c3dcfee089c6c3e65c6fdc5f69ae
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 21 08:03:03 2012 +1100
+commit 8998835543c0055b66c034fbca53d7c294f3956e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 20 13:41:44 2012 -0500
 
-    doc/go1: delete obsolete reference to FileStat
-    Fixes #3013.
+    5g, 6g, 8g: flush modified globals aggressively
     
-    R=golang-dev, bradfitz
+    The alternative is to record enough information that the
+    trap handler know which registers contain cached globals
+    and can flush the registers back to their original locations.
+    That's significantly more work.
+    
+    This only affects globals that have been written to.
+    Code that reads from a global should continue to registerize
+    as well as before.
+    
+    Fixes #1304.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5683049
+    https://golang.org/cl/5687046
 
- doc/go1.html | 4 ++--
- doc/go1.tmpl | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/5g/reg.c | 7 +++++++
+ src/cmd/6g/reg.c | 7 +++++++
+ src/cmd/8g/reg.c | 7 +++++++
+ 3 files changed, 21 insertions(+)

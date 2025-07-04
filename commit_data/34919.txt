@@ -1,32 +1,15 @@
-commit 95e6a9fc50bbd2cb5dc643ce93dfef582a2fd07a
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Apr 4 14:24:02 2018 -0400
+commit 992ce90f662467f04dd93b3bb565bb0414f82999
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 28 16:05:59 2017 +1100
 
-    cmd/trace: pprof computation for span types
+    doc/faq: explain why goroutines are anonymous
     
-    /spanio, /spanblock, /spansched, /spansyscall provide
-    the pprof-style summary of span execution's
-    io, block, scheduling, syscall latency distributions
-    respectively.
+    Fixes #22770.
     
-    The computation logic for /io, /block, /sched, /syscall
-    analysis was refactored and extended for reuse in these
-    new types of analysis. Upon the analysis query, we create
-    a map of goroutine id to time intervals based on the query
-    parameter, that represents the interesting time intervals
-    of matching goroutines. Only the events from the matching
-    goroutines that fall into the intervals are considered
-    in the pprof computation.
-    
-    The new endpoints are not yet hooked into other span
-    analysis page (e.g. /userspan) yet.
-    
-    Change-Id: I80c3396e45a2d6631758710de67d132e5832c7ce
-    Reviewed-on: https://go-review.googlesource.com/105822
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ief62043fb6895e215d2530d2a3bf88f7ea58c875
+    Reviewed-on: https://go-review.googlesource.com/80195
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/trace/main.go  |  12 +--
- src/cmd/trace/pprof.go | 242 ++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 166 insertions(+), 88 deletions(-)
+ doc/go_faq.html | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

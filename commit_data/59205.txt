@@ -1,34 +1,16 @@
-commit 75bf2a8c493291481af72a07a818c432085919ca
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Apr 1 10:19:36 2025 +0200
+commit 4760b33326392c459bb5825938d57ce55d40224a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 20 17:10:16 2024 +0100
 
-    internal/poll: defer IOCP association until first IO operation
+    time: use bytealg.IndexByte in byteString
     
-    Defer the association of the IOCP to the handle until the first
-    I/O operation is performed.
-    
-    A handle can only be associated with one IOCP at a time, so this allows
-    external code to associate the handle with their own IOCP and still be
-    able to use a FD (through os.NewFile) to pass the handle around
-    (e.g. to a child process standard input, output, and error) without
-    having to worry about the IOCP association.
-    
-    This CL doesn't change any user-visible behavior, as os.NewFile still
-    initializes the FD as non-pollable.
-    
-    For #19098.
-    
-    Change-Id: Id22a49846d4fda3a66ffcc0bc1b48eb39b395dc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661955
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I0d42bca7c6ee63c05a0ca09c165f2f591edf7c34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565356
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/internal/poll/fd_plan9.go                    |   4 +
- src/internal/poll/fd_poll_runtime.go             |   2 +
- src/internal/poll/fd_unix.go                     |   4 +
- src/internal/poll/fd_windows.go                  | 117 ++++++++++++++---------
- src/internal/poll/fd_windows_test.go             |  46 +++++++--
- src/internal/syscall/windows/syscall_windows.go  |   1 +
- src/internal/syscall/windows/zsyscall_windows.go |  10 ++
- 7 files changed, 134 insertions(+), 50 deletions(-)
+ src/time/zoneinfo_read.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

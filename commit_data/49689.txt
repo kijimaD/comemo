@@ -1,24 +1,23 @@
-commit 1b7e71e8ae824c2ac661dd793bca29cf60378936
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 29 00:32:14 2022 -0400
+commit 1b2d794ca3ba60c2dbc958a271662784a7122739
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 20 09:57:04 2021 -0700
 
-    all: disable tests that fail on Alpine
+    reflect: allocate hiter as part of MapIter
     
-    These changes are enough to pass all.bash using the
-    disabled linux-amd64-alpine builder via debugnewvm.
+    This reduces the number of allocations per
+    reflect map iteration from two to one.
     
-    For #19938.
-    For #39857.
+    For #46293
     
-    Change-Id: I7d160612259c77764b70d429ad94f0864689cdce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419995
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ibcff5f42fc512e637b6e460bad4518e7ac83d4c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321889
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/test/issue1435.go             | 6 ++++++
- misc/cgo/test/pkg_test.go              | 4 ++++
- misc/cgo/testcarchive/carchive_test.go | 7 +++++++
- misc/cgo/testcshared/cshared_test.go   | 6 ++++++
- src/syscall/syscall_linux_test.go      | 3 +++
- 5 files changed, 26 insertions(+)
+ src/reflect/all_test.go |  7 ++---
+ src/reflect/value.go    | 73 +++++++++++++++++++++++++++++++++----------------
+ src/runtime/map.go      | 10 +++----
+ 3 files changed, 56 insertions(+), 34 deletions(-)

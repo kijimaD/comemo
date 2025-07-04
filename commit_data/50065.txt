@@ -1,24 +1,40 @@
-commit f9cdc09497af299ef6a4d4d745aa0df4ebfdce52
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sun Aug 21 02:21:49 2022 -0700
+commit ed57d7bb15992bf7ffbbe643401b03f0a418663c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 23 13:11:04 2021 -0700
 
-    time: fix Parse for empty seconds
+    debug/gosym: refactor handling of funcdata
     
-    The error return value of the seconds field is overwritten
-    and not checked in the presence of a fractional second.
-    Perform an explicit check for errors.
+    We do a bunch of manual offset calculations everywhere.
+    Add a bit of type safety and some helpers.
+    In addition to making the code clearer and providing a place
+    to hang some documentation, it also makes upcoming changes easier.
     
-    Fixes #54569
+    name                old time/op    new time/op    delta
+    115/NewLineTable-8    79.9ns ± 1%    90.2ns ±23%    ~     (p=0.234 n=9+10)
+    115/NewTable-8        72.0µs ± 1%    73.4µs ± 1%  +1.96%  (p=0.000 n=8+8)
+    115/LineToPC-8        53.3µs ± 1%    54.4µs ± 1%  +2.02%  (p=0.000 n=10+10)
+    115/PCToLine-8         249ns ± 0%     249ns ± 2%    ~     (p=0.147 n=9+10)
     
-    Change-Id: I1204c8bdcd5a5a09b773d9e44748141ed1e5cb20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425036
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Rob Pike <r@golang.org>
+    name                old alloc/op   new alloc/op   delta
+    115/NewLineTable-8      384B ± 0%      384B ± 0%    ~     (all equal)
+    115/NewTable-8         164kB ± 0%     164kB ± 0%    ~     (p=0.610 n=10+10)
+    115/LineToPC-8         0.00B          0.00B         ~     (all equal)
+    115/PCToLine-8         0.00B          0.00B         ~     (all equal)
+    
+    name                old allocs/op  new allocs/op  delta
+    115/NewLineTable-8      3.00 ± 0%      3.00 ± 0%    ~     (all equal)
+    115/NewTable-8         1.04k ± 0%     1.04k ± 0%    ~     (all equal)
+    115/LineToPC-8          0.00           0.00         ~     (all equal)
+    115/PCToLine-8          0.00           0.00         ~     (all equal)
+    
+    Change-Id: If357dce5ae4277e6ddc6d90ba6b5b83e470b9121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352951
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/time/format.go      | 3 +++
- src/time/format_test.go | 2 ++
- 2 files changed, 5 insertions(+)
+ src/debug/gosym/pclntab.go | 83 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 62 insertions(+), 21 deletions(-)

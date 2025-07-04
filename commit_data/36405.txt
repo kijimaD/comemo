@@ -1,33 +1,49 @@
-commit 75e7e05aee4c0588a11f79bb5c46290ca753bf20
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Jul 22 12:36:15 2018 +0100
+commit 1a64025f2b7aab2a7bf23bbe8d3a033a3105cb76
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 19 11:09:05 2018 -0400
 
-    encoding/json: inline fieldByIndex
+    cmd/go: disambiguate for-test packages in failure output
     
-    This function was only used in a single place - in the field encoding
-    loop within the struct encoder.
+    Now that we can tell when a package is a split-off copy
+    for testing, show that in the build failures.
+    For example, instead of:
     
-    Inlining the function call manually lets us get rid of the call
-    overhead. But most importantly, it lets us simplify the logic afterward.
-    We no longer need to use reflect.Value{} and !fv.IsValid(), as we can
-    skip the field immediately.
+            # regexp/syntax
+            ../../regexp/syntax/parse.go:9:2: can't find import: "strings"
+            # path/filepath
+            ../../path/filepath/match.go:12:2: can't find import: "strings"
+            # flag
+            ../../flag/flag.go:75:2: can't find import: "strings"
     
-    The two factors combined (mostly just the latter) give a moderate speed
-    improvement to this hot loop.
+    we now print
     
-    name           old time/op    new time/op    delta
-    CodeEncoder-4    6.01ms ± 1%    5.91ms ± 1%  -1.66%  (p=0.002 n=6+6)
+            # regexp/syntax [strings.test]
+            ../../regexp/syntax/parse.go:9:2: can't find import: "strings"
+            # path/filepath [strings.test]
+            ../../path/filepath/match.go:12:2: can't find import: "strings"
+            # flag [strings.test]
+            ../../flag/flag.go:75:2: can't find import: "strings"
     
-    name           old speed      new speed      delta
-    CodeEncoder-4   323MB/s ± 1%   328MB/s ± 1%  +1.69%  (p=0.002 n=6+6)
+    which gives more of a hint about what is wrong.
     
-    Updates #5683.
+    This is especially helpful if a package is being built multiple times,
+    since it explains why an error might appear multiple times:
     
-    Change-Id: I12757c325a68abb2856026cf719c122612a1f38e
-    Reviewed-on: https://go-review.googlesource.com/125417
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+            $ go test regexp encoding/json
+            # regexp
+            ../../regexp/exec.go:12:9: undefined: x
+            # regexp [regexp.test]
+            ../../regexp/exec.go:12:9: undefined: x
+            FAIL    regexp [build failed]
+            FAIL    encoding/json [build failed]
+            $
+    
+    Change-Id: Ie325796f6c3cf0e23f306066be8e65a30cb6b939
+    Reviewed-on: https://go-review.googlesource.com/108155
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/json/encode.go | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/load/pkg.go  | 8 ++++++++
+ src/cmd/go/internal/work/exec.go | 6 +++---
+ src/cmd/go/internal/work/gc.go   | 2 +-
+ 3 files changed, 12 insertions(+), 4 deletions(-)

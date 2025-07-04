@@ -1,18 +1,18 @@
-commit 57666c3fe842c8a210b55e22514834ec724f945d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 00:34:57 2016 -0400
+commit 1e94d79f9dbe032d9c8c0f461ca6fb96e20c0b85
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 16 05:57:38 2016 -0400
 
-    test: avoid matching file names in errcheck
+    cmd/compile: disable Duff's device on darwin/arm64
     
-    Fixes #17030.
+    Darwin linker does not support BR26 reloc with non-zero addend.
     
-    Change-Id: Ic7f237ac7553ae0176929056e64b01667ed59066
-    Reviewed-on: https://go-review.googlesource.com/31351
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #16724.
+    
+    Change-Id: I1b5b4dc7159141bde3e273490f435c08c583afaf
+    Reviewed-on: https://go-review.googlesource.com/27081
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- test/fixedbugs/bug332.go | 4 ++--
- test/method2.go          | 4 ++--
- test/run.go              | 8 +++++++-
- 3 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/config.go | 1 +
+ 1 file changed, 1 insertion(+)

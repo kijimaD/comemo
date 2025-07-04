@@ -1,36 +1,20 @@
-commit 0bee99ab3b17caca812aa78a51485aadf0bc1788
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 14 10:38:37 2013 +0400
+commit ffbcd89f629509eef4524a1c824c4cce507ed6f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 23:32:12 2013 -0400
 
-    runtime: integrated network poller for darwin
-    vs tip:
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkTCP4Persistent                 67786        33175  -51.06%
-    BenchmarkTCP4Persistent-2               49085        31227  -36.38%
-    BenchmarkTCP4PersistentTimeout          69265        32565  -52.98%
-    BenchmarkTCP4PersistentTimeout-2        49217        32588  -33.79%
+    cmd/go: allow ~ in middle of path, just not at beginning
     
-    vs old scheduler:
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkTCP4Persistent                 63517        33175  -47.77%
-    BenchmarkTCP4Persistent-2               54760        31227  -42.97%
-    BenchmarkTCP4PersistentTimeout          63234        32565  -48.50%
-    BenchmarkTCP4PersistentTimeout-2        56956        32588  -42.78%
+    An earlier CL disallowed ~ anywhere in GOPATH, to avoid
+    problems with GOPATH='~/home' instead of GOPATH=~/home.
+    But ~ is only special in the shell at the beginning of each of
+    the paths in the list, and some paths do have ~ in the middle.
+    So relax the requirement slightly.
     
-    R=golang-dev, bradfitz, devon.odell, mikioh.mikioh, iant, rsc
-    CC=golang-dev, pabuhr
-    https://golang.org/cl/7569043
+    Fixes #4140.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7799045
 
- src/pkg/net/fd_darwin.go            | 126 -------------
- src/pkg/net/fd_poll_runtime.go      | 119 +++++++++++++
- src/pkg/net/fd_poll_unix.go         |   2 +-
- src/pkg/runtime/defs_darwin.go      |  20 ++-
- src/pkg/runtime/defs_darwin_386.h   |  30 +++-
- src/pkg/runtime/defs_darwin_amd64.h |  30 +++-
- src/pkg/runtime/netpoll.goc         | 346 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/netpoll_kqueue.c    |  96 ++++++++++
- src/pkg/runtime/netpoll_stub.c      |   2 +
- src/pkg/runtime/runtime.h           |   4 +
- src/pkg/runtime/sys_darwin_386.s    |  29 +++
- src/pkg/runtime/sys_darwin_amd64.s  |  34 ++++
- 12 files changed, 705 insertions(+), 133 deletions(-)
+ src/cmd/go/main.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

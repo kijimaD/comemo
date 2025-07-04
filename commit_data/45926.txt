@@ -1,17 +1,18 @@
-commit a66190eceeea63aab0b5410ae3222454e5e0cd96
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Fri Jul 16 20:41:21 2021 +0000
+commit f0001e8867be0004a8bc13eaea8b59653a5d141e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 29 08:09:01 2020 -0500
 
-    test/bench/go1: fix size for RegexpMatchMedium_32
+    [dev.regabi] cmd/compile: add OTSLICE Op
     
-    Change-Id: Idc67abb95248bc010820a89dd6096a2da334e723
-    GitHub-Last-Rev: ae9014b011efb2692f853888c1860920d1acc3cb
-    GitHub-Pull-Request: golang/go#47254
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335189
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    This is not safe for toolstash -cmp and so is split into its own CL.
+    
+    Change-Id: Ic3254e68fb84a90a11ac5f0b59ef252135c23658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274101
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/bench/go1/regexp_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/node.go      |  1 +
+ src/cmd/compile/internal/ir/op_string.go | 39 ++++++++++++++++----------------
+ 2 files changed, 21 insertions(+), 19 deletions(-)

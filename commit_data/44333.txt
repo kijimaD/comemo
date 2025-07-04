@@ -1,18 +1,51 @@
-commit 094048b93845c08e0f2db8639764f9564e64835b
-Author: cui <cuiweixie@gmail.com>
-Date:   Thu Feb 18 17:51:24 2021 +0000
+commit 95848fc5c64cde2e0fc95348a861e3cab98feaa7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 8 18:38:59 2020 -0400
 
-    cmd/compile/internal: loop opt
+    [dev.link] cmd/compile, cmd/link: remove dead methods if type is not used in interface
     
-    Change-Id: I5fe767237b8046934e9b0f33bd3dafabdb727dd6
-    GitHub-Last-Rev: 94fea3d57279e8b2d62f7f6be4301698dc8841e3
-    GitHub-Pull-Request: golang/go#44384
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293809
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Currently, a method of a reachable type is live if it matches a
+    method of a reachable interface. In fact, we only need to retain
+    the method if the type is actually converted to an interface. If
+    the type is never converted to an interface, there is no way to
+    call the method through an interface method call (but the type
+    descriptor could still be used, e.g. in calling
+    runtime.newobject).
+    
+    A type can be used in an interface in two ways:
+    - directly converted to interface. (Any interface counts, as it
+      is possible to convert one interface to another.)
+    - obtained by reflection from a related type (e.g. obtaining an
+      interface of T from []T).
+    
+    For the former, we let the compiler emit a marker on the type
+    descriptor symbol when it is converted to an interface. In the
+    linker, we only need to check methods of marked types.
+    
+    For the latter, when the linker visits a marked type, it needs to
+    visit all its "child" types as marked (i.e. potentially could be
+    converted to interface).
+    
+    This reduces binary size:
+    cmd/compile     18792016        18706096 (-0.5%)
+    cmd/go          14120572        13398948 (-5.1%)
+    
+    Change-Id: I4465c7eeabf575f4dc84017214c610fa05ae31fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237298
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/types/size.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go               |  2 ++
+ src/cmd/compile/internal/gc/walk.go                | 11 ++++++++++
+ src/cmd/internal/goobj2/objfile.go                 | 20 +++++++++++++-----
+ src/cmd/internal/obj/link.go                       |  7 +++++++
+ src/cmd/internal/obj/objfile2.go                   |  5 +++++
+ src/cmd/link/internal/ld/deadcode.go               | 24 ++++++++++++++++++++--
+ src/cmd/link/internal/ld/deadcode_test.go          | 17 +++++++++------
+ .../internal/ld/testdata/deadcode/ifacemethod.go   | 23 +++++++++++++++++++++
+ .../internal/ld/testdata/deadcode/ifacemethod2.go  | 22 ++++++++++++++++++++
+ src/cmd/link/internal/loader/loader.go             | 24 +++++++++++++++++++++-
+ src/net/http/http_test.go                          |  2 +-
+ 11 files changed, 142 insertions(+), 15 deletions(-)

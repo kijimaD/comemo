@@ -1,15 +1,20 @@
-commit 567aefd99ddc66d596fffd442b6c014d83ac5eb9
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Sep 6 07:46:59 2016 -0400
+commit 2380a039c0457141e28f8f927139e1f9c38f8205
+Author: Cuihtlauac ALVARADO <cuihtlauac.alvarado@orange.com>
+Date:   Tue May 17 09:27:00 2016 +0200
 
-    cmd/link: address comments from CL 28540
+    runtime: in tests, make sure gdb does not start with a shell
     
-    Change-Id: I11899096c71ee0e24e902c87914601fcd7ffd7a9
-    Reviewed-on: https://go-review.googlesource.com/28967
+    On some systems, gdb is set to: "startup-with-shell on". This
+    breaks runtime_test. This just make sure gdb does not start by
+    spawning a shell.
+    
+    Fixes #15354
+    
+    Change-Id: Ia040931c61dea22f4fdd79665ab9f84835ecaa70
+    Reviewed-on: https://go-review.googlesource.com/23142
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/amd64/asm.go | 3 +++
- src/cmd/link/internal/ld/data.go   | 3 +++
- 2 files changed, 6 insertions(+)
+ src/runtime/runtime-gdb_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

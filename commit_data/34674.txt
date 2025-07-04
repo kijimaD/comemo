@@ -1,26 +1,22 @@
-commit 0b37f05d8dc17a52a9ac1fc827075cd36fe977bb
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Oct 13 14:46:06 2017 -0700
+commit 83a1a2ba63cd79ed65a97bead2c31ef0753f4cd2
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 6 15:33:31 2017 -0500
 
-    crypto/x509: follow OpenSSL and emit Extension structures directly in CSRs.
+    runtime/pprof: harden CPU profile test against smart backend
     
-    I don't know if I got lost in the old PKCS documents, or whether this is
-    a case where reality diverges from the spec, but OpenSSL clearly stuffs
-    PKIX Extension objects in CSR attributues directly[1].
+    A couple of the CPU profiling testpoints make calls to helper
+    functions (cpuHog1, for example) where the computed value is always
+    thrown away by the caller without being used. A smart compiler back
+    end (in this case LLVM) can detect this fact and delete the contents
+    of the called function, which can cause tests to fail. Harden the test
+    slighly by passing in a value read from a global and insuring that the
+    caller stores the value back to a global; this prevents any optimizer
+    mischief.
     
-    In either case, doing what OpenSSL does seems valid here and allows the
-    critical flag in extensions to be serialised.
-    
-    Fixes #13739.
-    
-    [1] https://github.com/openssl/openssl/blob/e3713c365c2657236439fea00822a43aa396d112/crypto/x509/x509_req.c#L173
-    
-    Change-Id: Ic1e73ba9bd383a357a2aa8fc4f6bd76811bbefcc
-    Reviewed-on: https://go-review.googlesource.com/70851
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icbd6e3e32ff299c68a6397dc1404a52b21eaeaab
+    Reviewed-on: https://go-review.googlesource.com/76230
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/crypto/x509/x509.go      | 107 +++++++++++++++++++++++++------------------
- src/crypto/x509/x509_test.go |   9 +++-
- 2 files changed, 70 insertions(+), 46 deletions(-)
+ src/runtime/pprof/pprof_test.go | 43 ++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 20 deletions(-)

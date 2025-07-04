@@ -1,14 +1,29 @@
-commit 94d937178039a8f8754dcba8e1d9d491cb7bebfc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 30 16:31:57 2017 -0700
+commit a1eec645e101b26d53e7cc06b70a27d70cfac98b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 25 16:38:39 2017 -0400
 
-    os: clarify that OpenFile reqires one of O_RDONLY/O_WRONLY/O_RDWR
+    cmd/trace: don't shift trace slices to 0
     
-    Fixes #21322.
+    Currently all trace slices get shifted to start at time 0. This makes
+    it very difficult to find specific points in time unless they fall in
+    the first slice.
     
-    Change-Id: Ia589c576be0b5cdb7cde5d35cd857ad7c93c372b
-    Reviewed-on: https://go-review.googlesource.com/74550
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For example, right now when you click "View trace
+    (6.005646218s-8.155419698s)" on the trace tool's main page, the trace
+    view puts the first event in that slice at time 0. If you're looking
+    for something that happened at time 7s, you have to look at time
+    0.9943537s in the trace view. And if you want to subtract times taken
+    from different slices, you have to figure out what those time really
+    correspond to.
+    
+    Fix this by telling the trace viewer not to shift the times when it
+    imports the trace. In the above example, this makes the view of that
+    second trace slice start at time 6.005646218s, so you don't have to do
+    any gymnastics to find or calculate times in later slices.
+    
+    Change-Id: I04e0afda60f5573fdd8ad96238c24013297ef263
+    Reviewed-on: https://go-review.googlesource.com/54633
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/os/file.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/trace/trace.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

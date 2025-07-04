@@ -1,15 +1,27 @@
-commit 822f349eb9586ff75dbf0fba7e8e939ad208a6fc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 30 14:39:52 2021 -0700
+commit 3d40895e36e5f16654fa6b75f7fdf59edb18d2e0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 01:29:02 2020 +1000
 
-    go/types: switch uses of NewSignature to NewSignatureType (cleanup)
+    runtime: switch openbsd/arm64 to pthreads
     
-    Change-Id: I05ed5806e2a35a57ef3e8c9275a157574abcb0ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353399
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This switches openbsd/arm64 to thread creation via pthreads, rather than doing
+    direct system calls.
+    
+    Update #36435
+    
+    Change-Id: I7cf60fa954f92628e05f15d2732833a2fbdccdb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250182
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/internal/gccgoimporter/parser.go | 4 ++--
- src/go/types/universe.go                | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/defs_openbsd_arm64.go |   9 ++
+ src/runtime/os_openbsd_libc.go    |   2 +-
+ src/runtime/os_openbsd_syscall.go |   1 +
+ src/runtime/proc.go               |   2 +-
+ src/runtime/sys_libc.go           |   2 +-
+ src/runtime/sys_openbsd.go        |   2 +-
+ src/runtime/sys_openbsd_arm64.s   | 281 ++++++++++++++++++++++++--------------
+ src/runtime/tls_arm64.s           |   4 +
+ 8 files changed, 195 insertions(+), 108 deletions(-)

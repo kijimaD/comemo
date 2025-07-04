@@ -1,16 +1,44 @@
-commit 9b773003fb3bf909bfc897787e4d1e54fdb80eca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 14 13:02:39 2022 -0500
+commit 862ddb37b4e24bcb89f060d50325c8f863ee99bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 28 11:42:34 2021 -0700
 
-    cmd/gofmt: limit to 200 concurrent file descriptors
+    runtime: rename walltime1 to walltime
     
-    Fixes #51164
-    
-    Change-Id: Ia62723df7dc2af5ace3f2430385fff6c0d35cdb9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385656
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Iec9de5ca56eb68d524bbaa0668515dbd09ad38a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314770
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/gofmt/gofmt.go | 128 +++++++++++++++++++++++++++++++------------------
- 1 file changed, 82 insertions(+), 46 deletions(-)
+ misc/wasm/wasm_exec.js             | 4 ++--
+ src/runtime/os3_solaris.go         | 2 +-
+ src/runtime/os_aix.go              | 2 +-
+ src/runtime/os_openbsd_syscall2.go | 2 +-
+ src/runtime/os_windows.go          | 3 ---
+ src/runtime/sys_darwin.go          | 2 +-
+ src/runtime/sys_dragonfly_amd64.s  | 4 ++--
+ src/runtime/sys_linux_386.s        | 4 ++--
+ src/runtime/sys_linux_amd64.s      | 4 ++--
+ src/runtime/sys_linux_arm.s        | 2 +-
+ src/runtime/sys_linux_arm64.s      | 4 ++--
+ src/runtime/sys_linux_mips64x.s    | 6 +++---
+ src/runtime/sys_linux_mipsx.s      | 4 ++--
+ src/runtime/sys_linux_ppc64x.s     | 4 ++--
+ src/runtime/sys_linux_riscv64.s    | 4 ++--
+ src/runtime/sys_linux_s390x.s      | 4 ++--
+ src/runtime/sys_netbsd_386.s       | 4 ++--
+ src/runtime/sys_netbsd_amd64.s     | 4 ++--
+ src/runtime/sys_netbsd_arm.s       | 4 ++--
+ src/runtime/sys_netbsd_arm64.s     | 4 ++--
+ src/runtime/sys_openbsd2.go        | 2 +-
+ src/runtime/sys_openbsd_386.s      | 4 ++--
+ src/runtime/sys_openbsd_arm.s      | 4 ++--
+ src/runtime/sys_openbsd_mips64.s   | 4 ++--
+ src/runtime/sys_plan9_386.s        | 4 ++--
+ src/runtime/sys_plan9_amd64.s      | 4 ++--
+ src/runtime/sys_plan9_arm.s        | 4 ++--
+ src/runtime/sys_wasm.s             | 2 +-
+ src/runtime/timestub.go            | 2 +-
+ src/runtime/timestub2.go           | 2 +-
+ src/runtime/vdso_freebsd.go        | 2 +-
+ 31 files changed, 51 insertions(+), 54 deletions(-)

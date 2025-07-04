@@ -1,23 +1,23 @@
-commit 1f325af4dd6c07f899da0a7c0512a7d470cebf9f
+commit 7673884a7fe831ab8b8cf43a3ae74e12c9a44fbf
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu May 14 12:16:10 2020 -0400
+Date:   Thu Dec 5 18:56:54 2019 -0500
 
-    cmd/link: fix SCONST symbol handling on darwin
+    cmd/compile: don't fuse branches with side effects
     
-    Don't include SCONST symbols in the symbol table when
-    NotInSymbolTable is set. This is what the old code (genasmsym)
-    does.
+    Count Values with side effects but no use as live, and don't fuse
+    branches that contain such Values. (This can happen e.g. when it
+    is followed by an infinite loop.) Otherwise this may lead to
+    miscompilation (side effect fired at wrong condition) or ICE (two
+    stores live simultaneously).
     
-    In fact, SCONST symbol is only emitted by the field tracking
-    code, and is always NotInSymbolTable. So we should just not
-    include them at all, or not generate SCONST symbols at all. But
-    at this late stage I'll just restore the old behavior.
+    Fixes #36005.
     
-    Change-Id: If6843003e16701d45b8c67b2297098a7babdec52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233997
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If202eae4b37cb7f0311d6ca120ffa46609925157
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210179
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/fuse.go      |  2 +-
+ src/cmd/compile/internal/ssa/fuse_test.go | 38 +++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/gen/main.go  |  1 +
+ src/cmd/compile/internal/ssa/opGen.go     |  1 +
+ 4 files changed, 39 insertions(+), 3 deletions(-)

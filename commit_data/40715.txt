@@ -1,19 +1,24 @@
-commit a0262b201f6d66142ae1e01723430a2471799404
-Author: David Chase <drchase@google.com>
-Date:   Fri Nov 8 17:11:48 2019 -0500
+commit ee63782fd6bde490b31db9fbb00677ac4094bdc4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 19 18:31:43 2019 -0400
 
-    cmd/compile: intrinsify functions added to runtime/internal/sys
+    crypto/tls: reject low-order Curve25519 points
     
-    This restores intrinsic status to functions copied from math/bits
-    into runtime/internal/sys, as an aid to runtime performance.
+    The RFC recommends checking the X25519 output to ensure it's not the
+    zero value, to guard against peers trying to remove contributory
+    behavior.
     
-    Updates #35112.
+    In TLS there should be enough transcript involvement to mitigate any
+    attack, and the RSA key exchange would suffer from the same issues by
+    design, so not proposing a backport.
     
-    Change-Id: I41a7d87cf00f1e64d82aa95c5b1000bc128de820
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206200
-    Run-TryBot: David Chase <drchase@google.com>
+    See #31846
+    
+    Change-Id: I8e657f8ee8aa72c3f8ca3b124555202638c53f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183039
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/crypto/tls/key_schedule.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,29 +1,47 @@
-commit 40d81cf061d8a2a277d70446f582a984c1701ff3
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 10:26:07 2016 -0400
+commit f542576b9e576758b7e0a8ec7f8d07b5d0c1f29a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 15:03:04 2016 -0700
 
-    sync: throw, not panic, for unlock of unlocked mutex
+    cmd/compile: add compiler phase timing
     
-    The panic leaves the lock in an unusable state.
-    Trying to panic with a usable state makes the lock significantly
-    less efficient and scalable (see early CL patch sets and discussion).
+    Timings is a simple data structure that collects times of labeled
+    Start/Stop events describing timed phases, which later can be written
+    to a file.
     
-    Instead, use runtime.throw, which will crash the program directly.
+    Adjacent phases with common label prefix are automatically collected
+    in a group together with the accumulated phase time.
     
-    In general throw is reserved for when the runtime detects truly
-    serious, unrecoverable problems. This problem is certainly serious,
-    and, without a significant performance hit, is unrecoverable.
+    Timing data can be appended to a file in benchmark data format
+    using the new -bench flag:
     
-    Fixes #13879.
+    $ go build -gcflags="-bench=/dev/stdout" -o /dev/null go/types
+    commit: devel +8847c6b Mon Aug 15 17:51:53 2016 -0700
+    goos: darwin
+    goarch: amd64
+    BenchmarkCompile:go/types:fe:init              1       663292 ns/op      0.07 %
+    BenchmarkCompile:go/types:fe:loadsys           1      1337371 ns/op      0.14 %
+    BenchmarkCompile:go/types:fe:parse             1     47008869 ns/op      4.91 %    10824 lines    230254 lines/s
+    BenchmarkCompile:go/types:fe:typecheck:top1    1      2843343 ns/op      0.30 %
+    BenchmarkCompile:go/types:fe:typecheck:top2    1       447457 ns/op      0.05 %
+    BenchmarkCompile:go/types:fe:typecheck:func    1     15119595 ns/op      1.58 %      427 funcs     28241 funcs/s
+    BenchmarkCompile:go/types:fe:capturevars       1        56314 ns/op      0.01 %
+    BenchmarkCompile:go/types:fe:inlining          1      9805767 ns/op      1.02 %
+    BenchmarkCompile:go/types:fe:escapes           1     53598646 ns/op      5.60 %
+    BenchmarkCompile:go/types:fe:xclosures         1       199302 ns/op      0.02 %
+    BenchmarkCompile:go/types:fe:subtotal          1    131079956 ns/op     13.70 %
+    BenchmarkCompile:go/types:be:compilefuncs      1    692009428 ns/op     72.33 %      427 funcs       617 funcs/s
+    BenchmarkCompile:go/types:be:externaldcls      1        54591 ns/op      0.01 %
+    BenchmarkCompile:go/types:be:dumpobj           1    133478173 ns/op     13.95 %
+    BenchmarkCompile:go/types:be:subtotal          1    825542192 ns/op     86.29 %
+    BenchmarkCompile:go/types:unaccounted          1       106101 ns/op      0.01 %
+    BenchmarkCompile:go/types:total                1    956728249 ns/op    100.00 %
     
-    Change-Id: I41920d9e2317270c6f909957d195bd8b68177f8d
-    Reviewed-on: https://go-review.googlesource.com/31359
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #16169.
+    
+    Change-Id: I93265fe0cb08e47cd413608d0824c5dd35ba7899
+    Reviewed-on: https://go-review.googlesource.com/24462
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/panic.go     |   5 +++
- src/sync/mutex.go        |   6 ++-
- src/sync/mutex_test.go   | 104 +++++++++++++++++++++++++++++++++++++++++++----
- src/sync/rwmutex.go      |   4 +-
- src/sync/rwmutex_test.go |  42 -------------------
- 5 files changed, 106 insertions(+), 55 deletions(-)
+ src/cmd/compile/internal/gc/main.go    |  60 ++++++++-
+ src/cmd/compile/internal/gc/timings.go | 235 +++++++++++++++++++++++++++++++++
+ 2 files changed, 294 insertions(+), 1 deletion(-)

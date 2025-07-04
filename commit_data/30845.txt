@@ -1,22 +1,13 @@
-commit 3a89065c6c72162ac9c5f7b268c3e46ebee3cc7f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 24 15:57:12 2017 -0700
+commit 454c2343979b8976f3f1ac50f8149b36a839d555
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 9 19:58:11 2016 +0000
 
-    cmd/compile: replace nod(ONAME) with newname
+    database/sql: use complete sentences in new docs
     
-    Passes toolstash-check -all.
-    
-    Change-Id: Ib9f969e5ecc1537b7eab186dc4fd504a50f800f2
-    Reviewed-on: https://go-review.googlesource.com/38586
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icb842a80cab2b07b9ace1e8e14c4a19c48a92c43
+    Reviewed-on: https://go-review.googlesource.com/34247
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/compile/internal/gc/closure.go  |  5 +---
- src/cmd/compile/internal/gc/dcl.go      | 16 +-----------
- src/cmd/compile/internal/gc/esc.go      |  4 +--
- src/cmd/compile/internal/gc/gen.go      |  9 +++----
- src/cmd/compile/internal/gc/gsubr.go    |  8 ++----
- src/cmd/compile/internal/gc/subr.go     | 43 ++++++++++++++++++++++++---------
- src/cmd/compile/internal/gc/universe.go | 16 ++++--------
- 7 files changed, 45 insertions(+), 56 deletions(-)
+ src/database/sql/sql.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

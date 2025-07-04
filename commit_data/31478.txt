@@ -1,15 +1,17 @@
-commit 0dd7b8f879a517e9a4cb9113c27f803df3d4fb07
-Author: feilengcui008 <feilengcui008@gmail.com>
-Date:   Wed May 3 14:08:43 2017 +0800
+commit ea5529de155cfd3f2c31698344b1ca001e0f8819
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Feb 23 17:41:31 2017 -0800
 
-    runtime: clean redundant call of environ function
+    crypto/tls: use io.ReadFull in conn_test.go
     
-    Change-Id: Ica7179d225c1fb79381f82f58ea5050ac6418b9c
-    Reviewed-on: https://go-review.googlesource.com/42493
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    An io.Reader does not guarantee that it will read in the entire buffer.
+    To ensure that property, io.ReadFull should be used instead.
+    
+    Change-Id: I0b863135ab9abc40e813f9dac07bfb2a76199950
+    Reviewed-on: https://go-review.googlesource.com/37403
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/env_posix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/conn_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

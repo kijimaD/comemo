@@ -1,22 +1,16 @@
-commit 595426c0d903a3686bdfe6d0e8ef268a60c19896
-Author: David Chase <drchase@google.com>
-Date:   Fri Jun 10 11:51:46 2016 -0400
+commit 7da42d75975044df37aa3aa2499623e2084a12df
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:34:48 2016 -0400
 
-    cmd/compile: fix OASWB rewriting in racewalk
+    sync/atomic: add s390x implementations of atomic functions
     
-    Special case for rewriting OAS inits omitted OASWB, added
-    that and OAS2FUNC.  The special case cannot be default case,
-    that causes racewalk to fail in horrible ways.
+    Load and store instructions are atomic on s390x.
     
-    Fixes #16008.
-    
-    Change-Id: Ie0d2f5735fe9d8255a109597b36d196d4f86703a
-    Reviewed-on: https://go-review.googlesource.com/23954
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I33c641a75954f4fbd301b11a467cb57872038880
+    Reviewed-on: https://go-review.googlesource.com/20947
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go |  2 +-
- test/fixedbugs/issue16008.go            | 52 +++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 1 deletion(-)
+ src/sync/atomic/asm_s390x.s | 143 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 143 insertions(+)

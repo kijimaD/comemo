@@ -1,18 +1,21 @@
-commit f90b4cd6554f4f20280aa5229cf42650ed47221d
-Author: Dan Peterson <danp@danp.net>
-Date:   Sun May 21 10:54:28 2023 -0300
+commit 8298c545f384a6256962cb699f0c78306380279e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu May 5 10:20:09 2022 -0700
 
-    doc: fill out net/http.ErrSchemeMismatch note
+    reflect: fix stale Value.Pointer comment
     
-    For #44855
+    The comment claims that reflect users cannot obtain an unsafe.Pointer
+    without also importing the unsafe package explicitly.
+    This is no longer true now that the Value.UnsafePointer method
+    directly returns an unsafe.Pointer.
     
-    Change-Id: I517394b227ea948ed3e1f9ffdaab2bb2676863c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496795
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ia5bf2e8aead681c8fac5b011129954d075ae5a43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404396
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.21.html | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/reflect/value.go | 4 ----
+ 1 file changed, 4 deletions(-)

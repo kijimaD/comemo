@@ -1,17 +1,34 @@
-commit 765bd691e26b52d79a42e30e1210f91fc0afca53
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Jun 8 12:39:05 2023 +0200
+commit 9ad772033f04ea9b3082440d306e17802a08b4b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 18:09:55 2022 -0700
 
-    doc/go1.21: NOFRAME heuristic changes
+    go/types, types2: consolidate testdata/examples test files
     
-    For #58378
+    Besides applying gofmt (which doesn't damage the tests in this case),
+    the ERROR comments in the types2 files now match the go/types files.
+    But because types2 still reports some errors are different positions,
+    the checking code now allows for some position discrepancy (similar
+    to what we do for other tests).
     
-    Change-Id: I960b97f33a8bf29d3a9622b58d278544d0970a38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501516
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Except for an outstanding TODO in go/types/testdata/examples/types.go
+    the test files are now identical.
+    
+    For #54511.
+    
+    Change-Id: I5748e0f678d11c5c0bdf4fdf28bd04f0b11b5b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424674
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.21.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ .../internal/types2/testdata/examples/functions.go |  2 +-
+ .../internal/types2/testdata/examples/inference.go | 20 +++----
+ .../internal/types2/testdata/examples/types.go     |  2 +-
+ .../internal/types2/testdata/examples/typesets.go  | 17 +++---
+ src/go/types/testdata/examples/functions.go        |  1 +
+ src/go/types/testdata/examples/inference.go        | 16 +++---
+ src/go/types/testdata/examples/types.go            | 62 ++++++++++------------
+ src/go/types/testdata/examples/typesets.go         | 15 +++---
+ 9 files changed, 67 insertions(+), 70 deletions(-)

@@ -1,0 +1,22 @@
+commit 71751350b0de7e090d76c9ea54fa9ceeeef6709a
+Author: cuishuang <imcusg@gmail.com>
+Date:   Sun Jun 2 00:51:35 2024 +0800
+
+    all: make function comments match function names
+    
+    Change-Id: Ideb9ef00e7bc660b005fc080973fd9f3d36c5a1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589536
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/rangefunc/rangefunc_test.go | 2 +-
+ src/crypto/tls/handshake_server_test.go              | 4 ++--
+ src/go/printer/printer_test.go                       | 2 +-
+ src/hash/crc32/crc32_test.go                         | 2 +-
+ src/image/gif/writer_test.go                         | 2 +-
+ src/internal/trace/order.go                          | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

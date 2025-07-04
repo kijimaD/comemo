@@ -1,25 +1,15 @@
-commit 773f43b35638092f9c0dc56f4a468dce2eb3a8ef
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 22 12:47:53 2021 -0500
+commit bb2fc21c3b818c45fad23fdf5f8bd83bbc074dce
+Author: Lizzzcai <lizzzcai1@gmail.com>
+Date:   Mon Mar 29 18:51:06 2021 +0800
 
-    go/types, types2: substitute for type parameters in signatures when
-    comparing type identity
+    runtime: fix typos in comments
     
-    Generic signatures should be considered identical modulo type parameter
-    renaming. Update Identical to reflect this, by substituting type
-    parameters.
-    
-    Fixes #49722
-    
-    Change-Id: I33743768c72d8aa59c29bf72fcbabc5974f0b805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366178
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia70e8bdc6d2cf1195d7a3b5d33f180ae2db73e29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305369
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go   | 50 +++++++++++++++++++
- src/cmd/compile/internal/types2/predicates.go | 72 ++++++++++++++++++---------
- src/go/types/api_test.go                      | 50 +++++++++++++++++++
- src/go/types/predicates.go                    | 72 ++++++++++++++++++---------
- 4 files changed, 196 insertions(+), 48 deletions(-)
+ src/runtime/malloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

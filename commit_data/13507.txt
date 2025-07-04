@@ -1,15 +1,19 @@
-commit ab9ccedefe94600b856ed5afbf6bb5849daa9b14
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jul 27 15:05:13 2012 +0400
+commit a1f340fa1a26fd29f1369cbc91755e7519813dd0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Jul 27 16:05:25 2012 +1000
 
-    os: fix data race in epipecheck()
-    Fixes #3860.
+    exp/html: parse CDATA sections in foreign content
     
-    R=golang-dev, adg
+    Also convert NUL to U+FFFD in comments.
+    
+    Pass 23 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6443051
+    https://golang.org/cl/6446055
 
- src/pkg/os/file_posix.go   | 6 +++---
- src/pkg/os/file_unix.go    | 2 +-
- src/pkg/os/file_windows.go | 1 -
- 3 files changed, 4 insertions(+), 5 deletions(-)
+ src/pkg/exp/html/parse.go                          |  4 ++
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    |  6 +-
+ src/pkg/exp/html/testlogs/tests21.dat.log          | 40 ++++++------
+ src/pkg/exp/html/token.go                          | 72 +++++++++++++++++++---
+ 4 files changed, 91 insertions(+), 31 deletions(-)

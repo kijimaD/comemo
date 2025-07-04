@@ -1,33 +1,23 @@
-commit 7f27f1dfdd81c978d4868917d7622e09b288ecb0
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Aug 25 15:52:45 2016 -0400
+commit f8d0d4fd59b6cb6f875eac7753f036b10a28f995
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Mar 14 12:02:02 2016 -0400
 
-    cmd/compile: add MIPS64 optimizations, SSA on by default
+    [dev.garbage] runtime: cleanup and optimize span.base()
     
-    Add the following optimizations:
-    - fold constants
-    - fold address into load/store
-    - simplify extensions and conditional branches
-    - remove nil checks
+    Prior to this CL the base of a span was calculated in various
+    places using shifts or calls to base(). This CL now
+    always calls base() which has been optimized to calculate the
+    base of the span when the span is initialized and store that
+    value in the span structure.
     
-    Turn on SSA on MIPS64 by default, and toggle the tests.
-    
-    Fixes #16359.
-    
-    Change-Id: I7f1e38c2509e22e42cd024e712990ebbe47176bd
-    Reviewed-on: https://go-review.googlesource.com/27870
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I661f2bfa21e3748a249cdf049ef9062db6e78100
+    Reviewed-on: https://go-review.googlesource.com/20703
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa.go            |    2 +-
- src/cmd/compile/internal/mips64/ssa.go        |   86 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  268 ++
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |    4 +-
- src/cmd/compile/internal/ssa/opGen.go         |    6 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 4630 +++++++++++++++++++++++--
- test/live.go                                  |    2 +-
- test/live_ssa.go                              |    2 +-
- test/nilptr3_ssa.go                           |    2 +-
- test/sliceopt.go                              |    2 +-
- 10 files changed, 4777 insertions(+), 227 deletions(-)
+ src/runtime/malloc.go   |  4 ++--
+ src/runtime/mbitmap.go  |  2 +-
+ src/runtime/mcentral.go |  2 +-
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/mgcsweep.go |  8 ++++----
+ src/runtime/mheap.go    | 13 ++++++++-----
+ 6 files changed, 17 insertions(+), 14 deletions(-)

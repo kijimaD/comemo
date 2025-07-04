@@ -1,17 +1,16 @@
-commit 866f63e84eb7096e64b7a39b993c2ca3e943e425
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 9 13:22:37 2017 -0800
+commit 09692182fa79fcaf89aa08ccf74ad74562ccba04
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 12:43:37 2016 -0400
 
-    spec: refer to "not defined type" rather than "unnamed type" in conversions
+    runtime: print sigcode on signal crash
     
-    We missed this in https://golang.org/cl/36213.
-    Thanks to Chris Hines for pointing it out.
+    For #17496.
     
-    For #18130.
-    
-    Change-Id: I6279ab19966c4391c4b4458b21fd2527d3f949dd
-    Reviewed-on: https://go-review.googlesource.com/36691
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I671a59581c54d17bc272767eeb7b2742b54eca38
+    Reviewed-on: https://go-review.googlesource.com/32183
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/signal_sighandler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

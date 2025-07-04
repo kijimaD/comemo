@@ -1,14 +1,25 @@
-commit 08c611b12751ca3901a8409ee0941fa30b70d894
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 21 17:26:40 2022 -0500
+commit 946a8669d92f18a0029abaed9cea36194562a957
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 26 12:45:12 2022 -0500
 
-    doc/go1.20: document bootstrap requirements (Go 1.20 needs Go 1.17.13)
+    cmd/api: reduce parallel 'go list' invocations to a constant
     
-    Change-Id: I806bc79e5b5c7b57750d4a4b39828add86a34635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452560
+    'go list' has its own internal parallelism, so invoking in in parallel
+    can produce up to quadratic peak memory usage.
+    
+    Running 'go list' is also very I/O-intensive, so the higher
+    parallelism does substantially improve latency; unfortunately, we lack
+    a good way to balance latency against memory footprint, so we need to
+    sacrifice some latency for reliability.
+    
+    Fixes #49957.
+    
+    Change-Id: Ib53990b46acf4cc67a9141644d97282964d6442d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380994
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.20.html | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/api/goapi.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

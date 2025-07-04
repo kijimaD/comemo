@@ -1,18 +1,15 @@
-commit f4ec146454171751e2239528509a46afcf9110f3
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Mon Mar 26 09:12:15 2012 -0700
+commit 6421bdeb71b3900b495535959259fbb24d83d407
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 26 17:47:39 2012 +1100
 
-    doc: Change id of footer
+    cmd/go: explain versions better
+    Summarize the desiderata for selecting versions of remote packages to get.
+    Fixes #3394.
     
-    The heading "Copyright" uses id="copyright" as the anchor name.
-    However, there is also a <div id="copyright"> at the bottom.
-    Using the same ID value twice in the same file is illegal
-    (http://www.w3.org/TR/html401/struct/links.html#h-12.2.3).
-    
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5909045
+    https://golang.org/cl/5902058
 
- doc/style.css        | 2 +-
- lib/godoc/godoc.html | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/doc.go | 10 +++++++++-
+ src/cmd/go/get.go | 10 +++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

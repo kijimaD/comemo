@@ -1,21 +1,14 @@
-commit 8ca524ab206323ebe70a929f3dea1e016af00adf
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 24 21:04:49 2019 -0400
+commit 7cf31d8f4116420e396c5e8690c043b2ce83f90a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 13 19:07:40 2019 +0000
 
-    cmd/link: new test case for Darwin/DWARF
+    doc/go1.12: note that Go 1.12 is the last release to include godoc
     
-    Test case for issue 32233.
+    Updates #30029
     
-    Updates #32233.
-    
-    Change-Id: I0e3b4a46832f39de4ef36d8fd8c6070bf9b1a019
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178726
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I88e09035d675e7a6855ada0262eb42636c9822cc
+    Reviewed-on: https://go-review.googlesource.com/c/162417
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go             | 23 ++++++++++++++++++++++
- .../internal/ld/testdata/issue32233/lib/ObjC.m     | 14 +++++++++++++
- .../internal/ld/testdata/issue32233/lib/lib.go     | 19 ++++++++++++++++++
- .../internal/ld/testdata/issue32233/main/main.go   | 11 +++++++++++
- 4 files changed, 67 insertions(+)
+ doc/go1.12.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

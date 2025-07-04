@@ -1,13 +1,23 @@
-commit d07d08e60f9eacde0af7648d577a09a65d4eb992
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 22 15:55:56 2014 -0800
+commit 021c11683ca28c7e01a2eca5ccbb9b8bd34e3bc1
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 22 23:30:52 2014 +0100
 
-    cmd/gc: add the word 'archive' to the documentation for -pack
-    The term "package file" is unclear.
+    debug/plan9obj: implement parsing of Plan 9 a.out executables
     
-    R=iant, dave
+    It implements parsing of the header and symbol table for both
+    32-bit and 64-bit Plan 9 binaries. The nm tool was updated to
+    use this package.
+    
+    R=rsc, aram
     CC=golang-codereviews
-    https://golang.org/cl/54760044
+    https://golang.org/cl/49970044
 
- src/cmd/gc/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/nm/nm.go                                 |   4 +
+ src/cmd/nm/plan9obj.go                           |  48 ++++
+ src/pkg/debug/plan9obj/file.go                   | 346 +++++++++++++++++++++++
+ src/pkg/debug/plan9obj/file_test.go              |  81 ++++++
+ src/pkg/debug/plan9obj/plan9obj.go               |  91 ++++++
+ src/pkg/debug/plan9obj/testdata/386-plan9-exec   | Bin 0 -> 37232 bytes
+ src/pkg/debug/plan9obj/testdata/amd64-plan9-exec | Bin 0 -> 34279 bytes
+ src/pkg/debug/plan9obj/testdata/hello.c          |   8 +
+ 8 files changed, 578 insertions(+)

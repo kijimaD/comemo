@@ -1,14 +1,18 @@
-commit 4b261a141006667b687978a61aedb7222d6be0e4
-Author: Quentin Smith <quentin@golang.org>
-Date:   Mon Mar 6 11:45:19 2017 -0500
+commit a18b4b3fb9b1b98f6eefa038b723f99fd6d13efd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 20:54:07 2016 +0000
 
-    test/fixedbugs: add test for #19403
+    time: don't panic stringifying the zero Month
     
-    Change-Id: Ie52dac8eb4daed95e049ad74d5ae101e8a5cb854
-    Reviewed-on: https://go-review.googlesource.com/37725
-    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Fixes #17720
+    
+    Change-Id: Ib95c230deef3934db729856c17908f8e5a1e2b7f
+    Reviewed-on: https://go-review.googlesource.com/33145
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/fixedbugs/bug19403.go | 134 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 134 insertions(+)
+ src/time/time.go      | 13 ++++++++++++-
+ src/time/time_test.go | 11 +++++++++--
+ 2 files changed, 21 insertions(+), 3 deletions(-)

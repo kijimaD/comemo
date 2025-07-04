@@ -1,13 +1,12 @@
-commit 4a524311f4d538a2c5a45d56286fdefbd2cf1c7a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 13 18:29:59 2013 +0400
+commit 4101469cccd68e7c04a9b4d04f5399fa8f22d68d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 13 16:43:55 2013 +1100
 
-    runtime: instrument slicebytetostring for race detection
+    doc: adjust indentation in Effective Go commentary example.
     
-    R=golang-dev, iant
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7322068
+    https://golang.org/cl/7225080
 
- src/pkg/runtime/race/testdata/slice_test.go | 20 ++++++++++++++++++++
- src/pkg/runtime/string.goc                  | 12 ++++++++++++
- 2 files changed, 32 insertions(+)
+ doc/effective_go.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

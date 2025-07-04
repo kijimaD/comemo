@@ -1,24 +1,15 @@
-commit c37647fc3abd3aa9307d5abbce63c9d6c7c70602
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 11 18:15:25 2017 +1100
+commit 4e2eff4c9b7a4c67c7c0af5f226f3292065c9dca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 6 03:39:58 2017 +0000
 
-    internal/poll: do not call SetFileCompletionNotificationModes if it is broken
+    time: document the Time.String is meant for debugging
     
-    Current code assumes that SetFileCompletionNotificationModes
-    is safe to call even if we know that it is not safe to use
-    FILE_SKIP_COMPLETION_PORT_ON_SUCCESS flag. It appears (see issue #22149),
-    SetFileCompletionNotificationModes crashes when we call it without
-    FILE_SKIP_COMPLETION_PORT_ON_SUCCESS flag.
+    Fixes #20876
     
-    Do not call SetFileCompletionNotificationModes in that situation.
-    We are allowed to do that, because SetFileCompletionNotificationModes
-    is just an optimisation.
-    
-    Fixes #22149
-    
-    Change-Id: I0ad3aff4eabd8c27739417a62c286b1819ae166a
-    Reviewed-on: https://go-review.googlesource.com/69870
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic62c4f59e3ddcae891aa9526f9693d233dd524fc
+    Reviewed-on: https://go-review.googlesource.com/47552
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/internal/poll/fd_windows.go | 64 ++++++++++++++++++++++++-----------------
- 1 file changed, 37 insertions(+), 27 deletions(-)
+ src/time/format.go | 4 ++++
+ 1 file changed, 4 insertions(+)

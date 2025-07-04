@@ -1,12 +1,15 @@
-commit 5f07125cb9333e002a7ddd99a37c1db7645ebd9b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 6 10:08:48 2013 -0800
+commit 0d9bf2757e71e64938b02c397d1d6e5666c5a213
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Mar 6 10:08:46 2013 +1100
 
-    effective_go.html: round 3 of minor edits.
+    image/jpeg: for progressive JPEGs, the first SOS segment doesn't
+    necessarily contain all components.
     
-    R=golang-dev, iant
+    Fixes #4975.
+    
+    R=r, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7489044
+    https://golang.org/cl/7469043
 
- doc/effective_go.html | 96 ++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 61 insertions(+), 35 deletions(-)
+ src/pkg/image/jpeg/scan.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

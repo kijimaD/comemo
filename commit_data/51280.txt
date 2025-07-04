@@ -1,18 +1,22 @@
-commit 6484e813b5ec80a399ed1b8e4608070db2144b39
+commit da7891f6f36c48f2931ed916ed305330c06f9bd7
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:11:08 2022 -0500
+Date:   Wed Jan 5 11:13:27 2022 -0500
 
-    cmd/internal/moddeps: use testenv.Command instead of exec.Command in tests
+    net: synchronize instead of sleeping in TestDialParallelSpuriousConnection
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    The arbitrary sleep in this test is empirically not always long enough
+    on slower builders. However, we know the exact number of connections
+    that should be dialed: we can wait on that number in the dial hook
+    instead.
     
-    Change-Id: Ia18c323067a416381e5a70d08c50f51576054a79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450698
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #34495
+    
+    Change-Id: I538244ceb75a80271a724304b993309482bd5b41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375694
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/moddeps/moddeps_test.go | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/net/dial_test.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

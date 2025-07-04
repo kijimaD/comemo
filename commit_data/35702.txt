@@ -1,14 +1,22 @@
-commit fc0e1d2b6fbcb9c27b1eed5892de62de6b1fbae6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 12 19:33:23 2018 +0000
+commit 9dc351beba464aa47048547e60ca4866e345d482
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 28 17:53:31 2018 -0500
 
-    archive/zip: warn about FileHeader.Name being unvalidated on read
+    cmd/compile/internal/ssa: batch up all zero-width instructions
     
-    Updates #25849
+    When generating location lists, batch up changes for all zero-width
+    instructions, not just phis. This prevents the creation of location list
+    entries that don't actually cover any instructions.
     
-    Change-Id: I09ee928b462ab538a9d38c4e317eaeb8856919f2
-    Reviewed-on: https://go-review.googlesource.com/118335
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    This isn't perfect because of the caveats in the prior CL (Copy is
+    zero-width sometimes) but in practice this seems to fix all of the empty
+    lists in std.
+    
+    Change-Id: Ice4a9ade36b6b24ca111d1494c414eec96e5af25
+    Reviewed-on: https://go-review.googlesource.com/97958
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/zip/struct.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/debug.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

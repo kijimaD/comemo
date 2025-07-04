@@ -1,38 +1,28 @@
-commit af18bce87cc7ee1ffc68f91abefa241ab209539e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Sep 20 23:29:20 2020 -0400
+commit 801a9d9a0c32f0a8db43f145e71b53f11a02b7e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 10 13:31:15 2020 -0400
 
-    cmd/link: consider interface conversions only in reachable code
+    test/codegen: mention in README that tests only run on Linux without -all_codegen
     
-    The linker prunes methods that are not directly reachable if the
-    receiver type is never converted to interface. Currently, this
-    "never" is too strong: it is invalidated even if the interface
-    conversion is in an unreachable function. This CL improves it by
-    only considering interface conversions in reachable code. To do
-    that, we introduce a marker relocation R_USEIFACE, which marks
-    the target symbol as UsedInIface if the source symbol is reached.
+    This took me a while to figure out. The relevant code is in
+    test/run.go (note the "linux" hard-coded strings):
     
-    binary size    before      after
-    cmd/compile   18897528   18887400
-    cmd/go        13607372   13470652
+            var arch, subarch, os string
+            switch {
+            case archspec[2] != "": // 3 components: "linux/386/sse2"
+                    os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
+            case archspec[1] != "": // 2 components: "386/sse2"
+                    os, arch, subarch = "linux", archspec[0], archspec[1][1:]
+            default: // 1 component: "386"
+                    os, arch, subarch = "linux", archspec[0], ""
+                    if arch == "wasm" {
+                            os = "js"
+                    }
+            }
     
-    Change-Id: I66c6b69eeff9ae02d84d2e6f2bc7f1b29dd53910
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256797
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I92ba280025d2072e17532a5e43cf1d676789c167
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222819
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go                |  8 ++-
- src/cmd/compile/internal/gc/sinit.go               |  2 +-
- src/cmd/compile/internal/gc/walk.go                | 15 +++--
- src/cmd/internal/obj/s390x/asmz.go                 |  6 +-
- src/cmd/internal/obj/wasm/wasmobj.go               |  2 +
- src/cmd/internal/obj/x86/asm6.go                   |  7 ++-
- src/cmd/internal/objabi/reloctype.go               |  5 ++
- src/cmd/internal/objabi/reloctype_string.go        | 66 +++++++++++++++++++++-
- src/cmd/link/internal/ld/data.go                   |  6 ++
- src/cmd/link/internal/ld/deadcode.go               | 14 +++++
- .../internal/ld/testdata/deadcode/ifacemethod.go   |  9 ++-
- src/cmd/link/internal/loader/loader.go             |  1 +
- src/cmd/link/internal/wasm/asm.go                  |  3 +
- 13 files changed, 129 insertions(+), 15 deletions(-)
+ test/codegen/README | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

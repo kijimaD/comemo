@@ -1,0 +1,25 @@
+commit e9eb88ae7291bf9f1b05e8e4860474c734c5448d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 11 09:17:08 2025 +0100
+
+    {all,clean,make,race,run}.bat: simplify error handling
+    
+    The bat files can use "if" + parentheses to make it easier to
+    understand how the if-case is handled rather than the more cryptic
+    "if" + "goto".
+    
+    While here, replace some "goto"s with direct "exit" calls.
+    
+    Change-Id: I20e1804439b5088f8f1e5cbf8676f3d58560109d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648375
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/all.bat   | 16 ++++++----------
+ src/clean.bat | 15 +++++----------
+ src/make.bat  | 28 ++++++++++++----------------
+ src/race.bat  | 34 +++++++++++++---------------------
+ src/run.bat   | 16 ++++++----------
+ 5 files changed, 42 insertions(+), 67 deletions(-)

@@ -1,21 +1,22 @@
-commit fa179eb89d881565238a21a8a740de6ca3cf9bc2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Oct 5 04:47:09 2018 +0900
+commit bb0fae603bd19e096e38c3321d95bf114f40dcff
+Author: Bill Zissimopoulos <billziss@navimatics.com>
+Date:   Sun Jun 3 17:25:29 2018 +0000
 
-    vendor: update golang_org/x/net/route from upstream
+    runtime: handle windows callback on non-go thread
     
-    Updates the route package to git rev 68fc911 for:
-    - 68fc911 re-adjust routing message alignment for FreeBSD 386 emulation
-    - 4dfa261 fix typos in comments
-    - ae89d30 avoid unnecessary type conversions
+    Adds an extra M in mstartm0 and accounts for it in checkdead. This allows Windows callbacks created with syscall.NewCallback and syscall.NewCallbackCDecl to be called on a non-Go thread.
     
-    Change-Id: I915e614e464acf85a8fc80f36f05a85a9246bb01
-    Reviewed-on: https://go-review.googlesource.com/c/139817
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #6751
+    
+    Change-Id: I57626bc009a6370b9ca0827ab64b14b01dec39d4
+    GitHub-Last-Rev: d429e3eed923640edab580bdb47fcb81e75dbfe8
+    GitHub-Pull-Request: golang/go#25575
+    Reviewed-on: https://go-review.googlesource.com/114802
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/vendor/golang_org/x/net/route/interface.go   | 2 +-
- src/vendor/golang_org/x/net/route/sys_freebsd.go | 5 ++++-
- src/vendor/golang_org/x/net/route/syscall.go     | 2 +-
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ src/runtime/proc.go                 | 21 ++++++++++++++++++---
+ src/runtime/syscall_windows_test.go |  2 --
+ 2 files changed, 18 insertions(+), 5 deletions(-)

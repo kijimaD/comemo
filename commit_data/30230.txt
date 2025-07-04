@@ -1,34 +1,22 @@
-commit 5a75d6a08ebb727c0e2bf5c8fbcbc104d260d302
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 3 16:15:38 2017 -0800
+commit e14b02197737a0d7e5eed2856806cf20c85052cf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 28 10:53:41 2016 -0400
 
-    cmd/compile: optimize non-empty-interface type conversions
+    runtime/trace, internal/trace: script to collect canned traces
     
-    When doing i.(T) for non-empty-interface i and concrete type T,
-    there's no need to read the type out of the itab. Just compare the
-    itab to the itab we expect for that interface/type pair.
+    This adds support to the runtime/trace test for saving traces
+    collected by its tests to disk and a script in internal/trace that
+    uses this to collect canned traces for the trace test suite. This can
+    be used to add to the test suite when we introduce a new trace format
+    version.
     
-    Also optimize type switches by putting the type hash of the
-    concrete type in the itab. That way we don't need to load the
-    type pointer out of the itab.
-    
-    Update #18492
-    
-    Change-Id: I49e280a21e5687e771db5b8a56b685291ac168ce
-    Reviewed-on: https://go-review.googlesource.com/34810
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Id9ac1ff312235bf02f982fdfff8a827f54035758
+    Reviewed-on: https://go-review.googlesource.com/32290
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         |  3 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
- src/cmd/compile/internal/gc/go.go              |  3 +-
- src/cmd/compile/internal/gc/pgen.go            |  3 +-
- src/cmd/compile/internal/gc/reflect.go         | 10 ++--
- src/cmd/compile/internal/gc/ssa.go             | 63 ++++++--------------------
- src/cmd/compile/internal/gc/swt.go             | 22 +++++----
- src/runtime/iface.go                           | 24 +++++++---
- src/runtime/plugin.go                          |  2 +-
- src/runtime/runtime2.go                        |  6 ++-
- 10 files changed, 64 insertions(+), 75 deletions(-)
+ src/internal/trace/mkcanned.bash | 19 +++++++++++++++++++
+ src/internal/trace/parser.go     |  2 ++
+ src/runtime/trace/trace_test.go  | 20 ++++++++++++++++++++
+ 3 files changed, 41 insertions(+)

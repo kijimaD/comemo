@@ -1,15 +1,31 @@
-commit 5c850cc207a8916073415bf406d002ef12173e3a
+commit b2386dffa1f646f06c230f9b317cb3640fef11d4
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 6 20:13:04 2017 -0700
+Date:   Wed Jan 11 11:24:35 2017 -0800
 
-    cmd/compile: move sizeof tests for types structs to package types
+    [dev.typealias] cmd/compile: type-check type alias declarations
     
-    Change-Id: I04cd4dd0ed55b88247a056b429fc496539cd0985
-    Reviewed-on: https://go-review.googlesource.com/39910
+    Known issues:
+    - needs many more tests
+    - duplicate method declarations via type alias names are not detected
+    - type alias cycle error messages need to be improved
+    - need to review setup of byte/rune type aliases
+    
+    For #18130.
+    
+    Change-Id: Icc2fefad6214e5e56539a9dcb3fe537bf58029f8
+    Reviewed-on: https://go-review.googlesource.com/35121
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/sizeof_test.go    | 16 ---------
- src/cmd/compile/internal/types/sizeof_test.go | 51 +++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   |  7 ++-
+ src/cmd/compile/internal/gc/bimport.go   | 24 ++++-----
+ src/cmd/compile/internal/gc/dcl.go       | 18 +++++--
+ src/cmd/compile/internal/gc/export.go    | 25 ++++++++-
+ src/cmd/compile/internal/gc/go.go        |  9 ++--
+ src/cmd/compile/internal/gc/main.go      |  2 +-
+ src/cmd/compile/internal/gc/noder.go     | 13 +----
+ src/cmd/compile/internal/gc/syntax.go    | 15 +++---
+ src/cmd/compile/internal/gc/typecheck.go | 22 ++++++--
+ test/alias2.go                           | 93 +++++++++++++++++++++++---------
+ 10 files changed, 153 insertions(+), 75 deletions(-)

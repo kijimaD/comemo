@@ -1,19 +1,20 @@
-commit 238274df4eee1752f51b288a11eddaf5365123bf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 6 17:26:15 2016 -0700
+commit bf151cc2aa4094b4633a7e5f07a34227d58231fe
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 5 16:51:54 2016 -0700
 
-    go/constant: document that Value.String and ExactString return quoted strings
+    cmd/compile/internal/mips64: fix large uint -> float conversion
     
-    This has always been the case but it was not obvious from the documentation.
-    The reason for the quoting is that String() may return an abbreviated string,
-    starting with double-quote (") but ending in ... (w/o a quote). The missing
-    quote indicates the abbreviation (in contrast to a string ending in ...").
+    Re-enable TestFP in cmd/compile/internal/gc on mips64.
     
-    constant.StringVal can be used to obtain the unquoted string of a String Value.
+    Fixes #15552.
     
-    Change-Id: Id0ba45b6ff62b3e024386ba8d907d6b3a4fcb6d7
-    Reviewed-on: https://go-review.googlesource.com/28576
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5c3a5564b94d28c723358f0862468fb6da371991
+    Reviewed-on: https://go-review.googlesource.com/22835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/constant/value.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go  |  7 +------
+ src/cmd/compile/internal/mips64/gsubr.go | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 8 deletions(-)

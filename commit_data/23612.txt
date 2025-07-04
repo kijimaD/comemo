@@ -1,18 +1,32 @@
-commit b6ead9f171742cd5b519a22ecc690354b0d1ce27
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 7 17:51:20 2015 -0400
+commit f6853369c315d69a77163756e916e784bfe2e281
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Thu May 21 21:35:49 2015 +0000
 
-    cmd/go: disable vendoredImportPath for code outside $GOPATH
+    html/template: prevent panic when escaping actions involving chain nodes
     
-    It was crashing.
-    This fixes the build for
-    GO15VENDOREXPERIMENT=1 go test -short runtime
+    The current escape code panics when an action involves chain nodes.
+    Such nodes can be seen in the following situation:
     
-    Fixes #11416.
+    {{ . | AAA.B }} - AAA being a registered function
     
-    Change-Id: I74a9114cdd8ebafcc9d2a6f40bf500db19c6e825
-    Reviewed-on: https://go-review.googlesource.com/11964
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The above expression is actually valid, because AAA could return a
+    map containing a B key. The tests in text/template explicitly
+    demonstrate this case.
+    
+    Fix allIdents to cover also chain nodes.
+    
+    While I was investigating this issue, I realized that the tests
+    introduced in similar CL 9621 were incorrect. Parse errors were
+    caught as expected, but for the wrong reason. Fixed them as well.
+    No changes in text/template code itself.
+    
+    Fixes #10801
+    
+    Change-Id: Ic9fe43b63669298ca52c3f499e2725dd2bb818a8
+    Reviewed-on: https://go-review.googlesource.com/10340
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/html/template/escape.go           |  4 +++-
+ src/html/template/escape_test.go      | 12 ++++++++++++
+ src/text/template/parse/parse_test.go |  4 ++--
+ 3 files changed, 17 insertions(+), 3 deletions(-)

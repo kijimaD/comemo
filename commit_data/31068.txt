@@ -1,18 +1,20 @@
-commit 44bd39c3a4c4635872a35154927b073f12a2755d
-Author: Alexander Döring <email@alexd.ch>
-Date:   Mon Apr 10 20:57:45 2017 +0200
+commit aad06da2b9b293fd245626fc8e116e3b56654dae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 23 17:30:41 2017 -0800
 
-    testing: document example with unordered output
+    cmd/link: mark DWARF function symbols as reachable
     
-    Copy the documentation and example from cmd/go.
+    Otherwise we don't emit any required ELF relocations when doing an
+    external link, because elfrelocsect skips unreachable symbols.
     
-    Fixes #18840.
+    Fixes #18745.
     
-    Change-Id: Id8022762b48576fb4031de05287d07a6ed23f480
-    Reviewed-on: https://go-review.googlesource.com/37440
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia3583c41bb6c5ebb7579abd26ed8689370311cd6
+    Reviewed-on: https://go-review.googlesource.com/35590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/testing/testing.go | 28 +++++++++++++++++++++-------
- 1 file changed, 21 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go |  2 +-
+ src/runtime/runtime-gdb_test.go   | 22 ++++++++++++++++++++--
+ 2 files changed, 21 insertions(+), 3 deletions(-)

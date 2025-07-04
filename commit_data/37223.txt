@@ -1,21 +1,12 @@
-commit bd4b6ca781e7e82580620011f8af2a7f11c5c239
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 2 10:55:12 2018 +0100
+commit eaa3e94eb82e53fa6626cdfa223acc8fbed7a370
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jul 3 15:08:32 2018 -0400
 
-    all: fix tests for older versions of AIX 7.2
+    [dev.boringcrypto] misc/boring: add go1.9.7b4 and go1.10.3b4 releases
     
-    This commit fixes tests which fail on some versions of AIX 7.2 due
-    to internal bugs.
-    
-    getsockname isn't working properly with unix networks.
-    
-    Timezone files aren't returning a correct output.
-    
-    Change-Id: I4ff15683912be62ab86dfbeeb63b73513404d086
-    Reviewed-on: https://go-review.googlesource.com/c/146940
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia868d1010ffcf4cef9c6c63ffc8da8efeeff4da3
+    Reviewed-on: https://go-review.googlesource.com/122076
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/platform_test.go  | 12 ++++++++++++
- src/time/zoneinfo_read.go |  9 +++++++++
- 2 files changed, 21 insertions(+)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

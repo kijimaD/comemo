@@ -1,18 +1,18 @@
-commit 3137da82fd74d534fff59092329c0ca820ff6589
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 19 14:41:02 2021 -0500
+commit 8c521739f27bd745bde0dcb3d5c9a332b06a6a42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 26 11:31:02 2020 -0700
 
-    cmd/go: add a script test corresponding to the downhiddenartifact MVS test
+    doc/go1.15: remove encoding/xml doc
     
-    For #36460
+    The change is rolled back in CL 240179.
     
-    Change-Id: I95abff45bb325732a19eb8b9c0d3fc34df08b4d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294293
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    For #35151
+    For #39876
+    
+    Change-Id: Id26ccbdb482772ac31c642156a9900102397b043
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240012
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- .../script/mod_get_downup_pseudo_artifact.txt      | 132 +++++++++++++++++++++
- 1 file changed, 132 insertions(+)
+ doc/go1.15.html | 14 --------------
+ 1 file changed, 14 deletions(-)

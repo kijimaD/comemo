@@ -1,21 +1,29 @@
-commit 49dccf141f5e315739c5517b24572fff7cb13734
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Wed Feb 17 14:13:01 2021 -0800
+commit 62fe10bf4e62c97af3bb8eb2ef72d9224a8752ba
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Sat Sep 5 15:01:19 2020 +0300
 
-    time: add Time.Unix{Milli,Micro} and to-Time helpers UnixMicro, UnixMilli
+    src/go.mod, net/http: update bundled and latest golang.org/x/net
     
-    Adds helper functions for users working with other systems which
-    represent time in milliseconds or microseconds since the Unix epoch.
+    Updates x/net/http2 to git rev 62affa334b73ec65ed44a326519ac12c421905e3
     
-    Fixes #44196
+        x/net/http2: reject HTTP/2 Content-Length headers containing a sign
+        https://go-review.googlesource.com/c/net/+/236098/ (fixes #39017)
     
-    Change-Id: Ibc4490b52ddec94ebd0c692cb7b52a33e4536759
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293349
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    also updates the vendored version of golang.org/x/net by running
+    
+    go get golang.org/x/net@62affa334b73ec65ed44a326519ac12c421905e3
+    go mod tidy
+    go mod vendor
+    go generate -run bundle net/http
+    
+    Change-Id: I7ecfdb7644574c44c3616e3b47664eefd4c926f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253238
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/time.go      | 30 ++++++++++++++++++++++++++++++
- src/time/time_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 ++--
+ src/net/http/h2_bundle.go | 15 +++++++++------
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 13 insertions(+), 10 deletions(-)

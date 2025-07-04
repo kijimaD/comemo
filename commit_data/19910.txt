@@ -1,16 +1,18 @@
-commit 69c2e2b9e0e9c7caee98c4e71cf3c663360d61ff
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 14:52:12 2014 -0400
+commit 14e8885c3237eae03b125316cccea3973264f8d0
+Author: Percy Wegmann <ox.to.a.cart@gmail.com>
+Date:   Wed Aug 6 11:22:00 2014 -0700
 
-    codereview: enable work and code reviews in development branches
+    crypto/tls: Added dynamic alternative to NameToCertificate map for SNI
     
-    This is an experiment. See mail on golang-dev
-    (subject: "an experiment: development branches").
+    Revised version of https://golang.org/cl/81260045/
     
-    LGTM=minux
-    R=minux
+    LGTM=agl
+    R=golang-codereviews, gobot, agl, ox
     CC=golang-codereviews
-    https://golang.org/cl/117660043
+    https://golang.org/cl/107400043
 
- lib/codereview/codereview.py | 22 +++++++++++++++++-----
- 1 file changed, 17 insertions(+), 5 deletions(-)
+ src/pkg/crypto/tls/common.go                | 57 +++++++++++++++++----
+ src/pkg/crypto/tls/conn_test.go             | 22 ++++++--
+ src/pkg/crypto/tls/handshake_server.go      | 11 +++-
+ src/pkg/crypto/tls/handshake_server_test.go | 78 ++++++++++++++++++++++++++---
+ 4 files changed, 147 insertions(+), 21 deletions(-)

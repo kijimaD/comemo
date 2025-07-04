@@ -1,17 +1,15 @@
-commit 5a1322a79f8370c3fdacd79f02656c20349ba7c1
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Thu Jan 19 11:29:24 2012 -0800
+commit d888ab80a308e30b326a3303cc8c611ca22b9988
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 19 10:19:33 2012 -0800
 
-    os: add ModeSticky
+    testing: do not recover example's panic
+            So as to give out stack trace for panic in examples.
+            This behavior also matches the tests'.
+            Fixes #2691.
     
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5539063
+    https://golang.org/cl/5554061
 
- src/pkg/os/stat_darwin.go  | 3 +++
- src/pkg/os/stat_freebsd.go | 3 +++
- src/pkg/os/stat_linux.go   | 3 +++
- src/pkg/os/stat_netbsd.go  | 3 +++
- src/pkg/os/stat_openbsd.go | 3 +++
- src/pkg/os/types.go        | 5 +++--
- 6 files changed, 18 insertions(+), 2 deletions(-)
+ src/pkg/testing/example.go | 7 -------
+ 1 file changed, 7 deletions(-)

@@ -1,44 +1,25 @@
-commit fb94eb19223085e77de78b88d26f2dd8130e0f4e
+commit 877c1892bb2e6501c8946c3645f685171ccb6c7a
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 12:27:24 2011 -0400
+Date:   Fri Apr 8 12:27:08 2011 -0400
 
-    gofix: reflect changes
+    gofix: add -diff, various fixes and helpers
+    
+      * add -diff command line option
+      * use scoping information in refersTo, isPkgDot, isPtrPkgDot.
+      * add new scoping-based helpers countUses, rewriteUses, assignsTo, isTopName.
+      * rename rewrite to walk, add walkBeforeAfter.
+      * add toy typechecker, a placeholder for go/types
     
     R=gri
     CC=golang-dev
-    https://golang.org/cl/4343047
+    https://golang.org/cl/4285053
 
- src/cmd/gofix/Makefile                         |    2 +
- src/cmd/gofix/reflect.go                       |  843 ++++++++++++++++++
- src/cmd/gofix/reflect_test.go                  |   31 +
- src/cmd/gofix/testdata/reflect.asn1.go.in      |  815 ++++++++++++++++++
- src/cmd/gofix/testdata/reflect.asn1.go.out     |  815 ++++++++++++++++++
- src/cmd/gofix/testdata/reflect.datafmt.go.in   |  731 ++++++++++++++++
- src/cmd/gofix/testdata/reflect.datafmt.go.out  |  731 ++++++++++++++++
- src/cmd/gofix/testdata/reflect.decode.go.in    |  907 ++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.decode.go.out   |  910 ++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.decoder.go.in   |  196 +++++
- src/cmd/gofix/testdata/reflect.decoder.go.out  |  196 +++++
- src/cmd/gofix/testdata/reflect.dnsmsg.go.in    |  779 +++++++++++++++++
- src/cmd/gofix/testdata/reflect.dnsmsg.go.out   |  779 +++++++++++++++++
- src/cmd/gofix/testdata/reflect.encode.go.in    |  367 ++++++++
- src/cmd/gofix/testdata/reflect.encode.go.out   |  367 ++++++++
- src/cmd/gofix/testdata/reflect.encoder.go.in   |  240 ++++++
- src/cmd/gofix/testdata/reflect.encoder.go.out  |  240 ++++++
- src/cmd/gofix/testdata/reflect.export.go.in    |  400 +++++++++
- src/cmd/gofix/testdata/reflect.export.go.out   |  400 +++++++++
- src/cmd/gofix/testdata/reflect.print.go.in     |  945 +++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.print.go.out    |  945 +++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.quick.go.in     |  364 ++++++++
- src/cmd/gofix/testdata/reflect.quick.go.out    |  365 ++++++++
- src/cmd/gofix/testdata/reflect.read.go.in      |  620 ++++++++++++++
- src/cmd/gofix/testdata/reflect.read.go.out     |  620 ++++++++++++++
- src/cmd/gofix/testdata/reflect.scan.go.in      | 1084 ++++++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.scan.go.out     | 1084 ++++++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.script.go.in    |  359 ++++++++
- src/cmd/gofix/testdata/reflect.script.go.out   |  359 ++++++++
- src/cmd/gofix/testdata/reflect.template.go.in  | 1043 +++++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.template.go.out | 1044 +++++++++++++++++++++++
- src/cmd/gofix/testdata/reflect.type.go.in      |  789 +++++++++++++++++
- src/cmd/gofix/testdata/reflect.type.go.out     |  789 +++++++++++++++++
- 33 files changed, 20159 insertions(+)
+ src/cmd/gofix/fix.go        | 392 +++++++++++++++++++-----------
+ src/cmd/gofix/httpserver.go |   2 +-
+ src/cmd/gofix/main.go       | 101 +++++++-
+ src/cmd/gofix/main_test.go  |  55 ++---
+ src/cmd/gofix/netdial.go    |   6 +-
+ src/cmd/gofix/osopen.go     |   2 +-
+ src/cmd/gofix/procattr.go   |   2 +-
+ src/cmd/gofix/typecheck.go  | 579 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 946 insertions(+), 193 deletions(-)

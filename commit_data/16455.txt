@@ -1,12 +1,24 @@
-commit 5b7d422a05652893e27fc8393f9435ec2386bc83
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Sat Jun 1 10:28:04 2013 -0400
+commit 07b6add0ca1f1dc38270cddf3d30f9b06503c9e3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 31 20:58:31 2013 -0700
 
-    doc/go1.1.html: remove extra space; close some tags.
+    runtime: do hashmap grow work during reads.
     
-    R=golang-dev, r
+    Before this change, grow work was done only
+    during map writes to ensure multithreaded safety.
+    This can lead to maps remaining in a partially
+    grown state for a long time, potentially forever.
+    This change allows grow work to happen during reads,
+    which will lead to grow work finishing sooner, making
+    the resulting map smaller and faster.
+    
+    Grow work is not done in parallel.  Reads can
+    happen in parallel while grow work is happening.
+    
+    R=golang-dev, dvyukov, khr, iant
     CC=golang-dev
-    https://golang.org/cl/9941043
+    https://golang.org/cl/8852047
 
- doc/go1.1.html | 38 ++++++++++++++++++++------------------
- 1 file changed, 20 insertions(+), 18 deletions(-)
+ src/pkg/runtime/hashmap.c      | 273 ++++++++++++++++++++++-------------------
+ src/pkg/runtime/hashmap_fast.c |  34 ++---
+ 2 files changed, 164 insertions(+), 143 deletions(-)

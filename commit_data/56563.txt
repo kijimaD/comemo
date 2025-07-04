@@ -1,26 +1,15 @@
-commit 1cb13ac7f6ece4374056555c2c3b7802ba2de28d
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon May 20 19:00:09 2024 +0200
+commit a3e95f3b509e59a814bbc8073664d46739869e2e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat May 13 19:05:03 2023 +0800
 
-    cmd/compile: disable AlignHot on plan9/386
+    cmd/compile/internal/walk: delete statement that don't need
     
-    CL 577935 enabled hot block alignment on 386
-    and amd64 architecture.
-    
-    However, this change broke the plan9/386 build.
-    
-    This change disables  AlignHot on plan9/386.
-    
-    Updates #67502.
-    
-    Change-Id: If73b066824c7218a9408c6e8f06aec5908b7a64f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586835
+    Change-Id: I7253aed4808a06379caebf0949aec0f305245d23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494835
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- src/cmd/compile/internal/base/flag.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/walk/expr.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,19 +1,23 @@
-commit 9abedf482752cac0a29c56804f7d34698aa044f2
-Author: cui <cuiweixie@gmail.com>
-Date:   Mon Apr 5 12:38:12 2021 +0000
+commit 7a095c32366593f637a95bc927c63454125e3015
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 15 15:14:55 2020 -0400
 
-    cmd/compile/internal/ssagen: conditon not need
+    cmd/go/internal/modload: avoid a network fetch when querying a valid semantic version
     
-     n.Op() == ir.OFOR so n.Op() != ir.OFORUNTIL is always true
+    Test this behavior incidentally in a test for ambiguous import errors.
+    (I rediscovered the error when writing the new test.)
     
-    Change-Id: I97191783c1fb31ef76e0601f626b45af1e8d316e
-    GitHub-Last-Rev: f68f9fecfb7adf37af060afb77d6615839aabc6e
-    GitHub-Pull-Request: golang/go#45389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307251
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    For #32567
+    Updates #28806
+    
+    Change-Id: I323f05145734e5cf99818b9f04d65075f7c0f787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255046
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/query.go               | 21 ++++++--
+ .../testdata/script/mod_get_ambiguous_import.txt   | 60 ++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 4 deletions(-)

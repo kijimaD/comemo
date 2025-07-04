@@ -1,17 +1,18 @@
-commit a84f46a28a1a9ffc0183fed394b6969c10fad502
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Sep 16 10:28:42 2022 -0700
+commit 5ec139fa78ac6ba3f0f715b6aa9235d36346a4a4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 16:49:39 2021 -0400
 
-    net/http/httputil: remove duplicated code block
+    runtime: remove unnecessary argument stores for panicIndex etc. on ARM64
     
-    Remove a harmless but redundant section of code introduced
-    in CL 407214.
+    If register ABI is used, no need to store the arguments to stack.
+    I forgot them in CL 323937.
     
-    Change-Id: Id6522e6ff13a283d726b3b97dfc72f101884f733
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431395
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I888af2b547a8fc97d13716bc8e8f3acd5c5bc127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351609
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/httputil/reverseproxy.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/runtime/asm_arm64.s | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

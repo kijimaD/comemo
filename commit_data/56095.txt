@@ -1,22 +1,37 @@
-commit d49a14c6092ba30d0afbdaa06a24016ff1fe2a82
-Author: Kévin Dunglas <kevin@dunglas.fr>
-Date:   Sat Mar 30 09:13:39 2024 +0000
+commit 60140a86b30f22959c3b540e8c18b19908ecbb08
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 9 08:11:06 2023 -0700
 
-    cmd/cgo: update outdated docs about cgocheck2
+    cmd/compile: clean up store rules to use store type, not argument type
     
-    Setting GODEBUG=cgocheck=2 now panics with a message
-    such as "fatal error: cgocheck > 1 mode is no longer supported at runtime.
-    Use GOEXPERIMENT=cgocheck2 at build time instead."
+    Argument type is dangerous because it may be thinner than the actual
+    store being issued.
     
-    Change-Id: If9a5a96933973e14a1a60b8e9fb6a1f4a818cf59
-    GitHub-Last-Rev: 787d62454c31565d0828777bf5ba24c99345af4d
-    GitHub-Pull-Request: golang/go#65224
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557597
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: Id19fbd8e6c41390a453994f897dd5048473136aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483438
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/cgo/doc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/386.rules     |  8 +++----
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules   | 10 ++++----
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     |  6 ++---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  8 +++----
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  8 +++----
+ src/cmd/compile/internal/ssa/_gen/MIPS.rules    |  6 ++---
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  8 +++----
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  9 ++++---
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  8 +++----
+ src/cmd/compile/internal/ssa/_gen/S390X.rules   | 10 ++++----
+ src/cmd/compile/internal/ssa/rewrite386.go      | 12 +++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 16 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 12 +++++-----
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 16 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 16 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     | 12 +++++-----
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 16 ++++++-------
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 31 +++++++------------------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 16 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteS390X.go    | 16 ++++++-------
+ 20 files changed, 111 insertions(+), 133 deletions(-)

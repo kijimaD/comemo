@@ -1,24 +1,21 @@
-commit c75befeec2a8ef2fea3c41da589ca0ffddda506f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Mar 14 13:00:03 2022 -0400
+commit 78aa251ace316dc8175879f1ec50797f505cec99
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 18 03:14:09 2021 +0000
 
-    cmd/go: don't compute Deps fields if they're not needed
+    [dev.typeparams] cmd/go: include new internal packages in TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    If the user provides the -json flag to explicitly specify fields, but
-    doesn't specify the Deps or DepsErrors fields, skip computing the deps
-    fields.
+    CL 328336 introduced two new packages that the runtime and other
+    low-level packages depend on. Include them as targets to copy in this
+    test with other such packages.
     
-    For #29666
+    Fixes the dev.typeparams longtest builders.
     
-    Change-Id: I15596c374aba1af13bdf5808d11d54abdc838667
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392495
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia886f0264962a68acd06ebca002eef8515f06487
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329251
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/list/list.go                |  7 +++++++
- src/cmd/go/internal/load/pkg.go                 | 10 +++++++++-
- src/cmd/go/testdata/script/list_json_fields.txt |  5 +++++
- 3 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

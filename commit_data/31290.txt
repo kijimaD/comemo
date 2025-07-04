@@ -1,15 +1,35 @@
-commit 0d1e903c8a1d6060a1bb82eb8f78fc4de35425b7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:40:05 2017 -0700
+commit 3fd3171c2c2b3f55cb9692b45f2ebb842e9b0b42
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 9 16:00:23 2017 -0800
 
-    cmd/compile: unify a Linksym call in dcommontype
+    cmd/compile/internal/syntax: removed gcCompat code needed to pass orig. tests
     
-    Passes toolstash-check.
+    The gcCompat mode was introduced to match the new parser's node position
+    setup exactly with the positions used by the original parser. Some of the
+    gcCompat adjustments were required to satisfy syntax error test cases,
+    and the rest were required to make toolstash cmp pass.
     
-    Change-Id: I9940909949da58e780696e6de0c21f95be7a8816
-    Reviewed-on: https://go-review.googlesource.com/41407
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This change removes the former gcCompat adjustments and instead adjusts
+    the respective test cases as necessary. In some cases this makes the error
+    lines consistent with the ones reported by gccgo.
+    
+    Where it has changed, the position associated with a given syntactic construct
+    is the position (line/col number) of the left-most token belonging to the
+    construct.
+    
+    Change-Id: I5b60c00c5999a895c4d6d6e9b383c6405ccf725c
+    Reviewed-on: https://go-review.googlesource.com/36695
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go | 23 ++++---------------
+ src/runtime/trace/trace_stack_test.go     |  2 +-
+ test/fixedbugs/issue16369.go              |  4 ++--
+ test/fixedbugs/issue9432.go               |  4 ++--
+ test/import5.go                           | 36 ++++-------------------------
+ test/import6.go                           | 38 +++++++++++++++++++++++++++++++
+ test/live.go                              |  4 ++--
+ test/switch5.go                           |  4 ++--
+ test/typeswitch2.go                       |  4 ++--
+ 9 files changed, 57 insertions(+), 62 deletions(-)

@@ -1,28 +1,16 @@
-commit 88b442f5c08a2984e6800e83a483a6c7f4b24cd1
-Author: Hana Kim <hakim@google.com>
-Date:   Mon Jun 18 12:03:53 2018 -0400
+commit f5f16d1ec17830a1618fcb911626d101b7b85a5f
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Mar 6 16:27:14 2018 +0100
 
-    runtime/pprof: fix incorrect assumption in TestMapping
+    iostest.bash: don't build std library twice
     
-    TestMapping assumed that there was only one mapping entry corresponding
-    to /exe/main, but that is not always true.
-    This CL changes the test logic to examine whether all referenced mappings
-    are symbolized. Based on the result, the test determines whether the
-    corresponding mapping entries' HasFunctions fields to be true or false.
+    Instead, mirror androidtest.bash and build once, then run run.bash.
     
-    I initially attempted to create two mappings for referenced locations
-    (one for symbolized and another for unsymbolized) as described in the
-    TODO in proto.go as part of fixing this bug. But that change requires
-    non-trivial modification in the upstream profile package so I decided
-    to just fix the test for now.
-    
-    Fixes #25891
-    
-    Change-Id: Id27a5b07bb5b59e133755a0f863bf56c0a4f7f2b
-    Reviewed-on: https://go-review.googlesource.com/119455
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I174ae30b2a429a62b20bb290a70cb07ed712b1e4
+    Reviewed-on: https://go-review.googlesource.com/98915
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/proto_test.go | 46 +++++++++++++++++++++++------------------
- 1 file changed, 26 insertions(+), 20 deletions(-)
+ src/iostest.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

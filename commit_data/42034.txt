@@ -1,48 +1,15 @@
-commit 0eb694e9c217c051cd8cc18258bf593d0be7fb8d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Apr 19 13:59:16 2020 -0700
+commit 3eabdd291d3f53c88fdd01aca30158d0c06420b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 13:47:19 2019 -0800
 
-    reflect: disallow invoking methods on unexported embedded fields
+    net: skip TestDialCancel if Dial fails with "connection refused"
     
-    Given:
+    Fixes #15191
     
-        type u struct{}
-        func (u) M() {}
-    
-        type t struct { u; u2 u }
-    
-        var v = reflect.ValueOf(t{})
-    
-    Package reflect allows:
-    
-        v.Method(0)          // v.M
-        v.Field(0).Method(0) // v.u.M
-    
-    but panics from:
-    
-        v.Field(1).Method(0) // v.u2.M
-    
-    because u2 is not an exported field. However, u is not an exported
-    field either, so this is inconsistent.
-    
-    It seems like this behavior originates from #12367, where it was
-    decided to allow traversing unexported embedded fields to be able to
-    access their exported fields, since package reflect doesn't provide an
-    alternative way to access promoted fields directly.
-    
-    But extending that logic to promoted *methods* was inappropriate,
-    because package reflect's normal method handling logic already handles
-    promoted methods correctly. This CL corrects that mistake.
-    
-    Fixes #38521.
-    
-    Change-Id: If65008965f35927b4e7927cddf8614695288eb19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228902
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I86214ede619400acd44f21138b5ddf6cef4649a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205698
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html         | 12 ++++++++++++
- src/reflect/all_test.go |  4 ++--
- src/reflect/value.go    |  2 +-
- 3 files changed, 15 insertions(+), 3 deletions(-)
+ src/net/dial_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

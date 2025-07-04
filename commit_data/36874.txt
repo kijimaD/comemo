@@ -1,19 +1,18 @@
-commit 6d51dd1e85bbed9f59023a468c4cbbeed598608f
+commit d159d6108c4d7ba962bb6eea13f06590a76ac9e8
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 4 16:43:34 2018 -0700
+Date:   Tue Jun 5 10:19:03 2018 -0700
 
-    go/types: remove work-around for issue #26124
+    cmd/compile: terminate compilation if type-checking fails
     
-    This work-around is not needed anymore now that method
-    signatures are type-checked separately from their receiver
-    base types: no artificial cycles are introduced anymore
-    and so there is no need to artificially cut them.
+    There is no benefit in continuing compilation if there
+    are type-checking errors. This will increase robustness
+    of the compiler in the presence of errors.
     
-    Updates #26124.
+    Fixes #22909.
     
-    Change-Id: I9d50171f12dd8977116a5d3f63ac39a06b1cd492
-    Reviewed-on: https://go-review.googlesource.com/c/139899
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I1c70c667e5927646ba3d0f370e33705165620f12
+    Reviewed-on: https://go-review.googlesource.com/116335
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/decl.go | 26 ++------------------------
- 1 file changed, 2 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 4 ++++
+ 1 file changed, 4 insertions(+)

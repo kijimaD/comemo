@@ -1,14 +1,12 @@
-commit 4cb660aad8c70c4c71f0020ac7a9bb17155b76ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 25 15:28:53 2011 -0700
+commit d165dc60363c38f8add1d4a9324138c7208d5e6a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 25 18:00:19 2011 -0400
 
-    test: match gccgo error messages for bug081.go.
+    build: handle broken awk in version.bash
     
-    bug081.go:9:9: error: expected type
-    
-    R=rsc
+    R=adg, rsc, ality
     CC=golang-dev
-    https://golang.org/cl/4280071
+    https://golang.org/cl/4281069
 
- test/fixedbugs/bug081.go | 2 +-
+ src/version.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

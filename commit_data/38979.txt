@@ -1,21 +1,14 @@
-commit 70b890ce3b72fdab528ee1f93b1950173e9a0992
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 30 13:07:05 2019 -0400
+commit 8fd53db4cf536ff8f425afc7902cd44b5ca98663
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 13 18:22:53 2018 +0000
 
-    cmd/go/internal/modfetch/codehost: disable fetch of server-resolved commit hash
+    doc/go1.12: add note about CL 153559's syscall/js.Callback rename
     
-    We cannot rely on the server to filter out the refs we don't want
-    (we only want refs/heads/* and refs/tags/*), so do not give it
-    the full hash.
+    Updates #28711
     
-    Fixes #31191.
-    
-    Change-Id: If1208c35954228aa6e8734f8d5f1725d0ec79c87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174517
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I03139a394fdf0540db07d6d1e38b3fa223b06d58
+    Reviewed-on: https://go-review.googlesource.com/c/154059
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 12 +++++++++---
- src/cmd/go/testdata/script/mod_get_hash.txt  | 19 +++++++++++++++++++
- 2 files changed, 28 insertions(+), 3 deletions(-)
+ doc/go1.12.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

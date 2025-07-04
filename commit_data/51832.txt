@@ -1,23 +1,17 @@
-commit 3875258f971ce534262020c8342e70226b770d95
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Jan 27 22:49:46 2023 -0800
+commit 2d32594396b231b39d09ec21d34b22b0270268b5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 15 21:05:11 2022 -0700
 
-    misc/wasm: use NodeJS crypto library
+    runtime: call testenv.MustHaveCGO in a couple of tests
     
-    The move to NodeJS 18 allows us to replace the custom
-    crypto functions with the expanded crypto primitives of
-    the NodeJS crypto library.
+    Fixes #51695
     
-    Fixes #56860
-    
-    Change-Id: I8726b4003150f31521f246f613b6976641b9fa69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463975
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Evan Phoenix <evan@phx.io>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Icfe9d26ecc28a7db9040d50d4661cf9e8245471e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392916
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- misc/wasm/wasm_exec_node.js | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/runtime/signal_windows_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

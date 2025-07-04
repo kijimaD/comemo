@@ -1,34 +1,18 @@
-commit 69e75c8581e15328454bb6e2f1dc347f73616b37
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Apr 23 12:44:54 2024 -0400
+commit e335a2665f5e322a7da8baa22fe816b6ef9aaf24
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 4 17:14:53 2023 -0400
 
-    runtime: properly frame panic values in tracebacks
+    testenv: allow HasGoBuild to be false on -noopt builders
     
-    This CL causes the printing of panic values to ensure that all
-    newlines in the output are immediately followed by a tab, so
-    that there is no way for a maliciously crafted panic value to
-    fool a program attempting to parse the traceback into thinking
-    that the panic value is in fact a goroutine stack.
+    -noopt uses GO_GCFLAGS to disable optimization, and
+    GO_GCFLAGS has caused HasGoBuild to be false since CL 74470.
     
-    See https://github.com/golang/go/issues/64590#issuecomment-1932675696
-    
-    + release note
-    
-    Updates #64590
-    Updates #63455
-    
-    Change-Id: I5142acb777383c0c122779d984e73879567dc627
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581215
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Iadcd15d412c05aec11e9a23b86d7b24af79d73bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492795
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- doc/next/4-runtime.md                       |  6 +++++
- src/runtime/crash_test.go                   |  6 ++---
- src/runtime/error.go                        | 35 ++++++++++++++++++++++++-----
- src/runtime/panic.go                        | 18 +++++++++------
- src/runtime/panic_test.go                   |  2 +-
- src/runtime/testdata/testprog/crash.go      |  6 ++---
- src/runtime/testdata/testprog/panicprint.go |  2 +-
- src/testing/testing_test.go                 |  3 ++-
- 8 files changed, 56 insertions(+), 22 deletions(-)
+ src/internal/testenv/testenv_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

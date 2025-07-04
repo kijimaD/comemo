@@ -1,34 +1,21 @@
-commit ea2c27fe8204225b4d76ed4a541c6b92afec8dde
-Author: David Chase <drchase@google.com>
-Date:   Thu Aug 11 09:58:23 2022 -0400
+commit 1efc5815dd316953a8f37e58f7e3542a6aac3adf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 17:52:16 2022 -0800
 
-    cmd/compile: package-annotate structs when error would be ambiguous
+    go/types, types2: use orig. compiler error message for a shift error
     
-    Before emitting a "wanted Foo but got Bar" message for an interface
-    type match failure, check that Foo and Bar are different.  If they
-    are not, add package paths to first unexported struct field seen,
-    because that is the cause (a cause, there could be more than one).
+    Slightly better for cases such as string(1 << s).
+    Leaves type-checker tests alone for now because
+    there are multiple dozens.
     
-    Replicated in go/types.
+    For #45117.
     
-    Added tests to go/types and cmd/compile/internal/types2
-    
-    Fixes #54258.
-    
-    Change-Id: Ifc2b2067d62fe2138996972cdf3b6cb7ca0ed456
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422914
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I47b314c713fabe424c2158674bf965416a8a6f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379274
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/typecheck/expr.go     |  16 +++-
- src/cmd/compile/internal/typecheck/stmt.go     |   4 +-
- src/cmd/compile/internal/typecheck/subr.go     |   3 +-
- src/cmd/compile/internal/types2/issues_test.go | 121 ++++++++++++++++++++++++
- src/cmd/compile/internal/types2/lookup.go      |  15 ++-
- src/cmd/compile/internal/types2/typestring.go  |  25 ++++-
- src/go/types/issues_test.go                    | 122 +++++++++++++++++++++++++
- src/go/types/lookup.go                         |  16 +++-
- src/go/types/object.go                         |   7 ++
- src/go/types/typestring.go                     |  25 ++++-
- 10 files changed, 330 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/types2/expr.go | 23 +++++++++++++++--------
+ src/go/types/expr.go                    | 21 ++++++++++++++-------
+ test/fixedbugs/issue28079c.go           |  2 +-
+ 3 files changed, 30 insertions(+), 16 deletions(-)

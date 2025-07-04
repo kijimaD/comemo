@@ -1,27 +1,36 @@
-commit ba7c4e47b32fa99db8aa05331426b328bb39517a
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 9 14:32:10 2023 -0500
+commit 7b5a34418cd32ec4d2c0f7d6e4c7e6fe7585a17f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Jan 23 12:59:29 2023 +0100
 
-    os: limit temp file randomness to uint32
+    runtime: remove unused badsignal2 on windows
     
-    CL 516860 accidentally changed the randomness
-    used in TempFile from 32 to 64 bits on 64-bit platforms,
-    meaning from 10 to 20 decimal bytes.
-    This is enough to cause problems in a few tests
-    because it makes temporary directory names just
-    a little bit longer.
+    This CL removes badsignal2 function, as it is unused on Windows.
     
-    Limit back down to 32 bits of randomness, which is fine,
-    and add a test to avoid repeating the mistake.
+    badsignal2 was originally intended to abort the process when
+    an exception was raised on a non-Go thread, following the same approach
+    as Linux and others.
     
-    Fixes #64605.
+    Since it was added, back on https://golang.org/cl/5797068, it has caused
+    several issues on Windows, see #8224 and #50877. That's because we can't
+    know wether the signal is bad or not, as our trap might not be at the
+    end of the exception handler chain.
     
-    Change-Id: I17b8c063d11d5c0a96a68b5e5f83c889a13bca77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548635
+    To fix those issues, https://golang.org/cl/104200046 and CL 442896
+    stopped calling badsignal2, and CL 458135 removed one last incorrect
+    call on amd64 and 386.
+    
+    Change-Id: I5bd31ee2672118ae0f1a2c8b46a1bb0f4893a011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463116
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/os_test.go  | 24 ++++++++++++++++++++++++
- src/os/tempfile.go |  2 +-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/runtime/os_windows.go       |  2 --
+ src/runtime/signal_windows.go   | 19 -------------------
+ src/runtime/sys_windows_386.s   | 22 ----------------------
+ src/runtime/sys_windows_amd64.s | 24 ------------------------
+ src/runtime/sys_windows_arm.s   | 24 ------------------------
+ src/runtime/sys_windows_arm64.s | 26 --------------------------
+ 6 files changed, 117 deletions(-)

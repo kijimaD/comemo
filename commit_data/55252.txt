@@ -1,17 +1,34 @@
-commit 46ea4ab5cb87e9e5d443029f5f1a4bba012804d3
+commit cf9263dee1bb160f013a080bbda3532a7d35da15
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Dec 7 21:45:57 2023 +0100
+Date:   Fri Dec 16 16:54:03 2022 +0100
 
-    doc: document that os.Stat follows all link reparse points on Windows
+    runtime: factor out windows sigtramp
     
-    For #61422.
+    This CL factors out part of the Windows sigtramp implementation, which
+    was duplicated in all four architectures. The new common code is
+    implemented in Go rather than in assembly, which will make Windows
+    error handling easier to reason and maintain.
     
-    Change-Id: I2bb59a1ae38c40368343414a6077bb09c1675a6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548315
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    While here, implement the control flow guard workaround on
+    windows/386, which almost comes for free.
+    
+    Change-Id: I0bf38c28c54793225126e161bd95527a62de05e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458135
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.22.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/defs_windows.go       |   5 ++
+ src/runtime/defs_windows_386.go   |   5 ++
+ src/runtime/defs_windows_amd64.go |   5 ++
+ src/runtime/defs_windows_arm.go   |   5 ++
+ src/runtime/defs_windows_arm64.go |   5 ++
+ src/runtime/signal_windows.go     | 101 ++++++++++++++++++++++++--
+ src/runtime/sys_windows_386.s     |  85 ++++++++--------------
+ src/runtime/sys_windows_amd64.s   | 137 +++++++++--------------------------
+ src/runtime/sys_windows_arm.s     | 121 +++++--------------------------
+ src/runtime/sys_windows_arm64.s   | 145 ++++++--------------------------------
+ 10 files changed, 221 insertions(+), 393 deletions(-)

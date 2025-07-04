@@ -1,15 +1,27 @@
-commit becb9a278fdeccfb562dd1232f052050f00a4aaa
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 28 11:24:24 2021 -0400
+commit 400581b8b008ece8d0df34f54f281d365a175dba
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 18 23:50:48 2020 -0400
 
-    test: do not run fuse test in noopt mode
+    embed: implement FS
     
-    Change-Id: Iad8ac2253ce28fd0a331bde36836d1b7f25797bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314632
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    embed.FS is the implementation of embedded file trees, providing
+    an fs.FS for each embed.FS variable.
+    
+    Tests are in a follow-up CL, in the package embed/internal/embedtest.
+    (They can only be written once the toolchain can initialize one of these,
+    which requires changes to cmd/compile and cmd/go.)
+    
+    For #41191.
+    
+    Change-Id: Ieb0ead1d305cdac3d5d4e11772dca75740a72730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243942
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- test/fuse.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/embed/embed.go        | 403 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/read_test.go |  12 +-
+ 2 files changed, 409 insertions(+), 6 deletions(-)

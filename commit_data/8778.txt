@@ -1,14 +1,17 @@
-commit cbb2d8e20eed5f5906c489706b3be9d794d1a88a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jun 19 13:58:08 2011 +1000
+commit 26b6a97c15e7b65674bfbde2197798519290ef98
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Sun Jun 19 13:57:22 2011 +1000
 
-    cc: nit: silence comment warnings
+    Make.ccmd: link with mach lib,
+    remove explicit linking in make files
     
-    R=golang-dev, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4648043
+    https://golang.org/cl/4629051
 
- src/cmd/6c/cgen.c | 2 +-
- src/cmd/8c/cgen.c | 2 +-
- src/cmd/cc/dcl.c  | 1 -
- 3 files changed, 2 insertions(+), 3 deletions(-)
+ src/Make.ccmd           | 2 +-
+ src/cmd/cov/Makefile    | 3 ---
+ src/cmd/gopack/Makefile | 3 ---
+ src/cmd/nm/Makefile     | 3 ---
+ src/cmd/prof/Makefile   | 3 ---
+ 5 files changed, 1 insertion(+), 13 deletions(-)

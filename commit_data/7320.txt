@@ -1,24 +1,12 @@
-commit 1fa41734441ba95f06171db25af7769f6ae26b30
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 1 18:34:41 2011 -0500
+commit 80f07cfbeadb2c008827f6d6ce4ddd70d7cf0528
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 15:02:07 2011 -0800
 
-    5l, 8l: pass stack frame size to morestack when needed
-    
-    Shame on me: I fixed the same bug in 6l in 8691fcc6a66e
-    (https://golang.org/cl/2609041) and neglected
-    to look at 5l and 8l to see if they were affected.
-    
-    On the positive side, the check I added in that CL is the
-    one that detected this bug.
-    
-    Fixes #1457.
+    arm: disable peep for release
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/3981052
+    https://golang.org/cl/4001051
 
- src/cmd/5l/noop.c      |  5 +++--
- src/cmd/8l/pass.c      |  2 +-
- src/pkg/runtime/proc.c |  6 ++++--
- test/stack.go          | 27 +++++++++++++++++++++++++++
- 4 files changed, 35 insertions(+), 5 deletions(-)
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

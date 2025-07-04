@@ -1,30 +1,21 @@
-commit 778627f33187d874440ce1f353bb4d7bce55304a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Feb 13 20:49:38 2023 +0100
+commit 824b0a34b7b4fbda1de9f5dbb39c3b33458bc541
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 11:17:16 2022 -0400
 
-    crypto/internal/nistec: refactor scalar multiplication
+    cmd/go: replace some calls to base.AppendPWD with cmd.Environ
     
-    The assumptions of some of the assembly functions were still scarcely
-    documented and even disregarded: p256ScalarMult was relying on the fact
-    that the "undefined behavior" of p256PointAddAsm with regards to
-    infinity inputs was returning the infinity.
+    With #50599 implemented, base.AppendPWD is redundant if cmd.Env would
+    otherwise be nil, and calls to os.Environ followed by base.AppendPWD
+    can be replaced by a simpler call to cmd.Environ.
     
-    Aside from expanding comments, moving the bit window massaging into a
-    more easily understood p256OrdRsh function, and fixing the above, this
-    change folds the last iteration of p256ScalarMult into the loop to
-    reduce special cases and inverts the iteration order of p256BaseMult so
-    it matches p256ScalarMult for ease of comparison.
+    Updates #50599.
     
-    Updates #58647
-    
-    Change-Id: Ie5712ea778aadbe5adcdb478d111c2527e83caa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471256
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I94a22e2a4cc8e83c815ac41702ea0b1ee5034ecc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401534
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/nistec/nistec_test.go |  30 +++---
- src/crypto/internal/nistec/p256_asm.go    | 159 +++++++++++++++++++-----------
- 2 files changed, 112 insertions(+), 77 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go   | 2 --
+ src/cmd/go/internal/work/exec.go | 6 ++----
+ 2 files changed, 2 insertions(+), 6 deletions(-)

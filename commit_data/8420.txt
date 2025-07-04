@@ -1,12 +1,13 @@
-commit b96fc594ba3b61755e784d84ce45bb9a78094bc8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue May 17 14:24:32 2011 +1000
+commit 3faa490f895ffbba599b5be52bd4c86cb4573ada
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon May 16 21:15:06 2011 -0700
 
-    doc: add Korean Go site
+    pkg: fix new incorrect prints found by govet
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4515092
+    https://golang.org/cl/4539063
 
- doc/docs.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/crypto/x509/x509_test.go | 4 ++--
+ src/pkg/os/os_test.go            | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

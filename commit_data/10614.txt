@@ -1,24 +1,23 @@
-commit efbeaedb64e426f6874468ea4095d509622514df
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 5 15:48:21 2011 -0500
+commit 40b2fe004fd35dbf5f07deaf33e0fb42a0495bf1
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Dec 5 14:40:19 2011 -0500
 
-    strconv: new API
+    gc: changes in export format in preparation of inlining.
     
-    R=golang-dev, bradfitz, gri, r, agl
+    Includes minimal change to gcimporter to keep it working,
+    
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5434095
+    https://golang.org/cl/5431046
 
- src/pkg/strconv/atob.go       |  17 +++++--
- src/pkg/strconv/atob_test.go  |   4 +-
- src/pkg/strconv/atof.go       |  49 ++++++++++----------
- src/pkg/strconv/atof_test.go  |  38 ++++++----------
- src/pkg/strconv/atoi.go       | 102 +++++++++++++++---------------------------
- src/pkg/strconv/atoi_test.go  |  40 ++++++++---------
- src/pkg/strconv/fp_test.go    |   7 +--
- src/pkg/strconv/ftoa.go       |  29 +++++-------
- src/pkg/strconv/ftoa_test.go  |  28 ++++++------
- src/pkg/strconv/itoa.go       |  44 +++++++++---------
- src/pkg/strconv/itoa_test.go  |  96 ++++++++++-----------------------------
- src/pkg/strconv/quote.go      |  24 ++++++++++
- src/pkg/strconv/quote_test.go |  12 +++++
- 13 files changed, 221 insertions(+), 269 deletions(-)
+ src/cmd/gc/dcl.c                | 112 ++++++++++++++++-----
+ src/cmd/gc/export.c             |  97 +++++++++---------
+ src/cmd/gc/fmt.c                | 136 +++++++++++++------------
+ src/cmd/gc/go.h                 |  20 ++--
+ src/cmd/gc/go.y                 | 215 ++++++++++++++++++++++++----------------
+ src/cmd/gc/init.c               |  16 +--
+ src/cmd/gc/lex.c                |  42 ++++++--
+ src/cmd/gc/subr.c               |   7 +-
+ src/cmd/gc/typecheck.c          |  25 +++--
+ src/pkg/exp/types/gcimporter.go |   9 +-
+ 10 files changed, 404 insertions(+), 275 deletions(-)

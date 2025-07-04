@@ -1,30 +1,21 @@
-commit 711e1c8224f033ec1d95cdf84465b57b052e8948
+commit aeedc9f804e929a8a1c4340f3306b5ef6df8d850
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 1 10:13:41 2021 +0700
+Date:   Mon Dec 7 10:51:44 2020 +0700
 
-    cmd/compile: fix irgen mis-handling invalid function declaration
+    [dev.regabi] cmd/compile: remove OSELRECV
     
-    In -G=3 mode, irgen use its own generated IR, which is mis-handling of
-    bodyless function and declared function with //go:noescape pragma.
+    Previous CL uses OSELRECV2 instead of OSELRECV, this CL removes it.
     
-    Fix this by adopting the same logic in noder.funcDecl, which minor
-    change in linkname detection.
+    Make this a separated CL as it's not safe for toolstash.
     
-    Fixes #48097
-    
-    Change-Id: Ibef921c1f75e071ca61685e0cb4543f2ee5efc7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346470
+    Change-Id: I530ba33fd9311904545e40fe147829af629cf4a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275459
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/noder/decl.go         |  4 ++++
- src/cmd/compile/internal/noder/irgen.go        | 22 ++++++++++++++++------
- src/cmd/compile/internal/types2/stdlib_test.go |  2 ++
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/issue48097.go                   | 12 ++++++++++++
- 5 files changed, 35 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ir/node.go      |   9 +--
+ src/cmd/compile/internal/ir/op_string.go | 105 +++++++++++++++----------------
+ src/cmd/compile/internal/ir/stmt.go      |   2 +-
+ 3 files changed, 55 insertions(+), 61 deletions(-)

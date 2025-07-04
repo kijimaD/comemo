@@ -1,51 +1,19 @@
-commit b1aadd034c1feb6ac8409aca5f0efd10ef442950
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 11 21:09:10 2023 +0000
+commit c846fd8e136dce06b213cae1cf3b9ada423c078a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 30 19:16:23 2022 -0700
 
-    runtime: emit STW events for all pauses, not just those for the GC
+    [dev.unified] cmd/compile/internal/noder: implicit conversions for binary exprs
     
-    Currently STW events are only emitted for GC STWs. There's little reason
-    why the trace can't contain events for every STW: they're rare so don't
-    take up much space in the trace, yet being able to see when the world
-    was stopped is often critical to debugging certain latency issues,
-    especially when they stem from user-level APIs.
+    Binary operations (except for shifts) require one operand to be
+    assignable to the other's type. In particular, for equality
+    comparisons, this can imply a conversion to interface type.
     
-    This change adds new "kinds" to the EvGCSTWStart event, renames the
-    GCSTW events to just "STW," and lets the parser deal with unknown STW
-    kinds for future backwards compatibility.
-    
-    But, this change must break trace compatibility, so it bumps the trace
-    version to Go 1.21.
-    
-    This change also includes a small cleanup in the trace command, which
-    previously checked for STW events when deciding whether user tasks
-    overlapped with a GC. Looking at the source, I don't see a way for STW
-    events to ever enter the stream that that code looks at, so that
-    condition has been deleted.
-    
-    Change-Id: I9a5dc144092c53e92eb6950e9a5504a790ac00cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494495
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic973c8287a40fdaefcf11458378574fdcd243b17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415577
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/trace/annotations.go                       |   2 +-
- src/cmd/trace/trace.go                             |   4 +-
- src/internal/trace/gc.go                           |   5 +-
- src/internal/trace/parser.go                       |  72 ++++++++++++++------
- src/internal/trace/parser_test.go                  |  15 ++++-
- src/internal/trace/testdata/http_1_21_good         | Bin 0 -> 6744 bytes
- src/internal/trace/testdata/stress_1_21_good       | Bin 0 -> 353725 bytes
- .../trace/testdata/stress_start_stop_1_21_good     | Bin 0 -> 5002 bytes
- .../trace/testdata/user_task_region_1_21_good      | Bin 0 -> 2404 bytes
- src/runtime/debug.go                               |   2 +-
- src/runtime/export_debuglog_test.go                |   2 +-
- src/runtime/export_test.go                         |   8 +--
- src/runtime/heapdump.go                            |   2 +-
- src/runtime/mgc.go                                 |  16 ++---
- src/runtime/mprof.go                               |   8 +--
- src/runtime/mstats.go                              |   2 +-
- src/runtime/os_linux.go                            |   2 +-
- src/runtime/proc.go                                |  74 ++++++++++++++++++---
- src/runtime/trace.go                               |  32 ++++++---
- 19 files changed, 177 insertions(+), 69 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

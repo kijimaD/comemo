@@ -1,20 +1,18 @@
-commit a6d4471b2b38f4e865cdc4d31ae0de1e8db45a7b
-Author: Colby Ranger <cranger@google.com>
-Date:   Fri Apr 20 09:31:23 2012 -0700
+commit dda6d6aa7087f51a59bbe60d7b73d170c715ddd0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Apr 20 23:45:43 2012 +0800
 
-    net/http/httputil: Made reverseproxy test less flaky.
+    test: use testlib in a few more cases (part 2)
+            Introduced "runoutput" cmd for running generated program
     
-    The reverseproxy test depended on the behavior of
-    runtime.NumGoroutines(), which makes no guarantee when
-    goroutines are reaped. Instead, modify the flushLoop()
-    to invoke a callback when it returns, so the exit
-    from the loop can be tested, instead of the number
-    of gorountines running.
-    
-    R=bradfitz
+    R=golang-dev, iant, bradfitz, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6068046
+    https://golang.org/cl/5869049
 
- src/pkg/net/http/httputil/reverseproxy.go      | 12 +++---
- src/pkg/net/http/httputil/reverseproxy_test.go | 52 +++++++++-----------------
- 2 files changed, 24 insertions(+), 40 deletions(-)
+ test/64bit.go        |  4 +---
+ test/chan/select5.go |  4 +---
+ test/crlf.go         |  4 +---
+ test/run             |  2 +-
+ test/run.go          | 24 ++++++++++++++++++++++--
+ test/testlib         |  5 +++++
+ 6 files changed, 31 insertions(+), 12 deletions(-)

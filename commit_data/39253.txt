@@ -1,21 +1,43 @@
-commit a3863fc18a2a7f91b9f523cb3af56733460cac4c
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 24 15:38:47 2019 -0400
+commit ceb849dd97aebf08eee5f3683619494c56190f81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Jan 12 20:33:58 2019 -0800
 
-    cmd/link: fix incorrect constant for macho-o load command
+    cmd/compile: accept new Go2 number literals
     
-    The constant defined in macho.go for LC_LOAD_WEAK_DYLIB was
-    not correct, was 0x18 should have been 0x80000018. Switch
-    to the correct definition.
+    This CL introduces compiler support for the new binary and octal integer
+    literals, hexadecimal floats, and digit separators for all number literals.
     
-    Fixes #32233.
+    The new Go 2 number literal scanner accepts the following liberal format:
     
-    Change-Id: I9fb660a3cfd5e8c451a64947258f7ead76d98c79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178723
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    number   = [ prefix ] digits [ "." digits ] [ exponent ] [ "i" ] .
+    prefix   = "0" [ "b" |"B" | "o" | "O" | "x" | "X" ] .
+    digits   = { digit | "_" } .
+    exponent = ( "e" | "E" | "p" | "P" ) [ "+" | "-" ] digits .
+    
+    If the number starts with "0x" or "0X", digit is any hexadecimal digit;
+    otherwise, digit is any decimal digit. If the accepted number is not valid,
+    errors are reported accordingly.
+    
+    See the new test cases in scanner_test.go for a selection of valid and
+    invalid numbers and the respective error messages.
+    
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: Ic8febc7bd4dc5186b16a8c8897691e81125cf0ca
+    Reviewed-on: https://go-review.googlesource.com/c/157677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/mpfloat.go          |   6 +-
+ src/cmd/compile/internal/gc/mpint.go            |   7 +
+ src/cmd/compile/internal/syntax/scanner.go      | 233 +++++++++++++++++-------
+ src/cmd/compile/internal/syntax/scanner_test.go | 224 ++++++++++++++++++++++-
+ src/go/types/stdlib_test.go                     |   1 +
+ test/fixedbugs/issue9036.go                     |  16 +-
+ test/literal2.go                                |  88 +++++++++
+ 7 files changed, 487 insertions(+), 88 deletions(-)

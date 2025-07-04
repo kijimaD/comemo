@@ -1,0 +1,24 @@
+commit e81f7155154c0f5d40363e84a8f24a5b559b5eed
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 29 03:49:06 2025 +0100
+
+    lib/fips140: freeze v1.0.0 FIPS 140 module zip file
+    
+        make v1.0.0.zip
+        make v1.0.0.test
+        make updatesum
+    
+    Changed the v%.zip Makefile target to use the default of origin/master,
+    as per its comment and intention, instead of the local master.
+    
+    Change-Id: I6a6a4656c097d11b8cdc96766394c984f9c47f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644645
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ lib/fips140/Makefile    |   2 +-
+ lib/fips140/fips140.sum |   1 +
+ lib/fips140/v1.0.0.zip  | Bin 0 -> 650281 bytes
+ 3 files changed, 2 insertions(+), 1 deletion(-)

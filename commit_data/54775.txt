@@ -1,20 +1,16 @@
-commit f9c54f9cd441110af2146d9c21eeaee9df178204
-Author: Keiichi Hirobe <chalenge.akane@gmail.com>
-Date:   Sun Oct 22 17:30:37 2023 +0900
+commit 787f8167e433e156ead1b06a2f965f415b3635ec
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 14 12:20:17 2022 -0800
 
-    net/http: remove outdated comment about a support of CONNECT method
+    doc/go1.20: add a release note for multiple error wrapping
     
-    The net/http.Transport already supports CONNECT after
-    https://go-review.googlesource.com/c/go/+/123156 was merged, which
-    deleted comments in transport.go.
+    For #53435.
     
-    Change-Id: I784fdb9b044bc8a4a29bf252328c80a11aaf6901
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536057
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I894bd645b0b61d7dd5f3aae7d1ea7b8a12f31dd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450376
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/request.go | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/go1.20.html | 33 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 32 insertions(+), 1 deletion(-)

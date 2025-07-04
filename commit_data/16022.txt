@@ -1,12 +1,16 @@
-commit 6e054190f77d467e27f3fe64c30661acdc15f02b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Mar 31 02:17:25 2013 +0800
+commit 0104cea6c8f25ced6f5944a810ccaadab1cbf4e6
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Sat Mar 30 09:54:08 2013 -0700
 
-    doc/go1.1: mention (*testing.B).ReportAllocs()
+    misc/emacs: Enable compilation-mode for gofmt error buffer before displaying it.
     
-    R=golang-dev, r
+    Some packages, like popwin.el, change display behaviour based on
+    the buffer's mode, so we should enable compilation-mode before
+    displaying the buffer.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8198043
+    https://golang.org/cl/8155043
 
- doc/go1.1.html | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,14 @@
-commit 201a05ad2f1d10d03e6fc6853c69836b86e8b948
-Author: Tarmigan Casebolt <tarmigan@gmail.com>
-Date:   Sun Aug 23 19:51:22 2015 -0700
+commit d16c7f8004bd1c9f896367af7ea86f5530596b39
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 12:42:55 2015 +1000
 
-    encoding/asn1: fix unused assignments
+    crypto: fix non-sentence in documentation for Decrypter
     
-    Unused assignment for `err` encoding/asn1/marshal.go:622:3
-    Unused assignment for `err` encoding/asn1/marshal.go:650:5
+    Comment change only.
     
-    Change-Id: I4226238645ce3640f25124cb405444e61439fd3f
-    Reviewed-on: https://go-review.googlesource.com/13847
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e32c2b34d5a5659ead6d6082b06e1b039bf1147
+    Reviewed-on: https://go-review.googlesource.com/11852
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/asn1/marshal.go | 4 ++--
+ src/crypto/crypto.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,31 +1,20 @@
-commit 0607cdda6b9f978b268464e9a42630c702dbd833
-Author: Austin Clements <austin@google.com>
-Date:   Sun Sep 1 14:19:19 2019 -0400
+commit 4a52267574db7b04915c6dc3648cfd8255844dd3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Mar 11 09:15:38 2019 -0400
 
-    syscall: redirect writes to runtime.write in faketime mode
+    cmd/go/internal/modfetch: update comment referring to old Import function
     
-    If the faketime build tag is set, this causes syscall.Write for FDs 1
-    and 2 to redirect to runtime.write, since that's where we'll apply the
-    faketime framing. This is equivalent to what nacl currently does in
-    naclFile.write.
+    The Import function was moved from modfetch/repo.go to modload/import.go
+    in vgo CL 122880, and its semantics have changed in vgo CL 123095 to do
+    more than just searching for a module. Both of these changes were ported
+    to cmd/go in CL 123576.
     
-    We do this on all of the platforms except nacl, which has its own
-    faketime support and we're about to remove, and Windows, which would
-    require other changes to support faketime so we're leaving alone for
-    now.
+    Delete the mention of the old Import function from the modfetch/repo.go
+    comment, since what it refers to does not exist anymore.
     
-    Updates #30439.
-    
-    Change-Id: I138a5ca63577d92d15b5437d037bd3159fa84ee7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192739
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6dc6984128152cf9611d30fbc4e6418e91a7641f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166597
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/syscall/fs_js.go         |  8 ++++++++
- src/syscall/syscall_plan9.go |  8 ++++++++
- src/syscall/syscall_unix.go  |  9 ++++++++-
- src/syscall/time_fake.go     | 26 ++++++++++++++++++++++++++
- src/syscall/time_nofake.go   | 14 ++++++++++++++
- 5 files changed, 64 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/repo.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,14 +1,15 @@
-commit af015b1f21949c6ef40989f4746431919c7df6e7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 4 12:06:23 2017 +1100
+commit f6f125dd072ed16efdede5a28defe7d8c552a02c
+Author: griesemer <gri@golang.org>
+Date:   Tue Aug 15 13:46:16 2017 +0200
 
-    runtime: skip flaky TestWindowsStackMemoryCgo
+    go/types: document that Signature.Recv() is ignored for type identity
     
-    Updates #22575
+    Fixes #21367.
     
-    Change-Id: I1f848768934b7024d2ef01db13b9003e9ca608a0
-    Reviewed-on: https://go-review.googlesource.com/76030
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I50704c5a613abcce57b340db8992c7bcb1cb728f
+    Reviewed-on: https://go-review.googlesource.com/55710
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/crash_cgo_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/types/predicates.go | 6 ++++--
+ src/go/types/type.go       | 3 ++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

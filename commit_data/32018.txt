@@ -1,15 +1,14 @@
-commit 792f9c9a954c1fab92e5244f18072c4b2df4c301
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 14 15:52:41 2017 +0000
+commit 371aa23d104237fe72d84618210c5d61da8019aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 29 21:00:55 2017 -0700
 
-    net/http: clarify Handler panic behavior across HTTP versions
+    cmd/compile: convert Type.Trecur to a boolean flag
     
-    Updates #18997
-    
-    Change-Id: Ib1961a4c26b42f99b98b255beb7e2a74b632e0c1
-    Reviewed-on: https://go-review.googlesource.com/48551
-    Reviewed-by: Joe Shaw <joe@joeshaw.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I162e86e5f92c8b827a74ee860d16abadf83bc43e
+    Reviewed-on: https://go-review.googlesource.com/38910
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 12 ++++++------
+ src/cmd/compile/internal/gc/type.go |  8 +++++---
+ 2 files changed, 11 insertions(+), 9 deletions(-)

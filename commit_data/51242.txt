@@ -1,19 +1,24 @@
-commit a650e399dfc2435eb18efc430a70cba9d87cec73
-Author: Changkun Ou <hi@changkun.de>
-Date:   Mon Sep 27 12:06:43 2021 +0200
+commit 15550625c3140efce8ea1d7d3193ec4c563eb117
+Author: Andrew LeFevre <capnspacehook@gmail.com>
+Date:   Thu Dec 16 05:25:09 2021 +0000
 
-    testing: fix error message when a parallel Cleanup calls runtime.Goexit
+    net/netip: add a fuzz test
     
-    Fixes #48502
+    This is a pretty straight port of the fuzz test at https://github.com/inetaf/netaddr.
     
-    Change-Id: I6054b043ebd2237e19897fdf1234b311d19facc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352350
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Changkun Ou <mail@changkun.de>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    The MarshalText methods of netip.Addr and net.IP, the Is* methods of netip.Addr
+    and net.IP and the MarshalText and String methods of netip.Addr are also
+    checked to ensure that they behave the same way.
+    
+    Fixes #49367
+    
+    Change-Id: I44abb01f2a7af45f39597992a1fc7ff0305728fa
+    GitHub-Last-Rev: c2323b0ae119b804a58b810ad7f0e2bb1b3a38ac
+    GitHub-Pull-Request: golang/go#50108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371055
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/testing/panic_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/testing/testing.go    |  6 ++++--
- 2 files changed, 44 insertions(+), 2 deletions(-)
+ src/net/netip/fuzz_test.go | 351 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 351 insertions(+)

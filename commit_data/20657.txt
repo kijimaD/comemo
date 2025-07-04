@@ -1,14 +1,16 @@
-commit 8b7da4de488461500641d6147f1b544e892386ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 7 12:03:48 2014 -0400
+commit b2487ef6a399790cfe57127c3f50fc59341460e4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 26 12:33:05 2014 -0700
 
-    cmd/gc: fix print format
+    flag: allow CommandLine's Usage function to be set
     
-    Fixes 386 build.
+    Fixes #7779.
     
-    TBR=r
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/149620043
+    https://golang.org/cl/147210043
 
- src/cmd/gc/reflect.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/flag/flag.go      | 15 +++++++++------
+ src/flag/flag_test.go | 10 ++++++++++
+ 2 files changed, 19 insertions(+), 6 deletions(-)

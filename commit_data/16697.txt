@@ -1,12 +1,18 @@
-commit 1f954e5c45497a1c3f03ce4a87208ed9da1d29d6
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jul 3 08:16:08 2013 +1000
+commit 7cfa8310c75bfe8534a61f0f64116cb508d6f10d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue Jul 2 17:12:08 2013 +0200
 
-    go/ast: improve doc for FuncDecl's Type field.
+    cmd/gc: fix issue with method wrappers not having escape analysis run on them.
     
-    R=gri, r
+    Escape analysis needs the right curfn value on a dclfunc node, otherwise it will not analyze the function.
+    When generating method value wrappers, we forgot to set the curfn correctly.
+    
+    Fixes #5753.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10679047
+    https://golang.org/cl/10383048
 
- src/pkg/go/ast/ast.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/closure.c        |  7 ++++++-
+ test/fixedbugs/issue5753.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

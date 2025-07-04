@@ -1,20 +1,22 @@
-commit 491fe1b959bf6a0657cba2e3db831ffd4bdf7674
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 20 10:44:07 2020 +0200
+commit 9f42c899e28022e4ad8eb59847fa5af9af0cdbd3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 1 11:05:41 2020 -0400
 
-    cmd/go: enable link syso test on linux/riscv64
+    [dev.link] cmd/oldlink: decouple from goobj2 package
     
-    Now that external linking is supported on linux/riscv64 (CL 243517),
-    re-enable the test previously disabled by CL 216259.
+    The new object file support in the old linker should not be used.
+    This is a minimal change that removes stuff from the old linker's
+    loader package, so that it decouples from the goobj2 package,
+    allowing the latter to evolve.
     
-    Updates #36739
+    Keep the change local in the loader package, so most of the old
+    linker doesn't need to change. At this point I don't think we
+    want to make significant changes to the old linker.
     
-    Change-Id: I611548c587ca50f8bfab72c903ab0432e2b54198
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263797
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: I078c4cbb35dc4627c4b82f512a4aceec9b594925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226800
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/testdata/script/link_syso_issue33139.txt | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/oldlink/internal/loader/loader.go | 771 +-----------------------------
+ 1 file changed, 25 insertions(+), 746 deletions(-)

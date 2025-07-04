@@ -1,13 +1,17 @@
-commit 94935cb5c1fa5f5e002aa7286f5496a4dad36b5c
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Sat Jun 28 15:53:07 2014 -0700
+commit dd3856e1b0d9250f4625108b9979d09ab48175e4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Jun 28 20:47:06 2014 +1000
 
-    strings: Replacer is safe for concurrent use
+    flag: add a little more doc comment to Duration.
+    
+    The only text that describes the accepted format is in the package doc,
+    which is far away from these functions. The other flag types don't need
+    this explicitness because they are more obvious.
     
     LGTM=r
-    R=golang-codereviews, bradfitz, r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/109220044
+    https://golang.org/cl/101550043
 
- src/pkg/strings/replace.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/flag/flag.go | 4 ++++
+ 1 file changed, 4 insertions(+)

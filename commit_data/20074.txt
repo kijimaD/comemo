@@ -1,61 +1,14 @@
-commit 67812a7cd90c22d9b121f747ad27c4f527767ad5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 21 17:25:13 2014 -0700
+commit ba9a11e55765250a413396ecef36e1ba71a099cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 18:14:13 2014 -0400
 
-    cmd/gofmt: make test files self-describing
+    [dev.power64] liblink: fix handling of MOVD with large constants
     
-    1) Interpret a comment of the form
-    
-    //gofmt <flags>
-    
-    in test files to drive the respective
-    gofmt command. Eliminates the need to
-    enumerate all test files in the test
-    harness.
-    
-    2) Added -update flag to make it easier
-    to update test cases.
-    
-    LGTM=josharian
-    R=golang-codereviews, josharian
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/130440043
+    https://golang.org/cl/122540043
 
- src/cmd/gofmt/gofmt_test.go              | 123 ++++++++++++++++++++-----------
- src/cmd/gofmt/testdata/composites.golden |   2 +
- src/cmd/gofmt/testdata/composites.input  |   2 +
- src/cmd/gofmt/testdata/crlf.golden       |   1 +
- src/cmd/gofmt/testdata/crlf.input        |   1 +
- src/cmd/gofmt/testdata/emptydecl.golden  |   4 +
- src/cmd/gofmt/testdata/emptydecl.input   |   4 +
- src/cmd/gofmt/testdata/ranges.golden     |   2 +
- src/cmd/gofmt/testdata/ranges.input      |   2 +
- src/cmd/gofmt/testdata/rewrite1.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite1.input    |   2 +
- src/cmd/gofmt/testdata/rewrite2.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite2.input    |   2 +
- src/cmd/gofmt/testdata/rewrite3.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite3.input    |   2 +
- src/cmd/gofmt/testdata/rewrite4.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite4.input    |   2 +
- src/cmd/gofmt/testdata/rewrite5.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite5.input    |   2 +
- src/cmd/gofmt/testdata/rewrite6.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite6.input    |   2 +
- src/cmd/gofmt/testdata/rewrite7.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite7.input    |   2 +
- src/cmd/gofmt/testdata/rewrite8.golden   |   2 +
- src/cmd/gofmt/testdata/rewrite8.input    |   2 +
- src/cmd/gofmt/testdata/slices1.golden    |   2 +
- src/cmd/gofmt/testdata/slices1.input     |   2 +
- src/cmd/gofmt/testdata/slices2.golden    |   2 +
- src/cmd/gofmt/testdata/slices2.input     |   2 +
- src/cmd/gofmt/testdata/stdin1.golden     |   2 +
- src/cmd/gofmt/testdata/stdin1.input      |   2 +
- src/cmd/gofmt/testdata/stdin2.golden     |   2 +-
- src/cmd/gofmt/testdata/stdin2.input      |   2 +-
- src/cmd/gofmt/testdata/stdin3.golden     |   1 +
- src/cmd/gofmt/testdata/stdin3.input      |   1 +
- src/cmd/gofmt/testdata/stdin4.golden     |   2 +
- src/cmd/gofmt/testdata/stdin4.input      |   2 +
- 37 files changed, 150 insertions(+), 45 deletions(-)
+ src/liblink/asm9.c | 15 +++++++++------
+ src/liblink/obj9.c |  9 ---------
+ 2 files changed, 9 insertions(+), 15 deletions(-)

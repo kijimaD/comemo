@@ -1,14 +1,16 @@
-commit 500effe79ebbb9b130d2ad5a86c92c2f960f2456
-Author: Roger Pau Monné <royger@gmail.com>
-Date:   Fri Mar 25 09:33:45 2011 -0700
+commit 1f2234633f70e5ef97dbaf5ea2600b65388f0f3b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 12:30:49 2011 -0400
 
-    http: modified perl cgi test to remove newline from env variables
+    runtime: fix arm build
     
-    Fixes #1639
-    
-    R=golang-dev, bradfitzgo
+    R=adg, dfc, r
     CC=golang-dev
-    https://golang.org/cl/4291069
+    https://golang.org/cl/4296042
 
- src/pkg/http/cgi/testdata/test.cgi | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/arm/traceback.c    |  2 +-
+ src/pkg/runtime/linux/arm/defs.h   | 42 ++++++++++++++++++++++++--------------
+ src/pkg/runtime/linux/arm/signal.c |  3 +--
+ src/pkg/runtime/linux/arm/sys.s    |  4 ++--
+ src/pkg/runtime/linux/defs_arm.c   | 31 ++++++++++++++++++++++------
+ 5 files changed, 56 insertions(+), 26 deletions(-)

@@ -1,30 +1,17 @@
-commit 857cda4625b31d6725fb96148da2a5fca58df2cb
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 29 13:16:35 2022 -0400
+commit 73162a54c2885d32d40067d2e4fbe26bbe5c7d65
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jul 23 00:24:50 2021 +0700
 
-    cmd/compile: convert merge to use appl. bal. trees for sharing
+    [dev.typeparams] cmd/compile: remove outdate TODO in escape analysis
     
-    This CL replaces a not-very-shared linear-sized set
-    representation with a much more shared representation.
-    For the annoying test program in question, it reduces
-    the heap size by 95%, and the time slightly.
+    We now understand the root cause of #47227, it will be fixed in #47317.
     
-    However, for some programs build time is longer.
-    
-    This also includes at least one bug fix for problems
-    uncovered while ensuring compatibility with what it
-    replaces.
-    
-    Fixes #51543.
-    
-    Change-Id: Ie7a4c6ea460775faeed2b0378ab21ddffd15badc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397318
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ifcd44f887a0bd3195818df33e409bd3e818e0b27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336610
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/abt/avlint32.go      | 849 ++++++++++++++++++++++++++
- src/cmd/compile/internal/abt/avlint32_test.go | 700 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/debug.go         | 642 +++++++++++--------
- src/cmd/compile/internal/ssagen/ssa.go        |   2 +-
- 4 files changed, 1945 insertions(+), 248 deletions(-)
+ src/cmd/compile/internal/escape/call.go | 2 --
+ 1 file changed, 2 deletions(-)

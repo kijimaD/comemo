@@ -1,19 +1,97 @@
-commit 10d625d5b41f17c118da18a592c683e60fcdcb3b
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Tue Apr 20 16:15:29 2021 +0300
+commit 41ff51ae00ed098702522572ea482de33c6525fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:50:46 2020 -0700
 
-    database/sql: add NullInt16 and NullByte
+    [dev.typeparams] cmd/compile/internal/types2: review of scopes.go
     
-    Fixes #40082
+    This file has a few changes compared to the go/types version:
+    1) syntax.Pos is used instead of token.Pos.
+    2) The cmpPos helper function (defined elsewhere) is used to
+       compare positions (syntax.Pos positions cannot be compared
+       directly with <=).
+    3) A new method Scope.Squash was added (primary difference).
     
-    Change-Id: I01cd4d0e23c0376a6ee6e0b196c9f840cd662325
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311572
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    f=scope.go; diff $f ../../../../go/types/$f
+    7c7
+    < package types2
+    ---
+    > package types
+    11d10
+    <       "cmd/compile/internal/syntax"
+    12a12
+    >       "go/token"
+    26c26
+    <       pos, end syntax.Pos        // scope extent; may be invalid
+    ---
+    >       pos, end token.Pos         // scope extent; may be invalid
+    33c33
+    < func NewScope(parent *Scope, pos, end syntax.Pos, comment string) *Scope {
+    ---
+    > func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
+    82c82
+    < func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
+    ---
+    > func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+    84c84
+    <               if obj := s.elems[name]; obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
+    ---
+    >               if obj := s.elems[name]; obj != nil && (!pos.IsValid() || obj.scopePos() <= pos) {
+    111,144d110
+    < // Squash merges s with its parent scope p by adding all
+    < // objects of s to p, adding all children of s to the
+    < // children of p, and removing s from p's children.
+    < // The function f is called for each object obj in s which
+    < // has an object alt in p. s should be discarded after
+    < // having been squashed.
+    < func (s *Scope) Squash(err func(obj, alt Object)) {
+    <       p := s.parent
+    <       assert(p != nil)
+    <       for _, obj := range s.elems {
+    <               obj.setParent(nil)
+    <               if alt := p.Insert(obj); alt != nil {
+    <                       err(obj, alt)
+    <               }
+    <       }
+    <
+    <       j := -1 // index of s in p.children
+    <       for i, ch := range p.children {
+    <               if ch == s {
+    <                       j = i
+    <                       break
+    <               }
+    <       }
+    <       assert(j >= 0)
+    <       k := len(p.children) - 1
+    <       p.children[j] = p.children[k]
+    <       p.children = p.children[:k]
+    <
+    <       p.children = append(p.children, s.children...)
+    <
+    <       s.children = nil
+    <       s.elems = nil
+    < }
+    <
+    149,150c115,116
+    < func (s *Scope) Pos() syntax.Pos { return s.pos }
+    < func (s *Scope) End() syntax.Pos { return s.end }
+    ---
+    > func (s *Scope) Pos() token.Pos { return s.pos }
+    > func (s *Scope) End() token.Pos { return s.end }
+    155,156c121,122
+    < func (s *Scope) Contains(pos syntax.Pos) bool {
+    <       return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
+    ---
+    > func (s *Scope) Contains(pos token.Pos) bool {
+    >       return s.pos <= pos && pos < s.end
+    164c130
+    < func (s *Scope) Innermost(pos syntax.Pos) *Scope {
+    ---
+    > func (s *Scope) Innermost(pos token.Pos) *Scope {
+    
+    Change-Id: If6c459f45dae8980ffb3a902a46b1700e9b55dc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265700
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/database/sql/fakedb_test.go |  8 +++++-
- src/database/sql/sql.go         | 54 +++++++++++++++++++++++++++++++++++++++++
- src/database/sql/sql_test.go    | 24 ++++++++++++++++++
- 3 files changed, 85 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/scope.go | 1 -
+ 1 file changed, 1 deletion(-)

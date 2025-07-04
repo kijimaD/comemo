@@ -1,23 +1,15 @@
-commit 72faffbc704f08273b258d8ff868c61b2f1bef7c
+commit b2c75ae2be56f23fc6518f6d24a3fb95496f1e5f
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Thu Jul 3 21:04:48 2014 -0400
+Date:   Thu Jul 3 16:52:34 2014 -0400
 
-    runtime/cgo: replace fprintf(stderr, ...) with fatalf(...) for linux/android
+    runtime/cgo: revert use of undefined logging function
     
-    Both stdout and stderr are sent to /dev/null in android
-    apps. Introducing fatalf allows android to implement its
-    own copy that sends fatal errors to __android_log_print.
+    It snuck into cl/106380043. Too many active clients.
     
-    LGTM=minux, dave
-    R=minux, dave
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/108400045
+    https://golang.org/cl/110830045
 
- src/pkg/runtime/cgo/gcc_android.c     | 31 +++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/gcc_android_arm.c |  9 ++-------
- src/pkg/runtime/cgo/gcc_fatalf.c      | 23 +++++++++++++++++++++++
- src/pkg/runtime/cgo/gcc_linux_386.c   |  3 +--
- src/pkg/runtime/cgo/gcc_linux_amd64.c |  3 +--
- src/pkg/runtime/cgo/gcc_linux_arm.c   |  6 ++----
- src/pkg/runtime/cgo/libcgo.h          |  5 +++++
- 7 files changed, 65 insertions(+), 15 deletions(-)
+ src/pkg/runtime/cgo/gcc_linux_arm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

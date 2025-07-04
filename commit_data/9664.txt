@@ -1,13 +1,17 @@
-commit efea5d0fb9aa738029a2a40b901fffec41b32448
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Tue Sep 13 12:51:48 2011 +0200
+commit 40d85fb097c2186a9fd58934c5fa973a986e8bcb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 13 13:05:33 2011 +1000
 
-    exp/norm: Added regression test tool for the standard Unicode test set.
+    net: add a LookupTXT function.
     
-    R=r
+    This CL only supports Unix, not Plan 9 or Windows.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4973064
+    https://golang.org/cl/4996048
 
- src/pkg/exp/norm/Makefile       |   9 +-
- src/pkg/exp/norm/normregtest.go | 296 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 304 insertions(+), 1 deletion(-)
+ src/pkg/net/lookup_plan9.go   |  5 +++++
+ src/pkg/net/lookup_test.go    | 18 ++++++++++++++++++
+ src/pkg/net/lookup_unix.go    | 21 +++++++++++++++++----
+ src/pkg/net/lookup_windows.go |  4 ++++
+ 4 files changed, 44 insertions(+), 4 deletions(-)

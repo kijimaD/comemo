@@ -1,12 +1,12 @@
-commit 9dbfda5857ca5481135c960ead3e9bce153cc8b6
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Mar 21 00:42:53 2012 +0800
+commit 8521811cdeeba5ed2c992e0eb1aae0f71da2b037
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 20 14:59:51 2012 +1100
 
-    doc/debugging_with_gdb: format & content update
+    run.bat: disable test in test\bench\go1 to fix build
     
-    R=adg, lvd
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5845065
+    https://golang.org/cl/5848066
 
- doc/debugging_with_gdb.html | 77 +++++++++++++++++++++++----------------------
- 1 file changed, 39 insertions(+), 38 deletions(-)
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

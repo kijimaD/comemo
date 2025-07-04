@@ -1,19 +1,20 @@
-commit 4ffff35abd9562007b0cf4ee8034ded8760e5e2a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 18 17:17:26 2011 -0700
+commit 1d550bdedf4fe73de48a1d77897f651a1bf5b9f3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 18 16:33:41 2011 -0700
 
-    http: Client.Do should follow redirects for GET and HEAD
+    syscall: add netlink support for linux/386, linux/amd64, linux/arm
     
-    It's documented as such, but it was never wired up
-    after Transport went in and Head was fixed.
-    
-    If people don't want redirects, that's what RoundTripper/
-    Transport are for.  Or a custom redirect policy.
-    
-    R=golang-dev, kevlar
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4526065
+    https://golang.org/cl/4535078
 
- src/pkg/http/client.go      | 58 +++++++++++++++++++++++++++------------------
- src/pkg/http/client_test.go | 11 +++++++--
- 2 files changed, 44 insertions(+), 25 deletions(-)
+ src/pkg/syscall/mkerrors.sh            |  12 +-
+ src/pkg/syscall/syscall_linux.go       |  27 +-
+ src/pkg/syscall/types_linux.c          |  58 +++-
+ src/pkg/syscall/zerrors_linux_386.go   | 126 ++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 126 ++++++++
+ src/pkg/syscall/zerrors_linux_arm.go   | 532 ++++++++++++++++++++++++++-------
+ src/pkg/syscall/ztypes_linux_386.go    | 102 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go  | 102 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go    | 240 ++++++++++-----
+ 9 files changed, 1140 insertions(+), 185 deletions(-)

@@ -1,25 +1,23 @@
-commit ea65a12f895ce67ee6fd843b9cee97d42f6ad0b4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 27 12:12:01 2021 -0700
+commit 646531c52aab82a11216f8c79c0ad0e2382a943f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 16 17:29:00 2020 -0400
 
-    cmd/compile/internal/types2: catch unexpected expression lists
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on S390X
     
-    This is a modified port of the https://golang.org/cl/313909
-    change for go/types.
+    This is a simplification of LANfloor/LAOfloor since we have a whole
+    word.
     
-    - add catch-all cases for unexpected expression lists
-    - add Checker.singleIndex function to check single indices
-    - better syntax error handling in parser for invalid type
-      instantiations that are missing a type argument
-    
-    Change-Id: I6f0f396d637ad66b79f803d886fdc20ee55a98b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314409
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I791641fb4068cad3f73660ce51699ed4653ae0e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263151
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/syntax/parser.go          | 13 +++--
- src/cmd/compile/internal/types2/expr.go            |  6 +++
- .../internal/types2/fixedbugs/issue45635.go2       | 32 +++++++++++++
- src/cmd/compile/internal/types2/index.go           | 55 +++++++++++++++-------
- .../compile/internal/types2/testdata/typeinst.go2  |  6 +--
- 5 files changed, 86 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  4 +--
+ src/cmd/compile/internal/s390x/ssa.go        |  8 ++++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  3 +++
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 ++-
+ src/cmd/compile/internal/ssa/opGen.go        | 38 ++++++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  6 +++++
+ 6 files changed, 55 insertions(+), 8 deletions(-)

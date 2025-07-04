@@ -1,28 +1,20 @@
-commit f64385b720e59d0cddfe5e05e830665f6ade8083
-Author: Keith Randall <khr@google.com>
-Date:   Mon Dec 10 14:19:33 2018 -0800
+commit 27ed675b4bbb63b5b5d84a21be583ef6147a2084
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 20 21:42:02 2018 -0400
 
-    cmd/compile: set correct line number for method wrappers
+    cmd/go: fix 'go help go.mod' example
     
-    When converting a method to a function, like this:
+    Dropped the example referred to in the text
+    when copying this text out of 'go help mod fix'.
     
-    type T ...
-    func (t T) foo() {
-    }
-    var t T
-    f := t.foo
+    Fixes #27083.
     
-    We need to build a wrapper function for the partially evaluated
-    method. Currently that wrapper function gets the line number of
-    the first place where t.foo appears. Instead it should have the
-    line number of where foo is declared.
-    
-    Fixes #26839
-    
-    Change-Id: I7dbe2094e53d5d336f329273f10f8430e0af544e
-    Reviewed-on: https://go-review.googlesource.com/c/153498
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I63dfa3033fa2b2408019eef9d8b5a055aa803c57
+    Reviewed-on: https://go-review.googlesource.com/130140
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/go/alldocs.go               | 30 ++++++++++++++++++++++--------
+ src/cmd/go/internal/modload/help.go | 14 +++++++++++++-
+ 2 files changed, 35 insertions(+), 9 deletions(-)

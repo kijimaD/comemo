@@ -1,18 +1,32 @@
-commit 2d1a1e0a2a5d2be7614fa7ec9be7ec9ed72bc820
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Aug 2 19:09:20 2019 +0200
+commit 448089854a971274db839a1cacea008b48134a19
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Dec 12 08:29:51 2018 +0000
 
-    doc: fix Block interface parameters order
+    cmd/asm: add arm64 v8.1 atomic instructions
     
-    The Effective Go document references the crypto/cipher Block
-    interface, but the parameters' names are swapped. This change
-    alignes them to the crypto definition, to avoid confusion.
+    This change adds several arm64 v8.1 atomic instructions and test cases.
+    They are LDADDAx, LDADDLx, LDANDAx, LDANDALx, LDANDLx, LDEORAx, LDEORALx,
+    LDEORLx, LDORAx, LDORALx, LDORLx, SWPAx and SWPLx. Their form is consistent
+    with the form of the existing atomic instructions.
     
-    Fixes #33432
+    For instructions STXRx, STLXRx, STXPx and STLXPx, the second destination
+    register can't be RSP. This CL also adds a check for this.
     
-    Change-Id: I8b9aac4dc6af3eec968bbc8f3ee5366b99016fcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188797
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LDADDx Rs, (Rb), Rt: *Rb -> Rt, Rs + *Rb -> *Rb
+    LDANDx Rs, (Rb), Rt: *Rb -> Rt, Rs AND NOT(*Rb) -> *Rb
+    LDEORx Rs, (Rb), Rt: *Rb -> Rt, Rs EOR *Rb -> *Rb
+    LDORx  Rs, (Rb), Rt: *Rb -> Rt, Rs OR *Rb -> *Rb
+    
+    Change-Id: I9f9b0245958cb57ab7d88c66fb9159b23b9017fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157001
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/effective_go.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go             |  13 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s      | 133 +++++++++++++++++++--
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 120 +++++++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go            |  70 +++++++++--
+ src/cmd/internal/obj/arm64/anames.go           |  70 +++++++++--
+ src/cmd/internal/obj/arm64/asm7.go             | 158 ++++++++++++++++---------
+ 6 files changed, 469 insertions(+), 95 deletions(-)

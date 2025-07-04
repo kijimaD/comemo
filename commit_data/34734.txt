@@ -1,20 +1,30 @@
-commit bd18c09095ed432f9638b3b1181b3c5390c8c51c
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Sun Jan 28 23:30:48 2018 +0100
+commit ca2a886cbade477e2c7cf09cdac604b757fb70a9
+Author: griesemer <gri@golang.org>
+Date:   Fri Nov 10 11:38:51 2017 -0800
 
-    crypto/tls: parse certificate first in X509KeyPair to get better errors
+    cmd/compile: record original and absolute file names for line directives
     
-    parsePrivateKey can't return useful error messages because it does trial
-    decoding of multiple formats.  Try ParseCertificate first in case it
-    offers a useful error message.
+    Also, with this change, error locations don't print absolute positions
+    in [] brackets following positions relative to line directives. To get
+    the absolute positions as well, specify the -L flag.
     
-    Fixes #23591
+    Fixes #22660.
     
-    Change-Id: I380490a5850bee593a7d2f584a27b2a14153d768
-    Reviewed-on: https://go-review.googlesource.com/90435
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I9ecfa254f053defba9c802222874155fa12fee2c
+    Reviewed-on: https://go-review.googlesource.com/77090
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/tls.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ misc/cgo/errors/errors_test.go                 |  2 +-
+ src/cmd/asm/internal/lex/input.go              |  3 +-
+ src/cmd/compile/internal/gc/main.go            |  1 +
+ src/cmd/compile/internal/gc/subr.go            |  2 +-
+ src/cmd/compile/internal/syntax/parser.go      |  7 ++--
+ src/cmd/compile/internal/syntax/parser_test.go |  2 +-
+ src/cmd/internal/obj/line_test.go              |  2 +-
+ src/cmd/internal/obj/util.go                   |  2 +-
+ src/cmd/internal/src/pos.go                    | 23 ++++++------
+ src/cmd/internal/src/pos_test.go               | 14 ++++----
+ src/cmd/internal/src/xpos_test.go              |  2 +-
+ test/fixedbugs/issue22660.go                   | 50 ++++++++++++++++++++++++++
+ 12 files changed, 83 insertions(+), 27 deletions(-)

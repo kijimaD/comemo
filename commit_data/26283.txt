@@ -1,22 +1,18 @@
-commit ac47f66abcd98cc5f0e121691acd3e8dced09b4b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 15 15:55:47 2016 +1100
+commit ee566d53adb075c63dc036adb96ba643478a1e00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 7 18:40:40 2016 -0800
 
-    cmd/compile/internal: clean up galign.go constants
+    go/doc: don't drop "factory" functions with dot-imported result types
     
-    Move the C header style architecture constants to the per arch Main
-    methods.
+    Fixes #13742.
     
-    Change-Id: Ie7ff39baa275ceaa6680e7d16441ca9f0aa12597
-    Reviewed-on: https://go-review.googlesource.com/20722
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7c8b51b60e31402bf708bf8d70e07fd06295e8ce
+    Reviewed-on: https://go-review.googlesource.com/18393
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go  | 22 ++++++++--------------
- src/cmd/compile/internal/arm/galign.go    | 17 ++++-------------
- src/cmd/compile/internal/arm64/galign.go  | 17 ++++-------------
- src/cmd/compile/internal/mips64/galign.go | 15 ++++++---------
- src/cmd/compile/internal/ppc64/galign.go  | 15 ++++++---------
- src/cmd/compile/internal/x86/galign.go    | 16 ++++------------
- 6 files changed, 32 insertions(+), 70 deletions(-)
+ src/go/doc/reader.go                    | 19 ++++++++++++-------
+ src/go/doc/testdata/issue13742.0.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue13742.1.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue13742.2.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue13742.go       | 18 ++++++++++++++++++
+ 5 files changed, 105 insertions(+), 7 deletions(-)

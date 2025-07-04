@@ -1,19 +1,23 @@
-commit e1f02e9ae5efc45a8428e97e0c05fd85a5cbcec4
-Author: Thomas Vaillant <thomvaill@bluebricks.dev>
-Date:   Thu Feb 20 22:33:45 2025 +0000
+commit 3313bbb4055f38f53cd43c6c5782a229f445f230
+Author: David Chase <drchase@google.com>
+Date:   Thu Dec 14 14:20:12 2023 -0500
 
-    doc: add a disclamer for the TLS handshake timeouts TL;DR bug in godebug.md
+    runtime: add race annotations in IncNonDefault
     
-    Relates to #71257. Since post-quantum TLS algorithms are enabled by default, we should warn about the possible bugs with legacy servers (see https://tldr.fail/)
+    Also use CompareAndSwap to make the code actually less racy.
     
-    Change-Id: I06a5d8a927497ea2141007b14a90af27e0891720
-    GitHub-Last-Rev: 476e6462dfc7db8c2a47a25dcb7eb342264aabad
-    GitHub-Pull-Request: golang/go#71865
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651036
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Added a test which will be meaningful when run under the race
+    detector (tested it -race with broken fix in runtime, it failed).
+    
+    Fixes #64649
+    
+    Change-Id: I5972e08901d1adc8ba74858edad7eba91be1b0ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549796
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/godebug.md | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/internal/godebug/godebug_test.go | 31 +++++++++++++++++++++++++++++++
+ src/runtime/runtime.go               | 10 +++++++++-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

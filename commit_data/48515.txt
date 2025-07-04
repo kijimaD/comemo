@@ -1,30 +1,31 @@
-commit 0ed31eb73b13bd57aff727f4ab759c6701d45a01
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Mar 18 10:57:02 2022 +0000
+commit cf23daeda3792eb2ba07c30823d5a0c8667f5083
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 25 19:49:08 2021 -0400
 
-    cmd/gofmt: return a proper error for empty Go files
+    [dev.typeparams] cmd/compile: do not schedule in-register args late, even for block control
     
-    I was testing edge cases in gofumpt, a fork of gofmt,
-    and noticed that gofmt will return a bare io error on empty files,
-    as demonstrated by the added test case without a fix:
+    In the scheduler we have the logic that if a Value is used as the
+    block's control, we schedule it at the end, except for Phis and
+    Args. Even the comment says so, the code doesn't exclude
+    in-register Args (OpArgXXXReg).
     
-            > ! exec $GOROOT/bin/gofmt empty.go nopackage.go
-            [stderr]
-            EOF
-            nopackage.go:1:1: expected 'package', found not
+    Change to check for score instead, which includes OpArgXXXRegs.
+    It also includes GetClosurePtr, which must be scheduled early.
+    We just happen to never use it as block control.
     
-    The problem is the code that detects concurrent modifications.
-    It relies on ReadFull and correctly deals with io.ErrUnexpectedEOF,
-    but it did not pay attention to io.EOF, which can happen when size==0.
+    Found when working on ARM64 register ABI. In theory this could
+    apply to AMD64 as well. But on AMD64 we never use in-register
+    Value as block control, as conditional branch is always based on
+    FLAGS, never based on registers, so it doesn't actually cause any
+    problem.
     
-    Change-Id: I6092391721edad4584fb5922d3e3a8fb3da86493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393757
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I167a550309772639574f7468caf91bd805eb74c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322849
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++++++
- src/cmd/gofmt/gofmt.go                         | 7 ++++++-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/schedule.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

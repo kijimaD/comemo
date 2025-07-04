@@ -1,13 +1,22 @@
-commit 4db074639c1eab543018acd4e74d2ccf46102897
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 17 09:40:04 2015 -0700
+commit 81ccf508aa4080d997bbb86a7cf3da710abbd969
+Author: Michael Matloob <matloob@google.com>
+Date:   Sat May 30 01:03:06 2015 -0400
 
-    net/http: add example for setting trailers in an Handler
+    [dev.ssa] cmd/compile/internal/ssa: add line numbers to Values
     
-    Change-Id: I6a8bb853a538c80d95589321d3226784bc017eef
-    Reviewed-on: https://go-review.googlesource.com/12327
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I1dfffd75cc1f49307c654f910f7133c03da6c84f
+    Reviewed-on: https://go-review.googlesource.com/10559
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/example_test.go | 23 +++++++++++++++++++++++
- src/net/http/server.go       |  2 +-
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 153 ++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/TODO              |   2 -
+ src/cmd/compile/internal/ssa/block.go          |   3 +
+ src/cmd/compile/internal/ssa/func.go           |  12 +-
+ src/cmd/compile/internal/ssa/func_test.go      |   2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   2 +-
+ src/cmd/compile/internal/ssa/generic.go        |  34 +++---
+ src/cmd/compile/internal/ssa/regalloc.go       |  14 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  14 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  34 +++---
+ src/cmd/compile/internal/ssa/value.go          |   3 +
+ 11 files changed, 174 insertions(+), 99 deletions(-)

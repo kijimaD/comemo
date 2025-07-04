@@ -1,27 +1,25 @@
-commit bc32dd1b69b0629a54cfe50626e42eb4b75eb017
+commit 93dcaba1192bac57409602a2f767f9b2f70b5f3a
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 26 13:14:01 2021 -0800
+Date:   Mon Mar 29 13:36:53 2021 -0700
 
-    go/types: better error position for instantiation failure
+    cmd/compile/internal/types2: review of stmt.go
     
-    This is a port of CL 366757 from types2 to go/types,
-    adjusted for the different handling of index expressions
-    in go/types.
+    The changes between (equivalent, and reviewed) go/types/stmt.go
+    and stmt.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, and minor adjustments
+    to get the code slightly closer to go/types/stmt.go.
     
-    For #49179.
+    The primary differences compared to go/types are:
+    - use of syntax rather than go/ast package, with significant
+      differences in the representation of switch and select statements,
+      range clauses of for statements, and inc/dec statements.
+    - no reporting of error codes
+    - use or error_ for collecting addition error information
     
-    Change-Id: Ic859eb09683134d055e28c8e0cb1f3814a87dc5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367198
+    Change-Id: I4409f62ecafd0653e4c8ef087c2580d8f0544efc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305576
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/builtins.go                       |  2 +-
- src/go/types/call.go                           | 39 +++++++++++---------------
- src/go/types/mono.go                           |  7 +++--
- src/go/types/testdata/check/issues.go2         |  2 +-
- src/go/types/testdata/fixedbugs/issue39754.go2 |  5 +---
- src/go/types/testdata/fixedbugs/issue49179.go2 | 19 +++++++++++++
- src/go/types/typexpr.go                        | 13 ++-------
- 7 files changed, 45 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/types2/stmt.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

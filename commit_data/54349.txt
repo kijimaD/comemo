@@ -1,21 +1,30 @@
-commit d80f3966b8b5b2a6e606b416fe80dffeb810ab68
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Nov 11 08:38:50 2022 -0600
+commit b440c15db71ba0ac0b995428a52b380814882627
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 13:51:52 2022 -0700
 
-    cmd/internal/obj/ppc64: do not assemble non-constant rotate RLWMI
+    internal/types/errors: add package
     
-    Unlike RLWNM, the ISA only supports an immediate rotate operand.
+    The internal/types/errors package defines all error codes used by
+    the type checkers. This is the 1st step of several that factor out
+    the error codes from go/types and types2; the package is not yet
+    used.
     
-    Update optab and opirrr to avoid quietly assembling this insn.
+    - The file codes.go is a copy of go/types/errorcodes.go. The
+      only change is the updated package name (types -> errors).
     
-    Change-Id: I1472a431cb8a870d55d5fff79ab905c4c459f630
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449835
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    - The file codes_test.go is a copy of go/types/errorcodes_test.go
+      with updated package name (types_test -> errors_test) and minor
+      changes to walkCodes so that it doesn't require the pkgFiles
+      helper function (the test only parses a single file).
+    
+    Change-Id: Idb977b1220737b56b330de1d977f698f022daafc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439560
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/obj/ppc64/asm9.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/internal/types/errors/codes.go      | 1423 +++++++++++++++++++++++++++++++
+ src/internal/types/errors/codes_test.go |  197 +++++
+ 2 files changed, 1620 insertions(+)

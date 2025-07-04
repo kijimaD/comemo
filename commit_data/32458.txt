@@ -1,21 +1,27 @@
-commit 9515610afbbfafdde13052265f115a5e65d6756f
-Author: Danny Rosseau <daniel.rosseau@gmail.com>
-Date:   Thu Aug 10 13:08:23 2017 -0600
+commit d2863996416fed7f90bdc4b76249f8c62d065bd0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:30:08 2017 -0700
 
-    encoding/gob: fix Debug to properly print uint
+    cmd/compile: move Node.Walkdef into flags
     
-    Fix debugger printing of uint that mistakenly
-    invoked .int64() instead of .uint64()
+    Node.Walkdef is 0, 1, or 2, so it only requires two bits.
+    Add support for 2-bit values to bitset,
+    and use it for Node.Walkdef.
     
-    Fixes #21392
+    Class, Embedded, Typecheck, and Initorder will follow suit
+    in subsequent CLs.
     
-    Change-Id: I107a7e87e0efbb06303c1e627dee76c369f75d1e
-    Reviewed-on: https://go-review.googlesource.com/54750
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    The multi-bit flags will go at the beginning,
+    since that generates (marginally) more efficient code.
+    
+    Change-Id: Id6e2e66e437f10aaa05b8a6e1652efb327d06128
+    Reviewed-on: https://go-review.googlesource.com/41791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/codec_test.go | 1 +
- src/encoding/gob/debug.go      | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bitset.go      | 11 +++++++
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      | 47 +++++++++++++++++-------------
+ src/cmd/compile/internal/gc/typecheck.go   | 10 +++----
+ 4 files changed, 43 insertions(+), 27 deletions(-)

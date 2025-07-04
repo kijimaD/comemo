@@ -1,65 +1,20 @@
-commit 813f8eae2738c75151d036906a9008525c1ba0fe
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 15 10:50:30 2020 +0200
+commit bb7890b85a4293886a665e5b83e1fb7c009d8946
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Oct 11 03:51:28 2019 -0700
 
-    math/big: remove Direct Sqrt computation
+    cmd/compile: absorb more Not ops into Neq* and Eq* ops
     
-    The Float.Sqrt method switches (for performance reasons) between
-    direct (uses Quo) and inverse (doesn't) computation, depending on the
-    precision, with threshold 128.
+    We absorbed Not into most integer comparisons but not into pointer
+    and floating point equality checks.
     
-    Unfortunately the implementation of recursive division in CL 172018
-    made Quo slightly slower exactly in the range around and below the
-    threshold Sqrt is using, so this strategy is no longer profitable.
+    The new cases trigger more than 300 times during make.bash.
     
-    The new division algorithm allocates more, and this has increased the
-    amount of allocations performed by Sqrt when using the direct method;
-    on low precisions the computation is fast, so additional allocations
-    have an negative impact on performance.
-    
-    Interestingly, only using the inverse method doesn't just reverse the
-    effects of the Quo algorithm change, but it seems to make performances
-    better overall for small precisions:
-    
-    name                 old time/op    new time/op    delta
-    FloatSqrt/64-4          643ns ± 1%     635ns ± 1%   -1.24%  (p=0.000 n=10+10)
-    FloatSqrt/128-4        1.44µs ± 1%    1.02µs ± 1%  -29.25%  (p=0.000 n=10+10)
-    FloatSqrt/256-4        1.49µs ± 1%    1.49µs ± 1%     ~     (p=0.752 n=10+10)
-    FloatSqrt/1000-4       3.71µs ± 1%    3.74µs ± 1%   +0.87%  (p=0.001 n=10+10)
-    FloatSqrt/10000-4      35.3µs ± 1%    35.6µs ± 1%   +0.82%  (p=0.002 n=10+9)
-    FloatSqrt/100000-4      844µs ± 1%     844µs ± 0%     ~     (p=0.549 n=10+9)
-    FloatSqrt/1000000-4    69.5ms ± 0%    69.6ms ± 0%     ~     (p=0.222 n=9+9)
-    
-    name                 old alloc/op   new alloc/op   delta
-    FloatSqrt/64-4           280B ± 0%      200B ± 0%  -28.57%  (p=0.000 n=10+10)
-    FloatSqrt/128-4          504B ± 0%      248B ± 0%  -50.79%  (p=0.000 n=10+10)
-    FloatSqrt/256-4          344B ± 0%      344B ± 0%     ~     (all equal)
-    FloatSqrt/1000-4       1.30kB ± 0%    1.30kB ± 0%     ~     (all equal)
-    FloatSqrt/10000-4      13.5kB ± 0%    13.5kB ± 0%     ~     (p=0.237 n=10+10)
-    FloatSqrt/100000-4      123kB ± 0%     123kB ± 0%     ~     (p=0.247 n=10+10)
-    FloatSqrt/1000000-4    1.83MB ± 1%    1.83MB ± 3%     ~     (p=0.779 n=8+10)
-    
-    name                 old allocs/op  new allocs/op  delta
-    FloatSqrt/64-4           8.00 ± 0%      5.00 ± 0%  -37.50%  (p=0.000 n=10+10)
-    FloatSqrt/128-4          11.0 ± 0%       5.0 ± 0%  -54.55%  (p=0.000 n=10+10)
-    FloatSqrt/256-4          5.00 ± 0%      5.00 ± 0%     ~     (all equal)
-    FloatSqrt/1000-4         6.00 ± 0%      6.00 ± 0%     ~     (all equal)
-    FloatSqrt/10000-4        6.00 ± 0%      6.00 ± 0%     ~     (all equal)
-    FloatSqrt/100000-4       6.00 ± 0%      6.00 ± 0%     ~     (all equal)
-    FloatSqrt/1000000-4      10.3 ±13%      10.3 ±13%     ~     (p=1.000 n=10+10)
-    
-    For example, 1.02µs for FloatSqrt/128 is actually better than what I
-    was getting on the same machine before the Quo changes.
-    
-    The .8% slowdown on /1000 and /10000 appears to be real and it is
-    quite baffling (that codepath was not touched at all); it may be
-    caused by code alignment changes.
-    
-    Change-Id: Ib03761cdc1055674bc7526d4f3a23d7a25094029
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228062
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I77c6b31fcacde10da5470b73fc001a19521ce78d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200618
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/sqrt.go | 54 +++-------------------------------------------------
- 1 file changed, 3 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   5 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 108 ++++++++++++++++++++++---
+ 2 files changed, 98 insertions(+), 15 deletions(-)

@@ -1,17 +1,26 @@
-commit 84a62453e5c01df3f7d0c48d9aca32832c2052c1
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri May 8 17:12:45 2020 -0400
+commit fcfc16694f6e1a1ddaead5f950094cfe7173d08e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 7 16:41:26 2020 -0500
 
-    cmd/compile: remove unnecessary error condition on reading fingerprint
+    cmd/go: convert TestCoverageNoStatements to the script framework.
     
-    io.ReadFull guarantees n == len(buf) if and only if err == nil,
-    so the length check is redundant.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Change-Id: I15bff97868e27a65648acd791883cac8dab77630
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232988
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ie2c60ec0654ef605439beeed92cf5f1c2c8a1dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213681
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/iimport.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                           |  8 ----
+ src/cmd/go/testdata/script/cover_statements.txt | 57 +++++++++++++++++++++++++
+ src/cmd/go/testdata/testcover/pkg1/a.go         |  7 ---
+ src/cmd/go/testdata/testcover/pkg2/a.go         |  7 ---
+ src/cmd/go/testdata/testcover/pkg2/a_test.go    |  1 -
+ src/cmd/go/testdata/testcover/pkg3/a.go         |  7 ---
+ src/cmd/go/testdata/testcover/pkg3/a_test.go    |  7 ---
+ src/cmd/go/testdata/testcover/pkg4/a.go         |  5 ---
+ src/cmd/go/testdata/testcover/pkg4/a_test.go    |  9 ----
+ 9 files changed, 57 insertions(+), 51 deletions(-)

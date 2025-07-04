@@ -1,24 +1,23 @@
-commit 66e6f5c9202ae98c3e1d3830972cd13559fb28f2
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Sep 3 11:19:39 2024 -0400
+commit dc094f9c9613a2a8ed24ace1b5416170aa3a334b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 20 16:33:29 2023 -0500
 
-    cmd/doc: add support for starting pkgsite instance for docs
+    runtime: disable crash stack on Windows
     
-    This change adds a new flag "-http" to cmd/doc which enables starting
-    a pkgsite instance. -http will start a pkgsite instance and navigate to
-    the page for the requested package, at the anchor for the item
-    requested.
+    Apparently, on Windows, throwing an exception on a non-system-
+    allocated crash stack causes EXCEPTION_STACK_OVERFLOW and hangs
+    the process (see issue #63938). Disable crash stack for now, which
+    gets us back the the behavior of Go 1.21.
     
-    For #68106
+    Fixes #63938.
     
-    Change-Id: Ic1c113795cb2e1035e99c89c8e972c799342385b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628175
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I4c090315b93b484e756b242f0de7a9e02f199261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543996
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/doc/main.go           | 99 +++++++++++++++++++++++++++++++++++++++++++
- src/cmd/doc/signal_notunix.go | 13 ++++++
- src/cmd/doc/signal_unix.go    | 14 ++++++
- 3 files changed, 126 insertions(+)
+ src/runtime/crash_test.go | 4 +---
+ src/runtime/proc.go       | 5 ++++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

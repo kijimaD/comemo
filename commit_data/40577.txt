@@ -1,37 +1,39 @@
-commit 4af639a5685355b22f8a541c72ba092bed768941
-Author: Keith Randall <khr@google.com>
-Date:   Mon Nov 4 14:50:35 2019 -0800
+commit 545cd82734258af78c53eaa58be0edfaedf9ca73
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 17 10:59:34 2019 -0400
 
-    cmd: vendor in new version of x/tools
+    cmd/go: remove support for the 'go get -m' flag
     
-    Fixes #35264
+    Fixes #32038
     
-    Change-Id: Id540a48f593d8ac1b414551255c5eff24666aa0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205240
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib4981f76572405363f404ee5038a45cb1752a2ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177879
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../golang.org/x/tools/go/analysis/analysis.go     |  18 ++-
- .../golang.org/x/tools/go/analysis/diagnostic.go   |  13 ++
- .../x/tools/go/analysis/internal/facts/facts.go    |   5 +-
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   9 ++
- .../x/tools/go/analysis/passes/atomic/atomic.go    |   2 +-
- .../x/tools/go/analysis/passes/bools/bools.go      |   4 +-
- .../go/analysis/passes/composite/composite.go      |   2 +-
- .../tools/go/analysis/passes/copylock/copylock.go  |  14 +-
- .../tools/go/analysis/passes/errorsas/errorsas.go  |   2 +-
- .../analysis/passes/httpresponse/httpresponse.go   |   2 +-
- .../x/tools/go/analysis/passes/inspect/inspect.go  |   2 +-
- .../go/analysis/passes/loopclosure/loopclosure.go  |   2 +-
- .../go/analysis/passes/lostcancel/lostcancel.go    |   6 +-
- .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   2 +-
- .../x/tools/go/analysis/passes/printf/printf.go    | 151 +++++++++++++--------
- .../x/tools/go/analysis/passes/shift/shift.go      |   2 +-
- .../go/analysis/passes/stdmethods/stdmethods.go    |   2 +-
- .../go/analysis/passes/unreachable/unreachable.go  |   2 +-
- .../go/analysis/passes/unsafeptr/unsafeptr.go      |   2 +-
- src/cmd/vendor/modules.txt                         |   2 +-
- 22 files changed, 162 insertions(+), 88 deletions(-)
+ src/cmd/go/alldocs.go                              |  14 +--
+ src/cmd/go/internal/modget/get.go                  | 128 +++++++--------------
+ src/cmd/go/internal/modload/load.go                |  81 +------------
+ src/cmd/go/testdata/script/mod_build_versioned.txt |   2 +-
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  11 +-
+ src/cmd/go/testdata/script/mod_get_local.txt       |  12 +-
+ src/cmd/go/testdata/script/mod_get_main.txt        |  12 +-
+ src/cmd/go/testdata/script/mod_get_patterns.txt    |  14 +--
+ src/cmd/go/testdata/script/mod_get_pseudo.txt      |  26 ++---
+ .../script/mod_get_pseudo_other_branch.txt         |   2 +-
+ .../go/testdata/script/mod_get_pseudo_prefix.txt   |   4 +-
+ src/cmd/go/testdata/script/mod_get_upgrade.txt     |  12 +-
+ .../go/testdata/script/mod_get_upgrade_pseudo.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_import_v1suffix.txt |   2 +-
+ .../go/testdata/script/mod_list_upgrade_pseudo.txt |   2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   4 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |   6 +-
+ src/cmd/go/testdata/script/mod_sumdb.txt           |  10 +-
+ src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  16 +--
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    |   8 +-
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt     |  10 +-
+ ...upgrade_patch_pkg.txt => mod_upgrade_patch.txt} |   0
+ .../go/testdata/script/mod_upgrade_patch_mod.txt   |  83 -------------
+ 24 files changed, 117 insertions(+), 346 deletions(-)

@@ -1,20 +1,16 @@
-commit d7cd61ceaac488e3130ccf9dd12eeaa13df8e814
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 27 11:14:11 2018 -0800
+commit 8c532f5fc457642e0067017dc0701e7a8ee63bb2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Oct 23 14:45:17 2017 -0700
 
-    cmd/compile: fix inlining of constant if statements
+    encoding/csv: update ErrQuote message
     
-    We accidentally overlooked needing to still visit Ninit for OIF
-    statements with constant conditions in golang.org/cl/96778.
+    The ErrQuote variable is only returned when a parsing error
+    occurs within a quoted string. Make that clear in the message.
     
-    Fixes #24120.
-    
-    Change-Id: I5b341913065ff90e1163fb872b9e8d47e2a789d2
-    Reviewed-on: https://go-review.googlesource.com/97475
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I06ad5a9edb41afedde193c4f8b93551bb8342bbb
+    Reviewed-on: https://go-review.googlesource.com/72794
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  3 ++-
- test/fixedbugs/issue24120.go       | 14 ++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/encoding/csv/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,28 @@
-commit 2dcb613878d51724e31c45cbbe8cd3e28e4f8f80
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Oct 16 09:13:50 2014 +1100
+commit c65a47f890e33eeed6ee9d8b6d965a5534fb6e0e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 3 10:36:54 2014 +1000
 
-    unicode/utf8: fix docs for DecodeRune(empty) and friends.
+    undo CL 138250043 / 4eda5e4001fd
+    
+    I will use different approach to solve this problem.
+    See CL 143160046 for details.
+    
+    ««« original CL description
+    syscall: keep Windows syscall pointers live too
+    
+    Like https://golang.org/cl/139360044
+    
+    LGTM=rsc, alex.brainman
+    R=alex.brainman, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/138250043
+    »»»
     
     LGTM=r
-    R=r
+    R=golang-codereviews, bradfitz, r
     CC=golang-codereviews
-    https://golang.org/cl/157080043
+    https://golang.org/cl/147440043
 
- src/unicode/utf8/utf8.go | 26 ++++++++++++++++++--------
- 1 file changed, 18 insertions(+), 8 deletions(-)
+ src/syscall/mksyscall_windows.go | 24 ++----------------------
+ src/syscall/zsyscall_windows.go  | 15 ++++-----------
+ 2 files changed, 6 insertions(+), 33 deletions(-)

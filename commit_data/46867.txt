@@ -1,26 +1,21 @@
-commit e8f99da8ed6180732ace00f8fc6b17f636515bc4
-Author: nicksherron <nsherron90@gmail.com>
-Date:   Wed Oct 13 01:39:13 2021 +0000
+commit 59703d53e249db738363c3fab9143348ff9559ea
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 5 18:07:46 2021 -0500
 
-    all: fix spelling mistakes
+    [dev.regabi] cmd/link: stop using ABI aliases if wrapper is enabled
     
-    Corrections were only made to comments and can be reproduced with the
-    following sed.
+    If ABI wrappers are enabled, we should not see ABI aliases at
+    link time. Stop resolving them. One exception is shared linkage,
+    where we still use ABI aliases as we don't always know the ABI
+    for symbols from shared libraries.
     
-    sed -i 's/communciation/communication/g'  src/internal/fuzz/sys_windows.go
-    sed -i 's/communciation/communication/g'  src/internal/fuzz/sys_posix.go
-    sed -i 's/substitued/substituted/g'     src/cmd/compile/internal/noder/irgen.go
-    
-    Change-Id: I435aee2fdb41e73b694e6233d52742559d32cf7e
-    GitHub-Last-Rev: a471e3d123aa6c8bb9b091e65de5d16609fb8db1
-    GitHub-Pull-Request: golang/go#48932
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355494
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia89a788094382adeb4c4ef9b0312aa6e8c2f79ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290032
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/irgen.go | 2 +-
- src/internal/fuzz/sys_posix.go          | 2 +-
- src/internal/fuzz/sys_windows.go        | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/lib.go        | 8 +++++++-
+ src/cmd/link/internal/loader/loader.go | 4 ++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,36 +1,23 @@
-commit c914e6160db8b6af358cad90ed7272ebc5c22dda
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 16 21:45:02 2021 -0400
+commit 5b509d993d3a3a212b4033815be8b7b439fac672
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 12 15:49:59 2020 +0200
 
-    cmd/go: drop GOEXPERIMENT in script tests
+    lib/time, time/tzdata: update tz data to 2020b
     
-    TestScript sets the GOEXPERIMENT environment variable to the value of
-    buildcfg.GOEXPERIMENT() with the intent that tests can use this to
-    inspect the value of buildcfg.GOEXPERIMENT. This has the unfortunate
-    side-effect of also affecting the experiments enabled for all builds
-    done by TestScript. For the most part this is harmless, but
-    GOEXPERIMENT can be GOOS/GOARCH-sensitive, so if a test changes GOOS
-    or GOARCH, it will continue to use the GOEXPERIMENT from the host
-    GOOS/GOARCH rather than what makes sense (or is even allowed) in the
-    test's GOOS/GOARCH. In fact, prior to CL 307819, TestScript set
-    GOEXPSTRING instead of GOEXPERIMENT because it previously captured
-    objabi.Expstring(), so the captured value didn't affect the build.
+    Set ZFLAGS="-b fat" as the default was changed to '-b slim', see
+    http://mm.icann.org/pipermail/tz-announce/2020-October/000059.html
+    This will make sure that backwards-compatibibilty data is still emitted.
     
-    There's only one experiment that actually uses TestScript's
-    GOEXPERIMENT and there's a much better way to write that test now such
-    that it doesn't need to read GOEXPERIMENT at all. Hence, this CL
-    rewrites this test and drops GOEXPERIMENT from TestScript.
+    Updates #22487
     
-    This should fix the *-regabi builders.
-    
-    Change-Id: I3fcbf1f21e1b471ebc0e953c31333645553ea24c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310969
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I310a1b3a91e435673d1df41fbf8bb76abce1f94d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261363
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/script_test.go                          |  2 -
- src/cmd/go/testdata/script/README                  |  1 -
- .../go/testdata/script/build_tag_goexperiment.txt  | 93 +++-------------------
- 3 files changed, 11 insertions(+), 85 deletions(-)
+ lib/time/update.bash       |     6 +-
+ lib/time/zoneinfo.zip      |   Bin 782509 -> 783364 bytes
+ src/time/tzdata/zipdata.go | 25139 ++++++++++++++++++++++---------------------
+ 3 files changed, 12580 insertions(+), 12565 deletions(-)

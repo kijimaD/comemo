@@ -1,45 +1,15 @@
-commit db956262ac4125693cffb517ea7aebf6ab04ec35
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue May 13 13:12:47 2025 -0400
+commit c4792e60f332577678c643b430e66934fe64a81e
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Mar 21 13:08:24 2024 +0000
 
-    runtime: rename ncpu to numCPUStartup
+    net/http: eliminate the needless idle timeout for TestServerNoReadTimeout
     
-    ncpu is the total logical CPU count at startup. It is never updated. For
-    #73193, we will start using updated CPU counts for updated GOMAXPROCS,
-    making the ncpu name a bit ambiguous. Change to a less ambiguous name.
-    
-    While we're at it, give the OS specific lookup functions a common name,
-    so it can be used outside of osinit later.
-    
-    For #73193.
-    
-    Change-Id: I6a6a636cf21cc60de36b211f3c374080849fc667
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672277
+    Change-Id: I1339749bfeac99848beca780cebb9c87564da656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573335
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/runtime/debug.go            |  2 +-
- src/runtime/heapdump.go         |  2 +-
- src/runtime/lock_spinbit.go     |  2 +-
- src/runtime/mgc.go              |  8 ++++----
- src/runtime/os3_solaris.go      |  2 +-
- src/runtime/os_aix.go           |  6 +++++-
- src/runtime/os_darwin.go        |  4 ++--
- src/runtime/os_dragonfly.go     |  4 ++--
- src/runtime/os_freebsd.go       |  4 ++--
- src/runtime/os_freebsd_arm.go   |  5 +++--
- src/runtime/os_illumos.go       |  2 +-
- src/runtime/os_linux.go         |  4 ++--
- src/runtime/os_netbsd.go        |  4 ++--
- src/runtime/os_netbsd_arm.go    |  5 +++--
- src/runtime/os_only_solaris.go  |  2 +-
- src/runtime/os_openbsd.go       |  4 ++--
- src/runtime/os_openbsd_arm.go   |  5 +++--
- src/runtime/os_plan9.go         |  4 ++--
- src/runtime/os_wasm.go          |  6 +++++-
- src/runtime/os_windows.go       |  4 ++--
- src/runtime/proc.go             |  4 ++--
- src/runtime/runtime2.go         | 12 ++++++------
- src/runtime/vgetrandom_linux.go |  2 +-
- 23 files changed, 54 insertions(+), 43 deletions(-)
+ src/net/http/serve_test.go | 1 -
+ 1 file changed, 1 deletion(-)

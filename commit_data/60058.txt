@@ -1,0 +1,23 @@
+commit 4edb367bac85cf16f85a3cea952375ae2539340d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 19 17:28:53 2024 -0700
+
+    cmd/cgo: don't force rewritten code onto a single line
+    
+    Doing that appears to have been a mistake in CL 142883.
+    
+    Fixes #67517
+    
+    Change-Id: Iec6b897984a2e27ec596fc3c4c8129e9620afab1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586676
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/gcc.go                                 |  6 +--
+ src/cmd/cgo/godefs.go                              | 43 ----------------------
+ src/cmd/cgo/internal/test/test.go                  | 28 ++++++++++++++
+ src/cmd/cgo/internal/testerrors/errors_test.go     |  1 +
+ .../cgo/internal/testerrors/testdata/issue67517.go | 19 ++++++++++
+ 5 files changed, 51 insertions(+), 46 deletions(-)

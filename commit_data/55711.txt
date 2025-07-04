@@ -1,17 +1,22 @@
-commit f326b3e2b3761ae4562204a5faee41b4d5211502
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Tue Feb 27 05:18:10 2024 +0000
+commit 74a9d283e4d498b78521f4a40c23b4c3f5ff7387
+Author: Florin Papa <fpapa@google.com>
+Date:   Mon Nov 21 12:54:11 2022 -0800
 
-    go/types, types2: fix typo in comment
+    debug/elf: retrieve values for dynamic section tags
     
-    Change-Id: I410c5fdd9fa3aa7ce5eb1d688621c7684f03a6f9
-    GitHub-Last-Rev: c3f53de27fb8602b500180242e0be274dc242f8d
-    GitHub-Pull-Request: golang/go#65950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566858
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Add functionality to retrieve values for .dynamic entries that don't
+    correspond to entries in the string table.
+    
+    Fixes #56892
+    
+    Change-Id: I6edabc8ca331c819e442d06e19b7f4df8343372b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452617
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/decl.go | 2 +-
- src/go/types/decl.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ api/next/56892.txt         |  1 +
+ src/debug/elf/file.go      | 34 ++++++++++++++++++++++++++++++++++
+ src/debug/elf/file_test.go | 18 ++++++++++++++++++
+ 3 files changed, 53 insertions(+)

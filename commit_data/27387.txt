@@ -1,28 +1,17 @@
-commit 2cc0f2209653f9f6931e0c3a1fb63e581a0fe87f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 13 11:10:29 2016 +0900
+commit 44532f1a9defb9cc4f48e74a7fa1ffd1dfa67022
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Mar 24 01:55:42 2016 +0100
 
-    Revert "cmd/build: reject non-existant directories in ImportDir"
+    runtime: fix inconsistency in slice.go
     
-    This reverts commit 7af2ce3f159760033c903b3730bfb5995b4edd40.
+    Fixes #14938.
     
-    The commit had a wrong prefix in the description line, probably
-    misreconginized something. As a result it broke golang.org/x/tools/godoc
-    and golang.org/x/tools/cmd/godoc like the following:
+    Additionally some simplifications along the way.
     
-    --- FAIL: TestCLI (10.90s)
-    --- FAIL: TestWeb (13.74s)
-    FAIL
-    FAIL        golang.org/x/tools/cmd/godoc    36.428s
-    --- FAIL: TestCommandLine (0.00s)
-    FAIL
-    FAIL        golang.org/x/tools/godoc        0.068s
-    
-    Change-Id: I362a862a4ded8592dec7488a28e7a256adee148f
-    Reviewed-on: https://go-review.googlesource.com/23076
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I2c5fb7e32dcc6fab68fff36a49cb72e715756abe
+    Reviewed-on: https://go-review.googlesource.com/21046
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/build.go      |  6 +-----
- src/go/build/build_test.go | 11 -----------
- 2 files changed, 1 insertion(+), 16 deletions(-)
+ src/runtime/slice.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

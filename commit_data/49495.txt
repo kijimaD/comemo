@@ -1,17 +1,26 @@
-commit 9e2f2897546c51863bf860c30622fbe9e3359391
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 17 12:34:30 2022 -0400
+commit 8eeb1bff1d7107828b41af08e599c78fc36bab30
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Aug 23 15:45:10 2021 -0700
 
-    cmd/go/internal/work: log clearer detail for subprocess errors in (*Builder).toolID
+    cmd/compile: reuse same node for global dictionaries
     
-    For #52647.
+    Change stencil.go:getDictionaryValue() and reflect.go:getDictionary() to
+    reuse any existing name node that has been created for the needed global
+    dictionary. Otherwise, these functions may set the Def on a specific
+    dictionary sym to two different name nodes, which means the first node
+    will not satisfy the invariant 'n.Sym().Def.(*ir.Name) == n' (which is
+    the assertion in this issue).
     
-    Change-Id: Ic12123769d339c2df677500ed59f15a4ee5037d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412954
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #47896
+    
+    Change-Id: I1e7ae1efd077a83c7878b4342feb6d28d52476cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344609
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/work/buildid.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go       | 17 ++++--
+ src/cmd/compile/internal/reflectdata/reflect.go | 17 ++++--
+ test/typeparam/issue47896.go                    | 74 +++++++++++++++++++++++++
+ 3 files changed, 96 insertions(+), 12 deletions(-)

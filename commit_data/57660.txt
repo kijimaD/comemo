@@ -1,16 +1,19 @@
-commit 7e0159c50bd0a819ed00938f10792415393f951f
+commit 282cd561bbfceef2e32847212cc535dc888143d9
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 11 15:47:16 2024 +0200
+Date:   Tue Aug 22 13:48:02 2023 +0200
 
-    net: use slices.Contains{,Func} in lookup tests
+    net/netip: remove unused netIPv{4,6}len consts
     
-    Change-Id: I66199995ca34c92aeb8234b43cb2166f2976c903
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619735
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    These were added by CL 339309 but never used.
+    
+    Change-Id: I40cbb5b18ac94e72bc56c15bb239677de2a202f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521216
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/lookup_test.go | 21 +++++----------------
- 1 file changed, 5 insertions(+), 16 deletions(-)
+ src/net/netip/netip.go | 5 -----
+ 1 file changed, 5 deletions(-)

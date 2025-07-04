@@ -1,22 +1,13 @@
-commit 77412b9300582a5f1882b66e1b39ac7d96178dbe
-Author: Lakshay Garg <lakshay.garg.1996@gmail.com>
-Date:   Wed Jun 28 22:07:55 2017 +0530
+commit 2094807913b38b7cee59c31c4a95de49070292bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 20 16:26:58 2017 -0700
 
-    math: implement the erfinv function
+    bufio: clarify that Flush returns a cached write error
     
-    This commit defines the inverse of error function (erfinv) in the
-    math package. The function is based on the rational approximation
-    of percentage points of normal distribution available at
-    https://www.jstor.org/stable/pdf/2347330.pdf.
-    
-    Fixes #6359
-    
-    Change-Id: Icfe4508f623e0574c7fffdbf7aa929540fd4c944
-    Reviewed-on: https://go-review.googlesource.com/46990
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I377403fc0981d58aec5d84a1dd0d4e08532a575c
+    Reviewed-on: https://go-review.googlesource.com/41291
+    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go |  61 +++++++++++++++++++++++++++
- src/math/erfinv.go   | 116 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 177 insertions(+)
+ src/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

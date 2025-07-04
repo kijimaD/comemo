@@ -1,15 +1,44 @@
-commit 60f14fddfee107dedd76c0be6b422a3d8ccc841a
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Jun 26 10:55:19 2019 -0400
+commit d96b7fbf98bfac4861cda1b5c17a002ce8d62aa5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 12 11:15:37 2018 -0800
 
-    api: promote next to go1.13
+    cmd/compile: rewrite f(g()) for multi-value g() during typecheck
     
-    Change-Id: I394f942822a0db27418d3fbb25df6227ea199a5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183919
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This CL moves order.go's copyRet logic for rewriting f(g()) into t1,
+    t2, ... = g(); f(t1, t2, ...) earlier into typecheck. This allows the
+    rest of the compiler to stop worrying about multi-value functions
+    appearing outside of OAS2FUNC nodes.
+    
+    This changes compiler behavior in a few observable ways:
+    
+    1. Typechecking error messages for builtin functions now use general
+    case error messages rather than unnecessarily differing ones.
+    
+    2. Because f(g()) is rewritten before inlining, saved inline bodies
+    now see the rewritten form too. This could be addressed, but doesn't
+    seem worthwhile.
+    
+    3. Most notably, this simplifies escape analysis and fixes a memory
+    corruption issue in esc.go. See #29197 for details.
+    
+    Fixes #15992.
+    Fixes #29197.
+    
+    Change-Id: I86a70668301efeec8fbd11fe2d242e359a3ad0af
+    Reviewed-on: https://go-review.googlesource.com/c/153841
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/go1.13.txt | 8037 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt   | 8042 --------------------------------------------------------
- 2 files changed, 8037 insertions(+), 8042 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       |   7 -
+ src/cmd/compile/internal/gc/fmt.go       |  13 +-
+ src/cmd/compile/internal/gc/iexport.go   |   3 +-
+ src/cmd/compile/internal/gc/init.go      |   9 ++
+ src/cmd/compile/internal/gc/inl.go       |  18 +--
+ src/cmd/compile/internal/gc/order.go     |  60 +------
+ src/cmd/compile/internal/gc/typecheck.go | 258 +++++++++++--------------------
+ test/cmplx.go                            |   6 +-
+ test/copy1.go                            |   2 +-
+ test/fixedbugs/issue15992.go             |  38 +++++
+ test/fixedbugs/issue15992.out            |   4 +
+ test/fixedbugs/issue17038.go             |   2 +-
+ test/fixedbugs/issue9521.go              |   4 +-
+ 13 files changed, 157 insertions(+), 267 deletions(-)

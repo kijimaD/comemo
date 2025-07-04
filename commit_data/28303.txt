@@ -1,30 +1,17 @@
-commit 276803d6111b46c66956c99d982d70f23820ba5d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 5 23:29:16 2016 -0400
+commit ccf2c019921999f49ba2ab8cbfe70ebecc986f46
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:27:30 2016 +0300
 
-    cmd/link: introduce a rel.ro segment
+    go/types: fix certain vet warnings
     
-    When internally linking with using rel.ro sections, this segment covers
-    the sections. To do this, move to other read-only sections, SELFROSECT
-    and SMACHOPLT, out of the way.
+    Updates #11041
     
-    Part of adding PIE internal linking on linux/amd64.
-    
-    Change-Id: I4fb3d180e92f7e801789ab89864010faf5a2cb6d
-    Reviewed-on: https://go-review.googlesource.com/28538
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4e1c670d2b7fc04927d77c6f933cee39b7d48b6e
+    Reviewed-on: https://go-review.googlesource.com/23083
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/link.go        |  11 ++-
- src/cmd/link/internal/amd64/asm.go  |   8 +-
- src/cmd/link/internal/arm/asm.go    |   8 +-
- src/cmd/link/internal/arm64/asm.go  |   8 +-
- src/cmd/link/internal/ld/data.go    | 150 +++++++++++++++++++++---------------
- src/cmd/link/internal/ld/elf.go     |  15 ++++
- src/cmd/link/internal/ld/lib.go     |   9 ++-
- src/cmd/link/internal/mips64/asm.go |   8 +-
- src/cmd/link/internal/ppc64/asm.go  |   8 +-
- src/cmd/link/internal/s390x/asm.go  |   8 +-
- src/cmd/link/internal/x86/asm.go    |   7 ++
- 11 files changed, 168 insertions(+), 72 deletions(-)
+ src/go/types/resolver.go | 2 +-
+ src/go/types/stmt.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

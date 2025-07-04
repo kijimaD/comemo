@@ -1,0 +1,16 @@
+commit 0c15d88974e5bb4285d6cdf6ef125e1e4d438c6d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 25 10:09:44 2025 -0700
+
+    runtime: fix tag pointers on aix, take 2
+    
+    Previous fix in CL 667715 wasn't correct for aix.
+    
+    Change-Id: I44042786079463967165507b15756cf24b9a213a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668036
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/tagptr_64bit.go | 3 +++
+ 1 file changed, 3 insertions(+)

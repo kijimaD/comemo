@@ -1,19 +1,17 @@
-commit d70943431397b297fe00c114dd3e97376277f09a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 20 20:05:37 2015 -0400
+commit cb2d02c8032aee0e253eb1091556408cbf205f41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 12 16:33:49 2015 -0700
 
-    cmd/go: fix missing internal import error
+    go/parser: add ParseExprFrom function
     
-    Fixes #11331.
+    This is needed for code that relies on having the correct file set
+    when parsing an expression only. There's currently no other way to
+    get to the file set otherwise or to invoke the parser correctly to
+    work on an expression only with a given file set.
     
-    Change-Id: I19b8172421044c301bc136fc8f7bfdadbf880e25
-    Reviewed-on: https://go-review.googlesource.com/12450
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I325f174cb34b69284e627f59fe8334efa4eaa45c
+    Reviewed-on: https://go-review.googlesource.com/10998
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/go_test.go                                   | 8 ++++++++
- src/cmd/go/pkg.go                                       | 8 +++++++-
- src/cmd/go/testdata/testinternal4/src/p/p.go            | 6 ++++++
- src/cmd/go/testdata/testinternal4/src/q/internal/x/x.go | 1 +
- src/cmd/go/testdata/testinternal4/src/q/j/j.go          | 3 +++
- 5 files changed, 25 insertions(+), 1 deletion(-)
+ src/go/parser/interface.go | 35 ++++++++++++++++++++++++++++++-----
+ 1 file changed, 30 insertions(+), 5 deletions(-)

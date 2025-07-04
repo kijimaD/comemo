@@ -1,22 +1,17 @@
-commit f016172dbee4de8d820e3d3ec9d66a18308694c9
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Oct 29 19:28:07 2020 -0400
+commit 5e10ba996915f25e21808eee6baff950d2895634
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Apr 24 16:57:40 2020 -0400
 
-    cmd/go: pass in overlaid paths for .s files
+    internal/goversion: update to 1.15
     
-    This change adds support for adding overlays on assembly files.
+    Tests tagged +build go1.15 are currently not running. They should.
     
-    For #39958
-    
-    Change-Id: I1a328656199cc836f48e16de1ffd944fdd07fb39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266417
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib97ec57a7a35cea65e2d14fb2b067e5fe49ee284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230024
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/gc.go               |  6 ++++--
- src/cmd/go/internal/work/gccgo.go            |  2 +-
- src/cmd/go/testdata/script/build_overlay.txt | 17 +++++++++++++++++
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ src/go/build/doc.go                 | 1 +
+ src/internal/goversion/goversion.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

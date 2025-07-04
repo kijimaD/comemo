@@ -1,17 +1,13 @@
-commit e818536500ed22363d688ce2f5a024c60e899408
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jan 31 23:37:01 2012 +0100
+commit 33f3afa7afac66f91ba281521db26ea932ead5a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 17:29:59 2012 -0500
 
-    go: record location of failed imports for error reporting.
+    gc: diagnose \ in import path
     
-    Fixes #2664.
-    
-    R=rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5593047
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5609044
 
- src/cmd/go/get.go              |  2 +-
- src/cmd/go/pkg.go              | 10 ++++++++++
- src/pkg/go/build/build_test.go |  2 ++
- src/pkg/go/build/dir.go        | 26 +++++++++++++++-----------
- 4 files changed, 28 insertions(+), 12 deletions(-)
+ src/cmd/gc/lex.c |  5 +++++
+ test/import5.go  | 11 +++++++++++
+ 2 files changed, 16 insertions(+)

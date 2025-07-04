@@ -1,17 +1,19 @@
-commit 14113b3a89624ee6d97a7847b68361158ad43822
+commit 3b3f422afed632a7d332e03444a908abc170d402
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 25 10:44:31 2016 -0800
+Date:   Mon Nov 30 09:21:34 2015 -0800
 
-    cmd/internal/obj: don't crash on nil in Prog.String
+    time: fix handling of -07, handle Z07
     
-    I can't remember just how this happened to me, but I got an unfortunate
-    crash with some set of cmd/compile debug options and source code.
+    The existing code has partial support for -07 (just the hours of a time
+    zone offset).  Complete the support, add support for Z07, and add a few
+    tests.
     
-    Change-Id: Ibef6129c50b68dad0594ac439466bfbc4b32a095
-    Reviewed-on: https://go-review.googlesource.com/19920
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #13426.
+    
+    Change-Id: Ic6377bbf3e65b4bb761b9779f7e80c07ce4f57e8
+    Reviewed-on: https://go-review.googlesource.com/17260
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/util.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/time/format.go      | 20 ++++++++++++++------
+ src/time/format_test.go |  3 +++
+ 2 files changed, 17 insertions(+), 6 deletions(-)

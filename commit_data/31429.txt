@@ -1,30 +1,27 @@
-commit 92363d52c038851f4a6773ab5744f6d577ac1d38
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 28 07:28:49 2017 -0700
+commit 177dfba1120d2d5976bb5fb5a68bf20bb6ca9ada
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Feb 18 11:14:35 2017 -0800
 
-    cmd/compile: check width of embedded interfaces in expandiface
+    math/bits: faster OnesCount
     
-    The code in #20162 contains an embedded interface.
+    Using some additional suggestions per "Hacker's Delight".
+    Added documentation and extra tests.
     
-    It didn't get dowidth'd by the frontend,
-    and during DWARF generation, ngotype asked
-    for a string description of it,
-    which triggered a request for the number of fields
-    in the interface, which triggered a dowidth,
-    which is disallowed in the backend.
+    Measured on 1.7 GHz Intel Core i7, running macOS 10.12.3.
     
-    The other changes in this CL are to support the test.
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkOnesCount-4       7.34          5.38          -26.70%
+    BenchmarkOnesCount8-4      2.03          1.98          -2.46%
+    BenchmarkOnesCount16-4     2.56          2.50          -2.34%
+    BenchmarkOnesCount32-4     2.98          2.39          -19.80%
+    BenchmarkOnesCount64-4     4.22          2.96          -29.86%
     
-    Fixes #20162
-    
-    Change-Id: I4d0be5bd949c361d4cdc89a8ed28b10977e40cf9
-    Reviewed-on: https://go-review.googlesource.com/42131
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I566b0ef766e55cf5776b1662b6016024ebe5d878
+    Reviewed-on: https://go-review.googlesource.com/37223
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/align.go |  1 +
- src/cmd/compile/internal/gc/main.go  |  1 +
- test/fixedbugs/issue20162.go         | 16 ++++++++++++++++
- test/run.go                          |  5 +++--
- 4 files changed, 21 insertions(+), 2 deletions(-)
+ src/math/bits/bits.go      | 44 ++++++++++++++++++------
+ src/math/bits/bits_test.go | 85 ++++++++++++++++++++++++++--------------------
+ 2 files changed, 82 insertions(+), 47 deletions(-)

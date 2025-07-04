@@ -1,20 +1,16 @@
-commit c2cd0d09c2e784fb818aea47557269a3bac9d8b1
+commit e29d3dfc49f7142d87ab71bd1d8d04e129972dd5
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 22 01:30:04 2012 -0500
+Date:   Wed Feb 22 00:29:37 2012 -0500
 
-    ld: get symbol table letters right
+    gc: new, less strict bool rules
     
-    Have to assign them before we create the symbol table.
-    ARM debugging.
-    
-    TBR=r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5689067
+    https://golang.org/cl/5688064
 
- src/cmd/5l/asm.c    |  4 ++++
- src/cmd/6l/asm.c    |  4 ++++
- src/cmd/8l/asm.c    |  2 ++
- src/cmd/ld/data.c   | 40 +++++++++++++++++++++++++---------------
- src/cmd/ld/lib.h    |  1 +
- src/cmd/ld/symtab.c | 14 ++++++++------
- 6 files changed, 44 insertions(+), 21 deletions(-)
+ src/cmd/gc/const.c     | 21 ++++++++++++++++++---
+ src/cmd/gc/subr.c      | 12 ++++++++++++
+ src/cmd/gc/typecheck.c | 11 ++++++++++-
+ src/cmd/gc/walk.c      |  4 +++-
+ test/named1.go         |  4 ++--
+ 5 files changed, 45 insertions(+), 7 deletions(-)

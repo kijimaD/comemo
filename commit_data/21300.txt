@@ -1,12 +1,16 @@
-commit fd880f8d26ac76e77e56e989b2c0bf2913b5dfb7
-Author: Jongmin Kim <atomaths@gmail.com>
-Date:   Mon Jan 19 21:13:13 2015 +0900
+commit 3f1954175231156ce57a67938a58511e242c2213
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 18 16:30:46 2014 +1100
 
-    net/http: remove unused test type
+    runtime: use go generate for zcallback_windows.go
     
-    Change-Id: Ia8d4459a39425583027f00410fe17b9686b768db
-    Reviewed-on: https://go-review.googlesource.com/3026
+    replacement for CL 180640043
+    
+    Change-Id: I8ff36645cfcbbda338faf7b29cbfdb95c47d5ec4
+    Reviewed-on: https://go-review.googlesource.com/1765
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/runtime2_windows.go  |  8 --------
+ src/runtime/wincallback.go       | 23 ++++++++++++++++++++++-
+ src/runtime/zcallback_windows.go |  5 +++++
+ 3 files changed, 27 insertions(+), 9 deletions(-)

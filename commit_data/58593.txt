@@ -1,18 +1,19 @@
-commit b07b20fbb591ac77158e1089299ce5acad71ffde
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 30 15:21:55 2025 -0800
+commit 945c2bc74e9f3f6a2a011a35b1f03e21f2ad5d4d
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 17:11:19 2023 +0800
 
-    spec: remove reference to Go 1.17 spec
+    cmd/compile: add ABI register definations for loong64
     
-    Also, delete go1.17_spec.html.
+    Updates #40724
     
-    Change-Id: I7c78029dcfbbe8dbabb4ca81052976c1c8f4ed9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645717
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I56f7382dda58a565b8c3256f1c7845a3031f67de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521776
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.17_spec.html | 6864 --------------------------------------------------
- doc/go_spec.html     |    4 +-
- 2 files changed, 1 insertion(+), 6867 deletions(-)
+ src/cmd/compile/abi-internal.md | 50 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

@@ -1,28 +1,16 @@
-commit 580b6ee646809cdd409b3e0d311e1ec35c72aa6b
-Author: Maciej Żok <maciek.zok+github@gmail.com>
-Date:   Tue May 30 18:29:05 2023 +0000
+commit 08370dcd9af8122956fc3ab024889c5357fffd5a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 7 17:25:48 2024 -0800
 
-    cmd/go: enable fuzz testing on OpenBSD
+    cmd/compile: accept -lang=go1 as -lang=go1.0
     
-    This change provides support for -fuzz flag on OpenBSD. According to #46554 the flag was unsupported on some OSes due to lack of proper testing.
+    Fixes #65528.
     
-    Fixes: #60491
-    
-    Change-Id: I49835131d3ee23f6482583b518b9c5c224fc4efe
-    GitHub-Last-Rev: f697a3c0f2dc36cc3c96c0336281c5e2440f7a1a
-    GitHub-Pull-Request: golang/go#60520
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499335
+    Change-Id: I55fef8cf7be4654c7242462d45f12999e0c91c02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562322
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/fuzz/counters_supported.go   | 2 +-
- src/internal/fuzz/counters_unsupported.go | 2 +-
- src/internal/fuzz/minimize_test.go        | 2 +-
- src/internal/fuzz/sys_posix.go            | 2 +-
- src/internal/fuzz/sys_unimplemented.go    | 2 +-
- src/internal/platform/supported.go        | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types/goversion.go      | 6 +++++-
+ src/cmd/go/testdata/script/build_issue_65528.txt | 9 +++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

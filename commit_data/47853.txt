@@ -1,29 +1,26 @@
-commit 8cfcee1fffb9429e318549ad0a2cae2046798e48
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Dec 22 11:43:06 2021 -0500
+commit 6d8ba77896d05720e1cb1728c27db60926e672b5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 13 16:31:56 2021 -0700
 
-    runtime: handle stray profiling signal better
+    cmd/compile: fix importing of method expressions
     
-    In c-archive mode, when we turn off profiling, we  restore the
-    previous handler for SIGPROF, and ignore SIGPROF signals if no
-    handler was installed. So if a pending signal lands after we
-    remove the Go signal handler, it will not kill the program.
+    For OMETHEXPR, the Name in the Selection needs to be properly
+    linked up to the method declaration. Use the same code we
+    already have for ODOTMETH and OCALLPART to do that.
     
-    In the current code there is a small window, where we can still
-    receive signals but we are set to not handling the signal. If a
-    signal lands in this window (possibly on another thread), it will
-    see that we are not handling this signal and no previous handler
-    installed, and kill the program. To avoid this race, we set the
-    previous handler to SIG_IGN (ignoring the signal) when turning on
-    profiling. So when turning off profiling we'll ignore the signal
-    even if a stray signal lands in the small window.
+    Fixes #45503
     
-    Fixes #43828.
-    
-    Change-Id: I304bc85a93ca0e63b0c0d8e902b097bfdc8e3f1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374074
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7d6f886d606bae6faad8c104f50c177f871d41c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309831
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/signal_unix.go | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 11 ++---------
+ src/cmd/compile/internal/typecheck/iimport.go | 14 ++++----------
+ test/fixedbugs/issue45503.dir/a.go            | 15 +++++++++++++++
+ test/fixedbugs/issue45503.dir/b.go            | 12 ++++++++++++
+ test/fixedbugs/issue45503.go                  | 10 ++++++++++
+ 5 files changed, 43 insertions(+), 19 deletions(-)

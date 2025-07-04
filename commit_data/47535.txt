@@ -1,17 +1,21 @@
-commit 353cb71ea29e02a41f77b7576d658de4515e264d
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:22:22 2021 -0500
+commit 34ef294b76cc129411a572dc1df18a44eaa5768e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:19:50 2021 -0700
 
-    go/types: optimize common case in structuralType
+    cmd/compile/internal/types2: review of lookup.go
     
-    This is a port of CL 363668 from types2 to go/types.
+    The changes between (equivalent, and reviewed) go/types/lookup.go
+    and lookup.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
     
-    Change-Id: Ic55acb2e27f57c33467cef2f687cd695e092ba6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364898
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Note: The function ptrRecv in types2/lookup.go is found in
+          methodset.go in go/types (methodset.go doesn't exist
+          in types2).
+    
+    Change-Id: I48cfd3df0947becb4c3b5e55b89263917bcfbf16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304129
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/go/types/type.go | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

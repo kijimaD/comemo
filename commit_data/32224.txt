@@ -1,24 +1,19 @@
-commit 5abc8c897ced423dae799f093cdafac68dbeb244
-Author: griesemer <gri@golang.org>
-Date:   Fri Aug 11 16:51:40 2017 +0200
+commit 4e4e51c5c5a1cedf4d2e8fef59b61eeaddb10647
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 05:57:59 2017 -0700
 
-    spec: better comment in example for type definition
+    cmd/internal/obj: generate function DWARF symbols early
     
-    The old comment for the example
+    This removes a concurrent access of ctxt.Data.
     
-            type PtrMutex *Mutex
+    Updates #15756
     
-    talked about the method set of the base type of PtrMutex.
-    It's more direct and clearer to talk about the underlying
-    type of PtrMutex for this specific example.
-    Also removed link inside pre-formatted region of text.
-    
-    Fixes #20900.
-    
-    Change-Id: Ie37340e53670e34ebe13e780ba8ccb1bba67795c
-    Reviewed-on: https://go-review.googlesource.com/55070
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id017e90e47e093cd8825907f3853bb3d3bf8280d
+    Reviewed-on: https://go-review.googlesource.com/40507
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/objfile.go | 21 +++++++++++++--------
+ src/cmd/internal/obj/plist.go   |  8 +++++++-
+ 2 files changed, 20 insertions(+), 9 deletions(-)

@@ -1,21 +1,55 @@
-commit 3bcefa5276c4ec5475df62cfd1fde9315b121d1c
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon May 20 14:52:57 2024 +0000
+commit 547aed18e0db6a18c207731d56b60a24d0c69ba5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 15 16:34:36 2023 -0700
 
-    cmd/link/internal/ld: rewrite LC_UUID for darwin external links
+    runtime: consistently define fcntl
     
-    When building Go binaries using external linking, rewrite the LC_UUID
-    Macho load command to replace the content placed there by the external
-    linker, so as to ensure that we get reproducible builds.
+    Clean up and consolidate on a single consistent definition of fcntl,
+    which takes three int32 arguments and returns either a positive result
+    or a negative errno value.
     
-    Updates #64947.
-    
-    Change-Id: I263a89d1a067807404febbc801d4dade33bc3288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586079
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id9505492712db4b0aab469c6bd15e4fce3c9ff6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495075
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/link/internal/ld/lib.go                 |  55 ++++++++-----
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  15 +++-
- src/cmd/link/internal/ld/macho_update_uuid.go   | 103 ++++++++++++++++++++++++
- 3 files changed, 154 insertions(+), 19 deletions(-)
+ src/runtime/export_aix_test.go        |  1 -
+ src/runtime/export_darwin_test.go     |  8 --------
+ src/runtime/export_openbsd_test.go    | 15 ---------------
+ src/runtime/export_solaris_test.go    |  9 ---------
+ src/runtime/export_unix_test.go       |  1 +
+ src/runtime/nbpipe_fcntl_libc_test.go | 18 ------------------
+ src/runtime/nbpipe_fcntl_unix_test.go | 17 -----------------
+ src/runtime/nbpipe_test.go            | 30 ++++++++++++++++++------------
+ src/runtime/netpoll_solaris.go        |  4 ----
+ src/runtime/os3_solaris.go            |  9 +++++++++
+ src/runtime/os_aix.go                 |  5 ++++-
+ src/runtime/os_dragonfly.go           |  1 +
+ src/runtime/os_freebsd.go             |  1 +
+ src/runtime/os_linux.go               | 10 ++++++++++
+ src/runtime/os_netbsd.go              |  1 +
+ src/runtime/os_openbsd_syscall2.go    |  1 +
+ src/runtime/os_solaris.go             |  2 +-
+ src/runtime/sys_darwin_amd64.s        |  6 ++++++
+ src/runtime/sys_darwin_arm64.s        |  7 +++++++
+ src/runtime/sys_dragonfly_amd64.s     | 12 ++++++++++++
+ src/runtime/sys_freebsd_386.s         |  9 +++++++++
+ src/runtime/sys_freebsd_amd64.s       | 12 ++++++++++++
+ src/runtime/sys_freebsd_arm.s         | 11 +++++++++++
+ src/runtime/sys_freebsd_arm64.s       | 13 +++++++++++++
+ src/runtime/sys_freebsd_riscv64.s     | 13 +++++++++++++
+ src/runtime/sys_netbsd_386.s          |  9 +++++++++
+ src/runtime/sys_netbsd_amd64.s        | 12 ++++++++++++
+ src/runtime/sys_netbsd_arm.s          | 10 ++++++++++
+ src/runtime/sys_netbsd_arm64.s        | 12 ++++++++++++
+ src/runtime/sys_openbsd_386.s         |  6 ++++++
+ src/runtime/sys_openbsd_amd64.s       |  6 ++++++
+ src/runtime/sys_openbsd_arm.s         |  6 ++++++
+ src/runtime/sys_openbsd_arm64.s       |  6 ++++++
+ src/runtime/sys_openbsd_mips64.s      | 12 ++++++++++++
+ 34 files changed, 209 insertions(+), 86 deletions(-)

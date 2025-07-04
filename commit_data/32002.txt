@@ -1,29 +1,40 @@
-commit 286599f27026f5c4001f1da25b35aa1243f51d08
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 11 09:26:01 2017 -0400
+commit fa1d54c2edad607866445577fe4949fbe55166e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 28 14:54:10 2017 -0400
 
-    runtime: make TestStackGrowth a serial test
+    cmd/go: exclude vendored packages from ... matches
     
-    TestStackGrowth is currently a parallel test. However, it depends on a
-    20 second timeout, which is already dubious in a parallel test, and
-    became really problematic on slow builders when runtime.GC switched to
-    triggering concurrent GC instead of STW GC. Before that change, the
-    test spent much of its time in STW GC, so it wasn't *really* parallel.
-    After that change, it was competing with all of the other parallel
-    tests and GC likely started taking ~4 times longer. On most builders
-    the whole test runs in well under a second, but on the slow builders
-    that was enough to push it over the 20 second timeout.
+    By overwhelming popular demand, exclude vendored packages from ... matches,
+    by making ... never match the "vendor" element above a vendored package.
     
-    Fix this by making the test serial.
+    go help packages now reads:
     
-    Updates #19381 (probably fixes it, but we'll have to wait and see).
+        An import path is a pattern if it includes one or more "..." wildcards,
+        each of which can match any string, including the empty string and
+        strings containing slashes.  Such a pattern expands to all package
+        directories found in the GOPATH trees with names matching the
+        patterns.
     
-    Change-Id: I21af7cf543ab07f1ec1c930bfcb355b0df75672d
-    Reviewed-on: https://go-review.googlesource.com/48110
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+        To make common patterns more convenient, there are two special cases.
+        First, /... at the end of the pattern can match an empty string,
+        so that net/... matches both net and packages in its subdirectories, like net/http.
+        Second, any slash-separted pattern element containing a wildcard never
+        participates in a match of the "vendor" element in the path of a vendored
+        package, so that ./... does not match packages in subdirectories of
+        ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
+        Note, however, that a directory named vendor that itself contains code
+        is not a vendored package: cmd/vendor would be a command named vendor,
+        and the pattern cmd/... matches it.
+    
+    Fixes #19090.
+    
+    Change-Id: I985bf9571100da316c19fbfd19bb1e534a3c9e5f
+    Reviewed-on: https://go-review.googlesource.com/38745
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/stack_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go                  | 20 +++++++++--
+ src/cmd/go/internal/help/helpdoc.go    | 15 ++++++--
+ src/cmd/go/internal/load/match_test.go | 34 +++++++++++++++++++
+ src/cmd/go/internal/load/search.go     | 62 +++++++++++++++++++++++++++++++---
+ src/cmd/go/vendor_test.go              |  6 ++--
+ 5 files changed, 124 insertions(+), 13 deletions(-)

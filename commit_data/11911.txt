@@ -1,18 +1,18 @@
-commit 8eee153bc81680a6115dc8e1f2661ee51d5c7383
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Feb 14 22:09:02 2012 -0200
+commit 977e8d145bca078936176f73f884bb4b7da037b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 11:06:16 2012 +1100
 
-    runtime: fix grsec support
+    bytes: add Reader
     
-    Changeset 36c9c7810f14 broke support for grsec-patched kernels.
-    Those do not give back the address requested without MAP_FIXED,
-    so when verifying an mmap without this flag for success, the
-    resulting address must not be compared against the requested
-    address since it may have succeeded at a different location.
+    copy of strings/reader{,_test}.go with
+    a few s/string/[]byte/
     
-    R=golang-dev, rsc, gustavo, iant
+    Fixes #2861
+    
+    R=adg, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5650072
+    https://golang.org/cl/5666044
 
- src/pkg/runtime/mem_linux.c | 35 +++++++++++++++++++----------------
- 1 file changed, 19 insertions(+), 16 deletions(-)
+ src/pkg/bytes/reader.go      | 110 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/reader_test.go |  58 +++++++++++++++++++++++
+ 2 files changed, 168 insertions(+)

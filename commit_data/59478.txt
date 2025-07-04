@@ -1,21 +1,21 @@
-commit 019d79872681d49de7ea192ac2dbc02f0ce679fc
-Author: Mark Freeman <mark@golang.org>
-Date:   Fri May 9 16:49:15 2025 -0400
+commit d25579293374bdc2d10864f7fa0ac9f89bb87fd9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 14 10:25:18 2024 -0700
 
-    internal/pkgbits: write a formal grammar for UIR primitives
+    cmd/compile: simplify algorithm kinds
     
-    This complements the grammar being developed in package noder. It
-    is unclear how to discuss references in their current state, as
-    they require knowledge of sections, elements, etc.
+    Add a ANOALG kind which is "ANOEQ, plus has a part that is marked Noalg".
+    That way, AlgType can return just a kind.
+    The field we used to return was used only to get this bit of information.
     
-    Perhaps the references here should refer to indices on the byte
-    array. This would allow a stronger separation of pkgbits and noder.
-    
-    Change-Id: Ic0e5ac9c07f0a0b92d6ffd4d4e26dbe5dcf89e57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671440
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    Change-Id: Iaa409742825cc1f19ab414b1f5b74c1f112ed5f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572075
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/pkgbits/doc.go | 79 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ src/cmd/compile/internal/compare/compare.go      |  3 +-
+ src/cmd/compile/internal/reflectdata/alg.go      |  8 ++--
+ src/cmd/compile/internal/types/alg.go            | 61 +++++++++++-------------
+ src/cmd/compile/internal/types/algkind_string.go |  7 +--
+ 4 files changed, 37 insertions(+), 42 deletions(-)

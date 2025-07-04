@@ -1,19 +1,44 @@
-commit baf2866956c2e03952383e19287a1e562cf09170
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Aug 18 13:22:38 2021 -0400
+commit 14dc2d23456b3affec37e530f71a0987a7051c32
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Dec 4 12:39:38 2020 -0500
 
-    go/types: move to an opaque environment for Instantiate
+    [dev.typeparams] go/types: import the Type API from dev.go2go
     
-    To match the API proposal, switch the first argument to Instantiate to
-    an opaque Environment handle, though for now this handle is
-    unimplemented.
+    Import the Type changes from the dev.go2go branch, as well as a minimal
+    set of related changes to the Checker code so that tests pass. This
+    involved making some decisions about which functionality to import, with
+    some parts of the Type API (for example instance.expand) carved out as
+    they pulled in too many additional changes.
     
-    Change-Id: I6207f0beafdf8497587abdad37db92f927db29b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343930
-    Trust: Robert Findley <rfindley@google.com>
+    Minimal changes were made from the dev.go2go version. Notably:
+     + The aType helper struct is removed. It could have been removed in CL
+       274852 but was missed.
+     + writeTParamList was cleaned up for the bracketed parameter style.
+     + Some interface iteration functions were simplified.
+    
+    One observation along the way is that, especially with converter methods
+    removed from the Type interface, we should probably avoid storing the
+    Checker on Type instances for lazy evaluation. If a function is only
+    valid during a checking pass, we should make it a method on Checker
+    instead of a method on the Type instance. Rather than do this now, which
+    would make later changes harder to import, I left a couple TODOs to
+    address this later.
+    
+    Change-Id: Ie669224614269874474d87e46c68216cb06b6d0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275441
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/go/types/instantiate.go | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go |   2 +-
+ src/go/types/check.go                          |   1 +
+ src/go/types/decl.go                           |  57 +--
+ src/go/types/expr.go                           |   2 +-
+ src/go/types/lookup.go                         |   8 +-
+ src/go/types/predicates.go                     |   9 +-
+ src/go/types/type.go                           | 520 +++++++++++++++++++++++--
+ src/go/types/typestring.go                     | 187 ++++++++-
+ src/go/types/typestring_test.go                |   4 +
+ src/go/types/typexpr.go                        |  99 ++++-
+ 10 files changed, 785 insertions(+), 104 deletions(-)

@@ -1,0 +1,36 @@
+commit 057b703407fa833193cbdc1f37179561c6c9da90
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 19 11:46:54 2024 -0400
+
+    all: create swissmap experiment and fork files
+    
+    The _swiss.go files are identical to the originals (except build tag).
+    Later CLs will change them.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I9943e2d6f1cfa227ffbf27c9ddc9ce853695d225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580778
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/goexperiment/exp_swissmap_off.go      |    8 +
+ src/internal/goexperiment/exp_swissmap_on.go       |    8 +
+ src/internal/goexperiment/flags.go                 |    3 +
+ src/reflect/map_noswiss.go                         |  473 ++++++
+ src/reflect/map_swiss.go                           |  473 ++++++
+ src/reflect/type.go                                |  151 +-
+ src/reflect/value.go                               |  311 ----
+ .../{map_fast32.go => map_fast32_noswiss.go}       |    2 +
+ src/runtime/map_fast32_swiss.go                    |  464 ++++++
+ .../{map_fast64.go => map_fast64_noswiss.go}       |    2 +
+ src/runtime/map_fast64_swiss.go                    |  472 ++++++
+ .../{map_faststr.go => map_faststr_noswiss.go}     |    2 +
+ src/runtime/map_faststr_swiss.go                   |  487 ++++++
+ src/runtime/{map.go => map_noswiss.go}             |    2 +
+ src/runtime/map_swiss.go                           | 1724 ++++++++++++++++++++
+ 15 files changed, 4121 insertions(+), 461 deletions(-)

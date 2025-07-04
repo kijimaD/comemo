@@ -1,17 +1,12 @@
-commit 4a41da5bac1da4a71b237581ab30dd7a84c5bc55
+commit ac9be2020b3d57c4b23e83432d732c1d0b308316
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Nov 16 16:38:19 2017 +1100
+Date:   Mon Aug 28 13:45:56 2017 +1000
 
-    cmd/go: add TestACL
+    cmd/link: introduce and use peFile.writeFileHeader
     
-    Add test that verifies that go command produces executable
-    that have security attributes of the target directory.
-    
-    Update #22343
-    
-    Change-Id: Ieab02381927a2b09bee21c49c043b3298bd088e6
-    Reviewed-on: https://go-review.googlesource.com/78215
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1324b69ab9edb870589197fa601b5764634d42a4
+    Reviewed-on: https://go-review.googlesource.com/59427
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_windows_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 81 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 82 +++++++++++++++++++++++-------------------
+ 1 file changed, 45 insertions(+), 37 deletions(-)

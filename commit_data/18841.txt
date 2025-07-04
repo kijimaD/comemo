@@ -1,13 +1,14 @@
-commit b11aeef912f24bfb881bb0b7df2c72235991202b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 12 16:32:35 2014 -0400
+commit 78992439f4f909ff21b9283b7a307840783afb15
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 12 22:00:48 2014 +1100
 
-    doc/go1.3.txt: add notes about copying stacks, win2k support
+    fmt: improve documentation for width and precision
+    Fixes #7048.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dominik.honnef
+    R=golang-codereviews, dominik.honnef
     CC=golang-codereviews
-    https://golang.org/cl/74800043
+    https://golang.org/cl/74280044
 
- doc/go1.3.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/fmt/doc.go | 30 +++++++++++++++++++++++-------
+ 1 file changed, 23 insertions(+), 7 deletions(-)

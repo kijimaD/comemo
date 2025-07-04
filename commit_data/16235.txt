@@ -1,14 +1,12 @@
-commit 806dea82d4668c079856b77b3824143500405d25
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 29 12:01:32 2013 -0700
+commit e9546a01dcb4678476157c3bcdcf8c02a0688f54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 27 18:50:38 2013 -0700
 
-    fmt: document that if String or Error panics, that value is printed
+    math/rand: fix typo and add better crash message
     
-    Fixes #5350.
-    
-    R=r, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8950043
+    https://golang.org/cl/9000043
 
- src/pkg/fmt/doc.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/math/rand/zipf.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

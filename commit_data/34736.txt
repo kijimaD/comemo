@@ -1,15 +1,18 @@
-commit 9d84e0edd042bc6ca2a9cf3e402b81d5f27103d5
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Sun Mar 25 23:10:37 2018 +0100
+commit 510327012bd42aca3deac989e2e109dc71bb4605
+Author: Chris Hines <chris.cs.guy@gmail.com>
+Date:   Sun Nov 12 00:31:52 2017 -0500
 
-    regexp: document behavior of FindAll* functions when n < 0
+    cmd/vet: ignore unrecognized flags for fmt.Formatter
     
-    Fixes #24526
+    Fixes #22608.
     
-    Change-Id: I0e38322fca12f9c88db836776920b9dfb66ff844
-    Reviewed-on: https://go-review.googlesource.com/102423
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Id85eb86b0b262156646e55f102fe888b345b20cf
+    Reviewed-on: https://go-review.googlesource.com/77230
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/regexp.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/print.go          | 16 +++++++++-------
+ src/cmd/vet/testdata/print.go | 11 ++++++-----
+ 2 files changed, 15 insertions(+), 12 deletions(-)

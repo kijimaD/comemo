@@ -1,14 +1,12 @@
-commit fc1cf588093ba7c687971783d3e075b6010a966b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jul 27 13:29:44 2011 +1000
+commit 2fc962697a3a363e9b79a672d7b999332a6d0b9e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 26 14:45:36 2011 -0700
 
-    reflect: doc fixes for obsolete types.
+    goinstall: generate makefiles using exp/template
     
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4802061
+    https://golang.org/cl/4809052
 
- src/pkg/reflect/all_test.go |  4 ++--
- src/pkg/reflect/type.go     | 12 ++++++------
- src/pkg/unsafe/unsafe.go    |  2 +-
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/goinstall/make.go | 53 +++++++++++++++++++++--------------------------
+ 1 file changed, 24 insertions(+), 29 deletions(-)

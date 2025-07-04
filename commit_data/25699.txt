@@ -1,14 +1,15 @@
-commit 1ab900e5f14d01f34fad75131eaa4cebe3bbe6ad
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 29 16:44:16 2016 +1100
+commit 292ad592913e3143a7b4db8ddb0513aea3020e2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:54:41 2015 -0500
 
-    doc: link to block example in go1.6 doc
+    cmd/compile: do not emit args_stackmap for func _
     
-    Fixes #14143
+    Fixes #11699.
     
-    Change-Id: I2d77e55bc0b6bb42e11de291e0ddb5ad5d620646
-    Reviewed-on: https://go-review.googlesource.com/19110
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I01bf506d76260bcdf828bbde52791e328aa441a5
+    Reviewed-on: https://go-review.googlesource.com/16921
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.6.html | 16 ++--------------
- 1 file changed, 2 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go |  3 +++
+ test/fixedbugs/issue11699.go        | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

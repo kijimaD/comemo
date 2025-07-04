@@ -1,13 +1,19 @@
-commit 029bbe18e0a6d173ea158b989b43cce4cfe9157b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 2 12:38:48 2011 -0800
+commit bc874ec0dd0c803b5dd0ea96f9394bad39a20a74
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 15:35:54 2011 -0500
 
-    fmt.Scan: scan binary-exponent floating format, 2.4p-3
+    runtime: correct runtime.GOOS, runtime.GOARCH
     
-    R=rsc, rog, r2
+    If the same directory was used for multiple builds,
+    it was possible for a stale version.go to contain the
+    wrong definitions for $GOOS and $GOARCH, because
+    they can change even if the hg version does not.
+    Split into multiple files to fix.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4128049
+    https://golang.org/cl/4124050
 
- src/pkg/fmt/scan.go      | 26 ++++++++++++++++++++++++--
- src/pkg/fmt/scan_test.go |  4 ++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/pkg/runtime/Makefile    | 10 ++++++++++
+ src/pkg/runtime/mkversion.c |  6 ++----
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,21 +1,35 @@
-commit 8535008765b4fcd5c7dc3fb2b73a856af4d51f9b
-Author: Michał Łowicki <mlowicki@gmail.com>
-Date:   Mon May 11 22:57:26 2020 +0100
+commit 25f1b093fe02d87c879b1d8d030dc1c65aad7c78
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 20 10:43:11 2019 -0500
 
-    cmd/go: clarify error for invalid proxy responses
+    [dev.link] cmd/link: convert DWARF type generation to use loader
     
-    Add information that error comes from parsing module proxy responses.
+    Converts the portion of DWARF generation that deals with creation of
+    type DIEs and constant DIEs to use the new loader interfaces. Creation
+    of subprogram DIE and compilation unit DIE content still operates on
+    sym.Symbols at the moment, and happens much later in the linker.
     
-    Fixes #38680
+    The new code for type DIE generation is gated/guarded by the linker
+    flag "-newdw", which currently defaults to true. At some point in the
+    near future this flag should be removed, but it is handy for triage at
+    the moment.
     
-    Change-Id: Ic318b9cdbca789c1b0d983e083e692a914892fbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233437
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This patch also includes shim code designed to run after loadlibfull()
+    that walks through the DIE chains and to converts loader.Sym
+    references back into sym.Symbol references for the remainder of the
+    compilation, since the second phase of DWARF has not yet been
+    converted.
+    
+    Change-Id: I681a00fb8a1f3c37884a79b373d86411332e07c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208230
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modfetch/proxy.go            | 13 +++++++------
- src/cmd/go/proxy_test.go                         |  6 ++++++
- src/cmd/go/testdata/script/mod_proxy_invalid.txt |  8 ++++++++
- src/cmd/go/testdata/script/mod_query_empty.txt   |  2 +-
- 4 files changed, 22 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go          |   11 +-
+ src/cmd/link/internal/ld/dwarf.go             | 1851 +++++++++----------------
+ src/cmd/link/internal/ld/dwarf2.go            | 1824 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go               |    7 +
+ src/cmd/link/internal/ld/main.go              |   25 +-
+ src/cmd/link/internal/loader/loader.go        |  135 +-
+ src/cmd/link/internal/sym/compilation_unit.go |    2 +
+ 7 files changed, 2680 insertions(+), 1175 deletions(-)

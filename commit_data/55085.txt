@@ -1,27 +1,24 @@
-commit 4bfed5ce748a2dbb3f1e35b42949dd3a53601186
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Tue Nov 21 01:02:31 2023 +0000
+commit c9a10d48a8f0e8479f5b9d98c5bd81b64a90d23d
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 21 16:47:39 2022 -0800
 
-    runtime/internal/atomic: deduplicate And/Or code on arm
+    crypto/x509: return typed verification errors on macOS
     
-    Turns out after adding the generic implementation for And/Or we ended up
-    with duplicated ops that are exactly the same for arm.
+    On macOS return the error code from SecTrustEvaluateWithError, and use
+    it to create typed errors that can be returned from Verify.
     
-    Apologies for the oversight, this CL removes the redundant arm code and
-    adds arm to the generic build flags.
+    Fixes #56891
     
-    For #61395
-    
-    Change-Id: Id5e5a5cf113774948f8e772592e898d0810ad1f6
-    GitHub-Last-Rev: 4d8c857d15f0267ee0c8bb88a202afd49a6075dc
-    GitHub-Pull-Request: golang/go#64299
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544017
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib597ce202abb60702f730e75da583894422e4c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452620
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- .../internal/atomic/atomic_andor_generic.go        |  2 +-
- src/runtime/internal/atomic/atomic_arm.go          | 60 ----------------------
- 2 files changed, 1 insertion(+), 61 deletions(-)
+ src/crypto/x509/internal/macos/corefoundation.go |  7 +++++++
+ src/crypto/x509/internal/macos/corefoundation.s  |  2 ++
+ src/crypto/x509/internal/macos/security.go       | 19 ++++++++++++++-----
+ src/crypto/x509/root_darwin.go                   | 14 ++++++++++++--
+ src/crypto/x509/root_darwin_test.go              | 10 +++++-----
+ 5 files changed, 40 insertions(+), 12 deletions(-)

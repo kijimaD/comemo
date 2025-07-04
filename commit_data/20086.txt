@@ -1,19 +1,16 @@
-commit 950ad4fa2bfb4539ebac21d7a32aa23da59376a7
+commit ecbe6b9f7f7415431f5dc57629a0d4d13401e46f
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 23 19:24:44 2014 -0400
+Date:   Thu Aug 14 14:34:25 2014 -0400
 
-    cmd/gc: change interface representation: only pointers in data word
+    [dev.power64] runtime: replace getproccount with simpler code
     
-    Note that there are various cleanups that can be made if we keep
-    this change, but I do not want to start making changes that
-    depend on this one until the 1.4 cycle closes.
+    This runs once. There is no need for inscrutable algorithms.
+    Also it doesn't compile correctly with 9c.
     
-    Fixes #8405.
-    
-    LGTM=r
-    R=golang-codereviews, adg, r, bradfitz
-    CC=golang-codereviews, iant
-    https://golang.org/cl/130240043
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/130000043
 
- src/cmd/gc/subr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/os_linux.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

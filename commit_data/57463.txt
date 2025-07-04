@@ -1,20 +1,22 @@
-commit 8343980c703fbc959f04ddd80ebdc55804545695
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 13 10:56:48 2024 +0700
+commit 58447d757c233f2a9c3c5a73e2d96a6885f2759a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Aug 7 17:03:43 2023 -0400
 
-    all: add test for issue 20027
+    cmd/go: fix missing case checking for empty slice
     
-    Fixes #20027
+    When we were comparing the first element of import stacks when sorting
+    depserrors we checked if the first stack was non empty, but not the
+    second one. Do the check for both stacks.
     
-    Change-Id: Ia616d43c0affa7b927ddfb53755072c94ba27917
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612618
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Fixes #61816
+    For #59905
+    
+    Change-Id: Id5c11c2b1104eec93196a08c53372ee2ba97c701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516739
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/stdlib_test.go |  1 +
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/issue20027.go                   | 13 +++++++++++++
- 3 files changed, 15 insertions(+)
+ src/cmd/go/internal/list/list.go                |  3 +++
+ src/cmd/go/testdata/script/list_issue_59905.txt | 26 +++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

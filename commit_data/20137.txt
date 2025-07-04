@@ -1,19 +1,20 @@
-commit 32c0dce00ea2b641a6b2731aa2a149f4270ba663
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 25 21:50:42 2014 -0700
+commit fb44fb6cb7fdadced51db03403b9f5d93fefa5a5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 15:59:42 2014 +0400
 
-    net/http: fix data race in test
+    runtime: always pass type to mallocgc when allocating scannable memory
+    We allocate scannable memory w/o type only in few places in runtime.
+    All these cases are not-performance critical (e.g. G or finq args buffer),
+    and in long term they all need to go away.
+    It's not worth it to have special code for this case in mallocgc.
+    So use special fake "notype" type for such allocations.
     
-    I can't reproduce the race, but this should fix it.
-    
-    Fixes #8483
-    
-    LGTM=dvyukov
-    R=dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/126610043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/127450044
 
- src/pkg/net/http/export_test.go    |  6 ++++++
- src/pkg/net/http/transport.go      | 19 +++++++++++++++----
- src/pkg/net/http/transport_test.go | 24 +++++++++++-------------
- 3 files changed, 32 insertions(+), 17 deletions(-)
+ src/pkg/runtime/malloc.c  |  9 +++++
+ src/pkg/runtime/malloc.go | 88 +++++++++++++++++++++--------------------------
+ src/pkg/runtime/mgc0.go   |  9 +++++
+ 3 files changed, 57 insertions(+), 49 deletions(-)

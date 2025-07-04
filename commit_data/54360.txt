@@ -1,33 +1,18 @@
-commit b0ae440bf05cd19f5a6a111317c0ae553c9298be
-Author: Archana <aravinda@redhat.com>
-Date:   Mon Jul 24 20:17:02 2023 +0530
+commit bb2a96b79df71c4b021c8611b916a2f402166d3b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 8 11:17:47 2022 -0700
 
-    runtime: support for debugger function calls on linux/ppc64le
+    test: add test case that caused a bogus error from gofrontend
     
-    This CL adds support for debugger function calls on linux ppc64le
-    platform. The protocol is basically the same as in CL 395754, except for
-    the following differences:
-    1, The abi differences which affect parameter passing and frame layout.
-    2, The closure register is R11.
-    3, Minimum framesize on pp64le is 32 bytes
-    4, Added functions to return parent context structure for general purpose
-       registers in order to work with the way these structures are defined in
-       ppc64le
+    For #56109
     
-    Change-Id: I58e01fedad66a818ab322e2b2d8f5104cfa64f39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512575
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I999763e463fac57732a92f5e396f8fa8c35bd2e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440297
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Archana Ravindar <aravinda@redhat.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_ppc64x.s                 | 219 ++++++++++++++++++++++++++++++-
- src/runtime/debug_test.go                |   2 +-
- src/runtime/debugcall.go                 |   5 +-
- src/runtime/export_debug_ppc64le_test.go | 131 ++++++++++++++++++
- src/runtime/export_debug_test.go         |   2 +-
- src/runtime/signal_linux_ppc64x.go       |   3 +-
- src/runtime/signal_ppc64x.go             |   3 +-
- 7 files changed, 359 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue56109.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

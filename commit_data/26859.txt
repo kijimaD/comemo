@@ -1,39 +1,37 @@
-commit 9743e4b0311c37ebacc2c9063a1cd778510eae09
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Mon Apr 11 21:51:29 2016 +0200
+commit 194c79c16390187624f648e4af279a11c67b99ce
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 28 15:51:11 2016 -0800
 
-    cmd/compile: share dominator tree among many passes
+    [dev.ssa] cmd/compile: add constant cache
     
-    These passes do not modify the dominator tree too much.
+    The cache gets a 62% hit rate while compiling
+    the standard library.
     
-    % benchstat old.txt new.txt
-    name       old time/op     new time/op     delta
-    Template       335ms ± 3%      325ms ± 8%    ~             (p=0.074 n=8+9)
-    GoTypes        1.05s ± 1%      1.05s ± 3%    ~            (p=0.095 n=9+10)
-    Compiler       5.37s ± 4%      5.29s ± 1%  -1.42%         (p=0.022 n=9+10)
-    MakeBash       34.9s ± 3%      34.4s ± 2%    ~            (p=0.095 n=9+10)
     
-    name       old alloc/op    new alloc/op    delta
-    Template      55.4MB ± 0%     54.9MB ± 0%  -0.81%        (p=0.000 n=10+10)
-    GoTypes        179MB ± 0%      178MB ± 0%  -0.89%        (p=0.000 n=10+10)
-    Compiler       807MB ± 0%      798MB ± 0%  -1.10%        (p=0.000 n=10+10)
+    name      old time/op    new time/op    delta
+    Template     449ms ± 2%     443ms ± 4%  -1.40%  (p=0.006 n=23+25)
+    GoTypes      1.54s ± 1%     1.50s ± 2%  -2.53%  (p=0.000 n=22+22)
+    Compiler     5.51s ± 1%     5.39s ± 1%  -2.29%  (p=0.000 n=23+25)
     
-    name       old allocs/op   new allocs/op   delta
-    Template        498k ± 0%       496k ± 0%  -0.29%          (p=0.000 n=9+9)
-    GoTypes        1.42M ± 0%      1.41M ± 0%  -0.24%        (p=0.000 n=10+10)
-    Compiler       5.61M ± 0%      5.60M ± 0%  -0.12%        (p=0.000 n=10+10)
+    name      old alloc/op   new alloc/op   delta
+    Template    90.4MB ± 0%    90.0MB ± 0%  -0.45%  (p=0.000 n=25+25)
+    GoTypes      334MB ± 0%     331MB ± 0%  -1.05%  (p=0.000 n=25+25)
+    Compiler    1.12GB ± 0%    1.10GB ± 0%  -1.57%  (p=0.000 n=25+24)
     
-    Change-Id: I4cd20cfba3f132ebf371e16046ab14d7e42799ec
-    Reviewed-on: https://go-review.googlesource.com/21806
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    name      old allocs/op  new allocs/op  delta
+    Template      681k ± 0%      682k ± 0%  +0.26%  (p=0.000 n=25+25)
+    GoTypes      2.23M ± 0%     2.23M ± 0%  +0.05%  (p=0.000 n=23+24)
+    Compiler     6.46M ± 0%     6.46M ± 0%  +0.02%  (p=0.000 n=24+25)
+    
+    
+    Change-Id: I2629c291892827493d7b55ec4d83f6973a2ab133
+    Reviewed-on: https://go-review.googlesource.com/20026
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/compile.go       |  5 +++++
- src/cmd/compile/internal/ssa/dom.go           |  6 ++++++
- src/cmd/compile/internal/ssa/func.go          |  3 +++
- src/cmd/compile/internal/ssa/loopbce.go       | 18 ++++++++----------
- src/cmd/compile/internal/ssa/nilcheck.go      |  2 +-
- src/cmd/compile/internal/ssa/nilcheck_test.go | 10 ++++++++++
- src/cmd/compile/internal/ssa/prove.go         |  9 +++------
- 7 files changed, 36 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/ssa/TODO           |  2 +-
+ src/cmd/compile/internal/ssa/func.go        | 39 ++++++++++++++++++-----------
+ src/cmd/compile/internal/ssa/gen/rulegen.go |  2 ++
+ 3 files changed, 28 insertions(+), 15 deletions(-)

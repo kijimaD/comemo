@@ -1,16 +1,28 @@
-commit 234283d8aba1e892906e889782ae5723686da6c6
-Author: zhangjian <ZJ.Cosmos@gmail.com>
-Date:   Tue Mar 22 16:35:21 2022 +0000
+commit 193d5141318d65cea310d995258288bd000d734c
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Thu May 27 10:44:57 2021 +0200
 
-    go/build: remove unused code in TestDependencies
+    net/http: correct Client.Do doc about context cancelation
     
-    Change-Id: I7ccffbf96bd30f33bb42b6a2592962e2d4dda9fc
-    GitHub-Last-Rev: 2d6e214ac50bf505f8edf5ad8bf1c7f02e7b1194
-    GitHub-Pull-Request: golang/go#51231
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386374
-    Reviewed-by: mzh <mzh@golangcn.org>
-    Trust: mzh <mzh@golangcn.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    The documentation of the Client.Do method and Get function incorrectly
+    stated that, in case of context cancelation, the returned url.Error
+    Timeout method returns true.
+    
+    Update the documentation to correctly match the implementation.
+    See also CL 200798 that, due to an oversight, corrected only the
+    documentation of the Client.Get method.
+    
+    Remove a TODO note added in CL 125575 (net/http: document that Client
+    methods always return *url.Error), since it is no longer applicable
+    after CL 200798 (net/http: fix and lock-in Client.Do docs on request
+    cancelation).
+    
+    Fixes #46402
+    
+    Change-Id: Ied2ee971ba22b61777762dbb19f16e08686634ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323089
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/go/build/deps_test.go | 15 ---------------
- 1 file changed, 15 deletions(-)
+ src/net/http/client.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

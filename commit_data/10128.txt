@@ -1,13 +1,15 @@
-commit c92a499bc3b0be67f91a1be47f5359e1289ca732
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 28 08:45:17 2011 +1100
+commit b7ef3c9a5465762a19cec6bc925ddeda1a6b441a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 12:22:45 2011 -0700
 
-    misc/windows: allow to be used for amd64
+    spec: define that initialization is sequential
     
-    R=jdpoirier
+    This is true of the existing implementations, and I think
+    it is an important property to guarantee.
+    
+    R=golang-dev, r, borman, r
     CC=golang-dev
-    https://golang.org/cl/5305048
+    https://golang.org/cl/5321058
 
- misc/windows/README       | 15 ++++++---------
- misc/windows/package.bash |  4 ++--
- 2 files changed, 8 insertions(+), 11 deletions(-)
+ doc/go_spec.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

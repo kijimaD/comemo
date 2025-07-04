@@ -1,0 +1,16 @@
+commit b7e450bf27f28f60e574ac4ee4db165f771669a6
+Author: Tim King <taking@google.com>
+Date:   Wed Nov 27 13:13:07 2024 -0800
+
+    doc/next: document copylock changes
+    
+    Fixes #66387
+    
+    Change-Id: Ida9381d1ea83bcceaba460014fac3d0c13ccdbff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/next/3-tools.md | 9 +++++++++
+ 1 file changed, 9 insertions(+)

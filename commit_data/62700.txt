@@ -1,0 +1,31 @@
+commit e6c2e12c63db5b24724db873009373af413cd1ea
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 19 23:57:56 2024 +1000
+
+    cmd/compile/internal/ssa: optimise more branches with zero on riscv64
+    
+    Optimise more branches with zero on riscv64. In particular, BLTU with
+    zero occurs with IsInBounds checks for index zero. This currently results
+    in two instructions and requires an additional register:
+    
+       li      t2, 0
+       bltu    t2, t1, 0x174b4
+    
+    This is equivalent to checking if the bounds is not equal to zero. With
+    this change:
+    
+       bnez    t1, 0x174c0
+    
+    This removes more than 500 instructions from the Go binary on riscv64.
+    
+    Change-Id: I6cd861d853e3ef270bd46dacecdfaa205b1c4644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 18 ++++++++++--------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 ++++++++++++++++++++++++
+ test/codegen/compare_and_branch.go              | 10 ++++++++++
+ 3 files changed, 44 insertions(+), 8 deletions(-)

@@ -1,13 +1,14 @@
-commit 2b0d7f0836b87dd346e3a815d3bbb593f8e1a3f6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 6 15:56:02 2011 -0700
+commit b3dd32776b194e2b24bc47768624360452c04bd8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 6 15:21:56 2011 -0700
 
-    weekly.2011-10-06
+    template: fix comments with different delimiters.
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5207044
+    https://golang.org/cl/5208042
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 96 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 96 insertions(+), 1 deletion(-)
+ src/pkg/template/exec_test.go      | 17 ++++++++++++-----
+ src/pkg/template/parse/lex.go      | 10 +++++-----
+ src/pkg/template/parse/lex_test.go |  2 +-
+ 3 files changed, 18 insertions(+), 11 deletions(-)

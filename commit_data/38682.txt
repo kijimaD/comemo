@@ -1,24 +1,24 @@
-commit 20995f627422a3dce2039f06b5dfe1dc0ca174c6
-Author: Jannis Andrija Schnitzer <jannis@schnitzer.im>
-Date:   Mon Apr 8 07:31:59 2019 +0000
+commit ab37582eb03527d453a0bbae08e40cec20b6ab22
+Merge: e8b3500d5c ee7e443389
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 14 15:29:05 2018 -0500
 
-    archive/zip: use Modified in FileHeader.FileInfo
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    The Modified field allows representation of extended timestamps, which provide more accuracy than the legacy MS-DOS timestamps.
-    The FileInfo method provides an implementation of the os.FileInfo interface for files inside archives.
-    
-    With this change, we make FileInfo use the Modified field, if present, to return more detailed timestamps from its ModTime method.
-    
-    Fixes #28350
-    
-    Change-Id: Ia31b5b871a3e61df38a3a1325787ae23ea0b8088
-    GitHub-Last-Rev: 13e94be3f8ba58717911354146670fc2bc594692
-    GitHub-Pull-Request: golang/go#28352
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/144382
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I78c733872cb99657ebe5c48fe0ea6b316a4b5380
 
- src/archive/zip/struct.go   | 13 +++++++++----
- src/archive/zip/zip_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 4 deletions(-)
+ src/crypto/tls/boring_test.go                      |  81 ++++++++++++-
+ src/crypto/tls/common.go                           |   4 +
+ src/crypto/tls/handshake_client_test.go            |  51 +++++++-
+ src/crypto/tls/handshake_server_test.go            |  44 +++++--
+ src/crypto/tls/handshake_test.go                   |   6 +-
+ .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       | 129 ++++++++++++++++++++
+ .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   | 130 +++++++++++++++++++++
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  88 +++++++-------
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      |  87 +++++++-------
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given | 124 ++++++++++++++++++++
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      |  72 ++++++------
+ .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     |  81 +++++++++++++
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  81 +++++++++++++
+ src/net/smtp/smtp_test.go                          |  56 +++++----
+ 14 files changed, 874 insertions(+), 160 deletions(-)

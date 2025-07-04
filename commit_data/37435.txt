@@ -1,31 +1,19 @@
-commit 5001a38cc1a25850314a77bcde5df32371493236
-Author: sevki <s@sevki.org>
-Date:   Sat Nov 17 21:28:08 2018 +0000
+commit ecec63c8a14229619fac41be9b64dd73aff29c79
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Jul 31 15:17:31 2018 +0200
 
-    crypto/hmac: rename CheckHMAC to ValidHMAC in package docs
+    syscall/js: improve documentation about mappings to JavaScript values
     
-    Procedure names should reflect what they do; function names
-    should reflect what they return. Functions are used in
-    expressions, often in things like if's, so they need
-    to read appropriately.
+    This commit moves the documentation about how Go values are mapped to
+    JavaScript values to the functions that apply the mapping, instead of
+    mentioning them in the documentation of the types being mapped. This
+    should be easier to read.
     
-            if CheckHMAC(a, b, key)
-    
-    is unhelpful because we can't deduce whether CheckHMAC
-    returns true on error or non­-error; instead
-    
-            if ValidHMAC(a, b, key)
-    
-    makes the point clear and makes a future mistake
-    in using the routine less likely.
-    
-    https://www.lysator.liu.se/c/pikestyle.html
-    
-    Change-Id: I7c4b1981c90c8d7475ddd8ec18dee3db2e0f42df
-    GitHub-Last-Rev: 32199a418b5e5507259fa4b6715da8a9c185f90a
-    GitHub-Pull-Request: golang/go#28823
-    Reviewed-on: https://go-review.googlesource.com/c/149857
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I2465eb4a45f71b3b61624349e908a195010a09f1
+    Reviewed-on: https://go-review.googlesource.com/126856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/hmac/hmac.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/js/callback.go   | 5 +----
+ src/syscall/js/js.go         | 7 +++++--
+ src/syscall/js/typedarray.go | 1 -
+ 3 files changed, 6 insertions(+), 7 deletions(-)

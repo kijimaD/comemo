@@ -1,15 +1,24 @@
-commit 4d66d77cd22812de4526e3973bc3314040a939a5
-Author: Elias506 <56119080+Elias506@users.noreply.github.com>
-Date:   Thu Mar 25 14:46:15 2021 +0000
+commit 786120b55db5c3567d8c353fc399e9339c7406dd
+Author: KJ Tsanaktsidis <ktsanaktsidis@zendesk.com>
+Date:   Tue Sep 1 10:00:23 2020 +1000
 
-    database/sql: remove unnecessary types in composite literals
+    cmd/cgo: document #include <> search path behaviour
     
-    Change-Id: I30c576f826c82cbc62ce28ea7f4886702bd6605d
-    GitHub-Last-Rev: 2fead200dba13ec74d81e842d8bae97d1e67fcc4
-    GitHub-Pull-Request: golang/go#42618
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270000
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Trust: Cherry Zhang <cherryyz@google.com>
+    cgo effectively prepends -I${SRCDIR} to the header include path of all
+    preambles it processes, so when an #include <> matches a header file
+    both in the source directory and also another include directory, the
+    local copy will be used in preference.
+    
+    This behaviour is surprising but unfortunately also longstanding and
+    relied upon by packages in the wild, so the best we can do is to
+    document it.
+    
+    Fixes #41059
+    
+    Change-Id: If6d2818294b2bd94ea0fe5fd6ce77e54b3e167a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/fakedb_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/test/test.go | 1 +
+ src/cmd/cgo/doc.go    | 7 +++++++
+ 2 files changed, 8 insertions(+)

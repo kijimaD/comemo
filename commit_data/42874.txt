@@ -1,24 +1,23 @@
-commit 27a30186abc18a8fc22b8ab40e3ee9f29d81c1d4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 29 03:25:21 2020 +0700
+commit 3093959ee10f5c28211094e784c954f6a304b9c9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 4 14:25:22 2019 -0800
 
-    cmd/compile,runtime: skip zero'ing order array for select statements
+    runtime: remove mcache field from m
     
-    The order array was zero initialized by the compiler, but ends up being
-    overwritten by the runtime anyway.
+    Having an mcache field in both m and p is confusing, so remove it from m.
+    Always use mcache field from p. Use new variable mcache0 during bootstrap.
     
-    So let the runtime takes full responsibility for initializing, save us
-    one instruction per select.
-    
-    Fixes #40399
-    
-    Change-Id: Iec1eca27ad7180d4fcb3cc9ef97348206b7fe6b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251517
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: If2cba9f8bb131d911d512b61fd883a86cf62cc98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205239
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/select.go |  4 +---
- src/runtime/select.go                 |  1 +
- test/codegen/select.go                | 20 ++++++++++++++++++++
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ src/runtime/malloc.go   | 19 +++++++++++++++----
+ src/runtime/mgcsweep.go |  2 +-
+ src/runtime/mheap.go    | 29 ++++++++++++++++++++---------
+ src/runtime/proc.go     | 29 ++++++++++++-----------------
+ src/runtime/runtime1.go |  5 -----
+ src/runtime/runtime2.go |  1 -
+ src/runtime/stack.go    | 12 ++++++------
+ 7 files changed, 54 insertions(+), 43 deletions(-)

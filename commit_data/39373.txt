@@ -1,21 +1,16 @@
-commit dc63b59630cbc7fe1b039757bac0d6f713dfc26d
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 26 14:09:07 2019 -0700
+commit 337662f7caef76abd0122edffdc1f7f8102f19f8
+Author: Derek Phan <derekphan94@gmail.com>
+Date:   Sun Jan 13 06:07:33 2019 +0000
 
-    database/sql: add Conn.Raw to expose the driver Conn safely
+    io: align style of test comments in multi_test.go
     
-    Exposing the underlying driver conn will allow the use of the
-    standard connection pool while still able to run special function
-    directly on the driver.
-    
-    Fixes #29835
-    
-    Change-Id: Ib6d3b9535e730f008916805ae3bf76e4494c88f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174182
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Ic93a084311de46461ed3b30f4ac2fe11311e74d7
+    GitHub-Last-Rev: 32fbd63b10d0fa489406333ff6f8b6708974a73c
+    GitHub-Pull-Request: golang/go#29705
+    Reviewed-on: https://go-review.googlesource.com/c/157642
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/database/sql/sql.go      | 35 ++++++++++++++++++++++++++++++++
- src/database/sql/sql_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+)
+ src/io/multi_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

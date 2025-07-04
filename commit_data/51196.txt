@@ -1,21 +1,41 @@
-commit d3726f346925e8a6ef30b2db9de013fa314492e2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 9 16:41:05 2022 -0800
+commit d407a8c3c49f11980f224d204147eff8fcb087f4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 13 14:28:17 2021 -0500
 
-    cmd/compile/internal/importer: turn off debugging output
+    testing: retry spurious errors from RemoveAll for temp directories
     
-    Also, remove `debug` constant. Was not used.
-    Follow-up on CL 442303.
+    This works around what appears to be either a kernel bug or a Go
+    runtime or syscall bug affecting certain Windows versions
+    (possibly all pre-2016?).
     
-    Fixes #56681.
+    The retry loop is a simplified version of the one used in
+    cmd/go/internal/robustio. We use the same 2-second arbitrary timeout
+    as was used in that package, since it seems to be reliable in practice
+    on the affected builders. (If it proves to be too short, we can
+    lengthen it, within reason, in a followup CL.)
     
-    Change-Id: Ia1499511ba553670617bcb9b7c699412e8df0669
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449238
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Since this puts a higher-level workaround in place, we can also revert
+    the lower-level workaround added to a specific test in CL 345670.
+    
+    This addresses the specific occurrences of the bug for users of
+    (*testing.T).TempDir, but does not fix the underlying bug for Go users
+    outside the "testing" package (which remains open as #25965).
+    
+    Fixes #50051
+    Updates #48012
+    Updates #25965
+    
+    Change-Id: I35be7125f32f05c8350787f5ca9a22974b8d0770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371296
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Trust: Patrik Nyblom <pnyb@google.com>
+    Run-TryBot: Patrik Nyblom <pnyb@google.com>
 
- src/cmd/compile/internal/importer/gcimporter.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/runtime/syscall_windows_test.go |  1 +
+ src/testing/testing.go              | 32 +++++++++++++++++++++++++++++++-
+ src/testing/testing_other.go        | 13 +++++++++++++
+ src/testing/testing_windows.go      | 18 ++++++++++++++++++
+ 4 files changed, 63 insertions(+), 1 deletion(-)

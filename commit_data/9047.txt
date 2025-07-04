@@ -1,21 +1,12 @@
-commit 050d839df01f0f7ba5bd59ebea54e5fa5f5caba6
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Wed Jul 13 17:12:17 2011 +1000
+commit d360e0213d65239ccb9eea02c7a3ea32ddfeab82
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jul 13 16:53:02 2011 +1000
 
-    gob: register more slice types
+    html: update section references in comments to the latest HTML5 spec.
     
-    Without explicitly registering slice types, gob fails to encode
-    map[string]interface{} instances where the value is a slice,
-    failing with a message such as:
-    
-      gob: type not registered for interface: []string
-    
-    Fixes #2065.
-    
-    R=golang-dev, gri, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4672056
+    https://golang.org/cl/4699048
 
- src/pkg/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
- src/pkg/gob/type.go         | 18 ++++++++++++++++++
- 2 files changed, 47 insertions(+)
+ src/pkg/html/parse.go | 46 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 23 deletions(-)

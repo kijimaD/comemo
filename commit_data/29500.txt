@@ -1,20 +1,20 @@
-commit 9f9d83404f938a0dfb98d3f4a4d420261606069a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 11 18:43:39 2016 +0000
+commit dcb954c3f7ab6d463882dbc3f88e075e8e096f74
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 16 16:47:28 2016 +1200
 
-    net/http: make Server respect shutdown state after handler finishes
+    cmd/link: remove size and version from genasmsym's argument
     
-    If the Server's Shutdown (or SetKeepAlivesEnabled) method was called
-    while a connection was in a Handler, but after the headers had been
-    written, the connection was not later closed.
+    They are trivially available in the few places they are needed.
     
-    Fixes #9478
-    Updates #17754 (reverts that workaround)
-    
-    Change-Id: I65324ab8217373fbb38e12e2b8bffd0a91806072
-    Reviewed-on: https://go-review.googlesource.com/33141
+    Change-Id: I6544692e9027076ec9e6e9a295c66457039e55e1
+    Reviewed-on: https://go-review.googlesource.com/29332
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 3 ---
- src/net/http/server.go     | 8 ++++++++
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go  |  6 +++---
+ src/cmd/link/internal/ld/lib.go    | 26 +++++++++++++-------------
+ src/cmd/link/internal/ld/macho.go  |  4 ++--
+ src/cmd/link/internal/ld/pe.go     |  6 +++---
+ src/cmd/link/internal/ld/symtab.go | 13 +++++++++----
+ 5 files changed, 30 insertions(+), 25 deletions(-)

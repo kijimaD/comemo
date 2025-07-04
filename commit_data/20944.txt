@@ -1,12 +1,16 @@
-commit 2917ed40d0afdb7910b74c205d6498b6c173a5e0
-Author: Burcu Dogan <jbd@google.com>
-Date:   Mon Dec 8 16:15:22 2014 -0800
+commit 324b293878613574a1c0ab8d87f238ad15a67387
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 28 23:25:55 2014 -0400
 
-    doc: Fix the canonical location
+    cmd/objdump: disassemble local text symbols
     
-    Change-Id: I3030d678c4eee85970826c86332a2b818cf7f5b6
-    Reviewed-on: https://go-review.googlesource.com/1217
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #8803.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169720043
 
- CONTRIBUTING.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/objdump/main.go         |  2 +-
+ src/cmd/objdump/objdump_test.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

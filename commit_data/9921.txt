@@ -1,12 +1,14 @@
-commit 3b654b1cc47ed757c43e954c3cf9730972f93b81
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 11 13:07:01 2011 -0400
+commit 8584445289f3ee3b02dd3d2b24a137c9f282ab75
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Tue Oct 11 12:57:16 2011 -0400
 
-    CONTRIBUTORS: add Louis Kruger (Google CLA)
+    runtime: fix crash when returning from syscall during gc
     
-    R=golang-dev, gri
-    CC=golang-dev
-    https://golang.org/cl/5229052
+    gp->m can go from non-nil to nil when it re-enters schedule().
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5245042
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/mgc0.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

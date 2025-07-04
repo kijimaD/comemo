@@ -1,14 +1,27 @@
-commit cdabb3d315691187f2f3c2ce74e8adee2c544002
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 2 11:04:09 2012 -0800
+commit 8ba20dbdb5c7a77f79409488fb4637f470ab107d
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Feb 2 13:55:53 2012 +0100
 
-    test: add import test that caused an incorrect gccgo error
+    exp/norm: a few minor changes in prepration for a table format change:
+     - Unified bounary conditions for NFC and NFD and removed some indirections.
+       This enforces boundaries at the character level, which is typically what
+       the user expects. (NFD allows a boundary between 'a' and '`', for example,
+       which may give unexpected results for collation.  The current implementation
+       is already stricter than the standard, so nothing much changes.  This change
+       just formalizes it.
+     - Moved methods of qcflags to runeInfo.
+     - Swapped YesC and YesMaybe bits in qcFlags. This is to aid future changes.
+     - runeInfo return values use named fields in preperation for struct change.
+     - Replaced some left-over uint32s with rune.
     
-    R=golang-dev, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5622048
+    https://golang.org/cl/5607050
 
- test/fixedbugs/bug404.dir/one.go | 19 +++++++++++++++++++
- test/fixedbugs/bug404.dir/two.go | 12 ++++++++++++
- test/fixedbugs/bug404.go         |  7 +++++++
- 3 files changed, 38 insertions(+)
+ src/pkg/exp/norm/composition.go |  20 +-
+ src/pkg/exp/norm/forminfo.go    |  58 ++---
+ src/pkg/exp/norm/input.go       |  10 +-
+ src/pkg/exp/norm/maketables.go  |   4 +-
+ src/pkg/exp/norm/normalize.go   |  26 +--
+ src/pkg/exp/norm/tables.go      | 488 ++++++++++++++++++++--------------------
+ 6 files changed, 294 insertions(+), 312 deletions(-)

@@ -1,21 +1,26 @@
-commit ba9168bd07bfed6071e3eadcaae40b5481c52c24
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Jan 31 17:37:20 2021 +0100
+commit 20afbe86beda00676a608399638887538bd8f669
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 6 14:22:38 2020 -0400
 
-    syscall: add support for proc thread attribute lists
+    cmd/oldlink: port bug fixes to old linker
     
-    This will allow us to pass additional attributes when starting
-    processes.
+    This CL ports CL 234105 and CL 240621 to the old linker, which
+    fix critical bugs (runtime crashes).
     
-    Updates #44011.
+    Updates #39049.
+    Updates #39927.
     
-    Change-Id: I4af365c5544a6d421830f247593ec970200e5e03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288296
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I47afc84349119e320d2e60d64b7188a410835d2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241087
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/syscall/syscall_windows.go  | 23 +++++++++++++++++++++++
- src/syscall/types_windows.go    | 16 ++++++++++++++++
- src/syscall/zsyscall_windows.go | 24 ++++++++++++++++++++++++
- 3 files changed, 63 insertions(+)
+ src/cmd/oldlink/internal/arm/asm.go       |  6 +++++-
+ src/cmd/oldlink/internal/ld/decodesym.go  | 32 ++++++++++++++++++-------------
+ src/cmd/oldlink/internal/ld/lib.go        |  4 +++-
+ src/cmd/oldlink/internal/ld/pcln.go       |  2 +-
+ src/cmd/oldlink/internal/ppc64/asm.go     |  6 +++++-
+ src/cmd/oldlink/internal/sym/attribute.go |  6 +++++-
+ 6 files changed, 38 insertions(+), 18 deletions(-)

@@ -1,15 +1,15 @@
-commit 05403fa8fbfe1c6e44e1b015a6e990af11c81dfd
+commit 1b3c969ac36221dc171b0b3f169237fa1507b1e6
 Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 11 17:17:25 2013 -0700
+Date:   Mon Mar 11 16:23:06 2013 -0700
 
-    go/test/bench/go1: add printf and time format tests
-    Also rename the go parser test to GoParse so it doesn't grab the globally useful Parse name.
+    regexp: identify that submatch is also known as capturing group
+    Mention the syntax is defined by the regexp/syntax package.
+    Fixes #3953.
     
-    R=golang-dev, dave
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7732044
+    https://golang.org/cl/7702044
 
- test/bench/go1/fmt_test.go    | 68 +++++++++++++++++++++++++++++++++++++++++++
- test/bench/go1/parser_test.go |  2 +-
- test/bench/go1/time_test.go   | 25 ++++++++++++++++
- 3 files changed, 94 insertions(+), 1 deletion(-)
+ src/pkg/regexp/regexp.go     | 12 +++++++-----
+ src/pkg/regexp/syntax/doc.go |  6 +++---
+ 2 files changed, 10 insertions(+), 8 deletions(-)

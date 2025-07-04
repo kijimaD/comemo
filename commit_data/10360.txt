@@ -1,16 +1,27 @@
-commit 90ec203318a167505ae1038bdcdc7d2ce664a1eb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 13 12:13:46 2011 -0500
+commit 06ef97e15d8952d46118427d4e93b490d0366fa8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Nov 13 23:27:20 2011 +1100
 
-    exp/ssh: ensure initial window advertisement is not lost
+    html: auto-close <dd> and <dt> elements
     
-    Some remote servers send a 0 window size in the channel
-    open confirm msg, others send a non zero window size. Make
-    sure this initial advertisement is not lost.
+    Pass tests2.dat, test 8:
+    <!DOCTYPE html><dt><div><dd>
     
-    R=agl, rsc, cw
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <dt>
+    |       <div>
+    |     <dd>
+    
+    Also pass tests through test 9:
+    <script></x
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5372083
+    https://golang.org/cl/5373083
 
- src/pkg/exp/ssh/client.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/html/parse.go      | 18 ++++++++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

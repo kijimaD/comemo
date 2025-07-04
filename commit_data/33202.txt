@@ -1,30 +1,30 @@
-commit efa9efe8e4d998e0ed7c917446cc62ff5cb76762
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 20 11:01:43 2017 -0700
+commit 1a6d87d4bfefe315b2112c5342913801ecd22b34
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 18:06:03 2017 -0400
 
-    cmd/compile: silence unnecessary unsafe error
+    [release-branch.go1.9] runtime: fall back to small mmaps if we fail to grow reservation
     
-    If n.Type==nil after typechecking, then we should have already
-    reported a more useful error somewhere else. Just return 0 in
-    evalunsafe without trying to do anything else that's likely to cause
-    problems.
+    Right now, if it's possible to grow the arena reservation but
+    mheap.sysAlloc fails to get 256MB more of memory, it simply fails.
+    However, on 32-bit we have a fallback path that uses much smaller
+    mmaps that could take in this situation, but fail to.
     
-    Also, further split out issue7525.go into more test files, because
-    cmd/compile reports at most one typechecking loop per compilation
-    unit.
+    This commit fixes mheap.sysAlloc to use a common failure path in case
+    it can't grow the reservation. On 32-bit, this path includes the
+    fallback.
     
-    Fixes #22351.
+    Ideally, mheap.sysAlloc would attempt smaller reservation growths
+    first, but taking the fallback path is a simple change for Go 1.9.
     
-    Change-Id: I3ebf505f72c48fcbfef5ec915606224406026597
-    Reviewed-on: https://go-review.googlesource.com/72251
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Updates #21044 (fixes one of two issues).
+    
+    Cherry-pick of CL 51713. Updates #21234.
+    
+    Change-Id: I1e0035ffba986c3551479d5742809e43da5e7c73
+    Reviewed-on: https://go-review.googlesource.com/52190
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/unsafe.go |  4 +++-
- test/fixedbugs/issue22351.go          | 11 +++++++++++
- test/fixedbugs/issue7525.go           |  4 +---
- test/fixedbugs/issue7525d.go          | 15 +++++++++++++++
- test/fixedbugs/issue7525e.go          | 15 +++++++++++++++
- 5 files changed, 45 insertions(+), 4 deletions(-)
+ src/runtime/malloc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

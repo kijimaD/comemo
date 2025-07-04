@@ -1,15 +1,38 @@
-commit 12e7397ebb4e8c5444f9b30b84a6b80059d073fb
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jan 23 07:11:22 2013 +0900
+commit e6e60cda12701ad3f1f4419606ddead52e57f2f1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jan 22 17:05:13 2013 -0500
 
-    net: don't return nil interface address on netbsd
+    cmd/go: suppress extraneous newlines in list
     
-    On NetBSD routing sockaddrs for interface address contain sockaddr_dl.
+    Before:
+    $ go list -f '{{range .Deps}}{{println $.Name .}}{{end}}' math time
+    math runtime
+    math unsafe
     
-    R=dave, rsc
+    time errors
+    time runtime
+    time sync
+    time sync/atomic
+    time syscall
+    time unsafe
+    
+    $
+    
+    After:
+    $ go list -f '{{range .Deps}}{{println $.Name .}}{{end}}' math time
+    math runtime
+    math unsafe
+    time errors
+    time runtime
+    time sync
+    time sync/atomic
+    time syscall
+    time unsafe
+    $
+    
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7085064
+    https://golang.org/cl/7130052
 
- src/pkg/net/interface_bsd.go  |  6 +++++-
- src/pkg/net/interface_test.go | 16 ++++++++++++----
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/cmd/go/list.go | 46 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 23 deletions(-)

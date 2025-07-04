@@ -1,31 +1,31 @@
-commit 9afd158eb228fbe191ffa27b1a334a8837c45ef7
+commit b56762129e97b15587c15d85e18e2d719528657a
 Author: Rob Findley <rfindley@google.com>
-Date:   Mon Jun 21 16:10:14 2021 -0400
+Date:   Tue Nov 17 11:06:53 2020 -0500
 
-    go/parser: parse an ast.IndexExpr for a[]
+    [dev.typeparams] import go2go changes to parse type parameters
     
-    To be consistent with Go 1.16, and to preserve as much information in
-    the AST as possible, parse an ast.IndexExpr with BadExpr Index for the
-    invalid expression a[].
+    This CL imports changes on the go2go branch to support parsing type
+    params, as well as the unsubmitted changes from CL 269300 to remove
+    support for parenthesize type parameter syntax.
     
-    A go/types test had to be adjusted to account for an additional error
-    resulting from this change.
-    
-    We don't have a lot of test coverage for parser error recovery, so
-    rather than write an ad-hoc test for this issue, add a new go/types test
-    that checks that the indexed operand is used.
-    
-    Updates #46403
-    
-    Change-Id: I21e6ff4179746aaa50e530d4091fded450e69824
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329791
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I27ab942ce69eab62c2a1800f8f9661c4dcb233fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270857
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/go/parser/parser.go                        |  7 ++++++-
- src/go/types/testdata/examples/functions.go2   |  2 +-
- src/go/types/testdata/fixedbugs/issue46403.src | 11 +++++++++++
- 3 files changed, 18 insertions(+), 2 deletions(-)
+ src/go/parser/error_test.go        |  14 +-
+ src/go/parser/interface.go         |   1 +
+ src/go/parser/parser.go            | 764 ++++++++++++++++++++++++++-----------
+ src/go/parser/short_test.go        | 122 +++++-
+ src/go/parser/testdata/chans.go2   |  62 +++
+ src/go/parser/testdata/linalg.go2  |  83 ++++
+ src/go/parser/testdata/map.go2     | 109 ++++++
+ src/go/parser/testdata/metrics.go2 |  58 +++
+ src/go/parser/testdata/set.go2     |  31 ++
+ src/go/parser/testdata/slices.go2  |  31 ++
+ src/go/parser/testdata/sort.go2    |  27 ++
+ src/go/types/testdata/issues.src   |   4 +-
+ 12 files changed, 1063 insertions(+), 243 deletions(-)

@@ -1,14 +1,23 @@
-commit 0c3b17a55aebb2f9ea481269b67a2a0099674101
+commit c8214c78bd2f8ad308119dc2344634993ab499c8
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 14:48:58 2013 -0500
+Date:   Fri Feb 15 14:48:35 2013 -0500
 
-    runtime: allow mem profiles with GOGC=off
+    runtime: make return from main wait for active panic
     
-    Fixes #3586.
+    Arguably if this happens the program is buggy anyway,
+    but letting the panic continue looks better than interrupting it.
+    Otherwise things like this are possible, and confusing:
     
-    R=golang-dev, iant
+    $ go run x.go
+    panic: $ echo $?
+    0
+    $
+    
+    Fixes #3934.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7304098
+    https://golang.org/cl/7322083
 
- src/pkg/runtime/mprof.goc | 34 ++++++++++++++++++++++++++++------
- 1 file changed, 28 insertions(+), 6 deletions(-)
+ src/pkg/runtime/proc.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

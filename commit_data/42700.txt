@@ -1,19 +1,16 @@
-commit bf512685fee6282f1a50069ef444412bdf59611b
-Author: Cholerae Hu <choleraehyq@gmail.com>
-Date:   Wed Aug 5 13:52:32 2020 +0800
+commit 2f9b2e75c40bc6e92b08c85dde0ba2e4529e0427
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 15:06:27 2020 -0500
 
-    syscall: cap RLIMIT_NOFILE soft limit in TestRlimit on darwin
+    [dev.boringcrypto] misc/docker: update Dockerfile to match recent Buster based golang images
     
-    On some machines, kern.maxfilesperproc is 4096. If Rlimit.Cur is larger
-    than that, Setrlimit will get an errEINVAL.
+    Fixes #37032
     
-    Fixes #40564.
-    
-    Change-Id: Ib94303c790a489ff0559c88d41a021e514d18f8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246658
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5f097b4be1995ece8e40ad4b60456c5dbbf4e4d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217939
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/syscall/syscall_unix_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ misc/boring/build.docker  |   5 +--
+ misc/boring/dockerfile.in |  18 +++++----
+ misc/boring/go-wrapper    | 100 ----------------------------------------------
+ 3 files changed, 12 insertions(+), 111 deletions(-)

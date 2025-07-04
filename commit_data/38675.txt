@@ -1,33 +1,20 @@
-commit ad6c691542e2d842c90e2f7870021d16ffa71878
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sat Apr 6 12:42:51 2019 -0700
+commit 6d620fc42ec2ae61cfedcd37d24afd8cb7654164
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Nov 13 16:13:42 2018 -0700
 
-    cmd/compile: remove AUNDEF opcode
+    test: move empty header file in builddir, buildrundir to temp directory
     
-    This opcode was only used to mark unreachable code for plive to use.
-    plive now uses the SSA representation, so it knows locations are
-    unreachable because they are ends of Exit blocks. It doesn't need
-    these opcodes any more.
+    Move the empty header file created by "builddir", "buildrundir"
+    directives to t.tempDir. The file was accidentally placed in the
+    same directory as the source code and this was a vestige of CL 146999.
     
-    These opcodes actually used space in the binary, 2 bytes per undef
-    on x86 and more for other archs.
+    Fixes #28781
     
-    Makes the amd64 go binary 0.2% smaller.
-    
-    Change-Id: I64c84c35db7c7949617a3a5830f09c8e5fcd2620
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171058
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3d2ada5f9e8bf4ce4f015b9bd379b311592fe3ce
+    Reviewed-on: https://go-review.googlesource.com/c/149458
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go  | 1 -
- src/cmd/compile/internal/arm/ssa.go    | 1 -
- src/cmd/compile/internal/arm64/ssa.go  | 1 -
- src/cmd/compile/internal/gc/ssa.go     | 7 +++++++
- src/cmd/compile/internal/mips/ssa.go   | 1 -
- src/cmd/compile/internal/mips64/ssa.go | 1 -
- src/cmd/compile/internal/ppc64/ssa.go  | 1 -
- src/cmd/compile/internal/s390x/ssa.go  | 1 -
- src/cmd/compile/internal/wasm/ssa.go   | 1 -
- src/cmd/compile/internal/x86/ssa.go    | 1 -
- 10 files changed, 7 insertions(+), 9 deletions(-)
+ test/run.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

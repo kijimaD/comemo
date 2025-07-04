@@ -1,27 +1,33 @@
-commit a412b5f0d803b261b8075289bf41599490f237cc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 30 23:21:39 2021 +0100
+commit a4b8241d97fb180e1b9cb41c4828345c931d1aaf
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Apr 2 16:52:58 2021 -0700
 
-    runtime: skip TestSignalIgnoreSIGTRAP on all OpenBSD builders
+    cmd/compile: get rid of Fields in types.Interface, use allMethods in types.Type instead
     
-    TestSignalIgnoreSIGTRAP is flaky on OpenBSD and the cause is suspected
-    to be a kernel bug. This test is currently only skipped on the previous
-    OpenBSD 6.2 and 6.4 builders for #17496. In the meantime the OpenBSD
-    builders were upgraded to more recent OpenBSD versions (currently 6.8
-    and 7.0). It seems the issue is still present in these OpenBSD versions
-    and there is no obvious workaround in Go. Thus, skip the flaky test on
-    OpenBSD in general.
+    Confusingly, the set of all methods of an interface is currently set in
+    Fields field of types.Interface. This is true, even though there is
+    already an allMethods field (and AllMethods method) of types.Type.
+    Change so the set of all methods of an interface are stored in
+    Type.allMethods, and Interface.Fields is removed. Update the comments
+    for Methods and AllMethods.
     
-    Updates #17496
-    Updates #49725
-    
-    Change-Id: I3577d287dcfaad7a81679db2e71540854fce065a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367115
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ibc32bafae86831cba62606b079a855690612c759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307209
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_unix_test.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/export.go           |  2 +-
+ src/cmd/compile/internal/noder/helpers.go       |  2 +-
+ src/cmd/compile/internal/noder/stencil.go       |  4 +-
+ src/cmd/compile/internal/noder/transform.go     |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go      | 34 +++++++++++++----
+ src/cmd/compile/internal/typecheck/typecheck.go |  6 ++-
+ src/cmd/compile/internal/types/fmt.go           |  4 +-
+ src/cmd/compile/internal/types/identity.go      |  6 +--
+ src/cmd/compile/internal/types/size.go          |  6 +--
+ src/cmd/compile/internal/types/sizeof_test.go   |  2 +-
+ src/cmd/compile/internal/types/type.go          | 49 +++++++++++++++----------
+ 12 files changed, 73 insertions(+), 46 deletions(-)

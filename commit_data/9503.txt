@@ -1,12 +1,12 @@
-commit 822804c6002eb0b46d0695f517f422e4a6fe2a1e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 26 10:06:35 2011 +0400
+commit a45c657db1b6ce6689ddedab6ff88c0380901379
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 26 15:09:23 2011 +1000
 
-    http: support setting Transport's TLS client config
+    bytes.Buffer: clarify that NewBuffer is not for beginners
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4964043
+    https://golang.org/cl/4965048
 
- src/pkg/http/transport.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/bytes/buffer.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

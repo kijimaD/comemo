@@ -1,42 +1,25 @@
-commit e21d126ee13031e0fb621e4ec66ae1be403e2d36
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Jan 12 18:29:28 2023 +0000
+commit e3f7816f0eae375d261e35d0b541a61c463c9111
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 6 13:52:23 2022 -0400
 
-    go/printer: reuse go/token.FileSet.PositionFor calls in setPos
+    cmd/link: remove name expansion logic
     
-    setPos is called for most nodes, and in a number of cases,
-    the position is already the same.
-    PositionFor is a relatively expensive call,
-    as it needs to "unpack" a token.Pos into a token.Position.
+    Now both the compiler and the assembler require the -p flag and
+    emit full package path in symbol names, we no longer need to do
+    the name expansion in the linker. Delete it.
     
-    If we can tell that the position is the same in a cheap way,
-    we can then avoid calling setPos and PositionFor.
-    Luckily, we can get the position's offset within the file,
-    and it doesn't involve the relatively expensive unpacking.
-    
-            name          old time/op    new time/op    delta
-            PrintFile-16    4.79ms ± 1%    4.36ms ± 1%  -8.88%  (p=0.008 n=5+5)
-    
-            name          old speed      new speed      delta
-            PrintFile-16  10.8MB/s ± 1%  11.9MB/s ± 1%  +9.73%  (p=0.008 n=5+5)
-    
-            name          old alloc/op   new alloc/op   delta
-            PrintFile-16     106kB ± 1%     106kB ± 1%    ~     (p=0.167 n=5+5)
-    
-            name          old allocs/op  new allocs/op  delta
-            PrintFile-16     2.42k ± 0%     2.42k ± 0%    ~     (all equal)
-    
-    This does assume that the positions of a node being printed are all
-    within a file, as go/token.Position.Offset is relative to each file.
-    This seems like a perfectly fine assumption to make right now,
-    as the largest node which can be printed is an *ast.File.
-    
-    Change-Id: I2ae55f507ba8ba9f280898c9c8e01c994d9b2a26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461739
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I771d4d97987a0a17414881b52806d600ef4cc351
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404300
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/go/printer/printer.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/objfile.go           |  7 +++---
+ src/cmd/link/internal/ld/go.go              |  7 ------
+ src/cmd/link/internal/ld/macho.go           |  4 +--
+ src/cmd/link/internal/ld/pe.go              |  2 +-
+ src/cmd/link/internal/ld/symtab.go          |  2 +-
+ src/cmd/link/internal/loader/loader.go      | 38 ++++-------------------------
+ src/cmd/link/internal/loader/loader_test.go |  2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go  |  2 +-
+ 8 files changed, 14 insertions(+), 50 deletions(-)

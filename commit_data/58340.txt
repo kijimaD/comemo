@@ -1,23 +1,21 @@
-commit aa464fb953beabae11e94bffde320457f0904352
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 5 11:35:37 2024 -0500
+commit 68e52bc03cd3072985ead4895a3ae97f43c02331
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Oct 27 16:20:44 2023 +0000
 
-    doc/next: add release notes for Wasm changes
+    bytes,internal/bytealg: eliminate IndexRabinKarpBytes using generics
     
-    Document wasmexport and WASI reactor/library mode. Also document
-    that we now permit more types for wasmimport.
+    This is a follow-up to CL 538175.
     
-    Fixes #65199.
-    Updates #66984.
-    For #68545.
-    
-    Change-Id: Id26a8c9496650cd154daed679b82223af1848eea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634036
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Iec2523b36a16d7e157c17858c89fcd43c2470d58
+    GitHub-Last-Rev: 812d36e57c71ea3bf44d2d64bde0703ef02a1b91
+    GitHub-Pull-Request: golang/go#63770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538195
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/next/7-ports.md | 16 ++++++++++++++++
- doc/next/9-todo.md  |  2 --
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/bytes/bytes.go              |  2 +-
+ src/internal/bytealg/bytealg.go | 35 +++--------------------------------
+ 2 files changed, 4 insertions(+), 33 deletions(-)

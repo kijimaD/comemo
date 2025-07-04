@@ -1,19 +1,16 @@
-commit 3ebe7d7d110ba2573cfd597bb786d14749181cc3
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 1 11:50:38 2017 -0500
+commit 0ef4815150782a47cde25937349f9c4441b0e78e
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Wed Dec 21 15:50:26 2016 +0900
 
-    runtime: pull heap profile cycle into a type
+    build: fix darwin/arm broken on macOS 10.12 with Xcode 8.0
     
-    Currently memRecord has the same set of four fields repeated three
-    times. Pull these into a type and use this type three times. This
-    cleans up and simplifies the code a bit and will make it easier to
-    switch to a globally tracked heap profile cycle for #19311.
+    Xcode 8.0 has been donen't support the iOS 5 anymore
     
-    Change-Id: I414d15673feaa406a8366b48784437c642997cf2
-    Reviewed-on: https://go-review.googlesource.com/37713
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #18390.
+    
+    Change-Id: Icc97e09424780c610a8fe173d0cf461d76b06da4
+    Reviewed-on: https://go-review.googlesource.com/34673
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/mprof.go | 74 +++++++++++++++++++++++++---------------------------
- 1 file changed, 36 insertions(+), 38 deletions(-)
+ misc/ios/clangwrap.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

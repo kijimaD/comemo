@@ -1,13 +1,33 @@
-commit 99d23dfdfd19204d76877a7322c298726aba6d9a
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Fri Jan 31 11:43:48 2014 +1100
+commit 1683dab725f66320d3d9d500b33233a11930f596
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 09:25:47 2014 -0800
 
-    crypto/rand: add tests for Int, Prime
+    cmd/ld: fix bug with "runtime/cgo" in external link mode
     
-    LGTM=rsc, dave
-    R=golang-codereviews, dave, josharian, rsc
+    In external link mode the linker explicitly adds the string
+    constant "runtime/cgo".  It adds the string constant using the
+    same symbol name as the compiler, but a different format.  The
+    compiler assumes that the string data immediately follows the
+    string header, but the linker puts the two in different
+    sections.  The result is bad string data when the compiler
+    sees "runtime/cgo" used as a string constant.
+    
+    The compiler assumption is in datastring in [568]g/gobj.c.
+    The linker layout is in addstrdata in ld/data.c.  The compiler
+    assumption is valid for string literals.  The linker is not
+    creating a string literal, so its assumption is also valid.
+    
+    There are a few ways to avoid this problem.  This patch fixes
+    it by only doing the fake import of runtime/cgo if necessary,
+    and by only creating the string symbol if necessary.
+    
+    Fixes #7234.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/46490043
+    https://golang.org/cl/58410043
 
- src/pkg/crypto/rand/util_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ misc/cgo/test/issue7234_test.go | 21 +++++++++++++++++++++
+ src/cmd/ld/lib.c                | 23 +++++++++++++----------
+ 2 files changed, 34 insertions(+), 10 deletions(-)

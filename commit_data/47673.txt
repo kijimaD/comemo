@@ -1,17 +1,23 @@
-commit c8c89d20ce206969ea48819af3ef0309299f9f6c
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 16:27:55 2021 -0500
+commit 254fb85c12aa631b5d1596aaf13f6e8666d65d15
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Mar 29 17:00:15 2021 -0400
 
-    doc/go1.18: add docs on Cookie.Valid
+    cmd/go: print deprecation notice for 'go get cmd'
     
-    Updates #47694
+    The notice is shown when 'go get' is invoked with the -d flag, and
+    the arguments match at least one main package.
     
-    Change-Id: Ibf3e25fbccf82e4abd7bd76b2ea6ceb4b05d4664
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368357
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This reverts CL 274552.
+    
+    For #43684
+    
+    Change-Id: I42e6731455f22988bf72dde1d5a76d197e9e3954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305670
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.18.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modget/get.go                  | 28 +++++++++++++++++++---
+ .../testdata/script/mod_get_deprecate_install.txt  | 22 +++++++++++++++++
+ 2 files changed, 47 insertions(+), 3 deletions(-)

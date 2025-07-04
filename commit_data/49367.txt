@@ -1,15 +1,38 @@
-commit e1036a741cbefe17d6cd97eb3b549a405287a36e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jun 2 16:53:36 2022 -0400
+commit efd206eb40a59e955c12653b1720026244e6c667
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jun 22 11:20:03 2021 +0000
 
-    doc/go1.19: add release notes for syscall
+    cmd/compile: intrinsify Mul64 on riscv64
     
-    For #51400
+    According to RISCV instruction set manual v2.2 Sec 6.1
+    MULHU followed by MUL will be fused into one multiply by microarchitecture
     
-    Change-Id: If5fc131df254d47a989ff61c8e584cb8149cbd09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410116
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Benchstat on Hifive unmatched:
+    name          old time/op    new time/op    delta
+    Hash8Bytes       245ns ± 3%     186ns ± 4%  -23.99%  (p=0.000 n=10+10)
+    Hash320Bytes    1.94µs ± 1%    1.31µs ± 1%  -32.38%  (p=0.000 n=9+10)
+    Hash1K          5.84µs ± 0%    3.84µs ± 0%  -34.20%  (p=0.000 n=10+9)
+    Hash8K          45.3µs ± 0%    29.4µs ± 0%  -35.04%  (p=0.000 n=10+10)
+    
+    name          old speed      new speed      delta
+    Hash8Bytes    32.7MB/s ± 3%  43.0MB/s ± 4%  +31.61%  (p=0.000 n=10+10)
+    Hash320Bytes   165MB/s ± 1%   244MB/s ± 1%  +47.88%  (p=0.000 n=9+10)
+    Hash1K         175MB/s ± 0%   266MB/s ± 0%  +51.98%  (p=0.000 n=10+9)
+    Hash8K         181MB/s ± 0%   279MB/s ± 0%  +53.94%  (p=0.000 n=10+10)
+    
+    Change-Id: I3561495d02a4a0ad8578e9b9819bf0a4eaca5d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329970
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
 
- doc/go1.19.html | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/compile/internal/riscv64/ssa.go        | 15 +++++++++++++++
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  3 +++
+ src/cmd/compile/internal/ssa/opGen.go          | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  3 +++
+ src/cmd/compile/internal/ssagen/ssa.go         |  6 +++---
+ test/codegen/mathbits.go                       |  1 +
+ test/run.go                                    |  1 +
+ 8 files changed, 43 insertions(+), 3 deletions(-)

@@ -1,44 +1,24 @@
-commit 81d9214ff6e40bcba2c803c4fcfa14f7e6f57f6d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Mar 14 15:35:36 2023 -0700
+commit 4da2bc2eebb480f1c2a726de05f4e085e97d3b6c
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Mon Sep 26 14:53:54 2022 +0000
 
-    expvar: emit valid JSON strings
+    internal/saferio: handle potential total size overflow in SliceCap
     
-    Map.String and expvarHandler used the %q flag with fmt.Fprintf
-    to escape Go strings, which does so according to the Go grammar,
-    which is not always compatible with JSON strings.
+    Before the change, "SliceCap((*int64)(nil), 1<<62)" returns 1<<62.
+    That's because "uintptr(c)*size" overflows and gives 0 which is less
+    than the "chunk". SliceCap should return -1 in this case.
     
-    Rather than calling json.Marshal for every string,
-    which will always allocate, declare a local appendJSONQuote
-    function that does basic string escaping.
-    Also, we declare an unexported appendJSON method on every
-    concrete Var type so that the final JSON output can be
-    constructed with far fewer allocations.
-    
-    The resulting logic is both more correct and also much faster.
-    This does not alter the whitespace style of Map.String or expvarHandler,
-    but may alter the representation of JSON strings.
-    
-    Performance:
-    
-            name         old time/op    new time/op    delta
-            MapString    5.10µs ± 1%    1.56µs ± 1%  -69.33%  (p=0.000 n=10+9)
-    
-            name         old alloc/op   new alloc/op   delta
-            MapString    1.21kB ± 0%    0.66kB ± 0%  -45.12%  (p=0.000 n=10+10)
-    
-            name         old allocs/op  new allocs/op  delta
-            MapString      37.0 ± 0%       7.0 ± 0%  -81.08%  (p=0.000 n=10+10)
-    
-    Fixes #59040
-    
-    Change-Id: I46a2125f43550b91d52019e5edc003d9dd19590f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476336
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I4e99224c8ac0fc72032c6be86d7318d33d083cd8
+    GitHub-Last-Rev: ca30bcce456d20702e3699822cd4f1c963ef1cec
+    GitHub-Pull-Request: golang/go#55870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434335
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/expvar/expvar.go      | 139 ++++++++++++++++++++++++++++++----------------
- src/expvar/expvar_test.go |  49 ++++++++++++++--
- 2 files changed, 135 insertions(+), 53 deletions(-)
+ src/internal/saferio/io.go      | 7 +++++--
+ src/internal/saferio/io_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

@@ -1,20 +1,17 @@
-commit 419a6c0709556a76099d9718a52f43a3c5249d31
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 21 12:17:29 2015 -0700
+commit d5ad9ced1c82d4a1cb63d92f33552a064d7e8162
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Jun 11 20:37:01 2015 +0100
 
-    cmd/go: pass an unmodified environment to a go run program
+    [dev.ssa] clarify ODCL todo, remove irrelevant colas todo
     
-    Fixes #11709.
-    Fixed #11449.
+    ODCL nodes are used as the point where the variable is allocated in
+    the old pass. colas is irrelevant at this point of the compile. All
+    the checks on it happen at parse time and an ODCL node will have been
+    inserted right before it.
     
-    Change-Id: If8fdb27d3dc25fb7017226d143a29cbebc1374c5
-    Reviewed-on: https://go-review.googlesource.com/12483
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1aca053aaa4363bacd12e1156de86fa7b6190a55
+    Reviewed-on: https://go-review.googlesource.com/10901
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/generate.go |  2 +-
- src/cmd/go/go_test.go  | 15 +++++++++++++++
- src/cmd/go/main.go     |  3 +++
- src/cmd/go/run.go      |  1 +
- 4 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

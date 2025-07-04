@@ -1,24 +1,32 @@
-commit 5c4ed73f1c3f2052d8f60ce5ed45d9d4f9686331
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 25 13:22:57 2022 -0400
+commit cf4b6dc48eba807e7d85fb6ab30cbbbdb143c552
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 4 22:54:08 2021 -0700
 
-    internal/goexperiment: add GOEXPERIMENT=boringcrypto
+    [dev.typeparams] cmd/compile: allow conversions from type parameter to interface
     
-    Not hooked up to everything else yet.
+    When converting from a type param to an interface, allow it if
+    the type bound implements that interface.
     
-    Copy of CL 395880, for setting up GOEXPERIMENT=boringcrypto
-    builder ahead of merge.
+    Query: some conversions go through this path, some use another path?
+    The test does
     
-    For #51940.
+       var i interface{foo()int} = x
     
-    Change-Id: If842761f77d07329d88748990b95f4b39c2f153a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397895
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    but
+    
+       i := (interface{foo()int})(x)
+    
+    works at tip.
+    
+    Change-Id: I84d497e5228c0e1d1c9d76ffebaedce09dc45e8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325409
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/internal/goexperiment/exp_boringcrypto_off.go | 9 +++++++++
- src/internal/goexperiment/exp_boringcrypto_on.go  | 9 +++++++++
- src/internal/goexperiment/flags.go                | 1 +
- 3 files changed, 19 insertions(+)
+ src/cmd/compile/internal/noder/transform.go |  5 ++-
+ src/cmd/compile/internal/typecheck/subr.go  | 12 +++++-
+ test/typeparam/ifaceconv.go                 | 58 +++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 2 deletions(-)

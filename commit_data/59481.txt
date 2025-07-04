@@ -1,21 +1,20 @@
-commit 1e436ba668f5988ca8fbeb68734800b9dcf33dbc
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Apr 30 15:17:45 2025 -0400
+commit f40bf7486b4cf201c1d9f54d9e68c84422d055a2
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 12 08:35:52 2024 +0000
 
-    runtime: only poll network from one P at a time in findRunnable
+    net/http/httptest: close res.Body in test
     
-    This change reintroduces CL 564197. It was reverted due to a failing
-    benchmark. That failure has been resolved.
-    
-    For #65064
-    
-    Change-Id: Ic88841d2bc24c2717ad324873f0f52699f21dc66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669235
+    Change-Id: Ieec952ebc407ecb1aa20aa03105323505121981c
+    GitHub-Last-Rev: d19724c16dff3ec9c1f23d21054ff8a6ccc3770c
+    GitHub-Pull-Request: golang/go#66263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570915
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/proc.go     | 8 ++++++--
- src/runtime/runtime2.go | 7 ++++---
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/net/http/httptest/server_test.go | 1 +
+ 1 file changed, 1 insertion(+)

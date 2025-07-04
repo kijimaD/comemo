@@ -1,28 +1,19 @@
-commit 6623988eb73da429f41cfef85d481a5b93446ccd
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Dec 7 07:55:21 2016 -0600
+commit 95a6572b2b84e8cbfd821c4e5f774f20d37c007e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 15:01:15 2016 -0700
 
-    cmd/link: fix sym sect when splitting text on ppc64le
+    math/big: Rat.SetString to report error if input is not consumed entirely
     
-    While processing a symbol for a function, if it is determined
-    that a function would make the text section too large then
-    a new text section is created and the address of the function
-    is in the new text section.  But the symbol for the function
-    is marked as being in the previous text section, causing
-    incorrect codegen for the function and leading to a segv if
-    that function is called.  This adds code to set the sym.Sect
-    field to the new section if a new one is created.  Note that
-    this problem only happens at the point where a new section is
-    created.
+    Also, document behavior explicitly for all SetString implementations.
     
-    Fixes #18218
+    Fixes #17001.
     
-    Change-Id: Ic21ae11368d9d88ff6d5d3977f9ea72fe6477ed1
-    Reviewed-on: https://go-review.googlesource.com/34069
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iccc882b4bc7f8b61b6092f330e405c146a80dc98
+    Reviewed-on: https://go-review.googlesource.com/30472
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/data.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/big/floatconv.go    |  5 ++++-
+ src/math/big/int.go          | 10 +++++-----
+ src/math/big/ratconv.go      | 13 +++++++++----
+ src/math/big/ratconv_test.go |  5 +++++
+ 4 files changed, 23 insertions(+), 10 deletions(-)

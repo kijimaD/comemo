@@ -1,12 +1,12 @@
-commit 79a3d239e99d8e60324701d313969cb6611bf308
-Author: Andy Maloney <asmaloney@gmail.com>
-Date:   Thu Aug 6 11:45:53 2015 -0400
+commit d5994f4f5e3288593de54198b3c61c9eb608e087
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Jul 4 18:33:21 2015 +0200
 
-    cmd/cgo: change comments in generated C code to be C-style
+    doc/go1.5.html: fix typo
     
-    Change-Id: I3889eda72ae0f57117f1d4299e3574f8bf68be67
-    Reviewed-on: https://go-review.googlesource.com/13310
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If33ffe1da23a8463fc5479f453422d280b736372
+    Reviewed-on: https://go-review.googlesource.com/11865
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/out.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

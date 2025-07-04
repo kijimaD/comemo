@@ -1,18 +1,16 @@
-commit 0b36211cfb823f41e3a201dd18ddee7a68b4d4e3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Sep 30 10:03:10 2014 +1000
+commit 0c47bd1e61ab09e04572170f839297cb8ce97a5c
+Author: John Tuley <john@tuley.org>
+Date:   Fri Sep 19 11:28:38 2014 -0400
 
-    liblink: generate MRC replacement in liblink, not tls_arm
+    net/http: ensured that proxy errors are returned by Transport.RoundTrip.
     
-    Fixes #8690.
+    Fixes #8755.
     
-    This CL moves the save of LR around BL runtime.read_tls_fallback to liblink as it is not needed when MRC is not replaced.
-    
-    LGTM=rsc, minux
-    R=rsc, khr, minux
-    CC=golang-codereviews
-    https://golang.org/cl/147310043
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews, jtuley
+    https://golang.org/cl/136710044
 
- src/liblink/obj5.c    | 20 ++++++++++++++++++--
- src/runtime/tls_arm.s | 11 +++--------
- 2 files changed, 21 insertions(+), 10 deletions(-)
+ src/net/http/transport.go      |  2 +-
+ src/net/http/transport_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

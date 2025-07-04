@@ -1,21 +1,19 @@
-commit d9691ffa37820e2a7e70679164eac29c675874b2
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Mar 18 11:18:44 2021 -0400
+commit 47b450997778163dfed6f58cae379d928fc37687
+Author: ShihCheng Tu <mrtoastcheng@gmail.com>
+Date:   Mon Jun 15 00:07:10 2020 +0800
 
-    cmd/compile/internal/walk: relocate a stray comment
+    doc/go1.14: document json.Umarshal map key support of TextUnmarshaler
     
-    The explanatory comment and the associated version counter variable
-    for the helper routine "wrapCall" seem to have been left behind in
-    walk.go during the big refactoring -- move it back to where it should
-    be, next to wrapCall in stmt.go. Also fix a small buglet in the
-    comment itself.
+    Document that json.Unmarshal supports map keys whose underlying
+    types implement encoding.TextUnmarshaler.
     
-    Change-Id: I8637a838214b216581be59e01149a72282a46526
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303729
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #38801
+    
+    Change-Id: Icb9414e9067517531ba0da910bd4a2bb3daace65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237857
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/walk/stmt.go | 18 ++++++++++++++++++
- src/cmd/compile/internal/walk/walk.go | 18 ------------------
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ doc/go1.14.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

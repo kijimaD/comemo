@@ -1,16 +1,18 @@
-commit 56517216c052649daab6c439f386f9dc02e90c3a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Apr 1 14:12:51 2019 +0200
+commit 3a7a56cc704eb27b823b6c0dc7bf7b0e7c94d1d7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 9 23:33:40 2018 +0000
 
-    internal/bytealg: fix function reference in comments
+    runtime: gofmt all improperly formatted code
     
-    There's no IndexShortStr func, refer to Index instead.
+    This change fixes incorrect formatting in mheap.go (the result of my
+    previous heap scavenging changes) and map_test.go.
     
-    Change-Id: I6923e7ad3e910e4b5fb0c07d6339ddfec4111f4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170124
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I2963687504abdc4f0cdf2f0c558174b3bc0ed2df
+    Reviewed-on: https://go-review.googlesource.com/c/148977
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/bytealg/index_arm64.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/map_test.go | 10 +++++-----
+ src/runtime/mheap.go    |  6 +++---
+ 2 files changed, 8 insertions(+), 8 deletions(-)

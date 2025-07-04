@@ -1,17 +1,28 @@
-commit 7c47c9773cc3847f8851a04753f7f008b2add3b1
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:05:12 2022 +0800
+commit b0351bfd7d5f0d367c27aa07789b2e6317442ece
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 19 09:09:55 2021 +0000
 
-    io: use strings.Builder
+    Revert "cmd/compile: use MOVBE instruction for GOAMD64>=v3"
     
-    Change-Id: Ibab20627ccd1f79e77e3972e2bc6ca42c2c7de13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428263
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This reverts CL 354670.
+    
+    Reason for revert: broke make.bash with GOAMD64=v3.
+    
+    Fixes #49061.
+    
+    Change-Id: I7f2ed99b7c10100c4e0c1462ea91c4c9d8c609b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356790
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Koichi Shiraishi <zchee.io@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/io/example_test.go | 3 +--
- src/io/multi_test.go   | 2 +-
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go           |   7 +-
+ src/cmd/compile/internal/amd64/versions_test.go |  27 +--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |  26 ---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   6 -
+ src/cmd/compile/internal/ssa/opGen.go           |  64 -------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 243 ------------------------
+ test/codegen/memcombine.go                      |  36 ++--
+ 7 files changed, 20 insertions(+), 389 deletions(-)

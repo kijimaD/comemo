@@ -1,19 +1,32 @@
-commit c961ab3fe9b0355320cde28a588a687dc0d5261f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 29 16:51:44 2024 -0500
+commit f17e7e84410aa03988dd2a9c4f446fc2c8d0da23
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Mar 21 09:12:30 2023 -0400
 
-    runtime: introduce timers.lock, timers.unlock methods
+    log/slog: rename and remove files
     
-    No semantic changes here.
-    Cleaning up for next change.
+    - Remove the norace_test.go files, moving their contents elsewhere.
     
-    Change-Id: I9706009739677ff9eb893bcc007d805f7877511e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568335
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    - Rename the internal/testutil package to internal/slogtest.
+    
+    - Remove value_unsafe.go, moving its contents to value.go.
+    
+    Updates golang/go#56345.
+    
+    Change-Id: I2a24ace5aea47f7a3067cd671f606c4fb279d744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478197
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/proc.go |  2 +-
- src/runtime/time.go | 59 ++++++++++++++++++++++++++++++-----------------------
- 2 files changed, 34 insertions(+), 27 deletions(-)
+ src/go/build/deps_test.go                          |  2 +-
+ src/log/slog/example_level_handler_test.go         |  4 +-
+ src/log/slog/example_logvaluer_secret_test.go      |  4 +-
+ src/log/slog/example_test.go                       |  4 +-
+ src/log/slog/internal/buffer/buffer_test.go        | 21 ++++-
+ src/log/slog/internal/buffer/norace_test.go        | 26 -------
+ .../{testutil/testutil.go => slogtest/slogtest.go} |  4 +-
+ src/log/slog/logger_test.go                        | 14 ++++
+ src/log/slog/norace_test.go                        | 23 ------
+ src/log/slog/value.go                              | 81 +++++++++++++++++--
+ src/log/slog/value_unsafe.go                       | 90 ----------------------
+ 11 files changed, 118 insertions(+), 155 deletions(-)

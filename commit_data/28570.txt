@@ -1,23 +1,18 @@
-commit a0d330f1ddeaa55cbd35191814546fd98e09a117
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Sep 28 17:26:12 2016 +0900
+commit 4b64c53c034b3a99a8a5dc3e8081342e77048561
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Jun 3 11:27:33 2016 -0400
 
-    runtime, runtime/cgo: revert CL 18814; don't drop signal stack in new thread on dragonfly
+    reflect: clear tflag for StructOf type
     
-    This change reverts CL 18814 which is a workaroud for older DragonFly
-    BSD kernels, and fixes #13945 and #13947 in a more general way the
-    same as other platforms except NetBSD.
+    Fixes #15923
     
-    This is a followup to CL 29491.
-    
-    Updates #16329.
-    
-    Change-Id: I771670bc672c827f2b3dbc7fd7417c49897cb991
-    Reviewed-on: https://go-review.googlesource.com/29971
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3e56564365086ceb0bfc15db61db6fb446ab7448
+    Reviewed-on: https://go-review.googlesource.com/23760
+    Reviewed-by: Sebastien Binet <seb.binet@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ------------
- src/runtime/sys_dragonfly_amd64.s     | 12 ------------
- 2 files changed, 24 deletions(-)
+ src/reflect/all_test.go | 4 ++++
+ src/reflect/type.go     | 1 +
+ 2 files changed, 5 insertions(+)

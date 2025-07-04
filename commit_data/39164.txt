@@ -1,23 +1,23 @@
-commit 14491a2ec499668388d7fe7e95b84dbf0e1cf04d
-Author: Damien Neil <dneil@google.com>
-Date:   Mon May 13 16:46:31 2019 -0700
+commit 4b3f04c63b5b1a1bbc4dfd71c34341ea4e935115
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 4 20:17:15 2019 +0000
 
-    fmt: support %w
+    runtime: make mTreap iterator bidirectional
     
-    When fmt.Errorf is provided with a %w verb with an error operand,
-    return an error implementing an Unwrap method returning that operand.
+    This change makes mTreap's iterator type, treapIter, bidirectional
+    instead of unidirectional. This change helps support moving the find
+    operation on a treap to return an iterator instead of a treapNode, in
+    order to hide the details of the treap when accessing elements.
     
-    It is invalid to use %w with other formatting functions, to use %w
-    multiple times in a format string, or to use %w with a non-error
-    operand. When the Errorf format string contains an invalid use of %w,
-    the returned error does not implement Unwrap.
+    For #28479.
     
-    Change-Id: I534e20d3b163ab22c2b137b1c9095906dc243221
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176998
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I5dbea4fd4fb9bede6e81bfd089f2368886f98943
+    Reviewed-on: https://go-review.googlesource.com/c/156918
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/errors.go                   | 43 ++++++++++++++++++++++
- src/fmt/errors_test.go              | 73 +++++++++++++++++++++++++++++++++++++
- src/fmt/print.go                    | 27 ++++++++++----
- src/internal/oserror/errors_test.go |  6 +--
- 4 files changed, 138 insertions(+), 11 deletions(-)
+ src/runtime/export_test.go |  2 +-
+ src/runtime/mgclarge.go    | 54 +++++++++++++++++++++-------------------------
+ src/runtime/mheap.go       | 14 ++++++------
+ 3 files changed, 34 insertions(+), 36 deletions(-)

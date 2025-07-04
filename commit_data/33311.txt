@@ -1,17 +1,14 @@
-commit 6c8418f560f076da570b70ac645df7cdb01db188
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 27 13:07:38 2017 -0400
+commit 812124a56758175ecd19a3dc0ae261bb02969d9c
+Author: Mark Wolfe <mark@wolfe.id.au>
+Date:   Tue Aug 8 21:22:41 2017 +1000
 
-    cmd/dist: log timing to $GOBUILDTIMELOGFILE
+    encoding/binary: add example for Read multi
     
-    We can't make all.bash faster if we can't measure it.
-    Measure it.
-    
-    Change-Id: Ia5da791d4cfbfa1fd9a8e905b3188f63819ade73
-    Reviewed-on: https://go-review.googlesource.com/73990
+    Change-Id: I27ff99aa7abb070f6ae79c8f964aa9bd6a83b89d
+    Reviewed-on: https://go-review.googlesource.com/53730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/test.go  | 21 +++++++++++++++++++++
- src/make.bash         |  8 ++++++++
- 3 files changed, 80 insertions(+)
+ src/encoding/binary/example_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

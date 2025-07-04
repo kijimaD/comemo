@@ -1,25 +1,15 @@
-commit 5e21cb786589d28ad6b31ec9e43f8bf73ff93a82
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 7 11:56:15 2013 -0700
+commit dc7daa550af74277b10e8025d836fd5da48513f6
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sun Apr 7 11:16:15 2013 -0700
 
-    test: fix flaky NaN-key map complexity test
+    lib9: handle empty TMPDIR more gracefully.
     
-    Don't measure wall time in map.go. Keep it portable
-    and only test NaN, but not time.
+    Before, an empty TMPDIR would lead to:
+    cannot create <nil>/go.o: No such file or directory
     
-    Move time tests to mapnan.go and only measure user CPU time,
-    not wall time. It builds on Darwin and Linux, the primary
-    platforms where people hack on the runtime & in particular
-    maps. The runtime is shared, though, so we don't need it to
-    run on all of the platforms.
-    
-    Fixes flaky build failures like:
-    http://build.golang.org/log/ba67eceefdeaa1142cb6c990a62fa3ffd8fd73f8
-    
-    R=golang-dev, r
+    R=golang-dev, iant, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8479043
+    https://golang.org/cl/8355045
 
- test/map.go    | 55 +++++++++++++++++++------------------------------
- test/mapnan.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+), 34 deletions(-)
+ src/lib9/tempdir_unix.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

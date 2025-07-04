@@ -1,21 +1,16 @@
-commit 0ca8701ea2a9d5972285fd7833b67f9f15a403c6
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Mar 23 15:08:43 2017 -0400
+commit 67b292799051f7423cc15154d5fc8bb9c57e7057
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Dec 9 08:49:23 2016 +1300
 
-    net/rpc: Create empty maps and slices as return type
+    cmd/link: do not mark go.plugin.tabs as reachable in non-plugins
     
-    When a map or slice is used as a return type create an empty value
-    rather than a nil value.
+    Fixes #18250
     
-    Fixes #19588
-    
-    Change-Id: I577fd74956172329745d614ac37d4db8f737efb8
-    Reviewed-on: https://go-review.googlesource.com/38474
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4f61591356ddb4a906c206ad8456d1839daf7b91
+    Reviewed-on: https://go-review.googlesource.com/34170
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/rpc/jsonrpc/all_test.go | 58 +++++++++++++++++++++++++++++++++++++
- src/net/rpc/server.go           |  7 +++++
- src/net/rpc/server_test.go      | 63 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 128 insertions(+)
+ misc/cgo/testshared/src/exe/exe.go | 5 +++++
+ src/cmd/link/internal/ld/symtab.go | 3 +--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

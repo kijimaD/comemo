@@ -1,0 +1,19 @@
+commit 3009566a46f19e9c94df4cf51cc374763698cba0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 23 23:23:53 2025 -0700
+
+    runtime: fix tag pointers on aix
+    
+    Clean up tagged pointers a bit. I got the shifts wrong
+    for the weird aix case.
+    
+    Change-Id: I21449fd5973f4651fd1103d3b8be9c2b9b93a490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667715
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/malloc.go       |  4 ++--
+ src/runtime/netpoll.go      |  2 +-
+ src/runtime/tagptr_64bit.go | 46 +++++++++++++--------------------------------
+ 3 files changed, 16 insertions(+), 36 deletions(-)

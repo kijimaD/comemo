@@ -1,32 +1,39 @@
-commit 50455385b0e668656cac03d3012e48e071df6aa4
-Author: Than McIntosh <thanm@golang.org>
-Date:   Tue Nov 12 12:32:39 2024 -0500
+commit 0b90c7d4453bb21ec3ad4d6c5a3eebf398a89e77
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 16 17:03:06 2023 -0500
 
-    internal/coverage: fix bug in text-format coverage output with multiple packages
+    cmd/go: use a nil *Origin to represent "uncheckable"
     
-    In ProcessCoverTestDir pass the selected set of packages to
-    EmitTextual in addition to EmitPercent, so that when we have runs with
-    multiple packages selected but without -coverpkg, text format output
-    for package P was incorrectly including output for P's covered
-    dependencies. This is in effect an extension of the fix for issue
-    65570.
+    Previously, we used the presence of individual origin fields
+    to decide whether an Origin could be checked for staleness,
+    with a nil Origin representing “use whatever you have”.
     
-    Includes a cmd/go script test to verify correct behavior; ideally it
-    would be nice to locate this test in .../internal/coverage somewhere
-    but at the moment script tests are only supported for
-    cmd/{go,compile,link}.
+    However, that turns out to be fairly bug-prone: if we forget
+    to populate an Origin somewhere, we end up with an incomplete
+    check instead of a non-reusable origin (see #61415, #61423).
     
-    Updates #65570.
-    Fixes #70244.
+    As of CL 543155, the reusability check for a given query
+    now depends on what is needed by the query more than what
+    is populated in the origin. With that in place, we can simplify
+    the handling of the Origin struct by using a nil pointer
+    to represent inconsistent or unavailable origin data, and
+    otherwise always reporting whatever origin information we have
+    regardless of whether we expect it to be reused.
     
-    Change-Id: Ia0bb10155353aa0f2ead46e81a2aaa71bde4ef82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627316
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Than McIntosh <thanm@golang.org>
+    Updates #61415.
+    Updates #61423.
+    
+    Change-Id: I97c51063d6c2afa394a05bf304a80c72c08f82cf
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543216
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- .../script/cover_coverprofile_nocoverpkg.txt       | 50 ++++++++++++++++++++++
- src/internal/coverage/cfile/testsupport.go         |  2 +-
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go  | 15 -----
+ src/cmd/go/internal/modfetch/coderepo.go           |  2 +-
+ src/cmd/go/internal/modload/build.go               | 64 +++++++++++-----------
+ src/cmd/go/internal/modload/list.go                |  3 +-
+ src/cmd/go/internal/modload/query.go               |  9 ++-
+ src/cmd/go/testdata/script/mod_list_issue61423.txt | 13 ++++-
+ 6 files changed, 52 insertions(+), 54 deletions(-)

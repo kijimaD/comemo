@@ -1,33 +1,19 @@
-commit 9f765667d6aca3df70a55348a2f1da16ca0cbca8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 11 11:49:09 2019 -0400
+commit 1e58bb14910f117554e5e749648e8b0d0771726b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 10 07:00:32 2018 -0800
 
-    cmd/vet: include the errors.As check from upstream x/tools
+    cmd/compile: inline checknil
     
-    This change revendors golang.org/x/tools to include the check and
-    modifies cmd/vet to add it to the command.
+    Now that checknil has only a single caller, inline it.
     
-    CL 179977 will enable the check by default for 'go test'.
+    Passes toolstash-check.
     
-    Commands run (starting in GOROOT/src):
-            cd cmd
-            emacs vet/main.go
-            go get -u=patch golang.org/x/tools/go/analysis/passes/errorsas@latest
-            go mod tidy
-            go mod vendor
-            cd ..
-            ./make.bash
-            go test all
-    
-    Updates #31213
-    
-    Change-Id: Ic2ba9bd2d31c4c5fd9e7c42ca14e8dc38520c93b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181717
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I5b13596bef84dd9a3e7f4bff8560903f1e54acfb
+    Reviewed-on: https://go-review.googlesource.com/c/148829
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- .../tools/go/analysis/passes/errorsas/errorsas.go  | 75 ++++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |  3 +-
- src/cmd/vet/main.go                                |  2 +
- 5 files changed, 82 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  8 +++++++-
+ src/cmd/compile/internal/gc/subr.go    | 12 ------------
+ 2 files changed, 7 insertions(+), 13 deletions(-)

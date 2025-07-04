@@ -1,12 +1,18 @@
-commit f4c775eb70f732000e5260214a1f6e100089a1b0
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 30 15:53:10 2015 +1000
+commit 4bba6729f85a3f99fcb05d8e5cc2e180bc9d4a90
+Author: Andrew Bonventre <andybons@gmail.com>
+Date:   Fri Jun 19 13:29:58 2015 -0400
 
-    doc: in go1.5.html fix claim about linking for ppc64(le)?
+    image/gif: set default loop count to 0 when app ext. is not present
     
-    Change-Id: If61c2063a8b63f0e3e498a5e86803b5ddba9fa3c
-    Reviewed-on: https://go-review.googlesource.com/12886
-    Reviewed-by: Austin Clements <austin@google.com>
+    It was otherwise not being preserved across
+    specific Decode->Encode->Decode calls.
+    
+    Fixes #11287
+    
+    Change-Id: I40602da7fa39ec67403bed52ff403f361c6171bb
+    Reviewed-on: https://go-review.googlesource.com/11256
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- doc/go1.5.html | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/image/gif/reader.go      |  1 -
+ src/image/gif/reader_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

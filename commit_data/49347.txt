@@ -1,22 +1,22 @@
-commit 0f57c88bce9899a91686646a1e9cd7aae55911ef
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 27 11:42:59 2022 -0400
+commit 0a0a160d4df488939892a1adaca6c530fb784cc8
+Author: Jeff Wentworth <j.wentworth@gmail.com>
+Date:   Sat Aug 14 09:46:32 2021 +0000
 
-    misc/cgo/testsanitizers: buffer the signal channel in TestTSAN/tsan11
+    sync/atomic: fix documentation for CompareAndSwap
     
-    This fix is analogous to the one in CL 407888.
+    Fixes #47699
     
-    'go vet' catches the error, but it is not run on this file because the
-    file is (only) compiled when running testsanitizers/TestTSAN.
+    The documentation for CompareAndSwap atomic/value incorrectly labelled the function as CompareAndSwapPointer. This PR fixes that.
     
-    Fixes #53113.
-    
-    Change-Id: I74f7b7390a9775ff00a06214c1019ba28846dd11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409094
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I6db08fdfe166570b775248fd24550f5d28e3434e
+    GitHub-Last-Rev: 41f78707928f48c9cdac26b6a4f618d4284e1ca1
+    GitHub-Pull-Request: golang/go#47700
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342210
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/cgo/testsanitizers/testdata/tsan11.go | 2 +-
+ src/sync/atomic/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

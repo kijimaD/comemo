@@ -1,14 +1,13 @@
-commit 119189c459ba39859936b796076294eb52c1e830
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Apr 2 00:00:16 2013 +0200
+commit 3467068ef42ddc477569a89f3789a80e8b00a887
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Apr 1 14:21:15 2013 -0700
 
-    cmd/gc: use appropriate verb to print array type length.
+    cmd/cc/cc.h: Add a #pragma for %S used (only) in cmd/cc/sub.c.
+    Eliminates a format consistency warning.
     
-    Fixes #4730.
-    
-    R=golang-dev, bradfitz
+    R=gloang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8229043
+    https://golang.org/cl/8217043
 
- src/cmd/gc/fmt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cc/cc.h | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,12 +1,14 @@
-commit 95a00cae2eabf726634695ee1e079e28b9bde743
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 17 11:36:21 2012 -0700
+commit 2a642c34e55bcafd57cca9c84c63cba3902c6a79
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 17 14:15:01 2012 +1000
 
-    go_spec: unary + and - are also defined for complex types
+    misc/cgo/test: disable test on windows (attempt to fix windows build)
     
-    R=r, rsc, iant, ken, iant
-    CC=golang-dev
-    https://golang.org/cl/6450150
+    see issus 3358 for similar problem
+    
+    R=golang-dev
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6464072
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

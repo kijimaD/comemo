@@ -1,20 +1,45 @@
-commit 5f566d35bf7d590c95f4d1b685b995deeb9ba957
-Author: cui fliter <imcusg@gmail.com>
-Date:   Tue Sep 6 13:17:25 2022 +0000
+commit 74b9939ec4a9f41bffb4dda47205d55c28e25728
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Nov 9 13:49:45 2021 -0500
 
-    crypto/rand: convert r.used to atomic type
+    all: update vendored golang.org/x/crypto for Go 1.18 release
     
-    For #53821
+    The Go 1.18 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
     
-    Change-Id: I1b5c62288eca20ff50f6d8d979cf82df24d4545b
-    GitHub-Last-Rev: 266148570a6465b8a43e04b39b1ebf85d80fcc76
-    GitHub-Pull-Request: golang/go#54884
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428477
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL updates only the crypto module, as well as the TestDependencies
+    policy to accommodate the dependency order change done in CL 345649.
+    The next CL will update further modules.
+    
+    For #36905.
+    
+    Change-Id: If93160d8d72ca86e9995aaf5bdfc3d2c20b4695d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362736
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/crypto/rand/rand_unix.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go.mod                                                      | 2 +-
+ src/cmd/go.sum                                                      | 4 ++--
+ src/cmd/vendor/modules.txt                                          | 2 +-
+ src/go.mod                                                          | 2 +-
+ src/go.sum                                                          | 4 ++--
+ src/go/build/deps_test.go                                           | 2 +-
+ src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go | 6 +++++-
+ .../x/crypto/chacha20poly1305/chacha20poly1305_generic.go           | 2 +-
+ .../golang.org/x/crypto/chacha20poly1305/xchacha20poly1305.go       | 2 +-
+ .../golang.org/x/crypto/{ => internal}/poly1305/bits_compat.go      | 0
+ .../golang.org/x/crypto/{ => internal}/poly1305/bits_go1.13.go      | 0
+ src/vendor/golang.org/x/crypto/{ => internal}/poly1305/mac_noasm.go | 0
+ src/vendor/golang.org/x/crypto/{ => internal}/poly1305/poly1305.go  | 2 +-
+ src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_amd64.go | 0
+ src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_amd64.s  | 0
+ .../golang.org/x/crypto/{ => internal}/poly1305/sum_generic.go      | 0
+ .../golang.org/x/crypto/{ => internal}/poly1305/sum_ppc64le.go      | 0
+ .../golang.org/x/crypto/{ => internal}/poly1305/sum_ppc64le.s       | 0
+ src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_s390x.go | 0
+ src/vendor/golang.org/x/crypto/{ => internal}/poly1305/sum_s390x.s  | 2 +-
+ src/vendor/modules.txt                                              | 4 ++--
+ 21 files changed, 19 insertions(+), 15 deletions(-)

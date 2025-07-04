@@ -1,16 +1,16 @@
-commit 47e71f3b6917113660a65a180e66c91fc6318458
-Author: Plekhanov Maxim <kishtatix@gmail.com>
-Date:   Sat Dec 23 02:25:35 2017 +0300
+commit d0228b03bd77e048504877797e53e3f16b149d8f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 4 20:06:30 2018 +0200
 
-    math: use Abs in Pow rather than if x < 0 { x = -x }
+    net: drop special case for macOS 10.7 and earlier
     
-    name     old time/op  new time/op  delta
-    PowInt   55.7ns ± 1%  53.4ns ± 2%  -4.15%  (p=0.000 n=9+9)
-    PowFrac   133ns ± 1%   133ns ± 2%    ~     (p=0.587 n=8+9)
+    Updates #23122
     
-    Change-Id: Ica0f4c2cbd554f2195c6d1762ed26742ff8e3924
-    Reviewed-on: https://go-review.googlesource.com/c/85375
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia2c869a140c8ee01b5861897e4706389950d387e
+    Reviewed-on: https://go-review.googlesource.com/116156
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/pow.go | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ src/net/tcpsockopt_darwin.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

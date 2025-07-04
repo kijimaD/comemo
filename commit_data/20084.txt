@@ -1,16 +1,13 @@
-commit 6ed58c296280575cc817d614bee0b19744e1ee55
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sat Aug 23 15:42:30 2014 +0100
+commit 80e76e272adda0ab664cf5b6425e994b4e491e8c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 14 13:59:58 2014 -0400
 
-    runtime: run newproc1 on M stack.
+    [dev.power64] test/nosplit.go: add power64 support
     
-    This makes newproc invisible to the GC. This is a pretty simple change since parts of newproc already depends on being run on the M stack.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
-    CC=golang-codereviews, khr
-    https://golang.org/cl/129520043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/125210043
 
- src/pkg/runtime/proc.c | 31 ++++++++++++++++++++++++++++---
- src/pkg/runtime/race.c |  8 +++++++-
- 2 files changed, 35 insertions(+), 4 deletions(-)
+ test/nosplit.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

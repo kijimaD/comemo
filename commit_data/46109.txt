@@ -1,18 +1,43 @@
-commit 96d816c5740f7576ed0f6346f70958ce9ef1e3b4
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Dec 12 16:46:01 2020 +0100
+commit 6d783e7440056ca24b57b52605def43d09d8b2a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 15:36:58 2020 -0500
 
-    runtime: fix buckHashSize duplication
+    [dev.regabi] cmd/compile: export all Node fields [generated]
     
-    We have a constant for 179999, don't duplicate it.
+    The plan was always to export them once we remove the getters
+    and setters, but do it a bit early, with _ suffixes as needed, so that
+    the reflection-based ir.Dump can access the fields.
     
-    Change-Id: Iefb9c4746f6dda2e08b42e3c978963198469ee8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277375
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    rf '
+            mv AddStringExpr.list AddStringExpr.List_
+            mv BlockStmt.list BlockStmt.List_
+            mv CallExpr.body CallExpr.Body_
+            mv CaseStmt.list CaseStmt.List_
+            mv CaseStmt.body CaseStmt.Body_
+            mv ClosureExpr.fn ClosureExpr.Func_
+            mv CompLitExpr.list CompLitExpr.List_
+            mv ForStmt.body ForStmt.Body_
+            mv Func.body Func.Body_
+            mv IfStmt.body IfStmt.Body_
+            mv InlinedCallExpr.body InlinedCallExpr.Body_
+            mv RangeStmt.body RangeStmt.Body_
+            mv SliceExpr.list SliceExpr.List_
+            mv SliceHeaderExpr.lenCap SliceHeaderExpr.LenCap_
+            mv TypeSwitchGuard.name TypeSwitchGuard.Name_
+    '
+    go generate
+    
+    Change-Id: I06e65920cecbcc51bea2254f52fcd7d5c5d0dc90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275784
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/expr.go     | 80 +++++++++++++++---------------
+ src/cmd/compile/internal/ir/func.go     | 12 ++---
+ src/cmd/compile/internal/ir/node_gen.go | 86 ++++++++++++++++-----------------
+ src/cmd/compile/internal/ir/stmt.go     | 78 +++++++++++++++---------------
+ 4 files changed, 128 insertions(+), 128 deletions(-)

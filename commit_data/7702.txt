@@ -1,12 +1,14 @@
-commit 9267b0ddf1ab53338610840268e3f5d2c88b42ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 8 13:04:30 2011 -0500
+commit e17d4de4fefa4bbe2f426cba199acffe51e8b23d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Mar 8 15:02:02 2011 -0300
 
-    nm: document -S flag
+    Make.cmd: also clean _test*
     
-    R=r
+    Fixes #1593.
+    
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4247066
+    https://golang.org/cl/4266050
 
- src/cmd/nm/doc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/Make.cmd | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

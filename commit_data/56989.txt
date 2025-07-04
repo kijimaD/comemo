@@ -1,19 +1,31 @@
-commit 456785ceed9e209bf3cbdc6a46e752b766722550
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Fri Jul 26 12:12:39 2024 -0700
+commit bf016520e2575f8eb5e37634a4ed18c8c8044859
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 4 22:33:50 2023 -0400
 
-    os: rm unused code
+    cmd/vendor: vendor latest golang.org/x/mod
     
-    CL 588675 removes pidfdRelease, but misses this one.
+    Incorporate CL 501035 for toolchain syntax changes
+    and a fix to a race (harmless outside tests) in sumdb client.
     
-    Change-Id: Id1d93d10baa5b26a42a2289e29624409c4e351f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601461
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    go get golang.org/x/mod@62c7e578 # CL 501035
+    go mod tidy
+    go mod vendor
+    
+    This CL will break the cmd/go tests. The next CL fixes them.
+    
+    For #57001.
+    
+    Change-Id: I1fcb9799417595ecff870367f256cbc0a488934c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500796
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/os/pidfd_other.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go.mod                                     | 2 +-
+ src/cmd/go.sum                                     | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 6 +++---
+ src/cmd/vendor/golang.org/x/mod/sumdb/client.go    | 7 ++++++-
+ src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go | 2 +-
+ src/cmd/vendor/golang.org/x/mod/sumdb/server.go    | 1 +
+ src/cmd/vendor/modules.txt                         | 2 +-
+ 7 files changed, 15 insertions(+), 9 deletions(-)

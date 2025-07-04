@@ -1,19 +1,40 @@
-commit 98cbf45cfc6a5a50cc6ac2367f9572cb198b57c7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 22 07:40:19 2019 -0800
+commit 1678b2c580584fa1ea8de3c14df0d8d77b6f7387
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 13 16:30:54 2018 -0400
 
-    go/types: add gccgo sizes information
+    runtime: implement STW GC in terms of concurrent GC
     
-    This will need to be updated from time to time as new targets are
-    added to gccgo. But that is better than always returning nil.
+    Currently, STW GC works very differently from concurrent GC. The
+    largest differences in that in concurrent GC, all marking work is done
+    by background mark workers during the mark phase, while in STW GC, all
+    marking work is done by gchelper during the mark termination phase.
     
-    Change-Id: I04b8c4d0f8efa38e2a148eb2e38b16b09f0351c3
-    Reviewed-on: https://go-review.googlesource.com/c/158844
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This is a consequence of the evolution of Go's GC from a STW GC by
+    incrementally moving work from STW mark termination into concurrent
+    mark. However, at this point, the STW code paths exist only as a
+    debugging mode. Having separate code paths for this increases the
+    maintenance burden and complexity of the garbage collector. At the
+    same time, these code paths aren't tested nearly as well, making it
+    far more likely that they will bit-rot.
+    
+    This CL reverses the relationship between STW GC, by re-implementing
+    STW GC in terms of concurrent GC.
+    
+    This builds on the new scheduled support for disabling user goroutine
+    scheduling. During sweep termination, it disables user scheduling, so
+    when the GC starts the world again for concurrent mark, it's really
+    only "concurrent" with itself.
+    
+    There are several code paths that were specific to STW GC that are now
+    vestigial. We'll remove these in the follow-up CLs.
+    
+    Updates #26903.
+    
+    Change-Id: Ia3883d2fcf7ab1d89bdc9c8ee54bf9bffb32c096
+    Reviewed-on: https://go-review.googlesource.com/c/134780
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/go/types/gccgosizes.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/go/types/sizes.go      | 10 ++++++++--
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 126 ++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 67 insertions(+), 59 deletions(-)

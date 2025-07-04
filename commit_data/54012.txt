@@ -1,24 +1,36 @@
-commit 94d36fbc4acdbcff5d4d7ad3869f285294c4181c
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Mon Apr 3 09:32:05 2023 -0400
+commit d8220ac32fc73e69aa6d58890b6b5277d277825f
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Jun 11 13:25:57 2022 +0300
 
-    runtime: zero saved frame pointer when reusing goroutine stack on arm64
+    syscall: remove FreeBSD 11 and below 64bit inode compatibility shims
     
-    When a goroutine stack is reused on arm64, the spot on the stack where
-    the "caller's" frame pointer goes for the topmost frame should be
-    explicitly zeroed. Otherwise, the frame pointer check in adjustframe
-    with debugCheckBP enabled will fail on the topmost frame of a call stack
-    the first time a reused stack is grown.
+    Update #53280
     
-    Updates #39524, #58432
-    
-    Change-Id: Ic1210dc005e3ecdbf9cd5d7b98846566e56df8f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481636
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iaa7c0cf5dbefaa8e14c2de499f99755911c17672
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411596
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
 
- src/runtime/proc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ api/except.txt                        |  66 ++++++++
+ api/next/53280.txt                    |  42 +++++
+ src/syscall/export_freebsd_test.go    |  12 --
+ src/syscall/syscall_freebsd.go        | 297 +++-------------------------------
+ src/syscall/syscall_freebsd_test.go   |  43 -----
+ src/syscall/types_freebsd.go          |   9 --
+ src/syscall/zsyscall_freebsd_386.go   | 126 +--------------
+ src/syscall/zsyscall_freebsd_amd64.go | 126 +--------------
+ src/syscall/zsyscall_freebsd_arm.go   | 126 +--------------
+ src/syscall/zsyscall_freebsd_arm64.go | 126 +--------------
+ src/syscall/zsysnum_freebsd_386.go    |  16 +-
+ src/syscall/zsysnum_freebsd_amd64.go  |  16 +-
+ src/syscall/zsysnum_freebsd_arm.go    |  16 +-
+ src/syscall/zsysnum_freebsd_arm64.go  |  16 +-
+ src/syscall/ztypes_freebsd_386.go     |  54 -------
+ src/syscall/ztypes_freebsd_amd64.go   |  53 ------
+ src/syscall/ztypes_freebsd_arm.go     |  53 ------
+ src/syscall/ztypes_freebsd_arm64.go   |  53 ------
+ 18 files changed, 190 insertions(+), 1060 deletions(-)

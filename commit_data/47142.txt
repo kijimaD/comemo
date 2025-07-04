@@ -1,24 +1,27 @@
-commit 732db407d30e9bd49d0907fd820207e6d646df9c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Oct 20 13:40:54 2021 -0500
+commit 23943a67378040340d835734a55dee7cb639e586
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 26 10:17:09 2021 +0700
 
-    cmd/link: make ppc64le __glink_PLTresolve position-independent
+    cmd/compile: fix mishandling of unsafe-uintptr arguments with call method in go/defer
     
-    This code is only generated when linking cgo internally with fixed
-    position code. This feature of the internal linker is only supported
-    on ppc64le/linux targets. This moves ppc64le/linux a little closer
-    to supporting PIE when internal linking.
+    In CL 253457, we did the same fix for direct function calls. But for
+    method calls, the receiver argument also need to be passed through the
+    wrapper function, which we are not doing so the compiler crashes with
+    the code in #44415.
     
-    This is more similar to the implementation suggested in the power
-    architecture elfv2 supplement, and works with both PIE and static
-    code.
+    It will be nicer if we can rewrite OCALLMETHOD to normal OCALLFUNC, but
+    that will be for future CL. The passing receiver argument to wrapper
+    function is easier for backporting to go1.16 branch.
     
-    Change-Id: I0b64e1c22b9e07b5151378d2ab19ee0e50405fc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357332
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Fixes #44415
+    
+    Change-Id: I03607a64429042c6066ce673931db9769deb3124
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296490
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/ppc64/asm.go | 41 +++++++++++++++++++++++---------------
- 1 file changed, 25 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/walk/stmt.go | 21 +++++++++++++++++----
+ test/fixedbugs/issue24491a.go         | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 4 deletions(-)

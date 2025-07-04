@@ -1,35 +1,17 @@
-commit 8b14e998fbd09512a1be96361e62726ca90552f7
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Oct 1 17:17:44 2023 -0400
+commit 7f75b72904e9d7ac512307514c29043ff604bacb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 17 16:09:15 2022 -0800
 
-    cmd/go/internal/modfetch: show real URL in response body read errors
+    go/types, types2: replace some Errorf calls with Error calls (cleanup)
     
-    CL 233437 added a redactedURL field to proxyRepo, a struct that already
-    had a field named 'url'. Neither fields were documented, so the similar
-    names suggest the most natural interpretation that proxyRepo.redactedURL
-    is equivalent to proxyRepo.url.Redacted() rather than something else.
-    That's possibly why it was joined with the module version in CL 406675.
-    
-    It turns out the two URLs differ in more than just redaction: one is the
-    base proxy URL with (escaped) module path joined, the other is just the
-    base proxy URL, in redacted form.
-    
-    Document and rename the fields to make the distinction more clear, and
-    include all 3 of base module proxy URL + module path + module version
-    in the reported URL, rather than just the first and third bits as seen
-    in the errors at https://go.dev/issue/51323#issuecomment-1735812250.
-    
-    For #51323.
-    Updates #38680.
-    Updates #52727.
-    
-    Change-Id: Ib4b134b548adeec826ee88fe51a2cf580fde0516
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532035
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I9b6759a82b8009b323132c78cb7d78c2c35652bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451815
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modfetch/proxy.go | 48 +++++++++++++++++++----------------
- 1 file changed, 26 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/types2/issues_test.go | 12 ++++++------
+ src/go/types/issues_test.go                    | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

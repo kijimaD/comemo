@@ -1,21 +1,21 @@
-commit e4add8d569d3152a461dbdf6e086dd60c8ca6c27
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 1 01:04:24 2015 -0700
+commit bd5ca22232d67810d9996aa9c67059e20253e6f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 13:37:13 2015 -0400
 
-    archive/tar: fix numeric overflow issues in readGNUSparseMap0x1
+    runtime/trace: remove existing Skips
     
-    Motivation:
-    * The logic to verify the numEntries can overflow and incorrectly
-    pass, allowing a malicious file to allocate arbitrary memory.
-    * The use of strconv.ParseInt does not set the integer precision
-    to 64bit, causing this code to work incorrectly on 32bit machines.
+    The skips added in CL 12579, based on incorrect time stamps,
+    should be sufficient to identify and exclude all the time-related
+    flakiness on these systems.
     
-    Change-Id: I1b1571a750a84f2dde97cc329ed04fe2342aaa60
-    Reviewed-on: https://go-review.googlesource.com/15173
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    If there is other flakiness, we want to find out.
+    
+    For #10512.
+    
+    Change-Id: I5b588ac1585b2e9d1d18143520d2d51686b563e3
+    Reviewed-on: https://go-review.googlesource.com/12746
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/archive/tar/reader.go      | 31 +++++++--------
- src/archive/tar/reader_test.go | 87 ++++++++++++++++++++++++++++++++++--------
- 2 files changed, 85 insertions(+), 33 deletions(-)
+ src/runtime/trace/trace_stack_test.go |  2 +-
+ src/runtime/trace/trace_test.go       | 33 ---------------------------------
+ 2 files changed, 1 insertion(+), 34 deletions(-)

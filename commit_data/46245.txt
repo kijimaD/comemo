@@ -1,18 +1,84 @@
-commit b2f09cd717169cbad41bfc614f0b70b13edbc74a
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 17:09:47 2021 -0400
+commit 114af2a04408d0480bb3e9253bf15aae6b7ed23e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 21:29:53 2020 -0500
 
-    go/types: do not declare new methods on instantiated types
+    [dev.regabi] cmd/compile: change Nodes to be a slice
     
-    This is a port of CL 345472 to go/types.
+    The Nodes type originally served two purposes:
+    (1) It provided a representation optimized for empty slices,
+    allocating only a single word in that case instead of three,
+    at the cost of a non-empty slice being four words instead of three.
+    This was particularly important with the old Node representation,
+    in which most Nodes were full of unused fields.
+    (2) It provided a few useful helper methods beyond what can be
+    done with slices.
     
-    Change-Id: I0e2a88909ecebe9dea3325244153f5c74e4c3ce7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346553
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The downside of Nodes is that the API is a bit overwhelming,
+    with many ways to spell ordinary slice operations. For example,
+    reassigning the first node in the list can be done with:
+    
+            ns.Slice()[0] = n
+            ns.SetIndex(0, n)
+            ns.SetFirst(n)
+            *ns.Addr(0) = n
+    
+    And APIs must decide whether to use Nodes or []ir.Node and
+    then conversions must be inserted when crossing the boundary.
+    
+    Now that Node structs are specialized to opcode and most Nodes
+    lists are actually non-empty, it makes sense to simplify Nodes
+    to make it actually a slice type, so that ordinary slice operations can
+    be used, and assignments can automatically convert between
+    Nodes and []ir.Node.
+    
+    This CL changes the representation to be a slice and adds a new
+    Take method, which returns the old slice and clears the receiver.
+    
+    In a future CL, the Nodes method set will simplify down to:
+    
+            Copy
+            Take
+            Append
+            Prepend
+            Format
+    
+    with the current methods being rewritten:
+    
+            ns.Len() -> len(ns)
+            ns.Slice() -> ns
+            ns.First() -> ns[0]
+            ns.Second() -> ns[1]
+            ns.Index(i) -> ns[i]
+            ns.Addr(i) -> &ns[i]
+            ns.SetIndex(i, n) -> ns[i] = n
+            ns.SetFirst(n) -> ns[0] = n
+            ns.SetSecond(n) -> ns[1] = n
+            ns.Set1(n) -> ns = []Node{n}
+            ns.Set2(n, n2) -> ns = []Node{n, n2}
+            ns.Set3(n, n2, n3) -> ns = []Node{n, n2, n3}
+            AsNodes(slice) -> Nodes(slice)
+            ns.AppendNodes(pns) -> ns.Append(pns.Take()...)
+            ns.MoveNodes(pns) -> ns = pns.Take()
+    
+    and then all those other methods will be deleted.
+    
+    Simplifying the API down to just those five methods will also make it
+    more reasonable to introduce more specialized slices like Exprs and Stmts
+    at some point in the future.
+    
+    But again this CL just changes the representation to a slice,
+    introduces Take, and leaves the rest alone.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I309ab8335c69bb582d811c92c17f938dd6e0c4fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277916
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/signature.go                      |  8 +++++++-
- src/go/types/testdata/fixedbugs/issue47968.go2 | 21 +++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/copy.go        |  6 --
+ src/cmd/compile/internal/ir/dump.go        | 11 +---
+ src/cmd/compile/internal/ir/mini.go        |  8 +--
+ src/cmd/compile/internal/ir/node.go        | 91 ++++++++++--------------------
+ src/cmd/compile/internal/ir/sizeof_test.go |  4 +-
+ 5 files changed, 39 insertions(+), 81 deletions(-)

@@ -1,17 +1,19 @@
-commit 95429d82f1f54c5e33d91fe57a6c9dd8faebb89e
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Wed Aug 31 15:39:50 2011 +1000
+commit 7349d21f8ea7b121b2b691a01538f8a16bc09aed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 21:47:41 2011 -0700
 
-    exp/wingui: made compatible with windows/amd64
+    http: add file protocol transport
     
-    R=golang-dev, alex.brainman
-    CC=golang-dev, vcc.163
-    https://golang.org/cl/4974041
+    Off by default (security risk), but users can
+    wire it up if desired.
+    
+    Fixes #2113
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4959049
 
- src/pkg/exp/wingui/gui.go                 | 11 ++++----
- src/pkg/exp/wingui/winapi.go              | 45 ++++++++++++++++---------------
- src/pkg/exp/wingui/zwinapi.go             | 38 +++++++++++++-------------
- src/pkg/syscall/syscall_windows.go        |  2 +-
- src/pkg/syscall/zsyscall_windows_386.go   |  5 ++--
- src/pkg/syscall/zsyscall_windows_amd64.go |  5 ++--
- 6 files changed, 52 insertions(+), 54 deletions(-)
+ src/pkg/http/Makefile              |   1 +
+ src/pkg/http/filetransport.go      | 124 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/filetransport_test.go |  63 +++++++++++++++++++
+ 3 files changed, 188 insertions(+)

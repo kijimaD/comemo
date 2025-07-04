@@ -1,24 +1,19 @@
-commit 7f632f76db65f28038b8797fbfe5e15a9f63e387
-Author: Axel Wagner <axel.wagner.hh@googlemail.com>
-Date:   Thu Aug 18 16:18:34 2022 +0200
+commit b043d231fa1e1cbc17ddcfb007d92d83dee72428
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 30 11:46:41 2021 -0400
 
-    encoding/xml: add (*Encoder).Close
+    debug/gosym: fix version check in file table access
     
-    Flush can not check for unclosed elements, as more data might be encoded
-    after Flush is called. Close implicitly calls Flush and also checks that
-    all opened elements are closed as well.
+    Go 1.16 and 1.18 table are the same for that part. Accept 1.18
+    version number in that code.
     
-    Fixes #53346
+    Fixes #48699.
     
-    Change-Id: I889b9f5ae54e5dfabb9e6948d96c5ed7bc1110f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424777
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I44eafa279a94bd06444f61518aedd541b25390fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353329
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- api/next/53346.txt               |  1 +
- src/encoding/xml/marshal.go      | 81 ++++++++++++++++++++++++++++++++++++----
- src/encoding/xml/marshal_test.go | 58 ++++++++++++++++++++++++++++
- 3 files changed, 133 insertions(+), 7 deletions(-)
+ src/debug/gosym/pclntab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

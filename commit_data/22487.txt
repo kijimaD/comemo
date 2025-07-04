@@ -1,51 +1,16 @@
-commit cea272de301e511472ff54905140f526c2ec61f4
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Apr 13 19:37:04 2015 -0400
+commit e14339d34cab4ae7abd7d0f83aacff9eed516ea2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 17 12:58:10 2015 -0700
 
-    runtime: rename close to closefd
+    cmd/go: don't crash on unknown GOARCH unless we actually care
     
-    Avoids shadowing the builtin channel close function.
+    For example, "GOARCH=sparc go build -compiler=gccgo" should not crash
+    merely because the architecture character for sparc is not known.
     
-    Change-Id: I7a729b0937c8248fe27222be61318a88db995eee
-    Reviewed-on: https://go-review.googlesource.com/8898
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I18912c7f5d90ef8f586592235ec9d6e5053e4bef
+    Reviewed-on: https://go-review.googlesource.com/7695
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/env_plan9.go          | 4 ++--
- src/runtime/export_test.go        | 2 +-
- src/runtime/os1_darwin.go         | 2 +-
- src/runtime/os1_dragonfly.go      | 2 +-
- src/runtime/os1_freebsd.go        | 2 +-
- src/runtime/os1_linux.go          | 2 +-
- src/runtime/os1_netbsd.go         | 2 +-
- src/runtime/os1_openbsd.go        | 2 +-
- src/runtime/os1_plan9.go          | 8 ++++----
- src/runtime/os3_solaris.go        | 4 ++--
- src/runtime/os_nacl.go            | 2 +-
- src/runtime/os_plan9.go           | 2 +-
- src/runtime/os_windows.go         | 2 +-
- src/runtime/stubs2.go             | 2 +-
- src/runtime/sys_darwin_386.s      | 2 +-
- src/runtime/sys_darwin_amd64.s    | 2 +-
- src/runtime/sys_darwin_arm.s      | 2 +-
- src/runtime/sys_dragonfly_amd64.s | 2 +-
- src/runtime/sys_freebsd_386.s     | 2 +-
- src/runtime/sys_freebsd_amd64.s   | 2 +-
- src/runtime/sys_freebsd_arm.s     | 2 +-
- src/runtime/sys_linux_386.s       | 2 +-
- src/runtime/sys_linux_amd64.s     | 2 +-
- src/runtime/sys_linux_arm.s       | 2 +-
- src/runtime/sys_linux_arm64.s     | 2 +-
- src/runtime/sys_linux_ppc64x.s    | 2 +-
- src/runtime/sys_nacl_386.s        | 2 +-
- src/runtime/sys_nacl_amd64p32.s   | 2 +-
- src/runtime/sys_nacl_arm.s        | 2 +-
- src/runtime/sys_netbsd_386.s      | 2 +-
- src/runtime/sys_netbsd_amd64.s    | 2 +-
- src/runtime/sys_netbsd_arm.s      | 2 +-
- src/runtime/sys_openbsd_386.s     | 2 +-
- src/runtime/sys_openbsd_amd64.s   | 2 +-
- src/runtime/sys_openbsd_arm.s     | 2 +-
- src/runtime/sys_plan9_386.s       | 2 +-
- src/runtime/sys_plan9_amd64.s     | 2 +-
- 37 files changed, 42 insertions(+), 42 deletions(-)
+ src/cmd/go/build.go | 56 ++++++++++++++++++++++++++++++-----------------------
+ src/cmd/go/env.go   |  5 ++++-
+ 2 files changed, 36 insertions(+), 25 deletions(-)

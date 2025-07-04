@@ -1,14 +1,42 @@
-commit e47b7af6409e37bd395ff92dee9c98720d22fc26
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 15 08:13:46 2016 -0800
+commit eb268cb321edf6e2bbaa832acb2e61db6b081f98
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 27 22:24:51 2016 -0700
 
-    doc: start of go1.8.html release notes
+    runtime: minor simplifications to signal code
     
-    Updates #17929
+    Change setsig, setsigstack, getsig, raise, raiseproc to take uint32 for
+    signal number parameter, as that is the type mostly used for signal
+    numbers.  Same for dieFromSignal, sigInstallGoHandler, raisebadsignal.
     
-    Change-Id: Ie90736cfce3fc5f23cbe0a0f1971476705aac5f9
-    Reviewed-on: https://go-review.googlesource.com/33436
+    Remove setsig restart parameter, as it is always either true or
+    irrelevant.
+    
+    Don't check the handler in setsigstack, as the only caller does that
+    anyhow.
+    
+    Don't bother to convert the handler from sigtramp to sighandler in
+    getsig, as it will never be called when the handler is sigtramp or
+    sighandler.
+    
+    Don't check the return value from rt_sigaction in the GNU/Linux version
+    of setsigstack; no other setsigstack checks it, and it never fails.
+    
+    Change-Id: I6bbd677e048a77eddf974dd3d017bc3c560fbd48
+    Reviewed-on: https://go-review.googlesource.com/29953
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 270 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 270 insertions(+)
+ src/runtime/os3_solaris.go       | 24 ++++++++----------------
+ src/runtime/os_darwin.go         | 25 +++++++++++--------------
+ src/runtime/os_dragonfly.go      | 20 +++++++-------------
+ src/runtime/os_freebsd.go        | 20 +++++++-------------
+ src/runtime/os_linux.go          | 28 +++++++++-------------------
+ src/runtime/os_nacl.go           |  8 ++++----
+ src/runtime/os_netbsd.go         | 20 +++++++-------------
+ src/runtime/os_openbsd.go        | 20 +++++++-------------
+ src/runtime/os_plan9.go          |  2 +-
+ src/runtime/signal_sighandler.go |  2 +-
+ src/runtime/signal_unix.go       | 32 ++++++++++++++++----------------
+ src/runtime/signal_windows.go    |  2 +-
+ 12 files changed, 79 insertions(+), 124 deletions(-)

@@ -1,13 +1,20 @@
-commit f47346c5fce2eafc57bd0b6da14d531a49237345
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue May 15 12:52:18 2012 -0400
+commit fcc1f2ac557602f4097e498fa4dd879fb5a680a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 15 12:51:58 2012 -0400
 
-    8l,5l: 2% faster
+    cmd/gc: make append(nil, x) error more precise
     
-    R=golang-dev, for.go.yong
+    Before:
+    ./x.go:6: first argument to append must be slice; have nil
+    
+    After:
+    ./x.go:6: first argument to append must be typed slice; have untyped nil
+    
+    Fixes #3616.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6197080
+    https://golang.org/cl/6209067
 
- src/cmd/5l/obj.c | 20 ++++++++++----------
- src/cmd/8l/obj.c | 18 +++++++++---------
- 2 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/gc/typecheck.c | 4 ++++
+ 1 file changed, 4 insertions(+)

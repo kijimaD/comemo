@@ -1,17 +1,22 @@
-commit 17a7f21790440255db6eebf5793e54f913379576
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Apr 28 03:08:37 2019 +1000
+commit 0f0b10818bd00b1c5778f7c2fbed72bb06defbba
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Nov 30 21:12:06 2018 +1100
 
-    runtime: correct exitThread on openbsd/arm64
+    runtime: fix CGO traceback frame count
     
-    The notdead argument to sys___threxit() is a pointer, hence requires a 64-bit
-    move rather than a 32-bit one.
+    Without this, each additional C frame found via SetCgoTraceback will
+    cause a frame to be dropped from the bottom of the traceback stack.
     
-    Updates #31656
+    Fixes #29034
     
-    Change-Id: I52ad31ed5afaf43ccc3d934025288216e8052528
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174124
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I90aa6b2a1dced90c69b64c5dd565fe64a25724a3
+    Reviewed-on: https://go-review.googlesource.com/c/151917
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_openbsd_arm64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go                   | 60 ++++++++++++++++++++-----
+ src/runtime/proc.go                             |  3 ++
+ src/runtime/testdata/testprogcgo/pprof.go       |  8 +++-
+ src/runtime/testdata/testprogcgo/threadpprof.go |  6 ++-
+ 4 files changed, 65 insertions(+), 12 deletions(-)

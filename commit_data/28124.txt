@@ -1,63 +1,18 @@
-commit 0dae9dfb08a30983cce1114742c974077bdf5e18
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Aug 26 15:00:46 2016 +0200
+commit e9eaa181fcadc2162baa62ccd8bfeb610acfdd55
+Author: Rick Hudson <rlh@golang.org>
+Date:   Fri Apr 29 12:09:36 2016 -0400
 
-    cmd/compile: improve string iteration performance
+    [dev.garbage] runtime: simplify nextFreeFast so it is inlined
     
-    Generate a for loop for ranging over strings that only needs to call
-    the runtime function charntorune for non ASCII characters.
+    nextFreeFast is currently not inlined by the compiler due
+    to its size and complexity. This CL simplifies
+    nextFreeFast by letting the slow path handle (nextFree)
+    handle a corner cases.
     
-    This provides faster iteration over ASCII characters and slightly
-    faster iteration for other characters.
-    
-    The runtime function charntorune is changed to take an index from where
-    to start decoding and returns the index after the last byte belonging
-    to the decoded rune.
-    
-    All call sites of charntorune in the runtime are replaced by a for loop
-    that will be transformed by the compiler instead of calling the charntorune
-    function directly.
-    
-    go binary size decreases by 80 bytes.
-    godoc binary size increases by around 4 kilobytes.
-    
-    runtime:
-    
-    name                           old time/op  new time/op  delta
-    RuneIterate/range/ASCII-4      43.7ns ± 3%  10.3ns ± 4%  -76.33%  (p=0.000 n=44+45)
-    RuneIterate/range/Japanese-4   72.5ns ± 2%  62.8ns ± 2%  -13.41%  (p=0.000 n=49+50)
-    RuneIterate/range1/ASCII-4     43.5ns ± 2%  10.4ns ± 3%  -76.18%  (p=0.000 n=50+50)
-    RuneIterate/range1/Japanese-4  72.5ns ± 2%  62.9ns ± 2%  -13.26%  (p=0.000 n=50+49)
-    RuneIterate/range2/ASCII-4     43.5ns ± 3%  10.3ns ± 2%  -76.22%  (p=0.000 n=48+47)
-    RuneIterate/range2/Japanese-4  72.4ns ± 2%  62.7ns ± 2%  -13.47%  (p=0.000 n=50+50)
-    
-    strings:
-    
-    name                 old time/op    new time/op    delta
-    IndexRune-4            64.7ns ± 5%    22.4ns ± 3%  -65.43%  (p=0.000 n=25+21)
-    MapNoChanges-4          269ns ± 2%     157ns ± 2%  -41.46%  (p=0.000 n=23+24)
-    Fields-4               23.0ms ± 2%    19.7ms ± 2%  -14.35%  (p=0.000 n=25+25)
-    FieldsFunc-4           23.1ms ± 2%    19.6ms ± 2%  -14.94%  (p=0.000 n=25+24)
-    
-    name                 old speed      new speed      delta
-    Fields-4             45.6MB/s ± 2%  53.2MB/s ± 2%  +16.87%  (p=0.000 n=24+25)
-    FieldsFunc-4         45.5MB/s ± 2%  53.5MB/s ± 2%  +17.57%  (p=0.000 n=25+24)
-    
-    Updates #13162
-    
-    Change-Id: I79ffaf828d82bf9887592f08e5cad883e9f39701
-    Reviewed-on: https://go-review.googlesource.com/27853
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: Ia9c5d1a7912bcb4bec072f5fd240f0e0bafb20e4
+    Reviewed-on: https://go-review.googlesource.com/22598
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 163 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
- src/cmd/compile/internal/gc/range.go           |  67 +++++++---
- src/runtime/os_windows.go                      |   4 +-
- src/runtime/rune.go                            |  96 ++++++---------
- src/runtime/string.go                          |  47 +------
- src/runtime/string_test.go                     |  52 +++++---
- test/fixedbugs/issue13162.go                   |  82 +++++++++++++
- 8 files changed, 290 insertions(+), 224 deletions(-)
+ src/runtime/malloc.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

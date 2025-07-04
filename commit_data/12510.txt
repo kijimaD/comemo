@@ -1,13 +1,12 @@
-commit 1cd272d16ae59236ab63f9d8e55db98f3c5b80ee
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 8 17:15:23 2012 +1100
+commit 2b8a7adde89066f8e52228ee3a0242c5b7c33af8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 8 17:06:53 2012 +1100
 
-    doc/go1: template packages have changed since r60
+    go/build: do not parse .syso files
     
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5787049
+    https://golang.org/cl/5786049
 
- doc/go1.html | 52 ++++++++++++++++++++++++++++++++++++++++++----------
- doc/go1.tmpl | 52 ++++++++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 84 insertions(+), 20 deletions(-)
+ src/pkg/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

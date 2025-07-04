@@ -1,22 +1,24 @@
-commit 1645dfa23fbb1d1bab258d1c458f08d9f2741295
-Author: Carl Mastrangelo <notcarl@google.com>
-Date:   Thu Oct 25 22:03:43 2018 -0700
+commit 85cfa4d55e177a70913ce8977ce847af7c4298e2
+Author: Keith Randall <khr@google.com>
+Date:   Thu Jul 12 11:44:05 2018 -0700
 
-    net/http: speed up ServeMux matching
+    cmd/compile: handle degenerate write barrier case
     
-    Scanning through all path patterns is not necessary, since the
-    paths do not change frequently.  Instead, maintain a sorted list
-    of path prefixes and return the first match.
+    If both branches of a write barrier test go to the same block,
+    then there's no unsafe points.
     
-    name            old time/op  new time/op  delta
-    ServerMatch-12   134ns ± 3%    17ns ± 4%  -86.95%  (p=0.000 n=19+20)
+    This can only happen if the resulting memory state is somehow dead,
+    which can only occur in degenerate cases, like infinite loops. No
+    point in cleaning up the useless branch in these situations.
     
-    Change-Id: I15b4483dc30db413321435ee6815fc9bf2bcc546
-    Reviewed-on: https://go-review.googlesource.com/c/144937
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #26024.
+    
+    Change-Id: I93a7df9fdf2fc94c6c4b1fe61180dc4fd4a0871f
+    Reviewed-on: https://go-review.googlesource.com/123655
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go      | 55 ++++++++++++++++++++++++---------------------
- src/net/http/server_test.go | 45 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/plive.go |  5 +++++
+ test/fixedbugs/issue26024.go         | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

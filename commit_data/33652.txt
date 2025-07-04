@@ -1,18 +1,17 @@
-commit 1e3f563b145ad98d2a5fcd4809e25a6a0bc8f892
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 21 20:46:40 2017 +0000
+commit 8adaf68570eef206ca8720d5c0c861e04d2a0108
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 22 06:27:48 2017 -0700
 
-    runtime: fix build on non-Linux platforms
+    runtime: remove t.indirectvalue handling in fast evacuation routines
     
-    CL 78538 was updated after running TryBots to depend on
-    syscall.NanoSleep which isn't available on all non-Linux platforms.
+    Maps with indirect values use the generic map routines.
     
-    Change-Id: I1fa615232b3920453431861310c108b208628441
-    Reviewed-on: https://go-review.googlesource.com/79175
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib211e93f1dacefb988ba3d279f92a13065168079
+    Reviewed-on: https://go-review.googlesource.com/59135
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/proc_test.go          | 18 ++++++++++--------
- src/runtime/runtime_linux_test.go | 12 ++++++++++++
- 2 files changed, 22 insertions(+), 8 deletions(-)
+ src/runtime/hashmap_fast.go | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)

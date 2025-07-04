@@ -1,18 +1,18 @@
-commit 917f201f952019988fd477565223c19352b4bb6a
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu May 12 10:28:51 2022 +0900
+commit a2e2b0362bb2e7b93de668007027d08888bc9a38
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Jul 18 11:10:41 2021 -0700
 
-    make.bat: call env.bat with .\env.bat
+    [dev.typeparams] transformDot() should set Selection and tc flag for added ODOTs
     
-    When set NoDefaultCurrentDirectoryInExePath=1, call env.bat does not work.
+    Fixes -G=3 issue with issue44688.go.
     
-    Change-Id: If63b02e236079681bdadadbdebc0b39abce01219
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405774
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ie98c0cbd48683dedd115332043f14c8f3160f46c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337029
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/transform.go | 18 ++++++++++++++++++
+ test/run.go                                 |  3 +--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

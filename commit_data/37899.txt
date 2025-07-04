@@ -1,14 +1,16 @@
-commit 6f93f86498608b2bf003a2bef7152d339fcde384
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 18 17:31:45 2019 -0500
+commit b7f9c640b7d4d1ba721dc158a12df0a2d2d69a2f
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Fri Sep 7 20:36:56 2018 +0300
 
-    crypto/tls: expand Config.CipherSuites docs
+    test: extend noescape bytes.Buffer test suite
     
-    Fixes #29349
+    Added some more cases that should be guarded against regression.
     
-    Change-Id: Iec16eb2b20b43250249ec85c3d78fd64d1b6e3f3
-    Reviewed-on: https://go-review.googlesource.com/c/158637
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9f1dda2fd0be9b6e167ef1cc018fc8cce55c066c
+    Reviewed-on: https://go-review.googlesource.com/134017
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ test/fixedbugs/issue7921.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

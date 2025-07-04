@@ -1,14 +1,12 @@
-commit 6f6b7e3a33cf0fff8495d8caa2f858e330f1963f
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Jan 12 10:45:24 2011 -0800
+commit 699864b696e1d5cf68e295c8552091b36e3ac654
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 12 00:25:29 2011 -0800
 
-    goinstall: Fix template to use exported fields
+    encoding/line: fix error call (missing argument)
     
-    It's currently broken due to f6d5bac536c5.
-    
-    R=r, r2
+    R=agl1, rsc
     CC=golang-dev
-    https://golang.org/cl/3967041
+    https://golang.org/cl/3861044
 
- src/cmd/goinstall/make.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/pkg/encoding/line/line_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

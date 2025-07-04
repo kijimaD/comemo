@@ -1,20 +1,14 @@
-commit c0aacdcf8a75fbe78688583ea3b344a7ef50a95d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 16 17:45:02 2023 -0700
+commit a0f77e56b7a7ecb92dca3e2afdd56ee773c2cb07
+Author: Hana <hyangah@gmail.com>
+Date:   Tue Apr 26 10:38:11 2022 -0400
 
-    cmd/go: import runtime/cgo when externally linking
+    SECURITY.md: replace golang.org with go.dev
     
-    Fixes #31544
-    
-    Change-Id: Ic99875ad227876eb741e93653589310327c9c0ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477195
+    Change-Id: Ic0e882fc6666c9adcd5f2dffc96e201f3146fa0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402180
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/load/pkg.go             | 29 +++++++++++++++++++---
- src/cmd/go/testdata/script/build_static.txt | 38 +++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 4 deletions(-)
+ SECURITY.md | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

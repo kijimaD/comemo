@@ -1,17 +1,18 @@
-commit f9df4ea0c9426eecb93375d31e36cccf95b46e1f
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Jan 20 13:33:28 2022 -0800
+commit acf1b46de52a50f479600682fd80763ccb2e6f74
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 21 01:59:51 2021 +0700
 
-    cmd/compile: improve comments, mainly in cmd/compile/internal/types
+    cmd/compile: update ir.Node ops comments
     
-    Add some useful comments, mainly relates to types.Type. (No non-comment
-    changes.)
+    After Russquake, all the Node ops now have different structure, update
+    comment to reflect that.
     
-    Change-Id: I3665ed69b180c4e790af2f9243f65c805083391a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379918
+    Change-Id: I43f859783cda457528ae4d2da9857f2cc0438b62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311949
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go |  2 ++
- src/cmd/compile/internal/types/type.go     | 33 ++++++++++++++++++++++--------
- 2 files changed, 27 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ir/node.go | 251 ++++++++++++++++++------------------
+ 1 file changed, 125 insertions(+), 126 deletions(-)

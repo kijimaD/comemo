@@ -1,66 +1,17 @@
-commit 0b2ad1d815ea8967c49b32d848b2992d0c588d88
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon Dec 19 05:04:48 2022 +0800
+commit ecf3b39c2a65eb96ca44b9a2694852f12a433747
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Feb 14 12:05:46 2022 -0500
 
-    cmd/compile: sign-extend the 2nd argument of the LoweredAtomicCas32 on loong64,mips64x,riscv64
+    cmd/go: have go work init use the -workfile flag
     
-    The function LoweredAtomicCas32 is implemented using the LL-SC instruction pair
-    on loong64, mips64x, riscv64. However,the LL instruction on loong64, mips64x,
-    riscv64 is sign-extended, so it is necessary to sign-extend the 2nd parameter
-    "old" of the LoweredAtomicCas32, so that the instruction BNE after LL can get
-    the desired result.
-    
-    The function prototype of LoweredAtomicCas32 in golang:
-        func Cas32(ptr *uint32, old, new uint32) bool
-    
-    When using an intrinsify implementation:
-        case 1: (*ptr) <= 0x80000000 && old < 0x80000000
-            E.g: (*ptr) = 0x7FFFFFFF, old = Rarg1= 0x7FFFFFFF
-    
-            After run the instruction "LL (Rarg0), Rtmp": Rtmp = 0x7FFFFFFF
-            Rtmp ! = Rarg1(old) is false, the result we expect
-    
-        case 2: (*ptr) >= 0x80000000 && old >= 0x80000000
-            E.g: (*ptr) = 0x80000000, old = Rarg1= 0x80000000
-    
-            After run the instruction "LL (Rarg0), Rtmp": Rtmp = 0xFFFFFFFF_80000000
-            Rtmp ! = Rarg1(old) is true, which we do not expect
-    
-    When using an non-intrinsify implementation:
-        Because Rarg1 is loaded from the stack using sign-extended instructions
-        ld.w, the situation described in Case 2 above does not occur
-    
-    Benchmarks on linux/loong64:
-    name     old time/op  new time/op  delta
-    Cas      50.0ns ± 0%  50.1ns ± 0%   ~     (p=1.000 n=1+1)
-    Cas64    50.0ns ± 0%  50.1ns ± 0%   ~     (p=1.000 n=1+1)
-    Cas-4    56.0ns ± 0%  56.0ns ± 0%   ~     (p=1.000 n=1+1)
-    Cas64-4  56.0ns ± 0%  56.0ns ± 0%   ~     (p=1.000 n=1+1)
-    
-    Benchmarks on Loongson 3A4000 (GOARCH=mips64le, 1.8GHz)
-    name     old time/op  new time/op  delta
-    Cas      70.4ns ± 0%  70.3ns ± 0%   ~     (p=1.000 n=1+1)
-    Cas64    70.7ns ± 0%  70.6ns ± 0%   ~     (p=1.000 n=1+1)
-    Cas-4    81.1ns ± 0%  80.8ns ± 0%   ~     (p=1.000 n=1+1)
-    Cas64-4  80.9ns ± 0%  80.9ns ± 0%   ~     (p=1.000 n=1+1)
-    
-    Fixes #57282
-    
-    Change-Id: I190a7fc648023b15fa392f7fdda5ac18c1561bac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457135
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idb4795bde699c919222953ec33fa1083798b2000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385654
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  3 ++-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  2 +-
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 24 ++++++++++++++++++--
- src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 24 ++++++++++++++++++--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 ++++++++++++++++++--
- src/runtime/internal/atomic/atomic_test.go      | 30 +++++++++++++++++++++++++
- 7 files changed, 101 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/workcmd/init.go               |  5 ++++-
+ src/cmd/go/testdata/script/work_init_workfile.txt | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

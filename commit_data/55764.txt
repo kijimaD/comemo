@@ -1,24 +1,23 @@
-commit b6753baaedf6ae932c3ad4af1451163045e7ff84
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 15 15:30:16 2024 -0500
+commit d9c29ec6a54f929f4b0736db6b7598a4c2305e5e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 10 16:19:58 2023 +0100
 
-    cmd/compile: compile len(ch) as call to runtime.chanlen
+    cmd/link: define correct complex types values for COFF symbols
     
-    An upcoming CL will give this call more to do.
-    For now, separate out the compiler change that
-    stops inlining the computation.
+    This CL updates IMAGE_SYM_DTYPE_FUNCTION and IMAGE_SYM_DTYPE_ARRAY
+    definition and usage so their value can be set to what's defined in
+    the Microsoft PE docs [1], fixing a long-standing TODO.
     
-    Change-Id: I4c5cbd84a0694b306191bff38cc6ea2d69458d7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564556
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#type-representation
+    
+    Change-Id: I93c19eb78e8a770e8c72245fe9495647e2c5ae5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475355
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go             |   3 +
- .../internal/typecheck/_builtin/coverage.go        |   1 +
- .../compile/internal/typecheck/_builtin/runtime.go |   4 +-
- src/cmd/compile/internal/typecheck/builtin.go      | 267 +++++++++++----------
- src/cmd/compile/internal/walk/builtin.go           |  17 +-
- src/runtime/chan.go                                |  13 +-
- 6 files changed, 163 insertions(+), 142 deletions(-)
+ src/cmd/link/internal/ld/pe.go       | 11 ++++-------
+ src/cmd/link/internal/loadpe/ldpe.go |  9 ++++-----
+ 2 files changed, 8 insertions(+), 12 deletions(-)

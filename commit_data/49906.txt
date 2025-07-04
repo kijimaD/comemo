@@ -1,42 +1,19 @@
-commit de0f4d190fc98c9dcc3d3537ae889be2c5eb7bd5
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Aug 12 17:51:55 2022 -0400
+commit 986f8ea6b4fe5d479b9f3a05868bdf8266cf3467
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 17:33:16 2021 -0700
 
-    go/types, types2: don't build unnecessary error strings in implements
+    cmd/compile/internal/types2: minor cleanup of instantiation
     
-    When accessing (*Checker).implements from types.AssignableTo or
-    types.ComparableTo, we don't need to build error strings -- they won't
-    be used.
+    This is a clean port of CL 349429 from go/types to types2
+    with minor adjustments for types2 names.
     
-    This string manipulation showed up as a hot spot in gopls completion,
-    which checks a lot of type predicates when searching for candidate
-    completions.
-    
-    This CL yields the following results for gopls' completion benchmarks:
-    
-    StructCompletion-8         24.7ms ±34%  26.0ms ±17%     ~     (p=0.447 n=10+9)
-    ImportCompletion-8         1.41ms ± 2%  1.45ms ± 4%   +2.42%  (p=0.027 n=8+9)
-    SliceCompletion-8          27.0ms ±18%  25.2ms ± 3%   -6.67%  (p=0.008 n=9+8)
-    FuncDeepCompletion-8       57.6ms ± 4%  22.4ms ± 4%  -61.18%  (p=0.000 n=8+9)
-    CompletionFollowingEdit-8   157ms ±13%   103ms ±15%  -34.70%  (p=0.000 n=10+10)
-    
-    Notably, deep completion (which searches many candidates) is almost 3x
-    faster after this change.
-    
-    Fixes #54172
-    
-    Change-Id: If8303a411aed3a20bd91f7b61e346d703084166c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423360
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ie6a39a01f074acb9e6565ffacb34c94666ae9a95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349999
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/api.go         |  4 +-
- src/cmd/compile/internal/types2/instantiate.go | 79 ++++++++++++++++----------
- src/cmd/compile/internal/types2/lookup.go      |  6 +-
- src/cmd/compile/internal/types2/operand.go     |  7 +--
- src/go/types/api.go                            |  4 +-
- src/go/types/instantiate.go                    | 79 ++++++++++++++++----------
- src/go/types/lookup.go                         |  6 +-
- src/go/types/operand.go                        |  7 +--
- 8 files changed, 112 insertions(+), 80 deletions(-)
+ src/cmd/compile/internal/types2/named.go | 38 ++++++++++++++++++--------------
+ src/cmd/compile/internal/types2/subst.go | 32 ++++++---------------------
+ 2 files changed, 29 insertions(+), 41 deletions(-)

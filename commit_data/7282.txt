@@ -1,12 +1,15 @@
-commit 3bfd35b72e24ec5c918a9e0f233634db45950c68
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jan 31 15:58:44 2011 +1100
+commit 1f55105f66eec3072be24cd1c428d90b90feef31
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jan 30 15:55:08 2011 -0800
 
-    run.bash: disable doc/codelab/wiki test on windows
+    enable arm peep.
+    one bug fixed,
+    probably more will be revealed
     
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4119047
+    https://golang.org/cl/4126044
 
- src/run.bash | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/5g/peep.c | 30 ++++++++++++++++++++++++++++--
+ src/cmd/5g/reg.c  |  4 ++--
+ 2 files changed, 30 insertions(+), 4 deletions(-)

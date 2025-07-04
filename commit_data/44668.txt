@@ -1,39 +1,12 @@
-commit dca9c11845a950130c37f4f4e5ffb55848ff7155
-Author: Dan Scales <danscales@google.com>
-Date:   Sat Mar 13 22:41:51 2021 -0800
+commit 6bbe47ccb6cc70484f0e707b75c9f25ecf3e5785
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Aug 17 19:02:37 2020 -0400
 
-    cmd/compile:  add support for generic channels and type conversion during calls
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Add support for channels in subster.typ(). Add new test file chans.go.
-    
-    To support assignability of bidirectional channel args to directional
-    channel params, I needed to type check generic calls after they are
-    instantiated. (Eventually, we will create separate functions to just do
-    the assignability logic, so we don't need to call the old typechecker in
-    this case.) So, for generic calls, we now leave the call as OCALL (as a
-    signal that the call still needs typechecking), and do typecheck.Call()
-    during stenciling.
-    
-    Smaller changes:
-     - Set the type of an instantiated OCLOSURE node (and not just the associated
-       OFUNC node)
-    
-     - In instTypeName2, filter out the space that types2.TypeString inserts
-       after a common in a typelist. Our standard naming requires no space
-       after the comma.
-    
-     - With the assignability fix above, I no longer need the explicit
-       conversions in cons.go.
-    
-    Change-Id: I148858bfc6708c0aa3f50bad7debce2b8c8c091f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301669
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifb36d465b415dec780aba44aff4a76a67c924f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248768
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/noder/helpers.go |  21 +-
- src/cmd/compile/internal/noder/stencil.go |  34 ++-
- src/cmd/compile/internal/noder/types.go   |  11 +-
- test/typeparam/chans.go                   | 413 ++++++++++++++++++++++++++++++
- test/typeparam/cons.go                    |   5 +-
- 5 files changed, 456 insertions(+), 28 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,23 +1,34 @@
-commit 8a7f0ad0b5b08faa09751b5528e5fa8831745aea
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 18 11:06:28 2016 -0400
+commit b2e0e9688a512970ea8d270238c8ff3bbf85cbe1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 26 15:41:51 2016 -0400
 
-    cmd/compile: use typedmemclr for zeroing if there are pointers
+    cmd/compile: remove Zero and NilCheck for newobject
     
-    Currently, zeroing generates an ssa.OpZero, which never has write
-    barriers, even if the assignment is an OASWB. The hybrid barrier
-    requires write barriers on zeroing, so change OASWB to generate an
-    ssa.OpZeroWB when assigning the zero value, which turns into a
-    typedmemclr.
+    Recognize runtime.newobject and don't Zero or NilCheck it.
     
-    Updates #17503.
+    Fixes #15914 (?)
+    Updates #15390.
     
-    Change-Id: Ib37ac5e39f578447dbd6b36a6a54117d5624784d
-    Reviewed-on: https://go-review.googlesource.com/31451
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TBD: add test
+    
+    Change-Id: Ia3bfa5c2ddbe2c27c92d9f68534a713b5ce95934
+    Reviewed-on: https://go-review.googlesource.com/27930
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/ssa.go             | 38 ++++++++++++++++++--------
- src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
- src/cmd/compile/internal/ssa/opGen.go          |  7 +++++
- src/cmd/compile/internal/ssa/writebarrier.go   | 35 +++++++++++++++++-------
- 4 files changed, 59 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/ssa/config.go         |   2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  15 ++++
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   2 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  10 ++-
+ src/cmd/compile/internal/ssa/rewrite386.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go     |   2 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
+ src/runtime/malloc.go                          |   2 +
+ 14 files changed, 148 insertions(+), 13 deletions(-)

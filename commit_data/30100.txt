@@ -1,26 +1,14 @@
-commit 2ca5d105b00353d3f3aa4da023e405b0550117d0
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Mon Feb 6 13:21:57 2017 -0500
+commit cf09920c0f9dcb8ef9c85cf02e51e876e52845e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 06:46:51 2016 -0700
 
-    os/user: cache the result of user.Current
+    cmd/compile: place OIDATA next to OITAB
     
-    This has a notable impact on systems with very large passwd files.
-    
-    Before:
-    BenchmarkCurrent-12        30000             42546 ns/op
-    
-    After:
-    BenchmarkCurrent-12     20000000                77.5 ns/op
-    
-    Saved in perf dashboard:
-    https://perf.golang.org/search?q=upload:20170206.1
-    
-    Fixes #11625
-    
-    Change-Id: Iebc9bf122cc64a4cab24ac06843c7b2bc450ded9
-    Reviewed-on: https://go-review.googlesource.com/36391
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia499125714e272af87562de5e5d23e68a112df58
+    Reviewed-on: https://go-review.googlesource.com/31938
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/user/lookup.go    | 22 +++++++++++++++++++++-
- src/os/user/user_test.go |  6 ++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/syntax.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

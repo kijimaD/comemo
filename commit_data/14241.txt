@@ -1,14 +1,20 @@
-commit be6afde348db68dfc9f59f57cbb15ed637158ac0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Oct 31 02:24:08 2012 +1100
+commit e53a2c40b119509356edcffc1655331c9beb6df5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 30 11:23:44 2012 +0100
 
-    misc/dashboard/builder: check http status before processing response
+    cmd/api: add more tests
     
-    Occasionally GAE will return a 500 error response, don't treat this as a valid JSON body.
+    Feature extraction was tested before, but not the final diffs.
     
-    R=adg, dsymonds
+    This CL breaks function main into a smaller main + testable
+    compareAPI.
+    
+    No functional changes.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6775066
+    https://golang.org/cl/6820057
 
- misc/dashboard/builder/http.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/api/goapi.go      | 59 +++++++++++++++++++++++++----------------------
+ src/cmd/api/goapi_test.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 27 deletions(-)

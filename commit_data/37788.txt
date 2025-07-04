@@ -1,29 +1,17 @@
-commit 6a64efc25004175e198e75191e215a7b1a08a2fa
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Dec 25 19:36:25 2018 -0500
+commit 422151ad50d03e142dc298a83523d7d8e2d515c5
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Aug 27 11:49:38 2018 -0400
 
-    cmd/compile: fix MIPS SGTconst-with-shift rules
+    cmd/link: fix a few typos in comments
     
-    (SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c) -> (MOVWconst [1])
+    Comment changes to fix typos, no code changes.
     
-    This rule is problematic. 1<<(32-uint32(d)) <= int32(c) meant to
-    say that it is true if c is greater than the largest possible
-    value of the right shift. But when d==1, 1<<(32-1) is negative
-    and results in the wrong comparison.
-    
-    Rewrite the rules in a more direct way.
-    
-    Fixes #29402.
-    
-    Change-Id: I5940fc9538d9bc3a4bcae8aa34672867540dc60e
-    Reviewed-on: https://go-review.googlesource.com/c/155798
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6c915f183025587fc479d14f5d2c885767348b1b
+    Reviewed-on: https://go-review.googlesource.com/131615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules   |  4 ++--
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  4 ++--
- src/cmd/compile/internal/ssa/rewriteMIPS.go   |  8 ++++----
- src/cmd/compile/internal/ssa/rewriteMIPS64.go |  8 ++++----
- test/fixedbugs/issue29402.go                  | 23 +++++++++++++++++++++++
- 5 files changed, 35 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/ld/ar.go    | 2 +-
+ src/cmd/link/internal/ld/data.go  | 2 +-
+ src/cmd/link/internal/ld/dwarf.go | 6 +++---
+ src/cmd/link/internal/ld/lib.go   | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

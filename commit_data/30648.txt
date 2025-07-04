@@ -1,17 +1,19 @@
-commit 6088fab92015d4901e515a6991db874889508eba
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Nov 6 11:09:09 2016 -0800
+commit b01f612a693b2b39064c0b5bd75a5d0280e4179e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 10:49:29 2016 -0800
 
-    cmd/compile: rename Nconv to nconv
+    spec: add subtitles to section on "for" statements
     
-    For consistency.
+    This matches what we already do for switch statements and makes
+    this large section more visibly organized. No other changes besides
+    introducing the titles.
     
-    Change-Id: Ic687fea95f7a4a3be576945af3e9c97086309b07
-    Reviewed-on: https://go-review.googlesource.com/38142
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #4486.
+    
+    Change-Id: I73f274e4fdd27c6cfeaed79090b4553e57a9c479
+    Reviewed-on: https://go-review.googlesource.com/33410
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

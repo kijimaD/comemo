@@ -1,23 +1,26 @@
-commit 0fe6347732bdb9918e3af4e0c4b52f7f0c162894
-Author: j2gg0s <j2gg0s@gmail.com>
-Date:   Tue Aug 27 14:35:59 2024 +0000
+commit 598958f0f247fa24b8ed4dfcd454a1958f212666
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 26 11:08:03 2023 -0700
 
-    encoding/json: add embedded structs to the UnmarshalTypeError's Field
+    maps: remove Keys and Values
     
-    Including embedded struct inforamtion in error message.
+    Preserve the names in case we want them to return an iterator.
+    Keep the efficient runtime implementations for now,
+    as we will probably want them under some name, perhaps KeysSlice
+    and ValuesSlice.
     
-    Fixes #68941
+    Fixes #61538
     
-    Change-Id: I6a6f7d506104839a9a7cf1a2c3003272f5534a79
-    GitHub-Last-Rev: 717f680acafd3f6509c0495f9092e028be502750
-    GitHub-Pull-Request: golang/go#68966
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606956
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6b03010bf071fb4531cb2f967dad46425962fcb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513476
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/next/6-stdlib/99-minor/encoding/json/68941.md |  1 +
- src/encoding/json/decode.go                       | 20 +++++++++++++-------
- src/encoding/json/decode_test.go                  | 13 +++++++++++++
- 3 files changed, 27 insertions(+), 7 deletions(-)
+ api/go1.21.txt        |   2 -
+ src/maps/maps.go      |  28 --------------
+ src/maps/maps_test.go | 100 --------------------------------------------------
+ 3 files changed, 130 deletions(-)

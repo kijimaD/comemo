@@ -1,32 +1,15 @@
-commit 0de71619ce591d79297ae609362a8ac1cdb5fe46
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 14:54:39 2012 -0500
+commit 4b7c2dfcea6568f4f9c5d9b0aadd205821e6f7d3
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Sat Dec 22 13:41:01 2012 -0500
 
-    runtime: aggregate defer allocations
+    testing: fix example test fd leak
     
-    benchmark             old ns/op    new ns/op    delta
-    BenchmarkDefer              165          113  -31.52%
-    BenchmarkDefer10            155          103  -33.55%
-    BenchmarkDeferMany          216          158  -26.85%
+    Close the read side of the pipe.
+    Fixes #4551.
     
-    benchmark            old allocs   new allocs    delta
-    BenchmarkDefer                1            0  -100.00%
-    BenchmarkDefer10              1            0  -100.00%
-    BenchmarkDeferMany            1            0  -100.00%
-    
-    benchmark             old bytes    new bytes    delta
-    BenchmarkDefer               64            0  -100.00%
-    BenchmarkDefer10             64            0  -100.00%
-    BenchmarkDeferMany           64           66    3.12%
-    
-    Fixes #2364.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7001051
+    https://golang.org/cl/6962049
 
- src/pkg/runtime/cgocall.c       |   8 +-
- src/pkg/runtime/panic.c         | 158 +++++++++++++++++++++++++++++++---------
- src/pkg/runtime/runtime.h       |  12 ++-
- src/pkg/runtime/runtime_test.go |  41 +++++++++++
- 4 files changed, 180 insertions(+), 39 deletions(-)
+ src/pkg/testing/example.go | 1 +
+ 1 file changed, 1 insertion(+)

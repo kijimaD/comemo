@@ -1,18 +1,43 @@
-commit 4b27d40b508a1d37ffcd84a411408309804d2a2a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 10 09:35:59 2021 -0800
+commit 860704317e02d699e4e4a24103853c4782d746c1
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Sat Aug 1 12:18:31 2020 +0100
 
-    misc/cgo/testshared: correct test of gccgo version number
+    crypto/tls: add HandshakeContext method to Conn
     
-    We still don't run the gccgo tests, because they don't run in module mode.
-    But now we at least get the version number check right.
+    Adds the (*tls.Conn).HandshakeContext method. This allows
+    us to pass the context provided down the call stack to
+    eventually reach the tls.ClientHelloInfo and
+    tls.CertificateRequestInfo structs.
+    These contexts are exposed to the user as read-only via Context()
+    methods.
     
-    Change-Id: Ifde4512c30605d1cb7e3a521f381a05c783549b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362996
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    This allows users of (*tls.Config).GetCertificate and
+    (*tls.Config).GetClientCertificate to use the context for
+    request scoped parameters and cancellation.
+    
+    Replace uses of (*tls.Conn).Handshake with (*tls.Conn).HandshakeContext
+    where appropriate, to propagate existing contexts.
+    
+    Fixes #32406
+    
+    Change-Id: I259939c744bdc9b805bf51a845a8bc462c042483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295370
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- misc/cgo/testshared/shared_test.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ doc/go1.17.html                          |  26 +++++++
+ src/crypto/tls/common.go                 |  21 ++++++
+ src/crypto/tls/conn.go                   |  62 ++++++++++++++--
+ src/crypto/tls/handshake_client.go       |  11 ++-
+ src/crypto/tls/handshake_client_test.go  |  36 ++++++++++
+ src/crypto/tls/handshake_client_tls13.go |   3 +
+ src/crypto/tls/handshake_server.go       |  17 +++--
+ src/crypto/tls/handshake_server_test.go  | 119 ++++++++++++++++++++++++++++++-
+ src/crypto/tls/handshake_server_tls13.go |   4 +-
+ src/crypto/tls/tls.go                    |  55 +++-----------
+ src/net/http/server.go                   |   2 +-
+ src/net/http/transport.go                |  10 +--
+ src/net/http/transport_test.go           |   2 +-
+ 13 files changed, 299 insertions(+), 69 deletions(-)

@@ -1,33 +1,22 @@
-commit 6e03de7b83426fa2f598c428a19db707a845bf7e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 5 17:45:27 2022 -0400
+commit 798ec73519a7226d6d436e42498a54aed23b8468
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 21 19:57:56 2021 -0700
 
-    cmd/asm: require -p flag
+    runtime: don't clear timerModifiedEarliest if adjustTimers is 0
     
-    CL 391014 requires the compiler to be invoked with the -p flag, to
-    specify the package path. Later, CL 394217 makes the compiler to
-    produce an unlinkable object file, so "go tool compile x.go" can
-    still be used on the command line. This CL does the same for the
-    assembler, requiring -p, otherwise generating an unlinkable object.
+    This avoids a race when a new timerModifiedEarlier timer is created by
+    a different goroutine.
     
-    No special case for the main package, as the main package cannot
-    be only assembly code, and there is no way to tell if it is the
-    main package from an assembly file.
+    Fixes #47329
     
-    Now we guarantee that we always have an expanded package path in
-    the object file. A later CL will delete the name expansion code
-    in the linker.
-    
-    Change-Id: I8c10661aaea2ff794614924ead958d80e7e2487d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404298
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6f6c87b4a9b5491b201c725c10bc98e23e0ed9d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336432
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/asm/internal/flags/flags.go |  3 ++-
- src/cmd/internal/goobj/objfile.go   | 10 +++++-----
- src/cmd/internal/obj/objfile.go     |  2 +-
- src/cmd/link/link_test.go           |  4 ++--
- test/run.go                         |  4 ++--
- 5 files changed, 12 insertions(+), 11 deletions(-)
+ src/runtime/runtime2.go |  2 +-
+ src/runtime/time.go     |  5 -----
+ src/time/sleep_test.go  | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 6 deletions(-)

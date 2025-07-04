@@ -1,23 +1,23 @@
-commit ea3c546e9e2b507d497f8093f8414cb31c112062
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Thu Jan 27 15:29:04 2022 +0000
+commit 24ea547a210b90eff7f4fefbd12dc8f72853406a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 21:56:46 2021 -0700
 
-    syscall: use RLIMIT_CPU instead of RLIMIT_NOFILE
+    cmd/link: don't pass -Wl,--dynamic-linker if -static
     
-    The latter is subject to kern.maxfilelimit restrictions on darwin which
-    are not reflected in the return value. This makes it difficult to
-    reliably restore the default after the test is complete. RLIMIT_CPU
-    should hopefully sidestep this problem.
+    As with -rdynamic, clang will pass -Wl,--dynamic-linker to the linker
+    even when linking statically. When using lld this will produce a statically
+    linked executable with a dynamic interpreter, which will crash at runtime.
+    This CL changes the linker to drop -Wl,--dynamic-linker when using -static,
+    as it already does with -rdynamic.
     
-    Updates #40564.
+    This has become more important since CL 310349, which changes the linker
+    to always pass a -Wl,--dynamic-linker option if the Go linker is invoked
+    with a -I option.
     
-    Change-Id: Ifb33c7d46f2708130cef366dc245c643a2d5e465
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383234
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Bryan Mills <bcmills@google.com>
+    Change-Id: I68ed431064f02c70018bc0547585e5b0ebd20a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314412
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/syscall_unix_test.go | 21 ++++-----------------
- 1 file changed, 4 insertions(+), 17 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

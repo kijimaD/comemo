@@ -1,18 +1,22 @@
-commit be72e3c3ff21a22bf8162965533672994e670985
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 11 11:54:56 2020 -0400
+commit 6ecaae032520615a89c55c1ee31f0060feab0f4a
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 16 10:39:58 2019 -0400
 
-    misc/spectre: add spectre index test
+    [dev.link] cmd/link: remove unused slow paths from BytesAt/StringAt
     
-    Test for CL 222660.
+    This change removes the NewReader function (no longer used by objdump)
+    and prunes away the now unused code paths from Reader.BytesAt and
+    Reader.StringAt, which helps with performance. At the moment the
+    reader operates by always ingesting the entire object file (either via
+    direct read or by mmap), meaning that there will always be a slice
+    available for us to index into.
     
-    Change-Id: I1dae41a9746dfc4144a0d29c02201de8ecd216fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222978
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3af7396effe19e50ed594fe8d82fd2d15465687c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201437
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- misc/spectre/asm_amd64.s           |  51 +++++++
- misc/spectre/doc.go                |   7 +
- misc/spectre/index_test.go         |  59 ++++++++
- misc/spectre/spectre_amd64_test.go | 282 +++++++++++++++++++++++++++++++++++++
- src/cmd/dist/test.go               |  24 +++-
- 5 files changed, 422 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj2/objfile.go | 35 +++++------------------------------
+ 1 file changed, 5 insertions(+), 30 deletions(-)

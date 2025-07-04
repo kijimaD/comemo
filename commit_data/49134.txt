@@ -1,73 +1,26 @@
-commit bda9da844df7cbde152e88b1f9b59e9360a4a2f9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 10 14:21:31 2022 -0700
+commit f19e49e7b185472b8ff919285e740cc198596497
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jul 20 09:37:35 2021 -0700
 
-    cmd/vendor: update to current x/tools revision
+    [dev.typeparams] cmd/compile: added a builtins.go test, fixed one bug
     
-    go get -d golang.org/x/tools@bc0e26ea127539a752b3a1849d05e007bb549def
-    go mod tidy
-    go mod vendor
+    The builtins.go test is derived from
+    cmd/compile/internal/types2/testdata/check/builtins.go2, after removing
+    the error cases.  Added a few extra tests for len/cap/append.
     
-    Change-Id: I42e41c3348b18ffdfe511b34970340f7c7245b04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405554
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixed one bug, which is that DELETE operations can't be transformed if
+    their argument is a typeparam. Also, the tranform of LEN/CAP calls does
+    not need to be delayed. Removed out-date references to the old
+    typechecker in the comments.
+    
+    Change-Id: If7a21506a7ff63ff7c8e87ccd614ef4ff3a0d3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336010
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/go.mod                                     |   5 +-
- src/cmd/go.sum                                     |  10 +-
- src/cmd/vendor/golang.org/x/mod/modfile/read.go    |   1 -
- src/cmd/vendor/golang.org/x/mod/module/module.go   |   6 +-
- src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go |  29 ++--
- src/cmd/vendor/golang.org/x/mod/sumdb/server.go    |   1 -
- src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go |   1 -
- src/cmd/vendor/golang.org/x/mod/zip/zip.go         |   2 +
- .../vendor/golang.org/x/tools/go/analysis/doc.go   |  20 +--
- .../x/tools/go/analysis/internal/facts/facts.go    |   1 -
- .../x/tools/go/analysis/internal/facts/imports.go  |   1 -
- .../go/analysis/passes/asmdecl/arches_go118.go     |  12 ++
- .../go/analysis/passes/asmdecl/arches_go119.go     |  14 ++
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   3 +-
- .../x/tools/go/analysis/passes/bools/bools.go      |  12 +-
- .../x/tools/go/analysis/passes/cgocall/cgocall.go  |  16 +-
- .../tools/go/analysis/passes/copylock/copylock.go  |   2 +-
- .../tools/go/analysis/passes/errorsas/errorsas.go  |  28 ++-
- .../analysis/passes/httpresponse/httpresponse.go   |  34 +++-
- .../x/tools/go/analysis/passes/inspect/inspect.go  |  15 +-
- .../go/analysis/passes/loopclosure/loopclosure.go  |   6 +-
- .../x/tools/go/analysis/passes/printf/printf.go    |   7 +-
- .../go/analysis/passes/sigchanyzer/sigchanyzer.go  |   2 +-
- .../x/tools/go/analysis/passes/tests/tests.go      |  24 +--
- .../x/tools/go/analysis/unitchecker/unitchecker.go |  17 +-
- .../golang.org/x/tools/go/analysis/validate.go     |   5 +
- .../golang.org/x/tools/go/ast/astutil/enclosing.go |  18 +-
- .../golang.org/x/tools/go/ast/astutil/imports.go   |   7 +-
- .../golang.org/x/tools/go/ast/astutil/rewrite.go   |  11 +-
- .../golang.org/x/tools/go/ast/inspector/typeof.go  |  15 +-
- .../vendor/golang.org/x/tools/go/cfg/builder.go    |   3 -
- src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go    |  17 +-
- .../x/tools/go/types/objectpath/objectpath.go      |  59 +++----
- .../x/tools/go/types/typeutil/imports.go           |   1 -
- .../golang.org/x/tools/go/types/typeutil/map.go    |   7 -
- .../x/tools/go/types/typeutil/methodsetcache.go    |   1 -
- .../golang.org/x/tools/go/types/typeutil/ui.go     |   1 -
- .../x/tools/internal/lsp/fuzzy/symbol.go           |  25 +--
- .../x/tools/internal/typeparams/common.go          |  21 ++-
- .../x/tools/internal/typeparams/normalize.go       |  12 +-
- .../x/tools/internal/typeparams/typeterm.go        |   9 +-
- src/cmd/vendor/golang.org/x/xerrors/LICENSE        |  27 ---
- src/cmd/vendor/golang.org/x/xerrors/PATENTS        |  22 ---
- src/cmd/vendor/golang.org/x/xerrors/README         |   2 -
- src/cmd/vendor/golang.org/x/xerrors/adaptor.go     | 193 ---------------------
- src/cmd/vendor/golang.org/x/xerrors/codereview.cfg |   1 -
- src/cmd/vendor/golang.org/x/xerrors/doc.go         |  22 ---
- src/cmd/vendor/golang.org/x/xerrors/errors.go      |  33 ----
- src/cmd/vendor/golang.org/x/xerrors/fmt.go         | 187 --------------------
- src/cmd/vendor/golang.org/x/xerrors/format.go      |  34 ----
- src/cmd/vendor/golang.org/x/xerrors/frame.go       |  56 ------
- .../golang.org/x/xerrors/internal/internal.go      |   8 -
- src/cmd/vendor/golang.org/x/xerrors/wrap.go        | 106 -----------
- src/cmd/vendor/modules.txt                         |   8 +-
- 54 files changed, 267 insertions(+), 913 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go |  23 +++---
+ src/cmd/compile/internal/noder/stencil.go |   2 +-
+ test/typeparam/builtins.go                | 114 ++++++++++++++++++++++++++++++
+ 3 files changed, 124 insertions(+), 15 deletions(-)

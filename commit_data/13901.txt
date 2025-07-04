@@ -1,17 +1,16 @@
-commit 46f379cc2cb26f1b1ddc9dc385403a664ced3f8f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 22 08:52:27 2012 -0400
+commit 5373e8a8d706b47c5585226d16e5d5bdf4db825a
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Sep 22 17:56:49 2012 +1000
 
-    reflect: add Type.ConvertibleTo, Value.Convert (API CHANGE)
+    debug/pe: add symbol support
     
-    Fixes #4047.
+    Add support for processing the COFF symbol table.
     
-    R=iant, r
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6500065
+    https://golang.org/cl/6551045
 
- src/pkg/reflect/all_test.go    | 447 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/reflect/export_test.go |  16 ++
- src/pkg/reflect/type.go        |  37 +++-
- src/pkg/reflect/value.go       | 318 +++++++++++++++++++++++++++++
- 4 files changed, 814 insertions(+), 4 deletions(-)
+ src/pkg/debug/pe/file.go      | 48 ++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/debug/pe/file_test.go | 30 ++++++++++++++++++++++++++-
+ src/pkg/debug/pe/pe.go        | 11 ++++++++++
+ 3 files changed, 85 insertions(+), 4 deletions(-)

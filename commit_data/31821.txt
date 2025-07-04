@@ -1,34 +1,21 @@
-commit 296b35382c82081d6c90dcec570e6491a2b2598a
-Author: thoeni <thoeni@gmail.com>
-Date:   Thu Dec 1 21:57:39 2016 +0000
+commit 2c397c7a753963494ce5dd5d7eda471354074698
+Author: Damien Lespiau <damien.lespiau@gmail.com>
+Date:   Sat Mar 18 19:44:37 2017 +0000
 
-    encoding/json: don't marshal unexported embedded fields of non struct type
+    cmd/gofmt: unindent the second line of a BUG note
     
-    Marshal must process unexported embedded fields of struct type,
-    looking for exported fields in those structs. However, it must
-    not process unexported embedded fields of non-struct type.
+    Currently, this second line is treated a pre-formatted text as it's
+    indented relatively to the BUG() line.
     
-    For example, consider:
+    The current state can be seen at:
     
-        type t1 struct {
-            X int
-        }
-        type t2 int
-        type T struct {
-            t1
-            t2
-        }
+      https://golang.org/cmd/gofmt/#pkg-note-BUG
     
-    When considering T, Marshal must process t1 to find t1.X.
-    Marshal must not process t2, but it was. Fix that.
+    Unindenting makes the rest of the sentence part of the same paragraph.
     
-    Fixes #18009
-    
-    Change-Id: I62ba0b65ba30fd927990e101a26405a9998787a3
-    Reviewed-on: https://go-review.googlesource.com/33773
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6dee55c9c321b1a03b41c7124c6a1ea15772c878
+    Reviewed-on: https://go-review.googlesource.com/38353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/encode.go      |  2 +-
- src/encoding/json/encode_test.go | 53 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 1 deletion(-)
+ src/cmd/gofmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

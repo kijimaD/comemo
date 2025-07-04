@@ -1,19 +1,18 @@
-commit cb908f1d4dd24dad17105022df7b0e96ac1d6988
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 9 14:56:39 2021 -0500
+commit c4190fc34dbfe8c7859a91b07ed31a33633d08df
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 12 18:45:52 2021 -0500
 
-    go/types: don't return an array type with invalid length
+    cmd/compile: remove ARMv5 special case in register allocator
     
-    In preparation for porting CL 361412, fix a discrepancy in go/types,
-    where [-1]T is returned for an array type with invalid length.
+    The register allocator has a special case that doesn't allocate
+    LR on ARMv5. This was necessary when softfloat expansion was done
+    by the assembler. Now softfloat calls are inserted by SSA, so it
+    works as normal. Remove this special case.
     
-    Change-Id: Ia32f5b66c9c561ccf0c32af1922fc4690c66dbc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362738
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5502f07597f4d4b675dc16b6b0d7cb47e1e8974b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301792
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/api_test.go |  2 +-
- src/go/types/typexpr.go  | 12 +++++++-----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 6 ------
+ 1 file changed, 6 deletions(-)

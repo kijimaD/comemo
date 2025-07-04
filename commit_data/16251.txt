@@ -1,17 +1,55 @@
-commit ca6b1f3eeb8f8bd658b6bd5b425184b65d42bc8c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 30 17:47:39 2013 -0700
+commit ed9644fc3954d6852c725e2efd062fb46c0786a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 17:04:58 2013 -0400
 
-    net: do not call syscall.Bind twice on windows
+    cmd/go: undo CL 8119049
     
-    Fixes #5355.
+    Manual undo due to later changes in doc/go1.1.html; cmd/go/test.bash still passes.
     
-    R=golang-dev, mikioh.mikioh, bradfitz, r
+    Rationale, from CL 8119049 review log:
+    
+    This makes the 'go run' command different from every other command.
+    For example, 'go test' does not mean 'go test *.go'.
+    
+    If we were going to handle the no arguments case in 'go run', I would hope that
+    it would scan the current directory to find a package just like 'go build' or
+    'go test' would, and then it would require that package to be 'package main',
+    and then it would run that package. This would make it match 'go test' and 'go
+    build' and 'go install' and so on. It would mean that if you are working on a
+    command in a directory that is 'go install'able, then 'go run' will run the
+    binary for you. The current CL does not accomplish that when build constraints
+    or file name constraints are involved.
+    
+    For example, if I am working on a program like:
+    
+    $ ls
+    main.go
+    main_386.s
+    main_arm.s
+    main_amd64.s
+    $
+    
+    Then 'go run' will fail here because the .s files are ignored.
+    
+    If instead I am working on a program like:
+    
+    $ ls
+    main.go
+    main_386.go
+    main_arm.go
+    main_amd64.go
+    $
+    
+    then 'go run' will fail because too many files are included.
+    
+    I would like to see this command implemented so that it is compatible with the
+    other go subcommands. Since it is too late to do that for Go 1.1, I would like
+    to see this CL reverted, to preserve the option to do it better later.
+    
+    R=golang-dev, iant, r
     CC=golang-dev
-    https://golang.org/cl/8966046
+    https://golang.org/cl/8797049
 
- src/pkg/net/dial_test.go  | 35 +++++++++++++++++++++++++++++++++++
- src/pkg/net/fd_unix.go    |  2 +-
- src/pkg/net/fd_windows.go | 25 +++++++++++++------------
- src/pkg/net/sock_posix.go |  2 +-
- 4 files changed, 50 insertions(+), 14 deletions(-)
+ src/cmd/go/doc.go |  2 +-
+ src/cmd/go/run.go | 16 ++--------------
+ 2 files changed, 3 insertions(+), 15 deletions(-)

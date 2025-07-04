@@ -1,40 +1,41 @@
-commit 016d7552138077741a9c3fdadc73c0179f5d3ff7
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 28 15:50:52 2021 -0700
+commit 7ce257147fe0ab3413c8e36909c2408c833efdb8
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jun 8 17:07:10 2021 -0400
 
-    runtime: measure stack usage; start stacks larger if needed
+    [dev.cmdgo] cmd/go: add the workspace mode
     
-    Measure the average stack size used by goroutines at every GC. When
-    starting a new goroutine, allocate an initial goroutine stack of that
-    average size. Intuition is that we'll waste at most 2x in stack space
-    because only half the goroutines can be below average. In turn, we
-    avoid some of the early stack growth / copying needed in the average
-    case.
+    This change adds the outline of the implementation of the workspace mode.
+    The go command will now locate go.work files, and read them to determine
+    which modules are in the workspace. It will then put those modules in
+    the root of the workspace when building the build list. It supports
+    building, running, testing, and listing in workspaces. There are still
+    many TODOs for undone work and other changes to fix certain cases. Some
+    of these undone parts include: replaces and go.work.sum files, as well
+    as go mod {test,why,verify}, excludes in workspaces, updating work files
+    to include module names in comments and setting the GOWORK variable.
     
-    More details in the design doc at: https://docs.google.com/document/d/1YDlGIdVTPnmUiTAavlZxBI1d9pwGQgZT7IKFKlIXohQ/edit?usp=sharing
+    For #45713
     
-    name        old time/op  new time/op  delta
-    Issue18138  95.3µs ± 0%  67.3µs ±13%  -29.35%  (p=0.000 n=9+10)
-    
-    Fixes #18138
-    
-    Change-Id: Iba34d22ed04279da7e718bbd569bbf2734922eaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345889
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I72716af7a300a2896087fc8a79c04e951d248278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334934
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/export_test.go         |  2 +-
- src/runtime/metrics.go             |  6 +++++
- src/runtime/metrics/description.go |  6 +++++
- src/runtime/metrics/doc.go         |  3 +++
- src/runtime/mgc.go                 |  4 +++-
- src/runtime/mgcmark.go             | 24 ++++++++++++-------
- src/runtime/mgcpacer.go            | 48 +++++++++++++++++++-------------------
- src/runtime/proc.go                | 17 +++++++++++---
- src/runtime/runtime1.go            |  3 +++
- src/runtime/runtime2.go            | 16 +++++++++----
- src/runtime/stack.go               | 46 ++++++++++++++++++++++++++++++++++++
- src/runtime/stack_test.go          | 33 ++++++++++++++++++++++++++
- 12 files changed, 167 insertions(+), 41 deletions(-)
+ src/cmd/go/alldocs.go                  |   8 ++
+ src/cmd/go/internal/base/flag.go       |   7 ++
+ src/cmd/go/internal/cfg/cfg.go         |   6 +-
+ src/cmd/go/internal/envcmd/env.go      |   1 +
+ src/cmd/go/internal/list/list.go       |   3 +
+ src/cmd/go/internal/modcmd/download.go |   3 +
+ src/cmd/go/internal/modcmd/graph.go    |   3 +
+ src/cmd/go/internal/modcmd/verify.go   |   3 +
+ src/cmd/go/internal/modcmd/why.go      |   2 +
+ src/cmd/go/internal/modload/init.go    | 224 +++++++++++++++++++++++++--------
+ src/cmd/go/internal/run/run.go         |   3 +
+ src/cmd/go/internal/test/test.go       |   2 +
+ src/cmd/go/internal/test/testflag.go   |   1 +
+ src/cmd/go/internal/work/build.go      |  10 ++
+ src/cmd/go/testdata/script/work.txt    |  71 +++++++++++
+ 15 files changed, 296 insertions(+), 51 deletions(-)

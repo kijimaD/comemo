@@ -1,18 +1,32 @@
-commit ac9d777caf06364524ce9c67203a14a899f71a57
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 14 15:59:40 2023 +0000
+commit f2b1cde544d190e1f4642ef6f4ac8ef9ce31a0c3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 15 08:05:41 2022 +0700
 
-    path/filepath,cmd/go: skip tests involving double-symlinks on ios
+    cmd/compile: tighten the condition for inlining shape/non-shape function
     
-    For #59586.
+    CL 395854 made inline pass to not inlining function with shape params,
+    but pass no shape arguments. This is intended to be the reverse case of
+    CL 361260.
     
-    Change-Id: I092f7a4abce1074b8eef64a3ecf9fc187914709b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484755
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    However, CL 361260 is using wider condition than necessary. Though it
+    only needs to check against function parameters, it checks whether the
+    function type has no shape. It does not cause any issue, because
+    !fn.Type().HasShape() implies !fn.Type().Params().HasShape().
+    
+    But for the reverse case, it's not true. Function may have shape type,
+    but has no shape arguments. Thus, we must tighten the condition to
+    explicitly check against the function parameters only.
+    
+    Fixes #52907
+    
+    Change-Id: Ib87e87ff767c31d99d5b36aa4a6c1d8baf32746d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406475
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/testdata/script/list_goroot_symlink.txt | 1 +
- src/path/filepath/path_test.go                     | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 10 ++++++----
+ test/fixedbugs/issue52907.go           |  7 +++++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

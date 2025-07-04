@@ -1,12 +1,17 @@
-commit 507a753c4b1cc92775a80e54571c78ea6c2671f4
+commit d9f1ddbee19c7b665d50bb1f8b218f5430347995
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 25 10:48:44 2011 -0500
+Date:   Tue Jan 25 10:19:39 2011 -0500
 
-    CONTRIBUTORS: add David Anderson (Google CLA)
+    make.bash: stricter selinux test
     
-    R=agl1, danderson
+    SELinux can be installed but not turned on.
+    Don't complain unless it is actually turned on.
+    
+    https://bugzilla.redhat.com/show_bug.cgi?id=652987#c20
+    
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/4029044
+    https://golang.org/cl/3979044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,21 @@
-commit 1e49210ccd8fa40273d0d32e5ae898a4bee69a6e
-Author: 180909 <wjh180909@gmail.com>
-Date:   Thu Sep 9 00:32:03 2021 +0800
+commit 609d82b28992e6a7fac48add680f170c4eee83fd
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Feb 12 21:34:11 2021 +0100
 
-    encoding/base64: add examples for Encode/Decode
+    cmd/dist: set GOARM=7 for windows/arm
     
-    Fixes #37595
+    GOARM=6 executables fail to launch on windows/arm, so set this to ARMv7
+    like we do for Android.
     
-    Change-Id: I83e5f6105748a0a9238322a4f7ec4b0bbf61a263
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348394
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Cherry Mui <cherryyz@google.com>
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: Ifa13685e7ab6edd367f3dfec10296e376319dbd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291629
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/encoding/base64/example_test.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/dist/util.go | 4 ++++
+ 1 file changed, 4 insertions(+)

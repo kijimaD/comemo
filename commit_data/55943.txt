@@ -1,22 +1,25 @@
-commit 502347f121774317a7580c03804f19851af47baf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 13 08:56:06 2024 -0700
+commit 4237dea5e36fa4c0900cb6b0850b1871f4e4c404
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 28 09:41:46 2023 -0700
 
-    go/types, types2: consistently report "duplicate method" error in go1.13
+    cmd/compile: lower priority of avoiding registers
     
-    Go 1.13 is not supported anymore, but this CL removes an unnecessary
-    check and in turn fixes an old bug.
+    We avoid allocating registers when we know they may have a fixed use
+    later (arg/return value, or the CX shift argument to SHRQ, etc.) But
+    it isn't worth avoiding that register if it requires moving another
+    register.
     
-    Fixes #66285.
+    A move we may have to do later is not worth a move we definitely have
+    to do now.
     
-    Change-Id: I15ee1712b31f8ac8c915f18410d99cbf44334d35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571058
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Fixes #59288
+    
+    Change-Id: Ibbdcbaea9caee0c5f3e0d6956a1a084ba89757a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479895
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/types2/typeset.go         |  4 +--
- src/go/types/typeset.go                            |  4 +--
- .../types/testdata/fixedbugs/issue66285.go         | 37 ++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

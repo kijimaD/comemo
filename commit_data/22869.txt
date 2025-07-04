@@ -1,15 +1,16 @@
-commit e8c0d0f2f3d1e7b1ccc8f057cff24a490b2dc2a7
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 5 11:17:08 2015 -0700
+commit d6d423b99bb23bef029c7b54b49453c3343cd6a6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:00:53 2015 -0400
 
-    os: add LookupEnv, like Getenv but reports presence
+    runtime: skip fork test on darwin/arm64
     
-    Fixes #9676.
+    Just like darwin/arm.
     
-    Change-Id: I32fe474cdfa09aff91daa4b10ac4df28ffdaa649
-    Reviewed-on: https://go-review.googlesource.com/9741
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie4998d24b2d891a9f6c8047ec40cd3fdf80622cd
+    Reviewed-on: https://go-review.googlesource.com/8812
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/os/env.go      |  9 +++++++++
- src/os/env_test.go | 12 ++++++++++++
- 2 files changed, 21 insertions(+)
+ src/runtime/crash_cgo_test.go | 2 +-
+ src/runtime/crash_test.go     | 5 +++--
+ src/runtime/runtime_test.go   | 5 +++--
+ 3 files changed, 7 insertions(+), 5 deletions(-)

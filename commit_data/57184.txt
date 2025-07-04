@@ -1,39 +1,26 @@
-commit ff271cd391bdb8963b5409c6f4cca40af8501b51
-Author: doujiang24 <doujiang24@gmail.com>
-Date:   Fri Aug 16 07:32:00 2024 +0000
+commit cb7a091d729eab75ccfdaeba5a0605f05addf422
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 11 10:08:48 2023 -0400
 
-    cmd/cgo: enable #cgo noescape/nocallback
+    os/exec: ignore context.Canceled errors in TestConcurrentExec
     
-    In Go 1.22 we added code to the go/build package to ignore #cgo noescape
-    and nocallback directives. That permits us to enable these directives in Go 1.24.
+    We cancel the Context to unblock the test as soon as all of the "exit"
+    processes have completed. If that happens to occur before all of the
+    "hang" processes have started, the Start calls may fail with
+    context.Canceled.
     
-    Also, this fixed a Bug in CL 497837:
-    After retiring _Cgo_use for parameters, the compiler will treat the
-    parameters, start from the second, as non-alive. Then, they will be marked
-    as scalar in stackmap, which means the pointer won't be copied correctly
-    in copystack.
+    Since those errors are possible in normal operation of the test,
+    ignore them.
     
-    Fixes #56378.
-    Fixes #63739.
+    Fixes #61277.
+    Updates #61080.
     
-    Change-Id: I46e773240f8a467c3c4ba201dc5b4ee473cf6e3e
-    GitHub-Last-Rev: 42fcc506d6a7681ef24ac36a5904b57bda4b15cd
-    GitHub-Pull-Request: golang/go#66879
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579955
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I20db083ec89ca88eb085ceb2892b9f87f83705ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/cgo/doc.go                                 | 24 +++++++++
- src/cmd/cgo/gcc.go                                 |  2 -
- src/cmd/cgo/internal/test/test.go                  |  4 +-
- .../testerrors/testdata/notmatchedcfunction.go     |  3 +-
- src/cmd/cgo/out.go                                 | 22 +++++---
- src/runtime/cgo.go                                 | 13 ++++-
- src/runtime/crash_cgo_test.go                      | 11 +++-
- src/runtime/linkname.go                            |  1 +
- src/runtime/testdata/testprogcgo/cgonocallback.go  |  3 +-
- src/runtime/testdata/testprogcgo/cgonoescape.go    |  3 +-
- src/runtime/testdata/testprogcgo/issue63739.go     | 59 ++++++++++++++++++++++
- 11 files changed, 125 insertions(+), 20 deletions(-)
+ src/os/exec/exec_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

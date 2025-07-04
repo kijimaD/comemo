@@ -1,21 +1,24 @@
-commit ff9f5fb8591c6d3e4cd4881e75f49440a3a875c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 2 07:43:57 2021 -0700
+commit c906608406f22087e9bc3ee7616c3f1fbba2503b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 09:25:05 2020 -0500
 
-    cmd/link: recognize clang linker error in testCGOLTO
+    io/fs: fix reference to WalkFunc
     
-    Also recognize a case in which GCC does not run (from
-    https://build.golang.org/log/7f6d8b35c905b9829f05906beccca44f208aa569).
+    The comment explains differences between WalkDirFunc and WalkFunc,
+    but when this code moved out of path/filepath, we forgot to change
+    the reference to be filepath.WalkFunc. Fix that.
     
-    Fixes #46517
+    (The text should not be deleted, because path/filepath does not
+    contain this type - WalkDirFunc - nor this text anymore.)
     
-    Change-Id: I4fe4164a5df92b2dec08fd767f65a4d5479f3f36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324169
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Pointed out by Carl Johnson on CL 243916 post-submit.
+    
+    For #41190.
+    
+    Change-Id: I44c64d0b7e60cd6d3694cfd6d0b95468ec4612fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268417
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/cgo_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/io/fs/walk.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

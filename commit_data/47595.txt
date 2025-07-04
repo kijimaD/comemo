@@ -1,27 +1,26 @@
-commit 465b4028082339bb7aa64ed6e30aef4c0b0413b4
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 23 08:19:45 2021 -0500
+commit f2717b31b5cf235457631fea1afd6d9df578737c
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Mar 30 13:42:14 2021 -0700
 
-    cmd/compile/internal/inline: revise closure inl position fix
+    cmd/compile: deal correctly with unnamed function params during stenciling
     
-    This patch revises the fix for issue 46234, fixing a bug that was
-    accidentally introduced by CL 320913. When inlining a chunk of code
-    with a closure expression, we want to avoid updating the source
-    positions in the function being closed over, but we do want to update
-    the position for the ClosureExpr itself (since it is part of the
-    function we are inlining). CL 320913 unintentionally did away with the
-    closure expr source position update; here we restore it again.
+    During substitution of the function type during stenciling, we must set
+    the Name nodes of the param/result fields of the func type. We get those
+    name nodes from the substituted Dcl nodes of the PPARAMS and PPARAMOUTs.
+    But we must check that the names match with the Dcl nodes, so that we
+    skip any param fields that correspond to unnamed (in) parameters.
     
-    Updates #46234.
-    Fixes #49171.
+    Added a few tests to typelist.go by removing a variety of unneeded
+    function parameter names.
     
-    Change-Id: Iaa51bc498e374b9e5a46fa0acd7db520edbbbfca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366494
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: If786961b64549da6f18eeeb5060ea58fab874eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305912
     Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 15 ++++++++++-----
- test/closure3.dir/main.go              |  8 ++++----
- test/inline.go                         |  4 ++--
- 3 files changed, 16 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 15 ++++++++++-----
+ test/typeparam/typelist.go                | 10 +++++-----
+ 2 files changed, 15 insertions(+), 10 deletions(-)

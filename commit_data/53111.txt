@@ -1,17 +1,30 @@
-commit c7d6c6000a84b61ac8bb2e38e855ad120914658a
+commit 85486bcccb506514d67034e39f3ed588b5900f1c
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 11 10:37:44 2023 -0400
+Date:   Wed May 25 11:09:56 2022 -0400
 
-    cmd/go/internal/modfetch: avoid creating unused temp directories
+    image/jpeg: increase TestLargeImageWithShortData timeout by an order of magnitude
     
-    (Discovered via #60113, but this doesn't address that issue.)
+    Also dump goroutines on failure.
     
-    Change-Id: I8b89e74b786dcfb0aa5d71fcbd0df8af33b98f36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494375
+    The original bug report in #10413 reported a hang of “several
+    minutes”. An apparently-spurious failure was observed in
+    https://build.golang.org/log/e5ac3ce3fb7d04ec13e5bbfadea8bb5869a4dd1e,
+    with a delay of only 3.64s.
+    
+    Moreover, if the test does fail due to a regression, we will want a
+    goroutine dump to diagnose where it got stuck. The current call to
+    t.Fatalf does not produce such a dump, so is not nearly as useful if
+    the failure only occasionally reproduces.
+    
+    Updates #10413.
+    
+    Change-Id: I6ab9d112f14f438a0c54e02ec95934627acdc64b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408355
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 110 +++++++++++---------------
- 1 file changed, 47 insertions(+), 63 deletions(-)
+ src/image/jpeg/reader_test.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

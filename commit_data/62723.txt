@@ -1,0 +1,15 @@
+commit 116b82354ce53dea7b139039adbda3231689b02d
+Author: Sergey Slukin <sergeyslukin90@gmail.com>
+Date:   Sat Mar 22 21:15:18 2025 +0300
+
+    cmd/compile: changed variable name due to shadowing of package name min
+    
+    Change-Id: I52e5de04d137238d6f6779edcc662f5c7433c61e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660195
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/scc.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

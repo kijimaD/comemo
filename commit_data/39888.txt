@@ -1,20 +1,23 @@
-commit 9cce08d72470eb6ae2a2870bb9c70d1893441b0f
-Author: Tom Thorogood <me+google@tomthorogood.co.uk>
-Date:   Thu Sep 12 07:09:39 2019 +0000
+commit fa5dbd06e57475a6b788ebf0468c132ec9cd77fc
+Author: Leonardo Comelli <leonardo.comelli@gmail.com>
+Date:   Tue Mar 19 03:53:04 2019 +0000
 
-    cmd/go/internal/renameio,runtime: avoid leaking temp directory in test
+    cmd: ignore the directory named go.mod
     
-    TestWriteFileModeAppliesUmask and TestVectoredHandlerDontCrashOnLibrary
-    could both leak /tmp/go-build-* directories which isn't very friendly.
+    The existing implementation does not check in all cases whether go.mod is a regular file.
     
-    Change-Id: Ibee9c33d49ad48958fae4df73853b82d92314bf0
-    GitHub-Last-Rev: 814e2fa4bb4e4fe9c00b6d465313ce35c7ab4e32
-    GitHub-Pull-Request: golang/go#34253
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194880
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Fixes #30788
+    
+    Change-Id: I6d140545c3cfada651612efd5bee2fbdcb747ca7
+    GitHub-Last-Rev: 4a9b251e378d9d7cc8768d395c360d3542fc9bc6
+    GitHub-Pull-Request: golang/go#30830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167393
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/renameio/umask_test.go | 2 +-
- src/runtime/signal_windows_test.go         | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/import.go  |  4 ++--
+ src/cmd/go/internal/modload/search.go  |  2 +-
+ src/cmd/go/internal/search/search.go   |  2 +-
+ src/cmd/go/testdata/script/mod_dir.txt | 20 ++++++++++++++++++++
+ 4 files changed, 24 insertions(+), 4 deletions(-)

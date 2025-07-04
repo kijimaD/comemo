@@ -1,47 +1,22 @@
-commit 089cc6867619da6d6a901b3835475206759c47a2
-Author: Patrick Steinhardt <ps@pks.im>
-Date:   Sat Sep 16 11:12:12 2023 +0000
+commit 9fffcde118ee3d2522744661b1af1eafb1008667
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 24 19:50:48 2022 -0400
 
-    cmd/link: allow deriving GNU build ID from Go build ID ID
+    cmd/go: fix script conditions that require cgo
     
-    While it is possible to embed a GNU build ID into the linked
-    executable by passing `-B 0xBUILDID` to the linker, the build ID will
-    need to be precomputed by the build system somehow. This makes it
-    unnecessarily complex to generate a deterministic build ID as it
-    either requires the build system to hash all inputs manually or to
-    build the binary twice, once to compute its hash and once with the GNU
-    build ID derived from that hash. Despite being complex, it is also
-    inefficient as it requires the build system to duplicate some of the
-    work that the Go linker already performs anyway.
+    This fixes a regression introduced in CL 419875
+    that causes features that require cgo to be tested
+    on the nocgo builders.
     
-    Introduce a new argument "gobuildid" that can be passed to `-B` that
-    causes the linker to automatically derive the GNU build ID from the Go
-    build ID. Given that the Go build ID is deterministically computed
-    from all of its inputs, the resulting GNU build ID should be
-    deterministic in the same way, which is the desired behaviour.
+    For #27494.
     
-    Furthermore, given that the `-B` flag currently requires a "0x" prefix
-    for all values passed to it, using "gobuildid" as value is a backwards
-    compatible change.
-    
-    An alternative would be to unconditionally calculate the GNU build ID
-    unless otherwise specified. This would require some larger rework
-    though because building the Go toolchain would not converge anymore
-    due the GNU build ID changing on every stage, which in turn would
-    cause the Go build ID to change as well.
-    
-    Fixes #41004
-    
-    Change-Id: I707c5fc321749c00761643d6cc79d44bf2cd744d
-    GitHub-Last-Rev: 5483305a8566937836e5f39149a3df805d94580b
-    GitHub-Pull-Request: golang/go#61469
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511475
+    Change-Id: Iee61225c98c1275810256ab002a698fc4b42c053
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445235
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/doc.go              |  2 ++
- src/cmd/link/elf_test.go         | 37 +++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/elf.go  | 12 ++++++++++++
- src/cmd/link/internal/ld/main.go |  2 +-
- 4 files changed, 52 insertions(+), 1 deletion(-)
+ src/cmd/go/scriptconds_test.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,26 +1,27 @@
-commit df97215a34935b92080858a33a1043e41c3c5ef0
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Oct 4 14:30:31 2024 -0700
+commit 9e9556d328c53ed0a4d8b36feee949885d648ba8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 18 15:38:44 2023 -0400
 
-    syscall, internal/syscall/unix: add Openat support for wasip1
+    cmd/go: find GOROOT using os.Executable when installed to GOROOT/bin/GOOS_GOARCH
     
-    The syscall package is mostly frozen, but wasip1 file syscall
-    support was added to syscall and the Open and Openat
-    implementations overlap. Implement Openat in syscall for
-    overall simplicity.
+    When running make.bash in a cross-compiled configuration
+    (for example, GOARCH different from GOHOSTARCH), cmd/go
+    is installed to GOROOT/bin/GOOS_GOARCH instead of GOROOT/bin.
     
-    We already have syscall.Openat for some platforms, so this
-    doesn't add any new functions to syscall.
+    That means that we need to look for GOROOT in both ../.. and ../../..,
+    not just the former.
     
-    For #67002
+    Fixes #62119.
+    Updates #18678.
     
-    Change-Id: Ia34b12ef11fc7a3b7832e07b3546a760c23efe5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617378
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I283c6a10c46df573ff44da826f870417359226a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521015
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/syscall/unix/at_wasip1.go |  4 ++++
- src/syscall/fs_wasip1.go               | 14 +++++++++++++-
- src/syscall/syscall_wasip1.go          |  1 +
- 3 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/cfg/cfg.go                     | 38 ++++++---
+ src/cmd/go/testdata/script/goroot_executable.txt   |  8 +-
+ .../testdata/script/goroot_executable_trimpath.txt | 91 ++++++++++++++++++++++
+ 3 files changed, 125 insertions(+), 12 deletions(-)

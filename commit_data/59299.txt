@@ -1,45 +1,22 @@
-commit 2fe0330cd74ce1ff7510977a5eee9194acc741d0
-Author: Huang Qiqi <huangqiqi@loongson.cn>
-Date:   Tue Jun 11 16:09:10 2024 +0800
+commit 4e7bd20f8fdccdb2f0f30b051e3ea3fffb449367
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jan 5 16:10:33 2024 -0800
 
-    math/big: optimize addVW function for loong64
+    net/http: remove Content-Length header in http.Error
     
-    Benchmark results on Loongson 3C5000 (which is an LA464 implementation):
+    Error replies to a request with an error message and HTTP code.
+    Delete any preexisting Content-Length header before writing the header;
+    if a Content-Length is present, it's probably for content that the
+    caller has given up on writing.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/big
-    cpu: Loongson-3C5000 @ 2200.00MHz
-                    │ test/old_3c5000_addvw.log │      test/new_3c5000_addvw.log      │
-                    │          sec/op           │   sec/op     vs base                │
-    AddVW/1                         9.555n ± 0%   5.915n ± 0%  -38.09% (p=0.000 n=20)
-    AddVW/2                        11.370n ± 0%   6.825n ± 0%  -39.97% (p=0.000 n=20)
-    AddVW/3                        12.485n ± 0%   7.970n ± 0%  -36.16% (p=0.000 n=20)
-    AddVW/4                        14.980n ± 0%   9.718n ± 0%  -35.13% (p=0.000 n=20)
-    AddVW/5                         16.73n ± 0%   10.63n ± 0%  -36.46% (p=0.000 n=20)
-    AddVW/10                        24.57n ± 0%   15.18n ± 0%  -38.23% (p=0.000 n=20)
-    AddVW/100                       184.9n ± 0%   102.4n ± 0%  -44.62% (p=0.000 n=20)
-    AddVW/1000                     1721.0n ± 0%   921.4n ± 0%  -46.46% (p=0.000 n=20)
-    AddVW/10000                     16.83µ ± 0%   11.68µ ± 0%  -30.58% (p=0.000 n=20)
-    AddVW/100000                    184.7µ ± 0%   131.3µ ± 0%  -28.93% (p=0.000 n=20)
-    AddVWext/1                      9.554n ± 0%   5.915n ± 0%  -38.09% (p=0.000 n=20)
-    AddVWext/2                     11.370n ± 0%   6.825n ± 0%  -39.97% (p=0.000 n=20)
-    AddVWext/3                     12.505n ± 0%   7.969n ± 0%  -36.27% (p=0.000 n=20)
-    AddVWext/4                     14.980n ± 0%   9.718n ± 0%  -35.13% (p=0.000 n=20)
-    AddVWext/5                      16.70n ± 0%   10.63n ± 0%  -36.33% (p=0.000 n=20)
-    AddVWext/10                     24.54n ± 0%   15.18n ± 0%  -38.13% (p=0.000 n=20)
-    AddVWext/100                    185.0n ± 0%   102.4n ± 0%  -44.65% (p=0.000 n=20)
-    AddVWext/1000                  1721.0n ± 0%   921.4n ± 0%  -46.46% (p=0.000 n=20)
-    AddVWext/10000                  16.83µ ± 0%   11.68µ ± 0%  -30.60% (p=0.000 n=20)
-    AddVWext/100000                 184.9µ ± 0%   130.4µ ± 0%  -29.51% (p=0.000 n=20)
-    geomean                         155.5n        96.87n       -37.70%
+    For #50905
     
-    Change-Id: I824a90cb365e09d7d0d4a2c53ff4b30cf057a75e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659876
+    Change-Id: Ia3d4ca008be46fa5d41afadf29ca5cacb1c47660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/math/big/arith_loong64.s | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 21 +++++++++++++++++++++
+ src/net/http/server.go     |  1 +
+ 2 files changed, 22 insertions(+)

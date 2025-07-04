@@ -1,16 +1,13 @@
-commit aafc444b74ba2a4dc56e6d5d26f8242f0857856a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 21 17:01:39 2013 -0400
+commit 178d8d4f7ad1907cd9c0245b2ee4eacd5ae907df
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 21 13:51:49 2013 -0700
 
-    debug/elf: restore Go 1.0 semantics for (*File).Symbols
+    doc/go1.1.html: more TODOs done
+    Only the net stuff remains as significant work in the "minor changes" section.
     
-    Also adjust the implementation of applyRelocationsAMD64
-    so that the test added in CL 6848044 still passes.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, dave, elias.naur, rsc
     CC=golang-dev
-    https://golang.org/cl/7686049
+    https://golang.org/cl/7933044
 
- doc/go1.1.html            | 22 ----------------------
- src/pkg/debug/elf/file.go | 16 ++++++++++++++--
- 2 files changed, 14 insertions(+), 24 deletions(-)
+ doc/go1.1.html | 115 ++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 90 insertions(+), 25 deletions(-)

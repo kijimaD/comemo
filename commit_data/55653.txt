@@ -1,20 +1,22 @@
-commit 6c979d252287b245cc982374400fb968551272fb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 20 16:14:42 2024 -0800
+commit 6dd20f4f12771ce98a55f9735b05417465d0d31f
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 30 23:54:13 2023 -0500
 
-    go/types: generate typestring.go from types2 source
+    cmd/compile: preserve full inlined location for ir.Name locals
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 500 LOC.
+    This was noticed while testing hash-search debugging
+    of the loopvar experiment.
     
-    Change-Id: I643bea15203f7a916ef78b2738f125aa5b312eed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565438
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    The change is incomplete -- it only addresses local
+    variables, not parameters.  The code to log/search
+    changes in loop variable semantics depends on this,
+    so that will be the test.
+    
+    Change-Id: I0f84ab7696c6cab43486242cacaba6a0bfc45475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464315
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/typestring.go | 20 +++++++++++++-------
- src/go/types/generate_test.go                 |  1 +
- src/go/types/typestring.go                    | 23 ++++++++++++++---------
- 3 files changed, 28 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)

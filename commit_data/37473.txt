@@ -1,18 +1,50 @@
-commit cf2054088099ca90535f2baf6af02bb495a7439c
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 26 14:51:08 2018 +1100
+commit 25aaeaa935484e3c341ef8a411069d7dd58afcfa
+Author: Issac Trotts <issactrotts@google.com>
+Date:   Wed Aug 1 21:05:03 2018 -0700
 
-    doc: improve the interface example in Effective Go
+    cmd/go: no longer eval symlinks in inDir
     
-    The String method is n-squared and overwrites its receiver.
-    Fix both issues, with only a slight loss of clarity.
+    Evaluating the symlinks was slowing down test cache checks.
     
-    Fixes #28773
+    Fixes #26562
+    Fixes #26726
     
-    Change-Id: I588f69d4cbd72931b28b984671512834473bd466
-    Reviewed-on: https://go-review.googlesource.com/c/151217
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            ijt:~/gopath/src/issue26562$ cat foo_test.go
+            package foo_test
+    
+            import (
+                    "fmt"
+                    "os"
+                    "path/filepath"
+                    "testing"
+            )
+    
+            // package and imports snipped
+            func TestCache(t *testing.T) {
+                    tmp := os.TempDir()
+                    for i := 0; i < 1000000; i++ {
+                            os.Stat(filepath.Join(tmp, fmt.Sprintf("%d", i)))
+                    }
+            }
+            ijt:~/gopath/src/issue26562$ time ~/github/go/bin/go test -count=1
+            PASS
+            ok      issue26562      9.444s
+    
+            real    0m10.021s
+            user    0m2.344s
+            sys     0m7.835s
+            ijt:~/gopath/src/issue26562$ time ~/github/go/bin/go test .
+            ok      issue26562      (cached)
+    
+            real    0m0.802s
+            user    0m0.551s
+            sys     0m0.306s
+    
+    Change-Id: I3ce7f7b68bb5b9e802069f277e79e1ed3c162622
+    Reviewed-on: https://go-review.googlesource.com/127635
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/effective_go.html     | 7 +++++--
- doc/progs/eff_sequence.go | 9 ++++++++-
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/test/test.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

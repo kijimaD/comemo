@@ -1,18 +1,33 @@
-commit a6cb053026e468ddb06a03455df0cdfbe615ad18
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 8 21:49:28 2015 -0500
+commit 7a4a64e8f3dc14717695e53c7560992789f8bc9e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 10 14:20:17 2014 -0800
 
-    syscall: fix nacl builds
+    runtime: faster aeshash implementation
     
-    Please see golang.org/cl/2588 for reasons behind the name change.
-    We also need NO_LOCAL_POINTERS for assembly function with non-zero
-    local frame size.
+    The aesenc instruction has high latency.  For hashing large objects,
+    hash several streams in parallel.
     
-    Change-Id: Iac60aa7e76f4c2ece3726e28878fd539bfebf7a4
-    Reviewed-on: https://go-review.googlesource.com/2589
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkHash5                    7.02          7.45          +6.13%
+    BenchmarkHash16                   6.53          6.94          +6.28%
+    BenchmarkHash32                   8.38          8.26          -1.43%
+    BenchmarkHash64                   12.6          12.0          -4.76%
+    BenchmarkHash1024                 247           62.9          -74.53%
+    BenchmarkHash65536                17335         2966          -82.89%
+    BenchmarkHashInt32Speed           14.7          14.9          +1.36%
+    BenchmarkHashInt64Speed           14.6          14.9          +2.05%
+    BenchmarkHashBytesSpeed           35.4          28.6          -19.21%
+    BenchmarkHashStringSpeed          22.0          20.4          -7.27%
+    BenchmarkHashStringArraySpeed     65.8          56.3          -14.44%
+    
+    Change-Id: Ia8ba03063acc64a9066b8ab2d79f2c9aaac1770f
+    Reviewed-on: https://go-review.googlesource.com/1330
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/syscall/asm_nacl_386.s      | 3 ++-
- src/syscall/asm_nacl_amd64p32.s | 2 +-
- src/syscall/asm_nacl_arm.s      | 2 +-
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/8a/lex.c        |   3 +
+ src/cmd/8l/8.out.h      |   3 +
+ src/liblink/asm8.c      |  10 ++
+ src/runtime/alg.go      |   2 +-
+ src/runtime/asm_386.s   | 189 ++++++++++++++++++++++++++--------
+ src/runtime/asm_amd64.s | 269 ++++++++++++++++++++++++++++++++++++++++--------
+ 6 files changed, 390 insertions(+), 86 deletions(-)

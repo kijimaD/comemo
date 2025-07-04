@@ -1,0 +1,34 @@
+commit 851ebc2dca616754fa2bd6c48241e498bf306a50
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Oct 24 23:17:28 2024 +1100
+
+    cmd/internal/objfile,cmd/objdump: add disassembly support for riscv64
+    
+    Add support to `go tool objdump` for disassembling riscv64 binaries.
+    
+    Revendor to bring in cmd/vendor/golang.org/x/arch/riscv64/riscv64asm,
+    which provides the actual disassembly implementation.
+    
+    Fixes #36738
+    
+    Change-Id: I0f29968509041c0c5698fc2d6910a6a0bea9d3c0
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/objfile/disasm.go                 |   18 +-
+ src/cmd/internal/objfile/elf.go                    |    4 +
+ src/cmd/objdump/objdump_test.go                    |    2 -
+ .../golang.org/x/arch/riscv64/riscv64asm/arg.go    |  116 ++
+ .../x/arch/riscv64/riscv64asm/csr_string.go        |  577 ++++++++
+ .../golang.org/x/arch/riscv64/riscv64asm/decode.go |  550 ++++++++
+ .../golang.org/x/arch/riscv64/riscv64asm/gnu.go    |  328 +++++
+ .../golang.org/x/arch/riscv64/riscv64asm/inst.go   |  495 +++++++
+ .../golang.org/x/arch/riscv64/riscv64asm/plan9x.go |  377 +++++
+ .../golang.org/x/arch/riscv64/riscv64asm/tables.go | 1474 ++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |    1 +
+ 11 files changed, 3939 insertions(+), 3 deletions(-)

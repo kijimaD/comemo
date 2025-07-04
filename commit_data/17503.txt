@@ -1,19 +1,12 @@
-commit 5863b7d2ce6679ec94a801bad342a06254700e2a
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 9 13:29:08 2013 +1000
+commit b6866f1945dc385fe08ec77899659f81a5f0221a
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Mon Sep 9 09:36:39 2013 +1000
 
-    doc/go1.2.html: first cut
-    Lay out the doc and write text for the minor changes.
-    (I left the net ones for someone who understands them better,
-    or for someone to describe them to me better so I can write them.)
-    Much still to do.
-    
-    Delete go1.2.txt so there's only one thing to update.
+    misc/dist: Specify a version for the darwin package.
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13597044
+    https://golang.org/cl/13383045
 
- doc/go1.2.html | 577 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.2.txt  |  82 --------
- 2 files changed, 577 insertions(+), 82 deletions(-)
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

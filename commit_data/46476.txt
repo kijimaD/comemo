@@ -1,18 +1,23 @@
-commit 74e384f50d3071c97effa3afd43ec29111587d59
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Sep 15 12:37:20 2021 +0800
+commit a317067d65c2f9814cb05e573974d416949bace8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 2 23:24:16 2021 -0800
 
-    internal/poll: inject a hook into the runtime finalizer to count the closed pipes
+    [dev.regabi] cmd/compile: improve ascompatee
     
-    Fixes #48066
+    order.go has already ordered function calls, so ascompatee only needs
+    to worry about expressions that might access a variable after it's
+    already been re-assigned. It already handles this, so the safeExpr
+    calls simply result in unnecessarily pessimistic code.
     
-    Change-Id: Icd6974dfcc496c054bb096e5d70de6e135984517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349774
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Does not pass toolstash -cmp, because it allows more efficient code
+    generation. E.g., cmd/go on linux/ppc64le is about 2kB smaller.
+    
+    Change-Id: Idde0588eabe7850fa13c4e281fc46bbeffb4f68c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281152
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/poll/splice_linux_test.go | 60 ++++++++++++++++++++--------------
- 1 file changed, 35 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/walk/assign.go | 38 ++++++++-------------------------
+ 1 file changed, 9 insertions(+), 29 deletions(-)

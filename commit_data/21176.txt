@@ -1,18 +1,15 @@
-commit bc2601a1df6efc089cbb2acd51bd181aeaba12c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 30 22:39:48 2014 -0500
+commit 6ddc2cb80c45e21bb0dc4c5c9790cdb6c4164359
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Nov 25 03:15:11 2014 +1100
 
-    runtime: allocate wbshadow at high address
+    [dev.cc] runtime: convert dragonfly/386 port to Go
     
-    sysReserve doesn't actually reserve the full amount requested on
-    64-bit systems, because of problems with ulimit. Instead it checks
-    that it can get the first 64 kB and assumes it can grab the rest as
-    needed. This doesn't work well with the "let the kernel pick an address"
-    mode, so don't do that. Pick a high address instead.
-    
-    Change-Id: I4de143a0e6fdeb467fa6ecf63dcd0c1c1618a31c
-    Reviewed-on: https://go-review.googlesource.com/2345
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/178210043
 
- src/runtime/malloc1.go | 27 +++++++++++++++++++++++++--
- 1 file changed, 25 insertions(+), 2 deletions(-)
+ src/runtime/defs_dragonfly_386.go   | 80 ++++++++++++++++++++-----------------
+ src/runtime/signal_dragonfly_386.go | 34 ++++++++++++++++
+ src/runtime/signal_dragonfly_386.h  | 23 -----------
+ 3 files changed, 78 insertions(+), 59 deletions(-)

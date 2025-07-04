@@ -1,18 +1,20 @@
-commit 22dafc9bc5c8b339628a64c9f786491a60031005
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 14 11:20:21 2011 -0800
+commit 6890afd9a34646b20043d0dffe32cabd0f3ec51c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 14 11:14:10 2011 -0800
 
-    http: fix failing Transport HEAD request with gzip-looking response
+    strconv: slightly faster int conversion for GOARCH=386
     
-    We only want to attempt to un-gzip if there's a body (not in
-    response to a HEAD)
+    benchmark                           old ns/op    new ns/op    delta
+    strconv_test.BenchmarkFormatInt         12198        12031   -1.37%
+    strconv_test.BenchmarkAppendInt          9268         9153   -1.24%
+    strconv_test.BenchmarkFormatUint         3538         3429   -3.08%
+    strconv_test.BenchmarkAppendUint         3133         3062   -2.27%
     
-    This was accidentally passing before, but revealed to be broken
-    when c3c6e72d7cc went in.
+    No performance difference for GOARCH=amd64.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5477093
+    https://golang.org/cl/5488089
 
- src/pkg/net/http/transport.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/strconv/itoa.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

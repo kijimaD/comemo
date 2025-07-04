@@ -1,28 +1,30 @@
-commit 705f9848ef42da0ccb15849d69c5ba6687007a2e
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Fri Jul 26 15:16:24 2024 -0400
+commit 5b6e6d2b3d4d6877c86471209e249f1b6e36d0ca
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 6 13:02:29 2023 -0400
 
-    internal/trace: reduce event size by packing goroutine statuses
+    runtime: make GODEBUG=dontfreezetheworld=1 safer
     
-    The trace parser was using an otherwise-unused event argument to hold an
-    extra goroutine state argument for the GoStatus & GoStatusStack events.
-    This is needed because the execution tracer just records the "after" for
-    state transitions, but we want to have both the "before" and "after"
-    states available in the StateTransition info for the parsed event. When
-    GoStatusStack was added, the size of the argument array was increased to
-    still have room for the extra status. However, statuses are currently
-    only 1 byte, and the status argument is 8 bytes, so there is plenty of
-    room to pack the "before" and "after" statuses in a single argument. Do
-    that instead to avoid the need for an extra argument.
+    GODEBUG=dontfreezetheworld=1 allows goroutines to continue execution
+    during fatal panic. This increases the chance that tracebackothers will
+    encounter running goroutines that it must skip, which is expected and
+    fine. However, it also introduces the risk that a goroutine transitions
+    from stopped to running in the middle of traceback, which is unsafe and
+    may cause traceback crashes.
     
-    Change-Id: I6886eeb14fb8e5e046b6afcc5b19e04218bcacd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601455
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Mitigate this by halting M execution if it naturally enters the
+    scheduler. This ensures that goroutines cannot transition from stopped
+    to running after freezetheworld. We simply deadlock rather than using
+    gcstopm to continue keeping disturbance to scheduler state to a minimum.
+    
+    Change-Id: I9aa8d84abf038ae17142f34f4384e920b1490e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501255
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/trace/base.go  | 6 +-----
- src/internal/trace/event.go | 5 +++--
- src/internal/trace/order.go | 2 +-
- 3 files changed, 5 insertions(+), 8 deletions(-)
+ src/runtime/extern.go | 13 +++++++------
+ src/runtime/panic.go  |  3 ---
+ src/runtime/proc.go   | 41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 9 deletions(-)

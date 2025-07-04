@@ -1,14 +1,16 @@
-commit 5ee552815ceaa5874b73125df07265bee34d1cc1
-Author: Ryan Brown <ribrdb@google.com>
-Date:   Wed Apr 8 12:55:34 2015 -0700
+commit 45ccea71a17225237a4296190f89710c6e65b7f0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 27 23:46:56 2015 +0000
 
-    cmd/link/internal/ld: Skip combining dwarf for darwin/arm.
+    Revert "Revert "cmd/dist: consolidate runtime CPU tests""
     
-    Change-Id: I3a6df0a76d57db7cb6910f4179a6ce380f219a37
-    Reviewed-on: https://go-review.googlesource.com/10442
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    This reverts commit 81c2233b4abff45e9c781f5e7c50396cfec5a0df.
+    
+    Change-Id: Ie7024f04dba6352ae79ba68d4da5c0c25844cd8c
+    Reviewed-on: https://go-review.googlesource.com/9397
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 33 ++++++++++++++++++---------------
- 1 file changed, 18 insertions(+), 15 deletions(-)
+ src/cmd/dist/test.go | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)

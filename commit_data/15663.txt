@@ -1,15 +1,15 @@
-commit 4c40e5ae51a3a8ba76ffae04b394523e154fe1b7
+commit 85d83c2e51ae67a8f041e3949ffcaef17c7d9d59
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 10 16:32:00 2013 -0400
+Date:   Sun Mar 10 14:45:57 2013 -0400
 
-    cmd/ld: wrap long data lines in -a output
+    libmach: fix build
     
-    Also move symbol names onto lines by themselves: some are very long.
-    Show relocations.
+    I guess it would be too much to ask for gcc on my machine to give
+    the same errors as gcc on the builder machines.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7689043
+    https://golang.org/cl/7686044
 
- src/cmd/ld/data.c | 37 +++++++++++++++++++++++++++++++------
- 1 file changed, 31 insertions(+), 6 deletions(-)
+ src/libmach/executable.c | 4 ++++
+ 1 file changed, 4 insertions(+)

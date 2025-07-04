@@ -1,23 +1,17 @@
-commit 58fe2cd4022c77946ce4b598cf3e30ccc8367143
-Author: Jay Lee <BusyJayLee@gmail.com>
-Date:   Fri Sep 18 05:49:09 2020 +0000
+commit 7f02fa72aaa01fba1f66adcf2fa4414154a6d6fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 26 14:18:35 2020 -0500
 
-    time: support colon at start of TZ value
+    [dev.link] cmd/link: convert Peinit to use the loader
     
-    According to POSIX, there are three formats for TZ variable. When
-    it refers to timezone file, it should starts with a colon. This commit
-    removes the colon if it exists, so that it keeps compatible with both
-    the spec and the old behavior.
+    There is one use of sym.Symbol in Peinit, which is called from
+    linksetup, which is before loadlibfull. Convert this one.
     
-    Change-Id: I30cfeaea530d24e174de309952338cb1146694a5
-    GitHub-Last-Rev: 11d83d11ca2eca9d542036cf5e23559388fd323e
-    GitHub-Pull-Request: golang/go#27570
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/134217
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Iedb8b0e0c5c292bccf5c9bd5d092ee434a4ebdbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221177
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/time/zoneinfo_unix.go      | 27 ++++++++++---
- src/time/zoneinfo_unix_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 112 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

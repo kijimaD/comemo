@@ -1,14 +1,20 @@
-commit 0680c03ea49ae1ae0a797255f98f48ccf41a084f
-Author: cch123 <buaa.cch@gmail.com>
-Date:   Mon Jun 4 15:20:07 2018 +0000
+commit 1dbe4c50f2e722765240c8f2fc261eab83802f99
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Feb 21 22:27:12 2018 +0100
 
-    runtime: fix typo in the templateThread godoc
+    reflect: avoid calling common if type is known to be *rtype
     
-    Change-Id: Ie8d563d39b88ab1631bc150d7d5bdbf1aa400f76
-    GitHub-Last-Rev: d092c8c8eb886fd9abad9bdaed7330a6cbd7f9a4
-    GitHub-Pull-Request: golang/go#25716
-    Reviewed-on: https://go-review.googlesource.com/116115
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    If the type of Type is known to be *rtype than the common
+    function is a no-op and does not need to be called.
+    
+    name  old time/op  new time/op  delta
+    New   31.0ns ± 5%  30.2ns ± 4%  -2.74%  (p=0.008 n=20+20)
+    
+    Change-Id: I5d00346dbc782e34c530166d1ee0499b24068b51
+    Reviewed-on: https://go-review.googlesource.com/96115
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/value.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

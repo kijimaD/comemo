@@ -1,16 +1,12 @@
-commit 28cead8b6c342126d2c2277303ba0a8bde4e7bfe
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Fri Nov 18 12:42:30 2011 -0800
+commit 95474b6283d1f2568757ce71f7dace2c1ef7b12e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Nov 19 07:21:05 2011 +1100
 
-    codereview: gofmt check for non-src/ files
+    tag weekly.2011-11-18
     
-    Gives other projects the benefit of the gofmt presubmit.
-    Results in minor changes in the doc/ directory:
-            find doc -name \*.go -exec gofmt -d {} \;
-    
-    R=rsc, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5158042
+    https://golang.org/cl/5413052
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

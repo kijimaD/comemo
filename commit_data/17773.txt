@@ -1,14 +1,19 @@
-commit 649fc255a9c7b6e05249dbde1176aecd17135cc3
+commit c774e902083c677cffb9873e7d46346bcbf8cc21
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 9 13:52:29 2013 -0700
+Date:   Wed Oct 9 10:35:46 2013 -0700
 
-    net: fix TestDialFailPDLeak to work when GOMAXPROCS is large
+    cmd/go: add any .c/.cc files to the SWIG shared library
     
-    Fixes #6553.
+    Also add the action's object directory to the list of
+    directories we use to find SWIG shared libraries.
     
-    R=golang-dev, mikioh.mikioh
+    Fixes #6521.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14526048
+    https://golang.org/cl/14369043
 
- src/pkg/net/dial_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ misc/swig/callback/callback.cc | 15 +++++++++++++++
+ misc/swig/callback/callback.h  |  6 +-----
+ src/cmd/go/build.go            | 41 ++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 50 insertions(+), 12 deletions(-)

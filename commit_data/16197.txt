@@ -1,12 +1,18 @@
-commit db6ddff8429aab51987979a39277ffd6573863fa
+commit 12566a60d789077bcaeb699879695060cae6f8c4
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 18 14:48:54 2013 -0700
+Date:   Thu Apr 18 12:43:23 2013 -0700
 
-    doc: fix another broken link
+    doc: misc tweaks, new links, fix broken links
+    
+    I read docs and wrote a crawler + link checker on the plane,
+    which also checks for #fragments. I'll send that out later
+    when it's less gross.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8763045
+    https://golang.org/cl/8729050
 
- doc/articles/race_detector.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.1.html     | 21 +++++++++++++--------
+ doc/go1.html       | 10 +++++-----
+ doc/reference.html |  2 +-
+ 3 files changed, 19 insertions(+), 14 deletions(-)

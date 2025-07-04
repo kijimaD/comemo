@@ -1,34 +1,20 @@
-commit 18e17e2cb12837ea2c8582ecdb0cc780f49a1aac
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Sat Jun 3 11:51:02 2023 +1000
+commit 2af9ee072788e91332ab7c2baa0fb568fd1e8545
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Aug 26 11:28:48 2022 +0800
 
-    net: enable pure Go resolver for wasip1
+    runtime: convert dlogger.owned to atomic type
     
-    Top-level functions in the net package that only read files,
-    for example LookupPort(...), or LookupIP(host) where host resides
-    in /etc/hosts, now work on wasip1.
+    Note that this changes a non-atomic operation to atomic operation.
     
-    If the application has the ability to create sockets (for example,
-    when using a sockets extension to WASI preview 1), it's now
-    possible to do name resolution by passing a custom Dial function
-    to a Resolver instance.
+    For #53821
     
-    Change-Id: I923886f67e336820bc89f09ea1855387c8dac61a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500579
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I798914f505c8d7f85f9d7629fdc6493363a20aa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425782
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Randy Reddig <ydnar@shaderlab.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/cgo_stub.go       |  5 +++--
- src/net/conf.go           |  2 +-
- src/net/dnsclient_unix.go |  2 +-
- src/net/dnsconfig_unix.go |  2 +-
- src/net/lookup_fake.go    |  2 +-
- src/net/lookup_unix.go    |  2 +-
- src/net/net_fake.go       |  6 ------
- src/net/net_fake_js.go    | 11 ++++++++++-
- 8 files changed, 18 insertions(+), 14 deletions(-)
+ src/runtime/debuglog.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

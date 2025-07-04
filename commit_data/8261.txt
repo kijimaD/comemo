@@ -1,16 +1,17 @@
-commit 3e9a1d50db1427f21c70a2b187b5e9baf631f2a3
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Apr 28 14:16:41 2011 -0300
+commit 8133cb3565603ec58e7eea3a39f8bdddc39a5c9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 28 13:14:35 2011 -0400
 
-    syslog: fix skipping of net tests
+    gc: preserve original expression for errors
     
-    Also remove some left over copy & paste
-    in the test of reflect.Copy for arrays.
+    Fixes #1722.
     
-    R=golang-dev, rsc1
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4431074
+    https://golang.org/cl/4442099
 
- src/pkg/reflect/all_test.go   |  8 +-------
- src/pkg/syslog/syslog_test.go | 20 +++++++++++++++++---
- 2 files changed, 18 insertions(+), 10 deletions(-)
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/subr.c        |  2 ++
+ src/cmd/gc/typecheck.c   | 21 ++++++++++++++++-----
+ test/fixedbugs/bug337.go | 19 +++++++++++++++++++
+ 4 files changed, 38 insertions(+), 5 deletions(-)

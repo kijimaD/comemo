@@ -1,17 +1,19 @@
-commit 9a476028c0f109723026ff7880f14e306429128c
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Nov 5 09:55:44 2015 +1300
+commit d052bbd051a76dcfcbc0a0f471072166a9d07d20
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 1 17:09:00 2015 -0400
 
-    cmd/go, cmd/link: enable -buildmode=shared on linux/ppc64le
+    [dev.ssa] cmd/compile: cleanup fp conversions in ssa.go
     
-    Change-Id: Ifba76413b8aa78a221385bf505b92a3a5fbc3d24
-    Reviewed-on: https://go-review.googlesource.com/16713
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change to table-driven instead of branchy code; leads to
+    net reduction in lines, easier to understand what happens,
+    easier to modify code if we want option to exclude generation
+    of branchy cases.
+    
+    Doesn't appear to scale for 8x8 case of integer types.
+    
+    Change-Id: Ib40104b149d30bb329c5782f6cac45c75743e768
+    Reviewed-on: https://go-review.googlesource.com/14163
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/build.go                | 4 ++--
- src/cmd/link/internal/ld/lib.go    | 2 +-
- src/cmd/link/internal/ld/symtab.go | 2 +-
- src/cmd/link/internal/ppc64/obj.go | 6 +++++-
- 4 files changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 218 +++++++++++++++----------------------
+ 1 file changed, 89 insertions(+), 129 deletions(-)

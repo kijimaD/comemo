@@ -1,19 +1,30 @@
-commit aff4889089f970fb739acf5e3a5bddd3491a908b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 11 11:28:36 2016 -0700
+commit 44d3f89e99b954d88ab802212182a7c123ac774a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 22 21:25:40 2016 -0400
 
-    cmd/compile: clean up encoding of method expressions and add test
+    cmd/link, reflect: remove some method type data
     
-    Fixes #15646.
+    Remove reflect type information for unexported methods that do not
+    satisfy any interface in the program.
     
-    Change-Id: Ic13d1adc0a358149209195cdb03811eeee506fb8
-    Reviewed-on: https://go-review.googlesource.com/23052
+    Ideally the unexported method would not appear in the method list at
+    all, but that is tricky because the slice is built by the compiler.
+    
+    Reduces binary size:
+    
+            cmd/go: 81KB (0.8%)
+            jujud: 258KB (0.4%)
+    
+    For #6853.
+    
+    Change-Id: I25ef8df6907e9ac03b18689d584ea46e7d773043
+    Reviewed-on: https://go-review.googlesource.com/21033
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/bexport.go | 22 ++++++++++------------
- src/cmd/compile/internal/gc/bimport.go | 11 +++--------
- test/fixedbugs/issue15646.dir/a.go     | 23 +++++++++++++++++++++++
- test/fixedbugs/issue15646.dir/b.go     | 16 ++++++++++++++++
- test/fixedbugs/issue15646.go           |  9 +++++++++
- 5 files changed, 61 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 11 -----------
+ src/reflect/all_test.go              | 26 ++++++++++++++++++++++++++
+ src/reflect/type.go                  | 30 ++++++++++++++++--------------
+ 3 files changed, 42 insertions(+), 25 deletions(-)

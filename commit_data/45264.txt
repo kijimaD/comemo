@@ -1,20 +1,19 @@
-commit e5bc4f2a77e497f30dce08014bc6addd8a7d9982
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 20 21:07:23 2021 -0400
+commit c06a699fb69e17274905bc8d9942de4a4ab8b31b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Oct 16 22:39:51 2020 +0700
 
-    cmd/compile: reenable name preservation on copies in expand_calls
+    cmd/compile: remove deltaNewFile
     
-    This reverts CL 311829, and reenables CL 309330. The issue
-    should be fixed in the previous CL.
+    CL 196963 removed last usages of deltaNewFile, this CL remove it. While
+    at it, move the comment to go/internal/gcimporter.
     
-    Change-Id: I69db0565c72470a1814f135d8f8ec62c781bfc5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312094
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ieea47db405cf43744689f50b79be8ca710e21c85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263077
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 18 ++++++++----------
- test/live_regabi.go                          |  5 +----
- 2 files changed, 9 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 5 -----
+ src/go/internal/gcimporter/support.go  | 5 ++++-
+ 2 files changed, 4 insertions(+), 6 deletions(-)

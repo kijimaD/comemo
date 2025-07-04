@@ -1,21 +1,35 @@
-commit d5b0ec858b3760e93722c13958dea767ab8da34b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sat May 13 00:01:50 2017 -0400
+commit 263ba3ac7b9062e22f9dbbc6f11bfb760907de45
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 20 10:31:39 2017 -0700
 
-    {net,os/user,plugin}: eliminate unnecessary C round-trips
+    cmd/compile/internal/gc: make defframe arch-independent
     
-    We're making two extra round-trips to C to malloc and free strings
-    that originate in Go and don't escape. Skip those round-trips by
-    allocating null-terminated slices in Go memory instead.
+    The arch backends no longer depend on gc.Node.
     
-    Change-Id: I9e4c5ad999a7924ba50b82293c52073ec75518be
-    Reviewed-on: https://go-review.googlesource.com/56530
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Passes toolstash-check -all.
+    
+    Change-Id: Ic7e49ae0a3ed155a2761c25e17cc341b46333fb4
+    Reviewed-on: https://go-review.googlesource.com/41196
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/cgo_unix.go            | 20 +++++++++-----------
- src/os/user/cgo_lookup_unix.go | 12 ++++++------
- src/os/user/listgroups_unix.go |  9 ++++-----
- src/plugin/plugin_dlopen.go    | 33 +++++++++++++++++++--------------
- 4 files changed, 38 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go  |  2 +-
+ src/cmd/compile/internal/amd64/ggen.go    | 92 ++++++++-----------------------
+ src/cmd/compile/internal/arm/galign.go    |  2 +-
+ src/cmd/compile/internal/arm/ggen.go      | 55 ++----------------
+ src/cmd/compile/internal/arm64/galign.go  |  3 +-
+ src/cmd/compile/internal/arm64/ggen.go    | 61 +++-----------------
+ src/cmd/compile/internal/gc/go.go         |  5 +-
+ src/cmd/compile/internal/gc/ssa.go        | 56 ++++++++++++++++++-
+ src/cmd/compile/internal/mips/galign.go   |  2 +-
+ src/cmd/compile/internal/mips/ggen.go     | 55 +-----------------
+ src/cmd/compile/internal/mips64/galign.go |  2 +-
+ src/cmd/compile/internal/mips64/ggen.go   | 57 ++-----------------
+ src/cmd/compile/internal/ppc64/galign.go  |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go    | 57 ++-----------------
+ src/cmd/compile/internal/s390x/galign.go  |  2 +-
+ src/cmd/compile/internal/s390x/ggen.go    | 72 ++++--------------------
+ src/cmd/compile/internal/x86/galign.go    |  2 +-
+ src/cmd/compile/internal/x86/ggen.go      | 55 ++----------------
+ 18 files changed, 126 insertions(+), 456 deletions(-)

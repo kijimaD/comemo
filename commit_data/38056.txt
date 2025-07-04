@@ -1,21 +1,17 @@
-commit 576a3c61d9a0960565e068732c26f8fa96314f7a
-Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
-Date:   Wed Feb 13 19:18:25 2019 +0000
+commit eac99c44667a748f8b00f38c5f44beb41e1b4503
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Fri Sep 28 16:01:45 2018 +0200
 
-    crypto/x509: remove redundant check for nil in tests
+    doc: remove "known bug" about global variables in debug_info.
     
-    Comparing err variable to be not nil is redundant in this case.
-    The code above ensures that it is always not nil.
+    This hasn't been true at least since 1.4. Until golang.org/cl/137235
+    they were lumped together into a random compile unit, now they are
+    assigned to the correct one.
     
-    Updates #30208
-    
-    Change-Id: I0a41601273de36a05d22270a743c0bdedeb1d0bf
-    GitHub-Last-Rev: 372e0fd48f90f33e266fbcdf2ccf87b9f1311c4f
-    GitHub-Pull-Request: golang/go#30213
-    Reviewed-on: https://go-review.googlesource.com/c/162439
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib66539bd67af3e9daeecac8bf5f32c10e62e11b1
+    Reviewed-on: https://go-review.googlesource.com/138415
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/x509/name_constraints_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ doc/debugging_with_gdb.html | 1 -
+ 1 file changed, 1 deletion(-)

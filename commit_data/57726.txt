@@ -1,19 +1,24 @@
-commit ad7f736d8f51ea03166b698256385c869968ae3e
-Author: David Chase <drchase@google.com>
-Date:   Mon Oct 14 13:28:28 2024 -0400
+commit 611c3af30d5c7d17c8da3712cd23152c7f0f52ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 17:21:58 2023 -0700
 
-    cmd/compile: discount calls to closure variables
+    cmd/compile/internal/ir: mark Addrtaken in NewAddrExpr
     
-    This causes more inlining for rangefunc code.
-    The PAUTOHEAP case catches closure-passed-as-param
-    to function that returns a closure, that calls the
-    outer PPARAM.
+    This CL changes NewAddrExpr to require its operand to always be
+    typechecked, so it can return an appropriately typechecked node and
+    mark Addrtaken as appropriate in the process.
     
-    Change-Id: I927cf2e1924ed2191e0ad8be9a1f2e793b6f2b38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620220
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I97c1f29305a9abfda35c42a43561c4c15fb5b52e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522879
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go             | 11 -----
+ src/cmd/compile/internal/ir/expr.go             | 19 ++++++++-
+ src/cmd/compile/internal/typecheck/expr.go      | 32 --------------
+ src/cmd/compile/internal/typecheck/subr.go      | 56 +------------------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 --
+ 5 files changed, 19 insertions(+), 103 deletions(-)

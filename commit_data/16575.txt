@@ -1,16 +1,12 @@
-commit 4bb491b12e1461252c9375d6b796c8658b10965f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jun 15 16:06:28 2013 +0400
+commit 8f6341d9eead70b2fa010a49f92e170682980d01
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Fri Jun 14 12:37:23 2013 -0700
 
-    runtime: improve scheduler fairness
-    Currently global runqueue is starved if a group of goroutines
-    constantly respawn each other (local runqueue never becomes empty).
-    Fixes #5639.
+    cmd/godoc: don't link unexported identifiers
     
-    R=golang-dev, iant
+    R=golang-dev, gri, gri
     CC=golang-dev
-    https://golang.org/cl/10042044
+    https://golang.org/cl/9722045
 
- src/pkg/runtime/proc.c       | 31 ++++++++++++++++++++-------
- src/pkg/runtime/proc_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 7 deletions(-)
+ src/cmd/godoc/linkify.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

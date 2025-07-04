@@ -1,15 +1,22 @@
-commit 8a44c8efaefbbda6dd7ab4ee9a5e449fefbf5e1a
+commit 526b2f85ce8e4b1b16f3122e0a5700c04b6de199
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Mar 14 18:21:23 2017 -0400
+Date:   Mon Nov 21 18:23:12 2016 -0500
 
-    cmd/compile: don't spill rematerializeable value when resolving merge edges
+    runtime/internal/atomic: crash on unaligned 64-bit ops on 32-bit MIPS
     
-    Fixes #19515.
+    This check was originally implemented by Vladimir in
+    https://go-review.googlesource.com/c/31489/1/src/runtime/internal/atomic/atomic_mipsx.go#30
+    but removed due to my comment (Sorry!). This CL adds it back.
     
-    Change-Id: I4bcce152cef52d00fbb5ab4daf72a6e742bae27c
-    Reviewed-on: https://go-review.googlesource.com/38158
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #17786.
+    
+    Change-Id: I7ff4c2539fc9e2afd8199964b587a8ccf093b896
+    Reviewed-on: https://go-review.googlesource.com/33431
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 11 ++++---
- test/fixedbugs/issue19515.go             | 51 ++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 4 deletions(-)
+ src/runtime/internal/atomic/atomic_mipsx.go | 6 +++++-
+ src/runtime/internal/atomic/atomic_test.go  | 4 ++--
+ src/sync/atomic/atomic_test.go              | 4 ++--
+ 3 files changed, 9 insertions(+), 5 deletions(-)

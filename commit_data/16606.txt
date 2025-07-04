@@ -1,13 +1,13 @@
-commit ffde4970d06fd0b03a3e06893ae916894f2cce8f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 20 14:49:15 2013 -0700
+commit 3e710c0ba5da11da873c44bd9ca29786aefd1363
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 20 11:50:44 2013 -0700
 
-    doc: update gccgo docs
+    all: fix shadowing bugs found by go tool vet -shadow
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10401046
+    https://golang.org/cl/10328044
 
- doc/gccgo_contribute.html |  4 ++++
- doc/gccgo_install.html    | 54 +++++++++++++++++++++++++++++------------------
- 2 files changed, 38 insertions(+), 20 deletions(-)
+ src/pkg/net/http/transport_test.go | 5 +++--
+ src/pkg/os/file_unix.go            | 3 ++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

@@ -1,12 +1,14 @@
-commit deff22dd881319e76604179b5b290fac18d5362f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 1 19:44:03 2015 -0500
+commit 01fe1492712d53a9f0c47041736b6162a6ffa517
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 6 14:54:28 2015 +0900
 
-    build: add bootstrap.bash for bootstrapping new systems
+    syscall: gofmt
     
-    Change-Id: Ic74830608fe077b4e97e8ce8009017c1e273c672
-    Reviewed-on: https://go-review.googlesource.com/6408
-    Reviewed-by: Rob Pike <r@golang.org>
+    And the silence of the git-codereview.
+    
+    Change-Id: If3f7fe2de2ab4c1756f3cef8267199049d468b31
+    Reviewed-on: https://go-review.googlesource.com/3983
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/bootstrap.bash | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
+ src/syscall/syscall_darwin_arm.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,36 +1,25 @@
-commit ec4e8517cd17aaa2c4224815444e7d28c81ec673
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Jun 17 01:15:53 2019 +0700
+commit 131eb8fbf80fd8b51ae8b5c5220d566582a41e71
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 1 14:01:58 2019 -0700
 
-    cmd/compile: support more length types for slice extension optimization
+    cmd/compile: trim more unnecessary escape analysis messages
     
-    golang.org/cl/109517 optimized the compiler to avoid the allocation for make in
-    append(x, make([]T, y)...). This was only implemented for the case that y has type int.
+    "leaking closure reference" is redundant for similar reasons as "&x
+    escapes to heap" for OADDR nodes: the reference itself does not
+    allocate, and we already report when the referenced variable is moved
+    to heap.
     
-    This change extends the optimization to trigger for all integer types where the value
-    is known at compile time to fit into an int.
+    "mark escaped content" is redundant with "leaking param content".
     
-    name             old time/op    new time/op    delta
-    ExtendInt-12        106ns ± 4%     106ns ± 0%      ~     (p=0.351 n=10+6)
-    ExtendUint64-12    1.03µs ± 5%    0.10µs ± 4%   -90.01%  (p=0.000 n=9+10)
+    Updates #23109.
     
-    name             old alloc/op   new alloc/op   delta
-    ExtendInt-12        0.00B          0.00B           ~     (all equal)
-    ExtendUint64-12    13.6kB ± 0%     0.0kB       -100.00%  (p=0.000 n=10+10)
-    
-    name             old allocs/op  new allocs/op  delta
-    ExtendInt-12         0.00           0.00           ~     (all equal)
-    ExtendUint64-12      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    
-    Updates #29785
-    
-    Change-Id: Ief7760097c285abd591712da98c5b02bc3961fcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182559
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1ab599cb1e8434f1918dd80596a70cba7dc8a0cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170321
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 19 +++++++++--------
- test/codegen/slices.go              | 42 +++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue4085b.go        | 37 ++++++++++++++++++++++++++------
- 3 files changed, 83 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  8 --------
+ test/escape2.go                    | 24 ++++++++++++------------
+ test/escape2n.go                   | 24 ++++++++++++------------
+ test/escape_array.go               |  8 ++++----
+ 4 files changed, 28 insertions(+), 36 deletions(-)

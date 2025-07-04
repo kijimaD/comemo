@@ -1,14 +1,12 @@
-commit e806565626019c1e9fad60014a337d0568cd29ae
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 15 08:13:52 2011 -0700
+commit db7a2024f93e45848d2b204fecabe830b5079445
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 10:34:55 2011 -0400
 
-    http: reverse proxy handler
+    gc: printing of multiple assignment
     
-    R=rsc, petar-m
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4428041
+    https://golang.org/cl/4429043
 
- src/pkg/http/Makefile             |   1 +
- src/pkg/http/reverseproxy.go      | 100 ++++++++++++++++++++++++++++++++++++++
- src/pkg/http/reverseproxy_test.go |  50 +++++++++++++++++++
- 3 files changed, 151 insertions(+)
+ src/cmd/gc/print.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

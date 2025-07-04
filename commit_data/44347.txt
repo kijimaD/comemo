@@ -1,25 +1,28 @@
-commit 4048491234203e1ee803d489d11a02c90b14596a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 17 11:36:58 2021 +0700
+commit d286e61b6787fe2b55bf0ec8a814962ebda8d202
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 15 16:20:53 2020 -0400
 
-    cmd/compile,runtime: make selectnbrecv return two values
+    runtime: set g to gsignal before adjustSignalStack
     
-    The only different between selectnbrecv and selectnbrecv2 is the later
-    set the input pointer value by second return value from chanrecv.
+    When a signal is received, the runtime probes whether an
+    alternate signal stack is set, if so, adjust gsignal's stack to
+    point to the alternate signal stack. This is done in
+    adjustSignalStack, which calls sigaltstack "syscall", which is a
+    libc call on darwin through asmcgocall. asmcgocall decides
+    whether to do stack switch based on whether we're running on g0
+    stack, gsignal stack, or regular g stack. If g is not set to
+    gsignal, asmcgocall may make wrong decision. Set g first.
+    adjustSignalStack is recursively nosplit, so it is okay that
+    temporarily gsignal.stack doesn't match the stack we're running
+    on.
     
-    So by making selectnbrecv return two values from chanrecv, we can get
-    rid of selectnbrecv2, the compiler can now call only selectnbrecv and
-    generate simpler code.
+    May fix #39079.
     
-    Change-Id: Ifaf6cf1314c4f47b06ed9606b1578319be808507
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292890
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I59b2c5dc08c3c951f1098fff038bf2e06d7ca055
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238020
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/typecheck/builtin.go      |  2 +-
- .../compile/internal/typecheck/builtin/runtime.go  |  2 +-
- src/cmd/compile/internal/walk/select.go            | 20 ++++++---------
- src/runtime/chan.go                                | 30 +++-------------------
- 4 files changed, 13 insertions(+), 41 deletions(-)
+ src/runtime/signal_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

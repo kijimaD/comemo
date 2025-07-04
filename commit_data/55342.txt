@@ -1,19 +1,24 @@
-commit 6db1102605f227093ea95538f0fe9e46022ad7ea
-Author: John Howard <howardjohn@google.com>
-Date:   Tue Dec 19 09:35:32 2023 -0800
+commit 6ab721dfd6bda7ec21e923c76e71abc1005e8d29
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:48:57 2023 -0800
 
-    pagetrace: fix build when experiment is on
+    misc/wasm: use NodeJS performance library
     
-    due to a recent change, this experiment does not compile at all. This
-    simply fixes to pass in the new required parameter.
+    The upgrade to NodeJS 18 introduces various library
+    updates that mean we can no longer override the global
+    performance package. Instead, rely on the performance
+    library provided by the NodeJS runtime.
     
-    Change-Id: Idce0e72fa436a7acf4923717913deb3a37847fe2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551415
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #57516
+    
+    Change-Id: Ic8ed902c696ad154f676e0b74b42efb84f02f8db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463234
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/pagetrace_on.go | 2 +-
- src/runtime/runtime2.go     | 2 ++
- src/runtime/trace2status.go | 1 +
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ misc/wasm/wasm_exec_node.js | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

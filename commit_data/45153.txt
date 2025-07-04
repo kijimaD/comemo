@@ -1,30 +1,26 @@
-commit bf634c76b28a4a857c9d2a039c53982ffbdcceb7
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Apr 14 14:54:14 2021 -0700
+commit ade5161f51f2b7239705047875dc36c35139b253
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 6 21:13:16 2020 -0400
 
-    cmd/compile: look for function in instantiations in all global assignments
+    crypto/x509: use macOS/AMD64 implementation on macOS/ARM64
     
-    Add in some missing global assignment ops to the list of globals ops
-    that should be traversed to look for generic function instantiations.
-    The most common other one for global assigments (and the relevant one
-    for this bug) is OAS2FUNC, but also look at global assigments with
-    OAS2DOTTYPE, OAS2MAPR, OAS2RECV, and OASOP.
+    Updates #38485.
     
-    Bonus small fix: get rid of -G=3 case in ir.IsAddressable. Now that we
-    don't call the old typechecker from noder2, we don't need this -G-3
-    check anymore.
-    
-    Fixes #45547.
-    
-    Change-Id: I75fecec55ea0d6f62e1c2294d4d77447ed9be6ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310210
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I0582a53171ce803ca1b0237cfa9bc022fc1da6f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260340
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ir/expr.go       |  7 -------
- src/cmd/compile/internal/noder/stencil.go | 10 +++++++---
- test/typeparam/issue45547.go              | 20 ++++++++++++++++++++
- 3 files changed, 27 insertions(+), 10 deletions(-)
+ src/crypto/x509/internal/macos/corefoundation.go     |  2 +-
+ src/crypto/x509/internal/macos/corefoundation.s      |  2 +-
+ src/crypto/x509/internal/macos/security.go           |  2 +-
+ src/crypto/x509/internal/macos/security.s            |  2 +-
+ src/crypto/x509/root.go                              |  2 +-
+ .../{root_cgo_darwin_amd64.go => root_cgo_darwin.go} |  0
+ .../x509/{root_darwin_amd64.go => root_darwin.go}    |  0
+ src/crypto/x509/{root_darwin_iosx.go => root_ios.go} |  4 ++--
+ .../x509/{root_darwin_ios_gen.go => root_ios_gen.go} | 11 ++++-------
+ src/runtime/sys_darwin_arm64.s                       | 20 ++++++++++++++++++++
+ 10 files changed, 31 insertions(+), 14 deletions(-)

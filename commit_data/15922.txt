@@ -1,13 +1,14 @@
-commit 77e7e4c329f44353d6d11eb0adee2d83437ce5ea
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 25 08:20:22 2013 +0100
+commit 2f2f9fef90d8397e666eed45b312d055099cb218
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 25 13:25:28 2013 +0900
 
-    cmd/cc, cmd/ld: do not overflow strings in symbol lookup.
+    net: disable tests with controlling network facilities in short mode
     
-    R=golang-dev, dave, minux.ma
+    Perhaps it would make FreeBSD 10-CURRENT/ARM on Raspberry Pi builders happy.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7876044
+    https://golang.org/cl/8008043
 
- src/cmd/cc/lexbody | 2 +-
- src/cmd/ld/lib.c   | 5 ++---
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/net/interface_unix_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

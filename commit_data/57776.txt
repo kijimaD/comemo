@@ -1,16 +1,19 @@
-commit 46b576be724b6e64359fd872b9bd5109aba93cc0
-Author: Ruslan Semagin <pixel.365.24@gmail.com>
-Date:   Fri Oct 25 11:24:04 2024 +0300
+commit 22eba6a1f8421425c87fa82dcd526d39912f5af6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 29 12:50:40 2023 -0700
 
-    net/http/pprof: replace sort.Slice with slices.SortFunc
+    cmd/compile/internal/ir: remove old variable capture logic
     
-    Change-Id: Ie416ed0d7abcb64e63d999b8cee5975a0fc13875
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622496
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This logic is no longer used, since the removal of the non-unified
+    frontends.
+    
+    Change-Id: I7256d4eb06f0b4e5308bc7c7476e90af9e70b7d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524215
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/pprof/pprof.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ir/name.go        | 150 +----------------------------
+ src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
+ 2 files changed, 5 insertions(+), 147 deletions(-)

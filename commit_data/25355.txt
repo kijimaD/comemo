@@ -1,12 +1,12 @@
-commit 90a68935733ef37d41cb520ffeb56f196a356811
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Dec 17 18:07:01 2015 -0700
+commit 1948aef6e3d1935cb4cfdf4a52f6c278cbbe2a8b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Oct 21 17:04:49 2015 -0400
 
-    doc: fix typo in go1.6.html
+    runtime: fix typos
     
-    Change-Id: I7405cf6f65bccbb07a27f2dc2e3802cab591e296
-    Reviewed-on: https://go-review.googlesource.com/18030
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iffc25fc80452baf090bf8ef15ab798cfaa120b8e
+    Reviewed-on: https://go-review.googlesource.com/16154
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.6.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/msan0.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

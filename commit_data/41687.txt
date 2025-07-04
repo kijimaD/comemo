@@ -1,19 +1,33 @@
-commit b816cb2cd5f1b7cee660c6e4b85d8130b960752a
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Mar 18 14:59:44 2020 -0400
+commit 33425ab8dbb03c355b2263b8250a1829e260d66f
+Author: smasher164 <aindurti@gmail.com>
+Date:   Wed Aug 29 20:57:33 2018 -0400
 
-    cmd/go: update 'go help modules' for automatic vendoring
+    cmd/compile: introduce generic ssa intrinsic for fused-multiply-add
     
-    * Mention vendor/modules.txt verification with -mod=vendor.
-    * Update "Modules and vendoring" section.
+    In order to make math.FMA a compiler intrinsic for ISAs like ARM64,
+    PPC64[le], and S390X, a generic 3-argument opcode "Fma" is provided and
+    rewritten as
     
-    Fixes #37930
+        ARM64: (Fma x y z) -> (FMADDD z x y)
+        PPC64: (Fma x y z) -> (FMADD x y z)
+        S390X: (Fma x y z) -> (FMADD z x y)
     
-    Change-Id: Ia3ee72457daabaa2fc15b7ea7427eb324c088b8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223926
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Updates #25819.
+    
+    Change-Id: Ie5bc628311e6feeb28ddf9adaa6e702c8c291efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/131959
+    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go               | 52 +++++++++++++++++++++++--------------
- src/cmd/go/internal/modload/help.go | 52 +++++++++++++++++++++++--------------
- 2 files changed, 66 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  5 +++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/opGen.go          |  6 ++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 17 +++++++++++++++++
+ test/codegen/math.go                           |  8 ++++++++
+ 10 files changed, 87 insertions(+)

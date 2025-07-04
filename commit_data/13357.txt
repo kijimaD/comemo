@@ -1,13 +1,14 @@
-commit f34748908fcfffb510b644dabd8b4480968233a4
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jun 18 11:08:31 2012 -0400
+commit 18b281978c0dba02d3312d9fbee03f711f0b26c9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jun 16 02:24:44 2012 +0800
 
-    A+C: Christine Hansmann (individual CLA)
+    doc: delete Mercurial Queues doc
+            Fixes #3716.
     
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6312045
+    https://golang.org/cl/6310044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/codereview_with_mq.html | 115 --------------------------------------------
+ doc/contribute.html         |   5 --
+ 2 files changed, 120 deletions(-)

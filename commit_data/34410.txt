@@ -1,34 +1,30 @@
-commit c9438cb198c420648743108b6495aa4c7775f453
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Tue Feb 27 01:59:58 2018 +0100
+commit 187957d37056592203fd758ae0245a28f4518122
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 17 13:57:34 2017 -0700
 
-    test: add support for code generation tests (asmcheck)
+    os: add deadline methods for File type
     
-    The top-level test harness is modified to support a new kind
-    of test: "asmcheck". This is meant to replace asm_test.go
-    as an easier and more readable way to test code generation.
+    Add SetDeadline, SetReadDeadline, and SetWriteDeadline methods to os.File,
+    just as they exist today for the net package.
     
-    I've added a couple of codegen tests to get initial feedback
-    on the syntax. I've created them under a common "codegen"
-    subdirectory, so that it's easier to run them all with
-    "go run run.go -v codegen".
+    Fixes #22114
     
-    The asmcheck syntax allows to insert line comments that
-    can specify a regular expression to match in the assembly code,
-    for multiple architectures (the testsuite will automatically
-    build each testfile multiple times, one per mentioned architecture).
-    
-    Negative matches are unsupported for now, so this cannot fully
-    replace asm_test yet.
-    
-    Change-Id: Ifdbba389f01d55e63e73c99e5f5449e642101d55
-    Reviewed-on: https://go-review.googlesource.com/97355
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I4d390d739169b991175baba676010897dc8568fa
+    Reviewed-on: https://go-review.googlesource.com/71770
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- test/codegen/bits.go   |  10 ++++
- test/codegen/rotate.go |  25 ++++++++++
- test/run.go            | 126 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 160 insertions(+), 1 deletion(-)
+ src/internal/poll/fd.go              |   4 +
+ src/internal/poll/fd_poll_runtime.go |   2 +-
+ src/os/error.go                      |  25 ++
+ src/os/file.go                       |  45 +++
+ src/os/file_plan9.go                 |  25 ++
+ src/os/file_posix.go                 |  24 ++
+ src/os/file_unix.go                  |  25 +-
+ src/os/pipe_bsd.go                   |   2 +-
+ src/os/pipe_freebsd.go               |   2 +-
+ src/os/pipe_linux.go                 |   2 +-
+ src/os/timeout_test.go               | 589 +++++++++++++++++++++++++++++++++++
+ 11 files changed, 734 insertions(+), 11 deletions(-)

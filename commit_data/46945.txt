@@ -1,26 +1,41 @@
-commit 3a07ab70a2d63e3ac1fc126529dde29852a972f5
+commit 099374b55e8aed17d1e77a1084f8fb78ff2f8162
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 18 17:17:08 2021 -0700
+Date:   Wed Feb 17 17:56:34 2021 -0800
 
-    cmd/compile/internal/types2: add support for inferring type instances
+    [dev.typeparams] cmd/compile/internal/types2: remove Type.Under method in favor of function
     
-    This is an essentially clean port of CL 356489 from go/types to types2,
-    with minor adjustments due to the different AST packages and error
-    reporting.
+    This removes the need for the aType embedded type and brings the types2.Type
+    API in sync with the go/types.Type API.
     
-    Fixes #47990.
+    For reasons not fully understood yet, introducing the new under function
+    causes a very long initialization cycle error, which doesn't exist in
+    go/types. For now, circumvent the problem through a helper function variable.
     
-    Change-Id: I52187872474bfc1fb49eb77905f22fc820b7295b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356514
-    Trust: Robert Griesemer <gri@golang.org>
+    This CL also eliminates superflous (former) Under() method calls
+    inside optype calls (optype takes care of this).
+    
+    Plus some minor misc. cleanups and comment adjustments.
+    
+    Change-Id: I86e13ccf6f0b34d7496240ace61a1c84856b6033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293470
     Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/call.go            | 32 ++++++++-
- src/cmd/compile/internal/types2/instantiate.go     | 49 -------------
- src/cmd/compile/internal/types2/named.go           |  3 +-
- .../check/{tinference.go2 => funcinference.go2}    | 29 ++++----
- .../types2/testdata/check/typeinference.go2        | 47 +++++++++++++
- .../internal/types2/testdata/check/typeinst2.go2   |  4 ++
- .../types2/testdata/check/typeinstcycles.go2       | 11 +++
- src/cmd/compile/internal/types2/typexpr.go         | 80 +++++++++++++++++++---
- 8 files changed, 177 insertions(+), 78 deletions(-)
+ src/cmd/compile/internal/importer/support.go   |   1 -
+ src/cmd/compile/internal/types2/builtins.go    |   8 +-
+ src/cmd/compile/internal/types2/conversions.go |   8 +-
+ src/cmd/compile/internal/types2/decl.go        |  12 +--
+ src/cmd/compile/internal/types2/expr.go        |  14 ++--
+ src/cmd/compile/internal/types2/infer.go       |   4 +-
+ src/cmd/compile/internal/types2/lookup.go      |   2 +-
+ src/cmd/compile/internal/types2/object.go      |   2 +-
+ src/cmd/compile/internal/types2/operand.go     |   4 +-
+ src/cmd/compile/internal/types2/predicates.go  |   8 +-
+ src/cmd/compile/internal/types2/sizes.go       |   4 +-
+ src/cmd/compile/internal/types2/stmt.go        |   6 +-
+ src/cmd/compile/internal/types2/subst.go       |   6 +-
+ src/cmd/compile/internal/types2/type.go        | 108 ++++++++-----------------
+ src/cmd/compile/internal/types2/typexpr.go     |  12 +--
+ src/cmd/compile/internal/types2/unify.go       |   4 +-
+ src/cmd/compile/internal/types2/universe.go    |  60 +++++++-------
+ 17 files changed, 113 insertions(+), 150 deletions(-)

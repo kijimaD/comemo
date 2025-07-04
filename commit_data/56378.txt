@@ -1,19 +1,25 @@
-commit 9c4849bf20e0f9d4c878318bd358b0911a9fb122
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 6 09:05:24 2024 -0400
+commit 767fbe01aeb32d8fe72bb40fa0cc144a7263045b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 3 14:53:03 2023 -0700
 
-    math/rand/v2: add Uint
+    cmd/compile: fix compilation of inferred type arguments
     
-    Uint was part of the approved proposal but was inadvertently left
-    out of Go 1.22. Add for Go 1.23.
+    Previously, type arguments could only be inferred for generic
+    functions in call expressions, whereas with the reverse type inference
+    proposal they can now be inferred in assignment contexts too. As a
+    consequence, we now need to check Info.Instances to find the inferred
+    type for more cases now.
     
-    Change-Id: Ifaf24447bd70c8524c2fd299eefdf4aa29e49e66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583455
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #59338.
+    Fixes #59955.
+    
+    Change-Id: I9b6465395869459c2387d0424febe7337b28b90e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492455
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- api/next/61716.txt                               |  2 ++
- doc/next/6-stdlib/99-minor/math/rand/v2/61716.md |  2 ++
- src/math/rand/v2/rand.go                         |  6 +++++
- src/math/rand/v2/regress_test.go                 | 29 +++++++++++++++++++++++-
- 4 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/writer.go | 15 +++++++++++++--
+ test/fixedbugs/issue59338.go             | 16 +++++++---------
+ 2 files changed, 20 insertions(+), 11 deletions(-)

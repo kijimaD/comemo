@@ -1,14 +1,14 @@
-commit 2ebf0de27c8f12517323d8fd57ac99d213259681
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Jan 18 08:28:09 2012 +1100
+commit 4985ee3dcb76bd0f9d8aba800e97ba29b535997f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 13:24:59 2012 -0800
 
-    net/http: change test to use override param instead of chan.
+    text/template: fix nil error on redefinition
+    Fixes #2720.
     
-    Follow-on from https://golang.org/cl/5543062.
-    
-    R=bradfitz, dvyukov
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5539071
+    https://golang.org/cl/5545072
 
- src/pkg/net/http/fs_test.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/pkg/text/template/multi_test.go | 15 +++++++++++++++
+ src/pkg/text/template/template.go   |  2 +-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

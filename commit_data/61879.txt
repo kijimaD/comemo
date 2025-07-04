@@ -1,0 +1,20 @@
+commit 6705ac688528b5a9ef7ec94ba04ab1f65f048a75
+Author: Paul Cacheux <paul.cacheux@datadoghq.com>
+Date:   Sun Dec 8 21:45:48 2024 +0100
+
+    runtime: remove datadog-agent from prof labels hall of shame
+    
+    github.com/DataDog/datadog-agent has stopped using runtime_setProfLabel
+    and runtime_getProfLabel, remove them from the hall of shame.
+    
+    Updates #67401
+    
+    Change-Id: I4a66c5e70397d43d7f064aeae5bad064e168316f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634476
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/proflabel.go | 2 --
+ 1 file changed, 2 deletions(-)

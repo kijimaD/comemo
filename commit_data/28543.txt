@@ -1,16 +1,16 @@
-commit aaf4099a5cabfee52b1c481f2a30ee0dd02ef247
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 23 11:47:24 2016 -0400
+commit 17f7461ed66bbc66fef02ef7ca6901d116b6ff3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 1 21:09:58 2016 -0700
 
-    runtime: update malloc.go documentation
+    doc/go1.7.html: fix spelling of cancelation
     
-    The big documentation comment at the top of malloc.go has gotten
-    woefully out of date. Update it.
+    We say "cancelation," not "cancellation."
     
-    Change-Id: Ibdb1bdcfdd707a6dc9db79d0633a36a28882301b
-    Reviewed-on: https://go-review.googlesource.com/29731
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #15928.
+    
+    Change-Id: I66d545404665948a27281133cb9050eebf1debbb
+    Reviewed-on: https://go-review.googlesource.com/23673
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go | 93 ++++++++++++++++++++++++++-------------------------
- 1 file changed, 47 insertions(+), 46 deletions(-)
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

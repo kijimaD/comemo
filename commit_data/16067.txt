@@ -1,23 +1,14 @@
-commit 2ba6ecb3e2bec6b30667c1969772d7e5063f384b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 3 07:41:26 2013 -0700
+commit 949ae8cced70fdd06cdd220e1e06467bb332d91c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 3 19:13:37 2013 +1100
 
-    go/parser: ParseExpr must accept type expressions
+    go/build: disable cgo when cross compiling
     
-    My old code was trying to be too smart.
-    Also: Slightly better error message format
-    for gofmt -r pattern errors.
+    Fixes #5141.
     
-    Fixes #4406.
-    
-    R=golang-dev, adg
+    R=golang-dev, minux.ma, ality, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8267045
+    https://golang.org/cl/8134043
 
- src/cmd/gofmt/gofmt_test.go            |  1 +
- src/cmd/gofmt/rewrite.go               |  4 ++--
- src/cmd/gofmt/testdata/rewrite8.golden | 10 ++++++++++
- src/cmd/gofmt/testdata/rewrite8.input  | 10 ++++++++++
- src/pkg/go/parser/interface.go         | 29 ++++++++++++++++++++---------
- src/pkg/go/parser/parser_test.go       | 13 ++++++++++++-
- 6 files changed, 55 insertions(+), 12 deletions(-)
+ src/pkg/go/build/build.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

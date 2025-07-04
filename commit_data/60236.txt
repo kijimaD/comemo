@@ -1,0 +1,18 @@
+commit 5bf8c0cf09ee5c7e5a37ab90afcce154ab716a97
+Author: Daman Arora <aroradaman@gmail.com>
+Date:   Thu May 30 19:37:37 2024 +0000
+
+    internal/poll: update WaitWrite comment
+    
+    Change-Id: Id2999d95f344b3e30d98682aac5da630d808ce2d
+    GitHub-Last-Rev: 69c207f51c63349ee1cf34f0b96bcd03a1e33e2c
+    GitHub-Pull-Request: golang/go#67732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589396
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/poll/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

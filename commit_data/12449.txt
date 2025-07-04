@@ -1,17 +1,18 @@
-commit fc98f28204899df74d0857fd569ba41447b9918c
+commit 7c7966a4260b9f6c7c8e13586a04ec23f433670a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 6 23:38:54 2012 -0500
+Date:   Tue Mar 6 23:35:31 2012 -0500
 
-    misc/cgo/test: fix build
+    net: disable use of external listen along with other external network uses
     
-    The last CL forgot the all-important 'backdoor' package.
-    Cgo-using packages compile .c files with gcc, but we want
-    to compile this one with 6c, so put it in a non-cgo package.
+    By default the all.bash tests must not ever announce
+    on an external address.  It's not just an OS X issue.
     
-    TBR=golang-dev
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5758063
+    https://golang.org/cl/5753067
 
- misc/cgo/test/backdoor/backdoor.go     | 7 +++++++
- misc/cgo/test/{ => backdoor}/runtime.c | 4 +++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/pkg/net/dial_test.go    |  2 +-
+ src/pkg/net/net_test.go     |  8 --------
+ src/pkg/net/server_test.go  |  2 +-
+ src/pkg/net/unicast_test.go | 14 +++++++-------
+ 4 files changed, 9 insertions(+), 17 deletions(-)

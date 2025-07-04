@@ -1,21 +1,25 @@
-commit dd97871282c28f1572f7cfe67395f848f69abb4b
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 14 11:14:36 2022 -0400
+commit 8f95eaddd334e61b1832628741b97462ddc84975
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 16 23:00:23 2021 +0700
 
-    debug/dwarf: better stmt list attr checking in LineReader
+    [dev.typeparams] cmd/compile: fix missing sync implicit types
     
-    Check for insane statement list attribute values when
-    constructing LineReader's for a compilation unit.
+    CL 328051 introduced new syncImplicitTypes, but forgot to add a sync
+    after syncAddBody in linker.relocFuncExt, cause the compiler crashes
+    when reading in package data.
     
-    Fixes #52354.
+    Adding missing w.sync(syncImplicitTypes) call fixes this.
     
-    Change-Id: Icb5298db31f6c5fe34c44e0ed4fe277a7cd676b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400255
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    While at it, also run go generate to update code generated for
+    syncImplicitTypes, which is also missed in CL 328051.
+    
+    Change-Id: Ic65092f69f8d8e63de15989c7f15b6e5633d8f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328054
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/dwarf/line.go      |  2 +-
- src/debug/dwarf/line_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/linker.go            | 1 +
+ src/cmd/compile/internal/noder/syncmarker_string.go | 7 +++++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

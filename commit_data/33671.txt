@@ -1,17 +1,12 @@
-commit ecc8650398d6f5f78843a162c6579d2e45cbf7fe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 22 13:12:42 2017 -0800
+commit 2034297bdbcb21352dd108f7653b79ed8ebbe278
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:39:19 2017 +1000
 
-    go/types: fix type in Interface.Complete method
+    cmd/link: introduce and use peFile.writeSymbols
     
-    This doesn't appear to have caused problems (because we don't depend
-    on the sort order, it seems) but it's clearly incorrect.
-    
-    Change-Id: Ib6eb0128a3c17997c7907a618f9ce102b32aaa98
-    Reviewed-on: https://go-review.googlesource.com/79497
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If629b19cebc6ae8dfbf603dcd7f2dd3d0046a935
+    Reviewed-on: https://go-review.googlesource.com/59425
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pe.go | 118 ++++++++++++++++++++---------------------
+ 1 file changed, 59 insertions(+), 59 deletions(-)

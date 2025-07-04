@@ -1,57 +1,15 @@
-commit 18072adbca7ee2cb2019704577a8f3f142010ba7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 30 14:27:24 2016 +1100
+commit e49c91090000f22969e819326ed7e1c74f13bde3
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Feb 11 18:13:17 2016 -0600
 
-    net/http: reuse HTTP/1 Transport conns more for gzipped responses
+    [dev.ssa] cmd/compile: print aux value also
     
-    Flip around the composition order of the http.Response.Body's
-    gzip.Reader vs. the reader which keeps track of waiting to see the end
-    of the HTTP/1 response framing (whether that's a Content-Length or
-    HTTP/1.1 chunking).
+    When printing a value with just an aux, print the aux as well. Debugging
+    cse is easier when the aux values are visible.
     
-    Previously:
-    
-    user -> http.Response.Body
-         -> bodyEOFSignal
-         -> gzipReader
-         -> gzip.Reader
-         -> bufio.Reader
-       [ -> http/1.1 de-chunking reader ]   optional
-         -> http1 framing *body
-    
-    But because bodyEOFSignal was waiting to see an EOF from the
-    underlying gzip.Reader before reusing the connection, and gzip.Reader
-    (or more specifically: the flate.Reader) wasn't returning an early
-    io.EOF with the final chunk, the bodyEOfSignal was never releasing the
-    connection, because the EOF from the http1 framing was read by a party
-    who didn't care about it yet: the helper bufio.Reader created to do
-    byte-at-a-time reading in the flate.Reader.
-    
-    Flip the read composition around to:
-    
-    user -> http.Response.Body
-         -> gzipReader
-         -> gzip.Reader
-         -> bufio.Reader
-         -> bodyEOFSignal
-       [ -> http/1.1 de-chunking reader ]   optional
-         -> http1 framing *body
-    
-    Now when gzip.Reader does its byte-at-a-time reading via the
-    bufio.Reader, the bufio.Reader will do its big reads against the
-    bodyEOFSignal reader instead, which will then see the underlying http1
-    framing EOF, and be able to reuse the connection.
-    
-    Updates google/go-github#317
-    Updates #14867
-    And related abandoned fix to flate.Reader: https://golang.org/cl/21290
-    
-    Change-Id: I3729dfdffe832ad943b84f4734b0f59b0e834749
-    Reviewed-on: https://go-review.googlesource.com/21291
-    Reviewed-by: David Symonds <dsymonds@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifaf96bdb25462c9df7ba01fdfdbf0d379631f555
+    Reviewed-on: https://go-review.googlesource.com/19476
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/transport.go      | 83 +++++++++++++++++++++++++-----------------
- src/net/http/transport_test.go | 48 +++++++++++++++++++++++-
- 2 files changed, 97 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/ssa/value.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,12 +1,12 @@
-commit 2632d758515e76acca1e49a5b1c9d082bb398497
+commit 544a72cc86b9226f359bcce5aedd5010eb476ace
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 7 14:07:22 2012 +1100
+Date:   Wed Mar 7 14:06:16 2012 +1100
 
-    .hgignore: delete references to Make.inc and syslist.go
+    exp/wingui: remove reference to Make.inc
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5752066
+    https://golang.org/cl/5757058
 
- .hgignore | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/exp/wingui/Makefile | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

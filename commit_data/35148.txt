@@ -1,16 +1,20 @@
-commit d873a6d8720ba6604d6713c37d9d0183eae14393
+commit 36454187dbd9d543c4ff2f4c9c41e513fcae54ab
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 25 07:48:03 2018 -0700
+Date:   Wed Jan 3 10:09:35 2018 -0800
 
-    syscall: 32-bit MIPS splice system call returns int, not int64
+    net: report connect error as coming from "connect"
     
-    Fixes #25106
+    We retrieve an error using getsockopt with SO_ERROR. We were reporting
+    the error as coming from "getsockopt", but really it is coming from
+    "connect". It is not getsockopt that failed.
     
-    Change-Id: I315817543b44aa581980828a32ecc224f8c0a44d
-    Reviewed-on: https://go-review.googlesource.com/109316
+    Fixes #19302
+    
+    Change-Id: I510ab76e4b04c70cd9dfdfc46d9a410bf653d017
+    Reviewed-on: https://go-review.googlesource.com/85997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/syscall_linux_mipsx.go   | 2 +-
- src/syscall/zsyscall_linux_mips.go   | 6 +++---
- src/syscall/zsyscall_linux_mipsle.go | 6 +++---
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ src/net/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

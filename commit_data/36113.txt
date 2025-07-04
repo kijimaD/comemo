@@ -1,24 +1,19 @@
-commit 08ab820437229f68fe5f7dad1c9b4940c674e206
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Jun 26 13:28:04 2018 +0200
+commit 97677273532cf1a4e8b181c242d89c0be8c92bb6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 3 19:11:53 2018 +0100
 
-    net/rpc: clarify requirements for connections and codecs
+    test: skip locklinear's lockmany test for now
     
-    1. Connections and codecs need to be partially safe for concurrent use.
-       Namely, read side is serialized by one mutex,
-       and writing side is serialized by another.
-       Current comment says that they need to be fully thread-safe,
-       which makes the default implementations (gobClientCodec/gobServerCodec)
-       non-conforming.
+    Since it's been reliably failing on one of the linux-arm builders
+    (arm5spacemonkey) for a long time.
     
-    2. Say that ServerCodec.Close can be called multiple times
-       and must be idempotent. Server requires this and gobServerCodec
-       accounts for this,  but the requirement is not documented.
+    Updates #24221.
     
-    Change-Id: Ie877e37891fed28056e3d9d1722edaed8e154067
-    Reviewed-on: https://go-review.googlesource.com/120818
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8fccc7e16631de497ccc2c285e510a110a93ad95
+    Reviewed-on: https://go-review.googlesource.com/104535
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/rpc/client.go | 7 ++++++-
- src/net/rpc/server.go | 5 ++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ test/locklinear.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,22 +1,20 @@
-commit c043fc4f655ce34f67a0e7fe2833139f6313a3f0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 19 16:47:50 2018 -0800
+commit cb7f9ec4b71e81760fa36ebff60a7e41a07df238
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 17 11:12:43 2018 -0400
 
-    os: don't let sendFile put a pipe into blocking mode
+    cmd/compile: add a test for reproducible build with anonymous interfaces
     
-    Use SyscallConn to avoid calling the Fd method in sendFile on Unix
-    systems, since Fd has the side effect of putting the descriptor into
-    blocking mode.
+    Duplicated anonymous interfaces caused nondeterministic build.
+    The fix is CL 129515. This CL adds a test.
     
-    Fixes #28330
+    Updates #27013.
     
-    Change-Id: If093417a225fe44092bd2c0dbbc3937422e98c0b
-    Reviewed-on: https://go-review.googlesource.com/c/155137
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6b7e1bbfc943c22e8e6f32c145f7aebb567cef15
+    Reviewed-on: https://go-review.googlesource.com/129680
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/sendfile_linux.go    |  14 +++++-
- src/net/sendfile_test.go     | 104 +++++++++++++++++++++++++++++++++++++++++++
- src/net/sendfile_unix_alt.go |  14 +++++-
- 3 files changed, 130 insertions(+), 2 deletions(-)
+ .../compile/internal/gc/reproduciblebuilds_test.go | 55 +++++++++++++---------
+ .../gc/testdata/reproducible/issue27013.go         | 15 ++++++
+ 2 files changed, 48 insertions(+), 22 deletions(-)

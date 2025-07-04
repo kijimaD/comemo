@@ -1,23 +1,32 @@
-commit 81eda3a33916c17e3415219a9b1e6e6295e8c748
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Feb 8 01:57:25 2023 -0800
+commit 4a56ba1c453927256f231a8bcef316bb4b3aa68a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 14 23:39:03 2022 +0000
 
-    Revert "hex: fix panic in Decode when len(src) > 2*len(dst)"
+    runtime: remove intermediate fields in memstats for ReadMemStats
     
-    This reverts CL 461958 and CL 465855.
+    Currently, the ReadMemStats (really this is all happening in
+    readmemstats_m, but that's just a direct call from ReadMemStats) call
+    chain first populates some fields in memstats, then copies those into
+    the final MemStats location. This used to make a lot of sense when
+    memstats' structure aligned with MemStats, and the values were just
+    copied from one to other. Sometime in the last few releases, we switched
+    to populating the MemStats manually because a lot of fields had diverged
+    from their internal representation. Now, we're left with a lot of fields
+    in memstats that pollute the structure: they only exist to be updated
+    for the sake of ReadMemStats. Since we're going to be adding more fields
+    to memstats in further CLs, this is a good opportunity to clean up.
     
-    Reason for revert: This introduced an irreconcilable inconsistency with Encode
+    As a result of this change, updatememstats, which used to just update
+    the aforementioned intermediate fields in memstats, is no longer
+    necessary, so it is removed.
     
-    Fixes #58391.
-    
-    Change-Id: Ifd01a04d433b24c092b73e627b8149a5851c2bca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469615
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifabfb3ac3002641105af62e9509a6351165dcd87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393397
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/encoding/hex/hex.go      |  3 ---
- src/encoding/hex/hex_test.go | 12 ------------
- 2 files changed, 15 deletions(-)
+ src/runtime/heapdump.go |   5 -
+ src/runtime/malloc.go   |   5 -
+ src/runtime/mstats.go   | 306 ++++++++++++++++++++----------------------------
+ 3 files changed, 129 insertions(+), 187 deletions(-)

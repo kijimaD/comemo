@@ -1,17 +1,20 @@
-commit 6a73e94c10b9c2a3162722f0eb4584dc6445cae5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 23 00:15:40 2019 +0700
+commit a891f2e2ae60c1cc740751bcb3427f71c618b9d0
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:42:11 2019 +0100
 
-    cmd/compile: remove gc.eqtype in comments
+    cmd: always allow bigtoc generation with gcc on aix/ppc64
     
-    golang.org/cl/143180 changed gc.eqtype to types.Identical, but gc.eqtype
-    is still mentioned in some comments. Remove them and update comments to
-    mention new functions instead.
+    -mcmodel=large and -Wl,-bbigtoc must always be passed to gcc in order to
+    prevent TOC overflow error. However, a warning is still issued by ld. It
+    is removed as it doesn't give any useful information.
     
-    Change-Id: I6c5eece5221f524556ee55db80de0e4bdfaf166e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191357
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I95a78e8993cc7b5c0f329654d507409785f7eea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164008
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/order.go   | 2 +-
- src/cmd/compile/internal/types/type.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cgo/gcc.go               |  1 +
+ src/cmd/go/internal/work/exec.go |  5 +++++
+ src/cmd/link/internal/ld/lib.go  | 17 +++++++++++++++++
+ 3 files changed, 23 insertions(+)

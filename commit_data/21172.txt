@@ -1,29 +1,17 @@
-commit ea64e5785d37487f40083a04d36f3d20c95b3f74
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Dec 19 15:14:03 2014 -0800
+commit 0d76887433b3034c4dfd8b909f3a4b76b0eabefb
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Nov 22 22:09:11 2014 +1100
 
-    crypto/tls: fix renegotiation extension.
+    [dev.cc] runtime: convert netbsd/386 port to Go
     
-    There are two methods by which TLS clients signal the renegotiation
-    extension: either a special cipher suite value or a TLS extension.
-    
-    It appears that I left debugging code in when I landed support for the
-    extension because there's a "+ 1" in the switch statement that shouldn't
-    be there.
-    
-    The effect of this is very small, but it will break Firefox if
-    security.ssl.require_safe_negotiation is enabled in about:config.
-    (Although almost nobody does this.)
-    
-    This change fixes the original bug and adds a test. Sadly the test is a
-    little complex because there's no OpenSSL s_client option that mirrors
-    that behaviour of require_safe_negotiation.
-    
-    Change-Id: Ia6925c7d9bbc0713e7104228a57d2d61d537c07a
-    Reviewed-on: https://go-review.googlesource.com/1900
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=minux
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/177170043
 
- src/crypto/tls/handshake_messages.go    |  2 +-
- src/crypto/tls/handshake_server_test.go | 48 +++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 1 deletion(-)
+ src/runtime/defs1_netbsd_386.go  | 22 +++++++++++++++++-----
+ src/runtime/os1_netbsd_386.go    | 16 ++++++++++++++++
+ src/runtime/os_netbsd_386.c      | 17 -----------------
+ src/runtime/signal_netbsd_386.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/signal_netbsd_386.h  | 23 -----------------------
+ 5 files changed, 71 insertions(+), 45 deletions(-)

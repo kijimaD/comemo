@@ -1,21 +1,22 @@
-commit a745171e6b30394b661a040d04e8807b4bd0c7da
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 17 21:59:07 2020 -0700
+commit 3eab754cd061bf90ee7b540546bc0863f3ad1d85
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 11 15:09:39 2020 -0500
 
-    cmd/compile: fix SSA type comparison
+    runtime: correct caller PC/SP offsets in walltime1/nanotime1
     
-    A typo in the conversion code caused comparisons of SSA types to
-    report CMPeq when they were not in fact equal.
+    In walltime1/nanotime1, we save the caller's PC and SP for stack
+    unwinding. The code does that assumed zero frame size. Now that
+    the frame size is not zero, correct the offset. Rewrite it in a
+    way that doesn't depend on hard-coded frame size.
     
-    Fixes #40837
+    May fix #37127.
     
-    Change-Id: I0627eee51d524a585908b34a4590bc533c8415fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248781
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I47d6d54fc3499d7d5946c3f6a2dbd24fbd679de1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219118
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/types/type.go      |  3 ++-
- src/cmd/compile/internal/types/type_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/runtime/sys_linux_386.s   | 12 ++++++------
+ src/runtime/sys_linux_amd64.s | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

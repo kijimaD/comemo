@@ -1,17 +1,16 @@
-commit c8d2544b269bb4ece49d4804845c3e64b32cd7e5
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Mon Nov 28 13:04:52 2011 -0800
+commit 4cc64bd5bf54a89ec83d70e562c63a6e4810804b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 28 15:42:47 2011 -0500
 
-    math: update special-conditions comments to use ± symbol
+    exp/ssh: move openChan to NewSession
     
-    R=rsc, golang-dev, r
+    openChan was only being called by NewSession, Dial has
+    its own version.
+    
+    R=gustav.paul, agl, rsc
     CC=golang-dev
-    https://golang.org/cl/5445046
+    https://golang.org/cl/5435071
 
- src/pkg/math/abs.go    | 3 +--
- src/pkg/math/asinh.go  | 3 +--
- src/pkg/math/floor.go  | 9 +++------
- src/pkg/math/gamma.go  | 3 +--
- src/pkg/math/modf.go   | 3 +--
- src/pkg/math/sincos.go | 3 +--
- 6 files changed, 8 insertions(+), 16 deletions(-)
+ src/pkg/exp/ssh/client.go  | 34 +++-------------------------------
+ src/pkg/exp/ssh/session.go | 28 +++++++++++++++++++++++-----
+ 2 files changed, 26 insertions(+), 36 deletions(-)

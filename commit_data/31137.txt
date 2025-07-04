@@ -1,17 +1,23 @@
-commit dc09a7af2e72fe4863cac51f51f8581779ee28e0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 13 18:10:15 2017 +0000
+commit cb6e0639fb090ea0e129b1ddb956a7e645cff285
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jan 1 03:08:48 2017 -0700
 
-    test: disable flaky test/fixedbugs/issue10958.go
+    cmd/compile: improve error message if init is directly invoked
     
-    Updates #18589
+    Fixes #8481.
     
-    Change-Id: I2c3bbc8257c68295051bd2e63e1e11794d0609c3
-    Reviewed-on: https://go-review.googlesource.com/40651
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Inform the user that init functions cannot be directly invoked
+    in user code, as mandated by the spec at:
+    http://golang.org/ref/spec#Program_initialization_and_execution.
+    
+    Change-Id: Ib12c0c08718ffd48b76b6f9b13c76bb6612d2e7b
+    Reviewed-on: https://go-review.googlesource.com/34790
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue10958.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++----
+ test/fixedbugs/issue8481.go              | 14 ++++++++++++++
+ test/init.go                             |  4 ++--
+ 3 files changed, 28 insertions(+), 6 deletions(-)

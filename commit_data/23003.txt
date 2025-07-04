@@ -1,19 +1,27 @@
-commit 645e77ef10ef2367ab07669dc4e8be5b54d36fe7
+commit 11b5f98bf0d5eb8854f735cc332c912725070214
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 13 14:06:43 2015 +0900
+Date:   Thu Apr 16 11:26:44 2015 +0900
 
-    net/internal/socktest: fix data race
+    net: fix inconsistent error values on Write
     
-    Fixes #10796.
+    This change fixes inconsistent error values on Write,
+    WriteTo{,UDP,IP,Unix} and WriteMsg{UDP,IP,Unix}.
     
-    Change-Id: Ifcd2e771c64114e210fbfc5efaaceb53c534f745
-    Reviewed-on: https://go-review.googlesource.com/10007
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #4856.
+    
+    Change-Id: I4208ab6a0650455ad7d70a80a2d6169351d6055f
+    Reviewed-on: https://go-review.googlesource.com/8993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/internal/socktest/main_test.go      | 16 ++++++++++++++++
- src/net/internal/socktest/switch.go         | 14 +++++++-------
- src/net/internal/socktest/switch_unix.go    |  2 +-
- src/net/internal/socktest/switch_windows.go |  2 +-
- src/net/internal/socktest/sys_unix.go       |  2 ++
- src/net/internal/socktest/sys_windows.go    |  2 ++
- 6 files changed, 29 insertions(+), 9 deletions(-)
+ src/net/error_test.go      | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go         | 13 +++----------
+ src/net/fd_windows.go      | 12 +++---------
+ src/net/iprawsock_plan9.go |  6 +++---
+ src/net/iprawsock_posix.go | 21 +++++++++++++++------
+ src/net/net.go             | 11 ++++++++++-
+ src/net/timeout_test.go    | 18 +++++++++---------
+ src/net/udpsock_plan9.go   | 10 +++++++---
+ src/net/udpsock_posix.go   | 25 +++++++++++++++++--------
+ src/net/unixsock_plan9.go  |  6 +++---
+ src/net/unixsock_posix.go  | 24 ++++++++++++++++--------
+ 11 files changed, 126 insertions(+), 60 deletions(-)

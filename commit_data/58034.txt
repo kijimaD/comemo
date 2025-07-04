@@ -1,32 +1,28 @@
-commit 80344887818a2321296ce7fa71cca8ca2520611d
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Mon Nov 18 13:43:58 2024 +0100
+commit b6e83f35daaa8ce0dfae3e5f93c78d0cb344a2b0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 20 10:44:06 2023 -0400
 
-    os: sysctl-based Executable implementation for NetBSD
+    net/http: eliminate a goroutine leak in (*persistConn.addTLS)
     
-    FreeBSD and Dragonfly have used the sysctl method for years, while
-    NetBSD has read the name of the executable from /proc. Unfortunately,
-    some folks are hitting errors when building Go software in a sandbox
-    that lacks a mounted /proc filesystem.
+    In case of a handshake timeout, the goroutine running addTLS
+    closes the underlying connection, which should unblock the call
+    to tlsConn.HandshakeContext. However, it didn't then wait for
+    HandshakeContext to actually return.
     
-    Switch NetBSD to use the same implementation as FreeBSD and Dragonfly.
-    Unfortunately, the order of the arguments in the MIB is also
-    OS-dependent.
+    I thought this might have something to do with #57602, but as
+    far as I can tell it does not. Still, it seems best to avoid the leak:
+    if tracing is enabled we emit a TLSHandshakeDone event, and it seems
+    misleading to produce that event when the handshake is still in
+    progress.
     
-    Change-Id: I6fd774904af417ccd127e3779af45a20dc8696ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629035
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    For #57602.
+    
+    Change-Id: Ibfc0cf4ef8df2ccf11d8897f23d7d79ee482d5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529755
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
 
- src/os/executable_dragonfly.go |  2 ++
- src/os/executable_freebsd.go   |  2 ++
- src/os/executable_netbsd.go    | 14 ++++++++++++++
- src/os/executable_procfs.go    |  4 +---
- src/os/executable_sysctl.go    |  8 +++-----
- 5 files changed, 22 insertions(+), 8 deletions(-)
+ src/net/http/transport.go | 5 +++++
+ 1 file changed, 5 insertions(+)

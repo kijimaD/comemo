@@ -1,13 +1,17 @@
-commit 94064548c66b76ae111c68e67729c3bd11ad3faf
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Feb 4 16:03:41 2013 +1100
+commit 6b4cf2b36781bcc3fddd8374c68dd143d12dadc1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 4 00:00:36 2013 -0500
 
-    net: use windows sysSocket everywhere
+    time: fix error message from Parse
     
-    R=golang-dev, bradfitz, dave
+    Was incorrectly discarding the offending text in some cases.
+    
+    Fixes #4493.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7273046
+    https://golang.org/cl/7277050
 
- src/pkg/net/fd_windows.go        | 7 +------
- src/pkg/net/interface_windows.go | 2 +-
- 2 files changed, 2 insertions(+), 7 deletions(-)
+ src/pkg/time/format.go    | 4 ++--
+ src/pkg/time/time_test.go | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

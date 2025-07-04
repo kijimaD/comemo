@@ -1,22 +1,15 @@
-commit 8b83306cf20abed54d7cb23a3f3091b7e6202056
-Author: Ryan Brown <ribrdb@google.com>
-Date:   Wed Apr 8 12:55:34 2015 -0700
+commit 1f65c9c1411220ad6abd200703906dfa27695b16
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Wed Apr 22 11:44:46 2015 -0700
 
-    cmd/internal/ld: output dwarf in external link mode on darwin
+    runtime: deflake TestNewOSProc0, fix _rt0_amd64_linux_lib stack alignment
     
-    Fixes #8973
+    This addresses iant's comments from CL 9164.
     
-    Change-Id: Idd53fc6d9e6971ae31ed72a3df3cfdce0bfbc1fd
-    Reviewed-on: https://go-review.googlesource.com/8661
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I7b5b282f61b11aab587402c2d302697e76666376
+    Reviewed-on: https://go-review.googlesource.com/9222
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/5l/asm.go                          |  14 +-
- src/cmd/6l/asm.go                          |   2 +-
- src/cmd/7l/asm.go                          |  14 +-
- src/cmd/8l/asm.go                          |   2 +-
- src/cmd/internal/ld/dwarf.go               | 155 +++++++++---
- src/cmd/internal/ld/lib.go                 |  21 +-
- src/cmd/internal/ld/macho.go               |   8 +-
- src/cmd/internal/ld/macho_combine_dwarf.go | 369 +++++++++++++++++++++++++++++
- 8 files changed, 527 insertions(+), 58 deletions(-)
+ src/runtime/norace_linux_test.go | 8 ++++++--
+ src/runtime/rt0_linux_amd64.s    | 2 +-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

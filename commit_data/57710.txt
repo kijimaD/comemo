@@ -1,29 +1,22 @@
-commit 971ab11ee2477cf81f7b7db520bb5c151440d298
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Oct 21 04:42:51 2024 +0000
+commit 96b6e78ea906001a31d03d0acbfc4a4f20eb7db9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 24 11:58:58 2023 +0200
 
-    database/sql: rewrite Null[T].Value method, update doc for Null[T]
+    cmd/compile/internal/syntax: use strings.LastIndexByte in trailingDigits
     
-    Update doc for Null[T] to clarify that T should be one of the types
-    accepted by driver.Value.
+    Previously, strings.LastIndexByte couldn't be used because it was only
+    added in Go 1.5 but Go 1.4 was required for bootstrapping. In Go 1.18,
+    the bootstrap toolchain was bumped to Go 1.17 (see #44505), thus
+    strings.LastIndexByte can be used now.
     
-    Modify the Value() method of Null[T]:
-    1) recognize T implementing driver.Valuer interface and invoke it.
-    2) use the DefaultParameterConverter to convert native types that
-    are not directly supported as driver.Value types.
-    
-    Fixes #69728
-    Fixes #69837
-    
-    Change-Id: Iba782c878b2bde168125f5390abf319b88424149
-    GitHub-Last-Rev: 3df182d23dd57bd04828c3e9bd0c5222d8bef152
-    GitHub-Pull-Request: golang/go#69938
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620858
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I01a70a59dbfc853cf03d49747a2dd62d21ba74e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522197
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/database/sql/sql.go      | 14 ++++++++++++-
- src/database/sql/sql_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

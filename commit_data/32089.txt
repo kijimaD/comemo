@@ -1,28 +1,91 @@
-commit 780249eed449ea8ae63f0dec258c55381f30173b
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 28 18:06:03 2017 -0400
+commit 50688fcb6ef0f74d6ff91dce95f8823b1f56bdf7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 3 11:27:06 2017 -0700
 
-    runtime: fall back to small mmaps if we fail to grow reservation
+    cmd/compile: unroll small static maps
     
-    Right now, if it's possible to grow the arena reservation but
-    mheap.sysAlloc fails to get 256MB more of memory, it simply fails.
-    However, on 32-bit we have a fallback path that uses much smaller
-    mmaps that could take in this situation, but fail to.
+    When a map is small, it's not worth putting
+    the contents in an array and then looping over the array.
+    Just generate code instead.
     
-    This commit fixes mheap.sysAlloc to use a common failure path in case
-    it can't grow the reservation. On 32-bit, this path includes the
-    fallback.
+    This makes smaller binaries.
+    It might also be better for cache lines.
     
-    Ideally, mheap.sysAlloc would attempt smaller reservation growths
-    first, but taking the fallback path is a simple change for Go 1.9.
+    It also can avoids adding control flow in the middle
+    of the init function, which can be very large.
+    Eliminating this source of extra blocks
+    makes phi insertion easier for temp-heavy init functions.
+    This reduces the time required for compiler to
+    panic while compiling the code in #19751
+    from 15 minutes to 45 seconds.
     
-    Updates #21044 (fixes one of two issues).
+    The cutoff of 25 was chosen fairly unscientifically
+    by looking at the size of cmd/go.
     
-    Change-Id: I1e0035ffba986c3551479d5742809e43da5e7c73
-    Reviewed-on: https://go-review.googlesource.com/51713
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Cutoff of   0: 10689604
+    Cutoff of   5: 10683572
+    Cutoff of  15: 10682324
+    Cutoff of  25: 10681700
+    Cutoff of  50: 10685476
+    Cutoff of 100: 10689412
+    
+    There are probably more sophisticated mechanisms available.
+    For example, the smaller the key/value sizes, the better
+    generated code will be vs a table.
+    Nevertheless this is simple and seems like a good start.
+    
+    Updates #19751
+    
+    name       old time/op     new time/op     delta
+    Template       204ms ± 6%      202ms ± 5%  -0.78%  (p=0.027 n=47+45)
+    Unicode       84.8ms ± 6%     85.2ms ± 7%    ~     (p=0.146 n=46+45)
+    GoTypes        551ms ± 2%      556ms ± 3%  +0.76%  (p=0.004 n=43+45)
+    SSA            3.93s ± 3%      3.95s ± 4%    ~     (p=0.179 n=50+49)
+    Flate          123ms ± 4%      123ms ± 5%    ~     (p=0.201 n=47+49)
+    GoParser       145ms ± 3%      145ms ± 4%    ~     (p=0.937 n=50+50)
+    Reflect        356ms ± 3%      354ms ± 5%  -0.44%  (p=0.048 n=46+50)
+    Tar            107ms ± 6%      106ms ± 6%    ~     (p=0.188 n=50+49)
+    XML            201ms ± 4%      200ms ± 4%    ~     (p=0.085 n=50+49)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        252M ± 9%       250M ± 7%    ~     (p=0.206 n=49+47)
+    Unicode         106M ± 7%       106M ± 9%    ~     (p=0.331 n=47+46)
+    GoTypes         724M ± 5%       729M ± 5%    ~     (p=0.160 n=47+49)
+    SSA            5.64G ± 2%      5.62G ± 4%    ~     (p=0.148 n=47+50)
+    Flate           147M ± 6%       147M ± 5%    ~     (p=0.466 n=50+49)
+    GoParser        179M ± 5%       179M ± 6%    ~     (p=0.584 n=50+49)
+    Reflect         448M ± 6%       441M ± 8%  -1.39%  (p=0.027 n=50+49)
+    Tar             124M ± 6%       123M ± 5%    ~     (p=0.221 n=50+47)
+    XML             244M ± 5%       243M ± 4%    ~     (p=0.275 n=49+49)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      39.9MB ± 0%     39.4MB ± 0%  -1.28%  (p=0.008 n=5+5)
+    Unicode       29.8MB ± 0%     29.8MB ± 0%    ~     (p=0.310 n=5+5)
+    GoTypes        113MB ± 0%      113MB ± 0%    ~     (p=0.421 n=5+5)
+    SSA            854MB ± 0%      854MB ± 0%    ~     (p=0.151 n=5+5)
+    Flate         25.3MB ± 0%     25.3MB ± 0%    ~     (p=1.000 n=5+5)
+    GoParser      31.8MB ± 0%     31.8MB ± 0%    ~     (p=0.222 n=5+5)
+    Reflect       78.2MB ± 0%     78.2MB ± 0%    ~     (p=1.000 n=5+5)
+    Tar           26.7MB ± 0%     26.7MB ± 0%    ~     (p=0.841 n=5+5)
+    XML           42.3MB ± 0%     42.3MB ± 0%  -0.15%  (p=0.008 n=5+5)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        390k ± 1%       386k ± 1%  -1.05%  (p=0.016 n=5+5)
+    Unicode         319k ± 0%       320k ± 0%    ~     (p=0.310 n=5+5)
+    GoTypes        1.14M ± 0%      1.14M ± 0%    ~     (p=0.421 n=5+5)
+    SSA            7.60M ± 0%      7.59M ± 0%    ~     (p=0.310 n=5+5)
+    Flate           234k ± 0%       235k ± 1%    ~     (p=1.000 n=5+5)
+    GoParser        315k ± 1%       317k ± 0%    ~     (p=0.151 n=5+5)
+    Reflect         978k ± 0%       978k ± 0%    ~     (p=0.841 n=5+5)
+    Tar             251k ± 1%       251k ± 1%    ~     (p=0.690 n=5+5)
+    XML             394k ± 0%       392k ± 0%    ~     (p=0.056 n=5+5)
+    
+    
+    Change-Id: Ic53a18627082abe075a1cbc33330ce015e50850a
+    Reviewed-on: https://go-review.googlesource.com/39354
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/malloc.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

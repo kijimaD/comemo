@@ -1,16 +1,17 @@
-commit 2ae8bf7054b3320682e547396d9b6b5e51f5ade1
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Oct 17 20:16:45 2018 +0000
+commit c2eba53e7f80df21d51285879d51ab81bcfbf6bc
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Jul 1 09:33:55 2018 +0930
 
-    runtime: fix stale comments about mheap and mspan
+    cmd/vet,sync: check lock values more precisely
     
-    As of 07e738e all spans are allocated out of a treap, and not just
-    large spans or spans for large objects. Also, now we have a separate
-    treap for spans that have been scavenged.
+    Fixes #26165
     
-    Change-Id: I9c2cb7b6798fc536bbd34835da2e888224fd7ed4
-    Reviewed-on: https://go-review.googlesource.com/c/142958
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I1f3bd193af9b6f8461c736330952b6e50d3e00d9
+    Reviewed-on: https://go-review.googlesource.com/121876
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mheap.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/cmd/vet/copylock.go | 22 ++++++++++++++++------
+ src/sync/cond.go        |  3 ++-
+ 2 files changed, 18 insertions(+), 7 deletions(-)

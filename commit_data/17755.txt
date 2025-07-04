@@ -1,16 +1,14 @@
-commit fba015ecb415ecd84b2d2e2c98f1a6efc09fbd5b
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Oct 7 09:12:17 2013 -0700
+commit e67b0e688565f4112983d983f76642cf20021fcd
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Mon Oct 7 11:41:27 2013 -0400
 
-    os/user: enable tests on all supported platforms
+    codereview: move dotfiles out of user home director to something sane.
     
-    All of the currently supported platforms have a working user
-    implementation and do not use stubs. As a result, enable the tests
-    on all platforms rather than whitelisting.
+    See Rob Pike's lesson on shortcuts, https://plus.google.com/101960720994009339267/posts/R58WgWwN9jp
     
-    R=golang-dev, dave, iant
-    CC=golang-dev
-    https://golang.org/cl/14454044
+    R=golang-dev, r, rsc
+    CC=aram.h, golang-dev
+    https://golang.org/cl/14374045
 
- src/pkg/os/user/user_test.go | 6 ------
- 1 file changed, 6 deletions(-)
+ lib/codereview/codereview.py | 8 ++++++++
+ 1 file changed, 8 insertions(+)

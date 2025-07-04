@@ -1,12 +1,12 @@
-commit d86213c3718c300bf1638ab15b0b361212fe68a8
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 21 16:10:48 2012 -0500
+commit e5013e89f14e9bc84e33178db095a4bb658eabd5
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Tue Feb 21 15:42:03 2012 -0500
 
-    codereview: add submit message support for newer clone URL and subrepos
+    cmd/go: pass 2, remove reference to incomplete -file flag
     
-    R=golang-dev, rsc
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/5689063
+    https://golang.org/cl/5686058
 
- lib/codereview/codereview.py | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

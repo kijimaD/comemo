@@ -1,19 +1,16 @@
-commit e5b733570598646e9726d053db5a30114165f9d6
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 15 13:47:47 2017 +1100
+commit 121d076679a376ef5549c858195c5a8357cba36e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 14 19:02:05 2017 +0000
 
-    fmt: clarify wording of * flag
+    syscall: skip TestUnshare on Linux upon permission error
     
-    The complainant is confused by the ambiguity of 'next' in the
-    phrase 'next operand'. It seems clear enough to me that things
-    are always read left to right when formatting, but to calm the
-    waters we add a clarifying parenthetical.
+    Fixes #17206
     
-    Fixes #22275
-    
-    Change-Id: I82418c1e987db736f4bee0faa53fe715c9cde8f5
-    Reviewed-on: https://go-review.googlesource.com/71010
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Id0ebc3a55ea1c5f52608decffee04c8398a8774b
+    Reviewed-on: https://go-review.googlesource.com/48571
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/doc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/syscall/exec_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

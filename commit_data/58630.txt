@@ -1,16 +1,21 @@
-commit 637c235b510a885622cdbb914ad9e0d4bbce9a14
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 27 10:21:57 2025 -0800
+commit 28f873444d4e7fdfef9c07108002cd6347a8da0f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 20 19:29:42 2023 +0000
 
-    lib/time: build with Ubuntu backward compatibility options
+    cmd/trace/v2: add support for the goroutine-oriented task view
     
-    Change-Id: I7e241eb602e45eea3c730793c14d8a5f666f9181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644077
+    This change adds support for a goroutine-oriented task view via the
+    /trace?taskid=<taskid> endpoint. This works but it's missing regions.
+    That will be implemented in a follow-up CL.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I086694143e5c71596ac22fc551416868f0b80923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543937
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- lib/time/update.bash  |   7 ++++++-
- lib/time/zoneinfo.zip | Bin 406409 -> 405501 bytes
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/trace/v2/jsontrace.go | 108 +++++++++++++++++++++++++++++++-----------
+ 1 file changed, 80 insertions(+), 28 deletions(-)

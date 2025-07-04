@@ -1,20 +1,24 @@
-commit c57c0212ebf44b7896477177c8e35be79ff3a586
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 19 23:01:58 2020 -0700
+commit 250c06f54e0c6c155b5e384fd112f2fa42a2bff3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 11:15:41 2020 -0500
 
-    cmd/compile: define starting block before opening html writer
+    cmd/go: convert tests using testdata/src/(xtestonly|cgotest) to script framework
     
-    Opening the html writer can fail, and the failure printer wants
-    to use the entry block's line number. So make sure we set up
-    the entry block first.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #40919
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I4ffa2839b45a721bbaf04ff84418e8108fa1cc37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249497
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3465cad1b0ba0d912067429146f1cb0668d5aa6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214284
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                              | 30 ----------------------
+ .../go/testdata/script/install_cgo_excluded.txt    | 11 ++++++++
+ src/cmd/go/testdata/script/list_dedup_packages.txt | 30 ++++++++++++++++++++++
+ .../go/testdata/script/test_xtestonly_works.txt    | 23 +++++++++++++++++
+ src/cmd/go/testdata/src/cgotest/m.go               |  5 ----
+ src/cmd/go/testdata/src/xtestonly/f.go             |  3 ---
+ src/cmd/go/testdata/src/xtestonly/f_test.go        | 12 ---------
+ 7 files changed, 64 insertions(+), 50 deletions(-)

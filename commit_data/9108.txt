@@ -1,20 +1,14 @@
-commit e8689404a7ba46acb491702fa8554c1394223325
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 18 07:23:52 2011 -0700
+commit c945d9c8a1c1b1a48a87dfc9c55b63c75db7ba89
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jul 18 21:09:28 2011 +1000
 
-    cgo: add missing semicolon in generated struct
+    gc: fix silent sign truncation in pgen.c
     
-    This affected certain signatures needing padding
-    like:
+    Fixes #2076.
     
-    //export Foo
-    func Foo() (int, C.long) { ... }
-    
-    R=golang-dev, rsc
+    R=golang-dev, r, r, dsymonds, lucio.dere
     CC=golang-dev
-    https://golang.org/cl/4745047
+    https://golang.org/cl/4744047
 
- misc/cgo/test/Makefile   |  1 +
- misc/cgo/test/exports.go | 12 ++++++++++++
- src/cmd/cgo/out.go       |  2 +-
- 3 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/gc/pgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

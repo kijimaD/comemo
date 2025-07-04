@@ -1,14 +1,12 @@
-commit cd2eb4872223073ad00c6b06371c1ffcbad8fb63
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 30 10:27:26 2013 -0400
+commit 28138f1364939992e5466bff72b3574079dcc577
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 30 16:31:57 2013 +0900
 
-    cmd/gc: don't report mark if other things are broken
+    net: fix comment on SetKeepAlivePeriod
     
-    Fixes #5598.
-    
-    R=ken2
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/12104043
+    https://golang.org/cl/12091043
 
- src/cmd/gc/dcl.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/tcpsock_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

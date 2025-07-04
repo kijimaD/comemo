@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 21573: cdc2b0568feac1867377dddccf6eafa45cd27352
+# Index 21573: 778b649e386788ec834336f0a222e3f515dadd3a
 
 echo "🚀 Generating explanation for commit 21573..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 21573
-- **コミットハッシュ**: cdc2b0568feac1867377dddccf6eafa45cd27352
-- **GitHub URL**: https://github.com/golang/go/commit/cdc2b0568feac1867377dddccf6eafa45cd27352
+- **コミットハッシュ**: 778b649e386788ec834336f0a222e3f515dadd3a
+- **GitHub URL**: https://github.com/golang/go/commit/778b649e386788ec834336f0a222e3f515dadd3a
 
 ### 章構成
 

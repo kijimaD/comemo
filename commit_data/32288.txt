@@ -1,31 +1,20 @@
-commit 89d74f54168619cf1f36b6868626fbb1237c1deb
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 30 12:59:25 2017 -0700
+commit 5e15497b5682acfe5c761bc116c6f157efcc8042
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 18 10:54:10 2017 -0700
 
-    cmd/compile: set itab function pointers at compile time
+    encoding/hex: change lookup table back to string
     
-    I noticed that we don't set an itab's function pointers at compile
-    time. Instead, we currently do it at executable startup.
+    CL 27254 changed hextable to a byte array for performance.
+    CL 28219 fixed the compiler so that that is no longer necessary.
+    As Kirill notes in #15808, a string is preferable
+    as the linker can easily de-dup it.
+    So go back. No performance changes.
     
-    Set the function pointers at compile time instead. This shortens
-    startup time. It has no effect on normal binary size. Object files
-    will have more relocations, but that isn't a big deal.
-    
-    For PIE there are additional pointers that will need to be adjusted at
-    load time. There are already other pointers in an itab that need to be
-    adjusted, so the cache line will already be paged in. There might be
-    some binary size overhead to mark these pointers. The "go test -c
-    -buildmode=pie net/http" binary is 0.18% bigger.
-    
-    Update #20505
-    
-    Change-Id: I267c82489915b509ff66e512fc7319b2dd79b8f7
-    Reviewed-on: https://go-review.googlesource.com/44341
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ibef7d21d0f2507968a0606602c5dd57ed4a85b1b
+    Reviewed-on: https://go-review.googlesource.com/40970
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 15 +++++++--------
- src/runtime/iface.go                   |  9 +--------
- src/runtime/plugin.go                  |  2 +-
- 3 files changed, 9 insertions(+), 17 deletions(-)
+ src/encoding/hex/hex.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

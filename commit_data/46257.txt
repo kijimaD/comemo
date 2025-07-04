@@ -1,19 +1,29 @@
-commit 717f337d1d68299ca55a96e9fbb5168e8f7788f4
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 19 04:06:55 2021 +0000
+commit 5024396563f9f544a3c6413026cf9b302fd83709
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:47:58 2020 -0500
 
-    cmd/asm: adjust riscv64 test data to avoid churn
+    [dev.regabi] cmd/compile: cleanup for concrete types - subr
     
-    Rather than jumping and branching to a label (the offset for which changes
-    when instructions are added or removed), use PC-relative offsets. This
-    reduces unnecessary churn in the instruction encodings.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: I6816ce939eeabdf828039f59f4f29260eb1ac8da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344449
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL focuses on subr.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I435082167c91e20a4d490aa5d5945c7454f71d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277930
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s | 48 +++++++++++++----------------
- 1 file changed, 22 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/subr.go      | 119 ++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/typecheck.go |   2 +-
+ 2 files changed, 87 insertions(+), 34 deletions(-)

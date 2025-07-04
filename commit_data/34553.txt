@@ -1,16 +1,16 @@
-commit 8e427a38786e9a35ef8e417edc5566d5989f7ea8
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Mar 7 12:54:28 2018 +0100
+commit fb1fd6aee6af655a54193d961d5f11ff16580e6a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 31 16:38:17 2017 -0700
 
-    test/codegen: add README file for the codegen test harness
+    time: improve comments about valid layouts being invalid Parse values
     
-    This change adds a README file inside the test/codegen directory,
-    explaining how to run the codegen tests and the syntax of the regexps
-    comments used to match assembly instructions.
+    Updates #9346
+    Updates #22135
     
-    Change-Id: Ica4eb3ffa9c6975371538cc8ae0ac3c1a3a03baf
-    Reviewed-on: https://go-review.googlesource.com/99156
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7039c9f7d49600e877e35b7255c341fea35890e2
+    Reviewed-on: https://go-review.googlesource.com/74890
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/codegen/README | 129 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 129 insertions(+)
+ src/time/example_test.go | 4 ++--
+ src/time/format.go       | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

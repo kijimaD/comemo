@@ -1,25 +1,18 @@
-commit 4878b4471bf1267a8f87b40ed49b36ab82b79d18
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon May 12 13:16:23 2025 -0400
+commit f367fea83a95c0845ed4733ab1d6ada9ba3087c7
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Apr 17 00:58:46 2024 +0000
 
-    slices: document and test nilness behavior of all functions
+    cmd/covdata: close cpu and mem profile
     
-    This change documents the current nilness behavior of all
-    functions in the package, and asserts each with a test.
-    
-    There is no change to behavior, but the postcondition is
-    strengthened, so this may require a proposal.
-    
-    Fixes #73604
-    Fixes #73048
-    
-    Change-Id: Ieb68e609a1248bd81c8507d3795785622a65f8cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671996
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: Iaf14989eb2981f724c4091f992ed99687ce3a60e
+    GitHub-Last-Rev: 6e6c82bb8fba5c32c24eafb50eec6751a93d09f9
+    GitHub-Pull-Request: golang/go#66852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579255
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
 
- src/slices/iter.go        |  5 +++
- src/slices/slices.go      | 10 ++++++
- src/slices/slices_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 98 insertions(+)
+ src/cmd/covdata/covdata.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

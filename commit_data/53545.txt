@@ -1,22 +1,22 @@
-commit 8b5ed3cdaeba621687c71c19174bb4db0f5713f0
-Author: Josh Rickmar <jrick@zettaport.com>
-Date:   Mon Jun 12 16:10:55 2023 +0000
+commit dbc3b44f85e638c2247af02548d8b386996f4d37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 20:16:15 2022 -0700
 
-    runtime: Use doas -n in TestSUID on OpenBSD
+    go/types: match types2 errors for incorrect method receiver count
     
-    This prevents a hang at a su password prompt when running this test on
-    OpenBSD.
+    Use "method has no receiver" and "method has multiple receivers"
+    in error messages for invalid receiver counts, matching the
+    corresponding types2 errors.
     
-    Fixes #60690.
+    For #54511.
     
-    Change-Id: I62d27aa63f225f8247c324b87b5e688319061f4f
-    GitHub-Last-Rev: 217813a4d57a97954449d13c24a465aa0af41da3
-    GitHub-Pull-Request: golang/go#60742
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502575
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I96fc99440d6206c74e9416069db052234baa8248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424934
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/security_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/types/resolver.go                      |  2 +-
+ src/go/types/signature.go                     |  2 +-
+ src/go/types/testdata/check/decls2/decls2a.go | 10 +++++-----
+ 3 files changed, 7 insertions(+), 7 deletions(-)

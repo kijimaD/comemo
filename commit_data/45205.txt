@@ -1,14 +1,24 @@
-commit b65f8589e847826f7a353011823558c41491cda0
+commit ec095f1df0ff1b2937205e17b3c011f31d3737ca
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 16 17:30:12 2021 -0400
+Date:   Mon Jul 13 22:24:52 2020 -0400
 
-    cmd/dist: defend self against misc/reboot test
+    path: avoid import of strings
     
-    Change-Id: Ice89ecae980d46b16b5ed32ac733bd23c92115af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310870
+    Pushing path lower in the hierarchy, to allow path < io/fs < os
+    in the io/fs prototype. But this change is worth doing even if io/fs
+    is not accepted.
+    
+    Change-Id: Id51b3a638167ca005dadfb9b730287e518ec12a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243904
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/util.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/build/deps_test.go |  7 ++++++-
+ src/path/match.go         |  4 ++--
+ src/path/match_test.go    |  7 +++++--
+ src/path/path.go          | 36 ++++++++++++++++++++++++++----------
+ src/path/path_test.go     |  3 ++-
+ 5 files changed, 41 insertions(+), 16 deletions(-)

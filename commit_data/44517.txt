@@ -1,22 +1,28 @@
-commit 96a96a9058004af531db56dee26d82af08321cdb
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Mar 4 12:09:04 2021 -0800
+commit 7f8608047644ca34bad1728d5e2dbef041a1b3f2
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Fri Jul 24 11:00:36 2020 +0800
 
-    cmd/compile: remove types2.(*Selection).TArgs(), now that instance bug seems fixed
+    cmd/compile: don't addLocalInductiveFacts if there is no direct edge from if block to phi block
     
-    Previously, we would sometimes see an internal (*instance) type for a
-    receiver of a types2 method, which was a bug. To deal with that, we put
-    in an extra (*Selection).TArgs() method. However, that (*instance) type
-    is no longer showing up for receivers, so we can remove the types2
-    method we added and do the work with existing types2 API methods.
+    Currently in addLocalInductiveFacts, we only check whether
+    direct edge from if block to phi block exists. If not, the
+    following logic will treat the phi block as the first successor,
+    which is wrong.
     
-    Change-Id: I03e68f5bbaaf82fe706b6efecbb02e951bbd3cd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298869
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    This patch makes prove pass more conservative, so we disable
+    some cases in test/prove.go. We will do some optimization in
+    the following CL and enable these cases then.
+    
+    Fixes #40367.
+    
+    Change-Id: I27cf0248f3a82312a6f7dabe11c79a1a34cf5412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244579
+    Reviewed-by: Zach Jones <zachj1@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/expr.go       | 15 ++++++++++++++-
- src/cmd/compile/internal/types2/selection.go | 16 ----------------
- 2 files changed, 14 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go |  8 +++++++
+ test/fixedbugs/issue40367.go          | 41 +++++++++++++++++++++++++++++++++++
+ test/prove.go                         |  6 +++--
+ 3 files changed, 53 insertions(+), 2 deletions(-)

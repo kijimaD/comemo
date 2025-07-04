@@ -1,21 +1,14 @@
-commit ee3e24f2d7da60d28c1f6321fa6faddff9b26eec
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 9 23:46:48 2012 -0500
+commit ef1d2a32ea0b096b1aca9f1bda096f0718f6a2ef
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Feb 9 23:10:27 2012 -0500
 
-    dashboard: add gobuilder -fail mode
+    dist: prevent recusive loop on windows when fatal() is called.
     
-    This is for filling a column with "fail", like I just did for
-    Windows, when the builder would get stuck running that
-    build.  (We have safeguards against the tests getting stuck
-    but this was the bootstrap build getting stuck.)
+    Fixes #2931.
     
-    I usually use -cmd=/bin/false, but this avoids the Mercurial
-    checkouts, which means it runs instantly instead of requiring
-    ~1 minute per "fail".
-    
-    R=golang-dev, adg
-    CC=golang-dev
-    https://golang.org/cl/5649049
+    R=golang-dev, alex.brainman
+    CC=golang-dev, rsc
+    https://golang.org/cl/5651049
 
- misc/dashboard/builder/main.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ src/cmd/dist/windows.c | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

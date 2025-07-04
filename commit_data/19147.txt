@@ -1,14 +1,20 @@
-commit 0a96d64c9c20afb1d47cb464fdcd978e181d5a48
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 15 14:50:19 2014 -0700
+commit 568e3526b1dca0a9086ba8be56c8a1bc1dd2faa3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 15:52:02 2014 -0400
 
-    math/big: fix doc typos.
-    Fixes #7768.
+    build: disable static cgo linking test on netbsd
     
-    LGTM=iant, gri
-    R=golang-codereviews, iant, gri
+    We get
+    /usr/lib/libc.a(stack_protector.o): In function `__stack_chk_fail_local':
+    stack_protector.c:(.text+0x158): multiple definition of `__stack_chk_fail_local'
+    /var/tmp/go-link-04838a/000001.o:/tmp/gobuilder/netbsd-386-minux-c7a9e9243878/go/src/pkg/runtime/cgo/gcc_386.S:41: first defined here
+    
+    I am assuming this has never worked and possibly is not intended to work.
+    (Some systems are vehemently against static linking.)
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/87260043
+    https://golang.org/cl/88130046
 
- src/pkg/math/big/rat.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/run.bash | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

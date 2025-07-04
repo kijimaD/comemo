@@ -1,24 +1,29 @@
-commit c4770b991b7ad56660d45a02213b71bbb6361e8e
-Author: Rowan Worth <sqweek@gmail.com>
-Date:   Thu Jan 9 09:34:04 2014 -0800
+commit 6d0d08b8495efc033ede78370941e566e45eb7c8
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Jan 10 02:49:37 2014 +1100
 
-    runtime: co-exist with NPTL's pthread_cancel.
+    os, os/exec, os/user: add support for GOOS=solaris
     
-    NPTL uses SIGRTMIN (signal 32) to effect thread cancellation.
-    Go's runtime replaces NPTL's signal handler with its own, and
-    ends up aborting if a C library that ends up calling
-    pthread_cancel is used.
-    
-    This patch prevents runtime from replacing NPTL's handler.
-    
-    Fixes #6997.
-    
-    R=golang-codereviews, iant, dvyukov
+    R=golang-codereviews, dave, minux.ma, gobot, jsing
     CC=golang-codereviews
-    https://golang.org/cl/47540043
+    https://golang.org/cl/36020043
 
- misc/cgo/test/cgo_linux_test.go  |  1 +
- misc/cgo/test/issue6997_linux.c  | 26 ++++++++++++++++++++++++++
- misc/cgo/test/issue6997_linux.go | 40 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/signals_linux.h  |  2 +-
- 4 files changed, 68 insertions(+), 1 deletion(-)
+ src/pkg/os/dir_unix.go           |  2 +-
+ src/pkg/os/env_unix_test.go      |  2 +-
+ src/pkg/os/error_unix.go         |  2 +-
+ src/pkg/os/exec/exec_test.go     |  4 +++
+ src/pkg/os/exec/lp_unix.go       |  2 +-
+ src/pkg/os/exec/lp_unix_test.go  |  2 +-
+ src/pkg/os/exec_posix.go         |  2 +-
+ src/pkg/os/exec_unix.go          |  2 +-
+ src/pkg/os/file_posix.go         |  2 +-
+ src/pkg/os/file_unix.go          |  2 +-
+ src/pkg/os/os_unix_test.go       |  2 +-
+ src/pkg/os/path_unix.go          |  2 +-
+ src/pkg/os/pipe_bsd.go           |  2 +-
+ src/pkg/os/signal/signal_test.go |  2 +-
+ src/pkg/os/signal/signal_unix.go |  2 +-
+ src/pkg/os/stat_solaris.go       | 61 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/sys_solaris.go        | 11 ++++++++
+ src/pkg/os/user/lookup_unix.go   |  2 +-
+ 18 files changed, 91 insertions(+), 15 deletions(-)

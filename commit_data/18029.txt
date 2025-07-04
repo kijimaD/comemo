@@ -1,14 +1,12 @@
-commit bccf029fc09c4b993f6a638b16c5fe33f0102828
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Dec 17 16:32:27 2013 -0800
+commit ab05a855c6d5122dfe996b6b36bd39ee85a30b10
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Tue Dec 17 14:53:31 2013 -0800
 
-    net: rewrite toLower more clearly
+    database/sql: Fix inaccurate comment
     
-    Rob suggested this change.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/43670044
+    https://golang.org/cl/40370051
 
- src/pkg/net/lookup_plan9.go | 24 +++++++++++-------------
- 1 file changed, 11 insertions(+), 13 deletions(-)
+ src/pkg/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

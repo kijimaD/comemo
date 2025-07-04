@@ -1,47 +1,28 @@
-commit 61a08fc6ce996ec403601f30c402ecfa3d588bda
-Author: Rémy Oudompheng <remyoudompheng@gmail.com>
-Date:   Wed Mar 27 06:55:52 2019 +0100
+commit 46ab0c0c0474d38d9b924b2428f20c6da58c85fa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 8 20:33:36 2020 +0700
 
-    strconv: Implement Ryū algorithm for ftoa shortest mode
+    cmd/compile: rename types.IdealFoo to types.UntypedFoo
     
-    This patch implements the algorithm from Ulf Adams,
-    "Ryū: Fast Float-to-String Conversion" (doi:10.1145/3192366.3192369)
-    for formatting floating-point numbers with a fixed number of decimal
-    digits.
+    To be consistent with go/types.
     
-    It is not a direct translation of the reference C implementation
-    but still follows the original paper. In particular, it uses full
-    128-bit powers of 10, which allows for more precision in the other
-    modes (fixed ftoa, atof).
+    Passes toolstash-check.
     
-    name                              old time/op  new time/op   delta
-    AppendFloat/Decimal-4             49.6ns ± 3%   59.3ns ± 0%  +19.59%  (p=0.008 n=5+5)
-    AppendFloat/Float-4                122ns ± 1%     91ns ± 1%  -25.92%  (p=0.008 n=5+5)
-    AppendFloat/Exp-4                 89.3ns ± 1%  100.0ns ± 1%  +11.98%  (p=0.008 n=5+5)
-    AppendFloat/NegExp-4              88.3ns ± 2%   97.1ns ± 1%   +9.87%  (p=0.008 n=5+5)
-    AppendFloat/LongExp-4              143ns ± 2%    103ns ± 0%  -28.17%  (p=0.016 n=5+4)
-    AppendFloat/Big-4                  144ns ± 1%    110ns ± 1%  -23.26%  (p=0.008 n=5+5)
-    AppendFloat/BinaryExp-4           46.2ns ± 2%   46.0ns ± 1%     ~     (p=0.603 n=5+5)
-    AppendFloat/32Integer-4           49.1ns ± 1%   58.7ns ± 1%  +19.57%  (p=0.008 n=5+5)
-    AppendFloat/32ExactFraction-4     95.6ns ± 1%   88.6ns ± 1%   -7.30%  (p=0.008 n=5+5)
-    AppendFloat/32Point-4              122ns ± 1%     87ns ± 1%  -28.63%  (p=0.008 n=5+5)
-    AppendFloat/32Exp-4               88.6ns ± 2%   95.0ns ± 1%   +7.29%  (p=0.008 n=5+5)
-    AppendFloat/32NegExp-4            87.2ns ± 1%   91.3ns ± 1%   +4.63%  (p=0.008 n=5+5)
-    AppendFloat/32Shortest-4           107ns ± 1%     82ns ± 0%  -24.08%  (p=0.008 n=5+5)
-    AppendFloat/Slowpath64-4          1.00µs ± 1%   0.10µs ± 0%  -89.92%  (p=0.016 n=5+4)
-    AppendFloat/SlowpathDenormal64-4  34.1µs ± 3%    0.1µs ± 1%  -99.72%  (p=0.008 n=5+5)
-    
-    Fixes #15672
-    
-    Change-Id: Ib90dfa245f62490a6666671896013cf3f9a1fb22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170080
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Nigel Tao <nigeltao@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I5e02f529064a904310a164f8765082aa533cc799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260699
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/strconv/ftoa.go      |  10 +-
- src/strconv/ftoa_test.go |  32 +++++-
- src/strconv/ftoaryu.go   | 255 ++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 287 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   | 12 +++++------
+ src/cmd/compile/internal/gc/const.go     | 36 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/fmt.go       | 14 ++++++-------
+ src/cmd/compile/internal/gc/iexport.go   |  6 +++---
+ src/cmd/compile/internal/gc/iimport.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++++++-------
+ src/cmd/compile/internal/gc/universe.go  | 10 ++++-----
+ src/cmd/compile/internal/types/type.go   | 14 ++++++-------
+ 10 files changed, 58 insertions(+), 58 deletions(-)

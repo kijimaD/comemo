@@ -1,12 +1,15 @@
-commit a274798d6ec9da6e1b7ba073795a4b3fb381b9b4
-Author: Christoph Hack <christoph@tux21b.org>
-Date:   Tue Jan 3 12:06:12 2012 +1100
+commit 8e9e75f0082390a2dc2238adf12eca01ac68ec47
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Jan 3 12:00:39 2012 +1100
 
-    cmd/go: refer to the right command in the doc description.
+    gotest: make _testmain.go conform to gofmt rules
+    
+    Otherwise, running "gofmt -d ." after "gotest" gives some
+    spurious changes.
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5501072
+    https://golang.org/cl/5504101
 
- src/cmd/go/fmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gotest/gotest.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

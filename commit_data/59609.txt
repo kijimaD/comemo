@@ -1,21 +1,40 @@
-commit b22da3f544418aa4d962848cab9e3458a1fe075b
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Fri Feb 28 17:28:43 2025 +0100
+commit 7c89ad6a80020e3654129183c528054921899650
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 27 14:24:10 2024 +0100
 
-    internal/trace/internal/testgen: make generated trace version configurable
+    os: support relative paths in fixLongPath
     
-    Replace hard coded references to version.Go122 with the trace version
-    passed to NewTrace. This allows writing testgen tests for newer trace
-    versions.
+    (This CL takes the tests and some ideas from the abandoned CL 263538).
     
-    For #69869
+    fixLongPath is used on Windows to process all path names
+    before syscalls to switch them to extended-length format
+    (with prefix \\?\) to workaround a historical limit
+    of 260-ish characters.
     
-    Change-Id: Id25350cea1c397a09ca23465526ff259e34a4752
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653875
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This CL updates fixLongPath to convert relative paths to absolute
+    paths if the working directory plus the relative path exceeds
+    MAX_PATH. This is necessary because the Windows API does not
+    support extended-length paths for relative paths.
+    
+    This CL also adds support for fixing device paths (\\.\-prefixed),
+    which were not previously normalized.
+    
+    Fixes #41734
+    Fixes #21782
+    Fixes #36375
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-amd64-race,gotip-windows-arm64
+    Co-authored-by: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I63cfb79f3ae6b9d42e07deac435b730d97a6f492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574695
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/trace/internal/testgen/trace.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/os/export_windows_test.go |   2 +-
+ src/os/file.go                |   5 ++
+ src/os/file_windows.go        |  13 ++-
+ src/os/path_windows.go        |  74 ++++++++++++++----
+ src/os/path_windows_test.go   | 178 ++++++++++++++++++++++++++++++++++--------
+ 5 files changed, 221 insertions(+), 51 deletions(-)

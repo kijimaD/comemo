@@ -1,19 +1,20 @@
-commit 2aa2da295f47826032f3fd7b262d9ec00e919422
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 3 16:27:05 2016 -0800
+commit e568a0180a8d7c296e254d84dc5cf485695cf570
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 18:45:34 2015 +0000
 
-    cmd/compile: convert dcl.go to nodeSeq
+    net/http: add Transport tests for using Request.Cancel mid-body
     
-    Add new functions setNodeSeqNode, appendNodeSeq, appendNodeSeqNode.
+    This CL also updates the bundled http2 package with the h2 fix from
+    https://golang.org/cl/17757
     
-    Passes toolstash -cmp.
+    Fixes #13159
     
-    Change-Id: I6c1745b1108dea45a2c0d029b9de1917ae17a962
-    Reviewed-on: https://go-review.googlesource.com/20196
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If0e3b4bd04d0dceed67d1b416ed838c9f1961576
+    Reviewed-on: https://go-review.googlesource.com/17758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    |  46 +++++++-------
- src/cmd/compile/internal/gc/syntax.go | 109 +++++++++++++++++++++++++++++++++-
- 2 files changed, 128 insertions(+), 27 deletions(-)
+ src/net/http/clientserver_test.go | 40 ++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         | 48 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 84 insertions(+), 4 deletions(-)

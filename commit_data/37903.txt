@@ -1,19 +1,16 @@
-commit e308807f658c11af52804d55c1b8c4b2cf80d3f3
-Author: Aaron Cannon <cannona@fireantproductions.com>
-Date:   Sat Oct 27 11:21:00 2018 -0500
+commit 930e637ee9d7fb7032b82ea4c112f5aa220288f1
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Sat Sep 8 00:57:31 2018 +0100
 
-    flag: improve docs for PrintDefaults; clarify how to change output destination
+    doc: make golang-nuts discussion list more prominent
     
-    The existing docs only mention that it is possible to change the output
-    destination of PrintDefaults from the default of standard error, but fail to
-    mention how to actually do so. This change fixes this lack by directing users
-    to CommandLine.SetOutput.
+    The discussion list was buried beneath the developer mailing list.
+    This change puts the discussion list first and gives it a more
+    prominent heading.
     
-    Fixes #15024
-    
-    Change-Id: Ieaa7edbebd23d4ea6fa7e53d97a87143d590bdb3
-    Reviewed-on: https://go-review.googlesource.com/c/145203
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8dcb4af98e454ae3a0140f9758a5656909126983
+    Reviewed-on: https://go-review.googlesource.com/134136
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/flag/flag.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/contrib.html | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

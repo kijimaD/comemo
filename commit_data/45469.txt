@@ -1,27 +1,32 @@
-commit d9bfda81249f25959090b1493ac8e261dd4542f4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 30 01:51:16 2021 -0400
+commit b08dfbaa439e4e396b979e02ea2e7d36972e8b7a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jul 1 16:02:42 2020 +0000
 
-    cmd/go: remove the special case for "unsafe" in importFromModules
+    runtime,runtime/metrics: add memory metrics
     
-    The comment for this special case claims:
-    > There's no directory for import "C" or import "unsafe".
+    This change adds support for a variety of runtime memory metrics and
+    contains the base implementation of Read for the runtime/metrics
+    package, which lives in the runtime.
     
-    However, there clearly is a directory for "unsafe" in
-    GOROOT/src/unsafe, and all of our integration tests seem to pass
-    without this special case. As far as I can tell, it's just confusing.
+    It also adds testing infrastructure for the metrics package, and a bunch
+    of format and documentation tests.
     
-    Also note that the internal/goroot package explicitly considers
-    package "unsafe" to be in the standard library; see CL 137435.
+    For #37112.
     
-    For #36460
-    
-    Change-Id: Ib857d18f731a7f3c911c1bd116a34e3a9b3d74a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315412
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I16a2c4781eeeb2de0abcb045c15105f1210e2d8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247041
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/modload/import.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/gc.go          |   6 +-
+ src/runtime/export_test.go              |  26 +++
+ src/runtime/metrics.go                  | 367 ++++++++++++++++++++++++++++++++
+ src/runtime/metrics/description.go      |  80 ++++++-
+ src/runtime/metrics/description_test.go | 125 +++++++++++
+ src/runtime/metrics/doc.go              |  56 ++++-
+ src/runtime/metrics/sample.go           |  10 +-
+ src/runtime/metrics_test.go             | 114 ++++++++++
+ src/runtime/mstats.go                   |   3 +-
+ 9 files changed, 781 insertions(+), 6 deletions(-)

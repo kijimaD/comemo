@@ -1,13 +1,30 @@
-commit 01ba4c000ceedde0bbb348e463c7808bcacb22c9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 2 16:31:13 2015 -0800
+commit ee2ecc4552d8fd2b29be29aed1fe81dca0df60f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 2 10:02:15 2015 -0800
 
-    math/big: implement precise Float to decimal conversion (core functionality)
+    bufio: add Reader.Discard
     
-    Change-Id: Ic0153397922ded28a5cb362e86ecdfec42e92163
-    Reviewed-on: https://go-review.googlesource.com/3752
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reader.Discard is the complement to Peek. It discards the next n bytes
+    of input.
+    
+    We already have Reader.Buffered to see how many bytes of data are
+    sitting available in memory, and Reader.Peek to get that that buffer
+    directly. But once you're done with the Peek'd data, you can't get rid
+    of it, other than Reading it.
+    Both Read and io.CopyN(ioutil.Discard, bufReader, N) are relatively
+    slow. People instead resort to multiple blind ReadByte calls, just to
+    advance the internal b.r variable.
+    
+    I've wanted this previously, several people have asked for it in the
+    past on golang-nuts/dev, and somebody just asked me for it again in a
+    private email. There are a few places in the standard library we'd use
+    it too.
+    
+    Change-Id: I85dfad47704a58bd42f6867adbc9e4e1792bc3b0
+    Reviewed-on: https://go-review.googlesource.com/2260
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/decimal.go      | 191 +++++++++++++++++++++++++++++++++++++++++++
- src/math/big/decimal_test.go |  51 ++++++++++++
- 2 files changed, 242 insertions(+)
+ src/bufio/bufio.go       |  33 +++++++++++
+ src/bufio/bufio_test.go  | 146 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go |   3 +-
+ 3 files changed, 180 insertions(+), 2 deletions(-)

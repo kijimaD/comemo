@@ -1,30 +1,25 @@
-commit 6fcab648af59faab639f3453354a7a14c888e75c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Dec 19 17:32:22 2018 +0000
+commit 25ea4e579f44fa28189422b9951c375a5ff36a4e
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 31 15:26:58 2018 -0700
 
-    runtime: disable TestArenaCollision on Darwin in race mode
+    cmd/compile: move more compiler tests to new test infrastructure
     
-    This change disables the test TestArenaCollision on Darwin in race mode
-    to deal with the fact that Darwin 10.10 must use MAP_FIXED in race mode
-    to ensure we retain our heap in a particular portion of the address
-    space which the race detector needs. The test specifically checks to
-    make sure a manually mapped region's space isn't re-used, which is
-    definitely possible with MAP_FIXED because it replaces whatever mapping
-    already exists at a given address.
+    Update #26469
     
-    This change then also makes it so that MAP_FIXED is only used in race
-    mode and on Darwin, not all BSDs, because using MAP_FIXED breaks this
-    test for FreeBSD in addition to Darwin.
-    
-    Updates #26475.
-    Fixes #29340.
-    
-    Change-Id: I1c59349408ccd7eeb30c4bf2593f48316b23ab2f
-    Reviewed-on: https://go-review.googlesource.com/c/155097
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1188e49cde1bda11506afef6b6e3f34c6ff45ea5
+    Reviewed-on: https://go-review.googlesource.com/127115
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/malloc_test.go | 8 ++++++++
- src/runtime/mem_bsd.go     | 2 +-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa_test.go            |  20 ----
+ .../internal/gc/testdata/{chan.go => chan_test.go} |  40 +++-----
+ .../gc/testdata/{compound.go => compound_test.go}  |  63 +++++--------
+ .../internal/gc/testdata/{ctl.go => ctl_test.go}   |  47 ++++------
+ .../{deferNoReturn.go => deferNoReturn_test.go}    |  10 +-
+ .../testdata/{loadstore.go => loadstore_test.go}   |  63 +++++--------
+ .../internal/gc/testdata/{map.go => map_test.go}   |  26 ++----
+ src/cmd/compile/internal/gc/testdata/novet.go      |   9 ++
+ .../gc/testdata/{regalloc.go => regalloc_test.go}  |  25 ++---
+ .../gc/testdata/{string.go => string_test.go}      | 101 +++++++++------------
+ 10 files changed, 155 insertions(+), 249 deletions(-)

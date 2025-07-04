@@ -1,15 +1,13 @@
-commit eecb6a79ff2dc86a316152f563015bc1dbc109b4
+commit 494e52fe1c07938e5127ef24e458b1f2744ac518
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 21 15:43:12 2011 +1100
+Date:   Wed Dec 21 14:57:46 2011 +1100
 
-    builder: report run time
-    dashboard: record run time
+    dashboard: store front page in memcache
     
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5504054
+    https://golang.org/cl/5503056
 
- misc/dashboard/app/build/build.go | 2 ++
- misc/dashboard/builder/http.go    | 3 ++-
- misc/dashboard/builder/main.go    | 8 +++++---
- 3 files changed, 9 insertions(+), 4 deletions(-)
+ misc/dashboard/app/build/handler.go | 12 ++++++++++++
+ misc/dashboard/app/build/ui.go      | 39 +++++++++++++++++++++++++++++++++++--
+ 2 files changed, 49 insertions(+), 2 deletions(-)

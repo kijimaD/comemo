@@ -1,17 +1,23 @@
-commit e6426dfd6dbc47ba23b8a91003b8f947c5afa692
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 17 16:05:52 2020 +0200
+commit 12d02e7d8e7df75ccbf07ec40028329fcc35c55b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 2 10:16:39 2020 -0500
 
-    net: use IFF_* consts from package syscall on solaris
+    net/http: verify RoundTripper invariants in the send function
     
-    All necessary IFF_* consts are available in the syscall package. Use
-    them in linkFlags instead of duplicating them.
+    Issue #37598 reports a nil-panic in *Client.send that can
+    only occur if one of the RoundTripper invariants is violated.
+    Unfortunately, that condition is currently difficult to diagnose: it
+    manifests as a panic during a Response field access, rather than
+    something the user can easily associate with an specific erroneous
+    RoundTripper implementation.
     
-    Change-Id: Ibd2b0f6f39f98bfad2a0c8c55d1eb64167aeee03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255497
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    No test because the new code paths are supposed to be unreachable.
+    
+    Updates #37598
+    
+    Change-Id: If0451e9c6431f6fab7137de43727297a80def05b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221818
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/interface_solaris.go | 28 +++++-----------------------
- 1 file changed, 5 insertions(+), 23 deletions(-)
+ src/net/http/client.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

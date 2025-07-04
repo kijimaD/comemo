@@ -1,22 +1,14 @@
-commit d6473a12637945ca88966f6658da663abcbd508b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 5 18:06:51 2022 -0700
+commit 4509e951ecc4bb81b8463829a639c051c2b967f4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:31:10 2022 -0400
 
-    syscall: avoid serializing forks on ForkLock
+    runtime: tricky replacements of g in proc.go
     
-    Fixes #23558
-    Fixes #54162
-    
-    Change-Id: I3cf6efe466080cdb17e171218e9385ccb272c301
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421441
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I36cd167ed77e123b3ba7dd4a1a8577cbc51a84d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418588
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/sync/rwmutex.go      |  13 ++++++
- src/syscall/exec_unix.go | 115 +++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 110 insertions(+), 18 deletions(-)
+ src/runtime/proc.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

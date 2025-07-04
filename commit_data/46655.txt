@@ -1,33 +1,21 @@
-commit 435718edd9e9ba60d0c5bca45cc9d57c6b5527bc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 28 13:50:15 2021 -0700
+commit 90bfc7307175c2f58d4efb48003670dba23385ed
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 19 10:38:33 2021 -0800
 
-    cmd/compile/internal/types2: avoid infinite recursion in unification
+    [dev.typeparams] cmd/compile: cache mapped types during irgen
     
-    If the type T inferred for a type parameter P is P itself (or a derived
-    type containing P), a subsequent unification step leads to infinite
-    recursion: at each encounter of P with the already inferred type T
-    (which is or contains P), P stands for that T and the recursive matching
-    process continues with T, which inevitably contains P again and recursion
-    never terminates.
+    If we see the exact same types2.Type a second time, we can map it to
+    the same *types.Type instance. Not strictly necessary, but reduces
+    memory usage and plays better with the rest of the compiler given the
+    current state of things.
     
-    This CL introduces a set of masks, one for each type parameter.
-    When a type parameter is encountered for which a type has already
-    been inferred, the type parameter is "masked" for the recursive
-    matching of the inferred type. Masking makes the type parameter
-    "invisible" such that it will be handled like any other type and
-    not unpacked further.
-    
-    Fixes #48619.
-    For #48656.
-    
-    Change-Id: Ic1d938322be51fd44323ea14f925303f58b27c97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352832
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I53686d072c7c7834b0c97417bc8d5f2cd24572b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284692
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- .../types2/testdata/fixedbugs/issue48619.go2       | 22 ++++++++++++++++++
- .../types2/testdata/fixedbugs/issue48656.go2       | 13 +++++++++++
- src/cmd/compile/internal/types2/unify.go           | 26 +++++++++++++++++++---
- 3 files changed, 58 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go |  2 ++
+ src/cmd/compile/internal/noder/types.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+)

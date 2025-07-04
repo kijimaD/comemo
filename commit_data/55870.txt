@@ -1,25 +1,20 @@
-commit ccfcc30f3e3ce90bad0b7a40f79eee78da6adb47
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Feb 26 20:36:29 2024 +0000
+commit eedd97d5fd9d7b773dc7b1b8d7e00e137da091bb
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Mar 21 08:57:43 2023 -0400
 
-    runtime: clean up dead P trace state when disabling tracing too
+    log/slog: clarify Logger.WithGroup doc
     
-    Right now, we're careful to clean up dead P state when we advance to
-    future trace generations. If we don't, then if that P comes back to
-    life, we might end up using its old stale trace state.
+    Make it clear that "qualified by the given name" doesn't imply
+    any particular implementation, but depends on how the Handler
+    treats groups.
     
-    Unfortunately, we never handled this in the case when tracing stops,
-    only when advancing to new generations. As a result, stopping a trace,
-    starting it again, and then bringing a P back to life in the following
-    generation meant that the dead P could be using stale state.
+    Updates golang/go#56345.
     
-    Fixes #65318.
-    
-    Change-Id: I9297d9e58a254f2be933b8007a6ef7c5ec3ef4f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567077
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idf52553108bc1a7d2091a06cc4fc4cc0fc52cc14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478056
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/runtime/trace2.go | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ src/log/slog/logger.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,22 +1,20 @@
-commit 4267fd389e941cf197cc3890cc42e474866c0d30
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Feb 18 11:55:07 2025 +0100
+commit 699807f323739582f37814c29fece6e3564eb13d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 11 12:31:25 2023 -0500
 
-    syscall: don't truncate newly created files on Windows
+    doc/go1.22: remove empty cgo section
     
-    There is no need for syscall.OpenFile to truncate newly created files.
-    Some special Windows files, like the NUL device, can't be
-    truncated, so we should avoid truncating unless it is really necessary.
+    The only issue in this section, #56378, does not need a release note
+    for Go 1.22 because its feature was disabled for this release.
     
-    Fixes #71752.
+    For #61422.
+    Updates #56378.
     
-    Change-Id: I8238048594f706f6a5281053d55cfe3dc898828d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650276
+    Change-Id: Ia4e090994cd9ac04e855f8b3a2c6ca0cde4485d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548876
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/os_test.go               | 11 +++++++++++
- src/syscall/syscall_windows.go  | 22 +++++++++++++++++-----
- src/syscall/zsyscall_windows.go |  4 ++--
- 3 files changed, 30 insertions(+), 7 deletions(-)
+ doc/go1.22.html | 7 -------
+ 1 file changed, 7 deletions(-)

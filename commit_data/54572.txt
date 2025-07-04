@@ -1,24 +1,25 @@
-commit 0ba8ef4702a8b9fea83c22322174c5ab6c5873c0
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Sep 28 08:10:04 2023 +0000
+commit 49bbece44c93b4de62ff360268c420e45f27ad63
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 28 17:23:58 2022 -0700
 
-    net: set IsNotFound for unknown services in LookupPort
+    go/build: ignore files by extension before matching on name
     
-    Change-Id: I9d5f0ea5edd2c121179e3d2f8d4a890fa25a3fa9
-    GitHub-Last-Rev: 48a13fe5f51b8208784bd38de3fc14f0997c8ff7
-    GitHub-Pull-Request: golang/go#63160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530415
+    Otherwise given a file like defs_nacl_amd64p32.go.~1~ we will add
+    "nacl" and "amd64p32" to AllTags. This was causing the
+    cmd/go/internal/modindex tests to fail on my system, since I had
+    an old editor backup file lying around.
+    
+    Change-Id: Ib1c5d835e4871addae6dc78cee07c9839bb880e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446395
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/syscall/unix/net_darwin.go |  1 +
- src/net/cgo_unix.go                     |  4 +++-
- src/net/cgo_unix_cgo.go                 |  1 +
- src/net/cgo_unix_syscall.go             |  1 +
- src/net/lookup.go                       |  3 ++-
- src/net/lookup_plan9.go                 | 10 ++++++----
- src/net/lookup_test.go                  |  8 ++++++++
- src/net/lookup_windows.go               | 15 ++++++++++-----
- 8 files changed, 32 insertions(+), 11 deletions(-)
+ src/go/build/build.go                                    |  6 +++---
+ src/go/build/build_test.go                               | 10 ++++++++++
+ src/go/build/testdata/non_source_tags/non_source_tags.go |  5 +++++
+ src/go/build/testdata/non_source_tags/x_arm.go.ignore    |  5 +++++
+ 4 files changed, 23 insertions(+), 3 deletions(-)

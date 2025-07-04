@@ -1,32 +1,31 @@
-commit 5714c91b532f3ac9b354cd8302c63aa6f9ab53e7
-Author: erifan01 <eric.fang@arm.com>
-Date:   Mon Jan 14 09:36:18 2019 +0000
+commit 0ff6e5f1b48dfdff9ebf77796eeca1a5ec097def
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Sep 19 18:37:08 2018 -0300
 
-    cmd/compile: intrinsify math/bits.Add64 for arm64
+    crypto/cipher: add VSX implementation of xorBytes for ppc64x
     
-    This CL instrinsifies Add64 with arm64 instruction sequence ADDS, ADCS
-    and ADC, and optimzes the case of carry chains.The CL also changes the
-    test code so that the intrinsic implementation can be tested.
+    This change adds asm implementations of xorBytes for ppc64x that
+    takes advantage of VSX registers and instructions.
     
-    Benchmarks:
-    name               old time/op       new time/op       delta
-    Add-224            2.500000ns +- 0%  2.090000ns +- 4%  -16.40%  (p=0.000 n=9+10)
-    Add32-224          2.500000ns +- 0%  2.500000ns +- 0%     ~     (all equal)
-    Add64-224          2.500000ns +- 0%  1.577778ns +- 2%  -36.89%  (p=0.000 n=10+9)
-    Add64multiple-224  6.000000ns +- 0%  2.000000ns +- 0%  -66.67%  (p=0.000 n=10+10)
+    name                   old time/op    new time/op     delta
+    XORBytes/8Bytes-8        16.4ns ± 0%     11.1ns ± 0%   -32.32%  (p=0.000 n=5+4)
+    XORBytes/128Bytes-8      45.6ns ± 0%     16.2ns ± 0%   -64.50%  (p=0.008 n=5+5)
+    XORBytes/2048Bytes-8      433ns ±13%      129ns ± 1%   -70.29%  (p=0.000 n=5+4)
+    XORBytes/32768Bytes-8    7.16µs ± 0%     1.83µs ± 0%   -74.39%  (p=0.008 n=5+5)
     
-    Change-Id: I6ee91c9a85c16cc72ade5fd94868c579f16c7615
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/159017
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    name                   old speed      new speed       delta
+    XORBytes/8Bytes-8       488MB/s ± 0%    721MB/s ± 0%   +47.75%  (p=0.016 n=5+4)
+    XORBytes/128Bytes-8    2.80GB/s ± 0%   7.89GB/s ± 0%  +181.33%  (p=0.008 n=5+5)
+    XORBytes/2048Bytes-8   4.77GB/s ±13%  15.87GB/s ± 0%  +232.68%  (p=0.016 n=5+4)
+    XORBytes/32768Bytes-8  4.58GB/s ± 0%  17.88GB/s ± 0%  +290.47%  (p=0.008 n=5+5)
+    
+    Change-Id: Ic27d9b858f8ec2d597fdabc68a288d6844eba701
+    Reviewed-on: https://go-review.googlesource.com/c/145997
+    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/arm64/ssa.go        |  24 ++++++
- src/cmd/compile/internal/gc/ssa.go           |   4 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |   6 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 109 ++++++++++++++-------------
- src/cmd/compile/internal/ssa/opGen.go        |  44 +++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 108 ++++++++++++++++++++++++++
- src/math/bits/bits_test.go                   |  25 ++++++
- test/codegen/mathbits.go                     |  10 +++
- 8 files changed, 277 insertions(+), 53 deletions(-)
+ src/crypto/cipher/xor_generic.go |  2 +-
+ src/crypto/cipher/xor_ppc64x.go  | 29 ++++++++++++++++++
+ src/crypto/cipher/xor_ppc64x.s   | 66 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 96 insertions(+), 1 deletion(-)

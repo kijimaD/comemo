@@ -1,20 +1,20 @@
-commit 7d80291c4c8bce8754b6e1aeb962aed1ceef64dc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 1 11:58:41 2015 -0800
+commit 8d31a86a1e7be5f84af9df8aeb36bc1e157d50eb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 18 11:13:19 2015 -0800
 
-    cmd/compile: eliminate Io.importsafe
+    reflect: mark mapassign as noescape
     
-    It was only really necessary for ensuring that package runtime should
-    be treated as safe even without a "safe" marker, but mkbuiltin.go now
-    compiles it with -u.
+    The lack of this annotation causes Value.SetMapIndex to allocate
+    when it doesn't need to.
     
-    Change-Id: Ifbcc62436ce40ab732ece667141afd82c1d3b64b
-    Reviewed-on: https://go-review.googlesource.com/19625
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Add comments about why it's safe to do so.
+    
+    Add a test to make sure we stay allocation-free.
+    
+    Change-Id: I00826e0d73e317a31bdeae5c7e46bf95b0c6ae6a
+    Reviewed-on: https://go-review.googlesource.com/17060
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/go.go     | 17 ++++++++---------
- src/cmd/compile/internal/gc/lex.go    |  1 -
- src/cmd/compile/internal/gc/parser.go |  8 ++++----
- 3 files changed, 12 insertions(+), 14 deletions(-)
+ src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
+ src/reflect/value.go    | 22 +++++++++++++++-------
+ 2 files changed, 44 insertions(+), 7 deletions(-)

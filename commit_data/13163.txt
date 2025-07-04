@@ -1,14 +1,12 @@
-commit 132dbb61aadf2eaa0718e388b2bb7e3f6e42f734
-Author: Bill Thiede <couchmoney@gmail.com>
-Date:   Fri May 25 09:19:21 2012 +1000
+commit d6ac5b32d23b6d88342d55cd262f1b09e5a02f3e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 25 09:18:12 2012 +1000
 
-    net/mail: more liberal parsing of Date headers.
-    Fixes #3639.
+    C: Bill Thiede (Google CLA)
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6243045
+    https://golang.org/cl/6257050
 
- src/pkg/net/mail/message.go      | 11 ++++++-----
- src/pkg/net/mail/message_test.go |  5 +++++
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

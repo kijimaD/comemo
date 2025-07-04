@@ -1,16 +1,25 @@
-commit 268bc396c1ce5b7495c5818a286ef92763c1ba7e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 29 19:36:44 2016 +0000
+commit 7b40b0c3a332cbfaa1eb17bdafd2ddf12119ec45
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Sep 28 01:54:38 2016 -0700
 
-    doc: more go1.8.html tweaks and new context additions section
+    strings, bytes: panic if Repeat overflows or if given a negative count
     
-    TBR=See https://golang.org/cl/33244
+    Panic if Repeat is given a negative count or
+    if the value of (len(*) * count) is detected
+    to overflow.
+    We panic because we cannot change the
+    signature of Repeat to return an error.
     
-    Updates #17929
+    Fixes #16237
     
-    Change-Id: Id5d5472cf1e41472d8d0f82ee133c7387257ba2b
-    Reviewed-on: https://go-review.googlesource.com/33664
+    Change-Id: I9f5ba031a5b8533db0582d7a672ffb715143f3fb
+    Reviewed-on: https://go-review.googlesource.com/29954
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 140 ++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 89 insertions(+), 51 deletions(-)
+ src/bytes/bytes.go          | 13 ++++++++++++
+ src/bytes/bytes_test.go     | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 13 ++++++++++++
+ src/strings/strings_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 123 insertions(+)

@@ -1,17 +1,21 @@
-commit ed4db861182456a63b7d837780c146d4e58e63d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 16 12:27:07 2022 -0400
+commit f208f1ac993b0b47ebf9bb247a4bc16bc53ad0fd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 17 11:40:21 2021 -0700
 
-    cmd/api: remove debug print
+    [dev.typeparams] cmd/compile/internal/ir: more useful Fatalfs
     
-    Left over from CL 392414.
+    This CL just adds some additional details to existing Fatalf messages
+    that make them more useful for identifying what went wrong.
     
-    Change-Id: I32ff1d660ba03d6c2005ad247e2129daf83aac04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393361
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Icba0d943ccfb1b810a1ede0977cc8cf22b2afde5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320612
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/api/run.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ir/func.go | 2 +-
+ src/cmd/compile/internal/ir/node.go | 2 +-
+ src/cmd/compile/internal/ir/val.go  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

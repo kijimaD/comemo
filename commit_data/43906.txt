@@ -1,21 +1,23 @@
-commit 20e251864b7caa1b863814fdf6c26280e1b669b3
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Dec 1 15:10:03 2020 -0500
+commit e1a96b82dfe4e072b95ac77a6e08216356c23469
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Tue Apr 28 18:19:17 2020 -0700
 
-    cmd: update golang.org/x/mod to v0.4.0
+    cmd/compile: adopt strong aux typing for some s390x rules
     
-    CL 269357 is the only difference between the pseudo-version we were
-    using and v0.4.0.
+    Convert some optimizations rules to strongly-typed versions. Similar to
+    CL 230338, this CL only converts rules that need no additional changes
+    (i.e: only need to change '->' to '=>').
     
-    Change-Id: If15326bda51e04b47130429b818bfe2facaee03d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274593
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This CL covers the rules from line 800 - 1219.
+    
+    Passes toolstash-check
+    
+    Change-Id: I94181a809fa38918b78301f1c0c680b7a8ab552f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230738
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go.mod                                   | 2 +-
- src/cmd/go.sum                                   | 4 ++--
- src/cmd/vendor/golang.org/x/mod/semver/semver.go | 3 +++
- src/cmd/vendor/modules.txt                       | 2 +-
- 4 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 192 +++++------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 462 +++++++++++++--------------
+ 2 files changed, 327 insertions(+), 327 deletions(-)

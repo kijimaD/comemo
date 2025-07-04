@@ -1,31 +1,23 @@
-commit b1d144e1584ef6dbd8dfc2157133b15c48ebd6b9
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon May 11 14:19:11 2015 -0400
+commit 4a7e5bca3c67a8696005371947fcaf23bf131e1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 6 19:36:36 2015 -0700
 
-    go/constant: rename go/constants
+    cmd/internal/gc: clean up bgen
     
-    Change-Id: I4b1ce33253890de9bc64fee9b476fe52eec87fc0
-    Reviewed-on: https://go-review.googlesource.com/9920
+    This cleanup is in anticipation of implementing
+    jump-free booleans (CL 2284) and zero-aware
+    comparisons (issue 10381).
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I50f394c60fa2927e177d7fc85b75085060a9e912
+    Reviewed-on: https://go-review.googlesource.com/8738
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/build/deps_test.go                    | 6 +++---
- src/go/{constants => constant}/go13.go       | 2 +-
- src/go/{constants => constant}/go14.go       | 2 +-
- src/go/{constants => constant}/value.go      | 4 ++--
- src/go/{constants => constant}/value_test.go | 2 +-
- src/go/internal/gcimporter/gcimporter.go     | 2 +-
- src/go/types/api.go                          | 2 +-
- src/go/types/builtins.go                     | 2 +-
- src/go/types/check.go                        | 2 +-
- src/go/types/conversions.go                  | 2 +-
- src/go/types/decl.go                         | 2 +-
- src/go/types/expr.go                         | 2 +-
- src/go/types/object.go                       | 2 +-
- src/go/types/operand.go                      | 2 +-
- src/go/types/resolver.go                     | 2 +-
- src/go/types/self_test.go                    | 2 +-
- src/go/types/stmt.go                         | 2 +-
- src/go/types/typexpr.go                      | 2 +-
- src/go/types/universe.go                     | 2 +-
- 19 files changed, 22 insertions(+), 22 deletions(-)
+ src/cmd/8g/ggen.go          | 135 ++++++---------
+ src/cmd/internal/gc/cgen.go | 405 ++++++++++++++++++++------------------------
+ src/cmd/internal/gc/cplx.go |  77 ++++-----
+ src/cmd/internal/gc/gen.go  |   8 +
+ src/cmd/internal/gc/go.go   |   4 +-
+ src/cmd/internal/gc/subr.go |  18 +-
+ 6 files changed, 284 insertions(+), 363 deletions(-)

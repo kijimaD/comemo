@@ -1,29 +1,12 @@
-commit e97ab0a0acec9281dbca086d99d965100a196100
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 13 12:25:19 2015 -0700
+commit c97e73d8497f61b61299e5d2d371ef672d0c596d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 15:43:42 2015 +1000
 
-    cmd/compile: remove stale register use array
+    doc: fix typo in faq
     
-    The reg[] array in .../gc is where truth lies.  The copy in .../ARCH
-    is incorrect as it is mostly not updated to reflect regalloc decisions.
-    
-    This bug was introduced in the rewrite
-    https://go-review.googlesource.com/#/c/7853/.  The new reg[] array was
-    introduced in .../gc but not all of the uses were removed in the
-    .../ARCH directories.
-    
-    Fixes #12133
-    
-    Change-Id: I6364fc403cdab92d802d17f2913ba1607734037c
-    Reviewed-on: https://go-review.googlesource.com/13630
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id2cfa63d4c749503f729097654d7cbd2b252f192
+    Reviewed-on: https://go-review.googlesource.com/11660
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go |  8 ++++----
- src/cmd/compile/internal/amd64/reg.go  |  2 --
- src/cmd/compile/internal/arm64/ggen.go |  6 +++---
- src/cmd/compile/internal/arm64/reg.go  |  2 --
- src/cmd/compile/internal/gc/gsubr.go   |  7 +++++++
- src/cmd/compile/internal/x86/ggen.go   |  4 ++--
- src/cmd/compile/internal/x86/reg.go    |  2 --
- test/fixedbugs/issue12133.go           | 26 ++++++++++++++++++++++++++
- 8 files changed, 42 insertions(+), 15 deletions(-)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

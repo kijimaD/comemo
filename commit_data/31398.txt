@@ -1,25 +1,18 @@
-commit f5c878e0300829bf47b9be5cae711339c29e522a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 07:37:40 2017 -0700
+commit 1693e7b6f2ad1bd2a800161e92b5ac8d3d882663
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 12:52:01 2017 -0800
 
-    cmd/compile: randomize compilation order when race-enabled
+    cmd/compile/internal/syntax: better errors and recovery for invalid character literals
     
-    There's been one failure on the race builder so far,
-    before we started sorting functions by length.
+    Fixes #15611.
     
-    The race detector can only detect actual races,
-    and ordering functions by length might reduce the odds
-    of catching some kinds of races. Give it more to chew on.
-    
-    Updates #20144
-    
-    Change-Id: I0206ac182cb98b70a729dea9703ecb0fef54d2d0
-    Reviewed-on: https://go-review.googlesource.com/41973
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I352b145026466cafef8cf87addafbd30716bda24
+    Reviewed-on: https://go-review.googlesource.com/37138
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/norace.go |  9 +++++++++
- src/cmd/compile/internal/gc/pgen.go   | 23 +++++++++++++++++------
- src/cmd/compile/internal/gc/race.go   |  9 +++++++++
- 3 files changed, 35 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/syntax/scanner.go      | 79 +++++++++++++++----------
+ src/cmd/compile/internal/syntax/scanner_test.go |  9 +--
+ test/fixedbugs/issue15611.go                    | 20 +++++++
+ 3 files changed, 72 insertions(+), 36 deletions(-)

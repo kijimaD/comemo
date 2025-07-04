@@ -1,21 +1,19 @@
-commit 76e92d1c9e2943de7093af14d58663fa2993e608
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 9 16:00:54 2018 -0700
+commit 0d264746063df2887875432170cbf11607c85501
+Author: rajender <rajenderreddykompally@gmail.com>
+Date:   Mon Nov 27 23:19:12 2017 +0530
 
-    runtime: use fixed TLS offsets on darwin/amd64 and darwin/386
+    encoding/json: update RFC number
     
-    Fixes #23617
+    Existing docs mention obsolete RFC 4627. Update it with current one,
+    https://tools.ietf.org/html/rfc7159.
     
-    Note that this CL does not affect darwin/arm and darwin/arm64,
-    still TBD what, if anything, needs to be done for those.
+    Current implementation already adhere to RFC 7159.
     
-    Change-Id: Ie1ee02a9f4d4d1fb9cd5dc432d900f926cc157db
-    Reviewed-on: https://go-review.googlesource.com/105975
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #22888
+    
+    Change-Id: I705ec1313f6f655b3bc41d2f847b30e479bf9b15
+    Reviewed-on: https://go-review.googlesource.com/79995
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/sym.go    | 20 ++++++---
- src/runtime/cgo/gcc_darwin_386.c   | 92 ++------------------------------------
- src/runtime/cgo/gcc_darwin_amd64.c | 63 ++------------------------
- src/runtime/sys_darwin_386.s       | 11 +++--
- src/runtime/sys_darwin_amd64.s     |  9 ++--
- 5 files changed, 28 insertions(+), 167 deletions(-)
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

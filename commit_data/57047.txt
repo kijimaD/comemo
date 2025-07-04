@@ -1,21 +1,21 @@
-commit 7dac9898c3d34378de8f523a77a01bcc86033562
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jun 24 17:17:13 2024 -0400
+commit f7e11723e527c1a12e76180e29d52e1fcefce57b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 12 16:38:24 2023 -0400
 
-    reflect: add flag tests for MapOf
+    cmd/dist: do not use user build cache in versioned trees
     
-    Add two tests that verify that MapOf sets the map NeedsKeyUpdate and
-    HashMightPanic flags in the created map. Missing these flags would cause
-    correctness issues not otherwise caught in the reflect tests.
+    There is no guarantee that the user build cache will have
+    correct data if we are using a versioned build (with a VERSION file),
+    because that overrides the use of tool build IDs for staleness.
+    An earlier build might have run with a buggy compiler, and we don't
+    want those files lying around.
     
-    For #54766.
-    
-    Change-Id: Icd5f117e0794e7b4d1b70fa94e5afbe97c4543e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594656
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I831956911162ccbd0b4d943c305b3537918fe119
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502699
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ src/cmd/dist/build.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

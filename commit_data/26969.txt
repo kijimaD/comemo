@@ -1,21 +1,16 @@
-commit 90addd3d41852192ba697d33c9b1660988b82ed7
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 14 12:32:28 2016 -0400
+commit 4ab1793a781462d61f19abc1c6060704a8ed01c3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 19:04:50 2016 -0800
 
-    runtime: common handling of _AT_RANDOM auxv
+    cmd/compile: convert asmlist to []*Node
     
-    The Linux kernel provides 16 bytes of random data via the auxv vector
-    at startup. Currently we consume this separately on 386, amd64, arm,
-    and arm64. Now that we have a common auxv parser, handle _AT_RANDOM in
-    the common path.
+    Updates #14473.
     
-    Change-Id: Ib69549a1d37e2d07a351cf0f44007bcd24f0d20d
-    Reviewed-on: https://go-review.googlesource.com/22062
+    Change-Id: I88745c2a6119dea3b81b57299e70a2a7e4c584a8
+    Reviewed-on: https://go-review.googlesource.com/20272
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_linux.go         |  9 ++++++++-
- src/runtime/os_linux_386.go     |  7 -------
- src/runtime/os_linux_arm.go     |  9 ++++-----
- src/runtime/os_linux_arm64.go   | 14 ++++----------
- src/runtime/vdso_linux_amd64.go |  4 ----
- 5 files changed, 16 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/export.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

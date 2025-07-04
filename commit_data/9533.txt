@@ -1,27 +1,17 @@
-commit 88e984faa5c966b175df54fe5bab75fca457fa87
+commit 8aa2591b130520e9f30d83e672f976e9c7590d7e
 Author: Joel Sing <jsing@google.com>
-Date:   Mon Aug 29 10:04:28 2011 -0400
+Date:   Mon Aug 29 09:35:13 2011 -0400
 
-    syscall: add openbsd 386
+    runtime: openbsd thread tweaks
     
-    Add openbsd 386 syscall support, partially based on the existing
-    freebsd 386 syscall implementation.
-    
-    FTR zerrors_openbsd_386.go cannot currently be completely built on
-    openbsd/i386 due to what appears to be a gcc bug. The constants can be
-    successfully generated with -m32 on openbsd/amd64 and the error
-    table can then be generated on openbsd/i386.
+    - Rename sys_sched_yield() to osyield() as this is now defined in asm.h.
+    - Only print kern.rtheads message if rfork_thread() failed with ENOTSUP.
+    - Remove unused variables.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4969045
+    https://golang.org/cl/4973043
 
- src/pkg/syscall/asm_openbsd_386.s       |  137 ++++
- src/pkg/syscall/mkall.sh                |    6 +
- src/pkg/syscall/mksyscall.pl            |    9 +-
- src/pkg/syscall/syscall_openbsd_386.go  |   42 +
- src/pkg/syscall/zerrors_openbsd_386.go  | 1367 +++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_openbsd_386.go |  941 +++++++++++++++++++++
- src/pkg/syscall/zsysnum_openbsd_386.go  |  207 +++++
- src/pkg/syscall/ztypes_openbsd_386.go   |  383 +++++++++
- 8 files changed, 3091 insertions(+), 1 deletion(-)
+ src/pkg/runtime/openbsd/amd64/sys.s | 10 +++++-----
+ src/pkg/runtime/openbsd/thread.c    | 16 ++++++++--------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

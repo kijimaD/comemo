@@ -1,16 +1,15 @@
-commit 751ea9369a9bd3b30daafced4d1c172541076617
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 10:54:20 2018 -0400
+commit 1898fce1e70b0a2038d71363d38e8b10b269c1c4
+Author: mbj36 <mohitbajo36@gmail.com>
+Date:   Sun Apr 15 22:50:14 2018 +0530
 
-    cmd/go: document import "C" check from CL 129062
+    doc: improve commit messages
     
-    Added this locally but then broke the first rule of Gerrit
-    and clicked Submit instead of running "git submit".
+    Fixes #24852
     
-    Change-Id: I83c28d9151c566e9b2092e2613d67731a5d64beb
-    Reviewed-on: https://go-review.googlesource.com/129678
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I71d0d7f75108bf4ad606733a45bb71baa66a4e91
+    Reviewed-on: https://go-review.googlesource.com/107197
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/internal/imports/scan.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ doc/contribute.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

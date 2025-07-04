@@ -1,13 +1,15 @@
-commit 883530c019f06d557f82707d35f7ee363ff12637
+commit 071e44e4e417adb9782410acfb89f0fb1cb85fb4
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 00:50:47 2013 -0400
+Date:   Wed Aug 14 00:34:00 2013 -0400
 
-    sync/atomic: fix new swap on arm linux
+    time: make Time implement encoding interfaces
     
-    TBR=dvyukov
+    See golang.org/s/go12encoding for design.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12920043
+    https://golang.org/cl/12706043
 
- src/pkg/sync/atomic/64bit_arm.go    | 2 +-
- src/pkg/sync/atomic/asm_linux_arm.s | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/time/time.go      | 60 ++++++++++++++++++++++++++++++++++++-----------
+ src/pkg/time/time_test.go | 22 +++++++++++------
+ 2 files changed, 61 insertions(+), 21 deletions(-)

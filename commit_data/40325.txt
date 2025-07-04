@@ -1,17 +1,21 @@
-commit ff9f7bc9da45b66689d8e61b6c674b555517de20
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sat Oct 19 23:50:15 2019 -0700
+commit 2c67cdf7cf59a685f3a5e705b6be85f32285acec
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Fri May 3 11:41:54 2019 +0700
 
-    net/http: make Transport.RoundTrip close body on any invalid request
+    net/http: strip escaped password from error
     
-    Fixes #35015
+    Using password that returns from User.Password() won't work in this case
+    because password in Userinfo already unescaped. The solution is uses
+    User.String() to escape password back again and then stringify it to error.
     
-    Change-Id: I7a1ed9cfa219ad88014aad033e3a01f9dffc3eb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202239
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #31808
+    
+    Change-Id: I723aafd5a57a5b69f2dd7d3a21b82ebbd4174451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175018
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go      |  2 +
- src/net/http/transport_test.go | 92 ++++++++++++++++++++++++++++++++++++------
- 2 files changed, 81 insertions(+), 13 deletions(-)
+ src/net/http/client.go      | 5 ++---
+ src/net/http/client_test.go | 5 +++++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

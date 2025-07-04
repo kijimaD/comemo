@@ -1,22 +1,41 @@
-commit 2cc347382f4df3fb40d8d81ec9331f0748b1c394
-Author: Jordan Liggitt <liggitt@google.com>
-Date:   Thu Mar 28 23:37:54 2019 -0400
+commit 7d6b5e340c9c89416ffbf3e0bc997b77304c31f7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 1 16:39:34 2018 -0700
 
-    net/http/httputil: make ReverseProxy flush headers on FlushInterval
+    runtime: reduce linear search through pcvalue cache
     
-    A regression was introduced in CL 137335 (5440bfc) that caused FlushInterval
-    to not be honored until the first Write() call was encountered. This change
-    starts the flush timer as part of setting up the maxLatencyWriter.
+    This change introduces two optimizations together,
+    one for recursive and one for non-recursive stacks.
     
-    Fixes #31125
-    Fixes #31126
+    For recursive stacks, we introduce the new entry
+    at the beginning of the cache, so it can be found first.
+    This adds an extra read and write.
+    While we're here, switch from fastrandn, which does a multiply,
+    to fastrand % n, which does a shift.
     
-    Change-Id: I75325bd926652922219bd1457b2b00ac6d0d41b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170066
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    For non-recursive stacks, split the cache from [16]pcvalueCacheEnt
+    into [2][8]pcvalueCacheEnt, and add a very cheap associative lookup.
+    
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8       118ms ± 1%   106ms ± 2%  -9.56%  (p=0.000 n=17+18)
+    StackCopy-8         95.8ms ± 1%  87.0ms ± 3%  -9.11%  (p=0.000 n=19+20)
+    StackCopyNoCache-8   135ms ± 2%   139ms ± 1%  +3.06%  (p=0.000 n=19+18)
+    
+    During make.bash, the association function used has this return distribution:
+    
+    percent count  return value
+     53.23% 678797 1
+     46.74% 596094 0
+    
+    It is definitely not perfect, but it is pretty good,
+    and that's all we need.
+    
+    Change-Id: I2cabb1d26b99c5111bc28f427016a2a5e6c620fd
+    Reviewed-on: https://go-review.googlesource.com/c/110564
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/httputil/reverseproxy.go      |  5 ++++
- src/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+)
+ src/cmd/compile/internal/gc/inl_test.go |  1 +
+ src/runtime/symtab.go                   | 24 +++++++++++++++++++-----
+ 2 files changed, 20 insertions(+), 5 deletions(-)

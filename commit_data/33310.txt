@@ -1,91 +1,28 @@
-commit 7dea509703eb5ad66a35628b12a678110fbb1f72
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 11 20:39:28 2017 -0400
+commit 590c5b08070dfb2ddeb2b2583acc3a2b0fcb03bb
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon May 22 15:17:38 2017 -0600
 
-    cmd/go: switch to entirely content-based staleness determination
+    text/template: support indexing into *int* maps
     
-    This CL changes the go command to base all its rebuilding decisions
-    on the content of the files being processed and not their file system
-    modification times. It also eliminates the special handling of release
-    toolchains, which were previously considered always up-to-date
-    because modification time order could not be trusted when unpacking
-    a pre-built release.
+    Ensure that we can index maps whose key types are:
+    * int
+    * uint
+    * int32
+    * uint32
+    * int64
+    * uint64
+    * uintptr
     
-    The go command previously tracked "build IDs" as a backup to
-    modification times, to catch changes not reflected in modification times.
-    For example, if you remove one .go file in a package with multiple .go
-    files, there is no modification time remaining in the system that indicates
-    that the installed package is out of date. The old build ID was the hash
-    of a list of file names and a few other factors, expected to change if
-    those factors changed.
+    Fixes #20439
     
-    This CL moves to using this kind of build ID as the only way to
-    detect staleness, making sure that the build ID hash includes all
-    possible factors that need to influence the rebuild decision.
-    
-    One such factor is the compiler flags. As of this CL, if you run
-    
-            go build -gcflags -N cmd/gofmt
-    
-    you will get a gofmt where every package is built with -N,
-    regardless of what may or may not be installed already.
-    
-    Another such factor is the linker flags. As of this CL, if you run
-    
-            go install myprog
-            go install -ldflags=-s myprog
-    
-    the second go install will now correctly build a new myprog with
-    the updated linker flags. (Previously the installed myprog appeared
-    up-to-date, because the ldflags were not included in the build ID.)
-    
-    Because we have more precise information we can also validate whether
-    the target of a "go test -c" operation is already the right binary and
-    therefore can avoid a rebuild.
-    
-    This CL sets us up for having a more general build artifact cache,
-    maybe even a step toward not having a pkg directory with .a files,
-    but this CL does not take that step. For now the result of go install
-    is the same as it ever was; we just do a better job of what needs to
-    be installed.
-    
-    This CL does slow down builds a small amount by reading all the
-    dependent source files in full. (The go command already read the
-    beginning of every dependent source file to discover build tags
-    and imports.) On my MacBook Pro, before this CL all.bash takes
-    3m58s, while after this CL and a few optimizations stacked above it
-    all.bash takes 4m28s. Given that CL 73850 cut 1m43s off the all.bash
-    time earlier today, we can afford adding 30s back for now.
-    More optimizations are planned that should make the go command
-    more efficient than it was even before this CL.
-    
-    Fixes #15799.
-    Fixes #18369.
-    Fixes #19340.
-    Fixes #21477.
-    
-    Change-Id: I10d7ca0e31ca3f58aabb9b1f11e2e3d9d18f0bc9
-    Reviewed-on: https://go-review.googlesource.com/73212
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I8fa96b14073c8af72786482ff4ffc3508064ea86
+    Reviewed-on: https://go-review.googlesource.com/43850
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go  |   1 +
- src/cmd/dist/build.go               | 156 +++++++---
- src/cmd/dist/buildtool.go           |   2 +-
- src/cmd/dist/deps.go                |  92 +++---
- src/cmd/dist/test.go                |   6 +-
- src/cmd/go/go_test.go               |  59 ++--
- src/cmd/go/internal/cache/hash.go   |   2 +-
- src/cmd/go/internal/list/list.go    |  23 +-
- src/cmd/go/internal/load/pkg.go     | 561 +-----------------------------------
- src/cmd/go/internal/load/testgo.go  |  21 --
- src/cmd/go/internal/test/test.go    |  20 +-
- src/cmd/go/internal/work/action.go  | 142 ++++-----
- src/cmd/go/internal/work/build.go   |   3 -
- src/cmd/go/internal/work/buildid.go | 397 +++++++++++++++++++++++++
- src/cmd/go/internal/work/exec.go    | 415 +++++++++++++++++++-------
- src/cmd/go/internal/work/gc.go      |  13 +-
- src/cmd/internal/objabi/flag.go     |   1 +
- test/inline_callers.go              |  10 +-
- 18 files changed, 1003 insertions(+), 921 deletions(-)
+ src/text/template/exec_test.go | 17 +++++++++++++++++
+ src/text/template/funcs.go     | 20 +++++++++++++++++---
+ 2 files changed, 34 insertions(+), 3 deletions(-)

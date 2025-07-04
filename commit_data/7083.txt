@@ -1,19 +1,14 @@
-commit 3036604b4c341a04968d3e43263338f2cacf26f7
+commit feb8d0b2ba96810ada77d022a9b2ebd78418551b
 Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 11 13:44:00 2011 -0800
+Date:   Tue Jan 11 13:43:43 2011 -0800
 
-    gob: do not encode or decode unexported fields
-    Such fields are simply ignored.
+    netchan: make fields public for pending gob change
     
-    R=rsc, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3889043
+    https://golang.org/cl/3882042
 
- src/pkg/gob/codec_test.go   | 486 +++++++++++++++++++++++---------------------
- src/pkg/gob/debug.go        |  66 +++---
- src/pkg/gob/decode.go       |  73 ++++---
- src/pkg/gob/doc.go          |  49 ++---
- src/pkg/gob/encode.go       |   6 +
- src/pkg/gob/encoder_test.go |  68 +++----
- src/pkg/gob/type.go         | 116 +++++------
- 7 files changed, 457 insertions(+), 407 deletions(-)
+ src/pkg/netchan/common.go | 14 +++++++-------
+ src/pkg/netchan/export.go | 30 +++++++++++++++---------------
+ src/pkg/netchan/import.go | 22 +++++++++++-----------
+ 3 files changed, 33 insertions(+), 33 deletions(-)

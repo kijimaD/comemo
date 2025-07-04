@@ -1,23 +1,18 @@
-commit 55ca5ab0be6da228c891d04ffd448ce9741d47e9
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Sep 18 09:55:07 2012 +1000
+commit b29ed23ab55477dbdc02ee9fd4bf711e0b296f6a
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Sep 17 17:25:26 2012 -0400
 
-    runtime: arm: abort if VFPv3 support missing
+    build: fix various 'set and not used' for Plan 9
     
-    Fixes #3456.
-    
-    This proposal is a reformulation of CL 5987063. This CL resets
-    the default GOARM value to 6 and allows the use of the VFPv3
-    optimisation if GOARM=7. Binaries built with this CL in place
-    will abort if GOARM=7 was used and the target host does not
-    support VFPv3.
-    
-    R=minux.ma, rsc, ajstarks
+    R=dave, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6501099
+    https://golang.org/cl/6501134
 
- src/cmd/5l/asm.c                   | 7 ++++++-
- src/cmd/5l/l.h                     | 2 ++
- src/cmd/5l/obj.c                   | 2 +-
- src/pkg/runtime/signal_linux_arm.c | 8 +++++++-
- 4 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/8g/reg.c               | 1 -
+ src/cmd/gc/closure.c           | 1 +
+ src/cmd/gc/esc.c               | 1 +
+ src/cmd/gc/mparith1.c          | 2 +-
+ src/cmd/gc/reflect.c           | 1 +
+ src/cmd/ld/go.c                | 1 +
+ src/pkg/runtime/thread_plan9.c | 1 +
+ 7 files changed, 6 insertions(+), 2 deletions(-)

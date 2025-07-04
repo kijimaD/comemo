@@ -1,24 +1,32 @@
-commit da6556968f3545aa6c4e5a3c3aef151bb9b1d439
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Thu Aug 11 00:07:40 2022 +0800
+commit d480b5c790196c615213f2308d6b7b975eb99ff9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 8 13:10:08 2021 -0400
 
-    cmd/compile: simplify bounded shift on riscv64
+    cmd/link: put gcprog symbols along with gcbits
     
-    The prove pass will mark some shifts bounded, and then we can use that
-    information to generate better code on riscv64.
+    A stack object record may refer to the object's type's GC mask or
+    GC program (for very large types). For the latter, currently the GC
+    program symbol is named "type..gcprog.XXX" which is then laid out
+    along with type symbols at link time. When relro is used, the type
+    symbols end up in a different section.
     
-    Change-Id: Ia22f43d0598453c9417adac7017db28d7240948b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422616
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    As we now use relative addressing for stack object records to refer
+    to GC masks or GC programs, it is important that it is laid out in
+    the rodata section (not rodata.rel.ro). Move GC program symbols to
+    be along with GC masks, as they are similar and accessed the same
+    way. They don't have relocations so they don't need to be laid to a
+    relro section.
+    
+    This fixes flaky failures like
+    https://build.golang.org/log/3bdbaaf786ec831b4393a64a959d2130edb5e050
+    
+    Change-Id: I97aeac1234869da5b0f3a73a3010513d6a3156c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354793
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 111 +--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 920 ++++++++++++++++++++++++-
- test/codegen/shift.go                          |  34 +-
- 3 files changed, 996 insertions(+), 69 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

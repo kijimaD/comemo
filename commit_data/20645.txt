@@ -1,17 +1,16 @@
-commit 55df81d37f632e5f45f95b210f862c73a758b124
-Author: Evan Kroske <evankroske@google.com>
-Date:   Mon Oct 6 17:16:39 2014 -0400
+commit 64df53ed7f46db4a404812e2ef347521dc95a039
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 26 11:02:09 2014 +1000
 
-    cmd/gc: prohibit short variable declarations containing duplicate symbols
+    crypto/tls: ensure that we don't resume when tickets are disabled.
     
-    Fixes #6764.
-    Fixes #8435.
-    
-    LGTM=rsc
-    R=golang-codereviews, r, gobot, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/116440046
+    LGTM=r
+    R=r, adg, rsc
+    https://golang.org/cl/148080043
 
- src/cmd/gc/dcl.c | 11 +++++++++++
- test/assign.go   | 12 ++++++++++++
- 2 files changed, 23 insertions(+)
+ src/crypto/tls/handshake_server.go                 |  4 +
+ src/crypto/tls/handshake_server_test.go            | 26 +++++++
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   | 87 ++++++++++++++++++++++
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 87 ++++++++++++++++++++++
+ src/crypto/tls/ticket.go                           |  3 +-
+ 5 files changed, 206 insertions(+), 1 deletion(-)

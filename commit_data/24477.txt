@@ -1,15 +1,14 @@
-commit 3e57b17dc3e490a773570b49897876ea198c24fb
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 4 19:28:42 2015 -0400
+commit 87fd98d22040d71e5c87e83d194666a96e4f9fdb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 30 12:59:49 2015 -0700
 
-    runtime: fix comment for assistRatio
+    go/types: update comment to refer to package go/constant
     
-    The comment for assistRatio claimed it to be the reciprocal of what it
-    actually is.
+    For #11949.
     
-    Change-Id: If7f9bb853d75d0097facff3aa6704b224d9108b8
-    Reviewed-on: https://go-review.googlesource.com/15402
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4329604a24efc7f40cf5bf52fb3c9e30916b3cc2
+    Reviewed-on: https://go-review.googlesource.com/12931
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/api.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

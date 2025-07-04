@@ -1,22 +1,16 @@
-commit dd307da10c3582c195928d9bf073d1b0b01f2135
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Oct 11 14:24:59 2016 +1100
+commit 915398f14fff28f7ba8592f134e22079de044745
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 8 07:50:07 2016 -0700
 
-    runtime/cgo: do not explicitly link msvcrt.dll
+    doc/go1.7.html: fix name of IsExist
     
-    CL 14472 solved issue #12030 by explicitly linking msvcrt.dll
-    to every cgo executable we build. This CL achieves the same
-    by manually loading ntdll.dll during startup.
+    For better or for worse, it's IsExist, not IsExists.
     
-    Updates #12030
-    
-    Change-Id: I5d9cd925ef65cc34c5d4031c750f0f97794529b2
-    Reviewed-on: https://go-review.googlesource.com/30737
+    Change-Id: I4503f961486edd459c0c81cf3f32047dff7703a4
+    Reviewed-on: https://go-review.googlesource.com/24819
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/cgo/cgo.go    |  4 +---
- src/runtime/os_windows.go | 14 ++++++++++++--
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

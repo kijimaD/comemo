@@ -1,22 +1,40 @@
-commit c40bb874862b703bf4b3a207dca504989077c180
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 7 11:08:26 2024 +0200
+commit 1596aeec8ecc8f115bffad49a3d92944fc278f9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 1 17:38:08 2023 -0700
 
-    internal/sysinfo: rename osCpuInfoName to osCPUInfoName
+    all: add String for fs.{FileInfo,DirEntry} implementations
     
-    Follow https://go.dev/wiki/CodeReviewComments#initialisms
+    The new String methods use the new FormatFileInfo and
+    FormatDirEntry functions.
     
-    Change-Id: Ie7418cebb0eda130e7db5bc91475a4a4012192dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583716
+    Fixes #54451
+    
+    Change-Id: I414cdfc212ec3c316fb2734756d2117842a23631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491175
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/sysinfo/cpuinfo_bsd.go   | 2 +-
- src/internal/sysinfo/cpuinfo_linux.go | 2 +-
- src/internal/sysinfo/cpuinfo_stub.go  | 2 +-
- src/internal/sysinfo/export_test.go   | 2 +-
- src/internal/sysinfo/sysinfo.go       | 2 +-
- src/internal/sysinfo/sysinfo_test.go  | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/archive/tar/common.go                |  4 ++++
+ src/archive/zip/reader.go                |  4 ++++
+ src/archive/zip/struct.go                |  4 ++++
+ src/cmd/distpack/archive.go              |  4 ++++
+ src/cmd/go/internal/fsys/fsys.go         | 12 ++++++++++++
+ src/cmd/go/internal/modfetch/coderepo.go |  4 ++++
+ src/cmd/gofmt/long_test.go               |  4 ++++
+ src/cmd/pack/pack_test.go                |  4 ++++
+ src/embed/embed.go                       |  4 ++++
+ src/io/fs/readdir.go                     |  4 ++++
+ src/io/fs/walk.go                        |  4 ++++
+ src/net/http/fs_test.go                  |  4 ++++
+ src/os/dir_plan9.go                      |  5 +++++
+ src/os/dir_windows.go                    |  5 +++++
+ src/os/file_unix.go                      |  5 +++++
+ src/path/filepath/path.go                |  4 ++++
+ src/path/filepath/path_test.go           |  4 ++++
+ src/testing/fstest/mapfs.go              |  4 ++++
+ 18 files changed, 83 insertions(+)

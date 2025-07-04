@@ -1,24 +1,20 @@
-commit 62e130226767a088ace196da90a774c9a9d14689
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon May 23 20:20:07 2022 -0400
+commit 095bb790e132a498ba191ad6d27f89c1fc4c0232
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Aug 11 22:02:59 2021 -0400
 
-    misc/cgo/testsanitizers: use buffered channel in tsan12.go
+    os/exec: re-enable LookPathTest/16
     
-    os/signal.Notify requires that "the caller must ensure that c has
-    sufficient buffer space to keep up with the expected signal rate"
-    as it does a nonblocking send when it receives a signal. The test
-    currently using a unbuffered channel, which means it may miss the
-    signal if the signal arrives before the channel receive operation.
+    This failure was confirmed to be due to a bug in prerelease versions
+    of Windows, and has been fixed by now. Remove the skip for this test.
     
-    Fixes #52998.
+    Fixes #44379.
     
-    Change-Id: Icdcab9396d735506480ef880fb45a4669fa7cc8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407888
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Idfb92ffd6b9d416d4c78ef3800a5ffdda06c6562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341455
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- misc/cgo/testsanitizers/testdata/tsan12.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/exec/lp_windows_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

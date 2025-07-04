@@ -1,0 +1,21 @@
+commit 795d95d6ba3f92091f55af81f8ee840048fb2499
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Dec 4 19:22:51 2024 +0000
+
+    doc/next: add release notes for runtime and sync
+    
+    Also, move the weak package heading to the end; it currently overlaps
+    with 1-osroot.md in the sort order.
+    
+    For #68545.
+    
+    Change-Id: Ia26ae511eaab7c8762e42d1593ac2197d25bbadb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633599
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ doc/next/4-runtime.md                      | 16 ++++++++++++++++
+ doc/next/6-stdlib/{1-weak.md => 6-weak.md} |  0
+ doc/next/6-stdlib/99-minor/sync/70683.md   |  5 +++++
+ 3 files changed, 21 insertions(+)

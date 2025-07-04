@@ -1,33 +1,20 @@
-commit 558301a5cb8c87dab8a82db096b4ed5c12610a7d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Feb 5 19:52:06 2023 -0800
+commit d39b54171a2702d5fe6fc427b60ee03c9c45da5a
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Mon Aug 8 14:13:52 2022 -0700
 
-    cmd/go: abstract build cache, support implementations via child process
+    encoding/gob: change typeInfo.encoder type to atomic.Pointer[T]
     
-    Via setting GOCACHEPROG to a binary which speaks JSON over
-    stdin/stdout.
+    Replace loading and storing an atomic.Value of type pointer with
+    atomic.Pointer.
     
-    For now, it requires GOEXPERIMENT=cacheprog.
-    
-    Fixes golang/go#59719
-    
-    Change-Id: I824ff04d5ebdf0ba4d1b5bc2e9fbaee26d34c80f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486715
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I018ac1e18eee4f203ebca65c2833daf991075371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422174
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/cache/cache.go             | 101 ++++--
- src/cmd/go/internal/cache/cache_test.go        |   8 +-
- src/cmd/go/internal/cache/default.go           |  14 +-
- src/cmd/go/internal/cache/prog.go              | 427 +++++++++++++++++++++++++
- src/cmd/go/internal/modindex/read.go           |   8 +-
- src/cmd/go/internal/test/test.go               |  12 +-
- src/cmd/go/internal/work/buildid.go            |  10 +-
- src/cmd/go/internal/work/exec.go               |  26 +-
- src/internal/cfg/cfg.go                        |   1 +
- src/internal/goexperiment/exp_cacheprog_off.go |   9 +
- src/internal/goexperiment/exp_cacheprog_on.go  |   9 +
- src/internal/goexperiment/flags.go             |   4 +
- 12 files changed, 570 insertions(+), 59 deletions(-)
+ src/encoding/gob/encode.go | 10 +++++-----
+ src/encoding/gob/type.go   |  4 ++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)

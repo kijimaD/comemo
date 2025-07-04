@@ -1,12 +1,20 @@
-commit e2a83b47e7f604cd55adc747c2534270040e5624
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 28 03:57:27 2012 +0800
+commit 79473d6b1cec225d498f300c67a89fa589c48855
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Aug 26 20:57:47 2012 +1000
 
-    C: add Tobias Columbus's email used in Rietveld
+    runtime: use netbsd signal ABI v2
     
-    R=golang-dev, tobias.columbus, bradfitz
+    Use version 2 of the NetBSD signal ABI - both version 2 and version 3
+    are supported by the kernel, with near identical behaviour. However,
+    the netbsd32 compat code does not allow version 3 to be used, which
+    prevents Go netbsd/386 binaries from running in compat mode on a
+    NetBSD amd64 kernel. Switch to version 2 of the ABI, which is the
+    same version currently used by NetBSD's libc.
+    
+    R=minux.ma
     CC=golang-dev
-    https://golang.org/cl/6483058
+    https://golang.org/cl/6476068
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/sys_netbsd_386.s   | 2 +-
+ src/pkg/runtime/sys_netbsd_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

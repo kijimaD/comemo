@@ -1,35 +1,20 @@
-commit 45971c60c31303ed9100d3ac8c3030c4d48d7084
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 31 11:54:42 2015 -0400
+commit 77082481d48c8cd8ea93328f9ab962092fe0183f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu May 7 12:33:45 2015 +0300
 
-    cmd/go: fix disallow of p/vendor/x during vendor experiment
+    runtime/race: make test more robust
     
-    The percolation of errors upward in the load process could
-    drop errors, meaning that a build tree could, depending on the
-    processing order, import the same directory as both "p/vendor/x"
-    and as "x". That's not supposed to be allowed. But then, worse,
-    the build would generate two jobs for building that directory,
-    which would use the same work space and overwrite each other's files,
-    leading to very strange failures.
+    The test is flaky on builders lately. I don't see any issues other than
+    usage of very small sleeps. So increase the sleeps. Also take opportunity
+    to refactor the code.
+    On my machine this change significantly reduces failure rate with GOMAXPROCS=2.
+    I can't reproduce the failure with GOMAXPROCS=1.
     
-    Two fixes:
+    Fixes #10726
     
-    1. Fix the propagation of errors upward (prefer errors over success).
-    2. Check explicitly for duplicated packages before starting a build.
-    
-    New test for #1.
-    Since #2 can't happen, tested #2 by hand after reverting fix for #1.
-    
-    Fixes #11913.
-    
-    Change-Id: I6d2fc65f93b8fb5f3b263ace8d5f68d803a2ae5c
-    Reviewed-on: https://go-review.googlesource.com/13022
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iea6f10cf3ce1be5c112a2375d51c13687a8ab4c9
+    Reviewed-on: https://go-review.googlesource.com/9803
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/pkg.go                                  | 26 +++++++++++++++++-----
- src/cmd/go/testdata/testvendor/src/p/p.go          |  6 +++++
- src/cmd/go/testdata/testvendor/src/q/vendor/x/x.go |  1 +
- src/cmd/go/testdata/testvendor/src/q/y/y.go        |  3 +++
- src/cmd/go/testdata/testvendor/src/q/z/z.go        |  3 +++
- src/cmd/go/vendor_test.go                          |  9 ++++++++
- 6 files changed, 43 insertions(+), 5 deletions(-)
+ src/runtime/race/testdata/sync_test.go | 74 +++++++++++++---------------------
+ 1 file changed, 27 insertions(+), 47 deletions(-)

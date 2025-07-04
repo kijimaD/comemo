@@ -1,17 +1,25 @@
-commit 959e65c41cf9aebb5af72466023ac66b01baf9e9
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 30 15:25:09 2024 +0100
+commit 4badad8d477ffd7a6b762c35bc69aed82faface7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 28 15:05:36 2023 -0700
 
-    bytes: fix up godoc link errors
+    cmd/distpack: remove internal/platform/zosarch.go
     
-    [Reader.Reader] does not exist in this package.
-    These docs most likely meant to refer to [Reader] itself.
+    cmd/dist started generating that file in CL 483695.
     
-    Change-Id: I4fa117e8541573e0be7c13751fdfc102d5f2d604
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582515
+    Also rearrange the list of files to remove slightly to explain
+    better where they come from.
+    
+    Fixes #59889
+    
+    Change-Id: I062c858596d801157e0d943e4ba2761c0547ac3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490655
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/bytes/reader.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/distpack/pack.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

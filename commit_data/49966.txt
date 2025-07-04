@@ -1,21 +1,18 @@
-commit 0816d3871376f8fe029db1a6d00b1f6882106043
-Author: Ori Bernstein <ori@eigenstate.org>
-Date:   Sun Jul 17 12:02:30 2022 -0400
+commit 02913aa51c1f1c1338596310ceafc63d4a93a19d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 22:11:17 2021 -0700
 
-    debug/buildinfo: implement for Plan 9 a.out
+    test/fixedbugs: adjust test case (fix longtest builders)
     
-    Plan 9 a.out was not implemented for debug/buildinfo, which
-    was causing test failures on Plan 9. This adds an implementation,
-    and causes the tests to pass.
+    For #33232.
     
-    Fixes #53949
-    
-    Change-Id: I90a307ef9babf8cf381f8746d731cac2206b234a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418014
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id95a92bfdad91e3ccde9f5654c3b1b02ca95f6ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351731
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/debug/buildinfo/buildinfo.go | 51 +++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 50 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue14652.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

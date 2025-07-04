@@ -1,24 +1,21 @@
-commit 5428570af7f668c840569a596cb1c23644f408cf
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 9 09:36:41 2024 -0700
+commit ba6fe5172d5dbd604ef6f535ce54fc70f0c0d1d5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 15:52:34 2023 -0700
 
-    cmd/compile: use call block instead of entry block for tail call expansion
+    spec: clarify that []byte("") must be non-nil
     
-    The expand-calls pass assumed that tail calls were always done in the
-    entry block. That used to be true, but with tail calls in wrappers
-    (enabled by CL 578235) and libfuzzer instrumentation, that is no
-    longer the case. Libfuzzer instrumentation adds an IF statement to the
-    start of the wrapper function.
+    The example text below suggests that []byte("") always evaluates to
+    the non-nil value []byte{}, but the text proper doesn't explicitly
+    require that. This CL makes it clear that it must not evaluate to
+    []byte(nil), which otherwise was allowed by the wording.
     
-    Fixes #69825
-    
-    Change-Id: I9ab7133691d8235f9df128be39bff154b0b8853b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619075
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I6564bfd5e2fd0c820d9b55d17406221ff93ce80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521035
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
- test/fixedbugs/issue69825.go                 | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

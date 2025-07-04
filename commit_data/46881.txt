@@ -1,23 +1,27 @@
-commit 9e4dc6f37f75840d1193accae697a0e9283f5384
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 13 12:46:33 2021 -0700
+commit 864d4f1c6b364e13c0a4008bc203f336b0027f44
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Feb 11 10:27:55 2021 -0500
 
-    cmd/link/internal/ld: don't use linkname before 1.12
+    cmd/go: multiple small 'go help' fixes
     
-    Before the 1.12 release the use of linkname did not prevent a compiler
-    error for an empty function body (see #23311). Add some build tags so
-    that cmd/link will build with earlier releases.
+    * Link to privacy policies for proxy.golang.org and sum.golang.org in
+      'go help modules'. It's important that both policies are linked from
+      the go command's documentation.
+    * Fix wording and typo in 'go help vcs' following comments in CL 290992,
+      which adds reference documentation for GOVCS.
+    * Fix whitespace on GOVCS in 'go help environment'.
     
-    It's true that we currently require Go 1.16 as the bootstrap compiler (#44505).
-    But for this simple case keep things working with older compilers for now.
+    For #41730
     
-    Change-Id: I67fe021406096c64c01d6e2c9adbcc4388988a6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355690
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I86abceacd4962b748361244026f219157c9285e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291230
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ld/outbuf_darwin.go      | 3 +++
- src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 ++--
- src/cmd/link/internal/ld/outbuf_notdarwin.go   | 4 ++--
- 3 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go               | 30 ++++++++++++++++++++++--------
+ src/cmd/go/internal/help/helpdoc.go |  2 +-
+ src/cmd/go/internal/modget/get.go   | 17 ++++++++++-------
+ src/cmd/go/internal/modload/help.go | 13 +++++++++++--
+ 4 files changed, 44 insertions(+), 18 deletions(-)

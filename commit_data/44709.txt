@@ -1,18 +1,29 @@
-commit a5df88355cb8998856a5dbd3550b98e5de1f6009
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Mar 12 19:40:46 2021 +0800
+commit 623652e73fa694eacac9e4b93049817615f1be1d
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 22 14:07:30 2020 -0700
 
-    time: check int64 overflow in Time.addSec
+    cmd/compile: make Haspointers a method instead of a function
     
-    Change-Id: Ibbed54239228e7ea31ef5978d427425899c3b943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300890
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Baokun Lee <bk@golangcn.org>
+    More ergonomic that way. Also change Haspointers to HasPointers
+    while we are here.
+    
+    Change-Id: I45bedc294c1a8c2bd01dc14bd04615ae77555375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249959
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/time/export_test.go   |  1 +
- src/time/internal_test.go |  2 ++
- src/time/time.go          | 11 +++++++++--
- src/time/time_test.go     | 27 ++++++++++++++++++++++++++-
- 4 files changed, 38 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       |  4 ++--
+ src/cmd/compile/internal/gc/escape.go    | 12 ++++++------
+ src/cmd/compile/internal/gc/gsubr.go     |  3 +--
+ src/cmd/compile/internal/gc/order.go     |  6 +++---
+ src/cmd/compile/internal/gc/pgen.go      |  6 +++---
+ src/cmd/compile/internal/gc/pgen_test.go |  4 ++--
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 10 +++++-----
+ src/cmd/compile/internal/gc/ssa.go       | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go      | 14 +++++++-------
+ src/cmd/compile/internal/types/type.go   | 16 ++++++++--------
+ 12 files changed, 45 insertions(+), 46 deletions(-)

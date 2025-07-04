@@ -1,20 +1,14 @@
-commit ec158cebd9f0115235f0dc836f663e4b8c285ab7
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Mar 10 15:31:11 2016 -0800
+commit 7f0b4a879b24db2931e8b6e198540e6c45cb63b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 11:44:09 2016 -0500
 
-    crypto/x509: correct OID for DSA-with-SHA-256.
+    crypto/dsa: adjust GenerateParameters comment
     
-    I copied this down incorrectly. See
-    https://tools.ietf.org/html/rfc5758#section-3.1.
+    Fixes #13725.
     
-    Thankfully it's incredibly obscure.
-    
-    Fixes #14663.
-    
-    Change-Id: I4792ee979916cc15aa2e300c8bc989bc4f9c63ac
-    Reviewed-on: https://go-review.googlesource.com/20549
+    Change-Id: I5fe46851b238fc9ab301da8f8fc37bd1b7871748
+    Reviewed-on: https://go-review.googlesource.com/18316
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/crypto/x509/x509.go | 2 +-
+ src/crypto/dsa/dsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

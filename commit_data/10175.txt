@@ -1,12 +1,12 @@
-commit d9877e22fe205800029ef3d39b015b2def5a79b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:45:02 2011 -0400
+commit 9a0563548b5d4fa16aef09e2d953db6c938ff080
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 2 10:40:35 2011 +0900
 
-    spec: add error
+    tag weekly.2011-11-01
     
-    R=golang-dev, dsymonds, r, r
+    R=golang-dev, rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5308072
+    https://golang.org/cl/5305085
 
- doc/go_spec.html | 48 ++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 34 insertions(+), 14 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

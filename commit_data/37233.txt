@@ -1,19 +1,43 @@
-commit b2c397e53798fad7395fa8c67f66d9200d663ae0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 16 15:31:07 2018 -0700
+commit 6b89194c28e6c4a26b8d917a8c3e158a7eb0c169
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 11 14:31:17 2018 -0400
 
-    cmd/compile: disallow converting string to notinheap slice
+    cmd/dist: enable build cache always
     
-    Unlikely to happen in practice, but easy enough to prevent and might
-    as well do so for completeness.
+    GOCACHE=off is not a reliable signal of user intent.
     
-    Fixes #28243.
+    At startup the go command fills in an empty GOCACHE with the effective setting.
+    If $HOME is set, then GOCACHE ends up somewhere in $HOME/.cache.
+    But if $HOME is unset, then the go command sets GOCACHE=off explicitly.
     
-    Change-Id: I848c3af49cb923f088e9490c6a79373e182fad08
-    Reviewed-on: https://go-review.googlesource.com/c/142719
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    That environment is used for invoking "go tool dist".
+    
+    So if the machine has no $HOME, then go tool dist ends up with the cache
+    disabled even though the user was not trying to disable the cache.
+    This affects the linux-ppc64le builder, which appears to be unique
+    among builders in not having $HOME set. So that builder is running
+    with no build cache.
+    
+    Now that there is a cmd/go test that needs the cache to be on,
+    the linux-ppc64le builder is failing.
+    
+    In the next release we intend to force the use of the build cache
+    always. This CL is not doing that: it's only forcing the use of the
+    build cache during all.bash, which won't affect the majority of
+    our users (they run pre-build binary releases).
+    
+    If this is a problem we can roll it back and fix the linux-ppc64le
+    builders some other way.
+    
+    While we're here, print a few more useful variables in 'go tool dist env'
+    and sort the output.
+    
+    Change-Id: I66548aa8990d0794cbc0f2069b739ab1834898dd
+    Reviewed-on: https://go-review.googlesource.com/123297
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 12 ++++++++++--
- test/notinheap.go                   |  8 ++++++++
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

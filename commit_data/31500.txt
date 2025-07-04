@@ -1,36 +1,26 @@
-commit 53e62aba2fcdc4bb97726bfaf13042625209d154
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 4 07:55:00 2017 -0700
+commit febafe60d469ce129d4662d7f3550218fa548616
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 24 17:21:54 2017 -0500
 
-    cmd/compile: add Func.SetNilCheckDisabled
+    cmd/compile: added cheapexpr call to simplify operand of CONVIFACE
     
-    Generated hash and eq routines don't need nil checks.
-    Prior to this CL, this was accomplished by
-    temporarily incrementing the global variable disable_checknil.
-    However, that increment lasted only the lifetime of the
-    call to funccompile. After CL 41503, funccompile may
-    do nothing but enqueue the function for compilation,
-    resulting in nil checks being generated.
+    New special case for booleans and byte-sized integer types
+    converted to interfaces needs to ensure that the operand is
+    not too complex, if it were to appear in a parameter list
+    for example.
     
-    Fix this by adding an explicit flag to a function
-    indicating whether nil checks should be disabled
-    for that function.
+    Added test, also increased the recursive node dump depth to
+    a level that was actually useful for an actual bug.
     
-    While we're here, allow concurrent compilation
-    with the -w and -W flags, since that was needed
-    to investigate this issue.
+    Fixes #19275.
     
-    Fixes #20242
-    
-    Change-Id: Ib9140c22c49e9a09e62fa3cf350f5d3eff18e2bd
-    Reviewed-on: https://go-review.googlesource.com/42591
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If36ac3115edf439e886703f32d149ee0a46eb2a5
+    Reviewed-on: https://go-review.googlesource.com/37470
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go    |  7 ++-----
- src/cmd/compile/internal/gc/main.go   |  2 ++
- src/cmd/compile/internal/gc/ssa.go    |  2 +-
- src/cmd/compile/internal/gc/syntax.go | 37 +++++++++++++++++++----------------
- 4 files changed, 25 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go |  1 +
+ test/fixedbugs/issue19275.go        | 72 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+), 1 deletion(-)

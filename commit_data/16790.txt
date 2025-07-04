@@ -1,14 +1,16 @@
-commit deee03f17eee3bf8c8d6a607d413b8141c0f0714
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jul 17 18:48:55 2013 +1000
+commit ad477e4e2091f9b26114a176e9e722895e7a52fe
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jul 16 19:34:21 2013 -0400
 
-    doc/effective_go: stamp out stray GOROOT reference
+    crypto/rsa: remove obsolete TODO.
     
-    Replaced with something more appropriate.
+    (PSS support is complete.)
     
-    R=adg, r, minux.ma
+    Thanks to Frithjof Schulze for noting this.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11421043
+    https://golang.org/cl/10871046
 
- doc/effective_go.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/crypto/rsa/rsa.go | 2 --
+ 1 file changed, 2 deletions(-)

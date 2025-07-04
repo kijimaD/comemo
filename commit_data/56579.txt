@@ -1,21 +1,18 @@
-commit 647870becc230b022b431a4ef8b7c9b31382db6c
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 14 15:03:30 2024 +0000
+commit 9fd876924a0bc5f94c18ae8b9dce22ad48da9a8f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 3 17:12:15 2022 -0400
 
-    cmd/go: turn back on build_plugin_reproducible script test
+    cmd/go: add a test that reproduces the root cause of issue #56494
     
-    Re-enable the build_plugin_reproducible script test now that CL 586079
-    (more linker changes to work around xcode problems on Darwin with
-    build reproducibility) is in.
+    For #56494.
     
-    Fixes #64947.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest
-    Change-Id: Ice5bc5b809fa7fee689b78fcb874049493bc2c5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585356
-    TryBot-Bypass: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I9bbded6d014ac73d81b973f2d7b4783e64380031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447797
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/build_plugin_reproducible.txt | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/go/internal/modget/get.go                 |   2 +-
+ src/cmd/go/testdata/script/mod_get_issue56494.txt | 136 ++++++++++++++++++++++
+ 2 files changed, 137 insertions(+), 1 deletion(-)

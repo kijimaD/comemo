@@ -1,16 +1,19 @@
-commit bab4dec14214b27837b2c9c8c3d0f4a08df809b5
-Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 7 14:33:37 2011 -0800
+commit 4349effb15b5de82bfa8435c562a01c3d5c116e4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Dec 7 16:18:50 2011 -0500
 
-    doc: skeleton for release note document
-    No content yet other than titles and an introductory paragraph.
-    Once this is in, content can arise as separate manageable CLs.
+    gc: keep pointer to original node in constant rewrites.
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/5435090
+    This allows printing meaningful expressions in error messages
+    instead of evaluated constants.
+    Fixes #2276.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5432082
 
- doc/Makefile |  9 +++----
- doc/go1.html | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.tmpl | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 165 insertions(+), 6 deletions(-)
+ src/cmd/gc/const.c       |  8 ++++++--
+ src/cmd/gc/unsafe.c      |  2 ++
+ test/fixedbugs/bug379.go |  4 ++--
+ test/fixedbugs/bug381.go | 20 ++++++++++++++++++++
+ 4 files changed, 30 insertions(+), 4 deletions(-)

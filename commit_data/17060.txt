@@ -1,20 +1,18 @@
-commit 98a80b95b462f2c7c0cfdb4557eb08a5d6d891f2
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 7 06:49:11 2013 +1000
+commit 911534592559239185200f73b214b9b11a62b848
+Author: Dustin Sallings <dsallings@gmail.com>
+Date:   Tue Aug 6 12:03:38 2013 -0700
 
-    runtime: use correct types for maxstring and concatstring
+    archive/zip: allow user-extensible compression methods
     
-    Updates #6046.
-    This CL just does maxstring and concatstring. There are other functions
-    to fix but doing them a few at a time will help isolate any (unlikely)
-    breakages these changes bring up in architectures I can't test
-    myself.
+    This change replaces the hard-coded switch on compression method
+    in zipfile reader and writer with a map into which users can
+    register compressors and decompressors in their init()s.
     
-    R=golang-dev, dave, iant
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/12519044
+    https://golang.org/cl/12421043
 
- src/pkg/runtime/print.c    | 2 --
- src/pkg/runtime/runtime.h  | 2 +-
- src/pkg/runtime/string.goc | 8 ++++----
- 3 files changed, 5 insertions(+), 7 deletions(-)
+ src/pkg/archive/zip/reader.go   | 11 ++-----
+ src/pkg/archive/zip/register.go | 71 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/zip/writer.go   | 18 ++++-------
+ 3 files changed, 81 insertions(+), 19 deletions(-)

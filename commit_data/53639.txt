@@ -1,21 +1,21 @@
-commit fe73c186eba2c849a2f2aeaca091ddb5bac3aef1
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 29 11:44:04 2023 -0400
+commit 27006657fad10d195dd0f5d5719e49a4e5811f4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 14:30:15 2022 -0700
 
-    cmd/{go,compile}: run gofmt
+    go/types: avoid declared but not used error for a couple of cases
     
-    Ran gofmt on a couple of Go source files that needed it.
+    The change in typexpr.go matches types2 behavior.
     
-    Change-Id: I0e9f78831f531a728b892a63c6e0c517d92b11a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507156
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    For #54511.
+    
+    Change-Id: I79c922a94f2ee0440c1814140935c321439c7d25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425714
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/devirtualize/devirtualize.go | 10 +++++-----
- src/cmd/compile/internal/typecheck/stmt.go            |  2 +-
- src/cmd/compile/internal/typecheck/subr.go            |  4 ++--
- src/cmd/go/internal/gover/gover.go                    |  1 -
- src/cmd/go/main.go                                    |  6 +++---
- 5 files changed, 11 insertions(+), 12 deletions(-)
+ src/go/types/testdata/check/builtins0.go | 4 ++--
+ src/go/types/typexpr.go                  | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

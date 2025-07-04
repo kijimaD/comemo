@@ -1,14 +1,25 @@
-commit bcb1da7065424913dda7e25d62f33bfc71afd8a2
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 6 16:52:03 2013 -0800
+commit b8db56ad2e91f984eef4e08b85fefcd088f2def9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 16:14:07 2013 -0800
 
-    all: delete a couple of mentions of the exp and old trees
+    go/types: cleanup of assignment checks
     
-    R=golang-dev, dsymonds
+    Also:
+    - cleaner handling of constants w/ unknown value
+    - removed several TODOs
+    
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7551043
+    https://golang.org/cl/7473043
 
- src/cmd/api/goapi.go  | 4 +---
- src/cmd/dist/build.c  | 1 -
- src/cmd/vet/taglit.go | 1 -
- 3 files changed, 1 insertion(+), 5 deletions(-)
+ src/pkg/go/types/check.go              |  22 ++--
+ src/pkg/go/types/const.go              |  24 +++++
+ src/pkg/go/types/expr.go               |  12 ++-
+ src/pkg/go/types/objects.go            |   5 +-
+ src/pkg/go/types/stmt.go               | 177 ++++++++++++++-------------------
+ src/pkg/go/types/testdata/builtins.src |   1 -
+ src/pkg/go/types/testdata/const0.src   |   6 +-
+ src/pkg/go/types/testdata/decls2a.src  |   3 +-
+ src/pkg/go/types/testdata/expr3.src    |   3 +-
+ src/pkg/go/types/universe.go           |   8 +-
+ 10 files changed, 133 insertions(+), 128 deletions(-)

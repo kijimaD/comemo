@@ -1,19 +1,30 @@
-commit 2c73f5f32fceb31b5da7f9a820c0c637f57a9ab5
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Fri Apr 8 12:21:33 2022 -0700
+commit ab4b3c4b15838e3eb5888b96c7965e31973b25cd
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 7 10:04:12 2021 -0400
 
-    net/http: remove cloneURL call in WithContext
+    [dev.typeparams] go/parser: accept "~" and "|" interface elements
     
-    Fixes #52239
+    This is a port of CL 307371 to go/parser, adding support for the new
+    embedded type expressions. As in that CL, type lists continue to be
+    accepted.
     
-    Change-Id: I08b75e613e3c976855e39d01a6757d94e4207bf8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399155
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This CL also revealed a pre-existing bug related to embedded instances:
+    the parser was failing to parse embedded instances with multiple type
+    arguments, due to not consuming the initial ','. This is fixed, and
+    along the way TestErrors is modified to use subtests.
+    
+    Several missing tests cases were added to exprstring_test.go. These must
+    have been missed in an earlier CL.
+    
+    Change-Id: I452769536998cddb1618bebdba675fc09d48a12f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325690
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/request.go      |  1 -
- src/net/http/request_test.go | 14 +++-----------
- 2 files changed, 3 insertions(+), 12 deletions(-)
+ src/go/parser/error_test.go          | 20 +++++-----
+ src/go/parser/parser.go              | 74 ++++++++++++++++++++++++++++++++----
+ src/go/parser/testdata/interface.go2 | 37 ++++++++++++++++++
+ src/go/types/exprstring_test.go      | 34 +++++++++++++++++
+ 4 files changed, 149 insertions(+), 16 deletions(-)

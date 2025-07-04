@@ -1,16 +1,13 @@
-commit 8b836fa87234c5809891eceaeb87f63223217999
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Mon Jul 14 09:51:20 2014 -0400
+commit e1821692caf23cade9de7e150b13188dd0c97479
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 11 23:10:00 2014 -0400
 
-    cmd/go: introduce support for $GCCGO env var
+    cmd/ld: add go-specific dwarf type information
     
-    This variable allows users to select the compiler when using the
-    gccgo toolchain.
-    
-    LGTM=rsc
-    R=rsc, iant, minux, aram
-    CC=axwalk, golang-codereviews
-    https://golang.org/cl/106700044
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/116720043
 
- src/cmd/go/build.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/ld/dwarf.c | 112 +++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 65 insertions(+), 47 deletions(-)

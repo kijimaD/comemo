@@ -1,21 +1,24 @@
-commit 08da8201ca3c2c1068fddf2ab33bc8eedae24ce4
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 11 15:02:16 2017 -0800
+commit cff3e7587a516933d842c11b68bdd346ae6fc9be
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 10 15:27:34 2016 -0700
 
-    misc/cgo/testshared: test that types and itabs are unique
+    crypto/tls: add Config.GetConfigForClient
     
-    Make sure that the same type and itab generated in two
-    different shared library are actually the same thing.
+    GetConfigForClient allows the tls.Config to be updated on a per-client
+    basis.
     
-    Change-Id: Ica45862d65ff8bc7ad04d59a41f57223f71224cd
-    Reviewed-on: https://go-review.googlesource.com/35115
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #16066.
+    Fixes #15707.
+    Fixes #15699.
+    
+    Change-Id: I2c675a443d557f969441226729f98502b38901ea
+    Reviewed-on: https://go-review.googlesource.com/30790
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go    | 11 +++++++++++
- misc/cgo/testshared/src/iface/main.go | 17 +++++++++++++++++
- misc/cgo/testshared/src/iface_a/a.go  | 17 +++++++++++++++++
- misc/cgo/testshared/src/iface_b/b.go  | 17 +++++++++++++++++
- misc/cgo/testshared/src/iface_i/i.go  | 17 +++++++++++++++++
- 5 files changed, 79 insertions(+)
+ src/crypto/tls/common.go                |  53 ++++++++++++-
+ src/crypto/tls/handshake_server.go      |  67 +++++++++-------
+ src/crypto/tls/handshake_server_test.go | 135 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/tls_test.go              |   2 +-
+ 4 files changed, 225 insertions(+), 32 deletions(-)

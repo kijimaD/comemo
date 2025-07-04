@@ -1,22 +1,18 @@
-commit b86105e80da7fd994656f134d006a700fe037fc2
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 26 13:47:51 2014 -0400
+commit 92eb1e1600c3770d2ec669a8d6b7947cac551305
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 17 13:25:46 2014 -0700
 
-    cmd/go: make malformed import path message more precise
+    runtime: free stacks of Gdead goroutines at GC time
     
-    If you say 'go get -v' you get extra information when import
-    paths are not of the expected form.
+    We could probably free the G structures as well, but
+    for the allg list.  Leaving that for another day.
     
-    If you say 'go get -v src/rsc.io/pdf' the message says that
-    src/rsc.io/pdf does not contain a hostname, which is incorrect.
-    The problem is that it does not begin with a hostname.
+    Fixes #8287
     
-    Fixes #7432.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=bradfitz, golang-codereviews, iant
-    https://golang.org/cl/144650043
+    LGTM=rsc
+    R=golang-codereviews, dvyukov, khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/145010043
 
- src/cmd/go/vcs.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/stack.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

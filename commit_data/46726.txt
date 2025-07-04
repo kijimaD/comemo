@@ -1,16 +1,16 @@
-commit 7c79e8ef0922ae27349cea9abd7e637ac429dfa0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 4 14:06:37 2021 -0700
+commit 7947df436dbc45ae616ec1f1821266e0867aad80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 22 17:49:57 2021 -0800
 
-    cmd/objdump: print full disassembly when testing with -v
+    [dev.typeparams] test: set -G=3 and enable more errorcheck tests in run.go
     
-    It is helpful for debugging.
-    
-    Change-Id: Idd566d312037420f8341fcf502a45410a8497798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353878
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9591f7aeab0448aca661560bf3064e057b48293e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286012
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/objdump/objdump_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/run.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

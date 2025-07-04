@@ -1,17 +1,12 @@
-commit 7f1dd3ae4df08a8619311c95f3e4c91b96132efd
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 1 22:04:02 2018 -0400
+commit 95c3348344de688bbb9aba5474a612442e7d36ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 13:30:33 2018 -0400
 
-    test: minor simplification to run.go
+    cmd/go: generate alldocs.go
     
-    This is a little clearer, and we're about to need the .s file list in
-    one more place, so this will cut down on duplication.
-    
-    Change-Id: I4da8bf03a0469fb97565b0841c40d505657b574e
-    Reviewed-on: https://go-review.googlesource.com/c/146998
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5a82aec66332f52e304f647758221b5f30b4e2b6
+    Reviewed-on: https://go-review.googlesource.com/124701
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- test/run.go | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ src/cmd/go/alldocs.go | 842 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 791 insertions(+), 51 deletions(-)

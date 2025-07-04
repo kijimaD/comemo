@@ -1,24 +1,26 @@
-commit 0214749fef334f9879287d6eec3f059e803a5270
-Author: limeidan <limeidan@loongson.cn>
-Date:   Fri Jan 12 09:58:35 2024 +0800
+commit f35d2dae74d12b06df061d909cb9721f27208a15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 6 14:30:31 2023 -0700
 
-    cmd/internal/obj/loong64: rename Class to represent the external symbol address
+    go/types, types2: use inexact unification when unifying against core types
     
-    There is no need to define another C_SECON Class to express short
-    external symbol address, because the external symbol address is unknown
-    in assembler, relocate it in linker.
+    Follow-up on CL 498955 which introduced a unification mode, to be used
+    to control the precision of unification of element types (CL 498895):
+    When unifying against core types of unbound type parameters, we must
+    use inexact unification at the top (irrespective of the unification mode),
+    otherwise it may fail when unifying against a defined type (core types
+    are always underlying types).
     
-    Change-Id: Id9fbd848c43ca63a21f2b6640e947140c26eeaf7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565624
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    No specific test case (I have not been able to create one yet).
+    
+    Change-Id: Ie15e98f4b9e9fb60d6857d34b03d350ebbf0375e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501302
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/obj/loong64/a.out.go  |  3 +--
- src/cmd/internal/obj/loong64/asm.go    | 10 ++++------
- src/cmd/internal/obj/loong64/cnames.go |  3 +--
- 3 files changed, 6 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 6 +++++-
+ src/go/types/unify.go                    | 6 +++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

@@ -1,18 +1,31 @@
-commit 10661bd95225cc9d4e85bffe0de63e797ff4f2ac
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:38:07 2022 -0500
+commit 61014f00f24df8b144d9d235fe3e25ff64b96521
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 15:46:31 2022 -0800
 
-    cmd/objdump: use testenv.Command instead of exec.Command in tests
+    go/types, types2: implement field access for struct structural constraints
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    This change implements field the access p.f where the type of p
+    is a type parameter with a structural constraint that is a struct
+    with a field f. This is only the fix for the type checker. The
+    compiler will need a separate CL.
     
-    Change-Id: I1965ea453af6aa9eeae9669065deb0b372dc6caf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450705
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    This makes the behavior consistent with the fact that we can
+    write struct composite literals for type parameters with a
+    struct structural type.
+    
+    For #50417.
+    For #50233.
+    
+    Change-Id: I87d07e016f97cbf19c45cde19165eae3ec0bad2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375795
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/objdump/objdump_test.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go          | 18 +++++-
+ .../types2/testdata/fixedbugs/issue50417.go2       | 64 ++++++++++++++++++++
+ src/go/types/lookup.go                             | 18 +++++-
+ src/go/types/testdata/fixedbugs/issue50417.go2     | 64 ++++++++++++++++++++
+ test/typeparam/issue50417.go                       | 70 ++++++++++++++++++++++
+ 5 files changed, 230 insertions(+), 4 deletions(-)

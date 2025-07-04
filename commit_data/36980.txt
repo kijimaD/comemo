@@ -1,23 +1,21 @@
-commit 63e964e1741277c4da004e366111243f9ec942a2
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Oct 6 14:31:08 2018 -0700
+commit 7bc99ffa0534f025bc579a045fc7a5afc11ef3c3
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sun Jun 10 17:17:49 2018 -0700
 
-    cmd/compile: provide types for all order-allocated temporaries
+    cmd/compile: make case insensitive suggestions aware of package
     
-    Ensure that we correctly type the stack temps for regular closures,
-    method function closures, and slice literals.
+    Ensure that compiler error suggestions after case insensitive
+    field lookups don't mistakenly reported unexported fields if
+    those fields aren't in the local package being processed.
     
-    Then we don't need to override the dummy types later.
-    Furthermore, this allows order to reuse temporaries of these types.
+    Fixes #25727
     
-    OARRAYLIT doesn't need a temporary as far as I can tell, so I
-    removed that case from order.
-    
-    Change-Id: Ic58520fa50c90639393ff78f33d3c831d5c4acb9
-    Reviewed-on: https://go-review.googlesource.com/c/140306
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icae84388c2a82c8cb539f3d43ad348f50a644caa
+    Reviewed-on: https://go-review.googlesource.com/117755
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 72 ++++++++++++++++++++--------------
- src/cmd/compile/internal/gc/order.go   | 19 ++++-----
- test/live.go                           | 17 ++++++--
- 3 files changed, 66 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 13 +++++++++++--
+ test/fixedbugs/issue25727.go             | 21 +++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

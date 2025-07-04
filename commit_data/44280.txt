@@ -1,20 +1,32 @@
-commit 75e273fc2c183896a11bf23f0688c38059933336
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:02:33 2021 -0500
+commit 7179e426e2710b56a7b862e089570baa6c7a1a5d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 3 19:34:29 2020 -0400
 
-    runtime: fix windows/arm CONTEXT_CONTROL
+    [dev.link] cmd/link: rewrite heap algorithm
     
-    The constant was wrong, and the “right” constant doesn't work either.
-    But with the actually-right constant (and possibly earlier fixes in this
-    stack as well), profiling now works.
+    Instead of using container/heap package, implement a simple
+    specialized heap algorithm for the work queue in the deadcode
+    pass, to avoid allocations and function pointer calls.
     
-    Change-Id: If8caff1da556826db40961fb9bcfe2b1f31ea9f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288808
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Linking cmd/compile,
+    
+    name           old time/op    new time/op    delta
+    Deadcode_GC      59.8ms ± 4%    42.2ms ± 4%  -29.45%  (p=0.008 n=5+5)
+    
+    name           old alloc/op   new alloc/op   delta
+    Deadcode_GC      3.53MB ± 0%    2.10MB ± 0%  -40.57%  (p=0.008 n=5+5)
+    
+    name           old allocs/op  new allocs/op  delta
+    Deadcode_GC        187k ± 0%        8k ± 0%  -95.48%  (p=0.008 n=5+5)
+    
+    Change-Id: Ibb21801d5b8e4a7eaf429856702e02720cd1772f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236565
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/defs_windows_arm.go | 8 +++++++-
- src/runtime/pprof/pprof_test.go | 4 ----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go  | 19 +-------
+ src/cmd/link/internal/ld/heap.go      | 54 +++++++++++++++++++++
+ src/cmd/link/internal/ld/heap_test.go | 90 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 145 insertions(+), 18 deletions(-)

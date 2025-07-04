@@ -1,19 +1,34 @@
-commit 481665ec077f581cec34b7c62c4b7ec715bb3bed
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 31 11:41:31 2023 -0700
+commit beaa5717ba3a3e23b4f189d665e9fffb8143c0e3
+Author: djdv <ddvpublic@Gmail.com>
+Date:   Sat Aug 13 17:32:26 2022 +0000
 
-    doc/go1.21: mention debug/elf changes
+    make.bat: handle spaces in path when determining bootstrap version
     
-    For #55107
-    For #56887
-    For #56892
+    Single quotes don't account for whitespace in this context, which causes
+    output to look like this:
     
-    Change-Id: Ibcca34c931ed3595d877c4573bba221dec66bb5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499616
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    $ ./make.bat
+    'C:\Program' is not recognized as an internal or external command,
+    operable program or batch file.
+    Building Go cmd/dist using C:\Program Files\Go. (go version =)
+    
+    When it should look like this:
+    
+    Building Go cmd/dist using C:\Program Files\Go. (go1.19 windows/amd64)
+    
+    For #44505.
+    
+    Change-Id: I71328add5c74bd2829c0e23224cfa6252395ff2c
+    GitHub-Last-Rev: a01fda6b5226c3f1898056d1104c8bf7fc58ef99
+    GitHub-Pull-Request: golang/go#54270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421356
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

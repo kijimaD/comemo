@@ -1,19 +1,12 @@
-commit 90913cf17042af06ea783c9568dc4af892677589
+commit e628144aeb2776f8d3a0be57d31a27d8fc470fb7
 Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Sun Dec 11 09:23:17 2011 -0800
+Date:   Sun Dec 11 09:21:53 2011 -0800
 
-    Housekeeping: Cleaning up the clean-up process.
-    
-    src/clean.bash:
-            Add clean-ups for previously overlooked directories.
-    doc/codelab/wiki/Makefile:
-            Dropped "index.html" from CLEANFILES so it will not be
-            deleted on cleaning.
+    pkg/runtime/Makefile: sorted object module names.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5476050
+    https://golang.org/cl/5479060
 
- doc/codelab/wiki/Makefile | 2 +-
- src/clean.bash            | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/Makefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

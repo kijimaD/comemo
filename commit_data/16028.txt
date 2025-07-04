@@ -1,17 +1,16 @@
-commit e2c453e7a7c7b05ed9716bebee48cc18187e4c7d
+commit 32f88f4ea1f09cc02554071a9c2c42f6e2a83da8
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 31 16:47:54 2013 +0900
+Date:   Sun Mar 31 16:46:59 2013 +0900
 
-    net: update documentation for UDPConn and related stuff
+    net: update documentation for IPConn and related stuff
     
     Closes the API documentation gap between platforms.
-    Also makes the code textual representation same between platforms.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8148043
+    https://golang.org/cl/8143044
 
- src/pkg/net/udpsock.go       |  2 --
- src/pkg/net/udpsock_plan9.go | 10 +++-------
- src/pkg/net/udpsock_posix.go | 32 ++++++++++++++++----------------
- 3 files changed, 19 insertions(+), 25 deletions(-)
+ src/pkg/net/iprawsock.go       |  2 --
+ src/pkg/net/iprawsock_plan9.go |  4 +---
+ src/pkg/net/iprawsock_posix.go | 30 +++++++++++++++---------------
+ 3 files changed, 16 insertions(+), 20 deletions(-)

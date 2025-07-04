@@ -1,20 +1,28 @@
-commit 9cb5716f009ea71564a9ee84d653d7a76adf9926
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 17 18:45:11 2021 +0000
+commit 3512cde10ac5e466527d69313b8250b2ea0146b1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 17 18:47:26 2020 -0800
 
-    cmd/internal/obj/riscv: avoid obj.Prog rewriting for constant loads
+    [dev.regabi] cmd/compile: stop reusing Ntype for OSLICELIT length
     
-    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
-    a constant to register load, generate the appropriate machine instruction
-    sequence directly.
+    For OSLICELITs, we were reusing the Ntype field after type checking to
+    hold the length of the OSLICELIT's backing array. However, Ntype is
+    only meant for nodes that can represent types. Today, this works only
+    because we currently use Name for all OLITERAL constants (whether
+    declared or not), whereas we should be able to represent them more
+    compactly with a dedicated type that doesn't implement Ntype.
     
-    Change-Id: I38e62f282b39be2a0a241f32280d306558d49b44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344450
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I385f1d787c41b016f507a5bad9489d59ccfde7f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279152
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  2 ++
- src/cmd/internal/obj/riscv/obj.go           | 52 ++++++++++++-----------------
- 2 files changed, 24 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     | 18 +++++++++---------
+ src/cmd/compile/internal/gc/typecheck.go |  3 ++-
+ src/cmd/compile/internal/ir/expr.go      |  1 +
+ 5 files changed, 14 insertions(+), 12 deletions(-)

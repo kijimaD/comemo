@@ -1,23 +1,52 @@
-commit 1d004fa2015d128acf6302fc74b95f6a36c35680
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Nov 17 10:17:31 2021 +0700
+commit e7e0995cba1f57622f593ebd27d4d1a651666c4b
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Mar 23 10:19:11 2021 -0700
 
-    cmd/compile: emit definition of 'any' only if generic enabled
+    cmd/compile:  create/use noder2 transform functions for more node types
     
-    CL 364377 emitted definition of 'any' when compiling runtime. But 'any'
-    is only available when generic enabled. Thus emitting its definition
-    unconditionally causes the compiler crashes.
+    Pull out the transformation part of the typechecking functions for:
+     - assignment statements
+     - return statements
+     - send statements
+     - select statements
+     - type conversions
+     - normal function/method calls
+     - index operations
     
-    Updates #49619
+    The transform functions are like the original typechecking functions,
+    but with all code removed related to:
+      - Detecting compile-time errors (already done by types2)
+      - Setting the actual type of existing nodes (already done based on
+        info from types2)
+      - Dealing with untyped constants
     
-    Change-Id: I0888ca1cbc7a7df300310a99a344f170636333f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364614
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Moved all the transformation functions to a separate file, transform.go.
+    
+    Continuing with the same pattern, we delay transforming a node if it has
+    any type params in its args, marking it with a typecheck flag of 3, and
+    do the actual transformation during stenciling.
+    
+    Assignment statements are tricky, since their transformation must be
+    delayed if any of the left or right-hands-sides are delayed.
+    
+    Still to do are:
+     - selector expressions (OXDOT)
+     - composite literal expressions (OCOMPLIT)
+     - builtin function calls
+    
+    Change-Id: Ie608cadbbc69b40db0067a5536cf707dd974aacc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304049
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 4 +++-
- test/fixedbugs/issue49619.go                    | 2 +-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go   | 129 ++-----
+ src/cmd/compile/internal/noder/stencil.go   |  62 ++--
+ src/cmd/compile/internal/noder/stmt.go      |  77 ++--
+ src/cmd/compile/internal/noder/transform.go | 523 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/validate.go  |  12 +-
+ src/cmd/compile/internal/typecheck/expr.go  |   2 +-
+ src/cmd/compile/internal/typecheck/subr.go  |   2 +-
+ 7 files changed, 650 insertions(+), 157 deletions(-)

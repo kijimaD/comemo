@@ -1,15 +1,17 @@
-commit 7b7efd7a7c952f8b372c861c94acd159ee371acb
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Dec 7 13:32:36 2021 -0800
+commit d67e7399898d819583cdcc377e9ff3c93002f57f
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed Apr 7 21:56:59 2021 +0200
 
-    doc: add in release note about compiler being roughly 15% slower
+    os/exec: replace os.MkdirTemp with T.TempDir
     
-    Updates #49569
+    Updates #45402
     
-    Change-Id: Ifba769993c50bb547cb355f56934fb572ec17a1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370154
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: Idbd8067759d58bc57c52ede4ddccc98ab0ae18fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308129
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/go1.18.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/os/exec/lp_windows_test.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

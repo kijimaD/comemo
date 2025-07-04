@@ -1,27 +1,46 @@
-commit dc39be8b858ab0ef49ff7d87f3d4c5cb93403f1a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 31 22:46:27 2019 -0700
+commit f8a5ba2a3880f4782d8250fd26dde2baa3990afa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 09:03:26 2019 -0400
 
-    runtime: use atomic.Cas to change timerRemoved to timerWaiting
+    cmd/go: default to GOPROXY=https://proxy.golang.org and GOSUMDB=sum.golang.org
     
-    If multiple goroutines call time.(*Timer).Reset then the timer will go
-    from timerWaiting to timerDeleted to timerModifying to timerModifiedLater.
-    The timer can be on a different P, meaning that simultaneously cleantimers
-    could change it from timerDeleted to timerRemoving to timerRemoved.
-    If Reset sees timerRemoved, it was doing an atomic.Store of timerWaiting,
-    meaning that it did not necessarily see the other values set in the timer,
-    so the timer could appear to be in an inconsistent state. Use atomic.Cas
-    to avoid that possibility.
+    This CL changes the default module download and module verification mechanisms
+    to use the Go module mirror and Go checksum database run by Google.
+    See https://proxy.golang.org/privacy for the services' privacy policy.
+    (Today, that URL is a redirect to Google's standard privacy policy,
+    which covers these services as well. If we publish a more specific
+    privacy policy just for these services, that URL will be updated to
+    display or redirect to it.)
     
-    Updates #6239
-    Updates #27707
-    Fixes #35272
+    See 'go help modules' and 'go help modules-auth' for details (added in this CL).
     
-    Change-Id: I1d59a13dc4f2ff4af110fc6e032c8c9d59cfc270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204717
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    To disable the mirror and checksum database for non-public modules:
+    
+            go env -w GONOPROXY=*.private.net,your.com/*
+            go env -w GONOSUMDB=*.private.net,your.com/*
+    
+    (If you are using a private module proxy then you'd only do the second.)
+    
+    If you run into problems with the behavior of the go command when using
+    the Go module mirror or the Go checksum database, please file issues at
+    https://golang.org/issue/new, so that we can address them for the
+    Go 1.13 release.
+    
+    For #25530.
+    
+    This CL also documents GONOPROXY.
+    Fixes #32056.
+    
+    Change-Id: I2fde82e071742272b0842efd9580df1a56947fec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178179
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/time.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/go/alldocs.go                           | 76 +++++++++++++++----------
+ src/cmd/go/internal/cfg/cfg.go                  | 14 -----
+ src/cmd/go/internal/modfetch/fetch.go           | 18 +++---
+ src/cmd/go/internal/modfetch/proxy.go           | 15 -----
+ src/cmd/go/internal/modload/help.go             | 47 +++++++++++----
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt |  8 +--
+ 6 files changed, 96 insertions(+), 82 deletions(-)

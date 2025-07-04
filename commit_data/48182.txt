@@ -1,51 +1,20 @@
-commit d35ed094864617d82c5701f56811ad68b37eda6e
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Feb 16 20:11:52 2022 -0800
+commit 9c7207891c16951121d8b3f19f49ec72f87da9fe
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Apr 29 06:33:21 2021 +0000
 
-    cmd/compile: fix importers to deal with recursion through type constraints
+    cmd/internal/obj/arm64: fix the size of STP series instructions in optab
     
-    The code for issue #51219 reveals bugs in the types1 and types2
-    importers that can occur for recursive types that are recursive through
-    the type constraint.
+    When the class of p.To is C_NAUTO4K, STP series instructions will be translated
+    into add/sub + stp instructions, the total size is 8. Currently this size
+    value in optab is 12, this CL fixes it.
     
-    The crash in the issue is caused by the types1 bug, which leads to the
-    production of a type1 type which is incomplete and improperly has the
-    HasTParam flag set. The bug in the types1 importer is that we were not
-    deferring type instantiations when reading the type parameters, but we
-    need to do that exactly to correctly handle recursion through the type
-    constraint. So, the fix is to move the start of the deferrals (in the
-    'U' section of doDecl in typecheck/iimport.go) above the code that reads
-    the type params.
-    
-    Once that bug is fixed, the test still crashes due to a related types2
-    importer issues. The problem is that t.SetConstraint(c) requires c to be
-    fully constructed (have its underlying type set). Since that may not be
-    done yet in the 'U' case in (*importReader).obj() in
-    importer/iimport.go, we need to defer the call to SetConstraint() in
-    that case, until we are done importing all the types.
-    
-    I added a test case with recursion through a type constraint that causes
-    a problem that is fixed by the types1 importer change, though the error
-    is not the same as in the issue. I added more types in the test case
-    (which try to imitate the issue types more closely) the types2 bug, but
-    wasn't able to cause it yet with the smaller test case.
-    
-    Fixes #51219
-    
-    Change-Id: I85d860c98c09dddc37f76ce87a78a6015ec6fd20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386335
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ife1b9e9f8a28edca9b59f62b45a80d83f38993b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314210
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/importer/iimport.go  | 22 +++++++++-
- src/cmd/compile/internal/typecheck/iimport.go | 11 +++--
- src/go/internal/gcimporter/iimport.go         | 23 ++++++++++-
- test/typeparam/issue51219.dir/a.go            | 59 +++++++++++++++++++++++++++
- test/typeparam/issue51219.dir/b.go            | 11 +++++
- test/typeparam/issue51219.dir/main.go         | 18 ++++++++
- test/typeparam/issue51219.go                  |  7 ++++
- test/typeparam/issue51219.out                 |  1 +
- 8 files changed, 146 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

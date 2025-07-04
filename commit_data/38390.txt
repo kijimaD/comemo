@@ -1,43 +1,25 @@
-commit 04f1b65cc6ffbaa3693bbcb57ae26fb59466531b
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed Mar 13 10:32:48 2019 +0000
+commit f98ac8519257f8e4d2e886b84ccab628eeb61244
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Oct 25 11:32:35 2018 +0200
 
-    cmd/compile: try and access last argument first in rulegen
+    syscall: fix TestForeground for AIX
     
-    This reduces the number of extra bounds check hints we need to
-    insert. For example, rather than producing:
+    On AIX, sys.Pgid must be a int32 and not a int64 as on Solaris for ioctl
+    syscall.
+    Pid_t type can be used to provide the same code in both OS. But pid_t
+    must be added to ztypes_solaris_amd64.go.
     
-            _ = v.Args[2]
-            x := v.Args[0]
-            y := v.Args[1]
-            z := v.Args[2]
-    
-    We now produce:
-    
-            z := v.Args[2]
-            x := v.Args[0]
-            y := v.Args[1]
-    
-    This gets rid of about 7000 lines of code from the rewrite rules.
-    
-    Change-Id: I1291cf0f82e8d035a6d65bce7dee6cedee04cbcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167397
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1dbe57f099f9e5ac9491aaf246a521137eea5014
+    Reviewed-on: https://go-review.googlesource.com/c/144539
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   13 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 2210 ++++-------
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 4846 ++++++++----------------
- src/cmd/compile/internal/ssa/rewriteARM.go     | 2708 +++++--------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 2787 +++++---------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |  760 ++--
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  919 ++---
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 1713 +++------
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 3215 ++++++----------
- src/cmd/compile/internal/ssa/rewriteWasm.go    |  676 ++--
- src/cmd/compile/internal/ssa/rewritedec.go     |   49 +-
- src/cmd/compile/internal/ssa/rewritedec64.go   |  202 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1740 +++------
- 13 files changed, 7351 insertions(+), 14487 deletions(-)
+ src/syscall/exec_libc.go            | 4 ++--
+ src/syscall/syscall_aix.go          | 6 +++---
+ src/syscall/types_aix.go            | 2 +-
+ src/syscall/types_solaris.go        | 2 ++
+ src/syscall/zsyscall_aix_ppc64.go   | 4 ++--
+ src/syscall/ztypes_aix_ppc64.go     | 2 +-
+ src/syscall/ztypes_solaris_amd64.go | 2 ++
+ 7 files changed, 13 insertions(+), 9 deletions(-)

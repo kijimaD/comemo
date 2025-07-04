@@ -1,24 +1,21 @@
-commit 9402e49450d57eb608f03980e7541602a346e5ae
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 14 10:48:05 2015 +1000
+commit fa2f9c2c0923edf539cdcce82473e7131826d677
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 18 11:22:12 2015 -0400
 
-    runtime: really pass return value to Windows in externalthreadhandler
+    runtime: run concurrent mark phase on regular stack
     
-    When Windows calls externalthreadhandler it expects to receive
-    return value in AX. We don't set AX anywhere. Change that.
-    Store ctrlhandler1 and profileloop1 return values into AX before
-    returning from externalthreadhandler.
+    Currently, the GC's concurrent mark phase runs on the system
+    stack. There's no need to do this, and running it this way ties up the
+    entire M and P running the GC by preventing the scheduler from
+    preempting the GC even during concurrent mark.
     
-    Fixes #10215.
+    Fix this by running concurrent mark on the regular G stack. It's still
+    non-preemptible because we also set preemptoff around the whole GC
+    process, but this moves us closer to making it preemptible.
     
-    Change-Id: Ied04542cc3ebe7d4a26660e970f9f78098143591
-    Reviewed-on: https://go-review.googlesource.com/8901
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia9f1245e299b8c5c513a4b1e3ef13eaa35ac5e73
+    Reviewed-on: https://go-review.googlesource.com/7730
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/os/signal/signal_windows_test.go | 4 ----
- src/runtime/os1_windows.go           | 2 +-
- src/runtime/sys_windows_386.s        | 2 ++
- src/runtime/sys_windows_amd64.s      | 2 ++
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

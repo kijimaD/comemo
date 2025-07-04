@@ -1,20 +1,12 @@
-commit 0f801ff81e9a9f8d88a7d63e7951f2c61f5d449b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 16:38:58 2011 -0700
+commit 75cb084283558bf59e727096bf1c8f4e1ba137b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 17 15:55:06 2011 -0400
 
-    godoc: template cleanup
+    test: new nil semantics
     
-    Use naming convention for template variables
-    to indicate "escaped-ness" for easier reviewing.
-    (per suggestion from bradfitz)
-    
-    R=bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4914041
+    https://golang.org/cl/4644052
 
- lib/godoc/codewalkdir.html |  4 ++--
- lib/godoc/dirlist.html     |  6 +++---
- lib/godoc/package.html     | 16 ++++++++--------
- lib/godoc/search.html      | 26 +++++++++++++-------------
- lib/godoc/search.txt       |  4 ++--
- 5 files changed, 28 insertions(+), 28 deletions(-)
+ test/nil.go | 142 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 142 insertions(+)

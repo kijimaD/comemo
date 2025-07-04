@@ -1,48 +1,18 @@
-commit d90ce588eac7b9105c0ca556a7c6e975fd5c1eca
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 11 11:02:18 2024 -0700
+commit 90276c268bf003e94917db8df513736f9b01479b
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 25 12:39:43 2023 -0400
 
-    internal/synctest: new package for testing concurrent code
+    net/http: document new ServeMux patterns
     
-    Add an internal (for now) implementation of testing/synctest.
+    Updates #61410.
     
-    The synctest.Run function executes a tree of goroutines in an
-    isolated environment using a fake clock. The synctest.Wait function
-    allows a test to wait for all other goroutines within the test
-    to reach a blocking point.
-    
-    For #67434
-    For #69687
-    
-    Change-Id: Icb39e54c54cece96517e58ef9cfb18bf68506cfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591997
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib9dd8ebca43cec6e27c6fdfcf01ee6a1539c2fa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530481
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/deps_test.go                 |   3 +
- src/internal/synctest/synctest.go         |  62 +++++
- src/internal/synctest/synctest_test.go    | 407 ++++++++++++++++++++++++++++++
- src/runtime/chan.go                       |  39 ++-
- src/runtime/coro.go                       |  18 +-
- src/runtime/lockrank.go                   |  23 +-
- src/runtime/mgc.go                        |  17 +-
- src/runtime/mgcmark.go                    |  11 +
- src/runtime/mklockrank.go                 |   4 +
- src/runtime/proc.go                       |  49 +++-
- src/runtime/runtime2.go                   |  35 ++-
- src/runtime/select.go                     |  21 +-
- src/runtime/sema.go                       |  13 +
- src/runtime/sizeof_test.go                |   2 +-
- src/runtime/synctest.go                   | 256 +++++++++++++++++++
- src/runtime/synctest_test.go              |  17 ++
- src/runtime/testdata/testsynctest/main.go |  67 +++++
- src/runtime/time.go                       | 101 +++++++-
- src/runtime/time_linux_amd64.s            |   2 +-
- src/runtime/traceback.go                  |   3 +
- src/runtime/traceruntime.go               |   2 +
- src/sync/runtime.go                       |   3 +
- src/sync/waitgroup.go                     |   2 +-
- src/time/time.go                          |  28 +-
- src/time/zoneinfo_plan9.go                |   2 +-
- src/time/zoneinfo_read.go                 |   2 +-
- 26 files changed, 1154 insertions(+), 35 deletions(-)
+ src/net/http/server.go | 142 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 112 insertions(+), 30 deletions(-)

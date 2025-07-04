@@ -1,16 +1,14 @@
-commit 656a732a217ee3ac4e6a6442072994e4dccb4094
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 20 17:31:33 2015 -0800
+commit 9d22c101f58dd8f65410fb352562b91de5fbcb7a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 11 11:02:57 2015 -0700
 
-    cmd/compile: simplify parsing of possibly absent type
+    [dev.ssa] cmd/compile/internal/gc: implement OAPPEND
     
-    Introduce a try_ntype function which doesn't return an error upon
-    not finding a type. Use it instead of having separate repeated
-    token checks. Simpler, less code, and more efficient.
-    
-    Change-Id: I81e482158b71901eb179470269349688636aa0ba
-    Reviewed-on: https://go-review.googlesource.com/17157
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I1fbce8c421c48074a964b4d9481c92fbc3524f80
+    Reviewed-on: https://go-review.googlesource.com/14525
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/compile/internal/gc/parser.go | 67 ++++++++++++++++++-----------------
- 1 file changed, 34 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 182 +++++++++++++++++----
+ src/cmd/compile/internal/gc/ssa_test.go            |   2 +
+ src/cmd/compile/internal/gc/testdata/append_ssa.go |  71 ++++++++
+ 3 files changed, 221 insertions(+), 34 deletions(-)

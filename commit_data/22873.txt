@@ -1,18 +1,14 @@
-commit de6d5b080120074747baddd239869e2cb1fbe55d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue May 5 14:17:07 2015 +1200
+commit b214a88d7671c8ad1192a0e9622a8c36bce3cecb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:26:50 2015 -0400
 
-    cmd/internal/ld: reserve space for package list note when -buildmode=shared
+    log/syslog: limiting tests on darwin/arm64
     
-    This makes the intermediate object file a little bigger but it doesn't waste
-    any space in the final shared library.
+    Just like darwin/arm.
     
-    Fixes #10691
-    
-    Change-Id: Ic51a571d60291f1ac2dad1b50dba4679643168ae
-    Reviewed-on: https://go-review.googlesource.com/9710
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic5c6c0b2fdbb89f4579677e120a8f2dbf300e5b9
+    Reviewed-on: https://go-review.googlesource.com/8820
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/6l/obj.go          |  8 ++++++++
- src/cmd/internal/ld/elf.go | 13 ++++++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/log/syslog/syslog_test.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

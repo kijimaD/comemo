@@ -1,35 +1,17 @@
-commit 83ff0b0c61c6ae99a058c851f4b0680064d46e8b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Oct 30 02:01:35 2021 -0400
+commit d417b8cf87bd8e0f8362aa1cc9b7dadd221731c9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jun 25 14:01:54 2021 +0700
 
-    crypto/elliptic: use generics for nistec-based curves
+    [dev.typeparams] cmd/compile: clarify comment about checking reflect.Method in usemethod
     
-    There was no way to use an interface because the methods on the Point
-    types return concrete Point values, as they should.
+    Followup discussion in CL 330670.
     
-    A couple somewhat minor annoyances:
-    
-        - Allocations went up due to #48849. This is fine here, where
-          math/big causes allocations anyway, but would probably not be fine
-          in nistec itself.
-    
-        - Carrying the newPoint/newGenerator functions around as a field is
-          a little weird, even if type-safe. It also means we have to make
-          what were functions methods so they can access newPoint to return
-          the zero value. This is #35966.
-    
-    For #52182
-    
-    Change-Id: I050f3a27f15d3f189818da80da9de0cba0548931
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360015
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Icec2d5d5715666a6967e18ac9ab3d802b47569da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330830
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/elliptic/nistec.go | 219 ++++++++++++++++++++++++++++++++++++++++++
- src/crypto/elliptic/p224.go   | 139 ---------------------------
- src/crypto/elliptic/p384.go   | 144 ---------------------------
- src/crypto/elliptic/p521.go   | 165 -------------------------------
- 4 files changed, 219 insertions(+), 448 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

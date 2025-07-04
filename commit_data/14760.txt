@@ -1,12 +1,38 @@
-commit 0c6beb00fbe00b843030f7a1178dfbc23a8e63d6
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Dec 30 10:33:33 2012 +1100
+commit 975bf6d3236118ad69e1555faa0d8264923770e8
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 28 19:11:37 2012 -0500
 
-    cmd/dist: use -pipe during bootstrap
+    crypto/rsa: ensure that RSA keys use the full number of bits.
     
-    R=golang-dev, minux.ma, rsc
+    While half of all numbers don't have their most-significant bit set,
+    this is becoming increasingly impermissible for RSA moduli. In an
+    attempt to exclude weak keys, several bits of software either do, or
+    will, enforce that RSA moduli are >= 1024-bits.
+    
+    However, Go often generates 1023-bit RSA moduli which this software
+    would then reject.
+    
+    This change causes crypto/rsa to regenerate the primes in the event
+    that the result is shorter than requested.
+    
+    It also alters crypto/rand in order to remove the performance impact
+    of this:
+    
+    The most important change to crypto/rand is that it will now set the
+    top two bits in a generated prime (OpenSSL does the same thing).
+    Multiplying two n/2 bit numbers, where each have the top two bits set,
+    will always result in an n-bit product. (The effectively makes the
+    crypto/rsa change moot, but that seems too fragile to depend on.)
+    
+    Also this change adds code to crypto/rand to rapidly eliminate some
+    obviously composite numbers and reduce the number of Miller-Rabin
+    tests needed to generate a prime.
+    
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7025044
+    https://golang.org/cl/7002050
 
- src/cmd/dist/build.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/crypto/rand/util.go    | 61 +++++++++++++++++++++++++++++++++++++++---
+ src/pkg/crypto/rsa/rsa.go      |  5 ++++
+ src/pkg/crypto/rsa/rsa_test.go |  3 +++
+ 3 files changed, 66 insertions(+), 3 deletions(-)

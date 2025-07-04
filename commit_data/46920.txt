@@ -1,20 +1,20 @@
-commit c091767d87b7a6ef6016286bc0fae8add59b92de
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Oct 15 13:52:05 2021 -0700
+commit c2358a1ae77d7bd09fb8b728d25641b5757a7a58
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 16 20:15:13 2021 +0000
 
-    cmd/asm: report an error when trying to do spectre on 386
+    [dev.regabi] runtime: stub out spillArgs and unspillArgs
     
-    The compiler refuses to do spectre mitigation on 386, but the
-    assembler doesn't. Fix that.
+    Currently these two functions assume that constants in internal/abi are
+    set correctly, but we actually just made them zero if
+    GOEXPERIMENT_REGABI is set. This means reflectcall is broken. Fix it by
+    stubbing out these routines even if GOEXPERIMENT_REGABI is set.
     
-    Fixes #49006
-    
-    Change-Id: I887b6f7ed7523a47f463706f06ca4c2c6e828b6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356190
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I4c8df6d6af28562c5bb7b85f48c03d37daa9ee0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292650
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/x86/asm6.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/asm_amd64.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

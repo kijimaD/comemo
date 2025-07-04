@@ -1,18 +1,23 @@
-commit 197a2a3799cebd91ec623616c6b5fac850955b58
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 29 15:06:21 2020 -0400
+commit 718f553915cc1c13d7b31cd264c131987f67f14d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 13 11:09:27 2019 -0800
 
-    runtime/pprof: fix units of MaxRSS on Linux
+    os/exec: skip poll descriptors when checking for open descriptors
     
-    Rusage.Maxrss is in bytes on Darwin but in KiB on Linux. Fix this
-    discrepancy so it's always in bytes.
+    It turns out that there is a path that initializes netpoll and opens
+    file descriptors before running the os/exec init function: on some
+    systems, the uses of NewFile when setting os.Stdin and friends can
+    initialize netpoll which can open file descriptors. This in itself
+    is not a problem, but when we check whether the new files are open
+    using os.NewFile, a side-effect is to put them into non-blocking mode.
+    This can then break future uses of netpoll.
     
-    Change-Id: Ic714abc3276566b8fe5e30565072092212610854
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230979
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Updates #35469
+    Fixes #35566
+    
+    Change-Id: I1b2e2c943695d1c2d29496b050abbce9ee710a00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207078
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/pprof/pprof_rusage.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/os/exec/exec_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

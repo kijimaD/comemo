@@ -1,13 +1,21 @@
-commit 1b6402ea9d760d539c347a94b5ecf7f43b43a4df
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Tue Mar 29 01:10:15 2016 +0300
+commit 7f7f7cddec65b48b35845c5fb537bb59bb7ecca6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 8 11:00:43 2016 -0800
 
-    cmd/link: remove some more dead fields from Pcln
+    [dev.ssa] cmd/compile: split decompose pass in two
     
-    Change-Id: Ibb98de29d84a605fb1588c7dc11ad66e3965a137
-    Reviewed-on: https://go-review.googlesource.com/21223
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    A first pass to decompose user types (structs, maybe
+    arrays someday), and a second pass to decompose builtin
+    types (strings, interfaces, slices, complex).  David wants
+    this for value range analysis so he can have structs decomposed
+    but slices and friends will still be intact and he can deduce
+    things like the length of a slice is >= 0.
+    
+    Change-Id: Ia2300d07663329b51ed6270cfed21d31980daa7c
+    Reviewed-on: https://go-review.googlesource.com/19340
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/ld/link.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go   |  7 ++--
+ src/cmd/compile/internal/ssa/decompose.go | 67 +++++++++++++++++++++++--------
+ 2 files changed, 55 insertions(+), 19 deletions(-)

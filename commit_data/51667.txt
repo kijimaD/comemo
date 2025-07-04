@@ -1,18 +1,19 @@
-commit 3bb8864e9f5d4505c792528c9460fced4c0e7346
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Jan 13 15:03:43 2023 +0100
+commit 9eb14f1b0e748c74f6a7da4cd195db860928cfbc
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 17 09:37:07 2022 -0800
 
-    net/netip: fix type name in TestNoAllocs sub-test names and comments
+    doc: mention change in append behavior
     
-    netaddr.IP became netip.Addr
+    Introduced in CL 347917.
     
-    Change-Id: Ifa762d0f804c603e6289d63672e4808e75dc36a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461748
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I99b34341f787e779bd45b967110e70a035fa6558
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386217
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
 
- src/net/netip/netip_test.go | 58 ++++++++++++++++++++++-----------------------
- 1 file changed, 29 insertions(+), 29 deletions(-)
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

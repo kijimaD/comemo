@@ -1,0 +1,21 @@
+commit 81c66e71d480ae2372b7eea4bcdf600b50fdd5e1
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Fri Jan 31 16:59:02 2025 +0300
+
+    runtime: check LSE support on ARM64 at runtime init
+    
+    Check presence of LSE support on ARM64 chip if we targeted it at compile
+    time.
+    
+    Related to #69124
+    Updates #60905
+    Fixes #71411
+    
+    Change-Id: I65e899a28ff64a390182572c0c353aa5931fc85d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645795
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/asm_arm64.s | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

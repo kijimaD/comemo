@@ -1,21 +1,21 @@
-commit eb3fe28d7079692a1545887a2c609b325ec7f087
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 28 16:32:38 2021 -0400
+commit a972e8ccb9824d97f029bde5409527fb27e85989
+Author: subham sarkar <sarkar.subhams2@gmail.com>
+Date:   Thu Oct 15 00:24:14 2020 +0530
 
-    go/types: improve error messages for unexpected ListExprs
+    all: fix quoting for compress/bzip2 and time's godoc
     
-    This CL is a mix of CL 312149 and CL 314409, adding the
-    Checker.singleIndex method to provide better error messages when an
-    unexpected ListExpr is encountered.
+    The existing usage of grave accent (`) and apostrophe (')
+    at some places made godoc to ignore them and show it as it is.
+    So, use both of the characters twice (consecutively) so that
+    godoc can convert it to {left,right} double quotation mark.
     
-    Change-Id: I45d6de9b4dfc299dc2d356ca14d05c9191de818d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314869
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #41958
+    
+    Change-Id: I64fd9b5fa34f416ad595009d09f5482e10bd8b4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262397
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/go/types/expr.go                           |  3 +-
- src/go/types/index.go                          | 42 +++++++++++++++++++++++---
- src/go/types/testdata/fixedbugs/issue45635.go2 | 10 +++---
- 3 files changed, 44 insertions(+), 11 deletions(-)
+ src/compress/bzip2/bzip2.go | 8 ++++----
+ src/time/tick.go            | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

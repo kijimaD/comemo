@@ -1,32 +1,27 @@
-commit e9ab343f0e762951b771fe68cb841a8c03f339d7
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri May 1 11:51:47 2015 +1000
+commit 53a8ee5011c2cca9f938af2ff2973ed8897aa597
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Apr 10 12:34:31 2015 +0300
 
-    cmd/internal/obj: clean up Biobuf
+    syscall: correct code for cover cmd
     
-    This is a follow up to rev 443a32e707d2 which reduces some of the
-    duplication between methods and functions that operate on obj.Biobuf.
+    Fixes #10378
     
-    obj.Biobuf has Flush and Write methods as well as helpers which duplicate
-    those methods, consolidate on the former and remove the latter.
+    This is clumsy, but currently cover tool fails as:
     
-    Also, address a final comment from CL 9525.
+    $ go test -run=none -cover syscall
+    syscall_linux_amd64.go:15: can only use //go:noescape with external func implementations
+    FAIL    syscall [build failed]
     
-    Change-Id: I67deaf3a163bb489a9bb21bb39524785d7a2f6c5
-    Reviewed-on: https://go-review.googlesource.com/9527
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This happens because cover tool mishandles //go: comments.
+    r and gri said that fixing cover is infeasible due to go/ast limitations.
+    
+    So at least fix the offending code so that coverage works.
+    This come up in context of coverage-guided fuzzing which works best
+    with program-wide coverage.
+    
+    Change-Id: I142e5774c9f326ed38cb202693bd4edae93879ba
+    Reviewed-on: https://go-review.googlesource.com/8723
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/8g/galign.go                      |  2 +-
- src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
- src/cmd/asm/main.go                       |  4 ++--
- src/cmd/internal/asm/asm.go               |  4 ++--
- src/cmd/internal/asm/lexbody.go           |  2 +-
- src/cmd/internal/gc/obj.go                | 14 +++++++-------
- src/cmd/internal/gc/subr.go               |  2 +-
- src/cmd/internal/obj/arm/obj5.go          |  2 +-
- src/cmd/internal/obj/arm64/obj7.go        |  4 ++--
- src/cmd/internal/obj/objfile.go           |  4 ++--
- src/cmd/internal/obj/ppc64/obj9.go        |  4 ++--
- src/cmd/internal/obj/util.go              |  8 --------
- 12 files changed, 22 insertions(+), 30 deletions(-)
+ src/syscall/syscall_linux_amd64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

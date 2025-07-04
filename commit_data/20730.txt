@@ -1,14 +1,13 @@
-commit 4e1d1965435046192267a6a03dd14773517b28b5
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Oct 16 13:58:32 2014 -0700
+commit 668ea79283735b35d5234d0b4c4e9f87ce0615d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 3 18:12:05 2014 -0700
 
-    reflect: fix struct size calculation to include terminal padding
+    doc/go1.4: mention that we are going to need a new version of SWIG
     
-    LGTM=r
-    R=r
+    Update #8750
+    
     CC=golang-codereviews
-    https://golang.org/cl/160920045
+    https://golang.org/cl/153950044
 
- src/reflect/all_test.go | 20 ++++++++++++++++++++
- src/reflect/type.go     |  1 +
- 2 files changed, 21 insertions(+)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

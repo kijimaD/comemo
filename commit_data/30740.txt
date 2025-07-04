@@ -1,26 +1,37 @@
-commit d68bb16b1e2f2fb55b347bdb6d1374103b5cb6a0
-Author: philhofer <phofer@umich.edu>
-Date:   Wed Mar 15 15:34:52 2017 -0700
+commit 5d1b53a944a415205a945f4ddd89a0af8e9f114f
+Author: David Lazar <lazard@golang.org>
+Date:   Mon Nov 28 17:39:31 2016 -0500
 
-    cmd/compile/internal/ssa: recognize constant pointer comparison
+    cmd/compile: generate code that type checks when inlining variadic functions
     
-    Teach the backend to recognize that the address of a symbol
-    is equal with itself, and that the addresses of two different
-    symbols are different.
+    This fixes a bug in -l=3 or higher.
     
-    Some examples of where this rule hits in the standard library:
+    To inline a variadic function, the compiler generates code that constructs
+    a slice of arguments for the variadic parameter. Consider the function
     
-     - inlined uses of (*time.Time).setLoc (e.g. time.UTC)
-     - inlined uses of bufio.NewReader (via type assertion)
+      func Foo(xs ...string)
     
-    Change-Id: I23dcb068c2ec333655c1292917bec13bbd908c24
-    Reviewed-on: https://go-review.googlesource.com/38338
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    and the call Foo("hello", "world"). To inline the call to Foo, the
+    compiler used to generate
+    
+      xs := [2]string{"hello", "world"}[:]
+    
+    which doesn't type check:
+    
+      invalid operation [2]string literal[:] (slice of unaddressable value).
+    
+    Now, the compiler generates
+    
+      xs := []string{"hello", "world"}
+    
+    which does type check.
+    
+    Fixes #18116.
+    
+    Change-Id: I0ee531ef2e6cc276db6fb12602b25a46d6d5db21
+    Reviewed-on: https://go-review.googlesource.com/33671
     Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             |  8 +++---
- src/cmd/compile/internal/ssa/gen/generic.rules |  4 +++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 34 ++++++++++++++++++++++++++
- 3 files changed, 43 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  5 ++---
+ test/inline_variadic.go            | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)

@@ -1,21 +1,26 @@
-commit a45ea55da732198dca2457ecb7cabe4ab4a7a162
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Tue Apr 21 16:56:22 2020 -0400
+commit 1b0b9809046c1862f8ea0240fe016e516c67676f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 21 14:07:50 2019 -0400
 
-    cmd/internal: allow ADDE to work with memory location on s390x
+    runtime: add async preemption support on ARM64
     
-    Originally on s390x, ADDE does not work when adding numbers from a memory location.
-    For example: ADDE (R3), R4 will result in a failure.
+    This CL adds support of call injection and async preemption on
+    ARM64.
     
-    Since ADDC, ADD and ADDW already supports adding from memory location,
-    let's support that for ADDE as well.
+    There seems no way to return from the injected call without
+    clobbering *any* register. So we have to clobber one, which is
+    chosen to be REGTMP. Previous CLs have marked code sequences
+    that use REGTMP async-nonpreemtible.
     
-    Change-Id: I7cbe112ea154733a621b948c6a21bbee63fb0c62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229304
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ieca4e3ba5557adf3d0f5d923bce5f1769b58e30b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203461
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 4 ++++
- src/cmd/internal/obj/s390x/asmz.go        | 4 +++-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   2 +
+ src/runtime/mkpreempt.go                     |  54 ++++++++++-
+ src/runtime/preempt_arm64.s                  | 140 ++++++++++++++++++++++++++-
+ src/runtime/signal_arm64.go                  |  14 ++-
+ 4 files changed, 205 insertions(+), 5 deletions(-)

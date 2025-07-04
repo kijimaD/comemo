@@ -1,13 +1,13 @@
-commit 50d90451ff9eb9fc74b52cbf02518164d57f93ed
+commit 9d55c282e3aac4c2d97590785d7a821adcf8ac9e
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 18 11:34:13 2011 +1000
+Date:   Mon Jul 18 11:08:55 2011 +1000
 
-    reflect: panic if Method index is out of range for a type.
-    Makes the code agree with the documentation.
+    5c: attempt to fix build by silencing warnings about unused variables.
+    The story is more complicated; this is just a bandaid.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4759050
+    https://golang.org/cl/4755047
 
- src/pkg/reflect/type.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5c/reg.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

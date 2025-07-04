@@ -1,20 +1,12 @@
-commit 2b693b7c19e2f14c75b01b89bd2df31592e67d1e
-Author: Jakob Borg <jakob@nym.se>
-Date:   Wed Dec 18 17:06:17 2013 -0500
+commit 3d2c4df983a1594616da94f166b16d019a487456
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Dec 18 15:17:08 2013 -0500
 
-    encoding/asn1: Fix parsing of non-printable strings in
-    sequences.
+    cmd/yacc: gofmt y.go
     
-    Use the same criteria for when to modify the tag type when
-    parsing a string in a sequence as when parsing a bare string
-    field.
-    
-    Fixes #6726.
-    
-    R=golang-dev, bradfitz, gobot, agl
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/22460043
+    https://golang.org/cl/36950043
 
- src/pkg/encoding/asn1/asn1.go      |  8 +++++---
- src/pkg/encoding/asn1/asn1_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 3 deletions(-)
+ src/cmd/yacc/yacc.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

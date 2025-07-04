@@ -1,16 +1,28 @@
-commit b97b7537bc5cf77b8781bd699b17747ca2f02e1a
-Author: Victor Vrantchan <vrancean+github@gmail.com>
-Date:   Sun Oct 16 09:55:33 2016 -0400
+commit 94c8e59ae11d374cd8dd46afec4710ad10500ad9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 11 12:56:36 2016 -0700
 
-    encoding/pem: add Decode example
+    [dev.ssa] cmd/compile: simplify 386+PIC+globals a bit
     
-    For #16360.
+    We shouldn't issue instructions like MOVL foo(SB), AX directly from the
+    SSA backend.  Instead we should do LEAL foo(SB), AX; MOVL (AX), AX.
     
-    Change-Id: I99d1e5ab1f814f65b3066a498158a442f1bd477f
-    Reviewed-on: https://go-review.googlesource.com/31137
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This simplifies obj logic because now only LEAL needs to be treated
+    specially.  The register allocator uses the LEAL to in effect allocate
+    the temporary register required for the shared library thunk calls.
+    
+    Also, the LEALs can now be CSEd.  So code like
+        var g int
+        func f() { g += 5 }
+    Requires only one thunk call instead of 2.
+    
+    Change-Id: Ib87d465f617f73af437445871d0ea91a630b2355
+    Reviewed-on: https://go-review.googlesource.com/26814
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/encoding/pem/example_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ src/cmd/compile/internal/ssa/gen/386.rules | 42 ++++++++++++---------
+ src/cmd/compile/internal/ssa/rewrite386.go | 60 +++++++++++++++---------------
+ src/cmd/internal/obj/x86/obj6.go           | 25 +++++--------
+ 3 files changed, 64 insertions(+), 63 deletions(-)

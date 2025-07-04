@@ -1,21 +1,25 @@
-commit d4e138328525341c9893f51255add19276960bb9
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 6 09:43:45 2012 +0900
+commit 06b7024462a5fb6cd43909eb37cefbef04fb9171
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 5 16:21:46 2012 -0800
 
-    net: improve server and file tests
+    test: match gccgo error messages for bug388.go
     
-    * Splits into three server tests.
-      - TestStreamConnServer for tcp, tcp4, tcp6 and unix networks
-      - TestSeqpacketConnServer for unixpacket networks
-      - TestDatagramPacketConnServer for udp, udp4, udp6 and unixgram networks
-    * Adds both PacketConn and Conn test clients to datagram packet conn tests.
-    * Fixes wildcard listen test cases on dual IP stack platform.
+    As runtime.UintType is no longer defined, the gccgo error
+    messages have changed.
     
-    R=golang-dev, rsc
+    bug388.go:12:10: error: reference to undefined identifier ‘runtime.UintType’
+    bug388.go:12:10: error: invalid named/anonymous mix
+    bug388.go:13:21: error: reference to undefined identifier ‘runtime.UintType’
+    bug388.go:17:10: error: reference to undefined identifier ‘runtime.UintType’
+    bug388.go:18:18: error: reference to undefined identifier ‘runtime.UintType’
+    bug388.go:22:9: error: non-name on left side of ‘:=’
+    bug388.go:27:10: error: expected type
+    bug388.go:32:9: error: expected type
+    bug388.go:23:14: error: reference to field ‘i’ in object which has no fields or methods
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5701066
+    https://golang.org/cl/5755044
 
- src/pkg/net/file_test.go    | 102 +++++++--
- src/pkg/net/server_test.go  | 541 +++++++++++++++++++++++++++++++-------------
- src/pkg/net/timeout_test.go |  39 ++--
- 3 files changed, 490 insertions(+), 192 deletions(-)
+ test/fixedbugs/bug388.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

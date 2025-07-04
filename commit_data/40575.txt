@@ -1,37 +1,22 @@
-commit e341e93c519ef22ed4759fd0b4643a30321b9222
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 18 17:39:39 2019 -0700
+commit 7e05e974450246124c9a6ecdcddb6424cb65c602
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon May 20 06:58:15 2019 +0200
 
-    cmd/compile, cmd/link: add coverage instrumentation for libfuzzer
+    cmd/go: fix error message for go mod in GOPATH mode
     
-    This CL adds experimental coverage instrumentation similar to what
-    github.com/dvyukov/go-fuzz produces in its -libfuzzer mode. The
-    coverage can be enabled by compiling with -d=libfuzzer. It's intended
-    to be used in conjunction with -buildmode=c-archive to produce an ELF
-    archive (.a) file that can be linked with libFuzzer. See #14565 for
-    example usage.
+    Checks if modules are enabled in GOPATH mode for go mod [graph, verify].
+    Added tests for GO111MODULE=[auto, off].
     
-    The coverage generates a unique 8-bit counter for each basic block in
-    the original source code, and emits an increment operation. These
-    counters are then collected into the __libfuzzer_extra_counters ELF
-    section for use by libFuzzer.
+    Fixes: #31237
     
-    Updates #14565.
-    
-    Change-Id: I239758cc0ceb9ca1220f2d9d3d23b9e761db9bf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202117
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I91efccfa10d0b2385ec2af1ea133deaa8234ba37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174697
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/gsubr.go        |  3 +++
- src/cmd/compile/internal/gc/main.go         |  7 +++++-
- src/cmd/compile/internal/gc/order.go        | 38 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/syntax.go       |  7 ++++--
- src/cmd/internal/objabi/symkind.go          |  2 ++
- src/cmd/link/internal/ld/data.go            | 17 ++++++++++++-
- src/cmd/link/internal/ld/elf.go             |  1 +
- src/cmd/link/internal/ld/lib.go             |  2 +-
- src/cmd/link/internal/sym/symkind.go        |  2 ++
- src/cmd/link/internal/sym/symkind_string.go | 39 +++++++++++++++--------------
- 10 files changed, 94 insertions(+), 24 deletions(-)
+ src/cmd/go/internal/modcmd/graph.go    |  9 +++++++++
+ src/cmd/go/internal/modcmd/verify.go   |  9 +++++++++
+ src/cmd/go/testdata/script/mod_off.txt | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+)

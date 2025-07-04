@@ -1,19 +1,20 @@
-commit 6396bc9df705310c9e7848773154960b7c92978c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Feb 20 12:53:32 2020 -0500
+commit fad0a14d92a8e02d422410f9dbdcec1eb3977590
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 25 09:13:31 2019 -0400
 
-    cmd/go: in tests, add sync before closing file in copyFile helper
+    test: add testcase for gccgo compiler buglet
     
-    An experiment to see if this helps flakiness go away in
-    TestExecutableGOROOT.
+    New test containing code that caused a gccgo compiler failure.
     
-    Updates #37306
+    Updates #34503.
     
-    Change-Id: I2f4f63bdb507359ca07267d86cdb41fe4968f151
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220317
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: Id895a1e1249062b7fb147e54bcaa657e774ed0d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197217
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue34503.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/issue34503.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue34503.go       |  9 +++++++++
+ 3 files changed, 35 insertions(+)

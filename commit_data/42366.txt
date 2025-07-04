@@ -1,15 +1,25 @@
-commit 3b0882e8387d63aeffab3929e2590655c61c1a8e
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon May 18 15:50:03 2020 -0400
+commit 69614c0d0e05787c8203bdc364c3293e1cf5094a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 5 14:41:24 2019 -0500
 
-    crypto/tls: persist the createdAt time when re-wrapping session tickets
+    runtime: give useful failure message on mlock failure
     
-    Change-Id: I33fcde2d544943fb04c2599810cf7fb773aeba1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234483
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Currently, we're ignoring failures to mlock signal stacks in the
+    workaround for #35777. This means if your mlock limit is low, you'll
+    instead get random memory corruption, which seems like the wrong
+    trade-off.
+    
+    This CL checks for mlock failures and panics with useful guidance.
+    
+    Updates #35777.
+    
+    Change-Id: I15f02d3a1fceade79f6ca717500ca5b86d5bd570
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210098
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/handshake_client_test.go | 23 ++++++++++++++++++++++-
- src/crypto/tls/handshake_server.go      | 21 +++++++++++++--------
- 2 files changed, 35 insertions(+), 9 deletions(-)
+ src/runtime/os_linux_amd64.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,15 +1,32 @@
-commit fbcc24bb9d20caa7a73cfd12ed0ba9332f274368
-Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Wed Jul 31 14:11:25 2013 -0700
+commit 58d296065501958bbc7aeb8abea016b221b53f02
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 31 13:40:01 2013 -0700
 
-    container/list: added MoveBefore and MoveAfter
+    spec: clarify index and selector expressions
     
-    Fixes #4940.
+    1) Explain a[i] and a[i:j] where a is of type *A as
+       shortcut for (*a)[i] and (*a)[i:j], respectively.
     
-    R=golang-dev, bradfitz, gri
+    2) Together with 1), because len() of nil slices is
+       well defined, there's no need to special case nil
+       operands anymore.
+    
+    3) The result of indexing or slicing a constant string
+       is always a non-constant byte or string value.
+    
+    4) The result of slicing an untyped string is a value
+       of type string.
+    
+    5) If the operand of a valid slice a[i:j] is nil (i, j
+       must be 0 for it to be valid - this already follows
+       from the in-range rules), the result is a nil slice.
+    
+    Fixes #4913.
+    Fixes #5951.
+    
+    R=rsc, r, iant, ken
     CC=golang-dev
-    https://golang.org/cl/12021044
+    https://golang.org/cl/11884043
 
- src/pkg/container/list/list.go      | 18 ++++++++++++++++++
- src/pkg/container/list/list_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ doc/go_spec.html | 69 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 41 insertions(+), 28 deletions(-)

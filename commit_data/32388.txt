@@ -1,12 +1,20 @@
-commit c3552a90506bbf944f17882511b75f3e84c2af63
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 15:21:31 2017 +1000
+commit 2fe43cec8b4628c8f802e1ecd60155f6e09649a5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:33:23 2017 -0700
 
-    cmd/link: introduce and use peSection.checkSegment
+    cmd/compile: bubble out some Linksym calls
     
-    Change-Id: Idaab6516dae609e1707d4bce7bf7809ebfc8ec40
-    Reviewed-on: https://go-review.googlesource.com/56315
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change a few functions so that instead of
+    accepting a *types.Sym and calling Linksym
+    themselves, they accept an *obj.LSym.
+    Adapt the callsites.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ic5d3f306f2fdd3913281215a1f54d893a966bb1f
+    Reviewed-on: https://go-review.googlesource.com/41404
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 31 ++++++++++++++++---------------
- 1 file changed, 16 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 89 +++++++++++++++++-----------------
+ 1 file changed, 44 insertions(+), 45 deletions(-)

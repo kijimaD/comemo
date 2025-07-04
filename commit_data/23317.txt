@@ -1,26 +1,29 @@
-commit bd8e3d028eeca723bb37f72c6d513e32c374af73
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Jun 10 22:32:14 2015 +0200
+commit 9de28cf5472724b113ed02f03fa7222be4ca0b46
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 4 10:11:27 2015 -0700
 
-    os: fix error returned by dirstat on Plan 9
+    cmd/doc: if no top-level symbols match, look for methods
     
-    When the Stat or Fstat system calls return -1,
-    dirstat incorrectly returns ErrShortStat.
+    Improving the usability further.
     
-    However, the error returned by Stat or Fstat
-    could be different. For example, when the
-    file doesn't exist, they return "does not exist".
+    Before:
     
-    Dirstat should return the error returned by
-    the system call.
+    $ go doc bytes.Read
+    doc: symbol Read not present in package bytes installed in "bytes"
+    $
     
-    Fixes #10911.
-    Fixes #11132.
+    After:
+    $ go doc bytes.Read
+    func (b *Buffer) Read(p []byte) (n int, err error)
+        Read reads the next len(p) bytes from the buffer or until the buffer is drained.
+        The return value n is the number of bytes read. If the buffer has no data to
+        return, err is io.EOF (unless len(p) is zero); otherwise it is nil.
+    func (r *Reader) Read(b []byte) (n int, err error)
+    $
     
-    Change-Id: Icf242d203d256f12366b1e277f99b1458385104a
-    Reviewed-on: https://go-review.googlesource.com/10900
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I646511fada138bd09e9b39820da01a5ccef4a90f
+    Reviewed-on: https://go-review.googlesource.com/9656
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/stat_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/doc/pkg.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

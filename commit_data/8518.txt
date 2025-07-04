@@ -1,14 +1,14 @@
-commit b88be149828199abf7dfdebe0ab803248cd9ecf4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 27 10:08:31 2011 -0700
+commit 406d73876dc13bfe85215e7a9c32cd8396270256
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 27 23:24:39 2011 +1000
 
-    http/spdy: temporarily disable some failing tests
+    time: fix Format bug: noon is 12PM, not 0PM.
+    Fixes #1882.
     
-    Issue 1886 has details
-    
-    R=golang-dev, willchan
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4527083
+    https://golang.org/cl/4556062
 
- src/pkg/http/spdy/framer_test.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/pkg/time/format.go    | 13 +++++++++++--
+ src/pkg/time/time_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 2 deletions(-)

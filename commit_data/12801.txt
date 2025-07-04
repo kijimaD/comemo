@@ -1,16 +1,13 @@
-commit 373f1a95b0261673e5b2c7aea20d1a479af24713
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 30 08:42:21 2012 -0700
+commit c24daa222fffda53e58f716f7dba81142e42eab3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 30 15:00:23 2012 +0800
 
-    test: add some tests of valid code that failed with gccgo
+    doc/codewalk/markov: fix syntax and broken link
+            Part of issue 3424.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5971044
+    https://golang.org/cl/5955050
 
- test/blank.go            |  2 +-
- test/fixedbugs/bug430.go | 22 ++++++++++++++++++++++
- test/fixedbugs/bug431.go | 18 ++++++++++++++++++
- test/fixedbugs/bug432.go | 13 +++++++++++++
- test/fixedbugs/bug433.go | 39 +++++++++++++++++++++++++++++++++++++++
- 5 files changed, 93 insertions(+), 1 deletion(-)
+ doc/codewalk/markov.xml | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

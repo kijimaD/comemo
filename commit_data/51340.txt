@@ -1,18 +1,21 @@
-commit 1daa8e2d5226e0645d9748c32e031d93f485e740
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Nov 16 23:11:07 2022 +0700
+commit 3ff12a019f00bc81996c453e5cb4729a9278f65a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 10 12:58:20 2022 -0500
 
-    test: remove optimizationOff
+    cmd/go: run go install in workspace mode
     
-    Cl 426334 removed its only usage, and now we have gcflags_noopt.
+    It's too confusing to users to run go install in module mode, so run
+    it in workspace mode instead.
     
-    Change-Id: I3b33a8c868669deea00bf6dfcf8d81981504e293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451255
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #50036
+    
+    Change-Id: Ia99927bd98f54be4c42224a247543892045e3464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377334
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/run.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/internal/work/build.go                  |  1 +
+ .../go/testdata/script/work_install_submodule.txt  | 36 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

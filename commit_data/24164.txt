@@ -1,16 +1,17 @@
-commit dac87e9ed3544c803f7573227240b7f23b315019
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Sep 3 17:39:20 2015 -0400
+commit 6c848c6e888781b5385cec34e5740ac192323242
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 14 18:29:49 2015 -0700
 
-    cmd/compile/internal/gc: allow //go:systemstack only in runtime
+    A+C: more updates before release
     
-    Fixes #12454.
+    Includes subrepos and some special cases.
     
-    Change-Id: I6406b0119bc4d6c3d1e6f1896b588b7d101448a3
-    Reviewed-on: https://go-review.googlesource.com/14274
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #10639
+    
+    Change-Id: I3c9ad4f6ec689903f88ccf5599d93a338e3eec4d
+    Reviewed-on: https://go-review.googlesource.com/12211
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 3 +++
- 1 file changed, 3 insertions(+)
+ AUTHORS      | 7 ++++++-
+ CONTRIBUTORS | 8 ++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

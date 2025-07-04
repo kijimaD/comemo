@@ -1,19 +1,22 @@
-commit 35b80575b8dbeb031455ccd99a08850c1d9f33b1
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sun Feb 2 14:55:29 2020 +0900
+commit 70a1efbb5c2f6b7dd355cfd905ffdd13f35ac756
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 26 10:01:42 2019 -0400
 
-    syscall: release a js.Func object in fsCall
+    cmd/link: remove reading/processing of function Autom records
     
-    (This is a reland of golang.org/cl/217417.)
+    Remove linker reading and processing of automs (no longer needed, now
+    that the compiler is emitting R_USETYPE relocations on functions). So
+    as to avoid changing the object file format, the object still contains
+    a count of automs, but this count is required to be zero.
     
-    A js.Func object in fsCall was created for each call but never
-    released. This CL fixes this.
+    Updates #34554.
     
-    Change-Id: Ifc0efb997c9b3e04641839691ccc04de61ef28d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220537
-    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I10230e191057c5c5705541eeb06f747d5f73c42d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197500
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/syscall/fs_js.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go     |  6 ------
+ src/cmd/link/internal/ld/lib.go          | 34 --------------------------------
+ src/cmd/link/internal/objfile/objfile.go | 22 +++------------------
+ src/cmd/link/internal/sym/symbol.go      |  8 --------
+ 4 files changed, 3 insertions(+), 67 deletions(-)

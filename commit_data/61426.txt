@@ -1,0 +1,27 @@
+commit 2751443e92d9ac6adee2ce0433253fd7b2c04b0f
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Oct 17 16:26:52 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}PCNT.{B,H,W,D} instructions support
+    
+    Go asm syntax:
+              VPCNT{B,H,W,V}  VJ, VD
+             XVPCNT{B,H,W,V}  XJ, XD
+    
+    Equivalent platform assembler syntax:
+              vpcnt.{b,w,h,d}  vd, vj
+             xvpcnt.{b,w,h,d}  xd, xj
+    
+    Change-Id: Icec4446b1925745bc3a0bc3f6397d862953b9098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620736
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 +++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 +++++++
+ src/cmd/internal/obj/loong64/asm.go             | 28 +++++++++++++++++++++++++
+ 4 files changed, 56 insertions(+)

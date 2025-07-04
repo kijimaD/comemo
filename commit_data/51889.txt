@@ -1,19 +1,36 @@
-commit 2a3c695c4b8354c942a5096a85df5d355f4e1718
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 1 12:18:39 2023 -0500
+commit adae6ec542c3287ffe643093a0f61c9871f4e238
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 21 10:06:48 2022 -0700
 
-    cmd/link: remove special cases for relocations in .go.buildinfo
+    cmd/compile: replace Type.OrigSym with Type.OrigType
     
-    .go.buildinfo has no relocations anymore, as of Go 1.18.
+    First law of cmd/compile frontend development: thou shalt not rely on
+    types.Sym.
     
-    Change-Id: I98369c6a0ef07ada770eaa12f6f56c210e812abc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464436
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    This CL replaces Type.OrigSym with Type.OrigType, which semantically
+    matches what all of the uses within the frontend actually care about,
+    and avoids using types.Sym, which invariably leads to mistakes because
+    symbol scoping in the frontend doesn't work how anyone intuitively
+    expects it to.
+    
+    Fixes #51765.
+    
+    Change-Id: I4affe6ee0718103ce5006ab68aa7e1bb0cac6881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394274
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/data.go  | 8 --------
- src/cmd/link/internal/ld/xcoff.go | 5 -----
- 2 files changed, 13 deletions(-)
+ src/cmd/compile/internal/noder/decl.go          |  4 ++--
+ src/cmd/compile/internal/noder/stencil.go       | 14 ++++++--------
+ src/cmd/compile/internal/noder/types.go         |  2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/crawler.go   | 14 +++++++-------
+ src/cmd/compile/internal/typecheck/iexport.go   |  4 ++--
+ src/cmd/compile/internal/typecheck/iimport.go   | 10 +++++-----
+ src/cmd/compile/internal/typecheck/subr.go      |  6 +++---
+ src/cmd/compile/internal/types/type.go          | 10 +++++-----
+ test/typeparam/issue51765.go                    | 15 +++++++++++++++
+ 10 files changed, 47 insertions(+), 34 deletions(-)

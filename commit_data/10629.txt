@@ -1,15 +1,17 @@
-commit b219e8cbcf67e10b47ab6ebe97eb6497f6010000
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 6 13:54:22 2011 -0800
+commit 02d1dae1069f881ea6b53ecc3cbf3bbe3ac40a72
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Dec 6 16:42:48 2011 -0500
 
-    strconv: squeezed a bit more out of int/uint formatting
+    crypto/x509: if a parent cert has a raw subject, use it.
     
-    - less code
-    - slightly better performance (0-4%)
+    This avoids a problem when creating certificates with parents that
+    were produce by other code: the Go structures don't contain all the
+    information about the various ASN.1 string types etc and so that
+    information would otherwise be lost.
     
-    R=r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5448120
+    https://golang.org/cl/5453067
 
- src/pkg/strconv/itoa.go | 41 ++++++++++++++++++-----------------------
- 1 file changed, 18 insertions(+), 23 deletions(-)
+ src/pkg/crypto/x509/x509.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

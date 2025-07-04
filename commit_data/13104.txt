@@ -1,16 +1,19 @@
-commit d45f22e3c843c4c19fd547684e51f249d9fd53dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 21 11:07:27 2012 -0700
+commit b4456df6d237e2f8dc66c3f405d2d79836aa797d
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon May 21 10:57:15 2012 -0700
 
-    net/http: fix duplicate status code in Response.Write
+    net/http: add cookies from jar to POST request.
     
-    Fixes #3636
+    The main content of this CL is a test case checking the reported
+    issue 3511 and a tiny fix for it.  A subsequent CL will refactor
+    the fix as proposed issue 3511.
     
-    R=golang-dev, adg
+    Fixes #3511.
+    
+    R=golang-dev, steven.hartland, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6203094
+    https://golang.org/cl/6013049
 
- src/pkg/net/http/response.go      |  9 ++++++---
- src/pkg/net/http/response_test.go | 15 +++++++++++++++
- src/pkg/net/http/transfer.go      |  6 ++++--
- 3 files changed, 25 insertions(+), 5 deletions(-)
+ src/pkg/net/http/client.go      |  5 +++++
+ src/pkg/net/http/client_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

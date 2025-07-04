@@ -1,23 +1,38 @@
-commit 72dc3a0919bebbf166302a6fdac41ab8046d4a0f
-Author: Vojtech Bocek <vbocek@gmail.com>
-Date:   Fri Oct 4 05:24:55 2019 +0000
+commit dbe32284ff4fb96906cdb121508eba668dbc5bae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 4 00:29:16 2019 -0400
 
-    crypto/x509: truncate signed hash before DSA signature verification
+    cmd/link: mmap object data
     
-    According to spec, the hash must be truncated, but crypto/dsa
-    does not do it. We can't fix it in crypto/dsa, because it would break
-    verification of previously generated signatures.
-    In crypto/x509 however, go can't generate DSA certs, only verify them,
-    so the fix here should be safe.
+    This resurrects CL 121198, except that this time we map read-only.
     
-    Fixes #22017
+    In case that we need to apply relocations to the symbol's
+    content that is backed by read-only memory, we do our own copy-
+    on-write. This can happen if we failed to mmap the output file,
+    or we build for Wasm.
     
-    Change-Id: Iee7e20a5d76f45da8901a7ca686063639092949f
-    GitHub-Last-Rev: 8041cde8d25d3a336b81d86bd52bff5039568246
-    GitHub-Pull-Request: golang/go#34630
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198138
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Memory profile for building k8s.io/kubernetes/cmd/kube-apiserver
+    on Linux/AMD64:
+    
+    Old (before this sequence of CLs):
+    inuse_space 1598.75MB total
+    669.87MB 41.90% 41.90%   669.87MB 41.90%  cmd/link/internal/objfile.(*objReader).readSlices
+    
+    New:
+    inuse_space 1280.45MB total
+    441.18MB 34.46% 34.46%   441.18MB 34.46%  cmd/link/internal/objfile.(*objReader).readSlices
+    
+    Change-Id: I6b4d29d6eee9828089ea3120eb38c212db21330b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170741
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go      |  5 +++++
- src/crypto/x509/x509_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/cmd/internal/bio/buf.go              | 24 +++++++++++++
+ src/cmd/internal/bio/buf_mmap.go         | 62 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/bio/buf_nommap.go       | 11 ++++++
+ src/cmd/link/internal/ld/data.go         | 45 +++++++++++++++--------
+ src/cmd/link/internal/ld/outbuf.go       |  1 +
+ src/cmd/link/internal/objfile/objfile.go | 16 ++++++---
+ src/cmd/link/internal/sym/attribute.go   |  6 +++-
+ 7 files changed, 144 insertions(+), 21 deletions(-)

@@ -1,17 +1,14 @@
-commit dd694fb14912814fdcdf280ffa2a783b3bd18e63
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Fri Dec 16 10:48:41 2011 -0500
+commit a3008e235e7445ddf581739a165861e15489785d
+Author: Miki Tebeka <miki.tebeka@gmail.com>
+Date:   Fri Dec 16 10:39:20 2011 -0500
 
-    net/http: Added interface for a cookie jar.
+    codereview: Initialize "found" in codereview.py.
     
-    Types implementing CookieJar may be used in a Client
-    to persist cookies.
+    Fixes #2569 (hg undo crashes when CL not found).
     
-    R=bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5399043
+    https://golang.org/cl/5489052
 
- src/pkg/net/http/Makefile  |  1 +
- src/pkg/net/http/client.go | 17 +++++++++++++++++
- src/pkg/net/http/jar.go    | 30 ++++++++++++++++++++++++++++++
- 3 files changed, 48 insertions(+)
+ lib/codereview/codereview.py | 1 +
+ 1 file changed, 1 insertion(+)

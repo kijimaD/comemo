@@ -1,22 +1,15 @@
-commit 7b0f3caa26a46f2d8ef277ff677efec899618871
+commit 58a5f1e84f4e6679ffb70a0cc81d786e078b4ef7
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 28 09:34:26 2011 -0700
+Date:   Wed Sep 28 09:27:11 2011 -0700
 
-    strings: add Replacer, NewReplacer
+    http: don't send a 400 Bad Request after a client shutdown
     
-    This is just a new API to do many replacements at once.
+    Fixes #2312
     
-    While the point of this API is to be faster than doing replacements one
-    at a time, the implementation in this CL has the optimizations removed
-    and may actually be slower.
-    
-    Future CLs will bring back & add optimizations.
-    
-    R=r, rsc, rogpeppe
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5081042
+    https://golang.org/cl/5143049
 
- src/pkg/strings/Makefile        |  1 +
- src/pkg/strings/replace.go      | 84 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/strings/replace_test.go | 75 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 160 insertions(+)
+ src/pkg/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     |  2 ++
+ 2 files changed, 34 insertions(+)

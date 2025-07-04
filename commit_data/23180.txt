@@ -1,29 +1,19 @@
-commit df2809f04e6df31e2b36bac08704d8f27e04a0ad
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 29 12:13:50 2015 -0400
+commit 73e791a38a719885df48817b2272ede1819c7053
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 1 21:38:05 2015 -0400
 
-    runtime: document that runtime.GC() blocks until GC is complete
+    cmd/internal/obj: do not generate data for $f32. and $f64. symbols at assemble time
     
-    runtime.GC() is intentionally very weakly specified. However, it is so
-    weakly specified that it's difficult to know that it's being used
-    correctly for its one intended use case: to ensure garbage collection
-    has run in a test that is garbage-sensitive. In particular, it is
-    unclear whether it is synchronous or asynchronous. In the old STW
-    collector this was essentially self-evident; short of queuing up a
-    garbage collection to run later, it had to be synchronous. However,
-    with the concurrent collector, there's evidence that people are
-    inferring that it may be asynchronous (e.g., issue #10986), as this is
-    both unclear in the documentation and possible in the implementation.
+    When reading the object files for linking, liblink takes care of
+    generate the data for them.
     
-    In fact, runtime.GC() runs a fully synchronous STW collection. We
-    probably don't want to commit to this exact behavior. But we can
-    commit to the essential property that tests rely on: that runtime.GC()
-    does not return until the GC has finished.
+    This is a port of https://golang.org/cl/3101 to Go.
     
-    Change-Id: Ifc3045a505e1898ecdbe32c1f7e80e2e9ffacb5b
-    Reviewed-on: https://go-review.googlesource.com/10488
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ie3e2d6515bd7d253a8c1e25c70ef8fed064436d8
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8383
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/arm/obj5.go | 10 ----------
+ src/cmd/internal/obj/x86/obj6.go | 10 ----------
+ 2 files changed, 20 deletions(-)

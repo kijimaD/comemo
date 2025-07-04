@@ -1,17 +1,23 @@
-commit ecf3b39c2a65eb96ca44b9a2694852f12a433747
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Feb 14 12:05:46 2022 -0500
+commit 4e3e6b58f7ba16caa58f4c826a63d85e26849036
+Author: kumakichi <xyesan@gmail.com>
+Date:   Thu Apr 29 05:45:35 2021 +0000
 
-    cmd/go: have go work init use the -workfile flag
+    cmd/compile/internal/ir: fix doc
     
-    Change-Id: Idb4795bde699c919222953ec33fa1083798b2000
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385654
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I8fc77e29cb44fef264a62ff00452b9fcf6e30be8
+    GitHub-Last-Rev: 414cda8ce6e64fb53d3d1ec01caa7e33c0219236
+    GitHub-Pull-Request: golang/go#45842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314990
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/workcmd/init.go               |  5 ++++-
- src/cmd/go/testdata/script/work_init_workfile.txt | 15 +++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/dump.go | 4 ++--
+ src/cmd/compile/internal/ir/expr.go | 4 ++--
+ src/cmd/compile/internal/ir/func.go | 4 ++--
+ src/cmd/compile/internal/ir/node.go | 4 ++--
+ src/cmd/compile/internal/ir/stmt.go | 2 +-
+ src/cmd/compile/internal/ir/val.go  | 6 +++---
+ 6 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,22 +1,15 @@
-commit 522f0fc4251b4df23661f588eb9b0b40c4423bef
-Author: David Chase <drchase@google.com>
-Date:   Mon Jun 13 17:53:32 2022 -0400
+commit 3a72175cdcbfb64cca5968be52ac964f69d3a44a
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Fri Sep 10 20:56:29 2021 +0800
 
-    cmd/compile: refactor GOSSAHASH debugging to make it usable outside ssa package.
+    cmd/compile: fix test/typeparam/mdempsky/4.go for -G=3
     
-    I've needed this more than once in the past, I hack it in,
-    then throw it away, seems sensible to make the change and
-    save it.
-    
-    Fixes #53937.
-    
-    Change-Id: I7fe886b1c93d73cbf553bed587f2c30f0f5d5a0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418015
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I894ee000561a3c6afede8df697b1bce4576ceef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349012
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/base/hashdebug.go | 147 +++++++++++++++++++++++++++++
- src/cmd/compile/internal/ir/func.go        |   7 --
- src/cmd/compile/internal/ssa/func.go       | 101 ++------------------
- src/cmd/compile/internal/ssagen/ssa.go     |   1 -
- 4 files changed, 157 insertions(+), 99 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go | 22 +++++++++++++++++++---
+ test/run.go                                   |  2 --
+ 2 files changed, 19 insertions(+), 5 deletions(-)

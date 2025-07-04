@@ -1,26 +1,22 @@
-commit 2566e21f243387156e8e7f2acad0ce14d9712bbc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 4 04:00:29 2019 +0000
+commit 16796afc35de049a89da42efaad1593c26a96392
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu May 30 10:23:23 2019 +0100
 
-    net/http: support disabling built-in HTTP/2 with a new build tag
+    cmd/go: add two more uses of lazyregexp
     
-    Fixes #35082
-    Updates #6853
+    A couple of regexp.MustCompile globals have made their way in since we
+    introduced this package for cmd/go.
     
-    Change-Id: I4eeb0e15f534cff57fefb6039cd33fadf15b946e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205139
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Convert the declarations. It's just two of them, so the cmd/go exec
+    benchmark isn't affected noticeably.
+    
+    Change-Id: Ibd0615c99b6a049124a952c59978fd714c1b9615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179358
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/clientserver_test.go |  3 ++
- src/net/http/export_test.go       |  6 ++++
- src/net/http/h2_bundle.go         |  4 ++-
- src/net/http/http.go              |  7 ++++
- src/net/http/http_test.go         | 26 ++++++++++++++
- src/net/http/main_test.go         |  3 ++
- src/net/http/omithttp2.go         | 71 +++++++++++++++++++++++++++++++++++++++
- src/net/http/serve_test.go        |  2 ++
- src/net/http/server.go            |  2 +-
- src/net/http/transport.go         |  7 +++-
- src/net/http/transport_test.go    |  3 ++
- 11 files changed, 131 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modconv/dep.go   | 4 ++--
+ src/cmd/go/internal/sumweb/server.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

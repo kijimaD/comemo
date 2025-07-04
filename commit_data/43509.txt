@@ -1,37 +1,18 @@
-commit dc02578ac8bb27359c7d0451ca249e47bdef2a9e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jul 29 19:00:37 2020 +0000
+commit b191c6095ececd77881be0644b333fc44e35774c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 9 11:35:24 2020 -0400
 
-    runtime: make the span allocation purpose more explicit
+    cmd/oldlink: delete darwin/386 host object loading support
     
-    This change modifies mheap's span allocation API to have each caller
-    declare a purpose, defined as a new enum called spanAllocType.
+    In Go 1.15, the darwin/386 port is gone.
     
-    The purpose behind this change is two-fold:
-    1. Tight control over who gets to allocate heap memory is, generally
-       speaking, a good thing. Every codepath that allocates heap memory
-       places additional implicit restrictions on the allocator. A notable
-       example of a restriction is work bufs coming from heap memory: write
-       barriers are not allowed in allocation paths because then we could
-       have a situation where the allocator calls into the allocator.
-    2. Memory statistic updating is explicit. Instead of passing an opaque
-       pointer for statistic updating, which places restrictions on how that
-       statistic may be updated, we use the spanAllocType to determine which
-       statistic to update and how.
+    Updates #37610.
     
-    We also take this opportunity to group all the statistic updating code
-    together, which should make the accounting code a little easier to
-    follow.
-    
-    Change-Id: Ic0b0898959ba2a776f67122f0e36c9d7d60e3085
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246970
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I11627c03403d4d4a3e0950fdedd0d850ae24b439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227766
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mbitmap.go |  4 +--
- src/runtime/mgcwork.go |  4 +--
- src/runtime/mheap.go   | 78 +++++++++++++++++++++++++++++++++++++-------------
- src/runtime/stack.go   | 12 ++++----
- 4 files changed, 68 insertions(+), 30 deletions(-)
+ src/cmd/oldlink/internal/loadmacho/ldmacho.go | 103 +-------------------------
+ 1 file changed, 3 insertions(+), 100 deletions(-)

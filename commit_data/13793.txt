@@ -1,18 +1,12 @@
-commit b19c32acce20c9e7ef54111bfecae97f0906fa1a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Sep 11 14:40:08 2012 +1000
+commit 4c60f974b1917084773397142cda961a96328589
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 11 14:06:34 2012 +1000
 
-    strings: more thorough Replacer tests.
+    misc/cgo/life: disable it temporarily on windows, because go builder fails
     
-    This verifies existing behavior. Some replacements are arguably wrong
-    (these are marked with TODO) but changing behavior is left for a
-    follow-up CL.
-    
-    Also fix that BenchmarkGenericMatch wasn't actually matching anything.
-    
-    R=rsc, eric.d.eisner
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/6488110
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6506096
 
- src/pkg/strings/replace_test.go | 319 ++++++++++++++++++++++++++++++++--------
- 1 file changed, 259 insertions(+), 60 deletions(-)
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

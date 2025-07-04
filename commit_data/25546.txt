@@ -1,17 +1,16 @@
-commit 27df2e3f76925701b54d9422ae5c1cac3a7d334d
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 24 14:03:58 2015 -0500
+commit b46df69541fd0661491245ffd13285d829778fd8
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 9 15:16:12 2015 -0800
 
-    runtime: mark greyobject go:nowritebarrierrec
+    Revert "crypto/tls: don't send IP literals as SNI values."
     
-    It would certainly be a mistake to invoke a write barrier while
-    greying an object.
+    This reverts commit a4dcc692011bf1ceca9b1a363fd83f3e59e399ee.
     
-    Change-Id: I34445a15ab09655ea8a3628a507df56aea61e618
-    Reviewed-on: https://go-review.googlesource.com/18533
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib55fd349a604d6b5220dac20327501e1ce46b962
+    Reviewed-on: https://go-review.googlesource.com/16770
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/mgcmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/common.go                |  3 +--
+ src/crypto/tls/handshake_client.go      |  9 +--------
+ src/crypto/tls/handshake_client_test.go | 27 ---------------------------
+ 3 files changed, 2 insertions(+), 37 deletions(-)

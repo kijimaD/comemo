@@ -1,27 +1,31 @@
-commit 94c75232fbe4e24c38f728fd05e0a151893fb2c5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 23 19:17:51 2023 +0000
+commit 0c4db1e347dc51589e5289388305b02108ca0aa1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 5 16:09:22 2022 -0700
 
-    runtime: move pinner variable into inner loop for benchmarks
+    cmd/compile: fix import/export of ODYNAMICDOTTYPE
     
-    Currently the pinner is created outside of the benchmarking loop.
-    However, this means that we get to reuse the same pinner for each loop;
-    in general, users are expected to create a pinner for a e.g. a cgo
-    call and then that variable will expire with the frame it lives in. (If
-    they can reuse the variable, great! However, I don't expect that to be
-    common.)
+    The RType field isn't needed when performing type assertions from
+    non-empty interface types, because we use the ITab field instead. But
+    the inline body exporter didn't know to expect this.
     
-    In essence, this benchmarks a harder case. It's not more right or wrong
-    than the previous version, but the fact that it's a slightly harder case
-    (that still mostly captures what the original version was capturing) is
-    useful.
+    It's possible we could use a single bool to distinguish whether
+    we're serializing the RType or ITab field, but using two is simpler
+    and seems safer.
     
-    Change-Id: I94987127f54d7bfecd7b8e6a5e632631ea57ad24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497616
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Fixes #54302.
+    
+    Change-Id: I9ddac72784fb2241fee0a0dee30493d868a2c259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421755
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/pinner_test.go | 24 +++++++++---------------
- 1 file changed, 9 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  4 +++-
+ src/cmd/compile/internal/typecheck/iimport.go |  5 ++++-
+ test/typeparam/issue54302.dir/a.go            | 20 ++++++++++++++++++++
+ test/typeparam/issue54302.dir/main.go         | 11 +++++++++++
+ test/typeparam/issue54302.go                  |  7 +++++++
+ 5 files changed, 45 insertions(+), 2 deletions(-)

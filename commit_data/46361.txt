@@ -1,33 +1,21 @@
-commit d419f9c6124557e0bf08e00d7848e3e518ac4cbd
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 11:57:04 2021 -0400
+commit 87a592b35602e89c55218d2a54a1e0dade5db7e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 01:15:58 2020 -0800
 
-    go/types: spell out 'Type' in type parameter APIs
+    [dev.regabi] cmd/compile: cleanup import/export code
     
-    As discussed on the go/types proposal (#47916), we should spell out the
-    word 'Type', rather than using 'T'.
+    Now that we have concrete AST node types and better constructor APIs,
+    we can more cleanup a lot of the import code and some export code too.
     
-    Change-Id: I5f51255eedc07fea61f909b7ecb3093a7fab765e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348376
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ie3425d9dac11ac4245e5da675dd298984a926df4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279954
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/internal/gcimporter/iimport.go |  6 ++---
- src/go/types/api_test.go              |  2 +-
- src/go/types/assignments.go           |  2 +-
- src/go/types/call.go                  | 18 +++++++--------
- src/go/types/decl.go                  |  4 ++--
- src/go/types/index.go                 |  2 +-
- src/go/types/instantiate.go           | 10 ++++-----
- src/go/types/lookup.go                | 12 +++++-----
- src/go/types/named.go                 | 42 +++++++++++++++++------------------
- src/go/types/object.go                |  4 ++--
- src/go/types/predicates.go            |  8 +++----
- src/go/types/signature.go             | 28 +++++++++++------------
- src/go/types/subst.go                 |  6 ++---
- src/go/types/typelists.go             | 16 ++++++-------
- src/go/types/typeparam.go             |  2 +-
- src/go/types/typestring.go            |  8 +++----
- 16 files changed, 85 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  27 ++----
+ src/cmd/compile/internal/typecheck/iimport.go | 114 ++++++++++----------------
+ 2 files changed, 49 insertions(+), 92 deletions(-)

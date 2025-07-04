@@ -1,13 +1,23 @@
-commit cdc93d24165af721030f05c9aa6c79605011ec1b
+commit 156962872575382697a0487030cd5777312d6d0c
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 13 19:03:41 2014 +0400
+Date:   Thu Mar 13 13:25:59 2014 +0400
 
-    doc: update go1.3.txt for some performance changes
+    runtime: harden conditions when runtime panics on crash
+    This is especially important for SetPanicOnCrash,
+    but also useful for e.g. nil deref in mallocgc.
+    Panics on such crashes can't lead to anything useful,
+    only to deadlocks, hangs and obscure crashes.
+    This is a copy of broken but already LGTMed
+    https://golang.org/cl/68540043/
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/75350043
+    https://golang.org/cl/75320043
 
- doc/go1.3.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/runtime/panic.c         | 23 +++++++++++++++++++++++
+ src/pkg/runtime/runtime.h       |  1 +
+ src/pkg/runtime/signal_386.c    |  2 +-
+ src/pkg/runtime/signal_amd64x.c |  2 +-
+ src/pkg/runtime/signal_arm.c    |  2 +-
+ 5 files changed, 27 insertions(+), 3 deletions(-)

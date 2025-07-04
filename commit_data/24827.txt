@@ -1,13 +1,18 @@
-commit 4a25f6ca05896f25bd8a1b561b09915b456f36c6
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Wed Sep 9 22:39:45 2015 -0400
+commit ce4317266c160953aacf46cbe9d8341f86158776
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Sep 2 20:17:47 2015 -0500
 
-    math, math/big: added support for mips64{,le}
+    [dev.ssa] cmd/compile: cse should treat -0.0 and 0.0 as different
     
-    Change-Id: I5129a5b9dbbc57d97da723c2fc247bd28f951817
-    Reviewed-on: https://go-review.googlesource.com/14451
-    Reviewed-by: Minux Ma <minux@golang.org>
+    cse was incorrectly classifying -0.0 and 0.0 as equivalent. This lead
+    to invalid code as ssa uses PXOR -0.0, reg to negate a floating point.
+    
+    Fixes math.
+    
+    Change-Id: Id7eb10c71749eaed897f29b02c33891cf5820acf
+    Reviewed-on: https://go-review.googlesource.com/14205
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/arith_mips64x.s | 46 ++++++++++++++++++++++
- src/math/stubs_mips64x.s     | 91 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 137 insertions(+)
+ src/cmd/compile/internal/ssa/TODO   |  1 +
+ src/cmd/compile/internal/ssa/cse.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

@@ -1,21 +1,23 @@
-commit f934b8326f18c4be2cb26ed1e87621d926ba209b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 3 20:42:44 2021 -0700
+commit 9e6b1fcd0a42db0f4699ff17e3b248e563f7eee4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 22:24:58 2021 +0700
 
-    cmd/compile/internal/types2: check non-generic conversions first
+    cmd/compile: do not report error for invalid constant
     
-    This enables the elimination of convertibleToImpl again,
-    with the code structure close to the original non-generic
-    version, and closely matching the structure of assignableTo.
+    Invalid constant was already reported by noder, so don't re-check in
+    typecheck, which lead to compiler crashing.
     
-    We also don't need the hasTerm tests; instead we can rely
-    directly on the mechanism of TypeParam.is which is feeding
-    a nil term if there are no specific types.
+    Updates #43311
     
-    Change-Id: I0385acca779d75c3c961d06afb464714fe51705d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361269
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I48e2f540601cef725c1ff628c066ed15d848e771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298713
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/conversions.go | 119 +++++++++++++------------
- 1 file changed, 62 insertions(+), 57 deletions(-)
+ src/cmd/compile/internal/noder/noder.go         | 2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 +++-
+ test/char_lit1.go                               | 2 +-
+ test/fixedbugs/issue20232.go                    | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

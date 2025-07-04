@@ -1,0 +1,25 @@
+commit afd6b0bc663cf49e74200729da91785219d28b53
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue May 13 11:50:58 2025 -0700
+
+    Revert "testing: add Output"
+    
+    This reverts commit 8d189f188e225e4919b34c0c097e75dfda255949.
+    
+    Reason for revert: failing test
+    
+    Change-Id: I951087eaef7818697acf87e3206003bcc8a81ee2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ api/next/59928.txt                          |   3 -
+ doc/next/6-stdlib/99-minor/testing/59928.md |   4 -
+ src/testing/benchmark.go                    |   3 -
+ src/testing/fuzz.go                         |   2 -
+ src/testing/panic_test.go                   |  19 --
+ src/testing/sub_test.go                     | 263 +---------------------------
+ src/testing/testing.go                      | 214 +++++++---------------
+ 7 files changed, 65 insertions(+), 443 deletions(-)

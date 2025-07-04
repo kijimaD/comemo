@@ -1,18 +1,17 @@
-commit 2c7043c273a04dc3ca081321484c8a30d4c2c23b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 9 00:02:53 2017 +0000
+commit 77b09b8b8dc9d27f0c583f4eb94a563e68fe0af6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 7 16:10:59 2017 +0000
 
-    net: don't run TestDialListenerAddr in short mode on non-builders
+    runtime: remove unused g parameter
     
-    It listens on all addresses, which users might not want.
+    Found by github.com/mvdan/unparam.
     
-    Updates #18806 (follow-up to feedback from CL 45088)
-    
-    Change-Id: I51de2d3fc3cd88a61eb3c63018c47aea920c0549
-    Reviewed-on: https://go-review.googlesource.com/45157
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I20145440ff1bcd27fcf15a740354c52f313e536c
+    Reviewed-on: https://go-review.googlesource.com/37894
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/dial_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/proc.go  | 2 +-
+ src/runtime/trace.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

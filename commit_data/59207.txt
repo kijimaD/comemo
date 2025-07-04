@@ -1,24 +1,21 @@
-commit dceb77a33676c8a4efb9c63267c351268848de6f
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Mar 28 18:04:16 2025 -0400
+commit 080fc4cf87c4de796b2c5dc14eb9b94f6ec7a35a
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Tue Feb 20 02:58:00 2024 +0000
 
-    cmd/vet: add waitgroup analyzer
+    net/netip: introduce parsePrefixError for better error handling
     
-    + relnote
+    Refactor ParsePrefix to return a parsePrefixError containing the input
+    string and a detailed message on failure, improving error context and
+    maintaining consistent error formatting within the netip package.
     
-    Fixes #18022
-    
-    Change-Id: I92d1939e9d9f16824655c6c909a5f58ed9500014
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661519
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I8d9fb2f833b0f96f43a14622e66e225b54440410
+    GitHub-Last-Rev: e17bec3afa4efd6c52463bb93e8f694b42c0c2b7
+    GitHub-Pull-Request: golang/go#65798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565275
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
 
- doc/next/3-tools.md                  | 9 +++++++++
- src/cmd/go/internal/test/flagdefs.go | 1 +
- src/cmd/vet/doc.go                   | 1 +
- src/cmd/vet/main.go                  | 3 ++-
- src/cmd/vet/vet_test.go              | 2 +-
- 5 files changed, 14 insertions(+), 2 deletions(-)
+ src/net/netip/netip.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

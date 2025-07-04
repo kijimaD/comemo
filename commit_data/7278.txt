@@ -1,12 +1,13 @@
-commit 7247d6b96f639d266828c33566a71697272a67da
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 30 15:46:02 2011 -0500
+commit 08a206cc9e5998c195a8d3cc900984025732a79e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 29 14:56:15 2011 -0800
 
-    test: another select test
+    sync: a couple of documentation nits.
     
-    R=r
+    R=golang-dev, agl1
     CC=golang-dev
-    https://golang.org/cl/4004044
+    https://golang.org/cl/4079051
 
- test/chan/select5.go | 482 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 482 insertions(+)
+ src/pkg/sync/mutex.go | 2 +-
+ src/pkg/sync/once.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

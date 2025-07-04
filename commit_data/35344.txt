@@ -1,19 +1,33 @@
-commit 8088a7fc12a335248395d636e09e1e4c67d13730
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 2 10:02:41 2018 -0700
+commit ea006a8513508061e64ad43d77b3c4983129b50d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 11 21:52:27 2018 -0800
 
-    cmd/go: fix testsuite for gccgo
+    go/scanner: don't eat \r in comments if that shortens the comment
     
-    A number of cmd/go tests can never work with gccgo, for various
-    different reasons. Skip those tests when using gccgo. Adjust some
-    other tests to pass when using gccgo. Adjust one test to not skip when
-    using gccgo, since it does work.
+    For consistent formatting across platforms we strip \r's from
+    comments. This happens in the go/scanner which already does
+    this for raw string literals where it is mandated by the spec.
+    But if a (sequence of) \r appears in a regular (/*-style) comment
+    between a * and a /, removing that (sequence of) \r shortens that
+    text segment to */ which terminates the comment prematurely.
     
-    Change-Id: I33b09558581a1e304416cf1c05a96f9526abba0e
-    Reviewed-on: https://go-review.googlesource.com/110915
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Don't do it.
+    
+    As an aside, a better approach would be to not touch comments,
+    (and raw string literals for that matter) in the scanner and
+    leave the extra processing to clients. That is the approach
+    taken by the cmd/compile/internal/syntax package. However, we
+    probably can't change the semantics here too much, so just do
+    the minimal change that doesn't produce invalid comments. It's
+    an esoteric case after all.
+    
+    Fixes #11151.
+    
+    Change-Id: Ib4dcb52094f13c235e840c9672e439ea65fef961
+    Reviewed-on: https://go-review.googlesource.com/87498
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go | 132 ++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 90 insertions(+), 42 deletions(-)
+ src/go/printer/printer_test.go | 23 +++++++++++++++++++++++
+ src/go/scanner/scanner.go      | 15 ++++++++++-----
+ src/go/scanner/scanner_test.go | 26 ++++++++++++++++++++++++--
+ 3 files changed, 57 insertions(+), 7 deletions(-)

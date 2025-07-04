@@ -1,20 +1,16 @@
-commit d682a9dfbe14d86c0d4c5b7841bfd2509cdd478f
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Sep 14 10:09:58 2024 +0000
+commit 5abf00e4f0039aebac17b15203b09c4a8962aac0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 00:53:03 2023 -0700
 
-    net/netip: use const for max address length
+    cmd/internal/objabi: add support for bisect.Matcher debug flags
     
-    Makes it consistent with other code in net/netip, also constants
-    are visible through LSP hover, which makes it easier to see the size.
+    Makes it more convenient to add new bisection targets.
     
-    Change-Id: I3d02c860ac3c61cc037eaca5418297f78698c3f8
-    GitHub-Last-Rev: 785a8d58c372f5e1faa2e43dd1991d7040e36603
-    GitHub-Pull-Request: golang/go#69468
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613356
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7ac14018bac1e25751234a2267f8747a281b6088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/netip/netip.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/objabi/flag.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

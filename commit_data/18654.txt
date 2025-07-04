@@ -1,15 +1,20 @@
-commit 29d7bbcb166a60276ad83e0b15c121c47003c556
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 25 17:49:32 2014 -0800
+commit 36013e4a2252c15d84e8c9dbfb58e8f5273aa41d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 26 10:19:51 2014 +0900
 
-    lib9/utf: bring C environment up to Unicode 6.3.0
+    runtime: use monotonic clock for timers on freebsd/amd64,386,arm
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    For now we don't use CLOCK_MONOTONIC_FAST instead because
+    it's not supported on prior to 9-STABLE.
+    
+    Update #6007
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68820043
+    https://golang.org/cl/68690043
 
- src/lib9/utf/Makefile                                       | 4 ++--
- src/lib9/utf/runetype.c                                     | 2 +-
- src/lib9/utf/{runetypebody-6.2.0.h => runetypebody-6.3.0.h} | 3 +--
- 3 files changed, 4 insertions(+), 5 deletions(-)
+ src/pkg/runtime/sys_freebsd_386.s   | 6 ++++--
+ src/pkg/runtime/sys_freebsd_amd64.s | 6 ++++--
+ src/pkg/runtime/sys_freebsd_arm.s   | 4 +++-
+ 3 files changed, 11 insertions(+), 5 deletions(-)

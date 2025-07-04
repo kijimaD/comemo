@@ -1,14 +1,14 @@
-commit 9a0a150c9f50f920f35cc4d50ac3005503f44f2d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Apr 7 13:50:06 2019 +1000
+commit 48e4d36fed94f0549f17ca082c0106bada094d5d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 16 11:26:16 2018 +0100
 
-    all: spell "Deprecated: Use etc" consistently
+    misc/cgo/testsanitizers: gofmt
     
-    Change-Id: I209b75dc8dc4da881b68e5c5d98cbf08c1032dfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171098
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I4e7328bb89f504dbca3948b8565d22c44d41db3d
+    Reviewed-on: https://go-review.googlesource.com/c/149917
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/x509.go     | 2 +-
- src/go/importer/importer.go | 2 +-
- src/runtime/cpuprof.go      | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/testsanitizers/tsan_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

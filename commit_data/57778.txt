@@ -1,25 +1,25 @@
-commit 889abb17e125bb0f5d8de61bb80ef15fbe2a130d
-Author: David Chase <drchase@google.com>
-Date:   Fri Oct 25 14:04:22 2024 -0400
+commit 0e02baa59af2e8e3e26702bd8ebe72ae5a0e39c7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 29 22:43:02 2023 +0000
 
-    cmd/compile: use a non-fragile test for "does f contain closure c?"
+    Revert "cmd/compile: use shorter ANDL/TESTL if upper 32 bits are known to be zero"
     
-    The old test relied on naming conventions.  The new test
-    uses an explicit parent pointer chain initialized when the
-    closures are created (in the same place that the names
-    used in the older fragile test were assigned).
+    This reverts commit c1dfbf72e1298df8495171810a553836e5027f98.
     
-    Fixes #70035.
+    Reason for revert: TESTL rule is wrong when the result is used for an ordered comparison.
     
-    Change-Id: Ie834103c7096e4505faaff3bed1fc6e918a21211
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622656
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #62360
+    
+    Change-Id: I4d5b6aca24389b0a2bf767bfbc0a9d085359eb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524255
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/escape/solve.go           | 11 +++++-----
- src/cmd/compile/internal/ir/func.go                |  6 ++++++
- src/cmd/compile/internal/ir/sizeof_test.go         |  2 +-
- .../compile/internal/rangefunc/rangefunc_test.go   | 24 ++++++++++++++++++++++
- 4 files changed, 37 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  4 ----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 32 ---------------------------
+ test/fixedbugs/issue62360.go                  | 24 ++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 36 deletions(-)

@@ -1,0 +1,37 @@
+commit 90031542068c9443e8cfe48149179c35b4c4afb7
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 19 11:46:41 2025 -0400
+
+    testing: separate b.Loop counter from b.N
+    
+    Currently, b.Loop uses b.N as the iteration count target. However,
+    since it updates the target as it goes, the behavior is quite
+    different from a b.N-style benchmark. To avoid user confusion, this CL
+    gives b.Loop a separate, unexported iteration count target. It ensures
+    b.N is 0 within the b.Loop loop to help catch misuses, and commits the
+    final iteration count to b.N only once the loop is done (as the
+    documentation states "After Loop returns false, b.N contains the total
+    number of iterations that ran, so the benchmark may use b.N to compute
+    other average metrics.")
+    
+    Since there are now two variables used by b.Loop, we put them in an
+    unnamed struct. Also, we rename b.loopN to b.loop.i because this
+    variable tracks the current iteration index (conventionally "i"), not
+    the target (conventionally "n").
+    
+    Unfortunately, a simple renaming causes B.Loop to be too large for the
+    inliner. Thus, we make one simplification to B.Loop to keep it under
+    the threshold. We're about to lean into that simplification anyway in
+    a follow-up CL, so this is just temporary.
+    
+    Prep for #72933 and #72971.
+    
+    Change-Id: Ide1c4f1b9ca37f300f3beb0e60ba6202331b183e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/testing/benchmark.go | 54 +++++++++++++++++++++++++++++++-----------------
+ src/testing/loop_test.go | 12 +++++++++++
+ 2 files changed, 47 insertions(+), 19 deletions(-)

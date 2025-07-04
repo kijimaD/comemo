@@ -1,25 +1,12 @@
-commit 428ea6865c7eff6d8632faa18335c64d4ae9f422
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jul 2 09:08:43 2013 +0200
+commit 6d2d4ba94fb94dd5a9f581a1606d720bed8131dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 1 21:44:14 2013 -0400
 
-    cmd/gc: fix computation of equality class of types.
+    sort: fix 32-bit build
     
-    A struct with a single field was considered as equivalent to the
-    field type, which is incorrect is the field is blank.
-    
-    Fields with padding could make the compiler think some
-    types are comparable when they are not.
-    
-    Fixes #5698.
-    
-    R=rsc, golang-dev, daniel.morsing, bradfitz, gri, r
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/10271046
+    https://golang.org/cl/10856043
 
- src/cmd/gc/subr.c           | 18 +++++++++---------
- test/blank.go               | 11 +++++++++++
- test/blank1.go              |  7 +++++++
- test/cmp.go                 |  2 +-
- test/cmp6.go                |  2 +-
- test/fixedbugs/issue5698.go | 18 ++++++++++++++++++
- 6 files changed, 47 insertions(+), 11 deletions(-)
+ src/pkg/sort/sort_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

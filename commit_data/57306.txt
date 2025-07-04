@@ -1,24 +1,26 @@
-commit 194fa2eb6cdeaddc4a89fae4610f99d8060d10a0
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Tue Aug 13 17:17:06 2024 +0200
+commit 3bc28402fae2a1646e4d2756344b5eb34994d25f
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jul 25 23:10:34 2023 +0000
 
-    cmd/compile: compute Modu's maximum limits from argument's limits
+    all: use built-in clear to clear maps
     
-    addLocalFacts loop already ft.update which sets up limits correctly, but doing this in flowLimit help us since other values might depend on this limit.
-    
-    Updates #68857
-    
-    We could improve this further:
-    - remove mod alltogheter when we can prove a < b.
-    - we could do more adhoc computation in flowLimit to set umax and umin tighter
-    
-    Change-Id: I5184913577b6a51a07cb53a6e6b73552a982de0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605156
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7f4ac72fe3230d8b7486fab0c925015cefcbe355
+    GitHub-Last-Rev: 54455839b674f980fb6c3afceb433db4833d340e
+    GitHub-Pull-Request: golang/go#61544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512376
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go |  7 +++++
- test/prove.go                         | 52 +++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+)
+ src/cmd/go/internal/list/list.go      | 4 +---
+ src/cmd/go/internal/load/pkg.go       | 4 +---
+ src/cmd/gofmt/rewrite.go              | 4 +---
+ src/internal/intern/intern_test.go    | 4 +---
+ src/net/http/httputil/reverseproxy.go | 5 +----
+ src/runtime/map_benchmark_test.go     | 8 ++------
+ src/testing/benchmark.go              | 4 +---
+ src/testing/match.go                  | 4 +---
+ 8 files changed, 9 insertions(+), 28 deletions(-)

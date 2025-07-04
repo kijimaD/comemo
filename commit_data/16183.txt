@@ -1,14 +1,36 @@
-commit a5fe79ef787ab6b9048368648736ca66f3622f5b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 16 13:30:52 2013 -0700
+commit 36d3bef8a3b2a3b7b2662e5b2fd7abbf70c47114
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 15 14:06:41 2013 -0700
 
-    cmd/dist, make.bash: pass -mmacosx-version-min=10.6 to gcc on Darwin
-    Fixes #5261.
+    database/sql: close driver Stmt before releasing Conn
+    
+    From the issue, which describes it as well as I could:
+    
+    database/sql assumes that driver.Stmt.Close does not need the
+    connection.
+    
+    see database/sql/sql.go:1308:
+    
+    This puts the Rows' connection back into the idle pool, and
+    then calls the driver.Stmt.Close method of the Stmt it belongs
+    to.  In the postgresql driver implementation
+    (https://github.com/lib/pq), Stmt.Close communicates with the
+    server (on the connection that was just put back into the idle
+    pool).  Most of the time, this causes no problems, but if
+    another goroutine makes a query at the right (wrong?) time,
+    chaos results.
+    
+    In any case, traffic is being sent on "free" connections
+    shortly after they are freed, leading to race conditions that
+    kill the driver code.
+    
+    Fixes #5283
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8798044
+    https://golang.org/cl/8633044
 
- src/cmd/dist/build.c | 4 ++++
- src/make.bash        | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/pkg/database/sql/fakedb_test.go | 18 ++++++++++++++++++
+ src/pkg/database/sql/sql.go         |  2 +-
+ src/pkg/database/sql/sql_test.go    | 20 ++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

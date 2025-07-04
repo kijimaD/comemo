@@ -1,13 +1,16 @@
-commit e6863e7d5b22c7711d0f950981fa3673e9e160f5
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 25 14:15:49 2014 -0800
+commit f9b384f554143901ddf771214bfacf8041862f0c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 26 07:56:41 2014 +1100
 
-    spec: libraries and implementation are now at Unicode 6.3
+    syscall: fix solaris build
     
-    LGTM=gri
-    R=gri
+    Solaris does not define syscall.{Mmap,Munmap}. Move the Mmap test to a new file and exclude solaris as discussed.
+    
+    LGTM=aram
+    R=aram, mikioh.mikioh, iant
     CC=golang-codereviews
-    https://golang.org/cl/68760043
+    https://golang.org/cl/68720043
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/syscall/mmap_unix_test.go    | 22 ++++++++++++++++++++++
+ src/pkg/syscall/syscall_unix_test.go | 12 +-----------
+ 2 files changed, 23 insertions(+), 11 deletions(-)

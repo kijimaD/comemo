@@ -1,31 +1,22 @@
-commit 4dcbb00be200bc1f88b534c311ed4289eb2fbdd5
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Oct 26 14:19:32 2024 -0700
+commit 0cd473d97ac9c94431aaece4baae539927d068f1
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Sep 3 00:08:17 2023 +0800
 
-    cmd/compile: teach prove about min/max phi operations
+    cmd: fix some comments
     
-    If there is a phi that is computing the minimum of its two inputs,
-    then we know the result of the phi is smaller than or equal to both
-    of its inputs. Similarly for maxiumum (although max seems less useful).
-    
-    This pattern happens for the case
-    
-      n := copy(a, b)
-    
-    n is the minimum of len(a) and len(b), so with this optimization we
-    know both n <= len(a) and n <= len(b). That extra information is
-    helpful for subsequent slicing of a or b.
-    
-    Fixes #16833
-    
-    Change-Id: Ib4238fd1edae0f2940f62a5516a6b363bbe7928c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622240
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I8b3eb51e31139314d222d796b56ab7d42338797f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525315
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/block.go |  9 ++++
- src/cmd/compile/internal/ssa/prove.go | 79 ++++++++++++++++++++++++++++++++++-
- test/prove.go                         | 42 +++++++++++++++++++
- 3 files changed, 129 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/_gen/rulegen.go  | 2 +-
+ src/cmd/internal/obj/x86/asm6.go              | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

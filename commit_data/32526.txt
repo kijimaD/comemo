@@ -1,12 +1,57 @@
-commit 2034297bdbcb21352dd108f7653b79ed8ebbe278
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:39:19 2017 +1000
+commit 794d29a46f01b800b208bbc32f0ccb89b83c244d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 16:27:47 2017 -0700
 
-    cmd/link: introduce and use peFile.writeSymbols
+    cmd/compile: use a map to track liveness variable indices
     
-    Change-Id: If629b19cebc6ae8dfbf603dcd7f2dd3d0046a935
-    Reviewed-on: https://go-review.googlesource.com/59425
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It is not safe to modify Node.Opt in the backend.
+    Instead of using Node.Opt to store liveness variable indices, use a map.
+    This simplifies the code and makes it much more clearly race-free.
+    There are generally few such variables, so the maps are not a significant
+    source of allocations; this also remove some allocations from putting
+    int32s into interfaces.
+    
+    Because map lookups are more expensive than interface value extraction,
+    reorder valueEffects to do the map lookup last.
+    
+    The only remaining use of Node.Opt is now in esc.go.
+    
+    Passes toolstash-check.
+    
+    Fixes #20144
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         37.8MB ± 0%       37.9MB ± 0%    ~     (p=0.548 n=5+5)
+    Unicode          28.9MB ± 0%       28.9MB ± 0%    ~     (p=0.548 n=5+5)
+    GoTypes           110MB ± 0%        110MB ± 0%  +0.16%  (p=0.008 n=5+5)
+    Compiler          461MB ± 0%        462MB ± 0%  +0.08%  (p=0.008 n=5+5)
+    SSA              1.11GB ± 0%       1.11GB ± 0%  +0.11%  (p=0.008 n=5+5)
+    Flate            24.7MB ± 0%       24.7MB ± 0%    ~     (p=0.690 n=5+5)
+    GoParser         31.1MB ± 0%       31.1MB ± 0%    ~     (p=0.841 n=5+5)
+    Reflect          73.7MB ± 0%       73.8MB ± 0%  +0.23%  (p=0.008 n=5+5)
+    Tar              25.8MB ± 0%       25.7MB ± 0%    ~     (p=0.690 n=5+5)
+    XML              41.2MB ± 0%       41.2MB ± 0%    ~     (p=0.841 n=5+5)
+    [Geo mean]       71.9MB            71.9MB       +0.06%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           385k ± 0%         384k ± 0%    ~     (p=0.548 n=5+5)
+    Unicode            344k ± 0%         343k ± 1%    ~     (p=0.421 n=5+5)
+    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (p=0.690 n=5+5)
+    Compiler          4.43M ± 0%        4.42M ± 0%    ~     (p=0.095 n=5+5)
+    SSA               9.86M ± 0%        9.84M ± 0%  -0.19%  (p=0.008 n=5+5)
+    Flate              238k ± 0%         238k ± 0%    ~     (p=1.000 n=5+5)
+    GoParser           321k ± 0%         320k ± 0%    ~     (p=0.310 n=5+5)
+    Reflect            956k ± 0%         956k ± 0%    ~     (p=1.000 n=5+5)
+    Tar                252k ± 0%         251k ± 0%    ~     (p=0.056 n=5+5)
+    XML                402k ± 1%         400k ± 1%  -0.57%  (p=0.032 n=5+5)
+    [Geo mean]         740k              739k       -0.19%
+    
+    Change-Id: Id5916c9def76add272e89c59fe10968f0a6bb01d
+    Reviewed-on: https://go-review.googlesource.com/42135
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 118 ++++++++++++++++++++---------------------
- 1 file changed, 59 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/gc/plive.go  | 72 ++++++++++++-----------------------
+ src/cmd/compile/internal/gc/syntax.go |  3 ++
+ 2 files changed, 27 insertions(+), 48 deletions(-)

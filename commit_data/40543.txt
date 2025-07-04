@@ -1,28 +1,21 @@
-commit bdb5e9d170939a044621ddaa7622ff28d538875d
-Author: Harshavardhana <hrshvardhana@gmail.com>
-Date:   Wed Aug 7 13:38:09 2019 -0700
+commit 7e5bc4775f12a5612a2f0bea1322af4bb8b24892
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Thu May 16 12:45:52 2019 -0400
 
-    net/http/httputil: fix missing Transfer-Encoding header
+    crypto/ecdsa: implement ecdsa on s390x for P256/P384/P521 using KDSA instruction
     
-    Current implementation of httputil.DumpRequestOut
-    incorrectly resets the Request.Body prematurely
-    before Content-Length/Transfer-Encoding detection
-    in newTransferWriter()
+    Utilize KDSA when available. This guarantees constant time operation on all three curves mentioned,
+    and is faster than conventional assembly. The IBM Z model(s) that support KDSA as used in this CL
+    are not yet publicly available, and so we are unable to release performance data at this time.
     
-    This fix avoids resetting the Request.Body when
-    Request.ContentLength is set to '0' by the caller
-    and Request.Body is set to a custom reader. To allow
-    newTransferWriter() to treat this situation as
-    'Transfer-Encoding: chunked'.
-    
-    Fixes #34504
-    
-    Change-Id: Ieab6bf876ced28c32c084e0f4c8c4432964181f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197898
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I85360dcf90fe42d2bf32afe3f638e282de10a518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174437
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/net/http/httputil/dump.go      | 22 +++++++++++++++++-----
- src/net/http/httputil/dump_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 5 deletions(-)
+ src/crypto/ecdsa/ecdsa.go            |  19 +++--
+ src/crypto/ecdsa/ecdsa_noasm.go      |  22 +++++
+ src/crypto/ecdsa/ecdsa_s390x.go      | 153 +++++++++++++++++++++++++++++++++++
+ src/crypto/ecdsa/ecdsa_s390x.s       |  31 +++++++
+ src/crypto/ecdsa/ecdsa_s390x_test.go |  33 ++++++++
+ 5 files changed, 252 insertions(+), 6 deletions(-)

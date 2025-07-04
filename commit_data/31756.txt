@@ -1,16 +1,18 @@
-commit fab47f7b3a9d8ad91b96bf80f0b9dff2feda31d2
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Jun 6 16:13:39 2017 +0200
+commit 0d87f6a62e497fabd473a9a9847c355a42d64f16
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 14 17:43:50 2017 +0000
 
-    net/http: enable TestLinuxSendfile on mips64
+    net/http: deflake TestServerTimeouts
     
-    The test is passing on a 64bit RFS.
+    Retry the test several times with increasingly long timeouts.
     
-    Fixes #18008
+    Fixes #19538 (hopefully)
     
-    Change-Id: Ia4c4f4dde0392c7f6bbe5dbffc97cf848ec5a107
-    Reviewed-on: https://go-review.googlesource.com/44953
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia3bf2b63b4298a6ee1e4082e14d9bfd5922c293a
+    Reviewed-on: https://go-review.googlesource.com/38154
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/fs_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/net/http/serve_test.go | 45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)

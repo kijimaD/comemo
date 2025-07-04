@@ -1,12 +1,17 @@
-commit 4dc85d67cdaef157e0907c63cb276e448b6cbafe
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Sun Jul 29 17:59:14 2012 -0400
+commit f7f91a0506df68f57906cfbe0e417a48c7a52495
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 28 10:40:51 2012 -0700
 
-    syscall: don't clobber source files if mksyscall.pl fails.
+    misc/cgo/test: only run setgid test on GNU/Linux
     
-    R=golang-dev, minux.ma, r, rsc
+    Fixes #3874.
+    
+    R=golang-dev, nj, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6353069
+    https://golang.org/cl/6446060
 
- src/pkg/syscall/mkall.sh | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/cgo/test/basic.go          | 16 ----------------
+ misc/cgo/test/cgo_linux_test.go |  9 +++++++++
+ misc/cgo/test/cgo_test.go       |  1 -
+ misc/cgo/test/setgid_linux.go   | 32 ++++++++++++++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 17 deletions(-)

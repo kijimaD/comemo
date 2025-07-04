@@ -1,18 +1,22 @@
-commit 8c8c260d2eecae480f99fcc336ab0e6fc15b23c4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 16 06:49:50 2014 +0900
+commit b2d1a2b513cb9a7ceaa1eb6d097f1ef2a84637dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 15 13:58:13 2014 -0700
 
-    api: update openbsd exceptions
+    container/heap: update example code
     
-    This CL restores dropped constants not supported in OpenBSD 5.5
-    and tris to keep the promise of API compatibility.
+    - use Init to establish heap invariant on
+      a non-empty heap
+    - use Fix to update heap after an element's
+      properties have been changed
     
-    Update #7049
+    (The old code used Init where it wasn't needed,
+     and didn't use Fix because Fix was added after
+     the example was written.)
     
-    LGTM=jsing, bradfitz
-    R=rsc, jsing, bradfitz
+    LGTM=bradfitz
+    R=adonovan, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/94950043
+    https://golang.org/cl/94520043
 
- api/except.txt | 72 ----------------------------------------------------------
- 1 file changed, 72 deletions(-)
+ src/pkg/container/heap/example_pq_test.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

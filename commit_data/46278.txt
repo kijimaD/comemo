@@ -1,19 +1,23 @@
-commit 08e2519ded32a1a7d4e6056406c356b4496ca24a
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Sun Aug 29 00:53:00 2021 +0800
+commit 139cd0e12ff9d7628c321abbfb8d2f4ada461543
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 17 14:59:45 2020 -0800
 
-    cmd/compile: workaround inlining of closures with range statements
+    go/build: make TestDependencies work again
     
-    ORANGE is still not inlineable now. This CL is correct only when the range statement is statically dead, and thus not counted during the inline budget check.
-    If we support range statements in inlining closures in the future, may require additional processing.
+    CL 243940 accidentally broke TestDependencies such that it always passed.
+    Make it work again, and add a test so that it won't break in the same way.
     
-    Fixes #48033.
+    This revealed that the new embed package was missing from TestDepencies,
+    so add it.
     
-    Change-Id: I28f5755c28cfa27e41daef9eff2ae332059909bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345436
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #43249
+    
+    Change-Id: I02b3e38dd35ad88880c4344d46de13b7639aa4c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279073
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/inline/inl.go |  2 ++
- test/fixedbugs/issue48033.go           | 40 ++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+)
+ src/go/build/deps_test.go | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)

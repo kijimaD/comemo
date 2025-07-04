@@ -1,20 +1,25 @@
-commit 5a75f7c0b0789fe04ea4879a524cc95dbe734636
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 6 11:16:34 2020 -0800
+commit 39e8cb0faac7785f89b21246a45e8cf8d5bc7d95
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 14 16:32:12 2019 +0000
 
-    net/http: fix Server.Shutdown race where it could miss an active connection
+    runtime: add new page allocator core
     
-    Wait for Listeners to drop to zero too, not just conns.
+    This change adds a new bitmap-based allocator to the runtime with tests.
+    It does not yet integrate the page allocator into the runtime and thus
+    this change is almost purely additive.
     
-    Fixes #33313
+    Updates #35112.
     
-    Change-Id: I09350ae38087990d368dcf9302fbde3e95c02fcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213442
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic3d024c28abee8be8797d3918116a80f901cc2bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190622
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hasit Bhatt <hasit.p.bhatt@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/serve_test.go | 7 +++++--
- src/net/http/server.go     | 9 +++++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/runtime/export_test.go      |  84 +++++
+ src/runtime/mpagealloc.go       | 764 +++++++++++++++++++++++++++++++++++++++-
+ src/runtime/mpagealloc_32bit.go |  86 +++++
+ src/runtime/mpagealloc_64bit.go | 122 +++++++
+ src/runtime/mpagealloc_test.go  | 658 ++++++++++++++++++++++++++++++++++
+ src/runtime/mpallocbits_test.go |   4 +-
+ 6 files changed, 1716 insertions(+), 2 deletions(-)

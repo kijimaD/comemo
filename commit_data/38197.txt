@@ -1,16 +1,23 @@
-commit 337a1bde026f227fa9536653cc51efa13970657a
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Wed Jan 30 17:35:18 2019 +0000
+commit 95d06ab6c982f58b127b14a52c3325acf0bd3926
+Author: Wil Selwood <wselwood@gmail.com>
+Date:   Thu Aug 2 20:29:38 2018 +0100
 
-    cmd/internal/obj: stay consistent by defining loop variable outside loop header
+    testing: try to Log through parent if test has completed
     
-    Change-Id: Ieb0ae01cf393c4983e809ce95fedeaa854d19a99
-    GitHub-Last-Rev: 908f7565183c1cd19a3fbc47f406d53ad388fb97
-    GitHub-Pull-Request: golang/go#30004
-    Reviewed-on: https://go-review.googlesource.com/c/160428
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    If the test has already completed when a go routine with a panic
+    handler reports an error the location of the error call is lost.
+    
+    Added logDepth to be able to log location of failure at different
+    depths down the stack.
+    
+    Fixes #26720
+    
+    Change-Id: I8b7789ddae757ef6f4bd315cb20356709f4fadec
+    Reviewed-on: https://go-review.googlesource.com/c/127596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/objfile.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/sub_test.go | 23 +++++++++++++++++++++++
+ src/testing/testing.go  | 22 +++++++++++++++++++---
+ 2 files changed, 42 insertions(+), 3 deletions(-)

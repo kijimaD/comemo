@@ -1,0 +1,44 @@
+commit 4bf98186b5e012d56ec2944a41d55178c3dea905
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 25 18:38:57 2024 +0000
+
+    runtime: fix mallocgc for asan
+    
+    This change finally fully fixes mallocgc for asan after the recent
+    refactoring. Here is everything that changed:
+    
+    Fix the accounting for the alloc header; large objects don't have them.
+    
+    Mask out extra bits set from unrolling the bitmap for slice backing
+    stores in writeHeapBitsSmall. The redzone in asan mode makes it so that
+    dataSize is no longer an exact multiple of typ.Size_ in this case (a
+    new assumption I have recently discovered) but we didn't mask out any
+    extra bits, so we'd accidentally set bits in other allocations. Oops.
+    
+    Move the initHeapBits optimization for the 8-byte scan sizeclass on
+    64-bit platforms up to mallocgc, out from writeHeapBitsSmall. So, this
+    actually caused a problem with asan when the optimization first landed,
+    but we missed it. The issue was then masked once we started passing the
+    redzone down into writeHeapBitsSmall, since the optimization would no
+    longer erroneously fire on asan. What happened was that dataSize would
+    be 8 (because that was the user-provided alloc size) so we'd skip
+    writing heap bits, but it would turn out the redzone bumped the size
+    class, so we'd actually *have* to write the heap bits for that size
+    class. This is not really a problem now *but* it caused problems for me
+    when debugging, since I would try to remove the red zone from dataSize
+    and this would trigger this bug again. Ultimately, this whole situation
+    is confusing because the check in writeHeapBitsSmall is *not* the same
+    as the check in initHeapBits. By moving this check up to mallocgc, we
+    can make the checks align better by matching on the sizeclass, so this
+    should be less error-prone in the future.
+    
+    Change-Id: I1e9819223be23f722f3bf21e63e812f5fb557194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622041
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/arena.go   |  2 +-
+ src/runtime/malloc.go  | 18 ++++++++++++------
+ src/runtime/mbitmap.go | 16 +++++++++++-----
+ 3 files changed, 24 insertions(+), 12 deletions(-)

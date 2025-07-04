@@ -1,15 +1,47 @@
-commit 26a90e4e36c01ae0d356d4e077b99c31cfcb4d1e
+commit 57d05512feebed4fbe1e7a19305c8722a4ac627f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 5 13:52:19 2023 -0400
+Date:   Fri Aug 5 13:34:29 2022 -0400
 
-    doc/go1.21: document GOEXPERIMENT=loopvar and invite feedback
+    crypto/subtle: add XORBytes
     
-    For #60078.
+    Export cipher.xorBytes as subtle.XORBytes, for proposal #53021,
+    to provide fast XOR to cryptography libraries outside crypto/cipher.
     
-    Change-Id: I92ab1fc2f30e6bbaabd8e3e1b8834e6ddff2414d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500958
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Along with the move, implement the alignment check TODO
+    in xor_generic.go, so that systems with neither unaligned
+    accesses nor custom assembly can still XOR a word at a time
+    in word-based algorithms like GCM. This removes the need
+    for the separate cipher.xorWords.
+    
+    Fixes #53021.
+    
+    Change-Id: I58f80a922f1cff671b5ebc6168eb046e702b5a4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/go1.21.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ api/next/53021.txt                         |   1 +
+ src/crypto/cipher/cbc.go                   |  11 +--
+ src/crypto/cipher/cfb.go                   |   7 +-
+ src/crypto/cipher/ctr.go                   |   7 +-
+ src/crypto/cipher/export_test.go           |   1 -
+ src/crypto/cipher/gcm.go                   |   6 +-
+ src/crypto/cipher/ofb.go                   |   7 +-
+ src/crypto/cipher/xor_amd64.go             |  27 --------
+ src/crypto/cipher/xor_arm64.go             |  29 --------
+ src/crypto/cipher/xor_generic.go           |  91 -------------------------
+ src/crypto/cipher/xor_ppc64x.go            |  29 --------
+ src/crypto/cipher/xor_test.go              |  75 --------------------
+ src/crypto/subtle/xor.go                   |  24 +++++++
+ src/crypto/subtle/xor_amd64.go             |  10 +++
+ src/crypto/{cipher => subtle}/xor_amd64.s  |   6 +-
+ src/crypto/subtle/xor_arm64.go             |  10 +++
+ src/crypto/{cipher => subtle}/xor_arm64.s  |   6 +-
+ src/crypto/subtle/xor_generic.go           |  58 ++++++++++++++++
+ src/crypto/subtle/xor_ppc64x.go            |  10 +++
+ src/crypto/{cipher => subtle}/xor_ppc64x.s |   6 +-
+ src/crypto/subtle/xor_test.go              | 106 +++++++++++++++++++++++++++++
+ 21 files changed, 255 insertions(+), 272 deletions(-)

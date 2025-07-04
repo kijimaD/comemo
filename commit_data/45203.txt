@@ -1,15 +1,22 @@
-commit b91f8a4c0b0b9be44b24b445cbf2955050a55b69
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 7 17:18:17 2021 -0400
+commit 5ef78c4d84620f6594ad63cbd1b3b43f41670636
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 15:41:14 2020 -0400
 
-    go/scanner: fix a typo in scanner_test.go
+    hash/crc32: fix race between lazy Castagnoli init and Update/Write
     
-    Change-Id: I99f07328da3dd99d34b8da5f913c98206b4dc76a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308609
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    The switch on tab is checking tab == castagnoliTable,
+    but castagnoliTable can change value during a concurrent
+    call to MakeTable.
+    
+    Fixes #41911.
+    
+    Change-Id: I6124dcdbf33e17fe302baa3e1aa03202dec61b4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261639
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/scanner/scanner_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/hash/crc32/crc32.go      | 16 ++++++++++------
+ src/hash/crc32/crc32_test.go | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 6 deletions(-)

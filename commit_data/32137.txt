@@ -1,17 +1,22 @@
-commit e93eb2843c6b6b8e0e6c5e9eb1a4417328055ec6
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Aug 2 22:24:22 2017 -0700
+commit 7165bcc6baf2508769df3ffe55ac876381f7565b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 7 06:53:14 2017 -0700
 
-    strings: avoid unnecessary variable setting
+    cmd/internal/obj: remove timing prints from assemblers
     
-    We initialize fieldStart to 0, then set it to i without ever reading
-    0, so we might as well just initialize it to i.
+    Updates #19865
     
-    Change-Id: I17905b25d54a62b6bc76f915353756ed5eb6972b
-    Reviewed-on: https://go-review.googlesource.com/52933
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Avelino <t@avelino.xxx>
+    Change-Id: I24fbf5d79b5e4cac09c14cfff678a8215397b670
+    Reviewed-on: https://go-review.googlesource.com/39914
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go   | 3 ---
+ src/cmd/internal/obj/arm64/asm7.go | 3 ---
+ src/cmd/internal/obj/mips/asm0.go  | 3 ---
+ src/cmd/internal/obj/mips/obj0.go  | 3 ---
+ src/cmd/internal/obj/ppc64/asm9.go | 3 ---
+ src/cmd/internal/obj/ppc64/obj9.go | 3 ---
+ src/cmd/internal/obj/s390x/objz.go | 3 ---
+ 7 files changed, 21 deletions(-)

@@ -1,28 +1,31 @@
-commit e93041333150e6b74f931119036156938dcd0925
-Author: khr@golang.org <khr@golang.org>
-Date:   Tue Feb 20 10:32:26 2024 -0800
+commit b37c0602cdc9b7f13b3d539663e68b12f10b44b1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 13 14:34:38 2023 +0100
 
-    cmd/compile: soften type matching when allocating stack slots
+    cmd/link: store COFF symbol complex type in the LSB instead of the MSB
     
-    Currently we use pointer equality on types when deciding whether we can
-    reuse a stack slot. That's too strict, as we don't guarantee pointer
-    equality for the same type. In particular, it can vary based on whether
-    PtrTo has been called in the frontend or not.
+    Microsoft's PE documentation is contradictory. It says that the
+    symbol's complex type [1] is stored in the pesym.Type most significant
+    byte (MSB), but MSVC, LLVM, and mingw store it in the 4 high bits of
+    the less significant byte (LSB). dumpbin understands both encoding.
     
-    Instead, use the type's LinkString, which is guaranteed to both be
-    unique for a type, and to not vary given two different type structures
-    describing the same type.
+    Previous to CL 475355 the Go compiler mixed MSB and LSB encoding.
+    CL 475355 updated to compiler to use the MSB, but this causes problems
+    with mingw, which emits a warning when MSB is used.
     
-    Update #65783
+    For reference, LLVM also hit this issue long time ago:
+    https://github.com/llvm/llvm-project/issues/8692
     
-    Change-Id: I64f55138475f04bfa30cfb819b786b7cc06aebe4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565436
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#type-representation
+    
+    Change-Id: I7e750bde9c20e2c4c1c023203d7abd6fb26d9d30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475855
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/stackalloc.go | 15 ++++++++-------
- test/codegen/stack.go                      | 29 +++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/pe.go       | 14 ++++++++++----
+ src/cmd/link/internal/loadpe/ldpe.go |  5 ++++-
+ 2 files changed, 14 insertions(+), 5 deletions(-)

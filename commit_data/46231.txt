@@ -1,25 +1,34 @@
-commit f27d6a23b0b9d2cb41441a5dd2bd6d65dd94acf0
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 31 09:31:56 2021 -0700
+commit a318d56c1e6e89996a3852a780f45c792d860d64
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 15 18:31:21 2020 -0500
 
-    cmd/compile: builtins may be in the unsafe package
+    cmd/link: pass arch-specific flags to external linker when testing supported flag
     
-    Now that unsafe.Sizeof and friends can operate on generic parameters,
-    and evaluate to non-constants, we need to export/import them correctly.
+    When testing if a flag (e.g. "-no-pie") is supported by the
+    external linker, pass arch-specific flags (like "-marm").
     
-    Fixes #48094
+    In particular, on the ARM builder, if CGO_LDFLAGS=-march=armv6
+    is set, the C toolchain fails to build if -marm is not passed.
     
-    Change-Id: If3ebf77255385cd5462e13fb7ced8b157ba3cf5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346469
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+            # cc -march=armv6 1.c
+            1.c: In function 'main':
+            1.c:3:1: sorry, unimplemented: Thumb-1 hard-float VFP ABI
+             int main() {
+             ^~~
+    
+    This makes the Go linker think "-no-pie" is not supported when it
+    actually is.
+    
+    Passing -marm makes it work.
+    
+    Fixes #43202.
+    
+    Change-Id: I4e8b71f08818993cbbcb2494b310c68d812d6b50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278592
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go |  1 +
- src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
- test/typeparam/issue48094.dir/a.go            | 26 ++++++++++++++++++++++++++
- test/typeparam/issue48094.dir/main.go         | 20 ++++++++++++++++++++
- test/typeparam/issue48094.go                  |  7 +++++++
- 5 files changed, 59 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

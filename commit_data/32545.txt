@@ -1,14 +1,18 @@
-commit 931c43328a27ef763a6b0bacf9d5d55cd2c1a1b8
-Author: Hana Kim <hakim@google.com>
-Date:   Mon Aug 28 17:34:33 2017 -0400
+commit b225396f935737cbd64164b67aeb8f1bb8ac08be
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Apr 8 13:16:26 2017 +0900
 
-    runtime/trace: improve package doc
+    mime: re-accept empty encoded-text
     
-    Explaining how to enable tracing.
+    https://go-review.googlesource.com/37812 prohibits empty encoded-text.
+    This CL accepts it again for backward compatibility.
     
-    Change-Id: Ic8391cb290742b4dc1efab15deba85853e182b4d
-    Reviewed-on: https://go-review.googlesource.com/59612
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I0e0840b501927f147160b999bb59d2d029ea314c
+    Reviewed-on: https://go-review.googlesource.com/40051
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/trace/trace.go | 37 ++++++++++++++++++++++++++++++-------
- 1 file changed, 30 insertions(+), 7 deletions(-)
+ src/mime/encodedword.go      | 7 ++++---
+ src/mime/encodedword_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

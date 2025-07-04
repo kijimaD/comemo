@@ -1,20 +1,17 @@
-commit d9be60974b694a17e5c6c3e71fb7767e6bfe17e9
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Jan 27 12:52:56 2024 +0800
+commit e2f2123e256094c64377008c17ca20538c4742d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 18:55:11 2023 -0800
 
-    os: implement CopyFS
+    go/types, types2: simplify unification with constraints
     
-    Fixes #62484
-    
-    Change-Id: I5d8950dedf86af48f42a641940b34e62aa2cddcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558995
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I399f0ac12e65713f3018a89da55ecd3cdb855c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471017
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- api/next/62484.txt                     |   1 +
- doc/next/6-stdlib/99-minor/os/62484.md |   2 +
- src/os/dir.go                          |  60 +++++++
- src/os/os_test.go                      | 276 ++++++++++++++++++++++++++++++---
- 4 files changed, 316 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 20 ++++++++++----------
+ src/go/types/infer.go                    | 20 ++++++++++----------
+ 2 files changed, 20 insertions(+), 20 deletions(-)

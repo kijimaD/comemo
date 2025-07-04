@@ -1,15 +1,23 @@
-commit 689ee112dfb872e97116acd4c8d96ece1533604e
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu May 2 20:37:27 2019 -0600
+commit db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 14:23:56 2018 -0500
 
-    math/big: document Int.String
+    runtime: make traceback indicate whether _defer was just allocated
     
-    Int.String had no documentation and the documentation for Int.Text
-    did not mention the handling of the nil pointer case.
+    Many of the crashes observed in #27993 involve committing the new
+    _defer object at the end of newdefer. It would be helpful to know if
+    the _defer was just allocated or was retrieved from the defer pool. In
+    order to indicate this in the traceback, this CL duplicates the tail
+    of newdefer so that the PC/line number will tell us whether d is new
+    or not.
     
-    Change-Id: I9f21921e431c948545b7cabc7829e4b4e574bbe9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175118
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For #27993.
+    
+    Change-Id: Icd3e23dbcf00461877bb082b6f18df701149a607
+    Reviewed-on: https://go-review.googlesource.com/c/154598
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/math/big/intconv.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/panic.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

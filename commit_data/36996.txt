@@ -1,22 +1,26 @@
-commit 62c52a5ee19279a2151bdf178eee11b95c188a91
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 16 11:58:00 2018 -0700
+commit 30b045d4d1a00801b1d1fc32a910334dcd722ba6
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Jun 13 10:04:49 2018 -0600
 
-    cmd/compile/internal/gc: simplify typechecking definitions
+    math/big: handle negative exponents in Exp
     
-    There are only a handful of nodes that we need to pass to
-    typecheckdef (OLITERAL, ONAME, OTYPE, and ONONAME), but typecheck1
-    takes the awkward approach of calling typecheckdef on every node with
-    Sym != nil, and then excluding a long list of uninteresting Ops that
-    have a non-nil Sym.
+    For modular exponentiation, negative exponents can be handled using
+    the following relation.
     
-    Passes toolstash-check.
+    for y < 0: x**y mod m == (x**(-1))**|y| mod m
     
-    Change-Id: I0271d2faff0208ad57ddc1f1a540a5fbed870234
-    Reviewed-on: https://go-review.googlesource.com/c/142657
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    First compute ModInverse(x, m) and then compute the exponentiation
+    with the absolute value of the exponent.  Non-modular exponentiation
+    with a negative exponent still returns 1.
+    
+    Fixes #25865
+    
+    Change-Id: I2a35986a24794b48e549c8de935ac662d217d8a0
+    Reviewed-on: https://go-review.googlesource.com/118562
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 31 ++++++++++++++-----------------
- 1 file changed, 14 insertions(+), 17 deletions(-)
+ src/math/big/int.go      | 16 ++++++++++------
+ src/math/big/int_test.go |  2 +-
+ 2 files changed, 11 insertions(+), 7 deletions(-)

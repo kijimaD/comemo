@@ -1,0 +1,35 @@
+commit 9faa00af74206dfc26c3d38cd56590abc4b2b960
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 21:04:01 2025 +0000
+
+    internal/trace/internal/testgen: force trace version selection
+    
+    Currently testgen only generates Go 1.22 tests. Allow generating tests
+    for different versions, especially now that we've tightened up which
+    events can be emitted by different versions.
+    
+    Change-Id: Ia64309c6934f34eace03b3229d05fca5acfc7366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644220
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/internal/testgen/trace.go                       | 7 +++----
+ .../testdata/generators/go122-confuse-seq-across-generations.go    | 3 ++-
+ .../testdata/generators/go122-create-syscall-reuse-thread-id.go    | 3 ++-
+ .../trace/testdata/generators/go122-create-syscall-with-p.go       | 3 ++-
+ .../trace/testdata/generators/go122-fail-first-gen-first.go        | 3 ++-
+ .../trace/testdata/generators/go122-go-create-without-running-g.go | 3 ++-
+ .../testdata/generators/go122-syscall-steal-proc-ambiguous.go      | 3 ++-
+ .../generators/go122-syscall-steal-proc-gen-boundary-bare-m.go     | 3 ++-
+ ...22-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go | 3 ++-
+ .../go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go    | 3 ++-
+ .../testdata/generators/go122-syscall-steal-proc-gen-boundary.go   | 3 ++-
+ .../go122-syscall-steal-proc-reacquire-new-proc-bare-m.go          | 3 ++-
+ .../generators/go122-syscall-steal-proc-reacquire-new-proc.go      | 3 ++-
+ .../trace/testdata/generators/go122-syscall-steal-proc-self.go     | 3 ++-
+ .../testdata/generators/go122-syscall-steal-proc-simple-bare-m.go  | 3 ++-
+ .../trace/testdata/generators/go122-syscall-steal-proc-simple.go   | 3 ++-
+ .../generators/go122-syscall-steal-proc-sitting-in-syscall.go      | 3 ++-
+ .../trace/testdata/generators/go122-task-across-generations.go     | 3 ++-
+ 18 files changed, 37 insertions(+), 21 deletions(-)

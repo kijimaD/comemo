@@ -1,17 +1,20 @@
-commit 3772b2e1d5e5ebf45d69eb4720cf81804169be01
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Mar 8 10:57:10 2018 +0100
+commit 99be9cc02cdb42d692a5889500e1b68d6155ae62
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Thu Oct 12 16:51:01 2017 -0300
 
-    test/codegen: port 2^n muls tests to codegen harness
+    flag: add (*FlagSet).Name, (*FlagSet).ErrorHandling, export (*FlagSet).Output
     
-    And delete them from the asm_test.go file.
+    Allows code that operates on a FlagSet to know the name and error
+    handling behavior of the FlagSet without having to call FlagSet.Init.
     
-    Change-Id: I124c8c352299646ec7db0968cdb0fe59a3b5d83d
-    Reviewed-on: https://go-review.googlesource.com/99475
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Fixes #17628
+    Fixes #21888
+    
+    Change-Id: Ib0fe4c8885f9ccdacf5a7fb761d5ecb23f3bb055
+    Reviewed-on: https://go-review.googlesource.com/70391
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 80 ---------------------------------
- test/codegen/arithmetic.go              | 26 +++++++++++
- 2 files changed, 26 insertions(+), 80 deletions(-)
+ src/flag/flag.go      | 26 +++++++++++++++++++-------
+ src/flag/flag_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 7 deletions(-)

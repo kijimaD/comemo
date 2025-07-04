@@ -1,13 +1,14 @@
-commit 3b214175bcf1e1441f0411f4691ca9a0963c4564
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri May 15 15:37:40 2015 +1000
+commit c0fa9e3f6ff0c63d063d81c859a7f87a519a4182
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 15:31:07 2015 -0700
 
-    cmd/go: fix count of number of reserved names (doc change).
+    runtime/pprof: disable flaky TestTraceFutileWakeup on linux/ppc64le
     
-    Change-Id: I2784f831453d929df64c66febb4982cdf1f08e06
-    Reviewed-on: https://go-review.googlesource.com/10133
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Update #10512.
+    
+    Change-Id: Ifdc59c3a5d8aba420b34ae4e37b3c2315dd7c783
+    Reviewed-on: https://go-review.googlesource.com/9162
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/alldocs.go | 3 ++-
- src/cmd/go/help.go    | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/pprof/trace_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,19 +1,19 @@
-commit c06a699fb69e17274905bc8d9942de4a4ab8b31b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Oct 16 22:39:51 2020 +0700
+commit 6652a6cccccfa3facec8ed45e4e7bacb20622add
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 25 12:26:32 2020 -0400
 
-    cmd/compile: remove deltaNewFile
+    [dev.link] cmd/internal/goobj2: bump up version number
     
-    CL 196963 removed last usages of deltaNewFile, this CL remove it. While
-    at it, move the comment to go/internal/gcimporter.
+    As we now have -go115newobj flag, it is better to use go115 in
+    the object file as well. And it already diverges from the go114
+    "new" object file format.
     
-    Change-Id: Ieea47db405cf43744689f50b79be8ca710e21c85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263077
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I315edf7524158b5c354393fe9a7ab9f6d7cc9808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225458
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 5 -----
- src/go/internal/gcimporter/support.go  | 5 ++++-
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/internal/goobj/read.go     | 3 ++-
+ src/cmd/internal/goobj2/objfile.go | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

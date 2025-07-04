@@ -1,28 +1,19 @@
-commit 7a2baa9c48601e65bc8c8ed99d57a0d214b779ef
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 7 13:57:19 2019 +1100
+commit 7647fcd39292b5d36eb0f0be9750eecb03b1874c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 6 17:19:11 2019 -0700
 
-    cmd/doc: don't bother checking validity of symbols at top level
+    go/internal/gccgoimporter: update for gofrontend export data changes
     
-    No need to check as pieces further down do so anyway:
+    This recognizes new features that the gofrontend has started emitting
+    in the export data to support cross-package inlinable functions.
     
-            %  go doc '&&.%$^'
-            doc: symbol && is not a type in package fmt installed in "fmt"
-            exit status 1
-            %
+    This is a port of CL 180677 and 180758 from the gofrontend repo.
     
-    Removing this check allows 'go doc sort.interface' or 'go doc
-    types.type' to discover sort.Interface and go/types.Type.
-    
-    Easily
-    
-    Fixes #34656.
-    
-    Change-Id: I84352e83dd7f91a232f45a44d1a52f019a1a9a06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205778
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I48af6e71f9d8b04ba874ea0c204d39d1d461f8ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181118
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/doc/main.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/go/internal/gccgoimporter/parser.go | 69 ++++++++++++++++++++-------------
+ 1 file changed, 42 insertions(+), 27 deletions(-)

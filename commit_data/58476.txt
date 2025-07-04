@@ -1,28 +1,31 @@
-commit a76cc5a4ecb004616404cac5bb756da293818469
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Dec 28 22:32:59 2024 +0100
+commit 42bd21be1cf54876ce24c489852721049ef293e2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 6 16:28:25 2023 -0500
 
-    crypto/rsa: use λ(N) instead of φ(N)
+    cmd/compile: support lookup of functions from export data
     
-    This has no practical advantage, and requires extra variable time code,
-    but is an explicit FIPS 186-5 requirement.
+    As of CL 539699, PGO-based devirtualization supports devirtualization of
+    function values in addition to interface method calls. As with CL
+    497175, we need to explicitly look up functions from export data that
+    may not be imported already.
     
-    Note that the new behavior is consistent with Go+BoringCrypto, but not
-    with Go 1.23. The resulting keys are essentially interchangeable, but
-    it's not impossible for applications to notice (google/go-tpm#383).
+    Symbol naming is ambiguous (`foo.Bar.func1` could be a closure or a
+    method), so we simply attempt to do both types of lookup. That said,
+    closures are defined in export data only as OCLOSURE nodes in the
+    enclosing function, which this CL does not yet attempt to expand.
     
-    gcd_lcm_tests.txt is from BoringSSL.
+    For #61577.
     
-    Change-Id: I6a6a4656fd5e92912c87bedc667456d0e8787023
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639936
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic7205b046218a4dfb8c4162ece3620ed1c3cb40a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540258
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/internal/fips140/bigmod/nat.go          |  85 +++++--
- src/crypto/internal/fips140/rsa/keygen.go          |  77 +++++-
- src/crypto/internal/fips140/rsa/keygen_test.go     |  88 +++++++
- src/crypto/internal/fips140/rsa/rsa.go             |   2 +-
- .../fips140/rsa/testdata/gcd_lcm_tests.txt         | 279 +++++++++++++++++++++
- 5 files changed, 506 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/noder/unified.go          |  45 +++++++++++++++++++--
+ src/cmd/compile/internal/pgo/irgraph.go            |  12 +++---
+ .../compile/internal/test/pgo_devirtualize_test.go |  26 ++++++------
+ .../test/testdata/pgo/devirtualize/devirt.go       |  24 ++---------
+ .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 1411 -> 1345 bytes
+ .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  12 ++++++
+ 6 files changed, 73 insertions(+), 46 deletions(-)

@@ -1,23 +1,20 @@
-commit c177d9d98a7bfb21346f6309c115d0a2bf3167e3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jun 29 11:30:47 2022 -0700
+commit 46121306d3ceb97a8bb2acb328d68426ad3aa805
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Tue Aug 31 19:41:33 2021 +0200
 
-    crypto/x509: restrict CRL number to <=20 octets
+    cmd/compile: remove folding of 32 bit pointer offsets on amd64
     
-    Similar to certificate serial numbers, RFC 5280 restricts the length of
-    the CRL number field to no more than 20 octets. Enforce this in
-    CreateRevocationList.
+    These rules were likely only used in the removed amd64p32 port.
     
-    Fixes #53543
+    Passes toolstash -cmp.
     
-    Change-Id: If392ef6b0844db716ae9ee6ef317135fceab039c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415134
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ie626d1021bade7f7571d1bd5271fbe8676bb295e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346509
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/x509/x509.go      |  4 ++++
- src/crypto/x509/x509_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  48 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 567 ---------------------------
+ 2 files changed, 615 deletions(-)

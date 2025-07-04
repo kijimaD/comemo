@@ -1,32 +1,25 @@
-commit b3a57e43c7517491c6220b637f70918fa7ca6e20
-Author: Dana Burkart <dana@zenful.ai>
-Date:   Sat Jun 8 03:30:30 2024 +0000
+commit 220c396ea885158638689fec6db9677d20d568ea
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 24 13:51:33 2023 +0000
 
-    time: add to format documentation about dangers of using RFC1123{,Z} for parsing
+    runtime: skip TestCPUMetricsSleep as flaky
     
-    When using time.RFC1123Z to parse the date header value out of an email,
-    an error is returned for dates that occur in the first 9 days of a
-    month. This is because the format strings for RFC 1123 defined in the
-    time package indicate that the day should be prefixed with a leading 0.
+    This test is fundamentally flaky because of a mismatch between how
+    internal idle time is calculated and how the test expects it to be
+    calculated. It's unclear how to resolve this mismatch, given that it's
+    perfectly valid for a goroutine to remain asleep while background
+    goroutines (e.g. the scavenger) run. In practice, we might be able to
+    set some generous lower-bound, but until we can confirm that on the
+    affected platforms, skip the test as flaky unconditionally.
     
-    Reading the spec, the line that talks about it seems to indicate that
-    days can be either 1 or 2 digits:
+    For #60276.
+    For #60376.
     
-      `date = 1*2DIGIT month 2*4DIGIT`
-    
-    So a date header with a day like `7` with no leading zero should be
-    accepted.
-    
-    Fixes #67887
-    
-    Change-Id: Ie7ee40d94da2c8c0417957e8b89f9987314949c8
-    GitHub-Last-Rev: 22a5a52fcb7ee25e5005bb9a014ef8a94d52fb32
-    GitHub-Pull-Request: golang/go#67888
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591335
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iffd5c4be10cf8ae8a6c285b61fcc9173235fbb2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497876
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/time/format.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/metrics_test.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

@@ -1,20 +1,20 @@
-commit 39304eb69d7f6117e60630452c0e037dbb555f5e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Feb 5 09:43:46 2016 +1100
+commit 4d4a266780822acfdf58eaf9c0ba914024ff8bfa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 16 20:26:24 2015 -0800
 
-    doc: rewrite references to plan9.bell-labs.com to 9p.io
+    net: fix IPv4 address selection
     
-    The plan9.bell-labs.com site has fallen into disrepair.
-    We'll instead use the site maintained by contributor David du Colombier.
+    Only apply RFC 6724's CommonPrefixLen rule for IPv4 source/destination
+    pairs that are members of the same IPv4 special purpose block.
     
-    Fixes #14233
+    Fixes #13283.
     
-    Change-Id: I0c702e5d3b091cccd42b288ea32f34d507a4733d
-    Reviewed-on: https://go-review.googlesource.com/19240
+    Change-Id: I2f7c26b408dd4675dfc5c1959e22d05b43bb8241
+    Reviewed-on: https://go-review.googlesource.com/16995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/asm.html              | 4 ++--
- doc/codewalk/codewalk.xml | 2 +-
- doc/go_faq.html           | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/addrselect.go      |  43 +++++++++++++++++
+ src/net/addrselect_test.go | 115 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 158 insertions(+)

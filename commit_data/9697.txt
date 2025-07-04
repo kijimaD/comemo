@@ -1,12 +1,14 @@
-commit b955e265643727892da5df5d32f51af483a591ad
+commit 7233dcde99be500316017d8bc34ec2f3bb325d61
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 15 12:41:00 2011 -0700
+Date:   Thu Sep 15 10:28:55 2011 -0700
 
-    http/cgi: add openbsd environment configuration
+    http: fix WriteProxy documentation
     
-    R=iant, iant
+    Fixes #2258
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5016051
+    https://golang.org/cl/5016048
 
- src/pkg/http/cgi/host.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/http/request.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,20 +1,15 @@
-commit d49475e07858e0ab8e81279d0c5a73e3e0440007
+commit 9316070419ac6fd732d4d163c11585e90dbc6099
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 1 19:42:39 2012 -0500
+Date:   Thu Mar 1 18:26:53 2012 -0500
 
-    go/build: fix build
+    go/build: document GOPATH
     
-    Presumably something about the very large go/build
-    doc comment breaks the build constraint parser in
-    cmd/dist.  I don't feel like debugging C code right now,
-    so move it into its own file.  If cmd/dist decides doc.go
-    is not part of the package, it will still build correctly.
+    Fixes #2332.
     
-    R=golang-dev
-    TBR=golang-dev
+    R=golang-dev, remyoudompheng, gri, r, r
     CC=golang-dev
-    https://golang.org/cl/5722043
+    https://golang.org/cl/5710055
 
- src/pkg/go/build/build.go | 104 -------------------------------------------
- src/pkg/go/build/doc.go   | 109 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 109 insertions(+), 104 deletions(-)
+ src/cmd/go/help.go        |  3 +++
+ src/pkg/go/build/build.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 51 insertions(+), 1 deletion(-)

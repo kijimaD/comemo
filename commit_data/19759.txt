@@ -1,13 +1,17 @@
-commit 6b2aabeecc1db46d030b9c5c5553c4e0fabba0cf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 17 12:50:56 2014 -0700
+commit dc84eca75eab04ec1a0c454ccf135ee9da10951e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 17 21:49:45 2014 +0400
 
-    sync: fix typo in benchmark name
+    runtime: improve select benchmarks
+    1. Add select on sync channels benchmark.
+    2. Make channels in BenchmarkSelectNonblock shared.
+    With GOMAXPROCS=1 it is the same, but with GOMAXPROCS>1
+    it becomes a more interesting benchmark.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=khr
+    R=golang-codereviews, khr
     CC=golang-codereviews
-    https://golang.org/cl/118860043
+    https://golang.org/cl/115780043
 
- src/pkg/sync/pool_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/chan_test.go | 38 +++++++++++++++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 5 deletions(-)

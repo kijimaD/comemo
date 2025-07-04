@@ -1,21 +1,12 @@
-commit f795bdb979482d967aea05696b0b0229af74d79b
-Author: Graham Miller <graham.miller@gmail.com>
-Date:   Mon Jun 27 16:12:04 2011 -0400
+commit 3a4a581c49a62ec8c58809c2e108b825bafe6aa0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 27 16:02:13 2011 -0400
 
-    bufio: do not cache Read errors
+    sync: add benchmark for Once.
     
-    Reader previously had cached an error from the underlying reader
-    and would return it on every subsequent call to Read.  The Reader
-    will now return the error only once, and subsequent calls will result
-    in a new Read call to the underlying Reader.
-    
-    Fixes #1934.
-    
-    R=bradfitz, rogpeppe, rsc
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4528133
+    https://golang.org/cl/4650054
 
- src/pkg/bufio/bufio.go           | 22 ++++++++++++++--------
- src/pkg/bufio/bufio_test.go      | 10 ++++++----
- src/pkg/testing/iotest/reader.go | 21 ++++++++++++++++++++-
- 3 files changed, 40 insertions(+), 13 deletions(-)
+ src/pkg/sync/once_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,19 +1,42 @@
-commit 73f987c88b348772ca2efa8d5b3d0ac61cbdb563
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 11 13:02:44 2022 +0700
+commit 33a1a93a92804205eca89e2bb113ca68c1de5a4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 8 20:32:29 2021 -0800
 
-    test: add regression test for issue 53439
+    cmd/compile/internal/syntax: fix parsing of type parameter lists
     
-    Fixes #53439
+    The parser cannot distinguish a type parameter list of the form
     
-    Change-Id: I425af0f78153511034e4a4648f32ef8c9378a325
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449756
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    [P *T ] or
+    [P (T)]
+    
+    where T is not a type literal from an array length specification
+    P*T (product) or P(T) (constant-valued function call) and thus
+    interprets these forms as the start of array types.
+    
+    This ambiguity must be resolved explicitly by placing *T inside
+    an interface, adding a trailing comma, or by leaving parentheses
+    away where possible.
+    
+    This CL adjusts the parser such that these forms are
+    interpreted as (the beginning) of type parameter lists
+    if the token after P*T or P(T) is a comma, or if T is
+    a type literal.
+    
+    This CL also adjusts the printer to print a comma if
+    necessary to avoid this ambiguity, and adds additional
+    printer tests.
+    
+    Fixes #49482
+    
+    Change-Id: I36328e2a7d9439c39ba0349837c445542549e84e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370774
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- test/fixedbugs/issue53439.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go          | 149 ++++++++++++++++-----
+ src/cmd/compile/internal/syntax/printer.go         |  55 ++++----
+ src/cmd/compile/internal/syntax/printer_test.go    |  77 +++++++----
+ .../internal/syntax/testdata/issue49482.go2        |  31 +++++
+ 4 files changed, 227 insertions(+), 85 deletions(-)

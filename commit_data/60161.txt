@@ -1,0 +1,16 @@
+commit 50c298a5a3b0d8534a724960f949ac3c56ff64bd
+Author: David Chase <drchase@google.com>
+Date:   Wed May 22 16:15:43 2024 -0400
+
+    cmd/compile: repairing variable names and comments
+    
+    Change-Id: I2e775e92dcebf068426b3e2acbe088679c318ec4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587578
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/func.go           | 12 ++++++------
+ src/cmd/compile/internal/rangefunc/rewrite.go |  4 +++-
+ 2 files changed, 9 insertions(+), 7 deletions(-)

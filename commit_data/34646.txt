@@ -1,19 +1,23 @@
-commit 7974f0815e071448cd429d7c30c1d6c24b04a589
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Mar 19 21:50:42 2018 +0000
+commit bb98331555a177f0e1256cebcfbc8a7b454bccd2
+Author: Paul Querna <paul@querna.org>
+Date:   Wed Nov 1 15:11:52 2017 -0700
 
-    Revert "doc: remove non-prime from list of primes in spec"
+    syscall: add Token to Windows SysProcAttr
     
-    This reverts commit 4b06d9d72747b0407e2cd9a423b689c7e9c8e92d.
+    Fixes #21105
     
-    Reason for revert: It's a reference to a legendary article
-    from the Journal of Irreproducible Results.
-    
-    Updates golang/go#24451
-    
-    Change-Id: I0288177f4e286bd6ace5774f2e5e0acb02370305
-    Reviewed-on: https://go-review.googlesource.com/101495
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Ia2dea9b82a356795f581ce75616198b46e97abb6
+    Reviewed-on: https://go-review.googlesource.com/75253
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/syscall/windows/exec_windows_test.go | 153 ++++++++++++++++++++++
+ src/internal/syscall/windows/security_windows.go  |  26 ++++
+ src/internal/syscall/windows/zsyscall_windows.go  |  26 ++++
+ src/syscall/exec_windows.go                       |   7 +-
+ src/syscall/syscall_windows.go                    |   1 +
+ src/syscall/zsyscall_windows.go                   |  19 +++
+ 6 files changed, 231 insertions(+), 1 deletion(-)

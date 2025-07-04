@@ -1,28 +1,14 @@
-commit d282532901c02e3f2dde4ed3f2258bcb7a61d510
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 11 13:33:11 2013 -0800
+commit 02e05817ada2bd3d0492387a032b1aa879c2cd3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 11 08:05:46 2013 -0500
 
-    vet: improve flag handling
-    Simplify the internal logic for flags controlling what to vet,
-    by introducing a map of flags that gathers them all together.
-    This change should simplify the process of adding further flags.
+    sync: add caution about where to call (*WaitGroup).Add
     
-    Add a test for untagged struct literals.
-    Delete a redundant test that was also in the wrong file.
-    Clean up some ERROR patterns that weren't working.
+    Fixes #4762.
     
-    "make test" passes again.
-    
-    R=golang-dev, bradfitz
+    R=daniel.morsing, adg
     CC=golang-dev
-    https://golang.org/cl/7305075
+    https://golang.org/cl/7308045
 
- src/cmd/vet/atomic.go    |  2 +-
- src/cmd/vet/buildtag.go  |  2 +-
- src/cmd/vet/main.go      | 36 ++++++++++++++++++++++--------------
- src/cmd/vet/method.go    |  6 +++---
- src/cmd/vet/print.go     |  2 +-
- src/cmd/vet/rangeloop.go |  2 +-
- src/cmd/vet/structtag.go |  4 ++--
- src/cmd/vet/taglit.go    | 11 ++++++++---
- 8 files changed, 39 insertions(+), 26 deletions(-)
+ src/pkg/sync/waitgroup.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

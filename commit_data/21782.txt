@@ -1,21 +1,12 @@
-commit c62b003eba484d54c2707b379d29240e5367e98f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Feb 27 17:51:25 2015 +0100
+commit 38dcc8cd88426fd35d2153839215ba95aa6e21ab
+Author: Blake Gentry <blakesgentry@gmail.com>
+Date:   Tue Feb 3 12:01:29 2015 -0800
 
-    build: restore original timeouts in run.rc
+    net/http: remove unused switchReader type
     
-    The timeouts were increased in CL 2462 and CL 2510
-    to work around a slowness issue when running Go
-    programs on a Plan 9 machine on GCE.
-    
-    Since we figured out this issue, we can restore
-    the timeouts to their original values.
-    
-    Updates #10028.
-    
-    Change-Id: I2e5b91666461715df69df97ea791f3d88d9de4d0
-    Reviewed-on: https://go-review.googlesource.com/6261
+    Change-Id: Ic8a01d06ffc6c80beaf6dee9e7242dcbb7425e71
+    Reviewed-on: https://go-review.googlesource.com/3822
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/run.rc | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/net/http/server.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

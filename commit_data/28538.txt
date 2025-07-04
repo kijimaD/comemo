@@ -1,14 +1,12 @@
-commit 0a185610321ddbc68142ed8ed2ca3dc2b08578b4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 26 12:43:21 2016 -0700
+commit d7ae8b3c11b027721f0878caac0620ccb7f81048
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 09:24:43 2016 +1000
 
-    cmd/printer: document that Fprint doesn't match gofmt output
+    api: update next.txt
     
-    Fixes #16963.
-    
-    Change-Id: Iaadf0da4ee9cc97146c5e6ac2d93de9ae6893880
-    Reviewed-on: https://go-review.googlesource.com/29790
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I04da6a56382d3bd96e3c849a022618553039b2db
+    Reviewed-on: https://go-review.googlesource.com/23651
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/go/printer/printer.go | 2 ++
- 1 file changed, 2 insertions(+)
+ api/next.txt | 39 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 33 insertions(+), 6 deletions(-)

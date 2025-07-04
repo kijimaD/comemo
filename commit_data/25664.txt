@@ -1,19 +1,19 @@
-commit aff6aa0a21baa332bb94c34795520008c8db9198
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 26 20:33:21 2016 +0000
+commit 9958a7b563259c6ec6d185529f86bec8b62ace3d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Nov 13 08:32:33 2015 +0000
 
-    net/http: quiet http2 log spam
+    Revert "cmd/internal/obj/arm64, cmd/link: use two instructions rather than three for loads from memory"
     
-    Updates x/net/http2 to git rev eb066e3 for https://golang.org/cl/18932
+    This reverts commit 3a9bc571b0b8c4ab4cf026d68ea3b71dec608da3.
     
-    Fixes #13925
-    Fixes #14061
+    Breaks darwin/arm64.
     
-    Change-Id: I73f8c09232877404362358240b7b369bb9c76a12
-    Reviewed-on: https://go-review.googlesource.com/18934
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib958beacabca48020a6a47332fbdec99d994060b
+    Reviewed-on: https://go-review.googlesource.com/16906
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/net/http/h2_bundle.go | 47 +++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 43 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go |  60 ++++++++------------
+ src/cmd/internal/obj/link.go       |   5 --
+ src/cmd/link/internal/arm64/asm.go | 113 +++++++++----------------------------
+ src/cmd/link/internal/ld/elf.go    |   4 --
+ 4 files changed, 50 insertions(+), 132 deletions(-)

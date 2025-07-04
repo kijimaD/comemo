@@ -1,19 +1,13 @@
-commit 23c22ca42c60194c32cf9692604fb25ca38d6f30
-Author: Jason LeBrun <jblebrun@gmail.com>
-Date:   Fri Jan 4 00:21:15 2019 +0000
+commit 7c96f9b527bc3d04eeb0e8d86c8fcf381a5981bb
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Thu Aug 30 17:23:51 2018 -0600
 
-    crypto/sha512: fix casting of d.nx in UnmarshalBinary
+    A+C: add VMware as author, Venil Noronha as contributor
     
-    Fixes #29541
-    
-    Change-Id: I006915b020b6e710298c32c05e3de77a7f9b54f3
-    GitHub-Last-Rev: c7a90a4bbe17fd1904c0942e8b343264fb85cba1
-    GitHub-Pull-Request: golang/go#29542
-    Reviewed-on: https://go-review.googlesource.com/c/156277
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0dd843ac06f1b9987aa2fc90ae62074e668d6d4d
+    Reviewed-on: https://go-review.googlesource.com/132438
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/sha512/sha512.go      |  2 +-
- src/crypto/sha512/sha512_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

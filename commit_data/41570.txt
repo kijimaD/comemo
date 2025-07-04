@@ -1,21 +1,14 @@
-commit cc6a8bd0d7f782c31e1a35793b4e1253c6716ad5
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 2 04:26:54 2020 +1100
+commit e79c23822cf197ffb90e4984161d479f0abb73f3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 12 08:47:51 2019 +0700
 
-    cmd/compile: add zero store operations for riscv64
+    cmd/compile: move OAS2 to its own case in order
     
-    This allows for zero stores to be performed using the zero register, rather
-    than loading a separate register with zero.
-    
-    Change-Id: Ic81d8dbcdacbb2ca2c3f77682ff5ad7cdc33d18d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221684
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id0f4955588ae8027a24465b456c90d0543d60db2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200581
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go        |   7 +
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  18 ++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  19 +-
- src/cmd/compile/internal/ssa/opGen.go          |  56 ++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 264 +++++++++++++++++++++++++
- 5 files changed, 358 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 41 ++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

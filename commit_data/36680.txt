@@ -1,13 +1,17 @@
-commit 8595868ea781a19b765319ce42da5c074c73ae34
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 17 11:32:04 2018 -0700
+commit 226651a541286726df30ff067d519f4efd57cec7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 17 23:21:29 2018 -0400
 
-    go/types: fix a couple of internal comments
+    cmd/go: don't pass -compiler flag to vet
     
-    Change-Id: If0e8fbb05c09ee7c64e1aa6b0aa2ade35a70df8a
-    Reviewed-on: https://go-review.googlesource.com/135696
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Without this running go vet -compiler=gccgo causes vet to fail.
+    The vet tool does need to know the compiler, but it is passed in
+    vetConfig.Compiler.
+    
+    Change-Id: If857be4f336f6d7c425972fabcf82fae2cdc8a90
+    Reviewed-on: https://go-review.googlesource.com/113715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/decl.go    | 2 +-
- src/go/types/typexpr.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/vet/vetflag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

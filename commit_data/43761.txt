@@ -1,28 +1,20 @@
-commit d7fff1f2cf2c0cb7cb2e03a3d057c600c4ec545a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 24 17:01:00 2020 -0400
+commit 939379ffb6175c8f86dbf99a28741b4318a964eb
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Apr 22 14:28:51 2020 -0700
 
-    crypto/tls: ensure the server picked an advertised ALPN protocol
+    runtime: fix TestDeferWithRepeatedRepanics and TestIssue37688 to be less chatty
     
-    This is a SHALL in RFC 7301, Section 3.2.
+    Converted some Println() statements (used to make sure that certain variables were
+    kept alive and not optimized out) to assignments into global variables, so the
+    tests don't produce extraneous output when there is a failure.
     
-    Also some more cleanup after NPN, which worked the other way around
-    (with the possibility that the client could pick a protocol the server
-    did not suggest).
+    Fixes #38594
     
-    Change-Id: I83cc43ca1b3c686dfece8315436441c077065d82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239748
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I7eb41bb02b2b1e78afd7849676b5c85bc11c759c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229538
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.16.html                          |  8 ++++++++
- src/crypto/tls/common.go                 |  3 ---
- src/crypto/tls/conn.go                   |  6 +++---
- src/crypto/tls/handshake_client.go       | 33 +++++++++++++++-----------------
- src/crypto/tls/handshake_client_tls13.go | 14 ++++++++++----
- src/crypto/tls/handshake_server.go       |  2 +-
- src/crypto/tls/handshake_server_tls13.go |  2 +-
- 7 files changed, 38 insertions(+), 30 deletions(-)
+ src/runtime/defer_test.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

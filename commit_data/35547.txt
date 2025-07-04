@@ -1,32 +1,18 @@
-commit 31e1c30f55165785dd12e7c67babedeb950a721d
-Author: David Chase <drchase@google.com>
-Date:   Fri May 25 16:08:13 2018 -0400
+commit ec62ee7f6d3839fe69aeae538dadc1c9dc3bf020
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 20 21:04:56 2018 +0100
 
-    cmd/compile: do not allow regalloc to LoadReg G register
+    cmd/compile: use | in the most repetitive 386 rules
     
-    On architectures where G is stored in a register, it is
-    possible for a variable to allocated to it, and subsequently
-    that variable may be spilled and reloaded, for example
-    because of an intervening call.  If such an allocation
-    reaches a join point and it is the primary predecessor,
-    it becomes the target of a reload, which is only usually
-    right.
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
     
-    Fix: guard all the LoadReg ops, and spill value in the G
-    register (if any) before merges (in the same way that 387
-    FP registers are freed between blocks).
+    Ran rulegen, no change in the actual compiler code (as expected).
     
-    Includes test.
-    
-    Fixes #25504.
-    
-    Change-Id: I0482a53e20970c7315bf09c0e407ae5bba2fe05d
-    Reviewed-on: https://go-review.googlesource.com/114695
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ibf157382fb4544c063fbc80406fb9302430728fe
+    Reviewed-on: https://go-review.googlesource.com/95595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/export_test.go   |  1 +
- src/cmd/compile/internal/ssa/regalloc.go      | 17 ++++++++++
- src/cmd/compile/internal/ssa/regalloc_test.go | 49 +++++++++++++++++++++++++++
- 3 files changed, 67 insertions(+)
+ src/cmd/compile/internal/ssa/gen/386.rules | 63 +++++++-----------------------
+ 1 file changed, 15 insertions(+), 48 deletions(-)

@@ -1,25 +1,12 @@
-commit 6887d8b1e258898db4030b10383a853b0dd96318
+commit ee198df4cdc2e49c7376f99d9d3081da6ebae836
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 2 16:58:42 2018 -0700
+Date:   Wed Jul 18 13:19:04 2018 -0700
 
-    cmd/go: add go statement when initializing go.mod
+    doc: update go1.11 release notes
     
-    When creating a go.mod file, add a go statement mentioning the current
-    Go version. We can be reasonably confident that the current version is
-    able to build the module. This is as described in the language
-    transition proposal at https://golang.org/issue/28221.
-    
-    Updates #28221
-    
-    Change-Id: I70a99b3a53f4b6c0288da07473c5a71bb28cd86f
-    Reviewed-on: https://go-review.googlesource.com/c/147281
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I806d411c075cdc66322112b6ee5e50f58462bc6b
+    Reviewed-on: https://go-review.googlesource.com/124776
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfile/rule.go         | 20 ++++++++++++--
- src/cmd/go/internal/modload/init.go         | 22 +++++++++++++++
- src/cmd/go/testdata/script/mod_edit.txt     | 42 ++++++++++++++++++++++-------
- src/cmd/go/testdata/script/mod_readonly.txt |  2 ++
- src/cmd/go/testdata/script/mod_tidy.txt     |  9 +++++++
- 5 files changed, 84 insertions(+), 11 deletions(-)
+ doc/go1.11.html | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)

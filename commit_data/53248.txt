@@ -1,25 +1,25 @@
-commit 26f25692b8107f06a16dd103672ba4b5c3e4571f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon May 22 10:38:12 2023 -0500
+commit 0f6ee42fe063a48d7825bc03097bbb714aafdb7d
+Author: Tomasz Jezierski <tjomek.jezierski@gmail.com>
+Date:   Mon Aug 1 21:18:36 2022 +0200
 
-    debug/elf: define R_PPC64_REL24_P9NOTOC
+    encoding/gob: replace runtime values with constants in init()
     
-    This relocation is not (yet?) defined in ELFv2, but has been added to
-    gnu gas a couple years ago. It is the same reloc as
-    R_PPC64_REL24_NOTOC, but hints power10 instructions should not be
-    emitted.
+    Current init() implementation in `encoding/gob/decode.go` checks int/uint/uintptr bit size with reflection in runtime. We could replace it with values available on compile stage. This should reduce time and allocations on binary start.
+    Results from GODEBUG=inittrace=1:
+    before:
+    init encoding/gob @4.4 ms, 0.21 ms clock, 43496 bytes, 652 allocs
+    after:
+    init encoding/gob @4.4 ms, 0.15 ms clock, 41672 bytes, 643 allocs
     
-    See binutils commit 7aba54da426b9999085d8f84e7896b8afdbb9ca6.
+    Updates #54184
     
-    Fixes #60348
-    
-    Change-Id: Ie953cd7bf1ffc621b498d4dbebb5de1231833c8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496918
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: I46dda2682fb92519da199415e29401d61edce697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420455
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- api/next/60348.txt   | 2 ++
- src/debug/elf/elf.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/encoding/gob/decode.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

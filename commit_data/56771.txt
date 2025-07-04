@@ -1,29 +1,29 @@
-commit a130fb63091bf3103bb7baabbd2484f7e560edae
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jun 10 14:25:22 2024 +0000
+commit fa50248ce6dfbe8afb18a67aa4d0d0cd3800a329
+Author: Yi Yang <qingfeng.yy@alibaba-inc.com>
+Date:   Thu May 18 11:17:11 2023 +0000
 
-    cmd/compile/internal/ssa: fix DWARF location expr for .closureptr
+    cmd/compile: sparse conditional constant propagation
     
-    CL 586975 added support to the compiler back end to emit a synthetic
-    ".closureptr" variable in range func bodies, plus code to spill the
-    incoming context pointer to that variable's location on the stack.
+    sparse conditional constant propagation can discover optimization opportunities that cannot be found by just combining constant folding and constant propagation and dead code elimination separately.
     
-    This patch fixes up the code in the back end that generates DWARF
-    location lists for incoming parameters (which sometimes arrive in
-    registers) in the "-l -N" no-optimization case to also create a
-    correct DWARF location list for ".closureptr", a two-piece list
-    reflecting the fact that its value arrives in a register and then is
-    spilled to the stack in the prolog.
+    Updates #59399
     
-    Fixes #67918.
-    
-    Change-Id: I029305b5248b8140253fdeb6821b877916fbb87a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591595
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia954e906480654a6f0cc065d75b5912f96f36b2e
+    GitHub-Last-Rev: 90fc02db99f817b7f0ce5c584642ab1b166e62d7
+    GitHub-Pull-Request: golang/go#59575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483875
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go  | 112 ++++++++++++++++++++++++++-------
- src/cmd/compile/internal/ssa/func.go   |   3 +
- src/cmd/compile/internal/ssagen/ssa.go |   1 +
- 3 files changed, 92 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   2 +
+ src/cmd/compile/internal/ssa/block.go           |  10 +-
+ src/cmd/compile/internal/ssa/compile.go         |   1 +
+ src/cmd/compile/internal/ssa/sccp.go            | 576 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/sccp_test.go       |  95 ++++
+ test/checkbce.go                                |   4 +
+ test/codegen/compare_and_branch.go              |  12 +-
+ test/loopbce.go                                 |  33 +-
+ 8 files changed, 713 insertions(+), 20 deletions(-)

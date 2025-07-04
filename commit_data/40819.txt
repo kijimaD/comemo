@@ -1,20 +1,27 @@
-commit 2bde3c13f6e31662c682f1b5830c5e3fd9f5494c
-Author: Tom Thorogood <me+google@tomthorogood.co.uk>
-Date:   Sun Nov 17 12:33:22 2019 +0000
+commit 20e4540e9084528a1b36978882596daa7d8d8800
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jul 15 16:45:17 2019 -0400
 
-    runtime: remove stray errno check from TestSignalM
+    crypto/tls: remove TestVerifyHostnameResumed
     
-    CL 206078 introduced a stray errno check that was always false. This CL removes it.
+    Session resumption is not a reliable TLS behavior: the server can decide
+    to reject a session ticket for a number of reasons, or no reason at all.
+    This makes this non-hermetic test extremely brittle.
     
-    Updates #35276
+    It's currently broken on the builders for both TLS 1.2 and TLS 1.3, and
+    I could reproduce the issue for TLS 1.3 only. As I was debugging it, it
+    started passing entirely on my machine.
     
-    Change-Id: I6996bb595d347fe81752786a3d83d3432735c9cb
-    GitHub-Last-Rev: e026e71b16c8532ad707a0b43b4f02c7a366257e
-    GitHub-Pull-Request: golang/go#35650
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207577
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In practice, it doesn't get us any coverage as resumption is already
+    tested with the recorded exchange tests, and TestVerifyHostname still
+    provides a smoke test checking that we can in fact talk TLS.
+    
+    Fixes #32978
+    
+    Change-Id: I63505e22ff7704f25ad700d46e4ff14850ba5d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186239
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/crash_unix_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/crypto/tls/tls_test.go | 44 --------------------------------------------
+ 1 file changed, 44 deletions(-)

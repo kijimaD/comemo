@@ -1,12 +1,12 @@
-commit 0629354bd3a2eb8d9f2e1bafdd508120f94422ef
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Fri May 6 15:29:49 2011 -0400
+commit 606e12f9bfb1b2a6d6f5e7da73bc69c9569329e2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 6 10:00:50 2011 -0700
 
-    runtime: handle out-of-threads on Linux gracefully
+    http: fix typo in URL.String doc comment.
     
-    R=rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4396050
+    https://golang.org/cl/4485046
 
- src/pkg/runtime/linux/thread.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/http/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

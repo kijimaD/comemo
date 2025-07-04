@@ -1,12 +1,12 @@
-commit aef4e1c3492908425d4cefd78ae8dd8a765988b9
+commit ee1cb829ac6d3b3a79b4fe92d9cea1d19baf15bf
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 4 13:11:07 2011 +1100
+Date:   Fri Mar 4 12:28:08 2011 +1100
 
-    doc: add "implements" question to FAQ
+    doc: describe platform-specific conventions in code.html
     
-    R=r, fw, gri, r2, yiyus
+    R=r, rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4248051
+    https://golang.org/cl/4257049
 
- doc/go_faq.html | 65 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 65 insertions(+)
+ doc/code.html | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

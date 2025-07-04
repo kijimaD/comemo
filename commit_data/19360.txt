@@ -1,14 +1,16 @@
-commit 435ba1295af24c0254707057a7d8dc6f17d6ad19
+commit 6c7bef551b32c2f7f2371b21cc8d51d807737ef3
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 15 15:55:31 2014 +1000
+Date:   Thu May 15 12:44:29 2014 +1000
 
-    cmd/addr2line,cmd/objdump: test that commands accept addresses with 0x prefix and without
+    cmd/addr2line, cmd/objdump: fix pe text section starting address
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    fixes windows build
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/100440045
+    https://golang.org/cl/97500043
 
- src/cmd/addr2line/addr2line_test.go | 45 +++++++++++++++++++++---------------
- src/cmd/objdump/objdump_test.go     | 46 +++++++++++++++++++++----------------
- 2 files changed, 52 insertions(+), 39 deletions(-)
+ src/cmd/addr2line/main.go | 11 ++++++++++-
+ src/cmd/objdump/main.go   | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,19 +1,36 @@
-commit 0a30cf9536f06d52a214370e9eeb03f8bcfc1e6a
-Author: Sean Liao <sean@liao.dev>
-Date:   Mon May 23 23:52:21 2022 +0100
+commit 7e9f911ec4fd08ce9b4296f0aea4864b53064573
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Aug 12 09:58:54 2021 -0700
 
-    builtin: clarify effect of close on receive
+    [dev.typeparams] cmd/compile:  remove some shape checks in type substituter, other cleanups
     
-    Fixes #53041
+    The type substituter (typecheck.Typ()) was temporarily substituting from
+    shapes back to concrete types, but doesn't need to anymore. So, remove
+    two shape checks, so the type substituter is now only for substituting
+    type params again.
     
-    Change-Id: If6580c8f0f14edfdc297d3239a7767ce0570ff79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407975
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Several other cleanups:
+    
+     - renamed makeGenericName() to makeInstName1(), since that function is
+       a helper to MakeInstName() and MakeDictName() that definitely makes
+       instantiated names, not generic names.
+    
+     - removed the logic in makeInstName1() that adds the ".inst." prefix
+       for concrete type args. We are only specifying concrete type args (as
+       opposed to shape args) when we are calling from MakeDictName, and
+       then we immediately strip of the .inst prefix anyway.
+    
+     - Added a comment on types.Identical that a shape type is considered
+       identicall to another type if their underlying types are the same, or
+       they are both pointers.
+    
+    Change-Id: I3e0206dbd403897797ae7bec3c527ae16b0b930a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341729
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/builtin/builtin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/subr.go | 40 ++++++++----------------------
+ src/cmd/compile/internal/types/identity.go |  7 ++++--
+ 2 files changed, 15 insertions(+), 32 deletions(-)

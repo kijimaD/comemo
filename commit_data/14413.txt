@@ -1,12 +1,12 @@
-commit 1395d3d9bfbba924b2bd9638860380fd380c1351
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Nov 15 19:58:49 2012 +0100
+commit 27087022cea3b9fec19c9fae206abd57bf880bd3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 15 21:30:24 2012 +0400
 
-    misc/git: add gofmt git pre-commit hook
+    sync/atomic: fix race instrumentation
     
-    R=golang-dev, bradfitz, ftrvxmtrx, franciscossouza, r, minux.ma
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6843044
+    https://golang.org/cl/6782075
 
- misc/git/pre-commit | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/pkg/sync/atomic/race.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

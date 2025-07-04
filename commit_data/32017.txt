@@ -1,14 +1,68 @@
-commit d5da104294cd449a6588dac26c52f221a60357ff
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Fri Jul 14 15:38:49 2017 -0600
+commit efc47819c080c800a161f099b7bdbacb53ea311e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 29 16:28:51 2017 -0700
 
-    doc/contribute: avoid using the word "change list".
+    cmd/compile: eliminate use of Trecur in formatting routines
     
-    Neither the Gerrit UI nor its docs use the term CL or changelist.
+    CL 38147 eliminated package gc globals in formatting routines.
+    However, tconv still used the Type field Trecur
+    to avoid infinite recursion when formatting recursive
+    interfaces types such as (test/fixedbugs398.go):
     
-    Change-Id: Ic19fddc660ec4f008f10fd207e4ac6349431ff5d
-    Reviewed-on: https://go-review.googlesource.com/48595
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    type i1 interface {
+            F() interface {
+                    i1
+            }
+    }
+    
+    type i2 interface {
+            F() interface {
+                    i2
+            }
+    }
+    
+    This CL changes the recursion prevention to use a parameter,
+    and threads it through the formatting routines.
+    Because this fundamentally limits the embedding depth
+    of all types, it sets the depth limit to be much higher.
+    In practice, it is unlikely to impact any code at all,
+    one way or the other.
+    
+    The remaining uses of Type.Trecur are boolean in nature.
+    A future CL will change Type.Trecur to be a boolean flag.
+    
+    The removal of a couple of mode.Sprintf calls
+    makes this a very minor net performance improvement:
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      40.0MB ± 0%     40.0MB ± 0%  -0.13%  (p=0.032 n=5+5)
+    Unicode       30.0MB ± 0%     29.9MB ± 0%    ~     (p=0.310 n=5+5)
+    GoTypes        114MB ± 0%      113MB ± 0%  -0.25%  (p=0.008 n=5+5)
+    SSA            856MB ± 0%      855MB ± 0%  -0.04%  (p=0.008 n=5+5)
+    Flate         25.5MB ± 0%     25.4MB ± 0%  -0.27%  (p=0.008 n=5+5)
+    GoParser      31.9MB ± 0%     31.9MB ± 0%    ~     (p=0.222 n=5+5)
+    Reflect       79.0MB ± 0%     78.6MB ± 0%  -0.45%  (p=0.008 n=5+5)
+    Tar           26.8MB ± 0%     26.7MB ± 0%  -0.25%  (p=0.032 n=5+5)
+    XML           42.4MB ± 0%     42.4MB ± 0%    ~     (p=0.151 n=5+5)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        395k ± 0%       391k ± 0%  -1.00%  (p=0.008 n=5+5)
+    Unicode         321k ± 1%       319k ± 0%  -0.56%  (p=0.008 n=5+5)
+    GoTypes        1.16M ± 0%      1.14M ± 0%  -1.61%  (p=0.008 n=5+5)
+    SSA            7.63M ± 0%      7.60M ± 0%  -0.30%  (p=0.008 n=5+5)
+    Flate           239k ± 0%       234k ± 0%  -1.94%  (p=0.008 n=5+5)
+    GoParser        320k ± 0%       317k ± 1%  -0.86%  (p=0.008 n=5+5)
+    Reflect        1.00M ± 0%      0.98M ± 0%  -2.17%  (p=0.016 n=4+5)
+    Tar             255k ± 1%       251k ± 0%  -1.35%  (p=0.008 n=5+5)
+    XML             398k ± 0%       395k ± 0%  -0.89%  (p=0.008 n=5+5)
+    
+    Updates #15756
+    
+    Change-Id: Id23e647d347aa841f9a69d51f7d2d7d27b259239
+    Reviewed-on: https://go-review.googlesource.com/38797
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/contribute.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 79 +++++++++++++++++++++-----------------
+ 1 file changed, 44 insertions(+), 35 deletions(-)

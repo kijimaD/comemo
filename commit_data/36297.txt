@@ -1,31 +1,16 @@
-commit 3b7b9dce43613d22ac58cc61b19268b32a157df0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Jun 11 09:11:29 2018 +0100
+commit aefd99de0bfee24f0921210bb93e38ecea487037
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:59:04 2018 -0700
 
-    cmd/compile/internal/gc: various minor cleanups
+    cmd/compile: remove duplicate build ID from export data
     
-    Two funcs and a field were unused. Remove them.
+    This is already written out by printObjHeader in obj.go.
     
-    A few statements could be made simpler.
-    
-    importsym's pos parameter was unused, so remove it.
-    
-    Finally, don't use printf-like funcs with constant strings that have no
-    formatting directives.
-    
-    Change-Id: I415452249bf2168aa353ac4f3643dfc03017ee53
-    Reviewed-on: https://go-review.googlesource.com/117699
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I23e7a3826a6233307bd591021718c4cf143b381c
+    Reviewed-on: https://go-review.googlesource.com/107618
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bv.go         | 11 -----------
- src/cmd/compile/internal/gc/const.go      |  2 +-
- src/cmd/compile/internal/gc/dwinl.go      |  2 +-
- src/cmd/compile/internal/gc/export.go     |  6 +++---
- src/cmd/compile/internal/gc/iexport.go    |  2 +-
- src/cmd/compile/internal/gc/main.go       |  4 ++--
- src/cmd/compile/internal/gc/mpint.go      |  4 ++--
- src/cmd/compile/internal/gc/scope_test.go |  1 -
- src/cmd/compile/internal/gc/walk.go       |  8 --------
- 9 files changed, 10 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/export.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,13 +1,13 @@
-commit 96775a3688801bb44878133f40e63d9bea9352b3
+commit c5f14c55c19d872921b476187f153a7361a80fa7
 Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 9 09:45:39 2014 +1000
+Date:   Wed Apr 9 08:19:35 2014 +1000
 
-    doc/go1.3.html: gccgo status
+    doc/go1.3.html: linker, go command, miscellany
     
-    LGTM=iant
-    R=iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/85720043
+    https://golang.org/cl/85660043
 
- doc/go1.3.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ doc/go1.3.html | 40 +++++++++++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)

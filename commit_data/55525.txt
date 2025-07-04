@@ -1,27 +1,21 @@
-commit 6f44cc88f5f94253096ceed16b8e0fdb117cdd06
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Feb 3 11:48:50 2024 -0500
+commit 518889b35cb07f3e71963f2ccfc0f96ee26a51ce
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 15 16:11:37 2023 -0800
 
-    archive/zip: reduce memory held by Writer.Copy
+    cmd/compile: ensure InitMem comes after Args
     
-    Make a copy of the argument File's FileHeader, and pass a pointer
-    to the copy to CreateRaw.
+    The debug info generation currently depends on this invariant.
     
-    Passing the pointer directly causes the entire `File` to be referenced
-    by the receiver. The `File` includes a reference to the `ReaderAt`
-    underlying the `Reader`, so all its memory, which may be the entire
-    contents of the archive, is prevented from being garbage-collected.
+    A small update to CL 468455.
     
-    Also, explain the issue in the doc comment for CreateRaw. We
-    cannot change its behavior because someone may depend on the
-    preserving the identity of its argument pointer.
+    Update #58482
     
-    For #65499.
-    
-    Change-Id: Ieb4963a0ea30539d597547d3511accbd8c6b5c5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560238
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ica305d360d9af04036c604b6a65b683f7cb6e212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468695
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/zip/writer.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/schedule.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

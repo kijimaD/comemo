@@ -1,34 +1,22 @@
-commit e0fae78e1deeaae5bc3c6a8426ece37c62445bf4
-Author: Youfu Zhang <zhangyoufu@gmail.com>
-Date:   Tue Feb 23 03:52:43 2021 +0000
+commit d4986e0e1d6e03e1b92e905ca5e01b4c223fbeb3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 16 17:18:06 2019 -0500
 
-    runtime: fix stack alignment for Windows amd64 lib entry
+    cmd/go/internal/modload: reject empty go.mod files
     
-    Windows amd64 calling convention requires 16-bytes aligned
-    stack pointer. Before this patch, the real frame size is
-    0x48 (frame size) + 0x10 (frame pointer & return address),
-    which does not satisfy the alignment requirement.
+    Don't add a module declaration to a go.mod file when
+    loading a module. Require a user to call go mod init or to
+    add the module declaration themselves.
     
-    _cgo_sys_thread_create eventually calls NtCreateThread,
-    which receives a pointer to a ThreadContext structure
-    allocated from (mis-aligned) stack, and may fail with
-    STATUS_DATATYPE_MISALIGNMENT on some implementations.
+    Fixes #35070
     
-    BP is saved/restored by prolog/epilog.
-    AX, CX, DX are volatile, no need to save and restore.
-    
-    Fixes #41075
-    
-    Change-Id: I01c0a22b4bf3b4cfdebf4df587445aa46c667973
-    GitHub-Last-Rev: 15d2bd740e3e61c9753b3e1b574fdb5da538459c
-    GitHub-Pull-Request: golang/go#44524
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295329
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Christopher Nelson <nadiasvertex@gmail.com>
+    Change-Id: If5543580d3c1cfee1fc528eb853b872c4173ca82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234107
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/rt0_windows_amd64.s | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ src/cmd/go/internal/modload/init.go             | 10 +++-------
+ src/cmd/go/testdata/script/mod_find.txt         |  5 +++++
+ src/cmd/go/testdata/script/mod_invalid_path.txt | 12 ++++++++++++
+ 3 files changed, 20 insertions(+), 7 deletions(-)

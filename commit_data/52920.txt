@@ -1,20 +1,45 @@
-commit 91ebed3fd2e0857eec7775835cd6c2a0c0635a03
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 8 14:03:02 2023 -0400
+commit 0dffda13834545317569052a9de7dfbf27b62c5d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 18:44:44 2022 -0700
 
-    all: make safe for new vet analyzer
+    spec: clarify "slice of bytes" and "slice of runes" through examples
     
-    The unused analyzer handles dot imports now, so a few tests
-    have picked up vet errors. This CL errors like:
+    The spec section on conversions uses the terms "slice of bytes" and
+    "slice of runes". While not obviously clear, what is meant are slice
+    types whose element types are byte or rune types; specifically the
+    underlying types of the slices' element types must be byte or rune.
     
-    context/x_test.go:524:47: result of context.WithValue call not used
+    Some of this was evident from the examples, but not all of it. Made
+    this clearer by adding more examples illustrating various permitted
+    conversions.
     
-    Change-Id: I711a62fd7b50381f8ea45ac526bf0c946a171047
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493598
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Note that the 1.17 compiler did not accept the following conversions:
+    
+            string([]myByte{...})
+            string([]myRune{...})
+            myString([]myByte{...})
+            myString([]myRune{...})
+    
+    (where myByte, myRune, and myString have underlying types of byte,
+    rune, and string respectively) - it reported an internal error.
+    But it did accept the inverse conversions:
+    
+            []myByte("...")
+            []myRune("...")
+            []myByte(myString("..."))
+            []myRune(myString("..."))
+    
+    The 1.18 compiler made those conversions symmetric and they are now
+    permitted in both directions.
+    
+    The extra examples reflect this reality.
+    
+    Fixes #23814.
+    
+    Change-Id: I5a1c200b45ddd0e8c0dc0d11da3a6c39cb2dc848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412094
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/context/x_test.go | 10 ++++-----
- src/fmt/fmt_test.go   | 56 +++++++++++++++++++++++++--------------------------
- 2 files changed, 33 insertions(+), 33 deletions(-)
+ doc/go_spec.html | 43 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 14 deletions(-)

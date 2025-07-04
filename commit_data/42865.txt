@@ -1,18 +1,17 @@
-commit 5d0b35ca98f57b378e8b45839721d60c06603af2
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Fri Jun 12 16:27:08 2020 +0000
+commit 87c0db9916f992d5e869450deccc1185f642bfc9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 30 10:59:11 2020 +0100
 
-    cmd/asm: Always use go-style arrangement specifiers on ARM64
+    misc/cgo: correct GOOS in skip message
     
-    Fixing several error message and comment texts of the ARM64 assembler
-    to use arrangement specifiers of Go's assembly style.
+    Tests are skipped on linux/ppc64, not aix/ppc64.
     
-    Change-Id: Icdbb14fba7aaede40d57d0d754795b050366a1ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237859
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6b91b89f24d76b0f9be3eaf816f81ad4246e418f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220423
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 4 ++--
- src/cmd/internal/obj/arm64/asm7.go           | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/testso/so_test.go    | 2 +-
+ misc/cgo/testsovar/so_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

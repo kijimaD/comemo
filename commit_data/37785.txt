@@ -1,15 +1,23 @@
-commit 652d59861ee34b7cbef49cdd9da71fa822124e6e
-Author: Max Ushakov <ushmax@gmail.com>
-Date:   Fri Dec 21 17:53:33 2018 +0300
+commit 76c45877c9e72ccc84db787dc08299e0182e0efb
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Jul 23 01:47:11 2018 +0900
 
-    time: return ENOENT if a zoneinfo zip file is not found
+    syscall: implement Unix Socket for Windows
     
-    Updates #20969
+    Add implementation of AF_UNIX. This works only on Windows 10.
     
-    Change-Id: Ibcf0bf932d5b1de67c22c63dd8514ed7a5d198fb
-    Reviewed-on: https://go-review.googlesource.com/c/155538
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    https://blogs.msdn.microsoft.com/commandline/2017/12/19/af_unix-comes-to-windows/
+    
+    Fixes #26072
+    
+    Change-Id: I76a96a472385a17901885271622fbe55d66bb720
+    Reviewed-on: https://go-review.googlesource.com/125456
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/time/zoneinfo_read.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt                   |  2 +
+ src/net/unixsock_windows_test.go | 93 ++++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go   | 58 +++++++++++++++++++++++--
+ src/syscall/types_windows.go     |  2 +
+ 4 files changed, 151 insertions(+), 4 deletions(-)

@@ -1,16 +1,26 @@
-commit 31ad583ab24263f9dbcb5cbcce849eed64e74040
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jun 25 15:11:25 2016 -0700
+commit d8e8fc292ace5ae59a0da44dfca1dd5b1a71ecf1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 13 11:13:39 2016 -0400
 
-    testing: respect benchtime on very fast benchmarks
+    runtime/internal/atomic: remove write barrier from Storep1 on s390x
     
-    When ns/op dropped below 1, the old code
-    ignored benchtime and reverted to 1s.
+    atomic.Storep1 is not supposed to invoke a write barrier (that's what
+    atomicstorep is for), but currently does on s390x. This causes a panic
+    in runtime.mapzero when it tries to use atomic.Storep1 to store what's
+    actually a scalar.
     
-    Change-Id: I59752cef88d8d73bfd5b085f5400ae657f78504e
-    Reviewed-on: https://go-review.googlesource.com/26664
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Fix this by eliminating the write barrier from atomic.Storep1 on
+    s390x. Also add some documentation to atomicstorep to explain the
+    difference between these.
+    
+    Fixes #15270.
+    
+    Change-Id: I291846732d82f090a218df3ef6351180aff54e81
+    Reviewed-on: https://go-review.googlesource.com/21993
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/testing/benchmark.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/runtime/atomic_pointer.go               | 5 ++---
+ src/runtime/internal/atomic/atomic_s390x.go | 2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)

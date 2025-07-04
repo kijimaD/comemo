@@ -1,14 +1,13 @@
-commit 9ad091e17871549c7620bd27c2ed4b730ed0bbd6
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 17 10:47:42 2011 -0700
+commit 2ca46a789b287c2c265dab8b4a05911b5304921d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 17 13:46:05 2011 -0400
 
-    gob: eliminate two more allocations in decode.
-    - just an oversight; we were reallocating a buffer.
-    - use unsafe to avoid allocating storage for a string twice.
+    time: isolate syscall reference in sys.go
     
-    R=rsc
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4290056
+    https://golang.org/cl/4291052
 
- src/pkg/gob/decode.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/pkg/time/sleep.go |  5 ++---
+ src/pkg/time/sys.go   | 14 +++++++++++---
+ 2 files changed, 13 insertions(+), 6 deletions(-)

@@ -1,20 +1,27 @@
-commit 1110c4095e3ce91eabd830161b6b0836eba4263c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 21 02:20:55 2024 +0000
+commit b5515eef565a7d0fd820009fc8c7b282155340a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 17 15:47:12 2023 -0700
 
-    internal/trace: fix up debug commands
+    go/types, types2: implement min/max builtins
     
-    They were still referencing the old internal/trace/v2 packages, and
-    gotraceeventstats had an extra layer of cmd directory (not sure why,
-    maybe it was always like that).
+    For #59488.
     
-    Change-Id: Ieba48074ff36ea86c467168568751177d80db31d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586998
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I4553ab11af9179a4786dede44877f88286c168dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496038
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/internal/trace/testdata/cmd/{cmd => }/gotraceeventstats/main.go | 4 ++--
- src/internal/trace/testdata/cmd/gotraceraw/main.go                  | 4 ++--
- src/internal/trace/testdata/cmd/gotracevalidate/main.go             | 4 ++--
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go      |  57 ++++++++++++
+ src/cmd/compile/internal/types2/builtins_test.go |  12 +++
+ src/cmd/compile/internal/types2/universe.go      |   5 ++
+ src/go/types/builtins.go                         |  57 ++++++++++++
+ src/go/types/builtins_test.go                    |  12 +++
+ src/go/types/universe.go                         |   5 ++
+ src/internal/types/errors/code_string.go         |   7 +-
+ src/internal/types/errors/codes.go               |  12 +++
+ src/internal/types/testdata/check/builtins0.go   | 108 +++++++++++++++++++++++
+ src/internal/types/testdata/check/builtins1.go   |  42 +++++++++
+ 10 files changed, 314 insertions(+), 3 deletions(-)

@@ -1,73 +1,17 @@
-commit 78d67164bb6bd95031d109d959900c196cfa3029
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Oct 9 17:49:17 2019 -0400
+commit 17a7f21790440255db6eebf5793e54f913379576
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Apr 28 03:08:37 2019 +1000
 
-    cmd/go: integrate changes made in x/mod packages into internal packages
+    runtime: correct exitThread on openbsd/arm64
     
-    This change integrates changes made to x/mod packages into our internal
-    copies of those packages.
+    The notdead argument to sys___threxit() is a pointer, hence requires a 64-bit
+    move rather than a 32-bit one.
     
-    This is the first step of a bidirectional synchronization. A follow-up
-    change will copy changes made to the internal packages after x/mod was
-    forked. After that, we can vendor x/mod, update imports, and delete
-    the internal copies.
+    Updates #31656
     
-    The following packages are affected:
-    
-    * internal/module
-    * internal/semver (no change)
-    * internal/sumweb (renamed to internal/sumdb)
-    * internal/dirhash
-    * internal/note
-    * internal/tlog
-    
-    Several integrated changes affect other packages:
-    
-    * cmd/go/internal/module.MatchPathMajor now wraps a new function,
-      CheckPathMajor, which returns error. MatchPathMajor returns
-      bool. This will avoid an incompatible change in the next step.
-    * module.EncodePath renamed to EscapePath, EncodeVersion to
-      EscapeVersion, DecodePath to UnescapePath, DecodeVersion to
-      UnescapeVersion.
-    * cmd/go/internal/sumweb moved to cmd/go/internal/sumdb and package
-      renamed to sumdb.
-    * sumdb.Client renamed to ClientOps, Conn to Client, Server to
-      ServerOps, Paths to ServerPaths.
-    * sumdb/encode.go and encode_test.go are not present in x/mod since
-      they are redundant with functionality in module. Both files are
-      deleted.
-    * sumdb.TestServer doesn't implement sumdb.ServerOps after changes
-      were were made to golang.org/x/mod/sumdb.ServerOps during the fork.
-      Local changes made so tests will pass. These will be copied to x/mod
-      in the next step.
-    
-    Updates #34801
-    
-    Change-Id: I7e820f10ae0cdbec238e59d039e978fd1cdc7201
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200138
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I52ad31ed5afaf43ccc3d934025288216e8052528
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174124
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/dirhash/hash.go                |  33 ++-
- src/cmd/go/internal/modfetch/cache.go              |   8 +-
- src/cmd/go/internal/modfetch/coderepo.go           |  10 +-
- src/cmd/go/internal/modfetch/proxy.go              |   8 +-
- src/cmd/go/internal/modfetch/sumdb.go              |  10 +-
- src/cmd/go/internal/modfile/rule.go                |   4 +-
- src/cmd/go/internal/modload/init.go                |   2 +-
- src/cmd/go/internal/module/module.go               | 261 +++++++++++++--------
- src/cmd/go/internal/module/module_test.go          |  52 ++--
- src/cmd/go/internal/note/note.go                   |   3 -
- src/cmd/go/internal/{sumweb => sumdb}/cache.go     |   2 +-
- src/cmd/go/internal/{sumweb => sumdb}/client.go    | 178 +++++++++-----
- .../go/internal/{sumweb => sumdb}/client_test.go   |  58 ++---
- src/cmd/go/internal/{sumweb => sumdb}/server.go    |  70 +++---
- src/cmd/go/internal/{sumweb => sumdb}/test.go      |  21 +-
- src/cmd/go/internal/sumweb/encode.go               | 167 -------------
- src/cmd/go/internal/sumweb/encode_test.go          |  67 ------
- src/cmd/go/internal/tlog/note.go                   |   2 +-
- src/cmd/go/internal/tlog/tile.go                   |  25 +-
- src/cmd/go/internal/tlog/tlog.go                   |   3 -
- src/cmd/go/proxy_test.go                           |  35 +--
- 21 files changed, 473 insertions(+), 546 deletions(-)
+ src/runtime/sys_openbsd_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

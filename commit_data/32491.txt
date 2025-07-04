@@ -1,28 +1,23 @@
-commit 5d39af9d9bac91b84b9944b1edffc6fb332747fa
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Aug 15 21:15:26 2017 +0100
+commit 2b6c58f6d559ef2621f677e016aba08a6b8aad19
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Fri Apr 21 15:59:07 2017 +0800
 
-    all: remove some unused result params
+    cmd/internal/obj/arm64: fix encoding of condition
     
-    Most of these are return values that were part of a receiving parameter,
-    so they're still accessible.
+    The current code treats condition as special register and write
+    its raw data directly into instruction.
     
-    A few others are not, but those have never had a use.
+    The fix converts the raw data into correct condition encoding.
+    Also fix the operand catogery of FCCMP.
     
-    Found with github.com/mvdan/unparam, after Kevin Burke's suggestion that
-    the tool should also warn about unused result parameters.
+    Add tests to cover all cases.
     
-    Change-Id: Id8b5ed89912a99db22027703a88bd94d0b292b8b
-    Reviewed-on: https://go-review.googlesource.com/55910
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ib194041bd9017dd0edbc241564fe983082ac616b
+    Reviewed-on: https://go-review.googlesource.com/41511
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/parse.go        | 22 +++++++++++-----------
- src/cmd/compile/internal/gc/dcl.go       |  4 +---
- src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
- src/cmd/compile/internal/ssa/trim.go     |  6 ++----
- src/cmd/go/internal/load/pkg.go          | 13 ++++++-------
- src/encoding/json/encode.go              |  8 ++------
- src/testing/benchmark.go                 |  3 +--
- 7 files changed, 27 insertions(+), 37 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 18 ++++++++++--------
+ src/cmd/internal/obj/arm64/asm7.go        | 25 +++++++++++++++++++++----
+ 2 files changed, 31 insertions(+), 12 deletions(-)

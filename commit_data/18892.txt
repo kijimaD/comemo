@@ -1,15 +1,16 @@
-commit f081e2b9f41c8f4c1eec78180cbcaeab17f10f65
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue Mar 18 21:47:21 2014 +0100
+commit d7039b71a92bb45909c93970bb5593414cb2cdbe
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 18 21:12:00 2014 +0900
 
-    cmd/go: let build -x output describe CGO_LDFLAGS env variable
+    net/http: make use of testing.Errorf instead of testing.Fatalf in non-test function goroutines
     
-    Fixes #7249
+    See testing.FailNow for further information.
+    Also avoid nil pointer derefernce in TestTransportMaxPerHostIdleConns.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/75820046
+    https://golang.org/cl/76470043
 
- src/cmd/go/build.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/net/http/transport_test.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

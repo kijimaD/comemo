@@ -1,13 +1,14 @@
-commit 995eb2cf5166908d2eddde6829c79aa5908ef11b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 3 10:40:04 2013 -0700
+commit e42584effe7b648a8da345c67bbaef3f4053e228
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Apr 3 08:30:20 2013 -0700
 
-    bufio: make it a little clearer how the default Scanner splits lines.
-    Just commentary, no semantic change.
+    bytes: don't leave mprotect-ed pages after unsafe test.
     
-    R=golang-dev, bradfitz
+    Fixes inscrutable GC faults during testing.
+    
+    R=golang-dev, bradfitz, dave, fullung
     CC=golang-dev
-    https://golang.org/cl/8329043
+    https://golang.org/cl/8300044
 
- src/pkg/bufio/scan.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/bytes/equal_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

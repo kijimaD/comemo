@@ -1,29 +1,32 @@
-commit d63865b5d19ec3ca57aa30b45b2e0b57b3d54087
-Author: pooja shyamsundar <poojashyam@ibm.com>
-Date:   Sun May 15 21:07:27 2022 -0700
+commit e0d09072123c40cfef3015be146b55e0d26a67dd
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 3 16:47:15 2021 -0400
 
-    crypto/internal/nistec: re-enable s390x asm for P-256
+    [dev.typeparams] go/types: use comparable bit rather than ==() method
     
-    - formatting and optimized init functionality for precomputed table
-    - updated formatting for comments
-    - further optimized init functionality
-    Fixes #52709
+    This is a port of CL 337354 to go/types, adjusted for the error
+    reporting API and to reposition a couple error messages in
+    issue47411.go2 (the go/types position is probably better).
     
-    Change-Id: Ie96a8ee52f09821d5ac53115185cbc1ad8f954d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404058
-    Auto-Submit: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Pooja Shyamsundar <poojashyam@ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    A panic is also fixed in lookup.go when method lookup fails and static
+    == false. I'll send a fix for types2 in a separate CL.
+    
+    For #47411
+    
+    Change-Id: Icc48f03c3958695f581f10e8675c1f32434c424b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339652
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/internal/nistec/p256.go                |    2 +-
- src/crypto/internal/nistec/p256_asm.go            |   12 +-
- src/crypto/internal/nistec/p256_asm_s390x.s       | 1014 ++++++++-------------
- src/crypto/internal/nistec/p256_asm_table_test.go |    2 +-
- src/crypto/internal/nistec/p256_s390x.go          |  570 ------------
- 5 files changed, 371 insertions(+), 1229 deletions(-)
+ src/go/types/instantiate.go                    | 16 ++++++++++++----
+ src/go/types/interface.go                      |  2 +-
+ src/go/types/lookup.go                         |  7 +------
+ src/go/types/predicates.go                     | 17 +----------------
+ src/go/types/sizeof_test.go                    |  2 +-
+ src/go/types/testdata/check/issues.go2         |  6 +++---
+ src/go/types/testdata/fixedbugs/issue47411.go2 | 26 ++++++++++++++++++++++++++
+ src/go/types/typeset.go                        | 26 ++++++++++++++++++++++----
+ src/go/types/universe.go                       | 12 ++++--------
+ 9 files changed, 71 insertions(+), 43 deletions(-)

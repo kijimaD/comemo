@@ -1,18 +1,14 @@
-commit dc2a0d59a2b9b5dd87065e6227ca112839cd389b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 24 21:47:58 2016 -0700
+commit f08f1cd2e97835dbaa7c509b837265774ae39dac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 16:32:37 2016 -0500
 
-    cmd/compile: introduce printer for internal formatting; use in jconv
+    net: clarify DialContext's use of its provided context
     
-    Starting point for uniform use of printer in fmt.go.
-    It provides a hook to store additional state (and
-    remove global variables) and should also be more
-    efficient and cleaner than the mix of string concatenation
-    and bytes.Buffer use we have now.
+    Fixes #15325
     
-    Change-Id: I72de14b01850cca32d407a1cb16c894179ea8848
-    Reviewed-on: https://go-review.googlesource.com/27916
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I60137ecf27e236e97734b1730ce29ab23e9fe07f
+    Reviewed-on: https://go-review.googlesource.com/22509
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 87 +++++++++++++++++++++++++-------------
- 1 file changed, 58 insertions(+), 29 deletions(-)
+ src/net/dial.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

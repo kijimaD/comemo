@@ -1,15 +1,14 @@
-commit e59db90bfbdeb48ccd70e8c1d228f007f07906ca
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 3 13:23:02 2013 -0700
+commit a51b8cf870f5911a9785973a3362e4411d83b17d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Oct 3 10:55:17 2013 -0700
 
-    reflect: add a test that gccgo mishandled
+    gofmt: explain why lower bounds aren't automatically simplified
     
-    Failure occurred when using reflect.Call to pass a func value
-    following a non-pointer value.
+    Full credit goes to gri and rsc for their explanations.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14186043
+    https://golang.org/cl/14229043
 
- src/pkg/reflect/all_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/gofmt/simplify.go | 4 ++++
+ 1 file changed, 4 insertions(+)

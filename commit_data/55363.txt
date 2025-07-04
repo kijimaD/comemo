@@ -1,20 +1,26 @@
-commit ee4b61a32e9cbc8ef5ce484dbf1e5133459b8771
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 10 22:59:37 2024 -0800
+commit 55a33d8877d1bdb8f1b7fb62efe3e38e969f40b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 15:30:23 2023 -0800
 
-    runtime: don't mark unrolled bitmap type as having a gc program
+    cmd/dist, internal/platform: test agreement on supported build modes
     
-    It doesn't have a GC program - the whole point is that it is
-    the unrolled version of a GC program.
+    This synchronizes the supported build modes between cmd/dist and
+    internal/platform, and adds a test to keep them in synch.
     
-    Fortunately, this isn't a bug as (*mspan).typePointersOfUnchecked
-    ignores the GCProg flag and just uses GCData as a bitmap unconditionally.
+    In order to do that, this has several changes to cmd/dist, and one
+    change to internal/platform.
     
-    Change-Id: I2508af85af4a1806946e54c893120c5cc0cc3da3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555355
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    If the build dashboard is green after this is submitted, we can
+    probably make the functions identical.
+    
+    Change-Id: Ia78ce76b193399058fde79e38dd9f23818e566a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463992
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap_allocheaders.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/dist/supported_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go           | 31 ++++++++++++---------------
+ 2 files changed, 62 insertions(+), 17 deletions(-)

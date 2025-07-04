@@ -1,15 +1,12 @@
-commit c64469f8e8d035207e629d925b3124dce068e907
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 18 14:08:42 2013 -0500
+commit 2ee06a51bed4db90ffa872ed9adef120112561e2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 18 19:25:45 2013 +1100
 
-    doc/contribute.html: mention hg mail during hg change discussion
-    
-    People keep not reading all the way to the bottom of the doc
-    and not running hg mail.
+    lib/godoc: link to Projects wiki page instead of dashboard
     
     R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7137057
+    https://golang.org/cl/7139057
 
- doc/contribute.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

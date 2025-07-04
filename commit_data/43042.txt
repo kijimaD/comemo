@@ -1,27 +1,13 @@
-commit 7e54aa2c25690f5a7f5baad112d231b6ff8d4e5e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Sep 18 11:56:43 2020 -0400
+commit d28b8524a4d5d86d7b1e2df790abff6244de2a00
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:24:35 2020 +1100
 
-    cmd/link: don't mark a symbol's GoType reachable when -linkshared
+    cmd/compile: optimize subtraction of zero on riscv64
     
-    In CL 231397, we stopped marking symbols' GoType reachable in
-    general, but not when -linkshared. It was left as a TODO. This CL
-    addresses it.
-    
-    The problem was that the type names are mangled in the shared
-    library, so we need to mangle the name consistently in the
-    executable as well (regardless of whether the symbol is reachable
-    or not), so that the GCProg generation code can find the
-    corresponding symbol from the shared library.
-    
-    Change-Id: I1040747402929a983ec581109f1681a77893682e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255964
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9a994b01e9fecb13077c30df4b7677d40d179cce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221681
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/deadcode.go | 6 +-----
- src/cmd/link/internal/ld/lib.go      | 7 ++++++-
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 ++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 59 ++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

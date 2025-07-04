@@ -1,27 +1,22 @@
-commit f495f549acb3505792902151d6306f177fb65207
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jan 22 10:08:10 2019 -0800
+commit a9c69e0a657cbbdd4df3a77bd202b7f03a104094
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Thu Sep 13 01:46:39 2018 +0700
 
-    cmd/compile: don't bother compiling functions named "_"
+    runtime: fix runtime gdb test with gdb v8.2
     
-    They can't be used, so we don't need code generated for them. We just
-    need to report errors in their bodies.
+    Previously, some of output from gdb matched with literal string, while
+    gdb v8.2 print the address of variable (e.g. map key and value) in
+    output.
     
-    The compiler currently has a bunch of special cases sprinkled about
-    for "_" functions, because we never generate a linker symbol for them.
-    Instead, abort compilation earlier so we never reach any of that
-    special-case code.
+    This commit fix the regex in testing the output.
     
-    Fixes #29870
+    Fixes #27608
     
-    Change-Id: I3530c9c353deabcf75ce9072c0b740e992349ee5
-    Reviewed-on: https://go-review.googlesource.com/c/158845
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ic3fe8280b9f93fda2799116804822616caa66beb
+    Reviewed-on: https://go-review.googlesource.com/135055
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/gsubr.go |  5 -----
- src/cmd/compile/internal/gc/pgen.go  | 20 ++++++++---------
- src/cmd/compile/internal/gc/plive.go | 42 ++++++++++++++++++------------------
- src/cmd/compile/internal/gc/ssa.go   |  5 +----
- 4 files changed, 31 insertions(+), 41 deletions(-)
+ src/runtime/runtime-gdb_test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

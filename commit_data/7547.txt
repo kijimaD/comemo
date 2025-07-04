@@ -1,33 +1,12 @@
-commit 63c24081a09a363735797097bf238a7c78d15fd7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 23 13:21:39 2011 -0500
+commit 9fc0f159c31e7b63708ed80982a88753db8a4a02
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 23 10:12:38 2011 -0800
 
-    5g: fix optimizer bug
-    
-    same as in issue below, never fixed on ARM
-    
-    changeset:   5498:3fa1372ca694
-    user:        Ken Thompson <ken@golang.org>
-    date:        Thu May 20 17:31:28 2010 -0700
-    
-    description:
-    fix issue 798
-    cannot allocate an audomatic temp
-    while real registers are allocated.
-    there is a chance that the automatic
-    will be allocated to one of the
-    allocated registers. the fix is to
-    not registerize such variables.
+    sync: make package comment appear
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/1202042
-    
-    R=ken2
-    CC=golang-dev
-    https://golang.org/cl/4226042
+    https://golang.org/cl/4220044
 
- src/cmd/5g/gg.h    | 1 +
- src/cmd/5g/gsubr.c | 1 +
- src/cmd/5g/reg.c   | 4 ++--
- 3 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/sync/cond.go | 1 +
+ 1 file changed, 1 insertion(+)

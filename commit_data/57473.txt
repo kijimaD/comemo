@@ -1,18 +1,24 @@
-commit 2927aa10ab1a184f02f7b7eb3c4a490906238e7a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Sep 16 23:58:40 2024 +0700
+commit c14655da986e6c43268ad3edec1cf984a763694f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 5 15:11:41 2023 -0400
 
-    unique: handle zero-size types
+    cmd/compile: add -env key=value flag
     
-    Fixes #69458
+    This flag is not terribly useful with the go command, which will pass
+    all environment variables through to subprocesses it invokes,
+    but it can be useful in other build systems, notably blaze and bazel,
+    to pass compiler-debugging variables like GOSSAFUNC through to
+    the compiler.
     
-    Change-Id: Ic7fda7f556522780b2819138dfc1277137398692
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613397
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    We have been maintaining this as a patch against Google's internal
+    toolchain for many years, and it has proven useful in those non-go-command
+    contexts.
+    
+    Change-Id: Ic123193319f3c838a694eda2575347c516b85ac7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507977
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/unique/handle.go      |  7 ++++++-
- src/unique/handle_test.go | 10 ++++++++--
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

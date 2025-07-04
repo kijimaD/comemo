@@ -1,37 +1,36 @@
-commit 36147dd1e8d8e21affbf5d8a758608e63304e4a7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 15 11:50:27 2022 -0400
+commit 86ee89225aea2326fd50dbeb233cfc622413a4cf
+Author: Ignacio Hagopian <jsign.uy@gmail.com>
+Date:   Tue Aug 17 23:52:00 2021 +0000
 
-    cmd/go/internal/modindex: disable indexing for modules outside GOROOT and the module cache
+    strings: smarter growth of temporal buffer and avoid copying on return
     
-    Since CL 410821 we were indexing these modules with a cache key based
-    on the mtimes of the files within the module. However, that seems to
-    be causing test failures (#53269 and maybe #53371).
+    The implementation for single strings had two optimization opportunities:
+    1. Grow the temporary buffer by known size before appending.
+    2. Avoid a full copy of the result since the underlying buffer won't be mutated afterward.
+    Both things were leveraged by using a Builder instead of a byte slice.
     
-    In addition, indexing these modules caused a potentially-expensive
-    operation (re-indexing a whole module) whenever any individual file
-    within the module is changed, even if it isn't relevant to the
-    package(s) being loaded from that module. In some cases, that could
-    cause a significant performance regression for 'go' commands invoked
-    on a small subset of the packages in the module (such as running 'go
-    test' on a single changed package — a common case during development).
+    Relevant benchmark results:
     
-    Instead, we now index only those modules found within the module cache
-    and within GOROOT.
+            name           old time/op    new time/op    delta
+            SingleMatch-8    32.0µs ± 3%    26.1µs ± 3%  -18.41%  (p=0.000 n=9+10)
     
-    In addition, we now check mtimes when indexing GOROOT modules if the
-    Go version begins with the string "devel ", which indicates a
-    non-released Go version that may include local file edits within GOROOT.
+            name           old speed      new speed      delta
+            SingleMatch-8   469MB/s ± 3%   574MB/s ± 3%  +22.56%  (p=0.000 n=9+10)
     
-    For #53371.
-    For #53269.
+            name           old alloc/op   new alloc/op   delta
+            SingleMatch-8    81.3kB ± 0%    49.0kB ± 0%  -39.67%  (p=0.000 n=10+10)
     
-    Change-Id: Id3aa81b55ecfc478e47dd420148d39d2cf476f2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412394
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+            name           old allocs/op  new allocs/op  delta
+            SingleMatch-8      19.0 ± 0%      11.0 ± 0%  -42.11%  (p=0.000 n=10+10)
+    
+    Change-Id: I23af56a15875206c0ff4ce29a51bec95fd48bb11
+    GitHub-Last-Rev: 403cfc3c2794b5da27792c51999417a2a052b365
+    GitHub-Pull-Request: golang/go#47766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343089
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modindex/read.go | 68 +++++++++++++++++++++++-------------
- 1 file changed, 43 insertions(+), 25 deletions(-)
+ src/strings/replace.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

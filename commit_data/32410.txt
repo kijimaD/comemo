@@ -1,15 +1,22 @@
-commit 5e5a1ed88d2df462aaab68690ef64d35a416966a
-Author: Guilherme Rezende <guilhermebr@gmail.com>
-Date:   Mon Jul 24 13:19:58 2017 -0300
+commit 79e5ef293545dd4f96b10e0bf82582e5dd57757a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 23 05:03:11 2017 -0700
 
-    io: add example for Pipe
+    cmd/compile: lazily create true and false Values in shortcircuit
     
-    Change-Id: I24374accf48d43edf4bf27ea6ba2245ddca558ad
-    Reviewed-on: https://go-review.googlesource.com/50910
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    It is mildly wasteful to always create values
+    that must sometimes then be dead code eliminated.
+    Given that it is very easy to avoid, do so.
+    
+    Noticed when examining a package with thousands
+    of generated wrappers, each of which uses
+    only a handful of Values to compile.
+    
+    Change-Id: If02eb4aa786dfa20f7aa43e8d729dad8b3db2786
+    Reviewed-on: https://go-review.googlesource.com/41502
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/io/example_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/compile/internal/ssa/shortcircuit.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

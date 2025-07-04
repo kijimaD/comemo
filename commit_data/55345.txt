@@ -1,19 +1,25 @@
-commit ead47b0ab39c5819aee207cda536531a8e44ddc7
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu Jan 4 15:28:14 2024 +0800
+commit 4c5d97990e4a39bd3e903f8e318b7234db3ba91f
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:50:54 2023 -0800
 
-    net/http: respond with 400 Bad Request for empty hex number of chunk length
+    net/http: disable fetch on NodeJS
     
-    Fixes #64517
+    NodeJS 18 introduced support for the fetch API for
+    making HTTP requests. This broke all wasm tests
+    that were relying on NodeJS falling back to the fake
+    network implementation in net_fake.go. Disable
+    the fetch API on NodeJS to get tests passing.
     
-    Change-Id: I78b8a6a83301deee05c3ff052a6adcd1f965aef2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553835
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Commit-Queue: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #57613
+    
+    Change-Id: Icb2cce6d5289d812da798e07366f8ac26b5f82cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463976
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/http/internal/chunked.go      | 3 +++
- src/net/http/internal/chunked_test.go | 1 +
- 2 files changed, 4 insertions(+)
+ src/net/http/roundtrip_js.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

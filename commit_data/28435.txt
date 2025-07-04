@@ -1,14 +1,24 @@
-commit 192548a5470d013f8782c7f1c8553338f7234fc7
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 16 18:25:52 2016 -0400
+commit f2f3b6cd8fbe9f823fd6946f055bb70c3ef6f9db
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed May 25 13:24:36 2016 +0200
 
-    cmd/dist: unify internal linking checks
+    cmd/link: fix ARM gold linker check
     
-    I missed one in CL 29360.
+    CL 23400 introduced a check to make sure the gold linker is used
+    on ARM host links. The check itself works, but the error checking
+    logic was reversed; fix it.
     
-    Change-Id: I29fc6dcd920829a918c70734d646119133a0a9df
-    Reviewed-on: https://go-review.googlesource.com/29361
-    Reviewed-by: Keith Randall <khr@golang.org>
+    I manually verified that the check now correctly rejects host links
+    on my RPi2 running an ancient rasbian without the gold linker
+    installed.
+    
+    Updates #15696
+    
+    Change-Id: I927832620f0a60e91a71fdedf8cbd2550247b666
+    Reviewed-on: https://go-review.googlesource.com/23421
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 41 +++++++++++++++++++++++++++--------------
- 1 file changed, 27 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

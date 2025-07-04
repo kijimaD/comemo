@@ -1,27 +1,25 @@
-commit df5997b99b9a89e1198596366230fa6c4dd50b70
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Dec 18 10:53:55 2017 -0800
+commit b2e7eae7c443adafe11c91bc6419af812400b2e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 13:27:22 2017 -0700
 
-    regexp: don't allocate when All methods find no matches
+    cmd/compile: remove Local flags on Type and Node
     
-    name                old time/op    new time/op    delta
-    FindAllNoMatches-8     216ns ± 3%     122ns ± 2%   -43.52%  (p=0.000 n=10+10)
+    These are redundant with checking x.Sym.Pkg == localpkg.
     
-    name                old alloc/op   new alloc/op   delta
-    FindAllNoMatches-8      240B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
+    Passes toolstash-check -all.
     
-    name                old allocs/op  new allocs/op  delta
-    FindAllNoMatches-8      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
-    
-    This work was supported by Sourcegraph.
-    
-    Change-Id: I30aac201370ccfb40a6ff637402020ac20f61f70
-    Reviewed-on: https://go-review.googlesource.com/87418
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Iebe25f7932cd15a036141b468ad75c239abcdcf7
+    Reviewed-on: https://go-review.googlesource.com/66670
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/regexp/all_test.go | 13 ++++++++++
- src/regexp/regexp.go   | 64 +++++++++++++++++++++++++-------------------------
- 2 files changed, 45 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   | 2 --
+ src/cmd/compile/internal/gc/dcl.go       | 2 +-
+ src/cmd/compile/internal/gc/noder.go     | 1 -
+ src/cmd/compile/internal/gc/reflect.go   | 4 +---
+ src/cmd/compile/internal/gc/select.go    | 2 --
+ src/cmd/compile/internal/gc/syntax.go    | 3 ---
+ src/cmd/compile/internal/gc/typecheck.go | 1 -
+ src/cmd/compile/internal/types/type.go   | 5 +----
+ 8 files changed, 3 insertions(+), 17 deletions(-)

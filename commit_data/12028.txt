@@ -1,12 +1,13 @@
-commit f18b0b0c16c663aad4f66b29c681e5dee8bdeb2a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Feb 18 16:13:02 2012 +1100
+commit 701fb580bd1d199027126b00f1a2aee2f65afd97
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 18 16:02:51 2012 +1100
 
-    doc: various updates to doc/code.html
+    html/template: replace obsolete reference to template.Set
+    Fixes #3053.
     
-    R=golang-dev, adg, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5649068
+    https://golang.org/cl/5656094
 
- doc/code.html | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/html/template/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

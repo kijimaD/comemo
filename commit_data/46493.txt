@@ -1,30 +1,17 @@
-commit a83a5587331392fc9483d183e446586b463ad8aa
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Sep 19 09:23:21 2021 -0700
+commit 4a9d9adea4d071927de01e5aa07b215cf1464be9
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Tue Jan 5 15:04:34 2021 +0800
 
-    cmd/compile: fix export/import of range loop.
+    [dev.regabi] cmd/compile: remove initname function
     
-    As with other recent issues, the Init field of a range loop was not
-    being handled properly. Generally, it is much better to explicitly
-    import/export the Init statements, else they are incorrectly added
-    before the associated node, rather than as the Init value of the node.
-    This was causing labels to not be correctly added to the range loop that
-    it is immediately preceding.
+    Passes toolstash -cmp.
     
-    Made the ORANGE handling completely similar to the OFOR handling.
-    
-    Fixes #48462
-    
-    Change-Id: I999530e84f9357f81deaa3dda50660061f710e7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350911
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I84b99d6e636c7b867780389ad11dafc70d3628cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281313
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/iexport.go |  3 ++-
- src/cmd/compile/internal/typecheck/iimport.go | 16 +++++++++-------
- test/typeparam/issue48462.dir/a.go            | 22 ++++++++++++++++++++++
- test/typeparam/issue48462.dir/main.go         | 23 +++++++++++++++++++++++
- test/typeparam/issue48462.go                  |  7 +++++++
- 5 files changed, 63 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/typecheck/dcl.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

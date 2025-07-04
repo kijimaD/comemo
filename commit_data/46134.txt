@@ -1,61 +1,97 @@
-commit 22540abf76a693bc9e4c550203d8ccbaa60c12e2
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Mon Aug 23 13:53:22 2021 +0200
+commit 4090af83c57c857de600ada68e7a27dffd37d8b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 15:17:05 2020 -0500
 
-    runtime: use RDTSCP for instruction stream serialized read of TSC
+    [dev.regabi] cmd/compile: use reflection in ir.Dump
     
-    To measure all instructions having been completed before reading
-    the time stamp counter with RDTSC an instruction sequence that
-    has instruction stream serializing properties which guarantee
-    waiting until all previous instructions have been executed is
-    needed. This does not necessary mean to wait for all stores to
-    be globally visible.
+    ir.Dump is the final (I think!) piece of the compiler that was walking
+    nodes using Left, Right etc without knowing what they meant.
+    This CL uses reflection to walk nodes without knowing what they mean instead.
+    One benefit is that we can print actual meanings (field names).
     
-    This CL aims to remove vendor specific logic for determining the
-    instruction sequence with CPU feature flag checks that are
-    CPU vendor independent.
+    While we are here, I could not resist fixing a long-standing mental TODO:
+    make the line number more clearly a line number. I've forgotten where the
+    line number is in the dumps far too many times in the last decade.
     
-    For intel LFENCE has the wanted properties at least
-    since it was introduced together with SSE2 support.
+    As a small example, here is a fragment of go tool compile -W test/235.go:
     
-    On AMD instruction stream serializing LFENCE is supported by setting
-    an MSR C001_1029[1]=1 on AMD family 10h/12h/14h/15h/16h/17h processors.
-    AMD family 0Fh/11h processors support LFENCE as serializing always.
-    AMD plans support for this MSR and access to this bit for all future processors.
-    Source: https://developer.amd.com/wp-content/resources/Managing-Speculation-on-AMD-Processors.pdf
+    .   FOR l(28) tc(1)
+    .   .   LT-init
+    .   .   .   AS l(28) tc(1)
+    .   .   .   .   NAME-main..autotmp_4 l(28) x(0) class(PAUTO) esc(N) tc(1) assigned used int
+    .   .   .   .   LEN l(28) tc(1) int
+    .   .   .   .   .   NAME-main.xs g(2) l(26) x(0) class(PPARAM) esc(no) tc(1) used SLICE-[]uint64
+    .   .   LT l(28) tc(1) hascall bool
+    .   .   .   NAME-main.i g(4) l(28) x(0) class(PAUTO) esc(no) tc(1) assigned used int
+    .   .   .   NAME-main..autotmp_4 l(28) x(0) class(PAUTO) esc(N) tc(1) assigned used int
+    .   .   BLOCK l(28)
+    .   .   BLOCK-list
+    .   .   .   ASOP-ADD l(28) tc(1) implicit(true) int
+    .   .   .   .   NAME-main.i g(4) l(28) x(0) class(PAUTO) esc(no) tc(1) assigned used int
+    .   .   .   .   LITERAL-1 l(28) tc(1) int
+    .   FOR-body
+    .   .   VARKILL l(28) tc(1)
+    .   .   .   NAME-main..autotmp_4 l(28) x(0) class(PAUTO) esc(N) tc(1) assigned used int
+    .   .   IF l(29) tc(1)
+    .   .   .   LT l(29) tc(1) bool
+    .   .   .   .   INDEX l(29) tc(1) uint64
+    .   .   .   .   .   NAME-main.xs g(2) l(26) x(0) class(PPARAM) esc(no) tc(1) used SLICE-[]uint64
+    .   .   .   .   .   NAME-main.i g(4) l(28) x(0) class(PAUTO) esc(no) tc(1) assigned used int
+    .   .   .   .   NAME-main.m g(3) l(27) x(0) class(PAUTO) esc(no) tc(1) assigned used uint64
+    .   .   IF-body
+    .   .   .   AS l(30) tc(1)
+    .   .   .   .   NAME-main.m g(3) l(27) x(0) class(PAUTO) esc(no) tc(1) assigned used uint64
+    .   .   .   .   INDEX l(30) tc(1) uint64
+    .   .   .   .   .   NAME-main.xs g(2) l(26) x(0) class(PPARAM) esc(no) tc(1) used SLICE-[]uint64
+    .   .   .   .   .   NAME-main.i g(4) l(28) x(0) class(PAUTO) esc(no) tc(1) assigned used int
     
-    Reading the MSR to determine LFENCE properties is not always possible
-    or reliable (hypervisors). The Linux kernel is relying on serializing
-    LFENCE on AMD CPUs since a commit in July 2019: https://lkml.org/lkml/2019/7/22/295
-    and the MSR C001_1029 to enable serialization has been set by default
-    with the Spectre v1 mitigations.
+    and here it is after this CL:
     
-    Using an MFENCE on AMD is waiting on previous instructions having been executed
-    but in addition also flushes store buffers.
+    .   FOR tc(1) # 235.go:28
+    .   FOR-Cond
+    .   .   LT-init
+    .   .   .   AS tc(1) # 235.go:28
+    .   .   .   .   NAME-main..autotmp_4 x(0) class(PAUTO) esc(N) tc(1) assigned used int # 235.go:28
+    .   .   .   .   LEN tc(1) int # 235.go:28 int
+    .   .   .   .   .   NAME-main.xs g(2) x(0) class(PPARAM) esc(no) tc(1) used SLICE-[]uint64 # 235.go:26
+    .   .   LT tc(1) hascall bool # 235.go:28 bool
+    .   .   .   NAME-main.i g(4) x(0) class(PAUTO) esc(no) tc(1) assigned used int # 235.go:28
+    .   .   .   NAME-main..autotmp_4 x(0) class(PAUTO) esc(N) tc(1) assigned used int # 235.go:28
+    .   FOR-Post
+    .   .   BLOCK # 235.go:28
+    .   .   BLOCK-List
+    .   .   .   ASOP-ADD tc(1) implicit(true) int # 235.go:28 int
+    .   .   .   .   NAME-main.i g(4) x(0) class(PAUTO) esc(no) tc(1) assigned used int # 235.go:28
+    .   .   .   .   LITERAL-1 tc(1) int # 235.go:28
+    .   FOR-Body
+    .   .   VARKILL tc(1) # 235.go:28
+    .   .   .   NAME-main..autotmp_4 x(0) class(PAUTO) esc(N) tc(1) assigned used int # 235.go:28
+    .   .   IF tc(1) # 235.go:29
+    .   .   IF-Cond
+    .   .   .   LT tc(1) bool # 235.go:29 bool
+    .   .   .   .   INDEX tc(1) uint64 # 235.go:29 uint64
+    .   .   .   .   .   NAME-main.xs g(2) x(0) class(PPARAM) esc(no) tc(1) used SLICE-[]uint64 # 235.go:26
+    .   .   .   .   .   NAME-main.i g(4) x(0) class(PAUTO) esc(no) tc(1) assigned used int # 235.go:28
+    .   .   .   .   NAME-main.m g(3) x(0) class(PAUTO) esc(no) tc(1) assigned used uint64 # 235.go:27
+    .   .   IF-Body
+    .   .   .   AS tc(1) # 235.go:30
+    .   .   .   .   NAME-main.m g(3) x(0) class(PAUTO) esc(no) tc(1) assigned used uint64 # 235.go:27
+    .   .   .   .   INDEX tc(1) uint64 # 235.go:30 uint64
+    .   .   .   .   .   NAME-main.xs g(2) x(0) class(PPARAM) esc(no) tc(1) used SLICE-[]uint64 # 235.go:26
+    .   .   .   .   .   NAME-main.i g(4) x(0) class(PAUTO) esc(no) tc(1) assigned used int # 235.go:28
     
-    To align the serialization properties without runtime detection
-    of CPU manufacturers we can use the newer RDTSCP instruction which
-    waits until all previous instructions have been executed.
+    Note in particular the clear marking of FOR-Cond, FOR-Post, FOR-Body compared to the original.
     
-    RDTSCP is available on Intel since around 2008 and on AMD CPUs since
-    around 2006. Support for RDTSCP can be checked independently
-    of manufacturer by checking CPUID bits.
+    The only changes to a few test files are the improved field name lines, and of course the line numbers.
     
-    Using RDTSCP is the default in Linux to read TSC in program order
-    when the instruction is available.
-    https://github.com/torvalds/linux/blob/e22ce8eb631bdc47a4a4ea7ecf4e4ba499db4f93/arch/x86/include/asm/msr.h#L231
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: Ifa841843b9abb2816f8f0754a163ebf01385306d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344429
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    Change-Id: I5b654d9d8ee898976d4c387742ea688a082bac78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275785
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/cpu/cpu.go     |  1 +
- src/internal/cpu/cpu_x86.go | 14 ++++++++++++++
- src/runtime/asm_386.s       | 37 +++++++++++++++++++++++++------------
- src/runtime/asm_amd64.s     | 30 +++++++++++++++++++-----------
- src/runtime/cpuflags.go     |  9 +++++----
- src/runtime/runtime2.go     |  1 -
- 6 files changed, 64 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go | 149 ++++++++++++++++++++++++-------------
+ 1 file changed, 97 insertions(+), 52 deletions(-)

@@ -1,23 +1,21 @@
-commit b2363ee9f6c37f0c0ac0dd6b992c0de54c7d40f5
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Tue May 9 16:25:13 2017 +0800
+commit a2cc8b20fd6576b1db729159c096aadfb91fbb9e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 1 17:31:06 2017 -0800
 
-    cmd/internal/objabi: fix the bug of shrinking SymType down to a uint8
+    cmd/go: fix TestFFLAGS for Fortran compilers that accept unknown options
     
-    Previous CL (cmd/internal/objabi: shrink SymType down to a uint8) shrinks
-    SymType down to a uint8 but forgot making according change in goobj.
+    The test assumed that passing an unknown option to the Fortran
+    compiler would cause the compiler to fail. Unfortunately it appears
+    that some succeed. It's irrelevant to the actual test, which is
+    verifying that the flag was indeed passed.
     
-    Fixes #20296
-    Also add a test to catch such Goobj format inconsistency bug
+    Fixes #19080.
     
-    Change-Id: Ib43dd7122cfcacf611a643814e95f8c5a924941f
-    Reviewed-on: https://go-review.googlesource.com/42971
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib9e89447a2104e4742f4b98938373fc2522772aa
+    Reviewed-on: https://go-review.googlesource.com/37658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/internal/goobj/read.go  |  2 +-
- src/cmd/internal/objabi/doc.go  |  2 +-
- src/cmd/objdump/objdump_test.go | 47 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 49 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

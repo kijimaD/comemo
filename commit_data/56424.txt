@@ -1,18 +1,23 @@
-commit 6584fe8195a1a0afb65ffbea11a2a4fe760a2abd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 9 15:28:23 2024 -0700
+commit 05ca41d3efdd1fc676bf3ff10afa95f91607eb0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 4 14:09:27 2023 -0700
 
-    cmd/dist: don't copy files ending in ~ to bootstrap directory
+    go/types, types2: factor out maximum type computation
     
-    They are editor backup files. They are ignored by .gitignore,
-    so they can never be real files in the Go repo.
+    For untyped constant binary operations we need to determine the
+    "maximum" (untyped) type which includes both constant types.
+    Factor out this functionality.
     
-    Change-Id: I58800e6e9f939e0bd21b086243b9260bcc8cd770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584675
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If42bd793d38423322885a3063a4321bd56443b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492619
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/buildtool.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/expr.go       | 13 ++++---------
+ src/cmd/compile/internal/types2/predicates.go | 20 ++++++++++++++++++++
+ src/go/types/expr.go                          | 13 ++++---------
+ src/go/types/predicates.go                    | 20 ++++++++++++++++++++
+ 4 files changed, 48 insertions(+), 18 deletions(-)

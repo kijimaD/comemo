@@ -1,16 +1,13 @@
-commit 1b6557a0cf54a901db38b13b78f919b7959286ee
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Aug 17 21:53:02 2012 +1000
+commit 93fac8859c528520142e83d838a664aa37bf267f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Aug 17 09:11:58 2012 +0800
 
-    runtime: fix netbsd/386 stack pointer handling
+    cmd/ld: explicitly ignore R_*_NONE relocation to fix build
+            I don't know why this relocation is used.
     
-    When manipulating the stack pointer use the UESP register instead
-    of the ESP register, since the UESP register is the one that gets
-    restored from the machine context. Fixes broken tests on netbsd/386.
-    
-    R=golang-dev, minux.ma, r, bsiegert
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6465054
+    https://golang.org/cl/6464070
 
- src/pkg/runtime/signal_netbsd_386.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/ld/ldelf.c | 2 ++
+ 1 file changed, 2 insertions(+)

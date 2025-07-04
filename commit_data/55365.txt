@@ -1,44 +1,32 @@
-commit 25c5f6f15988f1abb9738bfdfd10331afefd8ec1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 10 15:49:33 2024 -0800
+commit adc1db23ee17078590d81fb2201a12212d539628
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Jan 31 17:04:08 2023 +0100
 
-    go/types, types2: don't lose position info of interface embeddings
+    cmd/internal/obj/x86: use mov instead of lea to load the frame pointer
     
-    Accurate position information for embedded types in interfaces is
-    crucial to identify the corresponding source file, and with that
-    the Go language version associated with that file. (The position
-    information is also important for proper error messages.)
+    This CL instructs the Go x86 compiler to load the frame pointer address
+    using a MOV instead of a LEA instruction, being MOV 1 byte shorter:
     
-    Before this CL, the position information for embedded types was
-    discarded after type set computation, in the assumption that it
-    was not needed anymore. However, substitutions that update the
-    interface may lead to repeated type set computations which then
-    won't have the correct position information.
+    Before
+      55            PUSHQ   BP
+      48 8d 2c 24   LEAQ    0(SP), BP
     
-    This CL does preserve the position information for embedded
-    types until the end of type checking (cleanup phase), and also
-    copy the position information during a substitution of the
-    interface.
+    After
+      55            PUSHQ   BP
+      48 89 e5      MOVQ    SP, BP
     
-    The respective bug (#64759) doesn't seem to appear in 1.22 (most
-    likely because it's hidden by some of the changes made with respect
-    to the file version logic), but the existing code is still wrong.
-    The backport of this code to 1.21 and 1.20 fixes the issue in those
-    releases.
+    This reduces the size of the Go toolchain ~0.06%.
     
-    For #64759.
+    Updates #6853
     
-    Change-Id: I80f4004c9d79cb02eac6739c324c477706615102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555296
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I5557cf34c47e871d264ba0deda9b78338681a12c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463845
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/issues_test.go | 17 +++++++++++++++++
- src/cmd/compile/internal/types2/subst.go       |  1 +
- src/cmd/compile/internal/types2/typeset.go     |  1 -
- src/go/types/issues_test.go                    | 17 +++++++++++++++++
- src/go/types/subst.go                          |  1 +
- src/go/types/typeset.go                        |  1 -
- 6 files changed, 36 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

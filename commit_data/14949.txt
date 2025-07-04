@@ -1,16 +1,21 @@
-commit 85f86399f417b0bf494a62bcbb90b91928a067e4
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Tue Jan 22 14:03:30 2013 -0500
+commit 793cbd5b81619e19eaae289ec8071e2016f85db9
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 22 10:10:38 2013 -0500
 
-    syscall: fix arithmetic errors in assembly for seek function for 64-bit Plan 9
+    crypto/tls: allow the server to enforce its ciphersuite preferences.
     
-    Offsets for return values from seek were miscalculated
-    and a translation from 32-bit code for error handling
-    was incorrect.
+    Previously, Go TLS servers always took the client's preferences into
+    account when selecting a ciphersuite. This change adds the option of
+    using the server's preferences, which can be expressed by setting
+    tls.Config.CipherSuites.
     
-    R=rsc, rminnich, npe
+    This mirrors Apache's SSLHonorCipherOrder directive.
+    
+    R=golang-dev, nightlyone, bradfitz, ality
     CC=golang-dev
-    https://golang.org/cl/7181045
+    https://golang.org/cl/7163043
 
- src/pkg/syscall/asm_plan9_amd64.s | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/crypto/tls/common.go                |  6 ++++
+ src/pkg/crypto/tls/handshake_server.go      | 19 +++++++++----
+ src/pkg/crypto/tls/handshake_server_test.go | 44 +++++++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 5 deletions(-)

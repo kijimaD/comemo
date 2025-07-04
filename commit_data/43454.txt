@@ -1,26 +1,84 @@
-commit e223c6cf073fe1228c54050a43042b9c5721d4f8
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 16 17:07:14 2020 -0400
+commit c8d89ddb18bc4ad025ceb24dffa9e0f5630c4128
+Merge: 6636b3f2fc a4451e1143
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 6 10:59:39 2020 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on PPC64
+    [dev.link] all: merge branch 'master' into dev.link
     
-    This is a simple case of changing the operand size of the existing 8-bit
-    And/Or.
+    Clean merge.
     
-    I've also updated a few operand descriptions that were out-of-sync with
-    the implementation.
-    
-    Change-Id: I95ac4445d08f7958768aec9a233698a2d652a39a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263150
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I94ac733fd3147abf42d89ccbfcc68f54ed5f4d13
 
- src/cmd/compile/internal/gc/ssa.go           |  4 ++--
- src/cmd/compile/internal/ppc64/ssa.go        | 22 +++++++++++++++++-----
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++++--
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 16 +++++++---------
- src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go |  6 ++++++
- 6 files changed, 64 insertions(+), 18 deletions(-)
+ AUTHORS                                            |   1 +
+ CONTRIBUTORS                                       |   1 +
+ doc/go1.15.html                                    |  37 +-
+ src/cmd/api/goapi.go                               |  11 +-
+ src/cmd/api/goapi_test.go                          |   1 -
+ src/cmd/compile/internal/amd64/ssa.go              |   6 +
+ src/cmd/compile/internal/gc/inl.go                 |  51 +-
+ src/cmd/compile/internal/gc/main.go                |  22 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  15 +-
+ src/cmd/compile/internal/logopt/logopt_test.go     |  89 +++-
+ src/cmd/compile/internal/ppc64/ssa.go              | 586 ++++++++++++++++++---
+ src/cmd/compile/internal/ssa/block.go              |  24 +-
+ src/cmd/compile/internal/ssa/compile.go            |   9 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   5 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   2 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules       |   6 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules        |   2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules      |   4 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  13 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go       |  86 ++-
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |  12 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules        |   2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   2 +
+ src/cmd/compile/internal/ssa/html.go               |  68 ++-
+ src/cmd/compile/internal/ssa/opGen.go              | 119 ++++-
+ src/cmd/compile/internal/ssa/rewrite.go            |  18 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |   8 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  11 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         |   8 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |  12 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |   4 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   8 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  86 ++-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  20 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |   4 +-
+ src/cmd/dist/build.go                              |   2 -
+ src/cmd/go/go_test.go                              |   4 +-
+ src/cmd/go/internal/modload/mvs.go                 |   2 +-
+ .../go/testdata/mod/example.com_quote_v1.5.2.txt   |   9 +
+ .../testdata/script/mod_load_replace_mismatch.txt  |  23 +
+ src/cmd/internal/obj/mips/asm0.go                  |  10 +-
+ src/cmd/link/internal/ld/lib.go                    |   5 +-
+ src/cmd/link/internal/ld/outbuf_test.go            |  12 +-
+ src/crypto/rsa/pss.go                              | 173 +++---
+ src/crypto/rsa/rsa.go                              |   9 +-
+ src/crypto/sha512/sha512block_generic.go           |   4 +-
+ src/flag/flag.go                                   |   5 +-
+ src/flag/flag_test.go                              |  66 +++
+ src/go/build/deps_test.go                          |   2 +-
+ src/io/ioutil/export_test.go                       |   7 +
+ src/io/ioutil/ioutil_test.go                       |   3 +-
+ src/io/ioutil/tempfile_test.go                     |  11 +-
+ src/net/http/roundtrip_js.go                       |  35 +-
+ src/net/ip.go                                      |   4 +-
+ src/run.bat                                        |   2 +-
+ src/runtime/internal/atomic/atomic_arm64.s         |   8 +-
+ src/runtime/race/README                            |  10 +-
+ src/runtime/race/race_darwin_amd64.syso            | Bin 432640 -> 448992 bytes
+ src/runtime/race/race_freebsd_amd64.syso           | Bin 555192 -> 577864 bytes
+ src/runtime/race/race_linux_amd64.syso             | Bin 478360 -> 516064 bytes
+ src/runtime/race/race_linux_arm64.syso             | Bin 454752 -> 493992 bytes
+ src/runtime/race/race_windows_amd64.syso           | Bin 429378 -> 457408 bytes
+ src/runtime/time.go                                |  19 +-
+ src/testing/testing.go                             |  30 ++
+ src/testing/testing_test.go                        |  48 ++
+ src/time/sleep.go                                  |   6 +-
+ test/codegen/copy.go                               |  34 ++
+ test/codegen/mathbits.go                           |  12 +-
+ test/inline.go                                     |  18 +
+ test/nowritebarrier.go                             |   1 +
+ 72 files changed, 1579 insertions(+), 356 deletions(-)

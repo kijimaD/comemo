@@ -1,36 +1,14 @@
-commit 3bf16444283094bf03a96fa76f3c5dd4c84867b2
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Apr 24 12:42:47 2018 -0400
+commit c4da610197a9e20f6b3cf28a0102fc00378af680
+Author: JBD <jbd@google.com>
+Date:   Wed Dec 13 15:57:46 2017 -0800
 
-    runtime/trace: add simple benchmarks for user annotation
+    doc: make it clear which pprof package is used
     
-    Also, avoid Region creation when tracing is disabled.
-    Unfortunate side-effect of this change is that we no longer trace
-    pre-existing regions in tracing, but we can add the feature in
-    the future when we find it useful and justifiable. Until then,
-    let's avoid the overhead from this low-level api use as much as
-    possible.
+    Updates #22027.
     
-    goos: linux
-    goarch: amd64
-    pkg: runtime/trace
-    
-    // Trace disabled
-    BenchmarkStartRegion-12 2000000000               0.66 ns/op            0 B/op          0 allocs/op
-    BenchmarkNewTask-12     30000000                40.4 ns/op            56 B/op          2 allocs/op
-    
-    // Trace enabled, -trace=/dev/null
-    BenchmarkStartRegion-12  5000000               287 ns/op              32 B/op          1 allocs/op
-    BenchmarkNewTask-12      5000000               283 ns/op              56 B/op          2 allocs/op
-    
-    Also, skip other tests if tracing is already enabled.
-    
-    Change-Id: Id3028d60b5642fcab4b09a74fd7d79361a3861e5
-    Reviewed-on: https://go-review.googlesource.com/109115
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: I5a5bae77a744c7a2ecb75172846e6461a98ee8af
+    Reviewed-on: https://go-review.googlesource.com/83916
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/trace/annotation.go       |  8 ++++++++
- src/runtime/trace/annotation_test.go  | 31 ++++++++++++++++++++++++++++++-
- src/runtime/trace/trace_stack_test.go |  9 ++++++++-
- src/runtime/trace/trace_test.go       | 21 +++++++++++++++++++++
- 4 files changed, 67 insertions(+), 2 deletions(-)
+ doc/diagnostics.html | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

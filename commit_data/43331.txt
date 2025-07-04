@@ -1,26 +1,16 @@
-commit 03f181a90ef4de680a666ca86c7988915e892e8c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 15 23:32:51 2020 -0400
+commit 8cb865c9197f0f383b0bde48e37faea7b7a2451d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 19 13:00:44 2020 -0400
 
-    io: unexport ErrBadWriteCount
+    cmd/dist: do not skip 'cmd' tests in race mode
     
-    It was added in CL 240740 to fix #39978
-    but without any discussion of the exported API.
+    Fixes #37940
     
-    The error can still be returned to fix the issue,
-    without adding new public API to package io.
-    
-    Also fix the error message to refer to lower-case write
-    like the other errors in the package.
-    
-    Change-Id: I134de5eaf3ac903d73913c5cadcde904c5255d79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262877
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib869a4bf84296dac201cc7252431d7161b9c96f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224038
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/io/export_test.go | 8 ++++++++
- src/io/io.go          | 8 ++++----
- src/io/io_test.go     | 2 +-
- 3 files changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/dist/test.go | 3 ---
+ 1 file changed, 3 deletions(-)

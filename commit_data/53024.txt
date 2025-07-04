@@ -1,27 +1,17 @@
-commit c12f53864bf3a7a0612ab7d20b45277fae7ea181
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon May 8 11:17:59 2023 -0400
+commit 533082d1a08fd2c3b0c7ee43f3cf5c29f4e12d84
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 27 22:11:38 2022 -0700
 
-    time: update windows zoneinfo_abbrs
+    test: add test that gofrontend failed to compile
     
-    The primary branch of the github.com/unicode-org/cldr repository
-    has changed to main instead of master. This changes the branch used
-    to download the Windows zone file.
+    For #51475
     
-    Ran:
-    go generate time
-    
-    For #58113
-    
-    Change-Id: Idb3dcaf44fc52d4b6abfed5a3ca6cd6f745dc3f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493477
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie1b27304687225194a323dc8305e5d62578fff4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414755
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/time/genzabbrs.go              | 2 +-
- src/time/zoneinfo_abbrs_windows.go | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ test/fixedbugs/issue51475.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

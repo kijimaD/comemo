@@ -1,18 +1,18 @@
-commit 0eaabf6452149ecbcc1caf40e22ae16cf73c768e
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Dec 20 03:58:27 2013 +1100
+commit 7f8a5057dd0f471c49910a3f77ded5edf7a72a08
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 19 14:38:50 2013 +1100
 
-    cmd/ld: make hostobj work on newer openbsd
+    syscall: add NewCallbackCDecl again
     
-    Make hostobj work on OpenBSD 5.3/5.4/-current - these have PIE
-    enabled by default and linking fails since the Go linker generates
-    objects that are neither PIC nor PIE.
+    Fixes #6338
     
-    Fixes #5067
-    
-    R=golang-dev, rsc
+    R=golang-dev, kin.wilson.za, rsc
     CC=golang-dev
-    https://golang.org/cl/7572049
+    https://golang.org/cl/36180044
 
- src/cmd/ld/lib.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/callback_windows.c      |   3 +-
+ src/pkg/runtime/runtime.h               |   1 +
+ src/pkg/runtime/syscall_windows.goc     |   5 -
+ src/pkg/runtime/syscall_windows_test.go | 207 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      |   3 +-
+ 5 files changed, 212 insertions(+), 7 deletions(-)

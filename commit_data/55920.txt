@@ -1,19 +1,23 @@
-commit 418e6d559e80e9d53e4a4c94656e8fb4bf72b343
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 11 18:16:16 2024 +0100
+commit c994067e5bf8c9fde09cabfc29d56fdcf98bbee8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 23 17:38:05 2023 -0700
 
-    os,internal/godebugs: add missing IncNonDefault calls
+    encoding/gob: update decgen to generate current dec_helpers
     
-    Fixes #66215
+    I edited dec_helpers.go without realizing that it is a generated file.
+    Fix the generator to generate the current version (which generates
+    a small comment change).
     
-    Change-Id: Id7de15feabe08f66c048dc114c09494813c9febc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570695
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I70e3bc78eb0728d23c08972611218f288dc1d29c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479117
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/internal/godebugs/table.go |  4 ++--
- src/os/file_windows.go         |  1 +
- src/os/types_windows.go        | 13 +++++++++++--
- src/runtime/metrics/doc.go     |  8 ++++++++
- 4 files changed, 22 insertions(+), 4 deletions(-)
+ src/encoding/gob/dec_helpers.go |  1 +
+ src/encoding/gob/decgen.go      | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

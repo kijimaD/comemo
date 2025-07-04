@@ -1,36 +1,14 @@
-commit 1b9f66330b123b042e738eff5e47e869dd301a98
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 1 15:53:06 2017 -0500
+commit 4439b21d0cf1fa3be7bd52ff79e83149f314458c
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 2 10:36:01 2017 +0900
 
-    cmd/go: disable tests when GOOS/GOARCH != GOHOSTARCH/GOHOSTARCH
+    cmd/go: don't write file if -n option is given
     
-    The whole GOROOT/pkg tree is installed using the GOHOSTOS/GOHOSTARCH
-    toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
-    The testgo.exe we run during the cmd/go test will be built
-    for GOOS/GOARCH, which means it will use the GOOS/GOARCH toolchain
-    (installed in GOROOT/pkg/tool/GOOS_GOARCH).
-    
-    If these are not the same toolchain, then the entire standard library
-    will look out of date to testgo.exe (the compilers in those two different
-    tool directories are built for different architectures and have different
-    buid IDs), which will cause many tests to do unnecessary rebuilds
-    and some tests to attempt to overwrite the installed standard library,
-    which will in turn make it look out of date to whatever runs after the
-    cmd/go test exits.
-    
-    Bail out entirely in this case instead of destroying the world.
-    
-    The changes outside TestMain are checks that might have caught
-    this a bit earlier and made it much less confusing to debug.
-    
-    Fixes #22709.
-    Fixes #22965.
-    
-    Change-Id: Ibf28fa19e29a1f1b8f17875f446d3474dd04a924
-    Reviewed-on: https://go-review.googlesource.com/81516
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I01f5d3b4748d0ead8642ff3e53d1ae9c4378bcbc
+    Reviewed-on: https://go-review.googlesource.com/61111
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 64 +++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 49 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/work/build.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

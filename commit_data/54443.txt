@@ -1,22 +1,26 @@
-commit dc0d126e378d649976abd06497cea8c503ba3613
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 11 21:57:45 2023 -0700
+commit 4fb35d6cee036fa2583512940de91a03f7f029e9
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 18 11:28:52 2022 -0400
 
-    cmd/compile/internal/abi: replace types.Object with *ir.Name
+    cmd/compile: special case coverage vars in pkg init order
     
-    types.Object only exists to avoid a circular dependency between
-    package types and ir.
+    When computing package initialization order, special case the counter
+    variables inserted by "cmd/cover" for coverage instrumentation, since
+    their presence can perturb the order in which variables are
+    initialized in ways that are user-visible and incorrect with respect
+    to the original (uninstrumented) program.
     
-    Change-Id: I35196aff765d6977ca1e69fe482edbc987c381c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527340
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #56293.
+    
+    Change-Id: Ieec9239ded4f8e2503ff9bbe0fe171afb771b335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443715
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go | 10 +++++++---
- src/cmd/compile/internal/liveness/arg.go |  4 ++--
- src/cmd/compile/internal/ssa/debug.go    |  6 +++---
- src/cmd/compile/internal/ssa/op.go       |  6 +-----
- src/cmd/compile/internal/ssagen/ssa.go   |  6 +++---
- 5 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/coverage/cover.go         | 98 +++++++++++++---------
+ src/cmd/compile/internal/gc/main.go                | 11 ++-
+ src/cmd/compile/internal/pkginit/initorder.go      |  9 ++
+ .../go/testdata/script/cover_var_init_order.txt    | 55 ++++++++++++
+ 4 files changed, 132 insertions(+), 41 deletions(-)

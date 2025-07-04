@@ -1,14 +1,21 @@
-commit a21b4bca0c82098f3a445d663365c9afea8fa699
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 30 11:08:25 2015 -0400
+commit 246822703849bc830085b4f173526d7f908c41d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 30 15:08:46 2015 -0700
 
-    doc/go1.6.txt: mention possible GOTRACEBACK change
+    cmd/compile/internal, cmd/internal/obj: used keyed ProgInfo literals
     
-    For CL 16512, #12366, #13107.
+    Safer, more readable, shorter.
     
-    Change-Id: I0ed1bb9597ac3db3fa35a037c304060d5a7e6d51
-    Reviewed-on: https://go-review.googlesource.com/16513
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5cf1f438e20a3df45fc43cc5c870a533f7c524bf
+    Reviewed-on: https://go-review.googlesource.com/10517
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/amd64/prog.go | 432 ++++++++++++++++-----------------
+ src/cmd/compile/internal/arm/prog.go   | 172 ++++++-------
+ src/cmd/compile/internal/arm64/prog.go | 170 ++++++-------
+ src/cmd/compile/internal/ppc64/prog.go | 128 +++++-----
+ src/cmd/compile/internal/x86/prog.go   | 422 ++++++++++++++++----------------
+ src/cmd/internal/obj/link.go           |   9 +-
+ 6 files changed, 667 insertions(+), 666 deletions(-)

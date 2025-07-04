@@ -1,15 +1,13 @@
-commit 1f39ed8a2debe6620d345f0a138af23c4e5c5a47
-Author: Padraig Kitterick <padraigkitterick@gmail.com>
-Date:   Tue Feb 22 10:40:37 2011 +1100
+commit c010b0e846d0055f87643373bab484f0d5923173
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 22 10:40:22 2011 +1100
 
-    http: cleaned up HEAD request method.
+    A+C: Padraig Kitterick
     
-    Removed a redefinition of the request URL which is never used and
-    redundant checking of the return value from send().
-    
-    R=golang-dev, adg
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4184061
+    https://golang.org/cl/4186065
 
- src/pkg/http/client.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

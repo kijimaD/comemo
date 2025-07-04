@@ -1,13 +1,13 @@
-commit b28431ec8e73d5d5fc3fd6b2c7f33ecc206124b3
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Apr 26 17:39:04 2012 +1000
+commit e4127614883ed89a0e1db85ac2399253f173e75b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 26 14:24:53 2012 +0800
 
-    doc: simplify the image_draw article example for converting an image to
-    RGBA.
+    cmd/godoc: update App Engine README and script for Go 1
     
-    R=adg, r, bsiegert
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6119054
+    https://golang.org/cl/5849053
 
- doc/progs/image_draw.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/godoc/README.godoc-app     | 29 +++++------------------------
+ src/cmd/godoc/setup-godoc-app.bash | 10 +++++-----
+ 2 files changed, 10 insertions(+), 29 deletions(-)

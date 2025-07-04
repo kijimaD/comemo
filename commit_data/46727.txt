@@ -1,23 +1,21 @@
-commit 199ec4235000a51518802ce822447df5901c7df5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Oct 4 14:08:05 2021 -0700
+commit d05d6fab32cb3d47f8682d19ca11085430f39164
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Sat Jan 23 17:05:01 2021 +0800
 
-    debug/gosym: use sort.Search in findFunc
+    [dev.regabi] cmd/compile: replace ir.Name map with ir.NameSet for SSA 2
     
-    Use sort.Search instead of open-coding the binary search.
-    This makes the code a lot easier to work on.
+    Same as CL 284897, the last one.
     
-    As a bonus, it speeds it up.
+    Passes toolstash -cmp.
     
-    name            old time/op    new time/op    delta
-    115/LineToPC-8    57.4µs ± 5%    59.2µs ± 8%   +3.19%  (p=0.003 n=15+13)
-    115/PCToLine-8     255ns ± 1%     192ns ± 3%  -24.63%  (p=0.000 n=15+15)
+    Updates #43819
     
-    Change-Id: I41da18bfb0e745c40d24e5b96e50dfdd0c3b79f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353879
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0bd8958b3717fb58a5a6576f1819a85f33b76e2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285913
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Baokun Lee <bk@golangcn.org>
 
- src/debug/gosym/pclntab.go | 23 ++++++-----------------
- 1 file changed, 6 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

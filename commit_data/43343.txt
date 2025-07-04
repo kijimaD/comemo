@@ -1,18 +1,23 @@
-commit 5faa8286512db8b11ba3f16c447dbf41f289b47a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 16 20:25:54 2020 -0400
+commit a5d1a9df812706708da1940898cf8cad8d5f9de2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 27 12:11:21 2020 -0400
 
-    cmd/link: use GOOS=ios for TestBuildForTvOS
+    net/http: remove arbitrary timeouts from TestIdentityResponse and TestTLSHandshakeTimeout
     
-    Updates #38485.
+    These hard-coded timeouts make the tests flaky on slow builders (such
+    as solaris-amd64-oraclerel), and make test failures harder to diagnose
+    anyway (by replacing dumps of the stuck goroutine stacks with failure
+    messages that do not describe the stuck goroutines). Eliminate them
+    and simplify the tests.
     
-    Fix darwin-amd64-10_15 build.
+    Fixes #37327
+    Fixes #38112
     
-    Change-Id: I1833c23788acafc9530bb91fb6182fc5cb44f6cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263265
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id40febe349d134ef53c702e36199bfbf2b6468ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225977
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/link_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 93 ++++++++++++++++++----------------------------
+ 1 file changed, 37 insertions(+), 56 deletions(-)

@@ -1,12 +1,15 @@
-commit 4965a77f1d2e964e2dd08d1a2c2d5a5ae57f4d41
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 15 12:46:04 2015 -0700
+commit 19e81a9b3b0d103fe7a9a9605c16eb4ba1f20ed8
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Sat May 9 15:44:58 2015 +0200
 
-    cmd/go: fix typo
+    internal/syscall/windows/registry: handle invalid integer values
     
-    Change-Id: I171a1125e25b13c934c2cd545bd03f49f642910d
-    Reviewed-on: https://go-review.googlesource.com/11113
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I have around twenty of such values on a Windows 7 development machine.
+    regedit displays (translated): "invalid 32-bits DWORD value".
+    
+    Change-Id: Ib37a414ee4c85e891b0a25fed2ddad9e105f5f4e
+    Reviewed-on: https://go-review.googlesource.com/9901
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/syscall/windows/registry/value.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

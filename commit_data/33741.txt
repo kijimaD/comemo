@@ -1,16 +1,30 @@
-commit fa81d6134db1f93611263dea08c3e146ce5f5afe
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 30 15:14:51 2017 -0500
+commit cecba84a0da049db4df9c1e8aef32b936ef986ea
+Author: griesemer <gri@golang.org>
+Date:   Thu Aug 31 17:41:51 2017 +0200
 
-    runtime: more specific reason for skipping GDB tests on NetBSD
+    go/types: fix Info.Implicits entries
     
-    Updates #22893.
+    Packages of dot imports don't appear in the Info.Implicits map
+    since they are already taken care of by the Info.Defs map. Fix
+    documentation.
     
-    Change-Id: I2cf5efb4fa6b77aaf82de5d8877c99f9aa5d519a
-    Reviewed-on: https://go-review.googlesource.com/81195
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Implicitly dot-imported objects of a package shouldn't appear
+    in the Info.Implicits map because the documentation never said
+    so and there's no way to map multiple objects to the same
+    *ast.ImportSpec with the current data structure.
+    
+    Added missing test for Info.Implicits.
+    
+    The fix is a trivial one-line deletion, the rest is documentation
+    and test.
+    
+    Fixes #21591.
+    
+    Change-Id: I12a37dab85c531911c9363ec3d58daa095c7eb24
+    Reviewed-on: https://go-review.googlesource.com/60672
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/runtime-gdb_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/api.go      | 28 ++++++++++++------------
+ src/go/types/api_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/resolver.go |  1 -
+ 3 files changed, 71 insertions(+), 15 deletions(-)

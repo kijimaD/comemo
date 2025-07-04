@@ -1,13 +1,14 @@
-commit 04b7da80cc3067d9db25c7d6384ec88878d8e465
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 29 14:18:45 2011 -0400
+commit d74ff67cc807a1ed1ac9996da0838e0ed5f4cf68
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 29 10:41:23 2011 -0700
 
-    A+C: David Forsythe (individual CLA)
+    debug/gosym: remove need for gotest to run preparatory commands.
+    Put them into the Makefile instead. One dependency mechanism is enough.
     
-    R=golang-dev, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4333041
+    https://golang.org/cl/4331043
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/debug/gosym/Makefile        | 6 ++++++
+ src/pkg/debug/gosym/pclntab_test.go | 3 ---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

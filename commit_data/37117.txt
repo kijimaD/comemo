@@ -1,15 +1,17 @@
-commit 2d77600ae7449680b0d4e0171f4186caf3e8d8ab
-Author: Mark Rushakoff <mark.rushakoff@gmail.com>
-Date:   Thu Oct 25 23:46:17 2018 +0000
+commit d472055a39d3def4989550b5c829a48d53fddc59
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 14:56:45 2018 +0000
 
-    cmd/go: fix typo in output of "go help get"
+    net/http: remove a flag accidentally submitted in CL 121419
     
-    Change-Id: I7e109470e27eb978f920a99f858dbaffa4872eb5
-    GitHub-Last-Rev: dd684c2481b234f556a1c84c1771f2d8eb8b5ea2
-    GitHub-Pull-Request: golang/go#28401
-    Reviewed-on: https://go-review.googlesource.com/c/144837
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    I thought I removed this but failed to amend it to my commit before
+    submitting.
+    
+    Change-Id: I2d687d91f4de72251548faa700006af0fea503af
+    Reviewed-on: https://go-review.googlesource.com/121615
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/alldocs.go             | 2 +-
- src/cmd/go/internal/modget/get.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/serve_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

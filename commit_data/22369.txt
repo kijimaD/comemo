@@ -1,27 +1,27 @@
-commit 3a84e3305b7edebf50f2cc3067aa009f9934488c
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 16 11:53:08 2015 +1300
+commit 4ee347b0ad1e0aa7c917138dd623cffa9b68ebbf
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 4 10:58:21 2015 -0500
 
-    runtime, cmd/internal/ld: initialize themoduledata slices directly
+    debug/elf: regularize DWARF section loading
     
-    This CL is quite conservative in some ways.  It continues to define
-    symbols that have no real purpose (e.g. epclntab).  These could be
-    deleted if there is no concern that external tools might look for them.
+    Previously, different DWARF sections had relocations applied in very
+    different ways.  .debug_info was relocated, but only on x86-64 and 386
+    and using hard-coded relocation section names instead of relocation
+    links.  .debug_abbrev and .debug_str were never relocated (which is
+    excusable because they shouldn't need it).  .debug_types sections were
+    relocated on all architectures and found their relocation section
+    using a relocation link because section names could be ambiguous.
     
-    It would also now be possible to make some changes to the pcln data but
-    I get the impression that would definitely require some thought and
-    discussion.
+    Simplify all of this so that every DWARF section that has a linked
+    relocation section gets those relocations applied.
     
-    Change-Id: Ib33cde07e4ec38ecc1d6c319a10138c9347933a3
-    Reviewed-on: https://go-review.googlesource.com/7616
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This prepares this code to load .debug_line sections without the need
+    for yet more ad hoc relocation logic.
+    
+    Change-Id: Ia00ac8e656b22f22bb31a5f6ef9b0f23cda64d19
+    Reviewed-on: https://go-review.googlesource.com/6780
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/ld/data.go   |  4 ++++
- src/cmd/internal/ld/pcln.go   | 15 +++++++++++++
- src/cmd/internal/ld/symtab.go | 33 +++++++++++++++++++---------
- src/runtime/proc1.go          |  2 +-
- src/runtime/runtime1.go       |  7 +-----
- src/runtime/symtab.go         | 51 ++++++++++++-------------------------------
- 6 files changed, 58 insertions(+), 54 deletions(-)
+ src/debug/elf/file.go | 87 +++++++++++++++++++++------------------------------
+ 1 file changed, 35 insertions(+), 52 deletions(-)

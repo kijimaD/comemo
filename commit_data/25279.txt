@@ -1,64 +1,31 @@
-commit 24a83d35453e29087c4d63954bb8c78a982fc207
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 14 22:21:48 2015 +0000
+commit 45c06b27a44a65c219a7445278b129c868332a6c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 9 12:44:27 2015 +1300
 
-    net: add Dialer.Cancel to cancel pending dials
+    cmd/internal/obj, runtime: add NOFRAME flag to suppress stack frame set up on ppc64x
     
-    Dialer.Cancel is a new optional <-chan struct{} channel whose closure
-    indicates that the dial should be canceled. It is compatible with the
-    x/net/context and http.Request.Cancel types.
+    Replace the confusing game where a frame size of $-8 would suppress the
+    implicit setting up of a stack frame with a nice explicit flag.
     
-    Tested by hand with:
+    The code to set up the function prologue is still a little confusing but better
+    than it was.
     
-    package main
-    
-        import (
-                "log"
-                "net"
-                "time"
-        )
-    
-        func main() {
-                log.Printf("start.")
-                var d net.Dialer
-                cancel := make(chan struct{})
-                time.AfterFunc(2*time.Second, func() {
-                        log.Printf("timeout firing")
-                        close(cancel)
-                })
-                d.Cancel = cancel
-                c, err := d.Dial("tcp", "192.168.0.1:22")
-                if err != nil {
-                        log.Print(err)
-                        return
-                }
-                log.Fatalf("unexpected connect: %v", c)
-        }
-    
-    Which says:
-    
-        2015/12/14 22:24:58 start.
-        2015/12/14 22:25:00 timeout firing
-        2015/12/14 22:25:00 dial tcp 192.168.0.1:22: operation was canceled
-    
-    Fixes #11225
-    
-    Change-Id: I2ef39e3a540e29fe6bfec03ab7a629a6b187fcb3
-    Reviewed-on: https://go-review.googlesource.com/17821
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1d49278ff42c6bc734ebfb079998b32bc53f8d9a
+    Reviewed-on: https://go-review.googlesource.com/15670
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/dial.go            |  7 ++++-
- src/net/dial_test.go       | 66 ++++++++++++++++++++++++++++++++++++++++++++--
- src/net/fd_unix.go         | 20 +++++++++++++-
- src/net/fd_windows.go      | 32 +++++++++++++++++++---
- src/net/iprawsock_posix.go |  4 +--
- src/net/ipsock_posix.go    |  4 +--
- src/net/net.go             | 11 +++++++-
- src/net/sock_posix.go      |  8 +++---
- src/net/tcpsock_plan9.go   |  5 ++--
- src/net/tcpsock_posix.go   | 10 +++----
- src/net/udpsock_posix.go   |  6 ++---
- src/net/unixsock_posix.go  |  2 +-
- 12 files changed, 147 insertions(+), 28 deletions(-)
+ misc/cgo/test/issue9400/asm_ppc64x.s |  2 +-
+ src/cmd/internal/obj/ppc64/asm9.go   |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go   | 40 ++++++++++++++++++--------
+ src/cmd/internal/obj/textflag.go     |  5 ++++
+ src/runtime/asm_ppc64x.s             | 52 +++++++++++++++++-----------------
+ src/runtime/atomic_ppc64x.s          |  8 +++---
+ src/runtime/cgo/asm_ppc64x.s         |  6 ++--
+ src/runtime/duff_ppc64x.s            |  2 +-
+ src/runtime/memclr_ppc64x.s          |  2 +-
+ src/runtime/memmove_ppc64x.s         |  2 +-
+ src/runtime/mkduff.go                |  4 +--
+ src/runtime/sys_linux_ppc64x.s       | 54 ++++++++++++++++++------------------
+ src/runtime/textflag.h               |  4 +++
+ src/runtime/tls_ppc64x.s             |  4 +--
+ 14 files changed, 107 insertions(+), 80 deletions(-)

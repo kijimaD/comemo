@@ -1,27 +1,57 @@
-commit 0f29942489409ccd81619b5f82fce9c7de18165f
-Author: David Chase <drchase@google.com>
-Date:   Wed Oct 19 11:47:52 2016 -0400
+commit 8741504888b8ca77736716926e472e90c0e1f765
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Aug 17 16:45:47 2016 -0700
 
-    cmd/compile: Repurpose old sliceopt.go for prove phase.
+    crypto/tls: support AES-128-CBC cipher suites with SHA-256.
     
-    Adapt old test for prove's bounds check elimination.
-    Added missing rule to generic rules that lead to differences
-    between 32 and 64 bit platforms on sliceopt test.
-    Added debugging to prove.go that was helpful-to-necessary to
-    discover that missing rule.
-    Lowered debugging level on prove.go from 3 to 1; no idea
-    why it was previously 3.
+    These were new with TLS 1.2 and, reportedly, some servers require it.
+    Since it's easy, this change adds suport for three flavours of
+    AES-128-CBC with SHA-256 MACs.
     
-    Change-Id: I09de206aeb2fced9f2796efe2bfd4a59927eda0c
-    Reviewed-on: https://go-review.googlesource.com/23290
-    Run-TryBot: David Chase <drchase@google.com>
+    Other testdata/ files have to be updated because this changes the list
+    of cipher suites offered by default by the client.
+    
+    Fixes #15487.
+    
+    Change-Id: I1b14330c31eeda20185409a37072343552c3464f
+    Reviewed-on: https://go-review.googlesource.com/27315
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 15 ++++--
- src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
- src/cmd/compile/internal/ssa/prove.go          | 55 ++++++++++++++++----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 38 ++++++++++++++
- test/prove.go                                  |  2 +-
- test/sliceopt.go                               | 70 ++++++++++++++++++++++++++
- 6 files changed, 167 insertions(+), 15 deletions(-)
+ src/crypto/tls/cipher_suites.go                    |  25 +-
+ src/crypto/tls/handshake_client_test.go            |  26 +
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 104 ++--
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  64 +-
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 104 ++--
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  64 +-
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  84 +--
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  82 +--
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  46 +-
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  84 +--
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  82 +--
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  46 +-
+ .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  50 +-
+ .../tls/testdata/Client-TLSv12-AES128-SHA256       |  88 +++
+ .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  50 +-
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  80 +--
+ src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  79 +--
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 104 ++--
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  66 +-
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  94 +--
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 102 ++--
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  64 +-
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  84 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  80 +--
+ .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        |  94 +++
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  80 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  82 +--
+ .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 |  98 +++
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  46 +-
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 379 ++++++------
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 680 +++++++++++----------
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 387 ++++++------
+ .../testdata/Client-TLSv12-RenegotiationRejected   |  86 +--
+ src/crypto/tls/testdata/Client-TLSv12-SCT          |  76 +--
+ 34 files changed, 2043 insertions(+), 1717 deletions(-)

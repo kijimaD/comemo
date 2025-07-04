@@ -1,17 +1,19 @@
-commit 1911087dee1a6544067e94cbf430f1fd6e20cf23
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 22 20:28:12 2017 -0700
+commit c10499b539b964d647a9153cbf44e9c39661c397
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 8 13:49:51 2016 -0800
 
-    cmd/compile: eliminate all references to Curfn in liveness
+    [dev.inline] cmd/compile/internal/ssa: another round of renames from line -> pos (cleanup)
     
-    Updates #15756
+    Mostly mechanical renames. Make variable names consistent with use.
     
-    Change-Id: I5ad87ef44b8ee48e1294820e0b1ab0ec07c480eb
-    Reviewed-on: https://go-review.googlesource.com/38590
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iaa89d31deab11eca6e784595b58e779ad525c8a3
+    Reviewed-on: https://go-review.googlesource.com/34146
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/config.go       |  16 ++---
+ src/cmd/compile/internal/ssa/func.go         | 102 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go     |  74 +++++++++----------
+ src/cmd/compile/internal/ssa/writebarrier.go |  48 ++++++-------
+ 4 files changed, 119 insertions(+), 121 deletions(-)

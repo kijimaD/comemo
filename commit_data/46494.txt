@@ -1,21 +1,36 @@
-commit 119213566a8e0da729a8bccc7d7f7d525f0c1cf9
-Author: jochen weber <jochen.weber80@gmail.com>
-Date:   Fri May 14 12:45:13 2021 +0000
+commit 6b37b15d9520f9fa2b819e66a37fac4b2d08da78
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 17 11:55:53 2020 -0500
 
-    cmd/cgo: remove hardcoded '-pie' ldflag for linux/arm
+    runtime: don't take allglock in tracebackothers
     
-    a minimally invasive fix proposal for #45940. which keeps the fix for #26197.
+    tracebackothers is called from fatal throw/panic.
     
-    an alternative for (#26197) could be to fail if we have both flags. adding/removing a flag without an message to the user is inconvenient.
+    A fatal throw may be taken with allglock held (notably in the allocator
+    when allglock is held), which would cause a deadlock in tracebackothers
+    when we try to take allglock again. Locking allglock here is also often
+    a lock order violation w.r.t. the locks held when throw was called.
     
-    Change-Id: I6ac2524d81ff57202fbe3032a53afd5106270a9e
-    GitHub-Last-Rev: edaf02fa455329b5d794a139f99874b5e8cc12d1
-    GitHub-Pull-Request: golang/go#45989
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317569
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Avoid the deadlock and ordering issues by skipping locking altogether.
+    It is OK to miss concurrently created Gs (which are generally avoided by
+    freezetheworld(), and which were possible previously anyways if created
+    after the loop).
+    
+    Fatal throw/panic freezetheworld(), which should freeze other threads
+    that may be racing to modify allgs. However, freezetheworld() does _not_
+    guarantee that it stops all other threads, so we can't simply drop the
+    lock.
+    
+    Fixes #42669
+    Updates #43175
+    
+    Change-Id: I657aec46ed35fd5d1b3f1ba25b500128ab26b088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270861
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/work/exec.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ src/runtime/mgcmark.go   |  1 -
+ src/runtime/proc.go      | 43 +++++++++++++++++++++++++++++++++++++++----
+ src/runtime/runtime2.go  |  1 -
+ src/runtime/traceback.go | 27 +++++++++++++++++----------
+ 4 files changed, 56 insertions(+), 16 deletions(-)

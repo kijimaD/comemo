@@ -1,15 +1,19 @@
-commit bddb75127f0d549e08e8a8774bf92740a13b0810
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu May 26 22:19:23 2011 -0300
+commit 12376c93ef4dfb163599efdc8848e478158e671a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 26 20:02:03 2011 -0400
 
-    cgo: support pkg-config for flags and libs
+    syscall: add routing messages support for BSD variants
     
-    Fixes issue #1853.
-    
-    R=golang-dev, mattn.jp, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4550084
+    https://golang.org/cl/4539084
 
- src/cmd/cgo/doc.go | 14 +++++++--
- src/cmd/cgo/gcc.go | 91 +++++++++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 88 insertions(+), 17 deletions(-)
+ src/pkg/syscall/Makefile                 |    2 +
+ src/pkg/syscall/mkerrors.sh              |    4 +-
+ src/pkg/syscall/route_bsd.go             |  180 +++
+ src/pkg/syscall/syscall_bsd.go           |   21 -
+ src/pkg/syscall/zerrors_darwin_386.go    |   66 +
+ src/pkg/syscall/zerrors_darwin_amd64.go  |   66 +
+ src/pkg/syscall/zerrors_freebsd_386.go   | 2229 ++++++++++++++++--------------
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 2229 ++++++++++++++++--------------
+ 8 files changed, 2761 insertions(+), 2036 deletions(-)

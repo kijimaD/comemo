@@ -1,0 +1,25 @@
+commit d49d0e0d3ac91a27f1936798335d67df9d7c0b35
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Aug 19 15:08:14 2024 -0500
+
+    runtime: on AIX, fix call to _cgo_sys_thread_create in _rt0_ppc64_aix_lib
+    
+    The AIX ABI requires allocating parameter save space when calling
+    a function, even if the arguments are passed via registers.
+    
+    gcc sometimes uses this space. In the case of the cgo c-archive
+    tests, it clobbered the storage space of argc/argv which prevented
+    the test program from running the expected test.
+    
+    Fixes #68957
+    
+    Change-Id: I8a267b463b1abb2b37ac85231f6c328f406b7515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606895
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/rt0_aix_ppc64.s | 152 ++++++++++++++++++++++----------------------
+ 1 file changed, 77 insertions(+), 75 deletions(-)

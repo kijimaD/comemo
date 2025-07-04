@@ -1,44 +1,26 @@
-commit d043c8ea89d27d2bcb05276b54dc9d5894e8fc2a
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 15:28:22 2021 -0400
+commit 6b4da14dd3db660ff8579d9390d52d00f4f33f9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 2 16:58:46 2020 -0800
 
-    go/types: implement type sets with term lists
+    [dev.typeparams] cmd/compile: provide scaffolding to get types2 types during noding
     
-    This is a port of CL 338310 to go/types. It is superficially adjusted
-    for different error reporting and AST APIs. It also fixes a bug in CL
-    338310 that only manifests in go/types (TestFixedbugs/issue39755.go2)
-    due to go/types preserving untyped nil. In that CL, operand.go is
-    checking if optype is a TypeParam, which can never be the case. A fix
-    for types2 will be mailed in a separate CL.
+    Initial setup of types2.Info structure to provide access to types
+    computed by generic typechecker.
     
-    Change-Id: Icf3394e74baec536842267d99f7511d25ab32a8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342331
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Use -G flag to control compiler phases with new typechecker:
+    
+    -G    (or -G=1)  parsing and typechecking ony
+    -G -G (or -G=2)  parsing, typechecking, and noding
+    -G=3             continue after noding (currently will run old
+                     typechecker again, leading to duplicate errors
+    
+    Change-Id: I87dd54f7c3773228f288f7a134ac809d9481ca95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274444
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/builtins.go                       |  16 +-
- src/go/types/infer.go                          |  37 +----
- src/go/types/instantiate.go                    |  24 ++-
- src/go/types/interface.go                      |  34 +---
- src/go/types/operand.go                        |   2 +-
- src/go/types/predicates.go                     |  12 +-
- src/go/types/sizeof_test.go                    |   4 +-
- src/go/types/stmt.go                           |   3 +-
- src/go/types/subst.go                          |  12 +-
- src/go/types/termlist.go                       |   2 +-
- src/go/types/testdata/check/tinference.go2     |   2 +-
- src/go/types/testdata/check/typeinst2.go2      |   8 +-
- src/go/types/testdata/check/typeparams.go2     |  65 ++++----
- src/go/types/testdata/examples/constraints.go2 |  41 ++++-
- src/go/types/testdata/fixedbugs/issue41124.go2 |  10 +-
- src/go/types/type.go                           |  21 +--
- src/go/types/typeparam.go                      |  27 ++--
- src/go/types/typeset.go                        | 171 +++++++++++++++------
- src/go/types/typestring.go                     |  25 ++-
- src/go/types/typexpr.go                        |  21 ++-
- src/go/types/unify.go                          |   5 +-
- src/go/types/union.go                          | 205 +++++--------------------
- src/go/types/universe.go                       |   4 +-
- 23 files changed, 333 insertions(+), 418 deletions(-)
+ src/cmd/compile/internal/gc/main.go  |  4 +-
+ src/cmd/compile/internal/gc/noder.go | 76 +++++++++++++++++++++++++++++++-----
+ 2 files changed, 68 insertions(+), 12 deletions(-)

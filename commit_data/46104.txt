@@ -1,23 +1,71 @@
-commit e17439e0877d6ddb6881d9eb59758c27cc62f930
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 19 21:35:57 2021 -0700
+commit bb4a37bd9316a04c45845634a721ef44d8b5b787
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 13:54:50 2020 -0500
 
-    go/types: don't override x.mode before using it
+    [dev.regabi] cmd/compile: move Type, Sym printing to package types [generated]
     
-    Changing the mode of x before using the old value is clearly wrong.
-    And x is not needed anymore afterward so besides being misplaced,
-    the assignment is not needed in the first place.
+    Move the printing of types.Type and types.Sym out of ir
+    into package types, where it properly belongs. This wasn't
+    done originally (when the code was in gc) because the Type
+    and Sym printing was a bit tangled up with the Node printing.
+    But now they are untangled and can move into the correct
+    package.
     
-    Tested manually as it's a bit complicated to set up a test.
+    This CL is automatically generated.
+    A followup CL will clean up a little bit more by hand.
     
-    Needs to be back-ported to 1.17.
+    Passes buildall w/ toolstash -cmp.
     
-    Fixes #47777.
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    rf '
+            mv FmtMode fmtMode
+            mv FErr fmtGo
+            mv FDbg fmtDebug
+            mv FTypeId fmtTypeID
+            mv FTypeIdName fmtTypeIDName
+            mv methodSymName SymMethodName
     
-    Change-Id: I06f1fa9443eb98009b4276f566d557fd52f1d6d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343809
-    Trust: Robert Griesemer <gri@golang.org>
+            mv BuiltinPkg LocalPkg BlankSym OrigSym NumImport \
+                    fmtMode fmtGo symFormat sconv sconv2 symfmt SymMethodName \
+                    BasicTypeNames fmtBufferPool InstallTypeFormats typeFormat tconv tconv2 fldconv FmtConst \
+                    typefmt.go
+    
+            mv typefmt.go cmd/compile/internal/types
+    '
+    cd ../types
+    mv typefmt.go fmt.go
+    
+    Change-Id: I6f3fd818323733ab8446f00594937c1628760b27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275779
+    Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/call.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go        |   2 +-
+ src/cmd/compile/internal/gc/bimport.go      |   3 +-
+ src/cmd/compile/internal/gc/const.go        |   2 +-
+ src/cmd/compile/internal/gc/dcl.go          |  14 +-
+ src/cmd/compile/internal/gc/embed.go        |   8 +-
+ src/cmd/compile/internal/gc/export.go       |   4 +-
+ src/cmd/compile/internal/gc/gen.go          |   2 +-
+ src/cmd/compile/internal/gc/go.go           |   4 +-
+ src/cmd/compile/internal/gc/iexport.go      |  10 +-
+ src/cmd/compile/internal/gc/iimport.go      |   4 +-
+ src/cmd/compile/internal/gc/init.go         |   2 +-
+ src/cmd/compile/internal/gc/inl.go          |   2 +-
+ src/cmd/compile/internal/gc/main.go         |  28 +-
+ src/cmd/compile/internal/gc/noder.go        |  10 +-
+ src/cmd/compile/internal/gc/obj.go          |  10 +-
+ src/cmd/compile/internal/gc/reflect.go      |  12 +-
+ src/cmd/compile/internal/gc/sinit.go        |   2 +-
+ src/cmd/compile/internal/gc/ssa.go          |   4 +-
+ src/cmd/compile/internal/gc/subr.go         |   8 +-
+ src/cmd/compile/internal/gc/typecheck.go    |  12 +-
+ src/cmd/compile/internal/gc/universe.go     |  28 +-
+ src/cmd/compile/internal/gc/walk.go         |   2 +-
+ src/cmd/compile/internal/ir/fmt.go          | 656 +-------------------------
+ src/cmd/compile/internal/ir/ir.go           |   7 -
+ src/cmd/compile/internal/ir/node.go         |  28 --
+ src/cmd/compile/internal/ssa/export_test.go |   2 +-
+ src/cmd/compile/internal/types/fmt.go       | 694 ++++++++++++++++++++++++++++
+ 27 files changed, 786 insertions(+), 774 deletions(-)

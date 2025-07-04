@@ -1,23 +1,16 @@
-commit 3e54ca9a4624fda0bcd76192aa529e826ef12b4f
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 16 18:22:58 2016 -0400
+commit 040932869ed8c9549e18f7b3ca2ea844b0e28978
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Jan 12 11:40:17 2016 +1300
 
-    cmd/compile: omit write barrier when assigning global function
+    runtime/internal/atomic: use //go:noinline to prevent inlining, not assembly nop
     
-    Currently we generate write barriers when the right side of an
-    assignment is a global function. This doesn't fall into the existing
-    case of storing an address of a global because we haven't lowered the
-    function to a pointer yet.
+    A bit cleanuppy for 1.6 maybe, but something I happened to notice.
     
-    This write barrier is unnecessary, so eliminate it.
-    
-    Fixes #13901.
-    
-    Change-Id: Ibc10e00a8803db0fd75224b66ab94c3737842a79
-    Reviewed-on: https://go-review.googlesource.com/20772
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I70f3b48445f4f527d67f7b202b6171195440b09f
+    Reviewed-on: https://go-review.googlesource.com/18550
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  6 ++++++
- test/writebarrier.go                | 10 ++++++++++
- 2 files changed, 16 insertions(+)
+ src/runtime/internal/atomic/atomic_386.go    |  8 ++------
+ src/runtime/internal/atomic/atomic_amd64x.go | 10 +++-------
+ src/runtime/internal/atomic/stubs.go         |  2 --
+ 3 files changed, 5 insertions(+), 15 deletions(-)

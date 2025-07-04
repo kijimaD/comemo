@@ -1,0 +1,19 @@
+commit c9b07e887169f661b9cea2ff16cbb4642d2622dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 4 23:45:38 2025 -0500
+
+    cmd/compile: use FMA on plan9, and drop UseFMA
+    
+    Every OS uses FMA now.
+    
+    Change-Id: Ia7ffa77c52c45aefca611ddc54e9dfffb27a48da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655877
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/config.go        | 9 ---------
+ src/cmd/compile/internal/ssa/func.go          | 3 ---
+ src/cmd/compile/internal/ssagen/intrinsics.go | 9 ---------
+ 3 files changed, 21 deletions(-)

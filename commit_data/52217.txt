@@ -1,22 +1,20 @@
-commit afbcf2138cb5f95d829f0a556ce3aaf77627cc32
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Mar 9 12:10:25 2023 -0500
+commit 5e4543c29ff930084f79cd982d6eee0f13f52565
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Fri Apr 15 11:36:32 2022 +0000
 
-    cmd/compile: report profile open/parse errors
+    bytes: explode checks for n too large
     
-    Currently we fail to print errors from os.Open and profile.Parse of the
-    PGO profile, losing context useful to understand these errors.
+    As is already done in strings package.
     
-    In fixing this, cleanup error use overall to return an error from
-    pgo.New and report the problematic file at the top level.
-    
-    Change-Id: Id7e9c781c4b8520eee96b6f5fe8a0b757d947f7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474995
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: Ia45e6443ddf6beac5e70a1cc493119030e173139
+    GitHub-Last-Rev: 1174c250350f31eced1513169d62a8a3e679dcf6
+    GitHub-Pull-Request: golang/go#52348
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400239
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/gc/main.go     |  6 +++++-
- src/cmd/compile/internal/pgo/irgraph.go | 37 +++++++++++++++++----------------
- 2 files changed, 24 insertions(+), 19 deletions(-)
+ src/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

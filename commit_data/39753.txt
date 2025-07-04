@@ -1,14 +1,28 @@
-commit 9f85668a6528aa77a377aa39ba0d83e76301efcc
-Author: OlgaVlPetrova <OVPpetrova@gmail.com>
-Date:   Sat Oct 13 14:38:21 2018 +0300
+commit 08751259b75ad88e1b65c0b1c1a76541b924dd9d
+Author: Philipp Stephani <phst@google.com>
+Date:   Mon Mar 18 20:13:17 2019 +0000
 
-    cmd/compile/internal/ssa: simplify `s = s <op> x` to `s <op>= x`
+    cmd/cgo: use C exact-width integer types to represent Go types
     
-    Change-Id: I366b89e35d194ca2a7eb97a8253497bd3fc2af94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/142019
+    The exact-width integer types are required to use two’s complement
+    representation and may not have padding bits, cf. §7.20.1.1/1 in the C11
+    standard or https://en.cppreference.com/w/c/types/integer.  This ensures that
+    they have the same domain and representation as the corresponding Go types.
+    
+    Fixes #29878
+    
+    Change-Id: Ie8a51e91666dfd89731c7859abe47356c94ca1be
+    GitHub-Last-Rev: 546a2cc3f1e22dc282757f73c01c91b00899d911
+    GitHub-Pull-Request: golang/go#29907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159258
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/redblack32_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ misc/cgo/test/cgo_test.go         |  1 +
+ misc/cgo/test/issue29878.go       | 20 ++++++++++++++++++++
+ misc/cgo/test/issue29878export.go | 12 ++++++++++++
+ src/cmd/cgo/doc.go                |  4 +++-
+ src/cmd/cgo/gcc.go                | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go                | 36 +++++++++++++++---------------------
+ 6 files changed, 89 insertions(+), 22 deletions(-)

@@ -1,17 +1,20 @@
-commit 1bbf55c2bb4aa9725202584621ed85a27695958c
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Jun 8 14:43:43 2023 +0800
+commit 1aa5730f4940b9e11c4461817493e47de1874d77
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 18 22:53:19 2022 +0700
 
-    cmd/compile: typo
+    runtime: remove p padding field for atomic fields alignment
     
-    Change-Id: I8ae86200675dcad0f1d4c9924459d8196da9740f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501755
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    CL 424396 and CL 424397 changed timer0When/timerModifiedEarliest to
+    atomic.Uint64, just they're guaranted to have 64-bit alignment.
+    
+    Change-Id: Idaff1059da2aac84520b9b0e34f9721a74dbba5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424794
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/align_runtime_test.go | 2 --
+ src/runtime/runtime2.go           | 2 --
+ 2 files changed, 4 deletions(-)

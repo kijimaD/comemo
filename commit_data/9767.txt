@@ -1,12 +1,12 @@
-commit 3e02fff00712c3ab714b51c6b61fa6ac79d5275d
+commit 91a48115bb7d773ac38f46e3127b6ca8a6c3e980
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 21 14:47:00 2011 -0700
+Date:   Wed Sep 21 14:18:48 2011 -0700
 
-    gob: slightly simpler decodeUint
+    gob: slightly simpler code for encodeUint
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5089048
+    https://golang.org/cl/5077047
 
- src/pkg/gob/decode.go | 25 +++++++++++--------------
- 1 file changed, 11 insertions(+), 14 deletions(-)
+ src/pkg/gob/encode.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

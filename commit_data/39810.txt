@@ -1,18 +1,16 @@
-commit d4a6a2661c726dd2443d7bb65da32a421331e438
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 4 12:28:03 2019 -0400
+commit cf952e9e62a464e5df6773dd22907497078fbd90
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Mar 22 12:54:37 2019 +0100
 
-    test: add test that failed with gccgo
+    cmd: enable -buildmode=pie on aix/ppc64
     
-    Test with some code that triggered a compilation error bug in gccgo.
-    
-    Updates #33866.
-    
-    Change-Id: Ib2f226bbbebbfae33b41037438fe34dc5f2ad034
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193261
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I939518462c931ba9feb125b2f299ef0706b124ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168879
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue33866.dir/a.go | 18 ++++++++++++++++++
- test/fixedbugs/issue33866.dir/b.go | 15 +++++++++++++++
- test/fixedbugs/issue33866.go       |  9 +++++++++
- 3 files changed, 42 insertions(+)
+ src/cmd/dist/test.go               | 3 ++-
+ src/cmd/go/internal/work/init.go   | 1 +
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/ld/lib.go    | 4 ++--
+ 4 files changed, 6 insertions(+), 4 deletions(-)

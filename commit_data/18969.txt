@@ -1,22 +1,17 @@
-commit ef3c0e7e61ba1a670d69144b5ad8318166490ae8
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 27 14:05:14 2014 -0400
+commit 6119dc1b52c550c47aa42b8b10b1760f7cad5d5d
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Mar 27 00:29:55 2014 -0400
 
-    regexp/syntax: remove InstLast
+    misc/bash, misc/zsh: fix completion rules
     
-    This was added by the one-pass CL (post Go 1.2)
-    so it can still be removed.
+    This patch includes fixes pointed out in CL 52140043, which was
+    originally written by john.gosset.
     
-    Removing because surely there will be new operations
-    added later, and we can't change the constant value
-    once we define it, so "last" is a bad concept to expose.
-    
-    Nothing uses it.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/81160043
+    https://golang.org/cl/80320043
 
- src/pkg/regexp/syntax/prog.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ misc/bash/go | 12 +-----------
+ misc/zsh/go  |  5 +++--
+ 2 files changed, 4 insertions(+), 13 deletions(-)

@@ -1,28 +1,19 @@
-commit 0cf6f8c096e8482da62ffa264ba6929f9179945e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 23 14:30:40 2011 +1100
+commit cd0f799e65619c30e984c03b905507ff0216e825
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 18:17:03 2011 -0800
 
-    5l/6l/8l: use enums for header type and symbolic strings for -H option values
+    exp/eval, go/printer: fix build
     
-    Thanks to rsc for the suggestion.
+    There are some minor irregularities in the printer
+    output (some paren's are present that should be
+    removed), but these are unrelated issues.
+    Will review in a 2nd step.
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4174060
+    https://golang.org/cl/4188068
 
- src/cmd/5l/asm.c   | 28 ++++++++---------
- src/cmd/5l/doc.go  |  2 ++
- src/cmd/5l/obj.c   | 46 +++++++++++++++++-----------
- src/cmd/6l/asm.c   | 58 +++++++++++++++++------------------
- src/cmd/6l/doc.go  |  8 +++--
- src/cmd/6l/obj.c   | 62 ++++++++++++++++++-------------------
- src/cmd/6l/pass.c  |  8 ++---
- src/cmd/8l/asm.c   | 56 +++++++++++++++++-----------------
- src/cmd/8l/doc.go  | 10 ++++--
- src/cmd/8l/obj.c   | 89 ++++++++++++++++++++++++++----------------------------
- src/cmd/8l/pass.c  | 16 +++++-----
- src/cmd/ld/data.c  |  6 ++--
- src/cmd/ld/dwarf.c |  2 +-
- src/cmd/ld/lib.c   | 13 ++++++++
- src/cmd/ld/lib.h   | 31 +++++++++++++++++++
- 15 files changed, 248 insertions(+), 187 deletions(-)
+ src/pkg/exp/eval/stmt_test.go                 | 12 ++++++------
+ src/pkg/go/printer/testdata/statements.golden | 20 ++++----------------
+ src/pkg/go/printer/testdata/statements.input  | 22 ++++++++--------------
+ 3 files changed, 18 insertions(+), 36 deletions(-)

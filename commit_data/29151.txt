@@ -1,18 +1,17 @@
-commit dc5f9311be7d75a283d124aa52e04ac5b2005e46
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Oct 26 22:58:50 2016 -0700
+commit 967fa427fde2f7a22adc04399d0de3090d34f883
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 31 06:58:33 2016 -0700
 
-    cmd/compile: eliminate Name.Inlvar
+    database/sql: don't hang if the driver Exec method panics
     
-    Use a local map during inlining instead.
+    Fixes #13677.
+    Fixes #15901.
     
-    Change-Id: I10cd19885e7124f812bb04a79dbda52bfebfe1a1
-    Reviewed-on: https://go-review.googlesource.com/32225
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idffb82cdcba4985954d061bdb021217f47ff4984
+    Reviewed-on: https://go-review.googlesource.com/23576
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go         | 40 +++++++++++++++++-------------
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/syntax.go      |  1 -
- 3 files changed, 24 insertions(+), 19 deletions(-)
+ src/database/sql/sql.go      | 116 ++++++++++++++++++++++++-------------------
+ src/database/sql/sql_test.go |  47 ++++++++++++++++++
+ 2 files changed, 112 insertions(+), 51 deletions(-)

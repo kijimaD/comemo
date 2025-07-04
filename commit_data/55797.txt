@@ -1,31 +1,25 @@
-commit 6f5d77454e31be8af11a7e2bcda36d200fda07c5
-Author: David Chase <drchase@google.com>
-Date:   Thu Feb 29 15:02:44 2024 -0500
+commit 71f82df19a7595b422d9dbc7d05530bd824a9114
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat Mar 11 22:38:01 2023 +0800
 
-    cmd/compile: add 0-sized-value simplification to copyelim
+    cmd/link/internal/loong64: use BREAK 0 as the code pad sequence
     
-    The problem was caused by faulty handling of unSSA-able
-    operations on zero-sized data in expand calls, but there
-    is no point to operations on zero-sized data.  This CL adds
-    a simplify step to the first place in SSA where all values
-    are processed and replaces anything producing a 0-sized
-    struct/array with the corresponding Struct/Array Make0
-    operation (of the appropriate type).
+    As the comment on CodePad goes, we "might want to pad with a trap
+    instruction to catch wayward programs". The current behavior of
+    zero-padding is equivalent to padding with an instruction of 0x00000000,
+    which is invalid according to the LoongArch manuals nevertheless, but
+    rumor has it that some early and/or engineering samples of Loongson
+    3A5000 recognized it (maybe behaving like NOP). It is better to avoid
+    undocumented behavior and ensure execution flow would not overflow the
+    pads.
     
-    I attempted not generating them in ssagen, but that was a
-    larger change, and also had bugs. This is simple and obvious.
-    The only question is whether it would be worthwhile to do it
-    earlier (in numberlines or phielem).
-    
-    Fixes #65808.
-    
-    Change-Id: I0a596b3d272798015e7bb6b1a20411241759fe0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568258
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I531b1eabeb355e9ad4a2d5340e61f2fe71349297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475616
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/copyelim.go | 11 +++++++++++
- test/fixedbugs/issue65808.go             | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
+ src/cmd/link/internal/loong64/obj.go | 1 +
+ 1 file changed, 1 insertion(+)

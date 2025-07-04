@@ -1,16 +1,29 @@
-commit 5e6a1a3f4894b3995c546178dd6de52d0f77493b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 21 15:56:15 2013 -0700
+commit d7c1f67cb92d29622de35b86288b2c6032285965
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 21 14:07:24 2013 -0700
 
-    go/doc: use regexp for -notes instead of comma-sep. list
+    net/http/fcgi: fix a shutdown race
     
-    -notes="BUG|TODO" instead of -notes="BUG,TODO".
-    Permits -notes=".*" to see all notes.
+    If a handler didn't consume all its Request.Body, child.go was
+    closing the socket while the host was still writing to it,
+    causing the child to send a RST and the host (at least nginx)
+    to send an empty response body.
     
-    R=cnicolaou
+    Now, we tell the host we're done with the request/response
+    first, and then close our input pipe after consuming a bit of
+    it. Consuming the body fixes the problem, and flushing to the
+    host first to tell it that we're done increases the chance
+    that the host cuts off further data to us, meaning we won't
+    have much to consume.
+    
+    No new tests, because this package is lacking in tests.
+    Tested by hand with nginx.  See issue for testing details.
+    
+    Fixes #4183
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7951043
+    https://golang.org/cl/7939045
 
- src/cmd/godoc/doc.go   |  3 +++
- src/cmd/godoc/godoc.go | 21 +++++++++++----------
- 2 files changed, 14 insertions(+), 10 deletions(-)
+ src/pkg/net/http/fcgi/child.go | 32 +++++++++++++++++++++++++-------
+ 1 file changed, 25 insertions(+), 7 deletions(-)

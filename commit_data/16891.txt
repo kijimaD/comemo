@@ -1,19 +1,23 @@
-commit a64bea5c99a7d6b471655cdef44b8daec6fce1dc
+commit bf61a97f24bd63843ec4f03347b287c386e3653d
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jul 28 16:15:07 2013 +0900
+Date:   Sun Jul 28 11:18:06 2013 +0900
 
-    net: make UnixAddr implement sockaddr interface
+    net: simplify socket option helpers
     
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
+    Also consolidates syscall.IPPROTO_TCP level option helper files.
     
-    Update #5199
-    
-    R=golang-dev, dave
+    R=golang-dev, dave, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/11932044
+    https://golang.org/cl/8637049
 
- src/pkg/net/sock_posix.go     |  4 ++--
- src/pkg/net/unixsock.go       |  7 -------
- src/pkg/net/unixsock_posix.go | 34 +++++++++++++++++++++++++---------
- 3 files changed, 27 insertions(+), 18 deletions(-)
+ src/pkg/net/sockopt_bsd.go       | 40 ++++++++++------------------------------
+ src/pkg/net/sockopt_linux.go     | 37 +++++++++----------------------------
+ src/pkg/net/sockopt_posix.go     | 10 ----------
+ src/pkg/net/sockopt_windows.go   | 25 +++++++------------------
+ src/pkg/net/sockoptip_bsd.go     | 12 ++----------
+ src/pkg/net/sockoptip_linux.go   | 12 ++----------
+ src/pkg/net/sockoptip_posix.go   | 24 ++++--------------------
+ src/pkg/net/sockoptip_windows.go | 13 ++-----------
+ src/pkg/net/tcpsockopt_posix.go  | 17 +++--------------
+ src/pkg/net/tcpsockopt_unix.go   | 31 +++++++++++++++++++++++++++++++
+ 10 files changed, 70 insertions(+), 151 deletions(-)

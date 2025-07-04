@@ -1,19 +1,17 @@
-commit 8a16c71067ca2cfd09281a82ee150a408095f0bc
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri May 18 10:45:10 2018 +0100
+commit 57020705f321d5c652c38ace050e78e2455cd07e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 4 21:23:25 2018 +0100
 
-    cmd/vet: -composites only checks imported types
+    internal/cpu: make arm64 capability bits naming less verbose
     
-    The check has worked this way for a long time, but it has never been
-    well documented.
+    This makes the constant names less verbose and aligns them more
+    with the Linux kernel which uses HWCAP_XXX for the constant names.
     
-    For #25453.
-    
-    Change-Id: If603e53348ba51f73b2f449b943c6f97f64aa3eb
-    Reviewed-on: https://go-review.googlesource.com/113755
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ia7d079b59b57978adc045945951eaa1d99b41fac
+    Reviewed-on: https://go-review.googlesource.com/91738
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/composite.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/cpu/cpu_arm64.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

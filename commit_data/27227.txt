@@ -1,18 +1,20 @@
-commit 5d002dbc2179c99beb47490d316c53f687c9565a
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:18:20 2016 -0400
+commit dd2ba0c7a78d333da340bcf00995162252febad7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 21:51:09 2016 -0700
 
-    runtime/cgo: add linux/mips64x cgo support
+    cmd/internal/obj: remove LSym.Next
     
-    MIPS N64 ABI passes arguments in registers R4-R11, return value in R2.
-    R16-R23, R28, R30 and F24-F31 are callee-save. gcc PIC code expects
-    to be called with indirect call through R25.
+    Instead, use a slice.
     
-    Change-Id: I24f582b4b58e1891ba9fd606509990f95cca8051
-    Reviewed-on: https://go-review.googlesource.com/19805
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I889fdb4ae997416f907522f549b96506be13bec7
+    Reviewed-on: https://go-review.googlesource.com/20699
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo/asm_mips64x.s       | 74 ++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_linux_mips64x.c | 77 ++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_mips64x.S       | 79 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 230 insertions(+)
+ src/cmd/internal/obj/link.go        |  7 ++-----
+ src/cmd/internal/obj/objfile.go     | 40 ++++++++++---------------------------
+ src/cmd/internal/obj/sizeof_test.go |  2 +-
+ 3 files changed, 14 insertions(+), 35 deletions(-)

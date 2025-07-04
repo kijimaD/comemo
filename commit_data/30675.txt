@@ -1,33 +1,21 @@
-commit 16200c73331a679b43efc4699b5806c64a556f09
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Feb 25 23:50:56 2017 +0100
+commit 86ab09eed55e4b70e642ad97d243d3090550b624
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Nov 21 12:10:07 2016 -0500
 
-    runtime: make complex division c99 compatible
+    runtime/pprof: generate heap profiles in compressed proto format
     
-    - changes tests to check that the real and imaginary part of the go complex
-      division result is equal to the result gcc produces for c99
-    - changes complex division code to satisfy new complex division test
-    - adds float functions isNan, isFinite, isInf, abs and copysign
-      in the runtime package
+    When debug is 0, emit the compressed proto format.
+    The debug>0 format stays the same.
     
-    Fixes #14644.
+    Updates #16093
     
-    name                   old time/op  new time/op  delta
-    Complex128DivNormal-4  21.8ns ± 6%  13.9ns ± 6%  -36.37%  (p=0.000 n=20+20)
-    Complex128DivNisNaN-4  14.1ns ± 1%  15.0ns ± 1%   +5.86%  (p=0.000 n=20+19)
-    Complex128DivDisNaN-4  12.5ns ± 1%  16.7ns ± 1%  +33.79%  (p=0.000 n=19+20)
-    Complex128DivNisInf-4  10.1ns ± 1%  13.0ns ± 1%  +28.25%  (p=0.000 n=20+19)
-    Complex128DivDisInf-4  11.0ns ± 1%  20.9ns ± 1%  +90.69%  (p=0.000 n=16+19)
-    ComplexAlgMap-4        86.7ns ± 1%  86.8ns ± 2%     ~     (p=0.804 n=20+20)
-    
-    Change-Id: I261f3b4a81f6cc858bc7ff48f6fd1b39c300abf0
-    Reviewed-on: https://go-review.googlesource.com/37441
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I45aa1874a22d34cf44dd4aa78bbff9302381cb34
+    Reviewed-on: https://go-review.googlesource.com/33422
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/complex.go  |  108 +-
- src/runtime/fastlog2.go |    6 -
- src/runtime/float.go    |   53 +
- test/cmplxdivide.c      |   72 +-
- test/cmplxdivide.go     |   26 +-
- test/cmplxdivide1.go    | 6511 ++++++++++++++++++++++++++++++-----------------
- 6 files changed, 4258 insertions(+), 2518 deletions(-)
+ .../pprof/internal/protopprof/protomemprofile.go   |  83 +++++++++++++++++
+ .../internal/protopprof/protomemprofile_test.go    | 102 +++++++++++++++++++++
+ src/runtime/pprof/pprof.go                         |  21 ++---
+ 3 files changed, 194 insertions(+), 12 deletions(-)

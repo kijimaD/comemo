@@ -1,15 +1,25 @@
-commit 078247a4075650aa4eaf9b9e7fab3b4b70b27a5f
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Fri Sep 24 10:07:44 2021 +0800
+commit 4be7af23f97fe8d1b4210acde6789cf621564ec6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 14 19:40:07 2021 -0800
 
-    bytes: add example for (*Buffer).Next
+    [dev.regabi] cmd/compile: fix ICE during ir.Dump
     
-    Change-Id: Ic0a97fd7bb89865448e436e5c092415a29d8badf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352009
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    fmt.go:dumpNodeHeader uses reflection to call all "func() bool"-typed
+    methods on Nodes during printing, but the OnStack method that I added
+    in CL 283233 isn't meant to be called on non-variables.
+    
+    dumpNodeHeader does already guard against panics, as happen in some
+    other accessors, but not against Fatalf, as I was using in OnStack. So
+    simply change OnStack to use panic too.
+    
+    Thanks to drchase@ for the report.
+    
+    Change-Id: I0cfac84a96292193401a32fc5e7fd3c48773e008
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284074
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: David Chase <drchase@google.com>
 
- src/bytes/example_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/ir/name.go | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

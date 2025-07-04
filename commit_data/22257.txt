@@ -1,47 +1,18 @@
-commit 3ed9e4ca3cdf0f498d7cf233d918e22b43425e81
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 25 19:33:01 2015 -0700
+commit 54efdc596f7b6c711e5d65d99f1c25a0ca3628f1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 2 16:01:20 2015 -0500
 
-    cmd/internal/gc: unembed Node.Func
+    time: zoneinfo support on darwin/arm
     
-    This is a follow-up to CL 7360.
+    A future change will include an NSTimeZone hook so we can determine
+    the device's current time zone.
     
-    It was generated with eg and gofmt -r.
-    
-    The only manual changes are the unembedding in syntax.go
-    and backporting changes from y.go to go.y.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I3d6d06ecb659809a4bc8592395d5b9a18967218e
-    Reviewed-on: https://go-review.googlesource.com/8053
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia4bd6b955e4cb720c518055541b66ff57a4dd303
+    Reviewed-on: https://go-review.googlesource.com/6511
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/5g/ggen.go               |  2 +-
- src/cmd/6g/ggen.go               |  2 +-
- src/cmd/7g/ggen.go               |  2 +-
- src/cmd/8g/ggen.go               |  2 +-
- src/cmd/9g/ggen.go               |  2 +-
- src/cmd/internal/gc/cgen.go      |  4 +--
- src/cmd/internal/gc/closure.go   | 70 ++++++++++++++++++++--------------------
- src/cmd/internal/gc/dcl.go       |  6 ++--
- src/cmd/internal/gc/esc.go       | 10 +++---
- src/cmd/internal/gc/export.go    | 12 +++----
- src/cmd/internal/gc/gen.go       |  2 +-
- src/cmd/internal/gc/go.y         | 18 +++++------
- src/cmd/internal/gc/gsubr.go     |  4 +--
- src/cmd/internal/gc/inl.go       | 52 ++++++++++++++---------------
- src/cmd/internal/gc/lex.go       |  2 +-
- src/cmd/internal/gc/obj.go       |  2 +-
- src/cmd/internal/gc/order.go     |  2 +-
- src/cmd/internal/gc/pgen.go      | 36 ++++++++++-----------
- src/cmd/internal/gc/plive.go     | 12 +++----
- src/cmd/internal/gc/popt.go      |  8 ++---
- src/cmd/internal/gc/racewalk.go  | 10 +++---
- src/cmd/internal/gc/subr.go      | 10 +++---
- src/cmd/internal/gc/syntax.go    |  2 +-
- src/cmd/internal/gc/typecheck.go |  8 ++---
- src/cmd/internal/gc/walk.go      | 26 +++++++--------
- src/cmd/internal/gc/y.go         | 18 +++++------
- 26 files changed, 162 insertions(+), 162 deletions(-)
+ src/time/sleep_test.go           |  4 ++++
+ src/time/zoneinfo_darwin_armx.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_unix.go        |  2 +-
+ 3 files changed, 56 insertions(+), 1 deletion(-)

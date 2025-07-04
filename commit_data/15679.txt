@@ -1,12 +1,14 @@
-commit be262ce28b9d9ab248c8f16723f021177c284117
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 11 12:34:55 2013 -0400
+commit b66df0e9bad6b9dca4935a5128b2f696156c2d8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 11 09:20:52 2013 -0700
 
-    lib/time: update link in README; draft now an RFC
+    spec: typed indices must be of integer type
     
-    R=golang-dev, minux.ma, bradfitz
+    The same rules apply for make arguments.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/7704043
+    https://golang.org/cl/7656043
 
- lib/time/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

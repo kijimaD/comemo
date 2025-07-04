@@ -1,22 +1,26 @@
-commit bfd9b94069e74b0c6516a045cbb83bf1024a1269
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 5 16:26:45 2018 +0000
+commit e5b13401c6b19f58a8439f1019a80fe540c0c687
+Author: Minaev Mike <minaev.mike@gmail.com>
+Date:   Fri Jan 26 09:17:46 2018 +0000
 
-    net/http: make Transport respect {X-,}Idempotency-Key header
+    crypto/tls: fix deadlock when Read and Close called concurrently
     
-    Fixes #19943
+    The existing implementation of TLS connection has a deadlock. It occurs
+    when client connects to TLS server and doesn't send data for
+    handshake, so server calls Close on this connection. This is because
+    server reads data under locked mutex, while Close method tries to
+    lock the same mutex.
     
-    Change-Id: I5e0fefe44791d7b3556095d726c2a753ec551ef2
-    Reviewed-on: https://go-review.googlesource.com/c/147457
+    Fixes #23518
+    
+    Change-Id: I4fb0a2a770f3d911036bfd9a7da7cc41c1b27e19
+    Reviewed-on: https://go-review.googlesource.com/90155
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/http/export_test.go       |  2 ++
- src/net/http/header.go            |  7 ++++++
- src/net/http/request.go           |  8 +++++-
- src/net/http/requestwrite_test.go | 32 +++++++++++++++++++++++
- src/net/http/server.go            |  2 +-
- src/net/http/transport.go         |  9 +++++++
- src/net/http/transport_test.go    | 53 +++++++++++++++++++++++++++++++++++++++
- 7 files changed, 111 insertions(+), 2 deletions(-)
+ src/crypto/tls/conn.go                  | 37 +++++++++++++++++----------------
+ src/crypto/tls/handshake_client.go      |  3 ++-
+ src/crypto/tls/handshake_client_test.go | 19 +++++++++++++++++
+ src/crypto/tls/handshake_server.go      |  3 ++-
+ src/crypto/tls/handshake_server_test.go | 18 ++++++++++++++++
+ 5 files changed, 60 insertions(+), 20 deletions(-)

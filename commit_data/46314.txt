@@ -1,38 +1,20 @@
-commit 28dae3defb06fb18aaadce5269e928e8ca3769e1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 9 08:14:04 2021 +0000
+commit 3b12c6dc089f63d0fe2eeda27e65feb51c5e36d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 02:22:42 2020 -0500
 
-    cmd/internal/obj/riscv: improve code generation for loading of constants
+    [dev.regabi] cmd/compile: separate typecheck more cleanly
     
-    Loading of constants that are 12 bits or smaller is currently performed using a single
-    ADDIW instruction, while constants between 13 bits and 32 bits are loaded using a
-    LUI+ADDIW pair.
+    Abstract the typecheck API a bit more so that it is
+    easier to move into a new package.
     
-    Instead, use a single ADDI instruction for the 12 bits or smaller case - this
-    translates to the LI pseudo-instruction, making objdump more readable and giving:
-    
-       11c7c:       fff00293                li      t0,-1
-       11c80:       00000313                li      t1,0
-    
-    Rather than:
-    
-       11c7c:       fff0029b                addiw   t0,zero,-1
-       11c80:       0000031b                sext.w  t1,zero
-    
-    In the case where a constant exceeds 12 bits, an LUI instruction is required,
-    however if the lower 12 bits are zero, the ADDIW instruction can be omitted.
-    The same applies to the case where immediate splitting is performed for other
-    immediate instructions.
-    
-    This removes around 900 instructions from the Go binary.
-    
-    Change-Id: Id6c77774b3b429fa525da018a6926b85df838a2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344457
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia0a0146151fa7f6073113e68a2c3f6e42a5d0ad8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279303
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  8 ++++++--
- src/cmd/internal/obj/riscv/obj.go           | 12 +++++++++---
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  4 ++--
+ src/cmd/compile/internal/gc/main.go      |  4 ++++
+ src/cmd/compile/internal/gc/subr.go      |  6 +++---
+ src/cmd/compile/internal/gc/typecheck.go | 37 +++++++++++++++++++++++++++++---
+ src/cmd/compile/internal/gc/walk.go      | 13 ++++-------
+ 5 files changed, 47 insertions(+), 17 deletions(-)

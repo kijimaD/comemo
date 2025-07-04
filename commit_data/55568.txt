@@ -1,28 +1,19 @@
-commit 69f1290fcb8593c2e7ee6262e363f1a6d9c1a436
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Nov 14 14:45:21 2023 -0600
+commit ecff9c9335584a58ff6c45e71876ba60d982676c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 8 02:03:30 2023 +1100
 
-    cmd/internal/obj/ppc64: add new constant optab classifications
+    cmd/internal/obj/arm64: invert SP check
     
-    Make C_S32CON, C_U32CON, and C_32CON distinct classifiers to allow
-    more specific matching of 32 bit constants. C_U31CON is added to
-    support C_S32CON.
+    Check for REGSP use before checking for invalid instructions. This simplifies
+    the code and avoids duplicated op generation.
     
-    Likewise, add C_16CON which is the union of C_S16CON and C_U16CON
-    classification. This wil allow simplifying MOVD/MOVW optab entries
-    in a future patch.
-    
-    Change-Id: I193acc0ded8f3edd91d306e39c3e7e55a9811e04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562346
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: I302e3b54a29742f2c48024b25162200f5966cfaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461138
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/ppc64/a.out.go    |  8 ++++----
- src/cmd/internal/obj/ppc64/anames9.go  |  4 ++++
- src/cmd/internal/obj/ppc64/asm9.go     | 17 ++++++++++++-----
- src/cmd/internal/obj/ppc64/asm_test.go |  4 +++-
- 4 files changed, 23 insertions(+), 10 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

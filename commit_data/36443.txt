@@ -1,31 +1,26 @@
-commit be10ad762289943638efb279fc7e04c73b8d7cee
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue Aug 21 22:58:08 2018 -0700
+commit 13cd0061390af0621516ec22b1a3987712b4da3b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 30 22:54:00 2018 -0700
 
-    internal/poll: use F_FULLFSYNC fcntl for FD.Fsync on OS X
+    runtime: add fast version of getArgInfo
     
-    As reported in #26650 and also cautioned on the man page
-    for fsync on OS X, fsync doesn't properly flush content
-    to permanent storage, and might cause corruption of data if
-    the OS crashes or if the drive loses power. Thus it is recommended
-    to use the F_FULLFSYNC fcntl, which flushes all buffered data to
-    permanent storage and is important for applications such as
-    databases that require a strict ordering of writes.
+    getArgInfo is called a lot during stack copying.
+    In the common case it doesn't do much work,
+    but it cannot be inlined.
     
-    Also added a note in syscall_darwin.go that syscall.Fsync is
-    not invoked for os.File.Sync.
+    This change works around that.
     
-    Fixes #26650.
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8       108ms ± 5%    96ms ± 4%  -10.40%  (p=0.000 n=20+20)
+    StackCopy-8         82.6ms ± 3%  78.4ms ± 6%   -5.15%  (p=0.000 n=19+20)
+    StackCopyNoCache-8   130ms ± 3%   122ms ± 3%   -6.44%  (p=0.000 n=20+20)
     
-    Change-Id: Idecd9adbbdd640b9c5b02e73b60ed254c98b48b6
-    Reviewed-on: https://go-review.googlesource.com/130676
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If7d8a08c50a4e2e76e4331b399396c5dbe88c2ce
+    Reviewed-on: https://go-review.googlesource.com/108945
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/poll/fd_fsync_darwin.go | 23 +++++++++++++++++++++++
- src/internal/poll/fd_fsync_posix.go  | 18 ++++++++++++++++++
- src/internal/poll/fd_posix.go        |  9 ---------
- src/syscall/syscall_darwin.go        |  1 +
- 4 files changed, 42 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go |  1 +
+ src/runtime/traceback.go                | 21 +++++++++++++++++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

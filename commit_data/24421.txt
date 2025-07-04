@@ -1,16 +1,21 @@
-commit f35310edff6a16fd247fab47cc4e37874a668c5d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 1 15:40:55 2015 -0700
+commit edff881ce5ca9c2ee209bcd7a2cd92b63ffe4179
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Jul 28 14:58:49 2015 +0200
 
-    syscall: skip a couple tests when running under Kubernetes
+    [dev.ssa] cmd/compile/internal/ssa/gen: implement OAND.
     
-    Update #12815
+    Before this patch there was only partial support for ANDQconst
+    which was not lowered. This patch added support for AND operations
+    for all bit sizes and signs.
     
-    Change-Id: I3bf6de74bc8ab07000fe9a4308299839ef20632f
-    Reviewed-on: https://go-review.googlesource.com/15283
-    Reviewed-by: Evan Brown <evanbrown@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3a6b2cddfac5361b27e85fcd97f7f3537ebfbcb6
+    Reviewed-on: https://go-review.googlesource.com/12761
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/exec_linux_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             |  17 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   9 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   8 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   9 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 136 +++++++++++++++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 153 +++++++++++++++++++++++++
+ 6 files changed, 300 insertions(+), 32 deletions(-)

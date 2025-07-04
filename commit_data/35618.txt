@@ -1,24 +1,31 @@
-commit baf399b02e7a17add068b185d8969a50ca2fb8a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 19 10:54:12 2018 -0400
+commit 144bf04a2b0dea43e17fc9e745d3fa8885de11f7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Feb 26 14:58:05 2018 +0000
 
-    cmd/go: add go list -cgo and -export
+    net, internal/poll, net/internal/socktest: use SOCK_{CLOEXEC,NONBLOCK} accept4/socket flags on OpenBSD
     
-    We want package analysis tools to be able to ask cmd/go for
-    cgo-translated files and for the names of files holding export
-    type information, instead of reinventing that logic themselves.
-    Allow them to do so, with the new list -cgo and -export flags.
+    The SOCK_CLOEXEC and SOCK_NONBLOCK flags to the socket syscall and the
+    accept4 syscall are supported since OpenBSD 5.7.
     
-    Change-Id: I860df530d8dcc130f1f328413381b5664cc81c3b
-    Reviewed-on: https://go-review.googlesource.com/108156
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Follows CL 40895 and CL 94295
+    
+    Change-Id: Icaf35ace2ef5e73279a70d4f1a9fbf3be9371e6c
+    Reviewed-on: https://go-review.googlesource.com/97196
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go               |  28 ++++++-
- src/cmd/go/go_test.go               |  49 +++++++++++
- src/cmd/go/internal/list/list.go    |  56 ++++++++++---
- src/cmd/go/internal/load/pkg.go     |   1 +
- src/cmd/go/internal/work/action.go  |   5 +-
- src/cmd/go/internal/work/buildid.go |  18 +++--
- src/cmd/go/internal/work/exec.go    | 157 +++++++++++++++++++++++++++++-------
- 7 files changed, 264 insertions(+), 50 deletions(-)
+ src/internal/poll/hook_cloexec.go        |  2 +-
+ src/internal/poll/sock_cloexec.go        |  2 +-
+ src/internal/poll/sys_cloexec.go         |  2 +-
+ src/net/internal/socktest/sys_cloexec.go |  2 +-
+ src/net/main_cloexec_test.go             |  2 +-
+ src/net/sock_cloexec.go                  |  2 +-
+ src/net/sys_cloexec.go                   |  2 +-
+ src/syscall/syscall_openbsd.go           | 19 +++++++++++++++++++
+ src/syscall/zerrors_openbsd_386.go       |  2 ++
+ src/syscall/zerrors_openbsd_amd64.go     |  2 ++
+ src/syscall/zsyscall_openbsd_386.go      | 11 +++++++++++
+ src/syscall/zsyscall_openbsd_amd64.go    | 11 +++++++++++
+ src/syscall/zsyscall_openbsd_arm.go      | 11 +++++++++++
+ src/syscall/zsysnum_openbsd_386.go       |  1 +
+ src/syscall/zsysnum_openbsd_amd64.go     |  1 +
+ 15 files changed, 65 insertions(+), 7 deletions(-)

@@ -1,17 +1,17 @@
-commit fc5c590d8dac4edb7b87b6c943948033a3920266
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Tue May 23 16:51:04 2023 +0200
+commit 5531838c046eb1a94b142deeb89d7d8d9be3fc14
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jun 28 09:58:19 2022 +0000
 
-    errors: add godoc links
+    plugin: enable plugin test on linux/arm64
     
-    Change-Id: I766e656e6b967290d692313ea1391878fc21c92d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497375
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The test passed on linux/arm64, so re-enable it.
+    
+    Change-Id: Ib5252d89b58f0de256993065e27b64c4676f5103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414975
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/errors/errors.go | 12 ++++++------
- src/errors/wrap.go   |  2 +-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/plugin/plugin_test.go | 2 --
+ 1 file changed, 2 deletions(-)

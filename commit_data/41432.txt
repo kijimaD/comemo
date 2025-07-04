@@ -1,28 +1,18 @@
-commit a9f1ea4a83da919acc254107661b99d0d6f8c7ec
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 25 14:36:38 2020 +0000
+commit a09cd8ccb372d760bd21d7e56f42b9dbea6ecc2b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 2 17:45:05 2019 -0400
 
-    Revert "cmd/compile: don't allow NaNs in floating-point constant ops"
+    [dev.link] cmd/compile: fix data race on LSym.Pkg
     
-    This reverts CL 213477.
+    LSym may be created concurrently. Reading/writing LSym.Pkg may
+    cause data race (see
+    https://build.golang.org/log/f0351c5cc7bf4c92e3aa5e78e294c2d009ebf118).
+    Fix this by setting LSym.Pkg only when holding the lock.
     
-    Reason for revert: tests are failing on linux-mips*-rtrk builders.
-    
-    Change-Id: I8168f7450890233f1bd7e53930b73693c26d4dc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220897
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib3160ecf47c4ca530b09369e0e8284db6597cfd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198492
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/float_test.go      | 60 --------------------------
- src/cmd/compile/internal/ssa/check.go          | 10 +----
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules    | 21 +++++----
- src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++---
- src/cmd/compile/internal/ssa/gen/genericOps.go |  7 +--
- src/cmd/compile/internal/ssa/rewrite.go        |  6 ---
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  4 --
- src/cmd/compile/internal/ssa/rewriteWasm.go    | 41 ------------------
- src/cmd/compile/internal/ssa/rewritegeneric.go | 28 ++----------
- test/codegen/math.go                           | 33 +-------------
- 11 files changed, 26 insertions(+), 200 deletions(-)
+ src/cmd/compile/internal/types/sym.go | 16 +++++++---------
+ src/cmd/internal/obj/sym.go           | 10 ++++++++++
+ 2 files changed, 17 insertions(+), 9 deletions(-)

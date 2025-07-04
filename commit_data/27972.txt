@@ -1,16 +1,38 @@
-commit 355d7fa8a8c362ee148d3394ce834d0b742c6872
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 22 18:59:20 2016 +0000
+commit 7879e9193b39e6455ae03f2baace9c41f6393ee4
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Apr 21 10:11:33 2016 +0200
 
-    net/http: make Transport.CancelRequest doc recommend Request.WithContext
+    cmd/compile: reenable phielim during rewrite
     
-    The old deprecation docs were referencing another deprecated field.
+    Remove the "optimization" that was causing the issue.
     
-    Fixes #16752
+    For the following code the "optimization" was
+    converting v to (OpCopy x) which is wrong because
+    x doesn't dominate v.
     
-    Change-Id: I44a690048e00ddc790a80214ecb7f5bb0a5b7b34
-    Reviewed-on: https://go-review.googlesource.com/27510
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    b1:
+        y = ...
+        First .. b3
+    b2:
+       x = ...
+       Goto b3
+    b3:
+       v = phi x y
+       ... use v ...
+    
+    That "optimization" is likely no longer needed because
+    we now have a second opt pass with a dce in between
+    which removes blocks of type First.
+    
+    For pkg/tools/linux_amd64/* the binary size drops
+    from 82142886 to 82060034.
+    
+    Change-Id: I10428abbd8b32c5ca66fec3da2e6f3686dddbe31
+    Reviewed-on: https://go-review.googlesource.com/22312
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/transport.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/phielim.go | 6 +-----
+ src/cmd/compile/internal/ssa/rewrite.go | 2 ++
+ 2 files changed, 3 insertions(+), 5 deletions(-)

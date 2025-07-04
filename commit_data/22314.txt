@@ -1,50 +1,19 @@
-commit d7e0ad4b82c007a8c8d57fcd74b41dcd8aa9ea3c
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 30 18:01:32 2015 -0400
+commit f09887cdce9dbb63e01503e0598bdeae74ee4e0b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 3 23:28:00 2015 -0500
 
-    runtime: introduce heap_live; replace use of heap_alloc in GC
+    cmd/internal/gc: do not show original expression for constants in export data
     
-    Currently there are two main consumers of memstats.heap_alloc:
-    updatememstats (aka ReadMemStats) and shouldtriggergc.
+    Fixes #10066.
     
-    updatememstats recomputes heap_alloc from the ground up, so we don't
-    need to keep heap_alloc up to date for it. shouldtriggergc wants to
-    know how many bytes were marked by the previous GC plus how many bytes
-    have been allocated since then, but this *isn't* what heap_alloc
-    tracks. heap_alloc also includes objects that are not marked and
-    haven't yet been swept.
-    
-    Introduce a new memstat called heap_live that actually tracks what
-    shouldtriggergc wants to know and stop keeping heap_alloc up to date.
-    
-    Unlike heap_alloc, heap_live follows a simple sawtooth that drops
-    during each mark termination and increases monotonically between GCs.
-    heap_alloc, on the other hand, has much more complicated behavior: it
-    may drop during sweep termination, slowly decreases from background
-    sweeping between GCs, is roughly unaffected by allocation as long as
-    there are unswept spans (because we sweep and allocate at the same
-    rate), and may go up after background sweeping is done depending on
-    the GC trigger.
-    
-    heap_live simplifies computing next_gc and using it to figure out when
-    to trigger garbage collection. Currently, we guess next_gc at the end
-    of a cycle and update it as we sweep and get a better idea of how much
-    heap was marked. Now, since we're directly tracking how much heap is
-    marked, we can directly compute next_gc.
-    
-    This also corrects bugs that could cause us to trigger GC early.
-    Currently, in any case where sweep termination actually finds spans to
-    sweep, heap_alloc is an overestimation of live heap, so we'll trigger
-    GC too early. heap_live, on the other hand, is unaffected by sweeping.
-    
-    Change-Id: I1f96807b6ed60d4156e8173a8e68745ffc742388
-    Reviewed-on: https://go-review.googlesource.com/8389
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I43c423793dd094989e921e163a06b12181a35719
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/6750
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/runtime/mcache.go   |  2 +-
- src/runtime/mgc.go      | 52 ++++++++++++++++++++++++-------------------------
- src/runtime/mgcsweep.go | 13 -------------
- src/runtime/mheap.go    |  7 +++----
- src/runtime/mstats.go   | 10 +++++++++-
- src/runtime/trace.go    |  4 ++--
- 6 files changed, 40 insertions(+), 48 deletions(-)
+ src/cmd/internal/gc/fmt.go         | 13 +++++++++----
+ test/fixedbugs/issue10066.dir/a.go | 11 +++++++++++
+ test/fixedbugs/issue10066.dir/b.go |  7 +++++++
+ test/fixedbugs/issue10066.go       | 10 ++++++++++
+ 4 files changed, 37 insertions(+), 4 deletions(-)

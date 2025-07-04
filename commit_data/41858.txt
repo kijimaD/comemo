@@ -1,25 +1,19 @@
-commit 553a8626ba04981d362ee5937583d2592b305eae
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Tue Apr 7 09:20:08 2020 -0400
+commit 28a15e3df34258f4f6c1de319fa30a81356ee92c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 28 22:19:32 2019 -0400
 
-    cmd/internal: add MVCIN instruction to s390x assembler
+    runtime: rename TestPreemptM to TestSignalM
     
-    On s390x, we already have MVCIN opcode in asmz.go,
-    but we did not use it. This CL uses that opcode and adds MVCIN
-    instruction.
+    TestPreemptM doesn't test preemptM, it tests signalM. Rename it and
+    co-locate it with the other tests related to signals.
     
-    MVCIN instruction can be used to move data from one storage location
-    to another while reversing the order of bytes within the field. This
-    could be useful when transforming data from little-endian to big-endian.
-    
-    Change-Id: Ifa1a911c0d3442f4a62f91f74ed25b196d01636b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227478
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I7b95f2ba96530c49cfa8d5bf33282946b5f2d9af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203891
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 1 +
- src/cmd/internal/obj/s390x/a.out.go       | 1 +
- src/cmd/internal/obj/s390x/anames.go      | 1 +
- src/cmd/internal/obj/s390x/asmz.go        | 3 +++
- 4 files changed, 6 insertions(+)
+ src/runtime/crash_unix_test.go | 24 ++++++++++++++++++++++++
+ src/runtime/preemptm_test.go   | 35 -----------------------------------
+ 2 files changed, 24 insertions(+), 35 deletions(-)

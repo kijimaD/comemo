@@ -1,34 +1,16 @@
-commit 7d56215bcbc5a2ef5e59805271b0ca6a4fd56e4d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Apr 19 14:02:21 2016 -0400
+commit 4db3dde522af4d6217ae152e8ee035b5e178bbbd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 17:30:51 2016 -0800
 
-    cmd/link: convert textp into a slice
+    cmd/compile: small cleanups for structargs
     
-    Updates #15374
+    Suggested by Dave Cheney in golang.org/cl/20405.
     
-    Change-Id: I3ea715735862fe9550b88d7a29def6cb9d4419a6
-    Reviewed-on: https://go-review.googlesource.com/22243
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I581c11ae80034cb6ebef3de976e8ae9484472322
+    Reviewed-on: https://go-review.googlesource.com/20453
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/link/internal/amd64/asm.go   |  7 +-----
- src/cmd/link/internal/arm/asm.go     |  7 +-----
- src/cmd/link/internal/arm64/asm.go   |  7 +-----
- src/cmd/link/internal/ld/data.go     | 15 +++++------
- src/cmd/link/internal/ld/deadcode.go | 22 ++++------------
- src/cmd/link/internal/ld/dwarf.go    |  8 +++---
- src/cmd/link/internal/ld/elf.go      |  2 +-
- src/cmd/link/internal/ld/ldelf.go    | 10 ++------
- src/cmd/link/internal/ld/ldmacho.go  | 10 ++------
- src/cmd/link/internal/ld/ldpe.go     | 10 ++------
- src/cmd/link/internal/ld/lib.go      | 38 ++++++++--------------------
- src/cmd/link/internal/ld/link.go     |  3 +--
- src/cmd/link/internal/ld/macho.go    |  2 +-
- src/cmd/link/internal/ld/objfile.go  |  7 +-----
- src/cmd/link/internal/ld/pcln.go     | 49 +++++++++++++++++-------------------
- src/cmd/link/internal/ld/pe.go       |  2 +-
- src/cmd/link/internal/ppc64/asm.go   | 23 +++--------------
- src/cmd/link/internal/s390x/asm.go   |  7 +-----
- src/cmd/link/internal/x86/asm.go     | 10 ++------
- 19 files changed, 71 insertions(+), 168 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)

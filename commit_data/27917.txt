@@ -1,15 +1,21 @@
-commit 55ea153b785249cfa9b15550d78eeb3df7d825d8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 18 05:26:51 2016 +0000
+commit d697a9d5d7d75cecd8d49b95ed9a0d1f2f3e8ed4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 18 16:12:48 2016 +1000
 
-    os: reference LookupEnv from the Getenv docs
+    debug/pe: introduce StringTable type
     
-    Fixes #16782
+    PE specification requires that long section and symbol names
+    are stored in PE string table. Introduce StringTable that
+    implements this functionality. Only string table reading is
+    implemented.
     
-    Change-Id: If54917bf5ca1588d8a6d443c3aa6e1d4ada6b620
-    Reviewed-on: https://go-review.googlesource.com/27322
-    Reviewed-by: anatoly techtonik <techtonik@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #15345
+    
+    Change-Id: Ib9638617f2ab1881ad707111d96fc68b0e47340e
+    Reviewed-on: https://go-review.googlesource.com/22181
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/os/env.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/debug/pe/file.go   | 16 +++++++------
+ src/debug/pe/string.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 7 deletions(-)

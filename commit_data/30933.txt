@@ -1,24 +1,41 @@
-commit bda74b0e4a8eb1acae8c202efd62d298ec3268f0
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 23 21:40:55 2017 -0500
+commit 9c6a5ef9227736f1fd8aa0c36cef78193ec11d62
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 19:32:47 2016 +0000
 
-    runtime: make TestMemStats failure messages useful
+    A+C: automated update
     
-    Currently most TestMemStats failures dump the whole MemStats object if
-    anything is amiss without telling you what is amiss, or even which
-    field is wrong. This makes it hard to figure out what the actual
-    problem is.
+    Now with a few more repos included.
     
-    Replace this with a reflection walk over MemStats and a map of
-    predicates to check. If one fails, we can construct a detailed and
-    descriptive error message. The predicates are a direct translation of
-    the current tests.
+    Add Albert Yu (individual CLA)
+    Add Alessandro Baffa (individual CLA)
+    Add Alexandre Fiori (individual CLA)
+    Add Andrew Austin (individual CLA)
+    Add Andy Finkenstadt (individual CLA)
+    Add Antonio Bibiano (individual CLA)
+    Add Baiju Muthukadan (individual CLA)
+    Add Ben Lubar (individual CLA)
+    Add Euan Kemp (individual CLA)
+    Add Harry Moreno (individual CLA)
+    Add Jason Buberel (corporate CLA for Google Inc.)
+    Add Joop Kiefte (individual CLA)
+    Add Maksym Trykur (individual CLA)
+    Add Mathieu Olivier (individual CLA)
+    Add Nick Leli (individual CLA)
+    Add Nik Nyby (individual CLA)
+    Add Quinn Slack (corporate CLA for Sourcegraph Inc)
+    Add Rafal Jeczalik (individual CLA)
+    Add Raphael Geronimi (individual CLA)
+    Add Ryan Bagwell (individual CLA)
+    Add Steve Francia (corporate CLA for Google Inc.)
+    Add Tristan Colgate (individual CLA)
+    Add Фахриддин Балтаев (individual CLA)
     
-    Change-Id: I5a7cafb8e6a1eeab653d2e18bb74e2245eaa5444
-    Reviewed-on: https://go-review.googlesource.com/37512
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Updates #12042
+    
+    Change-Id: Iab98da8a7a9fd3ee54f716ea358b2d515e1e32c4
+    Reviewed-on: https://go-review.googlesource.com/34658
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc_test.go | 60 +++++++++++++++++++++++++++++++++-------------
- 1 file changed, 44 insertions(+), 16 deletions(-)
+ AUTHORS      | 21 +++++++++++++++++++++
+ CONTRIBUTORS | 23 +++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

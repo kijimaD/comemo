@@ -1,20 +1,23 @@
-commit b075dfba8066033e35cd62aaacf3c8a2593cfa57
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 13 09:46:32 2018 -0500
+commit 889809719738ff5708c3ae94b67e1827ce6ff1a4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jul 5 14:17:46 2018 +0100
 
-    cmd/go/internal/modload: skip go.mod directories on all systems, not just Plan 9
+    doc: explain minor change to gofmt in go1.11
     
-    I see no reason Plan 9 should be special cased.
-    A directory named go.mod is not useful on any system.
-    Followup to CL 129804.
+    Add the tools section with a Gofmt sub-section, just like in
+    go1.10.html. Instead of copying the two last paragraphs from 1.10, which
+    warn users about the hidden complexity of enforcing gofmt, move that to
+    go/format and link to it.
     
-    Change-Id: I9cc91b5934b17650bfdb07370aa73aeae445968c
-    Reviewed-on: https://go-review.googlesource.com/c/149337
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    While at it, remove a duplicate "Tools" header that was likely added by
+    accident.
+    
+    Fixes #26228.
+    
+    Change-Id: Ic511c44b2b86f82a41f2b78dd7e7482d694b6c62
+    Reviewed-on: https://go-review.googlesource.com/122295
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/init.go                              | 5 ++---
- src/cmd/go/internal/modload/{init_plan9_test.go => init_test.go} | 0
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ doc/go1.11.html         | 22 ++++++++++++++++++++--
+ src/go/format/format.go | 13 +++++++++----
+ 2 files changed, 29 insertions(+), 6 deletions(-)

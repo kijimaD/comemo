@@ -1,28 +1,22 @@
-commit 193d5141318d65cea310d995258288bd000d734c
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Thu May 27 10:44:57 2021 +0200
+commit 8a368c63ec2d48e1c8965341c982987de96164fd
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 29 16:34:32 2020 -0400
 
-    net/http: correct Client.Do doc about context cancelation
+    cmd/go: print deprecation messages for -i
     
-    The documentation of the Client.Do method and Get function incorrectly
-    stated that, in case of context cancelation, the returned url.Error
-    Timeout method returns true.
+    build, install, and test will now print deprecation messages when the
+    -i flag is used. clean will continue to support -i.
     
-    Update the documentation to correctly match the implementation.
-    See also CL 200798 that, due to an oversight, corrected only the
-    documentation of the Client.Get method.
+    For #41696
     
-    Remove a TODO note added in CL 125575 (net/http: document that Client
-    methods always return *url.Error), since it is no longer applicable
-    after CL 200798 (net/http: fix and lock-in Client.Do docs on request
-    cancelation).
-    
-    Fixes #46402
-    
-    Change-Id: Ied2ee971ba22b61777762dbb19f16e08686634ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323089
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I956c235c487a872c5e6c1395388b4d6cd5ef817a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266368
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/client.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ doc/go1.16.html                                  | 12 ++++++++++
+ src/cmd/go/alldocs.go                            |  7 ++++--
+ src/cmd/go/internal/test/test.go                 |  2 ++
+ src/cmd/go/internal/work/build.go                | 30 +++++++++++++++++++++---
+ src/cmd/go/testdata/script/build_i_deprecate.txt | 24 +++++++++++++++++++
+ 5 files changed, 70 insertions(+), 5 deletions(-)

@@ -1,15 +1,18 @@
-commit f5a4d241cd5e2fe6fb2a50576eb95d16828857f1
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 8 01:25:28 2014 -0400
+commit ce6b75dab634e272e0449f85853fca7f1850da8b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 7 11:54:29 2014 -0700
 
-    doc/install.html: update wrt to OS and compiler support.
-    Update #7188
-    Fixes #7894.
+    database/sql: fix accounting of open connections
     
-    LGTM=alex.brainman, bradfitz, r
-    R=golang-codereviews, alex.brainman, mikioh.mikioh, gobot, r, bradfitz
+    Existing test TestMaxOpenConns was failing occasionally, especially
+    with higher values of GOMAXPROCS.
+    
+    Fixes #7532
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/95870043
+    https://golang.org/cl/95130043
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/database/sql/sql.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

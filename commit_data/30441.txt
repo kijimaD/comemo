@@ -1,23 +1,22 @@
-commit 0fe58bf6500a615e934e1ab2a7921dfbc2803cea
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Feb 28 14:01:59 2017 -0800
+commit 87f4e36ce7d7dffbf1f2a869f3014321f6cfff3c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 12:38:53 2016 -0700
 
-    cmd/compile: simplify load+op rules
+    Revert "spec: add new language for alias declarations"
     
-    There's no need to use @block rules, as canMergeLoad makes sure that
-    the load and op are already in the same block.
-    With no @block needed, we also don't need to set the type explicitly.
-    It can just be inherited from the op being rewritten.
+    This reverts commit aff37662d1f70f2bf9e47b4f962e85521e7c18d1.
     
-    Noticed while working on #19284.
+    Reason: Decision to back out current alias implementation.
+    https://github.com/golang/go/issues/16339#issuecomment-258527920
     
-    Change-Id: Ied8bcc8058260118ff7e166093112e29107bcb7e
-    Reviewed-on: https://go-review.googlesource.com/37585
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #16339.
+    Fixes #17746.
+    Fixes #17784.
+    
+    Change-Id: I5737b830d7f6fb79cf36f26403b4ad8533ba1dfe
+    Reviewed-on: https://go-review.googlesource.com/32813
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  56 ++--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 476 +++++++++++----------------
- 3 files changed, 234 insertions(+), 318 deletions(-)
+ doc/go_spec.html | 75 +++++---------------------------------------------------
+ 1 file changed, 6 insertions(+), 69 deletions(-)

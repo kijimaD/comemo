@@ -1,18 +1,23 @@
-commit 409434d62364cb362f0f17d0c7769dc680b2da99
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 2 11:23:20 2021 -0400
+commit 3d8a3cb06b98d24e4fbf99d7d8706271cbb9634f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 01:08:27 2020 -0500
 
-    cmd/go/internal/modload: scan dependencies of root paths when raising version limits in editRequirements
+    [dev.regabi] cmd/compile: split out package pkginit [generated]
     
-    Fixes #47979
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            mv fninit Task
+            mv init.go initorder.go cmd/compile/internal/pkginit
+    '
     
-    Change-Id: I1d9d854cda1378e20c70e6c6789b77e42e467ca7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347290
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie2a924784c7a6fa029eaef821384eef4b262e1af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279479
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modload/edit.go               |  93 ++++++++++++++---
- src/cmd/go/testdata/script/mod_get_issue47979.txt | 117 ++++++++++++++++++++++
- 2 files changed, 195 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/main.go                   | 3 ++-
+ src/cmd/compile/internal/{gc => pkginit}/init.go      | 6 +++---
+ src/cmd/compile/internal/{gc => pkginit}/initorder.go | 2 +-
+ 3 files changed, 6 insertions(+), 5 deletions(-)

@@ -1,21 +1,16 @@
-commit 125eca0f7210da1bbf1a4a1460a87d1c33366b99
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Mar 6 04:46:07 2021 +1100
+commit 7ad776dda531ebd406e03d26b7eeed3a89321cc1
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Aug 10 11:31:22 2020 -0400
 
-    cmd/compile: improve IsNonNil rule on riscv64
+    doc/go1.15: document crypto/tls permanent error
     
-    IsNonNil is readily implemented using SNEZ on riscv64, removing over 8,000
-    instructions from the go binary. Other rules will improve on this sequence,
-    however in this case it makes sense to use a direct simplification.
+    Fixes #40554
     
-    Change-Id: Ib4068599532398afcd05f51d160673ef5fb5e5a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299230
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Icc71cb9bab3d1efaa8e586c71cc38bc1d0d1e676
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247698
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 18 ++----------------
- 2 files changed, 3 insertions(+), 17 deletions(-)
+ doc/go1.15.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

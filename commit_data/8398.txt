@@ -1,14 +1,18 @@
-commit d49844bcce59409a88d889b3a5fdd7ca59f19c4e
+commit cc2fc024678020a361b5634f2aa349f2645ddf8a
 Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sat May 14 23:06:50 2011 -0700
+Date:   Sat May 14 20:43:18 2011 -0700
 
-    gofmt: skip bug340.go in test.sh
+    pkg: fix incorrect prints found by govet
     
-    bug340.go is a test case for a syntax error
+    Also, clarify some error messages
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4523069
+    https://golang.org/cl/4548042
 
- src/cmd/gofmt/test.sh | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/crypto/openpgp/packet/public_key_test.go |  2 +-
+ src/pkg/http/request_test.go                     | 10 +++++-----
+ src/pkg/http/response_test.go                    |  4 ++--
+ src/pkg/mime/multipart/formdata_test.go          |  2 +-
+ src/pkg/os/user/user_test.go                     |  2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)

@@ -1,13 +1,25 @@
-commit 912f0750472dd4f674b69ca1616bfaf377af1805
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Tue Jun 8 20:13:23 2021 +0200
+commit 91f77ca2f8590ed2051ee9a62d52676cf1bff98d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 27 20:45:15 2020 +0100
 
-    net/http: mention socks5 support in proxy
+    runtime: return 0 from C function in test
     
-    Change-Id: I55b6d5c77221569eeafea625379affd476a65772
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326011
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    This function's prototype includes a return value, so return a value.
+    Otherwise clang gets upset:
+    
+        --- FAIL: TestDLLPreloadMitigation (1.40s)
+            syscall_windows_test.go:986: failed to build dll: exit status 1 - nojack.c:7:1: error: non-void function does not return a value [-Werror,-Wreturn-type]
+                }
+                ^
+                1 error generated.
+    
+    Fixes #42860.
+    
+    Change-Id: I65b8eb9ccb502692c5b65bd34829f331cd86eef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273726
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/syscall_windows_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

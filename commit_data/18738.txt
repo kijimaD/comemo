@@ -1,12 +1,16 @@
-commit f884e15aabcdf547eb8c8a10e02e6bddc801e7e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 4 14:03:39 2014 -0500
+commit 542415c9df03e40a99ef9eb1005e43ba2cadc46a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 09:59:07 2014 -0800
 
-    runtime: fix arm build (B not JMP)
+    net/http: deflake another alloc test
     
-    TBR=dvyukov
+    I have one machine where this 25 test run is flaky
+    and fails ("21 >= 21"), but 50 works everywhere.
+    
+    LGTM=josharian
+    R=josharian
     CC=golang-codereviews
-    https://golang.org/cl/71060046
+    https://golang.org/cl/67870053
 
- src/pkg/runtime/asm_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

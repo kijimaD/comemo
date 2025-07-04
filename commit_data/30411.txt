@@ -1,19 +1,19 @@
-commit ba6e5776fd6796282533ba49e80a5afd8b1ced23
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Feb 27 20:39:49 2017 +0100
+commit 18f0e88103aaa429e92564312b4ee966dcb77102
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 3 10:47:44 2016 -0700
 
-    runtime: remove unused RaceSemacquire declaration
+    go/internal/gcimporter: backport changes from x/tools/go/gcimporter15
     
-    These functions are not defined and are not used.
+    See https://go-review.googlesource.com/32581.
     
-    Fixes #19290
+    This makes x/tools/go/gcimporter15/bimport.go a close copy again
+    and the importer more robust.
     
-    Change-Id: I2978147220af83cf319f7439f076c131870fb9ee
-    Reviewed-on: https://go-review.googlesource.com/37448
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: If96ad6acd611878b7dfa6a13d005d847ece82ab6
+    Reviewed-on: https://go-review.googlesource.com/32647
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/race.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/go/internal/gcimporter/bimport.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

@@ -1,30 +1,14 @@
-commit 6ded116ab18c98cf572089c627f80fc1bb18cd0c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Jan 25 10:32:23 2018 +0700
+commit 7128ed0501cc73a4d644ba1c510a152d680367a9
+Author: Javier Segura <javism@gmail.com>
+Date:   Sun Oct 15 23:20:10 2017 +0200
 
-    cmd/vet: warn on unkeyed struct pointer literals
+    bytes: add examples of Equal and IndexByte
     
-    We did warn on them in some cases, but not others. In particular, if one
-    used a slice composite literal with struct pointer elements, and omitted
-    the type of an element's composite literal, it would not get any warning
-    even if it should get one.
-    
-    The issue is that typ.Underlying() can be of type *types.Pointer. Skip
-    those levels of indirection before checking for a *types.Struct
-    underlying type.
-    
-    isLocalType also needed a bit of tweaking to ignore dereferences.
-    Perhaps that can be rewritten now that we have type info, but let's
-    leave it for another time.
-    
-    Fixes #23539.
-    
-    Change-Id: I727a497284df1325b70d47a756519f5db1add25d
-    Reviewed-on: https://go-review.googlesource.com/89715
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ibf3179d0903eb443c89b6d886802c36f8d199898
+    Reviewed-on: https://go-review.googlesource.com/70933
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/composite.go          | 14 +++++++++++++-
- src/cmd/vet/testdata/composite.go | 17 +++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/bytes/example_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

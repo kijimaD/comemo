@@ -1,19 +1,15 @@
-commit fb9fc886ff937a0868e77b3c7942ccd56eea5d4a
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Thu Feb 3 12:50:41 2011 +1100
+commit 68b40fbbb8ceff55efdf6dfb1f25c48c2f2df6d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 15:53:32 2011 -0800
 
-    windows: syscall: Make ForkExec acquire the ForkLock
-    so that spawned processes avoid inheriting pipes.
+    Getting Started guide: update for new versions of Mercurial
     
-    Implement CloseOnExec.
-    Make file and pipe handles inheritable.
+    Newer versions of Mercurial require the configuration
+    of Certification Authorities.
     
-    R=rsc, brainman, vincent.vanackere
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4126047
+    https://golang.org/cl/4128052
 
- src/pkg/syscall/exec_windows.go         |  8 +++++++-
- src/pkg/syscall/syscall_windows.go      | 22 +++++++++++++++++-----
- src/pkg/syscall/zsyscall_windows_386.go | 24 ++++++++++++++++++++----
- src/pkg/syscall/ztypes_windows_386.go   |  7 +++++++
- 4 files changed, 51 insertions(+), 10 deletions(-)
+ doc/install.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

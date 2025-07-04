@@ -1,15 +1,15 @@
-commit 135572eb326dfc445e1faf74fdffaf82d041c22d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 18 13:31:50 2016 +1000
+commit 6ed10382f7c81369e69f6c9e406f1df325a85984
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 4 18:55:09 2016 -0800
 
-    cmd/go: mention that _test.go files are ignored when building
+    cmd/compile: soup up isSamePtr
     
-    Fixes #15315
+    This increases the number of matches in make.bash
+    from 853 to 984.
     
-    Change-Id: I8fea31507a5f83df8a86fb067f1b11d90133dc09
-    Reviewed-on: https://go-review.googlesource.com/22180
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I12697697a50ecd86d49698200144a4c80dd3e5a4
+    Reviewed-on: https://go-review.googlesource.com/20274
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/go/alldocs.go | 2 ++
- src/cmd/go/build.go   | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/rewrite.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

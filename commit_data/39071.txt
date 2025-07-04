@@ -1,15 +1,14 @@
-commit bef15341e1e0e691cd6699e8ab767c1d67681bff
-Author: Lorenz Nickel <mail@lorenznickel.de>
-Date:   Wed May 8 16:29:27 2019 +0000
+commit e7c20b7917989e678a2800378b807fe0fdaf8031
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 21 11:16:43 2018 -0800
 
-    doc: fixed some links
+    doc: go_mem: clarify Once docs
     
-    Change-Id: I8563a20a4ba43cee7d4b73377c405a6ff12636e5
-    GitHub-Last-Rev: 0dae408845c7cf42667a65fff6f7d1a382e2d320
-    GitHub-Pull-Request: golang/go#31914
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176017
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #27808
+    
+    Change-Id: Ia643d51004c47953642a2ba41dfed281f1112be6
+    Reviewed-on: https://go-review.googlesource.com/c/155637
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/elliptic/p256_asm_s390x.s | 2 +-
- src/runtime/write_err_android.go     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go_mem.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

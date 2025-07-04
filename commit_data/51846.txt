@@ -1,21 +1,19 @@
-commit 00e1091bfde531ae25cb411f9ac9a9e2d04b2592
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 30 15:09:21 2023 -0800
+commit 0a49f706e172443d817cfb3d44e5b366da1cc72a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 4 11:55:33 2022 -0500
 
-    cmd/dist: test goos, not gohostos, in tester.extLink
+    cmd/go: run 'go help documentation' through gofmt in TestDocsUpToDate
     
-    This error dates back to when the method was introduced in CL 6531.
-    It only matters for the rare case of building tests on one GOOS and
-    running them on another, and only makes a difference for the rare case
-    where one GOOS supports external linking and another does not.
+    mkalldocs.sh runs gofmt on the output, but the test does not.
+    If go help documentation and gofmt disagree, the test will fail.
+    Fix that.
     
-    Change-Id: I1a7abfb0a5bbec49ddbcd9c1a4f5c0ec43a8095c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463991
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I837374a2d36cb5d71278ecefe2a7b6544622c576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384256
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/help_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

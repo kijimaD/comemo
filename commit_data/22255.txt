@@ -1,41 +1,15 @@
-commit 9fd87bd5015f6e1fa75f43086e096d0f12f1ce50
-Author: Jan Mercl <0xjnml@gmail.com>
-Date:   Wed Apr 1 12:37:02 2015 +0200
+commit f46e51a28cda454cc3d349ca501b022d64cea79f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 3 09:28:31 2015 +0900
 
-    go/scanner: Stabilize (*ErrorList).Sort
+    api: update next.txt
     
-    This change stabilizes the result of Sort when the error list contains
-    multiple items for same position. To stabilize the result, newly also
-    the Msg field is considered.
+    This change removes wrongly added API entries for OpenBSD from the
+    candidate list.
     
-    The motivation is to avoid diffs of sorted scanner.ErrorList output
-    in repository tracked logs like:
-    
-    -testdata/foo.go:19:44: "bar"
-     testdata/foo.go:19:44: "qux"
-    +testdata/foo.go:19:44: "bar"
-    
-    The change was approved at [0] before submitting.
-    
-    As a side effect, one file in go/parser/testdata must be updated as
-    well. For this file the parser produces two different errors:
-    
-    testdata/issue3106.src:22:5: expected ';', found 'if'
-    testdata/issue3106.src:22:5: expected operand, found 'if'
-    
-    Before comparing the actual and expected errors, the former are
-    filtered to keep only one error per source line[1]. With the new
-    (*ErrorList).Less the outcome is the other error than before which is
-    kept after the call to RemoveMultiplies.
-    
-    [0]: https://groups.google.com/d/msg/golang-nuts/5ChC0XiIwlU/rol_yb2gTj4J
-    [1]:
-    https://github.com/golang/go/blob/9d0239771a2ddd77be0ba64c2782e1328a378190/src/go/parser/error_test.go#L160
-    
-    Change-Id: Ib72c98a891cdeef34705c22dfbeb0408dcdfddf8
-    Reviewed-on: https://go-review.googlesource.com/8340
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibadfb9003ced6d3338794e4f3072054e65211e4a
+    Reviewed-on: https://go-review.googlesource.com/6550
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/parser/testdata/issue3106.src | 2 +-
- src/go/scanner/errors.go             | 9 ++++++++-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ api/next.txt | 80 ------------------------------------------------------------
+ 1 file changed, 80 deletions(-)

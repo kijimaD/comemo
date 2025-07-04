@@ -1,16 +1,23 @@
-commit 224f807e268e97aa7ddd17bb1f91705a00041511
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 16 04:49:10 2018 +0900
+commit f6be5216279ac0837f895eaeb55be5e9f4ac3ea9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 20:20:56 2017 -0500
 
-    net: add missing deadline test for RawConn
+    net/http: keep testing DetectContentType of empty body
     
-    Updates #19435.
+    Historically, DetectContentType has returned "text/plain; charset=utf-8"
+    for an empty body, there was a test for this, and there should continue
+    to be one.
     
-    Change-Id: Ife4a31972b05094a86c60a48fcacdfe52d133ee4
-    Reviewed-on: https://go-review.googlesource.com/107395
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    CL 46631 changed the content-serving handlers to avoid setting any
+    Content-Type header when serving empty content. Even if that change
+    in behavior is correct, the CL is explicitly not changing DetectContentType,
+    so it must also not change DetectContentType's tests.
+    
+    Change-Id: I7a19c9fabb43be47e349b40e729e49fceb3f2894
+    Reviewed-on: https://go-review.googlesource.com/82077
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/rawconn_test.go | 76 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 76 insertions(+)
+ src/net/http/sniff_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

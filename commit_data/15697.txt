@@ -1,16 +1,13 @@
-commit 401e0fea3ad120a495f7c8770cfbf1278c00c16e
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 11 22:55:14 2013 +0100
+commit 5f91a62a3cc8da7cccb4e0c74e69321e00c8e590
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 11 14:07:47 2013 -0700
 
-    cmd/gc: reject complex calls with mismatched argument types.
+    cmd/go: fix description of -o flag to build
+    Fixes #5003.
     
-    The specification says "the two arguments must be of the same
-    floating-point type."
-    
-    R=rsc, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7671045
+    https://golang.org/cl/7476047
 
- src/cmd/gc/typecheck.c |  4 ++--
- test/cmplx.go          | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/cmd/go/doc.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

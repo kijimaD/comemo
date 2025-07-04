@@ -1,22 +1,16 @@
-commit 6b85fa80519615ae5fd58154277b47d77e5cf08b
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Wed Oct 2 10:05:46 2019 +0200
+commit bdd7bb5526d5ba6a3471ce03ae953bb6d793b501
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 19 16:35:24 2019 +0700
 
-    runtime: iterate ms via allm linked list to avoid race
+    cmd/compile: remove unused func nodfltconst
     
-    It's pointless to reach all ms via allgs, and doing so introduces a
-    race, since the m member of a g can change underneath it. Instead
-    iterate directly through the allm linked list.
+    Its only usage was removed in golang.org/cl/103860
     
-    Updates: #31528
-    Updates: #34130
-    
-    Change-Id: I34b88402b44339b0a5b4cd76eafd0ce6e43e2be1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198417
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2a230b9475b0aadf3892b89f5e4ee6d4c5b70394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172917
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os_windows.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 6 ------
+ 1 file changed, 6 deletions(-)

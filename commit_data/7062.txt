@@ -1,12 +1,14 @@
-commit 4ed17ceacefb79a9183faa2b8077a69374cfae3e
+commit 90ca4d75a48b9882af885fb23f0130bef540394f
 Author: Ken Thompson <ken@golang.org>
-Date:   Fri Jan 7 18:20:26 2011 -0800
+Date:   Fri Jan 7 18:04:48 2011 -0800
 
-    add peep
+    initial cut at arm optimizer
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3902042
+    https://golang.org/cl/3921041
 
- src/cmd/5g/peep.c | 1476 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 1476 insertions(+)
+ src/cmd/5g/Makefile |   1 +
+ src/cmd/5g/list.c   |  14 +++-
+ src/cmd/5g/reg.c    | 209 +++++++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 159 insertions(+), 65 deletions(-)

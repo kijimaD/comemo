@@ -1,15 +1,17 @@
-commit c0bf96e6b10976274bf5ee7813845dc0eb590816
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 7 18:48:14 2014 +0400
+commit 5d25189d801d7e8bf2fe10ffe95d43dda648a6b0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 7 16:34:21 2014 +1000
 
-    runtime: fix bug in cpu profiler
-    Number of lost samples was overcounted (never reset).
-    Also remove unused variable (it's trivial to restore it for debugging if needed).
+    race.bash,race.bat: unset GOROOT_FINAL during tests
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/96060043
+    Just like run.* scripts do.
+    Fixes race build.
+    
+    LGTM=dave, dvyukov
+    R=dvyukov, dave
+    CC=golang-codereviews
+    https://golang.org/cl/98980043
 
- src/pkg/runtime/cpuprof.goc | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/race.bash | 6 ++++++
+ src/race.bat  | 6 ++++++
+ 2 files changed, 12 insertions(+)

@@ -1,25 +1,20 @@
-commit 3617514de07278637b7ead51447d23c8799b1d60
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 31 11:44:43 2022 -0400
+commit 11972353a67456d776cf891a9e46873e8a1fe630
+Author: Ryan Leung <rleungx@gmail.com>
+Date:   Mon Nov 22 02:41:07 2021 +0000
 
-    cmd/go: replace the 'addcrlf' script command with a more general 'replace' command
+    cmd/go: allow a package that ends with _test having an internal test package
     
-    This allows the "reuse_git" test to avoid depending on exact JSON
-    blobs, which will be important when the URLs start referring to
-    test-local vcweb servers.
+    Fixes #45477
     
-    For #27494.
-    
-    Change-Id: I22fde5110b3267b8fb9fb9c59fabc3b8a8b492c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427094
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I2f1ed281515ec40d31fd07ce9f4901777691bfa7
+    GitHub-Last-Rev: 7894d9400c95b8d84efe88f401fa75c3dd01921a
+    GitHub-Pull-Request: golang/go#49673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365534
+    Trust: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/script/cmds.go       | 38 ++++++++++++++++
- src/cmd/go/scriptcmds_test.go            | 30 -------------
- src/cmd/go/testdata/script/README        | 10 +++--
- src/cmd/go/testdata/script/mod_find.txt  |  2 +-
- src/cmd/go/testdata/script/reuse_git.txt | 74 +++++---------------------------
- 5 files changed, 55 insertions(+), 99 deletions(-)
+ src/cmd/go/testdata/script/test_issue45477.txt | 12 ++++++++++++
+ src/go/build/build.go                          |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

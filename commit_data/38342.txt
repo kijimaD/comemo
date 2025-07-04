@@ -1,22 +1,16 @@
-commit b4fbd291b3872706422d39fd1140b7b929c77622
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 9 19:34:58 2019 -0800
+commit 0cc4c2971da80d010af5a3336ad2e7fda06f06a8
+Author: Alexandre Maari <draeron@gmail.com>
+Date:   Mon Oct 15 13:23:09 2018 -0400
 
-    cmd/compile: normalize more whitespace in rewrite rules
+    text/template: removed truncation of context in error message
     
-    If you write a rewrite rule:
+    Fixes #27930
     
-    (something) && noteRule("X")-> (something)
-    
-    then rulegen will panic with an error message about commutativity.
-    The real problem is the lack of a space between the ) and the ->.
-    Normalize that bit of whitespace too.
-    
-    Change-Id: Idbd53687cd0398fe275ff2702667688cad05b4ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166427
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I31ad3fdb74d74152268c59ae4c651cc4c8c1716d
+    Reviewed-on: https://go-review.googlesource.com/c/142217
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/text/template/parse/parse.go | 3 ---
+ 1 file changed, 3 deletions(-)

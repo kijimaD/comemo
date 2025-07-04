@@ -1,13 +1,16 @@
-commit e5383c68544236bbf41628ef8a3460676e0aec2a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Oct 21 10:02:33 2014 +1100
+commit 87f51f103181e47c78a5c3fd9a41d43fb707817b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 7 10:56:58 2014 -0700
 
-    debug/pe: use appropriate type for sizeofOptionalHeader32
+    math/big: fix doc comments
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Fixes #8904.
+    
+    TBR=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/157220043
+    https://golang.org/cl/148650043
 
- src/debug/pe/file.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/math/big/int.go | 4 ++--
+ src/math/big/rat.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

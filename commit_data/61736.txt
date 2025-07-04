@@ -1,0 +1,38 @@
+commit e1c3b8a4905cecc1c61bdfe8feffe598eaf44933
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 20 23:11:35 2024 -0500
+
+    hash/maphash: use compiler-generated hash function for Comparable
+    
+    For Comparable, we can just use the compiler-generated hash
+    function without using reflection.
+    
+    This results in some performance improvement:
+    
+                                    │   old.txt    │               new.txt               │
+                                    │    sec/op    │   sec/op     vs base                │
+    Comparable/int64-8                 7.956n ± 0%   3.816n ± 3%  -52.03% (p=0.000 n=10)
+    Comparable/uint64-8                8.227n ± 1%   3.814n ± 0%  -53.64% (p=0.000 n=10)
+    Comparable/uintptr-8               7.959n ± 0%   3.814n ± 1%  -52.08% (p=0.000 n=10)
+    Comparable/interface_{}-8         17.480n ± 1%   5.574n ± 0%  -68.11% (p=0.000 n=10)
+    Comparable/string-8               27.520n ± 6%   3.714n ± 4%  -86.50% (p=0.000 n=10)
+    Comparable/bool-8                  8.759n ± 2%   3.978n ± 0%  -54.58% (p=0.000 n=10)
+    Comparable/*float64-8              7.956n ± 0%   3.815n ± 0%  -52.06% (p=0.000 n=10)
+    Comparable/float64-8              23.555n ± 1%   4.247n ± 4%  -81.97% (p=0.000 n=10)
+    Comparable/complex128-8            26.73n ± 0%   10.00n ± 0%  -62.58% (p=0.000 n=10)
+    Comparable/struct_{}-8             6.367n ± 2%   2.123n ± 0%  -66.66% (p=0.000 n=10)
+    Comparable/maphash.testStruct-8   135.60n ± 2%   15.78n ± 0%  -88.36% (p=0.000 n=10)
+    geomean                            15.13n        4.702n       -68.92%
+    
+    Change-Id: Ie86e6d7876cf8bf44ccfbd90f64480e14451bbf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630415
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/hash/maphash/maphash.go         | 80 ++++---------------------------------
+ src/hash/maphash/maphash_purego.go  | 75 +++++++++++++++++++++++++++++++++-
+ src/hash/maphash/maphash_runtime.go | 34 +++++++++-------
+ src/hash/maphash/maphash_test.go    | 61 ++++++++++++++++++++++++----
+ 4 files changed, 155 insertions(+), 95 deletions(-)

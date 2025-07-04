@@ -1,17 +1,19 @@
-commit 5881c41e7f6c17709ba3b4ada13fa15ab4bae2df
-Author: limeidan <limeidan@loongson.cn>
-Date:   Sat Jan 6 16:59:56 2024 +0800
+commit fe9fc408f4a523567405b25d7c45feeac4ec2f6e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 16:57:29 2023 -0700
 
-    cmd/internal/obj/loong64: remove unuseless functions
+    doc/go1.21: run relnotes again
     
-    Change-Id: Ieee97a9477090d4273e54a6667b0a051bb0c1e9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565619
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Fill in some of the simpler entries, leave some more TODO entries.
+    
+    For #58645
+    
+    Change-Id: I20eb09ba709520ab27301c568d777184a405ffdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501695
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/loong64/asm.go | 8 --------
- 1 file changed, 8 deletions(-)
+ doc/go1.21.html | 136 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 115 insertions(+), 21 deletions(-)

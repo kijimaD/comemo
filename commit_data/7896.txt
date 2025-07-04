@@ -1,12 +1,23 @@
-commit 2796ac1466799973973661a9ef917501c0f8416c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 13:38:24 2011 -0700
+commit 0caa0c092384960e3f7bfd2a3f0ee9ca0cba18fa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 28 12:39:09 2011 -0700
 
-    go/token: use array instead of map for token->string table
+    net: let OS-specific AddFD routine wake up polling thread.
     
-    R=rsc
+    With gccgo some operating systems require using select rather
+    than epoll or kevent.  Using select means that we have to wake
+    up the polling thread each time we add a new file descriptor.
+    This implements that in the generic code rather than adding
+    another wakeup channel, even though nothing in the current net
+    package uses the capability.
+    
+    R=rsc, iant2
     CC=golang-dev
-    https://golang.org/cl/4284070
+    https://golang.org/cl/4284069
 
- src/pkg/go/token/token.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/pkg/net/fd.go            |  6 +++++-
+ src/pkg/net/fd_darwin.go     | 10 +++++-----
+ src/pkg/net/fd_freebsd.go    | 10 +++++-----
+ src/pkg/net/fd_linux.go      |  6 +++---
+ src/pkg/net/newpollserver.go |  2 +-
+ 5 files changed, 19 insertions(+), 15 deletions(-)

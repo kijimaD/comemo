@@ -1,15 +1,18 @@
-commit c8e1946f33ee2cf482922ba2398086189faf53f6
-Author: Adam Langley <agl@golang.org>
-Date:   Thu May 3 16:39:57 2012 -0400
+commit 278d4a583d2e73b04a5460cf269d262adad8f87a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 4 03:24:14 2012 +0800
 
-    crypto/x509: fix panic when using unavailable hash function.
+    cmd/5c, cmd/5a, cmd/5l: ARM support for PREFETCH built-in
     
-    crypto.Hash.New() changed to panicking when the hash function isn't
-    linked in, but crypto/x509 still expects it to return nil.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6175047
+    https://golang.org/cl/6174049
 
- src/pkg/crypto/x509/x509.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5a/a.y     |   2 +-
+ src/cmd/5a/y.tab.c | 565 ++++++++++++++++++++++++++---------------------------
+ src/cmd/5c/peep.c  |   1 +
+ src/cmd/5c/reg.c   |   8 +
+ src/cmd/5c/txt.c   |   8 +-
+ src/cmd/5l/asm.c   |   7 +-
+ src/cmd/5l/optab.c |   2 +-
+ 7 files changed, 306 insertions(+), 287 deletions(-)

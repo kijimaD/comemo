@@ -1,12 +1,12 @@
-commit 3308891c9db7aa453eacb21225319a16e747e1d2
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Sun Dec 11 09:11:57 2011 -0800
+commit d8d321068b1bff68fc796036c491d82f2148a3fe
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat Dec 10 14:42:29 2011 -0800
 
-    net/http: fix trivial example server
+    gotest: use build.ArchChar()
     
-    R=golang-dev, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5479061
+    https://golang.org/cl/5480060
 
- src/pkg/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gotest/gotest.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

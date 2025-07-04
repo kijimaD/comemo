@@ -1,16 +1,29 @@
-commit 7201ba2171a9b15d3de3f705335d37afc7e7c85a
+commit 1d8250c8b0987bd67e5253803e50bbd7997a3d23
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 7 23:46:47 2012 -0500
+Date:   Tue Feb 7 23:37:25 2012 -0500
 
-    regexp: allow substitutions in Replace, ReplaceString
-    Add Expand, ExpandString for access to the substitution functionality.
+    time: clean up MarshalJSON, add RFC3339 method
+    encoding/xml: handle time.Time as recognized type
     
-    Fixes #2736.
+    The long term plan is to define an interface that time.Time
+    can implement and that encoding/xml can call, but we are
+    not going to try to define that interface before Go 1.
+    Instead, special-case time.Time in package xml, because
+    it is such a fundamental type, as a stop-gap.
+    The eventual methods will behave this way.
     
-    R=r, bradfitz, r, rogpeppe, n13m3y3r
+    Fixes #2793.
+    
+    R=golang-dev, r, r, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5638046
+    https://golang.org/cl/5634051
 
- src/pkg/regexp/all_test.go |  88 +++++++++++++-
- src/pkg/regexp/regexp.go   | 280 +++++++++++++++++++++++++++++++++++----------
- 2 files changed, 304 insertions(+), 64 deletions(-)
+ src/pkg/encoding/xml/atom_test.go    | 13 ++++--
+ src/pkg/encoding/xml/marshal.go      | 12 ++++++
+ src/pkg/encoding/xml/marshal_test.go |  7 ++++
+ src/pkg/encoding/xml/read.go         | 13 ++++++
+ src/pkg/encoding/xml/read_test.go    | 37 +++++++++--------
+ src/pkg/time/format.go               | 77 +++++++++++++++++++++++++-----------
+ src/pkg/time/time.go                 | 35 ++--------------
+ src/pkg/time/time_test.go            | 42 ++++++++++++++++++--
+ 8 files changed, 154 insertions(+), 82 deletions(-)

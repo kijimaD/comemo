@@ -1,16 +1,16 @@
-commit 0c706fddce2066fa0f72df364dd393f74027d753
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Mon Aug 6 14:24:13 2018 +0300
+commit adbb6ec903fc135dac2c7a141fa13273d414acaf
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Apr 26 18:48:19 2018 +0100
 
-    cmd/compile/internal/gc: remove commented-out code from esc.go
+    cmd/compile/internal/ssa: regenerate rewrite rules
     
-    Also adjust some comments to where they belong.
+    Running 'go run *.go' in the gen directory resulted in this diff.
     
-    Change-Id: Ifbb38052401b0d33d7bb9800f56a20ce8f39c25f
-    Reviewed-on: https://go-review.googlesource.com/127761
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: Iee398a720f54d3f2c3c122fc6fc45a708a39e45e
+    Reviewed-on: https://go-review.googlesource.com/109575
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/esc.go | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

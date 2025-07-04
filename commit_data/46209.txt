@@ -1,20 +1,32 @@
-commit 21d0b306afc204d9b523a89914b6440dcc6d73cc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 27 22:53:48 2021 -0700
+commit 96999296e6dd8bccf1765d4fab1835436c1d758d
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Dec 9 14:31:39 2020 -0500
 
-    cmd/compile/internal/types: remove unused Tie method
+    [dev.typeparams] go/types: import unify.go and infer.go from dev.go2go
     
-    Once upon a time, this was used by package walk to compute the
-    "conv[TIE]2[TIE]" function names, etc.; but it seems like those
-    callers have all changed to directly specializing on IsInterface and
-    IsEmptyInterface instead.
+    After review, the only non-superficial change was to delegate the call
+    to under(...) to structuralType. Otherwise, update a few stale comments:
+     + correct indices in the documentation for tparamsList
+     + update smap->substMap in a few places
+     + update type parameter syntax in a couple places
     
-    Change-Id: I629cdf076a09e7255ae293b8f879db0cdcf4de5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345793
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    I've spent a good amount of time reviewing this code, and it
+    fundamentally LGTM (though I wish we didn't have to copy the logic from
+    identical0). However, as demonstrated in #43056, this code is
+    complicated and not always easy to reason about, particularly in the
+    context of type checking where not all types may be complete.
+    
+    To further understand and verify this code I'd like to write more tests,
+    but that must wait until the rest of the changes in go/types are
+    imported from dev.go2go.
+    
+    Change-Id: Iabb9d3a6af988a2e1b3445cde6bc2431a80f8bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276692
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types/type.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/go/types/infer.go | 359 +++++++++++++++++++++++++++++++++++++++
+ src/go/types/unify.go | 452 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 811 insertions(+)

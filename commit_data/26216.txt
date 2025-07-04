@@ -1,16 +1,23 @@
-commit f973e79d096be18ad4272ad97803b7c08fca4dd0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 11 00:44:39 2016 -0800
+commit 7f96e266ec684943acfc1164a18d2cf005e03ef6
+Author: David Benjamin <davidben@google.com>
+Date:   Mon Jan 4 16:16:28 2016 -0800
 
-    cmd/compile: move InitPlan and InitEntry into sinit.go
+    encoding/asn1: fix off-by-one in parseBase128Int.
     
-    I don't know what they're used for, but that's the only file they're
-    referenced in.
+    parseBase128Int compares |shifted| with four, seemingly to ensure the result
+    fits in an int32 on 32-bit platforms where int is 32-bit. However, there is an
+    off-by-one in this logic, so it actually allows five shifts, making the maximum
+    tag number or OID component 2^35-1.
     
-    Change-Id: Ie39d7d4621e2d5224408243b5789597ca0dc14be
-    Reviewed-on: https://go-review.googlesource.com/20593
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fix this so the maximum is 2^28-1 which should be plenty for OID components and
+    tag numbers while not overflowing on 32-bit platforms.
+    
+    Change-Id: If825b30cc53a0fc08e68ea1a24d265e7eb1a13a4
+    Reviewed-on: https://go-review.googlesource.com/18225
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.go    | 12 ------------
- src/cmd/compile/internal/gc/sinit.go | 12 ++++++++++++
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/encoding/asn1/asn1.go      | 2 +-
+ src/encoding/asn1/asn1_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

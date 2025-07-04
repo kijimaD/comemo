@@ -1,17 +1,28 @@
-commit b0c616560567b16da3c0d0d2d790d0c21fd6ef92
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 18 21:37:51 2019 -0400
+commit d6c12ec0eff53a4b11186eb0bb11cb683afe2779
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 5 09:52:58 2018 -0500
 
-    runtime: document P statuses
+    cmd/go/internal/modload: use replacements to resolve missing imports
     
-    We're about to change some of these rules, so it's about time we wrote
-    them down!
+    If the replacements specify one or more versions, we choose the latest
+    (for consistency with the QueryPackage path, with resolves the latest
+    version from upstream).
     
-    For #10958, #24543.
+    Otherwise, we synthesize a pseudo-version with a zero timestamp and an
+    appropriate major version.
     
-    Change-Id: I3efce0c44b53bfb6f31ce2d299809b2b4eb329f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172857
+    Fixes #26241
+    
+    RELNOTE=yes
+    
+    Change-Id: I14b4c63858c8714cc3e1b05ac52c33de5a16dea9
+    Reviewed-on: https://go-review.googlesource.com/c/152739
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime2.go | 45 +++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 43 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/import.go             |  52 ++++++++++-
+ src/cmd/go/testdata/script/mod_replace.txt        |   3 +-
+ src/cmd/go/testdata/script/mod_replace_import.txt | 109 ++++++++++++++++++++++
+ 3 files changed, 161 insertions(+), 3 deletions(-)

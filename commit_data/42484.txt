@@ -1,19 +1,21 @@
-commit 5b9304e0be5b5e11a82e65ecc626be98b0755e3d
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Sun Jun 7 08:32:28 2020 -0700
+commit fc5eee3c1d37131ca5887ed1d020f6cf83d20a92
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 6 00:18:56 2020 +1100
 
-    crypto/x509: match RFC suggested SKID generation method
+    syscall: fix riscv64 syscall assembly
     
-    Rather than hashing the encoding of the SPKI structure, hash the
-    bytes of the public key itself.
+    RISCV has no instruction to store an immediate value to memory, or to
+    subtract an immediate value. An immediate needs to be moved to a register
+    first, or in the case of $0, the zero value register (ZERO or R0) can be
+    used instead. Restore the original riscv-go code so that it compiles.
     
-    Fixes #39429
+    Updates #27532
     
-    Change-Id: I55a0f8f08ab1f1b5702590b47d8b9a92d1dbcc1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236878
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I3c60e6f385c59679252a710dbba153357a367516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212761
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/crypto/x509/x509.go | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ src/syscall/asm_linux_riscv64.s | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

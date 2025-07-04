@@ -1,14 +1,30 @@
-commit 5d8442aeaaa852486b39049f6d4c3d79c87be011
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 14:43:16 2016 -0500
+commit e3e0122ae269027bfd2e2db1dbf106883ad5a8a7
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Oct 29 21:45:19 2015 -0500
 
-    os: document that Rename overwrites existing file
+    test: use go:noinline consistently
     
-    Fixes #13673.
+    Replace various implementations of inlining prevention with
+    "go:noinline"
     
-    Change-Id: I60d1603ca0dfd2ae136117e0f89cee4b6fc6c3d3
-    Reviewed-on: https://go-review.googlesource.com/18332
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iac90895c3a62d6f4b7a6c72e11e165d15a0abfa4
+    Reviewed-on: https://go-review.googlesource.com/16510
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/gc_test.go                       |  6 ++++--
+ src/runtime/pprof/mprof_test.go              | 15 ++++++---------
+ src/runtime/race/testdata/mop_test.go        |  8 +-------
+ src/runtime/race/testdata/regression_test.go |  9 ++-------
+ test/fixedbugs/bug401.go                     |  3 +--
+ test/fixedbugs/bug484.go                     | 26 +++++++-------------------
+ test/fixedbugs/issue10441.go                 |  2 +-
+ test/fixedbugs/issue12133.go                 |  4 ++--
+ test/fixedbugs/issue4518.go                  |  6 ++----
+ test/fixedbugs/issue4964.dir/a.go            |  6 ++----
+ test/fixedbugs/issue7995b.dir/x1.go          |  6 +-----
+ test/fixedbugs/issue8036.go                  |  4 ++--
+ test/func8.go                                |  6 ++----
+ test/reorder2.go                             | 24 +++++++++++-------------
+ 14 files changed, 44 insertions(+), 81 deletions(-)

@@ -1,23 +1,14 @@
-commit 11b33686d308beb7f8c3c497acec6b410e52f3af
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 4 10:13:27 2019 +0200
+commit e40dffe55ac0ec40fc325bf9ef03dde297fcc2c0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 22 14:22:25 2019 -0700
 
-    syscall: add support for freebsd/arm64
+    cmd/compile: refactor visitBottomUp to use inspectList
     
-    Updates #24715
+    Passes toolstash-check.
     
-    Change-Id: Ie7cdac346fb024858441bfd4028bf09adab3c9d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198545
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02efba7bab3ea49d87c8472bbb99116565bf8423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/asm_freebsd_arm64.s       |  128 +++
- src/syscall/mkall.sh                  |    7 +
- src/syscall/route_freebsd_64bit.go    |    2 +-
- src/syscall/syscall_freebsd_arm64.go  |   47 +
- src/syscall/zerrors_freebsd_arm64.go  | 1718 +++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_freebsd_arm64.go | 1420 +++++++++++++++++++++++++++
- src/syscall/zsysnum_freebsd_arm64.go  |  396 ++++++++
- src/syscall/ztypes_freebsd_arm64.go   |  572 +++++++++++
- 8 files changed, 4289 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/scc.go | 59 ++++++++++++--------------------------
+ 1 file changed, 18 insertions(+), 41 deletions(-)

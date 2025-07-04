@@ -1,57 +1,21 @@
-commit 6ed2ec4aa5ea6c34b1e3d42b7995c81ab74a27c4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 11:44:15 2019 -0400
+commit f4f65941246bfee2ef742a5a4920f86d80ab4762
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Dec 11 13:59:18 2018 +0100
 
-    runtime: fix vet complaints for linux/386
+    runtime: fix notetsleepg deadline on js/wasm
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
+    A notetsleepg may get stuck if its timeout callback gets invoked
+    exactly on its deadline due to low precision of nanotime. This change
+    fixes the comparison so it also resolves the note if the timestamps are
+    equal.
     
-    This CL makes "GOOS=linux GOARCH=386 go vet -unsafeptr=false runtime" happy,
-    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    Updates #28975
     
-    For #31916.
-    
-    Change-Id: I3e5586a7ff6e359357350d0602c2259493280ded
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176099
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I045d2f48b7f41cea0caec19b56876e9de01dcd6c
+    Reviewed-on: https://go-review.googlesource.com/c/153558
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/whitelist/386.txt         | 18 ------------------
- src/cmd/vet/all/whitelist/amd64.txt       |  3 ---
- src/cmd/vet/all/whitelist/android_386.txt |  8 --------
- src/cmd/vet/all/whitelist/arm.txt         |  3 ---
- src/cmd/vet/all/whitelist/arm64.txt       |  1 -
- src/cmd/vet/all/whitelist/darwin_386.txt  |  5 -----
- src/cmd/vet/all/whitelist/freebsd_386.txt |  1 -
- src/cmd/vet/all/whitelist/linux_386.txt   | 13 -------------
- src/cmd/vet/all/whitelist/linux_amd64.txt |  5 -----
- src/cmd/vet/all/whitelist/linux_arm.txt   |  6 ------
- src/cmd/vet/all/whitelist/linux_arm64.txt |  5 -----
- src/cmd/vet/all/whitelist/nacl_386.txt    |  1 -
- src/cmd/vet/all/whitelist/netbsd_386.txt  |  2 --
- src/cmd/vet/all/whitelist/openbsd_386.txt |  1 -
- src/cmd/vet/all/whitelist/plan9_386.txt   |  3 ---
- src/cmd/vet/all/whitelist/plan9_amd64.txt |  1 -
- src/cmd/vet/all/whitelist/windows_386.txt |  1 -
- src/runtime/asm_386.s                     | 13 +++++++------
- src/runtime/asm_arm.s                     |  2 +-
- src/runtime/duff_mips64x.s                |  3 +++
- src/runtime/duff_ppc64x.s                 |  3 +++
- src/runtime/stubs.go                      |  5 +++++
- src/runtime/stubs_386.go                  |  6 ++++++
- src/runtime/stubs_android.go              | 16 ----------------
- src/runtime/stubs_linux.go                | 10 ++++++++++
- src/runtime/sys_freebsd_386.s             |  2 +-
- src/runtime/sys_linux_386.s               |  3 ++-
- src/runtime/sys_linux_mips64x.s           | 15 +++++++++++++++
- src/runtime/sys_linux_mipsx.s             | 15 +++++++++++++++
- src/runtime/sys_linux_ppc64x.s            | 15 +++++++++++++++
- src/runtime/sys_linux_s390x.s             | 15 +++++++++++++++
- src/runtime/sys_nacl_386.s                |  2 +-
- src/runtime/sys_netbsd_386.s              |  2 +-
- src/runtime/sys_openbsd_386.s             |  2 +-
- src/runtime/sys_plan9_amd64.s             |  4 ----
- src/runtime/sys_windows_386.s             |  2 +-
- 36 files changed, 102 insertions(+), 110 deletions(-)
+ src/runtime/lock_js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

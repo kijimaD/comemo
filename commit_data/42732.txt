@@ -1,17 +1,32 @@
-commit 77a11c05d6a6f766c75f804ea9b8796f9a9f85a3
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 17 18:22:38 2020 -0700
+commit b0275bfbf4992e3e63f279b3fc7ba1f93700abff
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 11 10:27:15 2020 -0500
 
-    reflect: remove depth from deepequal recursion
+    [dev.link] cmd/link: add defined package symbols first, before any non-package symbols
     
-    We aren't using it for anything. The visited map will terminate
-    any recursion for us.
+    Currently, the loader adds defined package symbols and
+    non-package symbols to the global index space object by object.
+    This CL changes it to add all the defined package symbols first,
+    then all the non-package symbols. The advantage of doing this is
+    that when adding package symbols, by definition they cannot be
+    dup to each other, so we don't need to do a name lookup when
+    adding them.
     
-    Change-Id: I36e6bd8e34952123c2ed46323067e42928ec7168
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238759
-    Run-TryBot: Keith Randall <khr@golang.org>
+    We still add them to the lookup table (for now), since they may
+    still be referenced by name (e.g. through linkname). This CL is
+    also a prerequisite if we want to move to not adding package
+    symbols to the lookup table entirely (e.g. by using
+    pre-generated in-file lookup table).
+    
+    Also update some comments to reflect the current state.
+    
+    Change-Id: Ib757e070b48a9ef6215e47dc3421fc5c055b746c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219078
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/reflect/deepequal.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/ld/lib.go             |  28 ++++----
+ src/cmd/link/internal/loader/loader.go      | 102 ++++++++++++++++++----------
+ src/cmd/link/internal/loader/loader_test.go |   2 +-
+ 3 files changed, 80 insertions(+), 52 deletions(-)

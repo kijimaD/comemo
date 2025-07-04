@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 10103: 7630a107bb8a10f041881774afb70e90782263c3
+# Index 10103: cfa036ae3adffb56a2d93a074b97025a16519463
 
 echo "🚀 Generating explanation for commit 10103..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 10103
-- **コミットハッシュ**: 7630a107bb8a10f041881774afb70e90782263c3
-- **GitHub URL**: https://github.com/golang/go/commit/7630a107bb8a10f041881774afb70e90782263c3
+- **コミットハッシュ**: cfa036ae3adffb56a2d93a074b97025a16519463
+- **GitHub URL**: https://github.com/golang/go/commit/cfa036ae3adffb56a2d93a074b97025a16519463
 
 ### 章構成
 

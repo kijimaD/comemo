@@ -1,16 +1,12 @@
-commit c7482b919619b459cb68e3a0c681afa1c3425dc4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Feb 27 12:29:33 2012 +1100
+commit e4db4e9b585423324a5bf9ef22914e9f546e707f
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Feb 27 11:49:06 2012 +1100
 
-    os: implement sameFile on windows
+    crypto/x509: fix typo in Verify documentation
     
-    Fixes #2511.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5687072
+    https://golang.org/cl/5695070
 
- src/pkg/os/file_windows.go |  14 +++-
- src/pkg/os/os_test.go      |  35 ++++++++++
- src/pkg/os/stat_windows.go | 165 +++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 193 insertions(+), 21 deletions(-)
+ src/pkg/crypto/x509/verify.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

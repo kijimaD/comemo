@@ -1,32 +1,17 @@
-commit fba60669751a5362c43e3bdee8455bed3fa275b2
-Author: David Chase <drchase@google.com>
-Date:   Thu May 2 13:35:07 2019 -0400
+commit 76e8ca447c6d48cadf4c355112e5c6bd60b9a2e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 15 07:46:39 2019 -0800
 
-    cmd/compile: add debugging and stats output to numberlines
+    cmd/cgo: don't replace newlines with semicolons in composite literals
     
-    This is useful for debugging line number assignment and
-    also for making sense of pathological line number inputs.
+    Fixes #29748
     
-    Activated with
-    -gcflags=-d=ssa/number_lines/stats=1 (the bit matters)
-    -gcflags=-d=ssa/number_lines/debug
-    
-    Stats:
-    "SUM_LINE_RANGE",
-       SUM for f in files {MAX line in f {line}-MIN line in f {line}}
-    "MAXMIN_LINE_RANGE",
-       MAX for f in files {MAX line in f {line}} -
-       MIN for f in files {MIN line in f {line}}
-    "MAXFILE", maxfile,
-       MAX for f in files {f}
-    "NFILES", len(entries)
-       | files |
-    
-    Change-Id: I8a7336e6370452fe2e3a62de17606db9bd6a6fd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174947
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I2b19165bdb3c99df5b79574390b5d5f6d40462dc
+    Reviewed-on: https://go-review.googlesource.com/c/157961
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/numberlines.go | 75 ++++++++++++++++++++++++++++-
- 1 file changed, 74 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue29748.go | 22 ++++++++++++++++++++++
+ src/cmd/cgo/godefs.go       | 15 ++++++++++++++-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

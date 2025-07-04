@@ -1,0 +1,25 @@
+commit 0826b9017254b8b3ba2b84799f4c0de6107a043f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Jul 15 10:04:42 2024 -0700
+
+    internal/cpu: add DIT detection on arm64
+    
+    Add support for detecting the DIT feature on ARM64 processors. This
+    mirrors https://go.dev/cl/597377, but using the platform specific
+    semantics.
+    
+    Updates #66450
+    
+    Change-Id: Ia107e3e3369de7825af70823b485afe2f587358e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/cpu/cpu.go               | 1 +
+ src/internal/cpu/cpu_arm64.go         | 9 ++++++++-
+ src/internal/cpu/cpu_arm64.s          | 7 +++++++
+ src/internal/cpu/cpu_arm64_darwin.go  | 1 +
+ src/internal/cpu/cpu_arm64_freebsd.go | 3 ++-
+ src/internal/cpu/cpu_arm64_hwcap.go   | 2 ++
+ src/internal/cpu/cpu_arm64_openbsd.go | 9 ++++++++-
+ 7 files changed, 29 insertions(+), 3 deletions(-)

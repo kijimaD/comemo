@@ -1,22 +1,29 @@
-commit e9ad52e46dee4b4f9c73ff44f44e1e234815800f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 24 21:42:20 2020 -0700
+commit d532d5f0fade2630612a5bdb0ac3f95824266ad5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 11 18:26:38 2020 -0500
 
-    net: export ErrClosed
+    cmd/link: also apply R_ADDR relocation statically when internal linking PIE
     
-    This permits programs to reliably detect whether they are using a
-    closed network connection.
+    When internal linking PIE, R_ADDR relocations cannot be resolved
+    statically so we generate dynamic relocations for it. We don't
+    apply the relocations statically, so the bytes in the file are
+    left unset (likely zero). This makes some tool that examines the
+    file statically, e.g. go version, to fail to find the referenced
+    addresses.
     
-    Fixes #4373
+    This CL makes the linker also apply the relocations to the file
+    content, so it holds the correct offsets and so can be examined
+    statically.
     
-    Change-Id: Ib4ce8cc82bbb134c4689f0ebc8b9b11bb8b32a22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250357
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #37173.
+    
+    Change-Id: Ia5c6b661f1a91a232843ca4224264bfd7a5509eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219199
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.16.html       | 12 ++++++++++++
- src/net/error_test.go | 17 +++++++++++------
- src/net/net.go        | 12 ++++++++++++
- 3 files changed, 35 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/version.txt | 13 ++++++++++++-
+ src/cmd/link/internal/amd64/asm.go     |  5 ++++-
+ src/cmd/link/internal/arm64/asm.go     |  5 ++++-
+ 3 files changed, 20 insertions(+), 3 deletions(-)

@@ -1,21 +1,24 @@
-commit 8e34d779578736942c78f9857f5bb9b9025815c6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 21 09:45:34 2021 -0700
+commit ba0e8a92fa74768feaccb8c3e4e5791b2dbc382f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 16 18:25:00 2021 -0800
 
-    runtime, cmd/link: minor cleanup
+    [dev.regabi] cmd/compile: refactor temp construction in walk
     
-    Fix some comments.
-    Adjust capitalization for initialisms.
-    Use a println directly instead of emulating it.
+    This CL adds a few new helper functions for constructing and
+    initializing temporary variables during walk.
     
-    Change-Id: I0d8fa0eb39547e2db8113fd0358136285b86f16a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351462
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I54965d992cd8dfef7cb7dc92a17c88372e52a0d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284224
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/link/internal/ld/pcln.go | 14 +++++++-------
- src/runtime/symtab.go            |  2 +-
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/walk/builtin.go | 13 ++-------
+ src/cmd/compile/internal/walk/complit.go | 31 +++++----------------
+ src/cmd/compile/internal/walk/convert.go | 14 ++++------
+ src/cmd/compile/internal/walk/expr.go    |  3 +-
+ src/cmd/compile/internal/walk/temp.go    | 47 ++++++++++++++++++++++++++++++++
+ 5 files changed, 63 insertions(+), 45 deletions(-)

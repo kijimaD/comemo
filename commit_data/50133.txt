@@ -1,17 +1,21 @@
-commit 7a1ae605ebc0a30c1ec83f967d9a0a20a0bbb02b
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Fri Aug 26 11:57:46 2022 +0800
+commit 097a82f54d20cb722b8712025caac44c357c1b13
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Wed Sep 15 10:31:05 2021 +0300
 
-    runtime: convert notifyList.wait to atomic type
+    cmd/compile: don't emit unnecessary amd64 extension checks
     
-    For #53821
+    In case of amd64 the compiler issues checks if extensions are
+    available on a platform. With GOAMD64 microarchitecture levels
+    provided, some of the checks could be eliminated.
     
-    Change-Id: Ib096332fe6111bbcd2f5c4cbb29c2fef7a808e7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425784
-    Run-TryBot: hopehook <hopehook@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If15c178bcae273b2ce7d3673415cb8849292e087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352010
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/sema.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 13 +++++++++++++
+ test/codegen/math.go                   |  9 +++++++++
+ test/codegen/mathbits.go               |  6 +++++-
+ 3 files changed, 27 insertions(+), 1 deletion(-)

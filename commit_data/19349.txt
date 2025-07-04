@@ -1,22 +1,16 @@
-commit 51f3cbabfc58c0db89b1142f94d794b59727f572
-Author: Guillaume J. Charmes <guillaume@charmes.net>
-Date:   Wed May 14 10:15:43 2014 -0700
+commit d145f0f0f8b735b7cde299e169937b2827832202
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 14 12:12:01 2014 +0900
 
-    archive/tar: Fix bug preventing untar
+    net: fix documentation for SetLinger
     
-    Do not use ustar format if we need the GNU one.
-    Change \000 to \x00 for consistency
-    Check for "ustar\x00" instead of "ustar\x00\x00" for conistency with tar
-    and compatiblity with archive generated with older code (which was ustar\x00\x20\x00)
-    Add test for long name + big file.
+    Fixes #7974.
     
     LGTM=iant
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/99050043
+    https://golang.org/cl/95320043
 
- src/pkg/archive/tar/reader.go                    |   6 +++---
- src/pkg/archive/tar/testdata/writer-big-long.tar | Bin 0 -> 4096 bytes
- src/pkg/archive/tar/writer.go                    |   4 ++--
- src/pkg/archive/tar/writer_test.go               |  23 +++++++++++++++++++++++
- 4 files changed, 28 insertions(+), 5 deletions(-)
+ src/pkg/net/tcpsock_plan9.go | 15 ++++++++-------
+ src/pkg/net/tcpsock_posix.go | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

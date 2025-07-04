@@ -1,14 +1,12 @@
-commit 5d1c7bd1a66544376cf267706b005462b275f6a6
+commit a968b29bd182f0cdb74b20b005f2d3bba89f726f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 4 14:21:19 2013 +1100
+Date:   Thu Apr 4 13:41:14 2013 +1100
 
-    misc/dist: add -version flag to override version name
-    
-    Also, don't build the tour when making the source distribution.
+    tag go1.1beta1
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8354043
+    https://golang.org/cl/8343045
 
- misc/dist/bindist.go | 61 ++++++++++++++++++++++++++++++----------------------
- 1 file changed, 35 insertions(+), 26 deletions(-)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

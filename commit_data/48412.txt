@@ -1,24 +1,20 @@
-commit 9956a5423e40bab92c572489eae26ba80ed803ab
+commit 81b22480cfd66dc5d95f8cadfadc4ac2c16074e6
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 15 21:44:37 2022 -0700
+Date:   Tue May 18 17:37:54 2021 -0700
 
-    text/scanner: guard against installed IsIdentRune that accepts EOF
+    [dev.typeparams] cmd/compile/internal/syntax: accept embedded type literals
     
-    IsIdentRune may be installed by a client of the scanner. If the
-    installed function accepts EOF as a valid identifier rune, Scan
-    calls may not terminate.
+    The parser accepted embedded elements but the first term
+    of an element had to be a ~-term or a type name. This CL
+    fixes that.
     
-    Check for EOF when a user-defined IsIdentRune is used.
-    
-    Fixes #50909.
-    
-    Change-Id: Ib104b03ee59e2d58faa71f227c3b51ba424f7f61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393254
+    Change-Id: I013b6cdc5963fb228867ca6597f9139db2be7ec5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321109
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/text/scanner/scanner.go      |  2 +-
- src/text/scanner/scanner_test.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go          | 12 ++++++
+ .../compile/internal/syntax/testdata/interface.go2 | 46 +++++++++++++++++++++-
+ 2 files changed, 57 insertions(+), 1 deletion(-)

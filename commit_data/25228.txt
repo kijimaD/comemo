@@ -1,14 +1,29 @@
-commit 503cbcef707135ffdf7e6a8c2eb30ee0d2231a01
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 12:28:15 2015 -0500
+commit 65aa2da61793846b9929c239dcbdb266490335e5
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 20:56:11 2015 -0700
 
-    net/url: add tests for RequestURI returning //paths
+    runtime: assist before allocating
     
-    Fixes #10433.
+    Currently, when the mutator allocates, the runtime first allocates the
+    memory and then, if that G has done "enough" allocation, the runtime
+    checks whether the G has assist debt to pay off and, if so, pays it
+    off. This approach leads to under-assisting, where a G can allocate a
+    large region (or many small regions) before paying for it, or can even
+    exit with outstanding debt.
     
-    Change-Id: I2a8b54e3f07488f204b1d14eb2603842caaf1e5a
-    Reviewed-on: https://go-review.googlesource.com/17386
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This commit flips this around so that a G always acquires enough
+    credit for an allocation before it can perform that allocation. We
+    continue to amortize the cost of assists by requiring that they
+    over-assist when triggered to build up credit for many allocations.
+    
+    Fixes #11967.
+    
+    Change-Id: Idac9f11133b328535667674d837be72c23ebd899
+    Reviewed-on: https://go-review.googlesource.com/15409
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/net/url/url_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/runtime/malloc.go  | 35 ++++++++++++++++++++++++++++-------
+ src/runtime/mgc.go     |  6 ++++++
+ src/runtime/mgcmark.go | 34 ++++++++++++----------------------
+ 3 files changed, 46 insertions(+), 29 deletions(-)

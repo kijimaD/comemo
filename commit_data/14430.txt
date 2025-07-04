@@ -1,14 +1,17 @@
-commit 2ae61d557aec846b9b7970022aaa0c28f17546de
+commit 80dcc434a8a20ddc579810f88e770e098e7f9eb8
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 17 11:16:07 2012 -0800
+Date:   Sat Nov 17 10:40:11 2012 -0800
 
-    spec: fix constant expression example
+    go/doc: fix identifier blank import handling for examples
     
-    Fixes #4400.
+    Replacement CL for 6813061; thanks to minux for prototyping.
     
-    R=r, mirtchovski
+    Fixes #4300.
+    
+    R=minux.ma
     CC=golang-dev
-    https://golang.org/cl/6782084
+    https://golang.org/cl/6782082
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/godoc/godoc.go    |  1 +
+ src/pkg/go/doc/example.go | 34 +++++++++++++++++++++++-----------
+ 2 files changed, 24 insertions(+), 11 deletions(-)

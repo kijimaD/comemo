@@ -1,12 +1,12 @@
-commit a28a10e1a2352736fa8bbf6def02517f42260e34
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Apr 5 18:37:46 2012 +0400
+commit 8374e67876b887c8a257f63f4e12ac1599ee793e
+Author: Hong Ruiqi <hongruiqi@gmail.com>
+Date:   Thu Apr 5 22:37:07 2012 +1000
 
-    runtime: remove redundant code
+    doc/go_spec: fix typo
     
-    R=rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5987046
+    https://golang.org/cl/5990043
 
- src/pkg/runtime/mcache.c | 5 -----
- 1 file changed, 5 deletions(-)
+ doc/go_spec.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

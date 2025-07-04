@@ -1,20 +1,24 @@
-commit 613344ffddc9b44912557c7ea3b9bc244251e90e
-Author: apocelipes <seve3r@outlook.com>
-Date:   Tue Feb 27 21:13:15 2024 +0000
+commit 7f38067acb738c43d870400dd648662d31456f5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 8 16:16:59 2023 -0800
 
-    internal/coverage/encodemeta: simplify appending zero values
+    testing: add Testing function
     
-    Appending zero values directly.
+    The Testing function reports whether the program is a test created
+    by "go test".
     
-    Change-Id: Icfb6e135b6aa16662dd67bdbf64ea0f63c612b2f
-    GitHub-Last-Rev: 57547b94087f216e943362e507b2339dd385f568
-    GitHub-Pull-Request: golang/go#65291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558576
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #52600
+    
+    Change-Id: Ie0fff7c7dfdfdf997c18b4b6112632600b327cc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475496
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/coverage/encodemeta/encode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ api/next/52600.txt               |  1 +
+ src/cmd/go/internal/load/test.go |  8 ++++--
+ src/testing/testing.go           | 16 +++++++++++
+ src/testing/testing_test.go      | 61 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 84 insertions(+), 2 deletions(-)

@@ -1,25 +1,27 @@
-commit b02d5d325a4e93c88ecfc83a094c252148caa748
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Feb 9 14:24:46 2023 -0800
+commit 94727bed02d59b6a40757ba583f61d1b03493e5d
+Author: Ben Shi <ben.shi@streamcomputing.com>
+Date:   Mon Mar 28 11:40:02 2022 +0000
 
-    Revert "io: allocate copy buffers from a pool"
+    cmd/internal/obj/riscv: add two-operand form to more instructions
     
-    This reverts CL 456555.
+    Add two-operand form "op rs, rd" to
+    ADDW/SUBW/SLLW/SRLW/SRAW/SLLIW/SRLIW/SRAIW.
     
-    Reason for revert: This seems too likely to exercise race conditions
-    in code where a Write call continues to access its buffer after
-    returning. The HTTP/2 ResponseWriter is one such example.
+    Do the following map:
+    "ADDW $imm, rd" -> "ADDIW $imm, rd"
+    "SLLW $imm, rd" -> "SLLIW $imm, rd"
+    "SRLW $imm, rd" -> "SRLIW $imm, rd"
+    "SRAW $imm, rd" -> "SRAIW $imm, rd"
     
-    Reverting this change while we think about this some more.
-    
-    For #57202
-    
-    Change-Id: Ic86823f81d7da410ea6b3f17fb5b3f9a979e3340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467095
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Ie9632ba198ba8c05faac91504e4b97fc45ca1196
+    GitHub-Last-Rev: c6ccc9d5d0612ede1a1ffebb6bbc0309da87f4e1
+    GitHub-Pull-Request: golang/go#51984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396134
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/io/io.go           | 30 ++++++++++++++++++------------
- src/net/http/server.go | 17 ++++++++++++++---
- 2 files changed, 32 insertions(+), 15 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 13 +++++++++++++
+ src/cmd/internal/obj/riscv/obj.go           |  9 +++++++++
+ 2 files changed, 22 insertions(+)

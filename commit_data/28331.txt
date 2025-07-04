@@ -1,13 +1,14 @@
-commit b11c79fd07c80e6902fa26045ac566ddc2f1250d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 12 11:43:55 2016 -0700
+commit 181000896e381f07e8f105eef2667d566729f6eb
+Author: Scott Bell <scott@sctsm.com>
+Date:   Mon May 16 12:36:02 2016 -0700
 
-    cmd/compile: deduplicate importtype and (*importer).importtype
+    encoding/json: document that object keys are sorted
     
-    Change-Id: I7bfb0e5e71fc26448b0d5d3801cd6e50c8b48f5d
-    Reviewed-on: https://go-review.googlesource.com/29078
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #15424
+    
+    Change-Id: Ib9e97509f5ac239ee54fe6fe37152a7f5fc75087
+    Reviewed-on: https://go-review.googlesource.com/23109
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 25 ++++++++++---------------
- src/cmd/compile/internal/gc/export.go  | 26 --------------------------
- 2 files changed, 10 insertions(+), 41 deletions(-)
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

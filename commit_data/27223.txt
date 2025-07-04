@@ -1,15 +1,45 @@
-commit 8dc0444a04a8a43887b4ca3753ee63b430cf2602
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:17:44 2016 -0400
+commit 276b1777717ec5a0a02364a5aee806f8076bb60b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 15 17:38:06 2016 -0500
 
-    cmd/asm, cmd/internal/obj/mips: add an alias of RSB on mips64x
+    runtime: make shrinkstack concurrent-safe
     
-    Change-Id: I724ce0a48c1aeed14267c049fa415a6fa2fffbcf
-    Reviewed-on: https://go-review.googlesource.com/19864
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Currently shinkstack is only safe during STW because it adjusts
+    channel-related stack pointers and moves send/receive stack slots
+    without synchronizing with the channel code. Make it safe to use when
+    the world isn't stopped by:
+    
+    1) Locking all channels the G is blocked on while adjusting the sudogs
+       and copying the area of the stack that may contain send/receive
+       slots.
+    
+    2) For any stack frames that may contain send/receive slot, using an
+       atomic CAS to adjust pointers to prevent races between adjusting a
+       pointer in a receive slot and a concurrent send writing to that
+       receive slot.
+    
+    In principle, the synchronization could be finer-grained. For example,
+    we considered synchronizing around the sudogs, which would allow
+    channel operations involving other Gs to continue if the G being
+    shrunk was far enough down the send/receive queue. However, using the
+    channel lock means no additional locks are necessary in the channel
+    code. Furthermore, the stack shrinking code holds the channel lock for
+    a very short time (much less than the time required to shrink the
+    stack).
+    
+    This does not yet make stack shrinking concurrent; it merely makes
+    doing so safe.
+    
+    This has negligible effect on the go1 and garbage benchmarks.
+    
+    For #12967.
+    
+    Change-Id: Ia49df3a8a7be4b36e365aac4155a2416b94b988c
+    Reviewed-on: https://go-review.googlesource.com/20042
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/arch/arch.go        | 3 +++
- src/cmd/asm/internal/asm/operand_test.go | 2 +-
- src/cmd/internal/obj/mips/a.out.go       | 2 +-
- src/cmd/internal/obj/mips/list0.go       | 4 ++++
- 4 files changed, 9 insertions(+), 2 deletions(-)
+ src/runtime/chan_test.go |  61 ++++++++++++++++++++++++
+ src/runtime/runtime2.go  |   3 +-
+ src/runtime/stack.go     | 117 +++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 170 insertions(+), 11 deletions(-)

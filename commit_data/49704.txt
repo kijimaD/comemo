@@ -1,17 +1,24 @@
-commit 5999a28de80cf685b037e53c8dc9a511f11fe7b2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 11:43:30 2022 -0400
+commit 903958d2f506decf92a1bfd63dfbecadf8375735
+Author: korzhao <korzhao@tencent.com>
+Date:   Wed Aug 4 02:47:57 2021 +0000
 
-    runtime: trivial replacements of _g_ in os files
+    encoding/gob: marshal maps using reflect.Value.MapRange
     
-    Change-Id: I7886ea6b94697bafb8ea345508c9cb752c92cadc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418586
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    golang.org/cl/33572 added a map iterator.
+    
+    use the reflect.Value.MapRange to fix map keys that contain a NaN
+    
+    Fixes #24075
+    
+    Change-Id: I0214d6f26c2041797703e48eac16404f189d6982
+    GitHub-Last-Rev: 5c01e117f4451dbaec657d02d006905df1d0055d
+    GitHub-Pull-Request: golang/go#47476
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338609
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os2_aix.go    | 32 ++++++++++++++++----------------
- src/runtime/os_netbsd.go  | 16 ++++++++--------
- src/runtime/os_openbsd.go |  8 ++++----
- src/runtime/os_plan9.go   |  6 +++---
- 4 files changed, 31 insertions(+), 31 deletions(-)
+ src/encoding/gob/encode.go       | 10 ++++----
+ src/encoding/gob/encoder_test.go | 50 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 5 deletions(-)

@@ -1,56 +1,64 @@
-commit 2965dc989530e1f52d80408503be24ad2582871b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 13 19:48:58 2024 -0400
+commit a0c9d153e0c177677701b8a4e6e5eba5a6c44a4f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jan 17 19:15:39 2023 -0500
 
-    runtime: fix lost sleep causing TestZeroTimer flakes
+    runtime: don't inject a sigpanic if not on user G stack
     
-    Classic operating system kernel mistake: if you start using
-    per-CPU data without disabling interrupts on the CPU,
-    and then an interrupt reschedules the process onto a different
-    CPU, now you're using the wrong CPU's per-CPU data.
-    The same thing happens in Go if you use per-M or per-P
-    data structures while not holding a lock nor using acquirem.
+    If a panicking signal (e.g. SIGSEGV) happens on a g0 stack, we're
+    either in the runtime or running C code. Either way we cannot
+    recover and sigpanic will immediately throw. Further, injecting a
+    sigpanic could make the C stack unwinder and the debugger fail to
+    unwind the stack. So don't inject a sigpanic.
     
-    In the original timer.modify before CL 564977, I had been
-    very careful about this during the "unlock t; lock ts" dance,
-    only calling releasem after ts was locked. That made sure
-    we used the right ts. The refactoring of that code into its
-    own helper function in CL 564977 missed that nuance.
+    If we have cgo traceback and symbolizer attached, if it panics in
+    a C function ("CF" for the example below), previously it shows
+    something like
     
-    The code
+            fatal error: unexpected signal during runtime execution
+            [signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x45f1ef]
     
-        ts := &getg().m.p.p.ptr().timers
-        ts.lock()
+            runtime stack:
+            runtime.throw({0x485460?, 0x0?})
+                    .../runtime/panic.go:1076 +0x5c fp=0x7ffd77f60f58 sp=0x7ffd77f60f28 pc=0x42e39c
+            runtime.sigpanic()
+                    .../runtime/signal_unix.go:821 +0x3e9 fp=0x7ffd77f60fb8 sp=0x7ffd77f60f58 pc=0x442229
     
-    was now executing without holding any locks nor acquirem.
-    If the goroutine changed its M or P between deciding which
-    ts to use and actually locking that ts, the code would proceed
-    to add the timer t to some other P's timers. If the P was idle
-    by then, the scheduler could have already checked it for timers
-    and not notice the newly added timer when deciding when the
-    next timer should trigger.
+            goroutine 1 [syscall]:
+            CF
+                    /tmp/pp/c.c:6 pc=0x45f1ef
+            runtime.asmcgocall
+                    .../runtime/asm_amd64.s:869 pc=0x458007
+            runtime.cgocall(0x45f1d0, 0xc000053f70)
+                    .../runtime/cgocall.go:158 +0x51 fp=0xc000053f48 sp=0xc000053f10 pc=0x404551
+            main._Cfunc_CF()
+                    _cgo_gotypes.go:39 +0x3f fp=0xc000053f70 sp=0xc000053f48 pc=0x45f0bf
     
-    The solution is to do what the old code correctly did, namely
-    acquirem before deciding which ts to use, rather than assume
-    getg().m.p won't change before ts.lock can complete.
-    This CL does that.
+    Now it shows
     
-    Before CL 564977,
+            SIGSEGV: segmentation violation
+            PC=0x45f1ef m=0 sigcode=1
+            signal arrived during cgo execution
     
-            stress ./time.test -test.run='ZeroTimer/impl=(func|cache)' -test.timeout=3m -test.count=20
+            goroutine 1 [syscall]:
+            CF
+                    /tmp/pp/c.c:6 pc=0x45f1ef
+            runtime.asmcgocall
+                    .../runtime/asm_amd64.s:869 pc=0x458007
+            runtime.cgocall(0x45f1d0, 0xc00004ef70)
+                    .../runtime/cgocall.go:158 +0x51 fp=0xc00004ef48 sp=0xc00004ef10 pc=0x404551
+            main._Cfunc_CF()
+                    _cgo_gotypes.go:39 +0x3f fp=0xc00004ef70 sp=0xc00004ef48 pc=0x45f0bf
     
-    ran without failure for over an hour on my laptop.
-    Starting in CL 564977, it consistently failed within a few minutes.
-    After this CL, it now runs without failure for over an hour again.
+    I think the new one is reasonable.
     
-    Fixes #66006.
+    For #57698.
     
-    Change-Id: Ib9e7ccaa0f22a326ce3fdef2b9a92f7f0bdafcbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571196
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4f7af91761374e9b569dce4c7587499d4799137e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462437
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/time.go    | 13 ++++++++++++-
- src/time/sleep_test.go |  7 +++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go | 10 ++++++++--
+ src/runtime/signal_unix.go    |  6 +++++-
+ 2 files changed, 13 insertions(+), 3 deletions(-)

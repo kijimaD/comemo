@@ -1,20 +1,20 @@
-commit c05d50f8f3b2f8a9ca66a6288168adf74d10586f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 9 22:51:07 2021 -0400
+commit ae585ee52c2437bfd0e955ad6fc8911bf292f51d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 19:31:23 2020 +0000
 
-    cmd/go/internal/modload: avoid loading the module graph to list only the name of the main module
+    runtime: remove memstats.heap_alloc
     
-    For #36460
-    For #29666
+    memstats.heap_alloc is 100% a duplicate and unnecessary copy of
+    memstats.alloc which exists because MemStats used to be populated from
+    memstats via a memmove.
     
-    Change-Id: I9e46f7054d52c053be80c483757cdd34b22822d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309190
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I995489f61be39786e573b8494a8ab6d4ea8bed9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246975
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modload/list.go              | 12 ++++--------
- src/cmd/go/testdata/script/mod_load_badchain.txt |  2 +-
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ src/runtime/heapdump.go |  2 +-
+ src/runtime/mstats.go   | 13 +++++--------
+ 2 files changed, 6 insertions(+), 9 deletions(-)

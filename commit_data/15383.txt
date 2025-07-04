@@ -1,20 +1,14 @@
-commit 48f79a95d08c3baff87f4fbc06d3f2cc9762ec5a
+commit 96f57186ba79b6a649fa0bb901ee5b222877f0d3
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 22 13:32:43 2013 -0800
+Date:   Fri Feb 22 13:02:00 2013 -0800
 
-    cmd/vet: restructure to be package-driven
-    This is a simple refactoring of main.go that will enable the type checker
-    to be used during vetting.
-    The change has an unimportant effect on the arguments: it now assumes
-    that all files named explicitly on the command line belong to the same
-    package. When run by the go command, this was true already.
+    exp/ssa: silence go vet
     
-    Also restore a missing parenthesis from an error message.
-    
-    R=golang-dev, gri, bradfitz
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7393052
+    https://golang.org/cl/7386052
 
- src/cmd/vet/main.go   | 125 +++++++++++++++++++++++++++++++++++++-------------
- src/cmd/vet/method.go |   2 +-
- 2 files changed, 93 insertions(+), 34 deletions(-)
+ src/pkg/exp/ssa/interp/interp.go  | 2 +-
+ src/pkg/exp/ssa/interp/reflect.go | 2 +-
+ src/pkg/exp/ssa/literal.go        | 5 ++++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

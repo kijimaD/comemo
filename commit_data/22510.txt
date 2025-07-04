@@ -1,34 +1,21 @@
-commit 5ed90cbbb0f6d47d824b3baadb7d22c4528b7dd3
+commit 42fcc6fea03673eeed1447eaab78a7df9385246e
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 13 10:28:57 2015 -0700
+Date:   Thu Mar 19 09:28:02 2015 -0700
 
-    cmd/internal/gc, cmd/gc: move Reg from Val to Node
+    cmd/internal/gc: add internConcat for alloc-free string concatenation
     
-    Val is used to hold constant values.
-    Reg was the odd duck out.
+    This is a follow-up to review comments on CL 7696.
     
-    Generated using eg.
+    I believe that this includes the first regular Go test in the compiler.
     
     No functional changes. Passes toolstash -cmp.
     
-    Change-Id: Ic1de769a1f92bb02e09a4428d998b716f307e2f6
-    Reviewed-on: https://go-review.googlesource.com/8912
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id45f51aa664c5d52ece2a61cd7d8417159ce3cf0
+    Reviewed-on: https://go-review.googlesource.com/7820
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/cgen.go            |  6 +++---
- src/cmd/5g/cgen64.go          | 24 ++++++++++++------------
- src/cmd/5g/ggen.go            | 10 +++++-----
- src/cmd/5g/gsubr.go           |  8 ++++----
- src/cmd/6g/cgen.go            |  4 ++--
- src/cmd/6g/ggen.go            |  6 +++---
- src/cmd/6g/gsubr.go           |  2 +-
- src/cmd/7g/ggen.go            |  2 +-
- src/cmd/8g/gsubr.go           | 10 +++++-----
- src/cmd/9g/ggen.go            |  2 +-
- src/cmd/9g/gsubr.go           |  2 +-
- src/cmd/internal/gc/cgen.go   | 16 ++++++++--------
- src/cmd/internal/gc/fmt.go    |  4 ++--
- src/cmd/internal/gc/go.go     |  1 -
- src/cmd/internal/gc/gsubr.go  | 18 +++++++++---------
- src/cmd/internal/gc/syntax.go |  5 ++++-
- 16 files changed, 61 insertions(+), 59 deletions(-)
+ src/cmd/internal/gc/lex.go      |  9 +++++++++
+ src/cmd/internal/gc/lex_test.go | 22 ++++++++++++++++++++++
+ src/cmd/internal/gc/subr.go     |  6 +++---
+ src/cmd/internal/gc/walk.go     | 19 ++++++++++---------
+ 4 files changed, 44 insertions(+), 12 deletions(-)

@@ -1,15 +1,16 @@
-commit 432b4f309b9d2c82c72a18b917cdccb4ec2bd89f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 1 09:20:32 2011 +1100
+commit 7da86983a8619df20e61531159d6e2f7f1f628bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 28 17:16:44 2011 -0500
 
-    build: convert src/cmd to use make directly and simplify src/make.bash
+    gc: bug325 / issue 1566
     
-    R=adg, bsiegert, rsc
+    Fixes #1566.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4221047
+    https://golang.org/cl/4259041
 
- src/cmd/Makefile   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/clean.bash | 16 -------------
- src/cmd/make.bash  | 30 ------------------------
- src/make.bash      | 20 ++--------------
- 4 files changed, 70 insertions(+), 64 deletions(-)
+ src/cmd/gc/subr.c        |  1 -
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/fixedbugs/bug325.go | 14 ++++++++++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

@@ -1,19 +1,27 @@
-commit 2968f5623c71d0e8e7be6e117939c5f585bb0620
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 19 16:45:00 2023 -0700
+commit dc6b7c86df3cac29c3506ef8b251345b8d914496
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Oct 12 14:02:38 2022 -0500
 
-    test: add tests that gofrontend failed
+    cmd/compile: merge zero constant ISEL in PPC64 lateLower pass
     
-    I will shortly be sending CLs to let the gofrontend code pass
-    these tests.
+    Add a new SSA opcode ISELZ, similar to ISELB to represent a select
+    of value or 0. Then, merge candidate ISEL opcodes inside the late
+    lower pass.
     
-    Change-Id: I53ccbdac3ac224a4fdc9577270f48136ca73a62c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536537
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This avoids complicating rules within the the lower pass.
+    
+    Change-Id: I3b14c94b763863aadc834b0e910a85870c131313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442596
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- test/fixedbugs/bug517.go | 37 +++++++++++++++++++++++++++++++++++++
- test/fixedbugs/bug518.go | 15 +++++++++++++++
- 2 files changed, 52 insertions(+)
+ src/cmd/compile/internal/ppc64/ssa.go              | 21 +++++++-----
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      | 13 +++++---
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |  5 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 15 +++++++++
+ .../compile/internal/ssa/rewritePPC64latelower.go  | 38 ++++++++++++++++++++++
+ test/codegen/condmove.go                           | 24 ++++++++++++++
+ 6 files changed, 102 insertions(+), 14 deletions(-)

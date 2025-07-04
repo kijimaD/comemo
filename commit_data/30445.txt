@@ -1,17 +1,21 @@
-commit 32b41c8dc75a731e4053b59b19c542a79eb56c1f
+commit 039e60ce4e0763f5c67e11227858a4d508df1299
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 28 14:55:00 2017 -0800
+Date:   Fri Nov 4 15:01:09 2016 -0700
 
-    math/bits: move left-over functionality from bits_impl.go to bits.go
+    go/types: revert user-visible changes related to aliases
     
-    Removes an extra function call for TrailingZeroes and thus may
-    increase chances for inlining.
+    Reason: Decision to back out current alias implementation.
+    For #16339 (comment).
     
-    Change-Id: Iefd8d4402dc89b64baf4e5c865eb3dadade623af
-    Reviewed-on: https://go-review.googlesource.com/37613
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie04f24e529db2d29c5dd2e36413f5f37f628df39
+    Reviewed-on: https://go-review.googlesource.com/32819
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/bits/bits.go      | 64 +++++++++++++++++++++++++++++++++++++++----
- src/math/bits/bits_impl.go | 67 ----------------------------------------------
- 2 files changed, 59 insertions(+), 72 deletions(-)
+ src/go/internal/gcimporter/bimport.go |  6 +++++-
+ src/go/types/api_test.go              |  6 +++---
+ src/go/types/check_test.go            |  2 +-
+ src/go/types/decl.go                  | 13 +++++++------
+ src/go/types/object.go                | 31 ++++++++++++++++---------------
+ src/go/types/resolver.go              | 11 ++++++-----
+ src/go/types/typexpr.go               | 15 ++++++++-------
+ 7 files changed, 46 insertions(+), 38 deletions(-)

@@ -1,14 +1,19 @@
-commit 8ca3372d7b63c8c61ea68daa9e3fc63213eb7965
+commit fd7ff2049512b3a900004e3e3c83e45263f93d13
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 6 21:33:19 2014 +0400
+Date:   Thu Mar 6 18:44:14 2014 +0400
 
-    runtime: fix bad g status after copystack
+    net/http: make TestUseProxy repeatable
+    Currently it fails on second and subsequent runs (when using -cpu=1,2,4) as:
+    --- FAIL: TestUseProxy-4 (0.00 seconds)
+    proxy_test.go:109: useProxy(barbaz.net) = true, want false
+    proxy_test.go:109: useProxy(foobar.com) = true, want false
+    proxy_test.go:109: useProxy(www.foobar.com) = true, want false
     
-    LGTM=khr
-    R=khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/69870054
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71940044
 
- src/pkg/runtime/proc.c  | 6 ++++++
- src/pkg/runtime/stack.c | 1 +
- 2 files changed, 7 insertions(+)
+ src/pkg/net/http/proxy_test.go     | 15 +++++++++------
+ src/pkg/net/http/transport_test.go |  5 +----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

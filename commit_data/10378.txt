@@ -1,16 +1,14 @@
-commit 869aabbdd092f71858caffa502598148417f3a70
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 11:31:58 2011 -0500
+commit 6687e52ab16a5af31f4e861e4f43773a534e04d4
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Nov 14 07:52:36 2011 -0800
 
-    syscall: more linux arm build fixes
+    doc/install: add openbsd
     
-    Don't know if it runs, but at least it builds.
+    Add openbsd to the $GOOS list.
     
-    R=bradfitz
-    TBR=bradfitz
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5373093
+    https://golang.org/cl/4964053
 
- src/pkg/syscall/syscall_linux_arm.go |  16 ++-
- src/pkg/syscall/zerrors_linux_arm.go | 262 ++++++++++++++++++-----------------
- 2 files changed, 144 insertions(+), 134 deletions(-)
+ doc/install.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

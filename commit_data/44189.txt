@@ -1,25 +1,12 @@
-commit deaf29a8a8ab76613bf0d5d97c4e31bfbdc4c4e9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 21 19:27:12 2021 -0800
+commit 8194187a2de9b693af6656ca956762437c2f9c64
+Author: matsuyoshi <sfbgwm30@gmail.com>
+Date:   Sat May 23 16:23:04 2020 +0900
 
-    cmd/compile: fix order-of-assignment issue w/ defers
+    os: use same link in UserCacheDir/UserConfigDir doc
     
-    CL 261677 fixed a logic issue in walk's alias detection, where it was
-    checking the RHS expression instead of the LHS expression when trying
-    to determine the kind of assignment. However, correcting this exposed
-    a latent issue with assigning to result parameters in functions with
-    defers, where an assignment could become visible earlier than intended
-    if a later expression could panic.
-    
-    Fixes #43835.
-    
-    Change-Id: I061ced125e3896e26d65f45b28c99db2c8a74a8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285633
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I94c385243c37589f56aadaa30336b400adf31308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 12 ++++++++++--
- test/fixedbugs/issue43835.go        | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 2 deletions(-)
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

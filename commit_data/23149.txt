@@ -1,23 +1,14 @@
-commit 05d8f1d1664e6413756ed4e18392310b75501ff4
-Author: David Chase <drchase@google.com>
-Date:   Fri May 22 22:01:01 2015 -0400
+commit 673bd18805aab1d4c7c301129d329e68a2511fd7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 27 16:50:05 2015 -0700
 
-    cmd/compile: propagate correct line numbers in treecopy
+    test: gofmt run.go
     
-    Added a lineno parameter to treecopy and listtreecopy
-    (ignored if = 0).  When nodes are copied the copy is
-    assigned the non-zero lineno (normally this would be
-    the destination).
+    Clean up after CL 5310.
     
-    Fixes #8183
-    
-    Change-Id: Iffb767a745093fb89aa08bf8a7692c2f0122be98
-    Reviewed-on: https://go-review.googlesource.com/10334
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib870e7b9d26eb118eefdaa3e76dcec4a4d459584
+    Reviewed-on: https://go-review.googlesource.com/9398
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go      |  5 +++--
- src/cmd/compile/internal/gc/order.go    |  2 +-
- src/cmd/compile/internal/gc/racewalk.go |  2 +-
- src/cmd/compile/internal/gc/subr.go     | 23 +++++++++++++++++------
- test/fixedbugs/issue8183.go             | 23 +++++++++++++++++++++++
- 5 files changed, 45 insertions(+), 10 deletions(-)
+ test/run.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

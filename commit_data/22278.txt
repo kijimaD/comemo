@@ -1,29 +1,25 @@
-commit 5bb89eb009a3c395990259cbca0e917ea025c6d5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 20 16:59:08 2015 -0700
+commit 1b9049b554025142408cdf8aad294fb7041c847a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Mar 4 10:28:18 2015 +1300
 
-    cmd/internal/gc: use big.Float to represent Mpflt bits
+    cmd/internal/ld: make ELF constants explicit
     
-    All multi-precision arithmetic is now based on math/big.
+    c2go produced accurate but complex constant definitions like
+    "ElfSymBindLocal  = 0 + iota - 67" which break when any constants
+    are added above them in the list. Change them to explicit values
+    in separate blocks by class. I wrote a little program (using awk)
+    to dump the values of the constants:
     
-    - passes all.bash
-    - added test cases for fixed bugs
+        https://gist.github.com/mwhudson/82f82008279a38ce584e
     
-    Fixes #7740.
-    Fixes #6866.
+    and confirmed that its output before and after this change is the
+    same.
     
-    Change-Id: I67268b91766970ced3b928260053ccdce8753d58
-    Reviewed-on: https://go-review.googlesource.com/7912
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib4aea4a0d688a16cdcb76af4715d1a97ec0f013c
+    Reviewed-on: https://go-review.googlesource.com/6581
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/align.go    |   4 +-
- src/cmd/internal/gc/const.go    |  12 +-
- src/cmd/internal/gc/go.go       |  22 +-
- src/cmd/internal/gc/lex.go      |   6 +-
- src/cmd/internal/gc/mparith1.go | 595 +++-------------------------------------
- src/cmd/internal/gc/mparith2.go | 489 +--------------------------------
- src/cmd/internal/gc/mparith3.go | 327 +++-------------------
- src/cmd/internal/gc/subr.go     |   2 +-
- test/fixedbugs/issue6866.go     |  80 ++++++
- test/fixedbugs/issue7740.go     |  35 +++
- 10 files changed, 215 insertions(+), 1357 deletions(-)
+ src/cmd/internal/ld/ldelf.go | 190 +++++++++++++++++++++++++------------------
+ 1 file changed, 110 insertions(+), 80 deletions(-)

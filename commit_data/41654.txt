@@ -1,17 +1,12 @@
-commit dc3255391a59474eda08e71eaf8090753b0a84db
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 3 03:40:37 2020 +1100
+commit 58e8f7897a0b69fee891af8461e1270d59f4d1a6
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Thu Oct 17 16:48:37 2019 -0400
 
-    cmd/internal/obj/riscv: add NOT pseudo-instruction
+    doc: document Go 1.12.12
     
-    Add a NOT pseudo-instruction that translates to XORI $-1.
-    
-    Change-Id: I2be4cfe2939e988cd7f8d30260b704701d78475f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221688
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I832ba5f32d513b586bb0b02371231786b25631e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s | 6 +++++-
- src/cmd/internal/obj/riscv/anames.go         | 1 +
- src/cmd/internal/obj/riscv/cpu.go            | 1 +
- src/cmd/internal/obj/riscv/obj.go            | 9 +++++++++
- 4 files changed, 16 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

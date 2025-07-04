@@ -1,55 +1,24 @@
-commit 071b8d51c1a70fa6b12f0bed2e93370e193333fd
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Jul 12 22:03:43 2024 +0000
+commit 5b603f79fb51e7be4c7d7d141c7615b9cdc58524
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 30 10:49:11 2023 -0400
 
-    cmd: vendor golang.org/x/telemetry@268b4a8ec2d7
+    cmd/compile: remove special treatment for cover vars in initorder
     
-    Commands run, from cmd:
-      go get golang.org/x/telemetry@268b4a8ec2d7
-      go mod tidy
-      go mod vendor
+    This patch reverts a portion of the changes in CL 443715, specifically
+    the code in initorder that treats coverage counter variables as special
+    with respect to init order. The special casing is no longer needed
+    now after a change to the way coverage instrumention is done (the go and
+    cover cmds now make sure that coverage variables appear first in
+    the compilation order).
     
-    Commands run, from std (to keep versions consistent):
-      go get golang.org/x/sys@v0.22.0
-      go mod tidy
-      go mod vendor
+    Updates #56293.
     
-    Fixes #67617
-    
-    Change-Id: I65e759c9b03443619a2a7acbeba53694ff5bbf6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597896
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Idf803ff4c1a095e88d455a6adcd63991687eb288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499216
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go.mod                                     |   6 +-
- src/cmd/go.sum                                     |  12 +-
- src/cmd/vendor/golang.org/x/mod/module/module.go   |   2 -
- src/cmd/vendor/golang.org/x/mod/sumdb/client.go    |   8 +
- src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go |  12 +-
- src/cmd/vendor/golang.org/x/sys/unix/mremap.go     |   5 +
- .../vendor/golang.org/x/sys/unix/syscall_darwin.go |  12 ++
- .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   9 ++
- .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  33 +++++
- .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |  10 ++
- .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  33 +++++
- .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |  10 ++
- .../golang.org/x/sys/windows/security_windows.go   |  24 ++-
- .../golang.org/x/sys/windows/zsyscall_windows.go   |   9 ++
- .../vendor/golang.org/x/telemetry/counter/doc.go   |   7 +
- .../x/telemetry/internal/counter/counter.go        |  50 ++++++-
- .../x/telemetry/internal/counter/file.go           | 164 ++++++++++++++++-----
- .../golang.org/x/telemetry/internal/mmap/mmap.go   |   7 +-
- .../x/telemetry/internal/mmap/mmap_other.go        |   8 +-
- .../x/telemetry/internal/mmap/mmap_unix.go         |  14 +-
- .../x/telemetry/internal/mmap/mmap_windows.go      |  22 +--
- .../x/telemetry/internal/telemetry/types.go        |   4 +-
- .../x/telemetry/internal/upload/findwork.go        |   2 +-
- .../x/telemetry/internal/upload/reports.go         |   7 +-
- .../x/telemetry/internal/upload/upload.go          |  14 +-
- src/cmd/vendor/modules.txt                         |   6 +-
- src/go.mod                                         |   2 +-
- src/go.sum                                         |   4 +-
- src/vendor/modules.txt                             |   2 +-
- 29 files changed, 400 insertions(+), 98 deletions(-)
+ src/cmd/compile/internal/pkginit/initorder.go | 9 ---------
+ 1 file changed, 9 deletions(-)

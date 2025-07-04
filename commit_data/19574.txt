@@ -1,20 +1,13 @@
-commit 1ca10de35d289346468a9c5b26475265c375eb95
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Jun 19 11:22:50 2014 -0700
+commit 705a028d0fef32e4bd9c43c6469847db71a756c7
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Thu Jun 19 01:49:14 2014 -0400
 
-    strings: reduce allocation in byteStringReplacer.WriteString
-    
-    Use WriteString instead of allocating a byte slice as a
-    buffer. This was a TODO.
-    
-    benchmark               old ns/op    new ns/op    delta
-    BenchmarkWriteString        40139        19991  -50.20%
+    testing/quick: brought Check parameter name in line with function doc
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/107190044
+    https://golang.org/cl/102830043
 
- src/pkg/strings/replace.go      | 44 +++++++++++++----------------------------
- src/pkg/strings/replace_test.go |  9 +++++++++
- 2 files changed, 23 insertions(+), 30 deletions(-)
+ src/pkg/testing/quick/quick.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

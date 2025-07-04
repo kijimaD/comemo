@@ -1,28 +1,27 @@
-commit c8dd89ed3dde52933d981d7d7c4c200160f47ec3
-Author: John Kelly <jkelly@squarespace.com>
-Date:   Thu Jul 29 15:47:23 2021 -0400
+commit 507e641963c6e4277ae4bc9d5f44469d2b4c9c8f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 28 15:52:36 2021 -0800
 
-    net/http: add Cookie.Valid method
+    [dev.typeparams] cmd/compile/internal/typecheck: declutter generated builtin.go (cleanup)
     
-    The (*http.Cookie).String method used by SetCookie will silently discard
-    or sanitize any fields it deems invalid, making it difficult to tell
-    whether a cookie will be sent as expected.
+    Even though builtin.go is generated, there's no need for
+    it to be so huge in terms code size. Nor does ultimate
+    speed matter here.
     
-    This change introduces a new (*http.Cookie).Valid method which may be
-    used to check if any cookie fields will be discarded or sanitized prior
-    to calling (*http.Cookie).String.
+    Added two simple helper functions that are not inlined,
+    which reduce the amount of code generated for this file
+    from 77881 bytes to 27641 bytes of assembly (per compiler
+    -S output) and reduce the compile binary by ~140KiB
+    (of course that's insignificant given the 22MiB file size).
     
-    Fixes #46370
-    
-    Change-Id: I2db80078de190d267a9c675a9717c8be8acc8704
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338590
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3058ec62788b33eaeff2f9d5fe975b8e41cbf172
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287772
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- api/next.txt                |  1 +
- src/net/http/cookie.go      | 33 +++++++++++++++++++++++++++++++++
- src/net/http/cookie_test.go | 25 +++++++++++++++++++++++++
- 3 files changed, 59 insertions(+)
+ src/cmd/compile/internal/typecheck/builtin.go   | 198 +++++++++++++-----------
+ src/cmd/compile/internal/typecheck/mkbuiltin.go |  28 +++-
+ 2 files changed, 130 insertions(+), 96 deletions(-)

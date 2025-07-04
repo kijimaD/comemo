@@ -1,17 +1,30 @@
-commit 90c5660616d7f006ca62adfec49310bf40e3b354
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Mon Apr 26 22:32:21 2021 +0900
+commit 3bdafb0d82c9908ae04d2765847754df0646df35
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 23:03:25 2020 -0800
 
-    embed: guarantee the returned file of FS.Open implements io.Seeker
+    [dev.regabi] cmd/compile: remove CommStmt.List
     
-    Fixes golang/go#45745
+    Package syntax's parser already ensures that select communication
+    clauses only have one statement, so there's no need for ir's CommStmt
+    to need to represent more than one. Instead, noder can just directly
+    populate Comm in the first place.
     
-    Change-Id: Ib49a9605a38074f544a5d28116862e191cea8c0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313352
-    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    Incidentally, this also revealed a latent issue in the inline-body
+    exporter: we were exporting List (where the case statement is before
+    type-checking), rather than Comm (where the case statement would be
+    after type-checking, when export happens).
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ib4eb711527bed297c7332c79ed6e6562a1db2cfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280444
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/embed/embed.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/ir/node_gen.go       |  3 ---
+ src/cmd/compile/internal/ir/stmt.go           | 13 +++++++------
+ src/cmd/compile/internal/noder/noder.go       | 23 ++++++++++-------------
+ src/cmd/compile/internal/typecheck/iexport.go |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go |  6 ++++--
+ src/cmd/compile/internal/typecheck/stmt.go    | 18 ++++++------------
+ 6 files changed, 28 insertions(+), 37 deletions(-)

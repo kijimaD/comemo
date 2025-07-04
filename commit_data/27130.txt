@@ -1,35 +1,22 @@
-commit e607abbfd6e0550c13f4fa7b666d033eb9b14759
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Tue Nov 17 16:51:23 2015 +0200
+commit 7c546566c35ed682dcd1892d174071cde1014e46
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 11 17:49:07 2016 -0500
 
-    unicode: improve SimpleFold performance for ascii
+    cmd/compile: compute number of arguments correctly
     
-    This change significantly speeds up case-insensitive regexp matching.
+    The outCount value includes a flag bit for dotdotdot.
     
-    benchmark                      old ns/op      new ns/op      delta
-    BenchmarkMatchEasy0i_32-8      2690           1473           -45.24%
-    BenchmarkMatchEasy0i_1K-8      80404          42269          -47.43%
-    BenchmarkMatchEasy0i_32K-8     3272187        2076118        -36.55%
-    BenchmarkMatchEasy0i_1M-8      104805990      66503805       -36.55%
-    BenchmarkMatchEasy0i_32M-8     3360192200     2126121600     -36.73%
+    If we have this count incorrect, then the offset for the
+    methodset *rtype are in the wrong place.
     
-    benchmark                      old MB/s     new MB/s     speedup
-    BenchmarkMatchEasy0i_32-8      11.90        21.72        1.83x
-    BenchmarkMatchEasy0i_1K-8      12.74        24.23        1.90x
-    BenchmarkMatchEasy0i_32K-8     10.01        15.78        1.58x
-    BenchmarkMatchEasy0i_1M-8      10.00        15.77        1.58x
-    BenchmarkMatchEasy0i_32M-8     9.99         15.78        1.58x
+    Fixes #14783
     
-    Issue #13288
-    
-    Change-Id: I94af7bb29e75d60b4f6ee760124867ab271b9642
-    Reviewed-on: https://go-review.googlesource.com/16943
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If5acb16af08d4ffe36c8c9ee389c32f2712ce757
+    Reviewed-on: https://go-review.googlesource.com/20566
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/exec_test.go   |   6 +++
- src/unicode/letter.go     |   4 ++
- src/unicode/maketables.go |  20 +++++++
- src/unicode/tables.go     | 131 ++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 161 insertions(+)
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/reflect/all_test.go                | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

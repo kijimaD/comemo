@@ -1,22 +1,26 @@
-commit 3dac99ad4cdc7014343bcbddf01aca2d9e7a4e96
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 23 12:22:50 2022 -0700
+commit 950fa11c4cb01a145bb07eeb167d90a1846061b3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 21 14:02:30 2021 -0400
 
-    cmd/compile: simplify fingerprint logic
+    net/http/httputil: always remove hop-by-hop headers
     
-    Historically, we sometimes recorded imports based on either package
-    path ("net/http") or object file path ("net/http.a"). But modern Go
-    build systems always use package path, and the extra ".a" suffix
-    doesn't mean anything anyway.
+    Previously, we'd fail to remove the Connection header from a request
+    like this:
     
-    Change-Id: I6060ef8bafa324168710d152a353f4d8db062133
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395254
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+        Connection:
+        Connection: x-header
+    
+    Fixes #46313
+    Fixes CVE-2021-33197
+    
+    Change-Id: Ie3009e926ceecfa86dfa6bcc6fe14ff01086be7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321929
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/import.go | 10 +-----
- src/cmd/link/internal/ld/ld.go           | 53 ++++++++++----------------------
- test/fixedbugs/bug369.go                 | 12 +++++---
- 3 files changed, 24 insertions(+), 51 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 22 +++++------
+ src/net/http/httputil/reverseproxy_test.go | 63 +++++++++++++++++++++++++++++-
+ 2 files changed, 70 insertions(+), 15 deletions(-)

@@ -1,22 +1,27 @@
-commit a2c07a9a1a445c28fa4db9bd1472b28cad3ca818
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 17 12:18:12 2021 +0200
+commit 393f2bb067088cdbdb8d5848e6880b2ce65ddaf9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 19 18:56:01 2020 +1000
 
-    all: update golang.org/x/net to latest
+    cmd/dist,cmd/go,runtime: add support for cgo on linux/riscv64
     
-    To pull in CL 318309.
+    Fixes #36641
     
-    For #41184
-    
-    Change-Id: I99adb0478e71dbd72e13551a87ed09eae2a0ef2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320312
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I51868d83ce341d78d33b221d184c5a5110c60d14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263598
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go.mod                                | 2 +-
- src/go.sum                                | 4 ++--
- src/vendor/golang.org/x/net/route/empty.s | 1 +
- src/vendor/modules.txt                    | 2 +-
- 4 files changed, 5 insertions(+), 4 deletions(-)
+ misc/cgo/test/testdata/issue9400/asm_riscv64.s     |  31 ++++
+ src/cmd/dist/build.go                              |   2 +-
+ src/cmd/dist/test.go                               |   6 +-
+ .../go/testdata/script/build_plugin_non_main.txt   |   3 +-
+ src/cmd/nm/nm_cgo_test.go                          |   2 +-
+ src/runtime/asm_riscv64.s                          | 190 +++++++++++++++++++--
+ src/runtime/cgo/asm_riscv64.s                      |  84 +++++++++
+ src/runtime/cgo/gcc_linux_riscv64.c                |  74 ++++++++
+ src/runtime/cgo/gcc_riscv64.S                      |  80 +++++++++
+ src/runtime/cgocall.go                             |   2 +-
+ src/runtime/tls_riscv64.s                          |  16 +-
+ 11 files changed, 469 insertions(+), 21 deletions(-)

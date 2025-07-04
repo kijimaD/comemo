@@ -1,0 +1,30 @@
+commit 22664f33b7389f1b3df409a831c83213cfbbe6d3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 21 17:45:01 2024 -0400
+
+    runtime: reserve fewer memory for aligned reservation on sbrk systems
+    
+    Sometimes the runtime needs to reserve some memory with a large
+    alignment, which the OS usually won't directly satisfy. So, it
+    asks size+align bytes instead, and frees the unaligned portions.
+    On sbrk systems, this doesn't work that well, as freeing the tail
+    portion doesn't really free the memory to the OS. Instead, we
+    could simply round the current break up, then reserve the given
+    size, without wasting the tail portion.
+    
+    Also, don't create heap arena hints on sbrk systems. We can only
+    grow the break sequentially, and reserving specific addresses
+    would not succeed anyway.
+    
+    For #69018.
+    
+    Change-Id: Iadc2c54d62b00ad7befa5bbf71146523483a8c47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621715
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/malloc.go      | 11 ++++++++++-
+ src/runtime/mem_nonsbrk.go | 15 +++++++++++++++
+ src/runtime/mem_sbrk.go    | 42 +++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 66 insertions(+), 2 deletions(-)

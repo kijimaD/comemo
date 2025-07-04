@@ -1,35 +1,18 @@
-commit a8b2e4a630a5991e91095d85c604dc1fa23c1e56
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Mar 30 11:07:36 2017 -0400
+commit f64b7d301d8f22efb9b539f8ac4db60aedf182c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 09:24:33 2017 -0500
 
-    cmd/compile: improve LoweredMove performance on ppc64x
+    cmd/link: use 64k segment alignment on linux/arm
     
-    This change improves the performance for LoweredMove on ppc64le
-    and ppc64.
+    Otherwise 64k pages don't map correctly.
     
-    benchmark                   old ns/op     new ns/op     delta
-    BenchmarkCopyFat8-16        0.93          0.69          -25.81%
-    BenchmarkCopyFat12-16       2.61          1.85          -29.12%
-    BenchmarkCopyFat16-16       9.68          1.89          -80.48%
-    BenchmarkCopyFat24-16       4.48          1.85          -58.71%
-    BenchmarkCopyFat32-16       6.12          1.82          -70.26%
-    BenchmarkCopyFat64-16       21.2          2.70          -87.26%
-    BenchmarkCopyFat128-16      29.6          3.97          -86.59%
-    BenchmarkCopyFat256-16      52.6          13.4          -74.52%
-    BenchmarkCopyFat512-16      97.1          18.7          -80.74%
-    BenchmarkCopyFat1024-16     186           35.3          -81.02%
+    Fixes #18408.
     
-    BenchmarkAssertE2TLarge-16      14.2          5.06          -64.37%
-    
-    Fixes #19785
-    
-    Change-Id: I7d5e0052712b75811c02c7d86c5112e5649ad782
-    Reviewed-on: https://go-review.googlesource.com/38950
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I85f56682531566d1ff5c655640cd58509514aee8
+    Reviewed-on: https://go-review.googlesource.com/34629
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 222 +++++++++++++++++++--------
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  55 +++----
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  45 ++++--
- src/cmd/compile/internal/ssa/opGen.go        |   9 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 215 ++++++--------------------
- 5 files changed, 258 insertions(+), 288 deletions(-)
+ src/cmd/link/internal/arm/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

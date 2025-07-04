@@ -1,28 +1,21 @@
-commit d95b7980aa1ef94983983cd98e005947e83d562d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 23 14:46:09 2024 -0400
+commit cffdfe8d2cabbe874bceaeed1eba92cc567be6db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 1 12:52:48 2023 -0700
 
-    internal/runtime/maps: cleanup seed usage
+    runtime: don't let the tests leave core files behind
     
-    Keep only a single seed; initialize it; and reset it when the map is
-    empty.
+    Also add a check that we didn't leave any core files behind.
     
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: Icc231f70957337a2d0dcd9c7daf9bd3cb4354d71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616466
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I30444ef43ad1a8cc1cacd3b75280f2128e104939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525175
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/reflectdata/map_swiss.go  |  9 +++----
- src/internal/runtime/maps/map.go                   | 17 ++++++++----
- src/internal/runtime/maps/runtime_fast32_swiss.go  |  8 +++---
- src/internal/runtime/maps/runtime_fast64_swiss.go  |  8 +++---
- src/internal/runtime/maps/runtime_faststr_swiss.go |  4 +--
- src/internal/runtime/maps/runtime_swiss.go         |  4 +--
- src/internal/runtime/maps/table.go                 | 30 ++++++++--------------
- src/internal/runtime/maps/table_debug.go           | 20 +++++++--------
- 8 files changed, 46 insertions(+), 54 deletions(-)
+ src/runtime/crash_test.go                      | 11 +++++++++++
+ src/runtime/crash_unix_test.go                 |  2 ++
+ src/runtime/testdata/testprogcgo/threadprof.go |  4 +++-
+ 3 files changed, 16 insertions(+), 1 deletion(-)

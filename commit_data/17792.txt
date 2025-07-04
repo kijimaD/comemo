@@ -1,12 +1,12 @@
-commit 2acb80b5e57f5c42c6f474616253d4be80187527
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 14 14:26:52 2013 -0700
+commit 51c0d7c0a7bee8256c298e022021e4bfb3ff915b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 15 08:21:30 2013 +1100
 
-    cmd/gc: fix comment about performing indexing at compile time.
+    C: add Michael Piatek (Google CLA).
     
     R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/14441070
+    CC=golang-dev, piatek
+    https://golang.org/cl/14681043
 
- src/cmd/gc/walk.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

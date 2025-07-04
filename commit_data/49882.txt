@@ -1,19 +1,18 @@
-commit b6f87b0755f9705ce7d1c11c1b5354e8400ca7aa
-Author: zhangjian <zj.cosmos@gmail.com>
-Date:   Fri Jul 15 14:08:49 2022 +0000
+commit a81b0dc6ee9096e3885e083e2dea2c743c0f4540
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 19 18:18:41 2021 -0700
 
-    test: remove unused code in run.go
+    cmd/compile: rename instType -> instanceType
     
-    Change-Id: Ie2a77a9643697cfda4376db606711c09da220405
-    GitHub-Last-Rev: ff1cf0b9d831d626f7a8e0e80340d908ce5c32cf
-    GitHub-Pull-Request: golang/go#53902
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417734
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    This is to keep in alignment with the naming in go/types.
+    
+    Change-Id: I19ded29b39665d7b892fdbc8e92c7f15caf7ab66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350950
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- test/run.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
+ src/cmd/compile/internal/typecheck/iimport.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

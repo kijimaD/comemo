@@ -1,33 +1,53 @@
-commit eaf02e1fc9d5f22415233783c02bb0b687d216ec
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 21 11:11:15 2017 -0700
+commit e4371fb179ad69cbd057f2430120843948e09f2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 19:26:13 2017 -0500
 
-    cmd/compile/internal/types: remove unused lineno arguments for PushDcl/MarkDcl
+    time: optimize Now on darwin, windows
     
-    More steps towards simpler symbol handling:
+    Fetch both monotonic and wall time together when possible.
+    Avoids skew and is cheaper.
     
-    - Pushdcl's incoming pos argument, saved in a newly pushed *Sym, was always
-      immediately overwritten by the Lastlineno value of the saved *Sym.
+    Also shave a few ns off in conversion in package time.
     
-    - Markdcl's incoming pos argument, saved in the stack mark *Sym, was not
-      restored when the stack mark was popped.
+    Compared to current implementation (after monotonic changes):
     
-    - Popdcl always maintained the most recent Lastlineno for a *Sym given
-      by package and name, making it unnecessary to save Lastlineno in the
-      first place. Removed Lastlineno from the set of fields that need saving,
-      and simplified Popdcl.
+    name   old time/op  new time/op  delta
+    Now    19.6ns ± 1%   9.7ns ± 1%  -50.63%  (p=0.000 n=41+49) darwin/amd64
+    Now    23.5ns ± 4%  10.6ns ± 5%  -54.61%  (p=0.000 n=30+28) windows/amd64
+    Now    54.5ns ± 5%  29.8ns ± 9%  -45.40%  (p=0.000 n=27+29) windows/386
     
-    Change-Id: Ie93da1fbd780dcafc2703044e781c0c6298df569
-    Reviewed-on: https://go-review.googlesource.com/41390
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    More importantly, compared to Go 1.8:
+    
+    name   old time/op  new time/op  delta
+    Now     9.5ns ± 1%   9.7ns ± 1%   +1.94%  (p=0.000 n=41+49) darwin/amd64
+    Now    12.9ns ± 5%  10.6ns ± 5%  -17.73%  (p=0.000 n=30+28) windows/amd64
+    Now    15.3ns ± 5%  29.8ns ± 9%  +94.36%  (p=0.000 n=30+29) windows/386
+    
+    This brings time.Now back in line with Go 1.8 on darwin/amd64 and windows/amd64.
+    
+    It's not obvious why windows/386 is still noticeably worse than Go 1.8,
+    but it's better than before this CL. The windows/386 speed is not too
+    important; the changes just keep the two architectures similar.
+    
+    Change-Id: If69b94970c8a1a57910a371ee91e0d4e82e46c5d
+    Reviewed-on: https://go-review.googlesource.com/36428
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go      |  4 ++--
- src/cmd/compile/internal/gc/bimport.go  | 10 ++++----
- src/cmd/compile/internal/gc/dcl.go      |  4 ++--
- src/cmd/compile/internal/gc/noder.go    | 12 +++++-----
- src/cmd/compile/internal/gc/subr.go     |  2 +-
- src/cmd/compile/internal/types/scope.go | 41 +++++++++++----------------------
- src/cmd/compile/internal/types/sym.go   | 14 +++++------
- 7 files changed, 36 insertions(+), 51 deletions(-)
+ src/runtime/heapdump.go         |   2 +-
+ src/runtime/mgc.go              |   7 ++-
+ src/runtime/mstats.go           |   7 +--
+ src/runtime/os_windows.go       |  45 +---------------
+ src/runtime/proc.go             |   5 +-
+ src/runtime/stubs.go            |   7 ---
+ src/runtime/sys_darwin_386.s    |  22 +++++++-
+ src/runtime/sys_darwin_amd64.s  | 110 +++++++++++++++++++++-------------------
+ src/runtime/sys_windows_386.s   | 104 ++++++++++++++++++++++++++++++++++---
+ src/runtime/sys_windows_amd64.s |  54 ++++++++++++++++++--
+ src/runtime/time.go             |   8 +--
+ src/runtime/timeasm.go          |  16 ++++++
+ src/runtime/timestub.go         |  21 ++++++++
+ src/time/mono_test.go           |   3 ++
+ src/time/time.go                |  10 ++--
+ 15 files changed, 284 insertions(+), 137 deletions(-)

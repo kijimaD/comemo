@@ -1,14 +1,21 @@
-commit 09899d9b91f56d57104e2b633a3f9849c7f26184
-Author: Gabríel Arthúr Pétursson <gabriel@system.is>
-Date:   Mon Jun 26 23:54:04 2017 +0000
+commit 0ca8701ea2a9d5972285fd7833b67f9f15a403c6
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Mar 23 15:08:43 2017 -0400
 
-    test/fixedbugs: Close opening parenthesis in comment in issue20789.go
+    net/rpc: Create empty maps and slices as return type
     
-    Updates #20789
+    When a map or slice is used as a return type create an empty value
+    rather than a nil value.
     
-    Change-Id: Ic7a94394e283bc1b667cdad999ceee9513f35e37
-    Reviewed-on: https://go-review.googlesource.com/46770
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #19588
+    
+    Change-Id: I577fd74956172329745d614ac37d4db8f737efb8
+    Reviewed-on: https://go-review.googlesource.com/38474
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue20789.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/rpc/jsonrpc/all_test.go | 58 +++++++++++++++++++++++++++++++++++++
+ src/net/rpc/server.go           |  7 +++++
+ src/net/rpc/server_test.go      | 63 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 128 insertions(+)

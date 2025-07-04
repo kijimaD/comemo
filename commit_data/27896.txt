@@ -1,33 +1,23 @@
-commit e41b0e2bcb2667425b7eb223baa2b9945466651b
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jul 5 13:50:18 2016 -0700
+commit 45bb8874314635fc40945da3f765a7844482bfef
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 19 14:31:41 2016 +1000
 
-    crypto/x509: support PSS signatures.
+    net: stop using GetHostByName and GetServByName
     
-    Although the term “RSA” is almost synonymous with PKCS#1 v1.5, that
-    standard is quite flawed, cryptographically speaking. Bellare and
-    Rogaway fixed PKCS#1 v1.5 with OAEP (for encryption) and PSS (for
-    signatures) but they only see a fraction of the use of v1.5.
+    Go 1.6 requires Windows XP or later. I have:
     
-    This change adds support for creating and verifying X.509 certificates
-    that use PSS signatures. Sadly, every possible dimension of flexibility
-    seems to have been reflected in the integration of X.509 and PSS
-    resulting in a huge amount of excess complexity. This change only
-    supports one “sane” configuration for each of SHA-{256, 384, 512}.
-    Hopefully this is sufficient because it saves a lot of complexity in the
-    code.
+    C:\>systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+    OS Name:                   Microsoft Windows XP Professional
+    OS Version:                5.1.2600 Service Pack 3 Build 2600
     
-    Although X.509 certificates with PSS signatures are rare, I'm inclined
-    to look favourably on them because they are sufficiently superior.
+    Running "go test" PASSes on my system after this CL is applied.
     
-    Fixes #15958.
-    
-    Change-Id: I7282e0b68ad0177209f8b2add473b94aa5224c07
-    Reviewed-on: https://go-review.googlesource.com/24743
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: Id59d169138c4a4183322c89ee7e766fb74d381fa
+    Reviewed-on: https://go-review.googlesource.com/22209
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go      | 192 +++++++++++++++++++++++++++++++++++++------
- src/crypto/x509/x509_test.go |  86 ++++++++++++++++---
- 2 files changed, 242 insertions(+), 36 deletions(-)
+ src/net/fd_windows.go     |   5 ---
+ src/net/lookup_windows.go | 109 +---------------------------------------------
+ 2 files changed, 2 insertions(+), 112 deletions(-)

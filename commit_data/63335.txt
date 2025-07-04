@@ -1,0 +1,41 @@
+commit f8ccda2e0574c9ca5d92068852a34b463f87a85b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 25 15:47:05 2025 +0000
+
+    runtime: make explicit nil check in (*spanInlineMarkBits).init
+    
+    The hugo binary gets slower, potentially dramatically so, with
+    GOEXPERIMENT=greenteagc. The root cause is page mapping churn. The Green
+    Tea code introduced a new implicit nil check on value in a
+    freshly-allocated span to clear some new heap metadata. This nil check
+    would read the fresh memory, causing Linux to back that virtual address
+    space with an RO page. This would then be almost immediately written to,
+    causing Linux to possibly flush the TLB and find memory to replace that
+    read-only page (likely deduplicated as just the zero page).
+    
+    This CL fixes the issue by replacing the implicit nil check, which is a
+    memory read expected to fault if it's truly nil, with an explicit one.
+    The explicit nil check is a branch, and thus makes no reads to memory.
+    The result is that the hugo binary no longer gets slower.
+    
+    No regression test because it doesn't seem possible without access to OS
+    internals, like Linux tracepoints. We briefly experimented with RSS
+    metrics, but they're inconsistent. Some system RSS metrics count the
+    deduplicated zero page, while others (like those produced by
+    /proc/self/smaps) do not.
+    
+    Instead, we'll add a new benchmark to our benchmark suite, separately.
+    
+    For #73581.
+    Fixes #74375.
+    
+    Change-Id: I708321c14749a94ccff55072663012eba18b3b91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684015
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/mgcmark_greenteagc.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

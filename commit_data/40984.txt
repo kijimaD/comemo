@@ -1,23 +1,22 @@
-commit a15b5d30925e7be1101d812311545afb82c45a68
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 6 13:43:23 2019 -0500
+commit 8fedb2d3383c29a00c8b43dc456a0ac03f836b45
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Jun 16 16:07:55 2019 +0530
 
-    cmd/go: allow arguments to 'go test' and 'go vet' to duplicate or override flags from GOFLAGS
+    cmd/compile: optimize bounded shifts on wasm
     
-    This is a minimal fix for Go 1.14, but this parsing logic is much too
-    complex and seems like it will cause more trouble going forward.
+    Use the shiftIsBounded function to generate more efficient
+    Shift instructions.
     
-    I intend to mail a followup change to refactor this logic for 1.15.
+    Updates #25167
     
-    Updates #32471
-    
-    Change-Id: I00ed07dcf3a23c9cd4ffa8cf764921fb5c18bcd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210940
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id350f8462dc3a7ed3bfed0bcbea2860b8f40048a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182558
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/go/internal/test/testflag.go   | 6 +++++-
- src/cmd/go/internal/vet/vetflag.go     | 6 +++++-
- src/cmd/go/testdata/script/goflags.txt | 8 ++++++++
- 3 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 42 +++++++++++++++++++++++++++++
+ test/codegen/shift.go                       | 10 +++----
+ 3 files changed, 50 insertions(+), 5 deletions(-)

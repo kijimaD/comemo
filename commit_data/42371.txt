@@ -1,17 +1,21 @@
-commit 8fa468d511b8b1197137ce0ad0ea4260167d2348
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 19 13:29:29 2020 +0200
+commit df0ac450022076631280569e2a157f016dcdab80
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Dec 6 16:52:53 2019 -0500
 
-    doc/go1.15: consolidate notes regarding package testing
+    cmd/link: skip gaps between PT_LOAD segments in TestPIESize
     
-    Fold the descriptions of testing.T.Deadline and TestMain related changes
-    into the existing section for package testing.
+    There may be gaps between non-writeable and writeable PT_LOAD
+    segments, and the gaps may be large as the segments may have
+    large alignment. Don't count those gaps in file size comparison.
     
-    Also link T.Deadline to its godoc.
+    Fixes #36023.
     
-    Change-Id: I732c45fb879305099cb8a51a77ef11fba1b2f1e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234557
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I68582bdd0f385ac5c6f87d485d476d06bc96db19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210180
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.15.html | 30 ++++++++++++++----------------
- 1 file changed, 14 insertions(+), 16 deletions(-)
+ src/cmd/link/elf_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

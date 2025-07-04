@@ -1,31 +1,21 @@
-commit 57c8eb92b78785d2bb8303b0ee7a7771d5df1be6
-Author: Keith Randall <khr@google.com>
-Date:   Mon Nov 26 10:28:44 2018 -0800
+commit 490035b0b9dd27e8868ccc5dced45a29e9b21227
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sat Aug 4 00:19:21 2018 +1000
 
-    cmd/compile: remove CLOBBERDEAD experiment
+    cmd/go: disable ccache when setting HOME to non-existent dir
     
-    This experiment is less effective and less needed since the
-    introduction of stack objects.
+    This fixes tests on systems where ccache is the default compiler.
     
-    We can't clobber stack objects because we don't know statically
-    whether they are live or not.
+    Also simplify a prior workaround for this fault.
     
-    We don't really need this experiment that much any more, as it was
-    primarily used to test the complicated ambiguously-live logic in the
-    liveness analysis, which has been removed in favor of stack objects.
+    Fixed #26789
     
-    It is also ~infeasible to maintain once we have safepoints everywhere.
-    
-    Fixes #27326
-    
-    Change-Id: I3bdde480b93dd508d048703055d4586b496176af
-    Reviewed-on: https://go-review.googlesource.com/c/151317
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I031ff0b65ace7fc5e284393298e004aa2ad3b6f5
+    Reviewed-on: https://go-review.googlesource.com/127775
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go  |   4 +-
- src/cmd/compile/internal/gc/plive.go | 163 +----------------------------------
- src/cmd/go/internal/work/gc.go       |   2 +-
- src/cmd/internal/objabi/util.go      |   2 -
- 4 files changed, 5 insertions(+), 166 deletions(-)
+ src/cmd/go/go_test.go     | 10 ++++------
+ src/cmd/go/script_test.go |  1 +
+ 2 files changed, 5 insertions(+), 6 deletions(-)

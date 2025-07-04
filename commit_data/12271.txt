@@ -1,12 +1,31 @@
-commit fc79058199f4038a96c3c7ad31843c71894e9668
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Wed Feb 29 08:45:57 2012 -0800
+commit b1b0ed1e60af93bc83298da80d0293a2b23fcb5e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 29 08:38:31 2012 -0800
 
-    gob: trivial print fix
+    go/printer: replace multiline logic
     
-    R=golang-dev, gri
+    This CL mostly deletes code.
+    
+    Using existing position information is
+    just as good to determine if a new section
+    is needed; no need to track exact multi-
+    line information. Eliminates the need to
+    carry around a multiLine parameter with
+    practically every function.
+    
+    Applied gofmt -w src misc resulting in only
+    a minor change to godoc.go. In return, a couple
+    of test cases are now formatted better.
+    
+    Not Go1-required, but nice-to-have as it will
+    simplify fixes going forward.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5707062
+    https://golang.org/cl/5706055
 
- src/pkg/encoding/gob/encoder_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/godoc.go                          |   2 +-
+ src/pkg/go/printer/nodes.go                     | 299 +++++++++++-------------
+ src/pkg/go/printer/printer.go                   |  11 +-
+ src/pkg/go/printer/testdata/declarations.golden |   4 +-
+ 4 files changed, 145 insertions(+), 171 deletions(-)

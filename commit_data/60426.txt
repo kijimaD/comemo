@@ -1,0 +1,33 @@
+commit f0de94ff127db9b53f3f5877088d28afe1a85692
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 18 14:51:34 2024 -0400
+
+    cmd/compile: don't inline runtime functions in -d=checkptr build
+    
+    Runtime functions, e.g. internal/abi.NoEscape, should not be
+    instrumented with checkptr. But if they are inlined into a
+    checkptr-enabled function, they will be instrumented, and may
+    result in a check failure.
+    
+    Let the compiler not inline runtime functions into checkptr-
+    enabled functions.
+    
+    Also undo the change in the strings package in CL 598295, as the
+    compiler handles it now.
+    
+    Fixes #68511.
+    Updates #68415.
+    
+    Change-Id: I78eb380855ac9dd53c1a1a628ec0da75c3e5a1a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599435
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/inline/inl.go |  9 +++++++++
+ src/cmd/compile/internal/types/type.go |  5 +++++
+ src/cmd/internal/objabi/pkgspecial.go  |  2 ++
+ src/strings/builder.go                 | 14 +-------------
+ test/fixedbugs/issue68415.go           |  6 +++++-
+ 5 files changed, 22 insertions(+), 14 deletions(-)

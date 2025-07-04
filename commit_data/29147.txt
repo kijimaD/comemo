@@ -1,24 +1,18 @@
-commit 89632aa1832a02e36acd458b3b35257d8133ae0c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 27 11:20:20 2016 -0700
+commit 8dd069b52a87d482e219e16e92390b1d415db486
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 08:53:20 2016 -0700
 
-    cmd/compile, go/parser: disallow "type T = p.T" - must use "=>"
+    androidtest.bash: require GOARCH
     
-    I had added this originally so we can play with different notations
-    but it doesn't make sense to keep it around since gofmt will convert
-    a type alias declaration using "=" into one using "=>" anyhow. More
-    importantly, the spec doesn't permit it.
+    When finding the pkg dir, androidtest.bash assumes
+    that GOARCH is set. Require it up front.
     
-    Change-Id: Icb010b5a9976aebf877e48b3ce9d7245559ca494
-    Reviewed-on: https://go-review.googlesource.com/32105
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I143f7b59ad9d98b9c3cfb53c1d65c2d33a6acc12
+    Reviewed-on: https://go-review.googlesource.com/27926
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go      | 2 +-
- src/cmd/compile/internal/syntax/parser.go   | 3 +--
- src/go/parser/parser.go                     | 3 +--
- src/go/parser/short_test.go                 | 2 +-
- src/go/printer/testdata/declarations.golden | 2 --
- src/go/printer/testdata/declarations.input  | 2 --
- 6 files changed, 4 insertions(+), 10 deletions(-)
+ src/androidtest.bash | 4 ++++
+ 1 file changed, 4 insertions(+)

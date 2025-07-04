@@ -1,29 +1,14 @@
-commit 4e3a1e409ae1bf74deb3c93745ad49b71311f4de
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Mar 27 15:58:14 2017 +1100
+commit 6e87f8896106c9a673c3c049c83ef389178cef82
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 20 18:24:40 2016 +0100
 
-    cmd/link/internal/ld: introduce and use windowsgui variable
+    doc: add mips, mips64 information to asm.html
     
-    cmd/link -H flag is stored in variable of type
-    cmd/internal/obj.HeadType. The HeadType type from cmd/internal/obj
-    accepts Hwindows and Hwindowsgui values, but these values have
-    same meaning - build PE executable, except for 2 places in
-    cmd/link/internal/ld package.
+    Fixes #18105
     
-    This CL introduces code to store cmd/link "windowsgui" -H flag
-    in cmd/link/internal/ld, so cmd/internal/obj.Hwindowsgui can be
-    removed in the next CL.
-    
-    This CL also includes 2 changes to code where distinction
-    between Hwindows and Hwindowsgui is important.
-    
-    Change-Id: Ie5ee1f374e50c834652a037f2770118d56c21a2a
-    Reviewed-on: https://go-review.googlesource.com/38760
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id56e8782ff618761ec44b6dc20891c8b48fea8df
+    Reviewed-on: https://go-review.googlesource.com/34632
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/lib.go  |  8 +++++---
- src/cmd/link/internal/ld/main.go | 15 ++++++++++++++-
- src/cmd/link/internal/ld/pe.go   |  2 +-
- 3 files changed, 20 insertions(+), 5 deletions(-)
+ doc/asm.html | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

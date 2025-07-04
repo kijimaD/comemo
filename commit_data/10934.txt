@@ -1,12 +1,12 @@
-commit 16a2d2617fa96dc85359d9919e6dceff1413feab
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Dec 21 21:20:17 2011 +0900
+commit 866c06b91ec543eec1fa56a64b1cffe00ee80e26
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 21:47:59 2011 +1100
 
-    cmd/go: avoid infinite loop with package specific flags
+    dashboard: fix typo in css
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5505053
+    https://golang.org/cl/5500059
 
- src/cmd/go/testflag.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ misc/dashboard/app/build/ui.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

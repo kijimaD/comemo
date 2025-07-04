@@ -1,17 +1,13 @@
-commit 6056cc5df602938a97e8d70176fa90e2b09f3020
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Oct 28 12:10:28 2015 +1300
+commit db380bf44bcd8bcfdcbb68d18855111090282a63
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 10 11:05:42 2015 -0700
 
-    runtime: handle volatility of CX when dynamically linking on linux/386
+    [dev.ssa] cmd/compile/internal/ssa: add == and != for complex
     
-    Mostly by avoiding CX entirely, sometimes by reloading it.
-    
-    I also vetted the assembly in other packages, it's all fine.
-    
-    Change-Id: I50059669aaaa04efa303cf22ac228f9d14d83db0
-    Reviewed-on: https://go-review.googlesource.com/16386
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iefabce4eb0dbc313dd1863513b45307cc76c545a
+    Reviewed-on: https://go-review.googlesource.com/14468
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_386.s       | 76 ++++++++++++++++++++++++---------------------
- src/runtime/sys_linux_386.s | 16 +++++-----
- 2 files changed, 48 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 16 ++++++++
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 55 ++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

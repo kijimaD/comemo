@@ -1,23 +1,14 @@
-commit 3fc8cd054a4dd1bb4eb60da76a595cd509bb20ac
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Feb 27 10:26:24 2013 -0500
+commit 5afa271ce35f6f4bdd55569dd7c7ade63523887a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Feb 27 11:08:18 2013 +0100
 
-    exp/ssa: perform all packages' BUILD phases in parallel.
+    exp/locale/collate: several changes based on comments on CL 7060051
+    which was submitted earlier.
     
-    Details:
-    - move Builder.nTo1Vars into package => thread-safe.
-    - add BuildSerially builder mode flag to disable concurrency.
-    - add Builder.BuildAllPackages method.
-    
-    Benchmark: BuildAllPackages for $GOROOT/test/append.go drops
-    to 83ms from 190ms (GOMAXPROCS=8).
-    
-    R=gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/7371051
+    https://golang.org/cl/7402048
 
- src/pkg/exp/ssa/builder.go            | 301 +++++++++++++++++-----------------
- src/pkg/exp/ssa/interp/interp_test.go |   2 +-
- src/pkg/exp/ssa/ssa.go                |   4 +-
- src/pkg/exp/ssa/ssadump.go            |   5 +-
- 4 files changed, 155 insertions(+), 157 deletions(-)
+ src/pkg/exp/locale/collate/sort.go      | 13 ++-----------
+ src/pkg/exp/locale/collate/sort_test.go |  5 +++--
+ 2 files changed, 5 insertions(+), 13 deletions(-)

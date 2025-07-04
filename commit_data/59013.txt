@@ -1,31 +1,25 @@
-commit b0e2f185c574ebd2ee9e0193e6cb37ab1525786a
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Dec 16 09:51:29 2024 +0800
+commit d864eac249c6e8a10c47861b5820576887680f9b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 1 13:53:46 2024 -0500
 
-    cmd/internal/obj/loong64: add {V,XV}MUL{B/H/W/V} and {V,XV}MUH{B/H/W/V}[U] instructions support
+    cmd/go: limit GOMAXPROCS in TestScript/test_fuzz_.*
     
-    Go asm syntax:
-             VMUL{B/H/W/V}          VK, VJ, VD
-             VMUH{B/H/W/V}[U]       VK, VJ, VD
-            XVMUL{B/H/W/V}          XK, XJ, XD
-            XVMUH{B/H/W/V}[U]       XK, XJ, XD
+    This limits the throughput and resource consumption of the fuzz
+    workers in the tests, which also reduces the likelihood of running out
+    of address space in the fuzz coordinator during the test.
     
-    Equivalent platform assembler syntax:
-             vmul.{b/h/w/d}         vd, vj, vk
-             vmuh.{b/h/w/d}[u]      vd, vj, vk
-            xvmul.{b/h/w/d}         xd, xj, xk
-            xvmuh.{b/h/w/d}[u]      xd, xj, xk
+    (Ideally the coordinator should not be limited by address space;
+    this just works around the failure mode in the tests for now.)
     
-    Change-Id: I2f15a5b4b6303a0f82cb85114477f58e1b5fd950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636375
+    For #65434.
+    
+    Change-Id: I3086c6278d6803a3dbf17a46ed01b68cedc92ad9
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560515
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 26 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 26 +++++++++
- src/cmd/internal/obj/loong64/anames.go          | 24 +++++++++
- src/cmd/internal/obj/loong64/asm.go             | 72 +++++++++++++++++++++++++
- 4 files changed, 148 insertions(+)
+ src/cmd/go/testdata/script/test_fuzz_deadline.txt | 10 ++++++++++
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt |  7 +++++++
+ 2 files changed, 17 insertions(+)

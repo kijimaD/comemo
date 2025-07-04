@@ -1,36 +1,23 @@
-commit cbe2b14d5072dde739e5bfda7e5b4405412464ec
-Author: Pontus Leitzler <leitzler@gmail.com>
-Date:   Fri Apr 26 20:38:49 2019 +0000
+commit 976bab6003bdc72ca25954d048f340a34d8e717a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Dec 13 13:37:57 2018 +0100
 
-    cmd/go/internal/modfetch/codehost: fix pseudoversions for non-semver tags and tags on other branches
+    syscall: remove linknames to runtime symbols for aix/ppc64
     
-    Pseudoversion determination depends in part on the results from gitRepo.RecentTag, which currently invokes:
+    Replaces //go:linkname by assembly functions for syscall
+    functions on aix/ppc64.
+    Since the new runtime internal ABI, this was triggering an error if
+    syscall.Syscall6 was called by others packages like x/sys/unix.
+    This commit should remove every future occurences of this problem.
     
-    git describe --first-parent --always --abbrev=0 --match <prefix>v[0-9]*.[0-9]*.[0-9]* --tags <rev>
+    Fixes #28769
     
-    The comment at https://github.com/golang/go/issues/27171#issuecomment-470134255 describes some problems with the current approach.
-    
-    One problem is Docker and other repos can have tags that are not valid semver tags but that still match a glob pattern of v[0-9]*.[0-9]*.[0-9]* which are found by 'git describe' but then rejected by cmd/go, and hence those repos currently can end up with v0.0.0 pseudoversions instead of finding a proper semver tag to use as input to building a pseudoversion  (when then causes problems when the v0.0.0 pseudoversion is fed into MVS). An example problematic tag is a date-based tag such as 'v18.06.16', which matches the glob pattern, but is not a valid semver tag (due to the leading 0 in '06').
-    
-    Issues #31673, #31287, and #27171 also describe problems where the '--first-parent' argument to 'git describe' cause the current approach to miss relevant semver tags that were created on a separate branch and then subsequently merged to master.
-    
-    In #27171, Bryan described the base tag that is supposed to be used for pseudoversions as:
-    
-    "It is intended to be the semantically-latest tag that appears on any commit that is a (transitive) parent of the commit with the given hash, regardless of branches. (The pseudo-version is supposed to sort after every version — tagged or otherwise — that came before it, but before the next tag that a human might plausibly want to apply to the branch.)"
-    
-    This CL solves the glob problem and tags-on-other-branches problem more directly than the current approach: this CL gets the full list of tags that have been merged into the specific revision of interest, and then sorts and filters the results in cmd/go to select the semantically-latest valid semver tag.
-    
-    Fixes #31673
-    Fixes #31287
-    Updates #27171
-    
-    Change-Id: I7c3e6b46b2b21dd60562cf2893b6bd2afaae61d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174061
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6a4bf77472ee1e974bdb76b27e74275e568f5a76
+    Reviewed-on: https://go-review.googlesource.com/c/153997
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/internal/modfetch/codehost/git.go       | 33 +++++++++++++++++---
- .../script/mod_get_pseudo_other_branch.txt         | 31 +++++++++++++++++++
- .../go/testdata/script/mod_get_pseudo_prefix.txt   | 35 ++++++++++++++++++++++
- 3 files changed, 95 insertions(+), 4 deletions(-)
+ src/runtime/syscall_aix.go  |  4 ----
+ src/syscall/asm_aix_ppc64.s | 21 +++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

@@ -1,20 +1,25 @@
-commit 8abc6e25979ee75e6e01086b94d456255fbe6a4e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 20 15:45:24 2023 -0700
+commit 64b260dbdefcd2205e74d236a7f33d0e6b8f48cb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 8 00:14:43 2022 +0700
 
-    go/types, types2: a min/max value argument must not be untyped
+    test: use cgo.Incomplete instead of go:notinheap for "run" tests
     
-    Fixes #61486.
+    Same as CL 421880, but for test directory.
     
-    Change-Id: I5770e238e44b724816894d914b3ea5dc78bc3ced
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511835
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #46731
+    
+    Change-Id: If8d18df013a6833adcbd40acc1a721bbc23ca6b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421881
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go         | 5 +++++
- src/go/types/builtins.go                            | 5 +++++
- src/internal/types/testdata/fixedbugs/issue61486.go | 9 +++++++++
- 3 files changed, 19 insertions(+)
+ test/fixedbugs/bug514.go                    |  8 ++++++--
+ test/fixedbugs/issue40954.go                | 13 +++++++++----
+ test/fixedbugs/issue42032.go                |  6 +++++-
+ test/fixedbugs/issue42076.go                |  9 +++++++--
+ test/fixedbugs/issue46903.go                | 12 ++++++++----
+ test/{typeparam => fixedbugs}/issue51733.go |  6 ++++--
+ 6 files changed, 39 insertions(+), 15 deletions(-)

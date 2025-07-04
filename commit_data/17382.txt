@@ -1,12 +1,16 @@
-commit 33f3dffa7c3105b98e40c417df577683e341be87
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Aug 24 22:05:14 2013 +0900
+commit 534c67abc425bc18ee95163c2266c1416b6f12c1
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Aug 24 03:34:07 2013 +0200
 
-    net: allow TestDialFailPDLeak run in long-mode test
+    syscall: add Cloneflags to Linux SysProcAttr.
     
-    R=golang-dev, dave
+    Also use clone(2) syscall instead of fork().
+    
+    Fixes #6214.
+    
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/12917050
+    https://golang.org/cl/13159044
 
- src/pkg/net/dial_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/syscall/exec_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

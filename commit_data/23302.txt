@@ -1,12 +1,12 @@
-commit b39487b68d8fcdaac0b83ec606ef7f176f9aabff
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Jun 5 15:13:57 2015 -0400
+commit 24396dae6795de77ba305f8c8798d681e3359962
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:06:06 2015 +0200
 
-    go/build: add big endian variant of arm and arm64 to goarch list
+    os/user: small fixes for Solaris
     
-    Change-Id: Icda8475a7879d49e3b8b873303eb0bed5dd5a238
-    Reviewed-on: https://go-review.googlesource.com/10792
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I56149ef6607fb4d9baff9047cb3a47d71cad6fa6
+    Reviewed-on: https://go-review.googlesource.com/8261
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/go/build/syslist.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/user/lookup_unix.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

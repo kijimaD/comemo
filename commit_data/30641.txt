@@ -1,25 +1,31 @@
-commit 2e7c3b3f555853202fe0bdf2ea5ce37d7a56a7f7
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Mar 13 20:35:07 2017 +0100
+commit d24b57a6a1a3530e590b7c0a72dc78043e198630
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Nov 6 21:40:57 2016 +0100
 
-    encoding/gob: add Encode-Decode Int slices tests
+    runtime: handle SIGPIPE in c-archive and c-shared programs
     
-    Tinkering with the gob package shows that is currently possible to
-    *completely destroy* Int slices encoding without triggering a single
-    test failure.
+    Before this CL, Go programs in c-archive or c-shared buildmodes
+    would not handle SIGPIPE. That leads to surprising behaviour where
+    writes on a closed pipe or socket would raise SIGPIPE and terminate
+    the program. This CL changes the Go runtime to handle
+    SIGPIPE regardless of buildmode. In addition, SIGPIPE from non-Go
+    code is forwarded.
     
-    The various encInt{8,16,32,64}Slice methods are only called during the
-    execution of the GobMapInterfaceEncode test, which only encodes a few
-    slices of length exactly 1 and then just checks that the error
-    returned by Encode is nil (without trying to Decode back the data).
+    Fixes #17393
+    Updates #16760
     
-    This patch adds a few tests for signed integer slices encoding.
-    
-    Change-Id: Ifaaee2f32132873118b241f79aa8203e4ad31416
-    Reviewed-on: https://go-review.googlesource.com/38066
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I155e82020a03a5cdc627a147c27da395662c3fe8
+    Reviewed-on: https://go-review.googlesource.com/32796
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/gob/encoder_test.go | 65 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 65 insertions(+)
+ misc/cgo/testcarchive/carchive_test.go     | 19 ++++++++++++++++
+ misc/cgo/testcarchive/main2.c              | 36 +++++++++++++++++++++++++++++-
+ misc/cgo/testcarchive/main3.c              |  7 ++++++
+ misc/cgo/testcarchive/main5.c              | 18 +++++++++++++++
+ misc/cgo/testcarchive/src/libgo2/libgo2.go | 30 +++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo3/libgo3.go | 12 ++++++++++
+ src/os/signal/doc.go                       |  9 ++++----
+ src/runtime/signal_unix.go                 | 14 ++++++++----
+ 8 files changed, 136 insertions(+), 9 deletions(-)

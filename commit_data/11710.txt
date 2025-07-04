@@ -1,14 +1,20 @@
-commit fd2a511253c0ddcece0082863378a8b677b9ffdd
+commit d0dc68901a9c175a36208bc84a1d9ab3451e2071
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 14:28:51 2012 -0500
+Date:   Wed Feb 8 13:50:00 2012 -0500
 
-    spec: add forward links from 'method set' to where it gets used
+    net/http: panic on duplicate registrations
     
-    Fixes #1797.
+    Otherwise, the registration semantics are
+    init-order-dependent, which I was trying very hard
+    to avoid in the API.  This may break broken programs.
     
-    R=golang-dev, gri
+    Fixes #2900.
+    
+    R=golang-dev, r, bradfitz, dsymonds, balasanjay, kevlar
     CC=golang-dev
-    https://golang.org/cl/5645058
+    https://golang.org/cl/5644051
 
- doc/go_spec.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ doc/go1.html               |  8 ++++++-
+ doc/go1.tmpl               |  8 ++++++-
+ src/pkg/net/http/server.go | 57 +++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 55 insertions(+), 18 deletions(-)

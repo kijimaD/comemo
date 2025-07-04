@@ -1,29 +1,17 @@
-commit 06f420fc19f8af6a1935e4edbfd1af361f663190
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Apr 21 11:08:09 2023 +0800
+commit 6a9aaf1f0218d61aa44c3a0ae0bce03cbac93328
+Author: Florian Zenker <floriank@google.com>
+Date:   Fri Sep 30 14:25:29 2022 +0000
 
-    runtime: remove the meaningless offset of 8 for duffzero on loong64
+    runtime/race: use internal linking mode for amd64 subarch packages
     
-    Currently we subtract 8 from offset when calling duffzero because 8
-    is added to offset in the duffzero implementation. This operation is
-    meaningless, so remove it.
+    CL 424034 introduced two new packages that trigger external
+    linking mode where internal linking mode is sufficient.
     
-    Change-Id: I7e451d04d7e98ccafe711645d81d3aadf376766f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487295
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Change-Id: I81583210331fe4151d631b5efd7fc5d3c8f11f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435256
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/loong64/ggen.go        |  23 ++-
- src/cmd/compile/internal/loong64/ssa.go         |  11 +-
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   4 +-
- src/cmd/compile/internal/ssa/opGen.go           |   2 +-
- src/runtime/duff_loong64.s                      | 256 ++++++++++++------------
- src/runtime/mkduff.go                           |   4 +-
- 6 files changed, 151 insertions(+), 149 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 ++
+ 1 file changed, 2 insertions(+)

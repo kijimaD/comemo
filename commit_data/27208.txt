@@ -1,32 +1,24 @@
-commit 2f8475648a5500830561ea03960a1425e1ff0993
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Apr 25 21:46:02 2016 -0400
+commit b8ddcc0a03415786bb6278849530c88bfa5b97e6
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 12 13:53:19 2016 +0100
 
-    crypto/cipher, crypto/aes: add s390x implementation of AES-CBC
+    fmt: cleanup %p and %T code paths
     
-    This commit adds the cbcEncAble and cbcDecAble interfaces that
-    can be implemented by block ciphers that support an optimized
-    implementation of CBC. This is similar to what is done for GCM
-    with the gcmAble interface.
+    Remove check for %p and %T in printValue.
+    These verbs are not recursive and are handled already in
+    printArg which is called on any argument before printValue.
     
-    The cbcEncAble, cbcDecAble and gcmAble interfaces all now have
-    tests to ensure they are detected correctly in the cipher
-    package.
+    Format the type string for %T directly instead of invoking
+    the more complex printArg with %s on the type string.
     
-    name             old speed     new speed      delta
-    AESCBCEncrypt1K  152MB/s ± 1%  1362MB/s ± 0%  +795.59%   (p=0.000 n=10+9)
-    AESCBCDecrypt1K  143MB/s ± 1%  1362MB/s ± 0%  +853.00%   (p=0.000 n=10+9)
+    Decouple the %T tests from variables declared in scan_test.go.
     
-    Change-Id: I715f686ab3686b189a3dac02f86001178fa60580
-    Reviewed-on: https://go-review.googlesource.com/22523
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: Ibd51566bd4cc1a260ce6d052f36382ed05020b48
+    Reviewed-on: https://go-review.googlesource.com/20622
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/aes/aes_gcm.go    |  3 ++
- src/crypto/aes/asm_s390x.s   | 31 +++++++++++++--
- src/crypto/aes/cbc_s390x.go  | 59 ++++++++++++++++++++++++++++
- src/crypto/aes/modes.go      | 30 +++++++++++++++
- src/crypto/aes/modes_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++++
- src/crypto/cipher/cbc.go     | 22 +++++++++++
- 6 files changed, 233 insertions(+), 3 deletions(-)
+ src/fmt/fmt_test.go |  6 ++++--
+ src/fmt/print.go    | 20 +++++---------------
+ 2 files changed, 9 insertions(+), 17 deletions(-)

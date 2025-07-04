@@ -1,17 +1,20 @@
-commit 543a513304c35d42b162790a6e70191aac68225c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Oct 17 01:18:20 2021 +0700
+commit b8fb049c7ad4940901613d16629a88b38c6a82da
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 16 15:55:54 2021 -0500
 
-    reflect: add test that method values have the same code pointers
+    [dev.regabi] cmd/go: copy internal/abi in TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    Updates #40592
+    The internal/abi package is used by runtime and needs to be
+    copied.
     
-    Change-Id: I16252dd57aceb5c49ddc11d8c12c601ca87ca902
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356252
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fix longtest builders.
+    
+    Change-Id: I7a962df3db2c6bf68cc6a7da74b579f381920009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292592
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/all_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

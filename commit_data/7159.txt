@@ -1,14 +1,16 @@
-commit 3a97119517423b8ba5e172d4101f273c0cbea86e
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Wed Jan 19 14:34:53 2011 -0500
+commit 655da9962769e5dd1a3c6247bc74cb1eac6f8c78
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Wed Jan 19 14:30:57 2011 -0500
 
-    net, syscall: return source address in Recvmsg
+    cgo: add complex float, complex double
     
     R=rsc
-    CC=golang-dev
-    https://golang.org/cl/3766042
+    CC=binet, golang-dev
+    https://golang.org/cl/3906041
 
- src/pkg/net/fd.go                | 2 +-
- src/pkg/syscall/syscall_bsd.go   | 4 ++--
- src/pkg/syscall/syscall_linux.go | 6 +++++-
- 3 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/cgo/gcc.go                         |  34 +++++++++++++++++++++++------
+ src/pkg/debug/dwarf/testdata/typedef.c     |   7 ++++++
+ src/pkg/debug/dwarf/testdata/typedef.elf   | Bin 11546 -> 10837 bytes
+ src/pkg/debug/dwarf/testdata/typedef.macho | Bin 4608 -> 5256 bytes
+ src/pkg/debug/dwarf/type_test.go           |  33 +++++++++++++++-------------
+ 5 files changed, 52 insertions(+), 22 deletions(-)

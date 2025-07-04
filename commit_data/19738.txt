@@ -1,13 +1,16 @@
-commit 6012ac9b7948cec2e86870a4abd1278fa286c1cb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jul 15 17:05:35 2014 -0400
+commit 387c1c661f3642daed5ac7aa5da6941cbe7370a1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 15 10:30:12 2014 +0400
 
-    cmd/ld: consistently document flags that expect values
+    runtime: make a test more robust
+    The issue is discovered during testing of a change to runtime.
+    Even if it is unlikely to happen, the comment can safe an hour
+    next person who hits it.
     
-    LGTM=minux, rsc
-    R=golang-codereviews, minux, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/113970044
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/116790043
 
- src/cmd/ld/pobj.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/proc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

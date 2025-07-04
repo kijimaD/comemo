@@ -1,25 +1,14 @@
-commit 14b0af4272aa6c638e97cb3364a81962d69dbfc6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Feb 24 19:51:59 2014 +0100
+commit c687be423cd004a74c12acfb8816e3dcca919f70
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 24 10:40:55 2014 -0800
 
-    cmd/gc: fix walkcompare bugs.
+    crypto/md5,sha1: add examples for Sum
     
-    Revision c0e0467635ec (cmd/gc: return canonical Node* from temp)
-    exposed original nodes of temporaries, allowing callers to mutate
-    their types.
-    
-    In walkcompare a temporary could be typed as ideal because of
-    this. Additionnally, assignment of a comparison result to
-    a custom boolean type was broken.
-    
-    Fixes #7366.
-    
-    LGTM=rsc
-    R=rsc, iant, khr
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/66930044
+    https://golang.org/cl/66900044
 
- src/cmd/gc/walk.c           | 34 +++++++++++++++++-----------------
- test/cmp.go                 | 17 +++++++++++++++++
- test/fixedbugs/issue7366.go | 21 +++++++++++++++++++++
- 3 files changed, 55 insertions(+), 17 deletions(-)
+ src/pkg/crypto/md5/example_test.go  | 6 ++++++
+ src/pkg/crypto/sha1/example_test.go | 9 ++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

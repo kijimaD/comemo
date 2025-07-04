@@ -1,21 +1,28 @@
-commit 2191c3a4b9b8738b3033fd271b8b889cb3149292
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 25 20:48:01 2018 +0200
+commit 77ea9f9f315befca503b55bc3b62fcb2d8cb9b32
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 18 10:42:45 2017 -0400
 
-    strings: clarify Replacer's replacement order
+    runtime: always use 1MB stacks on 32-bit Windows
     
-    NewReplacer's documentation says that "replacements are performed in
-    order", meaning that substrings are replaced in the order they appear
-    in the target string, and not that the old->new replacements are
-    applied in the order they're passed to NewReplacer.
+    Commit c2c07c7989 (CL 49331) changed the linker and runtime to always
+    use 2MB stacks on 64-bit Windows. This is the corresponding change to
+    make 32-bit Windows always use large (1MB) stacks because it's
+    difficult to detect when Windows applications will call into arbitrary
+    C code that may expect a large stack.
     
-    Rephrase the doc to make this clearer.
+    This is done as a separate change because it's possible this will
+    cause too much address space pressure for a 32-bit address space. On
+    the other hand, cgo binaries on Windows already use 1MB stacks and
+    there haven't been complaints.
     
-    Fixes #25071
+    Updates #20975.
     
-    Change-Id: Icf3aa6a9d459b94764c9d577e4a76ad8c04d158d
-    Reviewed-on: https://go-review.googlesource.com/109375
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8ce583f07cb52254fb4bd47250f1ef2b789bc490
+    Reviewed-on: https://go-review.googlesource.com/49610
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/strings/replace.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 6 +-----
+ src/runtime/os_windows.go      | 2 +-
+ 2 files changed, 2 insertions(+), 6 deletions(-)

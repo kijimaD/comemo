@@ -1,19 +1,36 @@
-commit d9e3d16796927ae2c5721cdff855ddb07a903d78
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Thu Jul 30 13:32:55 2015 -0700
+commit bb7e665687d3a9bcbfd7814168a9f6e36d0e632b
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jun 29 12:36:48 2015 +0100
 
-    runtime, syscall: remove unused bits from Solaris implementation
+    encoding/xml: fix xmlns= behavior
     
-    CL 9184 changed the runtime and syscall packages to link Solaris binaries
-    directly instead of using dlopen/dlsym but did not remove the unused (and
-    now broken) references to dlopen, dlclose, and dlsym.
+    When an xmlns="..." attribute was explicitly generated,
+    it was being ignored because the name space on the
+    attribute was assumed to have been explicitly set (to the empty
+    name space) and it's not possible to have an element in the
+    empty name space when there is a non-empty name space set.
     
-    Fixes #11923
+    We fix this by recording when a default name space has been
+    explicitly set and setting the name space of the element to that
+    so printer.defineNS can do its work correctly.
     
-    Change-Id: I36345ce5e7b371bd601b7d48af000f4ccacd62c0
-    Reviewed-on: https://go-review.googlesource.com/13410
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    We do not attempt to add our own xmlns="..." attribute
+    when one is explicitly set.
+    
+    We also add tests for EncodeElement, as that's the only way
+    to attain coverage of some of the changed behaviour.
+    Some other test coverage is also increased, although
+    more work remains to be done in this area.
+    
+    This change was jointly developed with Martin Hilton (mhilton on github).
+    
+    Fixes #11431.
+    
+    Change-Id: I7b85e06eea5b18b2c15ec16dcbd92a8e1d6a9a4e
+    Reviewed-on: https://go-review.googlesource.com/11635
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/syscall2_solaris.go | 6 ------
- src/syscall/asm_solaris_amd64.s | 9 ---------
- 2 files changed, 15 deletions(-)
+ src/encoding/xml/marshal.go      | 162 ++++++++++++++++++-----------------
+ src/encoding/xml/marshal_test.go | 179 ++++++++++++++++++++++++++++++++++++++-
+ src/encoding/xml/xml.go          |   6 ++
+ 3 files changed, 269 insertions(+), 78 deletions(-)

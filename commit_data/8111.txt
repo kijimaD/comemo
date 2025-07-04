@@ -1,13 +1,18 @@
-commit 24bb0340b62940a3d0a0daf3ea73c1f683055afa
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 14 23:49:46 2011 -0400
+commit 71f9dc2cead14dff1b00206ceeb3b711ba91e363
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 20:36:52 2011 -0700
 
-    A+C: Quan Yong Zhai (individual CLA)
+    http: add NewRequest helper
     
-    R=golang-dev, r2
+    NewRequest will save a lot of boilerplate code.
+    
+    This also updates some docs on Request.Write and
+    adds some tests.
+    
+    R=rsc, petar-m, r
     CC=golang-dev
-    https://golang.org/cl/4405045
+    https://golang.org/cl/4406047
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/http/request.go           | 31 ++++++++++++++++++--
+ src/pkg/http/requestwrite_test.go | 61 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 2 deletions(-)

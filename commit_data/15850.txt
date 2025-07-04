@@ -1,31 +1,18 @@
-commit 00224a356a5be3c134230bfa8fe11e0af2977aaf
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 20 13:51:29 2013 -0700
+commit bd21f7f1b59325d128bec1d26074aba75dc18b04
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 20 09:06:33 2013 -0700
 
-    runtime: faster hashmap implementation.
+    net/http/fcgi: Request.Body should always be non-nil
     
-    Hashtable is arranged as an array of
-    8-entry buckets with chained overflow.
-    Each bucket has 8 extra hash bits
-    per key to provide quick lookup within
-    a bucket.  Table is grown incrementally.
+    Found this inconsistency from net/http's Server while
+    debugging Issue 4183
     
-    Update #3885
-    Go time drops from 0.51s to 0.34s.
+    Unfortunately this package lacks testing around this,
+    or most of child.go. :/
     
-    R=r, rsc, m3b, dave, bradfitz, khr, ugorji, remyoudompheng
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7504044
+    https://golang.org/cl/7735046
 
- src/cmd/gc/builtin.c             |    6 +
- src/cmd/gc/range.c               |    4 +-
- src/cmd/gc/walk.c                |   72 +-
- src/cmd/ld/dwarf.c               |  259 +-----
- src/pkg/runtime/hashmap.c        | 1635 ++++++++++++++++++++------------------
- src/pkg/runtime/hashmap.h        |  180 +----
- src/pkg/runtime/hashmap_fast.c   |  149 ++++
- src/pkg/runtime/map_test.go      |  282 +++++++
- src/pkg/runtime/mapspeed_test.go |   54 ++
- src/pkg/runtime/runtime.c        |    4 +-
- src/pkg/runtime/runtime.h        |    3 +-
- 11 files changed, 1482 insertions(+), 1166 deletions(-)
+ src/pkg/net/http/fcgi/child.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

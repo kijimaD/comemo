@@ -1,16 +1,16 @@
-commit d06794da4a9fcfee27850757e99567ad02ba0851
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Dec 14 11:25:04 2020 +0100
+commit e90b0ce68b12a75732f28b6672d4c48ca73eaffe
+Author: kakulisen <lziqiang1@gmail.com>
+Date:   Thu Apr 30 14:18:06 2020 +0800
 
-    doc/go1.16: add missing <code> tag
+    math: add function examples.
     
-    For #40700.
+    The function Modf lacks corresponding examples.
     
-    Change-Id: I616429f82a44cea32701ed0af6e42ed6c71ee097
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277378
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Id93423500e87d35b0b6870882be1698b304797ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231097
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.16.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

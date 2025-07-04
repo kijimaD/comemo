@@ -1,29 +1,30 @@
-commit 2eeaba4172522783f30440bf6e11f7f865116024
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 5 13:57:22 2017 -0700
+commit e458264aca63432b225a83267690baced3eb8f26
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 24 21:40:57 2017 -0800
 
-    go/types: remove invalid documentation and assertion on package names
+    cmd/compile: fix dolinkobj flag in TestAssembly
     
-    NewPackage required through documentation that the package name not
-    be blank (which wasn't true since each time we check a new package
-    we create one with a blank name (api.go:350). NewPackage also asserted
-    that a package name not be "_". While it is invalid for a package name
-    to be "_", one could conceivably create a package named "_" through
-    export data manipulation. Furthermore, it is ok to import a package
-    with package path "_" as long as the package itself is not named "_".
+    Follow-up to CL 37270.
     
-    - removed misleading documentation
-    - removed unnecessary assertion
-    - added safety checks when we actually do the import
+    This considerably reduces the time to run the test.
     
-    Fixes #20231.
+    Before:
     
-    Change-Id: I1eb1ab7b5e3130283db715374770cf05d749d159
-    Reviewed-on: https://go-review.googlesource.com/42852
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    real    0m7.638s
+    user    0m14.341s
+    sys     0m2.244s
+    
+    After:
+    
+    real    0m4.867s
+    user    0m7.107s
+    sys     0m1.842s
+    
+    Change-Id: I8837a5da0979a1c365e1ce5874d81708249a4129
+    Reviewed-on: https://go-review.googlesource.com/37461
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/go/types/package.go  | 6 +-----
- src/go/types/resolver.go | 6 ++++++
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

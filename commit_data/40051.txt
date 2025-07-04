@@ -1,27 +1,18 @@
-commit 1658263bbfbf0c31f179df878049e6d4690501c8
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Mon Sep 16 10:25:48 2019 +0200
+commit 3ebd9523bb0dcb975a34ec402f23eee07e81562f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 15 10:36:17 2019 -0700
 
-    cmd/compile: detect indvars that are bound by other indvars
+    os: don't treat RemoveAll("/x") as RemoveAll("x")
     
-    prove wasn't able to detect induction variables that was bound
-    by another inducation variable. This happened because an indvar
-    is a Phi, and thus in case of a dependency, the loop bounding
-    condition looked as Phi < Phi. This triggered an existing
-    codepath that checked whether the upper bound was a Phi to
-    detect loop conditions written in reversed order respect to the
-    idiomatic way (eg: for i:=0; len(n)>i; i++).
+    Fixes #31468
     
-    To fix this, we call the indvar pattern matching on both operands
-    of the loop condition, so that the first operand that matches
-    will be treated as the indvar.
-    
-    Updates #24660 (removes a boundcheck from Fannkuch)
-    
-    Change-Id: Iade83d8deb54f14277ed3f2e37b190e1ed173d11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195220
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5c4e61631b8af35bfc14b0cb9bc77feec100e340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172058
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go | 24 ++++++++++++++++--------
- test/loopbce.go                         | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 8 deletions(-)
+ src/os/export_unix_test.go |  9 +++++++++
+ src/os/os_unix_test.go     | 25 +++++++++++++++++++++++++
+ src/os/path_unix.go        | 18 ++++++++++++++----
+ 3 files changed, 48 insertions(+), 4 deletions(-)

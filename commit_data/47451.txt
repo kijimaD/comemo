@@ -1,26 +1,21 @@
-commit bc0b98eeffa64f155e7f2a2dc6b883a97c4d0580
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 11 22:21:48 2021 -0800
+commit bdbba224040a0f079a80368d9956f85a10577045
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 5 19:47:34 2021 +0000
 
-    cmd/compile/internal/types2: remove asNamed
+    reflect: add tests for reflect.Value.Call for the new ABI
     
-    In the few remaining places where we use asNamed, if the argument
-    is indeed a *Named, we either don't need to look "inside" it, or
-    we call under() (which calls Named.underlying() which does resolve);
-    so there's no need for an implicit resolution (which was done by
-    asNamed). The only place where we do need to resolve is in lookup,
-    so added the explicit resolve call in that case.
+    This change adds tests for reflect.Value.Call for calling functions
+    using the new register-based ABI.
     
-    Change-Id: Iff0a19fde7581e94149e89b9e48157c1981db105
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363441
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #40724.
+    
+    Change-Id: Ia9afd43e26dd80c7e36dd135a5b71acce8074801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299269
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/decl.go     |  2 +-
- src/cmd/compile/internal/types2/lookup.go   |  7 ++++---
- src/cmd/compile/internal/types2/type.go     |  9 ---------
- src/cmd/compile/internal/types2/unify.go    | 14 ++++++--------
- src/cmd/compile/internal/types2/universe.go |  2 +-
- 5 files changed, 12 insertions(+), 22 deletions(-)
+ src/reflect/abi_test.go    | 447 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/export_test.go |  15 +-
+ 2 files changed, 461 insertions(+), 1 deletion(-)

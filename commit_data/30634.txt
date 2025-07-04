@@ -1,19 +1,19 @@
-commit eb715fbbbdc6b155512aed7c577e39b81bd35840
-Author: Chew Choon Keat <choonkeat@gmail.com>
-Date:   Mon Mar 13 03:21:21 2017 +0000
+commit c1e9760d4ca102539b2d52a7c4021205c29070bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 11:33:10 2016 -0800
 
-    net/http: unset proxy environment after test
+    archive/zip: avoid overflow in record count and byte offset fields
     
-    Fix last proxy in TestProxyFromEnvironment bleeds into other tests
-    Change ResetProxyEnv to use the newer os.Unsetenv, instead of hard
-    coding as ""
+    This is Quentin's https://golang.org/cl/33012 with updated tests.
     
-    Change-Id: I67cf833dbcf4bec2e10ea73c354334160cf05f84
-    Reviewed-on: https://go-review.googlesource.com/38115
+    Fixes #14186
+    
+    Change-Id: Ib51deaab0368c6bad32ce9d6345119ff44f3c2d6
+    Reviewed-on: https://go-review.googlesource.com/33291
+    Reviewed-by: Quentin Smith <quentin@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/proxy_test.go     | 2 +-
- src/net/http/transport_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/archive/zip/writer.go   |  10 +-
+ src/archive/zip/zip_test.go | 317 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 302 insertions(+), 25 deletions(-)

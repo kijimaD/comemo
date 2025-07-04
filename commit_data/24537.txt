@@ -1,21 +1,19 @@
-commit 6deb3c0619240c5b2f5d28e1f038eee6ac942318
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Oct 8 22:49:39 2015 +1300
+commit e3870aa6f38b842ba5527a1ccd9433f8b6a4a2fe
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 3 18:06:05 2015 -0400
 
-    runtime, runtime/cgo: conform to PIC register use rules in ppc64 asm
+    runtime: fix assist utilization computation
     
-    PIC code on ppc64le uses R2 as a TOC pointer and when calling a function
-    through a function pointer must ensure the function pointer is in R12.  These
-    rules are easy enough to follow unconditionally in our assembly, so do that.
+    When commit 510fd13 enabled assists during the scan phase, it failed
+    to also update the code in the GC controller that computed the assist
+    CPU utilization and adjusted the trigger based on it. Fix that code so
+    it uses the start of the scan phase as the wall-clock time when
+    assists were enabled rather than the start of the mark phase.
     
-    Change-Id: Icfc4e47ae5dfbe15f581cbdd785cdeed6e40bc32
-    Reviewed-on: https://go-review.googlesource.com/15526
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I05013734b4448c3e2c730dc7b0b5ee28c86ed8cf
+    Reviewed-on: https://go-review.googlesource.com/13048
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_ppc64x.s        | 52 ++++++++++++++++++++---------------------
- src/runtime/cgo/asm_ppc64x.s    |  1 +
- src/runtime/cgo/gcc_ppc64x.S    |  1 +
- src/runtime/rt0_linux_ppc64.s   |  4 ++--
- src/runtime/rt0_linux_ppc64le.s |  4 ++--
- src/runtime/sys_linux_ppc64x.s  |  8 +++----
- 6 files changed, 36 insertions(+), 34 deletions(-)
+ src/runtime/mgc.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

@@ -1,27 +1,39 @@
-commit ea6c82845589a40c35f01122ce4e2931694ffc7f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 4 23:02:05 2022 -0700
+commit ed9e109dc9a3523100d19e6f259edccbd7dd3cba
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Jul 11 13:06:54 2021 -0700
 
-    cmd/compile/internal/syntax: fix printing of ambiguous constraint literals
+    [dev.typeparams] cmd/compile: fix small -G=3 issues for tests disabled in run.go
     
-    Without this change, the type parameter list "[P T | T]" is printed
-    as "[P T | T,]" in an attempt to avoid an ambiguity. But the type
-    parameter P cannot syntactically combine with the constraint T | T
-    and make a new valid expression.
+     - set correct position for closure capture variable in (*irgen).use()
+       (issue20250.go) Also, evaluate rhs, lhs in that order in assignment
+       statements to match noder1 (affects ordering of closure variables).
     
-    This change introduces a specific combinesWithName predicate that
-    reports whether a constraint expression can combine with a type
-    parameter name to form a new valid (value) expression.
+     - make sure to set Assign flag properly in (*irgen).forStmt() for range
+       variables which are map accesses (issue9691.go)
     
-    Use combinesWithName to accurately determine when a comma is needed.
+     - make sure CheckSize() is call on the base type for top-level types
+       converted by (*irgen).typ() that are pointer types (issue20174.go and
+       issue37837.go)
     
-    For #49482.
+     - deal with parentheses properly in validation function
+       (*irgen).validate() (issue17270.go)
     
-    Change-Id: Id1d17a18f0c9af04495da7b0453e83798f32b04a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404397
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+     - avoid HasNil call on type TTYPEPARAM - types2 typechecker will have
+       already checked validity of the typeparam having nil value (new test
+       issue39755.go)
+    
+    Change-Id: Ie68004d964698aea047e19e7dcd79b297e9d47ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334733
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/printer.go      | 34 ++++++++++++++++++++-----
- src/cmd/compile/internal/syntax/printer_test.go |  4 ++-
- 2 files changed, 31 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/object.go      |  2 +-
+ src/cmd/compile/internal/noder/stmt.go        | 14 ++++++++++++--
+ src/cmd/compile/internal/noder/types.go       |  5 +++++
+ src/cmd/compile/internal/noder/validate.go    | 10 +++++++++-
+ src/cmd/compile/internal/typecheck/iexport.go |  4 +++-
+ test/run.go                                   |  7 +------
+ test/typeparam/issue39755.go                  | 27 +++++++++++++++++++++++++++
+ 7 files changed, 58 insertions(+), 11 deletions(-)

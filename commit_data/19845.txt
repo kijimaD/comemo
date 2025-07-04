@@ -1,16 +1,34 @@
-commit fe4fc94b044df5e6d08ad9e480f0bce70cc4e5d5
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Tue Jul 29 18:24:50 2014 -0700
+commit 3bf75e691f54eb13b2915ab3326b25d3fb67b249
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 30 10:01:32 2014 +0900
 
-    mime/multipart: delay reading random source
+    undo CL 104290043 / 1d13818e6b3d
     
-    If a user sets his/her own boundary string with SetBoundary,
-    we don't need to call randomBoundary at all.
+    preparing for the syscall package freeze.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    ««« original CL description
+    syscall: add source-specific multicast socket options for FreeBSD
+    
+    Update #8266
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/95760043
+    https://golang.org/cl/104290043
+    »»»
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/113660043
 
- src/pkg/mime/multipart/writer.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/pkg/syscall/mkerrors.sh              |  2 +-
+ src/pkg/syscall/syscall_freebsd.go       | 34 ++++++--------------------------
+ src/pkg/syscall/types_freebsd.go         |  9 ---------
+ src/pkg/syscall/zerrors_freebsd_386.go   |  9 ---------
+ src/pkg/syscall/zerrors_freebsd_amd64.go |  9 ---------
+ src/pkg/syscall/zerrors_freebsd_arm.go   |  9 ---------
+ src/pkg/syscall/ztypes_freebsd_386.go    | 22 ---------------------
+ src/pkg/syscall/ztypes_freebsd_amd64.go  | 24 ----------------------
+ src/pkg/syscall/ztypes_freebsd_arm.go    | 24 ----------------------
+ 9 files changed, 7 insertions(+), 135 deletions(-)

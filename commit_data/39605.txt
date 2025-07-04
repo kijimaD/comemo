@@ -1,14 +1,18 @@
-commit d6ffc1d8394d6f6420bb92d79d320da88720fbe0
-Author: Wagner Riffel <wgrriffel@gmail.com>
-Date:   Mon Aug 19 00:41:12 2019 -0300
+commit 3f3d604a7aa2194ac25ce74c686ad6da3a25cb63
+Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
+Date:   Fri Feb 15 13:22:36 2019 +0000
 
-    doc: rewrite reference to plan9.bell-labs.com to 9p.io
+    go/cmd, crypto/x509, net/textproto, html/template: fix minor issues with nil values
     
-    Change-Id: I75619feced842b8ca509ee08e01b63258c5e87ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190757
+    Remove redundant checks for nil value, add missing nil checks to prevent tests from failing with 'nil pointer dereference'.
+    
+    Fixes #30208.
+    
+    Change-Id: I59091ba4014afcb5300567fd7e73fea43c6bb2ee
+    GitHub-Last-Rev: 20501470bbb8ad8fd60f6f87b4594ab64fcfdff1
+    GitHub-Pull-Request: golang/go#30226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162657
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.3.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

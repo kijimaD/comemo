@@ -1,16 +1,14 @@
-commit 2ae79d0711c7ff039e440d1bf1d6a4e45193f533
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 23 15:05:31 2017 +1100
+commit 94a4485f702c9681a12b25b6db2ef1be68cffc01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 22:15:12 2016 +0000
 
-    cmd/compile/internal/gc: remove unused exporter.nesting field
+    doc: mention more binary download architectures
     
-    exporter.nesting was added in c7b9bd74 to mitigate #16369 which was
-    closed in ee272bbf. Remove the exporter.nesting field as it is now unused.
+    Fixes #18207
     
-    Change-Id: I07873d1a07d6a08b11994b817a1483ffc2f5e45f
-    Reviewed-on: https://go-review.googlesource.com/38490
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibe85ab0acba7553b93603a31140b31bd9e4802cf
+    Reviewed-on: https://go-review.googlesource.com/34015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

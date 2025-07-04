@@ -1,24 +1,18 @@
-commit a49e7f393fe62d97dae691fdada7ab134fb83b6b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 14 14:25:25 2011 -0700
+commit 881b1b4a025486d90a2d9caf6f7a3a7634a93c6d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 13:49:19 2011 -0700
 
-    gofmt: don't crash when rewriting nil interfaces in AST.
+    http: be clear when failing to connect to a proxy
     
-    The new reflection API makes it an error to call value.Set(x)
-    if x is invalid. Guard for it.
+    Ubuntu and/or GNOME have some bug that likes
+    to set the "http_proxy" environment variable
+    and forgets to unset it.  This is annoying
+    to debug.  Be clear in the error message that
+    a proxy was in use.
     
-    Added corresponding test case.
-    
-    Fixes #1696.
-    
-    R=rsc, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4398047
+    https://golang.org/cl/4409045
 
- src/cmd/gofmt/gofmt_test.go            |  1 +
- src/cmd/gofmt/rewrite.go               | 16 ++++++++++++++++
- src/cmd/gofmt/testdata/rewrite1.golden |  4 ++++
- src/cmd/gofmt/testdata/rewrite1.input  |  4 ++++
- src/cmd/gofmt/testdata/rewrite2.golden | 10 ++++++++++
- src/cmd/gofmt/testdata/rewrite2.input  | 10 ++++++++++
- 6 files changed, 45 insertions(+)
+ src/pkg/http/transport.go | 3 +++
+ 1 file changed, 3 insertions(+)

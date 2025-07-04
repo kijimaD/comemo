@@ -1,24 +1,20 @@
-commit 11c2411c5031235c709c351b65898427dcf7496c
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Thu Aug 22 09:53:54 2019 -0400
+commit 5ee2290420889281637b536473a9a51ffd63dda4
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 31 22:28:21 2019 -0700
 
-    cmd/compile/internal/s390x: replace 4-byte NOP with a 2-byte NOP on s390x
+    math/big: implement Rat.SetUint64
     
-    Added a new instruction, NOPH, with the encoding [0x0700](i.e: bcr 0, 0) and
-    replace the current 4-byte nop that was encoded using the WORD instruction.
+    Implemented via the underlying Int.SetUint64.
+    Added tests for Rat.SetInt64 and Rat.SetUint64.
     
-    This reduces the size of .text section in go binary by around 17KB and make
-    generated code easier to read.
+    Fixes #29579
     
-    Change-Id: I6a756df39e93c4415ea6d038ba4af001b8ccb286
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194344
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I03faaffc93e36873b202b58ae72b139dea5c40f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160682
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
- src/cmd/compile/internal/s390x/ggen.go    | 5 +----
- src/cmd/internal/obj/s390x/a.out.go       | 2 ++
- src/cmd/internal/obj/s390x/anames.go      | 1 +
- src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
- 5 files changed, 13 insertions(+), 4 deletions(-)
+ src/math/big/rat.go      |  7 +++++++
+ src/math/big/rat_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

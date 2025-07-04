@@ -1,16 +1,26 @@
-commit 98b6febcef8f6d7411a77e9e828df681871a28ad
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 14 10:28:35 2016 -0700
+commit a162d11540365fc54ab0db7ad8e449e7094a7beb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 4 13:15:40 2016 +1100
 
-    runtime/internal/sys: better fallback algorithms for intrinsics
+    cmd/compile: post CL 20089 cleanups
     
-    Use deBruijn sequences to count low-order zeros.
-    Reorg bswap to not use &^, it takes another instruction on x86.
+    This CL addresses some issues noted during CL 20089.
     
-    Change-Id: I4a5ed9fd16ee6a279d88c067e8a2ba11de821156
-    Reviewed-on: https://go-review.googlesource.com/22084
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I4e91a8077c07a571ccc9c004278672eb951c5104
+    Reviewed-on: https://go-review.googlesource.com/20181
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/internal/sys/intrinsics.go      | 135 +++++++++++++++-------------
- src/runtime/internal/sys/intrinsics_test.go |  54 +++++++++++
- 2 files changed, 126 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/amd64/peep.go  | 19 +++++--------------
+ src/cmd/compile/internal/arm/ggen.go    |  2 +-
+ src/cmd/compile/internal/arm/peep.go    | 29 +++++++++++++----------------
+ src/cmd/compile/internal/arm64/ggen.go  |  8 ++++----
+ src/cmd/compile/internal/arm64/peep.go  |  4 +---
+ src/cmd/compile/internal/gc/pgen.go     |  6 ------
+ src/cmd/compile/internal/mips64/ggen.go |  6 +++---
+ src/cmd/compile/internal/mips64/peep.go |  4 +---
+ src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/ppc64/peep.go  |  4 +---
+ 10 files changed, 32 insertions(+), 56 deletions(-)

@@ -1,15 +1,14 @@
-commit 0d6f857c3f76b9285ab2866e8715e333a3429449
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Sun Nov 6 22:13:54 2011 +0100
+commit c171633780923d6eb02d2bf63446797e7940f9d1
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Sat Nov 5 12:25:36 2011 -0700
 
-    gc: Switch related errors should use plain format.
+    math: faster Gamma
     
-    Fixes #2422.
+    Having the compiler count the number of array elements speeds up Gamma from 63.7 to 56.6 ns/op.
     
-    R=rsc
+    R=rsc, golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5353046
+    https://golang.org/cl/5362043
 
- src/cmd/gc/swt.c         | 6 +++---
- test/fixedbugs/bug340.go | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/math/gamma.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

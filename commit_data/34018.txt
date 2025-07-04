@@ -1,21 +1,22 @@
-commit 4555ed2e5ef029cafb8040710537f0ebffd41ad6
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 17 18:46:47 2018 -0800
+commit c99cfd93a86dc76ff276b13211ef65ab2752bfc7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 06:55:49 2017 -0700
 
-    cmd/fix: add intermediate cast for *C.CFTypeRef <-> *unsafe.Pointer
+    cmd/link: don't use internal linking mode for cgo on PPC64
     
-    When casting between *C.CFTypeRef and *unsafe.Pointer, we used to be
-    able to do the cast directly. Now with C.CFTypeRef being a uintptr
-    instead of an unsafe.Pointer, we need an intermediate cast.
+    The internal linker doesn't know how to handle multiple TOC sections
+    in internal linking mode. This used to work because before CL 64793 we
+    invoked ld -r on multiple objects, and that merged the TOC sections
+    for us.
     
-    Add the insertion of the intermediate cast to the cftype fix module.
+    Updates #21961
     
-    Fixes #23091
-    
-    Change-Id: I891be2f4a08cfd7de1cc4c6ab841b1e0d8c388a6
-    Reviewed-on: https://go-review.googlesource.com/88175
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I48260a7195be660016f2f358ebc8cb79652210ab
+    Reviewed-on: https://go-review.googlesource.com/66270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/fix/cftype.go      | 99 ++++++++++++++++++++++++++++++++++------------
- src/cmd/fix/cftype_test.go | 34 ++++++++++++++++
- 2 files changed, 107 insertions(+), 26 deletions(-)
+ src/cmd/link/internal/ld/config.go | 3 ++-
+ src/cmd/nm/nm_cgo_test.go          | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,40 +1,30 @@
-commit 61e5ea492905ba71c5c53ad27e72d042e60bb66a
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jan 26 11:46:45 2023 -0500
+commit 3f5d099663fab4a59133bbe7643f40deb5460509
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 16:40:03 2022 -0400
 
-    runtime/coverage: restrict use of all counter-related APIs to atomic mode
+    go/doc/comment: parse and print code
     
-    The existing runtime/coverage API set includes a "ClearCounters()"
-    function that zeros out the counter values in a running process so as
-    enable capturing of a coverage profile from a specific execution time
-    segment. Calling this function is only permitted if the program is
-    built with "-covermode=atomic", due (in part) to concerns about
-    processors with relaxed memory models in which normal stores can be
-    reordered.
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    In the bug in question, a test that stresses a different set of
-    counter-related APIs was hitting an invalid counter segment when
-    running on a machine (ppc64) which does indeed have a relaxed memory
-    consistency model.
+    Implement indented code blocks.
     
-    From a post-mortem examination of the counter array for the harness
-    from the ppc64 test run, it was clear that the thread reading values
-    from the counter array was seeing the sort of inconsistency that could
-    result from stores being reordered (specifically the prolog
-    "packageID" and "number-of-counters" stores).
+    For #51082.
     
-    To preclude the possibility of future similar problems, this patch
-    extends the "atomic mode only" restriction from ClearCounters to the
-    other APIs that deal with counters (WriteCounters, WriteCountersDir).
-    
-    Fixes #56197.
-    
-    Change-Id: Idb85d67a84d69ead508e0902ab46ab4dc82af466
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463695
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I0eacbf56e101424a875386cb6f26174b239561f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397285
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/coverage/apis.go          |  12 ++-
- src/runtime/coverage/emitdata_test.go | 197 +++++++++++++++++++++-------------
- 2 files changed, 131 insertions(+), 78 deletions(-)
+ src/go/doc/comment/html.go            |  5 ++
+ src/go/doc/comment/markdown.go        | 12 +++++
+ src/go/doc/comment/parse.go           | 43 ++++++++++++++--
+ src/go/doc/comment/print.go           | 12 +++++
+ src/go/doc/comment/testdata/code.txt  | 94 +++++++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/code2.txt | 31 ++++++++++++
+ src/go/doc/comment/testdata/code3.txt | 33 ++++++++++++
+ src/go/doc/comment/testdata/text9.txt | 12 +++++
+ src/go/doc/comment/text.go            | 30 ++++++++---
+ 9 files changed, 263 insertions(+), 9 deletions(-)

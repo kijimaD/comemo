@@ -1,20 +1,43 @@
-commit 0bfa9f0435e03176b04ad202320be441d03ee25f
-Author: VRDighe <vaibhav@plgworks.com>
-Date:   Wed Sep 14 04:25:55 2022 +0000
+commit 6f327f7b889b81549d551ce6963067267578bd70
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jan 5 17:52:43 2021 +0800
 
-    spec: fix typo in a type parameter example
+    runtime, syscall: add calls to asan functions
     
-    Fixes #54973
+    Add explicit address sanitizer instrumentation to the runtime and
+    syscall packages. The compiler does not instrument the runtime
+    package. It does instrument the syscall package, but we need to add
+    a couple of cases that it can't see.
     
-    Change-Id: Ibad9dd124617a1bbc23abd17cbd6e9e9928e3ed9
-    GitHub-Last-Rev: 1c6affb967ef925ec12420e31c6423a615f90acc
-    GitHub-Pull-Request: golang/go#55021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430316
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Refer to the implementation of the asan malloc runtime library,
+    this patch also allocates extra memory as the redzone, around the
+    returned memory region, and marks the redzone as unaddressable to
+    detect the overflows or underflows.
+    
+    Updates #44853.
+    
+    Change-Id: I2753d1cc1296935a66bf521e31ce91e35fcdf798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298614
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgo_sigaction.go   |  7 ++++++-
+ src/runtime/iface.go           |  7 +++++++
+ src/runtime/malloc.go          | 44 +++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/map.go             | 12 ++++++++++++
+ src/runtime/mbarrier.go        |  8 ++++++++
+ src/runtime/mgcsweep.go        |  5 ++++-
+ src/runtime/mheap.go           |  6 ++++++
+ src/runtime/mprof.go           |  6 ++++++
+ src/runtime/proc.go            |  6 ++++++
+ src/runtime/select.go          | 16 +++++++++++++++
+ src/runtime/slice.go           | 10 ++++++++++
+ src/runtime/stack.go           |  6 ++++++
+ src/runtime/string.go          |  9 +++++++++
+ src/runtime/traceback.go       |  6 ++++++
+ src/syscall/asan.go            | 23 ++++++++++++++++++++++
+ src/syscall/asan0.go           | 20 +++++++++++++++++++
+ src/syscall/syscall_unix.go    |  6 ++++++
+ src/syscall/syscall_windows.go |  6 ++++++
+ 18 files changed, 200 insertions(+), 3 deletions(-)

@@ -1,45 +1,43 @@
-commit 2c6df2e35dd95621d025306a49b863efd77ebf3a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 22 15:22:52 2020 -0400
+commit 5d47f870a64982173f3da8a82a6a793b83075d6a
+Author: Roland Shoemaker <roland@letsencrypt.org>
+Date:   Fri Mar 20 20:28:43 2020 +0000
 
-    cmd/compile: reject misplaced go:build comments
+    crypto/x509: add RevocationList and CreateRevocationList
     
-    We are converting from using error-prone ad-hoc syntax // +build lines
-    to less error-prone, standard boolean syntax //go:build lines.
-    The timeline is:
+    The existing Certificate.CreateCRL method generates non-conformant CRLs and
+    as such cannot be used for implementations that require standards
+    compliance. This change implements a new top level method, CreateCRL, which
+    generates compliant CRLs, and offers an extensible API if any
+    extensions/fields need to be supported in the future.
     
-    Go 1.16: prepare for transition
-     - Builds still use // +build for file selection.
-     - Source files may not contain //go:build without // +build.
-     - Builds fail when a source file contains //go:build lines without // +build lines. <<<
+    Here is an example Issuer/CRL generated using this change:
+    -----BEGIN CERTIFICATE-----
+    MIIBNjCB3aADAgECAgEWMAoGCCqGSM49BAMCMBIxEDAOBgNVBAMTB3Rlc3Rpbmcw
+    IhgPMDAwMTAxMDEwMDAwMDBaGA8wMDAxMDEwMTAwMDAwMFowEjEQMA4GA1UEAxMH
+    dGVzdGluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLHrudbSM36sn1VBrmm/
+    OfQTyEsI4tIUV1VmneOKHL9ENBGCiec4GhQm2SGnDT/sZy2bB3c3yozh/roS6cZJ
+    UZqjIDAeMA4GA1UdDwEB/wQEAwIBAjAMBgNVHQ4EBQQDAQIDMAoGCCqGSM49BAMC
+    A0gAMEUCIQCoAYN6CGZPgd5Sw5a1rd5VexciT5MCxTfXj+ZfJNfoiAIgQVCTB8AE
+    Nm2xset7+HOgtQYlKNw/rGd8cFcv5Y9aUzo=
+    -----END CERTIFICATE-----
+    -----BEGIN X509 CRL-----
+    MIHWMH0CAQEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAxMHdGVzdGluZxgPMDAwMTAx
+    MDIwMDAwMDBaGA8wMDAxMDEwMzAwMDAwMFowFjAUAgECGA8wMDAxMDEwMTAxMDAw
+    MFqgHjAcMA4GA1UdIwQHMAWAAwECAzAKBgNVHRQEAwIBBTAKBggqhkjOPQQDAgNJ
+    ADBGAiEAjqfj/IG4ys5WkjrbTNpDbr+saHGO/NujLJotlLL9KzgCIQDm8VZPzj0f
+    NYEQgAW4nsiUzlvEUCoHMw0141VCZXv67A==
+    -----END X509 CRL-----
     
-    Go 1.17: start transition
-     - Builds prefer //go:build for file selection, falling back to // +build
-       for files containing only // +build.
-     - Source files may contain //go:build without // +build (but they won't build with Go 1.16).
-     - Gofmt moves //go:build and // +build lines to proper file locations.
-     - Gofmt introduces //go:build lines into files with only // +build lines.
-     - Go vet rejects files with mismatched //go:build and // +build lines.
+    Fixes #35428
     
-    Go 1.18: complete transition
-     - Go fix removes // +build lines, leaving behind equivalent // +build lines.
-    
-    This CL provides part of the <<< marked line above in the Go 1.16 step:
-    rejecting files containing //go:build but not // +build.
-    The standard go command checks only consider the top of the file.
-    This compiler check, along with a separate go vet check for ignored files,
-    handles the remainder of the file.
-    
-    For #41184.
-    
-    Change-Id: I014006eebfc84ab5943de18bc90449e534f150a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240601
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id96b6f47698d0bed39d586b46bd12374ee6ff88f
+    GitHub-Last-Rev: c83a6017164e71df3989fe57322b3b4869a09f37
+    GitHub-Pull-Request: golang/go#36945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217298
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go   | 5 +++++
- src/cmd/compile/internal/gc/noder.go | 1 +
- test/directive.go                    | 7 +++++++
- 3 files changed, 13 insertions(+)
+ src/crypto/x509/x509.go      | 142 +++++++++++++++++++++
+ src/crypto/x509/x509_test.go | 288 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 430 insertions(+)

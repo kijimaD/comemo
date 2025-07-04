@@ -1,24 +1,22 @@
-commit aa99c4d2925e3628460482db8657765880e6836c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 24 07:10:17 2023 -0400
+commit 522f0fc4251b4df23661f588eb9b0b40c4423bef
+Author: David Chase <drchase@google.com>
+Date:   Mon Jun 13 17:53:32 2022 -0400
 
-    cmd/go: handle queries properly in go install m@v
+    cmd/compile: refactor GOSSAHASH debugging to make it usable outside ssa package.
     
-    The original code only handled go install m@v1.0.0
-    but not queries like go install m@v1 or m@master.
-    Handle those by invoking more of the module machinery.
+    I've needed this more than once in the past, I hack it in,
+    then throw it away, seems sensible to make the change and
+    save it.
     
-    For #57001.
+    Fixes #53937.
     
-    Change-Id: I7d54fc3dd65072e5906a17ff95b407b0f7feac69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497879
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7fe886b1c93d73cbf553bed587f2c30f0f5d5a0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418015
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/gotoolchain.go                         | 62 +++++++----------------
- src/cmd/go/internal/modload/init.go               | 14 +++++
- src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt |  4 ++
- src/cmd/go/testdata/script/gotoolchain.txt        | 13 +++++
- 4 files changed, 50 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/base/hashdebug.go | 147 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/func.go        |   7 --
+ src/cmd/compile/internal/ssa/func.go       | 101 ++------------------
+ src/cmd/compile/internal/ssagen/ssa.go     |   1 -
+ 4 files changed, 157 insertions(+), 99 deletions(-)

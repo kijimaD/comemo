@@ -1,20 +1,30 @@
-commit d63c88d6959f2081bcaf4026306ca8878e8f335a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 17 17:04:10 2023 -0700
+commit 533cd80315904661e3d644a140bdf52c8ac7aad6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 22 18:53:12 2022 +0700
 
-    cmd/compile: enable -d=zerocopy by default
+    cmd/compile/internal/walk: remove reduceSlice
     
-    Fixes #2205.
+    After CL 22425, there're two optimizations for slice expr which are
+    never applied during walk pass:
     
-    Change-Id: Ib0802fee2b274798b35f0ebbd0b736b1be5ae00a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520600
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+            s[i:len(s)]
+            s[i:j:cap(s)]
+    
+    The order pass have already rewritten len/cap expression to use autotmp,
+    thus the same safe expression check will never fire. The code can now be
+    simplified by moving the only case left from reduceSlice to walkSlice,
+    then removing reduceSlice entirely.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ia8cfb15c8e96c186a214c17b42d0fee51b0d3a1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432695
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/base/flag.go | 1 +
- test/escape2.go                       | 2 +-
- test/escape2n.go                      | 2 +-
- 3 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 33 ++++++---------------------------
+ 1 file changed, 6 insertions(+), 27 deletions(-)

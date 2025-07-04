@@ -1,12 +1,29 @@
-commit e6f76aac32dc1b1b467559de63a52e9ee69ae8e6
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Thu Jan 1 22:16:38 2015 -0500
+commit 754de8d40331ecef4fde116ab5f10f3a8c8904ef
+Merge: ab4578adef 7904e951d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 11:30:43 2014 -0500
 
-    math: be consistent in how we document special cases
+    [dev.cc] all: merge dev.power64 (f57928630b36) into dev.cc
     
-    Change-Id: Ic6bc4af7bcc89b2881b2b9e7290aeb6fd54804e2
-    Reviewed-on: https://go-review.googlesource.com/2239
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This will be the last dev.power64 merge; we'll finish on dev.cc.
+    
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/175420043
 
- src/math/nextafter.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ include/link.h         |  5 +++
+ src/cmd/5g/opt.h       | 30 +++++++++++++----
+ src/cmd/5g/reg.c       | 45 ++++++++++++++++++--------
+ src/cmd/5l/5.out.h     |  2 ++
+ src/cmd/6g/opt.h       | 32 ++++++++++++++-----
+ src/cmd/6g/reg.c       | 43 +++++++++++++++++--------
+ src/cmd/6l/6.out.h     |  2 ++
+ src/cmd/8g/opt.h       | 32 ++++++++++++++-----
+ src/cmd/8g/reg.c       | 43 +++++++++++++++++--------
+ src/cmd/8l/8.out.h     |  2 ++
+ src/cmd/9g/reg.c       |  7 ++--
+ src/cmd/9l/9.out.h     |  2 ++
+ src/cmd/dist/buildgc.c | 87 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/liblink/list6.c    | 38 ++++++++++++++++++++++
+ src/liblink/list9.c    | 41 ++++++++++++++++++++++++
+ 15 files changed, 338 insertions(+), 73 deletions(-)

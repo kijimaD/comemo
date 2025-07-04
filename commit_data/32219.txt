@@ -1,39 +1,25 @@
-commit b88e532a9ec5aa023c88c64bfaa1ded22bb4c963
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Jun 5 09:06:30 2017 +0900
+commit 0d36999a0fe3fd63c9c845faf3c9cc8be32c4b58
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 15:30:53 2017 -0700
 
-    cmd/cgo: use first error position instead of last one
+    cmd/compile: make TestAssembly resilient to output ordering
     
-    Just like https://golang.org/cl/34783
+    To preserve reproducible builds, the text entries
+    during compilation will be sorted before being printed.
+    TestAssembly currently assumes that function init
+    comes after all user-defined functions.
+    Remove that assumption.
+    Instead of looking for "TEXT" to tell you where
+    a function ends--which may now yield lots of
+    non-function-code junk--look for a line beginning
+    with non-whitespace.
     
-    Given cgo.go:
-         1  package main
-         2
-         3  /*
-         4  long double x = 0;
-         5  */
-         6  import "C"
-         7
-         8  func main() {
-         9          _ = C.x
-        10          _ = C.x
-        11  }
+    Updates #15756
     
-    Before:
-        ./cgo.go:10:6: unexpected: 16-byte float type - long double
-    
-    After:
-        ./cgo.go:9:6: unexpected: 16-byte float type - long double
-    
-    The above test case is not portable. So it is tested on only amd64.
-    
-    Change-Id: If0b84cf73d381a22e2ada71c8e9a6e6ec77ffd2e
-    Reviewed-on: https://go-review.googlesource.com/54950
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibc82dba6143d769ef4c391afc360e523b1a51348
+    Reviewed-on: https://go-review.googlesource.com/39853
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/errors/err4.go   | 15 +++++++++++++++
- misc/cgo/errors/test.bash |  3 +++
- src/cmd/cgo/ast.go        |  2 ++
- src/cmd/cgo/gcc.go        | 18 ++----------------
- src/cmd/cgo/main.go       |  1 +
- 5 files changed, 23 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

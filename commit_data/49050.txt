@@ -1,25 +1,23 @@
-commit c9f67c289faba2d3876bc166dbcc3b325d3c5ecc
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed May 4 10:07:38 2022 -0500
+commit e3e6cd30221185d6e4fa76f109f96fdede580729
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jul 13 22:21:54 2021 -0700
 
-    cmd/compile/internal: intrinsify publicationBarrier on ppc64x
+    [dev.typeparams] cmd/compile: fix escape printout bugs for -G=3
     
-    This enables publicationBarrier to be used as an intrinsic
-    on ppc64le/ppc64.
+    Call SetPos() in g.expr() so it is available for any new nodes.
     
-    A call to this appears in test/bench/go1 BinaryTree17
+    Print out the actual type for a composite literal in exprFmt() if
+    available, else use Ntype if available. Seems generally useful, since
+    the type name is always more useful than just 'composite literal'.
     
-    Change-Id: If53528a82de99688270473cbe23472f37046ad65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404056
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes a bunch of cases that are excluded in run.go for -G=3.
+    
+    Change-Id: I40b9bba88027ea4f36d419e3989e7f14891bea04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334609
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 4 ++++
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 3 +++
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 1 +
- src/cmd/compile/internal/ssa/opGen.go        | 8 ++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 3 +++
- src/cmd/compile/internal/ssagen/ssa.go       | 2 +-
- 6 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/fmt.go     |  4 ++++
+ src/cmd/compile/internal/noder/expr.go |  5 +++++
+ test/run.go                            | 34 +++-------------------------------
+ 3 files changed, 12 insertions(+), 31 deletions(-)

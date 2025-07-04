@@ -1,24 +1,19 @@
-commit c50e4f5e2f260ff2b68a127843b197443460043f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 20 09:51:39 2011 -0800
+commit 7be6229f9fa404eaac0d98951c2b6c970a3ee8d9
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Dec 20 09:28:45 2011 -0800
 
-    testing: allow benchmarks to print and fail
-    Refactors the benchmarks and test code.
-    Now benchmarks can call Errorf, Fail, etc.,
-    and the runner will act accordingly.
+    cgo: support export for built-in types
+    This change doesn't pay attention to structs
+    so they still cannot be exported, see Issue 2552.
     
-    Because functionality has been folded into an
-    embedded type, a number of methods' docs
-    no longer appear in godoc output. A fix is
-    underway; if it doesn't happen fast enough,
-    I'll add wrapper methods to restore the
-    documentation.
+    Fixes #2462.
     
-    R=bradfitz, adg, rsc
+    R=dvyukov, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5492060
+    https://golang.org/cl/5487058
 
- src/pkg/testing/benchmark.go |  71 +++++++++++++++++++++++-----
- src/pkg/testing/testing.go   | 110 +++++++++++++++++++++++++------------------
- test/fixedbugs/bug229.go     |   4 +-
- 3 files changed, 126 insertions(+), 59 deletions(-)
+ misc/cgo/test/Makefile     |   1 +
+ misc/cgo/test/basic.go     |   6 +--
+ misc/cgo/test/issue2462.go | 102 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go         |   8 +++-
+ 4 files changed, 113 insertions(+), 4 deletions(-)

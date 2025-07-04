@@ -1,14 +1,15 @@
-commit 014137c839a3b9c5b9a2f44df8c8598e2569a311
+commit 9838774622ed18cf449a0e10b1946104e917408d
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 10 18:08:07 2012 -0500
+Date:   Mon Dec 10 17:06:30 2012 -0500
 
-    doc/go1.1.html: add warning about net.ResolveTCPAddr error checking
+    pprof: fix https URLs and 'profiler in use' errors
     
-    Suggested by Paul Borman.
+    Fixes #3666.
+    Fixes #3680.
     
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6930043
+    https://golang.org/cl/6899054
 
- doc/go1.1.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ misc/pprof | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

@@ -1,21 +1,21 @@
-commit fc5eee3c1d37131ca5887ed1d020f6cf83d20a92
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 6 00:18:56 2020 +1100
+commit 9d480edadc6144d9f9f5a896d729d1642e46083b
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Aug 29 09:49:36 2019 -0700
 
-    syscall: fix riscv64 syscall assembly
+    cmd/cover: skip go list when profile is empty
     
-    RISCV has no instruction to store an immediate value to memory, or to
-    subtract an immediate value. An immediate needs to be moved to a register
-    first, or in the case of $0, the zero value register (ZERO or R0) can be
-    used instead. Restore the original riscv-go code so that it compiles.
+    Only call "go list" when explicitly listing packages. An empty coverage
+    profile references no packages, and would otherwise lead to "go list"
+    implicitly looking at the package in "." (which might not exist).
     
-    Updates #27532
+    Fixes #33855
     
-    Change-Id: I3c60e6f385c59679252a710dbba153357a367516
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212761
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I02d4e374405d86f03d105fe14648aa03b4d2284c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192340
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/syscall/asm_linux_riscv64.s | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/cover/func.go                          | 4 ++++
+ src/cmd/go/testdata/script/cover_mod_empty.txt | 9 +++++++++
+ 2 files changed, 13 insertions(+)

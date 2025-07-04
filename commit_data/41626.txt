@@ -1,25 +1,44 @@
-commit e221a75deab7843d5414154000f5bea7abcb60c3
-Author: Walt Della <walt@javins.net>
-Date:   Sat Feb 1 21:58:37 2020 -0800
+commit b76e6f88251712a21071d4ea11573bd8cdfa21de
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 16 20:41:53 2019 +0000
 
-    cmd/go: improve pseudo-version timestamp error
+    Revert "cmd/compile, cmd/link, runtime: make defers low-cost through inline code and extra funcdata"
     
-    The previous "invalid pseudo-version: does not match version-control
-    timestamp" error message used a different timestamp format than the
-    format used in go.mod and go.sum. For cut-and-paste-ability this patch
-    makes the two consistent.
+    This reverts CL 190098.
     
-    Fixes #36974
+    Reason for revert: broke several builders.
     
-    Change-Id: I21f344ab9898cc584c0bcf4a75d74275a703c650
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217437
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I69161352f9ded02537d8815f259c4d391edd9220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201519
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/modfetch/coderepo.go           | 2 +-
- src/cmd/go/internal/modfetch/pseudo.go             | 4 +++-
- src/cmd/go/testdata/script/mod_invalid_version.txt | 6 +++---
- 3 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/escape.go      |  18 +-
+ src/cmd/compile/internal/gc/main.go        |   2 -
+ src/cmd/compile/internal/gc/obj.go         |   3 -
+ src/cmd/compile/internal/gc/reflect.go     |   4 -
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/ssa.go         | 597 +++--------------------------
+ src/cmd/compile/internal/gc/syntax.go      |  59 ++-
+ src/cmd/compile/internal/gc/walk.go        |   1 +
+ src/cmd/compile/internal/ssa/deadstore.go  |   5 -
+ src/cmd/compile/internal/ssa/func.go       |  12 +-
+ src/cmd/internal/obj/link.go               |   9 +-
+ src/cmd/internal/objabi/funcdata.go        |  11 +-
+ src/cmd/internal/objabi/funcid.go          |   6 -
+ src/cmd/internal/objabi/stack.go           |   2 +-
+ src/cmd/link/internal/ld/pcln.go           |  13 +-
+ src/cmd/link/internal/ld/symtab.go         |   3 +-
+ src/runtime/callers_test.go                |  50 +--
+ src/runtime/defer_test.go                  |  63 +--
+ src/runtime/funcdata.h                     |   1 -
+ src/runtime/panic.go                       | 316 +--------------
+ src/runtime/runtime2.go                    |  30 +-
+ src/runtime/runtime_test.go                |   2 +-
+ src/runtime/stack.go                       |   4 +-
+ src/runtime/symtab.go                      |  11 +-
+ test/defererrcheck.go                      |  86 -----
+ test/live.go                               |  18 +-
+ test/nosplit.go                            |   6 +-
+ 27 files changed, 146 insertions(+), 1188 deletions(-)

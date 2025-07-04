@@ -1,0 +1,40 @@
+commit 879ace143490dba75a8499c7f4cea43926423c0f
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 17 12:30:19 2024 -0700
+
+    net/http: keep Content-Encoding in Error, add GODEBUG for ServeContent
+    
+    This reverts the changes to Error from CL 571995, and adds a
+    GODEBUG controlling the changes to ServeContent/ServeFile/ServeFS.
+    
+    The change to remove the Content-Encoding header when serving an error
+    breaks middleware which sets Content-Encoding: gzip and wraps a
+    ResponseWriter in one which compresses the response body.
+    
+    This middleware already breaks when ServeContent handles a Range request.
+    Correct uses of ServeContent which serve pre-compressed content with
+    a Content-Encoding: gzip header break if we don't remove that header
+    when serving errors. Therefore, we keep the change to ServeContent/
+    ServeFile/ServeFS, but we add the ability to disable the new behavior
+    by setting GODEBUG=httpservecontentkeepheaders=1.
+    
+    We revert the change to Error, because users who don't want to include
+    a Content-Encoding header in errors can simply remove the header
+    themselves, or not add it in the first place.
+    
+    Fixes #66343
+    
+    Change-Id: Ic19a24b73624a5ac1a258ed7a8fe7d9bf86c6a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593157
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/godebug.md                               |  9 +++++
+ doc/next/6-stdlib/99-minor/net/http/66343.md | 17 +++++++++-
+ src/internal/godebugs/table.go               |  1 +
+ src/net/http/fs.go                           | 37 ++++++++++++++++++---
+ src/net/http/fs_test.go                      | 49 +++++++++++++++++++++++-----
+ src/net/http/serve_test.go                   |  3 +-
+ src/net/http/server.go                       | 13 +++++---
+ src/runtime/metrics/doc.go                   |  5 +++
+ 8 files changed, 115 insertions(+), 19 deletions(-)

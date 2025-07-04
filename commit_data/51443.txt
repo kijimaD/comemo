@@ -1,20 +1,25 @@
-commit 7db54f1050b201948ab292312d0d59bc439d7b21
-Author: kijimaD <norimaking777@gmail.com>
-Date:   Wed Nov 23 07:09:31 2022 +0000
+commit 41f485b9a7d8fd647c415be1d11b612063dff21c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 28 17:22:32 2022 -0500
 
-    fmt: add uintptr test case
+    cmd/go: rewrite TestScript/cgo_stale_precompiled to be agnostic to staleness
     
-    uintptr case was not covered, so add test.
+    The configuration set by x/build/cmd/releasebot causes runtime/cgo to
+    be stale in the darwin/amd64 release (see #36025, #35459).
+    That staleness is mostly benign because we can reasonably assume that
+    users on macOS will either disable CGO entirely or have a C compiler
+    installed to rebuild (and cache) the stale packages if needed.
     
-    Change-Id: I894e06cb7db250d5dc1f14293c0d5834bfb00b9a
-    GitHub-Last-Rev: 92f8301cb03b503500def0ae076fbf4de8ec448c
-    GitHub-Pull-Request: golang/go#56912
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452955
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Fixes #50892
+    Fixes #50893
+    Updates #46347
+    
+    Change-Id: Ib9ce6b5014de436264238f680f7ca4ae02c9a220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381854
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/fmt/scan_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

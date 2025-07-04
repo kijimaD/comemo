@@ -1,16 +1,44 @@
-commit 7df2854f7087bc19ad4d23a1eed2fdfa8161b1ed
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 17 11:37:08 2015 -0700
+commit 7b9628429553b2bce59cd292c0894a2276c54245
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 23 17:02:11 2015 -0700
 
-    doc/articles/go_command.html: mention go generate
+    [dev.ssa] cmd/internal/ssa: implement more compiler passes
     
-    Fix some out-of-date remarks.
+    opt:      machine-independent optimization
+    fuse:     join basic blocks
+    lower:    convert to machine-dependent opcodes
+    critical: remove critical edges for register alloc
+    layout:   order basic blocks
+    schedule: order values in basic blocks
+    cgen:     generate assembly output
     
-    Fixes #10489.
+    opt and lower use machine-generated matching rules using
+    the rule generator in rulegen/
     
-    Change-Id: I8f0cce2588828052a5d013e7bac6bcfeb220579d
-    Reviewed-on: https://go-review.googlesource.com/9008
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    cgen will probably change in the real compiler, as we want to
+    generate binary directly instead of ascii assembly.
+    
+    Change-Id: Iedd7ca70f6f55a4cde30e27cfad6a7fa05691b83
+    Reviewed-on: https://go-review.googlesource.com/7981
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/articles/go_command.html | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/internal/ssa/cgen.go                   | 117 +++++++++
+ src/cmd/internal/ssa/compile.go                |  58 ++++-
+ src/cmd/internal/ssa/critical.go               |  51 ++++
+ src/cmd/internal/ssa/fuse.go                   |  40 +++
+ src/cmd/internal/ssa/generic.go                | 111 +++++++++
+ src/cmd/internal/ssa/layout.go                 |  88 +++++++
+ src/cmd/internal/ssa/lower.go                  |  43 ++++
+ src/cmd/internal/ssa/lowerAmd64.go             | 307 +++++++++++++++++++++++
+ src/cmd/internal/ssa/op.go                     |  25 +-
+ src/cmd/internal/ssa/op_string.go              |   4 +-
+ src/cmd/internal/ssa/opt.go                    |  13 +
+ src/cmd/internal/ssa/rewrite.go                |  70 ++++++
+ src/cmd/internal/ssa/rulegen/generic.rules     |  16 ++
+ src/cmd/internal/ssa/rulegen/lower_amd64.rules |  46 ++++
+ src/cmd/internal/ssa/rulegen/rulegen.go        | 328 +++++++++++++++++++++++++
+ src/cmd/internal/ssa/schedule.go               |  69 ++++++
+ src/cmd/internal/ssa/ssac/fib.goir             |   5 +-
+ src/cmd/internal/ssa/ssac/fibiter.goir         |   4 +-
+ 18 files changed, 1372 insertions(+), 23 deletions(-)

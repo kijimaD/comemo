@@ -1,17 +1,20 @@
-commit e1acd854f754f496be341211e9deee53fc7e3404
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 15 13:00:03 2019 -0800
+commit f40dc5cb50aad720fb3d42b9d69c158dde07d0aa
+Author: Tim Xu <xiaoxubeii@gmail.com>
+Date:   Wed Sep 19 03:39:46 2018 +0000
 
-    cmd/go: add newline after module-requires-version message
+    clean: clean mod cache should respect "-n" option.
     
-    Fixes #30263
+    Clean mod cache should print remove commands and not run them when with set "-n" option.
+    Fixes #27458.
     
-    Change-Id: Iefb3d8baf815c19eaf915a59048e1da799ca0cdf
-    Reviewed-on: https://go-review.googlesource.com/c/162957
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I97242cb40c062b347784cdb61653c84a3a7eab44
+    GitHub-Last-Rev: 5a6f10cad8c5f2c3916a74ca5eea27b1fdd1dc38
+    GitHub-Pull-Request: golang/go#27710
+    Reviewed-on: https://go-review.googlesource.com/135695
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/clean/clean.go             | 14 ++++++++++----
+ src/cmd/go/testdata/script/mod_clean_cache.txt | 23 +++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 4 deletions(-)

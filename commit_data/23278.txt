@@ -1,15 +1,17 @@
-commit a9c14d1ab5573557a0e5f871791791b4943a3ce8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 5 10:35:29 2015 -0700
+commit 92715d7780e1a7801c2d35069bc8bd86426429c4
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 08:59:18 2015 -0700
 
-    go/types: remove MethodSetCache - not needed
+    fmt: change the overflow test for large numbers in verbs
     
-    In x/tools, MethodSetCache was moved from x/tools/go/types to
-    x/tools/go/types/typeutil. Mirror that change.
+    The old one was inferior.
     
-    Change-Id: Ib838a9518371473c83fa4abc2778d42f33947c98
-    Reviewed-on: https://go-review.googlesource.com/10771
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #10695.
+    
+    Change-Id: Ia7fb88c9ceb1b10197b77a54f729865385288d98
+    Reviewed-on: https://go-review.googlesource.com/9709
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go/types/methodsetcache.go | 69 ------------------------------------------
- 1 file changed, 69 deletions(-)
+ src/fmt/fmt_test.go | 1 +
+ src/fmt/print.go    | 6 ++++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

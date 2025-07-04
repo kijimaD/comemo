@@ -1,13 +1,25 @@
-commit 58241bfdf7be488f8d55b604146bbb788104f6ae
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jul 30 17:08:33 2014 -0700
+commit aff7883d9a7af1dc89a2c51e06ddfcd3d9f80090
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 30 10:11:44 2014 -0700
 
-    runtime: fix cmallocgc's C prototype
+    runtime: fix assembler macro definitions to be consistent in use of center-dot
+    The DISPATCH and CALLFN macro definitions depend on an inconsistency
+    between the internal cpp mini-implementation and the language proper in
+    whether center-dot is an identifier character. The macro depends on it not
+    being an identifier character, but the resulting code depends on it being one.
     
-    LGTM=khr
-    R=khr
+    Remove the dependence on the inconsistency by placing the center-dot into
+    the macro invocation rather that the body.
+    
+    No semantic change. This is just renaming macro arguments.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/121910043
+    https://golang.org/cl/119320043
 
- src/pkg/runtime/malloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/asm_386.s      | 114 ++++++++++++++++++++---------------------
+ src/pkg/runtime/asm_amd64.s    | 114 ++++++++++++++++++++---------------------
+ src/pkg/runtime/asm_amd64p32.s | 114 ++++++++++++++++++++---------------------
+ src/pkg/runtime/asm_arm.s      | 112 ++++++++++++++++++++--------------------
+ 4 files changed, 227 insertions(+), 227 deletions(-)

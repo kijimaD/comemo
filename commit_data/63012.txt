@@ -1,0 +1,20 @@
+commit 12e11e75235a7df2f118becac997a0aca3bb73b0
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun May 11 01:09:16 2025 +0800
+
+    cmd/go: fix not print GCCGO when it's not the default
+    
+    Fixes #69994
+    
+    Change-Id: I2a23e5998b7421fd5ae0fdb68303d3244361b341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671635
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/envcmd/env.go          | 2 +-
+ src/cmd/go/internal/work/gccgo.go          | 4 ++++
+ src/cmd/go/testdata/script/env_changed.txt | 3 +++
+ 3 files changed, 8 insertions(+), 1 deletion(-)

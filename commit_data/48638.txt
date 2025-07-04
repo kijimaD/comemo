@@ -1,36 +1,21 @@
-commit f5290ef947b2471db27c35321a49b4e3b756e56e
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Aug 12 17:41:54 2020 +0800
+commit 62c40878e47c71b1e291e9c3064d76c16a6f9d69
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 10:12:37 2021 -0400
 
-    cmd/asm: refactor some operands that are not special registers on arm64
+    [dev.typeparams] go/types: better recv Var for method expressions
     
-    The previous code treats some operands such as EQ, LT, etc. as special
-    registers. However, they are not. This CL adds a new AddrType TYPE_SPOPD
-    and a new class C_SPOPD to support this kind of special operands, and
-    refactors the relevant code.
+    This is a port of CL 320489 to go/types, adjusted to be consistent about
+    named/unnamed parameters. TestEvalPos was failing without this addition.
     
-    This patch is a copy of CL 260861, contributed by Junchen Li(junchen.li@arm.com).
+    For #46209
     
-    Co-authored-by: Junchen Li(junchen.li@arm.com)
-    Change-Id: I57b28da458ee3332f610602632e7eda03af435f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302849
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icdf86e84ebce8ccdb7846a63b5605e360e2b8781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324733
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/arch/arch.go                  |  41 +------
- src/cmd/asm/internal/arch/arm64.go                 |  31 +++++-
- src/cmd/asm/internal/asm/parse.go                  |  16 ++-
- src/cmd/asm/internal/asm/testdata/arm64.s          |   3 +-
- src/cmd/compile/internal/arm64/ssa.go              |  66 ++++++------
- src/cmd/internal/obj/addrtype_string.go            |  25 ++++-
- src/cmd/internal/obj/arm64/a.out.go                |  96 ++++++++++-------
- src/cmd/internal/obj/arm64/anames7.go              |   1 +
- src/cmd/internal/obj/arm64/asm7.go                 | 119 ++++++++++-----------
- src/cmd/internal/obj/arm64/list7.go                |  51 ++-------
- .../internal/obj/arm64/specialoperand_string.go    |  60 +++++++++++
- src/cmd/internal/obj/link.go                       |   7 ++
- src/cmd/internal/obj/pass.go                       |   5 +
- src/cmd/internal/obj/util.go                       |  30 ++++++
- 14 files changed, 331 insertions(+), 220 deletions(-)
+ src/go/types/call.go                   | 25 +++++++++++++++++++++++--
+ src/go/types/testdata/check/decls0.src |  8 ++++----
+ 2 files changed, 27 insertions(+), 6 deletions(-)

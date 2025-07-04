@@ -1,27 +1,20 @@
-commit 4c589d93ad6f77e31cccc237c20133f0d8d8492f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 21 23:04:21 2024 -0400
+commit 3ca52f4c319e56986586e3d519924876320b29fb
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 16 11:02:12 2023 -0500
 
-    runtime: revert "move zeroVal to internal/abi"
+    slices: add in-place Reverse function
     
-    This reverts CL 581395, commit 2f5b420fb5984842afab37a9c2e66e6599107483.
-    It breaks a linkname from github.com/ugorji/go/codec.
-    For #67401.
+    Fixes #58565
     
-    A followup CL will document this dependence.
-    
-    Change-Id: I66d6c39c03e769ab829ca4c3f4f61277b93380d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587216
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I583f8380c12386178fb18e553322bbb019d9fae0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468855
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Shay Nehmad <dude500@gmail.com>
 
- src/internal/abi/runtime.go |  5 +----
- src/reflect/value.go        | 11 +++++++----
- src/runtime/iface.go        |  4 ++--
- src/runtime/map.go          | 12 ++++++------
- src/runtime/map_fast32.go   |  8 ++++----
- src/runtime/map_fast64.go   |  8 ++++----
- src/runtime/map_faststr.go  | 16 ++++++++--------
- src/runtime/runtime.go      |  6 ++++++
- 8 files changed, 38 insertions(+), 32 deletions(-)
+ api/next/58565.txt        |  1 +
+ doc/go1.21.html           | 10 ++++++++++
+ src/slices/slices.go      |  7 +++++++
+ src/slices/slices_test.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 46 insertions(+)

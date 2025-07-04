@@ -1,35 +1,14 @@
-commit e130dcf051862276c42df2f120457803d2e70138
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 10 17:43:41 2017 -0700
+commit 306c540a28a31b38709eaee57b74ac109dec83a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 22:07:06 2017 +0000
 
-    cmd/compile: abort earlier if stack frame too large
+    time: warn that RFC3339Nano does not guarantee a natural ordering
     
-    If the stack frame is too large, abort immediately.
-    We used to generate code first, then abort.
-    In issue 22200, generating code raised a panic
-    so we got an ICE instead of an error message.
+    Fixes #19635
     
-    Change the max frame size to 1GB (from 2GB).
-    Stack frames between 1.1GB and 2GB didn't used to work anyway,
-    the pcln table generation would have failed and generated an ICE.
-    
-    Fixes #22200
-    
-    Change-Id: I1d918ab27ba6ebf5c87ec65d1bccf973f8c8541e
-    Reviewed-on: https://go-review.googlesource.com/69810
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I85e725dbc85843afd0f4d82f5127fecacc1cb524
+    Reviewed-on: https://go-review.googlesource.com/47090
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go |  3 ++-
- src/cmd/compile/internal/gc/pgen.go | 14 +++++++-------
- src/cmd/compile/internal/gc/ssa.go  |  6 +-----
- src/cmd/internal/obj/arm/asm5.go    |  1 +
- src/cmd/internal/obj/arm64/asm7.go  |  1 +
- src/cmd/internal/obj/link.go        |  1 +
- src/cmd/internal/obj/mips/asm0.go   |  1 +
- src/cmd/internal/obj/pcln.go        |  2 ++
- src/cmd/internal/obj/x86/asm6.go    |  4 ++++
- src/go/types/stdlib_test.go         | 20 +++++++++++---------
- test/fixedbugs/issue22200.go        | 20 ++++++++++++++++++++
- test/fixedbugs/issue22200b.go       | 28 ++++++++++++++++++++++++++++
- 12 files changed, 79 insertions(+), 22 deletions(-)
+ src/time/format.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,36 +1,20 @@
-commit f5b5d77ee2ea0c2edfa600c5245df869e2177615
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 22 22:05:05 2020 -0800
+commit b8fe9f7970f82d43114d8aacb485b8cb4fd16c15
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 3 13:44:33 2019 -0400
 
-    cmd/compile: use immediates for MOVO of readonly sym
+    cmd/compile: adjust line numbering for type switch
     
-    file      before    after     Δ       %
-    addr2line 4307760   4303616   -4144   -0.096%
-    api       5968600   5968568   -32     -0.001%
-    asm       5109928   5122120   +12192  +0.239%
-    buildid   2843752   2839608   -4144   -0.146%
-    cgo       4823768   4819624   -4144   -0.086%
-    compile   20687848  20691800  +3952   +0.019%
-    cover     5259896   5255752   -4144   -0.079%
-    dist      3665176   3661032   -4144   -0.113%
-    doc       4668648   4668600   -48     -0.001%
-    fix       3368792   3368744   -48     -0.001%
-    link      6613328   6609200   -4128   -0.062%
-    nm        4253312   4253280   -32     -0.001%
-    objdump   4655360   4655312   -48     -0.001%
-    pack      2294312   2294280   -32     -0.001%
-    pprof     14747332  14747284  -48     -0.000%
-    test2json 2819416   2815272   -4144   -0.147%
-    trace     11669436  11665292  -4144   -0.036%
-    vet       8274184   8270040   -4144   -0.050%
-    total     116030848 116009424 -21424  -0.018%
+    Two changes, one to cause the back end to not number ITab operations
+    (these tend to disappear and are also followed by something more robust)
+    and to explicitly unmark (as statements) all but the first bit of
+    the code generated to implement a type switch.
     
-    Change-Id: Ice37222c4d76540b3591459f605321cbf142872d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220690
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9f7bf7cbf7ccc5d7eda57f7fb080e600eb312eb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198739
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 42 ++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+)
+ src/cmd/compile/internal/gc/swt.go          | 1 +
+ src/cmd/compile/internal/ssa/numberlines.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

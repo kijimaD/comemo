@@ -1,41 +1,13 @@
-commit faef52c214c3f0cb610aff18f45bfc3e620be63a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jun 9 21:50:24 2013 +0800
+commit b6e52ecffa5e6c0673ecfc93837d23fbcf256752
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 6 18:10:42 2013 -0700
 
-    all: fix typos
+    runtime: remove unused mid function
     
-    R=golang-dev, bradfitz, khr, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7461046
+    https://golang.org/cl/10036047
 
- src/cmd/5c/peep.c         | 2 +-
- src/cmd/5g/gsubr.c        | 2 +-
- src/cmd/5g/peep.c         | 6 +++---
- src/cmd/5g/reg.c          | 2 +-
- src/cmd/5l/pass.c         | 4 ++--
- src/cmd/6c/peep.c         | 2 +-
- src/cmd/6c/txt.c          | 2 +-
- src/cmd/6g/cgen.c         | 2 +-
- src/cmd/6g/gsubr.c        | 4 ++--
- src/cmd/6g/peep.c         | 2 +-
- src/cmd/8c/peep.c         | 2 +-
- src/cmd/8c/txt.c          | 2 +-
- src/cmd/8g/cgen.c         | 2 +-
- src/cmd/8g/peep.c         | 2 +-
- src/cmd/8g/reg.c          | 2 +-
- src/cmd/cc/funct.c        | 2 +-
- src/cmd/cc/lexbody        | 2 +-
- src/cmd/cc/pgen.c         | 2 +-
- src/cmd/cc/pswt.c         | 2 +-
- src/cmd/dist/plan9.c      | 2 +-
- src/cmd/dist/unix.c       | 2 +-
- src/cmd/gc/obj.c          | 2 +-
- src/cmd/gc/swt.c          | 2 +-
- src/cmd/go/test.bash      | 2 +-
- src/cmd/ld/data.c         | 2 +-
- src/cmd/ld/dwarf.c        | 6 +++---
- src/cmd/yacc/units.txt    | 2 +-
- src/libmach/6obj.c        | 2 +-
- src/libmach/8obj.c        | 2 +-
- test/chan/doubleselect.go | 2 +-
- 30 files changed, 36 insertions(+), 36 deletions(-)
+ src/pkg/runtime/extern.go | 3 ---
+ src/pkg/runtime/proc.c    | 8 --------
+ 2 files changed, 11 deletions(-)

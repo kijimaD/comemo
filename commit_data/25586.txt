@@ -1,28 +1,14 @@
-commit efd93a412eb5941d767b70097e93a589747de34f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 12 15:34:03 2016 -0800
+commit 58db5fc94d6038aa0308fc36c25b551a751260c2
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 12 13:05:49 2015 +1300
 
-    runtime: minimize time between lockextra/unlockextra
+    runtime: run TestCgoExternalThreadSIGPROF on ppc64le
     
-    This doesn't fix a bug, but may improve performance in programs that
-    have many concurrent calls from C to Go.  The old code made several
-    system calls between lockextra and unlockextra.  That could be happening
-    while another thread is spinning acquiring lockextra.  This changes the
-    code to not make any system calls while holding the lock.
+    It was disabled because of the lack of external linking.
     
-    Change-Id: I50576478e478670c3d6429ad4e1b7d80f98a19d8
-    Reviewed-on: https://go-review.googlesource.com/18548
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iccb4a4ef8c57d048d53deabe4e0f4e6b9dccce33
+    Reviewed-on: https://go-review.googlesource.com/16797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os1_darwin.go    |  4 ++--
- src/runtime/os1_dragonfly.go |  4 ++--
- src/runtime/os1_freebsd.go   |  4 ++--
- src/runtime/os1_linux.go     |  5 ++---
- src/runtime/os1_nacl.go      |  2 +-
- src/runtime/os1_netbsd.go    |  4 ++--
- src/runtime/os1_openbsd.go   |  4 ++--
- src/runtime/os1_plan9.go     |  2 +-
- src/runtime/os1_windows.go   |  2 +-
- src/runtime/os3_solaris.go   |  5 +++--
- src/runtime/proc.go          | 10 +++++++---
- 11 files changed, 25 insertions(+), 21 deletions(-)
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

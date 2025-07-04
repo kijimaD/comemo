@@ -1,22 +1,20 @@
-commit 9160e15494ed03967b86ddc1a601b659b3243fd0
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 22 10:42:25 2022 -0500
+commit db48840cfc5ea9f8067cd5238827965ea01cdde1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 14:01:52 2022 -0800
 
-    cmd/dist: skip -race w/ external linkage on windows 2008
+    Revert "spec: document the underlying type of comparable"
     
-    Add a skip for the external-linkage part of the race detector test for
-    elderly versions of windows, until the underlying cause for the problem
-    can be determined.
+    This reverts CL 380854.
     
-    Updates #56904.
+    Per the conluding discussions on #50791. A follow-up will
+    document `comparable` more thoroughly.
     
-    Change-Id: I3e8650ff66f34efefabcd6bc343d57124539901b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452763
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    For #50791.
+    
+    Change-Id: I15db9051784a012f713e28d725c3b8bbfeb40569
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381076
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

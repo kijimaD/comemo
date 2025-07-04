@@ -1,42 +1,25 @@
-commit 69d8fbec7ab74b3b0f8b689a9a251bdf621936aa
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Aug 13 15:52:12 2021 -0400
+commit e885df2731cb36925c9a9de9cf1a34a167461cd7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 6 12:14:46 2020 -0800
 
-    cmd/compile/internal/types2: return an error from Instantiate
+    [dev.regabi] cmd/compile: change iexport to avoid map[ir.Node]
     
-    Change Instantiate to be a function (not a method) and return an error.
-    Introduce an ArgumentError type to report information about which type
-    argument led to an error during verification.
+    In the past, we had a lot of trouble with misusing *types.Sym
+    throughout the frontend, so I tried to push us towards always passing
+    around ONAMEs instead. But for constructing and writing out the symbol
+    indexes for the indexed export data, keying by *types.Sym is exactly
+    what we want.
     
-    This resolves a few concerns with the current API:
-     - The Checker method set was previously just Files. It is somewhat odd
-       to add an additional method for instantiation. Passing the checker as
-       an argument seems cleaner.
-     - pos, posList, and verify were bound together. In cases where no
-       verification is required, the call site was somewhat cluttered.
-     - Callers will likely want to access structured information about why
-       type information is invalid, and also may not have access to position
-       information. Returning an argument index solves both these problems;
-       if callers want to associate errors with an argument position, they
-       can do this via the resulting index.
+    Passes buildall w/ toolstash -cmp.
     
-    We may want to make the first argument an opaque environment rather than
-    a Checker.
+    Updates #42982.
     
-    Change-Id: I3bc56d205c13d832b538401a4c91d3917c041225
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342152
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Idd8f1fb057d75a52a34ebc7788d9332fb49caf8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275755
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/importer/iimport.go   |   8 +-
- src/cmd/compile/internal/noder/reader2.go      |   3 +-
- src/cmd/compile/internal/types2/api.go         |  12 ++
- src/cmd/compile/internal/types2/api_test.go    |  39 ++++-
- src/cmd/compile/internal/types2/call.go        |   4 +-
- src/cmd/compile/internal/types2/instantiate.go | 225 ++++++++++++++-----------
- src/cmd/compile/internal/types2/named.go       |  32 ++--
- src/cmd/compile/internal/types2/subst.go       |  11 +-
- src/cmd/compile/internal/types2/typexpr.go     |   2 +-
- 9 files changed, 207 insertions(+), 129 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go | 62 ++++++++++++++++++----------------
+ 1 file changed, 32 insertions(+), 30 deletions(-)

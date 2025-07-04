@@ -1,22 +1,22 @@
-commit c62099cfac6b0fd46efbdab7205bb17597096472
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue May 13 10:50:51 2025 +0800
+commit 0b7b90cf198b17dd2d164e3bf013aa5846356b55
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 18 05:20:00 2024 +0000
 
-    cmd/intarnal/obj: add new assembly format for VANDV and VANDB on loong64
+    database/sql: close rows in test
     
-    In order to make it easier to write in assembly and to be consistent
-    with the usage of general instructions, a new assembly format is
-    added for the instructions VANDV and VANDB.
+    This change invokes defer rows.Close() in TestQuery to properly close the rows.
     
-    It also works for instructions XVAND{V,B}, [X]V{OR,XOR,NOR,ANDN,ORN}V
-    and [X]V{OR,XOR,NOR}B.
-    
-    Change-Id: Ia75d607ac918950e58840ec627aaf0be45d837fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671316
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I1ab0d172ad2130e9caab7dbda93d671550c33c6b
+    GitHub-Last-Rev: 76883a3bceefb80873e57150356a4acc001ee1a3
+    GitHub-Pull-Request: golang/go#66371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572197
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 20 ++++++++++++++++++++
- src/cmd/internal/obj/loong64/asm.go             |  4 ++++
- 2 files changed, 24 insertions(+)
+ src/database/sql/sql_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,35 +1,20 @@
-commit adef4deeb85ede59201f37f5145763ed55a807f7
-Author: David Chase <drchase@google.com>
-Date:   Fri Aug 7 22:46:43 2020 -0400
+commit c6bcdeafd2a2f11373dec9a82fccc75d332cd0cc
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Wed Mar 11 17:17:57 2020 -0700
 
-    cmd/compile: enable late expansion for interface calls
+    cmd/go: check for 'svn' binary in PATH in TestAccidentalGitCheckout
     
-    Includes a few tweaks to Value.copyOf(a) (make it a no-op for
-    a self-copy) and new pattern hack "___" (3 underscores) is
-    like ellipsis, except the replacement doesn't need to have
-    matching ellipsis/underscores.
+    This test requires subversion to run, but does not check to see if it's
+    available before running as it does for git.
     
-    Moved the arg-length check in generated pattern-matching code
-    BEFORE the args are probed, because not all instances of
-    variable length OpFoo will have all the args mentioned in
-    some rule for OpFoo, and when that happens, the compiler
-    panics without the early check.
+    Call testenv.MustHaveExecPath to check beforehand to allow the test to
+    be skipped if the svn binary does not exist.
     
-    Change-Id: I66de40672b3794a6427890ff96c805a488d783f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247537
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I16ae104621b221fc6e96f6c7dcd71bf406caa0c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223082
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 22 +++---
- src/cmd/compile/internal/ssa/expand_calls.go   | 93 ++++++++++++++++----------
- src/cmd/compile/internal/ssa/gen/generic.rules |  7 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go | 10 +--
- src/cmd/compile/internal/ssa/gen/rulegen.go    | 22 ++++--
- src/cmd/compile/internal/ssa/op.go             | 11 +++
- src/cmd/compile/internal/ssa/opGen.go          | 16 +++++
- src/cmd/compile/internal/ssa/rewrite.go        | 30 +++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 62 +++++++++++++++--
- src/cmd/compile/internal/ssa/value.go          |  3 +
- 10 files changed, 221 insertions(+), 55 deletions(-)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,19 +1,18 @@
-commit 11320fa500c7201065baf1958e237ce4a03b3030
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 27 14:53:57 2013 +1000
+commit 1f661fc205440ccfb46b76a964f50a1259c928d8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 27 13:29:07 2013 +1000
 
-    net: have separate read and write processing threads on windows
+    text/template: make the escapers for HTML etc. handle pointers correctly
+    Apply the same rules for argument evaluation and indirection that are
+    used by the regular evaluator.
     
-    Fixes #4195
+    Fixes #5802
     
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12960046
+    https://golang.org/cl/13257043
 
- src/pkg/net/fd_plan9.go            |  2 --
- src/pkg/net/fd_unix.go             |  2 --
- src/pkg/net/fd_windows.go          | 28 ++++++++++++++++------------
- src/pkg/net/http/transport_test.go |  2 +-
- src/pkg/net/sendfile_windows.go    |  2 +-
- src/pkg/net/timeout_test.go        |  3 ---
- 6 files changed, 18 insertions(+), 21 deletions(-)
+ src/pkg/text/template/exec.go      | 17 ++++++++++++----
+ src/pkg/text/template/exec_test.go | 12 ++++++++---
+ src/pkg/text/template/funcs.go     | 41 +++++++++++++++++++-------------------
+ 3 files changed, 43 insertions(+), 27 deletions(-)

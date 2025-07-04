@@ -1,13 +1,12 @@
-commit 68b35b0852eaa90fb61ac4b28c0a3700efc7f762
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 19 07:45:12 2012 +1100
+commit 253c139275d4997f466157dcfd0699bd6227751e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 18 11:15:52 2012 -0800
 
-    templates: minor edits to the documentation
+    doc: update gccgo_contribute.html
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5677084
+    https://golang.org/cl/5673080
 
- src/pkg/text/template/doc.go         | 24 +++++++++++++++++++++++-
- src/pkg/text/template/parse/parse.go |  6 ++++--
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ doc/gccgo_contribute.html | 115 ++++++++++++++++++++++++----------------------
+ 1 file changed, 60 insertions(+), 55 deletions(-)

@@ -1,16 +1,24 @@
-commit 1f7e3cfdbcc4b12ba769bb5e9e09887145870187
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 3 21:49:45 2016 -0800
+commit e0e4ccb51afd84c33a9da47f72d464a9b92ecf4a
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Mon Nov 16 23:16:00 2015 +0530
 
-    runtime: skip TestSignalExitStatus on Solaris
+    path/filepath: include the original paths in error messages
     
-    Update #14063.
+    On Windows, Rel emits error messages of the form `Rel: can't make
+    \windows relative to \windows`. Rather than emitting paths after
+    stripping volume names, emit the original paths so as to make those of
+    the form `Rel: can't make d:\windows relative to c:\windows`.  Fixed a
+    test that expected the error message to emit clean path instead of the
+    original.
     
-    Change-Id: Id13456deb15c90a8af282b77d78ff5cdbd1de8bf
-    Reviewed-on: https://go-review.googlesource.com/19208
+    Fixes #13259
+    
+    Change-Id: I3a9bd5b137205f22794ec8046b4e917ee48cf750
+    Reviewed-on: https://go-review.googlesource.com/16858
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/crash_unix_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/path/filepath/example_unix_test.go | 2 +-
+ src/path/filepath/path.go              | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,18 +1,30 @@
-commit e508c1c67b02dceea146ce3472c0f8ce9e60632c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Dec 8 04:23:36 2020 +1100
+commit 24814e214776ae5165083a963db5c56abbde4176
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 30 09:04:08 2020 -0400
 
-    cmd/link/internal/loadelf: support additional ELF relocations on mips64
+    [dev.link] cmd/link: enforce single level of 'outer' sym
     
-    LLVM on openbsd/mips64 generates R_MIPS_GOT_HI16 and R_MIPS_GOT_LO16 relocations,
-    so teach cmd/link/internal/loadelf about both of these.
+    Add code to the loader to enforce the invariant that there is only a
+    single level of 'outer' symbol nesting. That is, if outer(X) = Y, then
+    outer(Y) is always zero.
     
-    Updates #43005
+    Revise foldSubSymbolOffset based on the new invariant, allowing it to
+    be inlined, and then fix the various "for s.Outer != nil" loops in the
+    linker to just use an "if" instead of a loop.
     
-    Change-Id: Ic45ea8b901d44dcbdbf355411ee434dcd7670a92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275894
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: Ib895702bc6de52718248f09a5368b84cb2e0a3fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231137
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/loadelf/ldelf.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/link/internal/arm/asm.go       |  4 +---
+ src/cmd/link/internal/arm64/asm.go     |  8 +-------
+ src/cmd/link/internal/ld/data.go       | 16 ++++++++++++++--
+ src/cmd/link/internal/ld/data2.go      | 18 ++----------------
+ src/cmd/link/internal/ld/symtab.go     |  2 +-
+ src/cmd/link/internal/loader/loader.go | 10 ++++++++++
+ src/cmd/link/internal/mips/asm.go      |  8 +-------
+ src/cmd/link/internal/mips64/asm.go    |  8 +-------
+ src/cmd/link/internal/ppc64/asm.go     |  8 +-------
+ 9 files changed, 32 insertions(+), 50 deletions(-)

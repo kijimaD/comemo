@@ -1,17 +1,13 @@
-commit 0e6f927108dc785812b6e5ce94cea2ff4ca395cc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Sep 25 17:06:39 2012 +1000
+commit 4391abfb1dc855e7648f2157d301b5b435c6539e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 25 14:14:26 2012 +1000
 
-    syscall: do not use int to test network syscall results (on windows)
+    test/bench/shootout: new data after 64-bit ints for amd64
     
-    Fixes #4147.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6569050
+    https://golang.org/cl/6564046
 
- src/pkg/syscall/mksyscall_windows.pl      |   2 +-
- src/pkg/syscall/syscall_windows.go        |  32 ++++---
- src/pkg/syscall/zsyscall_windows_386.go   | 146 +++++++++++++++---------------
- src/pkg/syscall/zsyscall_windows_amd64.go | 146 +++++++++++++++---------------
- 4 files changed, 164 insertions(+), 162 deletions(-)
+ test/bench/shootout/timing.log | 92 ++++++++++++++++++++++++++++++++++++++++++
+ test/bench/shootout/timing.sh  |  2 +-
+ 2 files changed, 93 insertions(+), 1 deletion(-)

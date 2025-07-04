@@ -1,14 +1,14 @@
-commit 5fa18e10618d609ce2c272026e460c47ec864250
+commit f76bd4fe0f55b753481e5d20b52155090a22ab42
 Author: Rob Pike <r@golang.org>
-Date:   Mon Dec 12 21:08:03 2011 -0800
+Date:   Mon Dec 12 19:25:25 2011 -0800
 
-    doc/go1: time
+    doc/go1: more package updates
+    Everything there (as first draft) except the time package.
     
-    R=rsc
+    R=golang-dev, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5477077
+    https://golang.org/cl/5487052
 
- doc/go1.html     | 94 +++++++++++++++++++++++++++++++++++++++++++++++++-------
- doc/go1.tmpl     | 61 ++++++++++++++++++++++++++++++++++++
- doc/progs/go1.go | 42 +++++++++++++++++--------
- 3 files changed, 173 insertions(+), 24 deletions(-)
+ doc/go1.html | 119 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 119 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 238 insertions(+)

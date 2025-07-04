@@ -1,19 +1,19 @@
-commit 67a5181045d1601820ea98dff06832339e19fd16
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 2 19:42:05 2014 +0900
+commit 383963b50622d9e0a28a3deb75aba8533e5ad949
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 1 19:44:07 2014 -0700
 
-    net: make WriteTo, WriteToUnix and WriteMsgUnix fail when connectionless-mode UnixConn is already connected
+    runtime: zero at start of frame more efficiently.
     
-    This CL tries to fill the gap between Linux and other Unix-like systems
-    in the same way UDPConn already did.
+    Use Duff's device for zeroing.  Combine adjacent regions.
     
-    Fixes #7677.
+    Update #7680
+    Update #7624
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/83330045
+    https://golang.org/cl/83200045
 
- src/pkg/net/unix_test.go      | 67 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/unixsock_posix.go |  6 ++++
- 2 files changed, 73 insertions(+)
+ src/cmd/6g/ggen.c | 71 +++++++++++++++++++++++++++++++++++++++----------------
+ src/cmd/8g/ggen.c | 69 +++++++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 98 insertions(+), 42 deletions(-)

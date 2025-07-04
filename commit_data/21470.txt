@@ -1,13 +1,29 @@
-commit 3fa90ea96468d561a527a186b032490a04936879
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 3 16:19:05 2015 -0800
+commit af7ca8dce4991860263d5e0d0322461cfd00c599
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 16 18:34:55 2014 -0500
 
-    cmd/go: add 9g and 9l to documentation
+    cmd/cgo, runtime/cgo: support ppc64
     
-    Change-Id: I274c438ab168278dfbb34ada3ed9a7f7c66b66ef
-    Reviewed-on: https://go-review.googlesource.com/3834
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This implements support for calls to and from C in the ppc64 C ABI, as
+    well as supporting functionality such as an entry point from the
+    dynamic linker.
+    
+    Change-Id: I68da6df50d5638cb1a3d3fef773fb412d7bf631a
+    Reviewed-on: https://go-review.googlesource.com/2009
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go | 4 ++--
- src/cmd/go/doc.go   | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/cgo/out.go                 |   1 +
+ src/go/build/build.go              |   1 +
+ src/run.bash                       |   1 +
+ src/runtime/asm_ppc64x.s           | 244 +++++++++++++++++++++++++++++++++++--
+ src/runtime/cgo/asm_ppc64x.s       | 124 +++++++++++++++++++
+ src/runtime/cgo/gcc_linux_ppc64x.c |  70 +++++++++++
+ src/runtime/cgo/gcc_ppc64x.S       | 140 +++++++++++++++++++++
+ src/runtime/cgocall.go             |   7 ++
+ src/runtime/crash_cgo_test.go      |   5 +
+ src/runtime/rt0_linux_ppc64.s      |   6 +
+ src/runtime/rt0_linux_ppc64le.s    |  24 +++-
+ src/runtime/runtime1.go            |   3 +
+ src/runtime/sys_linux_ppc64x.s     |   7 ++
+ src/runtime/tls_ppc64x.s           |   4 +
+ 14 files changed, 622 insertions(+), 15 deletions(-)

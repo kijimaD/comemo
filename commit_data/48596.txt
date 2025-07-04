@@ -1,22 +1,20 @@
-commit 0a5bbba366de5bf833a742e9001538ea10122d6c
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Feb 2 13:26:16 2022 -0500
+commit dd7ba3ba2c860c40be6d70b63d4a678449cae80f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jun 2 09:20:22 2021 -0700
 
-    cmd/link/internal/loadpe: refactor readpesym()
+    net: don't rely on system hosts in TestCVE202133195
     
-    Rewrite the helper "readpesym()" and the code that calls it to pass in
-    most of the values it needs via a state object (the signature was
-    getting a bit too busy/lengthy). No change in functionality, this is
-    just a refactor.
+    Also don't unnecessarily deref the error return.
     
-    Updates #35006.
+    Fixes #46504
     
-    Change-Id: I6153ee3a9be3eb885694323ae8e07ec4c8eed646
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382836
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I22d14ac76776f8988fa0774bdcb5fcd801ce0185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324190
+    Trust: David Chase <drchase@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/link/internal/loadpe/ldpe.go | 86 +++++++++++++++++++++---------------
- 1 file changed, 51 insertions(+), 35 deletions(-)
+ src/net/dnsclient_unix_test.go | 39 ++++++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 19 deletions(-)

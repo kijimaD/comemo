@@ -1,19 +1,76 @@
-commit 4aeb9ba0deac4eced472a8fc7869a14fb9340d04
-Author: Sean Liao <sean@liao.dev>
-Date:   Sun May 11 21:55:57 2025 +0100
+commit dc6a5cfca18320ab41af7c5f64565ec2ba303843
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 13 13:57:08 2024 -0700
 
-    runtime/pprof: return errors from writing profiles
+    go/types, types2: quote user-supplied names in error messages
     
-    Fixes #73107
+    Use `' quotes (as in `foo') to differentiate from Go quotes.
+    Quoting prevents confusion when user-supplied names alter
+    the meaning of the error message.
     
-    Change-Id: I41f3e1bd1fdaca2f0e94151b2320bd569e258a51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671576
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For instance, report
+    
+            duplicate method `wanted'
+    
+    rather than
+    
+            duplicate method wanted
+    
+    Exceptions:
+    - don't quote _:
+            `_' is ugly and not necessary
+    - don't quote after a ":":
+            undefined name: foo
+    - don't quote if the name is used correctly in a statement:
+            goto L jumps over variable declaration
+    
+    Quoting is done with a helper function and can be centrally adjusted
+    and fine-tuned as needed.
+    
+    Adjusted some test cases to explicitly include the quoted names.
+    
+    Fixes #65790.
+    
+    Change-Id: Icce667215f303ab8685d3e5cb00d540a2fd372ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571396
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/pprof/pprof.go      |  6 ++----
- src/runtime/pprof/proto.go      |  9 ++++++---
- src/runtime/pprof/proto_test.go | 18 +++++++++++++++++-
- src/runtime/pprof/protomem.go   |  3 +--
- 4 files changed, 26 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 12 ++---
+ src/cmd/compile/internal/types2/call.go            |  2 +-
+ src/cmd/compile/internal/types2/check.go           |  2 +-
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/format.go          | 33 +++++++++++++
+ src/cmd/compile/internal/types2/issues_test.go     | 13 +++--
+ src/cmd/compile/internal/types2/labels.go          | 10 ++--
+ src/cmd/compile/internal/types2/stmt.go            |  4 +-
+ src/cmd/compile/internal/types2/typeset.go         |  8 ++--
+ src/cmd/compile/internal/types2/typexpr.go         |  4 +-
+ src/go/types/builtins.go                           | 12 ++---
+ src/go/types/call.go                               |  2 +-
+ src/go/types/check.go                              |  2 +-
+ src/go/types/decl.go                               |  2 +-
+ src/go/types/format.go                             | 33 +++++++++++++
+ src/go/types/issues_test.go                        | 13 +++--
+ src/go/types/labels.go                             | 10 ++--
+ src/go/types/stmt.go                               |  4 +-
+ src/go/types/typeset.go                            |  8 ++--
+ src/go/types/typexpr.go                            |  4 +-
+ src/internal/types/testdata/check/builtins0.go     |  5 +-
+ src/internal/types/testdata/check/decls0.go        |  2 +-
+ .../types/testdata/check/decls2/decls2a.go         |  4 +-
+ src/internal/types/testdata/check/go1_13.go        |  4 +-
+ .../testdata/check/importdecl0/importdecl0a.go     |  2 +-
+ src/internal/types/testdata/check/labels.go        | 56 +++++++++++-----------
+ src/internal/types/testdata/check/stmt0.go         |  4 +-
+ .../types/testdata/fixedbugs/issue50779.go         |  2 +-
+ .../types/testdata/fixedbugs/issue66285.go         |  6 +--
+ test/fixedbugs/issue11361.go                       |  2 +-
+ test/fixedbugs/issue21317.go                       |  4 +-
+ test/fixedbugs/issue28268.go                       |  4 +-
+ test/fixedbugs/issue34329.go                       |  2 +-
+ 33 files changed, 174 insertions(+), 103 deletions(-)

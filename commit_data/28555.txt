@@ -1,22 +1,14 @@
-commit a30b5a3d1916deb6e366aa4557d6c21eb835d737
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Sep 27 10:45:05 2016 -0400
+commit e90a49a0f5380c6f68502b1febfb73f696c2f610
+Author: Steve Phillips <steve@tryingtobeawesome.com>
+Date:   Thu Jun 2 02:40:37 2016 -0700
 
-    cmd/asm: add s390x instructions BLTU and BLEU
+    doc/go1.7.html: typo fix; replace "," at end of sentence with "."
     
-    These instructions are the same as BLT and BLE except that they
-    also branch if the 'unordered' bit is set in the condition code.
+    Signed-off-by: Steven Phillips <steve@tryingtobeawesome.com>
     
-    They are already used by the SSA backend. This change allows them
-    to be used in hand-written assembly code.
-    
-    Change-Id: Ie9b5985a5e87ea22e8043567a286e09dce16a2db
-    Reviewed-on: https://go-review.googlesource.com/29930
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie7c3253a5e1cd43be8fa12bad340204cc6c5ca76
+    Reviewed-on: https://go-review.googlesource.com/23677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/arch/s390x.go        | 2 ++
- src/cmd/asm/internal/asm/testdata/s390x.s | 2 ++
- 2 files changed, 4 insertions(+)
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

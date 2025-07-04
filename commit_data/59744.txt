@@ -1,20 +1,41 @@
-commit 67f052121ed47f23ea613043191ad654702560aa
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 30 12:22:23 2025 -0400
+commit 84fbdf01ffde21fcf0a5359d98a65dc6ee16f5a5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 29 16:23:03 2024 -0500
 
-    cmd/distpack: don't keep the pack tool
+    cmd/go: use cache for PGO preprocessing
     
-    This was an oversight: the pack tool isn't actually used in builds.
+    This is the final CL in the series adding PGO preprocessing support to
+    cmd/go. Now that the tool is hooked up, we integrate with the build
+    cache to cache the result.
     
-    For #71867
+    This is fairly straightforward. One difference is that the compile and
+    link do caching through updateBuildID. However, preprocessed PGO files
+    don't have a build ID, so it doesn't make much sense to hack our way
+    through that function when it is simple to just add to the cache
+    ourselves.
     
-    Change-Id: Ib1f1cce0b574cf1d2c1002b2f2ab9ef9d750d0fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677557
-    Reviewed-by: Michael Matloob <matloob@google.com>
+    As as aside, we could add a build ID to the preproccessed file format,
+    though it is not clear if it is worthwhile. The one place a build ID
+    could be used is in buildActionID, which currently compute the file hash
+    of the preprocessed profile. With a build ID it could simply read the
+    build ID. This would save one complete read of the file per build
+    (cmd/go caches the hash), but each compile process also reads the entire
+    file, so this is a small change overall.
+    
+    Fixes #58102.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I86e2999a08ccd264230fbb1c983192259b7288e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569425
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/distpack/pack.go       | 2 +-
- src/cmd/go/internal/work/gc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/next/5-toolchain.md                        |  4 +++
+ src/cmd/go/internal/work/action.go             | 42 +++++++++++++++++++++++++-
+ src/cmd/go/internal/work/buildid.go            |  8 +++++
+ src/cmd/go/testdata/script/build_cache_pgo.txt | 28 +++++++++++++++++
+ src/cmd/go/testdata/script/build_pgo.txt       |  4 +++
+ src/cmd/go/testdata/script/build_pgo_auto.txt  |  4 +++
+ src/cmd/preprofile/main.go                     |  3 ++
+ 7 files changed, 92 insertions(+), 1 deletion(-)

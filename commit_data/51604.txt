@@ -1,23 +1,20 @@
-commit 64519baf3802f96a813f3f35e87aefa30a5f5f73
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jan 9 13:59:54 2023 -0500
+commit e534907f65f5a3eda47a069ea0aab33306c1d616
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Feb 18 09:19:47 2022 -0500
 
-    cmd/compile/internal/pgo: add hint to missing start_line error
+    go/types: delete unnecessary slice construction
     
-    Profiles only began adding Function.start_line in 1.20. If it is
-    missing, add a hint to the error message that they may need to profile a
-    build of the application built with a newer version of the toolchain.
+    CL 374294 made our check for incorrect type parameters constraints
+    eager, but failed to remove the construction of the bounds slice, which
+    was no longer used.
     
-    Technically profiles are not required to come from Go itself (e.g., they
-    could be converted from perf), but in practice they most likely are.
-    
-    Fixes #57674.
-    
-    Change-Id: I87eca126d3fed0cff94bbb8dd748bd4652f88b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461195
+    Change-Id: Ib8778fba947ef8a8414803e95d72c49b8f75c204
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386717
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/pgo/irgraph.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/decl.go | 2 --
+ src/go/types/decl.go                    | 2 --
+ 2 files changed, 4 deletions(-)

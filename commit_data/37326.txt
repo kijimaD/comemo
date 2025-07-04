@@ -1,15 +1,12 @@
-commit 03e3fbe421271164d4f8f58a51333611f44c8b82
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 9 14:53:32 2018 -0800
+commit d2f663c4f241b2f1318f5126c206436afaefdadd
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 18 15:45:56 2018 -0400
 
-    cmd/cgo: make the gccgo init function no_split_stack
+    doc/go1.11: mention major performance optimizations
     
-    This works around what appears to be a bug in current clang (2018-11-09).
-    Details are in the comment in the code.
-    
-    Change-Id: Ib4783b6c03d531c69ebc4cb0ac023bea5bee7d40
-    Reviewed-on: https://go-review.googlesource.com/c/148819
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I25b93a84996ab1c17d64089b4c2ffabdff3365ec
+    Reviewed-on: https://go-review.googlesource.com/124710
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/cgo/out.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ doc/go1.11.html | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

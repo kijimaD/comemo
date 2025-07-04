@@ -1,13 +1,16 @@
-commit ec6b5123feb4df04dfa470db609171a9401ec7c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 25 17:32:31 2012 -0400
+commit 4c98584ecd83fa39a4a1ef5bcb0a06c5b555dd92
+Author: Amir Mohammad Saied <amir@gluegadget.com>
+Date:   Mon Jun 25 17:19:08 2012 -0400
 
-    A+C: add Michael Stapelberg (individual CLA)
+    misc/chrome/gophertool: Support for manifest version 1 is being phased out.
     
-    R=golang-dev, bradfitz
+    Manifest version 1 was deprecated in Chrome 18, and support will be phased
+    out according to the schedule available at:
+    http://code.google.com/chrome/extensions/manifestVersion.html
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6325058
+    https://golang.org/cl/6332053
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ misc/chrome/gophertool/manifest.json | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

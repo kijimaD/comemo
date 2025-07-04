@@ -1,25 +1,16 @@
-commit b5f0aff49503e31002b33198e06708e263c445a7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 16:39:40 2016 -0700
+commit a119f88f2c52e6eb969f51c5bf610d6f105348a3
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 11 18:39:46 2016 -0400
 
-    net/http: conditionally configure HTTP/2 in Server.Serve(Listener)
+    go/importer: make For("gccgo",  nil) not panic
     
-    Don't configure HTTP/2 in http.Server.Serve(net.Listener) if the
-    Server's TLSConfig is set and doesn't include the "h2" NextProto
-    value. This avoids mutating a *tls.Config already in use if
-    previously passed to tls.NewListener.
+    Apparently we forgot to test this.
     
-    Also document this. (it's come up a few times now)
+    Fixes #15092
     
-    Fixes #15908
-    
-    Change-Id: I283eed82fdb29a791f80d801aadd9f75db244de0
-    Reviewed-on: https://go-review.googlesource.com/24508
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I33d4fef0f659dfbdfc1ebf8401e96610c8215592
+    Reviewed-on: https://go-review.googlesource.com/21860
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/serve_test.go | 35 ++++++++++++++++++++++++++++++++++-
- src/net/http/server.go     | 36 ++++++++++++++++++++++++++++++++++--
- 2 files changed, 68 insertions(+), 3 deletions(-)
+ src/go/importer/importer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,16 @@
-commit e62c3d35033a42dac3ea38a5f86cf0b8f6f74a42
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jun 25 20:24:15 2019 -0400
+commit 619cc9fa4152399dde89d2a4700ee737cae444e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 13:25:44 2019 -0800
 
-    test: add testcase for gccgo compile failure
+    go/internal/gccgoimporter: remove temporary directories in test
     
-    Test case that caused a compiler crash in gofrontend, related to
-    exporting inlinable function bodies.
+    Updates #30500
     
-    Updates #32778
-    
-    Change-Id: Iacf1753825d5359da43e5e281189876d4c3dd3c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183851
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I42716c2bfd7f087303bc63d7518e32b52fd0d762
+    Reviewed-on: https://go-review.googlesource.com/c/164862
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue32778.dir/a.go | 18 ++++++++++++++++++
- test/fixedbugs/issue32778.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue32778.go       | 11 +++++++++++
- 3 files changed, 40 insertions(+)
+ src/go/internal/gccgoimporter/importer_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

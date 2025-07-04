@@ -1,12 +1,16 @@
-commit c5d78f512ae6e3867266cfd1cf4cf2194388cbfb
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Nov 2 15:28:32 2018 -0400
+commit a07ee41a334f6bbcda2e642e1d05d73c21bab746
+Author: Caleb Martinez <accounts@calebmartinez.com>
+Date:   Wed Jul 11 13:40:14 2018 +0000
 
-    doc: document Go 1.11.2
+    time: add clarification to Timer.Stop documentation
     
-    Change-Id: Iaff03911f1807d462f1966590626bd486807f53d
-    Reviewed-on: https://go-review.googlesource.com/c/147178
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #26220
+    
+    Change-Id: I05703912be594d985ad3ccb3a9757ae21ec738ab
+    GitHub-Last-Rev: e4649847e015e573ee169c7d6db29b9437841afd
+    GitHub-Pull-Request: golang/go#26293
+    Reviewed-on: https://go-review.googlesource.com/122715
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/time/tick.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

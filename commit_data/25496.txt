@@ -1,29 +1,85 @@
-commit 9a2d717fa9ca58263ec3840460f0023c78a0714d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 7 12:25:09 2016 -0800
+commit dcd9e5bc0f5899c4be5d06147c4cdbbda5b49b01
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 26 17:07:02 2015 -0400
 
-    A+C: manual updates
+    runtime: make putfull start mark workers
     
-    Add Colin Cross (Google CLA)
-    Add Quentin Perez (Individual CLA)
-    Add Andy Balholm (Individual CLA)
-    Add Dirk Gadsden (Individual CLA)
-    Add Derek Che (Yahoo CLA)
+    Currently we depend on the good graces and timing of the scheduler to
+    get opportunities to start dedicated mark workers. In the worst case,
+    it may take 10ms to get dedicated mark workers going at the beginning
+    of mark 1 and mark 2 or after the amount of available work has dropped
+    and gone back up.
     
-    And:
+    Instead of waiting for the regular preemption logic to get around to
+    us, make putfull enlist a random P if we're not already running enough
+    dedicated workers. This should improve performance stability of the
+    garbage collector and is likely to improve the overall performance
+    somewhat.
     
-    Add CL Sung (Individual CLA), but where gerrit is using personal email
-    address with CLA signed, but the git commit itself is using an
-    unverified htc.com address. The commit is:
-        https://github.com/golang/oauth2/commit/099e4f0
-    For github user https://github.com/clsung which says "Self-Employed"
-    and "clsung@gmail.com". Perhaps the self-employed part is new
-    since Sep 10, 2014.
+    No overall effect on the go1 benchmarks. It speeds up the garbage
+    benchmark by 12%, which more than counters the performance loss from
+    the previous commit.
     
-    Change-Id: Ic1130fb79d167259a9bb76e3be56b9c8ad6b95ca
-    Reviewed-on: https://go-review.googlesource.com/18369
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  6.32ms ± 4%  5.58ms ± 2%  -11.68%  (p=0.000 n=20+16)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              3.18s ± 5%     3.12s ± 4%  -1.83%  (p=0.021 n=20+20)
+    Fannkuch11-12                2.50s ± 2%     2.46s ± 2%  -1.57%  (p=0.000 n=18+19)
+    FmtFprintfEmpty-12          50.8ns ± 3%    50.4ns ± 3%    ~     (p=0.184 n=20+20)
+    FmtFprintfString-12          167ns ± 2%     171ns ± 1%  +2.46%  (p=0.000 n=20+19)
+    FmtFprintfInt-12             161ns ± 2%     163ns ± 2%  +1.81%  (p=0.000 n=20+20)
+    FmtFprintfIntInt-12          269ns ± 1%     266ns ± 1%  -0.81%  (p=0.002 n=19+20)
+    FmtFprintfPrefixedInt-12     237ns ± 2%     231ns ± 2%  -2.86%  (p=0.000 n=20+20)
+    FmtFprintfFloat-12           313ns ± 2%     313ns ± 1%    ~     (p=0.681 n=20+20)
+    FmtManyArgs-12              1.05µs ± 2%    1.03µs ± 1%  -2.26%  (p=0.000 n=20+20)
+    GobDecode-12                8.66ms ± 1%    8.67ms ± 1%    ~     (p=0.380 n=19+20)
+    GobEncode-12                6.56ms ± 1%    6.56ms ± 2%    ~     (p=0.607 n=19+20)
+    Gzip-12                      317ms ± 1%     314ms ± 2%  -1.10%  (p=0.000 n=20+19)
+    Gunzip-12                   42.1ms ± 1%    42.2ms ± 1%  +0.27%  (p=0.044 n=20+19)
+    HTTPClientServer-12         62.7µs ± 1%    62.0µs ± 1%  -1.04%  (p=0.000 n=19+18)
+    JSONEncode-12               16.7ms ± 1%    16.8ms ± 2%  +0.59%  (p=0.021 n=20+20)
+    JSONDecode-12               58.2ms ± 1%    61.4ms ± 2%  +5.43%  (p=0.000 n=18+19)
+    Mandelbrot200-12            3.84ms ± 1%    3.87ms ± 2%  +0.79%  (p=0.008 n=18+20)
+    GoParse-12                  3.86ms ± 2%    3.76ms ± 2%  -2.60%  (p=0.000 n=20+20)
+    RegexpMatchEasy0_32-12       100ns ± 2%     100ns ± 1%  -0.68%  (p=0.005 n=18+15)
+    RegexpMatchEasy0_1K-12       332ns ± 1%     342ns ± 1%  +3.16%  (p=0.000 n=19+19)
+    RegexpMatchEasy1_32-12      82.9ns ± 3%    83.0ns ± 2%    ~     (p=0.906 n=19+20)
+    RegexpMatchEasy1_1K-12       487ns ± 1%     494ns ± 1%  +1.50%  (p=0.000 n=17+20)
+    RegexpMatchMedium_32-12      131ns ± 2%     130ns ± 1%    ~     (p=0.686 n=19+20)
+    RegexpMatchMedium_1K-12     39.6µs ± 1%    39.2µs ± 1%  -1.09%  (p=0.000 n=18+19)
+    RegexpMatchHard_32-12       2.04µs ± 1%    2.04µs ± 2%    ~     (p=0.804 n=20+20)
+    RegexpMatchHard_1K-12       61.7µs ± 2%    61.3µs ± 2%    ~     (p=0.052 n=18+20)
+    Revcomp-12                   529ms ± 2%     533ms ± 1%  +0.83%  (p=0.003 n=20+19)
+    Template-12                 70.7ms ± 2%    71.0ms ± 2%    ~     (p=0.065 n=20+19)
+    TimeParse-12                 351ns ± 2%     355ns ± 1%  +1.25%  (p=0.000 n=19+20)
+    TimeFormat-12                362ns ± 2%     373ns ± 1%  +2.83%  (p=0.000 n=18+20)
+    [Geo mean]                  62.2µs         62.3µs       +0.13%
+    
+    name                      old speed      new speed      delta
+    GobDecode-12              88.6MB/s ± 1%  88.5MB/s ± 1%    ~     (p=0.392 n=19+20)
+    GobEncode-12               117MB/s ± 1%   117MB/s ± 1%    ~     (p=0.622 n=19+20)
+    Gzip-12                   61.1MB/s ± 1%  61.8MB/s ± 2%  +1.11%  (p=0.000 n=20+19)
+    Gunzip-12                  461MB/s ± 1%   460MB/s ± 1%  -0.27%  (p=0.044 n=20+19)
+    JSONEncode-12              116MB/s ± 1%   115MB/s ± 2%  -0.58%  (p=0.022 n=20+20)
+    JSONDecode-12             33.3MB/s ± 1%  31.6MB/s ± 2%  -5.15%  (p=0.000 n=18+19)
+    GoParse-12                15.0MB/s ± 2%  15.4MB/s ± 2%  +2.66%  (p=0.000 n=20+20)
+    RegexpMatchEasy0_32-12     317MB/s ± 2%   319MB/s ± 2%    ~     (p=0.052 n=20+20)
+    RegexpMatchEasy0_1K-12    3.08GB/s ± 1%  2.99GB/s ± 1%  -3.07%  (p=0.000 n=19+19)
+    RegexpMatchEasy1_32-12     386MB/s ± 3%   386MB/s ± 2%    ~     (p=0.939 n=19+20)
+    RegexpMatchEasy1_1K-12    2.10GB/s ± 1%  2.07GB/s ± 1%  -1.46%  (p=0.000 n=17+20)
+    RegexpMatchMedium_32-12   7.62MB/s ± 2%  7.64MB/s ± 1%    ~     (p=0.702 n=19+20)
+    RegexpMatchMedium_1K-12   25.9MB/s ± 1%  26.1MB/s ± 2%  +0.99%  (p=0.000 n=18+20)
+    RegexpMatchHard_32-12     15.7MB/s ± 1%  15.7MB/s ± 2%    ~     (p=0.723 n=20+20)
+    RegexpMatchHard_1K-12     16.6MB/s ± 2%  16.7MB/s ± 2%    ~     (p=0.052 n=18+20)
+    Revcomp-12                 481MB/s ± 2%   477MB/s ± 1%  -0.83%  (p=0.003 n=20+19)
+    Template-12               27.5MB/s ± 2%  27.3MB/s ± 2%    ~     (p=0.062 n=20+19)
+    [Geo mean]                99.4MB/s       99.1MB/s       -0.35%
+    
+    Change-Id: I914d8cadded5a230509d118164a4c201601afc06
+    Reviewed-on: https://go-review.googlesource.com/16298
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- AUTHORS      | 5 +++++
- CONTRIBUTORS | 6 ++++++
- 2 files changed, 11 insertions(+)
+ src/runtime/mgc.go     | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/mgcwork.go |  6 ++++++
+ 2 files changed, 39 insertions(+)

@@ -1,15 +1,25 @@
-commit d0e9a4ebfd0be15bceeeae31f56658785e66f4d4
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Feb 24 17:23:19 2020 -0500
+commit 961837dec23f900bbf8b04230c72397a0aab4be6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 3 18:55:59 2019 +0000
 
-    crypto/tls: use new ecdsa.VerifyASN1 API
+    Revert "cmd/go: add a Latest field to the output of 'go mod download -json'"
     
-    Change-Id: I2a233190bda78ca022ff4074b4553788847d7583
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220720
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    This reverts CL 183841.
+    
+    Fixes #34533
+    
+    Reason for revert: Introduced a significant performance regression for repos with many incompatible-version tags.
+    
+    Change-Id: I75d7fd76e6e1a0902b114b00167b38439e0f8221
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198699
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/tls/auth.go   | 10 +---------
- src/crypto/tls/common.go |  8 --------
- 2 files changed, 1 insertion(+), 17 deletions(-)
+ src/cmd/go/alldocs.go                              |  1 -
+ src/cmd/go/internal/modcmd/download.go             | 30 ----------------------
+ src/cmd/go/testdata/script/mod_download.txt        |  4 +--
+ src/cmd/go/testdata/script/mod_download_latest.txt | 20 ---------------
+ src/cmd/go/testdata/script/mod_list_upgrade.txt    | 20 ---------------
+ 5 files changed, 1 insertion(+), 74 deletions(-)

@@ -1,12 +1,14 @@
-commit 36b6d1aaf20fa78532f83df48ebf1a12a2dd81af
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Tue Apr 12 16:21:01 2011 -0400
+commit 4fe9f574139edfaca94fb30f629d9c32348a3cac
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 12 11:03:05 2011 -0700
 
-    8l: correct Plan 9 compiler warnings
+    fmt: allow %U for unsigned integers.
+    Suggested by jan.mercl@nic.cz.
     
-    R=golang-dev, rsc
+    R=rsc, jnml
     CC=golang-dev
-    https://golang.org/cl/4390047
+    https://golang.org/cl/4376054
 
- src/cmd/8l/asm.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/pkg/fmt/fmt_test.go | 1 +
+ src/pkg/fmt/print.go    | 2 ++
+ 2 files changed, 3 insertions(+)

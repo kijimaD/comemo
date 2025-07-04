@@ -1,14 +1,16 @@
-commit 02991bb960b4dcbcd9f9450d16df2251d964ed06
+commit 3b76d70e11f7800bfca64f4e267f3df14881a7e5
 Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 25 10:52:37 2013 +1000
+Date:   Tue Jun 25 10:14:40 2013 +1000
 
-    libmach: trivial: resolve unused parameter warnings
+    syscall: reduce duplication between *bsd and linux
     
-    Fix a bunch of warnings detected by https://golang.org/cl/8090044
+    Part 2 of several.
     
-    R=golang-dev, bradfitz
+    R=rsc, mikioh.mikioh, r
     CC=golang-dev
-    https://golang.org/cl/10483044
+    https://golang.org/cl/10462043
 
- src/libmach/darwin.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/syscall/syscall_bsd.go   | 42 ++--------------------------------------
+ src/pkg/syscall/syscall_linux.go | 36 ----------------------------------
+ src/pkg/syscall/syscall_unix.go  | 36 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 76 deletions(-)

@@ -1,22 +1,31 @@
-commit 0d9ed0638be1aa5c68c1bef0713c338e206a6656
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Aug 9 10:32:59 2022 -0400
+commit 23832ba2e2fb396cda1dacf3e8afcb38ec36dcba
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 26 19:13:22 2021 -0700
 
-    test: skip -buildmode=pie tests on alpine
+    reflect: optimize for maps with string keys
     
-    Skip a collection of -buildmode=pie tests on alpine, which are
-    currently failing on the linux-amd64-alpine builder. Once #54354 has
-    been investigated and resolved we can turn these tests back on.
+    Over 80% of all Go map types use a string as the key.
+    The Go runtime already has a specialized implementation for such maps
+    in runtime/map_faststr.go. However, the Go reflection implementation
+    has not historically made use of that implementation.
     
-    Updates #54354.
+    This CL plumbs the appropriate logic to be accessible from Go reflection
+    so that it can benefit as well.
     
-    Change-Id: I99d4016a40873ee6bb4eda571a64eddbe719c76a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422295
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+        name                            old time/op    new time/op    delta
+        Map/StringKeys/MapIndex-4       4.65us ± 5%    2.95us ± 3%  -36.50%  (p=0.016 n=4+5)
+        Map/StringKeys/SetMapIndex-4    7.47us ± 5%    5.27us ± 2%  -29.40%  (p=0.008 n=5+5)
+        Map/Uint64Keys/MapIndex-4       3.79us ± 3%    3.75us ± 2%     ~     (p=0.548 n=5+5)
+        Map/Uint64Keys/SetMapIndex-4    6.13us ± 3%    6.09us ± 1%     ~     (p=0.746 n=5+5)
+    
+    Change-Id: I5495d48948d8caf2d004a03ae1820ab5f8729670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345486
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testshared/shared_test.go |  3 +++
- src/cmd/dist/test.go               | 17 +++++++++++++----
- src/cmd/go/go_test.go              |  4 ++++
- 3 files changed, 20 insertions(+), 4 deletions(-)
+ src/reflect/all_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 46 ++++++++++++++++++++++++++++++++++++++++------
+ src/runtime/map.go      | 21 +++++++++++++++++++++
+ 3 files changed, 108 insertions(+), 6 deletions(-)

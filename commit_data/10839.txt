@@ -1,12 +1,12 @@
-commit ecc317647b831c44af46af5ecee29f62ff815e7c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Dec 16 19:50:55 2011 +0900
+commit 8fa8ebf834d2027cc598d68f46e0855b94ad63a1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 16 15:52:30 2011 +1100
 
-    net: sort Makefile entries
+    go/build: make sure syslist.go is gofmted
     
-    R=golang-dev, jsing
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5493058
+    https://golang.org/cl/5490051
 
- src/pkg/net/Makefile | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/go/build/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,27 +1,26 @@
-commit c95a8e458fdf9f3cb0c176ac92a513e5dc9b32c1
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 5 18:32:21 2016 -0400
+commit 6394eb378eb6b2c0e691c519b2a6664f930b427e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 23 16:02:19 2016 -0700
 
-    runtime: make markrootSpans time proportional to in-use spans
+    cmd/compile: export package for _ (blank) struct fields
     
-    Currently markrootSpans iterates over all spans ever allocated to find
-    the in-use spans. Since we now have a list of in-use spans, change it
-    to iterate over that instead.
+    Blank struct fields are regular unexported fields. Two
+    blank fields are different if they are from different
+    packages. In order to correctly differentiate them, the
+    compiler needs the package information. Add it to the
+    export data.
     
-    This, combined with the previous change, fixes #9265. Before these two
-    changes, blowing up the heap to 8GB and then shrinking it to a 0MB
-    live set caused the small-heap portion of the test to run 60x slower
-    than without the initial blowup. With these two changes, the time is
-    indistinguishable.
+    Fixes #15514.
     
-    No significant effect on other benchmarks.
-    
-    Change-Id: I4a27e533efecfb5d18cba3a87c0181a81d0ddc1e
-    Reviewed-on: https://go-review.googlesource.com/30536
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I421aaca22b542fcd0d66b2d2db777249cad78df6
+    Reviewed-on: https://go-review.googlesource.com/27639
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgcmark.go     | 16 +++++++++-------
- src/runtime/mgcsweepbuf.go | 47 +++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 55 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |  7 ++-----
+ src/cmd/compile/internal/gc/bimport.go |  7 +------
+ src/go/internal/gcimporter/bimport.go  | 10 +++-------
+ test/fixedbugs/issue15514.dir/a.go     |  7 +++++++
+ test/fixedbugs/issue15514.dir/b.go     |  7 +++++++
+ test/fixedbugs/issue15514.dir/c.go     | 10 ++++++++++
+ test/fixedbugs/issue15514.go           |  7 +++++++
+ 7 files changed, 37 insertions(+), 18 deletions(-)

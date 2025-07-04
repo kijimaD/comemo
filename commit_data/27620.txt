@@ -1,15 +1,30 @@
-commit 14968bc1e52842b098408516472ebd3fb97e4714
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Jun 2 15:42:14 2016 +0200
+commit 7e0d66020c49ef56158346ce18dc3f538393829e
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Apr 4 18:22:29 2016 +0200
 
-    cmd/dist: skip an unsupported test on darwin/arm
+    testing: improve output
     
-    Fixes the darwin/arm builder (I hope)
+    This introduces a few changes
+    - Skipped benchmarks now print a SKIP line, also if there was
+    no output
+    - The benchmark name is only printed if there the benchmark
+    was not skipped or did not fail in the probe phase.
     
-    Change-Id: I8a3502a1cdd468d4bf9a1c895754ada420b305ce
-    Reviewed-on: https://go-review.googlesource.com/23684
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    It also fixes a bug of doubling a skip message in chatty mode in
+    absense of a failure.
+    
+    The chatty flag is now passed in the common struct to allow
+    for testing of the printed messages.
+    
+    Fixes #14799
+    
+    Change-Id: Ia8eb140c2e5bb467e66b8ef20a2f98f5d95415d5
+    Reviewed-on: https://go-review.googlesource.com/21504
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/benchmark.go |  45 ++++++++++++++++---
+ src/testing/sub_test.go  | 110 ++++++++++++++++++++++++++++++++++++++++++++++-
+ src/testing/testing.go   |  16 ++++---
+ 3 files changed, 158 insertions(+), 13 deletions(-)

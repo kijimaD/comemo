@@ -1,25 +1,35 @@
-commit ee0e40aaef3dc5c6fb8612dd80622e02fc4b574f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 7 23:12:53 2022 +0700
+commit 77f2750f4398990eed972186706f160631d7dae4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 2 16:51:59 2021 -0400
 
-    reflect: use cgo.Incomplete instead of go:notinheap in tests
+    misc/wasm, cmd/link: do not let command line args overwrite global data
     
-    go:notinheap will be replaced by runtime/internal/sys.NotInHeap, and for
-    longer term, we want to restrict all of its usages inside the runtime
-    package only.
+    On Wasm, wasm_exec.js puts command line arguments at the beginning
+    of the linear memory (following the "zero page"). Currently there
+    is no limit for this, and a very long command line can overwrite
+    the program's data section. Prevent this by limiting the command
+    line to 4096 bytes, and in the linker ensuring the data section
+    starts at a high enough address (8192).
     
-    Updates #46731
+    (Arguably our address assignment on Wasm is a bit confusing. This
+    is the minimum fix I can come up with.)
     
-    Change-Id: I267adc2a19f0dc8a1ed29b5b4aeec1a7dc7318d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421880
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Thanks to Ben Lubar for reporting this issue.
+    
+    Fixes #48797
+    Fixes CVE-2021-38297
+    
+    Change-Id: I0f50fbb2a5b6d0d047e3c134a88988d9133e4ab3
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1205933
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354571
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/reflect/all_test.go  | 22 ----------------------
- src/reflect/deepequal.go |  6 +++---
- src/reflect/nih_test.go  | 38 ++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go     |  4 ++--
- 4 files changed, 43 insertions(+), 27 deletions(-)
+ misc/wasm/wasm_exec.js           |  7 +++++++
+ src/cmd/link/internal/ld/data.go | 11 ++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

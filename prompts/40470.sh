@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40470: bf670bd83c849b56426c63b49f28121210a627ca
+# Index 40470: dccd5da08eb45923df9fb9ee2a05a9fbbe8c185c
 
 echo "🚀 Generating explanation for commit 40470..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40470
-- **コミットハッシュ**: bf670bd83c849b56426c63b49f28121210a627ca
-- **GitHub URL**: https://github.com/golang/go/commit/bf670bd83c849b56426c63b49f28121210a627ca
+- **コミットハッシュ**: dccd5da08eb45923df9fb9ee2a05a9fbbe8c185c
+- **GitHub URL**: https://github.com/golang/go/commit/dccd5da08eb45923df9fb9ee2a05a9fbbe8c185c
 
 ### 章構成
 

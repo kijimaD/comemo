@@ -1,20 +1,20 @@
-commit c0914d5df3f12449f52e26eb0aaa58661ad92250
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 20 15:09:41 2018 -0800
+commit 21e85c293d02f8cb243b387b37a3d9c1c16305f7
+Author: Taesu Pyo <pyotaesu@gmail.com>
+Date:   Tue Aug 28 15:56:10 2018 +0000
 
-    os: add SyscallConn method for os.File
+    encoding/json: fix UnmarshalTypeError without field and struct values
     
-    Fixes #24331
+    Fixes #26444
+    Fixes #27275
     
-    Change-Id: I119c09a4259d852cdf8ea31b3e03e6f09a5f7bda
-    Reviewed-on: https://go-review.googlesource.com/c/155517
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9e8cbff79f7643ca8964c572c1a98172b6831730
+    GitHub-Last-Rev: 7eea2158b67ccab34b45a21e8f4289c36de02d93
+    GitHub-Pull-Request: golang/go#26719
+    Reviewed-on: https://go-review.googlesource.com/126897
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file.go            |  9 +++++++
- src/os/file_plan9.go      | 18 +++++++++++++
- src/os/os_unix_test.go    |  3 +++
- src/os/os_windows_test.go |  3 +++
- src/os/rawconn.go         | 47 ++++++++++++++++++++++++++++++++++
- src/os/rawconn_test.go    | 65 +++++++++++++++++++++++++++++++++++++++++++++++
- src/syscall/net.go        |  2 +-
- 7 files changed, 146 insertions(+), 1 deletion(-)
+ src/encoding/json/decode.go      |  6 +++---
+ src/encoding/json/decode_test.go | 17 +++++++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

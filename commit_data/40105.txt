@@ -1,21 +1,24 @@
-commit 0000f0be0a3d357de56839330b5ccf04f4d593fe
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Oct 1 13:36:07 2019 -0700
+commit 4312a18b8a1d7d35dcc45cdf4280260c3933a2ed
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Apr 17 01:44:24 2019 +0000
 
-    cmd/compile:  add an explicit test for compile of arch.ZeroRange
+    runtime/cgo: declare variable setg_gcc as static
     
-    Add a test that causes generation of arch.ZeroRange calls of various sizes 8-136
-    bytes in the compiler. This is to test that ZeroRanges of various sizes actually
-    compile on different architectures, but is not testing runtime correctness (which
-    is hard to do).
+    variable setg_gcc in runtime/cgo/*.c should be static, otherwise it
+    will be mixed with the function of the same name in runtime/asm_*.s or
+    tls_*.s, which causes an error when building PIE with internal linking
+    mode.
     
-    Updates #34604
+    Fixes #31485
     
-    Change-Id: I4131eb86669bdfe8d4e36f4ae5c2a7b069abd6c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198045
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I79b311ffcaf450984328db65397840ae7d85e65d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172498
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/zerorange_test.go | 98 +++++++++++++++++++++++++++
- 1 file changed, 98 insertions(+)
+ src/runtime/cgo/gcc_darwin_arm.c    | 2 +-
+ src/runtime/cgo/gcc_darwin_arm64.c  | 2 +-
+ src/runtime/cgo/gcc_linux_arm.c     | 2 +-
+ src/runtime/cgo/gcc_linux_arm64.c   | 2 +-
+ src/runtime/cgo/gcc_linux_mips64x.c | 2 +-
+ src/runtime/cgo/gcc_linux_mipsx.c   | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

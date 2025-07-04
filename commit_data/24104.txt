@@ -1,15 +1,28 @@
-commit 16cf8802f87de8738a585d7cd46a388e2afc9388
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Aug 28 14:51:13 2015 +1000
+commit a625b919163e76c391f2865d1f956c0f16d90f83
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 10 11:52:39 2015 +1000
 
-    doc/go1.6.txt: start go1.6.txt with a note about nacl
+    cmd/doc: submit to the punched card tyranny
     
-    Start go1.6.txt with a note that nacl ports are no longer
-    restricted to pepper_41 and a record of the text/template change.
+    People use 80-column terminals because their grandparents used
+    punched cards. When I last used a punched card, in 1978, it seemed
+    antiquated even then. But today, people still set their terminal
+    widths to 80 to honor the struggles their fallen ancestors made to
+    endure this painful technology.
     
-    Change-Id: I21dda64aec113c35caf1d565f29e3aac8171480a
-    Reviewed-on: https://go-review.googlesource.com/14004
-    Reviewed-by: Rob Pike <r@golang.org>
+    We must all stand and salute the 80 column flag, or risk the opprobium
+    of our peers.
+    
+    For Pete's sake, I don't even use a fixed-width font. I don't even
+    believe in columns.
+    
+    Fixes #11639 with extreme reluctance.
+    
+    P.S. To avoid the horror of an automatically folded line of text, this commit message has been formatted to fit on an 80-column line, except for this postscript.
+    
+    Change-Id: Ia2eb2dcf293dabe804c22ee5abb4bbb703f45c33
+    Reviewed-on: https://go-review.googlesource.com/12011
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.6.txt | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/doc/pkg.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

@@ -1,19 +1,12 @@
-commit b79db4f2fd76cf1d8ce58144fc609a08ab5dd7b3
-Author: Aymerick <aymerick@jehanne.org>
-Date:   Wed Apr 29 11:33:41 2015 +0200
+commit 985461fd9ee121642fd30ae774d2b4d2b54606c2
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Apr 11 21:25:35 2015 +0300
 
-    text/template: ensures code consistency in lexer
+    cmd/go: fix error message
     
-    At the end of lexInsideAction(), we return lexInsideAction: this is the default
-    behaviour when we are still parsing an action. But some switch branches return
-    lexInsideAction too.
-    
-    So let's ensure code consistency by always reaching the end of the
-    lexInsideAction function when needed.
-    
-    Change-Id: I7e9d8d6e51f29ecd6db6bdd63b36017845d95368
-    Reviewed-on: https://go-review.googlesource.com/9441
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I440435927fc9f417d81ed4e8656a73787bf0968a
+    Reviewed-on: https://go-review.googlesource.com/8801
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/parse/lex.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/testflag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

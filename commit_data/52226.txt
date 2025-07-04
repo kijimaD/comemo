@@ -1,28 +1,32 @@
-commit c9389a5849d65b74287cd2746a94748d6d64cb44
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 9 16:17:30 2023 -0500
+commit caa46312eeca1275ce22ecf8985ca31ef8de7883
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 3 11:00:54 2021 -0500
 
-    cmd/link: use only the configured C compiler in TestCGOLTO
+    cmd/link: use TOC-relative trampolines on PPC64 when needed
     
-    The test had been assuming that any 'gcc' or 'clang' command found in
-    $PATH could be used to compile cgo dependencies for the target GOARCH
-    and GOOS. That assumption does not hold in general: for example,
-    the GOARCH/GOOS configuration may be cross-compiling, which will cause
-    the test to fail if the native 'gcc' and/or 'clang' is not configured
-    for the target architecture.
+    When linking a PIE binary with the internal linker, TOC relative
+    relocations need to be generated. Update trampolines to indirect
+    call using R12 to more closely match the AIX/ELFv2 regardless of
+    buildmode, and work with position-indepdent code.
     
-    Instead, leave the 'CC' variable unset and assume only that the user
-    has configured it appropriate to the environment in which they are
-    running the test.
+    Likewise, update the check for offseting R_CALLPOWER relocs to
+    make a local call. It should be checking ldr.AttrExternal, not
+    ldr.IsExternal. This offset should not be adjusted for external
+    (non-go) object files, it is handled when ELF reloc are translated
+    into go relocs.
     
-    For #58829.
+    And, update trampoline tests to verify these are generated correctly
+    and produce a working binary using -buildmode=pie on ppc64le.
     
-    Change-Id: I9a1269ae3e0b4af281702114dabba844953f74bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475155
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #52337
+    
+    Change-Id: I8a2dea06c3237bdf0e87888b56a17b6c4c99a7de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400234
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/cgo_test.go | 41 ++++++++++++++++++++++++-----------------
- 1 file changed, 24 insertions(+), 17 deletions(-)
+ src/cmd/link/internal/ppc64/asm.go | 51 +++++++++-----------
+ src/cmd/link/link_test.go          | 98 +++++++++++++++++++++-----------------
+ 2 files changed, 78 insertions(+), 71 deletions(-)

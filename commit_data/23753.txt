@@ -1,18 +1,35 @@
-commit f35868a49a6b337806faf49824c6dba1870c2649
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 19 18:20:06 2015 -0700
+commit d574b59fc71e52ac7feead94348ee61ef8d16a1c
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Sun May 10 15:35:52 2015 +0200
 
-    cmd/go: don't run TestInstalls in short mode
+    os: fix a race between Process.signal() and wait() on Windows
     
-    It changes GOROOT, so we shouldn't run it in short mode.  Also, it's
-    fairly slow.
+    Process.handle was accessed without synchronization while wait() and
+    signal() could be called concurrently.
     
-    Update #11779.
+    A first solution was to add a Mutex in Process but it was probably too
+    invasive given Process.handle is only used on Windows.
     
-    Change-Id: I3d3344954cf9b2ac70070c878a67cb65ac8fd85c
-    Reviewed-on: https://go-review.googlesource.com/12364
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    This version uses atomic operations to read the handle value. There is
+    still a race between isDone() and the value of the handle, but it only
+    leads to slightly incorrect error codes. The caller may get a:
+    
+      errors.New("os: process already finished")
+    
+    instead of:
+    
+      syscall.EINVAL
+    
+    which sounds harmless.
+    
+    Fixes #9382
+    
+    Change-Id: Iefcc687a1166d5961c8f27154647b9b15a0f748a
+    Reviewed-on: https://go-review.googlesource.com/9904
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/os/exec.go         |  4 ++--
+ src/os/exec_windows.go | 18 +++++++++++-------
+ 2 files changed, 13 insertions(+), 9 deletions(-)

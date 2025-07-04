@@ -1,20 +1,16 @@
-commit 47b04228858e9a4a767acd12a029e59d582f3ba1
-Author: Burcu Dogan <jbd@google.com>
-Date:   Wed Feb 24 11:58:57 2016 -0800
+commit 1dae47378cd32c3bdc0351f7eed71bd3d3aaf364
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Nov 26 10:33:45 2015 +0100
 
-    os: fix tests on brillo
+    unicode/utf8: add test for FullRune
     
-    Not every Android contains the /system/framework directory, e.g. Brillo.
-    Test against other Android-only system files.
+    Check that it now properly handles \xC0 and \xC1.
     
-    Fixes #14489.
+    Fixes #11733.
     
-    Change-Id: I6d9ec1c4d4ceba3803798015e6917d59cf515de8
-    Reviewed-on: https://go-review.googlesource.com/19904
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Burcu Dogan <jbd@google.com>
-    Run-TryBot: Burcu Dogan <jbd@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I66cfe0d43f9d123d4c4509a3fa18b9b6380dfc39
+    Reviewed-on: https://go-review.googlesource.com/17225
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/os_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/unicode/utf8/utf8_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

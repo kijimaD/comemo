@@ -1,20 +1,19 @@
-commit dea67a9b342ff5205e780b2d4e7d7671df301ba2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 16:27:01 2022 +0700
+commit ccfc41eee01772576f83784ae44578e955e4ae6f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 13:13:08 2021 -0400
 
-    runtime: convert netpoll netpollInited to atomic type
+    cmd/compile: check out-of-range shifts on ARM and ARM64
     
-    Updates #53821
+    When encoding ARM or ARM64 shifted register operand, check that
+    the shift is in range.
     
-    Change-Id: Ifa2e5f5d4047117b1887c1e56851355547bb4f33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423881
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: If0014933bfd0a1b8eaaa01e0220a6eeb17ab9f40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351530
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/netpoll.go      | 10 +++++-----
- src/runtime/netpoll_stub.go |  6 +++---
- src/runtime/time.go         |  2 +-
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go   | 51 ++++++++++++++++++-----------------
+ src/cmd/compile/internal/arm64/ssa.go | 33 ++++++++++++-----------
+ 2 files changed, 45 insertions(+), 39 deletions(-)

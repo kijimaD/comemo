@@ -1,18 +1,35 @@
-commit 7ad512e7ffe576c4894ea84b02e954846fbda643
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Feb 8 13:05:25 2017 -0800
+commit 8eca08611ac1c65622400f526ab5b9065a4c9d67
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Oct 26 14:31:48 2016 -0700
 
-    time: format negative monotonic times correctly in Time.String
+    unicode/utf8: optimize ValidRune
     
-    Fixes #18993
+    Re-writing the switch statement as a single boolean expression
+    reduces the number of branches that the compiler generates.
+    It is also arguably easier to read as a pair of numeric ranges
+    that valid runes can exist in.
     
-    Change-Id: Ia1fa20b6d82384b07e9ba5512b909439e0bec2a5
-    Reviewed-on: https://go-review.googlesource.com/36611
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    No test changes since the existing test does a good job of
+    testing all of the boundaries.
+    
+    This change was to gain back some performance after a correctness
+    fix done in http://golang.org/cl/32123.
+    
+    The correctness fix (CL/32123) slowed down the benchmarks slightly:
+            benchmark                   old ns/op     new ns/op     delta
+            BenchmarkIndexRune/10-4     19.3          21.6          +11.92%
+            BenchmarkIndexRune/32-4     33.6          35.2          +4.76%
+    
+    Since the fix relies on utf8.ValidRune, this CL improves benchmarks:
+            benchmark                   old ns/op     new ns/op     delta
+            BenchmarkIndexRune/10-4     21.6          20.0          -7.41%
+            BenchmarkIndexRune/32-4     35.2          33.5          -4.83%
+    
+    Change-Id: Ib1ca10a2e29c90e879a8ef9b7221c33e85d015d8
+    Reviewed-on: https://go-review.googlesource.com/32122
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/format.go    | 12 ++++--------
- src/time/mono_test.go | 40 +++++++++++++++++++++++-----------------
- 2 files changed, 27 insertions(+), 25 deletions(-)
+ src/unicode/utf8/utf8.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

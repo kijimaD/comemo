@@ -1,23 +1,13 @@
-commit 789c5255a4ee2bca8906baa15fc3e400054ff44d
-Author: Eitan Adler <lists@eitanadler.com>
-Date:   Sun Mar 5 09:14:38 2017 -0800
+commit 66477ec8307e18f751996d92ac8741596a23615a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Nov 10 19:02:07 2016 -0500
 
-    all: remove the the duplicate words
+    reflect: rename, document TestUnaddressableField
     
-    Change-Id: I6343c162e27e2e492547c96f1fc504909b1c03c0
-    Reviewed-on: https://go-review.googlesource.com/37793
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I94e0f3e4bccd44a67934ddb4d5fc7da57bb8ac9f
+    Reviewed-on: https://go-review.googlesource.com/33112
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/archive/zip/zip_test.go                  | 2 +-
- src/cmd/compile/internal/ssa/rewrite_test.go | 2 +-
- src/cmd/compile/internal/x86/387.go          | 2 +-
- src/cmd/internal/obj/link.go                 | 2 +-
- src/cmd/internal/obj/objfile.go              | 2 +-
- src/math/big/float.go                        | 2 +-
- src/mime/encodedword.go                      | 2 +-
- src/net/smtp/smtp.go                         | 2 +-
- src/runtime/mheap.go                         | 2 +-
- 9 files changed, 9 insertions(+), 9 deletions(-)
+ src/reflect/all_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

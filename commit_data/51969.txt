@@ -1,26 +1,25 @@
-commit f7b32f5281888ee02f384230c48e91af2120f8b8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 14:02:55 2023 -0500
+commit c3fcd0117784ac05e35120ac0de6c960b400a31e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 18:21:37 2022 -0800
 
-    runtime: skip darwin osinit_hack on ios
+    go/build: recognize "unix" build tag
     
-    Darwin needs the osinit_hack call to fix some bugs in the Apple libc
-    that surface when Go programs call exec. On iOS, the functions that
-    osinit_hack uses are not available, so signing fails. But on iOS exec
-    is also unavailable, so the hack is not needed. Disable it there,
-    which makes signing work again.
+    The new "unix" build tag matches any Unix or Unix-like system.
+    This is only recognized on go:build lines, not in file names.
     
-    Fixes #58323.
+    For #20322
+    Fixes #51572
     
-    Change-Id: I3f1472f852bb36c06854fe1f14aa27ad450c5945
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466516
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dave Anderson <danderson@tailscale.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3a991f9e69353b25e259bc6462709cdcd83640fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389934
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/sys_darwin.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go               | 37 +++++++++++++++++++++++++++++++++----
+ src/cmd/go/alldocs.go               |  1 +
+ src/cmd/go/internal/help/helpdoc.go |  1 +
+ src/go/build/build.go               |  3 +++
+ src/go/build/syslist.go             | 27 ++++++++++++++++++++++++---
+ 5 files changed, 62 insertions(+), 7 deletions(-)

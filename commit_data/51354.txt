@@ -1,69 +1,13 @@
-commit 1f4394a0c92697896735a5c0135dfde1be9f42bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 17 14:24:06 2022 -0500
+commit d382493a20cf005c6631032ebb410a7c2bc768eb
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 14 15:23:47 2022 -0500
 
-    runtime: work around Apple libc bugs to make exec stop hanging
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    For a while now, we've had intermittent reports about problems with
-    os/exec on macOS, but no clear way to reproduce them. Recent changes
-    in the os/exec package test seem to have aligned the stars just right,
-    at least on my two x86 and ARM MacBook Pro laptops, to make the
-    package test hang with roughly 50% probability. When it does hang, the
-    stacks I see in the hung process match the ones reported for the
-    Go-based hangs in #33565. (They do not match the ones reported in the
-    so-called C reproducer in that issue, but I think that reproducer is
-    actually reproducing a different race, between fork and exit.)
-    
-    The stacks obtained from the hung child processes are in
-    libSystem_atfork_child, which is supposed to reinitialize various
-    parts of the C library in the new process.
-    
-    One common stack dies in _notify_fork_child calling _notify_globals
-    (inlined) calling _os_alloc_once, because _os_alloc_once detects that
-    the once lock is held by the parent process and then calls
-    _os_once_gate_corruption_abort. The allocation is setting up the
-    globals for the notification subsystem. See the source code at [1].
-    To work around this, we can allocate the globals earlier in the Go
-    program's lifetime, before any execs are involved, by calling any
-    notify routine that is exported, calls _notify_globals, and doesn't do
-    anything too expensive otherwise. notify_is_valid_token(0) fits the bill.
-    
-    The other common stack dies in xpc_atfork_child calling
-    _objc_msgSend_uncached which ends up in
-    WAITING_FOR_ANOTHER_THREAD_TO_FINISH_CALLING_+initialize. Of course,
-    whatever thread the child is waiting for is in the parent process and
-    is not going to finish anything in the child process. There is no
-    public source code for these routines, so it is unclear exactly what
-    the problem is. However, xpc_atfork_child turns out to be exported
-    (for use by libSystem_atfork_child, which is in a different library,
-    so xpc_atfork_child is unlikely to be unexported any time soon).
-    It also stands to reason that since xpc_atfork_child is called at the
-    start of any forked child process, it can't be too harmful to call at
-    the start of an ordinary Go process. And whatever caches it needs for
-    a non-deadlocking fast path during exec empirically do get initialized
-    by calling it at startup.
-    
-    This CL introduces a function osinit_hack, called at osinit time,
-    which calls notify_is_valid_token(0) and xpc_atfork_child().
-    Doing so makes the os/exec test pass reliably on both my laptops -
-    I can run it successfully hundreds of times in a row when my previous
-    record was twice in a row.
-    
-    Fixes #33565.
-    Fixes #56784.
-    
-    [1] https://opensource.apple.com/source/Libnotify/Libnotify-241/notify_client.c.auto.html
-    
-    
-    Change-Id: I16a14a800893c40244678203532a3e8d6214b6bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451735
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ifbfea6bdbff172d4fbcbf231d6be180c83776e4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378588
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/os_darwin.go       |  2 ++
- src/runtime/sys_darwin.go      | 48 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/sys_darwin_amd64.s |  9 ++++++++
- src/runtime/sys_darwin_arm64.s |  6 ++++++
- 4 files changed, 65 insertions(+)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

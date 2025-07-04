@@ -1,34 +1,20 @@
-commit b0e7f95aacbfed6cca892859ec2589c3bd7cf0b8
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Tue Feb 18 12:41:34 2025 -0500
+commit b0799674677921ba87cd71f42ba6467478a66c63
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Jan 26 11:19:22 2024 -0500
 
-    crypto/tls: run SkipNewSessionTicket bogo test
+    doc/README: clarify instructions
     
-    This commit removes SkipNewSessionTicket from the bogo_config.json
-    excluded tests list.
+    - State that new markdown files belong in doc/next.
+    - Give hints on correct markdown syntax.
     
-    Previously this test was being skipped with a TODO that there might be
-    a bug here. In practice it seems like there's no bug and the test is
-    handled correctly by crypto/tls.
+    For #64169
     
-    When activated, a TLS 1.2 client connecting to the bogo dispatcher goes
-    through the normal handshake process with the exception that the server
-    skips sending the NewSessionTicket msg expected by the client in
-    response to the client's final flight of handshake msgs.
-    
-    The crypto/tls TLS 1.2 client_handshake.go logic correctly rejects the
-    unexpected message that follows (ChangeCipherSpec) when trying to read
-    the bytes necessary to unmarshal the expected NewSessionTicket message
-    that was omitted.
-    
-    Updates #72006
-    
-    Change-Id: I9faea4d18589d10b163211aa17b2d0da8af1187e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650736
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: Ied70e7ac443530c910eea2992ca6e303bbc10499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558855
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/crypto/tls/bogo_config.json | 1 -
- 1 file changed, 1 deletion(-)
+ doc/README.md | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit aa97a012b4be393c1725c16a78b92dea81632378
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 26 12:58:29 2024 +0000
+
+    cmd/compile: add script testing facility for compiler use
+    
+    Add support for running script tests as part of the compiler's suite
+    of tests, hooking in the script test engine packages recently moved
+    from cmd/go to cmd/internal. These script tests will use the test
+    binary itself as the compile tool for Go builds, and can also run the
+    C compiler if needed. New script test cases (*.txt files) should be
+    added to the directory cmd/compile/testdata/script.
+    
+    Updates #68606.
+    
+    Change-Id: I9b056a07024b0a72320a89ad734e4b4a51f1c10c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601361
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/script_test.go                     | 62 ++++++++++++++++++++++
+ .../compile/testdata/script/script_test_basics.txt | 24 +++++++++
+ 2 files changed, 86 insertions(+)

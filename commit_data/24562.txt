@@ -1,25 +1,44 @@
-commit 26fe24cbe2ce13fba899e46055132226cf88c6d9
-Author: Thorben Krueger <thorben.krueger@gmail.com>
-Date:   Wed Oct 14 19:18:59 2015 +0000
+commit f51b7fbdc402716c282a2767ecc9a22e7d977316
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Aug 5 10:55:41 2015 -0700
 
-    fmt: Add support for capital '%X' format verb for scanning
+    crypto/tls: update testing certificates.
     
-    For printing, the format verb '%X' results in a capitalized
-    hex-representation of the formatted value. Conversely, using
-    '%X' in a Scanf function should scan a hex-representation
-    into the given interface{}. The existing implementation
-    however only supports '%X' for scanning hex values into
-    integers; strings or byte slices remain empty. On the other
-    hand, lower-case '%x' supports strings and byte slices just
-    fine. This is merely an oversight, which this commit fixes.
-    (Additional tests also included.)
+    This change alters the certificate used in many tests so that it's no
+    longer self-signed. This allows some tests to exercise the standard
+    certificate verification paths in the future.
     
-        Fixes #12940
-    
-    Change-Id: I178a7f615bae950dfc014ca8c0a038448cf0452a
-    Reviewed-on: https://go-review.googlesource.com/15689
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I9c3fcd6847eed8269ff3b86d9b6966406bf0642d
+    Reviewed-on: https://go-review.googlesource.com/13244
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/fmt/scan.go      | 4 ++--
- src/fmt/scan_test.go | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/crypto/tls/handshake_server_test.go            |  12 +-
+ src/crypto/tls/testdata/Server-SSLv3-RSA-3DES      | 145 ++++++++---------
+ src/crypto/tls/testdata/Server-SSLv3-RSA-AES       | 147 ++++++++---------
+ src/crypto/tls/testdata/Server-SSLv3-RSA-RC4       | 137 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv10-RSA-3DES     | 137 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv10-RSA-AES      | 143 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv10-RSA-RC4      | 131 ++++++++-------
+ src/crypto/tls/testdata/Server-TLSv11-RSA-RC4      | 131 ++++++++-------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         | 180 ++++++++++-----------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 180 ++++++++++-----------
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  84 +++++-----
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     | 173 ++++++++++----------
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven | 159 +++++++++---------
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      | 158 +++++++++---------
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      | 140 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  | 151 +++++++++--------
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   | 151 +++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     | 142 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES      | 146 ++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  | 164 +++++++++----------
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   | 164 +++++++++----------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      | 136 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  60 +++----
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 157 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-SNI          |  56 +++----
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  |  58 +++----
+ .../Server-TLSv12-SNI-GetCertificateNotFound       |  58 +++----
+ 27 files changed, 1676 insertions(+), 1824 deletions(-)

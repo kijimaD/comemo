@@ -1,16 +1,15 @@
-commit a0c227af734669e0b73483ce03c31268c1134339
-Author: Keith Randall <khr@google.com>
-Date:   Tue Mar 5 12:37:25 2019 -0800
+commit b4150f76144808bf0015fe23be0e2ade32a14599
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 12 14:55:17 2018 -0700
 
-    cmd/compile: regenerate op_string
+    cmd/compile: remove ineffectual -i flag
     
-    I missed regenerating op_string.go in CL 152537 (adding OINLMARK op).
+    This flag lost its usefulness in CL 34273.
     
-    Change-Id: I929540087b817b6a1b0256c1e65341615e61ef40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165359
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I033c29f105937139b4e359a340906be439f1ed07
+    Reviewed-on: https://go-review.googlesource.com/c/141646
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/op_string.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,13 +1,18 @@
-commit a083fd524ad83dc46552cf1f8673a7683c3edde1
+commit 1913fdab98b0eb5ca965146d986ddb0fc2100f74
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Sep 16 11:28:53 2011 +0200
+Date:   Fri Sep 16 11:27:05 2011 +0200
 
-    exp/norm: reverting to using strings.Repeat, as it doesn't look like exp/regexp
-    is going to support returning multiple matches for a single repeated group.
+    exp/norm: changed trie to produce smaller tables.
+    Trie now uses sparse block when this makes sense.
     
-    R=r, rsc, mpvl
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/5014045
+    https://golang.org/cl/5010043
 
- src/pkg/exp/norm/normregtest.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/exp/norm/maketesttables.go |    1 +
+ src/pkg/exp/norm/tables.go         | 6030 +++++++++++++++++++-----------------
+ src/pkg/exp/norm/trie.go           |   83 +-
+ src/pkg/exp/norm/trie_test.go      |   39 +-
+ src/pkg/exp/norm/triedata_test.go  |   76 +-
+ src/pkg/exp/norm/triegen.go        |  159 +-
+ 6 files changed, 3377 insertions(+), 3011 deletions(-)

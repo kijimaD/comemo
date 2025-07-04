@@ -1,19 +1,12 @@
-commit f5cf0a486ecded2e5200b53973cc53c74d1f25aa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 14 13:35:22 2011 -0800
+commit 4bd15ae1b72c5488a06ea1365d0090d76699770c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 13:12:08 2011 -0800
 
-    math/big: replace nat{} -> nat(nil)
-    
-    No need for creating a new nat each time.
-    Per Roger Peppe's suggestion; assuming
-    nat(nil) produces better code than nat{}.
+    cgi: make test code more readable
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5375092
+    https://golang.org/cl/5375089
 
- src/pkg/math/big/int.go      | 30 +++++++++++++++---------------
- src/pkg/math/big/nat.go      | 10 +++++-----
- src/pkg/math/big/nat_test.go | 26 +++++++++++++-------------
- src/pkg/math/big/rat.go      | 14 +++++++-------
- 4 files changed, 40 insertions(+), 40 deletions(-)
+ src/pkg/net/http/cgi/host_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

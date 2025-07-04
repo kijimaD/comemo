@@ -1,14 +1,16 @@
-commit 3968ac2caf4b7bbabcad6504ab5e3589fc525b1e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Aug 31 09:54:00 2016 +1000
+commit 77c7f12438aa83d9ba02c7fd48e4a0a288ed9123
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 30 21:47:30 2016 -0400
 
-    cmd/compile/internal/gc: clean up closure.go
+    runtime: update some comments
     
-    Change-Id: I01bfab595c50582c5adf958dcecbd58524dbc28f
-    Reviewed-on: https://go-review.googlesource.com/28212
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This updates some comments that became out of date when we moved the
+    mark bit out of the heap bitmap and started using the high bit for the
+    first word as a scan/dead bit.
+    
+    Change-Id: I4a572d16db6114cadff006825466c1f18359f2db
+    Reviewed-on: https://go-review.googlesource.com/22662
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 43 +++++++++++++---------------------
- 1 file changed, 16 insertions(+), 27 deletions(-)
+ src/runtime/mbitmap.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

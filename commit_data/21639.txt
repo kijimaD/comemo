@@ -1,15 +1,23 @@
-commit 5c8f9e38eb96d274f82a93c936a8ec8015f90845
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Feb 17 11:15:06 2015 +1100
+commit fdeee3a538e4816540e46195e7c14af2ad4ad190
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 22 10:48:33 2015 -0800
 
-    image: fix Rectangle.Overlaps and Rectangle.Union for empty rectangles.
+    [dev.cc] cmd/asm: the assembler proper
     
-    Fixes #9895.
+    Add main.go, the simple driver for the assembler, and the
+    subdirectory internal/asm, which contains the parser and
+    instruction generator.
     
-    Change-Id: I37d78ced9ff8196e32d299504908a1c41ad4592d
-    Reviewed-on: https://go-review.googlesource.com/4990
-    Reviewed-by: Rob Pike <r@golang.org>
+    It's likely that much of the implementation is superstition,
+    or at best experimental phenomenology, but it does generate
+    working binaries.
+    
+    Change-Id: I322a9ae8a20174b6693153f30e39217ba68f8032
+    Reviewed-on: https://go-review.googlesource.com/3196
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/image/geom.go      |   9 ++++-
- src/image/geom_test.go | 103 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 111 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/asm.go      | 533 +++++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/overflow.go |  94 ++++++
+ src/cmd/asm/internal/asm/parse.go    | 527 ++++++++++++++++++++++++++++++++++
+ src/cmd/asm/main.go                  |  63 +++++
+ 4 files changed, 1217 insertions(+)

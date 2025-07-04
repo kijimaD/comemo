@@ -1,0 +1,19 @@
+commit b97971ea2edbc29798e8a29a5e270698987a7f1d
+Author: khr@golang.org <khr@golang.org>
+Date:   Fri Jul 19 14:54:54 2024 -0700
+
+    cmd/compile: rip out constant handling in poset data structure
+    
+    The prove pass now tracks possible constant values explicitly, so
+    the poset data structure no longer has to. This simplifies a bunch of
+    the special cases in poset.
+    
+    Change-Id: I0efff65269bc5d53c6d18e4760b0375cfb2ae8b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599795
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/poset.go      | 272 +++--------------------------
+ src/cmd/compile/internal/ssa/poset_test.go | 132 --------------
+ 2 files changed, 27 insertions(+), 377 deletions(-)

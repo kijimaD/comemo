@@ -1,15 +1,31 @@
-commit 92cfd07a6cfd917bcd3db41b15dbcd78d3f089af
-Author: romanyx <romanyx90@yandex.ru>
-Date:   Wed Aug 9 20:21:58 2017 +0300
+commit 1e6924541802e4a10d8dc8a519b7c116ae213a0c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 11 06:06:34 2017 -0700
 
-    math/bits: examples generator
+    cmd/internal/obj/s390x: make assembler almost concurrency-safe
     
-    Change-Id: Icdd0566d3b7dbc034256e16f8a6b6f1af07069b3
-    Reviewed-on: https://go-review.googlesource.com/54350
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    CL 39922 made the arm assembler concurrency-safe.
+    This CL does the same, but for s390x.
+    The approach is similar: introduce ctxtz to hold
+    function-local state and thread it through
+    the assembler as necessary.
+    
+    One race remains after this CL, similar to CL 40252.
+    
+    That race is conceptually unrelated to this refactoring,
+    and will be addressed in a separate CL.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Iabf17aa242b70c0b078c2e85dae3d93a5e512372
+    Reviewed-on: https://go-review.googlesource.com/40371
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/math/bits/example_test.go  |  66 ++++++++--------
- src/math/bits/make_examples.go | 174 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 208 insertions(+), 32 deletions(-)
+ src/cmd/internal/obj/link.go       |   1 -
+ src/cmd/internal/obj/s390x/asmz.go | 381 +++++++++++++++++++------------------
+ src/cmd/internal/obj/s390x/objz.go | 156 ++++++++-------
+ 3 files changed, 273 insertions(+), 265 deletions(-)

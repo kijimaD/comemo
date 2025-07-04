@@ -1,56 +1,25 @@
-commit de561dc7664c9792964d8fa74a3aa02263ee36b9
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Wed May 25 12:22:22 2022 +0200
+commit 6b0026ae31720a01f846335d05e42e67e3a2a7cc
+Author: Leigh McCulloch <351529+leighmcculloch@users.noreply.github.com>
+Date:   Wed Sep 29 02:19:34 2021 +0000
 
-    cmd/compile: mark booleans as registerizable
+    time: add doc comment about tzdata package
     
-    Boolean values fit in registers, mark them accordingly. Improves codegen a bit.
+    Add doc comment about the time/tzdata package to the time.LoadLocation
+    function. The time.LoadLocation function was changed in Go 1.15 to add an extra
+    source that it considers for the time zone database. That location is the
+    time/tzdata package. It is not easy to discover this behavior because the
+    documentation for the time package doesn't mention it in the discussion on the
+    time.LoadLocation function when discussing the different sources. It would be helpful to
+    describe all possible sources that time.LoadLocation considers when loading the
+    time zone database, and so I think it would be worthwhile to mention
+    time/tzdata.
     
-    compilecmp for darwin/amd64:
-    
-    compress/gzip
-    compress/gzip.(*Reader).Reset 1017 -> 985  (-3.15%)
-    
-    net
-    net.newRequest 1002 -> 970  (-3.19%)
-    
-    crypto/tls
-    crypto/tls.(*sessionState).unmarshal 1054 -> 968  (-8.16%)
-    
-    cmd/compile/internal/syntax
-    cmd/compile/internal/syntax.Fprint 518 -> 453  (-12.55%)
-    
-    cmd/vendor/github.com/ianlancetaylor/demangle
-    cmd/vendor/github.com/ianlancetaylor/demangle.ASTToString 389 -> 325  (-16.45%)
-    
-    cmd/go/internal/load
-    cmd/go/internal/load.PackagesAndErrors 3453 -> 3381  (-2.09%)
-    
-    cmd/compile/internal/ssa
-    cmd/compile/internal/ssa.registerizable 249 -> 255  (+2.41%)
-    
-    cmd/compile/internal/ssagen
-    cmd/compile/internal/ssagen.buildssa 9388 -> 9356  (-0.34%)
-    
-    file                                            before   after    Δ       %
-    compress/gzip.s                                 8247     8215     -32     -0.388%
-    net.s                                           266667   266635   -32     -0.012%
-    crypto/tls.s                                    290324   290238   -86     -0.030%
-    cmd/compile/internal/syntax.s                   156422   156357   -65     -0.042%
-    cmd/vendor/github.com/ianlancetaylor/demangle.s 268313   268249   -64     -0.024%
-    cmd/go/internal/load.s                          122946   122874   -72     -0.059%
-    cmd/compile/internal/ssa.s                      3551201  3551207  +6      +0.000%
-    cmd/compile/internal/ssagen.s                   362299   362267   -32     -0.009%
-    total                                           19725872 19725495 -377    -0.002%
-    
-    Change-Id: I4cd40b54d8b2da6d1f946e51f16689315a369dca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408474
-    Run-TryBot: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I408fbe188bf9d4ba797e59ec17eb677136d6a9c2
+    GitHub-Last-Rev: 3dac204326960a18c4e44d3ea24fd428e91e9fcb
+    GitHub-Pull-Request: golang/go#48673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352830
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/zoneinfo.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

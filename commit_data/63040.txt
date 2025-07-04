@@ -1,0 +1,41 @@
+commit 8097cf14d20b547a615aae7d1b738a6aa563aa31
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Sat May 17 00:14:31 2025 +0800
+
+    cmd/compile: fold negation into addition/subtraction on mips64x
+    
+    Fold negation into addition/subtraction and avoid double negation.
+    
+    file      before    after     Δ       %
+    addr2line 4007310   4007470   +160    +0.004%
+    asm       7007636   7007436   -200    -0.003%
+    buildid   3839268   3838972   -296    -0.008%
+    cgo       6353466   6352738   -728    -0.011%
+    compile   30426920  30426896  -24     -0.000%
+    cover     7005408   7004744   -664    -0.009%
+    dist      4651192   4650872   -320    -0.007%
+    doc       10606050  10606034  -16     -0.000%
+    fix       4446414   4446390   -24     -0.001%
+    link      9237736   9237024   -712    -0.008%
+    nm        3999107   3999323   +216    +0.005%
+    objdump   6762424   6762144   -280    -0.004%
+    pack      3270757   3270493   -264    -0.008%
+    pprof     19428299  19361939  -66360  -0.342%
+    test2json 3717345   3717217   -128    -0.003%
+    trace     17382273  17381657  -616    -0.004%
+    vet       10689481  10688985  -496    -0.005%
+    go        19118769  19118609  -160    -0.001%
+    total     171949855 171878943 -70912  -0.041%
+    
+    Change-Id: I35c1f264d216c214ea3f56252a9ddab8ea850fa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673555
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 34 ++++++++++++++++++++++++++
+ test/codegen/arithmetic.go                     | 10 ++++++++
+ 3 files changed, 47 insertions(+)

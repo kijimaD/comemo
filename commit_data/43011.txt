@@ -1,18 +1,80 @@
-commit 0dde60a5fefcb1447c97efa5c7bb4dbcf3575736
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Aug 19 03:07:26 2020 +1000
+commit 7913f7dfcf2c281b99c6ddd278aa851de47ada9d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 26 11:29:34 2020 -0800
 
-    cmd/internal/obj/riscv: clean up lowerJALR
+    cmd/compile: add specialized AddArgN functions for rewrite rules
     
-    This cleans up the last of the direct obj.Prog rewriting, removing lowerJALR
-    and replacing it with correct handling for AJALR during instruction encoding.
+    This shrinks the compiler without impacting performance.
+    (The performance-sensitive part of rewrite rules is the non-match case.)
+    Passes toolstash-check -all.
     
-    Change-Id: Ieea125bde30d4c0edd2d9ed1e50160543aa8f330
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249077
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Joel Sing <joel@sing.id.au>
+    Executable size:
+    
+    file    before    after     Δ       %
+    compile 20356168  20163960  -192208 -0.944%
+    total   115599376 115407168 -192208 -0.166%
+    
+    Text size:
+    
+    file                       before   after    Δ       %
+    cmd/compile/internal/ssa.s 3928309  3778774  -149535 -3.807%
+    total                      18862943 18713408 -149535 -0.793%
+    
+    Memory allocated compiling package SSA:
+    
+    SSA               12.7M ± 0%        12.5M ± 0%  -1.74%  (p=0.008 n=5+5)
+    
+    Compiler speed impact:
+    
+    name        old time/op       new time/op       delta
+    Template          211ms ± 1%        211ms ± 2%    ~     (p=0.832 n=49+49)
+    Unicode          82.8ms ± 2%       83.2ms ± 2%  +0.44%  (p=0.022 n=46+49)
+    GoTypes           726ms ± 1%        728ms ± 2%    ~     (p=0.076 n=46+48)
+    Compiler          3.39s ± 2%        3.40s ± 2%    ~     (p=0.633 n=48+49)
+    SSA               7.71s ± 1%        7.65s ± 1%  -0.78%  (p=0.000 n=45+44)
+    Flate             134ms ± 1%        134ms ± 1%    ~     (p=0.195 n=50+49)
+    GoParser          167ms ± 1%        167ms ± 1%    ~     (p=0.390 n=47+47)
+    Reflect           453ms ± 3%        452ms ± 2%    ~     (p=0.492 n=48+49)
+    Tar               184ms ± 3%        184ms ± 2%    ~     (p=0.862 n=50+48)
+    XML               248ms ± 2%        248ms ± 2%    ~     (p=0.096 n=49+47)
+    [Geo mean]        415ms             415ms       -0.03%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          273ms ± 1%        273ms ± 2%    ~     (p=0.711 n=48+48)
+    Unicode           117ms ± 6%        117ms ± 5%    ~     (p=0.633 n=50+50)
+    GoTypes           972ms ± 2%        974ms ± 1%  +0.29%  (p=0.016 n=47+49)
+    Compiler          4.46s ± 6%        4.51s ± 6%    ~     (p=0.093 n=50+50)
+    SSA               10.4s ± 1%        10.3s ± 2%  -0.94%  (p=0.000 n=45+50)
+    Flate             166ms ± 2%        167ms ± 2%    ~     (p=0.148 n=49+48)
+    GoParser          202ms ± 1%        202ms ± 2%  -0.28%  (p=0.014 n=47+49)
+    Reflect           594ms ± 2%        594ms ± 2%    ~     (p=0.717 n=48+49)
+    Tar               224ms ± 2%        224ms ± 2%    ~     (p=0.805 n=50+49)
+    XML               311ms ± 1%        310ms ± 1%    ~     (p=0.177 n=49+48)
+    [Geo mean]        537ms             537ms       +0.01%
+    
+    
+    Change-Id: I562b9f349b34ddcff01771769e6dbbc80604da7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221237
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 43 ++++++++-------------------------------
- 1 file changed, 9 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   16 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         | 2215 +++------
+ .../compile/internal/ssa/rewrite386splitload.go    |   27 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 4915 ++++++--------------
+ .../compile/internal/ssa/rewriteAMD64splitload.go  |   36 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 2751 ++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 3248 ++++---------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        | 1060 ++---
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      | 1381 ++----
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 1787 +++----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     |  676 +--
+ src/cmd/compile/internal/ssa/rewriteS390X.go       | 2567 +++-------
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |  735 +--
+ src/cmd/compile/internal/ssa/rewritedec.go         |   93 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go       |  621 +--
+ src/cmd/compile/internal/ssa/rewritedecArgs.go     |   28 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 2027 +++-----
+ src/cmd/compile/internal/ssa/value.go              |   52 +
+ 18 files changed, 7176 insertions(+), 17059 deletions(-)

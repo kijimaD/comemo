@@ -1,12 +1,16 @@
-commit 2336d127e137fd877283eb691494cd97cb0b9d71
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Mon Jul 6 13:30:56 2020 -0400
+commit 67539f6c532414bff9eca1a1d56f5e0192dd6fca
+Author: Draven <i@draveness.me>
+Date:   Fri Jan 24 10:56:15 2020 +0000
 
-    doc/editors.html: update VS Code Go extension url
+    runtime: update deltimer comments
     
-    Change-Id: I7aa73861de053db6b424f113733de9caba19145b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241086
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I5f4c21bf650b9825ebd98330ac9faa7371a562be
+    GitHub-Last-Rev: 4a2e9aabe91935001300619b6f58c67f05e9f3c7
+    GitHub-Pull-Request: golang/go#36728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216223
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/editors.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

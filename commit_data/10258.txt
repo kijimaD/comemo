@@ -1,12 +1,14 @@
-commit 7f0622e66d5618acc7d2b9ab6e1cb96fd7c1e190
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 4 14:12:35 2011 -0700
+commit 377ac335afb298bff873f3f95cd54ea71cfc7f43
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Nov 4 15:35:59 2011 -0400
 
-    test: make closedchan.go exit with failure if something fails
+    math: improved high-angle test for Cos, Sin and Tan
     
-    R=golang-dev, rsc, iant
+    Maximum error for 386 is "close" (1e-14). For amd64, it's "veryclose" (4e-16).
+    
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5356042
+    https://golang.org/cl/5340042
 
- test/closedchan.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/pkg/math/all_test.go | 59 ++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 50 insertions(+), 9 deletions(-)

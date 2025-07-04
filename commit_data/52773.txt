@@ -1,24 +1,19 @@
-commit c80cedec9378b0a1cd5cb400e179bb25e2e7f810
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sun Apr 23 11:23:53 2023 -0400
+commit dbf52204751b5231b28a977c9cda3189c9493b2e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 11:33:09 2022 -0700
 
-    testing/slogtest: tests for slog handlers
+    cmd/compile: mark closures made for generic function expressions as wrappers
     
-    Add a package for testing that a slog.Handler implementation
-    satisfies that interface's documented requirements.
+    Fixes #52237
     
-    Code copied from x/exp/slog/slogtest.
-    
-    Updates #56345.
-    
-    Change-Id: I89e94d93bfbe58e3c524758f7ac3c3fba2a2ea96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487895
+    Change-Id: I7488020c8d157e069202017a293d18230e3aef0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408876
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- api/next/56345.txt                   |   2 +-
- src/go/build/deps_test.go            |   3 +
- src/testing/slogtest/example_test.go |  44 +++++
- src/testing/slogtest/slogtest.go     | 308 +++++++++++++++++++++++++++++++++++
- 4 files changed, 356 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go |  1 +
+ src/testing/helper_test.go                | 22 ++++++++++++----------
+ src/testing/helperfuncs_test.go           | 10 ++++++++++
+ 3 files changed, 23 insertions(+), 10 deletions(-)

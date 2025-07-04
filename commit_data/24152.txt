@@ -1,18 +1,20 @@
-commit 9f0baca5054c8039d763f6a4d71d4508e896d546
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Aug 27 11:20:38 2015 +1200
+commit a74d030557ed952d8740440d88c412d597d485cc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 13 22:13:32 2015 -0700
 
-    runtime: fixes for arm64 shared libraries
+    os/exec: fix plan9 build
     
-    Building for shared libraries requires that all functions that are declared
-    have an implementation and vice versa so make that so on arm64.
+    Fixes build from https://golang.org/cl/12152
     
-    It would be nicer to not require the stub sigreturn (it will never be called)
-    but that seems a bit awkward.
+    Plan 9 lacks syscall.EPIPE. I was misled by api/go1.txt and also
+    forgot to use the trybots. :(
     
-    Change-Id: I3cec81697161b452af81fa35939f748bd1acf7fd
-    Reviewed-on: https://go-review.googlesource.com/13995
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4982fe969ad4a8724090cb03009bfb21780d8aa7
+    Reviewed-on: https://go-review.googlesource.com/12153
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/asm_arm64.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/os/exec/exec.go       | 14 ++++++--------
+ src/os/exec/exec_posix.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 8 deletions(-)

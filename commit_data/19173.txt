@@ -1,16 +1,34 @@
-commit a6d3cc2904e42338d31cca00024a153e7c1b502c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 16 11:32:41 2014 -0700
+commit 0a8a719ded242be4d928ec77ff2169d1d9c1fa52
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 13:59:42 2014 -0400
 
-    encoding/base64: don't lose a byte of output when encountering trailing garbage
+    cmd/5g, cmd/6g, cmd/8g: preserve wide values in large functions
     
-    Fixes #7733
+    In large functions with many variables, the register optimizer
+    may give up and choose not to track certain variables at all.
+    In this case, the "nextinnode" information linking together
+    all the words from a given variable will be incomplete, and
+    the result may be that only some of a multiword value is
+    preserved across a call. That confuses the garbage collector,
+    so don't do that. Instead, mark those variables as having
+    their address taken, so that they will be preserved at all
+    calls. It's overkill, but correct.
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
-    CC=golang-codereviews, nigeltao, r, rsc
-    https://golang.org/cl/88330044
+    Tested by hand using the 6g -S output to see that it does fix
+    the buggy generated code leading to the issue 7726 failure.
+    
+    There is no automated test because I managed to break the
+    compiler while writing a test (see issue 7727). I will check
+    in a test along with the fix to issue 7727.
+    
+    Fixes #7726.
+    
+    LGTM=khr
+    R=khr, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/85200043
 
- src/pkg/encoding/base64/base64.go      |  4 ++--
- src/pkg/encoding/base64/base64_test.go | 13 +++++++++++++
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/5g/reg.c | 10 ++++++++++
+ src/cmd/6g/reg.c | 10 ++++++++++
+ src/cmd/8g/reg.c | 10 ++++++++++
+ 3 files changed, 30 insertions(+)

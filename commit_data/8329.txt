@@ -1,14 +1,12 @@
-commit 1dc914bc0d31f0e8a20248c692539f4cbc8327d9
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Fri May 6 13:35:51 2011 -0700
+commit be99859dbedb9353d02b866aa0fe6344acbc1372
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Fri May 6 16:11:07 2011 -0400
 
-    cgo: put CFLAGS before filename argument
-    This means that the -x flag can work, which could enable
-    support for other languages (e.g. objective-C).
+    doc: remove left and right padding in H2 headings.
     
-    R=iant, rsc
+    R=adg, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4476049
+    https://golang.org/cl/4491041
 
- src/cmd/cgo/gcc.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ doc/all.css | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

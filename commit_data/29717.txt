@@ -1,20 +1,15 @@
-commit ae9712c76688a07e1149958994a9ab3e5a99c37f
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Dec 1 11:07:11 2016 -0800
+commit 7faf70239670c3c1f8b4b530aba8847a03860f2a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 4 21:15:42 2016 -0700
 
-    database/sql: ensure Commit and Rollback return ErrTxDone
+    runtime: avoid endless loop if printing the panic value panics
     
-    Ensure documented behavior of returning ErrTxDone if the Tx has
-    already been committed or rolled back.
-    
-    Fixes #18147
-    
-    Change-Id: I07dc75bef4dbd4dd88dd252c96dc8ab99f28c00e
-    Reviewed-on: https://go-review.googlesource.com/33793
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I56de359a5ccdc0a10925cd372fa86534353c6ca0
+    Reviewed-on: https://go-review.googlesource.com/30358
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go      |  6 +++---
- src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 3 deletions(-)
+ src/runtime/crash_test.go                 |  7 +++++++
+ src/runtime/panic.go                      |  5 +++++
+ src/runtime/testdata/testprog/deadlock.go | 11 +++++++++++
+ 3 files changed, 23 insertions(+)

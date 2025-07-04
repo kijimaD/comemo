@@ -1,12 +1,12 @@
-commit 0a40137bf839ac198f95dc0d1c58fc92321b720e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 21 10:53:39 2013 +1100
+commit 42c86828b17146bde52e8b804174012e99d455fc
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Jan 19 22:20:46 2013 -0800
 
-    C: add Bill Neubauer's Gmail account
+    cmd/api: sort features
     
-    R=golang-dev, dsymonds
+    R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7172044
+    https://golang.org/cl/7141062
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/api/goapi.go | 1 +
+ 1 file changed, 1 insertion(+)

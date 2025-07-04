@@ -1,20 +1,16 @@
-commit bcf48c797176aaecccd3001484ffefc9c31a23a8
+commit bb3f3c97759ef9819ff18f8f9d34603867658d00
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Apr 25 13:16:57 2012 +0200
+Date:   Wed Apr 25 13:16:24 2012 +0200
 
-    exp/locale/collate: added trie for associating colElems to runes.
-    The trie code looks a lot like the trie in exp/norm. It uses different
-    types, however.  Also, there is only a lookup for []byte and the unsafe
-    lookup methods have been dropped, as well as sparse mode.
-    There is now a method for generating a trie. To output Go code, one now needs
-    to first generate a trie and then call print() on it.
+    exp/locale/collate: added representation for collation elements
+    (see http://www.unicode.org/reports/tr10/).
     
-    R=r, r, mpvl
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/5966064
+    https://golang.org/cl/5981048
 
- src/pkg/exp/locale/collate/build/trie.go      | 265 ++++++++++++++++++++++++++
- src/pkg/exp/locale/collate/build/trie_test.go | 103 ++++++++++
- src/pkg/exp/locale/collate/trie.go            | 102 ++++++++++
- src/pkg/exp/locale/collate/trie_test.go       | 106 +++++++++++
- 4 files changed, 576 insertions(+)
+ src/pkg/exp/locale/collate/build/colelem.go      | 179 +++++++++++++++++++++++
+ src/pkg/exp/locale/collate/build/colelem_test.go |  80 ++++++++++
+ src/pkg/exp/locale/collate/colelem.go            | 170 +++++++++++++++++++++
+ src/pkg/exp/locale/collate/colelem_test.go       | 157 ++++++++++++++++++++
+ 4 files changed, 586 insertions(+)

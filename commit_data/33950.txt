@@ -1,19 +1,46 @@
-commit 3639929d7b08eabb36c380444c80f54c9f7a4cee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 4 23:06:31 2018 +0000
+commit 1eacf78858fd18b100d25f7a04c4c62d96a23020
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 1 02:57:46 2017 -0700
 
-    net/http: soften wording around when the Transport reuses connections
+    archive/tar: add Header.DetectSparseHoles and Header.PunchSparseHoles
     
-    The docs were too specific. Make it vaguer. There are conditions for
-    which the Transport will try to reuse a connection anyway, even if the
-    Response Body isn't read to EOF or closed, but we don't need to get
-    into all the details in the docs.
+    To support the detection and creation of sparse files,
+    add two new methods:
+            func Header.DetectSparseHoles(*os.File) error
+            func Header.PunchSparseHoles(*os.File) error
     
-    Fixes #22954
+    DetectSparseHoles is intended to be used after FileInfoHeader
+    prior to serializing the Header with WriteHeader.
+    For each OS, it uses specialized logic to detect
+    the location of sparse holes. On most Unix systems, it uses
+    SEEK_HOLE and SEEK_DATA to query for the holes.
+    On Windows, it uses a specialized the FSCTL_QUERY_ALLOCATED_RANGES
+    syscall to query for all the holes.
     
-    Change-Id: I3b8ae32aeb1a61b396d0026e129552afbfecceec
-    Reviewed-on: https://go-review.googlesource.com/86276
+    PunchSparseHoles is intended to be used after Reader.Next
+    prior to populating the file with Reader.WriteTo.
+    On Windows, this uses the FSCTL_SET_ZERO_DATA syscall.
+    On other operating systems it simply truncates the file
+    to the end-offset of SparseHoles.
+    
+    DetectSparseHoles and PunchSparseHoles are added as methods on
+    Header because they are heavily tied to the operating system,
+    for which there is already an existing precedence for
+    (since FileInfoHeader makes uses of OS-specific details).
+    
+    Fixes #13548
+    
+    Change-Id: I98a321dd1ce0165f3d143d4edadfda5e7db67746
+    Reviewed-on: https://go-review.googlesource.com/60871
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/response.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/archive/tar/common.go                          |  64 +++++++++-
+ src/archive/tar/example_test.go                    | 110 ++++++++++++++++--
+ src/archive/tar/sparse_unix.go                     |  68 +++++++++++
+ src/archive/tar/sparse_windows.go                  | 129 +++++++++++++++++++++
+ src/archive/tar/{stat_atim.go => stat_actime1.go}  |   0
+ .../tar/{stat_atimespec.go => stat_actime2.go}     |   0
+ src/archive/tar/tar_test.go                        |  67 +++++++++--
+ 7 files changed, 416 insertions(+), 22 deletions(-)

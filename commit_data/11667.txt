@@ -1,12 +1,14 @@
-commit 4151183e94a9268b639485a35cc15c86377da81e
+commit 668418d1227aeb01782ba0ee05ac4ba657c0b5a2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 6 17:54:20 2012 -0800
+Date:   Mon Feb 6 17:41:19 2012 -0800
 
-    fix build: wrong godoc code submitted before
+    go/token: remove dependency on encoding/gob
     
-    R=r
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5644044
+    https://golang.org/cl/5636053
 
- src/cmd/godoc/index.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/godoc/index.go             | 10 ++++++++--
+ src/pkg/go/token/serialize.go      | 26 ++++++--------------------
+ src/pkg/go/token/serialize_test.go | 11 +++++++++--
+ 3 files changed, 23 insertions(+), 24 deletions(-)

@@ -1,12 +1,15 @@
-commit 44a3a58e451bcabad67fbd31e203a4f9f1ba2eae
-Author: Jean-Marc Eurin <jmeurin@google.com>
-Date:   Wed Jun 13 10:25:00 2012 -0400
+commit 9115a8bca4d10be0aa4b7ae754dc24988867c4a9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 13 10:33:02 2012 +1000
 
-    misc/emacs: Fix a failure when /tmp/<file>.go exists.
+    doc/install: mention GOPATH and point to code.html
     
-    R=sameer
+    Fixes #3469.
+    
+    R=golang-dev, kevlar, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6296060
+    https://golang.org/cl/6304049
 
- misc/emacs/go-mode.el | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ doc/install-source.html |  6 ++++++
+ doc/install.html        | 10 ++++++----
+ 2 files changed, 12 insertions(+), 4 deletions(-)

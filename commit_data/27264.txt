@@ -1,16 +1,30 @@
-commit b6687c8933e2e123cd336d6ee96aa43df40bfc24
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:18:24 2016 -0400
+commit 09a9ce60c7014ddff97690bf023ac5b2bfc142c7
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 17 14:12:12 2016 -0400
 
-    runtime: add linux/mips64x cgo support
+    cmd/compile: get gcflags to bootstrap; ssa debug opts for "all"
     
-    Change-Id: Id40dd05b7b264f3b779fdf9ccc2421ba4bc70589
-    Reviewed-on: https://go-review.googlesource.com/19806
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This is intended to help debug compiler problems that pop
+    up in the bootstrap phase of make.bash.  GO_GCFLAGS does not
+    normally apply there.  Options-for-all phases is intended
+    to allow crude tracing (and full timing) by turning on timing
+    for all phases, not just one.
+    
+    Phase names can also be specified using a regular expression,
+    for example
+    BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' \
+    GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
+    
+    I just added this because it was the fastest way to get
+    me to a place where I could easily debug the compiler.
+    
+    Change-Id: I0781f3e7c19651ae7452fa25c2d54c9a245ef62d
+    Reviewed-on: https://go-review.googlesource.com/20775
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/asm_mips64x.s       | 100 ++++++++++++++++++++++++++++++++--------
- src/runtime/cgo_mips64x.go      |  12 +++++
- src/runtime/cgocall.go          |   6 ++-
- src/runtime/sys_linux_mips64x.s |   4 +-
- src/runtime/tls_mips64x.s       |   7 +++
- 5 files changed, 106 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 50 +++++++++++++++++++++++++++++----
+ src/cmd/dist/build.go                   |  6 ++++
+ src/make.bash                           |  3 +-
+ 3 files changed, 52 insertions(+), 7 deletions(-)

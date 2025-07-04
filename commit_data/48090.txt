@@ -1,41 +1,23 @@
-commit aadbfc30afe7be3bc8d90e8267e7c9ca2dff95f4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 3 16:07:28 2022 -0800
+commit e0815d041c55dad8ae5642466b08fc2f520a59d4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 25 18:26:30 2021 +1000
 
-    go/types, types2: always use missingMethodReason in checker.Implements
+    runtime: replace --buildmode with -buildmode in tests
     
-    Remove special case where we don't have a *Checker and always use
-    Checker.missingMethodReason in Checker.implements.
+    While debugging issue #45638, I discovered that some tests were using
+    --buildmode command line parameter instead of -buildmode.
     
-    Look for zero methods rather than empty interface to exit early
-    from Checker.missingMethod, and remove the extra test in
-    Checker.implements.
+    The --buildmode parameter is handled properly by the flag package - it
+    is read as -buildmode. But we should correct code anyway.
     
-    With this change we get consistent and more detailed error messages
-    from all places where we do a form of the "implements" test.
+    Updates #45638
     
-    To make this possible, allow for the receiver to be nil in
-    - Checker.sprintf
-    - Checker.missingMethodReason
-    - Checker.interfacePtrError
-    - Checker.funcString
-    
-    Allowing Checker.sprintf with nil Checker permits further simplifying
-    in a couple of places.
-    
-    Change-Id: I0ea7178c9efbcd4a25ded2a66e2b058db52dc4d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383054
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I75cf95c7d11dcdf4aeccf568b2dea77bd8942352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313351
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/errors.go          |  7 +++-
- src/cmd/compile/internal/types2/instantiate.go     | 29 +++-----------
- src/cmd/compile/internal/types2/lookup.go          | 13 +++++--
- .../internal/types2/testdata/check/issues.src      | 44 +++++++++++-----------
- .../types2/testdata/fixedbugs/issue49579.go2       |  2 +-
- src/go/types/errors.go                             |  9 ++++-
- src/go/types/instantiate.go                        | 33 +++-------------
- src/go/types/lookup.go                             | 14 +++++--
- src/go/types/testdata/check/issues.src             | 44 +++++++++++-----------
- src/go/types/testdata/fixedbugs/issue49579.go2     |  2 +-
- 10 files changed, 90 insertions(+), 107 deletions(-)
+ src/runtime/signal_windows_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,20 +1,15 @@
-commit 2d1c0332598c77097d53a1c2d564b12dcd644810
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Jan 2 09:43:41 2018 -0800
+commit 4ee85e67e127b6679d461f1d4ae836afdf4251f4
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 15:49:58 2019 +0200
 
-    reflect: let StructOf define unexported fields
+    misc/cgo/testcshared: support testing on self-hosted android
     
-    This was missing from the original StructOf CL because I couldn't
-    think of a use for it. Now I can: even with types used entirely
-    by reflect, unexported fields can be set using UnsafeAddr.
+    Only invoke adb for android if we're not running on android already.
     
-    Change-Id: I5e7e3d81d16e8817cdd69d85796ce33930ef523b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/85661
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4eb94286a5bf09b382716a0474f3aebec40f5d74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170953
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.14.html         | 13 +++++++++++++
- src/reflect/all_test.go | 23 ++++++++---------------
- src/reflect/type.go     | 19 +++++++++++--------
- 3 files changed, 32 insertions(+), 23 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

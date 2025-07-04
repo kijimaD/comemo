@@ -1,17 +1,16 @@
-commit cbc854a7993accd581c3ad2a58cb51788372e29c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Mar 7 01:44:24 2015 -0500
+commit ad73dc349bcb796ec99e1adb25973671d2204fba
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 13 22:24:41 2015 +0100
 
-    cmd/internal/obj/x86: fix nacl/amd64p32 build
+    cmd/gc: replace NULL by nil
     
-    some x86 instructions (e.g. PINSRW) might store memory address in Prog.From3,
-    so we must also rewrite Prog.From3 on nacl.
+    In CL 4050, NULL was used instead of nil.
+    However, Plan 9 doesn't declare NULL.
     
-    Change-Id: I2a0da0f692ba321eba17fbc454d68aaafa133515
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7074
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I8295a3102509a1ce417278f23a37cbf65938cce1
+    Reviewed-on: https://go-review.googlesource.com/4814
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

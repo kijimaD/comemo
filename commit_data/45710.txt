@@ -1,24 +1,18 @@
-commit 56af34f875f55485b4ebc521fe0c695dafb9bc23
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 25 10:13:07 2021 -0400
+commit cfea52b04c18761f9cc3168eff00690155aa6d17
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Nov 10 03:42:18 2020 +1100
 
-    cmd/compile: place reg spills after OpArg{Int,Float}Reg ops
+    runtime: disable TestCrashDumpsAllThreads on openbsd/mips64
     
-    Tweak the register allocator to maintain the invariant that
-    OpArg{Int,Float}Reg values are placed together at the start of the
-    entry block, before any other non-pseudo-op values. Without this
-    change, when the register allocator adds spills we can wind up with an
-    interleaving of OpArg*Reg and stores, which complicates debug location
-    analysis.
+    This test fails consistently on openbsd/mips64 - disable it until we can investigate
+    and resolve the issue.
     
-    Updates #40724.
+    Updates #42464
     
-    Change-Id: Icf30dd814a9e25263ecbea2e48feb840a6e7f2bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322630
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ie640f776823137a967a12817ff18953207f558a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268438
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/runtime/crash_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

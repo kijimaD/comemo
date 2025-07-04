@@ -1,17 +1,25 @@
-commit 41bdb9357a5f7ea6ade9a68aba56ee31b0f8dbbc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 12 15:58:48 2020 -0700
+commit cec535b7b747cee83b5ab285887f3fd2dcebdc1b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 9 09:39:48 2020 -0500
 
-    doc/go1.15: document go/printer.StdFormat
+    cmd/go/internal/modload: do not disable Query for -mod=readonly
     
-    For #37419
-    For #37453
-    For #37476
+    'go list -m' allows explicit module@version arguments,
+    which it resolves (using Query) but does not add to the build list.
+    Similarly, 'go list -u' resolves versions without modifying the build list.
     
-    Change-Id: Ia032ec844773af421bc4217d5dd6e60996d8e91f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237740
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    These explicit operations should be allowed even when '-mod=readonly' is set.
+    
+    Updates #36478
+    
+    'go list' and 'go mod download' do not
+    
+    Change-Id: I5d2735729ad573635b9c1902d5d3a8bd960b8a76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214077
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/internal/modload/query.go        | 2 +-
+ src/cmd/go/testdata/script/mod_readonly.txt | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,20 +1,21 @@
-commit 060d1a57401180bc003c0d882033b35ca19374a2
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed Oct 25 12:42:14 2017 -0400
+commit e0e7c03d14d3235864400ad29aa02dfa540d2089
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 11 07:36:09 2017 +0200
 
-    io: flatten MultiWriter writers
+    runtime, internal/cpu: change cache line size for arm64 to 64 bytes
     
-    Replace any nested Writer that is a MultiWriter with its associated
-    Writers.
+    According to http://infocenter.arm.com:
+    * ARM Cortex-A53 (Raspberry Pi 3, Pine A64)
+    * ARM Cortex-A57 (Opteron A1100, Tegra X1)
+    * ARM Cortex-A72
+    all have a cache line size of 64 bytes.
     
-    Fixes #22431
-    
-    Change-Id: Ida7c4c83926363c1780689e216cf0c5241a5b8eb
-    Reviewed-on: https://go-review.googlesource.com/73470
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4b333e930792fb1a221b3ca6f395bfa1b7762afa
+    Reviewed-on: https://go-review.googlesource.com/43250
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/io/multi.go      | 12 +++++++++---
- src/io/multi_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 3 deletions(-)
+ src/internal/cpu/cpu_arm64.go          | 2 +-
+ src/runtime/internal/sys/arch_arm64.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

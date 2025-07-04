@@ -1,13 +1,20 @@
-commit 67ec47d1c04d57f582f51acb437d6aebb8de576d
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Mon Jun 20 07:41:18 2011 -0700
+commit f7d754fcce193a1ef8629361095b86c75a6313af
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 20 22:23:43 2011 +1000
 
-    mime: fix RFC references
+    build: exclude packages that fail on Plan 9 (for now)
     
-    R=golang-dev, bradfitz
-    CC=brad fitzpatrick <bradfitz, golang-dev
-    https://golang.org/cl/4634063
+    All but two packages depend on net:
+            debug/proc
+            os/signal
+    
+    With this change, we can produce
+    a working build with GOOS=plan9.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4639053
 
- src/pkg/mime/grammar.go   | 4 ++--
- src/pkg/mime/mediatype.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/Makefile             | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/Makefile |  4 ++++
+ 2 files changed, 34 insertions(+)

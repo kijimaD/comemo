@@ -1,20 +1,19 @@
-commit 267013e6e9150e073510469e1ea024cdc5149dce
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu May 12 10:26:12 2022 -0700
+commit 9e3274bb3d8170efba1c0b42fa09334f1d3f6677
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 21 16:45:00 2021 -0700
 
-    crypto/x509: attempt to prime windows root pool before hybrid test
+    [dev.typeparams] cmd/compile/internal/types2: import regexp/syntax instead of cmd/compile/internal/syntax
     
-    In TestHybridPool attempt to prime to the windows root pool before
-    the real test actually happens. This is a bit of a band-aid, with
-    a better long term solution discussed in #52108.
+    This is a straight port of https://golang.org/cl/330431.
     
-    Updates #51599
+    For #43232
     
-    Change-Id: I406add8d9cd9e3fae37bfc20b97f5479c10a52c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405914
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I5954bdff22a524eaa08754947da9b428b27f7d95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336351
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/x509/hybrid_pool_test.go | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/testdata/check/issues.src | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

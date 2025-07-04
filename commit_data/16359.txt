@@ -1,16 +1,12 @@
-commit bea7b5187283cf73638332e5051c8e9333ccf4dd
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 22 00:32:03 2013 +0800
+commit 09395daf2e3859487ec64d0fa68b7ccf22ddfef3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 09:02:30 2013 -0700
 
-    cmd/go: fix LDFLAGS handling, enable misc/cgo/testso on Darwin
-    Fixes #5479.
+    codereview: add khr as a person
     
-    R=golang-dev, dave
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/9416047
+    https://golang.org/cl/9459046
 
- misc/cgo/testso/cgoso.go  | 10 +++++++++-
- misc/cgo/testso/test.bash | 18 +++++++++++++++---
- src/cmd/go/build.go       | 20 +++++++++++++++-----
- src/run.bash              |  1 -
- 4 files changed, 39 insertions(+), 10 deletions(-)
+ misc/dashboard/codereview/dashboard/people.go | 1 +
+ 1 file changed, 1 insertion(+)

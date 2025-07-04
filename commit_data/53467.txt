@@ -1,17 +1,30 @@
-commit 512361fb1fa805f10f183e0b96248e523e68c192
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jun 3 17:30:47 2023 -0400
+commit 876d477b0e3b27ae136a7e8dfceaf0ec72bddea6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Nov 4 17:21:13 2021 -0400
 
-    cmd/go: document GOTOOLCHAIN
+    runtime: refactor ARM VDSO call setup to helper
     
-    For #57001.
+    We have a very complex process to make VDSO calls on ARM. Create a
+    wrapper helper function which reduces duplication and allows for
+    additional calls from other packages.
     
-    Change-Id: I74c4abd675bd5636a029332b45ef0e6fdc36106f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500795
+    vdsoCall has a few differences from the original code in
+    walltime/nanotime:
+    
+    * It does not use R0-R3, as they are passed through as arguments to fn.
+    * It does not save g if g.m.gsignal.stack.lo is zero. This may occur if
+    it called at startup on g0 between assigning g0.m.gsignal and setting
+    its stack.
+    
+    For #49182
+    
+    Change-Id: I51aca514b4835b71142011341d2f09125334d30f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362795
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/alldocs.go               | 4 +++-
- src/cmd/go/internal/help/helpdoc.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/os_linux_arm.go |   2 +
+ src/runtime/sys_linux_arm.s | 205 +++++++++++++++++---------------------------
+ 2 files changed, 82 insertions(+), 125 deletions(-)

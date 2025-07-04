@@ -1,14 +1,17 @@
-commit 882953f62ce8257bf063a9582b3f58ce8e1856db
-Author: Luit van Drongelen <luitvd@gmail.com>
-Date:   Sat Dec 1 15:15:14 2012 -0800
+commit 444b7b53e02487e3292c9db04b584915a21de54b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 1 11:02:08 2012 -0800
 
-    encoding/gob: Fix typo in doc.go
+    crypto/tls: fix loading keys labeled just "PRIVATE KEY"
     
-    Exactly how I find minute details like this is beyond me.
+    Worked in Go 1, broken in f440e65f93fe.
     
-    R=golang-dev, bradfitz
+    Fixes #4477
+    
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/6842125
+    https://golang.org/cl/6865043
 
- src/pkg/encoding/gob/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/tls/tls.go      |  2 +-
+ src/pkg/crypto/tls/tls_test.go | 26 ++++++++++++++++++++------
+ 2 files changed, 21 insertions(+), 7 deletions(-)

@@ -1,22 +1,21 @@
-commit 2e217fa726a624093eea5b099d1531c79e27a423
+commit c8545722a105f4a21583aeee00adcbd01436b98b
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Jan 2 12:27:55 2019 -0500
+Date:   Wed Aug 29 11:55:55 2018 -0400
 
-    cmd/compile: fix deriving from x+d >= w on overflow in prove pass
+    cmd/compile: only clobber dead slots at call sites
     
-    In the case of x+d >= w, where d and w are constants, we are
-    deriving x is within the bound of min=w-d and max=maxInt-d. When
-    there is an overflow (min >= max), we know only one of x >= min
-    or x <= max is true, and we derive this by excluding the other.
-    When excluding x >= min, we did not consider the equal case, so
-    we could incorrectly derive x <= max when x == min.
+    We now have safepoints at nearly all the instructions. When
+    GOEXPERIMENT=clobberdead is on, it inserts clobbers nearly at
+    every instruction. Currently this doesn't work. (Maybe the stack
+    maps at non-call safepoints are still imprecise. I haven't
+    investigated.) For now, only use call-based safepoints if the
+    experiment is on.
     
-    Fixes #29502.
+    Updates #27326.
     
-    Change-Id: Ia9f7d814264b1a3ddf78f52e2ce23377450e6e8a
-    Reviewed-on: https://go-review.googlesource.com/c/156019
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I72cda9b422d9637cc5738e681502035af7a5c02d
+    Reviewed-on: https://go-review.googlesource.com/131956
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 19 +++++++++++++++----
- test/prove.go                         | 14 ++++++++++++++
- 2 files changed, 29 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

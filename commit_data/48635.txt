@@ -1,17 +1,22 @@
-commit be8ee5a58f8c30e95e425779fb31b2ae4e35cb8c
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Dec 30 16:46:21 2021 +0800
+commit 655246f99a22950985a9ab9fc1e0bb4a8cb2ea7e
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 09:45:01 2021 -0400
 
-    cmd/dist: enable msan/asan
+    [dev.typeparams] go/types: make TestManual work for directories
     
-    Supporting memory sanitizer and address sanitizer in toolchains
+    This is a port of CL 315769 to go/types, adjusted for the additional
+    testPkg indirection in go/types on top of testFiles, and to remove the
+    colDelta argument.
     
-    Change-Id: Ie292657b78954d65bd72e64e063b1c4f18d4f0d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374974
-    Trust: mzh <mzh@golangcn.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ieb722d77866313a01645aeec49912c16cb475462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324730
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/go/types/check_test.go          | 98 ++++++++++++++++++++++++-------------
+ src/go/types/testdata/check/tmp.go2 | 17 -------
+ src/go/types/testdata/manual.go2    |  9 ++++
+ 3 files changed, 73 insertions(+), 51 deletions(-)

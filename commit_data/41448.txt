@@ -1,29 +1,20 @@
-commit 7a03d79498a32eb099d6f82aa8b19e813630be65
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon Nov 4 09:19:59 2019 -0800
+commit c1e46af62f2893a6beb2341ef71ffe8d3787975b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 4 13:52:56 2019 +0200
 
-    crypto/x509: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
+    test: add testcase for Issue 34520
     
-    "SSL_CERT_DIR" is meant to hold more than one directory, when a colon
-    is used as a delimiter. However, we assumed it'd be a single directory
-    for all root certificates.
-    OpenSSL and BoringSSL properly respected the colon separated
-    "SSL_CERT_DIR", as per:
-    * OpenSSL https://github.com/openssl/openssl/blob/12a765a5235f181c2f4992b615eb5f892c368e88/crypto/x509/by_dir.c#L153-L209
-    * BoringSSL https://github.com/google/boringssl/blob/3ba9586bc081f67903c89917f23e74a0662ba953/crypto/x509/by_dir.c#L194-L247
+    CL 188317 introduced a compiler crash during dwarf generation which
+    was reported as Issue #34520. After CL 188217, the issue appears to be
+    fixed. Add a testcase to avoid future regressions.
     
-    This change adds that parity to loadSystemRoots.
+    Fixes #34520
     
-    RELNOTE=yes
-    
-    Fixes #35325
-    
-    Change-Id: I0d554a00ccc34300a7f0529aa741ee7e2d5762f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205237
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I73544a9e9baf8dbfb85c19eb6d202beea05affb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198546
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/x509/root_unix.go      | 17 ++++----
- src/crypto/x509/root_unix_test.go | 81 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 91 insertions(+), 7 deletions(-)
+ test/fixedbugs/issue34520.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

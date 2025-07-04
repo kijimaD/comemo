@@ -1,16 +1,22 @@
-commit f482a0f023365acfdf64f169438d5b8582952225
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Tue Sep 15 21:43:53 2015 +0200
+commit 428ed1e3d9e31428b3bf81ed55664a4c34238e4c
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Fri May 15 00:53:10 2015 +0800
 
-    cmd/compile/internal/gc: add unit test for cmpstackvar
+    cmd/go: support git.apache.org Git repos
     
-    A followup CL will rewrite listsort to use the new cmpstackvarlt and
-    change cmpstackvar to avoid stringsCompare.
+    This change fixes resolution of secure (https) repo URL for
+    git.apache.org Git repositories.
     
-    Change-Id: Idf0857a3bd67f9e2243ba82aa0bff510612927c3
-    Reviewed-on: https://go-review.googlesource.com/14611
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    E.g. the correct repo URL for git.apache.org/thrift.git/lib/go/thrift is
+    https://git.apache.org/thrift.git, not https://git.apache.org/thrift
+    
+    Fixes #10797
+    
+    Change-Id: I67d5312ad8620eb780e42c2e002c8f286f60645a
+    Reviewed-on: https://go-review.googlesource.com/10092
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go      |   5 ++
- src/cmd/compile/internal/gc/pgen_test.go | 102 +++++++++++++++++++++++++++++++
- 2 files changed, 107 insertions(+)
+ src/cmd/go/vcs.go      |  8 ++++++++
+ src/cmd/go/vcs_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

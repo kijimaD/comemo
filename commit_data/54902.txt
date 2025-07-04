@@ -1,29 +1,23 @@
-commit 8b4e1259d0e82c8fe38a1456f997a4e9d63573a2
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Sun Nov 5 22:40:01 2023 +0100
+commit 8205d83fe29e315eeb8f64f095a4d2594c9cd1c6
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 1 10:27:18 2022 -0400
 
-    cmd/compile: fix findIndVar so it does not match disjointed loop headers
+    cmd/link: improved host archive debug trace output
     
-    Fix #63955
+    When ctxt.Debugvlog > 1, produce additional trace output to describe
+    which object files are being pulled out of host archive libraries and
+    why they were pulled (e.g. which symbol had a reference to something
+    in a library). Intended to make it easier to debug problems with cgo
+    internal linking.
     
-    parseIndVar, prove and maybe more are on the assumption that the loop header
-    is a single block. This can be wrong, ensure we don't match theses cases we
-    don't know how to handle.
-    
-    In the future we could update them so that they know how to handle such cases
-    but theses cases seems rare so I don't think the value would be really high.
-    We could also run a loop canonicalization pass first which could handle this.
-    
-    The repro case looks weird because I massaged it so it would crash with the
-    previous compiler.
-    
-    Change-Id: I4aa8afae9e90a17fa1085832250fc1139c97faa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539977
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icd64aff244b9145162a00cb51642ef32f26adfba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451736
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go |  7 +++++++
- test/fixedbugs/issue63955.go            | 22 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/cmd/link/internal/ld/ar.go         | 11 +++++++----
+ src/cmd/link/internal/ld/lib.go        | 16 +++++++++++++---
+ src/cmd/link/internal/loader/loader.go | 20 ++++++++++++--------
+ 3 files changed, 32 insertions(+), 15 deletions(-)

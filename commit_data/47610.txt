@@ -1,15 +1,27 @@
-commit 5527d7ff7935d8a58a693be5d1ec4a5312f0f07d
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Tue Nov 16 15:36:37 2021 +0800
+commit 87c6fa4f473f178f7d931ddadd10c76444f8dc7b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 19 20:04:38 2021 +0000
 
-    doc/go1.18: add Clone doc
+    cmd/internal/obj/x86: use ABI scratch registers for WRAPPER prologue
     
-    For #47694
+    Currently the prologue generated for WRAPPER assembly functions uses BX
+    and DI, but these are argument registers in the register-based calling
+    convention. Thus, these end up being clobbered when we want to have an
+    ABIInternal assembly function.
     
-    Change-Id: I3b135f6ff199d7a9746726b131fbe7dd97a8e95e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364254
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Heschi Kreinick <heschi@google.com>
+    Define REGENTRYTMP0 and REGENTRYTMP1, aliases for the dedicated function
+    entry scratch registers R12 and R13, and use those instead.
+    
+    For #40724.
+    
+    Change-Id: Ica78c4ccc67a757359900a66b56ef28c83d88b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303314
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/a.out.go | 36 ++++++++++++++++++-----------------
+ src/cmd/internal/obj/x86/obj6.go  | 40 ++++++++++++++++++++++-----------------
+ 2 files changed, 42 insertions(+), 34 deletions(-)

@@ -1,15 +1,14 @@
-commit 86c7bc6e8bd80ef651a92e5103ade11ce159b9d1
+commit c898c519b0fe4660519a1785552dbf578e8a94f1
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 15 15:22:56 2012 -0700
+Date:   Thu Mar 15 15:10:01 2012 -0700
 
-    misc/dist: don't ship cmd/cov or cmd/prof
+    cmd/go: quiet some logging
     
-    Fixes #3317
+    This should've been behind -v before but was missed.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5784083
+    https://golang.org/cl/5836046
 
- misc/dist/bindist.go | 2 ++
- src/cmd/dist/build.c | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/go/http.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

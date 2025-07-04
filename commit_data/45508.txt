@@ -1,34 +1,31 @@
-commit a144af91364cc9b4928ad80bdb7529b28a803508
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 3 02:10:46 2021 -0400
+commit 5c1122b52895c1d7f2d41ea16d354bce636496d0
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Oct 27 11:03:21 2020 +0100
 
-    cmd: update x/term to pull in CL 316112
+    cmd/compile: delete isPowerOfTwo, switch to isPowerOfTwo64
     
-    Even though x/term is now lazy, this has no overall effect (yet) on
-    the contents of cmd/go.sum, because the dependency that would be
-    pruned out (an old version of x/sys) is still transitively required
-    through x/crypto, x/sys, and/or x/tools.
+    rewrite.go has two identical functions isPowerOfTwo and
+    isPowerOfTwo64; the former has been there for a while, while the
+    latter was added together with isPowerOfTwo{8,16,32} for use in typed
+    rules.
     
-    Once those modules are also lazy (CL 316109, CL 316111, and CL 315570
-    respectively), the extra go.sum entries for x/sys will drop out.
+    This change deletes isPowerOfTwo and switch to using isPowerOfTwo64
+    everywhere.
     
-    For #36460
-    Updates #36905
-    
-    Change-Id: I79e715328f7c417ea20ae8fe4f8e0e3eb71ee6c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316250
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If26c94565d2393fac6f0ba117ee7ee2fc915f7cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265417
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- src/cmd/vendor/golang.org/x/term/term.go           |   4 +-
- src/cmd/vendor/golang.org/x/term/term_solaris.go   | 111 ---------------------
- src/cmd/vendor/golang.org/x/term/term_unix.go      |   4 +-
- .../vendor/golang.org/x/term/term_unix_linux.go    |  10 --
- .../term/{term_unix_aix.go => term_unix_other.go}  |   5 +-
- src/cmd/vendor/golang.org/x/term/term_unix_zos.go  |  10 --
- src/cmd/vendor/modules.txt                         |   4 +-
- 9 files changed, 13 insertions(+), 141 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules  |   2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  | 176 ++++++-------
+ src/cmd/compile/internal/ssa/gen/MIPS.rules   |   6 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |   6 +-
+ src/cmd/compile/internal/ssa/rewrite.go       |   7 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  |   8 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 352 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go   |  12 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go |  12 +-
+ 9 files changed, 289 insertions(+), 292 deletions(-)

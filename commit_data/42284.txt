@@ -1,24 +1,19 @@
-commit 4daf8719e7f4c71a620f650d73caab2a9d7ea499
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Mon May 4 12:21:18 2020 +0530
+commit bbbc6589dfbc05be2bfa59f51c20f9eaa8d0c531
+Author: Roman Kollár <roman.kollar.0@gmail.com>
+Date:   Thu Nov 21 22:25:52 2019 +0000
 
-    runtime: use correct truncated constants for float conversion
+    net/http: fix Server.ConnContext modifying context for all new connections
     
-    There is a range of numbers lower than 0x7fff_ffff_ffff_ffff which
-    cannot be represented by a 64 bit float. We set that to the correct
-    limit beyond which conversions can happen properly.
+    Fixes #35750
     
-    It appears that the negative bound check can indeed by correctly handled
-    by I64TruncF64S. But we use the same limit for consistency.
-    
-    Fixes #38839
-    
-    Change-Id: Ib783a22cb331fba7e6955459f41c67f9ceb53461
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231837
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I65d38cfc5ddd66131777e104c269cc3559b2471d
+    GitHub-Last-Rev: 953fdfd49b2be665be43f8148d2a6180dae3b91c
+    GitHub-Pull-Request: golang/go#35751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208318
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/conv_wasm_test.go | 128 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/sys_wasm.s        |   6 +-
- 2 files changed, 131 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  7 ++++---
+ 2 files changed, 37 insertions(+), 3 deletions(-)

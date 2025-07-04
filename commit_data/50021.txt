@@ -1,21 +1,27 @@
-commit 5a53807950e8bde126180590a2f922d1046acc7e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 20:38:39 2022 -0700
+commit 04f7521b0aef10d523d6de006e723afd349b4b95
+Author: Fabio Falzoi <fabio.falzoi84@gmail.com>
+Date:   Sat Sep 25 18:44:24 2021 +0200
 
-    go/types: remove TODO in testdata/examples/types.go
+    reflect: add Value.{CanInt, CanUint, CanFloat, CanComplex}
     
-    Follow-up on CL 424674. With this change, the files in
-    testdata/examples are identical to the corresponding
-    files for types2.
+    As discussed in #47658, Value already has CanAddr and CanInterface to
+    test if a call to Addr or Inteface, respectively, does not result in a
+    panic.
+    Therefore we add CanInt, CanUint, CanFloat and CanComplex to ease the
+    test for a possible panic in calling, respectively, Int, Uint, Float and
+    Complex.
     
-    For #54511.
+    Fixes #47658
     
-    Change-Id: Ic61c089bbf61492094e31057ad2635803f50a30d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424714
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I58b77d77e6eec9f34234e985f631eab72b5b935e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352131
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: David Chase <drchase@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/testdata/examples/types.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |  4 ++
+ src/reflect/all_test.go                   | 69 +++++++++++++++++++++++++++++++
+ src/reflect/value.go                      | 40 ++++++++++++++++++
+ 3 files changed, 113 insertions(+)

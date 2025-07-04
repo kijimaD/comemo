@@ -1,16 +1,12 @@
-commit 23dec8d1907f85d487b2adf3f0672c2cc02e4ce6
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 21 21:18:10 2013 -0700
+commit 950fa9353126a784ce0f4cde8df1d1c16af0e6c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 18:43:28 2013 -0700
 
-    cmd/go: support new location for vet
-    Also delete the special case for exp, which isn't necessary any more.
+    net/http: add another Hijacker test
     
-    Fixes #5529.
-    
-    R=rsc, nightlyone
-    CC=golang-dev
-    https://golang.org/cl/9611048
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/9570043
 
- src/cmd/go/pkg.go  | 12 ++++++------
- src/cmd/go/tool.go | 34 ++++++++++++++++++++++++----------
- 2 files changed, 30 insertions(+), 16 deletions(-)
+ src/pkg/net/http/serve_test.go | 69 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 48 insertions(+), 21 deletions(-)

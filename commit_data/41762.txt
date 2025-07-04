@@ -1,40 +1,17 @@
-commit 69d3a34b176f7e5ac26d289eea66ed5b2dd5f1c8
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Mar 12 18:56:40 2020 -0400
+commit e9e4f6c433116038765eb88022122bb2558d0585
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Oct 23 13:50:15 2019 -0400
 
-    cmd/go: add support for GOPROXY fallback on unexpected errors
+    misc: delete benchcmp forwarding script
     
-    URLs in GOPROXY may now be separated with commas (,) or pipes (|). If
-    a request to a proxy fails with any error (including connection errors
-    and timeouts) and the proxy URL is followed by a pipe, the go command
-    will try the request with the next proxy in the list. If the proxy is
-    followed by a comma, the go command will only try the next proxy if
-    the error a 404 or 410 HTTP response.
+    benchcmp was moved out of misc into x/tools in CL 60100043 in 2014,
+    and then replaced by a forwarding script in CL 82710043.
+    Five years have since passed, and the forwarding script has outlived
+    its usefulness. It's now more confusing than helpful. Delete it.
     
-    The go command will determine how to connect to the checksum database
-    using the same logic. Before accessing the checksum database, the go
-    command sends a request to <proxyURL>/sumdb/<sumdb-name>/supported.
-    If a proxy responds with 404 or 410, or if any other error occurs and
-    the proxy URL in GOPROXY is followed by a pipe, the go command will
-    try the request with the next proxy. If all proxies respond with 404
-    or 410 or are configured to fall back on errors, the go command will
-    connect to the checksum database directly.
-    
-    This CL does not change the default value or meaning of GOPROXY.
-    
-    Fixes #37367
-    
-    Change-Id: If53152ec1c3282c67d4909818b666af58884fb2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223257
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8c7d65b97e0b3fe367df69a86ae10c7960c05be3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202762
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html                                |  12 +++
- src/cmd/go/alldocs.go                          |  18 ++--
- src/cmd/go/internal/modfetch/proxy.go          | 109 +++++++++++++++++--------
- src/cmd/go/internal/modfetch/sumdb.go          |  82 ++++++++++---------
- src/cmd/go/internal/modload/help.go            |  18 ++--
- src/cmd/go/testdata/script/mod_proxy_list.txt  |  14 +++-
- src/cmd/go/testdata/script/mod_sumdb_proxy.txt |  17 ++++
- 7 files changed, 174 insertions(+), 96 deletions(-)
+ misc/benchcmp | 5 -----
+ 1 file changed, 5 deletions(-)

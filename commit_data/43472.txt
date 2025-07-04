@@ -1,22 +1,24 @@
-commit db185e543fe471c522790b7d93291e786dc54a84
+commit 0dfb0513ec6a0e97db166bd91a2dc0a1ceb154f7
 Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jul 7 17:55:40 2020 -0400
+Date:   Tue Apr 7 12:12:44 2020 -0400
 
-    runtime: drop redundant gcBlackenEnabled reset
+    runtime/pprof: try to use real stack in TestTryAdd
     
-    This reset of gcBlackenEnabled is a no-op because it was already reset
-    almost immediately before in gcMarkDone, which is the only caller of
-    gcMarkTermination.
+    TestTryAdd is particularly brittle because it tests some real cases by
+    constructing fake sample stack frames. If those frames don't correctly
+    represent what the runtime would generate then they may fail to catch
+    regressions.
     
-    Adjust the comment to clarify setGCPhase a bit more. We are coming from
-    _GCmark, so write barriers are already enabled.
+    Instead, call runtime.Callers at the bottom of real function calls to
+    generate real frames as a base for truncation, etc in tests. Several of
+    these tests still have to fake parts of the frames to test the right
+    thing, but this is a bit less fragile.
     
-    Change-Id: Ieac2dadf33c3c5a44e8a25a499dea8cfe03b8d73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241357
+    Change-Id: I62522a9ded5544b06d1bf28550af5400f3af667b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227484
     Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/mgc.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof_test.go | 91 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 66 insertions(+), 25 deletions(-)

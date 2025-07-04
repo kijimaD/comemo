@@ -1,21 +1,19 @@
-commit 672e57944458fc3c5f5ee1dd11d4f32d1aeaebe1
-Author: Tal Shprecher <tshprecher@gmail.com>
-Date:   Wed Jul 13 12:29:39 2016 -0600
+commit e5ff529679b3adbed06d509b0fc21a76b62e89e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 6 00:16:05 2016 +0000
 
-    cmd/compile: avoid leak of dottype expression on double assignment form
+    lib/time: update to IANA release 2016f (July 2016)
     
-    This is a followup to issue #13805. That change avoid leaks for types that
-    don't have any pointers for the single assignment form of a dottype expression.
-    This does the same for the double assignment form.
+    Fixes #16273
     
-    Fixes #15796
-    
-    Change-Id: I27474cade0ff1f3025cb6392f47b87b33542bc0f
-    Reviewed-on: https://go-review.googlesource.com/24906
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I443e1f254fd683c4ff61beadae89c1c45ff5d972
+    Reviewed-on: https://go-review.googlesource.com/24744
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  4 ++--
- test/escape_iface.go               | 18 ++++++++++++++++--
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ lib/time/update.bash  |   6 +++---
+ lib/time/zoneinfo.zip | Bin 364413 -> 364741 bytes
+ 2 files changed, 3 insertions(+), 3 deletions(-)

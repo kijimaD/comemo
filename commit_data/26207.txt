@@ -1,22 +1,26 @@
-commit 157f069873c0fe2310e628ffd679caffa6e68b4e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 10 15:07:08 2016 -0800
+commit 81b35117d9e0b99a5894d65c8c419541a48c87dd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 31 12:06:31 2015 -0800
 
-    cmd/compile: call missing popdcl in various genxxx functions
+    runtime: set SIGCONT to _SigNotify + _SigDefault
     
-    Not calling popdcl doesn't have an impact on generated code but
-    the result is a growing (rather than empty) stack of symbols,
-    possibly causing more data to remain alive than necessary.
+    Use the current ability to say that we don't do anything with SIGCONT by
+    default, but programs can catch it using signal.Notify if they want.
     
-    Also: minor cleanups.
+    Fixes #8953.
     
-    Change-Id: Ic4fdbcd8843637d69ab1aa15e896a7e6339bc990
-    Reviewed-on: https://go-review.googlesource.com/20554
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I67d40ce36a029cbc58a235cbe957335f4a58e1c5
+    Reviewed-on: https://go-review.googlesource.com/18185
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go    | 4 ++++
- src/cmd/compile/internal/gc/go.go     | 9 +++++----
- src/cmd/compile/internal/gc/parser.go | 4 ++--
- src/cmd/compile/internal/gc/subr.go   | 2 ++
- 4 files changed, 13 insertions(+), 6 deletions(-)
+ src/os/signal/signal_test.go        | 9 +++++++++
+ src/runtime/signal_darwin.go        | 2 +-
+ src/runtime/signal_dragonfly.go     | 2 +-
+ src/runtime/signal_freebsd.go       | 2 +-
+ src/runtime/signal_nacl.go          | 2 +-
+ src/runtime/signal_netbsd.go        | 2 +-
+ src/runtime/signal_openbsd.go       | 2 +-
+ src/runtime/signal_solaris.go       | 2 +-
+ src/runtime/sigtab_linux_generic.go | 2 +-
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 10 files changed, 18 insertions(+), 9 deletions(-)

@@ -1,16 +1,14 @@
-commit 69f49e1cbcc38be1abb4bd8b2bd3376f53cc55c3
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Sat Mar 12 21:09:14 2016 +0200
+commit 6e28bf379535ea22e81b5065b2a1ebf6007b5727
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:26:45 2016 -0500
 
-    cmd/pprof: fix crash with invalid source
+    doc: fix source link in gdb docs
     
-    pprof crashed when running with:
+    Fixes #12059.
     
-         go tool pprof %INVALID
-    
-    Change-Id: I47c2a4da7273e3a97a833f320a650b8c6b59d6b9
-    Reviewed-on: https://go-review.googlesource.com/20632
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib5caf8133cd3ed888f9102dfbfeca11c506f3b5b
+    Reviewed-on: https://go-review.googlesource.com/18337
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/pprof/internal/driver/driver.go | 2 +-
+ doc/debugging_with_gdb.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

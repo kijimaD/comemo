@@ -1,15 +1,17 @@
-commit 92390e47d81713d13b0d9890bf8b153f142a5b8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 16:50:00 2015 -0400
+commit 9a8750b2765184b3bfa555ac7cce6e28e45de03e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Jun 14 21:52:57 2015 +0200
 
-    os/exec: close read pipe if copy to io.Writer fails
+    misc/trace: update trace viewer
     
-    Fixes #10400.
+    Update to tip to fix #11003 (not possible to select events in chromium).
+    Fixed #11003
     
-    Change-Id: Ic486cb8af4c40660fd1a2e3d10986975acba3f19
-    Reviewed-on: https://go-review.googlesource.com/12537
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibba5d39ca809cfd5cb79c9e6d152b00899d49e08
+    Reviewed-on: https://go-review.googlesource.com/11062
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/os/exec/exec.go      |  1 +
- src/os/exec/exec_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ misc/trace/README.md              |    3 +-
+ misc/trace/trace_viewer_lean.html | 5732 ++++++++++++++++++++++---------------
+ src/cmd/trace/trace.go            |    2 +-
+ 3 files changed, 3427 insertions(+), 2310 deletions(-)

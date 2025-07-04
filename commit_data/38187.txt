@@ -1,21 +1,26 @@
-commit 44dc661453a59587a81265c17f7c469b60e9059a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 1 12:55:43 2019 -0800
+commit 70d7e96c7850d141ae48e99f02a397aed1bc474b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 8 13:51:10 2018 -0400
 
-    cmd/link: reliably remove temporary directory in testDwarf
+    runtime: avoid tracking spans with no objects with mcentral
     
-    We were using t.Parallel in a subtest, which meant that the main test
-    would not wait for the subtest, so the main test would delete the
-    temporary directory before the subtest used it. The subtest worked
-    because "go build -o /tmp/x/y/p.exe p" creates /tmp/x/y as needed.
+    Lazy mcache flushing (golang.org/cl/134783) made it so that moving a
+    span from an mcache to an mcentral was sometimes responsible for
+    sweeping the span. However, it did a "preserving" sweep, which meant
+    it retained ownership, even if the sweeper swept all objects in the
+    span. As a result, we could put a completely unused span back in the
+    mcentral.
     
-    Updates #30500
+    Fix this by first taking back ownership of the span into the mcentral
+    and moving it to the right mcentral list, and then doing a
+    non-preserving sweep. The non-preserving sweep will move the span to
+    the heap if it sweeps all objects.
     
-    Change-Id: I5904ecac748d15ded4cb609f049fa548b8916a0e
-    Reviewed-on: https://go-review.googlesource.com/c/164857
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I244b1893b44b8c00264f0928ac9239449775f617
+    Reviewed-on: https://go-review.googlesource.com/c/140597
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/dwarf_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/mcentral.go | 35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)

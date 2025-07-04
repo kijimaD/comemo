@@ -1,33 +1,20 @@
-commit 4a164a44de3c67da878403504d948dfbd4fc6f7d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 19 14:09:54 2022 -0400
+commit d8f7a64519695f037cce8696c5c3b7216fd4a680
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 17 16:12:43 2021 -0800
 
-    go/internal/gcimporter,cmd/compile/internal/importer: use testenv.MustHaveGoBuild directly
+    test: make issue8606b test more robust
     
-    These tests previously had a “skipSpecialPlatforms” function, added in
-    CL 8611 to skip tests on (apparently) NaCL and iOS. The iOS builders
-    no longer match the condition (GOOS=ios is its own thing now), and the
-    NaCL port no longer exists.
+    Use actual unmapped memory instead of small integers to make
+    pointers that will fault when accessed.
     
-    The name of the function also isn't very evocative, since it doesn't
-    say what is “special” about the platforms to cause them to be
-    skipped.m
+    Fixes #49562
     
-    Since the check is intending to run the tests only on platforms where
-    gc export data is available, and to a first approximation
-    “gc export data is available” on exactly the platforms that can run
-    “go build” to produce that export data, we can use the testenv function
-    instead of a one-off.
-    
-    Updates #38485.
-    
-    Change-Id: I8f38b9604300d165147f8942e945ab762419fad7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444155
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I2c60c97cf80494dd962a07d10cfeaff6a00f4f8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364914
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../compile/internal/importer/gcimporter_test.go   | 40 +++++++-------------
- src/go/internal/gcimporter/gcimporter_test.go      | 43 ++++++++--------------
- 2 files changed, 28 insertions(+), 55 deletions(-)
+ test/fixedbugs/issue8606b.go | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

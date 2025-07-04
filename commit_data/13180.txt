@@ -1,12 +1,14 @@
-commit 7db8c779feda3f85286c0be4f0c574276466ae02
+commit ac486ab15c47edc31a5b2898bf79d26b9a9c939a
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue May 29 06:13:56 2012 +0900
+Date:   Tue May 29 06:12:06 2012 +0900
 
-    net: fix comment on FileListener
+    net: make parsePort as a function
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6248054
+    https://golang.org/cl/6256059
 
- src/pkg/net/file.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/ipsock.go    | 13 ++-------
+ src/pkg/net/port.go      | 73 ++++++++++--------------------------------------
+ src/pkg/net/port_unix.go | 69 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 86 insertions(+), 69 deletions(-)

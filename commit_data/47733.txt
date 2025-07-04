@@ -1,29 +1,32 @@
-commit 0a15e7851a0ea1ebe1523bb70a6cfe56488ea2ef
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 6 17:26:32 2021 -0500
+commit 31d2556273795ae10709d3bc157ec5d3f0e070a2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 7 19:58:01 2021 +0000
 
-    runtime/pprof: assert that labelHog samples are always labeled
+    runtime: set up read-only dummy TLS space for needm on Windows
     
-    With https://golang.org/issue/50007 resolved, there are no known issues
-    with pprof labels remaining. Thus, the 10% allowed error in
-    TestLabelSystemstack should not be required.
+    On Windows, TLS is uninitialized for C threads calling into Go code.
+    In this path, before calling into user Go code, we call into needm which
+    runs without an m, but whose purpose is to pick one up. While in Go
+    code, we may occasionally restore the G register from TLS for a number
+    of reasons. Rather than try to flag all these cases, given that needm
+    (and its callees) are already somewhat special, just set up a dummy TLS
+    space for it that's read-only. If it ever actually tries to write to
+    this space (it shouldn't), it will fail loudly. Otherwise, code that
+    restores the G register will simply load a zero value, but that's OK
+    since needm is careful never to require the G at any point, because it
+    doesn't yet have a valid G. Furthermore, by the time needm returns, it
+    will have set up TLS properly for a Windows C thread, so there's no need
+    to do anything extra afterwards.
     
-    Drop it in favor of an explicit assertion that all samples containing
-    labelHog are properly labeled.
+    For #40724.
     
-    This is no flaky in my local testing. It is possible that other bugs
-    will appear at larger testing scale, in which case this CL will be
-    reverted, but then at least we will be aware of additional failure
-    modes.
-    
-    For #50007.
-    
-    Change-Id: I1ef530c303bd9a01af649b8b08d4b35505e8aada
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369744
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I34e8095059817e4ee663505e89cda8785b634b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307872
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/pprof/pprof_test.go | 68 +++++++++++++----------------------------
- 1 file changed, 22 insertions(+), 46 deletions(-)
+ src/runtime/asm_amd64.s | 17 +++++++++++++++++
+ src/runtime/runtime2.go | 17 ++++++++++++-----
+ 2 files changed, 29 insertions(+), 5 deletions(-)

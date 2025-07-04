@@ -1,19 +1,17 @@
-commit 06f82af1837bf77dfb2f337f5bb15b6c3f85a454
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 20 22:55:37 2025 +1100
+commit 70a2e84e91f9f38754014d6006f8211d33662c3e
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 20 01:57:37 2024 +0000
 
-    cmd/internal/obj/arm64: return a bit shift from movcon
+    crypto/ecdsa: fix typo
     
-    Return the shift in bits from movcon, rather than returning an index.
-    This allows a number of multiplications to be removed, making the code
-    more readable. Scale down to an index only when encoding.
-    
-    Change-Id: I1be91eb526ad95d389e2f8ce97212311551790df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650939
-    Auto-Submit: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I32580ffb31ffad05a7c8d3aa0c491aff9f55ea6a
+    GitHub-Last-Rev: 67516eaa18923f0f59a69e82b74ecba74af387d4
+    GitHub-Pull-Request: golang/go#65565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562316
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 31 +++++++++++++++----------------
- 1 file changed, 15 insertions(+), 16 deletions(-)
+ src/crypto/ecdsa/ecdsa_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

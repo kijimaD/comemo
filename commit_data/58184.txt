@@ -1,36 +1,21 @@
-commit 91af7119cd33e59a04d96073bc0f40b588938163
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 18 12:45:17 2024 -0800
+commit 7c446bab6331b0d9b0bcb0264d001ff01044a234
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 10 19:56:41 2023 +0000
 
-    go/types, types2: disallow new methods on generic alias and instantiated types
+    Revert "cmd/link/internal/ld: assign temporary addresses to per-package text"
     
-    If the receiver is an alias declaring type parameters, report
-    an error and ensure that the receiver type remains invalid.
-    Collect type parameters etc. as before but do not attempt to
-    find their constraints or instantiate the receiver type.
-    The constraints of the type parameters will be invalid by
-    default. The receiver type will not be (lazily) instantiated
-    which causes problems with existing invariants.
+    This reverts commit http://go.dev/cl/349650
     
-    If a receiver denotes an instantiated (alias or defined) type,
-    report an error and ensure that the receiver type remains invalid.
+    Reason for revert: CL breaks multiple builders with failure in TestLargeTextSectionSplitting
     
-    While at it, add more comments and bring go/types and types2
-    closer together where there were differences.
-    
-    Fixes #70417.
-    
-    Change-Id: I87ef0b42d2f70464664cacc410f4b7eb1c994241
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629080
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4894ffd101b2757a6e6359212d5b8a64da1fcdf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534299
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/resolver.go        | 28 ++++++--
- src/cmd/compile/internal/types2/signature.go       | 75 ++++++++++++++++------
- src/go/types/resolver.go                           | 28 +++++---
- src/go/types/signature.go                          | 71 ++++++++++++++------
- .../types/testdata/fixedbugs/issue47968.go         | 10 +--
- .../types/testdata/fixedbugs/issue70417.go         | 58 +++++++++++++++++
- 6 files changed, 211 insertions(+), 59 deletions(-)
+ src/cmd/link/internal/ld/data.go    | 87 +++++++++++--------------------------
+ src/cmd/link/internal/ld/ld_test.go | 68 -----------------------------
+ 2 files changed, 25 insertions(+), 130 deletions(-)

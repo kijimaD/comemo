@@ -1,12 +1,18 @@
-commit f7320bf81bc21d33ff0c008e74bcc7c5310e1da6
-Author: Jason Travis <infomaniac7@gmail.com>
-Date:   Tue Jan 8 15:22:18 2013 +1100
+commit c863db4e8762d24df791025314ceb4241df921a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 7 18:02:58 2013 -0800
 
-    cmd/vet: fix doc typo.
+    spec: s/char_lit/rune_lit/
     
-    R=golang-dev, dsymonds
+    The spec talks explicitly about rune literals but the
+    respective production is still called char_lit for
+    historic reasons. Updated the two occurences.
+    
+    Fixes #4602.
+    
+    R=rsc, iant, r, ken
     CC=golang-dev
-    https://golang.org/cl/7061050
+    https://golang.org/cl/7070048
 
- src/cmd/vet/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

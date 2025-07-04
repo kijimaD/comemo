@@ -1,22 +1,16 @@
-commit 2589a89468c4cd7a1132a76288fcf082cdaa2454
-Author: khr@golang.org <khr@golang.org>
-Date:   Tue Feb 27 16:00:52 2024 -0800
+commit 8b3dc5399d507f168128f7102ddb300f9b14895d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 13:14:35 2023 -0400
 
-    runtime: don't re-initialize itab while looking for missing function
+    cmd/dist: add needCC comment, fix needCC
     
-    The itab we're initializing again, just to figure out which method
-    is missing, might be stored in read-only memory.
-    This can only happen in certain weird generics situations, so it is
-    pretty rare, but it causes a runtime crash when it does happen.
+    This was missed in CL 475377.
     
-    Fixes #65962
-    
-    Change-Id: Ia86e216fe33950a794ad8e475e76317f799e9136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567615
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I4e8c4c0459a92029a3f448c1e4172d3343280c57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475958
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/iface.go         | 20 ++++++++++--------
- test/fixedbugs/issue65962.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+), 8 deletions(-)
+ src/cmd/dist/build.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

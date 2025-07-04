@@ -1,12 +1,24 @@
-commit 1716add3dc50d4ef38183d01ac5c1a16c83a8ac9
-Author: Kevin Burke <kev@inburke.com>
-Date:   Fri Dec 16 07:50:08 2016 -0800
+commit e875fe42eee942c35cdecc7b4b5d4e762f47bade
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 11 14:59:55 2016 -0700
 
-    runtime/pprof: fix spelling in test
+    vendor/golang_org/x/crypto/curve25519: new package
     
-    Change-Id: Id10e41fe396156106f63a4b29d673b31bea5358f
-    Reviewed-on: https://go-review.googlesource.com/34551
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change imports the curve25519 package from x/crypto at revision
+    594708b89f21ece706681be23d04a6513a22de6e.
+    
+    Change-Id: I379eaa71492959e404259fc1273d0057573bc243
+    Reviewed-on: https://go-review.googlesource.com/30822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../golang_org/x/crypto/curve25519/const_amd64.s   |   20 +
+ .../golang_org/x/crypto/curve25519/cswap_amd64.s   |   88 ++
+ .../golang_org/x/crypto/curve25519/curve25519.go   |  841 ++++++++++++
+ .../x/crypto/curve25519/curve25519_test.go         |   29 +
+ src/vendor/golang_org/x/crypto/curve25519/doc.go   |   23 +
+ .../golang_org/x/crypto/curve25519/freeze_amd64.s  |   94 ++
+ .../x/crypto/curve25519/ladderstep_amd64.s         | 1398 ++++++++++++++++++++
+ .../x/crypto/curve25519/mont25519_amd64.go         |  240 ++++
+ .../golang_org/x/crypto/curve25519/mul_amd64.s     |  191 +++
+ .../golang_org/x/crypto/curve25519/square_amd64.s  |  153 +++
+ 10 files changed, 3077 insertions(+)

@@ -1,14 +1,20 @@
-commit eb5e4b85194f2c01c8eac0c8f47c509f0e198d14
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 14 10:28:59 2011 +1000
+commit bb855f985a550b340a443ed5661e340e92f66521
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 13 16:57:44 2011 -0700
 
-    doc/install.html: document use of libc6-dev-i386
+    govet: make name-matching for printf etc. case-insensitive.
+    Update goyacc, cgo to be more canonical in their naming and silence the new warnings.
     
-    Fixes #1689.
-    
-    R=rsc
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4404043
+    https://golang.org/cl/4417042
 
- doc/install.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/cgo/ast.go       |   2 +-
+ src/cmd/cgo/gcc.go       |  58 ++++++++++++-------------
+ src/cmd/cgo/main.go      |   6 +--
+ src/cmd/cgo/out.go       |   6 +--
+ src/cmd/cgo/util.go      |  16 +++----
+ src/cmd/govet/govet.go   |  44 +++++++++++--------
+ src/cmd/goyacc/goyacc.go | 110 +++++++++++++++++++++++------------------------
+ src/cmd/goyacc/units.y   |  30 ++++++-------
+ 8 files changed, 141 insertions(+), 131 deletions(-)

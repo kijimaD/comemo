@@ -1,23 +1,17 @@
-commit c99d966c176a604b8ac2081fec0ecf9ab04b3745
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon May 15 13:22:39 2023 -0400
+commit 0ad2ec6596afc51341fa3059528d89a0508956ab
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:18:15 2022 -0400
 
-    runtime/coverage: add support for "auxiliary" meta-data files
+    runtime: clean up dopanic_m
     
-    Enhance the functions called by _testmain.go during "go test -cover"
-    test binary runs to allow for injection of extra or "auxiliary"
-    meta-data files when reporting coverage statistics. There are unit
-    tests for this functionality, but it is not yet wired up to be used by
-    the Go command yet, that will appear in a subsequent patch.
+    gp is a user G running on the same M as getg(), so it is a fine proxy
+    for gp.m.
     
-    Change-Id: I10b79ca003fd7a875727dc1a86f23f58d6bf630c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495451
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I9aa1dd283ecf28878eeedd7da4ded5c901809832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418576
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/build/deps_test.go           |   1 +
- src/internal/coverage/cmddefs.go    |  14 +++++
- src/runtime/coverage/testsupport.go |  46 +++++++++++++-
- src/runtime/coverage/ts_test.go     | 116 +++++++++++++++++++++++++++++++++++-
- 4 files changed, 173 insertions(+), 4 deletions(-)
+ src/runtime/panic.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

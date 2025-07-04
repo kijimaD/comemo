@@ -1,40 +1,26 @@
-commit 2392b7061cfc71dcdaefeb027dcce0951f697658
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 2 12:10:24 2022 -0700
+commit a17b2e865551ebdeccd6aafcdc23c1b63932b258
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 15 11:57:58 2021 -0700
 
-    go/types, types2: use strings.Builder instead of bytes.Buffer where possible
+    cmd/go: allow nested VCS repositories when preparing build stamp
     
-    Also, consistently use declaration: var buf strings.Builder.
-    We don't change exported signatures to match go/types (where we
-    can't change the exported signatures for backward-compatibility).
+    The go command no longer reports an error when invoked in a repository
+    nested inside another. This check is still used by 'go get' in GOPATH
+    mode when locating a repository, but it's not needed when preparing
+    the build stamp.
     
-    Change-Id: I75350886aa231889ae2fd5c4008dd4be9ed6e09f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428094
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #49004
+    
+    Change-Id: I4ed4dcc04174d2d42da8651d47e52ab1d7d66e35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356309
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/api.go              |  4 ++--
- src/cmd/compile/internal/types2/api_test.go         |  3 +--
- src/cmd/compile/internal/types2/errors.go           | 17 ++++++++---------
- src/cmd/compile/internal/types2/example_test.go     |  5 ++---
- src/cmd/compile/internal/types2/infer.go            | 12 ++++++------
- src/cmd/compile/internal/types2/instantiate_test.go |  8 ++++----
- src/cmd/compile/internal/types2/issues_test.go      |  3 +--
- src/cmd/compile/internal/types2/mono_test.go        |  3 +--
- src/cmd/compile/internal/types2/scope.go            |  3 +--
- src/cmd/compile/internal/types2/termlist.go         |  4 ++--
- src/cmd/compile/internal/types2/typeset.go          |  4 ++--
- src/go/types/api_test.go                            |  3 +--
- src/go/types/errors.go                              | 14 +++++++-------
- src/go/types/example_test.go                        |  7 +++----
- src/go/types/infer.go                               | 12 ++++++------
- src/go/types/instantiate_test.go                    |  8 ++++----
- src/go/types/issues_test.go                         |  3 +--
- src/go/types/mono_test.go                           |  3 +--
- src/go/types/scope.go                               |  3 +--
- src/go/types/termlist.go                            |  4 ++--
- src/go/types/typeset.go                             |  4 ++--
- 21 files changed, 58 insertions(+), 69 deletions(-)
+ src/cmd/go/internal/get/get.go                        |  3 ++-
+ src/cmd/go/internal/load/pkg.go                       |  7 ++++---
+ src/cmd/go/internal/vcs/vcs.go                        | 11 ++++++++---
+ src/cmd/go/internal/vcs/vcs_test.go                   |  2 +-
+ .../go/testdata/script/version_buildvcs_nested.txt    | 19 ++++++++++---------
+ 5 files changed, 25 insertions(+), 17 deletions(-)

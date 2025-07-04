@@ -1,21 +1,21 @@
-commit 846dce9d05f19a1f53465e62a304dea21b99f910
-Author: mengxiaodong <920432478@qq.com>
-Date:   Mon Sep 28 17:38:13 2020 +0800
+commit c44af2d4a23a30cb0930adfca9e56b3d1e04a35c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 11 11:18:00 2020 -0400
 
-    runtime: code cleanup about map
+    [dev.link] cmd/internal/obj: add dump of aux symbols for -S=2
     
-    1.Revise ambiguous comments: "all current buckets" means buckets in hmap.buckets, actually current bucket and all the overflow buckets connected to it are full
-    2.All the pointer address add use src/runtime/stubs.go:add, keep the code style uniform
+    For compiler developers interested in seeing DWARF generation details,
+    this patch provides symbol "debug asm" dumps for DWARF aux symbols
+    when -S=2 is in effect.
     
-    Change-Id: Idc7224dbe6c391e1b03bf5d009c3734bc75187ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257979
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I5a0b6b65ce7b708948cbbf23c6b0d279bd4f8d9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223017
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/map.go         | 4 ++--
- src/runtime/map_fast32.go  | 8 ++++----
- src/runtime/map_fast64.go  | 8 ++++----
- src/runtime/map_faststr.go | 4 ++--
- 4 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/objfile.go  |  6 +++-
+ src/cmd/internal/obj/objfile2.go | 30 ++++++++++++++++--
+ src/cmd/internal/obj/sym.go      | 68 +++++++++++++++++++++++++++++-----------
+ 3 files changed, 81 insertions(+), 23 deletions(-)

@@ -1,16 +1,13 @@
-commit 1e1c9dc2c8143127b1ef8bd5e32b294e856586a6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Mar 11 13:05:24 2015 -0400
+commit 201b12499c6dd68d118f3152467bee50c1a97aee
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 17 16:48:31 2015 +1100
 
-    cmd/9g: use REGZERO instead of REG_R0 if we want the zero register
+    [dev.cc] runtime: remove comma at the end of DIVL instruction (fixes windows build)
     
-    This will make the intention clearer.
-    This is migrated from pre-c2go CL 4930.
-    
-    Change-Id: I9103126a05323daedd729a43b94b2be8cd7408c9
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7410
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ia47e1e387acd30f30559d766aa6fca18cbb098f9
+    Reviewed-on: https://go-review.googlesource.com/5010
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/9g/ggen.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/sys_windows_386.s   | 2 +-
+ src/runtime/sys_windows_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

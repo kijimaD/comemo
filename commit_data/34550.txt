@@ -1,33 +1,18 @@
-commit b2d1cd2ad0dd1e0c84e6c3b2eccf77a5bcb84cdd
-Author: Vladimir Kuzmin <vkuzmin@uber.com>
-Date:   Wed Mar 7 19:46:54 2018 -0800
+commit 2f170520aa460561997636dec66f303ee69ab684
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 15:42:17 2017 -0400
 
-    net: optimize IP.String for IPv4
+    cmd/link: do not store compilation directory in DWARF info
     
-    This is optimization is only for IPv4. It allocates a result buffer and
-    writes the IPv4 octets as dotted decimal into it before converting
-    it to a string just once, reducing allocations.
+    This makes 'go install cmd/compile' in one directory produce
+    a different binary from running it in another directory,
+    which is problematic for reproducible builds.
     
-    Benchmark shows performance improvement:
-    
-    name             old time/op    new time/op    delta
-    IPString/IPv4-8     284ns ± 4%     144ns ± 6%  -49.35%  (p=0.000 n=19+17)
-    IPString/IPv6-8    1.34µs ± 5%    1.14µs ± 5%  -14.37%  (p=0.000 n=19+20)
-    
-    name             old alloc/op   new alloc/op   delta
-    IPString/IPv4-8     24.0B ± 0%     16.0B ± 0%  -33.33%  (p=0.000 n=20+20)
-    IPString/IPv6-8      232B ± 0%      224B ± 0%   -3.45%  (p=0.000 n=20+20)
-    
-    name             old allocs/op  new allocs/op  delta
-    IPString/IPv4-8      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=20+20)
-    IPString/IPv6-8      12.0 ± 0%      11.0 ± 0%   -8.33%  (p=0.000 n=20+20)
-    
-    Fixes #24306
-    
-    Change-Id: I4e2d30d364e78183d55a42907d277744494b6df3
-    Reviewed-on: https://go-review.googlesource.com/99395
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If26685d2e45d2695413b472142b49694716575fa
+    Reviewed-on: https://go-review.googlesource.com/74790
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/ip.go      | 40 ++++++++++++++++++++++++++++++++++++----
- src/net/ip_test.go | 14 +++++++++++++-
- 2 files changed, 49 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

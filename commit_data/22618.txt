@@ -1,14 +1,16 @@
-commit c0fa9e3f6ff0c63d063d81c859a7f87a519a4182
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 20 15:31:07 2015 -0700
+commit 71756355dc18a3905bbaafeaed4b357558535454
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Tue Mar 17 11:57:11 2015 -0700
 
-    runtime/pprof: disable flaky TestTraceFutileWakeup on linux/ppc64le
+    cmd/go: add -asmflags build flag
     
-    Update #10512.
+    We need this in order to pass the "-shared" flag to the assembler.
     
-    Change-Id: Ifdc59c3a5d8aba420b34ae4e37b3c2315dd7c783
-    Reviewed-on: https://go-review.googlesource.com/9162
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I9c15cfe4d32c1e5e8cae1b9b2c924cfd77923b55
+    Reviewed-on: https://go-review.googlesource.com/7694
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/trace_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/build.go | 10 ++++++++--
+ src/cmd/go/doc.go   |  8 +++++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

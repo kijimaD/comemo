@@ -1,13 +1,23 @@
-commit 361c5ace0597d57480837f4c610c47e7bf20bd18
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 29 15:56:52 2011 +1000
+commit 77f0bdce07c1abc8b9bea9102cd49de20864cab1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 28 23:29:34 2011 -0400
 
-    template: range over channel
+    gc: fix arm build
     
-    R=golang-dev, dsymonds
+    Escape analysis was incorrectly assuming that
+    functions without bodies don't leak their
+    parameters.  This meant that sync/atomic's
+    TestAddInt64 was allocating x on its stack,
+    and then x was not properly aligned for use
+    with the atomic 64-bit instructions.  Obviously
+    we should figure out the alignment story on 5g
+    too, but this fix is correct and should restore the
+    build to 'ok'.
+    
+    TBR=lvd
     CC=golang-dev
-    https://golang.org/cl/4951046
+    https://golang.org/cl/4964047
 
- src/pkg/template/exec.go      | 50 +++++++++++++++++++++++++------------------
- src/pkg/template/exec_test.go | 24 ++++++++++++++++++++-
- 2 files changed, 52 insertions(+), 22 deletions(-)
+ src/cmd/gc/esc.c | 6 +++++-
+ test/escape2.go  | 6 ++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

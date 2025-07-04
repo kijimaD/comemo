@@ -1,23 +1,12 @@
-commit 687abca1ea828dd4745d50c351f3b73ccd4d09be
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 15 18:17:09 2016 -0800
+commit dc94094920a322ce07c3f555ee13f9505985edc4
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Dec 2 16:22:53 2015 -0800
 
-    runtime: avoid using REP prefix for IndexByte
+    doc: correct release date for go1.5.2
     
-    REP-prefixed instructions have a large startup cost.
-    Avoid them like the plague.
-    
-    benchmark                  old ns/op     new ns/op     delta
-    BenchmarkIndexByte10-8     22.4          5.34          -76.16%
-    
-    Fixes #13983
-    
-    Change-Id: I857e956e240fc9681d053f2584ccf24c1b272bb3
-    Reviewed-on: https://go-review.googlesource.com/18703
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6bee207db7485f96a499f51b2d1346c35e086d41
+    Reviewed-on: https://go-review.googlesource.com/17337
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/bytes/bytes_test.go |  37 +++++++++++++
- src/runtime/asm_amd64.s | 144 ++++++++++++++++++++++++------------------------
- 2 files changed, 110 insertions(+), 71 deletions(-)
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

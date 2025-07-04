@@ -1,25 +1,18 @@
-commit 9ce28b518d9a792d2e3e741bcb38fa046891906e
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Sat Jun 4 09:43:40 2022 -0700
+commit 631af58e2058677072e213aeea25e924ebf19fcf
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 13:36:27 2021 -0400
 
-    text/template/parse: fix data race on lexer initialization
+    go/types: remove targs from substMap
     
-    Before this change, `startParse` would write `lex.breakOK` and `lex.continueOK` when the lexer goroutine is already running, which is a potential race condition.
+    This is a straightforward port of CL 341859 to go/types.
     
-    Makes `breakOK` and `continueOK` configuration flags passed when `lexer` is created, similarly to how `emitComment` works.
-    
-    Fixes #53234
-    
-    Change-Id: Ia65f6135509a758cd4c5a453b249a174f4fb3e21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410414
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5d2508f516b5cf4d8775c3a77cc8bed5d4bec338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342480
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/text/template/parse/lex.go      | 4 +++-
- src/text/template/parse/lex_test.go | 4 ++--
- src/text/template/parse/parse.go    | 7 ++++---
- 3 files changed, 9 insertions(+), 6 deletions(-)
+ src/go/types/instantiate.go |  2 +-
+ src/go/types/subst.go       | 86 ++++++++++++++++++---------------------------
+ 2 files changed, 35 insertions(+), 53 deletions(-)

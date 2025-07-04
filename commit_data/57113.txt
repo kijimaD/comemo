@@ -1,30 +1,20 @@
-commit b696250e5f0dcc4cfa863309538c65d30d2ad480
-Author: apocelipes <seve3r@outlook.com>
-Date:   Tue Aug 6 21:58:38 2024 +0000
+commit e45202f2154839f713b603fd6e5f8a8ad8d527e0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 16 18:28:22 2023 +0000
 
-    hash: implement the encoding.BinaryAppender interface
+    runtime: relate GODEBUG=gctrace output to runtime/metrics
     
-    For #62384
+    There's more I could list here, but the mapping becomes more complicated
+    and more fragile. I think this is sufficient to start with.
     
-    Change-Id: Ia6de028741e43449bcf54ba73ec9b0cad4d4e88a
-    GitHub-Last-Rev: 192f389d463d372a338dca82827a871888a53bb0
-    GitHub-Pull-Request: golang/go#68738
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603255
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #46846.
+    
+    Change-Id: I6803486a64888b2f38e244b8e2175ad064d648ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504115
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- doc/next/6-stdlib/99-minor/hash/adler32/62384.md |  1 +
- doc/next/6-stdlib/99-minor/hash/crc32/62384.md   |  1 +
- doc/next/6-stdlib/99-minor/hash/crc64/62384.md   |  1 +
- doc/next/6-stdlib/99-minor/hash/fnv/62384.md     |  1 +
- src/hash/adler32/adler32.go                      |  7 ++--
- src/hash/adler32/adler32_test.go                 | 12 +++++++
- src/hash/crc32/crc32.go                          |  8 +++--
- src/hash/crc32/crc32_test.go                     | 24 ++++++++++++++
- src/hash/crc64/crc64.go                          |  7 ++--
- src/hash/crc64/crc64_test.go                     | 24 ++++++++++++++
- src/hash/fnv/fnv.go                              | 42 +++++++++++++++++-------
- src/hash/fnv/fnv_test.go                         | 12 +++++++
- 12 files changed, 122 insertions(+), 18 deletions(-)
+ src/runtime/extern.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

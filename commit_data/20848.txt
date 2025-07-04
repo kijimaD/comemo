@@ -1,17 +1,15 @@
-commit 182ec4395eff228673377127b8b8b69911e7762a
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Nov 3 13:41:03 2014 -0500
+commit 4c91b1371f1aef77e7ea7683c5c1d357234ca1cd
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 19 06:44:50 2014 -0700
 
-    misc/cgo/test: fix freebsd test failure by moving test to its own package.
+    encoding/gob: fix print format in generated decoder helpers
+    Needed a %% to quote a percent in the format.
     
-    (The assertion depends on a per-package gensym counter whose
-    value varies based on what else is in the package.)
-    
-    LGTM=khr
-    R=khr, rsc
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/169930043
+    https://golang.org/cl/156330043
 
- misc/cgo/test/issue9026.go           | 30 +++---------------------------
- misc/cgo/test/issue9026/issue9026.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 27 deletions(-)
+ src/encoding/gob/dec_helpers.go | 32 ++++++++++++++++----------------
+ src/encoding/gob/decgen.go      |  2 +-
+ 2 files changed, 17 insertions(+), 17 deletions(-)

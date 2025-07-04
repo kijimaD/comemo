@@ -1,16 +1,16 @@
-commit 4601857c1c7f5f72c75366763ff71fdcbe5f84be
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Dec 7 11:34:35 2023 -0500
+commit 780fa2426073035459b8a5d8e317f47864132ce4
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 9 13:36:36 2023 -0500
 
-    doc/go1.22: document openbsd/ppc64 port
+    net: add testing.Short Skip to test affected by local network configuration
     
-    Updates #56001.
-    For #61422.
+    If the local network mangles invalid DNS queries, that is not a Go problem.
     
-    Change-Id: Ie4afbc42191b155d28945bd8f104ad7a63d30db9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547999
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I54db392532eed988bca81b70a98cd6d11766af89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461275
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/net/dnsclient_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,33 +1,33 @@
-commit be0cc937ec9c109da90ec4d7da5af89606f8c0cf
-Author: Shibi J M <shibisjm@gmail.com>
-Date:   Tue May 20 03:59:15 2025 +0000
+commit d3e5e9fdf64f7a4198a73244ab3900ca8ffbacbe
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Mar 25 11:14:27 2024 -0500
 
-    net: avoid using Windows' TransmitFile on non-server machines
+    crypto/aes: fix regression for ppc64x
     
-    Windows API's TransmitFile function is limited to two concurrent
-    operations on workstation and client versions of Windows. This change
-    modifies the net.sendFile function to perform no work in such cases
-    so that TransmitFile is avoided.
+    CL 561080 introduced some failures for CBC and GCM crypto tests that are run during a build resulting in dashboard failures.
     
-    Fixes #73746
+    Tests that are failing:
+    - TestCBCEncrypterAES
+    - TestCBCDecrypterAES
+    - TestAESGCM
+    - TestGCMCounterWrap
+    - TestGCMAsm
     
-    Change-Id: Iba70d5d2758bf986e80c78254c8e9e10b39bb368
-    GitHub-Last-Rev: 315ddc0cd8034f52632dc31baf35057a8bad9bcd
-    GitHub-Pull-Request: golang/go#73758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673855
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    This fixes those failures.
+    
+    Change-Id: I90d6f8d279a3051cf951a1a9628afb8d0b5c2f17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574076
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/syscall/windows/types_windows.go    |  4 +++
- src/internal/syscall/windows/version_windows.go  | 37 ++++++++++++++++++++----
- src/internal/syscall/windows/zsyscall_windows.go |  2 +-
- src/net/sendfile.go                              |  5 ++--
- src/net/sendfile_nonwindows.go                   | 12 ++++++++
- src/net/sendfile_stub.go                         |  4 ++-
- src/net/sendfile_test.go                         |  4 +--
- src/net/sendfile_windows.go                      | 16 ++++++++++
- 8 files changed, 72 insertions(+), 12 deletions(-)
+ src/crypto/aes/cbc_ppc64x.go | 4 ++--
+ src/crypto/aes/gcm_ppc64x.go | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

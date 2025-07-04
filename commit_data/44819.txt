@@ -1,23 +1,28 @@
-commit 2c8692d45f80f902a243732dda95f6561b72a49a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 23 14:30:57 2021 -0700
+commit ef20f76b8bc4e082d5f81fd818890d707751475b
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Sep 2 01:08:02 2020 -0700
 
-    cmd/compile/internal/types2: review of example_test.go
+    net/http: reject negative suffix-length Range:bytes=--N with 416 status code
     
-    The changes between (equivalent, and reviewed) go/types/example_test.go
-    and example_test.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker.
+    Fixes the file server to reject requests of the form:
+        "Range": "bytes=--N"
+    where "-N" is a negative suffix-length as designated by the
+    grammar in RFC 7233 Section 2.1, "Byte-Ranges", which specifies
+    that suffix-length MUST be of the form 1*DIGIT aka a non-negative digit.
     
-    The primary differences to go/types/example_test.go are:
-    - use of syntax instead of go/ast package
-    - no ExampleMethodSet test (types2 doesn't have MethodSet)
-    - some code in ExampleInfo is disabled due to less precise
-      position information provided by the syntax tree
+    Thus requests such as:
+        "Range": "bytes=--2"
+    will be rejected with a "416 Range Not Satisfiable" response.
     
-    Change-Id: I035284357acc8ecb7849022b5a9d873ae2235987
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304249
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #40940
+    
+    Change-Id: I3e89f8326c14af30d8bdb126998a50e02ba002d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252497
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/example_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.16.html         |  6 +++++
+ src/net/http/fs.go      | 10 +++++++--
+ src/net/http/fs_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 2 deletions(-)

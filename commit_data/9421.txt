@@ -1,12 +1,14 @@
-commit fd897ffc68022f436e328acfe47807e0b5ec18dc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 19 09:31:50 2011 -0700
+commit 82189f654df7f3032f27a764ec8ce662f68764c1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 19 14:19:56 2011 +1000
 
-    type switches: test for pathological case
+    template/parse: add a Walk method to Tree.
     
-    R=rsc, r
-    CC=golang-dev
-    https://golang.org/cl/4894057
+    R=golang-dev, dsymonds, r
+    CC=golang-dev, mikesamuel
+    https://golang.org/cl/4918041
 
- test/typeswitch2.go | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ src/pkg/template/parse/Makefile      |   1 +
+ src/pkg/template/parse/parse_test.go | 127 +++++++++++++++++++++++++++++++++++
+ src/pkg/template/parse/walk.go       |  89 ++++++++++++++++++++++++
+ 3 files changed, 217 insertions(+)

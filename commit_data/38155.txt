@@ -1,19 +1,19 @@
-commit aafa855fd3f50f8d5c69a9f0e1ff06c50cfdcd64
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Fri Mar 1 01:15:24 2019 +0100
+commit 71d40c492fa92e710f9a3b2f26881a86f877ae95
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 4 17:16:33 2018 -0700
 
-    misc/ios: evaluate symlinks before comparing GOROOT and GOPATH
+    go/types: remove work-around for issue #26390
     
-    CL 163726 added workarounds to keep the iOS builders happy in
-    a symlinked temporary dir.
+    This work-around is not needed anymore now that method
+    signatures are type-checked separately from their receiver
+    base types: no artificial cycles are introduced anymore
+    and so there is no need to artificially cut them.
     
-    The workarounds also made the tests more realistic and improved
-    performance. Keep them but also handle symlinks better in the
-    exec wrapper.
+    Fixes #26854.
     
-    Change-Id: Iaa2c03a1a3fb3aa5aaf62d79d52b63d5d8f11db5
-    Reviewed-on: https://go-review.googlesource.com/c/164698
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2ef15ceeaa0b486f65f6cdc466d0cf06246c74d7
+    Reviewed-on: https://go-review.googlesource.com/c/139900
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/ios/go_darwin_arm_exec.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/go/types/decl.go | 25 -------------------------
+ 1 file changed, 25 deletions(-)

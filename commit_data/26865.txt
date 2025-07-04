@@ -1,17 +1,14 @@
-commit 78ecd61f6245197f701629f5f511be7f2bc1ff58
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 19:20:34 2016 -0400
+commit 55e7636f9c251f2dbff3daa1924071bc11df28a8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 20:11:33 2016 -0800
 
-    runtime/cgo: add s390x support
+    cmd/compile: remove some unused consts from the old yacc parser
     
-    Change-Id: I64ada9fe34c3cfc4bd514ec5d8c8f4d4c99074fb
-    Reviewed-on: https://go-review.googlesource.com/20950
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I42f370b987fcc85201f7aaa055b9e58ee9b9a99e
+    Reviewed-on: https://go-review.googlesource.com/20079
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo/asm_s390x.s       | 44 +++++++++++++++++++++++++
- src/runtime/cgo/gcc_linux_s390x.c | 68 +++++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_s390x.S       | 43 +++++++++++++++++++++++++
- 3 files changed, 155 insertions(+)
+ src/cmd/compile/internal/gc/go.go | 9 ---------
+ 1 file changed, 9 deletions(-)

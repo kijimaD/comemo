@@ -1,16 +1,17 @@
-commit 08dd4ad7e30313d089793f19baff1855bbaa004e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 2 17:14:25 2020 -0700
+commit f2dfbe98adca83ac32382ef6099349b61a0d5508
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Tue Oct 29 09:19:35 2019 +0100
 
-    runtime: only check for pointers up to ptrdata, not size
+    os: return from TestRemoveAllWithMoreErrorThanReqSize when RemoveAll succeeds on Windows
     
-    Change-Id: I166cf253b7f2483d652c98d2fba36c380e2f3347
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227177
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Also remove unused test hook.
+    
+    Updates #35117
+    
+    Change-Id: I6f05ba234fb09e4b44e77c1539c02d1aed49910a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204060
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mbarrier.go | 24 ++++++++++++++++++++----
- src/runtime/slice.go    |  2 +-
- 2 files changed, 21 insertions(+), 5 deletions(-)
+ src/os/path.go           |  3 ---
+ src/os/removeall_test.go | 12 +++++-------
+ 2 files changed, 5 insertions(+), 10 deletions(-)

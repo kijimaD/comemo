@@ -1,12 +1,14 @@
-commit 17efbfc5609fc9f2d95e5473250d740a9e5608bc
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Jul 28 12:59:34 2015 -0400
+commit ee1ef8fe676e20c82d381b839b02e8967f1dcf43
+Author: ALTree <alb.donizetti@gmail.com>
+Date:   Thu Jun 18 17:22:25 2015 +0200
 
-    cmd/doc: extend darwin/arm64 test TODO to arm
+    math/big: Add small complete example of big.Float usage
     
-    Change-Id: Iee0f3890d66b4117aa5d9f486e5775b1cf31996c
-    Reviewed-on: https://go-review.googlesource.com/12745
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #11241
+    
+    Change-Id: I573be85d0cfcf410f6125ecd2be8a3d292c40bbb
+    Reviewed-on: https://go-review.googlesource.com/11245
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/doc/doc_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/example_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

@@ -1,26 +1,24 @@
-commit b788fd80e68addd181983ca589d28bc1075f4a36
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 9 13:58:48 2017 -0500
+commit 09bb6434f9a8681b81a667e1ff186c61bbe0a50f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 2 19:48:35 2016 +0000
 
-    runtime: new profile buffer implementation supporting label pointers
+    net/http: update bundled http2
     
-    The existing CPU profiling buffer is a slice of uintptr, but we want to
-    start including profiling label data in the profiles, and those labels need
-    to be pointers in order to let them describe rich information.
+    Update bundled x/net/http2 to x/net git rev 6c4ac8bd for:
     
-    This CL implements a new profBuf type that holds both a slice of uint64
-    for data and a slice of unsafe.Pointer for profiling labels (aka tags).
-    Making the runtime use these buffers will happen in followup CLs.
+       http2: fix Transport race sending RST_STREAM while reading DATA on cancels
+       https://golang.org/cl/32571
     
-    Change-Id: I9ff16b532d8edaf4ce0cbba1098229a561834efc
-    Reviewed-on: https://go-review.googlesource.com/36713
-    Run-TryBot: Russ Cox <rsc@golang.org>
+       http2: remove h2-14 ALPN proto
+       https://golang.org/cl/32576
+    
+    Fixes #16974
+    
+    Change-Id: I6ff8493a13d2641499fedf33e8005004735352ff
+    Reviewed-on: https://go-review.googlesource.com/32578
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_test.go  |  23 ++
- src/runtime/mbarrier.go     |   5 +
- src/runtime/profbuf.go      | 548 ++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/profbuf_test.go | 182 +++++++++++++++
- src/runtime/runtime2.go     |   7 +-
- 5 files changed, 761 insertions(+), 4 deletions(-)
+ src/net/http/h2_bundle.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

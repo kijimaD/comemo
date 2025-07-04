@@ -1,43 +1,24 @@
-commit a52461686013767d9f3e43d1de6eebf6f92fb62c
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Nov 17 11:53:21 2016 -0500
+commit 89632aa1832a02e36acd458b3b35257d8133ae0c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 27 11:20:20 2016 -0700
 
-    cmd/{asm,internal/obj/s390x}, math: remove emulated float instructions
+    cmd/compile, go/parser: disallow "type T = p.T" - must use "=>"
     
-    The s390x port was based on the ppc64 port and, because of the way the
-    port was done, inherited some instructions from it. ppc64 supports
-    3-operand (4-operand for FMADD etc.) floating point instructions
-    but s390x doesn't (the destination register is always an input) and
-    so these were emulated.
+    I had added this originally so we can play with different notations
+    but it doesn't make sense to keep it around since gofmt will convert
+    a type alias declaration using "=" into one using "=>" anyhow. More
+    importantly, the spec doesn't permit it.
     
-    There is a bug in the emulation of FMADD whereby if the destination
-    register is also a source for the multiplication it will be
-    clobbered. This doesn't break any assembly code in the std lib but
-    could affect future work.
-    
-    To fix this I have gone through the floating point instructions and
-    removed all unnecessary 3-/4-operand emulation. The compiler doesn't
-    need it and assembly writers don't need it, it's just a source of
-    bugs.
-    
-    I've also deleted the FNMADD family of emulated instructions. They
-    aren't used anywhere.
-    
-    Change-Id: Ic07cedcf141a6a3b43a0c84895460f6cfbf56c04
-    Reviewed-on: https://go-review.googlesource.com/33350
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: Icb010b5a9976aebf877e48b3ce9d7245559ca494
+    Reviewed-on: https://go-review.googlesource.com/32105
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/arch/s390x.go        | 18 ------
- src/cmd/asm/internal/asm/testdata/s390x.s |  4 ++
- src/cmd/internal/obj/s390x/a.out.go       |  4 --
- src/cmd/internal/obj/s390x/anames.go      |  4 --
- src/cmd/internal/obj/s390x/asmz.go        | 94 ++++++-------------------------
- src/cmd/internal/obj/s390x/objz.go        |  2 -
- src/math/cosh_s390x.s                     | 18 +++---
- src/math/log10_s390x.s                    |  2 +-
- src/math/sin_s390x.s                      | 16 +++---
- src/math/sinh_s390x.s                     |  4 +-
- src/math/tanh_s390x.s                     |  4 +-
- 11 files changed, 44 insertions(+), 126 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go      | 2 +-
+ src/cmd/compile/internal/syntax/parser.go   | 3 +--
+ src/go/parser/parser.go                     | 3 +--
+ src/go/parser/short_test.go                 | 2 +-
+ src/go/printer/testdata/declarations.golden | 2 --
+ src/go/printer/testdata/declarations.input  | 2 --
+ 6 files changed, 4 insertions(+), 10 deletions(-)

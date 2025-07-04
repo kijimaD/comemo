@@ -1,12 +1,59 @@
-commit 1df9ee0322e33a19a10ed531020c199eb3b49e61
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 6 14:56:39 2012 +1000
+commit a108369c830db0b9a9f519fd346b8f593a4d7e14
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Sun Aug 5 17:24:32 2012 -0400
 
-    test/run: ignore all but .go file during compiledir action
+    syscall: return EINVAL when string arguments have NUL characters
     
-    R=golang-dev, rsc
+    Since NUL usually terminates strings in underlying syscalls, allowing
+    it when converting string arguments is a security risk, especially
+    when dealing with filenames. For example, a program might reason that
+    filename like "/root/..\x00/" is a subdirectory or "/root/" and allow
+    access to it, while underlying syscall will treat "\x00" as an end of
+    that string and the actual filename will be "/root/..", which might
+    be unexpected. Returning EINVAL when string arguments have NUL in
+    them makes sure this attack vector is unusable.
+    
+    R=golang-dev, r, bradfitz, fullung, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6454091
+    https://golang.org/cl/6458050
 
- test/run.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/crypto/x509/root_windows.go       |   8 +-
+ src/pkg/exp/winfsnotify/winfsnotify.go    |  12 +-
+ src/pkg/mime/type_windows.go              |   9 +-
+ src/pkg/os/error_test.go                  |  24 +++
+ src/pkg/os/file_windows.go                |  13 +-
+ src/pkg/os/stat_windows.go                |  12 +-
+ src/pkg/os/user/lookup_windows.go         |  12 +-
+ src/pkg/path/filepath/symlink_windows.go  |  10 +-
+ src/pkg/runtime/syscall_windows_test.go   |   3 +-
+ src/pkg/syscall/dll_windows.go            |  12 +-
+ src/pkg/syscall/env_windows.go            |  20 +-
+ src/pkg/syscall/exec_plan9.go             |  58 +++++-
+ src/pkg/syscall/exec_unix.go              |  64 ++++++-
+ src/pkg/syscall/exec_windows.go           |  20 +-
+ src/pkg/syscall/mksyscall.pl              |  22 ++-
+ src/pkg/syscall/mksyscall_windows.pl      |  25 ++-
+ src/pkg/syscall/security_windows.go       |  30 ++-
+ src/pkg/syscall/syscall.go                |  39 +++-
+ src/pkg/syscall/syscall_darwin.go         |   5 +-
+ src/pkg/syscall/syscall_freebsd.go        |   5 +-
+ src/pkg/syscall/syscall_linux.go          |  12 +-
+ src/pkg/syscall/syscall_linux_386.go      |   6 +-
+ src/pkg/syscall/syscall_plan9.go          |  14 +-
+ src/pkg/syscall/syscall_windows.go        |  92 ++++++++--
+ src/pkg/syscall/syscall_windows_test.go   |   3 +-
+ src/pkg/syscall/zsyscall_darwin_386.go    | 229 +++++++++++++++++++----
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 229 +++++++++++++++++++----
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 217 ++++++++++++++++++----
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 217 ++++++++++++++++++----
+ src/pkg/syscall/zsyscall_linux_386.go     | 286 +++++++++++++++++++++++++----
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 293 ++++++++++++++++++++++++++----
+ src/pkg/syscall/zsyscall_linux_arm.go     | 293 ++++++++++++++++++++++++++----
+ src/pkg/syscall/zsyscall_netbsd_386.go    | 196 +++++++++++++++++---
+ src/pkg/syscall/zsyscall_netbsd_amd64.go  | 196 +++++++++++++++++---
+ src/pkg/syscall/zsyscall_openbsd_386.go   | 210 ++++++++++++++++++---
+ src/pkg/syscall/zsyscall_openbsd_amd64.go | 210 ++++++++++++++++++---
+ src/pkg/syscall/zsyscall_plan9_386.go     |  85 ++++++---
+ src/pkg/syscall/zsyscall_windows_386.go   |  47 ++++-
+ src/pkg/syscall/zsyscall_windows_amd64.go |  47 ++++-
+ 39 files changed, 2810 insertions(+), 475 deletions(-)

@@ -1,22 +1,52 @@
-commit 6d33df1d65c405a3624dbb792112b8ce399f470f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Sep 11 21:10:43 2017 +0200
+commit a9bf3b2e19920f6f516bc2e0211ae2e2f7ce395c
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Mar 23 13:17:59 2017 -0700
 
-    cmd/compile: remove redundant switch label
+    database/sql: allow drivers to support custom arg types
     
-    This label was added automatically by grind to remove gotos. As of
-    today, it's completely useless, as none of its uses need a label to
-    begin with.
+    Previously all arguments were passed through driver.IsValid.
+    This checked arguments against a few fundamental go types and
+    prevented others from being passed in as arguments.
     
-    While at it, remove all the redundant breaks too. Leave those that are
-    the single statement in a case clause body, as that's the style used
-    throughout std and cmd to clarify when cases are empty.
+    The new interface driver.NamedValueChecker may be implemented
+    by both driver.Stmt and driver.Conn. This allows
+    this new interface to completely supersede the
+    driver.ColumnConverter interface as it can be used for
+    checking arguments known to a prepared statement and
+    arbitrary query arguments. The NamedValueChecker may be
+    skipped with driver.ErrSkip after all special cases are
+    exhausted to use the default argument converter.
     
-    Change-Id: I3e20068b66b759614e903beab1cc9b2709b31063
-    Reviewed-on: https://go-review.googlesource.com/62950
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    In addition if driver.ErrRemoveArgument is returned
+    the argument will not be passed to the query at all,
+    useful for passing in driver specific per-query options.
+    
+    Add a canonical Out argument wrapper to be passed
+    to OUTPUT parameters. This will unify checks that need to
+    be written in the NameValueChecker.
+    
+    The statement number check is also moved to the argument
+    converter so the NamedValueChecker may remove arguments
+    passed to the query.
+    
+    Fixes #13567
+    Fixes #18079
+    Updates #18417
+    Updates #17834
+    Updates #16235
+    Updates #13067
+    Updates #19797
+    
+    Change-Id: I89088bd9cca4596a48bba37bfd20d987453ef237
+    Reviewed-on: https://go-review.googlesource.com/38533
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 87 +++++---------------------------
- 1 file changed, 12 insertions(+), 75 deletions(-)
+ src/database/sql/convert.go       | 201 ++++++++++++++++++++++++++++----------
+ src/database/sql/convert_test.go  |   5 +-
+ src/database/sql/driver/driver.go |  30 ++++++
+ src/database/sql/fakedb_test.go   |  31 ++++--
+ src/database/sql/sql.go           |  58 ++++++-----
+ src/database/sql/sql_test.go      | 125 ++++++++++++++++++++++++
+ 6 files changed, 360 insertions(+), 90 deletions(-)

@@ -1,17 +1,19 @@
-commit 3621600c9207adc9d493e4f60ff74069d58518ca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 11 00:23:37 2016 -0800
+commit ace1738f9c1ad3d351c49cb9ca0811334a24585f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 5 14:19:10 2016 -0800
 
-    cmd/compile: give "magic" code its own source file
+    A+C: automated update
     
-    This code is an eye sore to keep scrolling past in subr.go, so move it
-    out of the way.
+    These are the easy, automated cases. There were some more where we
+    need to fight Gerrit and the CLA system to extract the appropriate
+    metadata.
     
-    Change-Id: I8eafc1725d868a4924ee7ca9b7738cce309f9eff
-    Reviewed-on: https://go-review.googlesource.com/20592
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Updates #12042
+    
+    Change-Id: Id63ae635ee7efeec4cd372c7d85bb5b1f557951b
+    Reviewed-on: https://go-review.googlesource.com/18264
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/go.go    |  17 ---
- src/cmd/compile/internal/gc/magic.go | 220 +++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/subr.go  | 196 -------------------------------
- 3 files changed, 220 insertions(+), 213 deletions(-)
+ AUTHORS      |  5 +++++
+ CONTRIBUTORS | 10 ++++++++++
+ 2 files changed, 15 insertions(+)

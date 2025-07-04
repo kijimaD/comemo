@@ -1,35 +1,31 @@
-commit 3a3c006ac07886aa923a8aad0a4b3ed954640973
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri May 23 18:04:36 2025 +0200
+commit 91c04826723a10f6778a935e743a34de81312489
+Author: Andy Pan <i@andypan.me>
+Date:   Mon Apr 8 11:51:45 2024 +0800
 
-    crypto/tls: enable signature algorithm BoGo tests (and fix two bugs)
+    net: implement TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT on Solaris 11.4
     
-    The two bugs are very minor:
+    Also simulate TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT with
+    TCP_KEEPALIVE_THRESHOLD + TCP_KEEPALIVE_ABORT_THRESHOLD for
+    Solaris prior to 11.4
     
-    - We were trying to set the ConnectionState CurveID field even if the
-      RSA key exchange was in use
+    Fixes #9614
+    Fixes #64251
     
-    - We were sending the wrong alert from TLS 1.2 clients if none of the
-      certificate signature algorithms were supported
-    
-    Change-Id: I6a6a46564f5a9f1a5d44e54fc59a650118ad67d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675918
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ia0777076a7952630bc52761cddd0b06b0d81c6a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577195
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/tls/auth.go                   |  23 ++---
- src/crypto/tls/bogo_config.json          |  34 +++----
- src/crypto/tls/bogo_shim_test.go         | 170 +++++++++++++++++++++++++------
- src/crypto/tls/common.go                 |  65 ++++++++----
- src/crypto/tls/conn.go                   |   2 +
- src/crypto/tls/defaults.go               |  42 --------
- src/crypto/tls/fips140_test.go           |   9 +-
- src/crypto/tls/handshake_client.go       |  13 +--
- src/crypto/tls/handshake_client_tls13.go |   1 +
- src/crypto/tls/handshake_server.go       |   7 +-
- src/crypto/tls/handshake_server_tls13.go |   1 +
- src/crypto/tls/key_agreement.go          |  41 ++++----
- 12 files changed, 253 insertions(+), 155 deletions(-)
+ .../syscall/unix/kernel_version_solaris.go         |   7 +
+ src/net/tcpconn_keepalive_conf_solaris_test.go     | 115 ++++++++++++++++
+ src/net/tcpconn_keepalive_conf_unix_test.go        |  11 +-
+ src/net/tcpconn_keepalive_solaris_test.go          | 151 ++++++++++++++++-----
+ src/net/tcpconn_keepalive_test.go                  |  19 ++-
+ src/net/tcpsock.go                                 |   8 +-
+ src/net/tcpsock_solaris.go                         |  38 ++++++
+ src/net/tcpsock_unix.go                            |   2 +-
+ src/net/tcpsockopt_solaris.go                      | 113 +++++++++++----
+ 9 files changed, 384 insertions(+), 80 deletions(-)

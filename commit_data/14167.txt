@@ -1,14 +1,25 @@
-commit 9dc3152668319fce81ec72055051cee47d4c801d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Oct 18 10:25:50 2012 +1100
+commit a4682348c2e7312388aac590e2e0d4f5fd4c5b09
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Oct 17 20:33:44 2012 +0200
 
-    exp/html: update package docs and add an example; a node's children is
-    a linked list, not a slice.
+    cmd/gc: don't squash complex literals when inlining.
     
-    R=r, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6618055
+    Since this patch changes the way complex literals are written
+    in export data, there are a few other glitches.
+    
+    Fixes #4159.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6674047
 
- src/pkg/exp/html/doc.go          |  2 +-
- src/pkg/exp/html/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/gc/fmt.c                        |    2 +-
+ src/cmd/gc/go.y                         |    2 +
+ src/cmd/gc/y.tab.c                      | 1005 ++++++++++++-------------------
+ src/cmd/gc/y.tab.h                      |   36 +-
+ src/pkg/exp/types/gcimporter.go         |    3 +-
+ src/pkg/exp/types/staging/gcimporter.go |    3 +-
+ test/fixedbugs/bug466.dir/a.go          |   15 +
+ test/fixedbugs/bug466.dir/b.go          |   30 +
+ test/fixedbugs/bug466.go                |   11 +
+ 9 files changed, 465 insertions(+), 642 deletions(-)

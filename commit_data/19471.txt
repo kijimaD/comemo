@@ -1,14 +1,18 @@
-commit a238973949287d6d00a5b014135032dd4e0012fb
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat May 31 02:30:01 2014 -0700
+commit a68b9be93518300b15b6830648f8e2be7ebbfdf3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 31 01:09:48 2014 -0700
 
-    runtime/debug: skip TestWriteHeapDumpNonempty on NaCl.
-    TestWriteHeap is useless on NaCl anyway.
+    runtime: fix empty heap dump bug on windows.
+    Fixes #8119.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=khr, rsc
+    R=alex.brainman, khr, bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/101980048
+    https://golang.org/cl/93640044
 
- src/pkg/runtime/debug/heapdump_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/debug/heapdump_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/os_plan9.c             |  4 ++--
+ src/pkg/runtime/os_solaris.c           |  2 +-
+ src/pkg/runtime/os_windows.c           |  6 ++++--
+ src/pkg/runtime/runtime.h              |  2 +-
+ 5 files changed, 37 insertions(+), 6 deletions(-)

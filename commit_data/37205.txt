@@ -1,27 +1,21 @@
-commit 484fc06849fa54d168af1d513c37d1b22bf38e7c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Oct 31 13:18:17 2018 -0400
+commit c78b7693abc1de4fa76d28ebf4c6ef9dcf0a68bb
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Mon Jul 9 23:24:18 2018 -0400
 
-    cmd/link: don't link sections not named .o
+    net/http: update bundled http2
     
-    For many build systems, modular static analysis is most conveniently
-    implemented by saving analysis facts (which are analogous to export
-    data) in an additional section in the archive file, similar to
-    __PKGDEF. See golang.org/x/tools/go/analysis for an overview.
+    Updates http2 to x/net/http2 git rev 292b43b for:
     
-    Because such sections are not object files, the linker must not
-    attempt to link them. This change causes the linker to skip special
-    sections whose name does not end with .o (and is short enough not to
-    be truncated).
+        http2: reject incoming HEADERS in Server on half-closed streams
+        https://golang.org/cl/111677
     
-    Fixes #28429
+    Updates #25023
     
-    Change-Id: I830852decf868cb017263308b114f72838032993
-    Reviewed-on: https://go-review.googlesource.com/c/146297
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I479ae9b5b899fb0202e6301d02535fb6aeb4997a
+    Reviewed-on: https://go-review.googlesource.com/122877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go |  7 +++++++
- src/cmd/link/link_test.go       | 46 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
+ src/net/http/h2_bundle.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

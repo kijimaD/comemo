@@ -1,18 +1,24 @@
-commit 96fe257a42e6ca3eac438bb3310ad653f4357c2a
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Aug 30 12:00:03 2023 +0000
+commit 40c7e94cc5740496a0a47d6ef9863b2bbca44b0e
+Author: Jeremy Brewer <jeremybrewer@google.com>
+Date:   Mon Sep 19 20:09:56 2022 -0400
 
-    encoding/gob: swap 'err, i' to correct verbs in decUint8Slice
+    modload: provide a clearer error for standard library packages from newer releases
     
-    Change-Id: I76b2dd45179f65e9ed4f1d0f597ca59e49b59a85
-    GitHub-Last-Rev: b4171e6b836f948ff2973d91a19f0fd58cc8faea
-    GitHub-Pull-Request: golang/go#62374
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524356
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    An older version of go compiling a main module that references a
+    standard library package from a newer release (e.g. net/netip added in
+    go 1.18) currently produces a confusing error message. This changes adds
+    a new error message including go version diagnostics.
+    
+    Fixes #48966
+    
+    Change-Id: I1e8319dafcf1f67d1b1ca869fe84190c3b3f3c3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432075
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/gob/decode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/import.go              | 10 ++++++++-
+ src/cmd/go/internal/modload/load.go                | 26 +++++++++++++++++-----
+ .../go/testdata/script/mod_load_missing_std.txt    | 17 ++++++++++++++
+ 3 files changed, 46 insertions(+), 7 deletions(-)

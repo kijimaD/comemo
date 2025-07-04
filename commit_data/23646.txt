@@ -1,14 +1,33 @@
-commit 683311175c83dc013030e23c4826fa95b59048ea
+commit 3c3019aa51ece3001139e568d78aef6a2762395f
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 13 15:23:59 2015 -0400
+Date:   Wed May 27 00:44:05 2015 -0400
 
-    runtime: fix race in TestChanSendBarrier
+    cmd/compile: move Node.Param, Node.Funcdepth into Node.Name; remove Node.Walkgen
     
-    Fixes race detector build.
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 176
+    $
     
-    Change-Id: I8bdc78d57487580e6b5b8c415df4653a1ba69e37
-    Reviewed-on: https://go-review.googlesource.com/12087
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ibf1ab531a60d4af8a0c242c0e504f4fd50cd5b36
+    Reviewed-on: https://go-review.googlesource.com/10530
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/chanbarrier_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/align.go     |  4 +--
+ src/cmd/compile/internal/gc/cgen.go      |  4 +--
+ src/cmd/compile/internal/gc/closure.go   | 54 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dcl.go       | 48 ++++++++++++++--------------
+ src/cmd/compile/internal/gc/esc.go       | 54 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 14 ++++-----
+ src/cmd/compile/internal/gc/gen.go       |  8 ++---
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/lex.go       |  4 +--
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 22 +++++++------
+ src/cmd/compile/internal/gc/swt.go       |  4 +--
+ src/cmd/compile/internal/gc/syntax.go    | 42 +++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go | 47 ++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go      | 14 ++++-----
+ src/cmd/compile/internal/gc/y.go         |  4 +--
+ 17 files changed, 156 insertions(+), 173 deletions(-)

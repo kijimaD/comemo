@@ -1,16 +1,13 @@
-commit 16bf7d9e82fd043ed44b3cb0ebd106c397f326d2
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Tue Dec 20 09:25:47 2011 -0800
+commit 317ad14c6a963b9bb6f81050254026061082a3e8
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Dec 20 09:01:18 2011 -0800
 
-    encoding/binary: add more benchmarks
-    Also add a byte count to the varint benchmarks - this
-    isn't accurate, of course, but it allows a rough comparison to
-    the other benchmarks.
+    time: JSON marshaler for Time
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds, hectorchu, r, r
     CC=golang-dev
-    https://golang.org/cl/5496070
+    https://golang.org/cl/5496064
 
- src/pkg/encoding/binary/binary_test.go | 56 +++++++++++++++++++++++-----------
- src/pkg/encoding/binary/varint_test.go |  2 ++
- 2 files changed, 41 insertions(+), 17 deletions(-)
+ src/pkg/time/time.go      | 58 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/time/time_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 113 insertions(+), 11 deletions(-)

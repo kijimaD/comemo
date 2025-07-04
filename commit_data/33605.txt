@@ -1,24 +1,19 @@
-commit 92c35824710e001b8a6b19cddf739c0b6b05306a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 10:57:14 2017 -0500
+commit e11fd00629e8ef664b07cdb93f5f21b8e7a61179
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Jul 27 12:51:17 2017 -0700
 
-    cmd/go/internal/work: do not write trivial.c when testing gcc flags
+    path/filepath: add example for Ext
     
-    CL 61111 disabled the writing of trivial.c in -n mode, which
-    made -n mode at least inconsistent with regular mode in
-    how it was testing for flags. We think that both were getting
-    the same answer, so avoid creating the file in both modes
-    to make sure.
+    Make it dead simple to see visually what the function outputs in
+    various scenarios.
     
-    If this CL turns out to be wrong, then when we revert it we
-    should make sure that the empty file is written even in -n mode,
-    because this check affects the command-line flags printed
-    by other commands in that mode.
-    
-    Change-Id: I0a050bfc148fe5a9d430a153d7816b2821277f0d
-    Reviewed-on: https://go-review.googlesource.com/78115
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8f6fcd72fa1515361481f0510412cde221e1d4e3
+    Reviewed-on: https://go-review.googlesource.com/51630
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
 
- src/cmd/go/internal/work/exec.go | 27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
+ src/path/filepath/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,24 +1,28 @@
-commit cf598504669524a9f7002f6b6c1cb4e567ea4e9e
-Author: David Carlier <devnexen@gmail.com>
-Date:   Tue Mar 9 19:13:37 2021 +0000
+commit d0d6593d1d4e81acd073244f42b6893fa65c99d8
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Aug 10 08:01:21 2020 -0700
 
-    crypto/rand: supports for getrandom syscall in DragonFlyBSD
+    cmd/internal/obj: fix inline marker issue on s390x
     
-    Since the 5.7 release, DragonFlyBSD supports as well
-    the getrandom function, the actual stable is 5.8.
+    The optimization that replaces inline markers with pre-existing
+    instructions assumes that 'Prog' values produced by the compiler are
+    still reachable after the assembler has run. This was not true on
+    s390x where the assembler was removing NOP instructions from the
+    linked list of 'Prog' values. This led to broken inlining data
+    which in turn caused an infinite loop in the runtime traceback code.
     
-    Change-Id: I2b8fc468771b10ac12b38ea7e8e5314342de6375
-    GitHub-Last-Rev: c5c496f41898d58f2c6f3ccc81f754792f49edbe
-    GitHub-Pull-Request: golang/go#42617
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269999
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Fix this by stopping the s390x assembler backend removing NOP
+    values. It does not make any difference to the output of the
+    assembler because NOP instructions are 0 bytes long anyway.
+    
+    Fixes #40473.
+    
+    Change-Id: Ib4fabadd1de8adb80421f75950ee9aad2111147a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247697
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/rand/rand_batched.go                  |  4 +-
- src/crypto/rand/rand_batched_test.go             |  4 +-
- src/crypto/rand/rand_dragonfly.go                |  9 +++++
- src/internal/syscall/unix/getrandom_dragonfly.go | 51 ++++++++++++++++++++++++
- 4 files changed, 64 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/pcln.go       | 15 +++++++++++++++
+ src/cmd/internal/obj/s390x/objz.go | 11 -----------
+ 2 files changed, 15 insertions(+), 11 deletions(-)

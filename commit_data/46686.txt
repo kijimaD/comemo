@@ -1,17 +1,21 @@
-commit 70b1a45425a5e456b4e347e96fc94f94b04ce121
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Fri Jul 23 20:14:14 2021 +0200
+commit 5248f59a224e390cc59c9850f7795479f07757a7
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Thu Jan 21 15:07:25 2021 +0800
 
-    .github: update IRC server
+    [dev.regabi] cmd/compile: replace ir.Name map with ir.NameSet for SSA
     
-    Updates #46281
+    Same as CL 284897, but for SSA.
     
-    Change-Id: I1c70ad72a155a39138f120df5b71de61bb01e20c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336931
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Passes toolstash -cmp.
+    
+    Updates #43819
+    
+    Change-Id: I3c500ad635a3192d95d16fdc36f154ba3ea5df69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284898
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Baokun Lee <bk@golangcn.org>
 
- .github/SUPPORT.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/deadstore.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

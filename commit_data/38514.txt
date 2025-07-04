@@ -1,13 +1,12 @@
-commit 98891386146413e902bef41a7feb7595b86e4c1d
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Fri Mar 22 15:30:30 2019 +0300
+commit 2764d5ee7b23ae1caf2a4cd4506116a1b9efbf66
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Nov 2 15:31:37 2018 -0400
 
-    sort: replace Errorf+FailNow with Fatalf
+    doc: document Go 1.10.5
     
-    Change-Id: I4f8d0178e780b86d1f551b367e2ddac3789be5aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168880
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I11adca150ab795607b832fb354a3e065655e1020
+    Reviewed-on: https://go-review.googlesource.com/c/147179
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/sort_test.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

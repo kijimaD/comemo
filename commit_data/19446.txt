@@ -1,15 +1,23 @@
-commit 3d1c3e1e262d8f6d7ad2be52af7d226a6fb88ccf
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 27 16:26:08 2014 -0700
+commit 7f638e90231e56c523ae51ba18dbbf084db8b86e
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 27 14:37:36 2014 -0700
 
-    runtime: stack copier should handle nil defers without faulting.
+    cmd/go: improve error message when import path contains http://
+    Common mistake (at least for me) because hg etc. require the prefix
+    while the go command forbids it.
     
-    fixes #8047
+    Before:
+    % go get http://code.google.com/p/go.text/unicode/norm
+    package http:/code.google.com/p/go.text/unicode/norm: unrecognized import path "http:/code.google.com/p/go.text/unicode/norm"
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    After:
+    % go get http://code.google.com/p/go.text/unicode/norm
+    package http:/code.google.com/p/go.text/unicode/norm: "http://" not allowed in import path
+    
+    LGTM=ruiu, rsc
+    R=rsc, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/101800043
+    https://golang.org/cl/97630046
 
- src/pkg/runtime/stack.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/go/vcs.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

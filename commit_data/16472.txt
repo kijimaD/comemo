@@ -1,13 +1,21 @@
-commit 4a8ef1f65db072ecd6ff79201338ac75b43640fa
+commit f5becf4233bd12506cbfcb9cbc04b5968ac11ae0
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 3 14:40:38 2013 +0400
+Date:   Mon Jun 3 12:28:24 2013 +0400
 
-    runtime: disable preemption in several scheduler functions
-    Required for preemptive scheduler, see the comments for details.
+    runtime: add stackguard0 to G
+    This is part of preemptive scheduler.
+    stackguard0 is checked in split stack checks and can be set to StackPreempt.
+    stackguard is not set to StackPreempt (holds the original value).
     
-    R=golang-dev, khr, iant, khr
+    R=golang-dev, daniel.morsing, iant
     CC=golang-dev
-    https://golang.org/cl/9740051
+    https://golang.org/cl/9875043
 
- src/pkg/runtime/proc.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/asm_386.s   | 5 +++++
+ src/pkg/runtime/asm_amd64.s | 5 +++++
+ src/pkg/runtime/asm_arm.s   | 4 ++++
+ src/pkg/runtime/panic.c     | 1 +
+ src/pkg/runtime/proc.c      | 4 ++++
+ src/pkg/runtime/runtime.h   | 4 +++-
+ src/pkg/runtime/stack.c     | 2 ++
+ 7 files changed, 24 insertions(+), 1 deletion(-)

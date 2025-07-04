@@ -1,25 +1,19 @@
-commit 85c22bc3a5e9ce03cd0ca668285755ce430456e0
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 9 09:34:26 2016 -0400
+commit 04ade8e428fdd302ab8666d3fc5d8953caa4abcb
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Aug 25 16:39:07 2016 +0300
 
-    runtime: mark tiny blocks at GC start
+    cmd/internal/obj/x86: Make VPSHUFD accept negative constant
     
-    The hybrid barrier requires allocate-black, but there's one case where
-    we don't currently allocate black: the tiny allocator. If we allocate
-    a *new* tiny alloc block during GC, it will be allocated black, but if
-    we allocated the current block before GC, it won't be black, and the
-    further allocations from it won't mark it, which means we may free a
-    reachable tiny block during sweeping.
+    This partially reverts commit 4e24e1d9996b0b0155c8349e49244d9694c89708.
+    Since in release 1.7 VPSHUFD support negative constant as an argument,
+    removing it as part of 4e24e1d9996b0b0155c8349e49244d9694c89708 was wrong.
+    Add it back.
     
-    Fix this by passing over all mcaches at the beginning of mark, while
-    the world is still stopped, and greying their tiny blocks.
-    
-    Updates #17503.
-    
-    Change-Id: I04d4df7cc2f553f8f7b1e4cb0b52e2946588111a
-    Reviewed-on: https://go-review.googlesource.com/31456
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Id1a3e062fe8fb4cf538edb3f9970f0664f3f545f
+    Reviewed-on: https://go-review.googlesource.com/27712
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go     |  7 +++++++
- src/runtime/mgcmark.go | 21 +++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/internal/obj/x86/asm6.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

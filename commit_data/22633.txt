@@ -1,33 +1,20 @@
-commit 170fb100891fff56529b6816ab581af19a717fa9
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 17 16:26:55 2015 -0400
+commit 09b7f4f12a961ed8dad8a37de782f9403e211562
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Fri Mar 27 07:31:31 2015 +1100
 
-    runtime: assist harder if GC exceeds the estimated marked heap
+    io: clarify the behavior of PipeWriter.CloseWithError(nil).
     
-    Currently, the GC controller computes the mutator assist ratio at the
-    beginning of the cycle by estimating that the marked heap size this
-    cycle will be the same as it was the previous cycle. It then uses that
-    assist ratio for the rest of the cycle. However, this means that if
-    the mutator is quickly growing its reachable heap, the heap size is
-    likely to exceed the heap goal and currently there's no additional
-    pressure on mutator assists when this happens. For example, 6g (with
-    GOMAXPROCS=1) frequently exceeds the goal heap size by ~25% because of
-    this.
+    The previous wording implied that reads would return no error, rather
+    than EOF. It's convenient for users to know that Close() is equivalent
+    to CloseWithError(nil) because it can remove a branch from their error
+    handling code where they want to close the pipe in the appropriate way.
+    For example:
     
-    This change makes GC revise its work estimate and the resulting assist
-    ratio every 10ms during the concurrent mark. Instead of
-    unconditionally using the marked heap size from the last cycle as an
-    estimate for this cycle, it takes the minimum of the previously marked
-    heap and the currently marked heap. As a result, as the cycle
-    approaches or exceeds its heap goal, this will increase the assist
-    ratio to put more pressure on the mutator assist to bring the cycle to
-    an end. For 6g, this causes the GC to always finish within 5% and
-    often within 1% of its heap goal.
+        https://github.com/jacobsa/gcloud/blob/6e9a8cec0a3f0834da3e9c9725dfe0bf79cccebb/gcs/bucket.go#L637-L643
     
-    Change-Id: I4333b92ad0878c704964be42c655c38a862b4224
-    Reviewed-on: https://go-review.googlesource.com/9070
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I618bffe556eb518011e7ba5cdce1eb0ff536350e
+    Reviewed-on: https://go-review.googlesource.com/8152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 73 ++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 54 insertions(+), 19 deletions(-)
+ src/io/pipe.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

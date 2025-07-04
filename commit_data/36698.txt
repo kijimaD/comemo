@@ -1,18 +1,18 @@
-commit d17ac291584f6f518430ea3123e0ec9a7658c950
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Sep 18 01:53:42 2018 +0000
+commit c1a068012c67dfc794c0ecfd7d77db451d2cadac
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 1 01:59:09 2018 +0200
 
-    cmd/compile: simplify AMD64's assembly generator
+    runtime: remove darwin workaround for process-wide raise
     
-    AMD64's ADDQconstmodify/ADDLconstmodify have similar logic with
-    other constmodify like operators, but seperated case statements.
-    This CL simplify them with a fallthrough.
+    Now that raise on darwin targets the current thread, we can remove
+    the workaround in dieFromSignal.
     
-    Change-Id: Ia73ffeaddc5080182f68c06c9d9b48fe32a14e38
-    Reviewed-on: https://go-review.googlesource.com/135855
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I1e468dc05e49403ee0bbe0a3a85e764c81fec4f2
+    Reviewed-on: https://go-review.googlesource.com/110476
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/runtime/signal_unix.go | 8 --------
+ 1 file changed, 8 deletions(-)

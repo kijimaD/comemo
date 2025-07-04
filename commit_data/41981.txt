@@ -1,19 +1,27 @@
-commit 29d925dfcf7dc577e46d4557a5ef6eaa7f2a67af
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 16 18:26:12 2020 -0700
+commit b3bd7ab3d76c694bd87dfa31f9e7ccef15ed90a7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 1 11:22:07 2019 -0700
 
-    test: add test for nil check / bounds check compiler confusion
+    cmd/compile: fix //go:uintptrescapes for basic method calls
     
-    This test started failing at CL 228106 and was fixed by CL 228677.
+    The logic for keeping arguments alive for calls to //go:uintptrescapes
+    functions was only applying to direct function calls. This CL changes
+    it to also apply to direct method calls, which should address most
+    uses of Proc.Call and LazyProc.Call.
     
-    Fixes #38496
+    It's still an open question (#34684) whether other call forms (e.g.,
+    method expressions, or indirect calls via function values, method
+    values, or interfaces).
     
-    Change-Id: I2dadcd99227347e8d28179039f5f345e728c4595
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228698
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #34474.
+    
+    Change-Id: I874f97145972b0e237a4c9e8926156298f4d6ce0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198043
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue38496.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/gc/order.go |  2 +-
+ test/uintptrescapes2.go              | 40 +++++++++++++++++------
+ test/uintptrescapes3.go              | 63 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 95 insertions(+), 10 deletions(-)

@@ -1,20 +1,16 @@
-commit 38dc795074acbf2529a39e45a64fce3ab22cf8e4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 25 17:56:57 2018 -0400
+commit d8b417e00b3f19f7fb47aaa64fe107ed59f6603f
+Author: Alekseev Artem <a.artem060@gmail.com>
+Date:   Sat Apr 7 17:10:45 2018 +0300
 
-    cmd/go: allow unversioned paths to -dropreplace flag
+    cmd/internal/obj/x86: use raw string literals in regexp
     
-    We can add unversioned paths via -replace;
-    -dropreplace must be able to drop them.
+    Found with megacheck (S1007).
     
-    Fixes #26417.
-    
-    Change-Id: Ic05e9ae2ad80c008e11b195695cbb9d0fc8dbc0a
-    Reviewed-on: https://go-review.googlesource.com/126155
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icb15fd5bfefa8e0b39a1bfa9ec3e9af3eff6b390
+    Reviewed-on: https://go-review.googlesource.com/105415
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modcmd/mod.go       | 67 ++++++++++++++++++---------------
- src/cmd/go/testdata/script/mod_edit.txt |  8 ++++
- 2 files changed, 45 insertions(+), 30 deletions(-)
+ src/cmd/internal/obj/x86/obj6_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

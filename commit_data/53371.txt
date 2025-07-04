@@ -1,19 +1,18 @@
-commit 41bd7f54bc0fc845be38b4771605be3c9fe4c529
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 26 17:07:49 2023 -0700
+commit b464708b463b104849a951af54352c8a894bfbc4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 13:34:29 2022 -0400
 
-    doc/go1.21: mention maps package
+    runtime: convert schedt.goidgen to atomic type
     
-    For #57436
+    For #53821.
     
-    Change-Id: I99e8b0819c76f1ccf12154a894c9c4c9d68124d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498602
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I84c96ade5982b8e68d1d1787bf1bfa16a17a4fb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419439
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.21.html | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ src/runtime/align_runtime_test.go | 1 -
+ src/runtime/proc.go               | 4 ++--
+ src/runtime/runtime2.go           | 2 +-
+ 3 files changed, 3 insertions(+), 4 deletions(-)

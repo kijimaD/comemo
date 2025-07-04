@@ -1,30 +1,12 @@
-commit 06be7cbf3c27168172f1f89dd4f55cb07a37ec38
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 6 00:10:33 2018 +0000
+commit c7c147c83016384db29791e2006f9919c571512a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 15:16:26 2018 -0400
 
-    runtime: stop unnecessary span scavenges on free
+    doc: update go1.11.html with user annotation API additions
     
-    This change fixes a bug wherein freeing a scavenged span that didn't
-    coalesce with any neighboring spans would result in that span getting
-    scavenged again. This case may actually be a common occurance because
-    "freeing" span trimmings and newly-grown spans end up using the same
-    codepath. On systems where madvise is relatively expensive, this can
-    have a large performance impact.
-    
-    This change also cleans up some of this logic in freeSpanLocked since
-    a number of factors made the coalescing code somewhat difficult to
-    reason about with respect to scavenging. Notably, the way the
-    needsScavenge boolean is handled could be better expressed and the
-    inverted conditions (e.g. !after.released) can make things even more
-    confusing.
-    
-    Fixes #28595.
-    
-    Change-Id: I75228dba70b6596b90853020b7c24fbe7ab937cf
-    Reviewed-on: https://go-review.googlesource.com/c/147559
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I357eea0efb04392e1a4671d20190a2052bf548de
+    Reviewed-on: https://go-review.googlesource.com/124706
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/mheap.go | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ doc/go1.11.html | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 52 insertions(+), 1 deletion(-)

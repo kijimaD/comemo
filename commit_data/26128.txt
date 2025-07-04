@@ -1,20 +1,48 @@
-commit b20187196f2674c736bb89d9dde741c93bec3255
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 15:58:20 2016 +0000
+commit a227351b622856f1fbc76d77cd646644a975f3e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:21:13 2015 -0500
 
-    os/user: skip Current test on android
+    cmd/go: fix processing of HTTPS 404 without -insecure
     
-    Also, add more failure output to debug why linux/mips64le and
-    linux/ppc64 are failing. They should be working. I suspect their
-    builder test envs are missing something.
+    The change here is to move the closeBody call into the if block.
+    The logging adjustments are just arranging to tell the truth:
+    in particular if we're not in insecure mode and we get a non-200
+    error then we do not actually ignore the response
+    (except as caused by closing the body incorrectly).
     
-    Change-Id: I97273fe72c4e3009db400394636d0da1ef147485
-    Reviewed-on: https://go-review.googlesource.com/20358
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    As the comment below the change indicates, it is intentional that
+    we process non-200 pages. The code does process them, because
+    the if err != nil || status != 200 block does not return.
+    But that block does close the body, which depending on timing
+    can apparently poison the later read from the body.
+    
+    See #13037's initial report:
+    
+            $ go get -v bosun.org/cmd/bosun/cache
+            Fetching https://bosun.org/cmd/bosun/cache?go-get=1
+            ignoring https fetch with status code 404
+            Parsing meta tags from https://bosun.org/cmd/bosun/cache?go-get=1 (status code 404)
+            import "bosun.org/cmd/bosun/cache": parsing bosun.org/cmd/bosun/cache: http: read on closed response body
+            package bosun.org/cmd/bosun/cache: unrecognized import path "bosun.org/cmd/bosun/cache"
+    
+    The log print about ignoring the https fetch is not strictly true,
+    since the next thing that happened was parsing the body of that fetch.
+    But the read on the closed response body failed during parsing.
+    
+    Moving the closeBody to happen only when we're about to discard the
+    result and start over (that is, only in -insecure mode) fixes the parse.
+    
+    At least it should fix the parse. I can't seem to break the parse anymore,
+    because of #13648 (close not barring future reads anymore),
+    but this way is clearly better than the old way. If nothing else the old code
+    closed the body twice when err != nil and -insecure was not given.
+    
+    Fixes #13037.
+    
+    Change-Id: Idf57eceb6d5518341a2f7f75eb8f8ab27ed4e0b4
+    Reviewed-on: https://go-review.googlesource.com/17944
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/user/lookup_stubs.go | 2 +-
- src/os/user/user_test.go    | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 11 +++++++++++
+ src/cmd/go/http.go    | 13 ++++++-------
+ 2 files changed, 17 insertions(+), 7 deletions(-)

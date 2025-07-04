@@ -1,26 +1,31 @@
-commit d3d517375987dc1a9747bef0f3bb3c76aab6827e
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 14 10:34:59 2023 -0500
+commit 34ab0bcc5eaf97cc0aff11cfe782e4c174d52ef0
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 28 08:51:32 2022 -0800
 
-    cmd/compile/internal/inline: fix buglet in panic path scoring
+    crypto/ecdsa: verify validity of signature parameters in Verify
     
-    Fix a bug in scoring of calls appearing on panic paths. For this code
-    snippet:
+    CL 353849 removed validation of signature parameters being passed to
+    Verify which led to two distinct problems. If passed a R or S == 0,
+    encodeSignature would panic since it expects them to be non-zero.
+    encodeSignature would also normalize (i.e. make non-negative) parameters
+    by zero padding them, which would result in a signature being passed to
+    VerifyASN1 which did not match the input signature, resulting in success
+    in cases where it should've failed. This change re-adds the verification
+    that 0 < r,s < N before calling ecnodeSignature.
     
-      if x < 101 {
-         foo()
-         panic("bad")
-      }
+    This was caught because tink runs the wycheproof ECDSA vectors against
+    Verify, where we only run the vectors against VerifyASN1. We should be
+    doing both.
     
-    the function flags analyzer was correctly capturing the status of the
-    block corresponding to the true arm of the "if" statement, but wasn't
-    marking "foo()" as being on a panic path.
-    
-    Change-Id: Iee13782828a1399028e2b560fed5f946850eb253
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542216
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1dcf41626b4df2b43296e8b878dc607ff316a892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453675
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- .../internal/inline/inlheur/analyze_func_flags.go      | 18 ++++++++++++++++--
- .../internal/inline/inlheur/testdata/props/calls.go    |  6 +++---
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ src/crypto/ecdsa/ecdsa.go        |  6 ++-
+ src/crypto/ecdsa/ecdsa_legacy.go |  3 ++
+ src/crypto/ecdsa/ecdsa_test.go   | 81 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 89 insertions(+), 1 deletion(-)

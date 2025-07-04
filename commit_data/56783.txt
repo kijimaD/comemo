@@ -1,19 +1,25 @@
-commit 04b5d1325602cab8359db6dfe029a9c2162ba9ea
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jun 11 10:21:11 2024 -0400
+commit 4042b90001490d3ef7418d1c6ff83aa769213bed
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Jul 9 19:08:59 2022 +0100
 
-    doc/next: document GORISCV64 environment variable
+    os: implement fs.ReadFileFS for DirFS
     
-    For #65614.
-    Updates #61476.
+    Use the os.ReadFile implementation to handle
+    sysfs files not reporting size properly via stat.
     
-    Change-Id: Id677aa6d2a59366ab75a26f08a383d2d253f270e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591895
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #53761
+    
+    Change-Id: I6f34515e8a211e3659f4f6c3598fae7ec0c86975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416775
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/next/7-ports.md | 7 +++++++
- doc/next/9-todo.md  | 3 ---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/os/file.go    | 12 ++++++++++++
+ src/os/os_test.go | 17 +++++++++++++++++
+ 2 files changed, 29 insertions(+)

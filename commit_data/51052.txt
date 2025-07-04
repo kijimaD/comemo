@@ -1,23 +1,29 @@
-commit 317f2a7df63df89455ee4fd2721620a853c7fda1
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Oct 28 13:21:36 2022 -0400
+commit ab7905540bf83b85cdbd6574e54319126df9dae8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 29 14:26:44 2021 -0500
 
-    cmd/compile: revise inliner coverage tweaks (again)
+    cmd/go/internal/modload: fix up main-module checks from CL 334932
     
-    This patch fixes a typo/bug introduced in CL 441858 where when pattern
-    matching a coverage counter access we were looking at an assingment
-    node instead of the assignment LHS, and fixes a similar problem in
-    atomic counter update pattern matching introduced in CL 444835. In
-    both of these cases the bug was not caught because the test intended
-    to lock down the behavior was written incorrectly (wasn't
-    instrumenting what the test author thought it was instrumenting,
-    ouch).
+    Some critical Version == "" checks were missing in mvs.go, causing
+    mvs.Req to fail to retain requirements provided by older versions of
+    main modules.
     
-    Change-Id: I6e6ac3beacf12ef1a817de5527340b639f0bb044
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446258
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    A few checks also ought to be rotated to put the less expensive
+    string-equality checks before the more expensive map lookups.
+    
+    Fixes #48511
+    
+    Change-Id: Ib8de9d49a6413660792c003866bfcf9ab7f82ee2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368136
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modget/get.go                 |  2 +-
+ src/cmd/go/internal/modload/buildlist.go          |  2 +-
+ src/cmd/go/internal/modload/edit.go               |  4 +-
+ src/cmd/go/internal/modload/load.go               |  2 +-
+ src/cmd/go/internal/modload/mvs.go                |  6 +-
+ src/cmd/go/testdata/script/mod_get_issue48511.txt | 68 +++++++++++++++++++++++
+ 6 files changed, 76 insertions(+), 8 deletions(-)

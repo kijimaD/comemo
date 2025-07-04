@@ -1,39 +1,29 @@
-commit ab4414773e27624abf4361e48a0ca0979e804970
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 24 02:45:11 2016 -0400
+commit 354e9778a3327e125ed99e86d7b6e648ed0ccd53
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Mar 29 11:39:33 2016 -0400
 
-    math/big: write t*10 to multiply t by 10
+    cmd/asm: add s390x support
     
-    The compiler has caught up.
-    In fact the compiler is ahead; it knows about a magic multiply-by-5 instruction:
+    s390x doesn't introduce any new assembly syntax. There are a few
+    instructions which require the operands to be reordered, notably
+    the storage-storage instructions that put the length into From3 so
+    that the memory operands can be put into From and To.
     
-            // compute '0' + byte(r - t*10) in AX
-            MOVQ    t, AX
-            LEAQ    (AX)(AX*4), AX
-            SHLQ    $1, AX
-            MOVQ    r, CX
-            SUBQ    AX, CX
-            LEAL    48(CX), AX
+    The assembly test currently covers a subset of instructions but
+    tries to hit edge cases as much as possible. Unlike the other ports
+    it can be linked as an executable to make disassembling it easy.
+    It would be nice to autogenerate it at some point in the future.
     
-    For comparison, the shifty version compiles to:
-    
-            // compute '0' + byte(r - t*10) in AX
-            MOVQ    t, AX
-            MOVQ    AX, CX
-            SHLQ    $3, AX
-            MOVQ    r, DX
-            SUBQ    AX, DX
-            SUBQ    CX, DX
-            SUBQ    CX, DX
-            LEAL    48(DX), AX
-    
-    Fixes #2671.
-    
-    Change-Id: Ifbf23dbfeb19c0bb020fa44eb2f025943969fb6b
-    Reviewed-on: https://go-review.googlesource.com/23372
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8dd542c34b9e450b8129d46693a5acb0ded791ce
+    Reviewed-on: https://go-review.googlesource.com/21253
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/natconv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go         |  58 ++++++++
+ src/cmd/asm/internal/arch/s390x.go        | 139 +++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go           |  30 +++++
+ src/cmd/asm/internal/asm/endtoend_test.go |   4 +
+ src/cmd/asm/internal/asm/operand_test.go  | 103 ++++++++++++++
+ src/cmd/asm/internal/asm/testdata/s390x.s | 215 ++++++++++++++++++++++++++++++
+ 6 files changed, 549 insertions(+)

@@ -1,20 +1,15 @@
-commit 28a6f9cf2bccaabc69e7beb3d86161fa77f21daf
-Author: Abirdcfly <fp544037857@gmail.com>
-Date:   Tue Jul 26 14:43:48 2022 +0800
+commit dfa62c79de4f6f6ee2eb8cde340c21afc739c38d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 12 15:48:01 2021 -0800
 
-    cmd/go: add Context parameter to download function
+    doc: document GOAMD64 environment variable
     
-    Updates #38714
+    Update #47694
     
-    Change-Id: Ie5c7761ec003f84e649fa4c90be184a5ff6a0879
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419554
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I9c90bd251616cd4d10434bd3b6e6c30c5c819e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363661
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/get/get.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/go1.18.html | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

@@ -1,44 +1,31 @@
-commit 213495a4a67c318a1fab6e76093e6690c2141c0e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 28 13:59:49 2022 -0500
+commit 29c1355326c372ddb873b7d62d33140deda1681c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 25 13:52:47 2022 -0600
 
-    internal/godebug: export non-default-behavior counters in runtime/metrics
+    crypto/sha256: adapt ppc64le asm to work on ppc64
     
-    Allow GODEBUG users to report how many times a setting
-    resulted in non-default behavior.
+    Workaround the minor endian differences, and avoid needing to
+    stack a frame as extra VSRs can be used in a similar capacity.
     
-    Record non-default-behaviors for all existing GODEBUGs.
+    The microbenchmarks show no significant differences on ppc64le/p9.
     
-    Also rework tests to ensure that runtime is in sync with runtime/metrics.All,
-    and generate docs mechanically from metrics.All.
+    ppc64/linux performance difference on a POWER9:
     
-    For #56986.
+    name        old time/op    new time/op    delta
+    Hash8Bytes     686ns ± 0%     372ns ± 0%   -45.78%
+    Hash1K        9.17µs ± 0%    4.24µs ± 0%   -53.74%
+    Hash8K        67.9µs ± 0%    31.7µs ± 0%   -53.35%
     
-    Change-Id: Iefa1213e2a5c3f19ea16cd53298c487952ef05a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453618
+    Fixes #50785
+    
+    Change-Id: I43d87670127df9767d54d10b5165b84e5b88f5d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380776
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/archive/tar/reader.go               |   7 +-
- src/archive/zip/reader.go               |   7 +-
- src/crypto/x509/root.go                 |   9 +-
- src/crypto/x509/x509.go                 |   7 +-
- src/go/build/build.go                   |   3 +
- src/internal/godebug/godebug.go         |  99 ++++++++++---
- src/internal/godebug/godebug_test.go    |  25 ++++
- src/math/rand/rand.go                   |   1 +
- src/net/http/server.go                  |   6 +-
- src/net/http/transport.go               |   1 +
- src/os/exec/lp_plan9.go                 |   7 +-
- src/os/exec/lp_unix.go                  |   7 +-
- src/os/exec/lp_windows.go               |   8 +-
- src/runtime/metrics.go                  |  65 +++++++++
- src/runtime/metrics/description.go      |  70 +++++++++
- src/runtime/metrics/description_test.go | 210 ++++++++++++++++-----------
- src/runtime/metrics/doc.go              | 247 +++++++++++++++++++-------------
- src/runtime/panic.go                    |  11 +-
- src/runtime/panicnil_test.go            |  18 +++
- src/runtime/runtime.go                  |  33 +++++
- 20 files changed, 618 insertions(+), 223 deletions(-)
+ src/crypto/sha256/sha256block_decl.go              |  2 +-
+ src/crypto/sha256/sha256block_generic.go           |  2 +-
+ ...{sha256block_ppc64le.s => sha256block_ppc64x.s} | 84 +++++++++++-----------
+ 3 files changed, 46 insertions(+), 42 deletions(-)

@@ -1,0 +1,43 @@
+commit 11c86ddcb898f4c2c5fa548d46821ab76ea2d0fd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 22 14:13:33 2025 -0500
+
+    runtime: check for gsignal in asancall/msancall/racecall
+    
+    asancall and msancall are reachable from the signal handler, where we
+    are running on gsignal. Currently, these calls will use the g0 stack in
+    this case, but if the interrupted code was running on g0 this will
+    corrupt the stack and likely cause a crash.
+    
+    As far as I know, racecall is not reachable from the signal handler, but
+    I have updated it as well for consistency.
+    
+    This is the most straightforward fix, though it would be nice to
+    eventually migrate these wrappers to asmcgocall, which already handled
+    this case.
+    
+    Fixes #71395.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15,gotip-linux-amd64-race
+    Change-Id: I6a6a636ccba826dd53e31c0e85b5d42fb1e98d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643875
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/asan_amd64.s                           |  7 +++-
+ src/runtime/asan_arm64.s                           | 12 ++++--
+ src/runtime/asan_loong64.s                         | 11 ++++--
+ src/runtime/asan_ppc64le.s                         | 14 +++++--
+ src/runtime/asan_riscv64.s                         | 11 ++++--
+ src/runtime/crash_cgo_test.go                      |  9 +++++
+ src/runtime/msan_amd64.s                           |  7 +++-
+ src/runtime/msan_arm64.s                           | 12 ++++--
+ src/runtime/msan_loong64.s                         |  9 ++++-
+ src/runtime/race_amd64.s                           |  7 ++++
+ src/runtime/race_arm64.s                           |  9 ++++-
+ src/runtime/race_ppc64le.s                         | 13 +++++--
+ src/runtime/race_s390x.s                           | 11 +++++-
+ src/runtime/testdata/testprogcgo/tracebackctxt.go  | 43 ++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  5 +++
+ 15 files changed, 155 insertions(+), 25 deletions(-)

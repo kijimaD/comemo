@@ -1,17 +1,20 @@
-commit 7762a9dc1fea7ac450d5a68d9d9649d62f58cf38
+commit 7ad37673e1a08118a748c9df45c83d2b9ce73d4f
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 8 14:28:29 2012 -0400
+Date:   Fri Jun 8 13:54:48 2012 -0400
 
-    syscall: unexport GetCurrentProcessId on Windows
+    syscall: revert API changes in Windows Win32finddata fix.
     
-    This slipped in with the implementation of Getpid in CL 5909043.
-    I'd exclude that CL entirely but it is tangled up in the Win32finddata changes.
+    Preserve old API by using correct struct in system call
+    and then copying the results, as we did for SetsockoptLinger.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6297065
+    https://golang.org/cl/6307065
 
- src/pkg/syscall/syscall_windows.go        | 4 ++--
- src/pkg/syscall/zsyscall_windows_386.go   | 2 +-
- src/pkg/syscall/zsyscall_windows_amd64.go | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ api/next.txt                              | 26 --------------------------
+ src/pkg/os/file_windows.go                |  6 +++---
+ src/pkg/syscall/syscall_windows.go        | 27 ++++++++++++++++++++++-----
+ src/pkg/syscall/zsyscall_windows_386.go   |  4 ++--
+ src/pkg/syscall/zsyscall_windows_amd64.go |  4 ++--
+ src/pkg/syscall/ztypes_windows.go         | 24 ++++++++++++++++++++----
+ 6 files changed, 49 insertions(+), 42 deletions(-)

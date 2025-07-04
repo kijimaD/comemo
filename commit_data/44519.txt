@@ -1,21 +1,14 @@
-commit b62da089091e305b6231082d8a69b27c56603b51
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 4 21:09:17 2021 -0500
+commit 10374e2435687a27ac99b2a19284f1aa0c7dc338
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Jul 28 12:24:06 2020 -0400
 
-    cmd/go: update error expectations in TestScript/mod_install_pkg_version
+    testing: fix quotation marks
     
-    This test was missed in CL 298650, and not caught by TryBots because
-    it is skipped it short mode (and we forgot to add longtest TryBots on
-    that CL).
-    
-    Updates #44745
-    
-    Change-Id: I696d01307dabf351b0e4735db0644f4e09c8e369
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298794
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I4b816e26718ef5521afba2b200a6333373b09c58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245136
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/mod_install_pkg_version.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

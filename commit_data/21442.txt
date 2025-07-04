@@ -1,35 +1,15 @@
-commit 4a45ac577f4739916b98f959015ce6a234327457
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Feb 3 13:01:09 2015 +0300
+commit 813386f200e2cc15a05c8e641227e3cadffffc0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 30 13:06:52 2014 -0500
 
-    runtime: fix false race report during tracing
+    sync/atomic: remove atomic pointer hammer tests
     
-    Currently race detector produces the following reports on pprof tests:
+    These depend on storing arbitrary integer values using
+    pointer atomics, and we can't support that anymore.
     
-    WARNING: DATA RACE
-    Read by goroutine 4:
-      runtime/pprof_test.TestTraceStartStop()
-          src/runtime/pprof/trace_test.go:38 +0x1da
-      testing.tRunner()
-          src/testing/testing.go:448 +0x13a
-    
-    Previous write by goroutine 5:
-      bytes.(*Buffer).grow()
-          src/bytes/buffer.go:102 +0x190
-      bytes.(*Buffer).Write()
-          src/bytes/buffer.go:127 +0x75
-      runtime/pprof.func·002()
-          src/runtime/pprof/pprof.go:633 +0xae
-    
-    Trace writer goroutine synchronizes with StopTrace
-    using trace.shutdownSema runtime semaphore.
-    But race detector does not see that synchronization
-    and so produces false reports.
-    Teach race detector about the synchronization.
-    
-    Change-Id: I1219817325d4e16b423f29a0cbee94c929793881
-    Reviewed-on: https://go-review.googlesource.com/3746
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8cadd6d462c3eebdbe7078f43fe7c779fa8f52b3
+    Reviewed-on: https://go-review.googlesource.com/2311
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/trace.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/sync/atomic/atomic_test.go | 60 ------------------------------------------
+ 1 file changed, 60 deletions(-)

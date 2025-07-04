@@ -1,12 +1,20 @@
-commit 7b7a854c041fc15ca11bf760617f11dc31aaa519
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Mon May 7 07:34:53 2018 +0000
+commit e6756ec1492558f4724b8942d4c60c982563aa42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 4 18:45:39 2018 -0800
 
-    runtime: fix a typo mistake in comments
+    cmd/go: ignore coverpkg match on sync/atomic in atomic coverage mode
     
-    Change-Id: I33790af9fd0c2f6fdeaf9778c1381e0e6d697abb
-    Reviewed-on: https://go-review.googlesource.com/111755
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Otherwise we get into a dependency loop as we try to apply coverage
+    analysis to sync/atomic when the coverage analysis itself requires
+    sync/atomic.
+    
+    Fixes #23694
+    
+    Change-Id: I3a74ef3881ec5c6197ed348acc7f9e175417f6c7
+    Reviewed-on: https://go-review.googlesource.com/91875
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go            | 13 +++++++++++++
+ src/cmd/go/internal/test/test.go |  9 +++++++++
+ 2 files changed, 22 insertions(+)

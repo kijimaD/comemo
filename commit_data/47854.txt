@@ -1,19 +1,20 @@
-commit d2ce93960448559a7cb5685661502d8fc0c2ebc1
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Wed Dec 22 04:23:26 2021 +0000
+commit 58fdac04e4534e53fd9ca7df0455efb4f1ddb82b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 13 11:01:13 2021 +0200
 
-    doc/go1.18: fix broken HTML in net/http.MaxBytesHandler
+    syscall: don't defer close raw Socketpair fds in tests
     
-    For #47694
+    The raw fds are successively wrapped using os.NewFile and will be closed
+    by (*os.File).Close. Avoids a double close, in the worst case closing an
+    unrelated fd.
     
-    Sorry about that! I guess the autocompleter in VSCode auto-closed the paragraph and I didn't notice.
-    
-    Change-Id: I1e834e47deb708cd5285d26201a442305f8c3b24
-    GitHub-Last-Rev: ab8873155191072efd51270c85fc6feaed318cdc
-    GitHub-Pull-Request: golang/go#50305
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374014
+    Change-Id: I86aabe5ed865eff43d264ddae1fb07c935868e97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309353
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/creds_test.go        | 9 +++++----
+ src/syscall/syscall_unix_test.go | 2 --
+ 2 files changed, 5 insertions(+), 6 deletions(-)

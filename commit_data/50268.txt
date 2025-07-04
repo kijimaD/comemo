@@ -1,20 +1,18 @@
-commit 202b7e7e76128f524142ac7d328fe8458a096dbf
-Author: RenKanai <rk2904powr@gmail.com>
-Date:   Thu Jun 9 01:42:26 2022 +0900
+commit 3986e5c8e7df958cc1412ad06afc011022da76e1
+Author: kjgorman <kieran.j.gorman@gmail.com>
+Date:   Sun Oct 10 14:30:26 2021 +0100
 
-    encoding/asn1: fix doc for BitString.At's return value
+    bytes: fix Cut godoc typo
     
-    Fixes #53287
+    If sep does not appear in s, we return nil here
+    rather than the empty string. Presumably the docs
+    were copied from the  strings package implementation
+    and brought that along.
     
-    Change-Id: If983ae34850d9b1b29764156a38628fa53897573
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411134
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Subham <sarkar.subhams2@gmail.com>
+    Change-Id: I3706c94fe04abd9e2a2c8840f7cc6116386965c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354969
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
 
- src/encoding/asn1/asn1.go | 2 +-
+ src/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

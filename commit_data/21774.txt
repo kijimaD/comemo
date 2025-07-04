@@ -1,12 +1,14 @@
-commit be7090498b76ff50ec73858378ccf1670fec912f
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Feb 26 17:27:52 2015 -0500
+commit 4c91c0d07b7da552a57ec2b7a33b1d6b46d4889c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 15:57:38 2015 -0800
 
-    net/http/cgi: skip exec test on darwin/arm
+    math/big: build Float.Format on top of Float.Append
     
-    Change-Id: I2fc3cf94b465bf9d7ff8d7bf935b45e334b401e3
-    Reviewed-on: https://go-review.googlesource.com/6180
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I444eec24467f827caa5c88a1c5ae5bce92508b98
+    Reviewed-on: https://go-review.googlesource.com/3750
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/http/cgi/matryoshka_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/math/big/float.go      |  2 +-
+ src/math/big/float_test.go |  8 +++---
+ src/math/big/floatconv.go  | 67 +++++++++++++++++++++++-----------------------
+ 3 files changed, 39 insertions(+), 38 deletions(-)

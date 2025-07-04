@@ -1,0 +1,16 @@
+commit 85d2eadcf2715a1230e393ca4cd65ad328f76966
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 12 16:01:55 2024 -0400
+
+    test: add test case for wasmexport parameter types
+    
+    For #65199.
+    
+    Change-Id: Iecd11281706201a655b51583a08318b5ffd8ab04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604975
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ test/wasmexport2.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)

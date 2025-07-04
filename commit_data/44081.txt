@@ -1,17 +1,35 @@
-commit 0b0d004983b5f06d7e8ae2084fc7d6612f1aa869
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 4 14:06:29 2021 -0800
+commit f81aa23cf04f2be5fd2159e855e185b2d75ba503
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 30 22:35:35 2020 -0400
 
-    cmd/go: pass embedcfg to gccgo if supported
+    crypto/x509: treat hostnames with colons as invalid
     
-    For #41191
+    Colons are port separators, so it's risky to allow them in hostnames.
+    Per the CL 231377 rule, if we at least consider them invalid we will not
+    apply wildcard processing to them, making behavior a little more
+    predictable.
     
-    Change-Id: I75d327759c3d9ef061c19a80b9b2619038dedf68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/281492
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    We were considering hostnames with colons valid (against spec) because
+    that meant we'd not ignore them in Common Name. (There was at least
+    one deployment that was putting colons in Common Name and expecting it
+    to verify.)
+    
+    Now that Common Name is ignored by default, those clients will break
+    again, so it's a good time to drop the exception. Hopefully they moved
+    to SANs, where invalid hostnames are checked 1:1 (ignoring wildcards)
+    but still work. (If they didn't, this change means they can't use
+    GODEBUG=x509ignoreCN=0 to opt back in, but again you don't get to use a
+    legacy deprecated field AND invalid hostnames.)
+    
+    Updates #24151
+    
+    Change-Id: Id44b4fecb2d620480acdfc65fea1473f7abbca7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231381
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/go/internal/work/gccgo.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/crypto/x509/verify.go      |  4 ++--
+ src/crypto/x509/verify_test.go |  2 +-
+ src/crypto/x509/x509_test.go   | 10 +++++++++-
+ 3 files changed, 12 insertions(+), 4 deletions(-)

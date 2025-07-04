@@ -1,38 +1,17 @@
-commit 05cbbf985fed823a174bf95cc78a7d44f948fdab
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 22 15:03:13 2024 -0400
+commit 24617a068c55d0ee7ef56d1b9fb951ee1e75f67d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 18 17:19:37 2023 +0000
 
-    all: document legacy //go:linkname for modules with ≥500 dependents
+    runtime: flush idle time to sched.idleTime on limiter event consumption
     
-    For #67401.
+    This was an oversight, which might cause accounted-for idle time to be
+    lost. Noticed this while working on #60276.
     
-    Change-Id: I7dd28c3b01a1a647f84929d15412aa43ab0089ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587575
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic743785d6dc82555e660f2c9b6aaa9dedef56ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496117
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/database/sql/badlinkname.go         |   1 -
- src/database/sql/sql.go                 |  18 ++++--
- src/internal/bytealg/compare_generic.go |  10 ++++
- src/internal/cpu/cpu_arm64_darwin.go    |  11 ++++
- src/net/badlinkname.go                  |   1 -
- src/net/dnsclient.go                    |  10 ++++
- src/net/http/badlinkname.go             |   2 -
- src/net/http/request.go                 |  20 +++++++
- src/net/interface.go                    |  11 ++++
- src/net/url/badlinkname.go              |  20 -------
- src/net/url/url.go                      |  14 +++++
- src/runtime/alg.go                      |   3 +
- src/runtime/atomic_pointer.go           |   9 +++
- src/runtime/badlinkname.go              |  10 +---
- src/runtime/malloc.go                   |   4 +-
- src/runtime/mgc.go                      |   8 +++
- src/runtime/panic.go                    |   2 +
- src/runtime/proc.go                     | 101 ++++++++++++++++++++++++++++++++
- src/runtime/rand.go                     |   9 +++
- src/runtime/sema.go                     |  16 +++++
- src/runtime/stubs.go                    |  12 ++++
- src/sync/badlinkname.go                 |  15 -----
- src/sync/pool.go                        |   9 +++
- 23 files changed, 264 insertions(+), 52 deletions(-)
+ src/runtime/mgclimit.go | 1 +
+ 1 file changed, 1 insertion(+)

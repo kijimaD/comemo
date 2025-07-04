@@ -1,21 +1,16 @@
-commit 782228a73f4c6c8019ab5763e749d5ef98905e5f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Jun 25 13:15:59 2019 -0400
+commit 6e37e3a80b903a33f2b1c2b230d4fabee4398312
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 29 13:25:15 2019 -0700
 
-    doc: update ppc64 section for asm.html
+    runtime: use raceprocctx in race_arm64
     
-    Update the section in asm.html related to PPC64. Remove the line
-    that says it is in an experimental state, add a link to the
-    new doc.go file that has all the detail for the Go assembler for
-    PPC64.
+    In CL 169960 I didn't realize that we also have race detector support for arm64.
     
-    Change-Id: I45d9891669e01d94e2721be576d572e02cd9d2db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183840
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If77bfb0f700a04c04416dad61ef11e27b1c98e07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170105
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/asm.html | 17 +++--------------
- 1 file changed, 3 insertions(+), 14 deletions(-)
+ src/runtime/race_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

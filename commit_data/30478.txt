@@ -1,41 +1,15 @@
-commit a143f5d646e5e6a835f70235ee5e604deda5f3be
-Author: Philip Hofer <phofer@umich.edu>
-Date:   Tue Feb 28 14:35:37 2017 -0800
+commit 119c30eaf24c3d4f46ba1411f5cddbabb86bd840
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Nov 1 04:17:34 2015 -0500
 
-    cmd/internal/obj/arm: improve static branch prediction for wrapper prologue
+    internal/syscall/windows: add GetModuleFileName
     
-    This is a follow-up to CL 36893.
+    For os.Executable. Updates #12773.
     
-    Move the unlikely branch in the wrapper prologue to the end
-    of the function, where it has minimal impact on the instruction
-    cache. Static branch prediction is also less likely to choose
-    a forward branch.
-    
-    Updates #19042
-    
-    sort benchmarks:
-    name                  old time/op  new time/op  delta
-    SearchWrappers-4      1.44µs ± 0%  1.45µs ± 0%  +1.15%  (p=0.000 n=9+10)
-    SortString1K-4        1.02ms ± 0%  1.04ms ± 0%  +2.39%  (p=0.000 n=10+10)
-    SortString1K_Slice-4   960µs ± 0%   989µs ± 0%  +2.95%  (p=0.000 n=9+10)
-    StableString1K-4       218µs ± 0%   213µs ± 0%  -2.13%  (p=0.000 n=10+10)
-    SortInt1K-4            541µs ± 0%   543µs ± 0%  +0.30%  (p=0.003 n=9+10)
-    StableInt1K-4          760µs ± 1%   763µs ± 1%  +0.38%  (p=0.011 n=10+10)
-    StableInt1K_Slice-4    840µs ± 1%   779µs ± 0%  -7.31%  (p=0.000 n=9+10)
-    SortInt64K-4          55.2ms ± 0%  55.4ms ± 1%  +0.34%  (p=0.012 n=10+8)
-    SortInt64K_Slice-4    56.2ms ± 0%  55.6ms ± 1%  -1.16%  (p=0.000 n=10+10)
-    StableInt64K-4        70.9ms ± 1%  71.0ms ± 0%    ~     (p=0.315 n=10+7)
-    Sort1e2-4              250µs ± 0%   249µs ± 1%    ~     (p=0.315 n=9+10)
-    Stable1e2-4            600µs ± 0%   594µs ± 0%  -1.09%  (p=0.000 n=9+10)
-    Sort1e4-4             51.2ms ± 0%  51.4ms ± 1%  +0.40%  (p=0.001 n=9+10)
-    Stable1e4-4            204ms ± 1%   199ms ± 1%  -2.27%  (p=0.000 n=10+10)
-    Sort1e6-4              8.42s ± 0%   8.44s ± 0%  +0.28%  (p=0.000 n=8+9)
-    Stable1e6-4            43.3s ± 0%   42.5s ± 1%  -1.89%  (p=0.000 n=9+9)
-    
-    Change-Id: I827559aa557fdba211a38ce3f77137b471c5c67e
-    Reviewed-on: https://go-review.googlesource.com/37611
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iff6593514b7453b6c5e1f20079e35cb4992cc74a
+    Reviewed-on: https://go-review.googlesource.com/32877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go | 81 +++++++++++++++++++++++++---------------
- 1 file changed, 51 insertions(+), 30 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go  |  1 +
+ src/internal/syscall/windows/zsyscall_windows.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+)

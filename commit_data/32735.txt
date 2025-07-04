@@ -1,23 +1,20 @@
-commit f84a1db19f43df68494f30a67d69e5d4d807b970
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 15 11:38:24 2017 -0700
+commit f6f1daa4b807f1164da67c96dc8b07ee84731b52
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Mon Mar 27 13:28:19 2017 +0000
 
-    cmd/link: replace unrolled Cput loops with Cwrite/Cwritestring
+    cmd/go: Document that -cover causes incorrect line numbers
     
-    Passes toolstash-check -all.
+    Due to the fact that -cover injects additional code to the original
+    source, tests run with -cover will often have incorrect line numbers.
     
-    Change-Id: I1c85a2c0390517f4e9cdbddddbf3c353edca65b3
-    Reviewed-on: https://go-review.googlesource.com/64051
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also includes docs for -list regexp missed by ba8ff87
+    
+    Updates #6329
+    
+    Change-Id: I87f0618ac31e96071bca61055cc17c0cbdee208a
+    Reviewed-on: https://go-review.googlesource.com/38640
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  | 5 +----
- src/cmd/link/internal/arm/asm.go    | 5 +----
- src/cmd/link/internal/arm64/asm.go  | 5 +----
- src/cmd/link/internal/ld/elf.go     | 8 ++------
- src/cmd/link/internal/ld/symtab.go  | 7 ++-----
- src/cmd/link/internal/mips64/asm.go | 5 +----
- src/cmd/link/internal/ppc64/asm.go  | 5 +----
- src/cmd/link/internal/x86/asm.go    | 5 +----
- 8 files changed, 10 insertions(+), 35 deletions(-)
+ src/cmd/go/alldocs.go            | 8 ++++++++
+ src/cmd/go/internal/test/test.go | 3 +++
+ 2 files changed, 11 insertions(+)

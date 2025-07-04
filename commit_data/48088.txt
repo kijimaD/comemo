@@ -1,32 +1,18 @@
-commit ef843ae49c8a8ad6494da294fc46b0e80147e715
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 2 21:36:50 2022 -0800
+commit cb34026a95f0637a0f9eadb5e1d7aa301635f943
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 26 22:08:06 2021 -0700
 
-    go/types, types2: simplify missingMethodReason
+    cmd/compile: tighten exportWriter.qualifiedIdent signature
     
-    Added a funcString helper so we don't need to rewrite strings
-    with strings.Replace.
+    It always takes an *ir.Name and would panic given anything else
+    anyway, so tighten the signature to match.
     
-    Use compiler format for error message about wrong method type;
-    this removes another unnecessary variation.
-    
-    Simplify conditions for pointer-to-interface related error:
-    if one of the involved types is an interface pointer, it can't
-    have any methods.
-    
-    Rewrite logic so we don't need all the else-if branches.
-    
-    Adjusted a test case for types2 accordingly. The go/types version
-    of this test case has a different error because the implementation
-    of Checker.typeAssertion is different in the two type checkers
-    (the types2 version gives errors closer to the 1.17 compiler).
-    
-    Change-Id: I19e604d7063c3e31e8290bd78384a9f38bb0d740
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382694
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I44fec5c5cc6d7f0b9c59eb91c9f9633137485360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314009
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/lookup.go          | 60 ++++++++++----------
- .../internal/types2/testdata/check/issues.src      |  2 +-
- src/go/types/lookup.go                             | 64 +++++++++++-----------
- 3 files changed, 62 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

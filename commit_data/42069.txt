@@ -1,27 +1,32 @@
-commit 9a93baf4d7d13d7d5c67388c93960d78abc8e11e
-Author: Kirill Korotaev <kirillx@gmail.com>
-Date:   Wed Apr 22 20:19:21 2020 +0000
+commit a930fede7386fd3583553b523fd6f7fa5fef1244
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 26 22:54:28 2019 -0400
 
-    encoding/base64: improve performance up to 20% total
+    runtime: add async preemption support on MIPS and MIPS64
     
-    Improve base64 encoding/decoding performance by
-    suppressing compiler boundary checks on decode.
+    This CL adds support of call injection and async preemption on
+    MIPS and MIPS64.
     
-    name                 old speed      new speed      delta
-    EncodeToString-8      570MB/s ± 1%   573MB/s ± 1%     ~     (p=0.421 n=5+5)
-    DecodeString/2-8     88.6MB/s ± 3%  91.6MB/s ± 2%   +3.37%  (p=0.016 n=5+5)
-    DecodeString/4-8      162MB/s ± 1%   168MB/s ± 0%   +4.12%  (p=0.008 n=5+5)
-    DecodeString/8-8      203MB/s ± 0%   214MB/s ± 0%   +5.18%  (p=0.008 n=5+5)
-    DecodeString/64-8     471MB/s ± 1%   520MB/s ± 1%  +10.50%  (p=0.008 n=5+5)
-    DecodeString/8192-8   757MB/s ± 0%   895MB/s ± 1%  +18.29%  (p=0.008 n=5+5)
+    Like ARM64, we need to clobber one register (REGTMP) for
+    returning from the injected call. Previous CLs have marked code
+    sequences that use REGTMP async-nonpreemtible.
     
-    Change-Id: I135243c11aa4c974a4a4e95c5c2abb0635d52c8c
-    GitHub-Last-Rev: 2c87abcb287f4459888941ae2633edcd8eb5b79d
-    GitHub-Pull-Request: golang/go#36910
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217117
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It seems on MIPS/MIPS64, a CALL instruction is not "atomic" (!).
+    If a signal is delivered right at the CALL instruction, we may
+    see an updated LR with a not-yet-updated PC. In some cases this
+    may lead to failed stack unwinding. Don't preempt in this case.
+    
+    Change-Id: I99437b2d05869ded5c0c8cb55265dbfc933aedab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203720
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/base64/base64.go | 26 ++++++++++++++------------
- 1 file changed, 14 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |   2 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go   |   2 +
+ src/runtime/mkpreempt.go                      |  65 ++++++++++++-
+ src/runtime/preempt.go                        |  13 ++-
+ src/runtime/preempt_mips64x.s                 | 135 +++++++++++++++++++++++++-
+ src/runtime/preempt_mipsx.s                   | 135 +++++++++++++++++++++++++-
+ src/runtime/signal_mips64x.go                 |  14 ++-
+ src/runtime/signal_mipsx.go                   |  14 ++-
+ src/runtime/signal_unix.go                    |   2 +-
+ 9 files changed, 370 insertions(+), 12 deletions(-)

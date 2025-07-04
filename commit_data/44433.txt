@@ -1,29 +1,57 @@
-commit a61524d1033632f733f69bf6635e767d70d95cdd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 7 14:01:29 2021 -0800
+commit dd150176c3cc49da68c8179f740eadc79404d351
+Author: Daniel <cpu@letsencrypt.org>
+Date:   Fri Jul 3 03:07:02 2020 +0000
 
-    cmd/internal/obj: add Prog.SetFrom3{Reg,Const}
+    crypto/tls: create certs w/o KeyEncipherment KU for non-RSA keys in generate_cert.go
     
-    These are the the most common uses, and they reduce line noise.
+    Summary
     
-    I don't love adding new deprecated APIs,
-    but since they're trivial wrappers,
-    it'll be very easy to update them along with the rest.
-    No functional changes; passes toolstash-check.
+    The crypto/tls/generate_cert.go utility should only set the template
+    x509.Certificate's KeyUsage field to a value with the
+    x509.KeyUsageKeyEncipherment bits set when the certificate subject
+    public key is an RSA public key, not an ECDSA or ED25519 public key.
     
-    Change-Id: I691a8175cfef9081180e463c63f326376af3f3a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296009
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Background
+    
+    RFC 5480 describes the usage of ECDSA elliptic curve subject keys with
+    X.509. Unfortunately while Section 3 "Key Usages Bits" indicates which
+    key usage bits MAY be used with a certificate that indicates
+    id-ecPublicKey in the SubjectPublicKeyInfo field it doesn't provide
+    guidance on which usages should *not* be included (e.g. the
+    keyEncipherment bit, which is particular to RSA key exchange). The same
+    problem is present in RFC 8410 Section 5 describing Key Usage Bits for
+    ED25519 elliptic curve subject keys.
+    
+    There's an update to RFC 5480 in last call stage within the IETF LAMPS
+    WG, draft-ietf-lamps-5480-ku-clarifications-00. This update is meant
+    to clarify the allowed Key Usages extension values for certificates with
+    ECDSA subject public keys by adding:
+    
+    > If the keyUsage extension is present in a certificate that indicates
+    > id-ecPublicKey as algorithm of AlgorithmIdentifier [RFC2986] in
+    > SubjectPublicKeyInfo, then following values MUST NOT be present:
+    >
+    > keyEncipherment; and
+    > dataEncipherment.
+    
+    I don't believe there is an update for RFC 8410 in the works but I
+    suspect it will be clarified similarly in the future.
+    
+    This commit updates generate_cert.go to ensure when the certificate
+    public key is ECDSA or ED25519 the generated certificate has the
+    x509.Certificate.KeyUsage field set to a value that doesn't include KUs
+    specific to RSA. For ECDSA keys this will adhere to the updated RFC 5480
+    language.
+    
+    Fixes #36499
+    
+    Change-Id: Ib1b0757c039b7fe97fc6d1e826fe6b88856c1964
+    GitHub-Last-Rev: a8f34fb33dde90e09b6f9a27b2598a82b3023abb
+    GitHub-Pull-Request: golang/go#36500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214337
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/asm.go       |  5 +----
- src/cmd/compile/internal/amd64/ssa.go |  6 +++---
- src/cmd/compile/internal/arm/ssa.go   |  4 ++--
- src/cmd/compile/internal/arm64/ssa.go | 10 +++++-----
- src/cmd/compile/internal/ppc64/ssa.go | 22 +++++++++++-----------
- src/cmd/compile/internal/s390x/ssa.go |  8 ++++----
- src/cmd/compile/internal/x86/ssa.go   |  2 +-
- src/cmd/internal/obj/link.go          | 14 ++++++++++++++
- 8 files changed, 41 insertions(+), 30 deletions(-)
+ src/crypto/tls/generate_cert.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

@@ -1,20 +1,30 @@
-commit 451a284d801275a83ab017c8e00b1e0119fd1c0c
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Jul 10 18:46:37 2024 -0700
+commit 0f91f92ee0021b10930bb9eefa24b2e244b7d2e3
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 30 19:16:56 2023 -0400
 
-    strings,bytes,regexp: use lists in Split* docstrings
+    internal/coverage/pods: sort counter files first by origin, then name
     
-    This looks better than the default of using a code block.
-    While at it, fix punctuation.
+    This patch fixes a problem with the way pods (clumps of related
+    coverage meta+counter data files) are collected, which was causing
+    problems for "go tool covdata subtract".
     
-    Change-Id: I86abca4da1e9999b7e9043e615ad0988d35a5a46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597656
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    A subtract operation such as "go tool covdata subtract -i=dir1,dir2
+    -o=out" works by loading in all the counter data files from "dir1"
+    before any of the data files from "dir2" are loaded. The sorting
+    function in the pods code was sorting counter files for a given pod
+    based purely on name, which meant that differences in process ID
+    assignment could result in some files from "dir2" being presented
+    before "dir1". The fix is to change the sorting compare function to
+    prefer origin directory over filename.
+    
+    Fixes #60526.
+    
+    Change-Id: I2226ea675fc99666a9a28e6550d823bcdf2d6977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499317
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/bytes/bytes.go     | 14 ++++++--------
- src/regexp/regexp.go   |  7 +++----
- src/strings/strings.go | 14 ++++++--------
- 3 files changed, 15 insertions(+), 20 deletions(-)
+ src/internal/coverage/pods/pods.go      |  3 +++
+ src/internal/coverage/pods/pods_test.go | 32 ++++++++++++++++----------------
+ 2 files changed, 19 insertions(+), 16 deletions(-)

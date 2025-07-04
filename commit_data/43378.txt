@@ -1,24 +1,23 @@
-commit 9ad090c5fea60c9925b7eb30155ce01961c3537f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jul 18 22:26:00 2020 -0400
+commit fde6868ac3f3f049247084f2c76efec3555a2395
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 30 15:01:33 2020 -0400
 
-    testing/iotest: add TestReader to test readers
+    os/signal: in TestStop, skip the final "unexpected signal" check for SIGUSR1 on Android
     
-    There are many reader behaviors that are subtle and
-    worth testing, and it's nice to have one complete tester
-    instead of many incomplete ones.
+    In CL 226138, I updated TestStop to have more uniform behavior for its signals.
+    However, that test seems to always fail for SIGUSR1 on the Android ARM builders.
     
-    For #41190, which will use this as part of a larger
-    file system implementation tester.
+    I'm not sure what's special about Android for this particular case,
+    but let's skip the test to unbreak the builders while I investigate.
     
-    Change-Id: Ib4cc7fae94b0d9b45dfacadc52baa77ad3761322
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243909
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    For #38165
+    Updates #33174
+    
+    Change-Id: I35a70346cd9757a92acd505a020bf95e6871405c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226458
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/iotest/reader.go      | 175 +++++++++++++++++++++++++++++++++++++-
- src/testing/iotest/reader_test.go |  10 +++
- 2 files changed, 181 insertions(+), 4 deletions(-)
+ src/os/signal/signal_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,14 +1,12 @@
-commit 7711e61031ef20dfa802a53e7c5eb932454112db
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 30 00:22:42 2012 -0400
+commit 41688046399e2971e423c425f0b3401eb2833791
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 14:11:51 2012 +1000
 
-    cmd/go: show $GOPATH in 'go env' output
+    misc/dashboard/codereview: bump user-specific table limits to 100.
     
-    Also, sort output.
-    
-    R=golang-dev, patrick, dave, iant
-    CC=golang-dev, patrick
-    https://golang.org/cl/6446064
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6457051
 
- src/cmd/go/env.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ misc/dashboard/codereview/dashboard/front.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

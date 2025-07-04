@@ -1,24 +1,27 @@
-commit 76811213d7f927c15220c91b4c47af7028af4f47
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Tue Nov 3 00:04:46 2015 +0530
+commit 05a3b1fce56a95e40512bae9f62656098f198834
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 24 13:35:49 2015 -0400
 
-    cmd/go: check if destination is a regular file
+    cmd/compile: fix uninitialized memory in compare of interface value
     
-    builder.copyFile ensures that the destination is an object file.  This
-    wouldn't be true if we are not writing to a regular file and the copy
-    fails.  Check if the destination is an object file only if we are
-    writing to a regular file.  While removing the file, ensure that it is a
-    regular file so that device files and such aren't removed when running
-    as a user with suggicient privileges.
+    A comparison of the form l == r where l is an interface and r is
+    concrete performs a type assertion on l to convert it to r's type.
+    However, the compiler fails to zero the temporary where the result of
+    the type assertion is written, so if the type is a pointer type and a
+    stack scan occurs while in the type assertion, it may see an invalid
+    pointer on the stack.
     
-    Fixes #12407
+    Fix this by zeroing the temporary. This is equivalent to the fix for
+    type switches from c4092ac.
     
-    Change-Id: Ie86ce9770fa59aa56fc486a5962287859b69db3d
-    Reviewed-on: https://go-review.googlesource.com/16585
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #12253.
+    
+    Change-Id: Iaf205d456b856c056b317b4e888ce892f0c555b9
+    Reviewed-on: https://go-review.googlesource.com/13872
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go   | 16 +++++++++++++---
- src/cmd/go/go_test.go |  8 ++++++++
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  5 +++++
+ src/runtime/export_test.go          |  1 +
+ src/runtime/gc_test.go              | 17 +++++++++++++++++
+ src/runtime/iface.go                |  5 +++++
+ 4 files changed, 28 insertions(+)

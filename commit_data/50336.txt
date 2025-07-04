@@ -1,21 +1,21 @@
-commit 9363f356bd5a4fb7a45861ceac79033473f4c068
-Author: Alok Menghrajani <441307+alokmenghrajani@users.noreply.github.com>
-Date:   Sat Sep 3 21:16:49 2022 +0000
+commit 067d796549242bec2d33226c9da1e67f092a7be2
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Oct 14 12:32:58 2021 -0400
 
-    math/big: replace dead link in a comment with link to an archive.org copy
+    testing: write output to buffer when fuzzing
     
-    Happy to use another service if web.archive.org isn't suitable.
+    Fixes #48709
     
-    Note: the original page redirects and then links to some nsfw content.
-    
-    Change-Id: Ie93ca0c6aad871881f35b7e5609b96da5c14cfc0
-    GitHub-Last-Rev: ced5a97eb5c1d954a04d4bb61d36d955ca45a6ab
-    GitHub-Pull-Request: golang/go#54857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428236
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ia6376a2f792946498d6565a53605b3e6c985ea7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355909
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/math/big/prime.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 20 ++++++++++++++--
+ .../script/test_fuzz_minimize_interesting.txt      |  2 +-
+ src/testing/fuzz.go                                | 28 +++++++++++++++-------
+ 3 files changed, 39 insertions(+), 11 deletions(-)

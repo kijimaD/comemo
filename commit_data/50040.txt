@@ -1,32 +1,23 @@
-commit d05ce23756573c6dc2c5026d936f2ef6ac140ee2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 19 14:43:47 2022 -0700
+commit 8cf0a087c00db2e9ba24f763db903adcbffaade4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 09:56:38 2021 -0700
 
-    misc/cgo/testcarchive: permit SIGQUIT for TestSignalForwardingExternal
+    cmd/compile/internal/types2: add Interface.IsMethodSet, remove Interface.IsContraint
     
-    Occasionally the signal will be sent to a Go thread, which will cause
-    the program to exit with SIGQUIT rather than SIGSEGV.
+    This is a port of CL 352616 from go/types to types2. It also removes
+    Interface.IsConstraint and adjusts all uses to use IsMethodSet. The
+    dual changes are made to the (unexported) type set implementation.
     
-    Add TestSignalForwardingGo to test the case where the signal is
-    expected to be delivered to a Go thread.
-    
-    This is a roll forward of CL 419014 which was rolled back in CL 424954.
-    This CL differs from 419014 in that it skips TestSignalForwardingGo
-    on darwin-amd64.
-    
-    Fixes #53907
-    
-    Change-Id: I5df3fd610c068df3bd48d9b3d7a9379248b97999
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425002
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I292b741d1f7cdbaefb483eed75faf7b85a8d2792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352872
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- misc/cgo/testcarchive/carchive_test.go          | 242 +++++++++++++++---------
- misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 +
- misc/cgo/testcarchive/testdata/main5.c          |  13 +-
- src/runtime/signal_darwin_amd64.go              |   4 +
- 4 files changed, 168 insertions(+), 97 deletions(-)
+ src/cmd/compile/internal/noder/writer.go     | 2 +-
+ src/cmd/compile/internal/types2/call.go      | 2 +-
+ src/cmd/compile/internal/types2/decl.go      | 2 +-
+ src/cmd/compile/internal/types2/interface.go | 4 ++--
+ src/cmd/compile/internal/types2/typeset.go   | 4 ++--
+ src/cmd/compile/internal/types2/typexpr.go   | 2 +-
+ 6 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,20 +1,44 @@
-commit c3b49186a6781de58a07bc49ae289354ae98e3be
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 14 17:53:14 2019 -0800
+commit 6054fef17f2eedf3ef4825b6ca5b97e2ecf53bd6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Sep 23 13:48:46 2018 +0200
 
-    go/scanner: accept 'i' suffix orthogonally on all numbers
+    test: fix bcecheck test on noopt builder
     
-    This change accepts the 'i' suffix on binary and octal integer
-    literals as well as hexadecimal floats. The suffix was already
-    accepted on decimal integers and floats.
+    The noopt builder is configured by setting GO_GCFLAGS=-N -l, but the
+    test/run.go test harness doesn't look at GO_GCFLAGS when processing
+    "errorcheck" files, it just calls compile:
     
-    See also the respective language in the spec change:
-    https://golang.org/cl/161098
+      cmdline := []string{goTool(), "tool", "compile", /* etc */}
     
-    Change-Id: I0c182bdf58f8fd1f70090e581b3ccb2f5e2e4e79
-    Reviewed-on: https://go-review.googlesource.com/c/162880
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is working as intended, since it makes the tests more robust and
+    independent from the environment; errorcheck files are supposed to set
+    additional building flags, when needed, like in:
+    
+      // errorcheck -0 -N -l
+    
+    The test/bcecheck.go test used to work on the noopt builder (even if
+    bce is not active on -N -l) because the test was auto-contained and
+    the file always compiled with optimizations enabled.
+    
+    In CL 107355, a new bce test dependent on an external package
+    (encoding.binary) was added. On the noopt builder the external package
+    is built using -N -l, and this causes a test failure that broke the
+    noopt builder:
+    
+      https://build.golang.org/log/b2be319536285e5807ee9d66d6d0ec4d57433768
+    
+    To reproduce the failure, one can do:
+    
+      $ go install -a -gcflags="-N -l" std
+      $ go run run.go -- checkbce.go
+    
+    This change fixes the noopt builder breakage by removing the bce test
+    dependency on encoding/binary by defining a local Uint64() function to
+    be used in the test.
+    
+    Change-Id: Ife71aab662001442e715c32a0b7d758349a63ff1
+    Reviewed-on: https://go-review.googlesource.com/136855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/scanner/scanner.go      |  3 ---
- src/go/scanner/scanner_test.go | 20 ++++++++++++--------
- 2 files changed, 12 insertions(+), 11 deletions(-)
+ test/checkbce.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

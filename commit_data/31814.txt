@@ -1,14 +1,28 @@
-commit 491ec4dff51dfe7ba721c85da0a30eceb99aa85c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 13 22:50:35 2017 +0000
+commit 174b858f7855077839335a7e54ff7b18d7a59a8c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 08:55:40 2017 -0700
 
-    doc: add go-contrib-init mention to contributing docs
+    cmd/compile: pass frame size to defframe
     
-    Fixes #17802
+    Preparation for de-globalizing Stksize and MaxArg.
     
-    Change-Id: I245552534c3e21d95c569ac7118ba289244ba11d
-    Reviewed-on: https://go-review.googlesource.com/45652
-    Reviewed-by: Steve Francia <spf@golang.org>
+    Passes toolstash -cmp. No compiler performance impact.
+    
+    Updates #15756
+    
+    Change-Id: I312f0bbd15587a6aebf472cd66c8e62b89e55c8a
+    Reviewed-on: https://go-review.googlesource.com/38328
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/contribute.html | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/compile/internal/amd64/ggen.go  | 4 ++--
+ src/cmd/compile/internal/arm/ggen.go    | 4 ++--
+ src/cmd/compile/internal/arm64/ggen.go  | 4 ++--
+ src/cmd/compile/internal/gc/go.go       | 2 +-
+ src/cmd/compile/internal/gc/ssa.go      | 2 +-
+ src/cmd/compile/internal/mips/ggen.go   | 4 ++--
+ src/cmd/compile/internal/mips64/ggen.go | 4 ++--
+ src/cmd/compile/internal/ppc64/ggen.go  | 4 ++--
+ src/cmd/compile/internal/s390x/ggen.go  | 4 ++--
+ src/cmd/compile/internal/x86/ggen.go    | 4 ++--
+ 10 files changed, 18 insertions(+), 18 deletions(-)

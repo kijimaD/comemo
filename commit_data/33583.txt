@@ -1,27 +1,16 @@
-commit d0ce197c5835941df6d1d06017c1c34866a13650
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 13:43:02 2017 -0500
+commit 136f4a6b2ac2cc5a0c2b2c1ce236392f8f908620
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Aug 24 11:52:35 2017 -0700
 
-    encoding/hex: make Decode, Decoder, DecodeString agree about partial results and errors
+    [release-branch.go1.9] doc: document go1.9
     
-    CL 70210 added Decoder for #21590, and in doing so it changed
-    the existing func Decode to return partial results for decoding errors.
-    That seems like a good change to make to Decode, but it was
-    untested (except as used by Decoder), inconsistent with DecodeString
-    in all error cases, and inconsistent with Decoder in not returning
-    partial results for odd-length input strings.
-    
-    This CL makes Decode, DecodeString, and Decoder all agree about
-    the handling of partial results (they are returned) and error
-    precedence (the error earliest in the input is reported),
-    and it documents and tests this.
-    
-    Change-Id: Ifb7d1e100ecb66fe2ed5ba34a621084d480f16db
-    Reviewed-on: https://go-review.googlesource.com/78120
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I97075f24319a4b96cbeb9e3ff2e7b2056ff59e32
+    Reviewed-on: https://go-review.googlesource.com/58651
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/58710
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/encoding/hex/hex.go      | 42 ++++++++++++++++---------
- src/encoding/hex/hex_test.go | 75 +++++++++++++++++++-------------------------
- 2 files changed, 61 insertions(+), 56 deletions(-)
+ doc/devel/release.html  | 9 ++++++++-
+ doc/go1.9.html          | 7 +------
+ doc/install-source.html | 4 ++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

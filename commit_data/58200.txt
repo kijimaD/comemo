@@ -1,26 +1,25 @@
-commit 3d568919690157ae9fae66a0564c155907a8229b
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Nov 13 14:13:57 2024 +0100
+commit a762ea17ecb593d695601f0c1b4ea9fbd601c6cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 11 14:09:20 2023 -0700
 
-    os: add Root.Stat and Root.Lstat
+    runtime: don't use atomic store in noteclear on AIX
     
-    For #67002
+    In CL 163624 we added an atomic store in noteclear on AIX only.
+    In the discussion on issue #63384 we think we figured out that the
+    real problem was in the implementation of compare-and-swap on ppc64.
+    That is fixed by CL 533118, so the atomic store is no longer required.
     
-    Change-Id: I0903f45dbb4c44ea0280c340c96c5f3c3c0781be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627475
+    For #30189
+    For #63384
+    
+    Change-Id: I60f4f2fac75106f2bee51a8d9663259dcde2029c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534517
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- api/next/67002.txt                              |   2 +
- src/internal/syscall/unix/at_wasip1.go          |  22 ++++-
- src/internal/syscall/windows/at_windows.go      |   9 ++
- src/internal/syscall/windows/syscall_windows.go |   1 +
- src/os/root.go                                  |  24 +++++
- src/os/root_noopenat.go                         |  20 +++++
- src/os/root_test.go                             | 115 ++++++++++++++++++++++++
- src/os/root_unix.go                             |  18 ++++
- src/os/root_windows.go                          |  34 +++++++
- src/os/stat_wasip1.go                           |   9 ++
- src/syscall/types_windows.go                    |   1 +
- 11 files changed, 254 insertions(+), 1 deletion(-)
+ src/runtime/lock_sema.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

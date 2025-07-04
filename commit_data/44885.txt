@@ -1,23 +1,45 @@
-commit c847932804467f511b0e123cf29b72dd0d509306
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 30 17:55:22 2021 -0400
+commit 2c95e3a6a8377ca9c72608c25b4cf2506baf782f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 11:09:01 2020 +0700
 
-    runtime: replace reflectcall of defers with direct call
+    cmd/compile: use clearer error message for stuct literal
     
-    With GOEXPERIMENT=regabidefer, all deferred functions take no
-    arguments and have no results (their signature is always func()).
-    Since the signature is fixed, we can replace all of the reflectcalls
-    in the defer code with direct closure calls.
+    This CL changes "T literal.M" error message to "T{...}.M". It's clearer
+    expression and focusing user on actual issue.
     
-    For #40724.
+    Updates #38745
     
-    Change-Id: I3acd6742fe665610608a004c675f473b9d0e65ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306010
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I84b455a86742f37e0bde5bf390aa02984eecc3c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253677
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/objabi/funcid.go |  1 +
- src/runtime/panic.go              | 83 ++++++++++++++++++++++++++++++++-------
- 2 files changed, 70 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go |  11 ++-
+ test/alias2.go                     |  10 +--
+ test/ddd1.go                       |   2 +-
+ test/escape2.go                    |  56 ++++++-------
+ test/escape2n.go                   |  56 ++++++-------
+ test/escape_calls.go               |   2 +-
+ test/escape_field.go               |   6 +-
+ test/escape_iface.go               |  50 ++++++------
+ test/escape_indir.go               |  34 ++++----
+ test/escape_map.go                 |  26 +++---
+ test/escape_param.go               |  60 +++++++-------
+ test/escape_slice.go               |  14 ++--
+ test/escape_struct_param1.go       | 158 ++++++++++++++++++-------------------
+ test/escape_struct_param2.go       | 158 ++++++++++++++++++-------------------
+ test/fixedbugs/issue12006.go       |   4 +-
+ test/fixedbugs/issue13799.go       |   4 +-
+ test/fixedbugs/issue17645.go       |   2 +-
+ test/fixedbugs/issue21709.go       |   4 +-
+ test/fixedbugs/issue23732.go       |   6 +-
+ test/fixedbugs/issue26855.go       |   4 +-
+ test/fixedbugs/issue30898.go       |   2 +-
+ test/fixedbugs/issue31573.go       |  24 +++---
+ test/fixedbugs/issue38745.go       |  19 +++++
+ test/fixedbugs/issue39292.go       |   6 +-
+ test/fixedbugs/issue41247.go       |   2 +-
+ test/fixedbugs/issue7921.go        |  10 +--
+ test/inline_variadic.go            |   2 +-
+ 27 files changed, 379 insertions(+), 353 deletions(-)

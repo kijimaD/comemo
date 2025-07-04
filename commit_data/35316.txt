@@ -1,20 +1,20 @@
-commit 6428c892c04831fda8529973b7031caf60768866
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 13 13:01:36 2018 +0100
+commit c52e27e68dca0b6d3fb9f9442cfee8efcbca557e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 11 16:20:38 2018 +0000
 
-    cmd/compile: use nodl in zeroResults
+    CONTRIBUTING: remove Pull Request bit
     
-    Use nodl instead of nod to avoid setting and resetting lineo.
+    Also remove the "Also, please do not post patches on the issue
+    tracker" part, since that didn't seem to reduce the number of patches
+    inlined into bug reports. And now that we accept PRs, people will
+    probably try that first. We'll see.
     
-    Passes toolstash-check.
+    Fixes #23779
+    Updates #18517
     
-    Updates #19683
-    
-    Change-Id: I6a47a7ba43a11352767029eced29f08dff8501a2
-    Reviewed-on: https://go-review.googlesource.com/100335
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I449e0afd7292718e57d9d428494799c78296a0d2
+    Reviewed-on: https://go-review.googlesource.com/93335
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ CONTRIBUTING.md | 5 -----
+ 1 file changed, 5 deletions(-)

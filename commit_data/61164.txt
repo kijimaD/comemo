@@ -1,0 +1,23 @@
+commit 39fbc4c29a95510a1c62b6b57723aef496cdfbbc
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 10 11:01:16 2024 +0200
+
+    syscall,os: move flags validation from os.OpenFile to syscall.Open
+    
+    syscall.Open is the functions that maps Unix/Go flags into Windows
+    concepts. Part of the flag validation logic was still implemented
+    in os.OpenFile, move it to syscall.Open for consistency.
+    
+    A nice side effect is that we don't have to translate the file name
+    twice in case of an access denied error.
+    
+    Change-Id: I32c647a9a2a066277c78f53bacb45fb3036f6353
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/file_windows.go              | 17 +++-------------
+ src/syscall/syscall_windows.go      |  7 +++++++
+ src/syscall/syscall_windows_test.go | 39 +++++++++++++++++++++----------------
+ 3 files changed, 32 insertions(+), 31 deletions(-)

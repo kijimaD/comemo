@@ -1,25 +1,12 @@
-commit 662ff5421287e3738587a9eb01fa50e080e48582
+commit d314e3a68e08fd0769847ca4eb6f9fef335266bd
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 13:46:12 2013 -0800
+Date:   Thu Jan 31 13:42:26 2013 -0800
 
-    io: guarantee err == nil for full reads in ReadFull and ReadAtLeast
+    doc/codewalk: gofmt pig.go
     
-    This is a backwards compatible API change that fixes broken code.
-    
-    In Go 1.0, ReadFull(r, buf) could return either len(buf), nil or len(buf), non-nil.
-    Most code expects only the former, so do that and document the guarantee.
-    
-    Code that was correct before is still correct.
-    Code that was incorrect before, by assuming the guarantee, is now correct too.
-    
-    The same applies to ReadAtLeast.
-    
-    Fixes #4544.
-    
-    R=golang-dev, bradfitz, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7235074
+    https://golang.org/cl/7221079
 
- src/pkg/io/io.go      | 12 ++++++------
- src/pkg/io/io_test.go | 27 ++++++++++++++++++++-------
- 2 files changed, 26 insertions(+), 13 deletions(-)
+ doc/codewalk/pig.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

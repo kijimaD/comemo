@@ -1,16 +1,16 @@
-commit 10c2f56bf968884db3883a0c0b2a20f964a0ad4c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Aug 8 08:56:40 2014 +1000
+commit 2358603f0c0e1279a0ee2d207d9733b9ea9f520e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 7 12:02:36 2014 -0400
 
-    cmd/go: download test dependencies of all named packages
-    
-    Fixes #8181.
+    [dev.power64] liblink: move span and asmout related function from obj9.c to asm9.c
+    To reduce delta for the upcoming liblink CL.
+    Just code movement, no semantic changes.
     
     LGTM=rsc
-    R=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/123870043
+    https://golang.org/cl/124830043
 
- src/cmd/go/get.go    |  4 +++-
- src/cmd/go/test.bash | 11 +++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/liblink/asm9.c | 852 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/liblink/obj9.c | 852 -----------------------------------------------------
+ 2 files changed, 852 insertions(+), 852 deletions(-)

@@ -1,20 +1,14 @@
-commit 84b408cd36e909cd039130c0798095cce4edab94
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 13 09:23:25 2018 -0500
+commit f2d7e66e98d64941313147c0dfe2f31645830716
+Author: Roland Illig <roland.illig@gmx.de>
+Date:   Mon Aug 13 21:28:28 2018 +0200
 
-    cmd/go: set user and email in test-local git repos
+    runtime/pprof: fix resource leak in documentation
     
-    Some of the builders cannot infer user and email from the builder hostname.
+    Fixes #26970
     
-    Change-Id: I27e5d011fa1471f27763b6b7fa1bf59e418b925c
-    Reviewed-on: https://team-review.git.corp.google.com/c/376739
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/154107
+    Change-Id: I0f2695434a53550cf84f702e9d8d02a37448d396
+    Reviewed-on: https://go-review.googlesource.com/129195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/script/get_brace.txt    | 4 ++++
- src/cmd/go/testdata/script/get_dotfiles.txt | 4 ++++
- src/cmd/go/testdata/script/get_unicode.txt  | 9 +++++++++
- 3 files changed, 17 insertions(+)
+ src/runtime/pprof/pprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

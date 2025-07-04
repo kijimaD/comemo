@@ -1,16 +1,16 @@
-commit 3233a12f614723317f5d2e127b87b69aa236cd58
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Jan 13 11:24:56 2014 +1100
+commit c7ef348bad102b3427b4242018e92eba17d079ba
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jan 12 12:20:16 2014 +1100
 
-    syscall: remove getsockname workaround for openbsd
+    net: ignore some errors in windows Accept
     
-    Remove the getsockname workaround for unix domain sockets on OpenBSD.
-    This was fixed in OpenBSD 5.2 and we now have a minimum requirement
-    for OpenBSD 5.4-current.
+    Fixes #6987
     
-    R=golang-codereviews, minux.ma
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/50960043
+    https://golang.org/cl/49490043
 
- src/pkg/syscall/syscall_bsd.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/net/fd_windows.go         |  48 ++++++++++---
+ src/pkg/net/net_windows_test.go   | 146 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |   2 +
+ 3 files changed, 188 insertions(+), 8 deletions(-)

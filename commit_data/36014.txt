@@ -1,25 +1,25 @@
-commit f17220c20818f93efa22287e6f0fa8bbd7b4e5c4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 16 19:09:24 2018 -0700
+commit baa46bcf5b532a8f6d6684af8c0e500ce4cd41d2
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Mar 23 16:40:15 2018 -0400
 
-    cmd/go: fix handling of vet.cfg with buggyInstall
+    net/http/pprof: harden handler responses
     
-    The vet action assumes that a.Deps[0] is the compilation action for
-    which vet information should be generated. However, when using
-    -linkshared, the action graph is built with a ModeBuggyInstall action
-    to install the shared library built from the compilation action.
-    Adjust the set up of the vet action accordingly. Also don't clean up
-    the working directory after completing the buggy install.
+    A very small number of old browsers consider content as HTML
+    even when it is explicitly stated in the Content-Type header
+    that it is not. If content served is based on user-supplied
+    input, then an XSS is possible. Introduce three mitigations:
     
-    Updates #26400
+    + Don't reflect user input in error strings
+    + Set a Content-Disposition header when requesting a resource
+      that should never be displayed in a browser window
+    + Set X-Content-Type-Options: nosniff on all responses
     
-    Change-Id: Ia51f9f6b8cde5614a6f2e41b6207478951547770
-    Reviewed-on: https://go-review.googlesource.com/124275
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I81c9d6736e0439ebd1db99cd7fb701cc56d24805
+    Reviewed-on: https://go-review.googlesource.com/102318
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/cgo/testshared/shared_test.go |  6 ++++++
- src/cmd/go/internal/work/action.go | 13 +++++++++++--
- src/cmd/go/internal/work/exec.go   |  8 ++++++--
- 3 files changed, 23 insertions(+), 4 deletions(-)
+ src/net/http/pprof/pprof.go      | 52 ++++++++++++++++--------------
+ src/net/http/pprof/pprof_test.go | 69 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+), 23 deletions(-)

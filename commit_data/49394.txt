@@ -1,27 +1,31 @@
-commit fc9707594910452cce3fba794fa9ffe541e8cefa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 2 20:40:17 2022 -0700
+commit 8d2066177dda53372469040e9bd18f836f121c58
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 28 14:16:47 2021 -0700
 
-    go/types, types2: simplify implementation of validType (fix TODO)
+    cmd/go/internal/modfetch/codehost: refactor gitRepo.loadRefs to be harder to misuse
     
-    Now that validType is using the correct type nest (CL 409694),
-    the top entry of the type nest corresponds to the instantiated
-    type. Thus we can use that type instance to look up the value
-    of type parameters, there's no need anymore to create an environment
-    to look up type arguments.
+    Previously, callers of loadRefs were expected to always
+    call via gitRepo.refsOnce.Do and check r.refsErr. This hasn't always
+    been the case.
     
-    Remove the need to pass around the environment and remove all
-    associated types and functions.
+    This change makes loadRefs cache its own result with r.refsOnce and
+    return refs and refsErr. Callers can use it more like a normal
+    function.
     
-    Updates #52698.
+    CL 297950 is related. Previously, a commit like 0123456789ab could be
+    resolved to a v0.0.0 pseudo-version when tags couldn't be fetched, but
+    a shorter commit like 0123456 or a branch name like "master" couldn't
+    be resolved the same way. With this change, tags must be fetched
+    successfully ('git ls-remote' must succeed).
     
-    Change-Id: Ie37eace88896386e667ef93c77a4fc3cd0be6eb9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410294
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    For #42751
+    
+    Change-Id: I49c9346e6c72609ee4f8b10cfe1f69781e78457e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338191
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/validtype.go | 103 +++++++++------------------
- src/go/types/validtype.go                    | 103 +++++++++------------------
- 2 files changed, 70 insertions(+), 136 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 131 ++++++++++++++-------------
+ 1 file changed, 69 insertions(+), 62 deletions(-)

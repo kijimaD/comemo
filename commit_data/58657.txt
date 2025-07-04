@@ -1,17 +1,43 @@
-commit ff27d270c9f95178f9749bc8e1f15957b1c1d5b3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Feb 7 17:42:02 2025 -0500
+commit 186c4734247594fe7b27389b0233ece940a1d6f0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 22 16:54:29 2023 +0000
 
-    bytes: use "subslice" instead of "substring" in doc comments
+    api: promote next to go1.22
     
-    The bytes package iterators return subslices, not substrings.
-    
-    Updates #61901.
-    
-    Change-Id: Ida91d3e33a0f178edfe9a267861adf4f13f9a965
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647875
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib9d1eabfe6199575ea57183ccb21f62c40e11d84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544555
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/bytes/iter.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ api/go1.22.txt     | 134 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next/50102.txt |   9 ----
+ api/next/50489.txt |   1 -
+ api/next/51246.txt |   6 ---
+ api/next/51971.txt |   3 --
+ api/next/53693.txt |   6 ---
+ api/next/54898.txt |   1 -
+ api/next/56353.txt |   1 -
+ api/next/57178.txt |   1 -
+ api/next/58000.txt |   1 -
+ api/next/58808.txt |   2 -
+ api/next/59599.txt |   1 -
+ api/next/60061.txt |   1 -
+ api/next/60088.txt |   1 -
+ api/next/60204.txt |   1 -
+ api/next/60370.txt |   5 --
+ api/next/60665.txt |   6 ---
+ api/next/61410.txt |   2 -
+ api/next/61619.txt |   1 -
+ api/next/61642.txt |   2 -
+ api/next/61716.txt |  48 -------------------
+ api/next/61758.txt |   1 -
+ api/next/61870.txt |   1 -
+ api/next/61974.txt |   2 -
+ api/next/62037.txt |   2 -
+ api/next/62039.txt |   3 --
+ api/next/62418.txt |   1 -
+ api/next/62605.txt |   1 -
+ api/next/63223.txt |   6 ---
+ api/next/63725.txt |  18 -------
+ 30 files changed, 134 insertions(+), 134 deletions(-)

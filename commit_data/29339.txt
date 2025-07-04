@@ -1,14 +1,26 @@
-commit a3aaa189a484e18cad30391b7b5a70d04bc3cbe3
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Thu Nov 3 19:53:27 2016 +0530
+commit 81dfcba331f43bd14c8933eca83c433e53cb7b55
+Author: Edward Muller <edwardam@interlix.com>
+Date:   Wed Sep 7 11:39:31 2016 -0700
 
-    cmd/go: run mkalldocs.sh
+    go/build: add help info for unset $GOPATH
     
-    Follow-up to CL 32114
+    We relay this info in a few places, in a few different ways, but not
+    consistently everywhere.  This led one of our users to start googling
+    and not find https://golang.org/doc/code.html#Workspaces, of which `go
+    help gopath` is the most equivalent.
     
-    Change-Id: I75247ed9c1c0a0e8a278eb75a60d4c5bee355409
-    Reviewed-on: https://go-review.googlesource.com/32690
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I28a94375739f3aa4f200e145293ca2a5f65101e1
+    Reviewed-on: https://go-review.googlesource.com/28690
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/alldocs.go | 31 ++++++++++++++++++++++++-------
- 1 file changed, 24 insertions(+), 7 deletions(-)
+ doc/code.html         |  2 +-
+ src/cmd/go/alldocs.go | 18 +++++++++---------
+ src/cmd/go/build.go   |  2 +-
+ src/cmd/go/get.go     |  6 +++---
+ src/cmd/go/go_test.go |  4 ++--
+ src/cmd/go/help.go    | 16 ++++++++--------
+ src/cmd/go/main.go    |  2 +-
+ src/go/build/build.go |  2 +-
+ 8 files changed, 26 insertions(+), 26 deletions(-)

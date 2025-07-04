@@ -1,23 +1,28 @@
-commit 991a85c88944e9cb92c4860c173f49d549a92845
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 11 11:47:14 2016 -0400
+commit dd1d9b36c65ac71610cf69fbc425519990af7ada
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 2 13:17:09 2016 -0700
 
-    runtime: make mSpanList more go:notinheap-friendly
+    [dev.ssa] cmd/compile: PPC64, add cmp->bool, some shifts, hmul
     
-    Currently mspan links to its previous mspan using a **mspan field that
-    points to the previous span's next field. This simplifies some of the
-    list manipulation code, but is going to make it very hard to convince
-    the compiler that mspan list manipulations don't need write barriers.
+    Includes hmul (all widths)
+    compare for boolean result and simplifications
+    shift operations plus changes/additions for implementation
+    (ORN, ADDME, ADDC)
     
-    Fix this by using a more traditional ("boring") linked list that uses
-    a simple *mspan pointer to the previous mspan. This complicates some
-    of the list manipulation slightly, but it will let us eliminate all
-    write barriers from the mspan list manipulation code by marking mspan
-    go:notinheap.
+    Also fixed a backwards-operand CMP.
     
-    Change-Id: I0d0b212db5f20002435d2a0ed2efc8aa0364b905
-    Reviewed-on: https://go-review.googlesource.com/30940
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Id723c4e25125c38e0d9ab9ec9448176b75f4cdb4
+    Reviewed-on: https://go-review.googlesource.com/25410
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mheap.go | 44 ++++++++++++++++++++++++++------------------
- 1 file changed, 26 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ppc64/prog.go       |    4 +
+ src/cmd/compile/internal/ppc64/ssa.go        |  118 +-
+ src/cmd/compile/internal/ssa/config.go       |    1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  166 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   85 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  383 +++++-
+ src/cmd/compile/internal/ssa/regalloc.go     |    8 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1784 +++++++++++++++++++++-----
+ 8 files changed, 2190 insertions(+), 359 deletions(-)

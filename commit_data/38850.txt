@@ -1,19 +1,24 @@
-commit 1f0c102a57f62de6f66381c75732ba486da7b904
-Author: Tyler Bui-Palsulich <tbp@google.com>
-Date:   Mon Apr 22 15:09:10 2019 -0400
+commit b3294d9491b898396e134bad5412d85337c37b64
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 1 15:26:02 2018 -0400
 
-    cmd/go: expand cannot determine module path error
+    cmd/compile: for location lists, handle case where prev block is not a pred
     
-    See suggestion 2 of #31543 by thepudds.
+    Before this change, location list construction would extend
+    from the previous (in linear order) block, even if was not a
+    flow predecessor.  This can cause a debugger to tell lies.
     
-    We may want to expand 'go help mod init' in the future to document what
-    the module path should look like.
+    Fix accounts for this in block merging code by (crudely)
+    "changing" all variables live from a previous block if it
+    is not also a predecessor.
     
-    Change-Id: Ia559fa96fda871e011d53f42a803175abc512202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173318
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Fixes #28486.
+    
+    Change-Id: I11336b0b969f0cd09f40f4e5f2bdfdeb02f377a4
+    Reviewed-on: https://go-review.googlesource.com/c/146718
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/internal/modload/init.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 92 ++++++++++++++++++++++++++++-------
+ 1 file changed, 75 insertions(+), 17 deletions(-)

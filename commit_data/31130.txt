@@ -1,20 +1,16 @@
-commit ab9db51e1cf651c0d6d5b56dfd0d9d452f176726
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 16 15:02:02 2017 -0400
+commit 08a3a7c08a04a0041db3ee6923d9dccb8aaf764d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 15:12:51 2017 -0800
 
-    runtime: rename mspan.stackfreelist -> manualFreeList
+    cmd/compile: update maxPtrmaskBytes comment for larger value
     
-    We're going to use this free list for other types of manually-managed
-    memory in the heap.
+    The comment for maxPtrmaskBytes implied that the value was still 16,
+    but that changed in CL 10815.
     
-    For #19325.
-    
-    Change-Id: Ib7e682295133eabfddf3a84f44db43d937bfdd9c
-    Reviewed-on: https://go-review.googlesource.com/38575
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I86e304bc7d9d1a0a6b22b600fefcc1325e4372d9
+    Reviewed-on: https://go-review.googlesource.com/36120
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mheap.go |  9 +++++----
- src/runtime/stack.go | 24 ++++++++++++------------
- 2 files changed, 17 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

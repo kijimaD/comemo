@@ -1,92 +1,15 @@
-commit b6c0934a9b8a1015a0d81b6ced1a07411d4d744f
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 16 09:53:11 2015 -0400
+commit b11c8b9370b6156fec4510bf00ce956aa77ae8a4
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 24 21:17:04 2015 -0400
 
-    runtime: cache two workbufs to reduce contention
+    cmd/go: skip test using external linking on linux/ppc64 too
     
-    Currently the gcWork abstraction caches a single work buffer. As a
-    result, if a worker is putting and getting pointers right at the
-    boundary of a work buffer, it can flap between work buffers and
-    (potentially significantly) increase contention on the global work
-    buffer lists.
+    While we're at it, also fix a typo.
     
-    This change modifies gcWork to instead cache two work buffers and
-    switch off between them. This introduces one buffers' worth of
-    hysteresis and eliminates the above performance worst case by
-    amortizing the cost of getting or putting a work buffer over at least
-    one buffers' worth of work.
-    
-    In practice, it's difficult to trigger this worst case with reasonably
-    large work buffers. On the garbage benchmark, this reduces the max
-    writes/sec to the global work list from 32K to 25K and the median from
-    6K to 5K. However, if a workload were to trigger this worst case
-    behavior, it could significantly drive up this contention.
-    
-    This has negligible effects on the go1 benchmarks and slightly speeds
-    up the garbage benchmark.
-    
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  5.90ms ± 3%  5.83ms ± 4%  -1.18%  (p=0.011 n=18+18)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              3.22s ± 4%     3.17s ± 3%  -1.57%  (p=0.009 n=19+20)
-    Fannkuch11-12                2.44s ± 1%     2.53s ± 4%  +3.78%  (p=0.000 n=18+19)
-    FmtFprintfEmpty-12          50.2ns ± 2%    50.5ns ± 5%    ~     (p=0.631 n=19+20)
-    FmtFprintfString-12          167ns ± 1%     166ns ± 1%    ~     (p=0.141 n=20+20)
-    FmtFprintfInt-12             162ns ± 1%     159ns ± 1%  -1.80%  (p=0.000 n=20+20)
-    FmtFprintfIntInt-12          277ns ± 2%     263ns ± 1%  -4.78%  (p=0.000 n=20+18)
-    FmtFprintfPrefixedInt-12     240ns ± 1%     232ns ± 2%  -3.25%  (p=0.000 n=20+20)
-    FmtFprintfFloat-12           311ns ± 1%     315ns ± 2%  +1.17%  (p=0.000 n=20+20)
-    FmtManyArgs-12              1.05µs ± 2%    1.03µs ± 2%  -1.72%  (p=0.000 n=20+20)
-    GobDecode-12                8.65ms ± 1%    8.71ms ± 2%  +0.68%  (p=0.001 n=19+20)
-    GobEncode-12                6.51ms ± 1%    6.54ms ± 1%  +0.42%  (p=0.047 n=20+19)
-    Gzip-12                      318ms ± 2%     315ms ± 2%  -1.20%  (p=0.000 n=19+19)
-    Gunzip-12                   42.2ms ± 2%    42.1ms ± 1%    ~     (p=0.667 n=20+19)
-    HTTPClientServer-12         62.5µs ± 1%    62.4µs ± 1%    ~     (p=0.110 n=20+18)
-    JSONEncode-12               16.8ms ± 1%    16.8ms ± 2%    ~     (p=0.569 n=19+20)
-    JSONDecode-12               60.8ms ± 2%    59.8ms ± 1%  -1.69%  (p=0.000 n=19+19)
-    Mandelbrot200-12            3.87ms ± 1%    3.85ms ± 0%  -0.61%  (p=0.001 n=20+17)
-    GoParse-12                  3.76ms ± 2%    3.76ms ± 1%    ~     (p=0.698 n=20+20)
-    RegexpMatchEasy0_32-12       100ns ± 2%     101ns ± 2%    ~     (p=0.065 n=19+20)
-    RegexpMatchEasy0_1K-12       342ns ± 2%     333ns ± 1%  -2.82%  (p=0.000 n=20+19)
-    RegexpMatchEasy1_32-12      83.3ns ± 2%    83.2ns ± 2%    ~     (p=0.692 n=20+19)
-    RegexpMatchEasy1_1K-12       498ns ± 2%     490ns ± 1%  -1.52%  (p=0.000 n=18+20)
-    RegexpMatchMedium_32-12      131ns ± 2%     131ns ± 2%    ~     (p=0.464 n=20+18)
-    RegexpMatchMedium_1K-12     39.3µs ± 2%    39.6µs ± 1%  +0.77%  (p=0.000 n=18+19)
-    RegexpMatchHard_32-12       2.04µs ± 2%    2.06µs ± 1%  +0.69%  (p=0.009 n=19+20)
-    RegexpMatchHard_1K-12       61.4µs ± 2%    62.1µs ± 1%  +1.21%  (p=0.000 n=19+20)
-    Revcomp-12                   534ms ± 1%     529ms ± 1%  -0.97%  (p=0.000 n=19+16)
-    Template-12                 70.4ms ± 2%    70.0ms ± 1%    ~     (p=0.070 n=19+19)
-    TimeParse-12                 359ns ± 3%     344ns ± 1%  -4.15%  (p=0.000 n=19+19)
-    TimeFormat-12                357ns ± 1%     361ns ± 2%  +1.05%  (p=0.002 n=20+20)
-    [Geo mean]                  62.4µs         62.0µs       -0.56%
-    
-    name                      old speed      new speed      delta
-    GobDecode-12              88.7MB/s ± 1%  88.1MB/s ± 2%  -0.68%  (p=0.001 n=19+20)
-    GobEncode-12               118MB/s ± 1%   117MB/s ± 1%  -0.42%  (p=0.046 n=20+19)
-    Gzip-12                   60.9MB/s ± 2%  61.7MB/s ± 2%  +1.21%  (p=0.000 n=19+19)
-    Gunzip-12                  460MB/s ± 2%   461MB/s ± 1%    ~     (p=0.661 n=20+19)
-    JSONEncode-12              116MB/s ± 1%   115MB/s ± 2%    ~     (p=0.555 n=19+20)
-    JSONDecode-12             31.9MB/s ± 2%  32.5MB/s ± 1%  +1.72%  (p=0.000 n=19+19)
-    GoParse-12                15.4MB/s ± 2%  15.4MB/s ± 1%    ~     (p=0.653 n=20+20)
-    RegexpMatchEasy0_32-12     317MB/s ± 2%   315MB/s ± 2%    ~     (p=0.141 n=19+20)
-    RegexpMatchEasy0_1K-12    2.99GB/s ± 2%  3.07GB/s ± 1%  +2.86%  (p=0.000 n=20+19)
-    RegexpMatchEasy1_32-12     384MB/s ± 2%   385MB/s ± 2%    ~     (p=0.672 n=20+19)
-    RegexpMatchEasy1_1K-12    2.06GB/s ± 2%  2.09GB/s ± 1%  +1.54%  (p=0.000 n=18+20)
-    RegexpMatchMedium_32-12   7.62MB/s ± 2%  7.63MB/s ± 2%    ~     (p=0.800 n=20+18)
-    RegexpMatchMedium_1K-12   26.0MB/s ± 1%  25.8MB/s ± 1%  -0.77%  (p=0.000 n=18+19)
-    RegexpMatchHard_32-12     15.7MB/s ± 2%  15.6MB/s ± 1%  -0.69%  (p=0.010 n=19+20)
-    RegexpMatchHard_1K-12     16.7MB/s ± 2%  16.5MB/s ± 1%  -1.19%  (p=0.000 n=19+20)
-    Revcomp-12                 476MB/s ± 1%   481MB/s ± 1%  +0.97%  (p=0.000 n=19+16)
-    Template-12               27.6MB/s ± 2%  27.7MB/s ± 1%    ~     (p=0.071 n=19+19)
-    [Geo mean]                99.1MB/s       99.3MB/s       +0.27%
-    
-    Change-Id: I68bcbf74ccb716cd5e844a554f67b679135105e6
-    Reviewed-on: https://go-review.googlesource.com/16042
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id436f33cffa5683e2a8450cce5b545960cf2877e
+    Reviewed-on: https://go-review.googlesource.com/13878
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go     |   2 +-
- src/runtime/mgcwork.go | 145 +++++++++++++++++++++++++++++++++----------------
- 2 files changed, 99 insertions(+), 48 deletions(-)
+ src/cmd/go/go_test.go   | 2 +-
+ src/cmd/go/note_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

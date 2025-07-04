@@ -1,19 +1,20 @@
-commit 26b48442569102226baba1d9b4a83aaee3d06611
-Author: fangguizhen <1297394526@qq.com>
-Date:   Mon Oct 17 18:32:36 2022 +0000
+commit 0981724eaeb9e3a4553473072c38cf11822bc7fd
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 09:38:16 2021 -0500
 
-    errors: add test for Join
+    go/types: check for non-negative index in tparamIndex
     
-    Change-Id: I77c61211a488c66f1d445c0bf01e35aaf4f83565
-    GitHub-Last-Rev: c411a56a3b5215e6dd093be7069affb176b48dfd
-    GitHub-Pull-Request: golang/go#56279
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443316
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    There are code paths (particularly error formatting or tracing) that
+    call tparamIndex before the type parameter is bound. We cannot rely on
+    the index being non-negative.
+    
+    Change-Id: Ibad91c691b4f319b0c7b465a750b679a8a7af6a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364715
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/errors/join_test.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/compile/internal/types2/unify.go | 15 +++++++--------
+ src/go/types/unify.go                    | 10 ++++++++--
+ 2 files changed, 15 insertions(+), 10 deletions(-)

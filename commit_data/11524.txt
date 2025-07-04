@@ -1,20 +1,27 @@
-commit d3285f2a796f4fc856da9a15ca8a7dbff418aea1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 31 15:04:42 2012 -0800
+commit 0f1056667fb8952046e5360ebf9f3285b6f7de33
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 17:40:36 2012 -0500
 
-    net: remove types InvalidConnError and UnknownSocketError
+    cmd/go: improvements
     
-    Both are unused and undocumented.
+    Do not treat $GOROOT/src/pkg, $GOROOT/src/cmd,
+    $GOPATH/src as package directories (only subdirectories
+    of those can be package directories).  Fixes issue 2602.
     
-    InvalidConnError is also non-idiomatic: a FooError type can
-    typically describe something, else it would be an ErrFoo
-    variable.
+    Accept additional compiler and linker arguments during
+    cgo from $CGO_CFLAGS and $CGO_LDFLAGS, as the
+    Makefiles used to do.
     
-    R=golang-dev, alex.brainman
+    Show failed pkg-config output.  Fixes issue 2785.
+    
+    Use different (perhaps better) git commands.  Fixes issue 2109.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5609045
+    https://golang.org/cl/5605045
 
- src/pkg/net/fd.go         | 6 ------
- src/pkg/net/fd_windows.go | 6 ------
- src/pkg/net/sock.go       | 9 ---------
- 3 files changed, 21 deletions(-)
+ src/cmd/go/build.go | 17 +++++++++++++----
+ src/cmd/go/get.go   |  6 +-----
+ src/cmd/go/main.go  |  6 +++---
+ src/cmd/go/vcs.go   | 25 ++++++++++++++-----------
+ 4 files changed, 31 insertions(+), 23 deletions(-)

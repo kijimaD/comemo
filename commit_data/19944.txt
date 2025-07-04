@@ -1,15 +1,15 @@
-commit 3d7e3691207fd9dabfe12a560ecac473e7e59737
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 7 12:33:20 2014 -0700
+commit af403c08fcb848205466d1e4589f98df1984d0dd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 7 15:42:06 2014 +1000
 
-    runtime: test distribution of interface hashes.
+    doc: document new ParseMultipartForm behavior
     
-    LGTM=dvyukov
-    R=dvyukov, khr
+    Fixes #8403.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/121030043
+    https://golang.org/cl/123860043
 
- src/pkg/runtime/alg.go         | 10 +++++++
- src/pkg/runtime/export_test.go |  2 ++
- src/pkg/runtime/hash_test.go   | 60 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 72 insertions(+)
+ doc/go1.3.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

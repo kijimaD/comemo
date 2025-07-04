@@ -1,13 +1,15 @@
-commit 88ba4de152c8d81f73a3d60f63dc79a140add33a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Sep 3 03:51:13 2012 +0800
+commit a96c2b8c1afd8fbf7a16ed2f4e5f647c5f8cc17a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 1 19:55:55 2012 -0400
 
-    cmd/5l: embed $GOARM value into binary as runtime.goarm
+    cmd/gc: fix PkgPath of byte, rune types
     
-    R=golang-dev, dave, rsc
+    Fixes #3853.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6449127
+    https://golang.org/cl/6492071
 
- src/cmd/5l/l.h   |  1 +
- src/cmd/5l/obj.c | 12 +++++++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/gc/reflect.c        |  6 ++++++
+ src/pkg/reflect/all_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

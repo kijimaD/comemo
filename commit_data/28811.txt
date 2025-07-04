@@ -1,17 +1,35 @@
-commit 0da30d5cbdd092499fe199c212f8799fd0cc676e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 12 15:55:02 2016 -0400
+commit 111d590f86e2c9a55ec08d95fc4e9adea9232f0c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 28 12:22:49 2016 -0400
 
-    encoding/json: handle misspelled JSON literals in ,string
+    cmd/compile: fix possible spill of invalid pointer with DUFFZERO on AMD64
     
-    Fixes #15146.
+    SSA compiler on AMD64 may spill Duff-adjusted address as scalar. If
+    the object is on stack and the stack moves, the spilled address become
+    invalid.
     
-    Change-Id: I229611b9cc995a1391681c492c4d742195c787ea
-    Reviewed-on: https://go-review.googlesource.com/30943
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Making the spill pointer-typed does not work. The Duff-adjusted address
+    points to the memory before the area to be zeroed and may be invalid.
+    This may cause stack scanning code panic.
+    
+    Fix it by doing Duff-adjustment in genValue, so the intermediate value
+    is not seen by the reg allocator, and will not be spilled.
+    
+    Add a test to cover both cases. As it depends on allocation, it may
+    be not always triggered.
+    
+    Fixes #16515.
+    
+    Change-Id: Ia81d60204782de7405b7046165ad063384ede0db
+    Reviewed-on: https://go-review.googlesource.com/25309
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/encoding/json/decode.go      | 14 +++++++++++++-
- src/encoding/json/decode_test.go | 14 ++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go        | 44 +++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 +--
+ src/cmd/compile/internal/ssa/rewrite.go      | 46 ------------------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 13 +++----
+ test/fixedbugs/issue16515.go                 | 53 ++++++++++++++++++++++++++++
+ 6 files changed, 103 insertions(+), 59 deletions(-)

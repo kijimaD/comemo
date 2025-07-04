@@ -1,23 +1,21 @@
-commit 660e7d60f28ed4b2c14f6e1fcf6d0e5a7f4aa1e0
-Author: Tim King <taking@google.com>
-Date:   Fri Aug 9 14:36:21 2024 -0700
+commit 4c58d6bf52b87628d0a73041af61e58eed84a310
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 10 18:40:47 2023 -0400
 
-    go/internal/gcimporter: indexed format imports for type parameters aliases
+    time: increase arbitrary upper bound in TestReset to 10s
     
-    Add support for importing a new 'B' tag for type parameters aliases
-    in the indexed data format.
+    The previous upper bound was around 0.375 s, which is empirically
+    too short on a slow, heavily-loaded builder. Since the test doesn't
+    seem to depend on the actual duration in any meaningful way, let's
+    make it several orders of magnitude larger.
     
-    Updates #68778
+    Fixes #61266.
     
-    Change-Id: I3bd82870d4c4619a3771de30baf6d54f6ee5959e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604635
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6dde5e174966ee385db67e3cb87334f463c7e597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/importer/iimport.go  | 12 ++++++++----
- src/cmd/compile/internal/importer/ureader.go  |  9 ++++++---
- src/cmd/compile/internal/typecheck/iexport.go |  3 ++-
- src/go/internal/gcimporter/iimport.go         | 11 +++++++----
- src/go/internal/gcimporter/ureader.go         |  9 ++++++---
- 5 files changed, 29 insertions(+), 15 deletions(-)
+ src/time/sleep_test.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

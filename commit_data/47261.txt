@@ -1,26 +1,27 @@
-commit 156abe51221c5723c3ff524ea0fcbe65d8272bfa
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 4 21:09:34 2021 +0000
+commit aafad20b617ee63d58fcd4f6e0d98fe27760678c
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Mar 6 23:14:21 2021 -0800
 
-    runtime: fix hard goal calculation
+    encoding/binary: limit bytes read by Uvarint to <= 10
     
-    The new GC pacer has a bug where the hard goal isn't set in relation to
-    the original heap goal, but rather to the one already extrapolated for
-    overshoot.
+    Limits the number of bytes that can be consumed by Uvarint
+    to MaxVarintLen64 (10) to avoid wasted computations.
+    With this change, if Uvarint reads more than MaxVarintLen64
+    bytes, it'll return the erroring byte count of n=-(MaxVarintLen64+1)
+    which is -11, as per the function signature.
     
-    In practice, I have never once seen this case arise because the
-    extrapolated goal used for overshoot is conservative. No test because
-    writing a test for this case is impossible in the idealized model the
-    pacer tests create. It is possible to simulate but will take more work.
-    For now, just leave a TODO.
+    Updated some tests to reflect the new change in expectations of n
+    when the number of bytes to be read exceeds the limits..
     
-    Change-Id: I24ff710016cd8100fad54f71b2c8cdea0f7dfa79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361435
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Fixes #41185
+    
+    Change-Id: Ie346457b1ddb0214b60c72e81128e24d604d083d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299531
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/runtime/mgcpacer.go      | 7 ++++---
- src/runtime/mgcpacer_test.go | 6 ++++++
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ src/encoding/binary/varint.go      |  7 ++++-
+ src/encoding/binary/varint_test.go | 63 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 66 insertions(+), 4 deletions(-)

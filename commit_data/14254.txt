@@ -1,12 +1,18 @@
-commit bc0783dbe5c0b1319843f9a97df946549a24b7b1
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 31 14:02:43 2012 +0100
+commit 3494010f7dc1705d6317c82bfe458f61cf2bca66
+Author: Peter Waller <peter.waller@gmail.com>
+Date:   Tue Oct 30 17:36:18 2012 -0700
 
-    exp/locale/collate: add context to entry.
+    syscall/exec_linux: enable changing controlling tty
     
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/6727049
+    As discussed in the following thread:
+    https://groups.google.com/forum/?fromgroups=#!topic/golang-dev/emeJffxWhVo
+    
+    This is required to enable applications such as `less` to use something
+    other than stdin as the controlling terminal.
+    
+    R=dave, iant
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6785057
 
- src/pkg/exp/locale/collate/maketables.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/syscall/exec_linux.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

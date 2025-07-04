@@ -1,24 +1,23 @@
-commit aba18d5b6785d501996b475d58a05cc26707d370
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 8 13:28:59 2024 -0800
+commit e1f9499ecfff24fac827749719e5e53c0e5acaeb
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Sat Jan 28 19:56:34 2023 -0800
 
-    math/big: fix uint64 overflow in nat.mulRange
+    strconv: show what fmt package uses for float printing
     
-    Compute median as a + (b-a)/2 instead of (a + b)/2.
-    Add additional test cases.
+    The strconv docs are not very helpful for people who just want to pick
+    a reasonable default, for example the one used by the fmt package to
+    show floats.
     
-    Fixes #65025.
+    Add an example illustrating what the fmt package uses.
     
-    Change-Id: Ib716a1036c17f8f33f51e33cedab13512eb7e0be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554617
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Iefefa70dfd4d4bfa9962a20654ee23662818ef38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463980
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/math/big/int_test.go | 10 ++++++++++
- src/math/big/nat.go      |  2 +-
- src/math/big/nat_test.go |  5 +++++
- 3 files changed, 16 insertions(+), 1 deletion(-)
+ src/strconv/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,20 +1,176 @@
-commit b6c5a5baa7c2c4df7ec8016e9a766dcc57895582
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 12 14:06:31 2022 -0700
+commit 47cdfa95ae85919c6f050a87b54c69f64c2666fc
+Merge: 176baafd5b 9eee0ed439
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 28 13:17:08 2021 -0700
 
-    cmd/compile/internal/gc: parse command-line flags earlier
+    [dev.cmdgo] all: merge master (9eee0ed) into dev.cmdgo
     
-    This CL moves the call to base.ParseFlags() earlier in compiler
-    startup. This is necessary so CL 393715 can use base.Ctxt.Pkgpath to
-    construct types.LocalPkg.
+    Conflicts:
     
-    Updates #51734.
+    - src/cmd/go/internal/modload/init.go
+    - src/cmd/go/internal/modload/load.go
     
-    Change-Id: I9f5f75dc9d5fd1b1d22e98523efc95e6cec64385
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406055
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Merge List:
+    
+    + 2021-07-28 9eee0ed439 cmd/go: fix go.mod file name printed in error messages for replacements
+    + 2021-07-28 b39e0f461c runtime: don't crash on nil pointers in checkptrAlignment
+    + 2021-07-27 7cd10c1149 cmd/go: use .mod instead of .zip to determine if version has go.mod file
+    + 2021-07-27 c8cf0f74e4 cmd/go: add missing flag in UsageLine
+    + 2021-07-27 7ba8e796c9 testing: clarify T.Name returns a distinct name of the running test
+    + 2021-07-27 33ff155970 go/types: preserve untyped constants on the RHS of a shift expression
+    + 2021-07-26 840e583ff3 runtime: correct variable name in comment
+    + 2021-07-26 bfbb288574 runtime: remove adjustTimers counter
+    + 2021-07-26 9c81fd53b3 cmd/vet: add missing copyright header
+    + 2021-07-26 ecaa6816bf doc: clarify non-nil zero length slice to array pointer conversion
+    + 2021-07-26 1868f8296e crypto/x509: update iOS bundled roots to version 55188.120.1.0.1
+    + 2021-07-25 849b791129 spec: use consistent capitalization for rune literal hex constants
+    + 2021-07-23 0914646ab9 doc/1.17: fix two dead rfc links
+    + 2021-07-22 052da5717e cmd/compile: do not change field offset in ABI analysis
+    + 2021-07-22 798ec73519 runtime: don't clear timerModifiedEarliest if adjustTimers is 0
+    + 2021-07-22 fdb45acd1f runtime: move mem profile sampling into m-acquired section
+    + 2021-07-21 3e48c0381f reflect: add missing copyright header
+    + 2021-07-21 48c88f1b1b reflect: add Value.CanConvert
+    + 2021-07-20 9e26569293 cmd/go: don't add C compiler ID to hash for standard library
+    + 2021-07-20 d568e6e075 runtime/debug: skip TestPanicOnFault on netbsd/arm
+    + 2021-07-19 c8f4e6152d spec: correct example comment in Conversions from slice to array
+    + 2021-07-19 1d91551b73 time: correct typo in documentation for UnixMicro
+    + 2021-07-19 404127c30f cmd/compile: fix off-by-one error in traceback argument counting
+    + 2021-07-19 6298cfe672 cmd/compile: fix typo in fatal message of builtinCall
+    + 2021-07-19 49402bee36 cmd/{compile,link}: fix bug in map.zero handling
+    + 2021-07-18 a66190ecee test/bench/go1: fix size for RegexpMatchMedium_32
+    + 2021-07-18 650fc2117a text/scanner: use Go convention in Position doc comment
+    + 2021-07-16 aa4e0f528e net/http:  correct capitalization in cancelTimeBody comment
+    + 2021-07-15 0941dbca6a testing: clarify in docs that TestMain is advanced
+    + 2021-07-15 69728ead87 cmd/go: update error messages in tests to match CL 332573
+    + 2021-07-15 c1cc9f9c3d cmd/compile: fix lookup package of redeclared dot import symbol
+    + 2021-07-15 21a04e3335 doc/go1.17: mention GOARCH=loong64
+    + 2021-07-14 2b00a54baf go/build, runtime/internal/sys: reserve GOARCH=loong64
+    + 2021-07-14 60ddf42b46 cmd/go: change link in error message from /wiki to /doc.
+    + 2021-07-13 d8f348a589 cmd/go: remove a duplicated word from 'go help mod graph'
+    + 2021-07-12 a98589711d crypto/tls: test key type when casting
+    + 2021-07-12 cfbd73ba33 doc/go1.17: editing pass over the "Compiler" section
+    + 2021-07-09 ab4085ce84 runtime/pprof: call runtime.GC twice in memory profile test
+    + 2021-07-08 296ddf2a93 net: filter bad names from Lookup functions instead of hard failing
+    + 2021-07-08 ce76298ee7 Update oudated comment
+    + 2021-07-08 2ca44fe221 doc/go1.17: linkify time.UnixMilli and time.UnixMicro
+    + 2021-07-07 5c59e11f5e cmd/compile: remove special-casing of blank in types.sconv{,2}
+    + 2021-07-07 b003a8b1ae cmd/compile: optimize types.sconv
+    + 2021-07-07 11f5df2d67 cmd/compile: extract pkgqual from symfmt
+    + 2021-07-07 991fd381d5 cmd/go: don't lock .mod and .sum files for read in overlay
+    + 2021-07-07 186a3bb4b0 cmd/go/internal/modfetch/codehost: skip hg tests if no hg binary is present
+    + 2021-07-07 00c00558e1 cmd/go/internal/modload: remove unused functions
+    + 2021-07-07 f264879f74 cmd/go/internal/modload: fix an apparent typo in the AutoRoot comment
+    + 2021-07-07 c96833e5ba doc: remove stale comment about arm64 port
+    
+    Change-Id: Ide5fb43a0fcb5d998386ed60dfd6ced241238a44
 
- src/cmd/compile/internal/gc/main.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ api/go1.17.txt                                     |   1 +
+ doc/asm.html                                       |   4 -
+ doc/go1.17.html                                    | 100 +++++++---
+ doc/go_spec.html                                   |  11 +-
+ src/cmd/compile/internal/abi/abiutils.go           |  21 +-
+ src/cmd/compile/internal/gc/obj.go                 |   2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |   2 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |  54 ++---
+ src/cmd/compile/internal/typecheck/dcl.go          |  12 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   2 +-
+ src/cmd/compile/internal/types/fmt.go              |  57 +++---
+ src/cmd/go/alldocs.go                              |   6 +-
+ src/cmd/go/go_test.go                              |  32 +++
+ .../go/internal/lockedfile/lockedfile_filelock.go  |   3 +-
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |   6 +-
+ src/cmd/go/internal/modcmd/edit.go                 |   2 +-
+ src/cmd/go/internal/modcmd/graph.go                |   2 +-
+ src/cmd/go/internal/modcmd/init.go                 |   2 +-
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  49 +++--
+ src/cmd/go/internal/modfetch/coderepo.go           |  23 ++-
+ src/cmd/go/internal/modfetch/fetch.go              |  17 +-
+ src/cmd/go/internal/modload/init.go                |   9 +-
+ src/cmd/go/internal/modload/load.go                |  39 +---
+ src/cmd/go/internal/modload/modfile.go             |  78 +++++---
+ src/cmd/go/internal/modload/query.go               |  34 +++-
+ src/cmd/go/internal/work/exec.go                   |  11 +-
+ src/cmd/go/testdata/script/mod_overlay.txt         |  10 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |   2 +-
+ .../go/testdata/script/mod_tidy_compat_deleted.txt |   2 +-
+ .../testdata/script/mod_tidy_compat_implicit.txt   |   2 +-
+ .../script/mod_tidy_compat_incompatible.txt        |   2 +-
+ .../go/testdata/script/mod_update_sum_readonly.txt |  34 ++++
+ src/cmd/link/internal/ld/decodesym.go              |   4 +-
+ src/cmd/link/internal/loader/loader.go             |   9 +
+ src/cmd/vet/main.go                                |   4 +
+ src/cmd/vet/testdata/copylock/copylock.go          |   4 +
+ src/cmd/vet/testdata/httpresponse/httpresponse.go  |   4 +
+ src/cmd/vet/testdata/testingpkg/tests.go           |   4 +
+ src/cmd/vet/testdata/testingpkg/tests_test.go      |   4 +
+ src/crypto/tls/key_agreement.go                    |   6 +-
+ src/crypto/x509/root.go                            |   2 +-
+ src/crypto/x509/root_ios.go                        |  37 +++-
+ src/go/build/syslist.go                            |   2 +-
+ src/go/types/api_test.go                           |  12 ++
+ src/go/types/check_test.go                         |   7 +
+ src/go/types/expr.go                               |  34 +++-
+ src/internal/reflectlite/type.go                   |   4 +-
+ src/net/dnsclient_unix_test.go                     | 222 ++++++++++++++++-----
+ src/net/http/client.go                             |   2 +-
+ src/net/lookup.go                                  |  74 +++++--
+ src/reflect/all_test.go                            |   9 +
+ src/reflect/type.go                                |  10 +-
+ src/reflect/value.go                               |  20 ++
+ src/reflect/visiblefields.go                       |   4 +
+ src/reflect/visiblefields_test.go                  |   4 +
+ src/runtime/checkptr.go                            |  11 +-
+ src/runtime/checkptr_test.go                       |   1 +
+ src/runtime/debug/panic_test.go                    |   3 +
+ src/runtime/internal/sys/zgoarch_386.go            |   1 +
+ src/runtime/internal/sys/zgoarch_amd64.go          |   1 +
+ src/runtime/internal/sys/zgoarch_arm.go            |   1 +
+ src/runtime/internal/sys/zgoarch_arm64.go          |   1 +
+ src/runtime/internal/sys/zgoarch_arm64be.go        |   1 +
+ src/runtime/internal/sys/zgoarch_armbe.go          |   1 +
+ src/runtime/internal/sys/zgoarch_loong64.go        |  33 +++
+ src/runtime/internal/sys/zgoarch_mips.go           |   1 +
+ src/runtime/internal/sys/zgoarch_mips64.go         |   1 +
+ src/runtime/internal/sys/zgoarch_mips64le.go       |   1 +
+ src/runtime/internal/sys/zgoarch_mips64p32.go      |   1 +
+ src/runtime/internal/sys/zgoarch_mips64p32le.go    |   1 +
+ src/runtime/internal/sys/zgoarch_mipsle.go         |   1 +
+ src/runtime/internal/sys/zgoarch_ppc.go            |   1 +
+ src/runtime/internal/sys/zgoarch_ppc64.go          |   1 +
+ src/runtime/internal/sys/zgoarch_ppc64le.go        |   1 +
+ src/runtime/internal/sys/zgoarch_riscv.go          |   1 +
+ src/runtime/internal/sys/zgoarch_riscv64.go        |   1 +
+ src/runtime/internal/sys/zgoarch_s390.go           |   1 +
+ src/runtime/internal/sys/zgoarch_s390x.go          |   1 +
+ src/runtime/internal/sys/zgoarch_sparc.go          |   1 +
+ src/runtime/internal/sys/zgoarch_sparc64.go        |   1 +
+ src/runtime/internal/sys/zgoarch_wasm.go           |   1 +
+ src/runtime/malloc.go                              |  20 +-
+ src/runtime/pprof/mprof_test.go                    |  11 +
+ src/runtime/proc.go                                |   1 -
+ src/runtime/race.go                                |   2 +-
+ src/runtime/runtime2.go                            |  12 +-
+ src/runtime/select.go                              |   2 +-
+ src/runtime/testdata/testprog/checkptr.go          |  36 +++-
+ src/runtime/time.go                                |  58 +-----
+ src/runtime/traceback_test.go                      | 179 ++++++++++++++++-
+ src/runtime/type.go                                |   6 +-
+ src/testing/testing.go                             |   8 +-
+ src/text/scanner/scanner.go                        |   2 +-
+ src/time/sleep_test.go                             |  34 ++++
+ src/time/time.go                                   |   2 +-
+ test/bench/go1/regexp_test.go                      |   2 +-
+ test/fixedbugs/issue47087.dir/a.go                 |   9 +
+ test/fixedbugs/issue47087.dir/b.go                 |   9 +
+ test/fixedbugs/issue47087.dir/main.go              |  19 ++
+ test/fixedbugs/issue47087.go                       |   7 +
+ test/fixedbugs/issue47185.dir/bad/bad.go           |  72 +++++++
+ test/fixedbugs/issue47185.dir/main.go              |  28 +++
+ test/fixedbugs/issue47185.go                       |  11 +
+ test/fixedbugs/issue47201.dir/a.go                 |  13 ++
+ test/fixedbugs/issue47201.dir/b.go                 |   9 +
+ test/fixedbugs/issue47201.go                       |   7 +
+ test/fixedbugs/issue47317.dir/a.s                  |   6 +
+ test/fixedbugs/issue47317.dir/x.go                 |  17 ++
+ test/fixedbugs/issue47317.go                       |   7 +
+ 109 files changed, 1332 insertions(+), 440 deletions(-)

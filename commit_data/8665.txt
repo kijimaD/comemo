@@ -1,15 +1,35 @@
-commit ffd01f2a479af55cb12566bc2ba7e38b4be8cf01
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Jun 9 10:18:36 2011 +1000
+commit 833529fd6f5b1cc469a080980275ace3d43ade49
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 9 09:50:38 2011 +1000
 
-    mail: decode "Q"-encoded mail addresses.
+    compress/lzw: reduce decoder buffer size from 3*4096 to 2*4096.
     
-    Supports ISO-8859-1 and UTF-8.
+    This happens to speed up the decoder benchmarks by 50% on my computer
+    (GOARCH=amd64 GOOS=linux), but I don't have a good intuition as to why.
+    For example, just adding an unused [4096]byte field to the decoder
+    struct doesn't significantly change the numbers.
     
-    R=rsc, bradfitz
+    Before:
+    
+    lzw.BenchmarkDecoder1e4     5000            488057 ns/op          20.49 MB/s
+    lzw.BenchmarkDecoder1e5      500           4613638 ns/op          21.67 MB/s
+    lzw.BenchmarkDecoder1e6       50          45672260 ns/op          21.90 MB/s
+    lzw.BenchmarkEncoder1e4     5000            353563 ns/op          28.28 MB/s
+    lzw.BenchmarkEncoder1e5      500           3431618 ns/op          29.14 MB/s
+    lzw.BenchmarkEncoder1e6       50          34009640 ns/op          29.40 MB/s
+    
+    After:
+    
+    lzw.BenchmarkDecoder1e4     5000            339725 ns/op          29.44 MB/s
+    lzw.BenchmarkDecoder1e5      500           3166894 ns/op          31.58 MB/s
+    lzw.BenchmarkDecoder1e6       50          31317260 ns/op          31.93 MB/s
+    lzw.BenchmarkEncoder1e4     5000            354909 ns/op          28.18 MB/s
+    lzw.BenchmarkEncoder1e5      500           3432710 ns/op          29.13 MB/s
+    lzw.BenchmarkEncoder1e6       50          34010500 ns/op          29.40 MB/s
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4568064
+    https://golang.org/cl/4535123
 
- src/pkg/mail/message.go      | 48 +++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/mail/message_test.go | 21 +++++++++++++++++++
- 2 files changed, 68 insertions(+), 1 deletion(-)
+ src/pkg/compress/lzw/reader.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

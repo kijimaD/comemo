@@ -1,27 +1,66 @@
-commit 346e06c46dd1791e924ce4fffc879747bdabedf5
+commit 0b2ad1d815ea8967c49b32d848b2992d0c588d88
 Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Oct 10 20:16:36 2023 +0800
+Date:   Mon Dec 19 05:04:48 2022 +0800
 
-    cmd/internal/obj,cmd/link: access global data via GOT in -dynlink mode on loong64
+    cmd/compile: sign-extend the 2nd argument of the LoweredAtomicCas32 on loong64,mips64x,riscv64
     
-    Updates #58784
+    The function LoweredAtomicCas32 is implemented using the LL-SC instruction pair
+    on loong64, mips64x, riscv64. However,the LL instruction on loong64, mips64x,
+    riscv64 is sign-extended, so it is necessary to sign-extend the 2nd parameter
+    "old" of the LoweredAtomicCas32, so that the instruction BNE after LL can get
+    the desired result.
     
-    Change-Id: Ic98d10a512fea0c3ca321ab52693d9f6775126a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480875
-    Reviewed-by: David Chase <drchase@google.com>
+    The function prototype of LoweredAtomicCas32 in golang:
+        func Cas32(ptr *uint32, old, new uint32) bool
+    
+    When using an intrinsify implementation:
+        case 1: (*ptr) <= 0x80000000 && old < 0x80000000
+            E.g: (*ptr) = 0x7FFFFFFF, old = Rarg1= 0x7FFFFFFF
+    
+            After run the instruction "LL (Rarg0), Rtmp": Rtmp = 0x7FFFFFFF
+            Rtmp ! = Rarg1(old) is false, the result we expect
+    
+        case 2: (*ptr) >= 0x80000000 && old >= 0x80000000
+            E.g: (*ptr) = 0x80000000, old = Rarg1= 0x80000000
+    
+            After run the instruction "LL (Rarg0), Rtmp": Rtmp = 0xFFFFFFFF_80000000
+            Rtmp ! = Rarg1(old) is true, which we do not expect
+    
+    When using an non-intrinsify implementation:
+        Because Rarg1 is loaded from the stack using sign-extended instructions
+        ld.w, the situation described in Case 2 above does not occur
+    
+    Benchmarks on linux/loong64:
+    name     old time/op  new time/op  delta
+    Cas      50.0ns ± 0%  50.1ns ± 0%   ~     (p=1.000 n=1+1)
+    Cas64    50.0ns ± 0%  50.1ns ± 0%   ~     (p=1.000 n=1+1)
+    Cas-4    56.0ns ± 0%  56.0ns ± 0%   ~     (p=1.000 n=1+1)
+    Cas64-4  56.0ns ± 0%  56.0ns ± 0%   ~     (p=1.000 n=1+1)
+    
+    Benchmarks on Loongson 3A4000 (GOARCH=mips64le, 1.8GHz)
+    name     old time/op  new time/op  delta
+    Cas      70.4ns ± 0%  70.3ns ± 0%   ~     (p=1.000 n=1+1)
+    Cas64    70.7ns ± 0%  70.6ns ± 0%   ~     (p=1.000 n=1+1)
+    Cas-4    81.1ns ± 0%  80.8ns ± 0%   ~     (p=1.000 n=1+1)
+    Cas64-4  80.9ns ± 0%  80.9ns ± 0%   ~     (p=1.000 n=1+1)
+    
+    Fixes #57282
+    
+    Change-Id: I190a7fc648023b15fa392f7fdda5ac18c1561bac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457135
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  85 ++++-------
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 190 ++++++++++++++----------
- src/cmd/internal/obj/loong64/a.out.go           |   1 +
- src/cmd/internal/obj/loong64/asm.go             |  21 +++
- src/cmd/internal/obj/loong64/cnames.go          |   1 +
- src/cmd/internal/obj/loong64/obj.go             | 117 +++++++++++++++
- src/cmd/internal/objabi/reloctype.go            |   5 +
- src/cmd/internal/objabi/reloctype_string.go     |  22 +--
- src/cmd/link/internal/loong64/asm.go            |  19 ++-
- 9 files changed, 313 insertions(+), 148 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  3 ++-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 24 ++++++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 24 ++++++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 ++++++++++++++++++--
+ src/runtime/internal/atomic/atomic_test.go      | 30 +++++++++++++++++++++++++
+ 7 files changed, 101 insertions(+), 9 deletions(-)

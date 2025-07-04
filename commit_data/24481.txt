@@ -1,22 +1,18 @@
-commit c18b163c1590d43d78a1a7386d624d4aab234f40
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 4 22:47:27 2015 -0400
+commit 6d9362a1f79a916a1a8de0a6bde8a3a94dc89944
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Jul 30 12:33:36 2015 +0200
 
-    runtime: control background scan credit flushing with flag
+    [dev.ssa] cmd/compile/internal/ssa/gen: implement OXOR.
     
-    Currently callers of gcDrain control whether it flushes scan work
-    credit to gcController.bgScanCredit by passing a value other than -1
-    for the flush threshold. Shortly we're going to make this always flush
-    scan work to gcController.scanWork and optionally also flush scan work
-    to gcController.bgScanCredit. This will be much easier if the flush
-    threshold is simply a constant (which it is in practice) and callers
-    merely control whether or not the flush includes the background
-    credit. Hence, replace the flush threshold argument with a flag.
+    From compiling go there were 260 functions where XOR was needed.
     
-    Change-Id: Ia27db17de8a3f1e462a5d7137d4b5dc72f99a04e
-    Reviewed-on: https://go-review.googlesource.com/15406
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Much of the required changes for implementing XOR were already
+    done in 12813.
+    
+    Change-Id: I5a68aa028f5ed597bc1d62cedbef3620753dfe82
+    Reviewed-on: https://go-review.googlesource.com/12901
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go     |  8 ++++----
- src/runtime/mgcmark.go | 18 ++++++++++--------
- 2 files changed, 14 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 11 ++++++++++-
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 17 ++++++++++++++++-
+ 2 files changed, 26 insertions(+), 2 deletions(-)

@@ -1,12 +1,30 @@
-commit 3c35eec6184fba625e0c3207c05694f4020131a1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 5 08:32:41 2020 -0700
+commit 421cefdc59fe4797a75558860964e76b4d9befbd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 16:56:00 2019 -0500
 
-    runtime: clarify wording/grammar on GODEBUG=invalidptr
+    cmd/go: convert TestRunInternal to the script test framework
     
-    Change-Id: Ia06b6be262922991bae3528e7b061d1db9e4c3c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236679
-    Reviewed-by: Austin Clements <austin@google.com>
+    This conversion is a bit weird, because the original test runs in the cmd/go
+    directory, while the script test runs in the GOPATH directory. So even though
+    it's not necessary for the new test, it changes dircectory to $WORK, so that
+    its error message regexp can have four components like the original, just
+    changing the old gopath directory 'testdata' the new one 'gopath'.
+    
+    Part of converting all tests to script framework to improve test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ie5b029c43dc22167278d3104b37c0b57c61326be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212814
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/extern.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go                              | 10 -------
+ .../{mod_run_internal.txt => run_internal.txt}     | 34 +++++++++++++++++-----
+ src/cmd/go/testdata/src/run/bad.go                 |  5 ----
+ src/cmd/go/testdata/src/run/good.go                |  5 ----
+ src/cmd/go/testdata/src/run/internal/internal.go   |  1 -
+ .../src/run/subdir/internal/private/private.go     |  1 -
+ 6 files changed, 26 insertions(+), 30 deletions(-)

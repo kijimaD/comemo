@@ -1,23 +1,19 @@
-commit 0e56c31b85264c35869b3f5c0884beb9e2517110
-Author: Mikael Urankar <mikael@FreeBSD.org>
-Date:   Mon Sep 19 18:46:36 2022 +0200
+commit 24898d6948e1651aab909a5abccbfde64dc359cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 10:02:08 2021 -0800
 
-    runtime: Add vdso on freebsd/riscv64
+    spec: various clarifications/fixes for method sets and interfaces
     
-    Use rdtime to retrieve the timecounter, same as the FreeBSD libc.
+    - fixed a typo in the method set section
+    - express in the syntax that ~T denotes an underlying type
+    - be more precise when talking about types vs type terms
+    - refer to "unions" rather than "union expressions"
+    - make it clear in the spec title that this is WIP
     
-    Updates #53466
-    
-    Change-Id: I48816e9100036f1ef483e4d3afcf10db0d3b85f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443036
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: I9b2c4b1f77bc50dd574ed6893bedd40529c320fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365154
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_freebsd_riscv64.s   |  6 ++++++
- src/runtime/vdso_freebsd_riscv64.go | 13 ++++++++++++-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 39 ++++++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 19 deletions(-)

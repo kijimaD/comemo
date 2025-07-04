@@ -1,13 +1,15 @@
-commit f3113ee9b91712d49400589ff2b2c5f7514ffc85
-Author: Rob Pike <r@golang.org>
-Date:   Sat Apr 23 11:25:27 2011 -0700
+commit c0a895fc0a512cea6daa4543fca67a32bae5f1eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Apr 23 10:55:32 2011 -0400
 
-    fmt: tweak the doc for %U.
-    Fixes #1727.
+    gc: fix conversion of user-defined string type to []byte
     
-    R=rsc
+    Fixes #1709.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4437069
+    https://golang.org/cl/4438068
 
- src/pkg/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug333.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

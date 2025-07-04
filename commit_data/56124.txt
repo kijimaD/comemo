@@ -1,20 +1,25 @@
-commit 23fc9170604a3df9a0458849ffb16b570eadcc19
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Apr 3 11:24:36 2024 +0700
+commit 830f54b70ed2ce0c28c8db30876aba67beed7ee3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 17:23:13 2023 -0400
 
-    reflect: add missing String case in Value.UnsafePointer doc
+    go/build/constraint: add GoVersion
     
-    CL 516596 changes Value.UnsafePointer to handle String case. However,
-    the method's doc comment is not updated to reflect this change.
+    For #57001, programs need to be able to deduce the Go version
+    implied by a given build constraint. GoVersion determines that,
+    by discarding all build tags other than Go versions and computing
+    the minimum Go version implied by the resulting expression.
     
-    Updates #61308
+    For #59033.
     
-    Change-Id: I84e02fd969ae0244184e1a2f05cac4651cdf7bff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575956
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifb1e7af2bdbdf172f82aa490c826c9b6ca5e824b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476275
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/next/59033.txt                   |   2 +
+ src/cmd/dist/buildtool.go            |   1 +
+ src/go/build/constraint/vers.go      | 105 +++++++++++++++++++++++++++++++++++
+ src/go/build/constraint/vers_test.go |  45 +++++++++++++++
+ 4 files changed, 153 insertions(+)

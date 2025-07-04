@@ -1,14 +1,14 @@
-commit e07f089cb02790b6fedab92105eba09bd578aae7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 14 17:02:28 2012 +1100
+commit 8c4fecdcb9abdd7cc6b4b0e97fad936c87ddb4c0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 14 14:57:57 2012 +0900
 
-    doc: update install.html for binary distros, add install-source.html
+    net: fix windows build
     
-    R=bsiegert, rsc, r
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5605047
+    https://golang.org/cl/5661055
 
- doc/gccgo_install.html  |   3 +-
- doc/install-source.html | 475 ++++++++++++++++++++++++++++++++++++++++++++++++
- doc/install.html        | 439 ++++++++------------------------------------
- 3 files changed, 548 insertions(+), 369 deletions(-)
+ src/pkg/net/fd.go               | 8 ++++----
+ src/pkg/net/fd_windows.go       | 3 ++-
+ src/pkg/net/sendfile_windows.go | 2 +-
+ 3 files changed, 7 insertions(+), 6 deletions(-)

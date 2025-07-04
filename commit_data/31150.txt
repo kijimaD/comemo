@@ -1,27 +1,34 @@
-commit 157a230413580efb5ab6e4bdceb6d583afeedca9
-Author: Andreas Auernhammer <aead@mail.de>
-Date:   Fri Apr 14 23:20:20 2017 +0200
+commit 3d5eb4a6bef97c16308442a0e7b87fcdf5fd0f02
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 24 12:48:10 2017 -0800
 
-    vendor: update golang_org/x/net/lif package
+    cmd/compile: better implementation of Slicemask
     
-    Update the lif package to rev 7bf7a75.
+    Use (-x)>>63 instead of ((x-1)>>63)^-1 to get a mask that
+    is 0 when x is 0 and all ones when x is positive.
     
-    Introduce the following changes:
-     - 7bf7a75 lif: use of nativeEndian to make API endian agnostic
-     - adc6ba9 lif: drop support for go1.5
+    Saves one instruction when slicing.
     
-    Updates #19967
-    
-    Change-Id: Iaba893b5ee9af4c54bf5ba4244ce5752ce9f6ad3
-    Reviewed-on: https://go-review.googlesource.com/40831
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib46d53d3aac6530ac481fa2f265a6eadf3df0567
+    Reviewed-on: https://go-review.googlesource.com/35641
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/vendor/golang_org/x/net/lif/address.go         |  4 +-
- src/vendor/golang_org/x/net/lif/binary.go          | 49 +++++++++++++++++++++-
- src/vendor/golang_org/x/net/lif/link.go            | 12 ++++--
- src/vendor/golang_org/x/net/lif/sys.go             | 21 ++++++++++
- .../golang_org/x/net/lif/sys_solaris_amd64.s       |  3 --
- src/vendor/golang_org/x/net/lif/syscall.go         |  5 ---
- 6 files changed, 79 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules    |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules  |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules    |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  |  2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules  |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules  |  2 +-
+ src/cmd/compile/internal/ssa/rewrite386.go    | 14 +++++---------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 14 +++++---------
+ src/cmd/compile/internal/ssa/rewriteARM.go    | 14 ++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 13 +++++--------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go   | 13 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 14 +++++---------
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 14 +++++---------
+ src/cmd/compile/internal/ssa/rewriteS390X.go  | 16 +++++-----------
+ 16 files changed, 50 insertions(+), 78 deletions(-)

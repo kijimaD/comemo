@@ -1,21 +1,24 @@
-commit bf21c67b1e2d5a3268749c25024df9f401b35b65
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 31 15:14:49 2017 -0400
+commit 5abc8c897ced423dae799f093cdafac68dbeb244
+Author: griesemer <gri@golang.org>
+Date:   Fri Aug 11 16:51:40 2017 +0200
 
-    cmd/go: trim objdir, not just workdir, from object files
+    spec: better comment in example for type definition
     
-    Otherwise the new numbered directories like b028/ appear in the objects,
-    and they can change from run to run.
+    The old comment for the example
     
-    Fixes #22514.
+            type PtrMutex *Mutex
     
-    Change-Id: I8d0cf65f3622e48b2547d5757febe0ee1301e2ed
-    Reviewed-on: https://go-review.googlesource.com/74791
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    talked about the method set of the base type of PtrMutex.
+    It's more direct and clearer to talk about the underlying
+    type of PtrMutex for this specific example.
+    Also removed link inside pre-formatted region of text.
+    
+    Fixes #20900.
+    
+    Change-Id: Ie37340e53670e34ebe13e780ba8ccb1bba67795c
+    Reviewed-on: https://go-review.googlesource.com/55070
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/internal/work/gc.go  | 11 +++++++++--
- src/runtime/race/output_test.go |  2 +-
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

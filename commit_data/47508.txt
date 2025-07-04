@@ -1,19 +1,27 @@
-commit f384c707ac3dd946e3c895d0f4e154744048ef36
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 16 17:02:11 2021 -0800
+commit 975b097307621ad32217946f9732d17101d72aaf
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 23 09:51:43 2021 -0500
 
-    cmd/compile/internal/types2: tweaks to ArgumentError to be more idiomatic
+    cmd/link: separate elf addend size from reloc size
     
-    This CL is a clean port of CL 351335 from go/types to types2.
+    The size of the field may be smaller than the addend,
+    such is the case with R_PPC64_TOC16_HA/LO and similar
+    relocations.
     
-    Updates #47916
+    Add an extra return value to ldelf.relSize to account for
+    addend size which may be larger than the relocated field,
+    and fix the related ppc64 relocations.
     
-    Change-Id: Idc377fb71d480a51d5e93a348f3a880346011974
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364535
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Such relocs can be seen in large PIC blobs such
+    as the ppc64le race detector included with golang.
+    
+    Change-Id: I457186fea5d0ec5572b9bbf79bb7fa21a36cc1b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303990
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types2/api.go         | 13 +++++--------
- src/cmd/compile/internal/types2/api_test.go    | 11 ++++++++---
- src/cmd/compile/internal/types2/instantiate.go |  6 +++---
- 3 files changed, 16 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 47 +++++++++++++++++++---------------
+ 1 file changed, 26 insertions(+), 21 deletions(-)

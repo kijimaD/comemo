@@ -1,15 +1,15 @@
-commit 12ece77c14107aebe0840c93a36ced58dca4aebc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 14 15:54:36 2011 -0400
+commit ff866c4ca37287af82edf33d1e1d6f7c52931e19
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Fri Oct 14 20:37:07 2011 +0100
 
-    build: stop on failed deps.bash
+    ld: Fixes issue 1899 ("cannot create 8.out.exe")
     
-    Apparently some versions of bash do the ||exit implicitly
-    when in set -e mode, but others do not.  ???
+    http://code.google.com/p/go/issues/detail?id=1899
     
-    R=gri
+    R=rsc, alex.brainman, bsiegert, hectorchu, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5285043
+    https://golang.org/cl/4978047
 
- src/make.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/progs/run    | 11 ++++++++---
+ src/cmd/ld/lib.c |  5 +++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

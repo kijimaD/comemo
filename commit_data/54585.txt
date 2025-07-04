@@ -1,26 +1,22 @@
-commit 3fb1d95149fa280343581a48547c3c3f70dac5fb
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 7 11:06:35 2023 -0400
+commit 581a822a9ed8fcae4afbc93daa6a74db7d9ea9a2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Oct 22 22:07:07 2022 +0800
 
-    internal,cmd/internal: relocate covcmd package from std to cmd
+    regexp: add ErrLarge error
     
-    Relocate the 'covcmd' package from .../internal/coverage to
-    .../cmd/internal/cov, to reflect the fact that the definitions in this
-    package are used only in cmd, not in std.
+    For #56041
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I65bcc34736d1d0a23134a6c91c17ff138cd45431
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526595
+    Change-Id: I6c98458b5c0d3b3636a53ee04fc97221f3fd8bbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444817
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- src/cmd/compile/internal/base/flag.go                         | 2 +-
- src/cmd/cover/cfg_test.go                                     | 2 +-
- src/cmd/cover/cover.go                                        | 4 ++--
- src/cmd/dist/buildtool.go                                     | 2 +-
- src/cmd/go/internal/work/action.go                            | 2 +-
- src/cmd/go/internal/work/cover.go                             | 2 +-
- src/cmd/go/internal/work/exec.go                              | 2 +-
- src/{internal/coverage => cmd/internal/cov}/covcmd/cmddefs.go | 0
- src/go/build/deps_test.go                                     | 2 +-
- 9 files changed, 9 insertions(+), 9 deletions(-)
+ api/next/56041.txt         | 2 ++
+ src/regexp/all_test.go     | 1 +
+ src/regexp/syntax/parse.go | 9 +++++----
+ 3 files changed, 8 insertions(+), 4 deletions(-)

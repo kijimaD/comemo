@@ -1,21 +1,28 @@
-commit 8b8e57b709aa418d5a2f1b3a0f57543db3e1740a
-Author: Henry <google@mindeco.de>
-Date:   Wed Oct 18 15:30:08 2017 +0200
+commit fd29d03f70238abf460f56209a2ccc76dec6509e
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Jul 18 23:59:40 2017 -0400
 
-    net/smtp: added Noop to Client
+    net/http: set Content-Type header in Redirect
     
-    This adds a Noop() function to the net/stmp client.
+    Setting the Content-Type header explicitly allows browsers to know what
+    the type of the content is. Otherwise, they have to guess the type from
+    the content itself, which could lead to unpredictable behavior, and
+    increases CPU usage.
     
-    It allows for testing if a connaction is still healthy.
+    Not setting the Content-Type despite writing a body may also trigger
+    unwanted warnings in user middleware, and make it more difficult to
+    resolve valid issues where the user forgets to set Content-Type in
+    some situations where it should be set.
     
-    Fixes #22321
+    There is some precedent for doing this in http.FileServer, which
+    sets "Content-Type" to "text/html; charset=utf-8" before writing
+    <pre><a href=...></a></pre> HTML.
     
-    Change-Id: I023b613b1536ea21274cc36d41f5720c9bbdecbc
-    Reviewed-on: https://go-review.googlesource.com/71650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I24286827bebf4da8adee9238b8c5a94d4069c8db
+    Reviewed-on: https://go-review.googlesource.com/50510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/smtp/smtp.go      | 10 ++++++++++
- src/net/smtp/smtp_test.go |  4 ++++
- 2 files changed, 14 insertions(+)
+ src/net/http/server.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

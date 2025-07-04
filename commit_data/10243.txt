@@ -1,15 +1,12 @@
-commit 0865c57f252f8c192526833b9de07446477b19f1
+commit 3b901f4515a20c76ea3b120d3c9b1877263a72da
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 20:37:02 2011 -0700
+Date:   Thu Nov 3 20:05:13 2011 -0700
 
-    http: doc nits
+    http: clarify Request docs
     
-    Remove the last two "convenience" mentions.
-    
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5344041
+    https://golang.org/cl/5342041
 
- src/pkg/net/http/client.go | 2 +-
- src/pkg/net/http/header.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/request.go | 30 ++++++++++++++++++++++--------
+ 1 file changed, 22 insertions(+), 8 deletions(-)

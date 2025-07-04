@@ -1,32 +1,20 @@
-commit dfd875d015fb67671a2374c229e2159388d37693
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Sep 22 20:20:09 2021 -0700
+commit 9f83418b83a43029ce8801ef10162dd94fdba81d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jan 15 13:19:31 2021 -0500
 
-    cmd/compile: allow methods on shape types (but no bodies)
+    cmd/link: remove GOROOT write in TestBuildForTvOS
     
-    In a previous change, I was too aggressive in substInstType() in not
-    generating methods for shape types during import. We do actually want to
-    generate the method nodes - we just don't want to generate method bodies
-    (which we would never use). We may need the method nodes for checking
-    types later in the compile (especially with inlining).
+    Tests should avoid writing to GOROOT when possible. Such writes
+    would fail if GOROOT is non-writeable, and it can interfere with
+    other tests that don't expect GOROOT to change during test execution.
     
-    So, we do generate method nodes for shape types during import. In
-    order to avoid the name collision we previously had, we now add
-    ".nofunc." to the method nodes for shape types (during import and in the
-    type substituter). We do that by passing in a 'isMethodNode' arg to
-    MakeInstSym. We keep the normal name (without ".nofunc") for any other
-    method nodes, and for the instantiated functions that help with
-    implementing the methods of fully-instantiated types. The ".nofunc"
-    names will never appear in the executable, since we don't generate any
-    method bodies for the method nodes of shape types.
+    Updates #28387.
     
-    Change-Id: I3e57e328691214140ca5f48d32011552d2a0d45d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352470
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7d72614f218df3375540f5c2f9c9f8c11034f602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284293
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/stencil.go       |  2 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- src/cmd/compile/internal/typecheck/iimport.go   |  7 +------
- src/cmd/compile/internal/typecheck/subr.go      | 21 ++++++++++++++++-----
- 4 files changed, 19 insertions(+), 13 deletions(-)
+ src/cmd/link/link_test.go | 1 +
+ 1 file changed, 1 insertion(+)

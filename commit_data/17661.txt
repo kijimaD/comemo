@@ -1,12 +1,15 @@
-commit 0826c04e1454b41dac18365b08b4d59b2a82f543
+commit 5be1821a31f1b88b8b9b9083454143f5aa90790d
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 20 16:00:13 2013 -0400
+Date:   Fri Sep 20 15:25:43 2013 -0400
 
-    cmd/yacc: report correct line for 'default action causes potential type clash'
+    cmd/gc: fix imported and not used error for import .
     
-    R=golang-dev, iant
+    Fixes issues 6420.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/13588044
+    https://golang.org/cl/13703044
 
- src/cmd/yacc/yacc.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/gc/lex.c | 4 ++--
+ test/import1.go  | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

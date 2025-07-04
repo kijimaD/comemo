@@ -1,29 +1,41 @@
-commit 4ba69a9a17d643e2e18acebac7b176746564b897
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Fri Jan 11 17:16:28 2019 -0200
+commit 66bb8ddb956c5ee55b471a019fac2c6817c08ef5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 24 12:01:13 2018 -0400
 
-    cmd/compile: add processor level selection support to ppc64{,le}
+    cmd/go, cmd/link: silence bogus Apple Xcode warning
     
-    ppc64{,le} processor level selection allows the compiler to generate instructions
-    targeting newer processors and processor-specific optimizations without breaking
-    compatibility with our current baseline. This feature introduces a new environment
-    variable, GOPPC64.
+    Certain installations of Xcode are affected by a bug that causes
+    them to print an inconsequential link-time warning that looks like:
     
-    GOPPC64 is a GOARCH=ppc64{,le} specific option, for a choice between different
-    processor levels (i.e. Instruction Set Architecture versions) for which the
-    compiler will target. The default is 'power8'.
+            ld: warning: text-based stub file /System/Library/Frameworks//Security.framework/Security.tbd and library file /System/Library/Frameworks//Security.framework/Security are out of sync. Falling back to library file for linking.
     
-    Change-Id: Ic152e283ae1c47084ece4346fa002a3eabb3bb9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163758
-    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    This has nothing to do with Go, and we've sent this repro case
+    to Apple:
+    
+            $ pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | grep version
+            version: 10.0.0.0.1.1535735448
+            $ clang --version
+            Apple LLVM version 10.0.0 (clang-1000.10.44.2)
+            Target: x86_64-apple-darwin17.7.0
+            Thread model: posix
+            InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+            $ cat > issue.c
+            int main() { return 0; }
+            ^D
+            $ clang issue.c -framework CoreFoundation
+            ld: warning: text-based stub file /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation.tbd and library file /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation are out of sync. Falling back to library file for linking.
+            $
+    
+    Even if Apple does release a fixed Xcode, many people are seeing
+    this useless warning, and we might as well make it go away.
+    
+    Fixes #26073.
+    
+    Change-Id: Ifc17ba7da1f6b59e233c11ebdab7241cb6656324
+    Reviewed-on: https://go-review.googlesource.com/c/144112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- doc/install-source.html           | 11 +++++++++++
- src/cmd/dist/build.go             | 11 +++++++++++
- src/cmd/dist/buildruntime.go      |  2 ++
- src/cmd/go/internal/cfg/cfg.go    |  1 +
- src/cmd/go/internal/envcmd/env.go |  2 ++
- src/cmd/internal/objabi/util.go   | 12 ++++++++++++
- test/run.go                       |  4 ++--
- 7 files changed, 41 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go | 27 +++++++++++++++++++++++++--
+ src/cmd/link/internal/ld/lib.go  | 19 +++++++++++++++++--
+ 2 files changed, 42 insertions(+), 4 deletions(-)

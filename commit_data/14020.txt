@@ -1,18 +1,17 @@
-commit 70ab57ea2dc9c4c5124204ca28dbbac41c94ecb0
-Author: Jeff Wendling <jeff@spacemonkey.com>
-Date:   Thu Oct 4 15:42:57 2012 -0400
+commit 3fd5e0be9dd321e990e0322ca173149505197e82
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 4 16:53:05 2012 +1000
 
-    crypto/x509: add DecryptBlock function for loading password protected keys
+    godoc: make examples editable and runnable in playground
     
-    Adds a DecryptBlock function which takes a password and a *pem.Block and
-    returns the decrypted DER bytes suitable for passing into other crypto/x509
-    functions.
-    
-    R=golang-dev, agl, leterip
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/6555052
+    https://golang.org/cl/6523045
 
- src/pkg/crypto/x509/pem_decrypt.go      | 133 ++++++++++++++++++++++++++++++++
- src/pkg/crypto/x509/pem_decrypt_test.go | 119 ++++++++++++++++++++++++++++
- src/pkg/go/build/deps_test.go           |   5 +-
- 3 files changed, 256 insertions(+), 1 deletion(-)
+ doc/play/playground.js | 154 ++++++++++++++++++++-----------------------------
+ doc/style.css          |  78 +++++++++++++++++++++++++
+ lib/godoc/example.html |  23 ++++++--
+ lib/godoc/package.html |  42 ++++++++++++++
+ src/cmd/godoc/godoc.go |  32 +++++++---
+ src/cmd/godoc/main.go  |  26 ++++++++-
+ 6 files changed, 248 insertions(+), 107 deletions(-)

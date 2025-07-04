@@ -1,27 +1,35 @@
-commit 0a4d352992606d3becebfa0cdac392827039b49d
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu May 2 22:59:27 2019 -0400
+commit 064842450bd904d2519d723a0109b33007ad00e9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 8 20:06:58 2018 +0000
 
-    net/http: fix TestTransportMaxConnsPerHost flakes
+    runtime: allocate from free and scav fairly
     
-    The testcase created a race between the close of the current connection
-    and the client grabbing a connection for the next request. The client
-    may receive the current connection which may be closed during its use.
-    We can have the trasnport close all idle connections thereby forcing the
-    client to receive a new connection.
+    This change modifies the behavior of span allocations to no longer
+    prefer the free treap over the scavenged treap.
     
-    Closing idle connections did not handle cleaning up host connection
-    counts for http/2. We will now decrement the host connection count for
-    http/2 connections.
+    While there is an additional cost to allocating out of the scavenged
+    treap, the current behavior of preferring the unscavenged spans can
+    lead to unbounded growth of a program's virtual memory footprint.
     
-    Fixes #31784
+    In small programs (low # of Ps, low resident set size, low allocation
+    rate) this behavior isn't really apparent and is difficult to
+    reproduce.
     
-    Change-Id: Iefc0d0d7ed9fa3acd8b4f42004f1579fc1de63fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174950
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    However, in relatively large, long-running programs we see this
+    unbounded growth in free spans, and an unbounded amount of heap
+    growths.
+    
+    It still remains unclear how this policy change actually ends up
+    increasing the number of heap growths over time, but switching the
+    policy back to best-fit does indeed solve the problem.
+    
+    Change-Id: Ibb88d24f9ef6766baaa7f12b411974cc03341e7b
+    Reviewed-on: https://go-review.googlesource.com/c/148979
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/transport.go      | 11 +++--------
- src/net/http/transport_test.go |  4 ++--
- 2 files changed, 5 insertions(+), 10 deletions(-)
+ src/runtime/mgclarge.go | 13 +++++--------
+ src/runtime/mheap.go    | 41 ++++++++++++++++++++++++++---------------
+ 2 files changed, 31 insertions(+), 23 deletions(-)

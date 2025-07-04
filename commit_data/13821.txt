@@ -1,13 +1,15 @@
-commit ab7c8a620049c52bd437317272d2bd18a8ac4e1b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Sep 14 12:26:45 2012 +1000
+commit f3fc0090f46b9e1cbcfb5f870d2d0ef59f6e4f31
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 13 13:41:13 2012 -0700
 
-    A+C: add Xing Xing (individual CLA)
+    effective_go: use html/template instead of text/template
+    Should have done this a long time ago.
+    Fixes #3811.
     
-    R=golang-dev, nigeltao
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/6493121
+    https://golang.org/cl/6488120
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/effective_go.html | 15 ++++++++-------
+ doc/progs/eff_qr.go   |  6 +++---
+ 2 files changed, 11 insertions(+), 10 deletions(-)

@@ -1,19 +1,25 @@
-commit 9238a8ffe12b6eb44aab12de1b861c0f045da8b7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 14 17:08:25 2019 -0400
+commit 37afd3e31100a06229da61549abf5210a1dae8d0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 28 20:46:58 2018 +0000
 
-    cmd/go: skip package loading if explicitly cleaning a cache
+    text/template/parse: simplify Tree.pipeline
     
-    Fixes #28680
-    Fixes #29925
+    The pipeline parsing code was unnecessarily complex. It used a for loop
+    with a trailing break, a complex switch, and up to seven levels of
+    indentation.
     
-    Change-Id: I9f7effb3e7743b96b0b8a797d6e1044b39d9b86b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167717
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Instead, drop the loop in favor of a single named goto with a comment,
+    and flatten out the complex switch to be easier to follow. Two lines of
+    code are now duplicated, but they're simple and only three lines apart.
+    
+    While at it, move the pipe initialization further up to remove the need
+    for three variables.
+    
+    Change-Id: I07b29de195f4000336219aadeadeacaaa4285c58
+    Reviewed-on: https://go-review.googlesource.com/c/145285
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go                          |  3 ++-
- src/cmd/go/internal/clean/clean.go             | 14 ++++++++++++--
- src/cmd/go/testdata/script/mod_clean_cache.txt |  5 ++---
- 3 files changed, 16 insertions(+), 6 deletions(-)
+ src/text/template/parse/parse.go | 72 ++++++++++++++++++----------------------
+ 1 file changed, 32 insertions(+), 40 deletions(-)

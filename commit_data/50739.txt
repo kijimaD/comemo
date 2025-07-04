@@ -1,21 +1,17 @@
-commit d7dbe0111ef2a6de80a20fef188db61d8fab5c96
-Author: doujiang24 <doujiang24@gmail.com>
-Date:   Thu Sep 29 07:29:51 2022 +0000
+commit ccea0b2fbe8eaf0ac69fab4aef28f300bf676d21
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 8 12:45:41 2021 -0800
 
-    runtime/trace: skip tests if parsing fails with timestamp error
+    net/http: deflake TestTimeoutHandlerContextCanceled
     
-    already skips tests in case of the timestamp error, eg. #97757
+    Fixes #49448
     
-    Change-Id: Ia696e83cba2e3ed50181a8100b964847092a7365
-    GitHub-Last-Rev: 8e5f607e14f6a15ed6da5f205c4ca67a4adb6fc8
-    GitHub-Pull-Request: golang/go#55918
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435855
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie2acff7dedbca9bd1cc0b1b3dd0a01573c7befee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361920
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/crash_cgo_test.go                  | 10 ++++++++--
- src/runtime/testdata/testprogcgo/issue29707.go |  4 +++-
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

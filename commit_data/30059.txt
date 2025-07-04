@@ -1,22 +1,64 @@
-commit 69e1634985f8d839f74f342925bd7546faea0a19
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 2 18:50:45 2017 -0800
+commit 604146ce8961d32f410949015fc8ee31f9052209
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 10:27:05 2016 -0400
 
-    runtime: darwin/amd64, don't depend on outarg slots being unmodified
+    html/template, text/template: docs and fixes for template redefinition
     
-    sigtramp was calling sigtrampgo and depending on the fact that
-    the 3rd argument slot will not be modified on return.  Our calling
-    convention doesn't guarantee that.  Avoid that assumption.
+    All prior versions of Go have allowed redefining empty templates
+    to become non-empty. Unfortunately, that has never consistently
+    taken effect in html/template after the first execution:
     
-    There's no actual bug here, as sigtrampgo does not in fact modify its
-    argument slots.  But I found this while working on the dead stack slot
-    clobbering tool.  https://go-review.googlesource.com/c/23924/
+            // define and execute
+            t := template.New("root")
+            t.Parse(`{{define "T"}}{{end}}<a href="{{template "T"}}">`)
+            t.Execute(w, nil) // <a href="">
     
-    Change-Id: Ia7e791a2b4c1c74fff24cba8169e7840b4b06ffc
-    Reviewed-on: https://go-review.googlesource.com/36216
-    Run-TryBot: Keith Randall <khr@golang.org>
+            // redefine
+            t.Parse(`{{define "T"}}my.url{{end}}`) // succeeds, but ignored
+            t.Execute(w, nil) // <a href="">
+    
+    When Go 1.6 added {{block...}} to text/template, that loosened the
+    redefinition rules to allow redefinition at any time. The loosening was
+    undone a bit in html/template, although inconsistently:
+    
+            // define and execute
+            t := template.New("root")
+            t.Parse(`{{define "T"}}body{{end}}`)
+            t.Lookup("T").Execute(ioutil.Discard, nil)
+    
+            // attempt to redefine
+            t.Parse(`{{define "T"}}body{{end}}`) // rejected in all Go versions
+            t.Lookup("T").Parse("body") // OK as of Go 1.6, likely unintentionally
+    
+    Like in the empty->non-empty case, whether future execution takes
+    notice of a redefinition basically can't be explained without going into
+    the details of the template escape analysis.
+    
+    Address both the original inconsistencies in whether a redefinition
+    would have any effect and the new inconsistencies about whether a
+    redefinition is allowed by adopting a new rule: no parsing or modifying
+    any templates after the first execution of any template in the same set.
+    Template analysis begins at first execution, and once template analysis
+    has begun, we simply don't have the right logic to update the analysis
+    for incremental modifications (and never have).
+    
+    If this new rule breaks existing uses of templates that we decide need
+    to be supported, we can try to invalidate all escape analysis for the
+    entire set after any modifications. But let's wait on that until we know
+    we need to and why.
+    
+    Also fix documentation of text/template redefinition policy
+    (redefinition is always OK).
+    
+    Fixes #15761.
+    
+    Change-Id: I7d58d7c08a7d9df2440ee0d651a5b2ecaff3006c
+    Reviewed-on: https://go-review.googlesource.com/31464
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/sys_darwin_amd64.s | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/html/template/template.go      |  64 ++++++++++++------
+ src/html/template/template_test.go | 130 ++++++++++++++++++++++++++++++++++++-
+ src/text/template/template.go      |  10 ++-
+ 3 files changed, 178 insertions(+), 26 deletions(-)

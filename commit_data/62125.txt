@@ -1,0 +1,17 @@
+commit ee6e0a5ed6a11f79f40ca58ca5337ec5bad16ebb
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 5 13:52:56 2025 -0500
+
+    internal/routebsd: fix typo in sockAddrLen identifer name
+    
+    For #70528.
+    
+    Change-Id: I0db75cb998aeb299676384fe59bf241db18ebc5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/routebsd/address.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

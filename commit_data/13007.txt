@@ -1,22 +1,12 @@
-commit 38590329807beaea154f427549302f71a7a0444e
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue May 1 22:32:46 2012 -0700
+commit ce30769ce3d5b9ac02f2a5e6dc36e42eddd66bd2
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 2 13:48:49 2012 +1000
 
-    build: dist-based build for Plan 9
+    misc/dashboard/codereview: LGTM favicon
     
-    R=rsc, iant, iant, seed
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5608059
+    https://golang.org/cl/6158043
 
- src/all.rc                  |  13 +
- src/clean.rc                |  14 +
- src/cmd/dist/a.h            |   2 +
- src/cmd/dist/arg.h          |   3 +-
- src/cmd/dist/build.c        | 108 +++++--
- src/cmd/dist/buildgc.c      |   1 -
- src/cmd/dist/buildruntime.c |   7 +-
- src/cmd/dist/goc2c.c        |   7 +-
- src/cmd/dist/plan9.c        | 734 ++++++++++++++++++++++++++++++++++++++++++++
- src/make.rc                 |  91 ++++++
- src/run.rc                  |  50 +++
- 11 files changed, 998 insertions(+), 32 deletions(-)
+ misc/dashboard/codereview/static/icon.png | Bin 4347 -> 412 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

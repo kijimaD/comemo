@@ -1,20 +1,15 @@
-commit 79d0d330a9340d9e3ccb331660eb74f30e2edd01
+commit 0a54a6826ebd19e5947af57993399652c62801de
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 4 18:40:38 2022 -0700
+Date:   Sat Nov 13 12:04:01 2021 -0800
 
-    go/types, types2: better error if there's a field with the name of a missing method
+    cmd/compile/internal/types2: move match function to end of file (cleanup)
     
-    Fixes #51025.
-    
-    Change-Id: I469a705e7da059e7ac0b12b05beb9ed5d3617396
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438856
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Ia09f7b1af0e84858fb73ab7e2592c5c3e983dc0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363669
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/lookup.go          |  5 +++
- src/go/types/lookup.go                             |  5 +++
- .../types/testdata/fixedbugs/issue51025.go         | 38 ++++++++++++++++++++++
- 3 files changed, 48 insertions(+)
+ src/cmd/compile/internal/types2/type.go | 58 ++++++++++++++++-----------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

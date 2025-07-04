@@ -1,14 +1,46 @@
-commit 8696b0844600882ca962d155576a0604efe96922
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 11:47:27 2012 -0400
+commit 6efa648853c14aec9d01821f9620401173c1c62b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 24 17:58:08 2012 +1000
 
-    reflect: fix mistake in error message
+    compress/flate: move the history buffer out of the decompressor struct.
     
-    Pointed out by James Chalfant after submit of CL 6500065.
+    I'm not exactly sure why there's a performance gain, but it seems like
+    an easy win. Maybe it's a cache line thing. Maybe it's that
+    unsafe.Sizeof(decompressor{}) drops to below unmappedzero, so that
+    checkref/checkoffset don't need to insert TESTB instructions. Maybe
+    it's less noise for the conservative garbage collector. Maybe it's
+    something else.
     
-    TBR=golang-dev
+    compress/flate benchmarks:
+    BenchmarkDecodeDigitsSpeed1e4          378628       349906   -7.59%
+    BenchmarkDecodeDigitsSpeed1e5         3481976      3204898   -7.96%
+    BenchmarkDecodeDigitsSpeed1e6        34419500     31750660   -7.75%
+    BenchmarkDecodeDigitsDefault1e4        362317       335562   -7.38%
+    BenchmarkDecodeDigitsDefault1e5       3290032      3107624   -5.54%
+    BenchmarkDecodeDigitsDefault1e6      30542540     28937480   -5.26%
+    BenchmarkDecodeDigitsCompress1e4       362803       335158   -7.62%
+    BenchmarkDecodeDigitsCompress1e5      3294512      3114526   -5.46%
+    BenchmarkDecodeDigitsCompress1e6     30514940     28927090   -5.20%
+    BenchmarkDecodeTwainSpeed1e4           412818       389521   -5.64%
+    BenchmarkDecodeTwainSpeed1e5          3475780      3288908   -5.38%
+    BenchmarkDecodeTwainSpeed1e6         33629640     31931420   -5.05%
+    BenchmarkDecodeTwainDefault1e4         369736       348850   -5.65%
+    BenchmarkDecodeTwainDefault1e5        2861050      2721383   -4.88%
+    BenchmarkDecodeTwainDefault1e6       27120120     25862050   -4.64%
+    BenchmarkDecodeTwainCompress1e4        372057       350822   -5.71%
+    BenchmarkDecodeTwainCompress1e5       2855109      2718664   -4.78%
+    BenchmarkDecodeTwainCompress1e6      26987010     26336030   -2.41%
+    
+    image/png benchmarks:
+    BenchmarkDecodeGray               1841839      1802251   -2.15%
+    BenchmarkDecodeNRGBAGradient      7115318      6933280   -2.56%
+    BenchmarkDecodeNRGBAOpaque        6135892      6013284   -2.00%
+    BenchmarkDecodePaletted           1153313      1114302   -3.38%
+    BenchmarkDecodeRGB                5619404      5511190   -1.93%
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/6543067
+    https://golang.org/cl/6533048
 
- src/pkg/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/compress/flate/inflate.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,35 +1,19 @@
-commit c4961dc247ca39c251a5a3c80ebfe59609b4e669
-Author: Gregory Petrosyan <gregory.petrosyan@gmail.com>
-Date:   Sat Apr 4 15:27:23 2020 +0000
+commit d9ee4b2859172a84b17eec63d9368e8923896ee4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 4 16:19:29 2019 -0500
 
-    go/doc: fix detection of whole file examples
+    cmd/link/internal/ld: fix TestArchiveBuildInvokeWithExec
     
-    After CL 211357 (commit 499dc1c),
-    hasTests and numDecl were not updated properly for function
-    declarations with parameters, which affected the whole file
-    example detection logic. This caused examples like
+    TestArchiveBuildInvokeWithExec is failing on darwin due to
+    duplicated symbols, because the C definition (int fortytwo;) is
+    copied to two generated cgo sources. In fact, this test is about
+    building c-archive, but doesn't need to import "C". Removed the
+    "C" import.
     
-            package foo_test
-    
-            func Foo(x int) {
-            }
-    
-            func Example() {
-                    fmt.Println("Hello, world!")
-                    // Output: Hello, world!
-            }
-    
-    to not be detected as whole file ones.
-    
-    Change-Id: I9ebd47e52d7ee9d91eb6f8e0257511de69b2a402
-    GitHub-Last-Rev: cc71c31124f6e3514f4e33ac7b169eca74c8bcb7
-    GitHub-Pull-Request: golang/go#37730
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222477
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3a17546e01272a7ae37e6417791ab949fb44597e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205278
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/doc/example.go      |  6 ++--
- src/go/doc/example_test.go | 76 +++++++++++++++++++++++++++++++++++-----------
- 2 files changed, 61 insertions(+), 21 deletions(-)
+ src/cmd/link/internal/ld/ld_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

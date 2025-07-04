@@ -1,22 +1,13 @@
-commit 18112437d9b8b2aab3281b94f946990a9a232b5e
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Tue Jun 14 11:20:34 2011 -0400
+commit 9e2ffc315f93ea8cf1c6fba38d2233c802b3d9e9
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jun 14 11:05:59 2011 -0400
 
-    os: Plan 9, fix OpenFile & Chmod. Update tests.
-    Add Process.Kill.
+    ld:  fix link Windows PE __declspec(dllimport) symbol
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4571049
+    https://golang.org/cl/4568077
 
- src/pkg/os/Makefile                  |  1 +
- src/pkg/os/exec_plan9.go             | 11 ++++++
- src/pkg/os/file_plan9.go             | 69 ++++++++++++++++++++++++++++++------
- src/pkg/os/os_test.go                | 40 +++++++++++++++------
- src/pkg/os/path_test.go              |  6 ++--
- src/pkg/os/stat_plan9.go             | 17 ++++++---
- src/pkg/os/str.go                    | 20 +++++++++++
- src/pkg/syscall/types_plan9.c        | 16 ++++-----
- src/pkg/syscall/zerrors_plan9_386.go |  3 +-
- src/pkg/syscall/ztypes_plan9_386.go  |  1 +
- 10 files changed, 144 insertions(+), 40 deletions(-)
+ src/cmd/ld/data.c | 2 +-
+ src/cmd/ld/ldpe.c | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

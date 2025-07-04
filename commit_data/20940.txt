@@ -1,12 +1,20 @@
-commit 36e443342d766be454c71f14948fdaa6ca4d7829
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Dec 8 18:50:50 2014 +1100
+commit 8fcdc70c5ebf9c8d160b85e9402e7db5f4bf0793
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 21:53:31 2014 -0400
 
-    doc: remove obsolete FAQ entry about using Mercurial vs. Git.
+    runtime: add GODEBUG invalidptr setting
     
-    Change-Id: I9d9b02ad745208e7297cb75c86af49b2d858b12d
-    Reviewed-on: https://go-review.googlesource.com/1176
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #8861.
+    Fixes #8911.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/165780043
 
- doc/go_faq.html | 26 --------------------------
- 1 file changed, 26 deletions(-)
+ src/runtime/extern.go | 6 ++++++
+ src/runtime/mgc0.c    | 4 ++--
+ src/runtime/runtime.c | 4 ++++
+ src/runtime/runtime.h | 2 ++
+ src/runtime/stack.c   | 4 ++--
+ 5 files changed, 16 insertions(+), 4 deletions(-)

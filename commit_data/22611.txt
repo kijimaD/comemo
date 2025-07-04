@@ -1,18 +1,50 @@
-commit 832c573595157b805634f2c723eac8e7650e472c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Apr 19 23:42:11 2015 +0900
+commit dde5b56c91e9fc40a61f2f84684c2f7a8f3088c6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 27 10:08:19 2015 +0100
 
-    net: add helpers for server testing
+    syscall: apply the errno allocation fix to other operating systems
     
-    Also moves a few server test helpers into mockserver_test.go.
+    The previously-submitted https://go-review.googlesource.com/#/c/6701
+    didn't include dragonfly, freebsd, nacl, netbsd, openbsd, or solaris.
+    (or things like darwin/arm or ppc64 or arm64)
     
-    Change-Id: I5a95c9bc6f0c4683751bcca77e26a8586a377466
-    Reviewed-on: https://go-review.googlesource.com/9106
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    So do them all.
+    
+    Note I had to copy the function into tables_nacl.go. I found that
+    preferable to creating a new file just to have suitable build
+    tags. It's likely this function will be mirrored to plan9 and windows
+    later too, each of the 4 with their own policy of which error values
+    are common.
+    
+    The corresponding x/sys CL for this CL is https://golang.org/cl/8190
+    but it excludes nacl (not in x/sys) and solaris (already broken).
+    
+    Update Issue #8859
+    
+    Change-Id: I91902615692b29b69c905edd9e126a26337294f6
+    Reviewed-on: https://go-review.googlesource.com/8192
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/conn_test.go       |  42 ++-------
- src/net/error_test.go      |   5 +
- src/net/mockserver_test.go | 225 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/protoconn_test.go  |  22 ++---
- src/net/tcp_test.go        |   9 +-
- 5 files changed, 249 insertions(+), 54 deletions(-)
+ src/syscall/mksyscall_solaris.pl        |   2 +-
+ src/syscall/tables_nacl.go              |  24 +++
+ src/syscall/zsyscall_darwin_arm.go      | 206 ++++++++++++-------------
+ src/syscall/zsyscall_dragonfly_amd64.go | 192 +++++++++++------------
+ src/syscall/zsyscall_freebsd_386.go     | 194 +++++++++++------------
+ src/syscall/zsyscall_freebsd_amd64.go   | 194 +++++++++++------------
+ src/syscall/zsyscall_freebsd_arm.go     | 194 +++++++++++------------
+ src/syscall/zsyscall_linux_arm64.go     | 254 +++++++++++++++----------------
+ src/syscall/zsyscall_linux_ppc64.go     | 262 ++++++++++++++++----------------
+ src/syscall/zsyscall_linux_ppc64le.go   | 262 ++++++++++++++++----------------
+ src/syscall/zsyscall_nacl_386.go        |  12 +-
+ src/syscall/zsyscall_nacl_amd64p32.go   |  12 +-
+ src/syscall/zsyscall_nacl_arm.go        |  12 +-
+ src/syscall/zsyscall_netbsd_386.go      | 184 +++++++++++-----------
+ src/syscall/zsyscall_netbsd_amd64.go    | 184 +++++++++++-----------
+ src/syscall/zsyscall_netbsd_arm.go      | 184 +++++++++++-----------
+ src/syscall/zsyscall_openbsd_386.go     | 190 +++++++++++------------
+ src/syscall/zsyscall_openbsd_amd64.go   | 190 +++++++++++------------
+ src/syscall/zsyscall_openbsd_arm.go     | 190 +++++++++++------------
+ src/syscall/zsyscall_solaris_amd64.go   | 144 +++++++++---------
+ 20 files changed, 1555 insertions(+), 1531 deletions(-)

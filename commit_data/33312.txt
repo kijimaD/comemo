@@ -1,21 +1,23 @@
-commit 94471f6324d25e2562c9125aeeeb2af6f2a51fd4
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 27 13:30:09 2017 -0400
+commit 0d1a8f6e12770db8982ed23bc67228237671085d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 10 22:34:51 2017 -0700
 
-    runtime: shorten tests in all.bash
+    archive/tar: implement specialized logic for USTAR format
     
-    This cuts 23 seconds from all.bash on my MacBook Pro.
+    Rather than going through the complicated logic of writeHeader,
+    implement a writeUSTARHeader that only knows about the USTAR format.
+    This makes the logic much easier to reason about since you only
+    need to be concerned about USTAR and not all the subtle
+    differences between USTAR, PAX, and GNU.
     
-    Change-Id: Ibc4d7c01660b9e9ebd088dd55ba993f0d7ec6aa3
-    Reviewed-on: https://go-review.googlesource.com/73991
+    We seperate out the logic in writeUSTARHeader into templateV7Plus
+    and writeRawHeader since the planned implementations of
+    writePAXHeader and writeGNUHeader will use them.
+    
+    Change-Id: Ie75a54ac998420ece82686159ae6fa39f8b128e9
+    Reviewed-on: https://go-review.googlesource.com/54970
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go                         |  4 ++--
- src/runtime/crash_test.go                    | 11 +++++++++++
- src/runtime/map_test.go                      |  2 +-
- src/runtime/memmove_test.go                  |  9 +++++++++
- src/runtime/mfinal_test.go                   |  4 ++++
- src/runtime/runtime_test.go                  |  3 +++
- src/runtime/testdata/testprogcgo/callback.go |  6 +++++-
- src/runtime/testdata/testprogcgo/cgo.go      |  6 +++++-
- 8 files changed, 40 insertions(+), 5 deletions(-)
+ src/archive/tar/format.go |  5 ++++
+ src/archive/tar/writer.go | 73 +++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 73 insertions(+), 5 deletions(-)

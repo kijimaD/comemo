@@ -1,42 +1,12 @@
-commit dd5e14a7511465d20c6e95bf54c9b8f999abbbf6
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Nov 3 18:12:31 2015 -0800
+commit 2c96e5d2fc0a0765397a86d1e0d7c9329479d4bb
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 23 18:53:16 2015 -0400
 
-    archive/tar: properly handle header-only "files" in Reader
+    cmd/dist: fix build after "go test" argument order change
     
-    Certain special type-flags, specifically 1, 2, 3, 4, 5, 6,
-    do not have a data section. Thus, regardless of what the size field
-    says, we should not attempt to read any data for these special types.
-    
-    The relevant PAX and USTAR specification says:
-    <<<
-    If the typeflag field is set to specify a file to be of type 1 (a link)
-    or 2 (a symbolic link), the size field shall be specified as zero.
-    If the typeflag field is set to specify a file of type 5 (directory),
-    the size field shall be interpreted as described under the definition
-    of that record type. No data logical records are stored for types 1, 2, or 5.
-    If the typeflag field is set to 3 (character special file),
-    4 (block special file), or 6 (FIFO), the meaning of the size field is
-    unspecified by this volume of POSIX.1-2008, and no data logical records shall
-    be stored on the medium.
-    Additionally, for type 6, the size field shall be ignored when reading.
-    If the typeflag field is set to any other value, the number of logical
-    records written following the header shall be (size+511)/512, ignoring
-    any fraction in the result of the division.
-    >>>
-    
-    Contrary to the specification, we do not assert that the size field
-    is zero for type 1 and 2 since we liberally accept non-conforming formats.
-    
-    Change-Id: I666b601597cb9d7a50caa081813d90ca9cfc52ed
-    Reviewed-on: https://go-review.googlesource.com/16614
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I332cd4a4b48cbb52d2beeb16c4a24833bb7069d7
+    Reviewed-on: https://go-review.googlesource.com/14890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/common.go             |  11 +++++++++
- src/archive/tar/reader.go             |  24 ++++++++++++-------
- src/archive/tar/reader_test.go        |  43 ++++++++++++++++++++++++++++++++++
- src/archive/tar/testdata/hdr-only.tar | Bin 0 -> 10240 bytes
- src/archive/tar/testdata/neg-size.tar | Bin 512 -> 512 bytes
- 5 files changed, 70 insertions(+), 8 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,24 +1,31 @@
-commit 4d96c3cdadb7de81ced18eceaa906f35730523f4
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Apr 21 13:47:26 2022 -0700
+commit 9afd158eb228fbe191ffa27b1a334a8837c45ef7
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 16:10:14 2021 -0400
 
-    crypto/x509: revert serial length restriction
+    go/parser: parse an ast.IndexExpr for a[]
     
-    This reverts CL400377, which restricted serials passed to
-    x509.CreateCertificate to <= 20 octets. Unfortunately this turns out to
-    be something _a lot_ of people get wrong. Since it's not particularly
-    obvious how to properly generate conformant serials, until we provide
-    an easier way for people to get this right, reverting this restriction
-    makes sense (possible solution discussed in #52444.)
+    To be consistent with Go 1.16, and to preserve as much information in
+    the AST as possible, parse an ast.IndexExpr with BadExpr Index for the
+    invalid expression a[].
     
-    Change-Id: Ia85a0ffe61e2e547abdaf1389c3e1ad29e28a2be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401657
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    A go/types test had to be adjusted to account for an additional error
+    resulting from this change.
+    
+    We don't have a lot of test coverage for parser error recovery, so
+    rather than write an ad-hoc test for this issue, add a new go/types test
+    that checks that the indexed operand is used.
+    
+    Updates #46403
+    
+    Change-Id: I21e6ff4179746aaa50e530d4091fded450e69824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329791
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/x509.go      | 15 ++++-----------
- src/crypto/x509/x509_test.go | 36 ------------------------------------
- 2 files changed, 4 insertions(+), 47 deletions(-)
+ src/go/parser/parser.go                        |  7 ++++++-
+ src/go/types/testdata/examples/functions.go2   |  2 +-
+ src/go/types/testdata/fixedbugs/issue46403.src | 11 +++++++++++
+ 3 files changed, 18 insertions(+), 2 deletions(-)

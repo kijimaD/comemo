@@ -1,26 +1,20 @@
-commit 274d3a06f7331740b849e20cff1d1c1ab84dd0e0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 5 15:26:43 2022 -0400
+commit f1935c52703e4482c5047b4b35276e965896df7c
+Author: hasheddan <georgedanielmangum@gmail.com>
+Date:   Thu Nov 11 10:02:13 2021 -0500
 
-    os/exec: delete TestExtraFilesFDShuffle
+    obj/riscv: fix link to risc-v dwarf register numbers
     
-    This test has been disabled for over nine years (since CL 12869049).
-    Although it still compiles, it seems likely to have rotted since then,
-    and if it was going to detect a real bug it also seems like that bug
-    would have been encountered and reported by users since then (and
-    would presumably have its own regression tests).
+    The repository name and structure in the RISC-V GitHub org has been
+    modified, rendering the existing link invalid. This updates to point at
+    the new location of the RISC-V DWARF specification.
     
-    To eliminate overhead from mainining it (or skipping over it while
-    maintaining other tests), let's just delete it.
+    Change occured in https://github.com/riscv-non-isa/riscv-elf-psabi-doc/pull/208
     
-    Fixes #5780.
-    
-    Change-Id: I2a85cba20cba98a1dc6fc82336ae5e22d2242e99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439197
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8ca4c390bee2d7ce20418cdd00e4945a426cf5f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/os/exec/exec_test.go | 125 ++++-------------------------------------------
- 1 file changed, 9 insertions(+), 116 deletions(-)
+ src/cmd/internal/obj/riscv/cpu.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

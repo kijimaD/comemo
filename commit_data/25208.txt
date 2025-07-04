@@ -1,19 +1,23 @@
-commit c488548967776ca49cb9768193df9956ad74150e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 8 17:23:23 2015 -0800
+commit 808d7c70d5d5107697e4bfacbf66a80cb1d1e06d
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 7 14:35:25 2015 -0700
 
-    cmd/compile: recognize labels even if they have the same name as packages
+    [dev.ssa] cmd/compile: fix failed lowerings
     
-    Another (historic) artifact due to partially resolving symbols too early.
+    One was OAPPEND of large types.  We need to mem-mem copy them
+    instead of storing them.
     
-    Fixes #13539.
+    Another was pointer-like struct and array types being put in the
+    data field of an eface.  We need to use the underlying pointer
+    type for the load that fills in the eface.data field.
     
-    Change-Id: Ie720c491cfa399599454f384b3a9735e75d4e8f1
-    Reviewed-on: https://go-review.googlesource.com/17600
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id8278c0381904e52d59011a66ce46386b41b5521
+    Reviewed-on: https://go-review.googlesource.com/15552
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/parser.go |  7 ++++---
- test/fixedbugs/issue13539.go          | 20 ++++++++++++++++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go        | 40 +++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/type.go       | 41 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/type.go      | 50 +++++++++++++++++++------------
+ src/cmd/compile/internal/ssa/type_test.go | 42 +++++++++++++++-----------
+ 4 files changed, 134 insertions(+), 39 deletions(-)

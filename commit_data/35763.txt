@@ -1,14 +1,16 @@
-commit 578e0668627229ad0b9a3c88b61b3489cedb9074
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Wed Jun 20 11:22:37 2018 +0700
+commit 9094946f0d09fbde9bc8cbb4499377e359708af4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 7 11:44:41 2018 +0100
 
-    make.bash: don't pass GOOS and GOARCH to cmd/go when finding GOROOT_BOOTSTRAP
+    androidtest.bash: don't require GOARCH set
     
-    Fixes #25962
+    The host GOARCH is most likely supported (386, amd64, arm, arm64).
     
-    Change-Id: I10d41713f6aef100d7b2c8c976f22d1c8ac376d5
-    Reviewed-on: https://go-review.googlesource.com/119937
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I86324b9c00f22c592ba54bda7d2ae97c86bda904
+    Reviewed-on: https://go-review.googlesource.com/99155
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/make.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/androidtest.bash | 4 ----
+ 1 file changed, 4 deletions(-)

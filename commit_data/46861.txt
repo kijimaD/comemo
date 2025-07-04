@@ -1,27 +1,23 @@
-commit 3d051ba8d40a8c2e2b02c0a96cf0c47b1a9c469b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 17 21:29:54 2020 -0400
+commit 1c58fcf7ed917f66e2b7f77f251e7e63ca9630e2
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Feb 8 18:04:58 2021 -0500
 
-    cmd/dist: run a checkNotStale on the builders before running tests
+    [dev.regabi] go/types: handle untyped constant arithmetic overflow
     
-    This should be a no-op, but if the sharded builders are for some
-    reason distributing stale snapshots — or testing them with mismatched
-    environments — this should catch them out at a relatively low cost
-    (#24300 notwithstanding).
+    This is a port of CL 287832 for go/types. It differs from that CL in its
+    handling of position data. Unlike the syntax package, which has a
+    unified Operation node, go/types checks operations for ast.UnaryExpr,
+    IncDecStmt, and BinaryExpr. It was simpler to keep the existing position
+    logic. Notably, this correctly puts the errors on the operator.
     
-    Given the frequently at which (*tester).runPending already checks for
-    staleness, we do not expect the impact of this extra check to be
-    significant for most builders.
-    
-    For #33598
-    Updates #24300
-    
-    Change-Id: I197d6a69c72e2eec9e4563b459206de76c89e8a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223755
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id1e3aefe863da225eb0a9b3628cfc8a5684c0c4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290569
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/dist/test.go | 50 +++++++++++++++++++++++++++++---------------------
- 1 file changed, 29 insertions(+), 21 deletions(-)
+ src/go/types/expr.go             | 133 ++++++++++++++++++++++++---------------
+ src/go/types/stdlib_test.go      |   1 -
+ src/go/types/testdata/const0.src |   7 +++
+ 3 files changed, 88 insertions(+), 53 deletions(-)

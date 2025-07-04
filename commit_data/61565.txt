@@ -1,0 +1,20 @@
+commit 06e6b8efa4c9fbe4b8ceec8c655011117a50279a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Aug 16 15:13:52 2024 +0000
+
+    internal/sync: optimize CompareAndSwap and Swap
+    
+    We observe the CompareAndSwap and Swap can both be substantially faster
+    if the value in each entry node is mutable. This change modifies the
+    map entry node to store the value indirectly, allowing us to perform
+    swaps for existing nodes and compare-and-swaps without taking the
+    parent node's lock.
+    
+    Change-Id: I371343aa81a843d3a7e6bc5ac87b8a96c12ca3a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606462
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/sync/hashtriemap.go | 171 +++++++++++++++++++++++----------------
+ 1 file changed, 102 insertions(+), 69 deletions(-)

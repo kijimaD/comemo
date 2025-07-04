@@ -1,20 +1,33 @@
-commit e50bbae2de46f3baf377d4fe44b571e6d7f8e80c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Sep 12 10:45:54 2023 +0700
+commit e612d212c6836407b3274942a394b3c0d46f6e08
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 14 14:19:14 2022 -0400
 
-    cmd/compile: remove typecheck.Orig* functions
+    misc/cgo/testasan: drop test
     
-    Same as CL 526397, but for typecheck.
+    The testasan test was added back in 2013 (CL 10126044), many years
+    before Go added ASAN support in 2021 (CL 298611). So, in fact,
+    testasan does not test Go ASAN support at all, as you might expect
+    (misc/cgo/testsanitizers does that). It's intended to test whether the
+    Go memory allocator works in a mixed C/Go binary where the C code is
+    compiled with ASAN. The test doesn't actually use ASAN in any way; it
+    just simulates where ASAN of 2013 put its shadow mappings. This made
+    sense to test at the time because Go was picky about where its heap
+    landed and ASAN happened to put its mappings exactly where Go wanted
+    to put its heap. These days, Go is totally flexible about its heap
+    placement, and I wouldn't be surprised if ASAN also works differently.
     
-    Change-Id: Ia8f19a54ffaa2ae3b86a4c66cbe6d973482796cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526236
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Given all of this, this test adds almost no value today. Drop it.
+    
+    For #37486, since it eliminates a non-go-test from dist.
+    
+    Change-Id: I0292f8efbdc0e1e39650715604535c445fbaa87f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443067
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/loopvar/loopvar.go  | 19 ++++--------
- src/cmd/compile/internal/staticinit/sched.go |  6 ++--
- src/cmd/compile/internal/typecheck/const.go  | 45 ----------------------------
- src/cmd/compile/internal/walk/builtin.go     |  2 +-
- 4 files changed, 8 insertions(+), 64 deletions(-)
+ misc/cgo/testasan/main.go | 56 -----------------------------------------------
+ src/cmd/dist/test.go      |  3 ---
+ 2 files changed, 59 deletions(-)

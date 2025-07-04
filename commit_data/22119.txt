@@ -1,19 +1,18 @@
-commit 06de3f52a76dba85cf5cc71a2cb644e8fb8b0269
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 19 14:37:30 2015 -0400
+commit 7ce02613870a67f26055836ded66591be148b82b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 10:59:20 2015 +1100
 
-    runtime: document subtlety around entering mark termination
+    cmd/dist: respect runtime.NumCPU when bootstrapping arm hosts
     
-    The barrier in gcDrain does not account for concurrent gcDrainNs
-    happening in gchelpwork, so it can actually return while there is
-    still work being done. It turns out this is okay, but for subtle
-    reasons involving gcDrainN always being run on the system
-    stack. Document these reasons.
+    This is a reproposal of CL 2957. This reproposal restricts the
+    scope of this change to just arm systems.
     
-    Change-Id: Ib07b3753cc4e2b54533ab3081a359cbd1c3c08fb
-    Reviewed-on: https://go-review.googlesource.com/7736
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    With respect to rsc's comments on 2957, on all my arm hosts they perform
+    the build significantly faster with this change in place.
+    
+    Change-Id: Ie09be1a73d5bb777ec5bca3ba93ba73d5612d141
+    Reviewed-on: https://go-review.googlesource.com/5834
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go     | 6 ++++++
- src/runtime/mgcmark.go | 3 +++
- 2 files changed, 9 insertions(+)
+ src/cmd/dist/util.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

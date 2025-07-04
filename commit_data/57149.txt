@@ -1,28 +1,37 @@
-commit 8aa2eed8fb90303c0876e51e097105eca7299734
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Mon Jul 15 14:37:52 2024 +0000
+commit 411c99671a6c6b6f59abe81d872db6daf2e1738a
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Fri Jun 23 00:35:45 2023 +1200
 
-    cmd/go: stamp the version for binaries built with go build
+    slices, maps: add examples; doc comment fixes
     
-    This CL will set the binary version using local tag information if
-    present.
+    There are currently no examples in the new slices and maps package, so
+    add some. This adds examples for most functions in the slices package
+    except the very obvious ones, and adds examples for the DeleteFunc and
+    EqualFunc functions in the maps package.
     
-    For #50603
+    Also clarify/correct a few doc comments:
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I58bed345c7eea20e51a7b24ff6e943d9d1ed240d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596035
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Karam Moore <bigjimhilljameel@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    * EqualFunc takes an "equality" function, not a "comparison" function
+    * It's confusing for Delete and DeleteFunc to say they "do not create a
+      new slice", as they do return a new slice. They already say they
+      "return the modified slice" which is enough.
+    * Similar for Compact, and mention that it returns the modified slice
+      (and say why)
+    * Note that CompactFunc keeps the first element in equal runs
+    * Say what cmp is in SortStableFunc and IsSortedFunc
+    * Say that MinFunc and MaxFunc return the first value
+    
+    Change-Id: I59c7bb1c7cabc4986d81018a5aaf5b712d3310f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505095
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              |   2 +-
- src/cmd/go/internal/load/pkg.go                    |  13 ++
- src/cmd/go/internal/modfetch/codehost/codehost.go  |  42 ++++--
- src/cmd/go/internal/modfetch/codehost/git.go       | 165 ++++++++++-----------
- src/cmd/go/internal/modfetch/codehost/git_test.go  |   7 +-
- src/cmd/go/internal/modfetch/codehost/vcs.go       |  11 +-
- src/cmd/go/internal/modfetch/repo.go               |  33 ++++-
- src/cmd/go/script_test.go                          |   6 +-
- .../testdata/script/build_version_stamping_git.txt | 126 ++++++++++++++++
- 9 files changed, 287 insertions(+), 118 deletions(-)
+ src/maps/example_test.go   |  45 +++++++
+ src/slices/example_test.go | 322 +++++++++++++++++++++++++++++++++++++++++++++
+ src/slices/slices.go       |  11 +-
+ src/slices/sort.go         |   4 +-
+ 4 files changed, 374 insertions(+), 8 deletions(-)

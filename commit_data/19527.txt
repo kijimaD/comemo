@@ -1,16 +1,17 @@
-commit 36207a91d3c97a9c64984572af89727495310469
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 12 16:34:36 2014 -0400
+commit e46be90feca7dfe0532027b08106675e26b93b35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 12 09:44:59 2014 -0700
 
-    runtime: fix defer of nil func
+    encoding/json: remove unused field from Encoder struct
     
-    Fixes #8047.
+    It should've been removed in https://golang.org/cl/9365044
     
-    LGTM=r, iant
-    R=golang-codereviews, r, iant
-    CC=dvyukov, golang-codereviews, khr
-    https://golang.org/cl/105140044
+    Thanks to Jacek Masiulaniec for noticing.
+    
+    LGTM=ruiu
+    R=ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/109880043
 
- src/pkg/runtime/stack.c      |  7 ++++++-
- test/fixedbugs/issue8047b.go | 22 ++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/pkg/encoding/json/stream.go | 1 -
+ 1 file changed, 1 deletion(-)

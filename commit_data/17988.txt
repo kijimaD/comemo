@@ -1,12 +1,19 @@
-commit 22a7b3442ee621bd8b73d5b4ccdfcfd7b62ca8b0
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Dec 15 17:51:03 2013 -0500
+commit 1d546005af72e186c319722ccd293b64246488e3
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Dec 15 12:55:59 2013 -0500
 
-    doc/articles/wiki: remove GNU make dependency
+    crypto/cipher: fix CFB mode.
     
-    R=golang-dev, adg, minux.ma
+    a073d65e6f8c had a couple of bugs in the CFB mode that I missed in code review:
+            1) The loop condition wasn't updated from the old version.
+            2) It wasn't safe when src and dst aliased.
+    
+    Fixes #6950.
+    
+    R=golang-dev, hanwen
     CC=golang-dev
-    https://golang.org/cl/38410043
+    https://golang.org/cl/42110043
 
- doc/articles/wiki/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/cipher/cfb.go      | 11 ++++++-----
+ src/pkg/crypto/cipher/cfb_test.go |  8 +++++---
+ 2 files changed, 11 insertions(+), 8 deletions(-)

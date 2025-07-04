@@ -1,42 +1,18 @@
-commit 7dcd343ed641d3b70c09153d3b041ca3fe83b25e
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Oct 9 12:18:26 2019 -0700
+commit bd61fc3da337dc23dd4d87ea36ffd5c129486c33
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 28 11:37:12 2019 -0400
 
-    runtime: ensure that Goexit cannot be aborted by a recursive panic/recover
+    testing/internal/testdeps: delete didSetLogger variable
     
-    When we do a successful recover of a panic, we resume normal execution by
-    returning from the frame that had the deferred call that did the recover (after
-    executing any remaining deferred calls in that frame).
+    It was added in CL 83956 but never used.
     
-    However, suppose we have called runtime.Goexit and there is a panic during one of the
-    deferred calls run by the Goexit. Further assume that there is a deferred call in
-    the frame of the Goexit or a parent frame that does a recover. Then the recovery
-    process will actually resume normal execution above the Goexit frame and hence
-    abort the Goexit.  We will not terminate the thread as expected, but continue
-    running in the frame above the Goexit.
+    Updates #23129
     
-    To fix this, we explicitly create a _panic object for a Goexit call. We then
-    change the "abort" behavior for Goexits, but not panics. After a recovery, if the
-    top-level panic is actually a Goexit that is marked to be aborted, then we return
-    to the Goexit defer-processing loop, so that the Goexit is not actually aborted.
-    
-    Actual code changes are just panic.go, runtime2.go, and funcid.go. Adjusted the
-    test related to the new Goexit behavior (TestRecoverBeforePanicAfterGoexit) and
-    added several new tests of aborted panics (whose behavior has not changed).
-    
-    Fixes #29226
-    
-    Change-Id: Ib13cb0074f5acc2567a28db7ca6912cfc47eecb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200081
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I70b50e974a56620069a77658386722af314cc857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179138
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objabi/funcid.go         |  3 ++
- src/runtime/callers_test.go               | 62 ++++++++++++++++++++++++
- src/runtime/crash_test.go                 | 43 ++++++++++-------
- src/runtime/defer_test.go                 | 14 +++---
- src/runtime/panic.go                      | 79 +++++++++++++++++++++++++++----
- src/runtime/runtime2.go                   |  3 ++
- src/runtime/testdata/testprog/deadlock.go | 58 +++++++++++++++++++++++
- test/fixedbugs/issue8047b.go              |  4 ++
- 8 files changed, 232 insertions(+), 34 deletions(-)
+ src/testing/internal/testdeps/deps.go | 1 -
+ 1 file changed, 1 deletion(-)

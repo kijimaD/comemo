@@ -1,25 +1,19 @@
-commit 6dcf83d882a668894f4423045833e97f7e3c31cf
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Nov 9 01:23:02 2021 +0100
+commit 86bbf4beee276b9a7f9a427a9d1a9277bd904709
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Mar 12 13:48:32 2021 -0500
 
-    runtime: revert recent Windows crashdump changes
+    cmd/go: fix godoc formatting for text from 'go help install'
     
-    Recent changes to runtime enabled crashdumps, which under some
-    circumstances apparently might result in memory being uploaded to
-    Microsoft. A change like this should go through the proper proposals
-    process where we can discuss how to gate it and what all of its
-    implications are.
+    Fixes #44846
     
-    This reverts CL 307372 and its cleanup CL 360617.
-    
-    Change-Id: If2e74015899d746831da40546c82eacacdf739e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362454
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I5a12c6437a91ce59307483ffcc70e084edc32197
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301329
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_windows.go     |  4 --
- src/runtime/panic.go          | 11 ------
- src/runtime/signal_windows.go | 87 +++++++++++--------------------------------
- 3 files changed, 22 insertions(+), 80 deletions(-)
+ src/cmd/go/alldocs.go             | 20 ++++++++++++--------
+ src/cmd/go/internal/work/build.go | 20 ++++++++++++--------
+ 2 files changed, 24 insertions(+), 16 deletions(-)

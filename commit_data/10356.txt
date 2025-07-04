@@ -1,16 +1,14 @@
-commit 3208917d54fea665392b692dee1bf1a921510fc2
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Sat Nov 12 00:32:56 2011 -0500
+commit 9192548f803eb9eceee2fcef16fbfdc0947eb468
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 11 17:30:52 2011 -0800
 
-    gc: look at cumulative error count, not just per-function.
+    godoc: document -templates flag
     
-    Not sure if this is what you'd really want.  Maybe with a higher limit than 10
-    or perhaps keep checking nerrors > 10 per yyerror, but check the cumulative
-    after each function?
+    Fixes #2441.
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5376064
+    https://golang.org/cl/5376078
 
- src/cmd/gc/subr.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/godoc/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

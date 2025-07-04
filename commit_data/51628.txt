@@ -1,22 +1,32 @@
-commit 526b8956c23dee7be386720247e143f87e5ec2d2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 8 08:29:14 2022 -0800
+commit eb8198d2f67477517e7a735faa49dfd7c0fb3622
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Feb 22 21:41:43 2022 -0800
 
-    go/types: add commentMap and test
+    cmd/compile: deal with constructed types that have shapes in them
     
-    This adds the (adjusted) syntax.CommentMap function and corresponding
-    test to the types_test package so that we can use it for collecting
-    ERROR comments in the next CL.
+    We convert type args to shape types inside instantiations. If an
+    instantiation constructs a compound type based on that shape type and
+    uses that as a type arg to another generic function being called, then
+    we have a type arg with a shape type embedded inside of it. In that
+    case, we need to substitute out those embedded shape types with their
+    underlying type.
     
-    For #51006.
+    If we don't do this, we may create extra unneeded shape types that
+    have these other shape types embedded in them. This may lead to
+    generating extra shape instantiations, and a mismatch between the
+    instantiations that we used in generating dictionaries and the
+    instantations that are actually called.
     
-    Change-Id: I63ce96e7394c28c02d5a292250586cc49c1f6e19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456125
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Updates #51303
+    
+    Change-Id: Ieef894a5fac176cfd1415f95926086277ad09759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387674
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/go/types/commentMap_test.go | 103 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 103 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go | 86 ++++++++++++++++++++++++++++++
+ test/typeparam/issue51303.go               | 65 ++++++++++++++++++++++
+ test/typeparam/issue51303.out              |  4 ++
+ 3 files changed, 155 insertions(+)

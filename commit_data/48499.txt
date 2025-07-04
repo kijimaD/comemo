@@ -1,27 +1,31 @@
-commit dd211cf039d5a3b57d2188751eca49ad816ed395
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Mar 23 12:02:36 2022 -0400
+commit 74242baa4136c7a9132a8ccd9881354442788c8c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue May 11 11:31:31 2021 -0700
 
-    debug/gosym: skip non-real functions in LineToPC lookup
+    archive/zip: only preallocate File slice if reasonably sized
     
-    The code iterates through the func table to find a function with
-    a given file and line number. The code panics if it sees a non-
-    real function (e.g. go.buildid), because its CU offset is -1,
-    which causes an index-out-of-bounds error. The debug/gosym package
-    recovers the panic and returns "not found", without looping
-    through the rest of the entries.
+    Since the number of files in the EOCD record isn't validated, it isn't
+    safe to preallocate Reader.Files using that field. A malformed archive
+    can indicate it contains up to 1 << 128 - 1 files. We can still safely
+    preallocate the slice by checking if the specified number of files in
+    the archive is reasonable, given the size of the archive.
     
-    Skip the non-real functions. They cannot be looked up by line
-    number anyway.
+    Thanks to the OSS-Fuzz project for discovering this issue and to
+    Emmanuel Odeke for reporting it.
     
-    Fixes #51890.
+    Fixes #46242
+    Fixes CVE-2021-33196
     
-    Change-Id: I96f64c17b4a53ffdce047c8244b35a402a0d39ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395074
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I3c76d8eec178468b380d87fdb4a3f2cb06f0ee76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318909
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/debug/gosym/pclntab.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/archive/zip/reader.go      | 10 ++++++-
+ src/archive/zip/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 1 deletion(-)

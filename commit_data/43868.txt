@@ -1,35 +1,20 @@
-commit e8de596f04d0ea7fb6fb68b036760bf088a9c6c2
-Author: Austin Clements <austin@google.com>
-Date:   Fri Nov 20 17:32:46 2020 -0500
+commit 82f633a8e9a5d1b45293b54bc5224c3c846d3dc8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 27 16:01:24 2020 -0400
 
-    runtime: use inlined function name for traceback elision
+    [dev.link] cmd/link: accept more types in Xcoffadddynrel
     
-    Currently, gentraceback decides which frames to print or elide when
-    unwinding inlined frames using only the name of the outermost
-    function. If the outermost function should be elided, then inlined
-    functions will also be elided, even if they shouldn't be.
+    In dodata we overwrite symbol types to SDATA. Now we'll stop
+    doing that, so accept more symbol types here. This is basically
+    a list of all writeable types handled in dodata that could appear
+    in XCOFF.
     
-    This happens in practice in at least one situation. As of CL 258938,
-    exported Go functions (and functions they call) can now be inlined
-    into the generated _cgoexp_HASH_FN function. The runtime elides
-    _cgoexp_HASH_FN from tracebacks because it doesn't contain a ".".
-    Because of this bug, it also elides anything that was inlined into it.
-    
-    This CL fixes this by synthesizing a funcInfo for the inlined
-    functions to pass to showframe.
-    
-    Fixes #42754.
-    
-    Change-Id: Ie6c663a4a1ac7f0d4beb1aa60bc26fc8cddd0f9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272131
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iee35369162f5acd59806a3f0e6c8d3682620067e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230310
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/crash_cgo_test.go                  | 18 +++++++++++
- src/runtime/stack_test.go                      | 41 ++++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/traceback.go  | 21 +++++++++++++
- src/runtime/testdata/testprogcgo/traceback_c.c | 11 +++++--
- src/runtime/traceback.go                       | 15 ++++++++--
- 5 files changed, 102 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/xcoff.go  | 2 +-
+ src/cmd/link/internal/ld/xcoff2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

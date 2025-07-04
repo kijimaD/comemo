@@ -1,20 +1,26 @@
-commit 0e1bcfc63886315fe16a958b03b4174d5cfa0cfa
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Feb 13 17:07:54 2018 +0100
+commit 9e21e9c5cb27e5f2b5acba14efb6bb6f126595cc
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 28 16:48:11 2017 -0400
 
-    runtime: add symbol for AT_FDCWD on Linux amd64 and mips64x
+    cmd/compile: make loop finder more aware of irreducible loops
     
-    Also order the syscall number list by numerically for mips64x.
+    The loop finder doesn't return good information if it
+    encounters an irreducible loop.  Make a start on improving
+    this, and set a function-level flag to indicate when there
+    is such a loop (and the returned information might be flaky).
     
-    Follow-up for CL 92895.
+    Use that flag to prevent the loop rotater from getting
+    confused; the existing code seems to depend on artifacts
+    of the previous loop-finding algorithm. (There is one
+    irreducible loop in the go library, in "inflate.go").
     
-    Change-Id: I5f01f8c626132a06160997fce8a2aef0c486bb1c
-    Reviewed-on: https://go-review.googlesource.com/93616
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If6e26feab38d9b009d2252d556e1470c803bde40
+    Reviewed-on: https://go-review.googlesource.com/42150
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/sys_linux_amd64.s   | 4 +++-
- src/runtime/sys_linux_mips64x.s | 6 ++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/check.go        | 20 +++++++-------
+ src/cmd/compile/internal/ssa/likelyadjust.go | 40 +++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/looprotate.go   |  3 +++
+ 3 files changed, 44 insertions(+), 19 deletions(-)

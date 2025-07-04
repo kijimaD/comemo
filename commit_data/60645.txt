@@ -1,0 +1,54 @@
+commit 1cf6e31f0d03bb3571cfe034f2d909591a0ae453
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sat Aug 3 14:20:58 2024 -0400
+
+    cmd/compile: add basic wasmexport support
+    
+    This CL adds a compiler directive go:wasmexport, which applies to
+    a Go function and makes it an exported function of the Wasm module
+    being built, so it can be called directly from the host. As
+    proposed in #65199, parameter and result types are limited to
+    32-bit and 64-bit integers and floats, and there can be at most
+    one result.
+    
+    As the Go and Wasm calling conventions are different, for a
+    wasmexport function we generate a wrapper function does the ABI
+    conversion at compile time.
+    
+    Currently this CL only adds basic support. In particular,
+    - it only supports executable mode, i.e. the Go wasm module calls
+      into the host via wasmimport, which then calls back to Go via
+      wasmexport. Library (c-shared) mode is not implemented yet.
+    - only supports wasip1, not js.
+    - if the exported function unwinds stacks (goroutine switch, stack
+    growth, etc.), it probably doesn't work.
+    
+    TODO: support stack unwinding, c-shared mode, js.
+    
+    For #65199.
+    
+    Change-Id: Id1777c2d44f7d51942c1caed3173c0a82f120cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603055
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Randy Reddig <randy.reddig@fastly.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/gc/compile.go     |  5 ++
+ src/cmd/compile/internal/ir/func.go        |  8 +++
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/noder/linker.go   |  5 ++
+ src/cmd/compile/internal/noder/noder.go    | 27 +++++++++
+ src/cmd/compile/internal/noder/reader.go   | 17 ++++--
+ src/cmd/compile/internal/noder/writer.go   | 13 ++++
+ src/cmd/compile/internal/ssagen/abi.go     | 76 ++++++++++++++++++++---
+ src/cmd/internal/goobj/objfile.go          |  3 +
+ src/cmd/internal/obj/link.go               | 26 +++++++-
+ src/cmd/internal/obj/objfile.go            | 12 ++++
+ src/cmd/internal/obj/sym.go                |  3 +
+ src/cmd/internal/obj/wasm/wasmobj.go       | 97 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/deadcode.go       |  7 +++
+ src/cmd/link/internal/loader/loader.go     |  9 +++
+ src/cmd/link/internal/wasm/asm.go          | 23 +++++--
+ test/wasmexport.go                         | 19 ++++++
+ 17 files changed, 331 insertions(+), 21 deletions(-)

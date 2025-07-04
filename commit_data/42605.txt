@@ -1,24 +1,23 @@
-commit 4b09c8ad6fb9d30b9c3417b5364809ff0006749d
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Jul 8 09:40:33 2020 -0400
+commit e948d2b73ede67f12bff9e4d050f0e1425163010
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu Jan 23 16:05:29 2020 -0500
 
-    crypto: fix PKCS space in docs
+    cmd/link: ensure cgo cflags do not leak into dwarf tests
     
-    Change-Id: Iee53acb963a889410f8c6daaa9a7841f1b12c6fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241497
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Running the dwarf tests with CGO_CFLAGS set
+    with certain values would cause the test to fail. all.bash
+    would fail when CGO_CFLAGS was set to '-mmacosx-version-min=10.10'
+    because the --macosx-version-min flag is incompatible with some dwarf
+    tests. The change guards against using an unintended flag in the unit test.
+    
+    Updates #35459
+    
+    Change-Id: Idc9b354aba44fdab424cb0081a4b3ea7a6d0f8e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216177
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/crypto.go            |  2 +-
- src/crypto/rsa/example_test.go  |  2 +-
- src/crypto/rsa/pkcs1v15.go      | 14 +++++++-------
- src/crypto/rsa/rsa.go           | 14 +++++++-------
- src/crypto/tls/auth.go          |  4 ++--
- src/crypto/tls/key_agreement.go |  2 +-
- src/crypto/tls/tls.go           |  2 +-
- src/crypto/tls/tls_test.go      |  4 ++--
- src/crypto/x509/pkcs1.go        | 12 ++++++------
- src/crypto/x509/pkcs8.go        |  6 +++---
- src/crypto/x509/x509.go         |  2 +-
- 11 files changed, 32 insertions(+), 32 deletions(-)
+ src/cmd/link/dwarf_test.go | 1 +
+ 1 file changed, 1 insertion(+)

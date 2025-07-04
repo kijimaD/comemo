@@ -1,19 +1,37 @@
-commit 8270b858ee8744e5b7584b49ae6ed93aa975c8bc
-Author: Sean Liao <sean@liao.dev>
-Date:   Tue Apr 29 16:54:06 2025 +0100
+commit 52b5f164ae65b96ce9bd0fb7d06c609bf62c3d30
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 8 17:16:49 2024 +0000
 
-    testing: use more doc links
+    runtime: make checking if tracing is enabled non-atomic
     
-    Change-Id: Ide372735165b7510fd8d7588451a37fa743e59c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668915
+    Tracing is currently broken when using iter.Pull from the rangefunc
+    experiment partly because the "tracing is off" fast path in traceAcquire
+    was deemed too expensive to check (an atomic load) during the coroutine
+    switch.
+    
+    This change adds trace.enabled, a non-atomic indicator of whether
+    tracing is enabled. It doubles trace.gen, which is the source of truth
+    on whether tracing is enabled. The semantics around trace.enabled are
+    subtle.
+    
+    When tracing is enabled, we need to be careful to make sure that if gen
+    != 0, goroutines enter the tracer on traceAcquire. This is enforced by
+    making sure trace.enabled is published atomically with trace.gen. The
+    STW takes care of synchronization with most Ms, but there's still sysmon
+    and goroutines exiting syscalls. We need to synchronize with those
+    explicitly anyway, which luckily takes care of trace.enabled as well.
+    
+    When tracing is disabled, it's always OK for trace.enabled to be stale,
+    since traceAcquire will always double-check gen before proceeding.
+    
+    For #61897.
+    
+    Change-Id: I47c2a530fb5339c15e419312fbb1e22d782cd453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565935
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/testing/allocs.go    |  2 +-
- src/testing/benchmark.go |  6 ++---
- src/testing/fuzz.go      | 22 +++++++--------
- src/testing/testing.go   | 70 +++++++++++++++++++++++++-----------------------
- 4 files changed, 51 insertions(+), 49 deletions(-)
+ src/runtime/trace2.go        | 36 +++++++++++++++++++++++++++++++++---
+ src/runtime/trace2runtime.go |  2 +-
+ 2 files changed, 34 insertions(+), 4 deletions(-)

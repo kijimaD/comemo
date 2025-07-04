@@ -1,31 +1,29 @@
-commit 79669dc705aa8fcddc8f9407c568e4317d619dfe
-Author: Tom Thorogood <me+google@tomthorogood.co.uk>
-Date:   Fri Aug 2 07:53:44 2019 +0000
+commit d34548e0b6acc14a99bc6ffc225eedbb56e03d60
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Mar 18 18:35:44 2019 -0400
 
-    encoding/json: revert Compact HTML escaping documentation
+    cmd/go: avoid link error when -coverpkg covers main packages (more)
     
-    This partly reverts CL 173417 as it incorrectly documented that Compact
-    performed HTML escaping and the output was safe to embed inside HTML
-    <script> tags. This has never been true.
+    This fixes two problems missed in CL 164877.
     
-    Although Compact does escape U+2028 and U+2029, it doesn't escape <, >
-    or &. Compact is thus only performing a subset of HTML escaping and it's
-    output is not safe to embed inside HTML <script> tags.
+    First, p.Internal.BuildInfo is now part of the cache key. This is
+    important since p.Internal.BuildInfo causes the build action to
+    synthesize a new source file, which affects the output.
     
-    A more complete fix would be for Compact to either never perform any
-    HTML escaping, as it was prior to CL 10883045, or to actually perform
-    the same HTML escaping as HTMLEscape. Neither change is likely safe
-    enough for go1.13.
+    Second, recompileForTest is always called for test
+    packages. Previously, it was only called when there were internal test
+    sources, so the fix in CL 164877 did not apply to packages that only
+    had external tests.
     
-    Updates #30357
+    Fixes #30374
     
-    Change-Id: I912f0fe9611097d988048b28228c4a5b985080ba
-    GitHub-Last-Rev: aebababc9233c5705785b225377e80096d4bb8c4
-    GitHub-Pull-Request: golang/go#33427
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188717
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Iac2d7e8914f0313f9ab4222299a866f67889eb2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168200
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/indent.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/internal/load/test.go                   | 23 +++++++++---------
+ src/cmd/go/internal/work/exec.go                   |  1 +
+ .../script/cover_pkgall_multiple_mains.txt         | 28 +++++++++++++---------
+ 3 files changed, 29 insertions(+), 23 deletions(-)

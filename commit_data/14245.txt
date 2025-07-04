@@ -1,24 +1,12 @@
-commit db2b6ed854122bc987e0cb8778a9c77b481614ec
+commit d77eb129981063fec19efc7dd4078c4757fcf997
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 30 13:09:47 2012 -0700
+Date:   Tue Oct 30 09:42:43 2012 -0700
 
-    go/printer, gofmt: trim trailing whitespace in comments
-    
-    Also: updated go fix testcases to pass tests.
-    
-    Fixes #4310.
+    exp/gotype: add more test packages
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6810055
+    https://golang.org/cl/6822051
 
- src/cmd/fix/testdata/reflect.encoder.go.in  |  2 +-
- src/cmd/fix/testdata/reflect.encoder.go.out |  2 +-
- src/cmd/fix/testdata/reflect.export.go.in   |  2 +-
- src/cmd/fix/testdata/reflect.export.go.out  |  2 +-
- src/cmd/fix/testdata/reflect.print.go.in    |  2 +-
- src/cmd/fix/testdata/reflect.print.go.out   |  2 +-
- src/pkg/go/printer/printer.go               | 15 ++++++++++++---
- src/pkg/go/printer/testdata/comments.golden | 11 ++++++++++-
- src/pkg/go/printer/testdata/comments.input  | 10 +++++++++-
- 9 files changed, 37 insertions(+), 11 deletions(-)
+ src/pkg/exp/gotype/gotype_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

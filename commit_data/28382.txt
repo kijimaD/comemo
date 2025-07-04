@@ -1,75 +1,23 @@
-commit e7cc9c4f4dee2d6f8a77ce177172ef4ae4ff0c90
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 14 14:02:50 2016 -0700
+commit 1f7a0d4b5ec7ef94b96755e9b95168abf86e9d71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 16 15:39:43 2016 -0700
 
-    cmd/compile: delete lots of the legacy backend
+    runtime: don't do a plain throw when throwsplit == true
     
-    It's not everything, but it is a good start.
+    The test case in #15639 somehow causes an invalid syscall frame. The
+    failure is obscured because the throw occurs when throwsplit == true,
+    which causes a "stack split at bad time" error when trying to print the
+    throw message.
     
-    I tried to make the CL delete only.  goimports forced
-    a few exceptions to that rule.
+    This CL fixes the "stack split at bad time" by using systemstack. No
+    test because there shouldn't be any way to trigger this error anyhow.
     
-    Update #16357
+    Update #15639.
     
-    Change-Id: I041925cb2fe68bb7ae1617af862b22c48da649c1
-    Reviewed-on: https://go-review.googlesource.com/29168
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I4240f3fd01bdc3c112f3ffd1316b68504222d9e1
+    Reviewed-on: https://go-review.googlesource.com/23153
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/amd64/cgen.go     |  161 --
- src/cmd/compile/internal/amd64/galign.go   |   37 -
- src/cmd/compile/internal/amd64/ggen.go     |  624 -----
- src/cmd/compile/internal/amd64/gsubr.go    | 1260 ----------
- src/cmd/compile/internal/amd64/peep.go     | 1025 --------
- src/cmd/compile/internal/amd64/reg.go      |  102 +-
- src/cmd/compile/internal/arm/cgen.go       |  224 --
- src/cmd/compile/internal/arm/cgen64.go     |  859 -------
- src/cmd/compile/internal/arm/galign.go     |   29 -
- src/cmd/compile/internal/arm/ggen.go       |  431 ----
- src/cmd/compile/internal/arm/gsubr.go      | 1085 ---------
- src/cmd/compile/internal/arm/peep.go       | 1734 --------------
- src/cmd/compile/internal/arm/reg.go        |   71 -
- src/cmd/compile/internal/arm64/cgen.go     |  151 --
- src/cmd/compile/internal/arm64/galign.go   |   29 -
- src/cmd/compile/internal/arm64/ggen.go     |  448 ----
- src/cmd/compile/internal/arm64/gsubr.go    |  760 ------
- src/cmd/compile/internal/arm64/peep.go     |  797 -------
- src/cmd/compile/internal/arm64/reg.go      |  116 +-
- src/cmd/compile/internal/gc/cgen.go        | 3559 +---------------------------
- src/cmd/compile/internal/gc/cplx.go        |  474 ----
- src/cmd/compile/internal/gc/gen.go         |  960 +-------
- src/cmd/compile/internal/gc/go.go          |   67 +-
- src/cmd/compile/internal/gc/gsubr.go       |   79 -
- src/cmd/compile/internal/gc/pgen.go        |   28 -
- src/cmd/compile/internal/gc/popt.go        | 1094 ---------
- src/cmd/compile/internal/gc/reg.go         | 1532 ------------
- src/cmd/compile/internal/gc/sizeof_test.go |    1 -
- src/cmd/compile/internal/mips64/cgen.go    |  157 --
- src/cmd/compile/internal/mips64/galign.go  |   27 -
- src/cmd/compile/internal/mips64/ggen.go    |  368 ---
- src/cmd/compile/internal/mips64/gsubr.go   |  886 +------
- src/cmd/compile/internal/mips64/peep.go    |  772 ------
- src/cmd/compile/internal/mips64/reg.go     |  103 -
- src/cmd/compile/internal/ppc64/cgen.go     |  143 --
- src/cmd/compile/internal/ppc64/galign.go   |   27 -
- src/cmd/compile/internal/ppc64/ggen.go     |  438 ----
- src/cmd/compile/internal/ppc64/gsubr.go    |  826 -------
- src/cmd/compile/internal/ppc64/peep.go     | 1032 --------
- src/cmd/compile/internal/ppc64/reg.go      |  110 -
- src/cmd/compile/internal/s390x/cgen.go     |  178 --
- src/cmd/compile/internal/s390x/galign.go   |   27 -
- src/cmd/compile/internal/s390x/ggen.go     |  411 ----
- src/cmd/compile/internal/s390x/gsubr.go    |  869 -------
- src/cmd/compile/internal/s390x/peep.go     | 1664 -------------
- src/cmd/compile/internal/s390x/reg.go      |   76 -
- src/cmd/compile/internal/x86/cgen.go       |  159 --
- src/cmd/compile/internal/x86/cgen64.go     |  598 -----
- src/cmd/compile/internal/x86/galign.go     |   33 -
- src/cmd/compile/internal/x86/ggen.go       |  818 -------
- src/cmd/compile/internal/x86/gsubr.go      | 1703 -------------
- src/cmd/compile/internal/x86/peep.go       |  807 -------
- src/cmd/compile/internal/x86/reg.go        |   74 -
- 53 files changed, 10 insertions(+), 30033 deletions(-)
+ src/runtime/proc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

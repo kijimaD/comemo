@@ -1,16 +1,31 @@
-commit 30002e665658b4b2c147caaee6bf7734042952e8
-Author: SataQiu <shidaqiu2018@gmail.com>
-Date:   Thu Apr 15 23:39:30 2021 +0800
+commit de74ea5d740ccc69dbb146578dc8a965351a3d6b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Oct 17 20:03:19 2020 +0100
 
-    cmd/go/internal/modload: treat \ as a path separator instead of a shell special character
+    cmd/go: set TOOLEXEC_IMPORTPATH for -toolexec tools
     
-    According to the code comment, \ should be treated as a path separator.
-    See fileNameOK in golang.org/x/mod/module/module.go.
+    This way, a -toolexec tool can tell precisely what package is being
+    built when it's run. This was very hard to do before, because the tool
+    had to piece together that information given the build action's
+    arguments or flags.
     
-    Change-Id: I05e05246005191ecccfecf46848aba5cb1359956
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310429
+    Since there wasn't a good set of tests for -toolexec, add one in the
+    form of a test script. It builds a simple set of packages with a variety
+    of build tools, to ensure that all the cases behave as expected.
+    
+    Like other recent master changes, include the changelog item for this
+    user-facing change too.
+    
+    Fixes #15677.
+    
+    Change-Id: I0a5a1d9485840323ec138b2e64b7e7dd803fdf90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263357
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Robert Findley <rfindley@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/internal/modload/init.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.16.html                         |  9 ++++
+ src/cmd/go/internal/work/exec.go        |  7 +++
+ src/cmd/go/testdata/script/toolexec.txt | 83 +++++++++++++++++++++++++++++++++
+ 3 files changed, 99 insertions(+)

@@ -1,0 +1,31 @@
+commit 4f77a83589baa5a3038cc6e35615084dc7e5f0c1
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 30 14:31:40 2024 -0700
+
+    internal/syscall/unix: fix UTIME_OMIT for dragonfly
+    
+    CL 219638 added UTIME_OMIT values for various systems. The value for
+    DragonFly BSD appears to be incorrect.
+    
+    The correct value is -2 (see references below), while -1 is used for
+    UTIME_NOW. As a result, timestamp is changed to the current time instead
+    of not touching. This should have been caught by the accompanying test
+    case, TestChtimesWithZeroTimes, but its failures are essentially skipped
+    on dragonfly (this is being fixed separately in a followup CL 591535).
+    
+    Improve formatting while at it.
+    
+    References:
+     - https://github.com/DragonFlyBSD/DragonFlyBSD/blob/965b380e9609/sys/sys/stat.h#L284
+     - https://go.googlesource.com/sys/+/refs/tags/v0.20.0/unix/zerrors_dragonfly_amd64.go#1421
+    
+    Change-Id: I432360ca982c84b7cd70d0cf01d860af9ff985fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/at_sysnum_dragonfly.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

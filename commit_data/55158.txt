@@ -1,22 +1,17 @@
-commit d59bd25a30bbfc96d4123517f6f7b637c910e059
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue Nov 21 15:31:26 2023 -0800
+commit 71971be034ae47f56682c26129711c29a17f3441
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 10:04:38 2023 -0800
 
-    runtime: test for contention in both semaphore paths
+    go/types: generate util_test.go, cosmetic changes to generator.go
     
-    Most contention on the runtime locks inside semaphores is observed in
-    runtime.semrelease1, but it can also appear in runtime.semacquire1. When
-    examining contention profiles in TestRuntimeLockMetricsAndProfile, allow
-    call stacks that include either.
-    
-    For #64253
-    
-    Change-Id: Id4f16af5e9a28615ab5032a3197e8df90f7e382f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544375
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I80e4bbda302b9170d2367af2442ee282bdf51b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461679
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/metrics_test.go | 76 ++++++++++++++++++++++++++++++---------------
- 1 file changed, 51 insertions(+), 25 deletions(-)
+ src/go/types/generator.go | 8 +++++---
+ src/go/types/util_test.go | 2 ++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

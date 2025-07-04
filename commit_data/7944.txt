@@ -1,13 +1,15 @@
-commit 883048daab77cf11617fe8583f1496af67186031
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 12:58:50 2011 -0700
+commit 10694c81b0efce8221b6d083b43e43bbbea3d07a
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Thu Mar 31 15:16:18 2011 +1100
 
-    http: add Transport.MaxIdleConnsPerHost
+    net, syscall: fix windows build
     
-    R=rsc
+    Fix resolv_windows.go to support recent DNS-lookup changes
+    
+    R=brainman, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4280079
+    https://golang.org/cl/4300045
 
- src/pkg/http/transport.go      | 22 +++++++++++++++--
- src/pkg/http/transport_test.go | 54 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 73 insertions(+), 3 deletions(-)
+ src/pkg/net/resolv_windows.go         | 41 ++++++++++++++++++++++++++++-------
+ src/pkg/syscall/ztypes_windows_386.go |  4 ++++
+ 2 files changed, 37 insertions(+), 8 deletions(-)

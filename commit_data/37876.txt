@@ -1,24 +1,24 @@
-commit 70931c087b7ceb660aa969382b8c273efba63426
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Jan 11 14:20:41 2019 -0800
+commit 3c1b7bc7212cd894dae684ae064f4e7708b080ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 4 17:18:22 2018 -0700
 
-    database/sql: fix logic for pulling a Conn from DB
+    go/types: fix internal comments and add additional test case
     
-    The logic for pulling a database connection from the DB pool should
-    proceed as follows: attempt to pull either a cached connection or
-    new connection N times in a loop. If each connection results
-    in a bad connection, then create a new connection (no cache).
+    https://go-review.googlesource.com/c/go/+/132355 addressed
+    a crash and inadvertently fixed #27346; however the comment
+    added to the type-checker was incorrect and misleading.
     
-    Previously pulling a Conn from the pool, the last step also
-    looked at the cache, rather then always creating a new connection.
+    This CL fixes the comment, and adds a test case for #27346.
     
-    Fixes #29684
+    Fixes #27346.
+    Updates #22467.
     
-    Change-Id: I8f436fd9b96eb35502a620ebe8da4ab89fb06a2e
-    Reviewed-on: https://go-review.googlesource.com/c/157637
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib6d5caedf302fd42929c4dacc55e973c1aebfe85
+    Reviewed-on: https://go-review.googlesource.com/133415
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/expr.go             | 19 ++++++++++++-------
+ src/go/types/testdata/issues.src |  8 ++++++++
+ 2 files changed, 20 insertions(+), 7 deletions(-)

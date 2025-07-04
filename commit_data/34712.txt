@@ -1,23 +1,25 @@
-commit dc3a92edaabf012cabd90304bac1ed8fe3bb7444
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 28 11:35:54 2018 -0800
+commit e49bc465a3acb2dd72e9afa5d40e541205c7d460
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Tue Nov 7 10:19:10 2017 -0800
 
-    crypto/x509: matching any requested EKU should be sufficient.
+    net: implement ReadMsg/WriteMsg on windows
     
-    The documentation was unclear here and I misremembered the behaviour and
-    changed it in 1.10: it used to be that matching any EKU was enough but
-    1.10 requires that all EKUs match.
+    This means {Read,Write}Msg{UDP,IP} now work on windows.
     
-    Restore 1.9 behaviour and clarify the documentation to make it official.
+    Fixes #9252
     
-    Fixes #24162.
-    
-    Change-Id: Ic9466cd0799cb27ec3a3a7e6c96f10c2aacc7020
-    Reviewed-on: https://go-review.googlesource.com/97720
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: Ifb105f9ad18d61289b22d7358a95faabe73d2d02
+    Reviewed-on: https://go-review.googlesource.com/76393
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/x509/name_constraints_test.go | 17 +++++++++++
- src/crypto/x509/verify.go                | 49 +++++++++++++++++++++++++++-----
- 2 files changed, 59 insertions(+), 7 deletions(-)
+ src/go/build/deps_test.go                       |   2 +-
+ src/internal/poll/fd_windows.go                 |  92 +++++++++++++++++++++
+ src/internal/syscall/windows/syscall_windows.go | 105 +++++++++++++++++++++++-
+ src/net/fd_windows.go                           |  20 +++--
+ src/net/iprawsock.go                            |   2 +-
+ src/net/platform_test.go                        |  20 +++--
+ src/net/protoconn_test.go                       |  10 +--
+ src/net/udpsock.go                              |   2 +-
+ src/net/udpsock_test.go                         |   4 +-
+ 9 files changed, 231 insertions(+), 26 deletions(-)

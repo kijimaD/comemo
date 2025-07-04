@@ -1,21 +1,22 @@
-commit a714470cce03b28321a9dbcdbf34a99ab59deb75
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 26 11:18:37 2017 -0400
+commit e5e0e5fc3e608046a3dcc2db1ac195769a542b97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 24 11:34:56 2017 +0100
 
-    runtime: allow more CPUs on FreeBSD
+    cmd/compile: don't use ."" as a pkg prefix
     
-    Currently the FreeBSD CPU affinity code assumes that the maximum
-    GOMAXPROCS is 256, but we just removed that limit.
+    This results in names to unexported fields like
+    net.(*Dialer)."".deadline instead of net.(*Dialer).deadline.
     
-    This commit rewrites the FreeBSD CPU affinity code to raise the CPU
-    count limit to 65,536, like the Linux CPU affinity code, and to
-    degrade more gracefully if we do somehow go over that.
+    Fixes #18419.
     
-    Change-Id: Ic4ca7f88bd8b9448aae4dbd43ef21a6c1b8fea63
-    Reviewed-on: https://go-review.googlesource.com/66291
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I0415c68b77cc16125c2401320f56308060ac3f25
+    Reviewed-on: https://go-review.googlesource.com/44070
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/os_freebsd.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ test/fixedbugs/issue18419.dir/other.go | 11 +++++++++++
+ test/fixedbugs/issue18419.dir/test.go  | 15 +++++++++++++++
+ test/fixedbugs/issue18419.go           |  7 +++++++
+ 4 files changed, 34 insertions(+), 1 deletion(-)

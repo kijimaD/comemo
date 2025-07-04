@@ -1,14 +1,15 @@
-commit f034ee8c22151039465826da0f8c35e9780a8d55
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 21 20:42:40 2015 -0500
+commit 0be3c4093d2ac0c59c392298f08a58bc09fd2616
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 26 11:15:09 2015 -0400
 
-    cmd/dist: apply final edits from CL 18199.
+    androidtest.bash: set GOARM=7
     
-    I broke the rule: never click the Submit button on the web.
+    It's the only ARM version we have ever supported on android.
+    (Not setting it caused some builder timeouts.)
     
-    Change-Id: If81a5cc31c1f28664960bad124cc596f5cab1222
-    Reviewed-on: https://go-review.googlesource.com/18203
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I26061434252ff2a236bb31d95787a1c582d24b3f
+    Reviewed-on: https://go-review.googlesource.com/16295
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/androidtest.bash | 8 ++++++++
+ 1 file changed, 8 insertions(+)

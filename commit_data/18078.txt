@@ -1,18 +1,15 @@
-commit 7f8a5057dd0f471c49910a3f77ded5edf7a72a08
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Dec 19 14:38:50 2013 +1100
+commit 0594f8948904149a907e634d343bf6307903a10b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 18 18:24:55 2013 -0800
 
-    syscall: add NewCallbackCDecl again
+    compress/flate: use io.ByteReader in docs
     
-    Fixes #6338
+    We did this elsewhere when io.ByteReader was added
+    but forgot this one.
     
-    R=golang-dev, kin.wilson.za, rsc
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/36180044
+    https://golang.org/cl/43480052
 
- src/pkg/runtime/callback_windows.c      |   3 +-
- src/pkg/runtime/runtime.h               |   1 +
- src/pkg/runtime/syscall_windows.goc     |   5 -
- src/pkg/runtime/syscall_windows_test.go | 207 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_windows.go      |   3 +-
- 5 files changed, 212 insertions(+), 7 deletions(-)
+ src/pkg/compress/flate/inflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

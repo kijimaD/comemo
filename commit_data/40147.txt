@@ -1,17 +1,29 @@
-commit c1b7f508b0f4db605bfae4216f421bc3ec00de75
-Author: David Chase <drchase@google.com>
-Date:   Thu Oct 3 12:15:14 2019 -0400
+commit 43001a0dc96a29f662f2782c5fb3ca998eadd623
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Apr 10 16:44:46 2019 -0700
 
-    cmd/compile: modify line number printing for nodes
+    cmd/compile: use correct package name for stack object symbol
     
-    add preceding "+" for a line that is certainly a statement,
-    and "_" for a line this is certainly not a statement.
+    Stack object generation code was always using the local package name
+    for its symbol. Normally that doesn't matter, as we usually only
+    compile functions in the local package. But for wrappers, the compiler
+    generates functions which live in other packages. When there are two
+    other packages with identical functions to wrap, the same name appears
+    twice, and the compiler goes boom.
     
-    Change-Id: I831435dbc2302f25db1320b99d3513fe61fe1fa2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198737
-    Run-TryBot: David Chase <drchase@google.com>
+    Fixes #31252
+    
+    Change-Id: I7026eebabe562cb159b8b6046cf656afd336ba25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171464
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go    |  2 +-
+ src/cmd/compile/internal/gc/pgen.go   |  2 +-
+ test/fixedbugs/issue31252.dir/a.go    | 13 +++++++++++++
+ test/fixedbugs/issue31252.dir/b.go    | 13 +++++++++++++
+ test/fixedbugs/issue31252.dir/c.go    | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue31252.dir/main.go | 11 +++++++++++
+ test/fixedbugs/issue31252.go          |  7 +++++++
+ 7 files changed, 72 insertions(+), 2 deletions(-)

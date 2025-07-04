@@ -1,12 +1,17 @@
-commit bad181e2c2e4d7e1bd44899390edc7e8a90086b4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 18 12:47:37 2013 +1100
+commit a664b4945703f2b92a81e4aafc8c6dcaa796296d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 13 21:29:34 2013 -0500
 
-    tag go1.2rc5
+    doc/asm: more about SP, ARM R11
     
-    R=dsymonds
+    Also rename URL to /doc/asm.
+    
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/28150043
+    https://golang.org/cl/26170043
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ doc/asm.html      | 53 +++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/5a/doc.go |  2 +-
+ src/cmd/6a/doc.go |  4 ++--
+ src/cmd/8a/doc.go |  2 +-
+ 4 files changed, 49 insertions(+), 12 deletions(-)

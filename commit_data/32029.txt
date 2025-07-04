@@ -1,12 +1,23 @@
-commit a83d0175a832eae170bee146b0f6743b02fbc59f
-Author: Aditya Mukerjee <dev@chimeracoder.net>
-Date:   Sat Jul 15 16:27:30 2017 -0400
+commit ac99ade5a09a685f20df3b0d62c98cd3de7a575e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 30 13:19:18 2017 -0700
 
-    math/rand: add concurrency warning to overview comment
+    cmd/compile: remove Pkglookup in favor of Lookup
     
-    Change-Id: I52efa7aa72a23256e5ca56470ffeba975ed8f739
-    Reviewed-on: https://go-review.googlesource.com/48760
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Remove one of the many lookup variants.
+    
+    Change-Id: I4095aa030da4227540badd6724bbf50b728fbe93
+    Reviewed-on: https://go-review.googlesource.com/38990
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/math/rand/rand.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go      | 14 +++++++-------
+ src/cmd/compile/internal/gc/closure.go  |  2 +-
+ src/cmd/compile/internal/gc/dcl.go      | 12 ++++++------
+ src/cmd/compile/internal/gc/gen.go      |  2 +-
+ src/cmd/compile/internal/gc/main.go     |  2 +-
+ src/cmd/compile/internal/gc/obj.go      |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go  | 26 +++++++++++++-------------
+ src/cmd/compile/internal/gc/subr.go     | 10 +++-------
+ src/cmd/compile/internal/gc/universe.go | 26 +++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go     |  4 ++--
+ 10 files changed, 49 insertions(+), 53 deletions(-)

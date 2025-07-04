@@ -1,16 +1,17 @@
-commit 8a448ef950b6756fd19d9c42cc9d70b951bcd73f
+commit f45339c1f334432e225f611ee37f6e07d382a7d1
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 31 16:48:18 2013 +0900
+Date:   Sun Mar 31 16:47:26 2013 +0900
 
-    net: update documentation for UnixConn, UnixListener and related stuff
+    net: update documentation for TCPConn, TCPListener and related stuff
     
     Closes the API documentation gap between platforms.
+    Also makes the code textual representation same between platforms.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8063044
+    https://golang.org/cl/8147043
 
- src/pkg/net/unixsock.go       | 2 --
- src/pkg/net/unixsock_plan9.go | 8 +++-----
- src/pkg/net/unixsock_posix.go | 8 +++-----
- 3 files changed, 6 insertions(+), 12 deletions(-)
+ src/pkg/net/tcpsock.go       |  2 --
+ src/pkg/net/tcpsock_plan9.go |  2 --
+ src/pkg/net/tcpsock_posix.go | 53 +++++++++++++++++++++-----------------------
+ 3 files changed, 25 insertions(+), 32 deletions(-)

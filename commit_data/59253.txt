@@ -1,21 +1,23 @@
-commit 58b6891108fa75f5856750e13dff3fa980987f07
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Apr 8 06:43:33 2025 +0000
+commit b8c76effd9a3a30d66e44ed7acea789e4e95b926
+Author: zuojunwei.1024 <zuojunwei.1024@bytedance.com>
+Date:   Tue Feb 27 19:14:00 2024 +0800
 
-    go/ast: don't MergeLine in SortImports when last import on the same line as RParen
+    cmd/compile: mark pointer to noalg type as noalg
     
-    Fixes #69183
+    When the compiler writes PtrToThis field of noalg type, it generates
+    its pointer type. Mark them as noalg to prevent put them in typelinks.
     
-    Change-Id: I8b78dadaa8ba91e74ea2bfc21abd6abe72b7e38b
-    GitHub-Last-Rev: 1a41f9e8e3bef9926993813568902d1a77c991c1
-    GitHub-Pull-Request: golang/go#69187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610035
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Fixes #65957
+    
+    Change-Id: Icbc3b18bc866f9138c7648e42dd500a80326f72b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/go/ast/import.go      | 12 ++++++++----
- src/go/ast/import_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types/type.go |  3 +++
+ test/fixedbugs/issue65957.dir/a.go     | 12 ++++++++++++
+ test/fixedbugs/issue65957.dir/main.go  | 19 +++++++++++++++++++
+ test/fixedbugs/issue65957.go           |  7 +++++++
+ 4 files changed, 41 insertions(+)

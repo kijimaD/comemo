@@ -1,15 +1,21 @@
-commit 416afcb411d7b2fe59d38257bcfe0df3a903919e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 22 17:17:19 2011 -0800
+commit 4a8ea4ae94c5db39f38cd1c8b7d0c8df6dc82f7b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Dec 23 11:07:11 2011 +1100
 
-    testing: add wrapper methods so the godoc output lists all methods
-    To be deleted when godoc catches up.
+    html: Don't ignore whitespace in "after after frameset" mode.
     
-    R=golang-dev, bradfitz
+    Pass tests6.dat, test 46:
+    <html><frameset></frameset></html>
+    
+    | <html>
+    |   <head>
+    |   <frameset>
+    |   " "
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5504079
+    https://golang.org/cl/5505065
 
- src/pkg/testing/Makefile   |   5 ++-
- src/pkg/testing/testing.go |   2 +-
- src/pkg/testing/wrapper.go | 105 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 109 insertions(+), 3 deletions(-)
+ src/pkg/html/parse.go      | 13 +++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

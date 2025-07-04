@@ -1,15 +1,12 @@
-commit b4ac02972f223d22933e603fa4b16c219ec8fae4
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 25 11:07:29 2018 -0700
+commit 15bc0a129ac149ac5130cb06d6bfdbbcc7e24d3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 2 16:37:48 2018 -0800
 
-    cmd/link: fix test flag
+    doc/go1.10: mention new os.IsTimeout function
     
-    Doesn't cause an error, see #25085.
-    But we should fix it nonetheless.
-    
-    Change-Id: I7b6799e0a95475202cacefc3a7f02487e61bfd31
-    Reviewed-on: https://go-review.googlesource.com/109355
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I84fd3912163ca262df5d7d4690c0dd7e136e79ca
+    Reviewed-on: https://go-review.googlesource.com/85938
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.10.html | 4 ++++
+ 1 file changed, 4 insertions(+)

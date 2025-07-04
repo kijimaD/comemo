@@ -1,19 +1,16 @@
-commit 9bea6f3b2cf5efbf4df65293498dd7104c3f3f0f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 10 10:47:30 2013 -0800
+commit 517e49eb290a454791034eb692b696c347f7d74e
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Dec 11 00:03:46 2013 +1100
 
-    test: add some test cases that were miscompiled by gccgo
+    syscall: skip routing messages with mismatched version
     
-    R=golang-dev, r
+    Skip routing messages with a mismatched version, rather than failing
+    and returning EINVAL. Only return EINVAL if we were unable to parse
+    any of the routing messages (presumably due to a version mismatch).
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/40310043
+    https://golang.org/cl/30340043
 
- test/fixedbugs/bug480.dir/a.go    | 17 +++++++++++++++++
- test/fixedbugs/bug480.dir/b.go    | 13 +++++++++++++
- test/fixedbugs/bug480.go          |  9 +++++++++
- test/fixedbugs/bug481.go          | 18 ++++++++++++++++++
- test/fixedbugs/bug482.go          | 20 ++++++++++++++++++++
- test/fixedbugs/issue6789.dir/a.go | 14 ++++++++++++++
- test/fixedbugs/issue6789.dir/b.go | 12 ++++++++++++
- test/fixedbugs/issue6789.go       | 10 ++++++++++
- 8 files changed, 113 insertions(+)
+ src/pkg/syscall/route_bsd.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

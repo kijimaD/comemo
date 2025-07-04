@@ -1,24 +1,24 @@
-commit edf7258416ce152137da41943cbd85b199800674
-Author: Chris Manghane <cmang@golang.org>
-Date:   Thu Dec 18 09:54:32 2014 -0800
+commit 1222cc46824758ed1f6ba9decc27c9d61d963297
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 14 13:58:31 2014 -0500
 
-    test: add fixed GoSmith bugs reported on the gcc Bugzilla
+    [dev.power64] 6g,9g: formatters for Prog and Addr details
     
-    Change-Id: I36b57f3e299a4f96b8b5aa55c9c224d888229684
-    Reviewed-on: https://go-review.googlesource.com/1790
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The pretty printers for these make it hard to understand
+    what's actually in the fields of these structures.  These
+    "ugly printers" show exactly what's in each field, which can
+    be useful for understanding and debugging code.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175780043
 
- test/fixedbugs/gcc61204.go | 17 +++++++++++++++++
- test/fixedbugs/gcc61244.go | 19 +++++++++++++++++++
- test/fixedbugs/gcc61246.go | 17 +++++++++++++++++
- test/fixedbugs/gcc61248.go | 14 ++++++++++++++
- test/fixedbugs/gcc61253.go | 20 ++++++++++++++++++++
- test/fixedbugs/gcc61254.go | 13 +++++++++++++
- test/fixedbugs/gcc61255.go | 13 +++++++++++++
- test/fixedbugs/gcc61258.go | 13 +++++++++++++
- test/fixedbugs/gcc61264.go | 13 +++++++++++++
- test/fixedbugs/gcc61265.go | 16 ++++++++++++++++
- test/fixedbugs/gcc61273.go | 16 ++++++++++++++++
- 11 files changed, 171 insertions(+)
+ src/cmd/5l/5.out.h     |  2 ++
+ src/cmd/6l/6.out.h     |  2 ++
+ src/cmd/8l/8.out.h     |  2 ++
+ src/cmd/9l/9.out.h     |  2 ++
+ src/cmd/dist/buildgc.c |  4 +++-
+ src/liblink/list6.c    | 38 ++++++++++++++++++++++++++++++++++++++
+ src/liblink/list9.c    | 41 +++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 90 insertions(+), 1 deletion(-)

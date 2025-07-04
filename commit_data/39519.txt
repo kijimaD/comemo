@@ -1,26 +1,17 @@
-commit 6bf2767cc87f9f6a1b85cdc18c656fade735f27f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 2 17:03:27 2019 -0400
+commit c74659290a473cf932ec6bc96bfa7e96a930676e
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Mar 5 03:10:38 2019 +0800
 
-    cmd/go: tighten the check for pseudo-version base tags
+    os: remove unreadable directories in RemoveAll
     
-    Do not allow a pseudo-version derived from a canonical tag to refer to
-    the same revision as the tag itself. It's unnecessary (because
-    canonical tags already have a total ordering) and confusing (the
-    pseudo-version appears to come after the tag, but actually refers to
-    the exact same revision).
+    Fixes #30555
     
-    Updates #32879
-    Updates #27173
-    
-    Change-Id: I02befedbe89c8819bdd93e470783ce63fc813193
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184720
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib894b4f3cdba23a18a69c9470cf69ceb83591a4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165057
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.13.html                                    |  6 +++--
- src/cmd/go/internal/modfetch/coderepo.go           | 30 ++++++++++++++++++----
- src/cmd/go/internal/modfetch/coderepo_test.go      | 22 +++++++++++++++-
- src/cmd/go/testdata/script/mod_invalid_version.txt | 18 ++++++++++---
- 4 files changed, 64 insertions(+), 12 deletions(-)
+ src/os/removeall_at.go   |  3 ++-
+ src/os/removeall_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

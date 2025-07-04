@@ -1,28 +1,18 @@
-commit 94e9a5e19b831504eca2b7202b78d1a48c4be547
-Author: Roberto Clapis <robclap8@gmail.com>
-Date:   Mon Nov 18 10:05:07 2019 +0100
+commit 2d1a1e0a2a5d2be7614fa7ec9be7ec9ed72bc820
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Aug 2 19:09:20 2019 +0200
 
-    text/template: harden JSEscape to also escape ampersand and equal
+    doc: fix Block interface parameters order
     
-    Ampersand and equal are not dangerous in a JS/JSString context
-    but they might cause issues if interpolated in HTML attributes.
+    The Effective Go document references the crypto/cipher Block
+    interface, but the parameters' names are swapped. This change
+    alignes them to the crypto definition, to avoid confusion.
     
-    This change makes it harder to introduce XSS by misusing
-    escaping.
+    Fixes #33432
     
-    Thanks to t1ddl3r <t1ddl3r@gmail.com> for reporting this common
-    misuse scenario.
-    
-    Fixes #35665
-    
-    Change-Id: Ice6416477bba4cb2ba2fe2cfdc20e027957255c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207637
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I8b9aac4dc6af3eec968bbc8f3ee5366b99016fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/html/template/example_test.go | 6 +++---
- src/text/template/exec_test.go    | 2 ++
- src/text/template/funcs.go        | 8 +++++++-
- 3 files changed, 12 insertions(+), 4 deletions(-)
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

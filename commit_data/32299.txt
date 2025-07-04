@@ -1,12 +1,16 @@
-commit 20832e6d4be0271eb6e3d05a0be9ec3f611b6ca4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 1 17:33:15 2017 +1000
+commit 48163968b2927247213fca7a6f4678d3c93855dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 15:21:02 2017 -0700
 
-    cmd/link: introduce and use peFile and peStringTable
+    cmd/compile: remove uses of types.Dclstack - not needed anymore
     
-    Change-Id: Icd13b32d35cde474c9292227471f916a64af88eb
-    Reviewed-on: https://go-review.googlesource.com/55257
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Follow-up on https://go-review.googlesource.com/#/c/39998/.
+    
+    Change-Id: I8830eebd7ea7e02b7edda99e67b6d43529401201
+    Reviewed-on: https://go-review.googlesource.com/40974
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 57 ++++++++++++++++++++++++++++++------------
- 1 file changed, 41 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go  |  4 +---
+ src/cmd/compile/internal/gc/noder.go    |  4 ----
+ src/cmd/compile/internal/types/scope.go | 18 +++++++++---------
+ 3 files changed, 10 insertions(+), 16 deletions(-)

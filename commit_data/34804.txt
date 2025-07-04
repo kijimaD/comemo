@@ -1,46 +1,16 @@
-commit ce1252a6109ad81840ba7c0c69138175b093d107
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 2 15:38:57 2018 -0700
+commit da21113b0c1d1b2979657d78320c31ffcb3c2c92
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 8 11:06:09 2017 -0800
 
-    cmd/compile: simplify exportsym flags and logic
+    cmd/go: add dependencies for implicit SWIG imports
     
-    We used to have three Sym flags for dealing with export/reexport:
-    Export, Package, and Exported.
+    This fixes the misc/swig tests.
     
-    Export and Package were used to distinguish whether a symbol is
-    exported or package-scope (i.e., mutually exclusive), except that for
-    local declarations Export served double-duty as tracking whether the
-    symbol had been added to exportlist.
-    
-    Meanwhile, imported declarations that needed reexporting could be
-    added to exportlist multiple times, necessitating a flag to track
-    whether they'd already been written out by exporter.
-    
-    Simplify all of these into a single OnExportList flag so that we can
-    ensure symbols on exportlist are present exactly once. Merge
-    reexportsym into exportsym so there's a single place where we append
-    to exportlist.
-    
-    Code that used to set Exported to prevent a symbol from being exported
-    can now just set OnExportList before calling declare to prevent it
-    from even appearing on exportlist.
-    
-    Lastly, drop the IsAlias check in exportsym: we call exportsym too
-    early for local symbols to detect if they're an alias, and we never
-    reexport aliases.
-    
-    Passes toolstash-check.
-    
-    Change-Id: Icdea3719105dc169fcd7651606589cd08b0a80ff
-    Reviewed-on: https://go-review.googlesource.com/103865
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I60c87bbd361fe8b4f69e4507b25dc99a226da3d7
+    Reviewed-on: https://go-review.googlesource.com/76610
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 17 ----------
- src/cmd/compile/internal/gc/closure.go |  4 +--
- src/cmd/compile/internal/gc/export.go  | 59 ++++++----------------------------
- src/cmd/compile/internal/gc/inl.go     |  2 +-
- src/cmd/compile/internal/gc/subr.go    |  2 +-
- src/cmd/compile/internal/types/sym.go  | 28 +++++++---------
- 6 files changed, 25 insertions(+), 87 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,30 +1,132 @@
-commit 185e1a7b27767f1c429fdde19a71ad57909a7924
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Dec 5 13:02:22 2022 -0500
+commit 74d25c624c01d8deefaf37ee7edb41980d0d5912
+Merge: e14fee553a c856fbf361
+Author: Chressie Himpel <chressie@google.com>
+Date:   Tue Feb 8 10:31:51 2022 +0100
 
-    runtime: prioritize VDSO and libcall unwinding in profiler
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    In the profiler, when unwinding the stack, we have special
-    handling for VDSO calls. Currently, the special handling is only
-    used when the normal unwinding fails. If the signal lands in the
-    function that makes the VDSO call (e.g. nanotime1) and after the
-    stack switch, the normal unwinding doesn't fail but gets a stack
-    trace with exactly one frame (the nanotime1 frame). The stack
-    trace stops because of the stack switch. This 1-frame stack trace
-    is not as helpful. Instead, if vdsoSP is set, we know we are in
-    VDSO call or right before or after it, so use vdsoPC and vdsoSP
-    for unwinding. Do the same for libcall.
-    
-    Also remove _TraceTrap for VDSO unwinding, as vdsoPC and vdsoSP
-    correspond to a call, not an interrupted instruction.
-    
-    Fixes #56574.
-    
-    Change-Id: I799aa7644d0c1e2715ab038a9eef49481dd3a7f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455166
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If6b68df0c90464566e68de6807d15f4b8bec6219
 
- src/runtime/proc.go | 46 +++++++++++++++++++++-------------------------
- 1 file changed, 21 insertions(+), 25 deletions(-)
+ api/go1.18.txt                                     |    6 -
+ doc/go1.18.html                                    |   89 +-
+ misc/cgo/errors/badsym_test.go                     |    4 +
+ misc/cgo/test/test.go                              |    5 +
+ misc/cgo/testcarchive/carchive_test.go             |   30 +-
+ misc/cgo/testcshared/cshared_test.go               |    3 +
+ src/cmd/compile/internal/typecheck/subr.go         |    1 +
+ src/cmd/compile/internal/types2/api_test.go        |   58 +
+ src/cmd/compile/internal/types2/builtins.go        |   13 +-
+ src/cmd/compile/internal/types2/builtins_test.go   |    6 +-
+ src/cmd/compile/internal/types2/errors.go          |    7 +-
+ src/cmd/compile/internal/types2/expr.go            |  209 ++-
+ src/cmd/compile/internal/types2/infer.go           |   24 +-
+ src/cmd/compile/internal/types2/instantiate.go     |   31 +-
+ src/cmd/compile/internal/types2/lookup.go          |  199 ++-
+ src/cmd/compile/internal/types2/methodlist.go      |   12 +-
+ src/cmd/compile/internal/types2/named.go           |    4 +-
+ src/cmd/compile/internal/types2/predicates.go      |   18 +-
+ src/cmd/compile/internal/types2/stmt.go            |   18 +-
+ .../internal/types2/testdata/check/expr2.src       |   28 +-
+ .../internal/types2/testdata/check/issues.src      |   48 +-
+ .../internal/types2/testdata/check/stmt0.src       |    2 +-
+ .../types2/testdata/fixedbugs/issue43110.src       |    2 +-
+ .../types2/testdata/fixedbugs/issue47818.go2       |    4 -
+ .../types2/testdata/fixedbugs/issue48712.go2       |   22 +-
+ .../types2/testdata/fixedbugs/issue49005.go        |    5 +-
+ .../types2/testdata/fixedbugs/issue49579.go2       |    2 +-
+ .../types2/testdata/fixedbugs/issue49705.go2       |    7 +-
+ .../types2/testdata/fixedbugs/issue50816.go2       |    4 +-
+ .../types2/testdata/fixedbugs/issue50918.go        |   21 +
+ .../types2/testdata/fixedbugs/issue50965.go        |   17 +
+ .../types2/testdata/fixedbugs/issue51048.go2       |   11 +
+ .../internal/types2/testdata/spec/comparisons.go2  |  120 ++
+ src/cmd/compile/internal/types2/typeparam.go       |    5 +-
+ src/cmd/compile/internal/types2/typeset.go         |    7 +-
+ src/cmd/dist/test.go                               |    4 +-
+ src/cmd/go/internal/modfetch/coderepo.go           |  216 ++-
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  301 ++--
+ src/cmd/go/internal/modload/init.go                |    3 +
+ src/cmd/go/internal/work/security.go               |    1 +
+ src/cmd/go/internal/work/security_test.go          |    1 +
+ src/cmd/go/internal/workcmd/edit.go                |   26 +-
+ src/cmd/go/internal/workcmd/sync.go                |    6 +-
+ src/cmd/go/internal/workcmd/use.go                 |    3 +
+ src/cmd/go/script_test.go                          |    2 +
+ src/cmd/go/testdata/script/mod_invalid_version.txt |   10 +-
+ src/cmd/go/testdata/script/work_nowork.txt         |   20 +
+ src/cmd/go/testdata/script/work_use_issue50958.txt |   17 +
+ src/constraints/constraints.go                     |   50 -
+ src/constraints/constraints_test.go                |  117 --
+ src/crypto/elliptic/elliptic.go                    |    5 +
+ src/crypto/elliptic/elliptic_test.go               |   55 +
+ src/crypto/elliptic/gen_p256_table.go              |   47 +-
+ src/crypto/elliptic/p224.go                        |    3 +
+ src/crypto/elliptic/p256_asm.go                    |    4 +
+ src/crypto/elliptic/p256_asm_table.bin             |  Bin 0 -> 88064 bytes
+ src/crypto/elliptic/p256_asm_table.go              | 1430 --------------------
+ src/crypto/elliptic/p384.go                        |    3 +
+ src/crypto/elliptic/p521.go                        |    3 +
+ src/crypto/x509/parser.go                          |   13 +-
+ src/crypto/x509/parser_test.go                     |  102 ++
+ src/go/build/deps_test.go                          |    2 +-
+ src/go/parser/parser.go                            |   25 +-
+ src/go/parser/resolver.go                          |   93 +-
+ src/go/parser/short_test.go                        |   30 +-
+ src/go/parser/testdata/issue50427.go2              |   19 +
+ src/go/parser/testdata/resolution/typeparams.go2   |   10 +-
+ src/go/types/api_test.go                           |   58 +
+ src/go/types/builtins.go                           |   13 +-
+ src/go/types/builtins_test.go                      |    6 +-
+ src/go/types/errorcodes.go                         |    5 +-
+ src/go/types/errors.go                             |    9 +-
+ src/go/types/example_test.go                       |    2 +-
+ src/go/types/expr.go                               |  212 ++-
+ src/go/types/infer.go                              |   24 +-
+ src/go/types/instantiate.go                        |   35 +-
+ src/go/types/lookup.go                             |  179 ++-
+ src/go/types/methodlist.go                         |    9 +-
+ src/go/types/named.go                              |    4 +-
+ src/go/types/predicates.go                         |   18 +-
+ src/go/types/stmt.go                               |   18 +-
+ src/go/types/testdata/check/expr2.src              |   28 +-
+ src/go/types/testdata/check/issues.src             |   48 +-
+ src/go/types/testdata/check/stmt0.src              |    2 +-
+ src/go/types/testdata/check/typeparams.go2         |   37 +-
+ src/go/types/testdata/fixedbugs/issue39634.go2     |    2 +-
+ src/go/types/testdata/fixedbugs/issue43110.src     |    2 +-
+ src/go/types/testdata/fixedbugs/issue47818.go2     |    4 -
+ src/go/types/testdata/fixedbugs/issue48712.go2     |   22 +-
+ src/go/types/testdata/fixedbugs/issue49005.go      |   31 +
+ src/go/types/testdata/fixedbugs/issue49579.go2     |    2 +-
+ src/go/types/testdata/fixedbugs/issue49705.go2     |    7 +-
+ src/go/types/testdata/fixedbugs/issue50427.go2     |   23 +
+ src/go/types/testdata/fixedbugs/issue50816.go2     |    4 +-
+ src/go/types/testdata/fixedbugs/issue50918.go      |   21 +
+ src/go/types/testdata/fixedbugs/issue50965.go      |   17 +
+ src/go/types/testdata/fixedbugs/issue51048.go2     |   11 +
+ src/go/types/testdata/spec/comparisons.go2         |  120 ++
+ src/go/types/typeparam.go                          |    6 +-
+ src/go/types/typeset.go                            |    7 +-
+ src/internal/fuzz/fuzz.go                          |    6 +-
+ src/internal/nettrace/nettrace.go                  |    2 +-
+ src/net/netip/netip.go                             |    2 +-
+ src/net/udpsock_test.go                            |    9 +-
+ src/os/tempfile.go                                 |    2 +-
+ src/runtime/crash_cgo_test.go                      |   16 +
+ src/runtime/mbarrier.go                            |    2 +-
+ src/runtime/mbitmap.go                             |   12 +-
+ src/runtime/mgcpacer.go                            |    3 +-
+ src/runtime/slice.go                               |    2 +-
+ src/runtime/symtab.go                              |    2 +-
+ src/runtime/syscall_windows.go                     |    2 +-
+ src/runtime/testdata/testprogcgo/aprof.go          |    7 +-
+ src/runtime/testdata/testprogcgo/pprof_callback.go |   89 ++
+ src/testing/testing.go                             |    3 +-
+ test/fixedbugs/issue11737.go                       |    2 +-
+ test/fixedbugs/issue46234.go                       |    3 +-
+ test/run.go                                        |   14 +
+ test/typeparam/issue50121.dir/a.go                 |    8 +-
+ test/typeparam/issue50121b.dir/a.go                |    9 +-
+ test/typeparam/issue50193.go                       |   11 +-
+ test/typeparam/issue50993.go                       |   35 +
+ 122 files changed, 2240 insertions(+), 2650 deletions(-)

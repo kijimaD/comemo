@@ -1,33 +1,35 @@
-commit 7e97e4e8ccdba9677f31ab9380802cd7613f62c5
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Fri Mar 26 19:27:22 2021 -0700
+commit 41162be44a099803a870f9b6c147050594598d63
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 12 15:32:49 2020 -0400
 
-    syscall: syscall.AllThreadsSyscall signal handling fixes
+    cmd/go/internal/modload: avoid using the global build list in QueryPattern
     
-    The runtime support for syscall.AllThreadsSyscall() functions had
-    some corner case deadlock issues when signal handling was in use.
-    This was observed in at least 3 build test failures on ppc64 and
-    amd64 architecture CGO_ENABLED=0 builds over the last few months.
+    The Query function allows the caller to specify the current version of
+    the requested module, but the QueryPattern function is missing that
+    parameter: instead, it always assumes that the current version is the
+    one selected from the global build list.
     
-    The fixes involve more controlled handling of signals while the
-    AllThreads mechanism is being executed. Further details are
-    discussed in bug #44193.
+    This change removes that assumption, instead adding a callback
+    function to determine the current version. (The callback is currently
+    invoked once per candidate module, regardless of whether that module
+    exists, but in a future change we can refactor it to invoke the
+    callback only when needed.)
     
-    The all-threads syscall support is new in go1.16, so earlier
-    releases are not affected by this bug.
+    For #36460
+    For #40775
     
-    Fixes #44193
-    
-    Change-Id: I01ba8508a6e1bb2d872751f50da86dd07911a41d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305149
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I001a4a8ab24f5b4fcc66a670d9bd305b47e948ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261640
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/os/signal/signal_test.go | 42 +++++++++++++++++++++++++++++++++++
- src/runtime/proc.go          | 52 ++++++++++++++++++++++++++++++++++++++++----
- src/runtime/runtime2.go      |  7 ++++--
- src/runtime/sigqueue.go      |  2 +-
- 4 files changed, 96 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/modget/get.go        |  2 +-
+ src/cmd/go/internal/modload/buildlist.go | 15 +++++++++++++++
+ src/cmd/go/internal/modload/import.go    |  2 +-
+ src/cmd/go/internal/modload/modfile.go   |  2 +-
+ src/cmd/go/internal/modload/query.go     | 15 +++------------
+ src/cmd/go/internal/work/build.go        |  2 +-
+ 6 files changed, 22 insertions(+), 16 deletions(-)

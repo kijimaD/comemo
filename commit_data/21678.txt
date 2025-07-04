@@ -1,19 +1,33 @@
-commit 89a091de2405d0b03c015a322ac27bc749aaca8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 19 16:43:27 2015 -0500
+commit 5288fadbdc1b81993c51d5044035144fccebd75e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Dec 12 18:41:57 2014 +0100
 
-    runtime: split gc_m into gcMark and gcSweep
+    runtime: add tracing of runtime events
     
-    This is a nice split but more importantly it provides a better
-    way to fit the checkmark phase into the sequencing.
+    Add actual tracing of interesting runtime events.
+    Part of a larger tracing functionality:
+    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
+    Full change:
+    https://codereview.appspot.com/146920043
     
-    Also factor out common span copying into gcSpanCopy.
-    
-    Change-Id: Ia058644974e4ed4ac3cf4b017a3446eb2284d053
-    Reviewed-on: https://go-review.googlesource.com/5333
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Icccf54aea54e09350bb698ba6bf11532f9fbe6d3
+    Reviewed-on: https://go-review.googlesource.com/1451
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go      | 156 +++++++++++++++++++-----------------------------
- src/runtime/mgcmark.go  |  22 +++----
- src/runtime/mgcsweep.go |  14 ++---
- 3 files changed, 76 insertions(+), 116 deletions(-)
+ src/runtime/chan.go     |  12 +--
+ src/runtime/malloc.go   |  11 +++
+ src/runtime/malloc1.go  |   3 +
+ src/runtime/mfinal.go   |   2 +-
+ src/runtime/mgc.go      |  28 +++++++
+ src/runtime/mgc0.go     |   4 +-
+ src/runtime/mheap.go    |   6 ++
+ src/runtime/netpoll.go  |   4 +-
+ src/runtime/proc.go     |  11 +--
+ src/runtime/proc1.go    | 189 ++++++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/runtime2.go |   2 +
+ src/runtime/select.go   |   4 +-
+ src/runtime/sema.go     |   6 +-
+ src/runtime/stack1.go   |   2 +-
+ src/runtime/time.go     |   4 +-
+ src/runtime/trace.go    |   2 +-
+ 16 files changed, 252 insertions(+), 38 deletions(-)

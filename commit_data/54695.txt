@@ -1,19 +1,49 @@
-commit cc13161a0d62fc1deab019996c17a7da1ff6a7f1
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Oct 12 15:55:54 2023 +0000
+commit be9d78c9c5905fbc10d8cd6a4714dd4ad1c91674
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Oct 19 14:41:03 2022 -0700
 
-    encoding/xml: use reflect.Value.IsZero
+    path/filepath: detect all forms of \\ volume paths on Windows
     
-    IsZero does the same thing, using this rather than writing it again.
+    Previously, the volumeNameLen function checked for UNC paths starting
+    with two slashes, a non-'.' character, and another slash. This misses
+    volume names such as "\\.\C:\".
     
-    Change-Id: I62810ac2d1a6e189feac03b022c8931fb6993e19
-    GitHub-Last-Rev: 1d5fd10d96baf75e8b170a2c71949ff3d0884c46
-    GitHub-Pull-Request: golang/go#63519
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534935
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    The previous check for volume names rejects paths beginning
+    with "\\.". This is incorrect, because while these names are not
+    UNC paths, "\\.\C:\" is a DOS device path prefix indicating the
+    C: device. It also misses UNC path prefixes in the form
+    "\\.\UNC\server\share\".
+    
+    The previous check for UNC paths also rejects any path with an
+    empty or missing host or share component. This leads to a number
+    of possibly-incorrect behaviors, such as Clean(`\\a`) returning `\a`.
+    Converting the semantically-significant `\\` prefix to a single `\`
+    seems wrong.
+    
+    Consistently treat paths beginning with two separators as having
+    a volume prefix.
+    
+    Update VolumeName to detect DOS device paths (`\\.\` or `\\?\`),
+    DOS device paths linking to UNC paths (`\\.\UNC\Server\Share`
+    or `\\?\UNC\Server\Share`), and UNC paths (`\\Server\Share\`).
+    
+            Clean(`\\a`) = `\\a`
+            Join(`\\`, `a`, `b`) = `\\a\b`
+    
+    In addition, normalize path separators in VolumeName for consistency
+    with other functions which Clean their result.
+    
+    Fixes #56336
+    
+    Change-Id: Id01c33029585bfffc313dcf0ad42ff6ac7ce42fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444280
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/encoding/xml/marshal.go | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ src/path/filepath/path.go              |   4 +-
+ src/path/filepath/path_test.go         |  83 +++++++++++++++++--------
+ src/path/filepath/path_windows.go      | 110 ++++++++++++++++++++++-----------
+ src/path/filepath/path_windows_test.go |  20 ++++++
+ 4 files changed, 153 insertions(+), 64 deletions(-)

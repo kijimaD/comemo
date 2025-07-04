@@ -1,19 +1,23 @@
-commit 4651c0c6d9239514715123f0788d4c2c769130f7
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Sep 8 19:28:58 2023 -0400
+commit 0ae042f977942a60d7955bc10bf654835e47e12a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 10 14:07:10 2022 -0700
 
-    cmd/compile/internal/inline/inlheur: delete ConstExpr case
+    debug/elf: validate phentsize and shentsize
     
-    ir.ConstExpr was deleted in CL 526395, so no need to check for it.
-    Fixes the build error.
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
     
-    Change-Id: I642dab70d17369bc7c9ae880666ef42ff099b770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526196
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #56129
+    
+    Change-Id: I6c81933781384c5e2c8ba0fd99cec50455b9664a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441976
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/inline/inlheur/eclassify.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/debug/elf/file.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

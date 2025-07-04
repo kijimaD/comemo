@@ -1,0 +1,17 @@
+commit 7372b64425eda6725fb84be71d6a3c4415b35d0d
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Mar 22 01:15:22 2025 +0000
+
+    net/url: document referenced RFCs
+    
+    Fixes #30611
+    
+    Change-Id: If933c2a7e63d89402d2034618057ad546cf9641b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660077
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/url/url.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

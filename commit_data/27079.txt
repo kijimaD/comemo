@@ -1,25 +1,23 @@
-commit d32229b3b1edd3d3b1e2dbb61bd6ae7cd8400d56
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 22 12:15:08 2016 -0400
+commit 92dfc12610853d48b7a67912c771cd813371365f
+Author: Paul Marks <pmarks@google.com>
+Date:   Wed Mar 9 14:49:39 2016 -0800
 
-    cmd/compile: in a Tarjan algorithm, DFS should really be DFS
+    net: slowDialTCP should wait forever if no deadline exists.
     
-    Replaced incorrect recursion-free rendering of DFS with
-    something that was correct.  Enhanced test with all
-    permutations of IF successors to ensure that all possible
-    DFS traversals are exercised.
+    This allows TestDialerFallbackDelay to pass again on machines where IPv6
+    connections to nowhere fail quickly instead of hanging.
     
-    Test is improved version of
-    https://go-review.googlesource.com/#/c/22334
+    This bug appeared last month, when I deleted the slowTimeout constant.
     
-    Update 15084.
+    Updates #11225
+    Fixes #14731
     
-    Change-Id: I6e944c41244e47fe5f568dfc2b360ff93b94079e
-    Reviewed-on: https://go-review.googlesource.com/22347
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I840011eee571aab1041022411541736111c7fad5
+    Reviewed-on: https://go-review.googlesource.com/20493
+    Run-TryBot: Paul Marks <pmarks@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/compile/internal/ssa/dom.go      | 39 +++++++++++++++------------
- src/cmd/compile/internal/ssa/dom_test.go | 45 ++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/id.go       |  2 +-
- 3 files changed, 68 insertions(+), 18 deletions(-)
+ src/net/dial_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

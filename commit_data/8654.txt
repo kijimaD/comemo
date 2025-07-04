@@ -1,13 +1,15 @@
-commit bac24da2acec0fc3a6ef4c0243ac103e7a031de9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 7 21:49:24 2011 -0700
+commit 5c32c96f5cd624a4ab4cde4b8e4abd3dbe9be4a6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 8 13:32:47 2011 +1000
 
-    A+C: Jonathan Mark (individual CLA)
+    mail: format addresseses correctly.
     
-    R=adg, rsc
+    Also remove an obsolete TODO while I'm here.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4595042
+    https://golang.org/cl/4588041
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/mail/message.go      | 60 ++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/mail/message_test.go | 27 ++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 5 deletions(-)

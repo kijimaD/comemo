@@ -1,24 +1,29 @@
-commit 4ad72feb920f3fb613e47e72fd34909b9e7fbc83
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 1 17:08:15 2023 -0800
+commit 9ccf5b8e86ce98494a2127196fbc47d72b0a71a5
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Apr 8 13:50:00 2022 -0500
 
-    go/types, types2: disentangle convoluted logic for missing method cause
+    runtime: improve memmove for ppc64x
     
-    Use a state to exactly track lookup results. In case of lookup failure,
-    use the state to directly report the cause instead of trying to guess
-    from the missing and alternative method.
+    This improves performance of memmove for larger moves by
+    unrolling the main loop from 32 byte to 64 byte moves.
     
-    Addresses a TODO (incorrect error message).
+    The improvement of the relevant sizes on a power9:
     
-    Change-Id: I50902752deab741f8199a09fd1ed29286cf5be42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472637
+    Memmove/64      5.11ns ± 0%    5.00ns ± 0%   -2.21%
+    Memmove/128     8.26ns ± 0%    5.88ns ± 0%  -28.83%
+    Memmove/256     12.7ns ± 0%     8.6ns ± 0%  -31.94%
+    Memmove/512     17.9ns ± 0%    14.3ns ± 0%  -19.87%
+    Memmove/1024    33.3ns ± 0%    27.0ns ± 0%  -18.92%
+    Memmove/2048    72.1ns ± 0%    51.8ns ± 0%  -28.25%
+    Memmove/4096     126ns ± 0%     110ns ± 0%  -12.63%
+    
+    
+    Change-Id: I74162a9f152d7752a8281da1b89a66da99a3fdc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399499
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/lookup.go         | 169 ++++++++++++----------
- src/go/types/lookup.go                            | 169 ++++++++++++----------
- src/internal/types/testdata/examples/inference.go |   3 +-
- 3 files changed, 179 insertions(+), 162 deletions(-)
+ src/runtime/memmove_ppc64x.s | 56 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 39 insertions(+), 17 deletions(-)

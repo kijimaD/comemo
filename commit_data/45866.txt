@@ -1,13 +1,16 @@
-commit c309c89db5aa15e1dad486c49ed4fd1babd23360
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jun 24 10:44:39 2021 -0700
+commit f6dcc975f7207340ad11d9296c42e7730ecf1f9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 17:26:22 2020 -0800
 
-    reflect: document that InterfaceData is a low-entropy RNG
+    go/constant: make constant.Make produce "smallest" const representation
     
-    Change-Id: Ie26b9060630e2e774ac23d8492eaaf785bfca6b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330709
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Fixes #42640.
+    
+    Change-Id: I22b8142b0a47a0f957d1bda28cdfdbb8388cffc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273086
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/value.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/go/constant/value.go      |  6 +++---
+ src/go/constant/value_test.go | 34 ++++++++++++++++++++++++----------
+ 2 files changed, 27 insertions(+), 13 deletions(-)

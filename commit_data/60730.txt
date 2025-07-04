@@ -1,0 +1,27 @@
+commit 755c18ecdfe64df060be91fb669ca1a68527830b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 21 14:38:30 2024 +0000
+
+    unique: use TypeFor instead of TypeOf to get type in Make
+    
+    Currently the first thing Make does it get the abi.Type of its argument,
+    and uses abi.TypeOf to do it. However, this has a problem for interface
+    types, since the type of the value stored in the interface value will
+    bleed through. This is a classic reflection mistake.
+    
+    Fix this by implementing and using a generic TypeFor which matches
+    reflect.TypeFor. This gets the type of the type parameter, which is far
+    less ambiguous and error-prone.
+    
+    Fixes #68990.
+    
+    Change-Id: Idd8d9a1095ef017e9cd7c7779314f7d4034f01a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607355
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/abi/type.go  | 9 +++++++++
+ src/unique/clone_test.go  | 2 +-
+ src/unique/handle.go      | 2 +-
+ src/unique/handle_test.go | 3 ++-
+ 4 files changed, 13 insertions(+), 3 deletions(-)

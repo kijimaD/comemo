@@ -1,20 +1,23 @@
-commit ae3f98c51b2790f6f3a600ff465255417e3d865d
-Author: An Long <aisk1988@gmail.com>
-Date:   Fri Mar 6 23:31:35 2020 +0000
+commit 4c9e757daf813fcc02802d0ff014afa24df56f6e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 14 09:00:14 2019 -0400
 
-    mime: add .json to built-in list of MIME types
+    test: revise testcase for new gccgo compiler bug
     
-    Since json is popular and mime package's builtin type does not contain
-    it, and some Linux distributions do not contain the '/etc/mime.types' file
-    with minimal installations.
+    Add to the testcase originally created for issue 34577 so
+    as to also trigger the error condition for issue 34852 (the
+    two bugs are closely related).
     
-    Change-Id: I933393c82be296ef176206c253f4dd19b6f33bb1
-    GitHub-Last-Rev: ce4eae56a4d468631555dc85e0e7ab4bbd0ef45d
-    GitHub-Pull-Request: golang/go#34737
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199657
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Updates #34577.
+    Updates #34852.
+    
+    Change-Id: I2347369652ce500184347606b2bb3e76d802b204
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201017
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/mime/type.go | 1 +
- 1 file changed, 1 insertion(+)
+ test/fixedbugs/issue34577.dir/a.go | 13 +++++++++++++
+ test/fixedbugs/issue34577.dir/b.go |  4 ++++
+ 2 files changed, 17 insertions(+)

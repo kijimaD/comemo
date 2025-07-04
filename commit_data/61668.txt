@@ -1,0 +1,62 @@
+commit fe7d97d0322c283462b38c0f53bc340b642fe1cb
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Oct 30 19:11:49 2024 +0800
+
+    cmd/compile, internal/runtime/atomic: add Xchg8 for loong64
+    
+    In Loongson's new microstructure LA664 (Loongson-3A6000) and later, the atomic
+    instruction AMSWAP[DB]{B,H} [1] is supported. Therefore, the implementation of
+    the atomic operation exchange can be selected according to the CPUCFG flag LAM_BH:
+    AMSWAPDBB(full barrier) instruction is used on new microstructures, and traditional
+    LL-SC is used on LA464 (Loongson-3A5000) and older microstructures. This can
+    significantly improve the performance of Go programs on new microstructures.
+    
+    Because Xchg8 implemented using traditional LL-SC uses too many temporary
+    registers, it is not suitable for intrinsics.
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000 @ 2500.00MHz
+    BenchmarkXchg8                  100000000               10.41 ns/op
+    BenchmarkXchg8-2                100000000               10.41 ns/op
+    BenchmarkXchg8-4                100000000               10.41 ns/op
+    BenchmarkXchg8Parallel          96647592                12.41 ns/op
+    BenchmarkXchg8Parallel-2        58376136                20.60 ns/op
+    BenchmarkXchg8Parallel-4        78458899                17.97 ns/op
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000-HV @ 2500.00MHz
+    BenchmarkXchg8                  38323825                31.23 ns/op
+    BenchmarkXchg8-2                38368219                31.23 ns/op
+    BenchmarkXchg8-4                37154156                31.26 ns/op
+    BenchmarkXchg8Parallel          37908301                31.63 ns/op
+    BenchmarkXchg8Parallel-2        30413440                39.42 ns/op
+    BenchmarkXchg8Parallel-4        30737626                39.03 ns/op
+    
+    For #69735
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
+    
+    Change-Id: I02ba68f66a2210b6902344fdc9975eb62de728ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623058
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go            |  9 +++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  1 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  5 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 17 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  3 ++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 35 ++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  1 +
+ src/internal/runtime/atomic/atomic_loong64.go      |  3 ++
+ src/internal/runtime/atomic/atomic_loong64.s       | 38 ++++++++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go          |  2 +-
+ 10 files changed, 113 insertions(+), 1 deletion(-)

@@ -1,23 +1,20 @@
-commit 5a2771e286433c64a20fbe5ae6252080418dfa5c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 26 15:14:23 2015 -0500
+commit a456801615223d11ef7252180af46ed79b0a6ab8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 31 15:45:46 2014 +0900
 
-    cmd/gc, cmd/ld, liblink: update for portable Prog, Addr changes
+    net: remove redundant test case for lookupIP with threadLimit
     
-    Change-Id: Ia6f8badca56565b9df80c8dbe28c47f6cf7e653f
-    Reviewed-on: https://go-review.googlesource.com/3515
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    There is no reason to have the redundant test case TestDNSThreadLimt
+    because TestLookupIPDeadline does cover what we need to test with
+    -dnsflood flag and more.
+    
+    Also this CL moves TestLookupIPDeadline into lookup_test.go to avoid
+    abusing to control the order of test case execution by using file name.
+    
+    Change-Id: Ib417d7d3411c59d9352c03c996704d584368dc62
+    Reviewed-on: https://go-review.googlesource.com/2204
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/gc/align.c    |  2 +-
- src/cmd/gc/go.h       |  4 ----
- src/cmd/gc/pgen.c     |  2 +-
- src/cmd/gc/plive.c    | 18 +++++++++++-------
- src/cmd/gc/popt.c     | 10 +++++-----
- src/cmd/ld/dwarf.c    |  2 +-
- src/cmd/ld/lib.c      |  4 ++--
- src/liblink/data.c    |  8 ++++----
- src/liblink/objfile.c | 26 +++++++++++---------------
- src/liblink/pass.c    |  6 +++---
- src/liblink/pcln.c    |  2 +-
- 11 files changed, 40 insertions(+), 44 deletions(-)
+ src/net/lookup_test.go | 65 +++++++++++++++++++++++++++++++++
+ src/net/z_last_test.go | 99 --------------------------------------------------
+ 2 files changed, 65 insertions(+), 99 deletions(-)

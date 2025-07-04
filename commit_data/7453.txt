@@ -1,13 +1,15 @@
-commit b9f94768f90dfc7f5d4bf7cf9ccf64b9190d0e93
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 14 09:27:02 2011 -0500
+commit 6b526eb300ad607fbe12f2f779d5c1639cefe109
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 13 19:27:02 2011 -0800
 
-    build: run test/ directory first
+    go/printer: line comments must always end in a newline
     
-    R=adg, r
+    Fixes #1503.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4183047
+    https://golang.org/cl/4170045
 
- doc/install.html |  3 +--
- src/run.bash     | 31 ++++++++++++-------------------
- 2 files changed, 13 insertions(+), 21 deletions(-)
+ src/pkg/go/printer/printer.go      | 47 ++++++++++++++++++++++----------------
+ src/pkg/go/printer/printer_test.go | 37 +++++++++++++++++++++++++++++-
+ 2 files changed, 63 insertions(+), 21 deletions(-)

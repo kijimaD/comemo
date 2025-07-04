@@ -1,17 +1,13 @@
-commit 905ced0e6ae33dca7ae6aa984d50cb02287952b1
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Thu Jun 2 09:25:30 2016 +0200
+commit d7c699d9935ce2f99419faf81909b36409171705
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 20:40:40 2016 +0000
 
-    reflect: document StructOf embedded fields limitation
+    crypto/rsa, crypto/ecdsa: fail earlier on zero parameters
     
-    This CL documents that StructOf currently does not generate wrapper
-    methods for embedded fields.
-    
-    Updates #15924
-    
-    Change-Id: I932011b1491d68767709559f515f699c04ce70d4
-    Reviewed-on: https://go-review.googlesource.com/23681
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ia6ed49d5ef3a256a55e6d4eaa1b4d9f0fc447013
+    Reviewed-on: https://go-review.googlesource.com/21560
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/type.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/crypto/ecdsa/ecdsa.go | 11 ++++++++---
+ src/crypto/rsa/rsa.go     |  5 ++++-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

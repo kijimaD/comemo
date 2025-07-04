@@ -1,12 +1,18 @@
-commit 256a9670cc9a0acd1fd70ad53ba7ab032d5b2933
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 9 15:03:15 2016 -0400
+commit d37d3bdcfc429168adac5bf046172fd9c07bfdc2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 21 14:41:16 2016 -0400
 
-    runtime: fix some out of date comments in bitmap code
+    net/http, internal/testenv: find go binary in PATH
     
-    Change-Id: I4613aa6d62baba01686bbab10738a7de23daae30
-    Reviewed-on: https://go-review.googlesource.com/22971
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #14901
+    
+    Change-Id: Ia32e09767374a341c9a36c5d977d47d7d1a82315
+    Reviewed-on: https://go-review.googlesource.com/20967
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/mbitmap.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/go/build/deps_test.go       |  2 +-
+ src/internal/testenv/testenv.go | 17 +++++++++++++++++
+ src/net/http/http_test.go       | 14 +++-----------
+ 3 files changed, 21 insertions(+), 12 deletions(-)

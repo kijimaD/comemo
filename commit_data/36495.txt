@@ -1,19 +1,25 @@
-commit b7d3e14a5296b17c940983aed0d9d6cb54b912b7
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Mon Aug 20 10:15:47 2018 +0900
+commit d46980995be7a88713b27f829fb9f2cd9b307fa7
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 4 20:57:56 2018 +0100
 
-    path/filepath: fix Join with Windows drive letter
+    internal/cpu: remove platform specific prefix from cpu hwcap variables
     
-    Join("C:", "", "b") must return relative path "C:b"
+    Go runtime currently only populates hwcap for ppc64 and arm64.
+    While the interpretation of hwcap is platform specific the hwcap
+    information is generally available on linux.
     
-    Fixes #26953
+    Changing the runtime variable name to cpu_hwcap for cpu.hwcap makes it
+    consistent with the general naming of runtime variables that are linked
+    to other packages.
     
-    Change-Id: I2f843ce3f9f18a1ce0e2d0f3a15233f237992776
-    Reviewed-on: https://go-review.googlesource.com/129758
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I1e1f932a73ed624a219b9298faafbb6355e47ada
+    Reviewed-on: https://go-review.googlesource.com/94757
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/path/filepath/path_test.go    | 4 ++++
- src/path/filepath/path_windows.go | 9 ++++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/internal/cpu/cpu_arm64.go  | 52 +++++++++++++++++++++---------------------
+ src/internal/cpu/cpu_ppc64x.go | 26 ++++++++++-----------
+ src/runtime/os_linux_arm64.go  |  4 ++--
+ src/runtime/os_linux_ppc64x.go |  5 ++--
+ 4 files changed, 44 insertions(+), 43 deletions(-)

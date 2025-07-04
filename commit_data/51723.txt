@@ -1,23 +1,17 @@
-commit 4ff074945a4848cd04c020b7f20ddaa1d78cc548
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 20 13:36:51 2023 -0800
+commit d9d55724bd8ff10d8de5c13fd77122a37ac73719
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 3 15:41:57 2022 -0600
 
-    cmd/compile: sort liveness variable reports
+    internal/cpu: set PPC64.IsPOWER8
     
-    Sort variables before display so that when there are multiple variables
-    to report, they are in a consistent order.
+    This should always be true, but use the HWCAP2 bit anyways.
     
-    Otherwise they are ordered in the order they appear in the fn.Dcl list,
-    which can vary. Particularly, they vary depending on regabi.
-    
-    Change-Id: I0db380f7cbe6911e87177503a4c3b39851ff1b5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462898
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ib164cf05b4c9f0c509f41b7eb339ef32fb63e384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389894
+    Trust: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/liveness/plive.go | 9 ++++++++-
- test/live.go                               | 4 ++--
- test/live_regabi.go                        | 2 +-
- 3 files changed, 11 insertions(+), 4 deletions(-)
+ src/internal/cpu/cpu_ppc64x_linux.go | 2 ++
+ 1 file changed, 2 insertions(+)

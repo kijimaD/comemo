@@ -1,15 +1,16 @@
-commit 98edf09e674b0f02cb32c48de22dcb21ca50df2d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 3 10:06:04 2013 -0800
+commit 14b654369dcf62505ad9bf8650cbd19d95e1f026
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 3 16:30:25 2013 +1100
 
-    net/http: Sync TimeoutHandler godoc with code.
+    go/types: add more logging to gc import test
     
-    TimeoutHandler was changed from "ns int64" to "dt time.Duration" on
-    Nov 30, 2011, but the godoc still refers to "ns".
+    * Extended deadline to 30 seconds
+    * Added logging of the duration of each package import
+    * Fail the test immediately if directories cannot be read
     
-    R=golang-dev, bradfitz
+    R=gri, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7031050
+    https://golang.org/cl/7030055
 
- src/pkg/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/types/gcimporter_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

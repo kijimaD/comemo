@@ -1,17 +1,46 @@
-commit aa09e751ff8e1adeebbd4dcd562e998b33d1b4fa
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Oct 8 15:16:41 2019 -0400
+commit d6b06f025475d62c9d4615d23b463af4395b0c23
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 22 23:02:37 2019 -0400
 
-    cmd/doc: show original import error when package cannot be found
+    cmd/link: make it easy to find binary versions
     
-    Updates #34669
+    It is useful to be able to dig the Go version out of a binary,
+    even a stripped binary. rsc.io/goversion does this for x86
+    binaries by disassembling the binary to find runtime/proc.go's
+    startup-time reference to runtime.buildVersion's address.
+    That approach is quite fragile: the implementation doesn't
+    work for non-x86 and must be updated as the generated
+    code changes.
     
-    Change-Id: I8d0ee68885e804e131f42a512080486f9b25e9dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199819
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    rsc.io/goversion finds the module version string by looking
+    for random 16-byte framing around the actual string.
+    This is less fragile but fairly kludgy and requires scanning
+    the entire data segment.
+    
+    cmd/buildid finds the build ID by looking for an ELF note
+    or else falling back to scanning the beginning of the text
+    segment for a magic string. This has proved quite reliable
+    and doesn't require scanning much of the binary.
+    
+    This CL makes it possible to find the Go and module versions
+    using a scan more like the build ID scan: a symbol early in
+    the writable data segment starts with a magic number and
+    then has pointers to the two string variables.
+    
+    Setting up for "go version <binary>".
+    
+    For #31624.
+    
+    Change-Id: I78ea8c52fe1686b5cc5a829ca5f198104d10ebf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173342
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/main.go                    | 17 ++++++++++++++---
- src/cmd/go/testdata/script/mod_doc.txt |  5 +++++
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go     | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go      |  2 ++
+ src/cmd/link/internal/ld/macho.go    |  2 +-
+ src/cmd/link/internal/ld/main.go     |  1 +
+ src/cmd/link/internal/sym/symkind.go |  2 ++
+ 5 files changed, 40 insertions(+), 1 deletion(-)

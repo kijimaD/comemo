@@ -1,55 +1,22 @@
-commit 5b20eec8a0eb3bd4681e315c0c4023c5164ea7b9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 5 13:33:17 2024 -0500
+commit 5eb382fc08fb32592e9585f9cb99005696a38b49
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Sep 10 04:33:34 2023 +0000
 
-    cmd/internal/obj: replace obj.Addrel func with LSym.AddRel method
+    cmd/compile/internal/typecheck: use constant.MakeUnknown()
     
-    The old API was to do
+    Complete a TODO.
     
-            r := obj.AddRel(sym)
-            r.Type = this
-            r.Off = that
-            etc
+    Change-Id: I1bd23f0be725c9dd81b8316a7abba1bceecc346f
     
-    The new API is:
-    
-            sym.AddRel(ctxt, obj.Reloc{Type: this: Off: that, etc})
-    
-    This new API is more idiomatic and avoids ever having relocations
-    that are only partially constructed. Most importantly, it sets up
-    for sym.AddRel being able to check relocation validity in the future.
-    (Passing ctxt is for use in validity checking.)
-    
-    Passes golang.org/x/tools/cmd/toolstash/buildall.
-    
-    Change-Id: I042ea76e61bb3bf6402f98ca11291a13f4799972
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625616
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I1bd23f0be725c9dd81b8316a7abba1bceecc346f
+    GitHub-Last-Rev: 51523084a3675b91cdf49491bbaa9e78f78e3742
+    GitHub-Pull-Request: golang/go#62553
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527178
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go         |   6 +-
- src/cmd/compile/internal/pkginit/init.go           |   4 +-
- .../compile/internal/reflectdata/map_noswiss.go    |   4 +-
- src/cmd/compile/internal/reflectdata/map_swiss.go  |   4 +-
- src/cmd/compile/internal/reflectdata/reflect.go    |  28 ++-
- src/cmd/compile/internal/rttype/rttype.go          |   9 +-
- src/cmd/compile/internal/ssagen/pgen.go            |   4 +-
- src/cmd/compile/internal/staticinit/sched.go       |   4 +-
- src/cmd/compile/internal/walk/expr.go              |   8 +-
- src/cmd/internal/obj/arm/asm5.go                   |  70 +++----
- src/cmd/internal/obj/arm64/asm7.go                 | 164 ++++++++-------
- src/cmd/internal/obj/data.go                       |  56 +++---
- src/cmd/internal/obj/dwarf.go                      |   4 +-
- src/cmd/internal/obj/link.go                       |   2 +-
- src/cmd/internal/obj/loong64/asm.go                | 224 +++++++++++----------
- src/cmd/internal/obj/mips/asm0.go                  | 157 ++++++++-------
- src/cmd/internal/obj/mips/obj0.go                  |   2 +-
- src/cmd/internal/obj/objfile_test.go               |  12 +-
- src/cmd/internal/obj/ppc64/asm9.go                 | 108 +++++-----
- src/cmd/internal/obj/ppc64/obj9.go                 |  11 +-
- src/cmd/internal/obj/riscv/obj.go                  |  26 +--
- src/cmd/internal/obj/s390x/asmz.go                 |  86 ++++----
- src/cmd/internal/obj/wasm/wasmobj.go               |  27 +--
- src/cmd/internal/obj/x86/asm6.go                   | 158 +++++++--------
- src/cmd/internal/obj/x86/seh.go                    |  11 +-
- 25 files changed, 615 insertions(+), 574 deletions(-)
+ src/cmd/compile/internal/typecheck/const.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

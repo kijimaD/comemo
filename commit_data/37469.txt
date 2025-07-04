@@ -1,23 +1,20 @@
-commit c6d493937e7047057a9833661d6d20ce72f904b4
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 13 18:38:49 2018 -0500
+commit 8589f46fe07998bd3b27a0cebce2f428e68014e0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Aug 2 22:39:00 2018 +0200
 
-    cmd/go: more cross-package references from internal/syscall/unix
+    cmd/link/internal/wasm: add Go version as a custom wasm section
     
-    On some platforms, assembly in internal/syscall/unix references
-    unexported runtime symbols. Catch these references so the compiler can
-    generate the necessary ABI wrappers.
+    The interface between the wasm binary and wasm_exec.js is experimental
+    and likely to change in the future. Still, there are some early adopters
+    who experiment with non-web wasm runtimes. They can't use wasm_exec.js
+    and have to provide their own equivalent. Adding the Go version as a
+    custom wasm sections allows for them to support a stable Go version and
+    the latest devel at the same time.
     
-    Fixes #28769.
-    Updates #27539.
-    
-    Change-Id: I118eebfb8b3d907b4c3562198e6afb49854f5827
-    Reviewed-on: https://go-review.googlesource.com/c/149817
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Clément Chigot <clement.chigot@atos.net>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6d377bb0a0c33cb80e86dd15a34ddc9a70680227
+    Reviewed-on: https://go-review.googlesource.com/127597
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/gc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/wasm/asm.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

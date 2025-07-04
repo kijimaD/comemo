@@ -1,21 +1,31 @@
-commit 794c01b8b42e436e9e73dae9c078e9ca2827d115
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 19 14:43:09 2015 -0400
+commit 0112f6f6b605b17194175aa7cfe15b4054f862fc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 22 20:08:03 2015 -0700
 
-    cmd/go: fix test for issue 8181
+    cmd/5g, etc: prepare to unexport gc.Mp*
     
-    The test was translated from shell incorrectly,
-    and it depended on having hg installed, which
-    may not be the case.
+    Remove all uses of Mp* outside of the gc package.
     
-    Moved repo to GitHub, updated code, and fixed
-    go list ... command to be expected to succeed.
+    A subsequent, automated commit in the Go 1.6
+    cycle will unexport all Mp* functions and types.
     
-    Fixes test for #8181.
+    No functional changes. Passes toolstash -cmp.
     
-    Change-Id: I7f3e8fb20cd16cac5ed24de6fd952003bc5e08d4
-    Reviewed-on: https://go-review.googlesource.com/11301
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie1604cb5b84ffb30b47f4777d4235570f2c62709
+    Reviewed-on: https://go-review.googlesource.com/9263
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/5g/cgen64.go         |  6 +++---
+ src/cmd/5g/ggen.go           |  8 +++----
+ src/cmd/5g/gsubr.go          |  6 +++---
+ src/cmd/6g/ggen.go           |  6 +++---
+ src/cmd/6g/gsubr.go          | 40 ++++++++++++++++------------------
+ src/cmd/7g/ggen.go           |  6 +++---
+ src/cmd/7g/gsubr.go          |  4 ++--
+ src/cmd/8g/cgen64.go         | 11 +++++-----
+ src/cmd/8g/ggen.go           |  6 +++---
+ src/cmd/8g/gsubr.go          | 51 ++++++++++++++++++++++----------------------
+ src/cmd/9g/ggen.go           |  6 +++---
+ src/cmd/9g/gsubr.go          | 37 ++++++++++++++++----------------
+ src/cmd/internal/gc/const.go | 28 ++++++++++++++++++++++++
+ 13 files changed, 119 insertions(+), 96 deletions(-)

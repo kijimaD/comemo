@@ -1,20 +1,25 @@
-commit 3fad58f12efae91ee2ab40f28e513a8d02cbcf96
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Oct 30 19:15:09 2020 +0100
+commit 9f4dd09bf555632a39a01a4c171e713acb55fda9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 21 15:37:29 2020 -0700
 
-    crypto/x509: update iOS bundled roots to version 55161.140.3
+    cmd/compile: refactor variadac call desugaring
     
-    Extended the sorting logic to be stable even when there are two roots
-    with the same name and notBefore timestamp, like the GlobalSign ones.
+    In mid-Walk, we rewrite calls to variadic functions to use explicit
+    slice literals; e.g., rewriting f(a,b,c) into f([]T{a,b,c}...).
+    However, it would be useful to do that rewrite much earlier in the
+    compiler, so that other compiler passes can be simplified.
     
-    Updates #38843
+    This CL refactors the rewrite logic into a new fixVariadicCall
+    function, which subsequent CLs can more easily move into earlier
+    compiler passes.
     
-    Change-Id: Ie4db0bb8b6a8b5ffbb7390b6bd527fc0c3badaca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266677
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
+    Passes toolstash-check -race.
+    
+    Change-Id: I408e655f2d3aa00446a2e6accf8765abc3b16a8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229486
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/crypto/x509/root.go         |   2 +-
- src/crypto/x509/root_ios.go     | 213 +++++++---------------------------------
- src/crypto/x509/root_ios_gen.go |   6 +-
- 3 files changed, 41 insertions(+), 180 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 76 ++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 35 deletions(-)

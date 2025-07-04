@@ -1,22 +1,26 @@
-commit 443a32e707d247be219a5e230bfb53167dba2560
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri May 1 10:15:33 2015 +1000
+commit cb10ff1ef9a9d1606e652573c1add5b698da7b25
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 4 12:27:46 2015 -0400
 
-    cmd/8g: don't call gc.Fatal during initalisation
+    runtime: report next_gc for initial heap size in gctrace
     
-    Fixes #10592
+    Currently, the initial heap size reported in the gctrace line is the
+    heap_live right before sweep termination. However, we triggered GC
+    when heap_live reached next_gc, and there may have been significant
+    allocation between that point and the beginning of sweep
+    termination. Ideally these would be essentially the same, but
+    currently there's scheduler delay when readying the GC goroutine as
+    well as delay from background sweep finalization.
     
-    Calling gc.Fatal before gc.Main has been called ends up flushing gc.bstdout before
-    it is properly set up. Ideally obj.Bflush would handle this case, but that type
-    and its callers are rather convoluted, so take the simpler route and avoid calling
-    gc.Fatal altogether.
+    We should fix this delay, but in the mean time, to give the user a
+    better idea of how much the heap grew during the whole of garbage
+    collection, report the trigger rather than what the heap size happened
+    to be after the garbage collector finished rolling out of bed. This
+    will also be more useful for heap growth plots.
     
-    Change-Id: I338b469e86edba558b6bedff35bb904bfc3d6990
-    Reviewed-on: https://go-review.googlesource.com/9525
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I08476b9fbcfb2de90592405e9c9f434dfb9eb1f8
+    Reviewed-on: https://go-review.googlesource.com/8512
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/8g/galign.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

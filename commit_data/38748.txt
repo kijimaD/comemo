@@ -1,19 +1,18 @@
-commit d91f7e6637cc96029cd5a360a0a74153b39a3ae6
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Mar 28 08:05:43 2019 -0400
+commit f8c2f4f111f40551eafd12dadbfbc6c4bc4d37c0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Nov 10 15:31:32 2018 +0100
 
-    runtime: fix GDB tests on s390x running Ubuntu 18.04
+    go/doc: disable playground for examples that use syscall/js
     
-    On Ubuntu 18.04 I am seeing GDB fail to restore the stack pointer
-    during this test because stack unwinding can't find the PC. This CL
-    is essentially a partial revert of CL 23940 and fixes the issue on
-    s390x.
+    The playground is not using GOOS=js, so it is not able to use the
+    package syscall/js. Examples that depend on syscall/js should not
+    show a "Run" button.
     
-    Change-Id: Ib4c41162dc85dc882eb6e248330f4082c3fa94c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169857
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #28526.
+    
+    Change-Id: I8b2fcdd0c0ee517a5c3864bf459f813129542389
+    Reviewed-on: https://go-review.googlesource.com/c/148918
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/example.go | 5 +++++
+ 1 file changed, 5 insertions(+)

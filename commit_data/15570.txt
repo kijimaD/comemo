@@ -1,21 +1,14 @@
-commit b0bb6f8ceec158c21dd5ea782c10c02d1cf5b2ef
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 4 16:42:03 2013 +0100
+commit 7c68f7876a1384951956b6b61a4158526f01cb51
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 4 10:31:01 2013 -0500
 
-    cmd/gc: unbreak exporting of composite literals.
+    misc/dashboard/builder: make -fail mode faster
     
-    Fixes #4932.
+    Don't check out the repository if we're just going to fail everything.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7437043
+    https://golang.org/cl/7453048
 
- src/cmd/gc/fmt.c                       | 31 ++++++++++++++++++++++---------
- src/cmd/gc/go.h                        |  1 +
- src/cmd/gc/subr.c                      | 14 +++++++++++++-
- src/cmd/gc/typecheck.c                 | 19 ++++++++++---------
- test/fixedbugs/issue4932.dir/foo.go    |  7 +++++++
- test/fixedbugs/issue4932.dir/state.go  | 28 ++++++++++++++++++++++++++++
- test/fixedbugs/issue4932.dir/state2.go |  9 +++++++++
- test/fixedbugs/issue4932.go            |  9 +++++++++
- 8 files changed, 99 insertions(+), 19 deletions(-)
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

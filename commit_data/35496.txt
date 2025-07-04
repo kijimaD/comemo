@@ -1,44 +1,22 @@
-commit c2b4b316b4459855af741042dd901db7cdce9b17
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 24 09:02:31 2018 +0200
+commit 90666b8a3d5545f4295d9c2517ad607ce5d45e52
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 1 17:53:59 2018 -0500
 
-    cmd/vendor/golang.org/x: pick up upstream fixes for broken android and iOS tests
+    runtime: move comment about address space sizes to malloc.go
     
-    Pick up the changes from CL 114395, CL 114396 and CL 114415.
+    Currently there's a detailed comment in lfstack_64bit.go about address
+    space limitations on various architectures. Since that's now relevant
+    to malloc, move it to a more prominent place in the documentation for
+    memLimitBits.
     
-    By re-running govendor in the latest version, some files from
-    golang.org/x/sys/unix which are ignored for the build also got removed
-    from the vendored copy.
+    Updates #10460.
     
-    Updates #25528
-    Updates #25535
-    
-    Change-Id: I5c0002fc3a37d6abaafed2e15cc3e2ade803ad7b
-    Reviewed-on: https://go-review.googlesource.com/114416
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If9708291cf3a288057b8b3ba0ba6a59e3602bbd6
+    Reviewed-on: https://go-review.googlesource.com/85889
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- .../x/crypto/ssh/terminal/terminal_test.go         |   6 +
- .../golang.org/x/sys/unix/dev_darwin_test.go       |  51 --
- .../golang.org/x/sys/unix/dev_dragonfly_test.go    |  50 --
- .../vendor/golang.org/x/sys/unix/dev_linux_test.go |   3 +
- .../golang.org/x/sys/unix/dev_netbsd_test.go       |  50 --
- .../golang.org/x/sys/unix/dev_openbsd_test.go      |  51 --
- .../vendor/golang.org/x/sys/unix/linux/Dockerfile  |  52 --
- .../vendor/golang.org/x/sys/unix/linux/mkall.go    | 750 ----------------
- .../vendor/golang.org/x/sys/unix/linux/mksysnum.pl |  85 --
- .../vendor/golang.org/x/sys/unix/linux/types.go    | 974 ---------------------
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   3 +-
- .../vendor/golang.org/x/sys/unix/syscall_darwin.go |  41 +-
- .../golang.org/x/sys/unix/syscall_linux_test.go    |   7 +
- .../golang.org/x/sys/unix/syscall_unix_test.go     |  29 +-
- src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go |  26 +
- .../golang.org/x/sys/unix/zerrors_darwin_386.go    |   6 +
- .../golang.org/x/sys/unix/zerrors_darwin_amd64.go  |   6 +
- .../golang.org/x/sys/unix/zerrors_darwin_arm.go    |   6 +
- .../golang.org/x/sys/unix/zerrors_darwin_arm64.go  |   6 +
- src/cmd/vendor/golang.org/x/sys/windows/service.go |   1 +
- .../golang.org/x/sys/windows/zsyscall_windows.go   |  13 +
- src/cmd/vendor/vendor.json                         |  30 +-
- 22 files changed, 150 insertions(+), 2096 deletions(-)
+ src/runtime/lfstack_64bit.go | 25 ++++++-------------------
+ src/runtime/malloc.go        | 19 ++++++++++++++++++-
+ 2 files changed, 24 insertions(+), 20 deletions(-)

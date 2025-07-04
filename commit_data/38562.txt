@@ -1,27 +1,22 @@
-commit f24e1099cb28d5ab793e5259c6ee2733227eb2f2
-Author: Ben Hoyt <benhoyt@gmail.com>
-Date:   Wed Mar 27 07:36:27 2019 -0400
+commit e1978a2d7a6deac29aa778a17a1cbea25586abc6
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 13:14:07 2018 +0100
 
-    bytes: make TrimSpace return nil on all-space input
+    cmd/compile/internal/gc: update cgo_import_dynamic for AIX
     
-    Issue #29122 introduced a subtle regression due to the way that
-    TrimFuncLeft is written: previously TrimSpace returned nil when given
-    an input of all whitespace, but with the #29122 changes it returned an
-    empty slice on all-space input.
+    On AIX, cmd/link needs two information in order to generate a dynamic
+    import, the library and its object needed. Currently, cmd/link isn't
+    able to retrieve this object only with the name of the library.
+    Therefore, the library pattern in cgo_import_dynamic must be
+    "lib.a/obj.o".
     
-    This change adds a special case to the new, optimized TrimSpace to go
-    back to that behavior. While it is odd behavior and people shouldn't be
-    relying on these functions returning a nil slice in practice, it's not
-    worth the breakage of code that does.
-    
-    This tweak doesn't change the TrimSpace benchmarks significantly.
-    
-    Fixes #31038
-    
-    Change-Id: Idb495d02b474054d2b2f593c2e318a7a6625688a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169518
+    Change-Id: Ib8b8aaa9807c9fa6af46ece4e312d58073ed6ec1
+    Reviewed-on: https://go-review.googlesource.com/c/146957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go      |  5 ++++
- src/bytes/bytes_test.go | 71 ++++++++++++++++++++++++++++---------------------
- 2 files changed, 46 insertions(+), 30 deletions(-)
+ src/cmd/cgo/doc.go                      |  4 +++
+ src/cmd/compile/internal/gc/lex.go      |  8 +++++
+ src/cmd/compile/internal/gc/lex_test.go | 56 ++++++++++++++++++++++++++-------
+ 3 files changed, 57 insertions(+), 11 deletions(-)

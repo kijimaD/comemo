@@ -1,14 +1,16 @@
-commit 712ffc0861cd6ec425736422415bf650c6cb013f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Jul 2 11:37:51 2015 +1200
+commit 67e43c1e3b3e2470b870a9d5b5e6eedceeded5f1
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Aug 28 21:19:40 2015 -0500
 
-    cmd/link: look at the R_AARCH64_RELATIVE relocs to find the gcdata on arm64
+    [dev.ssa] cmd/compile: implement OFALL
     
-    Change-Id: I5a1864a27ad917aa65c8e65a133f6cc0a980d05f
-    Reviewed-on: https://go-review.googlesource.com/13998
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Frontend has already rewriten fallthrough statements, we just need to
+    ignore them.
+    
+    Change-Id: Iadf89b06a9f8f9e6e2e1e87c934f31add77a19a1
+    Reviewed-on: https://go-review.googlesource.com/14029
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/link/internal/ld/decodesym.go |  8 ++++++++
- src/cmd/link/internal/ld/lib.go       | 29 ++++++++++++++++++++++++++++-
- src/cmd/link/internal/ld/link.go      |  9 +++++----
- 3 files changed, 41 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go              |  2 +-
+ src/cmd/compile/internal/gc/testdata/ctl_ssa.go | 60 +++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 1 deletion(-)

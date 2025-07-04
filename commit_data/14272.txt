@@ -1,13 +1,17 @@
-commit e0c9d04aec958b4b4f9315037a49c4459424a728
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Thu Nov 1 12:56:25 2012 -0400
+commit c128474a7ded7d988da9c229e02ff0d639faba5f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 2 03:30:49 2012 +1100
 
-    runtime: add memorydump() debugging function
+    website: remove floating topbar
     
-    R=golang-dev
-    CC=golang-dev, remyoudompheng, rsc
-    https://golang.org/cl/6780059
+    This caused more problems than it was worth.
+    
+    Fixes #4301.
+    Fixes #4317.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6818076
 
- src/pkg/runtime/malloc.h |  2 ++
- src/pkg/runtime/mgc0.c   | 75 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+)
+ doc/style.css | 24 ------------------------
+ 1 file changed, 24 deletions(-)

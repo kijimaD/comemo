@@ -1,12 +1,24 @@
-commit a1053ed6107a8301a62be9d1f2da8fa387bfefea
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jan 5 15:29:10 2015 +0900
+commit ab4578adefd216a6753728b5503ff22fae4ab60b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 20 12:24:03 2014 +1100
 
-    crypto/x509: add missing copyright
+    [dev.cc] runtime: convert remaining windows C code to Go
     
-    Change-Id: Ida3b431a06527f6cd604ab4af5ce517959c8619b
-    Reviewed-on: https://go-review.googlesource.com/2306
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/177090043
 
- src/crypto/x509/root_darwin_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/netpoll_windows.go   |   2 +-
+ src/runtime/os1_windows.go       | 564 ++++++++++++++++++++++++++++++++++
+ src/runtime/os1_windows_386.go   | 118 ++++++++
+ src/runtime/os1_windows_amd64.go | 137 +++++++++
+ src/runtime/os2_windows.go       |  25 ++
+ src/runtime/os_windows.c         | 636 ---------------------------------------
+ src/runtime/os_windows.go        |  16 -
+ src/runtime/os_windows.h         |  42 ---
+ src/runtime/os_windows_386.c     | 128 --------
+ src/runtime/os_windows_amd64.c   | 150 ---------
+ src/runtime/stubs2.go            |   1 +
+ src/runtime/syscall_windows.go   |  18 +-
+ 12 files changed, 853 insertions(+), 984 deletions(-)

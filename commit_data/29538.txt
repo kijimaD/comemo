@@ -1,20 +1,22 @@
-commit 9be14c4058287f88dc927ea847e3d6d57ff4047b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 15 03:31:47 2016 +0000
+commit c03925edd37b504346c11656a6de5f5e4b791061
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 9 15:12:07 2016 -0400
 
-    net: add test that TCP Close unblocks blocked Reads
+    runtime: remove unnecessary atomics from heapBitSetType
     
-    I guess this was fixed at some point. Remove a skipped test in
-    net/http and add an explicit test in net.
+    These used to be necessary when racing with updates to the mark bit,
+    but since the mark bit is no longer in the bitmap and the checkmark is
+    only updated with the world stopped, we can now always use regular
+    writes to update the type information in the heap bitmap.
     
-    Fixes #17695
+    Somewhat surprisingly, this has basically no overall performance
+    effect beyond the usual noise, but it does clean up the code.
     
-    Change-Id: Idb9f3e236b726bb45098474b830c95c1fce57529
-    Reviewed-on: https://go-review.googlesource.com/33242
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3933d0b4c0bc1c9bcf6313613515c0b496212105
+    Reviewed-on: https://go-review.googlesource.com/29277
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/serve_test.go |  3 ---
- src/net/net_test.go        | 19 +++++++++++++++++++
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/runtime/mbitmap.go | 85 ++++++++++++++------------------------------------
+ 1 file changed, 23 insertions(+), 62 deletions(-)

@@ -1,19 +1,26 @@
-commit 75b886ab790782f34945c0e1b0dee4189399ac9e
-Author: Tal Shprecher <tshprecher@gmail.com>
-Date:   Wed Apr 20 14:05:48 2016 -0700
+commit 0321cabdfacc5472d2bc650de3e36ca10131b60a
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 8 15:08:25 2016 -0500
 
-    cmd/compile: reject embedded unsafe.Pointer values
+    cmd/compile: guard the &-to-<<>> opt against small constants
     
-    Fixes #14729
+    Converting an and-K into a pair of shifts for K that will
+    fit in a one-byte argument is probably not an optimization,
+    and it also interferes with other patterns that we want to
+    see fire, like (<< (AND K)) [for small K] and bounds check
+    elimination for masked indices.
     
-    Change-Id: Ied819aa7b23e25de30aa8cde049c97297b4cab11
-    Reviewed-on: https://go-review.googlesource.com/22325
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Turns out that on Intel, even 32-bit signed immediates beat
+    the shift pair; the size reduction of tool binaries is 0.09%
+    vs 0.07% for only the 8-bit immediates.
+    
+    RLH found this one working on the new/next GC.
+    
+    Change-Id: I2414a8de1dd58d680d18587577fbadb7ff4f67d9
+    Reviewed-on: https://go-review.googlesource.com/20410
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/dcl.go       |  2 +-
- src/cmd/compile/internal/gc/type.go      |  5 +++++
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/fixedbugs/issue14729.go             | 14 ++++++++++++++
- 4 files changed, 21 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  8 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++------------------------
+ 2 files changed, 7 insertions(+), 59 deletions(-)

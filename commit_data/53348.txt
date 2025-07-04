@@ -1,21 +1,35 @@
-commit 4c1d8bf54b4c1bd1af5aa5ea0f6ffdab8fee553a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 25 22:43:36 2023 -0400
+commit a526ec1569984fd452acb09c8c48c9d972a442d3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jun 15 21:49:50 2022 +0100
 
-    cmd/go/internal/modget: remove unused base.Errorf argument
+    go/printer: avoid copying bytes when counting node sizes
     
-    Found by the vet check that runs with 'go test cmd/go/internal/modget'.
+    When making the recursive call to fprint,
+    we just need to know how many bytes were written
+    and whether multiple lines were written.
     
-    For #57001.
-    For #60463.
+    We don't need a buffer to accomplish those;
+    a custom writer can keep track of the two in a cheap way,
+    avoiding the allocation of a byte slice and copying bytes.
     
-    Change-Id: I4be94f7156724459a5c47bb9745cbb5651fb972c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498270
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+            name      old time/op    new time/op    delta
+            Print-16    6.28ms ± 2%    6.12ms ± 1%  -2.50%  (p=0.000 n=10+9)
+    
+            name      old speed      new speed      delta
+            Print-16  8.26MB/s ± 3%  8.47MB/s ± 1%  +2.56%  (p=0.000 n=10+9)
+    
+            name      old alloc/op   new alloc/op   delta
+            Print-16     483kB ± 0%     443kB ± 0%  -8.20%  (p=0.000 n=10+10)
+    
+            name      old allocs/op  new allocs/op  delta
+            Print-16     17.8k ± 0%     17.3k ± 0%  -2.31%  (p=0.000 n=9+10)
+    
+    Change-Id: Ib8411ae6738a2acae6af6d185da71727ce2eb97a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412555
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/internal/modget/get.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/printer/nodes.go | 36 +++++++++++++++++++++++++-----------
+ 1 file changed, 25 insertions(+), 11 deletions(-)

@@ -1,20 +1,27 @@
-commit 93a9561b23b782244a7c5d77efe71f57dee8c4a5
-Author: Changkun Ou <hi@changkun.us>
-Date:   Fri Feb 28 21:53:38 2020 +0100
+commit 84b0e3665d9684b9957103deaa9c5984c146cdfd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 18 16:52:12 2019 -0400
 
-    testing: fix data race between parallel subtests
+    cmd/go: add a flag to avoid creating unwritable directories in the module cache
     
-    This CL fixes a race condition if there are two subtests, and
-    one finishing but the other is panicking.
+    This change adds the '-modcacherw' build flag, which leaves
+    newly-created directories (but not the files!) in the module cache
+    read-write instead of making them unwritable.
     
-    Fixes #37551
+    Fixes #31481
     
-    Change-Id: Ic33963eb338aec228964b95f7c34a0d207b91e00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221322
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7c21a53dd145676627c3b51096914ce797991d99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202079
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/test_main_panic.txt | 30 ++++++++++++++++++++++++++
- src/testing/testing.go                         | 11 +++++-----
- 2 files changed, 35 insertions(+), 6 deletions(-)
+ doc/go1.14.html                             | 11 +++++++++
+ src/cmd/go/alldocs.go                       |  3 +++
+ src/cmd/go/internal/cfg/cfg.go              |  1 +
+ src/cmd/go/internal/modfetch/fetch.go       |  8 +++---
+ src/cmd/go/internal/work/build.go           |  4 +++
+ src/cmd/go/script_test.go                   | 12 ++++++---
+ src/cmd/go/testdata/script/README           |  2 +-
+ src/cmd/go/testdata/script/mod_cache_rw.txt | 38 +++++++++++++++++++++++++++++
+ 8 files changed, 71 insertions(+), 8 deletions(-)

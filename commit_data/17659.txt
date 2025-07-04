@@ -1,15 +1,34 @@
-commit 5be1821a31f1b88b8b9b9083454143f5aa90790d
+commit 551ada4742d3df6a24ddab5516fc8646c8a28958
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 20 15:25:43 2013 -0400
+Date:   Fri Sep 20 15:15:25 2013 -0400
 
-    cmd/gc: fix imported and not used error for import .
+    runtime: avoid allocation of internal panic values
     
-    Fixes issues 6420.
+    If a fault happens in malloc, inevitably the next thing that happens
+    is a deadlock trying to allocate the panic value that says the fault
+    happened. Stop doing that, two ways.
     
-    R=ken2
+    First, reject panic in malloc just as we reject panic in garbage collection.
+    
+    Second, runtime.panicstring was using an error implementation
+    backed by a Go string, so the interface held an allocated *string.
+    Since the actual errors are C strings, define a new error
+    implementation backed by a C char*, which needs no indirection
+    and therefore no allocation.
+    
+    This second fix will avoid allocation for errors like nil panic derefs
+    or division by zero, so it is worth doing even though the first fix
+    should take care of faults during malloc.
+    
+    Update #6419
+    
+    R=golang-dev, dvyukov, dave
     CC=golang-dev
-    https://golang.org/cl/13703044
+    https://golang.org/cl/13774043
 
- src/cmd/gc/lex.c | 4 ++--
- test/import1.go  | 3 ++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/runtime/error.go   | 16 ++++++++++++++++
+ src/pkg/runtime/panic.c    |  6 +++++-
+ src/pkg/runtime/proc.c     |  7 +++++++
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/string.goc |  7 +++++++
+ 5 files changed, 36 insertions(+), 1 deletion(-)

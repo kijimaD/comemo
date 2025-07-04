@@ -1,13 +1,13 @@
-commit 0f8cd1438d46ecf7393305e8981857b940f50ef4
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 11 23:46:20 2014 +1100
+commit b51123001f76d67df07fca304b16664344ba6800
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 22 20:41:13 2014 -0700
 
-    doc/gopher: add jpgs of the 5th anniversary image
+    gccgo_install.html: the 4.9 release series supports Go 1.2
     
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/172980043
+    https://golang.org/cl/163760043
 
- doc/gopher/fiveyears.jpg | Bin 0 -> 220526 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ doc/gccgo_install.html | 4 ++++
+ 1 file changed, 4 insertions(+)

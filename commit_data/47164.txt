@@ -1,15 +1,22 @@
-commit c1ea3395a6fdb2b66e6f445358ca40b78882adce
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 1 22:25:55 2021 -0700
+commit 700b73975e9a925584773e6df85b175371cf9d95
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jan 25 17:13:51 2021 -0500
 
-    doc/go1.18: add net/netip
+    runtime: use entersyscall in syscall_syscallX on Darwin
     
-    Updates #46518
+    CL 197938 changed syscall* functions to call entersyscall, instead
+    of entersyscallblock. It missed syscall_syscallX, probably because
+    it was in sys_darwin_64.go, not sys_darwin.go like others. Change
+    that one as well.
     
-    Change-Id: Iefc2fec93becc7b36ba2b933ae79f7c9424317fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360634
+    Found during the review of CL 270380 (thanks Joel).
+    
+    Change-Id: I0884fc766703f555a3895be332dccfa7d2431374
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286435
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.18.html | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/runtime/sys_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,32 +1,23 @@
-commit 10ed134afe1319403a9a6a8b6bb798f29e5a4d5e
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Aug 21 15:11:38 2024 -0700
+commit 57e2eb64ebdd441356eb3fb57bc06636cbfa58c0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 12 16:54:32 2023 -0400
 
-    os: improve Windows fixLongPath
+    cmd/link: pass flags to external linker in deterministic order
     
-    CL 574695 added caching the os.Chdir argument for Windows, and used the
-    cached value to assess the length of the current working directory in
-    addExtendedPrefix (used by fixLongPath).
+    Currently we may pass C linker flags in nondeterministic order,
+    as on ELf systems we pass --export-dynamic-symbol for symbols from
+    a map. This is usally not a big problem because even if the flags
+    are passed in nondeterministic order the resulting binary is
+    probably still deterministic. This CL makes it pass them in a
+    deterministic order to be extra sure. This also helps build
+    systems where e.g. there is a build cache for the C linking action.
     
-    It did not take into account that Chdir can accept relative paths, and
-    thus the pathLength calculation in addExtendedPrefix can be wrong.
-    
-    Let's only cache the os.Chdir argument if it's absolute, and clean the
-    cache otherwise, thus improving the correctness of fixLongPath.
-    
-    For #41734
-    For #21782
-    For #36375
-    
-    Change-Id: Ie24a5ed763a7aacc310666d2e4cbb8e298768670
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607437
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I930524dd2c3387f49d62be7ad2cef937cb2c2238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509215
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/os/file.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go |  6 +++-
+ src/cmd/link/link_test.go       | 80 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 1 deletion(-)

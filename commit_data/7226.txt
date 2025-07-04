@@ -1,15 +1,24 @@
-commit 59a6395279e8529b54d96bb84051d38206d63e50
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Mon Jan 24 14:16:24 2011 -0500
+commit 17fc373af770bd886502ded95da0d68fcc7adebd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 24 14:14:26 2011 -0500
 
-    codereview: fix windows
+    codereview: handle file patterns better
     
-    Uploading go files on Windows aborts with gofmt: exceptions.ValueError:
-    close_fds is not supported on Windows platforms if you redirect stdin/stdout/stderr
+    If a file pattern is given and matches files that look
+    like they need to be hg added or hg removed, offer to do so.
     
-    R=rsc, mattn, Joe Poirier
-    CC=golang-dev
-    https://golang.org/cl/4025046
+    If a file pattern is given and matches files in another CL, warn.
+    
+    If a file pattern doesn't match anything, point that out.
+    
+    Vet first line of CL description.
+    
+    Fixes #972.
+    
+    R=adg, niemeyer
+    CC=bradfitzgo, golang-dev
+    https://golang.org/cl/4099042
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgignore                    |   1 +
+ lib/codereview/codereview.py | 156 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 138 insertions(+), 19 deletions(-)

@@ -1,18 +1,24 @@
-commit c812b97ec67ae2d674b5bb4e2fd29c7ab7fa08dc
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 29 18:08:08 2021 -0400
+commit bcac57f89c0ec609e6fbebcbcd42bb73fdaef2f0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Feb 24 18:24:45 2021 -0500
 
-    go/types: comp literals to accept type sets with single underlying types
+    cmd: upgrade golang.org/x/mod to fix go.mod parser
     
-    This is a clean port of CL 357915 to go/types.
+    modfile.Parse passed an empty string to the VersionFixer for the
+    module path. This caused errors for v2+ versions.
     
-    Change-Id: Idf5850a8bdcf3596c561c97bcd60539945139743
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359877
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #44494
+    
+    Change-Id: I13b86b6ecf6815c4bc9a96ec0668284c9228c205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296131
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/expr.go                         |  2 +-
- src/go/types/testdata/check/compliterals.go2 | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../go/testdata/script/mod_retract_fix_version.txt |  24 +++++
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 102 ++++++++++++++++-----
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 5 files changed, 109 insertions(+), 25 deletions(-)

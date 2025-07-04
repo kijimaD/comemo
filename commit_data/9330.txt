@@ -1,13 +1,16 @@
-commit ebb2f4af3506f788213cb7c741340226f601b4c5
+commit 31fa584906469b494e9e887ed1cc4612e4349649
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 10 14:05:52 2011 -0700
+Date:   Wed Aug 10 08:08:53 2011 -0700
 
-    A+C: Dave Grijalva (ngmoco CLA)
+    http: fix ParseMultipartForm after MultipartReader error
     
-    R=rsc
+    Addresses part of issue 2093
+    Thanks to espians....@
+    
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/4855051
+    https://golang.org/cl/4808087
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/http/request.go      |  6 +++---
+ src/pkg/http/request_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

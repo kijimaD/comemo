@@ -1,20 +1,36 @@
-commit 51d8d351c1bb2cac74e1bbf8545245cdbc8914c3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 4 20:56:01 2021 +0700
+commit 69748f0ce4faf850a2e25641aed23e646556d616
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 27 14:46:16 2020 -0400
 
-    cmd/compile: do not set type for OTYPESW
+    [dev.link] cmd/compile, cmd/link: reference type symbol of defined type by index
     
-    Same as CL 294031, but for OTYPESW.
+    The type descriptor symbol of a defined (named) type (and pointer
+    to it) is defined only in the package that defines the type. It
+    is not dupOK, unlike other type descriptors. So it can be
+    referenced by index. Currently it is referenced by name for
+    cross-package references, because the index is not exported and
+    so not known to the referencing package.
     
-    Updates #43311
+    This CL passes the index through the export data, so the symbol
+    can be referenced by index, and does not need to be looked up by
+    name. This also makes such symbol references consistent: it is
+    referenced by index within the defining package and also cross-
+    package, which makes it easier for content hashing (in later CLs).
     
-    Change-Id: I996f5938835baff1d830c17ed75652315106bdfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298712
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    One complication is that we need to set flags on referenced
+    symbols (specifically, the UsedInIface flag). Before, they are
+    non-package refs, which naturally carry flags in the object file.
+    For indexed refs, we currently don't put their flags in the
+    object file. Introduce a new block for this.
+    
+    Change-Id: I8126f8e318ac4e6609eb2ac136201fd6c264c256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245718
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
- test/fixedbugs/issue24470.go                    | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go | 13 ++++++++
+ src/cmd/compile/internal/gc/iimport.go | 13 ++++++++
+ src/cmd/compile/internal/gc/reflect.go |  9 ++++++
+ src/cmd/internal/goobj2/objfile.go     | 57 +++++++++++++++++++++++++++++++---
+ src/cmd/internal/obj/objfile2.go       | 41 +++++++++++++++++++++---
+ src/cmd/link/internal/loader/loader.go | 10 ++++++
+ 6 files changed, 134 insertions(+), 9 deletions(-)

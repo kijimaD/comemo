@@ -1,32 +1,27 @@
-commit ab541a0560408999ac65d12bec2a3057994eda38
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Sat Oct 17 15:19:53 2020 +0000
+commit 89e13c88e4f9f3a3eea7bf105e5af475727a4c33
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Mar 28 16:11:15 2020 +0000
 
-    compress/flate: fix corrupted output
+    runtime: check the correct sanity condition in the page allocator
     
-    The fastest compression mode can pick up a false match for every 2GB
-    of input data resulting in incorrectly decompressed data.
+    Currently there are a few sanity checks in the page allocator which
+    should fail immediately but because it's a check for a negative number
+    on a uint, it's actually dead-code.
     
-    Since matches are allowed to be up to and including at maxMatchOffset
-    we must offset the buffer by an additional element to prevent the first
-    4 bytes to match after an out-of-reach value after shiftOffsets has
-    been called.
+    If there's a bug in the page allocator which would cause the sanity
+    check to fail, this could cause memory corruption by returning an
+    invalid address (more precisely, one might either see a segfault, or
+    span overlap).
     
-    We offset by `maxMatchOffset + 1` so offset 0 in the table will now
-    fail the `if offset > maxMatchOffset` in all cases.
+    This change fixes these sanity checks to check the correct condition.
     
-    Fixes #41420
+    Fixes #38130.
     
-    Change-Id: If1fbe01728e132b8a207e3f3f439edd832dcc710
-    GitHub-Last-Rev: 50fabab0da874c37543b139459a810e12e83cee2
-    GitHub-Pull-Request: golang/go#41477
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255879
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia19786cece783d39f26df24dec8788833a6a3f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226297
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/compress/flate/deflate_test.go | 57 ++++++++++++++++++++++++++++++++++++++
- src/compress/flate/deflatefast.go  | 11 ++++++--
- 2 files changed, 65 insertions(+), 3 deletions(-)
+ src/runtime/mpagealloc.go | 4 ++--
+ src/runtime/mpagecache.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

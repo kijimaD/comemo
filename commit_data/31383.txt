@@ -1,24 +1,83 @@
-commit 92d918da032fa229e2909c0bdacbf8587bb96e08
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Wed Apr 26 16:53:02 2017 +0100
+commit 1f77db94f8a453ae96e490fe729c8c6b0ba9479f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 15 15:41:50 2017 -0500
 
-    cmd/internal/obj/x86: fix adcb r/mem8,reg8 encoding
+    runtime: do not call wakep from enlistWorker, to avoid possible deadlock
     
-    Taken from the Intel Software Development Manual (of course, in the line
-    below it's ADC DST, SRC; The opposite of the commit subject).
+    We have seen one instance of a production job suddenly spinning to
+    100% CPU and becoming unresponsive. In that one instance, a SIGQUIT
+    was sent after 328 minutes of spinning, and the stacks showed a single
+    goroutine in "IO wait (scan)" state.
     
-      12 /r         ADC r8, r/m8
+    Looking for things that might get stuck if a goroutine got stuck in
+    scanning a stack, we found that injectglist does:
     
-    We need 0x12 for the corresponding ytab line, not 0x10.
+            lock(&sched.lock)
+            var n int
+            for n = 0; glist != nil; n++ {
+                    gp := glist
+                    glist = gp.schedlink.ptr()
+                    casgstatus(gp, _Gwaiting, _Grunnable)
+                    globrunqput(gp)
+            }
+            unlock(&sched.lock)
     
-      {Ymb, Ynone, Yrb, Zm_r, 1},
+    and that casgstatus spins on gp.atomicstatus until the _Gscan bit goes
+    away. Essentially, this code locks sched.lock and then while holding
+    sched.lock, waits to lock gp.atomicstatus.
     
-    Updates #14069
+    The code that is doing the scan is:
     
-    Change-Id: Id37cbd0c581c9988c2de355efa908956278e2189
-    Reviewed-on: https://go-review.googlesource.com/41857
-    Reviewed-by: Keith Randall <khr@golang.org>
+            if castogscanstatus(gp, s, s|_Gscan) {
+                    if !gp.gcscandone {
+                            scanstack(gp, gcw)
+                            gp.gcscandone = true
+                    }
+                    restartg(gp)
+                    break loop
+            }
+    
+    More analysis showed that scanstack can, in a rare case, end up
+    calling back into code that acquires sched.lock. For example:
+    
+            runtime.scanstack at proc.go:866
+            calls runtime.gentraceback at mgcmark.go:842
+            calls runtime.scanstack$1 at traceback.go:378
+            calls runtime.scanframeworker at mgcmark.go:819
+            calls runtime.scanblock at mgcmark.go:904
+            calls runtime.greyobject at mgcmark.go:1221
+            calls (*runtime.gcWork).put at mgcmark.go:1412
+            calls (*runtime.gcControllerState).enlistWorker at mgcwork.go:127
+            calls runtime.wakep at mgc.go:632
+            calls runtime.startm at proc.go:1779
+            acquires runtime.sched.lock at proc.go:1675
+    
+    This path was found with an automated deadlock-detecting tool.
+    There are many such paths but they all go through enlistWorker -> wakep.
+    
+    The evidence strongly suggests that one of these paths is what caused
+    the deadlock we observed. We're running those jobs with
+    GOTRACEBACK=crash now to try to get more information if it happens
+    again.
+    
+    Further refinement and analysis shows that if we drop the wakep call
+    from enlistWorker, the remaining few deadlock cycles found by the tool
+    are all false positives caused by not understanding the effect of calls
+    to func variables.
+    
+    The enlistWorker -> wakep call was intended only as a performance
+    optimization, it rarely executes, and if it does execute at just the
+    wrong time it can (and plausibly did) cause the deadlock we saw.
+    
+    Comment it out, to avoid the potential deadlock.
+    
+    Fixes #19112.
+    Unfixes #14179.
+    
+    Change-Id: I6f7e10b890b991c11e79fab7aeefaf70b5d5a07b
+    Reviewed-on: https://go-review.googlesource.com/37093
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 8 ++++----
- src/cmd/internal/obj/x86/asm6.go             | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

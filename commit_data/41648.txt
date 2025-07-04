@@ -1,18 +1,19 @@
-commit 2b920cba8fa68f8ded28150ec1b1a5cea61ae0f0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 6 04:47:52 2020 +1100
+commit 9b8079158488120a0586d79ec57e0505fe0ec3eb
+Author: Keith Randall <khr@google.com>
+Date:   Thu Oct 17 12:31:53 2019 -0700
 
-    cmd/internal/obj/riscv: store relocation details in obj.Prog.RestArgs
+    regexp: skip long-running benchmarks if -short is specified
     
-    Store the relocation offset and symbol in obj.Prog.RestArgs, rather than
-    overloading obj.Prog.From and having to deal with invalid offsets
-    potentially existing when the instruction is encoded.
+    This CL helps race.bash finish in a reasonable amount of
+    time. Otherwise the Match/Hard1/32M benchmark takes over 1200 seconds
+    to finish on arm64, triggering a timeout.  With this change the regexp
+    benchmarks as a whole take only about a minute.
     
-    Change-Id: Iff0d678361677e78b41b887f6eba08cee94fccb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218197
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie2260ef9f5709e32a74bd76f135bc384b2d9853f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201742
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 46 ++++++++++++++-------------------------
- 1 file changed, 16 insertions(+), 30 deletions(-)
+ src/regexp/exec_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

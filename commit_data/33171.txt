@@ -1,23 +1,57 @@
-commit 12c9d753f83ab4755151c8a72c212358dd85bc83
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 19 11:23:12 2017 -0700
+commit 2abd8aebc3cae9c5f4e31d6ab963a2ec77f27c7c
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed Jul 19 00:41:13 2017 -0400
 
-    cmd/compile: refactor generic AST walking code
+    net/http: improve signature of Redirect, NewRequest
     
-    racewalk's "foreach" function applies a function to all of a Node's
-    immediate children, but with a non-idiomatic signature.
+    In CL https://golang.org/cl/4893043 (6 years ago), a new package named
+    "url" was created (it is currently known as "net/url"). During that
+    change, some identifier name collisions were introduced, and two
+    parameters in net/http were renamed to "urlStr".
     
-    This CL reworks it to recursively iterate over the entire subtree
-    rooted at Node and provides a way to short-circuit iteration.
+    Since that time, Go has continued to put high emphasis on the quality
+    and readability of the documentation. Sometimes, that means making small
+    sacrifices in the implementation details of a package to ensure that
+    the godoc reads better, since that's what the majority of users interact
+    with. See https://golang.org/s/style#named-result-parameters:
     
-    Passes toolstash -cmp for std cmd with -race.
+    > Clarity of docs is always more important than saving a line or two
+    > in your function.
     
-    Change-Id: I738b73953d608709802c97945b7e0f4e4940d3f4
-    Reviewed-on: https://go-review.googlesource.com/71911
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    I think the "urlStr" parameter name is suboptimal for godoc purposes,
+    and just "url" would be better.
+    
+    During the review of https://golang.org/cl/4893043, it was also noted
+    by @rsc that having to rename parameters named "url" was suboptimal:
+    
+    > It's unfortunate that naming the package url means
+    > you can't have a parameter or variable named url.
+    
+    However, at the time, the name of the url package was still being
+    decided, and uri was an alternative name under consideration.
+    The reason urlStr was chosen is because it was a lesser evil
+    compared to naming the url package uri instead:
+    
+    > Let's not get hung up on URI vs. URL, but I'd like s/uri/urlStr/ even for just
+    > that the "i" in "uri" looks very similar to the "l" in "url" in many fonts.
+    
+    > Please let's go with urlStr instead of uri.
+    
+    Now that we have the Go 1 compatibility guarantee, the name of the
+    net/url package is fixed. However, it's possible to improve the
+    signature of Redirect, NewRequest functions in net/http package
+    for godoc purposes by creating a package global alias to url.Parse,
+    and renaming urlStr parameter to url in the exported funcs. This CL
+    does so.
+    
+    Updates #21077.
+    
+    Change-Id: Ibcc10e3825863a663e6ad91b6eb47b1862a299a6
+    Reviewed-on: https://go-review.googlesource.com/49930
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 40 ++++++++-------------------------
- src/cmd/compile/internal/gc/syntax.go   | 20 +++++++++++++++++
- 2 files changed, 29 insertions(+), 31 deletions(-)
+ src/net/http/request.go |  4 ++--
+ src/net/http/server.go  | 33 +++++++++++++++++++--------------
+ 2 files changed, 21 insertions(+), 16 deletions(-)

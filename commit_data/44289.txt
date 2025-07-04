@@ -1,17 +1,16 @@
-commit a1222b75350a098e70106bf95d4e6a962c37f373
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 11:13:32 2021 -0500
+commit b44bf986a2ddd903059732b519237d4504cfdeb2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 5 09:52:35 2020 -0700
 
-    cmd/link: add debug print in deadcode
+    doc/go1.15: mention new debug/pe constants
     
-    This matches the prints that deadcode prints later
-    as the algorithm progresses under -v=2.
-    It helps to see the initial conditions with -v=2 as well.
+    The constants were added in CL 222637.
     
-    Change-Id: I06ae86fe9bd8314d003148f3d941832c9b10aef1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288817
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #37419
+    
+    Change-Id: Iae662d677d31c44a7560399ef6771f520c1f7663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236682
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.15.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

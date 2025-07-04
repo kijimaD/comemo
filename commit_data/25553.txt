@@ -1,36 +1,16 @@
-commit 4ffba768555a14fe2730af27a4508ccd21eef65b
+commit e36494e3820323489f819614d06365928e54394c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 12 21:15:51 2016 +0000
+Date:   Thu Nov 5 07:53:28 2015 +0100
 
-    crypto/tls: don't block in Conn.Close if Writes are in-flight
+    net/http/internal: ignore chunk-extension when reading chunked encoding bodies
     
-    Conn.Close sends an encrypted "close notify" to signal secure EOF.
-    But writing that involves acquiring mutexes (handshake mutex + the
-    c.out mutex) and writing to the network. But if the reason we're
-    calling Conn.Close is because the network is already being
-    problematic, then Close might block, waiting for one of those mutexes.
+    Fixes #13135
     
-    Instead of blocking, and instead of introducing new API (at least for
-    now), distinguish between a normal Close (one that sends a secure EOF)
-    and a resource-releasing destructor-style Close based on whether there
-    are existing Write calls in-flight.
-    
-    Because io.Writer and io.Closer aren't defined with respect to
-    concurrent usage, a Close with active Writes is already undefined, and
-    should only be used during teardown after failures (e.g. deadlines or
-    cancelations by HTTP users). A normal user will do a Write then
-    serially do a Close, and things are unchanged for that case.
-    
-    This should fix the leaked goroutines and hung net/http.Transport
-    requests when there are network errors while making TLS requests.
-    
-    Change-Id: If3f8c69d6fdcebf8c70227f41ad042ccc3f20ac9
-    Reviewed-on: https://go-review.googlesource.com/18572
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I45666f32cd91102211bf01a306edcb10deb65187
+    Reviewed-on: https://go-review.googlesource.com/16680
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/crypto/tls/conn.go     |  41 ++++++++++++++++++
- src/crypto/tls/tls_test.go | 102 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 143 insertions(+)
+ src/net/http/internal/chunked.go      | 35 +++++++++++++++++++++++++++++------
+ src/net/http/internal/chunked_test.go | 15 +++++++++++++++
+ 2 files changed, 44 insertions(+), 6 deletions(-)

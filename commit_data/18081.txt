@@ -1,18 +1,15 @@
-commit 0b26ba8af340c1ef5de8622c067b31b0d3fc4f1f
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Thu Dec 19 12:14:07 2013 -0500
+commit efd1d050230606b4383f5ddb6ea3df7853fc4ce7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 19 13:02:06 2013 +0900
 
-    cmd/yacc: expr example support windows
+    net: rename TestReadConfig to TestDNSReadConfig
     
-    1. expr append executable extension.
-    2. support '\r' character.
+    To make it possible to type "go test -run=DNS".
+    Also removes unnecessary parens.
     
-    Fixes #6851.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/35330043
+    https://golang.org/cl/43470051
 
- src/cmd/yacc/Makefile | 8 +++++---
- src/cmd/yacc/expr.y   | 2 +-
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/net/dnsconfig_unix_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

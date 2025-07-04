@@ -1,40 +1,28 @@
-commit 8028731648eb8c5f7693a69f748d990a3228a6e0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 24 20:17:20 2025 +0000
+commit d4430f6913b0eacb662a69884d12850864616c37
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Tue Nov 21 17:12:48 2023 -0800
 
-    internal/trace: rename "oldtrace" to trace v1
+    cmd/link/internal/loadpe: fix .xdata unwind info parsing
     
-    This is part of a refactoring to better distinguish trace wire format
-    versions. Even though details may change between Go versions and they
-    might be backwards-incompatible, the trace format still broadly has two
-    wire formats: v1 and v2.
+    Unwind info in .xdata was being parsed incorrectly, causing targetOff to
+    be incorrect and miss finding data in .xdata that it should have found.
+    This causes a linker issue when using the MinGW MSVCRT compiler.
     
-    A follow-up change will rename go122 to v2 to make this more consistent.
+    Contains several fixes based on the exception handling docs: the offset
+    used to get the number of unwind codes, the calculation of the target
+    offset based on the dynamic size of the unwind data, and the
+    UNW_FLAG_CHAININFO flag's value.
     
-    Change-Id: If4fe1c82d8aeabc8baa05f525e08a9e7d469a5c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644217
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Fixes #64200
+    
+    Change-Id: I6483d921b2bf8a2512a95223bf3c8ce8bc63dc4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/go/build/deps_test.go                          |   4 +-
- src/internal/trace/event/go122/event.go            | 116 +++++++++---------
- .../trace/internal/{oldtrace => tracev1}/order.go  |   2 +-
- .../trace/internal/{oldtrace => tracev1}/parser.go |   4 +-
- .../internal/{oldtrace => tracev1}/parser_test.go  |   2 +-
- .../testdata/fmt_1_21_pprof_good                   | Bin
- .../{oldtrace => tracev1}/testdata/http_1_19_good  | Bin
- .../{oldtrace => tracev1}/testdata/http_1_21_good  | Bin
- .../testdata/stress_1_11_good                      | Bin
- .../testdata/stress_1_19_good                      | Bin
- .../testdata/stress_1_21_good                      | Bin
- .../testdata/stress_start_stop_1_11_good           | Bin
- .../testdata/stress_start_stop_1_19_good           | Bin
- .../testdata/stress_start_stop_1_21_good           | Bin
- .../testdata/user_task_region_1_11_good            | Bin
- .../testdata/user_task_region_1_19_good            | Bin
- .../testdata/user_task_region_1_21_good            | Bin
- src/internal/trace/reader.go                       |  22 ++--
- src/internal/trace/{oldtrace.go => tracev1.go}     | 132 ++++++++++-----------
- .../trace/{oldtrace_test.go => tracev1_test.go}    |   6 +-
- 20 files changed, 144 insertions(+), 144 deletions(-)
+ src/cmd/link/internal/loadpe/seh.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

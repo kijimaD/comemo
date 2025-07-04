@@ -1,20 +1,21 @@
-commit c841ba3a3e4f320c7939a8097f8e54b752644d81
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Mar 14 12:06:36 2024 +0000
+commit 1ae306a5be7ad6edb5f06bf25b38e9cbabcc3556
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Wed Mar 22 13:28:08 2023 +0800
 
-    math/big: use built-in clear to simplify code
+    cmd/internal/obj/loong64: clean up code for short conditional branches
     
-    Change-Id: I07c3a498ce1e462c3d1703d77e7d7824e9334651
-    GitHub-Last-Rev: 2ba8c4c705eaeb0772109ece7296978b62467eb3
-    GitHub-Pull-Request: golang/go#66312
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571636
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Untangle the logic so the preparation of operands and actual assembling
+    (branch range checking included) are properly separated, making future
+    changes easier to review and maintain. No functional change intended.
+    
+    Change-Id: I1f73282f9d92ff23d84846453d3597ba66d207d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478376
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/math/big/int.go    |  6 ++----
- src/math/big/nat.go    | 22 ++++++++--------------
- src/math/big/natdiv.go | 12 ++++++------
- 3 files changed, 16 insertions(+), 24 deletions(-)
+ src/cmd/internal/obj/loong64/asm.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

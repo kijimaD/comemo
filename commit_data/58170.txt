@@ -1,22 +1,19 @@
-commit 8837503237a5bc0a4193bd80c81e70e1515b56ea
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Nov 19 14:38:30 2024 +0100
+commit 5955a03e9c22c56fa3d174e95031d74e2cf3adde
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Oct 7 16:18:16 2023 +0000
 
-    crypto/rsa: move RSAES-OAEP to the same file as RSASSA-PSS
+    reflect: compute the median h uniformly
     
-    They are both from PKCS#1 v2.2, so it makes sense to keep them in the
-    same file, and to only have common RSA stuff in rsa.go.
+    Like sort.Search, use "h := int(uint(i+j) >> 1)" to compute the median h.
     
-    This should make it easier to follow the changes in the following CLs.
-    
-    Change-Id: I1982e679f54eefa9babb5eeea34fa23792cf340a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629936
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I62c1e67533657e2b56af872676e5dc4ed4d49c55
+    GitHub-Last-Rev: cbfba7ee9ab0a0bda371db3ad5e8cc4d5ea91579
+    GitHub-Pull-Request: golang/go#63439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533595
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/rsa/{pss.go => pkcs1v22.go} | 199 ++++++++++++++++++++++++++++++++-
- src/crypto/rsa/rsa.go                  | 196 --------------------------------
- 2 files changed, 198 insertions(+), 197 deletions(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

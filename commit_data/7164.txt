@@ -1,12 +1,24 @@
-commit 73302bc190a13100b7b1ceccd158fc37aa3d4a6f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 19 15:10:58 2011 -0500
+commit aae5f912135f3db73b9731e6e755b3d6eae9cda0
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Wed Jan 19 15:10:15 2011 -0500
 
-    CONTRIBUTORS: secondary email for Kyle Lemons
+    windows: implement exception handling
     
-    R=r, gri
+    R=rsc, brainman
     CC=golang-dev
-    https://golang.org/cl/4072042
+    https://golang.org/cl/4079041
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgignore                            |  2 +
+ src/cmd/8l/pass.c                    |  7 ++++
+ src/cmd/godefs/main.c                |  2 +-
+ src/cmd/godefs/stabs.c               | 81 +++++++++++++++++++++---------------
+ src/pkg/runtime/proc.c               | 16 ++++++-
+ src/pkg/runtime/windows/386/defs.h   | 61 +++++++++++++++++++++++++++
+ src/pkg/runtime/windows/386/rt0.s    |  5 +++
+ src/pkg/runtime/windows/386/signal.c | 78 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/windows/386/sys.s    | 56 ++++++++++++++++++++++---
+ src/pkg/runtime/windows/defs.c       | 18 ++++++++
+ src/pkg/runtime/windows/mem.c        |  1 +
+ src/pkg/runtime/windows/os.h         |  2 +
+ src/pkg/runtime/windows/thread.c     | 41 ++++++++++++++++++
+ 13 files changed, 329 insertions(+), 41 deletions(-)

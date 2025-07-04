@@ -1,60 +1,13 @@
-commit d624f0c92281f73879b573213acf736170a68145
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Aug 16 09:31:22 2012 +1000
+commit ace14d01bda6f8384dea8ab7307e657d80471054
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 15 11:09:34 2012 -0700
 
-    exp/html: simplify testing code
+    text/scanner: report illegal hexadecimal numbers (bug fix)
     
-    Now that the parser passes all tests in the test suite,
-    it is no longer necessary to keep track of which tests
-    pass and which don't. So remove the testlogs directory
-    and the code that uses it.
-    
-    R=nigeltao
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6453124
+    https://golang.org/cl/6450136
 
- src/pkg/exp/html/parse_test.go                     | 101 ++---------
- src/pkg/exp/html/testlogs/adoption01.dat.log       |  13 --
- src/pkg/exp/html/testlogs/adoption02.dat.log       |   2 -
- src/pkg/exp/html/testlogs/comments01.dat.log       |  13 --
- src/pkg/exp/html/testlogs/doctype01.dat.log        |  37 ----
- src/pkg/exp/html/testlogs/entities01.dat.log       |  67 --------
- src/pkg/exp/html/testlogs/entities02.dat.log       |  25 ---
- src/pkg/exp/html/testlogs/html5test-com.dat.log    |  24 ---
- src/pkg/exp/html/testlogs/inbody01.dat.log         |   4 -
- src/pkg/exp/html/testlogs/isindex.dat.log          |   3 -
- .../pending-spec-changes-plain-text-unsafe.dat.log |   1 -
- .../exp/html/testlogs/pending-spec-changes.dat.log |   3 -
- .../exp/html/testlogs/plain-text-unsafe.dat.log    |  33 ----
- src/pkg/exp/html/testlogs/scriptdata01.dat.log     |  26 ---
- src/pkg/exp/html/testlogs/tables01.dat.log         |  17 --
- src/pkg/exp/html/testlogs/tests1.dat.log           | 114 ------------
- src/pkg/exp/html/testlogs/tests10.dat.log          |  54 ------
- src/pkg/exp/html/testlogs/tests11.dat.log          |   9 -
- src/pkg/exp/html/testlogs/tests12.dat.log          |   2 -
- src/pkg/exp/html/testlogs/tests14.dat.log          |   7 -
- src/pkg/exp/html/testlogs/tests15.dat.log          |  14 --
- src/pkg/exp/html/testlogs/tests16.dat.log          | 191 ---------------------
- src/pkg/exp/html/testlogs/tests17.dat.log          |  13 --
- src/pkg/exp/html/testlogs/tests18.dat.log          |  20 ---
- src/pkg/exp/html/testlogs/tests19.dat.log          | 104 -----------
- src/pkg/exp/html/testlogs/tests2.dat.log           |  61 -------
- src/pkg/exp/html/testlogs/tests20.dat.log          |  39 -----
- src/pkg/exp/html/testlogs/tests21.dat.log          |  22 ---
- src/pkg/exp/html/testlogs/tests22.dat.log          |   5 -
- src/pkg/exp/html/testlogs/tests23.dat.log          |   5 -
- src/pkg/exp/html/testlogs/tests24.dat.log          |   8 -
- src/pkg/exp/html/testlogs/tests25.dat.log          |  20 ---
- src/pkg/exp/html/testlogs/tests26.dat.log          |  15 --
- src/pkg/exp/html/testlogs/tests3.dat.log           |  24 ---
- src/pkg/exp/html/testlogs/tests4.dat.log           |   7 -
- src/pkg/exp/html/testlogs/tests5.dat.log           |  16 --
- src/pkg/exp/html/testlogs/tests6.dat.log           |  52 ------
- src/pkg/exp/html/testlogs/tests7.dat.log           |  30 ----
- src/pkg/exp/html/testlogs/tests8.dat.log           |   9 -
- src/pkg/exp/html/testlogs/tests9.dat.log           |  27 ---
- .../exp/html/testlogs/tests_innerHTML_1.dat.log    |  85 ---------
- src/pkg/exp/html/testlogs/tricky01.dat.log         |   9 -
- src/pkg/exp/html/testlogs/webkit01.dat.log         |  49 ------
- src/pkg/exp/html/testlogs/webkit02.dat.log         |  13 --
- 44 files changed, 14 insertions(+), 1379 deletions(-)
+ src/pkg/text/scanner/scanner.go      | 11 ++++++++---
+ src/pkg/text/scanner/scanner_test.go |  3 +++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

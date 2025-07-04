@@ -1,14 +1,81 @@
-commit 39e31d5ec009037f359ba0ba8ada154ffbbb52d5
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Jan 11 22:48:34 2017 -0500
+commit 35e5fd0c4de88567aefa354ce6613b7d1ec3a4d9
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 12 10:53:35 2016 -0700
 
-    doc/go1.8: update timezone database version
+    crypto/tls: enable ChaCha20-Poly1305 cipher suites by default.
     
-    Fixes #18623.
+    This change enables the ChaCha20-Poly1305 cipher suites by default. This
+    changes the default ClientHello and thus requires updating all the
+    tests.
     
-    Change-Id: Ic965f5f7088c3270adbca7162226be486d1b9b4e
-    Reviewed-on: https://go-review.googlesource.com/35130
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6683a2647caaff4a11f9e932babb6f07912cad94
+    Reviewed-on: https://go-review.googlesource.com/30958
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/tls/cipher_suites.go                    |   4 +-
+ src/crypto/tls/handshake_server_test.go            |   6 -
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 104 ++--
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  98 ++--
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 104 ++--
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  98 ++--
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  82 +--
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  80 +--
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  48 +-
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  84 +--
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  80 +--
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  48 +-
+ .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  52 +-
+ .../tls/testdata/Client-TLSv12-AES128-SHA256       |  66 +--
+ .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  52 +-
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  74 ++-
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 102 ++--
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  96 +--
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  92 +--
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 100 ++--
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  92 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  84 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  78 +--
+ .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        |  90 +--
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  76 +--
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  80 +--
+ .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 |  88 +--
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  48 +-
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 363 ++++++------
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 653 ++++++++++-----------
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 370 ++++++------
+ .../testdata/Client-TLSv12-RenegotiationRejected   |  80 ++-
+ src/crypto/tls/testdata/Client-TLSv12-SCT          |  72 ++-
+ .../Client-TLSv12-X25519-ECDHE-RSA-AES-GCM         |  72 +--
+ src/crypto/tls/testdata/Server-SSLv3-RSA-3DES      |  58 +-
+ src/crypto/tls/testdata/Server-SSLv3-RSA-AES       |  60 +-
+ src/crypto/tls/testdata/Server-SSLv3-RSA-RC4       |  50 +-
+ .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     |  68 +--
+ src/crypto/tls/testdata/Server-TLSv10-RSA-3DES     |  50 +-
+ src/crypto/tls/testdata/Server-TLSv10-RSA-AES      |  56 +-
+ src/crypto/tls/testdata/Server-TLSv10-RSA-RC4      |  44 +-
+ src/crypto/tls/testdata/Server-TLSv11-FallbackSCSV |   6 +-
+ src/crypto/tls/testdata/Server-TLSv11-RSA-RC4      |  44 +-
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  64 +-
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  64 +-
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  62 +-
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  60 +-
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  72 +--
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      |  72 +--
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      |  54 +-
+ .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |  60 +-
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  68 +--
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  68 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     |  50 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES      |  54 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  50 +-
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  50 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      |  44 +-
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  57 +-
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      |  70 +--
+ src/crypto/tls/testdata/Server-TLSv12-SNI          |  54 +-
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  |  54 +-
+ .../Server-TLSv12-SNI-GetCertificateNotFound       |  54 +-
+ .../Server-TLSv12-X25519-ECDHE-RSA-AES-GCM         |  50 +-
+ 64 files changed, 2662 insertions(+), 2721 deletions(-)

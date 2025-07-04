@@ -1,16 +1,23 @@
-commit 1fdd1d181bb3633f64f251f354be21ca44865b5f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 10 15:18:10 2015 -0400
+commit 5d111b898ad83fc09470f1a98f481f4e9f5a4cdf
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 20 16:02:11 2015 -0800
 
-    cmd/6g: make proginfo register bits constants
+    [dev.cc] cm/asm: fix up arm after cross-check with 5a
     
-    Also replace proginfo call with cheaper calls where only flags are needed.
+    As with the previous round for ppc64, this CL fixes a couple of things
+    that 5a supported but asm did not, both simple.
     
-    Change-Id: Ib6e5c12bd8752b87c0d8bcf22fa9e25e04a7941f
-    Reviewed-on: https://go-review.googlesource.com/7630
-    Reviewed-by: Rob Pike <r@golang.org>
+    1) Allow condition code on MRC instruction; this was marked as a TODO.
+    2) Allow R(n) notation in ARM register shifts.  The code needs a rethink
+    but the tests we're leading toward will make the rewrite easier to test and
+    trust.
+    
+    Change-Id: I5b52ad25d177a74cf07e089dddfeeab21863c424
+    Reviewed-on: https://go-review.googlesource.com/5422
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/6g/peep.go | 19 +++++++------------
- src/cmd/6g/prog.go | 20 +++++++++++++-------
- src/cmd/6g/reg.go  | 10 ++++++++++
- 3 files changed, 30 insertions(+), 19 deletions(-)
+ src/cmd/asm/internal/arch/arm.go         |  6 +++---
+ src/cmd/asm/internal/asm/asm.go          | 11 +++++++---
+ src/cmd/asm/internal/asm/operand_test.go |  4 +++-
+ src/cmd/asm/internal/asm/parse.go        | 36 ++++++++++++++++++++++++++++++--
+ 4 files changed, 48 insertions(+), 9 deletions(-)

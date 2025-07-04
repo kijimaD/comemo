@@ -1,15 +1,25 @@
-commit 1eb66be1b933055102b2bdcaa113c04cc24e41f9
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Apr 13 01:45:12 2020 +1000
+commit 2c8529cb4d474ab1c7993d3a5af27d9c5e748e0b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 31 16:54:21 2019 -0400
 
-    cmd/compile: enable Sqrt as a compiler intrinsic on riscv64
+    cmd/go: default to mod=readonly when the go.mod file is read-only
     
-    Change-Id: I829a02ced9aa73b45079e67194186116b39504b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227805
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #30185
+    Updates #33326
+    Updates #34822
+    
+    Change-Id: Ie13651585898d1bbbf4f779b97ee50b6c7e7ad50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204521
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/cfg/cfg.go                 |  1 +
+ src/cmd/go/internal/modfetch/repo.go           | 21 ++++++++----
+ src/cmd/go/internal/modload/init.go            | 47 +++++++++++++++++---------
+ src/cmd/go/internal/modload/stat_openfile.go   | 27 +++++++++++++++
+ src/cmd/go/internal/modload/stat_unix.go       | 31 +++++++++++++++++
+ src/cmd/go/internal/modload/stat_windows.go    | 23 +++++++++++++
+ src/cmd/go/script_test.go                      |  6 +++-
+ src/cmd/go/testdata/script/mod_readonly.txt    | 12 +++++--
+ src/cmd/go/testdata/script/mod_vendor_auto.txt |  2 --
+ 9 files changed, 143 insertions(+), 27 deletions(-)

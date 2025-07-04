@@ -1,30 +1,17 @@
-commit 3f2b2dea9f01b233327fc938985c513b83c6e1e8
-Author: Andreas Auernhammer <aead@mail.de>
-Date:   Fri Apr 14 23:12:04 2017 +0200
+commit 8958d8ce37fdae15693787019869ab21e7b8347a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jan 22 10:17:12 2017 -0800
 
-    vendor: update golang_org/x/net/http2 packages
+    cmd/compile: skip convT2E for empty structs
     
-    Update the http2/hpack package to rev 05d3205.
+    Fixes #18402
     
-    Introduce the following changes:
-     - 05d3205 http2/hpack: fix memory leak in headerFieldTable lookup maps
-     - bce15e7 http2/hpack: speedup Encoder.searchTable
-     - dd2d9a6 http2/hpack: remove hpack's constant time string comparison
-     - 357296a all: single space after period
-     - 71a0359 x/net/http2: Fix various typos in doc comments.
-    
-    Updates #19967
-    
-    Change-Id: Ie2c8edcaaf96abde515cb995dfa503b54776abfe
-    Reviewed-on: https://go-review.googlesource.com/40833
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5af800857fb2e365ce4224eece9171277106ec7d
+    Reviewed-on: https://go-review.googlesource.com/35562
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/vendor/golang_org/x/net/http2/hpack/encode.go  |  29 +--
- .../golang_org/x/net/http2/hpack/encode_test.go    |  70 +++++-
- src/vendor/golang_org/x/net/http2/hpack/hpack.go   | 106 +++------
- .../golang_org/x/net/http2/hpack/hpack_test.go     | 146 +-----------
- src/vendor/golang_org/x/net/http2/hpack/tables.go  | 250 ++++++++++++++++-----
- .../golang_org/x/net/http2/hpack/tables_test.go    | 214 ++++++++++++++++++
- 6 files changed, 506 insertions(+), 309 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  1 +
+ src/cmd/compile/internal/gc/walk.go | 29 +++++++++++++++++++----------
+ 2 files changed, 20 insertions(+), 10 deletions(-)

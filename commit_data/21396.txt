@@ -1,20 +1,32 @@
-commit 428afae027548e079335d25cacb70082a0ef8d9f
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 28 15:55:23 2015 -0500
+commit 241583a432803e02992140b81443d4a452f1ce2f
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Dec 25 19:30:53 2014 +0100
 
-    runtime: use func value for parfor body
+    strconv: optimize decimal to string conversion
     
-    Yet another leftover from C: parfor took a func value for the
-    callback, casted it to an unsafe.Pointer for storage, and then casted
-    it back to a func value to call it.  This is unnecessary, so just
-    store the body as a func value.  Beyond general cleanup, this also
-    eliminates the last use of unsafe in parfor.
+    Avoid the decimal lookup in digits array and compute the decimal character value directly.
+    Reduce calls to 64bit division on 32bit plattforms by splitting conversion into smaller blocks.
+    Convert value to uintptr type when it can be represented by uintptr.
     
-    Change-Id: Ia904af7c6c443ba75e2699835aee8e9a39b26dd8
-    Reviewed-on: https://go-review.googlesource.com/3396
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    on darwin/386
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkFormatInt      8352          7466          -10.61%
+    BenchmarkAppendInt      4281          3401          -20.56%
+    BenchmarkFormatUint     2785          2251          -19.17%
+    BenchmarkAppendUint     1770          1223          -30.90%
+    
+    on darwin/amd64
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkFormatInt      5531          5492          -0.71%
+    BenchmarkAppendInt      2435          2295          -5.75%
+    BenchmarkFormatUint     1628          1569          -3.62%
+    BenchmarkAppendUint     726           750           +3.31%
+    
+    Change-Id: Ifca281cbdd62ab7d7bd4b077a96da99eb12cf209
+    Reviewed-on: https://go-review.googlesource.com/2105
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/export_test.go |  2 +-
- src/runtime/parfor.go      | 18 ++++++++----------
- 2 files changed, 9 insertions(+), 11 deletions(-)
+ src/strconv/itoa.go | 58 ++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 35 insertions(+), 23 deletions(-)

@@ -1,14 +1,19 @@
-commit 750b6c63f9e3c81d055ac73395c82381a5e0281e
+commit a1f5f3f10937f15e9cfffa0d806ab2caab87055c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 21 16:01:29 2011 -0700
+Date:   Thu Apr 21 14:37:26 2011 -0700
 
-    http: close underlying gzip Reader too
+    xml: Parser hook for non-UTF-8 charset converters
     
-    Fixes #1724
+    Adds an optional hook to Parser to let charset
+    converters step in when a processing directive
+    with a non-UTF-8 encoding is specified.
+    
+    (Open to alternative proposals too...)
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4443056
+    https://golang.org/cl/4437061
 
- src/pkg/http/transport.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/pkg/xml/xml.go      | 73 ++++++++++++++++++++++++++++++++------
+ src/pkg/xml/xml_test.go | 94 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 156 insertions(+), 11 deletions(-)

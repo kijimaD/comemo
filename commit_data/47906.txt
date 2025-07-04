@@ -1,25 +1,31 @@
-commit 9e7ea3566e662ba498d64cb63146575202a053ee
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 7 16:35:31 2022 -0500
+commit d26fc68aa10dc8eda5ccdcc80d790e7df2fd9823
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 13:25:31 2021 -0400
 
-    runtime: expand TestGdbPythonCgo skip to include mips64le
+    cmd/internal/objabi,test: use correct GOEXPERIMENT build tags in test/run.go
     
-    The failure mode in #37794 does not match the failure mode described
-    in #18784. However, since the test is currently skipped on all other
-    MIPS variants, it may be that they suffer from the same underlying GDB
-    bug. Ideally one of the Go MIPS maintainers should file an upstream
-    bug and remove the skip once it is fixed; in the meantime, there is no
-    point in continuing to let the test fail on just one of the four MIPS
-    variants.
+    Currently, run.go sets GOEXPERIMENT build tags based on the
+    *difference* from the baseline experiment configuration, rather than
+    the absolute experiment configuration. This differs from cmd/go. As a
+    result, if we set a baseline configuration and don't override it with
+    a GOEXPERIMENT setting, run.go won't set any GOEXPERIMENT build tags,
+    instead of setting the tags corresponding to the baseline
+    configuration.
     
-    For #37794
+    Fix this by making compile -V=goexperiment produce the full
+    GOEXPERIMENT configuration, which run.go can then use to set exactly
+    the right set of build tags.
     
-    Change-Id: I570f51cc04cbb7ef1ed7efd526e26886af53bfb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376654
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #40724.
+    
+    Change-Id: Ieda6ea62f1a1fabbe8d749d6d09c198fd5ca8377
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310171
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/runtime-gdb_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/objabi/exp.go  | 11 ++++++-----
+ src/cmd/internal/objabi/flag.go | 14 ++++++++++----
+ test/run.go                     | 35 +++++++++++++++++++----------------
+ 3 files changed, 35 insertions(+), 25 deletions(-)

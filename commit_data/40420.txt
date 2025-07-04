@@ -1,16 +1,21 @@
-commit 3d457f1a3669f8609018bfdc981de7da2f0e95d9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 4 11:53:22 2019 +0200
+commit 83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat May 11 02:21:22 2019 +1000
 
-    cmd/dist: add support for freebsd/arm64
+    cmd/link: add support for R_AARCH64_LDST128_ABS_LO12_NC relocations
     
-    Updates #24715
+    These are encountered when compiling with -linkmode=internal on openbsd/arm64.
     
-    Change-Id: I110a10a5d5ed4a471f67f35cbcdcbea296c5dcaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198542
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #31940
+    
+    Change-Id: I851e6a7da0a3fb3e23b4fa2ed8dce3051c680f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/objabi/reloctype.go        |  3 +++
+ src/cmd/internal/objabi/reloctype_string.go |  6 +++---
+ src/cmd/link/internal/arm64/asm.go          | 15 +++++++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go      |  1 +
+ 4 files changed, 22 insertions(+), 3 deletions(-)

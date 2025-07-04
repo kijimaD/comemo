@@ -1,12 +1,25 @@
-commit 9d1832f2274708a8da6846126e2118b002cc6d8d
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Wed Dec 18 08:33:59 2013 -0800
+commit ca3ff9251dbe34edb539b661a30222d0f3d755bd
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 18 10:57:56 2013 -0500
 
-    encoding/ascii85: add empty string case for Encode test
+    crypto/x509: set default signature hash to SHA256 and allow override.
+    
+    Previously the hash used when signing an X.509 certificate was fixed
+    and, for RSA, it was fixed to SHA1. Since Microsoft have announced the
+    deprecation of SHA1 in X.509 certificates, this change switches the
+    default to SHA256.
+    
+    It also allows the hash function to be controlled by the caller by
+    setting the SignatureAlgorithm field of the template.
+    
+    [1] http://blogs.technet.com/b/pki/archive/2013/11/12/sha1-deprecation-policy.aspx
+    
+    Fixes #5302.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/36830046
+    https://golang.org/cl/40720047
 
- src/pkg/encoding/ascii85/ascii85_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/crypto/x509/x509.go      | 79 ++++++++++++++++++++++++++--------------
+ src/pkg/crypto/x509/x509_test.go | 15 ++++++--
+ 2 files changed, 62 insertions(+), 32 deletions(-)

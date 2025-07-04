@@ -1,29 +1,21 @@
-commit fc45eb388d3693e35b1aa97cb553d2a5083c8b2f
-Author: miller <millerresearch@gmail.com>
-Date:   Tue Mar 7 15:15:10 2023 +0000
+commit e3982660a73b04a87c08215cb5aaa16d816ea573
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 15 13:46:00 2022 -0700
 
-    syscall: avoid race in plan9 while syncing Chdir across goroutines
+    runtime: don't block preemption signal in new M's or ensureSigM
     
-    Because each M in Plan 9 runs in a separate OS process with its
-    own current working directory, a Chdir call in one goroutine needs
-    to be propagated to other goroutines before a subsequent syscall
-    with a local pathname (see #9428). This is done by function
-    syscall.Fixwd, but there is still a race if a goroutine is
-    preempted and rescheduled on a different M between calling Fixwd
-    and executing the syscall which it protects. By locking the
-    goroutine to its OS thread from the start of Fixwd to the end of
-    the protected syscall, this race can be prevented.
+    No test because we already have a test in the syscall package.
+    The issue reports 1 failure per 100,000 iterations, which is rare enough
+    that our builders won't catch the problem.
     
-    Fixes #58802.
+    Fixes #52226
     
-    Change-Id: I89c0e43ef4544b5bfb5db7d2158f13f24b42e1f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474055
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I17633ff6cf676b6d575356186dce42cdacad0746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/syscall/pwd_plan9.go     | 26 ++++++++++++++++++++++----
- src/syscall/syscall_plan9.go | 33 +++++++++++++++++++++++++--------
- 2 files changed, 47 insertions(+), 12 deletions(-)
+ src/runtime/signal_unix.go | 4 ++++
+ 1 file changed, 4 insertions(+)

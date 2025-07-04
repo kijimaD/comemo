@@ -1,16 +1,14 @@
-commit 90083e658ad99594a217fcbc060745bc18e6159d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 18 12:25:28 2018 -0400
+commit f3f507b2d86bfb38c7e466a465d5b6463cfd4184
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 21 15:17:35 2017 -0800
 
-    cmd/go/internal/load: split test logic out of pkg.go into test.go
+    spec: provide some (minimal) intuition for the notion of "terminating statement"
     
-    It's going to grow.
+    Fixes #23215.
     
-    Change-Id: I4f5d3cce6e03250508d1ae0981a6d82a4192ae31
-    Reviewed-on: https://go-review.googlesource.com/107915
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib20825bf08915b4daaabbfd91f168e24973c512d
+    Reviewed-on: https://go-review.googlesource.com/85215
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/load/pkg.go  | 197 ------------------------------------
- src/cmd/go/internal/load/test.go | 208 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 208 insertions(+), 197 deletions(-)
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

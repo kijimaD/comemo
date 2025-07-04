@@ -1,20 +1,26 @@
-commit 7c5f33b173d7bde6b3ae33bab940b76b4c991556
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 11 16:05:41 2016 -0700
+commit c165988360457553ccbfa4a09919de3262a4438a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 7 21:37:45 2016 -0400
 
-    runtime: cull dead code
+    cmd/compile, etc: use nameOff in uncommonType
     
-    They are unused, and vet wants them to have
-    a function prototype.
+    linux/amd64 PIE:
+            cmd/go:  -62KB (0.5%)
+            jujud:  -550KB (0.7%)
     
-    Updates #11041
+    For #6853.
     
-    Change-Id: Idedc96ddd3c3cf1b1d2ab6d98796367eab29f032
-    Reviewed-on: https://go-review.googlesource.com/27492
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ieb67982abce5832e24b997506f0ae7108f747108
+    Reviewed-on: https://go-review.googlesource.com/22371
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm.s                          | 3 ---
- src/runtime/internal/atomic/asm.s          | 8 --------
- src/runtime/internal/atomic/sys_nacl_arm.s | 3 ---
- 3 files changed, 14 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 15 ++++++---------
+ src/cmd/link/internal/ld/decodesym.go  |  6 +++---
+ src/cmd/link/internal/ld/symtab.go     |  5 +++++
+ src/reflect/type.go                    | 21 +++++++++------------
+ src/runtime/heapdump.go                |  4 ++--
+ src/runtime/iface.go                   |  2 +-
+ src/runtime/type.go                    |  6 ++++--
+ 7 files changed, 30 insertions(+), 29 deletions(-)

@@ -1,15 +1,51 @@
-commit ee9c9392b81023e29564d3fe308a15aca7d416ef
-Author: Stephen Lewis <stephen@sock.org.uk>
-Date:   Wed Jun 20 19:38:19 2018 +0100
+commit 93b0261d0a5e1981679b11b3429226258f925551
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Feb 6 14:56:30 2018 -0500
 
-    doc: fix spelling of G Suite
+    cmd/trace: force GC occassionally
     
-    'G Suite' seems to be the preferred spelling according to
-    https://gsuite.google.com/
+    to return memory to the OS after completing potentially
+    large operations.
     
-    Change-Id: Ica60938cf942594157bba84ef205e1cdcb8c1b08
-    Reviewed-on: https://go-review.googlesource.com/120132
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Update #21870
+    
+    Sys went down to 3.7G
+    
+    $ DEBUG_MEMORY_USAGE=1 go tool trace trace.out
+    
+    2018/03/07 09:35:52 Parsing trace...
+    after parsing trace
+     Alloc: 3385754360 Bytes
+     Sys:   3662047864 Bytes
+     HeapReleased:  0 Bytes
+     HeapSys:       3488907264 Bytes
+     HeapInUse:     3426549760 Bytes
+     HeapAlloc:     3385754360 Bytes
+    Enter to continue...
+    2018/03/07 09:36:09 Splitting trace...
+    after spliting trace
+     Alloc: 3238309424 Bytes
+     Sys:   3684410168 Bytes
+     HeapReleased:  0 Bytes
+     HeapSys:       3488874496 Bytes
+     HeapInUse:     3266461696 Bytes
+     HeapAlloc:     3238309424 Bytes
+    Enter to continue...
+    2018/03/07 09:36:39 Opening browser. Trace viewer is listening on http://100.101.224.241:12345
+    
+    after httpJsonTrace
+     Alloc: 3000633872 Bytes
+     Sys:   3693978424 Bytes
+     HeapReleased:  0 Bytes
+     HeapSys:       3488743424 Bytes
+     HeapInUse:     3030966272 Bytes
+     HeapAlloc:     3000633872 Bytes
+    Enter to continue...
+    
+    Change-Id: I56f64cae66c809cbfbad03fba7bd0d35494c1d04
+    Reviewed-on: https://go-review.googlesource.com/92376
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/trace/main.go  | 3 +++
+ src/cmd/trace/trace.go | 5 +++++
+ 2 files changed, 8 insertions(+)

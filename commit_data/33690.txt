@@ -1,14 +1,14 @@
-commit 4aac23cc512f661657e0785544dfdd19b6b517b0
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Sun Nov 26 11:30:39 2017 -0500
+commit 931c43328a27ef763a6b0bacf9d5d55cd2c1a1b8
+Author: Hana Kim <hakim@google.com>
+Date:   Mon Aug 28 17:34:33 2017 -0400
 
-    doc: update URL of the go1.4 source snapshot to use dl.google.com
+    runtime/trace: improve package doc
     
-    Updates golang/go#20672
+    Explaining how to enable tracing.
     
-    Change-Id: I88a1d8693ef9d1e4758719603ce1f3c3f6b920bc
-    Reviewed-on: https://go-review.googlesource.com/79936
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic8391cb290742b4dc1efab15deba85853e182b4d
+    Reviewed-on: https://go-review.googlesource.com/59612
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- doc/install-source.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/trace/trace.go | 37 ++++++++++++++++++++++++++++++-------
+ 1 file changed, 30 insertions(+), 7 deletions(-)

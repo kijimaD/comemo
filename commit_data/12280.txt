@@ -1,14 +1,15 @@
-commit 0201e373e5d0ed98a9ee3c8dbcacae4bf2ffd2cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 29 15:20:11 2012 -0500
+commit 8f0bfc5a29ab942af5b8dd1caf143383a90c2170
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 29 12:18:26 2012 -0800
 
-    spec: shorten heading for complex, real, imag
+    net/http/httptest: make Server.Close wait for outstanding requests to finish
     
-    In the current TOC it sticks out quite a bit.
+    Might fix issue 3050
     
-    R=golang-dev, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5705053
+    https://golang.org/cl/5708066
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/httptest/server.go | 36 +++++++++++++++++++++++++++++++++++-
+ src/pkg/net/http/sniff_test.go      |  3 ++-
+ 2 files changed, 37 insertions(+), 2 deletions(-)

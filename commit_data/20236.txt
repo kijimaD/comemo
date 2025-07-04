@@ -1,18 +1,14 @@
-commit 933169febb90b2a1551a09b5761fda75be9d964d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 1 00:40:28 2014 -0400
+commit 62be54a8c029a85bf06742a19bcdb5e86151559d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 26 14:43:03 2014 -0700
 
-    runtime: remove old malloc test programs
+    unicode: use go generate instead of make to create tables.go
     
-    These haven't been run in ages.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, iant, khr, r
-    https://golang.org/cl/134170043
+    LGTM=mpvl, rsc
+    R=mpvl, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/135820043
 
- src/pkg/runtime/malloc1.go    |  26 --------
- src/pkg/runtime/mallocrand.go |  93 ---------------------------
- src/pkg/runtime/mallocrep.go  |  72 ---------------------
- src/pkg/runtime/mallocrep1.go | 144 ------------------------------------------
- 4 files changed, 335 deletions(-)
+ src/pkg/unicode/Makefile  | 15 ---------------
+ src/pkg/unicode/letter.go |  3 +++
+ 2 files changed, 3 insertions(+), 15 deletions(-)

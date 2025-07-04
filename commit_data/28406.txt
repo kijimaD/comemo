@@ -1,16 +1,82 @@
-commit ae7e0ad7b8cdc16b6a7d5043375bb92a9cf6190a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 15 16:21:56 2016 -0700
+commit da5ac69bd4dce05443220c73c9eadb606b9777f8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 21:52:59 2016 +0000
 
-    cmd/compile: remove more dead code
+    A+C: automated updates
     
-    Change-Id: I0131b0d7421ff1397f16a08eff758250abbdf8e2
-    Reviewed-on: https://go-review.googlesource.com/29239
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Add Aiden Scandella (individual CLA)
+    Add Alessandro Arzilli (individual CLA)
+    Add Augusto Roman (individual CLA)
+    Add Brady Catherman (individual CLA)
+    Add Brady Sullivan (individual CLA)
+    Add Caio Marcelo de Oliveira Filho (corporate CLA for Intel Corporation)
+    Add Catalin Nicutar (corporate CLA for Google Inc.)
+    Add Cherry Zhang (corporate CLA for Google Inc.)
+    Add Chris Zou (corporate CLA for IBM)
+    Add Christopher Nelson (individual CLA)
+    Add Conrad Irwin (individual CLA)
+    Add Cuihtlauac ALVARADO (corporate CLA for Orange)
+    Add Daniel Speichert (individual CLA)
+    Add Datong Sun (individual CLA)
+    Add Denys Honsiorovskyi (individual CLA)
+    Add Derek Shockey (individual CLA)
+    Add Dmitriy Dudkin (individual CLA)
+    Add Dustin Herbis (individual CLA)
+    Add Frits van Bommel (individual CLA)
+    Add Harshavardhana (individual CLA)
+    Add Hitoshi Mitake (individual CLA)
+    Add James Bardin (individual CLA)
+    Add James Chacon (corporate CLA for Google Inc.)
+    Add Jamil Djadala (individual CLA)
+    Add Jess Frazelle (individual CLA)
+    Add Joe Sylve (individual CLA)
+    Add Johan Sageryd (individual CLA)
+    Add John Jeffery (individual CLA)
+    Add Julia Hansbrough (corporate CLA for Google Inc.)
+    Add Jure Ham (corporate CLA for Zemanta d.o.o.)
+    Add Kamal Aboul-Hosn (corporate CLA for Google Inc.)
+    Add Kevin Burke (individual CLA)
+    Add Kevin Kirsche (individual CLA)
+    Add Kevin Vu (individual CLA)
+    Add Lee Hinman (individual CLA)
+    Add Luan Santos (individual CLA)
+    Add Marc-Antoine Ruel (corporate CLA for Google Inc.)
+    Add Matt Robenolt (individual CLA)
+    Add Michael McConville (individual CLA)
+    Add Michael Munday (corporate CLA for IBM)
+    Add Michael Pratt (corporate CLA for Google Inc.)
+    Add Michel Lespinasse (corporate CLA for Google Inc.)
+    Add Mike Danese (corporate CLA for Google Inc.)
+    Add Mikhail Gusarov (individual CLA)
+    Add Monty Taylor (individual CLA)
+    Add Morten Siebuhr (individual CLA)
+    Add Muhammed Uluyol (individual CLA)
+    Add Niels Widger (individual CLA)
+    Add Niko Dziemba (individual CLA)
+    Add Olivier Poitrey (individual CLA)
+    Add Paul Wankadia (corporate CLA for Google Inc.)
+    Add Philip Hofer (individual CLA)
+    Add Prashant Varanasi (individual CLA)
+    Add Rhys Hiltner (corporate CLA for Amazon.com, Inc)
+    Add Richard Miller (individual CLA)
+    Add Scott Bell (individual CLA)
+    Add Shahar Kohanim (individual CLA)
+    Add Shinji Tanaka (individual CLA)
+    Add Suharsh Sivakumar (corporate CLA for Google Inc.)
+    Add Tal Shprecher (individual CLA)
+    Add Tilman Dilo (individual CLA)
+    Add Tim Ebringer (individual CLA)
+    Add Tom Bergan (corporate CLA for Google Inc.)
+    Add Vishvananda Ishaya (individual CLA)
+    Add Wedson Almeida Filho (corporate CLA for Google Inc.)
+    Add Zhongwei Yao (corporate CLA for ARM Ltd.)
+    
+    Updates #12042
+    
+    Change-Id: Ia118adc2eb38e5ffc8448de2d9dd3ca792ee7227
+    Reviewed-on: https://go-review.googlesource.com/23303
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/prog.go  | 12 ------------
- src/cmd/compile/internal/arm/gsubr.go   | 24 +-----------------------
- src/cmd/compile/internal/arm64/gsubr.go | 25 +------------------------
- src/cmd/compile/internal/gc/gsubr.go    | 20 --------------------
- src/cmd/compile/internal/gc/pgen.go     |  2 --
- 5 files changed, 2 insertions(+), 81 deletions(-)
+ AUTHORS      | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 116 insertions(+)

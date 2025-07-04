@@ -1,19 +1,31 @@
-commit 9fe2291efdfd6257b97a3271b1145b67a3e7089d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 9 00:13:43 2016 -0500
+commit c24cc40075d77b96bbf1f217dcdcff651229e89b
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Mon Aug 8 17:24:07 2016 -0400
 
-    cmd/internal/obj/mips: replace MOVD with MOVF on 32-bit to avoid unaligned memory access
+    cmd/trace: fix a runnable goroutine count bug
     
-    This is the simplest CL that I can make for Go 1.8. For Go 1.9, we can revisit it
-    and optimize the redundant address generation instructions or just fix #599 instead.
+    When starting tracing, EvGoCreate events are added for existing
+    goroutines that may have been blocking in syscall. EvGoCreate
+    increments the runnable goroutine count. This change makes the
+    following EvGoInSyscall event decrement the runnable goroutine count
+    because we now know that goroutine is in syscall, and not runnable.
     
-    Fixes #18140.
+    Made generateTrace return an error, at any given time, the number
+    of runnable/running/insyscall goroutines becomes non-negative.
     
-    Change-Id: Ie4804ab0e00dc6bb318da2bece8035c7c71caac3
-    Reviewed-on: https://go-review.googlesource.com/34193
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Added a basic test that checks the number of runnable/running
+    goroutines don't include the goroutines in syscall - the test failed
+    before this change.
+    
+    Change-Id: Ib732c382e7bd17158a437576f9d589ab89097ce6
+    Reviewed-on: https://go-review.googlesource.com/25552
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/internal/obj/mips/obj0.go | 38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/cmd/trace/main.go             |  5 +++-
+ src/cmd/trace/trace.go            | 49 +++++++++++++++++++------------
+ src/cmd/trace/trace_test.go       | 62 +++++++++++++++++++++++++++++++++++++++
+ src/internal/trace/parser_test.go | 47 +++--------------------------
+ src/internal/trace/writer.go      | 45 ++++++++++++++++++++++++++++
+ 5 files changed, 145 insertions(+), 63 deletions(-)

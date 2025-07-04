@@ -1,14 +1,18 @@
-commit 162d2c1608eae600dd38d47586b194638d2c9e16
-Author: Tom Heng <zhm20070928@gmail.com>
-Date:   Mon Jun 29 21:55:13 2015 +0800
+commit 1defd227bd464d13ce32df08594d6642a15ca0b4
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Mon May 25 18:58:19 2015 +0200
 
-    cmd/go: 'go env' print GO15VENDOREXPERIMENT in Go1.5
+    net/mail: add AddressParser type
     
-    Fixes #11410
+    Add the AddressParser type to allow decoding any charset in
+    mail addresses.
     
-    Change-Id: I9d01be3e01f74f4b12a516aba8a5d20d9b277ec6
-    Reviewed-on: https://go-review.googlesource.com/11539
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #7079
+    
+    Change-Id: Ic34efb3e3d804a4e17149a6c38cfd73f5f275ab7
+    Reviewed-on: https://go-review.googlesource.com/10392
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/env.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/mail/message.go      |  64 ++++++++++------
+ src/net/mail/message_test.go | 171 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 213 insertions(+), 22 deletions(-)

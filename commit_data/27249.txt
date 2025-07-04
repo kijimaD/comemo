@@ -1,29 +1,19 @@
-commit fcd7c02c70a110c6f6dbac30ad4ac3eb435ac3fd
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Mar 18 16:34:11 2016 +0100
+commit ac74e5debc884ea4545e23c3248385f0d683524a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 04:58:34 2016 -0700
 
-    runtime: fix CPU underutilization
+    cmd/compile: stop constructing sudog type
     
-    Runqempty is a critical predicate for scheduler. If runqempty spuriously
-    returns true, then scheduler can fail to schedule arbitrary number of
-    runnable goroutines on idle Ps for arbitrary long time. With the addition
-    of runnext runqempty predicate become broken (can spuriously return true).
-    Consider that runnext is not nil and the main array is empty. Runqempty
-    observes that the array is empty, then it is descheduled for some time.
-    Then queue owner pushes another element to the queue evicting runnext
-    into the array. Then queue owner pops runnext. Then runqempty resumes
-    and observes runnext is nil and returns true. But there were no point
-    in time when the queue was empty.
+    The compiler doesn't care about the runtime's sudog type. Stop
+    constructing it.
     
-    Fix runqempty predicate to not return true spuriously.
-    
-    Change-Id: Ifb7d75a699101f3ff753c4ce7c983cf08befd31e
-    Reviewed-on: https://go-review.googlesource.com/20858
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: If1885fe30b2e215a08d17662eab5ea6d81fe58ab
+    Reviewed-on: https://go-review.googlesource.com/20797
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/export_test.go | 32 ++++++++++++++++++++++++++++++++
- src/runtime/proc.go        | 15 +++++++++++++--
- src/runtime/proc_test.go   | 18 ++++++++++++++++++
- 3 files changed, 63 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/select.go | 18 ++----------------
+ src/runtime/runtime2.go               |  3 ---
+ 2 files changed, 2 insertions(+), 19 deletions(-)

@@ -1,12 +1,17 @@
-commit 6ffd70e7f04e90301ddd8224a90859acb44aed83
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Sep 30 15:54:21 2013 -0700
+commit 4da408f676087d6e22356e2564a3e23d49440d16
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Sep 28 15:19:05 2013 -0700
 
-    encoding/gob: do not hide pointer argument for the garbage collector
+    test: match gccgo error messages for blank1.go
+    
+    blank1.go:10:9: error: invalid package name _
+    blank1.go:17:2: error: cannot use _ as value
+    blank1.go:18:7: error: cannot use _ as value
+    blank1.go:20:8: error: invalid use of ‘_’
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14154043
+    https://golang.org/cl/14088044
 
- src/pkg/encoding/gob/decode.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ test/blank1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

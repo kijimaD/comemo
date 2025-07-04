@@ -1,25 +1,19 @@
-commit 2ade8ae325e6410f9696f431e6c50479216e63ae
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 9 10:20:50 2021 -0500
+commit 7588ef0d9020c8e628adcd0a0046231252f0d90d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 18:10:08 2021 -0800
 
-    go/types: rename is_X predicates back to isX (step 2 of 2)
+    cmd/compile/internal/types2: use self_test.go from go/types
     
-    This is a port of CL 361134 to go/types.
+    This CL replaces self_test.go with the (improved) version
+    from go/types, modified for types2.
     
-    Change-Id: Ibac4365a85561b32a90b0118d48aa9302f227b2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362554
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    To see the differences between go/types/self_test.go and
+    this version, compare against patch set 1.
+    
+    Change-Id: I7ae830a17f7a0de40cc1f5063166a7247f78ec27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300997
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/builtins.go    | 12 ++++++------
- src/go/types/check.go       |  2 +-
- src/go/types/conversions.go | 12 ++++++------
- src/go/types/expr.go        | 36 ++++++++++++++++++------------------
- src/go/types/index.go       |  6 +++---
- src/go/types/predicates.go  | 24 ++++++++++++------------
- src/go/types/sizes.go       |  2 +-
- src/go/types/stmt.go        |  2 +-
- src/go/types/typexpr.go     |  2 +-
- 9 files changed, 49 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/types2/self_test.go | 86 +++++++++++++++++-----------
+ 1 file changed, 53 insertions(+), 33 deletions(-)

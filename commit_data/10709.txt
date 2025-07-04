@@ -1,14 +1,17 @@
-commit ebdcbf1cdc3309c6cd234d93ae033937ce89a1fb
-Author: Rob Pike <r@golang.org>
-Date:   Mon Dec 12 12:26:56 2011 -0800
+commit 2cb1aa468108598d5d3fab1c6ff9b6ba1217bf80
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Dec 12 15:22:55 2011 -0500
 
-    doc/go1: the simpler package changes
+    archive/zip: make zip understand os.FileMode.
+    Fixes implicit dependency on underlying os file modes.
     
-    R=golang-dev, fullung, dsymonds, r, adg
+    R=rsc, r, n13m3y3r, gustavo, adg
     CC=golang-dev
-    https://golang.org/cl/5477056
+    https://golang.org/cl/5440130
 
- doc/go1.html     | 178 ++++++++++++++++++++++++++++++++++++++++++++++---------
- doc/go1.tmpl     | 166 ++++++++++++++++++++++++++++++++++++++++++---------
- doc/progs/go1.go |  26 ++++++++
- 3 files changed, 312 insertions(+), 58 deletions(-)
+ src/pkg/archive/zip/reader_test.go     |  64 +++++++++++++++++++-----
+ src/pkg/archive/zip/struct.go          |  88 ++++++++++++++++++++++++++++++---
+ src/pkg/archive/zip/testdata/unix.zip  | Bin 0 -> 620 bytes
+ src/pkg/archive/zip/testdata/winxp.zip | Bin 0 -> 412 bytes
+ src/pkg/archive/zip/writer_test.go     |  24 ++++++++-
+ 5 files changed, 153 insertions(+), 23 deletions(-)

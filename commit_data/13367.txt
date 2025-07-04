@@ -1,15 +1,13 @@
-commit cbcf358d296d86e15b842bb3b70af2deb36b8edc
-Author: Mats Lidell <mats.lidell@cag.se>
-Date:   Thu Jun 21 13:01:54 2012 -0400
+commit 77b1378c3e8b2669ae560c3a11c30e07f0a8cf8f
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Jun 19 11:34:56 2012 -0700
 
-    misc/emacs: Replace replace-{string|regexp} for XEmacs compatible code
+    exp/locale/collate: added regression test for collate package
+    based on UCA test files.
     
-    Use code to be used in lisp programs as suggested in the doc strings for
-    replace-{string|regexp}. Bonus: This code works for XEmacs.
-    
-    R=golang-dev, sameer, jmeurin
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6296073
+    https://golang.org/cl/6216056
 
- misc/emacs/go-mode.el | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/exp/locale/collate/regtest.go | 180 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 180 insertions(+)

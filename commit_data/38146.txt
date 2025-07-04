@@ -1,19 +1,25 @@
-commit c2b707bcf18e763a1fafc7c6fe955c64760df255
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Feb 28 11:54:22 2019 +0100
+commit 1bca6cecc627cd708c6c5440eb14f84a99d5324b
+Author: Jason Keene <jasonkeene@gmail.com>
+Date:   Wed Sep 12 20:35:58 2018 -0600
 
-    syscall: use 64-bit alignment on netbsd-arm
+    cmd/go: ensure git attributes are set
     
-    netbsd-arm needs the same override to the alignment function as
-    openbsd-arm. This fixes the TestPassFD failure.
+    This change disables the export-subst and export-ignore attributes when
+    creating zip files for modules. This is done to prevent the ziphash for
+    a given repo/revision from differing based on variables such as git
+    version or size of repo. The full rational for this change is detailed
+    here:
     
-    Update golang/go#24771
+        https://github.com/golang/go/issues/27153#issuecomment-420763082
     
-    Change-Id: Ib124fc776f6e2e3b3932784365c2bd3944523a52
-    Reviewed-on: https://go-review.googlesource.com/c/164458
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #27153
+    
+    Change-Id: Ib33f525d91d2581fa0b5d26e70d29620c7e685e9
+    Reviewed-on: https://go-review.googlesource.com/c/135175
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/syscall/sockcmsg_unix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go       | 44 ++++++++++++++++++++++
+ .../go/testdata/script/mod_git_export_subst.txt    | 21 +++++++++++
+ 2 files changed, 65 insertions(+)

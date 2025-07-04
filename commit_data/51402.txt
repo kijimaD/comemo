@@ -1,26 +1,21 @@
-commit 998949c09b8925e1f6bab78cb046c6921c5327a1
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Mon Aug 23 15:29:16 2021 +0200
+commit 7520c080b45e9493b289d622aed8d8a0da528089
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 19 18:10:40 2022 -0800
 
-    cmd/dist: update to assume Go 1.17.13 as minimal Go bootstrap version
+    go/types, types2: in SetUnderlying, set Named.fromRHS if not set yet
     
-    Replace explicit Go version names where possible with generic reference
-    to Go bootstrap version.
+    This is necessary for cycle detection over imported types whose
+    underlying types are set by importers with SetUnderlying.
     
-    Updates #44505
+    Preparation for fixing issue #48962.
     
-    Change-Id: I4a6439576efd40e72acd26fcc1472a1a8b0b06e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344330
-    Auto-Submit: Martin Möhrmann <martin@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3218cda7feb06440fdb8345c94bcaa5f7d64e94e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379694
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/README       | 10 +++++-----
- src/cmd/dist/build.go     | 20 ++++++--------------
- src/cmd/dist/buildtool.go | 32 +++++++++-----------------------
- src/cmd/dist/test.go      | 23 +++++++++++++++--------
- src/cmd/dist/util.go      |  2 +-
- 5 files changed, 36 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/types2/named.go | 3 +++
+ src/go/types/named.go                    | 3 +++
+ 2 files changed, 6 insertions(+)

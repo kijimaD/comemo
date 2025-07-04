@@ -1,14 +1,15 @@
-commit 2bd17bca0776ff8bb661259d2ed6de6a325ac197
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 25 13:23:24 2013 +0900
+commit 578dc3a96ce6649b021ee437e089af3a205dff82
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 24 08:13:01 2013 -0700
 
-    net: deflake raw IP protocol entry test on Windows
+    cmd/5g, cmd/6g, cmd/8g: more nil ptr to large struct checks
     
-    Update #5344
-    
-    R=golang-dev, dave, r, alex.brainman
-    CC=golang-dev
-    https://golang.org/cl/8934043
+    R=r, ken, khr, daniel.morsing
+    CC=dsymonds, golang-dev, rickyz
+    https://golang.org/cl/8925043
 
- src/pkg/net/ipraw_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/5g/cgen.c | 65 ++++++++++++++++++++++++++++++++-----------------------
+ src/cmd/6g/cgen.c | 51 +++++++++++++++++++++++++------------------
+ src/cmd/8g/cgen.c | 51 +++++++++++++++++++++++++------------------
+ test/nilptr.go    | 22 +++++++++++++++++++
+ 4 files changed, 120 insertions(+), 69 deletions(-)

@@ -1,19 +1,16 @@
-commit 5fb7e5b482eba62a78738866c536ef04f0696809
+commit fe746335aaf2b7e31e4582439b8cbe25c92004a2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 13 14:05:05 2011 -0800
+Date:   Tue Dec 13 14:03:25 2011 -0800
 
-    go/printer, godoc: print comments in example code
+    gofmt: simplify flags
     
-    - go/printer: support for printing CommentedNodes
-    - go/doc: collect comments from examples
+    -tabs replaces -tabindent
+    -spaces has been removed
     
-    Fixes #2429.
-    
-    R=adg, rsc
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5482052
+    https://golang.org/cl/5487066
 
- src/pkg/go/doc/example.go     |  9 +++--
- src/pkg/go/printer/printer.go | 88 ++++++++++++++++++++++++++++++++++++++-----
- src/pkg/sort/example_test.go  |  2 +-
- 3 files changed, 85 insertions(+), 14 deletions(-)
+ src/cmd/gofmt/doc.go   | 6 ++----
+ src/cmd/gofmt/gofmt.go | 8 ++------
+ 2 files changed, 4 insertions(+), 10 deletions(-)

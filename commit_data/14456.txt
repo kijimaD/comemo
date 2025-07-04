@@ -1,13 +1,16 @@
-commit 7171f533d0bc21c600ea070ed7d593f35f4a1d44
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Nov 23 19:58:46 2012 +0800
+commit e12676304540fa9e160bf4cc28b954574f9ff944
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 21 14:40:50 2012 -0800
 
-    cmd/go: fix data race on cgoLibGccFile
-    Fixes #4426.
+    spec: be clearer about the scope of a package name
     
-    R=dvyukov
+    We have the notion of a PackageName, not package identifier.
+    As is, it could construed that imports that rename a package
+    don't have an "imported package identifier" but a local one.
+    
+    R=r, rsc, iant, ken, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6851099
+    https://golang.org/cl/6858049
 
- src/cmd/go/build.go | 19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

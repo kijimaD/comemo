@@ -1,0 +1,17 @@
+commit 643ad42d5c9bb3b079238997afb3c006ba7d1128
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 16 10:51:49 2024 -0400
+
+    cmd/go/internal/envcmd: fix showing GODEBUG env value
+    
+    It was accidently dropped in CL 563137
+    
+    For #34208
+    
+    Change-Id: I0aea93fda6260f07bc662dea92d1eabb26f82ca0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/envcmd/env.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,16 @@
-commit 9565d990f4e2630dbf37c636299b9ddbd58b4f6b
-Author: Xiangdong Ji <jixiangdong@bytedance.com>
-Date:   Thu Feb 2 14:20:16 2023 +0800
+commit 80a7504a13a5dccb60757d1fc66d71bcba359799
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Sun Mar 20 21:28:46 2022 +0800
 
-    cmd/go: honor user-specified -c=N
+    cmd/compile: enable inlining SELECT
     
-    User-specified '-c=N' options should take precedence over the default one generated
-    by cmd/go.
-    
-    Change-Id: I9021440b4a4286f8d6f92acb745a777cf234a82b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465095
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I90c8e12a0be05d82bf6e147b5249859518f35c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394074
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/gc.go                     | 2 +-
- src/cmd/go/testdata/script/build_gcflags_order.txt | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 11 +++++++----
+ test/inline.go                         | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

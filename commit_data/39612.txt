@@ -1,22 +1,17 @@
-commit f3e3b71a50d7a247d07cc4e4295ec2dc44b04b6a
-Author: Jeff Hodges <jeff@somethingsimilar.com>
-Date:   Thu Aug 22 06:51:44 2019 +0000
+commit 1ab9f6837d6da80dad41657a913e47fa13a4fee8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 7 17:29:24 2019 -0500
 
-    net/http: change TimeoutHandler's docs to match its new interfaces
+    cmd/go/internal/modfetch: handle codeRoot == path for paths with major-version suffixes
     
-    As of Go 1.13rc1, TimeoutHandler supports the Flusher and Pusher interfaces and
-    this change corrects its documentation to say that.
+    Fixes #30647
     
-    Fixes #33769
-    Updates #29193
-    
-    Change-Id: Ia0523f7f2e3dc1f8f0b68950b85a7bf81c4abe60
-    GitHub-Last-Rev: 5310d2c9608a1af2d3030a9573e920906c76744e
-    GitHub-Pull-Request: golang/go#33770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191237
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Icbcfdb3907bc003ac17a8c7df17ecb41daf82eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166117
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go      | 100 ++++++++++++++++++--------
+ src/cmd/go/internal/modfetch/coderepo_test.go |   9 +++
+ 2 files changed, 81 insertions(+), 28 deletions(-)

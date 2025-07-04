@@ -1,21 +1,30 @@
-commit 402e37d4a9dba9dfcfb106c2dc4ff1c264f7b6b7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 17 17:28:35 2015 -0500
+commit e3869a6b65bb0f95dac7eca3d86055160b12589f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 7 23:18:02 2015 -0700
 
-    cmd/compile: special case nowritebarrierrec for allocm
+    [dev.ssa] cmd/compile/internal/ssa: implement write barriers
     
-    allocm is a very unusual function: it is specifically designed to
-    allocate in contexts where m.p is nil by temporarily taking over a P.
-    Since allocm is used in many contexts where it would make sense to use
-    nowritebarrierrec, this commit teaches the nowritebarrierrec analysis
-    to stop at allocm.
+    For now, we only use typedmemmove.  This can be optimized
+    in future CLs.
     
-    Updates #10600.
+    Also add a feature to help with binary searching bad compilations.
+    Together with GOSSAPKG, GOSSAHASH specifies the last few binary digits
+    of the hash of function names that should be compiled.  So
+    GOSSAHASH=0110 means compile only those functions whose last 4 bits
+    of hash are 0110.  By adding digits to the front we can binary search
+    for the function whose SSA-generated code is causing a test to fail.
     
-    Change-Id: I8499629461d4fe25712d861720dfe438df7ada9b
-    Reviewed-on: https://go-review.googlesource.com/17005
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5a8b6b70c6f034f59e5753965234cd42ea36d524
+    Reviewed-on: https://go-review.googlesource.com/14530
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 3 +++
- src/runtime/proc.go                | 3 +++
- 2 files changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/ssa.go             | 62 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/ssa_test.go        |  1 -
+ src/cmd/dist/test.go                           |  7 +--
+ src/cmd/internal/obj/stack.go                  |  2 +-
+ src/runtime/mbarrier.go                        |  8 ++++
+ src/runtime/stack2.go                          |  4 +-
+ test/nosplit.go                                |  4 +-
+ 9 files changed, 76 insertions(+), 14 deletions(-)

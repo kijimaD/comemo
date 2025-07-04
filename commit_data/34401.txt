@@ -1,25 +1,14 @@
-commit 4b1d704d144181c81317c1b3db587f6aac53224b
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Feb 22 12:05:29 2018 -0800
+commit 883e08a3968f8def93ece35cc7957c66f0596fc6
+Author: Sergey Semin <gray12511@gmail.com>
+Date:   Mon Oct 23 16:49:38 2017 +0400
 
-    crypto/x509: parse invalid DNS names and email addresses.
+    log: Remove unnecessary else
     
-    Go 1.10 requires that SANs in certificates are valid. However, a
-    non-trivial number of (generally non-WebPKI) certificates have invalid
-    strings in dnsName fields and some have even put those dnsName SANs in
-    CA certificates.
-    
-    This change defers validity checking until name constraints are checked.
-    
-    Fixes #23995, #23711.
-    
-    Change-Id: I2e0ebb0898c047874a3547226b71e3029333b7f1
-    Reviewed-on: https://go-review.googlesource.com/96378
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I868f5101dd44f427d6504a8dbb198c06107be00e
+    Reviewed-on: https://go-review.googlesource.com/72380
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/crypto/x509/name_constraints_test.go | 75 ++++++++++++++++++++++++++++++--
- src/crypto/x509/verify.go                |  7 ++-
- src/crypto/x509/x509.go                  | 18 +++-----
- 3 files changed, 82 insertions(+), 18 deletions(-)
+ src/log/syslog/syslog_unix.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

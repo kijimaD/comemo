@@ -1,22 +1,23 @@
-commit eb9f090d1b543f54b319cab78027cdf2ce1a08b8
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jul 22 18:57:52 2021 -0400
+commit 970d8b6cb2ca5302f09a4eb8bfe90c4baea9cf88
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Thu Jan 21 14:13:36 2021 +0800
 
-    cmd/link: use "CC --print-prog-name" to locate tools
+    [dev.regabi] cmd/compile: replace ir.Name map with ir.NameSet in inlining
     
-    When building for macOS with external linking, we currently use
-    "xcrun" to invoke "dsymutil" and "strip" tools. That doesn't work
-    well for cross compilation. Use "CC --print-prog-name" to find the
-    tool path instead.
+    As CL 282212 mentioned, we should clean all map[*ir.Name]bool with
+    ir.NameSet.
     
-    Fixes #47316.
+    Passes toolstash -cmp.
     
-    Change-Id: Ib30c6494c48bfb6a505dc26fe644ef543d777076
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336769
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Updates #43819
+    
+    Change-Id: I1ce5d2055f88539f807dc021cd8e3941b425bc4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284897
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Baokun Lee <bk@golangcn.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/lib.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

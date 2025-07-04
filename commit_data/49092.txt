@@ -1,29 +1,20 @@
-commit dd8d425fedd88970a7ee79e908eb47f6d1fcdcad
-Author: Ryan Leung <rleungx@gmail.com>
-Date:   Tue Nov 23 03:00:32 2021 +0000
+commit 76b39959f4edc8b877506fe7cfe674ceaf64a627
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 13:15:24 2021 -0400
 
-    all: fix some lint issues
+    [dev.typeparams] go/types: don't permit method calls on ptr to type parameter receivers
     
-    Make some code more simple.
+    This is a port of CL 332609 to go/types.
     
-    Change-Id: I801adf0dba5f6c515681345c732dbb907f945419
-    GitHub-Last-Rev: a505146baca00a1b3268d11d10510afa8cea6f1d
-    GitHub-Pull-Request: golang/go#49626
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364634
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3482ea1b97bc7101b987ef312cd6cade80a5843f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335112
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/des/block.go                 | 6 +-----
- src/database/sql/example_cli_test.go    | 6 ++----
- src/debug/plan9obj/file.go              | 3 +--
- src/go/build/constraint/expr.go         | 1 -
- src/math/tan.go                         | 8 ++++----
- src/net/http/cookiejar/jar.go           | 6 ++----
- src/net/http/httputil/reverseproxy.go   | 1 -
- src/runtime/metrics/description_test.go | 2 +-
- src/testing/sub_test.go                 | 2 +-
- 9 files changed, 12 insertions(+), 23 deletions(-)
+ src/go/types/lookup.go                         | 10 ++++++----
+ src/go/types/testdata/check/issues.go2         | 10 ++++------
+ src/go/types/testdata/fixedbugs/issue47031.go2 | 20 ++++++++++++++++++++
+ src/go/types/type.go                           | 12 ++++++------
+ 4 files changed, 36 insertions(+), 16 deletions(-)

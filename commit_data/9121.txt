@@ -1,15 +1,12 @@
-commit 7a18fc3bcb75bb92dc382dac5c6e9105ab861e5f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jul 19 11:12:10 2011 +1000
+commit 95117d30a22962d5de9bfcef338e9e7851ff9154
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 18 17:54:32 2011 -0700
 
-    dashboard: list "most installed this week" with rolling count
+    time: typo in documentation
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4631085
+    https://golang.org/cl/4763048
 
- misc/dashboard/godashboard/app.yaml     |   6 +-
- misc/dashboard/godashboard/cron.yaml    |   4 ++
- misc/dashboard/godashboard/package.html |  20 +++++-
- misc/dashboard/godashboard/package.py   | 109 ++++++++++++++++++++++++++------
- 4 files changed, 115 insertions(+), 24 deletions(-)
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

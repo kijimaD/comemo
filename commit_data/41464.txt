@@ -1,20 +1,19 @@
-commit 9c600949861fad2990fc7f661c4aa70fade24b0a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 22 20:05:12 2020 -0800
+commit 7e4d87b7708dbd319f3c44c8b4d49ef7f51504c8
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Oct 4 16:48:17 2019 +0200
 
-    cmd/compile: merge const into storeidx on amd64
+    syscall: replace mksyscall_windows.go with wrapper to new x/sys home
     
-    file    before    after     Δ       %
-    compile 20652264  20639976  -12288  -0.059%
-    trace   11673532  11669436  -4096   -0.035%
-    total   116019840 116003456 -16384  -0.014%
+    We replace the existing file with a thin wrapper around its target so
+    that we don't break anybody's workflow.
     
-    Change-Id: Id0522e08f10e77c885fba1d0d9b65f8981a647ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220693
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #34388
+    
+    Change-Id: I0d00371c483cb78f4be18fe987df33c79cd40f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198977
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   9 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 168 +++++++++++++++++++++++++++
- 2 files changed, 177 insertions(+)
+ src/syscall/mksyscall_windows.go | 919 +--------------------------------------
+ 1 file changed, 8 insertions(+), 911 deletions(-)

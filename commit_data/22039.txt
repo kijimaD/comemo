@@ -1,21 +1,14 @@
-commit d0d9310df96a464a886359a1e3340eb62bf1cb86
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:21:00 2015 +0100
+commit 5f8423844463b3b77588e46ea57f44d8b69a1564
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 20 08:34:30 2015 +1100
 
-    syscall: add support for GOARCH=arm64
+    cmd/dist: show friendlier error message when building outside a Git repo
     
-    Change-Id: Ia817e78d9678a365a76fea5e4dbe8f8a5aab0bac
-    Reviewed-on: https://go-review.googlesource.com/7143
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #9932
+    
+    Change-Id: I7943470a1784278a5c6e99c3b66c59d4953734ba
+    Reviewed-on: https://go-review.googlesource.com/5340
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/asm_linux_arm64.s       |  105 ++
- src/syscall/mkall.sh                |   11 +
- src/syscall/mkerrors.sh             |    8 +
- src/syscall/mksysnum_linux.pl       |   14 +-
- src/syscall/syscall_linux_arm64.go  |  142 +++
- src/syscall/types_linux.go          |    2 +
- src/syscall/zerrors_linux_arm64.go  | 1822 +++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_arm64.go | 1758 +++++++++++++++++++++++++++++++++
- src/syscall/zsysnum_linux_arm64.go  |  275 ++++++
- src/syscall/ztypes_linux_arm64.go   |  594 ++++++++++++
- 10 files changed, 4730 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

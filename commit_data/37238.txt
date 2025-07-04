@@ -1,32 +1,12 @@
-commit 0663fe9862951a52cc67e3af8213ee99b76297e0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Oct 28 18:04:54 2018 -0400
+commit 3df1f00bfc0739cf2b6cf046b920221bdfa748e3
+Author: Xia Bin <snyh@snyh.org>
+Date:   Thu Jul 12 14:35:39 2018 +0800
 
-    crypto/tls: implement TLS 1.3 version-specific messages
+    doc: ArgsSizeUnknown it's defined in cmd/internal/objabi now
     
-    Note that there is significant code duplication due to extensions with
-    the same format appearing in different messages in TLS 1.3. This will be
-    cleaned up in a future refactor once CL 145317 is merged.
-    
-    Enforcing the presence/absence of each extension in each message is left
-    to the upper layer, based on both protocol version and extensions
-    advertised in CH and CR. Duplicated extensions and unknown extensions in
-    SH, EE, HRR, and CT will be tightened up in a future CL.
-    
-    The TLS 1.2 CertificateStatus message was restricted to accepting only
-    type OCSP as any other type (none of which are specified so far) would
-    have to be negotiated.
-    
-    Updates #9671
-    
-    Change-Id: I7c42394c5cc0af01faa84b9b9f25fdc6e7cfbb9e
-    Reviewed-on: https://go-review.googlesource.com/c/145477
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I877c82788f3edbcb0b334b42049c1a06f36a6477
+    Reviewed-on: https://go-review.googlesource.com/123517
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/tls/common.go                  |  31 +-
- src/crypto/tls/conn.go                    |  26 +-
- src/crypto/tls/handshake_client.go        |   4 +-
- src/crypto/tls/handshake_messages.go      | 526 +++++++++++++++++++++++++++---
- src/crypto/tls/handshake_messages_test.go |  90 ++++-
- src/crypto/tls/handshake_server.go        |   1 -
- 6 files changed, 613 insertions(+), 65 deletions(-)
+ src/cmd/asm/internal/asm/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

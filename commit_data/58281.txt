@@ -1,21 +1,18 @@
-commit 8397de2241ca71ba5df2fa60564a8559b9a2d25d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 22 13:37:26 2024 -0800
+commit 6ba6e72e39ac5be92f604832640c3131ad3d0ade
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Wed Apr 19 21:29:59 2023 +0200
 
-    crypto/internal/fips140/aes: handle fallback correctly, take 2
+    database/sql: add godoc links
     
-    Don't fallthrough to the hardware version if we used the generic version.
+    Add godoc links in database/sql and database/sql/driver.
     
-    Missed one case of this in CL 631315.
-    
-    (Originally broken on CL 624738.)
-    
-    Change-Id: I5bf485ac8b0007769e4e935794defe2a3592376e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631136
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I96ed79645a7cc656f5d23450ba3cfe005b04b31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486815
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/crypto/internal/fips140/aes/ctr_s390x.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/database/sql/driver/driver.go |  53 ++++++++++----------
+ src/database/sql/driver/types.go  |  10 ++--
+ src/database/sql/sql.go           | 100 +++++++++++++++++++-------------------
+ 3 files changed, 82 insertions(+), 81 deletions(-)

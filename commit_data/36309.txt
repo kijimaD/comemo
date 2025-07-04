@@ -1,86 +1,16 @@
-commit 0a382e0b7f9abb39644adcfe65013df200989324
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Jul 11 01:30:32 2018 +0000
+commit 1473789b74d69ba3d27c4880d2a8b442151e784d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 18 17:17:26 2018 +0000
 
-    cmd/compile: optimize ARMv7 code
+    net/http: remove stderr log spam in test
     
-    "AND $0xffff0000, Rx" will be encoded to 12 bytes.
-    1. MOVWload from the constant pool to Rtmp
-    2. AND Rtmp, Rx
-    3. a 4-byte item in the constant pool
+    Fixes #24831
     
-    It can be simplified to 8 bytes on ARMv7, since ARMv7 has
-    "MOVW $imm-16, Rx".
-    1. MOVW $0xffff, Rtmp
-    2. BIC Rtmp, Rx
-    
-    The above optimization also applies to BICconst, ADDconst and
-    SUBconst.
-    
-    1. The total size of pkg/android_arm (excluding cmd/compile)
-       decreases about 2KB.
-    
-    2. The go1 benchmark shows no regression, exlcuding noise.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              25.5s ± 1%     25.2s ± 1%  -0.85%  (p=0.000 n=30+30)
-    Fannkuch11-4                13.3s ± 0%     13.3s ± 0%  +0.16%  (p=0.000 n=24+25)
-    FmtFprintfEmpty-4           397ns ± 0%     394ns ± 0%  -0.64%  (p=0.000 n=30+30)
-    FmtFprintfString-4          679ns ± 0%     678ns ± 0%    ~     (p=0.093 n=30+29)
-    FmtFprintfInt-4             708ns ± 0%     707ns ± 0%  -0.19%  (p=0.000 n=27+28)
-    FmtFprintfIntInt-4         1.05µs ± 0%    1.05µs ± 0%  -0.07%  (p=0.001 n=18+30)
-    FmtFprintfPrefixedInt-4    1.16µs ± 0%    1.15µs ± 0%  -0.41%  (p=0.000 n=29+30)
-    FmtFprintfFloat-4          2.26µs ± 0%    2.23µs ± 1%  -1.40%  (p=0.000 n=30+30)
-    FmtManyArgs-4              3.96µs ± 0%    3.95µs ± 0%  -0.29%  (p=0.000 n=29+30)
-    GobDecode-4                52.9ms ± 2%    53.4ms ± 2%  +0.92%  (p=0.004 n=28+30)
-    GobEncode-4                49.7ms ± 2%    49.8ms ± 2%    ~     (p=0.890 n=30+26)
-    Gzip-4                      2.61s ± 0%     2.60s ± 0%  -0.36%  (p=0.000 n=29+29)
-    Gunzip-4                    312ms ± 0%     311ms ± 0%  -0.13%  (p=0.000 n=30+28)
-    HTTPClientServer-4         1.02ms ± 8%    1.00ms ± 7%    ~     (p=0.224 n=29+26)
-    JSONEncode-4                125ms ± 1%     124ms ± 3%  -1.05%  (p=0.000 n=25+30)
-    JSONDecode-4                432ms ± 1%     436ms ± 2%    ~     (p=0.277 n=26+30)
-    Mandelbrot200-4            18.4ms ± 0%    18.4ms ± 0%  +0.02%  (p=0.001 n=28+25)
-    GoParse-4                  22.4ms ± 1%    22.3ms ± 1%  -0.41%  (p=0.000 n=28+28)
-    RegexpMatchEasy0_32-4       697ns ± 0%     706ns ± 0%  +1.23%  (p=0.000 n=19+30)
-    RegexpMatchEasy0_1K-4      4.27µs ± 0%    4.26µs ± 0%  -0.06%  (p=0.000 n=30+30)
-    RegexpMatchEasy1_32-4       741ns ± 0%     735ns ± 0%  -0.86%  (p=0.000 n=26+30)
-    RegexpMatchEasy1_1K-4      5.49µs ± 0%    5.49µs ± 0%  -0.03%  (p=0.023 n=25+30)
-    RegexpMatchMedium_32-4     1.05µs ± 2%    1.04µs ± 2%    ~     (p=0.893 n=30+30)
-    RegexpMatchMedium_1K-4      261µs ± 0%     261µs ± 0%  -0.11%  (p=0.000 n=29+30)
-    RegexpMatchHard_32-4       14.9µs ± 0%    14.9µs ± 0%  -0.36%  (p=0.000 n=23+29)
-    RegexpMatchHard_1K-4        446µs ± 0%     445µs ± 0%  -0.17%  (p=0.000 n=30+29)
-    Revcomp-4                  41.6ms ± 1%    41.7ms ± 1%  +0.27%  (p=0.040 n=28+30)
-    Template-4                  531ms ± 0%     532ms ± 1%    ~     (p=0.059 n=30+30)
-    TimeParse-4                3.40µs ± 0%    3.33µs ± 0%  -2.02%  (p=0.000 n=30+30)
-    TimeFormat-4               6.14µs ± 0%    6.11µs ± 0%  -0.45%  (p=0.000 n=27+29)
-    [Geo mean]                  384µs          383µs       -0.27%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4              14.5MB/s ± 2%  14.4MB/s ± 2%  -0.90%  (p=0.005 n=28+30)
-    GobEncode-4              15.4MB/s ± 2%  15.4MB/s ± 2%    ~     (p=0.741 n=30+25)
-    Gzip-4                   7.44MB/s ± 0%  7.47MB/s ± 1%  +0.37%  (p=0.000 n=25+30)
-    Gunzip-4                 62.3MB/s ± 0%  62.4MB/s ± 0%  +0.13%  (p=0.000 n=30+28)
-    JSONEncode-4             15.5MB/s ± 1%  15.6MB/s ± 3%  +1.07%  (p=0.000 n=25+30)
-    JSONDecode-4             4.48MB/s ± 0%  4.46MB/s ± 2%    ~     (p=0.655 n=23+30)
-    GoParse-4                2.58MB/s ± 1%  2.59MB/s ± 1%  +0.42%  (p=0.000 n=28+29)
-    RegexpMatchEasy0_32-4    45.9MB/s ± 0%  45.3MB/s ± 0%  -1.23%  (p=0.000 n=28+30)
-    RegexpMatchEasy0_1K-4     240MB/s ± 0%   240MB/s ± 0%  +0.07%  (p=0.000 n=30+30)
-    RegexpMatchEasy1_32-4    43.2MB/s ± 0%  43.5MB/s ± 0%  +0.85%  (p=0.000 n=30+28)
-    RegexpMatchEasy1_1K-4     186MB/s ± 0%   186MB/s ± 0%  +0.03%  (p=0.026 n=25+30)
-    RegexpMatchMedium_32-4    955kB/s ± 2%   960kB/s ± 2%    ~     (p=0.084 n=30+30)
-    RegexpMatchMedium_1K-4   3.92MB/s ± 0%  3.93MB/s ± 0%  +0.14%  (p=0.000 n=29+30)
-    RegexpMatchHard_32-4     2.14MB/s ± 0%  2.15MB/s ± 0%  +0.31%  (p=0.000 n=30+26)
-    RegexpMatchHard_1K-4     2.30MB/s ± 0%  2.30MB/s ± 0%    ~     (all equal)
-    Revcomp-4                61.1MB/s ± 1%  60.9MB/s ± 1%  -0.27%  (p=0.039 n=28+30)
-    Template-4               3.66MB/s ± 0%  3.65MB/s ± 1%  -0.14%  (p=0.045 n=30+30)
-    [Geo mean]               12.8MB/s       12.8MB/s       +0.04%
-    
-    Change-Id: I02370e2584b4c041fddd324c97628fd6f0c12183
-    Reviewed-on: https://go-review.googlesource.com/123179
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: Icd39093d1b7d9b25aa8374c0298cdb1dea48e672
+    Reviewed-on: https://go-review.googlesource.com/107817
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |  4 +++
- src/cmd/compile/internal/ssa/rewriteARM.go | 56 ++++++++++++++++++++++++++++++
- test/codegen/bits.go                       |  5 +++
- 3 files changed, 65 insertions(+)
+ src/net/http/transport_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

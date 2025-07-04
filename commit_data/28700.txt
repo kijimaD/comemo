@@ -1,14 +1,23 @@
-commit 33faa4ebb9aedbe821b57b9c645d3be72100ebe3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 5 15:25:28 2016 -0700
+commit c7ae41e5770b2258074eee68a6a3c4d0d71a251f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 28 17:06:59 2016 -0700
 
-    go/importer: better error messages when export data is not found
+    runtime: better error message for newosproc failure
     
-    Fixes #17281.
+    If creating a new thread fails with EAGAIN, point the user at ulimit.
     
-    Change-Id: I4e639998dbe3baa98879f1becc37d7c4d19351e7
-    Reviewed-on: https://go-review.googlesource.com/30473
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #15476.
+    
+    Change-Id: Ib36519614b5c72776ea7f218a0c62df1dd91a8ea
+    Reviewed-on: https://go-review.googlesource.com/24570
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gcimporter/exportdata.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/runtime/os3_solaris.go  | 3 +++
+ src/runtime/os_dragonfly.go | 1 +
+ src/runtime/os_freebsd.go   | 1 +
+ src/runtime/os_linux.go     | 3 +++
+ src/runtime/os_netbsd.go    | 5 +++++
+ src/runtime/os_openbsd.go   | 3 +++
+ 6 files changed, 16 insertions(+)

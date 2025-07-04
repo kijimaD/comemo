@@ -1,17 +1,17 @@
-commit 6e02750dd6747735e401e13b168bd6e03ab7dbe6
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Tue Oct 25 19:09:36 2016 -0700
+commit 41943d96390353695225da6ef44dacdca84d92df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 14:28:44 2016 -0700
 
-    cmd/dist: ignore stderr when listing packages to test
+    cmd/compile: convert getdyn int arg to bool
     
-    Currently any warning will make dist fail because the
-    text will be considered as part of the package list.
+    Passes toolstash -cmp.
     
-    Change-Id: I09a14089cd0448c3779e2f767e9356fe3325d8d9
-    Reviewed-on: https://go-review.googlesource.com/32111
+    Change-Id: I5b893b8b82b358534fd85542f05e3aa7e666bcd3
+    Reviewed-on: https://go-review.googlesource.com/26752
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

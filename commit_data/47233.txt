@@ -1,22 +1,14 @@
-commit bd49a998bf68609259c155cd7b9f4ed76d948a0d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Nov 1 14:32:39 2021 +0700
+commit 2217e89ba326875470a856cd0da79f3ec9a896b8
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Mon Jan 18 19:56:26 2021 +0100
 
-    cmd/compile: fix missing update source type in storeArgOrLoad
+    net/http/httptrace: fix doc typo
     
-    After removing trivial wrapper types, the source needs to be updated
-    with new type, otherwise, it leads to mismatch between field offset and
-    the source type for selecting struct/array.
-    
-    Fixes #49249
-    
-    Change-Id: I26f9440bcb2e78bcf0617afc21d9d40cdbe4aca6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360057
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I919d9c3968c0fcd33774e714f22182504790bd01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284143
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/ssa/expand_calls.go |  2 +
- test/fixedbugs/issue49249.go                 | 55 ++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+)
+ src/net/http/httptrace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

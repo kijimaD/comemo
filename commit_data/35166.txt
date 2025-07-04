@@ -1,17 +1,17 @@
-commit e656aebb5b9e0437e050c3050e50a658c0244777
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Mon Apr 23 13:03:44 2018 +0900
+commit a6b938549e5e0ff33c77a5bbba797a1a6f7f9401
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 4 15:09:21 2018 -0500
 
-    os: os: make Stat("*.txt") fail on windows
+    cmd/go: fix build failure in -x test
     
-    Fixes #24999
+    CL 84735 strengthened the -x test to make sure commands succeed,
+    using set -e, but the gcc flag tests can fail. Change them to say || true.
     
-    Change-Id: Ie0bb6a6e0fa3992cdd272d42347af65ae7c95463
-    Reviewed-on: https://go-review.googlesource.com/108755
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Fixes #23337.
+    
+    Change-Id: I01e4017cb36ceb147b56935c2636de52ce7bdfdb
+    Reviewed-on: https://go-review.googlesource.com/86239
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go | 1 +
- src/os/os_windows_test.go                       | 8 ++++++++
- src/os/types_windows.go                         | 8 ++++++++
- 3 files changed, 17 insertions(+)
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

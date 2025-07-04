@@ -1,19 +1,18 @@
-commit 86ee84c40e2770ff189b6a4d835849107d9c749a
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Sep 2 13:25:11 2020 -0400
+commit 173dce8d2029cc3797537431b93d9ab04e135289
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 11:08:30 2020 -0800
 
-    cmd/go: move get.Insecure to cfg.Insecure to break dependency cycle
+    cmd/compile: check rune type bounds as int32, not uint32
     
-    Change-Id: If9c73ff5adc7e080a48ecc6b35ce40822193d66f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254363
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Also, avoid string(i) where i has type int.
+    
+    Updates #32479
+    
+    Change-Id: If3c6edc8523860082726e034ef9e887b5f7fabd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221382
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go           | 2 ++
- src/cmd/go/internal/get/get.go           | 6 ++----
- src/cmd/go/internal/modfetch/insecure.go | 3 +--
- src/cmd/go/internal/modfetch/sumdb.go    | 3 +--
- src/cmd/go/internal/modget/get.go        | 6 +++---
- 5 files changed, 9 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,20 +1,17 @@
-commit adf20ee3c5f75139bebca6f4515719c304963a69
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 2 22:15:05 2019 -0700
+commit 1b5b08d10a372ef3e3a21442fade2d2b4e3be343
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:50:29 2019 +0100
 
-    debug/dwarf, debug/elf: support DWARF 5
+    cmd/nm: fix cgo tests for aix/ppc64
     
-    Change-Id: I6e9d47865c198299d497911c58235cd40f775e34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175138
+    This commit handles AIX cgo in cmd/nm tests.
+    
+    Change-Id: I6753a0102e4f2c4c7bd4d7c999f62a0cb3d2183c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164017
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/dwarf/buf.go      |  12 +++
- src/debug/dwarf/entry.go    | 217 +++++++++++++++++++++++++++++++++++++++++---
- src/debug/dwarf/line.go     | 215 +++++++++++++++++++++++++++++++++++++------
- src/debug/dwarf/open.go     |  25 +++++
- src/debug/dwarf/typeunit.go |   2 +-
- src/debug/dwarf/unit.go     |  26 +++++-
- src/debug/elf/file.go       |  24 +++--
- 7 files changed, 470 insertions(+), 51 deletions(-)
+ src/cmd/nm/nm_cgo_test.go |  2 ++
+ src/cmd/nm/nm_test.go     | 11 +++++++++++
+ 2 files changed, 13 insertions(+)

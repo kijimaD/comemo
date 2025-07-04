@@ -1,22 +1,15 @@
-commit 6582d1cf8b345b774785b7bae46b4b0c5f5a75f5
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sat Mar 7 16:16:48 2015 +1300
+commit 2bcfe8b9357f5f823211157c3b67bb03e2f89a2d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Feb 18 08:25:30 2015 +0100
 
-    cmd/internal/gc, etc: remove canemitecode of Naddr
+    cmd/gc: replace NULL by nil
     
-    The argument is never consulted apart from passing it to recursive
-    calls.  So delete it.
+    In CL 3964, NULL was used instead of nil.
+    However, Plan 9 doesn't declare NULL.
     
-    Change-Id: Ia15eefb6385b3c99ea4def88f564f4e5a94c68ab
-    Reviewed-on: https://go-review.googlesource.com/7032
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ied3850aca5c8bca5974105129a37d575df33f6ec
+    Reviewed-on: https://go-review.googlesource.com/5150
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/5g/ggen.go           |  2 +-
- src/cmd/5g/gsubr.go          | 12 ++++++------
- src/cmd/6g/gsubr.go          | 10 +++++-----
- src/cmd/8g/gsubr.go          |  4 ++--
- src/cmd/9g/ggen.go           |  2 +-
- src/cmd/9g/gsubr.go          |  4 ++--
- src/cmd/internal/gc/gsubr.go | 14 +++++++-------
- src/cmd/internal/gc/plive.go |  4 ++--
- 8 files changed, 26 insertions(+), 26 deletions(-)
+ src/cmd/gc/closure.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

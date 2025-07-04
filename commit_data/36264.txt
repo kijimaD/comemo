@@ -1,31 +1,17 @@
-commit c882f4b6b13d4d38d354bec4614d4402031ec1b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 13 17:57:39 2018 -0700
+commit 29eca06ff078b2ebb60791988f83468d72ed44ef
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 16 09:41:05 2018 +1000
 
-    go/printer: consider empty lines in table layout computation
+    cmd/vet: fix panic in dead code checker on ill-formed switch statements.
     
-    In previous versions of Go including 1.10, an empty line would break the
-    alignment of elements within an expression list.
+    A switch statement without a tag requires case values to be bools, but
+    the parser does not enforce that, so AST-walking code needs to take
+    care.
     
-    golang.org/cl/104755 changed the heuristic, with the side effect that
-    empty lines no longer broke the table alignment.
-    
-    A prior fix (https://go-review.googlesource.com/c/go/+/125260, reverted)
-    introduced another regression (#26930) which this change doesn't produce.
-    
-    Added test cases for both #26352 and #26930.
-    
-    Fixes #26352.
-    Updates #26930.
-    
-    Change-Id: I371f48e6f3620ebbab53f2128ec5e58bcd4a62f1
-    Reviewed-on: https://go-review.googlesource.com/129256
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I7d9abbb0324314e02a37813c2d2f6adb0d6af5e7
+    Reviewed-on: https://go-review.googlesource.com/107375
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/printer/nodes.go                  | 41 +++++++++++++++-----------
- src/go/printer/testdata/alignment.golden | 42 +++++++++++++++++++++++++++
- src/go/printer/testdata/alignment.input  | 49 ++++++++++++++++++++++++++++++++
- 3 files changed, 116 insertions(+), 16 deletions(-)
+ src/cmd/vet/dead.go              | 2 +-
+ src/cmd/vet/testdata/deadcode.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

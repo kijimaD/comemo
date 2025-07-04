@@ -1,17 +1,18 @@
-commit c6afb781e271eb349fa846a8d90960fc5b66b16c
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Nov 26 22:32:59 2012 +1100
+commit 73b3e2301ebbaa4f940006b0869a158156613b4b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 26 10:59:43 2012 +1100
 
-    runtime: implement SysUnused for openbsd
+    net: never return -1 bytes read from netFD.Read
     
-    R=golang-dev, minux.ma
+    If the a network read would block, and a packet arrived just before the timeout expired, then the number of bytes from the previous (blocking) read, -1, would be returned.
+    
+    This change restores the previous logic, where n would be unconditionally set to 0 if err != nil, but was skipped due to a change in CL 6851096.
+    
+    The test for this change is CL 6851061.
+    
+    R=bradfitz, mikioh.mikioh, dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/6854079
+    https://golang.org/cl/6852085
 
- src/pkg/runtime/defs_openbsd.go      |  2 ++
- src/pkg/runtime/defs_openbsd_386.h   |  2 ++
- src/pkg/runtime/defs_openbsd_amd64.h |  2 ++
- src/pkg/runtime/mem_openbsd.c        |  4 +---
- src/pkg/runtime/sys_openbsd_386.s    |  7 +++++++
- src/pkg/runtime/sys_openbsd_amd64.s  | 10 ++++++++++
- 6 files changed, 24 insertions(+), 3 deletions(-)
+ src/pkg/net/fd_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

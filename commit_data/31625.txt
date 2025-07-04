@@ -1,25 +1,16 @@
-commit 5e797879350e749e49dc627d717ca069b6c833f3
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed May 17 07:00:27 2017 +0000
+commit 03e2a4d1f1d2ee74799eb103d0051c129523e4d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 3 16:33:06 2017 -0800
 
-    cmd/internal/obj/arm: report invalid .S/.P/.W suffix in ARM instructions
+    cmd/compile: cull UINF
     
-    Many instructions can not have a .S suffix, such as MULS, SWI, CLZ,
-    CMP, STREX and others. And so do .P and .W suffixes. Even wrong
-    assembly code is generated for some instructions with invalid
-    suffixes.
+    It was used with Node.Ullman, which is now gone.
     
-    This patch tries to simplify .S/.W/.P checks. And a wrong assembly
-    test for arm is added.
-    
-    fixes #20377
-    
-    Change-Id: Iba1c99d9e6b7b16a749b4d93ca2102e17c5822fe
-    Reviewed-on: https://go-review.googlesource.com/43561
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I83b167645659ae7ef70043b7915d642e42ca524f
+    Reviewed-on: https://go-review.googlesource.com/37761
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go    |  4 ++
- src/cmd/asm/internal/asm/testdata/arm.s      | 26 +++++-----
- src/cmd/asm/internal/asm/testdata/armerror.s | 10 ++++
- src/cmd/internal/obj/arm/asm5.go             | 76 +++++++++++++++++++++++-----
- 4 files changed, 91 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/go.go | 1 -
+ 1 file changed, 1 deletion(-)

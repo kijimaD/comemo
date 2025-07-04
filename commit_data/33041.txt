@@ -1,29 +1,25 @@
-commit 2595fe7fb6f272f9204ca3ef0b0c55e66fb8d90f
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 15 10:51:15 2017 -0400
+commit 2d1bd1fe9d2c08ecc2ba710fe80e226e80db966f
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Wed Jun 28 10:58:44 2017 -0700
 
-    runtime: don't start new threads from locked threads
+    syscall: fix Exec on solaris
     
-    Applications that need to manipulate kernel thread state are currently
-    on thin ice in Go: they can use LockOSThread to prevent other
-    goroutines from running on the manipulated thread, but Go may clone
-    this manipulated state into a new thread that's put into the runtime's
-    thread pool along with other threads.
+    The test added for issue #18146 exposed a long-existing bug in the
+    Solaris port; notably, that syscall.Exec uses RawSyscall -- which is not
+    actually functional for the Solaris port (intentionally) and only exists
+    as a placebo to satisfy build requirements.
     
-    Fix this by never starting a new thread from a locked thread or a
-    thread that may have been started by C. Instead, the runtime starts a
-    "template thread" with a known-good state. If it then needs to start a
-    new thread but doesn't know that the current thread is in a good
-    state, it forwards the thread creation to the template thread.
+    Call syscall.execve instead for Solaris.
     
-    Fixes #20676.
+    Fixes #20832
     
-    Change-Id: I798137a56e04b7723d55997e9c5c085d1d910643
-    Reviewed-on: https://go-review.googlesource.com/46033
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I327d863f4bbbbbb6e5ecf66b82152c4030825d09
+    Reviewed-on: https://go-review.googlesource.com/47032
+    Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go     | 117 ++++++++++++++++++++++++++++++++++++++++++++++--
- src/runtime/runtime2.go |   1 +
- 2 files changed, 115 insertions(+), 3 deletions(-)
+ src/syscall/exec_solaris.go |  5 +++++
+ src/syscall/exec_unix.go    | 24 +++++++++++++++++++-----
+ 2 files changed, 24 insertions(+), 5 deletions(-)

@@ -1,16 +1,12 @@
-commit 0b314e1af98689443772ff3b9ee00db3fced94d0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 12 15:33:23 2015 +0000
+commit ad5ceafa2cc71380e2b1d4ecd9ddd5ff458c3010
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 7 09:03:58 2015 -0700
 
-    net/http: add method constants
+    [dev.ssa] cmd/compile: update SSA todos
     
-    Fixes #12078
-    
-    Change-Id: Ia8738123b07ca29be4a0cf400ee143729c8b5b3c
-    Reviewed-on: https://go-review.googlesource.com/16860
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1271c015e602cd7ec92bf24f019dd8839b3180fc
+    Reviewed-on: https://go-review.googlesource.com/14346
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/method.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/ssa/TODO | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

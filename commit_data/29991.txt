@@ -1,24 +1,24 @@
-commit 09496599520d73171550987b138d85ae1fb13b76
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 30 09:43:25 2017 -0800
+commit 832082b44e2965c136e53a9b8009d2e860766000
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 19 12:58:16 2016 -0700
 
-    runtime: add explicit (void) in C to avoid GCC 7 problem
+    cmd/compile: remove -A flag
     
-    This avoids errors like
-        ./traceback.go:80:2: call of non-function C.f1
+    mkbuiltin.go now generates builtin.go using go/ast instead of running
+    the compiler, so we don't need the -A flag anymore.
     
-    I filed https://gcc.gnu.org/PR79289 for the GCC problem. I think this
-    is a bug in GCC, and it may be fixed before the final GCC 7 release.
-    This CL is correct either way.
+    Passes toolstash -cmp.
     
-    Fixes #18855.
-    
-    Change-Id: I0785a7b7c5b1d0ca87b454b5eca9079f390fcbd4
-    Reviewed-on: https://go-review.googlesource.com/35919
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ifa70f4f3c9feae10c723cbec81a0a47c39610090
+    Reviewed-on: https://go-review.googlesource.com/31497
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/testdata/testprogcgo/threadpprof.go | 2 +-
- src/runtime/testdata/testprogcgo/traceback.go   | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/align.go    |  7 ++-----
+ src/cmd/compile/internal/gc/bexport.go  | 15 ++++++---------
+ src/cmd/compile/internal/gc/bimport.go  |  2 +-
+ src/cmd/compile/internal/gc/export.go   |  5 ++---
+ src/cmd/compile/internal/gc/init.go     |  5 -----
+ src/cmd/compile/internal/gc/main.go     |  5 -----
+ src/cmd/compile/internal/gc/pgen.go     |  3 ---
+ src/cmd/compile/internal/gc/universe.go |  4 ++--
+ 8 files changed, 13 insertions(+), 33 deletions(-)

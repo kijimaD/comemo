@@ -1,14 +1,19 @@
-commit 80ca8c5d0449d7c6a2b881aa3c05d3706575e628
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Aug 15 09:44:23 2013 +1000
+commit 904e11361581a5e0f3ffa3576489fe994bfeff6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 18:52:09 2013 -0400
 
-    cmd/go: fix detached heads that are remnants of bad git clones.
+    encoding/xml: support generic encoding interfaces
     
-    Fixes #6042.
+    Remove custom support for time.Time.
+    No new tests: the tests for the time.Time special case
+    now test the general case.
     
-    R=adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12923043
+    https://golang.org/cl/12751045
 
- src/cmd/go/vcs.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/pkg/encoding/xml/marshal.go | 116 +++++++++++++++++++++++++++++-----------
+ src/pkg/encoding/xml/read.go    |  90 ++++++++++++++++++++++++-------
+ src/pkg/encoding/xml/xml.go     |   5 ++
+ src/pkg/go/build/deps_test.go   |   2 +-
+ 4 files changed, 163 insertions(+), 50 deletions(-)

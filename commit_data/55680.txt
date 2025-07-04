@@ -1,50 +1,19 @@
-commit 720306359a5d1d2452b8335a6e7b753751f1d466
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 22 13:03:52 2024 -0800
+commit af9f21289fff0c513df3a785c97d8ca35e1829b2
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Mar 1 22:43:22 2023 +0800
 
-    go/types, types2: make error handling more similar
+    runtime: fix function name in comments
     
-    This change will make error handling between go/types and types2
-    more similar which will in turn allow more go/types files to be
-    generated from types2 sources.
-    
-    Specifically:
-    - add Checker.newError to create error_ objects
-    - s/error_.errorf/error_.addf/
-    - remove error_.String (use error_.msg instead)
-    - replace Checker.report with error_.report
-    - make error_.report as similar as currently possible
-    - adjust dependencies
-    
-    The new code consistently uses newError/addf/report
-    to report all errors.
-    
-    Change-Id: Ibd6fd743a4f7746b4aa6b93fe768814dad9ee9c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566096
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I18bb87bfdea8b6d7994091ced5134aa2549f221e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472476
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/assignments.go |  11 +-
- src/cmd/compile/internal/types2/call.go        |  24 ++--
- src/cmd/compile/internal/types2/decl.go        |  29 ++---
- src/cmd/compile/internal/types2/errors.go      | 126 +++++++++++--------
- src/cmd/compile/internal/types2/errors_test.go |  14 +--
- src/cmd/compile/internal/types2/infer.go       |  16 +--
- src/cmd/compile/internal/types2/initorder.go   |  11 +-
- src/cmd/compile/internal/types2/labels.go      |   7 +-
- src/cmd/compile/internal/types2/mono.go        |  11 +-
- src/cmd/compile/internal/types2/resolver.go    |  16 ++-
- src/cmd/compile/internal/types2/signature.go   |   7 +-
- src/cmd/compile/internal/types2/stmt.go        |  36 +++---
- src/cmd/compile/internal/types2/struct.go      |   7 +-
- src/cmd/compile/internal/types2/typeset.go     |  18 ++-
- src/go/types/assignments.go                    |  11 +-
- src/go/types/call.go                           |  22 ++--
- src/go/types/errors.go                         | 164 ++++++++++++++-----------
- src/go/types/errors_test.go                    |  14 +--
- src/go/types/generate_test.go                  |   8 +-
- src/go/types/infer.go                          |  16 +--
- src/go/types/stmt.go                           |   9 +-
- 21 files changed, 299 insertions(+), 278 deletions(-)
+ src/runtime/coverage/emit.go | 6 +++---
+ src/runtime/mgclimit.go      | 2 +-
+ src/runtime/mgcsweep.go      | 2 +-
+ src/runtime/os_netbsd.go     | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

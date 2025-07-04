@@ -1,32 +1,41 @@
-commit 540f8c2b50f5def060244853673ccfc94d2d3e43
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Apr 25 17:18:19 2022 -0400
+commit 2c8acf63c233430f8fb48f37c6ec54a29bd53c28
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 20 14:46:40 2021 -0700
 
-    cmd/compile: use jump table on ARM64
+    [dev.cmdgo] cmd/go: make fewer 'go mod' commands update go.mod
     
-    Following CL 357330, use jump tables on ARM64.
+    'go mod graph', 'go mod vendor', 'go mod verify', and 'go mod why'
+    will no longer edit go.mod or go.sum.
     
-    name                         old time/op  new time/op  delta
-    Switch8Predictable-4         3.41ns ± 0%  3.21ns ± 0%     ~     (p=0.079 n=4+5)
-    Switch8Unpredictable-4       12.0ns ± 0%   9.5ns ± 0%  -21.17%  (p=0.000 n=5+4)
-    Switch32Predictable-4        3.06ns ± 0%  2.82ns ± 0%   -7.78%  (p=0.008 n=5+5)
-    Switch32Unpredictable-4      13.3ns ± 0%   9.5ns ± 0%  -28.87%  (p=0.016 n=4+5)
-    SwitchStringPredictable-4    3.71ns ± 0%  3.21ns ± 0%  -13.43%  (p=0.000 n=5+4)
-    SwitchStringUnpredictable-4  14.8ns ± 0%  15.1ns ± 0%   +2.37%  (p=0.008 n=5+5)
+    'go mod graph', 'go mod verify', and 'go mod why' may still fetch
+    files and look up packages as if they were able to update
+    go.mod. They're useful for debugging and should still work when go.mod
+    is a little broken.
     
-    Change-Id: Ia0b85df7ca9273cf70c05eb957225c6e61822fa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403979
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This is implemented in modload.setDefaultBuildMod based on command
+    name for now. Super gross. Sorry. This should be fixed with a larger
+    refactoring for #40775.
+    
+    Fixes golang/go#45551
+    
+    Change-Id: If5f225937180d32e9a5dd252c78d988042bbdedf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336151
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        | 37 ++++++++++++++------
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++++
- src/cmd/compile/internal/ssa/opGen.go        | 50 +++++++++++++++-------------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 14 ++++++++
- src/cmd/internal/obj/arm64/asm7.go           | 10 ++++++
- src/cmd/internal/sys/arch.go                 |  1 +
- test/codegen/switch.go                       |  2 ++
- 8 files changed, 87 insertions(+), 35 deletions(-)
+ src/cmd/go/internal/modload/init.go                | 21 ++++++++++++++++----
+ src/cmd/go/testdata/script/mod_all.txt             |  2 +-
+ src/cmd/go/testdata/script/mod_e.txt               | 23 ++++++++++++++--------
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |  1 +
+ src/cmd/go/testdata/script/mod_list_retract.txt    |  4 +++-
+ src/cmd/go/testdata/script/mod_retention.txt       |  8 +++++---
+ src/cmd/go/testdata/script/mod_tidy_error.txt      |  4 ++--
+ src/cmd/go/testdata/script/mod_vendor_replace.txt  |  5 ++++-
+ src/cmd/go/testdata/script/mod_vendor_trimpath.txt |  6 +++++-
+ .../go/testdata/script/mod_vendor_unused_only.txt  |  2 ++
+ src/cmd/go/testdata/script/mod_verify.txt          |  5 -----
+ src/cmd/go/testdata/script/modfile_flag.txt        |  5 +++++
+ 13 files changed, 61 insertions(+), 27 deletions(-)

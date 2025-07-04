@@ -1,18 +1,18 @@
-commit 8476fd7b2c5c048c2dd46fe63c5aff966506ab87
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 30 12:44:34 2018 -0800
+commit 876c6d1f274a3d508fa97558ca6765cf324c2939
+Author: Dan Johnson <computerdruid@google.com>
+Date:   Wed Aug 15 16:48:44 2018 -0700
 
-    go/internal/gccgoimporter: fix test when using gccgo before GCC 7
+    cmd/compile: make duplicate anonymous interface output deterministic
     
-    In TestObjImporter skip tests that use type aliases when using a
-    version of gccgo before GCC 7, since that is when type aliases were
-    added.
+    Ranging through a map is non-deterministic and there can be duplicate
+    entries in the set (with the same name) which don't have identical
+    definitions in some cases.
     
-    Fixes #29006
+    Fixes #27013
     
-    Change-Id: I676bae9f023931cf95ac9b4d4de893fe8517af9b
-    Reviewed-on: https://go-review.googlesource.com/c/152078
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I378c48bc359c10b25b9238e0c663b498455b19fd
+    Reviewed-on: https://go-review.googlesource.com/129515
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go | 29 ++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/compile/internal/gc/reflect.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

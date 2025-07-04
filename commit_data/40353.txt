@@ -1,16 +1,21 @@
-commit 07ccdeb1927c77ede1d56ac6f1c1871183761ea4
-Author: Brave Cow <rsr715@gmail.com>
-Date:   Tue Oct 22 15:00:07 2019 +0000
+commit 04845fe78aeba33106c6f8a40d05e608ca687214
+Author: Keith Randall <khr@google.com>
+Date:   Mon May 6 12:58:54 2019 -0700
 
-    net/http: update sanitizeCookieValue description
+    reflect: special-case panic message when returning Value{} from MakeFunc function
     
-    Commit 8f6d68eb (CL 37328) changed the code of sanitizeCookieValue without updating its description.
+    Before this CL we used to panic with "nil pointer dereference" because
+    the value we're calling assignTo on is the zero Value. Provide a better
+    error message.
     
-    Change-Id: Ib4a1a1f316548258b828458a31b09706bbd59b53
-    GitHub-Last-Rev: 9731494e177d909f33dd7d5ecfe1fd1a1c88a3e1
-    GitHub-Pull-Request: golang/go#34790
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200041
+    Fixes #28748
+    
+    Change-Id: I7dd4c9e30b599863664d91e78cc45878d8b0052e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175440
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/cookie.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/reflect/value.go         |  4 ++++
+ test/fixedbugs/issue28748.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

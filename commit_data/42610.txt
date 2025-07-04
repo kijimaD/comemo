@@ -1,15 +1,14 @@
-commit 504db532971b703d52f0bd4ced3e36a403b49da4
-Author: Norman B. Lancaster <qbradq@gmail.com>
-Date:   Wed Jul 10 17:31:00 2019 -0500
+commit 01df6601d8774f27f36ce339a093333d887ef8f6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:21:28 2020 +1100
 
-    net/textproto: correct documentation of empty line handling
+    cmd/objdump: disable unsupported tests on riscv64
     
-    Fixes #32493
+    Updates #27532, #36738 and #36739.
     
-    Change-Id: I9c93791c4cc5c0c14556802733066407de3181ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185542
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If10031c6fd2c8ec2aa8c37f7edb148d8f26f8697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216258
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/textproto/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/objdump/objdump_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

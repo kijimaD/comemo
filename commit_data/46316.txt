@@ -1,23 +1,25 @@
-commit 1b2d794ca3ba60c2dbc958a271662784a7122739
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 20 09:57:04 2021 -0700
+commit 51ba53f5c2d58dd0c02b5ee1f4ef1db2577c4d3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 01:20:20 2020 -0500
 
-    reflect: allocate hiter as part of MapIter
+    [dev.regabi] cmd/compile: separate misc for gc split
     
-    This reduces the number of allocations per
-    reflect map iteration from two to one.
+    Misc cleanup for splitting package gc: API tweaks
+    and boundary adjustments.
     
-    For #46293
+    The change in ir.NewBlockStmt makes it a drop-in
+    replacement for liststmt.
     
-    Change-Id: Ibcff5f42fc512e637b6e460bad4518e7ac83d4c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321889
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9455fe8ccae7d71fe8ccf390ac96672389bf4f3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279305
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go |  7 ++---
- src/reflect/value.go    | 73 +++++++++++++++++++++++++++++++++----------------
- src/runtime/map.go      | 10 +++----
- 3 files changed, 56 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/escape.go  |  4 ----
+ src/cmd/compile/internal/gc/iimport.go | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/main.go    | 17 ++++++++++-------
+ src/cmd/compile/internal/gc/obj.go     |  8 ++++----
+ src/cmd/compile/internal/gc/reflect.go | 12 ++++++------
+ src/cmd/compile/internal/gc/timings.go |  2 ++
+ src/cmd/compile/internal/ir/stmt.go    |  7 +++++++
+ 7 files changed, 44 insertions(+), 21 deletions(-)

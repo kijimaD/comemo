@@ -1,14 +1,18 @@
-commit 721d5893d7fbc6b1791ee067e95dab3ae8d7d13e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 3 17:37:01 2015 -0800
+commit 583293349bccd62341f53941ccc68556563efd76
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jan 7 01:23:45 2015 -0500
 
-    math/big: first version of Float %e, %f, %g, %G formatting working
+    misc/swig/stdio: fix broken nil pointer test
     
-    Change-Id: I10efa3bc8bc7f41100feabe17837f805a42d7eb6
-    Reviewed-on: https://go-review.googlesource.com/3842
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    SWIG has always returned a typed interface value for a C++ class,
+    so the interface value will never be nil even if the pointer itself
+    is NULL. ptr == NULL in C/C++ should be ptr.Swigcptr() == 0 in Go.
+    
+    Fixes #9514.
+    
+    Change-Id: I3778b91acf54d2ff22d7427fbf2b6ec9b9ce3b43
+    Reviewed-on: https://go-review.googlesource.com/2440
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/floatconv.go      |   9 +-
- src/math/big/floatconv_test.go | 165 ++++++++++++++++++++++++++++++++-----
- src/math/big/ftoa.go           | 181 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 329 insertions(+), 26 deletions(-)
+ misc/swig/stdio/file_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

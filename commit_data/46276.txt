@@ -1,22 +1,34 @@
-commit 17e9d148d3354f8da745e6533213ca5b348b719e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 1 15:24:01 2021 +0200
+commit c45313bf451591ab2f7a3ffbbd724bb36d51cba0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 08:49:22 2020 -0500
 
-    syscall: drop fallback to utimes in UtimesNano on Linux
+    [dev.regabi] cmd/compile: remove prealloc map
     
-    The minimum required Linux kernel version for Go 1.18 will be changed to
-    2.6.32, see #45964. The current minimum required version is 2.6.23 and
-    utimensat was added in 2.6.22, so the fallback isn't even necessary for
-    the current minimum supported version. Remove the fallback to utimes.
+    The prealloc map seems to exist to avoid adding a field to all nodes.
+    Now we can add a field to just the nodes that need the field,
+    so let's do that and avoid having a magic global with extra node state
+    that isn't preserved by operations like Copy nor printed by Dump.
     
-    For #45964
+    This also makes clear which nodes can be prealloc'ed.
+    In particular, the code in walkstmt looked up an entry in
+    prealloc using an ONAME node, but there's no code that
+    ever stores such an entry, so the lookup never succeeded.
+    Having fields makes that kind of thing easier to see and fix.
     
-    Change-Id: I5536f6ea7a34944dd9165f1533c10692171fb0c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346790
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I418ad0e2847615c08868120c13ee719dc0b2eacb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278915
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall_linux.go | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 10 +++++-----
+ src/cmd/compile/internal/gc/order.go   | 17 ++++++++---------
+ src/cmd/compile/internal/gc/range.go   |  2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/walk.go    | 15 +++++----------
+ src/cmd/compile/internal/ir/expr.go    | 20 ++++++++++++--------
+ src/cmd/compile/internal/ir/stmt.go    |  1 +
+ 7 files changed, 33 insertions(+), 34 deletions(-)

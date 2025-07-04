@@ -1,20 +1,22 @@
-commit e87f2a1b70f4751551ea5bd33e0db3417e76ac4c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 2 13:36:38 2018 -0800
+commit 41eabc0fc7cc9bc40a66dd0edd0ae676c8965ec9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 2 15:47:41 2017 -0700
 
-    cmd/compile/internal/syntax: remove ParseBytes from API - not needed
+    cmd/compile: fix merge rules for panic calls
     
-    R=go1.11
+    Use entire inlining call stack to decide whether two panic calls
+    can be merged. We used to merge panic calls when only the leaf
+    line numbers matched, but that leads to places higher up the call
+    stack being merged incorrectly.
     
-    Also: Minor updates to syntax.Parse doc string.
+    Fixes #22083
     
-    Change-Id: I649965be9670a2f1c3de2cdb350634ed21e36ad9
-    Reviewed-on: https://go-review.googlesource.com/85663
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia41400a80de4b6ecf3e5089abce0c42b65e9b38a
+    Reviewed-on: https://go-review.googlesource.com/67632
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/syntax/nodes_test.go   |  4 ++--
- src/cmd/compile/internal/syntax/parser_test.go  |  6 +++---
- src/cmd/compile/internal/syntax/printer_test.go |  3 ++-
- src/cmd/compile/internal/syntax/scanner_test.go | 15 ++++++++-------
- src/cmd/compile/internal/syntax/syntax.go       | 23 ++---------------------
- 5 files changed, 17 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ test/fixedbugs/issue22083.go       | 41 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

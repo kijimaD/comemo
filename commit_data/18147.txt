@@ -1,12 +1,12 @@
-commit 4d239bcea270a56f1554524598e49d87e5c48e4f
+commit 3c7d2e6af9aced200842b2afa2e9413e5a33e43a
 Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Wed Jan 1 22:26:22 2014 +1100
+Date:   Wed Jan 1 16:40:52 2014 +1100
 
-    bufio: improve NewReaderSize, Peek, and UnreadByte test coverage
+    os: improve Readdir and Readdirnames test coverage
     
     R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/42990045
+    https://golang.org/cl/46450043
 
- src/pkg/bufio/bufio_test.go | 37 ++++++++++++++++++++++++++++++++++++-
- 1 file changed, 36 insertions(+), 1 deletion(-)
+ src/pkg/os/os_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

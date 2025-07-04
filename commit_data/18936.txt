@@ -1,53 +1,19 @@
-commit f61f18d694028e5dd466dde11aa1c84bb3a434ed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 25 10:58:35 2014 -0700
+commit 50ca1a52ca39bdd76bb5f999a67450f5984ebba2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 25 13:32:18 2014 +1100
 
-    crypto/tls: make Conn.Read return (n, io.EOF) when EOF is next in buffer
+    database/sql: add "defer rows.Close()" to the example code.
     
-    Update #3514
+    Strictly speaking, it's not necessary in example_test.go, as the
+    Rows.Close docs say that "If Next returns false, the Rows are closed
+    automatically". However, if the for loop breaks or returns early, it's
+    not obvious that you'll leak unless you explicitly call Rows.Close.
     
-    An io.Reader is permitted to return either (n, nil)
-    or (n, io.EOF) on EOF or other error.
-    
-    The tls package previously always returned (n, nil) for a read
-    of size n if n bytes were available, not surfacing errors at
-    the same time.
-    
-    Amazon's HTTPS frontends like to hang up on clients without
-    sending the appropriate HTTP headers. (In their defense,
-    they're allowed to hang up any time, but generally a server
-    hangs up after a bit of inactivity, not immediately.) In any
-    case, the Go HTTP client tries to re-use connections by
-    looking at whether the response headers say to keep the
-    connection open, and because the connection looks okay, under
-    heavy load it's possible we'll reuse it immediately, writing
-    the next request, just as the Transport's always-reading
-    goroutine returns from tls.Conn.Read and sees (0, io.EOF).
-    
-    But because Amazon does send an AlertCloseNotify record before
-    it hangs up on us, and the tls package does its own internal
-    buffering (up to 1024 bytes) of pending data, we have the
-    AlertCloseNotify in an unread buffer when our Conn.Read (to
-    the HTTP Transport code) reads its final bit of data in the
-    HTTP response body.
-    
-    This change makes that final Read return (n, io.EOF) when
-    an AlertCloseNotify record is buffered right after, if we'd
-    otherwise return (n, nil).
-    
-    A dependent change in the HTTP code then notes whether a
-    client connection has seen an io.EOF and uses that as an
-    additional signal to not reuse a HTTPS connection. With both
-    changes, the majority of Amazon request failures go
-    away. Without either one, 10-20 goroutines hitting the S3 API
-    leads to such an error rate that empirically up to 5 retries
-    are needed to complete an API call.
-    
-    LGTM=agl, rsc
-    R=agl, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/76400046
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/79330043
 
- src/pkg/crypto/tls/conn.go     | 21 ++++++++++++
- src/pkg/crypto/tls/tls_test.go | 76 ++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 90 insertions(+), 7 deletions(-)
+ src/pkg/database/sql/example_test.go | 1 +
+ src/pkg/database/sql/sql.go          | 1 +
+ 2 files changed, 2 insertions(+)

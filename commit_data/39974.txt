@@ -1,22 +1,33 @@
-commit 9c384cc570fa964cea1fecc061b17d6858cbcc0d
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Sep 14 20:58:30 2019 +0530
+commit ad6c691542e2d842c90e2f7870021d16ffa71878
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Apr 6 12:42:51 2019 -0700
 
-    cmd/compile: optimize ssa if blocks for wasm architecture
+    cmd/compile: remove AUNDEF opcode
     
-    Check for the next block and accordingly place the successor blocks.
-    This saves an additional jump instruction if the next block is any one
-    of the successor blocks.
+    This opcode was only used to mark unreachable code for plive to use.
+    plive now uses the SSA representation, so it knows locations are
+    unreachable because they are ends of Exit blocks. It doesn't need
+    these opcodes any more.
     
-    While at it, inline the logic of goToBlock.
+    These opcodes actually used space in the binary, 2 bytes per undef
+    on x86 and more for other archs.
     
-    Reduces the size of pkg/js_wasm by 264 bytes.
+    Makes the amd64 go binary 0.2% smaller.
     
-    Change-Id: I671ac4322e6edcb0d7e590dcca27e074268068d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195204
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: I64c84c35db7c7949617a3a5830f09c8e5fcd2620
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171058
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/wasm/ssa.go | 45 +++++++++++++++++++++++-------------
- 1 file changed, 29 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go  | 1 -
+ src/cmd/compile/internal/arm/ssa.go    | 1 -
+ src/cmd/compile/internal/arm64/ssa.go  | 1 -
+ src/cmd/compile/internal/gc/ssa.go     | 7 +++++++
+ src/cmd/compile/internal/mips/ssa.go   | 1 -
+ src/cmd/compile/internal/mips64/ssa.go | 1 -
+ src/cmd/compile/internal/ppc64/ssa.go  | 1 -
+ src/cmd/compile/internal/s390x/ssa.go  | 1 -
+ src/cmd/compile/internal/wasm/ssa.go   | 1 -
+ src/cmd/compile/internal/x86/ssa.go    | 1 -
+ 10 files changed, 7 insertions(+), 9 deletions(-)

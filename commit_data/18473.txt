@@ -1,15 +1,17 @@
-commit 3cac829ff403e229729434a33cb59ae6dfc23209
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Feb 13 00:03:27 2014 +0400
+commit 14c5c8a93a55593403f198c4df3c1e503840cf02
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 12 11:27:36 2014 -0800
 
-    runtime: temporary disable concurrent GC sweep
-    We see failures on builders, e.g.:
-    http://build.golang.org/log/70bb28cd6bcf8c4f49810a011bb4337a61977bf4
+    crypto/sha1: always test the portable block function too
     
-    LGTM=rsc, dave
-    R=rsc, dave
+    So it doesn't bitrot.
+    
+    LGTM=agl
+    R=golang-codereviews, agl
     CC=golang-codereviews
-    https://golang.org/cl/62360043
+    https://golang.org/cl/62270043
 
- src/pkg/runtime/mgc0.c | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+ src/pkg/crypto/sha1/sha1_test.go         | 13 +++++++++++++
+ src/pkg/crypto/sha1/sha1block.go         | 10 +++-------
+ src/pkg/crypto/sha1/sha1block_generic.go |  9 +++++++++
+ 3 files changed, 25 insertions(+), 7 deletions(-)

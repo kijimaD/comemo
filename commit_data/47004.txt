@@ -1,24 +1,25 @@
-commit f686f6a963cdfa66b6087993663f53a10272d262
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 25 01:02:12 2021 +0700
+commit 87f425da1433a172c1fa02134a8dab9a3784e24f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 9 15:38:18 2021 -0500
 
-    cmd/compile: remove Value.RemoveArg
+    cmd/go/internal/mvs: split Reqs into narrower per-function interfaces
     
-    It's only used in two places:
+    Reqs currently combines requirements with upgrades and downgrades.
+    However, only Upgrade needs the Upgrade method, and only Downgrade
+    needs the Previous method.
     
-     - The one in regalloc.go can be replaced with v.resetArgs()
-     - The one in rewrite.go can be open coded
+    When we eventually add lazy loading, the lazily-loaded module graph
+    will not be able to compute upgrades and downgrades, so the
+    implementation work from here to there will be clearer if we are
+    explicit about which are still needed.
     
-    and can cause wrong usage like the bug that CL 358117 fixed.
+    For #36460
     
-    Change-Id: I125baf237db159d056fe4b1c73072331eea4d06a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357965
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7bf8c2a84ce6bc4ef493a383e3d26850e9a6a6c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290771
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 2 +-
- src/cmd/compile/internal/ssa/rewrite.go  | 6 +++++-
- src/cmd/compile/internal/ssa/value.go    | 6 ------
- 3 files changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

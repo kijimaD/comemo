@@ -1,16 +1,34 @@
-commit 83ff4fd5713cbccdf1e5c3433b34d6213cfd825c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 22 19:36:05 2024 -0700
+commit bd3f44e4ffe54e9cf841ebc8356e403bb38436bd
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 2 17:37:00 2023 +0000
 
-    go/types, types2: factor out check for updated type arguments (cleanup)
+    cmd/compile: constant-fold loads from constant dictionaries and types
     
-    Change-Id: I3e2668e4a24c145f121199a5f7f4278ff5d5f1da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587676
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Retrying the original CL with a small modification. The original CL
+    did not handle the case of reading an itab out of a dictionary
+    correctly.  When we read an itab out of a dictionary, we must treat
+    the type inside that itab as maybe being put in an interface.
+    
+    Original CL: 486895
+    Revert CL: 490156
+    
+    Change-Id: Id2dc1699d184cd8c63dac83986a70b60b4e6cbd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491495
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/subst.go | 67 ++++++--------------------------
- src/go/types/subst.go                    | 67 ++++++--------------------------
- 2 files changed, 24 insertions(+), 110 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        |   2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  27 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |  95 +++++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 347 ++++++++++++++++++++++--
+ src/cmd/internal/obj/link.go                    |  18 +-
+ src/cmd/internal/objabi/reloctype.go            |   3 +-
+ src/cmd/link/internal/ld/deadcode.go            |   8 +
+ src/cmd/link/internal/ld/decodesym.go           |   6 +
+ test/typeparam/devirtualize1.go                 |  22 ++
+ test/typeparam/devirtualize2.go                 |  28 ++
+ 11 files changed, 513 insertions(+), 56 deletions(-)

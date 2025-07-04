@@ -1,20 +1,14 @@
-commit 03eb7e20e4d4d0a9cc3d34787049f101c9f72761
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Aug 25 06:43:27 2020 -0700
+commit 753011ebc3228d68b7593e153f8d118f103c4748
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Sat Jan 25 14:40:10 2020 +0100
 
-    cmd/compile: apply strong typing to all remaining s390x rewrite rules
+    io: check n in testReadAtLeast
     
-    This CL applies strong aux typing to the remaining s390x rewrite
-    rules in preparation for strong aux typing becoming the default.
-    
-    Passes toolstash-check on s390x.
-    
-    Change-Id: Id585b0db492780737818024e1b22b4837435b525
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250558
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I53859d4d3c729cce9f73b14dc2dd8571f7e7ffb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  677 +++--
- src/cmd/compile/internal/ssa/rewriteS390X.go | 3723 +++++++++++++-------------
- 2 files changed, 2189 insertions(+), 2211 deletions(-)
+ src/io/io_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,25 +1,28 @@
-commit f891b7c3425621d0ec3771144182507c90a80cff
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 30 23:52:04 2019 -0400
+commit c00ff65d016c07f7feb188ca0458ae3bae0f1532
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 12:31:42 2019 -0400
 
-    cmd/doc: avoid calling token.IsExported on non-tokens
+    runtime: use default system stack size, not 64 kB, on non-cgo macOS
     
-    token.IsExported expects to be passed a token, and does not check for
-    non-token arguments such as "C:\workdir\go\src\text".
+    At least one libc call we make
+    (res_search, which calls _mdns_query and then mdns_item_call)
+    pushes a 64 kB stack frame onto the stack.
+    Then it faults on the guard page.
     
-    While we're at it, clean up a few other parts of the code that
-    are assuming a package path where a directory may be passed instead.
-    There are probably others lurking around here, but I believe this
-    change is sufficient to get past the test failures on the
-    windows-amd64-longtest builder.
+    Use the default system stack size, under the assumption
+    that the C code being called is compatible with that stack size.
     
-    Fixes #35236
+    For #31705.
     
-    Change-Id: Ic79fa035531ca0777f64b1446c2f9237397b1bdf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204442
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I1b0bfc2e54043c49f0709255988ef920ce30ee82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180779
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/main.go | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ src/runtime/os_darwin.go       | 19 ++++++++++++-------
+ src/runtime/sys_darwin.go      |  8 ++++----
+ src/runtime/sys_darwin_386.s   |  4 ++--
+ src/runtime/sys_darwin_amd64.s |  4 ++--
+ src/runtime/sys_darwin_arm.s   |  2 +-
+ src/runtime/sys_darwin_arm64.s |  4 ++--
+ 6 files changed, 23 insertions(+), 18 deletions(-)

@@ -1,17 +1,18 @@
-commit 7b5206bdf37863aee416358b695f6dd2a9f087fc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 26 10:46:24 2024 -0400
+commit 3494a726009d049887bb3fb95181f71e07b21da3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 28 22:15:48 2023 -0400
 
-    internal/bisect: use f.Function instead of f.Func.Name in stack trace
+    cmd/compile: don't generate DWARF info for static vars
     
-    For inlined frames f.Func is nil and f.Func.Name is an empty string.
-    f.Function is correct all the time.
+    Static data symbols are compiler generated, not user symbols. The
+    linker already does not include them in the final DWARF section.
+    Don't generate the DWARF info in the first place.
     
-    Change-Id: I7c30f80e7176128ae5576b130d2891f884ee47c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581996
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id2ae36683bfc1ed60b9924b7305eae5e8aa14d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490817
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/bisect/bisect.go | 2 +-
+ src/cmd/compile/internal/gc/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

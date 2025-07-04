@@ -1,29 +1,31 @@
-commit 519f223aa2b55372b473d1a883435b64b9f77365
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Apr 8 13:02:21 2021 -0700
+commit 7d3fd4f3c46e57c703128bbabb385424f338d6d9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 25 18:06:26 2020 +0200
 
-    cmd/compile: reduce overhead of RParams in types.Type
+    syscall: implement Getwd using getcwd from libSystem on darwin
     
-    Changed RParams in types.Type to be a pointer to a slice, rather than a
-    slice itself, in order to reduce it from three words to one words, since
-    the large majority of types will not be generic or instantiated from a
-    generic type.
+    Directly wrap the getcwd implementation provided by libSystem.dylib on
+    darwin and use it to implement Getwd like on the BSDs. This allows to
+    drop the custom implementation using getAttrList and to merge the
+    implementation of Getwd for darwin and the BSDs in syscall_bsd.go.
     
-    Additional cleanup: remove operation OTYPEINST, which we don't have need
-    of, since all type instantiations are either handled by types2 or happen
-    automatically during some form of stenciling.
+    Same as CL 257497 did for golang.org/x/sys/unix
     
-    Both of these are useful cleanups before the Go 1.17 freeze.
-    
-    Change-Id: I61ad56b3c698b30d2cb5a2cdd12263202c54f49c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308770
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: If30390c4c17cd463bb8fdcb5465f40d6fa11f391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257637
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ir/node.go           |  1 -
- src/cmd/compile/internal/ir/op_string.go      | 51 +++++++++++++--------------
- src/cmd/compile/internal/types/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types/type.go        | 27 +++++++-------
- 4 files changed, 41 insertions(+), 40 deletions(-)
+ src/syscall/syscall_bsd.go           | 15 +++++++
+ src/syscall/syscall_darwin.go        | 85 +-----------------------------------
+ src/syscall/syscall_getwd_bsd.go     | 22 ----------
+ src/syscall/types_darwin.go          |  6 +++
+ src/syscall/zsyscall_darwin_amd64.go | 22 ++++++++++
+ src/syscall/zsyscall_darwin_amd64.s  |  4 +-
+ src/syscall/zsyscall_darwin_arm64.go | 22 ++++++++++
+ src/syscall/zsyscall_darwin_arm64.s  |  4 +-
+ src/syscall/ztypes_darwin_amd64.go   |  4 ++
+ src/syscall/ztypes_darwin_arm64.go   |  4 ++
+ 10 files changed, 79 insertions(+), 109 deletions(-)

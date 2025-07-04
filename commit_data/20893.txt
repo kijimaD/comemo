@@ -1,13 +1,15 @@
-commit f9d56543f1b3fe3b8da9dbda8892c4a9d2b8a312
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Nov 14 17:03:17 2014 +1100
+commit 11ec8ab5cbfd715b6aafdff486156a986bdd6318
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 24 11:39:01 2014 -0400
 
-    C: add Nick Cooper (Google CLA).
+    [dev.power64] liblink: print line numbers in disassembly on power64
     
-    LGTM=dsymonds
-    R=dsymonds
-    CC=golang-codereviews, nmvc
-    https://golang.org/cl/169580043
+    Matching other platforms.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/161320043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/liblink/list9.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,27 +1,22 @@
-commit 1fcd4e9099c33b4baa74713d5639e61158d10b49
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Oct 15 12:06:48 2022 +0200
+commit c8861432b84157363c84220e6ed71180531bf2b4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 30 14:06:30 2021 +0100
 
-    crypto/rsa: add a test walking through every key size
+    os: simplify ios checks in tests
     
-    We already had some tests for special cases such as PSS with 513 bit
-    keys. The upcoming backend rewrite also happened to crash at 63 and 504
-    bits for different reasons. Might as well be systematic about it.
+    Go 1.16 renamed the iOS port from darwin/arm64 to ios/arm64 and
+    darwin/arm64 was repurposed for the macOS ARM64 port (see
+    https://golang.org/doc/go1.16#darwin).
     
-    Also, make sure SignPSS returns ErrMessageTooLong like SignPKCS1v15 when
-    the key is too small, instead of panicking or returning an unnamed error.
+    Change tests to only use GOOS=ios to detect special cases for iOS and
+    stop treating darwin/arm64 as iOS.
     
-    -all takes a couple minutes on my M1.
-    
-    Change-Id: I656239a00d0831fa7d187a6d3bb30341d41602f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443195
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I6a19f16fa9ec159ab1386aeb8fe912585e457171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374399
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rsa/pss.go      |   2 +-
- src/crypto/rsa/rsa.go      |   7 ++-
- src/crypto/rsa/rsa_test.go | 149 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 154 insertions(+), 4 deletions(-)
+ src/os/os_test.go | 96 ++++++++++++++++++++++++-------------------------------
+ 1 file changed, 41 insertions(+), 55 deletions(-)

@@ -1,27 +1,21 @@
-commit 936b977c174dd66348bacd1392f761ae518ca7c1
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri Nov 3 21:57:08 2017 -0700
+commit b26ad605a92af65deef30eb196ff2173566ee60f
+Author: griesemer <gri@golang.org>
+Date:   Tue Aug 15 14:44:26 2017 +0200
 
-    bytes: reduce work in IndexNearPageBoundary test
+    go/importer: make source importer more tolerant in presence of errors
     
-    This test was taking too long on ppc64x.
-    There were a few reasons.
+    If the source importer only encounters "soft" type checking errors
+    it can safely return the type-checked package because it will be
+    completely set up. This makes the source importer slightly more
+    robust in the presence of errors.
     
-    The first is that the page size on ppc64x is 64k instead of 4k.
-    That's 16x more work.
+    Fixes #20855.
     
-    The second is that the generic Index is pretty bad in this case.
-    It first calls IndexByte which does a bunch of setup work only to find
-    the byte we're looking for at index 0.  Then it calls Equal which
-    has to look at the whole string to find a difference on the last byte.
-    
-    To fix, just limit our attention to near the end of the page.
-    
-    Change-Id: I6b8bcbb94652a2da853862acc23803def0c49303
-    Reviewed-on: https://go-review.googlesource.com/76050
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5af9ccdb30eee6bca7a0fab872f6057bde521bf3
+    Reviewed-on: https://go-review.googlesource.com/55730
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/bytes/boundary_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/internal/srcimporter/srcimporter.go         | 28 ++++++++++++++++------
+ src/go/internal/srcimporter/srcimporter_test.go    | 14 +++++++++++
+ .../srcimporter/testdata/issue20855/issue20855.go  |  7 ++++++
+ 3 files changed, 42 insertions(+), 7 deletions(-)

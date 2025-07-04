@@ -1,0 +1,17 @@
+commit d93bea0e59e51c2d85e69f28f09726b5c9fc81d2
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 19 13:16:15 2025 -0400
+
+    cmd/compile/internal/noder: document SectionPkg
+    
+    The package section holds package stubs, which are a package
+    (path, name) pair and a series of declared imports.
+    
+    Change-Id: If2a260c5e0a3522851be9808de46a3f128902002
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674175
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/doc.go | 39 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 37 insertions(+), 2 deletions(-)

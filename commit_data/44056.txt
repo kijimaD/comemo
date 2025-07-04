@@ -1,27 +1,18 @@
-commit 223331fc0cf5b23fbb9999eb1164b23695ef612a
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Dec 22 16:57:46 2020 -0500
+commit 85162292af601a1bebb8ec3d63314e39b648829f
+Author: 徐志强 <shore.cloud@gmail.com>
+Date:   Wed Dec 11 05:51:33 2019 +0000
 
-    cmd/go/internal/modload: add hint for missing implicit dependency
+    runtime: call osyield directly in lockextra
     
-    By default (and with -mod=readonly), the go command imports an error
-    if a package provided by an implicitly required module is
-    imported by a package in the main module. This import requires an
-    update to go.mod: the module must be required explicitly.
+    The `yield := osyield` line doesn't serve any purpose,  it's committed in `2015`, time to delete that line:)
     
-    The package loader now provides a hint that 'go get' should be run on
-    the importing package. This is preferred to 'go get' on the imported
-    package, since that would add an "// indirect" requirement.
-    
-    For #43131
-    
-    Change-Id: I0b353ce8ac8c4ddf1a9863544dfaf6c1964daf42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279528
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I382d4d32cf320f054f011f3b6684c868cbcb0ff2
+    GitHub-Last-Rev: 7a0aa25e555edd901add25a1101e7b145d1f3bd8
+    GitHub-Pull-Request: golang/go#36078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210837
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/load.go                | 11 ++-
- .../testdata/script/mod_get_promote_implicit.txt   | 82 ++++++++++++++++++++++
- 2 files changed, 92 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

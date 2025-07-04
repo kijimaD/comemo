@@ -1,12 +1,14 @@
-commit 5f84559e3a3e8c6ce4d6d3e6617b55522b1976a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 27 14:30:02 2011 -0400
+commit 6c6c23207248400e88f5b98106b28ddcaf95ed8e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 11:03:43 2011 -0700
 
-    build: use correct list of required programs
+    http: add StripPrefix handler wrapper
     
-    R=golang-dev, bradfitz, go.peter.90
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4627068
+    https://golang.org/cl/4626067
 
- src/env.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/fs.go         | 12 ++++--------
+ src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/http/server.go     | 16 ++++++++++++++++
+ 3 files changed, 44 insertions(+), 8 deletions(-)

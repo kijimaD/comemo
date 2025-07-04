@@ -1,21 +1,26 @@
-commit 988f18d61d27f75f6a21cef0aa28b8d85982a85d
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Sep 20 13:28:25 2021 -0400
+commit d2131704a6fda781bd3b823dbe8f57741663f466
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Thu May 7 10:08:08 2020 +0000
 
-    go/types: export Named._Orig as Named.Origin
+    net/http/httputil: fix deadlock in DumpRequestOut
     
-    Export the _Orig method for Named types, and rename to Origin.  As
-    discussed in #47916, Orig is easily confused with Original, which is
-    not as good a name. Spelling out 'Origin' resolves the ambiguity.
+    Fix a deadlock in DumpRequestOut which can occur if the request is
+    cancelled between response being sent and it being processed.
     
-    Updates #47916
+    Also:
+    * Ensure we don't get a reader leak when an error is reported by the
+      transport before the body is consumed.
+    * Add leaked goroutine retries to avoid false test failures.
     
-    Change-Id: I377c73de82310d3f6aa0bd82dddcd60ee067155b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350996
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #38352
+    
+    Change-Id: I83710791b2985b997f61fe5b49eadee0bb51bdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232798
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Damien Neil <dneil@google.com>
 
- src/go/types/named.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/httputil/dump.go      | 15 +++++--
+ src/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 87 insertions(+), 8 deletions(-)

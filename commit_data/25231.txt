@@ -1,18 +1,17 @@
-commit f939ee13ae5d54683f31699420b354be50de7e58
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Thu Dec 10 15:06:42 2015 -0800
+commit a0c7f57903d028790137a4b3ee32b032ac0a56a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 9 13:02:25 2015 -0700
 
-    runtime: fix GODEBUG=schedtrace=X delay handling.
+    cmd/link: remove -W option
     
-    debug.schedtrace is an int32. Convert it to int64 before
-    multiplying with constant 1000000. Otherwise, schedtrace
-    values more than 2147 result in int32 overflow causing
-    incorrect delays between traces.
+    The -W option has not worked since Go 1.3.  It is not documented.  When
+    it did work, it generated useful output, but it was for human viewing;
+    there was no reason to write a script that passes the -W option, so it's
+    unlikely that anybody is using it today.
     
-    Change-Id: I064e8d7b432c1e892a705ee1f31a2e8cdd2c3ea3
-    Reviewed-on: https://go-review.googlesource.com/17712
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4769f1ffd308a48324a866592eb7fd79a4cdee54
+    Reviewed-on: https://go-review.googlesource.com/15701
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pobj.go | 1 -
+ 1 file changed, 1 deletion(-)

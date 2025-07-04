@@ -1,39 +1,33 @@
-commit 4739c0db47edf99be9ac1f4beab9ea990570dd5f
+commit 6e70f88f845d19b5195bdfc1b7bb4da889e7ab5f
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 5 17:09:54 2017 -0500
+Date:   Wed Aug 2 23:14:57 2017 -0400
 
-    cmd/dist, cmd/cgo, cmd/go: allow per-goos/goarch default CC
+    [dev.boringcrypto] crypto/internal/boring: add initial BoringCrypto access
     
-    Even though cmd/dist has historically distinguished "CC for gohostos/gohostarch"
-    from "CC for target goos/goarch", it has not recorded that distinction
-    for later use by cmd/cgo and cmd/go. Now that content-based staleness
-    includes the CC setting in the decision about when to rebuild packages,
-    the go command needs to know the details of which CC to use when.
-    Otherwise lots of things look out of date and (worse) may be rebuilt with
-    the wrong CC.
+    Right now the package doesn't do anything useful, but it will.
+    This CL is about the machinery for building goboringcrypto_linux_amd64.syso
+    and then running the self-test and checking FIPS_mode from Go init.
     
-    A related issue is that users may want to be able to build a toolchain
-    capable of cross-compiling for two different non-host targets, and
-    to date we've required that CC_FOR_TARGET apply to both.
-    This CL introduces CC_FOR_${GOOS}_${GOARCH}, so that you can
-    (for example) set CC_FOR_linux_arm and CC_FOR_linux_arm64
-    separately on a linux/ppc64 host and be able to cross-compile to
-    either arm or arm64 with the right toolchain.
-    
-    Fixes #8161.
-    Half of a fix for #22509.
-    
-    Change-Id: I7a43769f39d859f659d31bc96980918ba102fb83
-    Reviewed-on: https://go-review.googlesource.com/76018
+    Change-Id: I4ec0f5efaa88ccfb506b9818d24a7f1cbcc5a7d6
+    Reviewed-on: https://go-review.googlesource.com/55472
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/cgo/doc.go                |  12 ++--
- src/cmd/cgo/gcc.go                |   2 +-
- src/cmd/dist/build.go             | 147 +++++++++++++++++++++-----------------
- src/cmd/dist/buildgo.go           |  34 +++++++--
- src/cmd/go/internal/envcmd/env.go |   4 +-
- src/cmd/go/internal/work/exec.go  |   4 +-
- src/cmd/go/internal/work/gc.go    |   8 +--
- src/cmd/go/internal/work/gccgo.go |   2 +-
- 8 files changed, 125 insertions(+), 88 deletions(-)
+ src/crypto/internal/boring/LICENSE                 | 200 ++++++++++++++++++
+ src/crypto/internal/boring/boring.go               |  39 ++++
+ src/crypto/internal/boring/boring_test.go          |  34 +++
+ src/crypto/internal/boring/build/.gitignore        |   1 +
+ src/crypto/internal/boring/build/README            |   6 +
+ src/crypto/internal/boring/build/build.sh          |  63 ++++++
+ .../internal/boring/build/build_in_chroot.sh       | 196 +++++++++++++++++
+ .../internal/boring/build/root_setup_in_chroot.sh  |  13 ++
+ src/crypto/internal/boring/build/sources.list      |  10 +
+ src/crypto/internal/boring/doc.go                  |  14 ++
+ src/crypto/internal/boring/goboringcrypto.h        | 233 +++++++++++++++++++++
+ .../boring/goboringcrypto_linux_amd64.syso         | Bin 0 -> 7576080 bytes
+ src/crypto/internal/boring/notboring.go            |  17 ++
+ src/crypto/internal/cipherhw/generic.go            |   4 +-
+ src/go/build/deps_test.go                          |   4 +
+ src/runtime/runtime.go                             |   3 +
+ 16 files changed, 836 insertions(+), 1 deletion(-)

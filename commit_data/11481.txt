@@ -1,12 +1,14 @@
-commit be7a04944ea9eeb7ffd5458d26a83c1693df657c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 31 09:42:33 2012 +1100
+commit 590f948b64f1a9421a243ab185785ed6dfc9d5e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 14:31:51 2012 -0800
 
-    buildscript.sh: now works correctly on windows
+    godoc: sort list of "other packages"
     
-    R=golang-dev, rsc
+    Fixes #2786.
+    
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5569092
+    https://golang.org/cl/5581050
 
- src/buildscript.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/godoc.go | 1 +
+ 1 file changed, 1 insertion(+)

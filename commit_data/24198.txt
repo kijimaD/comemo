@@ -1,22 +1,40 @@
-commit 74288f09dc0c29f8ce86a4ca44cb78828c0118ee
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 2 15:08:24 2015 -0700
+commit c2023a07915cccff1ffba9b96e160f444f77aeae
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jul 15 14:55:02 2015 +1000
 
-    strconv: add QuoteToGraphic and friends
+    image/color: tweak the YCbCr to RGBA conversion formula.
     
-    This version of quoting allows runes in category Zs, such as the
-    ideographic space characters, to be passed through unquoted.
+    Before, calling the RGBA method of YCbCr color would return red values
+    in the range [0x0080, 0xff80]. After, the range is [0x0000, 0xffff] and
+    is consistent with what Gray colors' RGBA method returns. In particular,
+    pure black, pure white and every Gray color in between are now exactly
+    representable as a YCbCr color.
     
-    Still to do (maybe): A way to access this from Printf.
+    This fixes a regression from Go 1.4 (where YCbCr{0x00, 0x80, 0x80} was
+    no longer equivalent to pure black), introduced by golang.org/cl/8073 in
+    the Go 1.5 development cycle. In Go 1.4, the +0x80 rounding was not
+    noticable when Cb == 0x80 && Cr == 0x80, because the YCbCr to RGBA
+    conversion truncated to 8 bits before multiplying by 0x101, so the
+    output range was [0x0000, 0xffff].
     
-    Updates #11511.
+    The TestYCbCrRoundtrip fuzzy-match tolerance grows from 1 to 2 because
+    the YCbCr to RGB conversion now maps to an ever-so-slightly larger
+    range, along with the usual imprecision of accumulating rounding errors.
     
-    Change-Id: I3bae84b1aa0bc1b885318d3f67c5f451099a2a5a
-    Reviewed-on: https://go-review.googlesource.com/14184
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Also s/int/int32/ in ycbcr.go. The conversion shouldn't overflow either
+    way, as int is always at least 32 bits, but it does make it clearer that
+    the computation doesn't depend on sizeof(int).
+    
+    Fixes #11691
+    
+    Change-Id: I538ca0adf7e040fa96c5bc8b3aef4454535126b9
+    Reviewed-on: https://go-review.googlesource.com/12220
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/strconv/isprint.go     | 20 +++++++++++
- src/strconv/makeisprint.go | 17 +++++++++
- src/strconv/quote.go       | 67 ++++++++++++++++++++++++++++++-----
- src/strconv/quote_test.go  | 88 ++++++++++++++++++++++++++++++++++------------
- 4 files changed, 162 insertions(+), 30 deletions(-)
+ src/image/color/ycbcr.go             | 22 +++++++++++---------
+ src/image/color/ycbcr_test.go        | 39 ++++++++++++++++++++++++++++++++----
+ src/image/decode_example_test.go     | 32 ++++++++++++++---------------
+ src/image/draw/draw_test.go          |  4 ++--
+ src/image/internal/imageutil/gen.go  |  6 +++---
+ src/image/internal/imageutil/impl.go | 24 +++++++++++-----------
+ 6 files changed, 80 insertions(+), 47 deletions(-)

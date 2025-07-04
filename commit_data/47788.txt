@@ -1,22 +1,21 @@
-commit 1afa432ab93aa9adb2e0f04b6c15eb654762d652
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 13 15:04:43 2021 -0800
+commit 189c6946f598dc668946499e4179775c06295f9d
+Author: 6543 <6543@obermui.de>
+Date:   Sun Apr 11 04:37:47 2021 +0000
 
-    go/types, types2: record (top-level) union types
+    net: reference the correct RFCs and sections for IP.IsPrivate
     
-    Fixes #50093.
+    Properly cite RFC 1918 Section 3 for ipv4,
+    and RFC 4193 Section 8 for ipv6 comments.
     
-    Change-Id: Ibebeda542d2a81c979670f9098c4a6d2c3e73abb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371514
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Updates #29146
+    
+    Change-Id: I8a2df0d7bef50444294bb3301fe09fb09f21ffaf
+    GitHub-Last-Rev: b0341791c0c4a2f47fcea65a7ab3877afbe2040a
+    GitHub-Pull-Request: golang/go#45500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309249
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/api.go       |  6 ++++++
- src/cmd/compile/internal/types2/api_test.go  | 10 ++++++++++
- src/cmd/compile/internal/types2/interface.go | 10 +---------
- src/cmd/compile/internal/types2/union.go     | 24 ++++++++++++++++++------
- src/go/types/api.go                          |  6 ++++++
- src/go/types/api_test.go                     | 10 ++++++++++
- src/go/types/interface.go                    | 10 +---------
- src/go/types/union.go                        | 24 ++++++++++++++++++------
- 8 files changed, 70 insertions(+), 30 deletions(-)
+ src/net/ip.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

@@ -1,29 +1,30 @@
-commit 23f7398671280c7f2493796f9b22d7bf70fb38d2
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Aug 8 01:21:46 2019 +0000
+commit 38dc177d3ac5b5a8cb6b7f9039144cbe8bd58036
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Mar 25 10:31:30 2019 +0100
 
-    cmd/go/internal/work: use pie link mode when using MSAN on arm64
+    runtime: create library startup for aix/ppc64
     
-    Currently, when running the "CC=clang go run -msan misc/cgo/
-    testsanitizers/testdata/msan.go" command on arm64, it will
-    report an error and the error is reported by llvm/compiler-rt/
-    lib/msan and it is "Make sure to compile with -fPIE and to link
-    with -pie".
+    As .init_array section aren't available on AIX, the Go runtime
+    initialization is made with gcc constructor attribute.
+    However, as cgo tool is building a binary in order to get imported
+    C symbols, Go symbols imported for this initilization must be ignored.
+    -Wl,-berok is mandatory otherwize ld will fail to create this binary,
+    _rt0_aix_ppc64_lib and runtime_rt0_go aren't defined in runtime/cgo.
+    These two symbols must also be ignored when creating _cgo_import.go.
     
-    This CL fixes this issue, using PIE link mode when using MSAN
-    on arm64.
-    
-    This CL also updates the related document and go build help message.
-    
-    Fixes #33712
-    
-    Change-Id: I0cc9d95f3fa264d6c042c27a40ccbb82826922fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190482
+    Change-Id: Icf2e0282f5b50de5fa82007439a428e6147efef1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169118
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go             | 4 +++-
- src/cmd/go/internal/work/build.go | 4 +++-
- src/cmd/go/internal/work/init.go  | 5 +++++
- 3 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/cgo/out.go                   |   6 ++
+ src/cmd/go/internal/work/security.go |   1 +
+ src/runtime/cgo/callbacks_aix.go     |   1 +
+ src/runtime/cgo/cgo.go               |   1 +
+ src/runtime/cgo/gcc_aix_ppc64.c      |  16 ++++
+ src/runtime/os2_aix.go               | 100 +++++++++++++++++++----
+ src/runtime/os_aix.go                |  68 +++++++++++++++-
+ src/runtime/rt0_aix_ppc64.s          | 150 +++++++++++++++++++++++++++++++++++
+ src/runtime/symtab.go                |   3 +
+ src/runtime/sys_aix_ppc64.s          | 104 ++++++++++++++++++------
+ 10 files changed, 409 insertions(+), 41 deletions(-)

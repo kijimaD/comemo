@@ -1,16 +1,15 @@
-commit 62ba15a492a5a26fce70aab5f44cac4a841b956e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Sep 11 08:29:04 2016 -0700
+commit 5f833121cb8e7722667d17dcf07bb32e4e524f23
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sat May 14 10:23:09 2016 -0700
 
-    cmd/compile: add more non-returning runtime calls
+    archive/zip: use HTTPS for documentation link
     
-    This list now matches the one in popt.go.
+    The resource is available over (and redirects to) HTTPS, it seems like a good
+    idea to save a redirect and ensure an encrypted connection.
     
-    Change-Id: Ib24de531cc35252f0ef276e5c6d247654b021533
-    Reviewed-on: https://go-review.googlesource.com/28965
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I262c7616ae289cdd756b6f67573ba6bd7e3e0ca6
+    Reviewed-on: https://go-review.googlesource.com/23104
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/archive/zip/struct.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

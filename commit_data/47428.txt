@@ -1,27 +1,20 @@
-commit 23adc139bf1c0c099dd075da076f5a1f3ac700d4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 11 19:58:23 2021 -0500
+commit f38b6428a2d1beae784a9402368e4d7f9c7cd8c5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 17 11:17:02 2021 +0100
 
-    reflect: keep pointer in aggregate-typed args live in Call
+    crypto/rand, internal/syscall/unix: add support for getentropy syscall on darwin
     
-    When register ABI is used, reflect.Value.Call prepares the call
-    arguments in a memory representation of the argument registers.
-    It has special handling to keep the pointers in arguments live.
-    Currently, this handles pointer-typed arguments. But when an
-    argument is an aggregate-type that contains pointers and passed
-    in registers, it currently doesn't keep the pointers live. Do
-    so in this CL.
+    The getentropy syscall is available on macOS since version 10.12, which
+    is the minimum required version since Go 1.15.
     
-    May fix #49363.
-    
-    Change-Id: Ic6a0c5fdf9375ef02f7c03fbe9345e2e98c9353d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363358
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I294259af0b11df9669e4dc5fa891d2f2f039d91a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302489
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/abi/abi.go | 18 ++++++++++++++++++
- src/reflect/all_test.go | 23 +++++++++++++++++++++++
- src/reflect/value.go    | 19 ++++++++++++++++---
- 3 files changed, 57 insertions(+), 3 deletions(-)
+ .../rand/{rand_openbsd.go => rand_getentropy.go}   |  7 +++--
+ src/internal/syscall/unix/asm_darwin.s             |  8 ++++++
+ src/internal/syscall/unix/getentropy_darwin.go     | 32 ++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 2 deletions(-)

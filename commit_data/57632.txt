@@ -1,25 +1,22 @@
-commit 6a3f39a9b856c7fd063d9bc10c1e43f074fa8867
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Oct 4 14:23:54 2024 -0700
+commit e4a8fb0fa04a95876e8c5cc6ce6850a06d3d670a
+Author: Josh Kraft <joshkraft757@gmail.com>
+Date:   Wed Aug 16 18:36:46 2023 -0600
 
-    internal/syscall/windows: add NtCreateFile
+    os: add tests for UserCacheDir and UserConfigDir
     
-    Mostly copied from x/sys/windows.
+    Adds basic test scenarios for UserCacheDir and
+    UserConfigDir.
     
-    This adds a various related types and functions,
-    but the purpose is to give access to NtCreateFile,
-    which can be used as an equivalent to openat.
+    Fixes #57638
     
-    For #67002
-    
-    Change-Id: I04e6f630445a55c2000c9c323ce8dcdc7fc0d0e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617377
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ieb86e95faff44287bfa13daa0cb26e7b5401373b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520262
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/windows/string_windows.go   |  32 +++++
- src/internal/syscall/windows/syscall_windows.go  |  18 +++
- src/internal/syscall/windows/types_windows.go    | 166 +++++++++++++++++++++++
- src/internal/syscall/windows/zsyscall_windows.go |  16 +++
- 4 files changed, 232 insertions(+)
+ misc/go_android_exec/main.go |  1 +
+ src/os/os_test.go            | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

@@ -1,12 +1,12 @@
-commit 4bced5e9461429ae90245b0048c6fa5ff39a3947
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Apr 30 13:54:35 2018 -0400
+commit dbdeeed02e27e3c3b258230793adbecfc4f9d6b7
+Author: kim yongbin <kybinz@gmail.com>
+Date:   Thu Jan 11 01:49:45 2018 +0900
 
-    doc: document Go 1.10.2
+    doc/go1.10: fix typo of "preserves"
     
-    Change-Id: I84334dfd02ad9a27b3fb6d46a6b1c015a3f03511
-    Reviewed-on: https://go-review.googlesource.com/110335
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ib5f5d20200284850c14c2431687bc102696ef8ae
+    Reviewed-on: https://go-review.googlesource.com/87215
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/go1.10.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

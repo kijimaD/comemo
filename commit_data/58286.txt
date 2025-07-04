@@ -1,48 +1,36 @@
-commit 04879acdebbb08bdca00356f043d769c4b4375ce
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 25 11:27:33 2024 -0800
+commit e46e8610aba89ed91896ab6ccc5349636e0b4df2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Sep 1 09:26:56 2023 +0200
 
-    net/http: test for racing idle conn closure and new requests
+    crypto/internal/boring: use noescape and nocallback cgo directives
     
-    TestTransportRemovesH2ConnsAfterIdle is experiencing flaky
-    failures due to a bug in idle connection handling.
-    Upon inspection, TestTransportRemovesH2ConnsAfterIdle
-    is slow and (I think) not currently testing the condition
-    that it was added to test.
+    The new noescape and nocallback directives can be used instead of the C
+    wrapper functions that are there just to avoid some parameters being
+    escaped to the heap.
     
-    Using the new synctest package, this CL:
+    This CL also helps demonstrate the use of the new directives in real
+    code.
     
-    - Adds a test for the failure causing flakes in this test.
-    - Rewrites the existing test to use synctest to avoid sleeps.
-    - Adds a new test that covers the condition the test was
-      intended to examine.
+    I've added some benchmarks to demonstrate that this CL doesn't
+    introduce new heap allocations when using boringcrypto:
     
-    The new TestTransportIdleConnRacesRequest exercises the
-    scenario where a never-used connection is closed by the
-    idle-conn timer at the same time as a new request attempts
-    to use it. In this race, the new request should either
-    successfully use the old connection (superseding the
-    idle timer) or should use a new connection; it should not
-    use the closing connection and fail.
+    ```
+    goos: linux
+    goarch: amd64
+    pkg: crypto/aes
+    cpu: AMD EPYC 7763 64-Core Processor
+    BenchmarkGCMSeal-32      8378692               143.3 ns/op       111.65 MB/s           0 B/op          0 allocs/op
+    BenchmarkGCMOpen-32      8383038               142.7 ns/op       112.11 MB/s           0 B/op          0 allocs/op
+    ```
     
-    TestTransportRemovesConnsAfterIdle verifies that
-    a connection is reused before the idle timer expires,
-    and not reused after.
-    
-    TestTransportRemovesConnsAfterBroken verifies
-    that a connection is not reused after it encounters
-    an error. This exercises the bug fixed in CL 196665,
-    which introduced TestTransportRemovesH2ConnsAfterIdle.
-    
-    For #70515
-    
-    Change-Id: Id23026d2903fb15ef9a831b2df71177ea177b096
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631795
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ifd775484eb9a105afc5c3d4e75a6c6655cbadc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/net/http/clientserver_test.go |  65 +++++++++++--
- src/net/http/netconn_test.go      |  48 +++++++---
- src/net/http/transport_test.go    | 195 +++++++++++++++++++++++++++++++-------
- 3 files changed, 253 insertions(+), 55 deletions(-)
+ src/crypto/cipher/gcm_test.go     | 36 +++++++++++++++++++++++++
+ src/crypto/internal/boring/aes.go | 55 ++++++++++-----------------------------
+ 2 files changed, 50 insertions(+), 41 deletions(-)

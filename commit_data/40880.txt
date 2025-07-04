@@ -1,29 +1,17 @@
-commit 28314cf12491181df3c06047826f419fd1716f89
+commit 6e11d81b4dd1c1d83d28f861db624f5340b8a6c5
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 22 13:26:58 2019 -0500
+Date:   Mon Aug 5 12:29:51 2019 -0400
 
-    cmd/go: add a 'buildmode' condition for script tests
+    cmd/go: adjust expected error message in TestScript/mod_invalid_version
     
-    In CL 208233 I am fixing a panic that occurs only with a specific
-    build mode. I want that test to run on all platforms that support that
-    build mode, but the logic for determining support is somewhat
-    involved.
+    CL 188817 improved the error message for a nonexistent version in a dependency.
+    This CL locks in that improvement in a regression test.
     
-    For now, I am duplicating that logic into the cmd/internal/sys
-    package, which already reports platform support for other build flags.
+    Fixes #33474
     
-    We can refactor cmd/go/internal/work to use the extracted function in
-    a followup CL.
-    
-    Updates #35759
-    
-    Change-Id: Ibbaedde4d1e8f683c650beedd10849bc27e7a6e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208457
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6246b4995adee966f24eaebe491d35830aea8370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188977
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/script_test.go         |  6 ++++
- src/cmd/go/testdata/script/README |  1 +
- src/cmd/internal/sys/supported.go | 73 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 80 insertions(+)
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

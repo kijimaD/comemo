@@ -1,12 +1,45 @@
-commit db96e6821ad7dab72b459165a66c6dbb08160eda
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 17 11:15:30 2015 -0700
+commit de50bad12134ad79c897637649cb8b16c4824d1a
+Merge: 7cec2157b8 48469a2c86
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 10:15:35 2015 -0500
 
-    math/big: clearer semantics for Float.Scan
+    [dev.cc] all: merge master (48469a2) into dev.cc
     
-    Change-Id: I72e8389ec080be8a0119f98df898de6f5510fa4d
-    Reviewed-on: https://go-review.googlesource.com/7693
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I10f7950d173b302151f2a31daebce297b4306ebe
 
- src/math/big/floatconv.go | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ misc/trace/README.md                     |    6 +
+ misc/trace/trace_viewer_lean.html        | 2868 ++++++++++++++++++++++++++++++
+ src/cmd/go/pkg.go                        |    1 +
+ src/cmd/ld/lib.h                         |    2 +-
+ src/cmd/trace/goroutines.go              |  328 ++++
+ src/cmd/trace/main.go                    |  156 ++
+ src/cmd/trace/pprof.go                   |  162 ++
+ src/cmd/trace/trace.go                   |  434 +++++
+ src/internal/trace/parser.go             |  662 +++++++
+ src/net/http/request.go                  |    3 -
+ src/reflect/value.go                     |    4 +-
+ src/runtime/asm_386.s                    |   25 +-
+ src/runtime/asm_amd64.s                  |   22 +-
+ src/runtime/cgocall.h                    |   13 -
+ src/runtime/malloc.go                    |    2 +-
+ src/runtime/mgc.go                       |  324 ++--
+ src/runtime/mgcmark.go                   |   22 +-
+ src/runtime/mgcsweep.go                  |   14 +-
+ src/runtime/mheap.go                     |    6 +-
+ src/runtime/pprof/trace_parser_test.go   |  656 -------
+ src/runtime/pprof/trace_test.go          |  160 +-
+ src/runtime/proc.go                      |    2 +-
+ src/runtime/race.go                      |    3 +
+ src/runtime/race/README                  |    2 +-
+ src/runtime/race/race_darwin_amd64.syso  |  Bin 278328 -> 314000 bytes
+ src/runtime/race/race_freebsd_amd64.syso |  Bin 294224 -> 316816 bytes
+ src/runtime/race/race_linux_amd64.syso   |  Bin 298064 -> 330232 bytes
+ src/runtime/race/race_windows_amd64.syso |  Bin 292311 -> 331489 bytes
+ src/runtime/race1.go                     |   20 -
+ src/runtime/race_amd64.s                 |    4 +
+ src/runtime/runtime-gdb.py               |    4 +-
+ src/runtime/runtime1.go                  |    7 -
+ src/runtime/runtime2.go                  |    8 +-
+ src/runtime/signal_unix.h                |   14 -
+ src/runtime/trace.go                     |    1 -
+ 35 files changed, 4979 insertions(+), 956 deletions(-)

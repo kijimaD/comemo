@@ -1,25 +1,18 @@
-commit b6b984fcff9b6b3b8789c0b628e3226c1edc8b81
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 17 12:31:07 2019 -0700
+commit 7ee22139796f8f4a7b588c444c6477a96acbc1ba
+Author: Michael Vogt <mvo@ubuntu.com>
+Date:   Wed May 1 07:52:44 2019 +0000
 
-    cmd/compile: escape unsafe.Pointer conversions when -d=checkptr
+    net: set DNSError.IsTemporary from addrinfoErrno errors
     
-    This CL tweaks escape analysis to treat unsafe.Pointer(ptr) as an
-    escaping operation when -d=checkptr is enabled. This allows better
-    detection of unsafe pointer arithmetic and conversions, because the
-    runtime checkptr instrumentation can currently only detect object
-    boundaries for heap objects, not stack objects.
+    Today it is not possible (AFAICT) to detect if a DNSError if of type EAI_AGAIN, i.e. if it is something temporary that should be retried. This information is available inside addrinfoErrno but when the DNSError is created this information is lost.
     
-    Updates #22218.
-    Fixes #34959.
+    This PR fixes this so that the addinfoErrno.Temporary information is added to DNSError as well. With that a user who gets a DNSError can check now is its a temporary error (for errors that resulted from a addrinfoErrno this is EAI_AGAIN).
     
-    Change-Id: I856812cc23582fe4d0d401592583323e95919f28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201781
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I64badb2ebd904e41fc2e0755416f7f32560534d8
+    GitHub-Last-Rev: ced7238a6597039fb23f36f372bd1cf33d60d4a6
+    GitHub-Pull-Request: golang/go#31676
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/escape.go | 10 +++++++++-
- src/cmd/compile/internal/gc/walk.go   |  8 +++++++-
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/net/cgo_unix.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

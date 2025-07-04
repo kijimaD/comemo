@@ -1,23 +1,15 @@
-commit 5e8de365dced2d35975361760c6df9e4357fd6b9
-Author: Tobias Columbus <tobias.columbus@gmail.com>
-Date:   Tue Aug 28 03:59:16 2012 +0800
+commit 49f29c9c22f15120811719f4f451c3469e9e174a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Aug 26 11:17:55 2012 -0700
 
-    misc/vim: fix for autocompletion
+    net/http: send an explicit zero Content-Length when Handler never Writes
     
-        Vim autocompletion respects the $GOPATH variable and does not
-        ignore dashes ('-'), dots ('.') and underscores ('_') like found
-        in many remote packages.
-        Environment variable $GOROOT is determined by calling
-        'go env GOROOT' instead of relying on the user's environment
-        variables.
+    Fixes #4004
     
-        Fixes #3876
-        Fixes #3882
-    
-    R=golang-dev, franciscossouza, dsymonds, minux.ma
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6443151
+    https://golang.org/cl/6472055
 
- misc/vim/autoload/go/complete.vim | 48 ++++++++++++++++++++++++++++-----------
- misc/vim/plugin/godoc.vim         |  2 +-
- 2 files changed, 36 insertions(+), 14 deletions(-)
+ src/pkg/net/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 12 ++++++++++--
+ 2 files changed, 42 insertions(+), 2 deletions(-)

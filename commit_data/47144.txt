@@ -1,28 +1,37 @@
-commit 82f902ae8e2b7f7eff0cdb087e47e939cc296a62
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Mon Nov 1 06:42:01 2021 +0100
+commit f41460145ef6b75303e5f766a676274f456387d3
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 4 00:11:12 2021 +0100
 
-    strings: align Clone output with string([]byte(""))
+    cmd/link: recognize ARM64 PE files and relocations
     
-    Add a comment how strings of length 0 are treated and
-    that they always will result in the return of a string
-    equal to the constant string "".
+    For now, this only add a single relocation type, which is sufficient for
+    Windows resources. Later we'll see if we need more for cgo.
     
-    The previous implementation would return a string header that uses
-    runtime.zerobase as the backing array pointer while the string constant
-    "" has 0 as pointer value.
+    In order to ensure these code paths are actually tested, this expands
+    the rsrc tests to include all the architectures of PE objects that we
+    need to be recognizing, and splits things more clearly between binutils
+    and llvm objects, which have a slightly different layout, so that we
+    test both.
     
-    Using 0 has the backing array pointer is also the behaviour of
-    string([]byte(input)) which makes the new behaviour a better drop in
-    replacement.
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
     
-    Change-Id: Ic5460e9494b6708edbdfa4361e878d50db54ba10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360255
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    Change-Id: Ia1ee840265e9d12c0b12dd1c5d0810f8b300e557
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289429
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/strings/clone.go      |  5 +++++
- src/strings/clone_test.go | 11 ++++++++++-
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go                    |   6 +++-
+ src/cmd/link/internal/loadpe/ldpe.go               |  29 ++++++++++++++++
+ src/cmd/link/link_test.go                          |  38 +++++++++++++++------
+ .../testdata/{testPErsrc => pe-binutils}/main.go   |   7 ++--
+ src/cmd/link/testdata/pe-binutils/rsrc_386.syso    | Bin 0 -> 228 bytes
+ .../rsrc.syso => pe-binutils/rsrc_amd64.syso}      | Bin
+ .../{testPErsrc-complex => pe-llvm}/main.go        |   4 +--
+ src/cmd/link/testdata/pe-llvm/rsrc_386.syso        | Bin 0 -> 352 bytes
+ .../rsrc.syso => pe-llvm/rsrc_amd64.syso}          | Bin 352 -> 352 bytes
+ src/cmd/link/testdata/pe-llvm/rsrc_arm.syso        | Bin 0 -> 352 bytes
+ src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso      | Bin 0 -> 352 bytes
+ 11 files changed, 67 insertions(+), 17 deletions(-)

@@ -1,21 +1,30 @@
-commit 2c990f4596b8211ec24b095d80e66ec82a5a5021
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 11 09:48:46 2017 -0700
+commit dc0f0ab70f94e97f273ab6d3f798eefe93e90fd0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 22 13:45:12 2017 -0400
 
-    runtime: add a use of runtime.KeepAlive's argument
+    runtime: don't count manually-managed spans from heap_{inuse,sys}
     
-    This makes sure that its argument is marked live on entry.
-    We need its arg to be live so defers of KeepAlive get
-    scanned correctly by the GC.
+    Currently, manually-managed spans are included in memstats.heap_inuse
+    and memstats.heap_sys, but when we export these stats to the user, we
+    subtract out how much has been allocated for stack spans from both.
+    This works for now because stacks are the only manually-managed spans
+    we have.
     
-    Fixes #21402
+    However, we're about to use manually-managed spans for more things
+    that don't necessarily have obvious stats we can use to adjust the
+    user-presented numbers. Prepare for this by changing the accounting so
+    manually-managed spans don't count toward heap_inuse or heap_sys. This
+    makes these fields align with the fields presented to the user and
+    means we don't have to track more statistics just so we can adjust
+    these statistics.
     
-    Change-Id: I906813e433d0e9726ca46483723303338da5b4d7
-    Reviewed-on: https://go-review.googlesource.com/55150
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #19325.
+    
+    Change-Id: I5cb35527fd65587ff23339276ba2c3969e2ad98f
+    Reviewed-on: https://go-review.googlesource.com/38577
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mfinal.go      | 15 +++++++++------
- src/runtime/mfinal_test.go | 17 +++++++++++++++++
- 2 files changed, 26 insertions(+), 6 deletions(-)
+ src/runtime/mheap.go  | 25 ++++++++++++++-----------
+ src/runtime/mstats.go | 19 ++++++++++---------
+ 2 files changed, 24 insertions(+), 20 deletions(-)

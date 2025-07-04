@@ -1,25 +1,20 @@
-commit ee2a45e5fbee473b81c8ab81da8d83699d64e01f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Feb 24 09:43:59 2021 +0100
+commit b473a1f8da2998be9dee2b0e59a6854a4955dba1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 26 14:06:41 2020 -0400
 
-    runtime: use pipe2 for nonblockingPipe on dragonfly
+    [dev.link] cmd/link: read symbol type only when necessary in elfreloc1
     
-    The pipe2 syscall is available since DragonflyBSD 4.2, see
-    https://www.dragonflybsd.org/release42/
+    Slightly speeds up Asmb2.
     
-    Change-Id: Ifc67c4935cc59bae29be459167e2fa765843ac03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295471
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Linking cmd/compile with external linking:
+    Asmb2         190ms ± 2%     182ms ± 2%  -4.14%  (p=0.000 n=10+9)
+    
+    Change-Id: I55511d0e7b0511b60f8d02390076f8566bc7d135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/defs_dragonfly.go       |  4 ++++
- src/runtime/defs_dragonfly_amd64.go |  4 ++++
- src/runtime/export_pipe2_test.go    |  4 ++--
- src/runtime/export_pipe_test.go     |  4 ++--
- src/runtime/nbpipe_pipe.go          |  4 ++--
- src/runtime/nbpipe_pipe2.go         |  4 ++--
- src/runtime/os_dragonfly.go         |  5 +++--
- src/runtime/sys_dragonfly_amd64.s   | 18 ++++++++++++++++++
- 8 files changed, 37 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 5 ++---
+ src/cmd/link/internal/s390x/asm.go | 3 +--
+ 2 files changed, 3 insertions(+), 5 deletions(-)

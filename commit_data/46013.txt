@@ -1,19 +1,16 @@
-commit b0fba64ef47cc22bed926821704f223f89a56b42
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 21:20:10 2021 -0400
+commit 932733d4212a7aa651f5060dff489f0819d928bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 10:31:42 2020 -0500
 
-    go/types: fix make with type parameter argument
+    doc/go1.16: document embed, io/fs, runtime/metrics
     
-    This is a port of CL 339899 to go/types. A test assertion is adjusted
-    to place the 'not enough arguments' error on the ')'.
+    Fixes #42915.
     
-    Change-Id: Ia13eccc66586f9b84a8b99d462bb406d363a3288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342434
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia6e205aaac3cbf4ba7340deafad444ac3e573559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275114
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/builtins.go                 | 42 +++++------------
- src/go/types/testdata/check/builtins.go2 | 79 ++++++++++++++------------------
- 2 files changed, 47 insertions(+), 74 deletions(-)
+ doc/go1.16.html | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 68 insertions(+), 4 deletions(-)

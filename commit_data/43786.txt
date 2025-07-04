@@ -1,20 +1,29 @@
-commit d7974c31d0eb0ef377a8681f6f7306d46854eb1c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 12 11:01:23 2020 +0100
+commit 67a8660b5acd570530f3777727d67e739e54cb2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 19:22:26 2020 -0700
 
-    os: gofmt
+    cmd/compile: CSE the RHS of rewrite rules
     
-    As reported by John Papandriopoulos, some parts of CL 216622 weren't
-    properly formatted.
+    Keep track of all expressions encountered while
+    generating a rewrite result, and re-use them whenever possible.
+    Named expressions may still be used for clarity when desired.
     
-    Change-Id: I3a76abb6213bb17ef440036295c86d930703b456
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269218
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I640dca108763eb8baeff8f9a4169300af3445b82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229800
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/os/executable_dragonfly.go | 6 +++---
- src/os/executable_freebsd.go   | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  18 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |  12 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  80 ++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 146 ++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 294 +++++++------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 169 ++++----------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 236 ++++++--------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   8 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  44 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  70 ++----
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 238 ++++++++------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  84 +++----
+ 12 files changed, 426 insertions(+), 973 deletions(-)

@@ -1,18 +1,24 @@
-commit 1f1fcc34736087db4d385abf26b4ec0ef64193a1
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Mar 1 10:11:56 2024 +0000
+commit bbf795ebb114918a8e8dc7fd4d825cd5928d3f4d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 10 15:37:17 2023 -0500
 
-    os/exec: remove unnecessary fmt.Sprintf call
+    internal/platform: add a function to report whether default builds are PIE
     
-    Change-Id: Ic0ac97a15dadd756d727fd8abe23359b0347af19
-    GitHub-Last-Rev: a96a3f5fe7fbfb41f38acadab3c03c4a76c89b78
-    GitHub-Pull-Request: golang/go#66052
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568317
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This consolidates a condition that was previously repeated (in
+    different approximations) in several different places in the code.
+    
+    For #58807.
+    
+    Change-Id: Idd308759f6262b1f5c61f79022965612319edf94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475457
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/exec/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/init.go       | 28 +++++++---------------------
+ src/cmd/link/internal/ld/dwarf_test.go | 15 ++-------------
+ src/cmd/nm/nm_test.go                  | 15 +++------------
+ src/cmd/pprof/pprof_test.go            | 10 ++++------
+ src/internal/platform/supported.go     | 14 ++++++++++++++
+ 5 files changed, 30 insertions(+), 52 deletions(-)

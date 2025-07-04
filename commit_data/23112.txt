@@ -1,48 +1,31 @@
-commit 001438bdfec2b97e04a053abfbe42efe499f78e5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 19 22:58:10 2015 -0400
+commit b6a0450bece6820b6a6d272ce7468915c4aaf796
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Sun Apr 12 19:50:52 2015 +0200
 
-    runtime: fix callwritebarrier
+    testing/quick: align tests with reflect.Kind.
     
-    Given a call frame F of size N where the return values start at offset R,
-    callwritebarrier was instructing heapBitsBulkBarrier to scan the block
-    of memory [F+R, F+R+N). It should only scan [F+R, F+N). The extra N-R
-    bytes scanned might lead into the next allocated block in memory.
-    Because the scan was consulting the heap bitmap for type information,
-    scanning into the next block normally "just worked" in the sense of
-    not crashing.
+    This commit is largely cosmetic in the sense that it is the remnants
+    of a change proposal I had prepared for testing/quick, until I
+    discovered that 3e9ed27 already implemented the feature I was looking
+    for: quick.Value() for reflect.Kind Array.  What you see is a merger
+    and manual cleanup; the cosmetic cleanups are as follows:
     
-    Scanning the extra N-R bytes of memory is a problem mainly because
-    it causes the GC to consider pointers that might otherwise not be
-    considered, leading it to retain objects that should actually be freed.
-    This is very difficult to detect.
+    (1.) Keeping the TestCheckEqual and its associated input functions
+    in the same order as type kinds defined in reflect.Kind.  Since
+    3e9ed27 was committed, the test case began to diverge from the
+    constant's ordering.
     
-    Luckily, juju turned up a case where the heap bitmap and the memory
-    were out of sync for the block immediately after the call frame, so that
-    heapBitsBulkBarrier saw an obvious non-pointer where it expected a
-    pointer, causing a loud crash.
+    (2.) The `Intptr` derivatives existed to exercise quick.Value with
+    reflect.Kind's `Ptr` constant.  All `Intptr` (unrelated to `uintptr`)
+    in the test have been migrated to ensure the parallelism of the
+    listings and to convey that `Intptr` is not special.
     
-    Why is there a non-pointer in memory that the heap bitmap records as
-    a pointer? That is more difficult to answer. At least one way that it
-    could happen is that allocations containing no pointers at all do not
-    update the heap bitmap. So if heapBitsBulkBarrier walked out of the
-    current object and into a no-pointer object and consulted those bitmap
-    bits, it would be misled. This doesn't happen in general because all
-    the paths to heapBitsBulkBarrier first check for the no-pointer case.
-    This may or may not be what happened, but it's the only scenario
-    I've been able to construct.
+    (3.) Correct a misspelling (transposition) of "alias", whereby it is
+    named as "Alais".
     
-    I tried for quite a while to write a simple test for this and could not.
-    It does fix the juju crash, and it is clearly an improvement over the
-    old code.
-    
-    Fixes #10844.
-    
-    Change-Id: I53982c93ef23ef93155c4086bbd95a4c4fdaac9a
-    Reviewed-on: https://go-review.googlesource.com/10317
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I441450db16b8bb1272c52b0abcda3794dcd0599d
+    Reviewed-on: https://go-review.googlesource.com/8804
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mbarrier.go | 2 +-
- src/runtime/mbitmap.go  | 6 ++++++
- src/runtime/mheap.go    | 2 ++
- 3 files changed, 9 insertions(+), 1 deletion(-)
+ src/testing/quick/quick_test.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

@@ -1,48 +1,33 @@
-commit c5c4f3dd5f5e5a6a27fe53dc57eaf6acf414a4bc
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 29 15:38:48 2024 +0100
+commit 7546c79e91f4a7abe3959a61e01e2d244dc5c440
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jun 2 10:16:56 2023 -0400
 
-    crypto/x509: keep RSA CRT values in ParsePKCS1PrivateKey
+    cmd: update vendored golang.org/x/mod
     
-    Turns out that recomputing them (and qInv in particular) in constant
-    time is expensive, so let's not throw them away when they are available.
-    They are much faster to check, so we now do that on precompute.
+    Pull in CL 500335. It teaches modfile.IsDirectoryPath to recognize all
+    relative paths that begin with a "." or ".." path element as a valid
+    directory path (rather than a module path). This allows removing the
+    path == "." check that CL 389298 added to modload.ToDirectoryPath.
     
-    Also, thanks to the opaque crypto/internal/fips140/rsa.PrivateKey type,
-    we now have some assurance that the values we use are always ones we
-    checked.
+    go get golang.org/x/mod@6e58e47c  # CL 500335
+    go mod tidy
+    go mod vendor
     
-    Recovers most of the performance loss since CL 630516 in the happy path.
-    Also, since now we always use the CRT, if necessary by running a
-    throwaway Precompute, which is now cheap if PrecomputedValues is filled
-    out, we effectively fixed the JSON round-trip slowdown (#59695).
+    Updates #51448.
+    Fixes #60572.
     
-    goos: darwin
-    goarch: arm64
-    pkg: crypto/rsa
-    cpu: Apple M2
-                                │ 3b42687c56  │          f017604bc6-dirty           │
-                                │   sec/op    │   sec/op     vs base                │
-    ParsePKCS8PrivateKey/2048-8   26.76µ ± 1%   65.99µ ± 1%  +146.64% (p=0.002 n=6)
-    
-    Fixes #59695
-    Updates #69799
-    For #69536
-    
-    Change-Id: I507f8c5a32e69ab28990a3bf78959836b9b08cc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632478
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ide99c728c8dac8fd238e13f6d6a0c3917d7aea2d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/godebug.md                                  |   5 +
- doc/next/6-stdlib/99-minor/crypto/x509/69799.md |   4 +
- src/crypto/internal/fips140/rsa/rsa.go          | 118 ++++++++++++++++++------
- src/crypto/rsa/rsa.go                           |  14 +++
- src/crypto/x509/pkcs1.go                        |  34 ++++++-
- src/crypto/x509/pkcs8.go                        |   3 +
- src/crypto/x509/x509_test.go                    |  55 +++++++++++
- src/internal/godebugs/table.go                  |   1 +
- src/runtime/metrics/doc.go                      |   4 +
- 9 files changed, 206 insertions(+), 32 deletions(-)
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  4 ++--
+ src/cmd/go/internal/modload/modfile.go          |  2 +-
+ src/cmd/go/testdata/script/work_init_path.txt   | 26 ++++++++++++++++++++-----
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 12 ++++++------
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 6 files changed, 32 insertions(+), 16 deletions(-)

@@ -1,17 +1,37 @@
-commit 071f0de4ec0d912b2908821466818ca2be04655c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 2 23:07:22 2018 +0000
+commit 85c3ebf4dde67026a703dd7c4a3b64ffc307e115
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 11:45:16 2017 -0500
 
-    strings: fix flaky TestBuilderGrow test
+    cmd/cgo: modify source as text, not as AST
     
-    Fixes #24647
+    Cgo has always operated by rewriting the AST and invoking go/printer.
+    This CL converts it to use the AST to make decisions but then apply
+    its edits directly to the underlying source text. This approach worked
+    better in rsc.io/grind (used during the C to Go conversion) and also
+    more recently in cmd/cover. It guarantees that all comments and
+    line numbers are preserved exactly.
     
-    Change-Id: I79c2b45cf7fc9c0ed0c7a665472556bd248e7584
-    Reviewed-on: https://go-review.googlesource.com/104235
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    This eliminates a lot of special concern about comments and
+    problems with cgo not preserving meaningful comments.
+    Combined with the CL changing cmd/cover to use the same
+    approach, it means that the combination of applying cgo and
+    applying cover still guarantees all comments and line numbers
+    are preserved exactly.
+    
+    This sets us up to fix some cgo vs cover bugs by swapping
+    the order in which they run during the go command.
+    
+    This also sets up #16623 a bit: the edit list being
+    accumulated here is nearly exactly what you'd want
+    to pass to the compiler for that issue.
+    
+    Change-Id: I7611815be22e7c5c0d4fc3fa11832c42b32c4eb3
+    Reviewed-on: https://go-review.googlesource.com/77153
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strings/builder_test.go | 39 ++++++++++++++++++---------------------
- 1 file changed, 18 insertions(+), 21 deletions(-)
+ src/cmd/cgo/ast.go        | 57 +++++++++++++++++++++++------------
+ src/cmd/cgo/gcc.go        | 76 ++++++++++++++++++++++-------------------------
+ src/cmd/cgo/main.go       |  9 ++++++
+ src/cmd/cgo/out.go        |  3 +-
+ src/cmd/dist/buildtool.go |  1 +
+ 5 files changed, 86 insertions(+), 60 deletions(-)

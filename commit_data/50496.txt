@@ -1,24 +1,37 @@
-commit c075c21ba532bd4d00158708e8c2981b8fdc19ca
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Sep 12 12:13:12 2022 -0500
+commit b9540246ba591e0ec5cd7cc1d6d62ab911ff9328
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 27 16:31:18 2021 -0400
 
-    cmd/asm, cmd/internal/obj/ppc64: increase asm test coverage for PPC64
+    cmd/go: disallow the -fuzz flag for tests outside the main module
     
-    This CL adds tests for some of the instructions that were
-    missing. A minor change was made to asm9.go to ensure EXTSWSLICC
-    test works.
+    Normally, when fuzzing identifies a failure it saves the failing input
+    to the package's testdata directory. However, the testdata directory
+    for packages outside the main module is normally not writable — and
+    when it is, writing to a testdata directory inside the module cache
+    would corrupt the checksum for that module (and permanently alter the
+    behavior of that version of the module globally).
     
-    Change-Id: I95cd096c85778fc93856d213aa4fb14c35228cec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430376
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    In the future we could consider a flag to allow failures to be saved
+    to an alternate location, or perhaps in the build cache; or, we could
+    suppress writes entirely and rely on the user to identify and copy the
+    failing input from the test log. However, it's a bit late in the cycle
+    for that big a design decision right now. For Go 1.18, we will just
+    enforce that the package to be fuzzed resides in the main module,
+    which is typically a writable VCS checkout.
+    
+    Fixes #48495
+    
+    Change-Id: I8d3d56372394b1aaa94fa920399c659363fa17fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359414
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 88 +++++++++++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/asm9.go        |  2 +-
- 2 files changed, 89 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go                              | 11 ++--
+ src/cmd/go/internal/test/test.go                   | 45 +++++++++++++++--
+ .../testdata/mod/example.com_fuzzfail_v0.1.0.txt   | 20 ++++++++
+ .../testdata/mod/example.com_fuzzfail_v0.2.0.txt   | 23 +++++++++
+ src/cmd/go/testdata/script/test_fuzz_modcache.txt  | 58 ++++++++++++++++++++++
+ 5 files changed, 147 insertions(+), 10 deletions(-)

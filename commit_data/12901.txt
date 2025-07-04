@@ -1,12 +1,12 @@
-commit 3192cac58732eb44ae68296c79818b288b68a561
+commit 74607d18c5355aed38b3354c64b307af96780e68
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Apr 16 17:36:36 2012 -0700
+Date:   Mon Apr 16 17:36:02 2012 -0700
 
-    cmd/prof: don't build on Plan 9 for now.
+    os: avoid panic when testing errors on Plan 9
     
     R=golang-dev, bradfitz, akumar
     CC=golang-dev
-    https://golang.org/cl/5629054
+    https://golang.org/cl/6017043
 
- src/cmd/prof/main.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/os/error_plan9.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

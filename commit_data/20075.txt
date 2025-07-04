@@ -1,19 +1,13 @@
-commit e6f0b746677fbca7b5dbeeb1777cc13b81a31918
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 22 17:14:42 2014 +1000
+commit 76b1ddbb96e184a4a83b58bcc46af087aa711398
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 18:32:54 2014 -0400
 
-    path/filepath: make Abs handle paths like c:a.txt properly
+    [dev.power64] liblink: fix handling of $nnn(reg)
     
-    Fixes #8145.
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/126440043
+    https://golang.org/cl/126180043
 
- src/pkg/path/filepath/path.go         |  4 ++++
- src/pkg/path/filepath/path_plan9.go   |  4 ++++
- src/pkg/path/filepath/path_test.go    | 15 +++++++++++++++
- src/pkg/path/filepath/path_unix.go    |  4 ++++
- src/pkg/path/filepath/path_windows.go |  5 +++++
- 5 files changed, 32 insertions(+)
+ src/liblink/asm9.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

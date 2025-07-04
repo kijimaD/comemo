@@ -1,16 +1,30 @@
-commit 9330ef869ce9cf281ec5d78e73824a8b3a6c7c2b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 23 11:21:42 2017 -0700
+commit 9296d4efe72de89b40425e7426545d6608f2e2d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 8 01:07:10 2016 +0000
 
-    cmd/compile: use Widthptr instead of Types[Tptr].Width
+    net/http: don't retry Transport requests if they have a body
     
-    Change-Id: I21e3abcfd1859f933f55fe875476dec07e43b038
-    Reviewed-on: https://go-review.googlesource.com/38466
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This rolls back https://golang.org/cl/27117 partly, softening it so it
+    only retries POST/PUT/DELETE etc requests where there's no Body (nil
+    or NoBody). This is a little useless, since most idempotent requests
+    have a body (except maybe DELETE), but it's late in the Go 1.8 release
+    cycle and I want to do the proper fix.
+    
+    The proper fix will look like what we did for http2 and only retrying
+    the request if Request.GetBody is defined, and then creating a new request
+    for the next attempt. See https://golang.org/cl/33971 for the http2 fix.
+    
+    Updates #15723
+    Fixes #18239
+    Updates #18241
+    
+    Change-Id: I6ebaa1fd9b19b5ccb23c8d9e7b3b236e71cf57f3
+    Reviewed-on: https://go-review.googlesource.com/34134
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/compile/internal/gc/dcl.go     | 2 +-
- src/cmd/compile/internal/gc/reflect.go | 2 +-
- src/cmd/compile/internal/gc/subr.go    | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.8.html              |  3 +-
+ src/net/http/client_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transport.go   | 14 ++++-----
+ 3 files changed, 83 insertions(+), 8 deletions(-)

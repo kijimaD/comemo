@@ -1,27 +1,32 @@
-commit 91edf2b7f2fe219f1af1df4031a210d8160da47c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Jan 8 14:39:43 2022 -0800
+commit 639cb1b629e575487af78bb3f60af24a7df7a3f7
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 16 00:00:32 2021 -0400
 
-    go/types, types2: better error message for type parameter field access
+    runtime: mark stdcallN functions cgo_unsafe_args
     
-    Fixes #50516.
+    These functions take the address of an argument and expect to be able
+    to reach later arguments from that pointer. This means they must be
+    laid out sequentially in memory (using ABI0) and all arguments must be
+    live even though they don't all appear to be referenced. This is
+    exactly what go:cgo_unsafe_args does.
     
-    Also call DefPredeclaredTestFuncs in TestFixedbugs so it can be
-    run independently again.
+    Without this, GOEXPERIMENT=regabi,regabiargs on windows/amd64 crashes
+    on runtime startup because the stdcall functions are called with their
+    arguments in registers, so taking the address of one of them has no
+    bearing on the memory locations of the following arguments.
     
-    Change-Id: I78d4cc11790b1543a2545a7ab297a223b3d5e3c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376954
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    With this, GOEXPERIMENT=regabi,regabiargs on windows/amd64 passes
+    all.bash.
+    
+    For #40724.
+    
+    Change-Id: I4a4d6a913f85799b43f61c234d21ebb113a9b527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310733
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go            | 43 ++++++++-------------
- src/cmd/compile/internal/types2/check_test.go      | 11 ++++--
- .../internal/types2/testdata/check/typeparams.go2  |  6 +--
- .../types2/testdata/fixedbugs/issue50417.go2       |  2 +-
- .../types2/testdata/fixedbugs/issue50516.go2       | 13 +++++++
- src/go/types/call.go                               | 45 ++++++++--------------
- src/go/types/check_test.go                         | 11 ++++--
- src/go/types/testdata/check/typeparams.go2         |  6 +--
- src/go/types/testdata/fixedbugs/issue50417.go2     |  2 +-
- src/go/types/testdata/fixedbugs/issue50516.go2     | 13 +++++++
- 10 files changed, 79 insertions(+), 73 deletions(-)
+ src/runtime/os_windows.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

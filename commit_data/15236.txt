@@ -1,17 +1,17 @@
-commit 691455f780c12e2a7994413d6133d5e512c70b53
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Feb 14 12:37:55 2013 +0400
+commit 44d38ae3c0f44449933a5e56ed4282fabb2ffb09
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Thu Feb 14 17:32:48 2013 +1100
 
-    runtime: move stack management related code to stack.c
-    No code changes.
-    This is mainly in preparation to scheduler changes,
-    oldstack/newstack are not related to scheduling.
+    archive/tar: add Header.FileInfo method. Add more cases to FileInfoHeader.
     
-    R=golang-dev, minux.ma, rsc
+    FileInfoHeader can now handle fifo, setuid, setgid and sticky bits.
+    
+    Fixes #4695.
+    
+    R=golang-dev, donovanhide, r.eklind.87, minux.ma, adg
     CC=golang-dev
-    https://golang.org/cl/7311085
+    https://golang.org/cl/7305072
 
- src/pkg/runtime/malloc.goc | 119 -------------------
- src/pkg/runtime/proc.c     | 156 -------------------------
- src/pkg/runtime/stack.c    | 279 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 279 insertions(+), 275 deletions(-)
+ src/pkg/archive/tar/common.go   | 138 +++++++++++++++++++++++++++++++++----
+ src/pkg/archive/tar/tar_test.go | 147 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 271 insertions(+), 14 deletions(-)

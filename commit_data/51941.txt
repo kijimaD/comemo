@@ -1,52 +1,34 @@
-commit 0b9974d3f09fe3132b4bc4aef67b839e3f84a8c8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 2 22:13:18 2023 -0800
+commit 7fc38802e15be1a221290b0a9da1f587ace19488
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 10 16:40:18 2022 -0800
 
-    math/rand: use fastrand64 if possible
+    cmd/compile: implement generic method expressions with closures in dictionary
     
-    Now that the top-level math/rand functions are auto-seeded by default
-    (issue #54880), use the runtime fastrand64 function when 1) Seed
-    has not been called; 2) the GODEBUG randautoseed=0 is not used.
+    Currently we do quite a dance for method expressions on generic
+    types. We write a new closure, and in that closure convert the
+    receiver to an interface with the required method, then call the
+    target using an interface call.
     
-    The benchmarks run quickly and are relatively noisy, but they show
-    significant improvements for parallel calls to the top-level functions.
+    Instead in this CL, we just allocate a (captureless) closure in the
+    dictionary which implements that method expression.
     
-    goos: linux
-    goarch: amd64
-    pkg: math/rand
-    cpu: 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz
-                               │  /tmp/foo.1   │              /tmp/foo.2               │
-                               │    sec/op     │    sec/op      vs base                │
-    Int63Threadsafe-16            11.605n ± 1%    3.094n ±  1%  -73.34% (p=0.000 n=10)
-    Int63ThreadsafeParallel-16   67.8350n ± 2%   0.4000n ±  1%  -99.41% (p=0.000 n=10)
-    Int63Unthreadsafe-16           1.947n ± 3%    1.924n ±  2%        ~ (p=0.189 n=10)
-    Intn1000-16                    4.295n ± 2%    4.287n ±  3%        ~ (p=0.517 n=10)
-    Int63n1000-16                  4.379n ± 0%    4.192n ±  2%   -4.27% (p=0.000 n=10)
-    Int31n1000-16                  3.641n ± 3%    3.506n ±  0%   -3.69% (p=0.000 n=10)
-    Float32-16                     3.330n ± 7%    3.250n ±  2%   -2.40% (p=0.017 n=10)
-    Float64-16                     2.194n ± 6%    2.056n ±  4%   -6.31% (p=0.004 n=10)
-    Perm3-16                       43.39n ± 9%    38.28n ± 12%  -11.77% (p=0.015 n=10)
-    Perm30-16                      324.4n ± 6%    315.9n ± 19%        ~ (p=0.315 n=10)
-    Perm30ViaShuffle-16            175.4n ± 1%    143.6n ±  2%  -18.15% (p=0.000 n=10)
-    ShuffleOverhead-16             223.4n ± 2%    215.8n ±  1%   -3.38% (p=0.000 n=10)
-    Read3-16                       5.428n ± 3%    5.406n ±  2%        ~ (p=0.780 n=10)
-    Read64-16                      41.55n ± 5%    40.14n ±  3%   -3.38% (p=0.000 n=10)
-    Read1000-16                    622.9n ± 4%    594.9n ±  2%   -4.50% (p=0.000 n=10)
-    Concurrent-16                136.300n ± 2%    4.647n ± 26%  -96.59% (p=0.000 n=10)
-    geomean                        23.40n         12.15n        -48.08%
+    This CL makes method expressions faster and simpler. But the real win
+    is some followon CLs, where we can use the same closure to implement
+    bound method calls using the same closure, instead of converting to
+    interface and having wrappers convert back. Much faster and simpler.
     
-    Fixes #49892
+    Still thinking about how to do method values. The receiver still
+    needs to be captured, so there must be some closure involved, I think.
     
-    Change-Id: Iba75b326145512ab0b7ece233b98ac3d4e1fb504
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465037
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Update #50182
+    
+    Change-Id: I1fbd57e7105663f8b049955b8f4111649a5f4aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385254
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/math/rand/default_test.go | 148 ++++++++++++++++++++++++++++++++++++++
- src/math/rand/rand.go         | 164 ++++++++++++++++++++++++++++++------------
- src/math/rand/rand_test.go    |  16 +++++
- 3 files changed, 284 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go   |  23 +++--
+ src/cmd/compile/internal/noder/stencil.go | 154 ++++++++++++++++--------------
+ 2 files changed, 101 insertions(+), 76 deletions(-)

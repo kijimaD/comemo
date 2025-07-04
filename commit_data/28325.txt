@@ -1,25 +1,15 @@
-commit cfea26026bc49be1710ed742465514e84bd31ab5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 9 05:26:20 2016 +0000
+commit 5fae488633ff247b9b7964dc45b8fe4b491f5a16
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 15 17:16:04 2016 +0900
 
-    doc: document minimum OS X version as 10.8
+    syscall: deprecate BPF/LSF
     
-    The download page says "OS X 10.8 or later", but other pages said 10.7.
-    Say 10.8 everywhere.
+    Updates #14982.
     
-    Turns out Go doesn't even compile on OS X 10.7 (details in bug) and we
-    only run builders for OS X 10.8+, which is likely why 10.7
-    regressed. Until recently we only had OS X 10.10 builders, even.
-    
-    We could run 10.7 builders, but there's basically no reason to do so,
-    especially with 10.12 coming out imminently.
-    
-    Fixes #16625
-    
-    Change-Id: Ida6e20fb6c54aea0a3757235b708ac1c053b8c04
-    Reviewed-on: https://go-review.googlesource.com/28870
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: Id12b1e61456832d2b2ffbdbe8cf0a1db4444b1e4
+    Reviewed-on: https://go-review.googlesource.com/23122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install-source.html | 2 +-
- doc/install.html        | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/bpf_bsd.go   | 18 ++++++++++++++++++
+ src/syscall/lsf_linux.go |  6 ++++++
+ 2 files changed, 24 insertions(+)

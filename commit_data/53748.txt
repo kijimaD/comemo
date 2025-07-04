@@ -1,19 +1,20 @@
-commit 050d4d3b9e1b022e1020dea4ffca5ffabf15ad7e
-Author: zikaeroh <zikaeroh@gmail.com>
-Date:   Thu Jul 20 17:41:06 2023 -0700
+commit 1e7f535475febc247c9e27249ee35e3a00dfa769
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Sep 1 22:59:05 2022 +0800
 
-    log/slog: fix comment above log levels
+    cmd/compile: use (*strings.Reader).Reset
     
-    This extra newline causes pkg.go.dev and gopls to only show the bottom
-    half of this comment; I'm pretty sure this entire thing is meant to be
-    in the docs.
+    Since when go1.17 is now used for bootstraping.
     
-    Change-Id: I5bbf081fb2072d9d773d5a995bc3693dc44f65ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511855
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: If28338fc82e6c61f057d7eb3a4c2ed77846167df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427558
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
 
- src/log/slog/level.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go  | 10 ++--------
+ src/cmd/compile/internal/typecheck/iimport.go |  4 +---
+ 2 files changed, 3 insertions(+), 11 deletions(-)

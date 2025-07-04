@@ -1,22 +1,19 @@
-commit 5f80e709125a1589ae52c9a33ff188e6c5224227
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Mar 5 10:56:11 2018 +0100
+commit da95254d1aee5b2497b784b7bfd9d0972505a48d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 25 18:36:12 2017 -0400
 
-    runtime: remove unused SYS_* definitions on Linux
+    runtime: "fix" non-preemptible loop in TestParallelRWMutexReaders
     
-    Also fix the indentation of the SYS_* definitions in sys_linux_mipsx.s
-    and order them numerically.
+    TestParallelRWMutexReaders has a non-preemptible loop in it that can
+    deadlock if GC triggers. "Fix" it like we've fixed similar tests.
     
-    Change-Id: I0c454301c329a163e7db09dcb25d4e825149858c
-    Reviewed-on: https://go-review.googlesource.com/98448
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #10958.
+    
+    Change-Id: I13618f522f5ef0c864e7171ad2f655edececacd7
+    Reviewed-on: https://go-review.googlesource.com/73710
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_linux_arm.s     |  1 -
- src/runtime/sys_linux_arm64.s   |  1 -
- src/runtime/sys_linux_mips64x.s |  1 -
- src/runtime/sys_linux_mipsx.s   | 61 ++++++++++++++++++++---------------------
- src/runtime/sys_linux_ppc64x.s  |  2 --
- src/runtime/sys_linux_s390x.s   |  1 -
- 6 files changed, 30 insertions(+), 37 deletions(-)
+ src/runtime/rwmutex_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

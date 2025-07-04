@@ -1,25 +1,18 @@
-commit 4dad64f5f1530a02404d562c7e6992d285bd9087
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Mar 21 15:08:41 2019 +1100
+commit 3a0d6091d64f0204d0942764d3356ac0572be0e3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 16 16:05:51 2018 -0400
 
-    image/gif: don't assume Encode src's origin is (0, 0)
+    internal/syscall/windows: add LockFileEx and UnlockFileEx for use in cmd/go
     
-    When gif.Encode is given an "m image.Image" argument that isn't an
-    *image.Paletted, it creates a temporary *image.Paletted (called pm) that
-    is intended to be a copy of this image, only with fewer colors.
+    Updates #26794
     
-    That creation process, and specifically the opts.Drawer.Draw call that
-    does the copy, incorrectly assumed that m.Bounds().Min is the zero point
-    (0, 0). This commit fixes that.
-    
-    Fixes #30887
-    
-    Change-Id: Ie03bddec359e2dcc52f18451049452105514e179
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168418
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic1d3078176721f3d2e5d8188c234383037babbaf
+    Reviewed-on: https://go-review.googlesource.com/c/145177
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/image/gif/writer.go      |  5 ++++-
- src/image/gif/writer_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 54 insertions(+), 2 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go  | 12 +++++++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 26 ++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

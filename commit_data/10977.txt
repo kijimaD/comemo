@@ -1,15 +1,12 @@
-commit dd1a34bdae65c8126fc9b36debd856f7a6e47b86
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 22 13:58:58 2011 -0800
+commit ddf67af01b49789974201c930a7b13993219c164
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 23 08:48:21 2011 +1100
 
-    path/filepath: Dir
+    doc: fix misspelt CSS properties.
     
-    There was Base but not Dir, so fill in the gap.
-    
-    R=n13m3y3r, r, rsc, gustavo
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5503067
+    https://golang.org/cl/5498071
 
- src/pkg/path/filepath/path.go      | 19 +++++++++++++++++++
- src/pkg/path/filepath/path_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 42 insertions(+)
+ doc/all.css | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

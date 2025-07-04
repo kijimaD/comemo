@@ -1,22 +1,25 @@
-commit 8887be4654a49d8644d35661f2d71c970ba6dc02
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Wed Dec 21 10:16:15 2016 -0800
+commit a9e6cebde21875379ccc05d680b3c3a78adbf089
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 10 16:46:28 2016 -0400
 
-    cmd/pprof: Re-enable weblist and disasm
+    cmd/compile, runtime: add go:yeswritebarrierrec pragma
     
-    Previous changes started using the full filename for object files
-    on graph nodes, instead of just the file basename. The basename
-    was still being used when selecting mappings to disassemble for
-    weblist and disasm commands, causing a mismatch.
+    This pragma cancels the effect of go:nowritebarrierrec. This is useful
+    in the scheduler because there are places where we enter a function
+    without a valid P (and hence cannot have write barriers), but then
+    obtain a P. This allows us to annotate the function with
+    go:nowritebarrierrec and split out the part after we've obtained a P
+    into a go:yeswritebarrierrec function.
     
-    This fixes #18385. It was already fixed on the upstream pprof.
-    
-    Change-Id: I1664503634f2c8cd31743561301631f12c4949c9
-    Reviewed-on: https://go-review.googlesource.com/34665
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic8ce4b6d3c074a1ecd8280ad90eaf39f0ffbcc2a
+    Reviewed-on: https://go-review.googlesource.com/30938
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/pprof/internal/report/report.go | 2 +-
- src/cmd/pprof/internal/report/source.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 11 ++++--
+ src/cmd/compile/internal/gc/lex.go | 30 ++++++++++-----
+ src/cmd/compile/internal/gc/ssa.go |  4 +-
+ src/runtime/HACKING.md             | 49 ++++++++++++++++++++++++
+ src/runtime/proc.go                | 56 ++++++++++++++++++---------
+ test/nowritebarrier.go             | 78 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 194 insertions(+), 34 deletions(-)

@@ -1,27 +1,20 @@
-commit d13a9312f52a3e861e02aff8ccb3f237b45b0822
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Feb 9 00:13:37 2019 +0000
+commit 94f7795d05937fdf6187c7f850f8902c0f7a6d81
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 10:09:22 2018 -0500
 
-    runtime: add tests for runtime mTreap
+    cmd/go: fix experiment isolation in cache key
     
-    This change exports the runtime mTreap in export_test.go and then adds a
-    series of tests which check that the invariants of the treap are
-    maintained under different operations. These tests also include tests
-    for the treap iterator type.
+    In general we don't assume that the go command knows the
+    specific version of the compiler being used, including which
+    experiments the compiler was built with. Let the compiler tell us,
+    instead of importing cmd/internal/objabi from cmd/go.
     
-    Also, we note that the find() operation on the treap never actually was
-    best-fit, so the tests just ensure that it returns an appropriately
-    sized span.
+    Replacement for CL 128735.
     
-    For #30333.
-    
-    Change-Id: If81f7c746dda6677ebca925cb0a940134701b894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164100
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iaa07f46e19764d0fb14a1c89979bea7bb7139b9c
+    Reviewed-on: https://go-review.googlesource.com/c/149338
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/export_test.go | 113 +++++++++++++++++++++++++
- src/runtime/mgclarge.go    |  12 ++-
- src/runtime/treap_test.go  | 207 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 329 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/buildid.go |  6 ------
+ src/cmd/internal/objabi/flag.go     | 13 +++++++++++--
+ 2 files changed, 11 insertions(+), 8 deletions(-)

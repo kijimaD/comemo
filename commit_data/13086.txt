@@ -1,15 +1,25 @@
-commit fdc45367f97b9cea81b3f8c045b426d6e4a11766
+commit 9242a90ab597a12c3adb7e13fd151498bce4f9ab
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu May 17 00:04:00 2012 -0300
+Date:   Wed May 16 23:21:31 2012 -0300
 
-    encoding/xml: fix decoding of unknown entities in non-strict mode
+    encoding/xml: handle anonymous pointer fields
     
-    Fixes #3447.
+    This CL makes
     
-    R=rsc, gustavo
+        type T struct { *U }
+    
+    behave in a similar way to:
+    
+        type T struct { U }
+    
+    Fixes #3108.
+    
+    R=golang-dev, rsc, gustavo
     CC=golang-dev
-    https://golang.org/cl/6039045
+    https://golang.org/cl/5694044
 
- src/pkg/encoding/xml/xml.go      | 20 ++++++++++++++--
- src/pkg/encoding/xml/xml_test.go | 51 +++++++++++++++++++++++++++++++++++++---
- 2 files changed, 66 insertions(+), 5 deletions(-)
+ src/pkg/encoding/xml/marshal.go      | 10 +++++-----
+ src/pkg/encoding/xml/marshal_test.go |  4 ++--
+ src/pkg/encoding/xml/read.go         | 18 +++++++++---------
+ src/pkg/encoding/xml/typeinfo.go     | 27 +++++++++++++++++++++++++--
+ 4 files changed, 41 insertions(+), 18 deletions(-)

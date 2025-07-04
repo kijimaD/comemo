@@ -1,28 +1,20 @@
-commit c1c303f6f8b77d3ed4e135583f3d60b159907245
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Dec 7 15:59:22 2021 -0800
+commit ec367e5b05becab0cfb371fdf10ba55319301e9d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 15:24:08 2021 -0400
 
-    test: add extra typeswitch tests that cause duplicate cases
+    cmd/compile: adjust interface conversion function selection with 0-sized fields
     
-    Augmented some of the typeswitch*.go tests so that some instantiations
-    have duplicate cases, in order to ensure we're testing that.
+    0-sized fields do not affect how arguments are passed under the
+    register ABI. But it does affect the size and alignment of the
+    type, and may affect the choice of interface conversion function.
+    Specifically, struct { a [0]int32; b [4]byte } should be passed in
+    memory, therefore should not use convT32.
     
-    Spacing changes in the tests are due to gofmt.
-    
-    Change-Id: I5d3678813505c520c544281d4ac8a62ce7e236ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370155
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Idfa21af79b81c196b50253b0be1fa4edecd12b45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308651
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/run.go                    |  4 ++++
- test/typeparam/typeswitch1.go  |  6 ++++--
- test/typeparam/typeswitch1.out |  2 ++
- test/typeparam/typeswitch2.go  |  2 ++
- test/typeparam/typeswitch2.out |  2 ++
- test/typeparam/typeswitch3.go  |  7 ++++++-
- test/typeparam/typeswitch3.out |  3 +++
- test/typeparam/typeswitch4.go  | 11 ++++++++---
- test/typeparam/typeswitch4.out |  3 +++
- 9 files changed, 34 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/convert.go | 17 ++---------------
+ 1 file changed, 2 insertions(+), 15 deletions(-)

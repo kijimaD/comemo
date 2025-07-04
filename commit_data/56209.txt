@@ -1,19 +1,21 @@
-commit 1488bb6c4c6487f9ef3c6d59a84a29fea9ec9266
-Author: Michael Podtserkovskii <michaelpo@meta.com>
-Date:   Fri Apr 5 13:58:35 2024 +0100
+commit 2c64b50d3abbf3f96b3923827776747f2048d8df
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 18 11:20:58 2023 -0400
 
-    cmd/cgo: create -objdir if not exist
+    cmd/go: stub out gotoolchain.go for wasip1 os build tag
     
-    Currently the directory is created only if -objdir is omited.
-    Creating the directory here is useful to avoid doing this in each build system.
-    And also this is consistent with similar flags of other tools like `-o`.
+    There's a stub for gotoolchain.go for the js build tag because js/wasm
+    doesn't define syscall.Exec. But there are builders that are wasm but
+    not js, which also don't have syscall.Exec. The wasip1 GOOS is one
+    example. Stub out gotoolchain.go for wasip1 also.
     
-    Change-Id: Ic39d6eb3e003bc4884089f80f790e30df4a54b01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576815
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I224bb385474ad9c5d3c28a83a000f450dfb43c0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/cmd/cgo/main.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/gotoolchain.go                             | 2 +-
+ src/cmd/go/{gotoolchain_js.go => gotoolchain_stub.go} | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

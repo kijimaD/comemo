@@ -1,30 +1,30 @@
-commit ed035af7b7d7c1cd2e6f852e22a9b04fc2a2cc65
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Aug 21 16:17:16 2024 -0400
+commit 53739590571e66cbace8a6b388a79901cfb8fc3a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Sep 2 20:38:49 2023 -0700
 
-    internal/runtime/maps: remove type fields
+    encoding: show the alphabet for base32 and base64
     
-    Rather than storing the same type pointer in multiple places, just pass
-    it around.
+    There is not a great reason to hide the alphabet used
+    for StdEncoding, HexEncoding, and URLEncoding.
     
-    For #54766.
+    Although this is specified in RFC 4748,
+    showing it in GoDoc saves an extra click from going
+    to the RFC itself to see the alphabet being used.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: Ia6c74805c7a44125ae473177b317f16c6688e6de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622377
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Also, split exported and unexported constants apart
+    so that GoDoc renders more cleanly.
+    
+    Fixes #55126
+    
+    Change-Id: I03bfa607fb6c3df7f757e33fc0f4ec2b233de1a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525296
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/reflectdata/map_swiss.go |  32 ++--
- src/internal/runtime/maps/export_test.go          |  10 +-
- src/internal/runtime/maps/fuzz_test.go            |   8 +-
- src/internal/runtime/maps/group.go                |  18 +--
- src/internal/runtime/maps/map.go                  | 125 +++++++---------
- src/internal/runtime/maps/map_test.go             |  88 +++++------
- src/internal/runtime/maps/table.go                | 171 ++++++++++------------
- src/internal/runtime/maps/table_debug.go          |  32 ++--
- src/runtime/map_swiss.go                          |  12 +-
- src/runtime/map_swiss_test.go                     |   4 +-
- 10 files changed, 227 insertions(+), 273 deletions(-)
+ src/encoding/base32/base32.go      | 19 +++++++++----------
+ src/encoding/base64/base64.go      | 19 +++++++++----------
+ src/encoding/base64/base64_test.go |  2 ++
+ 3 files changed, 20 insertions(+), 20 deletions(-)

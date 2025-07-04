@@ -1,14 +1,13 @@
-commit 811006c89d85076b9ed7a43a64ed9b61ba72dd16
+commit ba0e02b207930f3c4cda364d823820a40bb99f8e
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 15:04:39 2012 -0800
+Date:   Thu Jan 12 15:04:31 2012 -0800
 
-    cmd/go: handle cgo pkg-config pragmas
-    
-    Fixes #2681.
+    cgo: write _cgo_export.h to object directory, not source dir
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5540047
+    https://golang.org/cl/5540048
 
- src/cmd/go/build.go | 83 ++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 57 insertions(+), 26 deletions(-)
+ src/cmd/cgo/out.go        | 2 +-
+ src/pkg/go/build/build.go | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

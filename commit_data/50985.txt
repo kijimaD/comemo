@@ -1,83 +1,16 @@
-commit d5155f61928a55e570beaa214465bc48ddd2c16c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sat Jul 30 02:54:32 2022 -0400
+commit 0244343088e074c5f92b42a9812521f711a69410
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 11:43:46 2021 -0800
 
-    cmd/go: redirect vcs-test.golang.org repo URLs to a test-local server
+    spec: fix Swap example (correctly swap type arguments and parameters)
     
-    The new server reconstructs the vcs-test repos on the fly using
-    scripts that run the actual version-control binaries.
+    Thanks to @danscales for noticing the mistake.
     
-    This allows those repos to be code-reviewed using our normal tools —
-    and, crucially, allows contributors to add new vcs-test contents
-    as part of a contributed CL.
-    
-    It also prevents failures due to network errors reaching
-    vcs-test.golang.org (such as when developing offline), and allows us
-    to iterate on the repo contents without dealing with annoying and
-    unpredictable GCS caching behavior.
-    
-    We can't quite turn down vcs-test.golang.org yet — this server doesn't
-    yet handle "go-import" metadata (and related authentication behaviors),
-    and doesn't serve Subversion repos.
-    
-    But we're getting much closer!
-    
-    For #27494.
-    
-    Change-Id: I233fc718617aed287b0f7248bd8cfe1e5cebe96b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421455
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I547ee80a78419765b82d39d7b34dc8d3bf962c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366215
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/go_test.go                              |   8 +
- src/cmd/go/internal/get/get.go                     |   8 +-
- src/cmd/go/internal/modfetch/codehost/git_test.go  | 810 +++++++++++----------
- src/cmd/go/internal/modfetch/coderepo_test.go      |  38 +-
- src/cmd/go/internal/modload/query_test.go          |  67 +-
- src/cmd/go/internal/vcs/vcs.go                     |  80 +-
- src/cmd/go/internal/vcweb/bzr.go                   |  18 +
- src/cmd/go/internal/vcweb/dir.go                   |  19 +
- src/cmd/go/internal/vcweb/fossil.go                |  62 ++
- src/cmd/go/internal/vcweb/git.go                   |  51 ++
- src/cmd/go/internal/vcweb/hg.go                    | 121 +++
- src/cmd/go/internal/vcweb/script.go                | 304 ++++++++
- src/cmd/go/internal/vcweb/vcstest/vcstest.go       |  83 +++
- src/cmd/go/internal/vcweb/vcstest/vcstest_test.go  | 151 ++++
- src/cmd/go/internal/vcweb/vcweb.go                 | 407 +++++++++++
- src/cmd/go/internal/vcweb/vcweb_test.go            |  63 ++
- src/cmd/go/internal/web/api.go                     |   6 +
- src/cmd/go/internal/web/bootstrap.go               |   2 +
- src/cmd/go/internal/web/http.go                    |  17 +
- src/cmd/go/script_test.go                          |  13 +
- src/cmd/go/testdata/script/reuse_git.txt           |  40 +-
- src/cmd/go/testdata/vcstest/README                 |  14 +
- src/cmd/go/testdata/vcstest/bzr/hello.txt          |  32 +
- src/cmd/go/testdata/vcstest/fossil/hello.txt       |  22 +
- .../go/testdata/vcstest/git/commit-after-tag.txt   |  39 +
- .../testdata/vcstest/git/empty-v2-without-v1.txt   |  24 +
- src/cmd/go/testdata/vcstest/git/emptytest.txt      |  21 +
- src/cmd/go/testdata/vcstest/git/gitrepo1.txt       |  67 ++
- src/cmd/go/testdata/vcstest/git/hello.txt          |  25 +
- src/cmd/go/testdata/vcstest/git/insecurerepo.txt   |  32 +
- src/cmd/go/testdata/vcstest/git/mainonly.txt       |  23 +
- src/cmd/go/testdata/vcstest/git/missingrepo.txt    |  10 +
- src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt |  33 +
- src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt |  27 +
- src/cmd/go/testdata/vcstest/git/no-tags.txt        |  27 +
- src/cmd/go/testdata/vcstest/git/odd-tags.txt       |  48 ++
- src/cmd/go/testdata/vcstest/git/prefixtagtests.txt |  53 ++
- src/cmd/go/testdata/vcstest/git/querytest.txt      | 273 +++++++
- src/cmd/go/testdata/vcstest/git/retract-pseudo.txt |  32 +
- src/cmd/go/testdata/vcstest/git/semver-branch.txt  |  52 ++
- src/cmd/go/testdata/vcstest/git/tagtests.txt       |  44 ++
- src/cmd/go/testdata/vcstest/git/v2repo.txt         |  26 +
- src/cmd/go/testdata/vcstest/git/v2sub.txt          |  34 +
- src/cmd/go/testdata/vcstest/git/v3pkg.txt          |  28 +
- src/cmd/go/testdata/vcstest/git/vgotest1.txt       | 257 +++++++
- src/cmd/go/testdata/vcstest/hg/custom-hg-hello.txt |  17 +
- src/cmd/go/testdata/vcstest/hg/hello.txt           |  17 +
- src/cmd/go/testdata/vcstest/hg/hgrepo1.txt         | 138 ++++
- src/cmd/go/testdata/vcstest/hg/vgotest1.txt        | 322 ++++++++
- 49 files changed, 3644 insertions(+), 461 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

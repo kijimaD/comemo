@@ -1,24 +1,14 @@
-commit 4b130f92d248cfa37dceeb45622d36d9c90331ff
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 29 18:44:07 2016 +0000
+commit 0318d80e51ff148f3a94008b59b36d601846152e
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Sep 1 23:28:26 2016 -0700
 
-    net/http: update bundled http2 for IdleTimeout config sync change
+    path/filepath: use new style deprecation message
     
-    Updates http2 to x/net git rev 76c1a11e for:
-    
-         http2: initialize Server.IdleTimeout from http.Server as http1 does
-         https://golang.org/cl/32230
-    
-         http2: change how Server.IdleTimeout is initialized from http.Server
-         https://golang.org/cl/32323
-    
-    Fixes #14204
-    
-    Change-Id: I099f89fcd0d8bc0e42da163ae0a3b786fd81292f
-    Reviewed-on: https://go-review.googlesource.com/32322
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I242a8960583e333f372929aad4adb8efbe441cd4
+    Reviewed-on: https://go-review.googlesource.com/28413
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/path/filepath/path_unix.go | 2 ++
+ 1 file changed, 2 insertions(+)

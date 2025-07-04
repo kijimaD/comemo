@@ -1,55 +1,30 @@
-commit b6cd6d7d3211bd9030dec4115b6202d93fe570a3
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Thu Mar 31 02:01:48 2016 -0700
+commit 07ccc21295e45732e70bc0e81fe8739681c6c34b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Feb 28 15:59:33 2016 -0900
 
-    cmd/go: fix vcsFromDir returning bad root on Windows
+    cmd/link: skip allocation when reading symbol name
     
-    Apply golang/tools@5804fef4c0556d3e5e7d2440740a3d7aced7d58b.
+    The object file reader in cmd/link reads the symbol name into a scratch
+    []byte, converts it to a string, and then does a substring replacement.
+    Instead, this CL does the replacement on the []byte into the scratch
+    space and then creates the final string.
     
-    In the context of cmd/go build tool, import path is a '/'-separated path.
-    This can be inferred from `go help importpath` and `go help packages`.
-    vcsFromDir documentation says on return, root is the import path
-    corresponding to the root of the repository. On Windows and other
-    OSes where os.PathSeparator is not '/', that wasn't true since root
-    would contain characters other than '/', and therefore it wasn't a
-    valid import path corresponding to the root of the repository.
-    Fix that by using filepath.ToSlash.
+    Linking godoc without DWARF, best of ten, shows a ~10% improvement.
     
-    Add test coverage for vcsFromDir, it was previously not tested.
-    It's taken from golang.org/x/tools/go/vcs tests, and modified to
-    improve style.
+    tip:           real 0m1.099s user 0m1.541s
+    this:          real 0m0.990s user 0m1.280s
     
-    Additionally, remove an unneccessary statement from the documentation
-    "(thus root is a prefix of importPath)". There is no variable
-    importPath that is being referred to (it's possible p.ImportPath
-    was being referred to). Without it, the description of root value
-    matches the documentation of repoRoot.root struct field:
+    This is part of an attempt to make suffixarray string deduping
+    come out as a wash, but it's not there yet:
     
-            // root is the import path corresponding to the root of the
-            // repository
-            root string
+    cl/19987:      real 0m1.335s user 0m1.794s
+    cl/19987+this: real 0m1.225s user 0m1.540s
     
-    Rename and change signature of vcsForDir(p *Package) to
-    vcsFromDir(dir, srcRoot string). This is more in sync with the x/tools
-    version. It's also simpler, since vcsFromDir only needs those two
-    values from Package, and nothing more. Change "for" to "from" in name
-    because it's more consistent and clear.
-    
-    Update usage of vcsFromDir to match the new signature, and respect
-    that returned root is a '/'-separated path rather than a os.PathSeparator
-    separated path.
-    
-    Fixes #15040.
-    Updates #7723.
-    Helps #11490.
-    
-    Change-Id: Idf51b9239f57248739daaa200aa1c6e633cb5f7f
-    Reviewed-on: https://go-review.googlesource.com/21345
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idf061fdfbd7f08aa3a1f5933d3f111fdd1659210
+    Reviewed-on: https://go-review.googlesource.com/20025
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/get.go      |  8 ++++----
- src/cmd/go/vcs.go      | 13 ++++++-------
- src/cmd/go/vcs_test.go | 35 +++++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/objfile.go | 57 ++++++++++++++++++++++++++++---------
+ 1 file changed, 43 insertions(+), 14 deletions(-)

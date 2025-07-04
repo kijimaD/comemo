@@ -1,12 +1,16 @@
-commit 002103f51cf5a448933cf4d4f97707da029786f1
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Thu Nov 1 22:57:01 2012 -0700
+commit 84e20465fc33f1702d6dfc7ed1c05b457acb1b5b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 2 11:07:22 2012 +1100
 
-    spec: we're now at Unicode 6.2.0
+    net: use better error messages on windows
     
-    R=golang-dev
+    Fixes #4320.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6818083
+    https://golang.org/cl/6810064
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go    |  3 ---
+ src/pkg/net/fd_windows.go | 11 +++++++----
+ src/pkg/net/net.go        |  2 ++
+ 3 files changed, 9 insertions(+), 7 deletions(-)

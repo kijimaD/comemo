@@ -1,22 +1,40 @@
-commit 43b64762628a79eb38c2e907f7c3e2afbff77a03
-Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Mon Mar 5 20:04:25 2018 +0000
+commit 7a8e8b2f19c423b07a86adcd41b91575b7ecd875
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Sun Oct 22 13:33:06 2017 +0300
 
-    os/signal: disable loading of history during test
+    image/draw, image/color: optimize hot path sqDiff function
     
-    This change modifies Go to disable loading of users' shell history for
-    TestTerminalSignal tests. TestTerminalSignal, as part of its workload,
-    will execute a new interactive bash shell. Bash will attempt to load the
-    user's history from the file pointed to by the HISTFILE environment
-    variable. For users with large histories that may take up to several
-    seconds, pushing the whole test past the 5 second timeout and causing
-    it to fail.
+    Function sqDiff is called multiple times in the hot path (x, y loops) of
+    drawPaletted from the image/draw package; number of sqDiff calls is
+    between 4×width×height and 4×width×height×len(palette) for each
+    drawPaletted call.
     
-    Change-Id: I11b2f83ee91f51fa1e9774a39181ab365f9a6b3a
-    GitHub-Last-Rev: 7efdf616a2fcecdf479420fc0004057cee2ea6b2
-    GitHub-Pull-Request: golang/go#24255
-    Reviewed-on: https://go-review.googlesource.com/98616
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Simplify this function by removing arguments comparison and relying
+    instead on signed to unsigned integer conversion rules and properties of
+    unsigned integer values operations guaranteed by the spec:
+    
+    > For unsigned integer values, the operations +, -, *, and << are
+    > computed modulo 2n, where n is the bit width of the unsigned integer's
+    > type. Loosely speaking, these unsigned integer operations discard high
+    > bits upon overflow, and programs may rely on ``wrap around''.
+    
+    image/gif package benchmark that depends on the code updated shows
+    throughput improvements:
+    
+    name               old time/op    new time/op    delta
+    QuantizedEncode-4     788ms ± 2%     468ms ± 9%  -40.58%  (p=0.000 n=9+10)
+    
+    name               old speed      new speed      delta
+    QuantizedEncode-4  1.56MB/s ± 2%  2.63MB/s ± 8%  +68.47%  (p=0.000 n=9+10)
+    
+    Closes #22375.
+    
+    Change-Id: Ic9a540e39ceb21e7741d308af1cfbe61b4ac347b
+    Reviewed-on: https://go-review.googlesource.com/72373
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/os/signal/signal_cgo_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/image/color/color.go      | 29 ++++++++++++++++++++------
+ src/image/color/color_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++
+ src/image/draw/draw.go        | 10 ++++-----
+ src/image/draw/draw_test.go   | 45 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+), 12 deletions(-)

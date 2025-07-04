@@ -1,21 +1,15 @@
-commit 8259b0136e1838e440ff32785622a4cc22c14d55
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 20 12:25:24 2014 -0700
+commit 88b78b41c5c645ab0f19032e6e44c82557b8835e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jul 20 18:52:46 2014 +0400
 
-    test: avoid "declared but not used" errors in shift1.go
+    cmd/gc: do not mark PC as pointer on stack
+    GC thinks that it's an invalid pointer on plan9:
+    http://build.golang.org/log/f7da638a20544ef7f45e81f23fdbc4875044c296
     
-    I'm improving gccgo's detection of variables that are only set
-    but not used, and it triggers additional errors on this code.
-    The new gccgo errors are correct; gc seems to suppress them
-    due to the other, expected, errors.  This change uses the
-    variables so that no compiler will complain.
-    
-    gccgo change is https://golang.org/cl/119920043 .
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/116050043
+    LGTM=0intro
+    R=golang-codereviews, 0intro
+    CC=aram, golang-codereviews
+    https://golang.org/cl/113350043
 
- test/shift1.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/select.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

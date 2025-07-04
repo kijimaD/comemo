@@ -1,12 +1,20 @@
-commit 104f57ad39afb40449d1835af3fefc2e9fa4f102
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jul 5 14:42:31 2011 +1000
+commit b177c97803ede6d9cfe0214863a69d0aad977f22
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 5 14:23:51 2011 +1000
 
-    image: add a test for filling sub-images.
+    exp/template: functions
+    Add the ability to attach functions to template and template sets.
+    Make variadic functions and methods work.
+    Still to come: static checking of function names during parse.
     
-    R=r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4626091
+    https://golang.org/cl/4643068
 
- src/pkg/image/draw/draw_test.go | 60 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 60 insertions(+)
+ src/pkg/exp/template/Makefile     |   1 +
+ src/pkg/exp/template/exec.go      | 118 +++++++++++++++++++++++++++-----------
+ src/pkg/exp/template/exec_test.go |  17 +++++-
+ src/pkg/exp/template/funcs.go     |  63 ++++++++++++++++++++
+ src/pkg/exp/template/parse.go     |  20 +++++--
+ src/pkg/exp/template/set.go       |  16 +++++-
+ 6 files changed, 196 insertions(+), 39 deletions(-)

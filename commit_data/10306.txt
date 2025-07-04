@@ -1,18 +1,15 @@
-commit d5a5855ba19fad0e3b237c5c77c5575af1690d92
+commit 151b2f15094168946993448f7f4a5e2a8441bd76
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Nov 9 11:27:27 2011 +0100
+Date:   Wed Nov 9 11:17:06 2011 +0100
 
-    gc: Preserve original blank name for .anon substitution on out params.
+    gc: Fail on implicit assigment to non-exported fields in copy and append.
     
-    Fixes #1802.
+    Fixes #1387.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5364043
+    https://golang.org/cl/5348046
 
- src/cmd/gc/dcl.c                 |  9 +++++----
- src/cmd/gc/fmt.c                 | 28 +++++++++++++++++++++-------
- test/fixedbugs/bug377.dir/one.go |  6 ++++++
- test/fixedbugs/bug377.dir/two.go |  4 ++++
- test/fixedbugs/bug377.go         |  9 +++++++++
- 5 files changed, 45 insertions(+), 11 deletions(-)
+ src/cmd/gc/typecheck.c   |  5 +++++
+ test/fixedbugs/bug378.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

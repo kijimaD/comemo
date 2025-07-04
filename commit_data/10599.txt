@@ -1,14 +1,23 @@
-commit 0dab624b70273d4c32b70a5076c2a054c5a274dd
+commit 7dc9d8c72b5deb927028e9edfbc6015c5d0296be
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 14:14:04 2011 -0500
+Date:   Fri Dec 2 14:13:12 2011 -0500
 
-    gofmt: handle &T in composite literal simplify
+    gc: composite literals as per Go 1
     
-    R=gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5448086
+    https://golang.org/cl/5450067
 
- src/cmd/gofmt/simplify.go                | 18 +++++-
- src/cmd/gofmt/testdata/composites.golden | 98 ++++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/composites.input  | 98 ++++++++++++++++++++++++++++++++
- 3 files changed, 213 insertions(+), 1 deletion(-)
+ src/cmd/gc/doc.go      |   2 +
+ src/cmd/gc/esc.c       |  10 ++++
+ src/cmd/gc/fmt.c       |   7 ++-
+ src/cmd/gc/gen.c       |   4 +-
+ src/cmd/gc/go.h        |   4 +-
+ src/cmd/gc/go.y        |   9 +++-
+ src/cmd/gc/lex.c       |   2 +-
+ src/cmd/gc/sinit.c     |  30 +++++++++++-
+ src/cmd/gc/typecheck.c | 127 ++++++++++++++++++++++++++++++++-----------------
+ src/cmd/gc/walk.c      |  43 ++---------------
+ test/complit.go        |  16 +++++++
+ test/complit1.go       |  27 ++++++++---
+ 12 files changed, 186 insertions(+), 95 deletions(-)

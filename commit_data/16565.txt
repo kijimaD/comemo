@@ -1,12 +1,17 @@
-commit b9ddb0d8b3d18c1c2a79eae686fe20fe36c707cb
+commit 591d58a3bb9ea3afea0c898564d972b822212674
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 13 16:40:10 2013 +0400
+Date:   Thu Jun 13 16:03:58 2013 +0400
 
-    runtime: fix bug introduced in cl/10256043
+    cmd/gc: properly race-instrument for loops
+    Instrumentation of ntest expression should go to ntest->init.
+    Same for nincr.
+    Fixes #5340.
     
-    R=golang-dev, dave
+    R=golang-dev, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/10260043
+    https://golang.org/cl/10026046
 
- src/pkg/runtime/malloc.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/racewalk.c                            | 30 ++++----
+ src/pkg/runtime/race/testdata/mop_test.go        | 88 ++++++++++++++++++++++++
+ src/pkg/runtime/race/testdata/regression_test.go | 17 +++++
+ 3 files changed, 121 insertions(+), 14 deletions(-)

@@ -1,37 +1,23 @@
-commit 3eebc26700c8e9ccb7d9962ce1c7a02d605aba66
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Mar 9 23:27:11 2021 -0500
+commit f30044a03bc7cf107dbec03c02fb6d0072878252
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 25 19:11:28 2020 -0400
 
-    delete favicon.ico and robots.txt
+    cmd/go/internal: remove some users of par.Work
     
-    The favicon.ico and robots.txt files have been with us in the root
-    directory since 2009 and 2011 respectively. Back then, the Go repo
-    had content for the golang.org website, which could be run locally.
-    Since these files were at the root of the website, they were added
-    to the corresponding location in the GOROOT tree—at the root.
+    par.Work is used in a number of places as a parallel
+    work queue. This change replaces it with goroutines
+    and channels in a number of simpler places where it's
+    used.
     
-    In 2018, work started on factoring out golang.org website content
-    and code into a new golang.org/x/website repository (issue 29206).
-    
-    The favicon.ico and robots.txt files were copied to x/website repo,
-    but some more work needed to be done before they would be picked up
-    and served when golangorg was executed in module mode. That work is
-    done by now (CL 293413 and CL 293414).
-    
-    The scope of the godoc tool has also been reduced to just serving
-    Go package documentation and not the website (issue 32011), so it
-    can provide its own favicon.ico as needed (CL 300394).
-    
-    This means these two files have no more use and can be deleted.
-    So long and goodbye!
-    
-    Change-Id: Id71bdab6317c1dc481c9d85beaaac4b4eb92d379
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300549
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0620eda46ec7b2c0599a8b9361639af7bb73a05a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248326
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- favicon.ico | Bin 5686 -> 0 bytes
- robots.txt  |   2 --
- 2 files changed, 2 deletions(-)
+ src/cmd/go/internal/modcmd/download.go | 69 +++++++++++++++++++---------------
+ src/cmd/go/internal/modcmd/graph.go    | 19 +++++-----
+ src/cmd/go/internal/modconv/convert.go | 59 ++++++++++++++++-------------
+ src/cmd/go/internal/modget/get.go      | 41 +++++++++++++-------
+ src/cmd/go/internal/modload/list.go    | 37 +++++++++++-------
+ 5 files changed, 133 insertions(+), 92 deletions(-)

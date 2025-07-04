@@ -1,29 +1,14 @@
-commit 2c47c3e22e0d4f238a844da6904ce4e98bb4efd1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 21 20:27:47 2017 -0700
+commit 9e0f3a14591586fcfd876d7801b5f3e4fc1998b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 2 06:49:17 2016 +0000
 
-    cmd/doc: implement "go doc struct.field"
+    doc: correct the number of changes to the language in go1.8.html
     
-    By analogy with the handling of methods on types, show the documentation
-    for a single field of a struct.
+    And link it.
     
-            % go doc ast.structtype.fields
-            struct StructType {
-                Fields *FieldList  // list of field declarations
-            }
-            %
-    
-    Fixes #19169.
-    
-    Change-Id: I002f992e4aa64bee667e2e4bccc7082486149842
-    Reviewed-on: https://go-review.googlesource.com/38438
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic0105468435299fb1638f86522f4f3ce417ec1c2
+    Reviewed-on: https://go-review.googlesource.com/33871
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/doc_test.go        | 23 +++++++++++++++++
- src/cmd/doc/main.go            | 15 ++++++-----
- src/cmd/doc/pkg.go             | 57 +++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/alldocs.go          | 23 +++++++++--------
- src/cmd/go/internal/doc/doc.go | 23 +++++++++--------
- 5 files changed, 112 insertions(+), 29 deletions(-)
+ doc/go1.8.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

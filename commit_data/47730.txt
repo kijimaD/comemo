@@ -1,17 +1,25 @@
-commit e08d1fba37ad32fbe7e8d57cd75c9a88dfdde87f
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 7 14:51:45 2021 -0500
+commit 912c4e29d3cdabe11db70ed168ddaa4bcc515772
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 7 17:03:46 2021 -0400
 
-    doc/go1.18: mention bytes.Cut and strings.Cut
+    reflect: fix typo in result-in-registers case
     
-    For #47694.
+    t is the type of the function that was called
+    tv is the type of the result
     
-    Updates #46336.
+    This fixes the failures for
+    GOEXPERIMENT=regabi,regabiargs go test go test text/template
+    GOEXPERIMENT=regabi,regabiargs go test go test html/template
     
-    Change-Id: Ibbd058a1fd4d6b0aa38d3e8dc15b560d1e149f7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369981
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Updates #40724.
+    
+    Change-Id: Ic9b02d72d18ff48c9de1209987cc39da619c2241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308189
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go1.18.html | 28 ++++++++++++++++++++--------
- 1 file changed, 20 insertions(+), 8 deletions(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

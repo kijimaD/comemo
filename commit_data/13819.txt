@@ -1,15 +1,12 @@
-commit f3fc0090f46b9e1cbcfb5f870d2d0ef59f6e4f31
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 13 13:41:13 2012 -0700
+commit 9a82324fb753cfe2e6902ac6835973237829c941
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 13 12:39:25 2012 -0700
 
-    effective_go: use html/template instead of text/template
-    Should have done this a long time ago.
-    Fixes #3811.
+    build: print go banner before restoring windows PATH
     
-    R=golang-dev, adg, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6488120
+    https://golang.org/cl/6492117
 
- doc/effective_go.html | 15 ++++++++-------
- doc/progs/eff_qr.go   |  6 +++---
- 2 files changed, 11 insertions(+), 10 deletions(-)
+ src/all.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

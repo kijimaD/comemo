@@ -1,31 +1,17 @@
-commit ffa5c85c9227a212fe1a91a6d54da56a9e754f1f
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Fri Dec 6 16:13:44 2019 +0800
+commit 8f5353fd1c0598bf5c92d67ffe8cfa1424115694
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 27 15:36:21 2019 -0400
 
-    cmd/link: fix loadelf failed on MIPS family
+    cmd/go/internal/modload: fix swapped paths in error message
     
-    The relocation of MIPS64 family ELF is different with other architecure according
-    to the document from Linux-MIPS
+    Updates #33879
     
-    https://www.linux-mips.org/pub/linux/mips/doc/ABI/elf64-2.4.pdf
-    
-    In "2.9 Relocation" it shows relocation section contains five parts:
-    
-    1. r_sym Elf64_Word Symbol index
-    2. r_ssym Elf64_Byte Special symbol
-    3. r_type3 Elf64_Byte Relocation type
-    4. r_type2 Elf64_Byte Relocation type
-    5. r_type Elf64_Byte Relocation type
-    
-    This CL makes loadelf aware the difference.
-    
-    Update #35779
-    
-    Change-Id: Ib221665641972b1c2bfea5a496e3118e5dc0bc45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209317
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifc91490b1cb791fdf5ffe69ef81c0ec0e6cbecc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191997
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/link/elf_test.go               |  7 ----
- src/cmd/link/internal/loadelf/ldelf.go | 65 +++++++++++++++++++++++++---------
- 2 files changed, 48 insertions(+), 24 deletions(-)
+ src/cmd/go/internal/modload/load.go                  |  2 +-
+ .../testdata/mod/example.com_badchain_c_v1.1.0.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt     | 20 ++++++++++----------
+ 3 files changed, 12 insertions(+), 12 deletions(-)

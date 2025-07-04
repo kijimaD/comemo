@@ -1,17 +1,17 @@
-commit 639ac76d453073da49a6a1d89b957cfa1bfef1af
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 15:21:00 2019 -0400
+commit 5f699e400a0a982bcc3ad1ff864dca70b1255d8b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 10 11:12:28 2019 -0800
 
-    runtime: fix 'go vet -race runtime'
+    doc: add Go 1.12 release note for trigonometric reductions in math
     
-    This updates the Go function declarations to match race_amd64.s.
+    Worth mentioning because the results are not bit-for-bit identical.
+    This causes a test failure in github.com/fogleman/gg.
     
-    Change-Id: I2b541a6b335ce732f4c31652aa615240ce7bb1c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177397
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #6794
+    
+    Change-Id: I701f34927731fb5c658a1be271c04388e5e7e3f7
+    Reviewed-on: https://go-review.googlesource.com/c/157417
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/race.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ doc/go1.12.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,19 +1,26 @@
-commit 62c309c54ccfdda4586a3ddb7e39b928a81ab04e
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 6 17:08:07 2019 -0400
+commit ac51237affc016dd22f5b4f67dc8a2d09adf1fb2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 22:24:36 2019 -0500
 
-    runtime/internal/atomic: export more ABI0 wrappers
+    fmt: format 0b, 0o prefixes in %#b and %O
     
-    Somehow I missed these two functions in CL 179863. This should fix the
-    linux-arm builders.
+    This CL modifies fmt's printer to implement %#b and %O
+    to emit leading 0b and 0o prefixes on binary and octal.
+    (%#o is already taken and emits "0377"; %O emits "0o377".)
     
-    Updates #31230.
+    See golang.org/design/19308-number-literals for background.
     
-    Change-Id: I3f8bef3fac331b505a55c0850b0fbc799b7c06c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181077
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For #19308.
+    For #12711.
+    Vet update is #29986.
+    
+    Change-Id: I7c38a4484c48a03abe9f6d45c7d981c7c314f583
+    Reviewed-on: https://go-review.googlesource.com/c/160246
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/internal/atomic/atomic_arm.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/fmt/doc.go      |  5 +++--
+ src/fmt/fmt_test.go |  6 ++++++
+ src/fmt/format.go   | 14 +++++++++++++-
+ src/fmt/print.go    | 18 +++++++++---------
+ 4 files changed, 31 insertions(+), 12 deletions(-)

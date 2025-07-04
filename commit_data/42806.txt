@@ -1,27 +1,17 @@
-commit c777863f77bb77be2e6c336b78dee2089647ff0e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 4 23:53:01 2020 -0400
+commit 4084c125cce2b5a6009fe767cc39a1ec28914786
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 7 14:30:17 2020 -0800
 
-    cmd/go/internal/mvs: indicate the actual version when printing a mismatched ModuleError
+    cmd/compile: normalize whitespace around square brackets
     
-    Previously, we suppressed the module version annotation if the last
-    error in the stack was a *module.ModuleError, regardless of its path.
-    However, if the error is for a replacement module, that produces a
-    confusing error message: the error is attributed to the last module in
-    the error path, but actually originates in the replacement (which is
-    not otherwise indicated).
+    I noticed some instances of "[ " and " ]" in the rewrite rules.
+    Normalizing them helps catch possible future duplicate rules.
     
-    Now, we print both the original and the replacement modules when they
-    differ, which may add some unfortunate redundancy in the output but at
-    least doesn't drop the very relevant information about replacements.
-    
-    Fixes #35039
-    
-    Change-Id: I631a7398033602b1bd5656150a4fad4945a87ade
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247765
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I892fd7e9b4019ed304f0a61fa2bb7f7e47ef8f38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213682
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/mvs/errors.go                       | 17 +++++++++++------
- .../go/testdata/script/mod_load_replace_mismatch.txt    |  2 +-
- src/cmd/go/testdata/script/mod_replace_gopkgin.txt      |  2 +-
- 3 files changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,12 +1,27 @@
-commit 6f512c8d6696b288372c48c19058bbe9dcb79da0
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Apr 8 16:07:49 2019 -0400
+commit 2de53906e199a744605ca6a0c6cc81653c6e4f89
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 14 20:48:40 2018 +0100
 
-    doc: correct link in 1.11.8 notes
+    internal/cpu: move GODEBUGCPU options into GODEBUG
     
-    Change-Id: I09e0c2720ec0a51dc73c24b4550a749448656025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171143
+    Change internal/cpu feature configuration to use
+    GODEBUG=cpu.feature1=value,cpu.feature2=value...
+    instead of GODEBUGCPU=feature1=value,feature2=value... .
+    
+    This is not a backwards compatibility breaking change
+    since GODEBUGCPU was introduced in go1.11 as an
+    undocumented compiler experiment.
+    
+    Fixes #28757
+    
+    Change-Id: Ib21b3fed2334baeeb061a722ab1eb513d1137e87
+    Reviewed-on: https://go-review.googlesource.com/c/149578
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/cpu/cpu.go          | 29 +++++++++++++++++------------
+ src/internal/cpu/cpu_test.go     |  8 ++++----
+ src/internal/cpu/cpu_x86_test.go | 12 ++++++------
+ src/runtime/proc.go              |  8 ++++----
+ 4 files changed, 31 insertions(+), 26 deletions(-)

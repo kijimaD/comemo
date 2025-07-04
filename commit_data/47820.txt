@@ -1,29 +1,21 @@
-commit d01cd8fa1dc6110cbb301fd711fe43ea744cb5c9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 3 10:33:02 2021 -0500
+commit 841bc142160aacde729a983243a0231c8612903d
+Author: Grace Han <hgrace503@gmail.com>
+Date:   Fri Apr 9 15:49:22 2021 +1000
 
-    misc/cgo/testcarchive: log command output more consistently
+    os: restore testErrNotExist's working directory on os.Chdir success
     
-    Also check that executables exist immediately after building them
-    in parallel tests.
+    The existing implementation calls os.Chdir expecting the call not to
+    succeed. This change restores the original working directory in the
+    case that the call does succeed.
     
-    The parallel tests in this package occasionally fail with
-    "no such file or directory", implying that either the build
-    command failed to actually write out the binary or something
-    concurrently deleted it.
+    Fixes #45407
     
-    This is purely a shot in the dark, but I'm hoping that perhaps
-    the stderr output from one of these commands will shed some
-    light on the underlying failure mode.
-    
-    For #49693
-    
-    Change-Id: I2e768190c56053550879b89a3ac88c027d4741dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369034
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I61c57f6858b9a9058226e45e24276c7af8913048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308849
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 118 +++++++++++++++++++++------------
- 1 file changed, 76 insertions(+), 42 deletions(-)
+ src/os/error_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

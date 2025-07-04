@@ -1,24 +1,19 @@
-commit 6c841e46408da2297989ab9d032cbe6318e8278e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 6 11:30:25 2024 -0500
+commit 36facaa1f9a24175f0fbe4fe5f479bbfb67d05e9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 09:58:17 2023 -0400
 
-    all: enable FIPS verification code
+    os/exec: avoid writing to Cmd.Path in Cmd.Start on Windows
     
-    Previous CLs committed changes to cmd/compile, cmd/link,
-    and crypto/internal/fips/check behind boolean flags.
-    Turn those flags on, to enable the CLs.
+    Fixes #62596.
     
-    This is a separate, trivial CL for easier rollback.
-    
-    For #69536.
-    
-    Change-Id: I68206bae0b7d7ad5c8758267d1a2e68853b63644
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626000
+    Change-Id: I9003318ac1c4e3036f32383e62e9ba08c383d5c2
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527820
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/fips.go                 | 7 ++++++-
- src/cmd/link/internal/ld/fips.go             | 2 +-
- src/crypto/internal/fips/check/check.go      | 3 ++-
- src/crypto/internal/fips/check/check_test.go | 2 +-
- 4 files changed, 10 insertions(+), 4 deletions(-)
+ src/os/exec/exec.go            | 44 ++++++++++++++++++++++++++++++++++++++----
+ src/os/exec/exec_test.go       | 16 +++++++++++++++
+ src/os/exec/lp_windows_test.go | 29 ++++++++++++++++++++++------
+ 3 files changed, 79 insertions(+), 10 deletions(-)

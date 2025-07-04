@@ -1,19 +1,18 @@
-commit 930ce09ca3a1ab5f886c2327fc143b9ae075807b
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Mon Sep 10 09:27:47 2018 +0100
+commit d21655b89cd962df068dbca1e0caa6b96232508a
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 17 13:24:03 2018 +0000
 
-    image/png: minor cleanup of a few tests
+    Revert "net: skip socket hungry test on iOS"
     
-    Removes a redundant err check and replaces some returns in a testing
-    loop with continue to prevent skipping unrelated test cases when
-    a failure is encountered.
+    This reverts commit 3027932ac3d8d943a404e0b6f9d9ea390c8e6840.
     
-    Change-Id: Ic1a560751b95bb0ef8dfa957e057e0fa0c2b281d
-    Reviewed-on: https://go-review.googlesource.com/134236
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reason for revert: It didn't work well enough; a replacement CL that skips external net tests altogether on iOS is coming.
+    
+    Change-Id: Ib2c5656cee92bcae744f9c99fbcb9f9f2baa0694
+    Reviewed-on: https://go-review.googlesource.com/113555
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/image/png/reader_test.go | 4 ----
- src/image/png/writer_test.go | 4 ++--
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/net/tcpsock_unix_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

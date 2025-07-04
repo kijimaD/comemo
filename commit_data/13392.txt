@@ -1,13 +1,15 @@
-commit c08ff027c42807ecf3fdab75e13dca5caab96323
-Author: Thomas Alan Copeland <talan.copeland@gmail.com>
-Date:   Mon Jun 25 17:18:50 2012 -0400
+commit 96a609c2d7fcb8e1dc370e0cda9e4eb3bfb77412
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 25 13:58:28 2012 -0700
 
-    encoding/base32, encoding/base64: removed unneeded break label
+    gofmt: handle comments correctly in rewrites
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6305086
+    https://golang.org/cl/6294076
 
- src/pkg/encoding/base32/base32.go | 3 +--
- src/pkg/encoding/base64/base64.go | 3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/gofmt/gofmt_test.go            |  2 +-
+ src/cmd/gofmt/rewrite.go               |  5 ++++-
+ src/cmd/gofmt/testdata/rewrite5.golden | 15 +++++++++++++++
+ src/cmd/gofmt/testdata/rewrite5.input  | 15 +++++++++++++++
+ 4 files changed, 35 insertions(+), 2 deletions(-)

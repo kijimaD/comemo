@@ -1,31 +1,18 @@
-commit 39d7a4973604d816ee0757a46e7525deeb25b37c
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Dec 19 21:07:42 2024 +0800
+commit c51beb4342ac0ee2fe9c1a774eac15679a447122
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:37:36 2022 +1000
 
-    cmd/internal/obj/loong64: add {V,XV}{ADD/SUB}.{B,H,W,D,Q} and {V,XV}{ADD/SUB}.{B,H,W,D}Uinstructions support
+    cmd/dist,internal/platform,runtime: add cgo support for openbsd/riscv64 port
     
-    Go asm syntax:
-             V{ADD/SUB}{B,H,W,V,Q}          VK, VJ, VD
-            XV{ADD/SUB}{B,H,W,V,Q}          XK, XJ, XD
-             V{ADD/SUB}{B,H,W,V}U           $1, VJ, VD
-            XV{ADD/SUB}{B,H,W,V}U           $1, XJ, XD
+    Updates #55999
     
-    Equivalent platform assembler syntax:
-             v{add/sub}.{b,h,w,d,q}         vd, vj, vk
-            xv{add/sub}.{b,h,w,d,q}         xd, xj, xk
-             v{add/sub}i.{b,h,w,d}u         vd, vj, $1
-            xv{add/sub}i.{b,h,w,d}u         xd, xj, $1
-    
-    Change-Id: Ia1ef0bc062f4403bb0b1514c2cf1c0264f5d22ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637795
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie9a030130713f3eaf789b91d9033be3335eb9d75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518630
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  40 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           |  38 ++++++++
- src/cmd/internal/obj/loong64/anames.go          |  36 ++++++++
- src/cmd/internal/obj/loong64/asm.go             | 115 ++++++++++++++++++++++++
- 4 files changed, 229 insertions(+)
+ src/cmd/dist/build.go            | 2 +-
+ src/internal/platform/zosarch.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

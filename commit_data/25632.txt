@@ -1,18 +1,12 @@
-commit d2b0c387b2d48fb61ba2fee75c34ed66289c199f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 09:35:05 2016 -0500
+commit b28eeea136ec106a012be8b4278cb06203328c08
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 14:52:01 2015 -0500
 
-    cmd/asm: add YMM registers Y0 through Y15
+    cmd/dist: copy textflag.h for runtime/internal/* too
     
-    Not recognized in any instructions yet, but this lets the
-    assembler parse them at least.
-    
-    For #14068.
-    
-    Change-Id: Id4f7329a969b747a867ce261b20165fab2cdcab8
-    Reviewed-on: https://go-review.googlesource.com/18846
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I22216df83898e560cfe6d97344f05e3678c2db99
+    Reviewed-on: https://go-review.googlesource.com/16872
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/internal/obj/x86/a.out.go | 17 +++++++++++++++++
- src/cmd/internal/obj/x86/list6.go | 16 ++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

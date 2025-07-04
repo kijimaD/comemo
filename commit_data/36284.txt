@@ -1,46 +1,18 @@
-commit 714c141c4f2db626ea470a27cfd35f86b0c77c07
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 21:10:19 2018 -0400
+commit 6d5ebc70225aeb71a60061e5cf755c5852ac13da
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Nov 28 03:38:03 2017 +0000
 
-    cmd/go: update TestGoGetUpdateWithWildcard expected behavior
+    math: add a testcase for Mod and Remainder respectively
     
-    If you run
+    One might try to implement the Mod or Remainder function with the expression
+    x - TRUNC(x/y + 0.5)*y, but in fact this method is wrong, because the rounding
+    of (x/y + 0.5) to initialize the argument of TRUNC may lose too much precision.
+    However, the current test cases can not detect this error. This CL adds two
+    test cases to prevent people from continuing to do such attempts.
     
-            go get -u github.com/rsc/foo/bar...
-    
-    then the go get command has always worked hard to make sure
-    that it applies the wildcard after downloading rsc/foo.
-    (If it applied the wildcard only before downloading rsc/foo,
-    it would match nothing if you had an empty GOPATH before,
-    and you'd still have an empty afterward, which is clearly useless.)
-    
-    The goal has always been that if you run the same go get
-    command twice, the second command doesn't find anything
-    new to do.
-    
-    CL 19892 worked around an "internal error" failure but broke
-    the rule about the first command doing everything the second
-    command would. Suppose you had github.com/rsc/foo already,
-    with just github.com/rsc/foo/bar, and you run
-    
-            go get -u github.com/rsc/...
-    
-    The wildcard first matches github.com/rsc/foo/bar, but suppose
-    updating the repo pulls down github.com/rsc/foo/baz, which
-    in turn depends on the non-existent package github.com/rsc/quux.
-    We need to reevaluate the wildcard after the download.
-    
-    The new pattern match refactoring makes this easier and happened
-    to have corrected the behavior, but we missed a long test that
-    expected the old behavior.
-    
-    Fix that long test.
-    
-    Change-Id: I088473e7a90925e5c0f9697da9554a11456ddd08
-    Reviewed-on: https://go-review.googlesource.com/129796
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6690f5cffb21bf8ae06a314b7a45cafff8bcee13
+    Reviewed-on: https://go-review.googlesource.com/84275
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/math/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

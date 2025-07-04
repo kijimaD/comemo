@@ -1,16 +1,15 @@
-commit 98259b92115f24b41c5ba40c3cddb68f6f0077f8
-Author: Georg Reinke <guelfey@gmail.com>
-Date:   Fri Jan 11 08:30:25 2013 -0800
+commit 53e342f64805e0a2e750585e361d50d163616c9b
+Author: Stéphane Travostino <stephane.travostino@gmail.com>
+Date:   Fri Jan 11 17:02:21 2013 +1100
 
-    os: use syscall.Pipe2 on Linux
+    bytes: fix UnreadByte failure after ReadBytes
     
-    Update #2656
+    Fixes #4583.
     
-    R=golang-dev, iant, minux.ma, bradfitz
+    R=golang-dev, minux.ma, bradfitz, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7065063
+    https://golang.org/cl/6976050
 
- src/pkg/os/file_unix.go  | 19 -------------------
- src/pkg/os/pipe_bsd.go   | 28 ++++++++++++++++++++++++++++
- src/pkg/os/pipe_linux.go | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 19 deletions(-)
+ src/pkg/bytes/buffer.go      |  3 ++-
+ src/pkg/bytes/buffer_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

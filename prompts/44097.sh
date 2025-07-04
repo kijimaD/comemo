@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44097: cab120218382c78fb4263566a38df78aa3653f72
+# Index 44097: 6d7c2459ad1dfb694f92ec76ab239e99866e65c4
 
 echo "🚀 Generating explanation for commit 44097..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 44097
-- **コミットハッシュ**: cab120218382c78fb4263566a38df78aa3653f72
-- **GitHub URL**: https://github.com/golang/go/commit/cab120218382c78fb4263566a38df78aa3653f72
+- **コミットハッシュ**: 6d7c2459ad1dfb694f92ec76ab239e99866e65c4
+- **GitHub URL**: https://github.com/golang/go/commit/6d7c2459ad1dfb694f92ec76ab239e99866e65c4
 
 ### 章構成
 

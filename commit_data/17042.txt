@@ -1,42 +1,32 @@
-commit d3066e47b13f3a46ae76a0612abbe25d4d80ddbf
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 5 19:49:02 2013 -0400
+commit 4c772cda54896b0213b5eaffed81031e259f26d4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 5 15:46:06 2013 -0700
 
-    runtime/pprof: test multithreaded profile, remove OS X workarounds
+    all: use strings.IndexByte instead of Index where possible
     
-    This means that pprof will no longer report profiles on OS X.
-    That's unfortunate, but the profiles were often wrong and, worse,
-    it was difficult to tell whether the profile was wrong or not.
-    
-    The workarounds were making the scheduler more complex,
-    possibly caused a deadlock (see issue 5519), and did not actually
-    deliver reliable results.
-    
-    It may be possible for adventurous users to apply a patch to
-    their kernels to get working results, or perhaps having no results
-    will encourage someone to do the work of creating a profiling
-    thread like on Windows. Issue 6047 has details.
-    
-    Fixes #5519.
-    Fixes #6047.
-    
-    R=golang-dev, bradfitz, r
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/12429045
+    https://golang.org/cl/12486043
 
- src/pkg/runtime/cpuprof.c           |  2 +-
- src/pkg/runtime/lock_futex.c        | 13 ------
- src/pkg/runtime/lock_sema.c         | 13 ------
- src/pkg/runtime/os_darwin.c         | 33 ---------------
- src/pkg/runtime/os_freebsd.c        |  6 ---
- src/pkg/runtime/os_linux.c          |  6 ---
- src/pkg/runtime/os_netbsd.c         |  6 ---
- src/pkg/runtime/os_openbsd.c        |  6 ---
- src/pkg/runtime/os_plan9.c          |  6 ---
- src/pkg/runtime/os_windows.c        |  6 ---
- src/pkg/runtime/pprof/pprof.go      |  3 +-
- src/pkg/runtime/pprof/pprof_test.go | 82 +++++++++++++++++++++++++++++--------
- src/pkg/runtime/proc.c              | 10 -----
- src/pkg/runtime/runtime.h           | 10 -----
- src/pkg/runtime/signal_unix.c       |  2 -
- 15 files changed, 68 insertions(+), 136 deletions(-)
+ src/pkg/crypto/x509/pem_decrypt.go | 2 +-
+ src/pkg/debug/gosym/symtab.go      | 4 ++--
+ src/pkg/encoding/json/tags.go      | 4 ++--
+ src/pkg/encoding/xml/typeinfo.go   | 2 +-
+ src/pkg/encoding/xml/xml.go        | 2 +-
+ src/pkg/go/build/build.go          | 6 +++---
+ src/pkg/go/printer/printer.go      | 2 +-
+ src/pkg/math/big/rat.go            | 4 ++--
+ src/pkg/mime/mediatype.go          | 6 +++---
+ src/pkg/net/http/cgi/child.go      | 2 +-
+ src/pkg/net/http/cookie.go         | 6 +++---
+ src/pkg/net/http/fs.go             | 2 +-
+ src/pkg/net/http/request.go        | 6 +++---
+ src/pkg/net/http/server.go         | 4 ++--
+ src/pkg/net/url/url.go             | 4 ++--
+ src/pkg/os/os_test.go              | 2 +-
+ src/pkg/os/user/lookup_unix.go     | 2 +-
+ src/pkg/path/match.go              | 2 +-
+ src/pkg/regexp/exec_test.go        | 4 ++--
+ src/pkg/regexp/regexp.go           | 4 ++--
+ src/pkg/unicode/maketables.go      | 2 +-
+ 21 files changed, 36 insertions(+), 36 deletions(-)

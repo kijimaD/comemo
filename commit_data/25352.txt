@@ -1,12 +1,14 @@
-commit a7501495795709a74e118c29f1dcc81dc43b9d2a
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Dec 17 14:36:07 2015 -0500
+commit 7df8ba136c911542374186fe5bed603ca6e7e015
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 12:30:58 2015 -0700
 
-    go/types: add link to tutorial
+    runtime: replace unsafe pointer arithmetic with array indexing
     
-    Change-Id: Ic4f4bc7ea7478908716b951815280e394c55310b
-    Reviewed-on: https://go-review.googlesource.com/17975
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I313819abebd4cda4a6c30fd0fd6f44cb1d09161f
+    Reviewed-on: https://go-review.googlesource.com/16167
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/api.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/mfinal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,30 +1,21 @@
-commit 51be90a251b2030da02079d28ce6dc50364a351e
-Author: Hana Kim <hakim@google.com>
-Date:   Tue May 22 13:41:04 2018 -0400
+commit eda39fe9b2bdae054a6d0b93efb9b40cc9d24391
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 14 16:59:36 2018 -0800
 
-    cmd/vendor/README: temporary instruction for update
+    cmd/compile/internal/syntax: fix syntax.Parse doc string, improved tests
     
-    Until vgo sorts out and cleans up the vendoring process.
+    1) Fix the doc string for syntax.Parse: The returned AST is
+    always nil if there was an error and an error handler is missing.
     
-    Ran govendor to update packages the cmd/pprof depends on
-    which resulted in deletion of some of unnecessary files.
+    2) Adjust the syntax Print and Dump tests such that they print and
+    dump the AST even in the presence of errors.
     
-    Change-Id: Idfba53e94414e90a5e280222750a6df77e979a16
-    Reviewed-on: https://go-review.googlesource.com/114079
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: If658eabdcc83f578d815070bc65d1a5f6cfaddfc
+    Reviewed-on: https://go-review.googlesource.com/94157
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/vendor/README                              |  21 ++
- src/cmd/vendor/github.com/google/pprof/AUTHORS     |   7 -
- .../vendor/github.com/google/pprof/CONTRIBUTING.md |  77 ------
- .../vendor/github.com/google/pprof/CONTRIBUTORS    |  15 --
- src/cmd/vendor/github.com/google/pprof/README.md   | 109 --------
- .../vendor/github.com/google/pprof/doc/README.md   | 289 ---------------------
- .../vendor/github.com/google/pprof/proto/README.md | 149 -----------
- .../github.com/google/pprof/proto/profile.proto    | 203 ---------------
- src/cmd/vendor/github.com/google/pprof/test.sh     |  26 --
- .../pprof/third_party/update_d3flamegraph.sh       |  46 ----
- .../github.com/ianlancetaylor/demangle/.gitignore  |  13 -
- .../github.com/ianlancetaylor/demangle/c++filt.go  | 144 ----------
- src/cmd/vendor/vendor.json                         | 125 +++++++--
- 13 files changed, 125 insertions(+), 1099 deletions(-)
+ src/cmd/compile/internal/syntax/dumper_test.go  | 10 +++++++---
+ src/cmd/compile/internal/syntax/nodes.go        |  4 ++--
+ src/cmd/compile/internal/syntax/printer_test.go | 12 ++++++++----
+ src/cmd/compile/internal/syntax/syntax.go       |  9 +++++----
+ 4 files changed, 22 insertions(+), 13 deletions(-)

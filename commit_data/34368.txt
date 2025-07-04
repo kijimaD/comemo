@@ -1,49 +1,19 @@
-commit 4b00d3f4a2d1379377a0f2312564ae405b946d65
-Author: Keith Randall <khr@google.com>
-Date:   Wed Jan 3 14:38:55 2018 -0800
+commit a31e0a4aacf14be0708aea1f60f25e3607813d2c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 20 20:46:04 2017 -0400
 
-    cmd/compile: implement comparisons directly with memory
+    misc/cgo/testplugin: speed up tests
     
-    Allow the compiler to generate code like CMPQ 16(AX), $7
+    Running test.bash goes from 30s to 10s on a linux workstation.
     
-    It's tricky because it's difficult to spill such a comparison during
-    flagalloc, because the same memory state might not be available at
-    the restore locations.
+    (The coming pkg cache work in cmd/go would presumably do the same thing,
+    but this makes all.bash faster today.)
     
-    Solve this problem by decomposing the compare+load back into its parts
-    if it needs to be spilled.
-    
-    The big win is that the write barrier test goes from:
-    
-    MOVL    runtime.writeBarrier(SB), CX
-    TESTL   CX, CX
-    JNE     60
-    
-    to
-    
-    CMPL    runtime.writeBarrier(SB), $0
-    JNE     59
-    
-    It's one instruction and one byte smaller.
-    
-    Fixes #19485
-    Fixes #15245
-    Update #22460
-    
-    Binaries are about 0.15% smaller.
-    
-    Change-Id: I4fd8d1111b6b9924d52f9a0901ca1b2e5cce0836
-    Reviewed-on: https://go-review.googlesource.com/86035
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I8c9b0400071a412fce55b386e939906bb1c1d84d
+    Reviewed-on: https://go-review.googlesource.com/72330
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |  15 +
- src/cmd/compile/internal/gc/asm_test.go      |  65 ++-
- src/cmd/compile/internal/ssa/flagalloc.go    | 106 ++++-
- src/cmd/compile/internal/ssa/func.go         |  13 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  23 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +-
- src/cmd/compile/internal/ssa/opGen.go        | 116 +++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 685 ++++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/schedule.go     |   2 +-
- 9 files changed, 1029 insertions(+), 16 deletions(-)
+ misc/cgo/testplugin/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

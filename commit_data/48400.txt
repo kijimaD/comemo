@@ -1,26 +1,18 @@
-commit a1bf50eefe35087ac7151116558f4c19095b8473
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 15 22:25:36 2022 -0700
+commit 077f03f4d878f3b62e4aa15cdbd7cabc9dd08a11
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 18 12:47:30 2021 -0400
 
-    cmd/compile: detect invalid NIH conversions within unified IR
+    [dev.typeparams] runtime: use internal/abi.FuncPCABI0 for sigtramp PC on FreeBSD
     
-    Unified IR currently relies on typecheck to diagnose invalid
-    //go:notinheap conversions, which prevents removing all of
-    its (otherwise) dead error-reporting code.
+    Same as CL 313230, for FreeBSD. sigtramp is the only one we need.
     
-    This CL updates the unified IR reader to instead proactively diagnose
-    these invalid conversions. This logic can be removed again once #46731
-    is implemented, but in the mean time it allows progress on #51691.
-    
-    Updates #46731.
-    Updates #51691.
-    
-    Change-Id: Ifae81aaad770209ec7a67bc10b55660f291e403e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392917
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Iefc00c1cb7e70b08a07c3bc3604b2114fd86563d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320912
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/reader.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/runtime/os_freebsd2.go      | 4 +++-
+ src/runtime/os_freebsd_amd64.go | 6 ++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

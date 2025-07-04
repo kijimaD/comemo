@@ -1,12 +1,25 @@
-commit 8eb36ae9c76d3111afa1bee19b18c0f6cfcfe982
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 12 17:11:33 2018 -0700
+commit eeff8fa4536abcc2ad717aeea58c126ad23fce3f
+Author: David Chase <drchase@google.com>
+Date:   Mon May 14 16:12:59 2018 -0400
 
-    go/types: be more precise in API comment
+    cmd/compile: remove now-irrelevant test
     
-    Change-Id: I24c4b08091bf3b8734f5dcdb9eac1a3582a4daa8
-    Reviewed-on: https://go-review.googlesource.com/135116
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This test measures "line churn" which was minimized to help
+    improve the debugger experience.  With proper is_stmt markers,
+    this is no longer necessary, and it is more accurate (for
+    profiling) to allow line numbers to vary willy-nilly.
+    
+    "Debugger experience" is now better measured by
+    cmd/compile/internal/ssa/debug_test.go
+    
+    This CL made the obsoleting change:
+    https://go-review.googlesource.com/c/go/+/102435
+    
+    Change-Id: I874ab89f3b243b905aaeba7836118f632225a667
+    Reviewed-on: https://go-review.googlesource.com/113155
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue18902.go  | 141 ------------------------------------
+ test/fixedbugs/issue18902b.go | 161 ------------------------------------------
+ 2 files changed, 302 deletions(-)

@@ -1,35 +1,16 @@
-commit aa26687e457d825fc9c580e8c029b768e0e70d38
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Mar 10 16:06:47 2021 -0500
+commit 948d324f7d8641a042da46c25417ebabd84e5e78
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 12 23:12:57 2020 +0700
 
-    runtime, time: disable preemption in addtimer
+    cmd/compile: add failing test case for #24305
     
-    The timerpMask optimization updates a mask of Ps (potentially)
-    containing timers in pidleget / pidleput. For correctness, it depends on
-    the assumption that new timers can only be added to a P's own heap.
+    Updates #24305
     
-    addtimer violates this assumption if it is preempted after computing pp.
-    That G may then run on a different P, but adding a timer to the original
-    P's heap.
-    
-    Avoid this by disabling preemption while pp is in use.
-    
-    Other uses of doaddtimer should be OK:
-    
-    * moveTimers: always moves to the current P's heap
-    * modtimer, cleantimers, addAdjustedTimers, runtimer: does not add net
-      new timers to the heap while locked
-    
-    Fixes #44868
-    
-    Change-Id: I4a5d080865e854931d0a3a09a51ca36879101d72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300610
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib0b093e33004a978467cdd1e77186798392d4eca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248217
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/time.go    |  5 +++++
- src/time/sleep_test.go | 16 ++++++++++++++++
- 2 files changed, 21 insertions(+)
+ test/escape5.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

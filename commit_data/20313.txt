@@ -1,32 +1,13 @@
-commit f8f630f5ecb5e30c9feadab5277f393c58da71f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 5 16:51:45 2014 -0400
+commit cac006ae5a25ac333030b10b3430a4d47c8c9c19
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Sat Aug 30 10:27:01 2014 -0700
 
-    runtime: use reflect.call during panic instead of newstackcall
+    spec: Fix indentation and remove trailing white space characters.
     
-    newstackcall creates a new stack segment, and we want to
-    be able to throw away all that code.
-    
-    LGTM=khr
-    R=khr, iant
-    CC=dvyukov, golang-codereviews, r
-    https://golang.org/cl/139270043
+    LGTM=gri
+    R=golang-codereviews, bradfitz, gri
+    CC=golang-codereviews
+    https://golang.org/cl/133330043
 
- misc/cgo/test/callback.go       |  1 +
- misc/cgo/test/issue7695_test.go |  3 ++
- src/cmd/dist/buildruntime.c     |  2 +
- src/pkg/reflect/value.go        |  8 ++--
- src/pkg/runtime/asm_386.s       | 81 +++++++++++-------------------------
- src/pkg/runtime/asm_amd64.s     | 87 ++++++++++++++------------------------
- src/pkg/runtime/asm_amd64p32.s  | 84 +++++++++++++++----------------------
- src/pkg/runtime/asm_arm.s       | 74 +++++++++++----------------------
- src/pkg/runtime/cgocall.go      |  2 +-
- src/pkg/runtime/malloc.go       |  2 +-
- src/pkg/runtime/panic.go        |  2 +-
- src/pkg/runtime/panic1.go       | 17 ++++++--
- src/pkg/runtime/runtime.h       |  5 +--
- src/pkg/runtime/stack.c         | 92 +++++++++++++++++------------------------
- src/pkg/runtime/stubs.go        |  3 +-
- test/fixedbugs/issue4388.go     |  6 +--
- test/fixedbugs/issue5856.go     |  2 +-
- 17 files changed, 187 insertions(+), 284 deletions(-)
+ doc/go_spec.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

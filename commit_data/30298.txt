@@ -1,19 +1,19 @@
-commit 661e2179e54710a83ca1779b9d6ab18c1e2d3679
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 2 16:59:34 2017 -0800
+commit 590fce48849cc7f81b890d6e9b6120fc6681e19a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 29 13:23:50 2016 +1100
 
-    math/bits: added package for bit-level counting and manipulation
+    compress/flate: tighten the BestSpeed max match offset bound.
     
-    Initial platform-independent implementation.
+    Previously, we were off by one.
     
-    For #18616.
+    Also fix a comment typo.
     
-    Change-Id: I4585c55b963101af9059c06c1b8a866cb384754c
-    Reviewed-on: https://go-review.googlesource.com/36315
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib94d23acc56d5fccd44144f71655481f98803ac8
+    Reviewed-on: https://go-review.googlesource.com/32149
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/bits/bits.go      |  77 +++++++
- src/math/bits/bits_impl.go | 132 ++++++++++++
- src/math/bits/bits_test.go | 518 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 727 insertions(+)
+ src/compress/flate/deflate_test.go | 59 ++++++++++++++++++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  |  8 ++----
+ 2 files changed, 62 insertions(+), 5 deletions(-)

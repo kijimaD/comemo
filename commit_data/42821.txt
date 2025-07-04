@@ -1,21 +1,19 @@
-commit 5e1e8c4c9f99da52419c99e618425794102c9769
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Thu May 7 21:12:21 2020 +0000
+commit 9ca57923e222335cc63924833d5bf562962e06c9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 23 10:54:09 2019 -0400
 
-    net/http: fix data race due to writeLoop goroutine left running
+    testing: testing: add (*T).Deadline method for test timeout
     
-    Fix a data race for clients that mutate requests after receiving a
-    response error which is caused by the writeLoop goroutine left
-    running, this can be seen on canceled requests.
+    Fixes #28135
     
-    Fixes #37669
-    
-    Change-Id: I0e0e4fd63266326b32587d8596456760bf848b13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232799
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I62818595eaf4a59d8b5c26cd6848c08fec795ad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202758
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go      | 10 ++++-
- src/net/http/transport_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 101 insertions(+), 1 deletion(-)
+ api/next.txt                                 |  1 +
+ doc/go1.15.html                              |  9 +++++
+ src/cmd/go/testdata/script/test_deadline.txt | 50 ++++++++++++++++++++++++++++
+ src/testing/testing.go                       | 43 +++++++++++++++++-------
+ 4 files changed, 91 insertions(+), 12 deletions(-)

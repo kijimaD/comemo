@@ -1,30 +1,29 @@
-commit 42f07ff2679d38a03522db3ccd488f4cc230c8c2
-Author: Ross Light <light@google.com>
-Date:   Thu Feb 4 15:39:00 2016 -0800
+commit 5c0629b503ff9044906a785f360354a5e45cf9ce
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Nov 19 15:24:42 2015 -0400
 
-    os/user: add LookupGroup, LookupGroupId, and User.GroupIds functions
+    net: prefer error for original name on lookups
     
-    As part of local testing with a large group member list, I discovered
-    that the lookup functions don't resize their buffer if they receive
-    ERANGE.  I fixed this as a side-effect of this CL.
+    With certain names and search domain configurations the
+    returned error would be one encountered while querying a
+    generated name instead of the original name. This caused
+    confusion when a manual check of the same name produced
+    different results.
     
-    Thanks to @andrenth for the original CL.
+    Now prefer errors encountered for the original name.
     
-    Fixes #2617
+    Also makes the low-level DNS connection plumbing swappable
+    in tests enabling tighter control over responses without
+    relying on the network.
     
-    Change-Id: Ie6aae2fe0a89eae5cce85786869a8acaa665ffe9
-    Reviewed-on: https://go-review.googlesource.com/19235
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12712
+    Updates #13295
+    
+    Change-Id: I780d628a762006bb11899caf20b5f97b462a717f
+    Reviewed-on: https://go-review.googlesource.com/16953
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/user/lookup.go         |  21 +++-
- src/os/user/lookup_android.go |  38 ++++++
- src/os/user/lookup_plan9.go   |  20 ++-
- src/os/user/lookup_stubs.go   |  32 +++--
- src/os/user/lookup_unix.go    | 278 +++++++++++++++++++++++++++++++++++-------
- src/os/user/lookup_windows.go |  21 +++-
- src/os/user/user.go           |  36 +++++-
- src/os/user/user_test.go      |  64 +++++++++-
- 8 files changed, 437 insertions(+), 73 deletions(-)
+ src/net/dnsclient_unix.go      | 21 ++++++++---
+ src/net/dnsclient_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/hook.go                |  3 ++
+ 3 files changed, 98 insertions(+), 5 deletions(-)

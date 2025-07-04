@@ -1,17 +1,43 @@
-commit 1f8e94e9f65ed807abd934b863234ac7fb421a77
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Aug 27 11:43:39 2022 +0800
+commit 702e33717486cb8331db17304f2369ef641da61f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 09:56:29 2021 -0400
 
-    crypto/internal/boring/fipstls: convert required to atomic type
+    regexp: document and implement that invalid UTF-8 bytes are the same as U+FFFD
     
-    Change-Id: I73081b85e763122be1f5c0dbab25cecc9cf809df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426087
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    What should it mean to run a regexp match on invalid UTF-8 bytes?
+    The coherent behavior options are:
+    
+    1. Invalid UTF-8 does not match any character classes,
+       nor a U+FFFD literal (nor \x{fffd}).
+    2. Each byte of invalid UTF-8 is treated identically to a U+FFFD in the input,
+       as a utf8.DecodeRune loop might.
+    
+    RE2 uses Rule 1.
+    Because it works byte at a time, it can also provide \C to match any
+    single byte of input, which matches invalid UTF-8 as well.
+    This provides the nice property that a match for a regexp without \C
+    is guaranteed to be valid UTF-8.
+    
+    Unfortunately, today Go has an incoherent mix of these two, although
+    mostly Rule 2. This is a deviation from RE2, and it gives up the nice
+    property, but we probably can't correct that at this point.
+    In particular .* already matches entire inputs today, valid UTF-8 or
+    not, and I doubt we can break that.
+    
+    This CL adopts Rule 2 officially, fixing the few places that deviate from it.
+    
+    Fixes #48749.
+    
+    Change-Id: I96402527c5dfb1146212f568ffa09dde91d71244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354569
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/internal/boring/fipstls/tls.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/regexp/all_test.go    | 3 +++
+ src/regexp/find_test.go   | 7 +++++++
+ src/regexp/onepass.go     | 3 ++-
+ src/regexp/regexp.go      | 8 +++++++-
+ src/regexp/syntax/prog.go | 3 ++-
+ 5 files changed, 21 insertions(+), 3 deletions(-)

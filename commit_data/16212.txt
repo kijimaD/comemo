@@ -1,18 +1,14 @@
-commit 8c72b8113263977b3882f551d26ee4e31ce8bd4a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 23 04:42:04 2013 +0800
+commit 61ed384a9651bbd57fd8cf5229c68ccc1ff2fca4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 22 10:32:10 2013 -0700
 
-    misc/cgo/testso: enable test on windows
-    Depends on CL 8715043 and CL 8676050.
-    Fixes #5273.
+    net/http: make CloseNotifier channel buffered to not leak goroutines
     
-    R=alex.brainman, r
-    CC=gobot, golang-dev
-    https://golang.org/cl/8764043
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8911044
 
- misc/cgo/testso/cgoso.c   | 14 ++++++++++++++
- misc/cgo/testso/cgoso.go  |  2 ++
- misc/cgo/testso/cgoso_c.c | 16 +++++++++++++++-
- misc/cgo/testso/test.bat  | 18 ++++++++++++++++++
- src/run.bat               |  8 ++++++++
- 5 files changed, 57 insertions(+), 1 deletion(-)
+ src/pkg/net/http/serve_test.go  | 26 ++++++++++++++++++++++++++
+ src/pkg/net/http/server.go      |  2 +-
+ src/pkg/net/http/z_last_test.go |  1 +
+ 3 files changed, 28 insertions(+), 1 deletion(-)

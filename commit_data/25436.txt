@@ -1,14 +1,29 @@
-commit 2a756625218eb795200fb5e4cc2d59b6bb0e4c60
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 4 17:18:14 2016 -0800
+commit 6f8a66536b04885d5e5e8480e64bea9c0b417dce
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 29 15:13:58 2015 +0000
 
-    doc: mention new SIGPIPE behavior in 1.6 release notes
+    math: replace assembly implementations of Abs with pure Go version
     
-    Update #11845.
+    The compiler can do a fine job, and can also inline it.
     
-    Change-Id: I1c248dc48abc62e51836b9ba50d6deb89706c730
-    Reviewed-on: https://go-review.googlesource.com/18226
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    From Jeremy Jackins's observation and rsc's recommendation in thread:
+    
+    "Pure Go math.Abs outperforms assembly version"
+    https://groups.google.com/forum/#!topic/golang-dev/nP5mWvwAXZo
+    
+    Updates #13095
+    
+    Change-Id: I3066f8eaa327bb403173b29791cc8661d7c0532c
+    Reviewed-on: https://go-review.googlesource.com/16444
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.6.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/math/abs.go         |  7 ++++---
+ src/math/abs_386.s      | 12 ------------
+ src/math/abs_amd64.s    | 14 --------------
+ src/math/abs_amd64p32.s |  5 -----
+ src/math/abs_arm.s      | 13 -------------
+ src/math/abs_arm64.s    | 11 -----------
+ src/math/abs_ppc64x.s   | 14 --------------
+ 7 files changed, 4 insertions(+), 72 deletions(-)

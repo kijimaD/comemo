@@ -1,15 +1,15 @@
-commit a8ad859c30c8d4c30c38ac41d858c9030d025ddd
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jun 12 18:47:16 2013 +0400
+commit e5cbebc1ad3f1a6372bd1a0ac6032c6236f38f6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 12 09:41:29 2013 -0400
 
-    runtime: more flexible heap memory mapping on 64-bits
-    Fixes #5641.
+    runtime: fix plan9, windows builds
     
-    R=golang-dev, dave, daniel.morsing, iant
-    CC=golang-dev, kcc
-    https://golang.org/cl/10126044
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/10229043
 
- misc/cgo/testasan/main.go  | 49 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/malloc.goc | 18 ++++++++++++-----
- src/run.bash               |  6 ++++++
- 3 files changed, 68 insertions(+), 5 deletions(-)
+ src/pkg/runtime/os_plan9_386.c     | 2 +-
+ src/pkg/runtime/os_plan9_amd64.c   | 2 +-
+ src/pkg/runtime/os_windows_386.c   | 2 +-
+ src/pkg/runtime/os_windows_amd64.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

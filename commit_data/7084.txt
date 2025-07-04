@@ -1,19 +1,19 @@
-commit 3a43ff1a77d64be009add9eda36ce5ef01081e25
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 11 13:56:47 2011 -0800
+commit 3036604b4c341a04968d3e43263338f2cacf26f7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 13:44:00 2011 -0800
 
-    ld: Fix exported dynamic symbols on Mach-O.
+    gob: do not encode or decode unexported fields
+    Such fields are simply ignored.
     
-    * Avoid confusion between imported and exported symbols.
-    * Record number of imported and exported symbols correctly.
-    * Explictly relocate SMACHOSYM section, since it is not in datap.
-    
-    R=rsc
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/3920042
+    https://golang.org/cl/3889043
 
- src/cmd/6l/asm.c   | 20 ++++++++++----------
- src/cmd/ld/go.c    |  1 -
- src/cmd/ld/lib.h   |  2 ++
- src/cmd/ld/macho.c | 14 ++++----------
- 4 files changed, 16 insertions(+), 21 deletions(-)
+ src/pkg/gob/codec_test.go   | 486 +++++++++++++++++++++++---------------------
+ src/pkg/gob/debug.go        |  66 +++---
+ src/pkg/gob/decode.go       |  73 ++++---
+ src/pkg/gob/doc.go          |  49 ++---
+ src/pkg/gob/encode.go       |   6 +
+ src/pkg/gob/encoder_test.go |  68 +++----
+ src/pkg/gob/type.go         | 116 +++++------
+ 7 files changed, 457 insertions(+), 407 deletions(-)

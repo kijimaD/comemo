@@ -1,18 +1,14 @@
-commit bc0139b4b3d642b7ffbb55d7fbc88b4dcb1db4ec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 19 09:27:45 2012 -0800
+commit 9e5f62ac0c7259988fb616d6a91625befa1db62f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 19 08:52:53 2012 -0800
 
-    exp/sql: rename NullableString to NullString and allow its use as a parameter
+    go/doc, godoc: don't shadow receiver
     
-    Prep for Issue 2699
+    Fixes #2737.
     
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5536045
+    https://golang.org/cl/5553062
 
- src/pkg/exp/sql/convert_test.go | 37 ++++++++++++++++++++++--
- src/pkg/exp/sql/driver/types.go | 48 ++++++++++++++++++++++++++++++-
- src/pkg/exp/sql/fakedb_test.go  |  4 ++-
- src/pkg/exp/sql/sql.go          | 45 ++++++++++++++++++++++++------
- src/pkg/exp/sql/sql_test.go     | 62 +++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 184 insertions(+), 12 deletions(-)
+ src/pkg/go/doc/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

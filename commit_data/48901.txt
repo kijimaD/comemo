@@ -1,22 +1,22 @@
-commit a5d61be040ed20b5774bff1b6b578c6d393ab332
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Mon Mar 28 17:02:43 2022 +0000
+commit 808dca3b2d305570b3f1e003ff221557405f59b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 24 12:57:20 2021 -0700
 
-    net/http: add MaxBytesError
+    [dev.typeparams] cmd/compile: suppress liveness diagnostics of wrappers
     
-    Fixes #30715
+    Similar to the previous CL to suppress escape analysis diagnostics for
+    method wrappers, suppress liveness analysis diagnostics too. It's
+    hardly useful to know that all of a wrapper method's arguments are
+    live at entry.
     
-    Change-Id: Ia3712d248b6dc86abef71ccea6e705a571933d53
-    GitHub-Last-Rev: 6ae68402a5a7c57f7f18e945d48c69ba2b134078
-    GitHub-Pull-Request: golang/go#49359
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361397
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0d1e44552c6334ee3b454adc107430232abcb56a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330749
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- api/next/30715.txt         |  3 +++
- src/net/http/request.go    | 21 +++++++++++++++++----
- src/net/http/serve_test.go |  7 +++++++
- 3 files changed, 27 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 4 ++++
+ test/live.go                               | 2 +-
+ test/live_regabi.go                        | 2 +-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

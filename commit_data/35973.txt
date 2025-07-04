@@ -1,19 +1,24 @@
-commit 24e5fae92e2c971fa30ac170b7656ff14f3cfde5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 12 13:52:14 2018 -0400
+commit 8afa8a3374a926eda39e1449842a1c70b1fac37f
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Mar 26 17:00:29 2018 +0100
 
-    cmd/go: fix tests from x/vgo repo
+    cmd/compile: use 32-bit comparisons where possible on s390x
     
-    This CL fixes up tests from the x/vgo repo that are failing
-    on some of the builders.
-    It will be submitted together with CL 123576.
+    We use 32-bit operations for 8- and 16-bit arithmetic, so use them
+    for comparisons too. This won't change performance but it is more
+    consistent and makes testing 8- and 16-bit comparison codegen
+    slightly more straightforward (for follow up CL).
     
-    Change-Id: I6bec81a93ad4f7116e8edc8c15beafa25747530c
-    Reviewed-on: https://go-review.googlesource.com/123580
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Also fix a typo and add some additional double sign and zero
+    extension rules to remove the operations inserted by the comparison
+    rules.
+    
+    Change-Id: I89ec1b0e09cb8be8090cf007be283ad88bba75a4
+    Reviewed-on: https://go-review.googlesource.com/102556
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/unzip.go |  3 ++-
- src/cmd/go/mod_test.go                | 50 ++++++++++++++++++++++-------------
- 2 files changed, 33 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  93 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 197 +++++++++++++++++++--------
+ 2 files changed, 183 insertions(+), 107 deletions(-)

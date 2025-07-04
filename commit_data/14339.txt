@@ -1,17 +1,18 @@
-commit 1ebf2d85ba02ff7d3f97e52855166174d71666c2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 7 23:59:09 2012 +0400
+commit 768ba46cc1bbff1c8f49f395d551ffb75b0b6bdf
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Nov 7 15:16:34 2012 +0000
 
-    runtime/race: add Windows support
-    This is copy of https://golang.org/cl/6810080
-    but sent from another account (dvyukov@gmail.com is not in CONTRIBUTORS).
+    crypto/x509: fix DecryptPEMBlock
     
-    R=rsc
+    The current implement can fail when the
+    block size is not a multiple of 8 bytes.
+    This CL makes it work, and also checks that the
+    data is in fact a multiple of the block size.
+    
+    R=agl, agl
     CC=golang-dev
-    https://golang.org/cl/6827060
+    https://golang.org/cl/6827058
 
- src/cmd/go/build.go                          |   4 ++--
- src/pkg/runtime/race/race.go                 |   2 +-
- src/pkg/runtime/race/race_windows_amd64.syso | Bin 0 -> 118119 bytes
- src/run.bat                                  |   9 +++++++++
- 4 files changed, 12 insertions(+), 3 deletions(-)
+ src/pkg/crypto/x509/pem_decrypt.go      | 47 ++++++++++++++++-----------------
+ src/pkg/crypto/x509/pem_decrypt_test.go | 15 +++++++++++
+ 2 files changed, 38 insertions(+), 24 deletions(-)

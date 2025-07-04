@@ -1,82 +1,15 @@
-commit 6ab6c49fce6968f200ad5381cb9348e159e51099
+commit e50479ca889a319ffbb669236e949035a59fd82d
 Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 8 15:38:47 2011 -0800
+Date:   Tue Nov 8 15:34:23 2011 -0800
 
-    renaming_1: hand-edited files for go 1 renaming
-    This contains the files that required handiwork, mostly
-    Makefiles with updated TARGs, plus the two packages
-    with modified package names.
-    html/template/doc.go needs a separate edit pass.
-    test/fixedbugs/bug358.go is not legal go so gofix fails on it.
+    gofix: add go1pkgrename
+    This will do the package import renamings for Go 1.
     
-    R=rsc
+    R=rsc, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5340050
+    https://golang.org/cl/5316078
 
- doc/effective_go.html                 |  9 +++---
- doc/effective_go.tmpl                 |  2 +-
- src/pkg/deps.bash                     | 59 -----------------------------------
- src/pkg/encoding/asn1/Makefile        |  2 +-
- src/pkg/encoding/csv/Makefile         |  2 +-
- src/pkg/encoding/gob/Makefile         |  2 +-
- src/pkg/encoding/json/Makefile        |  2 +-
- src/pkg/encoding/xml/Makefile         |  2 +-
- src/pkg/html/template/Makefile        |  2 +-
- src/pkg/html/template/attr.go         |  2 +-
- src/pkg/html/template/clone.go        |  4 +--
- src/pkg/html/template/clone_test.go   |  6 ++--
- src/pkg/html/template/content.go      |  2 +-
- src/pkg/html/template/content_test.go |  2 +-
- src/pkg/html/template/context.go      |  2 +-
- src/pkg/html/template/css.go          |  4 +--
- src/pkg/html/template/css_test.go     |  2 +-
- src/pkg/html/template/doc.go          |  7 +++--
- src/pkg/html/template/error.go        |  2 +-
- src/pkg/html/template/escape.go       |  6 ++--
- src/pkg/html/template/escape_test.go  | 10 +++---
- src/pkg/html/template/html.go         |  4 +--
- src/pkg/html/template/html_test.go    |  2 +-
- src/pkg/html/template/js.go           |  6 ++--
- src/pkg/html/template/js_test.go      |  2 +-
- src/pkg/html/template/template.go     |  4 +--
- src/pkg/html/template/transition.go   |  2 +-
- src/pkg/html/template/url.go          |  2 +-
- src/pkg/html/template/url_test.go     |  2 +-
- src/pkg/log/syslog/Makefile           |  2 +-
- src/pkg/math/big/Makefile             |  2 +-
- src/pkg/math/cmplx/Makefile           |  2 +-
- src/pkg/math/cmplx/abs.go             |  4 +--
- src/pkg/math/cmplx/asin.go            |  2 +-
- src/pkg/math/cmplx/cmath_test.go      |  2 +-
- src/pkg/math/cmplx/conj.go            |  2 +-
- src/pkg/math/cmplx/exp.go             |  2 +-
- src/pkg/math/cmplx/isinf.go           |  2 +-
- src/pkg/math/cmplx/isnan.go           |  2 +-
- src/pkg/math/cmplx/log.go             |  2 +-
- src/pkg/math/cmplx/phase.go           |  2 +-
- src/pkg/math/cmplx/polar.go           |  2 +-
- src/pkg/math/cmplx/pow.go             |  2 +-
- src/pkg/math/cmplx/rect.go            |  2 +-
- src/pkg/math/cmplx/sin.go             |  2 +-
- src/pkg/math/cmplx/sqrt.go            |  2 +-
- src/pkg/math/cmplx/tan.go             |  2 +-
- src/pkg/math/rand/Makefile            |  2 +-
- src/pkg/net/http/Makefile             |  2 +-
- src/pkg/net/http/cgi/Makefile         |  2 +-
- src/pkg/net/http/fcgi/Makefile        |  2 +-
- src/pkg/net/http/httptest/Makefile    |  2 +-
- src/pkg/net/http/pprof/Makefile       |  2 +-
- src/pkg/net/mail/Makefile             |  2 +-
- src/pkg/net/rpc/Makefile              |  2 +-
- src/pkg/net/rpc/jsonrpc/Makefile      |  2 +-
- src/pkg/net/smtp/Makefile             |  2 +-
- src/pkg/net/url/Makefile              |  2 +-
- src/pkg/os/exec/Makefile              |  2 +-
- src/pkg/text/scanner/Makefile         |  2 +-
- src/pkg/text/tabwriter/Makefile       |  2 +-
- src/pkg/text/template/Makefile        |  2 +-
- src/pkg/text/template/parse/Makefile  |  2 +-
- src/pkg/unicode/utf16/Makefile        |  2 +-
- src/pkg/unicode/utf8/Makefile         |  2 +-
- test/fixedbugs/bug358.go              |  2 +-
- 66 files changed, 87 insertions(+), 144 deletions(-)
+ src/cmd/gofix/Makefile             |  1 +
+ src/cmd/gofix/go1pkgrename.go      | 93 ++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/go1pkgrename_test.go | 98 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 192 insertions(+)

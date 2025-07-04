@@ -1,23 +1,61 @@
-commit 66c25fa9beda429a1e32b6dc65e48f071569d841
-Author: Nathan Otterness <otternes@cs.unc.edu>
-Date:   Fri Sep 18 20:08:47 2015 -0400
+commit d298209b1c22e970adb19761c924f3301ca7e252
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 22 13:13:53 2015 -0700
 
-    image/png: integer underflow when decoding
+    [dev.ssa] cmd/compile: add GOSSAFUNC and GOSSAPKG
     
-    This change addresses an integer underflow appearing only on systems
-    using a 32-bit int type. The patch addresses the problem by limiting the
-    length of unknown chunks to 0x7fffffff. This value appears to already be
-    checked for when parsing other chunk types, so the bug shouldn't appear
-    elsewhere in the package. The PNG spec recommends the maximum size for
-    any chunk to remain under 2^31, so this shouldn't cause errors with
-    valid images.
+    These temporary environment variables make it
+    possible to enable using SSA-generated code
+    for a particular function or package without
+    having to rebuild the compiler.
     
-    Fixes #12687
+    This makes it possible to start bulk testing
+    SSA generated code.
     
-    Change-Id: I17f0e1683515532c661cf2b0b2bc65309d1b7bb7
-    Reviewed-on: https://go-review.googlesource.com/14766
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    First, bump up the default stack size
+    (_StackMin in runtime/stack2.go) to something
+    large like 32768, because without stackmaps
+    we can't grow stacks.
+    
+    Then run something like:
+    
+    for pkg in `go list std`
+    do
+      GOGC=off GOSSAPKG=`basename $pkg` go test -a $pkg
+    done
+    
+    When a test fails, you can re-run those tests,
+    selectively enabling one function after another,
+    until you find the one that is causing trouble.
+    
+    Doing this right now yields some interesting results:
+    
+    * There are several packages for which we generate
+      some code and whose tests pass. Yay!
+    
+    * We can generate code for encoding/base64, but
+      tests there fail, so there's a bug to fix.
+    
+    * Attempting to build the runtime yields a panic during codegen:
+      panic: interface conversion: ssa.Location is nil, not *ssa.LocalSlot
+    
+    * The top unimplemented codegen items are (simplified):
+      59 genValue not implemented: REPMOVSB
+      18 genValue not implemented: REPSTOSQ
+      14 genValue not implemented: SUBQ
+       9 branch not implemented: If v -> b b. Control: XORQconst <bool> [1]
+       8 genValue not implemented: MOVQstoreidx8
+       4 branch not implemented: If v -> b b. Control: SETG <bool>
+       3 branch not implemented: If v -> b b. Control: SETLE <bool>
+       2 load flags not implemented: LoadReg8 <flags>
+       2 genValue not implemented: InvertFlags <flags>
+       1 store flags not implemented: StoreReg8 <flags>
+       1 branch not implemented: If v -> b b. Control: SETGE <bool>
+    
+    Change-Id: Ib64809ac0c917e25bcae27829ae634c70d290c7f
+    Reviewed-on: https://go-review.googlesource.com/12547
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/image/png/reader.go      |  3 +++
- src/image/png/reader_test.go | 12 ++++++++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go     | 20 +++++++++++++++++---
+ src/cmd/compile/internal/ssa/config.go |  2 ++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

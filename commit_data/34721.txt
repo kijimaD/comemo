@@ -1,33 +1,25 @@
-commit a42ea51ae94af2005970a480ddc8ee257874908c
-Author: HaraldNordgren <haraldnordgren@gmail.com>
-Date:   Sat Jan 6 21:30:42 2018 +0100
+commit 283558e42b88a6afa39da6ad4ae87558dc053776
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 21:23:08 2017 -0500
 
-    cmd/go: print each import error only once
+    cmd/go: allow -coverprofile with multiple packages being tested
     
-    This change prevents import errors from being printed multiple times.
-    Creating a bare-bones package 'p' with only one file importing itself
-    and running 'go build p', the current implementation gives this error
-    message:
+    It's easy to merge the coverage profiles from the
+    multiple executed tests, so do that.
     
-            can't load package: import cycle not allowed
-            package p
-                    imports p
-            import cycle not allowed
-            package p
-                    imports p
+    Also ensures that at least an empty coverage profile
+    is always written.
     
-    With this change we will show the message only once.
+    Fixes #6909.
+    Fixes #18909.
     
-    Updates #23295
-    
-    Change-Id: I653b34c1c06c279f3df514f12ec0b89745a7e64a
-    Reviewed-on: https://go-review.googlesource.com/86535
-    Reviewed-by: Harald Nordgren <haraldnordgren@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I28b88e1fb0fb773c8f57e956b18904dc388cdd82
+    Reviewed-on: https://go-review.googlesource.com/76875
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/go_test.go                                    | 16 ++++++++++++++++
- src/cmd/go/internal/load/pkg.go                          |  1 +
- .../go/testdata/importcycle/src/selfimport/selfimport.go |  3 +++
- 3 files changed, 20 insertions(+)
+ src/cmd/go/go_test.go                | 13 +++++-
+ src/cmd/go/internal/test/cover.go    | 80 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go     | 56 ++++++++++++++++---------
+ src/cmd/go/internal/test/testflag.go |  8 ++--
+ 4 files changed, 131 insertions(+), 26 deletions(-)

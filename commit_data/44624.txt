@@ -1,33 +1,35 @@
-commit e87c4bb3ef9d1f0aee3c9cc9fec8bef7fcadd6d8
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Mar 10 17:27:30 2021 -0800
+commit 7ee26224436d80dca3f7e98c8fcf21185522d8e6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 12 20:27:57 2020 -0400
 
-    cmd/compile:  fix noder.Addr() to not call typechecker
+    cmd/link: link dynamic library automatically
     
-    Simple change to avoid calling the old typechecker in noder.Addr(). This
-    fixes cases where generic code calls a pointer method with a non-pointer
-    receiver.
+    cgo_import_dynamic pragma indicates a symbol is imported from a
+    dynamic library. Currently, the linker does not actually link
+    against the dynamic library, so we have to "force" it by using
     
-    Added test typeparam/lockable.go that now works with this change.
+    //go:cgo_import_dynamic _ _ "dylib"
     
-    For lockable.go to work, also fix incorrect check to decide whether to
-    translate an OXDOT now or later. We should delay translating an OXDOT
-    until instantiation (because we don't know how embedding, etc. will
-    work) if the receiver has any typeparam, not just if the receiver type
-    is a simple typeparam. We also have to handle OXDOT for now in
-    IsAddressable(), until we can remove calls to the old typechecker in
-    (*irgen).funcBody().
+    syntax, which links in the library unconditionally.
     
-    Change-Id: I77ee5efcef9a8f6c7133564106a32437e36ba4bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300990
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This CL changes it to link in the library automatically when a
+    symbol is imported from the library, without using the "force"
+    syntax. (The "force" syntax is still supported.)
+    
+    Remove the unconditional imports in the runtime. Now,
+    Security.framework and CoreFoundation.framework are only linked
+    when the x509 package is imported (or otherwise specified).
+    
+    Fixes #40727.
+    
+    Change-Id: Ied36b1f621cdcc5dc4a8f497cdf1c554a182d0e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248333
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/expr.go       |  7 +++++
- src/cmd/compile/internal/noder/expr.go    |  2 +-
- src/cmd/compile/internal/noder/helpers.go |  9 ++++--
- test/typeparam/lockable.go                | 50 +++++++++++++++++++++++++++++++
- 4 files changed, 64 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/go.go | 3 +++
+ src/runtime/sys_darwin.go      | 6 ------
+ 2 files changed, 3 insertions(+), 6 deletions(-)

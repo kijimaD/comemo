@@ -1,15 +1,29 @@
-commit 0e919ff2c978294c9b0472055b96bb1a09606934
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 24 13:53:00 2012 +0100
+commit 0442087f93d49dec95cd327efbc8c760484ac8bb
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 24 01:10:32 2012 -0200
 
-    gc: static implements check on typeswitches only applies to concrete case types.
+    encoding/xml: bring API closer to other packages
     
-    Fixes #2700.
+    Includes gofix module. The only case not covered should be
+    xml.Unmarshal, since it remains with a similar interface, and
+    would require introspecting the type of its first argument
+    better.
     
-    R=rsc
+    Fixes #2626.
+    
+    R=golang-dev, rsc, gustavo
     CC=golang-dev
-    https://golang.org/cl/5574046
+    https://golang.org/cl/5574053
 
- src/cmd/gc/swt.c    |  2 +-
- test/typeswitch3.go | 27 +++++++++++++++++++++------
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ misc/dashboard/builder/main.go       |   2 +-
+ src/cmd/godoc/codewalk.go            |   6 +-
+ src/cmd/gofix/Makefile               |   1 +
+ src/cmd/gofix/xmlapi.go              |  96 +++++++
+ src/cmd/gofix/xmlapi_test.go         |  45 ++++
+ src/pkg/encoding/xml/marshal.go      |  41 ++-
+ src/pkg/encoding/xml/marshal_test.go |  19 +-
+ src/pkg/encoding/xml/read.go         |  61 ++---
+ src/pkg/encoding/xml/read_test.go    |   9 +-
+ src/pkg/encoding/xml/xml.go          | 482 +++++++++++++++++------------------
+ src/pkg/encoding/xml/xml_test.go     |  81 +++---
+ 11 files changed, 494 insertions(+), 349 deletions(-)

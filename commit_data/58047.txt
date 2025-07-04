@@ -1,18 +1,21 @@
-commit 700c7b95ae001244e60e820dcc4f63ae4f5fc5b1
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 13 16:31:27 2024 +0000
+commit dd881027c3c556647d5d9f36eda4e9316680647b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 20 11:50:17 2023 -0400
 
-    internal/sync: add LoadAndDelete to HashTrieMap
+    syscall: skip TestDeathSignalSetuid if exec fails with a permission error
     
-    This change adds the LoadAndDelete operation (with the same semantics as
-    sync.Map's LoadAndDelete) to HashTrieMap.
+    Also explicitly look up user "nobody" (or "gopher" on the Go builders)
+    if running as root, instead of hard-coding UID/GID 99.
     
-    Change-Id: Id6777dffcd3ebc98490aa51f0e85e59a56f63074
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606456
+    Fixes #62719.
+    
+    Change-Id: I9fa8955f2c239804fa775f2478a5274af9330822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/sync/hashtriemap.go      |  73 +++++++++++++++
- src/internal/sync/hashtriemap_test.go | 170 +++++++++++++++++++++++++++++++++-
- 2 files changed, 238 insertions(+), 5 deletions(-)
+ src/syscall/exec_pdeathsig_test.go | 103 ++++++++++++++++++++++++++-----------
+ 1 file changed, 74 insertions(+), 29 deletions(-)

@@ -1,16 +1,13 @@
-commit a84e3ad198387019aaef6e979e46e498600ea12f
+commit fa113cf767ac330b836966c4e75b6b21566da095
 Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Jul 9 12:33:42 2014 +0200
+Date:   Wed Jul 9 12:32:49 2014 +0200
 
-    runtime: use the nsec system call instead of /dev/bintime on Plan 9
+    cmd/objdump: set goarch properly on non-386 Plan 9 systems
     
-    LGTM=0intro
-    R=0intro
-    CC=ality, dave, golang-codereviews, jas, mischief, rsc
-    https://golang.org/cl/104570043
+    LGTM=0intro, r
+    R=0intro, r
+    CC=ality, golang-codereviews, jas, mischief
+    https://golang.org/cl/108420043
 
- src/pkg/runtime/os_plan9.c        | 30 +++++++-----------------------
- src/pkg/runtime/os_plan9.h        |  1 +
- src/pkg/runtime/sys_plan9_386.s   | 10 ++++++++++
- src/pkg/runtime/sys_plan9_amd64.s |  5 +++++
- 4 files changed, 23 insertions(+), 23 deletions(-)
+ src/cmd/objdump/plan9obj.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

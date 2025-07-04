@@ -1,23 +1,19 @@
-commit bdea352b96c6934ee49920b18c3b8aedffd27d08
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Wed Jul 31 18:14:56 2019 -0700
+commit 52e2126a5ee7c1123ded51874ec0fe0394eabd0a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 17:45:39 2019 -0500
 
-    doc/go1.13: document net/http.Transport.Request.Body unfurling
+    runtime: do not use a relative import in testdata
     
-    Documents the work from:
-    * CL 163599
-    * CL 163737
+    Relative imports do not work in module mode. Use a fully-qualified
+    import path instead.
     
-    which now uses the Request.Body's io.ReaderFrom implementation,
-    if available, and permits system level optimizations such as
-    "sendfile" to be used to transmit/upload the Body, which greatly
-    speeds up file uploads.
+    Updates #30228
     
-    Updates #33396
-    
-    Change-Id: I7b8315c4b3e57ad47bb9be2b0c838857875d4bd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188457
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I0a42ffa521a7b513395e7e1788022d24cbb1f31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165817
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.13.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/testdata/testprogcgo/dll_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

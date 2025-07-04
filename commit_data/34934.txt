@@ -1,21 +1,28 @@
-commit 02328153520b10d6252064ef18d5eeb214f55824
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Wed Apr 11 12:38:04 2018 +0200
+commit 79bd50852a6e9d93e2c49f7ab64d1063715b88a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 19:41:11 2017 +0000
 
-    net/http: skip a test on netbsd-arm
+    vendor: update golang.org/x/net/nettest from upstream
     
-    TestServerDuplicateBackgroundRead has been causing crashes on the
-    netbsd-arm-bsiegert builder, with the system becoming completely
-    unresponsive (probably deadlocked). Skip this test while the crash
-    is under investigation.
+    Updates to x/net git rev a8b92947779 for CL 80755
     
-    Upstream bug report is http://gnats.netbsd.org/53173.
+    Updates #22927
     
-    Change-Id: Ib48f19005cf2cbba8a27e75e689c2acb025d8870
-    Reviewed-on: https://go-review.googlesource.com/106295
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I84aad75afd954c9a6c57ad9a76328b99f1dc74a1
+    Reviewed-on: https://go-review.googlesource.com/80758
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/http/serve_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ .../x/net/internal/nettest/helper_bsd.go           |  53 +++++++
+ .../x/net/internal/nettest/helper_nobsd.go         |  15 ++
+ .../x/net/internal/nettest/helper_posix.go         |  31 +++++
+ .../x/net/internal/nettest/helper_stub.go          |  32 +++++
+ .../x/net/internal/nettest/helper_unix.go          |  29 ++++
+ .../x/net/internal/nettest/helper_windows.go       |  42 ++++++
+ .../golang_org/x/net/internal/nettest/interface.go |  94 +++++++++++++
+ .../golang_org/x/net/internal/nettest/rlimit.go    |  11 ++
+ .../golang_org/x/net/internal/nettest/stack.go     | 152 +++++++++++++++++++++
+ .../golang_org/x/net/nettest/conntest_test.go      |  58 +-------
+ 10 files changed, 463 insertions(+), 54 deletions(-)

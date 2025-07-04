@@ -1,16 +1,16 @@
-commit d6d423b99bb23bef029c7b54b49453c3343cd6a6
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:00:53 2015 -0400
+commit 0c31992eb3ee5a4faa424b22666098bd422117cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 11:52:19 2015 -0400
 
-    runtime: skip fork test on darwin/arm64
+    test: add test that variables captured by deferred funcs are current on fault
     
-    Just like darwin/arm.
+    This came up in private mail.
+    It works today and I want to make sure it stays working.
     
-    Change-Id: Ie4998d24b2d891a9f6c8047ec40cd3fdf80622cd
-    Reviewed-on: https://go-review.googlesource.com/8812
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I13ebdc2dfadb3c72d7f179be89883137320c05d0
+    Reviewed-on: https://go-review.googlesource.com/7390
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 +-
- src/runtime/crash_test.go     | 5 +++--
- src/runtime/runtime_test.go   | 5 +++--
- 3 files changed, 7 insertions(+), 5 deletions(-)
+ test/recover4.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

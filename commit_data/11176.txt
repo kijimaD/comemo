@@ -1,14 +1,12 @@
-commit 1019eda9d84c68368db5ed6d603ed645b6a120db
+commit 026f8dfb94b1d4c85ddde081fd10956909918589
 Author: Adam Langley <agl@golang.org>
-Date:   Sun Jan 15 10:41:16 2012 -0500
+Date:   Sun Jan 15 10:22:15 2012 -0500
 
-    exp/terminal: still trying to unbreak non-Linux builds.
+    exp/terminal: add to level Makefile for the (non-Linux?) systems that need it.
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5542050
+    https://golang.org/cl/5528102
 
- src/pkg/Makefile                      | 1 -
- src/pkg/exp/terminal/terminal.go      | 2 --
- src/pkg/exp/terminal/terminal_test.go | 2 --
- 3 files changed, 5 deletions(-)
+ src/pkg/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

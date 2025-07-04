@@ -1,18 +1,23 @@
-commit 1415a53b75fe3dc4fa53208e82839533bb2f1a30
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 24 09:37:25 2014 -0700
+commit 17a108ba079cd3e94fa4d847d651d3a813569a9b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 9 16:52:28 2014 +1100
 
-    unsafe: document that unsafe programs are not protected
-    The compatibility guideline needs to be clear about this even
-    though it means adding a clause that was not there from the
-    beginning. It has always been understood, so this isn't really
-    a change in policy, just in its expression.
+    runtime: handle all windows exception
     
-    LGTM=bradfitz, gri, rsc
-    R=golang-codereviews, bradfitz, gri, rsc
+    Fixes #8006.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/162060043
+    https://golang.org/cl/145150043
 
- doc/go1compat.html   | 8 ++++++++
- src/unsafe/unsafe.go | 3 +++
- 2 files changed, 11 insertions(+)
+ src/runtime/defs_windows.go         |  3 ++
+ src/runtime/defs_windows_386.h      |  3 ++
+ src/runtime/defs_windows_amd64.h    |  3 ++
+ src/runtime/os_windows.c            | 35 ++++++++++---
+ src/runtime/os_windows_386.c        | 84 +++++++++++++++++++-------------
+ src/runtime/os_windows_amd64.c      | 97 ++++++++++++++++++++++++-------------
+ src/runtime/sys_windows_386.s       | 18 ++++++-
+ src/runtime/sys_windows_amd64.s     | 18 ++++++-
+ src/runtime/syscall_windows_test.go | 39 +++++++++++++++
+ 9 files changed, 224 insertions(+), 76 deletions(-)

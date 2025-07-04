@@ -1,12 +1,13 @@
-commit 6ccc96eea96058e36e30b4e051d32f5bd10f9816
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 16 21:20:50 2011 -0500
+commit 946cdf82bcf36318fb1b00b21977a536508c24be
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 17 12:09:12 2011 +1100
 
-    doc/devel/release: discuss StartProcess in release notes
+    syscall: fix windows SetFileAttributes
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4172051
+    R=golang-dev, rsc, hector
+    CC=golang-dev, mattn
+    https://golang.org/cl/4180052
 
- doc/devel/release.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_windows.go      | 39 +++++++++++++++------------------
+ src/pkg/syscall/zsyscall_windows_386.go |  4 ++--
+ 2 files changed, 20 insertions(+), 23 deletions(-)

@@ -1,18 +1,29 @@
-commit 881509357261c88addbe0eb30a6eebba2b387fe8
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Fri Oct 9 11:59:58 2015 -0700
+commit 85e0329fbc03df4165550611f3724d9ebcaa34a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 30 11:03:05 2015 -0700
 
-    cmd/go: print all warnings to stderr
+    [dev.ssa] cmd/compile: move most types outside SSA
     
-    All warnings in cmd/go are printed using fmt.Fprintf(os.Stderr...)
-    except one in test.go which is printed using log.Printf.
-    This is a minor inconsistency.
+    The only types that remain in the ssa package
+    are special compiler-only types.
     
-    Change-Id: Ib470d318810b44b86e6cfaa77e9a556a5ad94069
-    Reviewed-on: https://go-review.googlesource.com/15657
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If957abf128ec0778910d67666c297f97f183b7ee
+    Reviewed-on: https://go-review.googlesource.com/12933
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 52 +++++++++-----
+ src/cmd/compile/internal/ssa/config.go         | 36 ++++++----
+ src/cmd/compile/internal/ssa/deadcode_test.go  |  8 +--
+ src/cmd/compile/internal/ssa/deadstore_test.go |  6 +-
+ src/cmd/compile/internal/ssa/dom_test.go       | 16 ++---
+ src/cmd/compile/internal/ssa/export_test.go    | 20 ++++++
+ src/cmd/compile/internal/ssa/func_test.go      |  4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 12 ++--
+ src/cmd/compile/internal/ssa/gen/generic.rules | 16 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 60 ++++++++--------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 98 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/schedule_test.go  |  2 +-
+ src/cmd/compile/internal/ssa/shift_test.go     |  2 +-
+ src/cmd/compile/internal/ssa/type.go           | 67 ++++++------------
+ src/cmd/compile/internal/ssa/type_test.go      | 55 +++++++++++++++
+ 15 files changed, 262 insertions(+), 192 deletions(-)

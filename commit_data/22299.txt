@@ -1,14 +1,13 @@
-commit 8b2503d5f54e49608f2b2abfb7d5449288e801b1
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 3 15:58:18 2015 -0400
+commit 0a8a62584870ef5b4eeea0f520d94d95235e4070
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 13:41:56 2015 -0800
 
-    cmd/internal/gc: fix race build
+    math/big: added Float.Add example, remove warning from Floats
     
-    Change-Id: Iab3f5538c135a21e071789e2c7b445b0a04a2ad0
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8461
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If04840c34b0ac5168ce1699eae880f04ae21c84c
+    Reviewed-on: https://go-review.googlesource.com/6680
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/gc/racewalk.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/math/big/float.go             |  5 -----
+ src/math/big/floatexample_test.go | 18 ++++++++++++++++++
+ 2 files changed, 18 insertions(+), 5 deletions(-)

@@ -1,26 +1,14 @@
-commit 5f3dabbb79fb3dc8eea9a5050557e9241793dce3
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Feb 19 09:40:35 2021 -0800
+commit bd486c39bad4c9f90190ae58de8a592bb9a2aae9
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Wed Jun 10 18:26:29 2020 +0300
 
-    cmd/compile: fix import of functions of multiple nested closure
+    doc/go1.15: add release notes for database/sql and database/sql/driver
     
-    For import of functions with closures, the connections among closure
-    variables are constructed on-the-fly via CaptureName(). For multiple
-    nested closures, we need to temporarily set r.curfn to each closure we
-    construct, so that the processing of closure variables will be correct
-    for any nested closure inside that closure.
+    Updates #37419.
     
-    Fixes #44335
-    
-    Change-Id: I34f99e2822250542528ff6b2232bf36756140868
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294212
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ifb6aa9a671f677e1a3e908f0b75bf0da17a57ad0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237397
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/compile/internal/typecheck/iimport.go | 12 ++++++++----
- test/fixedbugs/issue44335.dir/a.go            | 17 +++++++++++++++++
- test/fixedbugs/issue44335.dir/b.go            | 11 +++++++++++
- test/fixedbugs/issue44335.go                  |  7 +++++++
- 4 files changed, 43 insertions(+), 4 deletions(-)
+ doc/go1.15.html | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

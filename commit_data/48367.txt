@@ -1,27 +1,109 @@
-commit ab0f7611d739fe10d0265dbc6bdc17684423bfc8
-Author: Uzondu Enudeme <uzondu@orijtech.com>
-Date:   Thu Mar 10 00:08:52 2022 +0100
+commit 2c76a6f7f85365cefb5200b2b3408fd6bd421b3d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 12 17:55:42 2021 +0200
 
-    net/url: add OmitHost bool to url.URL
+    all: add //go:build lines to assembly files
     
-    Previously, myscheme:/path and myscheme:///path were treated as the same URL
-    although materially different. The distinction made clear by RFC 3986 sec. 5.3 where
-    a different recomposition behavior is expected when a URI reference has an undefined
-    host(authority) as in myscheme:/path vs. one with an empty host(authority)
-    as in myscheme:///path.
+    Don't add them to files in vendor and cmd/vendor though. These will be
+    pulled in by updating the respective dependencies.
     
-    This change fixes the Parse/String roundtrip limitation for URLs with an undefined
-    host and a single slash.
+    For #41184
     
-    Fixes #46059
-    
-    Change-Id: I1b8d6042135513616374ff8c8dfb1cdb640f8efe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391294
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icc57458c9b3033c347124323f33084c85b224c70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319389
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/url.go      | 28 +++++++++++++++++++---------
- src/net/url/url_test.go | 13 +++++++------
- 2 files changed, 26 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/flags_amd64_test.s | 2 --
+ src/cmd/compile/internal/ssa/flags_arm64_test.s | 2 --
+ src/cmd/dist/vfp_arm.s                          | 3 ++-
+ src/cmd/dist/vfp_default.s                      | 3 ++-
+ src/crypto/cipher/xor_ppc64x.s                  | 1 +
+ src/crypto/md5/md5block_ppc64x.s                | 1 +
+ src/crypto/x509/internal/macos/corefoundation.s | 1 +
+ src/crypto/x509/internal/macos/security.s       | 1 +
+ src/internal/bytealg/compare_mips64x.s          | 1 +
+ src/internal/bytealg/compare_mipsx.s            | 1 +
+ src/internal/bytealg/compare_ppc64x.s           | 1 +
+ src/internal/bytealg/count_ppc64x.s             | 1 +
+ src/internal/bytealg/equal_mips64x.s            | 1 +
+ src/internal/bytealg/equal_mipsx.s              | 1 +
+ src/internal/bytealg/equal_ppc64x.s             | 1 +
+ src/internal/bytealg/index_ppc64x.s             | 1 +
+ src/internal/bytealg/indexbyte_mips64x.s        | 1 +
+ src/internal/bytealg/indexbyte_mipsx.s          | 1 +
+ src/internal/bytealg/indexbyte_ppc64x.s         | 1 +
+ src/internal/cpu/cpu_x86.s                      | 1 +
+ src/math/big/arith_386.s                        | 1 +
+ src/math/big/arith_amd64.s                      | 1 +
+ src/math/big/arith_arm.s                        | 1 +
+ src/math/big/arith_arm64.s                      | 1 +
+ src/math/big/arith_mips64x.s                    | 4 +++-
+ src/math/big/arith_mipsx.s                      | 4 +++-
+ src/math/big/arith_ppc64x.s                     | 4 +++-
+ src/math/big/arith_riscv64.s                    | 1 +
+ src/math/big/arith_s390x.s                      | 3 ++-
+ src/math/big/arith_wasm.s                       | 1 +
+ src/math/floor_ppc64x.s                         | 1 +
+ src/math/modf_ppc64x.s                          | 1 +
+ src/math/sqrt_mipsx.s                           | 1 +
+ src/math/sqrt_ppc64x.s                          | 1 +
+ src/math/sqrt_riscv64.s                         | 2 --
+ src/reflect/asm_mips64x.s                       | 1 +
+ src/reflect/asm_mipsx.s                         | 1 +
+ src/reflect/asm_ppc64x.s                        | 1 +
+ src/runtime/asm_mips64x.s                       | 1 +
+ src/runtime/asm_mipsx.s                         | 1 +
+ src/runtime/asm_ppc64x.s                        | 1 +
+ src/runtime/atomic_mips64x.s                    | 1 +
+ src/runtime/atomic_mipsx.s                      | 1 +
+ src/runtime/atomic_ppc64x.s                     | 1 +
+ src/runtime/cgo/asm_mips64x.s                   | 1 +
+ src/runtime/cgo/asm_mipsx.s                     | 1 +
+ src/runtime/cgo/asm_ppc64x.s                    | 1 +
+ src/runtime/cgo/asm_riscv64.s                   | 2 --
+ src/runtime/duff_mips64x.s                      | 1 +
+ src/runtime/duff_ppc64x.s                       | 1 +
+ src/runtime/internal/atomic/atomic_mips64x.s    | 1 +
+ src/runtime/internal/atomic/atomic_mipsx.s      | 1 +
+ src/runtime/internal/atomic/atomic_ppc64x.s     | 2 +-
+ src/runtime/internal/atomic/sys_nonlinux_arm.s  | 3 ++-
+ src/runtime/libfuzzer_amd64.s                   | 1 +
+ src/runtime/libfuzzer_arm64.s                   | 1 +
+ src/runtime/memclr_386.s                        | 1 +
+ src/runtime/memclr_amd64.s                      | 1 +
+ src/runtime/memclr_mips64x.s                    | 1 +
+ src/runtime/memclr_mipsx.s                      | 1 +
+ src/runtime/memclr_ppc64x.s                     | 1 +
+ src/runtime/memmove_386.s                       | 1 +
+ src/runtime/memmove_amd64.s                     | 1 +
+ src/runtime/memmove_mips64x.s                   | 1 +
+ src/runtime/memmove_mipsx.s                     | 1 +
+ src/runtime/memmove_ppc64x.s                    | 1 +
+ src/runtime/mkduff.go                           | 2 ++
+ src/runtime/mkpreempt.go                        | 1 +
+ src/runtime/msan_amd64.s                        | 1 +
+ src/runtime/msan_arm64.s                        | 1 +
+ src/runtime/preempt_mips64x.s                   | 1 +
+ src/runtime/preempt_mipsx.s                     | 1 +
+ src/runtime/preempt_ppc64x.s                    | 1 +
+ src/runtime/race_amd64.s                        | 1 +
+ src/runtime/race_arm64.s                        | 1 +
+ src/runtime/race_ppc64le.s                      | 1 +
+ src/runtime/rt0_linux_mips64x.s                 | 1 +
+ src/runtime/rt0_linux_mipsx.s                   | 1 +
+ src/runtime/sys_aix_ppc64.s                     | 3 ---
+ src/runtime/sys_linux_mips64x.s                 | 1 +
+ src/runtime/sys_linux_mipsx.s                   | 1 +
+ src/runtime/sys_linux_ppc64x.s                  | 1 +
+ src/runtime/tls_arm.s                           | 1 +
+ src/runtime/tls_mips64x.s                       | 1 +
+ src/runtime/tls_mipsx.s                         | 1 +
+ src/runtime/tls_ppc64x.s                        | 1 +
+ src/runtime/wincallback.go                      | 2 ++
+ src/runtime/zcallback_windows.s                 | 2 ++
+ src/sync/atomic/asm.s                           | 1 +
+ src/sync/atomic/race.s                          | 1 +
+ 90 files changed, 98 insertions(+), 19 deletions(-)

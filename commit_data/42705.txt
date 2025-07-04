@@ -1,19 +1,14 @@
-commit a22ec6e650669f5101c7e0955d82e29d644eef4e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 17 13:17:26 2020 +0000
+commit f96dfe6b730de97b0a747c6c5d06ff468bf0ef3f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 14:52:09 2020 -0500
 
-    Revert "cmd/internal/obj: fix inline marker issue on s390x"
+    [dev.boringcrypto] misc/boring: add go1.13.7b4 and go1.12.16b4 releases to RELEASES file
     
-    This reverts CL 247697.
+    Fixes #36611
     
-    Reason for revert: This change broke the linux-arm builder.
-    
-    Change-Id: I8ca0d5b3b2ea0109ffbfadeab1406a1b60e7d18d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248718
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie216914a044d02afbe9d9c36c4597f84282dae89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217938
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/internal/obj/pcln.go       | 15 ---------------
- src/cmd/internal/obj/s390x/objz.go | 11 +++++++++++
- 2 files changed, 11 insertions(+), 15 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,18 +1,20 @@
-commit f98b9ae07c512f824fc0327eb8b0aca0847ecdb8
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 3 17:07:09 2020 +0000
+commit 075c20cea8a1efda0e8d5d33a1995a220ad27b8c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 24 01:24:43 2019 +0100
 
-    Revert "cmd/compile: improve equality algs for arrays of interfaces"
+    internal/poll: use fcntl64 on 32-bit GNU/Linux systems
     
-    This reverts commit 7eab9506c92562fe49861597e7bf1fcb28f2fd40.
+    Use FcntlSyscall from internal/syscall/unix to get fcntl64 on 32-bit
+    Linux systems.
     
-    Reason for revert: Undoing to get back to semantics discussed in #8606.
+    Updates #36211
     
-    Change-Id: If0cd7518c10c37a81fdbb4ae112239e04c0b1448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236278
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: If48a6e09606ca9f7f6e22f3e8dc9a25fb3ccaf65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212537
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go | 18 ------------------
- 1 file changed, 18 deletions(-)
+ src/go/build/deps_test.go         | 2 +-
+ src/internal/poll/splice_linux.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,19 +1,26 @@
-commit 6c9f600d4991f66f1ce621c4e2d9ea72d5188d34
+commit e5421e21effb5b1db4e565babbddffeb4103d40e
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 5 14:10:46 2016 -0800
+Date:   Wed Oct 5 07:31:11 2016 -0700
 
-    misc/cgo/test: ignore "too many open files" in issue 18146 test
+    runtime: add threadprof tag for test that starts busy thread
     
-    Seen on the OpenBSD/AMD64 builder:
-    https://build.golang.org/log/fa34df1bcd3af12d4fc0fb0e60e3c6197a2a6f75
+    The CgoExternalThreadSIGPROF test starts a thread at constructor time
+    that does a busy loop. That can throw off some other tests. So only
+    build that code if testprogcgo is built with the tag threadprof, and
+    adjust the tests that use that code to pass that build tag.
     
-    Update #18146.
+    This revealed that the CgoPprofThread test was not testing what it
+    should have, as it never actually started the cpuHog thread. It was
+    passing because of the busy loop thread. Fix it to start the thread as
+    intended.
     
-    Change-Id: I2646621488be84d50f47c312baa0817c72e3c058
-    Reviewed-on: https://go-review.googlesource.com/33907
+    Change-Id: I087a9e4fc734a86be16a287456441afac5676beb
+    Reviewed-on: https://go-review.googlesource.com/30362
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue18146.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go                   | 31 ++++++++++++++++++++-----
+ src/runtime/testdata/testprogcgo/threadpprof.go | 14 +++++++++++
+ src/runtime/testdata/testprogcgo/threadprof.go  |  5 ++++
+ 3 files changed, 44 insertions(+), 6 deletions(-)

@@ -1,28 +1,16 @@
-commit 67d48daae96c26ae734f6a4245bd40080a5bd934
+commit 0b09a56a64ecd761258dd7f2046d72a64f32b25b
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 13:59:01 2011 -0400
+Date:   Mon Sep 26 13:11:22 2011 -0400
 
-    test: merge nilptr/* into one test
+    test: disable sigchld test on Windows
     
-    The 512 MB array causes load delays on some systems.
-    Now that we have recover, we can do all the tests in
-    one binary, so that the delay is incurred just once.
+    Alex Brainman reports that this is the only test
+    that keeps us from running test/run.
     
-    R=golang-dev, r
+    R=alex.brainman, lucio.dere, bradfitz, hectorchu
     CC=golang-dev
-    https://golang.org/cl/5142044
+    https://golang.org/cl/4777043
 
- test/golden.out                |   2 -
- test/nilptr.go                 | 125 +++++++++++++++++++++++++++++++++++++++++
- test/nilptr/arrayindex.go      |  26 ---------
- test/nilptr/arrayindex1.go     |  31 ----------
- test/nilptr/arraytoslice.go    |  36 ------------
- test/nilptr/arraytoslice1.go   |  33 -----------
- test/nilptr/arraytoslice2.go   |  34 -----------
- test/nilptr/slicearray.go      |  32 -----------
- test/nilptr/structfield.go     |  34 -----------
- test/nilptr/structfield1.go    |  37 ------------
- test/nilptr/structfield2.go    |  36 ------------
- test/nilptr/structfieldaddr.go |  34 -----------
- test/run                       |   2 +-
- 13 files changed, 126 insertions(+), 336 deletions(-)
+ src/run.bash    | 1 -
+ test/sigchld.go | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)

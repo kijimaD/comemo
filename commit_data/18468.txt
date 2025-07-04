@@ -1,38 +1,19 @@
-commit 44c252bda29585b4ee9f18e77e68c658207e6f0a
-Author: Nick Craig-Wood <nick@craig-wood.com>
-Date:   Wed Feb 12 13:24:52 2014 -0500
+commit e1ee04828d94e8673f13cd854245920cdea27acc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 12 22:21:38 2014 +0400
 
-    An ARM version of sha1block.go with a big improvement in throughput
-    (up to 2.8x).
+    runtime: refactor chan code
+    1. Make internal chan functions static.
+    2. Move selgen local variable instead of a member of G struct.
+    3. Change "bool *pres/selected" parameter of chansend/chanrecv to "bool block",
+       which is simpler, faster and less code.
+    -37 lines total.
     
-    This is a partially unrolled version which performs better for small
-    hashes and only sacrifices a small amount of ultimate speed to a fully
-    unrolled version which uses 5k of code.
-    
-    Code size
-    
-      Before 1636 bytes
-      After 1880 bytes
-      15% larger
-    
-    Benchmarks on Samsung Exynos 5 ARMv7 Chromebook
-    
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes         1907         1136  -40.43%
-    BenchmarkHash1K            20280         7547  -62.79%
-    BenchmarkHash8K           148469        52576  -64.59%
-    
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes         4.19         7.04    1.68x
-    BenchmarkHash1K            50.49       135.68    2.69x
-    BenchmarkHash8K            55.18       155.81    2.82x
-    
-    LGTM=dave, agl
-    R=dave, bradfitz, agl, adg, nick
-    CC=golang-codereviews
-    https://golang.org/cl/56990044
+    LGTM=rsc
+    R=golang-codereviews, dave, gobot, rsc
+    CC=bradfitz, golang-codereviews, iant, khr
+    https://golang.org/cl/58610043
 
- src/pkg/crypto/sha1/sha1block.go      |   2 +-
- src/pkg/crypto/sha1/sha1block_arm.s   | 217 ++++++++++++++++++++++++++++++++++
- src/pkg/crypto/sha1/sha1block_decl.go |   2 +-
- 3 files changed, 219 insertions(+), 2 deletions(-)
+ src/pkg/runtime/chan.c    | 167 +++++++++++++++++++---------------------------
+ src/pkg/runtime/runtime.h |   4 --
+ 2 files changed, 67 insertions(+), 104 deletions(-)

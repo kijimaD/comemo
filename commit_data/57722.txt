@@ -1,34 +1,51 @@
-commit 38f85967873b1cd48c20681c5dff0e9f3de18516
-Author: limeidan <limeidan@loongson.cn>
-Date:   Thu Jun 20 17:22:43 2024 +0800
+commit 3b4d428ca0efaa309f7254ed378111cf76a1267d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 24 12:49:10 2023 -0700
 
-    cmd/compile/internal/ssa: optimize if control flow rule of loong64
+    encoding/json: modernize tests
     
-    goos: linux
-    goarch: loong64
-    pkg: cmd/compile/internal/test
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                                     │     old     │                 new                 │
-                                     │   sec/op    │   sec/op     vs base                │
-    Switch8Predictable                 2.908n ± 0%   2.702n ± 2%   -7.10% (p=0.000 n=10)
-    Switch8Unpredictable               13.29n ± 0%   12.45n ± 0%   -6.32% (p=0.000 n=10)
-    Switch32Predictable                3.069n ± 0%   3.137n ± 0%   +2.23% (p=0.000 n=10)
-    Switch32Unpredictable              15.11n ± 0%   13.21n ± 0%  -12.57% (p=0.000 n=10)
-    SwitchStringPredictable            5.165n ± 0%   4.447n ± 0%  -13.90% (p=0.000 n=10)
-    SwitchStringUnpredictable          18.26n ± 0%   16.86n ± 0%   -7.67% (p=0.000 n=10)
-    SwitchTypePredictable              3.961n ± 0%   3.405n ± 0%  -14.04% (p=0.000 n=10)
-    SwitchTypeUnpredictable            17.92n ± 0%   16.17n ± 0%   -9.77% (p=0.000 n=10)
-    SwitchInterfaceTypePredictable     8.463n ± 0%   8.492n ± 0%   +0.34% (p=0.001 n=10)
-    SwitchInterfaceTypeUnpredictable   23.70n ± 0%   22.48n ± 0%   -5.15% (p=0.000 n=10)
-    geomean                            8.672n        8.018n        -7.54%
+    There are no changes to what is being tested.
+    No test cases were removed or added.
     
-    Change-Id: Iefbf8e9e784905779f1ebc9fd6a9b7a28cf2f6f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620815
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Changes made:
+    * Use a local implementation of test case position marking. See #52751.
+    * Use consistent names for all test tables and variables.
+    * Generally speaking, follow modern Go style guide for tests.
+    * Move global tables local to the test function if possible.
+    * Make every table entry run in a distinct testing.T.Run.
+    
+    The purpose of this change is to make it easier to perform
+    v1-to-v2 development where we want v2 to support close to
+    bug-for-bug compatibility when running in v1 mode.
+    
+    Annotating each test case with the location of the test data
+    makes it easier to jump directly to the test data itself
+    and understand why this particular case is failing.
+    
+    Having every test case run in its own t.Run makes it easier
+    to isolate a particular failing test and work on fixing the code
+    until that test case starts to pass again.
+    
+    Unfortunately, many tests are annotated with an empty name.
+    An empty name is better than nothing, since the testing framework
+    auto assigns a numeric ID for duplicate names.
+    It is not worth the trouble to give descriptive names to each
+    of the thousands of test cases.
+    
+    Change-Id: I43905f35249b3d77dfca234b9c7808d40e225de8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522880
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  1 +
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 38 +++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/encoding/json/bench_test.go   |   53 +-
+ src/encoding/json/decode_test.go  | 1644 +++++++++++++++++++------------------
+ src/encoding/json/encode_test.go  |  565 ++++++-------
+ src/encoding/json/scanner_test.go |  223 ++---
+ src/encoding/json/stream_test.go  |  403 ++++-----
+ src/encoding/json/tagkey_test.go  |   83 +-
+ src/encoding/json/tags_test.go    |    2 +-
+ 7 files changed, 1528 insertions(+), 1445 deletions(-)

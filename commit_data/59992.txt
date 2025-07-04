@@ -1,0 +1,16 @@
+commit 805654077252b0f34fb4323a519618ffad5a611e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 14 21:39:30 2024 -0400
+
+    cmd/internal/obj: print symbol index at -S=3
+    
+    When the compiler or assembler's -S flag is set to 3 or higher,
+    print the symbol index, for debugging.
+    
+    Change-Id: Ia7a42b0c017105ef12fd97b3e52de0e155b0cf2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/objfile.go | 3 +++
+ 1 file changed, 3 insertions(+)

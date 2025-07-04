@@ -1,15 +1,16 @@
-commit d778a371be488312fe43b2d710dfc8c7afb3d29c
-Author: Shivansh Rai <shivansh@freebsd.org>
-Date:   Fri May 18 06:50:43 2018 +0530
+commit d873a6d8720ba6604d6713c37d9d0183eae14393
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 25 07:48:03 2018 -0700
 
-    cmd/gofmt: update error handling when writing to backup file
+    syscall: 32-bit MIPS splice system call returns int, not int64
     
-    As per commit aa0ae75, handling of io.ErrShortWrite is done in
-    *File.Write() itself.
+    Fixes #25106
     
-    Change-Id: I92924b51e8df2ae88e6e50318348f44973addba8
-    Reviewed-on: https://go-review.googlesource.com/113696
+    Change-Id: I315817543b44aa581980828a32ecc224f8c0a44d
+    Reviewed-on: https://go-review.googlesource.com/109316
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gofmt/gofmt.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/syscall/syscall_linux_mipsx.go   | 2 +-
+ src/syscall/zsyscall_linux_mips.go   | 6 +++---
+ src/syscall/zsyscall_linux_mipsle.go | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)

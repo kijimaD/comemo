@@ -1,16 +1,56 @@
-commit e77fbd598faeffd9231c8ecd6e2c2f42312c717e
-Author: mattn <mattn.jp@gmail.com>
-Date:   Tue Jan 6 09:47:37 2015 +0900
+commit 9af454c588ee0bef7fc6ae588e2b2e866edcb915
+Merge: d5d4e82fb2 929f3210ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 18:52:30 2015 -0500
 
-    syscall: Readlink doesn't handle junction on windows
+    all: merge dev.cc (929f321) into master
     
-    Fixes #9190
+    This brings in cmd/dist written in Go, which is working on the primary builders.
     
-    Change-Id: I22177687ed834feed165454019d28c11fcbf0fa2
-    Reviewed-on: https://go-review.googlesource.com/2307
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    If this breaks your build, you need to get Go 1.4 and put it in $HOME/go1.4
+    (or, if you want to use some other directory, set $GOROOT_BOOTSTRAP
+    to that directory).
+    
+    To build Go 1.4 from source:
+    
+            git clone -b release-branch.go1.4 $GOROOT $HOME/go1.4
+            cd $HOME/go1.4/src
+            ./make.bash
+    
+    Or use a binary release: https://golang.org/dl/.
+    
+    See https://golang.org/s/go15bootstrap for more information.
+    
+    Change-Id: Ie4ae834c76ea35e39cc54e9878819a9e51b284d9
 
- src/os/os_windows_test.go      | 50 +++++++++++++++++++++++++++++++++++++-----
- src/syscall/syscall_windows.go | 19 +++++++++++-----
- src/syscall/ztypes_windows.go  | 25 ++++++++++++++++-----
- 3 files changed, 77 insertions(+), 17 deletions(-)
+ src/cmd/dist/README          |   62 +-
+ src/cmd/dist/a.h             |  165 ----
+ src/cmd/dist/arg.h           |   49 --
+ src/cmd/dist/arm.c           |   72 --
+ src/cmd/dist/buf.c           |  284 -------
+ src/cmd/dist/build.c         | 1785 ------------------------------------------
+ src/cmd/dist/build.go        | 1491 +++++++++++++++++++++++++++++++++++
+ src/cmd/dist/buildgc.c       |  218 ------
+ src/cmd/dist/buildgc.go      |  170 ++++
+ src/cmd/dist/buildgo.c       |   49 --
+ src/cmd/dist/buildgo.go      |   39 +
+ src/cmd/dist/buildruntime.c  |   68 --
+ src/cmd/dist/buildruntime.go |   46 ++
+ src/cmd/dist/cpuid_386.s     |   14 +
+ src/cmd/dist/cpuid_amd64.s   |   14 +
+ src/cmd/dist/cpuid_default.s |   10 +
+ src/cmd/dist/main.c          |   42 -
+ src/cmd/dist/main.go         |   85 ++
+ src/cmd/dist/plan9.c         |  758 ------------------
+ src/cmd/dist/sys_default.go  |   10 +
+ src/cmd/dist/sys_windows.go  |   49 ++
+ src/cmd/dist/unix.c          |  847 --------------------
+ src/cmd/dist/util.go         |  457 +++++++++++
+ src/cmd/dist/vfp_arm.s       |   15 +
+ src/cmd/dist/vfp_default.s   |   14 +
+ src/cmd/dist/windows.c       |  989 -----------------------
+ src/make.bash                |   26 +-
+ src/make.bat                 |   26 +-
+ src/make.rc                  |   21 +-
+ src/sudo.bash                |   41 -
+ 30 files changed, 2472 insertions(+), 5444 deletions(-)

@@ -1,21 +1,19 @@
-commit c55505bae23940a0e253a9ea6f25577c7123c6c0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Nov 22 21:00:36 2017 +0000
+commit 3b9d947b2f4eb3bf7ff01eb33cd1e91bbce73c77
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 24 18:43:07 2017 +0000
 
-    cmd/vet: type conversions never have side effects
+    Revert "database/sql: add driver.ResetSessioner and add pool support"
     
-    Make the hasSideEffects func use type information to see if a CallExpr
-    is a type conversion or not. In case it is, there cannot be any side
-    effects.
+    This reverts commit 2620ac3aeafe75a62fa81bd5094a8e1e4ef1ca8b.
     
-    Now that vet always has type information, we can afford to use it here.
-    Update the tests and remove the TODO there too.
+    Reason for revert: broke all the builds.
     
-    Change-Id: I74fdacf830aedf2371e67ba833802c414178caf1
-    Reviewed-on: https://go-review.googlesource.com/79536
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I26fc09a13f5f80fa708de66c843442ff9d934694
+    Reviewed-on: https://go-review.googlesource.com/73050
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/assign.go        |  2 +-
- src/cmd/vet/bool.go          | 29 ++++++++++++++++++++---------
- src/cmd/vet/testdata/bool.go | 14 +++++++++++++-
- 3 files changed, 34 insertions(+), 11 deletions(-)
+ src/database/sql/driver/driver.go |  12 -----
+ src/database/sql/fakedb_test.go   |  62 ----------------------
+ src/database/sql/sql.go           | 105 ++++----------------------------------
+ src/database/sql/sql_test.go      |  60 ++++++----------------
+ 4 files changed, 25 insertions(+), 214 deletions(-)

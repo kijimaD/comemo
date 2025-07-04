@@ -1,0 +1,17 @@
+commit c94a9fdf651e44bed2fc72c783990a0eba63b24e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 20 11:15:02 2024 +0100
+
+    os: use ignoringEINTR2 in (*Process).pidWait
+    
+    This was missed in CL 627479.
+    
+    Change-Id: Ibcd511573c330bf782fe6a8a50d56bb70aedf3c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/exec_unix.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

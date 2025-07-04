@@ -1,22 +1,25 @@
-commit 7213f2e72003325df2cebb731de838ac01f20fb6
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 15 21:19:08 2023 +0000
+commit 17083a2fdf4475c3f11a3e6a0ef8cb595a5fc4d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 22 11:58:06 2022 -0700
 
-    Revert "net/http: do not force the Content-Length header if nilled"
+    spec: retitle section on "Assignments" to "Assignment statements"
     
-    This reverts CL 469095.
+    This permits a clear distinction between an individual assignment
+    and an assignment statement which may assign more than one value.
+    It also makes this section title consistent with all other section
+    titles about statements. Adjust internal links and prose where
+    appropriate. (Note that the spec already referred to assignment
+    statements in a couple of places, even before this change.)
     
-    The newly added TestDisableContentLength is failing on all longtest
-    builders.
+    Add an introductory paragraph to the section on assignment statements.
     
-    Change-Id: Id307df61c7bf80691d9c276e8d200eebf6d4a59c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495017
-    Auto-Submit: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Preparation for adding a section on value vs reference types
+    (issue #5083).
+    
+    Change-Id: Ie140ac296e653c67da2a5a203b63352b3dc4f9f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413615
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/serve_test.go | 34 ----------------------------------
- src/net/http/server.go     |  2 +-
- 2 files changed, 1 insertion(+), 35 deletions(-)
+ doc/go_spec.html | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

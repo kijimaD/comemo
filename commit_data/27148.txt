@@ -1,27 +1,18 @@
-commit 102cf2ae0321775eef2d36d7c4258b740fe92458
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Apr 15 09:38:36 2016 +0200
+commit b55a5dbb8acacf99007d3505c5a763d48c684bb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 13 12:40:09 2016 -0700
 
-    image/color: optimize RGBToYCbCr
+    os/user: fix formatting of error group lookup message
     
-    Apply optimizations used to speed up YCbCrToRGB from
-    https://go-review.googlesource.com/#/c/21910/
-    to RGBToYCbCr.
+    It was failing like "unknown groupid ᎈ|" instead of "unknown groupid
+    5000" due to the conversion from int to string.
     
-    name             old time/op  new time/op  delta
-    RGBToYCbCr/0-2   6.81ns ± 0%  5.96ns ± 0%  -12.48%  (p=0.000 n=38+50)
-    RGBToYCbCr/Cb-2  7.68ns ± 0%  6.13ns ± 0%  -20.21%  (p=0.000 n=50+33)
-    RGBToYCbCr/Cr-2  6.84ns ± 0%  6.04ns ± 0%  -11.70%  (p=0.000 n=39+42)
+    Updates #14806
     
-    Updates #15260
-    
-    Change-Id: If3ea5393ae371a955ddf18ab226aae20b48f9692
-    Reviewed-on: https://go-review.googlesource.com/22411
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Change-Id: I83e4b478ff628ad4053573a9f32b3fadce22e847
+    Reviewed-on: https://go-review.googlesource.com/20642
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/image/color/ycbcr.go      | 43 ++++++++++++++++++++++++++++---------------
- src/image/color/ycbcr_test.go | 29 +++++++++++++++++++++++++----
- 2 files changed, 53 insertions(+), 19 deletions(-)
+ src/os/user/lookup_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

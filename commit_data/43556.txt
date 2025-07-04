@@ -1,17 +1,18 @@
-commit 79a3482d9e735fc6d0373da170fd1b4ff9222bc2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Oct 24 17:27:52 2020 +0200
+commit 7242428509ba2d947ee2bed79f60bf0301720fef
+Author: chainhelen <chainhelen@gmail.com>
+Date:   Sun Apr 12 08:38:21 2020 +0000
 
-    cmd/compile: remove support for untyped ssa rules
+    doc/debugging_with_gdb: fix the link of delve
     
-    This change removes support in rulegen for untyped -> ssa rules.
+    The repository of delve has already switched from the personal
+    account github.com/derekparker/delve to the organization account
+    github.com/go-delve/delve. According to go-delve/delve#1456.
     
-    Change-Id: I202018e191fc74f027243351bc8cf96145f2482c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264679
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ie64f72c2808a8aca5059a75e2c2f11d8691e66b3
+    GitHub-Last-Rev: f90120c3b33f2134a572a62aaf291aa2abe58749
+    GitHub-Pull-Request: golang/go#38387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227999
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 87 ++++++++---------------------
- 1 file changed, 22 insertions(+), 65 deletions(-)
+ doc/debugging_with_gdb.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

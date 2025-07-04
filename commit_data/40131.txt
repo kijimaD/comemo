@@ -1,17 +1,27 @@
-commit 33ab6ccba066d94f8b8f9f502fddf04df90ea8cd
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 1 11:05:59 2019 -0400
+commit 14b5b4a2a13c3148fdfeb4852436661791a13e2e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 19 12:27:25 2019 -0400
 
-    cmd/compile: don't attach statement marks to OpPhi
+    cmd/go/internal/modload: fix boundary conditions in matchPackages
     
-    OpPhi nodes tend to disappear or get rearranged,
-    and cause statement marks to vanish.
+    This makes the boundary logic of matchPackages consistent with
+    modload.dirInModule.
     
-    Change-Id: I2f5a222903b7fcd0d1a72e8f6d7e156036b23f30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198481
-    Run-TryBot: David Chase <drchase@google.com>
+    Previously, matchPackages always stopped at go.mod file, even within
+    the vendor tree. However, we do not guarantee that the vendor tree is
+    free of such files in general.
+    
+    matchPackages also issued needless stat operations for modules in the
+    module cach, which we already know to be free of nested modules. On
+    systems with slow filesystems (such as macOS), those extra calls could
+    potentially slow package matching considerably.
+    
+    Change-Id: I71979ab752e1d3971b370b37085d30502690413b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172985
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/numberlines.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/search.go              | 36 ++++++++++++++++------
+ src/cmd/go/testdata/script/mod_patterns_vendor.txt | 28 +++++++++++++++++
+ 2 files changed, 54 insertions(+), 10 deletions(-)

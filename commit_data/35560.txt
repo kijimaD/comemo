@@ -1,22 +1,29 @@
-commit bfdf74be12e2527d797968870564e8dafc2aacb5
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu May 31 12:04:07 2018 +0000
+commit 79fe895112dc3759506e57c519a2b38c41ee71dd
+Author: Mansour Rahimi <rahimi.mnr@gmail.com>
+Date:   Wed Feb 7 02:17:50 2018 +0100
 
-    Revert "testing: only compute b.N once when passed -count > 1"
+    net: fix UDPConn readers to return truncated payload size instead of 0
     
-    This reverts golang.org/cl/110775
+    Calling UDPConn readers (Read, ReadFrom, ReadMsgUDP) to read part of
+    datagram returns error (in Windows), mentioning there is more data
+    available, and 0 as size of read data, even though part of data is
+    already read.
     
-    Reason for revert: this is causing huge slow-dows on every run after
-    the 1st, on various benchmarks, on multiple architectures (see Issue
-    25622 for details). It's just a nice-to-have little optimization, and
-    we're near the 1st go1.11 beta release, so I'm reverting it.
+    This fix makes UDPConn readers to return truncated payload size,
+    even there is error due more data available to read.
     
-    Fixes #25622
+    Fixes #14074
+    Updates #18056
     
-    Change-Id: I758ade4af4abf764abd8336d404396992d11a0c6
-    Reviewed-on: https://go-review.googlesource.com/115535
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id7eec7f544dd759b2d970fa2561eef2937ec4662
+    Reviewed-on: https://go-review.googlesource.com/92475
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/go/go_test.go    |  4 ++++
- src/testing/benchmark.go | 47 +++++++++++++++--------------------------------
- 2 files changed, 19 insertions(+), 32 deletions(-)
+ src/internal/poll/fd_windows.go |  4 ++++
+ src/net/net.go                  | 13 ++++++-----
+ src/net/timeout_test.go         |  2 +-
+ src/net/udpsock_test.go         | 49 ++++++++++++++++++++++++++++++++++++++++-
+ src/syscall/types_windows.go    |  1 +
+ 5 files changed, 62 insertions(+), 7 deletions(-)

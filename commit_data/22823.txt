@@ -1,15 +1,32 @@
-commit bc44b818a6c3ce69e2cb7a4b942d42c41e764af1
-Author: David Chase <drchase@google.com>
-Date:   Fri May 1 11:16:35 2015 -0400
+commit 7647741246691a17f17799ae1f4c54a9828b90e4
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 22:00:11 2015 +0300
 
-    cmd/internal/gc: Toughen escape analysis against some bugs.
+    test: add -update_errors flag to run script
     
-    Ensures that parameter flow bits are not set for tags EscScope, EscHeap, EscNever;
-    crash the compiler earl to expose faulty logic, rather than flake out silently downstream.
+    The flag updates error annotations in test files from actual compiler output.
+    This is useful when doing compiler changes that add/remove/change lots of errors,
+    or when adding lots of new tests.
+    Also I noticed at least 2 cases where annotation were sub-optimal:
+    1. The annotation was "leaking param p" when the actual error is
+    "leaking param p to result ~r1".
+    2. The annotation was "leaking param m" when the actual errors
+    are "leaking param m" and "leaking param mv1".
     
-    Change-Id: I1428129980ae047d02975f033d56cbbd04f49579
-    Reviewed-on: https://go-review.googlesource.com/9601
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    For now it works only for errorcheck mode.
+    
+    Also, apply the update to escape and liveness tests.
+    Some files have gccgo-specific errors of the form "gc error|gccgo error",
+    so it is risky to run update on all files. Gccgo-specific error
+    does not necessary contain '|', it can be just truncated.
+    
+    Change-Id: Iaaae767f859dcb8321a8cb4970b2b70969e8a345
+    Reviewed-on: https://go-review.googlesource.com/5310
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/esc.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ test/escape2.go  | 874 +++++++++++++++++++++++++++----------------------------
+ test/escape2n.go | 874 +++++++++++++++++++++++++++----------------------------
+ test/live.go     |  78 ++---
+ test/run.go      |  99 ++++++-
+ 4 files changed, 999 insertions(+), 926 deletions(-)

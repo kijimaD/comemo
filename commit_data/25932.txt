@@ -1,25 +1,18 @@
-commit 3c0fae53062d80678d8f79877143b46ee787569c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 26 13:32:28 2016 -0800
+commit 30b87bb9aa0c6658830f3d111920e2f366476644
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 17:09:26 2015 +0000
 
-    cmd/compile: track pragmas in lexer rather than global variables
+    Revert "sort: improve average quicksort performance"
     
-    By using a Pragma bit set (8 bits) rather than 8 booleans, also
-    reduce Func type size by 8 bytes (208B -> 200B on 64bit platforms,
-    116B -> 108B on 32bit platforms).
+    Broke the build: http://build.golang.org/log/8159de7e0d6f3832da394c310975ddd4c4c74627
+    (cmd/gofmt TestRewrite)
     
-    Change-Id: Ibb7e1f8c418a0b5bc6ff813cbdde7bc6f0013b5a
-    Reviewed-on: https://go-review.googlesource.com/19966
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    This reverts commit 6f6b2f04b5c342edf70944e60c9c9a30eef5a9eb.
+    
+    Change-Id: Ifd46b0b76c30b0a568521eaaf5ef8968a9549bf5
+    Reviewed-on: https://go-review.googlesource.com/17383
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go  |  3 +--
- src/cmd/compile/internal/gc/cgen.go     |  4 ++--
- src/cmd/compile/internal/gc/dcl.go      |  2 +-
- src/cmd/compile/internal/gc/go.go       | 13 ------------
- src/cmd/compile/internal/gc/inl.go      |  2 +-
- src/cmd/compile/internal/gc/lex.go      | 34 ++++++++++++++++++++++--------
- src/cmd/compile/internal/gc/parser.go   | 37 +++++++++++----------------------
- src/cmd/compile/internal/gc/pgen.go     |  4 ++--
- src/cmd/compile/internal/gc/racewalk.go |  2 +-
- src/cmd/compile/internal/gc/syntax.go   | 16 +++++---------
- 10 files changed, 50 insertions(+), 67 deletions(-)
+ src/sort/example_multi_test.go |   4 +-
+ src/sort/sort.go               | 112 +++++++++++++++--------------------------
+ 2 files changed, 43 insertions(+), 73 deletions(-)

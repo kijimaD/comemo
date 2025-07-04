@@ -1,0 +1,22 @@
+commit 38825ef34715f024be0767f2bb94bb8c299f6f6b
+Author: Than McIntosh <thanm@golang.org>
+Date:   Sun Nov 17 13:20:17 2024 -0500
+
+    cmd/link, cmd/internal/objabi: remove R_DWARFFILEREF relocation type
+    
+    Get rid of the R_DWARFFILEREF relocation type -- we have not used this
+    relocation for a while now, ever since jfaller's revamp of the DWARF
+    line table file section in Go 1.15. No change in compiler or linker
+    functionality; this is purely a dead code cleanup.
+    
+    Change-Id: I178760c87f3aa79694cfabe7364ca382605c6975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633876
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/objabi/reloctype.go        |   5 --
+ src/cmd/internal/objabi/reloctype_string.go | 133 ++++++++++++++--------------
+ src/cmd/link/internal/ld/data.go            |   4 -
+ src/cmd/link/internal/ld/pe.go              |   3 -
+ 4 files changed, 66 insertions(+), 79 deletions(-)

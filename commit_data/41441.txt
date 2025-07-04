@@ -1,36 +1,22 @@
-commit 583419e5d2a893e369095355035f4ebb18bb85f8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 11 09:12:25 2019 -0500
+commit 6139019efaa3faa9ec94a57ab8c15b726d516664
+Author: David Chase <drchase@google.com>
+Date:   Wed Sep 25 15:20:10 2019 -0400
 
-    cmd/go/internal/{test,vet}: use a standard flag.FlagSet to parse flags
+    cmd/compile: pick position of implicit break statements more carefully
     
-    This removes much of the complexity of the implementation and use of
-    the cmd/go/internal/cmdflag package, and makes the behavior of GOFLAGS
-    in 'go test' and 'go vet' more consistent with other subcommands.
+    The previous version used the position of the switch statement,
+    which makes for potentially jumpy stepping and introduces a large
+    number of statements repeating the line (tricky for inserting
+    breaks).  It also shared a single OBREAK node and this was not
+    really a syntax "tree".
     
-    Some of the complexity reduction has been offset by code comments and
-    bug fixes, particularly for the handling of GOPATH arguments and flag
-    terminators ('--').
+    This improves both the nostmt test (by 6 lines) and
+    reduces the total badness score from dwarf-goodness (by about 200).
     
-    Fixes #32471
-    Fixes #18682
-    
-    Change-Id: I1f6e46a7c679062e1e409e44a2b9f03b9172883b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211358
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I1f71b231a26f152bdb6ce9bc8f95828bb222f665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188218
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.15.html                           |  11 +
- src/cmd/go/internal/base/goflags.go       |  12 +-
- src/cmd/go/internal/cmdflag/flag.go       | 203 ++++++-------
- src/cmd/go/internal/test/flagdefs.go      |  34 +++
- src/cmd/go/internal/test/flagdefs_test.go |  34 +++
- src/cmd/go/internal/test/genflags.go      |  90 ++++++
- src/cmd/go/internal/test/test.go          | 149 +++++-----
- src/cmd/go/internal/test/testflag.go      | 463 +++++++++++++++++++-----------
- src/cmd/go/internal/vet/vet.go            |   8 +-
- src/cmd/go/internal/vet/vetflag.go        | 163 ++++++-----
- src/cmd/go/internal/work/build.go         |   5 +-
- src/cmd/go/main.go                        |   2 +-
- src/cmd/go/testdata/script/test_flags.txt | 103 +++++++
- src/cmd/go/testdata/script/vet_flags.txt  |  58 +++-
- 14 files changed, 881 insertions(+), 454 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

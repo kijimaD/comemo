@@ -1,21 +1,19 @@
-commit a8d85918b63d481a414ec5ca3978d07b2b047363
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed May 19 22:51:11 2021 +0000
+commit e4b4e4b733624a4922741f13dcdaa493c01fe9fd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 1 15:40:37 2020 -0500
 
-    misc/cgo/testplugin: skip TestIssue25756pie on darwin/arm64 builder
+    race.bash: add darwin/arm64
     
-    This test is known to be broken on the darwin/arm64 builder.
-    Skip it while it's being investigated so it doesn't mask other failures.
+    Race detector support was added in previous CLs.
     
-    For #46239.
-    Updates #43228.
+    Updates #38485.
     
-    Change-Id: I8fe57a0636bba84c3100337146dcb96cc264e524
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321349
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie9ae69406ff4770f573c2287bfbbb0421769b3ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267098
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testplugin/plugin_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/race.bash | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

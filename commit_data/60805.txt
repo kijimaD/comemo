@@ -1,0 +1,55 @@
+commit 3d4daa38a763260e07f4745110f2b5fcbec25126
+Author: Aperence <anthony.doeraene@hotmail.com>
+Date:   Wed Aug 28 17:45:58 2024 +0000
+
+    net: enable multipath TCP by default for listeners
+    
+    A previous change [1] was introduced to enable MPTCP by default
+    for both the clients and servers, based on the discussions [2] in
+    golang#56539, where MPTCP would be an opt-in for a release or
+    two, and then would become an opt-out.
+    
+    This change was not accepted at the time because the support for
+    a few socket options was missing [3]. Now that this support has been
+    added [4] and backported to stable versions not to block MPTCP
+    deployment with Go, it sounds like a good time to reconsider the use
+    of MPTCP by default.
+    
+    Instead of enabling MPTCP on both ends by default, as a first step,
+    it seems safer to change the default behaviour only for the server
+    side (Listeners). On the server side, the impact is minimal: when
+    clients don't request to use MPTCP, server applications will create
+    "plain" TCP sockets within the kernel when connections are accepted,
+    making the performance impact minimal. This should also ease
+    experiments where MPTCP is enabled by default on the client side
+    (Dialer).
+    
+    The changes in this patch consist of a duplication of the mptcpStatus
+    enumeration to have both a mptcpStatusDial and a mptcpStatusListen,
+    where MPTCP is enabled by default in mptcpStatusListen, but disabled
+    by default in mptcpStatusDial. It is still possible to turn MPTCP support
+    on and off by using GODEBUG=multipathtcp=1.
+    
+    [1] https://go-review.googlesource.com/c/go/+/563575
+    [2] https://go.dev/issue/56539#issuecomment-1309294637
+    [3] https://github.com/multipath-tcp/mptcp_net-next/issues/383
+    [4] https://github.com/torvalds/linux/commit/bd11dc4fb969ec148e50cd87f88a78246dbc4d0b
+    [5] https://www.mptcp.dev/faq.html#why--when-should-mptcp-be-enabled-by-default
+    
+    Updates #56539
+    
+    Change-Id: I1ca0d6aaf74d3bda5468af135e29cdb405d3fd00
+    GitHub-Last-Rev: 5f9f29bfc13ad4ea6bfd1e0fc95a91bd824f4048
+    GitHub-Pull-Request: golang/go#69016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthieu Baerts <matttbe@kernel.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/godebug.md                          | 11 +++++
+ doc/next/6-stdlib/99-minor/net/56539.md |  2 +
+ src/internal/godebugs/table.go          |  2 +-
+ src/net/dial.go                         | 83 ++++++++++++++++++++++++++-------
+ 4 files changed, 79 insertions(+), 19 deletions(-)

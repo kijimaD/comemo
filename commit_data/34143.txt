@@ -1,16 +1,19 @@
-commit 0519126a3fd0555af996d3e32db04982227ac469
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Fri Jan 26 16:36:15 2018 -0400
+commit 5edfaa2cf8407853a0303fd7ee561f7621140c4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 09:22:04 2017 -0400
 
-    encoding/hex: fix potential incorrect Dumper output when Close is called multiple times
+    cmd/go: clean up implicit compiler and linker dependencies
     
-    Fixes #23574
+    Telling the truth about these will be important for
+    content-based staleness checks.
     
-    Change-Id: I69573de47daa6fd53cc99a78c0c4b867460242e3
-    Reviewed-on: https://go-review.googlesource.com/90275
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iaed6ca6c945eb805d815156753a3e5dc48c6f0b9
+    Reviewed-on: https://go-review.googlesource.com/68336
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/encoding/hex/hex.go      |  8 +++++++-
- src/encoding/hex/hex_test.go | 16 ++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go   | 102 +++++++++++++++++++++++---------------
+ src/cmd/go/internal/test/test.go  |   7 +--
+ src/cmd/go/internal/work/build.go |   4 --
+ 3 files changed, 65 insertions(+), 48 deletions(-)

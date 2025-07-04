@@ -1,22 +1,31 @@
-commit ad618689ef06e9dca86c0e2b9b38a2c1b9266f4a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Sep 26 16:30:02 2020 +0200
+commit c6f678b6efd6622d335e6d4b659282bb2d16f5ba
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 5 16:17:45 2020 -0500
 
-    cmd/dist: detect gohostarch on netbsd/arm64 hosts
+    cmd/go/internal/lockedfile: use a retry loop to suppress EDEADLK on AIX and Solaris
     
-    On netbsd/arm64 `uname -m` reports `evbarm` which is mapped to
-    gohostarch=arm. Fix this by checking for "aarch64" in `uname -p` output
-    to fix self-hosted build on netbsd/arm64.
+    AIX, Solaris, and Illumos all appear to implement fcntl deadlock
+    detection at the granularity of processes. However, we are acquiring
+    and releasing file locks on individual goroutines running
+    concurrently: our locking occurs at a much finer granularity. As a
+    result, these platforms occasionally fail with EDEADLK errors, when
+    they detect locks that would be _misordered_ in a single-threaded
+    program but are safely _unordered_ in a multi-threaded context.
     
-    Updates #30824
+    To work around the spurious errors, we treat EDEADLK as always
+    spurious, and retry the failing system call with a bounded exponential
+    backoff. This approach may introduce substantial latency since we no
+    longer benefit from kernel-scheduled wakeups in case of collisions,
+    but high-latency operations seem better than spurious failures.
     
-    Change-Id: I0f0450ff35af0bec51aeec3b210143ba892216c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257643
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Updates #33974
+    Updates #35618
+    Fixes #32817
+    
+    Change-Id: I58b2c6a0f143bce55d6460fd4ddc3db83577ada7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222277
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/main.go | 3 +++
- 1 file changed, 3 insertions(+)
+ .../lockedfile/internal/filelock/filelock_fcntl.go | 70 ++++++++++++++--
+ src/cmd/go/internal/lockedfile/lockedfile_test.go  | 98 ++++++++++++++++++++++
+ 2 files changed, 163 insertions(+), 5 deletions(-)

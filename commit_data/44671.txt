@@ -1,38 +1,25 @@
-commit 8ed438c077d82c4b4662c327dbbdb3c64e7547ca
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 10 20:54:11 2021 -0500
+commit 8a984e8e3f2cf4101f448ea9b9d9880b9e83c11e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 14:47:47 2020 -0700
 
-    cmd/compile: spill output parameters passed in registers as autos
+    runtime: omit nil-channel cases from selectgo's orders
     
-    ALSO:
-    found evidence that stack maps for bodyless methods are wrong.
-    gofmt in test/abi
-    removed never-executed code in types/size.go
+    Currently, selectgo does an initial pass over the cases array to look
+    for entries with nil channels, so they can be easily recognized and
+    skipped later on. But this still involves actually visiting the cases.
     
-    Updates #44816.
+    This commit changes selectgo to omit cases with nil channels when
+    constructing pollorder, so that they'll be skipped over entirely later
+    on. It also checks for caseDefault up front, which will facilitate
+    changing it to use a "block bool" parameter instead.
     
-    Change-Id: I658c33f049337fb6f1e625f0c55430d25bfa877e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300749
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #40410.
+    
+    Change-Id: Icaebcb8f08df03cc33b6d8087616fb5585f7fedd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245123
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go          | 31 ++++++++--
- src/cmd/compile/internal/dwarfgen/dwarf.go        | 10 ++-
- src/cmd/compile/internal/gc/compile.go            |  2 +-
- src/cmd/compile/internal/ir/name.go               | 75 ++++++++++++-----------
- src/cmd/compile/internal/liveness/plive.go        | 19 ++++--
- src/cmd/compile/internal/ssa/op.go                | 10 +++
- src/cmd/compile/internal/ssagen/pgen.go           | 18 ++++--
- src/cmd/compile/internal/ssagen/ssa.go            | 30 +++++----
- src/cmd/compile/internal/test/abiutilsaux_test.go |  2 +-
- src/cmd/compile/internal/types/size.go            | 12 +---
- src/cmd/compile/internal/types/type.go            |  4 +-
- test/abi/fibish2.go                               |  4 +-
- test/abi/leaf.go                                  | 36 +++++++++++
- test/abi/leaf2.go                                 | 43 +++++++++++++
- test/abi/methods.go                               | 11 ++--
- test/abi/spills3.go                               | 48 +++++++++++++++
- test/abi/spills4.go                               | 44 +++++++++++++
- 17 files changed, 309 insertions(+), 90 deletions(-)
+ src/runtime/select.go | 66 +++++++++++++++++++++------------------------------
+ 1 file changed, 27 insertions(+), 39 deletions(-)

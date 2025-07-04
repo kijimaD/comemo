@@ -1,16 +1,21 @@
-commit 559b17fe3422f070d6cb8e68ac2ac12431d78b43
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jun 2 16:43:12 2022 -0400
+commit 7b7d7d7818dfc1db22930be9333e8cc9f8c7f68c
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:11:18 2021 -0400
 
-    doc/go1.19: add release notes for sync/atomic
+    go/types: fix range over exprs of type parameter type
     
-    For #51400
+    This is a port of CL 339897 to go/types. In addition, an error message
+    that was adjusted in CL 274974 is ported to go/types (CL 274974 was
+    only considered necessary for compiler compatibility).
     
-    Change-Id: I32a3aedf1e8a52148a9d78c4f7dae1ea59c810b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410115
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idfe44d759c925f9fed353a2d1898d3d4d8d85452
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342433
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/go/types/builtins.go                   |   8 +-
+ src/go/types/stmt.go                       |  40 ++-------
+ src/go/types/testdata/check/typeparams.go2 | 137 ++++++++++++++++++++++-------
+ 3 files changed, 113 insertions(+), 72 deletions(-)

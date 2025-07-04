@@ -1,58 +1,20 @@
-commit 816ff44479ae1f1e9459221f63206e93f6f12824
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Oct 4 16:03:36 2019 -0400
+commit 8a20fde697c973962d978c1284fddf81a694141a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 27 17:52:25 2019 +0100
 
-    cmd/compile: use vsx loads and stores for LoweredMove, LoweredZero on ppc64x
+    unicode: remove script test
     
-    This improves the code generated for LoweredMove and LoweredZero by
-    using LXVD2X and STXVD2X to move 16 bytes at a time. These instructions
-    are now used if the size to be moved or zeroed is >= 64. These same
-    instructions have already been used in the asm implementations for
-    memmove and memclr.
+    The script test requires a manual update on each new
+    Unicode release, which interupts the automated flow.
+    The test is removed in favor of one that fits within the
+    automated scripts.
+    See https://go-review.googlesource.com/c/text/+/169638.
     
-    Some examples where this shows an improvement on power8:
+    Updates golang/go#27945
     
-    MakeSlice/Byte                                  27.3ns ± 1%     25.2ns ± 0%    -7.69%
-    MakeSlice/Int16                                 40.2ns ± 0%     35.2ns ± 0%   -12.39%
-    MakeSlice/Int                                   94.9ns ± 1%     77.9ns ± 0%   -17.92%
-    MakeSlice/Ptr                                    129ns ± 1%      103ns ± 0%   -20.16%
-    MakeSlice/Struct/24                              176ns ± 1%      131ns ± 0%   -25.67%
-    MakeSlice/Struct/32                              200ns ± 1%      142ns ± 0%   -29.09%
-    MakeSlice/Struct/40                              220ns ± 2%      156ns ± 0%   -28.82%
-    GrowSlice/Byte                                  81.4ns ± 0%     73.4ns ± 0%    -9.88%
-    GrowSlice/Int16                                  118ns ± 1%       98ns ± 0%   -17.03%
-    GrowSlice/Int                                    178ns ± 1%      134ns ± 1%   -24.65%
-    GrowSlice/Ptr                                    249ns ± 4%      212ns ± 0%   -14.94%
-    GrowSlice/Struct/24                              294ns ± 5%      215ns ± 0%   -27.08%
-    GrowSlice/Struct/32                              315ns ± 1%      248ns ± 0%   -21.49%
-    GrowSlice/Struct/40                              382ns ± 4%      289ns ± 1%   -24.38%
-    ExtendSlice/IntSlice                             109ns ± 1%       90ns ± 1%   -17.51%
-    ExtendSlice/PointerSlice                         142ns ± 2%      118ns ± 0%   -16.75%
-    ExtendSlice/NoGrow                              6.02ns ± 0%     5.88ns ± 0%    -2.33%
-    Append                                          27.2ns ± 0%     27.6ns ± 0%    +1.38%
-    AppendGrowByte                                  4.20ms ± 3%     2.60ms ± 0%   -38.18%
-    AppendGrowString                                 134ms ± 3%      102ms ± 2%   -23.62%
-    AppendSlice/1Bytes                              5.65ns ± 0%     5.67ns ± 0%    +0.35%
-    AppendSlice/4Bytes                              6.40ns ± 0%     6.55ns ± 0%    +2.34%
-    AppendSlice/7Bytes                              8.74ns ± 0%     8.84ns ± 0%    +1.14%
-    AppendSlice/8Bytes                              5.68ns ± 0%     5.70ns ± 0%    +0.40%
-    AppendSlice/15Bytes                             9.31ns ± 0%     9.39ns ± 0%    +0.86%
-    AppendSlice/16Bytes                             14.0ns ± 0%      5.8ns ± 0%   -58.32%
-    AppendSlice/32Bytes                             5.72ns ± 0%     5.68ns ± 0%    -0.66%
-    AppendSliceLarge/1024Bytes                       918ns ± 8%      615ns ± 1%   -33.00%
-    AppendSliceLarge/4096Bytes                      3.25µs ± 1%     1.92µs ± 1%   -40.84%
-    AppendSliceLarge/16384Bytes                     8.70µs ± 2%     4.69µs ± 0%   -46.08%
-    AppendSliceLarge/65536Bytes                     18.1µs ± 3%      7.9µs ± 0%   -56.30%
-    AppendSliceLarge/262144Bytes                    69.8µs ± 2%     25.9µs ± 0%   -62.91%
-    AppendSliceLarge/1048576Bytes                    258µs ± 1%       93µs ± 0%   -63.96%
-    
-    Change-Id: I21625dbe231a2029ddb9f7d73f5a6417b35c1e49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199639
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I9c9f1e2a77f7baef17040ea09eec28d7cf55b5e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169619
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 218 ++++++++++++++++++---------
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  57 +++----
- src/cmd/compile/internal/ssa/opGen.go        |   2 +-
- 3 files changed, 182 insertions(+), 95 deletions(-)
+ src/unicode/script_test.go | 180 ---------------------------------------------
+ 1 file changed, 180 deletions(-)

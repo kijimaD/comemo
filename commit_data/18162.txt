@@ -1,12 +1,15 @@
-commit c136197ca8a536b6fd93f0ee2a7de6c6541c0124
-Author: Jeff Sickel <jas@corpus-callosum.com>
-Date:   Sat Jan 4 10:53:22 2014 -0800
+commit f59ea4e58b77e4540e87e42dc9192b8d424adf6b
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jan 4 08:43:17 2014 -0800
 
-    runtime: plan 9 does have /dev/random
+    runtime: Fix race detector checks to ignore KindNoPointers bit
+    when comparing kinds.
     
-    R=golang-codereviews, r, aram
-    CC=0intro, golang-codereviews, rsc
-    https://golang.org/cl/43420045
+    R=dvyukov, dave, khr
+    CC=golang-codereviews
+    https://golang.org/cl/41660045
 
- src/pkg/runtime/os_plan9.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/runtime/hashmap.c | 45 +++++++++------------------------------------
+ src/pkg/runtime/race.c    | 26 ++++++++++++++++++++++++++
+ src/pkg/runtime/race.h    |  2 ++
+ 3 files changed, 37 insertions(+), 36 deletions(-)

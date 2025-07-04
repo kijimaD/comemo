@@ -1,17 +1,19 @@
-commit fd975c6aa535f2aa066653235be992731d691cfb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 8 04:51:21 2016 +0000
+commit f0e2d32fde77ad03616304ab42b8c7426cf3a350
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 6 15:34:25 2016 +0000
 
-    io/ioutil: return better error when TempDir called with non-extant dir
+    Revert "net/url: validate ports in IPv4 addresses"
     
-    Fixes #14196
+    This reverts commit 9f1ccd647fcdb1b703c1042c90434e15aff75013.
     
-    Change-Id: Ife7950289ac6adbcfc4d0f2fce31f20bc2657858
-    Reviewed-on: https://go-review.googlesource.com/28772
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #14860.
+    
+    Change-Id: I63522a4dda8915dc8b972ae2e12495553ed65f09
+    Reviewed-on: https://go-review.googlesource.com/22861
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/ioutil/tempfile.go      |  5 +++++
- src/io/ioutil/tempfile_test.go | 16 ++++++++++++++++
- 2 files changed, 21 insertions(+)
+ src/net/url/url.go      | 6 +-----
+ src/net/url/url_test.go | 6 ++----
+ 2 files changed, 3 insertions(+), 9 deletions(-)

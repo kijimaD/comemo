@@ -1,12 +1,12 @@
-commit c14f71c78839f51652d6420fb03b3538914ad062
+commit e67d3c44f702639e0be75ca3e69542eeaf62c498
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:48:27 2011 -0400
+Date:   Tue Nov 1 21:47:33 2011 -0400
 
-    runtime: update for error
+    exp/types: add error type to universe
     
-    R=golang-dev, iant, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5306075
+    https://golang.org/cl/5327051
 
- src/pkg/runtime/error.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/exp/types/universe.go | 1 +
+ 1 file changed, 1 insertion(+)

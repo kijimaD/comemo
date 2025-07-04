@@ -1,21 +1,81 @@
-commit ff35c382eb118565778fbf247e04e76730cdfc6c
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Sat Feb 3 09:06:30 2024 +0100
+commit f5eef58e4381259cbd84b3f2074c79607fb5c821
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 13 20:59:14 2023 -0700
 
-    cmd/compile: remove bug workarounds in prove's loop inversion
+    syscall: restore original NOFILE rlimit in child process
     
-    I wrote theses checks because I got bad panics on some innocent functions,
-    turns out I was working around #63955 but I was not aware of that at the time.
+    If we increased the NOFILE rlimit when starting the program,
+    restore the original rlimit when forking a child process.
     
-    The proper fix was included in CL 539977 this is now doing nothing.
+    For #46279
     
-    Change-Id: I89329329933527b6f3cb817dc1e039a38f58da9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560975
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia5d2af9ef435e5932965c15eec2e428d2130d230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476097
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 21 ++-------------------
- 1 file changed, 2 insertions(+), 19 deletions(-)
+ src/runtime/syscall2_solaris.go         |  2 ++
+ src/runtime/syscall_aix.go              | 10 ++++++++
+ src/runtime/syscall_solaris.go          | 14 +++++++++++
+ src/syscall/asm_solaris_amd64.s         |  3 +++
+ src/syscall/exec_bsd.go                 |  7 ++++++
+ src/syscall/exec_freebsd.go             |  7 ++++++
+ src/syscall/exec_libc.go                |  8 +++++++
+ src/syscall/exec_libc2.go               |  7 ++++++
+ src/syscall/exec_linux.go               |  7 ++++++
+ src/syscall/exec_unix.go                |  5 ++++
+ src/syscall/exec_unix_test.go           | 42 +++++++++++++++++++++++++++++++++
+ src/syscall/export_rlimit_test.go       | 14 +++++++++++
+ src/syscall/rlimit.go                   | 22 ++++++++++++++++-
+ src/syscall/syscall_aix.go              |  2 +-
+ src/syscall/syscall_darwin.go           |  2 +-
+ src/syscall/syscall_dragonfly.go        |  2 +-
+ src/syscall/syscall_freebsd.go          |  2 +-
+ src/syscall/syscall_linux.go            | 13 +++++++++-
+ src/syscall/syscall_linux_386.go        | 33 +++++++++++++++++++++++---
+ src/syscall/syscall_linux_amd64.go      | 12 +++++++++-
+ src/syscall/syscall_linux_arm.go        | 33 +++++++++++++++++++++++---
+ src/syscall/syscall_linux_arm64.go      | 18 ++++++++++----
+ src/syscall/syscall_linux_loong64.go    | 10 ++++++--
+ src/syscall/syscall_linux_mips64x.go    | 12 +++++++++-
+ src/syscall/syscall_linux_mipsx.go      | 33 +++++++++++++++++++++++---
+ src/syscall/syscall_linux_ppc64x.go     | 12 +++++++++-
+ src/syscall/syscall_linux_riscv64.go    |  8 ++++++-
+ src/syscall/syscall_linux_s390x.go      |  8 ++++++-
+ src/syscall/syscall_netbsd.go           |  2 +-
+ src/syscall/syscall_openbsd.go          |  2 +-
+ src/syscall/syscall_solaris.go          |  2 +-
+ src/syscall/zsyscall_aix_ppc64.go       |  2 +-
+ src/syscall/zsyscall_darwin_amd64.go    |  2 +-
+ src/syscall/zsyscall_darwin_arm64.go    |  2 +-
+ src/syscall/zsyscall_dragonfly_amd64.go |  2 +-
+ src/syscall/zsyscall_freebsd_386.go     |  2 +-
+ src/syscall/zsyscall_freebsd_amd64.go   |  2 +-
+ src/syscall/zsyscall_freebsd_arm.go     |  2 +-
+ src/syscall/zsyscall_freebsd_arm64.go   |  2 +-
+ src/syscall/zsyscall_freebsd_riscv64.go |  2 +-
+ src/syscall/zsyscall_linux_386.go       |  4 ++--
+ src/syscall/zsyscall_linux_amd64.go     |  4 ++--
+ src/syscall/zsyscall_linux_arm.go       |  4 ++--
+ src/syscall/zsyscall_linux_arm64.go     |  4 ++--
+ src/syscall/zsyscall_linux_loong64.go   |  2 +-
+ src/syscall/zsyscall_linux_mips.go      |  4 ++--
+ src/syscall/zsyscall_linux_mips64.go    |  4 ++--
+ src/syscall/zsyscall_linux_mips64le.go  |  4 ++--
+ src/syscall/zsyscall_linux_mipsle.go    |  4 ++--
+ src/syscall/zsyscall_linux_ppc64.go     |  4 ++--
+ src/syscall/zsyscall_linux_ppc64le.go   |  4 ++--
+ src/syscall/zsyscall_linux_riscv64.go   |  4 ++--
+ src/syscall/zsyscall_linux_s390x.go     |  4 ++--
+ src/syscall/zsyscall_netbsd_386.go      |  2 +-
+ src/syscall/zsyscall_netbsd_amd64.go    |  2 +-
+ src/syscall/zsyscall_netbsd_arm.go      |  2 +-
+ src/syscall/zsyscall_netbsd_arm64.go    |  2 +-
+ src/syscall/zsyscall_openbsd_386.go     |  2 +-
+ src/syscall/zsyscall_openbsd_amd64.go   |  2 +-
+ src/syscall/zsyscall_openbsd_arm.go     |  2 +-
+ src/syscall/zsyscall_openbsd_arm64.go   |  2 +-
+ src/syscall/zsyscall_openbsd_mips64.go  |  2 +-
+ src/syscall/zsyscall_solaris_amd64.go   |  2 +-
+ 63 files changed, 369 insertions(+), 73 deletions(-)

@@ -1,28 +1,23 @@
-commit 0652c80e2afa14d62067be567c498c83a6485fd8
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 24 17:21:48 2020 -0500
+commit adc4d2cc2dbc20c14bae7bbdbca8d75421e1bef5
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 11:12:29 2019 -0400
 
-    cmd/go: emit an error for extraneous files in GOROOT/src in module mode
+    cmd/compile: run deadcode before nilcheck for better statement relocation
     
-    If there's a go file immediately in GOROOT/src, it was probably
-    accidentally added by the user. Since that package shouldn't
-    exist, return an error if a user tries to list it. We're only making
-    this change for GOPATH mode because we don't want to break cases
-    where users have been doing this historically, but want to fix
-    this case for the future.
+    Nilcheck would move statements from NilCheck values to others that
+    turned out were already dead, which leads to lost statements.  Better
+    to eliminate the dead code first.
     
-    This also leaves open the weird cases where files are placed directly
-    in vendor directories.
+    One "error" is removed from test/prove.go because the code is
+    actually dead, and the additional deadcode pass removes it before
+    prove can run.
     
-    Fixes #36587
-    
-    Change-Id: I9738e47b1e89fd5048cbb8dd28e44648834b8ea7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216381
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: If75926ca1acbb59c7ab9c8ef14d60a02a0a94f8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198479
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modload/import.go              |  2 +
- src/cmd/go/internal/modload/load.go                |  6 +++
- .../go/testdata/script/list_gofile_in_goroot.txt   | 46 ++++++++++++++++++++++
- 3 files changed, 54 insertions(+)
+ src/cmd/compile/internal/ssa/compile.go | 1 +
+ test/prove.go                           | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

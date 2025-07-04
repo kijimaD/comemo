@@ -1,40 +1,18 @@
-commit 87f97c73d37d41e8de261215f7dc7768697246b5
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 28 14:33:39 2015 -0400
+commit 9f3a2d5f9abb148c4e543a3e7046b46d0bb9cc07
+Author: Andrey Petrov <andrey.petrov@shazow.net>
+Date:   Thu Jun 18 21:43:01 2015 +0200
 
-    runtime: avoid race between SIGPROF traceback and stack barriers
+    doc: clarify duplicate symbol condition in cgo
     
-    The following sequence of events can lead to the runtime attempting an
-    out-of-bounds access on a stack barrier slice:
+    Spell out what will happen if a declaration and definition is included
+    in the same file, should help people who run into duplicate symbol
+    errors and search for relevant keywords.
     
-    1. A SIGPROF comes in on a thread while the G on that thread is in
-       _Gsyscall. The sigprof handler calls gentraceback, which saves a
-       local copy of the G's stkbar slice. Currently the G has no stack
-       barriers, so this slice is empty.
+    This edit is based on opening issue #11263 erroneously.
     
-    2. On another thread, the GC concurrently scans the stack of the
-       goroutine being profiled (it considers it stopped because it's in
-       _Gsyscall) and installs stack barriers.
-    
-    3. Back on the sigprof thread, gentraceback comes across a stack
-       barrier in the stack and attempts to look it up in its (zero
-       length) copy of G's old stkbar slice, which causes an out-of-bounds
-       access.
-    
-    This commit fixes this by adding a simple cas spin to synchronize the
-    SIGPROF handler with stack barrier insertion.
-    
-    In general I would prefer that this synchronization be done through
-    the G status, since that's how stack scans are otherwise synchronized,
-    but adding a new lock is a much smaller change and G statuses are full
-    of subtlety.
-    
-    Fixes #11863.
-    
-    Change-Id: Ie89614a6238bb9c6a5b1190499b0b48ec759eaf7
-    Reviewed-on: https://go-review.googlesource.com/12748
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0645a9433b8668d2ede9b9a3f6550d802c26388b
+    Reviewed-on: https://go-review.googlesource.com/11247
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc1.go    | 12 ++++++++++++
- src/runtime/runtime2.go |  1 +
- 2 files changed, 13 insertions(+)
+ src/cmd/cgo/doc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

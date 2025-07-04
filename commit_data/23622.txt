@@ -1,23 +1,23 @@
-commit 315e5c99d868bffad5ac75871e486d6f3a625f23
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 6 15:52:33 2015 +1000
+commit 321663197e57ea5cea704b337cb8185f33883bd0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 2 11:01:56 2015 -0700
 
-    debug/pe: truncate pe sections to their size in memory
+    net/http: set nosniff header when serving Error
     
-    Section.Data returns disk section data, but those are rounded up to
-    some predefined value. Processing these as is confuses dwarf parser
-    because of garbage at the end. Truncate Section.Data as per memory
-    section description.
+    The Error function is a potential XSS vector if a user can control the
+    error message.
     
-    Sometimes dwarf sections have memory section size of 0
-    (for pe object files). Keep those to their disk size.
+    For example, an http.FileServer when given a request for this path
+            /<script>alert("xss!")</script>
+    may return a response with a body like this
+            open <script>alert("xss!")</script>: no such file or directory
+    Browsers that sniff the content may interpret this as HTML and execute
+    the script. The nosniff header added by this CL should help, but we
+    should also try santizing the output entirely.
     
-    Fixes #11608
-    
-    Change-Id: I8de0a2271201a24aa9ac8dac44f1e9c8a9285183
-    Reviewed-on: https://go-review.googlesource.com/11950
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I447f701531329a2fc8ffee2df2f8fa69d546f893
+    Reviewed-on: https://go-review.googlesource.com/10640
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file.go      |   3 ++
- src/debug/pe/file_test.go | 116 ++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 94 insertions(+), 25 deletions(-)
+ src/net/http/server.go | 1 +
+ 1 file changed, 1 insertion(+)

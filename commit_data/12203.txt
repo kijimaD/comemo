@@ -1,12 +1,25 @@
-commit d8ccebfffa40b016d9e90713ce0430c37d98175c
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 24 15:10:46 2012 -0500
+commit dc38756ce12e83c9466afaa4d439da03303fec7b
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Feb 24 14:48:36 2012 -0500
 
-    net/http/cgi: fix empty response
+    gc: reject import paths containing special characters
     
-    R=golang-dev, gri
+    Also allow multiple invalid import statements in a
+    single file.
+    
+    Fixes #3021. The changes to go/parser and the
+    language specifcation have already been committed.
+    
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5693058
+    https://golang.org/cl/5672084
 
- src/pkg/net/http/cgi/child.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/go.h    |    1 +
+ src/cmd/gc/go.y    |   10 +-
+ src/cmd/gc/lex.c   |   23 +-
+ src/cmd/gc/subr.c  |   44 +-
+ src/cmd/gc/y.tab.c | 3767 ++++++++++++++++++++++++++--------------------------
+ src/cmd/gc/y.tab.h |   14 +-
+ src/cmd/gc/yerr.h  |   28 +-
+ test/import5.go    |   44 +-
+ 8 files changed, 2040 insertions(+), 1891 deletions(-)

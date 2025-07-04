@@ -1,12 +1,29 @@
-commit 429a67e30033935d45e368d32b56dedb8c010fee
+commit 9c0500b466196388ab40e03c94759066bb1c7fe6
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 6 14:43:36 2013 +0400
+Date:   Tue Aug 6 13:38:44 2013 +0400
 
-    net: fix intentional build breakage introduced in 12413043
+    runtime: use gcpc/gcsp during traceback of goroutines in syscalls
+    gcpc/gcsp are used by GC in similar situation.
+    gcpc/gcsp are also more stable than gp->sched,
+    because gp->sched is mutated by entersyscall/exitsyscall
+    in morestack and mcall. So it has higher chances of being inconsistent.
+    Also, rename gcpc/gcsp to syscallpc/syscallsp.
     
-    R=alex.brainman
+    This is the same as reverted change 12250043
+    with save marked as textflag 7.
+    The problem was that if save calls morestack,
+    then subsequent lessstack spoils g->sched.pc/sp.
+    And that bad values were remembered in g->syscallpc/sp.
+    Entersyscallblock had the same problem,
+    but it was never triggered to date.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12502044
+    https://golang.org/cl/12478043
 
- src/pkg/net/tcp_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c          | 10 +++++-----
+ src/pkg/runtime/proc.c          | 40 ++++++++++++++++++++--------------------
+ src/pkg/runtime/runtime.h       |  8 ++++----
+ src/pkg/runtime/traceback_arm.c |  4 ++--
+ src/pkg/runtime/traceback_x86.c |  4 ++--
+ 5 files changed, 33 insertions(+), 33 deletions(-)

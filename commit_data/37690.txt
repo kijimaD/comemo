@@ -1,20 +1,33 @@
-commit 3331608c1c1f357c26f46f028a2c5c6e23036d63
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Dec 13 08:17:09 2018 -0500
+commit 7a178df0bcdfbb3a73ffa9ff2701577f3621a113
+Author: go101 <tapir.liu@gmail.com>
+Date:   Wed Aug 22 16:12:46 2018 +0000
 
-    go/internal/gccgoimporter: test fix for older gccgo versions
+    strings: use Builder in Repeat to avoid an allocation
     
-    Avoid running the test for issue 29198 if the available copy of gccgo
-    is too old (needs to support context package). Fixes a failure on the
-    solaris builder.
+    name           old time/op    new time/op    delta
+    Repeat/5x1-4     95.9ns ± 2%    70.1ns ± 2%  -26.93%  (p=0.000 n=9+10)
+    Repeat/5x2-4      146ns ± 3%     100ns ± 2%  -31.99%  (p=0.000 n=10+10)
+    Repeat/5x6-4      203ns ± 3%     140ns ± 4%  -30.77%  (p=0.000 n=10+10)
+    Repeat/10x1-4     139ns ± 3%      92ns ± 4%  -34.08%  (p=0.000 n=10+10)
+    Repeat/10x2-4     188ns ± 4%     122ns ± 2%  -35.34%  (p=0.000 n=10+10)
+    Repeat/10x6-4     264ns ± 5%     179ns ± 4%  -32.15%  (p=0.000 n=10+10)
     
-    Updates #29198.
+    name           old alloc/op   new alloc/op   delta
+    Repeat/5x1-4      10.0B ± 0%      5.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/5x2-4      32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/5x6-4      64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/10x1-4     32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/10x2-4     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/10x6-4      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
     
-    Change-Id: I2b1b3438f4ac105432f30078fbef78e24f2077cd
-    Reviewed-on: https://go-review.googlesource.com/c/153831
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I6619336da636df39c560f6cc481519f48c6e8176
+    GitHub-Last-Rev: 4b2c73f3bfa0b3789268b9ea6e1ecdb984e8087c
+    GitHub-Pull-Request: golang/go#25894
+    Reviewed-on: https://go-review.googlesource.com/118855
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/strings/strings.go      | 24 +++++++++++++++++-------
+ src/strings/strings_test.go | 11 +++++++++--
+ 2 files changed, 26 insertions(+), 9 deletions(-)

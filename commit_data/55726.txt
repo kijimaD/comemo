@@ -1,17 +1,21 @@
-commit 2b72395eadcc46120b27b9689bed84338de5141c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jan 24 00:36:26 2024 -0800
+commit d6fa0d2ef3fc29c38af2675d395a089cc73af996
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 8 17:10:06 2023 -0500
 
-    cmd/compile/internal/noder: add method wrapper comments
+    net/http: remove arbitrary timeout in TestServerAllowsBlockingRemoteAddr
     
-    Add commentary explaining why and how we create method wrappers.
+    If the test actually deadlocks, we probably want a goroutine dump to
+    debug it anyway. Otherwise, the arbitrary timeout can only cause
+    spurious failures.
     
-    Change-Id: Idf35a77d0483f24c2163e11f5e001fd5536cca63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558395
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #36179.
+    
+    Change-Id: Ic2037496959a38d3231eefdbc1dd5d45eebdf306
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474582
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/reader.go | 56 +++++++++++++++++++++++++++++++-
- 1 file changed, 55 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

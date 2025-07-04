@@ -1,24 +1,15 @@
-commit 22d2b984a680900ebbec6268f93a839286b6f130
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 26 19:35:23 2020 +0000
+commit c306fbaa1c0dc8be7d015d55db4ddd3253ccf98e
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 8 20:05:31 2020 -0400
 
-    runtime: make sysMemStats' methods nosplit
+    [dev.link] cmd/link: add IsWasm method for Target
     
-    sysMemStats are updated early on in runtime initialization, so
-    triggering a stack growth would be bad. Mark them nosplit.
+    Add Target.IsWasm method.
     
-    Thank you so much to cherryyz@google.com for finding this fix!
-    
-    Fixes #42218.
-    
-    Change-Id: Ic62db76e6a4f829355d7eaabed1727c51adfbd0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265157
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ia3bfc359208b8e392b1a484c41aebce9761bc2f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227758
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/mstats.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/ld/target.go | 4 ++++
+ 1 file changed, 4 insertions(+)

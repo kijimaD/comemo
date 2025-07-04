@@ -1,21 +1,27 @@
-commit dd61aa55e8f4d91fdcc098e64fa26854c860ff0d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Apr 21 19:18:36 2017 +0900
+commit 2ad7453bf42654a6a1615fa1cc867123570c4595
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 2 14:06:35 2017 -0800
 
-    cmd/cgo: support indirect macro expansion for string
+    go/types: continue type-checking with fake packages if imports failed
     
-    Current code cannot handle string #define macros if those macros are
-    defined via other macros. This CL solve the issue.
+    This will make type-checking more robust in the presence of import errors.
     
-    Updates #18720
+    Also:
+    - import is now relative to directory containing teh file containing the import
+      (matters for relative imports)
+    - factored out package import code from main resolver loop
+    - fixed a couple of minor bugs
     
-    Change-Id: Ibed0773d10db3d545bb246b97e81c0d19e3af3d5
-    Reviewed-on: https://go-review.googlesource.com/41312
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #16088.
+    
+    Change-Id: I1ace45c13cd0fa675d1762877cec0a30afd9ecdc
+    Reviewed-on: https://go-review.googlesource.com/37697
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/cgo_test.go   |   1 +
- misc/cgo/test/issue18720.go |  19 ++++++
- src/cmd/cgo/gcc.go          | 159 ++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 174 insertions(+), 5 deletions(-)
+ src/go/types/api.go      |  24 +++++-----
+ src/go/types/api_test.go |  71 ++++++++++++++++++++++++++++++
+ src/go/types/check.go    |  14 +++++-
+ src/go/types/resolver.go | 111 +++++++++++++++++++++++++++++++----------------
+ 4 files changed, 170 insertions(+), 50 deletions(-)

@@ -1,29 +1,85 @@
-commit bbeb55f5faf93659e1cfd6ab073ab3c9d126d195
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Fri May 5 13:10:34 2023 -0700
+commit e64c87157d1e8fbc512a670b8c0af8abc3afa7c1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 15 11:35:25 2021 -0400
 
-    cmd/go: enforce flags with non-optional arguments
+    cmd/go: run tests when cmd/go is cross-compiled
     
-    Enforce that linker flags which expect arguments get them, otherwise it
-    may be possible to smuggle unexpected flags through as the linker can
-    consume what looks like a flag as an argument to a preceding flag (i.e.
-    "-Wl,-O -Wl,-R,-bad-flag" is interpreted as "-O=-R -bad-flag"). Also be
-    somewhat more restrictive in the general format of some flags.
+    When the GOOS or GOARCH of the cmd/go test binary does not match the
+    GOOS or GOARCH of the installed 'go' binary itself, the test currently
+    attempts to trick 'go test' into thinking that there were no test
+    functions to run.
     
-    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    That makes it very difficult to discover how to actually run the
+    tests, which in turn makes it difficult to diagnose and fix
+    regressions in, say, the linux-386-longtest builders. (We have had a
+    few of those lately, and they shouldn't be as much of an ordeal to fix
+    as they currently are.)
     
-    Fixes #60305
-    Fixes CVE-2023-29404
+    There are three underlying problems:
     
-    Change-Id: I913df78a692cee390deefc3cd7d8f5b031524fc9
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1876275
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501225
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    1. cmd/go uses its own GOOS and GOARCH to figure out which variant of
+       other tools to use, and the cache keys for all installed tools and
+       libraries include the IDs of the tools used to build them. So when
+       cmd/go's GOARCH changes, all installed tools and binaries appear
+       stale *even if* they were just installed by invoking the native
+       cmd/go with the appropriate GOARCH value set.
+    
+    2. The "go/build" library used by cmd/go toggles its default
+       CGO_ENABLED behavior depending on whether the GOOS and GOARCH being
+       imported match runtime.GOOS and runtime.GOARCH.
+    
+    3. A handful of cmd/go tests explicitly use gccgo, but the user's
+       installed gccgo binary cannot necessarily cross-compile to the same
+       platforms as cmd/go.
+    
+    To address the cache-invalidation problem, we modify the test variant
+    of cmd/go to use the host's native toolchain (as indicated by the new
+    TESTGO_GOHOSTOS and TESTGO_GOHOSTARCH environment variables) instead
+    of the toolchain matching the test binary itself. That allows a test
+    cmd/go binary compiled with GOARCH=386 to use libraries and tools
+    cross-compiled by the native toolchain, so that
+    
+            $ GOARCH=386 go install std cmd
+    
+    suffices to make the packages in std and cmd non-stale in the
+    tests.
+    
+    To address the CGO_ENABLED mismatch, we set CGO_ENABLED explicitly in
+    the test's environment whenever it may differ from the default. Since
+    script tests that use cgo are already expected to use a [cgo]
+    condition, setting the environment to match that condition fixes the
+    cgo-specific tests.
+    
+    To address the gccgo-specific cross-compilation failures, we add a new
+    script condition, [cross], which evaluates to true whenever the
+    platform of the test binary differs from that of the native toolchain.
+    We can then use that condition to explicitly skip the handful of gccgo
+    tests that fail under cross-compilation.
+    
+    Fixes #53936.
+    
+    Change-Id: I8633944f674eb5941ccc95df928991660e7e8137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356611
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/work/security.go      | 6 +++---
- src/cmd/go/internal/work/security_test.go | 5 +++++
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                            | 41 ++++++++--------
+ src/cmd/go/internal/base/tool.go                 | 16 +-----
+ src/cmd/go/internal/cfg/cfg.go                   | 62 ++++++++++++++++++++----
+ src/cmd/go/internal/clean/clean.go               |  3 +-
+ src/cmd/go/internal/envcmd/env.go                |  2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go                |  5 +-
+ src/cmd/go/internal/load/pkg.go                  | 18 +++----
+ src/cmd/go/internal/test/flagdefs_test.go        |  2 +-
+ src/cmd/go/internal/tool/tool.go                 |  9 ++--
+ src/cmd/go/internal/work/exec.go                 |  4 +-
+ src/cmd/go/script_test.go                        | 21 ++++++--
+ src/cmd/go/testdata/script/build_overlay.txt     |  1 +
+ src/cmd/go/testdata/script/build_trimpath.txt    |  1 +
+ src/cmd/go/testdata/script/gccgo_m.txt           |  1 +
+ src/cmd/go/testdata/script/install_cmd_gobin.txt |  4 +-
+ src/cmd/go/testdata/script/mod_outside.txt       |  4 +-
+ src/cmd/go/testdata/script/vendor_complex.txt    |  2 +-
+ 17 files changed, 120 insertions(+), 76 deletions(-)

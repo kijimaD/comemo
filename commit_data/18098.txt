@@ -1,14 +1,12 @@
-commit dc8572c3fe1d77378a6deff2f05a4e04ae5061a8
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 20 11:15:50 2013 -0800
+commit de4ca13eacecd65d3275ca4aec7a7bb0e8878fe7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Dec 20 09:59:51 2013 -0800
 
-    sync: explain Pool's intentions
-    Expand the type's doc comment to make its purpose clear
-    and discourage misuse.
+    doc: fix typo in Effective Go
     
-    R=golang-codereviews, gobot, rsc
+    R=adg, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/44680043
+    https://golang.org/cl/44430043
 
- src/pkg/sync/pool.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

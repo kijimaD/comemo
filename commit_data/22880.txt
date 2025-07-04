@@ -1,18 +1,13 @@
-commit 8ae44af2bb94963c626b2ec637fc580fdc7d7934
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue May 5 17:39:09 2015 +1000
+commit 989f0ee80a57c7c57fe4ae238d14cbffe8f9fd87
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:14:02 2015 -0400
 
-    image/gif: allow encoding a single-frame image whose top-left corner
-    isn't (0, 0).
+    runtime/cgo: EXC_BAD_ACCESS handler for arm64
     
-    Also fix a s/b.Min.X/b.Max.X/ typo in bounds checking.
-    
-    Fixes #10676
-    
-    Change-Id: Ie5ff7ec20ca30367a8e65d32061959a2d8e089e9
-    Reviewed-on: https://go-review.googlesource.com/9712
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia9ff9c0d381fad43fc5d3e5972dd6e66503733a5
+    Reviewed-on: https://go-review.googlesource.com/8815
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/image/gif/writer.go      | 11 ++++++++++-
- src/image/gif/writer_test.go | 28 +++++++++++++++++++++++++++-
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ src/runtime/cgo/gcc_signal_darwin_armx.c | 31 ++++++++++++++++++++---
+ src/runtime/cgo/signal_darwin_arm64.s    | 42 ++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 4 deletions(-)

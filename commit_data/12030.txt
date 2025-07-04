@@ -1,13 +1,13 @@
-commit a5f21c95dc279f421c094a592d65bf2ef89e87d6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Feb 18 04:45:43 2012 -0800
+commit 85f2d18a726a999b446a16039aa4bef4e8a4e9e9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Feb 18 17:39:40 2012 +1100
 
-    os: document the type of link errors
+    bytes: document Compare/Equal semantics for nil arguments, and add tests.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, r, r
     CC=golang-dev
-    https://golang.org/cl/5673090
+    https://golang.org/cl/5676090
 
- src/pkg/os/file_plan9.go | 8 +++++---
- src/pkg/os/file_posix.go | 2 ++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/bytes/bytes.go      |  2 ++
+ src/pkg/bytes/bytes_test.go | 41 ++++++++++++++++++++++++-----------------
+ 2 files changed, 26 insertions(+), 17 deletions(-)

@@ -1,18 +1,23 @@
-commit f939407f34158a79c83e5c1a605861c39f276a44
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jun 7 11:15:55 2017 +0200
+commit 26e726c3092264584053a4f81714dcc8c91d2153
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 10 17:17:23 2017 -0800
 
-    doc: remove math/bits from 'minor changes' section
+    spec: remove superfluous terms "delimiter" and "special tokens"
     
-    The new math/bits package has a section for itself, and should not be
-    mentioned in the 'Minor changes to the library' section of the release
-    notes.
+    The (original) section on "Operators and Delimiters" introduced
+    superfluous terminology ("delimiter", "special token") which
+    didn't matter and was used inconsistently.
     
-    Updates #20587
+    Removed any mention of "delimiter" or "special token" and now
+    simply group the special character tokens into "operators"
+    (clearly defined via links), and "punctuation" (everything else).
     
-    Change-Id: I13ecd35f5cee4324e50b2d31800e399c00159126
-    Reviewed-on: https://go-review.googlesource.com/45051
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19450.
+    
+    Change-Id: Ife31b24b95167ace096f93ed180b7eae41c66808
+    Reviewed-on: https://go-review.googlesource.com/38073
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.9.html | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

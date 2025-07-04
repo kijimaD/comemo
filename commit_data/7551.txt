@@ -1,29 +1,24 @@
-commit 59ce067da8d9e7d968e51f31fb532ed2369f205a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 23 15:42:13 2011 -0500
+commit e0a2c5d4b540934e06867710fe7137661a2a39ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 23 12:20:50 2011 -0800
 
-    runtime: omit breakpoint during terminal panic
+    http: introduce start of Client and ClientTransport
     
-    A terminal panic (one that prints a stack trace and exits)
-    has been calling runtime.breakpoint before calling exit,
-    so that if running under a debugger, the debugger can
-    take control.  When not running under a debugger, though,
-    this causes an additional SIGTRAP on Unix and pop-up
-    dialogs on Windows.
+    Much yet to come, but this is a safe first step, introducing
+    an in-the-future configurable Client object (where policy for
+    cookies, auth, redirects will live) as well as introducing a
+    ClientTransport interface for sending requests.
     
-    Support for debugging Go programs has gotten good
-    enough that we can rely on the debugger to set its own
-    breakpoint on runtime.exit if it wants to look around.
+    The CL intentionally ignores everything around the creation
+    and configuration of Clients and merely ports/wraps the old
+    interfaces to/around Client/ClientTransport.
     
-    R=r, r2
+    R=rsc, dsymonds, nigeltao, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4222043
+    https://golang.org/cl/4182086
 
- src/pkg/runtime/darwin/386/signal.c    | 1 -
- src/pkg/runtime/darwin/amd64/signal.c  | 1 -
- src/pkg/runtime/freebsd/386/signal.c   | 1 -
- src/pkg/runtime/freebsd/amd64/signal.c | 1 -
- src/pkg/runtime/linux/386/signal.c     | 1 -
- src/pkg/runtime/linux/amd64/signal.c   | 1 -
- src/pkg/runtime/windows/386/signal.c   | 1 -
- 7 files changed, 7 deletions(-)
+ src/pkg/http/Makefile     |   1 +
+ src/pkg/http/client.go    | 206 ++++++++++++++++++++--------------------------
+ src/pkg/http/fs_test.go   |   2 +-
+ src/pkg/http/transport.go | 150 +++++++++++++++++++++++++++++++++
+ 4 files changed, 240 insertions(+), 119 deletions(-)

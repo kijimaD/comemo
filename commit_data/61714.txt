@@ -1,0 +1,17 @@
+commit c315862c99fcca83389b99715a712a6c8e1ad65e
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 18 18:09:17 2024 -0800
+
+    os: add OpenInRoot
+    
+    For #67002
+    
+    Change-Id: If919ee8a5e3d90e91c7848330762e3254245fba1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/67002.txt  |  1 +
+ src/os/root.go      | 16 ++++++++++++++++
+ src/os/root_test.go | 23 +++++++++++++++++++++++
+ 3 files changed, 40 insertions(+)

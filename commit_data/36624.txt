@@ -1,16 +1,24 @@
-commit 930e637ee9d7fb7032b82ea4c112f5aa220288f1
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Sat Sep 8 00:57:31 2018 +0100
+commit 599f56dc0502d36d9dcae73c72ed114a41d1ecc0
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu May 10 10:15:52 2018 -0700
 
-    doc: make golang-nuts discussion list more prominent
+    cmd/compile: fix zero extend after float->int conversion
     
-    The discussion list was buried beneath the developer mailing list.
-    This change puts the discussion list first and gives it a more
-    prominent heading.
+    Don't do direct loads from argument slots if the sizes don't match.
+    This prevents us from loading from a float32 using a uint64 load
+    during expressions like uint64(math.float32Bits(f)) where f is a float32 arg.
     
-    Change-Id: I8dcb4af98e454ae3a0140f9758a5656909126983
-    Reviewed-on: https://go-review.googlesource.com/134136
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #25322
+    
+    Change-Id: I3887d76f78c844ba546243e7721d811c3d4a9700
+    Reviewed-on: https://go-review.googlesource.com/112637
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contrib.html | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 +++++++++++++++++++++-------
+ test/fixedbugs/issue25322.go                 | 23 ++++++++++++++++++++
+ test/fixedbugs/issue25322.out                |  1 +
+ 5 files changed, 53 insertions(+), 13 deletions(-)

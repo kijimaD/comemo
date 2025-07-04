@@ -1,13 +1,18 @@
-commit 045ad5bab812657a85707e480c29de9144881be1
-Author: Koki Ide <niconegoto@yahoo.co.jp>
-Date:   Fri Feb 17 00:50:41 2017 +0900
+commit 92568bcb6a374aecf2ece6607829b26f5e57ac28
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Oct 31 07:32:19 2016 -0700
 
-    all: fix a few typos in comments
+    database/sql: correctly spell constants
     
-    Change-Id: I0455ffaa51c661803d8013c7961910f920d3c3cc
-    Reviewed-on: https://go-review.googlesource.com/37043
+    Also add a link to more information about isolation levels as defined by the
+    SQL standard. Fixes #17682.
+    
+    Change-Id: I94c53b713f4c882af40cf15fe5f1e5dbc53ea741
+    Reviewed-on: https://go-review.googlesource.com/32418
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 2 +-
- src/reflect/type.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/database/sql/sql.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

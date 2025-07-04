@@ -1,23 +1,23 @@
-commit 7af2ce3f159760033c903b3730bfb5995b4edd40
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue May 10 21:28:30 2016 -0700
+commit be10c515003c22b8b4f0d98d1085687efbcf6955
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 08:39:54 2016 +0100
 
-    cmd/build: reject non-existant directories in ImportDir
+    runtime/cgo: block signals to the iOS mach exception handler
     
-    Re-apply @adg's CL https://golang.org/cl/7129048 that was
-    previously disabled in https://golang.org/cl/7235052 because
-    it broke `godoc net/http` for go1.1.
+    For darwin/arm{,64} a non-Go thread is created to convert
+    EXC_BAD_ACCESS to panics. However, the Go signal handler refuse to
+    handle signals that would otherwise be ignored if they arrive at
+    non-Go threads.
     
-    Currently `godoc net/http` seems to work fine with this CL.
+    Block all (posix) signals to that thread, making sure that
+    no unexpected signals arrive to it. At least one test, TestStop in
+    os/signal, depends on signals not arriving on any non-Go threads.
     
-    Fixes #3428.
+    For #14318
     
-    Change-Id: I7df06df02fd62dededac6ec60bea62561be59cf1
-    Reviewed-on: https://go-review.googlesource.com/23013
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I901467fb53bdadb0d03b0f1a537116c7f4754423
+    Reviewed-on: https://go-review.googlesource.com/21047
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/build/build.go      |  6 +++++-
- src/go/build/build_test.go | 11 +++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/runtime/cgo/gcc_signal_darwin_armx.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

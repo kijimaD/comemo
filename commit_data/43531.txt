@@ -1,18 +1,26 @@
-commit 32d0eaa44e2d83cff6f0c1fa3d58af7627f3cd99
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Sep 17 21:19:28 2020 +0000
+commit a1c29156ae8536a4b9acf06de4c6b09c53b2bf26
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 9 20:45:14 2020 -0400
 
-    runtime: implement dumpmemstats in terms of readmemstats_m
+    [dev.link] cmd/internal/goobj2: remove "2"
     
-    Since MemStats is now populated directly and some values are derived,
-    avoid duplicating the logic by instead populating the heap dump directly
-    from MemStats (external version) instead of memstats (runtime internal
-    version).
+    Rename
+    Sym2 -> Sym
+    Reloc2 -> Reloc
+    Aux2 -> Aux
     
-    Change-Id: I0bec96bfa02d2ffd1b56475779c124a760e64238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255817
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Also the Reader methods.
+    
+    Change-Id: I49f29e2d1cb480f5309e01d7a74b5e0897d826fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227900
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/heapdump.go | 76 ++++++++++++++++++++++++++++---------------------
- 1 file changed, 44 insertions(+), 32 deletions(-)
+ src/cmd/internal/goobj/readnew.go             |   8 +-
+ src/cmd/internal/goobj2/objfile.go            | 118 +++++++++++++-------------
+ src/cmd/internal/goobj2/objfile_test.go       |  12 +--
+ src/cmd/internal/obj/objfile2.go              |   6 +-
+ src/cmd/link/internal/loader/loader.go        |  76 ++++++++---------
+ src/cmd/link/internal/loader/symbolbuilder.go |   8 +-
+ 6 files changed, 114 insertions(+), 114 deletions(-)

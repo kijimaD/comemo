@@ -1,28 +1,21 @@
-commit 38409f5f35b00979cfe491a4fec6c93a6f58e037
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Mar 6 18:39:02 2017 +0900
+commit 1e917312511f6ce54bbdcea8cd0c25e66973d49e
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Nov 13 18:06:16 2016 -0800
 
-    internal/poll: code cleanup
+    html/template: fix multiple Clones of redefined template
     
-    This change adds missing docs, collapses single-line import paths,
-    removes unsed method placeholders and renames str.go to strconv.go.
+    This change redoes the fix for #16101 (CL 31092) in a different way by
+    making t.Clone return the template associated with the t.Name() while
+    allowing for the case that a template of the same name is define-d.
     
-    Change-Id: I2d155c838935cd8427abd142a462ff4c56829703
-    Reviewed-on: https://go-review.googlesource.com/37814
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #17735.
+    
+    Change-Id: I1e69672390a4c81aa611046a209008ae4a3bb723
+    Reviewed-on: https://go-review.googlesource.com/33210
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/internal/poll/fd.go                  |  4 +---
- src/internal/poll/fd_plan9.go            |  7 +++++++
- src/internal/poll/fd_poll_nacl.go        |  9 +++++----
- src/internal/poll/fd_poll_runtime.go     |  3 +++
- src/internal/poll/fd_unix.go             | 12 +++++++-----
- src/internal/poll/hook_unix.go           |  4 +---
- src/internal/poll/hook_windows.go        |  4 +---
- src/internal/poll/sock_cloexec.go        |  4 +---
- src/internal/poll/sockopt.go             |  4 +---
- src/internal/poll/sockopt_linux.go       |  4 +---
- src/internal/poll/sockopt_windows.go     |  4 +---
- src/internal/poll/{str.go => strconv.go} |  4 ++--
- 12 files changed, 31 insertions(+), 32 deletions(-)
+ src/html/template/clone_test.go | 21 +++++++++++++++++++++
+ src/html/template/template.go   |  6 ++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

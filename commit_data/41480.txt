@@ -1,17 +1,20 @@
-commit c739bc487d94c0617b3e4454f29271d08d66613c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 3 17:12:32 2019 -0400
+commit cfe232042981972dc0c7e8d741a04556ecaae3c3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Oct 6 08:03:44 2019 -0400
 
-    cmd/go/internal/modload: make PackageNotInModuleError reasonable for the Target module
+    os: re-enable TestPipeThreads on darwin
     
-    Updates #28459
-    Updates #32917
+    CL 197938 actually fixes those regression on Darwin as syscalls
+    are no longer labeled as always blocking and consume a thread.
     
-    Change-Id: Iced562cb7c2e0ac075d8345f1e4ad3b073842dcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185343
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #33953
+    Fixes #32326
+    
+    Change-Id: I82c98516c23cd36f762bc5433d7b71ea8939a0ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199477
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/internal/modload/query.go | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ src/os/os_test.go | 2 --
+ 1 file changed, 2 deletions(-)

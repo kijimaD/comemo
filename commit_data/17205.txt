@@ -1,15 +1,16 @@
-commit d90a81c39f06351ce6524a1ae15499d2d60253c8
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 14 00:44:57 2013 +0400
+commit 2642c6e24dd3d935d01270a0fa0a89de3d3dae69
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 16:16:05 2013 -0400
 
-    net: fix windows build
-    Windows builders say:
-    pkg\net\dnsclient_unix_test.go:24: undefined: dnsConfig
-    pkg\net\dnsclient_unix_test.go:25: undefined: exchange
+    sync/atomic: update comment for ARM 64-bit atomics
     
-    R=golang-dev
+    They don't work on older chips, just like the x86-32 64-bit atomics.
+    
+    Update #6134
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12889043
+    https://golang.org/cl/12880043
 
- src/pkg/net/dnsclient_unix_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/sync/atomic/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,14 +1,14 @@
-commit 2845e5881f80a717b33b3ab515e1306a7c0001dd
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Aug 20 10:56:06 2012 +0200
+commit 2b14a48d5474831ff992a180ca563a22276a2332
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Aug 20 11:04:36 2012 +1000
 
-    exp/locale/collate: changed default AlternateHandling to non-ignorable, the same
-    default as ICU.
+    exp/html: make the parser manipulate the tokenizer via exported methods
+    instead of touching the tokenizer's internal state.
     
-    R=r
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/6445080
+    https://golang.org/cl/6446153
 
- src/pkg/exp/locale/collate/collate.go      | 10 +++++-----
- src/pkg/exp/locale/collate/collate_test.go | 17 +++++++++--------
- 2 files changed, 14 insertions(+), 13 deletions(-)
+ src/pkg/exp/html/parse.go | 33 ++++++++++-----------
+ src/pkg/exp/html/token.go | 73 ++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 84 insertions(+), 22 deletions(-)

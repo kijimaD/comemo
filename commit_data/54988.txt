@@ -1,74 +1,35 @@
-commit 6ef98ac87c8a4185c0bace496d84cb3b68f069e3
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 10 15:28:32 2023 -0400
+commit 2ca32a5b99c37ac5851ecd5b994b3ba86f9766f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 09:09:37 2022 -0800
 
-    runtime/metrics: add STW stopping and total time metrics
+    Revert "go/types, types2: make the new comparable semantics the default"
     
-    This CL adds four new time histogram metrics:
+    The CL below was accidentally submitted, while waiting for the freeze
+    exception. Reverting.
     
-    /sched/pauses/stopping/gc:seconds
-    /sched/pauses/stopping/other:seconds
-    /sched/pauses/total/gc:seconds
-    /sched/pauses/total/other:seconds
+    This reverts commit 15e705ea963b5008112793507365e24b743606bc.
     
-    The "stopping" metrics measure the time taken to start a stop-the-world
-    pause. i.e., how long it takes stopTheWorldWithSema to stop all Ps.
-    This can be used to detect STW struggling to preempt Ps.
-    
-    The "total" metrics measure the total duration of a stop-the-world
-    pause, from starting to stop-the-world until the world is started again.
-    This includes the time spent in the "start" phase.
-    
-    The "gc" metrics are used for GC-related STW pauses. The "other" metrics
-    are used for all other STW pauses.
-    
-    All of these metrics start timing in stopTheWorldWithSema only after
-    successfully acquiring sched.lock, thus excluding lock contention on
-    sched.lock. The reasoning behind this is that while waiting on
-    sched.lock the world is not stopped at all (all other Ps can run), so
-    the impact of this contention is primarily limited to the goroutine
-    attempting to stop-the-world. Additionally, we already have some
-    visibility into sched.lock contention via contention profiles (#57071).
-    
-    /sched/pauses/total/gc:seconds is conceptually equivalent to
-    /gc/pauses:seconds, so the latter is marked as deprecated and returns
-    the same histogram as the former.
-    
-    In the implementation, there are a few minor differences:
-    
-    * For both mark and sweep termination stops, /gc/pauses:seconds started
-      timing prior to calling startTheWorldWithSema, thus including lock
-      contention.
-    
-    These details are minor enough, that I do not believe the slight change
-    in reporting will matter. For mark termination stops, moving timing stop
-    into startTheWorldWithSema does have the side effect of requiring moving
-    other GC metric calculations outside of the STW, as they depend on the
-    same end time.
-    
-    Fixes #63340
-    
-    Change-Id: Iacd0bab11bedab85d3dcfb982361413a7d9c0d05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534161
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4dbf92dcb01fa9245a6e6a2d1514d8aa898d0048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454476
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/debug.go                |   4 +-
- src/runtime/export_debuglog_test.go |   4 +-
- src/runtime/export_test.go          |  16 ++--
- src/runtime/heapdump.go             |   4 +-
- src/runtime/histogram.go            |  13 +++
- src/runtime/metrics.go              |  38 ++++----
- src/runtime/metrics/description.go  |  36 ++++++--
- src/runtime/metrics/doc.go          |  43 +++++++--
- src/runtime/metrics_test.go         | 173 +++++++++++++++++++++++++++++++++++-
- src/runtime/mgc.go                  |  42 +++++----
- src/runtime/mprof.go                |  19 ++--
- src/runtime/mstats.go               |  12 +--
- src/runtime/os_linux.go             |   6 +-
- src/runtime/proc.go                 |  84 ++++++++++++++---
- src/runtime/runtime2.go             |  15 ++++
- src/runtime/trace.go                |  12 +--
- src/runtime/trace2.go               |   4 +-
- 17 files changed, 425 insertions(+), 100 deletions(-)
+ src/cmd/compile/internal/base/flag.go              |  4 +--
+ src/cmd/compile/internal/noder/irgen.go            |  2 +-
+ src/cmd/compile/internal/types2/api.go             |  7 ++---
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 33 ++++------------------
+ src/go/types/api.go                                |  7 ++---
+ src/go/types/check_test.go                         |  8 +++---
+ src/go/types/instantiate.go                        | 33 ++++------------------
+ src/internal/types/testdata/check/issues1.go       |  2 --
+ .../types/testdata/fixedbugs/issue50646.go         |  2 --
+ .../types/testdata/fixedbugs/issue51257.go         |  2 --
+ src/internal/types/testdata/spec/comparable.go     |  2 ++
+ src/internal/types/testdata/spec/comparable1.19.go | 28 ------------------
+ src/internal/types/testdata/spec/oldcomparable.go  | 28 ------------------
+ 14 files changed, 28 insertions(+), 132 deletions(-)

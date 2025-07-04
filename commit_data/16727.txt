@@ -1,12 +1,14 @@
-commit c77baac560ae5318cd892e690198a28a1287ce6a
+commit e430eb8bd76da47edc3c615162ab2ef6e57cfbbe
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jul 11 15:17:32 2013 +1000
+Date:   Thu Jul 11 08:47:29 2013 +1000
 
-    image/draw: add the Quantizer type.
+    image/draw: add Drawer, FloydSteinberg and the op.Draw method.
     
-    R=r
+    R=r, andybons
     CC=andybons, golang-dev
-    https://golang.org/cl/11148043
+    https://golang.org/cl/10977043
 
- src/pkg/image/draw/draw.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/image/color/color.go    |  26 ++----
+ src/pkg/image/draw/draw.go      | 202 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/image/draw/draw_test.go |  75 +++++++++++++++
+ 3 files changed, 268 insertions(+), 35 deletions(-)

@@ -1,23 +1,23 @@
-commit 4cc027fb55956c001ce486f48538835581bc5197
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Tue Jul 31 18:13:05 2018 +0300
+commit c2fdb42b1632b054d382b05ebfb6cb903dbb9531
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 1 01:21:02 2018 +0200
 
-    cmd/compile: display AST IR in ssa.html
+    runtime: implement darwin raise with pthread_self and pthread_kill
     
-    This change adds a new column, AST IR. That column contains
-    nodes for a function specified in $GOSSAFUNC.
+    Convert raise from raw syscalls to using the system pthread library.
+    As a bonus, raise will now target the current thread instead of the
+    process.
     
-    Also this CL enables horizontal scrolling of sources and AST columns.
+    Updates #17490
     
-    Fixes #26662
-    
-    Change-Id: I3fba39fd998bb05e9c93038e8ec2384c69613b24
-    Reviewed-on: https://go-review.googlesource.com/126858
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Change-Id: I2e44f2000bf870e99a5b4dc5ff5e0799fba91bde
+    Reviewed-on: https://go-review.googlesource.com/110475
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go   |  5 ++++
- src/cmd/compile/internal/gc/ssa.go   | 14 ++++++---
- src/cmd/compile/internal/ssa/html.go | 55 ++++++++++++++++++++++++++++++++++--
- 3 files changed, 68 insertions(+), 6 deletions(-)
+ src/runtime/os_darwin.go       |  7 ++++++-
+ src/runtime/sys_darwin.go      | 24 ++++++++++++++++++++++++
+ src/runtime/sys_darwin_386.s   | 38 +++++++++++++++++++++++++++++++++-----
+ src/runtime/sys_darwin_amd64.s | 27 ++++++++++++++++++++++-----
+ 4 files changed, 85 insertions(+), 11 deletions(-)

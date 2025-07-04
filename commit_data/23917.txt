@@ -1,22 +1,19 @@
-commit 4bd8040d47fce4445ce73278b8528c6784e3ef25
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 15:55:49 2015 -0400
+commit 1ab9176e54bedd37cbb0c6941160a0cfc2e24eac
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Jun 22 14:05:00 2015 -0400
 
-    runtime, sync/atomic: add memory barriers in arm cas routines
+    runtime: remove race and increase precision in pointer validation.
     
-    This only triggers on ARMv7+.
-    If there are important SMP ARMv6 machines we can reconsider.
+    This CL removes the single and racy use of mheap.arena_end outside
+    of the bookkeeping done in mHeap_init and mHeap_Alloc.
+    There should be no way for heapBitsForSpan to see a pointer to
+    an invalid span. This CL makes the check for this more precise by
+    checking that the pointer is between mheap_.arena_start and
+    mheap_.arena_used instead of mheap_.arena_end.
     
-    Makes TestLFStress tests pass and sync/atomic tests not time out
-    on Apple iPad Mini 3.
-    
-    Fixes #7977.
-    Fixes #10189.
-    
-    Change-Id: Ie424dea3765176a377d39746be9aa8265d11bec4
-    Reviewed-on: https://go-review.googlesource.com/12950
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I1200b54353ee1eda002d92645fd8d26048600ceb
+    Reviewed-on: https://go-review.googlesource.com/11342
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/asm_arm.s     | 12 ++++++++++++
- src/sync/atomic/asm_arm.s | 28 ++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

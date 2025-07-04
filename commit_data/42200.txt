@@ -1,16 +1,22 @@
-commit 45cd312394ebbcdce956952f0e269a82d89e6639
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 6 21:37:37 2019 -0400
+commit 49e05d4f91771fc6f090238a6a8c5f1796b01afe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 13 12:25:09 2019 -0500
 
-    runtime: fix debuglog traceback printing off-by-one
+    misc/cgo/testgodefs: convert test from bash to Go
     
-    The debuglog traceback printer wasn't adjusting for call/return PCs.
+    The bash version of the test wrote intermediate files to its testdata directory.
     
-    Change-Id: I98dda1c0f22cd78651d88124ea51dc166dc91c7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227646
-    Run-TryBot: Austin Clements <austin@google.com>
+    Updates #28387
+    Updates #30316
+    Fixes #35536
+    
+    Change-Id: Ib81b547d3c43e90df713a2172c8f399fefb53c68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206901
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/debuglog.go | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ misc/cgo/testgodefs/test.bash          | 24 ----------
+ misc/cgo/testgodefs/testgodefs_test.go | 83 ++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go                   |  6 +--
+ 3 files changed, 85 insertions(+), 28 deletions(-)

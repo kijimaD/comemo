@@ -1,16 +1,21 @@
-commit d7b035f930549bc6b6192f73351bce138130350e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 21 14:33:47 2021 -0800
+commit 9bce7b70fde8572880e7a47bc2a4df8fb7b2c286
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 18:01:46 2021 +0000
 
-    doc/go1.18: mention testing.F in testing package section
+    runtime: create initializer for gcControllerState
     
-    For #47694
+    Now that gcControllerState contains almost all of the pacer state,
+    create an initializer for it instead of haphazardly setting some fields.
     
-    Change-Id: I27d88d864319bd8dbabfa6675a6abf2f74c50717
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373914
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
+    For #44167.
+    
+    Change-Id: I4ce1d5dd82003cb7c263fa46697851bb22a32544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306601
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.18.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/mgc.go      | 16 +++-------------
+ src/runtime/mgcpacer.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 13 deletions(-)

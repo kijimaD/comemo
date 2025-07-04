@@ -1,30 +1,20 @@
-commit 75cb22cb2f316d320e88293470c7c1bd8e0243a8
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Aug 8 08:14:24 2017 +0000
+commit e4852aaa7e95e49d8a54584370644714fbcf2c8c
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Fri Apr 21 02:21:41 2017 +0200
 
-    cmd/internal/obj/arm: support new arm instructions
+    cmd/go/internal/work: fix TestRespectGroupSticky on FreeBSD
     
-    There are two changes in this CL.
+    FreeBSD doesn't allow non-root users to enable the SetGID bit on
+    files or directories in /tmp, however it does allow this in
+    subdirectories, so create the test directory one level deeper.
     
-    1. Add new forms of MOVH/MOVHS/MOVHU.
-       MOVHS R0<<0(R1), R2   // ldrsh
-       MOVH  R0<<0(R1), R2   // ldrsh
-       MOVHU R0<<0(R1), R2   // ldrh
-       MOVHS R2, R5<<0(R1)   // strh
-       MOVH  R2, R5<<0(R1)   // strh
-       MOVHU R2, R5<<0(R1)   // strh
+    Followup to golang/go#19596.
     
-    2. Simpify "MVN $0xffffffaa, Rn" to "MOVW $0x55, Rn".
-       It is originally assembled to two instructions.
-       "MOVW offset(PC), R11"
-       "MVN R11, Rn"
-    
-    Change-Id: I8e863dcfb2bd8f21a04c5d627fa7beec0afe65fb
-    Reviewed-on: https://go-review.googlesource.com/53690
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I30e71c6d6a156badc863e8068df10ef6ed817e26
+    Reviewed-on: https://go-review.googlesource.com/41216
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm.s | 28 +++++++++++++++++++--
- src/cmd/internal/obj/arm/asm5.go        | 44 +++++++++++++++++++++++++++++++--
- 2 files changed, 68 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/build_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

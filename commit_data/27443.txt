@@ -1,16 +1,15 @@
-commit 6ab45c09f6fc1bde56e3a72e50505b9a5021aaaf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 13 09:02:40 2016 -0700
+commit cabf73ffb8f1d15f0509546dec81fb9069ea57d4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 27 15:31:50 2016 -0700
 
-    runtime: add KeepAlive function
+    cmd/compile: add EType.String and missing EType names
     
-    Fixes #13347.
+    Passes toolstash -cmp.
     
-    Change-Id: I591a80a1566ce70efb5f68e3ad69e7e3ab98cd9b
-    Reviewed-on: https://go-review.googlesource.com/23102
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icc387eb557d5029e903923a051b565812fd2246b
+    Reviewed-on: https://go-review.googlesource.com/21234
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mfinal.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

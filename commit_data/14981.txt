@@ -1,29 +1,14 @@
-commit 0cbf289b36c27945dee513d29062f6894768a075
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jan 24 14:22:17 2013 -0500
+commit 3c25cd27844fb3baf69db81199fbef4a9f9834c6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 24 20:26:08 2013 +0400
 
-    go/types: expose types.IsIdentical, the Type equivalence relation.
+    runtime: increase stack limit in a test
+    Otherwise the test is flaky.
+    Fixes #4698.
     
-    This function is absolutely critical for clients such as
-    exp/ssa, and too complex for clients to duplicate.
-    
-    As with CL 7200046, gri expressed in the doc below [gophers
-    only] before going on leave that he intended to expose such a
-    predicate, though his wording suggests as an interface method
-    of Type rather than a standalone function.  (My preference is
-    for binary methods to be standalone; see "On Binary Methods",
-    Kim Bruce, 1995).  In any case if he wishes to move it that's
-    easily accommodated by clients.
-    
-    https://docs.google.com/a/google.com/document/d/1-DQ4fxlMDs9cYtnkKhAAehX6MArjOQyJsRXp-6kiJLA/edit#heading=h.k3bwja7xony9
-    
-    R=iant, gri, iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7203051
+    https://golang.org/cl/7133071
 
- src/pkg/go/types/builtins.go    |  4 ++--
- src/pkg/go/types/conversions.go |  4 ++--
- src/pkg/go/types/expr.go        |  2 +-
- src/pkg/go/types/operand.go     |  6 +++---
- src/pkg/go/types/predicates.go  | 24 ++++++++++++------------
- 5 files changed, 20 insertions(+), 20 deletions(-)
+ src/pkg/runtime/stack_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,18 @@
-commit 581331e75bae9655ce03d0c121ba8d9625ef43dd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 18 08:48:04 2018 -0700
+commit 44f241be8b905c7f479d2d058a45957220707f28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 6 18:09:11 2017 -0800
 
-    cmd/compile: fix race in SSA construction
+    cmd/dist: only test SWIG if we have a new enough version
     
-    syslook cannot be called safely during SSA construction.
+    Fixes #22858
     
-    Change-Id: Ief173babd2e964fd5016578073dd3ba12e5731c5
-    Reviewed-on: https://go-review.googlesource.com/107815
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0478d5609e381f01c7345e7f53c24af05d7f78ad
+    Reviewed-on: https://go-review.googlesource.com/82415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go  | 4 +++-
- src/cmd/compile/internal/gc/ssa.go | 8 ++++----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/dist/test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 58 insertions(+), 1 deletion(-)

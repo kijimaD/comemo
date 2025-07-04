@@ -1,16 +1,24 @@
-commit fd1322828c656813c320ab556bffe8eafeb57976
-Author: Eric Eisner <eric.d.eisner@gmail.com>
-Date:   Fri Jan 6 09:23:00 2012 +1100
+commit 94439492077c16876c1243221923f51cb237627c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 6 09:21:43 2012 +1100
 
-    cmd/go: Pass arguments to command for run
+    doc: add Slices: usage and internals article
     
-    Command arguments are separated from input .go file arguments
-    by a -- separator.
+    Originally published on the Go blog on 5 Jan 2011:
+    http://blog.golang.org/2011/01/go-slices-usage-and-internals.html
     
-    R=rsc, golang-dev, adg
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5514046
+    https://golang.org/cl/5516046
 
- src/cmd/go/build.go |  1 +
- src/cmd/go/run.go   | 26 ++++++++++++++++++++++----
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ doc/Makefile                                 |   1 +
+ doc/articles/slice-1.png                     | Bin 0 -> 6334 bytes
+ doc/articles/slice-2.png                     | Bin 0 -> 7220 bytes
+ doc/articles/slice-3.png                     | Bin 0 -> 7303 bytes
+ doc/articles/slice-array.png                 | Bin 0 -> 1237 bytes
+ doc/articles/slice-struct.png                | Bin 0 -> 3650 bytes
+ doc/articles/slices_usage_and_internals.html | 477 +++++++++++++++++++++++++++
+ doc/articles/slices_usage_and_internals.tmpl | 436 ++++++++++++++++++++++++
+ doc/progs/run                                |   1 +
+ doc/progs/slices.go                          |  55 +++
+ 10 files changed, 970 insertions(+)

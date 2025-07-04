@@ -1,18 +1,12 @@
-commit e237df5b53eb91d7a8d7247e7996f5edee6515b7
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 13 07:37:28 2020 -0800
+commit e13dd94c564e94de78e6e3e673eb5797d9be0f34
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Wed Sep 18 23:45:58 2019 +0300
 
-    runtime: fix fallback logic for aeshash on 32/64 bit
+    cmd/go/internal/semver: remove duplicate words in Compare doc
     
-    We were using the fallback hash unconditionally.  Oops.
-    
-    Fixes #37212
-    
-    Change-Id: Id37d4f5c08806fdda12a3148ba4dbc46676eeb54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219337
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1ab0b5f713581b5f497878f222fa4ba3998a0ccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196179
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_amd64.s | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/internal/semver/semver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

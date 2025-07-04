@@ -1,0 +1,18 @@
+commit 7274921681d1ddf4d3246b0c92f0d6d6580afc7a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 5 13:07:09 2024 -0700
+
+    doc: document new default for GODEBUG gotypesalias setting in release notes
+    
+    For #65614.
+    
+    Change-Id: I9487521817348053170da293c01ac55f6e3dcd20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590895
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/6-stdlib/99-minor/go/types/cl-577715.md | 4 ++++
+ 1 file changed, 4 insertions(+)

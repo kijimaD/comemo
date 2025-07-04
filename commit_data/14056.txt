@@ -1,12 +1,17 @@
-commit e8246569075c98c6cf13b158a11d0b968b1b6297
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Oct 8 01:54:56 2012 +0800
+commit 13576e3b6587dcde0f5df3d04449ca16c88dcda2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 7 09:48:14 2012 -0700
 
-    test/run.go: use correct executable filename on Windows, fix build
+    net/http/httptest: mimic the normal HTTP server's ResponseWriter more closely
     
-    R=golang-dev, daniel.morsing
+    Also adds tests, which didn't exist before.
+    
+    Fixes #4188
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6624060
+    https://golang.org/cl/6613062
 
- test/run.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/httptest/recorder.go      | 24 ++++++--
+ src/pkg/net/http/httptest/recorder_test.go | 90 ++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 5 deletions(-)

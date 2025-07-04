@@ -1,24 +1,17 @@
-commit 0a3f3e166d702f477863a5260779fa0357c72302
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Apr 5 17:32:09 2017 +0900
+commit f639353330797b819f29fa2b9b4b73d09b4c7584
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Mar 6 09:59:32 2017 +0900
 
-    archive/zip: set utf-8 flag
+    mime: fix panic parsing 'encoded-word', be stricter
     
-    See: https://pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.0.TXT
+    Fixes #19416
     
-    Document says:
-    > If general purpose bit 11 is set, the filename and comment must support The
-    > Unicode Standard, Version 4.1.0 or greater using the character encoding form
-    > defined by the UTF-8 storage specification.
-    
-    Since Go encode the filename to UTF-8, general purpose bit 11 should be set.
-    
-    Change-Id: Ica4af02b4dc695e9a5c015ae360e70171efb6ee3
-    Reviewed-on: https://go-review.googlesource.com/39570
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I23c69ff637abaa202909f1cba6ed41b3cfe3d117
+    Reviewed-on: https://go-review.googlesource.com/37812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/writer.go      | 19 +++++++++++++
- src/archive/zip/writer_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+)
+ src/mime/encodedword.go      | 17 ++++++++++++-----
+ src/mime/encodedword_test.go |  2 ++
+ 2 files changed, 14 insertions(+), 5 deletions(-)

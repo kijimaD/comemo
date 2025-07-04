@@ -1,13 +1,15 @@
-commit d0252b17ce16dfc9725a3945d9a1fa2fe3e507c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 10 14:40:19 2014 -0500
+commit 373e1e94d8bf4985bb1e0452d95ed500106dc631
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 10 20:24:47 2014 +0400
 
-    lib/codereview: allow addca CLs without LGTM
+    runtime: fix crash during cpu profiling
+    mp->mcache can be concurrently modified by runtime·helpgc.
+    In such case sigprof can remember mcache=nil, then helpgc sets it to non-nil,
+    then sigprof restores it back to nil, GC crashes with nil mcache.
     
-    LGTM=gri
-    R=golang-codereviews, gri
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/61610043
+    https://golang.org/cl/58860044
 
- lib/codereview/codereview.py | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/runtime/proc.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

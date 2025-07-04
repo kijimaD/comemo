@@ -1,19 +1,19 @@
-commit 323c6f74d35ec29baac2a1aba4270f89b022815a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 9 14:49:41 2021 -0700
+commit 5d80a590a2abc26dcc6cc4455f7cb2bf78fd9123
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 2 22:43:58 2021 -0800
 
-    log: don't format if writing to io.Discard
+    [dev.regabi] cmd/compile: simplify walkReturn
     
-    Fixes #47164
+    Just de-duplicating some logic and adding better comments.
     
-    Change-Id: Ied03842360be4c86f1d9ead816f12c057a1f8dad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348741
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I15ec07070510692c6d4367880bc3d2d9847370ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281132
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Valentin Deleplace <deleplace@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/log/log.go      | 53 ++++++++++++++++++++++++++++++++++++++++++-----------
- src/log/log_test.go | 14 +++++++++++++-
- 2 files changed, 55 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/walk/assign.go | 69 +++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 42 deletions(-)

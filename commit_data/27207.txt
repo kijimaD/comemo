@@ -1,26 +1,16 @@
-commit cd956576ae618a1de829e42f9ec557e6cee338d1
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 29 09:02:27 2016 -0700
+commit fee86e4aa81712596d2e6151dc85821953dde107
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Sun Mar 6 02:21:08 2016 +0200
 
-    cmd/compile: make vet happy with ssa code
+    cmd/vet: added some missing copylock checks
     
-    Fixes #15488
+    Fixes #14664
     
-    Change-Id: I054eb1e1c859de315e3cdbdef5428682bce693fd
-    Reviewed-on: https://go-review.googlesource.com/22609
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I8bda2435857772f590859808904c48d768b87d46
+    Reviewed-on: https://go-review.googlesource.com/20254
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |  23 +--
- src/cmd/compile/internal/arm/ssa.go            |   6 +-
- src/cmd/compile/internal/gc/plive.go           |   2 +-
- src/cmd/compile/internal/gc/ssa.go             |  44 ++--
- src/cmd/compile/internal/ssa/check.go          |   6 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 -
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  38 +++-
- src/cmd/compile/internal/ssa/rewrite.go        |   1 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 267 -------------------------
- src/cmd/compile/internal/ssa/rewriteARM.go     |   6 -
- src/cmd/compile/internal/ssa/rewritegeneric.go |   5 -
- 11 files changed, 71 insertions(+), 329 deletions(-)
+ src/cmd/vet/copylock.go          | 47 ++++++++++++++++++++++++++++++++++++----
+ src/cmd/vet/testdata/copylock.go | 30 +++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 4 deletions(-)

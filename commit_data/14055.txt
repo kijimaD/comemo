@@ -1,23 +1,26 @@
-commit 54c109b122b2afe911882cc9f8c2dcaaa7e0005c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 7 10:31:56 2012 -0700
+commit d9953c9ddea6467f6cd3c59ccc34546cfc0f42c8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 18:37:05 2012 +0200
 
-    os: make TestMkdirAllWithSymlink more robust
+    test: use rundir and errorcheckdir for a few more tests.
     
-    Don't assume the test has a clean environment within /tmp.
-    Use an actual new tempdir for its tests.
-    
-    Fixes FreeBSD build failure as seen at:
-    http://build.golang.org/log/396738676356d7fb6bab6eaf1b97cac820f8a90f
-    
-    --- FAIL: TestMkdirAllWithSymlink (0.00 seconds)
-    path_test.go:178:                 Mkdir /tmp/dir: mkdir /tmp/dir: file exists
-    FAIL
-    FAIL    os      1.091s
+    Update #4139.
     
     R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6615057
+    https://golang.org/cl/6620070
 
- src/pkg/os/path_test.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ test/fixedbugs/bug083.go                       |  7 ++----
+ test/fixedbugs/bug133.go                       |  7 ++----
+ test/fixedbugs/bug160.go                       |  7 ++----
+ test/fixedbugs/bug322.go                       |  7 ++----
+ test/fixedbugs/bug324.dir/{main.go => prog.go} |  0
+ test/fixedbugs/bug324.go                       | 11 ++++-----
+ test/fixedbugs/bug367.dir/{main.go => prog.go} |  0
+ test/fixedbugs/bug367.go                       |  8 +++---
+ test/fixedbugs/bug414.dir/main.go              | 18 --------------
+ test/fixedbugs/bug414.dir/p1.go                | 34 +++++++++++++-------------
+ test/fixedbugs/bug414.dir/prog.go              | 18 ++++++++++++++
+ test/fixedbugs/bug414.go                       |  7 +++---
+ test/run.go                                    | 15 +++---------
+ 13 files changed, 59 insertions(+), 80 deletions(-)

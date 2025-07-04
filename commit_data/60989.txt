@@ -1,0 +1,19 @@
+commit 41ca2637d4df8b8edf63436c6caab56821d2af38
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sun Sep 15 15:21:43 2024 -0700
+
+    os: TestPipeThreads: remove openbsd special case
+    
+    Since CL 393354 this should no longer be necessary.
+    
+    Change-Id: Ifec4ef483f9c06d9b49827327dd6708db146d886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613157
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/os_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

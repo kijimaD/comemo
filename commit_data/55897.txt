@@ -1,22 +1,23 @@
-commit ed08d01dc37bba55379f4871830dc3e38c22c0c7
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 11 12:17:12 2024 +0000
+commit 3d28e0ebb9411e7dbd8032b6071c4f5db823ebe9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 20 16:19:30 2023 -0400
 
-    image: use built-in clear to simplify code
+    cmd/go: permit "go list" error in some tests
     
-    Change-Id: Id34936a115baaf61e4268582c6d9a2027494c385
-    GitHub-Last-Rev: 5fe455b7d24e3e3b871c8999c5bb534f3e1e3ab5
-    GitHub-Pull-Request: golang/go#66244
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    The vendor_import test lists packages that are known bad (e.g.
+    bad.go, invalid.go). Pass -e to permit error.
+    
+    The mod_vendor_auto test includes a package that imports a main
+    package, which should be an error. Pass -e to permit error.
+    
+    Updates #59186.
+    
+    Change-Id: I3b63025c3935f55feda1a95151d4c688d0394644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477838
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/image/draw/draw.go    | 4 +---
- src/image/gif/reader.go   | 6 ++----
- src/image/gif/writer.go   | 5 +----
- src/image/jpeg/huffman.go | 4 +---
- src/image/png/writer.go   | 8 +-------
- 5 files changed, 6 insertions(+), 21 deletions(-)
+ src/cmd/go/testdata/script/mod_vendor_auto.txt | 23 +++++++++++++----------
+ src/cmd/go/testdata/script/vendor_import.txt   |  4 +++-
+ 2 files changed, 16 insertions(+), 11 deletions(-)

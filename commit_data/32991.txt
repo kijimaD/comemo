@@ -1,13 +1,24 @@
-commit 2ddd07138d08d12e5662b9480c1fb23d3feb6a5d
-Author: griesemer <gri@golang.org>
-Date:   Wed Oct 4 15:20:52 2017 -0700
+commit d23064d0a8bf88cea2063189bd79c3ff8c635c3f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:28:01 2017 +0900
 
-    math/bits: complete examples
+    net: update documentation on Resolve{TCP,UDP,IP,Unix}Addr
     
-    Change-Id: Icbe6885ffd3aa4e77441ab03a2b9a04a9276d5eb
-    Reviewed-on: https://go-review.googlesource.com/68311
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    This change clarifies the documentation on
+    Resolve{TCP,UDP,IP,Unix}Addr to avoid unnecessary confusion about how
+    the arguments are used to make end point addresses.
+    
+    Also replaces "name" or "hostname" with "host name" when the term
+    implies the use of DNS.
+    
+    Updates #17613.
+    
+    Change-Id: Id6be87fe2e4666eecd5b92f18ad8b9a6c50a2bd6
+    Reviewed-on: https://go-review.googlesource.com/34879
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/bits/example_test.go  |  80 ++++++++++++++++---
- src/math/bits/make_examples.go | 174 +++++++++++++----------------------------
- 2 files changed, 121 insertions(+), 133 deletions(-)
+ src/net/iprawsock.go | 29 ++++++++++++++++++-----------
+ src/net/tcpsock.go   | 32 +++++++++++++++++++-------------
+ src/net/udpsock.go   | 32 +++++++++++++++++++-------------
+ src/net/unixsock.go  | 17 ++++++++++-------
+ 4 files changed, 66 insertions(+), 44 deletions(-)

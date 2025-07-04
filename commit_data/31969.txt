@@ -1,22 +1,20 @@
-commit ef26021d30ffb7edf8d1da5a3155e66d6e845a94
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Jun 20 03:03:12 2017 +0000
+commit 2b4274d66767039bab5dee4639a7558b101f46a0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Mar 27 11:14:53 2017 +0200
 
-    cmd/internal/obj/arm: check illegal base registers in ARM instructions
+    runtime/cgo: CFRelease result from CFBundleCopyResourceURL
     
-    Wrong instructions "MOVW 8(F0), R1" and "MOVW R0<<0(F1), R1"
-    are silently accepted, and all Fx are treated as Rx.
+    The result from CFBundleCopyResourceURL is owned by the caller. This
+    CL adds the necessary CFRelease to release it after use.
     
-    The patch checks all those illegal base registers.
+    Fixes #19722
     
-    fixes #20724
-    
-    Change-Id: I05d41bb43fe774b023205163b7daf4a846e9dc88
-    Reviewed-on: https://go-review.googlesource.com/46132
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7afe22ef241d21922a7f5cef6498017e6269a5c3
+    Reviewed-on: https://go-review.googlesource.com/38639
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/armerror.s | 26 ++++++++++++++++++++++++++
- src/cmd/internal/obj/arm/asm5.go             | 21 +++++++++++++++++++++
- 2 files changed, 47 insertions(+)
+ src/runtime/cgo/gcc_darwin_arm.c   | 4 +++-
+ src/runtime/cgo/gcc_darwin_arm64.c | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

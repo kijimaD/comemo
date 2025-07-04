@@ -1,24 +1,12 @@
-commit 593c51cff13339c10e9e767209b699eb4ba56c44
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 2 17:05:51 2012 -0700
+commit 1916db786fe8a9ff2aa775eb6f68c3a7ff00f2c6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 3 09:29:16 2012 +1000
 
-    go/ast: ast.Print must not crash with unexported fields
+    html: make the low-level tokenizer also skip end-tag attributes.
     
-    Don't print unexported struct fields; their values are
-    not accessible via reflection.
-    
-    Fixes #3898.
-    
-    Also:
-    - added support for arrays
-    - print empty maps, arrays, slices, structs on one line
-      for a denser output
-    - added respective test cases
-    
-    R=r
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/6454089
+    https://golang.org/cl/6453071
 
- src/pkg/go/ast/print.go      | 73 +++++++++++++++++++++++++++++++-------------
- src/pkg/go/ast/print_test.go | 21 +++++++++++++
- 2 files changed, 72 insertions(+), 22 deletions(-)
+ src/pkg/exp/html/token.go | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)

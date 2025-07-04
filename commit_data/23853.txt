@@ -1,36 +1,14 @@
-commit 8f34b25318e712a18c3847bb1cc3e8d87076c211
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 22 16:55:04 2015 -0400
+commit f0fee976aaf7b4b17602d0b7c4811d7a079ac16c
+Author: ALTree <alb.donizetti@gmail.com>
+Date:   Wed Jun 17 12:42:02 2015 +0200
 
-    runtime: retry GC assist until debt is paid off
+    math/big: Added small complete example of big.Int usage
     
-    Currently, there are three ways to satisfy a GC assist: 1) the mutator
-    steals credit from background GC, 2) the mutator actually does GC
-    work, and 3) there is no more work available. 3 was never really
-    intended as a way to satisfy an assist, and it causes problems: there
-    are periods when it's expected that the GC won't have any work, such
-    as when transitioning from mark 1 to mark 2 and from mark 2 to mark
-    termination. During these periods, there's no back-pressure on rapidly
-    allocating mutators, which lets them race ahead of the heap goal.
+    Updates #11241
     
-    For example, test/init1.go and the runtime/trace test both have small
-    reachable heaps and contain loops that rapidly allocate large garbage
-    byte slices. This bug lets these tests exceed the heap goal by several
-    orders of magnitude.
-    
-    Fix this by forcing the assist (and hence the allocation) to block
-    until it can satisfy its debt via either 1 or 2, or the GC cycle
-    terminates.
-    
-    This fixes one the causes of #11677. It's still possible to overshoot
-    the GC heap goal, but with this change the overshoot is almost exactly
-    by the amount of allocation that happens during the concurrent scan
-    phase, between when the heap passes the GC trigger and when the GC
-    enables assists.
-    
-    Change-Id: I5ef4edcb0d2e13a1e432e66e8245f2bd9f8995be
-    Reviewed-on: https://go-review.googlesource.com/12671
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9639c4f66cf805a57b087c9f648d3918df105d86
+    Reviewed-on: https://go-review.googlesource.com/11034
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgcmark.go | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+ src/math/big/example_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

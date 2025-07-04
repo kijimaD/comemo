@@ -1,18 +1,54 @@
-commit cdd0ddaf45f0de162d4e52e8418bd0638a3dc800
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 13 13:45:05 2023 -0800
+commit b9b8cecbfc72168ca03ad586cc2ed52b0e8db409
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Feb 20 11:26:10 2023 -0800
 
-    internal/abi: get rid of itab blank field
+    encoding/json: simplify folded name logic
     
-    We don't need it anymore, as we're accessing all the field offsets
-    symbolically.
-    This won't affect 64-bit, but it makes itabs on 32-bit 4 bytes smaller.
+    The folded name logic (despite all attempts to optimize it)
+    was fundamentally an O(n) operation where every field in a struct
+    needed to be linearly scanned in order to find a match.
+    This made unmashaling of unknown fields always O(n).
+    Instead of optimizing the comparison for each field,
+    make it such that we can look up a name in O(1).
     
-    Change-Id: I7fb937813111476fd5ab03005b248ea7bb962cf6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549517
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    We accomplish this by maintaining a map keyed by pre-folded names,
+    which we can pre-calculate when processing the struct type.
+    Using a stack-allocated buffer, we can fold the input name and
+    look up its presence in the map.
+    
+    Also, instead of mapping from names to indexes,
+    map directly to a pointer to the field information.
+    The memory cost of this is the same and avoids an extra slice index.
+    
+    The new logic is both simpler and faster.
+    
+    Performance:
+    
+            name                   old time/op    new time/op    delta
+            CodeDecoder           2.47ms ± 4%    2.42ms ± 2%  -1.83%  (p=0.022 n=10+9)
+            UnicodeDecoder         259ns ± 2%     248ns ± 1%  -4.32%  (p=0.000 n=10+10)
+            DecoderStream          150ns ± 1%     149ns ± 1%    ~     (p=0.516 n=10+10)
+            CodeUnmarshal         3.13ms ± 2%    3.09ms ± 2%  -1.37%  (p=0.022 n=10+9)
+            CodeUnmarshalReuse    2.50ms ± 1%    2.45ms ± 1%  -1.96%  (p=0.001 n=8+9)
+            UnmarshalString       67.1ns ± 5%    64.5ns ± 5%  -3.90%  (p=0.005 n=10+10)
+            UnmarshalFloat64      60.1ns ± 4%    58.4ns ± 2%  -2.89%  (p=0.002 n=10+8)
+            UnmarshalInt64        51.0ns ± 4%    49.2ns ± 1%  -3.53%  (p=0.001 n=10+8)
+            Issue10335            80.7ns ± 2%    79.2ns ± 1%  -1.82%  (p=0.016 n=10+8)
+            Issue34127            28.6ns ± 3%    28.8ns ± 3%    ~     (p=0.388 n=9+10)
+            Unmapped               177ns ± 2%     177ns ± 2%    ~     (p=0.956 n=10+10)
+    
+    Change-Id: I478b2b958f5a63a69c9a991a39cd5ffb43244a2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471196
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/internal/abi/iface.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/encoding/json/decode.go    |  17 +----
+ src/encoding/json/encode.go    |  20 +++---
+ src/encoding/json/fold.go      | 147 ++++++++---------------------------------
+ src/encoding/json/fold_test.go | 132 ++++++++++--------------------------
+ 4 files changed, 78 insertions(+), 238 deletions(-)

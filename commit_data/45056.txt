@@ -1,23 +1,27 @@
-commit 4638545d85d7e10e49132ee94ff9a6778db1c893
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 5 19:10:22 2021 -0700
+commit a28edbfca276307b228eb4b154bc2d137a3cba4a
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Tue Sep 29 10:03:38 2020 +0000
 
-    cmd/compile/internal/syntax: accept "~" and "|" interface elements
+    encoding/asn1: error instead of panic on invalid value to Unmarshal
     
-    Type lists continue to be accepted as before.
+    Changes Unmarshal to return an error, instead of
+    panicking when its value is nil or not a pointer.
     
-    While at it, print missing filenames in error tests
-    (which uses an ad-hoc position representation).
+    This change matches the behavior of other encoding
+    packages like json.
     
-    Change-Id: I933b3acbc9cf1985ad8f70f6b206e3a1dbd64d1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307371
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #41509.
+    
+    Change-Id: I92c3af3a960144566e4c2b55d00c3a6fe477c8d5
+    GitHub-Last-Rev: c668b6e4ad826f84542c2675eb31ccfb010c45bb
+    GitHub-Pull-Request: golang/go#41485
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255881
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/syntax/error_test.go      |  4 +-
- src/cmd/compile/internal/syntax/parser.go          | 92 ++++++++++++++++++----
- src/cmd/compile/internal/syntax/printer_test.go    |  9 +++
- .../compile/internal/syntax/testdata/interface.go2 | 36 +++++++++
- 4 files changed, 125 insertions(+), 16 deletions(-)
+ src/encoding/asn1/asn1.go      | 27 ++++++++++++++++++++++++---
+ src/encoding/asn1/asn1_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 3 deletions(-)

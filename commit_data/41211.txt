@@ -1,22 +1,18 @@
-commit d91c3bc20393cab601d372547471468c869320af
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jan 31 13:21:57 2020 -0500
+commit 79877e5f91fb77362235d9160ddbeada5878a9c5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 13 04:33:06 2019 +1000
 
-    doc/go1.14: move "Minor changes to the library" heading up
+    cmd/link: simplify determineLinkMode
     
-    This heading was below the minor changes to the standard library.
-    It should be on top.
+    Simplify determineLinkMode by calling mustLinkExternal upfront,
+    then doing a first pass for LinkModeAuto, followed by a second pass
+    that determines if the link mode is valid.
     
-    Many of the minor changes have been documented, so remove the broad
-    TODO comment. It is still a TODO to highlight more prominent changes
-    to the library, if there are any, under the "Core library" heading.
-    
-    Updates #36878
-    
-    Change-Id: If7fd9af9a933af917523e33fd2922c5f3c02c98b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217277
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I9d7668107c159f8fe330b8c05fee035bbe9875fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195078
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/ld/config.go | 30 ++++++++++++------------------
+ 1 file changed, 12 insertions(+), 18 deletions(-)

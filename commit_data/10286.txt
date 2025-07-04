@@ -1,25 +1,17 @@
-commit ce4eec2e0acf9ec36c34bd42e81bbb2e32f18b81
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Nov 9 09:43:55 2011 +1100
+commit 3e94e757eff3bfa4150b1e88fda8db98905290de
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 14:33:07 2011 -0800
 
-    html: treat <image> as <img>
+    text/template: make redefinition of a template in a set more consistent.
+    Also make it agree with the documentation. You get an error, unless you're
+    calling Add explicitly, in which case it panics since that's almost certainly
+    a bug. The discrepancy was caused by a panic that wasn't turned into
+    an error along one path; deleted the offending function for clarity.
     
-    Pass tests1.dat, test 90:
-    <p><image></p>
-    
-    | <html>
-    |   <head>
-    |   <body>
-    |     <p>
-    |       <img>
-    
-    Also pass test 91:
-    <a><table><a></table><p><a><div><a>
-    
-    R=nigeltao
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5339052
+    https://golang.org/cl/5354045
 
- src/pkg/html/parse.go      | 3 +++
- src/pkg/html/parse_test.go | 5 +++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/text/template/parse.go | 15 ++++-----------
+ src/pkg/text/template/set.go   |  9 +++++----
+ 2 files changed, 9 insertions(+), 15 deletions(-)

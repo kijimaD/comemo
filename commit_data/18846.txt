@@ -1,28 +1,23 @@
-commit 189397df5855a35cd23c76becf5cd16b10bb4dce
+commit b67979320a9214b7d1b75bbd2d11ea5a1aa40323
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Mar 12 18:12:56 2014 -0700
+Date:   Wed Mar 12 18:10:31 2014 -0700
 
-    os: relax the way we kill processes on Plan 9
+    cmd/ld: give acid a fighting chance at unwinding the stack
     
-    Previously, we wrote "kill" to the process control file
-    to kill a program. This is problematic because it doesn't
-    let the program gracefully exit.
+    Acid can't produce a stack trace without .frame symbols.
     
-    This matters especially if the process we're killing is a
-    Go program. On Unix, sending SIGKILL to a Go program will
-    automatically kill all runtime threads. On Plan 9, there
-    are no threads so when the program wants to exit it has to
-    somehow signal all of the runtime processes. It can't do
-    this if we mercilessly kill it by writing to it's control
-    file.
+    Of course, it can only unwind through linear stacks but
+    this is still better than nothing. (I wrote an acid func
+    to do the full unwind a long time ago but lost it and
+    haven't worked up the courage to write it again).
     
-    Instead, we now send it a note to invoke it's note handler
-    and let it perform any cleanup before exiting.
+    Note that these will only be present in the native symbol
+    table for Plan 9 binaries.
     
     LGTM=rsc
-    R=rsc, 0intro
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/74440044
+    https://golang.org/cl/72450045
 
- src/pkg/os/exec_plan9.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

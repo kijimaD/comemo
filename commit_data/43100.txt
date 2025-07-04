@@ -1,21 +1,18 @@
-commit f765dcbd5c8205a0d222257b4514b1194cad26f8
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 24 16:11:43 2020 -0400
+commit 08dee51e59413ea57d758cd8b9f330a95d7abf23
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Feb 27 03:14:21 2020 -0500
 
-    cmd/compile,cmd/asm: fix buglet in -S=2 output
+    cmd/compile: avoid string(int) conversion
     
-    In CL 255718 the -S=2 assembly output was enhanced to dump symbol
-    ABIs. This patch fixes a bug in that CL: when dumping the relocations
-    on a symbol, we were dumping the symbol's ABI as opposed to the
-    relocation target symbol's ABI.
+    Rewrite string(int) to a string literal with a NUL byte, in preparation for the vet warning.
     
-    Change-Id: I134128687757f549fa37b998cff1290765889140
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257202
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Updates #32479.
+    
+    Change-Id: If4b6879334884324df3d566b6b4166ecf501d066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/internal/obj/objfile.go | 2 +-
+ src/cmd/compile/internal/logopt/log_opts.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

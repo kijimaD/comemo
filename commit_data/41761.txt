@@ -1,16 +1,24 @@
-commit 8cb865c9197f0f383b0bde48e37faea7b7a2451d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 19 13:00:44 2020 -0400
+commit 033e066cb3fc06c1c8eeb3033438e1be8770d100
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Oct 22 22:39:30 2019 +0200
 
-    cmd/dist: do not skip 'cmd' tests in race mode
+    internal/syscall/windows/registry: blacklist certain registry keys in TestWalkFullRegistry
     
-    Fixes #37940
+    It turns out that Windows has "legitimate" keys that have bogus type
+    values or bogus lengths that don't correspond with their type. On up to
+    date Windows 10 systems, this test always fails for this reason. These
+    keys exist because of bugs in Microsoft's code. This commit works around
+    the problem by simply blacklisting known instances. It also expands the
+    error message a bit so that we can make adjustments should the problem
+    ever happen again, and reformats the messages so that it makes copy and
+    pasting into the blacklist easier.
     
-    Change-Id: Ib869a4bf84296dac201cc7252431d7161b9c96f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224038
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Updates #35084
+    
+    Change-Id: I50322828c0eb0ccecbb62d6bf4f9c726fa0b3c27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202897
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ .../syscall/windows/registry/registry_test.go      | 53 ++++++++++++++--------
+ 1 file changed, 34 insertions(+), 19 deletions(-)

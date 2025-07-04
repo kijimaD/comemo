@@ -1,0 +1,22 @@
+commit 38d146d57229a8e432d7570a0391f07b8cbf9393
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Sun Mar 16 13:55:23 2025 +0000
+
+    doc/go_mem: fix grammar issue
+    
+    In the passage about buffered channels, remove redundant words and match
+    the wording of the earlier passage about unbuffered channels.
+    
+    Change-Id: I35d8a3bf4f176c3f69cf5e6a64595e5d1c23e3a1
+    GitHub-Last-Rev: 1c4c9390a174d1a66797a025e2fdb0bf56239f48
+    GitHub-Pull-Request: golang/go#72891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657778
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

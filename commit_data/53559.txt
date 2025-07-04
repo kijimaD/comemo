@@ -1,30 +1,37 @@
-commit 0a48e5cbfabd679eecdec1efa731692cd6babf83
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 13 09:46:50 2023 -0700
+commit bdecfcb5fcc8705df7d2130310cf6b395f24e4c8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Aug 19 10:24:08 2022 +0100
 
-    slices: consistently use S ~[]E
+    go/token: make mutex locking in unpack cheaper
     
-    Make all functions use a constraint S ~[]E even if they don't return
-    the slice type. This makes explicitly instantiating the functions more
-    consistent: you don't have to remember which take ~[]E and which do not.
-    It also permits inferring the type when passing one of these functions
-    to some other function that is using a named slice type.
+    I was profiling the cpu usage of go/printer's only benchmark,
+    and found that token.File.Unpack was one of the top offenders.
     
-    Fixes #60546
+    It was mainly the deferred unlock that took a big chunk of time,
+    and to my surprise, reoving the use of defer helped significantly:
     
-    Change-Id: Ib3435255d0177fdbf03455ae527d08599b1ce012
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502955
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+            name      old time/op    new time/op    delta
+            Print-16    5.61ms ± 2%    5.38ms ± 1%  -4.04%  (p=0.000 n=10+8)
+    
+            name      old speed      new speed      delta
+            Print-16  9.27MB/s ± 2%  9.64MB/s ± 1%  +4.03%  (p=0.000 n=9+8)
+    
+            name      old alloc/op   new alloc/op   delta
+            Print-16     332kB ± 0%     332kB ± 0%    ~     (p=0.363 n=10+10)
+    
+            name      old allocs/op  new allocs/op  delta
+            Print-16     3.45k ± 0%     3.45k ± 0%    ~     (all equal)
+    
+    It seems like #38471 is to blame, as the defer prevents Unlock from
+    being inlined. Add a TODO as a reminder to come back here once the
+    compiler issue is fixed.
+    
+    Change-Id: I5a1c6d36a8e8357435a305a1bc0970ee0358b08a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424920
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Axel Wagner <axel.wagner.hh@googlemail.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- api/go1.21.txt            | 40 ++++++++++++++++++++--------------------
- src/slices/slices.go      | 28 ++++++++++++++--------------
- src/slices/slices_test.go | 22 +++++++++++++++++++++-
- src/slices/sort.go        | 22 +++++++++++-----------
- 4 files changed, 66 insertions(+), 46 deletions(-)
+ src/go/token/position.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

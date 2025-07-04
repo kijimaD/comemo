@@ -1,34 +1,16 @@
-commit d29a0282e9b7340ba2ed3f506e66304e92580238
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 20 15:06:31 2022 -0400
+commit 50c69cc3a9dfe4f268eebcf3dcbf7f3a93635842
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 26 01:15:23 2021 +1000
 
-    runtime: add mayAcquire annotation for finlock
+    cmd/link/internal/riscv64,cmd/internal/obj/riscv: make error messages consistent
     
-    We're missing lock edges to finlock that happen only rarely. Anything
-    that calls mallocgc can potentially trigger sweeping, which can
-    potentially queue a finalizer, which acquires finlock. While this can
-    happen on any malloc, it happens relatively rarely, so we simply
-    haven't seen some of the lock edges that could happen.
+    Be consistent with both style/wording and formatting of error messages.
     
-    Add a mayAcquire annotation to mallocgc to capture the possibility of
-    acquiring finlock.
-    
-    With this change, we add "fin" to the set of "malloc" locks. Several
-    of these edges were already there, but not quite all of them.
-    
-    This was found by inspecting the rank graph for things that didn't
-    make sense.
-    
-    For #53789.
-    
-    Change-Id: Idc10ce6f250596b0c07ba07ac93f2198fb38c22b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418717
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I23013d904333a67a8f17dd364bb5015f54f419c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345050
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/lockrank.go   | 24 ++++++++++++------------
- src/runtime/malloc.go     |  5 +++++
- src/runtime/mfinal.go     |  6 ++++++
- src/runtime/mklockrank.go |  3 +--
- 4 files changed, 24 insertions(+), 14 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go    | 16 ++++++++--------
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

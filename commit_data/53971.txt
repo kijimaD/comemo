@@ -1,16 +1,42 @@
-commit 5abf00e4f0039aebac17b15203b09c4a8962aac0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 9 00:53:03 2023 -0700
+commit f7396aaea0297a2e95b502a4075b0aed6efda89f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 22 11:29:03 2022 -0700
 
-    cmd/internal/objabi: add support for bisect.Matcher debug flags
+    time: optimize Parse for RFC3339 and RFC3339Nano
     
-    Makes it more convenient to add new bisection targets.
+    RFC 3339 is the most common time representation,
+    being used in an overwhelming 57.3% of all specified formats,
+    while the next competitor only holds 7.5% usage.
+    Specially optimize parsing to handle the RFC 3339 format.
+    To reduce the complexity of error checking,
+    parseRFC3339 simply returns a bool indicating parsing success.
+    It leaves error handling to the general parse path.
     
-    Change-Id: I7ac14018bac1e25751234a2267f8747a281b6088
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517616
+    To assist in fuzzing, the internal parse function was left unmodified
+    so that we could test that parseRFC3339 and parse agree with each other.
+    
+    Performance:
+    
+            name             old time/op  new time/op  delta
+            ParseRFC3339UTC  112ns ± 1%   37ns ± 1%    -67.37%  (p=0.000 n=9+9)
+            ParseRFC3339TZ   259ns ± 2%   67ns ± 1%    -73.92%  (p=0.000 n=10+9)
+    
+    Credit goes to Amarjeet Anand for a prior CL attemping to optimize this.
+    See CL 425014.
+    
+    Fixes #54093
+    
+    Change-Id: I14f4e8c52b092d44ceef6863f261842ed7e83f4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425197
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
 
- src/cmd/internal/objabi/flag.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/time/export_test.go |   2 +
+ src/time/format.go      |  86 ++++++++++++++++++++++++++++++++++
+ src/time/format_test.go | 120 +++++++++++++++++++++++++++++++++++-------------
+ src/time/time_test.go   |  12 +++++
+ 4 files changed, 189 insertions(+), 31 deletions(-)

@@ -1,22 +1,18 @@
-commit c929a5b855e5d1680a70c5e1ab11a4933655d66c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 26 18:24:03 2022 -0700
+commit 604963052072d7895138c78751c477cf25625e7d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 3 13:54:08 2021 -0700
 
-    debug/dwarf: don't crash on invalid range/rnglist offset
+    internal/poll: remove alloc sending IPv6 UDP on Windows
     
-    No test case because the problem can only happen for invalid data. Let
-    the fuzzer find cases like this.
+    This was an oversight in CL 331511.
     
-    Fixes #53529
-    
-    Change-Id: I318c87795e545fe5a006d16b4d361cd4bf5d502d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434936
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ibc20bf6ea80a8675d43d9691ed551dffab1d9215
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361254
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/dwarf/entry.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/internal/poll/fd_windows.go | 42 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 38 insertions(+), 4 deletions(-)

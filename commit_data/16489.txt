@@ -1,17 +1,12 @@
-commit acd887ba57aa179824c3f5b37851f52de61206a4
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Jun 4 16:22:59 2013 -0700
+commit 61f5fd6f668fe6e2043361d312ec8c418702b9b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 5 09:11:49 2013 +1000
 
-    cmd/5g, cmd/6g, cmd/8g: remove prototypes for proglist
+    C: add Will Norris (Google CLA)
     
-    Each of the backends has two prototypes for this function but
-    no corresponding definition.
-    
-    R=golang-dev, bradfitz, khr
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/9930045
+    https://golang.org/cl/10019045
 
- src/cmd/5g/gg.h | 2 --
- src/cmd/6g/gg.h | 2 --
- src/cmd/8g/gg.h | 2 --
- 3 files changed, 6 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

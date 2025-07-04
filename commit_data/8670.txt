@@ -1,13 +1,14 @@
-commit 965ff4bb3a01a87b70d061ad0eb2766352e7d598
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 9 17:18:28 2011 -0400
+commit 439694125f980fc0c96e99b347fa9742633f4757
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Thu Jun 9 16:49:47 2011 -0400
 
-    A+C: Fan Hongjian (individual CLA)
+    runtime: improve memmove
+    check memory overlap
     
-    R=golang-dev, bradfitz
+    R=rsc, r, ken, edsrzf
     CC=golang-dev
-    https://golang.org/cl/4591059
+    https://golang.org/cl/4602047
 
- AUTHORS      | 3 ++-
- CONTRIBUTORS | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/runtime/386/memmove.s   | 12 ++++++++++--
+ src/pkg/runtime/amd64/memmove.s | 12 ++++++++++--
+ 2 files changed, 20 insertions(+), 4 deletions(-)

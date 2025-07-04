@@ -1,26 +1,17 @@
-commit ee833ed72e8ccfdd2193b0e6c0223ee8eb99b380
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 19 00:31:07 2022 +0700
+commit 40fce515f98c0c16c361b1c85a4e638fd5b63491
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 27 08:10:20 2021 -0500
 
-    sync: use atomic.Uint64 for WaitGroup state
+    runtime: mark race functions as ABIInternal
     
-    So it's guaranteed to have 64-bit alignment, simplify the code without
-    losing any performance:
+    This adds ABIInternal to the race function declarations.
     
-    name                     old time/op    new time/op    delta
-    WaitGroupUncontended-8     3.84ns ± 2%    3.82ns ± 1%   ~     (p=0.159 n=10+10)
-    WaitGroupAddDone-8         33.2ns ± 3%    33.0ns ± 3%   ~     (p=0.564 n=9+10)
-    WaitGroupAddDoneWork-8     39.3ns ± 1%    39.3ns ± 1%   ~     (p=1.000 n=8+9)
-    WaitGroupWait-8            0.70ns ± 3%    0.70ns ± 2%   ~     (p=0.720 n=9+10)
-    WaitGroupWaitWork-8        7.93ns ± 1%    7.99ns ± 3%   ~     (p=0.271 n=10+10)
-    WaitGroupActuallyWait-8     135ns ± 2%     135ns ± 1%   ~     (p=0.897 n=10+10)
-    
-    Change-Id: I446b53fa92873419aadd592f45e51398f8ad8652
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424835
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I99f8a310972ff09b4d56eedbcc6e9609bab0f224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352369
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/sync/waitgroup.go | 47 ++++++++++++-----------------------------------
- 1 file changed, 12 insertions(+), 35 deletions(-)
+ src/runtime/race_ppc64le.s | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

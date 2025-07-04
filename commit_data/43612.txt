@@ -1,20 +1,23 @@
-commit 68e30af111da6fdfa0c4f0b71b9fabe37bbfe2df
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Oct 26 13:39:56 2020 +0000
+commit aa3413cd98b6e11fe0d37d3d2a489a9cd83b47ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 15 10:56:22 2020 -0400
 
-    Revert "crypto/x509: fix duplicate import"
+    os/signal: special-case test settle time on the solaris-amd64-oraclerel builder
     
-    This reverts CL 250497. It also moves all blank identifier imports below the rest of the imports for clarity.
+    This is an attempt to distinguish between a dropped signal and
+    general builder slowness.
     
-    Reason for revert: The blank identifier import was intentional to show that it's needed for its registration side effect. The duplicate import should stay since it communicates that the side-effect is important to tools and to future developers updating this file.
+    The previous attempt (increasing the settle time to 250ms) still
+    resulted in a timeout:
+    https://build.golang.org/log/dd62939f6d3b512fe3e6147074a9c6db1144113f
     
-    Change-Id: I626e6329db50f47453aa71085a05d21bf6efe0ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265078
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #33174
+    
+    Change-Id: I79027e91ba651f9f889985975f38c7b01d82f634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228266
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/x509.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/os/signal/signal_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

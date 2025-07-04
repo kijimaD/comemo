@@ -1,15 +1,14 @@
-commit 4657d7d7db3b28206c7fc98907f998140843ed88
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 6 10:13:53 2011 +1000
+commit 13d048a2219f422202f4dad108734b24c0b32cac
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jul 6 00:02:03 2011 +0200
 
-    exp/template: remove the visibility of the token channel from the parser.
+    gc: fix %N for OGOTO nodes.
     
-    R=golang-dev, dsymonds
+    6g -W crashed on any source with a goto. this fixes that.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4675053
+    https://golang.org/cl/4675052
 
- src/pkg/exp/template/lex.go      |  9 +++++++--
- src/pkg/exp/template/lex_test.go |  4 ++--
- src/pkg/exp/template/parse.go    | 17 +++++++----------
- src/pkg/exp/template/set.go      |  4 ++--
- 4 files changed, 18 insertions(+), 16 deletions(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

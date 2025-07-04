@@ -1,17 +1,12 @@
-commit 942886137879015032a9671c7effc9dd77ef4150
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Aug 19 12:52:06 2019 -0400
+commit 211a13fd443b205f1cb0b679b051851bdf72edad
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Mar 28 19:14:23 2019 -0400
 
-    cmd/go: document <module>/@latest endpoint in 'go help goproxy'
+    [dev.boringcrypto] misc/boring: add go1.11.6b4 to RELEASES
     
-    Updates #32789
-    
-    Change-Id: Ie5e8e3b7b6a923aa9068c8af3ac8f081bd92c830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190838
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I22ae33dd19e4e1f55dad3f4b21b8587e4d2cb8f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170058
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/alldocs.go                 | 19 +++++++++++++++++--
- src/cmd/go/internal/modfetch/proxy.go | 19 +++++++++++++++++--
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

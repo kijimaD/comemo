@@ -1,26 +1,14 @@
-commit ce7fc1788d1ea488b3711142c7d6cb7c829b185a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 13:25:08 2020 -0500
+commit 3507551a1f0d34d567d77242b68bf19b00caf9b7
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Fri Sep 20 14:05:20 2019 +0200
 
-    cmd/go: convert tests using testdata/testimport dir to script framework
+    os/user: clean error message formatting
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
-    
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: I3773508310865b198bc5f06dfc5ee7e34e92cdd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213818
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I02728c690a377ecdd2a6bc92d1606cbae3e2723a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196677
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              | 25 -----------
- .../go/testdata/script/test_relative_cmdline.txt   | 50 ++++++++++++++++++++++
- .../go/testdata/script/test_relative_import.txt    | 30 +++++++++++++
- .../script/test_relative_import_dash_i.txt         | 31 ++++++++++++++
- src/cmd/go/testdata/testimport/p.go                |  3 --
- src/cmd/go/testdata/testimport/p1/p1.go            |  3 --
- src/cmd/go/testdata/testimport/p2/p2.go            |  3 --
- src/cmd/go/testdata/testimport/p_test.go           | 13 ------
- src/cmd/go/testdata/testimport/x_test.go           | 15 -------
- 9 files changed, 111 insertions(+), 62 deletions(-)
+ src/os/user/lookup_stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

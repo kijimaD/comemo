@@ -1,16 +1,19 @@
-commit 415873409770455b526f905fd4b509c651b5b9d9
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Oct 17 10:24:28 2018 +0000
+commit 17a4e0475da1237168c4c14dd18af4ebe0d4b3d1
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jun 18 17:09:37 2018 -0400
 
-    test/codegen: add more combined load/store test cases
+    runtime: skip gdb tests on mips after DWARF compression
     
-    This CL adds more combined load/store test cases for 386/amd64.
+    DWARF compression appears to break GDB on mips for reasons unknown. Skip
+    the GDB tests there.
     
-    Change-Id: I0a483a6ed0212b65c5e84d67ed8c9f50c389ce2d
-    Reviewed-on: https://go-review.googlesource.com/c/142878
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Fixes #25939.
+    
+    Change-Id: Id76860d3a2ff8055999ac12ea891c37565bb6685
+    Reviewed-on: https://go-review.googlesource.com/119539
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/codegen/memcombine.go | 62 ++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 52 insertions(+), 10 deletions(-)
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

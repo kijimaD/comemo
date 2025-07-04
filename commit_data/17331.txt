@@ -1,15 +1,13 @@
-commit d96de0633c2502b050478c96691727e67e7428be
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Aug 19 17:50:22 2013 -0400
+commit 0d5bc0cff5bb327afc32d32f7bb33a14f17aeca1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 20 06:44:41 2013 +1000
 
-    test: exit non-zero on error from nilptr2.go.
+    doc/go_faq.html: link to the SPLASH talk near the top
+    It's a full answer to the first question; let's let readers know that.
     
-    (For go.tools/ssa/interp/interp_test, which runs a subset of
-    these tests under this assumption.)
-    
-    R=rsc, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13108043
+    https://golang.org/cl/12788048
 
- test/nilptr2.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go_faq.html | 5 +++++
+ 1 file changed, 5 insertions(+)

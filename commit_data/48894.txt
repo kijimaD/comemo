@@ -1,16 +1,18 @@
-commit 12763d141d9eb83b401e847e2ba91704b8cbb32e
-Author: Park Zhou <buildpaas@gmail.com>
-Date:   Fri Feb 11 14:55:36 2022 +0800
+commit b55cc6687d8f805663e9e803ad5293d1b399ce37
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 23 23:56:01 2021 +0700
 
-    cmd/compile: align table
+    [dev.typeparams] cmd/compile: use r.hasTypeParams in typIdx
     
-    Signed-off-by: Park Zhou <buildpaas@gmail.com>
-    Change-Id: Idbbd2779264a7310b839af8291315e5e38b7ced9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402120
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    CL 329571 fold the checking has type params logic, but did not realize
+    that the instance in typIdx can be folded, too.
+    
+    Change-Id: I4682af3779535af6a6e843972cada12ba1bae6ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330389
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/abi-internal.md | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

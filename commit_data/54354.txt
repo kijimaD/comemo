@@ -1,17 +1,24 @@
-commit 834a6f9a338b25543cb736ebef03488e8d30a839
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 7 13:57:23 2023 -0700
+commit 578523e4a0f68e9b35984f017bb3471b0bd313b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 17:47:13 2022 -0700
 
-    cmd/api: don't try to parse JSON from stderr of go list
+    internal/types/errors: add InvalidSyntaxTree error
     
-    Just send the go list stderr to our stderr.
+    Type checkers should use InvalidSyntaxTree as error code
+    for invalid syntax tree errors instead of zero. This way
+    the zero value can be used to mark an unset error code.
     
-    Change-Id: Iacda573bbe7accbcecb6a957e5d42b55afd10c58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526775
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Also, add an example for BlankPkgName (and adjust the
+    test harness slightly to make it work).
+    
+    Change-Id: Ic15fa0e8e46be698e52352f2f0e4915b75e509d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439565
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/api/main_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/internal/types/errors/codes.go      | 8 ++++++++
+ src/internal/types/errors/codes_test.go | 8 +++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)

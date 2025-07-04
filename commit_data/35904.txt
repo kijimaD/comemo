@@ -1,25 +1,18 @@
-commit 5cb1b1773fba1e1503493eea5c4ffa49fc5b5f08
-Author: Austin Clements <austin@google.com>
-Date:   Sun Jul 8 00:21:27 2018 -0400
+commit b3be2f4da787f1287882c40e327f79644b934a77
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Mon Mar 19 13:21:35 2018 +0300
 
-    runtime: fix TestAbort on non-x86 arches
+    strconv: make code formatting more consistent in doc.go
     
-    CL 122515 tightened TestAbort to look for breakpoint exceptions and
-    not just general signal crashes, but this only applies on x86 arches.
-    On non-x86 arches we use a nil pointer dereference to abort, so the
-    test is now failing.
+    Replaces " \t" code indentation with "\t".
     
-    This CL re-loosens TestAbort on non-x86 arches to only expect a signal
-    traceback.
+    Issues like this are easy to spot with editor that prints
+    whitespace charecters.
     
-    Should fix the build on linux/arm, linux/arm64, linux/ppc64, and
-    linux/s390x.
-    
-    Change-Id: I1065341180ab5ab4da63b406c641dcde93c9490b
-    Reviewed-on: https://go-review.googlesource.com/122580
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia82877e7c99121bf369fa76e46ba52dff84f36bf
+    Reviewed-on: https://go-review.googlesource.com/101355
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_test.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/strconv/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

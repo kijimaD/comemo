@@ -1,27 +1,19 @@
-commit 58ec5839cd9c210dc7ad727a6b1f743ea6233ddf
-Author: Shawn Smith <shawnpsmith@gmail.com>
-Date:   Sat Feb 6 20:35:29 2016 +0900
+commit c7a34031400967328267df8bc54b20ce4124eb83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 17:48:52 2015 -0800
 
-    all: fix typos
+    cmd/compile: clearer error for invalid array/slice literal elements
     
-    Change-Id: I6035941df8b0de6aeaf6c05df7257bcf6e9191fe
-    Reviewed-on: https://go-review.googlesource.com/19320
+    Fixes #13365.
+    
+    Change-Id: I5a447ff806dbbb11c8c75e2b5cfa7fd4a845fb92
+    Reviewed-on: https://go-review.googlesource.com/17206
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/arm/prog.go  | 4 ++--
- src/cmd/compile/internal/gc/inl.go    | 2 +-
- src/cmd/compile/internal/gc/parser.go | 2 +-
- src/cmd/internal/obj/arm/obj5.go      | 2 +-
- src/crypto/rsa/rsa.go                 | 2 +-
- src/go/types/eval.go                  | 2 +-
- src/mime/encodedword.go               | 4 ++--
- src/net/dnsmsg.go                     | 2 +-
- src/net/http/httptest/server.go       | 2 +-
- src/net/http/server.go                | 2 +-
- src/net/http/transport.go             | 2 +-
- src/os/os_windows_test.go             | 2 +-
- src/path/filepath/symlink.go          | 2 +-
- src/runtime/chan.go                   | 2 +-
- 14 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  7 +++----
+ test/fixedbugs/issue13365.go             | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue7150.go              | 10 +++++-----
+ test/fixedbugs/issue7153.go              |  2 +-
+ 4 files changed, 34 insertions(+), 10 deletions(-)

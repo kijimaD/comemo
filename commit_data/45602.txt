@@ -1,18 +1,18 @@
-commit c14ecaca8182314efd2ef7280feffc2242644887
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Feb 17 17:12:03 2021 +1100
+commit 36d412f7548d90f4764c780a6f7d7da04bb90a9e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 28 23:49:54 2020 -0400
 
-    runtime: skip TestCrashDumpsAllThreads on openbsd/arm
+    cmd/go/internal/modload: ensure that modRoot and targetPrefix are initialized in DirImportPath
     
-    This test is also now flakey on this platform.
+    For #37438
     
-    Updates #36435
-    Updates #42464
-    
-    Change-Id: Idedb81478178ffffe7a9c125a6e8bbd83458f9ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315794
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2e1f47d567842ac5504b7b8ed0b3fba6f92d778b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266340
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/crash_unix_test.go | 3 ++-
+ src/cmd/go/internal/modload/load.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,120 +1,16 @@
-commit 03eb9483e37a5c0c9208cff17138a94f44e4d6a1
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 19 17:03:52 2017 -0400
+commit 6424c40c2251fdf55e3696933d0e0494a347edd9
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Jun 21 18:35:38 2017 +0900
 
-    runtime: separate soft and hard heap limits
+    cmd/link: don't emit default entry symbol in some situations
     
-    Currently, GC pacing is based on a single hard heap limit computed
-    based on GOGC. In order to achieve this hard limit, assist pacing
-    makes the conservative assumption that the entire heap is live.
-    However, in the steady state (with GOGC=100), only half of the heap is
-    live. As a result, the garbage collector works twice as hard as
-    necessary and finishes half way between the trigger and the goal.
-    Since this is a stable state for the trigger controller, this repeats
-    from cycle to cycle. Matters are even worse if GOGC is higher. For
-    example, if GOGC=200, only a third of the heap is live in steady
-    state, so the GC will work three times harder than necessary and
-    finish only a third of the way between the trigger and the goal.
+    Also, fix comment.
     
-    Since this causes the garbage collector to consume ~50% of the
-    available CPU during marking instead of the intended 25%, about 25% of
-    the CPU goes to mutator assists. This high mutator assist cost causes
-    high mutator latency variability.
-    
-    This commit improves the situation by separating the heap goal into
-    two goals: a soft goal and a hard goal. The soft goal is set based on
-    GOGC, just like the current goal is, and the hard goal is set at a 10%
-    larger heap than the soft goal. Prior to the soft goal, assist pacing
-    assumes the heap is in steady state (e.g., only half of it is live).
-    Between the soft goal and the hard goal, assist pacing switches to the
-    current conservative assumption that the entire heap is live.
-    
-    In benchmarks, this nearly eliminates mutator assists. However, since
-    background marking is fixed at 25% CPU, this causes the trigger
-    controller to saturate, which leads to somewhat higher variability in
-    heap size. The next commit will address this.
-    
-    The lower CPU usage of course leads to longer mark cycles, though
-    really it means the mark cycles are as long as they should have been
-    in the first place. This does, however, lead to two potential
-    down-sides compared to the current pacing policy: 1. the total
-    overhead of the write barrier is higher because it's enabled more of
-    the time and 2. the heap size may be larger because there's more
-    floating garbage. We addressed 1 by significantly improving the
-    performance of the write barrier in the preceding commits. 2 can be
-    demonstrated in intense GC benchmarks, but doesn't seem to be a
-    problem in any real applications.
-    
-    Updates #14951.
-    Updates #14812 (fixes?).
-    Fixes #18534.
-    
-    This has no significant effect on the throughput of the
-    github.com/dr2chase/bent benchmarks-50.
-    
-    This has little overall throughput effect on the go1 benchmarks:
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              2.41s ± 0%     2.40s ± 0%  -0.22%  (p=0.007 n=20+18)
-    Fannkuch11-12                2.95s ± 0%     2.95s ± 0%  +0.07%  (p=0.003 n=17+18)
-    FmtFprintfEmpty-12          41.7ns ± 3%    42.2ns ± 0%  +1.17%  (p=0.002 n=20+15)
-    FmtFprintfString-12         66.5ns ± 0%    67.9ns ± 2%  +2.16%  (p=0.000 n=16+20)
-    FmtFprintfInt-12            77.6ns ± 2%    75.6ns ± 3%  -2.55%  (p=0.000 n=19+19)
-    FmtFprintfIntInt-12          124ns ± 1%     123ns ± 1%  -0.98%  (p=0.000 n=18+17)
-    FmtFprintfPrefixedInt-12     151ns ± 1%     148ns ± 1%  -1.75%  (p=0.000 n=19+20)
-    FmtFprintfFloat-12           210ns ± 1%     212ns ± 0%  +0.75%  (p=0.000 n=19+16)
-    FmtManyArgs-12               501ns ± 1%     499ns ± 1%  -0.30%  (p=0.041 n=17+19)
-    GobDecode-12                6.50ms ± 1%    6.49ms ± 1%    ~     (p=0.234 n=19+19)
-    GobEncode-12                5.43ms ± 0%    5.47ms ± 0%  +0.75%  (p=0.000 n=20+19)
-    Gzip-12                      216ms ± 1%     220ms ± 1%  +1.71%  (p=0.000 n=19+20)
-    Gunzip-12                   38.6ms ± 0%    38.8ms ± 0%  +0.66%  (p=0.000 n=18+19)
-    HTTPClientServer-12         78.1µs ± 1%    78.5µs ± 1%  +0.49%  (p=0.035 n=20+20)
-    JSONEncode-12               12.1ms ± 0%    12.2ms ± 0%  +1.05%  (p=0.000 n=18+17)
-    JSONDecode-12               53.0ms ± 0%    52.3ms ± 0%  -1.27%  (p=0.000 n=19+19)
-    Mandelbrot200-12            3.74ms ± 0%    3.69ms ± 0%  -1.17%  (p=0.000 n=18+19)
-    GoParse-12                  3.17ms ± 1%    3.17ms ± 1%    ~     (p=0.569 n=19+20)
-    RegexpMatchEasy0_32-12      73.2ns ± 1%    73.7ns ± 0%  +0.76%  (p=0.000 n=18+17)
-    RegexpMatchEasy0_1K-12       239ns ± 0%     238ns ± 0%  -0.27%  (p=0.000 n=13+17)
-    RegexpMatchEasy1_32-12      69.0ns ± 2%    69.1ns ± 1%    ~     (p=0.404 n=19+19)
-    RegexpMatchEasy1_1K-12       367ns ± 1%     365ns ± 1%  -0.60%  (p=0.000 n=19+19)
-    RegexpMatchMedium_32-12      105ns ± 1%     104ns ± 1%  -1.24%  (p=0.000 n=19+16)
-    RegexpMatchMedium_1K-12     34.1µs ± 2%    33.6µs ± 3%  -1.60%  (p=0.000 n=20+20)
-    RegexpMatchHard_32-12       1.62µs ± 1%    1.67µs ± 1%  +2.75%  (p=0.000 n=18+18)
-    RegexpMatchHard_1K-12       48.8µs ± 1%    50.3µs ± 2%  +3.07%  (p=0.000 n=20+19)
-    Revcomp-12                   386ms ± 0%     384ms ± 0%  -0.57%  (p=0.000 n=20+19)
-    Template-12                 59.9ms ± 1%    61.1ms ± 1%  +2.01%  (p=0.000 n=20+19)
-    TimeParse-12                 301ns ± 2%     307ns ± 0%  +2.11%  (p=0.000 n=20+19)
-    TimeFormat-12                323ns ± 0%     323ns ± 0%    ~     (all samples are equal)
-    [Geo mean]                  47.0µs         47.1µs       +0.23%
-    
-    https://perf.golang.org/search?q=upload:20171030.1
-    
-    Likewise, the throughput effect on the x/benchmarks is minimal (and
-    reasonably positive on the garbage benchmark with a large heap):
-    
-    name                         old time/op  new time/op  delta
-    Garbage/benchmem-MB=1024-12  2.40ms ± 4%  2.29ms ± 3%  -4.57%  (p=0.000 n=19+18)
-    Garbage/benchmem-MB=64-12    2.23ms ± 1%  2.24ms ± 2%  +0.59%  (p=0.016 n=19+18)
-    HTTP-12                      12.5µs ± 1%  12.6µs ± 1%    ~     (p=0.326 n=20+19)
-    JSON-12                      11.1ms ± 1%  11.3ms ± 2%  +2.15%  (p=0.000 n=16+17)
-    
-    It does increase the heap size of the garbage benchmarks, but seems to
-    have relatively little impact on more realistic programs. Also, we'll
-    gain some of this back with the next commit.
-    
-    name                         old peak-RSS-bytes  new peak-RSS-bytes  delta
-    Garbage/benchmem-MB=1024-12          1.21G ± 1%          1.88G ± 2%  +55.59%  (p=0.000 n=19+20)
-    Garbage/benchmem-MB=64-12             168M ± 3%           248M ± 8%  +48.08%  (p=0.000 n=18+20)
-    HTTP-12                              45.6M ± 9%          47.0M ±27%     ~     (p=0.925 n=20+20)
-    JSON-12                               193M ±11%           206M ±11%   +7.06%  (p=0.001 n=20+20)
-    
-    https://perf.golang.org/search?q=upload:20171030.2
-    
-    Change-Id: Ic78904135f832b4d64056cbe734ab979f5ad9736
-    Reviewed-on: https://go-review.googlesource.com/59970
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ieb7ba21f34730dc51ab45a652d225e4145d4b861
+    Reviewed-on: https://go-review.googlesource.com/54870
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 70 +++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 48 insertions(+), 22 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

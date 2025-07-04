@@ -1,15 +1,33 @@
-commit 608ddc38bdaed0791979145947d7c08738b5f2a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 13 22:14:40 2016 +0000
+commit 7407d8e582556edf43f30d34eabc049896d80689
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 30 14:25:28 2015 -0400
 
-    net/http: update bundled http2
+    runtime: fix over-aggressive proportional sweep
     
-    Updates x/net/http2 to git rev 341cd08 for https://golang.org/cl/18576
+    Currently, sweeping is performed before allocating a span by charging
+    for the entire size of the span requested, rather than the number of
+    bytes actually available for allocation from the returned span. That
+    is, if the returned span is 8K, but already has 6K in use, the mutator
+    is charged for 8K of heap allocation even though it can only allocate
+    2K more from the span. As a result, proportional sweep is
+    over-aggressive and tends to finish much earlier than it needs to.
+    This effect is more amplified by fragmented heaps.
     
-    Change-Id: If5dcb60ac449b798c34fe332ede5ec74e66eb9db
-    Reviewed-on: https://go-review.googlesource.com/18579
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fix this by reimbursing the mutator for the used space in a span once
+    it has allocated that span. We still have to charge up-front for the
+    worst-case because we don't know which span the mutator will get, but
+    at least we can correct the over-charge once it has a span, which will
+    go toward later span allocations.
+    
+    This has negligible effect on the throughput of the go1 benchmarks and
+    the garbage benchmark.
+    
+    Fixes #12040.
+    
+    Change-Id: I0e23e7a4ccf126cca000fed5067b20017028dd6b
+    Reviewed-on: https://go-review.googlesource.com/16515
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/h2_bundle.go | 35 +++++++++++++++++++++++++----------
- 1 file changed, 25 insertions(+), 10 deletions(-)
+ src/runtime/mcentral.go |  4 ++++
+ src/runtime/mgcsweep.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

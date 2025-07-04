@@ -1,20 +1,24 @@
-commit d9cc39b25c8ebef5a976e34848dc3c5216108f07
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 3 21:11:23 2022 -0400
+commit dc65c489cc5a795a68d844ed7a45e5d16562401d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 6 17:25:34 2021 -0500
 
-    cmd/compile/internal/pgo: use a slice for locations
+    cmd/go: fix tests broken in CL 358539
     
-    Currently locations are stored in a map and looked up by ID from
-    the map. The IDs are usually small sequential integers (the Go
-    pprof CPU profiles are so). Using a slice is more efficient (with
-    a fallback map to handle weirdly large IDs).
+    CL 358539 revised the build-stamp format, and updated the git and hg
+    tests to match. However, the fossil and bzr tests were missed, and
+    were not caught on the builders due to the fact that none of the
+    builder images have the necessary VCS tools installed.
     
-    Change-Id: I9e20d5cebca3a5239636413e1bf2f0b273038031
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447803
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Updates #48802
+    Updates #49168
+    
+    Change-Id: I6b9fd0e19b81cb539864c94ab0860f74e7be6748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369743
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/pgo/graph.go   | 37 +++++++++++++++++++++++++--------
- src/cmd/compile/internal/pgo/irgraph.go |  2 +-
- 2 files changed, 29 insertions(+), 10 deletions(-)
+ .../go/testdata/script/version_buildvcs_bzr.txt    | 33 ++++++++++++----------
+ .../go/testdata/script/version_buildvcs_fossil.txt | 21 ++++++++------
+ 2 files changed, 30 insertions(+), 24 deletions(-)

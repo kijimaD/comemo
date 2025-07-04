@@ -1,15 +1,13 @@
-commit d168442708071af9f9816f1f7869408364e58471
-Author: Patrick Higgins <patrick.allen.higgins@gmail.com>
-Date:   Fri Aug 31 18:10:16 2012 -0400
+commit 2785f9528e84f29429c083db4693faf536f361cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 18:07:32 2012 -0400
 
-    net/http: added ParseTime function.
+    A+C: Patrick Higgins, Shawn Smith (individual CLA)
     
-    Parses a time header value into a time.Time according to rfc2616 sec 3.3.
-    
-    R=golang-dev, dave, rsc, r
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/6344046
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6492067
 
- src/pkg/net/http/header.go      | 20 ++++++++++++++++++++
- src/pkg/net/http/header_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

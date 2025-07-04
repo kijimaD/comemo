@@ -1,14 +1,14 @@
-commit 36713a2a53b91e6fbf08af9ee583f49449857a33
+commit bd77eedacf67a220dc69afa42ba9abab29aec362
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 14 10:41:55 2011 -0400
+Date:   Thu Apr 14 09:33:53 2011 -0400
 
-    compress/flate: dictionary support
+    gc: fix use of typekind array in error messages
     
-    R=bradfitzwork
+    Fixes #1697.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4397043
+    https://golang.org/cl/4395045
 
- src/pkg/compress/flate/deflate.go      | 27 ++++++++++++++++++++
- src/pkg/compress/flate/deflate_test.go | 46 ++++++++++++++++++++++++++++++++++
- src/pkg/compress/flate/inflate.go      | 27 ++++++++++++++++++++
- 3 files changed, 100 insertions(+)
+ src/cmd/gc/typecheck.c | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

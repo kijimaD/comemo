@@ -1,18 +1,28 @@
-commit f4748f1e218c3584348f2f5c297e73f494182e54
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 16 17:15:12 2016 -0400
+commit 72eb46c5a086051e3677579a0810922724eb6a6d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon May 16 15:51:07 2016 +0200
 
-    cmd/dist: skip libgcc test on arm64 and mips64
+    runtime,runtime/cgo: save callee-saved FP register on arm
     
-    This test was always being run with external linking on these
-    platforms because the linker was silently forcing external linking
-    until CL 28971. Now it produces an error instead.
+    Other GOARCHs already handle their callee-saved FP registers, but
+    arm was missing. Without this change, code using Cgo and floating
+    point code might fail in mysterious and hard to debug ways.
     
-    Change-Id: I794e0812711e05b150daf805dc3451507bb4cae8
-    Reviewed-on: https://go-review.googlesource.com/29360
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    There are no floating point registers when GOARM=5, so skip the
+    registers when runtime.goarm < 6.
+    
+    darwin/arm doesn't support GOARM=5, so the check is left out of
+    rt0_darwin_arm.s.
+    
+    Fixes #14876
+    
+    Change-Id: I6bcb90a76df3664d8ba1f33123a74b1eb2c9f8b2
+    Reviewed-on: https://go-review.googlesource.com/23140
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/dist/test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/cgo/asm_arm.s    | 34 +++++++++++++++++++++++++++++++++-
+ src/runtime/rt0_darwin_arm.s | 19 ++++++++++++++++++-
+ src/runtime/rt0_linux_arm.s  | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 77 insertions(+), 3 deletions(-)

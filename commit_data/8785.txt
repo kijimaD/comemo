@@ -1,14 +1,19 @@
-commit 5e77b9d33470cd1faf4450880b4ebc543122f74f
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 20 12:36:14 2011 +1000
+commit a5b5e2b79e1669dcc711842a7c895a412edfe351
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Jun 20 11:54:07 2011 +1000
 
-    doc/GoCourseDay1: shrink the PDF by rewriting it using ps2pdf.
-    No difference in content or appearance.
-    Forgot to do this when I updated this file a few days ago.
+    godefs: rudimentary tests
     
-    R=golang-dev, dsymonds
+    currently only defined for darwin
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4626056
+    https://golang.org/cl/4528123
 
- doc/GoCourseDay1.pdf | Bin 904237 -> 287552 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/godefs/Makefile                     |  3 ++
+ src/cmd/godefs/test.sh                      | 45 +++++++++++++++++++++++++++++
+ src/cmd/godefs/testdata.c                   | 41 ++++++++++++++++++++++++++
+ src/cmd/godefs/testdata_darwin_386.golden   | 31 ++++++++++++++++++++
+ src/cmd/godefs/testdata_darwin_amd64.golden | 31 ++++++++++++++++++++
+ src/run.bash                                |  4 +++
+ 6 files changed, 155 insertions(+)

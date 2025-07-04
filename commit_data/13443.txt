@@ -1,14 +1,15 @@
-commit a49172663cb4082dcbafa8200b70c93b1c19314a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Jul 5 15:24:33 2012 -0400
+commit 6044dbdf1b627fc1f30422add87216137b709bae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 3 16:06:24 2012 -0700
 
-    cmd/cgo: make typedef map traversal order consistent
-            So that _cgo_gotypes.go will be the same for the same source
-            code.
+    reflect: reflect.Zero results are neither addressable nor settable
     
-    R=nigeltao
+    This could be deduced from "The Laws of Reflection" but it seems
+    worthwhile highlighting it.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6357067
+    https://golang.org/cl/6350073
 
- src/cmd/cgo/out.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/reflect/value.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

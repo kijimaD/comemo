@@ -1,22 +1,13 @@
-commit 8ae8576abf483cf928eb0f63bc55c09c7bf73576
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 4 16:20:48 2018 -0700
+commit b0951aff8f6a004fc2e73fdb98350125daea6c05
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 5 17:12:29 2018 -0400
 
-    go/types: don't type-check method signatures eagerly anymore
+    doc: document Go 1.10.3
     
-    As a side-effect we also get slightly clearer errors for some
-    pathological cyclic method declarations.
-    
-    Fixes #23203.
-    Updates #26854.
-    
-    Change-Id: I30bd6634ac6be26d3f4ef8c7b32e5c1bf76987dd
-    Reviewed-on: https://go-review.googlesource.com/c/139897
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ifc774bb9267baa773e91c617204329d3e04bd4b7
+    Reviewed-on: https://go-review.googlesource.com/116363
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/check_test.go            |  2 ++
- src/go/types/decl.go                  | 14 +-------------
- src/go/types/testdata/decls0.src      |  8 ++++----
- src/go/types/testdata/issue23203a.src | 14 ++++++++++++++
- src/go/types/testdata/issue23203b.src | 14 ++++++++++++++
- 5 files changed, 35 insertions(+), 17 deletions(-)
+ doc/devel/release.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

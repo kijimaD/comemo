@@ -1,23 +1,22 @@
-commit 9fe77de3c198848b972915245e41ff26439b08aa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 8 09:49:04 2021 -0500
+commit 96a67450887314cedbd9e8634ad92b76a0443779
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 12:13:58 2021 -0400
 
-    debug/buildinfo: update test for CL 369977
+    runtime: use register ABI in panicIndex/Slice functions
     
-    As a side effect of the changes in cmd/go/internal/work in CL 369977,
-    binaries built in GOPATH mode now include rudimentary build metadata
-    for at least the package path and compiler in use.
+    runtime.panicIndex*/panicSlice* functions move the arguments in
+    the right place then tail calls goPanicIndex*/Slice* using
+    internal ABI. (It uses internal ABI to avoid wrappers, because
+    the callee needs to get the caller's PC, to know whether it panics
+    in the runtime.) This CL makes it to use the register ABI if it
+    is enabled.
     
-    That seems like a strict improvement, but the test needs to be updated
-    to reflect the newly-available metadata.
-    
-    Change-Id: I657c785e3e9992ed594c9524409f2d076f9eb376
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370234
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id2ebb51b4bfb3e9aa7cb66d0a9aee63fccee5ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308649
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/buildinfo/buildinfo_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/asm_amd64.s | 70 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)

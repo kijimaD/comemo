@@ -1,12 +1,20 @@
-commit 13507e0697b2749e49341c25b9c1f5414f88d26e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 1 18:51:55 2013 -0400
+commit df1eeeba4a991a10f6b8e992d7d1b6ac87c23f7b
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Thu Aug 1 15:20:01 2013 -0700
 
-    runtime: fix traceback across morestack
+    compress/flate: Fixed two panics on bad data
     
-    R=golang-dev, r
+    I used just enough of the data provided by Matt in Issue 5915 to trigger
+    issue 5915. As luck would have it, using slightly less of it triggered
+    issue 5962.
+    
+    Fixes #5915.
+    Fixes #5962.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12287043
+    https://golang.org/cl/12288043
 
- src/pkg/runtime/asm_arm.s | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/compress/flate/flate_test.go | 23 +++++++++++++++++++++++
+ src/pkg/compress/flate/inflate.go    |  9 ++++++++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)

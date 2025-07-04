@@ -1,25 +1,27 @@
-commit 0e02baa59af2e8e3e26702bd8ebe72ae5a0e39c7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 29 22:43:02 2023 +0000
+commit aeedb5ab13a677367be8e526cc43aeecc3734c86
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 29 11:45:33 2022 +0700
 
-    Revert "cmd/compile: use shorter ANDL/TESTL if upper 32 bits are known to be zero"
+    internal/singleflight: avoid race between multiple Do calls
     
-    This reverts commit c1dfbf72e1298df8495171810a553836e5027f98.
+    When the first call to Do finished, it calls c.wg.Done() to signal
+    others that the call was done. However, that happens without holding
+    a lock, so if others call to Do complete and be followed by a call to
+    ForgotUnshared, that then returns false.
     
-    Reason for revert: TESTL rule is wrong when the result is used for an ordered comparison.
+    Fixing this by moving c.wg.Done() inside the section guarded by g.mu, so
+    the two operations won't be interrupted.
     
-    Fixes #62360
+    Thanks bcmills@ for finding and suggesting fix.
     
-    Change-Id: I4d5b6aca24389b0a2bf767bfbc0a9d085359eb38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524255
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I850f5eb3f9751a0aaa65624d4109aeeb59dee42c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436437
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules |  4 ----
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 32 ---------------------------
- test/fixedbugs/issue62360.go                  | 24 ++++++++++++++++++++
- 3 files changed, 24 insertions(+), 36 deletions(-)
+ src/internal/singleflight/singleflight.go      |  2 +-
+ src/internal/singleflight/singleflight_test.go | 43 ++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

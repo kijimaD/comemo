@@ -1,46 +1,23 @@
-commit f69711434ae0ab383fb6088000736af9bd5638f4
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Oct 29 20:22:27 2024 -0700
+commit 4bf4c7d2e2aceeb9fe53642ab1f200064aff8163
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 12:39:32 2023 -0400
 
-    crypto/tls: add server-side ECH
+    cmd/go: drop unnecessary Package argument to reportCmd
     
-    Adds support for server-side ECH.
+    Now that we've dropped the redundant Package arguments to many
+    functions, we can see that the Package argument to reportCmd is always
+    nil. That means we can drop it and always use a.Package.
     
-    We make a couple of implementation decisions that are not completely
-    in-line with the spec. In particular, we don't enforce that the SNI
-    matches the ECHConfig public_name, and we implement a hybrid
-    shared/backend mode (rather than shared or split mode, as described in
-    Section 7). Both of these match the behavior of BoringSSL.
+    For #62067.
     
-    The hybrid server mode will either act as a shared mode server, where-in
-    the server accepts "outer" client hellos and unwraps them before
-    processing the "inner" hello, or accepts bare "inner" hellos initially.
-    This lets the server operate either transparently as a shared mode
-    server, or a backend server, in Section 7 terminology. This seems like
-    the best implementation choice for a TLS library.
-    
-    Fixes #68500
-    
-    Change-Id: Ife69db7c1886610742e95e76b0ca92587e6d7ed4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623576
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I2e11e770f495d6f770047993358c76b08204e923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536096
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- api/next/68500.txt                             |   5 +
- doc/next/6-stdlib/99-minor/crypto/tls/68500.md |   2 +
- src/crypto/tls/bogo_config.json                |  16 +-
- src/crypto/tls/bogo_shim_test.go               |  41 ++-
- src/crypto/tls/common.go                       |  47 ++-
- src/crypto/tls/ech.go                          | 472 +++++++++++++++++++++----
- src/crypto/tls/handshake_client.go             |   8 +-
- src/crypto/tls/handshake_client_tls13.go       |   8 +-
- src/crypto/tls/handshake_messages.go           |   6 +-
- src/crypto/tls/handshake_messages_test.go      |   3 +
- src/crypto/tls/handshake_server.go             |  37 +-
- src/crypto/tls/handshake_server_test.go        |   5 +-
- src/crypto/tls/handshake_server_tls13.go       |  98 +++++
- src/crypto/tls/tls_test.go                     | 124 ++++++-
- 14 files changed, 777 insertions(+), 95 deletions(-)
+ src/cmd/go/internal/work/cover.go |  4 ++--
+ src/cmd/go/internal/work/exec.go  | 31 +++++++++++++------------------
+ src/cmd/go/internal/work/gc.go    |  2 +-
+ src/cmd/go/internal/work/gccgo.go |  4 ++--
+ 4 files changed, 18 insertions(+), 23 deletions(-)

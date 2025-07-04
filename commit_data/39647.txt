@@ -1,17 +1,22 @@
-commit 4a4f752c3812d18ffcaa06624de1a29d4e9ab056
-Author: tnclong <long.asyn@gmail.com>
-Date:   Tue Jun 18 22:07:30 2019 +0800
+commit cf4691650c3c556f19844a881a32792a919ee8d1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 13 15:07:56 2019 -0500
 
-    text/template: avoid allocating a new common in copy
+    cmd/go: change the default value of GO111MODULE to 'on'
     
-    Template.New calls t.init, which allocates several items that
-    are immediately rewritten by copy, so avoid the call to New
+    Fixes #30228
     
-    Change-Id: I16c7cb001bbcd14cf547c1a2db2734a2f8214e7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182757
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ie45ba6483849b843eb6605272f686b9deffe5e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162698
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/text/template/template.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
+ src/cmd/go/help_test.go                           |   5 +
+ src/cmd/go/internal/help/help.go                  |   7 +-
+ src/cmd/go/internal/modload/help.go               |  39 +--
+ src/cmd/go/internal/modload/init.go               |  35 +--
+ src/cmd/go/main.go                                |  15 +-
+ src/cmd/go/mkalldocs.sh                           |   2 +-
+ src/cmd/go/testdata/script/mod_find.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 +
+ 9 files changed, 210 insertions(+), 232 deletions(-)

@@ -1,13 +1,17 @@
-commit f12796e9f7233266163d4003b528dd099b0f1799
+commit 9e19337de9ab0344bcbd056064c70249e65d52ed
 Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 27 16:11:17 2013 -0800
+Date:   Wed Feb 27 15:43:33 2013 -0800
 
-    builtin: document appending a string to a byte slice
-    Fixes #4873.
+    cmd/vet: continue past first error
+    Also delete bogus tests for f.pkg (does the file have a package) since all
+    files have a package attached. The tests for pkg.types and pkg.values
+    suffice.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7421043
+    https://golang.org/cl/7418043
 
- src/pkg/builtin/builtin.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/vet/main.go   |  6 +++++-
+ src/cmd/vet/print.go  | 12 ++++--------
+ src/cmd/vet/taglit.go | 30 ++++++++++++++----------------
+ 3 files changed, 23 insertions(+), 25 deletions(-)

@@ -1,13 +1,29 @@
-commit c5de9b773faa7cfa843f94a1e24866c78353e386
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 8 10:52:54 2012 +1100
+commit 3d6b368514f2b72538c23a27f248684dd9cca227
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 7 15:19:52 2012 -0800
 
-    bug408: delete
-    It's disabled and unreproducible.
+    go/printer, gofmt: don't print incorrect programs
     
-    R=golang-dev, bradfitz
+    Be careful when printing line comments with incorrect
+    position information. Maintain additional state
+    impliedSemi: when set, a comment containing a newline
+    would imply a semicolon and thus placement must be
+    delayed.
+    
+    Precompute state information pertaining to the next
+    comment for faster checks (the printer is marginally
+    faster now despite additional checks for each comment).
+    
+    No effect on existing src, misc sources.
+    
+    Fixes #1505.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5642053
+    https://golang.org/cl/5598054
 
- test/fixedbugs/bug408.go | 20 --------------------
- 1 file changed, 20 deletions(-)
+ src/cmd/fix/timefileinfo_test.go   |  26 +++++++
+ src/pkg/go/printer/nodes.go        |   1 +
+ src/pkg/go/printer/printer.go      | 153 +++++++++++++++++++++++++++----------
+ src/pkg/go/printer/printer_test.go |  75 ++++++++++++++++--
+ 4 files changed, 209 insertions(+), 46 deletions(-)

@@ -1,20 +1,24 @@
-commit 29057b707d468bd690e6eadfebe89c4ff737867c
-Author: Jinzhu <wosmvp@gmail.com>
-Date:   Thu May 19 02:44:00 2022 +0000
+commit 313924f2726947eb0df5f8fd0462c3a7343f5bc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 5 13:58:24 2021 -0700
 
-    database/sql: fix close rows error ignored in Next
+    [dev.typeparams] cmd/compile: swap export order of union term components (cleanup)
     
-    Change-Id: I19f0d764e2a6122307f3f26a6dd3be7b1155c73b
-    GitHub-Last-Rev: 9f1f883c452201679a2d2af2cc29de0f09a43f28
-    GitHub-Pull-Request: golang/go#52756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404794
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Export a term as a pair (tilde, type) rather than (type, tilde)
+    to match the new Union/Term API.
+    
+    Change-Id: I221c09c2c746ae19fbae0c970ffb26fa7a8ac736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340251
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/database/sql/fakedb_test.go |  5 ++++-
- src/database/sql/sql.go         |  2 ++
- src/database/sql/sql_test.go    | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go  | 7 ++-----
+ src/cmd/compile/internal/noder/reader2.go     | 4 +---
+ src/cmd/compile/internal/noder/writer.go      | 2 +-
+ src/cmd/compile/internal/typecheck/iexport.go | 6 +++---
+ src/cmd/compile/internal/typecheck/iimport.go | 2 +-
+ 5 files changed, 8 insertions(+), 13 deletions(-)

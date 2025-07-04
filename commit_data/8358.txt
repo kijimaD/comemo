@@ -1,14 +1,16 @@
-commit 9d2a697fb9d04f65bb9ba6c7b2b508c263da0503
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 11 23:26:52 2011 -0400
+commit fbb4be32786055b7698c6793efb390c5b21fc812
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed May 11 22:53:42 2011 -0400
 
-    codereview: fetch metadata using JSON API, not XML scraping
+    make: add nuke target for C commands and libs
     
-    Fixes hg clpatch.
+    Also, clean *.out files for commands written in Go.
     
-    R=golang-dev, r, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4524045
+    https://golang.org/cl/4535051
 
- lib/codereview/codereview.py | 181 ++++++++++++++++++++-----------------------
- 1 file changed, 82 insertions(+), 99 deletions(-)
+ src/Make.ccmd | 3 +++
+ src/Make.clib | 2 ++
+ src/Make.cmd  | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

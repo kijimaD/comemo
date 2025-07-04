@@ -1,17 +1,15 @@
-commit 13e16b39fc269fcba3383bd6c133da3e0e0345e9
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Dec 22 12:30:16 2014 +0900
+commit 7b3ebb131f4a03c02f8f7723b26d55dd98bc702f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:06:41 2014 -0500
 
-    syscall: fix the deprecated way of parsing routing message on openbsd
+    [dev.cc] build: disable API check until all systems build
     
-    OpenBSD 5.5 changed its kernel ABI and OpenBSD 5.6 enabled it.
-    This CL works on both 5.5 and 5.6.
+    Otherwise no system will get an 'ok' until they all do.
     
-    Fixes #9102.
-    
-    Change-Id: I4a295be9ab8acbc99e550d8cb7e8f8dacf3a03c5
-    Reviewed-on: https://go-review.googlesource.com/1932
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=r, dave
+    R=r, dave
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/170320044
 
- src/syscall/route_openbsd.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/run.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

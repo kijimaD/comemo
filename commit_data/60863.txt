@@ -1,0 +1,17 @@
+commit d6d5d8c8fbe574349422b444a8cf0ff0647a6dcf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 00:38:06 2024 +0700
+
+    cmd/compile: remove NameSet.Sorted
+    
+    The only usage of it was removed in CL 517617
+    
+    Change-Id: If1898b7cde4f8c7ab906a2c27a01125415b463c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610600
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/node.go | 11 -----------
+ 1 file changed, 11 deletions(-)

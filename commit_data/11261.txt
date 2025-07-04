@@ -1,20 +1,31 @@
-commit a99e35b625cd5ec4b33c7c07377d6a65e142641d
+commit 247799ce8a0867351b4570b2f62947ff10334ea8
 Author: Adam Langley <agl@golang.org>
-Date:   Thu Jan 19 08:49:52 2012 -0500
+Date:   Thu Jan 19 08:39:03 2012 -0500
 
-    crypto/x509: remove explicit uses of rsa.
+    crypto/elliptic: add constant-time P224.
     
     (Sending to r because of the API change.)
     
-    Over time we might want to add support for other key types.
+    This change alters the API for crypto/elliptic to permit different
+    implementations in the future. This will allow us to add faster,
+    constant-time implementations of the standard curves without any more
+    API changes.
     
-    While I was in the code, I also made the use of RawSubject the same
-    between Subject and Issuer when creating certificates.
+    As a demonstration, it also adds a constant-time implementation of
+    P224. Since it's only 32-bit, it's actually only about 40% the speed
+    of the generic code on a 64-bit system.
     
     R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5554049
+    https://golang.org/cl/5528088
 
- doc/go1.tmpl                | 22 +++++++++++++++++--
- src/pkg/crypto/x509/x509.go | 51 ++++++++++++++++++++++++++++++++-------------
- 2 files changed, 57 insertions(+), 16 deletions(-)
+ doc/go1.tmpl                             |  19 +
+ src/pkg/crypto/ecdsa/ecdsa.go            |  29 +-
+ src/pkg/crypto/ecdsa/ecdsa_test.go       |   4 +-
+ src/pkg/crypto/elliptic/Makefile         |   1 +
+ src/pkg/crypto/elliptic/elliptic.go      | 107 +++--
+ src/pkg/crypto/elliptic/elliptic_test.go |  28 +-
+ src/pkg/crypto/elliptic/p224.go          | 685 +++++++++++++++++++++++++++++++
+ src/pkg/crypto/elliptic/p224_test.go     |  47 +++
+ src/pkg/crypto/tls/key_agreement.go      |  18 +-
+ 9 files changed, 854 insertions(+), 84 deletions(-)

@@ -1,33 +1,23 @@
-commit 4742c52e101ecf4aacebe5148a1cb172bdadb1d4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 22 21:42:02 2024 +0000
+commit 8c2ff88c61630c566ce1346d6d6eff973e6736d7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 09:56:45 2023 -0400
 
-    internal/abi: define EmptyInterface, TypeOf, and NoEscape
+    os: check for ErrNotExist instead of ErrExist in TestNonPollable
     
-    This change defines two commonly-defined functions and a
-    commonly-defined type in internal/abi to try and deduplicate some
-    definitions. This is motivated by a follow-up CL which will want access
-    to TypeOf in yet another package.
+    An apparent typo in CL 484837 caused the test to check for ErrExist
+    instead of ErrNotExist when opening /dev/net/tun for read. That causes
+    the test to fail on platforms where /dev/net/ton does not exist,
+    such as on the darwin-amd64-longtest builder.
     
-    There still exist duplicate definitions of all three of these things in
-    the runtime, and this CL doesn't try to handle that yet. There are far
-    too many uses in the runtime to handle manually in a way that feels
-    comfortable; automated refactoring will help.
+    Updates #59545.
     
-    For #62483.
-    
-    Change-Id: I02fc64a28f11af618f6071f94d27f45c135fa8ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573955
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I9402ce0dba11ab459674e8358ae9a8b97eabc8d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486255
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/abi/escape.go        | 22 ++++++++++++++++++++++
- src/internal/abi/iface.go         | 10 ++++++++++
- src/internal/abi/type.go          | 11 +++++++++++
- src/internal/reflectlite/type.go  |  5 +----
- src/internal/reflectlite/value.go | 30 +++++++++---------------------
- src/reflect/type.go               |  8 ++------
- src/reflect/value.go              | 38 ++++++++++++++++++--------------------
- src/strings/builder.go            | 16 ++--------------
- 8 files changed, 75 insertions(+), 65 deletions(-)
+ src/os/fifo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

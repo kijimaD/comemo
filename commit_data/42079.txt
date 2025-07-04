@@ -1,17 +1,17 @@
-commit 7f0c479ffffc6267f482fbc48c0ca5f43017b40c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Apr 23 05:30:01 2020 +0700
+commit 52aebe8d2150f2709c32f1dceb5d58bab90bc86f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 08:38:52 2019 -0500
 
-    cmd/compile: rewrite dec64 rules to use typed aux field
+    runtime: skip TestPingPongHog on builders
     
-    Passes toolstash-check -all.
+    This test is failing consistently in the longtest builders,
+    potentially masking regressions in other packages.
     
-    Change-Id: If9dd6c2155374eb9ef47639201ec90109a9e314c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229518
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Updates #35271
+    
+    Change-Id: Idc03171c0109b5c8d4913e0af2078c1115666897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206098
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/ssa/gen/dec64.rules | 236 ++++++++++---------------
- src/cmd/compile/internal/ssa/rewritedec64.go | 254 +++++++++++++--------------
- 2 files changed, 222 insertions(+), 268 deletions(-)
+ src/runtime/proc_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

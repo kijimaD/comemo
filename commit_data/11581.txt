@@ -1,13 +1,18 @@
-commit 44122ed06997f1355c6660efb302d867f13877c4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 3 12:22:40 2012 +0900
+commit b80c7e5dfd71508ed754ec2a02caa51f4444ba10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 19:21:55 2012 -0800
 
-    syscall: update bootstrap scripts to sync with new go command
+    math/big: API, documentation cleanup
     
-    R=rsc
+    Fixes #2863.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5615054
+    https://golang.org/cl/5620058
 
- src/pkg/syscall/mkall.sh    | 22 +++++++++++-----------
- src/pkg/syscall/mkerrors.sh |  4 ++--
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/crypto/dsa/dsa.go    |  4 ++--
+ src/pkg/crypto/rand/util.go  |  2 +-
+ src/pkg/crypto/rsa/rsa.go    |  8 ++++----
+ src/pkg/math/big/int.go      | 23 +++++++++++++----------
+ src/pkg/math/big/int_test.go |  8 ++++----
+ 5 files changed, 24 insertions(+), 21 deletions(-)

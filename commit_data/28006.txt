@@ -1,23 +1,41 @@
-commit 4333d3823dd78f755f90e5f63b7de180d4a90025
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 26 12:22:45 2016 +0900
+commit f12bd8a5a8f8485f13793f03d4803a924923badb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 21 11:55:33 2016 -0700
 
-    net: fix typo in error message of TCPConn.ReadFrom
+    cmd/compile: encapsulate OSLICE* representation
     
-    On some error when using io.Copy with TCPConn, it displays an error
-    correlation like the following:
+    As a nice side-effect, this allows us to
+    unify several code paths.
     
-    read tcp 192.0.2.1:1111->192.0.2.2:2222: read tcp [2001:db8::2]:2222->[2001:db8::3]:3333 read: connection reset by peer
+    The terminology (low, high, max, simple slice expr,
+    full slice expr) is taken from the spec and
+    the examples in the spec.
     
-    the correlation "some error on reading after reading operation" looks a
-    bit confusing because the operation on the ReadFrom method of TCPConn is
-    actually "writing after reading." To clarify and avoid confusion, this
-    change sets "readfrom" to the Op field of outer-most OpError instead of
-    "read."
+    This is a trial run. The plan, probably for Go 1.8,
+    is to change slice expressions to use Node.List
+    instead of OKEY, and to do some similar
+    tree structure changes for other ops.
     
-    Change-Id: I6bf4e2e7247143fa54bbcf9cef7a8ae1ede1b35c
-    Reviewed-on: https://go-review.googlesource.com/25220
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp. No performance change.
+    all.bash passes with GO_GCFLAGS=-newexport.
+    
+    Updates #15350
+    
+    Change-Id: Ic1efdc36e79cdb95ae1636e9817a3ac8f83ab1ac
+    Reviewed-on: https://go-review.googlesource.com/22425
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/tcpsock.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go   |   7 ++-
+ src/cmd/compile/internal/gc/bimport.go   |  12 +++-
+ src/cmd/compile/internal/gc/cgen.go      |  10 +---
+ src/cmd/compile/internal/gc/fmt.go       |  34 +++++++----
+ src/cmd/compile/internal/gc/inl.go       |   2 +-
+ src/cmd/compile/internal/gc/order.go     |  26 +++-----
+ src/cmd/compile/internal/gc/parser.go    |  15 ++---
+ src/cmd/compile/internal/gc/racewalk.go  |   6 +-
+ src/cmd/compile/internal/gc/sinit.go     |   7 ++-
+ src/cmd/compile/internal/gc/ssa.go       |  47 ++++++---------
+ src/cmd/compile/internal/gc/subr.go      |  62 +++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 100 +++++++------------------------
+ src/cmd/compile/internal/gc/walk.go      |  76 ++++++++++++-----------
+ 13 files changed, 205 insertions(+), 199 deletions(-)

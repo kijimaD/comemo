@@ -1,17 +1,16 @@
-commit 20004ba889f9efe02e64b3c5a8287f7b50443ce7
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Dec 12 19:43:23 2014 +0100
+commit 1c0c611fc2a7e1ce7eb39626ca7b120b62aac557
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Dec 21 02:48:01 2014 -0500
 
-    testing: add tracing support
+    cmd/ld: put .bss from external objects into real .bss section
     
-    testing part of tracing functionality:
-    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
-    Full change:
-    https://codereview.appspot.com/146920043
+    Fixes #9359.
     
-    Change-Id: Ia3c2c4417106937d5775b0e7064db92c1fc36679
-    Reviewed-on: https://go-review.googlesource.com/1461
+    Change-Id: Iba62935b5a14de23d914f433a09a40417d7e88ed
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1889
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/testing.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/ld/ldelf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

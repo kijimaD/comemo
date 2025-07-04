@@ -1,0 +1,20 @@
+commit abd023911360006fedee9fccc707c73cdfb20b23
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Feb 14 01:07:54 2025 +0800
+
+    go/parser: deprecate parser.ParseDir
+    
+    Fixes #71122
+    
+    Change-Id: Icaf27842f4a42e11eea4bd2203eba5d56610c196
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ api/next/71122.txt                            | 1 +
+ doc/next/6-stdlib/99-minor/go/parser/71122.md | 1 +
+ src/go/parser/interface.go                    | 5 +++++
+ 3 files changed, 7 insertions(+)

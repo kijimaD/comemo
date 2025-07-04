@@ -1,23 +1,16 @@
-commit 4ce0a7cea6805277c3bfecbaab2170e5c2543cba
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sat Nov 28 14:38:29 2020 +0100
+commit 495a287f0bd9d3294b9ef7533dc8165527b29c0e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Apr 28 11:58:33 2020 -0400
 
-    runtime/pprof: ignore test failures on windows/arm
+    doc/go1.15: add notes for GOMODCACHE, modcacheunzipinplace
     
-    This is blocking forward progress of the de-bitrotting work, and I don't
-    know off hand how to fix this. Seeing as its disabled on other
-    platforms, I suspect pprof might not be a very reliable feature, so just
-    allow for the tests to fail for now, until somebody more motivated comes
-    along to fix it.
+    For #36568
+    For #34527
     
-    Updates #42862.
-    
-    Change-Id: Ibc5cd1d82d97b9c2f887d7f3565f2fa70207c8b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273826
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: Ieea4b4a7644e9c957f48d08d2e172e39b571502f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230537
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/pprof/pprof_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go1.15.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

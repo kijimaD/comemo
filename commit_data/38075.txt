@@ -1,21 +1,18 @@
-commit 2cdebb5174bba43fc1c76198c79f6be982c5c63a
-Author: Austin Clements <austin@google.com>
-Date:   Sat Nov 3 17:23:30 2018 -0400
+commit ed969a0c27dff40ac959c1b1e42a0820fe505722
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 1 22:59:11 2018 +0000
 
-    cmd/link: delete stale deadcode reference
+    Revert "misc/wasm: add polyfill for TextEncoder/TextDecoder for Edge support"
     
-    Back when the linker did code generation after dead code elimination,
-    it had to know that references to runtime.read_tls_fallback could be
-    generated at code generation time (and never appear before that). Now
-    that code generation is done by the compiler, the references to
-    runtime.read_tls_fallback are obvious in the relocations, so the
-    linker no longer needs special knowledge of this symbol.
+    This reverts CL 131718, commit a0e7f12771c2e84e626dcf5e30da5d62a3b1adf6.
     
-    Change-Id: I9813a8478e85a6a13470b2d0528db53fd33fcfdf
-    Reviewed-on: https://go-review.googlesource.com/c/154601
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reason for revert: adds request overhead & dependency on third-party service for all users regardless of whether it's necessary.
+    
+    Updates #27295
+    
+    Change-Id: I4a8a9b0c8e4a3198c884dfbd90ba36734f70a9a9
+    Reviewed-on: https://go-review.googlesource.com/138937
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 5 -----
+ misc/wasm/wasm_exec.html | 5 -----
  1 file changed, 5 deletions(-)

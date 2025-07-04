@@ -1,38 +1,30 @@
-commit 38174b3a3514629b84dcd76878b2f536b189dd7b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Mar 6 20:31:33 2022 +0000
+commit 4dbad795100bc0f5f9419bbb44b1ff0beb60a88c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 6 12:24:20 2021 -0400
 
-    go/build: use static maps rather than an init func
+    runtime: call unlockOSThread directly in Windows syscall functions
     
-    go/build is one of the packages that contributes the most towards
-    cmd/go's init cost, which adds up to any call to the tool.
+    Windows syscall functions (e.g. syscall.Syscall9) are defined as
+    cgo_unsafe_args (because it takes the address of one argument and
+    use that to access all arguments) which makes them ABI0. In some
+    case we may need ABI wrappers for them. Because those functions
+    have a large number of arguments, the wrapper can take a
+    non-trivial amount of stack frame, causing nosplit overflow when
+    inlining is disabled. The overflow call chain involves
+    deferreturn.
     
-    One piece of low-hanging fruit is knownOS and knownArch,
-    maps which are filled via an init func from a space-separated list.
-    Using GODEBUG=inittrace=1, we can get three samples:
+    This CL changes a deferred call to unlockOSThread to a direct
+    call. If the syscall functions panics, it is likely a fatal error
+    anyway.
     
-            init go/build @0.36 ms, 0.024 ms clock, 6568 bytes, 74 allocs
-            init go/build @0.33 ms, 0.025 ms clock, 6888 bytes, 76 allocs
-            init go/build @0.36 ms, 0.025 ms clock, 6728 bytes, 75 allocs
+    Fixes #45698.
     
-    After using a static map instead, we see an improvement:
-    
-            init go/build @0.33 ms, 0.018 ms clock, 5096 bytes, 69 allocs
-            init go/build @0.36 ms, 0.021 ms clock, 5096 bytes, 69 allocs
-            init go/build @0.33 ms, 0.019 ms clock, 5096 bytes, 69 allocs
-    
-    The speedup isn't huge, but it helps, and also reduces allocs.
-    One can also imagine that the compiler may get better with static,
-    read-only maps in the future, whereas the init func will likely always
-    have a linear cost and extra allocations.
-    
-    Change-Id: I430212bad03d25358d2cc7b1eab4536ad88d05a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390274
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I280be826644de1205f9c8f5efaa4ec5e1b4eebc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316650
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/go/build/build.go   | 12 ------------
- src/go/build/syslist.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 46 insertions(+), 15 deletions(-)
+ src/runtime/syscall_windows.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

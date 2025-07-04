@@ -1,18 +1,33 @@
-commit 4c20c0a826dafe8bcbb167e82bc07370da065cb1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Apr 13 22:26:09 2023 +0700
+commit 076039a5e16acf104210d62778d48363589e241d
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 17:06:29 2021 +0800
 
-    cmd/compile/internal/ir: remove HasBreak field of some nodes
+    cmd/nm, cmd/objdump, cmd/pprof: disassembly is not supported on loong64
     
-    CL 484435 removed all usages of them.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: I00f21640c7573921472ff3f88cfa92837dc3f9ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484436
-    Reviewed-by: Keith Randall <khr@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: Ic96e4f0c46d9a6b8cd020e899f32c40681daf9c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342323
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ir/stmt.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/cmd/nm/nm_cgo_test.go       | 2 +-
+ src/cmd/objdump/objdump_test.go | 2 ++
+ src/cmd/pprof/pprof_test.go     | 2 ++
+ 3 files changed, 5 insertions(+), 1 deletion(-)

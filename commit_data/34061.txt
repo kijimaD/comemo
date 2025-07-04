@@ -1,32 +1,20 @@
-commit caf96f7daead2c7e543a6249b7cd1656725658c3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 21 14:35:21 2017 -0800
+commit c56434f6a616ae30cebac5d14d9fb6559a3fb157
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 29 11:10:20 2017 -0700
 
-    go/types: use check.lookup consistently where possible (cleanup)
+    cmd/go: don't modify input slice in gccSupportsFlag
     
-    This CL converts the last call to scope.LookupParent with no position
-    information to a check.lookup call that respects position information
-    provided by Eval (there's one more LookupParent call that cannot be
-    converted, see the respective comment in the code).
+    Modifying the input slice broke the new test for whether gccgo
+    supports -fgo-importcfg, as the test passed a slice of the argument
+    slice it was in the process of building.
     
-    In this case, the lookup is needed to determine the variable on the
-    LHS of an assignment, for adjustment of its `used` information.
+    Fixes #22089
     
-    Outside a types.Eval call, i.e., during normal type-checking, there
-    is no difference between this new code and the old code.
-    
-    While in a types.Eval call, it's important to use the correct position
-    to look up the relevant variable. If token.NoPos were used, one might
-    find another variable with the same name, declared later in the scope.
-    
-    Caveat: Types.Eval only accepts expressions, and it's currently not
-    possible to evaluate assignments (except via function literals, but
-    then the scope is different). That is, this change is a fix for a
-    potential future bug, and for now a no-op.
-    
-    Change-Id: I28db1fe1202c07e3f7b3fadfd185728afb9b2ae7
-    Reviewed-on: https://go-review.googlesource.com/85199
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I45444a82673223c46be0c8579da3e31a74c32d73
+    Reviewed-on: https://go-review.googlesource.com/67191
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/assignments.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

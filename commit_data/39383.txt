@@ -1,32 +1,14 @@
-commit 06e34e58150a5cb77afdd3807a93f270a3068456
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu Jun 13 23:40:00 2019 +0200
+commit 4b05dc91b0fe99724721e3545807f3b8f1310c52
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 26 06:31:21 2019 -0800
 
-    syscall: disable ptrace on iOS
+    os: clarify that mode argument is only used if file is created
     
-    It is forbidden by App Store.
+    Fixes #30400
     
-    Fixes #31628
-    
-    Change-Id: Ie6d14a524ee55b57af8db685f3a79f474733add5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182297
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icbd1dda29562afa80c8e37657133a6fe48070ac0
+    Reviewed-on: https://go-review.googlesource.com/c/163744
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/exec_darwin.go           |  4 ++--
- src/syscall/mksyscall.pl             |  6 ++++++
- src/syscall/syscall_darwin.go        |  1 -
- src/syscall/syscall_darwin_386.go    |  1 +
- src/syscall/syscall_darwin_amd64.go  |  1 +
- src/syscall/syscall_darwin_arm.go    |  7 +++++++
- src/syscall/syscall_darwin_arm64.go  |  7 +++++++
- src/syscall/syscall_ptrace_test.go   | 35 +++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_darwin_386.go   | 31 ++++++++++++++++---------------
- src/syscall/zsyscall_darwin_386.s    |  4 ++--
- src/syscall/zsyscall_darwin_amd64.go | 31 ++++++++++++++++---------------
- src/syscall/zsyscall_darwin_amd64.s  |  4 ++--
- src/syscall/zsyscall_darwin_arm.go   | 15 ---------------
- src/syscall/zsyscall_darwin_arm.s    |  2 --
- src/syscall/zsyscall_darwin_arm64.go | 15 ---------------
- src/syscall/zsyscall_darwin_arm64.s  |  2 --
- 16 files changed, 95 insertions(+), 71 deletions(-)
+ src/os/file.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

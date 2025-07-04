@@ -1,13 +1,12 @@
-commit eb5db57d1aa3dbff48693af0673746c232da875e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 14:41:30 2012 -0500
+commit eb5af840d501bdaf5c3bd6bdbc3e44bfdd097ea8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 6 03:34:53 2012 +0800
 
-    cmd/go: sync type Package and go list doc
+    test/run.go: fix build
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5730061
+    https://golang.org/cl/5727068
 
- src/cmd/go/list.go | 35 +++++++++++++++++++++++------------
- src/cmd/go/pkg.go  | 31 ++++++++++++++++---------------
- 2 files changed, 39 insertions(+), 27 deletions(-)
+ test/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

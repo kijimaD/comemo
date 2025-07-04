@@ -1,29 +1,18 @@
-commit e53cc7ae931eeec0863d066d98972fc52fcd09f0
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Fri Mar 23 15:45:03 2018 -0500
+commit 088a9ad543398fa6e656dd5e6f837fb07caada16
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 30 15:47:46 2017 -0800
 
-    runtime: avoid division in growslice
+    cmd/compile: permit indices of certain non-constant shifts
     
-    Add a special case for power-of-2 sized elements.
-    We can replace div/mul with left/right shift and avoid expensive operation.
-    growslice is hotter for short slices of small elements, such as int16, so
-    add an int16 version for GrowSlice benchmark.
+    Per the decision for #14844, index expressions that are non-constant
+    shifts where the LHS operand is representable as an int are now valid.
     
-    name                   old time/op  new time/op  delta
-    GrowSlice/Byte-6       61.3ns ± 3%  60.5ns ± 4%  -1.33%  (p=0.002 n=30+30)
-    GrowSlice/Int16-6      94.0ns ± 4%  84.7ns ± 2%  -9.82%  (p=0.000 n=30+30)
-    GrowSlice/Int-6         100ns ± 1%    99ns ± 1%  -0.25%  (p=0.032 n=29+28)
-    GrowSlice/Ptr-6         197ns ± 2%   195ns ± 2%  -0.94%  (p=0.001 n=30+29)
-    GrowSlice/Struct/24-6   168ns ± 1%   166ns ± 2%  -1.09%  (p=0.000 n=25+30)
-    GrowSlice/Struct/32-6   187ns ± 2%   180ns ± 1%  -3.59%  (p=0.000 n=30+30)
-    GrowSlice/Struct/40-6   241ns ± 2%   238ns ± 2%  -1.41%  (p=0.000 n=30+30)
+    Fixes #21693.
     
-    Change-Id: I31e8388d73fd9356e2dcc091d8d92eef3e3ccdbc
-    Reviewed-on: https://go-review.googlesource.com/102279
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ifafad2c0c65975e0200ce7e28d1db210e0eacd9d
+    Reviewed-on: https://go-review.googlesource.com/81277
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/slice.go      | 28 +++++++++++++++++++++++++---
- src/runtime/slice_test.go |  6 ++++++
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 20 +++++++++-----------
+ test/shift1.go                           |  3 +--
+ 2 files changed, 10 insertions(+), 13 deletions(-)

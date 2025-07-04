@@ -1,19 +1,18 @@
-commit 215bcbc6acc84565597bfafe8adc2eb1d1d5412b
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Mon Aug 7 13:44:17 2023 +0000
+commit 47faad111fc025cbcef01b67a5e125a61791815a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:03:05 2022 +0800
 
-    testing: use the builtin max/min function
+    cmd/cover: use strings.Builder
     
-    Change-Id: I1250b6a33f5f3509a216d307f1783ad4aa5937fc
-    GitHub-Last-Rev: 98dc6b1a11eea8542551a368780a74c1ee2d7083
-    GitHub-Pull-Request: golang/go#61809
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516616
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ifb51cb4ed98a93742ce4b221137a0ad73b939b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428286
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/testing/benchmark.go | 14 --------------
- 1 file changed, 14 deletions(-)
+ src/cmd/cover/cover_test.go | 2 +-
+ src/cmd/cover/html.go       | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

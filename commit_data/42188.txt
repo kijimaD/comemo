@@ -1,17 +1,21 @@
-commit 7250dd25400dbe1d38124f04ff5bd5a03f0c8e1c
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 28 22:33:02 2020 +1000
+commit 13fb147e60ba17457366630c60b5dbbe2d6a4304
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 10 23:48:56 2019 -0500
 
-    image/jpeg: accept "\xff\x00" before a RST marker
+    cmd/internal/obj/arm64: save LR after decrementing SP on darwin
     
-    Fixes #28717
+    iOS does not support SA_ONSTACK. The signal handler runs on the
+    G stack. Any writes below the SP may be clobbered by the signal
+    handler (even without call injection). So we save LR after
+    decrementing SP on iOS.
     
-    Change-Id: I0a1e4ef1583fff89b6f46ef647fb6e4499bdf999
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230122
-    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Updates #35439.
+    
+    Change-Id: Ia6d7a0669e0bcf417b44c031d2e26675c1184165
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206418
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/image/jpeg/reader_test.go | 170 ++++++++++++++++++++++++++++++++++++++++++
- src/image/jpeg/scan.go        |  19 +++++
- 2 files changed, 189 insertions(+)
+ src/cmd/internal/obj/arm64/obj7.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

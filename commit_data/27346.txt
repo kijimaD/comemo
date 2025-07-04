@@ -1,16 +1,28 @@
-commit a677724edfc465193d2f79ee48d2c06defbc916b
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Apr 18 03:18:13 2016 +0200
+commit d1b8871f13203cd99d5e7d686170f0e266760084
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 16 14:15:54 2016 -0700
 
-    os: enable TestGetppid on Plan 9
+    debug/dwarf: add Reader.SeekPC and Data.Ranges
     
-    Fixes #8206.
+    These new methods help find the compilation unit to pass to the
+    LineReader method in order to find the line information for a PC.
+    The Ranges method also helps identify the specific function for a PC,
+    needed to determine the function name.
     
-    Change-Id: Iec1026ecc586495f5c9562cc84b3240c71d53da5
-    Reviewed-on: https://go-review.googlesource.com/22164
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    This uses the .debug.ranges section if necessary, and changes the object
+    file format packages to pass in the section contents if available.
+    
+    Change-Id: I5ebc3d27faaf1a126ffb17a1e6027efdf64af836
+    Reviewed-on: https://go-review.googlesource.com/20769
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/debug/dwarf/entry.go            | 120 ++++++++++++++++++++++++++++++++++++
+ src/debug/dwarf/entry_test.go       | 101 ++++++++++++++++++++++++++++++
+ src/debug/dwarf/testdata/ranges.c   |  25 ++++++++
+ src/debug/dwarf/testdata/ranges.elf | Bin 0 -> 10348 bytes
+ src/debug/elf/file.go               |   4 +-
+ src/debug/macho/file.go             |   6 +-
+ src/debug/pe/file.go                |   6 +-
+ 7 files changed, 254 insertions(+), 8 deletions(-)

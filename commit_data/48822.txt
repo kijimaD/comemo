@@ -1,27 +1,26 @@
-commit 86fa2551fb12338405721089d6db1b9d78e4f05e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 18 17:19:47 2022 -0700
+commit 95c104ee61c88f77f43131b02a9ff3926e128669
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 22:05:36 2021 +0000
 
-    cmd/compile/internal/types2: permit parentheses around types in interfaces
+    [dev.typeparams] reflect: use goarch.PtrSize instead of the duplicated ptrSize [generated]
     
-    Before Go 1.18, an embedded type name in an interface could not be
-    parenthesized. With generalized embedding of types in interfaces,
-    where one might write ~(chan<- int) for clarity (making clear that
-    the ~ applies to the entire channel type), it also makes sense to
-    permit (chan<- int), or (int) for that matter.
+    [git-generate]
+    cd src/reflect
+    gofmt -w -r "PtrSize -> goarch.PtrSize" .
+    gofmt -w -r "ptrSize -> goarch.PtrSize" .
+    goimports -w *.go
     
-    Adjust the parser accordingly to match the spec.
-    
-    (go/types already accepts the notation as specified by the spec.)
-    
-    Fixes #52391.
-    
-    Change-Id: Ifdd9a199c5ccc3473b2dac40dbca31d2df10d12b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400797
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ib534bb0ecde10d93f45365ab4f8efd620d6d2ef3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328346
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/parser.go          | 44 ++++------------------
- .../compile/internal/syntax/testdata/issue52391.go | 17 +++++++++
- 2 files changed, 24 insertions(+), 37 deletions(-)
+ src/reflect/abi.go         | 23 +++++++-------
+ src/reflect/all_test.go    | 75 +++++++++++++++++++++++-----------------------
+ src/reflect/export_test.go |  5 ++--
+ src/reflect/swapper.go     |  3 +-
+ src/reflect/type.go        | 47 +++++++++++++++--------------
+ src/reflect/value.go       |  7 +++--
+ 6 files changed, 83 insertions(+), 77 deletions(-)

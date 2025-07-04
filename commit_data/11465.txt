@@ -1,12 +1,12 @@
-commit 74e8a1308a5b67b2482b46f32de05c87220793fc
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Mon Jan 30 09:58:25 2012 -0800
+commit 022aac78836a96ca844efd327071a55b13cca6a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 11:10:59 2012 -0500
 
-    pkg/go/scanner: Fix Typical use output
+    runtime: fix float64 hash
     
-    R=golang-dev, gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5595045
+    https://golang.org/cl/5580046
 
- src/pkg/go/scanner/scanner.go | 2 +-
+ src/pkg/runtime/alg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

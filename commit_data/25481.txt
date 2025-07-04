@@ -1,12 +1,37 @@
-commit 002e658a917448642afd84960fbc291cf3c24cbd
-Author: Michael McGreevy <mcgreevy@golang.org>
-Date:   Thu Jan 7 13:32:46 2016 +1100
+commit bf606094ee0671cdd776aea43aabb842b6c1e3af
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Nov 3 12:19:15 2015 +0100
 
-    net/http: Minor fix to error messages in test.
+    runtime: fix finalization and profiling of tiny allocations
     
-    Change-Id: I995ac0559f89110662d79d136d710ef3a0bb1505
-    Reviewed-on: https://go-review.googlesource.com/18351
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Handling of special records for tiny allocations has two problems:
+    1. Once we queue a finalizer we mark the object. As the result any
+       subsequent finalizers for the same object will not be queued
+       during this GC cycle. If we have 16 finalizers setup (the worst case),
+       finalization will take 16 GC cycles. This is what caused misbehave
+       of tinyfin.go. The actual flakiness was caused by the fact that fing
+       is asynchronous and don't always run before the check.
+    2. If a tiny block has both finalizer and profile specials,
+       it is possible that we both queue finalizer, preserve the object live
+       and free the profile record. As the result heap profile can be skewed.
+    
+    Fix both issues by analyzing all special records for a single object at once.
+    
+    Also, make tinyfin test stricter and remove reliance on real time.
+    
+    Also, add a test for the problem 2. Currently heap profile missed about
+    a half of live memory.
+    
+    Fixes #13100
+    
+    Change-Id: I9ae4dc1c44893724138a4565ca5cae29f2e97544
+    Reviewed-on: https://go-review.googlesource.com/16591
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/http/serve_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/mgcsweep.go | 46 +++++++++++++++++++++++-------
+ src/runtime/mheap.go    |  5 +---
+ test/finprofiled.go     | 74 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/tinyfin.go         | 56 ++++++++++++++++++++-----------------
+ 4 files changed, 142 insertions(+), 39 deletions(-)

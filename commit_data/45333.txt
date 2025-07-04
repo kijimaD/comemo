@@ -1,15 +1,23 @@
-commit b8fed48a9ae7e6229a4fdccf6aae7bc670f61aca
+commit f098ccf04a33e2e4d2dffa2e90fe77ca8a0fcbb4
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 14 12:38:20 2021 -0400
+Date:   Mon Jul 6 11:26:26 2020 -0400
 
-    cmd/dist: enable cgo on windows/arm64
+    io/fs: add ReadFile and ReadFileFS
     
-    Change-Id: I4d470e2af1bfb4fba004a6f3e00a163a575593da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312047
+    Add ReadFile helper function, ReadFileFS interface, and test.
+    Add ReadFile method to fstest.MapFS.
+    Add testing of ReadFile method to fstest.TestFS.
+    
+    For #41190.
+    
+    Change-Id: I5b6a41e2e582824e570463b698b635abaa436c32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243912
     Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- src/cmd/dist/test.go  | 6 ++++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/go/build/deps_test.go    |  4 ++-
+ src/io/fs/readfile.go        | 63 ++++++++++++++++++++++++++++++++++++++++++++
+ src/io/fs/readfile_test.go   | 43 ++++++++++++++++++++++++++++++
+ src/testing/fstest/mapfs.go  | 12 +++++++++
+ src/testing/fstest/testfs.go | 39 ++++++++++++++++++++++++---
+ 5 files changed, 156 insertions(+), 5 deletions(-)

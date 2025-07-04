@@ -1,28 +1,37 @@
-commit 8221f90f1347bd96548d48b178c8bcb0607cde8f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 12 00:07:55 2023 +0000
+commit a8ca70ff98dd088ff6afe57eafd553aa79732086
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 4 12:50:03 2022 -0400
 
-    Revert "os/exec: avoid calling LookPath in cmd.Start for resolved paths"
+    os/signal: rewrite TestTerminalSignal without bash
     
-    This reverts CL 512155.
+    The existing version of this test contains several races it tries to
+    control with sleeps. Unfortunately, it is still flaky on darwin because
+    writing `fg` in bash too early can apparently result in failure to
+    actually continue the stopped child.
     
-    Reason for revert: CL 512155 introduced a race in that it caused
-    cmd.Start to set cmd.Path. Previously it was fine if code looked
-    at cmd.Path in one goroutine while calling cmd.Start in a different
-    goroutine.
+    Rather than continuing to get perfect timing with bash, rewrite this to
+    eliminate bash and instead perform the same PTY operations that bash
+    would do.
     
-    A test case for this race is in CL 527495.
+    This test is still quite complex because psuedo-terminals are
+    interminably complicated, but I believe it is no longer racy.
+    Technically there are still two races (waiting for child to enter read()
+    and waiting for the darwin kernel to wake the read after TIOCSPGRP), but
+    loss of either of these races should only mean we fail to test the
+    desired darwin EINTR case, not failure.
     
-    Change-Id: Ic18fdadf6763727f8ea748280d5f0e601b9bf374
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527337
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This test is skipped on DragonflyBSD, as it tickles a Wait hang bug
+    (#56132).
+    
+    Updates #56132.
+    Fixes #37329.
+    
+    Change-Id: I0ceaf5aa89f6be0f1bf68b2140f47db673cedb33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440220
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/os/exec/exec.go       | 36 ++++++++++++++++++++++++++++++++----
- src/os/exec/lp_plan9.go   |  6 ------
- src/os/exec/lp_unix.go    |  6 ------
- src/os/exec/lp_wasm.go    |  6 ------
- src/os/exec/lp_windows.go | 43 -------------------------------------------
- 5 files changed, 32 insertions(+), 65 deletions(-)
+ src/os/signal/signal_cgo_test.go | 391 +++++++++++++++++++++++++--------------
+ 1 file changed, 251 insertions(+), 140 deletions(-)

@@ -1,20 +1,19 @@
-commit 20b177268fe6d5711a104e5fcd09b7b1ad6a561b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Feb 17 19:28:19 2022 -0500
+commit 06ac303f6a14b133254f757e54599c48e3c2a4ad
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:15 2021 -0600
 
-    reflect: call ABIInternal moveMakeFuncArgPtrs on ARM64
+    cmd/internal/obj/ppc64: simplify got/toc address classification
     
-    Save some stack space, to avoid nosplit overflow in
-    -race -N -l build.
+    These generate similar machine code sequences to
+    other symbol accesses, therefore we should merge them.
     
-    For #51247.
-    
-    Change-Id: I7357d6227f816a612a64f55f7ca1b1384e9268e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386714
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id8ead284d430fadd2e58bad255deb465498dfade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314109
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/reflect/asm_arm64.s | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go   |  2 -
+ src/cmd/internal/obj/ppc64/anames9.go |  2 -
+ src/cmd/internal/obj/ppc64/asm9.go    | 92 +++++++++++++----------------------
+ 3 files changed, 33 insertions(+), 63 deletions(-)

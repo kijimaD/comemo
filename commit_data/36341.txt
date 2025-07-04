@@ -1,17 +1,16 @@
-commit 85a0192b59d8d9be9cb3759d128b43a5ebf2d766
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 20 21:04:15 2018 +0000
+commit 514018c0aa2b0c260d39e080e7d42a4d47185ab0
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sat Apr 14 10:16:21 2018 +0300
 
-    net/http: add Client.CloseIdleConnections
+    cmd/internal/obj/x86: ifelse->switch, named const for cap=6
     
-    Fixes #26563
+    Part of the x86 asm backend cleanup. Passes toolstash-check.
     
-    Change-Id: I22b0c72d45fab9d3f31fda04da76a8c0b10cd8b6
-    Reviewed-on: https://go-review.googlesource.com/130115
+    Change-Id: Ib9766689fb7edb07f5553868cf89175501ea1e1b
+    Reviewed-on: https://go-review.googlesource.com/107055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/net/http/client.go      | 16 ++++++++++++++++
- src/net/http/client_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/cmd/internal/obj/x86/asm6.go | 28 ++++++++++------------------
+ src/cmd/internal/obj/x86/ytab.go |  6 +++++-
+ 2 files changed, 15 insertions(+), 19 deletions(-)

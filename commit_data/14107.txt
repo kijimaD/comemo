@@ -1,12 +1,12 @@
-commit 749a445ba0697226bd7edd156dffccdce60415ee
+commit e7c222cada118fe936f61bf257b8c28990c63ecd
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 10 11:59:39 2012 +1100
+Date:   Wed Oct 10 11:15:41 2012 +1100
 
-    bytes: fix tests and fix build
+    bytes: make examples work in playground
     
-    R=golang-dev, edsrzf
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6633051
+    https://golang.org/cl/6633050
 
- src/pkg/bytes/buffer_test.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/pkg/bytes/example_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

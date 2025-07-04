@@ -1,39 +1,26 @@
-commit 3cf1ce40bde952c0ca0ac2af7737bfae5841f0c4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 7 19:50:31 2017 +0000
+commit b2a3b54b9520ce869d79ac8bce836a540ba45d09
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 13 21:43:56 2017 +0000
 
-    Revert "cmd/compile: output DWARF lexical blocks for local variables"
+    net/http: make sure Hijack's bufio.Reader includes pre-read background byte
     
-    This reverts commit c8b889cc4824f4dbd64a51a3f7b5b6dce4b87ed2.
+    Previously, if the Hijack called stopped the background read call
+    which read a byte, that byte was sitting in memory, buffered, ready to
+    be Read by Hijack's returned bufio.Reader, but it wasn't yet in the
+    bufio.Reader's buffer itself, so bufio.Reader.Buffered() reported 1
+    byte fewer.
     
-    Reason for revert: broke noopt build, compiler performance regression, new Curfn uses
+    This matters for callers who wanted to stitch together any buffered
+    data (with bufio.Reader.Peek(bufio.Reader.Buffered())) with Hijack's
+    returned net.Conn. Otherwise there was no way for callers to know a
+    byte was read.
     
-    Let's fix those and then try this again.
-    
-    Change-Id: Icc3cad1365d04cac8fd09da9dbb0bbf55c13ef44
-    Reviewed-on: https://go-review.googlesource.com/39991
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id7cb0a0a33fe2f33d79250e13dbaa9c0f7abba13
+    Reviewed-on: https://go-review.googlesource.com/35232
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go         |  17 +-
- src/cmd/compile/internal/gc/bimport.go     |  24 +-
- src/cmd/compile/internal/gc/closure.go     |   8 +-
- src/cmd/compile/internal/gc/dcl.go         |  32 +--
- src/cmd/compile/internal/gc/init.go        |   9 +-
- src/cmd/compile/internal/gc/noder.go       |  48 ++--
- src/cmd/compile/internal/gc/pgen.go        |  25 +-
- src/cmd/compile/internal/gc/scope.go       |  91 -------
- src/cmd/compile/internal/gc/scope_test.go  | 410 -----------------------------
- src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
- src/cmd/compile/internal/gc/subr.go        |   8 +-
- src/cmd/compile/internal/gc/syntax.go      |   7 +-
- src/cmd/compile/internal/gc/walk.go        |   5 +-
- src/cmd/internal/dwarf/dwarf.go            | 179 ++-----------
- src/cmd/internal/obj/data.go               |   2 +-
- src/cmd/internal/obj/link.go               |   3 +-
- src/cmd/internal/obj/objfile.go            |  31 +--
- src/cmd/internal/src/scope.go              |  36 ---
- src/cmd/link/internal/ld/data.go           |  19 +-
- src/cmd/link/internal/ld/dwarf.go          |  38 +--
- src/cmd/link/internal/ld/link.go           |   4 -
- 21 files changed, 109 insertions(+), 889 deletions(-)
+ src/net/http/serve_test.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 10 ++++++-
+ 2 files changed, 76 insertions(+), 1 deletion(-)

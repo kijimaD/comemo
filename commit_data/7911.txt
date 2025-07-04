@@ -1,15 +1,16 @@
-commit 469a747e02dae8c9457233be3d294aa6b93b7903
+commit 0bc37a6d22223fcae11af4af66ff19cd4ebdb60c
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 29 06:48:20 2011 -0700
+Date:   Tue Mar 29 06:47:39 2011 -0700
 
-    test: avoid undefined error in syntax/if.go.
+    test: match gccgo error messages for syntax/chan.go.
     
-    Without this the gccgo version of errchk reports an unmatched
-    error.
+    chan.go:11:1: error: unexpected ‘}’ in channel type
+    chan.go:13:16: error: unexpected ‘)’ in channel type
+    chan.go:16:16: error: unexpected comma in channel type
     
     R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4327041
+    https://golang.org/cl/4313055
 
- test/syntax/if.go | 3 +++
- 1 file changed, 3 insertions(+)
+ test/syntax/chan.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,22 +1,20 @@
-commit 9044cb04f2c0379e907d0b2e944043e81888033e
-Author: griesemer <gri@golang.org>
-Date:   Thu May 18 14:11:17 2017 -0700
+commit 8eb14e9de5018afbcf7eefd7b4bce7a200d0ce3f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 22 16:13:06 2017 -0500
 
-    test: restore fixedbugs/bug398.go to original version
+    cmd/compile: accept string debug flags
     
-    Cannot reproduce original problem. Compiler internals
-    have changed enough such that this appears to work now.
+    The compiler's -d flag accepts string-valued flags, but currently only
+    for SSA debug flags. Extend it to support string values for other
+    flags. This also makes the syntax somewhat more sane so flag=value and
+    flag:value now both accept integers and strings.
     
-    Restore original test (exported interfaces), but also
-    keep version of the test using non-exported interfaces.
-    
-    Fixes #15596.
-    
-    Change-Id: Idb32da80239963242bd5d1609343c80f19773b0c
-    Reviewed-on: https://go-review.googlesource.com/43622
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Idd144d8479a430970cc1688f824bffe0a56ed2df
+    Reviewed-on: https://go-review.googlesource.com/37345
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- test/fixedbugs/bug398.go | 25 +++++++++++++++++++++----
- 1 file changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/main.go     | 40 ++++++++++++++++++++-------------
+ src/cmd/compile/internal/ssa/compile.go |  2 +-
+ 2 files changed, 25 insertions(+), 17 deletions(-)

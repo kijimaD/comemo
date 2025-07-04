@@ -1,17 +1,13 @@
-commit 9799a5a4fd6ec85c52c48e73cb197006ca06c32e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 13 12:45:08 2012 -0500
+commit 6f9609ab3bafb62dcc224604fccdc4f75fc60906
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 13 16:50:44 2012 +0100
 
-    runtime: allow up to 128 GB of allocated memory
+    doc: link to Go coding screencast
     
-    Incorporates code from CL 6828055.
-    
-    Fixes #2142.
-    
-    R=golang-dev, iant, devon.odell
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6826088
+    https://golang.org/cl/6849046
 
- src/pkg/runtime/malloc.goc | 26 ++++++++++++--------------
- src/pkg/runtime/malloc.h   | 10 +++++-----
- 2 files changed, 17 insertions(+), 19 deletions(-)
+ doc/code.html | 4 ++++
+ doc/docs.html | 6 ++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

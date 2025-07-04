@@ -1,12 +1,12 @@
-commit 4ff48c7f451d8fe115ecda86874622832671fd93
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 3 14:22:34 2013 -0700
+commit 988236ba86c8cb7ceb027cd2eaf091b4363f20e2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 3 17:15:43 2013 +0800
 
-    text/template: comment fix
+    runtime/cgo: fix build for ARM
     
-    R=golang-dev, minux.ma, r
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/9086043
+    https://golang.org/cl/9048048
 
- src/pkg/text/template/funcs.go | 2 +-
+ src/pkg/runtime/cgo/gcc_arm.S | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

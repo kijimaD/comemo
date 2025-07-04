@@ -1,36 +1,23 @@
-commit 9d7076b178e3b688a8421a8ce02466a3701d31a0
+commit 671862747ef238f1713170f712e85d1cd6d46685
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 27 11:57:39 2012 -0400
+Date:   Tue Mar 27 11:16:10 2012 -0400
 
-    cmd/go: respect $GOBIN always
+    go/build: fix import check
     
-    Another attempt at https://golang.org/cl/5754088.
+    When we find a package in DIR/src/foo, we only let it
+    be known as foo if there is no other foo in an earlier
+    GOPATH directory or the GOROOT directory.
+    The GOROOT check was looking in GOROOT/src/foo
+    instead of GOROOT/src/pkg/foo, which meant that
+    the import paths "lib9", "libbio", "libmach", and so
+    on were unavailable, and the import paths "math",
+    "errors", and so on were available.  Correct this.
     
-    Before, we only consulted $GOBIN for source code
-    found in $GOROOT, but that's confusing to explain
-    and less useful.  The new behavior lets users set
-    GOBIN=$HOME/bin and have all go-compiled binaries
-    installed there.
+    Fixes #3390.
     
-    Tested a few cases in test.bash.
-    
-    Ran all.bash with and without $GOBIN and it works.
-    Even so, I expect it to break the builders,
-    like it did last time, we can debug from there.
-    
-    Fixes #3269 (again).
-    Fixes #3396.
-    Fixes #3397.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5927051
+    https://golang.org/cl/5927050
 
- doc/install-source.html                           |  5 +--
- src/cmd/go/build.go                               | 34 ++++++++++----------
- src/cmd/go/doc.go                                 |  6 +++-
- src/cmd/go/help.go                                |  4 ++-
- src/cmd/go/pkg.go                                 |  8 ++++-
- src/cmd/go/test.bash                              | 39 +++++++++++++++++++++++
- src/cmd/go/testdata/src/go-cmd-test/helloworld.go |  5 +++
- 7 files changed, 80 insertions(+), 21 deletions(-)
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

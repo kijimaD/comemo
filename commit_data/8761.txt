@@ -1,15 +1,13 @@
-commit 4340b57d88bec1e5dd99919475027ebb760739d7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 17 11:15:54 2011 +1000
+commit ca91ce2d856f79d6cc1cb2d67ed0daef2a89b377
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 17 10:51:10 2011 +1000
 
-    goinstall, go/build: support building cgo packages
+    doc/effective_go: add a note about prefixing error strings with their
+    package name.
     
-    Fixes #1962.
-    
-    R=golang-dev, bradfitz
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4636044
+    https://golang.org/cl/4630042
 
- src/cmd/goinstall/main.go |  2 +-
- src/pkg/go/build/build.go | 20 +++++++++++++++-----
- 2 files changed, 16 insertions(+), 6 deletions(-)
+ doc/effective_go.html | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

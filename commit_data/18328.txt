@@ -1,14 +1,17 @@
-commit 951c84c41b8a83a4bdee09af3321199e09b5c71f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 22 10:54:51 2014 -0800
+commit 15dcd671be2ea2c21bfdd27f031d5b40debdc73e
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Wed Jan 22 10:39:10 2014 -0800
 
-    api: update next.txt
+    syscall: add syscall.Termios on dragonfly, openbsd
     
-    Linux Flock_t, Unix FcntlFlock, and various BSD Termios.
-    
-    R=golang-codereviews, dsymonds
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/55460043
+    https://golang.org/cl/55720043
 
- api/next.txt | 150 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 150 insertions(+)
+ src/pkg/syscall/types_dragonfly.go        |  5 +++++
+ src/pkg/syscall/types_openbsd.go          |  5 +++++
+ src/pkg/syscall/ztypes_dragonfly_386.go   | 10 ++++++++++
+ src/pkg/syscall/ztypes_dragonfly_amd64.go | 10 ++++++++++
+ src/pkg/syscall/ztypes_openbsd_386.go     | 10 ++++++++++
+ src/pkg/syscall/ztypes_openbsd_amd64.go   | 10 ++++++++++
+ 6 files changed, 50 insertions(+)

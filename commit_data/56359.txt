@@ -1,21 +1,32 @@
-commit c3dff93a8c927c426770b27fee0457a544ef4be6
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat May 4 02:01:19 2024 +0000
+commit 0d347544cbca0f42b160424f6bc2458ebcc7b3fc
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Thu Apr 13 14:01:50 2023 -0700
 
-    strconv: use stringslite.Clone
+    html/template: emit filterFailsafe for empty unquoted attr value
     
-    Change-Id: Ifa3c022ad5453301573593a3d05e7b1d42b931ff
-    GitHub-Last-Rev: a7468b068b5c7bcaa573042cf9d5c2732c0385f1
-    GitHub-Pull-Request: golang/go#67167
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583215
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    An unquoted action used as an attribute value can result in unsafe
+    behavior if it is empty, as HTML normalization will result in unexpected
+    attributes, and may allow attribute injection. If executing a template
+    results in a empty unquoted attribute value, emit filterFailsafe
+    instead.
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #59722
+    Fixes CVE-2023-29400
+    
+    Change-Id: Ia38d1b536ae2b4af5323a6c6d861e3c057c2570a
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1826631
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491617
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/strconv/atoc.go |  4 +++-
- src/strconv/atoi.go | 23 +++++++++--------------
- 2 files changed, 12 insertions(+), 15 deletions(-)
+ src/html/template/escape.go      |  5 ++---
+ src/html/template/escape_test.go | 15 +++++++++++++++
+ src/html/template/html.go        |  3 +++
+ 3 files changed, 20 insertions(+), 3 deletions(-)

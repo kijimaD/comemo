@@ -1,14 +1,13 @@
-commit 62491ff7783b6b8d7c0f8bcddc72a4b34965fb2e
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Sep 14 01:28:57 2015 -0400
+commit 9f8a677eabe573c3640605e4c541e968367cc02e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 28 14:36:14 2015 -0700
 
-    cmd/yacc: fix copying action code when line comment is disabled
+    [dev.ssa] cmd/compile: lower all integer comparisons
     
-    Fixes #12601.
-    
-    Change-Id: I0be69ffe9ba19934aaef1651845c725708db77de
-    Reviewed-on: https://go-review.googlesource.com/14546
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I683281e1293d3df3c39772e7b08f0b55a3b61404
+    Reviewed-on: https://go-review.googlesource.com/12811
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/yacc/yacc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  35 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 588 +++++++++++++++++++++++++++
+ 2 files changed, 623 insertions(+)

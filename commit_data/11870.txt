@@ -1,42 +1,36 @@
-commit 7b848c69647c52d69127ccef79cc7d01c0ec02c6
+commit 569ef7d49e36048aeca92e387e934d5a53276949
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 22:31:51 2012 -0500
+Date:   Mon Feb 13 22:23:04 2012 -0500
 
-    cmd/dist: cross-compiling fixes
+    net/http: disable buggy test
     
-    This CL makes it possible to run make.bash with
-    GOOS and GOARCH set to something other than
-    the native host GOOS and GOARCH.
+    Generates an infinite stream (at least >1GB) of:
     
-    As part of the CL, the tool directory moves from bin/tool/
-    to pkg/tool/goos_goarch where goos and goarch are
-    the values for the host system (running the build), not
-    the target.  pkg/ is not technically appropriate, but C objects
-    are there now tool (pkg/obj/) so this puts all the generated
-    binaries in one place (rm -rf $GOROOT/pkg cleans everything).
-    Including goos_goarch in the name allows different systems
-    to share a single $GOROOT on a shared file system.
+    === RUN TestTransportPersistConnLeak
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
+    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
+    too many open files
     
-    Fixes #2920.
-    
-    R=golang-dev, r
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5645093
+    https://golang.org/cl/5661052
 
- src/all.bash                         |   4 +-
- src/cmd/dist/a.h                     |   2 +
- src/cmd/dist/build.c                 | 194 ++++++++++++++++++++++++-----------
- src/cmd/dist/buildruntime.c          |   4 +-
- src/cmd/dist/goc2c.c                 |  22 ++--
- src/cmd/dist/unix.c                  |   7 ++
- src/cmd/go/build.go                  |  27 +++--
- src/cmd/go/pkg.go                    |  11 +-
- src/cmd/go/tool.go                   |   3 +-
- src/make.bash                        |  28 +++--
- src/make.bat                         |  36 +++++--
- src/pkg/exp/types/gcimporter_test.go |  11 +-
- src/pkg/go/build/path.go             |   3 +
- src/run.bash                         |   2 +-
- test/fixedbugs/bug302.go             |   2 +-
- test/run                             |   4 +-
- 16 files changed, 256 insertions(+), 104 deletions(-)
+ src/pkg/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

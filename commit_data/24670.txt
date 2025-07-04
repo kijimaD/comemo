@@ -1,20 +1,19 @@
-commit a59a27564b6d2a2fdf53eb43b3f8d6e7d0117e10
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 29 13:02:28 2015 -0700
+commit db5eb2a2c3290fa2bd26bd8da2356edbdb32a75a
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Thu Aug 13 09:05:22 2015 -0400
 
-    math: fix typo and braino in my earlier commit
+    runtime/cgo: remove __stack_chk_fail_local
     
-    The bug number was a typo, and I forgot to switch the implementation
-    back to if statements after the change from Float64bits in the first
-    patchset back to branching.
+    I cannot find where it's being used.
     
-    if statements can currently be inlined, but switch cannot (#13071)
+    This addresses a duplicate symbol issue encountered in golang/go#9327.
     
-    Change-Id: I81d0cf64bda69186c3d747a07047f6a694f8fa70
-    Reviewed-on: https://go-review.googlesource.com/16446
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8efda45a006ad3e19423748210c78bd5831215e0
+    Reviewed-on: https://go-review.googlesource.com/13615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/abs.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/cgo/gcc_386.S    | 5 -----
+ src/runtime/cgo/gcc_arm.S    | 4 ----
+ src/runtime/cgo/gcc_arm64.S  | 4 ----
+ src/runtime/cgo/gcc_ppc64x.S | 5 -----
+ 4 files changed, 18 deletions(-)

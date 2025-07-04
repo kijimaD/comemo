@@ -1,20 +1,24 @@
-commit 1cff98d4fe3a39356b697225ff27ba5e2f1ef217
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Apr 7 15:11:39 2019 +0200
+commit 0cbb11c720222efa30a009ec2a48ab32f4306526
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 13 15:36:02 2018 -0800
 
-    bootstrap.bash: remove exec wrappers
+    [dev.boringcrypto] cmd/compile: by default accept any language
     
-    Without this change, building an Android toolchain fails:
+    The bootstrap stage 1 compiler was defaulting to the language version
+    used by the bootstrap compiler itself, typically 1.4. Normally this
+    doesn't matter since the bootstrap code has to build with 1.4 anyhow,
+    but it broke the boringcrypto branch which uses cgo during the
+    bootstrap, as cgo now generates code that uses type aliases.
     
-    $ CGO_ENABLED=1 GOARCH=arm64 GOOS=android ./bootstrap.bash
-    ...
-    rmdir: failed to remove 'bin/go_android_arm64_exec': Not a directory
-    
-    Change-Id: Ibc3b1e2fd24b73a63bd3020ce1e813f2b4496125
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170941
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I8a8312bb9ca4befaf65c00a8d71a78566075c2f7
+    Reviewed-on: https://go-review.googlesource.com/c/149459
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    (cherry picked from commit 69397422c0ac74f9f9ec8e2b3e6d0b0b7ab1b697)
+    Reviewed-on: https://go-review.googlesource.com/c/149485
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bootstrap.bash | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/main.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

@@ -1,27 +1,20 @@
-commit b6e81a51299f46b29ff7057dd043da8a42134eb0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 26 13:41:12 2024 -0400
+commit ee46f0b5084461978432aa20df003ac52500b0f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 10 17:42:54 2023 -0700
 
-    debug/buildinfo: read data in chunks
+    net/url: correct field name in Redacted doc comment
     
-    Rather than reading the entire data segment into memory, read it in
-    smaller chunks to keep memory usage low.
+    Fixes #60716
     
-    For typically Go binaries, this doesn't matter much. For those, we read
-    the .go.buildinfo section, which should be quite small. But for non-Go
-    binaries (or Go binaries with section headers stripped), we search the
-    entire loadable data segment, which could be quite large.
-    
-    This reduces the time for `go version` on a 2.5GB non-Go binary from
-    ~1.2s and 1GB RSS (!!) to ~1s and ~25MB RSS.
-    
-    Fixes #68592.
-    
-    Change-Id: I9218854c5b6f2aa1331f561ab0850a9fd62ef23b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601459
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I86037784d6c12fd22bd03c3efabef379fa0646aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502355
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/debug/buildinfo/buildinfo.go   | 136 +++++++++++++++++++++++++++-------
- src/debug/buildinfo/search_test.go | 148 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 258 insertions(+), 26 deletions(-)
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

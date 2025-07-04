@@ -1,28 +1,20 @@
-commit 1ccb66d1ef031ad70345d2ef1983a5814f405295
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Sep 6 12:26:31 2018 -0600
+commit 46033d7639cb1399029b99bb0cdc53d2b8f4bd08
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 18 14:16:26 2018 -0400
 
-    hash/fnv: use bits.Mul64 for 128-bit hash
+    cmd/go: add go.sum entries to go mod download -json output
     
-    Replace the 128-bit multiplication in 4 parts with bits.Mul64
-    and two single-width multiplications.  This simplifies the code
-    and increases throughput by ~50% on amd64.
+    Clients of 'go mod download', particularly proxies, may need
+    the hashes of the content they downloaded, for checking against
+    go.sum entries or recording elsewhere.
     
-    name         old time/op   new time/op   delta
-    Fnv128KB-4    9.64µs ± 0%   6.09µs ± 0%  -36.89%  (p=0.016 n=4+5)
-    Fnv128aKB-4   9.11µs ± 0%   6.17µs ± 5%  -32.32%  (p=0.008 n=5+5)
-    
-    name         old speed     new speed     delta
-    Fnv128KB-4   106MB/s ± 0%  168MB/s ± 0%  +58.44%  (p=0.016 n=4+5)
-    Fnv128aKB-4  112MB/s ± 0%  166MB/s ± 5%  +47.85%  (p=0.008 n=5+5)
-    
-    Change-Id: Id752f2a20ea3de23a41e08db89eecf2bb60b7e6d
-    Reviewed-on: https://go-review.googlesource.com/c/133936
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic36c882cefc540678e1bc5a3dae1e865d181aa69
+    Reviewed-on: https://go-review.googlesource.com/129802
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/hash/fnv/fnv.go | 33 +++++++++++----------------------
- 1 file changed, 11 insertions(+), 22 deletions(-)
+ src/cmd/go/internal/modcmd/download.go      | 38 ++++++++++++++++++-----------
+ src/cmd/go/internal/modfetch/cache.go       | 17 +++++++++++++
+ src/cmd/go/internal/modfetch/fetch.go       | 11 ++++++---
+ src/cmd/go/testdata/script/mod_download.txt |  2 ++
+ 4 files changed, 51 insertions(+), 17 deletions(-)

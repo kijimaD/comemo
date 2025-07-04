@@ -1,29 +1,23 @@
-commit 541f8fef30adf62a2032b6e275e95507b00feb52
-Author: Kyle Shannon <kyle@pobox.com>
-Date:   Wed Aug 16 16:51:22 2017 -0600
+commit f3f3f0d6d509bfaf30b55c0679cff366b50b7eae
+Author: Samuel Tan <samueltan@google.com>
+Date:   Thu Apr 13 10:57:04 2017 -0700
 
-    cmd/go: add fossil to general server regexp in get
+    html/template: ignore case when handling type attribute in script element
     
-    Fix a missed change from:
+    Convert the parsed attribute name to lowercase before checking its value in
+    the HTML parser state machine. This ensures that the type attribute in
+    the script element is handled in a case-sensitive manner, just like all
+    other attribute names.
     
-    https://golang.org/cl/56190
+    Fixes #19965
     
-    pointed out on the fossil mailing list shortly after submission
-    of the change mentioned above.  See:
-    
-    http://www.mail-archive.com/fossil-users@lists.fossil-scm.org/msg25736.html
-    
-    This change adds fossil to the general regular expression that is checked last
-    in the import path check.
-    
-    For #10010
-    
-    Change-Id: I6b711cdb1a8d4d767f61e1e28dc29dce529e0fad
-    Reviewed-on: https://go-review.googlesource.com/56491
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I806d8c62aada2c3b5b4328aff75f217ea60cb339
+    Reviewed-on: https://go-review.googlesource.com/40650
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/get/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/html/template/attr.go        | 3 +--
+ src/html/template/escape_test.go | 5 +++++
+ src/html/template/transition.go  | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

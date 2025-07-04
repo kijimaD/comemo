@@ -1,20 +1,20 @@
-commit 3d124b1a817146ab7800982622b0de5b828f3392
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Aug 17 09:11:36 2017 +0900
+commit da75700a641c7e2bd264dd873d637abfcbfffab1
+Author: David Lazar <lazard@golang.org>
+Date:   Wed Apr 19 12:04:18 2017 -0400
 
-    debug/macho: support LC_RPATH
+    runtime: make test independent of inlining
     
-    Updates #21487
+    TestBreakpoint expects to see "runtime.Breakpoint()" in the stack trace.
+    If runtime.Breakpoint() is inlined, then the stack trace prints
+    "runtime.Breakpoint(...)" since the runtime does not have information
+    about arguments (or lack thereof) to inlined functions. This change
+    makes the test independent of inlining by looking for the string
+    "runtime.Breakpoint(". Now TestBreakpoint passes with -l=4.
     
-    Change-Id: Ia549a87a8a305cc80da11ea9bd904402f1a14689
-    Reviewed-on: https://go-review.googlesource.com/56321
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia044a8e8a4de2337cb2b393d6fa78c73a2f25926
+    Reviewed-on: https://go-review.googlesource.com/40997
+    Run-TryBot: David Lazar <lazard@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/debug/macho/file.go                            |  19 +++++
- src/debug/macho/file_test.go                       |  79 +++++++++++++++++----
- src/debug/macho/macho.go                           |   9 +++
- .../testdata/clang-386-darwin-exec-with-rpath      | Bin 0 -> 8416 bytes
- .../testdata/clang-amd64-darwin-exec-with-rpath    | Bin 0 -> 8432 bytes
- 5 files changed, 94 insertions(+), 13 deletions(-)
+ src/runtime/crash_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,16 +1,23 @@
-commit 820f58a27f7f64f21353db6a071bf5dbf658924c
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Thu Aug 15 04:54:46 2024 +0200
+commit 42d2dfb4305aecb3a6e5494db6b8f6e48a09b420
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Thu Jul 27 01:21:48 2023 +0000
 
-    cmd/compile: compute Negation's limits from argument's limits
+    reflect: add TypeFor
     
-    Change-Id: I2e4d74a86faa95321e847a061e06c3efff7f20df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605775
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fixes #60088
+    
+    Change-Id: I7b43d329def22c2524501ba1d6bfc73becc823d1
+    GitHub-Last-Rev: becd714c4562da4a3280c3a56ebaf246e48e9f37
+    GitHub-Pull-Request: golang/go#61598
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513478
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/prove.go |  4 ++++
- test/prove.go                         | 43 +++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+)
+ api/next/60088.txt       |  1 +
+ src/reflect/type.go      |  5 +++++
+ src/reflect/type_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+)

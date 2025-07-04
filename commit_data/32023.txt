@@ -1,13 +1,20 @@
-commit a0ba7363c2118ad74891ff17c2d28ace25a0ceba
-Author: Kate Manson <kate.manson@izettle.com>
-Date:   Sat Jul 15 12:07:55 2017 -0600
+commit ed6f2978a21d39abd1efbc2b0c06431e17519a63
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Mar 30 21:33:06 2017 +0200
 
-    strings: add example for ContainsRune
+    cmd/link: skip TestDWARF on Plan 9
     
-    Change-Id: I994f003c97a14d194df5f07dd217c0ff3b214741
-    Reviewed-on: https://go-review.googlesource.com/48874
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TestDWARF has been added in CL 38855. This test is
+    failing on Plan 9 because executables don't have
+    a DWARF symbol table.
+    
+    Fixes #19793.
+    
+    Change-Id: I7fc547a7c877b58cc4ff6b4eb5b14852e8b4668b
+    Reviewed-on: https://go-review.googlesource.com/38931
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/example_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/link/dwarf_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

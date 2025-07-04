@@ -1,20 +1,23 @@
-commit d8bd7b24fcc72fb4117f7fc249ceaa79f69d4e00
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 18 17:59:12 2016 +0000
+commit 810799a16d71c6293b7d305fbe22dd85456fe1fd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 20:20:50 2016 +0000
 
-    net/http: update bundled x/net/http2 for Server context changes
+    Revert "cmd/asm: add s390x support"
     
-    Updates x/net/http2 to golang.org/cl/23220
-    (http2: with Go 1.7 set Request.Context in ServeHTTP handlers)
+    This reverts commit 85bbabd9c49253846f10d08876f9e15338cfe6b4.
     
-    Fixes #15134
+    The reverted CL broke all builds, because it depends on other CLs
+    that haven't been reviewed or landed yet.
     
-    Change-Id: I73bac2601118614528f051e85dab51dc48e74f41
-    Reviewed-on: https://go-review.googlesource.com/23221
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I936f969431e0ac77133e43de2bf63042cef6b777
+    Reviewed-on: https://go-review.googlesource.com/21238
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/h2_bundle.go  | 49 +++++++++++++++++++++++++++++++++++++++-------
- src/net/http/serve_test.go | 32 +++++++++++++++++++++---------
- 2 files changed, 65 insertions(+), 16 deletions(-)
+ src/cmd/asm/internal/arch/arch.go         |  58 --------
+ src/cmd/asm/internal/arch/s390x.go        | 139 -------------------
+ src/cmd/asm/internal/asm/asm.go           |  30 -----
+ src/cmd/asm/internal/asm/endtoend_test.go |   4 -
+ src/cmd/asm/internal/asm/operand_test.go  | 103 --------------
+ src/cmd/asm/internal/asm/testdata/s390x.s | 215 ------------------------------
+ 6 files changed, 549 deletions(-)

@@ -1,36 +1,21 @@
-commit 0d5605832c02d57211b1b3ab53b6fab3b9dd3a2d
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Tue Apr 23 07:24:51 2024 +0200
+commit 47b403ad2dba61e653ec24da7d84cb9decea4939
+Author: amdahliu <zenghao235711@gmail.com>
+Date:   Mon Jul 3 10:09:36 2023 +0000
 
-    cmd/objdump: add s390x GNU disasm support
+    slices: refactor DeleteFunc to improve code readability
     
-    This CL provides vendor support for s390x disassembler gnu syntax.
-    go get golang.org/x/arch@master
-    go mod tidy
-    go mod vendor
+    Reuse IndexFunc function to avoid confusing subscript indexing, and to reduce code nesting depth.
     
-    For #15255
-    
-    Change-Id: Ia75fa515e7ea7d56913a28147c65650a7ab3062c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581015
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I309416ebf928071f71054433e078f0fda802fba8
+    GitHub-Last-Rev: af54738bda7f27afda5f92496363c0a68493c369
+    GitHub-Pull-Request: golang/go#61154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507635
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
 
- src/cmd/go.mod                                     |    2 +-
- src/cmd/go.sum                                     |    4 +-
- src/cmd/internal/objfile/disasm.go                 |   19 +
- src/cmd/objdump/objdump_test.go                    |   10 +-
- .../golang.org/x/arch/s390x/s390xasm/Makefile      |    2 +
- .../golang.org/x/arch/s390x/s390xasm/decode.go     |  241 +
- .../golang.org/x/arch/s390x/s390xasm/field.go      |   98 +
- .../vendor/golang.org/x/arch/s390x/s390xasm/gnu.go | 1018 ++++
- .../golang.org/x/arch/s390x/s390xasm/inst.go       |  399 ++
- .../golang.org/x/arch/s390x/s390xasm/tables.go     | 5046 ++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |    3 +-
- 11 files changed, 6836 insertions(+), 6 deletions(-)
+ src/slices/slices.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

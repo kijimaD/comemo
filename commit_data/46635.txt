@@ -1,21 +1,23 @@
-commit 850a4ffb6346dd53f6f5624c13410d99e6509cae
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Sep 27 13:52:53 2021 -0400
+commit 99a5db11acc48794b703bee395a08848d49da41c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 17 01:13:34 2021 -0800
 
-    cmd/internal/goobj: remove Pcdata from object file
+    [dev.regabi] cmd/compile: use LinksymOffsetExpr in walkConvInterface
     
-    As of CL 247399 we use separate symbols for PCDATA. There is no
-    more need for writing PCDATA directly into the object file as a
-    separate block.
+    This CL updates walkConvInterface to use LinksymOffsetExpr for
+    referencing runtime.staticuint64s and runtime.zerobase.
     
-    Change-Id: I942d1a372540415e0cc07fb2a01f79718a264142
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352610
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Passes toolstash -cmp (surprisingly).
+    
+    Change-Id: Iad7e30371f89c8a5e176b5ddbc53faf57012ba0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284229
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/internal/goobj/objfile.go |  2 --
- src/cmd/internal/obj/objfile.go   | 19 -------------------
- 2 files changed, 21 deletions(-)
+ src/cmd/compile/internal/ir/expr.go      |  7 +++++++
+ src/cmd/compile/internal/ir/symtab.go    |  7 +------
+ src/cmd/compile/internal/ssagen/ssa.go   |  1 +
+ src/cmd/compile/internal/walk/convert.go | 18 +++++-------------
+ 4 files changed, 14 insertions(+), 19 deletions(-)

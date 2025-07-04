@@ -1,46 +1,13 @@
-commit eb592d828924725ea63563052788cebe415c2781
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 21 13:31:34 2014 -0500
+commit cdc556556c1d0213b3205dcd5b08655795fc215d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 21 09:29:19 2014 -0800
 
-    cmd/gc: do not follow uintptr passed as function argument
+    cmd/ld: support archives larger than 2G
     
-    The escape analysis works by tracing assignment paths from
-    variables that start with pointer type, or addresses of variables
-    (addresses are always pointers).  It does allow non-pointers
-    in the path, so that in this code it sees x's value escape into y:
-    
-            var x *[10]int
-            y := (*int)(unsafe.Pointer(uintptr(unsafe.Pointer(x))+32))
-    
-    It must allow uintptr in order to see through this kind of
-    "pointer arithmetic".
-    
-    It also traces such values if they end up as uintptrs passed to
-    functions. This used to be important because packages like
-    encoding/gob passed around uintptrs holding real pointers.
-    
-    The introduction of precise collection of stacks has forced
-    code to be more honest about which declared stack variables
-    hold pointers and which do not. In particular, the garbage
-    collector no longer sees pointers stored in uintptr variables.
-    Because of this, packages like encoding/gob have been fixed.
-    
-    There is not much point in the escape analysis accepting
-    uintptrs as holding pointers at call boundaries if the garbage
-    collector does not.
-    
-    Excluding uintptr-valued arguments brings the escape
-    analysis in line with the garbage collector and has the
-    useful side effect of making arguments to syscall.Syscall
-    not appear to escape.
-    
-    That is, this CL should yield the same benefits as
-    CL 45930043 (rolled back in CL 53870043), but it does
-    so by making uintptrs less special, not more.
-    
-    R=golang-codereviews, iant
+    R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/53940043
+    https://golang.org/cl/53950043
 
- src/cmd/gc/esc.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/ld/lib.c | 6 +++---
+ src/cmd/ld/lib.h | 1 -
+ 2 files changed, 3 insertions(+), 4 deletions(-)

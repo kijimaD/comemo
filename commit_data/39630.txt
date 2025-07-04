@@ -1,14 +1,106 @@
-commit 989409f5279df7394faa1c3f66ef00a418f6c888
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Aug 26 12:57:09 2019 -0400
+commit 4c227a091e9200ed9757dedd8efbc6e254750c2c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 3 12:54:01 2019 -0800
 
-    doc/go1.13: add information about using private modules to the introduction
+    math/big: remove bounds checks in pure Go implementations
     
-    Fixes #33796
+    These routines are quite sensitive to BCE.
     
-    Change-Id: I9f6837be96410e96d004523c48bef95ee1427484
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191746
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This change eliminates bounds checks from loops.
+    It does so at the cost of a bit of safety:
+    malformed input will now return incorrect answers
+    instead of panicking.
+    
+    This isn't as bad as it sounds: math/big has very good
+    test coverage, and the alternative implementations are in
+    assembly, which could do much worse things with malformed input.
+    
+    If the compiler's BCE improves, so could these routines.
+    
+    Notable BCE improvements for these routines would be:
+    
+    * Allowing and propagating more cross-slice length hints.
+      Then hints like _ = y[:len(z)] would eliminate bounds checks for y[i].
+    
+    * Propagating enough information so that we could do
+      n := len(x)
+      if len(z) < n {
+        n = len(z)
+      }
+      and then have i < n eliminate the same bounds checks as
+      i < len(x) && i < len(z) currently does.
+    
+    * Providing some way to do BCE for unrolled loops.
+      Now that we have math/bits implementations,
+      it is possible to write things like ADC chains in
+      pure Go, if you can reasonably unroll loops.
+    
+    Benchmarks below are for amd64, using -tags=math_big_pure_go.
+    
+    name            old time/op    new time/op    delta
+    AddVV/1-8         5.15ns ± 3%    4.65ns ± 4%   -9.81%  (p=0.000 n=93+86)
+    AddVV/2-8         6.40ns ± 2%    5.58ns ± 4%  -12.78%  (p=0.000 n=90+95)
+    AddVV/3-8         7.07ns ± 2%    6.66ns ± 2%   -5.88%  (p=0.000 n=87+83)
+    AddVV/4-8         7.94ns ± 5%    7.41ns ± 4%   -6.65%  (p=0.000 n=94+98)
+    AddVV/5-8         8.55ns ± 1%    8.80ns ± 0%   +2.92%  (p=0.000 n=87+92)
+    AddVV/10-8        12.7ns ± 1%    12.3ns ± 1%   -3.12%  (p=0.000 n=83+71)
+    AddVV/100-8        119ns ± 5%     117ns ± 4%   -1.60%  (p=0.000 n=93+90)
+    AddVV/1000-8      1.14µs ± 4%    1.14µs ± 5%     ~     (p=0.812 n=95+91)
+    AddVV/10000-8     11.4µs ± 5%    11.3µs ± 5%     ~     (p=0.503 n=97+96)
+    AddVV/100000-8     114µs ± 4%     113µs ± 5%   -0.98%  (p=0.002 n=97+90)
+    
+    name            old time/op    new time/op    delta
+    SubVV/1-8         5.23ns ± 5%    4.65ns ± 3%  -11.18%  (p=0.000 n=89+91)
+    SubVV/2-8         6.49ns ± 5%    5.58ns ± 3%  -14.04%  (p=0.000 n=92+94)
+    SubVV/3-8         7.10ns ± 3%    6.65ns ± 2%   -6.28%  (p=0.000 n=87+80)
+    SubVV/4-8         8.04ns ± 1%    7.44ns ± 5%   -7.49%  (p=0.000 n=83+98)
+    SubVV/5-8         8.55ns ± 2%    8.32ns ± 1%   -2.75%  (p=0.000 n=84+92)
+    SubVV/10-8        12.7ns ± 1%    12.3ns ± 1%   -3.09%  (p=0.000 n=80+75)
+    SubVV/100-8        119ns ± 0%     116ns ± 3%   -1.83%  (p=0.000 n=87+98)
+    SubVV/1000-8      1.13µs ± 5%    1.13µs ± 3%     ~     (p=0.082 n=96+98)
+    SubVV/10000-8     11.2µs ± 1%    11.3µs ± 3%   +0.76%  (p=0.000 n=87+97)
+    SubVV/100000-8     112µs ± 2%     113µs ± 3%   +0.55%  (p=0.000 n=76+88)
+    
+    name            old time/op    new time/op    delta
+    AddVW/1-8         4.30ns ± 4%    3.96ns ± 6%  -8.02%  (p=0.000 n=89+97)
+    AddVW/2-8         5.15ns ± 2%    4.91ns ± 1%  -4.56%  (p=0.000 n=87+80)
+    AddVW/3-8         5.59ns ± 3%    5.75ns ± 2%  +2.91%  (p=0.000 n=91+88)
+    AddVW/4-8         6.20ns ± 1%    6.03ns ± 1%  -2.71%  (p=0.000 n=75+90)
+    AddVW/5-8         6.93ns ± 3%    6.49ns ± 2%  -6.35%  (p=0.000 n=100+82)
+    AddVW/10-8        10.0ns ± 7%     9.6ns ± 0%  -4.02%  (p=0.000 n=98+74)
+    AddVW/100-8       91.1ns ± 1%    90.6ns ± 1%  -0.55%  (p=0.000 n=84+80)
+    AddVW/1000-8       866ns ± 1%     856ns ± 4%  -1.06%  (p=0.000 n=69+96)
+    AddVW/10000-8     8.64µs ± 1%    8.53µs ± 4%  -1.25%  (p=0.000 n=67+99)
+    AddVW/100000-8    84.3µs ± 2%    85.4µs ± 4%  +1.22%  (p=0.000 n=89+99)
+    
+    name            old time/op    new time/op    delta
+    SubVW/1-8         4.28ns ± 2%    3.82ns ± 3%  -10.63%  (p=0.000 n=91+89)
+    SubVW/2-8         4.61ns ± 1%    4.48ns ± 3%   -2.67%  (p=0.000 n=94+96)
+    SubVW/3-8         5.54ns ± 1%    5.81ns ± 4%   +4.87%  (p=0.000 n=92+97)
+    SubVW/4-8         6.20ns ± 1%    6.08ns ± 2%   -1.99%  (p=0.000 n=71+88)
+    SubVW/5-8         6.91ns ± 3%    6.64ns ± 1%   -3.90%  (p=0.000 n=97+70)
+    SubVW/10-8        9.85ns ± 2%    9.62ns ± 0%   -2.31%  (p=0.000 n=82+62)
+    SubVW/100-8       91.1ns ± 1%    90.9ns ± 3%   -0.14%  (p=0.010 n=71+93)
+    SubVW/1000-8       859ns ± 3%     867ns ± 1%   +0.98%  (p=0.000 n=99+78)
+    SubVW/10000-8     8.54µs ± 5%    8.57µs ± 2%   +0.38%  (p=0.007 n=98+92)
+    SubVW/100000-8    84.5µs ± 3%    84.6µs ± 3%     ~     (p=0.334 n=95+94)
+    
+    name                old time/op    new time/op    delta
+    AddMulVVW/1-8         5.43ns ± 3%    4.36ns ± 2%  -19.67%  (p=0.000 n=95+94)
+    AddMulVVW/2-8         6.56ns ± 4%    6.11ns ± 1%   -6.90%  (p=0.000 n=91+91)
+    AddMulVVW/3-8         8.00ns ± 1%    7.80ns ± 4%   -2.52%  (p=0.000 n=83+95)
+    AddMulVVW/4-8         9.81ns ± 2%    9.53ns ± 1%   -2.86%  (p=0.000 n=77+64)
+    AddMulVVW/5-8         11.4ns ± 3%    11.3ns ± 5%   -0.89%  (p=0.000 n=95+97)
+    AddMulVVW/10-8        18.9ns ± 5%    19.1ns ± 5%   +0.89%  (p=0.000 n=91+94)
+    AddMulVVW/100-8        165ns ± 5%     165ns ± 4%     ~     (p=0.427 n=97+98)
+    AddMulVVW/1000-8      1.56µs ± 3%    1.56µs ± 4%     ~     (p=0.167 n=98+96)
+    AddMulVVW/10000-8     15.7µs ± 5%    15.6µs ± 5%   -0.31%  (p=0.044 n=95+97)
+    AddMulVVW/100000-8     156µs ± 3%     157µs ± 8%     ~     (p=0.373 n=72+99)
+    
+    Change-Id: Ibc720785d5b95f6a797103b1363843205f4d56bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164966
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.13.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/math/big/arith.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

@@ -1,26 +1,20 @@
-commit 93fb2c90740aef00553c9ce6a7cd4578c2469675
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 2 14:58:42 2025 -0400
+commit 47d4295f924bca6f1852622aabc3d3876a3f06d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 19:29:27 2024 -0500
 
-    runtime: clear frame pointer in morestack
+    cmd/go: respect GODEBUG in test cache
     
-    Corollary to CL 669615.
+    GODEBUG affects test execution but was not being tracked.
     
-    morestack uses the frame pointer from g0.sched.bp. This doesn't really
-    make any sense. morestack wasn't called by whatever used g0 last, so at
-    best unwinding will get misleading results.
+    Fixes #66213.
+    Fixes #65436.
     
-    For #63630.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-arm64-longtest
-    Change-Id: I6a6a636c3a2994eb88f890c506c96fd899e993a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669616
+    Change-Id: I3ac3c397f0c6fa46cd9be0d22d03020d0632f64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570259
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_amd64.s | 2 +-
- src/runtime/asm_arm64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/test.go                 | 2 ++
+ src/cmd/go/testdata/script/test_cache_inputs.txt | 8 ++++++++
+ 2 files changed, 10 insertions(+)

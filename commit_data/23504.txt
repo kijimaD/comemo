@@ -1,17 +1,27 @@
-commit c248aaef7049c9c90af787d7fa91de378fa7e202
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Fri Jun 26 12:09:45 2015 +0200
+commit 913db7685ec80bc9c56f357b09ced127fbf09a1e
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon May 18 16:02:37 2015 -0400
 
-    crypto/ecdsa, crypto/x509: update SEC1 ECC link in comments
+    runtime: run background mark helpers only if work is available
     
-    Updated the document URL in comments to avoid dead link
-    Old: http://www.secg.org/download/aid-780/sec1-v2.pdf
-    New: http://www.secg.org/sec1-v2.pdf
+    Prior to this CL whenever the GC marking was enabled and
+    a P was looking for work we supplied a G to help
+    the GC do its marking tasks. Once this G finished all
+    the marking available it would release the P to find another
+    available G. In the case where there was no work the P would drop
+    into findrunnable which would execute the mark helper G which would
+    immediately return and the P would drop into findrunnable again repeating
+    the process. Since the P was always given a G to run it never blocks.
+    This CL first checks if the GC mark helper G has available work and if
+    not the P immediately falls through to its blocking logic.
     
-    Change-Id: If13d0da4c0e7831b2bd92c45116c2412a2a965f5
-    Reviewed-on: https://go-review.googlesource.com/11550
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10901
+    
+    Change-Id: I94ac9646866ba64b7892af358888bc9950de23b5
+    Reviewed-on: https://go-review.googlesource.com/10189
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/ecdsa/ecdsa.go | 2 +-
- src/crypto/x509/sec1.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go     | 12 ++++++++++++
+ src/runtime/mgcwork.go |  7 +++++++
+ src/runtime/proc1.go   |  2 +-
+ 3 files changed, 20 insertions(+), 1 deletion(-)

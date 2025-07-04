@@ -1,21 +1,25 @@
-commit d983be9cb54de1cde85ba7946bf30c8013cdf5f3
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Jul 11 15:54:48 2023 -0400
+commit 7b689dcbefbe5442b8b59a56efc1eced4fce233c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 29 16:27:00 2022 -0400
 
-    go/types, types2: remove unnecessary assert on pointer size
+    cmd/go/internal/modfetch: distinguish "unsupported" errors from RecentTag
     
-    As described in #61249, uncommon pointer sizes do exist. Remove an
-    unnecessary assertion.
+    CL 426079 started checking errors from RecentTag.
+    Unfortunately, we forgot to run "-longtest" SlowBots, and it turns out
+    to have broken non-short tests for non-git VCS implementations,
+    because those don't implement the RecentTag method.
     
-    Fixes #61249
+    Updates #53935.
     
-    Change-Id: Ib15857bd6bcd42ec530817a132bb8db036236c3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508821
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I5935f2f4b3f684515e99e8bf70a840154c36249f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426495
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/const.go | 1 -
- src/go/types/const.go                    | 1 -
- 2 files changed, 2 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 13 +++++++++++++
+ src/cmd/go/internal/modfetch/codehost/vcs.go      | 12 ++++++------
+ src/cmd/go/internal/modfetch/coderepo.go          |  2 +-
+ 3 files changed, 20 insertions(+), 7 deletions(-)

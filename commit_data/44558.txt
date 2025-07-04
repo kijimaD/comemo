@@ -1,29 +1,20 @@
-commit b6def6a34e049d5d2cc9225d991c4b84427467ec
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sat Mar 6 23:57:33 2021 -0800
+commit 991adcd21b57b9d906021f972eb01534176ad493
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 11 14:58:03 2020 -0400
 
-    cmd/vet: bring in sigchanyzer to report unbuffered channels to signal.Notify
+    [dev.link] cmd/internal/obj: traverse files in deterministic order
     
-    Brings in the static analyzer "sigchanyzer", that we created at
-    Orijtech, Inc, and already submitted in CL 274352, as
+    CL 245485 introduced a map for used files in a function. When
+    numbering symbols, make sure we traverse the files in
+    deterministic order.
     
-        golang.org/x/tools/go/analysis/passes/sigchanyzer
+    Should fix longtest builders.
     
-    and add it to cmd/vet as one of the passes.
-    
-    Fixes #9399
-    
-    Change-Id: I83708b8ea5ca8ede5ee31efab55cbce7419434ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299532
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1006bc5425116ab40e33a61e8f5acd1bdb4abad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247997
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../go/analysis/passes/sigchanyzer/sigchanyzer.go  | 129 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   1 +
- src/cmd/vet/main.go                                |   2 +
- 3 files changed, 132 insertions(+)
+ src/cmd/internal/obj/sym.go | 5 +++++
+ 1 file changed, 5 insertions(+)

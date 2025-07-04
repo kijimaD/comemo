@@ -1,15 +1,20 @@
-commit 64969c8ef5b8c52b332d95d7a04421a5e4232791
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Dec 1 17:45:26 2016 -0800
+commit f69991c17d9dea88e927643e4b7fdc43ad789ac3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 4 23:58:42 2016 -0400
 
-    doc: update suggested Go installation version
+    context: make DeadlineExceeded implement net.Error
     
-    Previously the docs suggested downloading 1.7.2 (no good) or 1.7.3 (has
-    security flaw).
+    It already implemented the Timeout method,
+    but implementing the full net.Error is more convenient.
     
-    Change-Id: Ifabe85908df8d6591c0957ef4bb1b800fc145793
-    Reviewed-on: https://go-review.googlesource.com/33808
+    Fixes #14238 (again).
+    
+    Change-Id: Ia87f897f0f35bcb49865e2355964049227951ca6
+    Reviewed-on: https://go-review.googlesource.com/30370
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install-source.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/context/context.go  |  6 +++---
+ src/context/net_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

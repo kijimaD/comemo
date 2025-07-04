@@ -1,16 +1,39 @@
-commit 86e31bc5fdde06d406b95cf8b5971755c78ec549
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 4 13:04:31 2019 -0500
+commit 09ea3c08e8fd1915515383f8cb4c0bb237d2b87d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Aug 31 02:15:26 2018 +0200
 
-    doc/go1.12: remove known issue note
+    cmd/compile: in prove, fix fence-post implications for unsigned domain
     
-    A workaround has been submitted.
+    Fence-post implications of the form "x-1 >= w && x > min ⇒ x > w"
+    were not correctly handling unsigned domain, by always checking signed
+    limits.
     
-    Updates #27993
+    This bug was uncovered once we taught prove that len(x) is always
+    >= 0 in the signed domain.
     
-    Change-Id: Ife6443c32673b38000b90dd2efb2985db37ab773
-    Reviewed-on: https://go-review.googlesource.com/c/156318
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In the code being miscompiled (s[len(s)-1]), prove checks
+    whether len(s)-1 >= len(s) in the unsigned domain; if it proves
+    that this is always false, it can remove the bound check.
+    
+    Notice that len(s)-1 >= len(s) can be true for len(s) = 0 because
+    of the wrap-around, so this is something prove should not be
+    able to deduce.
+    
+    But because of the bug, the gate condition for the fence-post
+    implication was len(s) > MinInt64 instead of len(s) > 0; that
+    condition would be good in the signed domain but not in the
+    unsigned domain. And since in CL105635 we taught prove that
+    len(s) >= 0, the condition incorrectly triggered
+    (len(s) >= 0 > MinInt64) and things were going downfall.
+    
+    Fixes #27251
+    Fixes #27289
+    
+    Change-Id: I3dbcb1955ac5a66a0dcbee500f41e8d219409be5
+    Reviewed-on: https://go-review.googlesource.com/132495
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go |  9 +++++++--
+ test/fixedbugs/issue27289.go          | 24 ++++++++++++++++++++++++
+ test/prove.go                         |  4 +++-
+ 3 files changed, 34 insertions(+), 3 deletions(-)

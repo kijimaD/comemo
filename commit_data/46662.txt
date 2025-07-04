@@ -1,16 +1,23 @@
-commit 10186e8d691f2af92c17034a70b01ca7eb9f4fee
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 28 15:57:09 2021 -0700
+commit 928bda4f4a88efe2e53f3607e8d2ad0796b449c0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 16 04:38:50 2021 +1100
 
-    debug/gosym: adjust go12* method comments
+    runtime: convert openbsd/amd64 locking to libc
     
-    These methods are for use with Go 1.2 _and later_ pcln tables.
-    Make that clearer.
+    Switch openbsd/amd64 to locking via libc, rather than performing direct
+    system calls.
     
-    Change-Id: Iee06e0828fd5895639b654363b6d91bf9151d224
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352950
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Update #36435
+    
+    Change-Id: I5e92bd70ce557b78ff385577088a9775cc468ea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270378
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/debug/gosym/pclntab.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/os_openbsd.go          |  8 --------
+ src/runtime/os_openbsd_syscall1.go | 15 ++++++++++++++
+ src/runtime/sys_openbsd1.go        | 34 ++++++++++++++++++++++++++++++++
+ src/runtime/sys_openbsd_amd64.s    | 40 +++++++++++++++++++++-----------------
+ 4 files changed, 71 insertions(+), 26 deletions(-)

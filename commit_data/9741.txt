@@ -1,17 +1,13 @@
-commit 7ca406396f33d69fbe922ee9e8d305c61f6d4394
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 19 13:11:24 2011 -0400
+commit 48ff4a849c7c532cbdd0cfa4a0f66859967c65a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 19 09:01:32 2011 -0700
 
-    gc: disallow invalid map keys
+    http: check explicit wrong Request.ContentLength values
     
-    The algtype-based test broke when algtype
-    got a bit more fine-grained, so replace with
-    an explicit check for the invalid key types.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5071041
+    https://golang.org/cl/5070041
 
- src/cmd/gc/subr.c | 14 +++++++++-----
- test/map1.go      | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 5 deletions(-)
+ src/pkg/http/requestwrite_test.go | 97 +++++++++++++++++++++++++++++++++++++--
+ src/pkg/http/transfer.go          | 23 ++++++++--
+ 2 files changed, 112 insertions(+), 8 deletions(-)

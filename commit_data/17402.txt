@@ -1,19 +1,22 @@
-commit a85cfbd433646cba8227429854db59329414e223
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Aug 27 21:18:32 2013 +0200
+commit daed1fee8b8fb7e899fa137e5df62df01bd1c18d
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Tue Aug 27 10:35:06 2013 -0700
 
-    cmd/gc: tag builtin error, byte, rune to avoid exporting them.
+    misc/pprof: pprof http used with net/http/pprof not working on windows/amd64
     
-    Fixes #5910.
-    Fixes #6260.
+    Removed posix assumptions in temporary file generation
+    Removed curl dependence
+    Changed opening of svg file
     
-    R=golang-dev, daniel.morsing
+    These must now work including symbol resolution.
+    [1] go tool pprof <prog_name> http://.../debug/pprof/profile
+    [2] go tool pprof http://.../debug/pprof/profile
+    
+    Fixes 6177.
+    
+    R=golang-dev, alex.brainman, bradfitz, kamil.kisiel
     CC=golang-dev
-    https://golang.org/cl/13257044
+    https://golang.org/cl/13085043
 
- src/cmd/gc/lex.c                     | 12 ++++++------
- test/fixedbugs/bug460.dir/a.go       |  4 ++++
- test/fixedbugs/bug460.dir/b.go       |  7 +++++--
- test/fixedbugs/issue5910.dir/a.go    |  9 +++++++--
- test/fixedbugs/issue5910.dir/main.go |  4 ++++
- 5 files changed, 26 insertions(+), 10 deletions(-)
+ misc/pprof | 97 ++++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 50 insertions(+), 47 deletions(-)

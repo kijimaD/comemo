@@ -1,18 +1,24 @@
-commit ef8414101fba959c8df220ca0e544781029ce111
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Sep 1 18:07:33 2022 +0000
+commit bd41f2d3cd82a37e85fcf44067ffd2f728554a3b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 8 19:55:17 2021 -0400
 
-    Revert "runtime: convert ncgocall to atomic type"
+    cmd/link: do not mark holes in functab
     
-    This reverts CL 426075.
+    With multiple text sections, there may be holes (non-Go code) in
+    the PC range of Go code and covered by the functab. Previously, we
+    use a linear search with actual PCs to find the functab entry. We
+    need to use special entries to mark holes, so a PC in the hole can
+    be distinguished from the previous function.
     
-    Reason for revert: Import missing from cgocall.go.
+    Now, with the previous CL we find if the PC is in between of the
+    sections upfront in textOff. There is no need to mark holes in the
+    functab.
     
-    Change-Id: Iac17e914045b83da30484dbe2a624cde526fb175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427614
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I22ff27279422bfc855c2ca35ba0fdfb63234c113
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354874
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/cgocall.go | 2 +-
- src/runtime/debug.go   | 2 +-
- src/runtime/proc.go    | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 35 ++++-------------------------------
+ 1 file changed, 4 insertions(+), 31 deletions(-)

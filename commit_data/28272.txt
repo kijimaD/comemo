@@ -1,14 +1,16 @@
-commit 06eeea210b0fd764cda8d86b555343fcfac6e194
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 8 16:51:26 2016 -0700
+commit 9e96ad851d9fb3feb7ee3f7b72213c5b7a9977aa
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 10 09:10:43 2016 -0700
 
-    cmd/compile: permit use of %S (short) and %L (long) instead of %1v and %2v
+    test: add test for unlowered ITab
     
-    First step towards cleaning up format use. Not yet enabled.
+    See #15604.  This was a bug in a CL that has since been
+    rolled back.  Adding a test to challenge the next attempter.
     
-    Change-Id: Ia8d76bf02fe05882fffb9d17c9a30dc38d28bf81
-    Reviewed-on: https://go-review.googlesource.com/28784
+    Change-Id: Ic43be254ea6eaab0071018cdc61d9b1c21f19cbf
+    Reviewed-on: https://go-review.googlesource.com/23000
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 91 ++++++++++++++++++--------------------
- 1 file changed, 43 insertions(+), 48 deletions(-)
+ test/fixedbugs/issue15604.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,14 +1,12 @@
-commit 311ec41b5a394e53550c3feed2164b8f9930b5be
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Wed Jul 18 03:06:21 2018 -0400
+commit 4468b0bac156b76b2a591b3aa3a0aa4dd60a0fce
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sat Mar 31 04:19:06 2018 +0900
 
-    doc/go1.11: update runtime/pprof change note
+    net/http: add function name to the beginning of comment
     
-    Mention the change in the behavior of go test -memprofile.
-    
-    Change-Id: I0384f058298bd8fcfd2d97996464d46b4e419938
-    Reviewed-on: https://go-review.googlesource.com/124656
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6f5a94cd8b6e8f7201202514ac0f9c78811c43bc
+    Reviewed-on: https://go-review.googlesource.com/103695
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

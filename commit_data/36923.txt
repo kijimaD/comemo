@@ -1,19 +1,18 @@
-commit 05581fcc5c100cc2efa58355af8665cb93fed758
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:44:06 2018 +0200
+commit 1de0dcfc7b50a2e74e572374d3bbbf3d12d7ff4f
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sun Jun 10 12:27:47 2018 +0300
 
-    mime: add AIX operating system
+    cmd/compile: fix wording in README
     
-    This commit adds AIX operating system to mime package for ppc64
-    architecture.
+    "Syntax analysis" sounds more familiar and fits the
+    item before, which says "lexical analysis".
+    If there was specific intention to the original wording,
+    I, as a reader, would like to see it instead of this
+    confusing wording.
     
-    Updates: #25893
-    
-    Change-Id: I1b81a9204446c8c76ae24ea5c6fd33077c373ae4
-    Reviewed-on: https://go-review.googlesource.com/c/138723
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id32dbf75300a86b21cb9f35e54526184fe5df6cb
+    Reviewed-on: https://go-review.googlesource.com/117696
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/mime/type_unix.go | 2 +-
+ src/cmd/compile/README.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

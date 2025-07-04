@@ -1,29 +1,31 @@
-commit 74c0fea9e8a37ae08d4c08b71d27be94feb3332a
+commit e7f6d8b2d7baf2aa299c8bce778e2b0dab3a3798
 Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Sat Apr 2 12:04:45 2016 -0300
+Date:   Sat Feb 20 23:23:01 2016 -0300
 
-    go/types: better error when assigning to struct field in map
+    cmd/cover: don't overskip children nodes when adding counters
     
-    Identify this assignment case and instead of the more general error
+    When visiting the AST to add counters, there are special cases in which
+    the code calls cuts the walking short by returning nil. In some cases
+    certain nodes are ignored, e.g. Init and Cond inside IfStmt.
     
-        prog.go:6: cannot assign to students["sally"].age (value of type int)
+    The fix is to explicitly walk all the children nodes (not only
+    Body and Else) when cutting the current walk. Similar approach
+    was taken with SwitchStmt and TypeSwitchStmt.
     
-    produce
+    While the existing test code doesn't handle different counters in the
+    same line, the generated HTML report does it correctly (because it takes
+    column into account).
     
-        prog.go:6: cannot directly assign to struct field students["sally"].age in map
+    The previous behavior caused lines in function literals to not be
+    tracked when those literals were inside Init or Cond of an IfStmt for
+    example.
     
-    that explains why the assignment is not possible. Used ExprString
-    instead of String of operand since the type of the field is not relevant
-    to the error.
+    Fixes #14039.
     
-    Updates #13779.
-    
-    Change-Id: I581251145ae6336ddd181b9ddd77f657c51b5aff
-    Reviewed-on: https://go-review.googlesource.com/21463
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iad591363330843ad833bd79a0388d709c8d0c8aa
+    Reviewed-on: https://go-review.googlesource.com/19775
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/types/assignments.go     | 8 ++++++++
- src/go/types/testdata/stmt0.src | 2 +-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/cover/cover.go         | 14 ++++++++++++++
+ src/cmd/cover/testdata/test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

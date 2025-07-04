@@ -1,18 +1,13 @@
-commit 437d229e2ac4cda4265090375b94d74ca218a846
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 2 09:10:49 2021 +0100
+commit f900d6014ea785cba31c83a99258c6004ba5efe6
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 11 08:55:16 2020 -0400
 
-    runtime: document netpollclose
+    [dev.link] cmd/link: remove a stale comment
     
-    Document that network poller implementations need to define
-    netpollclose.
-    
-    Change-Id: Idc73dea7cfd503d4de7e1d95902f0f102cf5ed8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297809
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie1e259977459e72b83f880f35e5fea2a3c7c0af9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247937
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/netpoll.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go | 5 -----
+ 1 file changed, 5 deletions(-)

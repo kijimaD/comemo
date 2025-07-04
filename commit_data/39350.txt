@@ -1,14 +1,22 @@
-commit 5ce1819ccab65ceefa3198bbc78fb4dcac3cca6e
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Jun 10 13:44:56 2019 -0400
+commit c6e47069af1a4e93547450e34253da2b22b9c23d
+Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
+Date:   Wed Feb 13 19:19:33 2019 +0000
 
-    doc, net/http: add release notes for net/http and fix doc comments
+    net/textproto: prevent test from failing with nil pointer dereference
     
-    Change-Id: I684e3522e387b2d96d5cfb2878d2f77bf4558443
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181545
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    The variable err could have nil value when we call err.Error(),
+    because after we check it for nil above we continue the test
+    (t.Errorf doesn't stop the test execution).
+    
+    Updates #30208
+    
+    Change-Id: Ibcf38698326c69c06068989510311e37806995c6
+    GitHub-Last-Rev: 3ab20f6d7fe34ed9b777e0894b57166d173de8ca
+    GitHub-Pull-Request: golang/go#30214
+    Reviewed-on: https://go-review.googlesource.com/c/162457
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.13.html           | 18 +++++++++++++-----
- src/net/http/server.go    |  2 +-
- src/net/http/transport.go |  5 +++--
- 3 files changed, 17 insertions(+), 8 deletions(-)
+ src/net/textproto/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

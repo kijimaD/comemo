@@ -1,12 +1,59 @@
-commit ce43e1fec875ed92bf3d4ee7b7f81aed30a617f7
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Apr 13 15:50:56 2015 -0400
+commit 41dbcc19ef09a15f464eb3931c60b04e33cf72bb
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Mar 12 14:19:21 2015 -0400
 
-    cmd/dist: detect sse2 even with gccgo
+    runtime: Remove write barriers during STW.
     
-    Change-Id: Idfb20bfe130d9a54d9f5aae8eab8a34655d30610
-    Reviewed-on: https://go-review.googlesource.com/8865
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The GC assumes that there will be no asynchronous write barriers when
+    the world is stopped. This keeps the synchronization between write
+    barriers and the GC simple. However, currently, there are a few places
+    in runtime code where this assumption does not hold.
+    The GC stops the world by collecting all Ps, which stops all user Go
+    code, but small parts of the runtime can run without a P. For example,
+    the code that releases a P must still deschedule its G onto a runnable
+    queue before stopping. Similarly, when a G returns from a long-running
+    syscall, it must run code to reacquire a P.
+    Currently, this code can contain write barriers. This can lead to the
+    GC collecting reachable objects if something like the following
+    sequence of events happens:
+    1. GC stops the world by collecting all Ps.
+    2. G #1 returns from a syscall (for example), tries to install a
+    pointer to object X, and calls greyobject on X.
+    3. greyobject on G #1 marks X, but does not yet add it to a write
+    buffer. At this point, X is effectively black, not grey, even though
+    it may point to white objects.
+    4. GC reaches X through some other path and calls greyobject on X, but
+    greyobject does nothing because X is already marked.
+    5. GC completes.
+    6. greyobject on G #1 adds X to a work buffer, but it's too late.
+    7. Objects that were reachable only through X are incorrectly collected.
+    To fix this, we check the invariant that no asynchronous write
+    barriers happen when the world is stopped by checking that write
+    barriers always have a P, and modify all currently known sources of
+    these writes to disable the write barrier. In all modified cases this
+    is safe because the object in question will always be reachable via
+    some other path.
+    
+    Some of the trace code was turned off, in particular the
+    code that traces returning from a syscall. The GC assumes
+    that as far as the heap is concerned the thread is stopped
+    when it is in a syscall. Upon returning the trace code
+    must not do any heap writes for the same reasons discussed
+    above.
+    
+    Fixes #10098
+    Fixes #9953
+    Fixes #9951
+    Fixes #9884
+    
+    May relate to #9610 #9771
+    
+    Change-Id: Ic2e70b7caffa053e56156838eb8d89503e3c0c8a
+    Reviewed-on: https://go-review.googlesource.com/7504
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/util_gccgo.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/mbarrier.go | 18 +++++++++++-
+ src/runtime/netpoll.go  | 16 +++++++----
+ src/runtime/proc1.go    | 76 ++++++++++++++++++++++++++++++++++++-------------
+ src/runtime/runtime2.go | 46 +++++++++++++++++++++++++-----
+ 4 files changed, 122 insertions(+), 34 deletions(-)

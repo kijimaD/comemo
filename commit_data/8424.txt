@@ -1,13 +1,16 @@
-commit 9ea0bd39862eb2a54778bd4c48d9c82f3a5efdea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 17 15:07:44 2011 -0700
+commit 83fd82b349009ad2a0f7da1d11499cc9e3d0ca1b
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue May 17 13:38:21 2011 -0700
 
-    http: add http.SetCookie(ResponseWriter, *Cookie)
+    big: add Int methods to act on numbered bits.
+    Speeds up setting individual bits by ~75%, useful
+    when using big.Int as a bit set.
     
-    R=golang-dev, gary.burd, rsc
+    R=gri, rsc
     CC=golang-dev
-    https://golang.org/cl/4526062
+    https://golang.org/cl/4538053
 
- src/pkg/http/cookie.go      | 53 +++++++++++++++++++++++++++------------------
- src/pkg/http/cookie_test.go | 30 +++++++++++++++++++++++++
- 2 files changed, 62 insertions(+), 21 deletions(-)
+ src/pkg/big/int.go      |  36 +++++++++++++
+ src/pkg/big/int_test.go | 136 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/nat.go      |  37 +++++++++++++
+ 3 files changed, 209 insertions(+)

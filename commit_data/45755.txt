@@ -1,26 +1,22 @@
-commit 9d669ed47a502ca540c7f3329f84d89fc0c53971
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 4 08:16:58 2021 -0700
+commit f016172dbee4de8d820e3d3ec9d66a18308694c9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 29 19:28:07 2020 -0400
 
-    misc/cgo/errors: use expected column numbers
+    cmd/go: pass in overlaid paths for .s files
     
-    The test was using the wrong column numbers, and was erroneously
-    passing because there happened to be line numbers that matched those
-    column numbers. Change the test harness to require the expected line
-    number for the ERROR HERE regexp case, so that this doesn't happen again.
+    This change adds support for adding overlays on assembly files.
     
-    Also rename a couple of variables in the test to avoid useless
-    redeclaration errors.
+    For #39958
     
-    Fixes #46534
-    
-    Change-Id: I2fcbf5e379c346de5346035c73d174a3980c0927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324970
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1a328656199cc836f48e16de1ffd944fdd07fb39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266417
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/errors/errors_test.go   |  3 ++-
- misc/cgo/errors/testdata/err2.go | 12 ++++++------
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/work/gc.go               |  6 ++++--
+ src/cmd/go/internal/work/gccgo.go            |  2 +-
+ src/cmd/go/testdata/script/build_overlay.txt | 17 +++++++++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

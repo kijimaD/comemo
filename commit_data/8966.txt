@@ -1,18 +1,15 @@
-commit 8d538c6d3df70534a59e26ed05a7703cb1eae4ff
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 7 10:56:33 2011 +1000
+commit 582d6e5848e030564cc131d345e61c29ed936ec5
+Author: Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+Date:   Thu Jul 7 10:49:03 2011 +1000
 
-    exp/template: change the name from 'metacharacter' to 'delimiter',
-    because that's what they are.
-    No semantic change.
+    crypto/openpgp: fixed dangerous use of for loop variable
     
-    R=golang-dev, dsymonds
+    In function readSignedMessage a pointer to for loop variable 'key' was incorrectly being assigned
+    to md.SignedBy. Changed so that md.SignedBy is pointing to the 'more correct' memory position.
+    
+    R=golang-dev, r, agl
     CC=golang-dev
-    https://golang.org/cl/4675060
+    https://golang.org/cl/4631088
 
- src/pkg/exp/template/lex.go        | 40 +++++++++++++++++++-------------------
- src/pkg/exp/template/lex_test.go   |  4 ++--
- src/pkg/exp/template/parse.go      | 18 ++++++++---------
- src/pkg/exp/template/parse_test.go |  2 +-
- src/pkg/exp/template/set.go        |  4 ++--
- 5 files changed, 34 insertions(+), 34 deletions(-)
+ src/pkg/crypto/openpgp/read.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

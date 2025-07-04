@@ -1,24 +1,30 @@
-commit 2e60916f6e153db682fd4ea269c7d0a32e3d1768
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Feb 2 22:26:07 2025 +1100
+commit 24fa7544b08f998ed3dd857342dc7787924276a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 20:14:32 2024 -0500
 
-    cmd/internal/obj/riscv: add support for vector reduction instructions
+    runtime: fix spurious race using Ticker.Reset
     
-    Add support for vector reduction instructions to the RISC-V assembler,
-    including single-width integer reduction, widening integer reduction,
-    single-width floating-point reduction and widening floating-point
-    reduction.
+    Ticker.Reset was added in CL 217362 in 2020.
+    It added the runtime helper modTimer, which is
+    analogous to startTimer and resetTimer but for tickers.
+    Unlike those, it does not contain a racerelease, which
+    means that code synchronizing by starting a ticker
+    will be diagnosed with a spurious race.
     
-    Change-Id: I8f17bef11389f3a017e0430275023fc5d75936e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646778
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Add racerelease to modTimer and add tests of all
+    three racereleases (in startTimer, resetTimer, and modTimer).
+    
+    Also do not call time.resetTimer from elsewhere in runtime,
+    since that function is only for package time. Use t.reset instead.
+    
+    For #33184.
+    
+    Change-Id: Ie40c1ad24911f21e81b1d3cc608cf086ff2bc83d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568340
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        | 40 ++++++++++++++++++++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s   | 15 ++++++++
- .../asm/internal/asm/testdata/riscv64validation.s  | 16 +++++++++
- src/cmd/internal/obj/riscv/obj.go                  | 28 ++++++++++++++-
- 4 files changed, 98 insertions(+), 1 deletion(-)
+ src/runtime/race/testdata/time_test.go | 116 +++++++++++++++++++++++++++++++++
+ src/runtime/time.go                    |   3 +
+ 2 files changed, 119 insertions(+)

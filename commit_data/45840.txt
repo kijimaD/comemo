@@ -1,18 +1,25 @@
-commit 117ebe0f52efc5128a9c86722e07fe22cb65450d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 16 14:48:45 2021 -0400
+commit 7b144ed4f7a730f5c9375bca65010446ad9f4b73
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 11:40:25 2020 -0500
 
-    cmd/go: do not require the module cache to exist for 'go mod edit'
+    [dev.regabi] cmd/compile: rewrite concurrentFlagOk to be clearer
     
-    Updates #46695
+    The current implementation copies Debug, clears a bunch of flags
+    that are meant to be considered OK, and then checks the result
+    against the zero value. But more flags are cleared than remain:
+    it's easier to write and to understand to just check the ones that
+    need checking.
     
-    Change-Id: I4afbc1401ef4183d94c1ac6271394fac1fff95ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328769
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This phrasing also makes it safe to move more flags into the struct.
+    
+    It turns out that some of the flags being checked should probably
+    not be checked, but this CL is meant to be a strict semantic no-op,
+    so left a TODO to clean up the function a bit more later.
+    
+    Change-Id: I7afe6d7b32b5b889c40dd339568e8602e02df9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271666
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modfetch/cache.go               |  2 +-
- src/cmd/go/testdata/script/mod_edit_no_modcache.txt | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)

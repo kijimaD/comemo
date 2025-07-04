@@ -1,17 +1,23 @@
-commit 98b99d561225cc1d140360b217df2acc9aa1f746
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 25 13:09:11 2016 -0700
+commit 998b6dd75cf205b37a3f145bc93c50e44150af2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 14:28:16 2016 -0800
 
-    net: ignore lame referral responses like libresolv
+    cmd/compile: move lexer into separate file (cleanup)
     
-    Fixes #15434.
+    This is really moving all the non-lexer pieces out of lex.go
+    into main.go. It's always been confusing that the top-most
+    compiler entry point (Main) is in the same file with the
+    lexer. Both files remain of substantial size (> 1000 lines),
+    which justifies this even more.
     
-    Change-Id: Ia88b740df5418a6d3af1c29a03756f4234f388b0
-    Reviewed-on: https://go-review.googlesource.com/22428
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    No other changes.
+    
+    Change-Id: I03895589d5e3cc2340580350bbc1420539893dfc
+    Reviewed-on: https://go-review.googlesource.com/20601
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dnsclient_unix.go      |  6 +++
- src/net/dnsclient_unix_test.go | 86 +++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 83 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/lex.go  | 1173 +---------------------------------
+ src/cmd/compile/internal/gc/main.go | 1184 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 1185 insertions(+), 1172 deletions(-)

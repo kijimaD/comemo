@@ -1,31 +1,47 @@
-commit 6e5398bad16aba15db365b72cb70d1177330b603
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Feb 16 13:29:16 2024 -0600
+commit 59d7c69342edbf8943699394513fb9b8fb175d7e
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:51:57 2023 +0100
 
-    cmd/asm,cmd/compile: generate less instructions for most 32 bit constant adds on ppc64x
+    net: add initial MPTCP support
     
-    For GOPPC64 < 10 targets, most large 32 bit constants (those
-    exceeding int16 capacity) can be added using two instructions
-    instead of 3.
+    This currently defines an internal function supportsMultipathTCP which
+    reports whether MPTCP[1] is supported on the current platform.
     
-    This cannot be done for values greater than 0x7FFF7FFF, so this
-    must be done during asm preprocessing as the optab matching
-    rules cannot differentiate this special case.
+    Only Linux is supported here.
     
-    Likewise, constants 0x8000 <= x < 0x10000 are not converted. The
-    assembler currently generates 2 instructions sequences for these
-    constants.
+    The check on Linux is performed once by attemting to create an MPTCP
+    socket and look at the returned error:
     
-    Change-Id: I1ccc839c6c28fc32f15d286b2e52e2d22a2a06d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568116
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    - If the protocol is not supported, EINVAL (kernel < 5.6) or
+      EPROTONOSUPPORT (kernel >= 5.6) is returned and there is no point to
+      try again.
+    
+    - Other errors can be returned:
+      - ENOPROTOOPT: the sysctl knob net.mptcp.enabled is set to 0
+      - Unpredictable ones: if MPTCP is blocked using SELinux, eBPF, etc.
+    
+    These other errors are due to modifications that can be reverted during
+    the session: MPTCP can be available again later. In this case, it is
+    fine to always try to create an MPTCP socket and fallback to TCP in case
+    of error.
+    
+    This work has been co-developped by Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    [1] https://www.rfc-editor.org/rfc/rfc8684.html
+    
+    Updates #56539
+    
+    Change-Id: Ic84fe85aad887a2be4556a898e649bf6b6f12f03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471135
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  6 +++--
- src/cmd/internal/obj/ppc64/obj9.go        | 42 +++++++++++++++++++++++++++----
- test/codegen/arithmetic.go                | 26 +++++++++++++++++++
- 3 files changed, 67 insertions(+), 7 deletions(-)
+ src/net/mptcpsock_linux.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/mptcpsock_stub.go  |  7 +++++++
+ 2 files changed, 50 insertions(+)

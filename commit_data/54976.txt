@@ -1,21 +1,18 @@
-commit e14b96cb511ab3437dedf2be2fa49d4516189bbc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 13 16:46:47 2023 -0800
+commit 78472603c6bac7a52d42d565558b9c0cb12c3f9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 22 14:50:57 2022 -0800
 
-    math/big: update comment in the implementation of FloatPrec
+    reflect: correct tpoy in comment
     
-    Follow-up on CL 539299: missed to incorporate the updated
-    comment per feedback on that CL.
-    
-    For #50489.
-    
-    Change-Id: Ib035400038b1d11532f62055b5cdb382ab75654c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542115
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I75aef6bf957939fae8b680214f5923dc2713a5cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452935
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/ratconv.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

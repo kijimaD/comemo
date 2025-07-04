@@ -1,28 +1,49 @@
-commit 03d457a2214366f209f5855afc0a93e6c36c6e1f
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 29 13:43:50 2023 -0400
+commit f4a587ba6e5c5195152f47afee2700664524c11e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 7 18:45:09 2022 -0700
 
-    cmd/compile: function "property" defs for inl heuristics
+    types2: provide error codes to error reporting
     
-    Add definitions for a set of Go function "properties" intended to be
-    useful for driving inlining decisions. This CL just defines a set of
-    flags and a container to hold them; a subsequent CL will add code to
-    compute the properties for a function given its IR/AST representation.
+    This CL adds a suitable error code to every error reporting,
+    matching what go/types already does.
     
-    Updates #61502.
+    For now, the error codes are not progagated through the API,
+    but eventually they will be available to clients.
     
-    Change-Id: Ifa26c1ad055c02ca0ce9cf37078cee7b3385e18a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511556
+    Also, for now the errorcodes.go file is a 1:1 copy (with
+    adjusted package name) of go/types/errorcodes.go.
+    A subsequent CL will factor out this file.
+    
+    In contrast to go/types, for errors due to incorrect Go version,
+    the error code is always _UnsupportedFeature. In go/types, the
+    error sometimes is related to the specific operation.
+    
+    Change-Id: I18771bc3d00bbdbf6d705bf25f2aea3c3d977b1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429355
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- .../internal/inline/inlheur/funcprop_string.go     | 44 ++++++++++
- .../internal/inline/inlheur/funcpropbits_string.go | 58 +++++++++++++
- .../internal/inline/inlheur/function_properties.go | 98 ++++++++++++++++++++++
- .../inline/inlheur/parampropbits_string.go         | 70 ++++++++++++++++
- .../inline/inlheur/resultpropbits_string.go        | 68 +++++++++++++++
- .../compile/internal/inline/inlheur/serialize.go   | 80 ++++++++++++++++++
- .../internal/inline/inlheur/tserial_test.go        | 65 ++++++++++++++
- 7 files changed, 483 insertions(+)
+ src/cmd/compile/internal/types2/assignments.go |   44 +-
+ src/cmd/compile/internal/types2/builtins.go    |   79 +-
+ src/cmd/compile/internal/types2/call.go        |   42 +-
+ src/cmd/compile/internal/types2/check.go       |    4 +-
+ src/cmd/compile/internal/types2/decl.go        |   14 +-
+ src/cmd/compile/internal/types2/errorcodes.go  | 1423 ++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/errors.go      |   19 +-
+ src/cmd/compile/internal/types2/expr.go        |  152 ++-
+ src/cmd/compile/internal/types2/index.go       |   38 +-
+ src/cmd/compile/internal/types2/infer.go       |   14 +-
+ src/cmd/compile/internal/types2/instantiate.go |    2 +-
+ src/cmd/compile/internal/types2/interface.go   |    4 +-
+ src/cmd/compile/internal/types2/labels.go      |   14 +-
+ src/cmd/compile/internal/types2/resolver.go    |   44 +-
+ src/cmd/compile/internal/types2/signature.go   |   20 +-
+ src/cmd/compile/internal/types2/stmt.go        |   82 +-
+ src/cmd/compile/internal/types2/struct.go      |   15 +-
+ src/cmd/compile/internal/types2/typeset.go     |    2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |   52 +-
+ src/cmd/compile/internal/types2/union.go       |   18 +-
+ 20 files changed, 1769 insertions(+), 313 deletions(-)

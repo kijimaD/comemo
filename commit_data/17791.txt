@@ -1,17 +1,12 @@
-commit 21e6b90d36db8d10e93ca281aee404b5f7720f48
-Author: Michael Piatek <piatek@google.com>
-Date:   Tue Oct 15 08:22:04 2013 +1100
+commit c78d67fb86f5b2c3687c3c8d0152f75871ff490d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 14 10:53:55 2013 -0700
 
-    net/http: skip content-type sniffing if the header is explicitly unset.
+    debug/dwarf: report the value of an unrecognized attribute format
     
-    Fixes #5953
-    
-    R=dsymonds, bradfitz, rsc
+    R=golang-dev, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14434044
+    https://golang.org/cl/14669045
 
- src/pkg/net/http/fs.go            | 10 +++++++---
- src/pkg/net/http/fs_test.go       | 18 ++++++++++++------
- src/pkg/net/http/response_test.go | 13 +++++++++++++
- src/pkg/net/http/server.go        |  3 ++-
- 4 files changed, 34 insertions(+), 10 deletions(-)
+ src/pkg/debug/dwarf/entry.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

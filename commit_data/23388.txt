@@ -1,35 +1,14 @@
-commit b03129aa2758a337823071ffda37e49da5a814d0
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Jun 11 16:33:52 2015 -0700
+commit 754e98cb821f6a48d21bfb8473ad3063c2021061
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri May 8 12:33:30 2015 -0700
 
-    compress/flate: make library RFC1951 compliant
+    cmd/dist: de-dup iOS detection
     
-    Corrected several issues:
-     * RFC1951 section 3.2.7 dictates that it is okay for the HDist tree to have a
-    single code of zero bits. Furthermore, the behavior of the C zlib library
-    permits empty trees even when there are more than one codes.
-     * RFC1951 section 3.2.5 shows that HLit codes 286 and 287 are invalid. Thus,
-    Go's implementation should choke on inputs using these codes.
-     * RFC1951 section 3.2.5 and 3.2.7 are ambiguous about whether the number of
-    HDist codes can be greater than 30. The C zlib library (which is the canonical
-    reference implementation) performs this check here:
-    https://github.com/madler/zlib/blob/62d6112a7981ad7c34f3b43cffdf00d4662a4f25/inflate.c#L906
-    
-    In addition, a number of test cases were added to the unit tests that exercises
-    these edge cases. The test cases listed in TestStreams will either fail or
-    succeed in a manner matching the behaviour of the C zlib version. Given that the
-    C zlib implementation is the reference for the world, Go's implementation should
-    match C zlib behaviour.
-    
-    Fixes #11030
-    
-    Change-Id: Ic24e4e40ce5832c7e1930249246e86d34bfedaa6
-    Reviewed-on: https://go-review.googlesource.com/11000
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I89778988baec1cf4a35d9342c7dbe8c4c08ff3cd
+    Reviewed-on: https://go-review.googlesource.com/9893
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/compress/flate/flate_test.go         | 216 +++++++++++++++++++++++++------
- src/compress/flate/gen.go                |  14 +-
- src/compress/flate/huffman_bit_writer.go |   6 +-
- src/compress/flate/huffman_code.go       |   4 +-
- src/compress/flate/inflate.go            |  53 +++++---
- 5 files changed, 235 insertions(+), 58 deletions(-)
+ src/cmd/dist/test.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

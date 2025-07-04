@@ -1,25 +1,18 @@
-commit a6642e67e16b9d769a0c08e486ba08408064df19
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Jun 6 13:54:22 2022 -0700
+commit 61ba0bcf8eebd1515d1af7a0e918bf912db6eb46
+Author: Julie Qiu <julie@golang.org>
+Date:   Mon Dec 6 12:31:27 2021 -0500
 
-    net/textproto: reject invalid header keys/values in ReadMIMEHeader
+    cmd/go: use -count=1 in test_fuzz_chatty.txt
     
-    Return an error when parsing a MIME header containing bytes in the
-    key or value outside the set allowed by RFC 7230.
+    Fuzz tests in test_fuzz_chatty.txt now use -count=1 where applicable.
     
-    For historical compatibility, accept spaces in keys (but do not
-    canonicalize the key in this case).
+    Fixes #48984
     
-    For #53188.
-    
-    Change-Id: I195319362a2fc69c4e506644f78c5026db070379
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410714
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: If1673924af990fe12d5dfba95082ccb573806fde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369674
+    Trust: Julie Qiu <julie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/http/serve_test.go       |   2 +-
- src/net/textproto/reader.go      | 177 +++++++++++++++++++--------------------
- src/net/textproto/reader_test.go |  52 +++++++++++-
- 3 files changed, 135 insertions(+), 96 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

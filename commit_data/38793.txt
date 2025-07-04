@@ -1,17 +1,23 @@
-commit 850844ef65a89a12e66dd749c8862a7ff77f865e
-Author: Sergey Yanykin <syanykin@ozon.ru>
-Date:   Sat Apr 13 16:46:23 2019 +0300
+commit d704b5c956f431e618904d15643e9fee97840253
+Author: Wil Selwood <wselwood@gmail.com>
+Date:   Mon Nov 26 15:11:45 2018 +0000
 
-    cmd/link/internal/ld: inline dosymtab
+    unicode: improve generated comments for categories
     
-    Updates #20205
+    The comments on the category range tables in the unicode package are fairly
+    redundent and require an external source to translate into human readable
+    category names.
     
-    Change-Id: I44a7ee46a1cdc7fe6fd36c4db4c0dd87a19f7f5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171733
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This adds a look up table with the category descriptions and uses it if
+    available when generating the comments for the range tables.
+    
+    Fixes #28954
+    
+    Change-Id: I853e2d270def6492c2c1dd2ad0ec761a74c04e5d
+    Reviewed-on: https://go-review.googlesource.com/c/151297
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go   | 13 -------------
- src/cmd/link/internal/ld/symtab.go | 11 ++++++++++-
- 2 files changed, 10 insertions(+), 14 deletions(-)
+ src/unicode/maketables.go | 46 ++++++++++++++++++++++++++++++++++---
+ src/unicode/tables.go     | 58 +++++++++++++++++++++++------------------------
+ 2 files changed, 72 insertions(+), 32 deletions(-)

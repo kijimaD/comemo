@@ -1,18 +1,18 @@
-commit 02bd226b8abb713061fcef4e53ffebc57770466b
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 29 18:01:09 2021 -0400
+commit 2c4c189bba57a4a72c371afa7e544c16abd76ffa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 18 20:20:12 2021 -0500
 
-    go/types: range clause to accept type sets with single underlying types
+    cmd/go/internal/mvs: add test cases for downgrade interaction with hidden versions
     
-    This is a port of CL 357778 to go/types, adjusted to include error codes
-    and to use the different range statement syntax in go/ast.
+    For #36460
     
-    Change-Id: Id537c195cd33a8b422a366269ca8730c2a5bccf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359875
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I889c4ece0d2caff7528cf437f89f7446dbd83955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294292
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/stmt.go                       | 71 ++++++++++++------------------
- src/go/types/testdata/check/typeparams.go2 | 12 ++---
- 2 files changed, 35 insertions(+), 48 deletions(-)
+ src/cmd/go/internal/mvs/mvs_test.go | 53 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

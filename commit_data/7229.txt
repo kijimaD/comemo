@@ -1,23 +1,14 @@
-commit 1161d190243ea2849299d3384a2b19e32530789a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 24 14:12:20 2011 -0800
+commit ab036abdf02620dd018c27217b3cd15f4042588d
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Jan 24 13:03:32 2011 -0800
 
-    scanner: error handler must be provided to Init
+    suffixarray: use binary search for both ends of Lookup
     
-    Init may report an error on the first character and
-    thus one needs an ability to set the error handler
-    for Init. Was a design bug.
+    This prevents many unnecessary comparisons when n is large.
     
-    Added corresponding test cases and better documentation.
-    Also: Fixed a subtle infinite loop exposed by one of the
-    new test cases.
-    
-    Fixes #1380.
-    
-    R=rsc, gri
+    R=gri, gri1, rsc
     CC=golang-dev
-    https://golang.org/cl/4094041
+    https://golang.org/cl/4068043
 
- src/pkg/scanner/scanner.go      | 38 ++++++++++++++++++++++++++------------
- src/pkg/scanner/scanner_test.go |  6 +++++-
- 2 files changed, 31 insertions(+), 13 deletions(-)
+ src/pkg/index/suffixarray/suffixarray.go | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

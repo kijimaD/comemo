@@ -1,22 +1,34 @@
-commit be16001187f17e9c312e69c353be743cc7d9e260
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Aug 30 10:23:30 2015 -0700
+commit 510fd1350d039d9c70b2411f3873db9bb86ae0eb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 24 18:11:36 2015 -0400
 
-    crypto/tls: better error messages when PEM inputs are switched.
+    runtime: enable GC assists ASAP
     
-    This change causes the types of skipped PEM blocks to be recorded when
-    no certificate or private-key data is found in a PEM input. This allows
-    for better error messages to be return in the case of common errors like
-    switching the certifiate and key inputs to X509KeyPair.
+    Currently the GC coordinator enables GC assists at the same time it
+    enables background mark workers, after the concurrent scan phase is
+    done. However, this means a rapidly allocating mutator has the entire
+    scan phase during which to allocate beyond the heap trigger and
+    potentially beyond the heap goal with no back-pressure from assists.
+    This prevents the feedback system that's supposed to keep the heap
+    size under the heap goal from doing its job.
     
-    Fixes #11092
+    Fix this by enabling mutator assists during the scan phase. This is
+    safe because the write barrier is already enabled and globally
+    acknowledged at this point.
     
-    Change-Id: Ifc155a811cdcddd93b5787fe16a84c972011f2f7
-    Reviewed-on: https://go-review.googlesource.com/14054
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    There's still a very small window between when the heap size reaches
+    the heap trigger and when the GC coordinator is able to stop the world
+    during which the mutator can allocate unabated. This allows *very*
+    rapidly allocator mutators like TestTraceStress to still occasionally
+    exceed the heap goal by a small amount (~20 MB at most for
+    TestTraceStress). However, this seems like a corner case.
+    
+    Fixes #11677.
+    
+    Change-Id: I0f80d949ec82341cd31ca1604a626efb7295a819
+    Reviewed-on: https://go-review.googlesource.com/12674
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/tls.go      | 27 +++++++++++++++++++++++----
- src/crypto/tls/tls_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 4 deletions(-)
+ src/runtime/mgc.go     | 20 ++++++++++++--------
+ src/runtime/mgcmark.go |  2 --
+ 2 files changed, 12 insertions(+), 10 deletions(-)

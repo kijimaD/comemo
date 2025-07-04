@@ -1,24 +1,26 @@
-commit 78070ec3d44fdd8e60271abf31f056aeac919cc3
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Feb 14 17:15:05 2022 -0600
+commit cd28ca3a4e130c88dd8f2d198050620b11d22ce4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 4 16:00:08 2021 +0000
 
-    syscall, runtime/internal/syscall: always return 0 in r2 on ppc64{,le} linux syscalls
+    runtime: abort when receiving a signal on a non-Go thread on Windows
     
-    Both endians perform syscalls similarly. Only CR0S0 and R3 hold
-    the resultant status of a syscall. A random value may be stored into
-    the second return value (r2) result in some cases. Always set it to
-    zero.
+    Currently if a signal lands on a non-Go thread that's handled by the Go
+    handler, Go will emit a message. However, unlike everywhere else in the
+    runtime, Go will not abort the process after, and the signal handler
+    will try to continue executing.
     
-    Fixes #51192
+    This leads to cascading failures and possibly even memory corruption.
     
-    Change-Id: Ida6a5692578d2cdadf3099af28478b3bc364f623
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385796
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Paul Murphy <murp@ibm.com>
+    For #45638.
+    
+    Change-Id: I546f4e82f339d555bed295528d819ac883b92bc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316809
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/internal/syscall/asm_linux_ppc64x.s |  3 +--
- src/syscall/asm_linux_ppc64x.s                  | 10 +++++-----
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/runtime/sys_windows_386.s   | 4 +++-
+ src/runtime/sys_windows_amd64.s | 2 ++
+ src/runtime/sys_windows_arm.s   | 4 ++--
+ src/runtime/sys_windows_arm64.s | 4 +++-
+ 4 files changed, 10 insertions(+), 4 deletions(-)

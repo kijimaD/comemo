@@ -1,15 +1,14 @@
-commit 353fd1014c78b3b76fb5233f477677e0333e5f1a
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 7 14:41:33 2011 -0800
+commit 9d634e50c7d9a132897805a8604e15ce7db3de7b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 13:33:29 2011 -0800
 
-    bytes.Buffer: Fix bug in UnreadByte.
-    Error check was inverted.
+    gofmt: rewriter matches apply to expressions only
     
-    Fixes #1396.
+    Fixes #1384.
     
-    R=rsc, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3851042
+    https://golang.org/cl/3912041
 
- src/pkg/bytes/buffer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofmt/rewrite.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

@@ -1,14 +1,19 @@
-commit 2c12b81739ec2cb85073e125748fcbf5d2febb2c
+commit a734a8550a17e54548a6c7ebb3220c33d417e767
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 26 18:55:35 2016 +0000
+Date:   Thu Nov 12 15:16:06 2015 +0000
 
-    net/http: document TimeFormat more
+    net/http: require valid methods in NewRequest and Transport.RoundTrip
     
-    Fixes #14103
+    Fixes #12078
     
-    Change-Id: I89963643eccc902b809e04b7a14153acb0d242e1
-    Reviewed-on: https://go-review.googlesource.com/18933
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If09c927fae639ec4ed3894a2b393a87c1e677803
+    Reviewed-on: https://go-review.googlesource.com/16829
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/server.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/net/http/request.go        | 20 ++++++++++++++++++++
+ src/net/http/request_test.go   | 16 ++++++++++++++++
+ src/net/http/transport.go      |  3 +++
+ src/net/http/transport_test.go |  1 +
+ 4 files changed, 40 insertions(+)

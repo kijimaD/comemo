@@ -1,0 +1,15 @@
+commit 35d721b0cb3da3f464af26fb8503a521cf9901ff
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Jun 8 09:47:51 2024 +0800
+
+    time: correct spelling, queing -> queuing
+    
+    Change-Id: I418953a766db22b134a9569161f06cf8682c1eef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591336
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/time/tick_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

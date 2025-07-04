@@ -1,24 +1,23 @@
-commit 6dbaf0352a911f2f4c835dcfbf32aeb38f0b4462
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 8 18:01:16 2018 -0700
+commit e181852dd487b97c0ed3662573793ca77f3299b0
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Feb 2 16:26:58 2018 -0500
 
-    go/types: better cycle reporting for some cyclic composite literals
+    cmd/compile/internal: use sparseSet, optimize isSynthetic
     
-    To evaluate the type of composite literals, the type checker called
-    Checker.typ which breaks cycles. As a result, certain cycles were
-    not reported with actual cycle reporting, but caught due to other
-    uninitialized fields (with less nice error message).
+    changedVars was functionally a set, but couldn't be iterated over
+    efficiently. In functions with many variables, the wasted iteration was
+    costly. Use a sparseSet instead.
     
-    The change now calls Checker.typExpr at the relevant call site.
+    (*gc.Node).String() is very expensive: it calls Sprintf, which does
+    reflection, etc, etc. Instead, just look at .Sym.Name, which is all we
+    care about.
     
-    For #18643.
-    
-    Change-Id: Iecb3f0e1afb4585b85553b6c581212f52ac3a1c4
-    Reviewed-on: https://go-review.googlesource.com/115456
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ib61cd7b5c796e1813b8859135e85da5bfe2ac686
+    Reviewed-on: https://go-review.googlesource.com/92402
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/builtins.go         | 2 +-
- src/go/types/expr.go             | 2 +-
- src/go/types/testdata/cycles.src | 2 +-
- src/go/types/typexpr.go          | 5 +++++
- 4 files changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/syntax.go       |  5 +++++
+ src/cmd/compile/internal/ssa/config.go      |  1 +
+ src/cmd/compile/internal/ssa/debug.go       | 35 ++++++++++-------------------
+ src/cmd/compile/internal/ssa/export_test.go |  4 ++++
+ 4 files changed, 22 insertions(+), 23 deletions(-)

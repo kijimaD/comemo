@@ -1,17 +1,27 @@
-commit 1122836b5f07bc9d76ec8667bab34f97e48a75e5
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 28 23:25:38 2015 -0400
+commit c949cff6a755aacd7407a803d304f1aba057bf5c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 25 16:13:50 2015 +1200
 
-    cmd/compile: reject large floating point exponents without math/big
+    cmd/internal/ld: do not depend on local symbols to read a type's gcdata
     
-    For #11326 (but not a fix).
+    We already read the address of a gcmask/gcprog out of the type data, but I
+    didn't know how many bytes to read. But it turns out that it's easy to
+    calculate, so change to do that. This means that we no longer depend on the
+    local symbols being present, allowing me to strip the shared libraries for
+    distribution and make them a lot smaller.
     
-    Change-Id: Ic51814f5cd7357427c3fd990a5522775d05e7987
-    Reviewed-on: https://go-review.googlesource.com/11673
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    As a bonus, this makes LSym another 24 bytes smaller, down to 296 bytes now.
+    
+    Change-Id: I379d359e28d63afae6753efd23efdf1fbb716992
+    Reviewed-on: https://go-review.googlesource.com/10377
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/mparith3.go | 27 ++++++++++++++++++++
- src/go/types/stdlib_test.go             | 10 +++++---
- test/fixedbugs/issue11326.go            | 28 +++++++++++++++++++++
- test/fixedbugs/issue11326b.go           | 44 +++++++++++++++++++++++++++++++++
- 4 files changed, 105 insertions(+), 4 deletions(-)
+ misc/cgo/testshared/src/dep/dep.go    |  6 ++++
+ misc/cgo/testshared/src/dep2/dep2.go  |  2 ++
+ src/cmd/link/internal/ld/data.go      |  2 +-
+ src/cmd/link/internal/ld/decodesym.go | 52 +++++++++++++++++++++++++++++------
+ src/cmd/link/internal/ld/lib.go       | 49 ++++++---------------------------
+ src/cmd/link/internal/ld/link.go      |  2 +-
+ 6 files changed, 62 insertions(+), 51 deletions(-)

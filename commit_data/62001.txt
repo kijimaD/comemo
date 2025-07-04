@@ -1,0 +1,24 @@
+commit f025d19e7b3f0c66242760c213cc2b54cb100f69
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 23 17:21:07 2024 +0000
+
+    runtime: hold traceAcquire across casgstatus in injectglist
+    
+    Currently injectglist emits all the trace events before actually calling
+    casgstatus on each goroutine. This is a problem, since tracing can
+    observe an inconsistent state (gstatus does not match tracer's 'emitted
+    an event' state).
+    
+    This change fixes the problem by having injectglist do what every other
+    scheduler function does, and that's wrap each call to casgstatus in
+    traceAcquire/traceRelease.
+    
+    Fixes #70883.
+    
+    Change-Id: I857e96cec01688013597e8efc0c4c3d0b72d3a70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638558
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,25 +1,31 @@
-commit 7b45edb45016307151266731ccd158e14504598f
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Sun Oct 31 10:04:03 2021 +0100
+commit d1fd3eb40e5facd6d056b377a5286b8b3891afd0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 17:25:00 2021 -0700
 
-    bytes: add Clone function
+    cmd/compile/internal/types2: instantiate methods when instantiating Named types
     
-    The new Clone function returns a copy of b[:len(b)]
-    for the input byte slice b.
-    The result may have additional unused capacity.
-    Clone(nil) returns nil.
+    This is a port of CL 349412 from go/types to types2 with
+    minor adjustments for types2 names, plus CL 350143 (slightly
+    simplified) to make sure we always get a new signature in
+    instantiated methods, plus CL 350810 to take care of pointer
+    receivers. It also contains adjustments to the compiler (provided
+    by Dan Scales) make it work with the types2 changes.
     
-    Fixes #45038
-    
-    Change-Id: I0469a202d77a7b491f1341c08915d07ddd1f0300
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359675
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia683a3a8adba3c369701c411d786092f02e77efe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349998
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- api/next/45038.txt      |  1 +
- src/bytes/bytes.go      | 10 ++++++++++
- src/bytes/bytes_test.go | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 44 insertions(+)
+ src/cmd/compile/internal/noder/types.go            |  9 ++-
+ src/cmd/compile/internal/types2/call.go            | 51 ------------
+ src/cmd/compile/internal/types2/decl.go            |  6 ++
+ src/cmd/compile/internal/types2/infer.go           |  1 +
+ .../compile/internal/types2/instantiate_test.go    | 82 +++++++++++++++++++
+ src/cmd/compile/internal/types2/lookup.go          | 22 ------
+ src/cmd/compile/internal/types2/named.go           | 91 +++++++++++++++++++---
+ src/cmd/compile/internal/types2/object.go          |  5 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |  2 +-
+ src/cmd/compile/internal/types2/subst.go           |  3 +-
+ 10 files changed, 182 insertions(+), 90 deletions(-)

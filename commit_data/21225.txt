@@ -1,38 +1,16 @@
-commit f03c9202c43e0abb130669852082117ca50aa9b1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jan 7 17:44:49 2015 -0800
+commit 76f71959c860cbd36c52d789d82914d8c2e300c9
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 9 12:31:11 2014 -0500
 
-    cmd/gc: optimize memclr of slices and arrays
+    runtime: restore error message on early needm
     
-    Recognize loops of the form
+    needm used to print an error before exiting when it was called too
+    early, but this error was lost in the transition to Go.  Bring back
+    the error so we don't silently exit(1) when this happens.
     
-    for i := range a {
-            a[i] = zero
-    }
-    
-    in which the evaluation of a is free from side effects.
-    Replace these loops with calls to memclr.
-    This occurs in the stdlib in 18 places.
-    
-    The motivating example is clearing a byte slice:
-    
-    benchmark                old ns/op     new ns/op     delta
-    BenchmarkGoMemclr5       3.31          3.26          -1.51%
-    BenchmarkGoMemclr16      13.7          3.28          -76.06%
-    BenchmarkGoMemclr64      50.8          4.14          -91.85%
-    BenchmarkGoMemclr256     157           6.02          -96.17%
-    
-    Update #5373.
-    
-    Change-Id: I99d3e6f5f268e8c6499b7e661df46403e5eb83e4
-    Reviewed-on: https://go-review.googlesource.com/2520
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8086932783fd29a337d7dea31b9d6facb64cb5c1
+    Reviewed-on: https://go-review.googlesource.com/1226
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/gc/builtin.c        |  1 +
- src/cmd/gc/go.h             |  1 +
- src/cmd/gc/range.c          | 66 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/gc/runtime.go       |  1 +
- src/cmd/gc/typecheck.c      |  2 +-
- src/runtime/memmove_test.go | 14 +++++++++
- test/fixedbugs/issue5373.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 155 insertions(+), 1 deletion(-)
+ src/runtime/proc1.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

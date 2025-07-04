@@ -1,31 +1,21 @@
-commit b99fa8155514d4a5dad366dde9be8ae76333e6a9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 1 12:58:27 2013 -0400
+commit c33d49002069e798b33d0de42d3eb5073aef7c0b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 1 19:28:38 2013 +0400
 
-    cmd/ld: report pclntab, funcdata sizes in 6l -v output
-    Also move chatty recent additions to -v -v.
+    runtime: print "created by" for running goroutines in traceback
+    This allows to at least determine goroutine "identity".
+    Now it looks like:
+    goroutine 12 [running]:
+            goroutine running on other thread; stack unavailable
+    created by testing.RunTests
+            src/pkg/testing/testing.go:440 +0x88e
     
-    For what it's worth:
-    
-    $ go build -o /dev/null -ldflags -v cmd/go
-    ...
-     0.87 pclntab=1110836 bytes, funcdata total 69700 bytes
-    ...
-    $
-    
-    This broke the ELF builds last time because I tried to dedup
-    the funcdata in case the same funcdata was pointed at by
-    multiple functions. That doesn't currently happen, so I've
-    removed that test.
-    
-    If we start doing bitmap coalescing we'll need to figure out
-    how to measure the size more carefully, but I think at that
-    point the bitmaps will be an extra indirection away from the
-    funcdata anyway, so the dedup I used before wouldn't help.
-    
-    R=ken2
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/12269043
+    https://golang.org/cl/12248043
 
- src/cmd/ld/lib.c | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/pkg/runtime/proc.c          |  5 +++--
+ src/pkg/runtime/runtime.h       |  1 +
+ src/pkg/runtime/traceback_arm.c | 13 +++++++------
+ src/pkg/runtime/traceback_x86.c | 15 ++++++++-------
+ 4 files changed, 19 insertions(+), 15 deletions(-)

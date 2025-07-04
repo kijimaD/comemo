@@ -1,12 +1,15 @@
-commit 5451708d5be8a826cd1753fe2be611bc4d278059
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Nov 9 02:09:09 2012 +0900
+commit 4e75d2c7d5234f3bd9789b643e30b744de96b348
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 9 03:41:43 2012 +1100
 
-    net: fix non-unixen build
+    runtime: re-enable crash test on NetBSD
+    
+    Re-enable the crash tests on NetBSD now that the issue has been
+    identified and fixed.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6813101
+    https://golang.org/cl/6813100
 
- src/pkg/net/ipsock.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/runtime/crash_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

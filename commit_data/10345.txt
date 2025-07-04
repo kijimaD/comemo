@@ -1,14 +1,25 @@
-commit 3199a6ca8d06ef608080f1ef6c0523ebbbeb0025
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Fri Nov 11 14:40:24 2011 -0500
+commit 252ef18d04a2560e66aef7b560bd02db92bed912
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 11 14:04:33 2011 -0500
 
-    ld: fix .bss for ldpe.
+    exp/terminal: rename shell to terminal and add SetSize
     
-    Fixes #2409.
+    It was never really a shell, but the name carried
+    over from SSH's ServerShell.
     
-    R=mattn.jp, rsc, alex.brainman
+    Two small functional changes:
+    
+    Add SetSize, which allows the size of the terminal
+    to be changed in response, say, to an SSH message.
+    
+    Don't write the prompt if there's already something
+    on the current line.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5334046
+    https://golang.org/cl/5376066
 
- src/cmd/ld/ldpe.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/terminal/Makefile                      |   2 +-
+ src/pkg/exp/terminal/{shell.go => terminal.go}     | 220 +++++++++++----------
+ .../terminal/{shell_test.go => terminal_test.go}   |   4 +-
+ 3 files changed, 116 insertions(+), 110 deletions(-)

@@ -1,20 +1,36 @@
-commit 39a4df49674540ba8b835ece03edb8d304941187
+commit 217a461f56cecee1756bef29f9ad2dcd389a255b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 6 09:33:55 2021 -0700
+Date:   Tue Jan 26 12:08:18 2021 -0800
 
-    go/types: break cycles in invalid types
+    [dev.typeparams] cmd/compile/internal/types2: report unused packages in source order
     
-    This is a clean port of CL 354329 from types2 to go/types.
+    1) Rather than map-iterate through all file scopes and collect unused
+       packages, collect all imports in the Checker.imports list so that
+       errors are reported in source order.
     
-    For #48819.
+    2) From cmd/compile, borrow the idea of a "dotImportRefs" map to map
+       dot-imported objects to the package they were dot-imported through
+       (we call the map "dotImportMap").
     
-    Change-Id: I9efdcdbfa6432f3cee64d924a4c67ecc6793cf86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354349
+    3) From cmd/compile, borrow the "pkgnotused" function
+       (called Checker.errorUnusedPkg in this code) and clean up
+       unused package error reporting.
+    
+    4) Adjust unused package error message to match compiler message exactly.
+    
+    5) Enable one more excluded test case in test/run.go.
+    
+    Change-Id: I4e4e55512a6043a7fd54f576c7441e3dd4077d6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287072
     Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/decl.go                           |  1 +
- src/go/types/testdata/fixedbugs/issue41124.go2 |  2 +-
- src/go/types/testdata/fixedbugs/issue48819.src | 15 +++++++++++++++
- src/go/types/typeset.go                        |  2 +-
- 4 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/check.go           | 36 +++++----
+ src/cmd/compile/internal/types2/resolver.go        | 87 ++++++++++------------
+ .../types2/testdata/importdecl0/importdecl0b.src   |  2 +-
+ .../types2/testdata/importdecl1/importdecl1b.src   |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  8 +-
+ test/run.go                                        |  1 -
+ 6 files changed, 62 insertions(+), 74 deletions(-)

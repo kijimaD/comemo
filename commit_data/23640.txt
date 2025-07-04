@@ -1,15 +1,15 @@
-commit 616cb3c0eadada458358d69b1098a5aea9165099
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Jul 13 15:20:12 2015 +1200
+commit 477614e4a12899c72aeaa0e5cee2f3283929542f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 27 13:10:43 2015 -0700
 
-    cmd/dist: actually disable testso and testsovar on ppc64
+    doc: move pre-go1 release notes to separate file
     
-    This is clearly what was intended all along. ./all.bash passes with this
-    change.
+    Fixes #10924
     
-    Change-Id: I16996da11cf1e4d2dc2a4434b7611a724691e8dc
-    Reviewed-on: https://go-review.googlesource.com/12068
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0caf5f8f82682ee48e95270d43328550bfd8b6e1
+    Reviewed-on: https://go-review.googlesource.com/10440
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/devel/pre_go1.html | 455 +++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/devel/release.html | 445 +----------------------------------------------
+ 2 files changed, 458 insertions(+), 442 deletions(-)

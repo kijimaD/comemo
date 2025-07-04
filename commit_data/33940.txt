@@ -1,31 +1,24 @@
-commit 7c2cf4e779a66b212a3c94f2b20ade1c2c275b84
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 4 10:43:29 2018 -0500
+commit a53e853964cc9220ebc4b35aeb81a382939fb479
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 19 12:45:17 2017 -0700
 
-    runtime: avoid race on allp in findrunnable
+    cmd/compile/internal/types: simplify dclstack
     
-    findrunnable loops over allp to check run queues *after* it has
-    dropped its own P. This is unsafe because allp can change when nothing
-    is blocking safe-points. Hence, procresize could change allp
-    concurrently with findrunnable's loop. Beyond generally violating Go's
-    memory model, in the best case this could findrunnable to observe a
-    nil P pointer if allp has been grown but the new slots not yet
-    initialized. In the worst case, the reads of allp could tear, causing
-    findrunnable to read a word that isn't even a valid *P pointer.
+    We used to backup symbol declarations using complete Syms, but this
+    was unnecessary: very few of Sym's fields were actually needed. Also,
+    to restore a symbol, we had to re-Lookup the Sym in its Pkg.
     
-    Fix this by taking a snapshot of the allp slice header (but not the
-    backing store) before findrunnable drops its P and iterating over this
-    snapshot. The actual contents of allp are immutable up to len(allp),
-    so this fixes the race.
+    By introducing a new dedicated dsym type for this purpose, we can
+    address both of these deficiencies.
     
-    Updates #23098 (may fix).
+    Passes toolstash-check.
     
-    Change-Id: I556ae2dbfffe9fe4a1bf43126e930b9e5c240ea8
-    Reviewed-on: https://go-review.googlesource.com/86215
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I39f3d672b301f84a3a62b9b34b4b2770cb25df79
+    Reviewed-on: https://go-review.googlesource.com/64811
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types/scope.go | 61 +++++++++++++++++++--------------
+ src/cmd/compile/internal/types/sym.go   |  5 +--
+ 2 files changed, 38 insertions(+), 28 deletions(-)

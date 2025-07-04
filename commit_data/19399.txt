@@ -1,40 +1,15 @@
-commit 60be4a245049218e3d56ce8d49d22f2847ebec3f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 19 22:57:59 2014 -0400
+commit 431b96bdbe7dc838551efc9959b3bdca780b9368
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 19 14:29:45 2014 -0700
 
-    cmd/gc: fix float32 const conversion and printing of big float consts
+    text/template,html/template: document that partial results may be written on error
+    Fixes #7445.
     
-    The float32 const conversion used to round to float64
-    and then use the hardware to round to float32.
-    Even though there was a range check before this
-    conversion, the double rounding introduced inaccuracy:
-    the round to float64 might round the value further away
-    from the float32 range, reaching a float64 value that
-    could not actually be rounded to float32. The hardware
-    appears to give us 0 in that case, but it is probably undefined.
-    Double rounding also meant that the wrong value might
-    be used for certain border cases.
-    
-    Do the rounding the float32 ourselves, just as we already
-    did the rounding to float64. This makes the conversion
-    precise and also makes the conversion match the range check.
-    
-    Finally, add some code to print very large (bigger than float64)
-    floating point constants in decimal floating point notation instead
-    of falling back to the precise but human-unreadable binary floating
-    point notation.
-    
-    Fixes #8015.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/100580044
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94640043
 
- src/cmd/gc/const.c    | 15 ++++++++-------
- src/cmd/gc/go.h       |  1 +
- src/cmd/gc/mparith1.c | 30 +++++++++++++++++++++++++-----
- src/cmd/gc/mparith3.c | 37 +++++++++++++++++++++++--------------
- test/float_lit2.go    | 43 +++++++++++++++++++++++++++++++++++++++++++
- test/float_lit3.go    | 28 ++++++++++++++++++++++++++++
- 6 files changed, 128 insertions(+), 26 deletions(-)
+ src/pkg/html/template/template.go | 6 ++++++
+ src/pkg/text/template/exec.go     | 6 ++++++
+ 2 files changed, 12 insertions(+)

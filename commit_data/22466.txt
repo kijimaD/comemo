@@ -1,14 +1,29 @@
-commit 4c1ee3ea8856e2664b6298aa7725d71177d02621
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:37:29 2015 -0400
+commit d7f6d46c5c3381cd9e06e801facfb9399c3093b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 9 00:31:13 2015 -0400
 
-    cmd/objdump: skip fork test on darwin/arm64
+    cmd/...: remove use of func() { ... }() in loop increment
     
-    Just like darwin/arm.
+    These were introduced during C -> Go translation when the loop increment
+    contained multiple statements.
     
-    Change-Id: Ibaba67980db6e05aa71568199b2dac2fcaa86fd6
-    Reviewed-on: https://go-review.googlesource.com/8824
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ic8abd8dcb3308851a1f7024de00711f0f984e684
+    Reviewed-on: https://go-review.googlesource.com/7627
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/objdump/objdump_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/5g/peep.go                 |  4 ++--
+ src/cmd/9l/asm.go                  |  2 +-
+ src/cmd/internal/gc/bv.go          |  8 ++++----
+ src/cmd/internal/gc/esc.go         |  8 ++++----
+ src/cmd/internal/gc/reflect.go     | 11 +++++++----
+ src/cmd/internal/gc/subr.go        |  6 +++---
+ src/cmd/internal/gc/typecheck.go   |  2 +-
+ src/cmd/internal/gc/walk.go        |  4 ++--
+ src/cmd/internal/ld/data.go        |  2 +-
+ src/cmd/internal/ld/elf.go         |  2 +-
+ src/cmd/internal/obj/arm/asm5.go   |  2 +-
+ src/cmd/internal/obj/arm/obj5.go   |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go |  2 +-
+ src/cmd/internal/obj/x86/obj6.go   |  2 +-
+ 14 files changed, 30 insertions(+), 27 deletions(-)

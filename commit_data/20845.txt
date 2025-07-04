@@ -1,16 +1,35 @@
-commit 8e01fc7e9b531398e868d9899c91a9f052f015c7
-Author: Benoit Sigoure <tsunanet@gmail.com>
-Date:   Sat Nov 1 08:28:09 2014 -0700
+commit 65dde1ed4b1c71fad6d2b106b779c5191e5f7cd7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 20:51:15 2014 -0700
 
-    misc: Increase issue 6997's test timeout to prevent spurious failures.
+    encoding/gob: use simple append-only buffer for encoding
+    Bytes buffers have more API and are a little slower. Since appending
+    is a key part of the path in encode, using a faster implementation
+    speeds things up measurably.
+    The couple of positive swings are likely garbage-collection related
+    since memory allocation looks different in the benchmark now.
+    I am not concerned by them.
     
-    On heavily loaded build servers, a 5 second timeout is too aggressive,
-    which causes this test to fail spuriously.
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkEndToEndPipe                6620          6388          -3.50%
+    BenchmarkEndToEndByteBuffer          3548          3600          +1.47%
+    BenchmarkEndToEndSliceByteBuffer     336678        367980        +9.30%
+    BenchmarkEncodeComplex128Slice       78199         71297         -8.83%
+    BenchmarkEncodeFloat64Slice          37731         32258         -14.51%
+    BenchmarkEncodeInt32Slice            26780         22977         -14.20%
+    BenchmarkEncodeStringSlice           35882         26492         -26.17%
+    BenchmarkDecodeComplex128Slice       194819        185126        -4.98%
+    BenchmarkDecodeFloat64Slice          120538        120102        -0.36%
+    BenchmarkDecodeInt32Slice            106442        107275        +0.78%
+    BenchmarkDecodeStringSlice           272902        269866        -1.11%
     
-    LGTM=iant
-    R=iant
-    CC=golang-codereviews, sqweek
-    https://golang.org/cl/170850043
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/160990043
 
- misc/cgo/test/issue6997_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/gob/codec_test.go | 12 +++----
+ src/encoding/gob/decoder.go    |  2 +-
+ src/encoding/gob/encode.go     | 73 ++++++++++++++++++++++++++++--------------
+ src/encoding/gob/encoder.go    |  7 ++--
+ 4 files changed, 59 insertions(+), 35 deletions(-)

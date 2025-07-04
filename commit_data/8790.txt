@@ -1,13 +1,13 @@
-commit b7b8f2b0862061e4ca67a6157c30c0880dda9e54
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Mon Jun 20 14:46:32 2011 +1000
+commit f3a7dad6540d582c5de4bb7814fdb3a3c875fad1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 20 14:44:14 2011 +1000
 
-    misc/godashboard: Accept sub-directories for goinstall's report.
-    Fixed issue 1155.
+    goinstall: s/vlogf/printf/
     
-    R=golang-dev, adg, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4592059
+    https://golang.org/cl/4628050
 
- misc/dashboard/godashboard/package.py | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/goinstall/download.go |  2 +-
+ src/cmd/goinstall/main.go     | 16 ++++++++--------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

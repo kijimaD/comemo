@@ -1,20 +1,30 @@
-commit 9cf671106721451af4a556dc0bf56c133836d008
-Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
-Date:   Wed Nov 3 16:31:11 2021 -0700
+commit a7526bbf72dfe0fde00d88f85fd6cddccdb3a345
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Jan 21 22:53:30 2021 +0800
 
-    cmd/cover: use fmt.Print for newline-ending fixed string
+    encoding/json: marshal maps using reflect.Value.MapRange
     
-    This redundancy is now caught by the improved printf vet checker
-    (golang/go#30436).
+    Map serialization using reflect.Value.MapIndex cannot retrieve
+    map keys that contain a NaN, resulting in a panic.
+    Switch the implementation to use the reflect.Value.MapRange method
+    instead, which iterates over all map entries regardless of whether
+    they are directly retrievable.
     
-    Updates #49322
+    Note that according to RFC 8259, section 4, a JSON object should
+    have unique names, but does not forbid the occurrence of duplicate names.
     
-    Change-Id: Id450247adc6fa28a9244c019be3c1b52c2d17f49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361263
-    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Fixes #43207
+    
+    Change-Id: If4bc55229b1f64b8ca4b0fed37549725efdace39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278632
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/cover/cover.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/json/encode.go      | 36 +++++++++++++++++++-----------------
+ src/encoding/json/encode_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 17 deletions(-)

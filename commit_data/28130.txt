@@ -1,22 +1,12 @@
-commit 74a00b249b049459b6f8b3c3999969f2beef3d31
+commit 36b6c03827f51a8464a135d27212100d893f582c
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 30 11:15:38 2016 -0700
+Date:   Fri Apr 29 15:56:57 2016 -0700
 
-    cmd/compile: get rid of ugly {Recvs,Params,Results}P methods
+    root: remove dev.garbage file
     
-    These were a hack abstraction for before FuncType existed.
-    
-    The result value from calling FuncType() could be saved, but this
-    maintains the current idiom of consistently using t.FuncType().foo
-    everywhere in case we choose to evolve the API further.
-    
-    Change-Id: I81f19aaeab6fb7caa2d4da8bf0bbbc358ab970d0
-    Reviewed-on: https://go-review.googlesource.com/28150
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I99b2ca52824341d986090f5c78ab4f396594bcdf
+    Reviewed-on: https://go-review.googlesource.com/22660
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go      |  6 +++---
- src/cmd/compile/internal/gc/type.go     | 27 ++++++---------------------
- src/cmd/compile/internal/gc/universe.go |  6 +++---
- 3 files changed, 12 insertions(+), 27 deletions(-)
+ dev.garbage | 1 -
+ 1 file changed, 1 deletion(-)

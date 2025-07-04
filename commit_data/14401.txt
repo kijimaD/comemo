@@ -1,12 +1,14 @@
-commit 89bfddbf67e53e95fc70da12d295d781f43666b2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 14 16:30:53 2012 +0400
+commit e33b9f78150c05c42acc67968c3066e3634dee0d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 14 10:43:21 2012 +0100
 
-    cmd/gc: racewalk: handle OEFACE/OCONVIFACE
+    regexp: add simple package-level example
     
-    R=golang-dev, rsc
+    Update #4125
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6821096
+    https://golang.org/cl/6846045
 
- src/cmd/gc/racewalk.c | 35 +++++++++++++++--------------------
- 1 file changed, 15 insertions(+), 20 deletions(-)
+ src/pkg/regexp/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

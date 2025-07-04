@@ -1,19 +1,15 @@
-commit 390d1ce686729dea40cee796ce391f9fd8466942
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 28 09:32:10 2016 -0700
+commit 107a6ef41f3518aba8d791cdb11bb5e63a2e16b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 4 19:40:38 2016 +0000
 
-    cmd/compile: simplify substAny's TSTRUCT case
+    net/http: document Request.Header and Request.Close more
     
-    Now that structs use a slice to store their fields, this code can be
-    simplified somewhat.
+    Updates #14227
     
-    Passes toolstash -cmp.
-    
-    Change-Id: If17b1c89871fa06f34938fa67df0f8c6bcf1a86b
-    Reviewed-on: https://go-review.googlesource.com/21219
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If39f11471ecd307c9483f64e73f9c89fe906ae71
+    Reviewed-on: https://go-review.googlesource.com/19222
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 36 ++++++++++--------------------------
- 1 file changed, 10 insertions(+), 26 deletions(-)
+ src/net/http/request.go | 40 +++++++++++++++++++++++++++-------------
+ 1 file changed, 27 insertions(+), 13 deletions(-)

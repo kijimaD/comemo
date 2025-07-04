@@ -1,21 +1,15 @@
-commit ad6bc88e07212f74fa8445233fc0fe4358d1776e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 14 08:26:32 2024 +0100
+commit ed26e2fe3485346d682668191a726f096037b452
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Sep 14 20:11:07 2023 +0800
 
-    crypto/internal/fips: make linknames path-independent
+    cmd/link/internal/loadelf: correct the relocation size of R_LARCH_64
     
-    When using a FIPS140 snapshot, the import paths will have
-    FIPS version numbers in them, so use explicit import paths
-    for coordination with package runtime, which expects
-    crypto/internal/fips, not (say) crypto/internal/fips/v1.1.
-    
-    Change-Id: I3ac48c84810493152e039eaa5f44d7cfe13d35f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627915
+    Change-Id: If3eaca8b92e8f5265c7763d13021a6353b9df9b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528455
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/crypto/internal/fips/cast.go      | 2 +-
- src/crypto/internal/fips/indicator.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,19 +1,23 @@
-commit a1bc781503bf371262d4878e96cd60cdbb5e9ee9
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Jan 8 14:49:43 2020 -0500
+commit 42aab4b0af5e50071fa8901a038bdc6f1f42b2ed
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 14 15:49:27 2019 -0400
 
-    doc: update the minimum supported macOS version to 10.11
+    runtime: M-targeted signals for libc-based OSes
     
-    Update minimum macOS supported version from 10.10 to 10.11.
+    For #10958, #24543.
     
-    Updates #23011
-    
-    Change-Id: Ie10c40e882c9d309ff56041d9768afc288d0204f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213878
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I82bee63b49e15bd5a53228eb85179814c80437ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201403
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/os2_aix.go         | 19 ++++++++++++++++++-
+ src/runtime/os3_solaris.go     | 16 ++++++++++++++++
+ src/runtime/os_aix.go          |  1 +
+ src/runtime/os_darwin.go       |  5 +++++
+ src/runtime/sys_darwin.go      | 10 ++++++++++
+ src/runtime/sys_darwin_386.s   | 25 +++++++++++++++++++++++++
+ src/runtime/sys_darwin_amd64.s | 18 ++++++++++++++++++
+ src/runtime/sys_darwin_arm.s   | 12 ++++++++++++
+ src/runtime/sys_darwin_arm64.s | 12 ++++++++++++
+ 9 files changed, 117 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit 188ddaa4872f70e2859331655442fca3bfd5128a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 24 16:39:38 2013 -0700
+commit 6e37bc1eecb41838d9f7bdc27a5f323b1d92ff0e
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Jul 24 13:48:04 2013 -0400
 
-    C: add Kevin Klues (Google CLA)
+    misc/emacs: replace our go-goto-opening-parenthesis with backward-up-list
     
-    R=golang-dev, adg
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/11797043
+    https://golang.org/cl/11524045
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ misc/emacs/go-mode.el | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

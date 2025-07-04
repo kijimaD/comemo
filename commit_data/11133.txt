@@ -1,37 +1,18 @@
-commit f0f6aa59cce7c4b59c259c536ef4d1223f127683
+commit 6f77cd291419dcd70faf611ecc82dc50cc294552
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 11:34:02 2012 -0800
+Date:   Thu Jan 12 11:32:28 2012 -0800
 
-    go/doc: move CommentText to ast.CommentGroup's Text method
+    strconv: fix round up corner case
     
-    Now only godoc imports go/doc.
+    Comment described the correct condition
+    but the code did not implement it.
     
-    R=gri
+    Fixes #2625.
+    
+    R=remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/5541045
+    https://golang.org/cl/5530082
 
- src/buildscript_darwin_386.sh    | 132 +++++++++++++++------------------------
- src/buildscript_darwin_amd64.sh  | 132 +++++++++++++++------------------------
- src/buildscript_freebsd_386.sh   | 132 +++++++++++++++------------------------
- src/buildscript_freebsd_amd64.sh | 132 +++++++++++++++------------------------
- src/buildscript_linux_386.sh     | 132 +++++++++++++++------------------------
- src/buildscript_linux_amd64.sh   | 132 +++++++++++++++------------------------
- src/buildscript_linux_arm.sh     | 132 +++++++++++++++------------------------
- src/buildscript_netbsd_386.sh    | 132 +++++++++++++++------------------------
- src/buildscript_netbsd_amd64.sh  | 132 +++++++++++++++------------------------
- src/buildscript_openbsd_386.sh   | 132 +++++++++++++++------------------------
- src/buildscript_openbsd_amd64.sh | 132 +++++++++++++++------------------------
- src/buildscript_plan9_386.sh     | 132 +++++++++++++++------------------------
- src/buildscript_windows_386.sh   | 132 +++++++++++++++------------------------
- src/buildscript_windows_amd64.sh | 132 +++++++++++++++------------------------
- src/cmd/cgo/ast.go               |   3 +-
- src/cmd/go/pkg.go                |   3 +-
- src/cmd/go/test.go               |   3 +-
- src/cmd/godoc/dirtrees.go        |   3 +-
- src/cmd/gotest/gotest.go         |   3 +-
- src/pkg/go/ast/ast.go            |  69 ++++++++++++++++++++
- src/pkg/go/build/dir.go          |   3 +-
- src/pkg/go/doc/comment.go        |  69 --------------------
- src/pkg/go/doc/example.go        |   2 +-
- src/pkg/go/doc/reader.go         |  10 +--
- 24 files changed, 795 insertions(+), 1221 deletions(-)
+ src/pkg/strconv/ftoa.go      | 2 +-
+ src/pkg/strconv/ftoa_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

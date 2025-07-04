@@ -1,47 +1,26 @@
-commit e5c512520bd0a51d59b39556795a47db888d69b5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jul 28 11:59:01 2021 -0700
+commit a2e150c7cded1367fb092e87abb37ce2a1673d11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 22 17:02:46 2021 -0800
 
-    crypto/elliptic: use a const string for precomputed P256 table
+    go/types, cmd/compile/internal/types2: use regular type printing for unsafe.Pointer
     
-    Const strings can be marked readonly. This is particularly
-    important for this relatively large table (88kb).
-    This is a follow-up to CL 315189.
+    Type string printing special-cased printing of unsafe.Pointer because
+    it's a built-in type; yet it's declared in a package like any other
+    imported or used-defined type (unlike built-in types such as int).
     
-    The generation script is a bit awkward. It needs access to crypto/elliptic
-    internals, but also needs to be package main. Work around this by
-    exporting those internals with the "tablegen" build tag.
+    Use the same mechanism for printing unsafe.Pointer like any other
+    (non-basic) type. This will make it possible to use the package
+    Qualifier if so desired.
     
-    This requires changing the function signature at the Go-asm bridge.
-    As long as we're here, shrink the point argument type as well;
-    the net result is three fewer words of params.
+    Fixes #44515.
     
-    Performance impact is probably noise.
-    
-    name                   old time/op    new time/op    delta
-    ScalarBaseMult/P256-8    11.4µs ± 2%    11.3µs ± 1%  -1.32%  (p=0.000 n=19+16)
-    ScalarBaseMult/P224-8     579µs ± 1%     577µs ± 0%  -0.30%  (p=0.024 n=19+20)
-    ScalarBaseMult/P384-8    2.31ms ± 4%    2.34ms ± 4%  +1.25%  (p=0.033 n=20+20)
-    ScalarBaseMult/P521-8    1.33ms ± 0%    1.33ms ± 1%    ~     (p=0.173 n=18+17)
-    ScalarMult/P256-8        42.7µs ± 0%    42.7µs ± 2%    ~     (p=0.989 n=20+20)
-    ScalarMult/P224-8         579µs ± 0%     579µs ± 0%    ~     (p=0.538 n=19+18)
-    ScalarMult/P384-8        2.32ms ± 3%    2.34ms ± 5%    ~     (p=0.235 n=19+20)
-    ScalarMult/P521-8        1.33ms ± 1%    1.34ms ± 2%    ~     (p=0.141 n=17+20)
-    
-    Change-Id: I3bee56df34ae61ca8829791d2e67e058ecc8ddbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/339591
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I0dd1026f850737ecfc4bb99135cfb8e3c18be9e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295271
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/elliptic/export_generate.go     |   17 +
- src/crypto/elliptic/gen_p256_table.go      |  112 ++
- src/crypto/elliptic/p256_asm.go            |    8 +-
- src/crypto/elliptic/p256_asm_amd64.s       |    6 +-
- src/crypto/elliptic/p256_asm_arm64.s       |    6 +-
- src/crypto/elliptic/p256_asm_table.go      | 2886 ++++++++++++++--------------
- src/crypto/elliptic/p256_asm_table_test.go |    8 +-
- 7 files changed, 1569 insertions(+), 1474 deletions(-)
+ src/cmd/compile/internal/types2/issues_test.go | 22 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typestring.go  | 10 ++++++++--
+ src/go/types/issues_test.go                    | 22 ++++++++++++++++++++++
+ src/go/types/typestring.go                     | 11 +++++++++--
+ 4 files changed, 61 insertions(+), 4 deletions(-)

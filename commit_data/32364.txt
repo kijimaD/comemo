@@ -1,20 +1,20 @@
-commit 9f5f51af7cc8d82b46ea12712642f0537ddaae1e
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Aug 18 14:39:53 2017 +0300
+commit e52d317d2476acc0a9985fab7068ee5c2971807b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:32:41 2017 -0400
 
-    cmd/asm: uncomment tests for amd64 PHADD{SW,W}, PHSUB{D,SW,W}
+    cmd/compile: convert ishairy into a visitor
     
-    Instructions added in https://golang.org/cl/18853
+    The inliner's ishairy passes a budget and a reason down through the
+    walk. Lift these into a visitor object and turn ishairy and its
+    helpers into methods.
     
-    2nd change out of 3 to cover AMD64 SSSE3 instruction set in Go asm.
-    This commit does not actually add any new instructions, only
-    enables some test cases.
+    This will make it easy to add more state.
     
-    Change-Id: I9596435b31ee4c19460a51dd6cea4530aac9d198
-    Reviewed-on: https://go-review.googlesource.com/56835
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ic6ae246e1affd67ed283c3205f9595ae33e22215
+    Reviewed-on: https://go-review.googlesource.com/41151
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 80 ++++++++++++++--------------
- 1 file changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 58 ++++++++++++++++++++++----------------
+ 1 file changed, 33 insertions(+), 25 deletions(-)

@@ -1,19 +1,15 @@
-commit f1df07bf6a37bc291f293fd5cdfc9203dd22b31f
-Author: David Anderson <danderson@google.com>
-Date:   Tue Jul 12 17:49:55 2011 -0700
+commit 75780f99f4c310877e5343b4e8b2fe01b4b00b51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 12 17:45:29 2011 -0700
 
-    5l, 6l, 8l: Add a PT_LOAD PHDR entry for the PHDR.
+    csv: fix spelling errors in comments
     
-    Per the TIS ELF spec, if a PHDR entry is present in the
-    program header table, it must be part of the memory image of
-    the program. Failure to do this makes elflint complain, and
-    causes some tools that manipulate ELF to crash.
+    Fixes #2066.
     
-    R=iant, rsc
-    CC=dave, golang-dev
-    https://golang.org/cl/4650067
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4699045
 
- src/cmd/5l/asm.c | 12 ++++++++++++
- src/cmd/6l/asm.c | 12 ++++++++++++
- src/cmd/8l/asm.c | 12 ++++++++++++
- 3 files changed, 36 insertions(+)
+ src/pkg/csv/reader.go | 12 ++++++------
+ src/pkg/csv/writer.go |  1 -
+ 2 files changed, 6 insertions(+), 7 deletions(-)

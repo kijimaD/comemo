@@ -1,27 +1,30 @@
-commit 9a9b110f58325f684050ad5db0433bc9ad962d6f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 14:42:53 2024 -0400
+commit c02e1bfbdb7ff9d4c2ecf8a9859ccecd8eadfc59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 21 09:58:03 2023 -0700
 
-    doc: fix various release notes mistakes
+    go/types, types2: refactor assignVars
     
-    Change-Id: Ib7666b3df1d7190772748129c349d4dc7046ca5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571795
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Rather than using exprList and handle all cases together, split
+    apart the cases of n:n assignments and the cases of n:1 assignments.
+    For the former, the lhs types may (in a future CL) be used to infer
+    types on the rhs. This is a preparatory step.
+    
+    Because the two cases are handled separately, the code is longer
+    (but also more explicit).
+    
+    Some test cases were adjusted to avoifd (legitimate, but previously
+    supressed) "declared but not used" errors.
+    
+    Change-Id: Ia43265f84e423b0ad5594612ba5a0ddce31a4a37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478256
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- doc/next/6-stdlib/0-heading.md                        | 2 +-
- doc/next/6-stdlib/99-minor/database/sql/64707.md      | 6 +++---
- doc/next/6-stdlib/99-minor/debug/elf/66054.md         | 6 +++---
- doc/next/6-stdlib/99-minor/net/62254.md               | 6 +++---
- doc/next/6-stdlib/99-minor/net/http/64910.md          | 2 +-
- doc/next/6-stdlib/99-minor/net/http/httptest/59473.md | 4 ++--
- doc/next/6-stdlib/99-minor/os/33357.md                | 2 +-
- doc/next/6-stdlib/99-minor/os/62484.md                | 2 +-
- doc/next/6-stdlib/99-minor/os/63703.md                | 2 +-
- doc/next/6-stdlib/99-minor/path/filepath/57151.md     | 2 +-
- doc/next/6-stdlib/99-minor/runtime/debug/42888.md     | 2 +-
- doc/next/6-stdlib/99-minor/sync/61696.md              | 2 +-
- doc/next/6-stdlib/99-minor/syscall/62254.md           | 2 +-
- doc/next/6-stdlib/99-minor/syscall/65817.md           | 2 +-
- 14 files changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 55 ++++++++++++++++++-------
+ src/cmd/compile/internal/types2/expr.go        |  1 +
+ src/go/types/assignments.go                    | 57 ++++++++++++++++++--------
+ src/go/types/expr.go                           |  1 +
+ 4 files changed, 83 insertions(+), 31 deletions(-)

@@ -1,26 +1,75 @@
-commit 64e69d3925e2d1f3fb903a2b4f422cf1cbc49ec1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Feb 24 16:54:13 2022 -0500
+commit 16e82be454cbf41299e6a055d54d489ca4612ee0
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Thu Jun 17 20:22:40 2021 +0000
 
-    syscall: define Syscall in terms of RawSyscall on linux
+    runtime: fix crash during VDSO calls on PowerPC
     
-    For #51087
+    This patch reinstates a fix for PowerPC with regard to making VDSO calls
+    while receiving a signal, and subsequently crashing. The crash happens
+    because certain VDSO calls can modify the r30 register, which is where g
+    is stored. This change was reverted for PowerPC because r30 is supposed
+    to be a non-volatile register. This is true, but that only makes a
+    guarantee across function calls, but not "within" a function call. This
+    patch was seemingly fine before because the Linux kernel still had hand
+    rolled assembly VDSO function calls, however with a recent change to C
+    function calls it seems the compiler used can generate instructions
+    which temporarily clobber r30. This means that when we receive a signal
+    during one of these calls the value of r30 will not be the g as the
+    runtime expects, causing a segfault.
     
-    Change-Id: I9de7e85ccf137ae73662759382334bcbe7208150
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388477
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    You can see from this assembly dump how the register is clobbered during
+    the call:
+    
+    (the following is from a 5.13rc2 kernel)
+    
+    ```
+    Dump of assembler code for function __cvdso_clock_gettime_data:
+       0x00007ffff7ff0700 <+0>:     cmplwi  r4,15
+       0x00007ffff7ff0704 <+4>:     bgt     0x7ffff7ff07f0 <__cvdso_clock_gettime_data+240>
+       0x00007ffff7ff0708 <+8>:     li      r9,1
+       0x00007ffff7ff070c <+12>:    slw     r9,r9,r4
+       0x00007ffff7ff0710 <+16>:    andi.   r10,r9,2179
+       0x00007ffff7ff0714 <+20>:    beq     0x7ffff7ff0810 <__cvdso_clock_gettime_data+272>
+       0x00007ffff7ff0718 <+24>:    rldicr  r10,r4,4,59
+       0x00007ffff7ff071c <+28>:    lis     r9,32767
+       0x00007ffff7ff0720 <+32>:    std     r30,-16(r1)
+       0x00007ffff7ff0724 <+36>:    std     r31,-8(r1)
+       0x00007ffff7ff0728 <+40>:    add     r6,r3,r10
+       0x00007ffff7ff072c <+44>:    ori     r4,r9,65535
+       0x00007ffff7ff0730 <+48>:    lwz     r8,0(r3)
+       0x00007ffff7ff0734 <+52>:    andi.   r9,r8,1
+       0x00007ffff7ff0738 <+56>:    bne     0x7ffff7ff07d0 <__cvdso_clock_gettime_data+208>
+       0x00007ffff7ff073c <+60>:    lwsync
+       0x00007ffff7ff0740 <+64>:    mftb    r30      <---- RIGHT HERE
+    => 0x00007ffff7ff0744 <+68>:    ld      r12,40(r6)
+    ```
+    
+    What I believe is happening is that the kernel changed the PowerPC VDSO
+    calls to use standard C calls instead of using hand rolled assembly. The
+    hand rolled assembly calls never touched r30, so this change was safe to
+    roll back. That does not seem to be the case anymore as on the 5.13rc2
+    kernel the compiler *is* generating assembly which modifies r30, making
+    this change again unsafe and causing a crash when the program receives a
+    signal during these calls (which will happen often due to async
+    preempt). This change happened here:
+    https://lwn.net/ml/linux-kernel/235e5571959cfa89ced081d7e838ed5ff38447d2.1601365870.git.christophe.leroy@csgroup.eu/.
+    
+    I realize this was reverted due to unexplained hangs in PowerPC
+    builders, but I think we should reinstate this change and investigate
+    those issues separately:
+    https://github.com/golang/go/commit/f4ca3c1e0a2066ca4f7bd6203866d282ed34acf2
+    
+    Fixes #46803
+    
+    Change-Id: Ib18d7bbfc80a1a9cb558f0098878d41081324b52
+    GitHub-Last-Rev: c3002bcfca3ef58b27485e31328e6297b7a9dfe7
+    GitHub-Pull-Request: golang/go#46767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328110
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/proc.go             |  2 +-
- src/syscall/asm_linux_386.s     | 26 --------------------------
- src/syscall/asm_linux_amd64.s   | 27 ---------------------------
- src/syscall/asm_linux_arm.s     | 30 ------------------------------
- src/syscall/asm_linux_arm64.s   | 27 ---------------------------
- src/syscall/asm_linux_mips64x.s | 25 -------------------------
- src/syscall/asm_linux_mipsx.s   | 23 -----------------------
- src/syscall/asm_linux_ppc64x.s  | 25 -------------------------
- src/syscall/asm_linux_riscv64.s | 24 ------------------------
- src/syscall/asm_linux_s390x.s   | 26 --------------------------
- src/syscall/syscall_linux.go    | 23 ++++++++++++++++++++++-
- 11 files changed, 23 insertions(+), 235 deletions(-)
+ src/runtime/signal_unix.go     |  2 +-
+ src/runtime/sys_linux_ppc64x.s | 86 +++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 74 insertions(+), 14 deletions(-)

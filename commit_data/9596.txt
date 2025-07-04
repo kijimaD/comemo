@@ -1,16 +1,19 @@
-commit 73d27dd5ba6a5a8e140d706d993f5d96c20ae108
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Sep 5 08:11:51 2011 -0400
+commit 8ddd66145ee340ff811f70257f216a9b7b92f1d1
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Mon Sep 5 07:48:42 2011 -0400
 
-    syscall: update routing message attributes handling, fix typo
+    build: clear execute bit from Go files
     
-    R=fullung, golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/4986041
+    R=golang-dev, rsc
+    CC=golang-dev, mike.rosset
+    https://golang.org/cl/4950062
 
- src/pkg/syscall/netlink_linux.go      | 8 ++++----
- src/pkg/syscall/types_linux.c         | 2 +-
- src/pkg/syscall/ztypes_linux_386.go   | 2 +-
- src/pkg/syscall/ztypes_linux_amd64.go | 2 +-
- src/pkg/syscall/ztypes_linux_arm.go   | 2 +-
- 5 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/godoc/snippet.go            | 0
+ src/pkg/big/int.go                  | 0
+ src/pkg/big/int_test.go             | 0
+ src/pkg/big/nat.go                  | 0
+ src/pkg/big/nat_test.go             | 0
+ src/pkg/crypto/rand/rand_windows.go | 0
+ src/pkg/math/atan2_decl.go          | 0
+ test/hashmap.go                     | 0
+ 8 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,18 +1,12 @@
-commit bda885511d804a8a588df97080c2ea8207d637e3
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Fri Nov 6 17:28:58 2015 -0500
+commit a1aafdbe28645bd2161031636739f467e4f16ac9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 15 09:12:31 2015 -0700
 
-    cmd: allow buildmode=c-shared for android/386
+    doc: go1.6.txt: template.Funcs checks names
     
-    Update golang/go#9327.
-    
-    Change-Id: Iab7dad31cf6b9f9347c3f34faebb67ecb38b17fc
-    Reviewed-on: https://go-review.googlesource.com/16701
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I7de85034d499a9f859ab37d56463073f5cb29b35
+    Reviewed-on: https://go-review.googlesource.com/14592
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/test.go            | 4 +++-
- src/cmd/go/build.go             | 2 +-
- src/cmd/link/internal/ld/lib.go | 9 ++++++++-
- 3 files changed, 12 insertions(+), 3 deletions(-)
+ doc/go1.6.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

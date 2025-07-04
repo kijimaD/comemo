@@ -1,26 +1,19 @@
-commit 2ff5fbfbd4539d321043e6b84691ecb131402030
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 19 21:48:10 2022 -0400
+commit 58ec92527041f88d427390a92619cd9a927b6aba
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Aug 29 14:01:03 2021 +0930
 
-    cmd/compile: limit goroutine count to parallelism
+    debug/plan9obj: export ErrNoSymbols
     
-    When the compiler crashes, it is not uncommon to see many hundreds
-    of goroutines all blocked waiting their turn to be one of the nWorkers
-    goroutines that is allowed to run. All these goroutine stacks are not a
-    terribly efficient use of memory, and they also make the crash dumps
-    hard to read.
+    This allows callers of *File.Symbols to distinguish absence of symbols
+    from other errors as can already by done in debug/elf.
     
-    Introduce a manager goroutine to hand out work to at most nWorker
-    goroutines, maintaining pending work in a local slice, rather than
-    having all those blocked goroutines hanging around waiting to run.
+    Fixes #48052
     
-    Change-Id: I46cb4e1afd6392805f359e14554ebc17d538bcba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431956
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5ba15d8473911e516c016a69c1f1c710f7fc4cd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350229
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/compile.go | 44 ++++++++++++++++++++++++----------
- 1 file changed, 31 insertions(+), 13 deletions(-)
+ src/debug/plan9obj/file.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

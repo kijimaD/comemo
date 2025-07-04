@@ -1,13 +1,16 @@
-commit a12d70f60d57d4a0b6d796423da7f0c39b27ee26
+commit de5616fbb44e7674d7ae044a8143d2fd71413747
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 15 16:16:33 2011 -0400
+Date:   Fri Apr 15 16:16:20 2011 -0400
 
-    gc: fix complex move bug
+    gc: print of unsafe.Pointer
+    
+    Got lost when I introduced TUNSAFEPTR.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4439044
+    https://golang.org/cl/4442046
 
- src/cmd/gc/cplx.c        | 19 +++++++++++++++---
- test/fixedbugs/bug329.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+), 3 deletions(-)
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug328.go | 14 ++++++++++++++
+ test/golden.out          |  3 +++
+ 3 files changed, 18 insertions(+), 1 deletion(-)

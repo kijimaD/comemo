@@ -1,18 +1,12 @@
-commit c2fe4a0ea1cd926c4e8af5042a9e21a1c2abcb89
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Thu May 28 13:48:47 2015 +0200
+commit ac354ba725c252e988d46a0f616d309f955e26f2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 28 13:56:44 2015 -0700
 
-    archive/tar: terminate when reading malformed sparse files
+    doc/go1.5.txt: snow leopard not maintained
     
-    Fixes #10968.
-    
-    Change-Id: I027bc571a71629ac49c2a0ff101b2950af6e7531
-    Reviewed-on: https://go-review.googlesource.com/10482
-    Reviewed-by: David Symonds <dsymonds@golang.org>
-    Run-TryBot: David Symonds <dsymonds@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If50fd2dd4005d0ce39081c6b8302707403c139f9
+    Reviewed-on: https://go-review.googlesource.com/9432
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/archive/tar/reader.go               |   3 +++
- src/archive/tar/reader_test.go          |  19 +++++++++++++++++++
- src/archive/tar/testdata/issue10968.tar | Bin 0 -> 512 bytes
- 3 files changed, 22 insertions(+)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

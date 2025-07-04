@@ -1,15 +1,13 @@
-commit 8efb304440474a4c168c30fc07f2787eaf16cfbf
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 31 11:00:16 2012 -0500
+commit 2d64bab1ded3c17d1e73ee1dcacf1aafae223317
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 31 10:59:34 2012 -0500
 
-    crypto/x509: use case-insensitive hostname matching.
+    5l: optimize the common case in patch()
+        If p->to.sym->text is non-nil, then no need to search for sym->value.
     
-    Fixes #2792.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5590045
+    https://golang.org/cl/5601046
 
- src/pkg/crypto/x509/verify.go      | 39 ++++++++++++++++++++++++++++++++++++--
- src/pkg/crypto/x509/verify_test.go | 11 +++++++++++
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ src/cmd/5l/pass.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

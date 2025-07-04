@@ -1,15 +1,14 @@
-commit 1947960a6f87437cb3da4fd9341c0d265ff71cf6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Dec 15 19:37:59 2012 +0100
+commit 0b50a5dad78193fecae52f18a01df928c229eb32
+Author: Jingcheng Zhang <diogin@gmail.com>
+Date:   Fri Dec 14 09:13:42 2012 -0800
 
-    cmd/gc: fix defaultlit of shifts used in interface context.
+    builtin: correct comment on builtin function delete().
     
-    Fixes #4545.
+    Delete on a nil map is now a no-op.
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6937058
+    https://golang.org/cl/6938054
 
- src/cmd/gc/const.c          |  5 +++++
- test/fixedbugs/issue4545.go | 19 +++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/pkg/builtin/builtin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

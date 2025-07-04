@@ -1,15 +1,21 @@
-commit 66f72f8a5048f017a6db4713edfc94e94c0a92e6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue May 20 14:48:23 2014 +0900
+commit d9c9665f1dcd09b0e315c9437d192fed795587a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 00:30:58 2014 -0400
 
-    doc/go1.3.html: switch default stack size back to 8kB
+    liblink: fix field tracking
     
-    Update #8030
+    The USEFIELD instructions no longer make it to the linker,
+    so we have to do something else to pin the references
+    they were pinning. Emit a 0-length relocation of type R_USEFIELD.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/94680043
+    Fixes #7486.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/95530043
 
- doc/go1.3.html | 4 ----
- 1 file changed, 4 deletions(-)
+ include/link.h     |  1 +
+ src/liblink/asm6.c |  9 +++++++++
+ src/liblink/asm8.c | 11 +++++++++++
+ 3 files changed, 21 insertions(+)

@@ -1,23 +1,14 @@
-commit 1350214e4134a31117ae71f80adf678aa5c33f08
-Author: Darien Raymond <admin@v2ray.com>
-Date:   Wed Oct 31 14:37:26 2018 +0000
+commit 1da7f1e2ee6eea4ee22fc943e2aed41778ea6fbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 17:56:56 2018 +0000
 
-    crypto/tls: cache Leaf certificate during BuildNameToCertificate
+    net/http: comment handleReadError more, superficially use its argument
     
-    I am working on a TLS server program, which issues new TLS certificates
-    on demand. The new certificates will be added into tls.Config.Certificates.
-    BuildNameToCertificate will be called to refresh the name table afterwards.
-    This change will reduce some workload on existing certificates.
+    Fixes #24201
     
-    Note that you can’t modify the Certificates field (or call BuildNameToCertificate)
-    on a Config in use by a Server. You can however modify an unused Config that gets
-    cloned in GetConfigForClient with appropriate locking.
-    
-    Change-Id: I7bdb7d23fc5d68df83c73f3bfa3ba9181d38fbde
-    GitHub-Last-Rev: c3788f4116be47f2fdb777935c421e7dd694f5c8
-    GitHub-Pull-Request: golang/go#24920
-    Reviewed-on: https://go-review.googlesource.com/c/107627
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ib970c4eeaa90489d014482276a7e5afa94a50741
+    Reviewed-on: https://go-review.googlesource.com/122675
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/net/http/server.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

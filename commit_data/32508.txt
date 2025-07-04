@@ -1,14 +1,14 @@
-commit dc10aeeff853c2156c1290144d5a004e03b91b76
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Aug 26 06:55:34 2017 -0700
+commit 3a342af977ccf8604f49fc776d17c5f3f3e6d293
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 27 18:58:37 2017 +0900
 
-    runtime: only clear key string's pointer in mapdelete_faststr
+    net: simplify probeWindowsIPStack
     
-    Change-Id: I0360d294868ec4423e4ae036009fac4e72425c9c
-    Reviewed-on: https://go-review.googlesource.com/59152
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ia45f05c63611ade4fe605b389c404953a7afbd1d
+    Reviewed-on: https://go-review.googlesource.com/41837
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/hashmap_fast.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/interface_windows.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

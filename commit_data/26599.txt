@@ -1,16 +1,40 @@
-commit e3c7497327cfa210d5686cccdd2aa3fe2ea62129
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 29 10:15:02 2016 -0700
+commit feb2a5d6103dad76b6374c5f346e33d55612cb2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 12:09:05 2016 -0500
 
-    cmd/compile: add typWrapper and Type.Wrapped
+    cmd/compile: print struct tags in var decl in inlined func body
     
-    Passes toolstash -cmp.
+    This bug was introduced in golang.org/cl/18217,
+    while trying to fix #13777.
     
-    Change-Id: I7dffd9bc5bab323590df6fb591bf1e73edf2e465
-    Reviewed-on: https://go-review.googlesource.com/21305
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Originally I wanted to just disable inlining for the case
+    being handled incorrectly, but it's fairly difficult to detect
+    and much easier just to fix. Since the case being handled
+    incorrectly was inlined correctly in Go 1.5, not inlining it
+    would also be somewhat of a regression.
+    So just fix it.
+    
+    Test case copied from Ian's CL 19520.
+    
+    The mistake to worry about in this CL would be relaxing
+    the condition too much (we now print the note more often
+    than we did yesterday). To confirm that we'd catch this mistake,
+    I checked that changing (!fmtbody || !t.Funarg) to (true) does
+    cause fixedbugs/issue13777.go to fail. And putting it back
+    to what is written in this CL makes that test pass again
+    as well as the new fixedbugs/issue14331.go.
+    So I believe that the new condition is correct for both constraints.
+    
+    Fixes #14331.
+    
+    Change-Id: I91f75a4d5d07c53af5caea1855c780d9874b8df6
+    Reviewed-on: https://go-review.googlesource.com/19514
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/align.go   | 25 +++++++++----------------
- src/cmd/compile/internal/gc/bexport.go |  4 ++--
- src/cmd/compile/internal/gc/type.go    | 22 ++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go |  8 +++++++-
+ test/fixedbugs/issue14331.dir/a.go | 14 ++++++++++++++
+ test/fixedbugs/issue14331.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue14331.go       |  9 +++++++++
+ 4 files changed, 41 insertions(+), 1 deletion(-)

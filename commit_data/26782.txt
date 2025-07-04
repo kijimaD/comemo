@@ -1,16 +1,19 @@
-commit e6181eb9e1dc4ab9e297a102ed192997582ac46c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 7 14:00:00 2016 -0400
+commit 4a346e7489038a0913f590da98a12f6e660b683a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 25 13:45:22 2016 -0800
 
-    cmd/link: disable DWARF when not generating symtab
+    [dev.ssa] cmd/compile: get rid of nil checks before float loads/stores
     
-    Fixes #15166
+    Just like we do for integer loads/stores.
     
-    Change-Id: I30284e3c0fb2c80b26a2572e2fb249b8018e85f9
-    Reviewed-on: https://go-review.googlesource.com/21587
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Update #14511
+    
+    Change-Id: Ic6ca6b54301438a5701ea5fb0be755451cb24d45
+    Reviewed-on: https://go-review.googlesource.com/19923
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go |  9 ++++++++-
+ test/nilptr3.go                    | 18 ++++++++++++++++++
+ test/nilptr3_ssa.go                | 15 +++++++++++++++
+ 3 files changed, 41 insertions(+), 1 deletion(-)

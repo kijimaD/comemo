@@ -1,28 +1,15 @@
-commit f7befa43a3e5110379a85cabbbc999cf3b5fb9f6
-Author: Michael MacInnis <michael.p.macinnis@gmail.com>
-Date:   Tue Feb 17 22:23:16 2015 -0500
+commit 28c6648416362f8542adea03f70fccf77fc9b08e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 20:29:08 2015 -0500
 
-    syscall: Add Foreground and Pgid to SysProcAttr
+    cmd/internal/obj: fix index panic on invalid instruction
     
-    On Unix, when placing a child in a new process group, allow that group
-    to become the foreground process group. Also, allow a child process to
-    join a specific process group.
+    Also introduce actual data structure for table.
     
-    When setting the foreground process group, Ctty is used as the file
-    descriptor of the controlling terminal. Ctty has been added to the BSD
-    and Solaris SysProcAttr structures and the handling of Setctty changed
-    to match Linux.
-    
-    Change-Id: I18d169a6c5ab8a6a90708c4ff52eb4aded50bc8c
-    Reviewed-on: https://go-review.googlesource.com/5130
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6bbe9aff8a872ae254f3739ae4ca17f7b5c4507a
+    Reviewed-on: https://go-review.googlesource.com/5701
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/syscall2_solaris.go |   2 +
- src/runtime/syscall_solaris.go  |  12 +++
- src/syscall/asm_solaris_amd64.s |   3 +
- src/syscall/exec_bsd.go         |  34 +++++--
- src/syscall/exec_linux.go       |  31 +++++-
- src/syscall/exec_solaris.go     |  35 +++++--
- src/syscall/exec_unix_test.go   | 217 ++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 317 insertions(+), 17 deletions(-)
+ src/cmd/internal/obj/i386/asm8.go | 1105 ++++++++----------------------
+ src/cmd/internal/obj/x86/asm6.go  | 1335 +++++++++----------------------------
+ 2 files changed, 601 insertions(+), 1839 deletions(-)

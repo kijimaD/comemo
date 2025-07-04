@@ -1,17 +1,24 @@
-commit a27bbb7f746a44eafae924a0333fa371ca0626c3
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Thu Dec 3 13:19:48 2015 -0800
+commit 167a7123997c42e91d69de2203fc4c156897f0a2
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 13 19:09:32 2015 -0700
 
-    os: make TestLchown actually test Lchown.
+    text/template: resolve non-empty interface
     
-    TestLchown was creating a hard-link instead of a symlink. It would
-    have passed if you replaced all Lchown() calls in it with Chown().
+    Read what a non-empty interface points to.
     
-    Change-Id: I3a108948ec25fcbac8ea890a6eaf5bac094f0800
-    Reviewed-on: https://go-review.googlesource.com/17397
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The deleted lines were added in https://codereview.appspot.com/4810060/,
+    which attempted to break an infinite loop. That was a long time ago.
+    If I just delete these lines with current codebase, the test "bug1"
+    (added in that CL) does not fail.
+    
+    All new tests fail without this fix.
+    
+    Fixes #12924
+    
+    Change-Id: I9370ca44facd6af3019850aa065b936e5a482d37
+    Reviewed-on: https://go-review.googlesource.com/15809
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/os/os_unix_test.go | 23 +++++++----------------
- 1 file changed, 7 insertions(+), 16 deletions(-)
+ src/text/template/exec.go      |  5 -----
+ src/text/template/exec_test.go | 51 +++++++++++++++++++++++++++---------------
+ 2 files changed, 33 insertions(+), 23 deletions(-)

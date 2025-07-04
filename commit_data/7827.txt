@@ -1,12 +1,12 @@
-commit 1da382c871fbbe096f9eaf5a19a499fb83bf4dc5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 22 02:04:59 2011 -0400
+commit d4b19bdbed13f8261638ceafbeecb11d55778637
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 22 15:00:21 2011 +1100
 
-    gopprof: fix bug: do not rotate 180 degrees for large scrolls
+    ld: return > 0 exit code on unsafe import
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4273088
+    https://golang.org/cl/4273092
 
- src/cmd/prof/gopprof | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/ld/go.c | 1 +
+ 1 file changed, 1 insertion(+)

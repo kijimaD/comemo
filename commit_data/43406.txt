@@ -1,20 +1,19 @@
-commit 3ca3ca51d70aac890fb023786db1fcbbeea139f1
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Thu Sep 24 21:44:32 2020 +0200
+commit a1bc781503bf371262d4878e96cd60cdbb5e9ee9
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Jan 8 14:49:43 2020 -0500
 
-    cmd/compile: enforce strongly typed rules for ARM (to32)
+    doc: update the minimum supported macOS version to 10.11
     
-    Type casting changed to 32 from 64.
-    L1055-L1056
-    L1193-L1194, L1197-L1198
+    Update minimum macOS supported version from 10.10 to 10.11.
     
-    toolstash-check successful.
+    Updates #23011
     
-    Change-Id: Icdb9985673292294bc4549afaaa6cf4fcf92ffa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257640
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie10c40e882c9d309ff56041d9768afc288d0204f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213878
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 12 ++++----
- src/cmd/compile/internal/ssa/rewriteARM.go | 48 +++++++++++++++---------------
- 2 files changed, 30 insertions(+), 30 deletions(-)
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

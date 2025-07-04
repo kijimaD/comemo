@@ -1,46 +1,29 @@
-commit e49cb0208b17936f370753c820cb8dfef8d2bd5e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 13 16:04:09 2022 -0500
+commit bcb89fc17a0ff8b588a8d413fa120cc89e053561
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Feb 28 18:04:20 2022 -0500
 
-    os: clean up tests
+    doc: start draft of go1.19 release notes, move go1.18 to x/website
     
-    - Use testenv.Command instead of exec.Command to try to get more
-      useful timeout behavior.
+    This template is based on CL 342070 and previous ones like it.
+    Continue to eagerly include often-used sections, and clarify that
+    the TODO is about completing the section, or removing if it turns
+    out not to be needed.
     
-    - Parallelize tests that appear not to require global state.
-      (And add explanatory comments for a few that are not
-      parallelizable for subtle reasons.)
+    Move the Go 1.18 release notes to x/website, since that's the new
+    home for past Go release notes as of CL 291711. They're added to
+    x/website in CL 388556.
     
-    - Consolidate some “Helper” tests with their parent tests.
+    For #51400
+    Updates #47694
     
-    - Use t.TempDir instead of os.MkdirTemp when appropriate.
-    
-    - Factor out subtests for repeated test helpers.
-    
-    For #36107.
-    Updates #22315.
-    
-    Change-Id: Ic24b6957094dcd40908a59f48e44c8993729222b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458015
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7b5213e039ad6e14a7ff7ad486311efcecc06824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388515
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/os/env_test.go            |   2 +
- src/os/error_test.go          |   4 +
- src/os/exec_unix_test.go      |   8 +-
- src/os/executable_test.go     |  16 +-
- src/os/os_test.go             | 435 ++++++++++++++++++++++++++----------------
- src/os/os_unix_test.go        |   8 +
- src/os/os_windows_test.go     |  91 +++++----
- src/os/path_test.go           |   7 +
- src/os/path_windows_test.go   |   7 +
- src/os/pipe_test.go           |  93 +++++----
- src/os/read_test.go           |   7 +
- src/os/readfrom_linux_test.go |   2 +
- src/os/removeall_test.go      |   4 +
- src/os/stat_test.go           |   3 +
- src/os/tempfile_test.go       |  12 ++
- src/os/timeout_test.go        |   1 +
- 16 files changed, 450 insertions(+), 250 deletions(-)
+ doc/go1.18.html | 1364 -------------------------------------------------------
+ doc/go1.19.html |   61 +++
+ 2 files changed, 61 insertions(+), 1364 deletions(-)

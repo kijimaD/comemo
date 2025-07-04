@@ -1,26 +1,16 @@
-commit 060038bdd036e98622e22bc4538c7d192fb7217c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 18 18:12:14 2016 -0700
+commit 53958468907a349662bf49d349e1c63bea25861f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 19 14:17:29 2016 -0800
 
-    cmd/compile: don't penalize ODOT and friends when inlining
+    cmd/compile: don't print (empty) package name in errors referring to built-ins
     
-    Historically ODOT and friends have been considered to cost an extra
-    budget point when deciding whether they should be inlined, because they
-    had an ONAME node that represented the name to the right of the dot.
-    This doesn't really make sense, as in general that symbol does not add
-    any extra instructions; it just affects the offset of the load or store
-    instruction.  And the ONAME node is gone now.  So, remove the extra
-    cost.
+    Fixes #14010.
     
-    This does not pass toolstash -cmp, as it changes inlining decisions.
-    For example, mspan.init in runtime/mheap.go is now considered to be an
-    inlining candidate.
-    
-    Change-Id: I5ad27f08c66fd5daa4c8472dd0795df989183f5e
-    Reviewed-on: https://go-review.googlesource.com/20891
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idfd4b063eecf453fe00f3e798099023707a65963
+    Reviewed-on: https://go-review.googlesource.com/18738
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go |  2 +-
+ test/fixedbugs/issue14010.go       | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

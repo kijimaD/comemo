@@ -1,19 +1,31 @@
-commit 4efdaa7bc7220fad0177842d0009285ca429a823
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Sat Aug 28 16:06:43 2021 -0700
+commit bfa97ba48fa2924d9c2da1dca01fdb65b44cdb5f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 04:51:22 2021 -0800
 
-    testing: skip panics when picking the line number for decoration
+    [dev.regabi] test: add another closure test case
     
-    Fixes #31154
+    When deciding whether a captured variable can be passed by value, the
+    compiler is sensitive to the order that the OCLOSURE node is
+    typechecked relative to the order that the variable is passed to
+    "checkassign". Today, for an assignment like:
     
-    Change-Id: I4cfd98b5e79f1abdc93044fb66855ac2cc0a9a49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345909
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
+        q, g = 2, func() int { return q }
+    
+    we get this right because we always typecheck the full RHS expression
+    list before calling checkassign on any LHS expression.
+    
+    But I nearly made a change that would interleave this ordering,
+    causing us to call checkassign on q before typechecking the function
+    literal. And alarmingly, there weren't any tests that caught this.
+    
+    So this commit adds one.
+    
+    Change-Id: I66cacd61066c7a229070861a7d973bcc434904cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280998
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/testing/helper_test.go      | 35 +++--------------------------------
- src/testing/helperfuncs_test.go | 32 ++++++++++++++++++++++++++++++++
- src/testing/testing.go          |  3 +++
- 3 files changed, 38 insertions(+), 32 deletions(-)
+ test/closure2.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

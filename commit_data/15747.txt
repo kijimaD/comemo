@@ -1,18 +1,14 @@
-commit bdf8bf6adc956719a3a224f32c1ca6e6df77dbac
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 13 14:36:42 2013 -0400
+commit ea75ada36ba410c437ab21a62900d8436fadafa1
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Mar 13 07:45:31 2013 -0700
 
-    encoding/xml: predefine xml name space prefix
+    unicode/utf8: fix insignificant typos in tests
     
-    Also change prefix generation to use more human-friendly prefixes.
+    Fixes #4972.
     
-    Fixes #5040.
-    
-    R=golang-dev, r, bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7777047
+    https://golang.org/cl/7649044
 
- src/pkg/encoding/xml/marshal.go   | 78 ++++++++++++++++++++++++++++++++++-----
- src/pkg/encoding/xml/read_test.go | 36 ++++++++++++------
- src/pkg/encoding/xml/xml.go       |  4 ++
- 3 files changed, 97 insertions(+), 21 deletions(-)
+ src/pkg/unicode/utf8/utf8_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,21 +1,27 @@
-commit 2d98a4b4bcd11f58356b183865f73e984294dbd3
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 17:49:53 2021 -0400
+commit 7fde0d2b507b989cb9a23d6dbae9acaa13328c53
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 12:55:14 2020 -0500
 
-    go/types: use a typeWriter to write types (cleanup)
+    [dev.regabi] cmd/compile: remove use of Initorder, Offset Node fields for initorder
     
-    This is a port of CL 345890 to go/types.
+    The initorder pass is already making heavy use of maps,
+    and it is concerned with relatively few nodes (only the assignments
+    in package-level variable declarations). The tracking of init order
+    for these nodes can be done with another map instead of storing
+    the bits directly in the Node representations.
     
-    Change-Id: I98162deaf044b2194b05dc51e6948e227216fc4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346554
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This will let us drop Offset_ from AssignStmt and AssignListStmt
+    and drop Initorder from all nodes.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I151c64e84670292c2004da4e8e3d0660a88e3df3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277917
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/object.go     |   2 +-
- src/go/types/subst.go      |   7 +-
- src/go/types/typelists.go  |   4 +-
- src/go/types/typestring.go | 211 +++++++++++++++++++++++----------------------
- src/go/types/unify.go      |  13 +--
- 5 files changed, 121 insertions(+), 116 deletions(-)
+ src/cmd/compile/internal/gc/initorder.go | 43 ++++++++++++++--------------
+ src/cmd/compile/internal/ir/mini.go      | 12 ++------
+ src/cmd/compile/internal/ir/node.go      |  2 --
+ src/cmd/compile/internal/ir/stmt.go      | 48 +++++++++++++-------------------
+ 4 files changed, 44 insertions(+), 61 deletions(-)

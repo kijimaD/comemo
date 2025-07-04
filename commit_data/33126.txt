@@ -1,16 +1,21 @@
-commit f8f0d6c4deab0837b03ddccfe0edf775c3bbd49f
-Author: griesemer <gri@golang.org>
-Date:   Wed Oct 11 15:02:10 2017 -0700
+commit 0a633c3bbef4764ab486a0cb0ba154c5db099eac
+Author: Greg Poirier <greg.istehbest@gmail.com>
+Date:   Sat Jul 15 12:03:33 2017 -0600
 
-    cmd/compile/internal/syntax: match argument and parameter parsing (cleanup)
+    io: Add example to io.Seeker's Seek() method.
     
-    No semantic change. Move functionality not related to argument
-    out of the argument parsing function, and thus match parameter
-    parsing. Also, use a better function name.
+    While there's an example for SectionReader.Seek, if someone is
+    seeking documentation specifically about Seeker.Seek, they may
+    not immediately find the SectionReader example. Offset and whence
+    may not be entirely intuitive to new developers either, so include
+    examples of both positive/negative offsets and SeekStart/SeekEnd.
     
-    Change-Id: Ic550875251d64e6fe1ebf91c11d33a9e4aec9fdd
-    Reviewed-on: https://go-review.googlesource.com/70491
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5b7442ccf683d9706e9261c11bc0ea31a1ac21d4
+    Reviewed-on: https://go-review.googlesource.com/48873
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 24 +++++++++++-------------
- 1 file changed, 11 insertions(+), 13 deletions(-)
+ src/io/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

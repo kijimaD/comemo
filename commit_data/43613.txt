@@ -1,24 +1,35 @@
-commit 152468070946c6b8688bff2c0cccd2bc72904722
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 28 14:20:31 2020 -0400
+commit c4961dc247ca39c251a5a3c80ebfe59609b4e669
+Author: Gregory Petrosyan <gregory.petrosyan@gmail.com>
+Date:   Sat Apr 4 15:27:23 2020 +0000
 
-    cmd/go: allow 'go get' to downgrade to replacement-only versions
+    go/doc: fix detection of whole file examples
     
-    This fixes a case missed in CL 258220.
+    After CL 211357 (commit 499dc1c),
+    hasTests and numDecl were not updated properly for function
+    declarations with parameters, which affected the whole file
+    example detection logic. This caused examples like
     
-    For #36460
-    Updates #26241
-    Updates #37438
+            package foo_test
     
-    Change-Id: I5e8c2ee1e08e41cc2eb34e54c617cb5e4bf69c5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266018
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+            func Foo(x int) {
+            }
+    
+            func Example() {
+                    fmt.Println("Hello, world!")
+                    // Output: Hello, world!
+            }
+    
+    to not be detected as whole file ones.
+    
+    Change-Id: I9ebd47e52d7ee9d91eb6f8e0257511de69b2a402
+    GitHub-Last-Rev: cc71c31124f6e3514f4e33ac7b169eca74c8bcb7
+    GitHub-Pull-Request: golang/go#37730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222477
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/mvs.go                |   6 +-
- src/cmd/go/testdata/script/mod_get_replaced.txt   |   4 +-
- src/cmd/go/testdata/script/mod_lazy_downgrade.txt | 145 ++++++++++++++++++++++
- 3 files changed, 152 insertions(+), 3 deletions(-)
+ src/go/doc/example.go      |  6 ++--
+ src/go/doc/example_test.go | 76 +++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 61 insertions(+), 21 deletions(-)

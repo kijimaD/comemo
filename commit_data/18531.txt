@@ -1,23 +1,18 @@
-commit 56872f02f0f69f32d4d919e4cacee9672e7a5a97
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Feb 14 22:27:47 2014 +0100
+commit 9b0736fc5850271ed89880202eed797692976a49
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Feb 14 11:36:52 2014 -0800
 
-    runtime: fix "invalid address in sys call" on Plan 9
+    cmd/go: remove cross compiling restriction on cgo
     
-    Rfork is not splitting the stack when creating a new thread,
-    so the parent and child are executing on the same stack.
-    However, if the parent returns and keeps executing before
-    the child can read the arguments from the parent stack,
-    the child will not see the right arguments. The solution
-    is to load the needed pieces from the parent stack into
-    register before INT $64.
+    A previous CL added support for cross compiling with cgo, but
+    missed the GOOS check in cmd/go. Remove it.
     
-    Thanks to Russ Cox for the explanation.
+    Update #4714
     
-    LGTM=rsc
-    R=rsc
-    CC=ality, golang-codereviews
-    https://golang.org/cl/64140043
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/57210046
 
- src/pkg/runtime/sys_plan9_386.s | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 4 ----
+ 1 file changed, 4 deletions(-)

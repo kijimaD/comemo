@@ -1,16 +1,28 @@
-commit 7765576e09cdc04f57afe0bc71f100c234b104d2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Mar 16 09:47:17 2019 +1100
+commit 7b0fa529f33fc444e762af7e33d6c8deba5298b3
+Author: BigMikes <giulio.micheloni@gmail.com>
+Date:   Mon Oct 29 11:45:16 2018 +0100
 
-    cmd/go: skip broken TestScript/build_acl_windows on arm
+    net/http: in Transport, don't error on non-chunked response with Trailer header
     
-    Updates #30711
+    There are cases where HTTP message specifies the Trailer header
+    but not the Transfer-Encoding = chunked. The existing
+    implementation would return an error in those cases, without
+    returning also the message itself.
+    Instead, it would be preferable to let the library user decide when
+    the message is valid or not.
+    This change makes the fixTrailer() function not to return an error
+    and to keep the Trailer value in the Response.Header map but not
+    populate Response.Trailer.
     
-    Change-Id: I280f7effaf488d5d9908d9d0cd1e0e99c22f91ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167778
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #27197
+    
+    Change-Id: Ic1e96791fde97f31dc5ecb8de05c8e4f49465c2c
+    Reviewed-on: https://go-review.googlesource.com/c/145398
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/build_acl_windows.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/request.go       |  5 +++--
+ src/net/http/response_test.go | 28 ++++++++++++++++++++++++++++
+ src/net/http/transfer.go      | 14 ++++++++++----
+ 3 files changed, 41 insertions(+), 6 deletions(-)

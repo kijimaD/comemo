@@ -1,13 +1,13 @@
-commit c5e7a02e805828e786d357aa96f2aa3105835a0f
+commit 8c9e838f7bb06d7c3e8f411b43e5c9e4b73222ee
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 26 11:23:33 2014 +1100
+Date:   Wed Mar 26 10:24:57 2014 +1100
 
-    doc/gopher: fix typo in README
+    doc/gopher: add README
     
-    LGTM=josharian
-    R=golang-codereviews, josharian
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/80220043
+    https://golang.org/cl/79890046
 
- doc/gopher/README | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/gopher/README | 4 ++++
+ 1 file changed, 4 insertions(+)

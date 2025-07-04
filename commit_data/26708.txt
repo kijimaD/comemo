@@ -1,12 +1,28 @@
-commit e8f01e5cae3d72ea78c06d95a5ac622076f455ed
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Apr 5 15:19:27 2016 +1000
+commit 676550d040fcd91d080df5df85b61b3f32393e6f
+Author: Paul Marks <pmarks@google.com>
+Date:   Mon Feb 8 20:25:38 2016 -0800
 
-    expvar: document that the Var interface's String method should return a valid JSON value.
+    net: use dialTCP cancelation for DualStack dialing.
     
-    Change-Id: If4e740f3dbef4053355542eebdd899b3099d872c
-    Reviewed-on: https://go-review.googlesource.com/21525
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The previous Happy Eyeballs implementation would intentionally leak
+    connections, because dialTCP could not be reliably terminated upon
+    losing the race.
+    
+    Now that dialTCP supports cancelation (plan9 excluded), dialParallel can
+    wait for responses from both the primary and fallback racers, strictly
+    before returning control to the caller.
+    
+    In dial_test.go, we no longer need Sleep to avoid leaks.
+    Also, fix a typo in the Benchmark IPv4 address.
+    
+    Updates #11225
+    Fixes #14279
+    
+    Change-Id: Ibf3fe5c7ac2f7a438c1ab2cdb57032beb8bc27b5
+    Reviewed-on: https://go-review.googlesource.com/19390
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/expvar/expvar.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/dial.go      |  95 ++++++++++++++++++++++++---------------
+ src/net/dial_test.go | 123 +++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 149 insertions(+), 69 deletions(-)

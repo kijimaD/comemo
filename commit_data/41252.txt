@@ -1,17 +1,17 @@
-commit b8061825e57dcee97a37fe49272ca52e84600f5e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 10 16:00:29 2020 -0500
+commit eb6ce1cff479b002712b1d587edba062146ed040
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 17 16:33:54 2019 -0400
 
-    doc: fill in 'go mod init' section of module documentation
+    cmd/go: support -trimpath with gccgo
     
-    Updates #33637
+    Fixes #32162
     
-    Change-Id: I9c1345d0fa7a1b6c98c33b8b0837706e5261d5b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214381
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I164665108fa8ae299229054bded82cb3b027bccb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196023
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/modules.md | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ src/cmd/go/internal/work/gccgo.go             |  9 +++++-
+ src/cmd/go/testdata/script/build_trimpath.txt | 43 +++++++++++++++++++--------
+ 2 files changed, 38 insertions(+), 14 deletions(-)

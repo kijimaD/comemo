@@ -1,22 +1,23 @@
-commit 8abb8aa9a96dc0590bd2e99628192e590b0295ec
+commit 3330c69476f4d8bca40a9fb6b429a0401f24f2b7
 Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Mar 3 13:34:15 2025 +0000
+Date:   Wed Jan 24 12:33:30 2024 +0000
 
-    testing: modify got,want equal comparison for unordered example output
+    reflect: fix isRegularMemory at case Array
     
-    This change eliminates sortLines function to avoid strings.Join calls.
+    To match cmd/compile/internal/compare.IsRegularMemory,
+    this CL adds code for empty arrays of comparable element type.
     
-    It's not a performance problem, this change tries to make the comparison
-    more straightforward.
-    
-    Change-Id: I3a7ae877c9fc927833ab9f143205f7e007197f60
-    GitHub-Last-Rev: a71aa58c58533fed24ba9c101664b977a094caf9
-    GitHub-Pull-Request: golang/go#72025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653556
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I205fb9bfda60be6c9aac2d9098ed3f0eb51cd0fa
+    GitHub-Last-Rev: 40db7ed510883633374895271145678a51418426
+    GitHub-Pull-Request: golang/go#65252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558155
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/testing/example.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ src/reflect/type.go      | 6 +++++-
+ src/reflect/type_test.go | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit 85773e6bc2d800de8598fdda7602d2b6e61f1039
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 20 12:05:52 2013 +1100
+commit 465ff4cfc017360d5a9efbdadee7dbf431e4d69b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 20 00:19:11 2013 +0100
 
-    cmd/5l: fix arm build
+    cmd/gc: implement revised rule for shifts in equality.
     
-    Fixes build. One part of ../misc/cgo/test appears to be unhappy but this does not cause the build to fail.
-    
-    R=rsc, r
+    R=rsc, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/7769047
+    https://golang.org/cl/7613046
 
- src/cmd/5l/obj.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/const.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,41 +1,22 @@
-commit 4f597abe77338588011a5b91ffefb0f7e11aa868
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Oct 22 14:03:11 2020 +0800
+commit 44ae94751ab35232f72845c7b885c5338220bca5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 1 13:08:41 2020 -0400
 
-    internal/bytealg: improve mips64x equal on large size
+    cmd/go: report 'go get' errors for absolute paths outside module root
     
-    name               old time/op    new time/op    delta
-    Equal/0              9.94ns ± 4%    9.12ns ± 5%     -8.26%  (p=0.000 n=10+10)
-    Equal/1              24.5ns ± 0%    27.2ns ± 1%    +11.22%  (p=0.000 n=9+10)
-    Equal/6              28.1ns ± 0%    32.1ns ± 1%    +14.20%  (p=0.000 n=8+10)
-    Equal/9              37.1ns ± 0%    37.8ns ± 1%     +1.95%  (p=0.000 n=8+9)
-    Equal/15             47.3ns ± 0%    44.3ns ± 0%     -6.34%  (p=0.000 n=9+10)
-    Equal/16             42.9ns ± 0%    24.6ns ± 0%    -42.66%  (p=0.000 n=10+7)
-    Equal/20             44.3ns ± 0%    57.4ns ± 0%    +29.57%  (p=0.000 n=9+10)
-    Equal/32             63.2ns ± 0%    35.8ns ± 0%    -43.35%  (p=0.000 n=10+10)
-    Equal/4K             6.49µs ± 0%    0.50µs ± 0%    -92.27%  (p=0.000 n=10+8)
-    Equal/4M             6.70ms ± 0%    0.48ms ± 0%    -92.78%  (p=0.000 n=8+10)
-    Equal/64M             110ms ± 0%       8ms ± 0%    -92.65%  (p=0.000 n=9+9)
-    CompareBytesEqual    36.6ns ± 0%    35.9ns ± 0%     -1.83%  (p=0.000 n=10+9)
+    'go get' will now check absolute paths without wildcards the same way
+    it checks relative paths. modload.DirImportPath may be used for both
+    without converting path separators.
     
-    name               old speed      new speed      delta
-    Equal/1            40.8MB/s ± 0%  36.7MB/s ± 0%    -10.16%  (p=0.000 n=10+10)
-    Equal/6             213MB/s ± 0%   187MB/s ± 1%    -12.32%  (p=0.000 n=10+10)
-    Equal/9             243MB/s ± 0%   238MB/s ± 1%     -1.94%  (p=0.000 n=9+10)
-    Equal/15            317MB/s ± 0%   339MB/s ± 0%     +6.86%  (p=0.000 n=9+9)
-    Equal/16            373MB/s ± 0%   651MB/s ± 0%    +74.70%  (p=0.000 n=8+10)
-    Equal/20            452MB/s ± 0%   348MB/s ± 0%    -22.90%  (p=0.000 n=8+10)
-    Equal/32            506MB/s ± 0%   893MB/s ± 0%    +76.53%  (p=0.000 n=10+9)
-    Equal/4K            631MB/s ± 0%  8166MB/s ± 0%  +1194.73%  (p=0.000 n=10+10)
-    Equal/4M            626MB/s ± 0%  8673MB/s ± 0%  +1284.94%  (p=0.000 n=8+10)
-    Equal/64M           608MB/s ± 0%  8277MB/s ± 0%  +1260.83%  (p=0.000 n=9+9)
+    Fixes #38038
     
-    Change-Id: I1cd14ade16390a5097a8d4e9721d5e822fa6218f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199597
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: I453299898ece58f3b5002a5e80021d6bfe815fdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226857
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/internal/bytealg/equal_mips64x.s | 72 ++++++++++++++++++++++++++++++++++--
- 1 file changed, 68 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modget/get.go           | 21 ++++++++++++---------
+ src/cmd/go/testdata/script/mod_get_main.txt | 15 ++++++++++++---
+ 2 files changed, 24 insertions(+), 12 deletions(-)

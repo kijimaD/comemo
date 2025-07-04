@@ -1,35 +1,13 @@
-commit eff195287313df629547ee8d54284b73574aa491
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Feb 3 14:15:35 2011 -0500
+commit 33cf883440d9bdb256e8bdfd09e34bbddf583b11
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:15:27 2011 -0500
 
-    syscall: add SetsockoptIpMreq
+    A+C: Dave Cheney (individual CLA)
     
-    notes:
-    * due to Issue 1466 the Msghdr struct for
-     src/pkg/syscall/ztypes_darwin_386.go
-     src/pkg/syscall/ztypes_darwin_amd64.go
-    had to be edited after the godefs generation.
-    * ztypes_*.go files for linux, freebsd and darwin
-    have been prepared on the correct host OS and ARCH.
-    While the total increase is a dozen lines per file
-    the diff is larger due to a change to godefs,
-     http://code.google.com/p/go/source/detail?r=c79e30afe9c8
-    while has altered the names of Pad members which
-    causes gofmt to realign the affected structs
-    
-    R=rsc, mikioh
+    R=adg, gri
     CC=golang-dev
-    https://golang.org/cl/4119053
+    https://golang.org/cl/4126055
 
- src/pkg/syscall/syscall_bsd.go          |   4 +
- src/pkg/syscall/syscall_linux.go        |   4 +
- src/pkg/syscall/types_darwin.c          |   2 +
- src/pkg/syscall/types_freebsd.c         |   2 +
- src/pkg/syscall/types_linux.c           |   2 +
- src/pkg/syscall/ztypes_darwin_386.go    |  20 +++--
- src/pkg/syscall/ztypes_darwin_amd64.go  |  52 ++++++-----
- src/pkg/syscall/ztypes_freebsd_386.go   |  10 ++-
- src/pkg/syscall/ztypes_freebsd_amd64.go |  42 +++++----
- src/pkg/syscall/ztypes_linux_386.go     | 116 +++++++++++++------------
- src/pkg/syscall/ztypes_linux_amd64.go   | 148 +++++++++++++++++---------------
- 11 files changed, 226 insertions(+), 176 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

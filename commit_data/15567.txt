@@ -1,12 +1,18 @@
-commit d4a020dec1396ec162f95dd834b358da4a519355
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Mon Mar 4 10:25:21 2013 -0500
+commit 15825dc935b9ba8e3a77ed0a0e925049f2d003c9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 4 09:02:45 2013 +1100
 
-    container/heap: fix int overflow bug
+    cmd/godoc: move note argument to godoc.go
     
-    R=golang-dev, rsc
+    Fixes the App Engine version of godoc. The other fix is to duplicate
+    this code inside appinit.go. I think initHandlers is the right place
+    to put the strings.Split call, as the notesToShow var is used by
+    docServer, which is what initHandlers sets up.
+    
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/7450052
+    https://golang.org/cl/7434044
 
- src/pkg/container/heap/heap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/godoc.go | 7 +++++++
+ src/cmd/godoc/main.go  | 7 -------
+ 2 files changed, 7 insertions(+), 7 deletions(-)

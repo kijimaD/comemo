@@ -1,28 +1,26 @@
-commit 582a421a8c245268f7c081fa1191374d50a601f7
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Nov 13 15:04:54 2016 +0100
+commit 63837092726fa01806ee945dc7b3a2c8c707cd76
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 20 15:31:26 2016 +1200
 
-    net: enable timeout tests on Plan 9
+    cmd/link: remove now-unused ctxt arguments from a few functions
     
-    Deadlines have been implemented on Plan 9 in CL 31521.
+    Specifically Addstring, Addbytes and Symgrow.
     
-    Enable the following tests:
-    
-     - TestReadTimeout
-     - TestReadFromTimeout
-     - TestWriteTimeout
-     - TestWriteToTimeout
-     - TestReadTimeoutFluctuation
-     - TestVariousDeadlines
-     - TestVariousDeadlines1Proc
-     - TestVariousDeadlines4Proc
-     - TestReadWriteDeadlineRace
-    
-    Change-Id: I221ed61d55f7f1e4345b37af6748c04e1e91e062
-    Reviewed-on: https://go-review.googlesource.com/33196
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: Ia74093bfcf9f360bf223accbc8feef54a7f059c9
+    Reviewed-on: https://go-review.googlesource.com/29348
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/timeout_test.go | 31 +++----------------------------
- 1 file changed, 3 insertions(+), 28 deletions(-)
+ src/cmd/link/internal/amd64/asm.go |   2 +-
+ src/cmd/link/internal/arm/asm.go   |   2 +-
+ src/cmd/link/internal/ld/data.go   |  20 +++---
+ src/cmd/link/internal/ld/dwarf.go  |  44 ++++++-------
+ src/cmd/link/internal/ld/elf.go    | 122 ++++++++++++++++++-------------------
+ src/cmd/link/internal/ld/go.go     |   4 +-
+ src/cmd/link/internal/ld/macho.go  |   2 +-
+ src/cmd/link/internal/ld/pcln.go   |  12 ++--
+ src/cmd/link/internal/ld/pe.go     |   2 +-
+ src/cmd/link/internal/ld/symtab.go |   2 +-
+ src/cmd/link/internal/x86/asm.go   |   4 +-
+ 11 files changed, 108 insertions(+), 108 deletions(-)

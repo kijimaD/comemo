@@ -1,20 +1,23 @@
-commit 2f8bcc89408274821e91be464f51b4e2a816cbae
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 1 11:47:06 2017 -0500
+commit 6367c19f26b9b84cee73264522d6ebfc05801053
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Sep 6 00:10:50 2017 +0530
 
-    cmd/go: accept more spaces in -gcflags arguments
+    cmd/internal/obj/x86: add some more AVX2 instructions
     
-    Earlier versions of Go were not very picky about leading spaces
-    in the -gcflags values. Make the new pattern-enhanced parser
-    equally lax.
+    This adds the VFMADD[213|231]SD, VFNMADD[213|231]SD,
+    VADDSD, VSUBSD instructions
     
-    Fixes #22943.
+    This will allow us to write a fast path for exp_amd64.s where
+    these optimizations can be applied in a lot of places.
     
-    Change-Id: I5cf4d3e81412e895a4b52af325853ed48d0b73f4
-    Reviewed-on: https://go-review.googlesource.com/81498
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ide292107ab887bd1e225a1ad60880235b5ed7c61
+    Reviewed-on: https://go-review.googlesource.com/61810
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go            | 4 ++--
- src/cmd/go/internal/load/flag.go | 4 +++-
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 96 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  6 ++
+ src/cmd/internal/obj/x86/anames.go           |  6 ++
+ src/cmd/internal/obj/x86/asm6.go             | 10 +++
+ 4 files changed, 70 insertions(+), 48 deletions(-)

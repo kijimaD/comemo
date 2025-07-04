@@ -1,24 +1,22 @@
-commit 60f78765022a59725121d3b800268adffe78bde3
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Jun 19 10:41:44 2020 +0200
+commit 5d0075156a01a8c9973188dc06b78aadabeb69da
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 9 15:26:01 2020 -0800
 
-    syscall: check secondary group membership for Faccessat(..., AT_EACCESS) on Linux
+    runtime: add tests for checkptr
     
-    Follow glibc's implementation and check secondary group memberships
-    using Getgroups.
+    We had a few test cases to make sure checkptr didn't have certain
+    false positives, but none to test for any true positives. This CL
+    fixes that.
     
-    No test since we cannot easily change file permissions when not running
-    as root and the test is meaningless if running as root.
+    Updates #22218.
     
-    Same as CL 238722 did for x/sys/unix
-    
-    Updates #39660
-    
-    Change-Id: I6af50e27b255e33405558947a0ab3dfbc33b2d50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238937
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I24c02e469a4af43b1748829a9df325ce510f7cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214238
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/syscall/syscall_linux.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/runtime/checkptr_test.go              | 46 +++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/checkptr.go | 36 ++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

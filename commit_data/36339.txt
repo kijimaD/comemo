@@ -1,17 +1,25 @@
-commit 477b7e5f4d143c2e8d68e9ef9d4db8ebe84a8489
-Author: Xia Bin <snyh@snyh.org>
-Date:   Thu Jul 12 18:00:39 2018 +0800
+commit 393f84a125bf42863e8698748cbbca893771c925
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Apr 12 17:07:14 2018 -0400
 
-    cmd/internal/obj: remove pointless validation
+    cmd/ld: link to runtime types from DWARF
     
-    s.Func.Text only can be nil at the moment, otherwise there has
-    some bugs in compiler's Go rumtime.
+    Add a new DWARF attribute, DW_AT_go_runtime_type, that gives the offset
+    of the runtime type structure, if any, for a DWARF type. This should
+    allow debuggers to decode interface content without having to do awkward
+    name matching.
     
-    Change-Id: Ib2ff9bb977352838e67f2b98a69468f6f350c1f3
-    Reviewed-on: https://go-review.googlesource.com/123535
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #24814
+    
+    Change-Id: Ic7a66524d2be484154c584afa9697111618efea4
+    Reviewed-on: https://go-review.googlesource.com/106775
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/plist.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go        |  26 ++++++++-
+ src/cmd/internal/dwarf/dwarf_defs.go   |   3 +
+ src/cmd/internal/obj/objfile.go        |   3 +
+ src/cmd/link/internal/ld/data.go       |   9 ++-
+ src/cmd/link/internal/ld/dwarf.go      |  31 +++++++---
+ src/cmd/link/internal/ld/dwarf_test.go | 101 +++++++++++++++++++++++++++++++--
+ 6 files changed, 155 insertions(+), 18 deletions(-)

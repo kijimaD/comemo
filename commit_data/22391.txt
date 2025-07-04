@@ -1,21 +1,25 @@
-commit 6e774faed773afa1ff7345e2c2d4367e9510388d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Apr 9 15:13:48 2015 +1000
+commit d533e3955db945072ab2dfcca1cab57099569260
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 5 17:00:18 2015 -0800
 
-    runtime: make windows exception handler code arch independent
+    cmd/internal/ld: fix package data parsing
     
-    Mainly it is simple copy. But I had to change amd64
-    lastcontinuehandler return value from uint32 to int32.
-    I don't remember how it happened to be uint32, but new
-    int32 is matching better with Windows documentation (LONG).
-    I don't think it matters one way or the others.
+    The conversion of this logic from C introduced a few subtle behavior
+    changes.  E.g., assigning "name := data[p0:]" and then "name =
+    name[:p1-p0]" actually caused name to span the vast majority of the
+    package data, as at the time of the second statement p0 points just
+    after the package name and p1 points to the end of the package data.
     
-    Change-Id: I6935224a2470ad6301e27590f2baa86c13bbe8d5
-    Reviewed-on: https://go-review.googlesource.com/8686
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Similarly, the logic for advancing past the newline at the end of the
+    package line changed slightly: for a "package foo safe" line, the new
+    code would only advance up to the newline, but not past.  (Albeit, in
+    practice this doesn't matter: newlines in package data are harmless.)
+    
+    Lastly, "data[p0]" was incorrectly written as "data[0]" a few times.
+    
+    Change-Id: I49017e16ba33a627f773532b418cbf85a84f2b4b
+    Reviewed-on: https://go-review.googlesource.com/7000
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os1_windows_386.go                     | 105 ---------------------
- .../{os1_windows_amd64.go => signal_windows.go}    |   2 +-
- 2 files changed, 1 insertion(+), 106 deletions(-)
+ src/cmd/internal/ld/go.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

@@ -1,27 +1,19 @@
-commit 85bfa33fdc02417cadf46b3f185784e1cf7886b3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Nov 27 17:17:18 2015 +0900
+commit c396c047c68ce59c67d1ee6d1f6756642b223bae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 21 15:58:19 2015 -0700
 
-    net: fix case insensitivity lookup for local database such as /etc/hosts
+    src/cmd/compile/internal/gc: remove now unnecessary restriction on float exponent parsing
     
-    The previous change for #12806 modified internal lookup tables and made
-    LookupAddr return forcibly lowercased host names by accident.
+    https://go-review.googlesource.com/#/c/13778/ fixed this issue in math/big.
+    Remove restriction in compiler.
     
-    This change fixes the issue again without any behavioral change for
-    LookupAddr and adds missing test cases for lookupStaticHost and
-    lookupStaticAddr.
+    Fixes #11326.
     
-    Updates #12806.
-    Fixes #13359.
-    
-    Change-Id: Ifff4741cd79eb8b320b1b0f8c5e02b3a167c9fa8
-    Reviewed-on: https://go-review.googlesource.com/17217
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1429d0dd0d79431706c65616413373fff58f081e
+    Reviewed-on: https://go-review.googlesource.com/14830
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/hosts.go            | 19 +++++++++++++++----
- src/net/hosts_test.go       | 25 +++++++++++++++++++++----
- src/net/testdata/case-hosts |  2 ++
- src/net/testdata/hosts      |  2 --
- 4 files changed, 38 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/mparith3.go | 25 -------------------------
+ test/fixedbugs/issue11326.go            | 31 +++++++++++++------------------
+ test/fixedbugs/issue11326b.go           | 20 ++++++++++----------
+ 3 files changed, 23 insertions(+), 53 deletions(-)

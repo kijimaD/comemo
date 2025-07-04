@@ -1,21 +1,12 @@
-commit 5b342f78043389e35a6c8c6ee1030ae733570da1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jun 22 17:33:00 2014 +1000
+commit 9bfb66e962b631c2faf831ccc29ba5d4018ccf04
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jun 21 20:19:49 2014 +0400
 
-    test: add test case for issue 8074.
+    doc: say that race detector is supported on freebsd
     
-    Fixes #8074.
-    
-    The issue was not reproduceable by revision
-    
-    go version devel +e0ad7e329637 Thu Jun 19 22:19:56 2014 -0700 linux/arm
-    
-    But include the original test case in case the issue reopens itself.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/107290043
+    https://golang.org/cl/103520044
 
- test/fixedbugs/issue8074.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

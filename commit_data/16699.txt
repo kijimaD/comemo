@@ -1,14 +1,12 @@
-commit 456f6df96a9f5ece7c064163c3d2e2d0b487714e
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Tue Jul 2 17:29:21 2013 -0700
+commit 1f954e5c45497a1c3f03ce4a87208ed9da1d29d6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 3 08:16:08 2013 +1000
 
-    net/rpc: remove unnecessary code
+    go/ast: improve doc for FuncDecl's Type field.
     
-    Fixes #5760.
-    
-    R=golang-dev, bradfitz
+    R=gri, r
     CC=golang-dev
-    https://golang.org/cl/10871043
+    https://golang.org/cl/10679047
 
- src/pkg/net/rpc/server.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

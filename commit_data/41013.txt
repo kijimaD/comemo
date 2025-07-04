@@ -1,30 +1,12 @@
-commit 21713f41d17514a432a881655332fbcde4814b45
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Dec 18 17:27:27 2019 -0800
+commit 0b9b152ee3c9a2ff079569d8d5a3a6982b1ae91d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 25 12:46:57 2019 -0700
 
-    runtime: make sure BP is saved in nanotime1/walltime1, else frame pointer may not be preserved
+    cmd/compile: remove unused code from esc.go
     
-    nanotime1 and walltime1 do not preserve BP on linux amd64. Previously, this
-    did not cause a problem, because nanotime/walltime do preserve the BP. But now
-    with mid-stack inlining, nanotime/walltime are usually inlined, so BP is not
-    preserved. So, the BP is now wrong in any function after a call to
-    nanotime()/walltime() on amd64. That means the frame pointer on the stack can
-    be wrong for any further function call made after the nanotime() call (notably
-    runtime.main and various GC functions). [386 doesn't use framepointer.]
-    
-    Fix is to set a frame size of 8 for nanotime1 and walltime1, which means the
-    standard prolog/epilog that saves/restore BP in the stack frame is added.
-    
-    I noticed this while investigating issue 16638 (use frame pointers for
-    runtime.Callers). This change would needed for progress on that issue (which
-    doesn't have a high priority). Verified that this fix works/is useful for issue
-    16638.
-    
-    Change-Id: I19e19ef2c1a517d737a34928baae034f2eb0b2c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212079
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idb7b97ced559c40d4e3beae5c661c71825200af7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187598
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/sys_linux_amd64.s | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 1843 +-----------------------------------
+ 1 file changed, 29 insertions(+), 1814 deletions(-)

@@ -1,13 +1,14 @@
-commit 2c181f0355f0e3a4ed2bf8a33e699c80d5e1cc34
+commit 3c24b60fd3e3e6c20cba64cda8ff01fd3a2c5216
 Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Aug 6 00:25:05 2014 -0400
+Date:   Wed Aug 6 00:24:43 2014 -0400
 
-    cmd/ld: fix operator precedence
+    liblink: use LinkArch.textflag() to get text and dataflag
+    Rather than switch on thechar.
     
-    LGTM=rsc
-    R=rsc, iant
+    LGTM=rsc, dave
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/114420043
+    https://golang.org/cl/119330043
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/liblink/objfile.c | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

@@ -1,18 +1,14 @@
-commit ec38c6f5e324bd550a5d034d36d48f479a8b9b47
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 15 15:34:37 2014 -0400
+commit 435ba1295af24c0254707057a7d8dc6f17d6ad19
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 15 15:55:31 2014 +1000
 
-    cmd/gc: fix duplicate map key check
+    cmd/addr2line,cmd/objdump: test that commands accept addresses with 0x prefix and without
     
-    Do not compare nil and true.
-    
-    Fixes #7996.
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/91470043
+    https://golang.org/cl/100440045
 
- src/cmd/gc/typecheck.c      | 10 +++-------
- test/fixedbugs/issue7996.go | 14 ++++++++++++++
- 2 files changed, 17 insertions(+), 7 deletions(-)
+ src/cmd/addr2line/addr2line_test.go | 45 +++++++++++++++++++++---------------
+ src/cmd/objdump/objdump_test.go     | 46 +++++++++++++++++++++----------------
+ 2 files changed, 52 insertions(+), 39 deletions(-)

@@ -1,20 +1,17 @@
-commit 414af503d7ec20cdfd6df23d5dee733401644ba3
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 28 10:07:18 2021 -0400
+commit f8376a55b06304bd24612d10812cf8ada29a5c84
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Oct 23 03:46:19 2020 +0000
 
-    go/types: fix type inference
+    sync: document that Once must not be copied
     
-    This is a 1:1 port of CL 311651 to go/types.
+    Fixes #42160.
     
-    Change-Id: I9d91b45cc5fa7ce686d6a91d4dde274d9f80e0d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314595
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I9bf8b6f0bf1eccd3ab32cbd94c812f768746d291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264557
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/fixedbugs/issue44799.go2 |  1 -
- src/go/types/fixedbugs/issue45548.go2 | 13 +++++++++++++
- src/go/types/infer.go                 | 19 +++++++++++++++++++
- src/go/types/unify.go                 | 17 +++++++++++++++++
- 4 files changed, 49 insertions(+), 1 deletion(-)
+ src/sync/once.go | 2 ++
+ 1 file changed, 2 insertions(+)

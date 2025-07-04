@@ -1,17 +1,23 @@
-commit c8cb31a36e58f552697735da0d559b977aa639f2
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 30 13:40:26 2024 -0400
+commit 4bb38fe458cab82711b9a3c96c57a9ea106b044a
+Author: Sven Anderson <sven@anderson.de>
+Date:   Thu May 18 21:45:28 2023 +0200
 
-    doc/next: document proposal 62518 as not relevant
+    runtime: let Pinner preallocate a reusable ref array
     
-    For #65614.
+    With this change a Pinner preallocates an array of 5 pointers for
+    references to pinned objects. This reduces allocations when a pinner
+    is reused with up to 5 pinned objects.
     
-    Change-Id: I03dc3a46052f1e55dc1ab46b45c886c96c4a1b39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589216
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This is a follow-up to CL 367296.
+    
+    Signed-off-by: Sven Anderson <sven@anderson.de>
+    Change-Id: Ibea0b9ee4d7e39b0341a1da9d8276a4283e4956d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496275
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- doc/next/9-todo.md | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/pinner.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

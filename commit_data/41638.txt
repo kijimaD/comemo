@@ -1,24 +1,16 @@
-commit 74bc90a9a86365ca158a2d4e8697b0f4650e31c5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 7 13:53:15 2020 -0800
+commit 86235ec2bf15ff90c4c6602063c40c9bf0325428
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Oct 17 13:54:39 2019 +0100
 
-    cmd/compile: rename a local variable in shortcircuitBlock
+    cmd/asm/internal/arch: delete unused s390x functions
     
-    v is pretty generic. Subsequent changes will make this function
-    more complicated, so rename it now, independently, for easier review.
+    These functions are not necessary and are not called anywhere.
     
-    v is the control value for the block (or its underlying phi);
-    call it ctl.
-    
-    Passes toolstash-check.
-    
-    Updates #37608
-    
-    Change-Id: I3fbae3344f1c95aff0a69c1e4f61ef637a54774e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222917
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1c0d814ba3044c27e3626ac9e6052d8154140404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201697
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/shortcircuit.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/arch/s390x.go | 21 ---------------------
+ 1 file changed, 21 deletions(-)

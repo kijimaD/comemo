@@ -1,34 +1,128 @@
-commit cb768c801a9cafa18fe7805ac70bd947930fcdc7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 20 15:19:36 2020 -0700
+commit 6b6eb230417765f6fe67661fe2f142ee1543b4f7
+Merge: d92a5a80b5 aa4d92b8aa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 2 14:00:59 2020 -0400
 
-    encoding/xml: fix reserved namespace check to be case-insensitive
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Fixes the check for the reserved namespace prefix
-    "xml" to be case insensitive, so as to match all variants of:
+    The only conflict is a modify-deletion conflict in
+    cmd/link/internal/ld/link.go, where the old error reporter is
+    deleted in the new linker. Ported to
+    cmd/link/internal/ld/errors.go.
     
-        (('X'|'x')('M'|'m')('L'|'l'))
-    
-    as mandated by Section 2.3 of https://www.w3.org/TR/REC-xml/
-    
-    This is a roll forward of CL 203417, which was rolled back by CL 240179.
-    We've decided that the roll back was incorrect, and any broken tests
-    should be fixed.
-    
-    The original CL 203417 was by Tamás Gulácsi.
-    
-    Fixes #35151
-    For #39876
-    
-    Change-Id: I2e6daa7aeb252531fba0b8a56086613e13059528
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264024
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I5c78f398ea95bc1d7e6579c84dd8252c9f2196b7
 
- doc/go1.16.html                  | 14 ++++++++++++++
- src/encoding/xml/marshal.go      |  7 +++++--
- src/encoding/xml/marshal_test.go | 24 ++++++++++++++++++++++++
- 3 files changed, 43 insertions(+), 2 deletions(-)
+ doc/contribute.html                                |    6 +-
+ doc/go1.15.html                                    |   12 +
+ doc/install-source.html                            |   22 +-
+ doc/install.html                                   |    4 +-
+ misc/cgo/testgodefs/testdata/issue37479.go         |   33 +
+ misc/cgo/testgodefs/testdata/issue37621.go         |   23 +
+ misc/cgo/testgodefs/testdata/main.go               |    8 +
+ misc/cgo/testgodefs/testgodefs_test.go             |    2 +
+ src/cmd/asm/internal/arch/arch.go                  |    3 +-
+ src/cmd/asm/internal/asm/testdata/riscvenc.s       |   13 +
+ src/cmd/cgo/gcc.go                                 |   19 +-
+ src/cmd/compile/internal/amd64/ssa.go              |   16 +-
+ src/cmd/compile/internal/gc/builtin.go             |    1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go     |    1 +
+ src/cmd/compile/internal/gc/go.go                  |    3 +
+ src/cmd/compile/internal/gc/inl.go                 |    6 +
+ src/cmd/compile/internal/gc/ssa.go                 |   15 +
+ src/cmd/compile/internal/gc/subr.go                |   12 +-
+ src/cmd/compile/internal/gc/typecheck.go           |    2 +-
+ src/cmd/compile/internal/gc/walk.go                |   19 +-
+ src/cmd/compile/internal/ssa/addressingmodes.go    |  109 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |  242 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  419 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   21 +-
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |   10 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |    6 +
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   16 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |    5 +
+ src/cmd/compile/internal/ssa/html.go               |  122 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  233 +-
+ src/cmd/compile/internal/ssa/print.go              |    8 +
+ src/cmd/compile/internal/ssa/rewrite.go            |   60 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         | 6156 ++++----------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 2760 +++++----
+ .../compile/internal/ssa/rewriteAMD64splitload.go  |  371 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  160 +-
+ src/cmd/go/alldocs.go                              |   18 +-
+ src/cmd/go/go_test.go                              |    2 +-
+ src/cmd/go/internal/load/pkg.go                    |  121 +-
+ src/cmd/go/internal/load/test.go                   |    1 -
+ src/cmd/go/internal/modfetch/proxy.go              |  109 +-
+ src/cmd/go/internal/modfetch/sumdb.go              |   82 +-
+ src/cmd/go/internal/modload/help.go                |   18 +-
+ src/cmd/go/testdata/script/mod_empty_err.txt       |    2 +-
+ src/cmd/go/testdata/script/mod_proxy_list.txt      |   14 +-
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt     |   17 +
+ .../go/testdata/script/test_import_error_stack.txt |    3 +
+ src/cmd/go/testdata/script/vet_internal.txt        |   14 +-
+ src/cmd/internal/obj/riscv/anames.go               |   10 +
+ src/cmd/internal/obj/riscv/asm_test.go             |   18 +
+ src/cmd/internal/obj/riscv/cpu.go                  |   10 +
+ src/cmd/internal/obj/riscv/obj.go                  |   64 +-
+ .../obj/riscv/testdata/testbranch/branch_test.go   |   94 +
+ .../obj/riscv/testdata/testbranch/branch_test.s    |  111 +
+ src/cmd/internal/objfile/disasm.go                 |   42 +-
+ src/cmd/link/internal/ld/errors.go                 |    2 +-
+ src/cmd/link/link_test.go                          |   87 +
+ src/cmd/objdump/main.go                            |    9 +-
+ src/cmd/objdump/objdump_test.go                    |   67 +-
+ src/cmd/pprof/pprof.go                             |    2 +-
+ src/context/context_test.go                        |   27 +-
+ src/context/example_test.go                        |    6 +-
+ src/crypto/rsa/pkcs1v15.go                         |    7 +
+ src/crypto/rsa/pkcs1v15_test.go                    |   18 +
+ src/crypto/tls/alert.go                            |  120 +-
+ src/crypto/x509/x509_test.go                       |    2 +-
+ src/database/sql/driver/driver.go                  |    8 +-
+ src/database/sql/fakedb_test.go                    |    4 +-
+ src/database/sql/sql.go                            |    4 +-
+ src/database/sql/sql_test.go                       |   31 +
+ src/go/internal/gccgoimporter/parser.go            |    2 +-
+ src/internal/poll/fd_poll_runtime.go               |   17 +-
+ src/internal/poll/fd_windows.go                    |    4 +-
+ src/internal/syscall/windows/syscall_windows.go    |    2 +-
+ src/net/http/client.go                             |   15 +-
+ src/net/http/client_test.go                        |   35 +
+ src/net/http/roundtrip_js.go                       |    2 +-
+ src/net/http/serve_test.go                         |   93 +-
+ src/os/exec/exec_test.go                           |    7 +
+ src/os/signal/signal.go                            |   14 +-
+ src/os/signal/signal_plan9.go                      |    4 +-
+ src/os/signal/signal_test.go                       |  402 +-
+ src/os/signal/signal_unix.go                       |    2 -
+ src/reflect/all_test.go                            |   31 +
+ src/reflect/value.go                               |   14 +
+ src/runtime/asm_amd64.s                            |   49 +
+ src/runtime/duff_ppc64x.s                          |    6 +-
+ src/runtime/map.go                                 |    2 +-
+ src/runtime/mkduff.go                              |    4 +-
+ src/runtime/mpagealloc.go                          |    4 +-
+ src/runtime/mpagecache.go                          |    2 +-
+ src/runtime/netpoll.go                             |   48 +-
+ src/runtime/netpoll_aix.go                         |   13 +-
+ src/runtime/pprof/pprof_test.go                    |   12 +
+ src/runtime/pprof/proto.go                         |    5 +-
+ src/runtime/runtime-gdb_test.go                    |    2 +
+ src/runtime/sigqueue.go                            |    9 +-
+ src/runtime/sigqueue_plan9.go                      |    5 +-
+ src/runtime/stubs_amd64.go                         |    9 +
+ src/strings/strings.go                             |    6 +-
+ src/sync/atomic/atomic_test.go                     |   68 +-
+ src/syscall/syscall_windows.go                     |   12 +-
+ src/time/time.go                                   |   29 +-
+ test/blank1.go                                     |    2 +-
+ test/chanlinear.go                                 |    2 +-
+ test/codegen/memcombine.go                         |    8 +-
+ test/codegen/memops.go                             |  138 +-
+ test/codegen/structs.go                            |    2 +-
+ test/escape_slice.go                               |   22 +-
+ test/fixedbugs/issue35073.go                       |   23 +
+ test/fixedbugs/issue37975.go                       |   54 +
+ test/fixedbugs/issue38117.go                       |   17 +
+ test/fixedbugs/issue9521.go                        |    2 +-
+ 113 files changed, 5854 insertions(+), 7407 deletions(-)

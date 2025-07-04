@@ -1,26 +1,24 @@
-commit c5a1fc1f97b4b6b384a9852d96a77868e0f5e6a9
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed May 7 11:37:52 2025 -0700
+commit 397453f6adc1e352b866d3dd14899da3b2cb7547
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 21:29:21 2023 +0800
 
-    crypto/tls: add GetEncryptedClientHelloKeys
+    strconv: add available godoc link
     
-    This allows servers to rotate their ECH keys without needing to restart
-    the server.
-    
-    Fixes #71920
-    
-    Change-Id: I55591ab3303d5fde639038541c50edcf1fafc9aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670655
-    TryBot-Bypass: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: Iad58155f29a101fb72768b170c0c2c9d76b6041a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539357
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- api/next/71920.txt                             |  1 +
- doc/next/6-stdlib/99-minor/crypto/tls/71920.md |  3 ++
- src/crypto/tls/common.go                       | 18 ++++++++
- src/crypto/tls/ech.go                          |  6 +--
- src/crypto/tls/handshake_server.go             | 10 +++-
- src/crypto/tls/handshake_server_tls13.go       | 12 ++++-
- src/crypto/tls/tls_test.go                     | 63 ++++++++++++++++++--------
- 7 files changed, 87 insertions(+), 26 deletions(-)
+ src/strconv/atoc.go  |  4 ++--
+ src/strconv/atoi.go  |  8 ++++----
+ src/strconv/ctoa.go  |  2 +-
+ src/strconv/doc.go   |  2 +-
+ src/strconv/ftoa.go  |  2 +-
+ src/strconv/itoa.go  |  6 +++---
+ src/strconv/quote.go | 28 ++++++++++++++--------------
+ 7 files changed, 26 insertions(+), 26 deletions(-)

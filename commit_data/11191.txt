@@ -1,14 +1,13 @@
-commit 3735cf7b09e029bb04995d082eeee12ff5834a80
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 16 17:49:58 2012 -0500
+commit e5ed3a53e18df45f9c32a17aaa927337898f959d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jan 17 09:04:51 2012 +1100
 
-    exp/terminal: fix build on non-Linux using Makefiles
+    doc: fix anchor tag for latest weekly.
     
-    The Makefiles will go away soon.
-    
-    R=agl
+    R=golang-dev
+    TBR=adg
     CC=golang-dev
-    https://golang.org/cl/5544081
+    https://golang.org/cl/5545068
 
- src/pkg/exp/terminal/Makefile | 2 +-
+ doc/devel/weekly.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,17 @@
-commit 03c8c566829d4bdc7a1c2053124643e32a6d2365
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 30 12:16:30 2017 -0700
+commit 98031d8cd0b8cfc731a9aaca058b1dd590e4ad86
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 11 14:00:08 2017 +0200
 
-    cmd/compile: skip compiling wrappers for imported defined types
+    test: reenable ... test
     
-    When compiling a package that defines a type T with method T.M, we
-    already compile and emit the wrapper method (*T).M. There's no need
-    for every package that uses T to do the same.
+    The gofmt bug in question seems to be fixed (at least gofmt doesn't
+    complain), so reenable the commented-out ... test.
     
-    Change-Id: I3ca2659029907570f8b98d66111686435fad7ed0
-    Reviewed-on: https://go-review.googlesource.com/74412
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icbfe0511160210557894ec8eb9b206aa6133d486
+    Reviewed-on: https://go-review.googlesource.com/55030
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ test/ddd1.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

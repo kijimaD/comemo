@@ -1,13 +1,18 @@
-commit edc5d7ef2a66e989cc0befa4efbb8e115f05b64c
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Dec 14 12:04:08 2012 -0500
+commit 10b3e310e2cd1fcdab8185cac78f7506e5c6b118
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 14 13:40:59 2012 +0400
 
-    A+C: Casey Marshall (individual CLA)
+    runtime/race: update runtime to r170112.
+    This includes GORACE history_size and log_path flags.
     
-    R=golang-dev, bradfitz
+    This change is actually an addition to:
+    https://golang.org/cl/6947046
+    
+    race_linux_amd64.syso somehow fall out of it.
+    
+    R=minux.ma
     CC=golang-dev
-    https://golang.org/cl/6948050
+    https://golang.org/cl/6946051
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/race/race_linux_amd64.syso | Bin 147064 -> 149080 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

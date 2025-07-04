@@ -1,34 +1,20 @@
-commit c837761b522e8d60031dcd282739d6dc89eea414
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 17 01:47:16 2016 -0700
+commit 4a0eee2faa3c54dd267c76fe8d8c332cb6badc80
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 09:59:16 2016 -0500
 
-    cmd/compile: get rid of Type's {This,In,Out}tuple fields
+    cmd/link: add LC_VERSION_MIN_MACOSX to linkmode=internal OS X binaries
     
-    Boolean expressions involving t.Thistuple were converted to use
-    t.Recv(), because it's a bit clearer and will hopefully reveal cases
-    where we could remove redundant calls to t.Recv() (in followup CLs).
+    This makes lldb willing to debug them.
+    The minimum version is hard-coded at OS X 10.7,
+    because that is the minimum that Go requires.
+    For more control over the version, users can
+    use linkmode=external and pass the relevant flags to the host linker.
     
-    The other cases were all converted to use t.Recvs().NumFields(),
-    t.Params().NumFields(), or t.Results().NumFields().
+    Fixes #12941.
     
-    Change-Id: I4df91762e7dc4b2ddae35995f8dd604a52c09b09
-    Reviewed-on: https://go-review.googlesource.com/20796
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I20027be8aa034d07dd2a3326828f75170afe905f
+    Reviewed-on: https://go-review.googlesource.com/18588
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go     |  2 +-
- src/cmd/compile/internal/gc/dcl.go         | 49 ++++++++++++------------------
- src/cmd/compile/internal/gc/esc.go         |  2 +-
- src/cmd/compile/internal/gc/export.go      |  2 +-
- src/cmd/compile/internal/gc/fmt.go         |  4 +--
- src/cmd/compile/internal/gc/inl.go         | 14 ++++-----
- src/cmd/compile/internal/gc/order.go       |  4 +--
- src/cmd/compile/internal/gc/pgen.go        | 10 +++---
- src/cmd/compile/internal/gc/reflect.go     |  8 ++---
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/subr.go        |  8 ++---
- src/cmd/compile/internal/gc/type.go        | 13 +++-----
- src/cmd/compile/internal/gc/typecheck.go   | 12 ++++----
- src/cmd/compile/internal/gc/universe.go    |  4 ---
- src/cmd/compile/internal/gc/walk.go        |  6 ++--
- 15 files changed, 60 insertions(+), 80 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

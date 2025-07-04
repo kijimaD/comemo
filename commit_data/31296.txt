@@ -1,21 +1,21 @@
-commit ffd7cfce4b6113280783136b6580f5bca55e27e2
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Apr 21 17:10:58 2017 +0900
+commit 9a7544395ae5075cca2f3f5485f3503f891b5e97
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 16:01:11 2017 -0500
 
-    os, syscall: fix errno in Seek on windows
+    runtime/pprof: merge internal/protopprof into pprof package
     
-    Current implementation use EPIPE as an error for Seek on pipes.
-    According to http://pubs.opengroup.org/onlinepubs/009695399/functions/lseek.html,
-    it should use ESPIPE instead.
+    These are very tightly coupled, and internal/protopprof is small.
+    There's no point to having a separate package.
     
-    Fixes #20066
-    
-    Change-Id: I24c3b95be946bc19a287d6b10f447b034a9a1283
-    Reviewed-on: https://go-review.googlesource.com/41311
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2c8aa49c9e18a7128657bf2b05323860151b5606
+    Reviewed-on: https://go-review.googlesource.com/36711
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go              | 26 ++++++++++++++++++++++++++
- src/syscall/syscall_windows.go |  2 +-
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/runtime/pprof/pprof.go                                     |  5 ++---
+ .../pprof/{internal/protopprof/protopprof.go => proto.go}      |  9 +++------
+ .../{internal/protopprof/protopprof_test.go => proto_test.go}  | 10 +++++-----
+ .../{internal/protopprof/protomemprofile.go => protomem.go}    |  6 +++---
+ .../protopprof/protomemprofile_test.go => protomem_test.go}    |  4 ++--
+ 5 files changed, 15 insertions(+), 19 deletions(-)

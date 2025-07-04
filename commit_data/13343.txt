@@ -1,15 +1,19 @@
-commit 8140cd9149493cffc797edafc60a230f1c9b5462
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 13 13:32:59 2012 -0700
+commit 503aa6505e26f7dadf9e115eca186c9c01ff99d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 13 16:24:56 2012 -0400
 
-    godoc: show comments in various filtered views
+    go/build: fix boolean negation
     
-    Fixes #3454.
+    !(linux&cgo | darwin&cgo)
+    = (!linux|!cgo) & (!darwin|!cgo)
+    = (!linux&!darwin) | !cgo  // new comment
+    ≠ !linux | !darwin | !cgo  // old comment
     
-    R=rsc
+    Fixes #3726.
+    
+    R=golang-dev, bsiegert
     CC=golang-dev
-    https://golang.org/cl/6305069
+    https://golang.org/cl/6306076
 
- src/cmd/godoc/godoc.go | 17 +++++++++++++++--
- src/cmd/godoc/main.go  |  9 +++++++--
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ src/pkg/go/build/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

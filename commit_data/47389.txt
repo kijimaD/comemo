@@ -1,26 +1,19 @@
-commit 097aaa9cd68fdce10b81fbba43fbb6569a95b53f
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 10 11:21:57 2021 -0500
+commit 661f3f15d5c96704a2fe9e91c6c40f73ff896606
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Mar 15 23:10:21 2021 +0100
 
-    go/doc: don't treat functions returning type parameters as constructors
+    net: fix BenchmarkWriteToReadFromUDP on Windows
     
-    Functions returning type parameters were erroneously being interpreted
-    as 'constructors' of their type parameter, resulting in them being
-    excluded from documentation. Fix this by explicitly excluding type
-    parameters when looking for defined type names among function results.
+    Using 0.0.0.0 for ListenUDP listens on all addresses. Calling LocalAddr
+    on that Conn returns 0.0.0.0. Sending to 0.0.0.0 doesn't seem to work on
+    Windows. See #22827.
     
-    Fixes #49477
-    
-    Change-Id: I22510f655f47e192a852332df5b91740f46c51eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362758
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I4a48fbabe65a63e07600a65309977cec08a9c1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301850
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/go/doc/reader.go                  | 21 +++++++++++++++++++++
- src/go/doc/testdata/generics.0.golden |  6 ++++++
- src/go/doc/testdata/generics.1.golden |  6 ++++++
- src/go/doc/testdata/generics.2.golden |  6 ++++++
- src/go/doc/testdata/generics.go       | 13 +++++++++++++
- 5 files changed, 52 insertions(+)
+ src/net/udpsock_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

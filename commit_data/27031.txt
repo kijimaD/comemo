@@ -1,15 +1,22 @@
-commit 79c527f4a7643b6cc9e49f5e919d6f4a44f492ca
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 20 14:40:18 2016 -0400
+commit 2350ca5a41b81f9fa8026c511758deafa3038836
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 8 12:37:35 2016 -0800
 
-    cmd/link: move ppc64 genplt declarations into loop
+    cmd/compile: remove useless declaration of llit
     
-    (Split out from CL 22243.)
+    Accidentally added in https://golang.org/cl/20242.
     
-    Change-Id: I07709a0c417e7a57e839e5085a37db7d5fbf3a35
-    Reviewed-on: https://go-review.googlesource.com/22322
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    This is in preparation for transformation by an automated tool.
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I28c637d220df3ccaa8e368bfbea7282a6e66662e
+    Reviewed-on: https://go-review.googlesource.com/20402
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ppc64/asm.go | 22 +++++++---------------
- 1 file changed, 7 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

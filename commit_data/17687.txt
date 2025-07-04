@@ -1,24 +1,14 @@
-commit e8bbbe0886ffbd87de8ea827be5c43d8566b98d1
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 23 22:40:24 2013 -0400
+commit 2d2ae53119f9920bb50066e04c241c59ac776747
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 24 10:49:54 2013 +1000
 
-    net: ensure that ResolveTCPAddr(addr.String()) reproduces addr
+    reflect: update docs; Interface can return a method value
     
-    And same for UDP.
+    Fixes #6460.
     
-    Fixes #6465.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13740048
+    https://golang.org/cl/13761046
 
- src/pkg/net/cgo_unix.go    |  3 +++
- src/pkg/net/ip.go          |  9 +++++++
- src/pkg/net/ipraw_test.go  |  4 +--
- src/pkg/net/ipsock.go      |  8 +++---
- src/pkg/net/ipsock_test.go | 18 ++++++-------
- src/pkg/net/tcp_test.go    | 18 ++++++++++---
- src/pkg/net/tcpsock.go     |  5 ++--
- src/pkg/net/udp_test.go    | 63 +++++++++++++---------------------------------
- src/pkg/net/udpsock.go     |  5 ++--
- 9 files changed, 65 insertions(+), 68 deletions(-)
+ src/pkg/reflect/value.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

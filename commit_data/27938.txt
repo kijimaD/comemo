@@ -1,17 +1,17 @@
-commit 94d9cc7741a13206e139efeab84fcc589dc390e5
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Sat Aug 20 19:29:01 2016 +0800
+commit 9568d54fb8d89267304d23cac23190f55ec95683
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 20 19:10:20 2016 -0400
 
-    index/suffixarray: add Lookup example
+    cmd/link: fix reordering of plt/rel
     
-    Updates #16360
+    For the Solaris and S/390 builders.
     
-    Change-Id: Idd8523b5a9a496ebd9c6e3b89c30df539842a139
-    Reviewed-on: https://go-review.googlesource.com/27433
-    Reviewed-by: C Cirello <uldericofilho@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id9a83e0df91e6d0df8488ec5e2a546ba8e2d800e
+    Reviewed-on: https://go-review.googlesource.com/22327
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/index/suffixarray/example_test.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/link/internal/ld/data.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

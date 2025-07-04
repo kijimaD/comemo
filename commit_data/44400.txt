@@ -1,27 +1,24 @@
-commit dc4698f52b5ad3f0251e0cc25bc7ffbd10e23f2c
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue Feb 23 13:29:40 2021 +0100
+commit 3b2f67a59702e4881625cb967f853ef56b0c4828
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 24 20:59:18 2020 -0700
 
-    syscall: do not overflow key memory in GetQueuedCompletionStatus
+    cmd/compile: remove check that Zero's arg has the correct base type
     
-    The third argument to GetQueuedCompletionStatus is a pointer to a
-    uintptr, not a uint32. Users of this functions have therefore been
-    corrupting their memory every time they used it. Either that memory
-    corruption was silent (dangerous), or their programs didn't work so they
-    chose a different API to use.
+    It doesn't have to. The type in the aux field is authoritative.
+    There are cases involving casting from interface{} where pointers
+    have a placeholder pointer type (because the type is not known when
+    the IData op is generated).
     
-    Fixes #44538.
+    The check was introduced in CL 13447.
     
-    RELNOTES=yes
+    Fixes #39459
     
-    Change-Id: Idf48d4c712d13da29791e9a460159255f963105b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295371
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id77a57577806a271aeebd20bea5d92d08ee7aa6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239817
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- api/except.txt                  | 6 ++++++
- src/syscall/syscall_windows.go  | 6 +++---
- src/syscall/zsyscall_windows.go | 6 +++---
- 3 files changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go | 16 +++++++---------
+ test/fixedbugs/issue39459.go              | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 9 deletions(-)

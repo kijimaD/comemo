@@ -1,22 +1,15 @@
-commit 79f6c280b8c06de823f6c438e5b53052a95057bc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Nov 7 12:09:59 2017 +1100
+commit ef94870cc87720e4e2950043ce3875315c4c7c96
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Sun Nov 27 19:05:01 2016 -0500
 
-    syscall: change SysProcAttr.Token type to Token
+    misc/cgo/testcshared: rewrite test.bash in Go
     
-    CL 75253 introduced new SysProcAttr.Token field as Handle.
-    But we already have exact type for it - Token. Use Token
-    instead of Handle everywhere - it saves few type conversions
-    and provides better documentation for new API.
-    
-    Change-Id: Ibc5407a234a1f49804de15a24b27c8e6a6eba7e0
-    Reviewed-on: https://go-review.googlesource.com/76314
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id717054cb3c4537452f8ff848445b0c20196a373
+    Reviewed-on: https://go-review.googlesource.com/33579
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/internal/syscall/windows/exec_windows_test.go | 11 +++++------
- src/internal/syscall/windows/security_windows.go  |  4 ++--
- src/internal/syscall/windows/zsyscall_windows.go  |  4 ++--
- src/syscall/exec_windows.go                       |  2 +-
- src/syscall/syscall_windows.go                    |  2 +-
- src/syscall/zsyscall_windows.go                   |  2 +-
- 6 files changed, 12 insertions(+), 13 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 477 +++++++++++++++++++++++++++++++++++
+ misc/cgo/testcshared/test.bash       | 193 --------------
+ src/cmd/dist/test.go                 |   2 +-
+ 3 files changed, 478 insertions(+), 194 deletions(-)

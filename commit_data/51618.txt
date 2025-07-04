@@ -1,19 +1,32 @@
-commit 8409251e105486e25d9ae47568ae221eeec636c9
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 14 15:08:49 2023 -0500
+commit 26999cfd84dfa11f8e87153dc91a9f67070f6916
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 24 23:31:53 2022 -0500
 
-    cmd/go: document GODEBUG=installgoroot=all
+    runtime/internal/atomic: set SP delta correctly for 64-bit atomic functions on ARM
     
-    At the moment the only documentation is the release notes,
-    but everything mentioned in the release notes should have
-    proper documentation separate from them.
+    64-bit atomic functions on ARM have the following structure:
+    - check if the address is 64-bit aligned, if not, prepare a frame
+      and call panicUnaligned
+    - tail call armXXX or goXXX depending on GOARM
     
-    Change-Id: I9885962f6c6d947039b0be59b608385781479271
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462196
+    The alignment check calls panicUnaligned after preparing a frame,
+    so the stack can be unwound. The call never returns, so the SP is
+    not set back. However, the assembler assigns SP delta following
+    the instruction stream order, not the control flow. So it leaves
+    a nonzero SP delta after the check, to the tail call instructions,
+    which is wrong because when they are executed the SP is not
+    decremented. This CL fixes this by adding the SP back (the
+    instruction never executes, just tells the assembler to set the
+    SP delta back).
+    
+    Should fix #51353.
+    
+    Change-Id: I976cb1cfb0e9008b13538765cbc7eea0c19c7130
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388014
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/alldocs.go             | 10 ++++++++--
- src/cmd/go/internal/work/build.go | 10 ++++++++--
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ src/runtime/internal/atomic/atomic_arm.s | 42 ++++++++++++--------------------
+ 1 file changed, 16 insertions(+), 26 deletions(-)

@@ -1,23 +1,22 @@
-commit afc480bab447c0fefe26a69e4221d93673021e98
-Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
-Date:   Sun Mar 29 13:17:46 2020 -0600
+commit 66f78e9d885e9a8ed7f8d2432d9f08bb586dd7cb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 23 14:31:29 2019 +0700
 
-    cmd/compile: combine ssa.html columns with identical contents
+    runtime: mark findObject nosplit
     
-    Combine columns in ssa.html output if they are identical. There
-    can now be multiple titles per column which are all clickable to
-    expand and collapse their column. Give collapsed columns some
-    padding for better readability. Some of the work in this CL was
-    started by Josh Bleecher Snyder and mailed to me in order to
-    continue to completion.
+    findObject takes the pointer argument as uintptr. If the pointer is to
+    the local stack and calling findObject happens to require the stack to
+    be reallocated, then spanOf is called for the old pointer.
     
-    Updates #37766
+    Marking findObject as nosplit fixes the issue.
     
-    Change-Id: I313b0917dc1bafe1eb99d91798ea915e5bcfaae9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226209
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #35068
+    
+    Change-Id: I029d36f9c23f91812f18f98839edf02e0ba4082e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202798
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/html.go  | 85 ++++++++++++++++++++++++-----------
- src/cmd/compile/internal/ssa/print.go |  8 ++++
- 2 files changed, 66 insertions(+), 27 deletions(-)
+ src/runtime/mbitmap.go | 4 ++++
+ 1 file changed, 4 insertions(+)

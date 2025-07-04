@@ -1,36 +1,14 @@
-commit 9a8372f8bd5a39d2476bfa9247407b51f9193b9e
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri Sep 7 14:55:09 2018 -0700
+commit c4f9fa1f8ee623558ed40d4d4cd3c616697cc77b
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Thu May 31 06:52:19 2018 +0000
 
-    cmd/compile,runtime: remove ambiguously live logic
+    reflect: reuse values during comparison of maps in DeepEqual
     
-    The previous CL introduced stack objects. This CL removes the old
-    ambiguously live liveness analysis. After this CL we're relying
-    on stack objects exclusively.
-    
-    Update a bunch of liveness tests to reflect the new world.
-    
-    Fixes #22350
-    
-    Change-Id: I739b26e015882231011ce6bc1a7f426049e59f31
-    Reviewed-on: https://go-review.googlesource.com/c/134156
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I82f999b8ed9434321a361bf1bcbed7cf6ee4bee6
+    Reviewed-on: https://go-review.googlesource.com/115475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/op_string.go       |   4 +-
- src/cmd/compile/internal/gc/plive.go           | 235 +++++--------------------
- src/cmd/compile/internal/gc/sinit.go           |   6 +
- src/cmd/compile/internal/gc/ssa.go             |  32 ++--
- src/cmd/compile/internal/gc/syntax.go          |   1 +
- src/cmd/compile/internal/ssa/gen/genericOps.go |   5 +-
- src/runtime/chan.go                            |   5 +
- src/runtime/gcinfo_test.go                     |  48 ++++-
- src/runtime/mbitmap.go                         |   9 +-
- test/fixedbugs/issue20250.go                   |   8 +-
- test/live.go                                   | 175 +++++++++---------
- test/live2.go                                  |  15 +-
- test/live_syscall.go                           |   8 +-
- test/stackobj.go                               |  57 ++++++
- test/stackobj3.go                              |  93 ++++++++++
- test/uintptrescapes2.go                        |   8 +-
- 16 files changed, 375 insertions(+), 334 deletions(-)
+ src/reflect/deepequal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

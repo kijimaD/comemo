@@ -1,16 +1,18 @@
-commit 10be797578925708afb140ceb771c8e2d6346332
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Dec 23 11:09:15 2014 +0100
+commit e98f2d597e50ba98dc66f9a33952094a5453737f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 12 14:54:04 2014 -0500
 
-    runtime: fix exit on Plan 9
+    [dev.cc] runtime/cgo: add comment about import _ "unsafe"
     
-    Add a nil byte at the end of the itoa buffer,
-    before calling gostringnocopy. This prevents
-    gostringnocopy to read past the buffer size.
-    
-    Change-Id: I87494a8dd6ea45263882536bf6c0f294eda6866d
-    Reviewed-on: https://go-review.googlesource.com/2033
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/167650043
 
- src/runtime/os1_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgo/dragonfly.go | 2 +-
+ src/runtime/cgo/freebsd.go   | 2 +-
+ src/runtime/cgo/iscgo.go     | 2 +-
+ src/runtime/cgo/netbsd.go    | 2 +-
+ src/runtime/cgo/openbsd.go   | 2 +-
+ src/runtime/cgo/setenv.go    | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

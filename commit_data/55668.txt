@@ -1,22 +1,30 @@
-commit f278f756bdd1613fdedc74a8b59ccf048afab979
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 21 14:57:02 2024 -0800
+commit 37a2004b431df6cdd3260cbfe2ddb7673e94b9ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 21 13:16:22 2023 -0800
 
-    go/types: : generate operand.go from types2 source
+    cmd/compile: relax overly strict assertion
     
-    This CL reduces the amount of code that needs to be maintained
-    manually by about 400 LOC.
+    The assertion here was to make sure the newly constructed and
+    typechecked expression selected the same receiver-qualified method,
+    but in the case of anonymous receiver types we can actually end up
+    with separate types.Field instances corresponding to each types.Type
+    instance. In that case, the assertion spuriously failed.
     
-    Change-Id: I03f77c8067aebfdb2a1cce6827ded733ff55e1cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565837
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    The fix here is to relax and assertion and just compare the method's
+    name and type (including receiver type).
+    
+    Fixes #58563.
+    
+    Change-Id: I67d51ddb020e6ed52671473c93fc08f283a40886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471676
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/operand.go | 42 ++++++++++----------
- src/cmd/compile/internal/types2/util.go    | 19 ++++++++-
- src/go/types/generate_test.go              | 64 ++++++++++++++++++++----------
- src/go/types/operand.go                    | 37 ++++++++++++++---
- src/go/types/util.go                       |  6 +++
- 5 files changed, 120 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 13 ++++++++++++-
+ test/fixedbugs/issue58563.dir/a.go       | 13 +++++++++++++
+ test/fixedbugs/issue58563.dir/main.go    | 16 ++++++++++++++++
+ test/fixedbugs/issue58563.go             |  7 +++++++
+ 4 files changed, 48 insertions(+), 1 deletion(-)

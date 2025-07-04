@@ -1,20 +1,16 @@
-commit 8712e1867b47e3b741f399c9be0f1e32252a792c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Sep 7 11:11:14 2015 +1000
+commit 2f54de0df8cf362a4ffd374e2eb752b0c57115d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:08:10 2015 -0400
 
-    cmd/compile/internal/gc: convert Label.Used to bool
+    cmd/go: accept go get domain.root
     
-    Convert Label.Used to a boolean. Also move the field to the
-    bottom of the struct to avoid padding.
+    Fixes #9357.
     
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: If09ee92f9d54dce807e7b862cf771005daed810d
-    Reviewed-on: https://go-review.googlesource.com/14308
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I11f0652758c4ea80debec29c3b99a72baca6d745
+    Reviewed-on: https://go-review.googlesource.com/12193
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/gen.go | 6 +++---
- src/cmd/compile/internal/gc/go.go  | 3 ++-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
+ src/cmd/go/vcs.go     |  4 ++--
+ 2 files changed, 29 insertions(+), 2 deletions(-)

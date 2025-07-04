@@ -1,24 +1,30 @@
-commit 918765b619b87a603c40b331bd5f5e2335d265f0
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Nov 19 14:05:38 2024 -0800
+commit eabf3bf6887a16c33ba6039d2ed98ff8f261de96
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 19 10:51:07 2023 -0400
 
-    crypto/x509: switch default policy field to Policies
+    cmd/go: serialize access to scriptDir with output
     
-    Switch from Certificate.PolicyIdentifiers to Certificate.Policies when
-    marshalling.
+    Currently, Builder.fmtcmd can read scriptDir without taking the output
+    lock. This introduces a potential data race between the read in fmtcmd
+    and the write in Showcmd. There's also a logical race here: because
+    fmtcmd doesn't know when its output is going to be printed, Showcmd
+    may print a "cd" command between when fmtcmd is called and when its
+    output is printed. As a result, it doesn't make sense to just lock
+    around the access in fmtcmd.
     
-    Fixes #67620
+    Instead, move the entire scriptDir substitution to Showcmd. This will
+    generally result in the same output. In the cases where Builder.run is
+    called with a non-empty desc, it means we may print a full path in the
+    comment line above output rather than substituting the script
+    directory. I think this is okay.
     
-    Change-Id: Ib627135a569f53d344b4ee2f892ba139506ce0d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629855
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    This lets us undo the workaround in CL 536355.
+    
+    Change-Id: I617fe136eaafcc9bbb7e701b427d956aeab8a2b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536376
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- doc/godebug.md                                  |  8 ++++++++
- doc/next/6-stdlib/99-minor/crypto/x509/67620.md |  6 ++++++
- src/crypto/x509/x509.go                         | 16 ++++++++++------
- src/crypto/x509/x509_test.go                    | 17 +++++++++++------
- src/internal/godebugs/table.go                  |  2 +-
- 5 files changed, 36 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/work/exec.go | 45 ++++++++++++++++++++--------------------
+ 1 file changed, 23 insertions(+), 22 deletions(-)

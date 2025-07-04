@@ -1,23 +1,14 @@
-commit 214be5b302d6ae978064d7895c7dcd9b6c403421
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 25 16:55:42 2017 -0700
+commit 265e547658ac6e91df308326041ea462593053fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 12 17:35:25 2016 +0000
 
-    cmd/compile: remove likely bits from generated assembly
+    doc: remove Reddit as an official space where Code of Conduct applies
     
-    We don't need them any more since #15837 was fixed.
+    Fixes #18289
     
-    Fixes #19718
-    
-    Change-Id: I13e46c62b321b2c9265f44c977b63bfb23163ca2
-    Reviewed-on: https://go-review.googlesource.com/38664
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I047e98cc36b861ef15292170aeaff8bc29243cab
+    Reviewed-on: https://go-review.googlesource.com/34281
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 15 ---------------
- src/cmd/compile/internal/gc/ssa.go    | 30 +++++++-----------------------
- src/cmd/compile/internal/ppc64/ssa.go | 15 ---------------
- src/cmd/compile/internal/s390x/ssa.go |  2 --
- src/cmd/compile/internal/x86/ssa.go   | 15 ---------------
- 5 files changed, 7 insertions(+), 70 deletions(-)
+ doc/conduct.html | 1 -
+ 1 file changed, 1 deletion(-)

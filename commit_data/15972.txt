@@ -1,16 +1,14 @@
-commit 8d4f381f5cead4ad4e2009173b9c42879a25eed2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 27 15:00:11 2013 -0700
+commit e3b767a5a1dd4f45b04de991e29cacdbe9f0d041
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 27 21:51:07 2013 +0100
 
-    cmd/ld, cmd/8l: Fix OpenBSD build.
+    cmd/gc: update runtime.go for new map implementation.
     
-    Don't generate TLS sections on OpenBSD.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/8059043
+    https://golang.org/cl/8051044
 
- src/cmd/8l/span.c | 2 +-
- src/cmd/ld/data.c | 2 +-
- src/cmd/ld/elf.c  | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/builtin.c  | 1 +
+ src/cmd/gc/mkbuiltin  | 1 +
+ src/cmd/gc/runtime.go | 6 ++++++
+ 3 files changed, 8 insertions(+)

@@ -1,25 +1,13 @@
-commit 7a3dcd2d0f3e311e6f18edf841862ad4b8f90b51
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 14 03:37:10 2015 +0000
+commit 3c10bdd118cf59e3c2721723a628c3d49c703337
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 31 11:43:57 2015 +1000
 
-    vendor: import golang.org/x/net/http2
+    doc: link to proposal process from contribution guidelines
     
-    golang.org/x/net/http2 becomes net/http/h2_bundle.go (using adonovan's
-    x/tools/cmd/bundle tool), becoming a hidden part of the net/http package.
-    
-    golang.org/x/net/http2/hpack becomes vendor/golang.org/x/net/http2/hpack.
-    
-    At git rev 7331ef52 (https://go-review.googlesource.com/15821)
-    
-    Change-Id: Ia6683e6f91a481b11a778638bf65b6a338744eea
-    Reviewed-on: https://go-review.googlesource.com/15822
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I992cb1afeef498353d529238e508fa438d6c069c
+    Reviewed-on: https://go-review.googlesource.com/12912
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/h2_bundle.go                          | 4334 ++++++++++++++++++++
- src/vendor/golang.org/x/net/http2/hpack/encode.go  |  251 ++
- .../golang.org/x/net/http2/hpack/encode_test.go    |  330 ++
- src/vendor/golang.org/x/net/http2/hpack/hpack.go   |  512 +++
- .../golang.org/x/net/http2/hpack/hpack_test.go     |  813 ++++
- src/vendor/golang.org/x/net/http2/hpack/huffman.go |  190 +
- src/vendor/golang.org/x/net/http2/hpack/tables.go  |  352 ++
- 7 files changed, 6782 insertions(+)
+ doc/contribute.html | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

@@ -1,17 +1,78 @@
-commit a799fa51896b63339f75f9a354c2d70fa8815ac2
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 19 23:34:02 2024 +0100
+commit 9552a1122f3334f6fa47c0cf718766af27255b84
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Fri May 26 10:51:21 2023 +0200
 
-    slices: explicitly document nil and empty slice equality
+    runtime: fix alignment code in memmove_riscv64.s
     
-    Fixes #68472
+    The riscv64 implementation of memmove has two optimizations that are
+    applied when both source and destination pointers share the same alignment
+    but that alignment is not 8 bytes. Both optimizations attempt to align the
+    source and destination pointers to 8 byte boundaries before performing 8 byte
+    aligned loads and stores.  Both optimizations are incorrect.  The first
+    optimization is applied when the destination pointer is smaller than the source
+    pointer.  In this case the code increments both pointers by (pointer & 3) bytes
+    rather than (8 - (pointer & 7)) bytes.  The second optimization is applied
+    when the destination pointer is larger than the source pointer.  In this
+    case the existing code decrements the pointers by (pointer & 3) bytes instead
+    of (pointer & 7).
     
-    Change-Id: I21282621d679d9e2b032256b338c0b5ff107c8f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599816
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This commit fixes both optimizations avoiding unaligned 8 byte accesses.
+    As this particular optimization is not covered by any of the existing
+    benchmarks a new benchmark, BenchmarkMemmoveUnalignedSrcDst,
+    is provided that exercises both optimizations. Results of the new
+    benchmark, which were run on a SiFive HiFive Unmatched A00 with 16GB of RAM
+    running Ubuntu 23.04 are presented below.
+    
+    MemmoveUnalignedSrcDst/f_16_0-4            39.48n ±  5%   43.47n ± 2%  +10.13% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_16_0-4            45.39n ±  5%   41.55n ± 4%   -8.47% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_16_1-4          1230.50n ±  1%   83.44n ± 5%  -93.22% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_16_1-4            69.34n ±  4%   67.83n ± 8%        ~ (p=0.436 n=10)
+    MemmoveUnalignedSrcDst/f_16_4-4          2349.00n ±  1%   72.09n ± 4%  -96.93% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_16_4-4          2357.00n ±  0%   77.61n ± 4%  -96.71% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_16_7-4          1235.00n ±  0%   62.02n ± 2%  -94.98% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_16_7-4          1246.00n ±  0%   84.05n ± 6%  -93.25% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_64_0-4            49.96n ±  2%   50.01n ± 2%        ~ (p=0.755 n=10)
+    MemmoveUnalignedSrcDst/b_64_0-4            52.06n ±  3%   51.65n ± 3%        ~ (p=0.631 n=10)
+    MemmoveUnalignedSrcDst/f_64_1-4          8105.50n ±  0%   97.63n ± 1%  -98.80% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_64_1-4            84.07n ±  4%   84.90n ± 5%        ~ (p=0.315 n=10)
+    MemmoveUnalignedSrcDst/f_64_4-4          9192.00n ±  0%   86.16n ± 3%  -99.06% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_64_4-4          9195.50n ±  1%   91.88n ± 5%  -99.00% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_64_7-4          8106.50n ±  0%   78.44n ± 9%  -99.03% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_64_7-4          8107.00n ±  0%   99.19n ± 1%  -98.78% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_256_0-4           90.95n ±  1%   92.16n ± 8%        ~ (p=0.123 n=10)
+    MemmoveUnalignedSrcDst/b_256_0-4           96.09n ± 12%   94.90n ± 2%        ~ (p=0.143 n=10)
+    MemmoveUnalignedSrcDst/f_256_1-4         35492.5n ±  0%   133.5n ± 0%  -99.62% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_256_1-4           128.7n ±  1%   130.1n ± 1%   +1.13% (p=0.005 n=10)
+    MemmoveUnalignedSrcDst/f_256_4-4         36599.0n ±  0%   123.0n ± 1%  -99.66% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_256_4-4         36675.5n ±  0%   130.7n ± 1%  -99.64% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_256_7-4         35555.5n ±  0%   121.6n ± 2%  -99.66% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_256_7-4         35584.0n ±  0%   139.1n ± 1%  -99.61% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_4096_0-4          956.3n ±  2%   960.8n ± 1%        ~ (p=0.306 n=10)
+    MemmoveUnalignedSrcDst/b_4096_0-4          1.015µ ±  2%   1.012µ ± 2%        ~ (p=0.076 n=10)
+    MemmoveUnalignedSrcDst/f_4096_1-4        584.406µ ±  0%   1.002µ ± 1%  -99.83% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_4096_1-4          1.044µ ±  1%   1.040µ ± 2%        ~ (p=0.090 n=10)
+    MemmoveUnalignedSrcDst/f_4096_4-4       585113.5n ±  0%   988.6n ± 2%  -99.83% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_4096_4-4        586.521µ ±  0%   1.044µ ± 1%  -99.82% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_4096_7-4       585374.5n ±  0%   986.2n ± 0%  -99.83% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_4096_7-4        584.595µ ±  1%   1.055µ ± 0%  -99.82% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_65536_0-4         54.83µ ±  0%   55.00µ ± 0%   +0.31% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_65536_0-4         56.54µ ±  0%   56.64µ ± 0%   +0.19% (p=0.011 n=10)
+    MemmoveUnalignedSrcDst/f_65536_1-4       9450.51µ ±  0%   58.25µ ± 0%  -99.38% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_65536_1-4         56.65µ ±  0%   56.68µ ± 0%        ~ (p=0.353 n=10)
+    MemmoveUnalignedSrcDst/f_65536_4-4       9449.48µ ±  0%   58.24µ ± 0%  -99.38% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_65536_4-4       9462.91µ ±  0%   56.69µ ± 0%  -99.40% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/f_65536_7-4       9477.37µ ±  0%   58.26µ ± 0%  -99.39% (p=0.000 n=10)
+    MemmoveUnalignedSrcDst/b_65536_7-4       9467.96µ ±  0%   56.68µ ± 0%  -99.40% (p=0.000 n=10)
+    geomean                                    11.16µ         509.8n       -95.43%
+    
+    Change-Id: Idfa1873b81fece3b2b1a0aed398fa5663cc73b83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498377
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/slices/slices.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/memmove_riscv64.s |  9 +++++----
+ src/runtime/memmove_test.go   | 23 +++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 4 deletions(-)

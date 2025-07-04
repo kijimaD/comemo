@@ -1,14 +1,21 @@
-commit ca7d86c4d3e15716ae7aa3d7ba84769218571460
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 6 14:12:09 2011 +1100
+commit 2ed57a8cd86cec36b8370fb16d450e5a29a9375f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 5 16:45:51 2011 -0800
 
-    hash: rewrite comment on Hash.Sum method
+    fmt: only use Stringer or Error for strings
+    This is a slight change to fmt's semantics, but means that if you use
+    %d to print an integer with a Stringable value, it will print as an integer.
+    This came up because Time.Month() couldn't cleanly print as an integer
+    rather than a name. Using %d on Stringables is silly anyway, so there
+    should be no effect outside the fmt tests.
+    As a mild bonus, certain recursive failures of String methods
+    will also be avoided this way.
     
-    Fixes #2530.
-    
-    R=golang-dev, agl
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5449101
+    https://golang.org/cl/5453053
 
- src/pkg/hash/hash.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/fmt/doc.go      | 14 +++++++++-----
+ src/pkg/fmt/fmt_test.go | 13 +++++++++----
+ src/pkg/fmt/print.go    | 42 ++++++++++++++++++++++++------------------
+ 3 files changed, 42 insertions(+), 27 deletions(-)

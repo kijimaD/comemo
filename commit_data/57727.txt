@@ -1,24 +1,24 @@
-commit d40ae5efc889bf4f0878eefe52694112e93a7542
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Oct 22 13:58:53 2024 -0400
+commit 92bbecc518533867a9bb381e261196111db2dd80
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 24 10:58:51 2023 -0700
 
-    go/internal/typeparams: melt it down
+    net/http: deflake TestRequestBodyLimit
     
-    This package is no longer needed now that typeparams
-    are unconditionally enabled.  Its declarations have been
-    moved into the go/{types,parser} packages.
+    This test can return with a Transport still processing
+    an in-flight request, resulting in a test failure due
+    to the leaked Transport.
     
-    Change-Id: Ife79a17eb9d29b076cabbf8a4b2ff2aea5edfc8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621640
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Avoid this by waiting for the Transport to close the
+    request body before returning.
+    
+    Fixes #60264
+    
+    Change-Id: I8d8b54f633c2e28da2b1bf1bc01ce09dd77769de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522695
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/go/internal/typeparams/typeparams.go | 74 --------------------------------
- src/go/parser/parser.go                  | 31 ++++++++++---
- src/go/types/call.go                     | 31 +++++++------
- src/go/types/expr.go                     |  3 +-
- src/go/types/exprstring.go               |  7 ++-
- src/go/types/index.go                    | 71 ++++++++++++++++++++++++------
- src/go/types/resolver.go                 |  9 ++--
- src/go/types/typexpr.go                  | 23 +++++-----
- 8 files changed, 117 insertions(+), 132 deletions(-)
+ src/net/http/serve_test.go | 49 +++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 38 insertions(+), 11 deletions(-)

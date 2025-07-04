@@ -1,12 +1,16 @@
-commit 92dac21d292e5125c00f7b1c7c4a8f3f92d28245
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Fri Aug 4 12:44:18 2017 -0700
+commit 92cf05daf3c96c854f8e2a32d6734a91ef7bb865
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 5 09:56:39 2017 -0400
 
-    doc: replace paid with commercial
+    test: deflake locklinear again
     
-    Change-Id: I3e6de4da0648f61e254c7597f316df3e5791321a
-    Reviewed-on: https://go-review.googlesource.com/53354
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Fixes #19276.
+    
+    Change-Id: I64f8f80331d09956b6698c0b004ed7f7d70857fc
+    Reviewed-on: https://go-review.googlesource.com/39591
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/editors.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/locklinear.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

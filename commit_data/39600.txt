@@ -1,12 +1,25 @@
-commit 0212f0410f845815f5327a7f2e705891a9598f3d
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Aug 15 12:57:01 2019 -0400
+commit e341bae08d75611adea6566c1d01c1e3a0de57f9
+Author: Cezar Sa Espinola <cezarsa@gmail.com>
+Date:   Thu Mar 7 12:52:16 2019 -0300
 
-    doc: document Go 1.12.9
+    net: use network and host as singleflight key during lookupIP
     
-    Change-Id: I88b7e085fc70f9c021788d364099f5bc6b705ba8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190438
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    In CL 120215 the cgo resolver was changed to have different logic based
+    on the network being queried. However, the singleflight cache key wasn't
+    updated to also include the network. This way it was possible for
+    concurrent queries to return the result for the wrong network.
+    
+    This CL changes the key to include both network and host, fixing the
+    problem.
+    
+    Fixes #30521
+    
+    Change-Id: I8b41b0ce1d9a02d18876c43e347654312eba22fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166037
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/lookup.go      |  5 ++--
+ src/net/lookup_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 2 deletions(-)

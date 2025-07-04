@@ -1,25 +1,15 @@
-commit da82dfaccd6608a8e6d6b1a2633977dfa1e41c73
+commit 9413a6f660738708a321d2806236143e5e189901
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 23 12:17:11 2013 +1100
+Date:   Wed Jan 23 11:28:32 2013 +1100
 
-    net/url: use bytes.Buffer in (*URL).String
+    go/build: ImportDir reject directories that don't exist
     
-    BenchmarkString before:
+    Fixes #3428.
     
-            11990 ns/op            1621 B/op         73 allocs/op
-    
-    Using bytes.Buffer:
-    
-            8774 ns/op            1994 B/op         40 allocs/op
-    
-    I also tried making a version of escape() that writes directly to the
-    bytes.Buffer, but it only saved 1 alloc/op and increased CPU time by
-    about 10%. Didn't seem worth the extra code path.
-    
-    R=bradfitz
+    R=dave, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/7182050
+    https://golang.org/cl/7129048
 
- src/pkg/net/url/url.go      | 25 ++++++++++++++-----------
- src/pkg/net/url/url_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 11 deletions(-)
+ src/pkg/go/build/build.go      |  6 +++++-
+ src/pkg/go/build/build_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

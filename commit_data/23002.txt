@@ -1,14 +1,33 @@
-commit 647026a16ba7468855b9f83ab796080708879516
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Wed May 13 17:26:19 2015 -0400
+commit ec1144423f45e010c72363fe59291d43214b6e31
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 16 23:10:56 2015 +0900
 
-    misc/cgo/testcshared: remove use of 'env'.
+    net: fix inconsistent error values on Read
     
-    'env' command is not available on some android devices.
+    This change fixes inconsistent error values on Read,
+    ReadFrom{,UDP,IP,Unix} and ReadMsg{UDP,IP,Unix}.
     
-    Change-Id: I68b1152ef7ea248c8e80c7f71e97da76e3ec6394
-    Reviewed-on: https://go-review.googlesource.com/9999
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Updates #4856.
+    
+    Change-Id: I7de5663094e09be2d78cdb18ce6f1e7ec260888d
+    Reviewed-on: https://go-review.googlesource.com/8992
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcshared/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/error_test.go         | 44 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go            | 15 +++------------
+ src/net/fd_windows.go         | 19 +++++--------------
+ src/net/iprawsock_plan9.go    |  6 +++---
+ src/net/iprawsock_posix.go    |  6 ++++++
+ src/net/net.go                | 11 ++++++++++-
+ src/net/net_test.go           |  9 +++++++++
+ src/net/sendfile_dragonfly.go |  2 +-
+ src/net/sendfile_freebsd.go   |  2 +-
+ src/net/sendfile_linux.go     |  2 +-
+ src/net/tcpsock_plan9.go      |  6 +++++-
+ src/net/tcpsock_posix.go      |  9 ++++++++-
+ src/net/timeout_test.go       | 23 ++++++++++++++++++----
+ src/net/udpsock_plan9.go      |  6 +++---
+ src/net/udpsock_posix.go      | 11 +++++++++--
+ src/net/unixsock_plan9.go     |  6 +++---
+ src/net/unixsock_posix.go     | 11 +++++++++--
+ 17 files changed, 139 insertions(+), 49 deletions(-)

@@ -1,14 +1,13 @@
-commit ea3ac6ba75c5b7496b29117687b0859ad40f3f39
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 6 13:42:00 2014 -0700
+commit 6ff5c317ebf30d5d6879a2b0cd0c5ce34b97f97d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 15:15:45 2014 -0400
 
-    runtime: shorten hash declarations
+    codereview: preserve branch prefix in subject during hg mail
     
-    LGTM=iant
-    R=dvyukov, iant
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/117680044
+    https://golang.org/cl/124800043
 
- src/cmd/api/goapi.go   |  2 +-
- src/pkg/runtime/alg.go | 34 ++++++++++++++++------------------
- 2 files changed, 17 insertions(+), 19 deletions(-)
+ lib/codereview/codereview.py | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

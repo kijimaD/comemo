@@ -1,19 +1,16 @@
-commit 9c81fd53b3ae52e286d3020ee8b381328b6b9bd2
-Author: 180909 <734461790@qq.com>
-Date:   Sun Jul 25 11:21:14 2021 +0000
+commit 41ad4dec991c11d9e1efff27fc0b1568f5981c9c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 09:34:34 2020 -0500
 
-    cmd/vet: add missing copyright header
+    [dev.regabi] cmd/compile: fix -h
     
-    Change-Id: I78942dde77547f91daebe763328f52b4c476ddaf
-    GitHub-Last-Rev: 423f1683fc7db8c1764383cf0a61c54ee21c06f2
-    GitHub-Pull-Request: golang/go#47334
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336434
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    The compile -h flag is *meant* to panic, so you can see the stack
+    trace where the error is being printed. Make it do that again.
+    
+    Change-Id: Ieb0042863582d7a4c5d08d2f866a144962915b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274116
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/vet/main.go                               | 4 ++++
- src/cmd/vet/testdata/copylock/copylock.go         | 4 ++++
- src/cmd/vet/testdata/httpresponse/httpresponse.go | 4 ++++
- src/cmd/vet/testdata/testingpkg/tests.go          | 4 ++++
- src/cmd/vet/testdata/testingpkg/tests_test.go     | 4 ++++
- 5 files changed, 20 insertions(+)
+ src/cmd/compile/internal/gc/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

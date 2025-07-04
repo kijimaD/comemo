@@ -1,21 +1,14 @@
-commit 10cb39afc4e81d126c71153dba7b9f1878bae61a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 25 13:09:14 2015 -0800
+commit 8c5bfcc52ba9aced772935cdf45a99cf3d465f1e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 18 15:11:30 2015 -0700
 
-    cmd/cgo: fix C.complexfloat and C.complexdouble
+    [dev.ssa] cmd/compile: Move runtime call gen to its own function
     
-    This also fixes an unintended behavior where C's "complex float" and
-    "complex double" types were interchangeable with Go's "complex64" and
-    "complex128" types.
-    
-    Fixes #13402.
-    
-    Change-Id: I73f96d9a4772088d495073783c6982e9634430e8
-    Reviewed-on: https://go-review.googlesource.com/17208
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5de36244de4dcc4a9827ee0fa04526e3e3578e7f
+    Reviewed-on: https://go-review.googlesource.com/14755
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/test/issue13402.go | 10 ++++++++++
- misc/cgo/test/issue8694.go  |  4 ++--
- src/cmd/cgo/doc.go          |  3 ++-
- src/cmd/cgo/gcc.go          |  8 +++-----
- 4 files changed, 17 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |   6 ++
+ src/cmd/compile/internal/gc/pgen.go |   3 +
+ src/cmd/compile/internal/gc/ssa.go  | 122 +++++++++++++++++++++---------------
+ 3 files changed, 81 insertions(+), 50 deletions(-)

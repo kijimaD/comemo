@@ -1,13 +1,12 @@
-commit ba91dac3a9e01a68e13e3ea6f6798f2f3b4ea73f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 13 09:40:49 2011 +1000
+commit f340b3de5a19c310aa38abc6f474c366a7b7d89b
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jul 12 11:29:38 2011 -0700
 
-    doc: gofix io2010 demo programs
+    debug/pe: fixes ImportedSymbols for Win64.
     
-    R=golang-dev, gri, r, agl
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4696046
+    https://golang.org/cl/4639086
 
- doc/talks/io2010/decrypt.go | 20 ++++++++++----------
- doc/talks/io2010/encrypt.go | 10 +++++-----
- 2 files changed, 15 insertions(+), 15 deletions(-)
+ src/pkg/debug/pe/file.go | 37 ++++++++++++++++++++++++++-----------
+ 1 file changed, 26 insertions(+), 11 deletions(-)

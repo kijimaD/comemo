@@ -1,16 +1,21 @@
-commit 47e0e4233fe0df95ce2ee2291325bee7dea45a4a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 5 09:12:18 2015 -0400
+commit 0d1ceef9452c495b6f6d60e578886689184e5e4b
+Author: Aamir Khan <syst3m.w0rm@gmail.com>
+Date:   Mon Apr 27 22:31:12 2015 +0900
 
-    go/build: enable cgo on freebsd/arm
+    net/http: change default user agent string
     
-    Now that it works we need to turn it back on.
+    Default user agent in use - "Go 1.1 package http" doesn't conform to RFC 7231.
+    See http://tools.ietf.org/html/rfc7231#section-5.5.3
     
-    Fixes #10119.
+    Use a valid user-agent string instead.
     
-    Change-Id: I9c62d3026f7bb62c49a601ad73f33bf655372915
-    Reviewed-on: https://go-review.googlesource.com/13162
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #9792
+    
+    Change-Id: I80249709800dcdbf6f2e97a63fab05656898e6aa
+    Reviewed-on: https://go-review.googlesource.com/9385
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/build/build.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/httputil/dump_test.go |  8 ++++----
+ src/net/http/request.go            |  7 +++----
+ src/net/http/requestwrite_test.go  | 42 +++++++++++++++++++-------------------
+ 3 files changed, 28 insertions(+), 29 deletions(-)

@@ -1,16 +1,19 @@
-commit f596eb5d8deba23365e7d656e43ed6c2d6189f65
+commit 7b9a6d8ddafea4c72f507f7254c3526fdcbbd543
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 22 10:04:13 2012 -0700
+Date:   Tue May 22 10:03:53 2012 -0700
 
-    godoc: slightly smarter synopsis extraction
+    go/scanner: strip carriage returns from commments
     
-    Ignore synopses that start with
-    "Copyright", "All rights", and "Author".
+    Also:
+    - cleaned up and simplified TestScan
+    - added tests for comments containing carriage returns
+    
+    Fixes #3647.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/6218047
+    https://golang.org/cl/6225047
 
- src/pkg/go/doc/synopsis.go      | 41 +++++++++++++++++++++++++++++++----------
- src/pkg/go/doc/synopsis_test.go |  5 +++++
- 2 files changed, 36 insertions(+), 10 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 16 +++++++-
+ src/pkg/go/scanner/scanner_test.go | 84 ++++++++++++++++++++++++--------------
+ 2 files changed, 68 insertions(+), 32 deletions(-)

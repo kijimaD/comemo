@@ -1,16 +1,17 @@
-commit 9b638bf1bf247f228ebd3db58134acb7a87e3b3e
+commit a236804c764c9aa1fb293c24be9c571de5795d05
+Merge: 0d76887433 04923042bd
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 6 13:56:21 2015 -0500
+Date:   Sun Nov 23 15:13:48 2014 -0500
 
-    runtime: adjust dropm for write barriers
+    [dev.cc] all: merge default (95f5614b4648) into dev.cc
     
-    The line 'mp.schedlink = mnext' has an implicit write barrier call,
-    which needs a valid g. Move it above the setg(nil).
-    
-    Change-Id: If3e86c948e856e10032ad89f038bf569659300e0
-    Reviewed-on: https://go-review.googlesource.com/2347
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/177220044
 
- src/runtime/proc1.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/tool.go            | 12 +----------
+ src/go/parser/error_test.go   | 27 ++++++++++++-------------
+ src/go/parser/parser_test.go  | 20 +++++++++----------
+ src/image/jpeg/reader.go      |  3 +++
+ src/image/jpeg/reader_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 72 insertions(+), 36 deletions(-)

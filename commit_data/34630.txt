@@ -1,19 +1,18 @@
-commit 0b20aece1aa4782070660a80dc4cf87c183533c9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 15 09:27:29 2018 +0300
+commit 89bcbf40b86ebad81d5cf34f6457f11a6f23b808
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 2 11:19:23 2017 +0100
 
-    net: make Resolver.PreferGo work more as documented
+    math/bits: add examples for right rotation
     
-    Fixes #24393
+    Right rotation is achieved using negative k in RotateLeft*(x, k). Add
+    examples demonstrating that functionality.
     
-    Change-Id: I8bcee34cdf30472663d866ed6056301d8445215c
-    Reviewed-on: https://go-review.googlesource.com/100875
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I15dab159accd2937cb18d3fa8ca32da8501567d3
+    Reviewed-on: https://go-review.googlesource.com/75371
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/conf.go           |  7 ++++---
- src/net/conf_test.go      | 18 +++++++++++++++++-
- src/net/dnsclient_unix.go |  4 ++--
- src/net/lookup_unix.go    |  4 ++--
- 4 files changed, 25 insertions(+), 8 deletions(-)
+ src/math/bits/example_test.go  | 8 ++++++++
+ src/math/bits/make_examples.go | 6 ++++++
+ 2 files changed, 14 insertions(+)

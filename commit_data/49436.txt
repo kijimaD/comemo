@@ -1,18 +1,19 @@
-commit f862280e30300017292b24a0fca088628d7b8065
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Jun 7 13:54:53 2022 -0400
+commit 322879d5c9dc34975a42ac77fbef7b4a8b255e8a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 18 14:42:12 2021 -0700
 
-    cmd/go: properly call PackageModuleRoot to get modroot for index
+    cmd/compile/internal/dwarfgen: use src.Pos.Rel{Filename,Line,Col} consistently
     
-    PackageModuleRoot needs to be called with the package's path, not
-    its directory on disk.
+    It appears that this code predates golang.org/cl/96535, which added
+    RelCol to support /*line*/ directives.
     
-    Change-Id: I080fe8ce2aeb72e1466624db81595a00915606bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410820
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: Ib79cebc1be53af706e84e8799eeea81ef8c81c8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343430
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/load/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 6 +++---
+ src/cmd/compile/internal/dwarfgen/dwinl.go | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

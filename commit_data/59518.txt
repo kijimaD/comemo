@@ -1,18 +1,17 @@
-commit a88f093aaa35ae18aa02389624822101cbf231c0
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 14 12:46:28 2025 -0700
+commit 36cd880878a9804489557c29fa768647d665fbe0
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Tue Mar 19 19:27:22 2024 -0700
 
-    strings,bytes: make benchmark work deterministic
+    sync: name the Map.CompareAndSwap return value
     
-    It's hard to compare two different runs of a benchmark if they
-    are doing different amounts of work.
+    The godoc for sync.Map.CompareAndSwap does not document the meaning
+    of its return value. Document it by giving it a name.
     
-    Change-Id: I5d6845f3d11bb10136f745e6207d5f683612276d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672895
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I50ad9c078a7885f5ce83489d66d138d491c35861
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572657
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/bytes/bytes_test.go     | 9 ++++++---
- src/strings/strings_test.go | 9 ++++++---
- 2 files changed, 12 insertions(+), 6 deletions(-)
+ src/sync/map.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

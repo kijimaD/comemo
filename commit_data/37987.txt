@@ -1,19 +1,13 @@
-commit 5aac0f0d1edbeb03ffe1c189ec97d55c2a7c1e84
+commit 3f99d2738d214fdc9aeaaa9ced26431ec1f8166d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 23 20:47:44 2019 -0800
+Date:   Tue Sep 18 21:15:19 2018 -0700
 
-    go/types: include test/fixedbugs/bug073.go again in test
+    cmd/compiler/internal/gc: remove flag from bconv (cleanup)
     
-    This test was excluded from the go/types std lib test
-    because it tested old behavior (shift count must be
-    an unsigned int). With the compiler changes made and
-    the test adjusted accordingly, we can include it again.
-    
-    Updates #19113.
-    
-    Change-Id: If9b6b83505d2bd2b426fcefa225986d73658a229
-    Reviewed-on: https://go-review.googlesource.com/c/159319
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I863eb8ef491e1d51b83d8dd3061bf11cbdc74a3e
+    Reviewed-on: https://go-review.googlesource.com/136196
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/stdlib_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go   | 4 ++--
+ src/cmd/compile/internal/gc/mpint.go | 9 +++------
+ 2 files changed, 5 insertions(+), 8 deletions(-)

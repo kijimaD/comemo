@@ -1,23 +1,15 @@
-commit 12e343f372c03b6fec9d5da6cd83833c79812bc9
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Oct 7 10:21:17 2012 +1100
+commit 46fcfdaa7dc4c35cf593df2b883db28814e641fe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 00:30:29 2012 +0200
 
-    image/jpeg: add DCT tests, do a small optimization (common sub-expression
-    elimination) in idct.go.
+    cmd/6g: fix out of registers when chaining integer divisions.
     
-    benchmark                   old ns/op    new ns/op    delta
-    BenchmarkIDCT                    5649         5610   -0.69%
-    BenchmarkDecodeRGBOpaque      2948607      2941051   -0.26%
+    Fixes #4201.
     
-    The "type block" declaration moved so that idct.go is compilable
-    as a stand-alone file: "go tool 6g -S idct.go" works.
-    
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/6619056
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6622055
 
- src/pkg/image/jpeg/dct_test.go    | 297 ++++++++++++++++++++++++++++++++++++++
- src/pkg/image/jpeg/idct.go        |  65 +++++----
- src/pkg/image/jpeg/reader.go      |   4 -
- src/pkg/image/jpeg/writer_test.go |  17 +++
- 4 files changed, 350 insertions(+), 33 deletions(-)
+ src/cmd/6g/cgen.c | 18 +++++++++++++++++-
+ test/torture.go   | 22 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

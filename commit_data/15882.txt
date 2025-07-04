@@ -1,17 +1,16 @@
-commit 5060dded0f9e4994b168123eeebb03f85e6deb20
+commit 88b98ff79196aa4f05bc7f4095db5b08035fa3fe
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Mar 22 01:27:55 2013 +0100
+Date:   Fri Mar 22 00:38:23 2013 +0100
 
-    debug/elf: repair GNU version symbols.
+    cmd/gc: accept ideal float as indices.
     
-    After the revert of revision 9ea9e7e6e0c8
-    the related revision 76ff7da868c6 must be reverted too.
+    Fixes #4813.
     
-    Fixes #5102.
-    
-    R=golang-dev, r
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/7961044
+    https://golang.org/cl/7625050
 
- src/pkg/debug/elf/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c      | 33 ++++++++++++++++++----
+ test/fixedbugs/issue4813.go | 52 ++++++++++++++++++++++++++++++++++
+ test/index.go               | 69 ++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 130 insertions(+), 24 deletions(-)

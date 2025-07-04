@@ -1,35 +1,26 @@
-commit 0a8055ef3f84673dc3a70ce5143bdf9817986dea
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 23 14:16:53 2022 -0500
+commit 93fe469de5388b71af2aa2c959dc485fa3d4bee3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sun Jan 30 11:21:28 2022 -0800
 
-    cmd/api: rewrite as package test
+    internal/fuzz: properly handle duplicates during cache loading
     
-    No one ever runs 'go tool api', because the invocation
-    has gotten unwieldy enough that it's not practical.
-    And we don't support it as a standalone tool for other
-    packages - it's not even in the distribution.
+    When loading the corpus, if the cache contained an entry which was a
+    duplicate of an entry added using f.Add, coordinator.addCorpusEntries
+    would return early, ignoring everything after this entry in the cache.
     
-    Making it an ordinary package test lets us invoke it
-    more easily from cmd/dist (as go test cmd/api -check)
-    and avoids the increasingly baroque code in run.go to
-    build a command line.
+    Instead, skip duplicates as intended, and continue to load the rest of
+    the cache.
     
-    Left in cmd/api even though it's no longer a command
-    because (1) it uses a package from cmd/vendor and
-    (2) it uses internal/testenv. Otherwise it could be misc/api.
+    Fixes #50913
     
-    Fixes #56845.
-    
-    Change-Id: I00a13d9c19b1e259fa0e6bb93d1a4dca25f0e8c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453258
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I3a64b93cbb217c5c364a9f8d0005752e9e9d10ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381960
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/api/{goapi.go => api.go}                   | 130 +++++++++------------
- src/cmd/api/{goapi_test.go => api_test.go}         |  33 +++++-
- .../api/{goapi_boring_test.go => boring_test.go}   |   2 +-
- src/cmd/api/run.go                                 | 123 -------------------
- src/cmd/dist/test.go                               |  17 +--
- 5 files changed, 87 insertions(+), 218 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_dup_cache.txt | 52 ++++++++++++++++++++++
+ src/internal/fuzz/fuzz.go                          | 20 ++++++---
+ 2 files changed, 67 insertions(+), 5 deletions(-)

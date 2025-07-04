@@ -1,0 +1,19 @@
+commit 352dd2d932c1c1c6dbc3e112fcdfface07d4fffb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 14 17:54:00 2024 -0800
+
+    runtime: only poll network from one P at a time in findRunnable
+    
+    For #65064
+    
+    Change-Id: Ifecd7e332d2cf251750752743befeda4ed396f33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564197
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Artur M. Wolff <artur.m.wolff@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go     | 8 ++++++--
+ src/runtime/runtime2.go | 7 ++++---
+ 2 files changed, 10 insertions(+), 5 deletions(-)

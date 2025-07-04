@@ -1,25 +1,18 @@
-commit 7b0835d42de1deccd889451eda12390a56722ab7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 18 08:20:54 2023 -0400
+commit 126c22a09824a7b52c019ed9a1d198b4e7781676
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jul 11 19:10:00 2022 +0200
 
-    cmd/gofmt: fix a data race in TestPermissions
+    syscall: gofmt after CL 412114
     
-    The asynchronous call to processFile is synchronized by the call to
-    GetExitCode. We can't safely access errBuf until then, because
-    processFile may still be writing to it.
-    
-    This is diagnosed by 'go test -race cmd/gofmt', but only the
-    darwin-amd64-race builder caught it because the other "-race" builders
-    apparently all run as root (see #10719).
-    
-    Updates #60225.
-    
-    Change-Id: Ie66bb4e47429ece81043d6425f26953b7bb26002
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496155
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ie51545eaebd22a31379bf8814a2c62b91d1d105b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416934
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/gofmt/gofmt_unix_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/syscall/exec_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,20 @@
-commit 66f1f89dc058e98d4b118041cd8d571a505b43db
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Dec 30 15:19:54 2015 -0800
+commit 492a62e945555bbf94a6f9dd6d430f712738c5e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 27 18:10:20 2015 -0700
 
-    cmd/internal/obj: fix PCSP table at runtime.morestack calls
+    net/http/httputil: add hook for managing io.Copy buffers per request
     
-    Fixes #13346.
+    Adds ReverseProxy.BufferPool for users with sensitive allocation
+    requirements. Permits avoiding 32 KB of io.Copy garbage per request.
     
-    Change-Id: Ic903ee90575e8dbe23905d0678d3295745d1d47f
-    Reviewed-on: https://go-review.googlesource.com/18154
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #10277
+    
+    Change-Id: I5dfd58fa70a363ead4be56405e507df90d871719
+    Reviewed-on: https://go-review.googlesource.com/9399
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 7 ++++++-
- src/cmd/internal/obj/arm64/obj7.go | 7 ++++++-
- src/cmd/internal/obj/x86/obj6.go   | 7 ++++++-
- 3 files changed, 18 insertions(+), 3 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 21 ++++++++-
+ src/net/http/httputil/reverseproxy_test.go | 68 ++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 1 deletion(-)

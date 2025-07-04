@@ -1,25 +1,22 @@
-commit 1596a6c8ec6d4ccb4a219b0c467bed192720de12
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Sep 19 15:43:14 2024 +0000
+commit 18b2c45b0abc81529644b7cc6b009395e1840756
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Aug 15 02:14:00 2023 +0000
 
-    unique,internal/concurrent: add some more tests
+    sync: document why copyChecker checks the condition twice
     
-    One is a test of unsafe.String usage, which was broken before CL 610738
-    was merged.
+    Fixes #40924
     
-    The other is trying to improve coverage of "near collision" scenarios in
-    the HashTrieMap where only the last few bits differ. This is intended to
-    catch off-by-one errors in iterating down the tree.
+    Change-Id: I249a278be1ec3c67088819af4456e6c393431724
     
-    For #69534.
-    
-    Change-Id: I3f302e148e81269a50e93b5edf83cafc2d291098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614475
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I249a278be1ec3c67088819af4456e6c393431724
+    GitHub-Last-Rev: 772c7ae7e140ebd3896fc7786aae8b43ab3128c3
+    GitHub-Pull-Request: golang/go#61978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518961
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- src/internal/concurrent/hashtriemap_test.go | 18 ++++++++++++++++++
- src/unique/handle_test.go                   | 24 ++++++++++++++++++++++++
- 2 files changed, 42 insertions(+)
+ src/sync/cond.go | 4 ++++
+ 1 file changed, 4 insertions(+)

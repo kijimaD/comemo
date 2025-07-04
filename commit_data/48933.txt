@@ -1,20 +1,13 @@
-commit 96a1ad298ad9e6a308c3b05c07e1b3bf53ac9cfe
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Apr 29 01:20:38 2022 +0700
+commit 361159c05507b7f6c28e29575c02a6b7b6656f84
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sun Jun 27 11:50:17 2021 +0900
 
-    cmd/compile: remove inTypeCheckInl boolean
+    cmd/cgo: fix 'see gmp.go' to 'see doc.go'
     
-    After CL 402974, we do not typecheck an inline body in ImportedBody
-    anymore, thus the inTypeCheckInl check is un-necessary.
-    
-    Change-Id: Ia6154a57db507c3e00b67333f1e3b910a6de7d05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402975
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I303edc9dfbf4185b5b461b121ab504f6ed9f8630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330839
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/typecheck/func.go | 15 +--------------
- 1 file changed, 1 insertion(+), 14 deletions(-)
+ src/cmd/cgo/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

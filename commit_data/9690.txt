@@ -1,15 +1,24 @@
-commit 957fd575fc2941402c964f088330e109d02740f7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 14 20:45:45 2011 -0700
+commit 3eb41fbeb6157c043a1c848fe670dd1fd762e177
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Sep 14 20:40:50 2011 -0700
 
-    go/token: support to serialize file sets
+    exp/template/html: render templates unusable when escaping fails
     
-    R=rsc
+    This moots a caveat in the proposed package documentation by
+    rendering useless any template that could not be escaped.
+    
+    From https://golang.org/cl/4969078/
+    > If EscapeSet returns an error, do not Execute the set; it is not
+    > safe against injection.
+    r: [but isn't the returned set nil? i guess you don't overwrite the
+    r: original if there's a problem, but i think you're in your rights to
+    r: do so]
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5024042
+    https://golang.org/cl/5020043
 
- src/pkg/go/token/Makefile          |   1 +
- src/pkg/go/token/position.go       |  20 ++++---
- src/pkg/go/token/serialize.go      |  62 ++++++++++++++++++++++
- src/pkg/go/token/serialize_test.go | 105 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 180 insertions(+), 8 deletions(-)
+ src/pkg/exp/template/html/doc.go         |  1 -
+ src/pkg/exp/template/html/escape.go      | 23 ++++++++++++++++-------
+ src/pkg/exp/template/html/escape_test.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 8 deletions(-)

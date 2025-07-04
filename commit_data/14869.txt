@@ -1,14 +1,14 @@
-commit ad63c7e50beb5b148fae72e267f87f782769821a
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Sat Jan 12 11:06:13 2013 +1100
+commit 05bf9a456a2c0c5e0c859782d170cd35db019c8b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 11 15:11:08 2013 -0800
 
-    text/template: Document that range can be used on chan types.
+    net/http/cgi: fix test case sensitivity on Windows
     
-    Fixes #4640.
+    Fixes #4645
     
-    R=golang-dev, adg
+    R=golang-dev, alex.brainman, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7082044
+    https://golang.org/cl/7105047
 
- src/pkg/text/template/doc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/http/cgi/host_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

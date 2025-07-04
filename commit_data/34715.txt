@@ -1,17 +1,29 @@
-commit 165ebe65585ec7ae63695fab9e7aabaaad1af57c
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Mar 26 18:58:53 2018 -0400
+commit 3231d4e4ef37df9c4457c1ce1ae3f46cf4b994f7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Nov 9 23:10:43 2017 +0000
 
-    database/sql: fix docs to correctly refer to time.RFC3339Nano
+    cmd/compile: replace opnames with stringer
     
-    It mentions time.Format3339Nano, which isn’t defined. The
-    underlying code uses time.RFC3339Nano.
+    Now possible, since stringer just got the -trimprefix flag added.
     
-    Updates golang/go#24542
+    While at it, simplify a few Op stringifications since we can now use %v,
+    and no longer have to worry about o<len(opnames).
     
-    Change-Id: Ia34ae8b66427139d9005f902c2eb60aac4bfa8c6
-    Reviewed-on: https://go-review.googlesource.com/102607
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash -cmp on std cmd.
+    
+    Fixes #15462.
+    
+    Change-Id: Icdcde0b0a5eb165d18488918175024da274f782b
+    Reviewed-on: https://go-review.googlesource.com/76790
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go              |   1 +
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  12 +--
+ src/cmd/compile/internal/gc/op_string.go |  16 ++++
+ src/cmd/compile/internal/gc/opnames.go   | 158 -------------------------------
+ src/cmd/compile/internal/gc/ssa.go       |   4 +-
+ src/cmd/compile/internal/gc/syntax.go    |   4 +-
+ 7 files changed, 25 insertions(+), 172 deletions(-)

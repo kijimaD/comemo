@@ -1,19 +1,34 @@
-commit 6cfc3b25e95d9f41215e0df8eadfdbeb472594fe
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Feb 18 09:32:46 2017 +0100
+commit f9e1adb713e35233ff65f3bde7715377964fafbd
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 30 17:46:49 2016 -0400
 
-    math: protect benchmarked functions from being optimized away
+    runtime: lift systemstack part of gcAssistAlloc
     
-    Add exported global variables and store the results of benchmarked
-    functions in them. This prevents the current compiler optimizations
-    from removing the instructions that are needed to compute the return
-    values of the benchmarked functions.
+    This lifts the part of gcAssistAlloc that runs on the system stack to
+    its own function in preparation for letting assists perform root jobs
+    (notably stack scanning). This makes it easy to see that there are no
+    references to the user stack once we've entered gcAssistAlloc1, which
+    means it's safe to shrink the stack while in gcAssistAlloc1.
     
-    Change-Id: If8b08424e85f3796bb6dd73e761c653abbabcc5e
-    Reviewed-on: https://go-review.googlesource.com/37195
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This does not yet make assists perform root jobs, so it's not actually
+    possible for the stack to shrink yet. That will happen in the next
+    commit.
+    
+    The code in gcAssistAlloc1 is identical to the code that's currently
+    passed in a closure to systemstack with one exception. Currently, we
+    set the "completed" variable in the enclosing scope to indicate that
+    the assist completed the mark phase. This is exactly the sort of
+    cross-stack reference lifting this function is meant to prevent. We
+    replace this variable with setting gp.param to nil or non-nil to
+    indicate the completion status.
+    
+    Updates #15361.
+    
+    Change-Id: Iba7cfb758c781070a441aea86c0117b399a24dbd
+    Reviewed-on: https://go-review.googlesource.com/32431
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/math/all_test.go | 271 +++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 200 insertions(+), 71 deletions(-)
+ src/runtime/mgcmark.go | 150 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 86 insertions(+), 64 deletions(-)

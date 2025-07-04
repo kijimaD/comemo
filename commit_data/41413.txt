@@ -1,17 +1,17 @@
-commit 1bda9b001f4a8fbec82bf580ea36c25dfca8e8d9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 12:03:26 2020 -0800
+commit 93a79bbcc0de229679ddeb2ad662ec8cea5b3de6
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Oct 1 21:12:59 2019 +0300
 
-    cmd/compile: use ellipses in MIPS rules
+    text/template/parse: remove duplication in peekNonSpace
     
-    Passes toolstash-check -all.
+    nextNonSpace has an identical code except the call to
+    backup at the end.
     
-    Change-Id: I14db0acb9b531029c613fa31bc076928651b6448
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217007
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iefa5b13950007da38323a800fb6b0ce3d436254b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198277
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules |  106 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 1398 ++++-----------------------
- 2 files changed, 257 insertions(+), 1247 deletions(-)
+ src/text/template/parse/parse.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

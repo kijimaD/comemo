@@ -1,22 +1,27 @@
-commit fcfea247426703e6daaa0fa3383e762bf7ec081f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 3 13:17:28 2018 +0100
+commit 436f2d8d974954ef052f1b71c751df713704ab00
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jun 14 03:42:36 2017 +0000
 
-    cmd/compile: early return/continue to unindent some code
+    cmd/internal/obj/arm64: fix assemble hlt/hvc/smc/brk/clrex bug
     
-    While at it, also simplify a couple of switches.
+    When instruction has only one argument, Go parser saves the
+    argument value into prog.From without any special handling.
+    But assembler gets the argument value from prog.To.
     
-    Doesn't pass toolstash -cmp on std cmd, because orderBlock(&n2.Nbody) is
-    moved further down to the n3 loop.
+    The fix adds special handling for CLREX and puts other instructions
+    arguments value into prog.From.
     
-    Change-Id: I20a2a6c21eb9a183a59572e0fca401a5041fc40a
-    Reviewed-on: https://go-review.googlesource.com/104416
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Uncomment hlt/hvc/smc/brk/dcps1/dcps2/dcps3/clrex test cases.
+    
+    Fixes #20765
+    
+    Change-Id: I1fc0d2faafb19b537cab5a665bd4af56c3a2c925
+    Reviewed-on: https://go-review.googlesource.com/78275
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/order.go     | 238 +++++++++++++++----------------
- src/cmd/compile/internal/gc/sinit.go     |  41 +++---
- src/cmd/compile/internal/gc/typecheck.go |  26 ++--
- 3 files changed, 152 insertions(+), 153 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 18 +++++++++---------
+ src/cmd/internal/obj/arm64/asm7.go           |  8 ++++----
+ src/cmd/internal/obj/arm64/obj7.go           |  2 +-
+ 3 files changed, 14 insertions(+), 14 deletions(-)

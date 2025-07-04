@@ -1,12 +1,13 @@
-commit 4bbe9d87d77d871fa36095882117ff1316e12936
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 20 17:44:36 2011 -0400
+commit 9ee83f546fb1febfb580030c8c6e5d2eebe721d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 20 14:36:03 2011 -0700
 
-    all-qemu.bash: cannot test go/build
+    http: write Header keys with empty values
     
-    R=adg, r
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/4633054
+    https://golang.org/cl/4630052
 
- src/all-qemu.bash | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/http/header.go      |  3 ---
+ src/pkg/http/header_test.go | 10 ++++++++++
+ 2 files changed, 10 insertions(+), 3 deletions(-)

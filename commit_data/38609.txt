@@ -1,18 +1,21 @@
-commit 637f34fee0dd3533e2d9eead6fd6e1dc25eb8d26
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Mar 30 10:49:09 2019 -0400
+commit ff7b245a31394b700a252fd547cf16ad0ad838b6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 10 08:32:45 2018 +1100
 
-    cmd/link: allow duplicated weak symbols on Mach-O
+    Revert "os: remove sleep in windows Process.Wait"
     
-    This fixes cgo test issue29563 on Darwin.
+    This reverts CL 145221 (commit 5c359736f8d67338b53c26aaef52139ae8cd0538)
     
-    Updates #29563.
+    Reason for revert: breaks the build occasionally.
     
-    Change-Id: If480078461247cd7c95931ae3ad4ca89736dd550
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170015
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Updates #23171
+    Updates #25965
+    
+    Change-Id: Ie1e3c76ab9bcd8d28b6118440b5f80c76f9b1852
+    Reviewed-on: https://go-review.googlesource.com/c/148957
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/loadmacho/ldmacho.go | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ src/os/exec_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

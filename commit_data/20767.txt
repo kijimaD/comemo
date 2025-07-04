@@ -1,13 +1,13 @@
-commit f29bd6c4a4385cd9ad24b4a0da0b66dd4f6644aa
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 21 10:10:11 2014 -0700
+commit f3eece74922b55dcf279477a2c2267571dba82fa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 8 13:23:05 2014 +1100
 
-    cmd/ld: fix addstrdata for big-endian systems
+    doc: use "keyed" instead of "tagged" in Go 1 compatibility doc
     
-    LGTM=rsc
-    R=minux, rsc
+    LGTM=bradfitz, r
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/158280043
+    https://golang.org/cl/156730043
 
- src/cmd/ld/data.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ doc/go1compat.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

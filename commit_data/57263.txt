@@ -1,25 +1,26 @@
-commit 6f00a4efe4d7ed9ac871a8b025a022f964cfa4e2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 26 15:17:07 2024 -0700
+commit 1d84c89bec2ad5a4a186afe40ef1910e33376a43
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 5 17:04:45 2023 -0400
 
-    debug/buildinfo: don't crash on corrupt object file
+    cmd/link: suppress symbol table on Mach-O when -s
     
-    If the length reported for the object file is more than the amount of
-    data we actually read, then the count can tell us that there is
-    sufficient remaining data but the slice operation can fail.
+    Currently, on Mach-O, we don't strip the symbol table even the -s
+    flag is set. This CL makes it suppress the symbol table, as
+    documented.
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
+    On Mach-O, even with -s, we still need to keep symbols that are
+    dynamically exported or referenced symbol. Otherwise the dynamic
+    linker cannot resolve them and the binary doesn't run.
+    (Interestingly, for a PIE binary it is okay to strip the symbol
+    table entirely. We keep the dynamic symbols for consistency. And
+    this is also in consistent with what the system "strip" command
+    does.)
     
-    Fixes #69066
-    
-    Change-Id: I8d12ca8ade3330517ade45c7578b477772b7efd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608517
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I39c572553fe0215ae3bdf5349bf2bab7205fbdc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492744
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/debug/buildinfo/buildinfo.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/macho.go | 44 ++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)

@@ -1,28 +1,18 @@
-commit cae9a9fd65cae6cbde0aacfea8f70e952e89f33e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 13 16:03:12 2020 +1100
+commit 2b6b474f64d8f21d911910b04ef5a806ee37b154
+Author: psampaz <psampaz@gmail.com>
+Date:   Tue Aug 6 16:56:33 2019 +0000
 
-    doc: fix up some HTML issues in go_spec.html
+    regexp: add example for ReplaceAll
     
-    The HTML linter 'tidy' reports:
+    Updates #21450
     
-            go_spec.html:2556: Warning: unescaped & which should be written as &amp;
-            go_spec.html:3293: Warning: unescaped & or unknown entity "&s1"
-            go_spec.html:3293: Warning: unescaped & or unknown entity "&a"
-            go_spec.html:3294: Warning: unescaped & or unknown entity "&s2"
-            go_spec.html:3294: Warning: unescaped & or unknown entity "&a"
-            go_spec.html:2045: Warning: trimming empty <p>
-            go_spec.html:4526: Warning: trimming empty <ul>
-            go_spec.html:4533: Warning: trimming empty <ul>
-            go_spec.html:4539: Warning: trimming empty <ul>
-    
-    This CL fixes all but the <ul> ones, which I think should be fixed
-    but are defended by a comment.
-    
-    Change-Id: I0ca88f5e80755024801877ab1298025ecf8f10c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214457
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ia31c20b52bae5daeb33d918234c2f0944a8aeb07
+    GitHub-Last-Rev: cc8554477024277c3c1b4122344e9d14427680b3
+    GitHub-Pull-Request: golang/go#33489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189137
+    Run-TryBot: Sylvain Zimmer <sylvinus@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/regexp/example_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

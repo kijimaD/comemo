@@ -1,13 +1,15 @@
-commit 09576bc695e42b19b31d9abf0205524b1a7f7278
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 12 13:29:22 2014 +1000
+commit 22a5d2cc961a0f115ebd61f41cabec6e668ed451
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Jun 11 17:39:34 2014 -0700
 
-    misc/makerelease: update default tag to release-branch.go1.3
+    mime/multipart: fix format
     
-    TBR=bradfitz
-    R=golang-codereviews
+    Remove unnecessary blank line.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/104090044
+    https://golang.org/cl/105040045
 
- misc/makerelease/makerelease.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/mime/multipart/multipart.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

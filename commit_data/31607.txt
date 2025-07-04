@@ -1,17 +1,21 @@
-commit 0f0a51f1d12bb009034a38c69aa786ba62ca41e2
-Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
-Date:   Thu Apr 13 11:23:35 2017 -0500
+commit 77f64c50dbaca5fcec8198a575f6c345cb80ad69
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 5 19:34:16 2017 -0500
 
-    os: lstat oldname before renaming
+    runtime: clarify access to mheap_.busy
     
-    Fixes #19647
+    There are two accesses to mheap_.busy that are guarded by checks
+    against len(mheap_.free). This works because both lists are (and must
+    be) the same length, but it makes the code less clear. Change these to
+    use len(mheap_.busy) so the access more clearly parallels the check.
     
-    Change-Id: Ife4f98cf2c55ee9490843797213dae2f2647b0a3
-    Reviewed-on: https://go-review.googlesource.com/40577
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #18944.
+    
+    Change-Id: I9bacbd3663988df351ed4396ae9018bc71018311
+    Reviewed-on: https://go-review.googlesource.com/36354
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/os/file_unix.go | 15 ++++++++++++---
- src/os/os_test.go   | 12 ++++++++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ src/runtime/mheap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,13 +1,13 @@
-commit 632e641fd23e794ae40d3a0d2a10fc9c8e57c1ea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 14 16:28:52 2014 -0700
+commit 8a2ac83cd8b936184968480a2975509dfa1c62cb
+Author: Andrew Szeto <andrew@jabagawee.com>
+Date:   Mon Apr 14 13:03:03 2014 -0700
 
-    doc: simplify a go1.3 change description
+    doc/help.html: fix typo in word order
     
-    LGTM=r
-    R=rsc, r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/87750043
+    https://golang.org/cl/87460043
 
- doc/go1.3.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/help.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

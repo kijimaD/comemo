@@ -1,18 +1,12 @@
-commit c8b148e7a57c829c3525ecb30634ab31524ae712
-Author: Todd Neal <todd@tneal.org>
-Date:   Tue Mar 15 19:26:21 2016 -0500
+commit 57b1e55a0c12369522c65708c1ccf0d8630a10b4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 9 03:47:40 2016 +0900
 
-    cmd/compile: fold constants from lsh/rsh/lsh and rsh/lsh/rsh
+    net: stop scanning for domain name once the first label has been found
     
-    Fixes #14825
-    
-    Change-Id: Ib44d80579a55c15d75ea2ad1ef54efa6ca66a9a6
-    Reviewed-on: https://go-review.googlesource.com/20745
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I95c6c85eecb53ffe52b64d521180148b624e9424
+    Reviewed-on: https://go-review.googlesource.com/18423
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/testdata/arith_ssa.go |  79 +++++++
- src/cmd/compile/internal/ssa/gen/generic.rules    |  12 +
- src/cmd/compile/internal/ssa/rewritegeneric.go    | 264 ++++++++++++++++++++++
- 3 files changed, 355 insertions(+)
+ src/net/dnsclient.go | 1 +
+ 1 file changed, 1 insertion(+)

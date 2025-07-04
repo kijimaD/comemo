@@ -1,13 +1,12 @@
-commit 8d1da1c66ad9e2d9bf6028e7dfff5d1f2151d494
+commit 8ad48b3d7ca895e80bb3389d0aec11da9db99b79
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 7 13:33:59 2011 +1100
+Date:   Wed Dec 7 13:16:02 2011 +1100
 
-    doc: fix weekly.2011-12-06 release notes typo
+    tag weekly.2011-12-06
     
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5453072
+    https://golang.org/cl/5440125
 
- .hgtags               | 2 --
- doc/devel/weekly.html | 4 ++--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

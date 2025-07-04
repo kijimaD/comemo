@@ -1,19 +1,32 @@
-commit fedb0b30188952dc082672cbd45b39a49136d29c
+commit e78d90beebbb6fde602ceb3999535ac4b49da295
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 29 09:22:01 2016 -0400
+Date:   Wed May 25 09:49:28 2016 -0400
 
-    cmd/internal/obj/arm: optimize MOVW $-off(R), R
+    [dev.ssa] cmd/compile: handle Div, Convert, GetClosurePtr etc. on ARM
     
-    When offset < 0 and -offset fits in instruction, generate SUB
-    instruction, instead of ADD with constant from the pool.
+    This CL adds support of Div, Mod, Convert, GetClosurePtr and 64-bit indexing
+    support to SSA backend for ARM.
     
-    Fixes #13280.
+    Add tests for 64-bit indexing to cmd/compile/internal/gc/testdata/string_ssa.go.
     
-    Change-Id: I57d97fe9300fe1f6554365e2262393ef50acbdd3
-    Reviewed-on: https://go-review.googlesource.com/30014
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Tests cmd/compile/internal/gc/testdata/*_ssa.go passed, except compound_ssa.go
+    and fp_ssa.go.
+    
+    Progress on SSA for ARM. Still not complete. Essentially the only unsupported
+    part is floating point.
+    
+    Updates #15365.
+    
+    Change-Id: I269e88b67f641c25e7a813d910c96d356d236bff
+    Reviewed-on: https://go-review.googlesource.com/23542
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/arm/asm5.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go                |  24 +-
+ src/cmd/compile/internal/gc/ssa.go                 |  39 +--
+ src/cmd/compile/internal/gc/testdata/string_ssa.go |  64 +++++
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |  17 ++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go         |  18 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  98 +++++++-
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 266 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go           |   2 +-
+ 8 files changed, 502 insertions(+), 26 deletions(-)

@@ -1,33 +1,16 @@
-commit 56ce83f7ba0b18fd0914439ee75e1164ba82733f
+commit 48b90bbc55889ab12239ef0b3c884316d8f31b1b
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 00:20:55 2013 -0400
+Date:   Wed Aug 14 00:18:20 2013 -0400
 
-    undo CL 12603044 / 2ca230b93195
+    encoding: new package
     
-    fat fingers - did not intend to submit.
-    depends on the Unmarshaler CL anyway.
+    See golang.org/s/go12encoding for design.
     
-    ««« original CL description
-    encoding/xml: add, support Marshaler interface
-    
-    See golang.org/s/go12xml for design.
-    
-    Fixes #2771.
-    Fixes #4169.
-    Fixes #5975.
-    Fixes #6125.
-    
-    R=golang-dev, iant, dan.kortschak
+    R=r
     CC=golang-dev
-    https://golang.org/cl/12603044
-    »»»
-    
-    TBR=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/12918043
+    https://golang.org/cl/12541051
 
- api/go1.1.txt                        |   1 +
- api/go1.txt                          |   7 +
- src/pkg/encoding/xml/marshal.go      | 459 +++++++----------------------------
- src/pkg/encoding/xml/marshal_test.go |  34 ---
- 4 files changed, 97 insertions(+), 404 deletions(-)
+ src/cmd/dist/build.c          |  4 ++++
+ src/pkg/encoding/encoding.go  | 48 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/build/deps_test.go |  5 +++--
+ 3 files changed, 55 insertions(+), 2 deletions(-)

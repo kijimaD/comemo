@@ -1,33 +1,25 @@
-commit 3cfd003a8a89c6662b4b63d837a8cfae95e6762a
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Aug 2 02:20:38 2019 +0000
+commit a1b5cb1d04dc3aac7149a5cb7cfc02111bd4ebef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 18:18:47 2019 -0800
 
-    cmd/compile: optimize ARM's math.bits.RotateLeft32
+    cmd/compile: simplify isGoConst
     
-    This CL optimizes math.bits.RotateLeft32 to inline
-    "MOVW Rx@>Ry, Rd" on ARM.
+    The only ways to construct an OLITERAL node are (1) a basic literal
+    from the source package, (2) constant folding within evconst (which
+    only folds Go language constants), (3) the universal "nil" constant,
+    and (4) implicit conversions of nil to some concrete type.
     
-    The benchmark results of math/bits show some improvements.
-    name               old time/op  new time/op  delta
-    RotateLeft-4       9.42ns ± 0%  6.91ns ± 0%  -26.66%  (p=0.000 n=40+33)
-    RotateLeft8-4      8.79ns ± 0%  8.79ns ± 0%   -0.04%  (p=0.000 n=40+31)
-    RotateLeft16-4     8.79ns ± 0%  8.79ns ± 0%   -0.04%  (p=0.000 n=40+32)
-    RotateLeft32-4     8.16ns ± 0%  7.54ns ± 0%   -7.68%  (p=0.000 n=40+40)
-    RotateLeft64-4     15.7ns ± 0%  15.7ns ± 0%     ~     (all equal)
+    Passes toolstash-check.
     
-    updates #31265
-    
-    Change-Id: I77bc1c2c702d5323fc7cad5264a8e2d5666bf712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188697
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I30fc6b07ebede7adbdfa4ed562436cbb7078a2ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166981
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/arm/ssa.go        |  2 ++
- src/cmd/compile/internal/gc/ssa.go         |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules |  1 +
- src/cmd/compile/internal/ssa/gen/ARMOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go      | 14 ++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM.go | 16 +++++++++++++++-
- test/codegen/mathbits.go                   |  2 ++
- 7 files changed, 36 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 116 +++++--------------------------
+ src/cmd/compile/internal/gc/typecheck.go |  13 ++--
+ test/fixedbugs/bug297.go                 |   2 +-
+ test/fixedbugs/issue11361.go             |   2 +-
+ test/fixedbugs/issue17038.go             |   2 +-
+ test/fixedbugs/issue8183.go              |   4 +-
+ 6 files changed, 30 insertions(+), 109 deletions(-)

@@ -1,17 +1,16 @@
-commit cb3e2bf0baba3f056322d31e0edd0432eb34ea10
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jun 21 05:10:05 2015 +1000
+commit d4ed30612c9eead7b1d59179cae5d468fb900f35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 15 08:45:16 2015 -0700
 
-    cmd/doc: fix copy/paste error in test
+    syscall: don't run fcntl child process test on iOS
     
-    Some of those consts were supposed to be vars.
+    Fixes darwin-arm{,64} builds.
+    Child processes aren't allowed on iOS.
     
-    Caught by Ingo Oeser.
-    
-    Change-Id: Ifc12e4a8ee61ebf5174e4ad923956c546dc096e2
-    Reviewed-on: https://go-review.googlesource.com/11296
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I9258ed4df757ec394ef6327dbda96f5b9705bcdd
+    Reviewed-on: https://go-review.googlesource.com/10142
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/doc_test.go     | 12 ++++++------
- src/cmd/doc/testdata/pkg.go |  6 +++---
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/syscall/syscall_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,15 +1,21 @@
-commit 01fad6a6b052292e598e78b30efb89a12ba1ea0e
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Wed Jan 19 14:21:58 2011 -0500
+commit eb56a79e995f2d4b27ad9565c5d8db5a2fbb4817
+Author: Ben Lynn <benlynn@gmail.com>
+Date:   Wed Jan 19 13:47:04 2011 -0500
 
-    net: add unixpacket
+    regexp: reject bare ?
     
-    R=golang-dev, rsc, rsc1
+    Minor cleanup:
+      - removed a duplicate test case
+      - added a function to remove repeated code
+      - for consistency, replaced "return nil" with a panic at an
+        unreachable point
+    
+    Fixes #1428.
+    
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/2309043
+    https://golang.org/cl/4057042
 
- src/pkg/net/dial.go        |  6 ++---
- src/pkg/net/net_test.go    |  8 ++++++
- src/pkg/net/server_test.go |  5 ++++
- src/pkg/net/unixsock.go    | 61 +++++++++++++++++++++++++++++++---------------
- 4 files changed, 58 insertions(+), 22 deletions(-)
+ src/pkg/regexp/all_test.go |  3 ++-
+ src/pkg/regexp/regexp.go   | 50 ++++++++++++++++++++--------------------------
+ 2 files changed, 24 insertions(+), 29 deletions(-)

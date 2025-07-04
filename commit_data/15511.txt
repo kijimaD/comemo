@@ -1,20 +1,41 @@
-commit f29b0cf9555047693b991bf9d5c158de1f0a548a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Mar 1 11:15:00 2013 +1100
+commit 3a9fcc45f6938e2198d748a78f7c8b9c26692fad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 28 15:27:52 2013 -0800
 
-    net/http/cookiejar: move cookiejar from exp/cookiejar to
-    net/http/cookiejar.
+    go/types: fix type-checking of shift expressions
     
-    This is a straight rename. There are no code changes.
+    Completely rethought shift expression type checking.
+    Instead of attempting to type-check them eagerly, now
+    delay the checking of untyped constant lhs in non-
+    constant shifts until the final expression type
+    becomes clear. Once it is clear, update the respective
+    expression tree with the final (not untyped) type and
+    check respective shift lhs' where necessary.
     
-    Fixes #1960.
+    This also cleans up another conundrum: How to report
+    the type of untyped constants as it changes from
+    untyped to typed. Now, Context.Expr is only called
+    for an expresion x once x has received its final
+    (not untyped) type (for constant initializers, the
+    final type may still be untyped).
     
-    R=rsc, adg
-    CC=dr.volker.dobler, golang-dev
-    https://golang.org/cl/7436043
+    With this CL all remaining std lib packages that
+    did not typecheck due to shift errors pass now.
+    
+    TODO: There's a lot of residual stuff that needs
+    to be cleaned up but with this CL all tests pass
+    now.
+    
+    R=adonovan, axwalk
+    CC=golang-dev
+    https://golang.org/cl/7381052
 
- src/pkg/{exp => net/http}/cookiejar/jar.go           | 0
- src/pkg/{exp => net/http}/cookiejar/jar_test.go      | 0
- src/pkg/{exp => net/http}/cookiejar/punycode.go      | 0
- src/pkg/{exp => net/http}/cookiejar/punycode_test.go | 0
- 4 files changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/exp/gotype/gotype_test.go   |  19 +--
+ src/pkg/go/types/api.go             |  10 +-
+ src/pkg/go/types/builtins.go        |   2 +-
+ src/pkg/go/types/check.go           |  47 +++++-
+ src/pkg/go/types/expr.go            | 287 ++++++++++++++++++++++++++----------
+ src/pkg/go/types/stmt.go            |  81 +++++-----
+ src/pkg/go/types/testdata/expr3.src |  87 ++++++++++-
+ src/pkg/go/types/testdata/stmt0.src |  31 ++--
+ 8 files changed, 419 insertions(+), 145 deletions(-)

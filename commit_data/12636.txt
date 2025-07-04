@@ -1,12 +1,15 @@
-commit 036731c170e4d3b5458ad156b52e76611fd3d13c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 14 13:19:14 2012 -0700
+commit 95a8bab7b6db9c63281a0055b1a2471818129cd5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 14 15:12:57 2012 -0400
 
-    go/build: clearer argument name for Import (src -> srcDir)
+    cmd/go: fix directory->import path conversion
     
-    R=rsc
+    Fixes #3306.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5820052
+    https://golang.org/cl/5821048
 
- src/pkg/go/build/build.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/go/pkg.go    | 12 ++++++++-
+ src/cmd/go/test.bash | 71 +++++++++++++++++++++++++++++++---------------------
+ 2 files changed, 53 insertions(+), 30 deletions(-)

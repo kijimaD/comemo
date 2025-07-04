@@ -1,0 +1,26 @@
+commit 7fa2c736b3dbcc741b4575f4df758532aaee34f7
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 5 14:27:45 2025 -0700
+
+    os: disallow Root.Remove(".") on Plan 9, js, and Windows
+    
+    Windows already forbids this, since removing the root causes a
+    sharing violation (can't delete the directory while the os.Root
+    has a handle open to it), but add a more explicit check for
+    attempts to delete "." and return EINVAL.
+    
+    Note that this change to Windows doesn't affect operations like
+    Root.Remove("dir/."), since the path is cleaned into just "dir"
+    before attempting the deletion.
+    
+    Fixes #73863
+    
+    Change-Id: I0f45ccb6c9f171d3a52831632c134150388d77b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679377
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/windows/at_windows.go | 5 +++++
+ src/os/root_noopenat.go                    | 7 +++++++
+ 2 files changed, 12 insertions(+)

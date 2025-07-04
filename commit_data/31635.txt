@@ -1,17 +1,20 @@
-commit d433de6e86ce08e1b33e5d604080d3f504529006
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Fri May 19 19:52:59 2017 -0700
+commit de3669901a6c9551067071ab410775e57e3b26c2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:37:33 2017 +0100
 
-    cmd/go: warn on -race with -covermode=set.
+    strconv: remove unused append rune width param
     
-    Fixes #20435.
+    Found by github.com/mvdan/unparam. Small performance win when the
+    utf8.RuneLen call is removed.
     
-    Change-Id: I15576f36b26d01642c1187325baea82d3077e578
-    Reviewed-on: https://go-review.googlesource.com/43777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    name               old time/op    new time/op    delta
+    AppendQuoteRune-4    21.7ns ± 0%    21.4ns ± 0%  -1.38%  (p=0.008 n=5+5)
+    
+    Change-Id: Ieb3b3e1148db7a3d854c81555a491edeff549f43
+    Reviewed-on: https://go-review.googlesource.com/37831
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                | 18 ++++++++++++++++++
- src/cmd/go/internal/test/testflag.go |  4 ++++
- 2 files changed, 22 insertions(+)
+ src/strconv/quote.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

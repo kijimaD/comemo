@@ -1,22 +1,15 @@
-commit f554eb7bc332cc265e6cc0490a7595b2f5873cba
-Author: David Chase <drchase@google.com>
-Date:   Mon Jul 13 14:44:14 2020 -0400
+commit c7a59a99e3fa8d85cac0d638e251438238f18503
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Mar 1 17:40:35 2020 -0800
 
-    cmd/compile: add variable length TRESULTS type for SSA use.
+    os: plan9 seek() should invalidate cached directory info
     
-    This type is very much like TTUPLE, but not just for pairs.
-    Used to describe results of a pre-expansion function call.
-    (will later probably also be used to describe the incoming args).
+    Update #37161
     
-    Change-Id: I811850cfcc2b3de85085eb4c2eca217c04c330b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242360
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iee828bbcc8436af29ca6dd9ed897cb5265a57cf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221778
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/fmt.go             | 11 +++++
- src/cmd/compile/internal/types/etype_string.go |  7 +--
- src/cmd/compile/internal/types/type.go         | 66 +++++++++++++++++++++++---
- 3 files changed, 74 insertions(+), 10 deletions(-)
+ src/os/file_plan9.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,19 +1,14 @@
-commit fc5841af9eef7df854e6ddac006de0c6bcb73ff8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 28 13:03:55 2017 -0700
+commit 1bca6a5ebcc4c624b8f3ef0b7c0df2f6db0507d3
+Author: Evan Hicks <evan.hicks2@gmail.com>
+Date:   Sat Jul 15 12:07:04 2017 -0600
 
-    cmd/compile: remove unnecessary Xoffset assignment
+    strings: add example for LastIndexAny
     
-    In golang.org/cl/61130, I removed the need for setting Xoffset on
-    OXCASE Nodes, but missed this assignment.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I90ab05add14981b89ee18e73e1cdf2f13e9f9934
-    Reviewed-on: https://go-review.googlesource.com/66934
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I69d1359d8868d4c5b173e4d831e38cea7dfeb713
+    Reviewed-on: https://go-review.googlesource.com/48859
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/gc/noder.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/strings/example_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

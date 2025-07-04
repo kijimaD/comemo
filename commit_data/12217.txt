@@ -1,13 +1,15 @@
-commit b49dcb9d37cd5856fe273a0ceb56e70ce03e969f
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 27 09:51:58 2012 +1100
+commit 761f946617eb12630095954b436ab11e2cd1f05f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 26 14:46:22 2012 -0800
 
-    cmd/go: explain x... vs. x/... in help importpath
-    Fixes #3110.
+    net/http/cgi: add an empty response test
     
-    R=golang-dev, bradfitz
+    New test for http://code.google.com/p/go/source/detail?r=a73ba18
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5696083
+    https://golang.org/cl/5701046
 
- src/cmd/go/help.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/net/http/cgi/host_test.go       |  1 +
+ src/pkg/net/http/cgi/matryoshka_test.go | 21 ++++++++++++++++++++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

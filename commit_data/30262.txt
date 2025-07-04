@@ -1,23 +1,20 @@
-commit 0993b2fd06a43a2e51b68dd7d8b0643e50c54b9d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 9 14:11:13 2017 -0500
+commit a866df26711c615dfe92ab1b00d256d3d1085f0e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 26 18:10:40 2016 -0400
 
-    runtime: remove g.stackAlloc
+    cmd/internal/obj/arm64: materialize float constant 0 from zero register
     
-    Since we're no longer stealing space for the stack barrier array from
-    the stack allocation, the stack allocation is simply
-    g.stack.hi-g.stack.lo.
+    Materialize float constant 0 from integer zero register, instead
+    of loading from constant pool.
     
-    Updates #17503.
+    Also fix assembling FMOV from zero register to FP register.
     
-    Change-Id: Id9b450ae12c3df9ec59cfc4365481a0a16b7c601
-    Reviewed-on: https://go-review.googlesource.com/36621
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ie413dd342cedebdb95ba8cfc220e23ed2a39e885
+    Reviewed-on: https://go-review.googlesource.com/32250
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/proc.go        | 10 ++++------
- src/runtime/runtime2.go    |  1 -
- src/runtime/signal_unix.go |  4 ----
- src/runtime/stack.go       | 19 +++++++++----------
- 4 files changed, 13 insertions(+), 21 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go |  6 ++++--
+ src/cmd/internal/obj/arm64/obj7.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,29 +1,20 @@
-commit 14cb41584dbf6b0ced5a6467034c1821210fd01c
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Aug 25 01:56:50 2017 +0200
+commit 9cb004be14da73e156258ef433551be3247b3682
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 25 18:08:59 2017 +0900
 
-    cmd/compile: don't use MOVOstore instruction on plan9/amd64
+    vendor: update vendored lif
     
-    CL 54410 and CL 56250 recently added use of the MOVOstore
-    instruction to improve performance.
+    Updates golang_org/x/net/lif to rev a25ba90 for:
+    - lif: don't fail test when at least one version of INET protocols is available
     
-    However, we can't use the MOVOstore instruction on Plan 9,
-    because floating point operations are not allowed in the
-    note handler.
+    Updates #19967.
     
-    This change adds a configuration flag useSSE to enable the
-    use of SSE instructions for non-floating point operations.
-    This flag is enabled by default and disabled on Plan 9.
-    When this flag is disabled, the MOVOstore instruction is
-    not used and the MOVQstoreconst instruction is used instead.
-    
-    Fixes #21599
-    
-    Change-Id: Ie609e5d9b82ec0092ae874bab4ce01caa5bc8fb8
-    Reviewed-on: https://go-review.googlesource.com/58850
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4b946a4c6eee7938193688ecbfc4a9d69d88c94e
+    Reviewed-on: https://go-review.googlesource.com/41651
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/config.go       |   7 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  36 ++++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 176 +++++++++++++++++++++++----
- 3 files changed, 185 insertions(+), 34 deletions(-)
+ src/vendor/golang_org/x/net/lif/address_test.go | 6 ++++--
+ src/vendor/golang_org/x/net/lif/link_test.go    | 6 ++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

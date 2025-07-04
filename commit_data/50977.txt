@@ -1,21 +1,17 @@
-commit bd6cd7db07f314443acdb980393f57386d40551f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Oct 24 14:20:59 2022 -0500
+commit 189b4a2f428be7264db76e5275c96d98b847383b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 14:01:26 2021 -0500
 
-    cmd/compile: fix PPC64 latelower enablement
+    cmd/go: forward the MallocNanoZone variable to script tests
     
-    The commit f841722853 needed an update for c0f27eb3d5. This
-    fixes the aforementioned commit.
+    For #49138
+    Fixes #49723
     
-    Also, regenerate the lowering rules.
-    
-    Change-Id: I2073d2e86af212dfe58bc832a1c04a8ef2a57621
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445155
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia93130fdc042a1e2107be95cccd7e7eeaa909a87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366254
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/config.go                | 1 +
- src/cmd/compile/internal/ssa/rewritePPC64latelower.go | 4 ++--
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/script_test.go | 1 +
+ 1 file changed, 1 insertion(+)

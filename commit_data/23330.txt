@@ -1,15 +1,15 @@
-commit 4105265c66b860244b9f17ae495f8cc27fcd5344
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Thu Jun 11 11:51:54 2015 +0200
+commit a52dc9fcbd157a1dda9e8838180f78c2269fc19d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 6 15:22:34 2015 +1000
 
-    mime: add mime.types paths for BSDs
+    runtime: fix comments that mention g status values
     
-    Change-Id: I22ac23e7e180071de4443291e0a644675200d642
-    Reviewed-on: https://go-review.googlesource.com/10950
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Makes searching in source code easier.
+    
+    Change-Id: Ie2e85934d23920ac0bc01d28168bcfbbdc465580
+    Reviewed-on: https://go-review.googlesource.com/9774
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/mime/type_dragonfly.go | 9 +++++++++
- src/mime/type_freebsd.go   | 9 +++++++++
- src/mime/type_openbsd.go   | 9 +++++++++
- 3 files changed, 27 insertions(+)
+ src/runtime/runtime2.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

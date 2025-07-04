@@ -1,21 +1,18 @@
-commit d43ee1b71411ac0b372e4bc191108ddda321e179
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 31 15:36:49 2013 -0400
+commit 658d19a53f26865549653fb16f80a47ae552b4f0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 31 20:09:03 2013 +0400
 
-           cmd/ld: report pclntab, funcdata sizes in 6l -v output
-           Also move chatty recent additions to -v -v.
+    runtime: do not park sysmon thread if any goroutines are running
+    Sysmon thread parks if no goroutines are running (runtime.sched.npidle ==
+    runtime.gomaxprocs).
+    Currently it's unparked when a goroutine enters syscall, it was enough
+    to retake P's from blocking syscalls.
+    But it's not enough for reliable goroutine preemption. We need to ensure that
+    sysmon runs if any goroutines are running.
     
-           For what it's worth:
-    
-           $ go build -o /dev/null -ldflags -v cmd/godoc
-           ...
-            0.73 pclntab=1259976 bytes, funcdata total 79788 bytes
-           ...
-           $
-    
-    R=ken2
-    CC=cshapiro, golang-dev
-    https://golang.org/cl/12193043
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12176043
 
- src/cmd/ld/lib.c | 20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
+ src/pkg/runtime/proc.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

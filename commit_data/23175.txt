@@ -1,18 +1,22 @@
-commit 4ed7d06a872a6fdaf2a232e794baff747834891b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 29 10:33:39 2015 -0700
+commit 4b23b50fb440f8df0d5da7d8c6550f5fc3cb3529
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 23 14:38:05 2015 +1200
 
-    cmd/asm: delete Addr.Reg2
+    cmd/internal/obj: Delete Link.Symmorestack
     
-    That which cannot happen has not happened.
+    This started out as trying to remove Bool2int calls, which it does a bit, but
+    mostly it ended up being removing the Link.Symmorestack array which seemed a
+    pointless bit of caching.
     
-    No immediate changes to Addr or Prog size.
-    
-    Change-Id: I4cb9315f2c9f5f92eda340bfc4abb46395fa467f
-    Reviewed-on: https://go-review.googlesource.com/10513
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I91a51eb08cb4b08f3f9f093b575306499267b67a
+    Reviewed-on: https://go-review.googlesource.com/9239
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/parse.go | 6 ++----
- src/cmd/internal/obj/link.go      | 1 -
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go   | 13 +++++--------
+ src/cmd/internal/obj/arm64/obj7.go | 13 +++++--------
+ src/cmd/internal/obj/link.go       |  1 -
+ src/cmd/internal/obj/ppc64/obj9.go | 13 +++++--------
+ src/cmd/internal/obj/x86/obj6.go   | 12 +++++-------
+ 5 files changed, 20 insertions(+), 32 deletions(-)

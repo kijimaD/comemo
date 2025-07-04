@@ -1,19 +1,17 @@
-commit e3bb53a7683eb9c3d04c09f28abb4cf9aa89a7c1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 27 17:08:57 2020 +0700
+commit 2f9decbe95a3038c4cb29a4bf5dfa9a296a8e776
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 10 10:30:27 2020 -0400
 
-    cmd/compile: remove isLiteral
+    [dev.link] cmd/link: convert findfunctab to loader APIs
     
-    It has duplicated logic with "n.isGoConst".
+    Convert the linker's findfunctab phase to use the new loader APIs.
     
-    Passes toolstash-check.
-    
-    Change-Id: I5bf871ef81c7188ca09dae29c7ff55b3a254d972
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265437
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia980a85963fe2e7c554c212c0cc89208272264bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227842
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/sinit.go | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/main.go |  6 ++--
+ src/cmd/link/internal/ld/pcln.go | 70 +++++++++++++++++++---------------------
+ 2 files changed, 37 insertions(+), 39 deletions(-)

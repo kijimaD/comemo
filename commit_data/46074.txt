@@ -1,27 +1,19 @@
-commit 165ebd85a77db5f3454f38c6c3f1539f00cf2fef
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Aug 13 12:03:29 2021 -0400
+commit b75f51c6451a00f223ad43ed7069e4136466fdac
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Dec 4 11:07:25 2020 +0700
 
-    cmd/compile/internal/types2: clean up panics in instantiation
+    [dev.regabi] cmd/compile: replace ir.Node with *ir.Name in Liveness
     
-    Clean up a few issues related to panicking during invalid instantiation.
-     - Panic early in instantiateLazy when check == nil and verify == true.
-       Otherwise, we would panic at check.later.
-     - Always panic when check == nil and verify == true, even if targs is
-       of incorrect length. This is more consistent behavior.
-     - Lift the check for len(posList) <= len(targs) out of
-       Checker.instantiate. This is the only reason why posList is passed to
-       that function, and doing this allows us to eliminate posList from
-       instance. At this point instance is close to being unnecessary, so
-       update a TODO to this effect.
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: Id5f44cbb1a5897aef10ce2a573aa78acd7ae4026
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341862
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Updates #42982
+    
+    Change-Id: Iad8df321adfd576da070c13ed16a9651d4e59ad8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275352
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go | 40 +++++++++++++++-----------
- src/cmd/compile/internal/types2/named.go       |  9 +++---
- 2 files changed, 27 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

@@ -1,27 +1,19 @@
-commit ab3f1a23b6c29a110423d6fd6bf2b01fa62a6fb2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 11 14:20:54 2019 -0700
+commit 5286b2ad424c1c0afe5fc1b7939cd49f0296380f
+Author: David Chase <drchase@google.com>
+Date:   Wed May 8 16:44:05 2019 -0400
 
-    runtime: add race detector support for new timers
+    cmd/compile: test delve instead of gdb in ssa/debug_test.go
     
-    Since the new timers run on g0, which does not have a race context,
-    we add a race context field to the P, and use that for timer functions.
-    This works since all timer functions are in the standard library.
+    This seems to deflake the test, and also allows testing
+    on macOS.
     
-    Updates #27707
+    Fixes #31786.
     
-    Change-Id: I8a5b727b4ddc8ca6fc60eb6d6f5e9819245e395b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171882
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I10bfba46dd4b8e64cb09fdd4dd9d175c1ce1f022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176058
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go        | 15 +++++++++++++++
- src/runtime/race.go        | 13 +++++++++++++
- src/runtime/race0.go       |  2 ++
- src/runtime/race_amd64.s   | 18 +++++++++++++++---
- src/runtime/race_arm64.s   | 13 ++++++++++++-
- src/runtime/race_ppc64le.s | 19 ++++++++++++++++---
- src/runtime/runtime2.go    |  3 +++
- src/runtime/time.go        | 22 ++++++++++++++++++++++
- 8 files changed, 98 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/debug_test.go | 126 ++++++++++++++++++++---------
+ 1 file changed, 90 insertions(+), 36 deletions(-)

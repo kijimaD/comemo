@@ -1,19 +1,15 @@
-commit 03d1aa602470a38510e0bd71341ed7b7a1672bc9
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Tue Apr 4 13:54:54 2017 -0400
+commit cc2dcce3d748b5585a1da5a9aa2e7ab8b8be00cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 15:21:21 2017 -0800
 
-    syscall: mark WSAECONNABORTED, WSAECONNRESET as temporary network errors
+    [dev.typealias] cmd/compile: a few better comments related to alias types
     
-    Windows was missed in https://golang.org/cl/141600043.
+    For #18130.
     
-    Fixes #6163 (again).
-    
-    Change-Id: I09076be80fb6b2148d3e5618461ebaa79f27d5b3
-    Reviewed-on: https://go-review.googlesource.com/39490
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I50bded3af0db673fc92b20c41a86b9cae614acd9
+    Reviewed-on: https://go-review.googlesource.com/35191
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall_windows.go | 2 +-
- src/syscall/ztypes_windows.go  | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/syntax.go   | 2 +-
+ src/cmd/compile/internal/gc/universe.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

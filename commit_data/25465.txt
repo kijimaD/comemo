@@ -1,17 +1,14 @@
-commit 62c280ac1c2fce24133359513fa33ff11315f5ad
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 6 13:10:22 2016 -0800
+commit a4fb8c13db3f1501f8195306de571b64ed1aeb73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 1 12:30:54 2015 -0800
 
-    runtime/pprof: skip TestStackBarrierProfiling on dragonfly too
+    test: add gcc6798, valid code that caused gccgo to crash
     
-    Just saw a few dragonfly failures here.
-    
-    I'm tempted to preemptively add plan9 here too, but I'll wait until
-    I see it fail.
-    
-    Change-Id: Ic99fc088dbfd1aa21f509148aee98ccfe7f640bf
-    Reviewed-on: https://go-review.googlesource.com/18306
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I288bd3091ea81db7b616747cbec8958a31d98b7e
+    Reviewed-on: https://go-review.googlesource.com/16532
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/gcc67968.dir/a.go | 12 ++++++++++++
+ test/fixedbugs/gcc67968.dir/b.go | 12 ++++++++++++
+ test/fixedbugs/gcc67968.go       | 14 ++++++++++++++
+ 3 files changed, 38 insertions(+)

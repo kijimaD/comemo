@@ -1,18 +1,12 @@
-commit 4938d7b5fc06bbd137619eddd494a8cca288eb25
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 20 17:29:50 2016 -0700
+commit 1afacd0e329a08279a6b417a4f92c97967eeed5e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 26 14:35:42 2016 +1100
 
-    cmd/compile: fix dominator check in check()
+    doc: update issue template
     
-    Ancestor comparison was the wrong way around, effectively
-    disabling the def-must-dominate-use check.
-    
-    Update #15084
-    
-    Change-Id: Ic56d674c5000569d2cc855bbb000a60eae517c7c
-    Reviewed-on: https://go-review.googlesource.com/22330
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iaa23d27043e6a050075b40072e466623418ba977
+    Reviewed-on: https://go-review.googlesource.com/19878
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/check.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .github/ISSUE_TEMPLATE | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

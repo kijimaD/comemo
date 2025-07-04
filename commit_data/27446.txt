@@ -1,22 +1,17 @@
-commit 1efec481d0997e260f4524d45d11cc35bed63f73
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 18 20:07:16 2016 +0000
+commit 1b2fbb49c82eb4d6c418cf26edbfb3dab7c3cd07
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 10:35:13 2016 -0700
 
-    net/http: further restrict when Transport's automatic HTTP/2 happens
+    cmd/compile: cleanup alg.go for Field slices
     
-    Make the temporary, conservative restrictions from rev 79d9f48c in Go
-    1.6 permanent, and also don't do automatic TLS if the user configured
-    a Dial or DialTLS hook. (Go 1.7 has Transport.Dialer instead, for
-    tweaking dialing parameters)
+    Passes toolstash -cmp.
     
-    Fixes #14275
-    
-    Change-Id: I5550d5c1e3a293e103eb4251a3685dc204a23941
-    Reviewed-on: https://go-review.googlesource.com/23222
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie41d7e74847c44a8fd174731374339c6c32b1460
+    Reviewed-on: https://go-review.googlesource.com/21231
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go      | 13 ++++++-------
- src/net/http/transport_test.go | 15 +++++++++++++++
- 2 files changed, 21 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/alg.go   | 30 +++++++++++++-----------------
+ src/cmd/compile/internal/gc/align.go |  2 +-
+ src/cmd/compile/internal/gc/type.go  |  5 +++++
+ 3 files changed, 19 insertions(+), 18 deletions(-)

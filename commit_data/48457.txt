@@ -1,16 +1,18 @@
-commit 7eaad60737bc507596c56cec4951b089596ccc9e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Mar 20 11:52:02 2022 -0700
+commit 8876b9bd6a8a0c206c0a5d59302ce5167f26e9f3
+Author: Adam Mitha <adam.mitha@gmail.com>
+Date:   Fri May 14 10:58:01 2021 -0700
 
-    net/http: flesh out Request.SetBasicAuth docs a bit
+    doc/go1.17: document io/fs changes for Go 1.17
     
-    Clarify that username can't contain a colon.
-    See https://go.dev/play/p/aM25UHC6n98
+    For #44513
+    Fixes #46011
     
-    Change-Id: I342575107104cbcd28b1d3442c474adf93b7f03c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394115
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I862ef9a4314cd34fb8c828a8cd7d0a7b36c6f683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320151
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/http/request.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

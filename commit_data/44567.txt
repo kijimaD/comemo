@@ -1,16 +1,33 @@
-commit b6df58bd1f3b2a05787f62bbec4267f7867d4bbd
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 5 09:50:28 2021 -0800
+commit cc700bdc269edc5fd29b14c1866c7f57f6f9b526
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jun 19 17:59:16 2020 -0400
 
-    cmd/compile: detect duplicate importing earlier
+    cmd/trace: move viewer data structs into cmd/internal/traceviewer
     
-    Change-Id: I05ba944e189a884b727e40a9526d212612c3e923
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299770
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    The ViewerEvent, ViewerData and ViewerFrame structs are moved into
+    cmd/internal/traceviewer, and renamed Event, Data, and Frame.
+    
+    The structs are the same, except for the following: A definition
+    for the JSON "bp" field that's defined in the trace format, but
+    missing in the structs has been added. Also, the Tid and Pid fields
+    on Event have been renamed TID and PID to better match Go style.
+    Finally, the footer field on ViewerData, which hasn't been used
+    for a while, has been removed.
+    
+    This CL is in preparation for the usage of these structs by cmd/go's
+    tracing functionality.
+    
+    Updates #38714
+    
+    Change-Id: I345f23617b96d4629b876ae717f89d56a67e05a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239098
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/typecheck/func.go    | 11 +++--------
- src/cmd/compile/internal/typecheck/iimport.go |  2 +-
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ src/cmd/internal/traceviewer/format.go |  38 ++++++++++
+ src/cmd/trace/trace.go                 | 125 +++++++++++++--------------------
+ src/cmd/trace/trace_test.go            |   7 +-
+ src/cmd/trace/trace_unix_test.go       |   3 +-
+ 4 files changed, 92 insertions(+), 81 deletions(-)

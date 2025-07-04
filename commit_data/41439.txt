@@ -1,22 +1,18 @@
-commit ba093c4562e7464e95a4bde6505d270b71ed623f
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun Feb 23 20:45:51 2020 -0800
+commit 3ad350820df8217b4d05c56923e533a196bace27
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 3 11:48:34 2019 -0700
 
-    doc/articles/race_detector: mention memory leak potential
+    cmd/compile: change size diagnostic to use benchmark format
     
-    As far as I can tell, there is no public documentation on this topic,
-    which cost me several days of debugging.
+    Makes it easier to run
     
-    I am possibly unusual in that I run binaries in production with the
-    race detector turned on, but I think that others who do the same may
-    want to be aware of the risk.
+        go build -a -gcflags=-d=export std |& grep ^BenchmarkExportSize
     
-    Updates #26813.
-    Updates #37233.
+    and get useful output for feeding into benchstat.
     
-    Change-Id: I1f8111bd01d0000596e6057b7cb5ed017d5dc655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220586
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I2b52e8f5ff33b7ccb6c25b18e464513344bd9ad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198698
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/articles/race_detector.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/export.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

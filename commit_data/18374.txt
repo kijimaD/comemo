@@ -1,34 +1,16 @@
-commit 01e3b4fc6aa13e126f61782ad42aa51ba490b302
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 29 11:23:45 2014 +0100
+commit 731e6f7d1d7238c8465f44691836a8a865d4cdb9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 29 09:51:31 2014 +0900
 
-    net/http: reuse client connections earlier when Content-Length is set
+    net: fix incoming connection's network name handling on unix networks
     
-    Set EOF on the final Read of a body with a Content-Length, which
-    will cause clients to recycle their connection immediately upon
-    the final Read, rather than waiting for another Read or Close
-    (neither of which might come).  This happens often when client
-    code is simply something like:
+    Fixes #7183.
     
-      err := json.NewDecoder(resp.Body).Decode(&dest)
-      ...
-    
-    Then there's usually no subsequent Read. Even if the client
-    calls Close (which they should): in Go 1.1, the body was
-    slurped to EOF, but in Go 1.2, that was then treated as a
-    Close-before-EOF and the underlying connection was closed.
-    But that's assuming the user even calls Close. Many don't.
-    Reading to EOF also causes a connection be reused. Now the EOF
-    arrives earlier.
-    
-    This CL only addresses the Content-Length case. A future CL
-    will address the chunked case.
-    
-    LGTM=adg
-    R=adg
+    LGTM=iant
+    R=golang-codereviews, gobot, iant
     CC=golang-codereviews
-    https://golang.org/cl/49570044
+    https://golang.org/cl/57520043
 
- src/pkg/net/http/transfer.go       | 11 ++++++++++
- src/pkg/net/http/transport_test.go | 43 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+)
+ src/pkg/net/conn_test.go      | 16 +++++++++++-----
+ src/pkg/net/unixsock_posix.go |  6 +++++-
+ 2 files changed, 16 insertions(+), 6 deletions(-)

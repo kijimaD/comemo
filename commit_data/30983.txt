@@ -1,29 +1,15 @@
-commit 69fe9ea43e66552c11f2b87cdf63a39448b46287
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 3 17:50:34 2017 +0000
+commit 5dd978a283ca445f8b5f255773b3904497365b61
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 12 13:56:11 2016 -0500
 
-    cmd/compile/internal/ssa: use recently agreed upon generated code header
+    runtime: expand HACKING.md
     
-    Updates #13560
+    This adds high-level descriptions of the scheduler structures, the
+    user and system stacks, error handling, and synchronization.
     
-    Change-Id: I9bc08ca5cf0627e653d55f748ebb83be8b69ea3b
-    Reviewed-on: https://go-review.googlesource.com/39296
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1eed97c6dd4a6e3d351279e967b11c6e64898356
+    Reviewed-on: https://go-review.googlesource.com/34290
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/gen/main.go       | 3 +--
- src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
- src/cmd/compile/internal/ssa/opGen.go          | 3 +--
- src/cmd/compile/internal/ssa/rewrite386.go     | 2 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2 +-
- src/cmd/compile/internal/ssa/rewriteARM.go     | 2 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 2 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 2 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 2 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 2 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 2 +-
- src/cmd/compile/internal/ssa/rewritedec.go     | 2 +-
- src/cmd/compile/internal/ssa/rewritedec64.go   | 2 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 2 +-
- 14 files changed, 14 insertions(+), 16 deletions(-)
+ src/runtime/HACKING.md | 139 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 136 insertions(+), 3 deletions(-)

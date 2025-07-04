@@ -1,37 +1,29 @@
-commit 0a7f00ae239570d664488085f9c395919bc69066
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Tue Jul 6 21:45:02 2021 +0200
+commit 5627a4dc3013fed02c4b8097413643b682cac276
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Dec 8 19:44:33 2020 -0500
 
-    cmd/compile: do not mark arrays used for map initialization noalg
+    runtime/metrics: simplify test to support more environments
     
-    Arrays marked noalg are created by the compiler to hold keys and values
-    to initialize map literals. The ssa backend creates a pointer type for
-    the array type when creating an OpAddr while processing the loop that
-    initializes the map from the arrays. The pointer type does not inherit
-    the noalg property but points to the noalg array type.
+    go test sets the working directory to that of the package being tested,
+    so opening one of the package source files can be done in a simpler way.
+    This also allows the test to run in more environments, for example when
+    GOROOT_FINAL¹ is set.
     
-    This causes values created through reflect of types that should be
-    equal to compare unequal because the noalg and alg type might be
-    compared and these are not the same.
+    Also remove the testenv.HasSrc-like check for Go source. The doc.go
+    file is a part of the package being built and tested, so it's expected
+    to be available. If it's important for this test to handle when a test
+    binary is built with go test -c and executed elsewhere without package
+    source files, something more than testenv.HasSrc would be needed.
     
-    A similar problem occurred in #32595 for argument arrays of defer structs.
+    ¹ https://golang.org/cmd/go/#hdr-Environment_variables
     
-    Created #47904 to track improve noalg handling to be able to
-    reintroduce this optimization again.
+    Fixes #43085.
     
-    Fixes #47068
-    
-    Change-Id: I87549342bd404b98d71a3c0f33e3c169e9d4efc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344349
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie6ade395a8fc7beebdadbad6f4873800138dfc26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276452
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/walk/complit.go |  4 ++--
- test/fixedbugs/issue47068.dir/a.go       | 15 +++++++++++++++
- test/fixedbugs/issue47068.dir/b.go       | 15 +++++++++++++++
- test/fixedbugs/issue47068.dir/main.go    | 15 +++++++++++++++
- test/fixedbugs/issue47068.go             |  7 +++++++
- 5 files changed, 54 insertions(+), 2 deletions(-)
+ src/runtime/metrics/description_test.go | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)

@@ -1,16 +1,27 @@
-commit 09e900eb334ec5f0f1cfffb063c4ebce046e892f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 25 13:18:49 2015 -0800
+commit 7454f53604b9953b5b7a3897c6b855957f911e66
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 21 10:30:04 2015 -0700
 
-    spec: clarify that iota is incremented even if not used in a const spec
+    cmd/vet: copy changes from golang.org/x/tools to cmd/vet
     
-    Slightly modified an example.
+    This means bringing over the examples flag and sorting doc.go.
     
-    Fixes #13371.
+    Subsequent changes will generalize the examples flag to a general
+    test naming flag, but let's start with the original code.
     
-    Change-Id: I25d260d4200086a0ef9725950132b760657610c5
-    Reviewed-on: https://go-review.googlesource.com/17209
-    Reviewed-by: Rob Pike <r@golang.org>
+    No more changes to golang.org/x/tools please. This should not have
+    happened (and letting it happen was partly my fault).
+    
+    Change-Id: Ia879ea1d15d82372df14853f919263125dfb7b96
+    Reviewed-on: https://go-review.googlesource.com/14821
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/vet/doc.go                               | 119 ++++++++++++----------
+ src/cmd/vet/example.go                           | 124 +++++++++++++++++++++++
+ src/cmd/vet/main.go                              |  21 ++--
+ src/cmd/vet/testdata/divergent/buf.go            |  17 ++++
+ src/cmd/vet/testdata/divergent/buf_test.go       |  35 +++++++
+ src/cmd/vet/testdata/examples_test.go            |  48 +++++++++
+ src/cmd/vet/testdata/incomplete/examples_test.go |  33 ++++++
+ src/cmd/vet/vet_test.go                          |  80 ++++++++++-----
+ 8 files changed, 392 insertions(+), 85 deletions(-)

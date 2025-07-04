@@ -1,12 +1,37 @@
-commit 362f7bfa689979fd0c122ee87f54fefb0f88e9fb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 13 13:18:54 2015 -0700
+commit 3a0fbfab57b133f4703cc7693a2af745570785ba
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 5 16:08:29 2015 +0300
 
-    test: add test that gccgo failed to compile
+    cmd/gc: generate simpler names for closures
     
-    Change-Id: I9ea6d4d8a9c1c63de36f2f3871dd5ac9201c0aac
-    Reviewed-on: https://go-review.googlesource.com/7523
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #8291
+    
+    There were several complaints about closure names in the issue tracker.
+    The first problem is that you see names like net/http.func·001
+    in profiles, traces, etc. And there is no way to figure out what
+    is that function.
+    Another issue is non-US-ascii symbols. All programs out there
+    should accept UTF-8. But unfortunately it is not true in reality.
+    For example, less does not render middle dot properly.
+    
+    This change prepends outer function name to closure name and
+    replaces middle dot with dot. Now names look like:
+    
+    main.glob.func1
+    main.glob.func2
+    main.glob.func2.1
+    main.init.1
+    main.init.1.func1
+    main.init.1.func1.1
+    main.main.func1
+    main.main.func1.1
+    
+    Change-Id: I725726af88f2ad3ced2e3450f0f06bf459fd91c0
+    Reviewed-on: https://go-review.googlesource.com/3964
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/fixedbugs/bug495.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/gc/closure.c | 61 ++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/gc/go.h      |  2 ++
+ src/cmd/gc/init.c    | 11 +++++-----
+ src/cmd/gc/pgen.c    |  2 +-
+ 4 files changed, 60 insertions(+), 16 deletions(-)

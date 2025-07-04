@@ -1,37 +1,20 @@
-commit 4c9a470d468b6b6fa0520f32e034a1762dba3f9d
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 21 22:57:26 2016 -0700
+commit 09940b92a08203aa3d2baa90fc29b80ccfcb32c5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 26 14:44:58 2016 -0500
 
-    cmd/compile: start on ARM port
+    runtime: make p.gcBgMarkWorker a guintptr
     
-    Start working on arm port.  Gets close to correct
-    code for fibonacci:
-        func fib(n int) int {
-            if n < 2 {
-                return n
-            }
-            return fib(n-1) + fib(n-2)
-        }
+    Currently p.gcBgMarkWorker is a *g. Change it to a guintptr. This
+    eliminates a write barrier during the subtle mark worker parking dance
+    (which isn't known to be causing problems, but may).
     
-    Still a lot to do, but this is a good starting point.
-    
-    Cleaned up some arch-specific dependencies in regalloc.
-    
-    Change-Id: I4301c6c31a8402168e50dcfee8bcf7aee73ea9d5
-    Reviewed-on: https://go-review.googlesource.com/21000
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ibf12c05ac910820448059e69a68e5b882c993ed8
+    Reviewed-on: https://go-review.googlesource.com/18970
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/arm/galign.go         |   6 +
- src/cmd/compile/internal/arm/ssa.go            | 152 +++++++++++++
- src/cmd/compile/internal/gc/ssa.go             |  10 +-
- src/cmd/compile/internal/ssa/config.go         |   8 +
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  32 +++
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |  66 ++++++
- src/cmd/compile/internal/ssa/gen/decOps.go     |   7 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
- src/cmd/compile/internal/ssa/gen/main.go       |  13 ++
- src/cmd/compile/internal/ssa/op.go             |   2 +
- src/cmd/compile/internal/ssa/opGen.go          | 178 +++++++++++++++
- src/cmd/compile/internal/ssa/regalloc.go       | 105 ++++-----
- src/cmd/compile/internal/ssa/rewriteARM.go     | 294 +++++++++++++++++++++++++
- 13 files changed, 807 insertions(+), 73 deletions(-)
+ src/runtime/mgc.go      | 17 ++++++-----------
+ src/runtime/proc.go     | 14 +++++++-------
+ src/runtime/runtime2.go |  2 +-
+ 3 files changed, 14 insertions(+), 19 deletions(-)

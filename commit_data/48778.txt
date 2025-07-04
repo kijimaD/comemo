@@ -1,58 +1,20 @@
-commit 72e77a7f41bbf45d466119444307fd3ae996e257
-Author: zhangyunhao <zhangyunhao116@gmail.com>
-Date:   Tue Dec 14 13:52:05 2021 +0800
+commit ee0420d3b56982cb1600dc141dfd4be155adddfe
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 16 10:29:21 2021 +0700
 
-    sort: use pdqsort
+    [dev.typeparams] cmd/compile: factor out implicit/explicit handling
     
-    - Across all benchmarks, pdqsort is never significantly slower than the previous algorithm.
-    - In common patterns, pdqsort is often faster (i.e. 10x faster in sorted slices).
+    The logic for handling them must keep in sync between reader/writer, so
+    factoring them out from addBody make it's easier to refer later.
     
-    The pdqsort is described at https://arxiv.org/pdf/2106.05123.pdf
-    
-    This CL is inspired by both C++ implementation and Rust implementation.
-    - C++ implementation: https://github.com/orlp/pdqsort
-    - Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
-    
-    For #50154
-    
-    name                   old time/op  new time/op  delta
-    SearchWrappers-16      72.8ns ± 3%  75.1ns ± 2%   +3.25%  (p=0.000 n=20+10)
-    SortString1K-16        85.2µs ± 3%  86.2µs ± 5%     ~     (p=0.247 n=19+10)
-    SortString1K_Slice-16  84.6µs ± 4%  86.1µs ± 4%     ~     (p=0.120 n=20+10)
-    StableString1K-16       112µs ± 5%   112µs ± 5%     ~     (p=0.604 n=19+10)
-    SortInt1K-16           44.8µs ± 3%  43.2µs ± 2%   -3.68%  (p=0.000 n=20+10)
-    SortInt1K_Sorted-16    28.2µs ± 3%   3.3µs ± 3%  -88.16%  (p=0.000 n=19+10)
-    SortInt1K_Reversed-16  29.4µs ± 3%   4.8µs ± 2%  -83.59%  (p=0.000 n=20+10)
-    SortInt1K_Mod8-16      25.1µs ± 2%  20.0µs ± 2%  -20.35%  (p=0.000 n=18+10)
-    StableInt1K-16         51.3µs ± 3%  50.9µs ± 2%     ~     (p=0.562 n=20+9)
-    StableInt1K_Slice-16   49.5µs ± 2%  50.7µs ± 4%   +2.55%  (p=0.009 n=19+10)
-    SortInt64K-16          4.73ms ± 3%  4.49ms ± 4%   -5.08%  (p=0.000 n=20+10)
-    SortInt64K_Slice-16    4.51ms ± 3%  4.35ms ± 1%   -3.42%  (p=0.000 n=20+8)
-    StableInt64K-16        4.85ms ± 2%  4.82ms ± 2%     ~     (p=0.267 n=20+10)
-    Sort1e2-16             27.9µs ± 1%  28.1µs ± 2%     ~     (p=0.198 n=20+10)
-    Stable1e2-16           56.6µs ± 2%  55.0µs ± 2%   -2.88%  (p=0.000 n=20+10)
-    Sort1e4-16             5.51ms ± 1%  5.36ms ± 1%   -2.58%  (p=0.000 n=19+9)
-    Stable1e4-16           17.8ms ± 1%  17.3ms ± 1%   -2.40%  (p=0.000 n=20+10)
-    Sort1e6-16              833ms ± 1%   807ms ± 1%   -3.02%  (p=0.000 n=20+10)
-    Stable1e6-16            3.49s ± 2%   3.44s ± 1%   -1.41%  (p=0.001 n=20+10)
-    
-    Change-Id: Iecded047d237b9330b5a4101001a5fdc2f50646a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371574
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Change-Id: I26447065867d79f4f47cc678a398b9e7bf5d2403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328051
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/sort/example_multi_test.go |   2 +-
- src/sort/export_test.go        |   4 +
- src/sort/gen_sort_variants.go  | 391 ++++++++++++++++++++++++++++-------------
- src/sort/slice.go              |   5 +-
- src/sort/sort.go               |  37 +++-
- src/sort/sort_test.go          |  70 ++++++++
- src/sort/zsortfunc.go          | 371 ++++++++++++++++++++++++++------------
- src/sort/zsortinterface.go     | 371 ++++++++++++++++++++++++++------------
- 8 files changed, 885 insertions(+), 366 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 15 +++++++++++----
+ src/cmd/compile/internal/noder/sync.go   |  1 +
+ src/cmd/compile/internal/noder/writer.go | 11 +++++++++--
+ 3 files changed, 21 insertions(+), 6 deletions(-)

@@ -1,21 +1,18 @@
-commit f0d21a773fdb8187f06168aa0a4938988016dd2c
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Jun 10 12:58:14 2011 -0400
+commit b5071e92b45f63edcb6a4ef691c769307b43f32c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 10 22:32:45 2011 +1000
 
-    crypto/openpgp: add ability to encrypt messages.
+    bike/shed: new package.
     
-    R=bradfitz, r
+    It comes up often enough that it's time to provide
+    the utility of a standard package.
+    
+    R=r, mirtchovski, adg, rsc, n13m3y3r, ality, go.peter.90, lstoakes, iant, jan.mercl, bsiegert, robert.hencke, rogpeppe, befelemepeseveze, kevlar
     CC=golang-dev
-    https://golang.org/cl/4581051
+    https://golang.org/cl/4557047
 
- src/pkg/crypto/openpgp/keys.go                     |  76 +++++++++++++++
- src/pkg/crypto/openpgp/packet/encrypted_key.go     |  61 +++++++++++-
- .../crypto/openpgp/packet/encrypted_key_test.go    |  77 ++++++++++++---
- src/pkg/crypto/openpgp/packet/packet.go            |  24 ++++-
- src/pkg/crypto/openpgp/packet/private_key.go       |   2 +-
- .../openpgp/packet/symmetric_key_encrypted.go      |   6 +-
- .../openpgp/packet/symmetrically_encrypted.go      |   4 +-
- src/pkg/crypto/openpgp/read.go                     |   1 -
- src/pkg/crypto/openpgp/write.go                    | 103 ++++++++++++++++++++-
- src/pkg/crypto/openpgp/write_test.go               |  45 +++++++++
- 10 files changed, 372 insertions(+), 27 deletions(-)
+ src/pkg/Makefile                 |  1 +
+ src/pkg/bike/shed/Makefile       | 11 +++++++++++
+ src/pkg/bike/shed/colors.go      | 26 ++++++++++++++++++++++++++
+ src/pkg/bike/shed/colors_test.go | 15 +++++++++++++++
+ 4 files changed, 53 insertions(+)

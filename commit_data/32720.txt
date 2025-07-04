@@ -1,26 +1,40 @@
-commit c64e7938505fb31ab869d9305b8e15781bc426ce
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 12 13:36:44 2017 -0700
+commit 495f55d27d16b2b8deee4b7e79186b07336f6765
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Apr 26 12:04:08 2017 +0100
 
-    cmd/compile: simplify exporting ONAME nodes
+    cmd/compile: make duplicate expr cases readable
     
-    These two special cases are unnecessary:
+    Instead of just printing the value, print the original node to make the
+    error more human-friendly. Also print the value if its string form is
+    different than the original node, to make sure it's obvious what value
+    was duplicated.
     
-    1) "~b%d" references only appear during walk, to handle "return"
-    statements implicitly assigning to blank result parameters. Even if
-    they could appear, the "inlined and customized version" accidentally
-    diverged from p.sym in golang.org/cl/33911.
+    This means that "case '@', '@':", which used to print:
     
-    2) The Vargen case is already identical to the default case, and it
-    never overlaps with the remaining "T.method" case.
+            duplicate case 64 in switch
     
-    Passes toolstash-check.
+    Will now print:
     
-    Change-Id: I03f7e5b75b707b43afc8ed6eb90f43ba93ed17ae
-    Reviewed-on: https://go-review.googlesource.com/63272
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+            duplicate case '@' (value 64) in switch
+    
+    Factor this logic out into its own function to reuse it in range cases
+    and any other place where we might want to print a node and its value in
+    the future.
+    
+    Also needed to split the errorcheck files because expression switch case
+    duplicates are now detected earlier, so they stop the compiler before it
+    gets to generating the AST and detecting the type switch case
+    duplicates.
+    
+    Fixes #20112.
+    
+    Change-Id: I9009b50dec0d0e705e5de9c9ccb08f1dce8a5a99
+    Reviewed-on: https://go-review.googlesource.com/41852
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/bexport.go | 16 ----------------
- 1 file changed, 16 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 90 ++++++++++++++++++--------------------
+ test/switch5.go                    | 45 ++++++++-----------
+ test/switch7.go                    | 35 +++++++++++++++
+ 3 files changed, 96 insertions(+), 74 deletions(-)

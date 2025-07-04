@@ -1,35 +1,24 @@
-commit 30b1af00ff142a3f1a5e2a0f32cf04a649bd5e65
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Wed Oct 12 10:05:51 2022 -0400
+commit d181885de8f718623b41d45f5cc8644bbd8ad318
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 21 13:20:20 2021 +0100
 
-    runtime/pprof: scale mutex profile samples when they are recorded
+    os: enable TestMkdirAllWithSymlink on darwin/arm64
     
-    Samples in the mutex profile have their count and duration scaled
-    according to the probability they were sampled. This is done when the
-    profile is actually requested. The adjustment is done using to the
-    current configured sampling rate. However, if the sample rate is changed
-    after a specific sample is recorded, then the sample will be scaled
-    incorrectly. In particular, if the sampling rate is changed to 0, all of
-    the samples in the encoded profile will have 0 count and duration. This
-    means the profile will be "empty", even if it should have had samples.
+    Go 1.16 renamed the iOS port from darwin/arm64 to ios/arm64 and
+    darwin/arm64 was repurposed for the macOS ARM64 port (see
+    https://golang.org/doc/go1.16#darwin).
     
-    This CL scales the samples in the profile when they are recorded, rather
-    than when the profile is requested. This matches what is currently done
-    for the block profile.
+    TestMkdirAllWithSymlink ought to run on darwin/arm64, so enable it on
+    that platform.
     
-    With this change, neither the block profile nor mutex profile are scaled
-    when they are encoded, so the logic for scaling the samples can be
-    removed.
+    For #45696
     
-    Change-Id: If228cf39284385aa8fb9a2d62492d839e02f027f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443056
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2cad6b1dfddf215e6b6cd262bbd22251f48f3d8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373359
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/runtime/mprof.go            |  8 ++++++++
- src/runtime/pprof/pprof.go      | 29 +++++++--------------------
- src/runtime/pprof/pprof_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 22 deletions(-)
+ src/os/path_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

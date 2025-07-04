@@ -1,22 +1,33 @@
-commit 190357d560b2bf4421c1819ebb9afe7aa175785c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 2 10:30:47 2015 -0500
+commit 135ef49fde39c95fe61212376172c6ad333449c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 4 17:31:37 2015 -0800
 
-    cmd/dist, cmd/go: move textdata.h, funcdata.h from pkg/GOOS_GOARCH to pkg/include
+    runtime: speed up eqstring
     
-    There's no point to having them in every GOOS_GOARCH directory,
-    since they are neither GOOS- nor GOARCH-specific.
-    (There used to be other headers that were.)
+    eqstring does not need to check the length of the strings.
     
-    This makes building for additional toolchains easier:
-    no need to run make.bash at all.
+    6g
     
-    Fixes #10049.
+    benchmark                              old ns/op     new ns/op     delta
+    BenchmarkCompareStringEqual            7.03          6.14          -12.66%
+    BenchmarkCompareStringIdentical        3.36          3.04          -9.52%
     
-    Change-Id: I710ecaafd7a5c8cad85ccd595ea9cb6058f553b3
-    Reviewed-on: https://go-review.googlesource.com/6471
-    Reviewed-by: Rob Pike <r@golang.org>
+    5g
+    
+    benchmark                                 old ns/op     new ns/op     delta
+    BenchmarkCompareStringEqual               238           232           -2.52%
+    BenchmarkCompareStringIdentical           90.8          80.7          -11.12%
+    
+    The equivalent PPC changes are in a separate commit
+    because I don't have the hardware to test them.
+    
+    Change-Id: I292874324b9bbd9d24f57a390cfff8b550cdd53c
+    Reviewed-on: https://go-review.googlesource.com/3955
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/build.go | 7 ++++---
- src/cmd/go/build.go   | 4 ++--
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/gc/walk.c          |  1 +
+ src/runtime/asm_386.s      | 10 +++-------
+ src/runtime/asm_amd64.s    | 10 +++-------
+ src/runtime/asm_amd64p32.s | 10 +++-------
+ src/runtime/asm_arm.s      | 12 +++++-------
+ 5 files changed, 15 insertions(+), 28 deletions(-)

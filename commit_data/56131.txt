@@ -1,20 +1,76 @@
-commit da6cc218cbe22b865ed43a84c1198c5ee15f3371
-Author: Liam Miller-Cushon <cushon@google.com>
-Date:   Wed Apr 3 22:43:58 2024 +0000
+commit ee591c841439292a8ecdefcb66d518381928d9f3
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 16:57:07 2023 -0700
 
-    archive/zip: fix a broken URL in a comment in writeDataDescriptor
+    net: add wasip1 support
     
-    The comment contains a dead link to a OpenJDK bug ID 7073588
-    this change fixes the link.
+    For #58141
     
-    Change-Id: Ib9b10362c707507e59bb6f340d52a0025f65e292
-    GitHub-Last-Rev: 37af15b947a59346e23191dad264efa0aaa461af
-    GitHub-Pull-Request: golang/go#66669
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576335
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I09a7cf33e43cb0e17ab3793c22cbad90b9e83b62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479626
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/archive/zip/writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/conf.go                   | 2 +-
+ src/net/conn_test.go              | 2 +-
+ src/net/dial_test.go              | 2 +-
+ src/net/dnsclient_unix.go         | 2 +-
+ src/net/dnsconfig_unix.go         | 2 +-
+ src/net/dnsname_test.go           | 2 +-
+ src/net/error_posix.go            | 2 +-
+ src/net/error_test.go             | 2 +-
+ src/net/error_unix.go             | 2 +-
+ src/net/external_test.go          | 2 +-
+ src/net/file_stub.go              | 2 +-
+ src/net/file_test.go              | 2 +-
+ src/net/hook_unix.go              | 2 +-
+ src/net/interface_stub.go         | 2 +-
+ src/net/interface_test.go         | 2 +-
+ src/net/ip_test.go                | 2 +-
+ src/net/iprawsock_posix.go        | 2 +-
+ src/net/iprawsock_test.go         | 2 +-
+ src/net/ipsock_posix.go           | 2 +-
+ src/net/listen_test.go            | 2 +-
+ src/net/lookup_fake.go            | 2 +-
+ src/net/lookup_test.go            | 2 +-
+ src/net/main_conf_test.go         | 2 +-
+ src/net/main_noconf_test.go       | 2 +-
+ src/net/main_posix_test.go        | 2 +-
+ src/net/main_test.go              | 2 +-
+ src/net/mockserver_test.go        | 2 +-
+ src/net/net_fake.go               | 4 ++--
+ src/net/net_test.go               | 2 +-
+ src/net/packetconn_test.go        | 2 +-
+ src/net/parse_test.go             | 5 +++--
+ src/net/port_unix.go              | 2 +-
+ src/net/protoconn_test.go         | 2 +-
+ src/net/rawconn_stub_test.go      | 2 +-
+ src/net/rawconn_test.go           | 2 +-
+ src/net/resolverdialfunc_test.go  | 2 +-
+ src/net/sendfile_stub.go          | 2 +-
+ src/net/sendfile_test.go          | 2 +-
+ src/net/server_test.go            | 2 +-
+ src/net/sock_stub.go              | 2 +-
+ src/net/sockaddr_posix.go         | 2 +-
+ src/net/sockopt_stub.go           | 2 +-
+ src/net/sockoptip_stub.go         | 2 +-
+ src/net/tcpsock_posix.go          | 2 +-
+ src/net/tcpsock_test.go           | 2 +-
+ src/net/tcpsock_unix_test.go      | 2 +-
+ src/net/tcpsockopt_stub.go        | 2 +-
+ src/net/timeout_test.go           | 2 +-
+ src/net/udpsock_posix.go          | 2 +-
+ src/net/udpsock_test.go           | 2 +-
+ src/net/unixsock.go               | 2 +-
+ src/net/unixsock_posix.go         | 2 +-
+ src/net/unixsock_readmsg_other.go | 2 +-
+ src/net/unixsock_test.go          | 2 +-
+ src/net/writev_test.go            | 2 +-
+ 55 files changed, 58 insertions(+), 57 deletions(-)

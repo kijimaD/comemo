@@ -1,33 +1,29 @@
-commit e6e26eeb299f9829ac70bd400d011bfdd266f1c1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jul 18 21:59:14 2016 -0700
+commit 1d214f7062e80bebb081cdfad2ceda3e5bd0de29
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 13 06:19:53 2016 +0900
 
-    cmd/internal/obj: convert Aconv to a stringer
+    net: cache IPv6 zone information for applications using IPv6 link-local address
     
-    Now that assembler opcodes have their own type, they can have a true
-    stringer, rather than explicit calls to Aconv, which makes for nicer
-    format strings.
+    This change reduces the overhead of calling routing information per IPv6
+    link-local datagram read by caching IPv6 addressing scope zone
+    information.
     
-    Change-Id: Ic77f5f8ac38b4e519dcaa08c93e7b732226f7bfe
-    Reviewed-on: https://go-review.googlesource.com/25045
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #15237.
+    
+    name                    old time/op    new time/op    delta
+    UDP6LinkLocalUnicast-8    64.9µs ± 0%    18.6µs ± 0%  -71.30%
+    
+    name                    old alloc/op   new alloc/op   delta
+    UDP6LinkLocalUnicast-8    11.2kB ± 0%     0.2kB ± 0%  -98.42%
+    
+    name                    old allocs/op  new allocs/op  delta
+    UDP6LinkLocalUnicast-8       101 ± 0%         3 ± 0%  -97.03%
+    
+    Change-Id: I5ae2ef5058df1028bbb7f4ab32b13edfb330c3a7
+    Reviewed-on: https://go-review.googlesource.com/21952
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/asm.go         | 28 +++++++++++++--------------
- src/cmd/compile/internal/arm/peep.go    |  4 ++--
- src/cmd/compile/internal/arm64/peep.go  |  4 ++--
- src/cmd/compile/internal/mips64/peep.go |  2 +-
- src/cmd/compile/internal/ppc64/peep.go  |  2 +-
- src/cmd/compile/internal/ppc64/prog.go  |  2 +-
- src/cmd/compile/internal/s390x/peep.go  |  2 +-
- src/cmd/internal/obj/arm/asm5.go        |  8 ++++----
- src/cmd/internal/obj/arm64/asm7.go      | 34 ++++++++++++++++-----------------
- src/cmd/internal/obj/mips/asm0.go       | 12 ++++++------
- src/cmd/internal/obj/ppc64/asm9.go      | 18 ++++++++---------
- src/cmd/internal/obj/s390x/asmz.go      | 12 ++++++------
- src/cmd/internal/obj/util.go            |  4 ++--
- src/cmd/internal/obj/x86/asm6.go        |  2 +-
- src/cmd/internal/obj/x86/obj6.go        |  2 +-
- 15 files changed, 68 insertions(+), 68 deletions(-)
+ src/net/interface.go    | 81 +++++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/ipsock.go       | 21 -------------
+ src/net/udpsock_test.go | 37 ++++++++++++++++++++++
+ 3 files changed, 115 insertions(+), 24 deletions(-)

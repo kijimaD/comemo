@@ -1,14 +1,12 @@
-commit 2fd016422ee144383e7afb41821711f05b52b281
-Author: Damian Gryski <dgryski@gmail.com>
-Date:   Sat Oct 3 12:06:32 2015 +0200
+commit 25d1916816c7fae4049b47efdc5fde37ce4a9be1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 28 12:37:46 2015 -0700
 
-    math/big: check return value from quick.Check() for GCD tests
+    [dev.ssa] cmd/compile: implement OINDREG in expr context
     
-    Change-Id: I46c12aaaf453365c157604dfb1486605cfefd7af
-    Reviewed-on: https://go-review.googlesource.com/15263
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1922656c99773255e5bc15b5a2bd79f19a2fe82c
+    Reviewed-on: https://go-review.googlesource.com/12796
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/int_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

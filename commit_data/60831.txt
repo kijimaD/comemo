@@ -1,0 +1,36 @@
+commit b8e533a7cdc60d84a0c52bfaf3dcb5bf148ac3a8
+Author: Charlie Vieth <charlie.vieth@gmail.com>
+Date:   Fri Dec 2 22:53:26 2022 -0500
+
+    unicode: improve SimpleFold performance by 2x for non-foldable code points
+    
+    Change SimpleFold to search the CaseRanges table only once when no
+    folding is specified for the rune (previously up to two searches could
+    be performed). This improves performance by 2x for runes that have no
+    folds or are already upper case. As a side effect this improves the
+    performance of To by roughly ~15%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: unicode
+    cpu: Apple M1 Max
+                         │ base.10.txt  │             new.10.txt              │
+                         │    sec/op    │   sec/op     vs base                │
+    ToUpper-10             11.860n ± 1%   9.731n ± 1%  -17.95% (p=0.000 n=10)
+    ToLower-10              12.31n ± 1%   10.34n ± 1%  -16.00% (p=0.000 n=10)
+    SimpleFold/Upper-10     19.16n ± 0%   15.98n ± 1%  -16.64% (p=0.000 n=10)
+    SimpleFold/Lower-10     32.41n ± 1%   17.09n ± 1%  -47.27% (p=0.000 n=10)
+    SimpleFold/Fold-10      8.884n ± 4%   8.856n ± 8%        ~ (p=0.700 n=10)
+    SimpleFold/NoFold-10    30.87n ± 0%   15.49n ± 3%  -49.84% (p=0.000 n=10)
+    geomean                 17.09n        12.47n       -26.99%
+    
+    Change-Id: I6e5c7554106842955aadeef7b266c4c7944d3a97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454958
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/unicode/letter.go      | 67 +++++++++++++++++++++++++++++-----------------
+ src/unicode/letter_test.go | 26 ++++++++++++++++++
+ 2 files changed, 68 insertions(+), 25 deletions(-)

@@ -1,19 +1,14 @@
-commit b5c7183001889d0c7b54618dba0a1db32c2a1a23
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 27 16:48:48 2017 -0800
+commit bce795fb1f89df27241745a90b795b758cdda5af
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 28 14:57:47 2017 +0900
 
-    runtime: skip GDB tests on NetBSD
+    cmd/link: unexport Elfadddynsym
     
-    TestGdbAutotmpTypes times out for unknown reasons on NetBSd. Skip the
-    gdb tests on NetBSD for now.
-    
-    Updates #22893
-    
-    Change-Id: Ibb05b7260eabb74d805d374b25a43770939fa5f2
-    Reviewed-on: https://go-review.googlesource.com/80136
+    Change-Id: Ifc66bd8c32e788f35da3bd105bcdcfd04bd3dabc
+    Reviewed-on: https://go-review.googlesource.com/59414
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime-gdb_test.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ src/cmd/link/internal/ld/go.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

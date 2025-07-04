@@ -1,26 +1,14 @@
-commit 1250d2e3742c15054fd94ca43aadae5ef39da539
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 5 05:18:08 2015 -0500
+commit e10e913d08b6eb53b81f18ea9fc7b7caaf599b4a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jan 14 14:36:17 2015 -0500
 
-    cmd/gc: remove C subclassing trick from popt.c
+    syscall: use name+(NN)FP on linux/arm
     
-    It does not convert to Go well.
+    Generated with a modified version of go vet and tested on android.
     
-    Being able to do this just once, instead of 4 times, was the primary
-    motivation for all the recent refactoring (not that it wasn't overdue).
-    
-    Still bit-for-bit identical.
-    
-    Change-Id: Ia01f17948441bf64fa78ec4226f0bb40af0bbaab
-    Reviewed-on: https://go-review.googlesource.com/3962
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I1ff20135c5ab9de5a6dbf76ea2991167271ee70d
+    Reviewed-on: https://go-review.googlesource.com/2815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/5g/peep.c |   2 +-
- src/cmd/6g/peep.c |   2 +-
- src/cmd/8g/peep.c |   2 +-
- src/cmd/9g/peep.c |   2 +-
- src/cmd/gc/go.h   |   3 +
- src/cmd/gc/popt.c | 226 ++++++++++++++++++-------------------
- src/cmd/gc/popt.h |  15 +--
- src/cmd/gc/reg.c  | 328 ++++++++++++++++++++++++++++++------------------------
- 8 files changed, 302 insertions(+), 278 deletions(-)
+ src/syscall/asm_linux_arm.s | 110 ++++++++++++++++++++++----------------------
+ 1 file changed, 55 insertions(+), 55 deletions(-)

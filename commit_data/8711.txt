@@ -1,13 +1,12 @@
-commit 371aa14e0606f0a34a89330be1a34e908603e6c2
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Jun 14 17:32:47 2011 +1000
+commit c6c8dbd646ae79d2dd1f1920d6992d6177bc3238
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 14 17:25:57 2011 +1000
 
-    mail: decode RFC 2047 "B" encoding.
+    doc/gopher: add a small gif to use as an app engine logo on GAE pages.
     
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4584056
+    https://golang.org/cl/4591078
 
- src/pkg/mail/message.go      | 89 ++++++++++++++++++++++++++++++--------------
- src/pkg/mail/message_test.go | 23 +++++++++++-
- 2 files changed, 83 insertions(+), 29 deletions(-)
+ doc/gopher/appenginelogo.gif | Bin 0 -> 2105 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

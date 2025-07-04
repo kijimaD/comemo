@@ -1,19 +1,22 @@
-commit 28cee7075e3a2eda9504c73ad4649ffcc01b52a4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 6 18:06:06 2018 -0400
+commit 2d4ccbfe51c3a51cf59c91ac384a37aa3d427176
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 17:55:59 2018 -0700
 
-    cmd/go: test that 'go get pkg@version' installs pkg
+    crypto/x509: don't return nil, nil from SystemCertPool
     
-    This test passes, but it encodes several behaviors that I think are bugs.
-    I suggest that we check it in as-is, and we can update it as the bugs are fixed.
+    If there are no certs, return an empty pool, not nil.
     
-    Change-Id: Icb073de9cb13036dbccadb4ff2cb3169ffb56236
-    Reviewed-on: https://go-review.googlesource.com/128137
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #21405
+    
+    Change-Id: Ib4ac9d5c4a8cef83dd53565b0707a63b73ba0a8b
+    Reviewed-on: https://go-review.googlesource.com/103596
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../mod/research.swtch.com_vgo-tour_v1.0.0.txt     | 23 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_get_commit.txt      |  9 +++++++++
- src/cmd/go/testdata/script/mod_install.txt         | 16 +++++++++++++++
- 3 files changed, 48 insertions(+)
+ src/crypto/x509/root_plan9.go     | 3 +++
+ src/crypto/x509/root_unix.go      | 2 +-
+ src/crypto/x509/root_unix_test.go | 4 ----
+ src/crypto/x509/x509_test.go      | 3 ---
+ 4 files changed, 4 insertions(+), 8 deletions(-)

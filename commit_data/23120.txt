@@ -1,18 +1,32 @@
-commit 8de8925c7794a39d9747e386163ebdccda561cca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 21 17:52:49 2015 -0700
+commit d86b8d34d069c3895721ba47cac664f8bbf2b8ad
+Author: David Leon Gil <coruus@gmail.com>
+Date:   Tue Jan 6 21:07:24 2015 -0800
 
-    math/big: add more Float.Float64 conversion tests
+    crypto/elliptic: don't unmarshal points that are off the curve
     
-    - structure the Float64 conversion tests the same way as for Float32
-    - add additional test cases, including one that exposes a current issue
-      (currently disabled, same issue as was fixed for Float32)
+    At present, Unmarshal does not check that the point it unmarshals
+    is actually *on* the curve. (It may be on the curve's twist.)
     
-    The Float64 fix will be in a subsequent change for easier reviewing.
+    This can, as Daniel Bernstein has pointed out at great length,
+    lead to quite devastating attacks. And 3 out of the 4 curves
+    supported by crypto/elliptic have twists with cofactor != 1;
+    P-224, in particular, has a sufficiently large cofactor that it
+    is likely that conventional dlog attacks might be useful.
     
-    Change-Id: I95dc9e8d1f6b6073a98c7bc2289e6d3248fc3420
-    Reviewed-on: https://go-review.googlesource.com/10351
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This closes #2445, filed by Watson Ladd.
+    
+    To explain why this was (partially) rejected before being accepted:
+    
+    In the general case, for curves with cofactor != 1, verifying subgroup
+    membership is required. (This is expensive and hard-to-implement.)
+    But, as recent discussion during the CFRG standardization process
+    has brought out, small-subgroup attacks are much less damaging than
+    a twist attack.
+    
+    Change-Id: I284042eb9954ff9b7cde80b8b693b1d468c7e1e8
+    Reviewed-on: https://go-review.googlesource.com/2421
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/math/big/float_test.go | 88 ++++++++++++++++++++++++++++------------------
- 1 file changed, 53 insertions(+), 35 deletions(-)
+ src/crypto/elliptic/elliptic.go      |  6 +++++-
+ src/crypto/elliptic/elliptic_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

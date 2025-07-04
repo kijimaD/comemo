@@ -1,25 +1,39 @@
-commit 240eac38e1be22d8dfaf96731c337afa479248ff
-Author: Eric <eric@tnz.fr>
-Date:   Mon Apr 13 21:28:47 2020 +0000
+commit 61fa79885ba83b2552e7026cb300ae426a3c0b83
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 18 15:45:52 2019 -0400
 
-    io: simplify Examples
+    cmd/compile: fix missing unsafe-points
     
-    - CopyN: 5 creates ambiguity with respect to whitespace and upperbound
-    - TeeReader less boilerplate and displays a common usage of it
-    - SectionReader_* all sections unified to 5:17 for clarity
-    - SectionReader_Seek uses io.Copy to stdout like other examples
-    - Seeker_Seek remove useless prints
-    - Pipe print reader like other examples
+    Currently, the compiler fails to mark any unsafe-points in the initial
+    instructions of a function as unsafe points. This happens because
+    unsafe points are encoded as a stack map index of -2 and the compiler
+    emits PCDATA instructions when there's a change in the stack map
+    index, but I had set the initial stack map index to -2. The actual
+    initial PCDATA value assumed by the PCDATA encoder and the runtime is
+    -1. Hence, if the first instructions had a stack map index of -2, no
+    PCDATA was emitted, which cause the runtime to assume the index was -1
+    instead.
     
-    Updates #36417
+    This was particularly problematic in the runtime, where the compiler
+    was supposed to mark only calls as safe-points and everything else as
+    unsafe-points. Runtime leaf functions, for example, should have been
+    marked as entirely unsafe-points, but were instead marked entirely as
+    safe-points.
     
-    Change-Id: Ibd01761d5a5786cdb1ea934f7a98f8302430c8a5
-    GitHub-Last-Rev: 4c17f9a8e32d89743b7eaec7c52032256972cc0a
-    GitHub-Pull-Request: golang/go#38379
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227868
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fix this by making the PCDATA instruction generator assume the initial
+    PCDATA value is -1 instead of -2, so it will emit a PCDATA instruction
+    right away if the first real instruction is an unsafe-point.
+    
+    This increases the size of the cmd/go binary by 0.02% since we now
+    emit slightly more PCDATA than before.
+    
+    For #10958, #24543.
+    
+    Change-Id: I92222107f799130072b36d49098d2686f1543699
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202084
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/io/example_test.go | 47 +++++++++++++++--------------------------------
- 1 file changed, 15 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

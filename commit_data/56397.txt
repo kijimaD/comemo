@@ -1,26 +1,40 @@
-commit 2141315251da47745c8f649c01e598a19bd68897
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Fri Mar 29 19:59:47 2024 +0100
+commit 79723f389b630e61c5e9635235b7f4c624ac1379
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 2 13:07:26 2023 -0400
 
-    runtime: move profiling pc buffers to m
+    internal/testenv: remove HasExec and simplify other support checks again
     
-    Move profiling pc buffers from being stack allocated to an m field.
+    HasExec is an attractive nuisance: it is tempting to check in a
+    TestMain function, but TestMain really shouldn't be running
+    subprocesses eagerly anyway (they add needless overhead for operations
+    like 'go test -list=.'), and the trick of re-executing the test binary
+    to determine whether 'exec' works ends up in infinite recursion if
+    TestMain itself calls HasExec.
     
-    This is motivated by the next patch, which will increase the default
-    stack depth to 128, which might lead to undesirable stack growth for
-    goroutines that produce profiling events.
+    Instead, tests that need to execute a subprocess should call
+    MustHaveExec or MustHaveExecPath from within a specific test,
+    or just try to exec the program and check its error status
+    (perhaps using testenv.SyscallIsNotSupported).
     
-    Additionally, this change paves the way to make the stack depth
-    configurable via GODEBUG.
+    While I'm in here and testing on the SlowBots anyway, a few other
+    cleanups relating to subprocesses:
     
-    Change-Id: Ifa407f899188e2c7c0a81de92194fdb627cb4b36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574699
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    - Add more t.Helper calls to support checks where appropriate.
+    
+    - Remove findGoTool, which can be simplified to exec.LookPath as of
+      CL 404134.
+    
+    - Add tests confirming the expected behavior of the support functions
+      on the Go project's builders.
+    
+    Change-Id: I163c701b2dd6eb6b7a036c6848f99b64dd9f0838
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491660
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/malloc.go   |  2 +-
- src/runtime/mprof.go    | 37 ++++++++++++++++++-------------------
- src/runtime/proc.go     | 10 ++++++++++
- src/runtime/runtime2.go |  1 +
- 4 files changed, 30 insertions(+), 20 deletions(-)
+ src/internal/testenv/exec.go         |  39 +++++------
+ src/internal/testenv/testenv.go      | 129 +++++++++++++++++------------------
+ src/internal/testenv/testenv_test.go | 104 ++++++++++++++++++++++++++++
+ 3 files changed, 183 insertions(+), 89 deletions(-)

@@ -1,20 +1,12 @@
-commit c9e5600f7d3c46d3053eadc83a9b02642413bcb3
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 9 00:10:34 2012 -0500
+commit 26fa1c8248472e89cf61f7cb24ac0e7f4c876d72
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 9 11:50:38 2012 +0900
 
-    runtime: move runtime.write back to C
+    net: fix typo
     
-    It may have to switch stacks, since we are calling
-    a DLL instead of a system call.
-    
-    badcallback says where it is, because it is being called
-    on a Windows stack already.
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5782060
+    https://golang.org/cl/5782063
 
- src/pkg/runtime/sys_windows_386.s   | 24 ++----------------------
- src/pkg/runtime/sys_windows_amd64.s | 23 +----------------------
- src/pkg/runtime/thread_windows.c    | 21 +++++++++++++++++++++
- 3 files changed, 24 insertions(+), 44 deletions(-)
+ src/pkg/net/interface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,22 @@
-commit 322fff8ac855390dc2a2876e9051a8dd526d2c6a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 16 15:04:33 2017 -0800
+commit 8eb9fdaa0123fc98cb70f58801eb74c8a6f92817
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 24 08:39:31 2016 +1000
 
-    math/big: use math/bits where appropriate
+    cmd/compile: write type symbols referenced in ptabs
     
-    This change adds math/bits as a new dependency of math/big.
+    The exported symbol for a plugin can be the only reference to a
+    type in a program. In particular, "var F func()" will have
+    the type *func(), which is uncommon.
     
-    - use bits.LeadingZeroes instead of local implementation
-      (they are identical, so there's no performance loss here)
+    Fixes #17140
     
-    - leave other functionality local (ntz, bitLen) since there's
-      faster implementations in math/big at the moment
-    
-    Change-Id: I1218aa8a1df0cc9783583b090a4bb5a8a145c4a2
-    Reviewed-on: https://go-review.googlesource.com/37141
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ide2104edbf087565f5377374057ae54e0c00c57e
+    Reviewed-on: https://go-review.googlesource.com/29692
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/buildtool.go |  1 +
- src/go/build/deps_test.go |  2 +-
- src/math/big/arith.go     | 41 ++++++++++++++---------------------------
- src/math/big/nat.go       | 41 ++---------------------------------------
- src/math/big/nat_test.go  | 30 ------------------------------
- src/math/big/natconv.go   |  3 ++-
- 6 files changed, 20 insertions(+), 98 deletions(-)
+ misc/cgo/testplugin/src/host/host.go           | 12 ++++++++++++
+ misc/cgo/testplugin/src/sub/plugin1/plugin1.go |  3 +++
+ src/cmd/compile/internal/gc/reflect.go         |  2 +-
+ src/cmd/link/internal/ld/deadcode.go           |  5 +++++
+ 4 files changed, 21 insertions(+), 1 deletion(-)

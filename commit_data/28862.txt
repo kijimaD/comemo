@@ -1,33 +1,20 @@
-commit 687d9d5d78f8a2d09b2052e73be0c83740e17fda
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 13 10:44:57 2016 -0400
+commit 4e24e1d9996b0b0155c8349e49244d9694c89708
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Aug 1 17:43:24 2016 +0300
 
-    runtime: print a message on bad morestack
+    cmd/internal/obj/x86: VPSHUFD takes an unsigned byte.
     
-    If morestack runs on the g0 or gsignal stack, it currently performs
-    some abort operation that typically produces a signal (e.g., it does
-    an INT $3 on x86). This is useful if you're running in a debugger, but
-    if you're not, the runtime tries to trap this signal, which is likely
-    to send the program into a deeper spiral of collapse and lead to very
-    confusing diagnostic output.
+    VPSHUFD should take an unsigned argument to be consistent with
+    PSHUFD. Also fix all usage.
     
-    Help out people trying to debug without a debugger by making morestack
-    print an informative message before blowing up.
+    Fixes #16499
     
-    Change-Id: I2814c64509b137bfe20a00091d8551d18c2c4749
-    Reviewed-on: https://go-review.googlesource.com/31133
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ie699c102afed0379445914a251710365b14d89b6
+    Reviewed-on: https://go-review.googlesource.com/25383
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_386.s      |  6 ++++--
- src/runtime/asm_amd64.s    |  6 ++++--
- src/runtime/asm_amd64p32.s |  6 ++++--
- src/runtime/asm_arm.s      |  8 ++++++--
- src/runtime/asm_arm64.s    |  6 ++++--
- src/runtime/asm_mips64x.s  |  6 ++++--
- src/runtime/asm_ppc64x.s   |  6 ++++--
- src/runtime/asm_s390x.s    |  6 ++++--
- src/runtime/proc.go        | 18 ++++++++++++++++++
- 9 files changed, 52 insertions(+), 16 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go      | 4 ++--
+ src/crypto/sha256/sha256block_amd64.s | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

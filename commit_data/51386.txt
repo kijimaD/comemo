@@ -1,31 +1,44 @@
-commit ee5ccc9d4a41df1a1c6d339fa2624b0ee8e26045
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Oct 23 14:22:22 2022 +0200
+commit 32636cd1ffc6cd9ef81d09b8320d2aaad4a21117
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jan 18 12:55:17 2022 -0800
 
-    crypto/rsa: deprecate and de-optimize multi-prime RSA
+    cmd/compile: make sure multiple blank typeparams remain unique
     
-    I have never encountered multi-prime RSA in the wild. A GitHub-wide
-    search reveals exactly two explicit uses of it (and a couple of tools
-    that leave the number configurable but defaulting to two).
+    In a method declaration "func (f *Foo[_, _]) String() string { ... }",
+    the two blank typeparams have the same name, but our current design with
+    types1 needs unique names for type params. Similarly, for export/import,
+    we need unique names to keep the type params straight in generic types
+    and connect the proper type param with the proper constraint. We make
+    blank type params unique by changing them to $1, $2, etc in noder.typ0()
+    via typecheck.TparamExportName(). We then revert $<num> back to _ during
+    type2 import via typecheck.TparamName(). We similarly revert
+    during gcimporter import. We don't need/want to revert in the types1
+    importer, since we want unique names for type params.
     
-    https://github.com/decred/tumblebit/blob/31898baea/puzzle/puzzlekey.go#L38
-    https://github.com/carl-mastrangelo/pixur/blob/95d4a4208/tools/genkeys/genkeys.go#L13
+    Rob Findley has made a similar change to x/tools (and we tried to make
+    the source code changes similar for the gcimporter and types2 importer
+    changes).
     
-    Multi-prime RSA has a slight performance advantage, but has limited
-    compatibility and the number of primes must be chosen carefully based on
-    the key size to avoid security issues. It also requires a completely
-    separate and rarely used private key operation code path, which if buggy
-    or incorrect would leak the private key.
+    Fixes #50419
     
-    Mark it as deprecated, and remove the dedicated CRT optimization,
-    falling back instead to the slower but safer non-CRT fallback.
-    
-    Change-Id: Iba95edc044fcf9b37bc1f4bb59c6ea273975837f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445017
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I855cc3d90d06bcf59541ed0c879e9a0e4ede45bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379194
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/crypto/rsa/rsa.go | 46 ++++++++++++++++++++++------------------------
- 1 file changed, 22 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go  | 11 +++++----
+ src/cmd/compile/internal/noder/types.go       |  9 +++++---
+ src/cmd/compile/internal/typecheck/iexport.go | 31 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/decl.go       | 11 ---------
+ src/go/internal/gcimporter/iimport.go         | 28 ++++++++++++++++++-----
+ src/go/types/decl.go                          | 13 -----------
+ test/typeparam/issue50419.go                  | 33 +++++++++++++++++++++++++++
+ test/typeparam/issue50481.go                  | 21 -----------------
+ test/typeparam/issue50481b.dir/b.go           | 16 +++++++++++++
+ test/typeparam/issue50481b.dir/main.go        | 23 +++++++++++++++++++
+ test/typeparam/issue50481b.go                 |  7 ++++++
+ test/typeparam/issue50481c.dir/a.go           | 30 ++++++++++++++++++++++++
+ test/typeparam/issue50481c.dir/main.go        | 18 +++++++++++++++
+ test/typeparam/issue50481c.go                 |  7 ++++++
+ test/typeparam/issue50481c.out                |  1 +
+ 15 files changed, 200 insertions(+), 59 deletions(-)

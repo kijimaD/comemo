@@ -1,14 +1,13 @@
-commit 57af97f2f4056cbaa4bad6d3109b71cacbc395b3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 4 08:06:29 2013 +1100
+commit a9e1c8fb413f24836a433f3e816984157b79e102
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 13:29:06 2013 -0700
 
-    misc/dist: include race detector packages in binary distributions
+    doc/go1.1.html: document the state of gccgo
+    Fixes #5053.
     
-    Fixes #4596.
-    
-    R=golang-dev, r
+    R=adg, iant
     CC=golang-dev
-    https://golang.org/cl/8327045
+    https://golang.org/cl/8337043
 
- misc/dist/bindist.go | 27 +++++++++++++++++++--------
- 1 file changed, 19 insertions(+), 8 deletions(-)
+ doc/go1.1.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

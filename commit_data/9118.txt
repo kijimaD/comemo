@@ -1,19 +1,14 @@
-commit bd77619142f6eb9212fb99ca17aade47afc001e5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 18 15:50:55 2011 -0400
+commit 27753ff10897b566b6b8086f5fa3c83b6c4c271e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 18 14:56:22 2011 -0400
 
-    runtime: track running goroutine count
+    runtime: add per-M caches for MemStats
+    Avoid touching centralized state during
+    memory manager operations.
     
-    Used to use mcpu+msyscall but that's
-    problematic for packing into a single
-    atomic word.  The running goroutine count
-    (where running == Go code or syscall)
-    can be maintained separately, always
-    manipulated under lock.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/4767041
+    R=mirtchovski
+    CC=golang-dev, rsc
+    https://golang.org/cl/4766042
 
- src/pkg/runtime/proc.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/runtime/malloc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

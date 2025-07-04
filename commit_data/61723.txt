@@ -1,0 +1,20 @@
+commit 57147256e64a94f37219cb094c39efdd29dda2d6
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 20 17:00:57 2024 -0800
+
+    os: recognize EFTYPE, EINVAL as a refusal to open a symlink
+    
+    NetBSD returns EFTYPE when opening a symlink with O_NOFOLLOW.
+    
+    Dragonfly seems to return EINVAL. Only check for EINVAL on Dragonfly,
+    since that seems like a bit of a broad net.
+    
+    Change-Id: I031357816f1fe4c370373001207e65996087597f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/eloop_netbsd.go | 19 +++++++++++++++++++
+ src/os/eloop_other.go  | 27 +++++++++++++++++++++++++++
+ src/os/root_unix.go    |  6 +++---
+ 3 files changed, 49 insertions(+), 3 deletions(-)

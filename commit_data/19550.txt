@@ -1,16 +1,25 @@
-commit e9da5fe2795335d11fa4da2e2a383ff4d9786d75
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Jun 17 02:05:27 2014 -0400
+commit b36ed9056ff57c04c34240f2dc6b1bb59e84d0c7
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 16 21:00:37 2014 -0700
 
-    cmd/5c, cmd/6c, cmd/8c, cmd/cc: remove unused global variable retok.
+    runtime: implement eqstring in assembly.
     
-    LGTM=bradfitz
-    R=rsc, iant
+    BenchmarkCompareStringEqual               10.4          7.33          -29.52%
+    BenchmarkCompareStringIdentical           3.99          3.67          -8.02%
+    BenchmarkCompareStringSameLength          9.80          6.84          -30.20%
+    BenchmarkCompareStringDifferentLength     1.09          0.95          -12.84%
+    BenchmarkCompareStringBigUnaligned        75220         76071         +1.13%
+    BenchmarkCompareStringBig                 69843         74746         +7.02%
+    
+    LGTM=bradfitz, josharian
+    R=golang-codereviews, bradfitz, josharian, dave, khr
     CC=golang-codereviews
-    https://golang.org/cl/107160046
+    https://golang.org/cl/105280044
 
- src/cmd/5c/gc.h   | 1 -
- src/cmd/6c/gc.h   | 1 -
- src/cmd/8c/gc.h   | 1 -
- src/cmd/cc/pgen.c | 2 --
- 4 files changed, 5 deletions(-)
+ src/pkg/runtime/asm_386.s       | 22 ++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s     | 22 ++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64p32.s  | 22 ++++++++++++++++++++++
+ src/pkg/runtime/asm_arm.s       | 27 +++++++++++++++++++++++++++
+ src/pkg/runtime/runtime_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/string.goc      | 12 ------------
+ 6 files changed, 131 insertions(+), 12 deletions(-)

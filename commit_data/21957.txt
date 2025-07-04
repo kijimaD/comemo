@@ -1,23 +1,25 @@
-commit 9f9d66d3b66d1d23fd5578f30b2fa084e4f83902
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Fri Mar 6 11:32:42 2015 +0000
+commit df218d33935e1d5d4e535080e01cd83e6a508efa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 13:44:39 2015 -0800
 
-    encoding/xml: fix default namespace of tags
+    math/big: implement/rename accessors for precision and rounding mode
     
-    The struct XMLName sets the default namespace, but
-    that's not good enough for nested tags, because an
-    earlier tag can set the implicit parents of a subsequent
-    tag. This change makes sure that we always explicitly set the
-    namespace on a tag when possible.
+    Also: remove NewFloat - not needed anymore. Work-around for places
+    where has been used so far:
     
-    See https://go-review.googlesource.com/#/c/5910/4/src/encoding/xml/marshal_test.go@628
-    for discussion.
+    NewFloat(x, prec, mode) === new(Float).SetMode(mode).SetPrec(prec).SetFloat64(x)
     
-    Change-Id: If1afc536471c0be83e5dd80381b598476ea3f44d
-    Reviewed-on: https://go-review.googlesource.com/6927
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    However, if mode == ToNearestEven, SetMode is not needed. SetPrec
+    is needed if the default precision (53 after SetFloat64) is not
+    adequate.
+    
+    TBR adonovan
+    
+    Change-Id: Ifda12c479ba157f2dea306c32b47c7afbf31e759
+    Reviewed-on: https://go-review.googlesource.com/4842
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/encoding/xml/marshal_test.go | 2 ++
- src/encoding/xml/typeinfo.go     | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ src/math/big/float.go      | 55 ++++++++++++++++++-----------------
+ src/math/big/float_test.go | 71 +++++++++++++++++++++++-----------------------
+ src/math/big/floatconv.go  |  4 +--
+ 3 files changed, 67 insertions(+), 63 deletions(-)

@@ -1,19 +1,18 @@
-commit 0408ca7de12d72025d40c4d28fd8d9fb142b3c87
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 25 15:22:03 2016 -0800
+commit 940d41e386d92bda0f4fb39541df89ed424a012d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Nov 10 11:23:41 2015 +0900
 
-    runtime: don't check sigaltstack on darwin/{arm,arm64}
+    net: make TestInterfaceList work on non-English Windows
     
-    Use of the alternate signal stack on darwin/{arm,arm64} is reportedly
-    buggy, and the runtime function sigaltstack does nothing.  So don't
-    check the sigaltstack result to decide how to handle the signal stack.
+    Fixes #13198
     
-    Fixes #14070.
+    The output of netsh is encoded with ANSI encoding. So doesn't match with UTF-8 strings.
+    Write output as UTF-8 using powershell.
     
-    Change-Id: Ie97ede8895fad721e3acc79225f2cafcbe1f3a81
-    Reviewed-on: https://go-review.googlesource.com/18940
+    Change-Id: I6c7e93c590ed407f24ae847601d71df9523e028c
+    Reviewed-on: https://go-review.googlesource.com/16756
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/os1_darwin.go | 33 +++++++++++++++++++--------------
- 1 file changed, 19 insertions(+), 14 deletions(-)
+ src/net/net_windows_test.go | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

@@ -1,16 +1,14 @@
-commit c21188473103a14beb3b0950fb2331fea7e16d80
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Mar 12 21:14:26 2013 +0400
+commit 0d559f7b92c1425b9a78ff67933a9baaa0534928
+Author: Adrian Nos <nos.adrian@gmail.com>
+Date:   Tue Mar 12 11:45:56 2013 -0400
 
-    runtime: add network polling support into scheduler
-    This is a part of the bigger change that moves network poller into runtime:
-    https://golang.org/cl/7326051/
+    net/rpc/jsonrpc: nil pointer deference on invalid reply.
+    Fixes #5006.
     
-    R=golang-dev, bradfitz, mikioh.mikioh, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7448048
+    https://golang.org/cl/7691045
 
- src/pkg/runtime/netpoll_stub.c | 18 +++++++++++
- src/pkg/runtime/proc.c         | 69 +++++++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/runtime.h      |  3 +-
- 3 files changed, 88 insertions(+), 2 deletions(-)
+ src/pkg/net/rpc/jsonrpc/all_test.go | 17 +++++++++++++++++
+ src/pkg/net/rpc/jsonrpc/client.go   |  2 +-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 973a9eb8bf883b3856d94624138ecfe30cac3ea0
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 25 08:23:26 2025 +0000
+
+    net: properly wrap context cancellation errors and return DNSErrors consistently
+    
+    Fixes #71939
+    
+    Change-Id: Id7cd720fcca2812ffca2b1b20fe923914422d994
+    GitHub-Last-Rev: 4671f338c91b5826c669fbd113c176e22f5020e5
+    GitHub-Pull-Request: golang/go#71941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652275
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/cgo_unix.go       | 12 ++----------
+ src/net/ipsock_plan9.go   |  2 ++
+ src/net/lookup_plan9.go   | 20 ++++++++-----------
+ src/net/lookup_windows.go | 50 +++++++++--------------------------------------
+ 4 files changed, 21 insertions(+), 63 deletions(-)

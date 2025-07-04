@@ -1,21 +1,22 @@
-commit b3b442449b0b979a035b5a26b8e62d8f6158fa69
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 16 10:22:13 2023 +0800
+commit e870de9936a7efa42ac1915ff4ffb16017dbc819
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 27 13:46:23 2022 -0500
 
-    cmd/compile: fix If lowering on loong64
+    misc/cgo/testsanitizers: add libfuzzer tests
     
-    Update #40724
+    Apparently we don't have tests for libfuzzer mode. Add some tests.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I44477e32db765e0299d8361bd2b8d2c95564ed28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521788
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
+    Updates #57449.
+    
+    Change-Id: I813da3e71c6d6f15db31914b248db220b0b7041e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459555
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 27 +++++++++++++++++++++++--
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ misc/cgo/testsanitizers/cc_test.go             | 30 ++++++++-
+ misc/cgo/testsanitizers/libfuzzer_test.go      | 90 ++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/testdata/libfuzzer1.go | 16 +++++
+ misc/cgo/testsanitizers/testdata/libfuzzer2.c  | 11 ++++
+ misc/cgo/testsanitizers/testdata/libfuzzer2.go | 16 +++++
+ 5 files changed, 160 insertions(+), 3 deletions(-)

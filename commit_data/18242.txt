@@ -1,27 +1,14 @@
-commit 334056a7bc68d3adef884bf1348b9227a98ab663
+commit 3ec60c253d9d419eb7a35a40e01315e3d1497465
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 14 10:43:13 2014 -0500
+Date:   Tue Jan 14 10:39:50 2014 -0500
 
-    cmd/gc: return canonical Node* from temp
+    runtime: emit collection stacks in GODEBUG=allocfreetrace mode
     
-    For historical reasons, temp was returning a copy
-    of the created Node*, not the original Node*.
-    This meant that if analysis recorded information in the
-    returned node (for example, n->addrtaken = 1), the
-    analysis would not show up on the original Node*, the
-    one kept in fn->dcl and consulted during liveness
-    bitmap creation.
-    
-    Correct this, and watch for it when setting addrtaken.
-    
-    Fixes #7083.
-    
-    R=khr, dave, minux.ma
+    R=khr, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/51010045
+    https://golang.org/cl/51830043
 
- src/cmd/gc/gen.c            |  2 +-
- src/cmd/gc/sinit.c          |  1 +
- src/cmd/gc/typecheck.c      |  2 ++
- test/fixedbugs/issue7083.go | 22 ++++++++++++++++++++++
- 4 files changed, 26 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.h  |  1 +
+ src/pkg/runtime/mgc0.c    |  3 +++
+ src/pkg/runtime/mprof.goc | 20 ++++++++++++++++----
+ 3 files changed, 20 insertions(+), 4 deletions(-)

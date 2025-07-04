@@ -1,30 +1,64 @@
-commit 7037c15e19582cb192cb1edfa7e2c1bf46746ee5
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 15 14:23:43 2016 -0500
+commit 51fed7165b99413b457f41217d968540cd4eeef1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 12 12:06:14 2015 +0000
 
-    runtime/pprof: retry failed tests with longer duration
+    A+C: automated updates
     
-    Currently we run profiling tests for around 200ms in short mode.
-    However, even on platforms with good profiling, these tests are
-    inherently flaky, especially on loaded systems like the builders.
+    Add Alberto Bertogli (individual CLA)
+    Add Alexander Demakin (individual CLA)
+    Add Angelo Bulfone (individual CLA)
+    Add Anthony Canino (individual CLA)
+    Add Arnout Engelen (individual CLA)
+    Add Cedric Staub (corporate CLA for Square, Inc.)
+    Add Dan Caddigan (individual CLA)
+    Add Dan Jacques (corporate CLA for Google Inc.)
+    Add Daniel Skinner (individual CLA)
+    Add David Howden (individual CLA)
+    Add Dmitry Yakunin (individual CLA)
+    Add Emmanuel Odeke (individual CLA)
+    Add Eric Koleda (corporate CLA for Google Inc.)
+    Add Erik Dubbelboer (individual CLA)
+    Add Evan Broder (corporate CLA for Stripe, Inc.)
+    Add Ford Hurley (individual CLA)
+    Add Francisco Claude (individual CLA)
+    Add Gaurish Sharma (individual CLA)
+    Add Hsin-Ho Yeh (individual CLA)
+    Add Ian Gudger (individual CLA)
+    Add Ilya Tocar (corporate CLA for Intel Corporation)
+    Add John Jenkins (individual CLA)
+    Add Kenny Grant (individual CLA)
+    Add Kevin Malachowski (corporate CLA for Google Inc.)
+    Add Kim Shrier (corporate CLA for RackTop Systems Inc.)
+    Add Klaus Post (individual CLA)
+    Add Lewin Bormann (individual CLA)
+    Add Manu S Ajith (individual CLA)
+    Add Matt Drollette (individual CLA)
+    Add Meng Zhuo (individual CLA)
+    Add Mhd Sulhan (individual CLA)
+    Add Mohit Agarwal (individual CLA)
+    Add Nathan Otterness (individual CLA)
+    Add Nathan VanBenschoten (individual CLA)
+    Add Paul Hankin (corporate CLA for Google Inc.)
+    Add Paul Meyer (individual CLA)
+    Add Pavel Paulau (individual CLA)
+    Add Ralph Corderoy (individual CLA)
+    Add Rob Norman (individual CLA)
+    Add Seth Hoenig (individual CLA)
+    Add Spencer Nelson (individual CLA)
+    Add Steve Phillips (individual CLA)
+    Add Thorben Krueger (individual CLA)
+    Add Tormod Erevik Lea (individual CLA)
+    Add Will Chan (corporate CLA for Google Inc.)
+    Add Yao Zhang (individual CLA)
+    Add Yasuharu Goto (individual CLA)
+    Add Yuki Yugui Sonoda (corporate CLA for Google Inc.)
     
-    To mitigate this, modify the profiling test harness so that if a test
-    fails in a way that could indicate there just weren't enough samples,
-    it retries with a longer duration.
+    Updates #12042
     
-    This requires some adjustment to the profile checker to distinguish
-    "fatal" and "retryable" errors. In particular, we no longer consider
-    it a fatal error to get a profile with zero samples (which we
-    previously treated as a parse error). We replace this with a retryable
-    check that the total number of samples is reasonable.
-    
-    Fixes #13943. Fixes #13871. Fixes #13223.
-    
-    Change-Id: I9a08664a7e1734c5334b1f3792a56184fe314c4d
-    Reviewed-on: https://go-review.googlesource.com/18683
+    Change-Id: Ia5f8e184fdbe8b135b2c29bb75f20bf72042abae
+    Reviewed-on: https://go-review.googlesource.com/16825
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/pprof/pprof_test.go | 124 ++++++++++++++++++++++++----------------
- 1 file changed, 75 insertions(+), 49 deletions(-)
+ AUTHORS      | 39 +++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

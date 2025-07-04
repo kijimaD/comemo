@@ -1,15 +1,25 @@
-commit 394842e2a56e49cb4e81f1d3cc875195cfe507a1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 28 08:12:38 2011 -0700
+commit 260991ad5f1cd73ff9f993bb389ac6d7e56fb509
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 27 22:08:14 2011 -0700
 
-    net: add shutdown: TCPConn.CloseWrite and CloseRead
+    exp/template/html: do not escape the RHS of assignments
     
-    R=golang-dev, rsc, iant
+    In
+    
+      {{$x := . | foo}}
+      {{$x}}
+    
+    the first action is a variable assignment that contributes
+    nothing to the output while the first is a use that needs
+    to be escaped.
+    
+    This CL fixes escapeAction to distinguish assignments from
+    interpolations and to only modify interpolations.
+    
+    R=nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/5136052
+    https://golang.org/cl/5143048
 
- src/pkg/net/fd.go            | 16 ++++++++++++++++
- src/pkg/net/fd_windows.go    | 16 ++++++++++++++++
- src/pkg/net/net_test.go      | 44 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/tcpsock_posix.go | 18 ++++++++++++++++++
- 4 files changed, 94 insertions(+)
+ src/pkg/exp/template/html/escape.go      |  4 ++++
+ src/pkg/exp/template/html/escape_test.go | 12 +++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

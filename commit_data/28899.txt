@@ -1,15 +1,21 @@
-commit 0794dce07239fad5845b9c77b50d084f19f7278f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 21:08:48 2016 -0400
+commit d251030fa6feac46e5686a78b9681625447a5871
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 16 09:19:05 2016 -0700
 
-    bufio: read from underlying reader at most once in Read
+    cmd/compile: don't fold >32bit constants into a MULQ
     
-    Fixes #17059.
+    Don't fold constant factors into a multiply
+    beyond the capacity of a MULQ instruction (32 bits).
     
-    Change-Id: I5c7ee46604399f7dc3c3c49f964cbb1aa6c0d621
-    Reviewed-on: https://go-review.googlesource.com/31320
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #16733
+    
+    Change-Id: Idc213c6cb06f7c94008a8cf9e60a9e77d085fd89
+    Reviewed-on: https://go-review.googlesource.com/27160
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bufio/bufio.go      | 12 ++++++++++--
- src/bufio/bufio_test.go | 21 +++++++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 ++++-
+ test/fixedbugs/issue16733.go                 | 16 ++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

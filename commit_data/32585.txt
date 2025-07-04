@@ -1,24 +1,30 @@
-commit 37dbfc51b04e13ad3441cf0080a33ae56de77169
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Jul 26 15:58:25 2017 -0400
+commit 25db5d1a872ed73c6c1d067c0023512732a1eab4
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Wed May 3 01:08:31 2017 +0200
 
-    cmd/link: emit DW_AT_data_member_location as a constant
+    crypto: document insecure algorithms
     
-    Simplify the DWARF representation of structs by emitting field offsets
-    as constants rather than location descriptions.
+    This change explicitly documents that DES, MD5, RC4 and SHA-1 are
+    insecure / broken - at all or at least within a commonly used scenario.
     
-    This was not explicitly mentioned as an option in DWARF2. It is
-    mentioned in DWARF4, but isn't listed in the changes, so it's not clear
-    if this was always intended to work or is an undocumented change. Either
-    way, it should be valid DWARF4.
+    Fixes #14395
     
-    Change-Id: Idf7fdd397a21c8f8745673ecc77ef65afa3ffe1c
-    Reviewed-on: https://go-review.googlesource.com/51611
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: Id1d543c85d67968ba64ed7495313501953c3ef3a
+    Reviewed-on: https://go-review.googlesource.com/42511
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/dwarf/dwarf.go   | 2 +-
- src/cmd/link/internal/ld/dwarf.go | 5 +----
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/crypto/des/const.go              |  2 ++
+ src/crypto/md5/md5.go                |  2 ++
+ src/crypto/rc4/rc4.go                |  5 ++---
+ src/crypto/sha1/sha1.go              | 10 ++++++----
+ src/crypto/sha1/sha1_test.go         |  2 +-
+ src/crypto/sha1/sha1block.go         |  2 +-
+ src/crypto/sha1/sha1block_386.s      |  2 +-
+ src/crypto/sha1/sha1block_amd64.s    |  2 +-
+ src/crypto/sha1/sha1block_amd64p32.s |  2 +-
+ src/crypto/sha1/sha1block_arm.s      | 16 ++++++++--------
+ src/crypto/sha1/sha1block_s390x.go   |  2 +-
+ src/crypto/sha1/sha1block_s390x.s    |  4 ++--
+ 12 files changed, 28 insertions(+), 23 deletions(-)

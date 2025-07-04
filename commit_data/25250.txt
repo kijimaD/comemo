@@ -1,14 +1,25 @@
-commit 91c3cae83af4f56d0d38a61f020c2c6e09d6f4c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 10 19:38:14 2015 -0800
+commit 177b697ba534431a266c9882af53fb776eb9b505
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 13 11:08:08 2015 -0700
 
-    cmd/cgo: use standard C syntax for complex types
+    [dev.ssa] cmd/compile: allow rewrite rules to specify a target block
     
-    (instead of using a GCC extension).
+    Some rewrite rules need to make sure the rewrite target ends up
+    in a specific block.  For example:
     
-    Change-Id: I110dc45bfe5f1377fe3453070eccde283b5cc161
-    Reviewed-on: https://go-review.googlesource.com/17716
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    (MOVBQSX (MOVBload [off] {sym} ptr mem)) ->
+       @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+    
+    The MOVBQSXload op needs to be in the same block as the MOVBload
+    (to ensure exactly one memory is live at basic block boundaries).
+    
+    Change-Id: Ibe49a4183ca91f6c859cba8135927f01d176e064
+    Reviewed-on: https://go-review.googlesource.com/15804
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/cgo/out.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  6 +--
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 29 ++++++++++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 52 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 28 +++++++-------
+ 5 files changed, 65 insertions(+), 52 deletions(-)

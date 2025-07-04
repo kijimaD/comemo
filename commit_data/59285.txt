@@ -1,21 +1,18 @@
-commit 03640f688b6ae069c72373d7aaa8d23784e456fc
-Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
-Date:   Fri Apr 11 22:19:49 2025 +0000
+commit a414fd791172de8f53eb93d495a00d63514db951
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Feb 28 11:47:39 2024 +0000
 
-    all: use built-in min, max functions
+    crypto/internal/bigmod: remove unused ctGeq
     
-    Change-Id: Ie76ebb556d635068342747f3f91dd7dc423df531
-    GitHub-Last-Rev: aea61fb3a054e6bd24f4684f90fb353d5682cd0b
-    GitHub-Pull-Request: golang/go#73340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664677
+    Change-Id: I6d76fe4a307be0f976ccaeeedb6f08d672ae4851
+    GitHub-Last-Rev: a9554cdb47489b9160d3f03efd41898b244f13d0
+    GitHub-Pull-Request: golang/go#65992
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567675
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/internal/poll/copy_file_range_unix.go |  5 +----
- src/os/root_unix.go                       |  4 +---
- src/runtime/debug/garbage_test.go         | 16 ++++++++--------
- src/time/sleep_test.go                    |  8 +++-----
- 4 files changed, 13 insertions(+), 20 deletions(-)
+ src/crypto/internal/bigmod/nat.go | 8 --------
+ 1 file changed, 8 deletions(-)

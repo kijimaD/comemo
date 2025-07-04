@@ -1,18 +1,16 @@
-commit 947ea6f750809302534bdb57afd2091767bd4038
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 9 14:52:01 2012 +1100
+commit 1c1ecd7473770521b8e9e599220c038819736d7b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 14:40:56 2012 +1100
 
-    gobuilder: fix windows builder
+    log/syslog: fix documentation for NewLogger
+    Fixes #2798.
     
-    Do not rewrite commands if they have .bash extnsion.
-    Use path/filepath to manipulate file paths everywhere.
-    Use all.bat on windows, not all.bash.
-    Use HOMEDRIVE/HOMEPATH to find .gobuildkey on windows.
-    
-    R=rsc
+    R=golang-dev, bradfitz, r, rsc, rsc
     CC=golang-dev
-    https://golang.org/cl/5630062
+    https://golang.org/cl/5642071
 
- misc/dashboard/builder/exec.go | 13 -----------
- misc/dashboard/builder/main.go | 50 ++++++++++++++++++++++++++++++------------
- 2 files changed, 36 insertions(+), 27 deletions(-)
+ doc/go1.html                      | 18 ++++++++++++++++--
+ doc/go1.tmpl                      | 12 ++++++++++++
+ src/pkg/log/syslog/syslog.go      | 14 +++++++-------
+ src/pkg/log/syslog/syslog_test.go |  4 ++--
+ 4 files changed, 37 insertions(+), 11 deletions(-)

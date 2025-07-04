@@ -1,25 +1,17 @@
-commit 28f9b880f6e9f95c61b31b6e0a7ac458cb6a0e0c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Jun 29 23:09:34 2018 -0400
+commit 363bcd7b4f628f140f7942f2610a15ed142aa82d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 13 13:11:09 2018 -0700
 
-    misc/wasm: make sure value ref id is unique
+    cmd/compile: use key position for key:val elements in composite literals
     
-    For each Javascript object that returns to Go as a js.Value, we
-    associate the ref id to it. But if this ref id is copied or
-    inherited to other object, it would mess up the ref-object
-    mapping.
+    Fixes #24339.
     
-    In storeValue, make sure the object is indeed the one we are
-    storing. Otherwise allocate a new ref id.
-    
-    Fixes #26143.
-    
-    Change-Id: Ie60bb2f8d1533da1bbe6f46045866515ec2af5a9
-    Reviewed-on: https://go-review.googlesource.com/121835
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie47764fed27f76b480834b1fdbed0512c94831d9
+    Reviewed-on: https://go-review.googlesource.com/100457
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/wasm/wasm_exec.js    | 2 +-
- src/syscall/js/js_test.go | 7 +++++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go |  3 ++-
+ test/fixedbugs/issue24339.go         | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

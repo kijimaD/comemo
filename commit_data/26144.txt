@@ -1,18 +1,16 @@
-commit bf44c4c889935b3ef1db9b7fd0a14ce4e5508cab
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 22:10:28 2016 +0000
+commit ab74f5944e1048f7293b519dfe26359db17d5ff2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 13:16:25 2015 -0500
 
-    crypto/tls: test for timeout error using the net.Error interface
+    cmd/go: do not skip dirs with syntax errors in wildcard matching (like ./...)
     
-    Don't do a substring search to test for a timeout error.
+    Fixes #11407.
     
-    Fixes #14722 (maybe)
-    
-    Change-Id: I4e18c749d6fd92c084a1b0b83a805119e1ae5ff2
-    Reviewed-on: https://go-review.googlesource.com/20403
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If35a8e04a3abf8acf955250c909dde57131b6bb8
+    Reviewed-on: https://go-review.googlesource.com/17971
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/tls_test.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ src/cmd/go/main.go    |  9 ++++++++-
+ src/go/build/build.go | 51 +++++++++++++++++++++++++++++++++------------------
+ 3 files changed, 53 insertions(+), 19 deletions(-)

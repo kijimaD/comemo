@@ -1,16 +1,17 @@
-commit 3b1b84069956bc8f21be37c563d0ba8da93a87d1
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Wed Jul 16 13:06:11 2014 -0700
+commit 74c9cc8394049f68f711e25df413a813dc21f174
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 16 18:26:50 2014 +0000
 
-    strconv: fix handling of BOMs in CanBackquote
+    cmd/ld: use count, not upper bound, in type of array
+    DWARF says only one is necessary.
+    The count is preferable because it admits 0-length arrays.
+    Update debug/dwarf to handle either form.
     
-    A byte order mark  (BOM) cannot be backquoted.
-    
-    LGTM=r
-    R=golang-codereviews, gobot, r
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/112310043
+    https://golang.org/cl/111230044
 
- src/pkg/strconv/quote.go      | 5 ++++-
- src/pkg/strconv/quote_test.go | 4 ++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/ld/dwarf.c          |  9 +++++----
+ src/pkg/debug/dwarf/type.go | 14 ++++++++++----
+ 2 files changed, 15 insertions(+), 8 deletions(-)

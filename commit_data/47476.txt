@@ -1,20 +1,21 @@
-commit 42fa03a88ca7767c1869e55b3144a9828d29b7b5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 13 13:37:15 2021 -0800
+commit 8fd0f83552d3ef9ca38c031bec93a36b189e3e11
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 21 00:58:18 2021 +1100
 
-    cmd/compile/internal/types2: better position for "3-index slice of string" error
+    cmd/compile/internal/ssa: correct sign extension for consts on riscv64
     
-    As a result, slightly narrow position tolerance for tests.
+    Correct sign extension handling for consts on riscv64. This fixes a bug
+    in part exposed by CL 302609 - previously 64 bit consts were rewritten into
+    multiple 32 bit consts and the expansion would result in sign/zero extension
+    not being eliminated. With this change a MOVDconst with a 64 bit value can be
+    followed by a MOV{B,H,W}reg, which will be eliminated without actually
+    truncating to a smaller value.
     
-    Change-Id: I543dc2b7b9a7940b0684067d1961165b2b4812bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363670
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I8d9cd380217466997b341e008a1f139bc11a0d51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303350
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/check_test.go                 | 2 +-
- src/cmd/compile/internal/types2/index.go                      | 6 +++++-
- src/cmd/compile/internal/types2/testdata/check/expr3.src      | 4 ++--
- src/cmd/compile/internal/types2/testdata/check/typeparams.go2 | 4 ++--
- 4 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 12 ++++++------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

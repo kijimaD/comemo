@@ -1,34 +1,18 @@
-commit 5fe1b35ed214a8ece13449f5788dd9f5c927379f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 28 11:31:59 2016 -0700
+commit 80a051712981fb232567813e11899b592ddd51de
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 13 21:34:46 2016 -0400
 
-    net: ensure dnsConfig search list is rooted
+    os/user: allow LookupGroupId to fail during test
     
-    Avoids some extra work and string concatenation at query time.
+    On my Mac I am in group 5000 which apparently has no name
+    (I suspect because it is an LDAP group and I cannot reach the
+    LDAP server). Do not make the test fail in that case.
     
-    benchmark                                      old allocs     new allocs     delta
-    BenchmarkGoLookupIP-32                         154            150            -2.60%
-    BenchmarkGoLookupIPNoSuchHost-32               446            442            -0.90%
-    BenchmarkGoLookupIPWithBrokenNameServer-32     564            568            +0.71%
+    Fixes #14806
     
-    benchmark                                      old bytes     new bytes     delta
-    BenchmarkGoLookupIP-32                         10824         10704         -1.11%
-    BenchmarkGoLookupIPNoSuchHost-32               43140         42992         -0.34%
-    BenchmarkGoLookupIPWithBrokenNameServer-32     46616         46680         +0.14%
-    
-    BenchmarkGoLookupIPWithBrokenNameServer's regression appears to be
-    because it's actually only performing 1 LookupIP call, so the extra
-    work done parsing the DNS config file doesn't amortize as well as for
-    BenchmarkGoLookupIP or BenchmarkGoLOokupIPNoSuchHost, which perform
-    2000+ LookupIP calls per run.
-    
-    Update #15473.
-    
-    Change-Id: I98c8072f2f39e2f2ccd6c55e9e9bd309f5ad68f8
-    Reviewed-on: https://go-review.googlesource.com/22571
+    Change-Id: I56b11a8e86b048abfb00812eaad37802fd2adcc5
+    Reviewed-on: https://go-review.googlesource.com/20710
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsclient_unix.go      | 18 +++++++++---------
- src/net/dnsconfig_unix.go      | 15 +++++++++++----
- src/net/dnsconfig_unix_test.go | 14 +++++++-------
- 3 files changed, 27 insertions(+), 20 deletions(-)
+ src/os/user/user_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

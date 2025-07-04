@@ -1,23 +1,20 @@
-commit c9f7370a096a8b5c2db5996b8b6adbad4e2747d5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:08:11 2022 -0500
+commit f300fc2d2c620feac4e7f9b6cf0125b92943d3c4
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jan 6 11:27:57 2022 +0000
 
-    cmd/go: use testenv.Command instead of exec.Command in tests
+    runtime: crash on netbsd-arm64 when setcontext fails
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    Instead of exiting with status 16962 when we fail to call SYS_setcontext
+    in sigreturn, reference a null pointer and crash. Hopefully, this will
+    enable grabbing a core dump to debug.
     
-    Change-Id: Ic19172b6cd05526cf6776b904e2dfebdd8b055a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450697
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #42422
+    
+    Change-Id: If02c14a0a37084351f3f00db3dc9766cb68ae4b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375834
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/go/go_test.go                                      | 14 +++++++-------
- src/cmd/go/go_windows_test.go                              |  4 ++--
- src/cmd/go/init_test.go                                    |  3 +--
- .../internal/lockedfile/internal/filelock/filelock_test.go |  3 +--
- src/cmd/go/internal/lockedfile/lockedfile_test.go          |  3 +--
- src/cmd/go/scriptreadme_test.go                            |  3 +--
- 6 files changed, 13 insertions(+), 17 deletions(-)
+ src/runtime/sys_netbsd_arm64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

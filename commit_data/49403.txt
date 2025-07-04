@@ -1,14 +1,29 @@
-commit 7271a0a287fdd765f29c193163b0f1305edb6205
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 6 15:45:00 2022 -0400
+commit df9c5d8f5dc96977dad865dc531d6c1e665ea1cb
+Author: Hans <hzb153@gmail.com>
+Date:   Fri Jul 30 02:36:02 2021 +0000
 
-    doc/go1.19: gc requires -p=importpath
+    cmd/cgo: fix unused parameter warnings in generated _cgo_main.c
     
-    For #51400
+    Applying -Werror compiler option to request warnings is an usual
+    way to discover potential errors. Go user may put a cgo directive
+    in preamble: `// #cgo CFLAGS: -Werror=unused-parameter`.
     
-    Change-Id: I07a805147a6aa0923331f3f940a9e6e5553cbea9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410676
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    However, the directive also takes effect on the cgo generated files.
+    I cleaned _cgo_main.c to help Go user only concentrate on warnings
+    of their own file.
+    
+    Fixes #43639
+    
+    Change-Id: I9112f02ae5226f2fc87a8650d19faee59cddd588
+    GitHub-Last-Rev: f09d172f979acfba855be8108e7d79ec2778c406
+    GitHub-Pull-Request: golang/go#46358
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322232
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.19.html | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ misc/cgo/test/testdata/issue43639.go   | 9 +++++++++
+ misc/cgo/test/testdata/issue43639/a.go | 8 ++++++++
+ src/cmd/cgo/out.go                     | 8 ++++----
+ 3 files changed, 21 insertions(+), 4 deletions(-)

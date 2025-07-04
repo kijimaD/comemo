@@ -1,14 +1,13 @@
-commit 439694125f980fc0c96e99b347fa9742633f4757
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Thu Jun 9 16:49:47 2011 -0400
+commit 17ca32e9db2f58a6ed431c4502f6ab031147673f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 11:44:28 2011 -0400
 
-    runtime: improve memmove
-    check memory overlap
+    gc: nits
     
-    R=rsc, r, ken, edsrzf
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4602047
+    https://golang.org/cl/4572052
 
- src/pkg/runtime/386/memmove.s   | 12 ++++++++++--
- src/pkg/runtime/amd64/memmove.s | 12 ++++++++++--
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/gc/pgen.c  | 6 ++----
+ src/cmd/gc/print.c | 4 ++++
+ 2 files changed, 6 insertions(+), 4 deletions(-)

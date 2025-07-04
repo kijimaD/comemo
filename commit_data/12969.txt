@@ -1,13 +1,19 @@
-commit e4127614883ed89a0e1db85ac2399253f173e75b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 26 14:24:53 2012 +0800
+commit a09e9811dc4db3c9205079a2eef21ffc7d7b5274
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Apr 26 11:48:35 2012 +1000
 
-    cmd/godoc: update App Engine README and script for Go 1
+    exp/html: adjust inTableBodyIM to match spec
     
-    R=adg, dsymonds
+    Clean up flow of control.
+    
+    Handle </tbody>, </tfoot>, and </thead>.
+    
+    Pass 5 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5849053
+    https://golang.org/cl/6117057
 
- src/cmd/godoc/README.godoc-app     | 29 +++++------------------------
- src/cmd/godoc/setup-godoc-app.bash | 10 +++++-----
- 2 files changed, 10 insertions(+), 29 deletions(-)
+ src/pkg/exp/html/parse.go                          | 65 ++++++++++++----------
+ .../exp/html/testlogs/tests_innerHTML_1.dat.log    | 10 ++--
+ 2 files changed, 40 insertions(+), 35 deletions(-)

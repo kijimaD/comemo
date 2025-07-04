@@ -1,39 +1,17 @@
-commit dcec123a4923437242c52d2693ace80d2f3c704e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 22 10:53:51 2014 -0500
+commit 7b596457d18d2010d40d75d74cf4a678a54a5e4a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 20 14:28:54 2014 -0500
 
-    runtime: add GODEBUG wbshadow for finding missing write barriers
+    [dev.cc] liblink: fix Solaris build some more
     
-    This is the detection code. It works well enough that I know of
-    a handful of missing write barriers. However, those are subtle
-    enough that I'll address them in separate followup CLs.
+    a->name and a->class are char, so Solaris doesn't like using
+    them as array indexes.  (This same problem was fixed for amd64
+    in CL 169630043.)
     
-    GODEBUG=wbshadow=1 checks for a write that bypassed the
-    write barrier at the next write barrier of the same word.
-    If a bug can be detected in this mode it is typically easy to
-    understand, since the crash says quite clearly what kind of
-    word has missed a write barrier.
-    
-    GODEBUG=wbshadow=2 adds a check of the write barrier
-    shadow copy during garbage collection. Bugs detected at
-    garbage collection can be difficult to understand, because
-    there is no context for what the found word means.
-    Typically you have to reproduce the problem with allocfreetrace=1
-    in order to understand the type of the badly updated word.
-    
-    Change-Id: If863837308e7c50d96b5bdc7d65af4969bf53a6e
-    Reviewed-on: https://go-review.googlesource.com/2061
-    Reviewed-by: Austin Clements <austin@google.com>
+    LGTM=aram, minux
+    R=rsc, minux, aram
+    CC=golang-codereviews
+    https://golang.org/cl/175430043
 
- src/runtime/extern.go   |  12 +++++
- src/runtime/malloc.go   |   4 ++
- src/runtime/malloc1.go  |  66 +++++++++++++++++++++++++
- src/runtime/malloc2.go  |   9 ++++
- src/runtime/mgc.go      |  15 ++++--
- src/runtime/mgc0.go     | 127 ++++++++++++++++++++++++++++++++++++++++++++++--
- src/runtime/panic.go    |  16 ++++++
- src/runtime/proc1.go    |   1 +
- src/runtime/runtime1.go |  23 +++++++--
- src/runtime/runtime2.go |  14 ------
- src/runtime/stack1.go   |  12 +++--
- 11 files changed, 268 insertions(+), 31 deletions(-)
+ src/liblink/list9.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

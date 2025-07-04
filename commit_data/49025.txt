@@ -1,18 +1,24 @@
-commit 0bd7408f901f33c6f0a5a542f8de6bf17c901e79
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed May 4 18:39:26 2022 +0700
+commit 296ddf2a936a30866303a64d49bc0e3e034730a8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jul 2 10:25:49 2021 -0700
 
-    cmd/compile: fix static init of literal contains dynamic exprs
+    net: filter bad names from Lookup functions instead of hard failing
     
-    Fixes #52673
+    Instead of hard failing on a single bad record, filter the bad records
+    and return anything valid. This only applies to the methods which can
+    return multiple records, LookupMX, LookupNS, LookupSRV, and LookupAddr.
     
-    Change-Id: Ib2faa5a669c05778fc6beb38c3e63d558af9b2be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403995
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    When bad results are filtered out, also return an error, indicating
+    that this filtering has happened.
+    
+    Updates #46241
+    Fixes #46979
+    
+    Change-Id: I6493e0002beaf89f5a9795333a93605abd30d171
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332549
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/walk/complit.go | 11 ++++++++++-
- test/fixedbugs/issue52673.go             | 16 ++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/net/dnsclient_unix_test.go | 222 ++++++++++++++++++++++++++++++++---------
+ src/net/lookup.go              |  74 ++++++++++----
+ 2 files changed, 229 insertions(+), 67 deletions(-)

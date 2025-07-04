@@ -1,19 +1,18 @@
-commit 5ce9d9fee85bbdc952b7b20e94811fa24d36f1f6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 11 15:03:18 2023 -0800
+commit 258fc75505f170bc94c73d64e9b4a0d986108e96
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 21:21:40 2022 -0800
 
-    go/types: use the same interface method sorting as types2
+    cmd/compile/internal/importer: lazier unified IR importing
     
-    See also CL 321231 which introduces object.less to match
-    expected compiler behavior.
+    No need to eagerly read the object dictionary or setup the object
+    reader outside of the lazy resolve function.
     
-    Change-Id: I56fbf332a04596dc96393b71d40acf4df5d950fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461677
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Ic4245b0c09f3beaff97860d7f2dfb5b2b5778cc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388615
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/typeset.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/ureader.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 2e0a6f855b9af3441347b1b430e5a5e6f82a37fa
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 13:08:32 2024 -0700
+
+    os.Getwd: wrap error on windows and plan9
+    
+    The errors from os are supposed to be wrapped to add some context,
+    but in this particular case a raw syscall error is returned.
+    
+    Change-Id: I1b98dbd7b385c5c1cea79a1b0ec7201ca9bdca40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606657
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/getwd.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

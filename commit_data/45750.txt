@@ -1,23 +1,15 @@
-commit 79cd407f88f640b889df7645bf3e0491ed25eac7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 4 10:56:06 2021 -0400
+commit c167635a6e08cdb1223a6d7b70cffd73c165562e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 12 08:44:29 2020 -0500
 
-    syscall: regenerate zsyscall_windows.go
+    cmd/compile: gofmt
     
-    The declaration order in CL 319310 does not match what the generator
-    produces from scratch. That currently causes
-    cmd/internal/moddeps.TestAllDependencies to fail, since it is
-    explicitly checking for that kind of skew.
-    
-    Updates #45914
-    
-    Change-Id: If2a9cabc3d54e21deba7cb438fa364df205f38ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325112
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2aa44b9976bdac577db44ef76e18fdf5748df8ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269477
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/zsyscall_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

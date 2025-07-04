@@ -1,30 +1,20 @@
-commit a538b59fd2428ba4d13f296d7483febf2fc05f97
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 1 11:21:50 2020 -0400
+commit 450d0b2f30e820f402a638799de0b886c1da8dbe
+Author: Richard Wilkes <wilkes@me.com>
+Date:   Mon Feb 24 23:46:00 2020 +0000
 
-    cmd/go: define an asm macro for GOEXPERIMENT=regabi
+    runtime: allow float syscall return values on windows amd64
     
-    This defines a macro for the regabi GOEXPERIMENT when assembling
-    runtime assembly code.
+    RELNOTE=yes
+    Fixes #37273
     
-    In general, assembly code will be shielded from the calling convention
-    change, but there is a small amount of runtime assembly that is going
-    to have to change. By defining a macro, we can easily make the small
-    necessary changes. The other option is to use build tags, but that
-    would require duplicating nontrivial amounts of unaffected code,
-    leading to potential divergence issues. (And unlike Go code, assembly
-    code can't depend on the compiler optimizing away branches on a
-    feature constant.) We consider the macro preferable, especially since
-    this is expected to be temporary as we transition to the new calling
-    convention.
-    
-    Updates #40724.
-    
-    Change-Id: I73984065123968337ec10b47bb12c4a1cbc07dc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252258
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iedb7eab185dfeccb1b26902ef36411d2c53ea3e0
+    GitHub-Last-Rev: bbe30ba45d4a1bd53757b5824ad28024d5e2b179
+    GitHub-Pull-Request: golang/go#37380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220578
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/internal/work/gc.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/sys_windows_amd64.s     |  4 ++
+ src/runtime/syscall_windows_test.go | 76 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)

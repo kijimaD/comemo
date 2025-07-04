@@ -1,34 +1,27 @@
-commit 2cb61aa3f77e05f265ccacebf48c2ebf53de1494
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Sep 11 21:23:06 2017 +0100
+commit 11ab865d6f42bcbfbe67219bd591518a1e1e8faf
+Author: Filip Gruszczyński <gruszczy@gmail.com>
+Date:   Thu Mar 30 19:09:56 2017 -0700
 
-    cmd/compile: stop rematerializable ops from clobbering flags
+    encoding/gob: speedup decoding of maps by zeroing values
     
-    Rematerializable ops can be inserted after the flagalloc phase,
-    they must therefore not clobber flags. This CL adds a check to
-    ensure this doesn't happen and fixes the instances where it
-    does currently.
+    Instead of allocating a new reflect.Value object on every loop we zero it.
     
-    amd64: ADDQconst and ADDLconst were recently changed to be
-    rematerializable in CL 54393 (only in tip, not 1.9). That change
-    has been reverted.
+    DecodeComplex128Slice-8  13.1µs ± 7%  13.2µs ± 8%     ~     (p=0.347 n=18+19)
+    DecodeFloat64Slice-8     8.13µs ± 5%  8.00µs ± 3%     ~     (p=0.168 n=20+19)
+    DecodeInt32Slice-8       8.27µs ± 5%  8.08µs ± 5%   -2.27%  (p=0.001 n=19+18)
+    DecodeStringSlice-8      17.9µs ±12%  17.8µs ±11%     ~     (p=0.989 n=20+19)
+    DecodeInterfaceSlice-8    163µs ±10%   159µs ± 4%     ~     (p=0.057 n=19+19)
+    DecodeMap-8               220µs ± 2%   183µs ± 1%  -17.07%  (p=0.000 n=19+18)
     
-    s390x: MOVDaddr could clobber flags when using dynamic linking due
-    to a ADD with immediate instruction. Change the code generation to
-    use LA/LAY instead.
+    Updates #19525
     
-    Fixes #21080.
-    
-    Change-Id: Ia85c882afa2a820a309e93775354b3169ec6d034
-    Reviewed-on: https://go-review.googlesource.com/63030
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I27f8edd4761787f6b9928d34cefa08a34a6e25b2
+    Reviewed-on: https://go-review.googlesource.com/39203
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 ++--
- src/cmd/compile/internal/ssa/gen/main.go     |  3 +++
- src/cmd/compile/internal/ssa/opGen.go        | 32 ++++++++++++----------------
- src/cmd/internal/obj/s390x/objz.go           | 20 ++++++++++++-----
- 5 files changed, 36 insertions(+), 27 deletions(-)
+ src/encoding/gob/codec_test.go | 27 +++++++++++++++++++++++++--
+ src/encoding/gob/decode.go     | 10 ++++++++--
+ 2 files changed, 33 insertions(+), 4 deletions(-)

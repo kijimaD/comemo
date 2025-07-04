@@ -1,12 +1,12 @@
-commit 09cd13c51dabd709e79329a9b8591fc4d15b6f3f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 15 11:38:50 2013 -0700
+commit 6b57329268eae87edeb2876864bbc96b3cacebcb
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 15 10:46:34 2013 -0700
 
-    doc/go_faq.html: add entry about pointer to interface
+    runtime: use AES hash for compound objects.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7546050
+    https://golang.org/cl/7716047
 
- doc/go_faq.html | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 51 insertions(+)
+ src/pkg/runtime/alg.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,14 +1,14 @@
-commit 40807282acad30201ae0979db24dca01e684e694
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 11:37:56 2012 -0500
+commit e54ad64ff346281b707c75c72566b63080864dcf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 7 08:24:10 2012 -0800
 
-    doc: delete faq question about 6g
+    test: add inherited interface test to ddd.go
     
-    Fixes #3230.
+    The gccgo compiler incorrectly gave an error for this code.
     
-    R=golang-dev, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5753071
+    https://golang.org/cl/5767043
 
- doc/go_faq.html | 14 --------------
- 1 file changed, 14 deletions(-)
+ test/ddd.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

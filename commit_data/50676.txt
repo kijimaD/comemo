@@ -1,39 +1,20 @@
-commit 7997e5f2540deb03a88a2f68f83bb5e5b7d6f77e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 28 14:13:24 2022 -0700
+commit 3796df1b13c6be62ca28244dcd6121544770e371
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 4 21:35:55 2021 -0700
 
-    cmd/compile: use "cannot use %s as %s value in %s: %s" error message
+    net/netip: don't accept ParseAddr with leading zeros
     
-    This is close to what the compiler used to say, except now we say
-    "as T value" rather than "as type T" which is closer to the truth
-    (we cannot use a value as a type, after all). Also, place the primary
-    error and the explanation (cause) on a single line.
+    Fixes #49365
+    Updates #30999
     
-    Make respective (single line) adjustment to the matching "cannot
-    convert" error.
-    
-    Adjust various tests.
-    
-    For #55326.
-    
-    Change-Id: Ib646cf906b11f4129b7ed0c38cf16471f9266b88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436176
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic92bce01b435baf70574c65524bde82f9cee3d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361534
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go  | 18 +++++-----------
- src/cmd/compile/internal/types2/conversions.go  |  8 ++-----
- src/go/types/assignments.go                     | 18 +++++-----------
- src/go/types/conversions.go                     |  9 ++------
- src/internal/types/testdata/spec/conversions.go | 28 ++++++++++++-------------
- test/alias2.go                                  | 10 ++++-----
- test/append1.go                                 |  2 +-
- test/ddd1.go                                    |  2 +-
- test/fixedbugs/bug389.go                        |  2 +-
- test/fixedbugs/issue17645.go                    |  2 +-
- test/fixedbugs/issue48471.go                    | 16 +++++++-------
- test/fixedbugs/issue5358.go                     |  2 +-
- 12 files changed, 46 insertions(+), 71 deletions(-)
+ src/net/netip/netip.go      |  6 ++++++
+ src/net/netip/netip_test.go | 32 +++++++++++++++++++++-----------
+ 2 files changed, 27 insertions(+), 11 deletions(-)

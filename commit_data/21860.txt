@@ -1,14 +1,14 @@
-commit 91e7ca588d07b8e04e9608c4436d2d701f6c59d0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 3 10:47:15 2015 -0500
+commit 6d06d4862d4cfc7b78c8805effbc820190a004d8
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Feb 8 19:00:43 2015 +0300
 
-    cmd/internal/ld: fix darwin/386
+    net: don't allocate dialer closure if we won't use it
     
-    grind's goto inliner moved a continue and changed its meaning. Oops.
+    When we use dialMulti we also allocate dialSingle closure for no reason.
     
-    Change-Id: Ifa2d3e1427036a606a069f356cd9b586ef22ec84
-    Reviewed-on: https://go-review.googlesource.com/6610
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I074282a9d6e2c2a1063ab311a1b95e10fe65219f
+    Reviewed-on: https://go-review.googlesource.com/4119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/ld/ldmacho.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/dial.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

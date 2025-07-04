@@ -1,23 +1,16 @@
-commit 63ab68ddc5f1307e552cf27ae7a6f0dfda2bb962
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Wed Jun 28 16:45:07 2023 +0800
+commit 86ca550f407827f620e6c8314ec503fdb48dd898
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 23:26:26 2022 +0800
 
-    cmd/compile: add single-precision FMA code generation for riscv64
+    bufio: use bytes.Clone
     
-    This CL adds FMADDS,FMSUBS,FNMADDS,FNMSUBS SSA support for riscv
-    
-    Change-Id: I1e7dd322b46b9e0f4923dbba256303d69ed12066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506616
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic21d979da8be1a6047b9bcd65b5ee71ca2ef7548
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435278
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go         |   3 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |   9 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |   4 +
- src/cmd/compile/internal/ssa/opGen.go           |  68 +++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 256 ++++++++++++++++++++++++
- test/codegen/floats.go                          |   3 +
- 6 files changed, 339 insertions(+), 4 deletions(-)
+ src/bufio/bufio.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

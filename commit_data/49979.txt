@@ -1,49 +1,22 @@
-commit b2c0417c429891b9c965abe1d09606b0dba00403
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Jun 15 22:55:58 2022 +0100
+commit d5d3f80013fa9c4fda5ed2fd3d04868dd212ff8d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 21 13:54:58 2021 -0700
 
-    go/printer: avoid allocating for every position printed
+    cmd/go: adjust comments on why fuzzing instrumentation is disabled
     
-    printer.print is an overloaded method for multiple purposes.
-    When fed a position, it updates the current position.
-    When fed a string, it prints the string.
-    When fed a token, it prints the token. And so on.
+    For #48504
+    Related #14565
     
-    However, this overloading comes at a significant cost.
-    Because the parameters are a list of the `any` interface type,
-    any type which is not of pointer or interface kind will allocate when
-    passed as an argument, as interfaces can only contain pointers.
-    
-    A large portion of the arguments passed to the print method are of type
-    token.Pos, whose underlying type is int - so it allocates.
-    Removing those allocations has a significant benefit,
-    at the cost of some verbosity in the code:
-    
-            name      old time/op    new time/op    delta
-            Print-16    6.10ms ± 2%    5.39ms ± 2%  -11.72%  (p=0.000 n=10+10)
-    
-            name      old speed      new speed      delta
-            Print-16  8.50MB/s ± 2%  9.63MB/s ± 2%  +13.28%  (p=0.000 n=10+10)
-    
-            name      old alloc/op   new alloc/op   delta
-            Print-16     443kB ± 0%     332kB ± 0%  -25.10%  (p=0.000 n=10+9)
-    
-            name      old allocs/op  new allocs/op  delta
-            Print-16     17.3k ± 0%      3.5k ± 0%  -80.10%  (p=0.000 n=10+10)
-    
-    There should be more significant speed-ups left, particularly for the
-    token.Token, string, and whiteSpace types fed to the same method.
-    They are left for a future CL, in case this kind of optimization is not
-    a path we want to take.
-    
-    Change-Id: I3ff8387242c5a935bb003e60e0813b7b9c65402e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412557
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibe43c75224525c4b80dbb66a1b6e0d688e47e2e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351314
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/go/printer/nodes.go   | 174 ++++++++++++++++++++++++++++++++--------------
- src/go/printer/printer.go |  12 ++--
- 2 files changed, 126 insertions(+), 60 deletions(-)
+ src/cmd/go/internal/work/init.go                     | 18 ++++++++++++++++--
+ src/cmd/go/testdata/script/test_fuzz_cache.txt       |  5 +++--
+ src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt |  5 +++--
+ src/internal/fuzz/counters_unsupported.go            |  4 +++-
+ 4 files changed, 25 insertions(+), 7 deletions(-)

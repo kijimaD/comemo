@@ -1,22 +1,35 @@
-commit e870de9936a7efa42ac1915ff4ffb16017dbc819
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Dec 27 13:46:23 2022 -0500
+commit 6e82ff83cfbef78aa60706c1a7167a31c30e7ef9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 15 13:40:49 2022 -0800
 
-    misc/cgo/testsanitizers: add libfuzzer tests
+    net: increase maximum accepted DNS packet to 1232 bytes
     
-    Apparently we don't have tests for libfuzzer mode. Add some tests.
+    The existing value of 512 bytes as is specified by RFC 1035.
+    However, the WSL resolver reportedly sends larger packets without
+    setting the truncation bit, which breaks using the Go resolver.
+    For 1.18 and backports, just increase the accepted packet size.
+    This is what GNU glibc does (they use 65536 bytes).
     
-    Updates #57449.
+    For 1.19 we plan to use EDNS to set the accepted packet size.
+    That will give us more time to test whether that causes any problems.
     
-    Change-Id: I813da3e71c6d6f15db31914b248db220b0b7041e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459555
+    No test because I'm not sure how to write one and it wouldn't really
+    be useful anyhow.
+    
+    Fixes #6464
+    Fixes #21160
+    Fixes #44135
+    Fixes #51127
+    For #51153
+    
+    Change-Id: I0243f274a06e010ebb714e138a65386086aecf17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386015
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- misc/cgo/testsanitizers/cc_test.go             | 30 ++++++++-
- misc/cgo/testsanitizers/libfuzzer_test.go      | 90 ++++++++++++++++++++++++++
- misc/cgo/testsanitizers/testdata/libfuzzer1.go | 16 +++++
- misc/cgo/testsanitizers/testdata/libfuzzer2.c  | 11 ++++
- misc/cgo/testsanitizers/testdata/libfuzzer2.go | 16 +++++
- 5 files changed, 160 insertions(+), 3 deletions(-)
+ src/net/dnsclient_unix.go      | 6 +++++-
+ src/net/dnsclient_unix_test.go | 2 +-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

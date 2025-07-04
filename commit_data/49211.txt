@@ -1,21 +1,42 @@
-commit 3474cd4eee82ac442618391f8bc4a70d7b1cb65a
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Wed May 11 22:42:00 2022 +0800
+commit 600b7b431bd546841c04a27d4ac73af1e4f2fcc4
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jul 26 19:25:40 2021 -0700
 
-    encoding/csv: add Reader.InputOffset method
+    [dev.typeparams] cmd/compile: handle meth expressions on typeparams
     
-    Fixes #43401.
+    Rewrite a method expression such as 'T.String' (where T is type param
+    and String is part of its type bound Stringer) as:
     
-    Change-Id: I2498e77e41d845130d95012bc8623bfb29c0dda1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405675
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    func(rcvr T, other params...) {
+        return Stringer(rcvr).String(other params...)
+    }
+    
+    New function buildClosure2 to create the needed closure. The conversion
+    Stringer(rcvr) uses the dictionary in the outer function.
+    
+    For a method expression like 'Test[T].finish' (where finish is a method
+    of Test[T]), we can already deal with this in buildClosure(). We just
+    need fix transformDot() to allow the method lookup to fail, since shapes
+    have no methods on them. That's fine, since for any instantiated
+    receiver type, we always use the methods on the generic base type.
+    
+    Also removed the OMETHEXPR case in the main switch of node(), which
+    isn't needed any (and removes one more potential unshapify).
+    
+    Also, fixed two small bugs with handling closures that have generic
+    params or generic captured variables. Need to set the instInfo for the
+    closure in the subst struct when descending into a closure during
+    genericSubst() and was missing initializing the startItabConv and gfInfo
+    fields in the closure info.
+    
+    Change-Id: I6dadedd1378477936a27c9c544c014cd2083cfb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338129
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- api/next/43401.txt              |  1 +
- src/encoding/csv/reader.go      | 18 +++++++++++++++---
- src/encoding/csv/reader_test.go | 15 +++++++++++----
- 3 files changed, 27 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go   | 214 +++++++++++++++++++---------
+ src/cmd/compile/internal/noder/transform.go |   6 +-
+ test/typeparam/boundmethod.go               |  54 ++++++-
+ 3 files changed, 198 insertions(+), 76 deletions(-)

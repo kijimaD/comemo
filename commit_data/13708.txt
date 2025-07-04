@@ -1,16 +1,12 @@
-commit 363ec80dec5908ed7feebba448dc8e5b2cf90740
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 30 11:16:55 2012 -0700
+commit e61c047c3e5ac3ad253c9046d479d769d14f7808
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 30 20:32:32 2012 +0400
 
-    cmd/gc: string conversion for surrogates
-    This is required by the spec to produce the replacement char.
-    The fix lies in lib9's rune code.
+    net/rpc: protect serviceMap with RWMutex
     
-    R=golang-dev, nigeltao, rsc
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/6443109
+    https://golang.org/cl/6494044
 
- src/lib9/utf/rune.c               | 18 +++++++++++++-----
- src/pkg/unicode/utf8/utf8_test.go |  6 ++++--
- test/string_lit.go                | 24 +++++++++++++++++++++++-
- 3 files changed, 40 insertions(+), 8 deletions(-)
+ src/pkg/net/rpc/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

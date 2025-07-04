@@ -1,35 +1,25 @@
-commit 178307c3a72a9da3d731fecf354630761d6b246c
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 3 13:29:06 2017 -0500
+commit c63db157bd669845a23255ab268596669a5ea5df
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 25 00:31:45 2016 +0200
 
-    cmd/go: address review comments
+    net: handle "dns failure" as errNoSuchHost on Plan 9
     
-    Address review comments from earlier CLs.
-    These are changes I was too scared to try to push
-    down into the original CLs (thanks, Git).
+    CL 31468 added TestLookupNonLDH, which was failing on Plan 9,
+    because LookupHost was expecting to return errNoSuchHost
+    on DNS resolution failure, while Plan 9 returned the
+    "dns failure" string.
     
-    Change-Id: I0e428fad73d71bd2a7d08178cf2e856de3cef19f
-    Reviewed-on: https://go-review.googlesource.com/36257
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    In the Plan 9 implementation of lookupHost, we now return
+    errNoSuchHost instead of the "dns failure" string, so
+    the behavior is more consistant with other operating systems.
+    
+    Fixes #17568.
+    
+    Change-Id: If64f580dc0626a4a4f19e5511ba2ca5daff5f789
+    Reviewed-on: https://go-review.googlesource.com/31873
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/deps.go                       | 12 ++++++------
- src/cmd/go/internal/base/base.go           |  5 +++--
- src/cmd/go/internal/base/flag.go           |  8 +++++---
- src/cmd/go/internal/base/path.go           | 10 +++++++++-
- src/cmd/go/internal/cfg/cfg.go             | 23 +++++++++++------------
- src/cmd/go/internal/clean/clean.go         |  1 +
- src/cmd/go/internal/doc/doc.go             |  1 +
- src/cmd/go/internal/{env => envcmd}/env.go |  5 +++--
- src/cmd/go/internal/fix/fix.go             |  1 +
- src/cmd/go/internal/{fmt => fmtcmd}/fmt.go |  5 +++--
- src/cmd/go/internal/generate/generate.go   |  1 +
- src/cmd/go/internal/help/help.go           |  4 ++--
- src/cmd/go/internal/list/list.go           | 10 ++++++----
- src/cmd/go/internal/load/pkg.go            |  6 +++---
- src/cmd/go/internal/run/run.go             |  3 ++-
- src/cmd/go/internal/tool/tool.go           |  1 +
- src/cmd/go/internal/version/version.go     |  4 +++-
- src/cmd/go/internal/vet/vet.go             |  1 +
- src/cmd/go/internal/work/build.go          |  8 +++++---
- src/cmd/go/main.go                         | 10 +++++-----
- 20 files changed, 72 insertions(+), 47 deletions(-)
+ src/net/lookup_plan9.go | 3 +++
+ 1 file changed, 3 insertions(+)

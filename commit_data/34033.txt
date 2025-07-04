@@ -1,17 +1,24 @@
-commit 4a2f28f51ecabfb4a839d7f483a32ae9b9206c83
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 22 12:56:01 2018 -0500
+commit 6f2e5f9c3720540ae5804b37222f6e82313ce13f
+Author: Mihail Minaev <minaev.mike@gmail.com>
+Date:   Tue Sep 26 11:47:49 2017 +0000
 
-    doc, cmd/go: final release notes edits
+    net/mail: parse group in email address
     
-    Except for removing the DRAFT marker, I think these are now ready to go.
+    This change adds the ability to parse
+    group into email address. The information about
+    group name and group members is lost for
+    backwards compatibility. According to this rule address
+    `Group: Test <text@example.com>;` would be parsed into
+    `Test <test@example.com>`.
     
-    Change-Id: I20604f5b135616189a24990db463c7bb5e7d48f1
-    Reviewed-on: https://go-review.googlesource.com/88975
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #22014
+    
+    Change-Id: I6e804a62f3ede04f555a1b82500b8ca030eeb431
+    Reviewed-on: https://go-review.googlesource.com/66250
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.10.html                  | 29 +++++++++++++++--------------
- src/cmd/go/alldocs.go            |  9 ++++++---
- src/cmd/go/internal/test/test.go |  9 ++++++---
- 3 files changed, 27 insertions(+), 20 deletions(-)
+ src/net/mail/message.go      | 77 ++++++++++++++++++++++++++++++++++----------
+ src/net/mail/message_test.go | 53 ++++++++++++++++++++++++++++--
+ 2 files changed, 111 insertions(+), 19 deletions(-)

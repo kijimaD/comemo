@@ -1,28 +1,24 @@
-commit cfb281754ec94859e86962ee3a66b8347e3161ab
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 7 10:28:56 2023 -0500
+commit 642fd5f7cea0f1e214bacfd3a530ee12f9721899
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 28 14:21:50 2022 -0800
 
-    cmd/compile/internal/inline: revise -m=2 status messages
+    go/types, types2: use strict comparability for type set intersection
     
-    This patch revises the compiler's "-m=2" status messages related to
-    inlining. The "can inline" remarks will continue to use the same
-    format, but the remarks when a specific call site is inlined will be
-    changed to refer to the score used; before we had
+    Fixes #57486.
     
-      runtime/traceback.go:1131:28: inlining call to gotraceback
-      runtime/traceback.go:1183:25: inlining call to readgstatus
-    
-    and with GOEXPERIMENT=newinliner the new messages will be:
-    
-      runtime/traceback.go:1131:28: inlining call to gotraceback with score 62
-      runtime/traceback.go:1183:25: inlining call to readgstatus with score 9
-    
-    Change-Id: Ia86cf5351d29eda64a5426ca0a2a2ec0c2900d81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540775
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4b71199a724718886ce6d7a49e96a9ebdcbcf737
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459816
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             | 71 ++++++++++++++--------
- src/cmd/compile/internal/inline/inlheur/analyze.go |  2 +-
- src/cmd/compile/internal/inline/inlheur/scoring.go | 12 +++-
- 3 files changed, 55 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types2/typeset.go         |  2 +-
+ src/go/types/typeset.go                            |  2 +-
+ .../types/testdata/fixedbugs/issue57486.go         | 29 ++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 2 deletions(-)

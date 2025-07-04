@@ -1,19 +1,12 @@
-commit a8942d2cffd80c68febe1c908a0eb464d2f5bb40
+commit b9332ed31aa4c2b73134a1b968761fc4c259ccac
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 19 17:01:35 2021 -0500
+Date:   Fri Jun 5 13:51:17 2020 -0400
 
-    runtime/pprof: disable TestMorestack on darwin/arm64
+    doc: document encoding/xml change in CL 203417
     
-    Something is weird about darwin and TestMorestack,
-    but it is only manifesting on arm64 and race+amd64.
-    Disable for now.
-    
-    Change-Id: I5862372fdd0b5ffae802fdefb65b2aa04e266fcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294409
+    Change-Id: Ibc0228f166f449ec28d813f33bdb550fe7ba2b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236739
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/pprof/pprof_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go1.15.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

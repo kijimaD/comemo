@@ -1,45 +1,42 @@
-commit 71048daa2f4e0c23b651d56fa157e1a75e098a82
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 17 12:38:27 2022 -0400
+commit 9678f794149d07857cbf2a518bfc7aec532fb732
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Nov 18 22:58:17 2021 +0000
 
-    cmd/go: reroute vcs-test.golang.org HTTPS requests to the test-local server
+    cmd/go: work out VCS information once per repository
     
-    After this CL, the only test requests that should still reach
-    vcs-test.golang.org are for Subversion repos, which are not yet handled.
+    We need VCS status information for each main package we load.
+    If two main packages are under the same VCS repository,
+    we can reuse that information to avoid duplicating work.
     
-    The interceptor implementation should also allow us to redirect other
-    servers (such as gopkg.in) fairly easily in a followup change if
-    desired.
+    For instance, the kubernetes holds 51 main packages in its root module,
+    meaning that "go list ./..." repeated the same git calls 51 times.
+    Instead, use a global par.Cache to deduplicate that work.
     
-    For #27494.
+    Below are the numbers on kubernetes 5eb584d1cb6917,
+    via "benchcmd -n 8 KubernetesListPackages go list ./...":
     
-    Change-Id: I8cb85f3a7edbbf0492662ff5cfa779fb9b407136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427254
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+            name                    old time/op         new time/op         delta
+            KubernetesListPackages          8.91s ± 0%          3.33s ± 1%  -62.61%  (p=0.000 n=7+8)
+    
+            name                    old user-time/op    new user-time/op    delta
+            KubernetesListPackages          11.2s ± 1%           8.1s ± 2%  -27.50%  (p=0.000 n=7+8)
+    
+            name                    old sys-time/op     new sys-time/op     delta
+            KubernetesListPackages          8.02s ± 0%          1.67s ± 6%  -79.21%  (p=0.001 n=6+8)
+    
+            name                    old peak-RSS-bytes  new peak-RSS-bytes  delta
+            KubernetesListPackages          127MB ± 2%          123MB ± 7%     ~     (p=0.328 n=8+8)
+    
+    Fixes #49582.
+    
+    Change-Id: Ib7ef5dc7a35c83a11e209441f5d6f3b8da068259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365394
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Dominik Honnef <dominik@honnef.co>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              |  17 ++-
- src/cmd/go/internal/auth/auth.go                   |   5 +-
- src/cmd/go/internal/vcs/vcs.go                     |   4 +-
- src/cmd/go/internal/vcweb/auth.go                  | 108 ++++++++++++++
- src/cmd/go/internal/vcweb/insecure.go              |  42 ++++++
- src/cmd/go/internal/vcweb/script.go                |  38 +++++
- src/cmd/go/internal/vcweb/vcstest/vcstest.go       |  75 ++++++++++
- src/cmd/go/internal/vcweb/vcweb.go                 |  12 +-
- src/cmd/go/internal/web/http.go                    | 160 ++++++++++++++++-----
- src/cmd/go/script_test.go                          |  22 ++-
- src/cmd/go/testdata/vcstest/auth/or401.txt         |  29 ++++
- src/cmd/go/testdata/vcstest/auth/or404.txt         |  30 ++++
- src/cmd/go/testdata/vcstest/auth/ormanylines.txt   |   9 ++
- src/cmd/go/testdata/vcstest/auth/oronelongline.txt |   9 ++
- src/cmd/go/testdata/vcstest/go/custom-hg-hello.txt |   4 +
- src/cmd/go/testdata/vcstest/go/insecure.txt        |   6 +
- src/cmd/go/testdata/vcstest/go/missingrepo.txt     |  18 +++
- src/cmd/go/testdata/vcstest/go/mod/gitrepo1.txt    |   6 +
- src/cmd/go/testdata/vcstest/go/modauth404.txt      |   6 +
- src/cmd/go/testdata/vcstest/go/test1-svn-git.txt   |  30 ++++
- src/cmd/go/testdata/vcstest/go/test2-svn-git.txt   |  26 ++++
- src/cmd/go/testdata/vcstest/go/v2module.txt        |   6 +
- src/cmd/go/testdata/vcstest/insecure.txt           |   1 +
- 23 files changed, 613 insertions(+), 50 deletions(-)
+ src/cmd/go/internal/load/pkg.go                     | 17 +++++++++++++++--
+ src/cmd/go/testdata/script/version_buildvcs_git.txt | 19 +++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

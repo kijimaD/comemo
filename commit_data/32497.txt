@@ -1,24 +1,20 @@
-commit 627d3a0b4c153a4d5c8d53f18083e4c5c133d429
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Aug 23 13:35:24 2017 +0200
+commit fcee3777fdb15eb6e34cb55925a8d5b0cd97e079
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 06:29:07 2017 -0700
 
-    misc/ios,src/iostest.bash: support GOIOS_DEVICE_ID
+    cmd/compile: move addrescapes and moveToHeap to esc.go
     
-    When running multiple iOS builds on the same host, GOIOS_DEVICE_ID
-    is used to distinguish the devices. To improve support,
+    They were used only in esc.go. 100% code movement.
     
-    - Only restart the particular device when invoking iostest.bash
-    with the -restart flag.
-    - Make the exec wrapper lock file per-device.
+    Also, remove the rather outdated comment at the top of gen.go.
+    It's not really clear what gen.go is for any more.
     
-    For the iOS builder.
-    
-    Change-Id: Id6f222981f25036399a43c3202a393dba89d87cb
-    Reviewed-on: https://go-review.googlesource.com/57970
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Iaedfe7015ef6f5c11c49f3e6721b15d779a00faa
+    Reviewed-on: https://go-review.googlesource.com/41971
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 2 +-
- src/iostest.bash               | 8 ++++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 152 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/gen.go | 155 -------------------------------------
+ 2 files changed, 152 insertions(+), 155 deletions(-)

@@ -1,15 +1,18 @@
-commit c3fa7305d1ff3964b3471bab246ba17894eadff2
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Mar 26 11:56:34 2011 +1100
+commit 4100d1a07c8cfb59c95234faf1b91ffdd2da6507
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 17:51:02 2011 -0700
 
-    dashboard: remove old python/bash builder, update README
+    test: match gccgo error messages for cmp6.go
     
-    R=rsc
+    cmp6.go:28:9: error: incompatible types in binary expression
+    cmp6.go:29:9: error: incompatible types in binary expression
+    cmp6.go:40:9: error: incompatible types in binary expression
+    cmp6.go:41:9: error: incompatible types in binary expression
+    cmp6.go:48:9: error: expected integer, floating, complex, string, pointer, boolean, interface, slice, map, channel, or function type
+    
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4275076
+    https://golang.org/cl/4281071
 
- misc/dashboard/README          |  34 +----
- misc/dashboard/buildcontrol.py | 278 -----------------------------------------
- misc/dashboard/buildcron.sh    |  58 ---------
- misc/dashboard/builder.sh      |  95 --------------
- 4 files changed, 5 insertions(+), 460 deletions(-)
+ test/cmp6.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

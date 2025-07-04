@@ -1,17 +1,28 @@
-commit 7751883379621d8ecbf7e4920af0a81c31f2c078
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 16 14:09:56 2022 -0700
+commit 8d2b4cb6cc3100f337e08cc7342f42823fa1dc9a
+Author: Dan Scales <danscales@google.com>
+Date:   Mon May 10 16:23:35 2021 -0700
 
-    go/types, types2: ensure we have a fully resolved type in validType
+    [dev.typeparams] cmd/compile: fixing import of comm clauses/closures in generic functions
     
-    This addresses a situation where Named.fromRHS is nil which
-    is causing validType to panic when the debug flag is set.
+    Improvements:
+     - Fix export/import of the default case of a select statement (was not
+       dealing with nil Comm case)
+     - Set properly the name of closure functions in imported generic
+       functions
     
-    Change-Id: Ie1af3f4d412efc2ce2ee7707af5375ed130a1f2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393436
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Added new test exporting/importing a reasonably large channel package,
+    chansimp.go.
+    
+    Change-Id: If2ee12bd749e5df415f48ec4b629a2fa68a79dcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321734
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/types2/validtype.go | 3 ++-
- src/go/types/validtype.go                    | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |   7 +-
+ src/cmd/compile/internal/typecheck/iimport.go |  14 +-
+ test/typeparam/chansimp.dir/a.go              | 232 ++++++++++++++++++++++++++
+ test/typeparam/chansimp.dir/main.go           | 189 +++++++++++++++++++++
+ test/typeparam/chansimp.go                    |   7 +
+ 5 files changed, 447 insertions(+), 2 deletions(-)

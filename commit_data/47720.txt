@@ -1,24 +1,27 @@
-commit dc65c489cc5a795a68d844ed7a45e5d16562401d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 6 17:25:34 2021 -0500
+commit 0c4a08cb74abe026260a224a2b553c1f77a1172a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 10:17:28 2021 -0400
 
-    cmd/go: fix tests broken in CL 358539
+    cmd/asm,runtime: reduce spellings of GOEXPERIMENTs
     
-    CL 358539 revised the build-stamp format, and updated the git and hg
-    tests to match. However, the fossil and bzr tests were missed, and
-    were not caught on the builders due to the fact that none of the
-    builder images have the necessary VCS tools installed.
+    Currently, the objabi.Experiment fields use Go-standard CamelCase, the
+    GOEXPERIMENT environment variable flags and build tags use all
+    lowercase, and the asm macros use upper-case with underscores.
     
-    Updates #48802
-    Updates #49168
+    This CL makes asm use the lowercase names for macros so there is one
+    less spelling, e.g., GOEXPERIMENT_regabiargs. This also makes them
+    consistent with the GOOS_* and GOARCH_* macros, which also use lower
+    case.
     
-    Change-Id: I6b9fd0e19b81cb539864c94ab0860f74e7be6748
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369743
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I305cd89af5e8cd1a89cc148746c034bcfd76db3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307816
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .../go/testdata/script/version_buildvcs_bzr.txt    | 33 ++++++++++++----------
- .../go/testdata/script/version_buildvcs_fossil.txt | 21 ++++++++------
- 2 files changed, 30 insertions(+), 24 deletions(-)
+ src/cmd/asm/internal/lex/input.go | 10 +++++-----
+ src/runtime/asm_amd64.s           | 10 +++++-----
+ src/runtime/race_amd64.s          | 18 +++++++++---------
+ src/runtime/sys_linux_amd64.s     |  8 ++++----
+ 4 files changed, 23 insertions(+), 23 deletions(-)

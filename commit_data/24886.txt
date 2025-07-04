@@ -1,22 +1,20 @@
-commit b5c1b5d7a035d589c5a970f17b7e0c52441d5d34
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 9 13:31:03 2015 -0800
+commit 3fa0a75a02f8c54fe4b3436a343271ce1d6682f4
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 7 13:55:49 2015 -0700
 
-    cmd/go: fix build -n when adding to archive with gc toolchain
+    [dev.ssa] cmd/compile/internal/ssa: large object load/store vs. vardef
     
-    Fix the output of build -n when adding to an existing archive with the
-    gc toolchain by observing that we are, now, always doing that.  When
-    using the gc toolchain the archive is now always created by the Go
-    compiler, and never by the pack command.
+    VarDef declarations are getting in the way of rewriting load/store
+    pairs into moves.  This change fixes that, albeit in a really hacky way.
+    Better options would be appreciated.
     
-    No test because we have not historically tested build -n output.
+    Increases coverage during make.bash from 67% to 71%.
     
-    Fixes #13118.
-    
-    Change-Id: I3a5c43cf45169fa6c9581e4741309c77d2b6e58b
-    Reviewed-on: https://go-review.googlesource.com/16761
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I336e967687e2238c7d0d64e3b37132a731ad15c3
+    Reviewed-on: https://go-review.googlesource.com/14347
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/build.go | 37 +++++++++++++++----------------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 38 ++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 2 deletions(-)

@@ -1,16 +1,82 @@
-commit 61170f85e62f1326d42c4dbd8aa17ab4a1305a87
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 27 14:01:55 2019 +1100
+commit 808186203b9786c11073c7056767fdf82f49def6
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Sep 11 08:55:10 2018 +0000
 
-    time: move the explanation of u/micro to the ParseDuration example
+    cmd/internal/obj/arm64: simplify ADD and SUB
     
-    Fix a few missing capitalizations in drive-by.
+    Currently "ADD $0x123456, Rs, Rd" will load pre-stored 0x123456
+    from the constant pool and use it for the addition. Total 12 bytes
+    are cost. And so does SUB.
     
-    Change-Id: I7353c12f3ccddefc0f26a98590caf9e446129558
-    Reviewed-on: https://go-review.googlesource.com/c/163918
-    Run-TryBot: Rob Pike <r@golang.org>
+    This CL breaks it to "ADD 0x123000, Rs, Rd" + "ADD 0x000456, Rd, Rd".
+    Both "0x123000" and "0x000456" can be directly encoded into the
+    instruction binary code. So 4 bytes are saved.
+    
+    1. The total size of pkg/android_arm64 decreases about 0.3KB.
+    
+    2. The go1 benchmark show little regression (excluding noise).
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              15.9s ± 0%     15.9s ± 1%  +0.10%  (p=0.044 n=29+29)
+    Fannkuch11-4                8.72s ± 0%     8.75s ± 0%  +0.34%  (p=0.000 n=30+24)
+    FmtFprintfEmpty-4           173ns ± 0%     173ns ± 0%    ~     (all equal)
+    FmtFprintfString-4          368ns ± 0%     368ns ± 0%    ~     (p=0.593 n=30+30)
+    FmtFprintfInt-4             417ns ± 0%     417ns ± 0%    ~     (all equal)
+    FmtFprintfIntInt-4          673ns ± 0%     661ns ± 1%  -1.70%  (p=0.000 n=30+30)
+    FmtFprintfPrefixedInt-4     805ns ± 0%     805ns ± 0%  +0.10%  (p=0.011 n=30+30)
+    FmtFprintfFloat-4          1.09µs ± 0%    1.09µs ± 0%    ~     (p=0.125 n=30+29)
+    FmtManyArgs-4              2.68µs ± 0%    2.68µs ± 0%  +0.07%  (p=0.004 n=30+30)
+    GobDecode-4                32.9ms ± 0%    33.2ms ± 1%  +1.07%  (p=0.000 n=29+29)
+    GobEncode-4                29.5ms ± 0%    29.6ms ± 0%  +0.26%  (p=0.000 n=28+28)
+    Gzip-4                      1.38s ± 1%     1.35s ± 3%  -1.94%  (p=0.000 n=28+30)
+    Gunzip-4                    139ms ± 0%     139ms ± 0%  +0.10%  (p=0.000 n=28+29)
+    HTTPClientServer-4          745µs ± 5%     742µs ± 3%    ~     (p=0.405 n=28+29)
+    JSONEncode-4               49.5ms ± 1%    49.9ms ± 0%  +0.89%  (p=0.000 n=30+30)
+    JSONDecode-4                264ms ± 1%     264ms ± 0%  +0.25%  (p=0.001 n=30+30)
+    Mandelbrot200-4            16.6ms ± 0%    16.6ms ± 0%    ~     (p=0.507 n=29+29)
+    GoParse-4                  15.9ms ± 0%    16.0ms ± 1%  +0.91%  (p=0.002 n=23+30)
+    RegexpMatchEasy0_32-4       379ns ± 0%     379ns ± 0%    ~     (all equal)
+    RegexpMatchEasy0_1K-4      1.31µs ± 0%    1.31µs ± 0%  +0.09%  (p=0.008 n=27+30)
+    RegexpMatchEasy1_32-4       357ns ± 0%     358ns ± 0%  +0.28%  (p=0.000 n=28+29)
+    RegexpMatchEasy1_1K-4      2.04µs ± 0%    2.04µs ± 0%    ~     (p=0.850 n=30+30)
+    RegexpMatchMedium_32-4      587ns ± 0%     589ns ± 0%  +0.33%  (p=0.000 n=30+30)
+    RegexpMatchMedium_1K-4      162µs ± 0%     163µs ± 0%    ~     (p=0.351 n=30+29)
+    RegexpMatchHard_32-4       9.54µs ± 0%    9.60µs ± 0%  +0.59%  (p=0.000 n=28+30)
+    RegexpMatchHard_1K-4        287µs ± 0%     287µs ± 0%  +0.11%  (p=0.000 n=26+29)
+    Revcomp-4                   2.50s ± 0%     2.50s ± 0%  -0.13%  (p=0.012 n=28+27)
+    Template-4                  312ms ± 1%     312ms ± 1%  +0.20%  (p=0.015 n=27+30)
+    TimeParse-4                1.68µs ± 0%    1.68µs ± 0%  -0.35%  (p=0.000 n=30+30)
+    TimeFormat-4               1.66µs ± 0%    1.64µs ± 0%  -1.20%  (p=0.000 n=25+29)
+    [Geo mean]                  246µs          246µs       -0.00%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4              23.3MB/s ± 0%  23.1MB/s ± 1%  -1.05%  (p=0.000 n=29+29)
+    GobEncode-4              26.0MB/s ± 0%  25.9MB/s ± 0%  -0.25%  (p=0.000 n=29+28)
+    Gzip-4                   14.1MB/s ± 1%  14.4MB/s ± 3%  +1.94%  (p=0.000 n=27+30)
+    Gunzip-4                  139MB/s ± 0%   139MB/s ± 0%  -0.10%  (p=0.000 n=28+29)
+    JSONEncode-4             39.2MB/s ± 1%  38.9MB/s ± 0%  -0.88%  (p=0.000 n=30+30)
+    JSONDecode-4             7.37MB/s ± 0%  7.35MB/s ± 0%  -0.26%  (p=0.001 n=30+30)
+    GoParse-4                3.65MB/s ± 0%  3.62MB/s ± 1%  -0.86%  (p=0.001 n=23+30)
+    RegexpMatchEasy0_32-4    84.3MB/s ± 0%  84.3MB/s ± 0%    ~     (p=0.126 n=27+26)
+    RegexpMatchEasy0_1K-4     784MB/s ± 0%   783MB/s ± 0%  -0.10%  (p=0.003 n=27+30)
+    RegexpMatchEasy1_32-4    89.5MB/s ± 0%  89.3MB/s ± 0%  -0.20%  (p=0.000 n=27+29)
+    RegexpMatchEasy1_1K-4     502MB/s ± 0%   502MB/s ± 0%    ~     (p=0.858 n=30+28)
+    RegexpMatchMedium_32-4   1.70MB/s ± 0%  1.70MB/s ± 0%  -0.25%  (p=0.000 n=30+30)
+    RegexpMatchMedium_1K-4   6.30MB/s ± 0%  6.30MB/s ± 0%    ~     (all equal)
+    RegexpMatchHard_32-4     3.35MB/s ± 0%  3.33MB/s ± 0%  -0.47%  (p=0.000 n=30+30)
+    RegexpMatchHard_1K-4     3.57MB/s ± 0%  3.56MB/s ± 0%  -0.20%  (p=0.000 n=27+30)
+    Revcomp-4                 102MB/s ± 0%   102MB/s ± 0%  +0.14%  (p=0.008 n=28+28)
+    Template-4               6.23MB/s ± 0%  6.21MB/s ± 1%  -0.21%  (p=0.009 n=21+30)
+    [Geo mean]               24.1MB/s       24.0MB/s       -0.16%
+    
+    Change-Id: Ifcef3edb667540e2d86e586c23afcfbc2cf1340b
+    Reviewed-on: https://go-review.googlesource.com/c/134536
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/time/example_test.go | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 12 +++++++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  1 +
+ src/cmd/internal/obj/arm64/anames7.go     |  1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 34 +++++++++++++++++++++++++++++--
+ 4 files changed, 46 insertions(+), 2 deletions(-)

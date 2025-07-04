@@ -1,21 +1,21 @@
-commit 9efc46f1cbedc8971c99a49b0c2736fece13135e
-Author: Joe Sylve <joe.sylve@gmail.com>
-Date:   Sun Jan 10 23:23:51 2016 -0600
+commit 9c8cd83753fd3ebbe81a72469d8c74441123140c
+Author: Ralph Corderoy <ralph@inputplus.co.uk>
+Date:   Sat Nov 7 11:45:00 2015 +0000
 
-    cmd/go: -buildmode=c-shared should work on darwin/386
+    crypto/tls: len(clientRandom) used for serverRandom source
     
-    * Enable c-shared buildmode on darwin/386
-    * dyld does not support text relocation on i386. Add -read_only_relocs suppress flag to linker
+    In keysFromMasterSecret(), don't copy from serverRandom into
+    seed[:len(clientRandom)].  Actually, switch from an array to a slice in
+    keysFromMasterSecret() and masterFromPreMasterSecret() so the length
+    need not be given;  that's how it's done elsewhere in the file.
     
-    Fixes #13904
+    Fixes #13181
     
-    Change-Id: I9adbd20d3f36ce9bbccf1bffb746b391780d088f
-    Reviewed-on: https://go-review.googlesource.com/18500
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I92abaa892d1bba80c2d4f12776341cda7d538837
+    Reviewed-on: https://go-review.googlesource.com/16697
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- misc/cgo/testcshared/test.bash  | 2 +-
- src/cmd/dist/test.go            | 2 +-
- src/cmd/go/build.go             | 2 +-
- src/cmd/link/internal/ld/lib.go | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/crypto/tls/prf.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

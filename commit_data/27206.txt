@@ -1,36 +1,19 @@
-commit 56b54912628934707977a2a0a3824288c0286830
-Merge: d8d33514f9 e9eaa181fc
-Author: Rick Hudson <rlh@golang.org>
-Date:   Fri Apr 29 13:49:18 2016 -0400
+commit 55567d37e9c0543347239df69888f5f321fc9d08
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 16 13:28:32 2016 +1100
 
-    Merge remote-tracking branch 'origin/dev.garbage'
+    path: fix up bizarre test
     
-    This commit moves the GC from free list allocation to
-    bit mark allocation. Instead of using the bitmaps
-    generated during the mark phases to generate free
-    list and then using the free lists for allocation we
-    allocate directly from the bitmaps.
+    The Join test was doing something remarkable and unnecessary instead of
+    just using ... on a slice. Maybe it was an editing relic.
     
-    The change in the garbage benchmark
+    Fix it by deleting the monstrosity.
     
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  2.22ms ± 1%  2.13ms ± 1%  -3.90%  (p=0.000 n=18+18)
-    
-    Change-Id: I17f57233336f0ca5ef5404c3be4ecb443ab622aa
+    Change-Id: I5b90c6d539d334a9c27e57d26dacd831721cfcfe
+    Reviewed-on: https://go-review.googlesource.com/20727
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- dev.garbage             |   1 +
- src/runtime/cgocall.go  |   2 +-
- src/runtime/heapdump.go |  16 +-
- src/runtime/malloc.go   | 122 ++++++++----
- src/runtime/mbitmap.go  | 479 +++++++++++++++++++++++++++++++++---------------
- src/runtime/mcache.go   |  13 +-
- src/runtime/mcentral.go |  82 ++++-----
- src/runtime/mfinal.go   |   2 +-
- src/runtime/mgcmark.go  |  45 +++--
- src/runtime/mgcsweep.go | 148 ++++++---------
- src/runtime/mgcwork.go  |  33 ++++
- src/runtime/mheap.go    | 257 +++++++++++++++++++++-----
- src/runtime/msize.go    |  28 ++-
- src/runtime/mstats.go   |   6 +-
- src/runtime/stack.go    |  42 ++---
- 15 files changed, 849 insertions(+), 427 deletions(-)
+ src/path/path_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

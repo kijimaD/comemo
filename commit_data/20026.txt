@@ -1,29 +1,14 @@
-commit 6d248cec56dd56f3ddb92bd587b5c4ac2f9919b1
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Mon Aug 18 14:41:28 2014 -0700
+commit c74a4d4addfeb4089efcef3ccf3658813d8bd9e9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:49:31 2014 -0400
 
-    bzip2: improve performance
+    [dev.power64] syscall: script changes for power64
     
-    Improve performance of move-to-front by using cache-friendly
-    copies instead of doubly-linked list. Simplify so that the
-    underlying slice is the object. Remove the n=0 special case,
-          which was actually slower with the copy approach.
-    
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkDecodeDigits     26429714      23859699      -9.72%
-    BenchmarkDecodeTwain      76684510      67591946      -11.86%
-    
-    benchmark                 old MB/s     new MB/s     speedup
-    BenchmarkDecodeDigits     1.63         1.81         1.11x
-    BenchmarkDecodeTwain      1.63         1.85         1.13x
-    
-    Updates #6754.
-    
-    LGTM=adg, agl, josharian
-    R=adg, agl, josharian
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/131840043
+    https://golang.org/cl/123290043
 
- src/pkg/compress/bzip2/bzip2_test.go    | 38 ++++++++++++++++
- src/pkg/compress/bzip2/move_to_front.go | 79 +++++++--------------------------
- 2 files changed, 55 insertions(+), 62 deletions(-)
+ src/pkg/syscall/mkall.sh    | 19 +++++++++++++++++--
+ src/pkg/syscall/mkerrors.sh |  1 +
+ 2 files changed, 18 insertions(+), 2 deletions(-)

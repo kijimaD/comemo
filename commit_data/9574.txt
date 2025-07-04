@@ -1,17 +1,13 @@
-commit 420934348d31ea1da24ccd08b8e8488c475fb50e
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Thu Sep 1 17:24:32 2011 +1000
+commit ca64a37d9d925dec179e1142097dc9f135807656
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 1 17:08:53 2011 +1000
 
-    sudo.bash: print error/exit if problem with /usr/local/bin
+    weekly.2011-09-01
     
-    When installing profiling tools on Mac OS X print
-    message if there is a problem with /usr/local/bin
-    
-    Fixes #2209.
-    
-    R=golang-dev, r, adg
-    CC=golang-dev, mike.rosset
-    https://golang.org/cl/4950057
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4975046
 
- src/sudo.bash | 5 +++++
- 1 file changed, 5 insertions(+)
+ .hgtags               |   1 -
+ doc/devel/weekly.html | 146 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+), 1 deletion(-)

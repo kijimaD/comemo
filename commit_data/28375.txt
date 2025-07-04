@@ -1,24 +1,16 @@
-commit 4b8a1611b5d37fd41d2d11ef1bb3455c77b34e07
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 14 13:19:20 2016 -0700
+commit 5bcdd639331cd7f8d844fd38a674c4751423f938
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 21:54:12 2016 +0000
 
-    cmd/compile: add Nodes.Prepend helper method
+    net: don't return io.EOF from zero byte reads
     
-    Prepared with gofmt -r.
+    Updates #15735
     
-    Change-Id: Ib9f224cc20353acd9c5850dead1a2d32ca5427d3
-    Reviewed-on: https://go-review.googlesource.com/29165
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I42ab2345443bbaeaf935d683460fc2c941b7679c
+    Reviewed-on: https://go-review.googlesource.com/23227
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/order.go    | 10 +++++-----
- src/cmd/compile/internal/gc/pgen.go     |  2 +-
- src/cmd/compile/internal/gc/racewalk.go |  2 +-
- src/cmd/compile/internal/gc/range.go    |  2 +-
- src/cmd/compile/internal/gc/select.go   |  2 +-
- src/cmd/compile/internal/gc/subr.go     |  2 +-
- src/cmd/compile/internal/gc/swt.go      |  4 ++--
- src/cmd/compile/internal/gc/syntax.go   | 20 +++++++++++++++++---
- src/cmd/compile/internal/gc/walk.go     |  2 +-
- 9 files changed, 30 insertions(+), 16 deletions(-)
+ src/net/fd_unix.go    |  8 ++++++++
+ src/net/fd_windows.go |  4 +++-
+ src/net/net_test.go   | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 1 deletion(-)

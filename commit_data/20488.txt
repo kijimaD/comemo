@@ -1,15 +1,18 @@
-commit a07a57b00ec9fdd8f6b02360d39454859709d08a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 23:07:36 2014 -0400
+commit aa168ed2cd0614afa7503e3b0eb2b1e38b43384a
+Author: Michael MacInnis <Michael.P.MacInnis@gmail.com>
+Date:   Thu Sep 11 18:39:51 2014 -0700
 
-    syscall: mark ECONNRESET, ECONNABORTED as temporary network errors
+    syscall: SysProcAttr job control changes
     
-    Fixes #6163.
+    Making the child's process group the foreground process group and
+    placing the child in a specific process group involves co-ordination
+    between the parent and child that must be done post-fork but pre-exec.
     
-    LGTM=adg
-    R=golang-codereviews, adg, dvyukov
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/141600043
+    https://golang.org/cl/131750044
 
- src/syscall/syscall_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/exec_bsd.go   | 40 ++++++++++++++++++++++++++++++++++++++--
+ src/syscall/exec_linux.go | 40 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 76 insertions(+), 4 deletions(-)

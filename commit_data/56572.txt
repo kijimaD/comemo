@@ -1,25 +1,26 @@
-commit dfb7073bb8e66630156fc14ae50042acef89a929
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Tue May 14 12:37:14 2024 -0700
+commit d29dd2ecf7563a8cb15a662a7ec5caa461068bbe
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Feb 6 07:18:53 2023 +0100
 
-    runtime: use semaphore structure for futex locks
+    cmd/compile: call phiElimValue from removePhiArg
     
-    Prepare the futex-based implementation of lock2 to maintain a list of
-    waiting Ms. Beyond storing an muintptr in the mutex's key field, we now
-    must never overwrite that field (even for a moment) without taking its
-    current value into account.
+    With the exception of the shortcircuit pass, removePhiArg is always unconditionally followed by phiElimValue.
+    Move the phiElimValue inside removePhiArg.
     
-    The semaphore-based implementation of lock2 already has that behavior.
-    Reuse that structure.
+    Resolves a TODO.
     
-    For #66999
+    See CL 357964 for more info.
     
-    Change-Id: I23b6f6bacb276fe33c6aed5c0571161a7e71fe6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585636
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8460b35864f4cd7301ba86fc3dce08ec8041da7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465435
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
 
- src/runtime/lock_futex.go | 103 +++++++++++++++++++++++-----------------------
- 1 file changed, 52 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/ssa/block.go               | 3 ++-
+ src/cmd/compile/internal/ssa/critical.go            | 5 -----
+ src/cmd/compile/internal/ssa/deadcode.go            | 1 -
+ src/cmd/compile/internal/ssa/fuse_branchredirect.go | 1 -
+ 4 files changed, 2 insertions(+), 8 deletions(-)

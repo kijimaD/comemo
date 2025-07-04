@@ -1,17 +1,26 @@
-commit 4ab6fb194572846d53b80a92a0d87eaf31446542
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 4 14:37:39 2018 -0500
+commit 1484270aec14b9d971b94832d0fac9d3db382cf9
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Jul 18 13:05:29 2018 +0300
 
-    cmd/go/internal/get: reject Windows shortnames as path components
+    test: restore tests for the reject unsafe code option
     
-    Updates #29230
+    Tests in test/safe were neglected after moving to the run.go
+    framework. This change restores them.
     
-    Change-Id: Ia32d8ec1fc0c4e242f50d8871c0ef3ce315f3c65
-    Reviewed-on: https://team-review.git.corp.google.com/c/370571
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/154102
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    These tests are skipped for go/types via -+ option.
+    
+    Fixes #25668
+    
+    Change-Id: I8fe26574a76fa7afa8664c467d7c2e6334f1bba9
+    Reviewed-on: https://go-review.googlesource.com/124660
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/get/path.go          | 21 ++++++++++++++++++++-
- src/cmd/go/testdata/script/get_tilde.txt | 21 +++++++++++++++++++++
- 2 files changed, 41 insertions(+), 1 deletion(-)
+ test/safe/main.go      | 14 --------------
+ test/safe/nousesafe.go |  8 --------
+ test/safe/pkg.go       | 16 ----------------
+ test/safe/usesafe.go   |  8 --------
+ test/unsafereject1.go  | 16 ++++++++++++++++
+ test/unsafereject2.go  | 15 +++++++++++++++
+ 6 files changed, 31 insertions(+), 46 deletions(-)

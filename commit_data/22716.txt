@@ -1,14 +1,13 @@
-commit 81c2233b4abff45e9c781f5e7c50396cfec5a0df
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 27 17:54:51 2015 +0000
+commit 09b3bf42c717d31dca05959c57d6bbf631748c8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 3 13:51:48 2015 -0700
 
-    Revert "cmd/dist: consolidate runtime CPU tests"
+    math/big: compute 10**exp efficiently when converting Floats
     
-    This reverts commit a9e50a6b358df2e725157128c140684264c8ed38.
-    
-    Change-Id: I3c5e459f1030e36bc249910facdae12303a44151
-    Reviewed-on: https://go-review.googlesource.com/9394
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic2d9fdae43d18255c198ae62376212bdc89b75da
+    Reviewed-on: https://go-review.googlesource.com/8464
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/dist/test.go | 27 +++++++++++++++------------
- 1 file changed, 15 insertions(+), 12 deletions(-)
+ src/math/big/floatconv.go      | 50 +++++++++++++++++++++++++++++++++---------
+ src/math/big/floatconv_test.go |  6 +++++
+ 2 files changed, 46 insertions(+), 10 deletions(-)

@@ -1,26 +1,18 @@
-commit d7ddee78ddca805e6609149ff4320b1547698259
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Tue Apr 5 18:42:07 2016 +0300
+commit d2e1dae3fec6953a37702710a3a7d7998c41bb69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 24 16:17:49 2016 -0800
 
-    icmd/vet: improved checking for variadic Println-like functions
+    cmd/compile: adjust starting token value
     
-    - Automatically determine the first argument to check.
-    - Skip checking matching non-variadic functions.
-    - Skip checking matching functions accepting non-interface{}
-      variadic arguments.
-    - Removed fragile 'magic' code for special cases such as math.Log
-      and error interface.
+    The actual values assigned to tokens was inherited from the yacc-based
+    grammar. With the most recent cleanups, all single-char tokens such as
+    commas, semis, parens, etc., that get returned from lexer.next simply
+    as their Unicode values are below utf8.RuneSelf (i.e., 7bit ASCII).
+    Lower the initial starting value for named token constants accordingly.
     
-    Fixes #15067
-    Fixes #15099
-    
-    Change-Id: Ib313557f18b12b36daa493f4b02c598b9503b55b
-    Reviewed-on: https://go-review.googlesource.com/21513
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I7eb8e584dbb3bc7f9dab849d1b68a91320cffebd
+    Reviewed-on: https://go-review.googlesource.com/19913
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/vet/doc.go            |   9 +---
- src/cmd/vet/print.go          | 104 ++++++++++++++++++++----------------------
- src/cmd/vet/testdata/print.go |  38 +++++++++++++--
- src/cmd/vet/types.go          |  66 ---------------------------
- 4 files changed, 86 insertions(+), 131 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

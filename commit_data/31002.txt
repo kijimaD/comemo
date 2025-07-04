@@ -1,14 +1,27 @@
-commit 92cffa13917023ca8a894160c71b73670f4e74f2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 4 12:48:38 2017 -0700
+commit 2e5116bd999be18691d860e47cb87f1446cf70fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 16 15:10:07 2016 -0800
 
-    cmd/internal/obj: remove dead func Copyp
+    [dev.typealias] go/ast, go/parser, go/printer, go/types: initial type alias support
     
-    Change-Id: Iaeb7bcbcdbc46c0e0e40b0aa070c706e0ca53013
-    Reviewed-on: https://go-review.googlesource.com/39555
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Parsing and printing support for type aliases complete.
+    go/types recognizes them an issues an "unimplemented" error for now.
+    
+    For #18130.
+    
+    Change-Id: I9f2f7b1971b527276b698d9347bcd094ef0012ee
+    Reviewed-on: https://go-review.googlesource.com/34986
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ld.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/go/ast/ast.go                           |  1 +
+ src/go/parser/parser.go                     |  5 ++++-
+ src/go/parser/short_test.go                 |  2 ++
+ src/go/printer/nodes.go                     |  3 +++
+ src/go/printer/testdata/declarations.golden | 15 +++++++++++++++
+ src/go/printer/testdata/declarations.input  | 15 +++++++++++++++
+ src/go/types/decl.go                        |  3 +++
+ src/go/types/resolver.go                    |  3 +++
+ src/go/types/testdata/decls0.src            |  8 ++++++++
+ 9 files changed, 54 insertions(+), 1 deletion(-)

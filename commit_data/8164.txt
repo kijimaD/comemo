@@ -1,16 +1,14 @@
-commit 8dad7fec1d3c12a7ff50c2ad5178f4b77d4e48ef
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 20 13:53:34 2011 -0700
+commit 047e698c5294d26490d856a9ea79df403916f79c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 16:25:00 2011 -0400
 
-    http: don't proxy loopback addresses
+    ld: remove MachoLoad limit
     
-    Fixes #1589
+    Fixes #1571.
     
-    R=rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4443053
+    https://golang.org/cl/4443052
 
- src/pkg/http/proxy_test.go | 23 +++++++++++++----------
- src/pkg/http/transport.go  | 19 +++++++++++++++++++
- src/pkg/net/ip.go          |  3 ++-
- 3 files changed, 34 insertions(+), 11 deletions(-)
+ src/cmd/ld/macho.c | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

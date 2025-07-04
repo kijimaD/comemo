@@ -1,61 +1,65 @@
-commit 4c6280b0f1afd82b2c249fb5a8903d5b5ae54063
+commit 5ea4d73b175cf49196061ff89e07d37b66b3a111
 Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Fri Jul 15 11:58:39 2011 -0400
+Date:   Fri Jul 15 11:58:28 2011 -0400
 
-    6a, 6c, 6l: fix for Plan 9 build
+    5a, 5c, 5l: fix for Plan 9 build
     
-    6a/a.h:
-    . Dropped <u.h> and <libc.h>.
+    5a/a.h:
+    . Removed <u.h> and <lib.h>.
     . Made definition of EOF conditional.
     
-    6a/a.y:
-    . Added <u.h> and <libc.h>.
+    5a/a.y:
+    . Added <u.h> and <lib.h>.
     
-    6a/lex.c:
-    . Added <u.h> and <libc.h>.
+    5a/lex.c:
+    . Added <u.h> and <lib.h>.
     . Dropped <ctype.h> (now in <u.h>).
     
-    6c/gc.h:
-    . Added varargck pragma for "lD".
+    5c/peep.c:
+    . Removed unnecessary "return 0" statement.
     
-    6c/swt.c:
-    . Dropped unused "thestring" argument in Bprint() calls.
+    5c/reg.c:
+    . Added compilation condition around unused code.
     
-    6l/Makefile:
-    . Dropped unneeded directory prefix.
+    5c/swt.c:
+    . Removed unused "thestring" argument from Bprint() calls.
     
-    6l/l.h:
-    . Dropped unneeded directory prefix.
+    5l/asm.c:
+    . Added USED() statements as required.
+    . Adjusted a few format specifications.
+    . Added compilation condition around unused code.
+    
+    5l/l.h:
+    . Dropped directory prefix from <../5l/5.out.h>.
     . Added varargck pragma for "I" and "i".
     
-    6l/obj.c:
-    . Dropped unneeded assignment.
-    . Dropped unreachable goto statement.
+    5l/obj.c:
+    . Cascaded consecutive "if" statements.
+    . Dropped unnecessary incrementation and assignments.
     
-    6l/pass.c:
-    . Dropped assignments flagged as unused.
+    5l/pass.c:
+    . Dropped unnecessary assignment.
     
-    6l/prof.c:
-    . Replaced "#if 0" with "#ifdef NOTDEF".
+    5l/prof.c:
+    . #if 0 converted to #ifdef NOTDEF.
     
-    6l/span.c:
-    . Dropped unused incrementation.
-    . Added USED() as required.
-    . Dropped unreachable "return" statement.
+    5l/span.c:
+    . Dropped unnecessary incrementation and assignments.
     
     R=golang-dev
     CC=golang-dev, rsc
-    https://golang.org/cl/4747044
+    https://golang.org/cl/4752041
 
- src/cmd/6a/a.h      | 4 ++--
- src/cmd/6a/a.y      | 2 ++
- src/cmd/6a/lex.c    | 3 ++-
- src/cmd/6c/gc.h     | 1 +
- src/cmd/6c/swt.c    | 4 ++--
- src/cmd/6l/Makefile | 2 +-
- src/cmd/6l/l.h      | 4 +++-
- src/cmd/6l/obj.c    | 2 --
- src/cmd/6l/pass.c   | 5 -----
- src/cmd/6l/prof.c   | 2 +-
- src/cmd/6l/span.c   | 4 ++--
- 11 files changed, 16 insertions(+), 17 deletions(-)
+ src/cmd/5a/a.h    |  4 ++--
+ src/cmd/5a/a.y    |  2 ++
+ src/cmd/5a/lex.c  |  3 ++-
+ src/cmd/5c/peep.c |  1 -
+ src/cmd/5c/reg.c  |  2 ++
+ src/cmd/5c/swt.c  |  4 ++--
+ src/cmd/5l/asm.c  | 16 ++++++++++++----
+ src/cmd/5l/l.h    |  4 +++-
+ src/cmd/5l/obj.c  | 10 ++++------
+ src/cmd/5l/pass.c |  1 -
+ src/cmd/5l/prof.c |  2 +-
+ src/cmd/5l/span.c | 10 +---------
+ 12 files changed, 31 insertions(+), 28 deletions(-)

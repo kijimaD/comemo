@@ -1,73 +1,60 @@
-commit c9c88d73f5cb58d0e40cb1b0481c102e6b8b24f1
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Feb 20 21:16:33 2024 +0000
+commit ecc5ba46117d2e73f65caac27dfe53acb12cf4f3
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Mon Mar 20 11:01:13 2023 -0700
 
-    runtime: add tracing for iter.Pull
+    html/template: disallow actions in JS template literals
     
-    This change resolves a TODO in the coroutine switch implementation (used
-    exclusively by iter.Pull at the moment) to enable tracing. This was
-    blocked on eliminating the atomic load in the tracer's "off" path
-    (completed in the previous CL in this series) and the addition of new
-    tracer events to minimize the overhead of tracing in this circumstance.
+    ECMAScript 6 introduced template literals[0][1] which are delimited with
+    backticks. These need to be escaped in a similar fashion to the
+    delimiters for other string literals. Additionally template literals can
+    contain special syntax for string interpolation.
     
-    This change introduces 3 new event types to support coroutine switches:
-    GoCreateBlocked, GoSwitch, and GoSwitchDestroy.
+    There is no clear way to allow safe insertion of actions within JS
+    template literals, as handling (JS) string interpolation inside of these
+    literals is rather complex. As such we've chosen to simply disallow
+    template actions within these template literals.
     
-    GoCreateBlocked needs to be introduced because the goroutine created for
-    the coroutine starts out in a blocked state. There's no way to represent
-    this in the tracer right now, so we need a new event for it.
+    A new error code is added for this parsing failure case, errJsTmplLit,
+    but it is unexported as it is not backwards compatible with other minor
+    release versions to introduce an API change in a minor release. We will
+    export this code in the next major release.
     
-    GoSwitch represents the actual coroutine switch, which conceptually
-    consists of a GoUnblock, a GoBlock, and a GoStart event in series
-    (unblocking the next goroutine to run, blocking the current goroutine,
-    and then starting the next goroutine to run).
+    The previous behavior (with the cavet that backticks are now escaped
+    properly) can be re-enabled with GODEBUG=jstmpllitinterp=1.
     
-    GoSwitchDestroy is closely related to GoSwitch, implementing the same
-    semantics except that GoBlock is replaced with GoDestroy. This is used
-    when exiting the coroutine.
+    This change subsumes CL471455.
     
-    The implementation of all this is fairly straightforward, and the trace
-    parser simply translates GoSwitch* into the three constituent events.
+    Thanks to Sohom Datta, Manipal Institute of Technology, for reporting
+    this issue.
     
-    Because GoSwitch and GoSwitchDestroy imply a GoUnblock and a GoStart,
-    they need to synchronize with other past and future GoStart events to
-    create a correct partial ordering in the trace. Therefore, these events
-    need a sequence number for the goroutine that will be unblocked and
-    started.
+    Fixes CVE-2023-24538
+    Fixes #59234
     
-    Also, while implementing this, I noticed that the coroutine
-    implementation is actually buggy with respect to LockOSThread. In fact,
-    it blatantly disregards its invariants without an explicit panic. While
-    such a case is likely to be rare (and inefficient!) we should decide how
-    iter.Pull behaves with respect to runtime.LockOSThread.
+    [0] https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-template-literals
+    [1] https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
     
-    Lastly, this change also bumps the trace version from Go 1.22 to Go
-    1.23. We're adding events that are incompatible with a Go 1.22 parser,
-    but Go 1.22 traces are all valid Go 1.23 traces, so the newer parser
-    supports both (and the CL otherwise updates the Go 1.22 definitions of
-    events and such). We may want to reconsider the structure and naming of
-    some of these packages though; it could quickly get confusing.
-    
-    For #61897.
-    
-    Change-Id: I96897a46d5852c02691cde9f957dc6c13ef4d8e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565937
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802457
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Change-Id: Ia221fefdb273bd0f066dffc2abcf2a616801d2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482079
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/internal/trace/v2/event.go                     | 16 +++-
- src/internal/trace/v2/event/go122/event.go         | 21 +++++
- src/internal/trace/v2/order.go                     | 94 +++++++++++++++++++---
- src/internal/trace/v2/reader.go                    |  2 +-
- .../trace/v2/testdata/testprog/iter-pull.go        | 85 +++++++++++++++++++
- src/internal/trace/v2/trace_test.go                |  6 +-
- src/internal/trace/v2/version/version.go           |  7 +-
- src/runtime/coro.go                                | 38 +++++++--
- src/runtime/debugcall.go                           |  2 +-
- src/runtime/proc.go                                | 19 +++--
- src/runtime/trace.go                               | 12 ++-
- src/runtime/trace2.go                              |  2 +-
- src/runtime/trace2event.go                         |  5 ++
- src/runtime/trace2runtime.go                       | 40 +++++++--
- 14 files changed, 306 insertions(+), 43 deletions(-)
+ src/html/template/context.go       |  2 ++
+ src/html/template/error.go         | 13 ++++++++
+ src/html/template/escape.go        | 13 ++++++++
+ src/html/template/escape_test.go   | 66 +++++++++++++++++++++-----------------
+ src/html/template/js.go            |  2 ++
+ src/html/template/js_test.go       |  2 +-
+ src/html/template/jsctx_string.go  |  9 ++++++
+ src/html/template/state_string.go  | 37 +++++++++++++++++++--
+ src/html/template/transition.go    |  7 +++-
+ src/runtime/metrics.go             |  1 +
+ src/runtime/metrics/description.go |  7 ++++
+ src/runtime/metrics/doc.go         |  5 +++
+ 12 files changed, 131 insertions(+), 33 deletions(-)

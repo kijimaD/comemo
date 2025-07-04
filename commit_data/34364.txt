@@ -1,17 +1,22 @@
-commit 3b7ad1680fa6b97fff29f0af18795bd5f0f6a95a
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sun Feb 25 16:34:35 2018 +0200
+commit 6407b3c80ea7051f01615097afc60da671a688e8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 20 12:44:00 2017 +1100
 
-    archive/zip: improve Writer.Create documentation on how to add directories
+    os: simplify windows Pipe
     
-    FileHeader.Name also reflects this fact.
+    windows version of Pipe function is implemented by calling
+    syscall.Pipe which returns handles inheritable by client process,
+    and then adjusting returned handles with syscall.CloseOnExec.
     
-    Fixes #24018
+    Just create non-inheritable handles in the first place.
+    Now that we don't have a race window in the code, drop use
+    of syscall.ForkLock.
     
-    Change-Id: Id0860a9b23c264ac4c6ddd65ba20e0f1f36e4865
-    Reviewed-on: https://go-review.googlesource.com/97057
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ie325da7c2397b5995db4a5ddb0117e2ce1745187
+    Reviewed-on: https://go-review.googlesource.com/72010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/struct.go | 3 ++-
- src/archive/zip/writer.go | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/os/file_windows.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

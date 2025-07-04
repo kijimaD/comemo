@@ -1,0 +1,20 @@
+commit 70e453b4361b80a85e6ebb37e4d43ec02db9a50a
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue Jul 9 20:24:34 2024 +0100
+
+    context: handle nil values for valueCtx.String()
+    
+    Fixes #68356
+    
+    Change-Id: I57dc089a99f545e29a6759a8db5e28fabb6d1a61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597415
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/context/context.go | 2 ++
+ src/context/x_test.go  | 4 ++++
+ 2 files changed, 6 insertions(+)

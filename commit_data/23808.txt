@@ -1,12 +1,18 @@
-commit b1177d390cf0c3733836e5941f77b828e21c8a09
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jul 23 12:07:58 2015 -0400
+commit 1f9026c0bd489e96a04541d2f65ecfdc3bc53720
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 15 10:59:00 2015 -0700
 
-    bytes: document that Buffer values must not be copied
+    testing: don't print CPU count for tests, only benchmarks
     
-    Change-Id: If0821a2af987b78ed8024b40d9ffa68032518b22
-    Reviewed-on: https://go-review.googlesource.com/12572
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The number of CPUs is of value when benchmarking but mostly
+    noise when testing. The recent change to default to the number
+    of CPUs available has made the tests noisier and confusing.
+    
+    Fixes #11200
+    
+    Change-Id: Ifc87d9ccb4177d73e304fb7ffcef4367bd163c9e
+    Reviewed-on: https://go-review.googlesource.com/11121
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/bytes/buffer.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/testing/testing.go | 3 ---
+ 1 file changed, 3 deletions(-)

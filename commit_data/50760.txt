@@ -1,37 +1,17 @@
-commit 9a029a69157788d072147732fe2665c58bbbc02c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 30 11:08:54 2022 -0400
+commit 526b2ef0ea3a13d7e9af635918ef3ef86353f220
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 11:14:37 2021 -0500
 
-    os/exec: make StdoutPipe and StderrPipe safe to Close concurrently
+    go/types: check non-generic conversions first
     
-    For #50436, I want to be able to close the pipes returned by
-    StdoutPipe and StderrPipe after the Context has been canceled
-    and the WaitDelay has subsequently expired.
+    This is a clean port of CL 361269 to go/types.
     
-    However, the fact that the exec.onceCloser wrapper for StdinPipe
-    (added in CL 13329043) was retained in CL 65490 suggests to me that
-    (*os.File).Close is still not safe to call concurrently.
-    
-    This may cause type assertions of these ReadClosers to *os.File that
-    once succeeded to no longer do so. However, the StdoutPipe and
-    StderrPipe methods return interfaces, not concrete *os.Files, so
-    callers already should not have been relying on that implementation
-    detail — and as far as I can tell the closeOnce wrapper does not mask
-    any (*os.File) methods, so assertions to any interface type that
-    previously succeeded will continue to do so.
-    
-    This change is logically part of CL 401835, but since it may expose
-    fragile type-assertions in callers I want to keep it separate for
-    clearer bisection of any new test failures.
-    
-    For #50436.
-    
-    Change-Id: I58de1d48fb6fd788502f13657d8d4484516271cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437176
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2caaf08eabdf1707ae83ec1e628fd26f21b2b8e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362616
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/go/types/conversions.go | 119 +++++++++++++++++++++++---------------------
+ 1 file changed, 62 insertions(+), 57 deletions(-)

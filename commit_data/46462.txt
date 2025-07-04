@@ -1,26 +1,23 @@
-commit bcdc61d830be61fd5f371f4eb9c345f8dc9ada55
-Author: David Chase <drchase@google.com>
-Date:   Mon Aug 23 17:19:34 2021 -0400
+commit 9ed1577779b38620a5df1871ec1cd8d8677d5cc0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 02:14:45 2021 -0800
 
-    cmd/compile: preserve statements better in expandCalls
+    [dev.regabi] cmd/compile: remove Func.ClosureEnter
     
-    Arg/Load/Dereference rewriting was not using the best Pos for
-    translated values.  I also investigated whether OpCopy processing
-    was losing statements, and though they flood the debugging output,
-    doing the "obvious" thing of moving statement marks from copi-er to
-    copy-ee actually makes the resulting binary score slightly worse on
-    statement-boundary measures.
-    (for -N -l, 0.9994 vs 0.9995 from "nostmt -c sqle.test")
+    We can easily compute this on demand.
     
-    Fixes #47793.
+    Passes toolstash -cmp.
     
-    Change-Id: I65cb878d0e5a3ceb5da4ef679020ca5f40e9b02b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344769
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I433d8adb2b1615ae05b2764e69904369a59542c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280994
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 91 ++++++++++++++++------------
- src/cmd/compile/internal/ssa/value.go        | 10 ++-
- 2 files changed, 59 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/ir/func.go        |  7 -------
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/typecheck/func.go | 14 ++++----------
+ src/cmd/compile/internal/walk/closure.go   | 22 +++++++++++++++++++++-
+ src/cmd/compile/internal/walk/expr.go      |  3 +--
+ 5 files changed, 27 insertions(+), 21 deletions(-)

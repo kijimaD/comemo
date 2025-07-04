@@ -1,26 +1,16 @@
-commit c95464f0ea3f87232b1f3937d1b37da6f335f336
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jun 25 13:24:10 2021 -0700
+commit 750b3729dcb1e0aac239bc69959355ec2242111d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 20:28:20 2020 -0800
 
-    internal/buildcfg: refactor GOEXPERIMENT parsing code somewhat
+    go/constant: MakeFloat64(0) must return a value of Float kind
     
-    This CL extracts out a ParseGOEXPERIMENT helper function that parses
-    GOOS/GOARCH/GOEXPERIMENT values and returns active and baseline
-    experiment flag sets and an error value, without affecting any global
-    state. This will be used in the subsequent CL for 'go env' support for
-    GOEXPERIMENT to validate configuration changes.
+    Fixes #42641.
     
-    The existing package initialization for Experiment and
-    experimentBaseline and also UpdateExperiments are updated to use it as
-    well.
-    
-    Change-Id: Ic2ed3fd36d2a6f7f3d8172fccb865e02505c0052
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331109
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I10fdc7c90054b37ab5b303999015262691c12927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273126
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/cfg/cfg.go |  2 +-
- src/internal/buildcfg/exp.go   | 65 ++++++++++++++++++++++++++----------------
- 2 files changed, 41 insertions(+), 26 deletions(-)
+ src/go/constant/value.go      |  7 ++-----
+ src/go/constant/value_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 5 deletions(-)

@@ -1,14 +1,18 @@
-commit 04e95a1a56c35f63e3ac51c9d9973297a57c2b10
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 18 13:36:59 2013 +0900
+commit f41b43a02431baab166d06b8b4c41467d9cc88e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 17 16:06:40 2013 -0700
 
-    api: add go1.2.txt, use in tests
+    net/url: fix regression when serializing relative URLs
     
-    R=golang-dev, iant
+    Only add a slash to path if it's a separator between
+    a host and path.
+    
+    Fixes #6609
+    
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/14860043
+    https://golang.org/cl/14815043
 
- api/go1.2.txt      | 32484 +++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt       | 32479 --------------------------------------------------
- src/cmd/api/run.go |     2 +-
- 3 files changed, 32485 insertions(+), 32480 deletions(-)
+ src/pkg/net/url/url.go      | 2 +-
+ src/pkg/net/url/url_test.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

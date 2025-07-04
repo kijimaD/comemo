@@ -1,28 +1,22 @@
-commit 74d92db8d77e20b934821b13a92bccb01dbeeb68
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 6 17:27:14 2019 -0400
+commit 42a82ce1a7051b3a2762bff73b6eda4797e0fd4b
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Jan 24 17:27:23 2019 +0000
 
-    cmd/dist,cmd/compile: remove -allabis mode
+    math/bits: optimize Reverse32 and Reverse64
     
-    dist passes the -allabis flag to the compiler to avoid having to
-    recreate the cross-package ABI logic from cmd/go. However, we removed
-    that logic from cmd/go in CL 179863 and replaced it with a different
-    mechanism that doesn't depend on the build system. Hence, passing
-    -allabis in dist is no longer necessary.
+    Use ReverseBytes32 and ReverseBytes64 to speed up these functions.
+    The byte reversal functions are intrinsics on most platforms and
+    generally compile to a single instruction.
     
-    This CL removes -allabis from dist and, since that was the only use of
-    it, removes support for it from the compiler as well.
+    name       old time/op  new time/op  delta
+    Reverse32  2.41ns ± 1%  1.94ns ± 3%  -19.60%  (p=0.000 n=20+19)
+    Reverse64  3.85ns ± 1%  2.56ns ± 1%  -33.32%  (p=0.000 n=17+19)
     
-    Updates #31230.
-    
-    Change-Id: Ib005db95755a7028f49c885785e72c3970aea4f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181079
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I160bf59a0c7bd5db94114803ec5a59fae448f096
+    Reviewed-on: https://go-review.googlesource.com/c/159358
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go | 11 -----------
- src/cmd/compile/internal/gc/main.go  |  6 ------
- src/cmd/dist/build.go                |  7 -------
- 3 files changed, 24 deletions(-)
+ src/math/bits/bits.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

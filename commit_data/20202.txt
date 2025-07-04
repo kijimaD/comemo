@@ -1,16 +1,14 @@
-commit d11bb3b177feb47d20e00246fb915af50773904a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 29 09:55:33 2014 -0700
+commit 8ca564fb3fe0b8d6f4d7c660f9df9c1bbcc0539e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 11:56:25 2014 +0400
 
-    runtime: implement 64 bit division in Go
+    runtime: fix block profile for sync semaphores
+    And add a test.
     
-    LGTM=rsc, dave
-    R=minux, rsc, remyoudompheng, dave
-    CC=golang-codereviews
-    https://golang.org/cl/133790043
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/128670043
 
- src/pkg/runtime/vlop_386.s |   6 +-
- src/pkg/runtime/vlop_arm.s |   9 +++
- src/pkg/runtime/vlrt.c     |  33 ++--------
- src/pkg/runtime/vlrt.go    | 155 ++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 170 insertions(+), 33 deletions(-)
+ src/pkg/runtime/pprof/pprof_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

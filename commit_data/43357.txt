@@ -1,19 +1,17 @@
-commit 9c017ff30dd21bbdcdb11f39458d3944db530d7e
-Author: Aofei Sheng <aofei@aofeisheng.com>
-Date:   Sat Sep 26 13:21:41 2020 +0800
+commit 7716d7fc1b025049b6377f5e7ce184d8e6671678
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 24 09:20:01 2020 -0400
 
-    net/http/httputil: copy response header back to http.ResponseWriter in ReverseProxy.handleUpgradeResponse
+    [dev.link] cmd/link: convert windynrelocsyms to loader APIs
     
-    Fixes: #41634
+    Convert the linker's windynrelocsyms method to work with loader APIs.
     
-    Change-Id: Ib78cc37a4d2ca0753d567eafb616238e4103484e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257777
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I8c1fb153bfae8b5c6893876abc9534c34267a42c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225200
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 6 ++++--
- src/net/http/httputil/reverseproxy_test.go | 3 +++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go | 75 ++++++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/main.go |  6 ++--
+ 2 files changed, 48 insertions(+), 33 deletions(-)

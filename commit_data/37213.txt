@@ -1,22 +1,28 @@
-commit 86d375498fa377c7d81c5b93750e8dce2389500e
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Oct 31 16:18:36 2018 +0100
+commit ec88f781c2be341051eda3fc2482210dc318fca7
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 10 12:23:31 2018 -0400
 
-    runtime: don't recreate netpoll timers if they don't change
+    cmd/compile: call objabi.PathToPrefix when emitting abstract fn
     
-    Currently we always delete both read and write timers and then
-    add them again. However, if user setups read and write deadline
-    separately, then we don't need to touch the other one.
+    When generating an abstract function DIE, call objabi.PathToPrefix on
+    the import path so as to be consistent with how the linker handles
+    import paths. This is intended to resolve another problem with DWARF
+    inline info generation in which there are multiple inconsistent
+    versions of an abstract function DIE for a function whose package path
+    is rewritten/canonicalized by objabi.PathToPrefix.
     
-    name                  old time/op  new time/op  delta
-    TCP4OneShotTimeout-6  17.2µs ± 0%  17.2µs ± 0%     ~     (p=0.310 n=5+5)
-    SetReadDeadline-6      319ns ± 1%   274ns ± 2%  -13.94%  (p=0.008 n=5+5)
+    Fixes #26237
     
-    Update #25729
-    
-    Change-Id: I4c869c3083521de6d0cd6ca99a7609d4dd84b4e4
-    Reviewed-on: https://go-review.googlesource.com/c/146338
+    Change-Id: I4b64c090ae43a1ad87f47587a1a71f19bc5fc8e8
+    Reviewed-on: https://go-review.googlesource.com/123036
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/netpoll.go | 71 +++++++++++++++++++++++++++++---------------------
- 1 file changed, 42 insertions(+), 29 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go                         |  3 ++-
+ src/cmd/link/internal/ld/dwarf_test.go                  | 17 +++++++++++++++++
+ .../link/internal/ld/testdata/issue26237/src/b.dir/b.go | 16 ++++++++++++++++
+ .../internal/ld/testdata/issue26237/src/main/main.go    | 16 ++++++++++++++++
+ 4 files changed, 51 insertions(+), 1 deletion(-)

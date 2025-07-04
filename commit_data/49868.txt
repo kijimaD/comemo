@@ -1,19 +1,24 @@
-commit 09cc9bac724896cac02b0da8b259febddde52759
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jul 25 15:39:07 2022 -0400
+commit 3fa35b5f9741d7d1c9a9e047057c7210da04fbba
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 15 17:18:37 2021 -0400
 
-    runtime: convert schedt.sysmonwait to atomic type
+    go/types: ensure that we always get a new signature in expandNamed
     
-    This converts a few unsynchronized accesses.
+    CL 349412 introduced a bug when Checker.subst does not return a new
+    signature: we were still setting the receiver to the instantiated type.
     
-    For #53821.
+    I'm not sure how this could manifest in practice (other than confusing
+    object strings). It's possible that I could generate a testdata-driven
+    test for this, but in the interest of time I just added a test to verify
+    object strings.
     
-    Change-Id: Ie2728779111e3e042696f15648981c5d5a86ca6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419448
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I29bc8e1419ddc4574755c3def52d18cb71c738eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350143
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc.go     | 24 ++++++++++++------------
- src/runtime/runtime2.go |  2 +-
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/go/types/instantiate_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
+ src/go/types/named.go            |  6 ++++++
+ 2 files changed, 49 insertions(+)

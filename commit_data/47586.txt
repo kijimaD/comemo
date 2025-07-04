@@ -1,42 +1,25 @@
-commit 9678f794149d07857cbf2a518bfc7aec532fb732
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Nov 18 22:58:17 2021 +0000
+commit c40dc677be05e2774c7805bf55002a960cb4dec5
+Author: Norman B. Lancaster <qbradq@gmail.com>
+Date:   Tue Mar 30 17:30:45 2021 +0000
 
-    cmd/go: work out VCS information once per repository
+    go/doc: avoid panic on references to functions with no body
     
-    We need VCS status information for each main package we load.
-    If two main packages are under the same VCS repository,
-    we can reuse that information to avoid duplicating work.
+    This change guards a call to ast.Inspect with a nil check on the first
+    argument. This avoids a panic when inspecting a reference to a function
+    with a nil body. This can only happen when a function body is defined outside Go.
     
-    For instance, the kubernetes holds 51 main packages in its root module,
-    meaning that "go list ./..." repeated the same git calls 51 times.
-    Instead, use a global par.Cache to deduplicate that work.
+    Fixes #42706
     
-    Below are the numbers on kubernetes 5eb584d1cb6917,
-    via "benchcmd -n 8 KubernetesListPackages go list ./...":
-    
-            name                    old time/op         new time/op         delta
-            KubernetesListPackages          8.91s ± 0%          3.33s ± 1%  -62.61%  (p=0.000 n=7+8)
-    
-            name                    old user-time/op    new user-time/op    delta
-            KubernetesListPackages          11.2s ± 1%           8.1s ± 2%  -27.50%  (p=0.000 n=7+8)
-    
-            name                    old sys-time/op     new sys-time/op     delta
-            KubernetesListPackages          8.02s ± 0%          1.67s ± 6%  -79.21%  (p=0.001 n=6+8)
-    
-            name                    old peak-RSS-bytes  new peak-RSS-bytes  delta
-            KubernetesListPackages          127MB ± 2%          123MB ± 7%     ~     (p=0.328 n=8+8)
-    
-    Fixes #49582.
-    
-    Change-Id: Ib7ef5dc7a35c83a11e209441f5d6f3b8da068259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365394
+    Change-Id: I91bc607b24b6224920c24cfd07e76ce7737a98d4
+    GitHub-Last-Rev: 08072b9ce5c1fd4ee77eba6f1acc0a84e838ad7b
+    GitHub-Pull-Request: golang/go#43011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275516
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Dominik Honnef <dominik@honnef.co>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go                     | 17 +++++++++++++++--
- src/cmd/go/testdata/script/version_buildvcs_git.txt | 19 +++++++++++++++++++
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ src/go/doc/example.go      |  5 ++++-
+ src/go/doc/example_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

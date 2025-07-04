@@ -1,20 +1,20 @@
-commit 840b4292c9cd5472babf562d3b6eaf727926fd90
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jun 9 14:26:36 2021 +0700
+commit c76be2a24eb1a07cf731c4a75652e2d5db61aa77
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:59:35 2020 -0500
 
-    src: emit warning when make.bash run with invalid GOROOT_BOOTSTRAP
+    [dev.regabi] cmd/compile: add ONAMEOFFSET, delete to-be-deleted fields
     
-    When setting an invalid GOROOT_BOOTSTRAP, make.bash try looking at env to
-    find a valid go command and use that GOROOT instead. It's better if the
-    script emit a warning, instead of silently change the GOROOT_BOOTSTRAP.
+    Breaks toolstash but clearly no effect.
     
-    Change-Id: I6038093d5e8c072da27bcae44b125f6774f809a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326030
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ic05bb7f74db170f140cf3b3cd7d629f159e3aae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278913
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/make.bash | 2 ++
- src/make.rc   | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/ir/expr.go      | 19 +++++++++++++++----
+ src/cmd/compile/internal/ir/node.go      |  1 +
+ src/cmd/compile/internal/ir/node_gen.go  | 19 +++++++++++++++----
+ src/cmd/compile/internal/ir/op_string.go | 11 ++++++-----
+ 4 files changed, 37 insertions(+), 13 deletions(-)

@@ -1,18 +1,25 @@
-commit 6adf08f747aff60810e754ca74e1bef381cbae86
+commit 1dddd83c494849dd71b72a4415c5238b0716dd30
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 24 15:00:55 2025 -0800
+Date:   Wed Dec 13 12:29:32 2023 -0800
 
-    go/types, types2: remove coreType call in lookup
+    doc: document version at which new language features were introduced in spec
     
-    For #70128.
+    Add a new section to the Appendix describing what features were
+    changed or added in which language version.
     
-    Change-Id: I7d16ad7fdc6b07a2632b4eaefaedfa2bcceffe1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Add short links with references to the required language version
+    where relevant.
+    
+    Fixes #63857.
+    
+    Change-Id: I5250f856d8688a71602076fcc662aa678d96a5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549518
     Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/types2/lookup.go | 10 +++++-----
- src/go/types/lookup.go                    | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ doc/go_spec.html | 216 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 192 insertions(+), 24 deletions(-)

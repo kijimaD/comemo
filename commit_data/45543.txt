@@ -1,20 +1,31 @@
-commit bb5e45219af69135c389c6b68f9a67207bb32e05
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 4 20:54:25 2021 -0400
+commit 642329fdd55aabafc67b3a7c50902e29125621ab
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 22 00:25:17 2020 +0700
 
-    cmd/go.sum: remove untidy checksums
+    Revert "cmd/compile: split exported/non-exported methods for interface type"
     
-    I missed the 'go mod tidy' step in CL 316751 because I forgot to run
-    the cmd/internal/moddeps test in long mode. 😞
+    This reverts commit 8f26b57f9afc238bdecb9b7030bc2f4364093885.
     
-    Updates #45932
+    Reason for revert: break a bunch of code, include standard library.
     
-    Change-Id: Ic3f9b303ad5798ecd8cb044d4b8c766aa820bf69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317129
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #42123
+    
+    Change-Id: Ife90ecbafd2cb395623d1db555fbfc9c1b0098e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264026
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go.sum | 2 --
- 1 file changed, 2 deletions(-)
+ doc/go1.16.html                        |  9 ------
+ src/cmd/compile/internal/gc/reflect.go |  3 +-
+ src/internal/reflectlite/type.go       | 35 +++++++---------------
+ src/internal/reflectlite/value.go      |  4 +--
+ src/reflect/all_test.go                | 18 ++++-------
+ src/reflect/type.go                    | 55 ++++++++++++++--------------------
+ src/reflect/value.go                   | 21 ++++++-------
+ src/runtime/alg.go                     |  2 +-
+ src/runtime/iface.go                   | 12 ++++----
+ src/runtime/mfinal.go                  |  4 +--
+ src/runtime/type.go                    | 26 ++++------------
+ 11 files changed, 64 insertions(+), 125 deletions(-)

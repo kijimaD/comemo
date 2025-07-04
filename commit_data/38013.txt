@@ -1,32 +1,15 @@
-commit 13d9a29060f5fb28022003e006a92b22a75c650e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 21 12:34:27 2019 -0500
+commit c7ac645d28b99f163c46e2b8622ca7b60dc212ce
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 20 11:43:42 2018 +0200
 
-    misc/cgo/testcarchive: fix tests in module mode
+    runtime: fix reference to sys{Fault,Free,Reserve,Unused,Used} in comments
     
-    Updates #30228
-    
-    Change-Id: I830e3c83416b2e5744f30d1a903a74c50462716b
-    Reviewed-on: https://go-review.googlesource.com/c/163210
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icbaedc49c810c63c51d56ae394d2f70e4d64b3e0
+    Reviewed-on: https://go-review.googlesource.com/136495
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/testcarchive/carchive_test.go             | 134 ++++++++++-----------
- misc/cgo/testcarchive/overlaydir_test.go           |  81 +++++++++++++
- .../testcarchive/{src => testdata}/libgo/libgo.go  |   2 +-
- .../{src => testdata}/libgo2/libgo2.go             |   0
- .../{src => testdata}/libgo3/libgo3.go             |   0
- .../{src => testdata}/libgo4/libgo4.go             |   0
- .../{src => testdata}/libgo6/sigprof.go            |   0
- misc/cgo/testcarchive/{ => testdata}/main.c        |   0
- misc/cgo/testcarchive/{ => testdata}/main2.c       |   0
- misc/cgo/testcarchive/{ => testdata}/main3.c       |   0
- misc/cgo/testcarchive/{ => testdata}/main4.c       |   0
- misc/cgo/testcarchive/{ => testdata}/main5.c       |   0
- misc/cgo/testcarchive/{ => testdata}/main6.c       |   0
- misc/cgo/testcarchive/{ => testdata}/main_unix.c   |   0
- .../cgo/testcarchive/{ => testdata}/main_windows.c |   0
- misc/cgo/testcarchive/{src => testdata}/p/p.go     |   0
- src/cmd/dist/test.go                               |   2 +-
- 17 files changed, 150 insertions(+), 69 deletions(-)
+ src/runtime/malloc.go   | 18 +++++++++---------
+ src/runtime/mgcsweep.go |  8 ++++----
+ 2 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,28 +1,16 @@
-commit 3de8498b251b74ffb49d8a679bd10ecb2517af74
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Aug 9 16:13:09 2017 +0900
+commit e0efdac65a9c06f87c49ef0818bd883c1fb6f35e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Apr 8 12:13:39 2017 +0200
 
-    cmd/compile: remove some unused params in gc
+    net: fix typo in ParseCIDR doc
     
-    Mostly node and position parameters that are no longer used.
+    Fixes #19891
     
-    Also remove an unnecessary node variable while at it.
-    
-    Found with github.com/mvdan/unparam.
-    
-    Change-Id: I88f9bd5d20bfc5b0f6f63ea81869daa246175061
-    Reviewed-on: https://go-review.googlesource.com/54130
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2f2684dd5fbfcf93fca0f2c3caf678f44605687f
+    Reviewed-on: https://go-review.googlesource.com/40090
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/alg.go       |  4 ++--
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/closure.go   |  4 ++--
- src/cmd/compile/internal/gc/dcl.go       |  2 +-
- src/cmd/compile/internal/gc/init.go      |  2 +-
- src/cmd/compile/internal/gc/noder.go     | 12 +++++-------
- src/cmd/compile/internal/gc/subr.go      |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  6 ++----
- src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
- 9 files changed, 20 insertions(+), 24 deletions(-)
+ src/net/ip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

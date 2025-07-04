@@ -1,21 +1,15 @@
-commit cde230b8b354200678a79b0d5fe8263f34f46d45
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 3 17:03:42 2020 -0500
+commit a806c213e7dd32520d204890fb953c8e9d1142f2
+Author: Alex Gaynor <alex.gaynor@gmail.com>
+Date:   Sun Sep 1 13:57:21 2019 +0000
 
-    cmd/go: remove tests using testdata/flag_test.go
+    doc: make the draft 1.13 release notes expected release date accurate
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
-    
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: I6573185cf14f298c51f76265f18a75e4960ce791
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213220
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I17148bb2b8021ed305ed0d230675d51c41736a11
+    GitHub-Last-Rev: 2998d46d10587a850fb36f5784df23b371244479
+    GitHub-Pull-Request: golang/go#34004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192797
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/go_test.go                                    | 16 ----------------
- .../go/testdata/{flag_test.go => script/test_flag.txt}   |  6 ++++++
- src/cmd/go/testdata/script/test_minus_n.txt              | 14 ++++++++++++++
- 3 files changed, 20 insertions(+), 16 deletions(-)
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

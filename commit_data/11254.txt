@@ -1,12 +1,16 @@
-commit e3e93b0f4398e57aae02a9eb05b1226731fc05e1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 19 14:52:28 2012 +0900
+commit e547393fcc9986104440cc70f2a5803da02341db
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 19 15:00:27 2012 +1100
 
-    syscall: fix plan9 build
+    godoc: remove "need more packages?" link
+    
+    Its need will be addressed in another way by the redesign.
+    
+    Fixes #2719.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5532097
+    https://golang.org/cl/5536062
 
- src/pkg/syscall/syscall_plan9.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ lib/godoc/package.html | 5 -----
+ 1 file changed, 5 deletions(-)

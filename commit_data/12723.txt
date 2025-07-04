@@ -1,16 +1,13 @@
-commit a99e9c5db51cdffdad6e561d456b54ffab03cd1f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 23 07:51:16 2012 +1100
+commit d12f1ff7ad6ce477819d2e3ba596390ca9aa568a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 22 12:48:41 2012 -0700
 
-    doc/articles: rename concurrency patterns article
-    The old name, automatically generated, was ludicrously verbose.
-    Also clean up an example to use time.Second.
+    test: fix run.bash by spelling out the commands to use for bug424.go
     
-    R=golang-dev, dsymonds
+    R=golang-dev, gri, iant
     CC=golang-dev
-    https://golang.org/cl/5876051
+    https://golang.org/cl/5882046
 
- ...ncy_patterns_timing_out_moving_on.html => concurrency_patterns.html} | 0
- doc/docs.html                                                           | 2 +-
- doc/progs/timeout1.go                                                   | 2 +-
- 3 files changed, 2 insertions(+), 2 deletions(-)
+ test/fixedbugs/bug424.go | 4 ++--
+ test/golden.out          | 3 ---
+ 2 files changed, 2 insertions(+), 5 deletions(-)

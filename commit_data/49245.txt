@@ -1,18 +1,41 @@
-commit 13147f744c4ed7900ef9b1c1ffb8bf674f06b052
-Author: John Bampton <jbampton@gmail.com>
-Date:   Tue May 17 19:29:03 2022 +0000
+commit 077925e2b008a258f5204aab8a454294b9cdca96
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 26 12:04:36 2021 -0400
 
-    runtime: fix code span element
+    [dev.typeparams] runtime: remove unnecessary split-prevention from defer code
     
-    Change-Id: I99c593573b3bec560ab3af49ac2f486ee442ee1c
-    GitHub-Last-Rev: e399ec50f9dde9229e05f801fd752694cc661822
-    GitHub-Pull-Request: golang/go#52946
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406837
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Prior to regabi, the compiler passed defer arguments to the runtime as
+    untyped values on the stack. This meant a lot of defer-related runtime
+    functions had to be very careful not to grow the stack or allow
+    preemption since the stack could not be safely scanned or moved.
+    However, with regabi, every defer is now simply a func() from the
+    runtime's perspective, which means we no longer have untyped values on
+    the stack when we enter defer-related runtime code.
+    
+    Hence, this CL removes a lot of the now-unnecessary carefulness in the
+    defer implementation. Specifically, deferreturn no longer needs to be
+    nosplit because it doesn't copy untyped defer arguments to its
+    caller's frame (we also update some stale comments in deferreturn).
+    freedefer no longer needs to be nosplit because it's none of its
+    callers are deeply nosplit. And newdefer and freedefer no longer need
+    to switch to the systemstack on their slow paths to avoid stack
+    growth.
+    
+    deferprocStack is the only function that still needs to be nosplit,
+    but that's because the compiler calls it with uninitialized live
+    pointer slots on the stack (maybe we should change that, but that's a
+    very different fix).
+    
+    This is a retry of CL 337651, which was rolled back. This version
+    disables preemption in newdefer and freedefer while they hold the
+    current P.
+    
+    Change-Id: Ibf469addc0b69dc3ba9a3d1a5e0c2804b7b4b244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339396
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/HACKING.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/panic.go | 98 +++++++++++++++++++++-------------------------------
+ 1 file changed, 40 insertions(+), 58 deletions(-)

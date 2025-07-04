@@ -1,23 +1,23 @@
-commit b5fe07710f4a31bfc100fbc2e344be11e4b4d3fc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 23 14:11:15 2015 -0800
+commit d24768e14df109fb04a89ba0037dc6069fa60810
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 9 23:56:59 2015 -0700
 
-    cmd/compile: remove yacc-based parser
+    [dev.ssa] cmd/compile/internal/ssa: complete call ops
     
-    - moved yySymType and token constants (L...) to lex.go
-    - removed oldparser flag and related code
-    - removed go generate that generated y.go
+    OCALLINTER, as well as ODEFER/OPROC with OCALLMETH/OCALLINTER.
     
-    Fixes #13240.
+    Move all the call logic to its own routine, a lot of the
+    code is shared.
     
-    Change-Id: I2576ec61ee1efe482f2a5132175725c9c02ef977
-    Reviewed-on: https://go-review.googlesource.com/17176
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ieac59596165e434cc6d1d7b5e46b78957e9c5ed3
+    Reviewed-on: https://go-review.googlesource.com/14464
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/go.go     |    2 -
- src/cmd/compile/internal/gc/go.y      | 2325 ----------------------
- src/cmd/compile/internal/gc/lex.go    |  171 +-
- src/cmd/compile/internal/gc/parser.go |   95 +-
- src/cmd/compile/internal/gc/subr.go   |    4 -
- src/cmd/compile/internal/gc/y.go      | 3536 ---------------------------------
- 6 files changed, 108 insertions(+), 6025 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 233 +++++++++++++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          |  15 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  20 +++
+ 6 files changed, 178 insertions(+), 93 deletions(-)

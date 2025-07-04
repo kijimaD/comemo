@@ -1,21 +1,13 @@
-commit 1ca1cbea6589802bc0a0fa6b5475de03b913e8f3
+commit 15c1ab646daab5813c406355311dd89573e0c011
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 19 17:08:55 2014 -0500
+Date:   Wed Feb 19 15:56:42 2014 -0500
 
-    cmd/5g, cmd/8g: zero ambiguously live values on entry
+    api: update next.txt
     
-    The code here is being restored after its deletion in CL 14430048.
-    
-    I restored the copy in cmd/6g in CL 56430043 but neglected the
-    other two.
-    
-    This is the reason that enabling precisestack only worked on amd64.
-    
-    LGTM=r
-    R=r
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/66170043
+    https://golang.org/cl/66160043
 
- src/cmd/5g/ggen.c | 38 ++++++++++++++++++++++++++++++++++++++
- src/cmd/8g/ggen.c | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+)
+ api/next.txt | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

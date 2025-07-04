@@ -1,0 +1,26 @@
+commit f4494522dc067bc930dc73b91e3ef931ce4583da
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Oct 6 13:02:40 2023 -0400
+
+    runtime: use frame pointer unwinding for block and mutex profilers
+    
+    Use frame pointer unwinding, where supported, to collect call stacks for
+    the block, and mutex profilers. This method of collecting call stacks is
+    typically an order of magnitude faster than callers/tracebackPCs. The
+    marginal benefit for these profile types is likely small compared to
+    using frame pointer unwinding for the execution tracer. However, the
+    block profiler can have noticeable overhead unless the sampling rate is
+    very high. Additionally, using frame pointer unwinding in more places
+    helps ensure more testing/support, which benefits systems like the
+    execution tracer which rely on frame pointer unwinding to be practical
+    to use.
+    
+    Change-Id: I4b36c90cd2df844645fd275a41b247352d635727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533258
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mprof.go | 55 ++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 43 insertions(+), 12 deletions(-)

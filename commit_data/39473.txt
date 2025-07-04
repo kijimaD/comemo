@@ -1,62 +1,16 @@
-commit 2e0cd2aef5924e48e1ceb74e3d52e76c56dd34cc
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 27 20:30:28 2019 -0400
+commit 45861a64d311e05c43f18d58d53ae258222519c8
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 12:08:00 2019 +0100
 
-    net: deflake TestVariousDeadlines
+    androidtest.bash: delete
     
-    TestVariousDeadlines starts a client and server.
-    The client dials the server, sets a timeout on the connection,
-    reads from it, gets a timeout error, closes the connection.
-    The server writes an infinite stream of a's to each connection
-    it accepts.
+    Android now works with all.bash.
     
-    The test was trying to run these in lockstep:
-    run a client dial+read+timeout+close,
-    wait for server to accept+write+error out on write to closed connection,
-    repeat.
-    
-    On FreeBSD 11.2 and less frequently on macOS we see
-    the test timeout waiting for the server to do its half of
-    the lockstep dance.
-    
-    I believe the problem is that the client can do its step
-    of the dance with such a short timeout that the read,
-    timeout, and close happens before the server ever returns
-    from the accept(2) system call. For the purposes of testing
-    the client-side read timeout, this is fine. But I suspect
-    that under some circumstances, the "TCP-accepted"
-    connection does not translate into a "socket-layer-accepted"
-    connection that triggers a return from accept(2).
-    That is, the Go server never sees the connection at all.
-    And the test sits there waiting for it to acknowledge
-    being done with a connection it never started with.
-    
-    Fix the problem by not trying to lockstep with the server.
-    
-    This definitely fixes the flake, since the specific line that
-    was calling t.Fatal is now deleted.
-    
-    This exposes a different flake, seen on a trybot run for an
-    early version of this CL, in which the client's io.Copy does
-    not stop within the time allotted. The problem now is that
-    there is no guarantee that a read beyond the deadline with
-    available data returns an error instead of the available data,
-    yet the test assumes this guarantee, and in fact the opposite
-    is usually true - we don't bother checking the deadline unless
-    the read needs to block. That is, deadlines don't cut off a
-    flood of available data, yet this test thinks they do.
-    
-    This CL therefore also changes the server not to send an
-    infinite flood of data - don't send any data at all - so that
-    the read deadline is guaranteed to be exercised.
-    
-    Fixes #19519.
-    
-    Change-Id: I58057c3ed94ac2aebab140ea597f317abae6e65e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184137
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1087308865d2eb31f02501b5798e14d11145b185
+    Reviewed-on: https://go-review.googlesource.com/c/164700
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/timeout_test.go | 47 ++++++++++++++---------------------------------
- 1 file changed, 14 insertions(+), 33 deletions(-)
+ misc/android/go_android_exec.go |  5 ++---
+ src/androidtest.bash            | 37 -------------------------------------
+ 2 files changed, 2 insertions(+), 40 deletions(-)

@@ -1,19 +1,14 @@
-commit 1b6bf88767c5b0df2bfe22299fccad03f0a6e6a8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 25 12:24:36 2011 -0700
+commit 0b8f1ac802a57ff26927edfefc97bf2348f7b9b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 25 12:21:10 2011 -0700
 
-    encoding/base64: add DecodeString and EncodeToString
+    net: If we stop polling, remove any pending events for the socket
     
-    ... like encoding/hex. Same signatures.
+    Fixes #1872.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/4530070
+    R=rsc
+    CC=golang-dev, lars.pensjo
+    https://golang.org/cl/4559046
 
- src/pkg/encoding/base64/base64.go      | 14 ++++++++++++++
- src/pkg/encoding/base64/base64_test.go |  9 ++++++---
- src/pkg/http/client.go                 |  5 +----
- src/pkg/http/request.go                |  4 +---
- src/pkg/http/transport.go              |  5 +----
- src/pkg/smtp/smtp.go                   |  3 +--
- 6 files changed, 24 insertions(+), 16 deletions(-)
+ src/pkg/net/fd_linux.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

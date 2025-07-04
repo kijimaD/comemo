@@ -1,13 +1,22 @@
-commit b2643c673970676065e4683bbbaa087db694bbc9
-Author: Romanos Skiadas <rom.skiad@gmail.com>
-Date:   Wed Mar 23 13:47:08 2022 +0200
+commit 3075ffc93e962792ddf43b2a528ef19b1577ffb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 26 15:17:27 2021 -0700
 
-    runtime: update framepointer_enabled doc
+    os: deflake TestFdReadRace
     
-    Change-Id: I69e64ebf8c11145ce32aa4c11178e3a47d22fb84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394915
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    The test would hang if the call to Fd set the pipe to be non-blocking
+    before the Read entered the first read system call. Avoid that problem
+    by writing data to the pipe to wake up the read.
+    
+    For #24481
+    Fixes #44818
+    
+    Change-Id: I0b798874c7b81e7308a38ebbf657efc4392ffacd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322893
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/pipe_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

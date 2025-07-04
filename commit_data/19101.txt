@@ -1,22 +1,19 @@
-commit 9b3e2aa1dbfdb98f634dacf0cbca802221af1f36
+commit 2dbc5d26c773e4400c0adfc25d9160eeaf6530b0
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 10 17:01:21 2014 -0700
+Date:   Thu Apr 10 15:46:07 2014 -0700
 
-    net/http: document, test, define, clean up Request.Trailer
+    bytes, strings: add Reader.ReadAt race tests
     
-    Go's had pretty decent HTTP Trailer support for a long time, but
-    the docs have been largely non-existent. Fix that.
+    Tests for the race detector to catch anybody
+    trying to mutate Reader in ReadAt.
     
-    In the process, re-learn the Trailer code, clean some stuff
-    up, add some error checks, remove some TODOs, fix a minor bug
-    or two, and add tests.
-    
-    LGTM=adg
-    R=golang-codereviews, adg
-    CC=dsymonds, golang-codereviews, rsc
-    https://golang.org/cl/86660043
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/86700043
 
- src/pkg/net/http/client_test.go | 92 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/request.go     | 51 ++++++++---------------
- src/pkg/net/http/transfer.go    | 66 +++++++++++++++++------------
- 3 files changed, 150 insertions(+), 59 deletions(-)
+ src/pkg/bytes/reader.go        |  1 +
+ src/pkg/bytes/reader_test.go   | 17 +++++++++++++++++
+ src/pkg/strings/reader.go      |  1 +
+ src/pkg/strings/reader_test.go | 17 +++++++++++++++++
+ 4 files changed, 36 insertions(+)

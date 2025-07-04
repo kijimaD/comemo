@@ -1,22 +1,14 @@
-commit fe057c1478c4309f715d689127125cabbb4efe08
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 16 13:51:32 2016 -0800
+commit 96acfaaefae3378dcde009a184d3f4e5795ee5cc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:14:45 2016 -0400
 
-    runtime/cgo: fixes for calling sigaction in C
+    cmd/go: enable -buildmode=plugin on darwin/amd64
     
-    Zero out the sigaction structs, in case the sa_restorer field is set.
-    
-    Clear the SA_RESTORER flag; it is part of the kernel interface, not the
-    libc interface.
-    
-    Fixes #17947.
-    
-    Change-Id: I610348ce3c196d3761cf2170f06c24ecc3507cf7
-    Reviewed-on: https://go-review.googlesource.com/33331
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8e594e059448879a9f451801064729186ac7c11b
+    Reviewed-on: https://go-review.googlesource.com/29395
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/gcc_sigaction.c | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

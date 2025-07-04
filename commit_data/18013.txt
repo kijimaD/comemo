@@ -1,15 +1,18 @@
-commit d35b22d128ef72387ffb5d7e66ac40ba58d9ce8e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Dec 17 07:36:01 2013 -0500
+commit 830f9ac030a99265379fcbff8f40d66f4fa3e669
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Dec 17 12:59:13 2013 +0400
 
-    cmd/ld: maintain correct headstring needed by windows port.
-    Fixes build for go_bootstrap.
-    Fixes #6971.
+    race.bat: fix env setup
     
-    R=alex.brainman, mattn.jp, rsc
+    Currently it fails as:
+    go tool dist: $GOROOT is not set correctly or not exported
+    GOROOT=c:\go
+    c:\go\include\u.h does not exist
+    Fail.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/43130043
+    https://golang.org/cl/42550044
 
- src/cmd/ld/lib.c  | 1 +
- src/cmd/ld/pobj.c | 2 ++
- 2 files changed, 3 insertions(+)
+ src/race.bat | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

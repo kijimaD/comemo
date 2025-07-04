@@ -1,20 +1,34 @@
-commit e652b7e63f1ea71d487953bf948f371189755446
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 10 12:49:54 2018 -0400
+commit 49e3e436e71a54f16eb15960bd77ecf554ccc905
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 13 19:39:32 2018 +0100
 
-    cmd/go: fix module ... pattern to match standard library
+    cmd/doc: skip directories like other go tools
     
-    The non-module ... pattern always has.
+    It was skipping dirs starting with ".", but it was missing the "_"
+    prefix and the "testdata" name. From "go help packages":
     
-    Fixes #26905.
+            Directory and file names that begin with "." or "_" are ignored
+            by the go tool, as are directories named "testdata".
     
-    Change-Id: I7b298747fb33b82c58d3e6a6bc6687b6e825e52c
-    Reviewed-on: https://go-review.googlesource.com/128997
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Before the change:
+    
+            $ go doc z # using src/cmd/go/testdata/testvendor/src/q/z
+            package z // import "."
+    
+    After the fix, it falls back to the current directory, as expected when
+    a single argument isn't found as a package in $GOPATH.
+    
+    TestMain needs a small adjustment to keep the tests working, as now
+    their use of cmd/doc/testdata would normally not work.
+    
+    Fixes #24462.
+    
+    Change-Id: I1f5d6d1eba0fb59aff55db33b3b1147e300284ef
+    Reviewed-on: https://go-review.googlesource.com/106935
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modload/load.go         |  6 ++--
- src/cmd/go/internal/modload/search.go       | 52 +++++++++++++++++++----------
- src/cmd/go/testdata/script/mod_patterns.txt |  7 ++--
- 3 files changed, 40 insertions(+), 25 deletions(-)
+ src/cmd/doc/dirs.go     |  5 +++--
+ src/cmd/doc/doc_test.go | 14 ++++++++++++--
+ 2 files changed, 15 insertions(+), 4 deletions(-)

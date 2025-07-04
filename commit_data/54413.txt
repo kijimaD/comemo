@@ -1,33 +1,24 @@
-commit e924ea03cc7651cffdec9636a0d79d54eb6e7e0d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Sep 11 15:53:49 2023 -0400
+commit 15e26698cc206661063c07cf7f0353391604001e
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Thu Sep 22 06:59:42 2022 -0500
 
-    cmd/link: disable DWARF by default in c-shared mode on darwin
+    cmd/link: return correct default linker for the platform
     
-    Currently, linking a Go c-shared object with C code using Apple's
-    new linker, it fails with
+    If no external linker was passed with -extld, link currently assumes
+    that it is "gcc" which is not correct for platforms that use clang
+    toolchain. Return "clang" for platforms that use it, this fixes dir
+    tests on freebsd/riscv64.
     
-    % cc a.c go.so
-    ld: segment '__DWARF' filesize exceeds vmsize in 'go.so'
+    For #53466
     
-    Apple's new linker has more checks for unmapped segments. It is
-    very hard to make it accept a Mach-O shared object with an
-    additional DWARF segment.
-    
-    We may want to stop combinding DWARF into the shared object (see
-    also #62577). For now, disable DWARF by default in c-shared mode
-    on darwin. (One can still enable it with -ldflags=-w=0, which will
-    contain DWARF, but it will need the old C linker to link against
-    with.)
-    
-    For #61229.
-    
-    Change-Id: I4cc77da54fac10e2c2cbcffa92779cba82706d75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527415
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie3bce1b9581839d0b3b2129908355cd30ae9a713
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432756
     Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Mikaël Urankar <mikael.urankar@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/link/internal/ld/main.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

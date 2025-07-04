@@ -1,28 +1,21 @@
-commit c2d373d5d1802d7479f3c81dcf01d41bef3646dd
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 20 17:06:09 2022 -0700
+commit e6798795ff523b9b5df2514bffd8d5ce743c312e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 21:04:56 2021 -0700
 
-    cmd/compile: allow 128-bit values to be spilled
+    cmd/compile/internal/types2: use TypeList in the Inferred struct
     
-    We sometimes use 16-byte load+store to move values around in memory.
-    In rare circumstances, the loaded value must be spilled because the
-    store can't happen yet.
+    This is a port of CL 343934 from go/types with the necessary
+    adjustments to the compiler.
     
-    In that case, we need to be able to spill the 16-byte value.
-    
-    Fixes #53454
-    
-    Change-Id: I09fd08e11a63c6ba3ef781d3f5ede237e9b0132e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413294
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I810144e6e2eb2bc8fa0d34dc206403c993cbbe7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344616
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go      |  2 +
- src/cmd/compile/internal/dwarfgen/dwarf.go |  5 ++
- src/cmd/compile/internal/types/size.go     |  6 ++
- src/cmd/compile/internal/types/type.go     |  5 ++
- test/fixedbugs/issue53454.go               | 89 ++++++++++++++++++++++++++++++
- 5 files changed, 107 insertions(+)
+ src/cmd/compile/internal/noder/expr.go      | 16 ++++++++--------
+ src/cmd/compile/internal/noder/writer.go    | 13 +++++++------
+ src/cmd/compile/internal/types2/api.go      |  2 +-
+ src/cmd/compile/internal/types2/api_test.go |  9 +++++----
+ src/cmd/compile/internal/types2/check.go    |  2 +-
+ 5 files changed, 22 insertions(+), 20 deletions(-)

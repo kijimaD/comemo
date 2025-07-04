@@ -1,25 +1,30 @@
-commit feed072b6ed002a0085f3c6152c039b84134d38e
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Thu Sep 29 09:53:18 2022 -0500
+commit cc14fcac2bc1d452841336b9aeee3b1d47880f37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 8 16:09:11 2021 -0800
 
-    cmd/go: update gcc version check for asan support on ppc64le
+    cmd/compile/internal/types2: disallow type cycles through type parameter lists
     
-    Update the minimum version required for asan to be gcc9.
-    This will ensure that go build -asan is supported only on
-    systems with the required version of gcc. Update the asan
-    error message to include the name of the compiler (the
-    error message is updated to include the name of the compiler
-    instead of C compiler for other platforms as well).
+    If we reach a generic type that is part of a cycle
+    and we are in a type parameter list, we have a cycle
+    through a type parameter list, which is invalid.
     
-    Related to CL 425355
+    Fixes #49439.
     
-    Change-Id: Ib864d43b2b3028f39ffcf792890a678361f507f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436740
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia6cf97e1748ca0c0e61c02841202050091365b0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361922
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/work/init.go                                   | 7 +++++--
- .../testdata/script/install_msan_and_race_and_asan_require_cgo.txt | 4 ++--
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/check.go           |  1 +
+ src/cmd/compile/internal/types2/decl.go            | 57 ++++++++++++++++------
+ .../types2/testdata/fixedbugs/issue45550.go2       |  4 +-
+ .../types2/testdata/fixedbugs/issue46461.go2       |  6 +--
+ .../types2/testdata/fixedbugs/issue47796.go2       | 14 +++---
+ .../types2/testdata/fixedbugs/issue48529.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue49439.go2       | 26 ++++++++++
+ test/typeparam/issue46461.go                       |  4 +-
+ test/typeparam/issue46461b.dir/a.go                |  2 +-
+ test/typeparam/issue46461b.dir/b.go                |  4 +-
+ test/typeparam/issue48280.dir/a.go                 |  2 +-
+ test/typeparam/issue48306.dir/a.go                 |  2 +-
+ 12 files changed, 91 insertions(+), 33 deletions(-)

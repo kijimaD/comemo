@@ -1,51 +1,30 @@
-commit b7a695bd684585a86ae883c64eb8cfc2b80d847b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 31 13:29:25 2023 -0700
+commit 32851587d1adeb07503c2b6168ab11f008972606
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 3 19:07:39 2022 -0400
 
-    cmd/compile/internal/syntax: better error messages for incorrect type parameter list
+    cmd/go: add PGO auto mode
     
-    When parsing a declaration of the form
+    Add "auto" mode for the -pgo build flag. When -pgo=auto is
+    specified, if there is a default.pgo file in the directory of the
+    main package, it will be selected and used for the build.
     
-            type a [b[c]]d
+    Currently it requires exactly one main package when -pgo=auto is
+    specified. (We'll support multiple main packages in the future.)
     
-    where a, b, c, d stand for identifiers, b[c] is parsed as a type
-    constraint (because an array length must be constant and an index
-    expression b[c] is never constant, even if b is a constant string
-    and c a constant index - this is crucial for disambiguation of the
-    various possibilities).
+    Also apply to other build-related subcommands, "go install", "go
+    run", "go test", and "go list".
     
-    As a result, the error message referred to a missing type parameter
-    name and not an invalid array declaration.
+    For #55022.
     
-    Recognize this special case and report both possibilities (because
-    we can't be sure without type information) with the new error:
-    
-           "missing type parameter name or invalid array length"
-    
-    ALso, change the previous error message
-    
-            "type parameter must be named"
-    
-    to
-    
-            "missing type parameter name"
-    
-    which is more fitting as the error refers to an absent type parameter
-    (rather than a type parameter that's somehow invisibly present but
-    unnamed).
-    
-    Fixes #60812.
-    
-    Change-Id: Iaad3b3a9aeff9dfe2184779f3d799f16c7500b34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538856
+    Change-Id: Iab7974ab8932daf0e83506de505e044a8e412466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438737
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/syntax/parser.go              |  6 +++++-
- src/cmd/compile/internal/syntax/testdata/issue43527.go | 14 +++++++-------
- src/cmd/compile/internal/syntax/testdata/tparams.go    | 11 +++++++++++
- src/cmd/compile/internal/syntax/testdata/typeset.go    | 14 +++++++-------
- 4 files changed, 30 insertions(+), 15 deletions(-)
+ src/cmd/go/alldocs.go                         |  2 +
+ src/cmd/go/internal/load/pkg.go               | 55 ++++++++++++++++++++-
+ src/cmd/go/internal/work/build.go             |  2 +
+ src/cmd/go/internal/work/init.go              | 20 --------
+ src/cmd/go/testdata/script/build_pgo_auto.txt | 69 +++++++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 21 deletions(-)

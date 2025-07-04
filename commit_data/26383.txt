@@ -1,13 +1,24 @@
-commit 872ca73cadf589bd4adf76d0fac9b07c52ac75c8
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Mar 18 16:41:51 2016 +0100
+commit 1556c317f1eb3df4f41e9a69cb4192dc27d09d82
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 14 16:43:40 2016 -0500
 
-    runtime: don't assume b.N > 0
+    runtime: use at least "system" traceback level for runtime tests
     
-    Change-Id: I2e26717f2563d7633ffd15f4adf63c3d0ee3403f
-    Reviewed-on: https://go-review.googlesource.com/20856
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    While the default behavior of eliding runtime frames from tracebacks
+    usually makes sense, this is not the case when you're trying to test
+    the runtime itself. Fix this by forcing the traceback level to at
+    least "system" in the runtime tests.
+    
+    This will specifically help with debugging issue #13645, which has
+    proven remarkably resistant to reproduction outside of the build
+    dashboard itself.
+    
+    Change-Id: I2a8356ba6c3c5badba8bb3330fc527357ec0d296
+    Reviewed-on: https://go-review.googlesource.com/18648
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/proc_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/export_test.go  | 8 ++++++++
+ src/runtime/runtime_test.go | 7 +++++++
+ 2 files changed, 15 insertions(+)

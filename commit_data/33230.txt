@@ -1,13 +1,12 @@
-commit 381b6807195455cace7995913dd493fba29a1889
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 25 10:53:53 2017 -0400
+commit 048c9cfaacb6fe7ac342b0acd8ca8322b6c49508
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 7 12:23:06 2017 -0700
 
-    doc: document Go 1.8.5
+    [release-branch.go1.9] go1.9rc2
     
-    Change-Id: I9241e6acb65c337b961eed9cdeaf4c041b6326a3
-    Reviewed-on: https://go-review.googlesource.com/73390
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: If95cec0ec7e32cdb450818c4c55e2d03b847ab65
+    Reviewed-on: https://go-review.googlesource.com/53630
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/devel/release.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,36 +1,124 @@
-commit 676002986c55a296ea348c30706d6b63a3256b7f
-Author: Hiro <laciferin@gmail.com>
-Date:   Wed Nov 22 17:20:35 2023 +0000
+commit 5cd805c6df5c8988ea07e2ec1e4c52574b40bbf1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 8 16:20:37 2022 -0800
 
-    github: use forms for issue templates
+    go/types, types2: distinguish between substring and regexp error patterns
     
-    Migrate from markdown github issue templates to more user friendly yaml templates.
+    Use ERROR for substrings, and ERRORx for regexp error patterns.
+    Correctly unquote patterns for ERROR and ERRORx.
+    Adjust all tests in internal/types/testdata and locally as needed.
     
-    Fixes #63970
+    The changes to internal/types/testdata were made through
+    repeated applications of regexpr find/replace commands
+    and manual cleanups.
     
-    Change-Id: I1baf8989f72c1b98bf0027bbb794c0324ea21e32
-    GitHub-Last-Rev: 725110bf87fa879c2787158a68d01612665ad4e6
-    GitHub-Pull-Request: golang/go#63655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536776
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    Fixes #51006.
+    
+    Change-Id: Ib9ec5001243b688bf5aee56b7d4105fb55999ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455755
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- .github/ISSUE_TEMPLATE/00-bug.yml                  |  98 ++++++++++++
- .github/ISSUE_TEMPLATE/01-pkgsite.yml              |  47 ++++++
- .github/ISSUE_TEMPLATE/02-pkgsite-removal.yml      |  29 ++++
- .github/ISSUE_TEMPLATE/03-gopls.yml                |  56 +++++++
- .github/ISSUE_TEMPLATE/04-vuln.yml                 |  48 ++++++
- .github/ISSUE_TEMPLATE/10-proposal.yml             |  15 ++
- .github/ISSUE_TEMPLATE/11-language-change.yml      | 165 +++++++++++++++++++++
- .github/ISSUE_TEMPLATE/{ => archived}/00-bug.md    |   0
- .../ISSUE_TEMPLATE/{ => archived}/01-pkgsite.md    |   0
- .../{ => archived}/02-pkgsite-removal.md           |   0
- .github/ISSUE_TEMPLATE/{ => archived}/03-gopls.md  |   0
- .github/ISSUE_TEMPLATE/{ => archived}/04-vuln.md   |   0
- .../ISSUE_TEMPLATE/{ => archived}/10-proposal.md   |   0
- .../{ => archived}/11-language-change.md           |   0
- .github/ISSUE_TEMPLATE/config.yml                  |   2 +-
- 15 files changed, 459 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check_test.go      |  60 +++++++----
+ .../internal/types2/testdata/local/issue47996.go   |   2 +-
+ src/go/types/check_test.go                         |  62 +++++++----
+ src/go/types/commentMap_test.go                    |   4 +-
+ src/go/types/issues_test.go                        |   8 +-
+ src/internal/types/testdata/check/builtins0.go     |  62 +++++------
+ src/internal/types/testdata/check/builtins1.go     |   2 +-
+ src/internal/types/testdata/check/conversions1.go  |  74 ++++++-------
+ src/internal/types/testdata/check/decls0.go        |   2 +-
+ src/internal/types/testdata/check/decls1.go        |  12 +--
+ .../types/testdata/check/decls2/decls2a.go         |   4 +-
+ .../types/testdata/check/decls2/decls2b.go         |   6 +-
+ src/internal/types/testdata/check/decls3.go        |   8 +-
+ src/internal/types/testdata/check/errors.go        |  38 +++----
+ src/internal/types/testdata/check/expr0.go         |   4 +-
+ src/internal/types/testdata/check/expr1.go         |   8 +-
+ src/internal/types/testdata/check/expr2.go         |   4 +-
+ src/internal/types/testdata/check/expr3.go         | 116 ++++++++++-----------
+ src/internal/types/testdata/check/go1_12.go        |   2 +-
+ src/internal/types/testdata/check/importC.go       |   6 +-
+ .../testdata/check/importdecl0/importdecl0b.go     |   2 +-
+ .../testdata/check/importdecl1/importdecl1b.go     |   2 +-
+ src/internal/types/testdata/check/issues0.go       |  56 +++++-----
+ src/internal/types/testdata/check/issues1.go       |   4 +-
+ src/internal/types/testdata/check/methodsets.go    |  10 +-
+ src/internal/types/testdata/check/shifts.go        |  28 ++---
+ src/internal/types/testdata/check/stmt0.go         |  58 +++++------
+ src/internal/types/testdata/check/typeinference.go |   6 +-
+ src/internal/types/testdata/check/typeinst1.go     |  10 +-
+ src/internal/types/testdata/check/typeparams.go    |  16 +--
+ src/internal/types/testdata/check/vardecl.go       |  18 ++--
+ .../types/testdata/examples/constraints.go         |   2 +-
+ src/internal/types/testdata/examples/inference.go  |   6 +-
+ src/internal/types/testdata/examples/methods.go    |   4 +-
+ src/internal/types/testdata/examples/types.go      |   8 +-
+ src/internal/types/testdata/examples/typesets.go   |   2 +-
+ src/internal/types/testdata/fixedbugs/54942.go     |   4 +-
+ .../types/testdata/fixedbugs/issue28251.go         |   2 +-
+ .../types/testdata/fixedbugs/issue39634.go         |   2 +-
+ .../types/testdata/fixedbugs/issue39725.go         |   4 +-
+ .../types/testdata/fixedbugs/issue39754.go         |   2 +-
+ .../types/testdata/fixedbugs/issue39976.go         |   2 +-
+ .../types/testdata/fixedbugs/issue40350.go         |   2 +-
+ .../types/testdata/fixedbugs/issue41124.go         |  14 +--
+ .../types/testdata/fixedbugs/issue42881.go         |   4 +-
+ .../types/testdata/fixedbugs/issue42987.go         |   2 +-
+ .../types/testdata/fixedbugs/issue43087.go         |   2 +-
+ .../types/testdata/fixedbugs/issue43109.go         |   2 +-
+ .../types/testdata/fixedbugs/issue43110.go         |   2 +-
+ .../types/testdata/fixedbugs/issue43124.go         |   4 +-
+ .../types/testdata/fixedbugs/issue43190.go         |   2 +-
+ .../types/testdata/fixedbugs/issue43671.go         |   4 +-
+ .../types/testdata/fixedbugs/issue45114.go         |   2 +-
+ .../types/testdata/fixedbugs/issue45920.go         |   4 +-
+ .../types/testdata/fixedbugs/issue46583.go         |   8 +-
+ .../types/testdata/fixedbugs/issue47031.go         |   2 +-
+ .../types/testdata/fixedbugs/issue47115.go         |   4 +-
+ .../types/testdata/fixedbugs/issue47411.go         |   6 +-
+ .../types/testdata/fixedbugs/issue47747.go         |   4 +-
+ .../types/testdata/fixedbugs/issue47818.go         |  38 +++----
+ .../types/testdata/fixedbugs/issue47968.go         |   4 +-
+ .../types/testdata/fixedbugs/issue48008.go         |   2 +-
+ .../types/testdata/fixedbugs/issue48312.go         |   4 +-
+ .../types/testdata/fixedbugs/issue48472.go         |   4 +-
+ .../types/testdata/fixedbugs/issue48827.go         |   8 +-
+ .../types/testdata/fixedbugs/issue49005.go         |   4 +-
+ .../types/testdata/fixedbugs/issue49112.go         |   4 +-
+ .../types/testdata/fixedbugs/issue49179.go         |   8 +-
+ .../types/testdata/fixedbugs/issue49242.go         |  10 +-
+ .../types/testdata/fixedbugs/issue49247.go         |   4 +-
+ .../types/testdata/fixedbugs/issue49296.go         |   4 +-
+ .../types/testdata/fixedbugs/issue49482.go         |   2 +-
+ .../types/testdata/fixedbugs/issue49579.go         |   2 +-
+ .../types/testdata/fixedbugs/issue49602.go         |   4 +-
+ .../types/testdata/fixedbugs/issue49735.go         |   4 +-
+ .../types/testdata/fixedbugs/issue49739.go         |   4 +-
+ .../types/testdata/fixedbugs/issue50372.go         |  10 +-
+ .../types/testdata/fixedbugs/issue50417.go         |  20 ++--
+ .../types/testdata/fixedbugs/issue50782.go         |   6 +-
+ .../types/testdata/fixedbugs/issue50816.go         |   4 +-
+ .../types/testdata/fixedbugs/issue50918.go         |   4 +-
+ .../types/testdata/fixedbugs/issue50929.go         |   2 +-
+ .../types/testdata/fixedbugs/issue50965.go         |   4 +-
+ .../types/testdata/fixedbugs/issue51229.go         |   2 +-
+ .../types/testdata/fixedbugs/issue51232.go         |   2 +-
+ .../types/testdata/fixedbugs/issue51335.go         |   4 +-
+ .../types/testdata/fixedbugs/issue51376.go         |   4 +-
+ .../types/testdata/fixedbugs/issue51472.go         |   2 +-
+ .../types/testdata/fixedbugs/issue51610.go         |   2 +-
+ .../types/testdata/fixedbugs/issue51658.go         |   8 +-
+ .../types/testdata/fixedbugs/issue52031.go         |   2 +-
+ .../types/testdata/fixedbugs/issue53358.go         |   6 +-
+ .../types/testdata/fixedbugs/issue56351.go         |   2 +-
+ .../types/testdata/fixedbugs/issue57486.go         |   2 +-
+ .../types/testdata/fixedbugs/issue57500.go         |   2 +-
+ src/internal/types/testdata/spec/assignability.go  |  50 ++++-----
+ src/internal/types/testdata/spec/comparable1.19.go |   8 +-
+ src/internal/types/testdata/spec/comparisons.go    |   4 +-
+ src/internal/types/testdata/spec/conversions.go    |  40 +++----
+ 99 files changed, 568 insertions(+), 532 deletions(-)

@@ -1,37 +1,62 @@
-commit 48a5d9938ce7add3636beab3882a990a0e79f98b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 13 00:18:52 2016 +0000
+commit 7c431cb7f9780fcaf58b9ef07028d5129e1e5fe7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 14 14:47:12 2016 -0400
 
-    A+C: automated update
+    cmd/link: insert trampolines for too-far jumps on ARM
     
-    Add Alexander Menzhinsky (individual CLA)
-    Add Anthony Woods (individual CLA)
-    Add Chris Stockton (individual CLA)
-    Add David Lazar (corporate CLA for Google Inc.)
-    Add Elliot Morrison-Reed (individual CLA)
-    Add Igor Bernstein (corporate CLA for Google Inc.)
-    Add Jesse Szwedko (individual CLA)
-    Add Jordan Lewis (individual CLA)
-    Add Kaviraj Kanagaraj (individual CLA)
-    Add Keegan Carruthers-Smith (individual CLA)
-    Add Marcel Edmund Franke (individual CLA)
-    Add Marin Bašić (individual CLA)
-    Add Martin Kreichgauer (corporate CLA for Google Inc.)
-    Add Max Riveiro (individual CLA)
-    Add Odin Ugedal (individual CLA)
-    Add Patrick Lee (individual CLA)
-    Add Rebecca Stambler (corporate CLA for Google Inc.)
-    Add Ryuzo Yamamoto (individual CLA)
-    Add Takuya Ueda (individual CLA)
-    Add Thordur Bjornsson (individual CLA)
-    Add Zac Bergquist (individual CLA)
+    ARM direct CALL/JMP instruction has 24 bit offset, which can only
+    encodes jumps within +/-32M. When the target is too far, the top
+    bits get truncated and the program jumps wild.
     
-    Updates #12042
+    This CL detects too-far jumps and automatically insert trampolines,
+    currently only internal linking on ARM.
     
-    Change-Id: Idb5ffe526b26437eb7612f0b60bde62162af5abb
-    Reviewed-on: https://go-review.googlesource.com/34286
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It is necessary to make the following changes to the linker:
+    - Resolve direct jump relocs when assigning addresses to functions.
+      this allows trampoline insertion without moving all code that
+      already laid down.
+    - Lay down packages in dependency order, so that when resolving a
+      inter-package direct jump reloc, the target address is already
+      known. Intra-package jumps are assumed never too far.
+    - a linker flag -debugtramp is added for debugging trampolines:
+        "-debugtramp=1 -v" prints trampoline debug message
+        "-debugtramp=2"    forces all inter-package jump to use
+                           trampolines (currently ARM only)
+        "-debugtramp=2 -v" does both
+    - Some data structures are changed for bookkeeping.
+    
+    On ARM, pseudo DIV/DIVU/MOD/MODU instructions now clobber R8
+    (unfortunate). In the standard library there is no ARM assembly
+    code that uses these instructions, and the compiler no longer emits
+    them (CL 29390).
+    
+    all.bash passes with -debugtramp=2, except a disassembly test (this
+    is unavoidable as we changed the instruction).
+    
+    TBD: debug info of trampolines?
+    
+    Fixes #17028.
+    
+    Change-Id: Idcce347ea7e0af77c4079041a160b2f6e114b474
+    Reviewed-on: https://go-review.googlesource.com/29397
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- AUTHORS      | 17 +++++++++++++++++
- CONTRIBUTORS | 21 +++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/cmd/internal/obj/arm/obj5.go     |   4 +-
+ src/cmd/internal/obj/link.go         |  14 ++++
+ src/cmd/link/internal/amd64/asm.go   |   2 +-
+ src/cmd/link/internal/arm/asm.go     |  75 +++++++++++++++--
+ src/cmd/link/internal/arm/obj.go     |   1 +
+ src/cmd/link/internal/ld/ar.go       |   3 +-
+ src/cmd/link/internal/ld/data.go     | 156 +++++++++++++++++++++++++++--------
+ src/cmd/link/internal/ld/deadcode.go |   5 +-
+ src/cmd/link/internal/ld/ld.go       |  16 ++--
+ src/cmd/link/internal/ld/lib.go      | 102 +++++++++++++++++------
+ src/cmd/link/internal/ld/link.go     |  21 +++--
+ src/cmd/link/internal/ld/main.go     |   1 +
+ src/cmd/link/internal/ld/objfile.go  |  32 +++++--
+ src/cmd/link/internal/x86/asm.go     |   6 +-
+ src/runtime/proc.go                  |   6 +-
+ src/runtime/vlop_arm.s               |  15 ++--
+ 16 files changed, 353 insertions(+), 106 deletions(-)

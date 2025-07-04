@@ -1,33 +1,25 @@
-commit b5b2cf519fe332891c165077f3723ee74932a647
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 1 10:32:20 2022 +0700
+commit 59b2f516e8ec66b76789142fbba4787a0e80d09a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Mar 29 16:15:50 2021 -0500
 
-    go/types,types2: exclude tests that need cgo.Incomplete
+    cmd/internal/obj/ppc64: remove unused REG_DCR types
     
-    Since when go/types,types2 do not know about build constraints, and
-    runtime/cgo.Incomplete is only available on platforms that support cgo.
+    The assembler does not support parsing DCRx registers,
+    nor does the compiler generate opcodes with these.
     
-    These tests are also failing on aix with failure from linker, so disable
-    them on aix to make builder green. The fix for aix is tracked in #54814
+    Likewise, these registers are only available on ISA
+    2.07 embedded processors which are not supported in
+    golang.
     
-    Updates #46731
-    Updates #54814
-    
-    Change-Id: I5d6f6e29a8196efc6c457ea64525350fc6b20309
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427394
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Iea258e5958a2022bda0eee8348de1b06437148df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352790
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 9 +++++++++
- src/go/types/stdlib_test.go                    | 9 +++++++++
- test/fixedbugs/bug514.go                       | 2 +-
- test/fixedbugs/issue40954.go                   | 2 +-
- test/fixedbugs/issue42032.go                   | 2 +-
- test/fixedbugs/issue42076.go                   | 2 +-
- test/fixedbugs/issue46903.go                   | 3 +--
- test/fixedbugs/issue51733.go                   | 2 +-
- 8 files changed, 24 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go |  1 -
+ src/cmd/internal/obj/ppc64/asm9.go  | 18 +++---------------
+ src/cmd/internal/obj/ppc64/list9.go |  5 +----
+ 3 files changed, 4 insertions(+), 20 deletions(-)

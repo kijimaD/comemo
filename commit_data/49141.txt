@@ -1,38 +1,24 @@
-commit 7b314d27ce5dbc31eed2076e28c0af4ea8c24473
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Mar 15 18:00:16 2022 +0700
+commit fdb45acd1f062884c77ea6961fb638e004af1b8e
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 21 18:38:05 2021 -0400
 
-    cmd/compile: fix bad order of evaluation for multi-value f()(g()) calls
+    runtime: move mem profile sampling into m-acquired section
     
-    The compiler use to compile f()(g()) as:
+    It was not safe to do mcache profiling updates outside the critical
+    section, but we got lucky because the runtime was not preemptible.
+    Adding chunked memory clearing (CL 270943) created preemption
+    opportunities, which led to corruption of runtime data structures.
     
-            t1, t2 := g()
-            f()(t1, t2)
+    Fixes #47304.
+    Fixes #47302.
     
-    That violates the Go spec, since when "..., all function calls, ... are
-    evaluated in lexical left-to-right order"
-    
-    This PR fixes the bug by compiling f()(g()) as:
-    
-            t0 := f()
-            t1, t2 := g()
-            t0(t1, t2)
-    
-    to make "f()" to be evaluated before "g()".
-    
-    Fixes #50672
-    
-    Change-Id: I6a766f3dfc7347d10f8fa3a151f6a5ea79bcf818
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392834
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I461615470d62328a83ccbac537fbdc6dcde81c85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336449
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/transform.go     |   1 +
- src/cmd/compile/internal/typecheck/const.go     |  57 +++++++------
- src/cmd/compile/internal/typecheck/func.go      |   1 +
- src/cmd/compile/internal/typecheck/typecheck.go |  38 ++++++++-
- test/fixedbugs/issue50672.go                    | 105 ++++++++++++++++++++++++
- 5 files changed, 175 insertions(+), 27 deletions(-)
+ src/runtime/malloc.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

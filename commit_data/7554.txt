@@ -1,13 +1,12 @@
-commit c7978584c3a8ec6a41ef06632ef8dd2b6dcad2ae
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 23 15:03:30 2011 -0800
+commit 8b8d5e9e0076c0412390a92584bf921d2a070a01
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 23 15:51:27 2011 -0500
 
-    http: set method GET on Get() requests
+    build: remove _gcc_main.c during make clean
     
-    R=adg, bradfitzwork
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4229042
+    https://golang.org/cl/4226043
 
- src/pkg/http/client.go      |  3 +++
- src/pkg/http/client_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

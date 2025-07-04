@@ -1,23 +1,13 @@
-commit 8195ce2b4f430023522f28e6666850bbfb85c31b
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 2 16:01:53 2014 -0700
+commit 06b67f304e69593e7f2bbacc3f3a533f4346ee53
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 2 11:05:46 2014 -0700
 
-    cmd/gc: don't generate zillions of linehists for wrapper functions
-    This is a workaround - the code should be better than this - but the
-    fix avoids generating large numbers of linehist entries for the wrapper
-    functions that enable interface conversions. There can be many of
-    them, they all happen at the end of compilation, and they can all
-    share a linehist entry.
-    Avoids bad n^2 behavior in liblink.
-    Test case in issue 8135 goes from 64 seconds to 2.5 seconds (still bad
-    but not intolerable).
+    doc: mention WriteHeapDump in 1.3 release notes
     
-    Fixes #8135.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=r
+    R=khr, r
     CC=golang-codereviews
-    https://golang.org/cl/104840043
+    https://golang.org/cl/103810044
 
- src/cmd/gc/subr.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ doc/go1.3.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

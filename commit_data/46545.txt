@@ -1,23 +1,23 @@
-commit dc5b1d31c8c648b2fad1b2e85f6cca2dc1249455
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Sep 21 15:51:45 2021 -0400
+commit 822aeacd9ed0630f84552d3120a12ddaa65b23cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 10:29:11 2021 -0800
 
-    [dev.fuzz] internal/fuzz: more fuzzing output adjustments
+    [dev.typeparams] cmd/compile/internal/syntax: remove ShortString, use String instead
     
-    This change also makes it so that non-recoverable errors (which should
-    be pretty rare) will no longer be minimized as these failures can be
-    flakier and harder to minimize successfully.
+    Follow-up on feedback by mdempsky@ in https://golang.org/cl/282552 .
     
-    Updates golang/go#48132
-    
-    Change-Id: I991d837993ea1fb0304b3ec491cc725ef5265652
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351273
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I1e5bb2d67cc8ae29fed100b87d18a33b3e2069eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282672
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_minimize.txt |   4 +-
- src/internal/fuzz/fuzz.go                         | 104 ++++++++++++----------
- src/internal/fuzz/worker.go                       |  40 +++++----
- 3 files changed, 83 insertions(+), 65 deletions(-)
+ src/cmd/compile/internal/syntax/printer.go       | 11 ++++-------
+ src/cmd/compile/internal/syntax/printer_test.go  |  2 +-
+ src/cmd/compile/internal/types2/api_test.go      | 10 +++++-----
+ src/cmd/compile/internal/types2/assignments.go   |  2 +-
+ src/cmd/compile/internal/types2/builtins_test.go |  2 +-
+ src/cmd/compile/internal/types2/errors.go        |  2 +-
+ src/cmd/compile/internal/types2/operand.go       |  2 +-
+ 7 files changed, 14 insertions(+), 17 deletions(-)

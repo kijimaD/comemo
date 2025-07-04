@@ -1,15 +1,23 @@
-commit 6b344170db8fad38df941fe97db0348f6f1bb4d0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 11:28:15 2020 -0400
+commit 64378c233b69ca577a23a85285aa9adf3849d7f5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 22 15:46:11 2020 -0800
 
-    path/filepath: add explicit comment marking elided errors
+    cmd/go: unify trimpath logic for -mod=vendor, -mod=mod
     
-    The errors on these lines are meant to be discarded.
-    Add a comment to make that extra clear.
+    If a package has a module with a version, the package's directory is
+    replaced with the module path and version, followed by the package's
+    path within the module.
     
-    Change-Id: I38f72af6dfbb0e86677087baf47780b3cc6e7d40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241083
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is a follow up to CL 214945. We no longer check whether the
+    module has a directory (with -mod=vendor, it does not).
+    
+    Updates #36566
+    
+    Change-Id: I5bc952b13bc7b4659f58ee555bd6c6a087eb7792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215940
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/path/filepath/match.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/gc.go                     | 4 ++--
+ src/cmd/go/testdata/script/mod_vendor_trimpath.txt | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

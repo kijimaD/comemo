@@ -1,20 +1,17 @@
-commit 5508561180950534fd623fb61a8a8f357ad50e4c
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Nov 22 15:39:51 2016 -0500
+commit 03a1dc3522f99bf5045fc41730e6682c1cc7402a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 28 15:04:00 2016 -0700
 
-    runtime/pprof/internal/protopprof: fix test on s390x
+    cmd/compile: don't crash on (unsafe.Sizeof)(0)
     
-    Applies the fix from CL 32920 to the new test TestSampledHeapAllocProfile
-    introduced in CL 33422. The test should be skipped rather than fail if
-    there is only one executable region of memory.
+    Fixes #17270.
     
-    Updates #17852.
-    
-    Change-Id: Id8c47b1f17ead14f02a58a024c9a04ebb8ec0429
-    Reviewed-on: https://go-review.googlesource.com/33453
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4affa57e10baf1a758bc0977265d160f220b2945
+    Reviewed-on: https://go-review.googlesource.com/29960
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/internal/protopprof/protomemprofile_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 34 +++++++++++++++-----------------
+ test/fixedbugs/issue17270.go             | 11 +++++++++++
+ 2 files changed, 27 insertions(+), 18 deletions(-)

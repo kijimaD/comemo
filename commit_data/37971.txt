@@ -1,26 +1,36 @@
-commit 36a81d5ec37904e44a9a2959c140687d558cd25f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 20:59:33 2019 -0500
+commit a0f5d5f8830e578892c47f7704e6a2616273aac1
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Sep 10 15:36:59 2018 +0200
 
-    strconv: accept underscores in ParseInt, ParseUint, ParseFloat
+    cmd/link: fix DWARF refs so that they always point to the typedef entry
     
-    This CL modifies ParseInt, ParseUint, and ParseFloat
-    to accept digit-separating underscores in their arguments.
-    For ParseInt and ParseUint, the underscores are only
-    allowed when base == 0.
+    For types defined as:
     
-    See golang.org/design/19308-number-literals for background.
+    type typename struct { ... }
     
-    For #28493.
+    the linker produces two DIEs: (1) a DW_TAG_structure_type DIE and (2) a
+    DW_TAG_typedef_type DIE having (1) as its type attribute.
     
-    Change-Id: I057ca2539d89314643f591ba8144c3ea7126651c
-    Reviewed-on: https://go-review.googlesource.com/c/160243
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    All subsequent references to 'typename' should use the
+    DW_TAG_typedef_type DIE, not the DW_TAG_structure_type. Mostly this is
+    true but sometimes one reference will use the DW_TAG_structure_type
+    directly. In particular, this happens to the 'first' reference to the
+    type in question (where 'first' means whatever happens first in the way
+    the linker scans its symbols).
+    
+    This isn't only true of struct types: pointer types, array types, etc.
+    can also be affected.
+    
+    This fix solves the problem by always returning the typedef DIE in
+    newtype, when one is created.
+    
+    Fixes #27614
+    
+    Change-Id: Ia65b4a1d8c2b752e33a4ebdb74ccd92faa69526e
+    Reviewed-on: https://go-review.googlesource.com/134555
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/strconv/atof.go      | 22 ++++++++++++--
- src/strconv/atof_test.go | 37 ++++++++++++++++++++++++
- src/strconv/atoi.go      | 70 ++++++++++++++++++++++++++++++++++++++------
- src/strconv/atoi_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 193 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go      |  29 +++++----
+ src/cmd/link/internal/ld/dwarf_test.go | 114 +++++++++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 12 deletions(-)

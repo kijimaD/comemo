@@ -1,16 +1,42 @@
-commit 1896eac57f432478eb894ac5e10f91c4d08e4a3a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 29 20:38:13 2022 +0800
+commit 85493d53e3bffbd08de3a97672a5a6f10b4901a8
+Author: Arran Walker <arran.walker@fiveturns.org>
+Date:   Thu Oct 21 10:39:05 2021 +0100
 
-    cmd/go/internal/list: should omit comparison to bool constant
+    archive/zip: don't read data descriptor early
     
-    Change-Id: Ieef05be39bad1263eacedb33c2043ee83080f629
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436697
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Go 1.17 introduced an unnecessary change to when a zip's data descriptor
+    is read for file entries, how it is parsed and how the crc32 field is
+    used.
+    
+    Before Go 1.17, the data descriptor was read immediately after a file
+    entry's content. This continuous read is a pattern existing applications
+    have come to rely upon (for example, where reads at specific offsets
+    might be translated to HTTP range requests).
+    
+    In Go 1.17, all data descriptors are immediately read upon opening the
+    file. This results in scattered and non-continuous reads of the archive,
+    and depending on the underlying reader, might have severe performance
+    implications. In addition, an additional object is now initialized for
+    each entry, but is mostly redundant.
+    
+    Previously, the crc32 field in the data descriptor would return an error
+    if it did not match the central directory's entry. This check has
+    seemingly been unintentionally removed. If the central directory crc32
+    is invalid and a data descriptor is present, no error is returned.
+    
+    This change reverts to the previous handling of data descriptors, before
+    CL 312310.
+    
+    Fixes #48374
+    Fixes #49089
+    
+    Change-Id: I5df2878c4fcc9e500064e7175f3ab9727c82f100
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357489
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/list/list.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/zip/reader.go      |  94 +++++++++----------------------
+ src/archive/zip/reader_test.go | 122 -----------------------------------------
+ src/archive/zip/struct.go      |   8 ---
+ 3 files changed, 27 insertions(+), 197 deletions(-)

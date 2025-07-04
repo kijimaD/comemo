@@ -1,19 +1,21 @@
-commit 0dae393a2643de239e5872260ec6e379f221f585
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Jul 10 19:07:05 2024 -0700
+commit bfa3284f9b3af76030d8058ae22e3d212637a286
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed May 31 15:07:03 2023 +0200
 
-    encoding/binary: use list format in docstrings
+    doc: document WER and SEH changes in Go 1.21
     
-    This looks way better than the code formatting.
+    While here, I've removed the CL 472195 TODO, which I marked as
+    RELNOTE=yes by mistake.
     
-    Similar to CL 597656.
+    For #57441
+    For #57302
     
-    Change-Id: If404c952ece384aea096f2394bd475a601627a79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597657
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7563140bf307f8d732f0154d02b8fa0735527323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499515
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/encoding/binary/varint.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ doc/go1.21.html | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

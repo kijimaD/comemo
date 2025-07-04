@@ -1,15 +1,23 @@
-commit 2cab897ce055fd753821a85a2134affe64ffe8cb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 21 08:14:38 2011 -0700
+commit 8bfb2171233d5738fe592f001f318969f8228c97
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 21 11:04:28 2011 -0400
 
-    http: Transport: with TLS InsecureSkipVerify, skip hostname check
+    exp/ssh: server cleanups
     
-    Fixes #2386
+    server.go/channel.go:
+    * rename Server to ServerConfig to match Client.
+    * rename ServerConnection to ServeConn to match Client.
+    * add Listen/Listener.
+    * ServerConn.Handshake(), general cleanups.
     
-    R=golang-dev, rsc
+    client.go:
+    * fix bug where fmt.Error was not assigned to err
+    
+    R=rsc, agl
     CC=golang-dev
-    https://golang.org/cl/5312045
+    https://golang.org/cl/5265049
 
- src/pkg/http/client_test.go | 24 ++++++++++++++++++++++++
- src/pkg/http/transport.go   |  6 ++++--
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/pkg/exp/ssh/channel.go |   2 +-
+ src/pkg/exp/ssh/client.go  |   2 +-
+ src/pkg/exp/ssh/server.go  | 147 ++++++++++++++++++++++++++++++---------------
+ 3 files changed, 102 insertions(+), 49 deletions(-)

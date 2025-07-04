@@ -1,23 +1,40 @@
-commit 0c3557e6adbc4892afbef65d76ec5bce3d84a964
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 27 11:28:40 2021 -0700
+commit 3bac5faa4af2f5c454b2cebaa8be5cde9b8e2add
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 19 11:31:10 2020 +0200
 
-    syscall: move TestForegroundSignal create call out of goroutine
+    cmd/compile: make gc debug flags collector a struct
     
-    That way the skip takes effect.
+    gc debug flags are currently stored in a 256-long array, that is then
+    addressed using the ASCII numeric value of the flag itself (a quirk
+    inherited from the old C compiler). It is also a little wasteful,
+    since we only define 16 flags, and the other 240 array elements are
+    always empty.
     
-    Also ignore the result of calling TIOCSPGRP when cleaing up TestForeground.
-    It has started to fail for some reason, and the result doesn't matter.
+    This change makes Debug a struct, which also provides static checking
+    that we're not referencing flags that does not exist.
     
-    Also call TIOCSPGRP to clean up in TestForegroundSignal.
-    
-    For #37217
-    
-    Change-Id: I2e4282d7d91ad9a198eeb12cef01c2214c2a98c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314271
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2f0dfef2529325514b3398cf78635543cdf48fe0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263539
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/exec_unix_test.go | 29 ++++++++++++++++++++++++-----
- 1 file changed, 24 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/alg.go     |  8 +--
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/esc.go     | 16 +++---
+ src/cmd/compile/internal/gc/escape.go  | 32 +++++------
+ src/cmd/compile/internal/gc/export.go  | 10 ++--
+ src/cmd/compile/internal/gc/go.go      | 10 +++-
+ src/cmd/compile/internal/gc/gsubr.go   |  2 +-
+ src/cmd/compile/internal/gc/iimport.go |  4 +-
+ src/cmd/compile/internal/gc/inl.go     | 38 ++++++-------
+ src/cmd/compile/internal/gc/main.go    | 97 ++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/order.go   |  4 +-
+ src/cmd/compile/internal/gc/range.go   |  4 +-
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go     | 16 +++---
+ src/cmd/compile/internal/gc/subr.go    | 16 +++---
+ src/cmd/compile/internal/gc/syntax.go  |  4 +-
+ src/cmd/compile/internal/gc/walk.go    | 18 +++----
+ 17 files changed, 149 insertions(+), 134 deletions(-)

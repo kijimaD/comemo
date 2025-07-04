@@ -1,17 +1,15 @@
-commit 1b1039a1c1fba650023431696dc02d3f8343ad27
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 28 16:03:32 2012 -0800
+commit e266d6064c7e485673ea651d673b2ca22e0649f2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 29 07:45:38 2012 +0900
 
-    net/http/httputil: fix DumpRequestOut on https URLs
+    net: fix comment on Dial with unixgram
     
-    Don't try to do an SSL negotiation with a *bytes.Buffer.
+    We should use DialUnix or ListenPacket for unixgram networks
+    because Dial doesn't take a local UnixAddr.
     
-    Fixes #3135
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5709050
+    https://golang.org/cl/5706043
 
- src/pkg/net/http/httputil/dump.go      |  9 +++++++++
- src/pkg/net/http/httputil/dump_test.go | 12 ++++++++++++
- 2 files changed, 21 insertions(+)
+ src/pkg/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

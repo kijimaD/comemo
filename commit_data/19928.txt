@@ -1,13 +1,14 @@
-commit 7ce3406c8fe1d71d0d595bcd0842bf27f6d1bf32
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Aug 7 10:25:50 2014 +1000
+commit ea3ac6ba75c5b7496b29117687b0859ad40f3f39
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 6 13:42:00 2014 -0700
 
-    doc/go1.4.txt: implement monotonic clocks on windows
+    runtime: shorten hash declarations
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=iant
+    R=dvyukov, iant
     CC=golang-codereviews
-    https://golang.org/cl/126760043
+    https://golang.org/cl/117680044
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/api/goapi.go   |  2 +-
+ src/pkg/runtime/alg.go | 34 ++++++++++++++++------------------
+ 2 files changed, 17 insertions(+), 19 deletions(-)

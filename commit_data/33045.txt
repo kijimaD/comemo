@@ -1,20 +1,26 @@
-commit a212083eea9ee745a3c8e7befb7bba4f4c95396c
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 15 15:02:32 2017 -0400
+commit 3858349ec956b4abb052ba3191da16dc487c4ad4
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Sun Jun 25 21:17:52 2017 -0400
 
-    runtime: mark mstart as nowritebarrierrec
+    testing: always ReadMemStats before first benchmark run
     
-    mstart is the entry point for new threads, so it certainly can't
-    interact with GC enough to have write barriers. We move the one small
-    piece that is allowed to have write barriers out into its own
-    function.
+    If the only way the user indicates they want alloc stats shown
+    is via ReportAllocs, we don't know that until benchFunc is run.
+    Therefore, StopTimer's ReadMemStats will return incorrect data
+    for single cycle runs since there's no counterpart ReadMemStats from
+    StartTimer that initializes alloc stats.
     
-    Change-Id: Id9c31d6ffac31d0051fab7db15eb428c11cadbad
-    Reviewed-on: https://go-review.googlesource.com/46035
-    Run-TryBot: Austin Clements <austin@google.com>
+    It appears that this bug was introduced by CL 46612,
+    "testing: only call ReadMemStats if necessary when benchmarking"
+    
+    Fixes #20590
+    
+    Change-Id: I3b5ef91677823f4b98011880a3be15423baf7e33
+    Reviewed-on: https://go-review.googlesource.com/46612
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/proc.go | 30 ++++++++++++++++++++++++------
- 1 file changed, 24 insertions(+), 6 deletions(-)
+ src/testing/benchmark.go |  8 +++-----
+ src/testing/sub_test.go  | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 5 deletions(-)

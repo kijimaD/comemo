@@ -1,0 +1,20 @@
+commit a8487dadeb6057418ee29b3ec8d2f1af0c91a42e
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Jan 6 13:15:51 2025 -0500
+
+    cmd/go: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup.
+    This changes a test and how when the Go command panics when a file is
+    left locked.
+    
+    Updates #70907
+    
+    Change-Id: I8d8c56d16486728f9bd4b910b81796ae506bda74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640736
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/base/limit.go            |  8 ++------
+ src/cmd/go/internal/lockedfile/lockedfile.go | 12 +++++++-----
+ 2 files changed, 9 insertions(+), 11 deletions(-)

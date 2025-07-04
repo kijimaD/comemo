@@ -1,20 +1,16 @@
-commit fe87b586c036ae7ad25e22896cb90f95421545fe
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Feb 3 10:47:28 2024 +0700
+commit 2ea592c54328d03c9db9a2de718b235bb8157541
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu Jun 1 05:57:58 2023 -0700
 
-    runtime: remove VZEROUPPER in asyncPreempt on darwin/amd64
+    doc: add release note for go:wasmimport
     
-    Updates #37174
-    Updates #49233
-    Fixes #41152
-    
-    Change-Id: I35b148c8bc132f02dd6a5a6bb48b711fb5c5df9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560955
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9c6fc4c7e24d0e78086d95dccd61e80bd5ddd856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499815
+    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Bypass: Eli Bendersky‎ <eliben@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/mkpreempt.go    | 13 -------------
- src/runtime/preempt_amd64.s |  7 -------
- 2 files changed, 20 deletions(-)
+ doc/go1.21.html | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)

@@ -1,25 +1,21 @@
-commit 0e6a6c510f870709ac7bba8470bed7f862f579b1
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 22 15:05:08 2015 -0400
+commit 01d005c616760d264282dd689c979652af0133ce
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 25 09:17:09 2015 +1100
 
-    runtime: simplify process for starting GC goroutine
+    cmd/8g, cmd/internal/gc: clean up GO386 handling
     
-    Currently, when allocation reaches the GC trigger, the runtime uses
-    readyExecute to start the GC goroutine immediately rather than wait
-    for the scheduler to get around to the GC goroutine while the mutator
-    continues to grow the heap.
+    This change cleans up some of the uglyness introduced in 8fc73a39efe1
+    by moving the gc.Use_sse into the gc.Arch struct and adjusting its
+    zero value to be more useful.
     
-    Now that the scheduler runs the most recently readied goroutine when a
-    goroutine yields its time slice, this rigmarole is no longer
-    necessary. The runtime can simply ready the GC goroutine and yield
-    from the readying goroutine.
-    
-    Change-Id: I3b4ebadd2a72a923b1389f7598f82973dd5c8710
-    Reviewed-on: https://go-review.googlesource.com/9292
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I26ff5d9ac57b3f25e936519e443de6583cdafa56
+    Reviewed-on: https://go-review.googlesource.com/7994
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/mgc.go   | 22 +++++++++-------------
- src/runtime/proc1.go | 39 ---------------------------------------
- 2 files changed, 9 insertions(+), 52 deletions(-)
+ src/cmd/8g/galign.go         |  1 +
+ src/cmd/8g/ggen.go           |  8 ++++----
+ src/cmd/8g/gsubr.go          |  8 ++++----
+ src/cmd/internal/gc/go.go    |  3 +--
+ src/cmd/internal/gc/gsubr.go |  2 +-
+ src/cmd/internal/gc/lex.go   | 11 -----------
+ 6 files changed, 11 insertions(+), 22 deletions(-)

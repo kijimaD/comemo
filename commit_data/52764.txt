@@ -1,19 +1,21 @@
-commit 5a10d8a2042224c77dc41e8efbbc124f10b26172
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 19 10:46:26 2023 -0400
+commit 557244cef70e508f0eeaaa23903e8859d39318be
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 24 19:51:37 2022 -0700
 
-    internal/testenv: in HasExec, try to actually exec on ios and wasm platforms
+    go/printer: if comment gets formatted away, don't squash
     
-    Some iOS environments may support exec. wasip1 and js do not, but
-    trying to exec on those platforms is inexpensive anyway and gives
-    better test coverage for the ios path.
+    We were dropping the preceding whitespace.
     
-    Change-Id: I4baffb2ef5dc7d81e6a260f69033bfb229f13d92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486275
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Fixes #53059
+    
+    Change-Id: Ide0d6a76c463a7481ec4883a8568f7f7b5e87e9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408394
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/testenv/exec.go | 56 +++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 55 insertions(+), 1 deletion(-)
+ src/go/printer/printer.go               | 12 ++++++++++++
+ src/go/printer/testdata/comments.golden |  4 ++++
+ src/go/printer/testdata/comments.input  |  5 +++++
+ 3 files changed, 21 insertions(+)

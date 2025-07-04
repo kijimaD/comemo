@@ -1,15 +1,15 @@
-commit d0a7d01ff2f62d83cc7ebc1c593aae652e205d66
+commit 9df6fdcc1caa668429ffa7155e61236d3acf0905
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 14 12:48:56 2012 +1100
+Date:   Tue Feb 14 12:48:28 2012 +1100
 
-    net/http: fix client goroutine leak with persistent connections
+    mime: unexport some internal details
     
-    Thanks to Sascha Matzke & Florian Weimer for diagnosing.
+    Fixes #2941
     
-    R=golang-dev, adg, bradfitz, kevlar
+    R=golang-dev, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5656046
+    https://golang.org/cl/5663046
 
- src/pkg/net/http/transport.go      | 21 +++++++++----
- src/pkg/net/http/transport_test.go | 61 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 76 insertions(+), 6 deletions(-)
+ src/pkg/mime/grammar.go   | 12 ++++++------
+ src/pkg/mime/mediatype.go |  8 ++++----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

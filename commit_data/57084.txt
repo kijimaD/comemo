@@ -1,22 +1,33 @@
-commit 9cfe3a86d34f7f4a401dae9a22389b12f7e8bb2e
-Author: apocelipes <seve3r@outlook.com>
-Date:   Fri Aug 2 11:33:30 2024 +0000
+commit 1a7709d6af76c06d465c5e969b502fc206f8e687
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 15 18:16:51 2023 -0400
 
-    archive/zip,cmd/compile: simplify the split function
+    runtime: use 1-byte load for address checking in racecallatomic
     
-    Use strings to simplify the code.
+    In racecallatomic, we do a load before calling into TSAN, so if
+    the address is invalid we fault on the Go stack. We currently use
+    a 8-byte load instruction, regardless of the data size that the
+    atomic operation is performed on. So if, say, we are doing a
+    LoadUint32 at an address that is the last 4 bytes of a memory
+    mapping, we may fault unexpectedly. Do a 1-byte load instead.
+    (Ideally we should do a load with the right size, so we fault
+    correctly if we're given an unaligned address for a wide load
+    across a page boundary. Leave that for another CL.)
     
-    This is a follow-up for the CL 586715.
+    Fix AMD64, ARM64, and PPC64. The code already uses 1-byte load
+    on S390X.
     
-    Change-Id: I9e5470ec271e8af1ad4ddbb5f01f43a8a4879557
-    GitHub-Last-Rev: b95d6179781053ea8ec9fc8ad2e18607fd35c5bb
-    GitHub-Pull-Request: golang/go#68713
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602697
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Should fix #60825.
+    
+    Change-Id: I3dee93eb08ba180c85e86a9d2e71b5b520e8dcf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503937
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/zip/reader.go                    | 10 ++--------
- src/cmd/compile/internal/staticdata/embed.go | 10 ++--------
- 2 files changed, 4 insertions(+), 16 deletions(-)
+ src/runtime/race/race_linux_test.go | 28 ++++++++++++++++++++++++++++
+ src/runtime/race_amd64.s            |  2 +-
+ src/runtime/race_arm64.s            |  2 +-
+ src/runtime/race_ppc64le.s          |  2 +-
+ 4 files changed, 31 insertions(+), 3 deletions(-)

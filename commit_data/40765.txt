@@ -1,25 +1,22 @@
-commit d22b5735e74c1e5905d1574853cb9a9f48da1afe
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Mon Nov 11 21:16:18 2019 +0530
+commit ab94ebbdcdcf6dc03574a85aae8984340c3de7f0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 15:57:25 2019 -0400
 
-    cmd/doc: show the package clause always
+    doc/go1.13: make cmd/go paragraphs more concise
     
-    If no writes to the package buffer happen, then the package clause
-    does not get printed. This is a bug for cases where a file just contains
-    the package clause.
+    Looking at the live release notes on tip.golang.org, the Modules
+    section is much more verbose than the other sections.
     
-    We fix this by separating the printing of package clause to a new
-    function and calling it from (*pkgBuffer).Write as well as (*Package).flush.
+    To some extent that's to be expected, but too much detail in the
+    release notes might discourage folks from consulting the actual
+    documentation. Ensure that topics have clear links and omit
+    unnecessary details.
     
-    Updates #31457
-    
-    Change-Id: Ia3bd0ea3963274c460a45d1e37fafc6ee0a197f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206128
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: I1ccbc1697fccaf7ca7094c606bd11696c46d87f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183987
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/doc/doc_test.go                    |  7 +++++++
- src/cmd/doc/pkg.go                         | 10 ++++++++--
- src/cmd/doc/testdata/nested/empty/empty.go |  1 +
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ doc/go1.13.html | 34 ++++++++++++----------------------
+ 1 file changed, 12 insertions(+), 22 deletions(-)

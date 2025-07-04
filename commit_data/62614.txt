@@ -1,0 +1,22 @@
+commit 2e749a645a6d03c7ac11bb172c4591564061b29e
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Tue Mar 18 20:27:07 2025 -0400
+
+    internal/godebugs: fix changed version for winsymlink and winreadlinkvolume to 1.23
+    
+    https://go.dev/doc/godebug#go-123 documents changes to winsymlink and
+    winreadlinkvolume in Go 1.23.
+    
+    This fixes the registered "changed" minor version to Go 1.23,
+    so that defaults when building a Go 1.22 module are correct.
+    
+    Fixes #72935
+    
+    Change-Id: I5d5bf31ca04f9e95208fb0fdaad2232f9db653ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/godebugs/table.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,13 @@
-commit dd78f745c44f426578fbb8cddcc05c8227fb0ad5
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jul 17 07:56:25 2012 +0200
+commit 8de5080f34ad738488430ec1cb5e918dc7c384ff
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 16 13:31:15 2012 -0700
 
-    testing: fix memory blowup when formatting many lines.
+    faq: add status section
+    Fixes #3822.
     
-    Fixes #3830.
-    
-    R=golang-dev, r
-    CC=golang-dev, remy
-    https://golang.org/cl/6373047
+    R=golang-dev, r, dsymonds, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/6395043
 
- src/pkg/testing/testing.go | 60 +++++++++++++++++++++++++---------------------
- 1 file changed, 33 insertions(+), 27 deletions(-)
+ doc/go_faq.html | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

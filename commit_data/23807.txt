@@ -1,18 +1,17 @@
-commit 2584974d166c54e81a4480625e6b99a4f2630c39
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 22 15:03:02 2015 -0400
+commit 2c2770c3d4dea11ce96f63d8fcb40ca5dd230e33
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 7 22:14:04 2015 -0400
 
-    cmd/compile: adjust annotation of implicit operations.
+    cmd/cgo: make sure pointers passed to C escape to heap
     
-    Limit probe to ODOT/OIND/ODOTPTR for now; that works.
+    Fixes #10303.
     
-    Fixes #11790
-    
-    Change-Id: I411271e702c5fe6ceb880ca47c7dacc37ffcbb6a
-    Reviewed-on: https://go-review.googlesource.com/12532
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia68d3566ba3ebeea6e18e388446bd9b8c431e156
+    Reviewed-on: https://go-review.googlesource.com/10814
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/subr.go      |  4 +---
- src/cmd/compile/internal/gc/typecheck.go | 16 +++++++-------
- test/fixedbugs/issue11790.go             | 36 ++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+), 11 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue10303.go | 70 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go          | 14 ++++++++-
+ src/runtime/cgo.go          | 16 +++++++++++
+ 4 files changed, 100 insertions(+), 1 deletion(-)

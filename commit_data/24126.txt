@@ -1,22 +1,12 @@
-commit 77e528293bbb51a92d16a5e77a8d7920c96764bd
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 26 15:06:43 2015 -0400
+commit 4c521ac8f23e98898a2e1603a6e7a23648be27eb
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sun Jul 12 14:37:01 2015 +0100
 
-    runtime: check that stack barrier unwind is in sync
+    [dev.ssa] cmd/compile/internal/gc: implement more no-op statements
     
-    Currently the stack barrier stub blindly unwinds the next stack
-    barrier from the G's stack barrier array without checking that it's
-    the right stack barrier. If through some bug the stack barrier array
-    position gets out of sync with where we actually are on the stack,
-    this could return to the wrong PC, which would lead to difficult to
-    debug crashes. To address this, this commit adds a check to the amd64
-    stack barrier stub that it's unwinding the correct stack barrier.
-    
-    Updates #12238.
-    
-    Change-Id: If824d95191d07e2512dc5dba0d9978cfd9f54e02
-    Reviewed-on: https://go-review.googlesource.com/13948
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I26c268f46dcffe39912b8c92ce9abb875310934f
+    Reviewed-on: https://go-review.googlesource.com/12100
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_amd64.s | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

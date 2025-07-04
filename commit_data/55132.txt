@@ -1,28 +1,17 @@
-commit 9840d38cdb2cc550b437b3c34b6b2e9f107bdc91
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sun Nov 12 17:05:57 2023 +0800
+commit 02ed0e5e67530e6b041989d55048ce373dc60327
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Dec 29 13:08:48 2022 +0100
 
-    cmd/internal/obj/riscv: add support of PCALIGN directive
+    crypto/ed25519: improve Ed25519ctx docs and add example
     
-    Add support for PCALIGN directive on riscv.
-    This directive can be used within Go asm to align instruction
-    by padding NOP directives.
-    
-    This patch also adds a test to verify the correctness of the PCALIGN
-    directive.
-    
-    Original credit by Cooper Qu (Alibaba)
-    https://gitee.com/xuantie_riscv/xuantie-patch
-    
-    Change-Id: I8b6524a2bf81a1baf7c9d04b7da2db6c1a7b428f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541740
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Change-Id: Ic215a90d1e1daa5805dbab1dc56480281e53b341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459975
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/asm_test.go | 32 ++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/riscv/obj.go      | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ src/crypto/ed25519/ed25519.go      | 37 ++++++++++++++++++++++---------------
+ src/crypto/ed25519/ed25519_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 15 deletions(-)

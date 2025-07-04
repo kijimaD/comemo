@@ -1,23 +1,24 @@
-commit 6458c8e45f83e42283079f6dbf0e5fe986e76305
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Fri Nov 3 23:42:21 2023 +0000
+commit 04d6aa6514617d5284f0657928eccb579a0f42e2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Nov 9 14:04:10 2022 -0800
 
-    net/http/cgi: the PATH_INFO should be empty or start with a slash
+    crypto/x509: implement SetFallbackRoots
     
-    fixed PATH_INFO not starting with a slash as described in RFC 3875
-    for PATH_INFO.
+    Adds a method which allows users to set a fallback certificate pool for
+    usage during verification if the system certificate pool is empty.
     
-    Fixes #63925
+    Updates #43958
     
-    Change-Id: I1ead98dff190c53eb7a50546569ef6ded3199a0a
-    GitHub-Last-Rev: 1c532e330b0d74ee42afc412611a005bc565bb26
-    GitHub-Pull-Request: golang/go#63926
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539615
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I279dd2f753743bce19790f2ae29f063c89c9359d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449235
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/http/cgi/host.go      | 11 ++---------
- src/net/http/cgi/host_test.go |  8 ++++----
- 2 files changed, 6 insertions(+), 13 deletions(-)
+ api/next/43958.txt           |   1 +
+ src/crypto/x509/root.go      |  56 ++++++++++++++++++----
+ src/crypto/x509/root_test.go | 108 +++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/verify.go    |   5 +-
+ 4 files changed, 161 insertions(+), 9 deletions(-)

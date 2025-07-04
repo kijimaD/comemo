@@ -1,26 +1,12 @@
-commit 33cb1481f26c6f1acca445fafa18e7ad1d49efed
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Sep 14 17:16:58 2017 -0600
+commit bc495c5751201854366b422e5a642ac55b42414a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon May 22 14:00:09 2017 +0200
 
-    cmd/go: correctly report that -msan needs CGO_ENABLED=1
+    doc: mention that go tools is needed to access some tool
     
-    Previously, if CGO_ENABLED=0 was set when building
-    with -msan, the error message printed was:
-    
-      -race requires cgo; enable cgo by setting CGO_ENABLED=1
-    
-    yet the instrumentation flag passed in was -msan. This CL
-    fixes that message to correctly report that -msan needed
-    CGO_ENABLED=1, and likewise if -race, report -race needed it.
-    
-    Fixes #21895
-    
-    Change-Id: If423d520daae7847fb38cc97c3192ada5d960f9d
-    Reviewed-on: https://go-review.googlesource.com/63930
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I020cd3d10a441ba4047800fdf4f93433c458398a
+    Reviewed-on: https://go-review.googlesource.com/43717
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go             | 28 +++++++++++++++++++++++++++-
- src/cmd/go/internal/work/build.go |  6 +++++-
- 2 files changed, 32 insertions(+), 2 deletions(-)
+ doc/cmd.html | 2 ++
+ 1 file changed, 2 insertions(+)

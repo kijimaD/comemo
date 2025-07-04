@@ -1,21 +1,17 @@
-commit 0d6561b72b8bd837e4691346579880a7ef7fc18a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 5 16:11:17 2021 -0400
+commit e6b6d107f7157bb515564f628e5b9b455e295db3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 16:23:18 2021 -0800
 
-    cmd/go: do not check for a built binary in TestScript/mod_get_fossil
+    doc/go1.16: mention deprecation of io/ioutil
     
-    This test hasn't passed since CL 349997, but the failure was not
-    detected because the Go project's builders do not have a 'fossil'
-    binary installed (#48802).
+    For #40025
+    For #40700
+    For #42026
     
-    For #43684
-    
-    Change-Id: I25544574ab48f4f146ae3795e541179e78815758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354149
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib51b5e1398c4eb811506df21e3bd56dd84bd1f7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285377
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/testdata/script/mod_get_fossil.txt | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go1.16.html | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

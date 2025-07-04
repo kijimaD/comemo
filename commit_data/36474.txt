@@ -1,33 +1,22 @@
-commit 05c02444eb2d8b8d3ecd949c4308d8e2323ae087
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Aug 24 11:02:00 2018 +0200
+commit 6f7ec484f67b7128b4158babd48cbf47f4443f32
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Apr 19 09:08:24 2018 -0600
 
-    all: align cpu feature variable offset naming
+    math/big: handle negative moduli in ModInverse
     
-    Add an "offset_" prefix to all cpu feature variable offset constants to
-    signify that they are not boolean cpu feature variables.
+    Currently, there is no check for a negative modulus in ModInverse.
+    Negative moduli are passed internally to GCD, which returns 0 for
+    negative arguments. Mod is symmetric with respect to negative moduli,
+    so the calculation can be done by just negating the modulus before
+    passing the arguments to GCD.
     
-    Remove _ from offset constant names.
+    Fixes #24949
     
-    Change-Id: I6e22a79ebcbe6e2ae54c4ac8764f9260bb3223ff
-    Reviewed-on: https://go-review.googlesource.com/131215
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifd1e64c9b2343f0489c04ab65504e73a623378c7
+    Reviewed-on: https://go-review.googlesource.com/108115
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/internal/bytealg/bytealg.go        | 11 ++++++-----
- src/internal/bytealg/compare_amd64.s   |  2 +-
- src/internal/bytealg/count_amd64.s     |  6 +++---
- src/internal/bytealg/equal_386.s       |  2 +-
- src/internal/bytealg/equal_amd64.s     |  2 +-
- src/internal/bytealg/index_amd64.s     |  2 +-
- src/internal/bytealg/indexbyte_amd64.s |  2 +-
- src/internal/bytealg/indexbyte_s390x.s |  2 +-
- src/runtime/asm_386.s                  |  2 +-
- src/runtime/cpuflags.go                |  8 ++++----
- src/runtime/memclr_386.s               |  2 +-
- src/runtime/memclr_amd64.s             |  2 +-
- src/runtime/memmove_386.s              |  4 ++--
- src/runtime/memmove_amd64.s            |  2 +-
- src/runtime/vlop_arm.s                 |  2 +-
- 15 files changed, 26 insertions(+), 25 deletions(-)
+ src/math/big/int.go      | 6 +++++-
+ src/math/big/int_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)

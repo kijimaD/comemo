@@ -1,14 +1,19 @@
-commit 88d544e01dbae663e7d041feb74045aeebbc6518
-Author: Shivakumar GN <shivakumar.gn@gmail.com>
-Date:   Fri Aug 9 13:42:24 2013 +1000
+commit 237e7c134c948c3a4c6c9aa84b5b8dd7192af919
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 8 21:06:06 2013 -0400
 
-    misc/pprof: pprof on windows does not provide demangled names
+    cmd/cc: restore correct meaning of %Q
     
-    Fixes #6034.
+    g% 6c ~/x.c
+    /Users/rsc/x.c:1 duplicate types given: STRUCT s and VOID
+    /Users/rsc/x.c:1 no return at end of function: f
+    g%
     
-    R=golang-dev, bradfitz, alex.brainman, dan.kortschak
+    Fixes #6083.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12311044
+    https://golang.org/cl/12691043
 
- misc/pprof | 47 +++++++++++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 20 deletions(-)
+ src/cmd/cc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,16 @@
-commit c82e7e7a88aff4278a4816c35ae5354d984a24ac
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jun 17 18:28:27 2019 -0400
+commit ec521467e33eee0a62ed426ca0c66b865baedfc7
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:38:18 2019 +0000
 
-    doc/go1.13: add crypto-related release notes
+    net: add missing error check in test
     
-    Change-Id: I05d4ff3d3a31f56c9ceebdaceb39535a1351b26a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182701
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Id2e57bc8e18e062f60c6ac8a58dc15e049352088
+    GitHub-Last-Rev: 6d33b809cf8a3b5412333b1c3cc237000be8101d
+    GitHub-Pull-Request: golang/go#30016
+    Reviewed-on: https://go-review.googlesource.com/c/160440
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
 
- doc/go1.13.html | 47 +++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 37 insertions(+), 10 deletions(-)
+ src/net/dial_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

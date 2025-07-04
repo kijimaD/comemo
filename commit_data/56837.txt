@@ -1,21 +1,25 @@
-commit 740043f516f716fe359ffd3bd76f1a30a9aa5eec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jun 23 15:21:28 2024 -0700
+commit 6f7824f7a4d62998b03f3ddc5c12938a9a247e85
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 24 10:53:47 2023 -0700
 
-    net/netip: unexport fields of addrDetail
+    crypto/internal/bigmod: don't panic on NewModulusFromBig(0)
     
-    For #68113
+    Return an error instead. Makes usages of NewModulusFromBig a bit more
+    verbose, but better than returning nil or something and just moving the
+    panic down the road.
     
-    Change-Id: I19c7d8eff8e3a7a1b6c8e28cb867edeca6be237d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593737
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #60411
+    
+    Change-Id: I10732c6ce56ccd9e4769281cea049dd4beb60a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498035
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/netip/export_test.go |  4 ++++
- src/net/netip/netip.go       | 10 +++++-----
- src/net/netip/netip_test.go  |  8 ++++----
- 3 files changed, 13 insertions(+), 9 deletions(-)
+ src/crypto/ecdsa/ecdsa.go              |  6 +++-
+ src/crypto/internal/bigmod/nat.go      |  9 ++++--
+ src/crypto/internal/bigmod/nat_test.go | 32 +++++++++++++++------
+ src/crypto/rsa/rsa.go                  | 52 ++++++++++++++++++++++++++++------
+ 4 files changed, 80 insertions(+), 19 deletions(-)

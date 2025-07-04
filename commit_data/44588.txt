@@ -1,19 +1,28 @@
-commit 5edab39f490dd3cff7bf02101b2d37a90827fa6d
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Mar 10 11:33:23 2021 -0500
+commit 02a7b4b4a70d0574f82776309feaf28f109f5399
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 30 13:48:15 2020 -0400
 
-    cmd/gofmt: fix const association to avoid inaccurate comment
+    cmd/go/internal/modload: don't initialize build cache
     
-    The const parseTypeParams was grouped with printer-related consts in
-    gofmt.go, implicitly suggesting that it must be kept in sync with
-    go/format/format.go.
+    modload.Init initialized the build cache with the intent of providing
+    a better error message in Go 1.12, when the build cache became
+    mandatory (in module mode, packages aren't installed outside the build
+    cache). Unfortunately, this didn't provide a more descriptive error
+    (the cache calls base.Fatalf with its own message), and it caused
+    errors for commands that don't use the cache (like 'go mod edit').
     
-    Change-Id: Ia65dc15c27fef2c389f963071252adee32ec6bd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300451
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This CL removes the cache initialization from modload.Init. The
+    builder will initialize it when it's needed.
+    
+    For #39882
+    
+    Change-Id: Ibc01ae4e59358dcd08a07ffc97bf556514d0366f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240548
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/gofmt/gofmt.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/init.go                |  7 ----
+ .../go/testdata/script/build_cache_disabled.txt    | 46 ++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 7 deletions(-)

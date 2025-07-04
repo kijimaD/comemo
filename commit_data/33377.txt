@@ -1,23 +1,40 @@
-commit 3860478b421d8be0ced439b4a307ccb60f71738f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Oct 30 10:36:15 2017 -0400
+commit 2bcc24e9770955eb15b98dba866898ceaae08d2a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 15:24:31 2017 -0700
 
-    math: implement asm modf for ppc64x
+    archive/tar: support PAX subsecond resolution times
     
-    This change adds an asm implementations modf for ppc64x.
+    Add support for PAX subsecond resolution times. Since the parser
+    supports negative timestamps, the formatter also handles negative
+    timestamps.
     
-    Improvements:
+    The relevant PAX specification is:
+    <<<
+    Portable file timestamps cannot be negative. If pax encounters a
+    file with a negative timestamp in copy or write mode, it can reject
+    the file, substitute a non-negative timestamp, or generate a
+    non-portable timestamp with a leading '-'.
+    >>>
     
-    BenchmarkModf-16               7.48          6.26          -16.31%
+    <<<
+    All of these time records shall be formatted as a decimal
+    representation of the time in seconds since the Epoch.
+    If a <period> ( '.' ) decimal point character is present,
+    the digits to the right of the point shall represent the units of
+    a subsecond timing granularity, where the first digit is tenths of
+    a second and each subsequent digit is a tenth of the previous digit.
+    >>>
     
-    Updates: #21390
+    Fixes #11171
     
-    Change-Id: I9c4f3213688e3e8842d050840dc04fc9c0bf6ce4
-    Reviewed-on: https://go-review.googlesource.com/74411
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ied108f3d2654390bc1b0ddd66a4081c2b83e490b
+    Reviewed-on: https://go-review.googlesource.com/55552
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/modf_ppc64x.s  | 17 +++++++++++++++++
- src/math/stubs_ppc64x.s |  3 ---
- 2 files changed, 17 insertions(+), 3 deletions(-)
+ src/archive/tar/common.go       |  3 +--
+ src/archive/tar/strconv.go      | 19 ++++++++++++++++-
+ src/archive/tar/strconv_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
+ src/archive/tar/writer.go       | 12 ++++-------
+ 4 files changed, 68 insertions(+), 11 deletions(-)

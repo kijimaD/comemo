@@ -1,29 +1,20 @@
-commit eca5c83a3e8b926d663b6a824c76b4dadac7b66d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 13 15:07:56 2019 -0500
+commit 7ec3b5e81f6549213df3ed2113a3e057ae9c5157
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri Oct 26 16:43:13 2018 -0700
 
-    cmd/go: change the default value of GO111MODULE to 'on'
+    net: remove TODO for DNS cache
     
-    This reverts CL 166985, restoring CL 162698.
+    The proposal to add a DNS cache was rejected, so there is no longer a
+    need for the associated TODO.
     
-    The bootstrap failure from CL 162698 was fixed in
-    CL 167077 and CL 167078.
+    Updates #24796
     
-    Fixes #30228
-    
-    Change-Id: I5a4e3081018c51b74b67185e64f20a9c824a564e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167087
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifcedcff72c75a70b2143de0bd3f7bf85ac3528f6
+    Reviewed-on: https://go-review.googlesource.com/c/145197
+    Run-TryBot: Ian Gudger <igudger@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
- src/cmd/go/help_test.go                           |   5 +
- src/cmd/go/internal/help/help.go                  |   7 +-
- src/cmd/go/internal/modload/help.go               |  39 +--
- src/cmd/go/internal/modload/init.go               |  35 +--
- src/cmd/go/main.go                                |  15 +-
- src/cmd/go/mkalldocs.sh                           |   2 +-
- src/cmd/go/testdata/script/mod_find.txt           |   2 +-
- src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 +
- 9 files changed, 210 insertions(+), 232 deletions(-)
+ src/net/dnsclient_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

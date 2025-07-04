@@ -1,14 +1,24 @@
-commit ecb9d9b95ccba900de9504b3699a219c84b0aa96
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 1 12:54:00 2023 -0800
+commit fbf14ae166ceeb94c14b3d752c7353f5472b4e29
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 08:44:51 2022 -0500
 
-    doc: document changes to slices package
+    runtime: remove arbitrary GOARCH constraints in finalizer tests
     
-    Change-Id: I4e3f9812463251acd312372dd8a4f8c2cea9e289
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545996
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Bypass: Keith Randall <khr@google.com>
+    These tests were only run on GOARCH=amd64, but the rationale given in
+    CL 11858043 was GC precision on 32-bit platforms. Today, we have far
+    more 64-bit platforms than just amd64, and I believe that GC precision
+    on 32-bit platforms has been substantially improved as well.
+    The GOARCH restriction seems unnecessary.
+    
+    Updates #57166.
+    Updates #5368.
+    
+    Change-Id: I45c608b6fa721012792c96d4ed94a6d772b90210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456120
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.22.html | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ src/runtime/mfinal_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

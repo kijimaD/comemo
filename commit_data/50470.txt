@@ -1,18 +1,44 @@
-commit 244127e4b40f3170317ebdb93fa8a92143a54c18
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Sep 9 10:34:58 2022 +0200
+commit a91d0b649c9ee8c64328fb124eff94dfca300d39
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 27 13:55:15 2021 -0700
 
-    all: move //go:build lines below copyright notice
+    cmd/compile/internal/types2: disallow lone type parameter on RHS of type declaration
     
-    Change-Id: Ib6196f01b1927ea8a84c095f445320f03a514dd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429796
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    We may revisit this decision in a future release. By disallowing this
+    for Go 1.18 we are ensuring that we don't lock in the generics design
+    in a place that may need to change later. (Type declarations are the
+    primary construct where it crucially matters what the underlying type
+    of a type parameter is.)
+    
+    Comment out all tests that rely on this feature; add comments referring
+    to issue so we can find all places easily should we change our minds.
+    
+    Fixes #45639.
+    
+    Change-Id: I730510e4da66d3716d455a9071c7778a1e4a1152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359177
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/link/internal/ld/elf_test.go | 6 +++---
- src/crypto/sha1/issue15617_test.go   | 4 ++--
- src/syscall/flock.go                 | 4 ++--
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        |  14 ---
+ src/cmd/compile/internal/types2/decl.go            |   9 +-
+ .../internal/types2/testdata/check/linalg.go2      |  61 ++++++------
+ .../internal/types2/testdata/check/typeinst.go2    |   5 +-
+ .../internal/types2/testdata/check/typeinst2.go2   |  30 +++---
+ .../internal/types2/testdata/check/typeparams.go2  |  19 ++--
+ .../internal/types2/testdata/examples/methods.go2  |  31 +++---
+ .../internal/types2/testdata/examples/types.go2    |  13 +--
+ .../types2/testdata/fixedbugs/issue39634.go2       |   7 +-
+ .../types2/testdata/fixedbugs/issue39768.go2       |  17 ++--
+ .../types2/testdata/fixedbugs/issue39938.go2       |   2 +-
+ .../types2/testdata/fixedbugs/issue45639.go2       |  13 +--
+ .../types2/testdata/fixedbugs/issue47747.go2       |  67 ++++++-------
+ test/typeparam/absdiff.go                          | 105 ++++++++++-----------
+ test/typeparam/absdiffimp.dir/a.go                 |  71 +++++++-------
+ test/typeparam/absdiffimp.dir/main.go              |  38 ++++----
+ test/typeparam/boundmethod.go                      |  34 +++----
+ test/typeparam/issue47708.go                       |  45 +++++----
+ test/typeparam/issue47740.go                       |  23 +++--
+ test/typeparam/issue47740.out                      |   2 -
+ 20 files changed, 297 insertions(+), 309 deletions(-)

@@ -1,14 +1,13 @@
-commit 4084f0840126e7b271e651e2f3d955ea808c9645
+commit b23b001bd2e780ddb1eacded10797e92be1f3650
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 14:26:10 2012 -0400
+Date:   Mon Mar 12 14:25:52 2012 -0400
 
-    html/template: doc nit
+    A+C: add Ingo Oeser (individual CLA)
     
-    Execute's data is untrusted regardless of package.
-    
-    R=golang-dev, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5797062
+    https://golang.org/cl/5794061
 
- src/pkg/html/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

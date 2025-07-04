@@ -1,21 +1,29 @@
-commit 09fb7956fa277912d1af9dbebbbfba7502e3a051
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 30 20:31:26 2016 +0000
+commit 2ba3d5fc9661846cc3ef66ffc2b8bf2f91909d73
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Fri Jun 10 01:38:43 2016 -0700
 
-    net/http: don't sniff Request.Body on 100-continue requests in Transport
+    cmd/go: remove invalid space in import comment docs
     
-    Also, update bundled http2 to x/net git rev 0d8126f to include
-    https://golang.org/cl/30150, the HTTP/2 version of this fix.
+    Generate package comment in alldocs.go using line comments rather than
+    general comments. This scales better, general comments cannot contain the
+    "*/" character sequence. Line comments do not have any restrictions on
+    the comment text that can be contained.
     
-    Fixes #16002
+    Remove the dependency on sed, which is not cross-platform, not go-gettable
+    external command.
     
-    Change-Id: I8da1ca98250357aec012e3e85c8b13acfa2f3fec
-    Reviewed-on: https://go-review.googlesource.com/30151
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Remove trailing whitespace from usage string in test.go. It's unnecessary.
+    
+    Fixes #16030.
+    
+    Change-Id: I3c0bc9955e7c7603c3d1fb4878218b0719d02e04
+    Reviewed-on: https://go-review.googlesource.com/23968
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/clientserver_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/net/http/h2_bundle.go         |  8 ++++++++
- src/net/http/request.go           | 18 +++++++++++++-----
- 3 files changed, 57 insertions(+), 5 deletions(-)
+ src/cmd/go/alldocs.go   | 3172 +++++++++++++++++++++++------------------------
+ src/cmd/go/main.go      |   56 +-
+ src/cmd/go/mkalldocs.sh |    3 +-
+ src/cmd/go/test.go      |    6 +-
+ 4 files changed, 1632 insertions(+), 1605 deletions(-)

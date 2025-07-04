@@ -1,25 +1,20 @@
-commit 861556c5d7b83a75a66549ca4c7199e343f5eb40
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 21 16:21:06 2019 -0400
+commit 4145c5da1f533fafd928769d18d5be60968cb9dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 13:32:31 2019 -0700
 
-    debug/dwarf: expose file name table from line table reader
+    cmd/compile: better recovery after := (rather than =) in declarations
     
-    Currently, the line table reader keeps the file name table internal.
-    However, there are various attributes like AttrDeclFile and
-    AttrCallFile whose value is an index into this table. Hence, in order
-    to interpret these attributes, we need access to the file name table.
+    Before this fix, a mistaken := in a (const/type/var) declaration
+    ended that declaration with an error from which the parser didn't
+    recover well. This low-cost change will provide a better error
+    message and lets the parser recover perfectly.
     
-    This CL adds a method to LineReader that exposes the file table of the
-    current compilation unit in order to allow consumers to interpret
-    attributes that index into this table.
+    Fixes #31092.
     
-    Change-Id: I6b64b815f23b3b0695036ddabe1a67c3954867dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192699
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic4f94dc5e29dd00b7ef6d53a80dded638e3cea80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169958
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/dwarf/line.go      | 29 ++++++++++++++++++++++
- src/debug/dwarf/line_test.go | 58 +++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 81 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go          | 22 ++++++++++++++++++----
+ .../internal/syntax/testdata/issue31092.src        | 16 ++++++++++++++++
+ 2 files changed, 34 insertions(+), 4 deletions(-)

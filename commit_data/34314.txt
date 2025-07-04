@@ -1,26 +1,25 @@
-commit e2a86b6bd9d0b0a2be2d6de7259f50eae73ff7e0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 20 20:14:51 2018 -0800
+commit 3be5d551801a97a76e236a2a53489b1c9c22e665
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Sep 26 21:14:03 2017 -0300
 
-    cmd/compile/internal/syntax: simpler position base update for line directives (cleanup)
+    text/template: add break, continue actions in ranges
     
-    The existing code was somewhat convoluted and made several assumptions
-    about the encoding of position bases:
+    Adds the two range control actions "break" and "continue". They act the
+    same as the Go keywords break and continue, but are simplified in that
+    only the innermost range statement can be broken out of or continued.
     
-    1) The position's base for a file contained a position whose base
-       pointed to itself (which is true but an implementation detail
-       of src.Pos).
+    Fixes #20531
     
-    2) Updating the position base for a line directive required finding
-       the base of the most recent's base position.
-    
-    This change simply stores the file's position base and keeps using it
-    directly for each line directive (instead of getting it from the most
-    recently updated base).
-    
-    Change-Id: I4d80da513bededb636eab0ce53257fda73f0dbc0
-    Reviewed-on: https://go-review.googlesource.com/95736
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4412b3bbfd4dadb0ab74ae718e308c1ac7a0a1e9
+    Reviewed-on: https://go-review.googlesource.com/66410
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/text/template/doc.go              |  6 +++
+ src/text/template/exec.go             | 84 +++++++++++++++++++++++++----------
+ src/text/template/exec_test.go        |  4 ++
+ src/text/template/parse/lex.go        |  4 ++
+ src/text/template/parse/lex_test.go   |  6 ++-
+ src/text/template/parse/node.go       | 64 ++++++++++++++++++++++++++
+ src/text/template/parse/parse.go      | 44 +++++++++++++++---
+ src/text/template/parse/parse_test.go | 12 +++++
+ 8 files changed, 193 insertions(+), 31 deletions(-)

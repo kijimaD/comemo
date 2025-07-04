@@ -1,0 +1,33 @@
+commit 50a8b3a30ec104ce00533db47e7200e01371eaa0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sun Dec 1 23:53:23 2024 -0500
+
+    hash/maphash, cmd/compile: make Comparable[string] not escape its argument
+    
+    Currently, maphash.Comparable forces its argument to escape if it
+    contains a pointer, as we cannot hash stack pointers, which will
+    change when the stack moves. However, for a string, it is actually
+    okay if its data pointer points to the stack, as the hash depends
+    on only the content, not the pointer.
+    
+    Currently there is no way to write this type-dependent escape
+    logic in Go code. So we implement it in the compiler as an
+    intrinsic. The compiler can also recognize not just the string
+    type, but types whose pointers are all string pointers, and make
+    them not escape.
+    
+    Fixes #70560.
+    
+    Change-Id: I3bf219ad71a238d2e35f0ea33de96487bc8cc231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632715
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/escape/call.go | 44 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/inline/inl.go  | 15 +++++++++++
+ src/cmd/compile/internal/walk/expr.go   | 14 +++++++++++
+ src/hash/maphash/maphash.go             | 24 ++++++++++--------
+ src/hash/maphash/maphash_purego.go      |  2 ++
+ src/hash/maphash/maphash_runtime.go     |  2 ++
+ src/hash/maphash/maphash_test.go        | 31 +++++++++++++++++++++++
+ 7 files changed, 122 insertions(+), 10 deletions(-)

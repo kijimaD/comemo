@@ -1,14 +1,17 @@
-commit d180d18666e355b52bf12126119416f6b3c6e843
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Aug 14 21:12:49 2017 +0200
+commit dc09a7af2e72fe4863cac51f51f8581779ee28e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 13 18:10:15 2017 +0000
 
-    strings: use slice instead of list and array in Fields comment
+    test: disable flaky test/fixedbugs/issue10958.go
     
-    Change-Id: I70b839ff0ae5f015587390a82616ebb1d657d71a
-    Reviewed-on: https://go-review.googlesource.com/55490
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Updates #18589
+    
+    Change-Id: I2c3bbc8257c68295051bd2e63e1e11794d0609c3
+    Reviewed-on: https://go-review.googlesource.com/40651
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/strings.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue10958.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

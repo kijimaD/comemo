@@ -1,19 +1,29 @@
-commit 6c74db40247737da2d3c3ffe1871d9cf67afd0a5
-Author: Mark Glines <mark@glines.org>
-Date:   Wed Jul 31 03:46:15 2019 +0000
+commit 711ea1e716b0c620cd9bcdd405eccae230d6dcbb
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Fri Mar 1 23:12:19 2019 +0100
 
-    cmd/go: look for .go.buildinfo section when looking for ELF version
+    cmd/cgo: simplify and fix handling of untyped constants
     
-    Based on original fix from Mark Glines in golang.org/cl/186737
+    Instead of trying to guess type of constants in the AST,
+    which is hard, use the "var cgo%d Type = Constant"
+    so that typechecking is left to the Go compiler.
     
-    Fixes #31861
+    The previous code could still fail in some cases
+    for constants imported from other modules
+    or defined in other, non-cgo files.
     
-    Change-Id: Ibd583a3aa8f8b8eefade998aa2ac757b55140937
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188957
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Fixes #30527
+    
+    Change-Id: I2120cd90e90a74b9d765eeec53f6a3d2cfc1b642
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164897
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/version/exe.go     | 5 +++++
- src/cmd/go/testdata/script/version.txt | 7 +++++++
- 2 files changed, 12 insertions(+)
+ misc/cgo/test/testdata/issue30527.go   | 14 ++++++++
+ misc/cgo/test/testdata/issue30527/a.go | 19 +++++++++++
+ misc/cgo/test/testdata/issue30527/b.go | 11 +++++++
+ src/cmd/cgo/ast.go                     | 12 -------
+ src/cmd/cgo/gcc.go                     | 60 ++++------------------------------
+ src/cmd/cgo/main.go                    |  3 --
+ 6 files changed, 51 insertions(+), 68 deletions(-)

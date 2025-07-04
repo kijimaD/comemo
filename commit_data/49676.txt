@@ -1,22 +1,33 @@
-commit 055113ef364337607e3e72ed7d48df67fde6fc66
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jul 15 10:43:44 2022 -0700
+commit 04d8d249600bf7b350454175c521e0c251785956
+Author: rhysd <lin90162@yahoo.co.jp>
+Date:   Tue Jul 13 23:05:17 2021 +0900
 
-    math/big: check buffer lengths in GobDecode
+    misc/wasm: enable ECMAScript strict mode
     
-    In Float.GobDecode and Rat.GobDecode, check buffer sizes before
-    indexing slices.
+    Current wasm_exec.js does not enable ECMAScript strict mode. But it is
+    recommended to be enabled because it
     
-    Fixes #53871
+    1. eliminates some ECMAScript silent errors by changing them to throw
+       errors
+    2. fixes mistakes that make it difficult for JavaScript engines to
+       perform optimizations
+    3. prohibits some syntax likely to be defined in future versions of
+       ECMAScript
     
-    Change-Id: I1b652c32c2bc7a0e8aa7620f7be9b2740c568b0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417774
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    This commit enables ECMAScript strict mode in wasm_exec.js following the
+    transition guide:
+    
+    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode/Transitioning_to_strict_mode
+    
+    Fixes #47116
+    
+    Change-Id: Ib8ffceee37e9127698fb51304241f1e429efe83e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334269
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/math/big/floatmarsh.go      |  7 +++++++
- src/math/big/floatmarsh_test.go | 12 ++++++++++++
- src/math/big/ratmarsh.go        |  6 ++++++
- src/math/big/ratmarsh_test.go   | 12 ++++++++++++
- 4 files changed, 37 insertions(+)
+ misc/wasm/wasm_exec.js | 1 +
+ 1 file changed, 1 insertion(+)

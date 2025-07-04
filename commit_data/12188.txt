@@ -1,14 +1,14 @@
-commit 91bdbf591fe08c394f5ea3924774968202cde07b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 22:45:44 2012 -0500
+commit 705ebf1144b6326bd8298119dc1979e384c21c64
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 24 11:58:30 2012 +0900
 
-    net/rpc: silence read error on closing connection
+    net: reorganize test files
     
-    Fixes #3113.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5698056
+    https://golang.org/cl/5694063
 
- src/pkg/net/rpc/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/dial_test.go   |  81 +++++++++++++++++++++++++++++++
+ src/pkg/net/lookup_test.go |  37 ++++++++++++++
+ src/pkg/net/net_test.go    | 118 ---------------------------------------------
+ 3 files changed, 118 insertions(+), 118 deletions(-)

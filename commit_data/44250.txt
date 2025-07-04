@@ -1,19 +1,17 @@
-commit 5faf941df067b33485edb9cd2e880869e7feb6a3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 3 13:39:30 2020 -0500
+commit 9bbe89957620ab72c03a7613ffdbd10a97b54bd6
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Tue Jun 2 13:13:54 2020 -0700
 
-    internal/goversion: update Version to 1.17
+    cmd/go: add -Wl,-wrap,symbol to linker flag whitelist
     
-    (The corresponding update for the last release cycle was CL 248038.)
+    This is needed for cgo support for libpsx.
     
-    For #40705.
-    
-    Change-Id: I13becdc4c3718a1c6986876ec56879cce3bcb34f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275297
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes: #39361
+    Change-Id: I500f5614ea4b82b085322af1f1ffeb1f55270a05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236139
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/goversion/goversion.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/security.go | 1 +
+ 1 file changed, 1 insertion(+)

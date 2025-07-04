@@ -1,21 +1,24 @@
-commit 7d1cab12c77a5fed788829b0566db9dfd7866ac9
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Aug 19 09:20:02 2022 -0500
+commit 9112d296e84315a07d76a24874037448e2affdd7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 29 16:47:12 2021 -0400
 
-    runtime: fix ppc64 startup on newer linux kernels
+    cmd/link: add runtime.text.N symbols to Mach-O symbol table
     
-    R0 needs to be cleared at startup as it may not always be cleared
-    by the kernel on newer kernels.
+    On Darwin/ARM64 when external linking, for very large text we
+    split it into multiple sections. For each section (other than the
+    first) we create runtime.text.N marker symbols. In CL 316050 I
+    forgot to add those symbols to the symbol table. This CL does it.
     
-    Fixes #54547
+    It doesn't actually matter for program execution. But we add them
+    on ELF when splitting text sections, so we do it here as well.
+    Also, this makes it easier to tell if we split text sections.
     
-    Change-Id: Id7055699aaa8d8b193b7e3e784f075ce29ac3f1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424927
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: Ida7f8e9431867881e5ee2bc1a2129eeaf83cb878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353209
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/rt0_linux_ppc64.s | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/ld/ld_test.go | 18 ++++++++++++++----
+ src/cmd/link/internal/ld/macho.go   |  8 ++++++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)

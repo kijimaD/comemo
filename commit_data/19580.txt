@@ -1,17 +1,14 @@
-commit 382c461a89bf2ee1ab91ba9c193f5cb7d257246c
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Fri Jun 20 12:18:33 2014 -0700
+commit 5ce98da1a27f55a11107c861633b68760d9d03e6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 19 22:04:37 2014 -0700
 
-    strings: speed up byteReplacer.Replace
+    net: simplify code
+    Single-case select with a non-nil channel is pointless.
     
-    benchmark                         old ns/op    new ns/op    delta
-    BenchmarkByteReplacerWriteString       7359         3661  -50.25%
-    
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=mikioh.mikioh
+    R=mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/102550043
+    https://golang.org/cl/103920044
 
- src/pkg/strings/replace.go      | 11 ++++++-----
- src/pkg/strings/replace_test.go | 11 ++++++++++-
- 2 files changed, 16 insertions(+), 6 deletions(-)
+ src/pkg/net/dial.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

@@ -1,44 +1,16 @@
-commit 0b9e4723005b88537b6480e51a45e82a358c9129
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 29 16:11:05 2014 -0700
+commit 1d2955a2afac04f5d392ecb1ad8b489f28976bf4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 25 13:31:55 2014 -0400
 
-    runtime: rename Sigaltstack to SigaltstackT
+    runtime: round channel size in allocation instead of using system-specific pad field
     
-    Avoids a conflict between the type and function sigaltstack.
+    Followup to CL 128700043.
     
-    LGTM=crawshaw
-    R=rsc, crawshaw
+    LGTM=bradfitz, dvyukov
+    R=dvyukov, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/138920043
+    https://golang.org/cl/133850043
 
- src/pkg/runtime/defs1_linux.go         | 2 +-
- src/pkg/runtime/defs2_linux.go         | 2 +-
- src/pkg/runtime/defs_arm_linux.go      | 2 +-
- src/pkg/runtime/defs_dragonfly.go      | 2 +-
- src/pkg/runtime/defs_dragonfly_386.h   | 4 ++--
- src/pkg/runtime/defs_dragonfly_amd64.h | 4 ++--
- src/pkg/runtime/defs_freebsd.go        | 2 +-
- src/pkg/runtime/defs_freebsd_386.h     | 4 ++--
- src/pkg/runtime/defs_freebsd_amd64.h   | 4 ++--
- src/pkg/runtime/defs_freebsd_arm.h     | 4 ++--
- src/pkg/runtime/defs_linux_386.h       | 6 +++---
- src/pkg/runtime/defs_linux_amd64.h     | 6 +++---
- src/pkg/runtime/defs_linux_arm.h       | 6 +++---
- src/pkg/runtime/defs_netbsd.go         | 2 +-
- src/pkg/runtime/defs_netbsd_386.h      | 4 ++--
- src/pkg/runtime/defs_netbsd_amd64.h    | 4 ++--
- src/pkg/runtime/defs_netbsd_arm.h      | 4 ++--
- src/pkg/runtime/defs_openbsd.go        | 2 +-
- src/pkg/runtime/defs_openbsd_386.h     | 4 ++--
- src/pkg/runtime/defs_openbsd_amd64.h   | 4 ++--
- src/pkg/runtime/defs_solaris.go        | 2 +-
- src/pkg/runtime/defs_solaris_amd64.h   | 4 ++--
- src/pkg/runtime/os_dragonfly.h         | 2 +-
- src/pkg/runtime/os_freebsd.h           | 2 +-
- src/pkg/runtime/os_linux.c             | 2 +-
- src/pkg/runtime/os_linux.h             | 2 +-
- src/pkg/runtime/os_netbsd.h            | 2 +-
- src/pkg/runtime/os_openbsd.h           | 2 +-
- src/pkg/runtime/os_solaris.c           | 2 +-
- src/pkg/runtime/os_solaris.h           | 2 +-
- 30 files changed, 47 insertions(+), 47 deletions(-)
+ src/pkg/runtime/chan.go | 4 ++--
+ src/pkg/runtime/chan.h  | 3 ---
+ 2 files changed, 2 insertions(+), 5 deletions(-)

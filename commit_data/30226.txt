@@ -1,16 +1,14 @@
-commit 61bf0d1c4033ef2cc6905c2ca6e03046cf54d2bc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Feb 12 18:23:34 2017 +1100
+commit 7fd6b925e38f67c2d0cb3fca0f3dc8b6dfb0708c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 28 09:54:20 2016 -0700
 
-    path/filepath: add test for directory junction walk
+    spec: update operator and delimiter section
     
-    For #10424.
+    Follow-up on https://go-review.googlesource.com/30601.
     
-    Change-Id: Ie4e87503b0ed04f65d2444652bd1db647d3529f4
-    Reviewed-on: https://go-review.googlesource.com/36851
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I51b603a6c4877b571e83cd7c4e78a8988cc831ca
+    Reviewed-on: https://go-review.googlesource.com/32310
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/path/filepath/path_windows_test.go | 42 ++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

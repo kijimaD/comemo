@@ -1,15 +1,12 @@
-commit 3bf005cea365639bb65cd52d9eebe7601ab5a74f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Jan 31 02:50:56 2015 -0500
+commit a1053ed6107a8301a62be9d1f2da8fa387bfefea
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 5 15:29:10 2015 +0900
 
-    cmd/gc: always treat the output parameters as having been assigned in capturevars.
+    crypto/x509: add missing copyright
     
-    Fixes #9738.
-    
-    Change-Id: Iab75de2d78335d4e31c3dce6a0e1826d8cddf5f3
-    Reviewed-on: https://go-review.googlesource.com/3690
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ida3b431a06527f6cd604ab4af5ce517959c8619b
+    Reviewed-on: https://go-review.googlesource.com/2306
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/gc/closure.c        |  3 ++-
- test/fixedbugs/issue9738.go | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/crypto/x509/root_darwin_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

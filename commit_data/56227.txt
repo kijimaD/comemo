@@ -1,36 +1,19 @@
-commit 334ce510046ad30b1be466634cf313aad3040892
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Apr 4 11:01:28 2024 -0700
+commit 1f9d80e33165dfb169d1ee82ca0021484951d3bb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 3 17:59:48 2023 +0000
 
-    net/http: don't cancel Dials when requests are canceled
+    runtime: disable huge pages for GC metadata for small heaps
     
-    Currently, when a Transport creates a new connection for a request,
-    it uses the request's Context to make the Dial. If a request
-    times out or is canceled before a Dial completes, the Dial is
-    canceled.
+    For #55328.
     
-    Change this so that the lifetime of a Dial call is not bound
-    by the request that originated it.
-    
-    This change avoids a scenario where a Transport can start and
-    then cancel many Dial calls in rapid succession:
-    
-      - Request starts a Dial.
-      - A previous request completes, making its connection available.
-      - The new request uses the now-idle connection, and completes.
-      - The request Context is canceled, and the Dial is aborted.
-    
-    Fixes #59017
-    
-    Change-Id: I996ffabc56d3b1b43129cbfd9b3e9ea7d53d263c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576555
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8792161f09906c08d506cc0ace9d07e76ec6baa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460316
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/client_test.go         |  28 +++--
- src/net/http/export_test.go         |   8 ++
- src/net/http/transport.go           | 101 ++++++++++++----
- src/net/http/transport_dial_test.go | 235 ++++++++++++++++++++++++++++++++++++
- src/net/http/transport_test.go      |  57 ++++++---
- 5 files changed, 371 insertions(+), 58 deletions(-)
+ src/runtime/malloc.go     | 63 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgc.go        |  5 ++++
+ src/runtime/mheap.go      |  4 +++
+ src/runtime/mpagealloc.go | 59 +++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 130 insertions(+), 1 deletion(-)

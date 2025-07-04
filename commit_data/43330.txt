@@ -1,38 +1,26 @@
-commit 83317d9e3cb0674f71d1118d8814aefb31ac1239
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 15 15:52:58 2020 -0400
+commit 437bd90f13c36cd57298a950caae6601cd60550c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 25 22:17:04 2020 -0400
 
-    runtime/internal/atomic: panic nicely on unaligned 64-bit atomics
+    cmd/go/internal/base: rename EnvForDir to AppendPWD
     
-    On 386 and arm, unaligned 64-bit atomics aren't safe, so we check for
-    this and panic. Currently, we panic by dereferencing nil, which may be
-    expedient but is pretty user-hostile since it gives no hint of what
-    the actual problem was.
+    EnvForDir does not immediately evoke “append”, and thus may not prompt
+    the reader to consider the possibility of aliasing bugs (as in
+    issue #38077). To make this behavior more obvious at the call site, rename
+    cmd/go/internal/base.EnvForDir to AppendPWD and swap the order of
+    arguments to a conventional “append” function (similar to those in the
+    strconv package).
     
-    This CL replaces this with an actual panic. The only subtlety here is
-    now the atomic assembly implementations are calling back into Go, so
-    they have to play nicely with stack maps and stack scanning. On 386,
-    this just requires declaring NO_LOCAL_POINTERS. On arm, this is
-    somewhat more complicated: first, we have to move the alignment check
-    into the functions that have Go signatures. Then we have to support
-    both the tail call from these functions to the underlying
-    implementation (which requires that they have no frame) and the call
-    into Go to panic (which requires that they have a frame). We resolve
-    this by forcing them to have no frame and setting up the frame
-    manually just before the panic call.
+    For #38077
     
-    Change-Id: I19f1e860045df64088013db37a18acea47342c69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262778
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I16f09aa0fa8a269d51f0511eb402a44e2759eb94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225578
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/internal/atomic/asm_386.s       | 17 ++++--
- src/runtime/internal/atomic/asm_arm.s       | 89 +++++++++++++++++++----------
- src/runtime/internal/atomic/atomic_mipsx.go |  2 +-
- src/runtime/internal/atomic/atomic_test.go  |  9 ++-
- src/runtime/internal/atomic/unaligned.go    |  9 +++
- src/sync/atomic/atomic_test.go              |  9 ++-
- 6 files changed, 96 insertions(+), 39 deletions(-)
+ src/cmd/go/internal/base/env.go     | 14 +++++++-------
+ src/cmd/go/internal/get/vcs.go      |  2 +-
+ src/cmd/go/internal/test/test.go    |  2 +-
+ src/cmd/go/internal/work/buildid.go |  4 ++--
+ src/cmd/go/internal/work/exec.go    |  4 ++--
+ 5 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,21 +1,20 @@
-commit 9308637e3c2babcb3695d9f9673cf2a2b840362d
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Apr 25 10:55:49 2019 +0200
+commit da6294a35abfb62825da3e27b8ba998e71a4d81d
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 11 14:57:59 2018 -0800
 
-    misc/wasm: fix command line arguments containing multi-byte characters
+    runtime/pprof: fix TestCPUProfileWithFork on Windows/ARM
     
-    Command line arguments containing multi-byte characters were causing
-    go_js_wasm_exec to crash (RangeError: Source is too large), because
-    their byte length was not handled correctly. This change fixes the bug.
+    Use smaller heap on Windows/ARM, which generally does not have
+    page file enabled and therefore has limited virtual address space.
     
-    Fixes #31645.
+    Updates #26148
     
-    Change-Id: I7860ebf5b12da37d9d0f43d4b6a22d326a90edaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173877
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Signed-off-by: Jordan Rhee <jordanrh@microsoft.com>
+    
+    Change-Id: I4030be24a10fab7b9b659e3736b7e83f10710bfa
+    Reviewed-on: https://go-review.googlesource.com/c/153719
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/wasm/wasm_exec.js | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

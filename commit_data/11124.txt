@@ -1,15 +1,13 @@
-commit a03c519a8cf38014220385099460061b045ffae0
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jan 12 22:06:50 2012 +0400
+commit cd54e44b50a97945f74d7d018a9b136e7278ddaa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 12 07:55:23 2012 -0800
 
-    effective_go: provide reference to runtime.NumCPU()
+    doc: trivial comment typo fix
     
-    R=golang-dev, robert.hencke, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5538050
+    https://golang.org/cl/5529080
 
- doc/effective_go.html     | 4 +++-
- doc/effective_go.tmpl     | 4 +++-
- src/pkg/runtime/debug.go  | 1 +
- src/pkg/runtime/extern.go | 2 +-
- 4 files changed, 8 insertions(+), 3 deletions(-)
+ doc/progs/defer.go  | 4 ++--
+ doc/progs/defer2.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

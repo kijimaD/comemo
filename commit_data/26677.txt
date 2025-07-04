@@ -1,18 +1,16 @@
-commit 1f7e55e418659dc3b5fe66792b85807a7065144f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 14 20:23:22 2016 -0400
+commit 8847a5913a5970b5f5c062f767c369da683648d6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 18 17:28:04 2016 -0500
 
-    path, path/filepath: add Join example with joined rooted path
+    runtime: remove unused parfor code
     
-    This makes clear that Go's path.Join and filepath.Join are different
-    from the Python os.path.join (and perhaps others).
-    
-    Requested in private mail.
-    
-    Change-Id: Ie5dfad8a57f9baa5cca31246af1fd4dd5b1a64ee
-    Reviewed-on: https://go-review.googlesource.com/20711
+    Change-Id: Ibbfae20cab48163f22d661604ef730705f2b97ba
+    Reviewed-on: https://go-review.googlesource.com/19661
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/example_test.go               |  9 ++++++++-
- src/path/filepath/example_unix_test.go | 14 ++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go |  36 --------
+ src/runtime/parfor.go      | 217 ---------------------------------------------
+ src/runtime/parfor_test.go | 128 --------------------------
+ 3 files changed, 381 deletions(-)

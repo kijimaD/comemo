@@ -1,21 +1,28 @@
-commit 1c17981f4acaedf1c262fd289c7945a521b43a2f
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Mon Apr 17 22:13:52 2023 -0700
+commit 4e4db1e2572190bf172bcb8532047bc18571366f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 18 13:26:38 2022 -0700
 
-    misc/wasm: support wasmtime in wasip1
+    internal/pkgbits: add Index type
     
-    Allow switching to wasmtime through the GOWASIRUNTIME variable. This
-    will allow builders to run the wasip1 standard library tests against
-    the wasmtime WASI runtime.
+    Element indices are very common in the pkgbits API, so introduce a new
+    defined type to help make that clearer.
     
-    For #59583
-    
-    Change-Id: I4d5200df7bb27b66e041f00e89d4c2e585f5da7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485615
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8f9493e2335601c740eb403d1fdcd11183122907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407435
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- misc/wasm/go_wasip1_wasm_exec | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/support.go |  5 +--
+ src/cmd/compile/internal/importer/ureader.go | 12 ++++----
+ src/cmd/compile/internal/noder/linker.go     | 16 +++++-----
+ src/cmd/compile/internal/noder/reader.go     | 20 ++++++------
+ src/cmd/compile/internal/noder/unified.go    | 10 +++---
+ src/cmd/compile/internal/noder/writer.go     | 46 ++++++++++++++--------------
+ src/go/internal/gcimporter/support.go        |  5 +--
+ src/go/internal/gcimporter/ureader.go        | 12 ++++----
+ src/internal/pkgbits/decoder.go              | 24 +++++++--------
+ src/internal/pkgbits/encoder.go              | 20 ++++++------
+ src/internal/pkgbits/reloc.go                | 10 ++++--
+ 11 files changed, 93 insertions(+), 87 deletions(-)

@@ -1,23 +1,39 @@
-commit 2df5cdbadf5fbcb23f017c9f00b75dc341a69adf
-Author: Jerrin Shaji George <jerrinsg@gmail.com>
-Date:   Mon Oct 7 12:27:33 2019 -0700
+commit 096ab3c21b88ccc7d411379d09fe6274e3159467
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Apr 27 11:36:40 2019 +0200
 
-    runtime: make nanotime use monotonic clock in Solaris
+    cmd/link/internal/ld,syscall: drop $INODE64 suffixes on simulators
     
-    nanotime() currently uses the REALTIME clock to get the elapsed
-    time in Solaris. This commit changes it to use the MONOTONIC clock
-    instead, similar to how it's done in Linux and other OSs. Also changed
-    nanotime() and walltime() to call clock_gettime() library function
-    directly from Go code rather than from assembly.
+    Some libc functions are suffixed with "$INODE64" on macOS.
+    Unfortunately, the iOS simulator doesn't have the suffixes, so we can't
+    use GOARCH to distinguish the two platform.
     
-    Fixes #33674
+    Add linker support for adding the suffix, using the macho platform
+    to determine whether it is needed.
     
-    Change-Id: Ie4a687b17d2140998ecd97af6ce048c86cf5fc02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199502
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    While here, add the correct suffix for fdopendir on 386. It's
+    "$INODE64$UNIX2003", believe it or not. Without the suffix,
+    
+    GOARCH=386 go test -short syscall
+    
+    crashes on my Mojave machine.
+    
+    Fixes #31447
+    
+    Change-Id: I9bd3de40ece7df62f744bc24cd00909e56b00b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174199
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os3_solaris.go      | 15 +++++++++++++--
- src/runtime/sys_solaris_amd64.s | 40 ----------------------------------------
- src/runtime/timestub2.go        |  1 +
- 3 files changed, 14 insertions(+), 42 deletions(-)
+ src/cmd/link/internal/ld/macho.go    | 21 +++++++++++++++++++++
+ src/syscall/mksyscall.pl             |  4 ----
+ src/syscall/syscall_darwin.go        | 14 ++++++++++++++
+ src/syscall/syscall_darwin_386.go    | 14 --------------
+ src/syscall/syscall_darwin_amd64.go  | 14 --------------
+ src/syscall/syscall_darwin_arm.go    | 14 --------------
+ src/syscall/syscall_darwin_arm64.go  | 14 --------------
+ src/syscall/zsyscall_darwin_386.go   |  2 +-
+ src/syscall/zsyscall_darwin_amd64.go |  2 +-
+ src/syscall/zsyscall_darwin_arm.s    | 12 ++++++------
+ src/syscall/zsyscall_darwin_arm64.s  | 12 ++++++------
+ 11 files changed, 49 insertions(+), 74 deletions(-)

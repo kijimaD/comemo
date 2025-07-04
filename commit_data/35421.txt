@@ -1,40 +1,18 @@
-commit f2cde55cd60993e948dada9187d25211ec150a5e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon May 21 11:22:00 2018 +0100
+commit 9558ba293f9ea1c9241eba99858eee449ba882d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 31 17:12:29 2018 -0800
 
-    runtime: use Go function signatures for memclr and memmove comments
+    reflect: add embedded field test
     
-    The function signatures in the comments used a C-like style. Using
-    Go function signatures is cleaner.
+    Gccgo failed this test.
     
-    Change-Id: I1a093ed8fe5df59f3697c613cf3fce58bba4f5c1
-    Reviewed-on: https://go-review.googlesource.com/113876
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Updates #23620
+    
+    Change-Id: I3979a6d3b87d2d014850accf9cb7f356349e6195
+    Reviewed-on: https://go-review.googlesource.com/91138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/memclr_386.s          | 2 +-
- src/runtime/memclr_amd64.s        | 2 +-
- src/runtime/memclr_amd64p32.s     | 1 +
- src/runtime/memclr_arm.s          | 1 +
- src/runtime/memclr_arm64.s        | 2 +-
- src/runtime/memclr_mips64x.s      | 2 +-
- src/runtime/memclr_mipsx.s        | 2 +-
- src/runtime/memclr_plan9_386.s    | 2 +-
- src/runtime/memclr_plan9_amd64.s  | 2 +-
- src/runtime/memclr_ppc64x.s       | 2 +-
- src/runtime/memclr_s390x.s        | 2 +-
- src/runtime/memclr_wasm.s         | 2 +-
- src/runtime/memmove_386.s         | 1 +
- src/runtime/memmove_amd64.s       | 2 +-
- src/runtime/memmove_amd64p32.s    | 1 +
- src/runtime/memmove_arm.s         | 1 +
- src/runtime/memmove_arm64.s       | 2 +-
- src/runtime/memmove_mips64x.s     | 2 +-
- src/runtime/memmove_mipsx.s       | 2 +-
- src/runtime/memmove_plan9_386.s   | 1 +
- src/runtime/memmove_plan9_amd64.s | 2 +-
- src/runtime/memmove_ppc64x.s      | 2 +-
- src/runtime/memmove_s390x.s       | 2 +-
- src/runtime/memmove_wasm.s        | 2 +-
- 24 files changed, 24 insertions(+), 18 deletions(-)
+ src/reflect/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

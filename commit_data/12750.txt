@@ -1,14 +1,15 @@
-commit 072646cd172137bacf62008e4aa0f28fd7d58e95
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 26 17:03:04 2012 +1100
+commit f4fc8894241fa4f55075f0ad71398618f929356b
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Mar 26 16:48:20 2012 +1100
 
-    run.bash: set -e in new codewalk block
-    Otherwise we won't fail if something goes wrong.
-    This shell programming stuff is tricky.
+    windows: install fixes
     
-    R=golang-dev, dsymonds
+    * set default installation drive to C:\
+    * remove Win64 component property
+    
+    R=golang-dev, bradfitz, aram
     CC=golang-dev
-    https://golang.org/cl/5905062
+    https://golang.org/cl/5901044
 
- src/run.bash | 1 +
- 1 file changed, 1 insertion(+)
+ misc/dist/windows/installer.wxs | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

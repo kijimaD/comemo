@@ -1,15 +1,33 @@
-commit 3745716bc3940f471137bf06fbe8c042257a43d3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 18 09:04:48 2011 -0700
+commit caa56474083c7be36c73ba8c7b9d8cc6fba90daf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 18 12:04:09 2011 -0400
 
-    http: let FileServer work when path doesn't begin with a slash
+    ld: allow seek within write buffer
     
-    ... as when it's over-stripped with StripPrefix.
+    Reduces number of write+seek's from 88516 to 2080
+    when linking godoc with 6l.
     
-    R=golang-dev, andybalholm, rsc
+    Thanks to Alex Brainman for pointing out the
+    many small writes.
+    
+    R=golang-dev, r, alex.brainman, robert.hencke
     CC=golang-dev
-    https://golang.org/cl/4759052
+    https://golang.org/cl/4743043
 
- src/pkg/http/fs.go      |  7 ++++++-
- src/pkg/http/fs_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/5l/asm.c   | 41 +++++++---------------------
+ src/cmd/5l/l.h     | 17 ------------
+ src/cmd/5l/obj.c   |  1 -
+ src/cmd/6l/asm.c   | 35 ++++++------------------
+ src/cmd/6l/l.h     | 22 ---------------
+ src/cmd/6l/obj.c   |  1 -
+ src/cmd/8l/asm.c   | 33 +++++------------------
+ src/cmd/8l/l.h     | 16 -----------
+ src/cmd/8l/obj.c   |  1 -
+ src/cmd/ld/data.c  |  4 +--
+ src/cmd/ld/dwarf.c | 29 +++++++-------------
+ src/cmd/ld/elf.c   |  4 +--
+ src/cmd/ld/lib.c   | 79 +++++++++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/ld/lib.h   | 26 ++++++++++++++++--
+ src/cmd/ld/macho.c | 10 +++----
+ src/cmd/ld/pe.c    | 26 +++++++++---------
+ 16 files changed, 149 insertions(+), 196 deletions(-)

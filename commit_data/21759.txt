@@ -1,12 +1,28 @@
-commit 8b1bd75e66a818ff9d844c57ba82899ac563c3f9
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Feb 26 09:21:19 2015 -0500
+commit 67a03fd6a2c6d13154d7f27c464023422b83c05d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 3 09:09:56 2015 -0500
 
-    go/build: disable deps test on darwin/arm
+    runtime: use 2*regSize for saved frame pointer check
     
-    Change-Id: Ief78a10c4aaa43f300f34519911ff73b6f510d73
-    Reviewed-on: https://go-review.googlesource.com/6100
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Previously, we checked for a saved frame pointer by looking for a
+    2*ptrSize gap between the argument pointer and the locals pointer.
+    The intent of this check was to look for a two stack slot gap (caller
+    IP and saved frame pointer), but stack slots are regSize, not ptrSize.
+    
+    Correct this by checking instead for a 2*regSize gap.
+    
+    On most platforms, this made no difference because ptrSize==regSize.
+    However, on amd64p32 (nacl), the saved frame pointer check incorrectly
+    fired when there was no saved frame pointer because the one stack slot
+    for the caller IP left an 8 byte gap, which is 2*ptrSize (but not
+    2*regSize) on amd64p32.
+    
+    Fixes #9760.
+    
+    Change-Id: I6eedcf681fe5bf2bf924dde8a8f2d9860a4d758e
+    Reviewed-on: https://go-review.googlesource.com/3781
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/deps_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/stack1.go    | 3 ++-
+ src/runtime/traceback.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

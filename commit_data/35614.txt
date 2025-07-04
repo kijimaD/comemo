@@ -1,29 +1,19 @@
-commit c08b01ecb4488fb3a95fd5cc7baa8b31812e7b76
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 6 12:38:35 2018 -0400
+commit e9c57bea11c75810225ee1abf24a0daeed2bfb64
+Author: unknown <geon0250@gmail.com>
+Date:   Mon Feb 26 04:41:20 2018 +0000
 
-    cmd/compile: fix panic-okay-to-inline change; adjust tests
+    net/http,doc: use HTTP status code constants where applicable
     
-    This line of the inlining tuning experiment
-    https://go-review.googlesource.com/c/go/+/109918/1/src/cmd/compile/internal/gc/inl.go#347
-    was incorrectly rewritten in a later patch to use the call
-    cost, not the panic cost, and thus the inlining of panic
-    didn't occur when it should.  I discovered this when I
-    realized that tests should have failed, but didn't.
+    There are a few places where the integer value is used.
+    Use the equivalent constants to aid with readability.
     
-    Fix is to make the correct change, and also to modify the
-    tests that this causes to fail.  One test now asserts the
-    new normal, the other calls "ppanic" instead which is
-    designed to behave like panic but not be inlined.
-    
-    Change-Id: I423bb7f08bd66a70d999826dd9b87027abf34cdf
-    Reviewed-on: https://go-review.googlesource.com/116656
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I023b1dbe605340544c056d0e0d9d6d5a7d7d0edc
+    GitHub-Last-Rev: c1c90bcd251901f9f2a305ce5ddd0d85009a3d49
+    GitHub-Pull-Request: golang/go#24123
+    Reviewed-on: https://go-review.googlesource.com/96984
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  2 +-
- src/runtime/runtime-gdb_test.go    |  2 +-
- test/closure3.dir/main.go          | 69 ++++++++++++++++++++------------------
- test/escape4.go                    |  4 +--
- 4 files changed, 41 insertions(+), 36 deletions(-)
+ doc/progs/error2.go  | 4 ++--
+ doc/progs/error3.go  | 2 +-
+ src/net/http/triv.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

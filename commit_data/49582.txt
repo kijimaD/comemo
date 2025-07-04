@@ -1,32 +1,27 @@
-commit 3cf79d96105d890d7097d274804644b2a2093df1
-Author: Ori Bernstein <ori@eigenstate.org>
-Date:   Sun Jul 3 12:26:30 2022 -0400
+commit 5f0d821adda38b728592b9ee919c94013eb2ab5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 28 13:00:41 2021 -0700
 
-    runtime: pass correct string to exits on Plan 9
+    cmd/compile/internal/types2: use a typeWriter to write types (cleanup)
     
-    In CL 405901 the definition of exit in the Plan 9 go runtime
-    was changed like so:
+    Rather then passing through a buffer, qualified, and visited
+    list to each helper function, maintain state in a typeWriter
+    object and use methods on it. This cleans up this code quite
+    a bit.
     
-            -               status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
-            +               sl := itoa(tmp[:len(tmp)-1], uint64(e))
-            +               // Don't append, rely on the existing data being zero.
-            +               status = tmp[:len(sl)+1]
+    Use a map ("seen") for cycle detection rather than a list.
     
-    However, itoa only puts the converted number "somewhere" in the buffer.
-    Specifically, it builds it from the end of the buffer towards the start,
-    meaning the first byte of the buffer is a 0 byte, and the resulting string
-    that's passed to exits is empty, leading to a falsely successful exit.
+    Move printing of [ and ] for type lists into the typeList
+    method so that callers don't have to do it themselves.
     
-    This change uses the returned value from itoa, rather than the buffer
-    that was passed in, so that we start from the correct location in the
-    string.
-    
-    Fixes #53669
-    
-    Change-Id: I63f0c7641fc6f55250857dc17a1eeb12ae0c2e10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415680
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1346373e979cb90710fbc073953aa51e2f6581f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345890
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/os_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/object.go     |   2 +-
+ src/cmd/compile/internal/types2/subst.go      |   7 +-
+ src/cmd/compile/internal/types2/typelists.go  |   4 +-
+ src/cmd/compile/internal/types2/typestring.go | 206 +++++++++++++-------------
+ src/cmd/compile/internal/types2/unify.go      |  13 +-
+ 5 files changed, 119 insertions(+), 113 deletions(-)

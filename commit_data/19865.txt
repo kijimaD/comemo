@@ -1,22 +1,27 @@
-commit 668a55a882c97a520662843afe6871fc84be4690
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 1 14:38:56 2014 -0700
+commit bc9e160443f33f979aeb79dd92ac73876841e36e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 1 06:21:08 2014 -0700
 
-    runtime: move constants from map header to map type
+    runtime: prevent pointless jmp in amd64 and 386 memmove
     
-    A good cleanup anyway, and it makes some room for an additional
-    field needed for issue 8412.
+    6a and 8a rearrange memmove such that the fallthrough from move_1or2 to move_0 ends up being a JMP to a RET. Insert an explicit RET to prevent such silliness.
     
-    Update #8412
+    Do the same for memclr as prophylaxis.
     
-    LGTM=iant
-    R=iant, khr
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkMemmove1        4.59          4.13          -10.02%
+    BenchmarkMemmove2        4.58          4.13          -9.83%
+    
+    LGTM=khr
+    R=golang-codereviews, dvyukov, minux, ruiu, bradfitz, khr
     CC=golang-codereviews
-    https://golang.org/cl/112700043
+    https://golang.org/cl/120930043
 
- src/cmd/gc/reflect.c            |  22 +++--
- src/pkg/reflect/type.go         |  32 ++++++--
- src/pkg/runtime/hashmap.go      | 172 ++++++++++++++++++----------------------
- src/pkg/runtime/hashmap_fast.go |  88 ++++++++++----------
- src/pkg/runtime/type.h          |   9 ++-
- 5 files changed, 172 insertions(+), 151 deletions(-)
+ src/pkg/runtime/memclr_386.s          | 1 +
+ src/pkg/runtime/memclr_amd64.s        | 1 +
+ src/pkg/runtime/memclr_plan9_386.s    | 1 +
+ src/pkg/runtime/memmove_386.s         | 1 +
+ src/pkg/runtime/memmove_amd64.s       | 1 +
+ src/pkg/runtime/memmove_plan9_386.s   | 1 +
+ src/pkg/runtime/memmove_plan9_amd64.s | 1 +
+ 7 files changed, 7 insertions(+)

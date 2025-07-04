@@ -1,21 +1,24 @@
-commit 977e23a70766f8d0801e43bbfb68136bf54a84b7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 31 14:01:00 2023 -0400
+commit a60a3dc5bc0336bd6b499bc7e1feb459b1e4a4bc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 5 08:30:02 2022 +0000
 
-    doc/go_mem: explain arrays, structs, and complex numbers
+    Revert "runtime: convert local var stop,ready at TestDebugCallUnsafePoint to atomic type"
     
-    Arrays, structs, and complex numbers are collections of values that
-    are handled separately by the memory model.
+    This reverts https://go.dev/cl/427135.
     
-    An earlier version may have said this, but the current version does not.
-    Say it.
+    Reason for revert: broke the test it modified on linux-amd64-noopt.
     
-    Change-Id: If3928bed6659e58e688f88aa0dde05423cbb3820
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514476
-    Run-TryBot: Russ Cox <rsc@golang.org>
+        --- FAIL: TestDebugCallUnsafePoint (0.00s)
+            debug_test.go:265: want "call not at safe point", got %!s(<nil>)
+    
+    Change-Id: I044c9720aed2d5e48b56bd7ab2781462270dcae9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428395
+    Reviewed-by: xie cui <523516579@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go_mem.html | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/runtime/debug_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

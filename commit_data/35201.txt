@@ -1,23 +1,39 @@
-commit 3bdbb5df7692142c13cf93f6d80b2a907e3f396b
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri Apr 27 17:50:05 2018 +0200
+commit 5e1dcb7a04ba989483761fc4e14da8e75efa2847
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jan 9 21:20:10 2018 -0500
 
-    syscall: enable some nacl code to be shared with js/wasm
+    cmd/compile: workaround for inconsistent receiver param srcpos
     
-    This commit only moves code in preparation for the following commit
-    which adds the js/wasm architecture to the os package. There are no
-    semantic changes in this commit.
+    Given an inlinable method M in package P:
     
-    Updates #18892
+       func (r *MyStruct) M(...) {
     
-    Change-Id: Ia44484216f905c25395c565c34cfe6996c305ed6
-    Reviewed-on: https://go-review.googlesource.com/109976
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    When M is compiled within its home package, the source position that
+    the compiler records for 'r' (receiver parameter variable) is
+    accurate, whereas if M is built as part of the compilation of some
+    other package (body read from export data), the declaration line
+    assigned to 'r' will be the line number of the 'import' directive, not
+    the source line from M's source file.
+    
+    This inconsistency can cause differences in the size of abstract
+    parameter DIEs (due to variable-length encoding), which can then in
+    turn result in bad abstract origin offsets, which in turn triggers
+    build failures on iOS (dsymutil crashes when it encounters an
+    incorrect abstract origin reference).
+    
+    Work around the problem by removing the "declaration line number"
+    attribute within the abstract parameter abbreviation table entry. The
+    decl line attribute doesn't contribute a whole lot to the debugging
+    experience, and it gets rid of the inconsistencies that trigger the
+    dsymutil crashes.
+    
+    Updates #23374.
+    
+    Change-Id: I0fdc8e19a48db0ccd938ceadf85103936f89ce9f
+    Reviewed-on: https://go-review.googlesource.com/87055
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- .../poll/{fd_poll_nacl.go => fd_poll_nacljs.go}    |   2 +
- src/syscall/fd_nacl.go                             | 244 --------------------
- src/syscall/fd_nacljs.go                           | 254 +++++++++++++++++++++
- src/syscall/{tables_nacl.go => tables_nacljs.go}   |   2 +
- 4 files changed, 258 insertions(+), 244 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,13 +1,22 @@
-commit dfaf1f71e67de2807e07c880060b457d32a66b8b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 24 17:39:00 2014 -0700
+commit b22dc6385d66ac2e74afb9a5d503394fc7273d81
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 16 14:00:01 2014 -0700
 
-    net/http: update ProxyFromEnvironment docs for HTTPS_PROXY addition
+    sync/once: panicking functions still marked as complete
     
-    LGTM=adg
-    R=adg
+    This is a corner case, and one that was even tested, but this
+    CL changes the behavior to say that f is "complete" even if it panics.
+    But don't think of it that way, think of it as sync.Once runs
+    the function only the first time it is called, rather than
+    repeatedly until a run of the function completes.
+    
+    Fixes #8118.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/142650043
+    https://golang.org/cl/137350043
 
- src/net/http/transport.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/sync/once.go      | 7 +++++--
+ src/sync/once_test.go | 8 ++++++--
+ 2 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,14 +1,21 @@
-commit 4a8c15e0667318c523d1b21bb7e1e1d42eb5e3c2
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 14 13:44:45 2016 +1100
+commit 05c4c6e2f48dad6876a8ffc3e72b4122245c5095
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Nov 5 16:32:27 2015 -0500
 
-    doc: revise help page with categories and more links
+    cmd,runtime: TLS setup for android/386
     
-    Fixes #12489
+    Same ugly hack as https://go-review.googlesource.com/15991.
     
-    Change-Id: I25dd3f76e4cfe9a71b987c3b31445724568391e9
-    Reviewed-on: https://go-review.googlesource.com/18625
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Update golang/go#9327.
+    
+    Change-Id: I58284e83268a15de95eabc833c3e01bf1e3faa2e
+    Reviewed-on: https://go-review.googlesource.com/16678
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/help.html | 68 +++++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 45 insertions(+), 23 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go  |  3 ++
+ src/cmd/link/internal/ld/sym.go   | 16 +++++--
+ src/runtime/cgo/gcc_android_386.c | 87 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_386.c   | 12 ++++++
+ src/runtime/rt0_android_386.s     | 32 ++++++++++++++
+ src/runtime/sys_linux_386.s       | 10 +++++
+ 6 files changed, 156 insertions(+), 4 deletions(-)

@@ -1,26 +1,19 @@
-commit d5efd0dd63a8beb5cc57ae7d25f9c60d5dea5c65
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Wed Jun 15 16:21:07 2022 -0400
+commit a287c4aa38c9c71f823a0c366871f7f4452a602c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 15:33:19 2021 -0800
 
-    net/netip: add IPv6LinkLocalAllRouters and IPv6Loopback
+    spec: add type parameter types
     
-    Fixes #51766
-    Fixes #51777
+    - add section on type parameters
+    - added two sections on the scope of type parameters
+    - expanded general section on types accordingly
+    - introduced the notion of a named type which will
+      help in simplifying various rules (subsequent CLs)
     
-    Change-Id: I0510175c20c06442d78b2581cfe218e66be1c35b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412475
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I49c1ed7d6d4f951d751f0a3ca5dfb637e49829f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365414
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/next/51766.txt          |  1 +
- api/next/51777.txt          |  1 +
- src/net/netip/netip.go      |  7 +++++++
- src/net/netip/netip_test.go | 12 ++++++++++++
- 4 files changed, 21 insertions(+)
+ doc/go_spec.html | 62 ++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 53 insertions(+), 9 deletions(-)

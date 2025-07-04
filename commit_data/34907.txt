@@ -1,20 +1,14 @@
-commit ace5fa1a609c28cbfcede4639d3eed47c47b2774
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 10 12:19:24 2018 +0200
+commit 671cf92c322788b4ded03ded6c078c130c7de362
+Author: rajender <rajenderreddykompally@gmail.com>
+Date:   Mon Nov 27 23:58:29 2017 +0530
 
-    runtime: remove support_bmi{1,2}
+    encoding/json: remove the word "text" in "JSON text" from package docs.
     
-    The code reading these variables was removed in CL 41476. They are only
-    set but never read now, so remove them.
+    It was added in CL 79995. It is unnecessarily confusing.
     
-    Change-Id: I6b0b8d813e9a3ec2a13586ff92746e00ad1b5bf0
-    Reviewed-on: https://go-review.googlesource.com/106095
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib8ff35b9f71b54ff99d2d6e0534c7128e1f4345a
+    Reviewed-on: https://go-review.googlesource.com/80035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_386.s      | 6 ------
- src/runtime/asm_amd64.s    | 6 ------
- src/runtime/asm_amd64p32.s | 6 ------
- src/runtime/runtime2.go    | 2 --
- 4 files changed, 20 deletions(-)
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

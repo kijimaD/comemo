@@ -1,12 +1,15 @@
-commit f5e309012b2dc4d60b324e8d805345002bcdaec1
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Thu Jan 28 16:33:35 2016 -0800
+commit 247959d9b85be560d71b81e0e44fcf4c9cc900e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:28:47 2015 -0500
 
-    unsafe: fix typo in documentation of valid Pointer->uintptr->Pointer conversions
+    cmd/compile: reject identifiers beginning with non-ASCII digit
     
-    Change-Id: Ib669d5241372326a46361ee096570e960b7a957f
-    Reviewed-on: https://go-review.googlesource.com/19082
+    Fixes #11359.
+    
+    Change-Id: I0fdfa410939f7e42020cbb19d74a67e1cc3cd610
+    Reviewed-on: https://go-review.googlesource.com/16919
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/unsafe/unsafe.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/lex.go |  3 +++
+ test/fixedbugs/issue11359.go       | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

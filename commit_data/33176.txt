@@ -1,16 +1,21 @@
-commit 2f40dc79e5febf2c27303285ef853a5dd064f777
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Oct 19 17:47:07 2017 -0400
+commit 5f7a03e148b9a37f2c61f7d428abc6b360897a0c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 21 17:32:32 2017 +0000
 
-    cmd/trace: fix a javascript bug in handling import error
+    sync: delete a sentence from the Map docs
     
-    When traceviewer encounters a failure of json trace import
-    due to data error, onImportFail tried to access an error variable
-    which was not yet defined.
+    From Josh's comments on https://golang.org/cl/50310
     
-    Change-Id: I431be03f179aafacaf1fd3c62a6337e8b5bd18fb
-    Reviewed-on: https://go-review.googlesource.com/71970
-    Reviewed-by: Austin Clements <austin@google.com>
+    Once I removed the "from the Go standard library" bit, the beginning
+    wasn't worth keeping. It also wasn't clear whether what it meant by
+    "cache contention". Processor caches, or user-level caches built with
+    sync.Map? It didn't seem worth clarifying and didn't convey any useful
+    information, so deleted.
+    
+    Change-Id: Id1d76105a3081d0855f6a64540700932bb83d98e
+    Reviewed-on: https://go-review.googlesource.com/50632
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/trace/trace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/sync/map.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

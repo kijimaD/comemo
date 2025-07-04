@@ -1,16 +1,16 @@
-commit 3de6228aea10f6229c9999e440fe9e9dc21435d6
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Jul 28 11:43:16 2011 -0700
+commit 08bfb3951580365af16be5d6074b33cea8d8e0bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 14:18:22 2011 -0400
 
-    http: make serveFile redirects relative to work with StripPrefix
+    6g, 8g: divide corner case
     
-    serveFile was using absolute redirects, which didn't work under StripPrefix.
-    Now it uses relative redirects.
+    Fixes #1772.
     
-    R=golang-dev, rsc, bradfitz
-    CC=golang-dev, kevlar
-    https://golang.org/cl/4789042
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4798062
 
- src/pkg/http/fs.go      | 18 +++++++++++++++---
- src/pkg/http/fs_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ src/cmd/6g/ggen.c | 59 +++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/8g/ggen.c | 66 +++++++++++++++++++++++++++++++++++++++++++++++--------
+ test/divide.go    | 54 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 161 insertions(+), 18 deletions(-)

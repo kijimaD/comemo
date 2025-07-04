@@ -1,18 +1,25 @@
-commit 069983e5db99fa6b94401f971e9c19440615d233
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Tue Apr 13 12:35:28 2021 +0200
+commit 79dbdf2a4c2ad93d3de493956f8bbca1465ba932
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Sep 21 08:47:34 2020 -0400
 
-    archive/tar: replace os.MkdirTemp with T.TempDir
+    go/types: add Checker.walkDecl to simplify checking declarations
     
-    Updates #45402
+    Handling ast.GenDecls while typechecking is repetitive, and a source of
+    diffs compared to typechecking using the cmd/compile/internal/syntax
+    package, which unpacks declaration groups into individual declarations.
     
-    Change-Id: I296f8c676c68ed1e10b6ad1a17b5b23d2c395252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309355
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Refactor to extract the logic for walking declarations.  This introduces
+    a new AST abstraction: types.decl, which comes at some minor performance
+    cost. However, if we are to fully abstract the AST we will be paying
+    this cost anyway, and benchmarking suggests that the cost is negligible.
+    
+    Change-Id: If73c30c3d08053ccf7bf21ef886f0452fdbf142e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256298
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/archive/tar/tar_test.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/go/types/decl.go     | 266 ++++++++++++++++++++++++++-------------------
+ src/go/types/resolver.go | 278 +++++++++++++++++++++--------------------------
+ 2 files changed, 275 insertions(+), 269 deletions(-)

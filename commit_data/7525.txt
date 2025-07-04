@@ -1,20 +1,14 @@
-commit 14b6a477480cc287fbd800215ef4a06b0f8cfc25
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 22 12:31:57 2011 -0800
+commit 556506e8692af033fba6411ba926733daf1fcd0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 09:34:13 2011 -0800
 
-    gob: compute information about a user's type once.
-    Other than maybe cleaning the code up a bit, this has
-    little practical effect for now, but lays the foundation
-    for remembering the method set of a type, which can
-    be expensive.
+    go spec: fix local link
     
-    R=rsc
+    Fixes #1543.
+    
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4193041
+    https://golang.org/cl/4169068
 
- src/pkg/gob/codec_test.go |  2 +-
- src/pkg/gob/decode.go     | 38 +++++++++++++++++------------
- src/pkg/gob/encode.go     | 24 +++++++++---------
- src/pkg/gob/encoder.go    | 32 ++++++++++++------------
- src/pkg/gob/type.go       | 62 ++++++++++++++++++++++++++++++++++++-----------
- 5 files changed, 101 insertions(+), 57 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

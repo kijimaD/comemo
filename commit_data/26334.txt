@@ -1,18 +1,20 @@
-commit 31a9e505241e22e4b6ee623419db601334158101
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 14 22:28:04 2016 -0700
+commit 7b1f055eb1fb5f600081563d3cb2f987fe400e46
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 11 16:52:11 2016 -0500
 
-    cmd/internal/obj: remove LSym.Etext
+    runtime: remove out-of-date comment
     
-    Use a local variable instead.
+    It used to be the case that repeatedly getting one GC pointer and
+    enqueuing one GC pointer could cause contention on the work buffers as
+    each operation passed over the boundary of a work buffer. As of
+    b6c0934, we use a two buffer cache that prevents this sort of
+    contention.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I9623a40ff0d568f11afd1279b6aaa1c33eda644c
-    Reviewed-on: https://go-review.googlesource.com/20730
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4f1111623f76df9c5493dd9124dec1e0bfaf53b7
+    Reviewed-on: https://go-review.googlesource.com/18532
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/obj/link.go        |  1 -
- src/cmd/internal/obj/objfile.go     | 10 +++++-----
- src/cmd/internal/obj/sizeof_test.go |  2 +-
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ src/runtime/mgcmark.go | 6 ------
+ 1 file changed, 6 deletions(-)

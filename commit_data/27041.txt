@@ -1,16 +1,14 @@
-commit 11f1041022e001869de076699f297b28d25fc558
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Apr 21 10:42:25 2016 +1000
+commit 5011431295b647c2d1e4ae294c4e2cab626fc1f8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 9 11:08:19 2016 +1100
 
-    debug/pe: update cstring documentation
+    doc: remove link to empty Go 1.5.3 milestone
     
-    Updates #15345
+    Fixes #14687
     
-    Change-Id: If1fca1f6042571cb0ac689bbb3c294309dd6e7b4
-    Reviewed-on: https://go-review.googlesource.com/22331
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I51fd8842d35c82db71cc5b28c4c0550871461eb6
+    Reviewed-on: https://go-review.googlesource.com/20421
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/string.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ doc/devel/release.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,17 +1,20 @@
-commit d1ba047edfa6b904894fb3be1991df4300044699
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 13:20:29 2021 -0400
+commit 9ff27e9fad185338b09141886b1041b82478b2d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 3 11:11:05 2020 -0800
 
-    go/types: simplify Named.under
+    [dev.typeparams] test: run all errorcheck tests that pass compiler with -G flag
     
-    This is a straighforward port of CL 341857 to go/types.
+    Replace existing ad-hoc file exclusion mechanism with list of
+    excluded files; i.e., files for which the compiler with -G
+    option doesn't produce matching error messages yet.
     
-    Change-Id: I3407676232b595662c1470627771a13263703061
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342479
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Remove -G option since we now always run all passing tests.
+    
+    Change-Id: I0655d2cf8bc135b3f50b1a811b8f49090c427580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275212
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/named.go | 52 +++++++++++++++++++--------------------------------
- 1 file changed, 19 insertions(+), 33 deletions(-)
+ test/run.go | 303 ++++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 255 insertions(+), 48 deletions(-)

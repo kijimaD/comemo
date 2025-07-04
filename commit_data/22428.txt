@@ -1,12 +1,40 @@
-commit 2539ccb8db1c0efffa45e7de7430b333ffce2cb4
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 10 19:32:10 2015 -0700
+commit 3b1d6920935a5db8bd0669c44838baf3e22343ed
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Jan 18 21:02:58 2015 +1100
 
-    doc/go1.5.txt: log: LUTC flag
+    all: remove dragonfly/386 port
     
-    Change-Id: Ieadbd2b1ad442ba3eb2ad5f552d96c93ba3e5a2e
-    Reviewed-on: https://go-review.googlesource.com/8790
-    Reviewed-by: Rob Pike <r@golang.org>
+    DragonFlyBSD dropped support for i386 in 4.0 and there is no longer a
+    dragonfly/386 - as such, remove the Go port.
+    
+    Fixes #8951
+    Fixes #7580
+    Fixes #7421
+    
+    Change-Id: I69022ab2262132e8f97153f14dc8c37c98527008
+    Reviewed-on: https://go-review.googlesource.com/7543
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Joel Sing <jsing@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/8l/asm.go                     |    1 -
+ src/cmd/8l/obj.go                     |    5 +-
+ src/go/build/build.go                 |    1 -
+ src/runtime/cgo/gcc_dragonfly_386.c   |   70 --
+ src/runtime/defs_dragonfly.go         |    1 -
+ src/runtime/defs_dragonfly_386.go     |  198 -----
+ src/runtime/os1_dragonfly.go          |    2 +-
+ src/runtime/rt0_dragonfly_386.s       |   16 -
+ src/runtime/runtime_test.go           |    6 -
+ src/runtime/signal_dragonfly_386.go   |   34 -
+ src/runtime/sys_dragonfly_386.s       |  390 ---------
+ src/syscall/asm_dragonfly_386.s       |  140 ---
+ src/syscall/syscall_dragonfly.go      |    2 +-
+ src/syscall/syscall_dragonfly_386.go  |   58 --
+ src/syscall/zerrors_dragonfly_386.go  | 1526 ---------------------------------
+ src/syscall/zsyscall_dragonfly_386.go | 1317 ----------------------------
+ src/syscall/zsysnum_dragonfly_386.go  |  302 -------
+ src/syscall/ztypes_dragonfly_386.go   |  435 ----------
+ 18 files changed, 3 insertions(+), 4501 deletions(-)

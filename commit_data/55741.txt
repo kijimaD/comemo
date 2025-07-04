@@ -1,23 +1,29 @@
-commit b8c76effd9a3a30d66e44ed7acea789e4e95b926
-Author: zuojunwei.1024 <zuojunwei.1024@bytedance.com>
-Date:   Tue Feb 27 19:14:00 2024 +0800
+commit 49588d0c555aaacb1354dced5e1fad0195ded7c6
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Mar 9 15:59:17 2023 -0800
 
-    cmd/compile: mark pointer to noalg type as noalg
+    internal/fuzz: avoid deadlock on duplicate entries with exec limit
     
-    When the compiler writes PtrToThis field of noalg type, it generates
-    its pointer type. Mark them as noalg to prevent put them in typelinks.
+    If there was a execution limit enabled, and a result put us beyond that
+    limit, but the result expanded coverage *and* was a duplicate of an
+    entry already in the cache, the check if we were passed the limit would
+    be skipped. Since this check was inside the result check body, and we
+    would no longer send any new inputs, we'd never get to that check again,
+    causing the coordinator to just sit in an infinite loop.
     
-    Fixes #65957
+    This moves the check up to the top of the coordinator loop, so that it
+    is checked after every result is processed. Also add a cmd/go TestScript
+    regression test which triggered this case much more frequently.
     
-    Change-Id: Icbc3b18bc866f9138c7648e42dd500a80326f72b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567335
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Updates #51484
+    
+    Change-Id: I7a2181051177acb853c1009beedd334a40796177
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475196
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types/type.go |  3 +++
- test/fixedbugs/issue65957.dir/a.go     | 12 ++++++++++++
- test/fixedbugs/issue65957.dir/main.go  | 19 +++++++++++++++++++
- test/fixedbugs/issue65957.go           |  7 +++++++
- 4 files changed, 41 insertions(+)
+ .../testdata/script/test_fuzz_limit_dup_entry.txt  | 37 ++++++++++++++++++++++
+ src/internal/fuzz/fuzz.go                          | 12 +++----
+ 2 files changed, 43 insertions(+), 6 deletions(-)

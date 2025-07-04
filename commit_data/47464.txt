@@ -1,23 +1,25 @@
-commit 5337e53dfa3f5fde73b8f505ec3a91c628e8f648
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 12 12:38:29 2021 -0800
+commit 4deaa6a178d89631302470f78574c1e957cf84a5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Mar 18 16:01:23 2021 +0000
 
-    cmd/compile: ensure we replace package placeholder in type names
+    runtime: call nanotimeQPC from nanotime1 without a wrapper
     
-    We want package names exposed by reflect to be things like
-    main.F[main.foo], not main.F["".foo].
+    This changes makes it so that nanotimeQPC calls nanotime1 without an ABI
+    wrapper by specifying the ABIInternal version directly. The reason why
+    this is necessary is because ABI wrappers typically require additional
+    stack space, and nanotimeQPC is used deep within nosplit contexts,
+    and with the ABI wrappers now enabled, this exhausts the stack guard
+    space held for nosplit functions. Rather than increase the stack guard,
+    we choose to do this.
     
-    Fixes #49547
+    For #40724.
     
-    Change-Id: I182411a75d56ce1f64fde847e5b9ee74ce44e00b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363656
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ia9173ca903335a9d6f380f57f4a45e49b58da6bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303069
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types/fmt.go |  8 +++++++-
- test/typeparam/issue49547.go          | 22 ++++++++++++++++++++++
- test/typeparam/nested.out             |  6 +++---
- 3 files changed, 32 insertions(+), 4 deletions(-)
+ src/runtime/sys_windows_amd64.s | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

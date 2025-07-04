@@ -1,14 +1,23 @@
-commit 4c91c0d07b7da552a57ec2b7a33b1d6b46d4889c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 30 15:57:38 2015 -0800
+commit e5864cd9397679353e44ab1de82fdf6d75a359c7
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Jan 2 00:18:10 2015 +0100
 
-    math/big: build Float.Format on top of Float.Append
+    sort: optimize symMerge performance for blocks with one element
     
-    Change-Id: I444eec24467f827caa5c88a1c5ae5bce92508b98
-    Reviewed-on: https://go-review.googlesource.com/3750
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Use direct binary insertion instead of recursive calls to symMerge
+    when one of the blocks has only one element.
+    
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkStableString1K     421999         397629         -5.77%
+    BenchmarkStableInt1K        123422         120592         -2.29%
+    BenchmarkStableInt64K       9629094        9620200        -0.09%
+    BenchmarkStable1e2          123089         120209         -2.34%
+    BenchmarkStable1e4          39505228       36870029       -6.67%
+    BenchmarkStable1e6          8196612367     7630840157     -6.90%
+    
+    Change-Id: I49905a909e8595cfa05920ccf9aa00a8f3036110
+    Reviewed-on: https://go-review.googlesource.com/2219
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/float.go      |  2 +-
- src/math/big/float_test.go |  8 +++---
- src/math/big/floatconv.go  | 67 +++++++++++++++++++++++-----------------------
- 3 files changed, 39 insertions(+), 38 deletions(-)
+ src/sort/sort.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

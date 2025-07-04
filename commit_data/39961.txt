@@ -1,16 +1,20 @@
-commit fe2ed5054176935d4adcf13e891715ccf2ee3cce
-Author: ZYunH <zyunhjob@163.com>
-Date:   Thu Sep 19 14:56:11 2019 +0000
+commit d47da9497f7e17aab1d4b3169604f62b491a9dd1
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 5 10:23:15 2019 -0700
 
-    net/url: add upperhex const instead of using string literal
+    database/sql: add NullTime
     
-    The mime and strconv packages already have a const with this name & value.
+    This matches NullBool, NullFloat64, and NullInt64.
     
-    Change-Id: Ibd7837f854ac8ec3f57943a9d1db07f4cf6db858
-    GitHub-Last-Rev: 775cdce3b75350aa3b9a6f31f04cfdd0033e9ac3
-    GitHub-Pull-Request: golang/go#34389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196437
+    Fixes #30305
+    
+    Change-Id: I79bfcf04a3d43b965d2a3159b0ac22f3e8084a53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170699
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/url.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/database/sql/fakedb_test.go |  4 +++-
+ src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
+ src/database/sql/sql_test.go    | 15 +++++++++++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)

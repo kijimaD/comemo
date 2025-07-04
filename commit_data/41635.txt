@@ -1,36 +1,21 @@
-commit 877ef86bec593cd7e40899ac5446791e65b47839
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 6 10:31:39 2020 -0500
+commit 6cbf37b30b852164b1cd098e0369498ca72ede09
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 16 09:29:56 2019 -0400
 
-    cmd/compile: add spectre mitigation mode enabled by -spectre
+    [dev.link] cmd/link: record go.itablink symbols during object file read
     
-    This commit adds a new cmd/compile flag -spectre,
-    which accepts a comma-separated list of possible
-    Spectre mitigations to apply, or the empty string (none),
-    or "all". The only known mitigation right now is "index",
-    which uses conditional moves to ensure that x86-64 CPUs
-    do not speculate past index bounds checks.
+    Change the new loader to keep a note of the set of "go.itablink.*"
+    symbols (using a small map), and add a method that clients can use to
+    query whether a given global index corresponds to a "go.itablink.*"
+    sym. This eliminates one instance of raw symbol name reading/matching
+    during new deadcode, which should produce a minor speedup.
     
-    Speculating past index bounds checks may be problematic
-    on systems running privileged servers that accept requests
-    from untrusted users who can execute their own programs
-    on the same machine. (And some more constraints that
-    make it even more unlikely in practice.)
-    
-    The cases this protects against are analogous to the ones
-    Microsoft explains in the "Array out of bounds load/store feeding ..."
-    sections here:
-    https://docs.microsoft.com/en-us/cpp/security/developer-guidance-speculative-execution?view=vs-2019#array-out-of-bounds-load-feeding-an-indirect-branch
-    
-    Change-Id: Ib7532d7e12466b17e04c4e2075c2a456dc98f610
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222660
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5915773a3f33c16099ccd68592dbba783d909bc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201400
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/main.go            | 30 ++++++++++++++++--
- src/cmd/compile/internal/gc/ssa.go             | 31 +++++++++++++++++--
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  3 ++
- src/cmd/compile/internal/ssa/opGen.go          | 12 ++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 42 ++++++++++++++++++++++++++
- test/codegen/spectre.go                        | 38 +++++++++++++++++++++++
- 7 files changed, 155 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go  |  3 +--
+ src/cmd/link/internal/loader/loader.go | 16 +++++++++++++++-
+ 2 files changed, 16 insertions(+), 3 deletions(-)

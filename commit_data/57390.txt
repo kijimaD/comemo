@@ -1,21 +1,31 @@
-commit e6ae2d83acc088349f7a327a968ffa1f2ae41dec
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 5 11:17:41 2024 +0200
+commit 9ff01162295c815c252dec812f6ce983aa90a62b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 16 02:29:12 2022 +1000
 
-    cmd/asm/internal: use slices.Contains
+    cmd/asm,cmd/internal/obj/riscv,cmd/link: improve TLS handling on riscv64
     
-    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
-    the slices package (introduced in Go 1.21) can be used in packages built
-    using the bootstrap toolchain.
+    The existing Thread Local Storage (TLS) implementation for riscv64 uses
+    initial-exec (IE) mode, however a MOV of a TLS symbol currently loads the
+    thread pointer offset and not the actual address or memory location.
     
-    For #64751
+    Rework TLS on riscv64 to generate the full instruction sequence needed to
+    load from or store to a TLS symbol. Additionally, provide support for both
+    initial-exec (IE) and local-exec (LE) TLS - in many cases we can use LE,
+    which is slightly more efficient and easier to support in the linker.
     
-    Change-Id: I0115213da4b1f0a1fa0ef7ad34456fbf52e00fae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611095
+    Change-Id: I1b43f8888b3b6b10354bbb79d604771e64d92645
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431103
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/asm/internal/lex/input.go | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go   |  5 +++
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 10 +++++
+ src/cmd/internal/obj/riscv/obj.go           | 63 +++++++++++++++++++++++++++--
+ src/cmd/internal/objabi/reloctype.go        | 16 ++++----
+ src/cmd/internal/objabi/reloctype_string.go |  8 ++--
+ src/cmd/link/internal/riscv64/asm.go        | 22 ++++++----
+ src/runtime/tls_riscv64.s                   | 11 ++---
+ 7 files changed, 103 insertions(+), 32 deletions(-)

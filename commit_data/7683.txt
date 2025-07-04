@@ -1,16 +1,15 @@
-commit 22c45c558b69e7f7bdb0ec37519e02d333188da4
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 7 12:08:31 2011 -0800
+commit 2168e6aaf1a1f6117f2523e4c4b1fcc0a117b81f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 7 12:04:04 2011 -0800
 
-    gob: support GobEncoder for type T when the receiver is *T.
-    Still to do: **T.
+    http: change Hijacker to return a net.Conn
     
-    R=rsc
+    net.Conn is itself a io.ReadWriteCloser, so
+    most code should be unaffected.
+    
+    R=rsc, gburd
     CC=golang-dev
-    https://golang.org/cl/4247061
+    https://golang.org/cl/4261052
 
- src/pkg/gob/decode.go         | 18 +++++++--
- src/pkg/gob/encode.go         | 18 +++++++--
- src/pkg/gob/gobencdec_test.go | 26 ++++++++++++
- src/pkg/gob/type.go           | 93 +++++++++++++++++++++----------------------
- 4 files changed, 99 insertions(+), 56 deletions(-)
+ src/pkg/http/server.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

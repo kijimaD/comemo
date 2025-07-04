@@ -1,15 +1,15 @@
-commit 9554e67188f222c8cf45b7521c8e5830881e4aff
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 11 09:54:31 2011 -0800
+commit e6c9bccd33581bbe8ec291f6c9a7ef608e5e0861
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 10:08:49 2011 -0500
 
-    http: fix transport crash when request URL is nil
+    gopack: omit time stamps
     
-    Fixes #1602
+    This makes it possible to build a package twice
+    and get the same bytes both times.
     
-    R=rsc, petar-m
+    R=r, dsymonds, r2
     CC=golang-dev
-    https://golang.org/cl/4284043
+    https://golang.org/cl/4248077
 
- src/pkg/http/transport.go      |  5 +++++
- src/pkg/http/transport_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/cmd/gopack/ar.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,36 +1,27 @@
-commit b88276da6626102801a3621839d8f198176816ce
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 2 14:46:00 2018 -0400
+commit eab06e65f7c4a1e3acafc220d0e9b8eca50f0311
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Feb 14 14:56:39 2018 +0000
 
-    runtime: fix bitmap copying corner-cases
+    syscall, os: use pipe2 syscall on NetBSD instead of pipe
     
-    When an object spans heap arenas, its bitmap is discontiguous, so
-    heapBitsSetType unrolls the bitmap into the object itself and then
-    copies it out to the real heap bitmap. Unfortunately, since this code
-    path is rare, it had two unnoticed bugs related to the head and tail
-    of the bitmap:
+    The pipe2 syscall is part of NetBSD since version 6.0 and thus exists in
+    all officially supported versions (6.0 through 6.1 and 7.0+).
     
-    1. At the head of the object, we were using hbitp as the destination
-    bitmap pointer rather than h.bitp, but hbitp points into the
-    *temporary* bitmap space (that is, the object itself), so we were
-    failing to copy the partial bitmap byte at the head of an object.
+    Follows CL 38426
     
-    2. The core copying loop copied all of the full bitmap bytes, but
-    always drove the remaining word count down to 0, even if there was a
-    partial bitmap byte for the tail of the object. As a result, we never
-    wrote partial bitmap bytes at the tail of an object.
-    
-    I found these by enabling out-of-place unrolling all the time. To
-    improve our chances of detecting these sorts of bugs in the future,
-    this CL mimics this by enabling out-of-place mode 50% of the time when
-    doubleCheck is enabled so that we test both in-place and out-of-place
-    mode.
-    
-    Change-Id: I69e5d829fb3444be4cf11f4c6d8462c26dc467e8
-    Reviewed-on: https://go-review.googlesource.com/110995
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7b62b507300c3dfbcc6ae56408a7d7088ddccc77
+    Reviewed-on: https://go-review.googlesource.com/94035
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mbitmap.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/os/{pipe_freebsd.go => pipe2_bsd.go}      |  2 ++
+ src/os/pipe_bsd.go                            |  2 +-
+ src/syscall/forkpipe.go                       |  2 +-
+ src/syscall/{exec_freebsd.go => forkpipe2.go} |  2 ++
+ src/syscall/syscall_netbsd.go                 | 13 ++++++++++---
+ src/syscall/zsyscall_netbsd_386.go            |  6 ++----
+ src/syscall/zsyscall_netbsd_amd64.go          |  6 ++----
+ src/syscall/zsyscall_netbsd_arm.go            |  6 ++----
+ 8 files changed, 22 insertions(+), 17 deletions(-)

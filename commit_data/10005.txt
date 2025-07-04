@@ -1,12 +1,14 @@
-commit 3e0c0a8add600cd395c4e30a4db8cc1ede90acc9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 17 12:53:10 2011 -0700
+commit b0c674b65d4e90684d8481b8004e12f1374ad23e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Oct 17 15:14:07 2011 -0400
 
-    go spec: "delete" built-in function
+    gc: treat uintptr as potentially containing a pointer
+    Fixes #2376
     
-    R=golang-dev, r, rsc
+    R=golang-dev, lvd, rsc
     CC=golang-dev
-    https://golang.org/cl/5272045
+    https://golang.org/cl/5278048
 
- doc/go_spec.html | 43 +++++++++++++++++++++++++------------------
- 1 file changed, 25 insertions(+), 18 deletions(-)
+ src/cmd/gc/reflect.c       |  2 +-
+ src/pkg/runtime/gc_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)

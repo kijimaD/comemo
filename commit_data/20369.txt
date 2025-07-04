@@ -1,26 +1,16 @@
-commit d72029e3a3e6726248d84fdd1e468a3683ccb577
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Sep 9 16:05:00 2014 +1000
+commit 93805d711ce1d489af032c617a1ae19ef07922e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 3 23:10:15 2014 -0400
 
-    undo CL 140110043 / 17b5fc2aa130
+    runtime: give 2 words back in notetsleep_internal
     
-    I have found better approach, then longer wait.
-    See CL 134360043 for details.
+    I really hoped we could avoid this nonsense, but it appears not.
     
-    ««« original CL description
-    runtime/pprof: adjust cpuHogger so that tests pass on windows builders
+    Should fix windows/amd64 build breakage.
     
-    LGTM=rsc
-    R=dvyukov, rsc
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/140110043
-    
-    »»»
-    
-    LGTM=dave
-    R=golang-codereviews, dave, dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/133500043
+    https://golang.org/cl/137120043
 
- src/runtime/pprof/pprof_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/lock_sema.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

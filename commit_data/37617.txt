@@ -1,36 +1,29 @@
-commit 048988a0f14f74c0a27efe93699221bc49b7873c
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Dec 4 15:15:27 2018 -0500
+commit d169a429c5f9f1d20114e09fb131bc205b5a74f9
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sat Aug 4 10:01:54 2018 -0700
 
-    runtime: fix runtime-gdb.py when switching sp value
+    cmd/go: test whether alldocs.go is up to date
     
-    After a recent change to runtime-gdb_test.go the ppc64le builder
-    has had intermittent failures. The failures occur when trying to
-    invoke the goroutineCmd function to display the backtrace for
-    a selected goroutine. There is nothing wrong with the testcase
-    but it seems to intermittently leave goroutines in a state
-    where an error can occur.
+    A common error is to update the help text for a command in cmd/go, but
+    fail to update alldocs.go, which actually prints the help text for the
+    most common commands.
     
-    The error message indicates that the problem occurs when trying
-    to change the sp back to the original after displaying the
-    stacktrace for the goroutine.
+    Add a test that the long-form documentation help text matches the
+    contents of alldocs.go, which will fail the build if we fail to keep
+    the documentation in sync. We can get fancier with the test output if
+    this is not sufficient.
     
-    gdb.error: Attempt to assign to an unmodifiable value.
+    Fixes golang/go#26735.
     
-    After some searching I found that this error message can happen
-    if the sp register is changed when on a frame that is not the
-    top-most frame. To fix the problem, frame 0 is selected before
-    changing the value of sp. This fixes the problem in my
-    reproducer environment, and hopefully will fix the problem on
-    the builder.
-    
-    Updates #28679
-    
-    Change-Id: I329bc95b30f8c95acfb161b0d9cfdcbd917a1954
-    Reviewed-on: https://go-review.googlesource.com/c/152540
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2509765315eeb0f362633d812343d1324a01b73b
+    Reviewed-on: https://go-review.googlesource.com/127920
+    Run-TryBot: Kevin Burke <kev@inburke.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb.py | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/alldocs.go            |  5 ++++-
+ src/cmd/go/help_test.go          | 28 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/help/help.go | 20 ++++++++++----------
+ src/cmd/go/main.go               |  4 ++--
+ src/cmd/go/mkalldocs.sh          |  2 ++
+ 5 files changed, 46 insertions(+), 13 deletions(-)

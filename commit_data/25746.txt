@@ -1,14 +1,13 @@
-commit 387d5b8cfb085ed8d2a074586a0ee0e6e6cb9820
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Feb 13 08:48:55 2016 -0800
+commit 09d7de8d619baf614ab8354b883bca6a0ec2fcf4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 28 12:15:43 2015 +1300
 
-    runtime: remove debugging print in cgoCheckTypedBlock
+    cmd/link, runtime: call addmoduledata when dynamically linking on linux/386
     
-    Change-Id: I83639fcde88e7d9747b54728a9481ee2e1b23a64
-    Reviewed-on: https://go-review.googlesource.com/19486
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1faa2bba28a4e9a8061693173797c4114a7d699
+    Reviewed-on: https://go-review.googlesource.com/16387
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgocheck.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/link/internal/x86/asm.go | 75 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/asm_386.s            | 11 ++++++
+ 2 files changed, 86 insertions(+)

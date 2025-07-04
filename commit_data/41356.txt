@@ -1,25 +1,21 @@
-commit cf6739caad1869ec3a022802d53a4de098cb0533
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 3 13:40:14 2020 -0500
+commit 430d2aa3493c3a057f83af886cd866291cbf04ea
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 19 02:34:06 2019 +1000
 
-    cmd/go: add a regression test for package import cycles guarded by build tags
+    cmd/internal/obj/riscv: implement AUIPC and LUI instructions
     
-    I've been thinking about the relationship between the package import
-    graph and the module import graph, and realized that the package
-    import graph is not always acyclic. (The package import graph must be
-    acyclic given a specific set of build tags, but the 'mod' subcommands
-    intentionally ignore build tags.)
+    Add support for assembling AUIPC and LUI instructions.
     
-    I'm not sure whether we have any existing regression tests that cover
-    this sort of cycle, so I'm adding one now. Thankfully, it passes!
+    Based on the riscv-go port.
     
-    Updates #36460
+    Updates #27532
     
-    Change-Id: I7679320994ee169855241efa51cd45f71315f7f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217557
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I178868b6dcc6fdc6b8527454569a3538ed50723e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196840
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../go/testdata/script/mod_tagged_import_cycle.txt | 106 +++++++++++++++++++++
- 1 file changed, 106 insertions(+)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  9 +++
+ src/cmd/internal/obj/riscv/obj.go            | 84 ++++++++++++++++++++++------
+ 2 files changed, 77 insertions(+), 16 deletions(-)

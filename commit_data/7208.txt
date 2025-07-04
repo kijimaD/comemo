@@ -1,16 +1,15 @@
-commit 49e2888a96404ee109817d32b8479231f4104f0a
-Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
-Date:   Thu Jan 20 19:58:08 2011 -0800
+commit 955aa159adc41ee2ee60563fab6dad676f332526
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 20 10:43:55 2011 -0800
 
-    Fixed documentation for netchan import()
+    godoc: show line numbers for non-go files (bug fix)
     
-            This was broken after the last update (2011-01-20).
-            However, I'm not sure if the changed example is a
-            sensible use of import(), so I'd appreciate comments.
+    Also: Give line numbers a style and make them less intrusive.
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4067043
+    https://golang.org/cl/4060043
 
- src/pkg/netchan/import.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/all.css             | 4 ++++
+ src/cmd/godoc/format.go | 4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

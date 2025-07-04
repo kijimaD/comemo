@@ -1,14 +1,16 @@
-commit 01b006fc181a5a2a3ed4eb619a3b9cb1901a90e2
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Thu Dec 15 17:46:44 2016 +0100
+commit b65cdc28882bfd7c4be46e811a6a7841d9fb7d53
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 18 18:40:02 2016 +0900
 
-    test/fixedbugs: add mipsx case to issue11656
+    path/filepath: add a test case for EvalSymlinks error
     
-    Change-Id: Ifcbd2ea19fc7fa832cd88aa857a5704c32eb4765
-    Reviewed-on: https://go-review.googlesource.com/34511
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    EvalSymlinks returns error if given path or its target path don't exist.
+    Add a test for future improvement.
+    
+    Change-Id: Ic9a4aa5eaee0fe7ac523d54d8eb3132a11b380b3
+    Reviewed-on: https://go-review.googlesource.com/27330
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- test/fixedbugs/issue11656.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/path/filepath/path_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

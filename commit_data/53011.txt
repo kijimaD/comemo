@@ -1,20 +1,21 @@
-commit c3db9af3a68f1a12d97d5cebaa434cd6e10dd11f
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Wed Apr 26 09:36:53 2023 +0200
+commit 155612a9b981eb32b2312659409fc46bac535c90
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 17:13:30 2022 -0700
 
-    runtime: remove unused skip arg from fpTracebackPCs
+    test: add test that caused gofrontend crash
     
-    This was accidentally left behind when moving the logic to set the skip
-    sentinel in pcBuf to the caller.
+    The gofrontend crashed importing a complex 0 constant.
     
-    Change-Id: Id7565f6ea4df6b32cf18b99c700bca322998d182
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489095
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #52862
+    
+    Change-Id: Ia87d8eadb9c5ddf51e1cd65c1a626f05f0d068d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413980
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/callers_test.go | 2 +-
- src/runtime/export_test.go  | 6 +++---
- src/runtime/trace.go        | 6 +++---
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ test/fixedbugs/issue52862.dir/a.go |  9 +++++++++
+ test/fixedbugs/issue52862.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue52862.go       |  9 +++++++++
+ 3 files changed, 29 insertions(+)

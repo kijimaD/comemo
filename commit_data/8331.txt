@@ -1,13 +1,12 @@
-commit a4dee3a7465c884b1e737bb1bd856fd63d57d103
-Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
-Date:   Sat May 7 11:05:08 2011 -0700
+commit 733fde588babc6e7455d4e2aa53e34defc99f966
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Fri May 6 22:05:04 2011 -0700
 
-    gob: Doc typo fix
-    Fixes #1785.
+    windows: reset command var to sh for correct error output messages
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4496042
+    https://golang.org/cl/4492043
 
- src/pkg/gob/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gotest/gotest.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

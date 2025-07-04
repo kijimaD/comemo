@@ -1,24 +1,39 @@
-commit c7383441713da801e663e6d95cf7afb6bd500539
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Aug 2 22:15:59 2023 +0000
+commit 2da95e0ec80cb7df1f89a7b7f147dde42ad17a19
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 21 12:57:48 2022 -0700
 
-    net/http: use cancelKey to cancel request
+    go/types, types2: report "undefined: x" instead of "undeclared name: x"
     
-    Follows up on CL 245357 and adds missing returns in waitCondition (CL 477196)
+    This matches the compiler's long-standing behavior.
     
-    Fixes #51354
+    For #55326.
     
-    Change-Id: I7950ff889ad72c4927a969c35fedc0186e863bd6
-    GitHub-Last-Rev: 52ce05bc83ef88c7104df9254bc1add0dda83ae0
-    GitHub-Pull-Request: golang/go#61724
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515435
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I90696a11f0b7d1f4be95a4b9a6f01844df2a2347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432555
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/net/http/transport.go      |  2 +-
- src/net/http/transport_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/issues_test.go     |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  8 ++------
+ src/go/types/issues_test.go                        |  2 +-
+ src/go/types/typexpr.go                            |  4 ++--
+ src/internal/types/testdata/check/constdecl.go     |  6 +++---
+ src/internal/types/testdata/check/cycles0.go       |  4 ++--
+ src/internal/types/testdata/check/decls0.go        |  2 +-
+ .../types/testdata/check/decls2/decls2a.go         |  4 ++--
+ .../types/testdata/check/decls2/decls2b.go         | 18 ++++++++--------
+ src/internal/types/testdata/check/errors.go        |  4 ++--
+ src/internal/types/testdata/check/expr3.go         |  4 ++--
+ src/internal/types/testdata/check/issues0.go       | 24 +++++++++++-----------
+ src/internal/types/testdata/check/stmt0.go         |  2 +-
+ src/internal/types/testdata/check/vardecl.go       | 10 ++++-----
+ .../types/testdata/fixedbugs/issue39634.go         | 12 +++++------
+ .../types/testdata/fixedbugs/issue43527.go         |  2 +-
+ .../types/testdata/fixedbugs/issue45635.go         |  2 +-
+ .../types/testdata/fixedbugs/issue49005.go         |  4 ++--
+ .../types/testdata/fixedbugs/issue49482.go         |  2 +-
+ .../types/testdata/fixedbugs/issue50929.go         |  2 +-
+ .../types/testdata/fixedbugs/issue54405.go         |  4 ++--
+ 21 files changed, 59 insertions(+), 63 deletions(-)

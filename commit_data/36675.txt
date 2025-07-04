@@ -1,30 +1,30 @@
-commit 859cf7fc0f4535ab3cdec15c81860f5fd2ae5b01
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Tue Sep 4 23:14:53 2018 +0300
+commit 74604bb517b8615331aae44166e0368b25f6a4cb
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 17 15:20:57 2018 +0200
 
-    cmd/compile/internal/gc: handle array slice self-assign in esc.go
+    net: skip external net tests on iOS
     
-    Instead of skipping all OSLICEARR, skip only ones with non-pointer
-    array type. For pointers to arrays, it's safe to apply the
-    self-assignment slicing optimizations.
+    CL 113095 tried to deflake net tests on iOS by skipping the test
+    that uses the most sockets. That didn't work well enough and will
+    be reverted in CL 113555.
     
-    Refactored the matching code into separate function for readability.
+    The flakes appeared after the iOS exec harness started to forward
+    environment variables, causing testenv.Builder to be non-empty on
+    the iOS builder. This CL attempts to fix the flakes with the more
+    conservative strategy of skipping tests that only run on builders.
     
-    This is an extension to already existing optimization.
+    The skipped tests happen to be those requiring external network
+    access; it's plausible that the iOS builder network isn't reliable
+    enough to run the many parallel DNS lookups and dial outs, while
+    keeping the number of open file descriptors below the 250 limit.
     
-    On its own, it does not improve any code under std, but
-    it opens some new optimization opportunities. One
-    of them is described in the referenced issue.
-    
-    Updates #7921
-    
-    Change-Id: I08ac660d3ef80eb15fd7933fb73cf53ded9333ad
-    Reviewed-on: https://go-review.googlesource.com/133375
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I9cafdaf2845dd6f3844c4819dcaaaa5970f5da15
+    Reviewed-on: https://go-review.googlesource.com/113575
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 95 ++++++++++++++++++++++++--------------
- test/escape2.go                    | 16 +++++--
- test/escape2n.go                   | 16 +++++--
- 3 files changed, 82 insertions(+), 45 deletions(-)
+ src/net/dial_test.go         | 17 ++++++++++----
+ src/net/lookup_test.go       | 56 +++++++++++---------------------------------
+ src/net/tcpsock_unix_test.go |  6 ++---
+ 3 files changed, 28 insertions(+), 51 deletions(-)

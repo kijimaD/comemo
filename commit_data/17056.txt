@@ -1,18 +1,20 @@
-commit 8dc7a31d7796d379d36729f5209d93a898471eac
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 6 14:49:55 2013 -0400
+commit 262d6f58c78d53d2e85957075de0f817861cc23c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 7 00:25:23 2013 +0900
 
-    runtime/pprof: adjust test
+    syscall: fix IPv6 wrong network mask on latest FreeBSD
     
-    NetBSD and OpenBSD are broken like OS X is. Good to know.
+    Looks like latest FreeBSD doesn't set address family identifer
+    for RTAX_NETMASK stuff; probably RTAX_GENMASK too, not confirmed.
+    This CL tries to identify address families by using the length of
+    each socket address if possible.
     
-    Drop required count from avg/2 to avg/3, because the
-    Plan 9 builder just barely missed avg/2 in one of its runs.
+    The issue is confirmed on FreeBSD 9.1.
     
-    R=golang-dev, dvyukov
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12548043
+    https://golang.org/cl/12332043
 
- src/pkg/runtime/pprof/pprof.go      |  3 ++-
- src/pkg/runtime/pprof/pprof_test.go | 20 ++++++++++++++------
- 2 files changed, 16 insertions(+), 7 deletions(-)
+ src/pkg/net/interface_test.go | 13 ++++++++++++-
+ src/pkg/syscall/route_bsd.go  |  9 ++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

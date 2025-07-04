@@ -1,15 +1,24 @@
-commit 6c4943cb51cc7c4b27233a7717d74742871f7faa
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed May 15 01:25:20 2013 +0200
+commit f1583bb9563827fe132c97798657a6c60e6a0457
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 15:50:46 2013 -0700
 
-    cmd/gc: fix race instrumentation of selectors T(v).Field
+    encoding/json: allocate less in NewEncoder
     
-    Fixes #5424.
+    The *Encoder is almost always garbage. It doesn't need an
+    encodeState inside of it (and its bytes.Buffer), since it's
+    only needed locally inside of Encode.
     
-    R=golang-dev, daniel.morsing, dvyukov, r
-    CC=golang-dev
-    https://golang.org/cl/9033048
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkEncoderEncode         2562         2553   -0.35%
+    
+    benchmark                 old bytes    new bytes    delta
+    BenchmarkEncoderEncode          283          102  -63.96%
+    
+    R=r
+    CC=gobot, golang-dev
+    https://golang.org/cl/9365044
 
- src/cmd/gc/racewalk.c                      | 33 ++++++++++++++++++
- src/pkg/runtime/race/testdata/comp_test.go | 54 ++++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+)
+ src/pkg/encoding/json/encode.go      | 20 ++++++++++++++++++++
+ src/pkg/encoding/json/stream.go      |  9 +++++----
+ src/pkg/encoding/json/stream_test.go | 13 +++++++++++++
+ 3 files changed, 38 insertions(+), 4 deletions(-)

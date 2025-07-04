@@ -1,21 +1,26 @@
-commit 5881d3048dd851d1e259ecab4e247f50cc10c6a8
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Mon Jun 25 12:30:31 2018 +0200
+commit b55eedd1737cd10a51818436e2f0a048d546297c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 21:00:36 2018 +0000
 
-    syscall/js: turn constant package vars into functions
+    Revert "cmd/compile: cleanup nodpc and nodfp"
     
-    This is so the values can not be changed and the type is easy to see.
+    This reverts commit dcac984b97470c4f047f0d3d87b0af40f5246ed2.
     
-    Requested on https://go-review.googlesource.com/c/go/+/120561.
+    Reason for revert: broke LR architectures (arm64, ppc64, s390x)
     
-    Change-Id: If2ed48ca3ba8874074687bfb2375d2f5592e8e0d
-    Reviewed-on: https://go-review.googlesource.com/120564
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I531d311c9053e81503c8c78d6cf044b318fc828b
+    Reviewed-on: https://go-review.googlesource.com/99695
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/rand/rand_js.go   |  2 +-
- src/net/http/roundtrip_js.go | 18 +++++++++---------
- src/syscall/fs_js.go         |  4 ++--
- src/syscall/js/callback.go   | 10 +++++-----
- src/syscall/js/js.go         | 34 ++++++++++++++++++++--------------
- src/syscall/js/js_test.go    | 26 +++++++++++++-------------
- 6 files changed, 50 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 467 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +-
+ src/cmd/compile/internal/gc/esc.go             |   4 +
+ src/cmd/compile/internal/gc/go.go              |   2 +
+ src/cmd/compile/internal/gc/pgen.go            |   7 +-
+ src/cmd/compile/internal/gc/racewalk.go        |  18 +-
+ src/cmd/compile/internal/gc/ssa.go             |  10 +-
+ src/cmd/compile/internal/gc/universe.go        |  19 +-
+ src/cmd/compile/internal/gc/walk.go            |   2 +-
+ 9 files changed, 270 insertions(+), 261 deletions(-)

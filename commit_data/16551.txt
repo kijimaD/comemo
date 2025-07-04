@@ -1,12 +1,67 @@
-commit 80efeff20a88392b13f78338f5a17605fc55e460
+commit 7ea75a5f188ff23fee5130199e89408c52ee59d1
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 12 09:06:28 2013 -0400
+Date:   Wed Jun 12 08:42:05 2013 -0400
 
-    runtime: fix build
+    cmd/go: diagnose invalid coverage runs
     
-    TBR=dvyukov
+    # bufio
+    coverage analysis cannot handle package (bufio_test imports testing imports bufio)
+    # bytes
+    coverage analysis cannot handle package (bytes_test imports encoding/base64 imports bytes)
+    # crypto/cipher
+    coverage analysis cannot handle package (cipher_test imports crypto/aes imports crypto/cipher)
+    # debug/dwarf
+    coverage analysis cannot handle package (dwarf_test imports debug/elf imports debug/dwarf)
+    # errors
+    coverage analysis cannot handle package (errors_test imports fmt imports errors)
+    # flag
+    coverage analysis cannot handle package (flag_test imports testing imports flag)
+    # fmt
+    coverage analysis cannot handle package (fmt_test imports testing imports fmt)
+    # go/ast
+    coverage analysis cannot handle package (ast_test imports go/format imports go/ast)
+    # image
+    coverage analysis cannot handle package (image_test imports image/gif imports image)
+    # io
+    coverage analysis cannot handle package (io_test imports bytes imports io)
+    # math
+    coverage analysis cannot handle package (math_test imports fmt imports math)
+    # net/http
+    coverage analysis cannot handle package (http_test imports net/http/httptest imports net/http)
+    # os
+    coverage analysis cannot handle package (os_test imports flag imports os)
+    # path/filepath
+    coverage analysis cannot handle package (filepath_test imports io/ioutil imports path/filepath)
+    # reflect
+    coverage analysis cannot handle package (reflect_test imports flag imports reflect)
+    # runtime
+    coverage analysis cannot handle package (runtime_test imports fmt imports runtime)
+    # runtime/pprof
+    coverage analysis cannot handle package (pprof_test imports testing imports runtime/pprof)
+    # sort
+    coverage analysis cannot handle package (sort_test imports testing imports sort)
+    # strconv
+    coverage analysis cannot handle package (strconv_test imports fmt imports strconv)
+    # strings
+    coverage analysis cannot handle package (strings_test imports testing imports strings)
+    # sync
+    coverage analysis cannot handle package (sync_test imports fmt imports sync)
+    # sync/atomic
+    coverage analysis cannot handle package (atomic_test imports testing imports sync/atomic)
+    # syscall
+    coverage analysis cannot handle package (syscall_test imports flag imports syscall)
+    # text/tabwriter
+    coverage analysis cannot handle package (tabwriter_test imports testing imports text/tabwriter)
+    # time
+    coverage analysis cannot handle package (time_test imports encoding/gob imports time)
+    # unicode
+    coverage analysis cannot handle package (unicode_test imports testing imports unicode)
+    # unicode/utf8
+    coverage analysis cannot handle package (utf8_test imports bytes imports unicode/utf8)
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/10227044
+    https://golang.org/cl/10216043
 
- src/pkg/runtime/traceback_x86.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

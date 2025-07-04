@@ -1,20 +1,29 @@
-commit de4b06559119eac499906aaa4d42046b3beed52d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Oct 27 13:36:48 2016 +1100
+commit fba8f4deba81b8c5d903ec2f52dcb151f13a147b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 17:17:50 2016 -0700
 
-    image/png: allow tRNS chunk without a PLTE chunk.
+    go/internal/gcimporter: fail gracefully on export format skew
     
-    While https://www.w3.org/TR/PNG/#5ChunkOrdering says that tRNS's
-    ordering constraint is "After PLTE; before IDAT", it is legal for a tRNS
-    chunk to occur without a PLTE chunk at all, for greyscale and truecolor
-    transparency as opposed to palette-based transparency. See
-    https://www.w3.org/TR/PNG/#11transinfo
+    Port of changes made to compiler in
+    https://go-review.googlesource.com/27814.
     
-    Fixes #17511.
+    Correctly handle export format version 0 (we only do this
+    in x/tools/gcimporter15 at the moment - this is a backport
+    of that code for struct fields).
     
-    Change-Id: I047b0b01d78a1cda65e00eeac229bb972cda431d
-    Reviewed-on: https://go-review.googlesource.com/32139
-    Reviewed-by: Rob Pike <r@golang.org>
+    Added tests for version handling and detection of corrupted
+    export data.
+    
+    Fixes #16881.
+    
+    Change-Id: I246553c689c89ef5c7fedd1e43717504c2838804
+    Reviewed-on: https://go-review.googlesource.com/27816
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/image/png/reader.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/go/internal/gcimporter/bimport.go              |  94 +++++++++++++++------
+ src/go/internal/gcimporter/gcimporter.go           |   4 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |  65 ++++++++++++++
+ .../internal/gcimporter/testdata/versions/test.go  |  25 ++++++
+ .../gcimporter/testdata/versions/test_go1.7_0.a    | Bin 0 -> 1862 bytes
+ .../gcimporter/testdata/versions/test_go1.7_1.a    | Bin 0 -> 2316 bytes
+ 6 files changed, 158 insertions(+), 30 deletions(-)

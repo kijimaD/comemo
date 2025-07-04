@@ -1,18 +1,36 @@
-commit a8e532b0f234b3bbf7a1cdcd4213d154e82ba08e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 5 17:22:43 2025 -0800
+commit 48a6362dff840cfe75d5f1a674157af1f5d9ee85
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Nov 12 21:48:31 2023 +0000
 
-    runtime/cgo: clarify that C code must not retain pointer
+    cmd/trace/v2: add goroutine analysis pages
     
-    For #71566
+    This is a complete fork and most of a rewrite of the goroutine analysis
+    pages for v2 traces. It fixes an issue with the old page where GC time
+    didn't really make any sense, generalizes the page and breaks things
+    down further, and adds clarifying text.
     
-    Change-Id: I6dc365dd799d7b506b4a55895f1736d3dfd4684b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647095
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This change also modifies the SummarizeGoroutines API to not stream the
+    trace. This is unfortunate, but we're already reading and holding the
+    entire trace in memory for the trace viewer. We can revisit this
+    decision in the future. Also, we want to do this now because the
+    GoroutineSummary holds on to pointers to events, and these events will
+    be used by the user region and user task analyses. While tracev2 events
+    are values and they should be equivalent no matter how many times we
+    parse a trace, this lets us reference the event in the slice directly.
+    
+    For #60773.
+    For #63960.
+    Fixes #62443.
+    
+    Change-Id: I1c5ab68141869378843f4f2826686038e4533090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541257
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
 
- src/runtime/cgo/handle.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/trace/v2/goroutines.go          | 435 ++++++++++++++++++++++++++++++++
+ src/cmd/trace/v2/main.go                |  11 +-
+ src/internal/trace/goroutinesv2.go      |  70 +++--
+ src/internal/trace/goroutinesv2_test.go |  18 +-
+ src/internal/trace/traceviewer/http.go  |  29 ++-
+ 5 files changed, 532 insertions(+), 31 deletions(-)

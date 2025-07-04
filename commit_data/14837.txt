@@ -1,28 +1,17 @@
-commit 8fff2525cb37a71703b2e54efd3cfc74f7b96414
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jan 9 22:02:53 2013 +0100
+commit 0141c92a5331c9aa7c1ac35f54bb3082a38520a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 9 11:32:16 2013 -0800
 
-    cmd/gc: add space to export data to match linker expectations
+    go/printer, gofmt: don't print unneeded parentheses around parameter types
     
-    The linker split PKGDEF into (prefix, name, def) pairs,
-    and defines def to begin after a space following the identifier.
-    This is totally wrong for the following export data:
+    Fixes #4624.
     
-            func "".FunctionName()
-            var SomethingCompletelyUnrelated int
-    
-    The linker would parse
-        name=`"".FunctionName()\n\tvar`
-        def=`SomethingCompletelyUnrelated int`
-    since there is no space after FunctionName.
-    
-    R=minux.ma, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7068051
+    https://golang.org/cl/7058052
 
- src/cmd/gc/export.c             |  9 +++++----
- test/fixedbugs/bug472.dir/p1.go | 17 +++++++++++++++++
- test/fixedbugs/bug472.dir/p2.go | 17 +++++++++++++++++
- test/fixedbugs/bug472.dir/z.go  | 13 +++++++++++++
- test/fixedbugs/bug472.go        | 10 ++++++++++
- 5 files changed, 62 insertions(+), 4 deletions(-)
+ src/pkg/go/printer/nodes.go                     | 11 +++++++++--
+ src/pkg/go/printer/printer.go                   |  2 +-
+ src/pkg/go/printer/testdata/declarations.golden | 25 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 25 +++++++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 3 deletions(-)

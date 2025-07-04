@@ -1,15 +1,12 @@
-commit bc674b3d16cd9e7d25f8b23d0562c954b7a979be
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Feb 28 22:35:51 2015 -0500
+commit 57c1485fd92a1449def5cc6abdd8a1d5d53d44b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 4 15:16:45 2015 -0800
 
-    os: darwin/arm working dir moved for tests
+    math/big: simplified formatting logic
     
-    The go_darwin_arm_exec script now tells lldb to move the working
-    directory into <bundle>/src/os on startup.
-    
-    Change-Id: I0ada4969e9ea374f08c84ab736aab2097ac73dd8
-    Reviewed-on: https://go-review.googlesource.com/6369
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I4329c44b829fcd77e4f1a1d45904f0f8a280a595
+    Reviewed-on: https://go-review.googlesource.com/3940
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/os_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/ftoa.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

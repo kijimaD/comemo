@@ -1,77 +1,23 @@
-commit b115c35ee337ac6026539802d2ff085949dd1919
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 18 17:26:36 2015 -0400
+commit c123a800633532a4051eebf8ab9ba695ae46013b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 12:56:44 2015 +1100
 
-    cmd/internal/gc: move cgen, regalloc, et al to portable code
+    syscall: generate AT_* constants and regenerate ztypes_linux_*.go
     
-    This CL moves the bulk of the code that has been copy-and-pasted
-    since the initial 386 port back into a shared place, cutting 5 copies to 1.
+    Updates #9974
     
-    The motivation here is not cleanup per se but instead to reduce the
-    cost of introducing changes in shared concepts like regalloc or general
-    expression evaluation. For example, a change after this one will
-    implement x.(*T) without a call into the runtime. This CL makes that
-    followup work 5x easier.
+    The *at family of syscalls requires some constants to be defined in the
+    syscall package for linux. Add the necessary constants and regenerate
+    the ztypes_linux_*.go files.
     
-    The single copy still has more special cases for architecture details
-    than I'd like, but having them called out explicitly like this at least
-    opens the door to generalizing the conditions and smoothing out
-    the distinctions in the future.
-    
-    This is a LARGE CL. I started by trying to pull in one function at a time
-    in a sequence of CLs and it became clear that everything was so
-    interrelated that it had to be moved as a whole. Apologies for the size.
-    
-    It is not clear how many more releases this code will matter for;
-    eventually it will be replaced by Keith's SSA work. But as noted above,
-    the deduplication was necessary to reduce the cost of working on
-    the current code while we have it.
-    
-    Passes tests on amd64, 386, arm, and ppc64le.
-    Can build arm64 binaries but not tested there.
-    Being able to build binaries means it is probably very close.
-    
-    Change-Id: I735977f04c0614f80215fb12966dfe9bbd1f5861
-    Reviewed-on: https://go-review.googlesource.com/7853
+    Change-Id: I6df343fef7bcacad30d36c7900dbfb621465a4fe
+    Reviewed-on: https://go-review.googlesource.com/5836
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/cgen.go                 | 1560 +---------------------
- src/cmd/5g/cgen64.go               |  136 +-
- src/cmd/5g/galign.go               |   31 +-
- src/cmd/5g/gg.go                   |   32 -
- src/cmd/5g/ggen.go                 |  451 ++-----
- src/cmd/5g/gsubr.go                |  336 ++---
- src/cmd/5g/peep.go                 |    8 +-
- src/cmd/6g/cgen.go                 | 1477 +--------------------
- src/cmd/6g/galign.go               |   37 +-
- src/cmd/6g/ggen.go                 |  568 +-------
- src/cmd/6g/gsubr.go                |  306 +----
- src/cmd/7g/cgen.go                 | 1473 +--------------------
- src/cmd/7g/galign.go               |   29 +-
- src/cmd/7g/ggen.go                 |  398 +-----
- src/cmd/7g/gsubr.go                |  257 ++--
- src/cmd/8g/cgen.go                 | 1323 +------------------
- src/cmd/8g/cgen64.go               |   24 +-
- src/cmd/8g/galign.go               |   35 +-
- src/cmd/8g/ggen.go                 |  470 ++-----
- src/cmd/8g/gsubr.go                |  237 +---
- src/cmd/8g/peep.go                 |    8 +-
- src/cmd/9g/cgen.go                 | 1496 +--------------------
- src/cmd/9g/galign.go               |   29 +-
- src/cmd/9g/gg.go                   |   28 -
- src/cmd/9g/ggen.go                 |  422 +-----
- src/cmd/9g/gsubr.go                |  311 ++---
- src/cmd/internal/gc/cgen.go        | 2567 ++++++++++++++++++++++++++++++++++++
- src/cmd/internal/gc/cplx.go        |   50 +-
- src/cmd/internal/gc/gen.go         |   92 +-
- src/cmd/internal/gc/go.go          |   95 +-
- src/cmd/internal/gc/gsubr.go       |  245 +++-
- src/cmd/internal/gc/pgen.go        |   18 +-
- src/cmd/internal/gc/popt.go        |    2 -
- src/cmd/internal/gc/reg.go         |    2 +-
- src/cmd/internal/gc/syntax.go      |    1 +
- src/cmd/internal/obj/arm64/asm7.go |    1 +
- src/cmd/internal/obj/go.go         |    2 +-
- src/cmd/internal/obj/sym.go        |    2 -
- src/cmd/internal/obj/x86/obj6.go   |   12 +
- 39 files changed, 3935 insertions(+), 10636 deletions(-)
+ src/syscall/types_linux.go          | 4 +++-
+ src/syscall/ztypes_linux_386.go     | 4 +++-
+ src/syscall/ztypes_linux_amd64.go   | 4 +++-
+ src/syscall/ztypes_linux_arm.go     | 4 +++-
+ src/syscall/ztypes_linux_ppc64.go   | 4 +++-
+ src/syscall/ztypes_linux_ppc64le.go | 4 +++-
+ 6 files changed, 18 insertions(+), 6 deletions(-)

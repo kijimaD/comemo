@@ -1,12 +1,13 @@
-commit ed0c0f2c808b67190679692e6607b80f380e724d
-Author: Eric Eisner <eric.d.eisner@gmail.com>
-Date:   Mon May 23 22:47:25 2011 -0400
+commit 4c945c2cfc29ccc607f2f606053953813cd0c4b6
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 24 11:02:44 2011 +1000
 
-    misc/emacs: don't select the mark after gofmt
+    image/gif: simplify blockReader.Read.
+    Inverting the tests avoids recursion and simplifies the flow.
     
-    R=ajmani
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4553054
+    https://golang.org/cl/4551057
 
- misc/emacs/go-mode.el | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/gif/reader.go | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

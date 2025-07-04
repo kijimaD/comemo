@@ -1,21 +1,15 @@
-commit b45cb0ce863f3cf91a1847d44a9474aad2a6c592
-Author: David Chase <drchase@google.com>
-Date:   Thu Dec 1 13:39:23 2022 -0500
+commit 69e1711f287f5cd92296240f99d347edc23d40b7
+Author: Josh Bleecher Snyder <josh@tailscale.com>
+Date:   Mon Feb 7 15:23:22 2022 -0800
 
-    doc: 1.20 compiler changes
+    doc/go1.18: mention linker improvements
     
-    This adds the nonPGO, non-coverage compiler changes
-    for the 1.20 release.  There's not that much user
-    visible change.
-    
-    For #54202.
-    
-    Change-Id: Ib2964ed5f7e73bb89c720d09b868ab79682f5070
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454536
+    Change-Id: I12cad608448ddd17a5da2b1d1209007102d892a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383914
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.20.html | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ doc/go1.18.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

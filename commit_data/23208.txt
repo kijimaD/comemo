@@ -1,30 +1,20 @@
-commit 4fdd53680c0c63d10a8c9c155f6df6e3b1e08367
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 26 22:19:27 2015 -0400
+commit 1ddb8c20c6f686170c506c6440e194a58c040bec
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 29 10:36:38 2015 -0700
 
-    cmd/compile: move Node.Defn to Node.Name.Defn
+    crypto/x509: be strict about trailing data.
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 256
-    $
+    The X.509 parser was allowing trailing data after a number of structures
+    in certificates and public keys. There's no obvious security issue here,
+    esp in certificates which are signed anyway, but this change makes
+    trailing data an error just in case.
     
-    Change-Id: I89ac8bbe077664aa076092bfd096947e84c0624c
-    Reviewed-on: https://go-review.googlesource.com/10523
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #10583
+    
+    Change-Id: Idc289914899600697fc6d30482227ff4bf479241
+    Reviewed-on: https://go-review.googlesource.com/9473
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/closure.go   |  4 +--
- src/cmd/compile/internal/gc/dcl.go       | 10 +++----
- src/cmd/compile/internal/gc/esc.go       |  8 +++---
- src/cmd/compile/internal/gc/gen.go       | 10 +++----
- src/cmd/compile/internal/gc/go.y         | 10 +++----
- src/cmd/compile/internal/gc/init.go      |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  6 ++--
- src/cmd/compile/internal/gc/range.go     |  6 ++--
- src/cmd/compile/internal/gc/sinit.go     | 48 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/subr.go      |  9 ++++--
- src/cmd/compile/internal/gc/syntax.go    |  2 +-
- src/cmd/compile/internal/gc/typecheck.go | 40 +++++++++++++-------------
- src/cmd/compile/internal/gc/walk.go      | 16 +++++------
- src/cmd/compile/internal/gc/y.go         | 10 +++----
- 14 files changed, 92 insertions(+), 89 deletions(-)
+ src/crypto/x509/x509.go | 104 +++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 77 insertions(+), 27 deletions(-)

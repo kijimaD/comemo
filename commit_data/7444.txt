@@ -1,13 +1,12 @@
-commit 26880d7e034bcfd3ca45121148a3f7443409b39e
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 11 17:47:17 2011 -0500
+commit ca5179d3f6889185f2aa3fb985f34a963015d133
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Feb 11 13:22:35 2011 -0800
 
-    sync: check Unlock of unlocked Mutex
+    5ld: stoped generating 64-bit eor
     
-    R=r, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4180044
+    https://golang.org/cl/4182049
 
- src/pkg/sync/mutex.go      |  7 ++++++-
- src/pkg/sync/mutex_test.go | 13 +++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/5l/asm.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

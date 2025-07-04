@@ -1,13 +1,23 @@
-commit 1b47af21995cfbb5f8367b371b37f7c6f8454f5d
+commit 42486ffc5d435e01ca9491b64d3a52d39de169d7
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 4 10:16:57 2014 +0400
+Date:   Fri Aug 29 11:08:10 2014 +0400
 
-    runtime: fix arm build
+    runtime: convert forcegc helper to Go
+    Also fix a bunch of bugs:
+    1. Accesses to last_gc must be atomic (it's int64).
+    2. last_gc still can be 0 during first checks in sysmon, check for 0.
+    3. forcegc.g can be unitialized when sysmon accesses it:
+            forcegc.g is initialized by main goroutine (forcegc.g = newproc1(...)),
+            and main goroutine is unsynchronized with both sysmon and forcegc goroutine.
+            Initialize forcegc.g in the forcegc goroutine itself instead.
     
-    TBR=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/140990043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/136770043
 
- src/pkg/runtime/atomic_arm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c    |  2 +-
+ src/pkg/runtime/proc.c    | 44 +++++++++-----------------------------------
+ src/pkg/runtime/proc.go   | 21 +++++++++++++++++++++
+ src/pkg/runtime/runtime.h |  9 +++++++++
+ 4 files changed, 40 insertions(+), 36 deletions(-)

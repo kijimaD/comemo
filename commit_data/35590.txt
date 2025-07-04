@@ -1,16 +1,26 @@
-commit d0228b03bd77e048504877797e53e3f16b149d8f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jun 4 20:06:30 2018 +0200
+commit 2465ae64591a0be336f0b0b654e1c02c89fdbe4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 20:27:29 2018 -0800
 
-    net: drop special case for macOS 10.7 and earlier
+    go/types: fix regression with short variable declarations
     
-    Updates #23122
+    The variables on the lhs of a short variable declaration are
+    only in scope after the variable declaration. Specifically,
+    function literals on the rhs of a short variable declaration
+    must not see newly declared variables on the lhs.
     
-    Change-Id: Ia2c869a140c8ee01b5861897e4706389950d387e
-    Reviewed-on: https://go-review.googlesource.com/116156
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This used to work and this bug was likely introduced with
+    https://go-review.googlesource.com/c/go/+/83397 for go1.11.
+    Luckily this is just an oversight and the fix is trivial:
+    Simply use the mechanism for delayed type-checkin of function
+    literals introduced in the before-mentioned change here as well.
+    
+    Fixes #24026.
+    
+    Change-Id: I74ce3a0d05c5a2a42ce4b27601645964f906e82d
+    Reviewed-on: https://go-review.googlesource.com/96177
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/tcpsockopt_darwin.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/go/types/assignments.go      |  4 ++++
+ src/go/types/testdata/issues.src | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

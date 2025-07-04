@@ -1,24 +1,14 @@
-commit d1177ed40d127e3ca37bda02333516e16fdbb20f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jul 10 15:14:49 2014 -0400
+commit 6fbade1ec6e3f05a822b72bb90da82d382a5688a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 10 18:08:33 2014 +1000
 
-    runtime: nacl/arm support.
+    A+C: add Dustin Long (Markover Inc. DBA Poptip corporate CLA).
     
-    LGTM=rsc
-    R=rsc, iant, dave
-    CC=golang-codereviews
-    https://golang.org/cl/103680046
+    LGTM=adg
+    R=adg
+    CC=dustmop, golang-codereviews
+    https://golang.org/cl/111000044
 
- src/pkg/runtime/arch_arm.h        |   6 +-
- src/pkg/runtime/asm_arm.s         |   9 +-
- src/pkg/runtime/defs_nacl_arm.h   |  70 ++++++++++
- src/pkg/runtime/os_nacl_arm.c     |  24 ++++
- src/pkg/runtime/rt0_nacl_arm.s    |  20 +++
- src/pkg/runtime/runtime.c         |  10 +-
- src/pkg/runtime/signal_arm.c      |   2 +-
- src/pkg/runtime/signal_nacl_arm.h |  28 ++++
- src/pkg/runtime/sys_nacl_arm.s    | 278 ++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/tls_arm.s         |   8 ++
- src/pkg/runtime/vlop_arm.s        |  43 +++---
- src/pkg/runtime/vlrt_arm.c        |   1 +
- 12 files changed, 470 insertions(+), 29 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

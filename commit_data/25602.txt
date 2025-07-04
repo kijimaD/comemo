@@ -1,20 +1,18 @@
-commit 3208d92b78eed4d6abfedf3799f51b37826351a6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 18 22:55:11 2016 -0500
+commit 846a9adf0592a0f34846c871c59b71d033187b0f
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 24 08:56:15 2015 -0400
 
-    build: test linux/mips64 and linux/mips64le with buildall.bash
+    runtime: restructured signal_linux.go, added signal table for mips64.
     
-    Both mips64 architectures share the same runtime/rt0 file, so
-    we have to hardcode them in buildall.bash.
+    Linux/mips64 uses a different signal table. To avoid code copying,
+    signal table is factored out from signal_linux.go to
+    sigtab_linux_generic.go. And a mips64-specific version is added.
     
-    Ideally we should have cmd/dist report all supported platforms,
-    see #12270.
-    
-    Change-Id: I08ce35cfe0a831af5e1e8255b305efd38386fa52
-    Reviewed-on: https://go-review.googlesource.com/18687
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I842d7a7467c330bf772855fde01aecc77a42316b
+    Reviewed-on: https://go-review.googlesource.com/14993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/buildall.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/signal_linux.go         | 73 ---------------------------------
+ src/runtime/sigtab_linux_generic.go | 82 +++++++++++++++++++++++++++++++++++++
+ src/runtime/sigtab_linux_mips64x.go | 81 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 163 insertions(+), 73 deletions(-)

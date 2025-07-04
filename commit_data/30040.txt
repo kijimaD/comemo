@@ -1,22 +1,15 @@
-commit 34b563f447280f9d386f208646ac4f94cafc4ab6
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Jan 14 05:23:23 2017 -0700
+commit 0e7f9700f69944a993230d706e41a86ac47da415
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Oct 21 18:46:44 2016 +0900
 
-    cmd/compile: improve error for wrong type in switch
+    path/filepath: pass TestToNorm even if VolumeName(tmpdir) != VolumeName(pwd) on windows
     
-    Fixes #10561.
+    Fixes #17504
     
-    Provides a better diagnostic message for failed type switch
-    satisfaction in the case that a value receiver is being used
-    in place of the pointer receiver that implements and satisfies
-    the interface.
-    
-    Change-Id: If8c13ba13f2a8d81bf44bac7c3a66c12921ba921
-    Reviewed-on: https://go-review.googlesource.com/35235
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic83578cf2019e5d8778e4b324f04931eb802f603
+    Reviewed-on: https://go-review.googlesource.com/31544
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/swt.go |  9 +++++++--
- test/switch6.go                    | 14 ++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/path/filepath/path_windows_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

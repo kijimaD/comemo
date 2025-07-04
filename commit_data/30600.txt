@@ -1,18 +1,23 @@
-commit 3a1271dad7617a9766d21987b2c3cc0e683d2010
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Mar 8 22:54:52 2017 +0100
+commit b906df653b58bc2ab9b93e18f62adccc8c1419b7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 17:55:28 2016 -0800
 
-    go/internal/srcimporter: skip tests on iOS
+    os/exec: add closeOnce.WriteString method
     
-    The iOS test harness only includes the current test directory in its
-    app bundles, but the tests need access to all source code.
+    Add an explicit WriteString method to closeOnce that acquires the
+    writers lock.  This overrides the one promoted from the
+    embedded *os.File field.  The promoted one naturally does not acquire
+    the lock, and can therefore race with the Close method.
     
-    Change-Id: I8a902b183bc2745b4fbfffef867002d573abb1f5
-    Reviewed-on: https://go-review.googlesource.com/37961
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Fixes #17647.
+    
+    Change-Id: I3460f2a0d503449481cfb2fd4628b4855ab0ecdf
+    Reviewed-on: https://go-review.googlesource.com/33298
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/srcimporter/srcimporter_test.go |  6 +++---
- src/internal/testenv/testenv.go                 | 13 +++++++++++++
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/dist/test.go     |  4 ++--
+ src/os/exec/exec.go      |  7 +++++++
+ src/os/exec/exec_test.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 2 deletions(-)

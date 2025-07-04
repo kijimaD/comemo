@@ -1,28 +1,26 @@
-commit 57f9ed5f12ba395fa55880305bc11e1db840f36c
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 13:21:34 2023 -0500
+commit adfee1e1e7b3236770c19d255e945613a53a34cc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 17 22:39:53 2022 +0100
 
-    cmd/go: add and use cmd/go/internal/slices.Clip
+    runtime/cgo: remove memset in _cgo_sys_thread_start on freebsd/arm
     
-    This will be part of the standard library soon and then
-    cmd/go can use it directly, but I am writing a few more instances
-    of this pattern today and wanted to clean these up first.
+    pthread_attr_init on freebsd properly initializes the pthread_attr,
+    there is no need to zero it before the call. The comment and code were
+    probably copied from the linux/arm implementation.
     
-    Change-Id: I3a7336039949ffe95a403aed08d79206c91eafb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464115
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    This aligns the implementation on freebsd/arm with the implementation on
+    other freebsd architectures.
+    
+    Fixes #44248
+    
+    Change-Id: If82ebb115b877b6c6f4862018a9419ba8d870f12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393617
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
 
- src/cmd/go/internal/generate/generate.go |  3 ++-
- src/cmd/go/internal/modload/buildlist.go | 12 ++++--------
- src/cmd/go/internal/modload/init.go      |  3 ++-
- src/cmd/go/internal/modload/query.go     |  3 ++-
- src/cmd/go/internal/mvs/graph.go         |  5 +++--
- src/cmd/go/internal/slices/slices.go     | 12 ++++++++++++
- src/cmd/go/internal/test/test.go         |  3 ++-
- src/cmd/go/internal/vcweb/git.go         |  3 ++-
- src/cmd/go/internal/vcweb/hg.go          |  3 ++-
- src/cmd/go/internal/work/exec.go         |  3 ++-
- 10 files changed, 33 insertions(+), 17 deletions(-)
+ src/runtime/cgo/gcc_freebsd_arm.c | 6 ------
+ 1 file changed, 6 deletions(-)

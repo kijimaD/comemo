@@ -1,22 +1,20 @@
-commit 50d8d4e834039574602df287522a25bb70c101bb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 23 15:13:16 2015 -0500
+commit db2e73faeb97f39653180080b0cc4c05501cbf94
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 16 18:45:30 2015 -0700
 
-    runtime: simplify sigprof traceback interlocking
+    runtime: merge stack{1,2}.go -> stack.go
     
-    The addition of stack barrier locking to copystack subsumes the
-    partial fix from commit bbd1a1c for SIGPROF during copystack. With the
-    stack barrier locking, this commit simplifies the rule in sigprof to:
-    the user stack can be traced only if sigprof can acquire the stack
-    barrier lock.
+    * rename stack1.go -> stack.go
+    * prepend contents of stack2.go to stack.go
     
-    Updates #12932, #13362.
+    Updates #12952
     
-    Change-Id: I1c1f80015053d0ac7761e9e0c7437c2aba26663f
-    Reviewed-on: https://go-review.googlesource.com/17192
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I60d409af37162a5a7596c678dfebc2cea89564ff
+    Reviewed-on: https://go-review.googlesource.com/16008
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/proc.go | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ src/runtime/{stack1.go => stack.go} | 101 ++++++++++++++++++++++++++++++++++
+ src/runtime/stack2.go               | 106 ------------------------------------
+ 2 files changed, 101 insertions(+), 106 deletions(-)

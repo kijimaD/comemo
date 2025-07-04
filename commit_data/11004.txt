@@ -1,30 +1,33 @@
-commit d5e45e3a8a9b3316f5b8c40804388f695fddb41f
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Dec 25 12:42:47 2011 +1100
+commit b28f017537df9c10e45c5474612082ed4bbfc8ef
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Dec 24 11:07:14 2011 +1100
 
-    html: adjust foreign attributes.
+    html: "in select in table" insertion mode.
     
-    Pass tests10.dat, test 22:
-    <!DOCTYPE html><body xlink:href=foo><svg xlink:href=foo></svg>
+    Pass tests10.dat, test 16:
+    <!DOCTYPE
+    html><body><table><tr><td><select><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
     
     | <!DOCTYPE html>
     | <html>
     |   <head>
     |   <body>
-    |     xlink:href="foo"
-    |     <svg svg>
-    |       xlink href="foo"
+    |     <table>
+    |       <tbody>
+    |         <tr>
+    |           <td>
+    |             <select>
+    |               "foobarbaz"
+    |     <p>
+    |       "quux"
     
-    Also pass tests through test 29:
-    <div><svg><path></svg><path>
+    Also pass tests through test 21:
+    <!DOCTYPE html><frameset></frameset><svg><g></g><g></g><p><span>
     
-    R=andybalholm
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5489117
+    https://golang.org/cl/5505069
 
- src/pkg/html/foreign.go    | 19 +++++++++++++++++++
- src/pkg/html/parse.go      |  4 ++--
- src/pkg/html/parse_test.go | 17 ++++++++++++++---
- src/pkg/html/render.go     |  8 ++++++++
- src/pkg/html/token.go      |  9 ++++++---
- 5 files changed, 49 insertions(+), 8 deletions(-)
+ src/pkg/html/parse.go      | 63 ++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 53 insertions(+), 12 deletions(-)

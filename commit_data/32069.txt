@@ -1,19 +1,16 @@
-commit 9e859d5e9c7c093937c79f87c4b3328383320843
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 18 13:15:05 2017 -0700
+commit e4e1d089bea9afa1c97a9613d1f820a2e896954e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 31 10:09:27 2017 -0700
 
-    cmd/go, cmd/link: if -no-pie doesn't work, try -nopie
+    go/types: use std "DO NOT EDIT" comment for generated hilbert test
     
-    GCC says -no-pie, clang says -nopie.
+    For #13560.
     
-    Fixes #21042
-    
-    Change-Id: Iadc83ea7a48ea0debc5064c1ee8da4ebff752044
-    Reviewed-on: https://go-review.googlesource.com/49710
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I884e63f89d0756ca87b8c2092b4fd8360f791a2f
+    Reviewed-on: https://go-review.googlesource.com/39171
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build.go | 25 ++++++++++++++++---------
- src/cmd/link/internal/ld/lib.go   | 21 ++++++++++++++-------
- 2 files changed, 30 insertions(+), 16 deletions(-)
+ src/go/types/hilbert_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

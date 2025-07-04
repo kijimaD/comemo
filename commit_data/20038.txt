@@ -1,18 +1,156 @@
-commit 2de65cad54da0f7fe3ff6aafb3cd70ad36146e2b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 19 14:59:56 2014 +1000
+commit 8bca148a3e81631126b8d74e18c6cdb203313217
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 17:04:45 2014 -0700
 
-    os: make SameFile handle paths like c:a.txt properly
+    all: copy cmd/ld/textflag.h into pkg/GOOS_GOARCH
+    The file is used by assembly code to define symbols like NOSPLIT.
+    Having it hidden inside the cmd directory makes it hard to access
+    outside the standard repository.
+    Solution: As with a couple of other files used by cgo, copy the
+    file into the pkg directory and add a -I argument to the assembler
+    to access it. Thus one can write just
+            #include "textflag.h"
+    in .s files.
     
-    Fixes #8490.
+    The names in runtime are not updated because in the boot sequence the
+    file has not been copied yet when runtime is built. All other .s files
+    in the repository are updated.
     
-    LGTM=r, rsc
-    R=golang-codereviews, rsc, bradfitz, r
+    Changes to doc/asm.html, src/cmd/dist/build.c, and src/cmd/go/build.go
+    are hand-made. The rest are just the renaming done by a global
+    substitution. (Yay sam).
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/127740043
+    https://golang.org/cl/128050043
 
- src/pkg/os/file_windows.go      |  6 +++--
- src/pkg/os/os_windows_test.go   | 54 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/os/stat_windows.go      |  6 +++--
- src/pkg/syscall/exec_windows.go | 15 ++++++------
- 4 files changed, 69 insertions(+), 12 deletions(-)
+ doc/asm.html                              | 2 +-
+ src/cmd/dist/build.c                      | 5 ++++-
+ src/cmd/go/build.go                       | 4 +++-
+ src/cmd/link/testdata/autosection.s       | 2 +-
+ src/cmd/link/testdata/layout.s            | 2 +-
+ src/pkg/crypto/aes/asm_amd64.s            | 2 +-
+ src/pkg/crypto/md5/md5block_386.s         | 2 +-
+ src/pkg/crypto/md5/md5block_amd64.s       | 2 +-
+ src/pkg/crypto/md5/md5block_amd64p32.s    | 2 +-
+ src/pkg/crypto/md5/md5block_arm.s         | 2 +-
+ src/pkg/crypto/rc4/rc4_386.s              | 2 +-
+ src/pkg/crypto/rc4/rc4_amd64.s            | 2 +-
+ src/pkg/crypto/rc4/rc4_amd64p32.s         | 2 +-
+ src/pkg/crypto/rc4/rc4_arm.s              | 2 +-
+ src/pkg/crypto/sha1/sha1block_386.s       | 2 +-
+ src/pkg/crypto/sha1/sha1block_amd64.s     | 2 +-
+ src/pkg/crypto/sha1/sha1block_amd64p32.s  | 2 +-
+ src/pkg/crypto/sha1/sha1block_arm.s       | 2 +-
+ src/pkg/crypto/sha256/sha256block_amd64.s | 2 +-
+ src/pkg/crypto/sha512/sha512block_amd64.s | 2 +-
+ src/pkg/hash/crc32/crc32_amd64.s          | 2 +-
+ src/pkg/hash/crc32/crc32_amd64p32.s       | 2 +-
+ src/pkg/math/abs_386.s                    | 2 +-
+ src/pkg/math/abs_amd64.s                  | 2 +-
+ src/pkg/math/abs_arm.s                    | 2 +-
+ src/pkg/math/asin_386.s                   | 2 +-
+ src/pkg/math/asin_amd64.s                 | 2 +-
+ src/pkg/math/asin_arm.s                   | 2 +-
+ src/pkg/math/atan2_386.s                  | 2 +-
+ src/pkg/math/atan2_amd64.s                | 2 +-
+ src/pkg/math/atan2_arm.s                  | 2 +-
+ src/pkg/math/atan_386.s                   | 2 +-
+ src/pkg/math/atan_amd64.s                 | 2 +-
+ src/pkg/math/atan_arm.s                   | 2 +-
+ src/pkg/math/big/arith_386.s              | 2 +-
+ src/pkg/math/big/arith_amd64.s            | 2 +-
+ src/pkg/math/big/arith_amd64p32.s         | 2 +-
+ src/pkg/math/big/arith_arm.s              | 2 +-
+ src/pkg/math/dim_386.s                    | 2 +-
+ src/pkg/math/dim_amd64.s                  | 2 +-
+ src/pkg/math/dim_arm.s                    | 2 +-
+ src/pkg/math/exp2_386.s                   | 2 +-
+ src/pkg/math/exp2_amd64.s                 | 2 +-
+ src/pkg/math/exp2_arm.s                   | 2 +-
+ src/pkg/math/exp_386.s                    | 2 +-
+ src/pkg/math/exp_amd64.s                  | 2 +-
+ src/pkg/math/exp_arm.s                    | 2 +-
+ src/pkg/math/expm1_386.s                  | 2 +-
+ src/pkg/math/expm1_amd64.s                | 2 +-
+ src/pkg/math/expm1_arm.s                  | 2 +-
+ src/pkg/math/floor_386.s                  | 2 +-
+ src/pkg/math/floor_amd64.s                | 2 +-
+ src/pkg/math/floor_arm.s                  | 2 +-
+ src/pkg/math/frexp_386.s                  | 2 +-
+ src/pkg/math/frexp_amd64.s                | 2 +-
+ src/pkg/math/frexp_arm.s                  | 2 +-
+ src/pkg/math/hypot_386.s                  | 2 +-
+ src/pkg/math/hypot_amd64.s                | 2 +-
+ src/pkg/math/hypot_arm.s                  | 2 +-
+ src/pkg/math/ldexp_386.s                  | 2 +-
+ src/pkg/math/ldexp_amd64.s                | 2 +-
+ src/pkg/math/ldexp_arm.s                  | 2 +-
+ src/pkg/math/log10_386.s                  | 2 +-
+ src/pkg/math/log10_amd64.s                | 2 +-
+ src/pkg/math/log10_arm.s                  | 2 +-
+ src/pkg/math/log1p_386.s                  | 2 +-
+ src/pkg/math/log1p_amd64.s                | 2 +-
+ src/pkg/math/log1p_arm.s                  | 2 +-
+ src/pkg/math/log_386.s                    | 2 +-
+ src/pkg/math/log_amd64.s                  | 2 +-
+ src/pkg/math/log_arm.s                    | 2 +-
+ src/pkg/math/mod_386.s                    | 2 +-
+ src/pkg/math/mod_amd64.s                  | 2 +-
+ src/pkg/math/mod_arm.s                    | 2 +-
+ src/pkg/math/modf_386.s                   | 2 +-
+ src/pkg/math/modf_amd64.s                 | 2 +-
+ src/pkg/math/modf_arm.s                   | 2 +-
+ src/pkg/math/remainder_386.s              | 2 +-
+ src/pkg/math/remainder_amd64.s            | 2 +-
+ src/pkg/math/remainder_arm.s              | 2 +-
+ src/pkg/math/sin_386.s                    | 2 +-
+ src/pkg/math/sin_amd64.s                  | 2 +-
+ src/pkg/math/sin_arm.s                    | 2 +-
+ src/pkg/math/sincos_386.s                 | 2 +-
+ src/pkg/math/sincos_amd64.s               | 2 +-
+ src/pkg/math/sincos_arm.s                 | 2 +-
+ src/pkg/math/sqrt_386.s                   | 2 +-
+ src/pkg/math/sqrt_amd64.s                 | 2 +-
+ src/pkg/math/sqrt_arm.s                   | 2 +-
+ src/pkg/math/tan_386.s                    | 2 +-
+ src/pkg/math/tan_amd64.s                  | 2 +-
+ src/pkg/math/tan_arm.s                    | 2 +-
+ src/pkg/os/signal/sig.s                   | 2 +-
+ src/pkg/reflect/asm_386.s                 | 2 +-
+ src/pkg/reflect/asm_amd64.s               | 2 +-
+ src/pkg/reflect/asm_amd64p32.s            | 2 +-
+ src/pkg/reflect/asm_arm.s                 | 2 +-
+ src/pkg/sync/atomic/asm_386.s             | 2 +-
+ src/pkg/sync/atomic/asm_amd64.s           | 2 +-
+ src/pkg/sync/atomic/asm_amd64p32.s        | 2 +-
+ src/pkg/sync/atomic/asm_arm.s             | 2 +-
+ src/pkg/sync/atomic/asm_freebsd_arm.s     | 2 +-
+ src/pkg/sync/atomic/asm_linux_arm.s       | 2 +-
+ src/pkg/sync/atomic/asm_nacl_arm.s        | 2 +-
+ src/pkg/sync/atomic/asm_netbsd_arm.s      | 2 +-
+ src/pkg/syscall/asm_darwin_386.s          | 2 +-
+ src/pkg/syscall/asm_darwin_amd64.s        | 2 +-
+ src/pkg/syscall/asm_dragonfly_386.s       | 2 +-
+ src/pkg/syscall/asm_dragonfly_amd64.s     | 2 +-
+ src/pkg/syscall/asm_freebsd_386.s         | 2 +-
+ src/pkg/syscall/asm_freebsd_amd64.s       | 2 +-
+ src/pkg/syscall/asm_freebsd_arm.s         | 2 +-
+ src/pkg/syscall/asm_linux_386.s           | 2 +-
+ src/pkg/syscall/asm_linux_amd64.s         | 2 +-
+ src/pkg/syscall/asm_linux_arm.s           | 2 +-
+ src/pkg/syscall/asm_nacl_386.s            | 2 +-
+ src/pkg/syscall/asm_nacl_amd64p32.s       | 2 +-
+ src/pkg/syscall/asm_nacl_arm.s            | 2 +-
+ src/pkg/syscall/asm_netbsd_386.s          | 2 +-
+ src/pkg/syscall/asm_netbsd_amd64.s        | 2 +-
+ src/pkg/syscall/asm_netbsd_arm.s          | 2 +-
+ src/pkg/syscall/asm_openbsd_386.s         | 2 +-
+ src/pkg/syscall/asm_openbsd_amd64.s       | 2 +-
+ src/pkg/syscall/asm_plan9_386.s           | 2 +-
+ src/pkg/syscall/asm_plan9_amd64.s         | 2 +-
+ src/pkg/syscall/time_nacl_386.s           | 2 +-
+ src/pkg/syscall/time_nacl_amd64p32.s      | 2 +-
+ src/pkg/syscall/time_nacl_arm.s           | 2 +-
+ 128 files changed, 133 insertions(+), 128 deletions(-)

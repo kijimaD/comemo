@@ -1,24 +1,17 @@
-commit 23ce80efebbdebd202314717ee7372d4f0f25051
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 27 16:31:16 2015 -0400
+commit da5ebecc6e1290d505825eabaf00400848943984
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 3 14:33:18 2015 -0700
 
-    runtime/race: fix benchmark deadlock
+    cmd/internal/gc/big: update vendored version of math/big
     
-    Currently TestRaceCrawl fails to wg.Done for every wg.Adds if the
-    depth ever reaches 0. This causes the test to deadlock. Under the race
-    detector, this deadlock is not detected, so the test eventually times
-    out.
+    This fixes the formerly extremely slow conversion of floating-point
+    constants with large exponents (e.g., "const c = 1e1000000000" could
+    stall the machine).
     
-    This only recently became a problem. Prior to commit e870f06 the depth
-    would never reach 0 because the strict round-robin goroutine schedule
-    ensured that all of the URLs were already "seen" by depth 2. Now that
-    the runtime prefers scheduling the most recently started goroutine,
-    the test is able to reach depth 0 and trigger this deadlock.
-    
-    Change-Id: I5176302a89614a344c84d587073b364833af6590
-    Reviewed-on: https://go-review.googlesource.com/9344
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I36e02158e3334d32b18743ec0c259fec77baa74f
+    Reviewed-on: https://go-review.googlesource.com/8466
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/race/testdata/mop_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/gc/big/floatconv.go      | 50 ++++++++++++++++++++++++-------
+ src/cmd/internal/gc/big/floatconv_test.go |  6 ++++
+ 2 files changed, 46 insertions(+), 10 deletions(-)

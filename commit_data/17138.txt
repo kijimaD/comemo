@@ -1,20 +1,28 @@
-commit 1f25f5ad48b61092bdd8f43af7c068db0e947363
-Author: Rob Pike <r@golang.org>
-Date:   Sat Aug 10 08:40:32 2013 +1000
+commit 080e00d55d37be67be30e2723233594e64097edf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 18:33:57 2013 -0400
 
-    encoding/binary: fast path for reading slices
+    encoding/json: escape & always
     
-    Again, it still allocates but the code is simple.
+    There are a few different places in the code that escape
+    possibly-problematic characters like < > and &.
+    This one was the only one missing &, so add it.
     
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkReadSlice1000Int32s        35580        11465  -67.78%
+    This means that if you Marshal a string, you get the
+    same answer you do if you Marshal a string and
+    pass it through the compactor. (Ironically, the
+    compaction makes the string longer.)
     
-    benchmark                        old MB/s     new MB/s  speedup
-    BenchmarkReadSlice1000Int32s       112.42       348.86    3.10x
+    Because html/template invokes json.Marshal to
+    prepare escaped strings for JavaScript, this changes
+    the form of some of the escaped strings, but not
+    their meaning.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12694048
+    https://golang.org/cl/12708044
 
- src/pkg/encoding/binary/binary.go | 82 ++++++++++++++++++++++++++++++++-------
- 1 file changed, 67 insertions(+), 15 deletions(-)
+ src/pkg/encoding/json/encode.go       |  2 +-
+ src/pkg/html/template/content_test.go | 12 ++++++------
+ src/pkg/html/template/escape_test.go  |  2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)

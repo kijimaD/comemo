@@ -1,19 +1,22 @@
-commit f71c00b6165177dbcc5d40ff5f4731d297ee6090
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Jul 1 16:11:33 2024 +0000
+commit a4cd36500b8c2f25827afb8baae4fb539bc88256
+Author: Damien Neil <dneil@google.com>
+Date:   Fri May 26 07:57:45 2023 -0700
 
-    cmd/link: align .reloc block starts by 32 bits for PE target
+    crypto/tls: avoid referencing potentially unused symbols in init
     
-    Tweak the code that emits the PE ".reloc" section on Windows to ensure
-    that each relocation block is 32-bit aligned, which is required by the
-    PE standard.
+    A reference to a function in a "var _ = ..." init-time
+    initialization keeps the symbol live. Move references to
+    Config.EncryptTicket and Config.DecryptTicket into tests.
+    These references increase the size of an unused import of
+    crypto/tls by about 1MiB.
     
-    Fixes #68260.
-    
-    Change-Id: I39b75a7491b00fa97871aebb90d3be0ec09f9c40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595896
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6d62a6dcbd73e22972a217afcda7395e909b52cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498595
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/crypto/tls/ticket.go      | 4 ----
+ src/crypto/tls/ticket_test.go | 8 ++++++++
+ 2 files changed, 8 insertions(+), 4 deletions(-)

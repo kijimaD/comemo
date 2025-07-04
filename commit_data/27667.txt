@@ -1,17 +1,12 @@
-commit 5f3eb432884ae1b3c61977d93a4bdf0263fcdce6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Jun 9 12:01:43 2016 -0400
+commit 438ce713a1c8e4d24aea547b6fcf907b5dbf0bec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 6 23:34:32 2016 -0700
 
-    syscall: add a padding field to EpollEvent on s390x
+    cmd/link/internal/amd64: remove empty source file
     
-    Fixes #16021.
-    
-    Change-Id: I55df38bbccd2641abcb54704115002a9aa04325d
-    Reviewed-on: https://go-review.googlesource.com/23962
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2da012ed996c669db513a462f014c6f3ffa396ee
+    Reviewed-on: https://go-review.googlesource.com/21646
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/syscall/types_linux.go        | 2 +-
- src/syscall/ztypes_linux_s390x.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/z.go | 1 -
+ 1 file changed, 1 deletion(-)

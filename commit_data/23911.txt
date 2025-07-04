@@ -1,44 +1,12 @@
-commit b2dfacf35e162f7ddcc5b1ed4c1e8e87096e06a9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 10:45:01 2015 -0400
+commit 1be335b6086bbf5a6c37e62fbf0440ef115a0a5a
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jun 18 09:37:06 2015 +0200
 
-    runtime: change arm software div/mod call sequence not to modify stack
+    encoding/csv: add examples for package
     
-    Instead of pushing the denominator argument on the stack,
-    the denominator is now passed in m.
-    
-    This fixes a variety of bugs related to trying to take stack traces
-    backwards from the middle of the software div/mod routines.
-    Some of those bugs have been kludged around in the past,
-    but others have not. Instead of trying to patch up after breaking
-    the stack, this CL stops breaking the stack.
-    
-    This is an update of https://golang.org/cl/19810043,
-    which was rolled back in https://golang.org/cl/20350043.
-    
-    The problem in the original CL was that there were divisions
-    at bad times, when m was not available. These were divisions
-    by constant denominators, either in C code or in assembly.
-    The Go compiler knows how to generate division by multiplication
-    for constant denominators, but the C compiler did not.
-    There is no longer any C code, so that's taken care of.
-    There was one problematic DIV in runtime.usleep (assembly)
-    but https://golang.org/cl/12898 took care of that one.
-    So now this approach is safe.
-    
-    Reject DIV/MOD in NOSPLIT functions to keep them from
-    coming back.
-    
-    Fixes #6681.
-    Fixes #6699.
-    Fixes #10486.
-    
-    Change-Id: I09a13c76ad08ba75b3bd5d46a3eb78e66a84ab38
-    Reviewed-on: https://go-review.googlesource.com/12899
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3463826aa760aa5984dec4fc043b95fd2a5120ac
+    Reviewed-on: https://go-review.googlesource.com/11240
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go | 68 +++++++++++++---------------------------
- src/runtime/runtime2.go          |  7 +++--
- src/runtime/vlop_arm.s           | 54 +++++++++++++++++--------------
- test/fixedbugs/issue10486.go     | 31 ++++++++++++++++++
- 4 files changed, 87 insertions(+), 73 deletions(-)
+ src/encoding/csv/example_test.go | 131 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 131 insertions(+)

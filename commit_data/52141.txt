@@ -1,22 +1,29 @@
-commit 6dd20f4f12771ce98a55f9735b05417465d0d31f
-Author: David Chase <drchase@google.com>
-Date:   Mon Jan 30 23:54:13 2023 -0500
+commit 615d3c304077f1f3ca249151fb87d7d7a802cab2
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Apr 4 16:32:29 2022 +0800
 
-    cmd/compile: preserve full inlined location for ir.Name locals
+    test: adjust load and store test
     
-    This was noticed while testing hash-search debugging
-    of the loopvar experiment.
+    In the load tests, we only want to test the assembly produced by
+    the load operations. If we use the global variable sink, it will produce
+    one load operation and one store operation(assign to sink).
     
-    The change is incomplete -- it only addresses local
-    variables, not parameters.  The code to log/search
-    changes in loop variable semantics depends on this,
-    so that will be the test.
+    For example:
     
-    Change-Id: I0f84ab7696c6cab43486242cacaba6a0bfc45475
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464315
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    func load_be64(b []byte) uint64 {
+            sink64 = binary.BigEndian.Uint64(b)
+    }
+    
+    If we compile this function with GOAMD64=v3, it may produce MOVBEQload
+    and MOVQstore or MOVQload and MOVBEQstore, but we only want MOVBEQload.
+    Discovered when developing CL 395474.
+    
+    Same for the store tests.
+    
+    Change-Id: I65c3c742f1eff657c3a0d2dd103f51140ae8079e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397875
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/reader.go | 15 +--------------
- 1 file changed, 1 insertion(+), 14 deletions(-)
+ test/codegen/memcombine.go | 92 ++++++++++++++++++++++------------------------
+ 1 file changed, 44 insertions(+), 48 deletions(-)

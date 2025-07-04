@@ -1,24 +1,15 @@
-commit d528f52d87bc611c2b7e73c358e5b86a18bdf71d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 15 17:44:47 2012 +1100
+commit 4b872d61fe49ecd2ccca4dd8b285e4777d660932
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 15 16:33:45 2012 +1100
 
-    cmd/godoc: add toys, tour button to playground
+    os: return some invented data from Stat(DevNull) on windows
     
-    Fixes #3241.
+    Fixes #3321.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5835043
+    https://golang.org/cl/5831043
 
- doc/play/fib.go        |  17 +++++++
- doc/play/hello.go      |   7 +++
- doc/play/peano.go      |  88 +++++++++++++++++++++++++++++++++++++
- doc/play/pi.go         |  34 ++++++++++++++
- doc/play/playground.js |  87 ++++++++++++++++++++++--------------
- doc/play/sieve.go      |  34 ++++++++++++++
- doc/play/solitaire.go  | 117 +++++++++++++++++++++++++++++++++++++++++++++++++
- doc/play/tree.go       | 100 ++++++++++++++++++++++++++++++++++++++++++
- doc/root.html          |  19 ++++++--
- doc/style.css          |  12 ++---
- src/cmd/godoc/godoc.go |   3 +-
- 11 files changed, 475 insertions(+), 43 deletions(-)
+ src/pkg/os/os_test.go      | 19 +++++++++++++++++++
+ src/pkg/os/stat_windows.go | 22 ++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

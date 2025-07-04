@@ -1,12 +1,17 @@
-commit bd6601f4a05df0aedff66b4846d507615f584c5b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 12 10:22:13 2012 +1100
+commit 3acce59b93305eac1348d8ed8034310b6b01d2a3
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 11 18:25:23 2012 -0400
 
-    os/signal: add Notify example
+    crypto/rsa: fix decryption benchmark.
     
-    R=golang-dev, dsymonds, r
+    I was an idiot and was thinking that a small base didn't matter
+    because the exponentiation would quickly make the number the same size
+    as the modulus. But, of course, the small base continues to make
+    multiplications unrealistically cheap throughout the computation.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6615078
+    https://golang.org/cl/6649048
 
- src/pkg/os/signal/example_test.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/pkg/crypto/rsa/rsa_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

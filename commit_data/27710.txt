@@ -1,27 +1,12 @@
-commit 1f446432ddfd64f1507e7c85cd603d3c5ae60094
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 21 14:27:40 2016 -0700
+commit 527ffebb2c9fe432a0ef0aa0c2449d83cd8a23cb
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Apr 10 12:49:40 2016 +0200
 
-    cmd/compile: fix error msg mentioning different packages with same name
+    internal/trace: fix a typo in error message
     
-    This is a regression from 1.6. The respective code in importimport
-    (export.go) was not exactly replicated with the new importer. Also
-    copied over the missing cyclic import check.
-    
-    Added test cases.
-    
-    Fixes #16133.
-    
-    Change-Id: I1e0a39ff1275ca62a8054874294d400ed83fb26a
-    Reviewed-on: https://go-review.googlesource.com/24312
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Id79eaa6d49dae80c334c7243b0a5bbcdcb9397d3
+    Reviewed-on: https://go-review.googlesource.com/21758
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/compile/internal/gc/bimport.go |  8 +++++++-
- src/cmd/compile/internal/gc/export.go  |  4 ++++
- test/fixedbugs/issue16133.dir/a1.go    |  7 +++++++
- test/fixedbugs/issue16133.dir/a2.go    |  7 +++++++
- test/fixedbugs/issue16133.dir/b.go     |  7 +++++++
- test/fixedbugs/issue16133.dir/c.go     | 10 ++++++++++
- test/fixedbugs/issue16133.go           | 10 ++++++++++
- 7 files changed, 52 insertions(+), 1 deletion(-)
+ src/internal/trace/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

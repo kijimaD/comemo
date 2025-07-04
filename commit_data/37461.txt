@@ -1,16 +1,19 @@
-commit b8fad4b33d20224f2965a1e9cdbd931fda0ed636
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 19 10:36:45 2018 -0500
+commit 859a944ee2edf19bbc6d72ca52ccd9c3f6d687e2
+Author: Xudong Zheng <7pkvm5aw@slicealias.com>
+Date:   Wed Aug 1 21:33:09 2018 +0000
 
-    runtime: improve "P has cached GC work" debug info
+    syscall/js: move callback helper code to misc/wasm to avoid using eval()
     
-    For #27993.
+    When using the compiled .wasm with misc/wasm/wasm_exec.js, we get an error message if the site prohibits eval() via the Content-Security-Policy header. This can be resolved by moving the callback helper code from src/syscall/js/callback.go to misc/wasm/wasm_exec.js.
     
-    Change-Id: I20127e8a9844c2c488f38e1ab1f8f5a27a5df03e
-    Reviewed-on: https://go-review.googlesource.com/c/149968
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #26748
+    
+    Change-Id: I28f271b8a00631f4c66a1ac31305e85f20f9d420
+    GitHub-Last-Rev: a6a0268f38d36c198ca6b4ceb2e75cc8afec74eb
+    GitHub-Pull-Request: golang/go#26750
+    Reviewed-on: https://go-review.googlesource.com/127296
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ misc/wasm/wasm_exec.js     | 22 ++++++++++++++++++++++
+ src/syscall/js/callback.go | 32 +++++---------------------------
+ 2 files changed, 27 insertions(+), 27 deletions(-)

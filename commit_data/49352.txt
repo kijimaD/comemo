@@ -1,17 +1,18 @@
-commit a21cf916f418d0d48f46d8f256c5994a80558a94
-Author: Keith Randall <khr@golang.org>
-Date:   Thu May 26 09:52:44 2022 -0700
+commit 717894cf8024cfaad629f0e66a4b9bc123676be5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 15 12:34:59 2021 -0700
 
-    doc: add release note for reflect.Value.{Bytes,Len,Cap}
+    cmd/compile/internal/types2: better error message for index syntax error (follow-up)
     
-    Update #47066
-    Update #52411
+    For #47704.
     
-    Change-Id: I85139d774c16c9e6d1a2592a5abba58a49338674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408874
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I09e6f638df0cd456a20a3b68ab55c47bb5b1f555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342370
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.19.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go              | 11 ++++++++---
+ .../compile/internal/syntax/testdata/issue47704.go2    | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

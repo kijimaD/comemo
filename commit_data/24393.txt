@@ -1,19 +1,36 @@
-commit 0e5b4eb07bfecc83de1f54d8ac351ac89caf95ef
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 28 17:08:51 2015 -0400
+commit 8f34b25318e712a18c3847bb1cc3e8d87076c211
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 16:55:04 2015 -0400
 
-    cmd/dist: build packages in parallel, make code more Go-like
+    runtime: retry GC assist until debt is paid off
     
-    (Changed modified by bradfitz from original rsc version)
+    Currently, there are three ways to satisfy a GC assist: 1) the mutator
+    steals credit from background GC, 2) the mutator actually does GC
+    work, and 3) there is no more work available. 3 was never really
+    intended as a way to satisfy an assist, and it causes problems: there
+    are periods when it's expected that the GC won't have any work, such
+    as when transitioning from mark 1 to mark 2 and from mark 2 to mark
+    termination. During these periods, there's no back-pressure on rapidly
+    allocating mutators, which lets them race ahead of the heap goal.
     
-    Change-Id: I8ea40044c325f333a13d48b59b4795b02c579533
-    Reviewed-on: https://go-review.googlesource.com/14026
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For example, test/init1.go and the runtime/trace test both have small
+    reachable heaps and contain loops that rapidly allocate large garbage
+    byte slices. This bug lets these tests exceed the heap goal by several
+    orders of magnitude.
+    
+    Fix this by forcing the assist (and hence the allocation) to block
+    until it can satisfy its debt via either 1 or 2, or the GC cycle
+    terminates.
+    
+    This fixes one the causes of #11677. It's still possible to overshoot
+    the GC heap goal, but with this change the overshoot is almost exactly
+    by the amount of allocation that happens during the concurrent scan
+    phase, between when the heap passes the GC trigger and when the GC
+    enables assists.
+    
+    Change-Id: I5ef4edcb0d2e13a1e432e66e8245f2bd9f8995be
+    Reviewed-on: https://go-review.googlesource.com/12671
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go    | 118 +++++++++++++++++++++--------------------------
- src/cmd/dist/deps.go     |  57 +++++++++++++++++++++++
- src/cmd/dist/mkdeps.bash |  19 ++++++++
- src/cmd/dist/util.go     |  73 ++++++++++++++---------------
- 4 files changed, 162 insertions(+), 105 deletions(-)
+ src/runtime/mgcmark.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

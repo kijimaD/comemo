@@ -1,14 +1,12 @@
-commit b0834b5ea2cc17468c928c2e611dc2b9c0a4595e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 16 14:30:15 2015 +1000
+commit 0599913a854d997edf497297f3d01d27f800e6ab
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Jun 7 04:33:44 2015 +0200
 
-    flag: add comment stating that Set is called in sequence across the command line
+    doc/go1.5.txt: correct CL for LookupEnv addition
     
-    No code changes.
-    
-    Change-Id: I3b78b1048318a4b80747fde8cab919282fc444a8
-    Reviewed-on: https://go-review.googlesource.com/12285
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ib43b21daef5d8291e03c0f0fbf56999e37e21e21
+    Reviewed-on: https://go-review.googlesource.com/10820
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/flag/flag.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

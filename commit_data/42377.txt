@@ -1,28 +1,18 @@
-commit f7f9c8f2fb61fde1a109e277f27a30b610e67ed0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 19 01:29:11 2020 -0400
+commit da4d58587e0e4028ea384580053c3c455127e446
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Dec 7 16:52:10 2019 +0100
 
-    runtime: allocate fewer bytes during TestEINTR
+    doc: add missing p in install from source page
     
-    This will hopefully address the occasional "runtime: out of memory"
-    failures observed on the openbsd-arm-jsing builder:
-    https://build.golang.org/log/c296d866e5d99ba401b18c1a2ff3e4d480e5238c
+    The last paragraph in golang.org/doc/install/source#fetch is missing a
+    p tag, so it doesn't get formatted with the 'max-width: 50rem' like
+    all the other text in the page.
     
-    Also make the "spin" and "winch" loops concurrent instead of
-    sequential to cut down the test's running time.
+    Add it.
     
-    Finally, change Block to coordinate by closing stdin instead of
-    sending SIGINT. The SIGINT handler wasn't necessarily registered by
-    the time the signal was sent.
-    
-    Updates #20400
-    Updates #39043
-    
-    Change-Id: Ie12fc75b87e33847dc25a12edb4126db27492da6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234538
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1a981dd2afde561b4ab21bd90ad99b3a146111f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/testdata/testprogcgo/eintr.go | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+ doc/install-source.html | 2 ++
+ 1 file changed, 2 insertions(+)

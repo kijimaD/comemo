@@ -1,21 +1,13 @@
-commit 5a4ba6d90543fc1af8822e4f4d379135cef25655
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri May 6 10:15:49 2022 -0700
+commit 840e583ff340d22a6263a348922283e6d5cd2e31
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sun Jul 25 03:00:04 2021 +0900
 
-    cmd/go: make TestScript/test_fuzz_minimize_dirty_cov use less memory
+    runtime: correct variable name in comment
     
-    The test doesn't need to be as aggressive, it _should_ still tickle
-    the right paths with high enough probability. This should
-    significantly reduce the memory it consumes, which is at a premium
-    when testing fuzzing things.
-    
-    Fixes #52744
-    
-    Change-Id: I4d8dd5b29e65fb429962850b3f4477982452c856
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404634
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic35ec2ed320c3c266afbeec8bdea1dedac4725e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Austin Clements <austin@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/runtime/race.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

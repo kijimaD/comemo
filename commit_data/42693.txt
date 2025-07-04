@@ -1,17 +1,14 @@
-commit 6f99b33c18266a8858af96163de97173bdf6f081
-Author: Polina Osadcha <polliosa@google.com>
-Date:   Thu Jun 18 16:17:13 2020 +0300
+commit 88ae4ccefb60ce7e83b25c3bf0f55a4d8704e123
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 5 15:24:30 2020 -0500
 
-    all: replace Replace(..., -1) with ReplaceAll(...)
+    math/big: reintroduce pre-Go 1.14 mention in GCD docs
     
-    Change-Id: I8f7cff7a83a9c50bfa3331e8b40e4a6c2e1c0eee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/245198
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    It was removed in CL 217302 but was intentionally added in CL 217104.
+    
+    Change-Id: I1a478d80ad1ec4f0a0184bfebf8f1a5e352cfe8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217941
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/progs/run.go                       | 2 +-
- src/cmd/cover/cover_test.go            | 2 +-
- src/cmd/go/internal/version/version.go | 2 +-
- src/runtime/mkpreempt.go               | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

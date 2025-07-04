@@ -1,30 +1,14 @@
-commit 40af78c19eeceb38407c2b7c2a4d8b685249701f
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Sat Jun 2 22:50:57 2012 -0400
+commit 911f802b37dec543caf7646fdc8987d4be299c5c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 3 06:49:57 2012 +0800
 
-    cmd/gc: inline slice[arr,str] in the frontend (mostly).
+    syscall: fix 32-bit uid calls
+            16-bit uid calls are not always supported in newer kernels.
     
-    R=rsc, ality, rogpeppe, minux.ma, dave
+    R=dave, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5966075
+    https://golang.org/cl/6279047
 
- src/cmd/5g/cgen.c          |  21 +++
- src/cmd/5g/gg.h            |   1 -
- src/cmd/5g/ggen.c          | 395 +-------------------------------------------
- src/cmd/5g/gsubr.c         |  21 +++
- src/cmd/6g/cgen.c          |  21 ++-
- src/cmd/6g/gg.h            |   1 -
- src/cmd/6g/ggen.c          | 365 +----------------------------------------
- src/cmd/6g/gsubr.c         |  19 +++
- src/cmd/8g/cgen.c          |  21 ++-
- src/cmd/8g/gg.h            |   1 -
- src/cmd/8g/ggen.c          | 400 +--------------------------------------------
- src/cmd/8g/gsubr.c         |  19 +++
- src/cmd/gc/builtin.c       |   3 -
- src/cmd/gc/gen.c           |  60 +++++++
- src/cmd/gc/go.h            |   2 +
- src/cmd/gc/runtime.go      |   3 -
- src/cmd/gc/walk.c          | 272 ++++++++++++++++++------------
- src/pkg/runtime/slice.c    | 143 ----------------
- src/pkg/runtime/string.goc |  25 ---
- 19 files changed, 354 insertions(+), 1439 deletions(-)
+ src/pkg/syscall/syscall_linux_arm.go  | 30 ++++++++++++++++--------------
+ src/pkg/syscall/zsyscall_linux_arm.go | 28 ++++++++++++++--------------
+ 2 files changed, 30 insertions(+), 28 deletions(-)

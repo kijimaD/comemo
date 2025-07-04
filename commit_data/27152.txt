@@ -1,21 +1,27 @@
-commit 86c93c989e73e823e9e66f3d3e319b616544c320
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 26 22:31:02 2016 -0700
+commit 4f753e77f1cee1aaca5a2166ef38c47a61b142a4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 14:24:22 2016 -0700
 
-    cmd/compile: don't write pos info for builtin packages
+    cmd/all: stop generating ADATA Progs
     
-    TestBuiltin will fail if run on Windows and builtin.go was generated
-    on a non-Windows machine (or vice versa) because path names have
-    different separators. Avoid problem altogether by not writing pos
-    info for builtin packages. It's not needed.
+    The only remaining place that generated ADATA
+    Prog was the assembler. Stop, and delete some
+    now-dead code.
     
-    Affects -newexport only.
+    Passes toolstash -cmp.
     
-    Change-Id: I8944f343452faebaea9a08b5fb62829bed77c148
-    Reviewed-on: https://go-review.googlesource.com/22498
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I26578ff1b4868e98562b44f69d909c083e96f8d5
+    Reviewed-on: https://go-review.googlesource.com/20646
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/cmd/asm/internal/asm/asm.go      | 27 ++++++++++-------
+ src/cmd/compile/internal/arm/peep.go |  1 -
+ src/cmd/compile/internal/gc/gsubr.go |  2 +-
+ src/cmd/compile/internal/gc/plive.go |  2 +-
+ src/cmd/internal/obj/data.go         | 59 ------------------------------------
+ src/cmd/internal/obj/link.go         |  4 +--
+ src/cmd/internal/obj/objfile.go      |  4 ---
+ src/cmd/internal/obj/util.go         |  2 +-
+ src/cmd/internal/obj/x86/asm6.go     |  1 -
+ 9 files changed, 21 insertions(+), 81 deletions(-)

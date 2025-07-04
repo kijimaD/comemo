@@ -1,20 +1,23 @@
-commit 059ada596ca5d510d1e1755b3b6dafa036195fb0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Sep 12 11:36:02 2016 -0700
+commit 5d92aefc18317578226a3873fb8fc37411cd2184
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 16:18:32 2016 +0000
 
-    cmd/dist: skip broken cgo race tests on darwin
+    vendor, net/http: update vendored hpack
     
-    CL 26668 exposed #17065.
-    Skip the cgo race tests on darwin for now.
+    Updates x/net/http2/hpack to rev 6050c111 for:
     
-    Updates #17065
+       http2/hpack: forbid excess and invalid padding in hpack decoder
+       https://golang.org/cl/23067
     
-    Change-Id: I0ad0ce2ff1af6d515b8ce6184ddeabc49806950f
-    Reviewed-on: https://go-review.googlesource.com/29077
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #15614
+    
+    Change-Id: I3fbf9b265bfa5e49e6aa97d8c34e08214cfcc49a
+    Reviewed-on: https://go-review.googlesource.com/23208
+    Reviewed-by: Carl Mastrangelo <notcarl@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ .../golang.org/x/net/http2/hpack/hpack_test.go     | 41 +++++++++++++++++++++
+ src/vendor/golang.org/x/net/http2/hpack/huffman.go | 42 ++++++++++++++++------
+ 2 files changed, 73 insertions(+), 10 deletions(-)

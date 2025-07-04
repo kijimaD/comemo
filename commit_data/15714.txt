@@ -1,17 +1,13 @@
-commit 6ee739d7e9473d772a371e6f774a424bfcbbb0fc
+commit e0fd6d08b2b9251d409442ab871c6a4b1d7c82f3
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Mar 12 17:21:44 2013 +0400
+Date:   Tue Mar 12 12:52:49 2013 +0400
 
-    runtime: fix deadlock detector false negative
-    The issue was that scvg is assigned *after* the scavenger goroutine is started,
-    so when the scavenger calls entersyscall() the g==scvg check can fail.
-    Fixes #5025.
+    net/http: deflake test
+    Update #5005.
     
-    R=golang-dev, iant
+    R=golang-dev, fullung, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7629045
+    https://golang.org/cl/7651045
 
- src/pkg/runtime/mheap.c   |  3 +++
- src/pkg/runtime/proc.c    | 11 ++++-------
- src/pkg/runtime/runtime.h |  5 +++--
- 3 files changed, 10 insertions(+), 9 deletions(-)
+ src/pkg/net/http/fs_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

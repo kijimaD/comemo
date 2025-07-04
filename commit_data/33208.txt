@@ -1,22 +1,20 @@
-commit 532714829ee4e816e54b6ccfe0b28f011f1659b2
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sat Sep 23 19:38:32 2017 -0700
+commit a8730cd93a6731a14519902ccfed604971d3e8dc
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Aug 2 16:31:46 2017 -0400
 
-    database/sql: allow drivers to only implement Context variants
+    doc: hide video and share if being served from CN
     
-    Drivers shouldn't need to implement both Queryer and QueryerContext,
-    they should just implement QueryerContext. Same with Execer and
-    ExecerContext. This CL tests for QueryContext and ExecerContext
-    first so drivers do not need to implement Queryer and Execer
-    with an empty definition.
+    In the case where requests are coming from mainland China, hide
+    links to locations that are blocked and functionality that is
+    not permitted.
     
-    Fixes #21663
+    Additionally, some very small cleanup of the JS.
     
-    Change-Id: Ifbaa71da669f4bc60f8da8c41a04a4afed699a9f
-    Reviewed-on: https://go-review.googlesource.com/65733
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change requires https://go-review.googlesource.com/c/52873
+    
+    Change-Id: I7fc68748e629dbe5b966d6bf117e7f7b546966eb
+    Reviewed-on: https://go-review.googlesource.com/52872
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/database/sql/ctxutil.go  |  11 ++--
- src/database/sql/sql.go      |  24 ++++++---
- src/database/sql/sql_test.go | 121 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 143 insertions(+), 13 deletions(-)
+ doc/root.html | 155 +++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 82 insertions(+), 73 deletions(-)

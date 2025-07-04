@@ -1,24 +1,18 @@
-commit d6c1ef52ad31eea6795b199801969a11b0dc55d1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 6 08:53:54 2023 -0400
+commit 509ac2ca6dbda4fff7a0e4e25589bb8827c897c2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:51:11 2022 -0500
 
-    math/rand/v2: remove Read
+    cmd/vet: use the test binary as 'vet' instead of rebuilding it
     
-    In math/rand, Read is deprecated. Remove in v2.
-    People should use crypto/rand if they need long strings.
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
     
-    For #61716.
-    
-    Change-Id: Ib254b7e1844616e96db60a3a7abb572b0dcb1583
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502497
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4914870396f90097f45d00012e5601fe42655899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450710
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- api/next/61716.txt               |   3 -
- src/math/rand/v2/race_test.go    |   1 -
- src/math/rand/v2/rand.go         |  86 +---------------------------
- src/math/rand/v2/rand_test.go    | 118 ---------------------------------------
- src/math/rand/v2/regress_test.go | 100 +++++++++++++--------------------
- 5 files changed, 43 insertions(+), 265 deletions(-)
+ src/cmd/vet/vet_test.go | 65 +++++++++++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 40 deletions(-)

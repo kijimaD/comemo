@@ -1,12 +1,12 @@
-commit 59ae9d9ac9234b07c9940fa617ca09a4f43d352c
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Sat Mar 30 15:10:53 2013 -0700
+commit 6e054190f77d467e27f3fe64c30661acdc15f02b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Mar 31 02:17:25 2013 +0800
 
-    runtime: TestGcSys: if GOGC=off, skip instead of failing
+    doc/go1.1: mention (*testing.B).ReportAllocs()
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8201043
+    https://golang.org/cl/8198043
 
- src/pkg/runtime/gc_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.1.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

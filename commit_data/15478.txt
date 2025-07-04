@@ -1,17 +1,12 @@
-commit 9e19337de9ab0344bcbd056064c70249e65d52ed
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 27 15:43:33 2013 -0800
+commit 25c99300b9316e5a983af421d4d1a180b7aabf3a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 27 15:22:14 2013 -0800
 
-    cmd/vet: continue past first error
-    Also delete bogus tests for f.pkg (does the file have a package) since all
-    files have a package attached. The tests for pkg.types and pkg.values
-    suffice.
+    go/types: don't crash if there are no hints
     
-    R=golang-dev, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/7418043
+    https://golang.org/cl/7375060
 
- src/cmd/vet/main.go   |  6 +++++-
- src/cmd/vet/print.go  | 12 ++++--------
- src/cmd/vet/taglit.go | 30 ++++++++++++++----------------
- 3 files changed, 23 insertions(+), 25 deletions(-)
+ src/pkg/go/types/expr.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

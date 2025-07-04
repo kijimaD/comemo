@@ -1,18 +1,36 @@
-commit 2ab210bc7416ff16da95c46c97ede2272f42f718
-Author: Mark Freeman <mark@golang.org>
-Date:   Fri May 16 10:42:06 2025 -0400
+commit 83a6c13e7344394d32d4114c3504ffecaae37b1e
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Mar 23 03:19:33 2024 +0000
 
-    cmd/compile/internal/noder: document the PosBase section
+    cmd/dist: avoid CPU underutilization starting from GOMAXPROCS=2 runtime
     
-    Positions mostly borrow their representation from package syntax. Of
-    note, constants (such as the zero value for positions) are not encoded
-    directly. Rather, a flag typically signals such values.
+    This CL is doing now is:
+    change maxbg to increase test parallelism.
+    adjust test sequence.
     
-    Change-Id: I6b4bafc6e96bb21902dd2d6e164031e7dd5aabdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673535
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    This CL speeds up the go tool dist test,
+    most of the speed up is due to the fact that the
+    three time-consuming tests
+    cmd/internal/testdir and API check and runtime/race
+    can be done in parallel with the GOMAXPROCS=2 runtime
+    on a machine with enough CPU cores.
+    
+    In windows with an 8-core 16-thread CPU,
+    this CL can complete all other tests before
+    GOMAXPROCS=2 runtime -cpu=1,2,4 -quick completes.
+    
+    Fixes #65164
+    
+    Change-Id: I56ed7031d58be3bece9f975bfc73e5c834d0a4fa
+    GitHub-Last-Rev: 18cffb770f60399c889ceb40ef8207a2d0c488e5
+    GitHub-Pull-Request: golang/go#65703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563916
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/noder/doc.go | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 84 +++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 51 insertions(+), 33 deletions(-)

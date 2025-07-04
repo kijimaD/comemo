@@ -1,14 +1,16 @@
-commit bdcc0437f61d9ef7df356003c2f594b2c52edc6e
-Author: Lorenzo Stoakes <lstoakes@gmail.com>
-Date:   Fri Apr 15 08:25:44 2011 -0400
+commit 4c9634fc5b3c22ddc7e402175e13536c008f6481
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 08:20:42 2011 -0400
 
-    make: prevent rm provoking 'text file busy' errors.
+    build: remove DISABLE_NET_TESTS
     
-    Trivial patch to stop intermediate rm'ing of binaries stopping build.
+    Don't use external network during all.bash.
     
-    R=rsc1, bradfitzgo, rsc
+    R=r, r2, rh, ality
     CC=golang-dev
-    https://golang.org/cl/4412045
+    https://golang.org/cl/4429041
 
- src/Make.common | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/Makefile               |  5 -----
+ src/pkg/net/dialgoogle_test.go | 10 ++++++++++
+ src/pkg/syslog/syslog_test.go  |  4 ++++
+ 3 files changed, 14 insertions(+), 5 deletions(-)

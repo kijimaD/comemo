@@ -1,18 +1,14 @@
-commit 73b5951391a9c206414b2f460a043374b1383b94
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue May 15 00:52:18 2018 +0200
+commit caa7d854c885c2a37b3da5f16e18be4b65cd8e75
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 5 22:31:25 2017 +0000
 
-    misc/wasm: fix passing large negative integers from JS to Go
+    doc: mention net/http Server Content-Type change
     
-    This commit addresses a FIXME left in the code of wasm_exec.js to
-    properly get the upper 32 bit of a JS number to be stored as an
-    64-bit integer. A bitshift operation is not possible, because in
-    JavaScript bitshift operations only operate on the lower 32 bits.
+    Updates #20784
     
-    Change-Id: I8f627fd604e592682d9d322942a4852db64a7f66
-    Reviewed-on: https://go-review.googlesource.com/113076
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic07c78a86da5026e407ac9ecb3117d320c198048
+    Reviewed-on: https://go-review.googlesource.com/82016
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/wasm/wasm_exec.js    |  6 +-----
- src/syscall/js/js_test.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ doc/go1.10.html | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,26 +1,22 @@
-commit 8df0bcc1fb9a4da7f2fafa959fe9c101f99866ef
+commit ac1f48e2f6ac7cad2fbe072de8d4fbf50c5d8e67
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 01:22:53 2015 -0400
+Date:   Thu Jun 4 14:31:05 2015 -0400
 
-    cmd/go: disable password prompt when running git
+    cmd/link: add -buildid flag to write Go build ID to ELF output, same as cmd/compile
     
-    This fix only works on Git 2.3.0 and later.
+    Other binary formats to follow.
     
-    There appears to be no portable way to fix the earlier versions.
-    We already run git with stdin closed, but on Unix git calls getpass,
-    which opens /dev/tty itself. We could do package syscall-specific
-    things to get /dev/tty invalidated during the exec, but I'd really
-    rather not. And on Windows, Git opens "CONIN$" and "CONOUT$"
-    itself, and I have no idea how to invalidate those.
+    Using our own note instead of the GNU build ID note because
+    we are not the GNU project, and I can't guarantee that the semantics
+    of our note and the semantics of the GNU note will match forever.
+    (Also they don't match today.)
     
-    Fix the problem for newish Git versions and wait for people to update.
-    Best we can do.
+    For #11048.
     
-    Fixes #9341.
-    
-    Change-Id: I576579b106764029853e0f74d411e19108deecf5
-    Reviewed-on: https://go-review.googlesource.com/12175
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iec7e5a2e49d52b6d3a51b0aface2de7c77a45491
+    Reviewed-on: https://go-review.googlesource.com/10706
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/get.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/ld/elf.go  | 51 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/pobj.go |  8 ++++---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

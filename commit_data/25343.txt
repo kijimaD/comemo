@@ -1,21 +1,16 @@
-commit 9f0055a232384453c07aff702fcbe15820140d50
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 20:25:33 2015 +0000
+commit 08d04ba2a49c1e9556002e36b2146b9467ec77e8
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 20 14:48:49 2015 -0400
 
-    Revert "cmd/go: allow omitted user name in git ssh repo syntax"
+    log/syslog: disable unix/unixgram tests on android
     
-    This caused #13657.
-    Reverting fixes #13657.
+    unix/unixgram is not available to standard Android programs.
     
-    I was trying to be helpful by fixing #12313,
-    but I don't need the fix myself.
-    Will leave for someone with more motivation.
+    For golang/go#10807
     
-    This reverts commit 3e9f0636709de7cd86a08785f2e64487580bf5ea.
-    
-    Change-Id: Ifc78a6196f23e0f58e3b9ad7340e207a2d5de0a6
-    Reviewed-on: https://go-review.googlesource.com/17977
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6062c3a25cffb86e58cbbd12a07dc90ffbf57185
+    Reviewed-on: https://go-review.googlesource.com/16114
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/vcs.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/log/syslog/syslog_test.go | 43 +++++++++++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 16 deletions(-)

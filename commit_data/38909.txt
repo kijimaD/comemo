@@ -1,29 +1,36 @@
-commit 8feeada50cf3f783fe3c8113d5da51ad8c0b3014
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Wed Jan 30 12:38:15 2019 +0700
+commit 048988a0f14f74c0a27efe93699221bc49b7873c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Dec 4 15:15:27 2018 -0500
 
-    time: fix misleading error with the leading zero format
+    runtime: fix runtime-gdb.py when switching sp value
     
-    When the leading zero format is used, we currently don't handle the
-    month and year properly.
+    After a recent change to runtime-gdb_test.go the ppc64le builder
+    has had intermittent failures. The failures occur when trying to
+    invoke the goroutineCmd function to display the backtrace for
+    a selected goroutine. There is nothing wrong with the testcase
+    but it seems to intermittently leave goroutines in a state
+    where an error can occur.
     
-    For the month, we were reporting an out of range error when getnum
-    returns zero of its own, as it also returns the month 0. That's
-    confusing, so only check the range when getnum returns a nil error.
+    The error message indicates that the problem occurs when trying
+    to change the sp back to the original after displaying the
+    stacktrace for the goroutine.
     
-    For the year, we don't restore the value when parsing error occurs. For
-    example, with the incorrect input "111-01", "01" will be used to report
-    an error. So restore the value when an error occurs fix the problem.
+    gdb.error: Attempt to assign to an unmodifiable value.
     
-    Fixes #29918
-    Fixes #29916
+    After some searching I found that this error message can happen
+    if the sp register is changed when on a frame that is not the
+    top-most frame. To fix the problem, frame 0 is selected before
+    changing the value of sp. This fixes the problem in my
+    reproducer environment, and hopefully will fix the problem on
+    the builder.
     
-    Change-Id: I3145f8c46813a0457766b7c302482e6b56f94ed6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160338
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #28679
+    
+    Change-Id: I329bc95b30f8c95acfb161b0d9cfdcbd917a1954
+    Reviewed-on: https://go-review.googlesource.com/c/152540
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/format.go      |  7 +++++--
- src/time/format_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 2 deletions(-)
+ src/runtime/runtime-gdb.py | 6 ++++++
+ 1 file changed, 6 insertions(+)

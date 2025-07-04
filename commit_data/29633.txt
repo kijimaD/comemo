@@ -1,15 +1,14 @@
-commit 8ace3461a46d09466f0e1a8ea3ff41ac9cbd46f4
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Nov 23 00:50:46 2016 +0100
+commit 518cc7f3079bbd5ad141efb1e16c5a6eae52b831
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 11:00:47 2016 -0700
 
-    doc: add SIGPIPE behaviour change to go1.8.txt
+    cmd/internal/obj/arm: cleanup some unnecessary temps and conversions
     
-    CL 32796 changes the SIGPIPE behaviour for c-archive and c-shared
-    programs. Add it to go1.8.txt.
-    
-    Change-Id: I31200187033349c642965a4bb077bcc77d5329a3
-    Reviewed-on: https://go-review.googlesource.com/33397
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I573278c9aee80e62463b2542774dabeec7c3b098
+    Reviewed-on: https://go-review.googlesource.com/29969
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.8.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/obj/arm/asm5.go | 37 +++++++++++++++----------------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)

@@ -1,12 +1,32 @@
-commit 5e80fc640bef471c60df350f709cfc7183a84adc
-Author: Burcu Dogan <jbd@google.com>
-Date:   Wed May 6 10:41:12 2015 -0400
+commit 24f246c1b6fba4f8faf29b2d0cf3583f9bb04135
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Apr 14 12:46:15 2015 +0300
 
-    CONTRIBUTORS: add Burcu Dogan's personal mail
+    cmd/gc: fix crash during escape analysis
     
-    Change-Id: I2bc92f6d33db44f96df4219e6144393d5150fe0f
-    Reviewed-on: https://go-review.googlesource.com/9785
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10441
+    
+    Compiler crashed as:
+    
+    panic: runtime error: invalid memory address or nil pointer dereference
+    goroutine 1 [running]:
+    cmd/internal/gc.haspointers(0x0, 0xffffffffffffffff)
+        src/cmd/internal/gc/reflect.go:623 +0x1f
+    cmd/internal/gc.escwalk(0x20c82dc00, 0xffffffffffffffff, 0x20c82dda0, 0x20c835520)
+        src/cmd/internal/gc/esc.go:1291 +0x14aa
+    cmd/internal/gc.escwalk(0x20c82dc00, 0xffffffffffffffff, 0x20c82dda0, 0x20beac340)
+        src/cmd/internal/gc/esc.go:1386 +0x836
+    
+    while evaluating haspointers of the fake OADDR node here:
+    
+            leaks = level <= 0 && dst.Escloopdepth < src.Escloopdepth || level < 0 && dst == &e.funcParam && haspointers(src.Type)
+    
+    Change-Id: I13c23fced52e8fcd0ae1df81b374df8632eb7790
+    Reviewed-on: https://go-review.googlesource.com/8932
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/gc/esc.go   |  1 +
+ test/fixedbugs/issue10441.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)

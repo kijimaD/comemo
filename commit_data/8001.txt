@@ -1,13 +1,12 @@
-commit 1e1e2f0971178e2a42a6c186ed3e1274fdf4ab81
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 6 12:37:17 2011 -0700
+commit 2671ddd10b955e33bbeda98aa1af7c4936d3bffa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 6 15:13:18 2011 -0400
 
-    exec: add a little package commentary explaining its
-    relationship to os.Process.
+    fix build (sorry)
     
-    R=golang-dev, rsc1
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/4384041
+    https://golang.org/cl/4378042
 
- src/pkg/exec/exec.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

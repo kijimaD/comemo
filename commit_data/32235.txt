@@ -1,16 +1,23 @@
-commit dd6880d69b4c515246cdcba85cfea61260adcdd1
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Aug 12 21:24:07 2017 +0200
+commit 42c121476217595d9eddbded70cfb6500eca8442
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 24 12:02:12 2017 -0400
 
-    strconv: unify error creation in ParseUint with ParseInt
+    runtime: eliminate write barriers from alloc/mark bitmaps
     
-    Remove goto and use helper functions in ParseUint to create errors.
+    This introduces a new type, *gcBits, to use for alloc/mark bitmap
+    allocations instead of *uint8. This type is marked go:notinheap, so
+    uses of it correctly eliminate write barriers. Since we now have a
+    type, this also extracts some common operations to methods both for
+    convenience and to avoid (*uint8) casts at most use sites.
     
-    Change-Id: I1c4677ae1b9980db79065a9f8ca1f2c470249505
-    Reviewed-on: https://go-review.googlesource.com/55135
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    For #19325.
+    
+    Change-Id: Id51f734fb2e96b8b7715caa348c8dcd4aef0696a
+    Reviewed-on: https://go-review.googlesource.com/38580
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/strconv/atoi.go | 39 +++++++++++++++------------------------
- 1 file changed, 15 insertions(+), 24 deletions(-)
+ src/runtime/mbitmap.go | 26 ++++++++++----------------
+ src/runtime/mheap.go   | 28 ++++++++++++++++++++++------
+ 2 files changed, 32 insertions(+), 22 deletions(-)

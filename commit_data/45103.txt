@@ -1,57 +1,20 @@
-commit 69262d48717771cedb1da86563eb3f1b094b4e92
-Author: Austin Clements <austin@google.com>
-Date:   Sun Apr 11 15:44:25 2021 -0400
+commit 8f1c99035d7797993a5ee393704603f21bb6f10c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Sep 28 19:29:57 2020 +0200
 
-    cmd/compile,cmd/link: resolve cgo symbols to the correct Go ABI
+    crypto/dsa,crypto/x509: deprecate DSA and remove crypto/x509 support
     
-    Currently, Go functions exported to cgo have some confusion around
-    ABIs that leads to crashes. The cmd/cgo-generated C code references an
-    exported Go wrapper function (which calls the underlying exported user
-    function). The linker resolves this reference to the ABI0 entry-point
-    to that Go wrapper function because all host object references are
-    currently assumed to be to version 0 of a symbol. This gets passed via
-    crosscall2 and winds its way to cgocallbackg1, which puts this ABI0
-    entry-point into a function value and calls it. Unfortunately,
-    function values always use the ABIInternal calling convention, so
-    calling this ABI0 entry-point goes poorly.
+    Updates #40337
     
-    Fix this by threading definition ABIs through the cgo export mechanism
-    so the linker can resolve host object references (which have no
-    concept of multiple ABIs) to the correct Go symbol. This involves a
-    few pieces:
-    
-    - The compiler extends the cgo_export_{static,dynamic} directives that
-      get passed on to the linker with symbol definition ABIs.
-    
-    - The linker parses the ABIs in the cgo_export_{static,dynamic}
-      directives to look up the right symbol to apply export attributes to
-      and put in the dynexp list.
-    
-    - For internal linking, the linker's Loader structure tracks the right
-      symbol (in particular the right ABI) to resolve host object
-      references to, and we use this in all of the host object loaders.
-    
-    - For external linking, we mangle only the non-ABIInternal symbols
-      now, so the external linker is able to resolve the correct reference
-      from host objects to Go symbols.
-    
-    Updates #40724.
-    
-    Change-Id: I70a0b1610596768c3f473745fa1a3e630afbf1a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309341
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I5c1218df3ae7e13144a1d9f7d4a4b456e4475c0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257939
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/ssagen/abi.go     | 49 +++++++++++++++++++++++++++---
- src/cmd/link/internal/ld/go.go             | 40 +++++++++++++-----------
- src/cmd/link/internal/ld/macho.go          | 28 ++++++++++++++---
- src/cmd/link/internal/ld/symtab.go         | 27 +++++-----------
- src/cmd/link/internal/loadelf/ldelf.go     |  4 +--
- src/cmd/link/internal/loader/loader.go     | 33 ++++++++++++++++++++
- src/cmd/link/internal/loadmacho/ldmacho.go |  2 +-
- src/cmd/link/internal/loadpe/ldpe.go       | 13 +++-----
- src/cmd/link/internal/loadxcoff/ldxcoff.go |  2 +-
- 9 files changed, 139 insertions(+), 59 deletions(-)
+ doc/go1.16.html              | 19 ++++++++++++++++++
+ src/crypto/dsa/dsa.go        |  6 ++++++
+ src/crypto/x509/x509.go      | 37 ++++++----------------------------
+ src/crypto/x509/x509_test.go | 47 ++------------------------------------------
+ 4 files changed, 33 insertions(+), 76 deletions(-)

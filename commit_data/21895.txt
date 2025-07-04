@@ -1,17 +1,15 @@
-commit 2a1728d0094f0ffc66231ec415522bf54ca37293
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 3 14:17:39 2015 -0800
+commit fbd17986ea386cfcfb5c8ced43ef3f429825cc1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 6 16:57:38 2015 -0500
 
-    math/big: use stringer for enum String() methods
+    [dev.cc] liblink: fix printing of SHRL CX, DX:AX
     
-    Change-Id: Ide0615542d67b7d81bf6c56aab550e142a8789f7
-    Reviewed-on: https://go-review.googlesource.com/6682
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I6a119109c8dea7fecb32de2c4b1b5ba54bc485be
+    Reviewed-on: https://go-review.googlesource.com/4100
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/accuracy_string.go     |  16 ++++
- src/math/big/float.go               | 181 ++++++++++++++++--------------------
- src/math/big/float_test.go          |  46 ++++++---
- src/math/big/floatconv.go           |   8 +-
- src/math/big/floatexample_test.go   |   8 +-
- src/math/big/roundingmode_string.go |  16 ++++
- 6 files changed, 151 insertions(+), 124 deletions(-)
+ src/cmd/internal/obj/i386/list8.go | 22 ++++++----------------
+ src/cmd/internal/obj/x86/list6.go  | 14 ++++++--------
+ src/liblink/list6.c                | 12 +++++-------
+ src/liblink/list8.c                | 19 +++++--------------
+ 4 files changed, 22 insertions(+), 45 deletions(-)

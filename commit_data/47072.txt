@@ -1,18 +1,25 @@
-commit 063ff7f7a0fb41442916d0eda3fc128ca779d424
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Fri Oct 22 18:23:18 2021 +1100
+commit 74cac8d47937af01bd9653df8d601b08843d3808
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 7 09:44:16 2020 -0400
 
-    cmd/go: stamp Bazaar VCS status into binaries
+    cmd/compile: add AMD64 parameter register defs, Arg ops, plumb to ssa.Config
     
-    For #37475
+    This is partial plumbing recycled from the original register abi test work;
+    these are the parts that translate easily.  Some other bits are deferred till
+    later when they are ready to be used.
     
-    Change-Id: I728b7aeee5c38ec337e9a5b073050c3b0afc720d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357956
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    For #40724.
+    
+    Change-Id: Ica8c55a4526793446189725a2bc3839124feb38f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260539
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                     |  58 ++++++++++++
- .../go/testdata/script/version_buildvcs_bzr.txt    | 104 +++++++++++++++++++++
- 2 files changed, 162 insertions(+)
+ src/cmd/compile/internal/ssa/config.go         | 56 +++++++++++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 25 ++++++-----
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  6 +++
+ src/cmd/compile/internal/ssa/gen/main.go       | 62 +++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/op.go             |  4 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 36 +++++++++++++++
+ src/runtime/stack.go                           |  2 +-
+ 7 files changed, 141 insertions(+), 50 deletions(-)

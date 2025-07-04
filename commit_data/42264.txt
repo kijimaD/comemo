@@ -1,23 +1,16 @@
-commit b3c0fe1d14485d34acc402f795eff32b36d6c4e2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Apr 30 12:41:28 2020 +0200
+commit b003539a167e266fe086fc5682d50f6463130648
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 11 18:27:49 2019 -0500
 
-    cmd/compile: use typed aux in arm64 MOVstore rules
+    doc: add sections for modules, packages, versions to module reference
     
-    Introduces a few casts, mostly to fix rules that mix int64 and int32
-    off1 and off2.
+    Updates #33637
     
-    Passes
-    
-      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
-    
-    Change-Id: I1ec75211f3bb8e521dcc5217cf29ab0655a84d79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230840
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3a0d05551d5a680febf742b912a5a6e5af753a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206617
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  429 ++++-----
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |    2 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 1296 +++++++++++++++-----------
- 3 files changed, 942 insertions(+), 785 deletions(-)
+ doc/modules.md | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 72 insertions(+)

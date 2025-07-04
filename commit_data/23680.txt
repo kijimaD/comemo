@@ -1,17 +1,30 @@
-commit b2cb3b416c538406c52e8c83a8f833fae812b9fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 00:27:59 2015 -0400
+commit a7d2d4835b8dab9b1be6a3f772bb74d22fe9f312
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 13:07:22 2015 -0700
 
-    cmd/go: add -pkgdir build flag
+    cmd/vet: adjust vet to use go/types and friends from std repo
     
-    Fixes #10210.
+    - s|"golang.org/x/tools/go/exact"|"go/constant"|
+    - s|"golang.org/x/tools/go/types"|"go/types"|
+    - removed import of gcimporter
+    - import "go/importer" instead
+    - trivial adjustments to make use of go/importer
+    - adjusted import paths for whitelist.go
     
-    Change-Id: I82ddd665bca31773b1fb1b056338c04818ef68f5
-    Reviewed-on: https://go-review.googlesource.com/12171
+    Change-Id: I43488ff44c329cd869c92dcc31193fb31bebfd29
+    Reviewed-on: https://go-review.googlesource.com/10695
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/alldocs.go | 14 +++++++++-----
- src/cmd/go/build.go   | 26 ++++++++++++++++----------
- src/cmd/go/go_test.go | 12 ++++++++++++
- src/cmd/go/pkg.go     |  7 +++++++
- 4 files changed, 44 insertions(+), 15 deletions(-)
+ src/cmd/vet/composite.go           |  3 +--
+ src/cmd/vet/copylock.go            |  3 +--
+ src/cmd/vet/main.go                |  4 +---
+ src/cmd/vet/nilfunc.go             |  3 +--
+ src/cmd/vet/print.go               |  9 ++++-----
+ src/cmd/vet/shadow.go              |  3 +--
+ src/cmd/vet/shift.go               |  7 +++----
+ src/cmd/vet/types.go               | 19 ++++++++++---------
+ src/cmd/vet/unsafeptr.go           |  3 +--
+ src/cmd/vet/unused.go              |  3 +--
+ src/cmd/vet/vet_test.go            |  2 +-
+ src/cmd/vet/whitelist/whitelist.go |  2 +-
+ 12 files changed, 26 insertions(+), 35 deletions(-)

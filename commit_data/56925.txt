@@ -1,53 +1,37 @@
-commit 601ea46a5308876e4460a1662718a9cd2c6ac2e3
-Author: TangYang <yang.tang@intel.com>
-Date:   Tue Jul 2 04:02:12 2024 +0000
+commit 1079a5c08a8682c35c43cd75737ed94b5999d9ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 31 15:15:13 2023 -0700
 
-    runtime: add ERMS-based memmove support for modern CPU platforms
+    go/types, types2: better error message for some inference failures
     
-    The current memmove implementation uses REP MOVSB to copy data larger than
-    2KB when the useAVXmemmove global variable is false and the CPU supports
-    the ERMS feature.
+    For a unification failure involving a constraint, rather than just
+    reporting (for instance)
     
-    This feature is currently only enabled on CPUs in the Sandy Bridge (Client)
-    , Sandy Bridge (Server), Ivy Bridge (Client), and Ivy Bridge (Server)
-    microarchitectures.
+            S does not match []E
     
-    For modern Intel CPU microarchitectures that support the ERMS feature, such
-    as Ice Lake (Server), Sapphire Rapids , REP MOVSB achieves better
-    performance than the AVX-based copy currently implemented in memmove.
+    now report the inferred type for the type parameter, use spec
+    terminology when referring to the constraint, and print the
+    constraint in full:
     
-    Benchstat result:
+            S (type func()) does not satisfy ~[]E
     
-    goos: linux
-    goarch: amd64
-    pkg: runtime
-    cpu: Intel(R) Xeon(R) Gold 6348 CPU @ 2.60GHz
-                   │  ./old.txt  │              ./new.txt              │
-                   │   sec/op    │   sec/op     vs base                │
-    Memmove/2048-2   25.24n ± 0%   24.27n ± 0%   -3.84% (p=0.000 n=10)
-    Memmove/4096-2   44.87n ± 0%   33.16n ± 1%  -26.11% (p=0.000 n=10)
-    geomean          33.65n        28.37n       -15.71%
+    There's more we can do, but this is better than what we had.
     
-                   │  ./old.txt   │               ./new.txt               │
-                   │     B/s      │      B/s       vs base                │
-    Memmove/2048-2   75.56Gi ± 0%    78.59Gi ± 0%   +4.02% (p=0.000 n=10)
-    Memmove/4096-2   85.01Gi ± 0%   115.05Gi ± 1%  +35.34% (p=0.000 n=10)
-    geomean          80.14Gi         95.09Gi       +18.65%
+    For #60542.
     
-    Fixes #66958
-    
-    Change-Id: I1fafd1b51a16752f83ac15047cf3b29422a79d5d
-    GitHub-Last-Rev: 89cf5af32b1b41e1499282058656a8a5c7aed359
-    GitHub-Pull-Request: golang/go#66959
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580735
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I033369fa0dfc475f0ec0da0582e8cbefb109f3cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499639
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/cpu/cpu.go       |  1 +
- src/internal/cpu/cpu_x86.go   |  8 ++++++--
- src/runtime/cpuflags_amd64.go | 34 ++++++++++++++++++++++++----------
- src/runtime/memmove_amd64.s   | 41 ++++++++++++++++++++++++++++-------------
- 4 files changed, 59 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/infer.go            |  8 ++++++--
+ src/go/types/infer.go                               |  8 ++++++--
+ src/internal/types/testdata/examples/inference.go   | 18 +++++++++++-------
+ src/internal/types/testdata/fixedbugs/issue45985.go |  2 +-
+ src/internal/types/testdata/fixedbugs/issue49112.go |  8 ++++----
+ src/internal/types/testdata/fixedbugs/issue51472.go |  2 +-
+ src/internal/types/testdata/fixedbugs/issue60542.go | 12 ++++++++++++
+ 7 files changed, 41 insertions(+), 17 deletions(-)

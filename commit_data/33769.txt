@@ -1,22 +1,20 @@
-commit 8bb51a73e9a09c1a501c9d12f425aeb293e7d0ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 29 15:22:13 2017 -0500
+commit 31ddd8a39d802c073c2bcf4b1f4e74f851fa80c4
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Jul 4 08:32:02 2017 +0200
 
-    reflect: audit and explain safety of all unsafe.Pointer additions
+    cmd/compile: more compact DWARF location for locals and arguments
     
-    It's not safe to do p+x with unsafe if that would point past the
-    end of the object. (Valid in C, not safe in Go.)
-    Pass a "whySafe" reason (compiled away) to explain at each
-    call site why it's safe.
+    Now that all functions have a DW_AT_frame_base defined we can use
+    DW_OP_fbreg to specify the location of variables and formal parameters,
+    instead of the DW_OP_call_frame_cfa/DW_OP_consts/DW_OP_plus, saving 2
+    bytes for every variable and 2 bytes for every formal parameter after
+    the first one.
     
-    Fixes #21733.
-    
-    Change-Id: I5da8c25bde66f5c9beac232f2135dcab8e8bf3b1
-    Reviewed-on: https://go-review.googlesource.com/80738
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2c7395b67e4a814a0131ab1520df11ca48ff9327
+    Reviewed-on: https://go-review.googlesource.com/60550
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/reflect/export_test.go |  2 +-
- src/reflect/swapper.go     |  4 +--
- src/reflect/type.go        | 56 +++++++++++++++++++++++++++--------------
- src/reflect/value.go       | 63 ++++++++++++++++++++++++++++++----------------
- 4 files changed, 81 insertions(+), 44 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

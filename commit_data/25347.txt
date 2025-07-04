@@ -1,24 +1,18 @@
-commit c70df74aab1b0be661003f525ba6021a5523a84e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 20:53:41 2015 +0000
+commit 2e47b28ea165eb3aeb2db0eee173e930fb7f7bca
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Wed Oct 21 13:50:06 2015 -0400
 
-    net/http: document ResponseWriter and Handler more; add test
+    androidtest.bash: correct the location of compiled packages
     
-    Update docs on ResponseWriter and Handler around concurrency.
+    For android, gc builds with buildmode=pie by default, and
+    as a result, the compiled packages are not installed in
+    the usual pkg/$GOOS_$GOARCH pack. Copy the compiled packages
+    in pkg/android_$GOARCH_shared into the pkg/android_$GOARCH
+    in the test device.
     
-    Also add a test.
-    
-    The Handler docs were old and used "object" a lot. It was also too
-    ServeMux-centric.
-    
-    Fixes #13050
-    Updates #13659 (new issue found in http2 while writing the test)
-    
-    Change-Id: I25f53d5fa54f1c9d579d3d0f191bf3d94b1a251b
-    Reviewed-on: https://go-review.googlesource.com/17982
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I909e4cc7095ac95ef63bdf6ddc4cb2c698f3459e
+    Reviewed-on: https://go-review.googlesource.com/16151
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/clientserver_test.go | 56 +++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go            | 23 ++++++++++------
- 2 files changed, 71 insertions(+), 8 deletions(-)
+ src/androidtest.bash | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

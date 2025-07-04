@@ -1,12 +1,20 @@
-commit 2ffaefd1618efda434e3176f9bff658fbe70b003
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 13 16:02:50 2013 +0400
+commit b76ddefee593c50c658f4d7b876c354296b1d31b
+Author: Josh Hoak <jhoak@google.com>
+Date:   Thu Jun 13 15:07:09 2013 +1000
 
-    runtime: use ROUND macro for rounding
+    misc/vim: Adding flag-guarding for Vim commands
     
-    R=golang-dev, minux.ma
+    Default behavior is the same as before, but now a user may selectively disable some commands.
+    
+    Also: deleted the mappings for import.vim.
+    
+    Tested: by trying the commands for fmt, import and godoc in succession to make sure they still work. Also, ran test.sh in ftplugin/go.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/10256043
+    https://golang.org/cl/10124043
 
- src/pkg/runtime/malloc.goc | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ misc/vim/ftplugin/go/fmt.vim    | 16 +++++++++++++++-
+ misc/vim/ftplugin/go/import.vim | 35 ++++++++++++++++++++++++++---------
+ misc/vim/plugin/godoc.vim       | 27 ++++++++++++++++++++++++---
+ 3 files changed, 65 insertions(+), 13 deletions(-)

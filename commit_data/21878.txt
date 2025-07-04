@@ -1,24 +1,12 @@
-commit d5f690609fd7ffd0d21b27f5a474052839beb0d3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 2 17:07:11 2015 -0800
+commit a9a6757c64329cb8e14a5a88df4371089b79644b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 10 19:27:29 2015 +0900
 
-    build: convert run.bash, run.bat, and run.rc into a Go program
+    net: update documentation for WriteMsgUDP
     
-    This will enable test sharding over multiple VMs, to speed trybot answers.
-    
-    Update #10029
-    
-    Change-Id: Ie277c6459bc38005e4d6af14d22effeaa0a4667e
-    Reviewed-on: https://go-review.googlesource.com/6531
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I69f24887601e491d6d722bfeb2952d927df8ad80
+    Reviewed-on: https://go-review.googlesource.com/4351
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/errors/test.bash     |   2 +
- misc/cgo/testgodefs/test.bash |   2 +
- misc/cgo/testso/test.bat      |   2 +-
- src/cmd/dist/main.go          |   1 +
- src/cmd/dist/test.go          | 586 ++++++++++++++++++++++++++++++++++++++++++
- src/run.bash                  | 238 +----------------
- src/run.bat                   | 101 +-------
- src/run.rc                    |  58 +----
- 8 files changed, 598 insertions(+), 392 deletions(-)
+ src/net/udpsock_plan9.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

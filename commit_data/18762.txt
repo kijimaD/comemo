@@ -1,17 +1,14 @@
-commit 4816986ff5cedc9adfb495fba2eca4ded4c90507
-Author: Paul A Querna <paul.querna@gmail.com>
-Date:   Wed Mar 5 12:25:55 2014 -0800
+commit fd4b001a0f0bc0e1f441e1e0a57fab291a98b947
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 5 15:18:36 2014 -0500
 
-    net/http: Add TLS Connection State to Responses.
-    
-    Fixes #7289.
+    syscall: add mmap constants for NetBSD/ARM.
+    Fixes the syscall test.
     
     LGTM=bradfitz
-    R=golang-codereviews, r, bradfitz, rsc
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/52660047
+    https://golang.org/cl/71470043
 
- src/pkg/net/http/client_test.go | 28 ++++++++++++++++++++++++++++
- src/pkg/net/http/response.go    |  7 +++++++
- src/pkg/net/http/transport.go   |  6 ++++++
- 3 files changed, 41 insertions(+)
+ src/pkg/syscall/zerrors_netbsd_arm.go | 36 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

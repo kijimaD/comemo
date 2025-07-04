@@ -1,19 +1,19 @@
-commit b2a56b7053e72a7888c4f054289ea053b0e1ab36
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Aug 10 01:51:17 2023 +0700
+commit 1b196988d49401d41c20d3445d141ce0e2857979
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Wed Sep 7 04:25:08 2022 +0000
 
-    cmd/compile: make backingArrayPtrLen to return typecheck-ed nodes
+    cmd/go/internal/modload: use atomic.Pointer for Requirements.graph
     
-    Fixes #61908
-    
-    Change-Id: Ief8e3a6c42c0644c9f71ebef5f28a294cd7c153f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517936
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ie543e1b1df667cfaf3aafa4be727881461ee8b7d
+    GitHub-Last-Rev: ed993dbe2445c4797303138b62f6c7e26050dcd4
+    GitHub-Pull-Request: golang/go#54888
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428716
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/walk/walk.go |  2 ++
- test/fixedbugs/issue61908.go          | 16 ++++++++++++++++
- 2 files changed, 18 insertions(+)
+ src/cmd/go/internal/modload/buildlist.go | 10 +++++-----
+ src/cmd/go/internal/modload/load.go      |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

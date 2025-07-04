@@ -1,23 +1,19 @@
-commit a56f5a032217e1e28c005886a98054caf7dc8201
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Sun Apr 10 17:16:07 2016 +0200
+commit 91f69c675de947e169ebec60b68a752e3ccc6912
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 26 16:32:01 2016 -0800
 
-    compress/flate: improve short writer error test
+    [dev.ssa] cmd/compile: with -N, don't put JMPs after calls
     
-    This improves the short version of the writer test.
+    plive doesn't like the fact that we put JMPs right
+    after CALL ops to select{send,recv}.
     
-    First of all, it has a much quicker setup. Previously that
-    could take up towards 0.5 second.
+    Fixes SSA -N build.
     
-    Secondly, it will test all compression levels in short mode as well.
-    
-    Execution time is 1.7s/0.03s for normal/short mode.
-    
-    Change-Id: I275a21f712daff6f7125cc6a493415e86439cb19
-    Reviewed-on: https://go-review.googlesource.com/21800
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9b3c9e5293196094fd5a6206dd2f99784951f7a9
+    Reviewed-on: https://go-review.googlesource.com/19982
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/compress/flate/writer_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

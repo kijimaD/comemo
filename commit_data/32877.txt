@@ -1,40 +1,16 @@
-commit ecff94311d793dcb4c590690473aa1421f549f03
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Sep 27 23:30:43 2017 +0530
+commit 467f87ce60028d87f1b552c30138ccba6412333a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 16:45:55 2017 +0000
 
-    cmd/cgo: simplify a call to strip spaces
+    os/exec: remove BUG for old and unsupported OS
     
-    Combined the Split and Join call with a Replace. This simplifies
-    the code as well as makes it fast.
+    Nobody uses 10.6 these days anyway.
     
-    Micro-benchmarks show good improvements -
+    Fixes #20623
     
-    func BenchmarkJoinSplit(b *testing.B) {
-      for n := 0; n < b.N; n++ {
-        strings.Join(strings.Split("this string has some spaces", " "), "")
-      }
-    }
-    
-    func BenchmarkReplace(b *testing.B) {
-      for n := 0; n < b.N; n++ {
-        strings.Replace("this string has some spaces", " ", "", -1)
-      }
-    }
-    
-    name         old time/op    new time/op    delta
-    JoinSplit-4     308ns ± 2%     192ns ± 4%  -37.60%  (p=0.008 n=5+5)
-    
-    name         old alloc/op   new alloc/op   delta
-    JoinSplit-4      144B ± 0%       64B ± 0%  -55.56%  (p=0.008 n=5+5)
-    
-    name         old allocs/op  new allocs/op  delta
-    JoinSplit-4      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.008 n=5+5)
-    
-    Change-Id: I1dc32105ae7a0be5a43ab0bedde992cefbed5d7d
-    Reviewed-on: https://go-review.googlesource.com/66590
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I698c83cbc288082558e34097ff54d1428aed75ec
+    Reviewed-on: https://go-review.googlesource.com/45171
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/cmd/cgo/gcc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/exec/exec.go | 3 ---
+ 1 file changed, 3 deletions(-)

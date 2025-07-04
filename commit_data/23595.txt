@@ -1,35 +1,28 @@
-commit 2a0fc9e70e26cefc1877efa00e85c2e82fbec7e3
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jul 2 15:02:03 2015 +0900
+commit a63b1806aa7484d744e79cd2f6d8e3bf73c4092c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 17:38:05 2015 -0700
 
-    Revert "net, internal/syscall/unix: add SocketConn, SocketPacketConn"
+    math/big: remove (*Float).Scan, ScanFloat; more robust (*Float).Parse
     
-    This reverts commit 6f7961da28232c609f7c51b3bed7f15db7dd33e1.
+    - (*Float).Scan conflicted with fmt.Scanner.Scan; it was also only used
+      internally. Removed it, as well as the companion ScanFloat function.
     
-    Russ suggests changing the frozon syscall package and obviously it's a
-    better solution. Perhaps he will also let me know the way how to get the
-    project owners to agree later.
+    - (*Float).Parse (and thus ParseFloat) can now also parse infinities.
+      As a result, more code could be simplified.
     
-    Fixes #11492.
+    - Fixed a bug in rounding (round may implicitly be called for infinite
+      values). Found via existing test cases, after simplifying some code.
     
-    Change-Id: I98f9f366b72b85db54b4acfc3a604b62fb6d783c
-    Reviewed-on: https://go-review.googlesource.com/11854
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    - Added more test cases.
+    
+    Fixes issue #10938.
+    
+    Change-Id: I1df97821654f034965ba8b82b272e52e6dc427f1
+    Reviewed-on: https://go-review.googlesource.com/10498
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/build/deps_test.go                     |   2 +-
- src/internal/syscall/unix/socket.go           |  39 --------
- src/internal/syscall/unix/socket_linux_386.go |  67 --------------
- src/internal/syscall/unix/socket_linux_386.s  |  11 ---
- src/internal/syscall/unix/socket_stub.go      |  25 ------
- src/internal/syscall/unix/socket_unix.go      |  59 -------------
- src/net/fd_unix.go                            |  51 -----------
- src/net/file.go                               |  44 ----------
- src/net/file_bsd_test.go                      |  95 --------------------
- src/net/file_linux_test.go                    |  98 ---------------------
- src/net/file_plan9.go                         |   8 --
- src/net/file_stub.go                          |   8 +-
- src/net/file_unix.go                          | 122 ++++++--------------------
- src/net/file_windows.go                       |  10 ---
- 14 files changed, 30 insertions(+), 609 deletions(-)
+ src/math/big/float.go          |   7 +--
+ src/math/big/float_test.go     |  21 ++------
+ src/math/big/floatconv.go      | 118 +++++++++++++++++++----------------------
+ src/math/big/floatconv_test.go |  34 +++++++++++-
+ 4 files changed, 94 insertions(+), 86 deletions(-)

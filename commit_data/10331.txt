@@ -1,27 +1,12 @@
-commit e9e874b7fcc722e2e9af942761b8fc2cd8e2c240
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 10 23:56:13 2011 +1100
+commit be8025604e1175ef3e0718ca70d5ba38c928b976
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 10 10:02:24 2011 +0900
 
-    html: parse framesets
+    runtime: fix freebsd build
     
-    Pass tests1.dat, test 106:
-    <frameset><frame><frameset><frame></frameset><noframes></noframes></frameset>
-    
-    | <html>
-    |   <head>
-    |   <frameset>
-    |     <frame>
-    |     <frameset>
-    |       <frame>
-    |     <noframes>
-    
-    Also pass test 107:
-    <h1><table><td><h3></table><h3></h1>
-    
-    R=nigeltao
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5373050
+    https://golang.org/cl/5370050
 
- src/pkg/html/parse.go      | 91 ++++++++++++++++++++++++++++++++++++++++++++--
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 89 insertions(+), 4 deletions(-)
+ src/pkg/runtime/freebsd/thread.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

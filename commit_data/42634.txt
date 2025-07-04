@@ -1,14 +1,22 @@
-commit 10374e2435687a27ac99b2a19284f1aa0c7dc338
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Jul 28 12:24:06 2020 -0400
+commit 2e4f490b31272a2df73d4ba23aad7f5a8ca49a2f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 29 20:06:54 2020 +1100
 
-    testing: fix quotation marks
+    cmd/compile,cmd/link: fix and re-enable open-coded defers on riscv64
     
-    Change-Id: I4b816e26718ef5521afba2b200a6333373b09c58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/245136
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    The R_CALLRISCV relocation marker is on the JALR instruction, however the actual
+    relocation is currently two instructions previous for the AUIPC+ADDI sequence.
+    Adjust the platform dependent offset accordingly and re-enable open-coded defers.
+    
+    Fixes #36786.
+    
+    Change-Id: I71597c193c447930fbe94ce44b7355e89ae877bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216797
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/testing/testing.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ----
+ src/cmd/link/internal/ld/pcln.go   | 7 ++++++-
+ test/live.go                       | 6 +-----
+ 3 files changed, 7 insertions(+), 10 deletions(-)

@@ -1,16 +1,19 @@
-commit cdaf8b6469b3b17ce296199ed31dca2c0816bcc6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 14 09:55:08 2020 +0200
+commit ab4a71fca7de1db1fd30e9a6c6d96fc84f8fffa4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 2 17:25:39 2019 -0400
 
-    cmd/internal/obj/riscv: gofmt
+    [dev.link] cmd/link: use the start of compilation unit for R_ADDRCUOFF
     
-    gofmt the changes from CL 226397
+    R_ADDRCUOFF refers to the offset from the start of the
+    compilation unit. Now that we could have multiple compilation
+    units per package, we should use the start of the compilation
+    unit, instead of the start of the package.
     
-    Change-Id: Ibb252ddb8164573af15fc882ac48b5c01dd87cf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228059
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I3d6a3c5a5c47c9ccf88091ed05413ced826f9934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204828
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- .../obj/riscv/testdata/testbranch/branch_test.go       | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,27 +1,19 @@
-commit 9214677e7df1e6130249bc83d721130b00d829c4
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Sep 9 16:41:55 2020 -0400
+commit af1f3b008281c61c54a5d203ffb69334b7af007c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 26 10:24:39 2020 -0500
 
-    cmd/go: refactor modload.Import for better -mod=readonly errors
+    cmd/dist: enable cgo and PIE tests on android/arm64
     
-    When -mod=readonly is set, Import will now allow imports from
-    replacements without explicit requirements. With -mod=mod, this would
-    add a new requirement but does not trigger a module lookup, so it's
-    determinisitic.
+    Now that android/arm64 supports internal linking PIE, enable the
+    test. While here, I realized that some cgo tests are also not
+    enabled on android/arm64. Enable them as well. Let's see if it
+    works.
     
-    Before reporting an error for an unknown import with -mod=readonly,
-    check whether the import is valid. If there's a typo in the import,
-    that's more relevant.
-    
-    For #40728
-    
-    Change-Id: I05e138ff76ba3d0eb2e3010c15589fa363deb8d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253745
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibf186fe402ebf0bbec82873fd56d0eb752b48180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221099
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/import.go             | 53 +++++++++++++++++------
- src/cmd/go/testdata/script/mod_build_info_err.txt |  2 +-
- 2 files changed, 41 insertions(+), 14 deletions(-)
+ src/cmd/dist/test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

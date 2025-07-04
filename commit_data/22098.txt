@@ -1,12 +1,87 @@
-commit fd2f8d458e862968d2f7c755e2b2a2a868a49c31
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 18 10:37:53 2015 -0700
+commit 382b44eb7c4357cd17be403addfd0ca46bfa2e79
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 16:07:24 2015 -0500
 
-    cmd/internal/gc: remove duplicate copyright notice
+    [dev.cc] cmd/5g etc: code cleanup: delay var decls and eliminate dead code
     
-    Change-Id: Ifa71fb443a66eb8d7732f3b0c1408947b583c1f1
-    Reviewed-on: https://go-review.googlesource.com/7800
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Ran rsc.io/grind rev 6f0e601 on the source files.
+    
+    The cleanups move var declarations as close to the use
+    as possible, splitting disjoint uses of the var into separate
+    variables. They also remove dead code (especially in
+    func sudoaddable), which helps with the var moving.
+    
+    There's more cleanup to come, but this alone cuts the
+    time spent compiling html/template on my 2013 MacBook Pro
+    from 3.1 seconds to 2.3 seconds.
+    
+    Change-Id: I4de499f47b1dd47a560c310bbcde6b08d425cfd6
+    Reviewed-on: https://go-review.googlesource.com/5637
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/go.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/5g/cgen.go               | 313 ++++++-------
+ src/cmd/5g/cgen64.go             | 106 +++--
+ src/cmd/5g/ggen.go               | 213 ++++-----
+ src/cmd/5g/gsubr.go              | 384 ++++------------
+ src/cmd/5g/peep.go               | 130 ++----
+ src/cmd/6g/cgen.go               | 268 +++++------
+ src/cmd/6g/ggen.go               | 252 +++++------
+ src/cmd/6g/gsubr.go              | 373 +++------------
+ src/cmd/6g/peep.go               |  98 ++--
+ src/cmd/6g/reg.go                |   4 +-
+ src/cmd/8g/cgen.go               | 254 +++++------
+ src/cmd/8g/cgen64.go             |  72 ++-
+ src/cmd/8g/ggen.go               | 310 +++++--------
+ src/cmd/8g/gsubr.go              | 211 ++++-----
+ src/cmd/8g/peep.go               |  80 ++--
+ src/cmd/8g/reg.go                |   4 +-
+ src/cmd/9g/cgen.go               | 276 ++++++------
+ src/cmd/9g/ggen.go               | 342 ++++----------
+ src/cmd/9g/gsubr.go              | 106 ++---
+ src/cmd/9g/peep.go               |  54 +--
+ src/cmd/9g/prog.go               |  18 +-
+ src/cmd/9g/reg.go                |   4 +-
+ src/cmd/internal/gc/align.go     |  81 ++--
+ src/cmd/internal/gc/bits.go      |  18 +-
+ src/cmd/internal/gc/bv.go        |  29 +-
+ src/cmd/internal/gc/closure.go   | 179 +++-----
+ src/cmd/internal/gc/const.go     | 178 +++-----
+ src/cmd/internal/gc/cplx.go      |  88 ++--
+ src/cmd/internal/gc/dcl.go       | 252 ++++-------
+ src/cmd/internal/gc/esc.go       | 138 +++---
+ src/cmd/internal/gc/export.go    |  93 ++--
+ src/cmd/internal/gc/fmt.go       | 254 +++++++----
+ src/cmd/internal/gc/gen.go       | 179 +++-----
+ src/cmd/internal/gc/gsubr.go     |  45 +-
+ src/cmd/internal/gc/init.go      |  37 +-
+ src/cmd/internal/gc/inl.go       | 187 +++-----
+ src/cmd/internal/gc/lex.go       | 197 +++-----
+ src/cmd/internal/gc/md5.go       |  87 ++--
+ src/cmd/internal/gc/mparith1.go  | 106 ++---
+ src/cmd/internal/gc/mparith2.go  | 155 +++----
+ src/cmd/internal/gc/mparith3.go  |  69 +--
+ src/cmd/internal/gc/obj.go       |  94 ++--
+ src/cmd/internal/gc/order.go     | 221 ++++-----
+ src/cmd/internal/gc/pgen.go      | 104 ++---
+ src/cmd/internal/gc/plive.go     | 388 ++++++----------
+ src/cmd/internal/gc/popt.go      | 226 ++++------
+ src/cmd/internal/gc/racewalk.go  |  72 +--
+ src/cmd/internal/gc/range.go     | 105 ++---
+ src/cmd/internal/gc/reflect.go   | 395 ++++++----------
+ src/cmd/internal/gc/reg.go       | 201 ++++-----
+ src/cmd/internal/gc/select.go    |  75 ++--
+ src/cmd/internal/gc/sinit.go     | 233 ++++------
+ src/cmd/internal/gc/subr.go      | 687 ++++++++++------------------
+ src/cmd/internal/gc/swt.go       | 212 ++++-----
+ src/cmd/internal/gc/typecheck.go | 391 ++++++----------
+ src/cmd/internal/gc/unsafe.go    |  24 +-
+ src/cmd/internal/gc/walk.go      | 948 +++++++++++++++------------------------
+ src/cmd/internal/obj/data.go     |  39 +-
+ src/cmd/internal/obj/go.go       |   4 +-
+ src/cmd/internal/obj/ld.go       |  16 +-
+ src/cmd/internal/obj/obj.go      |  53 +--
+ src/cmd/internal/obj/objfile.go  |  76 ++--
+ src/cmd/internal/obj/pass.go     |  12 +-
+ src/cmd/internal/obj/pcln.go     |  72 ++-
+ src/cmd/internal/obj/sym.go      |  27 +-
+ 65 files changed, 4093 insertions(+), 6826 deletions(-)

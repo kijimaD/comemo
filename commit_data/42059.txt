@@ -1,19 +1,20 @@
-commit 0329c915a03199d202581d0b33b092371fde08dc
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Tue Apr 21 15:14:11 2020 -0400
+commit a96cfa75c6d0733fc96c5b6318351090b2acc52d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 26 22:49:35 2019 -0400
 
-    math/big: clean up whitespace in arith_s390x.s file
+    cmd/compile: mark unsafe points for MIPS and MIPS64
     
-    This CL looks big but it only does formatting changes to arith_s390x.s.
-    The file was formatted using asmfmt(https://github.com/klauspost/asmfmt)
-    , so there should not be any functional impact. I verified that the
-    generated assembly of big.test file is identical.
+    Mark atomic LL/SC loops as unsafe for async preemption, as they
+    use REGTMP.
     
-    Change-Id: I8b4035ef082a4d0357881869327e25253f2d8be1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229302
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I5be7f93ad3ee337049ec7c3efd6fdc30eef87d97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203719
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/arith_s390x.s | 1869 +++++++++++++++++++++++---------------------
- 1 file changed, 958 insertions(+), 911 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go   | 12 ++++++------
+ src/cmd/compile/internal/ssa/opGen.go         | 14 ++++++++++++++
+ 3 files changed, 28 insertions(+), 14 deletions(-)

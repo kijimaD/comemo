@@ -1,22 +1,19 @@
-commit d2aa787f2a925a97dad11b1acb2a065f52b097f8
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Sep 4 15:51:20 2022 +0000
+commit 46ba32a2ca304b0b73979736d6fb8013529e9172
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 14 12:17:53 2021 -0500
 
-    expvar: convert f to atomic type
+    doc/go1.18: remove residual TODOs
     
-    For #53821
+    There doesn't seem anything that still needs to de done there.
     
-    Change-Id: I2e7c5376e6ca3e3dbb2f92ad771aed62fca8b793
-    GitHub-Last-Rev: b67ddf81ecec1892871044fbcb143ca4256ebc55
-    GitHub-Pull-Request: golang/go#54864
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428195
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Updates #47694.
+    
+    Change-Id: I7909f566638332f3904d20a34f61d371af1d2da2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371754
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
 
- src/expvar/expvar.go      | 12 ++++++------
- src/expvar/expvar_test.go |  4 ++--
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ doc/go1.18.html | 10 ----------
+ 1 file changed, 10 deletions(-)

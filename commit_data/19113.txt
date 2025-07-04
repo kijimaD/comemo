@@ -1,16 +1,13 @@
-commit f973d9460f1e65e5d53f2d0681256b89bcedbfd3
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Apr 11 15:28:37 2014 +0200
+commit 3ca788de64bd7938efba378668e6ac65ff4b65ca
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 11 16:43:36 2014 +1000
 
-    cmd/gc: fix typo in ordermapassign
+    os/signal: use unique program name during TestCtrlBreak
     
-    Fixes #7742
-    
-    LGTM=dave, rsc
-    R=rsc, bradfitz, dave
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/85580047
+    https://golang.org/cl/84650047
 
- src/cmd/gc/order.c          |  2 +-
- test/fixedbugs/issue7742.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/os/signal/signal_windows_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

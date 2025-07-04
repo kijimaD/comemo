@@ -1,18 +1,15 @@
-commit 29c85739d5492011ead7042ea3a6c2e35e252a36
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 1 02:23:55 2015 -0500
+commit 2c2a6df4e9bfc5fc81a05cac8298a61049be5b07
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Nov 17 20:46:42 2014 +0100
 
-    include: remove unnecessary stuff on windows
+    [dev.cc] cmd/gc: fix warning on Plan 9
     
-    Our definition of struct timespec used to cause problems with
-    certain versions of mingw-rt. However, as it turns out, we don't
-    actually need those definitions and prototypes, so remove them.
+    warning: src/cmd/gc/walk.c:1769 set and not used: on
     
-    Fixes #9472.
-    
-    Change-Id: Ie0880f0d58be112625140f73d0bed71f98b7cf05
-    Reviewed-on: https://go-review.googlesource.com/2236
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LGTM=rsc
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/175850043
 
- include/libc.h | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/cmd/gc/walk.c | 1 -
+ 1 file changed, 1 deletion(-)

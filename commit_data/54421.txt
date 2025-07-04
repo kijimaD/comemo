@@ -1,28 +1,21 @@
-commit 9f5a2cf61cc0c2389c577a00b5914235236d6c7f
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Sep 11 10:59:48 2023 -0400
+commit 9abcc487f8b04db8fd46eaa429a7eef5a5228241
+Author: Zamicol <zamicol@gmail.com>
+Date:   Fri Oct 14 03:10:28 2022 +0000
 
-    net/http: mapping data structure
+    flag: remove "// BUG" comment
     
-    Our goal for the new ServeMux patterns is to match the routing
-    performance of the existing ServeMux patterns. To achieve that
-    we needed to optimize lookup for small maps.
+    Remove a vestigial " // BUG" comment as there is no bug in the relevant code section and comment predated other changes.  Also removed a needless allocation and conformed to the "v, ok := a[x]" standard convention.  Tests are passing.
     
-    This CL introduces a simple data structure called a mapping that
-    optimizes lookup by using a slice for small collections of key-value
-    pairs, switching to a map when the collection gets large.
-    
-    Mappings are a core part of the routing algorithm, which uses a
-    decision tree to match path elements.   The children of a tree node are
-    held in a mapping.
-    
-    Change-Id: I923b3ad1376ace2c3e3421aa9b802ad12d47c871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526617
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Id28ad1baf77447052b54b341f018e573bac0c11a
+    GitHub-Last-Rev: 26084698bfc0972d7e0fec0de4f31cc87e3a5f7a
+    GitHub-Pull-Request: golang/go#56210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/mapping.go      |  78 ++++++++++++++++++++++
- src/net/http/mapping_test.go | 154 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 232 insertions(+)
+ src/flag/flag.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

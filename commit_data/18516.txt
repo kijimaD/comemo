@@ -1,19 +1,19 @@
-commit 7addda685d9f624479cd2248a86a16b5a810f225
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 22:30:35 2014 -0500
+commit 2277e8d3c9c3f14aa9536f4aaeea6bfa6c316f3f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 14 12:20:21 2014 +0900
 
-    cmd/5g, cmd/8g: fix build
+    net: disable TestDNSThreadLimit even in non-short mode by default
     
-    The test added in CL 63630043 fails on 5g and 8g because they
-    were not emitting the VARDEF instruction when clearing a fat
-    value by clearing the components. 6g had the call in the right place.
+    TestDNSThreadLimit creates tons of DNS queries and it occasionally
+    causes an unintentional traffic jam and/or crash of some virtual
+    machine software, especially its builtin networking stuff.
     
-    Hooray tests.
+    We can run TestDNSThreadLimit with -dnsflood flag instead.
     
-    TBR=iant
+    LGTM=dave, rsc
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/63660043
+    https://golang.org/cl/63600043
 
- src/cmd/5g/ggen.c | 3 +--
- src/cmd/8g/ggen.c | 4 ++--
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/net/z_last_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

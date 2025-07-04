@@ -1,27 +1,17 @@
-commit 368c40116434532dc0b53b72fa04788ca6742898
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 27 16:09:40 2020 -0700
+commit 6f3a9515b6bb879472f3b3443a052b07ed11ee2f
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 3 11:58:12 2020 -0400
 
-    runtime: block signals in needm before allocating M
+    crypto/x509: generate SubjectKeyId for CAs
     
-    Otherwise, if a signal occurs just after we allocated the M,
-    we can deadlock if the signal handler needs to allocate an M
-    itself.
+    Fixes #26676
     
-    Fixes #42207
-    
-    Change-Id: I76f44547f419e8b1c14cbf49bf602c6e645d8c14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265759
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5bc91d4a8161bc6ff25effcf93f551f735fef115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227098
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/crash_unix_test.go                    |  9 +++
- src/runtime/os_js.go                              |  2 +-
- src/runtime/os_plan9.go                           |  2 +-
- src/runtime/os_windows.go                         |  2 +-
- src/runtime/proc.go                               | 26 ++++---
- src/runtime/signal_unix.go                        |  8 +-
- src/runtime/testdata/testprogcgo/needmdeadlock.go | 95 +++++++++++++++++++++++
- 7 files changed, 127 insertions(+), 17 deletions(-)
+ src/crypto/x509/x509.go      | 28 ++++++++++++++++++++++------
+ src/crypto/x509/x509_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 6 deletions(-)

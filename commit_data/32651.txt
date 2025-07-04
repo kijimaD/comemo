@@ -1,31 +1,20 @@
-commit 401609c3ff0da3d7bbf78f5034c87ef5c4640792
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Aug 31 13:00:19 2017 +0200
+commit 19b05acd13da49ebff6812012d20e5ace6957b58
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 10 18:21:21 2017 +0200
 
-    cmd/dist: move functions for the better
+    reflect: remove dead v.typ assignment
     
-    This belongs to a series of clean-up changes (see below) for cmd/dist.
-    This is change (6).
+    v is not a pointer receiver, and v.typ isn't used in the lines below.
+    The assignment is dead. Remove it.
     
-    These changes include:
-    (1)  apply minor fixes
-    (2)  restore behavior of branchtag
-    (3)  unleash bootstrap optimization for windows
-    (4)  use standard generated code header
-    (5)  remove trivial variables + functions
-    (6)  move functions for the better
-    (7)  simplify code segments
-    (8)  use bytes.Buffer for code generation
-    (9)  rename variables + functions
-    (10) remove doc.go
+    Keep the comment, as it refers to the whole case block and not just the
+    removed line.
     
-    Change-Id: I1c49e3427079194210a6416057100a7e94a37619
-    Reviewed-on: https://go-review.googlesource.com/61012
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icb2d20c287d9a41bf620ebe5cdec764cd84178a7
+    Reviewed-on: https://go-review.googlesource.com/43134
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go |  18 -----
- src/cmd/dist/main.go  | 177 +++++++++++++++++++++++++++++++++++++++-----------
- src/cmd/dist/util.go  | 158 +++++++++++---------------------------------
- 3 files changed, 177 insertions(+), 176 deletions(-)
+ src/reflect/value.go | 1 -
+ 1 file changed, 1 deletion(-)

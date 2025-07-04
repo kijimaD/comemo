@@ -1,47 +1,28 @@
-commit 48582e1524ab165a179cf0199f0049e2b3019880
-Author: Mike Strosaker <strosake@us.ibm.com>
-Date:   Fri Apr 21 14:26:38 2017 -0400
+commit 78200799a290da7d53ebbd50c04e432a4ab14eec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 14 11:01:04 2017 -0500
 
-    crypto/sha256,crypto/sha512: improve performance for sha{256,512}.block on ppc64le
+    cmd/compile: undo special handling of zero-valued STRUCTLIT
     
-    This updates sha256.block and sha512.block to use vector instructions.  While
-    each round must still be performed independently, this allows for the use of
-    the vshasigma{w,d} crypto acceleration instructions.
+    CL 35261 introduces special handling of zero-valued STRUCTLIT for
+    efficient struct zeroing. But it didn't cover all use cases, for
+    example, CONVNOP STRUCTLIT is not handled.
     
-    For crypto/sha256:
+    On the other hand, CL 34566 handles zeroing earlier, so we don't
+    need the change in CL 35261 for efficient zeroing. Other uses of
+    zero-valued struct literals are very rare. So undo the change in
+    walk.go in CL 35261.
     
-    benchmark               old ns/op     new ns/op     delta
-    BenchmarkHash8Bytes     570           300           -47.37%
-    BenchmarkHash1K         7529          3018          -59.91%
-    BenchmarkHash8K         55308         21938         -60.33%
+    Add a test for efficient zeroing.
     
-    benchmark               old MB/s     new MB/s     speedup
-    BenchmarkHash8Bytes     14.01        26.58        1.90x
-    BenchmarkHash1K         136.00       339.23       2.49x
-    BenchmarkHash8K         148.11       373.40       2.52x
+    Fixes #19084.
     
-    For crypto/sha512:
-    
-    benchmark               old ns/op     new ns/op     delta
-    BenchmarkHash8Bytes     725           394           -45.66%
-    BenchmarkHash1K         5062          2107          -58.38%
-    BenchmarkHash8K         34711         13918         -59.90%
-    
-    benchmark               old MB/s     new MB/s     speedup
-    BenchmarkHash8Bytes     11.03        20.29        1.84x
-    BenchmarkHash1K         202.28       485.84       2.40x
-    BenchmarkHash8K         236.00       588.56       2.49x
-    
-    Fixes #20069
-    
-    Change-Id: I28bffe6e9eb484a83a004116fce84acb4942abca
-    Reviewed-on: https://go-review.googlesource.com/41391
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I0807f7423fb44d47bf325b3c1ce9611a14953853
+    Reviewed-on: https://go-review.googlesource.com/36955
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/sha256/sha256block_ppc64le.s | 569 ++++++++++++++++++-----------
- src/crypto/sha512/sha512block_ppc64le.s | 609 ++++++++++++++++++++------------
- 2 files changed, 740 insertions(+), 438 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 11 +++++++++++
+ src/cmd/compile/internal/gc/walk.go     |  3 ---
+ test/fixedbugs/issue19084.go            | 17 +++++++++++++++++
+ 3 files changed, 28 insertions(+), 3 deletions(-)

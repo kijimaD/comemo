@@ -1,21 +1,31 @@
-commit df6396fc22823e9ab666d2d06c86f219d5129926
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 7 18:41:10 2023 +0100
+commit a6c95e75d9ff8a01dc05c1d48fb766b05f4fe298
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu Nov 25 10:26:47 2021 +0800
 
-    reflect: remove typedmemmovepartial as it is unused
+    cmd/compile/internal/ssa: inline memmove with known size
     
-    It appears to have been unused since https://go.dev/cl/298670
-    in April 2021, as that change removed its only use.
-    It is always in the git history if it is needed again.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: Ie55d059c102dfaa75bd253e09d48a4b30f45e941
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483136
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I1534b66b527efaf2bbaa8e6e6ac0618aac0b5930
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367040
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/reflect/value.go    |  6 ------
- src/runtime/mbarrier.go | 23 -----------------------
- 2 files changed, 29 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

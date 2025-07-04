@@ -1,35 +1,44 @@
-commit b6ae112ff1bb7ace761ed8dfee95626069280f07
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Sep 7 14:59:58 2023 +0200
+commit 91a1f0d918f54e3b3425248288085db4d5619075
+Author: Riccardo Gerosa <riccardo.gerosa@nozominetworks.com>
+Date:   Mon Oct 24 22:41:02 2022 +0000
 
-    runtime: implement usleep in Go instead of assembly on Windows
+    math/big: improve performance of Binomial
     
-    Windows APIs are normally not arch-specific, so it's better to
-    implement them in Go instead of assembly.
+    This change improves the performance of Binomial by implementing an
+    algorithm that produces smaller intermediate values at each step.
     
-    It was previously implemented in assembly because it was the only way
-    to support calls without a valid g. This CL defines a new function,
-    stdcall_no_g, that can be used in such cases.
+    Working with smaller big.Int values has the advantage that  fewer allocations
+    and computations are required for each mathematical operation.
     
-    While here, I've also replaced the use of the deprecated syscall
-    NtWaitForSingleObject with WaitForSingleObject. The former may
-    give the illusion of being more accurate, as it takes a higher
-    resolution timeout, but it's not. Windows time resolution is 15.6ms,
-    and can be as high as 1ms when using a high resolution timer, which
-    WaitForSingleObject supports.
+    The algorithm used is the Multiplicative Formula, which is a well known
+    way of calculating the Binomial coefficient and is described at:
+    https://en.wikipedia.org/wiki/Binomial_coefficient#Multiplicative_formula
+    https://en.wikipedia.org/wiki/Binomial_coefficient#In_programming_languages
     
-    Change-Id: I903400220ade4d4ccc15685c8da47182430f8686
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526477
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    In addition to that, an optimization has been made to remove a
+    redundant computation of (i+1) on each loop which has a measurable
+    impact when using big.Int.
+    
+    Performance improvement measured on an M1 MacBook Pro
+    running the existing benchmark for Binomial:
+    
+    name        old time/op    new time/op    delta
+    Binomial-8     589ns ± 0%     435ns ± 0%  -26.05%  (p=0.000 n=10+10)
+    
+    name        old alloc/op   new alloc/op   delta
+    Binomial-8    1.02kB ± 0%    0.08kB ± 0%  -92.19%  (p=0.000 n=10+10)
+    
+    name        old allocs/op  new allocs/op  delta
+    Binomial-8      38.0 ± 0%       5.0 ± 0%  -86.84%  (p=0.000 n=10+10)
+    
+    Change-Id: I5a830386dd42f062e17af88411dd74fcb110ded9
+    GitHub-Last-Rev: 6b2fca07de4096accb02f66c313dff47c2303462
+    GitHub-Pull-Request: golang/go#56339
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444315
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/os_windows.go       | 19 ++++++++++---------
- src/runtime/sys_windows_386.s   | 17 -----------------
- src/runtime/sys_windows_amd64.s | 19 -------------------
- src/runtime/sys_windows_arm.s   | 19 -------------------
- src/runtime/sys_windows_arm64.s | 15 ---------------
- 5 files changed, 10 insertions(+), 79 deletions(-)
+ src/math/big/int.go | 46 ++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 38 insertions(+), 8 deletions(-)

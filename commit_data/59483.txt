@@ -1,34 +1,19 @@
-commit 8d189f188e225e4919b34c0c097e75dfda255949
-Author: suntala <artichaut2023@gmail.com>
-Date:   Mon May 12 19:23:41 2025 +0000
+commit dda4b17ee4866a32a7d0b522f9a366cb6d687ce1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 18 15:38:20 2024 +0100
 
-    testing: add Output
+    runtime: remove nosplit directives from several Windows syscall helpers
     
-    Output is a method on T, B and F. It provides an io.Writer that writes
-    to the same test output stream as TB.Log. The new output writer is
-    used to refactor the implementation of Log. It maintains the formatting
-    provided by Log while making call site information optional.
-    Additionally, it provides buffering of log messages.
+    Some of the Windows syscall helpers don't need to be nosplit. Removing
+    this directive will allow to add instrumentation to these functions
+    without having to worry about the stack size.
     
-    Co-authored-by: Aleks Fazlieva <britishrum@users.noreply.github.com>
-    
-    Fixes #59928.
-    
-    Change-Id: I29090b3d4f61f7334388b373ec18750d5637aafa
-    GitHub-Last-Rev: 18af0e15262494f2074d545a6042b079d62301a2
-    GitHub-Pull-Request: golang/go#71575
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646956
-    Reviewed-by: Arati <artichaut2023@gmail.com>
-    Auto-Submit: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I3885621f23733af48563803c704563474010b8d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572415
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/59928.txt                          |   3 +
- doc/next/6-stdlib/99-minor/testing/59928.md |   4 +
- src/testing/benchmark.go                    |   3 +
- src/testing/fuzz.go                         |   2 +
- src/testing/panic_test.go                   |  19 ++
- src/testing/sub_test.go                     | 263 +++++++++++++++++++++++++++-
- src/testing/testing.go                      | 214 +++++++++++++++-------
- 7 files changed, 443 insertions(+), 65 deletions(-)
+ src/runtime/os_windows.go      | 15 ---------------
+ src/runtime/syscall_windows.go | 12 +++---------
+ 2 files changed, 3 insertions(+), 24 deletions(-)

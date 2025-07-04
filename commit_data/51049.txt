@@ -1,18 +1,21 @@
-commit 661e931dd120484cc1318792bc93ace00bbde088
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Oct 31 16:42:30 2022 -0400
+commit 7ccbcc90560468937f02609a43cb39a6e13ff797
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Nov 19 16:33:42 2021 -0600
 
-    internal/testenv: move helpers related to os/exec to a separate file
+    misc/cgo/test: further reduce likeliness of hang in Test9400
     
-    (Suggested by Austin in CL 445596.)
+    As suggested by #49680, a GC could be in-progress when we
+    disable GC. Force a GC after we pause to ensure we don't
+    hang in this case.
     
-    Change-Id: Ic774d551e8085d15435ef2b3c78d0169a365ce41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446642
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #49695
+    
+    Change-Id: I4fc4c06ef2ac174217c3dcf7d58c7669226e2d24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367874
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Paul Murphy <murp@ibm.com>
 
- src/internal/testenv/exec.go    | 173 ++++++++++++++++++++++++++++++++++++++++
- src/internal/testenv/testenv.go | 158 ------------------------------------
- 2 files changed, 173 insertions(+), 158 deletions(-)
+ misc/cgo/test/testdata/issue9400_linux.go | 2 ++
+ 1 file changed, 2 insertions(+)

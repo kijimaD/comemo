@@ -1,14 +1,13 @@
-commit a3c2d62a9ab518ed6098375d4df91e0521c86026
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Mar 24 08:55:08 2013 +0100
+commit 4c48e4ecb5927d3f176bb1494c81e2aa14e0f283
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 23 08:29:59 2013 -0700
 
-    cmd/5l, cmd/6l, cmd/8l: remove declaration on non-existent variables.
+    doc/go1.1.html: performance
+    An overview is all that's required.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, remyoudompheng, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/7985043
+    https://golang.org/cl/7577050
 
- src/cmd/5l/l.h | 1 -
- src/cmd/6l/l.h | 1 -
- src/cmd/8l/l.h | 3 ---
- 3 files changed, 5 deletions(-)
+ doc/go1.1.html | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)

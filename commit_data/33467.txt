@@ -1,46 +1,30 @@
-commit 13cfb15cb18a8c0c31212c302175a4cb4c050155
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Sep 28 15:07:48 2017 +0530
+commit 455775dae63eb1277227cbde9e99dc67a3fdb0ea
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 14:37:19 2017 +0200
 
-    strings: optimize ToUpper
+    runtime: improve makechan memory checks and allocation calls
     
-    Handling the ASCII case inline and call unicode.ToUpper only
-    for non-ascii cases.
+    Use mallogc instead of newarray to save some overhead since
+    makechan already checks for _MaxMem constraints.
     
-    Gives good improvements for the ascii case and minor perf
-    degrade for non-ascii case
+    Flattens the if else construct that determines if buf and hchan struct
+    should be allocated in one mallocgc call and where buf should point to.
     
-    name                                     old time/op    new time/op    delta
-    ToUpper/#00                                11.7ns ± 8%     8.0ns ± 1%  -31.95%  (p=0.008 n=5+5)
-    ToUpper/ONLYUPPER                          45.6ns ± 5%    19.9ns ± 1%  -56.40%  (p=0.008 n=5+5)
-    ToUpper/abc                                77.4ns ± 1%    57.0ns ± 1%  -26.32%  (p=0.008 n=5+5)
-    ToUpper/AbC123                             92.1ns ± 4%    67.7ns ± 2%  -26.57%  (p=0.008 n=5+5)
-    ToUpper/azAZ09_                             105ns ± 6%      67ns ± 2%  -36.26%  (p=0.000 n=5+4)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps     255ns ± 1%     140ns ± 1%  -45.01%  (p=0.029 n=4+4)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars     440ns ± 1%     447ns ± 0%   +1.49%  (p=0.016 n=5+4)
-    ToUpper/ɐɐɐɐɐ                               370ns ± 4%     366ns ± 1%     ~     (p=0.667 n=5+5)
+    Uses maxSliceCap to avoid divisions similar to makeslice.
     
-    name                                     old alloc/op   new alloc/op   delta
-    ToUpper/#00                                 0.00B          0.00B          ~     (all equal)
-    ToUpper/ONLYUPPER                           0.00B          0.00B          ~     (all equal)
-    ToUpper/abc                                 16.0B ± 0%      6.0B ± 0%  -62.50%  (p=0.008 n=5+5)
-    ToUpper/AbC123                              16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    ToUpper/azAZ09_                             24.0B ± 0%     16.0B ± 0%  -33.33%  (p=0.008 n=5+5)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps     80.0B ± 0%     64.0B ± 0%  -20.00%  (p=0.008 n=5+5)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars     96.0B ± 0%     96.0B ± 0%     ~     (all equal)
-    ToUpper/ɐɐɐɐɐ                               64.0B ± 0%     64.0B ± 0%     ~     (all equal)
+    name                old time/op  new time/op  delta
+    MakeChan/Byte       82.0ns ± 8%  81.4ns ± 7%    ~     (p=0.643 n=10+10)
+    MakeChan/Int        97.9ns ± 2%  96.6ns ± 2%  -1.40%  (p=0.009 n=10+10)
+    MakeChan/Ptr         128ns ± 3%   120ns ± 1%  -6.63%  (p=0.000 n=10+10)
+    MakeChan/Struct/0   66.7ns ± 4%  66.4ns ± 2%    ~     (p=0.697 n=10+10)
+    MakeChan/Struct/32   136ns ± 1%   130ns ± 0%  -4.42%  (p=0.000 n=10+10)
+    MakeChan/Struct/40   150ns ± 1%   150ns ± 1%    ~     (p=0.725 n=10+10)
     
-    Ran on a machine with Intel(R) Core(TM) i5-5200U CPU @ 2.20GHz
-    
-    Updates #17859
-    
-    Change-Id: I0735ac4a4a36e8a8f6cc06f2c16b871f12b4abf9
-    Reviewed-on: https://go-review.googlesource.com/68370
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ibb5675d0843a072aae2bfa58ecd39cf4cd926533
+    Reviewed-on: https://go-review.googlesource.com/55132
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strings/strings.go      | 28 +++++++++++++++++++++++++++-
- src/strings/strings_test.go | 16 ++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/runtime/chan.go | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)

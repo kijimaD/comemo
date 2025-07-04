@@ -1,24 +1,12 @@
-commit 46300a058dfb078164f29fa1a86a2dbdad55e503
-Author: Colin Cross <ccross@android.com>
-Date:   Thu Nov 5 15:47:20 2015 -0800
+commit c0486b129390e044e771d414d1405ba674d9f2d1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 23 14:23:01 2015 -0700
 
-    archive/zip: enable overriding (de)compressors per file
+    doc: go1.6.txt: go test flag changes
     
-    Implement setting the compression level for a zip archive by registering
-    a per-Writer compressor through Writer.RegisterCompressor.  If no
-    compressors are registered, fall back to the ones registered at the
-    package level.  Also implements per-Reader decompressors.
-    
-    Fixes #8359
-    
-    Change-Id: I93b27c81947b0f817b42e0067aa610ff267fdb21
-    Reviewed-on: https://go-review.googlesource.com/16669
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Klaus Post <klauspost@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icb52589909776fbe195ef2502ec7c0a4b590f350
+    Reviewed-on: https://go-review.googlesource.com/14859
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/archive/zip/example_test.go | 29 +++++++++++++++++++++++++++++
- src/archive/zip/reader.go       | 32 +++++++++++++++++++++++++++-----
- src/archive/zip/writer.go       | 30 ++++++++++++++++++++++++------
- 3 files changed, 80 insertions(+), 11 deletions(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

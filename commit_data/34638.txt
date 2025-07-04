@@ -1,14 +1,30 @@
-commit 15b63eee96e8397d1d0752cf3416ce002218fd35
-Author: Neven Sajko <nsajko@gmail.com>
-Date:   Sun Feb 11 00:30:34 2018 +0100
+commit 09660450394657510880197974d5ccfabd7bef8b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 4 12:35:23 2017 +1100
 
-    sort: fix typo, was a mixup between identifiers 'unsorted' and 'data'
+    internal/testenv: mark SkipFlaky and SkipFlakyNet as helpers
     
-    Change-Id: If9ad8ae663f007efe43cc35631713565fa754e93
-    Reviewed-on: https://go-review.googlesource.com/93237
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This makes the output they print refer to the code that called them.
+    
+    For example, instead of
+    
+    === RUN   TestWindowsStackMemoryCgo
+    --- SKIP: TestWindowsStackMemoryCgo (0.00s)
+            testenv.go:213: skipping known flaky test ...
+    PASS
+    
+    we see
+    
+    === RUN   TestWindowsStackMemoryCgo
+    --- SKIP: TestWindowsStackMemoryCgo (0.00s)
+            crash_cgo_test.go:471: skipping known flaky test ...
+    PASS
+    
+    Change-Id: I5f4c77c3aeab5c0e43c6dde2f15db70a6df24603
+    Reviewed-on: https://go-review.googlesource.com/76031
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sort/sort_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/testenv/testenv.go | 2 ++
+ 1 file changed, 2 insertions(+)

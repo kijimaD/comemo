@@ -1,14 +1,51 @@
-commit 2f9fbad04332b2bd9f5805c2a99c1d4c22cf4afe
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Jun 30 09:44:23 2011 -0700
+commit dd2074c82acda9b50896bf29569ba290a0d13b03
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 30 11:13:29 2011 -0400
 
-    http/cgi: add Handler.Dir to specify working directory
+    sync: improve Mutex to allow successive acquisitions
+    This implementation allows a goroutine to do successive acquisitions
+    of a mutex even if there are blocked goroutines.
+    Moreover, it allows a newcomer goroutine to acquire a mutex ahead of
+    blocked goroutines (that is, it does not enforce FIFO).
+    On implementation level it's achieved by separating waiter count and
+    locked flag.
+    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
+    are as follows (with 4631059 "replace Semacquire/Semrelease implementation"
+    patch applied):
+    benchmark                                        old ns/op    new ns/op    delta
+    sync_test.BenchmarkMutexUncontended                  24.10        25.40   +5.39%
+    sync_test.BenchmarkMutexUncontended-2                12.00        13.00   +8.33%
+    sync_test.BenchmarkMutexUncontended-4                 6.06         6.83  +12.71%
+    sync_test.BenchmarkMutexUncontended-8                 3.63         3.60   -0.83%
+    sync_test.BenchmarkMutexUncontended-16                2.38         2.49   +4.62%
     
-    R=golang-dev, bradfitz, alex.brainman
+    sync_test.BenchmarkMutex                             25.00        26.40   +5.60%
+    sync_test.BenchmarkMutex-2                          231.00        49.00  -78.79%
+    sync_test.BenchmarkMutex-4                          259.00       114.00  -55.98%
+    sync_test.BenchmarkMutex-8                          641.00       110.00  -82.84%
+    sync_test.BenchmarkMutex-16                        1380.00        96.30  -93.02%
+    
+    sync_test.BenchmarkMutexSlack                        24.80        26.20   +5.65%
+    sync_test.BenchmarkMutexSlack-2                     210.00       106.00  -49.52%
+    sync_test.BenchmarkMutexSlack-4                     453.00       119.00  -73.73%
+    sync_test.BenchmarkMutexSlack-8                    1024.00       105.00  -89.75%
+    sync_test.BenchmarkMutexSlack-16                   1291.00        91.90  -92.88%
+    
+    sync_test.BenchmarkMutexWork                        796.00       796.00   +0.00%
+    sync_test.BenchmarkMutexWork-2                      399.00       401.00   +0.50%
+    sync_test.BenchmarkMutexWork-4                      216.00       212.00   -1.85%
+    sync_test.BenchmarkMutexWork-8                     1547.00       196.00  -87.33%
+    sync_test.BenchmarkMutexWork-16                    2754.00       287.00  -89.58%
+    
+    sync_test.BenchmarkMutexWorkSlack                   792.00       800.00   +1.01%
+    sync_test.BenchmarkMutexWorkSlack-2                 430.00       420.00   -2.33%
+    sync_test.BenchmarkMutexWorkSlack-4                 467.00       230.00  -50.75%
+    sync_test.BenchmarkMutexWorkSlack-8                1860.00       273.00  -85.32%
+    sync_test.BenchmarkMutexWorkSlack-16               3029.00       294.00  -90.29%
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4635042
+    https://golang.org/cl/4631075
 
- src/pkg/http/cgi/host.go           | 24 +++++++++---
- src/pkg/http/cgi/host_test.go      | 76 ++++++++++++++++++++++++++++++++++++++
- src/pkg/http/cgi/testdata/test.cgi | 14 +++++++
- 3 files changed, 108 insertions(+), 6 deletions(-)
+ src/pkg/sync/mutex.go | 63 ++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 50 insertions(+), 13 deletions(-)

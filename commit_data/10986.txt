@@ -1,17 +1,25 @@
-commit fcd877ea8abd737c0b9dcfa36e27589ae62cffb9
+commit dea9f417d2383c08d746e63a733063c309819826
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 22 15:52:33 2011 -0800
+Date:   Thu Dec 22 15:37:09 2011 -0800
 
-    fix build: correct build scripts
+    fix build: updated build scripts
     
-    R=r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5498075
+    https://golang.org/cl/5504078
 
- src/buildscript_darwin_amd64.sh  | 1 -
- src/buildscript_freebsd_amd64.sh | 1 -
- src/buildscript_linux_amd64.sh   | 1 -
- src/buildscript_netbsd_amd64.sh  | 1 -
- src/buildscript_openbsd_amd64.sh | 1 -
- src/buildscript_windows_amd64.sh | 1 -
- 6 files changed, 6 deletions(-)
+ src/buildscript_darwin_386.sh    | 2 +-
+ src/buildscript_darwin_amd64.sh  | 3 ++-
+ src/buildscript_freebsd_386.sh   | 2 +-
+ src/buildscript_freebsd_amd64.sh | 3 ++-
+ src/buildscript_linux_386.sh     | 2 +-
+ src/buildscript_linux_amd64.sh   | 3 ++-
+ src/buildscript_linux_arm.sh     | 2 +-
+ src/buildscript_netbsd_386.sh    | 2 +-
+ src/buildscript_netbsd_amd64.sh  | 3 ++-
+ src/buildscript_openbsd_386.sh   | 2 +-
+ src/buildscript_openbsd_amd64.sh | 3 ++-
+ src/buildscript_plan9_386.sh     | 2 +-
+ src/buildscript_windows_386.sh   | 2 +-
+ src/buildscript_windows_amd64.sh | 3 ++-
+ 14 files changed, 20 insertions(+), 14 deletions(-)

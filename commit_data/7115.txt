@@ -1,12 +1,19 @@
-commit b814cca3c391187bc76db2fb2cbf394e18a50726
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jan 13 16:30:56 2011 -0800
+commit 2a74009675ffc79bf806661d30eb20c139856586
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jan 13 15:34:52 2011 -0800
 
-    cmath test: fix format (%g does not print booleans)
+    add TST op code
     
-    R=ken
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4003041
+    https://golang.org/cl/4000041
 
- src/pkg/cmath/cmath_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/cgen.c   |  87 +++++++++++++++--------
+ src/cmd/5g/cgen64.c |  12 ++--
+ src/cmd/5g/ggen.c   |   3 +-
+ src/cmd/5g/peep.c   | 193 ++++++++++++++++++++++++++--------------------------
+ src/cmd/5g/reg.c    |   5 +-
+ src/cmd/5l/asm.c    |   9 ++-
+ src/cmd/5l/optab.c  |   4 +-
+ src/cmd/5l/span.c   |   2 +-
+ 8 files changed, 175 insertions(+), 140 deletions(-)

@@ -1,43 +1,20 @@
-commit 3f22adecc7698cd55452d61964aa74e3c4cd16de
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 5 15:21:27 2016 -0500
+commit 2780abd645536db2f23d6c1f47bb404bc1da8fea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 3 17:18:42 2015 -0800
 
-    runtime: fix sigprof stack barrier locking
+    cmd/cgo: add a missing newline in writeExports
     
-    f90b48e intended to require the stack barrier lock in all cases of
-    sigprof that walked the user stack, but got it wrong. In particular,
-    if sp < gp.stack.lo || gp.stack.hi < sp, tracebackUser would be true,
-    but we wouldn't acquire the stack lock. If it then turned out that we
-    were in a cgo call, it would walk the stack without the lock.
+    The code works without the newline, but it looks funny:
     
-    In fact, the whole structure of stack locking is sigprof is somewhat
-    wrong because it assumes the G to lock is gp.m.curg, but all three
-    gentraceback calls start from potentially different Gs.
+    func _cgoexp_15afe6549f62_GoFn(a unsafe.Pointer, n int32) {     fn := GoFn
     
-    To fix this, we lower the gcTryLockStackBarriers calls much closer to
-    the gentraceback calls. There are now three separate trylock calls,
-    each clearly associated with a gentraceback and the locked G clearly
-    matches the G from which the gentraceback starts. This actually brings
-    the sigprof logic closer to what it originally was before stack
-    barrier locking.
+    This adds a newline after the '{'.
     
-    This depends on "runtime: increase assumed stack size in
-    externalthreadhandler" because it very slightly increases the stack
-    used by sigprof; without this other commit, this is enough to blow the
-    profiler thread's assumed stack size.
-    
-    Fixes #12528 (hopefully for real this time!).
-    
-    For the 1.5 branch, though it will require some backporting. On the
-    1.5 branch, this will *not* require the "runtime: increase assumed
-    stack size in externalthreadhandler" commit: there's no pcvalue cache,
-    so the used stack is smaller.
-    
-    Change-Id: Id2f6446ac276848f6fc158bee550cccd03186b83
-    Reviewed-on: https://go-review.googlesource.com/18328
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I6c465abe16f47924426d1b22b91004b3a3586ebd
+    Reviewed-on: https://go-review.googlesource.com/16612
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/proc.go | 52 +++++++++++++++++++++++++---------------------------
- 1 file changed, 25 insertions(+), 27 deletions(-)
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

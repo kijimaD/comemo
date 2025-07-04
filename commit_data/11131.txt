@@ -1,16 +1,14 @@
-commit 701f70abf6ac76fbd28c640ec49609090882f05a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 12 11:23:33 2012 -0800
+commit c356fc74a12d32d7d0764de0160b291117e9dc79
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 11:06:09 2012 -0800
 
-    sql: fix potential corruption in QueryRow.Scan into a *[]byte
+    dashboard: add deployment comment to app.yaml
     
-    Fixes #2622
+    Also update default app and version to be correct.
     
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5533077
+    https://golang.org/cl/5541044
 
- src/pkg/exp/sql/fakedb_test.go | 25 +++++++++++++++++++++++++
- src/pkg/exp/sql/sql.go         | 32 +++++++++++++++++++++++++++-----
- src/pkg/exp/sql/sql_test.go    | 18 ++++++++++++++----
- 3 files changed, 66 insertions(+), 9 deletions(-)
+ misc/dashboard/app/app.yaml | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

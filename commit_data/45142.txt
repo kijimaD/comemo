@@ -1,16 +1,20 @@
-commit b161b57c3fbb08cdfe28b91ed40b347b83569b48
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Tue Apr 13 12:25:19 2021 +0200
+commit 7d6b304f123b6d11784b48179059f843493c4790
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 16:26:37 2020 -0400
 
-    go/build: replace os.MkdirTemp with T.TempDir
+    cmd/link: support plugin on macOS/ARM64
     
-    Updates #45402
+    Updates #38485.
     
-    Change-Id: Ic2f696837034de17333a6a53127a4bfd301e96a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309354
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I8295f7fad55b1f9701162f9d2902b3499137c64d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259441
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/build/build_test.go | 20 ++++----------------
- 1 file changed, 4 insertions(+), 16 deletions(-)
+ src/cmd/dist/test.go               |  2 +-
+ src/cmd/internal/sys/supported.go  |  2 +-
+ src/cmd/link/internal/arm64/asm.go | 20 ++++++++++--
+ src/cmd/link/internal/ld/config.go |  8 ++++-
+ src/cmd/link/internal/ld/lib.go    |  4 ++-
+ src/cmd/link/internal/ld/macho.go  | 62 ++++++++++++++++++++------------------
+ 6 files changed, 62 insertions(+), 36 deletions(-)

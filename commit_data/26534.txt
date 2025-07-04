@@ -1,17 +1,17 @@
-commit 0cd9edf6e8346f63a39328c9361f4b44cee30189
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 25 18:17:37 2016 +0100
+commit 4760b5a478f9760e82819439843bca92085281d5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 2 13:46:49 2016 -0800
 
-    cmd/go: fix proc-count accumulation in benchmark name
+    misc: update timezone database to IANA 2016a
     
-    Fixes #14964
+    Fixes #14202
     
-    Change-Id: I5f772426081efaa9315c4ecaf60de850af324f1d
-    Reviewed-on: https://go-review.googlesource.com/21139
-    Reviewed-by: Ahmed Waheed <oneofone@gmail.com>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: Ia6dccecb1b9b3f6c0838c99090e6ddf1ad43303c
+    Reviewed-on: https://go-review.googlesource.com/19175
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/testing/benchmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 360617 -> 360703 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

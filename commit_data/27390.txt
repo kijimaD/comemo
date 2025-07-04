@@ -1,17 +1,25 @@
-commit 041cc148faae23714c38ec9e4388715d99aef518
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 13 05:02:00 2016 +0900
+commit d8ee180ab2722e92c568e322fbc8690688f992e3
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Thu Mar 24 08:48:41 2016 +0100
 
-    net: deflake TestPointToPointInterface and TestInterfaceArrivalAndDeparture
+    cmd/compile: fold more of CMPQ and ANDQ
     
-    Fixes #6879.
+    g used to produce CMPQ/SBBQ/ANDQ, but f didn't even though
+    s&15 is at most s&63.
     
-    Change-Id: I9ed2460cf14cb9322d9521e7af910efa48abdaf0
-    Reviewed-on: https://go-review.googlesource.com/23112
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    func f(x uint64, s uint) uint64 {
+            return x >> (s & 63)
+    }
+    func g(x uint64, s uint) uint64 {
+            return x >> (s & 15)
+    }
+    
+    Change-Id: Iab4a1a6e10b471dead9f1203e9d894677cf07bb2
+    Reviewed-on: https://go-review.googlesource.com/21048
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/interface_bsd_test.go  |  9 +++++++--
- src/net/interface_unix_test.go | 17 +++++++++++------
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++--------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

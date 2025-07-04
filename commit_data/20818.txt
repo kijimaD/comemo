@@ -1,12 +1,16 @@
-commit 260028fc0e55e47b66d9c21d7a703bec0066fd52
+commit 5318a1b5b12d2836b23eb6b706f96f0247f2144a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 28 23:45:01 2014 -0400
+Date:   Wed Oct 15 13:10:14 2014 -0400
 
-    cmd/gc: fix build - remove unused variables in walkprint
+    database/sql: add Drivers, returning list of registered drivers
     
-    TBR=austin
+    Fixes #7969.
+    
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/162420043
+    https://golang.org/cl/158950043
 
- src/cmd/gc/walk.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/database/sql/fakedb_test.go | 22 ++++++++++++++++++++++
+ src/database/sql/sql.go         | 11 +++++++++++
+ 2 files changed, 33 insertions(+)

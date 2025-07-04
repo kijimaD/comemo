@@ -1,19 +1,20 @@
-commit 0d7a2241cb684236f2728bb08514e7f256ac4a43
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 30 09:29:16 2016 -0700
+commit d8d33514f9e8c80d504ab4a61ef96621afc3647d
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 29 11:15:16 2016 -0400
 
-    runtime: update a few comments
+    cmd/compile: Move divconst_test out of test/bench/go1
     
-    noescape is now 0 instructions with the SSA backend.
-    fast atomics are no longer a TODO (at least for amd64).
+    This is necessary to avoid disrupting the go1 suite and gives
+    us a place to put other tests of basic compiler function and
+    correctness.
     
-    Change-Id: Ib6e06f7471bef282a47ba236d8ce95404bb60a42
-    Reviewed-on: https://go-review.googlesource.com/28087
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I36933819ff2bfe6a2121fff2be9a98efd2123d9a
+    Reviewed-on: https://go-review.googlesource.com/22597
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go  | 10 +++++-----
- src/runtime/stubs.go |  2 +-
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/test/README                               | 4 ++++
+ {test/bench/go1 => src/cmd/compile/internal/test}/divconst_test.go | 2 +-
+ src/cmd/compile/internal/test/test.go                              | 1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)

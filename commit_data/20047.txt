@@ -1,14 +1,13 @@
-commit c6442c994a1976a2fecd01af1d26c925eb03c8a1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 19 08:07:58 2014 -0700
+commit c229cec23a228e0ce6962dae200736f516ede1f0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 21:55:43 2014 -0400
 
-    cmd/6a, cmd/8a: document AJxx condition codes
+    [dev.power64] runtime: implemnt runtime.switchtoM and runtime.onM
     
-    LGTM=ruiu, rsc
-    R=rsc, ruiu
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/130870043
+    https://golang.org/cl/129860043
 
- src/cmd/6a/lex.c | 34 +++++++++++++++++-----------------
- src/cmd/8a/lex.c | 34 +++++++++++++++++-----------------
- 2 files changed, 34 insertions(+), 34 deletions(-)
+ src/pkg/runtime/asm_power64x.s | 51 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

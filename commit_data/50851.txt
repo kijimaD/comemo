@@ -1,21 +1,26 @@
-commit 4274ffd4b8bcef4e07cfdef9405a2e33f935d079
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Sep 9 23:15:46 2022 +1000
+commit bc0b98eeffa64f155e7f2a2dc6b883a97c4d0580
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 22:21:48 2021 -0800
 
-    cmd/compile: fold negation into subtraction on riscv64
+    cmd/compile/internal/types2: remove asNamed
     
-    Fold negation into subtraction and avoid double negation.
+    In the few remaining places where we use asNamed, if the argument
+    is indeed a *Named, we either don't need to look "inside" it, or
+    we call under() (which calls Named.underlying() which does resolve);
+    so there's no need for an implicit resolution (which was done by
+    asNamed). The only place where we do need to resolve is in lookup,
+    so added the explicit resolve call in that case.
     
-    This removes around 500 instructions from the Go binary on riscv64.
-    
-    Change-Id: I4aac6c87baa2a0759b180ba87876d488a23df6d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431105
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iff0a19fde7581e94149e89b9e48157c1981db105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363441
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  7 ++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 49 +++++++++++++++++++++++++
- 2 files changed, 56 insertions(+)
+ src/cmd/compile/internal/types2/decl.go     |  2 +-
+ src/cmd/compile/internal/types2/lookup.go   |  7 ++++---
+ src/cmd/compile/internal/types2/type.go     |  9 ---------
+ src/cmd/compile/internal/types2/unify.go    | 14 ++++++--------
+ src/cmd/compile/internal/types2/universe.go |  2 +-
+ 5 files changed, 12 insertions(+), 22 deletions(-)

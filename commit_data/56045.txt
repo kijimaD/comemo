@@ -1,17 +1,17 @@
-commit b37fb8c6ca3ef108248798487df5b058b4877cd2
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Mon Mar 25 02:21:10 2024 +0000
+commit d389f779d443f10a6ea7698ac732b026768c5ce6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 05:52:04 2023 +1100
 
-    test/stress: fix typo in comment
+    cmd/internal/obj/arm64: use more appropriate types for opbfm and opextr
     
-    Change-Id: I0f67801ef2d3af65c39a27b8db6ebaa769ff7f92
-    GitHub-Last-Rev: feb7f79ea519450a054de18e10ffa6284538708b
-    GitHub-Pull-Request: golang/go#66508
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574075
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This allows for a large number of casts to be removed at call sites.
+    
+    Change-Id: I44a162040cc5b4de02e106d3a6de10f8e0870cb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471515
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- test/stress/runstress.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go | 36 +++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 21 deletions(-)

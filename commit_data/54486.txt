@@ -1,17 +1,21 @@
-commit 11b08a75cd6b93473d0ab6e4b6a94247ee341a01
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 15 12:02:01 2023 -0400
+commit ffa03f6bac1a86f85a3d3f16c4711b252dc404e0
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Aug 31 12:24:21 2022 -0700
 
-    cmd/link: reject invalid -R flag
+    crypto/tls,crypto/x509: clarify certificate ownership
     
-    Reject -R value that is not a power of 2, or less than 4K.
+    Clarify documentation in cases where certificates returned from
+    various methods are not owned by the caller, and as such should not
+    be modified.
     
-    Fixes #62660.
-    
-    Change-Id: I3fa33c23c25311a93c0accc9acbd1e465789b8c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528715
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I06bdc4cf0f686c3d5e8bbb76fc71f2a4bdb955e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427155
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/main.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/crypto/tls/common.go  | 10 ++++++++++
+ src/crypto/x509/verify.go |  2 ++
+ 2 files changed, 12 insertions(+)

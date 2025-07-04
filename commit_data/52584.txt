@@ -1,37 +1,34 @@
-commit a3f3868c7aa66d2290d1a51aebacce88cb584f37
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Apr 9 08:36:12 2023 -0700
+commit 83ee6c1d167a361b510e9bb449e4183e2fb583b1
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Nov 24 17:53:07 2021 +0800
 
-    cmd/compile: replace isSigned(t) with t.IsSigned()
+    cmd/compile/internal/ssa: increase the bit width of BlockKind type
     
-    No change in semantics, just removing an unneeded helper.
+    After the BlockKind of loong64 is introduced, it exceeds the maximum
+    range that int8 can represent.
     
-    Also align rules a bit.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: Ie4dabb99392315a7700c645b3d0931eb8766a5fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483439
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I246d9c22334d0ea9e1440d29df05c9ec2d472b30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367038
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/_gen/386.rules     |  4 +-
- src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  4 +-
- src/cmd/compile/internal/ssa/_gen/ARM.rules     | 12 ++--
- src/cmd/compile/internal/ssa/_gen/ARM64.rules   | 16 ++---
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 16 ++---
- src/cmd/compile/internal/ssa/_gen/MIPS.rules    | 12 ++--
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules  | 16 ++---
- src/cmd/compile/internal/ssa/_gen/PPC64.rules   | 38 +++++------
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 20 +++---
- src/cmd/compile/internal/ssa/_gen/S390X.rules   | 16 ++---
- src/cmd/compile/internal/ssa/rewrite.go         |  4 --
- src/cmd/compile/internal/ssa/rewriteARM.go      | 16 ++---
- src/cmd/compile/internal/ssa/rewriteARM64.go    | 24 +++----
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 24 +++----
- src/cmd/compile/internal/ssa/rewriteMIPS.go     | 16 ++---
- src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 24 +++----
- src/cmd/compile/internal/ssa/rewritePPC64.go    | 88 ++++++++++++-------------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 +++----
- src/cmd/compile/internal/ssa/rewriteS390X.go    | 24 +++----
- 19 files changed, 197 insertions(+), 201 deletions(-)
+ src/cmd/compile/internal/ssa/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

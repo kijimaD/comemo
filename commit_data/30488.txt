@@ -1,19 +1,19 @@
-commit 7e74d432915a8f22b07f8d29aa8e02245f8d8cd1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 07:56:53 2017 -0800
+commit f58ce7fe7954bd788072beaf1517303ebb5316eb
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:38 2016 +0200
 
-    cmd/vet: refactor to support alternative importers
+    cmd/asm: add support for GOARCH=mips{,le}
     
-    Instead of constructing the importer in init, do it lazily as needed.
-    This lets us select the importer using a command line flag.
-    The addition of the command line flag will come in a follow-up CL.
-    
-    Change-Id: Ieb3a5f01a34fb5bd220a95086daf5d6b37e83bb5
-    Reviewed-on: https://go-review.googlesource.com/37669
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6a5256a42f895bb93ac56764e91ade1861c00e04
+    Reviewed-on: https://go-review.googlesource.com/31476
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/vet/httpresponse.go | 20 ++++----------------
- src/cmd/vet/types.go        | 26 ++++++++++++++++++--------
- 2 files changed, 22 insertions(+), 24 deletions(-)
+ src/cmd/asm/internal/arch/arch.go                |  66 +++-
+ src/cmd/asm/internal/arch/{mips64.go => mips.go} |  12 +-
+ src/cmd/asm/internal/asm/asm.go                  |   8 +-
+ src/cmd/asm/internal/asm/endtoend_test.go        |   3 +-
+ src/cmd/asm/internal/asm/operand_test.go         |  87 +++++
+ src/cmd/asm/internal/asm/testdata/mips.s         | 430 +++++++++++++++++++++++
+ 6 files changed, 594 insertions(+), 12 deletions(-)

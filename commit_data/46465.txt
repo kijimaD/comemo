@@ -1,21 +1,33 @@
-commit e09dcc211a338450d3f680fe39abc13b79ddbb29
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 16 15:09:31 2021 -0700
+commit 67ad695416fbcdf9d61e5bfc0f9cd9aac313caa4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 03:57:21 2021 -0800
 
-    go/types, types2: add an additional shift test case
+    [dev.regabi] cmd/compile: split escape analysis state
     
-    The extra test just confirms that the type-checker internally
-    agrees with the spec with the (otherwise invisible) type given
-    to an untyped constant in a specific shift expression.
+    In a future CL, I plan to change escape analysis to walk function
+    literal bodies at the point they appear within the AST, rather than
+    separately as their own standalone function declaration. This means
+    escape analysis's AST-walking code will become reentrant.
     
-    For #48422.
+    To make this easier to get right, this CL splits escape analysis's
+    state into two separate types: one that holds all of the state shared
+    across the entire batch, and another that holds only the state that's
+    used within initFunc and walkFunc.
     
-    Change-Id: I6d98045f90bd20b0cc0a96a147bec9701039cb07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350410
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Incidentally, this CL reveals that a bunch of logopt code was using
+    e.curfn outside of the AST-walking code paths where it's actually set,
+    so it was always nil. That code is in need of refactoring anyway, so
+    I'll come back and figure out the correct values to pass later when I
+    address that.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I1d13f47d06f7583401afa1b53fcc5ee2adaea6c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280997
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/api_test.go | 1 +
- src/go/types/api_test.go                    | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/escape/escape.go | 122 +++++++++++++++++-------------
+ 1 file changed, 70 insertions(+), 52 deletions(-)

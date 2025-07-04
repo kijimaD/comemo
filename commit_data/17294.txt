@@ -1,22 +1,13 @@
-commit fbf5fd5f1e47e8b4fa971ac45d1b3893f85ea523
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 16 17:51:09 2013 +0400
+commit b6a8fa100c9081d4c091edd21708862b72defbb7
+Author: Robert Dinu <r@varp.se>
+Date:   Fri Aug 16 17:19:22 2013 +1000
 
-    runtime/race: update runtime to rev 188542
+    A+C: change Robert Dinu's email address
     
-    Fixes #6107.
-    race: output goroutine 1 as main goroutine
-    
-    Fixes #6130.
-    race: option to abort program on first detected error
-    
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/12968044
+    https://golang.org/cl/12759043
 
- src/pkg/runtime/race/README                  |   1 +
- src/pkg/runtime/race/output_test.go          |  23 ++++++++++-------------
- src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 176596 -> 186024 bytes
- src/pkg/runtime/race/race_linux_amd64.syso   | Bin 178904 -> 187616 bytes
- src/pkg/runtime/race/race_windows_amd64.syso | Bin 153779 -> 160595 bytes
- 5 files changed, 11 insertions(+), 13 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

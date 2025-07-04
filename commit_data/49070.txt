@@ -1,25 +1,35 @@
-commit 0aee59736f53ca1ef29d53163f26c2fc21a4c415
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon May 2 12:00:36 2022 -0700
+commit b296e54618ea09b89154173a2bfb200203a731bf
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jul 15 22:06:38 2021 -0400
 
-    crypto/x509: fix EKU nesting enforcement
+    [dev.typeparams] go/types: port lazy import resolution from types2
     
-    The path building rework broke the enforcement of EKU nesting, this
-    change goes back to using the old method of enforcement, since it ends
-    up being more efficient to check the chains after building, rather than
-    at each step during path building.
+    This is a straightforward port of CL 323569 to go/types. It is
+    line-for-line identical, except where names are unexported to preserve
+    the current go/types API.
     
-    Fixes #52659
-    
-    Change-Id: Ic7c3717a10c33905677cf7bc4bc0a20f5f15f259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403554
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I4c78211bff90f982ca2e90ed224946716118ee31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334893
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/name_constraints_test.go | 195 +++++++++++++------------
- src/crypto/x509/verify.go                |  57 ++++----
- src/crypto/x509/verify_test.go           | 240 +++++++++++++++++++++++++++++++
- 3 files changed, 373 insertions(+), 119 deletions(-)
+ src/go/types/check.go       |  2 +-
+ src/go/types/decl.go        |  7 ++--
+ src/go/types/instantiate.go | 18 ++++++++-
+ src/go/types/labels.go      |  3 +-
+ src/go/types/lookup.go      |  5 ++-
+ src/go/types/object.go      |  8 ++++
+ src/go/types/predicates.go  |  2 +-
+ src/go/types/resolver.go    | 19 +++++----
+ src/go/types/sanitize.go    |  1 +
+ src/go/types/scope.go       | 93 ++++++++++++++++++++++++++++++++++++++++-----
+ src/go/types/signature.go   |  2 +-
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/stmt.go        |  3 +-
+ src/go/types/subst.go       | 12 +++---
+ src/go/types/type.go        | 46 +++++++++++++++++++---
+ src/go/types/typestring.go  |  4 +-
+ src/go/types/typexpr.go     |  2 +-
+ 17 files changed, 186 insertions(+), 43 deletions(-)

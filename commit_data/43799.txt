@@ -1,32 +1,19 @@
-commit f423d616b15302730c1b737a3b22afca315a7fbe
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 11 15:33:39 2020 -0500
+commit 1cc46d3a255ee0ecbb2b602095e6e4ec4d22fd61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 22 16:03:30 2020 -0700
 
-    cmd/cgo: fix initialization of empty argument types
+    runtime: sleep in TestSegv program to let signal be delivered
     
-    CL 258938 changed the way C to Go calls work such that they now
-    construct a C struct on the C side for the arguments and space for the
-    results. Any pointers in the result space must be zeroed, so we just
-    zero the whole struct.
+    Since we're sleeping rather than waiting for the goroutines,
+    let the goroutines run forever.
     
-    However, C makes it surprisingly hard to robustly zero any struct
-    type. We had used a "{0}" initializer, which works in the vast
-    majority of cases, but fails if the type is empty or effectively
-    empty.
+    Fixes #38595
     
-    This CL fixes this by changing how the cgo tool zero-initializes the
-    argument struct to be more robust.
-    
-    Fixes #42495.
-    
-    Change-Id: Id1749b9d751e59eb7a02a9d44fec0698a2bf63cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269337
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4cd611fd7565f6e8d91e50c9273d91c514825314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229484
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- misc/cgo/test/issue42495.go | 15 +++++++++++++++
- src/cmd/cgo/out.go          | 10 +++++++++-
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/runtime/testdata/testprogcgo/segv.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

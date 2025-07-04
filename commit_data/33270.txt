@@ -1,15 +1,28 @@
-commit ca0f303f2b332aa19b80e1b9ea4fc3c6e3b8aeb7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Oct 28 13:45:36 2017 +0200
+commit 3de8498b251b74ffb49d8a679bd10ecb2517af74
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 9 16:13:09 2017 +0900
 
-    .gitignore: ignore src/cmd/dist/dist
+    cmd/compile: remove some unused params in gc
     
-    In case of a failed/cancelled build, src/cmd/dist/dist might be left in
-    place.
+    Mostly node and position parameters that are no longer used.
     
-    Change-Id: Id81b5d663476a880101a2eed54fa051c40b0b0bc
-    Reviewed-on: https://go-review.googlesource.com/74150
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also remove an unnecessary node variable while at it.
+    
+    Found with github.com/mvdan/unparam.
+    
+    Change-Id: I88f9bd5d20bfc5b0f6f63ea81869daa246175061
+    Reviewed-on: https://go-review.googlesource.com/54130
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- .gitignore | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/alg.go       |  4 ++--
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/closure.go   |  4 ++--
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/noder.go     | 12 +++++-------
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++----
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ 9 files changed, 20 insertions(+), 24 deletions(-)

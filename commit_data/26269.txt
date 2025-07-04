@@ -1,15 +1,20 @@
-commit 57faad66772390defb9c708a31eaf5e51a0c18c3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 13 21:51:07 2016 -0700
+commit 305b4baf41ecbaa3469428b7debb389bd1527804
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 7 04:59:25 2016 +0000
 
-    cmd/compile: fix CTNIL static data comments
+    net/http: update bundled http2, fixes TestConcurrentReadWriteReqBody_h2
     
-    Change-Id: I434f881c10dec41a802641db8873abf1353beba2
-    Reviewed-on: https://go-review.googlesource.com/20671
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates http2 to x/net git rev 520af5de654d for
+    https://golang.org/cl/18370
+    
+    Fixes #13659
+    
+    Change-Id: I920eaff6036ac22c500a97449826c6b12f873d7f
+    Reviewed-on: https://go-review.googlesource.com/18371
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/obj.go   | 1 -
- src/cmd/compile/internal/gc/sinit.go | 1 +
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/clientserver_test.go |  7 ++----
+ src/net/http/h2_bundle.go         | 50 +++++++++++++++++++++++----------------
+ 2 files changed, 31 insertions(+), 26 deletions(-)

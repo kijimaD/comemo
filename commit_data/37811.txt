@@ -1,20 +1,18 @@
-commit 5ec5c5741ec7d0e051667f13094f532833d41578
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Dec 28 11:46:35 2018 +0100
+commit 360771e422ff0e586963e1dc0818c427b5444379
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 29 12:09:34 2018 -0400
 
-    cmd/dist: list only supported platforms
+    cmd/compile: don't clobber dead slots in runtime.wbBufFlush
     
-    Introduce an incomplete map in dist alongside cgoEnabled and filter out
-    the incomplete ports in 'dist list'.
+    runtime.wbBufFlush must not modify its arguments, because the
+    argument slots are also used as spill slots in runtime.gcWriteBarrier.
+    So, GOEXPERIMENT=clobberdead must not clobber them.
     
-    Fixes #28944
+    Updates #27326.
     
-    Change-Id: I15aae56aec570e1cd9e28906900cd5ba0db77811
-    Reviewed-on: https://go-review.googlesource.com/c/155839
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id02bb22a45201eecee748d89e7bdb3df7e4940e4
+    Reviewed-on: https://go-review.googlesource.com/131957
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/build.go | 10 ++++++++++
- src/cmd/dist/test.go  |  3 +++
- 2 files changed, 13 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

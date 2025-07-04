@@ -1,13 +1,14 @@
-commit 9b66129fe38e467c5c25eed4ab271ca88c3f8840
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 16 15:05:48 2011 -0500
+commit df4b22fcffc28586c64e339a6b55c254602bcb8e
+Author: Olivier Antoine <olivier.antoine@gmail.com>
+Date:   Wed Feb 16 15:03:47 2011 -0500
 
-    net: more accurate IPv4-in-IPv6 API test
+    net: reject invalid net:proto network names
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4172045
+    https://golang.org/cl/4129042
 
- src/pkg/net/iprawsock.go |  2 +-
- src/pkg/net/ipsock.go    | 29 ++++++++++++++++++++++-------
- 2 files changed, 23 insertions(+), 8 deletions(-)
+ src/pkg/net/dial.go      | 28 +++++++++++++++++-----------
+ src/pkg/net/iprawsock.go |  4 ++--
+ src/pkg/net/parse.go     | 10 ----------
+ 3 files changed, 19 insertions(+), 23 deletions(-)

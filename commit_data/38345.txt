@@ -1,26 +1,23 @@
-commit ac56baa09f789ab93dd97b31c4f033da7c85a6a4
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue Mar 5 03:58:37 2019 -0800
+commit 93eded02976e1bdfaddf3403fa415393f5b90378
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Oct 11 14:35:29 2018 +0200
 
-    testing: enable examples on js/wasm with non os.Pipe runExample
+    internal/syscall/unix, net: improve interface_aix.go
     
-    os.Pipe is not implemented on wasm/js so for that purpose use
-    a temporary file for js/wasm. This change creates two versions
-    of runExample:
+    This commit improves the interface_aix.go file, based on feedbacks about
+    CL 138724.
     
-    * runExample verbatim that still uses os.Pipe for non js/wasm
-    * runExample that uses a temporary file
+    To retrieve MTU, ioctl is needed. It's implemented inside
+    internal/syscall/unix.
     
-    Also added a TODO to re-unify these function versions back into
-    example.go wasm/js gets an os.Pipe implementation.
-    
-    Change-Id: I9f418a49b2c397e1667724c7442b7bbe8942225e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165357
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ic583d26b93935a32a5f1eb5a2170b86e80a4a85e
+    Reviewed-on: https://go-review.googlesource.com/c/142157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/example.go        | 92 +++++++++++++++----------------------------
- src/testing/run_example.go    | 64 ++++++++++++++++++++++++++++++
- src/testing/run_example_js.go | 74 ++++++++++++++++++++++++++++++++++
- 3 files changed, 169 insertions(+), 61 deletions(-)
+ src/go/build/deps_test.go                 |  2 +-
+ src/internal/syscall/unix/asm_aix_ppc64.s | 12 ++++++++++++
+ src/internal/syscall/unix/ioctl_aix.go    | 25 +++++++++++++++++++++++++
+ src/net/interface_aix.go                  | 30 ++++++++++++++++++++++++------
+ 4 files changed, 62 insertions(+), 7 deletions(-)

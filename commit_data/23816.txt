@@ -1,18 +1,16 @@
-commit eb248c4df2c2850d49b9656f6aa1e3d1d67af61b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 23 22:40:30 2015 -0700
+commit 7322ef5d2a4aefc3f059015dcb8a7860461cb911
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 12:49:45 2015 -0700
 
-    runtime: require gdb version 7.9 for gdb test
+    go/types: fix Eval to use correct file set when evaluating an expression
     
-    Issue 11214 reports problems with older versions of gdb.  It does work
-    with gdb 7.9 on my Ubuntu Trusty system, so take that as the minimum
-    required version.
+    This is https://go-review.googlesource.com/10999 which we could not apply
+    in x/tools/go/types because we must not rely on 1.5 features in that repo
+    yet.
     
-    Fixes #11214.
-    
-    Change-Id: I61b732895506575be7af595f81fc1bcf696f58c2
-    Reviewed-on: https://go-review.googlesource.com/12626
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9a57cdb7ad4051df278d1fbed90c736df50f426f
+    Reviewed-on: https://go-review.googlesource.com/11125
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/runtime-gdb_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/go/types/eval.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

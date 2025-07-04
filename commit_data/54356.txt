@@ -1,17 +1,24 @@
-commit 216c512198dfe5d81f1a035c1a27c3eac08db310
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 28 02:08:06 2023 +1000
+commit 742e0a9720c04b6be694ad8ea8f7831ffa606e40
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 11 16:55:19 2022 +0100
 
-    cmd/internal/obj/riscv: correct message in regVal panic
+    cmd/go: support shared libraries in 'go version' on Windows
     
-    Change-Id: I68be4110216145ad1fb2e5095e1f2b143f9e69ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523456
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This change modifies 'go version' to support shared windows libraries.
+    
+    Updates #48187
+    
+    Change-Id: I2e8436b8df84fe76677106fa9ca02dcd1fb90e77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391855
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go                          |  7 ++---
+ src/cmd/go/internal/version/version.go         | 43 ++++++++++++++------------
+ src/cmd/go/testdata/script/version.txt         | 20 +++++++++++-
+ src/cmd/go/testdata/script/version_cshared.txt | 19 ++++++++++++
+ 4 files changed, 65 insertions(+), 24 deletions(-)

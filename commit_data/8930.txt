@@ -1,13 +1,25 @@
-commit 72a73198dfac573e824d7aeb83be5cae6df45fd2
+commit 6a2e2432c9f75f6f63301d2f73d463393e158f96
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Jul 2 14:05:43 2011 +1000
+Date:   Sat Jul 2 14:02:42 2011 +1000
 
-    goinstall: documentation for new remote repository behavior and tweaks
+    dashboard: show build state and package comments on dashboard
     
-    R=rsc, julian
+    This permits full URLs to be shown on the dashboard,
+    not just the repository roots.
+    
+    This has been tested.
+    
+    R=rsc, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4642049
+    https://golang.org/cl/4627081
 
- src/cmd/goinstall/doc.go      |  66 ++++++++++++++-----
- src/cmd/goinstall/download.go | 144 ++++++++++++++++++++++++------------------
- 2 files changed, 135 insertions(+), 75 deletions(-)
+ misc/dashboard/builder/http.go              |  7 +++---
+ misc/dashboard/builder/main.go              | 13 +++++-----
+ misc/dashboard/builder/package.go           | 35 ++++++++++++++++++++------
+ misc/dashboard/godashboard/auth.py          | 13 ++++++++++
+ misc/dashboard/godashboard/gobuild.py       |  7 +-----
+ misc/dashboard/godashboard/index.yaml       |  1 -
+ misc/dashboard/godashboard/package.html     | 30 ++++++++++++++---------
+ misc/dashboard/godashboard/package.py       | 38 ++++++++++++++++++++---------
+ misc/dashboard/godashboard/static/style.css | 13 ++++++++--
+ 9 files changed, 108 insertions(+), 49 deletions(-)

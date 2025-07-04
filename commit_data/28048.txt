@@ -1,27 +1,21 @@
-commit e90ae90b7a7de4079413b956472044a021bee7c6
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 25 16:40:50 2016 +1000
+commit 86c93c989e73e823e9e66f3d3e319b616544c320
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 26 22:31:02 2016 -0700
 
-    cmd/{asm,compile/internal}: delete dead code
+    cmd/compile: don't write pos info for builtin packages
     
-    Delete unused fields, methods, vars, and funcs. Spotted by
-    honnef.co/go/unused.
+    TestBuiltin will fail if run on Windows and builtin.go was generated
+    on a non-Windows machine (or vice versa) because path names have
+    different separators. Avoid problem altogether by not writing pos
+    info for builtin packages. It's not needed.
     
-    Change-Id: I0e65484bbd916e59369c4018be46f120b469d610
-    Reviewed-on: https://go-review.googlesource.com/27731
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Affects -newexport only.
+    
+    Change-Id: I8944f343452faebaea9a08b5fb62829bed77c148
+    Reviewed-on: https://go-review.googlesource.com/22498
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/parse.go      |  8 --------
- src/cmd/compile/internal/gc/bimport.go |  2 +-
- src/cmd/compile/internal/gc/dcl.go     | 10 +---------
- src/cmd/compile/internal/gc/gen.go     | 17 -----------------
- src/cmd/compile/internal/gc/noder.go   |  6 +-----
- src/cmd/compile/internal/gc/obj.go     | 18 ------------------
- src/cmd/compile/internal/gc/parser.go  |  2 +-
- src/cmd/compile/internal/gc/ssa.go     | 28 ----------------------------
- src/cmd/compile/internal/gc/type.go    |  6 ------
- src/cmd/internal/gcprog/gcprog.go      |  1 -
- src/cmd/internal/goobj/read.go         |  1 -
- 11 files changed, 4 insertions(+), 95 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

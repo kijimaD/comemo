@@ -1,32 +1,25 @@
-commit 9485d4c1bd871be792d03c29b7902f6ac284ed27
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 16:48:07 2022 -0700
+commit 6e5dd0b59bd1380542666d12eaf9f415dea162f6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 22 14:50:29 2021 -0500
 
-    cmd/compile/internal/syntax: handle missing index like in go/parser
+    runtime: add runtime changes for register ABI on ppc64x
     
-    Instead of simply reporting an error but otherwise dropping the
-    index expression from the parse tree when an index is missing
-    (as in: x[]), create an index expression with a "bad expression"
-    as index. This matches the behavior of go/parser and permits the
-    use of the same test case for both parsers.
+    This adds the changes for the register ABI in the runtime
+    functions for ppc64x:
+    - Add spill functions used by runtime
+    - Add ABIInternal to functions
     
-    (It would be simpler to adjust the go/parser to match the syntax
-    parser's behavior, but that would break backward-compatibility
-    of the go/parser.)
+    Some changes were needed to the stubs files
+    due to vet issues when compiling for linux/ppc64.
     
-    Adjust the affected test files.
-    
-    For #54511.
-    
-    Change-Id: If7668973794604593e869a24b560da92e100b812
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424654
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I010ddbc774ed4f22e1f9d77833bd55b919d95c99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351590
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/syntax/parser.go               | 17 ++++++++---------
- .../internal/types2/testdata/examples/functions.go      |  2 +-
- .../internal/types2/testdata/fixedbugs/issue39634.go    |  2 +-
- src/go/types/testdata/fixedbugs/issue39634.go           |  3 ---
- 4 files changed, 10 insertions(+), 14 deletions(-)
+ src/runtime/asm_ppc64x.s                          | 222 ++++++++++++++++++----
+ src/runtime/stubs_ppc64.go                        |   6 +-
+ src/runtime/{stubs_ppc64le.go => stubs_ppc64x.go} |   8 +
+ 3 files changed, 192 insertions(+), 44 deletions(-)

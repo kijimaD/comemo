@@ -1,20 +1,14 @@
-commit dfeecda91df3b0760fb380061f6af41e38f7938e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 29 14:27:55 2017 -0700
+commit ea020ff3de9482726ce7019ac43c1d301ce5e3de
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 21 14:30:17 2017 +0100
 
-    cmd/compile: checkwidth T when constructing *T
+    fmt: add short note about %g precision
     
-    Without this, T can sneak through to the backend
-    with its width unknown.
+    Fixes #18772
     
-    Fixes #20174
-    
-    Change-Id: I9b21e0e2641f75e360cc5e45dcb4eefe8255b675
-    Reviewed-on: https://go-review.googlesource.com/42175
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib5d9ffa0abd35b9d3ca83bac139aece0f3c9702d
+    Reviewed-on: https://go-review.googlesource.com/37313
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  1 +
- test/fixedbugs/issue20174.go             | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

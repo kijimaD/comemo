@@ -1,28 +1,18 @@
-commit af1a5d92871129e5fff093bcb3518b1ebfc86976
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 16 15:36:30 2022 -0500
+commit 896df422a7cecbace10f5877beeeb1476b6061ae
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Sep 3 09:56:23 2021 -0700
 
-    cmd/go/internal/work: make formatOutput return an error that includes the import path
+    crypto/x509: support NumericString in DN components
     
-    This refines the error output that was previously adjusted in CL 437298.
+    Fixes #48171
     
-    Longer term, we should consider unraveling the call chains involving
-    formatOutput to avoid passing so many parameters through so many
-    different formatting functions.
-    
-    Updates #25842.
-    
-    Change-Id: I3b9d03bf5968902d8ccc4841ab4dbe114a2239e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451218
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ia2e1920c0938a1f8659935a4f725a7e5090ef2c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347034
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/internal/work/exec.go                   | 73 +++++++++++++---------
- src/cmd/go/internal/work/gc.go                     |  4 +-
- src/cmd/go/testdata/script/list_export_e.txt       | 15 +++--
- .../go/testdata/script/list_pkgconfig_error.txt    | 16 +++++
- 4 files changed, 72 insertions(+), 36 deletions(-)
+ src/crypto/x509/parser.go      |  13 ++++--
+ src/crypto/x509/parser_test.go | 102 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 3 deletions(-)

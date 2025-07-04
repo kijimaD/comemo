@@ -1,26 +1,21 @@
-commit aa6b75dd7d15c99368e7f51f3da2fb4b212ce33a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 10 16:26:41 2022 -0700
+commit 2fa8f00915893670964e05e14be7202f6f97760b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 27 19:14:30 2021 -0700
 
-    cmd/compile/internal/types: remove Type.sym and rename Type.nod to Type.obj
+    [dev.typeparams] cmd/compile/internal/types2: implement type terms
     
-    Now that Ntype is gone, we no longer require separate sym and nod
-    fields for Type. It's now always the case that t.sym == t.nod.Sym(),
-    or that t.sym and t.nod are both nil.
+    Type terms will be used to represent a type set as a list
+    of type terms. Eventually, a type term may also include
+    a method set.
     
-    While here, rename nod to obj, to better reflect that in fact it's
-    always an object (i.e., *ir.Name), not merely a type literal (which no
-    longer exists in package ir).
+    Groundwork for the implementation of lazily computed
+    type sets for union expressions.
     
-    Change-Id: Iba4c1590ca585b816ff6b70947ad2a1109918955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405656
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic88750af21f697ce0b52a2259eff40bee115964c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338049
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types/identity.go    |  2 +-
- src/cmd/compile/internal/types/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types/type.go        | 36 +++++++++++++--------------
- src/cmd/compile/internal/types/universe.go    |  3 +--
- 4 files changed, 20 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/types2/typeterm.go      | 166 ++++++++++++++++++
+ src/cmd/compile/internal/types2/typeterm_test.go | 205 +++++++++++++++++++++++
+ 2 files changed, 371 insertions(+)

@@ -1,88 +1,101 @@
-commit 6e2c4bc012f8cc262db25d3fee414c5231fea03a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 10 21:09:13 2017 -0400
+commit 4477fd097fcc16c6d2703ec6228f47c9af030655
+Author: Kirill Smelkov <kirr@nexedi.com>
+Date:   Thu Dec 1 23:43:21 2016 +0300
 
-    context: define behavior for Err before Done is closed
+    cmd/compile/internal/ssa: combine 2 byte loads + shifts into word load + rolw 8 on AMD64
     
-    The Context definition to date has not defined what Err returns
-    before the Done channel is closed. Define that it returns nil,
-    as most implementations do.
+    ... and same for stores. This does for binary.BigEndian.Uint16() what
+    was already done for Uint32 and Uint64 with BSWAP in 10f75748 (CL 32222).
     
-    All the standard context implementations (those in package
-    context and in golang.org/x/net/context) return Err() == nil
-    when Done is not yet closed. However, some non-standard
-    implementations may exist that return Err() != nil in this case,
-    as permitted by the Context definition before this date.
-    Call these "errorful implementations".
+    Here is how generated code changes e.g. for the following function
+    (omitting saying the same prologue/epilogue):
     
-    Because all the standard context implementations ensure that
-    Err() == nil when Done is not yet closed, clients now exist that
-    assume Err() != nil implies Done is closed and use calling Err
-    as a quick short-circuit check instead of first doing a non-blocking
-    receive from Done and then, if that succeeds, needing to call Err.
-    This assumption holds for all the standard Context implementations,
-    so these clients work fine in practice, even though they are making
-    unwarranted assumptions about the Context implementations.
-    Call these "technically incorrect clients".
+            func get16(b [2]byte) uint16 {
+                    return binary.BigEndian.Uint16(b[:])
+            }
     
-    If a technically incorrect client encounters an errorful
-    implementation, the client misbehaves. Because there are few
-    errorful implementations, over time we expect that many clients
-    will end up being technically incorrect without realizing it,
-    leading to latent, subtle bugs. If we want to eliminate these
-    latent, subtle bugs, there are two ways to do this:
-    either make errorful implementations more common
-    (exposing the client bugs more often) or redefine the Context
-    interface so that the clients are not buggy after all.
+    "".get16 t=1 size=21 args=0x10 locals=0x0
     
-    If we make errorful implementations more common, such
-    as by changing the standard context implementations to
-    return ErrNotDone instead of nil when Err is called before
-    Done is closed, this will shake out essentially all of the
-    technically incorrect clients, forcing people to find and fix
-    those clients during the transition to Go 1.9.
-    Technically this is allowed by the compatibility policy,
-    but we expect there are many pieces of code assuming
-    that Err() != nil means done, so updating will cause real pain.
+            // before
+            0x0000 00000 (x.go:15)  MOVBLZX "".b+9(FP), AX
+            0x0005 00005 (x.go:15)  MOVBLZX "".b+8(FP), CX
+            0x000a 00010 (x.go:15)  SHLL    $8, CX
+            0x000d 00013 (x.go:15)  ORL     CX, AX
     
-    If instead we disallow errorful implementations, then they
-    will need to be fixed as they are discovered, but the fault
-    will officially lie in the errorful Context implementation,
-    not in the clients. Technically this is disallowed by the compatibility
-    policy, because these errorful implementations were "correct"
-    in earlier versions of Go, except that they didn't work with
-    common client code. We expect there are hardly any errorful
-    implementations, so that disallowing them will be less disruptive
-    and more in the spirit of the compatibility policy.
+            // after
+            0x0000 00000 (x.go:15)  MOVWLZX "".b+8(FP), AX
+            0x0005 00005 (x.go:15)  ROLW    $8, AX
     
-    This CL takes the path of expected least disruption,
-    narrowing the Context interface semantics and potentially
-    invalidating existing implementations. A survey of the
-    go-corpus v0.01 turned up only five Context implementations,
-    all trivial and none errorful (details in #19856).
-    We are aware of one early Context implementation inside Google,
-    from before even golang.org/x/net/context existed,
-    that is errorful. The misbehavior of an open-source library
-    when passed such a context is what prompted #19856.
-    That context implementation would be disallowed after this CL
-    and would need to be corrected. We are aware of no other
-    affected context implementations. On the other hand, a survey
-    of the go-corpus v0.01 turned up many instances of client
-    code assuming that Err() == nil implies not done yet
-    (details also in #19856). On balance, narrowing Context and
-    thereby allowing Err() == nil checks should invalidate significantly
-    less code than a push to flush out all the currently technically
-    incorrect Err() == nil checks.
+    encoding/binary is speedup overall a bit:
     
-    If release feedback shows that we're wrong about this balance,
-    we can roll back this CL and try again in Go 1.10.
+    name                    old time/op    new time/op    delta
+    ReadSlice1000Int32s-4     4.83µs ± 0%    4.83µs ± 0%     ~     (p=0.206 n=4+5)
+    ReadStruct-4              1.29µs ± 2%    1.28µs ± 1%   -1.27%  (p=0.032 n=4+5)
+    ReadInts-4                 384ns ± 1%     385ns ± 1%     ~     (p=0.968 n=4+5)
+    WriteInts-4                534ns ± 3%     526ns ± 0%   -1.54%  (p=0.048 n=4+5)
+    WriteSlice1000Int32s-4    5.02µs ± 0%    5.11µs ± 3%     ~     (p=0.175 n=4+5)
+    PutUint16-4               0.59ns ± 0%    0.49ns ± 2%  -16.95%  (p=0.016 n=4+5)
+    PutUint32-4               0.52ns ± 0%    0.52ns ± 0%     ~     (all equal)
+    PutUint64-4               0.53ns ± 0%    0.53ns ± 0%     ~     (all equal)
+    PutUvarint32-4            19.9ns ± 0%    19.9ns ± 1%     ~     (p=0.556 n=4+5)
+    PutUvarint64-4            54.5ns ± 1%    54.2ns ± 0%     ~     (p=0.333 n=4+5)
     
-    Fixes #19856.
+    name                    old speed      new speed      delta
+    ReadSlice1000Int32s-4    829MB/s ± 0%   828MB/s ± 0%     ~     (p=0.190 n=4+5)
+    ReadStruct-4            58.0MB/s ± 2%  58.7MB/s ± 1%   +1.30%  (p=0.032 n=4+5)
+    ReadInts-4              78.0MB/s ± 1%  77.8MB/s ± 1%     ~     (p=0.968 n=4+5)
+    WriteInts-4             56.1MB/s ± 3%  57.0MB/s ± 0%     ~     (p=0.063 n=4+5)
+    WriteSlice1000Int32s-4   797MB/s ± 0%   783MB/s ± 3%     ~     (p=0.190 n=4+5)
+    PutUint16-4             3.37GB/s ± 0%  4.07GB/s ± 2%  +20.83%  (p=0.016 n=4+5)
+    PutUint32-4             7.73GB/s ± 0%  7.72GB/s ± 0%     ~     (p=0.556 n=4+5)
+    PutUint64-4             15.1GB/s ± 0%  15.1GB/s ± 0%     ~     (p=0.905 n=4+5)
+    PutUvarint32-4           201MB/s ± 0%   201MB/s ± 0%     ~     (p=0.905 n=4+5)
+    PutUvarint64-4           147MB/s ± 1%   147MB/s ± 0%     ~     (p=0.286 n=4+5)
     
-    Change-Id: Id45d126fac70e1fcc42d73e5a87ca1b66935b831
-    Reviewed-on: https://go-review.googlesource.com/40291
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    ( "a bit" only because most of the time is spent in reflection-like things
+      there, not actual bytes decoding. Even for direct PutUint16 benchmark the
+      looping adds overhead and lowers visible benefit. For code-generated encoders /
+      decoders actual effect is more than 20% )
+    
+    Adding Uint32 and Uint64 raw benchmarks too for completeness.
+    
+    NOTE I had to adjust load-combining rule for bswap case to match first 2 bytes
+    loads as result of "2-bytes load+shift" -> "loadw + rorw 8" rewrite. Reason is:
+    for loads+shift, even e.g. into uint16 var
+    
+            var b []byte
+            var v uin16
+            v = uint16(b[1]) | uint16(b[0])<<8
+    
+    the compiler eventually generates L(ong) shift - SHLLconst [8], probably
+    because it is more straightforward / other reasons to work on the whole
+    register. This way 2 bytes rewriting rule is using SHLLconst (not SHLWconst) in
+    its pattern, and then it always gets matched first, even if 2-byte rule comes
+    syntactically after 4-byte rule in AMD64.rules because 4-bytes rule seemingly
+    needs more applyRewrite() cycles to trigger. If 2-bytes rule gets matched for
+    inner half of
+    
+            var b []byte
+            var v uin32
+            v = uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+    
+    and we keep 4-byte load rule unchanged, the result will be MOVW + RORW $8 and
+    then series of byte loads and shifts - not one MOVL + BSWAPL.
+    
+    There is no such problem for stores: there compiler, since it probably knows
+    store destination is 2 bytes wide, uses SHRWconst 8 (not SHRLconst 8) and thus
+    2-byte store rule is not a subset of rule for 4-byte stores.
+    
+    Fixes #17151  (int16 was last missing piece there)
+    
+    Change-Id: Idc03ba965bfce2b94fef456b02ff6742194748f6
+    Reviewed-on: https://go-review.googlesource.com/34636
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      |  32 ++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  73 ++++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 277 +++++++++++++++++++++------
+ src/encoding/binary/binary_test.go           |  24 +++
+ 4 files changed, 325 insertions(+), 81 deletions(-)

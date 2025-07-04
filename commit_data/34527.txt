@@ -1,57 +1,29 @@
-commit 010579c2377654e575d46857ec7dc77bab586438
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Jan 14 19:00:36 2018 +0100
+commit 9364c0e337dfc2c5ae3b1e66823d41e9408530cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 10:47:30 2017 -0400
 
-    math/big: allocate less in Float.Sqrt
+    cmd/vet: do not import net/http at startup
     
-    The Newton sqrtInverse procedure we use to compute Float.Sqrt should
-    not allocate a number of times proportional to the number of Newton
-    iterations we need to reach the desired precision.
+    The httpresponse.go module wants to be able to tell if a particular type t
+    is net/http.Response (and also net/http.Client). It does this by importing
+    net/http, looking up Response, and then comparing that saved type against
+    each t.
     
-    At the beginning the function the target precision is known, so even
-    if we do want to perform the early steps at low precisions (to save
-    time), it's still possible to pre-allocate larger backing arrays, both
-    for the temp variables in the loop and the variable that'll hold the
-    final result.
+    Instead of doing an eager import of net/http, wait until we have a type t
+    to ask a question about, and then just look to see if that t is http.Response.
+    This kind of lazy check does not require assuming that net/http is available
+    or will be important (perhaps the check is disabled in this run, or perhaps
+    other conditions that lead to the comparison are not satisfied).
     
-    There's one complication. At the following line:
+    Not loading these kinds of types at startup time will scale better.
     
-      u.Sub(three, u)
-    
-    the Sub method will allocate, because the receiver aliases one of the
-    arguments, and the large backing array we initially allocated for u
-    will be replaced by a smaller one allocated by Sub. We can work around
-    this by introducing a second temp variable u2 that we use to hold the
-    Sub call result.
-    
-    Overall, the sqrtInverse procedure still allocates a number of times
-    proportional to the number of Newton steps, because unfortunately a
-    few of the Mul calls in the Newton function allocate; but at least we
-    allocate less in the function itself.
-    
-    FloatSqrt/256-4        1.97µs ± 1%    1.84µs ± 1%   -6.61%  (p=0.000 n=8+8)
-    FloatSqrt/1000-4       4.80µs ± 3%    4.28µs ± 1%  -10.78%  (p=0.000 n=8+8)
-    FloatSqrt/10000-4      40.0µs ± 1%    38.3µs ± 1%   -4.15%  (p=0.000 n=8+8)
-    FloatSqrt/100000-4      955µs ± 1%     932µs ± 0%   -2.49%  (p=0.000 n=8+7)
-    FloatSqrt/1000000-4    79.8ms ± 1%    79.4ms ± 1%     ~     (p=0.105 n=8+8)
-    
-    name                 old alloc/op   new alloc/op   delta
-    FloatSqrt/256-4          816B ± 0%      512B ± 0%  -37.25%  (p=0.000 n=8+8)
-    FloatSqrt/1000-4       2.50kB ± 0%    1.47kB ± 0%  -41.03%  (p=0.000 n=8+8)
-    FloatSqrt/10000-4      23.5kB ± 0%    18.2kB ± 0%  -22.62%  (p=0.000 n=8+8)
-    FloatSqrt/100000-4      251kB ± 0%     173kB ± 0%  -31.26%  (p=0.000 n=8+8)
-    FloatSqrt/1000000-4    4.61MB ± 0%    2.86MB ± 0%  -37.90%  (p=0.000 n=8+8)
-    
-    name                 old allocs/op  new allocs/op  delta
-    FloatSqrt/256-4          12.0 ± 0%       8.0 ± 0%  -33.33%  (p=0.000 n=8+8)
-    FloatSqrt/1000-4         19.0 ± 0%       9.0 ± 0%  -52.63%  (p=0.000 n=8+8)
-    FloatSqrt/10000-4        35.0 ± 0%      14.0 ± 0%  -60.00%  (p=0.000 n=8+8)
-    FloatSqrt/100000-4       55.0 ± 0%      23.0 ± 0%  -58.18%  (p=0.000 n=8+8)
-    FloatSqrt/1000000-4       122 ± 0%        75 ± 0%  -38.52%  (p=0.000 n=8+8)
-    
-    Change-Id: I950dbf61a40267a6cca82ae72524c3024bcb149c
-    Reviewed-on: https://go-review.googlesource.com/87659
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibb00623901a96e725a4ff6f231e6d15127979dfd
+    Reviewed-on: https://go-review.googlesource.com/74353
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/sqrt.go | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ src/cmd/vet/httpresponse.go | 10 +++-------
+ src/cmd/vet/tests.go        |  2 +-
+ src/cmd/vet/types.go        | 22 ++++++++++++----------
+ 3 files changed, 16 insertions(+), 18 deletions(-)

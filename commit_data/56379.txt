@@ -1,23 +1,28 @@
-commit 9d54d5466ba1f649398c620ecd4ab6b4230be754
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon May 6 17:01:35 2024 -0400
+commit f742ddc349723667fc9af5d0f16233f7762aeaa0
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 24 15:59:17 2023 -0500
 
-    .github: simplify the telemetry proposal template
+    cmd/link/internal/ppc64: support non-PIC PLT call stubs
     
-    Reduce the telemetry proposal template to make it easier to file
-    telemetry proposals. At a high level, the proposal is just a request to
-    merge a specific configuration change, so a free text rationale as well
-    as proposed CL link should suffice. The proposal committee can make sure
-    that all concerns about new uploading are addressed.
+    Simplify the PLT stub generation code to minimize stub generation
+    knowing there is only ever a single TOC pointer when linking
+    internally.
     
-    Also, fix links to the chartconfig package documentation, as well as the
-    config.txt file, and reference the new go.dev/doc/telemetry.
+    The OpenBSD port requires Go make dynamic calls into its C library,
+    so the linker must create stubs which work without R2 being set up.
+    This new case is exactly case 3 described in the PPC64 ELFv2 1.5
+    section 4.2.5.3.
     
-    Change-Id: I9eefba14967a18327abfcb2de427dc4bec6d659f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583496
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Updates #56001
+    
+    Change-Id: I07ebd08442302e55b94b57db474dfd7e7a0c2ac9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488316
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- .github/ISSUE_TEMPLATE/12-telemetry.yml | 73 +++++++++------------------------
- 1 file changed, 19 insertions(+), 54 deletions(-)
+ src/cmd/link/internal/ppc64/asm.go | 168 +++++++++++++++++++------------------
+ 1 file changed, 88 insertions(+), 80 deletions(-)

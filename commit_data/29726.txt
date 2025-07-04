@@ -1,14 +1,46 @@
-commit 9e0f3a14591586fcfd876d7801b5f3e4fc1998b5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 2 06:49:17 2016 +0000
+commit bd06d4827ae637cd08f85962f996760e76e28efc
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Sun Jul 3 17:49:29 2016 +0200
 
-    doc: correct the number of changes to the language in go1.8.html
+    encoding/csv: avoid allocations when reading records
     
-    And link it.
+    This commit changes parseRecord to allocate a single string per record,
+    instead of per field, by using indexes into the raw record.
     
-    Change-Id: Ic0105468435299fb1638f86522f4f3ce417ec1c2
-    Reviewed-on: https://go-review.googlesource.com/33871
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Benchstat (done with f69991c17)
+    
+    name                          old time/op    new time/op    delta
+    Read-8                          3.17µs ± 0%    2.78µs ± 1%  -12.35%  (p=0.016 n=4+5)
+    ReadWithFieldsPerRecord-8       3.18µs ± 1%    2.79µs ± 1%  -12.23%  (p=0.008 n=5+5)
+    ReadWithoutFieldsPerRecord-8    4.59µs ± 0%    2.77µs ± 0%  -39.58%  (p=0.016 n=4+5)
+    ReadLargeFields-8               57.0µs ± 0%    55.7µs ± 0%   -2.18%  (p=0.008 n=5+5)
+    
+    name                          old alloc/op   new alloc/op   delta
+    Read-8                            660B ± 0%      664B ± 0%   +0.61%  (p=0.008 n=5+5)
+    ReadWithFieldsPerRecord-8         660B ± 0%      664B ± 0%   +0.61%  (p=0.008 n=5+5)
+    ReadWithoutFieldsPerRecord-8    1.14kB ± 0%    0.66kB ± 0%  -41.75%  (p=0.008 n=5+5)
+    ReadLargeFields-8               3.86kB ± 0%    3.94kB ± 0%   +1.86%  (p=0.008 n=5+5)
+    
+    name                          old allocs/op  new allocs/op  delta
+    Read-8                            30.0 ± 0%      18.0 ± 0%  -40.00%  (p=0.008 n=5+5)
+    ReadWithFieldsPerRecord-8         30.0 ± 0%      18.0 ± 0%  -40.00%  (p=0.008 n=5+5)
+    ReadWithoutFieldsPerRecord-8      50.0 ± 0%      18.0 ± 0%  -64.00%  (p=0.008 n=5+5)
+    ReadLargeFields-8                 66.0 ± 0%      24.0 ± 0%  -63.64%  (p=0.008 n=5+5)
+    
+    For a simple application that I wrote, which reads in a CSV file (via
+    ReadAll) and outputs the number of rows read (15857625 rows), this change
+    reduces the total time on my notebook from ~58 seconds to ~48 seconds.
+    
+    This reduces time and allocations (bytes) each by ~6% for a real world
+    CSV file at work (~230000 rows, 13 colums).
+    
+    Updates #16791
+    
+    Change-Id: Ia07177c94624e55cdd3064a7d2751fb69322d3e4
+    Reviewed-on: https://go-review.googlesource.com/24723
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.8.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/csv/reader.go | 60 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 45 insertions(+), 15 deletions(-)

@@ -1,12 +1,14 @@
-commit 10689cddba909df37de252fe2dd3d16799c73dc7
+commit 041edbcc79ff6922436bc04cff6f8a7fe96566e0
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 21 13:59:51 2012 +1100
+Date:   Tue Feb 21 11:24:29 2012 +1100
 
-    doc: link to self-hosted articles from docs.html
+    misc/goplay: remain in work directory, build in temp directory
+    
+    Fixes #2935.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5685061
+    https://golang.org/cl/5684048
 
- doc/docs.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/goplay/goplay.go | 90 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 67 insertions(+), 23 deletions(-)

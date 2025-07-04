@@ -1,21 +1,14 @@
-commit d0428379e79d8a3a868fda9509963563e73e10b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 28 10:40:36 2012 -0800
+commit 91484c6c4861b56c77702d0d9ccb9315192bb0e4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 28 15:36:06 2012 +0400
 
-    exp/types: resolve composite literal keys
+    runtime: fix potential crash in sigqueue
+    Fixes #4383.
     
-    The parser/resolver cannot accurately resolve
-    composite literal keys that are identifiers;
-    it needs type information.
-    Instead, try to resolve them but leave final
-    judgement to the type checker.
-    
-    R=adonovan
+    R=golang-dev, minux.ma, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6994047
+    https://golang.org/cl/6996060
 
- src/pkg/exp/types/check.go           |  2 ++
- src/pkg/exp/types/expr.go            | 23 ++++++++++++--------
- src/pkg/exp/types/testdata/expr3.src | 18 ++++++++++++++++
- src/pkg/go/parser/parser.go          | 42 ++++++++++++++++++++++++++++++------
- 4 files changed, 69 insertions(+), 16 deletions(-)
+ src/pkg/os/signal/signal_test.go |  41 +++++++++++++++
+ src/pkg/runtime/sigqueue.goc     | 104 +++++++++++++++++++++------------------
+ 2 files changed, 97 insertions(+), 48 deletions(-)

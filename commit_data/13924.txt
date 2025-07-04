@@ -1,14 +1,14 @@
-commit 44336459c833ca728133d0769c71691d43a1cf20
+commit 031b389ac1456981f34f70b3cfd1ccc10b5f3d49
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 12:57:05 2012 -0400
+Date:   Mon Sep 24 12:30:32 2012 -0400
 
-    lib9/fmt: do not put a main symbol into lib9.a
+    cmd/gc: fix comment for caninl
     
-    Fixes #4143.
+    Was describing an old implementation.
     
-    R=golang-dev, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6541064
+    https://golang.org/cl/6553066
 
- src/lib9/fmt/test.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/inl.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

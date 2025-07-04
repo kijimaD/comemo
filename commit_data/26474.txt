@@ -1,30 +1,23 @@
-commit 44d3f89e99b954d88ab802212182a7c123ac774a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Mar 22 21:25:40 2016 -0400
+commit 08594ac7c7e123d4aa46f60690da0a7e4034f4e9
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 26 17:26:55 2016 -0500
 
-    cmd/link, reflect: remove some method type data
+    runtime: acquire stack lock in traceEvent
     
-    Remove reflect type information for unexported methods that do not
-    satisfy any interface in the program.
+    traceEvent records system call events after a G has already entered
+    _Gsyscall, which means the garbage collector could be installing stack
+    barriers in the G's stack during the traceEvent. If traceEvent
+    attempts to capture the user stack during this, it may observe a
+    inconsistent stack barriers and panic. Fix this by acquiring the stack
+    lock around the stack walk in traceEvent.
     
-    Ideally the unexported method would not appear in the method list at
-    all, but that is tricky because the slice is built by the compiler.
+    Fixes #14101.
     
-    Reduces binary size:
-    
-            cmd/go: 81KB (0.8%)
-            jujud: 258KB (0.4%)
-    
-    For #6853.
-    
-    Change-Id: I25ef8df6907e9ac03b18689d584ea46e7d773043
-    Reviewed-on: https://go-review.googlesource.com/21033
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I15f0ab0c70c04c6e182221f65a6f761c5a896459
+    Reviewed-on: https://go-review.googlesource.com/18973
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 11 -----------
- src/reflect/all_test.go              | 26 ++++++++++++++++++++++++++
- src/reflect/type.go                  | 30 ++++++++++++++++--------------
- 3 files changed, 42 insertions(+), 25 deletions(-)
+ src/runtime/trace.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

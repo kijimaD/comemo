@@ -1,38 +1,17 @@
-commit 500293d8dce663dafea7482f06a6c828faf4e88b
-Author: Dmitri Shuralyov <dmitri@shuralyov.com>
-Date:   Tue Jun 19 16:14:00 2018 -0400
+commit 8516ecd05f856f895dceeb7c150c98d706a0b326
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 6 20:10:35 2018 +0100
 
-    doc: update "Mac OS X", "OS X" to macOS; bump up to 10.10
+    test/codegen: port math/bits.ReverseBytes tests to codegen
     
-    The name was "Mac OS X" during versions 10.0 to 10.7.
-    It was renamed to "OS X" starting from 10.8 until 10.11.
-    The current name is "macOS" starting with 10.12. [1]
+    And remove them from ssa_test.
     
-    Previous changes (e.g., CL 47252) updated "Mac OS X" to macOS
-    in some places, but not everywhere. This CL updates remaining
-    instances for consistency.
-    
-    Only the pages that display current information were updated;
-    historical pages such as release notes for older Go releases,
-    past articles, blog posts, etc., were left in original form.
-    
-    Rename the "#osx" anchor to "#macos" on /doc/install page,
-    along with the single reference to it on the same page.
-    Add an empty div with id="osx" to not break old links.
-    
-    Update minimum macOS version from 10.8 to 10.10 per #23122.
-    
-    [1]: https://en.wikipedia.org/wiki/macOS#History
-    
-    Updates #23122.
-    
-    Change-Id: I69fe4b85e83265b9d99f447e3cc5230dde094869
-    Reviewed-on: https://go-review.googlesource.com/119855
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If767af662801219774d1bdb787c77edfa6067770
+    Reviewed-on: https://go-review.googlesource.com/98976
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- doc/debugging_with_gdb.html |  2 +-
- doc/go_faq.html             |  2 +-
- doc/install-source.html     |  4 ++--
- doc/install.html            | 12 ++++++------
- doc/root.html               |  2 +-
- 5 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 74 ++++-----------------------------
+ test/codegen/mathbits.go                | 30 +++++++++++++
+ 2 files changed, 37 insertions(+), 67 deletions(-)

@@ -1,17 +1,14 @@
-commit f058ab09fb14afe3a51b880a6895b96aa3e07c85
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 22 15:45:24 2016 -0700
+commit e6ea01685fe8e97af5763753bbd3189c9544ecad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 11:49:20 2016 -0800
 
-    cmd/compile: remove redundant "// fallthrough" comments
+    cmd/compile: remove global variables in inl.go
     
-    Change-Id: Ia3f262f06592b66447c213e2350402cd5e6e2ccd
-    Reviewed-on: https://go-review.googlesource.com/22389
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I06dedf4ebfa32b598f5545dc9354c8e4a95610b1
+    Reviewed-on: https://go-review.googlesource.com/20525
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 9 ++-------
- src/cmd/compile/internal/gc/init.go      | 2 --
- src/cmd/compile/internal/gc/sinit.go     | 4 ----
- src/cmd/compile/internal/gc/typecheck.go | 5 -----
- 4 files changed, 2 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 89 ++++++++++++++++++++------------------
+ 1 file changed, 46 insertions(+), 43 deletions(-)

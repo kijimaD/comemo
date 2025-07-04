@@ -1,13 +1,14 @@
-commit e99f68f0642e5abceffcad00b0dd9296acc5ddfc
-Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 9 10:49:41 2011 -0800
+commit 7a6a9755a94c449b52ce4ff3961f5c59037ae2da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 13:46:54 2011 -0500
 
-    builtin: document delete
-    Fixes #2434.
+    regexp: fix doc comment
     
-    R=golang-dev, rsc
+    Fixes #2432.
+    
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/5370045
+    https://golang.org/cl/5376041
 
- src/pkg/builtin/builtin.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,22 @@
-commit 0d19b91b40a971cad50b894d543c201763d4085e
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 21 16:29:18 2020 -0700
+commit a782472dcd3937d8e49ab843dffc7568c6eb8edb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 10:52:10 2019 -0500
 
-    cmd/go: use response files when command line would be too long
+    cmd/go: delete flaky TestQEMUUserMode
     
-    Fixes #37768
+    If QEMU user-mode is actually a supported configuration, then per
+    http://golang.org/wiki/PortingPolicy it needs to have a builder
+    running tests for all packages, not just a simple “hello world”
+    program.
     
-    Change-Id: I799a8da632890ad7595697d461c90e3c4c065d95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229317
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #1508
+    Updates #13024
+    Fixes #35457
+    
+    Change-Id: Ib6122b06ad1d265550a0e92131506266495893cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206137
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/cmd/go/go_test.go | 46 ----------------------------------------------
+ 1 file changed, 46 deletions(-)

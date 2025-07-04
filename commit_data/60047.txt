@@ -1,0 +1,158 @@
+commit 5890b023a549e7ba6b0c563cdf730a91c2de6fae
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu May 9 10:45:01 2024 -0400
+
+    internal/trace: move v2 tracer into trace directory
+    
+    This change moves the v2 tracer into the trace directory.
+    
+    Updates #67367
+    
+    Change-Id: I3657b4227002cb00fdf29c797434800ea796715e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584538
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/gen.go                               | 101 ++++++-------
+ src/cmd/trace/goroutinegen.go                      |  56 +++----
+ src/cmd/trace/goroutines.go                        |   5 +-
+ src/cmd/trace/gstate.go                            |  67 ++++-----
+ src/cmd/trace/jsontrace.go                         |  23 ++-
+ src/cmd/trace/jsontrace_test.go                    |   6 +-
+ src/cmd/trace/main.go                              |  21 ++-
+ src/cmd/trace/pprof.go                             |  61 ++++----
+ src/cmd/trace/procgen.go                           |  56 +++----
+ src/cmd/trace/regions.go                           |  13 +-
+ src/cmd/trace/tasks.go                             |  33 ++--
+ src/cmd/trace/testdata/mktests.go                  |   4 +-
+ src/cmd/trace/threadgen.go                         |  56 +++----
+ src/cmd/trace/viewer.go                            |  19 ++-
+ src/go/build/deps_test.go                          |  33 ++--
+ src/internal/trace/{v2 => }/base.go                |   6 +-
+ src/internal/trace/{v2 => }/batch.go               |   4 +-
+ src/internal/trace/{v2 => }/batchcursor.go         |   4 +-
+ src/internal/trace/{v2 => }/batchcursor_test.go    |   0
+ src/internal/trace/{v2 => }/event.go               |   6 +-
+ src/internal/trace/{v2 => }/event/event.go         |   0
+ src/internal/trace/{v2 => }/event/go122/event.go   |   2 +-
+ src/internal/trace/{v2 => }/event/requirements.go  |   0
+ src/internal/trace/{v2 => }/event_test.go          |   0
+ src/internal/trace/export_test.go                  |   7 +
+ src/internal/trace/gc.go                           |  43 +++---
+ src/internal/trace/gc_test.go                      |  38 ++---
+ src/internal/trace/{v2 => }/generation.go          |   4 +-
+ .../trace/{v2 => }/internal/oldtrace/order.go      |   0
+ .../trace/{v2 => }/internal/oldtrace/parser.go     |   4 +-
+ .../{v2 => }/internal/oldtrace/parser_test.go      |   2 +-
+ .../internal/oldtrace/testdata/fmt_1_21_pprof_good | Bin
+ .../internal/oldtrace/testdata/http_1_19_good      | Bin
+ .../internal/oldtrace/testdata/http_1_21_good      | Bin
+ .../internal/oldtrace/testdata/stress_1_11_good    | Bin
+ .../internal/oldtrace/testdata/stress_1_19_good    | Bin
+ .../internal/oldtrace/testdata/stress_1_21_good    | Bin
+ .../oldtrace/testdata/stress_start_stop_1_11_good  | Bin
+ .../oldtrace/testdata/stress_start_stop_1_19_good  | Bin
+ .../oldtrace/testdata/stress_start_stop_1_21_good  | Bin
+ .../oldtrace/testdata/user_task_region_1_11_good   | Bin
+ .../oldtrace/testdata/user_task_region_1_19_good   | Bin
+ .../oldtrace/testdata/user_task_region_1_21_good   | Bin
+ .../trace/{v2 => }/internal/testgen/go122/trace.go |  10 +-
+ src/internal/trace/mud_test.go                     |  13 ++
+ src/internal/trace/{v2 => }/oldtrace.go            |   6 +-
+ src/internal/trace/{v2 => }/oldtrace_test.go       |   4 +-
+ src/internal/trace/{v2 => }/order.go               |   6 +-
+ src/internal/trace/{v2 => }/order_test.go          |   0
+ src/internal/trace/{v2 => }/raw/doc.go             |   0
+ src/internal/trace/{v2 => }/raw/event.go           |   4 +-
+ src/internal/trace/{v2 => }/raw/reader.go          |   4 +-
+ src/internal/trace/{v2 => }/raw/textreader.go      |   4 +-
+ src/internal/trace/{v2 => }/raw/textwriter.go      |   2 +-
+ src/internal/trace/{v2 => }/raw/writer.go          |   4 +-
+ src/internal/trace/{v2 => }/reader.go              |   6 +-
+ src/internal/trace/{v2 => }/reader_test.go         |   8 +-
+ src/internal/trace/{v2 => }/resources.go           |   0
+ src/internal/trace/summary.go                      | 167 ++++++++++-----------
+ src/internal/trace/summary_test.go                 | 148 +++++++++---------
+ src/internal/trace/{v2 => }/testdata/README.md     |   0
+ .../cmd}/cmd/gotraceeventstats/main.go             |   0
+ .../trace/{v2 => }/testdata/cmd/gotraceraw/main.go |   0
+ .../{v2 => }/testdata/cmd/gotracevalidate/main.go  |   0
+ .../testdata/fuzz/FuzzReader/0cb1786dee0f090b      |   0
+ .../testdata/fuzz/FuzzReader/1e45307d5b2ec36d      |   0
+ .../testdata/fuzz/FuzzReader/2b05796f9b2fc48d      |   0
+ .../testdata/fuzz/FuzzReader/2b9be9aebe08d511      |   0
+ .../testdata/fuzz/FuzzReader/344331b314da0b08      |   0
+ .../testdata/fuzz/FuzzReader/365d7b5b633b3f97      |   0
+ .../testdata/fuzz/FuzzReader/4055b17cae1a3443      |   0
+ .../testdata/fuzz/FuzzReader/4d9ddc909984e871      |   0
+ .../testdata/fuzz/FuzzReader/56f073e57903588c      |   0
+ .../testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566      |   0
+ .../testdata/fuzz/FuzzReader/aeb749b6bc317b66      |   0
+ .../fuzz/FuzzReader/closing-unknown-region         |   0
+ .../testdata/fuzz/FuzzReader/d478e18d2d6756b7      |   0
+ .../testdata/fuzz/FuzzReader/d91203cd397aa0bc      |   0
+ .../testdata/fuzz/FuzzReader/invalid-proc-state    |   0
+ .../{v2 => }/testdata/fuzz/FuzzReader/large-id     |   0
+ .../testdata/fuzz/FuzzReader/malformed-timestamp   |   0
+ src/internal/trace/{v2 => }/testdata/generate.go   |   0
+ .../go122-confuse-seq-across-generations.go        |   0
+ .../go122-create-syscall-reuse-thread-id.go        |   0
+ .../generators/go122-create-syscall-with-p.go      |   0
+ .../generators/go122-fail-first-gen-first.go       |   0
+ .../go122-go-create-without-running-g.go           |   0
+ .../go122-syscall-steal-proc-ambiguous.go          |   0
+ ...go122-syscall-steal-proc-gen-boundary-bare-m.go |   0
+ ...-proc-gen-boundary-reacquire-new-proc-bare-m.go |   0
+ ...l-steal-proc-gen-boundary-reacquire-new-proc.go |   0
+ .../go122-syscall-steal-proc-gen-boundary.go       |   0
+ ...syscall-steal-proc-reacquire-new-proc-bare-m.go |   0
+ .../go122-syscall-steal-proc-reacquire-new-proc.go |   0
+ .../generators/go122-syscall-steal-proc-self.go    |   0
+ .../go122-syscall-steal-proc-simple-bare-m.go      |   0
+ .../generators/go122-syscall-steal-proc-simple.go  |   0
+ .../go122-syscall-steal-proc-sitting-in-syscall.go |   0
+ .../generators/go122-task-across-generations.go    |   0
+ src/internal/trace/{v2 => }/testdata/mktests.go    |   4 +-
+ .../testdata/testprog/annotations-stress.go        |   0
+ .../{v2 => }/testdata/testprog/annotations.go      |   0
+ .../{v2 => }/testdata/testprog/cgo-callback.go     |   0
+ .../{v2 => }/testdata/testprog/cpu-profile.go      |   0
+ .../{v2 => }/testdata/testprog/futile-wakeup.go    |   0
+ .../trace/{v2 => }/testdata/testprog/gc-stress.go  |   0
+ .../trace/{v2 => }/testdata/testprog/gomaxprocs.go |   0
+ .../trace/{v2 => }/testdata/testprog/iter-pull.go  |   0
+ .../{v2 => }/testdata/testprog/many-start-stop.go  |   0
+ .../trace/{v2 => }/testdata/testprog/stacks.go     |   0
+ .../testdata/testprog/stress-start-stop.go         |   0
+ .../trace/{v2 => }/testdata/testprog/stress.go     |   0
+ .../{v2 => }/testdata/testprog/wait-on-pipe.go     |   0
+ .../testdata/tests/go122-annotations-stress.test   |   0
+ .../{v2 => }/testdata/tests/go122-annotations.test |   0
+ .../go122-confuse-seq-across-generations.test      |   0
+ .../go122-create-syscall-reuse-thread-id.test      |   0
+ .../tests/go122-create-syscall-with-p.test         |   0
+ .../testdata/tests/go122-fail-first-gen-first.test |   0
+ .../{v2 => }/testdata/tests/go122-gc-stress.test   |   0
+ .../tests/go122-go-create-without-running-g.test   |   0
+ .../tests/go122-syscall-steal-proc-ambiguous.test  |   0
+ ...122-syscall-steal-proc-gen-boundary-bare-m.test |   0
+ ...roc-gen-boundary-reacquire-new-proc-bare-m.test |   0
+ ...steal-proc-gen-boundary-reacquire-new-proc.test |   0
+ .../go122-syscall-steal-proc-gen-boundary.test     |   0
+ ...scall-steal-proc-reacquire-new-proc-bare-m.test |   0
+ ...o122-syscall-steal-proc-reacquire-new-proc.test |   0
+ .../tests/go122-syscall-steal-proc-self.test       |   0
+ .../go122-syscall-steal-proc-simple-bare-m.test    |   0
+ .../tests/go122-syscall-steal-proc-simple.test     |   0
+ ...o122-syscall-steal-proc-sitting-in-syscall.test |   0
+ .../tests/go122-task-across-generations.test       |   0
+ .../trace/{v2 => }/testtrace/expectation.go        |   0
+ src/internal/trace/{v2 => }/testtrace/format.go    |   2 +-
+ .../trace/{v2 => }/testtrace/validation.go         |   2 +-
+ src/internal/trace/{v2 => }/trace_test.go          |   4 +-
+ src/internal/trace/v2/mkexp.bash                   |  50 ------
+ src/internal/trace/{v2 => }/value.go               |   0
+ src/internal/trace/{v2 => }/version/version.go     |   4 +-
+ src/runtime/crash_test.go                          |   8 +-
+ src/runtime/trace_cgo_test.go                      |  16 +-
+ 142 files changed, 553 insertions(+), 597 deletions(-)

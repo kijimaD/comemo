@@ -1,19 +1,16 @@
-commit 6891d07ee6a34f1c8d0326f3f7dd941bddf524f1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jan 13 13:57:47 2022 -0500
+commit 94817890c221b8abdbb24f52e92e5a7882c3f870
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Fri Apr 16 23:30:59 2021 +0800
 
-    database/sql: consolidate test polling loops
+    runtime: remove useless nFlushCacheRoots
     
-    Also eliminate some arbitrary deadlines and sleeps.
-    
-    Fixes #49958
-    
-    Change-Id: I999b39a896e430e3bb93aa8b8c9444f28bbaa9d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378395
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I70cb8f8e9a0eec68ea11f22ca8699aa7e0c91ede
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310710
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/database/sql/sql_test.go | 111 ++++++++++++++++++++++++-------------------
- 1 file changed, 61 insertions(+), 50 deletions(-)
+ src/runtime/mgc.go     |  2 --
+ src/runtime/mgcmark.go | 10 ++--------
+ 2 files changed, 2 insertions(+), 10 deletions(-)

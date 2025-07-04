@@ -1,20 +1,13 @@
-commit 580337e268a0581bc537e67ca4005b7682be5d66
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 11 20:23:35 2019 -0700
+commit 6eccf6a6cdf45bd9829fc542a151384c5305114d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 13 18:50:47 2019 -0400
 
-    runtime, time: remove old timer code
+    [dev.boringcrypto] misc/boring: add scripts to automate merges and releases
     
-    Updates #6239
-    Updates #27707
-    
-    Change-Id: I65e6471829c9de4677d3ac78ef6cd7aa0a1fc4cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171884
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Id62b84b110af78e4ec8c34a8b71244027931b4f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182340
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/proc.go  |  49 ++-----
- src/runtime/time.go  | 364 +--------------------------------------------------
- src/runtime/trace.go |   9 +-
- src/time/sleep.go    |   5 +-
- 4 files changed, 19 insertions(+), 408 deletions(-)
+ misc/boring/merge.sh   | 32 ++++++++++++++++++++++++++++++++
+ misc/boring/release.sh | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

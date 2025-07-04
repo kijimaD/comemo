@@ -1,12 +1,15 @@
-commit 14234c23a835155ccac2bc95fec37309293e8108
+commit c2857890591eb1cd2b0fbd54deabd109330674c8
 Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 22 15:41:06 2013 -0700
+Date:   Mon Apr 22 11:36:17 2013 -0700
 
-    time: fix typo in comment
+    time: improve the explanation of the working of Format and Parse
+    Change the term 'standard time', which already means something,
+    to 'reference time', and add a couple of sentences and clarifications.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8915043
+    https://golang.org/cl/8799047
 
- src/pkg/time/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/time/example_test.go | 11 ++++++++---
+ src/pkg/time/format.go       | 41 ++++++++++++++++++++++++-----------------
+ 2 files changed, 32 insertions(+), 20 deletions(-)

@@ -1,29 +1,20 @@
-commit 13327f219e5bb0f050eb41f25f9dd07ec3d56f32
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Jul 2 23:56:41 2019 +0200
+commit 342764a21606ba6f964400cc747ee6c9a88fc959
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Mon Nov 26 11:40:32 2018 +0300
 
-    encoding/json: obey SetEscapeHTML in all MarshalJSON cases
+    runtime/pprof/internal/profile: use idiomatic swapping
     
-    It wasn't obeyed in the case where the MarshalJSON method uses a pointer
-    receiver, and the encoder grabs the address of a value to find that
-    method. addrMarshalerEncoder is the function that does this work, but it
-    ignored opts.escapeHTML.
+    gogrep found only one such case with the pattern below:
     
-    Here's the before and after of the added test case, which was failing
-    before the fix. Now the two cases are correct and consistent.
+            $tmp := $x; $x = $y; $y = $tmp
     
-            {"NonPtr":"<str>","Ptr":"\u003cstr\u003e"}
-            {"NonPtr":"<str>","Ptr":"<str>"}
+    R=1.13
     
-    Fixes #32896.
-    
-    Change-Id: Idc53077ece074973558bd3bb5ad036380db0d02c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184757
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I6e46fb5ef2887f24fa9fc451323a8cef272e2886
+    Reviewed-on: https://go-review.googlesource.com/c/151200
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/json/encode.go      |  4 ++--
- src/encoding/json/stream_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/runtime/pprof/internal/profile/profile.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

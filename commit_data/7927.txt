@@ -1,13 +1,18 @@
-commit d844aae690edfc3c411e95ed9fdf583c45f63a3c
+commit fb80f63cf7200c37222db12f325f20375b794047
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 29 14:03:08 2011 -0700
+Date:   Tue Mar 29 13:29:20 2011 -0700
 
-    prints: fix a couple of formatting errors caught by govet
+    gotest: replace the shell script with the compiled program written in go.
+    Update the make sequence: gotest must now be installed after the packages.
     
-    R=rsc, agl, agl1
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4337041
+    https://golang.org/cl/4323044
 
- src/cmd/gofix/fix.go               | 2 +-
- src/pkg/crypto/ecdsa/ecdsa_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/Makefile                         |   2 +-
+ src/cmd/gotest/Makefile                  |  15 +--
+ src/cmd/gotest/doc.go                    |  16 ++-
+ src/cmd/gotest/gotest                    | 212 -------------------------------
+ src/cmd/gotest/{ngotest.go => gotest.go} |   0
+ src/pkg/Makefile                         |   4 +-
+ 6 files changed, 22 insertions(+), 227 deletions(-)

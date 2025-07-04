@@ -1,26 +1,63 @@
-commit 532e34dd383549cdb415bc3e09b70d23f280524e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 1 16:43:05 2022 -0800
+commit 842d37ee5f86f12aa096b750adbd2debd9129fcb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 11 18:29:37 2022 -0800
 
-    cmd/compile: remove -d=typecheckinl flag
+    syscall: add race annotations to Pread and Pwrite
     
-    This flag forced the compiler to eagerly type check all available
-    inline function bodies, which presumably was useful in the early days
-    of implementing inlining support. However, it shouldn't have any
-    significance with the unified frontend, since the same code paths are
-    used for constructing normal function bodies as for inlining.
+    Fixes #51618
     
-    Updates #57410.
-    
-    Change-Id: I6842cf86bcd0fbf22ac336f2fc0b7b8fe14bccca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458617
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ife894d8c313dce8c4929f40fa0ac90a069f77a89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/base/debug.go | 1 -
- src/cmd/compile/internal/gc/main.go    | 6 ------
- src/cmd/compile/internal/inline/inl.go | 4 ----
- 3 files changed, 11 deletions(-)
+ src/runtime/race/testdata/mop_test.go  | 14 ++++++++++++-
+ src/syscall/syscall_aix.go             |  4 ++--
+ src/syscall/syscall_darwin.go          |  4 ++--
+ src/syscall/syscall_dragonfly.go       |  4 ++--
+ src/syscall/syscall_freebsd.go         |  4 ++--
+ src/syscall/syscall_linux_386.go       |  4 ++--
+ src/syscall/syscall_linux_amd64.go     |  4 ++--
+ src/syscall/syscall_linux_arm.go       |  4 ++--
+ src/syscall/syscall_linux_arm64.go     |  4 ++--
+ src/syscall/syscall_linux_mips64x.go   |  4 ++--
+ src/syscall/syscall_linux_mipsx.go     |  4 ++--
+ src/syscall/syscall_linux_ppc64x.go    |  4 ++--
+ src/syscall/syscall_linux_riscv64.go   |  4 ++--
+ src/syscall/syscall_linux_s390x.go     |  4 ++--
+ src/syscall/syscall_netbsd.go          |  4 ++--
+ src/syscall/syscall_openbsd.go         |  4 ++--
+ src/syscall/syscall_solaris.go         |  4 ++--
+ src/syscall/syscall_unix.go            | 36 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_aix_ppc64.go      | 20 +++++++++----------
+ src/syscall/zsyscall_darwin_amd64.go   |  4 ++--
+ src/syscall/zsyscall_darwin_arm64.go   |  4 ++--
+ src/syscall/zsyscall_freebsd_386.go    |  4 ++--
+ src/syscall/zsyscall_freebsd_amd64.go  |  4 ++--
+ src/syscall/zsyscall_freebsd_arm.go    |  4 ++--
+ src/syscall/zsyscall_freebsd_arm64.go  |  4 ++--
+ src/syscall/zsyscall_linux_386.go      |  4 ++--
+ src/syscall/zsyscall_linux_amd64.go    |  4 ++--
+ src/syscall/zsyscall_linux_arm.go      |  4 ++--
+ src/syscall/zsyscall_linux_arm64.go    |  4 ++--
+ src/syscall/zsyscall_linux_mips.go     |  4 ++--
+ src/syscall/zsyscall_linux_mips64.go   |  4 ++--
+ src/syscall/zsyscall_linux_mips64le.go |  4 ++--
+ src/syscall/zsyscall_linux_mipsle.go   |  4 ++--
+ src/syscall/zsyscall_linux_ppc64.go    |  4 ++--
+ src/syscall/zsyscall_linux_ppc64le.go  |  4 ++--
+ src/syscall/zsyscall_linux_riscv64.go  |  4 ++--
+ src/syscall/zsyscall_linux_s390x.go    |  4 ++--
+ src/syscall/zsyscall_netbsd_386.go     |  4 ++--
+ src/syscall/zsyscall_netbsd_amd64.go   |  4 ++--
+ src/syscall/zsyscall_netbsd_arm.go     |  4 ++--
+ src/syscall/zsyscall_netbsd_arm64.go   |  4 ++--
+ src/syscall/zsyscall_openbsd_386.go    |  4 ++--
+ src/syscall/zsyscall_openbsd_amd64.go  |  4 ++--
+ src/syscall/zsyscall_openbsd_arm.go    |  4 ++--
+ src/syscall/zsyscall_openbsd_arm64.go  |  4 ++--
+ src/syscall/zsyscall_openbsd_mips64.go |  4 ++--
+ src/syscall/zsyscall_solaris_amd64.go  | 20 +++++++++----------
+ 47 files changed, 155 insertions(+), 107 deletions(-)

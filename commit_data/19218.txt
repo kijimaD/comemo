@@ -1,13 +1,15 @@
-commit 1332eb5b6210e16601ff8d049885e41a6e16908d
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Apr 21 17:21:09 2014 +0200
+commit 6a40d549f101031025ba0c79f171725c3d64ed2b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 21 20:36:35 2014 +1000
 
-    runtime/race: add test for issue 7561.
+    cmd/nm: disable TestNM on darwin, linux and solaris
     
-    LGTM=dvyukov
-    R=rsc, iant, khr, dvyukov
+    Update #7829
+    
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/76520045
+    https://golang.org/cl/89810043
 
- src/pkg/runtime/race/testdata/map_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/nm/nm_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

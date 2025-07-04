@@ -1,16 +1,42 @@
-commit 3cee55057f57a38003d8ff5f8495dbf82f91d5ef
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 30 18:08:08 2019 -0400
+commit 585c9e8412540b10be5154d019828a1a27f7b4c4
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sun Jan 20 10:52:11 2019 -0800
 
-    os: deflake TestNewFileNonBlock
+    cmd/compile: implement shifts by signed amounts
     
-    Fixes #32325
+    Allow shifts by signed amounts. Panic if the shift amount is negative.
     
-    Change-Id: Ic06938c36a25ef1a6623e35e128b73729d02d955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179698
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TODO: We end up doing two compares per shift, see Ian's comment
+    https://github.com/golang/go/issues/19113#issuecomment-443241799 that
+    we could do it with a single comparison in the normal case.
+    
+    The prove pass mostly handles this code well. For instance, it removes the
+    <0 check for cases like this:
+        if s >= 0 { _ = x << s }
+        _ = x << len(a)
+    
+    This case isn't handled well yet:
+        _ = x << (y & 0xf)
+    I'll do followon CLs for unhandled cases as needed.
+    
+    Update #19113
+    
+    R=go1.13
+    
+    Change-Id: I839a5933d94b54ab04deb9dd5149f32c51c90fa1
+    Reviewed-on: https://go-review.googlesource.com/c/158719
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/os_unix_test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         |   1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/compile/internal/gc/go.go              |   1 +
+ src/cmd/compile/internal/gc/ssa.go             |   9 ++-
+ src/cmd/compile/internal/gc/typecheck.go       |   4 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |   3 +-
+ src/cmd/internal/obj/x86/obj6.go               |   2 +-
+ src/runtime/panic.go                           |  20 +++--
+ test/fixedbugs/bug073.go                       |  10 +--
+ test/fixedbugs/issue19113.go                   | 108 +++++++++++++++++++++++++
+ 10 files changed, 144 insertions(+), 15 deletions(-)

@@ -1,16 +1,37 @@
-commit 6d32b1a3431dba378d22fa8b187ccfeab259cbe2
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Feb 28 16:28:34 2017 -0800
+commit e0178025978470e9f7b5fa9365891d20db809a7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 19:12:09 2016 +0000
 
-    os: add OpenFile example for appending data
+    cmd/vet: parallelize tests
     
-    Fixes #19329.
+    Was 2.3 seconds. Now 1.4 seconds.
     
-    Change-Id: I6d8bb112a56d751a6d3ea9bd6021803cb9f59234
-    Reviewed-on: https://go-review.googlesource.com/37619
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Next win would be not running a child process and refactoring main so
+    it could be called from tests easily. But that would also require
+    rewriting the errchk written in Perl. This appears to be the last user
+    of errchk in the tree.
+    
+    Updates #17751
+    
+    Change-Id: Id7c3cec76f438590789b994e756f55b5397be07f
+    Reviewed-on: https://go-review.googlesource.com/32754
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/example_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/vet/testdata/{ => asm}/asm.go              |   0
+ src/cmd/vet/testdata/{ => asm}/asm1.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm2.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm3.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm4.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm5.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm6.s              |   0
+ src/cmd/vet/testdata/{ => asm}/asm7.s              |   0
+ src/cmd/vet/testdata/{ => buildtag}/buildtag.go    |   0
+ .../vet/testdata/{ => buildtag}/buildtag_bad.go    |   0
+ src/cmd/vet/testdata/{ => cgo}/cgo.go              |   0
+ src/cmd/vet/testdata/{ => cgo}/cgo2.go             |   0
+ src/cmd/vet/testdata/testingpkg/tests.go           |   1 +
+ .../vet/testdata/{ => testingpkg}/tests_test.go    |   0
+ src/cmd/vet/vet_test.go                            | 125 +++++++++++++++------
+ 15 files changed, 92 insertions(+), 34 deletions(-)

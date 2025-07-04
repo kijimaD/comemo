@@ -1,21 +1,16 @@
-commit bcd8161f4e3225899981d63def53fbb09b7556d4
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Mar 8 19:00:51 2023 +0800
+commit c2d436dcfad64d5cc301cf05d446f7a93c19133e
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Apr 19 14:44:03 2022 +0800
 
-    cmd/go: unify the format of the go help xxx command
+    hash/maphash: use fastrand64 in MakeSeed
     
-    Fixes #58871
-    Updates #58871
-    
-    Change-Id: I947b71083e9559859b3ae6e17b5daad03a976707
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474375
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I5ccbcea4c53658136b25ca608faec19eeec2e908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400915
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go             | 5 ++++-
- src/cmd/go/internal/get/get.go    | 2 ++
- src/cmd/go/internal/work/build.go | 3 ++-
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ src/hash/maphash/maphash.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

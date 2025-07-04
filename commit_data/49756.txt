@@ -1,20 +1,30 @@
-commit 487b3501a54e5479972a7982fe1eb154f0447b58
+commit 376a079762bf8db387510d50ed718ec1259d1b7c
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 8 21:51:01 2022 +0700
+Date:   Fri Sep 3 10:49:32 2021 +0700
 
-    context: Revert "context: use CompareAndSwap in cancelCtx.Done"
+    cmd/compile: fix unified IR panic when expanding nested inline function
     
-    This reverts commit 964f0c7a306998256f1c5a5fd78fc457a972f001.
+    When reading body of inlining function, which has another inlined
+    function in the body, the reader still add this inlined function to
+    todoBodies, which it shouldn't because the inlined function was read
+    already.
     
-    Reason: cause increasing timeout in crypto/tls tests on race builders.
+    To fix this, introduce new flag to signal that we are done construting
+    all functions in todoBodies, thus the addBody shouldn't add anything
+    to todoBodies then.
     
-    Change-Id: Id16d4fcd19c2ca2e89ad4d0c9d55ef1105b19c76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422035
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #48094
+    
+    Change-Id: I45105dd518f0a7b69c6dcbaf23b957623f271203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347529
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/context/context.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/reader.go  | 7 ++++++-
+ src/cmd/compile/internal/noder/unified.go | 1 +
+ test/typeparam/issue48094b.dir/a.go       | 8 ++++++++
+ test/typeparam/issue48094b.dir/b.go       | 9 +++++++++
+ test/typeparam/issue48094b.go             | 7 +++++++
+ 5 files changed, 31 insertions(+), 1 deletion(-)

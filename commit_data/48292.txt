@@ -1,15 +1,15 @@
-commit 2981fc7f1676ca79e487ba3c1df06e5e60723483
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Tue Dec 21 21:49:50 2021 +1030
+commit 40d5e6d4e28eba538ec124d0e437dead63b0206e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 5 11:54:51 2021 -0700
 
-    math: don't use integer division that truncates to zero
+    cmd/compile/internal/types2: fix potential bugs in santitizer pass
     
-    Change-Id: I7389da0c3a63fea3be5c820f2ce0d0168a95ab4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373377
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I88c5e1f620d0f3546ac9ac7b6a4b881772a38449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317329
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/math/all_test.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/sanitize.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

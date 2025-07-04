@@ -1,23 +1,25 @@
-commit 42d2dfb4305aecb3a6e5494db6b8f6e48a09b420
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Thu Jul 27 01:21:48 2023 +0000
+commit f798dc682539df0bc60b30bedce9d6f5d5192d47
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Thu Sep 1 14:06:55 2022 +0900
 
-    reflect: add TypeFor
+    fmt: recycle printers with large buffers
     
-    Fixes #60088
+    Previously when a printer had a large buffer we dropped both
+    the buffer and the printer. There is no need to drop the printer
+    in this case, as a printer with a nil buffer is valid. So we
+    just drop the buffer and recycle the printer anyway.
+    This saves one allocation in case the buffer is over the limit.
     
-    Change-Id: I7b43d329def22c2524501ba1d6bfc73becc823d1
-    GitHub-Last-Rev: becd714c4562da4a3280c3a56ebaf246e48e9f37
-    GitHub-Pull-Request: golang/go#61598
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513478
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Also tighten some of the tests for other unrelated cases.
+    
+    Change-Id: Iba1b6a71ca4691464b8c68ab0b6ab0d4d5d6168c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427395
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/60088.txt       |  1 +
- src/reflect/type.go      |  5 +++++
- src/reflect/type_test.go | 35 +++++++++++++++++++++++++++++++++++
- 3 files changed, 41 insertions(+)
+ src/fmt/fmt_test.go | 15 ++++++++++-----
+ src/fmt/print.go    | 14 ++++++++------
+ 2 files changed, 18 insertions(+), 11 deletions(-)

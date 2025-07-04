@@ -1,21 +1,21 @@
-commit 626ef0812739ac7bb527dbdf4b0ed3a436c90901
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 12 16:02:12 2021 -0500
+commit d17aebf46d8d0f55cbd205be4482c632527eca27
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Tue Jun 2 10:34:09 2020 +0100
 
-    doc: remove install.html and install-source.html
+    internal/poll: add mutex to prevent SetDeadline race in Plan 9
     
-    These live in x/website/content/doc now.
-    The copies here just attract edits that have no actual effect.
+    There are data races on fd.[rw]aio and fd.[rw]timedout when Read/Write
+    is called on a polled fd concurrently with SetDeadline (see #38769).
+    Adding a mutex around accesses to each pair (read and write) prevents
+    the race, which was causing deadlocks in net/http tests on the builders.
     
-    For #40496.
-    For #41861.
+    Updates #38769.
     
-    Change-Id: I2fdd7375e373949eb9a88f4cdca440b6a5d45eea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291709
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I31719b3c9a664e81a775cda583cff31c0da946c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235820
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- README.md               |  10 +-
- doc/install-source.html | 777 ------------------------------------------------
- doc/install.html        | 315 --------------------
- 3 files changed, 4 insertions(+), 1098 deletions(-)
+ src/internal/poll/fd_plan9.go | 29 +++++++++++++++++++++++------
+ 1 file changed, 23 insertions(+), 6 deletions(-)

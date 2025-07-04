@@ -1,19 +1,105 @@
-commit 7177f2400995901b666b1ed94d87c15c8c410fab
-Author: 喜欢 <csharpwz@outlook.com>
-Date:   Fri Mar 28 06:39:41 2025 +0000
+commit 08029be9fc12023f036bc695efd688fc4616f0c7
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Thu Feb 8 12:06:00 2024 +0100
 
-    log/slog: log and logAttrs initialize ctx at top
+    cmd/compile/internal/dwarfgen: refactor putvar and putAbstractVar
     
-    In extreme cases (e.g., ctx = nil), it is recommended to initialize the
-    context only once at the entry point before using log and logAttrs.
+    Currently, changing putvar or putAbstractVar involves:
     
-    Change-Id: Ib191963f52183406d7fcd5104b60fea1a9e1bc80
-    GitHub-Last-Rev: e1719b95390011a45a0a6652a13e675279bc76cd
-    GitHub-Pull-Request: golang/go#73066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661255
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    1. changing the abbrevs array to add new abbrevs or modify existing ones
+    2. changing the DW_ABRV_XXX const block to add the new abbrevs, this const
+       block must match the changes to the abbrevs array
+    3. change the code at the start of putvar and putAbstractVar that selects
+       the abbrev to use
+    4. change the body of putvar/putAbstractVar to emit the right attributes in
+       the right sequence
+    
+    Each change must agree with all other, this is error prone and if an mistake
+    is made there is no compile time or runtime check detecting it. Erroneous
+    code will simply produce unreadable debug sections.
+    
+    This commit adds a mechanism to automatically generate code for abbrev
+    selection as well as the abbrev definitions based on static examination of
+    the body of putvar and putAbstractVar.
+    
+    TestPutVarAbbrevGenerator is responsible for checking that the generated
+    code is kept updated and will regenerated it by passing the '-generate'
+    option to it.
+    
+    benchstat output:
+    
+                             |    old.txt    |               new.txt                |
+                             |    sec/op     |    sec/op      vs base               |
+    Template                    153.8m ±  6%    153.0m ±  6%       ~ (p=0.853 n=10)
+    Unicode                     98.98m ± 19%   100.22m ± 15%       ~ (p=0.796 n=10)
+    GoTypes                    1013.7m ± 13%    943.6m ±  8%       ~ (p=0.353 n=10)
+    Compiler                    98.48m ± 10%    97.79m ±  6%       ~ (p=0.353 n=10)
+    SSA                          8.921 ± 31%     6.872 ± 37%       ~ (p=0.912 n=10)
+    Flate                       114.3m ± 21%    128.0m ± 36%       ~ (p=0.436 n=10)
+    GoParser                    219.0m ± 27%    214.9m ± 26%       ~ (p=0.631 n=10)
+    Reflect                     447.5m ± 20%    452.6m ± 22%       ~ (p=0.684 n=10)
+    Tar                         166.9m ± 27%    166.2m ± 27%       ~ (p=0.529 n=10)
+    XML                         218.6m ± 25%    219.3m ± 24%       ~ (p=0.631 n=10)
+    LinkCompiler                492.7m ± 12%    523.2m ± 13%       ~ (p=0.315 n=10)
+    ExternalLinkCompiler         1.684 ±  3%     1.684 ±  2%       ~ (p=0.684 n=10)
+    LinkWithoutDebugCompiler    296.0m ±  8%    304.9m ± 12%       ~ (p=0.579 n=10)
+    StdCmd                       69.59 ± 15%     70.76 ± 14%       ~ (p=0.436 n=10)
+    geomean                     516.0m          511.5m        -0.87%
+    
+                             |   old.txt    |               new.txt               |
+                             | user-sec/op  | user-sec/op   vs base               |
+    Template                   281.5m ± 10%   269.6m ± 13%       ~ (p=0.315 n=10)
+    Unicode                    107.3m ±  8%   110.2m ±  8%       ~ (p=0.165 n=10)
+    GoTypes                     2.414 ± 16%    2.181 ±  9%       ~ (p=0.315 n=10)
+    Compiler                   116.0m ± 16%   119.1m ± 11%       ~ (p=0.971 n=10)
+    SSA                         25.47 ± 39%    17.75 ± 52%       ~ (p=0.739 n=10)
+    Flate                      205.2m ± 25%   256.2m ± 43%       ~ (p=0.393 n=10)
+    GoParser                   456.8m ± 28%   427.0m ± 24%       ~ (p=0.912 n=10)
+    Reflect                    960.3m ± 22%   990.5m ± 23%       ~ (p=0.280 n=10)
+    Tar                        299.8m ± 27%   307.9m ± 27%       ~ (p=0.631 n=10)
+    XML                        425.0m ± 21%   432.8m ± 24%       ~ (p=0.353 n=10)
+    LinkCompiler               768.1m ± 11%   796.9m ± 14%       ~ (p=0.631 n=10)
+    ExternalLinkCompiler        1.713 ±  5%    1.666 ±  4%       ~ (p=0.190 n=10)
+    LinkWithoutDebugCompiler   313.0m ±  9%   316.7m ± 12%       ~ (p=0.481 n=10)
+    geomean                    588.6m         579.5m        -1.55%
+    
+              |   old.txt    |                new.txt                |
+              |  text-bytes  |  text-bytes   vs base                 |
+    HelloSize   842.9Ki ± 0%   842.9Ki ± 0%       ~ (p=1.000 n=10) ¹
+    CmdGoSize   10.95Mi ± 0%   10.95Mi ± 0%       ~ (p=1.000 n=10) ¹
+    geomean     3.003Mi        3.003Mi       +0.00%
+    ¹ all samples are equal
+    
+              |   old.txt    |                new.txt                |
+              |  data-bytes  |  data-bytes   vs base                 |
+    HelloSize   15.08Ki ± 0%   15.08Ki ± 0%       ~ (p=1.000 n=10) ¹
+    CmdGoSize   314.7Ki ± 0%   314.7Ki ± 0%       ~ (p=1.000 n=10) ¹
+    geomean     68.88Ki        68.88Ki       +0.00%
+    ¹ all samples are equal
+    
+              |   old.txt    |                new.txt                |
+              |  bss-bytes   |  bss-bytes    vs base                 |
+    HelloSize   396.8Ki ± 0%   396.8Ki ± 0%       ~ (p=1.000 n=10) ¹
+    CmdGoSize   428.8Ki ± 0%   428.8Ki ± 0%       ~ (p=1.000 n=10) ¹
+    geomean     412.5Ki        412.5Ki       +0.00%
+    ¹ all samples are equal
+    
+              |   old.txt    |               new.txt               |
+              |  exe-bytes   |  exe-bytes    vs base               |
+    HelloSize   1.310Mi ± 0%   1.310Mi ± 0%  -0.01% (p=0.000 n=10)
+    CmdGoSize   16.37Mi ± 0%   16.37Mi ± 0%  -0.00% (p=0.000 n=10)
+    geomean     4.631Mi        4.631Mi       -0.00%
+    
+    Change-Id: I7edf37b5a47fd9aceef931ddf2c701e66a7b38b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563815
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/log/slog/logger.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go     |  30 +--
+ src/cmd/compile/internal/dwarfgen/dwinl.go     |   2 +-
+ src/cmd/internal/dwarf/dwarf.go                | 244 +++----------------
+ src/cmd/internal/dwarf/putvarabbrevgen.go      | 139 +++++++++++
+ src/cmd/internal/dwarf/putvarabbrevgen_test.go | 316 +++++++++++++++++++++++++
+ 5 files changed, 508 insertions(+), 223 deletions(-)

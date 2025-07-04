@@ -1,33 +1,29 @@
-commit 79fb187be4d1a1a93c01b3a6be66ea529311ea84
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Oct 27 17:51:58 2020 -0400
+commit c364079a533c172bd071af38b6f6ffd7dc68186d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 15 22:23:41 2020 -0400
 
-    cmd/cgo: add -trimpath flag allowing paths to be rewritten in outputs
+    [dev.link] cmd/link: use function address directly in pclntab generation
     
-    cmd/cgo now has a -trimpath flag that behaves the same as the
-    -trimpath flag to cmd/compile. This will be used to correct paths
-    to cgo files that are overlaid.
+    If we are internal linking a static executable, in pclntab
+    generation, the function addresses are known, so we can just use
+    them directly instead of emitting relocations.
     
-    The code that processes trimpath in internal/objapi has been slightly
-    refactored because it's currently only accessible via AbsFile, which
-    does some additional processing to the path names. Now an
-    ApplyRewrites function is exported that just applies the trimpath
-    rewrites.
+    For external linking or other build modes,  we are generating a
+    relocatable binary so we still need to emit relocations.
     
-    Also remove unused srcfile argument to cmd/cgo.(*Package).godefs.
+    Reduce some allocations: for linking cmd/compile,
     
-    For #39958
+    name           old alloc/op   new alloc/op   delta
+    Pclntab_GC       38.8MB ± 0%    36.4MB ± 0%   -6.19%  (p=0.008 n=5+5)
     
-    Change-Id: I497d48d0bc2fe1f6ab2b5835cbe79f15b839ee59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266358
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TODO: can we also do this in DWARF generation?
+    
+    Change-Id: I43920d930ab1da97c205871027e01844a07a5e60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228478
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/cgo/ast.go              | 16 ++++------------
- src/cmd/cgo/godefs.go           |  2 +-
- src/cmd/cgo/main.go             | 15 ++++++++++++++-
- src/cmd/internal/objabi/line.go | 33 ++++++++++++++++++++++-----------
- 4 files changed, 41 insertions(+), 25 deletions(-)
+ src/cmd/link/internal/ld/pcln.go   | 28 ++++++++++++++++++++--------
+ src/cmd/link/internal/ld/target.go |  4 ++++
+ 2 files changed, 24 insertions(+), 8 deletions(-)

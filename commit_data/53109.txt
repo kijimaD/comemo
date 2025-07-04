@@ -1,20 +1,28 @@
-commit bc04d4afa28c867d43869c92179b62f84b36da54
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 23 16:10:52 2023 -0400
+commit 9371a6558412f621b5fbb54c42b43b93f8080e68
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 12 11:04:44 2022 -0700
 
-    cmd/go: log more information about leaked temp files
+    internal/pkgbits: change EnableSync into a dynamic knob
     
-    Previously, we were only logging the top-level names of leaked
-    directories, which doesn't provide much information for debugging.
+    Rather than requiring users to recompile the compiler and all tools to
+    enable/disable sync markers, this CL adds a flag word into the Unified
+    IR file format to allow indicating whether they're enabled or not.
+    This in turn requires bumping the file format version.
     
-    For #55260.
+    Thanks to drchase@ for benchmarks showing this isn't as expensive as I
+    feared it would be.
     
-    Change-Id: I845d158135d67b5d7fdeb16ab7031a061535e643
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479055
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I99afa0ee0b6ef5f30ed8ca840805ff9fd46b1857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417097
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 31 ++++++++++++++++++++++++-------
- 1 file changed, 24 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/base/flag.go    |  1 +
+ src/cmd/compile/internal/noder/reader.go |  2 +-
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ src/internal/pkgbits/decoder.go          | 26 ++++++++++++++++++++++----
+ src/internal/pkgbits/encoder.go          | 25 ++++++++++++++++++++++---
+ src/internal/pkgbits/flags.go            |  9 +++++++++
+ src/internal/pkgbits/sync.go             | 11 -----------
+ 7 files changed, 56 insertions(+), 20 deletions(-)

@@ -1,29 +1,35 @@
-commit 452f24ae94f38afa3704d4361d91d51218405c0a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 2 16:41:32 2022 -0500
+commit cbb3f090477de92a7e158050803ef71a5ea825ee
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Wed Apr 14 23:55:38 2021 +0300
 
-    regexp/syntax: reject very deeply nested regexps in Parse
+    testing: add -shuffle=off|on|N to alter the execution order of tests and benchmarks
     
-    The regexp code assumes it can recurse over the structure of
-    a regexp safely. Go's growable stacks make that reasonable
-    for all plausible regexps, but implausible ones can reach the
-    “infinite recursion?” stack limit.
+    This CL adds a new flag to the testing package and the go test command
+    which randomizes the execution order for tests and benchmarks.
+    This can be useful for identifying unwanted dependencies
+    between test or benchmark functions.
+    The flag is off by default. If `-shuffle` is set to `on` then the system
+    clock will be used as the seed value. If `-shuffle` is set to an integer
+    N, then N will be used as the seed value. In both cases, the seed will
+    be reported for failed runs so that they can reproduced later on.
     
-    This CL limits the depth of any parsed regexp to 1000.
-    That is, the depth of the parse tree is required to be ≤ 1000.
-    Regexps that require deeper parse trees will return ErrInternalError.
-    A future CL will change the error to ErrInvalidDepth,
-    but using ErrInternalError for now avoids introducing new API
-    in point releases when this is backported.
+    Fixes #28592
     
-    Fixes #51112.
-    
-    Change-Id: I97d2cd82195946eb43a4ea8561f5b95f91fb14c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384616
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I62e7dfae5f63f97a0cbd7830ea844d9f7beac335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310033
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/regexp/syntax/parse.go      | 72 +++++++++++++++++++++++++++++++++++++++--
- src/regexp/syntax/parse_test.go |  7 ++++
- 2 files changed, 77 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go                       |   7 ++
+ src/cmd/go/internal/test/flagdefs.go        |   1 +
+ src/cmd/go/internal/test/test.go            |   8 ++
+ src/cmd/go/internal/test/testflag.go        |  37 +++++++
+ src/cmd/go/testdata/script/test_shuffle.txt | 148 ++++++++++++++++++++++++++++
+ src/go/build/deps_test.go                   |   2 +-
+ src/math/rand/export_test.go                |  17 ++++
+ src/math/rand/race_test.go                  |   3 +-
+ src/math/rand/rand_test.go                  |   8 +-
+ src/testing/testing.go                      |  22 +++++
+ 10 files changed, 249 insertions(+), 4 deletions(-)

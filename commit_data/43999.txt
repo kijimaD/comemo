@@ -1,24 +1,15 @@
-commit 64d8846aaef4b64d2649917581069c0ec30ca561
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Dec 11 16:45:39 2020 -0500
+commit 8ba0e919d26e54b10b559502cc79a43422933417
+Author: alex-semenyuk <alexsemenyuk88@gmail.com>
+Date:   Fri May 1 19:18:39 2020 +0000
 
-    cmd/go: print hint when 'go install' run without version outside module
+    A+C: add Alexey Semenyuk (individual CLA)
     
-    If 'go install' is invoked in module mode outside a module with a
-    package that could only be loaded from a module, it will now suggest
-    running 'go install pkg@latest'.
-    
-    'go install' will still work outside a module on packages in std and
-    cmd, as well as .go files specified on the command line.
-    
-    Fixes #42638
-    
-    Change-Id: Ib0963935f028b7656178bc04a279b1114de35fbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277355
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7e7801711b5278bf74f1551678b3f98c765ccc44
+    GitHub-Last-Rev: e5eb69d0660f0cbe45314b8b35b1d1745e34af40
+    GitHub-Pull-Request: golang/go#38786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231460
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build.go          | 26 +++++++++++++++++++++++++-
- src/cmd/go/testdata/script/mod_outside.txt |  5 ++++-
- 2 files changed, 29 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

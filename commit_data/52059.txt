@@ -1,31 +1,29 @@
-commit d54aeeeea3327a760856fdc280c742b853684f47
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 29 15:43:08 2022 -0500
+commit 995a6045919e6cf5a46ee09f8695ed5e05062ce7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Mar 31 19:01:17 2022 -0400
 
-    cmd/go: set default GODEBUG for main packages
+    runtime/race: update syso files to new TSAN runtime (v3)
     
-    For #56986, change the go command to compute and set the
-    default GODEBUG settings for each main package, based on
-    the work module's go version and the //go:debug lines in the
-    main package.
+    Following CL 333529, update syso files for other architectures.
     
-    Change-Id: I2118cf0ae6d981138138661e02120c05af648872
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453605
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Windows/AMD64 is not updated, waiting for Than for C toolchain
+    updates.
+    
+    OpenBSD/AMD64 is not updated as upstream LLVM TSAN removed OpenBSD
+    support (#52090).
+    
+    Linux/PPC64LE is not updated due to a test failure. Will look into
+    it.
+    
+    Change-Id: I46441fd3bb0f2c9e372d3e7fd43744ffafaf87a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397494
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go                              |  71 ++++++------
- src/cmd/go/internal/list/list.go                   |  71 ++++++------
- src/cmd/go/internal/load/godebug.go                | 128 +++++++++++++++++++++
- src/cmd/go/internal/load/pkg.go                    |  14 +--
- src/cmd/go/internal/load/test.go                   |   8 +-
- src/cmd/go/internal/modload/init.go                |  20 ++--
- src/cmd/go/internal/work/exec.go                   |  36 ++++++
- src/cmd/go/internal/work/gc.go                     |   5 +
- src/cmd/go/testdata/mod/rsc.io_panicnil_v1.0.0.txt |  13 +++
- src/cmd/go/testdata/mod/rsc.io_panicnil_v1.1.0.txt |  14 +++
- src/cmd/go/testdata/script/godebug_default.txt     | 115 ++++++++++++++++++
- .../go/testdata/script/test_fuzz_mutate_crash.txt  |   2 +-
- src/cmd/go/testdata/script/work_use_issue55952.txt |   2 +-
- 13 files changed, 411 insertions(+), 88 deletions(-)
+ src/runtime/race/README                  |  10 +++++-----
+ src/runtime/race/race_darwin_amd64.syso  | Bin 455944 -> 538536 bytes
+ src/runtime/race/race_darwin_arm64.syso  | Bin 438560 -> 484988 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 583264 -> 710664 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 505224 -> 530736 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 609424 -> 714520 bytes
+ 6 files changed, 5 insertions(+), 5 deletions(-)

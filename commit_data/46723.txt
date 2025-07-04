@@ -1,20 +1,19 @@
-commit a8d78fae95d5a8a09e248ce4d26f04b38791a7b6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Oct 1 15:39:21 2021 -0700
+commit a49e9410276975d187a5cfda1a396194c45d4464
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 22 16:59:45 2021 -0800
 
-    cmd/compile: refactor gclocals sym creation
+    [dev.typeparams] cmd/compile/internal/types2: remove MethodSet code - not used by types2
     
-    It'll be used in second place in a subsequent change.
-    No functional changes.
+    We can always re-introduce it if we decide to make use of it.
     
-    Change-Id: I58dd12d7dde45b36995d031fc7fbb27d6eaf48d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353670
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ia939fdae978568edc58e21d1af732c6137744aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285678
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/liveness/plive.go | 13 +------------
- src/cmd/internal/obj/sym.go                |  9 +++++++++
- 2 files changed, 10 insertions(+), 12 deletions(-)
+ .../compile/internal/importer/gcimporter_test.go   |   5 +-
+ src/cmd/compile/internal/types2/call.go            |  45 ----
+ src/cmd/compile/internal/types2/example_test.go    |  55 -----
+ src/cmd/compile/internal/types2/lookup.go          |  19 ++
+ src/cmd/compile/internal/types2/methodset.go       | 262 ---------------------
+ 5 files changed, 21 insertions(+), 365 deletions(-)

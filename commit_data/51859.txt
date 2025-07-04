@@ -1,37 +1,22 @@
-commit b89a840d6572c97a80ac78462b03122b83bc84e9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 25 16:11:45 2022 +0700
+commit e1fbf13896feb0b55050c22f5be0746f8a2ba01b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 9 12:01:16 2022 -0500
 
-    cmd/compile: add clear(x) builtin
+    cmd/go: include the "-trimpath" flag in the stamped build settings
     
-    To clear map, and zero content of slice.
+    The -trimpath flag has a strong effect on the resulting binary:
+    in particular, it determines whether runtime.GOROOT can report
+    a meaningful path in the absence of an explicit GOROOT environment variable.
     
-    Updates #56351
+    For #51461
     
-    Change-Id: I5f81dfbc465500f5acadaf2c6beb9b5f0d2c4045
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453395
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id0d55572c0a0a4e2e4724363ed80dfa05b202186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391810
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/escape/call.go         |   2 +-
- src/cmd/compile/internal/escape/stmt.go         |   2 +-
- src/cmd/compile/internal/ir/expr.go             |   2 +-
- src/cmd/compile/internal/ir/fmt.go              |   3 +
- src/cmd/compile/internal/ir/node.go             |   1 +
- src/cmd/compile/internal/ir/op_string.go        | 247 ++++++++++++------------
- src/cmd/compile/internal/typecheck/const.go     |   1 +
- src/cmd/compile/internal/typecheck/func.go      |  24 ++-
- src/cmd/compile/internal/typecheck/stmt.go      |   1 +
- src/cmd/compile/internal/typecheck/typecheck.go |   6 +-
- src/cmd/compile/internal/typecheck/universe.go  |   1 +
- src/cmd/compile/internal/walk/builtin.go        |  12 ++
- src/cmd/compile/internal/walk/expr.go           |   4 +
- src/cmd/compile/internal/walk/order.go          |   2 +-
- src/cmd/compile/internal/walk/range.go          |  42 ++--
- src/cmd/compile/internal/walk/stmt.go           |   1 +
- test/clear.go                                   |  47 +++++
- 17 files changed, 256 insertions(+), 142 deletions(-)
+ src/cmd/go/internal/load/pkg.go                       | 3 +++
+ src/cmd/go/testdata/script/version_build_settings.txt | 4 ++++
+ 2 files changed, 7 insertions(+)

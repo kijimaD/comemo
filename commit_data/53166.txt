@@ -1,59 +1,23 @@
-commit 58315a771a645359d2173f9555d4a606e6613158
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 19 17:44:35 2023 -0700
+commit 9eb3992dddb561001f27ddf0c0d9e29d8d295f66
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jul 22 23:35:41 2022 +0200
 
-    runtime: consolidate on a single closeonexec definition
+    doc/go1.19: minor fixes
     
-    Now that we implement fcntl on all Unix systems, we can
-    write closeonexec that uses it. This lets us remove a bunch
-    of assembler code.
+    EM_LONGARCH and R_LARCH_* are defined in package debug/elf. Change the
+    definition list title accordingly.
     
-    Change-Id: If35591df535ccfc67292086a9492f0a8920e3681
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496081
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Format links sort.Find and sort.Search as code.
+    
+    Add a link to syscall.Getrusage.
+    
+    Change-Id: I30602baedda8ccac028101858a608f1d8ffb633b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419214
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/defs1_solaris_amd64.go            |  2 --
- src/runtime/defs_aix.go                       |  8 +++-----
- src/runtime/defs_aix_ppc64.go                 |  8 +++-----
- src/runtime/defs_darwin.go                    |  6 ++----
- src/runtime/defs_darwin_amd64.go              |  6 ++----
- src/runtime/defs_darwin_arm64.go              |  6 ++----
- src/runtime/defs_openbsd.go                   |  6 ++----
- src/runtime/defs_openbsd_386.go               |  6 ++----
- src/runtime/defs_openbsd_amd64.go             |  6 ++----
- src/runtime/defs_openbsd_arm.go               |  6 ++----
- src/runtime/defs_openbsd_arm64.go             |  6 ++----
- src/runtime/defs_solaris.go                   |  2 --
- src/runtime/export_linux_test.go              |  5 -----
- src/runtime/export_unix2_test.go              | 10 ----------
- src/runtime/export_unix_test.go               |  1 +
- src/runtime/internal/syscall/defs_linux.go    | 10 ----------
- src/runtime/internal/syscall/syscall_linux.go |  4 ----
- src/runtime/netpoll_solaris.go                |  2 +-
- src/runtime/os3_solaris.go                    |  5 -----
- src/runtime/os_aix.go                         |  5 -----
- src/runtime/os_dragonfly.go                   |  1 -
- src/runtime/os_freebsd.go                     |  1 -
- src/runtime/os_netbsd.go                      |  1 -
- src/runtime/os_openbsd_syscall2.go            |  1 -
- src/runtime/os_unix.go                        | 19 +++++++++++++++++++
- src/runtime/sys_darwin.go                     |  5 -----
- src/runtime/sys_dragonfly_amd64.s             |  9 ---------
- src/runtime/sys_freebsd_386.s                 | 15 ---------------
- src/runtime/sys_freebsd_amd64.s               | 11 -----------
- src/runtime/sys_freebsd_arm.s                 |  9 ---------
- src/runtime/sys_freebsd_arm64.s               | 11 -----------
- src/runtime/sys_freebsd_riscv64.s             | 11 -----------
- src/runtime/sys_netbsd_386.s                  | 15 ---------------
- src/runtime/sys_netbsd_amd64.s                | 11 -----------
- src/runtime/sys_netbsd_arm.s                  | 10 ----------
- src/runtime/sys_netbsd_arm64.s                | 10 ----------
- src/runtime/sys_openbsd2.go                   |  5 -----
- src/runtime/sys_openbsd_mips64.s              |  9 ---------
- 38 files changed, 43 insertions(+), 221 deletions(-)
+ doc/go1.19.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

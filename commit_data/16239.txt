@@ -1,19 +1,14 @@
-commit e4c4edf6819726886d05f33a01f98a117863bfb2
+commit b42c8294ebe5bde8e7368716f909385cf7be148d
 Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 29 22:44:20 2013 -0700
+Date:   Mon Apr 29 13:52:07 2013 -0700
 
-    cmd/ld: fix some 64-bit issues
-    A few places in the linker pushed 64-bit values through 32-bit holes,
-    including in relocation.
-    Clean them up, and check for a few other overflows as well.
-    Tests to follow.
+    fmt: fix crash for Printf("%.", 3)
+    Fixes #5311
     
-    R=dsymonds
-    CC=gobot, golang-dev
-    https://golang.org/cl/9032043
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/8961050
 
- src/cmd/ld/data.c    | 76 +++++++++++++++++++++++++++++++++++-----------------
- src/cmd/ld/elf.c     |  2 +-
- src/cmd/ld/ldmacho.c |  4 +--
- src/cmd/ld/lib.h     |  6 ++---
- 4 files changed, 58 insertions(+), 30 deletions(-)
+ src/pkg/fmt/fmt_test.go | 3 +++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

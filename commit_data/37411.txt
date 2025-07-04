@@ -1,136 +1,14 @@
-commit cb4130996fa7f73c62dafcd65a94233359fd9e09
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Nov 14 16:29:30 2018 -0500
+commit 8fbbf63cc61ffbb953a6d44649b644e4211c5d83
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 20 11:22:21 2018 -0400
 
-    cmd/vet: switch to x/tools/go/analysis implementation
+    cmd/cgo: document that #including source files in subdirectories is a bad idea
     
-    This change deletes the legacy implementation of vet, replacing it
-    with a short main.go that merely selects the desired analyzers and
-    calls into the "unitchecker" implementation vendored from
-    golang.org/x/tools/go/analysis.
+    Suggested in discussion on #26366.
     
-    Unlike the full vet checker (x/tools/go/analysis/cmd/vet), the 'lite'
-    unitchecker cannot also be run standalone (as 'go tool vet' or
-    cmd/vet); it must be invoked by 'go vet'.
-    This design was chosen to avoid vendoring many
-    additional dependencies into GOROOT, in particular go/packages. If
-    go/packages should someday become part of the standard library, there
-    will be considerable opportunity for simplification.
-    
-    This change also patches the vendored analysisflag package
-    (by adding patch.go) so that it fully supports the build
-    system's -V flag protocol.
-    
-    Also:
-    - remove stale internal/unitchecker/ tree
-      (belonged in https://go-review.googlesource.com/c/149778).
-    - move vet legacy flags (-all, -v, -source, -tags) into analysisflags
-      as all drivers will need them, not just unitchecker.
-      I will upstream this change.
-    
-    A sampling of tests from the cmd/vet testsuite have been preserved as
-    a smoke test, to ensure that each analyzer is being run, and for
-    convenience when evaluating changes. Comprehensive tests for each
-    analyzer live upstream in x/tools. The tests have been heavily reduced
-    and reorganized so that they conform to the structure required by 'go
-    vet'.
-    
-    Change-Id: I84b38caeef733e65deb95234b3b87b5f61046def
-    Reviewed-on: https://go-review.googlesource.com/c/149609
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id9ad2e429a915f88b4c4b30fc415c722eebe0ea4
+    Reviewed-on: https://go-review.googlesource.com/125297
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../go/analysis/internal/analysisflags/flags.go    |   24 +-
- .../go/analysis/internal/analysisflags/patch.go    |    7 +
- .../analysis/internal/unitchecker/unitchecker.go   |  306 ---
- src/cmd/vet/asmdecl.go                             |  734 -------
- src/cmd/vet/assign.go                              |   52 -
- src/cmd/vet/atomic.go                              |   71 -
- src/cmd/vet/bool.go                                |  197 --
- src/cmd/vet/buildtag.go                            |  126 --
- src/cmd/vet/cgo.go                                 |  141 --
- src/cmd/vet/composite.go                           |   86 -
- src/cmd/vet/copylock.go                            |  266 ---
- src/cmd/vet/dead.go                                |  108 -
- src/cmd/vet/deadcode.go                            |  298 ---
- src/cmd/vet/doc.go                                 |  219 --
- src/cmd/vet/httpresponse.go                        |  137 --
- src/cmd/vet/internal/cfg/builder.go                |  512 -----
- src/cmd/vet/internal/cfg/cfg.go                    |  142 --
- src/cmd/vet/internal/cfg/cfg_test.go               |  190 --
- src/cmd/vet/internal/whitelist/whitelist.go        |   28 -
- src/cmd/vet/lostcancel.go                          |  322 ---
- src/cmd/vet/main.go                                |  842 +-------
- src/cmd/vet/method.go                              |  150 --
- src/cmd/vet/nilfunc.go                             |   67 -
- src/cmd/vet/print.go                               | 1070 ----------
- src/cmd/vet/rangeloop.go                           |  105 -
- src/cmd/vet/shadow.go                              |  243 ---
- src/cmd/vet/shift.go                               |   98 -
- src/cmd/vet/structtag.go                           |  241 ---
- src/cmd/vet/testdata/asm/asm.go                    |   48 -
- src/cmd/vet/testdata/asm/asm1.s                    |  315 ---
- src/cmd/vet/testdata/asm/asm2.s                    |  257 ---
- src/cmd/vet/testdata/asm/asm3.s                    |  192 --
- src/cmd/vet/testdata/asm/asm4.s                    |   26 -
- src/cmd/vet/testdata/asm/asm5.s                    |  193 --
- src/cmd/vet/testdata/asm/asm6.s                    |  193 --
- src/cmd/vet/testdata/asm/asm7.s                    |  193 --
- src/cmd/vet/testdata/asm8.s                        |  165 --
- src/cmd/vet/testdata/atomic.go                     |   62 -
- src/cmd/vet/testdata/bool.go                       |  131 --
- src/cmd/vet/testdata/buildtag/buildtag_bad.go      |   15 -
- src/cmd/vet/testdata/cgo/cgo.go                    |   59 -
- src/cmd/vet/testdata/cgo/cgo2.go                   |   12 -
- src/cmd/vet/testdata/cgo/cgo3.go                   |   13 -
- src/cmd/vet/testdata/cgo/cgo4.go                   |   15 -
- src/cmd/vet/testdata/composite.go                  |  120 --
- src/cmd/vet/testdata/copylock.go                   |  188 --
- src/cmd/vet/testdata/copylock_func.go              |  136 --
- src/cmd/vet/testdata/copylock_range.go             |   67 -
- src/cmd/vet/testdata/deadcode.go                   | 2134 --------------------
- src/cmd/vet/testdata/divergent/buf.go              |   17 -
- src/cmd/vet/testdata/divergent/buf_test.go         |   35 -
- src/cmd/vet/testdata/httpresponse.go               |   85 -
- src/cmd/vet/testdata/incomplete/examples_test.go   |   33 -
- src/cmd/vet/testdata/lostcancel.go                 |  155 --
- src/cmd/vet/testdata/nilfunc.go                    |   35 -
- src/cmd/vet/testdata/rangeloop.go                  |   90 -
- src/cmd/vet/testdata/shadow.go                     |   91 -
- src/cmd/vet/testdata/shift.go                      |  162 --
- src/cmd/vet/testdata/src/asm/asm.go                |    9 +
- src/cmd/vet/testdata/src/asm/asm1.s                |    8 +
- src/cmd/vet/testdata/{ => src/assign}/assign.go    |    2 +-
- src/cmd/vet/testdata/src/atomic/atomic.go          |   14 +
- src/cmd/vet/testdata/src/bool/bool.go              |   14 +
- .../vet/testdata/{ => src}/buildtag/buildtag.go    |    0
- src/cmd/vet/testdata/src/cgo/cgo.go                |   18 +
- src/cmd/vet/testdata/src/composite/composite.go    |   24 +
- src/cmd/vet/testdata/src/copylock/copylock.go      |   11 +
- src/cmd/vet/testdata/src/deadcode/deadcode.go      |   14 +
- .../vet/testdata/src/httpresponse/httpresponse.go  |   22 +
- src/cmd/vet/testdata/src/lostcancel/lostcancel.go  |   14 +
- src/cmd/vet/testdata/{ => src/method}/method.go    |   12 +-
- src/cmd/vet/testdata/src/nilfunc/nilfunc.go        |   13 +
- src/cmd/vet/testdata/{ => src/print}/print.go      |   56 +-
- src/cmd/vet/testdata/src/rangeloop/rangeloop.go    |   17 +
- src/cmd/vet/testdata/src/shift/shift.go            |   13 +
- src/cmd/vet/testdata/src/structtag/structtag.go    |   11 +
- src/cmd/vet/testdata/{ => src}/tagtest/file1.go    |    3 +
- src/cmd/vet/testdata/{ => src}/tagtest/file2.go    |    5 +-
- src/cmd/vet/testdata/{ => src}/testingpkg/tests.go |    0
- src/cmd/vet/testdata/src/testingpkg/tests_test.go  |    3 +
- src/cmd/vet/testdata/src/unmarshal/unmarshal.go    |   18 +
- src/cmd/vet/testdata/src/unsafeptr/unsafeptr.go    |   14 +
- src/cmd/vet/testdata/src/unused/unused.go          |   13 +
- src/cmd/vet/testdata/structtag.go                  |  113 --
- src/cmd/vet/testdata/testingpkg/tests_test.go      |   74 -
- src/cmd/vet/testdata/unmarshal.go                  |   60 -
- src/cmd/vet/testdata/unsafeptr.go                  |   63 -
- src/cmd/vet/testdata/unused.go                     |   29 -
- src/cmd/vet/tests.go                               |  187 --
- src/cmd/vet/types.go                               |  345 ----
- src/cmd/vet/unmarshal.go                           |   72 -
- src/cmd/vet/unsafeptr.go                           |   97 -
- src/cmd/vet/unused.go                              |   93 -
- src/cmd/vet/vet_test.go                            |  176 +-
- 94 files changed, 445 insertions(+), 13211 deletions(-)
+ src/cmd/cgo/doc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

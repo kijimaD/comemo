@@ -1,16 +1,37 @@
-commit 7bdbc73be1d10a9b32cb5edc6b9d0c93805f059c
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Dec 10 14:25:55 2021 -0500
+commit 1129a60f1c1e64147ca1133857c4571ce9b87a35
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 12 12:57:39 2021 -0800
 
-    cmd/go: document -fuzzminimizetime
+    cmd/compile: include typecheck information in export/import
     
-    Change-Id: I435942ff7285d32ffbc8901d9d7e76544d5aeb61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370881
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Include type information on exported function bodies, so that the
+    importer does not have to re-typecheck the body. This involves
+    including type information in the encoded output, as well as
+    avoiding some of the opcode rewriting and other changes that the
+    old exporter did assuming there would be a re-typechecking pass.
+    
+    This CL could be considered a cleanup, but is more important than that
+    because it is an enabling change for generics. Without this CL, we'd
+    have to upgrade the current typechecker to understand generics. With
+    this CL, the current typechecker can mostly go away in favor of the
+    types2 typechecker.
+    
+    For now, inlining of functions that contain closures is turned off.
+    We will hopefully resolve this before freeze.
+    
+    Object files are only 0.07% bigger.
+    
+    Change-Id: I85c9da09f66bfdc910dc3e26abb2613a1831634d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301291
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/alldocs.go            | 18 +++++++++++++-----
- src/cmd/go/internal/test/test.go | 18 +++++++++++++-----
- 2 files changed, 26 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     |   2 +-
+ src/cmd/compile/internal/inline/inl.go        |   6 +-
+ src/cmd/compile/internal/typecheck/func.go    |  19 +-
+ src/cmd/compile/internal/typecheck/iexport.go | 276 +++++++++++++++++--
+ src/cmd/compile/internal/typecheck/iimport.go | 371 +++++++++++++++++++++-----
+ test/closure3.dir/main.go                     |  44 +--
+ test/inline.go                                |  22 +-
+ 7 files changed, 618 insertions(+), 122 deletions(-)

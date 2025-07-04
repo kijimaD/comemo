@@ -1,25 +1,26 @@
-commit 51cd074c59c770484e7db4788d968c408a278607
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Mar 30 22:33:28 2021 +0000
+commit 57646534297a9bd193e6aaa4239c98984f371b97
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 14 10:19:47 2020 -0400
 
-    reflect: undo register count increments on register assignment failure
+    cmd/api: omit outside dependencies when listing the packages in "std"
     
-    Currently when register assignment fails we roll back all the abiParts
-    that were generated in the process. However, the total number of
-    registers also increases, but does not get rolled back. The result is
-    a very incorrect register assignment.
+    As of CL 251159, when 'go list -deps std' is run within GOROOT/src, it
+    treats the vendored external dependencies as real module dependencies,
+    not standard-library "vendor/" packages (which still exist in that
+    case, but are treated as distinct packages outside the "std" module).
     
-    For #40724.
-    For #44816.
+    Fixes #41358
+    Updates #30241
     
-    Change-Id: I1934ea5f95f7608ff2067166255099dbc9135e8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306109
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic23eae9829d90e74a340d49ca9052e9191597410
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254738
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/reflect/abi.go      | 8 +++++++-
- src/reflect/abi_test.go | 9 +++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/api/goapi.go                | 17 +++++++++++++----
+ src/cmd/api/goapi_test.go           | 13 +++++++++++++
+ src/cmd/go/internal/modload/load.go |  8 ++++++--
+ 3 files changed, 32 insertions(+), 6 deletions(-)

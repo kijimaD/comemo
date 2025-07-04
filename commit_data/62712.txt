@@ -1,0 +1,16 @@
+commit c6a1dc47297a47e6111e3a00911393c355800023
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 31 15:03:14 2025 -0700
+
+    cmd/link: close file in tempdir so Windows can delete it
+    
+    Fixes #73098
+    
+    Change-Id: I9f5570903071b15df9e4f8a1820414f305db9d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/link_test.go | 1 +
+ 1 file changed, 1 insertion(+)

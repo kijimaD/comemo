@@ -1,27 +1,19 @@
-commit 0be3701cb618713611fe3c21c13b2aee34020fff
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jan 27 21:42:34 2025 +0000
+commit 5d1287fa62de7b9c401749cd79147a5e38b11209
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 1 12:37:40 2023 -0800
 
-    internal/trace: clean up parser.go
+    doc: remove encoding/binary.NativeEndian release note placeholder
     
-    parser.go is an old file that contains trace v1 definitions and a second
-    equivalent definition for stack frames. These are redundant and useless.
-    Delete these definitions and rename the file to fakep.go, which
-    describes the only thing left in this file, a bunch of fake P IDs used
-    by the trace viewer.
+    This was released in 1.21, release noted in CL 524675.
+    (I think it was missed originally and then and backported,
+    but then somehow incorrectly made it into the 1.22 dragnet.)
     
-    We should consider moving the fake P definitions elsewhere, too.
-    
-    Change-Id: Ifd0768bd73c39009069445afe0155f1e352f00c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644875
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I45f3182f14f77f8b92a3b7d5ef0011b71fd3c176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546675
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/trace/pprof.go                    | 11 ++---
- src/cmd/trace/viewer.go                   | 14 ++----
- src/internal/trace/fakep.go               | 15 ++++++
- src/internal/trace/parser.go              | 79 -------------------------------
- src/internal/trace/traceviewer/emitter.go |  6 +--
- src/internal/trace/traceviewer/pprof.go   | 10 ++--
- 6 files changed, 30 insertions(+), 105 deletions(-)
+ doc/go1.22.html | 8 --------
+ 1 file changed, 8 deletions(-)

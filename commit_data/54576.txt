@@ -1,20 +1,21 @@
-commit 6e866fea2b80b0c4744517ab306dfbc47e649144
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Sep 27 15:25:40 2023 +0000
+commit 1ae93e4c201af78b000dccef0c2489bf7fb879ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 1 16:57:56 2022 -0400
 
-    internal/zstd: handle match extending past window
+    cmd/go/internal/vcweb: increase script WaitDelay by 30x
     
-    For #62513
+    This should reduce spurious VCS failures on slow builders, like the
+    one observed in
+    https://build.golang.org/log/e773fe404b2009d67fa34f048e023f0a86663a13
     
-    Change-Id: I59c24b254d5073140811b41497eabb91fb0046e9
-    GitHub-Last-Rev: 4dd16fcfa813da2b612d5753e11c163476d44b53
-    GitHub-Pull-Request: golang/go#63248
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531255
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Updates #27494.
+    
+    Change-Id: Ibb094c8ddf79e0ab481c00fcf501dc955b0da787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447116
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/zstd/block.go                         |  44 +++++++++------------
- .../zstd/testdata/f2a8e35c.helloworld-11000x.zst   | Bin 0 -> 47 bytes
- 2 files changed, 18 insertions(+), 26 deletions(-)
+ src/cmd/go/internal/vcweb/script.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

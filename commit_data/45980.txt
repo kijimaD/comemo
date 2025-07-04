@@ -1,21 +1,28 @@
-commit bad1fc126536f14fd6f00a93e1b76320c1510bf2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 9 14:59:56 2021 -0700
+commit cf7aa585ac8b3a2db8e0792d6d7c14259568823e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 22 11:43:29 2020 -0500
 
-    test: add test case for CL 340609
+    cmd/link: invalidate kernel cache on darwin
     
-    The first version of CL 340609 for gofrontend passed all existing tests,
-    but not this one.
+    Apparently, the darwin kernel may cache the code signature at
+    mmap. When we mmap the output buffer, it doesn't have a code
+    signature (as we haven't generated one). Invalidate the kernel
+    cache after writing the file.
     
-    For #42076
+    See https://github.com/golang/go/issues/42684#issuecomment-731704900
+    for more information.
     
-    Change-Id: I6491e2f186091bdae140b7f7befa511806a6478a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340950
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #38485.
+    Fixes #42684.
+    
+    Change-Id: Iac2ef756ca1454c856944423e5040b8e17a6b420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272258
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/fixedbugs/bug514.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ src/cmd/link/internal/ld/outbuf.go           | 1 +
+ src/cmd/link/internal/ld/outbuf_darwin.go    | 9 +++++++++
+ src/cmd/link/internal/ld/outbuf_notdarwin.go | 9 +++++++++
+ 3 files changed, 19 insertions(+)

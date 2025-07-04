@@ -1,27 +1,22 @@
-commit fb84e99eb76615f63fc2d6bc93c244a84d6e9c22
+commit 135ce1c485d0563d285f47a748a6d56594571a91
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 9 11:17:39 2021 -0700
+Date:   Sat Dec 26 18:33:27 2020 -0800
 
-    test: add compiler regress tests for #46461
+    [dev.regabi] cmd/compile: desugar OMETHEXPR into ONAME during walk
     
-    gri@ reports that types2 now correctly handles when type parameters
-    recursively refer back to the parameterized type, so we might as well
-    add tests to exercise that. Unified IR also correctly handles
-    importing and exporting these types, but -G=3 currently does not.
+    A subsequent CL will change FuncName to lazily create the ONAME nodes,
+    which isn't currently safe to do during SSA construction, because that
+    phase is concurrent.
     
-    Updates #46461.
+    Passes toolstash -cmp.
     
-    Change-Id: I272102aa08c40c980b9aeeca9f834291dfbbcc3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348738
+    Change-Id: Ic24acc1d1160ad93b70ced3baa468f750e689ea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280435
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/internal/gcimporter/gcimporter_test.go |  2 ++
- test/run.go                                   |  2 ++
- test/typeparam/issue46461.go                  | 13 +++++++++++++
- test/typeparam/issue46461b.dir/a.go           |  7 +++++++
- test/typeparam/issue46461b.dir/b.go           | 11 +++++++++++
- test/typeparam/issue46461b.go                 |  7 +++++++
- 6 files changed, 42 insertions(+)
+ src/cmd/compile/internal/ssagen/ssa.go |  4 ----
+ src/cmd/compile/internal/walk/expr.go  | 26 ++++++++++++++------------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

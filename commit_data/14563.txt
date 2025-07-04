@@ -1,22 +1,22 @@
-commit a034fc9855b307ab5e9e5da04602823d6414f512
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 5 19:08:42 2012 -0800
+commit 54e8d504e835127e9fcb71d4b5a9acd6f78f4482
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 6 08:01:33 2012 +1100
 
-    net/http: fix bug parsing http_proxy lacking a protocol
+    cmd/5g: use MOVB for fixed array nil check
     
-    Per the curl man page, the http_proxy configuration can be
-    of the form:
+    Fixes #4396.
     
-       [protocol://]<host>[:port]
+    For fixed arrays larger than the unmapped page, agenr would general a nil check by loading the first word of the array. However there is no requirement for the first element of a byte array to be word aligned, so this check causes a trap on ARMv5 hardware (ARMv6 since relaxed that restriction, but it probably still comes at a cost).
     
-    And we had a test that <ip>:<port> worked, but if
-    the host began with a letter, url.Parse parsed the hostname
-    as the scheme instead, confusing ProxyFromEnvironment.
+    Switching the check to MOVB ensures alignment is not an issue. This check is only invoked in a few places in the code where large fixed arrays are embedded into structs, compress/lzw is the biggest offender, and switching to MOVB has no observable performance penalty.
     
-    R=golang-dev
+    Thanks to Rémy and Daniel Morsing for helping me debug this on IRC last night.
+    
+    R=remyoudompheng, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6875060
+    https://golang.org/cl/6854063
 
- src/pkg/net/http/transport.go      | 2 +-
- src/pkg/net/http/transport_test.go | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/5g/cgen.c            | 31 +++++++++++++++++++------------
+ test/fixedbugs/issue4396a.go | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue4396b.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 12 deletions(-)

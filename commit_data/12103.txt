@@ -1,21 +1,12 @@
-commit d75023e1d144793dcf83ba45c3857656134c4fa0
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 21 07:37:25 2012 +0100
+commit 92755f38ae86b7e2e476392a0d7be987f69f6b61
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 21 17:13:14 2012 +1100
 
-    cmd/api: record return type of functions for variable typecheck.
+    dashboard: rename buttons to satisfy pedantic souls
     
-    Also cleanup the resolveName method.
-    
-    Fixes failure on go/build declaration:
-            var ToolDir = filepath.Join(...)
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev, remy
-    https://golang.org/cl/5681043
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5686053
 
- src/cmd/api/goapi.go                       | 74 +++++++++++++++++++-----------
- src/cmd/api/testdata/src/pkg/p1/golden.txt |  5 ++
- src/cmd/api/testdata/src/pkg/p1/p1.go      | 11 ++++-
- src/cmd/api/testdata/src/pkg/p2/golden.txt |  3 ++
- src/cmd/api/testdata/src/pkg/p2/p2.go      |  4 ++
- 5 files changed, 68 insertions(+), 29 deletions(-)
+ misc/dashboard/app/build/ui.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

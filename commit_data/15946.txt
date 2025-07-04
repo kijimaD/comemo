@@ -1,17 +1,15 @@
-commit 9d97b55d387ebbd24691bd16af41d74330b920aa
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 27 01:06:48 2013 +0900
+commit ce99bb2caf26d4c052636847c913906fb5974c34
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 26 08:20:10 2013 +0100
 
-    net: fix test data corruption in repetitive test runs by -cpu
+    cmd/gc: fix nil pointer dereferences.
     
-    This CL avoids test data sharing in repetitive test runs;
-    e.g., go test net -cpu=1,1,1
+    Fixes #5119.
     
-    R=golang-dev, fullung, bradfitz
+    R=golang-dev, dvyukov, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/8011043
+    https://golang.org/cl/7838050
 
- src/pkg/net/ipraw_test.go | 33 ++++++++++++++-------------------
- src/pkg/net/tcp_test.go   | 36 ++++++++++++++----------------------
- src/pkg/net/udp_test.go   | 36 ++++++++++++++----------------------
- 3 files changed, 42 insertions(+), 63 deletions(-)
+ src/cmd/gc/dcl.c  | 8 ++++----
+ src/cmd/gc/subr.c | 8 +++++++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

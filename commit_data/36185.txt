@@ -1,19 +1,20 @@
-commit 859a944ee2edf19bbc6d72ca52ccd9c3f6d687e2
-Author: Xudong Zheng <7pkvm5aw@slicealias.com>
-Date:   Wed Aug 1 21:33:09 2018 +0000
+commit 8bb8eaff626796908938e7f0da102dc51a265237
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 10 18:40:01 2018 +0000
 
-    syscall/js: move callback helper code to misc/wasm to avoid using eval()
+    Revert "runtime: use fixed TLS offsets on darwin/amd64 and darwin/386"
     
-    When using the compiled .wasm with misc/wasm/wasm_exec.js, we get an error message if the site prohibits eval() via the Content-Security-Policy header. This can be resolved by moving the callback helper code from src/syscall/js/callback.go to misc/wasm/wasm_exec.js.
+    This reverts commit 76e92d1c9e2943de7093af14d58663fa2993e608.
     
-    Fixes #26748
+    Reason for revert: Seems to have broken the darwin/386 builder, the toolchain is barfing on the new inline assembly.
     
-    Change-Id: I28f271b8a00631f4c66a1ac31305e85f20f9d420
-    GitHub-Last-Rev: a6a0268f38d36c198ca6b4ceb2e75cc8afec74eb
-    GitHub-Pull-Request: golang/go#26750
-    Reviewed-on: https://go-review.googlesource.com/127296
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic83fa3c85148946529c5fd47d1e1669898031ace
+    Reviewed-on: https://go-review.googlesource.com/106155
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/wasm/wasm_exec.js     | 22 ++++++++++++++++++++++
- src/syscall/js/callback.go | 32 +++++---------------------------
- 2 files changed, 27 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/ld/sym.go    | 20 +++------
+ src/runtime/cgo/gcc_darwin_386.c   | 92 ++++++++++++++++++++++++++++++++++++--
+ src/runtime/cgo/gcc_darwin_amd64.c | 63 ++++++++++++++++++++++++--
+ src/runtime/sys_darwin_386.s       | 11 ++---
+ src/runtime/sys_darwin_amd64.s     |  9 ++--
+ 5 files changed, 167 insertions(+), 28 deletions(-)

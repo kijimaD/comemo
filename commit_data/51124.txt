@@ -1,19 +1,28 @@
-commit a343f4017b501358c202154f074f54d710df6698
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 3 18:15:42 2022 -0700
+commit e5ba7d3abf1e356f8cb7d760f95a389dd08c63ae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 6 22:09:12 2021 -0500
 
-    reflect: rewrite value.Equal to avoid allocations
+    net/http: remove arbitrary timeout in TestServerHijackGetsBackgroundByte_big
     
-    For #46746
+    This test fails with "timeout" once per couple of months.
+    It may be that the arbitrary timeout is too short,
+    or it may be that the test is detecting a real bug
+    (perhaps a deadlock) and reporting it without sufficient
+    information to debug.
     
-    Change-Id: I75ddb9ce24cd3394186562dae156fef9fe2d55d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447798
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Either way, the arbitrary timeout is doing only harm:
+    either it is too short, or it is preventing us from getting
+    a useful goroutine dump when the test inevitably times out.
+    
+    Fixes #35498 (hopefully).
+    
+    Change-Id: Ic6bbb1ef8df2c111b9888ba9903f58633e7cb95d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369854
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/reflect/all_test.go |  2 +-
- src/reflect/value.go    | 71 +++++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 64 insertions(+), 9 deletions(-)
+ src/net/http/serve_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

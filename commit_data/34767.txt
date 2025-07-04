@@ -1,22 +1,13 @@
-commit 4b265fb74736ffaba2ad5cc96f43e442ae0d9850
-Author: Wèi Cōngruì <crvv.mail@gmail.com>
-Date:   Thu Jan 11 13:11:12 2018 +0800
+commit 894743b56e83b2d125b18193208323c80b129938
+Author: Marko Mudrinic <mudrinic.mare@gmail.com>
+Date:   Wed Nov 15 12:56:01 2017 +0000
 
-    math: fix Ldexp when result is below ldexp(2, -1075)
+    crypto/sha1, crypto/sha256: fix typo fisrt -> first
     
-    Before this change, the smallest result Ldexp can handle was
-    ldexp(2, -1075), which is SmallestNonzeroFloat64.
-    There are some numbers below it should also be rounded to
-    SmallestNonzeroFloat64. The change fixes this.
-    
-    Fixes #23407
-    
-    Change-Id: I76f4cb005a6e9ccdd95b5e5c734079fd5d29e4aa
-    Reviewed-on: https://go-review.googlesource.com/87338
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I9bb7568ca16b420254796eb38dfb86c5ca3399d7
+    Reviewed-on: https://go-review.googlesource.com/77890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/all_test.go | 4 ++++
- src/math/ldexp.go    | 6 +++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/crypto/sha1/sha1block_arm64.s     | 2 +-
+ src/crypto/sha256/sha256block_arm64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

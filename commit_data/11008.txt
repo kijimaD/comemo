@@ -1,14 +1,16 @@
-commit 83d540244337214922802776eaf5ea4b6f597be5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Dec 26 20:25:31 2011 +1100
+commit f71c03af90d29c6e2e8d5cc13ac9c590c6e7e2b9
+Author: Vadim Vygonets <unixdj@gmail.com>
+Date:   Mon Dec 26 09:34:27 2011 +0900
 
-    misc/windows: add src/pkg/runtime/z* files to installation script
+    log/syslog: add Alert method
     
-    Fixes #2614.
+    Alert logs a message using the LOG_ALERT priority.
     
-    R=golang-dev, jdpoirier
+    Fixes #2325.
+    
+    R=mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/5505070
+    https://golang.org/cl/5504058
 
- misc/windows/package.bash | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/log/syslog/syslog.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

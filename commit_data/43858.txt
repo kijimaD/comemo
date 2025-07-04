@@ -1,30 +1,23 @@
-commit f93ef07b1143abf3003555c4afcadc0e9842cbf8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 20 17:03:42 2020 -0500
+commit d1798d5aa01501a6c7d0508441532321c90a7378
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 13 21:13:40 2020 +0000
 
-    cmd/go/internal/modload: remove the Reqs function
+    runtime: manage a pool of spanSetBlocks and free them eagerly
     
-    The Reqs function returns an mvs.Reqs implemention for the global
-    build list. The API that it presents assumes that the build list is
-    globally consistent (problematic for #40775) and readily available
-    (problematic for #36460).
+    This change adds a global pool of spanSetBlocks to the spanSet data
+    structure and adds support for eagerly freeing these blocks back to the
+    pool if the block goes empty.
     
-    Fortunately, it is no longer used outside of the modload package.
-    We can instead use individual instances of the unexported mvsReqs
-    struct, making the dependency on the global build list more explicit.
+    This change prepares us to use this data structure in more places in the
+    runtime by allowing reuse of spanSetBlock.
     
-    For #36460
-    For #40775
+    Updates #37487.
     
-    Change-Id: I8674442f2a86416b0bf9c3395cb591c1e724c9d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272129
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I0752226e3667a9e3e1d87c9b66edaedeae1ac23f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221180
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modload/init.go     |  4 ++--
- src/cmd/go/internal/modload/load.go     |  4 ++--
- src/cmd/go/internal/modload/mvs.go      | 11 -----------
- src/cmd/go/internal/modload/mvs_test.go |  8 +++-----
- 4 files changed, 7 insertions(+), 20 deletions(-)
+ src/runtime/mspanset.go | 59 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 53 insertions(+), 6 deletions(-)

@@ -1,15 +1,15 @@
-commit d038da73bde46d241d7851428e4712350a2b46a2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Dec 10 10:14:41 2017 +1100
+commit 1a706bbf055d78238ec33c381a12b71800dae92f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 12 14:20:17 2017 +0200
 
-    internal/testenv: introduce IsWindowsXP
+    doc: unify colons and spacing in diagnostics guide
     
-    For #23072
+    Unify colons (outside of <strong></strong>) and add a missing space in
+    the list of groups of diagnostics solutions.
     
-    Change-Id: I089feafef2900413d46f2358b6e41ab78187eced
-    Reviewed-on: https://go-review.googlesource.com/83076
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icbcd94427d4905dd88c4ea82aaa5dbf064c00990
+    Reviewed-on: https://go-review.googlesource.com/63111
+    Reviewed-by: JBD <jbd@google.com>
 
- src/internal/testenv/testenv_notwin.go  | 4 ++++
- src/internal/testenv/testenv_windows.go | 9 +++++++++
- 2 files changed, 13 insertions(+)
+ doc/diagnostics.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

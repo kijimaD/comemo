@@ -1,13 +1,13 @@
-commit 48ff4a849c7c532cbdd0cfa4a0f66859967c65a0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 19 09:01:32 2011 -0700
+commit 5edf5197e052921a44a2afe67242af4886328b6e
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Mon Sep 19 11:50:59 2011 -0400
 
-    http: check explicit wrong Request.ContentLength values
+    cgo: cgo to use GOARCH from the environment, not runtime.GOARCH (otherwise it results in necessity of having 8cgo and 6cgo)
     
-    R=golang-dev, rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5070041
+    https://golang.org/cl/4978061
 
- src/pkg/http/requestwrite_test.go | 97 +++++++++++++++++++++++++++++++++++++--
- src/pkg/http/transfer.go          | 23 ++++++++--
- 2 files changed, 112 insertions(+), 8 deletions(-)
+ src/cmd/cgo/gcc.go  |  9 ++++-----
+ src/cmd/cgo/main.go | 17 ++++++++++++-----
+ 2 files changed, 16 insertions(+), 10 deletions(-)

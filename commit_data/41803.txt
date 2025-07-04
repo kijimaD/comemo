@@ -1,38 +1,44 @@
-commit 3ff9c4f2a6670edaee3962571ef6241c1bfcc2fc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 30 15:43:08 2020 -0400
+commit 3f834114ab617eb7b414cb12e7ca8085b5fe3a5c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 27 12:27:51 2019 -0400
 
-    os/signal: make TestStop resilient to initially-blocked signals
+    runtime: add general suspendG/resumeG
     
-    For reasons unknown, SIGUSR1 appears to be blocked at process start
-    for tests on the android-arm-corellium and android-arm64-corellium
-    builders. (This has been observed before, too: see CL 203957.)
-    Make the test resilient to blocked signals by always calling Notify
-    and waiting for potential signal delivery after sending any signal
-    that is not known to be unblocked.
+    Currently, the process of suspending a goroutine is tied to stack
+    scanning. In preparation for non-cooperative preemption, this CL
+    abstracts this into general purpose suspendG/resumeG functions.
     
-    Also remove the initial SIGWINCH signal from testCancel. The behavior
-    of an unhandled SIGWINCH is already tested in TestStop, so we don't
-    need to re-test that same case: waiting for an unhandled signal takes
-    a comparatively long time (because we necessarily don't know when it
-    has been delivered), so this redundancy makes the overall test binary
-    needlessly slow, especially since it is called from both TestReset and
-    TestIgnore.
+    suspendG and resumeG closely follow the existing scang and restartg
+    functions with one exception: the addition of a _Gpreempted status.
+    Currently, preemption tasks (stack scanning) are carried out by the
+    target goroutine if it's in _Grunning. In this new approach, the task
+    is always carried out by the goroutine that called suspendG. Thus, we
+    need a reliable way to drive the target goroutine out of _Grunning
+    until the requesting goroutine is ready to resume it. The new
+    _Gpreempted state provides the handshake: when a runnable goroutine
+    responds to a preemption request, it now parks itself and enters
+    _Gpreempted. The requesting goroutine races to put it in _Gwaiting,
+    which gives it ownership, but also the responsibility to start it
+    again.
     
-    Since each signal is always unblocked while we have a notification
-    channel registered for it, we don't need to modify any other tests:
-    TestStop and testCancel are the only functions that send signals
-    without a registered channel.
+    This CL adds several TODOs about improving the synchronization on the
+    G status. The existing code already has these problems; we're just
+    taking note of them.
     
-    Fixes #38165
-    Updates #33174
-    Updates #15661
+    The next CL will remove the now-dead scang and preemptscan.
     
-    Change-Id: I215880894e954b62166024085050d34323431b63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226461
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #10958, #24543.
+    
+    Change-Id: I16dbf87bea9d50399cc86719c156f48e67198f16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201137
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/signal/signal_test.go | 102 +++++++++++++++++++++----------------------
- 1 file changed, 49 insertions(+), 53 deletions(-)
+ src/runtime/mgcmark.go   |  16 +++-
+ src/runtime/preempt.go   | 225 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go      |  56 +++++++++++-
+ src/runtime/runtime2.go  |  21 +++--
+ src/runtime/stack.go     |   5 ++
+ src/runtime/traceback.go |   1 +
+ 6 files changed, 313 insertions(+), 11 deletions(-)

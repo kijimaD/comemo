@@ -1,12 +1,12 @@
-commit 967a2b38cdcb0a9510bb5affaef12d31b48d2fff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 3 15:24:28 2011 -0800
+commit 38a105e48a9de2cd00350d21f667e902ad4c65e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 3 13:29:31 2011 -0800
 
-    go spec: minor clarification of scope rule for functions
+    http: change localhost URL; maybe fix Windows
     
-    R=rsc, iant, r, r2
+    R=golang-dev, rsc, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4256050
+    https://golang.org/cl/4259048
 
- doc/go_spec.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

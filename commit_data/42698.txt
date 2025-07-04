@@ -1,22 +1,20 @@
-commit 9138a2a67f7f29948f6f608bf904b3605f1b45d0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 26 14:40:44 2020 +1000
+commit e5b9c1068913c09f90ca4d7f8b0d97903f37fc1c
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Feb 5 11:36:00 2020 -0800
 
-    cmd/link: avoid duplicate DT_NEEDED entries
+    doc/go1.14: document io/ioutil.TempDir's predictable prefix+suffix
     
-    When adding a new library entry, ensure we record it as seen to avoid
-    adding duplicates of it.
+    Documents io/ioutil.TempDir's new ability to create
+    predictable prefixes and suffixes, derived from the argument
+    'pattern', separated by the last '*' in it.
     
-    Fixes #39256
+    References: CL 198488
     
-    Change-Id: Id309adf80c533d78fd485517c18bc9ab5f1d29fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235257
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #36878
+    
+    Change-Id: I92c52fcc7d480ce74746e99e6e85a04efb87294f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217780
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/elf.go                   |  1 +
- src/cmd/link/internal/ld/elf_test.go              | 55 +++++++++++++++++++++++
- src/cmd/link/internal/ld/testdata/issue39256/x.go | 20 +++++++++
- src/cmd/link/internal/ld/testdata/issue39256/x.s  | 10 +++++
- 4 files changed, 86 insertions(+)
+ doc/go1.14.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

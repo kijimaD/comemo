@@ -1,16 +1,16 @@
-commit f14a5347e69b4bb95e4f1d62d0967b14734193f3
+commit 426bf361316ab495a29c9e0a05da6236894dd392
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 23 15:47:34 2012 -0700
+Date:   Mon Apr 23 15:46:54 2012 -0700
 
-    test: test handling of negative float constants
+    time: change float expression to ensure it is an integer
     
-    This used to panic when compiled by gccgo.
-    
-    Updates #2876.
+    When I increased the number of bits that gccgo uses for
+    untyped floats, the expression 0.52*1e9 was no longer
+    integral.  This patch fixes that.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6100055
+    https://golang.org/cl/6113043
 
- test/fixedbugs/bug434.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/pkg/time/time_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,16 @@
-commit a80a7f0e77fab42cebe61c43b98e0959b740def2
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jul 16 18:14:58 2018 -0400
+commit 9364c13d09fb0df5a2f8cb4c86af9d37af857f20
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 29 07:38:14 2018 +0000
 
-    doc: minor go1.11 changes
+    runtime: parse auxv for page size on dragonfly
     
-    CL 124135 follow-ups.
+    Decode AT_PAGESZ to determine physPageSize on dragonfly.
     
-    Change-Id: Ib7e2066bd2d18851561e03386709a1b42b50fcef
-    Reviewed-on: https://go-review.googlesource.com/124136
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I7236d7cbe43433f16dffddad19c1655bc0c7f31d
+    Reviewed-on: https://go-review.googlesource.com/103257
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.11.html | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/runtime/auxv_none.go    |  1 +
+ src/runtime/os_dragonfly.go | 39 +++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 2 deletions(-)

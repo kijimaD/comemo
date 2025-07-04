@@ -1,27 +1,33 @@
-commit 2751443e92d9ac6adee2ce0433253fd7b2c04b0f
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu Oct 17 16:26:52 2024 +0800
+commit 1cdabf0c8b1297a1b82fda975f9313f69b77b262
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 11 12:44:06 2022 -0700
 
-    cmd/internal/obj/loong64: add {V,XV}PCNT.{B,H,W,D} instructions support
+    runtime: avoid staticinit dependency with sigsetAllExiting
     
-    Go asm syntax:
-              VPCNT{B,H,W,V}  VJ, VD
-             XVPCNT{B,H,W,V}  XJ, XD
+    Currently, package runtime runs `osinit` before dynamic initialization
+    of package-scope variables; but on GOOS=linux, `osinit` involves
+    mutating `sigsetAllExiting`.
     
-    Equivalent platform assembler syntax:
-              vpcnt.{b,w,h,d}  vd, vj
-             xvpcnt.{b,w,h,d}  xd, xj
+    This currently works because cmd/compile and gccgo have
+    non-spec-conforming optimizations that statically initialize
+    `sigsetAllExiting`, but disabling that optimization causes
+    `sigsetAllExiting` to be dynamically initialized instead. This in turn
+    causes the mutations in `osinit` to get lost.
     
-    Change-Id: Icec4446b1925745bc3a0bc3f6397d862953b9098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620736
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This CL moves the initialization of `sigsetAllExiting` from `osinit`
+    into its initialization expression, and then removes the special case
+    for continuing to perform the static-initialization optimization for
+    package runtime.
+    
+    Updates #51913.
+    
+    Change-Id: I3be31454277c103372c9701d227dc774b2311dad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405549
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 10 +++++++++
- src/cmd/internal/obj/loong64/anames.go          |  8 +++++++
- src/cmd/internal/obj/loong64/asm.go             | 28 +++++++++++++++++++++++++
- 4 files changed, 56 insertions(+)
+ src/runtime/os_linux.go    | 18 ------------------
+ src/runtime/signal_unix.go | 32 ++++++++++++++++++++++++++++----
+ 2 files changed, 28 insertions(+), 22 deletions(-)

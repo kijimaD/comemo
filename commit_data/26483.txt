@@ -1,17 +1,15 @@
-commit ddcf8d402a0f8b7556dad49005ff578244baa11c
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Thu Mar 3 23:53:39 2016 +0530
+commit bd7e084d7d4eb88829026b5bdaf0915d5a389048
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 11:49:58 2016 +0000
 
-    net/http: redirect if the URL path is a dir & doesn't end in a slash
+    cmd/link: correct byte ordering in plan9_arm object header
     
-    Fixes #13996
+    Fields in Plan 9 object headers are big-endian, on all architectures.
     
-    Change-Id: I9b2c7fba0705900aca9a70bc6a2687667a9a976c
-    Reviewed-on: https://go-review.googlesource.com/20128
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If95ad29750b776338178d660646568bf26a4abda
+    Reviewed-on: https://go-review.googlesource.com/18964
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/fs.go      |  9 +++++++++
- src/net/http/fs_test.go | 18 ++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ src/cmd/link/internal/arm/asm.go | 16 ++++++++--------
+ src/runtime/asm_arm.s            |  5 +++++
+ 2 files changed, 13 insertions(+), 8 deletions(-)

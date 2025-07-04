@@ -1,19 +1,15 @@
-commit 10e012c85fa95ec24d039dcfa710e8d3cd75839d
-Author: Rob Pike <r@golang.org>
-Date:   Fri Nov 18 13:10:15 2011 -0800
+commit 5cad8611366d2a02aa7f02dd51024a1ad1ac7bc6
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 18 15:48:34 2011 -0500
 
-    template/parse: rename Set to Parse
-    Preamble to the simplification of the template API.
-    Although the signature of Parse (nee Set) changes,
-    it's really an internal function, used only by
-    text/template.
+    crypto/x509: fix documentation typos
     
-    R=golang-dev, rsc, gri, r
+    Thanks to Jeff R. Allen for pointing them out.
+    
+    R=bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/5415052
+    https://golang.org/cl/5412052
 
- src/pkg/text/template/parse/Makefile |  1 -
- src/pkg/text/template/parse/parse.go | 27 +++++++++++++++++++--------
- src/pkg/text/template/parse/set.go   | 15 ---------------
- src/pkg/text/template/set.go         |  3 ++-
- 4 files changed, 21 insertions(+), 25 deletions(-)
+ src/pkg/crypto/x509/cert_pool.go | 10 +++++-----
+ src/pkg/crypto/x509/x509.go      |  9 ++++-----
+ 2 files changed, 9 insertions(+), 10 deletions(-)

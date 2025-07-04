@@ -1,31 +1,22 @@
-commit e69912e6f44b09d8bafde32f11642579272ab4af
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 23 15:56:43 2016 -0700
+commit 9f263c14edccb564b675ed6c4f12260f333505d5
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 2 17:55:45 2016 -0500
 
-    os: use runtime.Keepalive for *Process values
+    runtime: remove stack barriers during sweep
     
-    The os package sets a finalizer on *Process. I looked through all the
-    uses of *Process in the package, looking for each case where a *Process
-    was passed as an argument and the final reference to the argument was
-    not a function or method call. I added a call to runtime.KeepAlive after
-    each such final reference (there were only three).
+    This adds a best-effort pass to remove stack barriers immediately
+    after the end of mark termination. This isn't necessary for the Go
+    runtime, but should help external tools that perform stack walks but
+    aren't aware of Go's stack barriers such as GDB, perf, and VTune.
+    (Though clearly they'll still have trouble unwinding stacks during
+    mark.)
     
-    The code is safe today without the KeepAlive calls because the compiler
-    keeps arguments alive for the duration of the function. However, that is
-    not a language requirement, so adding the KeepAlive calls ensures that
-    this code remains safe even if the compiler changes in the future.
-    
-    I also removed an existing unnecessry call to runtime.KeepAlive. The
-    syscall.Syscall function is handled specially by the compiler to keep
-    its arguments alive.
-    
-    Change-Id: Ibd2ff20b31ed3de4f6a59dd1633c1b44001d91d9
-    Reviewed-on: https://go-review.googlesource.com/27637
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I66600fae1f03ee36b5459d2b00dcc376269af18e
+    Reviewed-on: https://go-review.googlesource.com/20668
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/exec_windows.go | 4 +++-
- src/os/wait_wait6.go   | 1 +
- src/os/wait_waitid.go  | 2 +-
- 3 files changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go     |  7 +++++++
+ src/runtime/mstkbar.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

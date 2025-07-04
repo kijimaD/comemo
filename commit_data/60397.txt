@@ -1,0 +1,19 @@
+commit b31e9a63a4d7ed98b89719ee54b752920782ae15
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 6 14:09:26 2024 -0700
+
+    unsafe: say "functions like syscall.Syscall", not only Syscall
+    
+    Fixes #68301
+    
+    Change-Id: I9d7f623370705ab2ad4c49489b5a89162467f22a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596936
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/unsafe/unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

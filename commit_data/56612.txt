@@ -1,27 +1,19 @@
-commit cc673d2ec5df9e0894ea2cc3e16a9c309c219bd8
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue May 14 10:05:00 2024 -0500
+commit 33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 18 00:13:11 2023 -0400
 
-    all: convert PPC64 CMPx ...,R0,... to CMPx Rx,$0
+    doc/go1.21: fix HTML formatting
     
-    Cleanup all remaining trivial compares against $0 in ppc64x assembly.
+    Fix formatting mistakes in my previous CLs -- a missing code tag
+    and a broken comment tag.
     
-    In math, SRD ...,Rx; CMP Rx, $0 is further simplified to SRDCC.
-    
-    Change-Id: Ia2bc204953e32f08ee142bfd06a91965f30f99b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587016
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I7f558f59b4e8fe9cb398d0093e5389b968d89eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496115
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go |  8 ++--
- src/cmd/internal/obj/ppc64/obj9.go    | 20 ++++-----
- src/crypto/subtle/xor_ppc64x.s        |  4 +-
- src/math/big/arith_ppc64x.s           | 79 +++++++++++++++++------------------
- src/runtime/asm_ppc64x.s              |  8 ++--
- src/runtime/rt0_linux_ppc64le.s       |  4 +-
- src/runtime/sys_linux_ppc64x.s        |  4 +-
- 7 files changed, 62 insertions(+), 65 deletions(-)
+ doc/go1.21.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,20 +1,22 @@
-commit 9dcc873413aa390bd9392d1ed6ae4198593e4c5d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 21 15:43:54 2022 -0400
+commit 79b425e9fca11d189142504bc81cf4e009092f6d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Dec 6 18:05:53 2021 -0500
 
-    cmd/dist: simplify cgo_test
+    misc/cgo/testplugin: remove skip in TestIssue25756pie
     
-    Now that misc/cgo/test doesn't invoke any Go builds itself, we don't
-    need to use GOFLAGS to thread build flags down into sub-builds.
+    Though this was a problem for Go 1.17,
+    it appears not to be a problem on tip.
     
-    Preparation for #37486.
+    This reverts change made in CL 321349.
     
-    Change-Id: I9ecdd215da5c21339cbf76765f8be2190d19539c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447356
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #46239.
+    
+    Change-Id: Ie4d6649fbabce3bb2c1cf04d97760ba6ceadaca5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369752
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/dist/test.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ misc/cgo/testplugin/plugin_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

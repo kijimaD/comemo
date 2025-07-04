@@ -1,21 +1,14 @@
-commit f75158c36530ba902a011a69243d1d51c1ba3a46
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Sat Oct 14 12:33:13 2017 -0400
+commit f062955ea78a4a57fbfe54fdc11b7aee7a1086d2
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jul 15 14:53:44 2017 -0600
 
-    math/big: fix ModSqrt optimized path for x = z
+    runtime: fix duplicate "the"s
     
-    name                   old time/op  new time/op  delta
-    ModSqrt224_3Mod4-4      153µs ± 2%   154µs ± 1%   ~     (p=0.548 n=5+5)
-    ModSqrt5430_3Mod4-4     776ms ± 2%   791ms ± 2%   ~     (p=0.222 n=5+5)
+    kicking off contributing again with a classic
     
-    Fixes #22265
-    
-    Change-Id: If233542716e04341990a45a1c2b7118da6d233f7
-    Reviewed-on: https://go-review.googlesource.com/70832
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifb0aed8f1dc854f85751ce0495967a3c4315128d
+    Reviewed-on: https://go-review.googlesource.com/49016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/int.go      | 7 +++----
- src/math/big/int_test.go | 6 ++++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

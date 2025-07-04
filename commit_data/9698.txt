@@ -1,15 +1,12 @@
-commit ef32eaceef917880cf2235e1b3bf80d1b37a8d4a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 15 16:48:21 2011 -0400
+commit b955e265643727892da5df5d32f51af483a591ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 12:41:00 2011 -0700
 
-    go/build: change //build to // +build
+    http/cgi: add openbsd environment configuration
     
-    New rules as discussed on CL 5011046.
-    Also apply to C and assembly files, not just Go files.
-    
-    R=r, rogpeppe
+    R=iant, iant
     CC=golang-dev
-    https://golang.org/cl/5015051
+    https://golang.org/cl/5016051
 
- src/pkg/go/build/dir.go | 94 ++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 69 insertions(+), 25 deletions(-)
+ src/pkg/http/cgi/host.go | 1 +
+ 1 file changed, 1 insertion(+)

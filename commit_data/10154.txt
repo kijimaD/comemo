@@ -1,18 +1,13 @@
-commit 48c75c5f9c8e97b87fbd8f24dffa73d6b2148691
-Author: Alexander Reece <awreece@gmail.com>
-Date:   Mon Oct 31 13:59:23 2011 -0400
+commit 288dacd016e549a9524b776e9a56cbab3a50fb3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 13:59:04 2011 -0400
 
-    json: Properly handle nil slices.
+    A+C: Alexander Reece (individual CLA)
     
-    Marshal nil slices as null and parse null value as a nil slice.
-    Fixes #2278.
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5257053
+    https://golang.org/cl/5297072
 
- src/pkg/json/decode.go      |  2 +-
- src/pkg/json/decode_test.go | 14 +++++++-------
- src/pkg/json/encode.go      | 10 +++++++++-
- src/pkg/json/encode_test.go |  2 +-
- 4 files changed, 18 insertions(+), 10 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

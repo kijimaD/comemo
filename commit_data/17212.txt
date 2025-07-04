@@ -1,14 +1,15 @@
-commit a2599cf50e8f45a19c91c2180468ba0c9d96af0e
+commit ca3ed9f3520de7998dcc009eca8d35eefec55412
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 13 16:29:51 2013 -0700
+Date:   Tue Aug 13 14:56:40 2013 -0700
 
-    archive/zip: add File.DataOffset
+    database/sql: add a disabled broken test
     
-    Accessor to find where the bytes of a file start.
+    Update #6081
     
-    R=golang-dev, rsc, dsymonds, adg
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/12784045
+    https://golang.org/cl/12810043
 
- src/pkg/archive/zip/reader.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/pkg/database/sql/sql.go      |  5 +++++
+ src/pkg/database/sql/sql_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

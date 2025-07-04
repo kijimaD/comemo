@@ -1,18 +1,23 @@
-commit 04040ec9f9c763aee549d6afa3d4f0c34adf9cc1
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 17 16:20:53 2020 -0400
+commit c3cef0bfe5f503ee016fc61e58f5ee1b78dbd962
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 5 07:24:18 2019 -0800
 
-    debug/pe: improve testpoint error message
+    runtime: keep adjusted timers in timerMoving status until moved
     
-    A DWARF testpoint was calling t.Fatal() but should have been calling
-    t.Fatalf(); switch it to the correct method.
+    Before this CL adjustTimers left timers being moved in an inconsistent
+    state: status timerWaiting but not on a P. Simplify the code by
+    leaving the timers in timerMoving status until they are actually moved.
+    Other functions (deltimer, modtimer) will wait until the move is complete
+    before changing anything on the timer. This does leave timers in timerMoving
+    state for longer, but still not all that long.
     
-    Change-Id: I996a1041adea4299cda85c147a35b513a219b970
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228790
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #35367
+    
+    Change-Id: I31851002fb4053bd6914139125b4c82a68bf6fb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205418
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/debug/pe/file_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/timeout_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/time.go     | 49 +++++--------------------------------------------
+ 2 files changed, 45 insertions(+), 44 deletions(-)

@@ -1,24 +1,34 @@
-commit 57f4cf20996cf8b90b8f814c93db5dc18aaad99e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 3 11:28:42 2024 -0700
+commit d8c75273cfae86e539af10d5000db9fb9ac3c4c0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 21 15:59:02 2023 -0400
 
-    os: treat Getwd result of EINVAL/ERANGE the same as ENAMETOOLONG
+    cmd/dist: update isUnsupportedVMASize test skip
     
-    At least Darwin and OpenBSD seem to return EINVAL if the resulting
-    name would be too long. Solaris seems to return ERANGE.
+    The dist test name changed from "race" to "flag:race", "net:race",
+    "os:race" and so on in CL 496181, we missed that this skip was checking
+    the exact dist test name, and no builder reported a problem despite the
+    skip becoming inactive.
     
-    Fixes #69233
-    Fixes #69234
+    I considered deleting it as obsolete, but it may still be helpful
+    if someone runs race.bash on a linux/arm64 machine configured with
+    something other than the supported 48-bit VMA. So for now apply a
+    simple change to restore the existing skip.
     
-    Change-Id: I9b51d41461e9576c633bf2fc0e96ca3e4d986255
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609579
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Hopefully one day there will be a good way to check for unsupported VMA
+    size and disable the race detector conditionally instead of relying on
+    tests running, failing, and getting marked as skipped in cmd/dist.
+    
+    For #29948.
+    For #37486.
+    
+    Change-Id: I8af6862c92fb0ee538ab27327d43c50921bd1873
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512116
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/error_errno.go | 1 +
- src/os/error_plan9.go | 1 +
- src/os/getwd.go       | 5 ++++-
- 3 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,18 +1,22 @@
-commit ccab2fbc30b0553fce54646a4da0a8645eda40a3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 1 18:47:57 2022 -0700
+commit f687831e4cfa06d19533d47ae93c0451bd1ca688
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Thu Sep 16 02:10:17 2021 +0800
 
-    internal/types: add a test for empty string import path
+    cmd/link: disable weak reference in itab if build with "-linkshared"
     
-    Follow-up on comment in CL 427154.
+    When build with "-linkshared", we can't tell if the interface method will be used or not. It can be used in shared library.
     
-    Change-Id: Ib44a8e9b9129d68b794f91788c9b8c971d6c5436
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427774
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Fixes #47873
+    
+    Change-Id: Iba12812f199b7679cf2fd41a304268d6d6dd03c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350189
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
 
- src/internal/types/testdata/fixedbugs/issue43190.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testshared/shared_test.go                   |  8 ++++++++
+ misc/cgo/testshared/testdata/issue47837/a/a.go       | 19 +++++++++++++++++++
+ misc/cgo/testshared/testdata/issue47837/main/main.go | 14 ++++++++++++++
+ src/cmd/link/internal/ld/deadcode.go                 |  4 +++-
+ 4 files changed, 44 insertions(+), 1 deletion(-)

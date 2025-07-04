@@ -1,19 +1,88 @@
-commit 321597bad395fcd885a327c832dff8c63463b68b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 25 09:32:51 2017 -0400
+commit cff0de3da338f8aa4682253a9cc045bd70a8c9c4
+Merge: 196492a299 579120323f
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 7 10:28:03 2017 -0700
 
-    cmd/go: explain fmt, fix, vet a bit more in go help
+    [release-branch.go1.9] all: merge master into release-branch.go1.9
     
-    Fixes #20918.
+    579120323f runtime: mapassign_* should use typedmemmove to update keys
+    380525598c all: remove some manual hyphenation
+    f096b5b340 runtime: mark activeModules nosplit/nowritebarrier
+    3e3da54633 math/bits: fix example for OnesCount64
+    9b1e7cf2ac math/bits: add examples for OnesCount functions
+    b01db023b1 misc/cgo/testsanitizers: also skip tsan11/tsan12 when using GCC
+    a279b53a18 reflect: document how DeepEqual handles cycles
+    909f409a8d doc: mention handling of moved GOROOT in 1.9 release notes
+    58ad0176ca doc: use better wording to explain type-aware completion
+    92dac21d29 doc: replace paid with commercial
+    9bb98e02de doc/1.9: add CL 43712, ReverseProxy of HTTP/2 trailers to the release notes.
+    78d74fc2cd doc: clarify that Gogland is for paid IntelliJ platform IDEs
+    5495047223 doc/1.9: fix broken html link in CL 53030/53210
+    890e0e862f doc: fix bad link in go1.9 release notes
+    be596f049a doc/1.9: fix stray html in CL 53030
+    0173631d53 encoding/binary: add examples for varint functions
+    ac0ccf3cd2 doc/1.9: add CL 36696 for crypto/x509 to the release notes
+    cc402c2c4d doc: hide blog content for golang.google.cn
+    f396fa4285 internal/poll: don't add non-sockets to runtime poller
+    664cd26c89 cmd/vet: don't exit with failure on type checking error
+    a8730cd93a doc: hide video and share if being served from CN
+    b63db76c4a testsanitizers: check that tsan program runs, skip tsan10 on gcc
+    193eda7291 time: skip ZoneAbbr test in timezones with no abbreviation
+    6f08c935a9 cmd/go: show examples with empty output in go test -list
+    f20944de78 cmd/compile: set/unset base register for better assembly print
+    623e2c4603 runtime: map bitmap and spans during heap initialization
+    780249eed4 runtime: fall back to small mmaps if we fail to grow reservation
+    31b2c4cc25 .github: add .md extension to SUPPORT file
+    ac29f30dbb plugin: mention that there are known bugs with plugins
+    45a4609c0a cmd/dist: skip moved GOROOT on Go's Windows builders when not sharding tests
+    e157fac02d test: add README
+    835dfef939 runtime/pprof: prevent a deadlock that SIGPROF might create on mips{,le}
+    df91b8044d doc: list editor options by name, not plugin name
+    3d9475c04b doc: cleanup editor page
+    b9661a14ea doc: add Atom to editor guide
+    ee392ac10c cmd/compile: consider exported flag in namedata
     
-    Change-Id: I84306242084631bbe7a9adc839f92e72ac1a3e75
-    Reviewed-on: https://go-review.googlesource.com/73331
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3a48493e8c05d97cb3b61635503ef0ccd646e5cb
 
- src/cmd/go/alldocs.go             | 12 ++++++------
- src/cmd/go/internal/fix/fix.go    |  2 +-
- src/cmd/go/internal/fmtcmd/fmt.go |  2 +-
- src/cmd/go/internal/vet/vet.go    |  2 +-
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ .github/{SUPPORT => SUPPORT.md}                  |   0
+ doc/editors.html                                 |  49 +++++---
+ doc/editors/go-plus.png                          | Bin 0 -> 15558 bytes
+ doc/go1.9.html                                   |  36 +++++-
+ doc/root.html                                    | 152 ++++++++++++-----------
+ misc/cgo/errors/ptr.go                           |   8 ++
+ misc/cgo/testsanitizers/test.bash                |  29 +++--
+ src/cmd/compile/internal/arm/ssa.go              |   2 +-
+ src/cmd/compile/internal/arm64/ssa.go            |   2 +-
+ src/cmd/compile/internal/gc/asm_test.go          |  24 +++-
+ src/cmd/compile/internal/mips/ssa.go             |   2 +-
+ src/cmd/compile/internal/mips64/ssa.go           |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go            |   2 +-
+ src/cmd/go/go_test.go                            |  17 +++
+ src/cmd/go/testdata/src/testlist/bench_test.go   |  14 +++
+ src/cmd/go/testdata/src/testlist/example_test.go |  21 ++++
+ src/cmd/go/testdata/src/testlist/test_test.go    |  10 ++
+ src/cmd/internal/obj/arm/asm5.go                 |  20 +++
+ src/cmd/internal/obj/arm64/asm7.go               |  20 +++
+ src/cmd/internal/obj/mips/asm0.go                |  20 +++
+ src/cmd/internal/obj/ppc64/asm9.go               |  20 +++
+ src/cmd/internal/obj/s390x/asmz.go               |  20 +++
+ src/cmd/vet/main.go                              |   5 +-
+ src/cmd/vet/testdata/cgo/cgo3.go                 |  13 ++
+ src/cmd/vet/vet_test.go                          |  12 ++
+ src/encoding/binary/example_test.go              |  91 ++++++++++++++
+ src/go/ast/ast.go                                |   8 +-
+ src/go/parser/parser.go                          |   4 +-
+ src/internal/poll/fd_windows.go                  |  21 +++-
+ src/math/big/ratconv.go                          |   4 +-
+ src/math/bits/example_test.go                    |  40 ++++++
+ src/plugin/plugin.go                             |   5 +-
+ src/reflect/deepequal.go                         |   6 +
+ src/runtime/cpuprof.go                           |   9 ++
+ src/runtime/hashmap_fast.go                      |   8 +-
+ src/runtime/pprof/pprof_test.go                  |  31 +++++
+ src/runtime/proc.go                              |  31 ++++-
+ src/runtime/symtab.go                            |   5 +
+ src/testing/testing.go                           |   2 +-
+ src/time/zoneinfo_windows_test.go                |   8 ++
+ test/README.md                                   |  15 +++
+ 41 files changed, 662 insertions(+), 126 deletions(-)

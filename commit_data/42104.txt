@@ -1,60 +1,24 @@
-commit da33f9c78a89c0997269a77e134127c135583963
-Merge: 67a8660b5a a02349bc9d
-Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
-Date:   Fri Apr 24 17:13:12 2020 +0000
+commit 7714dcacbca1961543fbad0c8bc2a2afc7baaaee
+Author: Martin Garton <garton@gmail.com>
+Date:   Mon Sep 30 09:27:38 2019 +0000
 
-    Merge "cmd: merge branch 'dev.link' into master"
+    encoding/binary: add float support to fast path
+    
+    This adds float type support to the main switch blocks in Read and
+    Write, instead of falling back to reflection. This gives a considerable
+    speedup for the float types:
+    
+    ReadFloats-8                 129ns ± 9%       70ns ± 8%   -46.02%  (p=0.001 n=7+7)
+    WriteFloats-8                131ns ± 6%       86ns ±11%   -34.59%  (p=0.001 n=7+7)
+    ReadSlice1000Float32s-8     14.6µs ±14%      4.8µs ±12%   -67.29%  (p=0.001 n=7+7)
+    WriteSlice1000Float32s-8    16.4µs ±20%      4.7µs ± 8%   -71.01%  (p=0.001 n=7+7)
+    
+    Change-Id: I0be99d068b07d10dd6eb1137b45eff6f7c216b87
+    GitHub-Last-Rev: 4ff326e99ca35977d819f0ba29c10d9efc7e811c
+    GitHub-Pull-Request: golang/go#31803
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174959
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/goobj/goobj_test.go               |  19 +-
- src/cmd/internal/goobj/readnew.go                  |   9 +-
- src/cmd/internal/goobj2/builtinlist.go             |  15 +-
- src/cmd/internal/goobj2/mkbuiltin.go               |   9 +-
- src/cmd/link/internal/amd64/asm.go                 |   5 -
- src/cmd/link/internal/arm/asm.go                   |  86 +--
- src/cmd/link/internal/arm64/asm.go                 |   4 -
- src/cmd/link/internal/ld/data.go                   | 814 +++++++++++----------
- src/cmd/link/internal/ld/deadcode.go               | 386 +++++++++-
- src/cmd/link/internal/ld/deadcode2.go              | 385 ----------
- src/cmd/link/internal/ld/decodesym.go              |   8 +-
- src/cmd/link/internal/ld/decodesym2.go             |  43 ++
- src/cmd/link/internal/ld/dwarf.go                  | 153 ++--
- src/cmd/link/internal/ld/dwarf2.go                 |  77 +-
- src/cmd/link/internal/ld/elf.go                    |  17 +-
- src/cmd/link/internal/ld/go.go                     |   1 +
- src/cmd/link/internal/ld/lib.go                    |  71 +-
- src/cmd/link/internal/ld/link.go                   |   3 -
- src/cmd/link/internal/ld/macho.go                  |  10 +-
- src/cmd/link/internal/ld/main.go                   |  23 +-
- src/cmd/link/internal/ld/outbuf.go                 | 188 +++--
- src/cmd/link/internal/ld/outbuf_darwin.go          |  26 +
- src/cmd/link/internal/ld/outbuf_linux.go           |  11 +
- src/cmd/link/internal/ld/outbuf_mmap.go            |  34 +-
- src/cmd/link/internal/ld/outbuf_nofallocate.go     |  13 +
- src/cmd/link/internal/ld/outbuf_nommap.go          |  12 +-
- src/cmd/link/internal/ld/outbuf_test.go            |  63 ++
- src/cmd/link/internal/ld/outbuf_windows.go         |   9 +-
- src/cmd/link/internal/ld/pcln.go                   |  44 +-
- src/cmd/link/internal/ld/pe.go                     |  10 +-
- src/cmd/link/internal/ld/symtab.go                 | 421 +++++------
- src/cmd/link/internal/ld/target.go                 |   4 +
- src/cmd/link/internal/ld/xcoff.go                  |  13 +-
- src/cmd/link/internal/loader/loader.go             | 180 +++--
- src/cmd/link/internal/loader/symbolbuilder.go      |  26 +
- src/cmd/link/internal/mips/asm.go                  |   2 -
- src/cmd/link/internal/mips64/asm.go                |   4 -
- src/cmd/link/internal/ppc64/asm.go                 |   8 +-
- src/cmd/link/internal/riscv64/asm.go               |   2 -
- src/cmd/link/internal/s390x/asm.go                 |   2 -
- src/cmd/link/internal/sym/segment.go               |   1 +
- src/cmd/link/internal/wasm/asm.go                  |   2 -
- src/cmd/link/internal/x86/asm.go                   |  53 +-
- src/cmd/link/link_test.go                          |  51 +-
- .../link/testdata/{ => testBuildFortvOS}/lib.go    |   0
- .../link/testdata/{ => testBuildFortvOS}/main.m    |   0
- src/cmd/nm/nm_test.go                              |  10 +-
- src/cmd/objdump/objdump_test.go                    |  12 +-
- src/cmd/oldlink/internal/arm/asm.go                |  82 +--
- src/cmd/oldlink/internal/ld/data.go                |  10 +-
- src/cmd/oldlink/internal/ld/deadcode.go            |  13 +-
- src/cmd/oldlink/internal/x86/asm.go                |  48 +-
- 52 files changed, 1814 insertions(+), 1678 deletions(-)
+ src/encoding/binary/binary.go      | 36 +++++++++++++++++++
+ src/encoding/binary/binary_test.go | 72 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+)

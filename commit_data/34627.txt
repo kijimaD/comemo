@@ -1,14 +1,19 @@
-commit dfaed7ff19ae7df126b33ca3efa39dd9e0a3fe91
-Author: Adam Shannon <adamkshannon@gmail.com>
-Date:   Thu Mar 15 10:28:43 2018 -0500
+commit a9e2479a4453ce1a2b3583212a6e64c99c31bbfe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 30 16:05:18 2017 -0700
 
-    crypto/x509: clarify accepted keys for MarshalPKCS8PrivateKey
+    bytes: set cap of slices returned by Split and Fields and friends
     
-    Fixes #24413.
+    This avoids the problem in which appending to a slice returned by
+    Split can affect subsequent slices.
     
-    Change-Id: I265088c9ddc624cb3b3132087cc3d4baf95d2777
-    Reviewed-on: https://go-review.googlesource.com/100839
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Fixes #21149.
+    
+    Change-Id: Ie3df2b9ceeb9605d4625f47d49073c5f348cf0a1
+    Reviewed-on: https://go-review.googlesource.com/74510
+    Reviewed-by: Jelte Fennema <github-tech@jeltef.nl>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/pkcs8.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/bytes.go      | 10 ++++----
+ src/bytes/bytes_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 65 insertions(+), 7 deletions(-)

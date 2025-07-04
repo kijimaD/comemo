@@ -1,20 +1,24 @@
-commit bd4fcd001c54014209e817c0dd8c8802ccce7607
-Author: Matt Harden <matt.harden@gmail.com>
-Date:   Mon Feb 20 20:07:44 2017 -0800
+commit b1b4f67169c5ceb3c81ba900c5022722d28755ab
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 11:40:47 2017 -0700
 
-    net/http: fix double-close of req.Body
+    cmd/compile: strengthen SetFields/Width safety guarantee
     
-    Add a test and fix for the request body being closed twice.
+    It is currently possible in the compiler to create a struct type,
+    calculate the widths of types that depend on it,
+    and then alter the struct type.
     
-    Fixes #19186
+    transformclosure has local protection against this.
+    Protect against it at a deeper level.
     
-    Change-Id: I1e35ad4aebfef68e6099c1dba7986883afdef4d7
-    Reviewed-on: https://go-review.googlesource.com/37298
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This is preparation to call dowidth automatically,
+    rather than explicitly.
+    
+    Change-Id: Ic1578ca014610197cfe54a9f4d044d122a7217e8
+    Reviewed-on: https://go-review.googlesource.com/38469
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/client.go            | 16 +++++++++++-----
- src/net/http/clientserver_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 4 ----
+ src/cmd/compile/internal/gc/type.go    | 9 +++++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

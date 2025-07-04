@@ -1,13 +1,15 @@
-commit 753bdc0f47a4224387a31b92403ab543e9fbebfe
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Mar 28 13:27:14 2014 +0900
+commit 277a7b22f1131ea2a2fb98be9d7378c0f4ab5834
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 28 12:37:14 2014 +1100
 
-    syscall: don't generate RTF_BITS constant on OS X Mavericks and beyond
+    runtime: do not crash when GetQueuedCompletionStatusEx is missing
     
-    LGTM=iant
-    R=iant, bradfitz
+    Fixes #7635
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/80700044
+    https://golang.org/cl/80390043
 
- src/pkg/syscall/mkerrors.sh | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/os_windows.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,12 +1,13 @@
-commit d0bcdd3f6a95a5d4c4e46bc1cab96bc9f5eb6250
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Feb 26 17:52:51 2015 -0500
+commit 6966e07ae754f7b06af734222936d299010c3623
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 16:33:31 2015 -0800
 
-    cmd/addr2line: exclude Go tool test on darwin/arm
+    math/big: fix typos
     
-    Change-Id: Icee6c88b7eed5fb27f046373ecf53bf64b68c696
-    Reviewed-on: https://go-review.googlesource.com/6191
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Icb1490f97584d61823339ae809b88d423b185e64
+    Reviewed-on: https://go-review.googlesource.com/3751
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/addr2line/addr2line_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/math/big/float.go     | 2 +-
+ src/math/big/floatconv.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

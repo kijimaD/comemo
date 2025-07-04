@@ -1,27 +1,20 @@
-commit f990b0f1e80cf6152219b4d3f9a397899e8d6d40
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Mar 15 00:23:26 2022 +0000
+commit e9ba0750b63652514bc527690b39fe8b3651ad31
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 3 15:23:22 2021 -0400
 
-    runtime: add wrappers for sys* functions and consolidate docs
+    [dev.typeparams] reflect: guard abi_test.go with regabiargs build tag
     
-    This change lifts all non-platform-specific code out of sys* functions
-    for each platform up into wrappers, and moves documentation about the OS
-    virtual memory abstraction layer from malloc.go to mem.go, which
-    contains those wrappers.
+    The test in abi_test.go relies on the compiler to generate
+    register-ABI calls using a magic name. As of CL 300150 the name
+    loses its magic. Guard it with regabiargs for the use of
+    register-ABI calls.
     
-    Change-Id: Ie803e4447403eaafc508b34b53a1a47d6cee9388
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393398
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib8b3c24f71ea5161d607c9becfb3027ceee40ac1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324767
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/malloc.go      |  69 --------------------------
- src/runtime/mem.go         | 119 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mem_aix.go     |  21 +++-----
- src/runtime/mem_bsd.go     |  20 +++-----
- src/runtime/mem_darwin.go  |  20 +++-----
- src/runtime/mem_js.go      |  22 ++++-----
- src/runtime/mem_linux.go   |  22 ++++-----
- src/runtime/mem_plan9.go   |  23 +++------
- src/runtime/mem_windows.go |  21 ++++----
- 9 files changed, 179 insertions(+), 158 deletions(-)
+ src/reflect/abi_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,23 +1,18 @@
-commit 253a9933d181ce5e57de81f56d7e50565c423f0f
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 18 16:12:48 2024 -0800
+commit 65e1fc7f1974ad49679a91046154083d9a3a9d6c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 3 22:19:42 2023 +0200
 
-    internal/runtime/maps: use simpler calculation for slot element
+    time: fix Time godoc
     
-    This reduces the adds required at the return point from 3 to 1.
-    (The multiply inside g.elem() does get CSE'd with the one inside
-    g.key(), but the rest of the adds don't.)
+    The additional empty line was inadvertently introduced by CL 526676,
+    causing only part of the Time godoc to be rendered on pkg.go.dev.
     
-    Instead, compute the element as just a fixed offset from the key.
-    
-    Change-Id: Ia4d7664efafcdca5e9daeb77d270651bb186232c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629535
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I868315752eb160ebaab227c8b5369054c557cb7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531877
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- src/internal/runtime/maps/runtime_fast32_swiss.go  |  4 ++--
- src/internal/runtime/maps/runtime_fast64_swiss.go  |  4 ++--
- src/internal/runtime/maps/runtime_faststr_swiss.go |  4 ++--
- src/internal/runtime/maps/runtime_swiss.go         | 12 ++++++++----
- 4 files changed, 14 insertions(+), 10 deletions(-)
+ src/time/time.go | 1 -
+ 1 file changed, 1 deletion(-)

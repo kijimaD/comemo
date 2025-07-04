@@ -1,13 +1,13 @@
-commit 1161e1172bfc17a23fb38f8e930d230c5bc78eae
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 17:53:00 2011 -0500
+commit 39213c1fdb74dffb02617b6a8ac5b482d9aa4fc7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 13 14:49:26 2011 -0800
 
-    fix build, sorry
+    strconv: some allocation tests
     
-    TBR=r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5488066
+    https://golang.org/cl/5477084
 
- src/clean.bash               | 2 +-
- test/bench/shootout/Makefile | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/strconv/ftoa_test.go | 17 +++++++++++++++++
+ src/pkg/strconv/itoa_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

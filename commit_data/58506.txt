@@ -1,23 +1,40 @@
-commit 44a6f817ea0fbeb3ba4aa398794c4e80dba13b1e
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 10 17:33:26 2025 -0800
+commit 0ce94d79bc7dda4c6f86c6ac13bf0bdd20d0ffdf
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 24 13:57:35 2023 -0400
 
-    cmd/compile: fix write barrier coalescing
+    cmd/compile: modify -memprofile flag for multiple profiles in a directory
     
-    We can't coalesce a non-WB store with a subsequent Move, as the
-    result of the store might be the source of the move.
+    This permits collection of multiple profiles in a build
+    (instead of just the last compilation).  If a -memprofile
+    specifies an existing directory instead of a file, it will
+    create "<url.PathEscape(pkgpath)>.mprof" in that directory.
     
-    There's a simple codegen test. Not sure how we might do a real test,
-    as all the repro's I've come up with are very expensive and unreliable.
+    The PathEscaped package names are ugly, but this puts all
+    the files in a single directory with no risk of name clashs,
+    which simplies the usual case for using these files, which
+    is something like
+    ```
+    go tool pprof profiles/*.mprof
+    ```
     
-    Fixes #71228
+    Creating a directory tree mimicking the package structure
+    requires something along the lines of
+    ```
+    go tool pprof `find profiles -name "*.mprof" -print`
+    ```
     
-    Change-Id: If18bf181a266b9b90964e2591cd2e61a7168371c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642197
+    In addition, this turns off "legacy format" because that
+    is only useful for a benchcompile, which does not use this
+    new feature (and people actually interested in memory
+    profiles probably prefer the new ones).
+    
+    Change-Id: Ic1d9da53af22ecdda17663e0d4bce7cdbcb54527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539316
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 15 +++++++++++++++
- test/codegen/writebarrier.go                 | 25 +++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/cmd/compile/internal/gc/util.go | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

@@ -1,16 +1,16 @@
-commit d6dff636ea790b5c0ca80b8888fcdd6961b3b922
-Author: Michael Schaller <michael@5challer.de>
-Date:   Thu Apr 2 13:15:08 2015 +0200
+commit 527b478edb86126d2db98d9a0f619cbc83dce1db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 10:12:26 2015 -0800
 
-    cmd/go: print SWIG warnings
+    cmd/internal/obj/arm: fix arm build
     
-    Fixes #9053
+    Mishandled the mask for the arm instructions.
     
-    Change-Id: I7b9af3647800671f065c366a6adf9278e64ebec9
-    Reviewed-on: https://go-review.googlesource.com/8400
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TBR=rsc
+    
+    Change-Id: Idc596097c0fa61dcacdfb4aca5bc6d0b4fd40eeb
+    Reviewed-on: https://go-review.googlesource.com/6641
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/build.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

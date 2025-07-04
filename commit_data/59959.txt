@@ -1,0 +1,24 @@
+commit a32e94d43ee34cc6de23ff674c4f5e5b49528e86
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 9 15:19:38 2024 -0700
+
+    cmd/cgo, cmd/go: add cgo -ldflags option, use it in cmd/go
+    
+    This will automatically use a response file if ldflags is long,
+    avoiding "argument list too long" errors with a very large CGO_LDFLAGS.
+    
+    Fixes #66456
+    
+    Change-Id: I5f9ee86e03b4e6d6430f7f9d8357ef37a9c22465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584655
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/doc.go                          |  3 ++
+ src/cmd/cgo/main.go                         | 10 ++++---
+ src/cmd/go/internal/work/exec.go            | 13 ++++++--
+ src/cmd/go/testdata/script/cgo_long_cmd.txt | 46 +++++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+), 7 deletions(-)

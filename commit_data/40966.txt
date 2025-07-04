@@ -1,17 +1,22 @@
-commit 590052ba29a6853683533f916284db39f935e4e6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 6 20:47:29 2019 +0000
+commit c1df5187d007f205c31d96c8cb9c173a634a102a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 15 13:09:00 2019 -0700
 
-    net/http: don't wait indefinitely in Transport for proxy CONNECT response
+    runtime: simplify some pointer conversions
     
-    Fixes #28012
+    Use efaceOf to safely convert from *interface{} to *_eface, and to
+    make it clearer what the pointer arithmetic is computing.
     
-    Change-Id: I711ebaabf63194e3d2c608d829da49c51a294d74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210286
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Incidentally, remove a spurious unsafe.Pointer->*uint8->unsafe.Pointer
+    round trip conversion in newproc.
+    
+    No behavior change.
+    
+    Change-Id: I2ad9d791d35d8bd008ef43b03dad1589713c5fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190457
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/transport.go      | 23 ++++++++++++++++++
- src/net/http/transport_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+)
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

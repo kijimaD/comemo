@@ -1,19 +1,19 @@
-commit b8d339bc8dbb0754d1b6aa8a748598907e5b2dd2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Feb 2 14:43:54 2020 +0100
+commit 531f1d50cc15c95822d189d039a9bfe47ff70099
+Author: Maya Rashish <maya@netbsd.org>
+Date:   Sun Apr 21 14:48:28 2019 +0000
 
-    doc/go1.14: remove TODO about Dragonfly passing
+    syscall: avoid zeroing unused syscall arguments
     
-    Both the Dragonfly release and tip builder have been passing for a
-    while. The net package's interface API is working on both builders since
-    CL 202317 which has been re-vendored in CL 202438.
+    Zeroing unused registers is not required. Removing it makes the code
+    very slightly smaller and very slightly faster.
     
-    Updates #34368
-    Updates #36878
-    
-    Change-Id: I187178b3a59f2604187af453207fb4e24a56105c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217358
+    Change-Id: I1ec17b497db971ca8a3641e3e94c063571419f27
+    GitHub-Last-Rev: f721bb263637717e8ff9fd2c34148b5b2762e8c4
+    GitHub-Pull-Request: golang/go#31596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173160
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.14.html | 6 ------
- 1 file changed, 6 deletions(-)
+ src/syscall/asm_darwin_amd64.s | 6 ------
+ src/syscall/asm_linux_amd64.s  | 9 ---------
+ src/syscall/asm_unix_amd64.s   | 6 ------
+ 3 files changed, 21 deletions(-)

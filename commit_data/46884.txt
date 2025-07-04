@@ -1,18 +1,20 @@
-commit 24e798e2876f05d628f1e9a32ce8c7f4a3ed3268
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 13 16:30:16 2021 +0200
+commit 58758e0a21c4309f96d44ba24e4c2c9cc12732d9
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 11 11:46:24 2021 -0500
 
-    syscall: use fcntl with F_DUP2FD_CLOEXEC in forkAndExecInChild on FreeBSD
+    [dev.typeparams] go/types: better error message for invalid ... use
     
-    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
-    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    This is a port of CL 283475 to go/types.
     
-    FreeBSD implements dup3 like this in libc.
+    For #43680
     
-    Change-Id: I36e37bc61c2e31561adb49001f287764125a74de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355571
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ida630651247a40e28d405594394476e346354866
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291321
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/exec_freebsd.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/go/types/examples/types.go2 | 3 +++
+ src/go/types/typexpr.go         | 6 ++++++
+ 2 files changed, 9 insertions(+)

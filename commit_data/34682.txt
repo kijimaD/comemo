@@ -1,37 +1,22 @@
-commit ea668e18a6ee48c46fb585265086a908ef7768a1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 22 13:51:13 2018 -0700
+commit 79f6c280b8c06de823f6c438e5b53052a95057bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 7 12:09:59 2017 +1100
 
-    cmd/compile: always write pack files
+    syscall: change SysProcAttr.Token type to Token
     
-    By always writing out pack files, the object file format can be
-    simplified somewhat. In particular, the export data format will no
-    longer require escaping, because the pack file provides appropriate
-    framing.
+    CL 75253 introduced new SysProcAttr.Token field as Handle.
+    But we already have exact type for it - Token. Use Token
+    instead of Handle everywhere - it saves few type conversions
+    and provides better documentation for new API.
     
-    This CL does not affect build systems that use -pack, which includes
-    all major Go build systems (cmd/go, gb, bazel).
-    
-    Also, existing package import logic already distinguishes pack/object
-    files based on file contents rather than file extension.
-    
-    The only exception is cmd/pack, which specially handled object files
-    created by cmd/compile when used with the 'c' mode. This mode is
-    extended to now recognize the pack files produced by cmd/compile and
-    handle them as before.
-    
-    Passes toolstash-check.
-    
-    Updates #21705.
-    Updates #24512.
-    
-    Change-Id: Idf131013bfebd73a5cde7e087eb19964503a9422
-    Reviewed-on: https://go-review.googlesource.com/102236
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibc5407a234a1f49804de15a24b27c8e6a6eba7e0
+    Reviewed-on: https://go-review.googlesource.com/76314
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go |   2 +-
- src/cmd/compile/internal/gc/obj.go  | 112 ++++++++++++-------------
- src/cmd/pack/pack.go                | 157 +++++++++++++++++++++++-------------
- 3 files changed, 152 insertions(+), 119 deletions(-)
+ src/internal/syscall/windows/exec_windows_test.go | 11 +++++------
+ src/internal/syscall/windows/security_windows.go  |  4 ++--
+ src/internal/syscall/windows/zsyscall_windows.go  |  4 ++--
+ src/syscall/exec_windows.go                       |  2 +-
+ src/syscall/syscall_windows.go                    |  2 +-
+ src/syscall/zsyscall_windows.go                   |  2 +-
+ 6 files changed, 12 insertions(+), 13 deletions(-)

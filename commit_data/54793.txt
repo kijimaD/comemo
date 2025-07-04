@@ -1,25 +1,23 @@
-commit 555af99bcc6b7515ebad5a3c947f3e4ab147fd29
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Oct 25 10:51:58 2023 +0000
+commit 5ccee1199e11b830ae32772d5ebc7b35e356b7f3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:14:16 2022 -0500
 
-    runtime/internal/atomic: add riscv64 operators for And/Or
+    cmd/internal/obj: use testenv.Command instead of exec.Command in tests
     
-    These primitives will be used by the new And/Or sync/atomic apis.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    For #61395
-    
-    Change-Id: I4062d6317e01afd94d3588f5425237723ab15ade
-    GitHub-Last-Rev: c0a8d8f34dc355997fa697d4d8da7d45a00bb3c7
-    GitHub-Pull-Request: golang/go#63272
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531575
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Change-Id: Ica1a9985f9abb1935434367c9c8ba28fc50f331d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450699
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
- src/runtime/internal/atomic/atomic_riscv64.go    | 18 +++++++++++
- src/runtime/internal/atomic/atomic_riscv64.s     | 40 ++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm_arm64_test.go |  9 ++++-----
+ src/cmd/internal/obj/objfile_test.go         |  5 ++---
+ src/cmd/internal/obj/ppc64/asm_test.go       |  9 ++++-----
+ src/cmd/internal/obj/riscv/asm_test.go       | 13 ++++++-------
+ src/cmd/internal/obj/x86/obj6_test.go        |  3 +--
+ src/cmd/internal/obj/x86/pcrelative_test.go  |  5 ++---
+ 6 files changed, 19 insertions(+), 25 deletions(-)

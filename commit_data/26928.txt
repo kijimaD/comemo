@@ -1,18 +1,18 @@
-commit 67cdec00c256d817fc3d2c099fa1830c8f446923
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 14 09:39:40 2016 -0700
+commit 686fbdb3b0c228f4c990dbb6b2f2dbe1df4c7cfd
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 3 09:53:03 2016 -0800
 
-    cmd/vet: teach asm checker about PEXTRD’s op size
+    cmd/compile: make compilation deterministic, fixes toolstash
     
-    Fixes #15271
+    Make sure we don't depend on map iterator order.
     
-    Change-Id: I28e3fb5bde1e6fd5b263b1434873b8ce051aee97
-    Reviewed-on: https://go-review.googlesource.com/22083
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #14600
+    
+    Change-Id: Iac0e0c8689f3ace7a4dc8e2127e2fd3c8545bd29
+    Reviewed-on: https://go-review.googlesource.com/20158
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/asmdecl.go      |  5 +++++
- src/cmd/vet/testdata/asm.go |  2 ++
- src/cmd/vet/testdata/asm1.s | 11 +++++++++++
- 3 files changed, 18 insertions(+)
+ src/cmd/compile/internal/ssa/print.go    |  4 ++--
+ src/cmd/compile/internal/ssa/regalloc.go | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

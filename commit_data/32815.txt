@@ -1,19 +1,15 @@
-commit 4c02eaf77e2eae7d92d22216af040c04d6879fc6
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 10 14:34:26 2017 -0400
+commit 6a42568701b9e35ced4bc5fccadd5569b676d972
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:47:33 2017 -0400
 
-    runtime: re-add sanity check for GCCPUFraction
+    cmd/go: fix ugly "BUG" in go help message output
     
-    This no longer appears to be reproducible on windows/386. Try putting
-    it back and we'll see if the builders still don't like it.
-    
-    Fixes #19319.
-    
-    Change-Id: Ia47b034e18d0a5a1951125c00542b021aacd5e8d
-    Reviewed-on: https://go-review.googlesource.com/47936
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4c579d0d02f6c9cbef1dc2bc2c93cff614538dea
+    Reviewed-on: https://go-review.googlesource.com/44854
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc_test.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/go/alldocs.go            | 7 ++++---
+ src/cmd/go/internal/test/test.go | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

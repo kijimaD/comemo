@@ -1,17 +1,24 @@
-commit 1028d973d2854fa3e22d96a0370698e61363a222
-Author: David Chase <drchase@google.com>
-Date:   Mon May 20 14:21:30 2024 -0400
+commit 65306bcdae51195f32cc7cbfebfa2851b14a1163
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 15 14:24:00 2023 -0400
 
-    doc: add release notes for hot block alignment
+    cmd/dist: refactor adding to the test list into a method
     
-    This is for the changes in CL 577935.
+    Currently, there are four places that add distTests to the
+    tester.tests list. That means we're already missing a few name
+    uniqueness checks, and we're about to start enforcing some more
+    requirements on tests that would be nice to have in one place. Hence,
+    to prepare for this, this CL refactors the process of adding to the
+    tester.tests list into a method. That also means we can trivially use
+    a map to check name uniqueness rather than an n^2 slice search.
     
-    Change-Id: I8f70dd36c89aaede11a37744c0f279439e01eb13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586895
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    For #37486.
+    
+    Change-Id: Ib7b64c7bbf65e5e870c4f4bfaca8c7f70983605c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/5-toolchain.md | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/dist/test.go | 195 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 92 insertions(+), 103 deletions(-)

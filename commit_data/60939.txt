@@ -1,0 +1,23 @@
+commit ad6ee21bbf3ef5bec6f29046a9eab096f3202d5c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Sep 10 17:51:53 2024 +0000
+
+    go/printer: revert "do not treat comments inside a ast.Decl as godoc"
+    
+    This reverts commit CL 609077.
+    
+    Reason for revert: it turned out to also introduce a change to the
+    formatting as described in issue #69382, which wasn't intended.
+    
+    For #69382.
+    
+    Change-Id: Id8f36e5503e63e7586c8afe7c7d3dc25fd56ed94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612137
+    Reviewed-by: Christian Höppner <hoeppi@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/go/printer/nodes.go        |   7 --
+ src/go/printer/printer.go      |   6 +-
+ src/go/printer/printer_test.go | 190 -----------------------------------------
+ 3 files changed, 2 insertions(+), 201 deletions(-)

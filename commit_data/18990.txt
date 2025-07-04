@@ -1,16 +1,18 @@
-commit f8c25b62b8a154a523d48410096e07f80eec7e6d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 31 16:39:41 2014 -0400
+commit ece69f7c2b34d9267f3802cd11c1e5fca84e5474
+Author: Mike Andrews <mra@xoba.com>
+Date:   Sat Mar 29 09:50:49 2014 -0700
 
-    benchcmp: leave a forwarding script
+    cmd/ld: don't delete output binary if not "ordinary" file.
     
-    People (like me!) will still try to run misc/benchcmp
-    and wonder where it went. Tell them.
+    e.g., don't delete /dev/null. this fix inspired by gnu libiberty,
+    unlink-if-ordinary.c.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, dave
-    CC=adg, golang-codereviews, r
-    https://golang.org/cl/82710043
+    Fixes #7563
+    
+    LGTM=iant
+    R=golang-codereviews, iant, 0intro
+    CC=golang-codereviews, r
+    https://golang.org/cl/76810045
 
- misc/benchcmp | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/ld/lib.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

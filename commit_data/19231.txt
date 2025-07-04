@@ -1,17 +1,16 @@
-commit 2674efbdf414ce97a542e557224fca0b978a7fa5
-Author: Rob Pike <r@golang.org>
-Date:   Sat Apr 26 10:18:17 2014 -0600
+commit d0402cb416b1e39bd6efba102c2c0c4cf0244bf6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 25 15:19:32 2014 -0700
 
-    doc/debugging_with_gdb.html: add introductory disclaimer
-    The instructions in this document are useful but not reliable.
-    Explain the situation up top.
+    net/http/httputil: don't leak goroutines in DumpRequestOut
     
-    Fixes #7471.
+    Fixes #7869
     
-    LGTM=josharian, iant
-    R=golang-codereviews, josharian, iant
-    CC=golang-codereviews
-    https://golang.org/cl/96830045
+    LGTM=dsymonds
+    R=golang-codereviews
+    CC=adg, dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/91770048
 
- doc/debugging_with_gdb.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/pkg/net/http/httputil/dump.go      | 1 +
+ src/pkg/net/http/httputil/dump_test.go | 5 +++++
+ 2 files changed, 6 insertions(+)

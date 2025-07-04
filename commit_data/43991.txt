@@ -1,23 +1,15 @@
-commit e012d0dc34e0c182aed605347fb19c6980b3f8bd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 10 15:01:20 2020 -0800
+commit d1b36c8d8670c49c70bd8219efa2da762de08337
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri May 1 16:48:25 2020 +0200
 
-    syscall: drop references to Unix epoch in Timeval/Timespec docs
+    internal/unsafeheader: fix reference in godoc comment for type String
     
-    The various conversion functions just change the format of time values.
-    They don't use the Unix epoch. Although in practice the values are often
-    times since the Unix epoch, they aren't always, so referring to the
-    epoch can be confusing.
+    Refer to reflect.StringHeader in the godoc comment for type String
+    instead of reflect.SliceHeader.
     
-    Fixes #43010
-    
-    Change-Id: I640d665f0d2017f0974db05d70858037c7c91eda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277073
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I40fc016c7365510a12c41d4ca596f66d2892c3f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231537
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/syscall.go    | 10 ++++------
- src/syscall/timestruct.go | 12 ++++--------
- 2 files changed, 8 insertions(+), 14 deletions(-)
+ src/internal/unsafeheader/unsafeheader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

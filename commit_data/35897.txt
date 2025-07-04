@@ -1,25 +1,19 @@
-commit 8d5fd871d79bd62b04bfadb3b7be0a896029e80c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jul 6 12:14:22 2018 -0700
+commit 0b20aece1aa4782070660a80dc4cf87c183533c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 09:27:29 2018 +0300
 
-    cmd/compile: fix "width not calculated" ICE
+    net: make Resolver.PreferGo work more as documented
     
-    Expanding interface method sets is handled during width calculation,
-    which can't be performed concurrently. Make sure that we eagerly
-    expand interfaces in the frontend when importing them, even if they're
-    not actually used by code, because we might need to generate a type
-    description of them.
+    Fixes #24393
     
-    Fixes #25055.
-    
-    Change-Id: I6fd2756de2c7d5dbc33056f70b3028ca3aebab41
-    Reviewed-on: https://go-review.googlesource.com/122517
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I8bcee34cdf30472663d866ed6056301d8445215c
+    Reviewed-on: https://go-review.googlesource.com/100875
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/iimport.go | 19 +++++++++++++++++++
- test/fixedbugs/issue25055.dir/a.go     |  7 +++++++
- test/fixedbugs/issue25055.dir/b.go     |  9 +++++++++
- test/fixedbugs/issue25055.go           |  7 +++++++
- 4 files changed, 42 insertions(+)
+ src/net/conf.go           |  7 ++++---
+ src/net/conf_test.go      | 18 +++++++++++++++++-
+ src/net/dnsclient_unix.go |  4 ++--
+ src/net/lookup_unix.go    |  4 ++--
+ 4 files changed, 25 insertions(+), 8 deletions(-)

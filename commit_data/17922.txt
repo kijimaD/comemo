@@ -1,23 +1,39 @@
-commit 7c17982f72704464f74766b9ef957e3d69db92d7
+commit 76a8c873cf06cfc42e3c306ac3f18e62795253d3
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Dec 8 22:52:08 2013 -0500
+Date:   Sun Dec 8 22:51:31 2013 -0500
 
-    runtime: remove cross-function jump in vlop_arm.s
+    cmd/5c, cmd/6c, cmd/8c: use liblink
     
-    The new linker will disallow this on arm
-    (it is already disallowed on amd64 and 386)
-    in order to be able to lay out each function
-    separately.
+    Preparation for golang.org/s/go13linker work.
     
-    The restriction is only for jumps into the middle
-    of a function; jumps to the beginning of a function
-    remain fine.
+    This CL does not build by itself. It depends on 35740044
+    and 35790044 and will be submitted at the same time.
     
-    Prereq for linker cleanup (golang.org/s/go13linker).
-    
-    R=iant, r, minux.ma
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/35800043
+    https://golang.org/cl/34580044
 
- src/pkg/runtime/vlop_arm.s | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/5c/gc.h    |  66 ++++---------
+ src/cmd/5c/list.c  |  34 +++----
+ src/cmd/5c/peep.c  |  44 ++++-----
+ src/cmd/5c/reg.c   |  16 +--
+ src/cmd/5c/swt.c   | 284 +----------------------------------------------------
+ src/cmd/5c/txt.c   |  33 ++++---
+ src/cmd/6c/gc.h    |  56 +++--------
+ src/cmd/6c/list.c  |  12 +--
+ src/cmd/6c/peep.c  |  16 +--
+ src/cmd/6c/reg.c   |  14 +--
+ src/cmd/6c/swt.c   | 276 +--------------------------------------------------
+ src/cmd/6c/txt.c   |  31 +++---
+ src/cmd/8c/gc.h    |  56 +++--------
+ src/cmd/8c/list.c  |  12 +--
+ src/cmd/8c/peep.c  |  16 +--
+ src/cmd/8c/reg.c   |  14 +--
+ src/cmd/8c/swt.c   | 272 +-------------------------------------------------
+ src/cmd/8c/txt.c   |  29 +++---
+ src/cmd/cc/cc.h    |  19 +---
+ src/cmd/cc/lex.c   |  77 +--------------
+ src/cmd/cc/macbody |  56 +----------
+ src/cmd/cc/pswt.c  |  29 ------
+ src/cmd/cc/sub.c   |  10 ++
+ 23 files changed, 223 insertions(+), 1249 deletions(-)

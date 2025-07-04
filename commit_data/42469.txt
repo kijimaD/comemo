@@ -1,16 +1,27 @@
-commit 76f233fe045788e71b7460ea82947e4bda6d76ff
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 5 09:48:44 2020 -0400
+commit 0bd3853512ea0dcb252ce02113d3929db03d6aa6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jan 2 17:23:24 2020 -0500
 
-    doc/go1.15: exclude spaces from <code> block
+    doc: remove root.html and conduct.html (moved to x/website)
     
-    Per the note at the top of go1.15.html.
+    root.html has been moved to the x/website repo in CL 180959
+    (commit golang/website@d83058ced3fadc3e8189107d2fb86c333c356b75).
     
-    Updates #37419.
+    conduct.html has been moved to the x/website repo in CL 207437
+    (commit golang/website@99763cba2e5b53679a96f69725f917feb319b799).
     
-    Change-Id: Ia6917347ca1e3ebe8c55f9c0ec74e49ff481a64f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236719
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    There should be only one copy, otherwise it may lead to confusion,
+    or changes made in the wrong place. This CL removes the old copies
+    from this repo since they're no longer used.
+    
+    Updates #29206
+    
+    Change-Id: I41adfb2c34ed3d870fb7a671f48ccc8f90863feb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213157
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/conduct.html | 211 -------------------------------------------------------
+ doc/root.html    | 164 ------------------------------------------
+ 2 files changed, 375 deletions(-)

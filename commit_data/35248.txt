@@ -1,21 +1,28 @@
-commit 7b451dc715a728ea03edf17fa497d8f72d32a03f
-Author: Antonin Amand <antonin.amand@gmail.com>
-Date:   Wed May 2 12:07:56 2018 +0200
+commit 4a7334b7f2b30aa4b14f5c38fae561f9afffc076
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jan 19 18:26:58 2018 +0100
 
-    archive/zip: avoid data descriptor when writing directories
+    cmd/dist: only run swig tests when a go directory is present in swiglib
     
-    Java fails to unzip archives created by archive/zip because directories are
-    written with the "data descriptor" flag (bit 3) set, but emits no such
-    descriptor. To fix this, we explicitly clear the flag.
+    When there is no go directory inside the swiglib directory then swig
+    was installed without Go support. Tests in misc/swig will fail when
+    swig is installed without Go support.
     
-    Fixes #25215
+    Add additional checks for the presence of a go directory in the directory
+    reported by 'swig -go -swiglib' to determine if misc/swig tests should
+    be run.
     
-    Change-Id: Id3af4c7f863758197063df879717c1710f86c0e5
-    Reviewed-on: https://go-review.googlesource.com/110795
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This avoids all.bash failing when swig but not swig-go is installed
+    using macports.
+    
+    Tested on darwin with swig and with and without swig-go installed
+    using macports.
+    
+    Fixes #23469
+    
+    Change-Id: I173201221554982ea0d9f2bea70a3cb85b297cec
+    Reviewed-on: https://go-review.googlesource.com/88776
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/zip/writer.go      | 11 +++++++++--
- src/archive/zip/writer_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

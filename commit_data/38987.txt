@@ -1,45 +1,16 @@
-commit c706d422899e82c71578e30715684b7a991f4490
-Author: Nir Soffer <nirsof@gmail.com>
-Date:   Tue Nov 7 20:08:52 2017 +0200
+commit a6293995c55659f51e0662e7656f395633c99b5b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 13 15:23:35 2018 -0800
 
-    net/http: add Transport.ReadBufferSize and WriteBufferSize
+    mime/multipart: quote boundary in Content-Type if necessary
     
-    Previously transport was using the hardcoded bufio.defaultBufSize
-    (4096), limiting throughput and increasing cpu usage when uploading or
-    downloading large files.
+    Fixes #26532
     
-    Add options to allow users to configure the buffer sizes as needed.
-    
-    I tested the maximum benefit of this change by uploading data from
-    /dev/zero to a server discarding the bytes. Here is an example upload
-    using the default buffer size:
-    
-    $ time ./upload 10 https://localhost:8000/
-    Uploaded 10.00g in 25.13 seconds (407.49m/s)
-    
-    real    0m25.135s
-    user    0m5.167s
-    sys     0m11.643s
-    
-    With this change, using 128k buffer size:
-    
-    $ time ./upload 10 https://localhost:8000/
-    Uploaded 10.00g in 7.93 seconds (1291.51m/s)
-    
-    real    0m7.935s
-    user    0m4.517s
-    sys     0m2.603s
-    
-    In real world usage the difference will be smaller, depending on the
-    local and remote storage and the network.
-    
-    See https://github.com/nirs/http-bench for more info.
-    
-    Fixes #22618
-    
-    Change-Id: Iac99ed839c7b95d6dc66602ba8fe1fc5b500c47c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/76410
+    Change-Id: Ic086c90503c7b24982f947c828c7ccf016ddbf69
+    Reviewed-on: https://go-review.googlesource.com/c/154120
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go | 29 +++++++++++++++++++++++++++--
- 1 file changed, 27 insertions(+), 2 deletions(-)
+ src/mime/multipart/writer.go      |  8 +++++++-
+ src/mime/multipart/writer_test.go | 13 +++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

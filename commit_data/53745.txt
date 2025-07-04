@@ -1,18 +1,18 @@
-commit 12f3d6858e73abf6bc78c8fe5ce5d0220ffaeb5c
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Jul 19 11:21:00 2023 -0400
+commit ef8414101fba959c8df220ca0e544781029ce111
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Sep 1 18:07:33 2022 +0000
 
-    go/types, types2: update documentation for GoVersion
+    Revert "runtime: convert ncgocall to atomic type"
     
-    Update the documentation for Config.GoVersion to reflect the changes
-    made for #61175.
+    This reverts CL 426075.
     
-    Change-Id: I9f3fbcf8ee88e52d6a5e7cf80dad3d2fb5313893
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511096
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reason for revert: Import missing from cgocall.go.
+    
+    Change-Id: Iac17e914045b83da30484dbe2a624cde526fb175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427614
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/types2/api.go | 10 +++++-----
- src/go/types/api.go                    | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/runtime/cgocall.go | 2 +-
+ src/runtime/debug.go   | 2 +-
+ src/runtime/proc.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

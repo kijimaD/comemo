@@ -1,36 +1,12 @@
-commit 0b2353edcb7fc6ff100f42b1d9cc5613a6c57da1
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Nov 2 07:50:59 2012 +0100
+commit 002103f51cf5a448933cf4d4f97707da029786f1
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Thu Nov 1 22:57:01 2012 -0700
 
-    cmd/5g, cmd/6g: fix out of registers with array indexing.
+    spec: we're now at Unicode 6.2.0
     
-    Compiling expressions like:
-        s[s[s[s[s[s[s[s[s[s[s[s[i]]]]]]]]]]]]
-    make 5g and 6g run out of registers. Such expressions can arise
-    if a slice is used to represent a permutation and the user wants
-    to iterate it.
-    
-    This is due to the usual problem of allocating registers before
-    going down the expression tree, instead of allocating them in a
-    postfix way.
-    
-    The functions cgenr and agenr (that generate a value to a newly
-    allocated register instead of an existing location), are either
-    introduced or modified when they already existed to allocate
-    the new register as late as possible, and sudoaddable is disabled
-    for OINDEX nodes so that igen/agenr is used instead.
-    
-    Update #4207.
-    
-    R=dave, daniel.morsing, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6733055
+    https://golang.org/cl/6818083
 
- src/cmd/5g/cgen.c  | 383 +++++++++++++++++++++++++++++++----------------------
- src/cmd/5g/gsubr.c |   3 +
- src/cmd/6g/cgen.c  | 241 ++++++++++++++++++++-------------
- src/cmd/6g/gg.h    |   1 +
- src/cmd/6g/gsubr.c |  15 +--
- src/cmd/gc/fmt.c   |   1 +
- test/torture.go    |  17 +++
- 7 files changed, 394 insertions(+), 267 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,13 @@
-commit 9509cbf203dbdf39008c238c96563c11b942d7ba
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 13 12:11:24 2012 -0800
+commit 0df58a4b50b923a220b9fda8ef94bebd5cdc0f9f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Dec 14 02:19:33 2012 +0800
 
-    test: move map delete test to nil.go
+    test/nil.go: delete on nil maps no longer panics
+    Fix the build.
     
-    No need for a separate test for this.
-    
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6941045
+    https://golang.org/cl/6946044
 
- test/fixedbugs/issue4535.go | 12 ------------
- test/nil.go                 |  3 +++
- 2 files changed, 3 insertions(+), 12 deletions(-)
+ test/nil.go | 3 ---
+ 1 file changed, 3 deletions(-)

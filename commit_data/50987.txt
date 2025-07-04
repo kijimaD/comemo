@@ -1,29 +1,30 @@
-commit 8749d12bb76db77cdf37d47d666a5962b8a5928b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 1 08:22:14 2022 -0400
+commit 83bfed916b97d51646b4bdc95e0e0fd7798b754f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 13:53:21 2021 -0800
 
-    cmd/go: add Subversion support to the local vcstest server
+    cmd/compile/internal/types2: print "nil" rather than "untyped nil"
     
-    With this change applied, 'go test cmd/go/...' passes
-    even with the IP routing for vcs-test.golang.org disabled
-    using 'ip route add blackhole $VCSTEST_IP/32'.
+    When we have a typed nil, we already say so; thus it is sufficient
+    to use "nil" in all the other cases.
     
-    Fixes #27494.
+    This is closer to (1.17) compiler behavior. In cases where the
+    1.17 compiler prints "untyped nil" (e.g., wrong uses of "copy"),
+    we already print a different message. We can do better in those
+    cases as well; will be addressed in a separate CL (see #49735).
     
-    Change-Id: I45651d2429c7fea7bbf693b2f129e260e1c59891
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427914
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48852.
+    
+    Change-Id: I9a7a72e0f99185b00f80040c5510a693b1ea80f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366276
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                    |  25 ++-
- src/cmd/go/internal/vcweb/script.go               |   1 +
- src/cmd/go/internal/vcweb/svn.go                  | 199 ++++++++++++++++++++++
- src/cmd/go/internal/vcweb/vcstest/vcstest.go      |  13 +-
- src/cmd/go/internal/vcweb/vcweb.go                |  13 ++
- src/cmd/go/testdata/vcstest/svn/hello.txt         |  79 +++++++++
- src/cmd/go/testdata/vcstest/svn/nonexistent.txt   |   5 +
- src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 171 +++++++++++++++++++
- src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 141 +++++++++++++++
- 9 files changed, 642 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go         |  3 ---
+ src/cmd/compile/internal/types2/operand.go             |  2 +-
+ .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
+ .../internal/types2/testdata/fixedbugs/issue49296.go2  |  2 +-
+ .../internal/types2/testdata/spec/assignability.go2    | 18 +++++++++---------
+ test/fixedbugs/issue6004.go                            |  9 ++++-----
+ test/fixedbugs/issue6402.go                            |  2 +-
+ test/fixedbugs/issue7223.go                            | 11 ++++++-----
+ 8 files changed, 25 insertions(+), 28 deletions(-)

@@ -1,23 +1,15 @@
-commit f410a668ee3f0a5c71e4d9d0bda83b826246ab5d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 11 15:20:43 2016 -0700
+commit b563fcfabba559646b42b0ff2066fc98042d8a8a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 18 13:25:51 2016 +1000
 
-    cmd/vet: improve error message for cross-package assembly
+    cmd/go: write test file to temporary directory
     
-    bytes.Compare has its go prototype in package bytes,
-    but its implementation in package runtime.
-    vet used to complain that the prototype was missing.
-    Now instead:
+    Before this change, a go-vendor-issue-14613 file would be left in the
+    working directory after tests run.
     
-    runtime/asm_amd64.s:1483: [amd64] cannot check cross-package assembly function: Compare is in package bytes
-    
-    Updates #11041
-    
-    Change-Id: Ied44fac10d0916d7a34e552c02d052e16fca0c8c
-    Reviewed-on: https://go-review.googlesource.com/27153
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If1858421bb287215ab4a19163f489131b2e8912c
+    Reviewed-on: https://go-review.googlesource.com/22169
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/vet/asmdecl.go | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ src/cmd/go/vendor_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,20 @@
-commit 5b603f79fb51e7be4c7d7d141c7615b9cdc58524
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 30 10:49:11 2023 -0400
+commit 449691b3ef1d93125757037a9ab3f462ccab8f31
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 17:48:19 2022 -0400
 
-    cmd/compile: remove special treatment for cover vars in initorder
+    runtime: convert schedt.ngsys to atomic type
     
-    This patch reverts a portion of the changes in CL 443715, specifically
-    the code in initorder that treats coverage counter variables as special
-    with respect to init order. The special casing is no longer needed
-    now after a change to the way coverage instrumention is done (the go and
-    cover cmds now make sure that coverage variables appear first in
-    the compilation order).
+    Note that this converts ngsys from uint32 to int32 to match the other
+    (non-atomic) counters.
     
-    Updates #56293.
+    For #53821.
     
-    Change-Id: Idf803ff4c1a095e88d455a6adcd63991687eb288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499216
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I3acbfbbd1dabc59b0ea5ddc86a97e0d0afa9f80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419444
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/pkginit/initorder.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/runtime/proc.go     | 12 ++++++------
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

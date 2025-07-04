@@ -1,30 +1,67 @@
-commit 0a5ca2422f14f9c17a017207feb9f83f94ce0e89
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Sep 27 14:40:06 2021 -0400
+commit a70eb2c9f2e3d52116b90a21ce10718356197ee5
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 3 13:33:27 2021 -0800
 
-    crypto/ecdsa: draw a fixed amount of entropy while signing
+    cmd/compile:  get instantiated generic types working with interfaces
     
-    The current code, introduced in CL 2422, mixes K bits of entropy with
-    the private key and message digest to generate the signature nonce,
-    where K is half the bit size of the curve. While the ECDLP complexity
-    (and hence security level) of a curve is half its bit size, the birthday
-    bound on K bits is only K/2. For P-224, this means we should expect a
-    collision after 2^56 signatures over the same message with the same key.
+    Get instantiatiated generic types working with interfaces, including
+    typechecking assignments to interfaces and instantiating all the methods
+    properly. To get it all working, this change includes:
     
-    A collision, which is unlikely, would still not be a major practical
-    concern, because the scheme would fall back to a secure deterministic
-    signature scheme, and simply leak the fact that the two signed messages
-    are the same (which is presumably already public).
+     - Add support for substituting in interfaces in subster.typ()
     
-    Still, we can simplify the code and remove the eventuality by always
-    drawing 256 bits of entropy.
+     - Fill in the info for the methods for all instantiated generic types,
+       so those methods will be available for later typechecking (by the old
+       typechecker) when assigning an instantiated generic type to an
+       interface. We also want those methods available so we have the list
+       when we want to instantiate all methods of an instantiated type. We
+       have both for instantiated types encountered during the initial noder
+       phase, and for instantiated types created during stenciling of a
+       function/method.
     
-    Change-Id: I58097bd3cfc9283503e38751c924c53d271af92b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352530
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+     - When we first create a fully-instantiated generic type (whether
+       during initial noder2 pass or while instantiating a method/function),
+       add it to a list so that all of its methods will also be
+       instantiated. This is needed so that an instantiated type can be
+       assigned to an interface.
+    
+     - Properly substitute type names in the names of instantiated methods.
+    
+     - New accessor methods for types.Type.RParam.
+    
+     - To deal with generic types which are empty structs (or just don't use
+       their type params anywhere), we want to set HasTParam if a named type
+       has any type params that are not fully instantiated, even if the
+       type param is not used in the type.
+    
+     - In subst.typ() and elsewhere, always set sym.Def for a new forwarding
+       type we are creating, so we always create a single unique type for
+       each generic type instantiation. This handles recursion within a
+       type, and also recursive relationships across many types or methods.
+       We remove the seen[] hashtable, which was serving the same purpose,
+       but for subst.typ() only. We now handle all kinds of recursive types.
+    
+     - We don't seem to need to force types.CheckSize() on
+       created/substituted generic types anymore, so commented out for now.
+    
+     - Add an RParams accessor to types2.Signature, and also a new
+       exported types2.AsSignature() function.
+    
+    Change-Id: If6c5dd98427b20bfe9de3379cc16f83df9c9b632
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298449
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/ecdsa/ecdsa.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/decl.go     |  10 +-
+ src/cmd/compile/internal/noder/irgen.go    |   3 +
+ src/cmd/compile/internal/noder/stencil.go  | 371 +++++++++++++++++++++--------
+ src/cmd/compile/internal/noder/types.go    | 125 ++++++++--
+ src/cmd/compile/internal/noder/validate.go |   4 +-
+ src/cmd/compile/internal/types/type.go     |  38 ++-
+ src/cmd/compile/internal/types2/type.go    |   8 +-
+ test/typeparam/cons.go                     | 101 ++++++++
+ test/typeparam/ordered.go                  |  95 ++++++++
+ test/typeparam/settable.go                 |   4 +-
+ 10 files changed, 620 insertions(+), 139 deletions(-)

@@ -1,30 +1,23 @@
-commit b72bbaebf9035c59806fd8073f2582e2d07764d5
-Author: David Chase <drchase@google.com>
-Date:   Tue May 9 10:34:52 2023 -0400
+commit 390abbbbf1018f9bb814baf6ab38e31efaf58666
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Oct 24 17:12:57 2022 -0500
 
-    cmd/compile: expand calls cleanup
+    codegen: check for PPC64 ISEL in condmove tests
     
-    Convert expand calls into a smaller number of focused
-    recursive rewrites, and rely on an enhanced version of
-    "decompose" to clean up afterwards.
+    ISEL is roughly equivalent to CMOV on PPC64. Verify ISEL generation
+    in all reasonable cases.
     
-    Debugging information seems to emerge intact.
+    Note "ISEL test x y z" is the same as "ISEL !test y x z". test is
+    always one of LT (0), GT (1), EQ (2), SO (3). Sometimes x and y are
+    swapped if GE/LE/NE is desired.
     
-    Change-Id: Ic46da4207e3a4da5c8e2c47b637b0e35abbe56bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507295
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie1bf029224064e004d855099731fe5e8d05aa990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445215
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/_gen/dec.rules  |  106 ++
- src/cmd/compile/internal/ssa/compile.go      |    4 +-
- src/cmd/compile/internal/ssa/expand_calls.go | 2425 +++++++++-----------------
- src/cmd/compile/internal/ssa/op.go           |    2 +-
- src/cmd/compile/internal/ssa/rewritedec.go   |  654 +++++++
- src/cmd/compile/internal/ssagen/ssa.go       |    2 +-
- test/abi/more_intstar_input.go               |    8 +-
- test/abi/reg_not_ssa.go                      |   40 +
- test/codegen/condmove.go                     |    2 +-
- test/codegen/spectre.go                      |    4 +-
- 10 files changed, 1639 insertions(+), 1608 deletions(-)
+ test/codegen/condmove.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

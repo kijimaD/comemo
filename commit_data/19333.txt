@@ -1,49 +1,24 @@
-commit 03c0f3fea9c2e92794210e01987b3b024bf1c980
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 12 17:10:36 2014 -0400
+commit 02cc45aded62e23f6bb6142174ab5b12f7d5b486
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 12 12:43:51 2014 -0700
 
-    cmd/gc: alias more variables during register allocation
+    cmd/go: link SWIG objects directly rather than using a shared library
     
-    This is joint work with Daniel Morsing.
+    This change requires using SWIG version 3.0 or later.  Earlier
+    versions of SWIG do not generate the pragmas required to use
+    the external linker.
     
-    In order for the register allocator to alias two variables, they must have the same width, stack offset, and etype. Code generation was altering a variable's etype in a few places. This prevented the variable from being moved to a register, which in turn prevented peephole optimization. This failure to alias was very common, with almost 23,000 instances just running make.bash.
-    
-    This phenomenon was not visible in the register allocation debug output because the variables that failed to alias had the same name. The debugging-only change to bits.c fixes this by printing the variable number with its name.
-    
-    This CL fixes the source of all etype mismatches for 6g, all but one case for 8g, and depressingly few cases for 5g. (I believe that extending CL 6819083 to 5g is a prerequisite.) Fixing the remaining cases in 8g and 5g is work for the future.
-    
-    The etype mismatch fixes are:
-    
-    * [gc] Slicing changed the type of the base pointer into a uintptr in order to perform arithmetic on it. Instead, support addition directly on pointers.
-    
-    * [*g] OSPTR was giving type uintptr to slice base pointers; undo that. This arose, for example, while compiling copy(dst, src).
-    
-    * [8g] 64 bit float conversion was assigning int64 type during codegen, overwriting the existing uint64 type.
-    
-    Note that some etype mismatches are appropriate, such as a struct with a single field or an array with a single element.
-    
-    With these fixes, the number of registerizations that occur while running make.bash for 6g increases ~10%. Hello world binary size shrinks ~1.5%. Running all benchmarks in the standard library show performance improvements ranging from nominal to substantive (>10%); a full comparison using 6g on my laptop is available at https://gist.github.com/josharian/8f9b5beb46667c272064. The microbenchmarks must be taken with a grain of salt; see issue 7920. The few benchmarks that show real regressions are likely due to issue 7920. I manually examined the generated code for the top few regressions and none had any assembly output changes. The few benchmarks that show extraordinary improvements are likely also due to issue 7920.
-    
-    Performance results from 8g appear similar to 6g.
-    
-    5g shows no performance improvements. This is not surprising, given the discussion above.
-    
-    Update #7316
+    Fixes #7155.
+    Fixes #7156.
     
     LGTM=rsc
-    R=rsc, daniel.morsing, bradfitz
-    CC=dave, golang-codereviews
-    https://golang.org/cl/91850043
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/97120046
 
- src/cmd/5g/cgen.c           |  1 +
- src/cmd/5g/gsubr.c          |  3 ++-
- src/cmd/6g/cgen.c           |  1 +
- src/cmd/6g/gsubr.c          |  4 +++-
- src/cmd/8g/cgen.c           |  1 +
- src/cmd/8g/gsubr.c          |  4 ++--
- src/cmd/gc/bits.c           |  2 +-
- src/cmd/gc/gen.c            |  7 ++++---
- src/cmd/gc/go.h             |  1 +
- src/cmd/gc/typecheck.c      | 13 +++++++++++++
- test/fixedbugs/issue7316.go | 37 +++++++++++++++++++++++++++++++++++++
- 11 files changed, 66 insertions(+), 8 deletions(-)
+ doc/go1.3.html      |   9 +++++
+ src/cmd/go/build.go | 105 +++++++++++++---------------------------------------
+ src/cmd/go/clean.go |  14 -------
+ src/cmd/go/doc.go   |   1 -
+ src/cmd/go/pkg.go   |  18 ---------
+ 5 files changed, 35 insertions(+), 112 deletions(-)

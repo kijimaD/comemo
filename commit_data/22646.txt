@@ -1,16 +1,22 @@
-commit a76099f0d9699ee0017951a541197bdaa2c2d112
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 21 16:15:05 2015 -0700
+commit c45751e8a50d6050c6090d654364d69599b2e97a
+Author: Lee Packham <lpackham@gmail.com>
+Date:   Mon Mar 30 17:36:49 2015 +0100
 
-    runtime: fix arm64 asm vet issues
+    runtime: allow pointers to strings to be printed
     
-    Several naming changes and a real issue in asmcgocall_errno.
+    Being able to printer pointers to strings means one will able to output
+    the result of things like the flag library and other components that use
+    string pointers.
     
-    Change-Id: Ieb0a328a168819fe233d74e0397358384d7e71b3
-    Reviewed-on: https://go-review.googlesource.com/9212
-    Reviewed-by: Minux Ma <minux@golang.org>
+    While here, adjusted the tests for gdb to test original string pretty
+    printing as well as pointers to them. It was doing it via the map before
+    but for completeness this ensures it's tested as a unit.
+    
+    Change-Id: I4926547ae4fa6c85ef74301e7d96d49ba4a7b0c6
+    Reviewed-on: https://go-review.googlesource.com/8217
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_arm64.s        |  4 ++--
- src/runtime/os_darwin.go       |  2 +-
- src/runtime/sys_darwin_arm64.s | 14 +++++++-------
- 3 files changed, 10 insertions(+), 10 deletions(-)
+ src/runtime/runtime-gdb.py      |  2 +-
+ src/runtime/runtime-gdb_test.go | 22 ++++++++++++++++++++--
+ 2 files changed, 21 insertions(+), 3 deletions(-)

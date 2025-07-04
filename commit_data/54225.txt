@@ -1,31 +1,21 @@
-commit 071aed2aaa0ed819582c5bff44b70d43c61f504a
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Aug 26 16:43:17 2023 +0000
+commit a14ac8635f673218c91e13c103cb2f3e29ff4b74
+Author: Nobuki Fujii <scofni@gmail.com>
+Date:   Fri Sep 23 22:53:31 2022 +0900
 
-    net: centralize resolver selection logic
+    testing: update description of Setenv
     
-    This change removes the per GOOS hostLookupOrder wrappers.
-    passes the correct hostname to hostLookupOrder (windows,
-    plan9), so that the netdns+2 GODEBUG doesn't show empty
-    hostnames.
+    Add the description of Setenv that it cannot use if the test have
+    parallel ancestors.
     
-    Uses the mustUseGoResolver instead of hostLookupOrder,
-    hostLookupOrder should only be used for hostname resolution,
-    not for lookups that do only DNS.
+    Fixes #55128
     
-    Change-Id: I18bbff06957910ae25c2bc78dfa9a46da76529fd
-    GitHub-Last-Rev: a27545dc25fffb3a51da9d943ffa9bd1a09182ee
-    GitHub-Pull-Request: golang/go#61525
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512215
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia5a1deaa1a3116d1ebb439600a7d316c7d155412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434115
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/conf.go           | 19 ++++++++++++++++++-
- src/net/dnsclient_unix.go |  3 +--
- src/net/lookup_plan9.go   | 38 +++++++++-----------------------------
- src/net/lookup_unix.go    |  3 ---
- src/net/lookup_windows.go | 28 ++++++++++------------------
- 5 files changed, 38 insertions(+), 53 deletions(-)
+ src/testing/testing.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

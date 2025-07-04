@@ -1,15 +1,16 @@
-commit 39888635acd8fb7d54d1bec41262cf5861a5ebfd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 29 19:45:34 2018 +0000
+commit 9fba50545d4d992798b73eaf3c4a923b1f7ec20e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 18 13:52:39 2018 -0800
 
-    net/http: document how Hijack and Request.Context interact
+    test: add test case where gccgo incorrectly rejected aliases
     
-    Fixes #22347
+    Updates #23912
     
-    Change-Id: If86aa5d54cfd7a7c32d630fb2bf4f47e057dbfb2
-    Reviewed-on: https://go-review.googlesource.com/115039
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I50d06506a8ac91ed99a761a9ff3fd0b03d4c8121
+    Reviewed-on: https://go-review.googlesource.com/94995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go | 3 ++-
- src/net/http/server.go  | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue23912.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

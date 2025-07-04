@@ -1,29 +1,22 @@
-commit 08ed4882aaa50c9629a3e8636b699ceff6592ad6
-Author: alex.schade <39062967+aschade92@users.noreply.github.com>
-Date:   Tue Feb 15 15:35:03 2022 +0000
+commit 87e4dcd446df2ab1985ef61ce15da329493248a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 19 13:51:53 2021 -0700
 
-    cmd/go/internal/modfetch: avoid leaking a lockedfile.File in case of write errors
+    archive/zip: only return directory once via io/fs.FS
     
-    The go modules download command has a method called hashZip which checks the
-    hash of a zipped directory versus an expected value, and then writes it out
-    to a file. In the event that the write operation is not successful, we do
-    not close the file, leading to it being leaked. This could happen if the
-    user runs out of disk space, causing the underlying OS write command to
-    return an error. Ultimately, this led to a panic in lockfile.OpenFile which
-    was invoked from a finalizer garbage collecting the leaked file. The result
-    was a stack trace that didn't show the call stack from where the write
-    operation actually failed.
+    While we're here fix the ModTime value for directories.
     
-    Fixes #50858
+    Fixes #43872
+    Fixes #45345
     
-    Change-Id: I4a24d2ab13dc903d623bbf8252b37bb9d724b8de
-    GitHub-Last-Rev: 354ef1d29ed9d9bb2d9bfe4b73306c550aab07fd
-    GitHub-Pull-Request: golang/go#51058
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383915
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I155e6517713ef6a9482b9431f1167a44337c6ad2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311530
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modfetch/fetch.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/archive/zip/reader.go           |  54 ++++++++++++++++++++++++----------
+ src/archive/zip/reader_test.go      |  56 ++++++++++++++++++++++++++++++++++--
+ src/archive/zip/testdata/subdir.zip | Bin 0 -> 428 bytes
+ 3 files changed, 92 insertions(+), 18 deletions(-)

@@ -1,15 +1,17 @@
-commit 3a3f8993ced61bf103e77d229722d0ce33fd0090
+commit c5b2c370c635c9c1e512fab4b38416c35b7a45ce
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 7 23:47:01 2014 +0400
+Date:   Thu Aug 7 13:28:10 2014 +0400
 
-    runtime: fix nacl/amd64p32 build
-    C compiler does not support unnamed fields.
+    runtime: fix plan9/windows build
+    Fix few remaining cases after cl/117580043.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/124870043
+    TBR=dfc
+    R=golang-codereviews
+    CC=dave, golang-codereviews
+    https://golang.org/cl/124850043
 
- src/pkg/runtime/defs_nacl_amd64p32.h   | 2 +-
- src/pkg/runtime/signal_nacl_amd64p32.h | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/callback_windows.c | 2 +-
+ src/pkg/runtime/env_plan9.c        | 2 +-
+ src/pkg/runtime/os_plan9.c         | 4 ++--
+ src/pkg/runtime/os_windows.c       | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

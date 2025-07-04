@@ -1,30 +1,13 @@
-commit df027aceb970a2e9dcafb6e79f8581efb2f30c86
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 30 13:59:55 2014 -0500
+commit ee853dacf5143ac4cb3550ee35016e3889081d80
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 21 15:58:01 2014 -0500
 
-    reflect: add write barriers
+    [dev.cc] 9g: correct bad proginfo for ADUFFZERO and ADUFFCOPY
     
-    Use typedmemmove, typedslicecopy, and adjust reflect.call
-    to execute the necessary write barriers.
-    
-    Found with GODEBUG=wbshadow=2 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
-    
-    Change-Id: Iec5b5b0c1be5589295e28e5228e37f1a92e07742
-    Reviewed-on: https://go-review.googlesource.com/2312
-    Reviewed-by: Keith Randall <khr@golang.org>
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/176130044
 
- misc/cgo/test/callback.go  |  3 ++
- src/reflect/value.go       | 78 +++++++++++++++++++++++++------------------
- src/runtime/asm_386.s      | 30 +++++++++++------
- src/runtime/asm_amd64.s    | 34 ++++++++++++-------
- src/runtime/asm_amd64p32.s | 30 +++++++++++------
- src/runtime/asm_arm.s      | 37 ++++++++++++++-------
- src/runtime/asm_ppc64x.s   | 37 ++++++++++++++-------
- src/runtime/cgocall.go     |  7 +++-
- src/runtime/malloc.go      |  2 +-
- src/runtime/mgc0.go        | 82 +++++++++++++++++++++++++++++++++++++++++++++-
- src/runtime/panic.go       |  4 +--
- src/runtime/stubs.go       | 12 ++++++-
- 12 files changed, 263 insertions(+), 93 deletions(-)
+ src/cmd/9g/prog.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

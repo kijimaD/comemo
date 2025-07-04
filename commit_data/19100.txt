@@ -1,14 +1,13 @@
-commit 1d879fe7746bd21f93018a85d0aeb22b2d921aad
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 11 08:52:16 2014 +1000
+commit 1e68e6ae21ec4e88f7f59635831be74e39b26f7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 15:09:59 2014 -0700
 
-    doc/go1.3.html: fix spelling mistakes
-    Keep those builders busy.
+    doc: finish net/http notes in go1.3.html
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/85710046
+    https://golang.org/cl/86580043
 
- doc/go1.3.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.3.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 52 insertions(+), 6 deletions(-)

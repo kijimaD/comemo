@@ -1,16 +1,16 @@
-commit 49aa74ef7f3a3c3c261bd9cdf3b8eb26631dcd17
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Sep 22 17:57:54 2012 +1000
+commit c29f4e00a15d0f710d29ca92ee1001c7cdbd40a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 21 21:12:41 2012 -0400
 
-    cmd/cgo: use debug data for enums on windows
+    cmd/gc: fix a spurious -u compile error
     
-    Use the debug data for enums on windows.
+    Fixes #4082.
     
-    Fixes #4120.
-    
-    R=alex.brainman
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/6545047
+    https://golang.org/cl/6545055
 
- src/cmd/cgo/gcc.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/gc/go.h        | 1 +
+ src/cmd/gc/reflect.c   | 4 ++++
+ src/cmd/gc/typecheck.c | 4 +---
+ 3 files changed, 6 insertions(+), 3 deletions(-)

@@ -1,15 +1,12 @@
-commit e480b81971790667048d68e728275e40cffa74ea
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Fri Mar 25 14:42:25 2011 -0400
+commit 2363784653c9200a0313910832aa90b7bc51b9b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 25 11:33:07 2011 -0700
 
-    net: add FileConn, FilePacketConn, FileListener
+    test/run: clear $E in case it's already set in environment.
     
-    R=iant, rsc, brainman
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4306042
+    https://golang.org/cl/4312054
 
- src/pkg/net/Makefile        |   4 ++
- src/pkg/net/file.go         | 115 ++++++++++++++++++++++++++++++++++++++
- src/pkg/net/file_test.go    | 131 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/file_windows.go |  17 ++++++
- 4 files changed, 267 insertions(+)
+ test/run | 2 ++
+ 1 file changed, 2 insertions(+)

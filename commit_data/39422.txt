@@ -1,15 +1,20 @@
-commit c11f6c4929efff3ef02aff9a3de9c0f4799bc276
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Jun 17 16:28:18 2019 -0400
+commit 36b09f334f4d6ca96573b275118bd45db80f3727
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:50:07 2019 +0100
 
-    doc: add release notes for godoc and go doc
+    strconv: remove use of DeepEqual for testing errors
     
-    Updates #30029
-    Updates #31457
+    Comparing errors using DeepEqual breaks if frame information
+    is added as proposed in Issue #29934.
     
-    Change-Id: I08414a544615e74afb47f7a10a00f1e22adfd40c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182619
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Updates #29934.
+    
+    Change-Id: I0372883288f974998138f95f6c7c79a60f922a3e
+    Reviewed-on: https://go-review.googlesource.com/c/162177
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- doc/go1.13.html | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/strconv/atoi_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

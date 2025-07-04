@@ -1,21 +1,20 @@
-commit ae10914e67e6e99fec94b3d190558131a24ecd8e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Mar 19 13:11:16 2018 -0400
+commit b4c84a1b010f012668b5e3ccaf63f609cd11c5fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 16:09:46 2017 -0500
 
-    cmd/compile: mark LAA and LAAG as clobbering flags on s390x
+    cmd/go: fix corner case missed rebuild of binary
     
-    The atomic add instructions modify the condition code and so need to
-    be marked as clobbering flags.
+    If the only thing changing in the binary is the embedded main.a action ID,
+    go install was declining to install the binary, but go list could see that the
+    binary needed reinstalling (was stale).
     
-    Fixes #24449.
+    Fixes #22531.
     
-    Change-Id: Ic69c8d775fbdbfb2a56c5e0cfca7a49c0d7f6897
-    Reviewed-on: https://go-review.googlesource.com/101455
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a53b0ebd4c34aad907bab7da571fada545f3c6f
+    Reviewed-on: https://go-review.googlesource.com/76014
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 +-
- src/cmd/compile/internal/ssa/opGen.go        |  2 +
- test/fixedbugs/issue24449.go                 | 62 ++++++++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go            | 27 +++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go |  5 +++++
+ 2 files changed, 32 insertions(+)

@@ -1,12 +1,13 @@
-commit 223459891e9a6d6e00137a9a4cb4f27441a93ff5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 7 17:49:45 2011 -0500
+commit 0ae041735a39695b8e449929507b1779b81dda26
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 7 14:40:36 2011 -0800
 
-    syscall: fix arm build
+    ld: fix build (uvlong vs uint64 conflict on freebsd)
     
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4105057
+    https://golang.org/cl/4023071
 
- src/pkg/syscall/ztypes_linux_arm.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/8l/l.h      | 2 +-
+ src/cmd/ld/symtab.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

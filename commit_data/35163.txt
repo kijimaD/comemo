@@ -1,16 +1,23 @@
-commit b9785fc844f49230c6b7a59e2b9e4114feb9ae4f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 26 15:46:12 2018 -0700
+commit 4de1d1d5cde4424d9361be516e4db4d7e76dd1f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 3 10:33:11 2018 -0800
 
-    cmd/compile: log Ctz non-zero proofs
+    spec: consistently use "element" rather than "value" for map entry values
     
-    I forgot this in CL 109358.
+    The spec refers to a map's key and element types; thus the respective
+    values are "keys" and "elements". Also, a map value is the value of
+    the entire map.
     
-    Change-Id: Ia5e8bd9cf43393f098b101a0d6a0c526e3e4f101
-    Reviewed-on: https://go-review.googlesource.com/109775
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Similar fix for channels, where appropriate.
+    
+    Fixes #23254.
+    
+    Change-Id: I6f03ea6d86586c7b0b3e84f0c2e9446b8109fa53
+    Reviewed-on: https://go-review.googlesource.com/85999
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go_spec.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

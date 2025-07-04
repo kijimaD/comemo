@@ -1,33 +1,40 @@
-commit 7e32d8d10b3a8d29165415437ffcc210f914b7cc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 14 06:19:07 2023 +0000
+commit d9f23cfe78eadcdbde31fd931e90bebb72455648
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 4 12:31:23 2023 -0500
 
-    cmd/trace: factor out durationHistogram
+    runtime/pprof: improve output of TestLabelSystemstack
     
-    This code will be useful for the new tracer, and there's no need to
-    duplicate it. This change copies it to internal/trace/traceviewer, adds
-    some comments, and renames it to TimeHistogram.
+    The current output of TestLabelSystemstack is a bit cryptic. This CL
+    improves various messages and hopefully simplifies the logic in the
+    test.
     
-    While we're here, let's get rid of the unused String method which has a
-    comment talking about how awful the rendering is.
+    Simplifying the logic leads to three changes in possible outcomes,
+    which I verified by running the logic before and after this change
+    through all 2^4 possibilities (https://go.dev/play/p/bnfb-OQCT4j):
     
-    Also, let's get rid of uses of niceDuration. We'd have to bring it
-    with us in the move and I don't think it's worth it. The difference
-    between the default time.Duration rendering and the niceDuration
-    rendering is usually a few extra digits of precision. Yes, it's noisier,
-    but AFAICT it's not substantially worse. It doesn't seem worth the new
-    API, even if it's just internal. We can also always bring it back later.
+    1. If a sample both must be labeled and must not be labeled, the test
+    now reports that explicitly rather than giving other confusing output.
     
-    For #60773.
-    For #63960.
+    2. If a sample must not be labeled but is, the current logic will
+    print two identical error messages. The new logic prints only one.
     
-    Change-Id: I795f58f579f1d503c540c3a40bed12e52bce38e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542001
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    3. If the test finds no frames at all that it recognizes, but the
+    sample is labeled, it will currently print a confusing "Sample labeled
+    got true want false" message. The new logic prints nothing. We've seen
+    this triggered by empty stacks in profiles.
+    
+    Fixes #51550. This bug was caused by case 3 above, where it was
+    triggered by a profile label on an empty stack. It's valid for empty
+    stacks to appear in a profile if we sample a goroutine just as it's
+    exiting (and that goroutine may have a profile label), so the test
+    shouldn't fail in this case.
+    
+    Change-Id: I1593ec4ac33eced5bb89572a3ba7623e56f2fb3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460516
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/trace/annotations.go                | 127 ++--------------------------
- src/cmd/trace/goroutines.go                 |   2 +-
- src/internal/trace/traceviewer/histogram.go |  86 +++++++++++++++++++
- 3 files changed, 94 insertions(+), 121 deletions(-)
+ src/runtime/pprof/pprof_test.go | 46 +++++++++++++++++++++++------------------
+ 1 file changed, 26 insertions(+), 20 deletions(-)

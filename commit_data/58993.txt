@@ -1,36 +1,21 @@
-commit 01688daca63c3775f07f908268af99bd3d3c9386
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Wed Feb 19 12:39:32 2025 -0500
+commit 702d609a31f02007b471c072b633fa4238554022
+Author: pgxiaolianzi <gnnu_d13@163.com>
+Date:   Tue Jan 30 16:05:21 2024 +0000
 
-    crypto/tls: support bogo -wait-for-debugger
+    log/slog: add missing test in value_test.go
     
-    When this command line flag is provided to the BoGo runner it will:
+    TestValueEqual: Added test cases for DurationValue, StringValue, and TimeValue types.
     
-    * Disable some timeouts
-    * Limit concurrency to 1 worker at a time
-    * Pass the -wait-for-debugger flag to the shim process
-    * Print the PID of the shim process to status output
+    TestValueAny: Added a test case for string values.
     
-    On the shim-side, we need to react to -wait-for-debugger by sending
-    ourselves a SIGSTOP signal. When a debugger attaches to the shim the
-    process will be resumed.
-    
-    This makes it possible to debug both the runner side and the shim side
-    of a BoGo interaction without resorting to print style debugging.
-    
-    Since SIGSTOP is not a signal we can use on Windows this functionality
-    is limited to unix builds.
-    
-    Updates #72006
-    
-    Change-Id: Iafa08cf71830cdfde3e6ee4826914236e3cd7e57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650737
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I74ef15bcfcacd0bf5d990debd24846283edf1ecd
+    GitHub-Last-Rev: 6adb9f6f3147f0c655789b3bc86336a5c89a1b44
+    GitHub-Pull-Request: golang/go#65303
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558755
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/tls/bogo_shim_notunix_test.go | 11 +++++++++++
- src/crypto/tls/bogo_shim_test.go         |  8 ++++++++
- src/crypto/tls/bogo_shim_unix_test.go    | 18 ++++++++++++++++++
- 3 files changed, 37 insertions(+)
+ src/log/slog/value_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

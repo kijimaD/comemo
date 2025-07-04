@@ -1,16 +1,14 @@
-commit 57879fea4605b616aeeea144cfd7d2d09c14226a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Jan 2 16:16:49 2019 -0500
+commit 5e755e9d6d9d5ab1268dc7c2d18a08b543d988c9
+Author: Erin Masatsugu <erin.masatsugu@gmail.com>
+Date:   Thu Aug 30 18:27:07 2018 +0000
 
-    cmd/compile: fix format test
+    bytes: add example for Buffer.Len
     
-    CL 156019 adds some debug output, including printing ssa.relation
-    as string. Update the map.
-    
-    Change-Id: I0299d2008d199da10d86e5b47a50385b3a314c68
-    Reviewed-on: https://go-review.googlesource.com/c/156020
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ide50aba940727a7b32cd33dea5315050f1a34717
+    Reviewed-on: https://go-review.googlesource.com/132237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/fmtmap_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/bytes/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,17 +1,48 @@
-commit 92bdbb8a3c8a5a6535d1eb3b2021824662ccaf33
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 13 12:59:33 2015 -0700
+commit 181e26b9fa3c85ca5a512a51278b3f22f6e64dc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 00:21:30 2015 -0400
 
-    text/template: need to validate type when an argument is a function call
+    runtime: replace func-based write barrier skipping with type-based
     
-    Missed a case; just need to call validateType.
+    This CL revises CL 7504 to use explicitly uintptr types for the
+    struct fields that are going to be updated sometimes without
+    write barriers. The result is that the fields are now updated *always*
+    without write barriers.
     
-    Fixes #10800.
+    This approach has two important properties:
     
-    Change-Id: I81997ca7a9feb1be31c8b47e631b32712d7ffb86
-    Reviewed-on: https://go-review.googlesource.com/10031
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    1) Now the GC never looks at the field, so if the missing reference
+    could cause a problem, it will do so all the time, not just when the
+    write barrier is missed at just the right moment.
+    
+    2) Now a write barrier never happens for the field, avoiding the
+    (correct) detection of inconsistent write barriers when GODEBUG=wbshadow=1.
+    
+    Change-Id: Iebd3962c727c0046495cc08914a8dc0808460e0e
+    Reviewed-on: https://go-review.googlesource.com/9019
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/exec.go      | 2 +-
- src/text/template/exec_test.go | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go          |   4 +-
+ src/runtime/mbarrier.go        |   6 +-
+ src/runtime/netpoll.go         |  22 ++-
+ src/runtime/netpoll_epoll.go   |  12 +-
+ src/runtime/netpoll_kqueue.go  |  11 +-
+ src/runtime/netpoll_solaris.go |  12 +-
+ src/runtime/netpoll_windows.go |  11 +-
+ src/runtime/os1_windows.go     |   3 +-
+ src/runtime/os3_plan9.go       |   2 +-
+ src/runtime/panic.go           |   4 +-
+ src/runtime/proc.go            |   4 +-
+ src/runtime/proc1.go           | 315 ++++++++++++++++++++---------------------
+ src/runtime/runtime2.go        | 101 +++++++------
+ src/runtime/signal_386.go      |   2 +-
+ src/runtime/signal_amd64x.go   |   2 +-
+ src/runtime/signal_arm.go      |   2 +-
+ src/runtime/signal_arm64.go    |   2 +-
+ src/runtime/signal_ppc64x.go   |   2 +-
+ src/runtime/stack1.go          |   4 +-
+ src/runtime/trace.go           |   6 +-
+ src/runtime/traceback.go       |   2 +-
+ 21 files changed, 257 insertions(+), 272 deletions(-)

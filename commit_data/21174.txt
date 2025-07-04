@@ -1,21 +1,16 @@
-commit 949dd102229453f8fb55816ea9c33fc762324780
+commit 04923042bd402def7f48663a165d759d1fdbf15d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 6 13:46:13 2015 -0500
+Date:   Sat Nov 22 13:55:33 2014 -0500
 
-    misc/cgo: disable TestAllocateFromC in wbshadow mode
+    image/jpeg: handle Read returning n > 0, err != nil in d.fill
     
-    This test is doing pointer graph manipulation from C, and we
-    cannot support that with concurrent GC. The wbshadow mode
-    correctly diagnoses missing write barriers.
+    Fixes #9127.
     
-    Disable the test in that mode for now. There is a bigger issue
-    behind it, namely SWIG, but for now we are focused on making
-    all.bash pass with wbshadow enabled.
-    
-    Change-Id: I55891596d4c763e39b74082191d4a5fac7161642
-    Reviewed-on: https://go-review.googlesource.com/2346
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=r
+    R=bradfitz, r
+    CC=golang-codereviews, nigeltao
+    https://golang.org/cl/178120043
 
- misc/cgo/test/callback.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/image/jpeg/reader.go      |  3 +++
+ src/image/jpeg/reader_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

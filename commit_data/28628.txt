@@ -1,22 +1,24 @@
-commit 38f1df66ff231458a81cb07e7b147f30854b45d4
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 9 10:22:10 2016 -0400
+commit 93b8aab5c992faa447893872df4f69c81444f37d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 31 14:01:34 2016 -0400
 
-    runtime: make gcDumpObject useful on stack frames
+    [dev.ssa] cmd/compile: handle GetG on ARM
     
-    gcDumpObject is often used on a stack pointer (for example, when
-    checkmark finds an unmarked object on the stack), but since stack
-    spans don't have an elemsize, it doesn't print any of the memory from
-    the frame. Make it at least slightly more useful by printing
-    everything between obj and obj+off (inclusive). While we're here, also
-    print out the span state.
+    Use hardware g register (R10) for GetG, allow g to appear at LHS of
+    some ops.
     
-    Change-Id: I51be064ea8791b4a365865bfdc7afa7b5aaecfbd
-    Reviewed-on: https://go-review.googlesource.com/30142
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Progress on SSA backend for ARM. Now everything compiles and runs.
+    
+    Updates #15365.
+    
+    Change-Id: Icdf93585579faa86cc29b1e17ab7c90f0119fc4e
+    Reviewed-on: https://go-review.googlesource.com/23952
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mgcmark.go | 17 +++++++++++++++--
- src/runtime/mheap.go   |  9 +++++++++
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |   4 +-
+ src/cmd/compile/internal/ssa/config.go     |   3 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  46 ++++----
+ src/cmd/compile/internal/ssa/lower.go      |   5 +
+ src/cmd/compile/internal/ssa/opGen.go      | 181 ++++++++++++++---------------
+ src/cmd/compile/internal/ssa/regalloc.go   |  27 +++++
+ 6 files changed, 151 insertions(+), 115 deletions(-)

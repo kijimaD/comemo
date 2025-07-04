@@ -1,22 +1,25 @@
-commit c71b5ff76a1b1d79b53e268b83fb721e0af4614b
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Sep 3 14:51:01 2024 +0000
+commit 446783960277251fcb837f3672f377469d204918
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 10 11:56:53 2023 -0400
 
-    cmd/go: print toolchain switching with GODEBUG=toolchaintrace
+    time: make time.Since a few nanoseconds faster
     
-    This CL introduces the ability to print information about the toolchain switch used in the
-    go command, controlled by the `toolchaintrace` setting. This setting defaults to `toolchaintrace=0`,
-    meaning no information is printed. Setting it to `toolchaintrace=1` will cause the go command
-    to print a message indicating the toolchain used and where it was found.
+    time.Since(base) is an idiom that can be used to read the system
+    monotonic time as efficiently as possible, when that matters.
+    The current code structure adds a few nanoseconds on top of
+    the 15-20ns the time read already takes. Remove those few.
     
-    Fixes: #63939
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: Idc58e3d5bc76573aa48e1f7df352caa13004c25e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610235
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    After this CL, there is no reason at all for anyone to
+    //go:linkname runtime.nanotime1 instead.
+    
+    Came up while investigating #61765.
+    
+    Change-Id: Ic9e688af039babfc2a5a8e67dcbb02847a5eb686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518336
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/go/internal/toolchain/exec.go              |   8 ++
- src/cmd/go/internal/toolchain/select.go            |  30 +++++
- .../testdata/script/gotoolchain_godebug_trace.txt  | 122 +++++++++++++++++++++
- 3 files changed, 160 insertions(+)
+ src/time/time.go | 29 ++++++++++++++---------------
+ 1 file changed, 14 insertions(+), 15 deletions(-)

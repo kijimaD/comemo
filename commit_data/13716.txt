@@ -1,33 +1,17 @@
-commit a72bebf6e1a5eafd8347fb84e60155e2b9cdb6d7
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Fri Aug 31 13:21:13 2012 -0400
+commit e29659b3c30a79cdbd61ac6b68d5cead57ef2de7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 12:16:31 2012 -0400
 
-    src: Add support for 64-bit version of Plan 9
+    net/http: add (*ServeMux).Handler method
     
-    This set of changes extends the Plan 9 support
-    to include the AMD64 architecture and should
-    work on all versions of Plan 9.
+    The Handler method makes the ServeMux dispatch logic
+    available to wrappers that enforce additional constraints
+    on requests.
     
-    R=golang-dev, rminnich, noah.evans, rsc, minux.ma, npe
-    CC=akskuma, golang-dev, jfflore, noah.evans
-    https://golang.org/cl/6479052
+    R=golang-dev, bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6450165
 
- include/plan9/amd64/u.h                 |  14 ++
- src/cmd/6l/pass.c                       |   6 +-
- src/pkg/runtime/asm_amd64.s             |   4 +
- src/pkg/runtime/defs_plan9_386.h        |   1 +
- src/pkg/runtime/defs_plan9_amd64.h      |   3 +
- src/pkg/runtime/mem_plan9.c             |   5 +-
- src/pkg/runtime/os_plan9.h              |   2 +-
- src/pkg/runtime/rt0_plan9_amd64.s       |  13 ++
- src/pkg/runtime/signal_plan9_amd64.c    |  19 +++
- src/pkg/runtime/sys_plan9_amd64.s       | 124 +++++++++++++++++
- src/pkg/syscall/asm_plan9_amd64.s       | 166 ++++++++++++++++++++++
- src/pkg/syscall/syscall_plan9.go        |   2 -
- src/pkg/syscall/syscall_plan9_386.go    |   2 +
- src/pkg/syscall/syscall_plan9_amd64.go  |   7 +
- src/pkg/syscall/zerrors_plan9_amd64.go  |  39 ++++++
- src/pkg/syscall/zsyscall_plan9_amd64.go | 239 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsysnum_plan9_amd64.go  |  47 +++++++
- src/pkg/syscall/ztypes_plan9_amd64.go   |  75 ++++++++++
- 18 files changed, 761 insertions(+), 7 deletions(-)
+ src/pkg/net/http/server.go      | 58 ++++++++++++++++---------
+ src/pkg/net/http/server_test.go | 95 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+), 20 deletions(-)

@@ -1,23 +1,22 @@
-commit 06264b740e3bfe619f5e90359d8f0d521bd47806
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Mar 21 20:39:45 2023 -0400
+commit 473c99643f3da2b02949554a66d8582c926ed725
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 7 17:51:05 2022 +0000
 
-    log/slog/internal/benchmarks: slog benchmarks
+    runtime: rewrite pacer max trigger calculation
     
-    Add a suite of benchmarks for the LogAttrs method, which is intended
-    to be fast.
+    Currently the maximum trigger calculation is totally incorrect with
+    respect to the comment above it and its intent. This change rectifies
+    this mistake.
     
-    Updates #56345.
+    For #48409.
     
-    Change-Id: If43f9f250bd588247c539bed87f81be7f5428c6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478200
+    Change-Id: Ifef647040a8bdd304dd327695f5f315796a61a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398834
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/build/deps_test.go                          |   2 +-
- src/log/slog/internal/benchmarks/benchmarks.go     |  50 +++++++
- .../slog/internal/benchmarks/benchmarks_test.go    | 152 +++++++++++++++++++++
- src/log/slog/internal/benchmarks/handlers.go       | 147 ++++++++++++++++++++
- src/log/slog/internal/benchmarks/handlers_test.go  |  42 ++++++
- 5 files changed, 392 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go   |   1 +
+ src/runtime/mgcpacer.go      |  16 +++---
+ src/runtime/mgcpacer_test.go | 119 ++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 126 insertions(+), 10 deletions(-)

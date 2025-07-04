@@ -1,16 +1,17 @@
-commit 3f1954175231156ce57a67938a58511e242c2213
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Dec 18 16:30:46 2014 +1100
+commit 7739533f61616ba71ef691489c0eeab2a59bd9e9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 7 10:43:55 2014 -0500
 
-    runtime: use go generate for zcallback_windows.go
+    [dev.power64] 5g: fix mistaken bit-wise AND in regopt
     
-    replacement for CL 180640043
+    Replace a bit-wise AND with a logical one.  This happened to
+    work before because bany returns 0 or 1, but the intent here
+    is clearly logical (and this makes 5g match with 6g and 8g).
     
-    Change-Id: I8ff36645cfcbbda338faf7b29cbfdb95c47d5ec4
-    Reviewed-on: https://go-review.googlesource.com/1765
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/172850043
 
- src/runtime/runtime2_windows.go  |  8 --------
- src/runtime/wincallback.go       | 23 ++++++++++++++++++++++-
- src/runtime/zcallback_windows.go |  5 +++++
- 3 files changed, 27 insertions(+), 9 deletions(-)
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

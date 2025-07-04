@@ -1,0 +1,18 @@
+commit 5ebb4e282e72ac14d20a845601921739a072e953
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 15 15:53:13 2024 -0800
+
+    crypto/internal/fips/check: remove unreachable return
+    
+    return statement is immediately after a panic. This is unreachable
+    code and vet complains.
+    
+    Change-Id: I1e483a552b0d1d543414c1e173c1140aa32b5b26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/internal/fips/check/check.go | 1 -
+ 1 file changed, 1 deletion(-)

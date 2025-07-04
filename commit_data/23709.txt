@@ -1,25 +1,25 @@
-commit 2e4b6599541a92b76857ca546679a8d304730b10
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 14 22:17:41 2015 -0700
+commit 7529314ed37fdb94af2a25405edcb26ccb243b8e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 11:07:21 2015 -0400
 
-    cmd/compile: recognize embedded field in inlined function
+    runtime: use correct SP when installing stack barriers
     
-    There was already special code to recognize "?" in hidden_structdcl,
-    which is used for inlined types and variables.  This recognizes "?" in
-    structdcl as well, a case that arises when a struct type appears
-    within an inlined function body.
+    Currently the stack barriers are installed at the next frame boundary
+    after gp.sched.sp + 1024*2^n for n=0,1,2,... However, when a G is in a
+    system call, we set gp.sched.sp to 0, which causes stack barriers to
+    be installed at *every* frame. This easily overflows the slice we've
+    reserved for storing the stack barrier information, and causes a
+    "slice bounds out of range" panic in gcInstallStackBarrier.
     
-    Fixes #10219.
+    Fix this by using gp.syscallsp instead of gp.sched.sp if it's
+    non-zero. This is the same logic that gentraceback uses to determine
+    the current SP.
     
-    Change-Id: Ic5257ae54f817e0d4a189c2294dcd633c9f2101a
-    Reviewed-on: https://go-review.googlesource.com/12241
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #11049.
+    
+    Change-Id: Ie40eeee5bec59b7c1aa715a7c17aa63b1f1cf4e8
+    Reviewed-on: https://go-review.googlesource.com/10755
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.y   |  2 +-
- src/cmd/compile/internal/gc/y.go   |  2 +-
- test/fixedbugs/issue10219.dir/a.go | 24 ++++++++++++++++++++++++
- test/fixedbugs/issue10219.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue10219.dir/c.go | 12 ++++++++++++
- test/fixedbugs/issue10219.go       | 10 ++++++++++
- 6 files changed, 59 insertions(+), 2 deletions(-)
+ src/runtime/mgcmark.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

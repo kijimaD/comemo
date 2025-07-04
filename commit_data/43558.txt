@@ -1,31 +1,22 @@
-commit 5c1122b52895c1d7f2d41ea16d354bce636496d0
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Oct 27 11:03:21 2020 +0100
+commit 916ecbc731874bc33f116b0f62c60fc1d64d3841
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 13 12:11:23 2020 +0200
 
-    cmd/compile: delete isPowerOfTwo, switch to isPowerOfTwo64
+    internal/cpu: unify HWCap/HWCap2 comments
     
-    rewrite.go has two identical functions isPowerOfTwo and
-    isPowerOfTwo64; the former has been there for a while, while the
-    latter was added together with isPowerOfTwo{8,16,32} for use in typed
-    rules.
+    HWCap and HWCap2 are no longer linknamed into package runtime. Also,
+    merge two sentences both starting with "These are..." and don't mention
+    any file name where archauxv is defined, as it become outdated if
+    support for a new $GOOS/$GOARCH combination is added. This is e.g.
+    already the case for arm64, where archauxv is also defined for
+    freebsd/arm64.
     
-    This change deletes isPowerOfTwo and switch to using isPowerOfTwo64
-    everywhere.
-    
-    Change-Id: If26c94565d2393fac6f0ba117ee7ee2fc915f7cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265417
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9314a66633736b12e777869a832d8b79d442a6f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228057
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules  |   2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules  | 176 ++++++-------
- src/cmd/compile/internal/ssa/gen/MIPS.rules   |   6 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |   6 +-
- src/cmd/compile/internal/ssa/rewrite.go       |   7 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go  |   8 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 352 +++++++++++++-------------
- src/cmd/compile/internal/ssa/rewriteMIPS.go   |  12 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go |  12 +-
- 9 files changed, 289 insertions(+), 292 deletions(-)
+ src/internal/cpu/cpu_arm.go     | 5 ++---
+ src/internal/cpu/cpu_arm64.go   | 4 ++--
+ src/internal/cpu/cpu_mips64x.go | 4 ++--
+ src/internal/cpu/cpu_ppc64x.go  | 4 ++--
+ 4 files changed, 8 insertions(+), 9 deletions(-)

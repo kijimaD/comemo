@@ -1,13 +1,16 @@
-commit 5c6162cdd16d7d706342946c0f2a8a944f2796fe
-Author: Benjamin Black <b@b3k.us>
-Date:   Tue May 22 11:03:59 2012 -0400
+commit 5759c6022c7d5fe43357fc69b5b0b2eec28c01a9
+Author: Adam Langley <agl@golang.org>
+Date:   Tue May 22 10:33:14 2012 -0400
 
-    crypto/x509: Add ECDSA support
+    crypto/ecdsa: add full set of NIST test vectors.
     
-    R=golang-dev, agl, rsc
+    This includes the NIST test suite for ECDSA and alters the test to
+    parse and evaluate it.
+    
+    R=golang-dev, bradfitz, rsc, b
     CC=golang-dev
-    https://golang.org/cl/6208087
+    https://golang.org/cl/6219058
 
- src/pkg/crypto/x509/x509.go      | 144 +++++++++++++++++++++++++++++++++++----
- src/pkg/crypto/x509/x509_test.go | 111 ++++++++++++++++++++++++++++++
- 2 files changed, 241 insertions(+), 14 deletions(-)
+ src/pkg/crypto/ecdsa/ecdsa_test.go           | 256 ++++++++++++---------------
+ src/pkg/crypto/ecdsa/testdata/SigVer.rsp.bz2 | Bin 0 -> 95485 bytes
+ 2 files changed, 110 insertions(+), 146 deletions(-)

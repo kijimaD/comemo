@@ -1,22 +1,24 @@
-commit c3e0dc23fbca3ad168502f688e7c3f1882f62b73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 1 14:46:59 2016 -0700
+commit 141f1a0e24836abbc85933787025edef260fe1f0
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 4 03:49:02 2016 -0700
 
-    go/importer: handle multiple imports of the same object
+    encoding/hex: implement examples using all exported functions
     
-    Before aliases, and because we chose a simple export format for them,
-    a package may now export the same object more than once if there are
-    multiple exported aliases referring to that object. The go/importer
-    made the assumption this couldn't happen. Adjust it.
+    Fixes #11254.
+    Updates #16360.
     
-    Fixes #17726.
+    Implements examples using all exported functions.
     
-    Change-Id: Ibb9fc669a8748200b45ad78934d7453e5a5aad82
-    Reviewed-on: https://go-review.googlesource.com/32538
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    This CL also updates Decode documentation to
+    state that only hexadecimal characters are accepted
+    in the source slice src, but also that the length
+    of src must be even.
+    
+    Change-Id: Id016a4ba814f940cd300f26581fb4b9d2aded306
+    Reviewed-on: https://go-review.googlesource.com/28482
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gcimporter/bimport.go | 62 ++++++++++++++++++++++++++---------
- src/go/types/api_test.go              | 11 ++++---
- src/go/types/testdata/alias.go        |  3 +-
- 3 files changed, 56 insertions(+), 20 deletions(-)
+ src/encoding/hex/example_test.go | 98 ++++++++++++++++++++++++++++++++++++++++
+ src/encoding/hex/hex.go          |  7 +--
+ 2 files changed, 102 insertions(+), 3 deletions(-)

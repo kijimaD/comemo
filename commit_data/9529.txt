@@ -1,28 +1,32 @@
-commit 219c9e9c46a732add952923ed3fdb5316aba8674
+commit 65276933cd70115fffbaa2ef877f97745af069ea
 Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Aug 29 09:34:59 2011 -0400
+Date:   Mon Aug 29 09:34:52 2011 -0400
 
-    6g: fix build on Plan 9
+    5g: fix build on Plan 9
     
-    src/cmd/6g/cgen.c
-    src/cmd/6g/gobj.c
-    src/cmd/6g/reg.c
+    5g/cgen.c:
+    . USED(n4) as it is only mentioned in unreachable code later;
     . dropped unused assignments;
-    src/cmd/6g/gg.h
+    . commented out unreachable code;
+    5g/cgen64.c:
+    5g/ggen.c:
+    . dropped unused assignments of function return value;
+    5g/gg.h:
     . added varargck pragmas;
-    src/cmd/6g/list.c
-    . adjusted print format for ulong casts;
-    src/cmd/6g/peep.c
-    . dropped redundant increment;
+    5g/peep.c:
+    . USED(p1) used only in unreacheable code;
+    . commented out unreachable code;
+    5g/reg.c:
+    . dropped unused assignment;
     
-    R=golang-dev
-    CC=golang-dev, rsc
-    https://golang.org/cl/4953049
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4953048
 
- src/cmd/6g/cgen.c | 4 ----
- src/cmd/6g/gg.h   | 2 ++
- src/cmd/6g/gobj.c | 1 -
- src/cmd/6g/list.c | 2 +-
- src/cmd/6g/peep.c | 1 -
- src/cmd/6g/reg.c  | 1 -
- 6 files changed, 3 insertions(+), 8 deletions(-)
+ src/cmd/5g/cgen.c   | 11 +++++------
+ src/cmd/5g/cgen64.c | 10 +++++-----
+ src/cmd/5g/gg.h     |  3 +++
+ src/cmd/5g/ggen.c   |  2 +-
+ src/cmd/5g/peep.c   |  8 +++++++-
+ src/cmd/5g/reg.c    |  1 -
+ 6 files changed, 21 insertions(+), 14 deletions(-)

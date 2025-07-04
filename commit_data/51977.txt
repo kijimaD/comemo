@@ -1,55 +1,17 @@
-commit ae2f1201ed446dcea172173a5f48a35b6fd9e40a
-Author: David Chase <drchase@google.com>
-Date:   Thu Feb 9 13:04:21 2023 -0500
+commit 9038c244983e66294781f83e30239623a08672f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 15:30:37 2022 -0700
 
-    vendor, cmd/vendor: update standard library dependencies
+    go/types, types2: better index-out-of-bounds error message (cleanup)
     
-    Change-Id: I6facfae14e850f6c9bf3bcb53489c8b475bbb860
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467297
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Use the 1.17 compiler error message, sans "array" prefix.
+    
+    Change-Id: I0e70781c5ff02dca30a2004ab4d0ea82b0849eae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396296
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go.mod                                     |  10 +-
- src/cmd/go.sum                                     |  20 +-
- .../golang.org/x/arch/ppc64/ppc64asm/field.go      |   2 +-
- .../vendor/golang.org/x/arch/x86/x86asm/decode.go  |   2 +-
- .../vendor/golang.org/x/mod/sumdb/dirhash/hash.go  |   5 +-
- src/cmd/vendor/golang.org/x/mod/zip/zip.go         |   3 +-
- .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   1 +
- .../golang.org/x/sys/unix/syscall_freebsd.go       |  19 ++
- .../golang.org/x/sys/unix/syscall_freebsd_386.go   |  10 +-
- .../golang.org/x/sys/unix/syscall_freebsd_amd64.go |  10 +-
- .../golang.org/x/sys/unix/syscall_freebsd_arm.go   |  10 +-
- .../golang.org/x/sys/unix/syscall_freebsd_arm64.go |  10 +-
- .../x/sys/unix/syscall_freebsd_riscv64.go          |  10 +-
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   1 +
- .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   2 +-
- src/cmd/vendor/golang.org/x/sys/unix/timestruct.go |   2 +-
- src/cmd/vendor/golang.org/x/sys/unix/xattr_bsd.go  |   9 +-
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   1 +
- .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  11 +
- .../golang.org/x/sys/unix/ztypes_freebsd_386.go    |   2 +-
- .../golang.org/x/sys/unix/ztypes_freebsd_amd64.go  |   2 +-
- .../golang.org/x/sys/unix/ztypes_freebsd_arm.go    |   2 +-
- .../golang.org/x/sys/unix/ztypes_freebsd_arm64.go  |   2 +-
- .../x/sys/unix/ztypes_freebsd_riscv64.go           |   2 +-
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  35 +++
- .../golang.org/x/sys/windows/syscall_windows.go    |   3 +
- .../golang.org/x/sys/windows/types_windows.go      |  85 +++++++
- .../golang.org/x/sys/windows/zsyscall_windows.go   |  27 +++
- .../go/analysis/internal/analysisflags/flags.go    |   7 +-
- .../analysis/passes/ifaceassert/parameterized.go   |   1 +
- .../x/tools/go/ast/inspector/inspector.go          |  68 ++++--
- .../golang.org/x/tools/internal/facts/imports.go   |  23 +-
- src/cmd/vendor/modules.txt                         |  10 +-
- src/go.mod                                         |   8 +-
- src/go.sum                                         |  16 +-
- src/net/http/h2_bundle.go                          | 269 ++++++++++++---------
- src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |   2 +-
- .../golang.org/x/crypto/cryptobyte/builder.go      |   9 +-
- src/vendor/golang.org/x/net/http2/hpack/hpack.go   |   2 +-
- src/vendor/golang.org/x/net/nettest/nettest.go     |  40 +--
- .../golang.org/x/text/unicode/norm/forminfo.go     |   2 +-
- src/vendor/modules.txt                             |   8 +-
- 42 files changed, 515 insertions(+), 248 deletions(-)
+ src/cmd/compile/internal/types2/index.go | 6 +-----
+ src/go/types/index.go                    | 2 +-
+ test/fixedbugs/issue13365.go             | 2 +-
+ 3 files changed, 3 insertions(+), 7 deletions(-)

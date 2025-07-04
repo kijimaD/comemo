@@ -1,15 +1,17 @@
-commit 107a6ef41f3518aba8d791cdb11bb5e63a2e16b9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 4 19:40:38 2016 +0000
+commit f4b4d2f4d9f574fe34b826bf0e6784956a247687
+Author: Edward Muller <edwardam@interlix.com>
+Date:   Sun Oct 25 14:04:48 2015 -0700
 
-    net/http: document Request.Header and Request.Close more
+    time: _2006 is a literal _, followed by 2006
     
-    Updates #14227
+    Otherwise _2006 is treated as _2 and then an error.
     
-    Change-Id: If39f11471ecd307c9483f64e73f9c89fe906ae71
-    Reviewed-on: https://go-review.googlesource.com/19222
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #11334
+    
+    Change-Id: I40a385b45e279e9f4538bf419baab72781cdb215
+    Reviewed-on: https://go-review.googlesource.com/16311
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/request.go | 40 +++++++++++++++++++++++++++-------------
- 1 file changed, 27 insertions(+), 13 deletions(-)
+ src/time/format.go      |  6 +++++-
+ src/time/format_test.go | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

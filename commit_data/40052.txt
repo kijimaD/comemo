@@ -1,12 +1,21 @@
-commit 740d2c8c2250355d22a7c70698f55eeb6894d1ce
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Thu Sep 19 22:34:06 2019 +0200
+commit d3a23874affca830033dee2a7a5a816bedebf55a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 15 09:25:23 2019 -0700
 
-    cmd/compile: adjust top-level documentation of poset
+    cmd/link: clean up pclntab
     
-    Change-Id: I29e24c734e5e0041008771c805a0285aac3e02e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196598
-    Reviewed-by: David Chase <drchase@google.com>
+    More minor cleanup:
+    
+    * Code simplification
+    * Move variable declaration closer to use
+    * Add docs
+    * Refactor loop
+    
+    Change-Id: I6f662cb65038b6ad927eb83757b241ac1ef58943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172078
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/poset.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

@@ -1,17 +1,39 @@
-commit 516001f50ff3de9f7de2a0525bb771b509504e93
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Oct 17 10:54:44 2016 +0200
+commit 748aa84424418fb71c2528e7340df0ad6075b265
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 3 11:47:40 2016 -0400
 
-    net: skip TestReadTimeoutUnblocksRead on Plan 9
+    [dev.ssa] cmd/internal/obj/arm64: fix encoding constant into some instructions
     
-    Deadlines aren't implemented on Plan 9 yet.
+    When a constant can be encoded in a logical instruction (BITCON), do
+    it this way instead of using the constant pool. The BITCON testing
+    code runs faster than table lookup (using map):
     
-    Updates #17477.
+    (on AMD64 machine, with pseudo random input)
+    BenchmarkIsBitcon-4     300000000                4.04 ns/op
+    BenchmarkTable-4        50000000                27.3 ns/op
     
-    Change-Id: I44ffdbef97276dfec56547e5189672b7da24bfc1
-    Reviewed-on: https://go-review.googlesource.com/31188
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    The equivalent C code of BITCON testing is formally verified with
+    model checker CBMC against linear search of the lookup table.
+    
+    Also handle cases when a constant can be encoded in a MOV instruction.
+    In this case, materializa the constant into REGTMP without using the
+    constant pool.
+    
+    When constants need to be added to the constant pool, make sure to
+    check whether it fits in 32-bit. If not, store 64-bit.
+    
+    Both legacy and SSA compiler backends are happy with this.
+    
+    Fixes #16226.
+    
+    Change-Id: I883e3069dee093a1cdc40853c42221a198a152b0
+    Reviewed-on: https://go-review.googlesource.com/26631
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/internal/obj/arm64/a.out.go   |   1 +
+ src/cmd/internal/obj/arm64/anames7.go |   1 +
+ src/cmd/internal/obj/arm64/asm7.go    | 358 ++++++++++++++++++++++++++--------
+ src/cmd/internal/obj/arm64/obj7.go    |  30 ++-
+ 4 files changed, 294 insertions(+), 96 deletions(-)

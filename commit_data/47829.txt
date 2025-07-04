@@ -1,17 +1,17 @@
-commit 2bdf34f3e86693264938d791a673a97011420eb2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 15 20:03:11 2021 -0800
+commit 10f883deb7462baad0c889d93fe867782c023bbe
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 11 17:19:59 2021 -0400
 
-    spec: clarify that comparable cannot be a union element
+    cmd/cgo: document generated cgo directives
     
-    For #49602.
+    This took me a while to figure out. Save the next person some trouble.
     
-    Change-Id: I0d3ff8f087dffb3409918494147fd1dceff7514d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372694
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifab2d426f67c21b08ef225c79125805a9008e578
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309336
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/cgo/out.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

@@ -1,16 +1,37 @@
-commit d05f31a3c5677467525241d4bacdb287f485d370
-Author: Shivansh Rai <shivansh@freebsd.org>
-Date:   Mon Jun 4 17:10:43 2018 +0530
+commit 30311e8860ed47ded091c17e1188c14b08553a95
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 18 12:35:34 2018 -0400
 
-    internal/poll: Avoid evaluating condition for an unreachable branch
+    cmd/compile: generate load without DS relocation for go.string on ppc64le
     
-    Change-Id: I868dcaf84767d631bc8f1b6ef6bcb3ec18047259
-    Reviewed-on: https://go-review.googlesource.com/116135
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Due to some recent optimizations related to the compare
+    instruction, DS-form load instructions started to be used
+    to load 8-byte go.strings. This can cause link time errors
+    if the go.string is not aligned to 4 bytes.
+    
+    For DS-form instructions, the value in the offset field must
+    be a multiple of 4. If the offset is known at the time the
+    rules are processed, a DS-form load will not be chosen. But for
+    go.strings, the offset is not known at that time, but a
+    relocation is generated indicating that the linker should fill
+    in the DS relocation. When the linker tries to fill in the
+    relocation, if the offset is not aligned properly, a link error
+    will occur.
+    
+    To fix this, when loading a go.string using MOVDload, the full
+    address of the go.string is generated and loaded into the base
+    register. Then the go.string is loaded with a 0 offset field.
+    
+    Added a testcase that reproduces this problem.
+    
+    Fixes #24799
+    
+    Change-Id: I6a154e8e1cba64eae290be0fbcb608b75884ecdd
+    Reviewed-on: https://go-review.googlesource.com/107855
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/poll/sendfile_bsd.go     | 3 +--
- src/internal/poll/sendfile_linux.go   | 3 +--
- src/internal/poll/sendfile_solaris.go | 3 +--
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go | 38 ++++++++++++++++++++++-
+ test/fixedbugs/issue24799.go          | 58 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 1 deletion(-)

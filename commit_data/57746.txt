@@ -1,23 +1,28 @@
-commit 87a89fa45130d4406fa4d9f0882b9c5014240d03
-Author: Shuo Wang <wangshuo@kylinos.cn>
-Date:   Wed Oct 23 01:52:14 2024 +0000
+commit 9a1136a65439ff63446a2302b635db289c8065db
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 24 14:40:14 2023 -0400
 
-    runtime: add the checkPtraceScope to skip certain tests
+    crypto/internal/edwards25519: shorten quick.Check tests in short mode
     
-    When the kernel parameter ptrace_scope is set to 2 or 3,
-    certain test cases in runtime-gdb_test.go will fail.
-    We should skip these tests.
+    The edwards25519 tests can be quite slow on platforms without a
+    well-optimized implementation, especially if the race detector is also
+    enabled. Since these tests aren't checking for specific inputs anyway,
+    the extra coverage of a more aggressive quick.Config does not seem
+    worth wasting extra time on slow CI builders and TryBots.
     
-    Fixes #69932
+    For #60109.
     
-    Change-Id: I685d1217f1521d7f8801680cf6b71d8e7a265188
-    GitHub-Last-Rev: 063759e04cfc5ea750ed1d381d8586134488a96b
-    GitHub-Pull-Request: golang/go#69933
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620857
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I530e75a0b76725585df5a2f5ded6705ab1b9da51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522715
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/runtime/runtime-gdb_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ .../internal/edwards25519/field/fe_alias_test.go   |  4 ++--
+ src/crypto/internal/edwards25519/field/fe_test.go  | 22 +++++++++++-------
+ .../internal/edwards25519/scalar_alias_test.go     |  2 +-
+ src/crypto/internal/edwards25519/scalar_test.go    | 26 +++++++++++++---------
+ .../internal/edwards25519/scalarmult_test.go       | 12 ++++------
+ 5 files changed, 37 insertions(+), 29 deletions(-)

@@ -1,18 +1,19 @@
-commit 753d56d3642eb83848aa39e65982a9fc77e722d7
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sun Feb 2 14:55:29 2020 +0900
+commit d9b8ffa51cf7cafe18107ec53a4ec3ceff15ce46
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 28 14:42:06 2019 -0400
 
-    syscall: release a js.Func object in fsCall
+    test/codegen: document -all_codegen option in README
     
-    A js.Func object in fsCall was created for each call but never
-    released. This CL fixes this.
+    It is useful to know about the -all_codegen option for running
+    codegen tests for all platforms. I was puzzling that some codegen
+    test was not failing on my local machine or on trybot, until I
+    found this option.
     
-    Change-Id: I2e2b504cbf4fb130b8cfe890a66d3a66aadf56a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217417
-    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    Change-Id: I062cf4d73f6a6c9ebc2258195779d2dab21bc36d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192101
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/syscall/fs_js.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ test/codegen/README | 6 ++++++
+ 1 file changed, 6 insertions(+)

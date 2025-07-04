@@ -1,18 +1,22 @@
-commit eed77574d029e8c8426195bc9e7267462f568a8a
-Author: Keith Randall <khr@golang.org>
-Date:   Sun May 8 08:32:07 2022 -0700
+commit c4cd76fbbbf0f8b89fee70783103b0c3abb68756
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 12:45:35 2021 -0400
 
-    cmd/compile: trying to linkname a method is not an ICE, just an error
+    [dev.typeparams] go/types: disallow "free" type parameter as RHS of a type declaration
     
-    Fixes #52774
+    This is a port of CL 332411 to go/types. methodset_test.go is similarly
+    updated.
     
-    Change-Id: I853f462146d10e44a35e5a8716d41f32b6052fd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404936
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
+    Change-Id: I332b1837a954acc9d3b7e0e2ad2bec3425f088f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335109
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/types/decl.go                           | 64 ++++++++++++++------------
+ src/go/types/methodset_test.go                 |  5 +-
+ src/go/types/testdata/examples/types.go2       | 50 ++++++++++++--------
+ src/go/types/testdata/fixedbugs/issue45639.go2 | 12 +++++
+ src/go/types/unify.go                          | 15 ++++--
+ 5 files changed, 90 insertions(+), 56 deletions(-)

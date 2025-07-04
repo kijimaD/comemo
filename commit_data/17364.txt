@@ -1,12 +1,14 @@
-commit 910a6faa93c6c003ff71ca40500ec03f5a54bd51
+commit 6383896feeafde38c50aa04fc87afc7faf8225c6
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 23 14:26:52 2013 +0900
+Date:   Fri Aug 23 13:13:43 2013 +0900
 
-    net: fix race in TestDNSThreadLimit
+    net: update doc on socket
     
-    R=golang-dev, bradfitz
+    Also makes variable names a bit cleaner.
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/13141045
+    https://golang.org/cl/12808047
 
- src/pkg/net/dialgoogle_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/sock_posix.go | 45 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 19 deletions(-)

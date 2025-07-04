@@ -1,14 +1,20 @@
-commit 477d7b166307916376dc94b6917597d768f102d3
-Author: Adam Langley <agl@golang.org>
-Date:   Tue May 22 10:17:39 2012 -0400
+commit 8f66d7dc32b2a2082babfd9829acbfdb5996a6c7
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue May 22 15:30:13 2012 +1000
 
-    crypto/ecdsa: fix case where p != 0 mod 8 and the hash length < p.
+    exp/html: adjust inSelectIM to match spec
     
-    I made a typo which breaks P-521.
+    Simplify the flow of control.
     
-    R=golang-dev, rsc
+    Handle EOF, null bytes, <html>, <input>, <keygen>, <textarea>, <script>.
+    
+    Pass 5 more tests.
+    
+    R=golang-dev, rsc, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6219057
+    https://golang.org/cl/6220062
 
- src/pkg/crypto/ecdsa/ecdsa.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/parse.go                 | 55 +++++++++++++++----------------
+ src/pkg/exp/html/testlogs/tests18.dat.log |  6 ++--
+ src/pkg/exp/html/testlogs/tests7.dat.log  |  4 +--
+ 3 files changed, 31 insertions(+), 34 deletions(-)

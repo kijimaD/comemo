@@ -1,24 +1,41 @@
-commit 32afcc94363e15ee2ef0cffec962191a15e73094
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jan 7 17:24:39 2021 +0000
+commit 60368c2477d2517d7d4d83412eba5420fdb81a2b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 29 11:09:50 2019 +0100
 
-    runtime/metrics: change unit on *-by-size metrics to match bucket unit
+    encoding/json: reuse values when decoding map elements
     
-    This change modifies the *-by-size metrics' units to be based off the
-    bucket's unit (bytes) as opposed to the unit of the counts (objects).
-    This convention is more in-line with distributions in other metrics
-    systems.
+    When we decode into a struct, each input key-value may be decoded into
+    one of the struct's fields. Particularly, existing data isn't dropped,
+    so that some sub-fields can be decoded into without zeroing all other
+    data.
     
-    Change-Id: Id3b68a09f52f0e1ff9f4346f613ae1cbd9f52f73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282352
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    However, decoding into a map behaved in the opposite way. Whenever a
+    key-value was decoded, it completely replaced the previous map element.
+    If the map contained any non-zero data in that key, it's dropped.
+    
+    Instead, try to reuse the existing element value if possible. If the map
+    element type is a pointer, and the value is non-nil, we can decode
+    directly into it. If it's not a pointer, make a copy and decode into
+    that copy, as map element values aren't addressable.
+    
+    This means we have to parse and convert the map element key before the
+    value, to be able to obtain the existing element value. This is fine,
+    though. Moreover, reporting errors on the key before the value follows
+    the input order more closely.
+    
+    Finally, add a test to explore the four combinations, involving pointer
+    and non-pointer, and non-zero and zero values. A table-driven test
+    wasn't used, as each case required different checks, such as checking
+    that the non-nil pointer case doesn't end up with a different pointer.
+    
+    Fixes #31924.
+    
+    Change-Id: I5ca40c9963a98aaf92f26f0b35843c021028dfca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179337
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/metrics.go             | 4 ++--
- src/runtime/metrics/description.go | 9 +++++++--
- src/runtime/metrics/doc.go         | 4 ++--
- src/runtime/metrics_test.go        | 8 ++++----
- 4 files changed, 15 insertions(+), 10 deletions(-)
+ src/encoding/json/decode.go      | 103 ++++++++++++++++++++++-----------------
+ src/encoding/json/decode_test.go |  54 ++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 45 deletions(-)

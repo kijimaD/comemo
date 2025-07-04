@@ -1,16 +1,20 @@
-commit 7bee8085daa9e8fef7e23c555d72c73ce96d2bfb
-Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
-Date:   Fri Sep 7 19:02:51 2018 +0700
+commit 4410934cbad454539312468aca276111c08f5582
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Thu Apr 26 14:23:54 2018 +0100
 
-    fmt: add example for Sprint
+    encoding/xml: fix valid character range
     
-    Updates #27376
+    Section 2.2 of the referenced spec http://www.xml.com/axml/testaxml.htm
+    defines 0xD7FF as a (sub)range boundary, not 0xDF77.
     
-    Change-Id: I9ce6541a95b5ecd13f3932558427de1f597df07a
-    Reviewed-on: https://go-review.googlesource.com/134036
+    Fixes #25172
+    
+    Change-Id: Ic5a3328cd46ef6474b8e93c4a343dcfba0e6511f
+    Reviewed-on: https://go-review.googlesource.com/109495
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/example_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/encoding/xml/xml.go      |  2 +-
+ src/encoding/xml/xml_test.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

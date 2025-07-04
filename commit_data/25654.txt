@@ -1,13 +1,22 @@
-commit 295ec4f6f8f1eb39ddb97933298351cd57b2b088
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jan 26 16:35:52 2016 +0900
+commit 7bb38f6e470995d54a8bac3a67f997efc1f60c69
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 12 15:35:50 2015 -0800
 
-    cmd/go/testdata: fix nits in test
+    runtime: replace tls0 with m0.tls
     
-    Change-Id: I85fa5e672a476098f8711dcbb5b20ea1a3fa630d
-    Reviewed-on: https://go-review.googlesource.com/18953
+    We're allocating TLS storage for m0 anyway, so might as well use it.
+    
+    Change-Id: I7dc20bbea5320c8ab8a367f18a9540706751e771
+    Reviewed-on: https://go-review.googlesource.com/16890
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/src/vend/hello/hello_test.go  | 2 +-
- src/cmd/go/testdata/src/vend/hello/hellox_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/asm_386.s           | 6 +++---
+ src/runtime/asm_amd64.s         | 4 ++--
+ src/runtime/asm_amd64p32.s      | 4 ++--
+ src/runtime/os1_windows.go      | 3 ---
+ src/runtime/rt0_linux_ppc64le.s | 3 ++-
+ src/runtime/runtime.go          | 2 --
+ 6 files changed, 9 insertions(+), 13 deletions(-)

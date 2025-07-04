@@ -1,18 +1,18 @@
-commit d086c5c81f6e19e1dce0a17d901fec071b9394ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 31 09:32:51 2018 -0700
+commit 7951d90bc6fab62b2baacdc985156c50f1063706
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Mon Jul 9 23:08:22 2018 +0300
 
-    cmd/go: don't pass empty string to ar when using -compiler=gccgo
+    cmd/compile/internal/ssa: fix partsByVarOffset.Less method
     
-    Correct error introduced in CL 145417 on non-AIX systems.
+    Fix duplicated index in LHS and RHS of the < operator.
     
-    Fixes #28511
+    Found using https://go-critic.github.io/overview#dupSubExpr-ref
     
-    Change-Id: I6624939061425af19faccedd271f465d1fe6b975
-    Reviewed-on: https://go-review.googlesource.com/c/146277
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9a5a40bbd436b32e8117579a01bc50afe3608c97
+    Reviewed-on: https://go-review.googlesource.com/122776
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/gccgo.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

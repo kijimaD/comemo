@@ -1,12 +1,19 @@
-commit f2f374d125312cd6f9c91581e85a80ee1f143cc1
-Author: Tormod Erevik Lea <tormodlea@gmail.com>
-Date:   Fri Sep 9 16:41:30 2016 +0200
+commit 9628e6fd1d1afeedce7c4b45454e0bc5cbd0d5ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 15:32:00 2016 -0700
 
-    reflect: update location of vet tool in comment
+    runtime/testdata/testprogcgo: fix Windows C compiler warning
     
-    Change-Id: Ic5160edbbca4a8ffc7c7e6246e34fae1978470fd
-    Reviewed-on: https://go-review.googlesource.com/28912
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Noticed and fix by Alex Brainman.
+    
+    Tested in https://golang.org/cl/23005 (which makes all compiler
+    warnings fatal during development)
+    
+    Fixes #15623
+    
+    Change-Id: Ic19999fce8bb8640d963965cc328574efadd7855
+    Reviewed-on: https://go-review.googlesource.com/23010
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/reflect/type.go | 2 +-
+ src/runtime/testdata/testprogcgo/threadpanic_windows.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

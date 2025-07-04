@@ -1,17 +1,14 @@
-commit 05ddb879c73bc0c84ed1a80864aaf27b4a3d032f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 2 12:56:29 2020 -0500
+commit 2a33f5368a4b246ef9656eac4229635d80b8ee2a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 14:24:30 2020 -0400
 
-    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH
+    [dev.link] cmd/link: use new reloc on Wasm
     
-    Broken during CL 267719.
-    
-    Change-Id: If5acb8231d3053c0e714a79c02cb56eaba6e74e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274854
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Icf4d075b64340964068ed038911a14194d241960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230977
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ld/main.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

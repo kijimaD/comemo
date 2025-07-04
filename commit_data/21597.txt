@@ -1,21 +1,33 @@
-commit 6e5cc1f1ac0c93471fc6b05a250b6f7ed0b02c58
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 12 15:39:29 2015 -0500
+commit 8128b0116decc3b33e37a35d8d83182e2a19b61d
+Author: Emil Hessman <emil@hessman.se>
+Date:   Wed Dec 31 06:27:31 2014 +0100
 
-    runtime: rename drainworkbuf and drainobjects
+    path/filepath: make Join handle UNC paths on Windows
     
-    drainworkbuf is now gcDrain, since it drains until there's
-    nothing left to drain.  drainobjects is now gcDrainN because it's
-    the bounded equivalent to gcDrain.
+    Unless the first element is a Universal Naming Convention (UNC)[0]
+    path, Join shouldn't create a UNC path on Windows.
     
-    The new names use the Go camel case convention because we have to
-    start somewhere.  The "gc" prefix is because we don't have runtime
-    packages yet and just "drain" is too ambiguous.
+    For example, Join inadvertently creates a UNC path on Windows when
+    told to join at least three non-empty path elements, where the first
+    element is `\` or `/`.
     
-    Change-Id: I88dbdf32e8ce4ce6c3b7e1f234664be9b76cb8fd
-    Reviewed-on: https://go-review.googlesource.com/4785
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    This CL prevents creation of a UNC path prefix when the first path
+    element isn't a UNC path.
+    
+    Since this introduces some amount of Windows-specific logic, Join is
+    moved to a per GOOS implementation.
+    
+    Fixes #9167.
+    
+    [0]: http://msdn.microsoft.com/en-us/library/gg465305.aspx
+    
+    Change-Id: Ib6eda597106cb025137673b33c4828df1367f75b
+    Reviewed-on: https://go-review.googlesource.com/2211
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/mgc.go | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/path/filepath/path.go         |  9 +++------
+ src/path/filepath/path_plan9.go   | 10 ++++++++++
+ src/path/filepath/path_test.go    | 28 ++++++++++++++++++++--------
+ src/path/filepath/path_unix.go    | 10 ++++++++++
+ src/path/filepath/path_windows.go | 37 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 80 insertions(+), 14 deletions(-)

@@ -1,12 +1,12 @@
-commit 81dbec12c8ee01848c0f3edb93149ab56adefc79
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 28 12:45:39 2012 +1100
+commit 48a2c50a18253a034fd85a7c75bd52ebf383a620
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 28 12:27:36 2012 +1100
 
-    misc/dist: it sucks hwhen you forget to fix typos
+    path/filepath: correct comment in EvalSymlinks
     
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/5937049
+    R=golang-dev, r
+    CC=golang-dev, hcwfrichter
+    https://golang.org/cl/5934046
 
- misc/dist/bindist.go | 2 +-
+ src/pkg/path/filepath/symlink_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,19 @@
-commit 2ede818ae0761fc57dc1b52b4c8673933a3ff3fa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 27 16:13:21 2013 -0700
+commit a85cfbd433646cba8227429854db59329414e223
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Aug 27 21:18:32 2013 +0200
 
-    net/http: document Request.Body more
+    cmd/gc: tag builtin error, byte, rune to avoid exporting them.
     
-    Fixes #6221
+    Fixes #5910.
+    Fixes #6260.
     
-    R=golang-dev, r
+    R=golang-dev, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/13289043
+    https://golang.org/cl/13257044
 
- src/pkg/net/http/request.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/gc/lex.c                     | 12 ++++++------
+ test/fixedbugs/bug460.dir/a.go       |  4 ++++
+ test/fixedbugs/bug460.dir/b.go       |  7 +++++--
+ test/fixedbugs/issue5910.dir/a.go    |  9 +++++++--
+ test/fixedbugs/issue5910.dir/main.go |  4 ++++
+ 5 files changed, 26 insertions(+), 10 deletions(-)

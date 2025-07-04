@@ -1,25 +1,34 @@
-commit 416676f4d9bb2e14bce4e396c2ce67d091264751
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 23 23:42:10 2018 +0000
+commit 562a199961c28741a93cf7a0365c0646da3ddb9f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 4 15:53:27 2018 -0700
 
-    net/http: deflake TestRetryRequestsOnError
+    cmd/compile: extract inline related fields into separate Inline type
     
-    There's a 50ms threshold in net/http.Transport that this test
-    sometimes hitting on slower devices. That was unrelated to what this
-    test was trying to test. So instead just t.Skip on RoundTrip errors
-    unless the failure was quick (under 25ms), in which case the error
-    must've been about something else. Our fast machines should catch
-    regressions there.
+    Inl, Inldcl, and InlCost are only applicable to functions with bodies
+    that can be inlined, so pull them out into a separate Inline type to
+    make understanding them easier.
     
-    Fixes #25366
+    A side benefit is that we can check if a function can be inlined by
+    just checking if n.Func.Inl is non-nil, which simplifies handling of
+    empty function bodies.
     
-    Change-Id: Ibe8e2716a5b68558b57d0b8b5c46f38e46a2cba2
-    Reviewed-on: https://go-review.googlesource.com/125555
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    While here, remove some unnecessary Curfn twiddling, and make imported
+    functions use Inl.Dcl instead of Func.Dcl for consistency for local
+    functions.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ifd4a80349d85d9e8e4484952b38ec4a63182e81f
+    Reviewed-on: https://go-review.googlesource.com/104756
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/export_test.go    | 2 ++
- src/net/http/transport.go      | 7 ++++++-
- src/net/http/transport_test.go | 9 ++++++++-
- 3 files changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go     |  6 +--
+ src/cmd/compile/internal/gc/bimport.go     | 22 ++++------
+ src/cmd/compile/internal/gc/inl.go         | 66 ++++++++++++++----------------
+ src/cmd/compile/internal/gc/main.go        |  2 +-
+ src/cmd/compile/internal/gc/pgen.go        |  9 +---
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      | 18 ++++++--
+ 7 files changed, 61 insertions(+), 64 deletions(-)

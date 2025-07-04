@@ -1,14 +1,16 @@
-commit 08347648a6261fddc259fd846cf565a03875416a
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Sep 8 11:11:19 2017 -0400
+commit 8f36668178d07e6f1b979252c1c68ebe788d14be
+Author: Tom Bergan <tombergan@google.com>
+Date:   Thu May 11 10:13:10 2017 -0700
 
-    test: add test that caused gccgo incorrect compilation
+    net/http: for http2, use the priority write scheduler by default
     
-    Updates #21770
+    Updates #18318
     
-    Change-Id: Ic31c3bdae30797f406f25c737b83bbe2de1ed1da
-    Reviewed-on: https://go-review.googlesource.com/62331
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibd4ebc7708abf87eded8da9661378b5777b8a400
+    Reviewed-on: https://go-review.googlesource.com/43231
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue21770.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/net/http/server.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,18 +1,16 @@
-commit cc2e7f36bad66c24eecf7868e7ac35c74455b212
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 10 23:40:10 2022 -0500
+commit 60f16d7f19c2787e22bda198b7595035c1702f06
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu May 20 17:42:06 2021 -0400
 
-    cmd/go: diagnose unset GOROOT when built with -trimpath
+    [dev.fuzz] internal/fuzz: remove old TODO
     
-    For #51483
-    
-    Change-Id: I4546c20cf968b595020a1eba888fe1d9a1c6cfc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391811
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Bryan Mills <bcmills@google.com>
+    Change-Id: I997934ebcde0dee9017c85a0572597855d73cf64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321569
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/cfg/cfg.go                       |  5 ++++-
- src/cmd/go/main.go                                   |  4 ++++
- src/cmd/go/script_test.go                            | 12 ++++++++++++
- src/cmd/go/testdata/script/build_trimpath_goroot.txt |  9 +++++++--
- 4 files changed, 27 insertions(+), 3 deletions(-)
+ src/internal/fuzz/worker.go | 4 ----
+ 1 file changed, 4 deletions(-)

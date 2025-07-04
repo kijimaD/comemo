@@ -1,15 +1,24 @@
-commit 2f4ce69ddd98788cc281626bac4accc66880f356
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:28:12 2017 -0700
+commit 4e9874f86e24381fa4305f939d78ed857fe416ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 14:34:38 2017 -0500
 
-    cmd/compile: remove excessive whitespace in needkeyupdate
+    net/rpc: fix aliasing in TestAcceptExitAfterListenerClose
     
-    Passes toolstash-check.
+    TestRPC writes to newServer and newServerAddr guarded with a
+    sync.Once.
+    TestAcceptExitAfterListenerClose was overwriting those variables,
+    which caused the second invocation of TestRPC within a single process
+    to fail.
     
-    Change-Id: I5309125e0da65a5f240e53472b1c911252f0a472
-    Reviewed-on: https://go-review.googlesource.com/41403
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    A second invocation can occur as a result of running the test with
+    multiple values for the -cpu flag.
+    
+    fixes #19001.
+    
+    Change-Id: I291bacf44aefb49c2264ca0290a28248c026f80e
+    Reviewed-on: https://go-review.googlesource.com/36624
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 23 +++--------------------
- 1 file changed, 3 insertions(+), 20 deletions(-)
+ src/net/rpc/server_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

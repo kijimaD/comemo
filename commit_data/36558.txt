@@ -1,22 +1,31 @@
-commit 8359b5e134052db0e5f1bc2257d496b0a81aa4fb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Aug 26 16:45:10 2018 +1000
+commit 4ebc67d334336561af5844d8105b5daa81591b04
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jan 29 21:40:57 2018 +0100
 
-    internal/poll: advance file position in windows sendfile
+    runtime: remove hmap field from maptypes
     
-    Some versions of Windows (Windows 10 1803) do not set file
-    position after TransmitFile completes. So just use Seek
-    to set file position before returning from sendfile.
+    The hmap field in the maptype is only used by the runtime to check the sizes of
+    the hmap structure created by the compiler and runtime agree.
     
-    Fixes #25722
+    Comments are already present about the hmap structure definitions in the
+    compiler and runtime needing to be in sync.
     
-    Change-Id: I7a49be10304b5db19dda707b13ac93d338aeb190
-    Reviewed-on: https://go-review.googlesource.com/131976
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Add a test that checks the runtimes hmap size is as expected to detect
+    when the compilers and runtimes hmap sizes diverge instead of checking
+    this at runtime when a map is created.
+    
+    Change-Id: I974945ebfdb66883a896386a17bbcae62a18cf2a
+    Reviewed-on: https://go-review.googlesource.com/91796
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/internal/poll/sendfile_windows.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/reflect.go |  2 --
+ src/cmd/link/internal/ld/decodesym.go  |  2 +-
+ src/reflect/type.go                    |  1 -
+ src/runtime/export_test.go             |  2 ++
+ src/runtime/map.go                     | 11 -----------
+ src/runtime/map_test.go                | 12 ++++++++++++
+ src/runtime/type.go                    |  1 -
+ 7 files changed, 15 insertions(+), 16 deletions(-)

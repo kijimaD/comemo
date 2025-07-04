@@ -1,16 +1,17 @@
-commit a4f3ff22056646a563fbde663ff56fce33b7773f
-Author: Aofei Sheng <aofei@aofeisheng.com>
-Date:   Thu Apr 22 15:26:20 2021 +0800
+commit fc981654c763c2c1d72df2a6e35ba3dfc78d13ee
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Sat Oct 17 00:25:58 2020 -0700
 
-    cmd/go: update TestScript/mod_convert
+    sort: fix grammar in updated Less comment
     
-    Fixes #45659
+    The rewritten comment didn't sound right to my ears. Tweak it to be
+    grammatically correct.
     
-    Change-Id: Ie7e07c9acfc500222c244464fbebfcc8e5b14c64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312629
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Iae7d9f8810fff78cfd964bb3117099bce4479c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263180
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/testdata/script/mod_convert.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

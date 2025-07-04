@@ -1,14 +1,19 @@
-commit b3dd32776b194e2b24bc47768624360452c04bd8
+commit dcf53189900b814925475b09770092d06f362ebc
 Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 6 15:21:56 2011 -0700
+Date:   Thu Oct 6 13:30:50 2011 -0700
 
-    template: fix comments with different delimiters.
+    template: add method Delims to allow alternate action delimiters.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5208042
+    https://golang.org/cl/5209045
 
- src/pkg/template/exec_test.go      | 17 ++++++++++++-----
- src/pkg/template/parse/lex.go      | 10 +++++-----
- src/pkg/template/parse/lex_test.go |  2 +-
- 3 files changed, 18 insertions(+), 11 deletions(-)
+ src/pkg/template/exec_test.go        | 58 +++++++++++++++++++++++++++++-------
+ src/pkg/template/parse.go            | 16 ++++++++--
+ src/pkg/template/parse/lex.go        | 42 ++++++++++++++++----------
+ src/pkg/template/parse/lex_test.go   | 40 +++++++++++++++++++++++--
+ src/pkg/template/parse/parse.go      |  7 +++--
+ src/pkg/template/parse/parse_test.go |  2 +-
+ src/pkg/template/parse/set.go        |  4 +--
+ src/pkg/template/set.go              | 14 ++++++++-
+ 8 files changed, 145 insertions(+), 38 deletions(-)

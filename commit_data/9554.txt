@@ -1,12 +1,14 @@
-commit 79260e5bfeff142244441978507307a68cee2e96
+commit 4fb3c4f765fce511bfbe674677147cc4d2ad9a8d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 30 09:00:33 2011 -0400
+Date:   Tue Aug 30 08:47:28 2011 -0400
 
-    dashboard: yet another utf-8 fix
+    gc: fix div bug
     
-    R=golang-dev, dsymonds
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4964052
+    https://golang.org/cl/4950052
 
- misc/dashboard/godashboard/gobuild.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6g/ggen.c        | 23 +++++++++++++++++------
+ src/cmd/8g/ggen.c        | 19 +++++++++++++++----
+ test/fixedbugs/bug366.go | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 69 insertions(+), 10 deletions(-)

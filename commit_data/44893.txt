@@ -1,30 +1,28 @@
-commit 3304b2235af0a88ba0bb21edaf2c60df47b6e0a8
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 31 16:40:52 2021 -0400
+commit 66e66e71132034aa620ffbae9008f951da0f9f27
+Author: Dominic Della Valle <ddvpublic@Gmail.com>
+Date:   Sun Sep 13 17:03:48 2020 +0000
 
-    cmd/compile: fix incoming ABI with GOEXPERIMENT=regabiargs
+    make.bat: fix compare between GOROOT and srcdir paths, when either contains whitespace.
     
-    When regabiargs is enabled, a function's incoming ABI should be
-    determined solely by the function's own definition ABI (which is
-    usually ABIInternal, but can be ABI0 for ABI wrappers).
+    CL 96455 brings CL 57753 to Windows
+    However, a path comparison within it was left unquoted.
+    If the Go source directory resides in a path containing whitespace,
+    the interpreter will compare against the first portion of the path string,
+    and treat the remainder as an expression.
+    This patch amends that.
     
-    For example, the current code miscompiles ABI0 -> ABIInternal wrappers
-    when the experiment is enabled because it treats the wrapper itself as
-    being called as ABIInternal. This causes it to assume the incoming
-    arguments are already in registers, so usually the wrapper doesn't do
-    anything with the arguments because it thinks they're already in the
-    right place. With this fix, these wrappers now correctly load the
-    arguments from the stack and put them in registers.
+    For example, consider the path
+    `C:\Users\Dominic Della Valle\Projects\Go\goroot\src`
+    Issuing `make.bat` will print out `'Della' is not recognized as an internal or external command, operable program or batch file.` before proceeding.
     
-    For #40724.
-    
-    Change-Id: Iec784e88ebc55d9e95e830ed7533aa336f3b1ca2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306409
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifcec159baeec940c29c61aa721c64c13c6fd8c14
+    GitHub-Last-Rev: 809ddbb4dbc80d834f8108ca44c2826016d78d1c
+    GitHub-Pull-Request: golang/go#41319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253898
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

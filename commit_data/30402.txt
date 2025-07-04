@@ -1,14 +1,16 @@
-commit bf584b15d6104661c272e2ab900c3d83d015b7d0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 24 21:52:37 2017 -0800
+commit 23e6e1124522267655b05a5f47f62fc99f0e56c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 12:18:00 2016 -0400
 
-    cmd/dist: ran mkdeps.bash
+    encoding/asn1: document that default:x tag only has meaning with optional tag
     
-    Change-Id: Iae9fe2db69c02cd442cba01a78820dc7c0fdda51
-    Reviewed-on: https://go-review.googlesource.com/37462
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #16712.
+    
+    Change-Id: Ib216059c6c0c952162c19e080dcf3799f0652a8d
+    Reviewed-on: https://go-review.googlesource.com/32171
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/dist/deps.go | 2 +-
+ src/encoding/asn1/asn1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

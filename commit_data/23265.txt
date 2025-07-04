@@ -1,12 +1,25 @@
-commit a7f258e76c1073ca70a7a2216e923608e521fb66
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 5 00:37:29 2015 -0400
+commit 98a9d3683705b21fdcffe0291826de7611891167
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 4 14:37:45 2015 -0400
 
-    doc/go1.5.txt: GOMAXPROCS change
+    runtime: add pointer size to type structure
     
-    Change-Id: I5c991cad38c9e2c839314a56d3415a2aa09c1561
-    Reviewed-on: https://go-review.googlesource.com/10762
+    This adds a field to the runtime type structure that records the size
+    of the prefix of objects of that type containing pointers. Any data
+    after this offset is scalar data.
+    
+    This is necessary for shrinking the type bitmaps to 1 bit and will
+    help the garbage collector efficiently estimate the amount of heap
+    that needs to be scanned.
+    
+    Change-Id: I1318d79e6360dca0ac980245016c562e61f52ff5
+    Reviewed-on: https://go-review.googlesource.com/9691
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/gc/reflect.go   | 54 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/ld/decodesym.go | 16 ++++++------
+ src/reflect/type.go              |  7 ++++++
+ src/runtime/type.go              |  5 +++-
+ 4 files changed, 74 insertions(+), 8 deletions(-)

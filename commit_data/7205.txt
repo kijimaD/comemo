@@ -1,14 +1,15 @@
-commit 32a8f5a8742daeb8c292f40d556c78f792207599
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 20 13:11:06 2011 -0500
+commit 40c74490449e5d4a5fd6f8ea0bb8b5df4df66a0c
+Author: Miek Gieben <miek@miek.nl>
+Date:   Thu Jan 20 12:51:15 2011 -0500
 
-    gotest: new cgo does not require LD_LIBRARY_PATH
+    encoding/base32: new package
     
-    Fixes #1410.
-    
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/4072043
+    R=rsc
+    CC=Miek Gieben, golang-dev
+    https://golang.org/cl/3926041
 
- src/cmd/gotest/gotest | 6 ------
- 1 file changed, 6 deletions(-)
+ src/pkg/Makefile                       |   1 +
+ src/pkg/encoding/base32/Makefile       |  11 +
+ src/pkg/encoding/base32/base32.go      | 368 +++++++++++++++++++++++++++++++++
+ src/pkg/encoding/base32/base32_test.go | 194 +++++++++++++++++
+ 4 files changed, 574 insertions(+)

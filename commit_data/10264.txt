@@ -1,15 +1,12 @@
-commit 603d80c28d72c5eae4a0f6a4a8054caf62c5d228
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Nov 7 11:00:14 2011 +1100
+commit bbd173fc3dce58d6eacee750001952371e1c1d23
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Nov 7 09:38:40 2011 +1100
 
-    runtime: windows_386 sighandler to use correct g
+    html: be able to test more than one testdata file.
     
-    Fixes #2403.
-    
-    R=hectorchu
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5309071
+    https://golang.org/cl/5351041
 
- src/pkg/runtime/windows/386/signal.c |  7 ++---
- src/pkg/runtime/windows/386/sys.s    | 52 ++++++++++++------------------------
- 2 files changed, 19 insertions(+), 40 deletions(-)
+ src/pkg/html/parse_test.go | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

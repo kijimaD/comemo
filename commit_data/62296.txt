@@ -1,0 +1,19 @@
+commit a08984bc8f2acacebeeadf7445ecfb67b7e7d7b1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Feb 18 23:03:54 2025 +0700
+
+    cmd/compile: add ir.ContainsClosure
+    
+    And use it to unify all codes that need parent/closure checking.
+    
+    Change-Id: I0b0aa1b007598668dff2c4bee31e21f0fb3830ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650315
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/escape/solve.go | 19 ++-----------------
+ src/cmd/compile/internal/inline/inl.go   | 15 ++++-----------
+ src/cmd/compile/internal/ir/func.go      | 15 +++++++++++++++
+ 3 files changed, 21 insertions(+), 28 deletions(-)

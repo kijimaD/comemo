@@ -1,28 +1,23 @@
-commit d82cb03debff0180aa705129e8a00e89c3fe8251
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Fri May 16 15:05:43 2025 -0400
+commit 62791eb48912ef9dcaa26bee44c98891c8f60ddc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Mar 14 17:58:45 2024 -0400
 
-    crypto/tls: update BoGo SessionID test skip reasons
+    cmd/go: add tool names to go tool subcommand counters
     
-    Updates the skip reason for the following BoGo tests:
+    When go tool <toolname> is run, increment the
+    go/subcommand:tool-<toolname> counter instead of just
+    go/subcommand:tool. go/subcommand:tool will be incremented
+    if go tool is run without a tool argument to list the
+    available tools.
     
-      * TLS-ECH-Client-TLS12SessionID
-      * SupportTicketsWithSessionID
-      * ResumeTLS12SessionID-TLS13
-    
-    The crypto/tls package does not support session ID based resumption at
-    this time, and so any tests that rely on this support need to be
-    skipped.
-    
-    Updates #72006
-    Updates #25228
-    
-    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673737
-    TryBot-Bypass: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I22b888fada1441389315a79f417c72b3f74070f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571802
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/crypto/tls/bogo_config.json | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/counters_test.go      | 48 ++++++++++++++++++++++++++++++++++++----
+ src/cmd/go/internal/tool/tool.go |  9 ++++++++
+ src/cmd/go/main.go               |  8 ++++++-
+ src/cmd/go/testdata/counters.txt | 21 ++++++++++++++++++
+ 4 files changed, 81 insertions(+), 5 deletions(-)

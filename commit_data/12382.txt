@@ -1,12 +1,48 @@
-commit eb5af840d501bdaf5c3bd6bdbc3e44bfdd097ea8
+commit 6e211225d7ec363d5205798fe15bb8cebd9703f9
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 6 03:34:53 2012 +0800
+Date:   Tue Mar 6 03:12:11 2012 +0800
 
-    test/run.go: fix build
+    syscall: fix mkall.sh, mksyscall_linux.pl, and regen for Linux/ARM
+    CL 3075041 says ARM is not little-endian, but my test suggests otherwise.
+    My test program is:
     
-    R=golang-dev, rsc
+        package main
+        import ("fmt"; "syscall"; "os")
+        func main() {
+           err := syscall.Fallocate(1, 1/*FALLOC_FL_KEEP_SIZE*/, 0, int64(40960));
+           fmt.Fprintln(os.Stderr, err)
+        }
+    
+    Without this CL, ./test > testfile will show: file too large; and strace shows:
+        fallocate(1, 01, 0, 175921860444160)    = -1 EFBIG (File too large)
+    With this CL, ./test > testfile will show: <nil>; and strace shows:
+        fallocate(1, 01, 0, 40960)              = 0
+    
+    Quoting rsc:
+    "[It turns out that] ARM syscall ABI requires 64-bit arguments to use an
+    (even, odd) register pair, not an (odd, even) pair. Switching to "big-endian"
+    worked because it ended up using the high 32-bits (always zero in the tests
+    we had) as the padding word, because the 64-bit argument was the last one,
+    and because we fill in zeros for the rest of the system call arguments, up to
+    six. So it happened to work."
+    
+    I updated mksyscall_linux.pl to accommodate the register pair ABI requirement,
+    and removed all hand-tweaked syscall routines in favor of the auto-generated
+    ones. These including: Ftruncate, Truncate, Pread and Pwrite.
+    
+    Some recent Linux/ARM distributions do not bundle kernel asm headers,
+    so instead we always get latest asm/unistd.h from git.kernel.org (just like
+    what we do for FreeBSD).
+    
+    R=ken, r, rsc, r, dave, iant
     CC=golang-dev
-    https://golang.org/cl/5727068
+    https://golang.org/cl/5726051
 
- test/run.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/mkall.sh              |  4 +--
+ src/pkg/syscall/mksyscall.pl          | 10 ++++++
+ src/pkg/syscall/syscall_linux_arm.go  | 53 +++-------------------------
+ src/pkg/syscall/zerrors_linux_arm.go  | 66 +++++++++++++++++++++++++++++++----
+ src/pkg/syscall/zsyscall_linux_arm.go | 60 +++++++++++++++++++++++++++++--
+ src/pkg/syscall/zsysnum_linux_arm.go  | 14 +++++++-
+ src/pkg/syscall/ztypes_linux_arm.go   |  6 ++--
+ 7 files changed, 149 insertions(+), 64 deletions(-)

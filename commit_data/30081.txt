@@ -1,24 +1,20 @@
-commit 76db88ab4db6c95731d32dc4eefafa674db1203a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 13:40:24 2017 -0500
+commit 4c9c023346415908390b68cfab0677ef53cf38ac
+Author: Alexander Döring <email@alexd.ch>
+Date:   Mon Oct 24 22:40:31 2016 +0200
 
-    cmd/go: split out cmd/go/internal/bug
+    math,math/cmplx: fix linter issues
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
-    
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I05629567cc33fef41bc74eba4f7ff66e4851343c
-    Reviewed-on: https://go-review.googlesource.com/36203
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: If061f1f120573cb109d97fa40806e160603cd593
+    Reviewed-on: https://go-review.googlesource.com/31871
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/{ => internal/bug}/bug.go | 11 ++++++-----
- src/cmd/go/main.go                   |  3 ++-
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/math/cmplx/tan.go | 8 ++++----
+ src/math/expm1.go     | 2 +-
+ src/math/jn.go        | 2 +-
+ src/math/log1p.go     | 7 +++----
+ src/math/sin.go       | 8 ++++----
+ src/math/sincos.go    | 4 ++--
+ src/math/tan.go       | 4 ++--
+ 7 files changed, 17 insertions(+), 18 deletions(-)

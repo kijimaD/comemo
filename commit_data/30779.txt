@@ -1,20 +1,22 @@
-commit 88d4ab82d5f89f1421a39d9342bbd1c1e2ff08b0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 21 22:07:23 2017 -0700
+commit 130ad87ab7b02a87401246d4a5f0c3f00fc7d709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 22:48:52 2016 -0800
 
-    cmd/internal/obj: eliminate unnecessary ctxt.Cursym assignment
+    cmd/link: don't overalign ELF reloc sections
     
-    None of the following code uses it.
+    Internal linking on an ELF system creates two reloc sections, which
+    must be adjacent. The default is to base section alignment on the
+    section size, but doing that for ELF reloc sections can introduce a
+    gap. Set the reloc section alignment explicitly to avoid that.
     
-    Passes toolstash-check -all.
+    Fixes #18044.
     
-    Updates #15756
-    
-    Change-Id: Ieeaaca8ba31e5c345c0c8a758d520b24be88e173
-    Reviewed-on: https://go-review.googlesource.com/38444
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I8ccc131e60937d30c5f715a34c7803258833fc2f
+    Reviewed-on: https://go-review.googlesource.com/33872
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/obj/pass.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/go_test.go            | 9 +++++++++
+ src/cmd/link/internal/ld/data.go | 7 +++++++
+ 2 files changed, 16 insertions(+)

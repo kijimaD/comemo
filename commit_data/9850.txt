@@ -1,40 +1,31 @@
-commit e419535f2ae5c8aef1f64cdb207049c8712ffb48
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 3 17:46:36 2011 -0400
+commit f75ff01f44f0fa90080bbd9aa3656f0a6fa49042
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 3 13:12:01 2011 -0700
 
-    5g, 6g, 8g: registerize variables again
+    strings: implement a faster byte->byte Replacer
     
-    My previous CL:
+    When all old & new string values are single bytes,
+    byteReplacer is now used, instead of the generic
+    algorithm.
     
-    changeset:   9645:ce2e5f44b310
-    user:        Russ Cox <rsc@golang.org>
-    date:        Tue Sep 06 10:24:21 2011 -0400
-    summary:     gc: unify stack frame layout
+    BenchmarkGenericMatch       10000  102519 ns/op
+    BenchmarkByteByteMatch    1000000    2178 ns/op
     
-    introduced a bug wherein no variables were
-    being registerized, making Go programs 2-3x
-    slower than they had been before.
+    fast path, when nothing matches:
+    BenchmarkByteByteNoMatch  1000000    1109 ns/op
     
-    This CL fixes that bug (along with some others
-    it was hiding) and adds a test that optimization
-    makes at least one test case faster.
+    comparisons to multiple Replace calls:
+    BenchmarkByteByteReplaces  100000   16164 ns/op
     
-    R=ken2
+    comparison to strings.Map:
+    BenchmarkByteByteMap       500000    5454 ns/op
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5174045
+    https://golang.org/cl/5175050
 
- src/cmd/5g/gobj.c                |  2 ++
- src/cmd/5g/gsubr.c               |  7 +++--
- src/cmd/5g/reg.c                 | 12 +++++----
- src/cmd/6g/gobj.c                |  2 ++
- src/cmd/6g/gsubr.c               |  7 +++--
- src/cmd/6g/reg.c                 | 13 +++++----
- src/cmd/8g/gobj.c                |  2 ++
- src/cmd/8g/gsubr.c               |  8 ++++--
- src/cmd/8g/reg.c                 | 12 +++++----
- src/cmd/gc/bits.c                |  4 +--
- src/cmd/gc/gen.c                 |  1 +
- src/cmd/gc/obj.c                 |  1 +
- test/fixedbugs/bug369.dir/pkg.go | 15 +++++++++++
- test/fixedbugs/bug369.go         | 57 ++++++++++++++++++++++++++++++++++++++++
- 14 files changed, 120 insertions(+), 23 deletions(-)
+ src/pkg/http/cookie.go          |  13 ++--
+ src/pkg/strings/export_test.go  |   9 +++
+ src/pkg/strings/replace.go      | 169 ++++++++++++++++++++++++++++++++++------
+ src/pkg/strings/replace_test.go |  99 +++++++++++++++++++----
+ 4 files changed, 246 insertions(+), 44 deletions(-)

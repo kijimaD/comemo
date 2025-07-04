@@ -1,19 +1,34 @@
-commit 22f337656d8e4b244e45bc27c21ed3379be58e3d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 3 16:17:08 2015 -0800
+commit 63116de558b472c437df186d6bf87e163f674ea2
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Dec 27 19:26:40 2014 -0800
 
-    cmd/go, make: remove ccflags
+    runtime: faster version of findfunc
     
-    cc is no more.
+    Use a lookup table to find the function which contains a pc.  It is
+    faster than the old binary search.  findfunc is used primarily for
+    stack copying and garbage collection.
     
-    Change-Id: I8d1bc0d2e471cd9357274204c9bc1fa67cbc272d
-    Reviewed-on: https://go-review.googlesource.com/3833
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkStackCopy     294746596     255400980     -13.35%
+    
+    (findfunc is one of several tasks done by stack copy, the findfunc
+    time itself is about 2.5x faster.)
+    
+    The lookup table is built at link time.  The table grows the binary
+    size by about 0.5% of the text segment.
+    
+    We impose a lower limit of 16 bytes on any function, which should not
+    have much of an impact.  (The real constraint required is <=256
+    functions in every 4096 bytes, but 16 bytes/function is easier to
+    implement.)
+    
+    Change-Id: Ic315b7a2c83e1f7203cd2a50e5d21a822e18fdca
+    Reviewed-on: https://go-review.googlesource.com/2097
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go    | 5 -----
- src/cmd/go/doc.go      | 2 --
- src/cmd/go/testflag.go | 6 ------
- src/make.bash          | 7 ++-----
- src/make.rc            | 7 ++-----
- 5 files changed, 4 insertions(+), 23 deletions(-)
+ src/cmd/ld/data.c     |  5 ++++-
+ src/cmd/ld/lib.h      |  2 ++
+ src/cmd/ld/pcln.c     | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/pobj.c     |  1 +
+ src/runtime/symtab.go | 57 ++++++++++++++++++++++++++++++++-------------------
+ 5 files changed, 98 insertions(+), 22 deletions(-)

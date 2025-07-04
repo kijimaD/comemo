@@ -1,26 +1,17 @@
-commit 24cb743d1faa6c8f612faa3c17ac9de5cc385832
-Author: Ryan Granger <rygrange@cisco.com>
-Date:   Fri Oct 11 16:53:56 2024 +0000
+commit 1f544ef0ebebd5bc19a8d4d1c6e09ccb01e59b95
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 13:14:44 2023 -0700
 
-    crypto/tls: include close notify in client tls test recordings
+    cmd/compile/internal/types: refactor struct size calculation
     
-    This commit fixes the issue where tls testdata recordings made with the
-    newer version of the prerecorded tls conversation test harness, doesn't
-    end up capturing the final close notify message. The fix simply ensures
-    that the tls.Client closes before the recording of the conversation is
-    closed. The closing of the client connection directly is no longer
-    needed when updating the recording since it will be closed when the
-    tls.Client is closed.
+    This CL simplifies how struct sizes and field offsets are calculated.
     
-    Fixes golang/go#69846
-    
-    Change-Id: I93898de32abd89659a32ed240df6daea5aeaa7fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620395
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: If4af778cb49218d295277df596e45bdd8b23ed9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521276
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/crypto/tls/handshake_client_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types/size.go | 159 +++++++++++++++------------------
+ 1 file changed, 70 insertions(+), 89 deletions(-)

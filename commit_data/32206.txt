@@ -1,16 +1,20 @@
-commit aca92f352d6a5bc0b17cd39d3b1bbe23ae0bb5ac
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 7 11:35:17 2017 -0700
+commit 746441f97f9d96c5c0b72dc514f1eee777303060
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 12 20:01:25 2017 +0200
 
-    runtime: CSE some function arguments in evacuate
+    cmd/link: skip TestRuntimeTypeDIEs on Plan 9
     
-    Shrinks evacuate's machine code a little.
+    TestRuntimeTypeDIEs has been added in CL 38350. This
+    test is failing on Plan 9 because executables don't
+    have a DWARF symbol table.
     
-    Change-Id: I08874c92abdc7e621bc0737e22f2a6be31542cab
-    Reviewed-on: https://go-review.googlesource.com/54652
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #19944.
+    
+    Change-Id: I121875bfd5f9f02ed668f8fb0686a0edffa2a99d
+    Reviewed-on: https://go-review.googlesource.com/40452
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/hashmap.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

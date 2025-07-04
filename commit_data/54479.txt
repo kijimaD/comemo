@@ -1,21 +1,45 @@
-commit eac1f3e46115b42e564b4160ae38fec9872e68d0
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Aug 1 12:04:12 2023 -0400
+commit 85196fc982ead65ea56c377c2e381eabff329773
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Wed Oct 19 21:24:52 2022 -0700
 
-    cmd/compile/internal/inl: use func-level "never returns" flag
+    cmd/internal/ssa: correct references to _gen folder
     
-    Make use of the "never returns" flag bit in ir.Func when computing
-    function properties: update the bit when we're done looking at a given
-    function, and read the bit from imported functions during flag
-    analysis. The advantage of using the ir.Func flag is that it will get
-    set (and will propagate through to export data) for all functions,
-    nost just those that are inline candidates.
+    The gen folder was renamed to _gen in CL 435472, but references in code
+    and docs were not updated. This updates the references.
     
-    Change-Id: I7002364b2c4ff5424ed70748fad87fad1a9e4786
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518257
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibadc0cdcb5bed145c3257b58465a8df370487ae5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444355
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inlheur/analyze.go            | 1 +
- src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/README.md                  | 10 +++++-----
+ src/cmd/compile/internal/ssa/_gen/cover.bash            |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/main.go               |  2 +-
+ src/cmd/compile/internal/ssa/_gen/rulegen.go            |  4 ++--
+ src/cmd/compile/internal/ssa/addressingmodes.go         |  2 +-
+ src/cmd/compile/internal/ssa/op.go                      |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go                   |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go                |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go                 |  2 +-
+ src/cmd/compile/internal/ssa/rewrite386.go              |  4 ++--
+ src/cmd/compile/internal/ssa/rewrite386splitload.go     |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go            |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64latelower.go   |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64splitload.go   |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM.go              |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go            |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64latelower.go   |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go          |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS.go             |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go           |  4 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go            |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go          |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteS390X.go            |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go             |  4 ++--
+ src/cmd/compile/internal/ssa/rewritedec.go              |  4 ++--
+ src/cmd/compile/internal/ssa/rewritedec64.go            |  4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go          |  4 ++--
+ 28 files changed, 53 insertions(+), 53 deletions(-)

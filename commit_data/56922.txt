@@ -1,18 +1,26 @@
-commit e061fb89e8c44d564f284d127c7790ac98ce8b4e
-Author: Will Faught <willfaught@users.noreply.github.com>
-Date:   Fri Jul 19 23:29:01 2024 +0000
+commit 4f51db24f4b80770000b28073a8bde57d021b4e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 30 15:13:53 2023 -0700
 
-    text/template: fix doc spacing
+    doc/go1.21: document type inference changes
     
-    Change-Id: I4550ce3135b3cd675010a3701618e9350f282453
-    GitHub-Last-Rev: d2e52f14968621e9913dd66ef6b26348012c83b3
-    GitHub-Pull-Request: golang/go#68519
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599535
+    For #39661.
+    For #41176.
+    For #51593.
+    For #52397.
+    For #57192.
+    For #58645.
+    For #58650.
+    For #58671.
+    For #59338.
+    For #59750.
+    For #60353.
+    
+    Change-Id: Ib731c9f2879beb541f44cb10e40c36a8677d3ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499282
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/text/template/doc.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ doc/go1.21.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 51 insertions(+), 2 deletions(-)

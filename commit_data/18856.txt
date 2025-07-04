@@ -1,17 +1,15 @@
-commit e678ab4e375659fea86b17557c23673033cf897c
+commit 5daffee17fdd8c10ead83a87861d99c39f05561d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 13 17:41:08 2014 +0400
+Date:   Thu Mar 13 13:16:02 2014 +0400
 
-    runtime: detect stack split after fork
-    This check would allowed to easily prevent issue 7511.
-    Update #7511
+    runtime: fix stack size check
+    When we copy stack, we check only new size of the top segment.
+    This is incorrect, because we can have other segments below it.
     
-    LGTM=rsc
-    R=rsc, aram
-    CC=golang-codereviews
-    https://golang.org/cl/75260043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/73980045
 
- src/pkg/runtime/proc.c    | 14 ++++++++++++++
- src/pkg/runtime/runtime.h |  1 +
- src/pkg/runtime/stack.c   |  2 ++
- 3 files changed, 17 insertions(+)
+ src/pkg/runtime/stack.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

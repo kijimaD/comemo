@@ -1,36 +1,29 @@
-commit 7973b0e50861c49c1852a545b51b7ab977135d6d
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Dec 8 10:58:49 2022 -0500
+commit 452f24ae94f38afa3704d4361d91d51218405c0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:41:32 2022 -0500
 
-    cmd/{go,cover,covdata}: fix 'package main' inconsistent handling
+    regexp/syntax: reject very deeply nested regexps in Parse
     
-    Fix a buglet in cmd/cover in how we handle package name/path for the
-    "go build -o foo.exe *.go" and "go run *.go" cases.
+    The regexp code assumes it can recurse over the structure of
+    a regexp safely. Go's growable stacks make that reasonable
+    for all plausible regexps, but implausible ones can reach the
+    “infinite recursion?” stack limit.
     
-    The go command assigns a dummy import path of "command-line-arguments"
-    to the main package built in these cases; rather than expose this
-    dummy to the user in coverage reports, the cover tool had a special
-    case hack intended to rewrite such package paths to "main". The hack
-    was too general, however, and was rewriting the import path of all
-    packages with (p.name == "main") to an import path of "main". The hack
-    also produced unexpected results for cases such as
+    This CL limits the depth of any parsed regexp to 1000.
+    That is, the depth of the parse tree is required to be ≤ 1000.
+    Regexps that require deeper parse trees will return ErrInternalError.
+    A future CL will change the error to ErrInvalidDepth,
+    but using ErrInternalError for now avoids introducing new API
+    in point releases when this is backported.
     
-      go test -cover foo.go foo_test.go
+    Fixes #51112.
     
-    This patch removes the hack entirely, leaving the package path for
-    such cases as "command-line-arguments".
-    
-    Fixes #57169.
-    
-    Change-Id: Ib6071db5e3485da3b8c26e16ef57f6fa1712402c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456237
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I97d2cd82195946eb43a4ea8561f5b95f91fb14c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384616
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/covdata/tool_test.go                       | 35 +++++++-------
- src/cmd/cover/cover.go                             |  3 --
- .../testdata/script/cover_build_cmdline_pkgs.txt   |  4 +-
- .../go/testdata/script/cover_main_import_path.txt  | 54 ++++++++++++++++++++++
- src/runtime/coverage/emitdata_test.go              |  9 ++--
- 5 files changed, 81 insertions(+), 24 deletions(-)
+ src/regexp/syntax/parse.go      | 72 +++++++++++++++++++++++++++++++++++++++--
+ src/regexp/syntax/parse_test.go |  7 ++++
+ 2 files changed, 77 insertions(+), 2 deletions(-)

@@ -1,47 +1,24 @@
-commit 9b43bfbc51c469ec13fca24960834a75b2bf66eb
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon May 27 21:07:22 2024 -0600
+commit 4e679e26a3282e71d8dcb8af53bc21a9c1b1efe4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue May 23 10:39:43 2023 +0700
 
-    cmd/vendor: update github.com/google/pprof
+    test: remove *_unified.go variants
     
-    Brings in the latest github.com/google/pprof.
+    CL 415241 and CL 411935 break tests into unified/nounified variants, for
+    compatibility with old frontend while developing unified IR. Now the old
+    frontend was gone, so moving those tests back to the original files.
     
-    Fixes #67626
-    
-    Change-Id: Id8faef20f0a9bf81dd117110bf540aca852db6be
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588655
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Iecdcd4e6ee33c723f6ac02189b0be26248e15f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497275
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go.mod                                     |    4 +-
- src/cmd/go.sum                                     |   24 +-
- .../github.com/google/pprof/driver/driver.go       |    2 +-
- .../google/pprof/internal/binutils/binutils.go     |    6 +-
- .../google/pprof/internal/driver/driver.go         |   22 +-
- .../google/pprof/internal/driver/fetch.go          |    2 +-
- .../google/pprof/internal/driver/html/graph.css    |    7 +
- .../google/pprof/internal/driver/html/graph.html   |    1 +
- .../google/pprof/internal/driver/html/source.html  |   70 +-
- .../google/pprof/internal/driver/html/stacks.html  |    1 +
- .../google/pprof/internal/driver/html/stacks.js    |   60 +-
- .../google/pprof/internal/driver/settings.go       |    2 +-
- .../google/pprof/internal/driver/stacks.go         |    6 +-
- .../google/pprof/internal/driver/webhtml.go        |   20 +
- .../google/pprof/internal/driver/webui.go          |   32 +-
- .../google/pprof/internal/elfexec/elfexec.go       |    7 +-
- .../google/pprof/internal/graph/graph.go           |    2 +-
- .../pprof/internal/measurement/measurement.go      |   61 +-
- .../google/pprof/internal/plugin/plugin.go         |    2 +-
- .../google/pprof/internal/report/report.go         |    8 +-
- .../google/pprof/internal/report/source.go         |  223 ++--
- .../google/pprof/internal/report/source_html.go    |    4 -
- .../google/pprof/internal/symbolizer/symbolizer.go |  177 +--
- .../github.com/google/pprof/profile/profile.go     |    2 +-
- .../github.com/ianlancetaylor/demangle/ast.go      | 1392 ++++++++++++++++++--
- .../github.com/ianlancetaylor/demangle/demangle.go |  663 +++++++---
- src/cmd/vendor/modules.txt                         |    4 +-
- 27 files changed, 2146 insertions(+), 658 deletions(-)
+ test/escape_iface.go         | 10 ++++++++++
+ test/escape_iface_unified.go | 22 ----------------------
+ test/inline.go               | 12 ++++++++++++
+ test/inline_unified.go       | 19 -------------------
+ 4 files changed, 22 insertions(+), 41 deletions(-)

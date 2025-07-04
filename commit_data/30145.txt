@@ -1,22 +1,22 @@
-commit 87ad863f359de3760578acb7f7a4d7e333c9cdc8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 3 21:13:30 2017 -0800
+commit 3193c71c5b97c1e770f587f50824b266f04b71d8
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 23 21:53:44 2016 -0400
 
-    runtime: use atomic ops for fwdSig, make sigtable immutable
+    runtime: fix bad pointer with 0 stack barriers
     
-    The fwdSig array is accessed by the signal handler, which may run in
-    parallel with other threads manipulating it via the os/signal package.
-    Use atomic accesses to ensure that there are no problems.
+    Currently, if the number of stack barriers for a stack is 0, we'll
+    create a zero-length slice that points just past the end of the stack
+    allocation. This bad pointer causes GC panics.
     
-    Move the _SigHandling flag out of the sigtable array. This makes sigtable
-    immutable and safe to read from the signal handler.
+    Fix this by creating a nil slice if the stack barrier count is 0.
     
-    Change-Id: Icfa407518c4ebe1da38580920ced764898dfc9ad
-    Reviewed-on: https://go-review.googlesource.com/36321
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    In practice, the only way this can happen is if
+    GODEBUG=gcstackbarrieroff=1 is set because even the minimum size stack
+    reserves space for two stack barriers.
+    
+    Change-Id: I3527c9a504c445b64b81170ee285a28594e7983d
+    Reviewed-on: https://go-review.googlesource.com/31762
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/runtime2.go    |  1 -
- src/runtime/signal_unix.go | 55 +++++++++++++++++++++++++++++++++-------------
- 2 files changed, 40 insertions(+), 16 deletions(-)
+ src/runtime/stack.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

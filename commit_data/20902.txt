@@ -1,29 +1,13 @@
-commit 38fef031e16f819a3f1f6e14e3e7d70ac4ccfebb
+commit 93341e8664e66b217a6911a08e1c1dac9dcf004e
 Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 17 14:44:41 2014 -0500
+Date:   Mon Oct 27 15:10:54 2014 -0400
 
-    cmd/pprof: fix EOF handling when getting function source
+    [dev.power64] cc: 8-byte align argument size on power64
     
-    getFunctionSource gathers five lines of "margin" around every
-    requested sample line.  However, if this margin went past the
-    end of the source file, getFunctionSource would encounter an
-    io.EOF error and abort with this error, resulting in listings
-    like
-    
-        (pprof) list main.main
-        ROUTINE ======================== main.main in ...
-        0      8.33s (flat, cum) 99.17% of Total
-        Error: EOF
-        (pprof)
-    
-    Modify the error handling in getFunctionSource so io.EOF is
-    always considered non-fatal.  If it reaches EOF, it simply
-    returns the lines it has.
-    
-    LGTM=bradfitz
-    R=rsc, bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/172600043
+    https://golang.org/cl/163370043
 
- src/cmd/pprof/internal/report/source.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/cc/pgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

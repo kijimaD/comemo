@@ -1,18 +1,22 @@
-commit 62fad436bbea35e46ab9a4615a5fe077f205e269
-Author: Austin Clements <austin@google.com>
-Date:   Sun Feb 14 15:09:21 2016 -0500
+commit e4a1acced742a53421e22fe498d66c81d623110b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 18 20:22:29 2015 +0000
 
-    doc: tweak Go 1.6 GC release notes
+    net/http: accept empty method in Transport again
     
-    Go 1.6 significantly improves pause times for large heaps, but it
-    improves them in many other situations as well, such as when goroutine
-    churn is high, allocation rate is high, or when there are many
-    finalizers. Hence, make the statement about pause times a bit more
-    general.
+    Fix regression from https://golang.org/cl/16829 ("require valid methods
+    in NewRequest and Transport.RoundTrip").
     
-    Change-Id: Ic034b1c904c39dd1d966ee7fa96ca8bbb3614e53
-    Reviewed-on: https://go-review.googlesource.com/19504
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    An empty string is a valid method (it means "GET", per the docs).
+    
+    Fixes #13311
+    
+    Change-Id: I26b71dc4ccc146498b5d7e38fbe31ed11dd5a6cf
+    Reviewed-on: https://go-review.googlesource.com/16952
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.6.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/transport.go      |  2 +-
+ src/net/http/transport_test.go | 15 ++++++++++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

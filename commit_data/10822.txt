@@ -1,18 +1,25 @@
-commit 04faa08c070191a7c187e4ff3a9eb7ed9b6b38a6
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 15 12:52:29 2011 -0800
+commit 29264c6f4f341586b733e2c5b165ca627b6050d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 15 11:21:21 2011 -0800
 
-    fmt: speed up floating point print, clean up some code
-    %g down to two mallocs from four. Also a mild speedup.
+    json: use strconv.Append variants to avoid allocations in encoding
     
-    fmt_test.BenchmarkSprintfFloat         3016         2703  -10.38%
+    Before/after, best of 3:
+    json.BenchmarkCodeEncoder  10  183495300 ns/op  10.58 MB/s
+    ->
+    json.BenchmarkCodeEncoder  10  133025100 ns/op  14.59 MB/s
     
-    Fixes #2557.
+    But don't get too excited about this.  These benchmarks, while
+    stable at any point of time, fluctuate wildly with any line of
+    code added or removed anywhere in the path due to stack splitting
+    issues.
     
-    R=rsc
+    It's currently much faster, though, and this is the API that
+    doesn't allocate so should always be faster in theory.
+    
+    R=golang-dev, dsymonds, rsc, r, gri
     CC=golang-dev
-    https://golang.org/cl/5491054
+    https://golang.org/cl/5411052
 
- src/pkg/fmt/format.go | 93 +++++++++++++++++++++++++++------------------------
- src/pkg/fmt/print.go  |  8 ++---
- 2 files changed, 53 insertions(+), 48 deletions(-)
+ src/pkg/encoding/json/encode.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

@@ -1,12 +1,14 @@
-commit 09e72f5670664539a4f01c60faea4a366d2a0fb8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jul 12 12:30:18 2013 +1000
+commit 63f54ae3c25735aa8558f0f2d281032b46f45a53
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 11 14:41:46 2013 -0700
 
-    make.bat: incease runtime test timeout to 300s (fixes build)
+    spec: move decl in example closer to use
     
-    R=golang-dev, rsc
+    Fixes #5862.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/11064044
+    https://golang.org/cl/11168043
 
- src/run.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

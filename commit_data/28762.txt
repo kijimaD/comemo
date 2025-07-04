@@ -1,20 +1,29 @@
-commit 87b1aaa37cefec8deacdf9c3c30d26015bdfb00b
-Author: Xuyang Kang <xuyangkang@gmail.com>
-Date:   Sun Jul 17 00:23:56 2016 -0700
+commit 7d70f84f547a1b60279985fa91c407ddfde9bd64
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 6 10:04:45 2016 -0400
 
-    encoding/base64: This change modifies Go to take strict option when decoding base64
+    [dev.ssa] cmd/compile: add floating point optimizations in SSA for ARM
     
-    If strict option is enabled, when decoding, instead of skip the padding
-    bits, it will do strict check to enforce they are set to zero.
+    Add some simplification rules for floating point ops.
     
-    Fixes #15656
+    cmd/internal/obj/arm supports instructions that compare FP register
+    to 0, but runtime softfloat simulator does not. This CL adds these
+    instructions to softfloat simulator as well.
     
-    Change-Id: I869fb725a39cc9dde44dbc4ff0046446e7abc642
-    Reviewed-on: https://go-review.googlesource.com/24964
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #15365.
+    
+    Change-Id: I29405b2bfcb4c8cf106cb7a1a811409fec91b170
+    Reviewed-on: https://go-review.googlesource.com/24790
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/encoding/base64/base64.go      | 24 +++++++++++++++++++++---
- src/encoding/base64/base64_test.go | 21 +++++++++++++++++++++
- 2 files changed, 42 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go            |   5 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   4 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   4 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  20 ++
+ src/cmd/compile/internal/ssa/opGen.go          |  28 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  46 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 314 +++++++++++++++++++++++++
+ src/runtime/softfloat_arm.go                   |  18 ++
+ 8 files changed, 439 insertions(+)

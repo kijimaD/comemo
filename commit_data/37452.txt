@@ -1,25 +1,41 @@
-commit 9ef145532420409a60542ec69ae3ed20a7d7c401
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue Nov 20 16:37:50 2018 +0100
+commit b8f42d74e87aeec189f53e9fdb2a7e6026c099b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 30 14:58:45 2018 -0400
 
-    syscall: add dummy SIGTERM constant to js/wasm
+    cmd/go: move module cache from $GOPATH/src/mod to $GOPATH/pkg/mod
     
-    The js/wasm architecture does not support signals at all, but there are
-    already some signal constants defined because of stdlib dependencies.
-    This change adds a dummy constant for syscall.SIGTERM as well, to make
-    js/wasm compatible with more existing Go code.
+    Using $GOPATH/src/mod confuses too many tools.
+    $GOPATH/pkg/mod seems better for now.
+    It's also next to dep's cache, $GOPATH/pkg/dep.
+    If we do eliminate GOPATH/pkg for holding .a files (#4719)
+    then we could still keep it around for pkg/mod.
+    (Or we could move the module cache again then.)
     
-    There is the Go proverb "Syscall must always be guarded with build
-    tags.", so code should not expect syscall.SIGTERM to exist. Still,
-    adding SIGTERM should do more good than harm.
+    Fixes #26401.
+    Fixes #26635.
     
-    Fixes #28719.
-    
-    Change-Id: I3554b484f96a21427491c04eb1dd57e7af5bd62f
-    Reviewed-on: https://go-review.googlesource.com/c/150477
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I18f7da216ed9f490eded3c00d837fb086ae5b6a4
+    Reviewed-on: https://go-review.googlesource.com/126755
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/syscall_js.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/alldocs.go                         | 111 +++++++++++++++-----------
+ src/cmd/go/internal/clean/clean.go            |   4 +-
+ src/cmd/go/internal/help/helpdoc.go           |   2 +-
+ src/cmd/go/internal/load/pkg.go               |   2 +-
+ src/cmd/go/internal/modconv/convert_test.go   |   2 +-
+ src/cmd/go/internal/modfetch/cache.go         |  16 ++--
+ src/cmd/go/internal/modfetch/fetch.go         |  10 +--
+ src/cmd/go/internal/modfetch/proxy.go         |   4 +-
+ src/cmd/go/internal/modload/help.go           |   2 +-
+ src/cmd/go/internal/modload/init.go           |  20 ++---
+ src/cmd/go/internal/modload/query_test.go     |   2 +-
+ src/cmd/go/testdata/addmod.go                 |   4 +-
+ src/cmd/go/testdata/script/mod_file_proxy.txt |   6 +-
+ src/cmd/go/testdata/script/mod_import_mod.txt |   2 +-
+ src/cmd/go/testdata/script/mod_list.txt       |   6 +-
+ src/cmd/go/testdata/script/mod_list_dir.txt   |   8 +-
+ src/cmd/go/testdata/script/mod_multirepo.txt  |   8 +-
+ src/cmd/go/testdata/script/mod_verify.txt     |  12 +--
+ 18 files changed, 120 insertions(+), 101 deletions(-)

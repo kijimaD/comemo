@@ -1,22 +1,24 @@
-commit 99e223289b023279fa27803184c3e3c8a3d523cc
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 17 15:51:30 2019 +0100
+commit 85525c56ab5fdb214fee70b4b4cce8700344258b
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 10:09:30 2018 +0100
 
-    cmd/link/internal/wasm: optimize data section in wasm binary
+    all: skip unsupported tests on AIX
     
-    This change optimizes the data section in the wasm binary by
-    omitting blocks of zeroes and instead emitting data segments
-    with offsets skipping the zeroes.
+    This commit skips tests which aren't yet supported on AIX.
     
-    This optimization is inspired by the memory-packing pass of the
-    wasm-opt tool and reduces the wasm binary size of "hello world" by 14%.
+    nosplit.go is disabled because stackGuardMultiplier is increased for
+    syscalls.
     
-    Change-Id: Iba3043df05bf6aab4745c5f8015c0337fc218aff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167801
+    Change-Id: Ib5ff9a4539c7646bcb6caee159f105ff8a160ad7
+    Reviewed-on: https://go-review.googlesource.com/c/146939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/data.go  | 31 ++++++++++++++-------
- src/cmd/link/internal/wasm/asm.go | 57 ++++++++++++++++++++++++++++++++++++---
- 2 files changed, 75 insertions(+), 13 deletions(-)
+ src/cmd/internal/obj/x86/issue19518_test.go | 10 ++--------
+ src/cmd/internal/obj/x86/obj6_test.go       |  8 +-------
+ src/debug/elf/file_test.go                  |  2 +-
+ src/runtime/crash_test.go                   |  3 +++
+ src/runtime/pprof/pprof_test.go             |  2 +-
+ src/runtime/runtime-gdb_test.go             |  2 ++
+ test/nosplit.go                             |  2 +-
+ 7 files changed, 11 insertions(+), 18 deletions(-)

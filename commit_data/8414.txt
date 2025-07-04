@@ -1,14 +1,14 @@
-commit de7c28fe7689fccbf7b415eb5f5defb8b43ba390
+commit ff1093852faa2515751880bb98763858f613df97
 Author: Rob Pike <r@golang.org>
-Date:   Mon May 16 16:00:41 2011 -0700
+Date:   Mon May 16 15:17:17 2011 -0700
 
-    image/gif: enable images with <8 bits per pixel.
+    GIF: support decoding of interlaced images.
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4552042
+    https://golang.org/cl/4535073
 
- src/pkg/image/decode_test.go              |   1 +
- src/pkg/image/gif/reader.go               |   7 ++-----
- src/pkg/image/testdata/video-001.5bpp.gif | Bin 0 -> 6214 bytes
- 3 files changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/image/decode_test.go                    |   1 +
+ src/pkg/image/gif/reader.go                     |  47 +++++++++++++++++++++---
+ src/pkg/image/testdata/video-001.interlaced.gif | Bin 0 -> 14142 bytes
+ 3 files changed, 43 insertions(+), 5 deletions(-)

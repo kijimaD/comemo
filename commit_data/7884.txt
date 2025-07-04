@@ -1,16 +1,12 @@
-commit d607cb289d8a3c762a5d760274895129d6cc2dd0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 26 11:24:02 2011 -0700
+commit a4df525a79d3db1ede99a885724943715ea2abc4
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Mar 25 20:45:21 2011 -0700
 
-    test: match gccgo error messages for init.go
+    gob: trivial cleanup
     
-    init.go:16:10: error: invalid reference to unexported identifier ‘runtime.init’
-    init.go:15:2: error: reference to undefined name ‘init’
-    init.go:17:10: error: reference to undefined name ‘init’
-    
-    R=golang-dev, rsc1
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4289074
+    https://golang.org/cl/4279074
 
- test/init.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/gob/type.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

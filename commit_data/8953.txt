@@ -1,12 +1,14 @@
-commit 381a555f40bf6357bbea18093ad63dad2b7106fd
+commit a8e5db9449e10d150c285a3949c990cfe82dd55f
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 6 15:56:39 2011 +1000
+Date:   Wed Jul 6 15:35:23 2011 +1000
 
-    exp/template: improve error message for non-exported field.
+    maketables: update debugging data.
+    This is unused in the generation of the tables, but was incorrect if we ever needed it.
+    Also update the reference to the document.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4636086
+    https://golang.org/cl/4626097
 
- src/pkg/exp/template/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/unicode/maketables.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

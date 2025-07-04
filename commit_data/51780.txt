@@ -1,20 +1,19 @@
-commit 4df10fba1687a6d4f51d7238a403f8f2298f6a16
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Jan 25 16:19:26 2023 +0100
+commit d99ff0382116bb472b9f92ddf23cb22bf145bbcd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 9 17:17:40 2022 -0500
 
-    crypto/rand, internal/syscall/unix: add support for getrandom on NetBSD ≥ 10.0
+    go/build: set PWD for go subcommands
     
-    The getrandom syscall was added to NetBSD in version 10.0, see
-    https://man.netbsd.org/NetBSD-10.0-STABLE/getrandom.2
+    Since these commands already include an explicit Env field,
+    they will not be fixed automatically by proposal #50599.
     
-    Change-Id: I2714c1040791f7f4728be8d869058a38cbd93d4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463123
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia8157a71cf0cfe208bdc0da9aef54be3d26c795f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391804
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/crypto/rand/rand.go                       |  2 +-
- src/crypto/rand/rand_getrandom.go             |  4 +-
- src/internal/syscall/unix/getrandom_netbsd.go | 56 +++++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 3 deletions(-)
+ src/go/build/build.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

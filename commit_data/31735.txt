@@ -1,15 +1,19 @@
-commit 90b39f33c40e8d4ae085426313be69473f304e7d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 6 22:03:45 2017 +0000
+commit eb715fbbbdc6b155512aed7c577e39b81bd35840
+Author: Chew Choon Keat <choonkeat@gmail.com>
+Date:   Mon Mar 13 03:21:21 2017 +0000
 
-    doc: add type aliases to go1.9.html
+    net/http: unset proxy environment after test
     
-    Updates #20587
+    Fix last proxy in TestProxyFromEnvironment bleeds into other tests
+    Change ResetProxyEnv to use the newer os.Unsetenv, instead of hard
+    coding as ""
     
-    Change-Id: I5df603505ae1d4b65687bec1e973a4ab318b34f1
-    Reviewed-on: https://go-review.googlesource.com/45014
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I67cf833dbcf4bec2e10ea73c354334160cf05f84
+    Reviewed-on: https://go-review.googlesource.com/38115
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.9.html | 43 ++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 36 insertions(+), 7 deletions(-)
+ src/net/http/proxy_test.go     | 2 +-
+ src/net/http/transport_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

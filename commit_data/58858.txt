@@ -1,20 +1,25 @@
-commit eed2208f152d1172993a3193374625683e244100
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Feb 19 12:28:02 2025 +0100
+commit 8db131082d08e497fd8e9383d0ff7715e1bef478
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Dec 29 19:09:16 2023 +0000
 
-    crypto/tls: require EMS in FIPS 140-3 mode
+    github: switch seen/expected order in issue forms
     
-    See Implementation Guidance D.Q.
+    Also fixup wording across other templates.
     
-    Change-Id: I6a6a465607da94f2bb249934f0561ae04a55e7b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650575
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Fixes #64890
+    
+    Change-Id: I6f9ade440b6702ddfafc21ccb7fbc6cabc2b856e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553155
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/next/6-stdlib/99-minor/crypto/tls/fips.md | 2 ++
- src/crypto/tls/handshake_client.go            | 9 +++++++++
- src/crypto/tls/handshake_server.go            | 8 ++++++++
- 3 files changed, 19 insertions(+)
+ .github/ISSUE_TEMPLATE/00-bug.yml             | 15 ++++++++-------
+ .github/ISSUE_TEMPLATE/01-pkgsite.yml         |  8 ++++----
+ .github/ISSUE_TEMPLATE/02-pkgsite-removal.yml | 19 ++++++++++++++++---
+ .github/ISSUE_TEMPLATE/03-gopls.yml           | 10 +++++-----
+ .github/ISSUE_TEMPLATE/04-vuln.yml            | 14 +++++++-------
+ 5 files changed, 40 insertions(+), 26 deletions(-)

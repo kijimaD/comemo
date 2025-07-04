@@ -1,16 +1,80 @@
-commit 019421d17fedd4af924dee6b969f2945d64a9eea
-Author: Harmen <alicebob@lijzij.de>
-Date:   Wed Mar 18 17:52:57 2020 +0000
+commit 3b0aa546d289390027ee1bf1a5e41f37f6131fa7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 3 16:31:13 2019 -0700
 
-    database/sql: fix variable name in example
+    runtime: define nonblockingPipe
     
-    It's a very minor error, but it's a bad copy/paste example.
+    This requires defining pipe, pipe2, and setNonblock for various platforms.
     
-    Change-Id: Ia6a723c31f2205c933857ce2cf715bddf773ebb6
-    GitHub-Last-Rev: 7f14b1a5c1ea3775aa2009184b0b1790e03225eb
-    GitHub-Pull-Request: golang/go#37932
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223960
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    The new function is currently only used on AIX. It will be used by
+    later CLs in this series.
+    
+    Updates #27707
+    
+    Change-Id: Id2f987b66b4c66a3ef40c22484ff1d14f58e9b31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171822
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/defs1_linux.go        |  1 +
+ src/runtime/defs1_netbsd_386.go   |  4 ++
+ src/runtime/defs1_netbsd_amd64.go |  4 ++
+ src/runtime/defs1_netbsd_arm.go   |  4 ++
+ src/runtime/defs1_netbsd_arm64.go |  4 ++
+ src/runtime/defs_aix.go           |  3 +-
+ src/runtime/defs_aix_ppc64.go     |  3 +-
+ src/runtime/defs_freebsd.go       |  4 ++
+ src/runtime/defs_freebsd_386.go   |  4 ++
+ src/runtime/defs_freebsd_amd64.go |  4 ++
+ src/runtime/defs_freebsd_arm.go   |  4 ++
+ src/runtime/defs_linux.go         |  1 +
+ src/runtime/defs_linux_386.go     |  6 ++-
+ src/runtime/defs_linux_amd64.go   |  6 ++-
+ src/runtime/defs_linux_arm.go     |  2 +
+ src/runtime/defs_linux_arm64.go   |  6 ++-
+ src/runtime/defs_linux_mips64x.go |  2 +
+ src/runtime/defs_linux_mipsx.go   |  2 +
+ src/runtime/defs_linux_ppc64.go   |  2 +
+ src/runtime/defs_linux_ppc64le.go |  2 +
+ src/runtime/defs_linux_s390x.go   |  2 +
+ src/runtime/defs_netbsd.go        |  4 ++
+ src/runtime/defs_openbsd.go       |  4 ++
+ src/runtime/defs_openbsd_386.go   |  4 ++
+ src/runtime/defs_openbsd_amd64.go |  4 ++
+ src/runtime/defs_openbsd_arm.go   |  4 ++
+ src/runtime/defs_openbsd_arm64.go |  4 ++
+ src/runtime/export_nbpipe_test.go | 12 +++++
+ src/runtime/nbpipe_pipe.go        | 19 ++++++++
+ src/runtime/nbpipe_pipe2.go       | 25 +++++++++++
+ src/runtime/nbpipe_test.go        | 93 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/netpoll_aix.go        | 24 ++--------
+ src/runtime/os2_aix.go            |  7 +--
+ src/runtime/os_aix.go             | 17 +++++++
+ src/runtime/os_dragonfly.go       |  3 ++
+ src/runtime/os_freebsd.go         |  1 +
+ src/runtime/os_linux.go           |  2 +
+ src/runtime/os_netbsd.go          |  1 +
+ src/runtime/os_openbsd.go         |  1 +
+ src/runtime/sys_dragonfly_amd64.s | 30 +++++++++++++
+ src/runtime/sys_freebsd_386.s     | 43 ++++++++++++++++++
+ src/runtime/sys_freebsd_amd64.s   | 39 ++++++++++++++++
+ src/runtime/sys_freebsd_arm.s     | 42 ++++++++++++++++++
+ src/runtime/sys_linux_386.s       | 34 ++++++++++++++
+ src/runtime/sys_linux_amd64.s     | 33 ++++++++++++++
+ src/runtime/sys_linux_arm.s       | 33 ++++++++++++++
+ src/runtime/sys_linux_arm64.s     | 34 ++++++++++++++
+ src/runtime/sys_linux_mips64x.s   | 34 ++++++++++++++
+ src/runtime/sys_linux_mipsx.s     | 34 ++++++++++++++
+ src/runtime/sys_linux_ppc64x.s    | 29 ++++++++++++
+ src/runtime/sys_linux_s390x.s     | 34 ++++++++++++++
+ src/runtime/sys_netbsd_386.s      | 43 ++++++++++++++++++
+ src/runtime/sys_netbsd_amd64.s    | 39 ++++++++++++++++
+ src/runtime/sys_netbsd_arm.s      | 36 +++++++++++++++
+ src/runtime/sys_netbsd_arm64.s    | 44 ++++++++++++++++++
+ src/runtime/sys_openbsd_386.s     | 37 ++++++++++++++++
+ src/runtime/sys_openbsd_amd64.s   | 32 ++++++++++++++
+ src/runtime/sys_openbsd_arm.s     | 31 +++++++++++++
+ src/runtime/sys_openbsd_arm64.s   | 37 ++++++++++++++++
+ 59 files changed, 986 insertions(+), 31 deletions(-)

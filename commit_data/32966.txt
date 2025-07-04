@@ -1,32 +1,29 @@
-commit 69b0b3ad22c0127e199c94f2866577346efa1287
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 5 11:11:29 2017 -0400
+commit 6c2458e72d85dd0d388e4d27b6b361899084d526
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 16 14:48:38 2017 -0700
 
-    cmd/go, runtime/cgo: rewrite darwin/arm panicmem setup to avoid init function
+    cmd/compile: permit Unicode spaces in (expanded) package paths
     
-    Init functions are problematic because we want cmd/link to be
-    able to insert an import of runtime/cgo for external linking.
-    For all the other systems that just means putting runtime/cgo into
-    the binary. The linker is not set up to generate calls to init functions,
-    and luckily this one can be avoided entirely.
+    This doesn't change the existing restriction with disallows
+    spaces in import paths (as found in an import declaration).
+    It simply permits packages to be under a directory name that
+    may contain spaces.
     
-    This means people don't have to import _ "runtime/cgo" in their
-    iOS programs anymore. The linker's default import is now enough.
+    Verified manually that it works. This could use a test, but the
+    change is trivial. We also can't use the existing test framework
+    (under test/) because the way those tests are run with test/run.go,
+    the mechanims for compiling a directory, even if it contains blanks
+    it its name, does't produce compiler paths with blanks
+    (the compilation is local).
     
-    This CL also adjusts cmd/go to record the linker's default import,
-    now that the explicit import is gone.
+    Fixes #20306.
     
-    Change-Id: I81d23476663e03664f90d531c24db2e4f2e6c66b
-    Reviewed-on: https://go-review.googlesource.com/68490
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6cbffb86c3394347897c3c94b110da0aadc5bfdf
+    Reviewed-on: https://go-review.googlesource.com/46001
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go            | 20 +++++++++++++++++++-
- src/cmd/go/internal/load/pkg.go           |  2 +-
- src/cmd/go/internal/test/test.go          | 17 ++---------------
- src/runtime/cgo/gcc_signal2_darwin_armx.c | 13 +++++++++++++
- src/runtime/cgo/gcc_signal_darwin_armx.c  |  3 ++-
- src/runtime/cgo/gcc_signal_darwin_lldb.c  |  2 --
- src/runtime/cgo/signal_darwin_armx.go     | 26 ++------------------------
- 7 files changed, 39 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 2 +-
+ src/cmd/compile/internal/gc/main.go    | 4 ++--
+ src/cmd/compile/internal/gc/subr.go    | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

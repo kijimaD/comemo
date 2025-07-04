@@ -1,16 +1,12 @@
-commit 2edeb23bf5c547078392f1aaedc1a3840c72e3d8
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Wed Nov 13 00:47:41 2019 -0600
+commit f7a00c99064d0cb367908a2bc6dea0bb007089de
+Author: Davor Kapsa <davor.kapsa@gmail.com>
+Date:   Thu Sep 26 10:07:34 2019 +0200
 
-    container/list: remove temporary variable `n`
+    SECURITY.md: update go versions
     
-    The variable `n` for saving the pointer of the next
-    element when insert new element into the list turns
-    out to be unnecessary.
-    
-    Change-Id: I17b85fd8350738815c320a83945525b60c2f04c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207037
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I59446965b198767af60d617da29b5c2e457829ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/container/list/list.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ SECURITY.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

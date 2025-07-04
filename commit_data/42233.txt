@@ -1,21 +1,17 @@
-commit 0f8fecaba762c352db481d4919edf404f5590d22
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 30 19:13:41 2020 +0000
+commit f9dd99cae3b08e2fea303b88ff6ffae6261f65b5
+Author: ramenjuniti <ramenjuniti@gmail.com>
+Date:   Mon Nov 18 19:58:22 2019 +0900
 
-    runtime: add scavenge -> traceBuf to lock partial order
+    misc/chrome/gophertool: replace deprecated tabs.getSelected method
     
-    Under the scavenge lock it's possible to ready a goroutine (or now
-    injectglist, which has mostly the same effect) which could cause an
-    unpark trace event to be emitted. If there's no active trace buffer for
-    the P, then we might acquire the lock. The total order between the two
-    is correct, but there's no partial order edge between them. Add in the
-    edge.
+    tabs.getSelected has been deprecated since Chrome 33. Instead,
+    use tabs.query.
     
-    Change-Id: I3fc5d86a3b6bdd0b5648181fb76b5ebc90c3d69f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231197
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Fixes #35663
+    
+    Change-Id: I4f7f17f948987aff8409ac8210f04eb1f7ebf908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207402
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/lockrank.go | 2 +-
+ misc/chrome/gophertool/background.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

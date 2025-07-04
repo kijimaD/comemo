@@ -1,22 +1,23 @@
-commit c4303139925d45b3e784d61dd3901f66c41189d4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 23 19:50:42 2021 -0400
+commit e2c420591cbbd684594a111fa5cdeb40c68964a5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Oct 19 14:02:14 2020 -0400
 
-    runtime: use abi.FuncPCABI0 for libc syscall wrappers
+    cmd/go/internal/modload: remove printStackInDie functionality
     
-    In CL 288092 we made Darwin syscall wrappers as ABIInternal, so
-    their addresses taken from Go using funcPC are the actual function
-    entries, not the wrappers.
+    Previously, when running cmd/go tests, if the module root directory is
+    requested when modules are explicitly disabled, we printed a stack
+    trace in addition to the error message that's normally printed. The
+    stack trace isn't that useful, and it makes the actual error hard to
+    find.
     
-    As we introduced internal/abi.FuncPCABIxxx intrinsics, use that.
-    And change the assembly functions back to ABI0.
-    
-    Change-Id: I50645af74883e2d5dfcd67a5e8c739222c6f645b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313250
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8230d668f3f16659f08d0d685124c41b4055c5b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263659
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/os_darwin.go       | 13 +++---
- src/runtime/sys_darwin.go      | 97 +++++++++++++++++++++--------------------
- src/runtime/sys_darwin_amd64.s | 98 +++++++++++++++++++++---------------------
- 3 files changed, 106 insertions(+), 102 deletions(-)
+ src/cmd/go/internal/modload/build.go  |  4 ----
+ src/cmd/go/internal/modload/init.go   | 10 ----------
+ src/cmd/go/internal/modload/testgo.go | 11 -----------
+ 3 files changed, 25 deletions(-)

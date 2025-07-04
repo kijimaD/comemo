@@ -1,28 +1,33 @@
-commit 952ecbe0a27aadd184ca3e2c342beb464d6b1653
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 14 21:32:41 2017 +0000
+commit 2805d206890344f685579ac5b72ba2d9e5da485d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Mar 19 09:51:22 2017 +0100
 
-    cmd/go: disable tool version check during bootstrap
+    cmd/compile: replace all uses of ptrto by typPtr
     
-    The check that the go tool version matched the go compiler version was
-    too aggressive and didn't cover the bootstrapping case with make.bash.
+    This makes the overall naming and use of the functions
+    to create a Type more consistent.
     
-    We never noticed because we never had a VERSION file in place.
+    Passes toolstash -cmp.
     
-    Repro:
-    
-    $ echo "go1.9beta1" > $GOROOT/VERSION
-    $ cd $GOROOT/src
-    $ ./make.bash
-    
-    No test, because x/build/cmd/release catches it.
-    
-    Updates #19064
-    Fixes #20674
-    
-    Change-Id: Ibdd7a92377f4cc77d71ed548f02d48bde6550f67
-    Reviewed-on: https://go-review.googlesource.com/45778
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: Ie0d40b42cc32b5ecf5f20502675a225038ea40e4
+    Reviewed-on: https://go-review.googlesource.com/38354
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go       |  8 ++---
+ src/cmd/compile/internal/gc/closure.go   |  6 ++--
+ src/cmd/compile/internal/gc/dcl.go       |  6 ++--
+ src/cmd/compile/internal/gc/esc.go       |  6 ++--
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  4 +--
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 42 +++++++++++++-------------
+ src/cmd/compile/internal/gc/select.go    | 12 ++++----
+ src/cmd/compile/internal/gc/sinit.go     |  4 +--
+ src/cmd/compile/internal/gc/ssa.go       | 52 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/subr.go      | 18 ++---------
+ src/cmd/compile/internal/gc/type.go      | 12 ++++++--
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 24 +++++++--------
+ 15 files changed, 103 insertions(+), 107 deletions(-)

@@ -1,0 +1,24 @@
+commit e25b913127ac8ba26c4ecc39288c7f8781f4ef5d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 11:22:02 2024 -0400
+
+    internal/race,runtime: linkname contents of internal/race
+    
+    Rather than importing runtime directly, linkname the functions from
+    runtime. This allows importing internal/race from internal/runtime/*
+    packages, similar to internal/asan and internal/msan.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ibd9644557782076e3cee7927c8a6e6d2909f0a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616458
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/go/build/deps_test.go |  4 +--
+ src/internal/race/race.go | 53 +++++++++++++++++----------------------
+ src/runtime/race.go       | 63 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 33 deletions(-)

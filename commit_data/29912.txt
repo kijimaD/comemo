@@ -1,24 +1,39 @@
-commit cb91dccd86ec07ecdc6cd227f0789372e3c75153
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 6 01:17:24 2017 -0500
+commit 1e28dce80ad2ec195d55269266c5cca7ebd845a5
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Oct 13 12:59:07 2016 -0500
 
-    net/http: better failure in TestTransportPersistConnLeak
+    bytes: improve performance for bytes.Compare on ppc64x
     
-    If one of the c.Get(ts.URL) results in an error, the child goroutine
-    calls t.Errorf, but the test goroutine gets stuck waiting for <-gotReqCh,
-    so the test hangs and the program is eventually killed (after 10 minutes!).
-    Whatever might have been printed to t.Errorf is never seen.
-    Adjust test so that the test fails cleanly in this case.
+    This improves the performance for byte.Compare by rewriting
+    the cmpbody function in runtime/asm_ppc64x.s.  The previous code
+    had a simple loop which loaded a pair of bytes and compared them,
+    which is inefficient for long buffers.  The updated function checks
+    for 8 or 32 byte chunks and then loads and compares double words where
+    possible.
     
-    Still trying to debug why c.Get might fail.
-    It seems to have something to do with occasional connection
-    failures on macOS Sierra.
+    Because the byte.Compare result indicates greater or less than,
+    the doubleword loads must take endianness into account, using a
+    byte reversed load in the little endian case.
     
-    Change-Id: Ia797787bd51ea7cd6deb1192aec89c331c4f2c48
-    Reviewed-on: https://go-review.googlesource.com/34836
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #17433
+    
+    benchmark                                   old ns/op     new ns/op     delta
+    BenchmarkBytesCompare/8-16                  13.6          7.16          -47.35%
+    BenchmarkBytesCompare/16-16                 25.7          7.83          -69.53%
+    BenchmarkBytesCompare/32-16                 38.1          7.78          -79.58%
+    BenchmarkBytesCompare/64-16                 63.0          10.6          -83.17%
+    BenchmarkBytesCompare/128-16                112           13.0          -88.39%
+    BenchmarkBytesCompare/256-16                211           28.1          -86.68%
+    BenchmarkBytesCompare/512-16                410           38.6          -90.59%
+    BenchmarkBytesCompare/1024-16               807           60.2          -92.54%
+    BenchmarkBytesCompare/2048-16               1601          103           -93.57%
+    
+    Change-Id: I121acc74fcd27c430797647b8d682eb0607c63eb
+    Reviewed-on: https://go-review.googlesource.com/30949
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/transport_test.go | 19 ++++++++++++++-----
- 1 file changed, 14 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go  |   1 +
+ src/cmd/internal/obj/ppc64/anames.go |   1 +
+ src/cmd/internal/obj/ppc64/asm9.go   |   3 +
+ src/runtime/asm_ppc64x.s             | 268 ++++++++++++++++++++++++++++-------
+ 4 files changed, 225 insertions(+), 48 deletions(-)

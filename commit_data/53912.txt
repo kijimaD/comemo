@@ -1,31 +1,24 @@
-commit 6f1b895daf66c1055a270527faad3a70b42fd0fc
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jun 21 13:49:42 2023 -0400
+commit 10ffb27528af47c28ee55683421056e3de5bee17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 6 19:28:11 2022 -0700
 
-    go/ast: deprecate Object
+    test: add failing test case for inlined type switches
     
-    The following declarations related to syntactic object resolution
-    are now deprecated:
-    - Ident.Obj
-    - Object
-    - Scope
-    - File.{Scope,Unresolved}
-    - Importer
-    - Package, NewPackage
-    New programs should use the type checker instead.
+    The unified frontend ICEs when inlining a function that contains a
+    function literal, which captures both a type switch case variable and
+    another variable.
     
-    Updates golang/go#52463
-    Updates golang/go#48141
+    Updates #54912.
     
-    Change-Id: I82b315f49b1341c11ae20dcbf81106084bd2ba86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504915
+    Change-Id: I0e16d371ed5df48a70823beb0bf12110a5a17266
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428917
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- api/go1.21.txt             |  5 +++++
- src/go/ast/ast.go          |  8 +++++---
- src/go/ast/resolve.go      |  4 ++++
- src/go/ast/scope.go        | 15 +++++++++++++++
- src/go/parser/interface.go | 12 +++++++-----
- 5 files changed, 36 insertions(+), 8 deletions(-)
+ test/fixedbugs/issue54912.dir/a.go    | 18 ++++++++++++++++++
+ test/fixedbugs/issue54912.dir/main.go | 11 +++++++++++
+ test/fixedbugs/issue54912.go          |  7 +++++++
+ test/run.go                           |  2 ++
+ 4 files changed, 38 insertions(+)

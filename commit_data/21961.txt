@@ -1,32 +1,14 @@
-commit d328756a69b0b9ccf7b5bc20e70487de93071262
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 9 16:24:07 2015 +1100
+commit b7bfb54eaa84a7de187df905ae8f74c8fed515f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 20:15:40 2015 -0800
 
-    cmd/internal/gc: make Node.Isddd boolean
+    math/big: fix aliasing bug in Float.Quo
     
-    Convert Node.Isddd to a boolean and simplify usage.
+    TBR r, adonovan
     
-    - Node.Isddd converted to bool
-    - Type.Isddd converted to bool
-    - mkinlcall converted to take isddd as a bool
-    - typecheckaste converted to take isddd as a bool
-    - ascompatte converted to take isddd as a bool
-    
-    Change-Id: I52586145619c44182bb0c2c5d80a0a3fe3e50a07
-    Reviewed-on: https://go-review.googlesource.com/7172
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1a38e2d724bf1147c7307a7e5ae855c42c60428c
+    Reviewed-on: https://go-review.googlesource.com/4875
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/gc/closure.go   | 10 +++++-----
- src/cmd/internal/gc/dcl.go       |  4 ++--
- src/cmd/internal/gc/esc.go       |  6 +++---
- src/cmd/internal/gc/fmt.go       | 10 +++++-----
- src/cmd/internal/gc/go.go        |  2 +-
- src/cmd/internal/gc/go.y         |  4 ++--
- src/cmd/internal/gc/inl.go       | 22 +++++++++++-----------
- src/cmd/internal/gc/reflect.go   |  6 +++---
- src/cmd/internal/gc/subr.go      |  6 +++---
- src/cmd/internal/gc/syntax.go    |  2 +-
- src/cmd/internal/gc/typecheck.go | 30 +++++++++++++++---------------
- src/cmd/internal/gc/walk.go      | 18 +++++++++---------
- src/cmd/internal/gc/y.go         |  4 ++--
- 13 files changed, 62 insertions(+), 62 deletions(-)
+ src/math/big/float.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

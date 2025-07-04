@@ -1,22 +1,18 @@
-commit b00447038a50e0923b12cb0bc3c28f6b842a7f54
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 27 18:55:29 2022 -0800
+commit 70deaa33ebd91944484526ab368fa19c499ff29f
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 21 10:30:25 2021 -0400
 
-    go/types, types2: shorter list for 2nd phase of function type inference
+    cmd/compile: extend GOSSAFUNC match to well-formed package suffix match.
     
-    In the 2nd phase of function argument type inference we only
-    consider parameters with types that are single type parameters.
-    Thus there is no need to collect anything else in the first
-    phase.
+    e.g., LeadingZeros, bits.LeadingZeros, math/bits.LeadingZeros
+    but not its.LeadingZeros
     
-    This matches the algorithm description in the forthcoming spec
-    more closely.
-    
-    Change-Id: Ie5c29f30ff43b1e37d719ecbe1688b50ed2177f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381554
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib9a57e4db0af03c55bf5b5027aa6f8a5a84f2134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312291
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 24 +++++++++++++-----------
- src/go/types/infer.go                    | 24 +++++++++++++-----------
- 2 files changed, 26 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

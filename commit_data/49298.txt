@@ -1,20 +1,27 @@
-commit ec464edb22301764b6caf7592ac8dc9451c595c6
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit f5f79c47f900300e8ac962e73ae7c2c706489d67
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Aug 7 22:26:46 2021 -0700
 
-    cmd/dist: port to linux/loong64 completed
+    [dev.typeparams] cmd/compile: use types2.Constraint() rather than types2.Bound()
     
-    For #46229
+    types2.Constraint() returns the top-level constraint type, including any
+    unions or other interface elements. Because of that, we needed to
+    add/fix some code in the type substituter and generic type instantiater
+    in the importer to deal with unions and non-method members of an
+    interface. Also, NewUnion was not correctly setting the HasTParam flag.
     
-    Change-Id: I5c207482d0a2cfb3a66f7e293cf413a5b54daa26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397074
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    I also added a better error message when a symbol is not found in
+    (*deadcodePass).decodeIfaceMethod().
+    
+    Change-Id: Id3668dc596dce63690fa05a9e5e42295b5e2bbb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340670
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/noder/types.go       |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go | 12 ++++++++++--
+ src/cmd/compile/internal/typecheck/subr.go    | 20 +++++++++++++++++++-
+ src/cmd/compile/internal/types/type.go        |  9 +++++++++
+ src/cmd/link/internal/ld/deadcode.go          |  3 +++
+ 5 files changed, 42 insertions(+), 4 deletions(-)

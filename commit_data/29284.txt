@@ -1,35 +1,19 @@
-commit 54ec7b072e017f7351f889f9f5b31bbf53a44119
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Oct 30 20:30:38 2016 -0400
+commit 238274df4eee1752f51b288a11eddaf5365123bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 6 17:26:15 2016 -0700
 
-    runtime: access modules via a slice
+    go/constant: document that Value.String and ExactString return quoted strings
     
-    The introduction of -buildmode=plugin means modules can be added to a
-    Go program while it is running. This means there exists some time
-    while the program is running with the module is on the moduledata
-    linked list, but it has not been initialized to the satisfaction of
-    other parts of the runtime. Notably, the GC.
+    This has always been the case but it was not obvious from the documentation.
+    The reason for the quoting is that String() may return an abbreviated string,
+    starting with double-quote (") but ending in ... (w/o a quote). The missing
+    quote indicates the abbreviation (in contrast to a string ending in ...").
     
-    This CL adds a new way of access modules, an activeModules function.
-    It returns a slice of modules that is built in the background and
-    atomically swapped in. The parts of the runtime that need to wait on
-    module initialization can use this slice instead of the linked list.
+    constant.StringVal can be used to obtain the unquoted string of a String Value.
     
-    Fixes #17455
-    
-    Change-Id: I04790fd07e40c7295beb47cea202eb439206d33d
-    Reviewed-on: https://go-review.googlesource.com/32357
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id0ba45b6ff62b3e024386ba8d907d6b3a4fcb6d7
+    Reviewed-on: https://go-review.googlesource.com/28576
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/cgocall.go  |  4 ++--
- src/runtime/cgocheck.go |  2 +-
- src/runtime/iface.go    |  4 ++--
- src/runtime/mbitmap.go  |  6 +++---
- src/runtime/mgc.go      |  4 ----
- src/runtime/mgcmark.go  |  8 ++++----
- src/runtime/plugin.go   |  5 ++---
- src/runtime/proc.go     |  7 ++++---
- src/runtime/runtime1.go | 11 ++++++-----
- src/runtime/symtab.go   | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/type.go     |  7 +++----
- 11 files changed, 74 insertions(+), 31 deletions(-)
+ src/go/constant/value.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

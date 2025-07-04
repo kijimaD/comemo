@@ -1,24 +1,20 @@
-commit 08c46ed43d80bbb67cb904944ea3417989be4af3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Mar 28 18:41:26 2022 -0700
+commit 36ac2214fadc64f33f5e8c4076d123ba4e40a665
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 18:26:16 2021 -0400
 
-    encoding/xml: use iterative Skip, rather than recursive
+    go/types: remove superfluous ordinaryType calls
     
-    Prevents exhausting the stack limit in _incredibly_ deeply nested
-    structures.
+    This is a port of CL 346291 to go/types.
     
-    Fixes #53614
-    Fixes CVE-2022-28131
-    
-    Change-Id: I47db4595ce10cecc29fbd06afce7b299868599e6
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1419912
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417062
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8f864aca5cdb4037bc27a81cde1597430b9a48db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346559
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/encoding/xml/read.go      | 15 ++++++++-------
- src/encoding/xml/read_test.go | 17 +++++++++++++++++
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ src/go/types/expr.go                           |  1 -
+ src/go/types/stmt.go                           |  1 -
+ src/go/types/testdata/fixedbugs/issue42758.go2 |  2 +-
+ src/go/types/typexpr.go                        | 19 +++++++------------
+ 4 files changed, 8 insertions(+), 15 deletions(-)

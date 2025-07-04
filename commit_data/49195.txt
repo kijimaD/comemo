@@ -1,23 +1,41 @@
-commit 92998cde5a642c9db42efa51c4077b70609d55d6
-Author: Ville Skyttä <ville.skytta@iki.fi>
-Date:   Sat May 7 06:37:07 2022 +0000
+commit 473e493d18c277d69e40a4930af045d474ff2be4
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jul 21 12:12:22 2021 -0400
 
-    mime: skip globs2 entries that are not simple file extensions
+    [dev.typeparams] cmd/compile/internal/types2: merge instance and Named to eliminate sanitization
     
-    The entries in globs2 can be globs beyond simple *.ext ones. We support only simple extension based matching, so skip entries that do not represent them.
+    This is a port of CL 335929 to types2. It differs significantly from
+    that CL to handle lazy loading, which wasn't tested in go/types.
+    Additionally, the *Checker field was moved out of instance and back
+    onto Named. This way we can tell whether a Named type is uninstantiated
+    simply by checking whether Named.instance is non-nil, which simplified
+    the code considerably.
     
-    Change-Id: Id5d089cb4067e53beb2471a5e67a59c13880a017
-    GitHub-Last-Rev: f725a910547ec52d12605760563f158dfb72e4b0
-    GitHub-Pull-Request: golang/go#51156
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385256
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #46151
+    
+    Change-Id: I617263bcfaa768ac5442213cecad8d567c2749fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336252
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/mime/testdata/test.types.globs2 |  3 +++
- src/mime/type_unix.go               | 14 +++++++++++++-
- src/mime/type_unix_test.go          | 17 ++++++++++-------
- 3 files changed, 26 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        |   2 +-
+ src/cmd/compile/internal/types2/check.go           |   5 -
+ src/cmd/compile/internal/types2/decl.go            |  12 +-
+ src/cmd/compile/internal/types2/infer.go           |   3 -
+ src/cmd/compile/internal/types2/instance.go        |  62 +++----
+ src/cmd/compile/internal/types2/instantiate.go     |  72 +++++---
+ src/cmd/compile/internal/types2/lookup.go          |   2 +-
+ src/cmd/compile/internal/types2/named.go           |  45 +++--
+ src/cmd/compile/internal/types2/object.go          |   3 +
+ src/cmd/compile/internal/types2/predicates.go      |   8 +-
+ src/cmd/compile/internal/types2/sanitize.go        | 205 ---------------------
+ src/cmd/compile/internal/types2/sizeof_test.go     |   3 +-
+ src/cmd/compile/internal/types2/subst.go           |  15 +-
+ .../internal/types2/testdata/check/issues.go2      |   4 +-
+ src/cmd/compile/internal/types2/typeparam.go       |   3 +-
+ src/cmd/compile/internal/types2/typestring.go      |  10 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   2 +-
+ 17 files changed, 127 insertions(+), 329 deletions(-)

@@ -1,16 +1,18 @@
-commit 755fd93b604c11bd67a7b1be496c1dcd0e001768
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 7 21:29:01 2017 +0000
+commit 53937aad99f1d1e177fca3a3d0ec5c83825e015b
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 13 18:29:46 2017 +0200
 
-    net/http: delete vestigial method
+    cmd/vet: check shift calculations with "unsafe" package
     
-    Fixes #19850
+    vet should properly handle shift calculations via "unsafe"
+    package after the CL 37950.
     
-    Change-Id: I8c86e288159408c687c2a85f458ade282adae450
-    Reviewed-on: https://go-review.googlesource.com/45077
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7737f2e656a5166337a17b92db46a0997f2a4e0e
+    Reviewed-on: https://go-review.googlesource.com/38064
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/vet/shift.go          | 22 ----------------------
+ src/cmd/vet/testdata/shift.go |  5 ++++-
+ 2 files changed, 4 insertions(+), 23 deletions(-)

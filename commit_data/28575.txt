@@ -1,17 +1,14 @@
-commit 26531b3846694b311aec87fc4f5de65b4cc48a44
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Sep 14 16:56:24 2016 +0300
+commit 0326e28f17ca760f76105fbcba9c5f55bb6ef1ce
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jun 4 07:33:28 2016 +0900
 
-    cmd/internal/obj/x86: cleanup
+    Revert "cmd/go: re-enable TestCgoConsistentResults on solaris"
     
-    Remove duplicate vars, commented out code  and duplicate lines.
-    When choosing between 2 aliases, on with more uses was chosen.
+    This reverts commit b89bcc1daeed9980c5ba8a255b37877493952874.
     
-    Change-Id: I7bc15f1693de3f6d378cef9c09469970a659db40
-    Reviewed-on: https://go-review.googlesource.com/29152
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ief2f317ffc175f7e6002d0c39694876f46788c69
+    Reviewed-on: https://go-review.googlesource.com/23744
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/internal/obj/x86/asm6.go | 132 ++++++++++++---------------------------
- 1 file changed, 40 insertions(+), 92 deletions(-)
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

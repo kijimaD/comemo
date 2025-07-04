@@ -1,28 +1,31 @@
-commit f390135733ae20a3c8b6700426cc379f6e145319
-Author: Alex A Skinner <alex@lx.lc>
-Date:   Sat Apr 25 20:50:21 2015 -0400
+commit 39377013cb9b49b39e55c83a5b221547f14d04dd
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Dec 18 15:05:48 2014 +0100
 
-    net: make go DNS use localhost if resolv.conf is missing or empty
+    net/http: handle close/response race more gracefully
     
-    Per resolv.conf man page, "If this file does not exist, only the name
-    server on the local machine will be queried."
+    There was a logical race in Transport.RoundTrip where a roundtrip with
+    a pending response would race with the channel for the connection
+    closing. This usually happened for responses with connection: close
+    and no body.
     
-    This behavior also occurs if file is present but unreadable,
-    or if no nameservers are listed.
+    We handled this race by reading the close channel, setting a timer
+    for 100ms and if no response was returned before then, we would then
+    return an error.
     
-    Fixes #10566
+    This put a lower bound on how fast a connection could fail. We couldn't
+    fail a request faster than 100ms.
     
-    Change-Id: Id5716da0eae534d5ebfafea111bbc657f302e307
-    Reviewed-on: https://go-review.googlesource.com/9380
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reordering the channel operations gets rid of the logical race. If
+    the readLoop causes the connection to be closed, it would have put
+    its response into the return channel already and we can fetch it with
+    a non-blocking receive.
+    
+    Change-Id: Idf09e48d7a0453d7de0120d3055d0ce5893a5428
+    Reviewed-on: https://go-review.googlesource.com/1787
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/conf.go                | 13 +++-----
- src/net/conf_test.go           | 74 ++++++++++++++++++++++++++++++++----------
- src/net/dnsclient_unix.go      | 27 ++++++---------
- src/net/dnsclient_unix_test.go | 41 +++++++++++++----------
- src/net/dnsconfig_unix.go      | 22 +++++++++----
- src/net/dnsconfig_unix_test.go | 25 ++++++++++++--
- src/net/error_test.go          |  6 ----
- src/net/net.go                 |  1 +
- 8 files changed, 134 insertions(+), 75 deletions(-)
+ src/net/http/export_test.go    |  4 ++++
+ src/net/http/transport.go      | 40 ++++++++++++++++++++++--------------
+ src/net/http/transport_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 15 deletions(-)

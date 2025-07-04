@@ -1,18 +1,16 @@
-commit 6297f06cbd84a2373586faf6a69e73dcf8fe3bd1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 7 08:53:38 2017 -0700
+commit 4601eae6baed9c4bc6e38f035d1b6a20bb7ebbf7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 9 19:11:58 2017 +0100
 
-    cmd/compile: fix build by updating to new types package
+    doc/gdb: mention GOTRACEBACK=crash
     
-    CL 38776 was not updated to use the new types package.
+    Also fix a couple of other errors.
     
-    Fixes build.
+    Fixes #6877
     
-    Change-Id: Ie80ff4837cac95bd628e0405a937045171d56e0c
-    Reviewed-on: https://go-review.googlesource.com/39918
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I94c81c5847cc7b0adab19418e71687bc2ee7fe94
+    Reviewed-on: https://go-review.googlesource.com/34960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/debugging_with_gdb.html | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

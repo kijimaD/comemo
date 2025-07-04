@@ -1,0 +1,22 @@
+commit 488e2d18d9d8ac8f51a5e1ea297adaa50c9f4870
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 28 17:15:48 2024 +0000
+
+    runtime: more thorough map benchmarks
+    
+    Based on the benchmarks in github.com/cockroachlabs/swiss.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I9ad925d3272c671e21ec04eb2da5ebd8f0fc6a28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596295
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/map_benchmark_test.go | 641 ++++++++++++++++++++++++++++++++++----
+ src/runtime/map_test.go           | 213 -------------
+ 2 files changed, 587 insertions(+), 267 deletions(-)

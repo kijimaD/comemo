@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8029: ddd0fa17446aa510dd48df7fd07ccce9a9b156d0
+# Index 8029: db5c5d6fa6ed29e7afc2941562936f12741733dd
 
 echo "🚀 Generating explanation for commit 8029..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 8029
-- **コミットハッシュ**: ddd0fa17446aa510dd48df7fd07ccce9a9b156d0
-- **GitHub URL**: https://github.com/golang/go/commit/ddd0fa17446aa510dd48df7fd07ccce9a9b156d0
+- **コミットハッシュ**: db5c5d6fa6ed29e7afc2941562936f12741733dd
+- **GitHub URL**: https://github.com/golang/go/commit/db5c5d6fa6ed29e7afc2941562936f12741733dd
 
 ### 章構成
 

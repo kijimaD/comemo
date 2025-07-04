@@ -1,27 +1,14 @@
-commit 73f1a1a1a7f7781c095ef6aebe8b0adf0669d6b2
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Thu Oct 19 18:59:41 2017 -0400
+commit 0173631d53df98b17d282b3d71e8f515388915cc
+Author: Axel Wagner <axel.wagner.hh@googlemail.com>
+Date:   Sat Jul 15 11:43:22 2017 -0600
 
-    cmd/compile/internal/ssa: use reverse postorder traversal
+    encoding/binary: add examples for varint functions
     
-    Instead of the hand-written control flow analysis in debug info
-    generation, use a reverse postorder traversal, which is basically the
-    same thing. It should be slightly faster.
-    
-    More importantly, the previous version simply gave up in the case of
-    non-reducible functions, and produced output that caused a later stage
-    to crash. It turns out that there's a non-reducible function in
-    compress/flate, so that wasn't a theoretical issue.
-    
-    With this change, all blocks will be visited, even for non-reducible
-    functions.
-    
-    Change-Id: Id47536764ee93203c6b4105a1a3013fe3265aa12
-    Reviewed-on: https://go-review.googlesource.com/73110
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I191f6e46b452fadde9f641140445d843b0c7d534
+    Reviewed-on: https://go-review.googlesource.com/48604
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go           |  1 -
- src/cmd/compile/internal/ssa/debug.go | 52 ++++-------------------------------
- 2 files changed, 6 insertions(+), 47 deletions(-)
+ src/encoding/binary/example_test.go | 91 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

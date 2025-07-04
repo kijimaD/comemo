@@ -1,34 +1,37 @@
-commit 34507e879d31d082eeb5f5722c6c2aceaeb7e052
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit fc8e0cbbbaa5ae7c1e5b7b070ad80f41095ef18b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jul 26 10:39:38 2021 -0700
 
-    runtime/cgo: add cgo function call support for loong64
+    [dev.cmdgo] cmd: update x/tools and remove copy of txtar
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    golang.org/x/tools/txtar is the main location for this package. We
+    don't need our own copy.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Also, update cmd/vet tests for compatibility with CL 301949.
     
-    Updates #46229
+    For golang/go#47193
     
-    Change-Id: I8ef0e7f17d6ada3d2f07c81524136b78457e7795
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342319
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I480eb591f57a0d05b433a657653e2021e39354eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337352
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/cgo/asm_loong64.s       | 67 +++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_linux_loong64.c | 69 +++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_loong64.S       | 65 ++++++++++++++++++++++++++++++++++
- 3 files changed, 201 insertions(+)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/internal/fsys/fsys_test.go              |   3 +-
+ src/cmd/go/internal/txtar/archive_test.go          |  67 -------------
+ src/cmd/go/proxy_test.go                           |   2 +-
+ src/cmd/go/script_test.go                          |   3 +-
+ src/cmd/go/testdata/addmod.go                      |   2 +-
+ src/cmd/go/testdata/savedir.go                     |   2 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  28 +++---
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   |   8 +-
+ .../golang.org/x/tools/internal/typeparams/doc.go  |  11 +++
+ .../x/tools/internal/typeparams/notypeparams.go    |  90 ++++++++++++++++++
+ .../x/tools/internal/typeparams/typeparams.go      | 105 +++++++++++++++++++++
+ .../golang.org/x/tools}/txtar/archive.go           |   6 +-
+ src/cmd/vendor/modules.txt                         |   4 +-
+ src/cmd/vet/testdata/print/print.go                |   8 +-
+ 16 files changed, 249 insertions(+), 96 deletions(-)

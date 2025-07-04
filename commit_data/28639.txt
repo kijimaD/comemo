@@ -1,32 +1,21 @@
-commit 6300161d40e50902e16b3144c36aaf9279ab6208
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 30 09:03:38 2016 -0700
+commit f3d54789f764f0f6dba1d2f12ad01986d66ea31c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Jun 16 18:12:48 2016 -0400
 
-    cmd/compile: force folding of MOVDaddr into storezero
+    cmd/compile: use power5 instructions for uint64 to float casts
     
-    Fold MOVDaddr ops into MOVXstorezero ops.
-    Also fold ADDconst into MOVDaddr so we're sure there isn't
-    (MOVDstorezero (ADDconst (MOVDaddr ..)))
+    Use the same technique as mips64 for these casts (CL 22835).
     
-    Without this CL, we get:
+    We could use the FCFIDU instruction for ppc64le however it seems
+    better to keep it the same as ppc64 for now.
     
-    v1 = MOVDaddr {s}
-    v2 = VARDEF {s}
-    v3 = MOVDstorezero v1 v2
+    Updates #15539, updates #16004.
     
-    The liveness pass thinks the MOVDaddr is a read of s, so s is
-    incorrectly thought to be live at the start of the function.
-    
-    Fixes #17194
-    
-    Change-Id: I2b4a2f13b12aa5b072941ee1c7b89f3793650cdc
-    Reviewed-on: https://go-review.googlesource.com/30086
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I550680e485327568bf3238c4615a6cc8de6438d7
+    Reviewed-on: https://go-review.googlesource.com/24191
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  11 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 114 +++++++++++++++++++++++++++
- test/fixedbugs/issue17194.go                 |  17 ++++
- 3 files changed, 142 insertions(+)
+ src/cmd/compile/internal/ppc64/gsubr.go | 61 ++++++++++++++++++---------------
+ 1 file changed, 34 insertions(+), 27 deletions(-)

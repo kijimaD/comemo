@@ -1,17 +1,12 @@
-commit a620f2b73ab1642fcd53fcc9cc5ada31ebdae455
-Author: Taru Karttunen <taruti@taruti.net>
-Date:   Mon Dec 12 09:58:04 2011 -0500
+commit 4068e3fc7049e70f734b80d9efb8f0b4551dc360
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 12 16:14:38 2011 +1100
 
-    crypto/aes: Made faster by eliminating some indirection
+    doc: remove file.go from run (fix windows build)
     
-    Made te and td arrays into variables te0-3 and td0-3,
-    which improves performance from 7000ns/op to 5800.
-    
-    R=rsc, rogpeppe, agl
+    R=golang-dev, r, alex.brainman, r
     CC=golang-dev
-    https://golang.org/cl/5449077
+    https://golang.org/cl/5479069
 
- src/pkg/crypto/aes/aes_test.go |   2 +
- src/pkg/crypto/aes/block.go    |  18 +-
- src/pkg/crypto/aes/const.go    | 544 ++++++++++++++++++++---------------------
- 3 files changed, 281 insertions(+), 283 deletions(-)
+ doc/progs/run | 1 -
+ 1 file changed, 1 deletion(-)

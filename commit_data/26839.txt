@@ -1,30 +1,28 @@
-commit 3fafe2e8888dadb6877fa1e7569f5bd1f688dd3a
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Apr 11 08:57:52 2016 +0200
+commit 8107b0012f1d5f808e33f812c456e20554c383c8
+Author: David Chase <drchase@google.com>
+Date:   Sun Feb 28 11:15:22 2016 -0500
 
-    internal/trace: support parsing of 1.5 traces
+    [dev.ssa] cmd/compile: use 32-bit load to read writebarrier
     
-    1. Parse out version from trace header.
-    2. Restore handling of 1.5 traces.
-    3. Restore optional symbolization of traces.
-    4. Add some canned 1.5 traces for regression testing
-       (http benchmark trace, runtime/trace stress traces,
-        plus one with broken timestamps).
+    Avoid targeting a partial register with load;
+    ensure source of load (writebarrier) is aligned.
     
-    Change-Id: Idb18a001d03ded8e13c2730eeeb37c5836e31256
-    Reviewed-on: https://go-review.googlesource.com/21803
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Better yet would be "CMPB $1,writebarrier" but that requires
+    wrestling with flagalloc (mem operand complicates moving
+    instruction around).
+    
+    Didn't see a change in time for
+       benchcmd -n 10 Build go build net/http
+    
+    Verified that we clean the code up properly:
+       0x20a8 <main.main+104>:      mov    0xc30a2(%rip),%eax
+                                # 0xc5150 <runtime.writeBarrier>
+       0x20ae <main.main+110>:      test   %al,%al
+    
+    Change-Id: Id5fb8c260eaec27bd727cb0ae1476c60343b0986
+    Reviewed-on: https://go-review.googlesource.com/19998
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/nacl/testzip.proto                            |   4 +
- src/cmd/trace/main.go                              |   2 +-
- src/internal/trace/parser.go                       | 314 +++++++++++++++------
- src/internal/trace/parser_test.go                  |  61 +++-
- src/internal/trace/testdata/http_1_5_good          | Bin 0 -> 42218 bytes
- src/internal/trace/testdata/stress_1_5_good        | Bin 0 -> 7446 bytes
- src/internal/trace/testdata/stress_1_5_unordered   | Bin 0 -> 8194 bytes
- .../trace/testdata/stress_start_stop_1_5_good      | Bin 0 -> 6997 bytes
- src/runtime/trace.go                               |   2 +-
- src/runtime/trace/trace_test.go                    |   4 +-
- 10 files changed, 295 insertions(+), 92 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 12 ++++++++----
+ src/runtime/mgc.go                 |  7 ++++---
+ 2 files changed, 12 insertions(+), 7 deletions(-)

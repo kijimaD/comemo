@@ -1,12 +1,23 @@
-commit 01ab9a012a7a34040ed9b69ec87b5b3301e0f50b
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Feb 27 08:28:53 2013 -0800
+commit 3fc8cd054a4dd1bb4eb60da76a595cd509bb20ac
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 27 10:26:24 2013 -0500
 
-    runtime: improve precision of GC_REGION
+    exp/ssa: perform all packages' BUILD phases in parallel.
     
-    R=rsc
+    Details:
+    - move Builder.nTo1Vars into package => thread-safe.
+    - add BuildSerially builder mode flag to disable concurrency.
+    - add Builder.BuildAllPackages method.
+    
+    Benchmark: BuildAllPackages for $GOROOT/test/append.go drops
+    to 83ms from 190ms (GOMAXPROCS=8).
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/7383054
+    https://golang.org/cl/7371051
 
- src/pkg/runtime/mgc0.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/exp/ssa/builder.go            | 301 +++++++++++++++++-----------------
+ src/pkg/exp/ssa/interp/interp_test.go |   2 +-
+ src/pkg/exp/ssa/ssa.go                |   4 +-
+ src/pkg/exp/ssa/ssadump.go            |   5 +-
+ 4 files changed, 155 insertions(+), 157 deletions(-)

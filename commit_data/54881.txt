@@ -1,15 +1,25 @@
-commit f8c5d04e55edcc8eb00a6c8143a2c6d22695f12b
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 3 19:19:58 2023 +0800
+commit 893964b9727a3dfcadab75c0f6b3c6b683b9bae0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 16 12:56:40 2022 -0800
 
-    plugin: add available godoc link
+    runtime,cmd/link: increase stack guard space when building with -race
     
-    Change-Id: I371b52215d3f9efdcab1439e7215f340dbf1ec08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539598
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    More stuff to do = more stack needed. Bump up the guard space when
+    building with the race detector.
+    
+    Fixes #54291
+    
+    Change-Id: I701bc8800507921bed568047d35b8f49c26e7df7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451217
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/plugin/plugin.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/objabi/stack.go          | 21 +++++++++++++++------
+ src/cmd/link/internal/ld/stackcheck.go    |  2 +-
+ src/runtime/internal/sys/consts.go        |  4 +++-
+ src/runtime/internal/sys/consts_norace.go |  9 +++++++++
+ src/runtime/internal/sys/consts_race.go   |  9 +++++++++
+ src/runtime/stack.go                      |  2 ++
+ 6 files changed, 39 insertions(+), 8 deletions(-)

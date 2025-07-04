@@ -1,16 +1,17 @@
-commit 76f3228520cd862875d35b3f651be285b489b131
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 4 08:43:21 2011 -0800
+commit 4a14bc524bbcf401e4d7a8cc54566605bda4b4d1
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 4 09:00:17 2011 -0500
 
-    go spec, effective go: cleanups
+    crypto/openpgp/packet: add public key support
     
-    Removed most of the detailed examples about handing panics
-    from the go spec since it's now covered by Effective Go.
+    Note that DSA public key support is nascent and the verification
+    functions clearly don't support it yet. I'm intending to get RSA keys
+    working first.
     
-    R=r, rsc, iant, ken2
+    R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4128058
+    https://golang.org/cl/3973054
 
- doc/effective_go.html |  19 +++++---
- doc/go_spec.html      | 121 +++++++++-----------------------------------------
- 2 files changed, 34 insertions(+), 106 deletions(-)
+ src/pkg/crypto/openpgp/packet/public_key.go      | 260 +++++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/public_key_test.go |  58 +++++
+ 2 files changed, 318 insertions(+)

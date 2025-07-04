@@ -1,20 +1,25 @@
-commit a19c925eda6987d91f316639db2ce774725f7a1a
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Nov 20 11:18:15 2020 -0500
+commit 8bd7c014174cef595e058b8f4b1bffb6c108d414
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 24 15:32:46 2020 -0400
 
-    cmd/go: recommend 'go get' command to switch from retracted versions
+    [dev.link] cmd/link: support new dodata for PPC64
     
-    This CL restores a message unintentionally removed in CL 270858.
+    Add linux/{ppc64,ppc64le} and aix/ppc64 arch support for the new
+    dodata() phase.
     
-    For #24031
+    This completes the picture in terms of architecture support for the
+    new dodata(), but to be safe this patch leaves the command line flag
+    in place there are problems on the builders (especially given that we
+    have a dead aix-ppc64 builder).
     
-    Change-Id: I957c5c59e624df98e72dfff351298bfc5bf9a9e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272066
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I78da615c3b540d8925ed7b3226e199280eb7451d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229983
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modget/get.go              | 9 +++++++++
- src/cmd/go/testdata/script/mod_get_retract.txt | 1 +
- 2 files changed, 10 insertions(+)
+ src/cmd/link/internal/ld/main.go    |  18 -----
+ src/cmd/link/internal/ld/xcoff.go   |  47 +++++++-----
+ src/cmd/link/internal/ld/xcoff2.go  |  63 +++++++++++++++-
+ src/cmd/link/internal/ppc64/asm.go  | 110 +++++++++++++++-------------
+ src/cmd/link/internal/ppc64/asm2.go | 140 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ppc64/obj.go  |   1 +
+ 6 files changed, 293 insertions(+), 86 deletions(-)

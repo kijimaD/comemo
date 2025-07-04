@@ -1,17 +1,18 @@
-commit 3206a9b562fd0b5be15cac6534af0c4778b0c942
-Author: The Backend Grip <thebackendgrip@gmail.com>
-Date:   Mon Apr 29 22:28:11 2024 +0000
+commit e7af0e0cac6c65043335da6b6329f7141d2f68c5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 29 02:00:15 2023 +1000
 
-    http: fix some comments typo in server.go
+    cmd/internal/obj/arm64: use appropriate return type for regoff
     
-    Change-Id: I826412175876a84ab978aba9418be28593484fba
-    GitHub-Last-Rev: d35753c7e027ce4ca1fe63d96985de9e90bf813b
-    GitHub-Pull-Request: golang/go#67112
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582435
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    All of the callers of regoff cast the return value from uint32 to int32.
+    Instead, simply return int32 in the first place.
+    
+    Change-Id: I43a672bb3143a71f4a37779ed8ae9adcda623ba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490355
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/server.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

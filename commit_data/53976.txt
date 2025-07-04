@@ -1,22 +1,20 @@
-commit 8870b8d2817dc90da96ce6cfb767034d12965252
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Aug 10 02:00:54 2023 +0000
+commit 6f7c9ea855b1ae97871837abf33b85aaa6731eae
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sun Apr 24 12:14:13 2022 +0800
 
-    strconv: use the built-in min/max function
+    runtime: set userForced while holding gcsema
     
-    Change-Id: Iab170943e6e80ffe08bb061e563c106b53740372
+    Fixes #52515
     
-    Change-Id: Iab170943e6e80ffe08bb061e563c106b53740372
-    GitHub-Last-Rev: 2964e03f1fbc499247bb6c3365475a91ef64547a
-    GitHub-Pull-Request: golang/go#61828
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516875
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: If10068a97733daf61aba72da5ed3935db8eed8b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401776
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/strconv/ftoa.go | 14 --------------
- 1 file changed, 14 deletions(-)
+ src/runtime/mgc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

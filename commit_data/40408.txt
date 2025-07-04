@@ -1,36 +1,20 @@
-commit c357b363cf1027afe3296e973ea6f6613cc757ad
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Oct 22 11:30:20 2019 -0400
+commit 40657c282d49d807d2bd76165fe013317855a653
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 18:34:29 2019 -0400
 
-    cmd/go: add -modfile flag that sets go.mod file to read/write
+    runtime: fix s390x build
     
-    This change adds the -modfile flag to module aware build commands and
-    to 'go mod' subcommands. -modfile may be set to a path to an alternate
-    go.mod file to be read and written. A real go.mod file must still
-    exist and is used to set the module root directory. However, it is not
-    opened.
+    The new prototypes of duffzero and duffcopy must be
+    accompanied by functions. Otherwise buildmode=shared
+    (in particular, misc/cgo/testshared) has missing symbols.
     
-    When -modfile is set, the effective location of the go.sum file is
-    also changed to the -modfile with the ".mod" suffix trimmed (if
-    present) and ".sum" added.
+    The right fix, of course, is to implement these on s390x.
     
-    Updates #34506
+    For #31916.
     
-    Change-Id: I2d1e044e18af55505a4f24bbff09b73bb9c908b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202564
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3efff5e3011956341e1b26223a4847a8a91a0453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.14.html                             | 16 ++++--
- src/cmd/go/alldocs.go                       |  7 +++
- src/cmd/go/internal/cfg/cfg.go              |  3 +-
- src/cmd/go/internal/modcmd/edit.go          |  3 +-
- src/cmd/go/internal/modcmd/init.go          |  3 +-
- src/cmd/go/internal/modcmd/mod.go           |  9 +++-
- src/cmd/go/internal/modload/init.go         | 78 +++++++++++++++++++++++++++--
- src/cmd/go/internal/work/build.go           |  8 +++
- src/cmd/go/internal/work/init.go            |  3 ++
- src/cmd/go/main.go                          |  2 +-
- src/cmd/go/testdata/script/modfile_flag.txt | 67 +++++++++++++++++++++++++
- 11 files changed, 186 insertions(+), 13 deletions(-)
+ src/runtime/duff_s390x.s | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

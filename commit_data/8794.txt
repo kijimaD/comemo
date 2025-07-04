@@ -1,15 +1,13 @@
-commit da7b96f714c3b5047a1af6903fa2d73f29693b00
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 20 10:33:07 2011 -0700
+commit 67ec47d1c04d57f582f51acb437d6aebb8de576d
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Mon Jun 20 07:41:18 2011 -0700
 
-    http: fix req.Cookie(name) with cookies in one header
+    mime: fix RFC references
     
-    Fixes #1974
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/4654042
+    R=golang-dev, bradfitz
+    CC=brad fitzpatrick <bradfitz, golang-dev
+    https://golang.org/cl/4634063
 
- src/pkg/http/cookie.go      |  4 ++--
- src/pkg/http/cookie_test.go | 17 ++++++++++++++++-
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/pkg/mime/grammar.go   | 4 ++--
+ src/pkg/mime/mediatype.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,18 +1,27 @@
-commit fee02d270bf850d5b390000d8545c3609718e9a5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 9 06:42:42 2016 -0700
+commit 3b02c5b1b66df9cdb23d5a3243bb37b2c312ea1b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 7 07:29:22 2016 +1000
 
-    cmd/go: clarify go get documentation
+    runtime: merge lfstack{Pack,Unpack} into one file
     
-    Make the documentation for `go get` match the documentation for `go
-    install`, since `go get` essentially invokes `go install`.
+    Merge the remaining lfstack{Pack,Unpack} implemetations into one file.
     
-    Update #15825.
+    unsafe.Sizeof(uintptr(0)) == 4 is a constant comparison so this branch
+    folds away at compile time.
     
-    Change-Id: I374d80efd301814b6d98b86b7a4a68dd09704c92
-    Reviewed-on: https://go-review.googlesource.com/23925
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Dmitry confirmed that the upper 17 bits of an address will be zero for a
+    user mode pointer, so there is no need to sign extend on amd64 during
+    unpack, so we can reuse the same implementation as all othe 64 bit
+    archs.
+    
+    Change-Id: I99f589416d8b181ccde5364c9c2e78e4a5efc7f1
+    Reviewed-on: https://go-review.googlesource.com/21597
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/alldocs.go | 4 ++--
- src/cmd/go/get.go     | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/lfstack.go       | 35 +++++++++++++++++++++++++++++++++++
+ src/runtime/lfstack_32bit.go | 19 -------------------
+ src/runtime/lfstack_64bit.go | 33 ---------------------------------
+ src/runtime/lfstack_amd64.go | 22 ----------------------
+ 4 files changed, 35 insertions(+), 74 deletions(-)

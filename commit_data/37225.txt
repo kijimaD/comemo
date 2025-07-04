@@ -1,24 +1,16 @@
-commit 85525c56ab5fdb214fee70b4b4cce8700344258b
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 2 10:09:30 2018 +0100
+commit 787ff17dea8ba869ad064e664edcdef4bc2935d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 11 10:51:13 2018 -0700
 
-    all: skip unsupported tests on AIX
+    test: add test case that failed with gccgo
     
-    This commit skips tests which aren't yet supported on AIX.
+    Updates #26335
     
-    nosplit.go is disabled because stackGuardMultiplier is increased for
-    syscalls.
-    
-    Change-Id: Ib5ff9a4539c7646bcb6caee159f105ff8a160ad7
-    Reviewed-on: https://go-review.googlesource.com/c/146939
+    Change-Id: Ibfb1e232a0c66fa699842c8908ae5ff0f5d2177d
+    Reviewed-on: https://go-review.googlesource.com/123316
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/x86/issue19518_test.go | 10 ++--------
- src/cmd/internal/obj/x86/obj6_test.go       |  8 +-------
- src/debug/elf/file_test.go                  |  2 +-
- src/runtime/crash_test.go                   |  3 +++
- src/runtime/pprof/pprof_test.go             |  2 +-
- src/runtime/runtime-gdb_test.go             |  2 ++
- test/nosplit.go                             |  2 +-
- 7 files changed, 11 insertions(+), 18 deletions(-)
+ test/fixedbugs/issue26335.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

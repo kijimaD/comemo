@@ -1,19 +1,33 @@
-commit 6b52bfa393a7f8942568e7a29816c673ff73f797
-Author: Dominique Lefevre <domingolefevre@gmail.com>
-Date:   Thu Aug 24 10:17:20 2023 +0300
+commit 78f7d0f001c26873f2e29fe2cdd6071763c3e723
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Oct 2 03:36:51 2022 +0000
 
-    cmd/link: remove special cases for Method() and MethodByName().
+    cmd/compile/internal: fix a few function names on comments
     
-    There is no more need to do this in the linker. The compiler now
-    handles both Type.Method() and Value.Method(), and flags their
-    users as ReflectMethod.
-    
-    Change-Id: Ice93d5d975a1b93a324471e8abdebdce141d17d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522437
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Change-Id: If78c6d3c6183494f71f2857e496e172a789da39f
+    GitHub-Last-Rev: 58e0b75052a92cb720371d2b3c75e1de79d79bdc
+    GitHub-Pull-Request: golang/go#55992
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437517
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go | 29 +++++++++++++++--------------
- 1 file changed, 15 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
+ src/cmd/compile/internal/base/print.go        | 2 +-
+ src/cmd/compile/internal/importer/iimport.go  | 2 +-
+ src/cmd/compile/internal/ir/abi.go            | 2 +-
+ src/cmd/compile/internal/ir/fmt.go            | 4 ++--
+ src/cmd/compile/internal/logopt/log_opts.go   | 2 +-
+ src/cmd/compile/internal/noder/stencil.go     | 2 +-
+ src/cmd/compile/internal/objw/objw.go         | 2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go  | 2 +-
+ src/cmd/compile/internal/ssa/op.go            | 2 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go  | 2 +-
+ src/cmd/compile/internal/typecheck/subr.go    | 6 +++---
+ src/cmd/compile/internal/types/type.go        | 2 +-
+ src/cmd/compile/internal/walk/expr.go         | 2 +-
+ src/cmd/compile/internal/walk/order.go        | 2 +-
+ 15 files changed, 18 insertions(+), 18 deletions(-)

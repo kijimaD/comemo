@@ -1,19 +1,14 @@
-commit b98a4d1a107606c298376b5b5633927034669c5b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon May 20 23:18:52 2013 +0900
+commit 1a948950f73e79e41ff416cdb7d5987aa4e64e5b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 20 15:23:45 2013 +1000
 
-    syscall: prefer PATH environment variable in bootstrap scripts
+    net: move system common global variables into fd_unix.go
     
-    R=golang-dev, dave, iant
-    CC=golang-dev
-    https://golang.org/cl/9575043
+    R=golang-dev, bradfitz
+    CC=dvyukov, golang-dev, mikioh.mikioh
+    https://golang.org/cl/9495044
 
- src/pkg/syscall/mksyscall.pl         | 2 +-
- src/pkg/syscall/mksyscall_windows.pl | 2 +-
- src/pkg/syscall/mksysctl_openbsd.pl  | 2 +-
- src/pkg/syscall/mksysnum_darwin.pl   | 2 +-
- src/pkg/syscall/mksysnum_freebsd.pl  | 2 +-
- src/pkg/syscall/mksysnum_linux.pl    | 2 +-
- src/pkg/syscall/mksysnum_netbsd.pl   | 2 +-
- src/pkg/syscall/mksysnum_openbsd.pl  | 2 +-
- 8 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/net/fd_poll_runtime.go | 5 -----
+ src/pkg/net/fd_poll_unix.go    | 4 +---
+ src/pkg/net/fd_unix.go         | 5 +++++
+ 3 files changed, 6 insertions(+), 8 deletions(-)

@@ -1,22 +1,21 @@
-commit b5c2b1ec13f324743613bb33cbe6c664974db48e
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jul 10 17:02:34 2024 -0500
+commit 2e4fe8bbf0b7ca8fa523c3219dbaa64cec22b5dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 1 16:31:15 2023 -0700
 
-    cmd/internal/obj/arm64: support MSR DIT
+    go/types, types2: remove version check for more lenient constant handling in inference
     
-    Set the right instruction bits in asmout in order
-    to allow using MSR with DIT and an immediate
-    value. This allows us to avoid using an
-    intermediary register when we want to set DIT
-    (unsetting DIT already worked with the zero
-    register).
+    For #58671.
+    Fixes #60566.
     
-    Ref: https://developer.arm.com/documentation/ddi0602/2024-06/Base-Instructions/MSR--immediate---Move-immediate-value-to-special-register-?lang=en
-    Change-Id: Id049a0b4e0feb534cea992553228f9b5e12ddcea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597595
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I746f99cdfd44b204dc90350fcfb3867e9b8b1da8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499997
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
- src/cmd/internal/obj/arm64/asm7.go        | 3 +++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/types2/infer.go          | 97 +++++++----------------
+ src/go/types/infer.go                             | 97 +++++++----------------
+ src/internal/types/testdata/examples/inference.go |  4 +-
+ 3 files changed, 58 insertions(+), 140 deletions(-)

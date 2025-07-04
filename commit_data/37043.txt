@@ -1,22 +1,48 @@
-commit 2e88689168a57ae550ddae7ad0966fa14c877c5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 19 15:11:37 2018 -0700
+commit 85e38cccb4d113862f4fd2c3c4d97927cd84420c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 20 15:41:37 2018 +0200
 
-    go/types: temporarily disable a verification in Stdlib test
+    syscall: check faccessat flags parameter on Linux
     
-    Keeps the longtest builder green for now.
-    Proper fix to come ASAP.
+    Port CL 119495 from golang.org/x/sys/unix to the syscall package.
     
-    Also, reword an internal comment that could easily be misread.
+    Currently Linux faccessat(2) syscall implementation doesn't support the
+    flags parameter. As per the discussion in #25845, permit the same flags
+    as glibc [1].
     
-    Updates #28282.
+    [1] https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/faccessat.c;h=ea42b2303ff4b2d2d6548ea04376fb265f773436;hb=HEAD
     
-    Change-Id: I8f41c9faa5a3eb638e6204bae3ff374ed49e5177
-    Reviewed-on: https://go-review.googlesource.com/c/143478
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #25845
+    
+    Change-Id: I132b33275a9cc72b3a97acea5482806c7f47d7f7
+    Reviewed-on: https://go-review.googlesource.com/120015
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/stdlib_test.go | 28 +++++++++++++++++-----------
- src/go/types/typexpr.go     |  2 +-
- 2 files changed, 18 insertions(+), 12 deletions(-)
+ src/syscall/syscall_linux.go           | 12 +++++++++++-
+ src/syscall/syscall_linux_test.go      | 31 +++++++++++++++++++++++++++++++
+ src/syscall/types_linux.go             |  1 +
+ src/syscall/zsyscall_linux_386.go      | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_amd64.go    | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_arm.go      | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_arm64.go    | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips.go     | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips64.go   | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips64le.go | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mipsle.go   | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_ppc64.go    | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_ppc64le.go  | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_s390x.go    | 30 +++++++++++++++---------------
+ src/syscall/ztypes_linux_386.go        |  1 +
+ src/syscall/ztypes_linux_amd64.go      |  1 +
+ src/syscall/ztypes_linux_arm.go        |  1 +
+ src/syscall/ztypes_linux_arm64.go      |  1 +
+ src/syscall/ztypes_linux_mips.go       |  1 +
+ src/syscall/ztypes_linux_mips64.go     |  1 +
+ src/syscall/ztypes_linux_mips64le.go   |  1 +
+ src/syscall/ztypes_linux_mipsle.go     |  1 +
+ src/syscall/ztypes_linux_ppc64.go      |  1 +
+ src/syscall/ztypes_linux_ppc64le.go    |  1 +
+ src/syscall/ztypes_linux_s390x.go      |  1 +
+ 25 files changed, 219 insertions(+), 166 deletions(-)

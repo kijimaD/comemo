@@ -1,12 +1,12 @@
-commit 1c530d5d7812f6aa155f513264a43c28e3b22a0d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Nov 3 14:52:38 2011 +1100
+commit e4b464242ac94f4f6e49bc55f9278b68b2fa66b2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Nov 3 14:34:35 2011 +1100
 
-    builtin: remove errant spaces
+    http: update mime sniffing doc reference.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5337041
+    https://golang.org/cl/5303095
 
- src/pkg/builtin/builtin.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/sniff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

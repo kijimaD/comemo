@@ -1,12 +1,14 @@
-commit 61f5c63103c7676cd57578978f1f3141142cbc57
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 14 14:56:31 2013 -0700
+commit 3b4da67ee3ed0ed370c92768d4052da553b9bbc2
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 14 16:28:40 2013 -0400
 
-    doc: update go1.2.txt
+    cmd/ld: Remove superfluous redundant iself check
     
-    R=golang-dev, adg
+            CL 12741044 added an extra iself condition to an if statement that already contained it. Remove it.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/12953043
+    https://golang.org/cl/12949043
 
- doc/go1.2.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

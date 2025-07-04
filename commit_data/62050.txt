@@ -1,0 +1,18 @@
+commit f70aa3824b637d69aaaa944b3e4691c1fbe6c0d4
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Thu Jan 23 19:35:34 2025 +0000
+
+    cmd/go: do not call base.fatal for an unset HOME for GOAUTH=netrc
+    
+    This CL silences errors caused by GOAUTH=netrc and HOME being unset.
+    Instead, we log the error if the -x flag is set.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ibd323769f3562c169ebf559e060e9afbb63047bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643917
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/auth/auth.go            |  3 ++-
+ src/cmd/go/testdata/script/goauth_netrc.txt | 13 +++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

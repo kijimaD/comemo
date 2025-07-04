@@ -1,14 +1,18 @@
-commit 71aee2a190e6a26858b16a0974afdf976f2b0905
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 22 01:38:40 2017 +0000
+commit 0b4f4e0153bbdb231eff3f3928f99eae3e48b363
+Author: Hana Kim <hakim@google.com>
+Date:   Fri Aug 25 12:56:29 2017 -0400
 
-    doc: update the URL of the latest go1.4 source snapshot
+    cmd/trace: add -d that prints parsed traces
     
-    Updates golang/go#20672
+    This is useful when debugging the tool.
     
-    Change-Id: I3c62b1606aec93e188255f1701c0af569d540016
-    Reviewed-on: https://go-review.googlesource.com/79276
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Some tweaks on logging: log the webserver address, log.Print instead
+    of log.Printf when possible.
+    
+    Change-Id: Iaf71b6523b40dc13795511784d48eacf0f5a396a
+    Reviewed-on: https://go-review.googlesource.com/59570
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- doc/install-source.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/main.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

@@ -1,14 +1,15 @@
-commit 184b02ea9f057d0932e7182b14956568d5a10cfd
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 1 07:48:21 2013 +0200
+commit 461f82526a0535e6a63a5c87aec50ab6bc558fe5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 15:09:18 2013 +1000
 
-    runtime: fix arm build.
+    doc: remove godocs.js and playground.js from core repo
     
-    More functions needs to be marked as no stack split.
+    These are moved to code.google.com/p/go.tools/cmd/godoc.
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11963044
+    https://golang.org/cl/12220043
 
- src/pkg/runtime/vlrt_arm.c | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ doc/godocs.js          | 266 ------------------------------
+ doc/play/playground.js | 428 -------------------------------------------------
+ 2 files changed, 694 deletions(-)

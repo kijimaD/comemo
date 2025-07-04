@@ -1,20 +1,17 @@
-commit ba97be4b58241bebbc4ff70574bd82152ab19ffe
-Author: liu-xuewen <liiuxuewen@gmail.com>
-Date:   Mon Jul 13 09:15:38 2020 +0000
+commit 1c241d28792fad017cbd64bae72ea3f3ee51e4df
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 6 11:18:22 2020 -0800
 
-    runtime: remove tracebackinit and unused skipPC
+    hash/maphash: mention that hash values do not persist in package docs
     
-    CL [152537](https://go-review.googlesource.com/c/go/+/152537/) changed the way inlined frames are represented in tracebacks to no longer use skipPC
+    Updates #36878
+    Fixes #37040
     
-    Change-Id: I42386fdcc5cf72f3c122e789b6af9cbd0c6bed4b
-    GitHub-Last-Rev: 79c26dcd532907eda4ffc30951845c1c01243501
-    GitHub-Pull-Request: golang/go#39829
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239701
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib0bd21481e5d9c3b3966c116966ecfe071243a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218297
     Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/asm.s        | 21 ---------------------
- src/runtime/proc.go      |  1 -
- src/runtime/traceback.go | 13 -------------
- 3 files changed, 35 deletions(-)
+ doc/go1.14.html             | 4 ++++
+ src/hash/maphash/maphash.go | 3 +++
+ 2 files changed, 7 insertions(+)

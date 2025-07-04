@@ -1,0 +1,20 @@
+commit 5c2c1cde9c520ee19ad6e2a874ca1cf3c54bce11
+Author: 1911860538 <alxps1911@gmail.com>
+Date:   Sun Apr 6 09:15:51 2025 +0000
+
+    time: remove redundant int conversion in tzruleTime
+    
+    daysBefore returns int.
+    
+    Change-Id: Ib30c9ea76b46178a4fc35e8198aaab913329ceba
+    GitHub-Last-Rev: 2999e99dad8bfd075fdc942def1de2593d920c79
+    GitHub-Pull-Request: golang/go#73182
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+
+ src/time/zoneinfo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,13 @@
-commit 4b171e5040935f65c011ea58dde6fb49fcd9e6b3
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 17 08:49:41 2012 +1100
+commit 7fc47928fc807a0c79c5649d7ee9e10d55f3c360
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Feb 16 20:49:50 2012 +0000
 
-    runtime: rename Cgocalls and Goroutines to NumCgoCall and NumGoroutine, respectively.
-    Update some other docs too.
+    make.bat, run.bat: echo newlines
     
-    Update #2955.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5676060
+    https://golang.org/cl/5671072
 
- src/pkg/net/http/transport_test.go | 6 +++---
- src/pkg/runtime/cgocall.c          | 2 +-
- src/pkg/runtime/debug.go           | 8 ++++----
- src/pkg/runtime/extern.go          | 4 ++--
- src/pkg/runtime/proc.c             | 4 ++--
- 5 files changed, 12 insertions(+), 12 deletions(-)
+ src/make.bat | 9 ++++-----
+ src/run.bat  | 8 ++++----
+ 2 files changed, 8 insertions(+), 9 deletions(-)

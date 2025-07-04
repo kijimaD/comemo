@@ -1,17 +1,22 @@
-commit 6dca9ac791054ebcaf02362bd7e6ab00c18a4b7d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 29 17:58:46 2016 -0800
+commit 55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a
+Author: Billy Lynch <wlynch@google.com>
+Date:   Fri Sep 30 16:24:31 2016 -0400
 
-    doc: add release notes for os and os/signal packages
+    cmd/go: add support for GIT_ALLOW_PROTOCOL
     
-    TBR=See https://golang.org/cl/33244
+    Allows users to override the default secure protocol list by setting the
+    GIT_ALLOW_PROTOCOL environment variable.
     
-    Updates #17929
+    Addresses #17299 for vcs.go.
     
-    Change-Id: I2e5b24fb0b110d833a8b73bccfbf399cb6e37ea2
-    Reviewed-on: https://go-review.googlesource.com/33681
+    Change-Id: If575861d2b1b04b59029fed7e5d12b49690af50a
+    Reviewed-on: https://go-review.googlesource.com/30135
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.8.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.8.txt  |  9 ---------
- 2 files changed, 53 insertions(+), 9 deletions(-)
+ src/cmd/go/alldocs.go  |  9 +++++++++
+ src/cmd/go/help.go     |  9 +++++++++
+ src/cmd/go/vcs.go      | 24 +++++++++++++++++++++---
+ src/cmd/go/vcs_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 78 insertions(+), 3 deletions(-)

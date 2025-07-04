@@ -1,16 +1,109 @@
-commit 176cd48e574817bbb912c139396324c187b31279
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Aug 29 05:10:17 2017 +0100
+commit e8d7e5d1fa7d8477b91cb4dffeac57c7c20cb5c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 17:59:53 2017 -0500
 
-    runtime: fix memhash64 on big endian systems
+    mime: use sync.Map instead of RWMutex for type lookups
     
-    Fixes #21677.
+    This provides a significant speedup for TypeByExtension and
+    ExtensionsByType when using many CPU cores.
     
-    Change-Id: I869dee5f43df5d87d86922681726297e3024c562
-    Reviewed-on: https://go-review.googlesource.com/59810
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    updates #17973
+    updates #18177
+    
+    name                                          old time/op    new time/op    delta
+    QEncodeWord                                      526ns ± 3%     525ns ± 3%     ~     (p=0.990 n=15+28)
+    QEncodeWord-6                                    945ns ± 7%     913ns ±20%     ~     (p=0.220 n=14+28)
+    QEncodeWord-48                                  1.02µs ± 2%    1.00µs ± 6%   -2.22%  (p=0.036 n=13+27)
+    QDecodeWord                                      311ns ±18%     323ns ±20%     ~     (p=0.107 n=16+28)
+    QDecodeWord-6                                    595ns ±12%     612ns ±11%     ~     (p=0.093 n=15+27)
+    QDecodeWord-48                                   592ns ± 6%     606ns ± 8%   +2.39%  (p=0.045 n=16+26)
+    QDecodeHeader                                    389ns ± 4%     394ns ± 8%     ~     (p=0.161 n=12+26)
+    QDecodeHeader-6                                  685ns ±12%     674ns ±20%     ~     (p=0.773 n=14+27)
+    QDecodeHeader-48                                 658ns ±13%     669ns ±14%     ~     (p=0.457 n=16+28)
+    TypeByExtension/.html                           77.4ns ±15%    55.5ns ±13%  -28.35%  (p=0.000 n=8+8)
+    TypeByExtension/.html-6                          263ns ± 9%      10ns ±21%  -96.29%  (p=0.000 n=8+8)
+    TypeByExtension/.html-48                         175ns ± 5%       2ns ±16%  -98.88%  (p=0.000 n=8+8)
+    TypeByExtension/.HTML                            113ns ± 6%      97ns ± 6%  -14.37%  (p=0.000 n=8+8)
+    TypeByExtension/.HTML-6                          273ns ± 7%      17ns ± 4%  -93.93%  (p=0.000 n=7+8)
+    TypeByExtension/.HTML-48                         175ns ± 4%       4ns ± 4%  -97.73%  (p=0.000 n=8+8)
+    TypeByExtension/.unused                          116ns ± 4%      90ns ± 4%  -22.89%  (p=0.001 n=7+7)
+    TypeByExtension/.unused-6                        262ns ± 5%      15ns ± 4%  -94.17%  (p=0.000 n=8+8)
+    TypeByExtension/.unused-48                       176ns ± 4%       3ns ±10%  -98.10%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html                       630ns ± 5%     522ns ± 5%  -17.19%  (p=0.000 n=8+7)
+    ExtensionsByType/text/html-6                     314ns ±20%     136ns ± 6%  -56.80%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html-48                    298ns ± 4%     104ns ± 6%  -65.06%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html;_charset=utf-8       1.12µs ± 3%    1.05µs ± 7%   -6.19%  (p=0.004 n=8+7)
+    ExtensionsByType/text/html;_charset=utf-8-6      402ns ±11%     307ns ± 4%  -23.77%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html;_charset=utf-8-48     422ns ± 3%     309ns ± 4%  -26.86%  (p=0.000 n=8+8)
+    ExtensionsByType/application/octet-stream        810ns ± 2%     747ns ± 5%   -7.74%  (p=0.000 n=8+8)
+    ExtensionsByType/application/octet-stream-6      289ns ± 9%     185ns ± 8%  -36.15%  (p=0.000 n=7+8)
+    ExtensionsByType/application/octet-stream-48     267ns ± 6%      94ns ± 2%  -64.91%  (p=0.000 n=8+7)
+    
+    name                                          old alloc/op   new alloc/op   delta
+    QEncodeWord                                      48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QEncodeWord-6                                    48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QEncodeWord-48                                   48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QDecodeWord                                      48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QDecodeWord-6                                    48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QDecodeWord-48                                   48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QDecodeHeader                                    48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QDecodeHeader-6                                  48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    QDecodeHeader-48                                 48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    TypeByExtension/.html                            0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.html-6                          0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.html-48                         0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.HTML                            0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.HTML-6                          0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.HTML-48                         0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.unused                          0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.unused-6                        0.00B          0.00B          ~     (all equal)
+    TypeByExtension/.unused-48                       0.00B          0.00B          ~     (all equal)
+    ExtensionsByType/text/html                        192B ± 0%      176B ± 0%   -8.33%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html-6                      192B ± 0%      176B ± 0%   -8.33%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html-48                     192B ± 0%      176B ± 0%   -8.33%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html;_charset=utf-8         480B ± 0%      464B ± 0%   -3.33%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html;_charset=utf-8-6       480B ± 0%      464B ± 0%   -3.33%  (p=0.000 n=8+8)
+    ExtensionsByType/text/html;_charset=utf-8-48      480B ± 0%      464B ± 0%   -3.33%  (p=0.000 n=8+8)
+    ExtensionsByType/application/octet-stream         160B ± 0%      160B ± 0%     ~     (all equal)
+    ExtensionsByType/application/octet-stream-6       160B ± 0%      160B ± 0%     ~     (all equal)
+    ExtensionsByType/application/octet-stream-48      160B ± 0%      160B ± 0%     ~     (all equal)
+    
+    name                                          old allocs/op  new allocs/op  delta
+    QEncodeWord                                       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QEncodeWord-6                                     1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QEncodeWord-48                                    1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    QDecodeWord                                       2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    QDecodeWord-6                                     2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    QDecodeWord-48                                    2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    QDecodeHeader                                     2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    QDecodeHeader-6                                   2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    QDecodeHeader-48                                  2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    TypeByExtension/.html                             0.00           0.00          ~     (all equal)
+    TypeByExtension/.html-6                           0.00           0.00          ~     (all equal)
+    TypeByExtension/.html-48                          0.00           0.00          ~     (all equal)
+    TypeByExtension/.HTML                             0.00           0.00          ~     (all equal)
+    TypeByExtension/.HTML-6                           0.00           0.00          ~     (all equal)
+    TypeByExtension/.HTML-48                          0.00           0.00          ~     (all equal)
+    TypeByExtension/.unused                           0.00           0.00          ~     (all equal)
+    TypeByExtension/.unused-6                         0.00           0.00          ~     (all equal)
+    TypeByExtension/.unused-48                        0.00           0.00          ~     (all equal)
+    ExtensionsByType/text/html                        3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    ExtensionsByType/text/html-6                      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    ExtensionsByType/text/html-48                     3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    ExtensionsByType/text/html;_charset=utf-8         4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+    ExtensionsByType/text/html;_charset=utf-8-6       4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+    ExtensionsByType/text/html;_charset=utf-8-48      4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+    ExtensionsByType/application/octet-stream         2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    ExtensionsByType/application/octet-stream-6       2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    ExtensionsByType/application/octet-stream-48      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    
+    https://perf.golang.org/search?q=upload:20170427.4
+    
+    Change-Id: I35438be087ad6eb3d5da9119b395723ea5babaf6
+    Reviewed-on: https://go-review.googlesource.com/41990
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/hash64.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/type.go | 108 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 56 insertions(+), 52 deletions(-)

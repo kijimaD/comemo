@@ -1,12 +1,35 @@
-commit 860484a15f578911e2e92b4857a2229f0a257b45
-Author: Ankit Goyal <ankit3goyal@gmail.com>
-Date:   Sat Sep 1 10:56:00 2018 -0700
+commit 8e9386db0ee72ffa847b1673d15f6092291724d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 7 19:09:16 2018 +0000
 
-    strconv: add example for IsGraphic
+    vendor, net/http: update x/net for httplex to httpguts merge
     
-    Change-Id: I58ba1f5d5c942d6a345c19df1bca80b63fb5abf5
-    Reviewed-on: https://go-review.googlesource.com/132777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates x/net to git rev cbb82b59bc for:
+    
+        lex/httplex, http/httpguts: merge the httplex package into httpguts
+        https://golang.org/cl/111875
+    
+        http2: set nextStreamID to 3 when AllowHTTP is set
+        https://golang.org/cl/111835
+    
+        http2: terminate await request cancel goroutine on conn close
+        https://golang.org/cl/108415
+    
+    Fixes #24776 (CL 111655 didn't actually include it)
+    
+    Change-Id: I0a21e169ebba2ec35219f347f1e31cd4c67bebdf
+    Reviewed-on: https://go-review.googlesource.com/111876
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/example_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/go/build/deps_test.go                          |  1 -
+ src/net/http/h2_bundle.go                          | 30 ++++++++++++++--------
+ src/net/http/http.go                               |  4 +--
+ src/net/http/server.go                             |  7 +++--
+ src/net/http/transfer.go                           |  6 ++---
+ src/net/http/transport.go                          |  6 ++---
+ .../net/{lex/httplex => http/httpguts}/httplex.go  |  7 +----
+ .../{lex/httplex => http/httpguts}/httplex_test.go |  2 +-
+ 8 files changed, 32 insertions(+), 31 deletions(-)

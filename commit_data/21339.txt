@@ -1,12 +1,12 @@
-commit dfc4997ede7c4dc1f10263ab00e3f196dfb8c313
-Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
-Date:   Sat Jan 24 14:57:01 2015 -0800
+commit c6669e7af58cb9406226c038b1cadef6e754dc74
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 22 15:24:30 2014 -0800
 
-    image: fix typo in Alpha16 doc comment
+    runtime: fix nacl build, hashmap overflow field offset was incorrect.
     
-    Change-Id: Ie7031ae37f52ea1f229bfb769daf306d537b3d3e
-    Reviewed-on: https://go-review.googlesource.com/3300
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ieb305b2a4d4ef28d70a8b8ece703f495c5af0529
+    Reviewed-on: https://go-review.googlesource.com/2051
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/image/image.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/hashmap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,14 @@
-commit a1cad70a2fd1ce497cd90d4caedb0f877558bd6f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 3 12:13:05 2015 -0400
+commit 3051ab2ce78a9bbea5152020dc81a4a18a63542a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 20 14:49:14 2015 -0700
 
-    runtime: remove unused g.readyg field
+    go/types: remove non-existing mention of MethodSetCache from comment
     
-    Commit 0e6a6c5 removed readyExecute a long time ago, but left behind
-    the g.readyg field that was used by readyExecute. Remove this now
-    unused field.
+    Fixes #11800.
     
-    Change-Id: I41b87ad2b427974d256ec7a7f6d4bdc2ce8a13bb
-    Reviewed-on: https://go-review.googlesource.com/13111
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I5eb178331f4ae80821f188e19c0c6fadeb330278
+    Reviewed-on: https://go-review.googlesource.com/12433
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/runtime2.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/go/types/methodset.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

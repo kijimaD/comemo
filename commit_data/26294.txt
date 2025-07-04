@@ -1,34 +1,14 @@
-commit f2772a49353e09e4e00121ca4e538a3b3302a1de
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 14 21:30:43 2016 -0400
+commit 5755c011de9c75a05825b0c08ce61c77c5207f1d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 18:48:42 2016 -0800
 
-    cmd/compile: compute second method type at runtime
+    encoding/json: doc: Decode only writes to exported fields
     
-    The type information for a method includes two variants: a func
-    without the receiver, and a func with the receiver as the first
-    parameter. The former is used as part of the dynamic interface
-    checks, but the latter is only returned as a type in the
-    reflect.Method struct.
+    Fixes #13867.
     
-    Instead of computing it at compile time, construct it at run time
-    with reflect.FuncOf.
-    
-    Using cl/20701 as a baseline,
-    
-            cmd/go: -480KB, (4.4%)
-            jujud:  -5.6MB, (7.8%)
-    
-    For #6853.
-    
-    Change-Id: I1b8c73f3ab894735f53d00cb9c0b506d84d54e92
-    Reviewed-on: https://go-review.googlesource.com/20709
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6c0a6c64369681840df60f63036c2eece27de8b8
+    Reviewed-on: https://go-review.googlesource.com/18394
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  1 -
- src/cmd/link/internal/ld/deadcode.go   | 19 +++----
- src/cmd/link/internal/ld/decodesym.go  |  4 +-
- src/reflect/type.go                    | 90 +++++++++++++++++-----------------
- src/runtime/type.go                    |  1 -
- 5 files changed, 52 insertions(+), 63 deletions(-)
+ src/encoding/json/decode.go | 1 +
+ 1 file changed, 1 insertion(+)

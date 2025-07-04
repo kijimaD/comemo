@@ -1,29 +1,18 @@
-commit 53907221007ebf42cca9ef945550f59ef4478c8c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 26 11:26:05 2012 -0700
+commit f4ec146454171751e2239528509a46afcf9110f3
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Mar 26 09:12:15 2012 -0700
 
-    exp/types: generalized GCImporter API.
+    doc: Change id of footer
     
-    - Renamed ExportData -> FindGcExportData
-      and base it on an a bufio.Reader rather
-      than a filename so it can be used in
-      environments where object files are
-      stored elsewhere.
+    The heading "Copyright" uses id="copyright" as the anchor name.
+    However, there is also a <div id="copyright"> at the bottom.
+    Using the same ID value twice in the same file is illegal
+    (http://www.w3.org/TR/html401/struct/links.html#h-12.2.3).
     
-    - Factor former GcImporter into GcImportData
-      and GcImport. Implementations with different
-      storage locations for object files can build
-      a customized GcImport using GcImportData.
-    
-    This is pkg/exp only - no impact on Go 1.
-    
-    R=golang-dev, lvd, rsc
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5574069
+    https://golang.org/cl/5909045
 
- src/pkg/exp/gotype/gotype.go         |   2 +-
- src/pkg/exp/types/check_test.go      |   2 +-
- src/pkg/exp/types/exportdata.go      |  52 ++++--------
- src/pkg/exp/types/gcimporter.go      | 157 ++++++++++++++++++++++-------------
- src/pkg/exp/types/gcimporter_test.go |  18 ++--
- 5 files changed, 124 insertions(+), 107 deletions(-)
+ doc/style.css        | 2 +-
+ lib/godoc/godoc.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,21 @@
-commit 2d2662f8d0b50d123da2f6674308cf5e0c21e062
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Aug 2 16:38:12 2023 +0800
+commit d81ed4d62192cd89dbf664c42e26c35a052dd9ce
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 2 16:59:07 2022 -0400
 
-    cmd/fix: use reflect.TypeFor for known types
+    runtime: rename inlinedCall.func_ to inlinedCall.nameOff
     
-    For #60088
+    The meaning of this field is unchanged, this CL simply gives it a more
+    descriptive name, as func_ makes it sound like a reference to the _func.
     
-    Change-Id: Id19435e864bcfd2adbb1492db3f8cdf2ee3c915e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515175
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I70e54f34bede7636ce4d7b9dd0f7557308f02143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427961
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/fix/cftype.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/preempt.go   | 2 +-
+ src/runtime/race.go      | 2 +-
+ src/runtime/symtab.go    | 6 +++---
+ src/runtime/traceback.go | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

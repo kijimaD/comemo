@@ -1,15 +1,35 @@
-commit 82a8afdf1411bbe5b08b09d1e94a8d1c4fb5635c
-Author: Ken Rockot <ken@oz.gs>
-Date:   Mon Jun 27 19:07:49 2011 -0400
+commit abd50de296c129bbb4def693a6f1ebb66d6221f6
+Author: Kyle Lemons <kyle@kylelemons.net>
+Date:   Mon Jun 27 19:07:28 2011 -0400
 
-    syscall: support for tty options in StartProcess
+    xml: add Marshal and MarshalIndent
     
-    These are the relevant changes to exec_unix.go now that
-    mkerrors.sh outputs have been updated.
+    I have written up a Marshal and MarshalIndent pair that should
+    closely reflect the way that Unmarshal works.  I would love feedback
+    on making this code more accessible and efficient... I haven't used
+    reflecton on this scale before, so there is probably a lot of work
+    that can be done on that.
+    
+    Some potentially controversial things:
+    - All tag names are lower-cased by default.
+    - Zero-valued struct values are skipped.
+    - No namespace prefix (o:tag, etc) mechanism is supplied.
+    - You are allowed to marshal non-struct values (even though unmarshal
+      cannot handle them).
+    - A tag for a non-XMLName struct field that isn't "attr", "chardata",
+      or "innerxml" is used as the name of the tag.  This could wreak
+      havoc if you try to marshal a protobuf struct.
+    - The "innerxml" and "chardata" are inserted verbatim.  If you try to
+      marshal something straight from unmarshal, the results could be
+      unexpected (remove "innerxml" support from Marshal would be one
+      possible solution).
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4648064
+    https://golang.org/cl/4539082
 
- src/pkg/syscall/exec_unix.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/pkg/xml/Makefile        |   1 +
+ src/pkg/xml/atom_test.go    |  50 ++++++++
+ src/pkg/xml/marshal.go      | 228 +++++++++++++++++++++++++++++++++
+ src/pkg/xml/marshal_test.go | 299 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 578 insertions(+)

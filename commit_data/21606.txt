@@ -1,37 +1,17 @@
-commit ff81c14fb27beb32201f673640d2ddb5e42355bb
+commit 725e3a7afbb5b07e9345dd9ef6878af0cd959776
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 5 11:55:51 2015 -0500
+Date:   Mon Jan 19 11:38:53 2015 -0500
 
-    cmd/gc: rename arch to thearch
+    [dev.cc] liblink: invoke go tool objwriter during writeobj
     
-    Otherwise the exported variable collides with the type Arch.
+    This doesn't actually use objwriter for any real work.
+    It's just to check that objwriter is available.
+    The real work will be moved once the bootstrapping
+    mechanisms are working.
     
-    While we're here, remove arch.dumpit (now in portable code)
-    and add arch.defframe (forgotten originally, somehow).
-    
-    Change-Id: I1b3a7dd7e96c5f632dba7cd6c1217b42a2004d72
-    Reviewed-on: https://go-review.googlesource.com/4644
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5f41c8910c4b11b9d80cb0b0847ff9cb582fc2be
+    Reviewed-on: https://go-review.googlesource.com/3045
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/5g/galign.c  | 80 ++++++++++++++++++++++++-------------------------
- src/cmd/6g/galign.c  | 84 ++++++++++++++++++++++++++--------------------------
- src/cmd/8g/galign.c  | 80 ++++++++++++++++++++++++-------------------------
- src/cmd/8g/peep.c    |  4 +--
- src/cmd/9g/galign.c  | 84 ++++++++++++++++++++++++++--------------------------
- src/cmd/gc/align.c   | 18 +++++------
- src/cmd/gc/closure.c |  2 +-
- src/cmd/gc/cplx.c    | 50 +++++++++++++++----------------
- src/cmd/gc/export.c  |  2 +-
- src/cmd/gc/gen.c     | 52 ++++++++++++++++----------------
- src/cmd/gc/go.h      |  9 +++---
- src/cmd/gc/gsubr.c   | 38 ++++++++++++------------
- src/cmd/gc/lex.c     | 34 ++++++++++-----------
- src/cmd/gc/obj.c     | 20 ++++++-------
- src/cmd/gc/pgen.c    | 40 ++++++++++++-------------
- src/cmd/gc/plive.c   |  4 +--
- src/cmd/gc/popt.c    | 57 +++++++++++++++++------------------
- src/cmd/gc/reg.c     | 36 +++++++++++-----------
- src/cmd/gc/sinit.c   |  2 +-
- src/cmd/gc/subr.c    |  4 +--
- src/cmd/gc/walk.c    |  6 ++--
- 21 files changed, 351 insertions(+), 355 deletions(-)
+ src/liblink/objfile.c | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

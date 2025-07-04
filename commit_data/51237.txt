@@ -1,19 +1,24 @@
-commit 2041bde2b619c8e2cecaa72d986fc1f0d054c615
+commit a2004de0885cc3796fed6dff54678efb8ffa4d01
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 10 13:50:33 2022 -0800
+Date:   Wed Dec 15 16:13:05 2021 -0800
 
-    spec: clarify struct field and array element comparison order
+    go/types, types2: delay "does not satisfy comparable" error until needed
     
-    Fixes #8606.
+    Fixes #49112.
     
-    Change-Id: I64b13b2ed61ecae4641264deb47c9f7653a80356
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449536
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I8effbca7bcbb257b18fd4d3d1914fd10d4afaaae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372594
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go_spec.html | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go     | 25 ++++++++++------------
+ .../internal/types2/testdata/check/issues.go2      |  6 +++---
+ .../types2/testdata/fixedbugs/issue47411.go2       |  6 +++---
+ .../types2/testdata/fixedbugs/issue49112.go2       | 15 +++++++++++++
+ src/go/types/instantiate.go                        | 25 ++++++++++------------
+ src/go/types/testdata/check/issues.go2             |  6 +++---
+ src/go/types/testdata/fixedbugs/issue47411.go2     |  6 +++---
+ src/go/types/testdata/fixedbugs/issue49112.go2     | 15 +++++++++++++
+ 8 files changed, 64 insertions(+), 40 deletions(-)

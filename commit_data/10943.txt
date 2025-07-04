@@ -1,12 +1,21 @@
-commit 25c8014ed905a41a7f060efeea9a4c289c0aa0de
+commit f52a2088ef58281cb11e904ebd5ed5441577fc71
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 21 09:04:34 2011 -0500
+Date:   Wed Dec 21 08:51:18 2011 -0500
 
-    cmd/go: respect $GCFLAGS
+    go/build: add new +build tags 'cgo' and 'nocgo'
     
-    R=lvd
+    This lets us mark net's cgo_stub.go as only to be
+    built when cgo is disabled.
+    
+    R=golang-dev, ality, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5500060
+    https://golang.org/cl/5489100
 
- src/cmd/go/build.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/go/main.go               |  8 +++---
+ src/pkg/crypto/tls/root_stub.go  |  2 +-
+ src/pkg/debug/gosym/pclinetest.h |  2 ++
+ src/pkg/debug/gosym/pclinetest.s |  2 ++
+ src/pkg/go/build/build_test.go   | 13 +++++++++-
+ src/pkg/go/build/dir.go          | 54 ++++++++++++++++++++++++++++++++--------
+ src/pkg/net/cgo_stub.go          |  2 +-
+ 7 files changed, 65 insertions(+), 18 deletions(-)

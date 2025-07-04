@@ -1,20 +1,20 @@
-commit 48b7bdd0d74f6a06cd095cc8b15fe6ec5c4a2aee
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 15 10:12:07 2019 -0400
+commit 0456036e28b718d215f49abe83d3c49101f8a4c7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Jan 16 09:03:57 2019 +0100
 
-    cmd/go: always add 'go' directive to the go.mod file if missing
+    net: increase TestNotTemporaryRead server sleep
     
-    Updates #30790
-    Fixes #31960
+    On aix/ppc64, if the server closes before the client calls Accept,
+    this test will fail.
     
-    Change-Id: Ib3ac074cf1f98fe69f53af82d2a0441582116570
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176925
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Increasing the time before the server closes should resolve this
+    timeout.
+    
+    Updates #29685
+    
+    Change-Id: Iebb849d694fc9c37cf216ce1f0b8741249b98016
+    Reviewed-on: https://go-review.googlesource.com/c/158038
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modcmd/tidy.go               | 1 -
- src/cmd/go/internal/modload/init.go              | 9 +++++----
- src/cmd/go/testdata/script/mod_file_proxy.txt    | 3 ++-
- src/cmd/go/testdata/script/mod_init_empty.txt    | 2 ++
- src/cmd/go/testdata/script/mod_load_badchain.txt | 2 ++
- 5 files changed, 11 insertions(+), 6 deletions(-)
+ src/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

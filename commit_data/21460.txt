@@ -1,12 +1,30 @@
-commit 38dcc8cd88426fd35d2153839215ba95aa6e21ab
-Author: Blake Gentry <blakesgentry@gmail.com>
-Date:   Tue Feb 3 12:01:29 2015 -0800
+commit 1dd0163ce3993192171149c9ee7e4cd538b36b8a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 6 20:38:44 2015 -0800
 
-    net/http: remove unused switchReader type
+    runtime: remove trailing empty arrays in structs
     
-    Change-Id: Ic8a01d06ffc6c80beaf6dee9e7242dcbb7425e71
-    Reviewed-on: https://go-review.googlesource.com/3822
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The ones at the end of M and G are just used to compute
+    their size for use in assembly.  Generate the size explicitly.
+    The one at the end of itab is variable-sized, and at least one.
+    The ones at the end of interfacetype and uncommontype are not
+    needed, as the preceding slice references them (the slice was
+    originally added for use by reflect?).
+    The one at the end of stackmap is already accessed correctly,
+    and the runtime never allocates one.
+    
+    Update #9401
+    
+    Change-Id: Ia75e3aaee38425f038c506868a17105bd64c712f
+    Reviewed-on: https://go-review.googlesource.com/2420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/server.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/gc/export.c             |  1 +
+ src/runtime/iface.go            | 11 +++++------
+ src/runtime/malloc2.go          |  2 +-
+ src/runtime/runtime2.go         |  4 +---
+ src/runtime/sys_windows_386.s   | 10 +++++-----
+ src/runtime/sys_windows_amd64.s | 10 +++++-----
+ src/runtime/type.go             |  2 --
+ 7 files changed, 18 insertions(+), 22 deletions(-)

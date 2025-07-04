@@ -1,17 +1,12 @@
-commit 0643aacee97359ba542a4b0e4600a0d029fe1c79
+commit f6972ba62b6a605c6c3e156112772f1e8366c127
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Dec 13 10:27:23 2011 +0900
+Date:   Tue Dec 13 10:12:45 2011 +0900
 
-    syscall: regenerate z-files for darwin, freebsd
+    net: fix typo
     
-    R=golang-dev, jsing, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5479054
+    https://golang.org/cl/5488052
 
- src/pkg/syscall/zerrors_darwin_386.go    | 15 +++++++++++++++
- src/pkg/syscall/zerrors_darwin_amd64.go  | 15 +++++++++++++++
- src/pkg/syscall/zerrors_freebsd_386.go   |  5 +++++
- src/pkg/syscall/zerrors_freebsd_amd64.go |  5 +++++
- src/pkg/syscall/zsysnum_freebsd_386.go   |  9 ++++++---
- src/pkg/syscall/zsysnum_freebsd_amd64.go |  9 ++++++---
- 6 files changed, 52 insertions(+), 6 deletions(-)
+ src/pkg/net/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

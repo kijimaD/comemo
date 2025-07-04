@@ -1,24 +1,36 @@
-commit e4a500ce1490a5db709da5880f0121e5eeac73cd
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Mar 28 15:30:31 2017 -0500
+commit 22689c445089501b2c9adc9b6556e2a5290d1584
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 12 16:54:42 2017 -0500
 
-    cmd/compile/internal/gc: improve comparison with constant strings
+    reflect: keep makeFuncImpl live across makeFuncStub
     
-    Currently we expand comparison with small constant strings into len check
-    and a sequence of byte comparisons. Generate 16/32/64-bit comparisons,
-    instead of bytewise on 386 and amd64. Also increase limits on what is
-    considered small constant string.
-    Shaves ~30kb (0.5%) from go executable.
+    When traceback sees reflect.makeFuncStub (or reflect.methodValueCall)
+    on the stack, it expects to be able to get the *reflect.makeFuncImpl
+    (or *reflect.methodValue) for that call from the first outgoing
+    argument slot of makeFuncStub/methodValueCall.
     
-    This also updates test/prove.go to keep test case valid.
+    However, currently this object isn't necessarily kept live across
+    makeFuncStub. This means it may get garbage collected while in a
+    reflect call and reused for something else. If we then try to
+    traceback, the runtime will see a corrupted makeFuncImpl object and
+    panic. This was not a problem in previous releases because we always
+    kept arguments live across the whole function. This became a problem
+    when we stopped doing this.
     
-    Change-Id: I99ae8871a1d00c96363c6d03d0b890782fa7e1d9
-    Reviewed-on: https://go-review.googlesource.com/38776
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Fix this by using reflect.KeepAlive to keep the
+    makeFuncImpl/methodValue live across all of callReflect/callMethod,
+    which in turn keeps it live as long as makeFuncStub/methodValueCall
+    are on the stack.
+    
+    Fixes #18635.
+    
+    Change-Id: I91853efcf17912390fddedfb0230648391c33936
+    Reviewed-on: https://go-review.googlesource.com/35151
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 22 ++++++++++++
- src/cmd/compile/internal/gc/walk.go     | 62 ++++++++++++++++++++++++++++++---
- test/prove.go                           |  4 ++-
- 3 files changed, 83 insertions(+), 5 deletions(-)
+ src/reflect/all_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    |  8 ++++++
+ 2 files changed, 76 insertions(+)

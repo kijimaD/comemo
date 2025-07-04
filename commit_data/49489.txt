@@ -1,26 +1,37 @@
-commit 635b1244aa7671bcd665613680f527452cac7555
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 16 15:43:57 2022 -0400
+commit 0a7f00ae239570d664488085f9c395919bc69066
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Tue Jul 6 21:45:02 2021 +0200
 
-    cmd/go: pass GOEXPERIMENT through to subtests
+    cmd/compile: do not mark arrays used for map initialization noalg
     
-    This fixes:
+    Arrays marked noalg are created by the compiler to hold keys and values
+    to initialize map literals. The ssa backend creates a pointer type for
+    the array type when creating an OpAddr while processing the loop that
+    initializes the map from the arrays. The pointer type does not inherit
+    the noalg property but points to the noalg array type.
     
-            export GOEXPERIMENT=unified
-            go install cmd
-            go install std cmd
-            go install std cmd
-            go test -short cmd/go -run=TestScript/test_relative_import_dash_i
+    This causes values created through reflect of types that should be
+    equal to compare unequal because the noalg and alg type might be
+    compared and these are not the same.
     
-    That script test checks that runtime is non-stale, but whether it's stale
-    depends on the setting of GOEXPERIMENT. Stop filtering that variable out.
+    A similar problem occurred in #32595 for argument arrays of defer structs.
     
-    Change-Id: I71bdbca495c16981cdcddf4ab4d87a38ca72a389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412874
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Created #47904 to track improve noalg handling to be able to
+    reintroduce this optimization again.
+    
+    Fixes #47068
+    
+    Change-Id: I87549342bd404b98d71a3c0f33e3c169e9d4efc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344349
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/go/script_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/walk/complit.go |  4 ++--
+ test/fixedbugs/issue47068.dir/a.go       | 15 +++++++++++++++
+ test/fixedbugs/issue47068.dir/b.go       | 15 +++++++++++++++
+ test/fixedbugs/issue47068.dir/main.go    | 15 +++++++++++++++
+ test/fixedbugs/issue47068.go             |  7 +++++++
+ 5 files changed, 54 insertions(+), 2 deletions(-)

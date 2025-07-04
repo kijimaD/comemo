@@ -1,16 +1,27 @@
-commit 9152e211328f735e7dadaf69780920d64af09a2a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 28 15:34:40 2022 -0800
+commit 691e1b84c11d038060807f9c79107996ca2f19ae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 23 12:18:59 2021 -0700
 
-    spec: add section on comparable constraint
+    cmd/compile: generalize fix for lvalue-init evaluation
     
-    For #50646.
-    Fixes #50791.
+    The previous fix to ensure early evaluation of lvalue-init statements
+    (CL 312632) added it after we'd already peeled away any array-OINDEX
+    expressions. But those might have init statements too, so we need to
+    do this earlier actually and perhaps more than once.
     
-    Change-Id: I8fec25ae3f0280c5b5a778011d23842b886ba79e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381896
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Longer term, lvalue expressions shouldn't have init statements anyway.
+    But rsc and I both spent a while looking into this earlier in the dev
+    cycle and couldn't come up with anything reasonable.
+    
+    Fixes #45706.
+    
+    Change-Id: I2d19c5ba421b3f019c62eec45774c84cf04b30ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313011
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 48 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/assign.go | 10 +++++++---
+ test/fixedbugs/issue45706.go            |  9 +++++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

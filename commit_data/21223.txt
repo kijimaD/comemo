@@ -1,21 +1,12 @@
-commit ececbe89d4d5ab151333cbadae725619c0ad9dd8
-Author: Peter Waller <p@pwaller.net>
-Date:   Tue Dec 30 12:19:43 2014 +0000
+commit e67a39ed08fbc64938043ff0406a31ea02c3d8a1
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Tue Dec 9 11:45:19 2014 +1100
 
-    net/http/httputil: ReverseProxy request cancellation
+    net/http: avoid some allocations in DetectContentType
     
-    If an inbound connection is closed, cancel the outbound http request.
-    
-    This is particularly useful if the outbound request may consume resources
-    unnecessarily until it is cancelled.
-    
-    Fixes #8406
-    
-    Change-Id: I738c4489186ce342f7e21d0ea3f529722c5b443a
-    Signed-off-by: Peter Waller <p@pwaller.net>
-    Reviewed-on: https://go-review.googlesource.com/2320
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I64985f8de7ca09e63208e8c949a5d4f4fc09073f
+    Reviewed-on: https://go-review.googlesource.com/1230
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 46 ++++++++++++++++++++++++
- src/net/http/httputil/reverseproxy_test.go | 56 ++++++++++++++++++++++++++++++
- 2 files changed, 102 insertions(+)
+ src/net/http/sniff.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

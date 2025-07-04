@@ -1,29 +1,17 @@
-commit 7001ac53946bb05c88a0e7d7c3c64dfb1cca1fca
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 6 09:50:05 2018 -0400
+commit 2767c4e285d12eadfeccb45ee2610ceb9bf95bae
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 16 14:10:14 2018 +0100
 
-    runtime: fix abort handling on Windows
+    cmd/go: remove some unused parameters
     
-    On Windows, the IP recorded in the breakpoint exception caused by
-    runtime.abort is actually one byte after the INT3, unlike on UNIX
-    OSes. Account for this in isgoexception.
-    
-    It turns out TestAbort was "passing" on Windows anyway because abort
-    still caused a fatal panic, just not the one we were expecting. This
-    CL tightens this test to check that the runtime specifically reports a
-    breakpoint exception.
-    
-    Fixing this is related to #21382, since we use runtime.abort in
-    reporting g0 stack overflows, and it's important that we detect this
-    and not try to handle it.
-    
-    Change-Id: I66120944d138eb80f839346b157a3759c1019e34
-    Reviewed-on: https://go-review.googlesource.com/122515
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I441b3045e76afc1c561914926c14efc8a116c8a7
+    Reviewed-on: https://go-review.googlesource.com/101195
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_test.go     | 15 +++++++++------
- src/runtime/signal_windows.go |  4 +++-
- 2 files changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/work/build_test.go |  2 +-
+ src/cmd/go/internal/work/exec.go       | 40 +++++++++++++++++-----------------
+ src/cmd/go/internal/work/gc.go         |  6 ++---
+ src/cmd/go/internal/work/gccgo.go      |  4 ++--
+ 4 files changed, 26 insertions(+), 26 deletions(-)

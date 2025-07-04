@@ -1,31 +1,17 @@
-commit a937729c2c2f6950a32bc5cd0f5b88700882f078
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sun Mar 7 15:30:47 2021 -0800
+commit 00a053bd4b2c19b2d9680f78f4c8657fcc6f1c88
+Author: Michał Łowicki <mlowicki@gmail.com>
+Date:   Sun Aug 23 23:53:04 2020 +0100
 
-    net/http: mention NewRequestWithContext+Client.Do for custom contexts
+    testing: fix Cleanup race with Logf and Errorf
     
-    Adds mentions of NewRequestWithContext and *Client.Do as prescriptions
-    for how to use a specified context.Context, to the docs of:
-    * (*Client).Get
-    * (*Client).Head
-    * (*Client).Post
-    * (*Client).PostForm
-    * Get
-    * Head
-    * Post
-    * PostForm
+    Fixes #40908
     
-    given that we can't remove those convenience functions, nor
-    change the method signatures, except for Go2.
-    
-    Fixes #35562
-    
-    Change-Id: I4859e6757e7f958c9067ac4ef15881cfba7d1f8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299610
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I25561a3f18e730a50e6fbf85aa7bd85bf1b73b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250078
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/go/testdata/script/testing_issue40908.txt | 21 +++++++++++++++++++++
+ src/testing/testing.go                            |  4 ++++
+ 2 files changed, 25 insertions(+)

@@ -1,28 +1,31 @@
-commit 54198b04dbdf424d8aec922c1f8870ce0e9b7332
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 8 15:35:19 2021 -0500
+commit ce36e7f79ee4abde0e3c2be4bd3cb069469c3bd5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 12 20:08:27 2020 -0400
 
-    cmd/compile: disallow embed of var inside func
+    [dev.link] cmd/internal/goobj2, cmd/link: change data type for local object/index representation
     
-    Allowing embedding into []byte inside a func creates an
-    unfortunate problem: either all calls start with the same
-    underlying data and can see each other's changes to the
-    underlying data (surprising and racy!) or all calls start
-    by making their own copy of the underlying data
-    (surprising and expensive!).
+    Use uint32 consistently for local index (this is what the object
+    file uses).
     
-    After discussion on #43216, the consensus was to remove
-    support for all vars embedded inside functions.
+    Use a index, instead of a pointer, to refer to the object file.
+    This reduces memory usage and GC work.
     
-    Fixes #43216.
+    This reduces some allocations. Linking cmd/compile,
     
+    name           old alloc/op   new alloc/op   delta
+    Loadlib_GC       19.9MB ± 0%    16.9MB ± 0%  -15.33%  (p=0.008 n=5+5)
     
-    Change-Id: I01e62b5f0dcd9e8566c6d2286218e97803f54704
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282714
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    name           old live-B     new live-B     delta
+    Loadlib_GC        12.6M ± 0%     11.3M ± 0%   -9.97%  (p=0.008 n=5+5)
+    
+    Change-Id: I20ce60bbb6d31abd2e9e932bdf959e2ae840ab98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233779
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/embed.go        |  9 ++------
- src/embed/internal/embedtest/embed_test.go  | 32 ++++++++++-------------------
- src/embed/internal/embedtest/embedx_test.go | 14 -------------
- 3 files changed, 13 insertions(+), 42 deletions(-)
+ src/cmd/internal/goobj/readnew.go           | 20 +++----
+ src/cmd/internal/goobj2/objfile.go          | 36 ++++++------
+ src/cmd/link/internal/loader/loader.go      | 86 ++++++++++++++++-------------
+ src/cmd/link/internal/loader/loader_test.go |  2 +-
+ 4 files changed, 76 insertions(+), 68 deletions(-)

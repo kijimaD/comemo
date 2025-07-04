@@ -1,22 +1,22 @@
-commit 2cc42cf2a8a9a3f0fdd2d6169ca2fa3b9cffe48e
-Author: Todd Neal <todd@tneal.org>
-Date:   Wed Mar 16 21:22:41 2016 -0500
+commit ed03dab85384c156d7c222890ca13d1af3f69b4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 5 09:27:40 2016 -0500
 
-    cmd/compile/test: replace switch{} with go:noinline
+    cmd/internal/obj: separate code layout from object writing
     
-    Change-Id: Ic40449b2e4b4f18cbe5b5d4c3d51ea7b05ac674d
-    Reviewed-on: https://go-review.googlesource.com/20823
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This will allow the compiler to crunch Prog lists down to code as each
+    function is compiled, instead of waiting until the end, which should
+    reduce the working set of the compiler. But not until Go 1.7.
+    
+    This also makes it easier to write some machine code output tests
+    for the assembler, which is why it's being done now.
+    
+    For #13822.
+    
+    Change-Id: I0811123bc6e5717cebb8948f9cea18e1b9baf6f7
+    Reviewed-on: https://go-review.googlesource.com/18311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../compile/internal/gc/testdata/addressed_ssa.go  |  27 +--
- src/cmd/compile/internal/gc/testdata/arith_ssa.go  |   4 +-
- .../compile/internal/gc/testdata/compound_ssa.go   |   6 +-
- src/cmd/compile/internal/gc/testdata/copy_ssa.go   |  93 ++++------
- src/cmd/compile/internal/gc/testdata/ctl_ssa.go    |   3 +-
- src/cmd/compile/internal/gc/testdata/fp_ssa.go     | 193 ++++++++-------------
- .../compile/internal/gc/testdata/loadstore_ssa.go  |  14 +-
- src/cmd/compile/internal/gc/testdata/string_ssa.go |   3 +-
- src/cmd/compile/internal/gc/testdata/zero_ssa.go   |  75 +++-----
- 9 files changed, 154 insertions(+), 264 deletions(-)
+ src/cmd/internal/obj/link.go    |  6 ++++++
+ src/cmd/internal/obj/objfile.go | 36 +++++++++++++++++++++++++-----------
+ 2 files changed, 31 insertions(+), 11 deletions(-)

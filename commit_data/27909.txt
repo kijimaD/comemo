@@ -1,14 +1,14 @@
-commit 36f61ed7ed962a25f41ecd6ab57cbaa5ce938bf1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri May 6 23:16:15 2016 -0700
+commit ba7563019f4c5c78cbfd740da1ad68acee37885c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 19 18:31:17 2016 +0000
 
-    cmd/dist: build cmd/compile/internal/syntax
+    crypto/x509: fix copy/paste-o in error message
     
-    Change-Id: Ie6dd2318e031be445c0b1ae65d4c78723d5a1167
-    Reviewed-on: https://go-review.googlesource.com/27197
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #15371
+    
+    Change-Id: Iff8d36e1bd9b5641f6b577a30ac6e967f973c939
+    Reviewed-on: https://go-review.googlesource.com/22240
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/buildtool.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

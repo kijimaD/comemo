@@ -1,20 +1,25 @@
-commit 37c11dc0aab72d212e222c44ac1853cefb5f7126
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon May 21 13:21:26 2018 +0200
+commit 91a6a2a30f95da8ae3fb6329a71c49ed13aa12ad
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Dec 5 22:53:48 2017 -0800
 
-    log/syslog: skip tests that depend on daemon on builders
+    encoding/json: make error capture logic in recover more type safe
     
-    Some functions in log/syslog depend on syslogd running. Instead of
-    treating errors caused by the daemon not running as test failures,
-    ignore them and skip the test.
+    Rather than only ignoring runtime.Error panics, which are a very
+    narrow set of possible panic values, switch it such that the json
+    package only captures panic values that have been properly wrapped
+    in a jsonError struct. This ensures that only intentional panics
+    originating from the json package are captured.
     
-    Fixes the longtest builder.
+    Fixes #23012
     
-    Change-Id: I628fe4aab5f1a505edfc0748861bb976ed5917ea
-    Reviewed-on: https://go-review.googlesource.com/113838
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I5e85200259edd2abb1b0512ce6cc288849151a6d
+    Reviewed-on: https://go-review.googlesource.com/94019
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/syslog/syslog_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/encoding/json/decode.go      | 15 ++++++++++-----
+ src/encoding/json/decode_test.go | 14 ++++++++++++++
+ src/encoding/json/encode.go      | 12 +++++-------
+ src/encoding/json/encode_test.go | 14 ++++++++++++++
+ 4 files changed, 43 insertions(+), 12 deletions(-)

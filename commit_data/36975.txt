@@ -1,12 +1,25 @@
-commit 9322b53396dc8aeb8bdfa825beb4d89f33216d93
-Author: avsharapov <analytics.kzn@gmail.com>
-Date:   Sat Oct 13 13:51:16 2018 +0300
+commit b77f5e4c8530279d40eb29dc86a320a8fb4f909e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jun 8 18:58:30 2018 -0400
 
-    cmd/cgo: simplify switch statement to if statement
+    [dev.boringcrypto] crypto/rsa: drop random source reading emulation
     
-    Change-Id: Ie7dce45d554fde69d682680f55abba6a7fc55036
-    Reviewed-on: https://go-review.googlesource.com/c/142017
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Now that the standard library behavior in reading from the randomness
+    source is not reliable thanks to randutil.MaybeReadByte, we don't need
+    to emulate its behavior.
+    
+    Also, since boring.RandReader is never deterministic, add an early exit
+    to randutil.MaybeReadByte.
+    
+    Change-Id: Ie53e45ee64af635595181f71abd3c4340c600907
+    Reviewed-on: https://go-review.googlesource.com/117555
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/gcc.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/crypto/rsa/boring.go      |  40 --------
+ src/crypto/rsa/boring_test.go | 218 ++----------------------------------------
+ src/crypto/rsa/pkcs1v15.go    |   3 -
+ src/crypto/rsa/pss.go         |   1 -
+ src/crypto/rsa/rsa.go         |   1 -
+ 5 files changed, 6 insertions(+), 257 deletions(-)

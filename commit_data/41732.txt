@@ -1,20 +1,16 @@
-commit e0deacd1c096367ba341b43413ec5ccea8253db2
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 24 16:46:49 2020 +0000
+commit 7416315e3358b0bc2774c92f39d8f7c4b33790ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 18:13:24 2019 -0700
 
-    Revert "cmd/compile: disable mem+op operations on 386"
+    runtime: add new deltimer function
     
-    This reverts commit CL 224837.
+    Updates #27707
     
-    Reason for revert: Reverting partial reverts of 222782.
-    
-    Update #37881
-    
-    Change-Id: Ie9bf84d6e17ed214abe538965e5ff03936886826
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225217
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I720e8af9e183c75abcb63ccc30466734c8dba74f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171831
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/addressingmodes.go | 37 ++++++++++++-----------
- test/codegen/arithmetic.go                      |  4 +++
- test/codegen/memops.go                          | 39 +++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 19 deletions(-)
+ src/runtime/time.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 6 deletions(-)

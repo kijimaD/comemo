@@ -1,14 +1,14 @@
-commit 562bccf89e0cc7ca7e62cb1cde50aea6a231ad19
+commit b37841cc0659f07bccea5ff7d601934ccc26e964
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 11:57:54 2012 -0500
+Date:   Wed Mar 7 11:44:54 2012 -0500
 
-    doc: update effective_go.tmpl
+    runtime/pprof: disable test on Leopard 64-bit
     
-    Forgot this half in https://golang.org/cl/5764044
+    Fixes #3234.
     
-    R=gri
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5770044
+    https://golang.org/cl/5756078
 
- doc/effective_go.tmpl | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/pkg/runtime/pprof/pprof_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

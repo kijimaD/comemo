@@ -1,17 +1,20 @@
-commit 91ddc07f65db24f17d56137ac19cc3e8957de85e
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Sep 3 19:15:26 2015 -0400
+commit adb1e030136f14ef8434930f15a04a74568a5948
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 15 17:02:06 2015 -0700
 
-    hash/*: document the byte order used by the Sum methods
+    net: RFC 6724 address selection
     
-    Fixes #12350.
+    At least the most important parts, I think.
     
-    Change-Id: I3dcb0e2190c11f83f15fb07cc637fead54f734f7
-    Reviewed-on: https://go-review.googlesource.com/14275
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #10552
+    
+    Change-Id: I1a03c5405bdbef337e0245d226e9247d3d067393
+    Reviewed-on: https://go-review.googlesource.com/12246
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/hash/adler32/adler32.go | 1 +
- src/hash/crc32/crc32.go     | 2 ++
- src/hash/crc64/crc64.go     | 1 +
- src/hash/fnv/fnv.go         | 4 ++++
- 4 files changed, 8 insertions(+)
+ src/net/addrselect.go      | 381 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/addrselect_test.go | 218 ++++++++++++++++++++++++++
+ src/net/dnsclient_unix.go  |   5 +-
+ 3 files changed, 602 insertions(+), 2 deletions(-)

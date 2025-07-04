@@ -1,25 +1,18 @@
-commit c3fcd0117784ac05e35120ac0de6c960b400a31e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 3 18:21:37 2022 -0800
+commit 3b770f2ccb1fa6fecc22ea822a19447b10b70c5c
+Author: Rob Findley <rfindley@google.com>
+Date:   Sat May 29 22:14:12 2021 -0400
 
-    go/build: recognize "unix" build tag
+    go/types: don't declare 'comparable' when typeparams are disabled
     
-    The new "unix" build tag matches any Unix or Unix-like system.
-    This is only recognized on go:build lines, not in file names.
+    Fixes #46453
     
-    For #20322
-    Fixes #51572
-    
-    Change-Id: I3a991f9e69353b25e259bc6462709cdcd83640fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389934
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I92b9b1e43ec5182162b2eeeb667f1f548ea373a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323609
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/build.go               | 37 +++++++++++++++++++++++++++++++++----
- src/cmd/go/alldocs.go               |  1 +
- src/cmd/go/internal/help/helpdoc.go |  1 +
- src/go/build/build.go               |  3 +++
- src/go/build/syslist.go             | 27 ++++++++++++++++++++++++---
- 5 files changed, 62 insertions(+), 7 deletions(-)
+ src/go/types/check_test.go | 8 ++++++++
+ src/go/types/universe.go   | 5 ++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

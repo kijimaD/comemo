@@ -1,15 +1,14 @@
-commit 9b4aaa418fe415bae73a65f9be2dcbc642bb8edf
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 16 12:06:48 2012 +0400
+commit 0d0eff71652a0b8fcbfe678763d88eb142a544f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 15 11:46:00 2012 -0800
 
-    syscall: fix data races in LazyDLL/LazyProc
-    Reincarnation of https://golang.org/cl/6817086 (sent from another account).
-    It is ugly because sync.Once will cause allocation of a closure.
-    Fixes #4343.
+    os: add FileMode.IsRegular
     
-    R=golang-dev, bradfitz, alex.brainman
+    API change.
+    
+    R=golang-dev, r, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6856046
+    https://golang.org/cl/6844048
 
- src/pkg/syscall/dll_windows.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/pkg/os/types.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

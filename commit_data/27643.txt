@@ -1,14 +1,16 @@
-commit 0326e28f17ca760f76105fbcba9c5f55bb6ef1ce
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jun 4 07:33:28 2016 +0900
+commit 0d375381963d1236b1f70546386ffe92dddb59fc
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Tue Apr 5 23:54:50 2016 +0800
 
-    Revert "cmd/go: re-enable TestCgoConsistentResults on solaris"
+    cmd/vet: do not treat declaration as asignment in atomic check
     
-    This reverts commit b89bcc1daeed9980c5ba8a255b37877493952874.
+    Fixes #15118
     
-    Change-Id: Ief2f317ffc175f7e6002d0c39694876f46788c69
-    Reviewed-on: https://go-review.googlesource.com/23744
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Iad56ed412535c8ac0a01c4bd7769fd3d37688ac9
+    Reviewed-on: https://go-review.googlesource.com/21526
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/vet/atomic.go          | 3 +++
+ src/cmd/vet/testdata/atomic.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

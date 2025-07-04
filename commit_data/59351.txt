@@ -1,61 +1,20 @@
-commit ecdd429a3be7abde6e169b79da13bffdba064cb4
-Author: limeidan <limeidan@loongson.cn>
-Date:   Tue Apr 22 10:24:27 2025 +0800
+commit 70fbc88288143c218fde9f905a38d55505adfb2b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Nov 22 09:21:27 2023 +0000
 
-    runtime: optimize the function memequal using SIMD on loong64
+    net/http: add ResponseController http2 request without body read deadline test
     
-    goos: linux
-    goarch: loong64
-    pkg: bytes
-    cpu: Loongson-3A6000-HV @ 2500.00MHz
-                                  │      old      │                 new                  │
-                                  │    sec/op     │    sec/op     vs base                │
-    Equal/0                          0.4012n ± 0%   0.4003n ± 0%   -0.21% (p=0.000 n=10)
-    Equal/same/1                      2.555n ± 1%    2.419n ± 0%   -5.32% (p=0.000 n=10)
-    Equal/same/6                      2.574n ± 1%    2.425n ± 1%   -5.79% (p=0.000 n=10)
-    Equal/same/9                      2.578n ± 0%    2.419n ± 1%   -6.19% (p=0.000 n=10)
-    Equal/same/15                     2.565n ± 1%    2.417n ± 0%   -5.73% (p=0.000 n=10)
-    Equal/same/16                     2.576n ± 1%    2.414n ± 0%   -6.31% (p=0.000 n=10)
-    Equal/same/20                     2.573n ± 1%    2.416n ± 0%   -6.10% (p=0.000 n=10)
-    Equal/same/32                     2.559n ± 0%    2.411n ± 0%   -5.80% (p=0.000 n=10)
-    Equal/same/4K                     2.579n ± 1%    2.410n ± 0%   -6.53% (p=0.000 n=10)
-    Equal/same/4M                     2.571n ± 0%    2.411n ± 0%   -6.22% (p=0.000 n=10)
-    Equal/same/64M                    2.568n ± 1%    2.413n ± 0%   -6.05% (p=0.000 n=10)
-    Equal/1                           5.215n ± 0%    6.404n ± 0%  +22.80% (p=0.000 n=10)
-    Equal/6                          11.630n ± 0%    6.404n ± 0%  -44.94% (p=0.000 n=10)
-    Equal/9                          15.240n ± 0%    6.404n ± 0%  -57.98% (p=0.000 n=10)
-    Equal/15                         22.925n ± 0%    6.404n ± 0%  -72.07% (p=0.000 n=10)
-    Equal/16                         24.070n ± 0%    5.203n ± 0%  -78.38% (p=0.000 n=10)
-    Equal/20                         28.880n ± 0%    6.404n ± 0%  -77.83% (p=0.000 n=10)
-    Equal/32                         43.320n ± 0%    6.404n ± 0%  -85.22% (p=0.000 n=10)
-    Equal/4K                        4938.50n ± 0%    55.43n ± 0%  -98.88% (p=0.000 n=10)
-    Equal/4M                         5048.8µ ± 0%    202.0µ ± 0%  -96.00% (p=0.000 n=10)
-    Equal/64M                        80.819m ± 0%    4.539m ± 0%  -94.38% (p=0.000 n=10)
-    EqualBothUnaligned/64_0          79.830n ± 0%    4.803n ± 0%  -93.98% (p=0.000 n=10)
-    EqualBothUnaligned/64_1          79.830n ± 0%    4.803n ± 0%  -93.98% (p=0.000 n=10)
-    EqualBothUnaligned/64_4          79.830n ± 0%    4.803n ± 0%  -93.98% (p=0.000 n=10)
-    EqualBothUnaligned/64_7          79.830n ± 0%    4.803n ± 0%  -93.98% (p=0.000 n=10)
-    EqualBothUnaligned/4096_0       4937.00n ± 0%    65.64n ± 0%  -98.67% (p=0.000 n=10)
-    EqualBothUnaligned/4096_1       4937.00n ± 0%    78.85n ± 0%  -98.40% (p=0.000 n=10)
-    EqualBothUnaligned/4096_4       4937.00n ± 0%    78.87n ± 0%  -98.40% (p=0.000 n=10)
-    EqualBothUnaligned/4096_7       4937.00n ± 0%    78.87n ± 0%  -98.40% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_0     5049.2µ ± 0%    204.2µ ± 0%  -95.96% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_1     5049.2µ ± 0%    205.1µ ± 0%  -95.94% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_4     5049.4µ ± 0%    205.1µ ± 0%  -95.94% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_7     5049.2µ ± 0%    205.1µ ± 0%  -95.94% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_0    80.796m ± 0%    3.863m ± 0%  -95.22% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_1    80.801m ± 0%    3.706m ± 0%  -95.41% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_4    80.799m ± 0%    3.706m ± 0%  -95.41% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_7    80.781m ± 0%    3.706m ± 0%  -95.41% (p=0.000 n=10)
-    geomean                           1.040µ         149.6n       -85.63%
+    Requires CL 464936
     
-    Change-Id: Id4c2bc0ca758337dd9759df83750c761814be488
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667255
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    For #58237
+    
+    Change-Id: I007b61f0f216d759f8e5327d77affbd9e8f8ff23
+    GitHub-Last-Rev: 30a10909b03bb0e8e4cd370a6f5ca386cd4ebc39
+    GitHub-Pull-Request: golang/go#58282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465035
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/bytealg/equal_loong64.s | 287 +++++++++++++++++++++++++++++++----
- 1 file changed, 258 insertions(+), 29 deletions(-)
+ src/net/http/responsecontroller_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

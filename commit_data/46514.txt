@@ -1,19 +1,23 @@
-commit 986f8ea6b4fe5d479b9f3a05868bdf8266cf3467
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 14 17:33:16 2021 -0700
+commit e60cffa4ca9ae726d96b53817d82d98402017772
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 21 11:21:59 2020 -0800
 
-    cmd/compile/internal/types2: minor cleanup of instantiation
+    html/template: attach functions to namespace
     
-    This is a clean port of CL 349429 from go/types to types2
-    with minor adjustments for types2 names.
+    The text/template functions are stored in a data structure shared by
+    all related templates, so do the same with the original, unwrapped,
+    functions on the html/template side.
     
-    Change-Id: Ie6a39a01f074acb9e6565ffacb34c94666ae9a95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349999
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #39807
+    Fixes #43295
+    
+    Change-Id: I9f64a0a601f1151c863a2833b5be2baf649b6cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279492
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/named.go | 38 ++++++++++++++++++--------------
- src/cmd/compile/internal/types2/subst.go | 32 ++++++---------------------
- 2 files changed, 29 insertions(+), 41 deletions(-)
+ src/html/template/exec_test.go | 20 ++++++++++++++++++
+ src/html/template/template.go  | 46 +++++++++++++++++++++++++-----------------
+ 2 files changed, 47 insertions(+), 19 deletions(-)

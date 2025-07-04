@@ -1,20 +1,18 @@
-commit e7d5857a5a82551b8a70b6174ec73422442250ce
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 19 15:48:17 2022 -0800
+commit c7d708e42ed4db9dd323899256d5666c5062e5ab
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 20 14:29:53 2021 -0700
 
-    cmd/compile/internal/importer, gcimporter: use *TypeParam as tparamIndex map value
+    cmd/compile: pass struct field note information along in exported info
     
-    This is a map from identifiers to type parameters, use *TypeParam
-    as map value instead of Type.
+    This is needed to make field tracking work correctly.
     
-    Change-Id: Ib006393418c6352bcffc1c6796c5e002c33d9f4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379634
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0c3452a48d6f36862f6ee8aacc001813866c0ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312069
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/importer/iimport.go | 4 ++--
- src/go/internal/gcimporter/iimport.go        | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 1 +
+ src/cmd/compile/internal/typecheck/iimport.go | 1 +
+ 2 files changed, 2 insertions(+)

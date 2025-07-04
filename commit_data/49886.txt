@@ -1,22 +1,31 @@
-commit 7acbbbee947626d9d411f8b3398400413d0fd0ce
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 30 22:06:26 2022 -0700
+commit eff27e858b771bf5e0b5e7e836827c7d2941e6d4
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 21:09:57 2021 -0700
 
-    net: ignore edns0 option in resolv.conf
+    cmd/compile: ensure constant shift amounts are in range for arm
     
-    We use EDNS(0) by default. No need to fall back to netdns=cgo if we
-    see a explicit request for EDNS(0) in resolv.conf.
+    Ensure constant shift amounts are in the range [0-31]. When shift amounts
+    are out of range, bad things happen. Shift amounts out of range occur
+    when lowering 64-bit shifts (we take an in-range shift s in [0-63] and
+    calculate s-32 and 32-s, both of which might be out of [0-31]).
     
-    For #51153
+    The constant shift operations themselves still work, but their shift
+    amounts get copied unmolested to operations like ORshiftLL which use only
+    the low 5 bits. That changes an operation like <<100 which unconditionally
+    produces 0, to <<4, which doesn't.
     
-    Change-Id: I135363112e3de43ce877aad45aba71d1448068b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415579
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #48476
+    
+    Change-Id: I87363ef2b4ceaf3b2e316426064626efdfbb8ee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350969
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/dnsconfig_unix.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARM.rules     | 114 ++++++------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   9 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 240 ++++++++++++++++++++++++-
+ test/fixedbugs/issue48476.go                   |  21 +++
+ 5 files changed, 318 insertions(+), 68 deletions(-)

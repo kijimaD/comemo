@@ -1,30 +1,23 @@
-commit 6b8977372263504535cad6e880ffca156bdfdf68
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 9 12:25:04 2021 -0500
+commit b178a81e1f95eea38893e6da8daa3260d3e601de
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 5 11:40:12 2021 -0400
 
-    testenv: abstract run-with-timeout into testenv
+    [dev.fuzz] internal/fuzz: don't count time spent loading corpus
     
-    This lifts the logic to run a subcommand with a timeout in a test from
-    the runtime's runTestProg into testenv. The implementation is
-    unchanged in this CL. We'll improve it in a future CL.
+    The -fuzztime flag tells us how much time to spend fuzzing, not
+    counting time spent running the seed corpus. We shouldn't count time
+    spent loading the cache either. If the cache is large, the time limit
+    may be exceeded before the coordinator starts the workers.
     
-    Currently, tests that run subcommands usually just timeout with no
-    useful output if the subcommand runs for too long. This is a step
-    toward improving this.
-    
-    For #37405.
-    
-    Change-Id: I2298770db516e216379c4c438e05d23cbbdda51d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370701
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: If00435faa5d24aabdb9003ebb9337fa2e47f22b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307310
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/internal/testenv/testenv.go                    | 51 ++++++++++++++++++++++
- .../testenv/testenv_notunix.go}                    |  8 ++--
- src/internal/testenv/testenv_unix.go               | 13 ++++++
- src/runtime/crash_test.go                          | 41 +----------------
- src/runtime/crash_unix_test.go                     |  6 +--
- 5 files changed, 71 insertions(+), 48 deletions(-)
+ src/internal/fuzz/fuzz.go             | 12 +++++++++++-
+ src/testing/internal/testdeps/deps.go | 13 +++----------
+ 2 files changed, 14 insertions(+), 11 deletions(-)

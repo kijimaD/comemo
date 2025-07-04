@@ -1,55 +1,27 @@
-commit dbe03e4831206d7311e4423c3a988fc48beda2bd
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jun 13 12:38:20 2024 -0400
+commit 83dfe5cf62234427eae04131dc6e4551fd283463
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 14:23:31 2023 -0400
 
-    cmd/go: call telemetry.MaybeChild at start of go command
+    cmd/go: implement 'toolchain local'
     
-    Call the new telemetry.MaybeChild function at the start of the go
-    command so that the child process logic can be run immediately without
-    running toolchain selection if this is the child process.
+    The actual selection code already worked
+    (except for the x/mod parser not reading the file),
+    so all that is necessary is a test.
+    For the test, move the version check up before
+    the module line presence check.
     
-    The Start function in the telemetry shim package has been renamed to
-    OpenCounters to make it clear that that's its only function.
+    For #57001.
     
-    The StartWithUpload function in the telemetry shim package has been
-    renamed to MaybeParent because that's its actual effective behavior in
-    cmd/go, the only place it's called: it won't run as the child because
-    MaybeChild has already been called and would have run as the child if
-    the program was the telemetry child, and it won't open counters because
-    telemetry.Start has been called. Checks are added that those functions
-    are always called before so that the function name and comment are
-    accurate.
-    
-    It might make sense to add a true telemetry.MaybeParent function that
-    doesn't try to start the child or open counters to make things a little
-    simpler.
-    
-    Change-Id: Ie81e2418af85cef18ec41f75db66365f6597b8b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592535
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iaa4f9b92d38fcfd99dc1665ec8d3eb0e52007bb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497555
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/addr2line/main.go                         |  2 +-
- src/cmd/asm/main.go                               |  2 +-
- src/cmd/buildid/buildid.go                        |  2 +-
- src/cmd/cgo/main.go                               |  2 +-
- src/cmd/compile/internal/gc/main.go               |  2 +-
- src/cmd/covdata/covdata.go                        |  2 +-
- src/cmd/cover/cover.go                            |  2 +-
- src/cmd/distpack/pack.go                          |  2 +-
- src/cmd/doc/main.go                               |  2 +-
- src/cmd/fix/main.go                               |  2 +-
- src/cmd/go/main.go                                |  5 ++--
- src/cmd/gofmt/gofmt.go                            |  2 +-
- src/cmd/internal/telemetry/telemetry.go           | 32 ++++++++++++++++++-----
- src/cmd/internal/telemetry/telemetry_bootstrap.go |  5 ++--
- src/cmd/link/internal/ld/main.go                  |  2 +-
- src/cmd/nm/nm.go                                  |  2 +-
- src/cmd/objdump/main.go                           |  2 +-
- src/cmd/pack/pack.go                              |  2 +-
- src/cmd/pprof/pprof.go                            |  2 +-
- src/cmd/preprofile/main.go                        |  2 +-
- src/cmd/test2json/main.go                         |  2 +-
- src/cmd/trace/main.go                             |  2 +-
- src/cmd/vet/main.go                               |  2 +-
- 23 files changed, 51 insertions(+), 31 deletions(-)
+ src/cmd/go/gotoolchain.go                  | 56 +++++++++++++++--------
+ src/cmd/go/internal/gover/toolchain.go     | 25 ++++++++++
+ src/cmd/go/internal/modload/init.go        | 15 +++---
+ src/cmd/go/internal/modload/modfile.go     |  3 ++
+ src/cmd/go/internal/version/version.go     |  7 ++-
+ src/cmd/go/testdata/script/gotoolchain.txt | 73 +++++++++++++++++++++++-------
+ 6 files changed, 136 insertions(+), 43 deletions(-)

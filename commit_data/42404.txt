@@ -1,46 +1,27 @@
-commit e3491c46034cecbaf0f33928b09e1e3c0c6a0d20
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 21 20:46:05 2020 -0400
+commit 22d28a24c8b0d99f2ad6da5fe680fa3cfa216651
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 10 17:27:26 2019 -0800
 
-    net/http: handle body rewind in HTTP/2 connection loss better
+    runtime: force segv for nil defer function to be in deferreturn()
     
-    In certain cases the HTTP/2 stack needs to resend a request.
-    It obtains a fresh body to send by calling req.GetBody.
-    This call was missing from the path where the HTTP/2
-    round tripper returns ErrSkipAltProtocol, meaning fall back
-    to HTTP/1.1. The result was that the HTTP/1.1 fallback
-    request was sent with no body at all.
+    If the defer function pointer is nil, force the seg fault to happen in deferreturn
+    rather than in jmpdefer. jmpdefer is used fairly infrequently now because most
+    functions have open-coded defers.
     
-    This CL changes that code path to rewind the body before
-    falling back to HTTP/1.1. But rewinding the body is easier
-    said than done. Some requests have no GetBody function,
-    meaning the body can't be rewound. If we need to rewind and
-    can't, that's an error. But if we didn't read anything, we don't
-    need to rewind. So we have to track whether we read anything,
-    with a new ReadCloser wrapper. That in turn requires adding
-    to the couple places that unwrap Body values to look at the
-    underlying implementation.
+    The open-coded defer implementation calls gentraceback() with a callback when
+    looking for the first open-coded defer frame. gentraceback() throws an error if it
+    is called with a callback on an LR architecture and jmpdefer is on the stack,
+    because the stack trace can be incorrect in that case - see issue #8153. So, we
+    want to make sure that we don't have a seg fault in jmpdefer.
     
-    This CL adds the new rewinding code in the main retry loop
-    as well.
+    Fixes #36050
     
-    The new rewindBody function also takes care of closing the
-    old body before abandoning it. That was missing in the old
-    rewind code.
-    
-    Thanks to Aleksandr Razumov for CL 210123
-    and to Jun Chen for CL 234358, both of which informed
-    this CL.
-    
-    Fixes #32441.
-    
-    Change-Id: Id183758526c087c6b179ab73cf3b61ed23a2a46a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234894
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie25e6f015d8eb170b40248dedeb26a37b7f9b38d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210978
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transfer.go       | 10 +++++--
- src/net/http/transport.go      | 64 ++++++++++++++++++++++++++++++++++++------
- src/net/http/transport_test.go | 26 +++++++++++++++++
- 3 files changed, 90 insertions(+), 10 deletions(-)
+ src/runtime/callers_test.go | 34 +++++++++++++++++++++++++++++++---
+ src/runtime/panic.go        |  6 ++++++
+ 2 files changed, 37 insertions(+), 3 deletions(-)

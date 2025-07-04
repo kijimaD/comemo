@@ -1,14 +1,14 @@
-commit 08a561459763181649c35eb7191c945b5a10c933
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 22 18:33:37 2013 -0400
+commit d220c9957ccc4f2985849ee2e8c7e49fb20f04fe
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 22 18:33:05 2013 -0400
 
-    test/mapnan: use time.Now instead of syscall.Getrusage
+    time: fix ParseDuration overflow when given more than 9 digits on 32-bit arch
+    Fixes #6617.
     
-    Avoids a dependency on a somewhat nonstandard part of package syscall.
-    
-    R=golang-dev, dave, r
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/15570046
+    https://golang.org/cl/15080043
 
- test/mapnan.go | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ src/pkg/time/format.go    | 4 ++--
+ src/pkg/time/time_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

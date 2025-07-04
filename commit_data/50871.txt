@@ -1,30 +1,25 @@
-commit e0d01b8467b5cb9e68758932f50c3187374011ba
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Aug 12 23:25:56 2022 +0000
+commit 560dc9712d4bc900b5ab32b518ba4de2a9bc588c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 15 10:01:43 2021 -0800
 
-    arena: add experimental arena package
+    cmd/compile: error when using internal type declarations in generic functions
     
-    This change adds the arenas package and a function to reflect for
-    allocating from an arena via reflection, but all the new API is placed
-    behind a GOEXPERIMENT.
+    We hope to support this feature one day, but it doesn't work currently.
+    Issue a nice error message instead of having the compiler crash.
     
-    For #51317.
+    Update #47631
     
-    Change-Id: I026d46294e26ab386d74625108c19a0024fbcedc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423361
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0359411410acbaf9a5b9dbb988cd933de1bb8438
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364054
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/arena/arena.go                          | 108 ++++++++++++++++++++
- src/arena/arena_test.go                     |  42 ++++++++
- src/go/build/deps_test.go                   |   5 +-
- src/internal/goexperiment/exp_arenas_off.go |   9 ++
- src/internal/goexperiment/exp_arenas_on.go  |   9 ++
- src/internal/goexperiment/flags.go          |   4 +
- src/reflect/arena.go                        |  18 ++++
- src/runtime/arena.go                        |  96 ++++++++++++++++++
- src/runtime/arena_test.go                   | 152 ++++++++++++++++++++++++++++
- src/runtime/export_test.go                  |   4 +
- src/runtime/mfinal.go                       |   5 +
- 11 files changed, 451 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stmt.go |  4 ++++
+ test/run.go                            |  1 +
+ test/typeparam/builtins.go             | 13 +++++++------
+ test/typeparam/issue47631.go           | 34 ++++++++++++++++++++++++++++++++++
+ test/typeparam/typelist.go             |  3 ++-
+ 5 files changed, 48 insertions(+), 7 deletions(-)

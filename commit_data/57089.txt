@@ -1,39 +1,31 @@
-commit f428c7b729d3d9b37ed4dacddcd7ff88f4213f70
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu May 23 13:43:20 2024 +0800
+commit 3c8b7a95513c088f02483aa876e16263cbc7ee52
+Author: Al Cutter <al@google.com>
+Date:   Thu Jun 15 15:23:12 2023 +0000
 
-    cmd/internal/obj/loong64: add FLDX,FSTX,LDX.STX instructions support
+    net/http: check RemoteAddr isn't nil before dereferencing
     
-    The LDX.{B,BU,H,HU,W,WU,D},STX.{B,H,W,D}, FLDX.{S,D}, FSTX.{S,D} instruction
-    on Loong64 implements memory access operations using register offset
+    RemoteAddr can return nil in some cases, this fix prevents a panic.
     
-    Go asm syntax:
-            MOV{B,BU,H,HU,W,WU,V}   (RJ)(RK), RD
-            MOV{B,H,W,V}            RD, (RJ)(RK)
-            MOV{F,D}                (RJ)(RK), FD
-            MOV{F,D}                FD, (RJ)(RK)
+    I chatted with @neild about this beforehand, but what's happening in our
+    case is that a connection comes in to the HTTP server which is then
+    immediately closed (we discovered this issue by accident using nmap).
+    The network implementation that we're using (it happens to be gVisor
+    via its gonet adaptor) is returning nil from RemoteAddr(), presumably
+    as there is no remote at that point.
     
-    Equivalent platform assembler syntax:
-            ldx.{b,bu,h,hu,w,wu,d}  rd, rj, rk
-            stx.{b,h,w,d}           rd, rj, rk
-            fldx.{s,d}              fd, rj, rk
-            fstx.{s,d}              fd, rj, rk
+    But, ultimately, since RemoteAddr returns an interface it is always
+    possible for it to return nil, and indeed conn.RemoteAddr in this file
+    does exactly that if the conn is not ok.
     
-    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
-    
-    Change-Id: Ic7d13bf45dab8342f034b6469465e6337a087144
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588215
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: Ibe67ae6e30b68e2776df5ee2911bf5f1dc539641
+    GitHub-Last-Rev: ff3505d1d0b00ca16c68ec2a05f542978b79b170
+    GitHub-Pull-Request: golang/go#60823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503656
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 23 +++++++
- src/cmd/internal/obj/loong64/a.out.go           |  1 +
- src/cmd/internal/obj/loong64/asm.go             | 60 +++++++++++++++++
- src/cmd/internal/obj/loong64/cnames.go          |  1 +
- src/cmd/internal/obj/loong64/doc.go             | 86 +++++++++++++++++++++++++
- 5 files changed, 171 insertions(+)
+ src/net/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

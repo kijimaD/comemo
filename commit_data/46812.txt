@@ -1,30 +1,20 @@
-commit 5780be401fbf1c4766f45301e727fde4a89ac2cc
+commit 3db6e18468d9e5c8f5fcfece26b5b666f86e9742
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 7 15:53:32 2021 -0700
+Date:   Tue Feb 2 21:50:40 2021 -0800
 
-    cmd/compile/internal/types2: partial revert of incorrect unification "fix"
+    [dev.typeparams] test: enable more errorcheck tests
     
-    The "fix" (CL 352832) for #48619 was incorrect and broke
-    the unification algorithm in some cases (e.g., #48695).
+    These newly enabled (not anymore excluded) tests pass now
+    that we run in -G=3 mode when using the new types2 based
+    noder.
     
-    This CL reverts the changes made by CL 352832 to unify.go,
-    and comments out code in corresponding tests.
-    
-    As a result, #48695 will be fixed, and we will re-open #48619.
-    
-    Fixes #48695.
-    For #48619.
-    For #48656.
-    
-    Change-Id: I91bc492062dbcc8dae7626f6b33f6dfabf48bcb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354690
+    Change-Id: I5e7304c8020f394b79737d67c750bebbe02bd502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289109
     Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- .../types2/testdata/fixedbugs/issue48619.go2       | 18 ++++++++-------
- .../types2/testdata/fixedbugs/issue48656.go2       | 11 +++++----
- .../types2/testdata/fixedbugs/issue48695.go2       | 14 ++++++++++++
- src/cmd/compile/internal/types2/unify.go           | 26 +++-------------------
- 4 files changed, 32 insertions(+), 37 deletions(-)
+ test/run.go | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)

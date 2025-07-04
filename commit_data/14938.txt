@@ -1,25 +1,25 @@
-commit 9b568ef2b86ad383e5db9bc57723d4ce554a319e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jan 20 20:14:24 2013 +1100
+commit 3454b6bf82a7f09aa346594a5a71b1dfed3696d8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 19 23:13:01 2013 +0900
 
-    cmd/5l: reduce the size of Prog and Sym
+    undo CL 5687057 / 58bc8aae4abb
     
-    Prog
-    * Remove the unused Prog* dlink
-    * note that align is also unused, but removing it does not help due to alignment issues.
+    Fortunately we have never seen the panic on sockaddrToTCP
+    in the past year.
     
-    Saves 4 bytes, sizeof(Prog): 84 => 80.
+    ««« original CL description
+    net: panic if sockaddrToTCP returns nil incorrectly
+    Part of diagnosing the selfConnect bug
+    TBR=dsymonds
     
-    Sym
-    * Align {u,}char fields on word boundaries
-    
-    Saves 4 bytes, sizeof(Sym): 136 => 132.
-    
-    Tested on linux/arm and freebsd/arm.
-    
-    R=minux.ma, remyoudompheng, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7106050
+    https://golang.org/cl/5687057
+    »»»
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7137063
 
- src/cmd/5l/l.h | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/net/tcpsock_posix.go | 5 -----
+ 1 file changed, 5 deletions(-)

@@ -1,31 +1,18 @@
-commit 6c10e64a906039678f5dffda8b453005ffcdb92e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 28 14:08:44 2014 -0400
+commit 94849d5a78009dcaafbde2847cc0a27f53aa3723
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 28 08:43:47 2014 -0700
 
-    regexp: hide one-pass code from exported API
+    spec: clarify that break/continue do not work across function boundaries
     
-    Update #8112
+    Also made it extra clear for goto statements (even though label scopes
+    are already limited to the function defining a label).
     
-    Hide one-pass regexp API.
+    Fixes #8040.
     
-    This means moving the code from regexp/syntax to regexp,
-    but it avoids being locked into the specific API chosen for
-    the implementation.
-    
-    It also removes a slice field from the syntax.Inst, which
-    should avoid bloating the memory footprint of a non-one-pass
-    regexp unnecessarily.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant
-    https://golang.org/cl/98610046
+    LGTM=r, rsc
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/99550043
 
- api/next.txt                       |   5 -
- src/pkg/regexp/exec.go             |   8 +-
- src/pkg/regexp/onepass.go          | 582 +++++++++++++++++++++++++++++++++++++
- src/pkg/regexp/onepass_test.go     | 208 +++++++++++++
- src/pkg/regexp/regexp.go           |   8 +-
- src/pkg/regexp/syntax/prog.go      | 547 +---------------------------------
- src/pkg/regexp/syntax/prog_test.go | 202 +------------
- 7 files changed, 804 insertions(+), 756 deletions(-)
+ doc/go_spec.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

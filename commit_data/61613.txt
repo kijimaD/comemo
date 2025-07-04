@@ -1,0 +1,29 @@
+commit fd0294b99c2def6a5def7fde9793c2e57ca04240
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 17 11:51:52 2024 -0500
+
+    cmd/internal/obj/arm64: recognize FIPS static temps as unaligned
+    
+    Code like x := [12]byte{1,2,3,4,5,6,7,8,9,10,11,12} stores x in
+    a pair of registers and uses MOVD/MOVWU to load the values
+    from RODATA. The code generator needs to understand not
+    to use the aligned PC-relative relocation for that sequence.
+    
+    In non-FIPS modes, more statictemp optimizations can be applied
+    and this problematic sequence doesn't happen.
+    
+    Fix the decision about whether to assume alignment to match
+    the code used by the linker when deciding what to align.
+    
+    Fixes the linker failure in CL 626437 patch set 5.
+    
+    Change-Id: Iedad862c6faee758d4a2c5120cab2d329265b134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go               | 38 ++++++++++++++++++++++--
+ src/crypto/internal/fips/check/checktest/test.go | 28 +++++++++++++++++
+ 2 files changed, 64 insertions(+), 2 deletions(-)

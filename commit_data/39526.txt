@@ -1,19 +1,16 @@
-commit 196e67f95bd00681eab56b5da4eea28b0ca53e51
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jul 17 21:41:13 2019 -0400
+commit 4e20d999ec4cc9c6ff8e3d01e79c26a8ba775b7b
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sun Mar 3 13:10:59 2019 +0000
 
-    test: new testcase for gccgo bug
+    os: simplify check whether to run subtest of TestRemoveAll
     
-    Updates #33020
-    
-    Change-Id: I82554ef20ea35e0087fd9ecd9548c2dfeacdc617
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186697
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ic5b46cfb393f5ba7b91b3fb73b158b0bc238a532
+    GitHub-Last-Rev: e5c5db51bcc4848d807b0ce45e85c022492b2013
+    GitHub-Pull-Request: golang/go#30019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160443
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue33020.dir/a.go | 16 ++++++++++++++++
- test/fixedbugs/issue33020.dir/b.go | 22 ++++++++++++++++++++++
- test/fixedbugs/issue33020.go       |  9 +++++++++
- 3 files changed, 47 insertions(+)
+ src/os/removeall_test.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

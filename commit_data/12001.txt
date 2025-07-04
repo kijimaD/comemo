@@ -1,14 +1,77 @@
-commit 1e0f97ac6544ab3b7cf76e9c9d62e8c2a60bcdb6
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 17 16:27:17 2012 +1100
+commit 57eb06fe93db49501ab61340a1bf41b95a3474b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 23:51:04 2012 -0500
 
-    faq: add entry about nil interfaces vs. nil pointers
+    test: use testlib (final 61)
     
-    Fixes #2778.
+    X ,s;^// \$G (\$D/)?\$F\.go *$;// compile;g
+    X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A *$;// build;g
+    X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A && \./\$A\.out *$;// run;g
+    X ,s;^// errchk \$G( -e)? (\$D/)?\$F\.go *$;// errorcheck;g
     
-    R=bradfitz, rsc, iant, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5672078
+    https://golang.org/cl/5671080
 
- doc/go_faq.html | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ test/mallocrep1.go       | 2 +-
+ test/map.go              | 2 +-
+ test/map1.go             | 2 +-
+ test/method.go           | 2 +-
+ test/method1.go          | 2 +-
+ test/method2.go          | 2 +-
+ test/named.go            | 2 +-
+ test/named1.go           | 2 +-
+ test/nil.go              | 2 +-
+ test/nilptr.go           | 2 +-
+ test/parentype.go        | 2 +-
+ test/peano.go            | 2 +-
+ test/range.go            | 2 +-
+ test/recover.go          | 2 +-
+ test/recover1.go         | 2 +-
+ test/recover2.go         | 2 +-
+ test/recover3.go         | 2 +-
+ test/rename.go           | 2 +-
+ test/rename1.go          | 2 +-
+ test/reorder.go          | 2 +-
+ test/reorder2.go         | 2 +-
+ test/rune.go             | 2 +-
+ test/runtime.go          | 2 +-
+ test/shift1.go           | 2 +-
+ test/simassign.go        | 2 +-
+ test/sizeof.go           | 2 +-
+ test/stack.go            | 2 +-
+ test/string_lit.go       | 2 +-
+ test/stringrange.go      | 2 +-
+ test/struct0.go          | 2 +-
+ test/switch.go           | 2 +-
+ test/switch1.go          | 2 +-
+ test/switch3.go          | 2 +-
+ test/syntax/chan.go      | 2 +-
+ test/syntax/chan1.go     | 2 +-
+ test/syntax/else.go      | 2 +-
+ test/syntax/forvar.go    | 2 +-
+ test/syntax/if.go        | 2 +-
+ test/syntax/import.go    | 2 +-
+ test/syntax/interface.go | 2 +-
+ test/syntax/semi1.go     | 2 +-
+ test/syntax/semi2.go     | 2 +-
+ test/syntax/semi3.go     | 2 +-
+ test/syntax/semi4.go     | 2 +-
+ test/syntax/semi5.go     | 2 +-
+ test/syntax/semi6.go     | 2 +-
+ test/syntax/semi7.go     | 2 +-
+ test/syntax/topexpr.go   | 2 +-
+ test/syntax/typesw.go    | 2 +-
+ test/syntax/vareq.go     | 2 +-
+ test/syntax/vareq1.go    | 2 +-
+ test/test0.go            | 2 +-
+ test/turing.go           | 2 +-
+ test/typeswitch.go       | 2 +-
+ test/typeswitch1.go      | 2 +-
+ test/typeswitch2.go      | 2 +-
+ test/typeswitch3.go      | 2 +-
+ test/undef.go            | 2 +-
+ test/utf.go              | 2 +-
+ test/varerr.go           | 2 +-
+ test/zerodivide.go       | 2 +-
+ 61 files changed, 61 insertions(+), 61 deletions(-)

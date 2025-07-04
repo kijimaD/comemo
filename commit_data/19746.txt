@@ -1,66 +1,13 @@
-commit 0c6b55e76ba6d59f57c81ca1160d833c79270753
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 16 14:16:19 2014 -0700
+commit a03900a12f73fb01bd8943e0d2d5549d9bc5e909
+Author: Matthew Cottingham <mattcottingham@gmail.com>
+Date:   Wed Jul 16 12:27:25 2014 -0700
 
-    runtime: convert map implementation to Go.
+    flag: fix typo
     
-    It's a bit slower, but not painfully so.  There is still room for
-    improvement (saving space so we can use nosplit, and removing the
-    requirement for hash/eq stubs).
-    
-    benchmark                              old ns/op     new ns/op     delta
-    BenchmarkMegMap                        23.5          24.2          +2.98%
-    BenchmarkMegOneMap                     14.9          15.7          +5.37%
-    BenchmarkMegEqMap                      71668         72234         +0.79%
-    BenchmarkMegEmptyMap                   4.05          4.93          +21.73%
-    BenchmarkSmallStrMap                   21.9          22.5          +2.74%
-    BenchmarkMapStringKeysEight_16         23.1          26.3          +13.85%
-    BenchmarkMapStringKeysEight_32         21.9          25.0          +14.16%
-    BenchmarkMapStringKeysEight_64         21.9          25.1          +14.61%
-    BenchmarkMapStringKeysEight_1M         21.9          25.0          +14.16%
-    BenchmarkIntMap                        21.8          12.5          -42.66%
-    BenchmarkRepeatedLookupStrMapKey32     39.3          30.2          -23.16%
-    BenchmarkRepeatedLookupStrMapKey1M     322353        322675        +0.10%
-    BenchmarkNewEmptyMap                   129           136           +5.43%
-    BenchmarkMapIter                       137           107           -21.90%
-    BenchmarkMapIterEmpty                  7.14          8.71          +21.99%
-    BenchmarkSameLengthMap                 5.24          6.82          +30.15%
-    BenchmarkBigKeyMap                     34.5          35.3          +2.32%
-    BenchmarkBigValMap                     36.1          36.1          +0.00%
-    BenchmarkSmallKeyMap                   26.9          26.7          -0.74%
-    
-    LGTM=rsc
-    R=golang-codereviews, dave, dvyukov, rsc, gobot, khr
+    LGTM=r
+    R=golang-codereviews, gobot, r
     CC=golang-codereviews
-    https://golang.org/cl/99380043
+    https://golang.org/cl/114850043
 
- src/cmd/api/goapi.go            |   13 +
- src/cmd/dist/buildruntime.c     |    2 +
- src/cmd/ld/dwarf.c              |    2 +-
- src/pkg/reflect/asm_386.s       |   21 +
- src/pkg/reflect/asm_amd64.s     |   21 +
- src/pkg/reflect/asm_amd64p32.s  |   21 +
- src/pkg/reflect/asm_arm.s       |   21 +
- src/pkg/runtime/alg.goc         |    3 +
- src/pkg/runtime/asm_386.s       |   86 ++++
- src/pkg/runtime/asm_amd64.s     |   86 ++++
- src/pkg/runtime/asm_amd64p32.s  |   90 +++-
- src/pkg/runtime/asm_arm.s       |   93 ++++
- src/pkg/runtime/defs.c          |    2 +-
- src/pkg/runtime/export_test.go  |    1 -
- src/pkg/runtime/hashmap.go      |  965 +++++++++++++++++++++++++++++++++++
- src/pkg/runtime/hashmap.goc     | 1078 ---------------------------------------
- src/pkg/runtime/hashmap.h       |  147 ------
- src/pkg/runtime/hashmap_fast.c  |  233 ---------
- src/pkg/runtime/hashmap_fast.go |  391 ++++++++++++++
- src/pkg/runtime/malloc.h        |    2 +-
- src/pkg/runtime/memmove_386.s   |    2 +-
- src/pkg/runtime/memmove_amd64.s |    2 +-
- src/pkg/runtime/mprof.goc       |   53 +-
- src/pkg/runtime/mprof.h         |   56 ++
- src/pkg/runtime/race.go         |   20 +
- src/pkg/runtime/race0.go        |    7 +
- src/pkg/runtime/string.go       |    4 +-
- src/pkg/runtime/stubs.go        |   54 ++
- src/pkg/runtime/stubs.goc       |   15 +
- 29 files changed, 1971 insertions(+), 1520 deletions(-)
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

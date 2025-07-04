@@ -1,23 +1,26 @@
-commit 5b909580849c611c633c111a15adb40c9c42ec8e
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu Sep 23 16:46:58 2021 -0700
+commit bb5075a5259baeaa75f09db64c3860c5876a00fd
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jan 15 00:04:10 2021 +0100
 
-    runtime: move sigprofNonGo
+    syscall: remove RtlGenRandom and move it into internal/syscall
     
-    The sigprofNonGo and sigprofNonGoPC functions are only used on unix-like
-    platforms. In preparation for unix-specific changes to sigprofNonGo,
-    move it (plus its close relative) to a unix-specific file.
+    There's on need to expose this to the frozen syscall package, and it
+    also doesn't need to be unsafe. So we move it into internal/syscall and
+    have the generator make a safer function signature.
     
-    Updates #35057
+    Fixes #43704.
     
-    Change-Id: I9c814127c58612ea9a9fbd28a992b04ace5c604d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351790
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: Iccae69dc273a0aa97ee6846eb537f1dc1412f2de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283992
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/runtime/proc.go        | 39 ---------------------------------------
- src/runtime/signal_unix.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 39 deletions(-)
+ api/go1.16.txt                                   |  2 --
+ src/crypto/rand/rand_windows.go                  |  4 ++--
+ src/internal/syscall/windows/syscall_windows.go  |  2 ++
+ src/internal/syscall/windows/zsyscall_windows.go | 13 +++++++++++++
+ src/syscall/syscall_windows.go                   |  1 -
+ src/syscall/zsyscall_windows.go                  |  9 ---------
+ 6 files changed, 17 insertions(+), 14 deletions(-)

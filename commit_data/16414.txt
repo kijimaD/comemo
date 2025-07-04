@@ -1,12 +1,16 @@
-commit 82ef961af59fdabc1a956ba6d7bc0c0b961172b2
-Author: Bill Neubauer <wcn@golang.org>
-Date:   Tue May 28 05:03:10 2013 +0800
+commit 5782f4117dcb4c8fc40f8110a57ac531a2abdb99
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 27 11:29:11 2013 +0400
 
-    runtime: fix runtime·netpoll() to call runtime·netpollready() only once per event.
+    runtime: introduce cnewarray() to simplify allocation of typed arrays
     
-    R=golang-dev, minux.ma
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/9808043
+    https://golang.org/cl/9648044
 
- src/pkg/runtime/netpoll_kqueue.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/reflect/all_test.go | 19 +++++++++++++++++
+ src/pkg/runtime/iface.c     | 32 ++---------------------------
+ src/pkg/runtime/malloc.goc  | 50 ++++++++++++++++++++++++++-------------------
+ src/pkg/runtime/malloc.h    |  1 +
+ src/pkg/runtime/slice.c     | 20 +-----------------
+ 5 files changed, 52 insertions(+), 70 deletions(-)

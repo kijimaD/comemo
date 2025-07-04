@@ -1,19 +1,16 @@
-commit 28a15e3df34258f4f6c1de319fa30a81356ee92c
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 28 22:19:32 2019 -0400
+commit e1fb8e429158124a65139e28674ad8bb43a7eeb8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 16 13:28:35 2019 -0400
 
-    runtime: rename TestPreemptM to TestSignalM
+    cmd/go: include "gccgo stdlib" in lost build action check
     
-    TestPreemptM doesn't test preemptM, it tests signalM. Rename it and
-    co-locate it with the other tests related to signals.
+    Fixes #32060
     
-    Change-Id: I7b95f2ba96530c49cfa8d5bf33282946b5f2d9af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203891
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I49ab48a9bdd64a7ed777a045e2d92d28a37b5c0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177600
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_unix_test.go | 24 ++++++++++++++++++++++++
- src/runtime/preemptm_test.go   | 35 -----------------------------------
- 2 files changed, 24 insertions(+), 35 deletions(-)
+ src/cmd/go/internal/work/action.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,28 +1,14 @@
-commit 20e08fe68cc13102046d8c4500a7f5257a9d2881
-Author: Monis Khan <i@monis.app>
-Date:   Fri Jan 13 00:37:56 2023 +0000
+commit 3c2a3ce6d924c4d936c6a9ece63aaaa42c80107c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Aug 9 17:10:08 2022 -0400
 
-    crypto/tls: advertise correct ciphers in TLS 1.3 only mode
+    runtime: gofmt
     
-    This change updates the makeClientHello logic to only advertise TLS
-    1.3 ciphers when tls.Config.MinVersion is set to tls.VersionTLS13
-    (i.e the client only supports TLS 1.3).  Previously, TLS 1.2 ciphers
-    would be included in the client hello message.
+    Add new line at the end of crash_test.go.
     
-    Fixes #57771
-    
-    Change-Id: Ife4123037b0a4609578ffffb1cdf1e1d4e0a8df6
-    GitHub-Last-Rev: 45f4275aa9b9550e519e1be5c337b53ab8882007
-    GitHub-Pull-Request: golang/go#49293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360794
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I73c77666066b105e563215f34e7ede6c1d92226b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422299
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/handshake_client.go      |  4 +++
- src/crypto/tls/handshake_client_test.go | 63 +++++++++++++++++++++++++++++++++
- 2 files changed, 67 insertions(+)
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

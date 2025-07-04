@@ -1,27 +1,18 @@
-commit 64e48bbaba5a35049befe695ce0ff54ce93e2955
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jul 1 16:41:27 2015 +0200
+commit c2fe4a0ea1cd926c4e8af5042a9e21a1c2abcb89
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Thu May 28 13:48:47 2015 +0200
 
-    internal/trace: stable sort events
+    archive/tar: terminate when reading malformed sparse files
     
-    On some VMs two events can happen at the same time. For examples:
-    179827399 GoStart p=2 g=11 off=936359 g=11
-    179827399 GoUnblock p=2 g=0 off=936355 g=11
-    If we do non-stable sort, the events can be reordered making the trace inconsistent.
-    Do stable sort instead.
+    Fixes #10968.
     
-    Batches are dumped in FIFO order, so if these same-time events are split into
-    separate batches, stable sort still works.
-    
-    Events on different CPUs go into different batches and can be reordered.
-    But the intention is that causally-related events on different CPUs
-    will have larger (non-zero) time diff.
-    
-    Update #11320
-    
-    Change-Id: Id1df96af41dff68ea1782ab4b23d5afd63b890c9
-    Reviewed-on: https://go-review.googlesource.com/11834
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I027bc571a71629ac49c2a0ff101b2950af6e7531
+    Reviewed-on: https://go-review.googlesource.com/10482
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/trace/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/reader.go               |   3 +++
+ src/archive/tar/reader_test.go          |  19 +++++++++++++++++++
+ src/archive/tar/testdata/issue10968.tar | Bin 0 -> 512 bytes
+ 3 files changed, 22 insertions(+)

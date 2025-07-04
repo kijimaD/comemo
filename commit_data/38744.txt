@@ -1,17 +1,25 @@
-commit a01d108e30a00f9126253e061d679b07d9ff72b7
-Author: Максадбек Ахмедов <a.maksadbek@gmail.com>
-Date:   Sat Apr 13 17:38:36 2019 +0300
+commit 9ef145532420409a60542ec69ae3ed20a7d7c401
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Nov 20 16:37:50 2018 +0100
 
-    strings: remove "a copy of the string" from ToUpper/ToLower comments
+    syscall: add dummy SIGTERM constant to js/wasm
     
-    When string letters are all in lower/upper cases, both functions respectively
-    return original string.
+    The js/wasm architecture does not support signals at all, but there are
+    already some signal constants defined because of stdlib dependencies.
+    This change adds a dummy constant for syscall.SIGTERM as well, to make
+    js/wasm compatible with more existing Go code.
     
-    Fixes #30987
+    There is the Go proverb "Syscall must always be guarded with build
+    tags.", so code should not expect syscall.SIGTERM to exist. Still,
+    adding SIGTERM should do more good than harm.
     
-    Change-Id: Ie8d664f7af5e087f82c1bc156933e9a995645bf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171735
+    Fixes #28719.
+    
+    Change-Id: I3554b484f96a21427491c04eb1dd57e7af5bd62f
+    Reviewed-on: https://go-review.googlesource.com/c/150477
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/strings.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/syscall_js.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,15 +1,13 @@
-commit 711d1ad7eebc4aecfb3a326f16af206b7b99ff6c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 9 15:50:57 2014 -0700
+commit cdabca325e29641e41706a6e89c00a8c86b4ce46
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sat May 10 07:13:42 2014 +0900
 
-    runtime: be a lot more lenient on smhasher avalanche test.
+    bytes: fix typos
     
-    Fixes #7943
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/98170043
+    https://golang.org/cl/94240045
 
- src/pkg/runtime/hash_test.go | 6 +++---
+ src/pkg/bytes/bytes_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)

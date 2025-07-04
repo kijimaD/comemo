@@ -1,18 +1,22 @@
-commit 70a8a41e97246b82fa4a39cb27a7c47e7af55a57
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 00:57:27 2023 +1000
+commit 6e1b769377245f706c9c1471fa95276762e8edbf
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 12 17:07:00 2022 -0500
 
-    cmd/go/testdata/mod: add golang toolchain test data for openbsd/ppc64
+    cmd/compile: remove some lines from PPC64.rules
     
-    Updates #56001
+    In CL 429035 Keith suggested removing some
+    rules that were covered by generic rules. This
+    follows up on that comment.
     
-    Change-Id: Ic7b4ecb2e471292894c54610e8acda8822c890fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518275
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I57b6c9ae0cd85f33a0eb2fef8356575d3d7820fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430417
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- ...g.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   34 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1208 +-------------------------
+ 2 files changed, 30 insertions(+), 1212 deletions(-)

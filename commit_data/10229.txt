@@ -1,90 +1,19 @@
-commit 5cb4a15320d3b2ac121e3c68249c8ac403120bad
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 3 12:42:57 2011 -0700
+commit 53493a22fe7fa4f66a04728ea9835f69c04f5341
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 12:35:56 2011 -0700
 
-    html,log,math: renamings
-    This is Go 1 package renaming CL #2.
-    This one merely moves the source; the import strings will be
-    changed after the next weekly release.
+    http: don't use ClientConn in Transport
     
-    exp/template/html -> html/template
-    big -> math/big
-    cmath -> math/cmplx
-    rand -> math/rand
-    syslog -> log/syslog
+    ClientConn's main feature (pipelining support)
+    wasn't being used anyway.  Ends up simpler to
+    just not use it.
     
-    The only edits are in Makefiles and deps.bash.
+    This is prep for the http diet, moving ClientConn,
+    ServerConn, etc into http/httputil.
     
-    Note that this CL moves exp/template/html out of exp. I decided
-    to do that so all the renamings can be done together, even though
-    the API (and that of template, for that matter) is still fluid.
-    
-    R=r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5332053
+    https://golang.org/cl/5305088
 
- src/pkg/Makefile                                     | 10 +++++-----
- src/pkg/deps.bash                                    | 20 +++++++++++++++-----
- .../{exp/template/html => html/template}/Makefile    |  4 ++--
- src/pkg/{exp/template/html => html/template}/attr.go |  0
- .../{exp/template/html => html/template}/clone.go    |  0
- .../template/html => html/template}/clone_test.go    |  0
- .../{exp/template/html => html/template}/content.go  |  0
- .../template/html => html/template}/content_test.go  |  0
- .../{exp/template/html => html/template}/context.go  |  0
- src/pkg/{exp/template/html => html/template}/css.go  |  0
- .../{exp/template/html => html/template}/css_test.go |  0
- src/pkg/{exp/template/html => html/template}/doc.go  |  0
- .../{exp/template/html => html/template}/error.go    |  0
- .../{exp/template/html => html/template}/escape.go   |  0
- .../template/html => html/template}/escape_test.go   |  0
- src/pkg/{exp/template/html => html/template}/html.go |  0
- .../template/html => html/template}/html_test.go     |  0
- src/pkg/{exp/template/html => html/template}/js.go   |  0
- .../{exp/template/html => html/template}/js_test.go  |  0
- .../template/html => html/template}/transition.go    |  0
- src/pkg/{exp/template/html => html/template}/url.go  |  0
- .../{exp/template/html => html/template}/url_test.go |  0
- src/pkg/{ => log}/syslog/Makefile                    |  4 ++--
- src/pkg/{ => log}/syslog/syslog.go                   |  0
- src/pkg/{ => log}/syslog/syslog_test.go              |  0
- src/pkg/{ => log}/syslog/syslog_unix.go              |  0
- src/pkg/{ => math}/big/Makefile                      |  4 ++--
- src/pkg/{ => math}/big/arith.go                      |  0
- src/pkg/{ => math}/big/arith_386.s                   |  0
- src/pkg/{ => math}/big/arith_amd64.s                 |  0
- src/pkg/{ => math}/big/arith_arm.s                   |  0
- src/pkg/{ => math}/big/arith_decl.go                 |  0
- src/pkg/{ => math}/big/arith_test.go                 |  0
- src/pkg/{ => math}/big/calibrate_test.go             |  0
- src/pkg/{ => math}/big/hilbert_test.go               |  0
- src/pkg/{ => math}/big/int.go                        |  0
- src/pkg/{ => math}/big/int_test.go                   |  0
- src/pkg/{ => math}/big/nat.go                        |  0
- src/pkg/{ => math}/big/nat_test.go                   |  0
- src/pkg/{ => math}/big/rat.go                        |  0
- src/pkg/{ => math}/big/rat_test.go                   |  0
- src/pkg/{cmath => math/cmplx}/Makefile               |  4 ++--
- src/pkg/{cmath => math/cmplx}/abs.go                 |  0
- src/pkg/{cmath => math/cmplx}/asin.go                |  0
- src/pkg/{cmath => math/cmplx}/cmath_test.go          |  0
- src/pkg/{cmath => math/cmplx}/conj.go                |  0
- src/pkg/{cmath => math/cmplx}/exp.go                 |  0
- src/pkg/{cmath => math/cmplx}/isinf.go               |  0
- src/pkg/{cmath => math/cmplx}/isnan.go               |  0
- src/pkg/{cmath => math/cmplx}/log.go                 |  0
- src/pkg/{cmath => math/cmplx}/phase.go               |  0
- src/pkg/{cmath => math/cmplx}/polar.go               |  0
- src/pkg/{cmath => math/cmplx}/pow.go                 |  0
- src/pkg/{cmath => math/cmplx}/rect.go                |  0
- src/pkg/{cmath => math/cmplx}/sin.go                 |  0
- src/pkg/{cmath => math/cmplx}/sqrt.go                |  0
- src/pkg/{cmath => math/cmplx}/tan.go                 |  0
- src/pkg/{ => math}/rand/Makefile                     |  4 ++--
- src/pkg/{ => math}/rand/exp.go                       |  0
- src/pkg/{ => math}/rand/normal.go                    |  0
- src/pkg/{ => math}/rand/rand.go                      |  0
- src/pkg/{ => math}/rand/rand_test.go                 |  0
- src/pkg/{ => math}/rand/rng.go                       |  0
- src/pkg/{ => math}/rand/zipf.go                      |  0
- 64 files changed, 30 insertions(+), 20 deletions(-)
+ src/pkg/http/transport.go | 54 ++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 29 deletions(-)

@@ -1,12 +1,12 @@
-commit a5cc5bab5a8ead995d5eb51ee0991635eeab15ed
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Fri Dec 6 13:33:10 2013 -0800
+commit f1e726e3117b68d0b1be780af8b7fe8ff3347566
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Dec 5 17:49:34 2013 -0800
 
-    doc: update list of gccgo import search paths
+    cmd/dist: revert an accidental change to the optimization setting
     
-    R=iant
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/38560043
+    https://golang.org/cl/38130043
 
- doc/gccgo_install.html | 2 +-
+ src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

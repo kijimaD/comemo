@@ -1,16 +1,60 @@
-commit e76c87b1915cfbd0d4f22c6401987948af18e8c5
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Dec 8 14:31:38 2022 -0500
+commit 99b61be9f573ca46f4a4160e536abcb62180638a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 17:36:51 2022 -0800
 
-    doc: fix typo in 1.20 release notes
+    spec: move all sections describing type properties into one place
     
-    Fix typo.
+    This change only shuffles sections for better organization; there
+    are no other changes except title and link adjustments.
     
-    Change-Id: Id3a78ac5d8ea429ba1685889cd1661aaca8572c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456238
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Until now, the sections on underlying types and method sets were
+    immediately following the introduction of types. As it becomes
+    necessary to introduce the notion of a core type more centrally,
+    the natural place is immediately following the section on underlying
+    types. All together, these sections, immediately after the introduction
+    of types, would distract from purpose of the section on types, which
+    is to introduce the various types that Go offers.
+    
+    The more natural place for the definition of underlying, core, and
+    specific types is the section on properties of types and values.
+    
+    To accomplish this, the section on the structure of interfaces is
+    split into a section on core types and one on specific types, and
+    the various sections are reorganized appropriately.
+    
+    The new organization of the section on types now simply introduces
+    all Go types as follows:
+    
+    - boolean types
+    - numeric types
+    - string types
+    - array types
+    - slice types
+    - struct types
+    - pointer types
+    - function types
+    - interface types
+    - map types
+    - channel types
+    - type parameters
+    
+    The new organization of the section on properties of types and values
+    is as follows:
+    
+    - underlying types
+    - core types
+    - specific types
+    - type identity
+    - assignability
+    - representability
+    - method sets
+    
+    Change-Id: I59e4d47571da9d4c89d47d777f5353fb1c5843e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384623
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.20.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 377 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 192 insertions(+), 185 deletions(-)

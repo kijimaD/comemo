@@ -1,19 +1,22 @@
-commit 824e1f2e083c9c1df8455554744e49471becbaa2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 24 12:54:14 2016 -0700
+commit b4117995e3e01a669be737c36033c2393858d555
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 23 17:10:18 2016 -0700
 
-    text/scanner: better error message if no error handler is installed
+    cmd/pprof: use DWARF info to lookup unknown PC addresses
     
-    This is reverting golang.org/cl/19622 and introducing "<input>"
-    as filename if no filename is specified.
+    Test to follow in a separate CL that arranges for the runtime package to
+    store non-Go addresses in a CPU profile.
     
-    Fixes #15813.
-    
-    Change-Id: Iafc74b789fa33f48ee639c42d4aebc6f06435f95
-    Reviewed-on: https://go-review.googlesource.com/23402
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I33ce1d66b77340b1e62b54505fc9b1abcec108a9
+    Reviewed-on: https://go-review.googlesource.com/21055
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/text/scanner/example_test.go | 21 +++++++-------
- src/text/scanner/scanner.go      | 13 ++++-----
- src/text/scanner/scanner_test.go | 62 ++++++++++++++++++++--------------------
- 3 files changed, 47 insertions(+), 49 deletions(-)
+ src/cmd/internal/objfile/elf.go      |  5 ++
+ src/cmd/internal/objfile/goobj.go    |  6 +++
+ src/cmd/internal/objfile/macho.go    |  5 ++
+ src/cmd/internal/objfile/objfile.go  |  8 +++
+ src/cmd/internal/objfile/pe.go       |  5 ++
+ src/cmd/internal/objfile/plan9obj.go |  6 +++
+ src/cmd/pprof/pprof.go               | 95 +++++++++++++++++++++++++++++++++---
+ 7 files changed, 123 insertions(+), 7 deletions(-)

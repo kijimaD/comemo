@@ -1,19 +1,13 @@
-commit d06815ba3f0a196adeacfbf5cc963fe2b7d42f46
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Oct 12 13:38:45 2017 -0400
+commit d58125ecd22649eb0a4b33715f39d6696b13c5fb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 6 12:36:25 2017 -0400
 
-    cmd/link: split PE loader into its own package
+    runtime: document FuncForPC behavior with inlining
     
-    For #22095
-    
-    Change-Id: I8f48fce571b69a7e8edf2ad7733ffdfd38676e63
-    Reviewed-on: https://go-review.googlesource.com/70310
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1c02aa4f7131ae984fda66b32e8a993c0a40b8f4
+    Reviewed-on: https://go-review.googlesource.com/47690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/buildtool.go                    |  3 +-
- src/cmd/link/internal/ld/lib.go              | 12 ++++
- src/cmd/link/internal/ld/pe.go               | 19 ++++++
- src/cmd/link/internal/{ld => loadpe}/ldpe.go | 95 ++++++++++++++--------------
- 4 files changed, 82 insertions(+), 47 deletions(-)
+ src/runtime/symtab.go | 3 +++
+ 1 file changed, 3 insertions(+)

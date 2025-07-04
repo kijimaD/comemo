@@ -1,19 +1,21 @@
-commit 33628ce1950287721fd30b333c962984f3524b00
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 20:01:19 2022 +0800
+commit 8c94aa40e6f5e61e8a570e9d20b7d0d4ad8c382d
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Oct 22 11:56:23 2021 -0400
 
-    cmd/cgo: use strings.Builder
+    cmd/go/testdata/script: fix flaky test_fuzz_fuzztime test
     
-    Change-Id: I427776e5b2d9c7279932548c86c8faded0eed041
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428285
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
+    Previously, the test would panic if the short timeout
+    was reached before fuzzing began. Increasing the
+    timeout should stop this test from being flaky.
+    
+    Fixes #49046
+    
+    Change-Id: Iaa0b3b3e8ea29d9a42ab5fc1c801fc73fffe1675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358055
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/cgo/gcc.go    | 2 +-
- src/cmd/cgo/godefs.go | 5 ++---
- src/cmd/cgo/out.go    | 8 ++++----
- 3 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

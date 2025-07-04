@@ -1,26 +1,28 @@
-commit c165988360457553ccbfa4a09919de3262a4438a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 7 21:37:45 2016 -0400
+commit 0cff505871434711804308152679840505e8a824
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 20:45:18 2016 -0800
 
-    cmd/compile, etc: use nameOff in uncommonType
+    cmd/compile: add Recv0 and Field helper methods for Type
     
-    linux/amd64 PIE:
-            cmd/go:  -62KB (0.5%)
-            jujud:  -550KB (0.7%)
+    Accessing the n'th field of a struct is fairly common, and in
+    particular accessing the 0'th field of the receiver parameter list is
+    very common. Add helper methods for both of these tasks and update
+    code to make use of them.
     
-    For #6853.
-    
-    Change-Id: Ieb67982abce5832e24b997506f0ae7108f747108
-    Reviewed-on: https://go-review.googlesource.com/22371
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I81f551fecdca306b3800636caebcd0dc106f2ed7
+    Reviewed-on: https://go-review.googlesource.com/20498
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/reflect.go | 15 ++++++---------
- src/cmd/link/internal/ld/decodesym.go  |  6 +++---
- src/cmd/link/internal/ld/symtab.go     |  5 +++++
- src/reflect/type.go                    | 21 +++++++++------------
- src/runtime/heapdump.go                |  4 ++--
- src/runtime/iface.go                   |  2 +-
- src/runtime/type.go                    |  6 ++++--
- 7 files changed, 30 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go      |  8 +++---
+ src/cmd/compile/internal/gc/dcl.go       |  4 +--
+ src/cmd/compile/internal/gc/esc.go       |  4 +--
+ src/cmd/compile/internal/gc/export.go    |  4 +--
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 ++--
+ src/cmd/compile/internal/gc/reflect.go   |  4 +--
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 +--
+ src/cmd/compile/internal/gc/type.go      | 47 +++++++++++++++++---------------
+ src/cmd/compile/internal/gc/typecheck.go |  8 +++---
+ 11 files changed, 48 insertions(+), 45 deletions(-)

@@ -1,22 +1,16 @@
-commit 2551324cd01b295915c10c6d3d06625676401610
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Sep 22 16:54:19 2022 -0700
+commit 4e7dd9fc08fb5aa86773b65d865719d96f67f49d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Oct 19 11:17:53 2021 -0500
 
-    path/filepath: optimize isReservedName
+    bytes: test for page boundary crosses on sep of Index
     
-    A linear search through a list of 22 strings takes ~80ns.
-    A quick check for 3-4 byte strings reduces this check to 2ns
-    for a vast majority of inputs.
-    In the event of a name match, the new logic is either just
-    as fast (for "CON") or 10x faster (for "LPT9").
+    Improve TestIndexNearPageBoundary to verify needles
+    ending on a page boundary don't cause a segfault.
     
-    Change-Id: I412fa73beebd7c81dc95f9ed12c35ca1d5d6baf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433175
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2edb13db63a71dc9955e266f6b97026ee13bf76e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356889
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/path/filepath/path_windows.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/bytes/boundary_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

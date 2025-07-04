@@ -1,29 +1,32 @@
-commit 0435e88a119fd057aa7209591ba3dff122c9f24c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Mar 18 10:56:23 2016 +0100
+commit 92bf58c2381acac3929d495cee596df61491af48
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 21 21:12:36 2016 -0800
 
-    runtime: revert "do not call timeBeginPeriod on windows"
+    cmd/compile: recognize more memory runs in generated algs
     
-    This reverts commit ab4c9298b8185a056ff1152f2c7bd9b38d3d06f3.
+    The old implementation assumed that all memory runs
+    were terminated by non-memory fields.
+    This isn't necessarily so.
+    They might be terminated by padding or blank fields.
     
-    Sysmon critically depends on system timer resolution for retaking
-    of Ps blocked in system calls. See #14790 for an example
-    of a program where execution time goes from 2ms to 30ms if
-    timeBeginPeriod(1) is not used.
+    For example, given
     
-    We can remove timeBeginPeriod(1) when we support UMS (#7876).
+    type T struct {
+            a int64
+            b byte
+            c, d, e int64
+    }
     
-    Update #14790
+    the old implementation did a memory comparison on a+b, on c, and on d+e.
     
-    Change-Id: I362b56154359b2c52d47f9f2468fe012b481cf6d
-    Reviewed-on: https://go-review.googlesource.com/20834
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Instead, check for memory runs at the beginning of every round.
+    This now generates a memory comparison on a+b and on c+d+e.
+    
+    Also, delete some now-dead code.
+    
+    Change-Id: I66bffb111420adf6919bd708e4fb3a1e1f07fadd
+    Reviewed-on: https://go-review.googlesource.com/19841
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go |  2 +-
- src/runtime/export_windows_test.go     |  7 ++--
- src/runtime/os_windows.go              |  9 ++++-
- src/runtime/syscall_windows_test.go    | 66 ++++++----------------------------
- 4 files changed, 25 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 52 ++++++++++++++++++-------------------
+ 1 file changed, 25 insertions(+), 27 deletions(-)

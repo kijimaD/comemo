@@ -1,34 +1,17 @@
-commit e8379ab5964a920e59dbcc5bc4eaa1bbf5a88e90
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 24 08:04:16 2020 -0700
+commit 4a5d6916ede1a5547f78140c7594a9519bda90e7
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Apr 21 17:21:10 2020 -0400
 
-    crypto/x509: add support for CertPool to load certs lazily
+    cmd/compile: update PPC64.rules to use typed aux values
     
-    This will allow building CertPools that consume less memory. (Most
-    certs are never accessed. Different users/programs access different
-    ones, but not many.)
+    Passes toolstash-check.
     
-    This CL only adds the new internal mechanism (and uses it for the
-    old AddCert) but does not modify any existing root pool behavior.
-    (That is, the default Unix roots are still all slurped into memory as
-    of this CL)
-    
-    Change-Id: Ib3a42e4050627b5e34413c595d8ced839c7bfa14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229917
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I874f8b834ef2f94daa971ecef2dbe4e14daf4213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229305
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/x509/cert_pool.go             | 124 ++++++++++++++++++++++++-------
- src/crypto/x509/name_constraints_test.go |  12 +--
- src/crypto/x509/root_cgo_darwin.go       |   6 +-
- src/crypto/x509/root_darwin_test.go      |  11 ++-
- src/crypto/x509/root_unix.go             |   2 +-
- src/crypto/x509/root_unix_test.go        |  15 ++--
- src/crypto/x509/root_windows.go          |   6 +-
- src/crypto/x509/verify.go                |  20 ++---
- src/crypto/x509/x509_test.go             |  52 ++++++++++++-
- 9 files changed, 192 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 1614 ++++++------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 3512 +++++++++++++-------------
+ 2 files changed, 2612 insertions(+), 2514 deletions(-)

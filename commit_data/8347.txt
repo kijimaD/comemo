@@ -1,13 +1,12 @@
-commit b276293abae9c3694038b6228c05dc156c98d82b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 11 04:30:05 2011 -0700
+commit a03bfe7f693d84ddee30756dbcac490ee0b27ae0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 10 18:40:40 2011 -0700
 
-    http: don't Clean query string in relative redirects
+    doc/roadmap: put "App Engine support" under "Done".
     
-    R=adg, rsc, kevlar, r
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4476045
+    https://golang.org/cl/4528053
 
- src/pkg/http/serve_test.go | 17 +++++++++++++++++
- src/pkg/http/server.go     |  6 ++++++
- 2 files changed, 23 insertions(+)
+ doc/devel/roadmap.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

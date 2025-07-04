@@ -1,55 +1,19 @@
-commit a92c80eb40e72385257fc714143e0278e110aa1a
-Author: apocelipes <seve3r@outlook.com>
-Date:   Fri Sep 20 06:38:58 2024 +0000
+commit 5af4b3487011f8e88accf06131c3f6e64e58cb2a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 15:16:12 2023 -0700
 
-    net,net/netip: implement the encoding.(Binary|Text)Appender
+    cmd/compile: move IsDeadcodeClosure check into enqueueFunc
     
-    Implement the encoding.TextAppender interface for "net.IP".
+    Keeps the top-level loop in Main slightly cleaner.
     
-    Implement the encoding.(Binary|Text)Appender interfaces for
-    "netip.Addr", "netip.AddrPort" and "netip.Prefix".
-    
-    "net.IP.MarshalText" also gets some performance improvements:
-    
-                              │     old      │                 new                 │
-                              │    sec/op    │   sec/op     vs base                │
-    IPMarshalText/IPv4-8         66.06n ± 1%   14.55n ± 1%  -77.97% (p=0.000 n=10)
-    IPMarshalText/IPv6-8        117.00n ± 1%   63.18n ± 1%  -46.00% (p=0.000 n=10)
-    IPMarshalText/IPv6_long-8    137.8n ± 1%   111.3n ± 1%  -19.27% (p=0.000 n=10)
-    geomean                      102.1n        46.77n       -54.21%
-    
-                              │    old     │                   new                   │
-                              │    B/op    │    B/op     vs base                     │
-    IPMarshalText/IPv4-8        32.00 ± 0%    0.00 ± 0%  -100.00% (p=0.000 n=10)
-    IPMarshalText/IPv6-8        48.00 ± 0%    0.00 ± 0%  -100.00% (p=0.000 n=10)
-    IPMarshalText/IPv6_long-8   96.00 ± 0%   48.00 ± 0%   -50.00% (p=0.000 n=10)
-    
-                              │    old     │                   new                   │
-                              │ allocs/op  │ allocs/op   vs base                     │
-    IPMarshalText/IPv4-8        2.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
-    IPMarshalText/IPv6-8        2.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
-    IPMarshalText/IPv6_long-8   2.000 ± 0%   1.000 ± 0%   -50.00% (p=0.000 n=10)
-    
-    All exported types in the standard library that implement the
-    "encoding.(Binary|Text)Marshaler" now also implement the
-    "encoding.(Binary|Text)Appender".
-    
-    Fixes #62384
-    
-    Change-Id: I7d3da8c5736a1ab9c54b9ac4bd2fbf850f9d1bd0
-    GitHub-Last-Rev: 5d27854725d957dd89d2ddc4342ca97999d10cb2
-    GitHub-Pull-Request: golang/go#69022
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607520
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9c8d38d4bbb34d53edc0796893534763e9eef2f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518957
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- api/next/62384.txt                            |   7 ++
- doc/next/6-stdlib/99-minor/net/62384.md       |   1 +
- doc/next/6-stdlib/99-minor/net/netip/62384.md |   2 +
- src/net/ip.go                                 |  51 ++++++++---
- src/net/ip_test.go                            |  54 +++++++++++
- src/net/netip/netip.go                        | 123 +++++++++++++++++---------
- src/net/netip/netip_test.go                   |  99 +++++++++++++++++++++
- 7 files changed, 287 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/gc/compile.go | 5 +++++
+ src/cmd/compile/internal/gc/main.go    | 4 ----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

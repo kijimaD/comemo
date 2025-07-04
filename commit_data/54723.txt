@@ -1,15 +1,29 @@
-commit 1ec427e7ee82c00619d850a4e975956cffae4575
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 21 20:07:41 2023 -0400
+commit 79d9b395adf90f186617ee37800a18af0a7095ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 12:33:59 2022 -0700
 
-    cmd/go: use Builder.writeFile more extensively
+    runtime: consolidate some low-level error reporting
     
-    Change-Id: Id9dfbb788194e1de5d55daba40dc9f34fd36180c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534656
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Use a single writeErrStr function. Avoid using global variables.
+    Use a single version of some error messages rather than duplicating
+    the messages in OS-specific files.
+    
+    Change-Id: If259fbe78faf797f0a21337d14472160ca03efa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447055
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/work/buildid.go | 11 +--------
- src/cmd/go/internal/work/exec.go    | 45 ++++++++++++++++---------------------
- 2 files changed, 20 insertions(+), 36 deletions(-)
+ src/runtime/os_aix.go          | 10 ++++------
+ src/runtime/os_darwin.go       | 19 ++++++++-----------
+ src/runtime/os_freebsd.go      |  7 ++-----
+ src/runtime/os_linux.go        |  7 ++-----
+ src/runtime/os_openbsd_libc.go | 10 ++++------
+ src/runtime/proc.go            | 21 ++++++++++-----------
+ src/runtime/runtime.go         |  9 ++++++++-
+ src/runtime/signal_unix.go     |  5 +----
+ src/runtime/stubs.go           |  5 +----
+ 9 files changed, 40 insertions(+), 53 deletions(-)

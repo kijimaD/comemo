@@ -1,26 +1,180 @@
-commit 67b1b6a2e3a405e3e0b5c6a76f702b2a6071c1f0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Jun 13 10:55:19 2021 +0700
+commit cb674b5c13d331fd5cef5bae7a2a67e5e0d41f7d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Nov 13 14:44:25 2020 -0600
 
-    cmd/compile: allow ir.OSLICE2ARRPTR in mayCall
+    cmd/compile,cmd/asm: fix function pointer call perf regression on ppc64
     
-    CL 301650 adds conversion from slice to array ptr. The conversion
-    expression may appear as argument to a function call, so it will be
-    tested by mayCall. But ir.OSLICE2ARRPTR  op is not handled by mayCall,
-    causes the compiler crashes.
+    by inserting hint when using bclrl.
     
-    Updates #395
-    Fixes #46720
+    Using this instruction as subroutine call is not the expected
+    default behavior, and as a result confuses the branch predictor.
     
-    Change-Id: I39e1b3e38e224a31f3dec46dbbdc855ff3b2c6a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327649
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The default expected behavior is a conditional return from a
+    subroutine.
+    
+    We can change this assumption by encoding a hint this is not a
+    subroutine return.
+    
+    The regex benchmarks are a pretty good example of how much this
+    hint can help generic ppc64le code on a power9 machine:
+    
+    name                          old time/op    new time/op     delta
+    Find                             606ns ± 0%      447ns ± 0%  -26.27%
+    FindAllNoMatches                 309ns ± 0%      205ns ± 0%  -33.72%
+    FindString                       609ns ± 0%      451ns ± 0%  -26.04%
+    FindSubmatch                     734ns ± 0%      594ns ± 0%  -19.07%
+    FindStringSubmatch               706ns ± 0%      574ns ± 0%  -18.83%
+    Literal                          177ns ± 0%      136ns ± 0%  -22.89%
+    NotLiteral                      4.69µs ± 0%     2.34µs ± 0%  -50.14%
+    MatchClass                      6.05µs ± 0%     3.26µs ± 0%  -46.08%
+    MatchClass_InRange              5.93µs ± 0%     3.15µs ± 0%  -46.86%
+    ReplaceAll                      3.15µs ± 0%     2.18µs ± 0%  -30.77%
+    AnchoredLiteralShortNonMatch     156ns ± 0%      109ns ± 0%  -30.61%
+    AnchoredLiteralLongNonMatch      192ns ± 0%      136ns ± 0%  -29.34%
+    AnchoredShortMatch               268ns ± 0%      209ns ± 0%  -22.00%
+    AnchoredLongMatch                472ns ± 0%      357ns ± 0%  -24.30%
+    OnePassShortA                   1.16µs ± 0%     0.87µs ± 0%  -25.03%
+    NotOnePassShortA                1.34µs ± 0%     1.20µs ± 0%  -10.63%
+    OnePassShortB                    940ns ± 0%      655ns ± 0%  -30.29%
+    NotOnePassShortB                 873ns ± 0%      703ns ± 0%  -19.52%
+    OnePassLongPrefix                258ns ± 0%      155ns ± 0%  -40.13%
+    OnePassLongNotPrefix             943ns ± 0%      529ns ± 0%  -43.89%
+    MatchParallelShared              591ns ± 0%      436ns ± 0%  -26.31%
+    MatchParallelCopied              596ns ± 0%      435ns ± 0%  -27.10%
+    QuoteMetaAll                     186ns ± 0%      186ns ± 0%   -0.16%
+    QuoteMetaNone                   55.9ns ± 0%     55.9ns ± 0%   +0.02%
+    Compile/Onepass                 9.64µs ± 0%     9.26µs ± 0%   -3.97%
+    Compile/Medium                  21.7µs ± 0%     20.6µs ± 0%   -4.90%
+    Compile/Hard                     174µs ± 0%      174µs ± 0%   +0.07%
+    Match/Easy0/16                  7.35ns ± 0%     7.34ns ± 0%   -0.11%
+    Match/Easy0/32                   116ns ± 0%       97ns ± 0%  -16.27%
+    Match/Easy0/1K                   592ns ± 0%      562ns ± 0%   -5.04%
+    Match/Easy0/32K                 12.6µs ± 0%     12.5µs ± 0%   -0.64%
+    Match/Easy0/1M                   556µs ± 0%      556µs ± 0%   -0.00%
+    Match/Easy0/32M                 17.7ms ± 0%     17.7ms ± 0%   +0.05%
+    Match/Easy0i/16                 7.34ns ± 0%     7.35ns ± 0%   +0.10%
+    Match/Easy0i/32                 2.82µs ± 0%     1.64µs ± 0%  -41.71%
+    Match/Easy0i/1K                 83.2µs ± 0%     48.2µs ± 0%  -42.06%
+    Match/Easy0i/32K                2.13ms ± 0%     1.80ms ± 0%  -15.34%
+    Match/Easy0i/1M                 68.1ms ± 0%     57.6ms ± 0%  -15.31%
+    Match/Easy0i/32M                 2.18s ± 0%      1.80s ± 0%  -17.52%
+    Match/Easy1/16                  7.36ns ± 0%     7.34ns ± 0%   -0.24%
+    Match/Easy1/32                   118ns ± 0%       96ns ± 0%  -18.72%
+    Match/Easy1/1K                  2.46µs ± 0%     1.58µs ± 0%  -35.65%
+    Match/Easy1/32K                 80.2µs ± 0%     54.6µs ± 0%  -31.92%
+    Match/Easy1/1M                  2.75ms ± 0%     1.88ms ± 0%  -31.66%
+    Match/Easy1/32M                 87.5ms ± 0%     59.8ms ± 0%  -31.62%
+    Match/Medium/16                 7.34ns ± 0%     7.34ns ± 0%   +0.01%
+    Match/Medium/32                 2.60µs ± 0%     1.50µs ± 0%  -42.61%
+    Match/Medium/1K                 78.1µs ± 0%     43.7µs ± 0%  -44.06%
+    Match/Medium/32K                2.08ms ± 0%     1.52ms ± 0%  -27.11%
+    Match/Medium/1M                 66.5ms ± 0%     48.6ms ± 0%  -26.96%
+    Match/Medium/32M                 2.14s ± 0%      1.60s ± 0%  -25.18%
+    Match/Hard/16                   7.35ns ± 0%     7.35ns ± 0%   +0.03%
+    Match/Hard/32                   3.58µs ± 0%     2.44µs ± 0%  -31.82%
+    Match/Hard/1K                    108µs ± 0%       75µs ± 0%  -31.04%
+    Match/Hard/32K                  2.79ms ± 0%     2.25ms ± 0%  -19.30%
+    Match/Hard/1M                   89.4ms ± 0%     72.2ms ± 0%  -19.26%
+    Match/Hard/32M                   2.91s ± 0%      2.37s ± 0%  -18.60%
+    Match/Hard1/16                  11.1µs ± 0%      8.3µs ± 0%  -25.07%
+    Match/Hard1/32                  21.4µs ± 0%     16.1µs ± 0%  -24.85%
+    Match/Hard1/1K                   658µs ± 0%      498µs ± 0%  -24.27%
+    Match/Hard1/32K                 12.2ms ± 0%     11.7ms ± 0%   -4.60%
+    Match/Hard1/1M                   391ms ± 0%      374ms ± 0%   -4.40%
+    Match/Hard1/32M                  12.6s ± 0%      12.0s ± 0%   -4.68%
+    Match_onepass_regex/16           870ns ± 0%      611ns ± 0%  -29.79%
+    Match_onepass_regex/32          1.58µs ± 0%     1.08µs ± 0%  -31.48%
+    Match_onepass_regex/1K          45.7µs ± 0%     30.3µs ± 0%  -33.58%
+    Match_onepass_regex/32K         1.45ms ± 0%     0.97ms ± 0%  -33.20%
+    Match_onepass_regex/1M          46.2ms ± 0%     30.9ms ± 0%  -33.01%
+    Match_onepass_regex/32M          1.46s ± 0%      0.99s ± 0%  -32.02%
+    
+    name                          old alloc/op   new alloc/op    delta
+    Find                             0.00B           0.00B         0.00%
+    FindAllNoMatches                 0.00B           0.00B         0.00%
+    FindString                       0.00B           0.00B         0.00%
+    FindSubmatch                     48.0B ± 0%      48.0B ± 0%    0.00%
+    FindStringSubmatch               32.0B ± 0%      32.0B ± 0%    0.00%
+    Compile/Onepass                 4.02kB ± 0%     4.02kB ± 0%    0.00%
+    Compile/Medium                  9.39kB ± 0%     9.39kB ± 0%    0.00%
+    Compile/Hard                    84.7kB ± 0%     84.7kB ± 0%    0.00%
+    Match_onepass_regex/16           0.00B           0.00B         0.00%
+    Match_onepass_regex/32           0.00B           0.00B         0.00%
+    Match_onepass_regex/1K           0.00B           0.00B         0.00%
+    Match_onepass_regex/32K          0.00B           0.00B         0.00%
+    Match_onepass_regex/1M           5.00B ± 0%      3.00B ± 0%  -40.00%
+    Match_onepass_regex/32M           136B ± 0%        68B ± 0%  -50.00%
+    
+    name                          old allocs/op  new allocs/op   delta
+    Find                              0.00            0.00         0.00%
+    FindAllNoMatches                  0.00            0.00         0.00%
+    FindString                        0.00            0.00         0.00%
+    FindSubmatch                      1.00 ± 0%       1.00 ± 0%    0.00%
+    FindStringSubmatch                1.00 ± 0%       1.00 ± 0%    0.00%
+    Compile/Onepass                   52.0 ± 0%       52.0 ± 0%    0.00%
+    Compile/Medium                     112 ± 0%        112 ± 0%    0.00%
+    Compile/Hard                       424 ± 0%        424 ± 0%    0.00%
+    Match_onepass_regex/16            0.00            0.00         0.00%
+    Match_onepass_regex/32            0.00            0.00         0.00%
+    Match_onepass_regex/1K            0.00            0.00         0.00%
+    Match_onepass_regex/32K           0.00            0.00         0.00%
+    Match_onepass_regex/1M            0.00            0.00         0.00%
+    Match_onepass_regex/32M           2.00 ± 0%       1.00 ± 0%  -50.00%
+    
+    name                          old speed      new speed       delta
+    QuoteMetaAll                  75.2MB/s ± 0%   75.3MB/s ± 0%   +0.15%
+    QuoteMetaNone                  465MB/s ± 0%    465MB/s ± 0%   -0.02%
+    Match/Easy0/16                2.18GB/s ± 0%   2.18GB/s ± 0%   +0.10%
+    Match/Easy0/32                 276MB/s ± 0%    330MB/s ± 0%  +19.46%
+    Match/Easy0/1K                1.73GB/s ± 0%   1.82GB/s ± 0%   +5.29%
+    Match/Easy0/32K               2.60GB/s ± 0%   2.62GB/s ± 0%   +0.64%
+    Match/Easy0/1M                1.89GB/s ± 0%   1.89GB/s ± 0%   +0.00%
+    Match/Easy0/32M               1.89GB/s ± 0%   1.89GB/s ± 0%   -0.05%
+    Match/Easy0i/16               2.18GB/s ± 0%   2.18GB/s ± 0%   -0.10%
+    Match/Easy0i/32               11.4MB/s ± 0%   19.5MB/s ± 0%  +71.48%
+    Match/Easy0i/1K               12.3MB/s ± 0%   21.2MB/s ± 0%  +72.62%
+    Match/Easy0i/32K              15.4MB/s ± 0%   18.2MB/s ± 0%  +18.12%
+    Match/Easy0i/1M               15.4MB/s ± 0%   18.2MB/s ± 0%  +18.12%
+    Match/Easy0i/32M              15.4MB/s ± 0%   18.6MB/s ± 0%  +21.21%
+    Match/Easy1/16                2.17GB/s ± 0%   2.18GB/s ± 0%   +0.24%
+    Match/Easy1/32                 271MB/s ± 0%    333MB/s ± 0%  +23.07%
+    Match/Easy1/1K                 417MB/s ± 0%    648MB/s ± 0%  +55.38%
+    Match/Easy1/32K                409MB/s ± 0%    600MB/s ± 0%  +46.88%
+    Match/Easy1/1M                 381MB/s ± 0%    558MB/s ± 0%  +46.33%
+    Match/Easy1/32M                383MB/s ± 0%    561MB/s ± 0%  +46.25%
+    Match/Medium/16               2.18GB/s ± 0%   2.18GB/s ± 0%   -0.01%
+    Match/Medium/32               12.3MB/s ± 0%   21.4MB/s ± 0%  +74.13%
+    Match/Medium/1K               13.1MB/s ± 0%   23.4MB/s ± 0%  +78.73%
+    Match/Medium/32K              15.7MB/s ± 0%   21.6MB/s ± 0%  +37.23%
+    Match/Medium/1M               15.8MB/s ± 0%   21.6MB/s ± 0%  +36.93%
+    Match/Medium/32M              15.7MB/s ± 0%   21.0MB/s ± 0%  +33.67%
+    Match/Hard/16                 2.18GB/s ± 0%   2.18GB/s ± 0%   -0.03%
+    Match/Hard/32                 8.93MB/s ± 0%  13.10MB/s ± 0%  +46.70%
+    Match/Hard/1K                 9.48MB/s ± 0%  13.74MB/s ± 0%  +44.94%
+    Match/Hard/32K                11.7MB/s ± 0%   14.5MB/s ± 0%  +23.87%
+    Match/Hard/1M                 11.7MB/s ± 0%   14.5MB/s ± 0%  +23.87%
+    Match/Hard/32M                11.6MB/s ± 0%   14.2MB/s ± 0%  +22.86%
+    Match/Hard1/16                1.44MB/s ± 0%   1.93MB/s ± 0%  +34.03%
+    Match/Hard1/32                1.49MB/s ± 0%   1.99MB/s ± 0%  +33.56%
+    Match/Hard1/1K                1.56MB/s ± 0%   2.05MB/s ± 0%  +31.41%
+    Match/Hard1/32K               2.68MB/s ± 0%   2.80MB/s ± 0%   +4.48%
+    Match/Hard1/1M                2.68MB/s ± 0%   2.80MB/s ± 0%   +4.48%
+    Match/Hard1/32M               2.66MB/s ± 0%   2.79MB/s ± 0%   +4.89%
+    Match_onepass_regex/16        18.4MB/s ± 0%   26.2MB/s ± 0%  +42.41%
+    Match_onepass_regex/32        20.2MB/s ± 0%   29.5MB/s ± 0%  +45.92%
+    Match_onepass_regex/1K        22.4MB/s ± 0%   33.8MB/s ± 0%  +50.54%
+    Match_onepass_regex/32K       22.6MB/s ± 0%   33.9MB/s ± 0%  +49.67%
+    Match_onepass_regex/1M        22.7MB/s ± 0%   33.9MB/s ± 0%  +49.27%
+    Match_onepass_regex/32M       23.0MB/s ± 0%   33.9MB/s ± 0%  +47.14%
+    
+    Fixes #42709
+    
+    Change-Id: Ice07fec2de4c5b1302febf8c2978ae8c1e4fd3e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271337
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- src/cmd/compile/internal/walk/walk.go |  2 +-
- test/fixedbugs/issue46720.go          | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ppc64/ssa.go |  3 +++
+ src/cmd/internal/obj/ppc64/asm9.go    | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

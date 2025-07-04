@@ -1,23 +1,15 @@
-commit 9f5d0bff415b57726b38f0ca85183f379ca04432
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue May 5 16:10:12 2015 +1200
+commit 2ce82c6c65ce07f85523a05ec7cf94332e496452
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:41:26 2015 -0400
 
-    cmd/6l, cmd/internal/ld: handle R_PCREL to function in other shared library
+    cmd/go: run darwin/arm64 tests sequentially
     
-    An ELF linker handles a PC-relative reference to an STT_FUNC defined in a
-    shared library by building a PLT entry and referring to that, so do the
-    same in 6l.
+    Just like darwin/arm, the test devices can only install and execute
+    a single app at a time.
     
-    Fixes #10690
-    
-    Change-Id: I061a96fd4400d957e301d0ac86760ce256910e1d
-    Reviewed-on: https://go-review.googlesource.com/9711
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I74e6130ef83537c465b4585a366d02953fd907bf
+    Reviewed-on: https://go-review.googlesource.com/8827
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/6l/asm.go             |  7 ++++++-
- src/cmd/internal/ld/lib.go    |  1 +
- src/cmd/internal/ld/link.go   | 37 +++++++++++++++++++++----------------
- src/cmd/internal/ld/symtab.go |  7 +++----
- 4 files changed, 31 insertions(+), 21 deletions(-)
+ src/cmd/go/build.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

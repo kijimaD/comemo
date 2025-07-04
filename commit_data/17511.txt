@@ -1,15 +1,15 @@
-commit 5b04d670912aaaa87fdc9a8547a7e71094150661
+commit 903c2fda18825f1f8b276c92325f84f52bc71071
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 13:04:14 2013 -0400
+Date:   Mon Sep 9 12:49:39 2013 -0400
 
-    cmd/cgo: record full source path to input .go files
+    cmd/gc: diagnose '_ = nil' better
     
-    Fixes #5122.
+    Fixes #6004.
     
-    R=golang-dev, iant
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/13395046
+    https://golang.org/cl/13616044
 
- src/cmd/cgo/ast.go   |  8 ++++++++
- src/cmd/go/test.bash | 20 ++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/cmd/gc/subr.c           |  3 +++
+ test/fixedbugs/issue6004.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

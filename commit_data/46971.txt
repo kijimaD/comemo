@@ -1,43 +1,40 @@
-commit e90492882a7fd580b7dac88675a1c907a7441b40
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 18 23:07:59 2021 +0000
+commit 776ee4079a1d5fabd855a05b300aebdc3ea53efb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 29 09:05:10 2021 -0500
 
-    runtime: retype mheap.pagesSwept as atomic.Uint64
+    runtime: do not treat morestack as a topofstack
     
-    [git-generate]
-    cd src/runtime
-    mv export_test.go export.go
-    GOROOT=$(dirname $(dirname $PWD)) rf '
-      add mheap.pagesSwept pagesSwept_ atomic.Uint64 // pages swept this cycle
-      ex {
-        import "runtime/internal/atomic"
+    I added morestack to this list in 2013 with an explanation
+    that they were needed if we “start a garbage collection on g0
+    during a stack split or unsplit”.
+    (https://golang.org/cl/11533043)
     
-        var t mheap
-        var v, w uint64
-        var d int64
+    This explanation no longer applies for a handful of reasons,
+    most importantly that if we did stop a stack scan in the middle
+    of a call to morestack, we'd ignore pointers above the split,
+    which would lead to memory corruption. But we don't scan
+    goroutine stacks during morestack now, so that can't happen.
+    If we did see morestack during a GC, that would be a good time
+    to crash the program.
     
-        t.pagesSwept -> t.pagesSwept_.Load()
-        t.pagesSwept = v -> t.pagesSwept_.Store(v)
-        atomic.Load64(&t.pagesSwept) -> t.pagesSwept_.Load()
-        atomic.LoadAcq64(&t.pagesSwept) -> t.pagesSwept_.LoadAcquire()
-        atomic.Store64(&t.pagesSwept, v) -> t.pagesSwept_.Store(v)
-        atomic.StoreRel64(&t.pagesSwept, v) -> t.pagesSwept_.StoreRelease(v)
-        atomic.Cas64(&t.pagesSwept, v, w) -> t.pagesSwept_.CompareAndSwap(v, w)
-        atomic.Xchg64(&t.pagesSwept, v) -> t.pagesSwept_.Swap(v)
-        atomic.Xadd64(&t.pagesSwept, d) -> t.pagesSwept_.Add(d)
-      }
-      rm mheap.pagesSwept
-      mv mheap.pagesSwept_ mheap.pagesSwept
-    '
-    mv export.go export_test.go
+    The real problem with morestack is during profiling, as noted
+    in the code review conversation during 2013. And in profiling
+    we just need to know to stop and not unwind further, which
+    the new SPWRITE bit will do for us.
     
-    Change-Id: Ife99893d90a339655f604bc3a64ee3decec645ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356709
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    So remove from topofstack and let the program crash if GC
+    sees morestack and otherwise let the SPWRITE stop morestack
+    unwinding during profiling.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: I06d95920b18c599c7c46f64c21028104978215d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288804
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go      | 2 +-
- src/runtime/mgcpacer.go | 2 +-
- src/runtime/mgcsweep.go | 6 +++---
- src/runtime/mheap.go    | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/traceback.go | 1 -
+ 1 file changed, 1 deletion(-)

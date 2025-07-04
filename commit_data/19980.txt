@@ -1,16 +1,16 @@
-commit 444b928405444dcba8c0c008f44e8d21b9402547
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 12 07:13:52 2014 -0700
+commit 40b94405463415f6ba5d2decc0cd51eb61c67b65
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 8 16:19:45 2014 +1000
 
-    run.bash: run misc/cgo/testgodefs/test.bash
+    debug/pe/testdata: make sure gcc-amd64-mingw-exec has symbols
     
-    misc/cgo/testgodefs was added by revision d1cf884a594f, but not
-    add to run.bash.
+    as per rsc request
     
-    LGTM=iant
-    R=iant
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/129760044
+    https://golang.org/cl/123970043
 
- src/run.bash | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/debug/pe/file_test.go                  |  31 +++++++++++++++----------
+ src/pkg/debug/pe/testdata/gcc-amd64-mingw-exec | Bin 37376 -> 273083 bytes
+ 2 files changed, 19 insertions(+), 12 deletions(-)

@@ -1,15 +1,14 @@
-commit ba1943cd230c4193e8f84695de5651276efe3607
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 29 10:48:12 2017 -0800
+commit f6358bdb6ca21b93313f98e3963229aedd043fe8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 28 14:26:31 2017 -0400
 
-    go/format: document use of Source better
+    [dev.boringcrypto] crypto/internal/boring: fix NewHMAC with empty key
     
-    For #22695.
+    Test is in a separate CL for easier cherry-picking to master branch.
     
-    Change-Id: Idcda3294070aeaeaf940aaf2014b573732fd60a4
-    Reviewed-on: https://go-review.googlesource.com/80696
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Change-Id: Ia4a9032892d2896332010fe18a3216f8c4a58d1c
+    Reviewed-on: https://go-review.googlesource.com/59770
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/go/format/format.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/crypto/internal/boring/hmac.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,16 @@
-commit 7bbe2c899832706f93c543e68322bf5ca825d39d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 22 12:40:45 2011 -0700
+commit 18b21c720ec6bf85d1c741ef9b86fe42fb9aca42
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 22:46:59 2011 +1000
 
-    runtime: Remove extraneous word in comment.
+    effective go: extract and test a couple more examples.
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4938045
+    https://golang.org/cl/4937045
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/effective_go.html     | 41 +++++++++++++++--------------
+ doc/effective_go.tmpl     | 67 +++--------------------------------------------
+ doc/progs/eff_bytesize.go | 47 +++++++++++++++++++++++++++++++++
+ doc/progs/eff_sequence.go | 42 +++++++++++++++++++++++++++++
+ doc/progs/run             |  5 ++++
+ 5 files changed, 118 insertions(+), 84 deletions(-)

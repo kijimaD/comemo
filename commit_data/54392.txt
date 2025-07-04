@@ -1,41 +1,19 @@
-commit a46b1ad3573ae64964ffd736dc79291b58190281
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 4 09:55:01 2023 -0400
+commit f2acc607f8a6f2837ed302cedd70676d8ea1f463
+Author: Park Zhou <buildpaas@gmail.com>
+Date:   Sat Oct 8 17:00:39 2022 +0000
 
-    runtime: allow update of system stack bounds on callback from C thread
+    crypto/x509: add blank line before package declaration
     
-    Since CL 495855, Ms are cached for C threads calling into Go, including
-    the stack bounds of the system stack.
+    The package doc included the copying header by mistake.
     
-    Some C libraries (e.g., coroutine libraries) do manual stack management
-    and may change stacks between calls to Go on the same thread.
-    
-    Changing the stack if there is more Go up the stack would be
-    problematic. But if the calls are completely independent there is no
-    particular reason for Go to care about the changing stack boundary.
-    
-    Thus, this CL allows the stack bounds to change in such cases. The
-    primary downside here (besides additional complexity) is that normal
-    systems that do not manipulate the stack may not notice unintentional
-    stack corruption as quickly as before.
-    
-    Note that callbackUpdateSystemStack is written to be usable for the
-    initial setup in needm as well as updating the stack in cgocallbackg.
-    
-    Fixes #62440.
-    For #62130.
-    
-    Change-Id: I7841b056acea1111bdae3b718345a3bd3961b4a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525455
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I37ac2d14b1b8a389e6b603fbb1c6a3a33b1d80d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440456
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/runtime/cgocall.go                          | 70 +++++++++++++++++++++
- src/runtime/crash_cgo_test.go                   | 13 ++++
- src/runtime/proc.go                             | 33 +++-------
- src/runtime/testdata/testprogcgo/stackswitch.c  | 81 +++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/stackswitch.go | 43 +++++++++++++
- 5 files changed, 216 insertions(+), 24 deletions(-)
+ src/crypto/x509/parser.go      | 1 +
+ src/crypto/x509/parser_test.go | 1 +
+ 2 files changed, 2 insertions(+)

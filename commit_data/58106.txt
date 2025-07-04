@@ -1,28 +1,25 @@
-commit 99dad5281660c4e644602e0c8790dd24b3eb45f3
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Nov 18 17:34:06 2024 -0800
+commit 340a4f55c4afac5b74c8df8365decb0c0237d710
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 16 17:32:08 2022 -0500
 
-    encoding/json: check exact structure of local error types in tests
+    runtime: use smaller fields for mspan.freeindex and nelems
     
-    During the development of error wrapping (#29934),
-    the tests were modified to stop using reflect.DeepEqual
-    since the prototype for error wrapping at the time included
-    frame information of where the error was created.
+    mspan.freeindex and nelems can fit into uint16 for all possible
+    values. Use uint16 instead of uintptr.
     
-    However, that change diminished the fidelity of the test
-    so that it is no longer as strict, which affects the endeavor
-    to implement v1 in terms of the v2 prototype.
-    
-    For locally declared error types, use reflect.DeepEqual
-    to check that the exact structure of the error value matches.
-    
-    Change-Id: I443d418533866ab8d533bca3785fdc741e2c140e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629517
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ifce20751e81d5022be1f6b5cbb5fbe4fd1728b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451359
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/encoding/json/decode_test.go | 77 +++++++++++++++++++---------------------
- 1 file changed, 37 insertions(+), 40 deletions(-)
+ src/runtime/export_test.go |  2 +-
+ src/runtime/heapdump.go    |  4 ++--
+ src/runtime/malloc.go      | 10 +++++-----
+ src/runtime/mbitmap.go     | 12 ++++++------
+ src/runtime/mcache.go      |  6 +++---
+ src/runtime/mcentral.go    |  2 +-
+ src/runtime/mgcsweep.go    | 16 ++++++++--------
+ src/runtime/mheap.go       | 25 ++++++++++++-------------
+ src/runtime/pinner.go      |  4 ++--
+ 9 files changed, 40 insertions(+), 41 deletions(-)

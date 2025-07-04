@@ -1,21 +1,18 @@
-commit ba9bc8e5fefcc62216f7bf2f85923d226e8906e2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat May 4 11:36:13 2019 +0200
+commit 3855fe7254cbce964a53efdf6d8c9fdde9b4419c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Dec 18 13:00:26 2018 +0100
 
-    syscall: support generating netbsd/arm64 files in mkall.sh
+    runtime: fix backtrace during C syscalls for aix/ppc64
     
-    CL 155739 added the generated files but didn't update mkall.sh. Do so
-    now.
+    This commit fixes backtrace if a crash or an exit signal is received
+    during a C syscall on aix/ppc64.
+    This is similar to Solaris, Darwin or Windows implementation.
     
-    Updates #30824
-    
-    Change-Id: I642bbff6afbc976091a0dc291fa2beff5e245246
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175237
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I6040c0b1577a9f5b298f58bd4ee6556258a135ef
+    Reviewed-on: https://go-review.googlesource.com/c/154718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/mkall.sh | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/os2_aix.go | 147 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 140 insertions(+), 7 deletions(-)

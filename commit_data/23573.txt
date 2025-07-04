@@ -1,14 +1,12 @@
-commit ab9c25f2de06e74cade453876835b3c1533a39de
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jun 30 15:35:01 2015 +1000
+commit acd82d5017a6d30781d7b8caa6033694353fa7a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 27 12:08:38 2015 -0700
 
-    cmd/go: use GOOS and GOARCH from build context for "go generate"
+    strconv: minor internal comment fix
     
-    Fixes #11438
-    
-    Change-Id: Iedd31918aa5187fc3fdaed71c8dad82075559084
-    Reviewed-on: https://go-review.googlesource.com/11667
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I590ac9e976d4044d1f4f280137ea9b38851a9fc2
+    Reviewed-on: https://go-review.googlesource.com/10424
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/generate.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/strconv/ftoa.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

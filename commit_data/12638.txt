@@ -1,15 +1,13 @@
-commit c959ebe4d85c24a17b74120fa9b6abe27427d9ed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 14 14:41:06 2012 -0700
+commit 9d08068d216163d900843a53b12caac31890e9a1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 15 08:09:54 2012 +1100
 
-    archive/zip: move r.zip off disk, into reader_test.go
+    godoc: style example headings like links
     
-    Makes certain virus scanners happier.
-    
-    R=golang-dev, rsc, adg
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5823053
+    https://golang.org/cl/5819048
 
- src/pkg/archive/zip/reader_test.go |  59 +++++++++++++++++++++++++++++++++----
- src/pkg/archive/zip/testdata/r.zip | Bin 440 -> 0 bytes
- 2 files changed, 54 insertions(+), 5 deletions(-)
+ doc/style.css          | 6 ++++--
+ lib/godoc/example.html | 4 ++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

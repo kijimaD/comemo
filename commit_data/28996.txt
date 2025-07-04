@@ -1,18 +1,20 @@
-commit 9575882461b79c833d206ace186db178e5aff9fa
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 12:19:52 2016 -0400
+commit 1756b665980613cf655d6ecde709a032568963b0
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Jul 31 23:10:35 2016 +0700
 
-    cmd/go: document that cmd/foo is only in Go repo, never GOPATH
+    os: make ExpandEnv recognize '-' as a special shell parameter
     
-    It's always been like this, so document it.
+    '-' is one of shell special parameters.
     
-    Fixes #14351.
+    The existing implementation of isShellSpecialVar missed '-'
+    from the list, causing "$-" and "${-}" expand differently.
     
-    Change-Id: Ic6a7c44881bac0209fa6863a487fabec5ec0214e
-    Reviewed-on: https://go-review.googlesource.com/31663
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Fixes #16554
+    
+    Change-Id: Iafc7984692cc83cff58f7c1e01267bf78b3a20a9
+    Reviewed-on: https://go-review.googlesource.com/25352
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/help.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/os/env.go           |  2 +-
+ src/os/env_unix_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

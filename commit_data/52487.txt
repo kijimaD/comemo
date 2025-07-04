@@ -1,18 +1,22 @@
-commit 99276aeb5e8b40ff9cd3cafd47ce11c58ba0130c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Mar 31 19:02:33 2023 +0000
+commit 0b4f2416a22aadb0e6df2be1a5cef34680e472de
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Mar 28 20:28:23 2022 +0200
 
-    Revert "runtime: fix ARM assembly code in cgocallback"
+    crypto/elliptic: clean up and document P-256 assembly interface
     
-    This reverts CL 479255.
+    For #52182
     
-    Reason for revert: need to revert CL 392854, and this caused a conflict.
-    
-    Change-Id: I6cb105c62e51b47de3f652df5f5ee92673a93919
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481058
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8a68fda3e54bdea48b0dfe528fe293d47bdcd145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396255
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/asm_arm.s | 1 -
- 1 file changed, 1 deletion(-)
+ src/crypto/elliptic/internal/nistec/nistec_test.go |  32 +-
+ src/crypto/elliptic/internal/nistec/p256_asm.go    | 578 +++++++++++----------
+ .../elliptic/internal/nistec/p256_asm_amd64.s      | 105 ++--
+ .../elliptic/internal/nistec/p256_asm_arm64.s      | 106 ++--
+ .../internal/nistec/p256_asm_table_test.go         |  67 +--
+ .../elliptic/internal/nistec/p256_asm_test.go      |  94 ++++
+ 6 files changed, 568 insertions(+), 414 deletions(-)

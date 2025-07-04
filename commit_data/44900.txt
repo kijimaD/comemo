@@ -1,29 +1,24 @@
-commit 27d306281c54a89ff00e3dad6f4cea790a2f2f2d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 1 15:02:11 2021 +0000
+commit a408139bb0166f6e0a5d9fd17fc934da960c354e
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Sep 14 10:24:59 2020 +0200
 
-    reflect,runtime: assume register ABI with GOEXPERIMENT=regabiargs
+    testing: fix panicking tests hang if Cleanup calls FailNow
     
-    This change causes finalizers, reflect calls, and Windows syscall
-    callbacks to assume the register ABI when GOEXPERIMENT=regabiargs is
-    set. That is, when all Go functions are using the new ABI by default,
-    these features should assume the new ABI too.
+    Previously, it was impossible to call FailNow in a Cleanup.
+    Because it can terminate a panicking goroutine and cause its
+    parent hangs on t.signal channel. This CL sends the signal
+    in a deferred call to prevent the hang.
     
-    For #40724.
+    Fixes #41355
     
-    Change-Id: Ie4ee66b8085b692e1ff675f01134c9a4703ae1b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306571
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I4552d3a7ea763ef86817bf9b50c0e37fb34bf20f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254637
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/reflect/abi.go            |  6 +++---
- src/reflect/regabiargs_off.go | 10 ++++++++++
- src/reflect/regabiargs_on.go  | 10 ++++++++++
- src/runtime/regabiargs_off.go | 10 ++++++++++
- src/runtime/regabiargs_on.go  | 10 ++++++++++
- src/runtime/stubs.go          |  2 +-
- 6 files changed, 44 insertions(+), 4 deletions(-)
+ .../go/testdata/script/test_cleanup_failnow.txt    | 33 ++++++++++++++++++++++
+ src/testing/testing.go                             | 12 +++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)

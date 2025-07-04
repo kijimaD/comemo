@@ -1,21 +1,27 @@
-commit fadd77c05b0f6633d753da61c74a7ed81959b252
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Dec 21 11:03:16 2022 -0500
+commit dd7194b28ec7762ace737efc0f0a62c96cb4a4ad
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Feb 13 22:48:39 2022 -0500
 
-    runtime/coverage: add missing file close in test support helper
+    go/parser, go/printer: fix parsing of ambiguous type parameter lists
     
-    The processPod() helper (invoked by processCoverTestDir, which is in
-    turn called by _testmain.go) was opening and reading counter data
-    files, but never closing them. Add a call to close the files after
-    they have been read.
+    This is a port of CL 370774 to go/parser and go/printer. It is adjusted
+    for the slightly different factoring of parameter list parsing and
+    printing in go/parser and go/printer.
     
-    Fixes #57407.
+    For #49482
     
-    Change-Id: If9a489f92e4bab72c5b2df8697e14420a6f7b8f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458835
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I1c5b1facddbfcb7f7b2be356c817fc7e608223f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385575
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/coverage/testsupport.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/go/parser/parser.go                 | 161 +++++++++++++++++++++++++++-----
+ src/go/parser/short_test.go             |  14 +--
+ src/go/parser/testdata/issue49482.go2   |  35 +++++++
+ src/go/parser/testdata/typeparams.src   |   2 +-
+ src/go/printer/nodes.go                 |  28 ++++++
+ src/go/printer/testdata/generics.golden |  26 ++++++
+ src/go/printer/testdata/generics.input  |  26 ++++++
+ 7 files changed, 259 insertions(+), 33 deletions(-)

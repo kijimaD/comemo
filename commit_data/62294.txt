@@ -1,0 +1,22 @@
+commit a7489b864879e89182ddf32d4a108c6967aa0522
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 18 20:40:58 2025 +0000
+
+    cmd/compile/internal/ir: reduce size of miniExpr by 8 bytes
+    
+    By moving the bit field, we can reduce the miniExpr size by
+    8 bytes, reducing the sizes of Exprs embedding this type.
+    Hopefully we get a few types to a lower memory size class.
+    
+    Change-Id: I4b1d4471cf905f998b26d235980e40ca91446f45
+    GitHub-Last-Rev: 6dea0bd27c38d9118d13d55052efcb4070b26751
+    GitHub-Pull-Request: golang/go#71823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650435
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/ir/expr.go        | 4 ++--
+ src/cmd/compile/internal/ir/sizeof_test.go | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

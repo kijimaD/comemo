@@ -1,13 +1,13 @@
-commit fe3ee5741d42551e81a40de0b8220498d5c18aac
+commit 5dab2da9544422d8953b2d3e4a41acaf84a2d2c4
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 29 22:06:20 2014 +0400
+Date:   Tue Jul 29 14:45:07 2014 +0400
 
-    runtime: verify hmap type size
+    runtime: mark global var as NOPTR
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, khr
-    https://golang.org/cl/114510044
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/119300043
 
- src/pkg/runtime/hashmap.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/sigqueue.goc | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

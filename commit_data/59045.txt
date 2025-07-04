@@ -1,122 +1,20 @@
-commit b143c981693a0f405f16eade1cccf4933fde8e21
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Sat Nov 16 16:27:20 2024 +0800
+commit 6abeffb18ea263b14cbe5936e8bdbbf08546e4b8
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Mon Feb 5 14:15:26 2024 +0000
 
-    cmd/compile: simplify bounded shift on loong64
+    Revert "runtime: make netpollBreak entries identifiable on Windows"
     
-    Use the shiftIsBounded function to generate more efficient shift instructions.
-    This change also optimize shift ops when the shift value is v&63 and v&31.
+    This reverts commit 29746b4814bb76a3d5a36fc86967b358f11bbb93.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A6000-HV @ 2500.00MHz
-                    |  CL 627855   |               this CL                |
-                    |    sec/op    |    sec/op     vs base                |
-    LeadingZeros      1.1005n ± 0%   0.8425n ± 1%  -23.44% (p=0.000 n=10)
-    LeadingZeros8      1.502n ± 0%    1.501n ± 0%   -0.07% (p=0.001 n=10)
-    LeadingZeros16     1.502n ± 0%    1.501n ± 0%   -0.07% (p=0.000 n=10)
-    LeadingZeros32    0.9511n ± 0%   0.8050n ± 0%  -15.36% (p=0.000 n=10)
-    LeadingZeros64    1.1195n ± 0%   0.8423n ± 0%  -24.76% (p=0.000 n=10)
-    TrailingZeros     0.8086n ± 0%   0.8005n ± 0%   -1.00% (p=0.000 n=10)
-    TrailingZeros8     1.031n ± 1%    1.035n ± 1%        ~ (p=0.136 n=10)
-    TrailingZeros16   0.8114n ± 0%   0.8254n ± 1%   +1.73% (p=0.000 n=10)
-    TrailingZeros32   0.8090n ± 0%   0.8005n ± 0%   -1.05% (p=0.000 n=10)
-    TrailingZeros64   0.8089n ± 1%   0.8005n ± 0%   -1.04% (p=0.000 n=10)
-    OnesCount         0.8677n ± 0%   1.2010n ± 0%  +38.41% (p=0.000 n=10)
-    OnesCount8        0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.000 n=10)
-    OnesCount16       0.9344n ± 0%   1.2010n ± 0%  +28.53% (p=0.000 n=10)
-    OnesCount32       0.8677n ± 0%   1.2010n ± 0%  +38.41% (p=0.000 n=10)
-    OnesCount64       1.2010n ± 0%   0.8671n ± 0%  -27.80% (p=0.000 n=10)
-    RotateLeft        0.8009n ± 0%   0.6671n ± 0%  -16.71% (p=0.000 n=10)
-    RotateLeft8        1.202n ± 0%    1.327n ± 0%  +10.40% (p=0.000 n=10)
-    RotateLeft16      0.8036n ± 0%   0.8218n ± 0%   +2.26% (p=0.000 n=10)
-    RotateLeft32      0.6674n ± 0%   0.8004n ± 0%  +19.94% (p=0.000 n=10)
-    RotateLeft64      0.6674n ± 0%   0.8004n ± 0%  +19.94% (p=0.000 n=10)
-    Reverse           0.4067n ± 1%   0.4122n ± 1%   +1.38% (p=0.001 n=10)
-    Reverse8          0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.000 n=10)
-    Reverse16         0.8009n ± 0%   0.8005n ± 0%   -0.05% (p=0.000 n=10)
-    Reverse32         0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.001 n=10)
-    Reverse64         0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.008 n=10)
-    ReverseBytes      0.4057n ± 1%   0.4133n ± 1%   +1.90% (p=0.000 n=10)
-    ReverseBytes16    0.8009n ± 0%   0.8004n ± 0%   -0.07% (p=0.000 n=10)
-    ReverseBytes32    0.8009n ± 0%   0.8005n ± 0%   -0.05% (p=0.000 n=10)
-    ReverseBytes64    0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.000 n=10)
-    Add                1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=10)
-    Add32              1.201n ± 0%    1.201n ± 0%        ~ (p=0.474 n=10)
-    Add64              1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=10)
-    Add64multiple      1.832n ± 0%    1.828n ± 0%   -0.22% (p=0.001 n=10)
-    Sub                1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=10)
-    Sub32              1.602n ± 0%    1.601n ± 0%   -0.06% (p=0.000 n=10)
-    Sub64              1.201n ± 0%    1.201n ± 0%        ~ (p=0.474 n=10)
-    Sub64multiple      2.402n ± 0%    2.400n ± 0%   -0.10% (p=0.000 n=10)
-    Mul               0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.000 n=10)
-    Mul32             0.8009n ± 0%   0.8004n ± 0%   -0.06% (p=0.000 n=10)
-    Mul64             0.8008n ± 0%   0.8004n ± 0%   -0.05% (p=0.000 n=10)
-    Div                9.083n ± 0%    7.638n ± 0%  -15.91% (p=0.000 n=10)
-    Div32              4.011n ± 0%    4.009n ± 0%   -0.05% (p=0.000 n=10)
-    Div64              9.711n ± 0%    8.204n ± 0%  -15.51% (p=0.000 n=10)
-    geomean            1.083n         1.078n        -0.40%
+    Reason for revert: Windows builders are flaky since this CL. Needs investigation. See https://build.golang.org/log/70d5d039b57b505870c9cc4e61de320df06a6f3a.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                    |  CL 627855   |               this CL                |
-                    |    sec/op    |    sec/op     vs base                |
-    LeadingZeros       1.341n ± 4%    1.331n ± 2%   -0.71% (p=0.008 n=10)
-    LeadingZeros8      1.781n ± 0%    1.766n ± 1%   -0.84% (p=0.011 n=10)
-    LeadingZeros16     1.782n ± 0%    1.767n ± 0%   -0.79% (p=0.001 n=10)
-    LeadingZeros32     1.341n ± 1%    1.333n ± 0%   -0.52% (p=0.001 n=10)
-    LeadingZeros64     1.338n ± 0%    1.333n ± 0%   -0.37% (p=0.008 n=10)
-    TrailingZeros     0.9025n ± 0%   0.8077n ± 0%  -10.50% (p=0.000 n=10)
-    TrailingZeros8     1.056n ± 0%    1.089n ± 1%   +3.17% (p=0.001 n=10)
-    TrailingZeros16    1.101n ± 0%    1.102n ± 0%   +0.09% (p=0.011 n=10)
-    TrailingZeros32   0.9024n ± 1%   0.8083n ± 0%  -10.43% (p=0.000 n=10)
-    TrailingZeros64   0.9028n ± 1%   0.8087n ± 0%  -10.43% (p=0.000 n=10)
-    OnesCount          1.482n ± 1%    1.302n ± 0%  -12.15% (p=0.000 n=10)
-    OnesCount8         1.206n ± 0%    1.207n ± 2%   +0.12% (p=0.000 n=10)
-    OnesCount16        1.534n ± 0%    1.402n ± 0%   -8.58% (p=0.000 n=10)
-    OnesCount32        1.531n ± 1%    1.302n ± 0%  -14.99% (p=0.000 n=10)
-    OnesCount64        1.302n ± 0%    1.538n ± 1%  +18.16% (p=0.000 n=10)
-    RotateLeft        0.8083n ± 0%   0.8087n ± 1%        ~ (p=0.579 n=10)
-    RotateLeft8        1.310n ± 0%    1.323n ± 0%   +0.95% (p=0.001 n=10)
-    RotateLeft16       1.149n ± 0%    1.165n ± 1%   +1.35% (p=0.001 n=10)
-    RotateLeft32      0.8093n ± 0%   0.8105n ± 0%        ~ (p=0.393 n=10)
-    RotateLeft64      0.8088n ± 0%   0.8090n ± 0%        ~ (p=0.739 n=10)
-    Reverse           0.5109n ± 0%   0.5172n ± 1%   +1.25% (p=0.000 n=10)
-    Reverse8          0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.000 n=10)
-    Reverse16         0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.002 n=10)
-    Reverse32         0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.000 n=10)
-    Reverse64         0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.005 n=10)
-    ReverseBytes      0.5122n ± 2%   0.5182n ± 1%        ~ (p=0.060 n=10)
-    ReverseBytes16    0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.005 n=10)
-    ReverseBytes32    0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.005 n=10)
-    ReverseBytes64    0.8010n ± 0%   0.8011n ± 0%   +0.01% (p=0.001 n=10)
-    Add                1.201n ± 4%    1.202n ± 0%   +0.08% (p=0.028 n=10)
-    Add32              1.201n ± 0%    1.202n ± 2%   +0.08% (p=0.014 n=10)
-    Add64              1.201n ± 1%    1.202n ± 0%   +0.08% (p=0.025 n=10)
-    Add64multiple      1.902n ± 0%    1.913n ± 0%   +0.55% (p=0.004 n=10)
-    Sub                1.201n ± 0%    1.202n ± 3%   +0.08% (p=0.001 n=10)
-    Sub32              1.654n ± 0%    1.656n ± 1%        ~ (p=0.117 n=10)
-    Sub64              1.201n ± 0%    1.202n ± 0%   +0.08% (p=0.001 n=10)
-    Sub64multiple      2.180n ± 4%    2.159n ± 1%   -0.96% (p=0.006 n=10)
-    Mul               0.9345n ± 0%   0.9346n ± 0%   +0.01% (p=0.000 n=10)
-    Mul32              1.030n ± 0%    1.050n ± 1%   +1.94% (p=0.000 n=10)
-    Mul64             0.9345n ± 0%   0.9346n ± 1%   +0.01% (p=0.000 n=10)
-    Div                11.57n ± 1%    11.12n ± 0%   -3.85% (p=0.000 n=10)
-    Div32              4.337n ± 1%    4.341n ± 1%        ~ (p=0.286 n=10)
-    Div64              12.76n ± 0%    12.02n ± 3%   -5.80% (p=0.000 n=10)
-    geomean            1.252n         1.235n        -1.32%
-    
-    Change-Id: Iec4cfd2b83bb0f946068c1d657369ff081d95b04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628575
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: I8a5874bb057785497d03b9450819578de7faeb47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561276
     Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 146 ++--
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 968 ++++++++++++++++++++++++
- test/codegen/shift.go                           |  16 +
- 3 files changed, 1071 insertions(+), 59 deletions(-)
+ src/internal/poll/fd_windows_test.go | 22 ++++++---
+ src/runtime/netpoll_windows.go       | 86 +++++++-----------------------------
+ 2 files changed, 33 insertions(+), 75 deletions(-)

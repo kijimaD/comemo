@@ -1,24 +1,18 @@
-commit b5c0dbaafc548bd432c14935ae242ce1433180e8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 14 17:07:24 2021 -0500
+commit 5d80f8a82b1fc3261bb4279f1426a9767b654e92
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Sun Apr 11 13:13:11 2021 +0300
 
-    net: eliminate arbitrary timeout in TestVariousDeadlines
+    runtime: replace outdated documentation link in Windows' nanotime
     
-    When we set a timeout, we don't actually have a guarantee one how long
-    the OS will take to notice it. Moreover, if the test deadlocks
-    completely (for example, due to a deadline never taking effect), it
-    would be more useful to get a full goroutine dump instead of the current
-    "client stuck in Dial+Copy" failure message.
+    Fixes #45498
     
-    For #37883
-    For #41863
-    
-    Change-Id: I9f712ef1c620f97a5ab69baac45deb71134b99bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371994
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I89365f3517bc84376f0f580c64a57f38aaba0cbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308997
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/timeout_test.go | 34 +++++++++++-----------------------
- 1 file changed, 11 insertions(+), 23 deletions(-)
+ src/runtime/sys_windows_386.s   | 4 +++-
+ src/runtime/sys_windows_amd64.s | 4 +++-
+ src/runtime/sys_windows_arm.s   | 4 +++-
+ src/runtime/sys_windows_arm64.s | 4 +++-
+ 4 files changed, 12 insertions(+), 4 deletions(-)

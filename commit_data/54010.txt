@@ -1,21 +1,47 @@
-commit f2781229a91129fff9c34e48f957b588d30b13b3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 23:02:32 2023 +1000
+commit 36760ca9fd3eaf2c79efef48e533b66da6c542bd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 16 17:35:05 2022 +1000
 
-    runtime/cgo: consolidate openbsd cgo code
+    text/template/parse: simplify I/O in lexing
     
-    All openbsd architectures now use the same code, deduplicate accordingly.
+    The concurrent model for delivering tokens was fine for pedagogy,
+    but has caused a few problems as the package has evolved (that is,
+    got more complicated). It's easy to eliminate it, simplifying or
+    removing some of the hacks used to work around these prolems.
     
-    Change-Id: I65f1d9bd78c97dbdf552ec95ebba7ec4d04c8d2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518622
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    The old lexer would deliver tokens over a channel to the parsing
+    goroutine, and continue running until EOF. In this rewrite, we
+    instead run the machine until a token is ready, and shut it down
+    until the next token is needed. The mechanism is just to return nil
+    as the state function, which requires a bit more threading of return
+    values through the state functions but is not difficult. The change
+    is modest.
+    
+    A couple of error messages change, but otherwise the change has no
+    external effect. This is just an internal cleanup, long overdue.
+    
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkParseLarge-20         12222729      6769966       -44.61%
+    BenchmarkVariableString-20     73.5          73.4          -0.16%
+    BenchmarkListString-20         1827          1841          +0.77%
+    
+    benchmark                      old allocs     new allocs     delta
+    BenchmarkVariableString-20     3              3              +0.00%
+    BenchmarkListString-20         31             31             +0.00%
+    
+    benchmark                      old bytes     new bytes     delta
+    BenchmarkVariableString-20     72            72            +0.00%
+    BenchmarkListString-20         1473          1473          +0.00%
+    
+    Fixes #53261
+    
+    Change-Id: I4133bed2f8df16d398b707fb9509230325765c57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421883
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- .../cgo/{gcc_openbsd_386.c => gcc_openbsd.c}       |  2 +
- src/runtime/cgo/gcc_openbsd_amd64.c                | 59 ---------------------
- src/runtime/cgo/gcc_openbsd_arm.c                  | 60 ----------------------
- src/runtime/cgo/gcc_openbsd_arm64.c                | 60 ----------------------
- src/runtime/cgo/gcc_openbsd_mips64.c               | 60 ----------------------
- 5 files changed, 2 insertions(+), 239 deletions(-)
+ src/text/template/parse/lex.go        | 223 ++++++++++++++++++----------------
+ src/text/template/parse/lex_test.go   |  28 ++---
+ src/text/template/parse/parse.go      |  11 +-
+ src/text/template/parse/parse_test.go |   9 +-
+ 4 files changed, 135 insertions(+), 136 deletions(-)

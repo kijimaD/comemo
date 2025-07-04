@@ -1,14 +1,39 @@
-commit a0f77e56b7a7ecb92dca3e2afdd56ee773c2cb07
-Author: Hana <hyangah@gmail.com>
-Date:   Tue Apr 26 10:38:11 2022 -0400
+commit f4198f85d505c21eee3f2686466e72daa7413232
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 23 21:33:24 2021 -0700
 
-    SECURITY.md: replace golang.org with go.dev
+    [dev.typeparams] cmd/compile: generate wrappers within unified IR
     
-    Change-Id: Ic0e882fc6666c9adcd5f2dffc96e201f3146fa0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402180
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This CL extends unified IR to handle creating wrapper methods. There's
+    relatively little about this code that's actually specific to unified
+    IR, but rewriting this logic allows a few benefits:
+    
+    1. It decouples unified IR from reflectdata.methodWrapper, so the
+    latter code can evolve freely for -G=3's needs. This will also allow
+    the new code to evolve to unified IR's wrapper needs, which I
+    anticipate will operate slightly differently.
+    
+    2. It provided an opportunity to revisit a lot of the code and
+    simplify/update it to current style. E.g., in the process, I
+    discovered #46903, which unified IR now gets correctly. (I have not
+    yet attempted to fix reflectdata.methodWrapper.)
+    
+    3. It gives a convenient way for unified IR to ensure all of the
+    wrapper methods it needs are generated correctly.
+    
+    For now, the wrapper generation is specific to non-quirks mode.
+    
+    Change-Id: I5798de6b141f29e8eb6a5c563e7049627ff2868a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330569
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- SECURITY.md | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/main.go             |   2 +-
+ src/cmd/compile/internal/noder/reader.go        | 190 +++++++++++++++++++++++-
+ src/cmd/compile/internal/noder/unified.go       |   7 +
+ src/cmd/compile/internal/reflectdata/reflect.go |  10 +-
+ test/fixedbugs/issue46903.go                    |  32 ++++
+ test/typeparam/issue44688.go                    |   2 -
+ 6 files changed, 234 insertions(+), 9 deletions(-)

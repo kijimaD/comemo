@@ -1,15 +1,12 @@
-commit 14bd52db3fb56670270aafc79302316afe1ed07c
-Author: Vega Garcia Luis Alfonso <vegacom@gmail.com>
-Date:   Tue Jan 22 22:13:40 2013 -0500
+commit 379f5fc7f14074ec6ab6e937b4217686022bf3da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 22 17:50:12 2013 -0800
 
-    xml: Support fields not of type []byte when marshaling ",chardata"
+    go/build: fix TestBogusDirectory format and maybe Windows failure
     
-    Fixes #4506.
-    
-    R=rsc, remyoudompheng
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7106045
+    https://golang.org/cl/7183046
 
- src/pkg/encoding/xml/marshal.go      | 13 +++++++++++++
- src/pkg/encoding/xml/marshal_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+)
+ src/pkg/go/build/build_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

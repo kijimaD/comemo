@@ -1,39 +1,42 @@
-commit c5c1955077cb94736b0f311b3a02419d166f45ac
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Dec 1 15:26:31 2021 +0000
+commit 5cc5576a9cff098e6e47397ee32cb250de43d814
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 4 12:46:21 2021 -0400
 
-    runtime: break out new minimum heap size into a goexperiment
+    cmd/compile: untangle Wrapper and ABIWrapper flags
     
-    The new minimum heap of 512 KiB has been the cause of some build
-    slowdown (~1%) and microbenchmark slowdown (usually ~0%, up to ~50%)
-    because of two reasons:
-    1. Applications with lots of small short-lived processes execute many
-       more GC cycles.
-    2. Applications with heaps <4 MiB GC up to 8x more often.
+    Currently, there are Wrapper and ABIWrapper attributes. Wrapper
+    is set when compiler generates an wrapper function (e.g. method
+    wrapper). ABIWrapper is set when compiler generates an ABI
+    wrapper. It also sets Wrapper flag for ABI wrappers.
     
-    In many ways these consequences are inevitable given how GOGC works,
-    however we need to investigate more as to whether the apparent slowdowns
-    are indeed unavoidable or if the GC has issues scaling down, which it's
-    too late for for this release.
+    Currently, they have the following meanings:
+    - Wrapper flag hides the frame from (normal) traceback.
+    - Wrapper flag enables special panic+recover adjustment, so it
+      can correctly recover when a wrapper function is deferred.
+    - ABIWrapper flag disables the panic+recover adjustment, because
+      we never defer an ABI wrapper that can recover.
     
-    Given that this release is already huge, it's OK to push this back.
-    We'll take a closer look at it next cycle, so place block it behind a
-    new goexperiment to allow users and ourselves to easily experiment with
-    it.
+    This CL changes them to:
+    - Both Wrapper and ABIWrapper flags hide the frame from (normal)
+      traceback. (Setting one is enough.)
+    - Wrapper flag enables special panic+recover adjustment.
+      ABIWrapper flag no longer has effect on this.
     
-    Fixes #49744.
-    Updates #44167.
+    This makes it clearer if we do want an ABI wrapper that also does
+    the panic+recover adjustment. In the old mechanism we'd have to
+    unset ABIWrapper flag, even if the function is actually an ABI
+    wrapper. In the new mechanism we just need to set both ABIWrapper
+    and Wrapper flags.
     
-    Change-Id: Ibad51f7873de7517490c89802f3c593834e77ff0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368137
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #40724.
+    
+    Change-Id: I7fbc83f85d23676dc94db51dfda63dcacdf1fc19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307235
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/goexperiment/exp_heapminimum512kib_off.go | 9 +++++++++
- src/internal/goexperiment/exp_heapminimum512kib_on.go  | 9 +++++++++
- src/internal/goexperiment/flags.go                     | 7 +++++++
- src/runtime/mgcpacer.go                                | 4 ++--
- 4 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/abi.go | 7 -------
+ src/cmd/internal/obj/plist.go          | 2 +-
+ src/cmd/internal/obj/x86/obj6.go       | 4 ++--
+ 3 files changed, 3 insertions(+), 10 deletions(-)

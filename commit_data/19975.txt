@@ -1,17 +1,16 @@
-commit 897f7a31fa040584f2c76d7901b9ef3257ca218f
-Author: Chris Manghane <cmang@golang.org>
-Date:   Mon Aug 11 16:11:55 2014 -0700
+commit 10c2f56bf968884db3883a0c0b2a20f964a0ad4c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 8 08:56:40 2014 +1000
 
-    cmd/gc: comma-ok assignments produce untyped bool as 2nd result
+    cmd/go: download test dependencies of all named packages
+    
+    Fixes #8181.
     
     LGTM=rsc
-    R=gri, rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/127950043
+    https://golang.org/cl/123870043
 
- src/cmd/gc/order.c          |  5 ++++-
- src/cmd/gc/typecheck.c      |  2 +-
- src/cmd/gc/walk.c           | 14 +++++++++++++-
- test/fixedbugs/issue8475.go | 25 +++++++++++++++++++++++++
- test/named1.go              |  8 ++++----
- 5 files changed, 47 insertions(+), 7 deletions(-)
+ src/cmd/go/get.go    |  4 +++-
+ src/cmd/go/test.bash | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

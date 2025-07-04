@@ -1,0 +1,18 @@
+commit 08d2403576737c5735d0c1d356490e03a774dff6
+Author: cuishuang <imcusg@gmail.com>
+Date:   Thu Oct 31 21:45:00 2024 +0800
+
+    time: add examples for Since, Until, Abs and fix some comments
+    
+    Change-Id: I33b61629dfabffa15065a14fccdb418bab11350d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/time/example_test.go | 38 ++++++++++++++++++++++++++++++++++++--
+ src/time/format.go       |  2 +-
+ src/time/tick_test.go    |  2 +-
+ src/time/time_test.go    |  2 +-
+ 4 files changed, 39 insertions(+), 5 deletions(-)

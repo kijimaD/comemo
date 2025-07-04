@@ -1,26 +1,31 @@
-commit a9824cd47c1927ffc4eca040d60aecaa26130329
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Mar 10 17:15:46 2017 +0000
+commit 21a3c53c541ee6366db371e333cdb5376f507c65
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 15:45:09 2016 -0500
 
-    *.bash: always use the same string equality operator
+    build: fix cross-compile on Plan 9
     
-    POSIX Shell only supports = to compare variables inside '[' tests. But
-    this is Bash, where == is an alias for =. In practice they're the same,
-    but the current form is inconsisnent and breaks POSIX for no good
-    reason.
+    In Plan 9's shell,
     
-    Change-Id: I38fa7a5a90658dc51acc2acd143049e510424ed8
-    Reviewed-on: https://go-review.googlesource.com/38031
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+            GOBIN= \
+                    foo bar
+    
+    is the same as
+    
+            GOBIN=foo bar
+    
+    Write what was meant, which is
+    
+            GOBIN=() \
+                    foo bar
+    
+    Fixes #17737.
+    
+    Change-Id: Ie5a1b51a7cec950b5e78bbbe99cbc3cfe102f980
+    Reviewed-on: https://go-review.googlesource.com/33144
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- doc/articles/wiki/test.bash       |  2 +-
- lib/time/update.bash              |  2 +-
- misc/cgo/fortran/test.bash        |  2 +-
- misc/cgo/testcshared/test.bash    | 18 +++++++++---------
- misc/cgo/testsanitizers/test.bash |  4 ++--
- src/iostest.bash                  |  6 +++---
- src/make.bash                     |  4 ++--
- src/run.bash                      |  6 +++---
- 8 files changed, 22 insertions(+), 22 deletions(-)
+ src/make.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

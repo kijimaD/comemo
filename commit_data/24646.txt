@@ -1,14 +1,16 @@
-commit 3ae4dc8a7518fa90336436d52b540fd59fe10aa0
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Oct 27 16:39:00 2015 +1300
+commit 6f0c7df8ed3fe540c3c1030b11dc15837b97512f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 18 09:58:24 2015 -0400
 
-    cmd/compile, cmd/go, cmd/link: enable -buildmode=shared and related flags on linux/386
+    cmd/vet: power64 is now ppc64
     
-    Change-Id: If3417135ca474468a480b08cf46334fda28f79b4
-    Reviewed-on: https://go-review.googlesource.com/16345
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This was missed when we did the rename months ago
+    because cmd/vet did not live in the main tree.
+    Now vet's asmdecl checks will apply to ppc64 assembly too.
+    
+    Change-Id: I687cba89fef702f29dd118de76a7ca1041c414f6
+    Reviewed-on: https://go-review.googlesource.com/13677
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/lex.go |  2 +-
- src/cmd/go/build.go                | 11 +++++++----
- src/cmd/link/internal/ld/lib.go    |  2 +-
- 3 files changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/vet/asmdecl.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

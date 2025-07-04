@@ -1,26 +1,20 @@
-commit dacc020c00e8ad85cc3b006091632f76a79015be
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 15 21:17:18 2014 -0400
+commit fdade68379abdd9706881f4273e5f8cd9c0eb518
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 15 17:36:25 2014 -0700
 
-    cmd/ld: record complete runtime-gdb.py path again
+    os/exec: make TestPipeLookPathLeak more verbose when it fails
     
-    This code never got updated after the liblink shuffle.
-    Tested by hand that it works and respects GOROOT_FINAL.
+    Trying to understand the linux-386-387 failures:
+    http://build.golang.org/log/78a91da173c11e986b4e623527c2d0b746f4e814
     
-    The discussion in issue 6963 suggests that perhaps we should
-    just drop runtime-gdb.py entirely, but I am not convinced
-    that is true. It was in Go 1.2 and I don't see a reason not to
-    keep it in Go 1.3. The fact that binaries have not been emitting
-    the reference was just a missed detail in the liblink conversion,
-    not part of a grand plan.
+    Also modernize the closeOnce code with a method value, while I
+    was looking.
     
-    Fixes #7506.
-    Fixes #6963.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, iant, r
-    https://golang.org/cl/87870048
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews, iant
+    https://golang.org/cl/87950044
 
- src/cmd/ld/dwarf.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/os/exec/exec.go      | 14 ++++++++------
+ src/pkg/os/exec/exec_test.go | 12 ++++++------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

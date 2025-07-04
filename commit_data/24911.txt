@@ -1,22 +1,12 @@
-commit 97dc591534e580ede4c6145456dadf1e009f1bea
-Author: Austin Clements <austin@google.com>
-Date:   Sun Nov 15 23:09:16 2015 -0500
+commit e5d9cafbe8aa071eb76020ae77a1ae090eac2a7e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 30 14:02:04 2015 +1000
 
-    runtime: avoid stat underflow crash
+    compress/lzw: tidy up some flush calls.
     
-    If the area returned by sysReserve in mheap.sysAlloc is outside the
-    usable arena, we sysFree it. We pass a fake stat pointer to sysFree
-    because we haven't added the allocation to any stat at that point.
-    However, we pass a 0 stat, so sysFree panics when it decrements the
-    stat because the fake stat underflows.
-    
-    Fix this by setting the fake stat to the allocation size.
-    
-    Updates #13143 (this is a prerequisite to fixing that bug).
-    
-    Change-Id: I61a6c9be19ac1c95863cf6a8435e19790c8bfc9a
-    Reviewed-on: https://go-review.googlesource.com/16926
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie7368188ad4a970a82c140962cf97347d24f0331
+    Reviewed-on: https://go-review.googlesource.com/14410
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/runtime/malloc.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/compress/lzw/reader.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

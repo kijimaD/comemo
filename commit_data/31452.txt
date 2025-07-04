@@ -1,16 +1,27 @@
-commit a8e3852a05ddc1e590c7ae40b050ca663f1e1e4a
-Author: Ingo Oeser <nightlyone@googlemail.com>
-Date:   Sun Apr 30 14:47:04 2017 +0200
+commit 174058038c72aa0e2cc254ef91d4dbf2956a8d1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 10:22:05 2017 -0800
 
-    sync: really test DeepCopyMap
+    math/big: define Word as uint instead of uintptr
     
-    since there current version suffers from a copy'n'paste error.
+    For compatibility with math/bits uint operations.
     
-    Change-Id: I1ef97a4413198dde10c5c926a2a9806724cd6d44
-    Reviewed-on: https://go-review.googlesource.com/42095
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    When math/big was written originally, the Go compiler used 32bit
+    int/uint values even on a 64bit machine. uintptr was the type that
+    represented the machine register size. Now, the int/uint types are
+    sized to the native machine register size, so they are the natural
+    machine Word type.
+    
+    On most machines, the size of int/uint correspond to the size of
+    uintptr. On platforms where uint and uintptr have different sizes,
+    this change may lead to performance differences (e.g., amd64p32).
+    
+    Change-Id: Ief249c160b707b6441848f20041e32e9e9d8d8ca
+    Reviewed-on: https://go-review.googlesource.com/37372
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sync/map_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt        | 1 +
+ src/math/big/arith.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

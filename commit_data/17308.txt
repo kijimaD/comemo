@@ -1,16 +1,14 @@
-commit 7917b88a06486bfc692ccd07bbdb27fc73e4140d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Aug 18 19:19:36 2013 +0900
+commit 20eb4cba377174276e2e67284080cd89d5abfac3
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Sun Aug 18 08:10:00 2013 +1000
 
-    net: make protocol-specific WriteTo, WriteMsg methods return error instead of crash
+    net/textproto: replace '3-digit' with 'three-digit'
     
-    R=golang-dev, dave, rsc, adg, bradfitz
+    A matter on form in documentation.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11809043
+    https://golang.org/cl/13087043
 
- src/pkg/net/iprawsock_posix.go |  6 ++++++
- src/pkg/net/protoconn_test.go  | 29 +++++++++++++++++++++++++++++
- src/pkg/net/udpsock_plan9.go   |  3 +++
- src/pkg/net/udpsock_posix.go   |  6 ++++++
- src/pkg/net/unixsock_posix.go  |  3 +++
- 5 files changed, 47 insertions(+)
+ src/pkg/net/textproto/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

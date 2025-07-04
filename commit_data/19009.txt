@@ -1,15 +1,18 @@
-commit 81bc9b3ffd8a51ba171eafb554aef2c9731196d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 2 16:55:30 2014 -0400
+commit 9f9c9abb7e4bcc10398e2264a33cfe9ed805439f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 2 21:33:50 2014 +0200
 
-    runtime: revert change to PoisonPtr value
+    cmd/8g, cmd/gc: fix warnings on Plan 9
     
-    Submitted accidentally in CL 83630044.
-    Fixes various builds.
+    warning: src/cmd/8g/ggen.c:35 non-interruptable temporary
+    warning: src/cmd/gc/walk.c:656 set and not used: l
+    warning: src/cmd/gc/walk.c:658 set and not used: l
     
-    TBR=khr
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/83100047
+    https://golang.org/cl/83660043
 
- src/pkg/runtime/malloc.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/8g/ggen.c | 3 ++-
+ src/cmd/gc/walk.c | 2 --
+ 2 files changed, 2 insertions(+), 3 deletions(-)

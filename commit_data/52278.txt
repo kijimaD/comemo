@@ -1,32 +1,31 @@
-commit 46bc9a6e1e94d0c7929a4835a3d163b721085329
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Mar 10 16:05:47 2023 -0600
+commit aac1d3a1b12a290805ca35ff268738fb334b1ca4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 21 14:50:45 2022 -0400
 
-    runtime,runtime/cgo: fix tsan/pprof/cgo issues
+    Revert "syscall: define Syscall in terms of RawSyscall on linux"
     
-    The tsan13 test highlighted a few bugs.
+    This reverts CL 388477, which breaks cmd/go
+    TestScript/cover_pkgall_runtime.
     
-    The first being runtime.sigprofNonGoWrapper was being
-    called from C code and violating the C ABI.
+    For #51087.
+    For #52472.
     
-    The second was a missed tsan acquire/release after
-    thread creation.
-    
-    The third was runtime.cgoSigtramp violating ELFv2
-    ABI constraints when loading g. It is reworked to
-    avoid clobbering R30 and R31 via runtime.load_g.
-    
-    Change-Id: Ib2d98047fa1b4e72b8045767e86457a8ddfe492e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475935
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: Id58af419a889281f15df2471c58fece011fcffbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401636
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/cgo/abi_ppc64x.h   | 161 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_ppc64x.c   |   2 +
- src/runtime/sys_linux_ppc64x.s |  57 +++++++++++----
- 3 files changed, 206 insertions(+), 14 deletions(-)
+ src/runtime/proc.go             |  2 +-
+ src/syscall/asm_linux_386.s     | 26 ++++++++++++++++++++++++++
+ src/syscall/asm_linux_amd64.s   | 27 +++++++++++++++++++++++++++
+ src/syscall/asm_linux_arm.s     | 30 ++++++++++++++++++++++++++++++
+ src/syscall/asm_linux_arm64.s   | 27 +++++++++++++++++++++++++++
+ src/syscall/asm_linux_mips64x.s | 25 +++++++++++++++++++++++++
+ src/syscall/asm_linux_mipsx.s   | 23 +++++++++++++++++++++++
+ src/syscall/asm_linux_ppc64x.s  | 25 +++++++++++++++++++++++++
+ src/syscall/asm_linux_riscv64.s | 24 ++++++++++++++++++++++++
+ src/syscall/asm_linux_s390x.s   | 26 ++++++++++++++++++++++++++
+ src/syscall/syscall_linux.go    | 23 +----------------------
+ 11 files changed, 235 insertions(+), 23 deletions(-)

@@ -1,12 +1,20 @@
-commit 2f14fc9c682f6e6a6489a4e4757edd4011ba08e9
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Mar 28 17:42:01 2018 -0400
+commit fa1f52c5f61fdda063851be16366b5eda5a08e58
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 13 19:03:31 2017 -0800
 
-    doc: document Go 1.9.5
+    cmd/compile: always nil check before interface call
     
-    Change-Id: I8f12b188d2e13555e1d7634b9cc0319fc737cb1d
-    Reviewed-on: https://go-review.googlesource.com/103216
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #22703
+    
+    The fix was already done by Cherry for defer/go of an interface call (CL 23820).
+    We just need to do it everywhere.
+    
+    Change-Id: I0115d22e443931fe1bcce44c93c4d0770b5fd268
+    Reviewed-on: https://go-review.googlesource.com/77450
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/gc/asm_test.go | 531 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/ssa.go      |   4 +-
+ 2 files changed, 532 insertions(+), 3 deletions(-)

@@ -1,21 +1,26 @@
-commit c1806906d89ecc65136be4bbdfb9020c797be46c
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 2 15:16:27 2018 +0100
+commit 4d8d138318123d2cb92fb2674bfb910282516550
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 26 12:00:18 2017 -0400
 
-    test: port bits.Len intrinsics tests to the new codegen harness
+    vendor/golang_org/x/net/route: refresh from upstream
     
-    This change move bits.Len* intrinsification tests to the new codegen
-    test harness, removing them from the old ssa_test file. Five different
-    test functions (one for each bit.Len function tested) was used, to
-    avoid possible unwanted interactions between multiple calls inside one
-    function.
+    This picks up a few changes and should stop the macOS crashes.
     
-    Change-Id: Iffd5be55b58e88597fa30a562a28dacb01236d8b
-    Reviewed-on: https://go-review.googlesource.com/98156
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Fixes #22456.
+    
+    Change-Id: I7e0aae119a5564fcfaa16eeab7422bdd5ff0497b
+    Reviewed-on: https://go-review.googlesource.com/73691
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 202 --------------------------------
- test/codegen/mathbits.go                |  53 +++++++++
- 2 files changed, 53 insertions(+), 202 deletions(-)
+ src/vendor/golang_org/x/net/route/defs_openbsd.go  | 11 +++++++++++
+ src/vendor/golang_org/x/net/route/route_classic.go | 10 +++++++++-
+ src/vendor/golang_org/x/net/route/route_test.go    |  4 ++++
+ src/vendor/golang_org/x/net/route/sys_darwin.go    |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_dragonfly.go |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_freebsd.go   |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_netbsd.go    |  4 ++--
+ src/vendor/golang_org/x/net/route/sys_openbsd.go   |  5 +++--
+ src/vendor/golang_org/x/net/route/zsys_openbsd.go  | 13 ++++++++++++-
+ 9 files changed, 47 insertions(+), 12 deletions(-)

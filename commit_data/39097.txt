@@ -1,39 +1,18 @@
-commit cd03664f82a53dbe20d0b828189158ba3863039c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 9 19:55:39 2019 +0000
+commit 204a8f55dc2e0ac8d27a781dab0da609b98560da
+Author: Michael McLoughlin <mmcloughlin@gmail.com>
+Date:   Mon Dec 31 17:14:54 2018 -0800
 
-    runtime: fix js/wasm lock implementation
+    runtime: fix REFLECTMETHOD macro
     
-    Trybots started failing on js/wasm after golang.org/cl/175797 landed,
-    but it seemed completely unrelated. It would fail very consistently on
-    the heapsampling.go test.
+    Removes spurious equals sign from REFLECTMETHOD macro.
     
-    Digging deeper it was very difficult to ascertain what was going wrong,
-    but clearly m.locks for some m was non-zero when calling into the
-    scheduler.
+    Fixes #29487
     
-    The failure comes from the fact that lock calls into gosched, but it's
-    unclear how exactly we got there in the first place; there should be no
-    preemption in this single-threaded context.
-    
-    Furthermore, lock shouldn't be calling gosched_m at all because in a
-    single-threaded context, the thread shouldn't be preempted until it
-    actually unlocks.
-    
-    But, digging further it turns out the implementation in lock_js.go never
-    incremented or decremented m.locks. This is definitely wrong because
-    many parts of the runtime depend on that value being set correctly.
-    
-    So, this change removes the loop which calls into gosched_m (which
-    should be unnecessary) and increments and decrements m.locks
-    appropriately. This appears to fix the aforementioned failure.
-    
-    Change-Id: Id214c0762c3fb2b405ff55543d7e2a78c17443c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176297
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iaa3d85ff57087aa79a259f28816f8b0a552536f3
+    Reviewed-on: https://go-review.googlesource.com/c/155927
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/lock_js.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/runtime/textflag.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

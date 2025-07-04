@@ -1,35 +1,18 @@
-commit 1e576efb6b7e683ac8331ff798bf9dfc075363d0
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Tue Jul 4 15:25:07 2023 +0100
+commit a25a34abe986bd78ab9a543d2a96cbce427a4f3c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Aug 25 11:10:52 2022 +0800
 
-    strings: add benchmark for Builder.WriteString
+    runtime: convert mcache.flushGen to atomic type
     
-    This is in preparation for an optimization.
+    For #53821
     
-    ```
-    name                                     time/op
-    BuildString_WriteString/1Write_NoGrow-8  30.8ns ± 0%
-    BuildString_WriteString/3Write_NoGrow-8   111ns ± 0%
-    BuildString_WriteString/3Write_Grow-8    44.1ns ± 4%
-    
-    name                                     alloc/op
-    BuildString_WriteString/1Write_NoGrow-8   48.0B ± 0%
-    BuildString_WriteString/3Write_NoGrow-8    336B ± 0%
-    BuildString_WriteString/3Write_Grow-8      112B ± 0%
-    
-    name                                     allocs/op
-    BuildString_WriteString/1Write_NoGrow-8    1.00 ± 0%
-    BuildString_WriteString/3Write_NoGrow-8    3.00 ± 0%
-    BuildString_WriteString/3Write_Grow-8      1.00 ± 0%
-    ```
-    
-    Signed-off-by: Roger Peppe <rogpeppe@gmail.com>
-    Change-Id: I0e2c82edcdc72f381c5160f315401678ff76f3d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507777
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I90ab52a45b7fb6b9e3ff1d6ea97251549306c7aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425435
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/strings/builder_test.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/runtime/mcache.go | 13 +++++++------
+ src/runtime/mgc.go    |  2 +-
+ 2 files changed, 8 insertions(+), 7 deletions(-)

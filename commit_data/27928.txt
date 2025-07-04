@@ -1,25 +1,14 @@
-commit a50f9859bd15784d047875624c9fa91ce69bd85b
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Aug 8 15:41:18 2016 +0200
+commit bc33dd7432369b3abd2a6fd75cb57d6c5c3defa7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 20 08:56:33 2016 -0700
 
-    internal/trace: fix analysis of EvGoWaiting/EvGoInSyscall events
+    doc/faq: reword the link to the generics proposal
     
-    When tracing is started in the middle of program execution,
-    we already have a number of runnable goroutines and a number
-    of blocked/in syscall goroutines. In order to reflect these
-    goroutines in the trace, we emit EvGoCreate for all existing
-    goroutines. Then for blocked/in syscall goroutines we additionally
-    emit EvGoWaiting/EvGoInSyscall events. These events don't reset g.ev
-    during trace analysis. So next EvGoStart finds g.ev set to the
-    previous EvGoCreate. As the result time between EvGoCreate and
-    EvGoStart is accounted as scheduler latency. While in reality
-    it is blocking/syscall time.
+    A late response to CL 22163.
     
-    Properly reset g.ev for EvGoWaiting/EvGoInSyscall events.
-    
-    Change-Id: I0615ba31ed7567600a0667ebb27458481da73adb
-    Reviewed-on: https://go-review.googlesource.com/25572
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I5275a22af7081875af0256da296811f4fe9832dc
+    Reviewed-on: https://go-review.googlesource.com/22296
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/internal/trace/parser.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go_faq.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

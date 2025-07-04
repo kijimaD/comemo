@@ -1,12 +1,12 @@
-commit ee58cc799e42d32e5991ba43390c8fc4778b0c7c
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Jan 7 16:17:47 2011 -0500
+commit 2c037b3616fca3e5a36f2ddea71a9bf3f48f095d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 7 15:33:00 2011 +1100
 
-    crypto/block: mark as deprecated.
+    tag release.2011-01-06
     
-    R=rsc
+    R=nigeltao, nigeltao_gnome
     CC=golang-dev
-    https://golang.org/cl/3909041
+    https://golang.org/cl/3892041
 
- src/pkg/crypto/block/cipher.go | 1 +
- 1 file changed, 1 insertion(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

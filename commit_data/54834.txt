@@ -1,15 +1,37 @@
-commit d2f3a68bf0d492780cc0f0cf2c6d71d59df30d5b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Oct 31 16:26:52 2023 -0400
+commit 898d000c39af73e6d71e89e82c558b343d764e36
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 4 14:54:04 2022 -0400
 
-    runtime: use testenv.Command in TestG0StackOverflow
+    cmd/dist: convert most remaining tests to use goTest
     
-    For debugging timeouts.
+    This converts most of the remaining manual "go test" command line
+    construction in cmd/dist to use the goTest abstraction and
+    registerTest.
     
-    Change-Id: I08dc86ec0264196e5fd54066655e94a9d062ed80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538697
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    At this point, the only remaining place that directly constructs go
+    test command lines is runHostTest.
+    
+    This fixes a bug in the "nolibgcc:os/user" test. It was clearly
+    supposed to pass "-run=^Test[^CS]", but the logic to override the
+    "-run" flag for "nolibgcc:net" caused "nolibgcc:os/user" to pass
+    *both* "-run=^Test[^CS]" and "-run=". This was then rewritten into
+    just "-run=" by flattenCmdline, which caused all os/user tests to run,
+    and not actually skip the expensive tests as intended. (This is a
+    great example of why the new abstraction is much more robust than
+    command line construction.)
+    
+    I traced all exec calls from cmd/dist on linux/amd64 and, other than
+    the fix to nolibgcc:os/user, this makes only no-op changes (such as
+    re-arranging the order of flags).
+    
+    For #37486.
+    
+    Change-Id: Ie8546bacc56640ea39f2804a87795c14a3fe4c7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450018
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/crash_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 211 +++++++++++++++++++++++----------------------------
+ 1 file changed, 94 insertions(+), 117 deletions(-)

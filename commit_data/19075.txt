@@ -1,17 +1,13 @@
-commit 907736e2fe94c8cd41d3016154f2093280065484
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Apr 9 08:34:17 2014 +0200
+commit 56294f4adfb880e41c6a4111241d795191d5dc0b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 15:20:00 2014 +1000
 
-    cmd/gc: ignore blank (_) labels in label declarations
+    doc/go1.3.html: go command, major library changes
     
-    Fixes #7538
-    
-    LGTM=rsc
-    R=gri, rsc
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/85040045
+    https://golang.org/cl/85840043
 
- src/cmd/gc/gen.c             |  4 ++++
- test/fixedbugs/issue7538a.go | 15 +++++++++++++++
- test/fixedbugs/issue7538b.go | 13 +++++++++++++
- 3 files changed, 32 insertions(+)
+ doc/go1.3.html | 49 +++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 39 insertions(+), 10 deletions(-)

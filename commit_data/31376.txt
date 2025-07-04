@@ -1,35 +1,21 @@
-commit 9d37d4c88abc1920e45abc7c2c80a156420090fe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 10 15:54:35 2017 -0500
+commit d390283ff42c44230ac25800efca231b952fd3ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 14 21:34:19 2017 -0800
 
-    encoding/xml: parallelize benchmarks
+    cmd/compile/internal/syntax: compiler directives must start at beginning of line
     
-    Results remain comparable with the non-parallel version with -cpu=1:
-    benchmark                old ns/op     new ns/op     delta
-    BenchmarkMarshal         31220         28618         -8.33%
-    BenchmarkMarshal-6       37181         7658          -79.40%
-    BenchmarkUnmarshal       81837         83522         +2.06%
-    BenchmarkUnmarshal-6     96339         18244         -81.06%
+    - ignore them, if they don't.
+    - added tests
     
-    benchmark                old allocs     new allocs     delta
-    BenchmarkMarshal         23             23             +0.00%
-    BenchmarkMarshal-6       23             23             +0.00%
-    BenchmarkUnmarshal       189            189            +0.00%
-    BenchmarkUnmarshal-6     189            189            +0.00%
+    Fixes #18393.
     
-    benchmark                old bytes     new bytes     delta
-    BenchmarkMarshal         5776          5776          +0.00%
-    BenchmarkMarshal-6       5776          5776          +0.00%
-    BenchmarkUnmarshal       8576          8576          +0.00%
-    BenchmarkUnmarshal-6     8576          8576          +0.00%
-    
-    updates #18177
-    
-    Change-Id: I7e7055a11d18896bd54d7d773f2ec64767cdb4c8
-    Reviewed-on: https://go-review.googlesource.com/36810
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I13f87b81ac6b9138ab5031bb3dd6bebc4c548156
+    Reviewed-on: https://go-review.googlesource.com/37020
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/xml/marshal_test.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/syntax/parser_test.go |  2 +-
+ src/cmd/compile/internal/syntax/scanner.go     | 18 ++++++++++--------
+ test/fixedbugs/issue18393.go                   | 24 ++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 9 deletions(-)

@@ -1,28 +1,20 @@
-commit 1c05968c9a5d6432fc6f30196528f8f37287dd3d
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sat Nov 5 16:14:08 2022 +1030
+commit 085d6ff5312a789b8c34c51e84e4a2b39a6631ca
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:47:39 2021 -0500
 
-    all: fix comment typos
+    doc/go1.18: add docs for -count when benchmarking
     
-    Change-Id: Ic16824482142d4de4d0b949459e36505ee944ff7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448175
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Dan Kortschak <dan@kortschak.io>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    CL 356669
+    
+    Updates #47694
+    
+    Change-Id: I49e0cdd3b34e81e9e44020a8eb1304d78249cd66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368677
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dan Kortschak <dan@kortschak.io>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/internal/edwards25519/tables.go    | 4 ++--
- src/crypto/rsa/pkcs1v15.go                    | 2 +-
- src/crypto/x509/sec1.go                       | 2 +-
- src/debug/dwarf/entry.go                      | 2 +-
- src/encoding/xml/read.go                      | 2 +-
- src/go/internal/gcimporter/iimport.go         | 2 +-
- src/go/types/infer.go                         | 6 +++---
- src/go/types/validtype.go                     | 2 +-
- src/internal/coverage/encodecounter/encode.go | 2 +-
- src/internal/fuzz/queue.go                    | 2 +-
- 10 files changed, 13 insertions(+), 13 deletions(-)
+ doc/go1.18.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

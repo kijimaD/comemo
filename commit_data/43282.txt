@@ -1,19 +1,17 @@
-commit e08059f4fcacce2ff18d1cfc5fa48c942f8d46aa
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Oct 13 08:26:36 2020 +0200
+commit 9ef61d58c015e7bc297ed4404e34af5f3d514257
+Author: nao20010128nao <nao20010128@gmail.com>
+Date:   Sat Mar 21 06:52:58 2020 +0000
 
-    runtime: remove unused alg constants
+    syscall/js: make wasm_exec.js compatible with Webpack
     
-    CL 191198 removed algarray from the runtime
-    which used these constants as indices.
+    In Webpack, require("fs") will always be empty. This behavior throws an error: "fs.writeSync is not function". It happens when you did "fmt.Println".
+    This PR avoids such problem and use polyfill in wasm_exec.js on Webpack.
     
-    Change-Id: Ia669cf410372ef5113dadccd115a39ff8d47e5c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261364
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Trust: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I55f2c75ce86b7f84d2d92e8e217b5decfbe3c8a1
+    GitHub-Last-Rev: aecc847e3f9d5617ea4b00196ef2810c2458f085
+    GitHub-Pull-Request: golang/go#35805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208600
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/runtime/alg.go | 19 -------------------
- 1 file changed, 19 deletions(-)
+ misc/wasm/wasm_exec.js | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

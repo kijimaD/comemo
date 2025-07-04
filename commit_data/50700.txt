@@ -1,18 +1,20 @@
-commit ce3a5c0d1036bea6d0abb9ff638f3a5382e428ee
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 29 09:33:07 2022 -0400
+commit 90462dfc3aa99649de90bb587af56a9cb0214665
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Tue Nov 2 23:17:21 2021 +0800
 
-    os/exec: avoid leaking a process in TestDoubleStartLeavesPipesOpen
+    time: fix looking for zone offset when date is close to a zone transition
     
-    Updates #52580.
-    For #50436.
+    The old implement passed start - 1 or end in func lookup to adjust the offset.But if the time is close to the last zoneTrans, like the issue, testcase and comment, the "start" from lookup will be omega. It can't be adjusted correctly.
     
-    Change-Id: I0929055ffca1ca429f6ebec7d877f4268bd1fda2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436656
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Fixes #49284
+    
+    Change-Id: Ibaf82dc4db6d5dd3279796f003d2b19c38a26341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360616
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/os/exec/exec_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/time/time.go      | 14 +++++++-------
+ src/time/time_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 7 deletions(-)

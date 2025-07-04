@@ -1,15 +1,23 @@
-commit 3ec0651539d481100b6e735d54072627276f48d3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 23 02:19:25 2016 -0800
+commit d1eedfe1321eec4da1c68f711f8bf0de6b926ef1
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Oct 21 23:03:54 2015 -0700
 
-    cmd/compile: add copyright notice to util.go
+    regexp: fix LiteralPrefix for certain onepass progs
     
-    util.go was originally added in golang.org/cl/4851, and later moved to
-    its current location in golang.org/cl/10287.
+    The prefix computation for onepass was incorrectly returning
+    complete=true when it encountered a beginning-of-text empty width match
+    (^) in the middle of an expression.
     
-    Change-Id: I10b4941d42ae1ff2e78990c497c1347bbbae4e3d
-    Reviewed-on: https://go-review.googlesource.com/19851
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fix by returning complete only when the prefix is followed by $ and then
+    an accepting state.
+    
+    Fixes #11175.
+    
+    Change-Id: Ie9c4cf5f76c1d2c904a6fb2f016cedb265c19fde
+    Reviewed-on: https://go-review.googlesource.com/16200
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/util.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/regexp/all_test.go | 15 ++++++++++++++-
+ src/regexp/onepass.go  |  7 ++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,12 +1,18 @@
-commit c0e805efd24753936b7367d40b25491af2d6441d
+commit 739aa6b1ba6f643a37370d569c5f67827f5c370c
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 14:37:47 2013 -0800
+Date:   Thu Jan 31 13:52:27 2013 -0800
 
-    cmd/vet: add missing -all logic
+    cmd/vet: check for misplaced and malformed build tags
     
-    R=golang-dev, cookieo9, bradfitz
+    Fixes #4184.
+    
+    R=golang-dev, bradfitz, minux.ma, cookieo9
     CC=golang-dev
-    https://golang.org/cl/7260043
+    https://golang.org/cl/7251044
 
- src/cmd/vet/main.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/vet/Makefile        |  3 +-
+ src/cmd/vet/buildtag.go     | 96 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/buildtag_bad.go | 11 ++++++
+ src/cmd/vet/main.go         | 23 +++++++++--
+ src/cmd/vet/taglit.go       |  2 +-
+ 5 files changed, 130 insertions(+), 5 deletions(-)

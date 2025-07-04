@@ -1,18 +1,21 @@
-commit 562e38c0afedc32887eccb093fa710b36eb7588d
-Author: Joe Sylve <joe.sylve@gmail.com>
-Date:   Fri Mar 25 13:51:56 2016 -0500
+commit b3c05f08a97ac89064d3edbf4efb7bea671c2c18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 29 15:43:24 2016 -0800
 
-    runtime: fix signal handling on Solaris
+    runtime: avoid write barrier in cgo mmap code
     
-    This fixes the problems with signal handling that were inadvertently
-    introduced in https://go-review.googlesource.com/21006.
+    Tested by hand with a runtime/cgo modified to return an mmap failure
+    after 10 calls.
     
-    Fixes #14899
+    This is an interim patch.  For 1.7 we should fix mmap properly to avoid
+    using the same value as both a pointer and an errno value.
     
-    Change-Id: Ia746914dcb3146a52413d32c57b089af763f0810
-    Reviewed-on: https://go-review.googlesource.com/21145
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #14149.
+    
+    Change-Id: I8f2bbd47d711e283001ba73296f1c34a26c59241
+    Reviewed-on: https://go-review.googlesource.com/19084
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/signal_solaris_amd64.go | 4 ----
- src/runtime/sys_solaris_amd64.s     | 7 +++----
- 2 files changed, 3 insertions(+), 8 deletions(-)
+ src/runtime/cgo_mmap.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

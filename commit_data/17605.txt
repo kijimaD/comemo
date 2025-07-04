@@ -1,12 +1,12 @@
-commit 49eeef5927b37a96d1bb733197cff7ea974aad2c
+commit d445b76331aa342711b79dd6796cd832e9766c26
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 16 13:02:01 2013 +1000
+Date:   Mon Sep 16 11:19:39 2013 +1000
 
-    sort: move example to package level and simplify further
+    cmd/gofmt: document -s transformations
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/13634044
+    https://golang.org/cl/13721043
 
- src/pkg/sort/example_interface_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/gofmt/doc.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

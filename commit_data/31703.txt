@@ -1,12 +1,17 @@
-commit b547429a2573969a7883fa5142771c2f2a84091f
-Author: Filippo Valsorda <filippo@cloudflare.com>
-Date:   Fri Jun 2 13:01:30 2017 -0700
+commit b2c391b70c43edea2a6c536afba6ebf925844e1b
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 6 20:39:24 2017 +0200
 
-    C: add Filippo Valsorda's cloudflare.com email (Cloudflare CLA)
+    cmd/compile/internal/gc: shrink Sym by 8 bytes on amd64
     
-    Change-Id: I98d265bfa4f5944360d0258d2cb6bbc78010c708
-    Reviewed-on: https://go-review.googlesource.com/44731
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Move 8-bit flags field after 32-bit Block field
+    
+    Change-Id: I8e5e9a2285477aac2402a839a105e710d5340224
+    Reviewed-on: https://go-review.googlesource.com/37848
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/go.go          | 5 ++---
+ src/cmd/compile/internal/gc/sizeof_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)

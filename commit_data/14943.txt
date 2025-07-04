@@ -1,20 +1,18 @@
-commit e00c9f0dbb7b53410308101311bd0a448e00e17b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jan 22 02:50:27 2013 +0800
+commit 5b5d3efcf3003de01e0cd8ecb248c9ef72d30b10
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 21 11:25:28 2013 -0500
 
-    cmd/5l: move offset2 into Adr.u0 union to save 4/8 bytes for Adr/Prog resp.
-    sizeof(Adr) from 24 bytes down to 20 bytes.
-    sizeof(Prog) from 84 bytes down to 76 bytes.
+    crypto/x509: return a better error when we fail to load system roots.
     
-    5l linking cmd/godoc statistics:
-    Before:
-    Maximum resident set size (kbytes): 106668
-    After:
-    Maximum resident set size (kbytes):  99412
-    
-    R=golang-dev, dave
+    R=golang-dev, krautz, rsc
     CC=golang-dev
-    https://golang.org/cl/7100059
+    https://golang.org/cl/7157044
 
- src/cmd/5l/l.h | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/crypto/x509/root_darwin.go  |  9 ++++----
+ src/pkg/crypto/x509/root_plan9.go   |  6 +++--
+ src/pkg/crypto/x509/root_stub.go    |  1 -
+ src/pkg/crypto/x509/root_unix.go    |  6 +++--
+ src/pkg/crypto/x509/root_windows.go |  1 -
+ src/pkg/crypto/x509/verify.go       | 11 +++++++++
+ src/pkg/crypto/x509/verify_test.go  | 46 +++++++++++++++++++++++++++++++------
+ 7 files changed, 63 insertions(+), 17 deletions(-)

@@ -1,60 +1,29 @@
-commit 8b5221a57b41a19abcb4e3dde20014af494048c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 13:41:54 2014 -0400
+commit 78b5321e823d6dbb7a009ec73775f7b5e8dc95e7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 11:58:15 2014 -0700
 
-    cmd/pprof: add Go implementation
+    fmt: make printing of ints 25-35% faster
+    Inspired by a remark by Leonard Holz, use constants for division
     
-    Update #8798
+    BenchmarkSprintfEmpty           130           132           +1.54%
+    BenchmarkSprintfString          438           437           -0.23%
+    BenchmarkSprintfInt             417           414           -0.72%
+    BenchmarkSprintfIntInt          663           691           +4.22%
+    BenchmarkSprintfPrefixedInt     791           774           -2.15%
+    BenchmarkSprintfFloat           701           686           -2.14%
+    BenchmarkManyArgs               2584          2469          -4.45%
+    BenchmarkFprintInt              488           357           -26.84%
+    BenchmarkFprintIntNoAlloc       402           265           -34.08%
+    BenchmarkScanInts               1244346       1267574       +1.87%
+    BenchmarkScanRecursiveInt       1748741       1724138       -1.41%
     
-    This is a new implementation of pprof,
-    written in Go instead of in Perl.
-    It was written primarily by Raul Silvera and
-    is in use for profiling programs of all languages
-    inside Google.
+    Update #3463
     
-    The internal structure is a bit package-heavy,
-    but it matches the copy used inside Google, and
-    since it is in an internal directory, we can make
-    changes to it later if we need to.
-    
-    The only "new" file here is src/cmd/pprof/pprof.go,
-    which stitches together the Google pprof and the
-    Go command libraries for object file access.
-    
-    I am explicitly NOT interested in style or review
-    comments on the rest of the files
-    (that is, src/cmd/pprof/internal/...).
-    Those are intended to stay as close to the Google
-    copies as possible, like we did with the pprof Perl script.
-    
-    Still to do:
-    
-    - Basic tests.
-    - Real command documentation.
-    - Hook up disassemblers.
-    
-    LGTM=r
-    R=r, bradfitz, alex.brainman, dave
+    LGTM=josharian, rsc
+    R=golang-codereviews, josharian, rsc
     CC=golang-codereviews
-    https://golang.org/cl/153750043
+    https://golang.org/cl/144250043
 
- src/cmd/pprof/internal/commands/commands.go      |  197 +++
- src/cmd/pprof/internal/driver/driver.go          | 1036 +++++++++++++
- src/cmd/pprof/internal/driver/interactive.go     |  492 +++++++
- src/cmd/pprof/internal/fetch/fetch.go            |   82 ++
- src/cmd/pprof/internal/plugin/plugin.go          |  213 +++
- src/cmd/pprof/internal/profile/encode.go         |  470 ++++++
- src/cmd/pprof/internal/profile/filter.go         |  157 ++
- src/cmd/pprof/internal/profile/legacy_profile.go | 1250 ++++++++++++++++
- src/cmd/pprof/internal/profile/profile.go        |  567 +++++++
- src/cmd/pprof/internal/profile/proto.go          |  298 ++++
- src/cmd/pprof/internal/profile/prune.go          |   97 ++
- src/cmd/pprof/internal/report/report.go          | 1718 ++++++++++++++++++++++
- src/cmd/pprof/internal/report/source.go          |  450 ++++++
- src/cmd/pprof/internal/report/source_html.go     |   77 +
- src/cmd/pprof/internal/svg/svg.go                |   75 +
- src/cmd/pprof/internal/symbolizer/symbolizer.go  |  191 +++
- src/cmd/pprof/internal/symbolz/symbolz.go        |  111 ++
- src/cmd/pprof/internal/tempfile/tempfile.go      |   45 +
- src/cmd/pprof/pprof.go                           |  202 +++
- 19 files changed, 7728 insertions(+)
+ src/fmt/fmt_test.go | 17 +++++++++++++++++
+ src/fmt/format.go   | 34 ++++++++++++++++++++++++++++++----
+ 2 files changed, 47 insertions(+), 4 deletions(-)

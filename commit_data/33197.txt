@@ -1,21 +1,149 @@
-commit 083338cb976763e7a77e787827b24228fbaa7bf3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 23 09:39:13 2017 -0400
+commit 4c54a047c6ea88dd77416a3b878f6935165f6129
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Jul 21 18:30:19 2017 -0400
 
-    cmd/internal/obj/arm64: handle global address in LDP/STP
+    [dev.debug] cmd/compile: better DWARF with optimizations on
     
-    The addressing mode of global variable was missing, whereas the
-    compiler may make use of it, causing "illegal combination" error.
-    This CL adds support of that addressing mode.
+    Debuggers use DWARF information to find local variables on the
+    stack and in registers. Prior to this CL, the DWARF information for
+    functions claimed that all variables were on the stack at all times.
+    That's incorrect when optimizations are enabled, and results in
+    debuggers showing data that is out of date or complete gibberish.
     
-    Fixes #22390.
+    After this CL, the compiler is capable of representing variable
+    locations more accurately, and attempts to do so. Due to limitations of
+    the SSA backend, it's not possible to be completely correct.
     
-    Change-Id: Ic8eade31aba73e6fb895f758ee7f277f8f1832ef
-    Reviewed-on: https://go-review.googlesource.com/72610
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    There are a number of problems in the current design. One of the easier
+    to understand is that variable names currently must be attached to an
+    SSA value, but not all assignments in the source code actually result
+    in machine code. For example:
+    
+      type myint int
+      var a int
+      b := myint(int)
+    and
+      b := (*uint64)(unsafe.Pointer(a))
+    
+    don't generate machine code because the underlying representation is the
+    same, so the correct value of b will not be set when the user would
+    expect.
+    
+    Generating the more precise debug information is behind a flag,
+    dwarflocationlists. Because of the issues described above, setting the
+    flag may not make the debugging experience much better, and may actually
+    make it worse in cases where the variable actually is on the stack and
+    the more complicated analysis doesn't realize it.
+    
+    A number of changes are included:
+    - Add a new pseudo-instruction, RegKill, which indicates that the value
+    in the register has been clobbered.
+    - Adjust regalloc to emit RegKills in the right places. Significantly,
+    this means that phis are mixed with StoreReg and RegKills after
+    regalloc.
+    - Track variable decomposition in ssa.LocalSlots.
+    - After the SSA backend is done, analyze the result and build location
+    lists for each LocalSlot.
+    - After assembly is done, update the location lists with the assembled
+    PC offsets, recompose variables, and build DWARF location lists. Emit the
+    list as a new linker symbol, one per function.
+    - In the linker, aggregate the location lists into a .debug_loc section.
+    
+    TODO:
+    - currently disabled for non-X86/AMD64 because there are no data tables.
+    
+    go build -toolexec 'toolstash -cmp' -a std succeeds.
+    
+    With -dwarflocationlists false:
+    before: f02812195637909ff675782c0b46836a8ff01976
+    after:  06f61e8112a42ac34fb80e0c818b3cdb84a5e7ec
+    benchstat -geomean  /tmp/220352263 /tmp/621364410
+    completed   15 of   15, estimated time remaining 0s (eta 3:52PM)
+    name        old time/op       new time/op       delta
+    Template          199ms ± 3%        198ms ± 2%     ~     (p=0.400 n=15+14)
+    Unicode          96.6ms ± 5%       96.4ms ± 5%     ~     (p=0.838 n=15+15)
+    GoTypes           653ms ± 2%        647ms ± 2%     ~     (p=0.102 n=15+14)
+    Flate             133ms ± 6%        129ms ± 3%   -2.62%  (p=0.041 n=15+15)
+    GoParser          164ms ± 5%        159ms ± 3%   -3.05%  (p=0.000 n=15+15)
+    Reflect           428ms ± 4%        422ms ± 3%     ~     (p=0.156 n=15+13)
+    Tar               123ms ±10%        124ms ± 8%     ~     (p=0.461 n=15+15)
+    XML               228ms ± 3%        224ms ± 3%   -1.57%  (p=0.045 n=15+15)
+    [Geo mean]        206ms             377ms       +82.86%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          292ms ±10%        301ms ±12%     ~     (p=0.189 n=15+15)
+    Unicode           166ms ±37%        158ms ±14%     ~     (p=0.418 n=15+14)
+    GoTypes           962ms ± 6%        963ms ± 7%     ~     (p=0.976 n=15+15)
+    Flate             207ms ±19%        200ms ±14%     ~     (p=0.345 n=14+15)
+    GoParser          246ms ±22%        240ms ±15%     ~     (p=0.587 n=15+15)
+    Reflect           611ms ±13%        587ms ±14%     ~     (p=0.085 n=15+13)
+    Tar               211ms ±12%        217ms ±14%     ~     (p=0.355 n=14+15)
+    XML               335ms ±15%        320ms ±18%     ~     (p=0.169 n=15+15)
+    [Geo mean]        317ms             583ms       +83.72%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         40.2MB ± 0%       40.2MB ± 0%   -0.15%  (p=0.000 n=14+15)
+    Unicode          29.2MB ± 0%       29.3MB ± 0%     ~     (p=0.624 n=15+15)
+    GoTypes           114MB ± 0%        114MB ± 0%   -0.15%  (p=0.000 n=15+14)
+    Flate            25.7MB ± 0%       25.6MB ± 0%   -0.18%  (p=0.000 n=13+15)
+    GoParser         32.2MB ± 0%       32.2MB ± 0%   -0.14%  (p=0.003 n=15+15)
+    Reflect          77.8MB ± 0%       77.9MB ± 0%     ~     (p=0.061 n=15+15)
+    Tar              27.1MB ± 0%       27.0MB ± 0%   -0.11%  (p=0.029 n=15+15)
+    XML              42.7MB ± 0%       42.5MB ± 0%   -0.29%  (p=0.000 n=15+15)
+    [Geo mean]       42.1MB            75.0MB       +78.05%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           402k ± 1%         398k ± 0%   -0.91%  (p=0.000 n=15+15)
+    Unicode            344k ± 1%         344k ± 0%     ~     (p=0.715 n=15+14)
+    GoTypes           1.18M ± 0%        1.17M ± 0%   -0.91%  (p=0.000 n=15+14)
+    Flate              243k ± 0%         240k ± 1%   -1.05%  (p=0.000 n=13+15)
+    GoParser           327k ± 1%         324k ± 1%   -0.96%  (p=0.000 n=15+15)
+    Reflect            984k ± 1%         982k ± 0%     ~     (p=0.050 n=15+15)
+    Tar                261k ± 1%         259k ± 1%   -0.77%  (p=0.000 n=15+15)
+    XML                411k ± 0%         404k ± 1%   -1.55%  (p=0.000 n=15+15)
+    [Geo mean]         439k              755k       +72.01%
+    
+    name        old text-bytes    new text-bytes    delta
+    HelloSize         694kB ± 0%        694kB ± 0%   -0.00%  (p=0.000 n=15+15)
+    
+    name        old data-bytes    new data-bytes    delta
+    HelloSize        5.55kB ± 0%       5.55kB ± 0%     ~     (all equal)
+    
+    name        old bss-bytes     new bss-bytes     delta
+    HelloSize         133kB ± 0%        133kB ± 0%     ~     (all equal)
+    
+    name        old exe-bytes     new exe-bytes     delta
+    HelloSize        1.04MB ± 0%       1.04MB ± 0%     ~     (all equal)
+    
+    Change-Id: I991fc553ef175db46bb23b2128317bbd48de70d8
+    Reviewed-on: https://go-review.googlesource.com/41770
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 14 ++++++++++++++
- src/cmd/internal/obj/arm64/asm7.go        | 24 ++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/cmd/compile/fmt_test.go                    |  15 +
+ src/cmd/compile/internal/gc/main.go            |   8 +-
+ src/cmd/compile/internal/gc/pgen.go            | 353 ++++++++++++++--
+ src/cmd/compile/internal/gc/sizeof_test.go     |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  28 +-
+ src/cmd/compile/internal/gc/syntax.go          |   2 +
+ src/cmd/compile/internal/ssa/cache.go          |  22 +
+ src/cmd/compile/internal/ssa/debug.go          | 559 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   1 +
+ src/cmd/compile/internal/ssa/html.go           |  13 +
+ src/cmd/compile/internal/ssa/location.go       |   6 +
+ src/cmd/compile/internal/ssa/opGen.go          |   6 +
+ src/cmd/compile/internal/ssa/regalloc.go       |  94 ++++-
+ src/cmd/compile/internal/ssa/value.go          |  15 +-
+ src/cmd/internal/dwarf/dwarf.go                | 130 ++++--
+ src/cmd/internal/obj/link.go                   |  53 +--
+ src/cmd/internal/obj/objfile.go                |  17 +-
+ src/cmd/internal/obj/plist.go                  |  18 +-
+ src/cmd/internal/obj/x86/a.out.go              | 117 ++++++
+ src/cmd/internal/obj/x86/obj6.go               |  39 +-
+ src/cmd/internal/objabi/symkind.go             |   1 +
+ src/cmd/internal/objabi/symkind_string.go      |   4 +-
+ src/cmd/link/internal/ld/data.go               |   2 +
+ src/cmd/link/internal/ld/dwarf.go              |  31 ++
+ src/cmd/link/internal/ld/elf.go                |   7 +-
+ src/cmd/link/internal/ld/symkind.go            |   2 +
+ src/cmd/link/internal/ld/symkind_string.go     |   4 +-
+ 27 files changed, 1391 insertions(+), 158 deletions(-)

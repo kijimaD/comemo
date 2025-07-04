@@ -1,17 +1,27 @@
-commit 9bbe89957620ab72c03a7613ffdbd10a97b54bd6
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Tue Jun 2 13:13:54 2020 -0700
+commit 9a5468edff1b0f8e3b6be02ed59b238679cf5c2f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 18 10:57:15 2019 -0500
 
-    cmd/go: add -Wl,-wrap,symbol to linker flag whitelist
+    [dev.link] cmd/link: fix some bugs in loader
     
-    This is needed for cgo support for libpsx.
+    This patch fixes a couple of bugs introduced in CL 210778 and CL 207606:
     
-    Fixes: #39361
-    Change-Id: I500f5614ea4b82b085322af1f1ffeb1f55270a05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236139
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    - apply the same version selection scheme in loader.CreateExtSym that
+      we're currently using for loader.Create (since the two functions
+      will be used in the same way by the host object loader)
+    
+    - add code to the loader's NewLoader function to create initial map
+      values for some of the map-based symbol attributes (somewhere along
+      the line the code to do this seems to have gotten lost, so this
+      patch adds it back).
+    
+    - fix a coding error in growAttrBitmaps (wrong bitmap passed to
+      append when extending attrOnList)
+    
+    Change-Id: Ie0c8c6876428bb21d788c19a7a2db945ac649fac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212097
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/work/security.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/loader/loader.go | 40 ++++++++++++++++++++++------------
+ 1 file changed, 26 insertions(+), 14 deletions(-)

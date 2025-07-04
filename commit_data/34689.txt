@@ -1,14 +1,22 @@
-commit 5526ef1c51eaebe0f9d0ca0ae883f8389ccccaeb
-Author: Daniel Nephin <dnephin@gmail.com>
-Date:   Sat Mar 24 17:33:16 2018 +0000
+commit 65a864a628cb9ab767fb973d82ed979d6046f4f2
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Tue Nov 7 05:33:35 2017 +0000
 
-    cmd/test2json: document missing "skip" action
+    encoding/xml: add Marshal doc about name conflicts
     
-    Change-Id: I906e61170279f0647598e2fd4fa931aac1b69288
-    GitHub-Last-Rev: f6df43e8e10e3b032a67490611c0ba5ad8e948df
-    GitHub-Pull-Request: golang/go#24517
-    Reviewed-on: https://go-review.googlesource.com/102396
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The docs for xml.Marshal state that the XML elements name is derived
+    from one of five locations in a specific order of precedence, but does
+    not mention that if the field is a struct type and has its name defined
+    in a tag and in the types XMLName field that an error will occur. This
+    is documented in the structFieldInfo function but not in the function
+    documentation, and the existing docs in Marshal are misleading without
+    this behavior being discussed.
+    
+    Fixes #18564
+    
+    Change-Id: I29042f124a534bd1bc993f1baeddaa0af2e72fed
+    Reviewed-on: https://go-review.googlesource.com/76321
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/test2json/main.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/encoding/xml/marshal.go | 3 +++
+ 1 file changed, 3 insertions(+)

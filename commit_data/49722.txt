@@ -1,30 +1,31 @@
-commit 44ff9bff0cd02642c37cce0223d25dc57230c8d2
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 20 17:44:45 2022 -0400
+commit 64bdad2011c7450d5f7dd90f992acb057a25a5c2
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Sep 8 09:58:45 2021 -0400
 
-    runtime: clean up panic and deadlock lock ranks
+    all: update vendored golang.org/x/tools
     
-    I'm not entirely sure why these locks are currently ranked "deadlock <
-    panic" since we drop panic before acquiring deadlock, and we actually
-    want deadlock to be below panic because panic is implicitly below
-    everything else and we want deadlock to be, too. My best guess is that
-    we had this edge because we intentionally acquire deadlock twice to
-    deadlock, and that causes the lock rank checking to panic on the
-    second acquire.
+    Now that issue #48124 is resolved, ran the
+    following commands inside the cmd module:
     
-    Fix this in a more sensible way by capturing that deadlock can be
-    acquired in a self-cycle and flipping the rank to "panic < deadlock"
-    to express that deadlock needs to be under all other locks, just like
-    panic.
+            go get -d golang.org/x/tools@36045662144327e4475f9d356f49ab32ce730049  # main branch
+            go mod tidy
+            go mod vendor
     
-    For #53789.
+    For #36905.
+    Updates #48124.
     
-    Change-Id: I8809e5d102ce473bd3ace0ba07bf2200ef60263f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418719
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I9dc736c2c5256f7d9e80fd9c52c6725ecf0b8001
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348409
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/runtime/lockrank.go   | 8 ++++----
- src/runtime/mklockrank.go | 8 ++++++--
- 2 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../x/tools/go/analysis/passes/printf/printf.go    |  7 ++---
+ .../passes/testinggoroutine/testinggoroutine.go    | 30 ++++++++++++++++++--
+ .../x/tools/internal/typeparams/typeparams.go      | 33 +++++++++++++++++-----
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 60 insertions(+), 18 deletions(-)

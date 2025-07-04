@@ -1,14 +1,12 @@
-commit 2cc58e93d6f663af52bcdd4974d319ebe843f764
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 7 15:50:26 2012 -0500
+commit 32ffc62348632898fa420aaea4f8b2f406979e7a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Feb 7 17:50:04 2012 +1100
 
-    test: disable bug408
+    flag: describe valid input for Duration flags.
     
-    Fixes #2902.
-    
-    TBR=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5641047
+    https://golang.org/cl/5639046
 
- test/fixedbugs/bug408.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/flag/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

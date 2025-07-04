@@ -1,17 +1,24 @@
-commit 6e668267ac89a07fdf9aa9ca0d19a4a9f3077c4b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 27 17:16:26 2020 -0400
+commit d8ce7ae49108dda3b223694df7ebe8f56a1c3032
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Mar 18 19:57:43 2022 -0400
 
-    net/http: remove another arbitrary timeout in TestTLSHandshakeTimeout
+    build: force GOWORK=off in make.{bash,bat,rc}
     
-    Updates #37327
+    While building Go from source, workspace mode should be disabled,
+    even if the external environment tries to configure it otherwise.
     
-    Change-Id: I87774be71ed54e9c45a27062122e6177888e890a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226137
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #51558.
+    
+    Change-Id: Icd7577860271f59a8f94406214b111280e4b65b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393879
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/http/serve_test.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ src/make.bash | 1 +
+ src/make.bat  | 1 +
+ src/make.rc   | 1 +
+ 3 files changed, 3 insertions(+)

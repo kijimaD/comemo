@@ -1,17 +1,25 @@
-commit 72c1180852d5b059cd1e51d1db1956ea208b7f2f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 30 23:08:44 2016 -0700
+commit 4cef0e980a5d4fca2b7d26ec26eb1de954cecc21
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 4 15:02:09 2015 -0700
 
-    net: don't do DNS for onion and local addresses
+    cmd/compile: don't generate algs for [0]T and [1]T
     
-    Fixes #13705
+    All [0]T values are equal.
+    [1]T values are equal iff their sole components are.
     
-    Change-Id: I86c60c78ce0394f830f904c9cba83ebbf3efc046
-    Reviewed-on: https://go-review.googlesource.com/21328
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This types show up most frequently as a by-product of variadic
+    function calls, such as fmt.Printf("abc") or fmt.Printf("%v", x).
+    
+    Cuts 12k off cmd/go and 22k off golang.org/x/tools/cmd/godoc, approx 0.1% each.
+    
+    For #6853 and #9930
+    
+    Change-Id: Ic9b7aeb8cc945804246340f6f5e67bbf6008773e
+    Reviewed-on: https://go-review.googlesource.com/19766
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsclient_unix.go      | 17 ++++++++++++++
- src/net/dnsclient_unix_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/cmd/compile/internal/gc/subr.go |  9 +++++++++
+ src/cmd/compile/internal/gc/walk.go | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+)

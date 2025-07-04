@@ -1,17 +1,15 @@
-commit 3c8d6af8e02bbf230c2bef9f181d8ea393068299
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 16 11:08:41 2016 -0400
+commit ed8116989d84ba50f16cf7a88b5c0a44aa650087
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Mar 5 11:14:51 2016 +1100
 
-    cmd/link: use -znocopyreloc when dynamic linking
+    compress/flate: remove unused woffset field.
     
-    On ARM, use the gold linker to avoid copy relocations.
-    https://sourceware.org/bugzilla/show_bug.cgi?id=19962
-    
-    Change-Id: Icf82a38d39495d4518812713b957a03a6652c728
-    Reviewed-on: https://go-review.googlesource.com/22141
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Id0a12c76b0a6925f2926d38a1931157f9ef5f650
+    Reviewed-on: https://go-review.googlesource.com/20280
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/compress/flate/inflate.go | 2 --
+ 1 file changed, 2 deletions(-)

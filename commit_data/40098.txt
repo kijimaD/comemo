@@ -1,22 +1,20 @@
-commit a1b0af9904e3cc1cd169da7f0e5ad81420cd728e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 1 12:52:16 2019 -0400
+commit ff3ae455d9f0965fcd0857c855b3ac4ea866920e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 16 17:30:35 2019 -0700
 
-    internal/goversion: update to 1.14
+    test: add regress test cases for self-assignment
     
-    In #33848, we propose to use 'go 1.14' in the go.mod file to enable
-    new default behavior. That means that 'go mod init' needs to start
-    generating that directive by default, which requires the presence of
-    the updated version tag in the build environment.
+    Cherry pointed out this case in review for CL 136496. That CL was
+    slightly too aggressive, and I likely would have made the same mistake
+    if I tried it myself.
     
-    Updates #33848
+    Updates #27772.
     
-    Change-Id: I9f3b8845fdfd843fd76de32f4b55d8f765d691de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198318
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1fafabb9f8d9aba0494aa71333a4e17cf1bac5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172421
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/build/doc.go                 | 1 +
- src/internal/goversion/goversion.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ test/escape_selfassign.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

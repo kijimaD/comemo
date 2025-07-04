@@ -1,15 +1,19 @@
-commit a5f8e8f99cbac0cfecd3baa869d111bacfbaeac4
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Wed Jul 9 06:56:49 2014 -0400
+commit 9c3141145a4bb241bef6d3aec5d332451d6d63c7
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:34:06 2014 +0200
 
-    androidtest.bash, misc/android: build scripts for android
+    syscall: use the nsec system call instead of /dev/bintime on Plan 9
     
-    LGTM=minux
-    R=minux
-    CC=golang-codereviews
-    https://golang.org/cl/107640044
+    Also remove arch-specific Go files in the Plan 9 syscall package
+    
+    LGTM=0intro
+    R=0intro, dave
+    CC=ality, golang-codereviews, jas, mischief, rsc
+    https://golang.org/cl/112720043
 
- misc/android/README             | 11 +++++
- misc/android/go_android_exec.go | 96 +++++++++++++++++++++++++++++++++++++++++
- src/androidtest.bash            | 54 +++++++++++++++++++++++
- 3 files changed, 161 insertions(+)
+ src/pkg/syscall/syscall_plan9.go       | 29 +++++-------
+ src/pkg/syscall/syscall_plan9_386.go   | 32 -------------
+ src/pkg/syscall/syscall_plan9_amd64.go | 14 ------
+ src/pkg/syscall/zsysnum_plan9_386.go   | 82 +++++++++++++++++----------------
+ src/pkg/syscall/zsysnum_plan9_amd64.go | 83 +++++++++++++++++-----------------
+ 5 files changed, 96 insertions(+), 144 deletions(-)

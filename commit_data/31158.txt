@@ -1,44 +1,60 @@
-commit da67c23fbbd72f2dca280582fc2125e1cb35d830
+commit 57546d67ec8bf66f62bdac58542533c18fe42402
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 05:53:06 2017 -0700
+Date:   Fri Jan 27 12:01:05 2017 -0800
 
-    cmd/compile: add flag to disable DWARF generation
+    cmd/compile: add reusable []Location to ssa.Config
     
-    DWARF generation has non-trivial cost,
-    and in some cases is not necessary.
-    Provide an option to opt out.
+    name       old time/op      new time/op      delta
+    Template        218ms ± 3%       214ms ± 3%  -1.70%  (p=0.000 n=30+30)
+    Unicode         100ms ± 3%       100ms ± 4%    ~     (p=0.614 n=29+30)
+    GoTypes         657ms ± 1%       660ms ± 3%  +0.46%  (p=0.046 n=29+30)
+    Compiler        2.80s ± 2%       2.80s ± 1%    ~     (p=0.451 n=28+29)
+    Flate           131ms ± 2%       132ms ± 4%    ~     (p=1.000 n=29+29)
+    GoParser        159ms ± 3%       160ms ± 5%    ~     (p=0.341 n=28+30)
+    Reflect         406ms ± 3%       408ms ± 4%    ~     (p=0.511 n=28+30)
+    Tar             118ms ± 4%       118ms ± 4%    ~     (p=0.827 n=29+30)
+    XML             222ms ± 6%       222ms ± 3%    ~     (p=0.532 n=30+30)
     
-    Alloc impact of disabling DWARF generation:
+    name       old user-ns/op   new user-ns/op   delta
+    Template   274user-ms ± 3%  272user-ms ± 3%  -0.87%  (p=0.015 n=29+30)
+    Unicode    140user-ms ± 4%  140user-ms ± 3%    ~     (p=0.735 n=29+30)
+    GoTypes    890user-ms ± 1%  897user-ms ± 2%  +0.88%  (p=0.002 n=29+30)
+    Compiler   3.88user-s ± 2%  3.89user-s ± 1%    ~     (p=0.132 n=30+29)
+    Flate      168user-ms ± 2%  157user-ms ± 4%  -6.21%  (p=0.000 n=25+28)
+    GoParser   211user-ms ± 2%  213user-ms ± 5%    ~     (p=0.086 n=28+30)
+    Reflect    539user-ms ± 2%  541user-ms ± 3%    ~     (p=0.267 n=27+29)
+    Tar        156user-ms ± 7%  155user-ms ± 5%    ~     (p=0.708 n=30+30)
+    XML        291user-ms ± 5%  294user-ms ± 3%  +0.83%  (p=0.029 n=29+30)
     
-    name       old alloc/op      new alloc/op      delta
-    Template        38.7MB ± 0%       37.6MB ± 0%  -2.77%  (p=0.016 n=5+4)
-    Unicode         29.8MB ± 0%       29.8MB ± 0%  -0.16%  (p=0.032 n=5+5)
-    GoTypes          113MB ± 0%        110MB ± 0%  -2.38%  (p=0.008 n=5+5)
-    Compiler         463MB ± 0%        457MB ± 0%  -1.34%  (p=0.008 n=5+5)
-    SSA             1.25GB ± 0%       1.23GB ± 0%  -1.64%  (p=0.008 n=5+5)
-    Flate           25.3MB ± 0%       25.0MB ± 0%  -1.05%  (p=0.008 n=5+5)
-    GoParser        31.7MB ± 0%       30.9MB ± 0%  -2.74%  (p=0.008 n=5+5)
-    Reflect         78.2MB ± 0%       76.7MB ± 0%  -1.90%  (p=0.008 n=5+5)
-    Tar             26.5MB ± 0%       26.0MB ± 0%  -2.04%  (p=0.008 n=5+5)
-    XML             42.4MB ± 0%       41.1MB ± 0%  -2.86%  (p=0.008 n=5+5)
+    name       old alloc/op     new alloc/op     delta
+    Template       40.7MB ± 0%      39.4MB ± 0%  -3.26%  (p=0.000 n=29+26)
+    Unicode        30.8MB ± 0%      30.7MB ± 0%  -0.40%  (p=0.000 n=28+30)
+    GoTypes         123MB ± 0%       119MB ± 0%  -3.47%  (p=0.000 n=30+29)
+    Compiler        472MB ± 0%       455MB ± 0%  -3.60%  (p=0.000 n=30+30)
+    Flate          26.5MB ± 0%      25.6MB ± 0%  -3.21%  (p=0.000 n=28+30)
+    GoParser       32.3MB ± 0%      31.4MB ± 0%  -2.98%  (p=0.000 n=29+30)
+    Reflect        84.4MB ± 0%      82.1MB ± 0%  -2.83%  (p=0.000 n=30+30)
+    Tar            27.3MB ± 0%      26.5MB ± 0%  -2.70%  (p=0.000 n=29+29)
+    XML            44.6MB ± 0%      43.1MB ± 0%  -3.49%  (p=0.000 n=30+30)
     
-    name       old allocs/op     new allocs/op     delta
-    Template          377k ± 0%         360k ± 1%  -4.46%  (p=0.008 n=5+5)
-    Unicode           321k ± 0%         320k ± 0%    ~     (p=0.151 n=5+5)
-    GoTypes          1.14M ± 0%        1.10M ± 0%  -4.13%  (p=0.008 n=5+5)
-    Compiler         4.26M ± 0%        4.13M ± 0%  -3.14%  (p=0.008 n=5+5)
-    SSA              9.70M ± 0%        9.33M ± 0%  -3.89%  (p=0.008 n=5+5)
-    Flate             233k ± 0%         228k ± 0%  -2.40%  (p=0.008 n=5+5)
-    GoParser          316k ± 0%         302k ± 0%  -4.48%  (p=0.008 n=5+5)
-    Reflect           980k ± 0%         945k ± 0%  -3.62%  (p=0.008 n=5+5)
-    Tar               249k ± 0%         241k ± 0%  -3.19%  (p=0.008 n=5+5)
-    XML               391k ± 0%         376k ± 0%  -3.95%  (p=0.008 n=5+5)
+    name       old allocs/op    new allocs/op    delta
+    Template         401k ± 1%        399k ± 0%  -0.35%  (p=0.000 n=30+28)
+    Unicode          331k ± 0%        331k ± 1%    ~     (p=0.907 n=28+30)
+    GoTypes         1.24M ± 0%       1.23M ± 0%  -0.43%  (p=0.000 n=30+30)
+    Compiler        4.26M ± 0%       4.25M ± 0%  -0.34%  (p=0.000 n=29+30)
+    Flate            252k ± 1%        251k ± 1%  -0.41%  (p=0.000 n=30+30)
+    GoParser         325k ± 1%        324k ± 1%  -0.31%  (p=0.000 n=27+30)
+    Reflect         1.06M ± 0%       1.05M ± 0%  -0.69%  (p=0.000 n=30+30)
+    Tar              266k ± 1%        265k ± 1%  -0.51%  (p=0.000 n=29+30)
+    XML              416k ± 1%        415k ± 1%  -0.36%  (p=0.002 n=30+30)
     
-    Change-Id: I97dbfb6b40195d1e0b91be097a4bf0e7f65b26af
-    Reviewed-on: https://go-review.googlesource.com/40857
+    Change-Id: I8f784001324df83b2764c44f0e83a540e5beab34
+    Reviewed-on: https://go-review.googlesource.com/36212
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go   | 2 ++
- src/cmd/compile/internal/gc/main.go | 5 ++++-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/config.go   |  1 +
+ src/cmd/compile/internal/ssa/func.go     | 10 ++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go |  1 +
+ 3 files changed, 12 insertions(+)

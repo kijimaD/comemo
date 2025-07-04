@@ -1,26 +1,25 @@
-commit cc558fedfbe71222c85ba0ed24dcf873f934bbdb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 22 12:56:01 2018 -0700
+commit 7d50abf0394dbcd2d86ac9c1c5c527ef5117e351
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 22 17:36:12 2018 +0000
 
-    cmd/go: update private copy of goosList
+    cmd/dist: skip non-std tests on js/wasm
     
-    This copies the change to goosList in CL 138115 to the private copy in
-    cmd/go.
+    After the std tests, most of the rest of the tests aren't applicable
+    to js/wasm. (anything with -cpu=>1, cgo, etc)
     
-    The change introducing the private copy was apparently not made with
-    Gerrit, but can be seen at
-    https://github.com/golang/vgo/commit/08359e782fb601567c57f56beb540841c2416d92.
-    That change says "This is adapted from code in go/build and the rest
-    of cmd/go. At some point, we should deduplicate them."
+    Skip them all for now. We can incrementally re-enable them over time
+    as the js/wasm port is fleshed out. But let's get the builder column
+    black again so we can enable trybots and keep it black.
     
-    Doing another copy for now, rather than something more complex
-    involving cmd/dist, pending that deduplication.
+    Updates #26014
+    Updates #26015
+    Updates #18892
     
-    Change-Id: I9b6e1f63a3a68c002b60a9a97aa367c5cc7801c9
-    Reviewed-on: https://go-review.googlesource.com/c/143759
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8992ed3888f598fa42273ce8646a32d62ce45b1d
+    Reviewed-on: https://go-review.googlesource.com/120575
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/imports/build.go | 2 +-
+ src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

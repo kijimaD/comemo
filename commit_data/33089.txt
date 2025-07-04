@@ -1,17 +1,18 @@
-commit 53bbddd52724e439c751f445675f3eff5068d523
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 12 11:45:35 2017 -0700
+commit 39ed6b14b4212008e32bb53e87fd46d4faa13ce2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 6 20:02:26 2017 +0000
 
-    cmd/compile: intrinsify runtime/internal/sys.Ctz{32,64} on ppc64
+    cmd/doc: print Go syntax when printing struct.field docs
     
-    These functions are identical to math/bits.TrailingZeros{32,64}, which
-    are already intrinsified on ppc64.
+    Fixes #20928
     
-    Change-Id: If7ee57e7afe53154874f4b66bacdb6237806128a
-    Reviewed-on: https://go-review.googlesource.com/70350
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7f7aafb8ff4b5deb50c286a9ae81c34ee85e56a9
+    Reviewed-on: https://go-review.googlesource.com/47730
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/doc/doc_test.go     | 14 ++++++++++++--
+ src/cmd/doc/pkg.go          | 36 +++++++++++++++++++++---------------
+ src/cmd/doc/testdata/pkg.go |  4 ++++
+ 3 files changed, 37 insertions(+), 17 deletions(-)

@@ -1,17 +1,18 @@
-commit 1d81251599fd1b8f9da888e10c1054c96d1e1fb1
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 10 14:41:44 2017 -0700
+commit 30ddffadd5475e76aeaccdf1e243658c20350422
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 06:06:51 2017 -0700
 
-    archive/tar: simplify toASCII and parseString
+    cmd/internal/obj: remove Link.Debugdivmod
     
-    Use a simple []byte instead of bytes.Buffer to create a string.
-    Use bytes.IndexByte instead of our own for loop.
+    It is only used once and never written to.
+    Switch to a local constant instead.
     
-    Change-Id: Ic4a1161d79017fd3af086a05c53d5f20a5f09326
-    Reviewed-on: https://go-review.googlesource.com/54752
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Icdd84e47b81f0de44ad9ed56ab5f4f91df22e6b6
+    Reviewed-on: https://go-review.googlesource.com/40405
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/archive/tar/strconv.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go | 3 ++-
+ src/cmd/internal/obj/link.go     | 1 -
+ 2 files changed, 2 insertions(+), 2 deletions(-)

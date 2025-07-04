@@ -1,0 +1,25 @@
+commit b3040679ad0eccaaadb825ed8c0704086ecc23eb
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sat Jul 6 04:48:04 2024 +0200
+
+    math: remove riscv64 assembly implementations of rounding
+    
+    Fixes #68322
+    
+    This reverts commit ad377e906a8ee6f27545d83de280206dacec1e58.
+    
+    Change-Id: Ifa4811e2c679d789cc830dbff5e50301410e24d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596516
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/math/floor_asm.go        |  2 +-
+ src/math/floor_noasm.go      |  2 +-
+ src/math/floor_riscv64.s     | 41 -----------------------------------------
+ test/fixedbugs/issue68322.go | 17 +++++++++++++++++
+ 4 files changed, 19 insertions(+), 43 deletions(-)

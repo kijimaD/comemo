@@ -1,16 +1,19 @@
-commit 13e06d89c3ccba9fd4f0456d68407ff941409b57
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Sep 4 14:09:56 2015 +1000
+commit e7a10a9614a33091d0fa60a570cfb79e7573246b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 10 16:11:06 2015 -0600
 
-    internal/syscall/windows/registry: do not panic when data is large
+    go/types: fix internal inInteger operand predicate
     
-    Allow registry blobs to be as large as 500MB
+    When testing if a value is an integer, if the value is a constant,
+    don't ignore the type if it has one.
     
-    Update #12493
+    Fixes #11594.
     
-    Change-Id: I1d0e5c10772d25f8e7e17fed6e2e7dd12ca4e7cf
-    Reviewed-on: https://go-review.googlesource.com/14287
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2ff387e4f9e8ab7cae35c4838350e0a1fce2e625
+    Reviewed-on: https://go-review.googlesource.com/12045
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/internal/syscall/windows/registry/value.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/go/types/operand.go          | 5 +++--
+ src/go/types/testdata/decls0.src | 1 +
+ src/go/types/testdata/shifts.src | 8 ++++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

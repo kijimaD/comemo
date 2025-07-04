@@ -1,35 +1,18 @@
-commit c41bf9ee81e26d0fc0aca858a3d96d96be29ccba
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Mar 9 16:13:23 2021 -0500
+commit f71444955a4c0962abb334a8f39438466c57a4db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 14 14:39:19 2020 -0700
 
-    runtime: check partial lock ranking order
+    test: add test case that caused gccgo undefined symbol reference
     
-    To ease readability we typically keep the partial order lists sorted by
-    rank. This isn't required for correctness, it just makes it (slightly)
-    easier to read the lists.
+    For #40252
     
-    Currently we must notice out-of-order entries during code review, which
-    is an error-prone process.
-    
-    Add a test to enforce ordering, and fix the errors that have crept in.
-    Most of the existing errors were misordered lockRankHchan or
-    lockRankPollDesc.
-    
-    While we're here, I've moved the correctness check that the partial
-    ordering satisfies the total ordering from init to a test case. This
-    will allow us to catch these errors without even running
-    staticlockranking.
-    
-    Change-Id: I9c11abe49ea26c556439822bb6a3183129600c3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300171
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Ie23d2789ca9b4b9081adb39ab64c80c412ad58ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_test.go   |  8 ++++++++
- src/runtime/lockrank.go      | 22 +++++++++++-----------
- src/runtime/lockrank_on.go   | 13 -------------
- src/runtime/lockrank_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 60 insertions(+), 24 deletions(-)
+ test/fixedbugs/issue40252.dir/a.go    | 14 ++++++++++++++
+ test/fixedbugs/issue40252.dir/main.go | 16 ++++++++++++++++
+ test/fixedbugs/issue40252.go          |  8 ++++++++
+ 3 files changed, 38 insertions(+)

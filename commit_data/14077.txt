@@ -1,21 +1,17 @@
-commit 7f710c2de99b747fe98111c1aa143365c615e4ba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 7 17:59:33 2012 -0700
+commit 9e811683f1e4138820f0caaec20041c57c302f73
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 7 17:56:10 2012 -0700
 
-    exp/locale/collate: use gofmt -w -s (rather than just gofmt -w)
+    gophertool: make work with latest Chrome extension security restrictions
     
-    Also: apply gofmt -w -s to existing tables.
+    No JavaScript in HTML anymore.
     
-    R=mpvl, minux.ma, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6611051
+    https://golang.org/cl/6619066
 
- src/pkg/exp/locale/collate/Makefile               |   2 +-
- src/pkg/exp/locale/collate/build/builder_test.go  |  14 +-
- src/pkg/exp/locale/collate/build/contract_test.go |   4 +-
- src/pkg/exp/locale/collate/build/order.go         |   2 +-
- src/pkg/exp/locale/collate/maketables.go          |   2 +-
- src/pkg/exp/locale/collate/tables.go              | 154 ++++-----
- src/pkg/exp/locale/collate/tools/colcmp/Makefile  |   2 +-
- src/pkg/exp/locale/collate/tools/colcmp/chars.go  | 396 +++++++++++-----------
- 8 files changed, 288 insertions(+), 288 deletions(-)
+ misc/chrome/gophertool/background.html | 14 +----------
+ misc/chrome/gophertool/background.js   |  9 +++++++
+ misc/chrome/gophertool/popup.html      | 43 ++++------------------------------
+ misc/chrome/gophertool/popup.js        | 38 ++++++++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+), 52 deletions(-)

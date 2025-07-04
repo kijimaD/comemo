@@ -1,20 +1,19 @@
-commit f909f813a0c12fde089a6c5e18fdcb9e71759cf7
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Dec 10 14:03:20 2021 -0500
+commit 6382ec1aba1b1c7380cb525217c1bd645c4fd41b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Apr 8 11:42:53 2021 +0800
 
-    testing: update docs for fuzzcachedir
+    internal/poll: fix the intermittent build failures with pipe pool
     
-    Although most of the code seems to be already implemented
-    to support this for general use, it didn't make it in for
-    Go 1.18, so for now we should at least document that it's
-    only for use by the go command.
+    Correlative CL 308089
     
-    Change-Id: Id559e72d590aedeaaa50bcf880bca1a385d858dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370954
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #45059
+    
+    Change-Id: I1ff9fbf64e6620d651f287ba2a28d40f964d78a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308329
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/testing/fuzz.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/internal/poll/splice_linux_test.go | 38 +++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 14 deletions(-)

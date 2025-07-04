@@ -1,22 +1,21 @@
-commit 400d02123303115cc46a2ccc949bdcc2bfcc30e4
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sat Jun 1 00:36:02 2019 +0700
+commit f6695a15e15713cdac16978837d8b01ef4999279
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 20:06:37 2019 -0400
 
-    cmd/compile: fix wrong field type in scasetype
+    crypto/x509: move debug prints to standard error
     
-    The only place set releasetime to negative is in runtime.selectgo
-    (when blockprofilerate greater than zero), so we are safe in compiler
-    code.
+    Standard output is reserved for actual program output.
+    Debug print should be limited in general (here they are
+    enabled by an environment variable) and always go to
+    standard error.
     
-    But scasetype must keep in sync with runtime/select.go scase struct, so
-    releasetime must be int64.
+    Came across by accident.
     
-    Change-Id: I39ea944f5f2872452d3ffd57f7604d51e0d2590a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179799
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I1490be71473520f049719572b3acaa0ea9f9e5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167502
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/gc/select.go | 2 +-
- src/runtime/select.go                 | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/root_darwin.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

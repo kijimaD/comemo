@@ -1,20 +1,17 @@
-commit 935faf3be200d6f469cccdbec27cee3741a97350
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Nov 11 10:21:49 2015 +0900
+commit 8c2c35debebaaa86aab1f180940f0a77db0b6f30
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Sep 4 10:05:31 2015 -0700
 
-    path/filepath: in Rel use case-insensitive comparison on Windows
+    net/http/httptest: ResponseRecorder.WriteString
     
-    Fixes #10802
+    Fixes #11000
     
-    Compare Volume name and each path elements using strings.EqualFold.
-    
-    Change-Id: Ibdefdb801d0326e53755bc9cc8c10eed998094e5
-    Reviewed-on: https://go-review.googlesource.com/16795
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic137e8a6c5c6b5b7eee213aca9acf78368e1d686
+    Reviewed-on: https://go-review.googlesource.com/14296
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/path.go         | 4 ++--
- src/path/filepath/path_plan9.go   | 4 ++++
- src/path/filepath/path_test.go    | 1 +
- src/path/filepath/path_unix.go    | 4 ++++
- src/path/filepath/path_windows.go | 4 ++++
- 5 files changed, 15 insertions(+), 2 deletions(-)
+ src/net/http/httptest/recorder.go      | 11 +++++++++++
+ src/net/http/httptest/recorder_test.go |  8 ++++++++
+ 2 files changed, 19 insertions(+)

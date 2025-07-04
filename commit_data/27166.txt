@@ -1,25 +1,38 @@
-commit 239fb76ea01b88a2b3dff8b4da357e605435b980
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Apr 25 23:31:36 2016 -0400
+commit 0d2e92c2cadc143f17a375ba2172862d18cdc1ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 13 23:02:38 2016 -0700
 
-    crypto/md5: add s390x assembly implementation
+    cmd/compile: add Fields field to Type
     
-    Adapted from md5block_amd64.s.
+    Switch TSTRUCT and TINTER to use Fields instead of Type, which wrings
+    out the remaining few direct uses of the latter.
     
-    name                 old speed      new speed      delta
-    Hash8Bytes           14.0MB/s ± 1%  39.9MB/s ± 0%  +185.52%   (p=0.000 n=9+10)
-    Hash1K                176MB/s ± 1%   661MB/s ± 1%  +274.44%  (p=0.000 n=10+10)
-    Hash8K                196MB/s ± 0%   742MB/s ± 1%  +278.35%   (p=0.000 n=10+9)
-    Hash8BytesUnaligned  14.2MB/s ± 2%  39.8MB/s ± 0%  +180.06%  (p=0.000 n=10+10)
-    Hash1KUnaligned       177MB/s ± 1%   651MB/s ± 0%  +267.38%  (p=0.000 n=10+10)
-    Hash8KUnaligned       197MB/s ± 1%   731MB/s ± 1%  +271.73%  (p=0.000 n=10+10)
+    Preparation for converting fields to use a separate "Field" type.
     
-    Change-Id: I45ece98ee10f30fcd192b9c3d743ba61c248f36a
-    Reviewed-on: https://go-review.googlesource.com/22505
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Passes toolstash/buildall.
+    
+    Change-Id: I5a2ea7e159d0dde1be2c9afafc10a8f739d95743
+    Reviewed-on: https://go-review.googlesource.com/20675
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/md5/md5block_decl.go    |   2 +-
- src/crypto/md5/md5block_generic.go |   2 +-
- src/crypto/md5/md5block_s390x.s    | 175 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 177 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/gsubr.go    |  2 +-
+ src/cmd/compile/internal/gc/bexport.go     |  2 +-
+ src/cmd/compile/internal/gc/cgen.go        |  2 +-
+ src/cmd/compile/internal/gc/dcl.go         |  2 +-
+ src/cmd/compile/internal/gc/esc.go         |  4 ++--
+ src/cmd/compile/internal/gc/export.go      | 35 +++++++++++++++++++++++-------
+ src/cmd/compile/internal/gc/fmt.go         |  6 ++---
+ src/cmd/compile/internal/gc/gsubr.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go         |  8 +++----
+ src/cmd/compile/internal/gc/order.go       |  4 ++--
+ src/cmd/compile/internal/gc/sinit.go       | 18 +++++++--------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        |  8 +------
+ src/cmd/compile/internal/gc/type.go        |  7 ++++--
+ src/cmd/compile/internal/gc/typecheck.go   | 31 ++++++++++----------------
+ src/cmd/compile/internal/gc/universe.go    | 23 +++++++++++++-------
+ src/cmd/compile/internal/gc/walk.go        | 14 ++----------
+ src/cmd/compile/internal/x86/gsubr.go      |  2 +-
+ 18 files changed, 89 insertions(+), 83 deletions(-)

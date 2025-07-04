@@ -1,17 +1,40 @@
-commit 6049b1741d47b94a9c80dab7fc165d1eea5429bd
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 25 12:57:33 2017 +0100
+commit 46a75870ad5b9b9711e69ffce3738a3ab2057789
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 13 12:46:17 2017 -0800
 
-    html/template: use bytes.ContainsAny
+    runtime: speed up fastrand() % n
     
-    It was added in Go 1.7. Also gofmt while at it.
+    This occurs a fair amount in the runtime for non-power-of-two n.
+    Use an alternative, faster formulation.
     
-    Change-Id: Idb65fb44e2f2a4365dceea3f833aeb51a8d12333
-    Reviewed-on: https://go-review.googlesource.com/41692
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name           old time/op  new time/op  delta
+    Fastrandn/2-8  4.45ns ± 2%  2.09ns ± 3%  -53.12%  (p=0.000 n=14+14)
+    Fastrandn/3-8  4.78ns ±11%  2.06ns ± 2%  -56.94%  (p=0.000 n=15+15)
+    Fastrandn/4-8  4.76ns ± 9%  1.99ns ± 3%  -58.28%  (p=0.000 n=15+13)
+    Fastrandn/5-8  4.96ns ±13%  2.03ns ± 6%  -59.14%  (p=0.000 n=15+15)
+    
+    name                    old time/op  new time/op  delta
+    SelectUncontended-8     33.7ns ± 2%  33.9ns ± 2%  +0.70%  (p=0.000 n=49+50)
+    SelectSyncContended-8   1.68µs ± 4%  1.65µs ± 4%  -1.54%  (p=0.000 n=50+45)
+    SelectAsyncContended-8   282ns ± 1%   277ns ± 1%  -1.50%  (p=0.000 n=48+43)
+    SelectNonblock-8        5.31ns ± 1%  5.32ns ± 1%    ~     (p=0.275 n=45+44)
+    SelectProdCons-8         585ns ± 3%   577ns ± 2%  -1.35%  (p=0.000 n=50+50)
+    GoroutineSelect-8       1.59ms ± 2%  1.59ms ± 1%    ~     (p=0.084 n=49+48)
+    
+    Updates #16213
+    
+    Change-Id: Ib555a4d7da2042a25c3976f76a436b536487d5b7
+    Reviewed-on: https://go-review.googlesource.com/36932
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/escape.go     | 8 ++++----
- src/html/template/transition.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/export_test.go |  3 ++-
+ src/runtime/mgc.go         |  2 +-
+ src/runtime/proc.go        |  2 +-
+ src/runtime/rand_test.go   | 13 +++++++++++++
+ src/runtime/select.go      |  2 +-
+ src/runtime/stubs.go       |  7 +++++++
+ src/runtime/symtab.go      |  2 +-
+ 7 files changed, 26 insertions(+), 5 deletions(-)

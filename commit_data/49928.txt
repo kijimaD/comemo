@@ -1,20 +1,49 @@
-commit 848febdcec2caacde4b66f2ff1260865c7233422
-Author: Dmitri Goutnik <dgoutnik@gmail.com>
-Date:   Tue Jun 21 08:20:52 2022 -0500
+commit 30faf968b1f348e944db3bde24c13462125007b1
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Jun 23 20:46:11 2021 -0700
 
-    runtime: add symbolic constants for freebsd/386 syscalls
+    os/user: implement go native GroupIds
     
-    Brings freebsd/386 on par with other OSes/archs.
+    Currently, GroupIds (a method that returns supplementary group IDs
+    for a user) is not implemented when cgo is not available, or osusergo
+    build tag is set, or the underlying OS lacks getgrouplist(3).
     
-    Updates #53479
+    This adds a native Go implementation of GroupIds (which parses
+    /etc/group) for such cases, together with some tests.
     
-    Change-Id: I16a7d051233e06e589b19919e68f07b6bf92f73c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413365
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    This implementation is used:
+     - when cgo is not available;
+     - when osusergo build tag is set;
+     - on AIX (which lacks getgrouplist(3));
+     - on Illumos (which only recently added getgrouplist(3)).
+    
+    This commit moves listgroups_unix.go to cgo_listgroups_unix.go, and adds
+    listgroups_unix.go which implements the feature.
+    
+    NOTE the +build equivalent of go:build expression in listgroups_unix.go
+    is not provided as it is going to be bulky. Go 1.17 already prefers
+    go:build over +build, and no longer fail if a file contains go:build
+    without +build, so the absence of +build is not a problem even with Go
+    1.17, and this code is targeted for Go 1.18.
+    
+    Updates #14709
+    Updates #30563
+    
+    Change-Id: Icc95cda97ee3bcb03ef028b16eab7d3faba9ffab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330753
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/sys_freebsd_386.s | 106 ++++++++++++++++++++++++++++--------------
- 1 file changed, 71 insertions(+), 35 deletions(-)
+ src/os/user/cgo_listgroups_unix.go  |  51 +++++++++++++++
+ src/os/user/listgroups_aix.go       |  20 ------
+ src/os/user/listgroups_illumos.go   |  24 -------
+ src/os/user/listgroups_stub.go      |  20 ++++++
+ src/os/user/listgroups_unix.go      | 124 +++++++++++++++++++++++++++---------
+ src/os/user/listgroups_unix_test.go | 107 +++++++++++++++++++++++++++++++
+ src/os/user/lookup_stubs.go         |  12 ----
+ src/os/user/lookup_unix.go          |  11 +---
+ src/os/user/lookup_unix_test.go     |  30 +--------
+ src/os/user/user.go                 |  10 +--
+ 10 files changed, 279 insertions(+), 130 deletions(-)

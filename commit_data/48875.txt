@@ -1,56 +1,25 @@
-commit 1e5987635cc8bf99e8a20d240da80bd6f0f793f7
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Apr 29 17:02:53 2021 +0800
+commit 1a445dab6676b2a5c0b15b313eabec5a79ea99a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 20:37:42 2021 -0700
 
-    cmd/compile: enable Asan check for global variables
+    [dev.typeparams] cmd/compile: remove CallExpr.PreserveClosure
     
-    With this patch, -asan option can detect the error memory
-    access to global variables.
+    This flag is only needed to prevent the directClosureCall optimization
+    in walkCall, when called for walkGoDefer. But walkGoDefer don't need
+    to call walkCall: at this point in the compile, the call expression
+    isn't a real call anymore.
     
-    So this patch makes a few changes:
+    Instead, we just need to walkExpr on the function expression.
     
-    1. Add the asanregisterglobals runtime support function,
-    which calls asan runtime function _asan_register_globals
-    to register global variables.
-    
-    2. Create a new initialization function for the package
-    being compiled. This function initializes an array of
-    instrumented global variables and pass it to function
-    runtime.asanregisterglobals. An instrumented global
-    variable has trailing redzone.
-    
-    3. Writes the new size of instrumented global variables
-    that have trailing redzones into object file.
-    
-    4. Notice that the current implementation is only compatible with
-    the ASan library from version v7 to v9. Therefore, using the
-    -asan option requires that the gcc version is not less than 7
-    and the clang version is less than 4, otherwise a segmentation
-    fault will occur. So this patch adds a check on whether the compiler
-    being used is a supported version in cmd/go.
-    
-    Change-Id: I664e74dcabf5dc7ed46802859174606454e8f1d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321715
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8a5176cfe1bff53700cbd21ed1b479ebd9a839ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330271
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/testsanitizers/asan_test.go               |   8 +
- misc/cgo/testsanitizers/cc_test.go                 |  16 ++
- src/cmd/compile/internal/base/base.go              |   1 +
- src/cmd/compile/internal/gc/obj.go                 |  17 +-
- src/cmd/compile/internal/noder/noder.go            |   2 +-
- src/cmd/compile/internal/noder/object.go           |   2 +-
- src/cmd/compile/internal/noder/reader.go           |   2 +-
- src/cmd/compile/internal/pkginit/init.go           |  53 +++++
- .../compile/internal/pkginit/initAsanGlobals.go    | 241 +++++++++++++++++++++
- src/cmd/go/alldocs.go                              |   2 +
- src/cmd/go/internal/work/build.go                  |   2 +
- src/cmd/go/internal/work/init.go                   |  57 +++++
- src/runtime/asan.go                                |   4 +
- src/runtime/asan/asan.go                           |  38 ++++
- src/runtime/asan0.go                               |   9 +-
- src/runtime/asan_amd64.s                           |   8 +
- src/runtime/asan_arm64.s                           |   8 +
- 17 files changed, 461 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ir/expr.go      | 13 ++++++-------
+ src/cmd/compile/internal/walk/closure.go |  8 --------
+ src/cmd/compile/internal/walk/order.go   |  6 +-----
+ src/cmd/compile/internal/walk/stmt.go    |  4 +++-
+ 4 files changed, 10 insertions(+), 21 deletions(-)

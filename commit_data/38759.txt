@@ -1,19 +1,22 @@
-commit 09b2b6e9dd2ce009c3aafdff02727f200c63c574
-Author: bronze1man <bronze1man@gmail.com>
-Date:   Mon Jan 14 15:41:02 2019 +0000
+commit 649b89377e91ad6dbe710784f9e662082d31a1ff
+Author: David Heuschmann <heuschmann.d@gmail.com>
+Date:   Tue Nov 20 12:30:14 2018 +0100
 
-    net/http: remove unnecessary string replace operation in Cookie.String
+    os: return an error from UserHomeDir to match UserCacheDir
     
-    Fixes #29135
+    UserHomeDir used to return an empty string if the corresponding
+    environment variable was not set. Changed it to return an error if the
+    variable is not set, to have the same signature and behaviour as UserCacheDir.
     
-    Change-Id: I4c10b0395047775e8488b8b0f00f74a7fa01b86c
-    GitHub-Last-Rev: 120977040506794f00c74383289f913b1e0edd4a
-    GitHub-Pull-Request: golang/go#29728
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #28562
+    
+    Change-Id: I42c497e8011ecfbbadebe7de1751575273be221c
+    Reviewed-on: https://go-review.googlesource.com/c/150418
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/cookie.go      |  2 +-
- src/net/http/cookie_test.go | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/crypto/x509/root_darwin.go |  6 +++---
+ src/os/file.go                 | 18 ++++++++++--------
+ src/os/os_test.go              |  9 ++++++---
+ 3 files changed, 19 insertions(+), 14 deletions(-)

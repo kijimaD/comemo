@@ -1,0 +1,15 @@
+commit b3312065ce68465639c796b36a3671ac031223fb
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Oct 3 10:00:20 2024 -0700
+
+    net/netip: clarify Addr.Is4In6 documentation
+    
+    For #65635
+    
+    Change-Id: I4e4b0309d9139f970d6fd6b41303dfd2e0ec6236
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/netip.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,20 +1,14 @@
-commit ed6c6c9c11496ed8e458f6e0731103126ce60223
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Dec 26 01:49:37 2017 +0000
+commit 0316d6618c7a986727c9e99fb7aab7c7a4e92d71
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 23 10:48:46 2017 -0700
 
-    math: optimize sinh and cosh
+    go/types: improved documentation for WriteExpr and ExprString
     
-    Improve performance by reducing unnecessary function calls
+    Fixes #22377.
     
-    Benchmarks:
-    
-    Tme    old time/op  new time/op  delta
-    Cosh-8   229ns ± 0%   138ns ± 0%  -39.74%  (p=0.008 n=5+5)
-    Sinh-8   231ns ± 0%   139ns ± 0%  -39.83%  (p=0.008 n=5+5)
-    
-    Change-Id: Icab5485849bbfaafca8429d06b67c558101f4f3c
-    Reviewed-on: https://go-review.googlesource.com/85477
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I0a0e1bde558df964f0961dc4cfc305e72d590e1a
+    Reviewed-on: https://go-review.googlesource.com/72690
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/sinh.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/go/types/exprstring.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

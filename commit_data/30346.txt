@@ -1,14 +1,16 @@
-commit 4208fcdcd40f0359e117d850dc180bda7fea3f92
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 20 22:57:45 2017 -0800
+commit d89ab1398eef9a3f08db2a49ff3cbe158001474d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 17:40:07 2016 +0000
 
-    runtime: use standard linux/mipsx clone variable names
+    net/http: make Transport reject URLs with bogus ports with non-digits
     
-    Change-Id: I62118e197190af1d11a89921d5769101ce6d2257
-    Reviewed-on: https://go-review.googlesource.com/37306
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #14353
+    
+    Change-Id: I9cb5a5192ecdae37c100969395ed6a1564b8d34e
+    Reviewed-on: https://go-review.googlesource.com/32482
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
 
- src/runtime/sys_linux_mipsx.s | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/transport.go      | 20 ++++++++++++++++++++
+ src/net/http/transport_test.go | 18 ++++++++++++++++++
+ 2 files changed, 38 insertions(+)

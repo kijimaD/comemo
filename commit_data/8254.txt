@@ -1,14 +1,21 @@
-commit 37b3494026882711eb2f8b817e1dbda612700fe6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 28 00:20:37 2011 -0400
+commit b6f0632e93d183bc39031c475eb79ef1986bd226
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Thu Apr 28 00:13:49 2011 -0400
 
-    runtime: fix typo in gc bug fix
+    gc: correctly handle fields of pointer type to recursive forward references
     
-    This time for sure.
+    Previously, whether declaring a type which copied the structure of a type it was referenced in via a pointer field would work depended on whether you declared it before or after the type it copied, e.g. type T2 T1; type T1 struct { F *T2 } would work, however type T1 struct { F *T2 }; type T2 T1 wouldn't.
     
-    R=golang-dev, dsymonds
+    Fixes #667.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4437078
+    https://golang.org/cl/4313064
 
- src/pkg/runtime/mgc0.c | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/gc/dcl.c         | 10 ++----
+ src/cmd/gc/go.h          |  3 ++
+ src/cmd/gc/lex.c         |  1 +
+ src/cmd/gc/typecheck.c   | 29 +++++++++++++++-
+ src/cmd/gc/walk.c        | 72 +++++++++++++++++++++++++++++++++-------
+ test/fixedbugs/bug336.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 181 insertions(+), 20 deletions(-)

@@ -1,14 +1,28 @@
-commit 3377b4673d6e0ca1a9bba1c7196d7e673ddb8108
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 2 21:41:41 2018 -0700
+commit 2598ed07584bb18a94455fb05df741054eae3a0f
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jul 14 17:18:45 2018 -0700
 
-    cmd/compile: encapsulate and document two types.Type internal fields
+    misc/cgo: fix test on iOS
     
-    Change-Id: I5f7d2155c2c3a47dabdf16fe46b122ede81de4fc
-    Reviewed-on: https://go-review.googlesource.com/c/147284
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The test in CL 123715 doesn't work on iOS, it needs to use a different
+    version scheme to determine whether SecKeyAlgorithm and friends exist.
+    Restrict the old version test to OSX only.
+    
+    The same problem occurs on iOS: the functions tested don't exist before
+    iOS 10.  But we don't have builders below iOS 10, so it isn't a big issue.
+    If we ever get older builders, or someone wants to run all.bash on an
+    old iOS, they'll need to figure out the right incantation.
+    
+    Update #24161
+    Update #26355
+    
+    Change-Id: Ia3ace86b00486dc172ed00c0c6d668a95565bff7
+    Reviewed-on: https://go-review.googlesource.com/123959
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go   |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  6 ++----
- src/cmd/compile/internal/types/type.go   | 20 ++++++++++++++------
- 3 files changed, 17 insertions(+), 11 deletions(-)
+ misc/cgo/test/issue24161e0/main.go | 3 ++-
+ misc/cgo/test/issue24161e1/main.go | 3 ++-
+ misc/cgo/test/issue24161e2/main.go | 3 ++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

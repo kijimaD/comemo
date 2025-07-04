@@ -1,31 +1,15 @@
-commit a2d12076b9268c11d300bddcbce04675ec2f42d3
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu Nov 25 11:41:03 2021 +0800
+commit 0914646ab91a3157666d845d74d8d9a4a2831e1e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jul 23 18:45:41 2021 +0200
 
-    cmd/compile/internal/ssa: add support on loong64 for schedule phase
+    doc/1.17: fix two dead rfc links
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Updates #44513
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: Id533912c62d8c4e2aa3c124561772b543d685d7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367041
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia0c6b48bde2719f3a99cb216b6166d82159198d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336930
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.17.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,26 +1,20 @@
-commit 74af79bcf6b1efde7b91ac3e519338c6815efda9
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Mon May 22 22:40:47 2023 +0300
+commit 4fb7e22adece7e12f7e0b443e1b1a1272e1b84c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 14:37:34 2022 -0400
 
-    fmt,math/big,net/url: fixes to old Benchmarks
+    cmd/dist: do not run on ppc64le
     
-    b.ResetTimer used to also stop the timer, however it does not anymore.
-    These benchmarks hadn't been fixed and as a result ended up measuring
-    some additional things.
+    Also don't run on all the other tiny slow boxes we have.
+    Should fix the remaining ppc64le broken builders.
     
-    Also, make some for loops more conventional.
+    For #44505 (or at least somehow provoked by it).
     
-    Change-Id: I76ca68456d85eec51722a80587e5b2c9f5d836a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496996
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I72e8086cb641f3f7da3a872140a752bf328eec1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421438
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/fmt/scan_test.go     | 12 ++++++------
- src/math/big/int_test.go |  6 +-----
- src/net/url/url_test.go  |  1 -
- 3 files changed, 7 insertions(+), 12 deletions(-)
+ src/cmd/dist/test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

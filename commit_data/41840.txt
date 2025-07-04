@@ -1,24 +1,16 @@
-commit e31d741801514f2a008625fd246644d2214f4516
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Apr 3 18:57:46 2020 +0200
+commit e071cc4873d6b22c4ffe66f541bc65698b86afe2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 28 08:32:06 2019 -0700
 
-    flag: fix TestExitCode on Plan 9
+    cmd/compile: update comment about OpPhi argLength
     
-    CL 221427 added TestExitCode. This test is failing
-    on Plan 9 because ExitCode is always equal to 1
-    on error since Plan 9 use error strings.
+    We use -1 for Phi argLength, not "a really large number".
     
-    This change fixes TestExitCode by checking that
-    ExitCode is equal to 1 on error instead of the
-    specific value.
-    
-    Fixes #38237.
-    
-    Change-Id: Ie269722e731e275e5bfc51644c1fa6be76525f1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227158
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I5d4fa364c22c3cf40213f2368a9a20de7e989aac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203883
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/flag/flag_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

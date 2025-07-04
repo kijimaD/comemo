@@ -1,34 +1,17 @@
-commit 7bc3e5880675ce4aae245f46d193924cff5efdfb
+commit c70b4b5f7e419214c8c61ba5306b569fbab7dc30
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 5 11:01:53 2015 -0400
+Date:   Wed May 6 12:22:05 2015 -0400
 
-    all: extract "can I exec?" check from tests into internal/testenv
+    cmd/internal/gc: show register dump before crashing on register left allocated
     
-    Change-Id: I7b54be9d8b50b39e01c6be21f310ae9a10404e9d
-    Reviewed-on: https://go-review.googlesource.com/10753
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    If you are using -h to get a stack trace at the site of the failure,
+    Yyerror will never return. Dump the register allocation sites
+    before calling Yyerror.
+    
+    Change-Id: I51266c03e06cb5084c2eaa89b367b9ed85ba286a
+    Reviewed-on: https://go-review.googlesource.com/9788
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/addr2line/addr2line_test.go   | 17 ++-----
- src/cmd/cover/cover_test.go           | 13 ++---
- src/cmd/go/go_test.go                 | 48 +++++--------------
- src/cmd/go/note_test.go               |  9 +---
- src/cmd/go/vcs_test.go                | 11 ++---
- src/cmd/internal/obj/x86/obj6_test.go |  8 ++--
- src/cmd/nm/nm_test.go                 | 11 +----
- src/cmd/objdump/objdump_test.go       | 11 +----
- src/cmd/pack/pack_test.go             | 22 ++-------
- src/cmd/vet/vet_test.go               | 23 ++-------
- src/crypto/x509/x509_test.go          | 12 +----
- src/go/build/deps_test.go             |  1 +
- src/internal/testenv/testenv.go       | 90 +++++++++++++++++++++++++++++++++++
- src/net/http/cgi/matryoshka_test.go   | 17 ++-----
- src/os/exec/exec_test.go              | 21 +++-----
- src/os/os_test.go                     | 45 ++++--------------
- src/runtime/crash_test.go             | 11 +----
- src/runtime/pprof/pprof_test.go       |  8 +---
- src/runtime/pprof/trace_test.go       |  2 +
- src/syscall/exec_unix_test.go         |  7 ++-
- src/syscall/syscall_unix_test.go      |  9 ++--
- 21 files changed, 163 insertions(+), 233 deletions(-)
+ src/cmd/internal/gc/gsubr.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,32 +1,14 @@
-commit ff03482fd6c38ac41835bef2dfd75f5ecc41eb1d
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Aug 5 20:30:13 2012 +0200
+commit 2f2df2aceb4fdd02ac4a93e43a823a55341c9439
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 4 18:02:12 2012 +0300
 
-    strconv: speedup AppendFloat/FormatFloat.
+    cmd/go: allow to use syso files with cgo
+    I have C functions implemented in .syso file (rather than .so or inlined in .go file).
+    W/o this change the gcc invocation fails with undefined symbols.
     
-    The improvement is obtained by eliminating the zero
-    initialization of a large structure that is only
-    needed when the fast path fails.
-    
-    Also add a missing roundtrip test for float32s.
-    
-    benchmark                              old ns/op    new ns/op    delta
-    BenchmarkAppendFloatDecimal                  301          180  -40.20%
-    BenchmarkAppendFloat                         486          388  -20.16%
-    BenchmarkAppendFloatExp                      492          383  -22.15%
-    BenchmarkAppendFloatNegExp                   478          370  -22.59%
-    BenchmarkAppendFloatBig                      650          541  -16.77%
-    BenchmarkAppendFloat32Integer                308          180  -41.56%
-    BenchmarkAppendFloat32ExactFraction          449          333  -25.84%
-    BenchmarkAppendFloat32Point                  494          390  -21.05%
-    BenchmarkAppendFloat32Exp                    488          387  -20.70%
-    BenchmarkAppendFloat32NegExp                 488          378  -22.54%
-    
-    R=r, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6346081
+    R=minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6352076
 
- src/pkg/strconv/atof_test.go |  8 ++++++++
- src/pkg/strconv/extfloat.go  | 25 ++++++++++++++++++++---
- src/pkg/strconv/ftoa.go      | 48 +++++++++++++++++++++++++++-----------------
- 3 files changed, 60 insertions(+), 21 deletions(-)
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

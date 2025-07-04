@@ -1,16 +1,35 @@
-commit 980146bfde2b4e2d62c537023c19670666fc0604
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Apr 14 13:29:37 2016 -0400
+commit 466c948b558cb2eca089577fda2995133531d4ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 11:30:17 2016 -0800
 
-    crypto/cipher: enable fastXORBytes on s390x
+    cmd/compile: add nodeSeqIterator interface
     
-    s390x can handle unaligned loads and stores of 64-bit values.
+    I tried to write a program to convert *NodeList to Node, but ran into
+    too many problem cases.  I'm backing off and trying a more iterative
+    approach using interfaces.
     
-    Change-Id: Iae5621781e3ba56e27b4a1f4788772c86e4f6475
-    Reviewed-on: https://go-review.googlesource.com/22086
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL adds an interface for iteration over either a *NodeList or a
+    Nodes.  I changed typechecklist to use it, to show how it works.  After
+    NodeList is eliminated, we can change the typechecklist parameter type
+    to Nodes.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I5c7593714b020d20868b99151b1e7cadbbdbc397
+    Reviewed-on: https://go-review.googlesource.com/20190
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/cipher/xor.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go       |  4 +-
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/gc/lex.go       |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  4 +-
+ src/cmd/compile/internal/gc/select.go    |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 69 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 12 +++---
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ 11 files changed, 86 insertions(+), 17 deletions(-)

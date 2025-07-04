@@ -1,14 +1,17 @@
-commit b7360b9b066e38a42157f56fee174ad21be1dff2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 13 21:31:21 2012 -0800
+commit 82568c5cd5ae7efcf3f3bbdd4cab2eff9b1318a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 00:18:30 2012 -0500
 
-    net: disable multicast test on Alpha GNU/Linux
+    cmd/dist: exclude cov and prof from releases
+    Also check for old and exp.
     
-    Alpha GNU/Linux does not have /proc/net/igmp[6].
+    Fixes #2764.
+    Fixes #2765.
     
-    R=golang-dev, rsc, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5663047
+    https://golang.org/cl/5654068
 
- src/pkg/net/multicast_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ {src/cmd/prof => misc}/pprof |  0
+ src/cmd/dist/build.c         | 40 ++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 36 insertions(+), 4 deletions(-)

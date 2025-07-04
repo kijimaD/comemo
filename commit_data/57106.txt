@@ -1,18 +1,23 @@
-commit a4a130f6d065187e1b7f4963792af5d5e84efa3c
-Author: khr@golang.org <khr@golang.org>
-Date:   Thu Jun 27 15:53:24 2024 -0700
+commit 3d279283a4a7b016ee799fc2e7c4583660881331
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 16 15:59:43 2023 -0400
 
-    cmd/compile: propagate constant ranges through multiplies and shifts
+    cmd/go: restore go.mod files during toolchain selection
     
-    Fixes #40704
-    Fixes #66826
+    They have to be renamed to _go.mod to make a valid module.
+    Copy them back to go.mod so that 'go test cmd' has a better
+    chance of working.
     
-    Change-Id: Ia9c356e29b2ed6f2e3bc6e5eb9304cd4dccb4263
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599256
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    For #57001.
+    
+    Change-Id: Ied6f0dd77928996ab322a55c5606d7f75431e362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504118
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 70 ++++++++++++++++++++++++++++++++++-
- test/prove.go                         | 12 ++++++
- 2 files changed, 81 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/toolchain/select.go     | 93 +++++++++++++++++++++++++++++
+ src/cmd/go/internal/toolchain/umask_none.go | 13 ++++
+ src/cmd/go/internal/toolchain/umask_unix.go | 28 +++++++++
+ 3 files changed, 134 insertions(+)

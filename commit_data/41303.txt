@@ -1,22 +1,27 @@
-commit 99c78b7fc1b892808c72379e7915529cc0e73b05
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 10 14:23:27 2020 -0500
+commit 7eef0ca17ae09ae40027dcc78138179e0ed19b10
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 19 16:55:56 2019 -0700
 
-    cmd/go: convert TestIssue6480 to the script framework
+    cmd/compile: clean up escape graph construction
     
-    This one's a bit complex and required writing support go programs
-    within the test script.
+    OTYPESW and ORANGE were manually creating locations and flows around
+    them, which are relatively low-level graph construction primitives.
+    This CL changes them to use holes like the rest of the code.
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Also, introduce "later" as an abstraction for assignment flows that
+    don't happen right away, and which need to prevent expressions from
+    being marked as "transient" (e.g., in ODEFER and ORANGE).
     
-    Updates #36320
-    Updates #17751
+    There's no behavior change here, but this does reduce the number of
+    newLoc call sites, which should help with restoring -m=2 diagnostics.
     
-    Change-Id: I9e91225b20b1b043f032b77a55c5825cb9d9a4b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214292
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Passes toolstash-check.
+    
+    Updates #31489.
+    
+    Change-Id: Ic03d4488cb5162afe8b00b12432d203027e8d7d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196619
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go                          |  61 ------------
- src/cmd/go/testdata/script/build_issue6480.txt | 125 +++++++++++++++++++++++++
- 2 files changed, 125 insertions(+), 61 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 71 +++++++++++++++++------------------
+ 1 file changed, 34 insertions(+), 37 deletions(-)

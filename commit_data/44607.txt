@@ -1,34 +1,44 @@
-commit 0fc370c5d26353a865a29a01f093942c949d530a
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Thu Feb 25 01:03:35 2021 +0100
+commit 01f99b4e9540f34b44e13b25f6dd04b82ac952d9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 11 13:07:35 2020 -0700
 
-    docs: clarify when APIs use context.Background.
+    cmd/compile: mark DUFFZERO/DUFFCOPY as async unsafe
     
-    The Go standard library retrofitted context support onto existing APIs
-    using context.Background and later offered variants that directly
-    supported user-defined context value specification. This commit makes
-    that behavior clear in documentation and suggests context-aware
-    alternatives if the user is looking for one.
+    These operations are async unsafe on architectures that use
+    frame pointers.
     
-    An example motivation is supporting code for use in systems that expect
-    APIs to be cancelable for lifecycle correctness or load
-    shedding/management reasons, as alluded to in
-    https://blog.golang.org/context-and-structs.
+    The reason is they rely on data being safe when stored below the stack
+    pointer. They do:
     
-    Updates #44143
+      45da69:       48 89 6c 24 f0          mov    %rbp,-0x10(%rsp)
+      45da6e:       48 8d 6c 24 f0          lea    -0x10(%rsp),%rbp
+      45da73:       e8 7d d0 ff ff          callq  45aaf5 <runtime.duffzero+0x115>
+      45da78:       48 8b 6d 00             mov    0x0(%rbp),%rbp
     
-    Change-Id: I2d7f954ddf9b48264d5ebc8d0007058ff9bddf14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296152
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Jean de Klerk <deklerk@google.com>
-    Trust: Jean de Klerk <deklerk@google.com>
-    Run-TryBot: Jean de Klerk <deklerk@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This dance ensures that inside duffzero, it looks like there is a
+    proper frame pointer set up, so that stack walkbacks work correctly if
+    the kernel samples during duffzero.
+    
+    However, this instruction sequence depends on data not being clobbered
+    even though it is below the stack pointer.
+    
+    If there is an async interrupt at any of those last 3 instructions,
+    and the interrupt decides to insert a call to asyncPreempt, then the
+    saved frame pointer on the stack gets clobbered. The last instruction
+    above then restores junk to the frame pointer.
+    
+    To prevent this, mark these instructions as async unsafe.
+    
+    (The body of duffzero is already async unsafe, as it is in package runtime.)
+    
+    Change-Id: I5562e82f9f5bd2fb543dcf2b6b9133d87ff83032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248261
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/tls/tls.go        |  6 ++++++
- src/database/sql/sql.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
- src/net/dial.go              |  9 +++++++++
- src/net/http/request.go      |  2 +-
- src/net/http/socks_bundle.go |  2 ++
- src/net/lookup.go            | 21 +++++++++++++++++++++
- 6 files changed, 81 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 2 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 4 ++++
+ 3 files changed, 8 insertions(+)

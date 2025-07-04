@@ -1,12 +1,19 @@
-commit e49d50e203d6d2da9c9d26c5e1dd3ea56784a44c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 3 09:56:18 2011 -0700
+commit 35a37f17355ed67b1192ce3e85e61e3eb2028f04
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 3 10:39:11 2011 -0400
 
-    gofmt: update test.sh (exclude a file w/ incorrect syntax)
+    codereview: add release branch support
     
-    R=iant, iant2
+    Note that if you are working on the upcoming release
+    branch you have to point your extension path to a
+    copy of lib/codereview/codereview.py that won't change
+    as the repository flips between release-branch and default branch.
+    This warning should only apply to this one branch and only to rsc,
+    but you never know.
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4453058
+    https://golang.org/cl/4446076
 
- src/cmd/gofmt/test.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 140 +++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 127 insertions(+), 13 deletions(-)

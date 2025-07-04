@@ -1,0 +1,37 @@
+commit 7cd0a4be5cdbb84142ec330daba6087eece48341
+Author: nlwkobe30 <nlwkobe30@gmail.com>
+Date:   Fri Aug 30 19:05:07 2024 +0000
+
+    all: omit unnecessary 0 in slice expression
+    
+    All changes are related to the code, except for the comments in src/regexp/syntax/parse.go and src/slices/slices.go.
+    
+    Change-Id: I73c5d3c54099749b62210aa7f3182c5eb84bb6a6
+    GitHub-Last-Rev: 794aa9b0539811d00e1cd42be1e8d9fe9afe0281
+    GitHub-Pull-Request: golang/go#69170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609678
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/bufio/bufio_test.go                   | 2 +-
+ src/bytes/buffer_test.go                  | 8 ++++----
+ src/bytes/bytes.go                        | 2 +-
+ src/cmd/internal/notsha256/sha256_test.go | 2 +-
+ src/crypto/cipher/ctr_aes_test.go         | 4 ++--
+ src/crypto/internal/cryptotest/aead.go    | 8 ++++----
+ src/crypto/internal/cryptotest/hash.go    | 4 ++--
+ src/crypto/md5/md5_test.go                | 2 +-
+ src/crypto/sha1/sha1_test.go              | 4 ++--
+ src/crypto/sha256/sha256_test.go          | 4 ++--
+ src/crypto/subtle/constant_time_test.go   | 8 ++++----
+ src/go/internal/gccgoimporter/parser.go   | 2 +-
+ src/internal/stringslite/strings.go       | 2 +-
+ src/math/big/natdiv.go                    | 4 ++--
+ src/net/http/client_test.go               | 2 +-
+ src/regexp/syntax/parse.go                | 2 +-
+ src/slices/slices.go                      | 2 +-
+ src/time/format.go                        | 2 +-
+ src/unicode/utf8/utf8_test.go             | 2 +-
+ 19 files changed, 33 insertions(+), 33 deletions(-)

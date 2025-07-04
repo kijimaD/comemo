@@ -1,20 +1,17 @@
-commit ba4625c66f5d27e1093758b182c1cd5674c4e67b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 20:06:32 2012 -0400
+commit 33cceb09e273e65bea839b0d5dd2da02f37f5e55
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 24 23:44:00 2012 +0200
 
-    reflect: add MakeFunc (API CHANGE)
+    cmd/{5g,6g,8g,6c}: remove unused macro, use %E to print etype.
     
-    Fixes #1765.
-    
-    R=iant, r, daniel.morsing, minux.ma, bradfitz, rogpeppe, remyoudompheng
+    R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/6554067
+    https://golang.org/cl/6569044
 
- src/pkg/reflect/all_test.go     |  47 ++++++++++--
- src/pkg/reflect/asm_386.s       |  18 +++++
- src/pkg/reflect/asm_amd64.s     |  18 +++++
- src/pkg/reflect/asm_arm.s       |  17 +++++
- src/pkg/reflect/example_test.go |  52 ++++++++++++++
- src/pkg/reflect/makefunc.go     | 156 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/reflect/value.go        |  76 ++++++++++++++++++++
- 7 files changed, 377 insertions(+), 7 deletions(-)
+ src/cmd/5g/opt.h | 2 --
+ src/cmd/5g/reg.c | 2 +-
+ src/cmd/6c/gc.h  | 2 --
+ src/cmd/6g/opt.h | 2 --
+ src/cmd/6g/reg.c | 4 ++--
+ src/cmd/8g/reg.c | 2 +-
+ 6 files changed, 4 insertions(+), 10 deletions(-)

@@ -1,17 +1,16 @@
-commit ac9962fb236569d25e9cc7f2859ac5a23eea1534
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 1 08:37:48 2016 -0800
+commit 8aadcc551e1610d4185c36624c8105f4303fe7ec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 6 10:16:17 2016 -0400
 
-    doc: mention concurrent map write/iterate detector
+    cmd/compile: intrinsify math.Sqrt when compiling "math" itself
     
-    Mention that the best-effort race detector on maps
-    was upgraded to detect write/iterate races.
+    Fixes #17354.
     
-    Fixes #18137
-    
-    Change-Id: Ib6e0adde47e965126771ea712386031a2a55eba3
-    Reviewed-on: https://go-review.googlesource.com/33768
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0e018c8c3e791fc6cc1925dbbc18c2151ba9a111
+    Reviewed-on: https://go-review.googlesource.com/30539
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.8.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

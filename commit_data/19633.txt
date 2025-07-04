@@ -1,11 +1,15 @@
-commit 1abab32c6512ca5c2c3b3855a0f6d108ef2ff3b6
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 30 12:28:20 2014 -0700
+commit 3e692becfe69a7b80dbf4af983eb620f65549f02
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jun 29 20:34:35 2014 +1000
 
-    doc/go1.4.txt: encoding/gob is now safe
+    test/fixedbugs: fix typo in comment
     
+    Fix copy paste error pointed out by rsc, https://golang.org/cl/107290043/diff/60001/test/fixedbugs/issue8074.go#newcode7
+    
+    LGTM=ruiu, r
+    R=golang-codereviews, ruiu, r
     CC=golang-codereviews
-    https://golang.org/cl/103690043
+    https://golang.org/cl/106210047
 
- doc/go1.4.txt | 1 +
- 1 file changed, 1 insertion(+)
+ test/fixedbugs/issue8074.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

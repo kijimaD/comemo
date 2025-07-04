@@ -1,13 +1,13 @@
-commit f03a5796e399d613172aa9a7bb33760bdb5f0d09
+commit c9b36a87eb1928f9e4fbdfff052b08b56dc1c000
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 20 07:44:41 2012 +1100
+Date:   Mon Feb 20 07:44:24 2012 +1100
 
-    test/initsyscall.go: delete
-    It's testing an old property of the language and is no longer relevant.
+    test/initcomma.go: restore what it's supposed to be testing
+    which is trailing commas in literals. They were gofmted away at some point.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5676104
+    https://golang.org/cl/5673103
 
- test/initsyscall.go | 26 --------------------------
- 1 file changed, 26 deletions(-)
+ test/initcomma.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

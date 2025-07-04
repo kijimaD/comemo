@@ -1,51 +1,14 @@
-commit 01f05d8ff1a88c4a63bdaaff5a095a92ce476f58
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 1 22:58:28 2021 -0500
+commit bdf76ca045c989bcff9a0111819559d632a4a39a
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Jun 2 13:51:38 2020 -0400
 
-    runtime: unify asmcgocall and systemstack traceback setup
+    doc/go1.15: add release notes for time
     
-    Both asmcgocall and systemstack need to save the calling Go code's
-    context for use by traceback, but they do it differently.
-    Systemstack's appraoch is better, because it doesn't require a
-    special case in traceback.
-    So make them both use that.
+    Updates #37419
     
-    While we are here, the fake mstart caller in systemstack is
-    no longer needed and can be removed.
-    (traceback knows to stop in systemstack because of the writes to SP.)
-    
-    Also remove the fake mstarts in sys_windows_*.s.
-    
-    And while we are there, fix the control flow guard code in sys_windows_arm.s.
-    The current code is using pointers to a stack frame that technically is gone
-    once we hit the RET instruction. Clearly it's working OK, but better not to depend
-    on data below SP being preserved, even for just a few instructions.
-    Store the value we need in other registers instead.
-    (This code is only used for pushing a sigpanic call, which does not
-    actually return to the site of the fault and therefore doesn't need to
-    preserve any of the registers.)
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: Id1e3ef5e54f7ad786e4b87043f2626eba7c3bbd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288799
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2018b55f335400070bfa3573adab9549a5bf6a1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236158
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/cgo/test/callback.go       |  2 +-
- src/runtime/asm_386.s           | 19 +++++++---------
- src/runtime/asm_amd64.s         | 22 ++++++++----------
- src/runtime/asm_arm.s           | 34 +++++++++++++---------------
- src/runtime/asm_arm64.s         | 31 +++++++++++--------------
- src/runtime/asm_mips64x.s       | 26 ++++++++++-----------
- src/runtime/asm_mipsx.s         | 26 ++++++++++-----------
- src/runtime/asm_ppc64x.s        | 28 ++++++++++-------------
- src/runtime/asm_riscv64.s       | 26 ++++++++++-----------
- src/runtime/asm_s390x.s         | 29 +++++++++++-------------
- src/runtime/sys_windows_386.s   | 12 ++++------
- src/runtime/sys_windows_amd64.s | 12 +++-------
- src/runtime/sys_windows_arm.s   | 50 +++++++++++++++++++----------------------
- 13 files changed, 137 insertions(+), 180 deletions(-)
+ doc/go1.15.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

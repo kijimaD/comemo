@@ -1,22 +1,13 @@
-commit 23810777867d0a7df1ef149ec6ed4135ce07fb01
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 18 13:29:22 2015 -0700
+commit 9b73ecc32719a2a6e3c733d87aefd9ef5a0bf804
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Mar 4 17:42:39 2015 +1100
 
-    cmd/yacc: fix default action
+    image/jpeg: check for component uniqueness and total sampling factors.
     
-    Previously, a production rule like
-    
-            A: B C D
-    
-    would cause yacc to check that A and B have the same declared types,
-    but then it would generate an implicit action of { $$ = $3 } (i.e.,
-    copy the value from D), even if A and D have different types.
-    
-    Fixes #10192.
-    
-    Change-Id: I51cfd7baa0011557141dca33b7af1d892cc6f49e
-    Reviewed-on: https://go-review.googlesource.com/7780
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I83de9d83708edc8d196bbcfdc7d2ba7ffaff50d2
+    Reviewed-on: https://go-review.googlesource.com/6586
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/yacc/yacc.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/image/jpeg/reader.go |  9 +++++++++
+ src/image/jpeg/scan.go   | 18 ++++++++++++++++++
+ 2 files changed, 27 insertions(+)

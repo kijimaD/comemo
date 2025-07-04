@@ -1,0 +1,20 @@
+commit 70dcc78871ee47a6b181a99e6bad70b3454e8aec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 5 14:43:44 2025 -0500
+
+    math/big: avoid negative slice size in nat.rem
+    
+    In a division, normally the answer to N digits / D digits has N-D digits,
+    but not when N-D is negative. Fix the calculation of the number of
+    digits for the temporary in nat.rem not to be negative.
+    
+    Fixes #72043.
+    
+    Change-Id: Ib9faa430aeb6c5f4c4a730f1ec631d2bf3f7472c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655156
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/math/big/alias_test.go | 24 ++++++++++++++++++++++++
+ src/math/big/natdiv.go     |  2 +-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

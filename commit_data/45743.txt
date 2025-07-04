@@ -1,20 +1,35 @@
-commit dd7ba3ba2c860c40be6d70b63d4a678449cae80f
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jun 2 09:20:22 2021 -0700
+commit 4c174a7ba66724f8f9a1915c8f4868a8b3aaf219
+Author: Bryan Boreham <bjboreham@gmail.com>
+Date:   Wed Nov 11 13:59:59 2020 +0000
 
-    net: don't rely on system hosts in TestCVE202133195
+    testing: reduce memory allocation in Helper
     
-    Also don't unnecessarily deref the error return.
+    Store the PC instead of the string name of the function, and defer
+    that conversion until we need it.
     
-    Fixes #46504
+    Helper is still relatively expensive in CPU time (few hundred ns),
+    but memory allocation is now constant for a test rather than linear in
+    the number of times Helper is called.
     
-    Change-Id: I22d14ac76776f8988fa0774bdcb5fcd801ce0185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324190
-    Trust: David Chase <drchase@google.com>
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    benchstat:
+    name        old time/op    new time/op    delta
+    TBHelper-4    1.30µs ±27%    0.53µs ± 1%   -59.03%  (p=0.008 n=5+5)
+    
+    name        old alloc/op   new alloc/op   delta
+    TBHelper-4      216B ± 0%        0B       -100.00%  (p=0.008 n=5+5)
+    
+    name        old allocs/op  new allocs/op  delta
+    TBHelper-4      2.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
+    
+    Change-Id: I6565feb491513815e1058637d086b0374fa94e19
+    GitHub-Last-Rev: c2329cf225dab6de7309af3583daa011bafb9a62
+    GitHub-Pull-Request: golang/go#38834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231717
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/net/dnsclient_unix_test.go | 39 ++++++++++++++++++++-------------------
- 1 file changed, 20 insertions(+), 19 deletions(-)
+ src/testing/testing.go | 56 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 39 insertions(+), 17 deletions(-)

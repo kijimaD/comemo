@@ -1,26 +1,23 @@
-commit 072eea9b3b8e3c871707b5661948edd4090fc56a
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 9 12:55:33 2024 -0800
+commit b9a4eaa62b043fdb91f1f4a1e4b5ccfd3bdca36f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Nov 29 11:15:54 2023 +0100
 
-    cmd/compile: avoid ifaceeq call if we know the interface is direct
+    cmd/cgo/internal/test: only test specific frames in testCallbackCallersSEH
     
-    We can just use == if the interface is direct.
+    testCallbackCallersSEH will break if anything in this call chain is
+    refactored to have a different number of function calls.
     
-    Fixes #70738
+    This change makes the test more robust by only testing the frames
+    that are actually relevant to the test.
     
-    Change-Id: Ia9a644791a370fec969c04c42d28a9b58f16911f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635435
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Idb51514d7079f55da6e6ddc52ad43b1ffe32c8c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545755
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 20 +++---
- src/cmd/compile/internal/ssa/_gen/generic.rules | 21 +++++++
- src/cmd/compile/internal/ssa/rewrite.go         | 83 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 53 ++++++++++++++++
- src/cmd/compile/internal/walk/compare.go        |  9 +++
- src/cmd/internal/obj/link.go                    | 16 +++++
- test/codegen/ifaces.go                          | 36 +++++++++++
- 7 files changed, 230 insertions(+), 8 deletions(-)
+ src/cmd/cgo/internal/test/callback_windows.go | 38 +++++----------------------
+ 1 file changed, 7 insertions(+), 31 deletions(-)

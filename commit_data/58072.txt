@@ -1,18 +1,32 @@
-commit 2b1a15152457a27f99f08c01c0272871fad3f2b7
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Nov 7 13:32:13 2024 +0100
+commit 0de57ebf88b4386810bd4ad42d9ff9c16f15d970
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Fri Sep 22 13:42:50 2023 -0700
 
-    crypto/internal/fips/aes/gcm: add CounterKDF
+    log/slog: fix time regexp in test
     
-    Change-Id: I236f9d8c4637793c1bda39f69573481356f8e362
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626436
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    CL 525556 started using timeRE regexp to match time output from JSON
+    handler, and relaxed it to allow arbitrary (rather than fixed 3 digit)
+    precision.
+    
+    What it missed is in JSON handler the fractional part is omitted
+    entirely (together with the decimal dot) when the nanoseconds field is
+    0.
+    
+    As a result, there are occasional CI failures in js/wasm (which, I guess,
+    has better chances to return zero nanoseconds).
+    
+    To fix the flaky test, let's use two different regular expressions,
+    tailored to text and JSON.
+    
+    Change-Id: Ie98990fcf278bb0916ab31c9177e6b22a523062a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530675
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/crypto/internal/fips/aes/gcm/cmac_test.go   |  17 ----
- src/crypto/internal/fips/aes/gcm/ctrkdf.go      |  49 ++++++++++
- src/crypto/internal/fips/aes/gcm/ctrkdf_test.go | 120 ++++++++++++++++++++++++
- 3 files changed, 169 insertions(+), 17 deletions(-)
+ src/log/slog/logger_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

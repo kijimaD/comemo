@@ -1,16 +1,35 @@
-commit 7c02beb96a601001091c91a9cf0fe4cb6ce459a0
+commit b5f81eae17b68c9a34d23dcf4669e3d879781b35
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 22 16:28:11 2017 -0700
+Date:   Tue Mar 21 22:23:15 2017 -0700
 
-    go/types: prevent crash in type cycles involving non-type expressions
+    cmd/compile/internal/syntax: replace inlined statement lists with syntax.BlockStmt
     
-    Fixes #18643.
+    This simplifies the code and removes a premature optimization.
+    It increases the amount of allocated syntax.Node space by ~0.4%
+    for parsing all of std lib, which is negligible.
     
-    Change-Id: I36dca943d552a178a71094ff883b0319fe03d130
-    Reviewed-on: https://go-review.googlesource.com/46467
+    Before the change (best of 5 runs):
+    
+      $ go test -run StdLib -fast
+      parsed 1517022 lines (3394 files) in 793.487886ms (1911840 lines/s)
+      allocated 387.086Mb (267B/line, 487.828Mb/s)
+    
+    After the change (best of 5 runs):
+    
+      $ go test -run StdLib -fast
+      parsed 1516911 lines (3392 files) in 805.028655ms (1884294 lines/s)
+      allocated 388.466Mb (268B/line, 482.549Mb/s)
+    
+    Change-Id: Id19d6210fdc62393862ba3b04913352d95c599be
+    Reviewed-on: https://go-review.googlesource.com/38439
     Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/expr.go             | 22 ++++++++++++++++++++++
- src/go/types/testdata/cycles.src | 11 ++++++++++-
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go           | 36 ++++++++--------
+ src/cmd/compile/internal/syntax/nodes.go       | 46 +++++++++-----------
+ src/cmd/compile/internal/syntax/nodes_test.go  | 10 ++---
+ src/cmd/compile/internal/syntax/parser.go      | 60 ++++++++++----------------
+ src/cmd/compile/internal/syntax/parser_test.go |  7 +--
+ src/cmd/compile/internal/syntax/printer.go     | 32 ++++++--------
+ 6 files changed, 80 insertions(+), 111 deletions(-)

@@ -1,17 +1,16 @@
-commit e46be90feca7dfe0532027b08106675e26b93b35
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 12 09:44:59 2014 -0700
+commit 0476693eaf871653139735cc231c3c80f4daf7c9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 12 10:08:54 2014 -0400
 
-    encoding/json: remove unused field from Encoder struct
+           doc: add release note for 'godoc -analysis'
     
-    It should've been removed in https://golang.org/cl/9365044
+            Contains a link to /lib/godoc/analysis/help.html
+           which is not yet live.
     
-    Thanks to Jacek Masiulaniec for noticing.
-    
-    LGTM=ruiu
-    R=ruiu
+    LGTM=r
+    R=r, adg
     CC=golang-codereviews
-    https://golang.org/cl/109880043
+    https://golang.org/cl/88560044
 
- src/pkg/encoding/json/stream.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go1.3.html | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

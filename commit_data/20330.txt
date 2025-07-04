@@ -1,21 +1,29 @@
-commit c0951701cf72270e441904186d5f6714a296d1f3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 07:23:49 2014 -0400
+commit f16729781bc7bfe561658f520dcbffa5f81790c2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 1 08:04:33 2014 -0400
 
-    cmd/dist: remove goc2c
+    runtime/race: better handling of atomic operations
+    This change fixes the last known false negative of the race detector --
+    detection of races between mutating atomic operations and non-atomic operations.
+    Race runtime already has functions for precise modelling of various atomic operations,
+    so this change just forwards all atomic ops to race runtime
+    instead of poor man modeling in sync/atomic package.
+    Performance is also improved -- full sync/atomic tests run in 60s instead of 85s now.
     
-    After the three pending CLs listed below, there will be no more .goc files.
-    
-    134580043       runtime: move stubs.goc code into runtime.c
-    133670043       runtime: fix windows syscalls for copying stacks
-    141180043       runtime: eliminate Go -> C -> block paths for Solaris
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz, dave
-    CC=golang-codereviews, iant, r
-    https://golang.org/cl/132680043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/111310044
 
- src/cmd/dist/a.h     |   3 -
- src/cmd/dist/build.c |  18 --
- src/cmd/dist/goc2c.c | 839 ---------------------------------------------------
- 3 files changed, 860 deletions(-)
+ src/pkg/runtime/race.c                       |  35 ++--
+ src/pkg/runtime/race/README                  |   2 +-
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 249744 -> 278328 bytes
+ src/pkg/runtime/race/race_freebsd_amd64.syso | Bin 261096 -> 294224 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 265024 -> 298064 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 247609 -> 292311 bytes
+ src/pkg/runtime/race/testdata/atomic_test.go |   6 +-
+ src/pkg/runtime/race_amd64.s                 | 137 ++++++++++++-
+ src/pkg/sync/atomic/doc.go                   |   2 -
+ src/pkg/sync/atomic/race.go                  | 276 ---------------------------
+ src/pkg/sync/atomic/race.s                   |   8 +
+ 11 files changed, 166 insertions(+), 300 deletions(-)

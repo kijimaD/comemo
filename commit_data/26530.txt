@@ -1,21 +1,25 @@
-commit c61a55d831d8042e4af48442e3a0db7d80539e5d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 25 15:57:25 2016 -0700
+commit 3297a4f5f320ca8262ba5d222d3571020a9460bc
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Feb 2 06:35:34 2016 -0500
 
-    misc/cgo/testcarchive: more robust TestSignalForwardingExternal
+    [dev.ssa] cmd/compile: cache sparse sets in Config
     
-    Try to avoid a race condition in the test.  Passed 500 times on my
-    laptop.
+    Move the cached sparse sets to the Config.  I tested make.bash with
+    pre-allocating sets of size 150 and not caching very small sets, but the
+    difference between this implementation (no min size, no preallocation)
+    and a min size with preallocation was fairly negligible:
     
-    Fixes #14956.
+    Number of sparse sets allocated:
+    Cached in Config w/none preallocated no min size    3684 *this CL*
+    Cached in Config w/three preallocated no min size   3370
+    Cached in Config w/three preallocated min size=150  3370
+    Cached in Config w/none preallocated min size=150  15947
+    Cached in Func,  w/no min                          96996 *previous code*
     
-    Change-Id: I5de2e1e3623832f0ab4f180149f7c57ce7cd23c0
-    Reviewed-on: https://go-review.googlesource.com/21171
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7f9de8a7cae192648a7413bfb18a6690fad34375
+    Reviewed-on: https://go-review.googlesource.com/19152
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go     | 78 +++++++++++++++++++-----------
- misc/cgo/testcarchive/main5.c              | 23 +++++++--
- misc/cgo/testcarchive/src/libgo2/libgo2.go |  5 ++
- 3 files changed, 74 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/ssa/config.go |  2 ++
+ src/cmd/compile/internal/ssa/func.go   | 14 ++++++--------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

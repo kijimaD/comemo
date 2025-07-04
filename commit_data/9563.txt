@@ -1,17 +1,14 @@
-commit 5f40c5b3846074c1aba903440c785ec499c392d1
+commit 4304de6e0c64653ddf5d57c7724b28b859ce28af
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 31 07:11:31 2011 -0400
+Date:   Wed Aug 31 07:02:46 2011 -0400
 
-    runtime: handle string + char literals in goc2c
+    runtime: make arm work on Ubuntu Natty qemu
     
-    My string literal was being rewritten from
-    "runtime.SysReserve(%p, %D) = error %d"
-    to
-    "runtime.SysReserve ( %p , %D ) = error %d"
-    
-    R=iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4972051
+    https://golang.org/cl/4963050
 
- src/pkg/runtime/goc2c.c | 28 ++++++++++++++++++++++++----
- 1 file changed, 24 insertions(+), 4 deletions(-)
+ src/cmd/ld/elf.c            | 13 +++++++++++++
+ src/pkg/runtime/linux/mem.c | 17 ++++++++++-------
+ src/pkg/runtime/malloc.goc  | 11 ++++++++---
+ 3 files changed, 31 insertions(+), 10 deletions(-)

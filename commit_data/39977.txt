@@ -1,19 +1,20 @@
-commit 9c0e56bf9de5ff8faa73860ab6bb43562722c18f
-Author: two <oohcode@gmail.com>
-Date:   Sat Sep 21 14:08:07 2019 +0000
+commit 71371d850f4255c4ec2d6900e026dfb3dd660c98
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 20:00:39 2019 +0200
 
-    runtime/type: change fieldalign to use mixedCaps
+    os: skip Open("/") on Android
     
-    All spelling in source code is "fieldAlign", except this place, so change
-    "fieldalign" to use mixedCaps.
+    It's not supported in an app context:
     
-    Change-Id: Icbd9b9d23d9b4f756174e9a3cc4b25776fd90def
-    GitHub-Last-Rev: 44a4fe140a4a473a234ceb5bd927109cbc35bb30
-    GitHub-Pull-Request: golang/go#34441
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196757
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    $ go test -short os
+    --- FAIL: TestChdirAndGetwd (0.00s)
+        os_test.go:1213: Open /: open /: permission denied
+    
+    Change-Id: I56b951f925a50fd67715ee2f1de64951ee867e91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170946
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/type.go | 2 +-
+ src/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

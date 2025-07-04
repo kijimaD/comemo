@@ -1,24 +1,21 @@
-commit f9f57c44430c3449a71533e78f25e88aa4c06a65
-Author: Tim Möhlmann <muhlemmer@gmail.com>
-Date:   Fri Jan 10 12:06:53 2020 +0200
+commit e01e9176870d74a564cb69a70303c1c5e55c965f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 21 02:04:14 2019 -0700
 
-    database/sql: add method Err on sql.Row
+    runtime: use correct pipe call for mips/mips64 GNU/Linux
     
-    The Row.Err method is intended to assist wrapping sql.DB.
-    Because sql.Row is a struct with private fields,
-    a wrapper in an existing code base cannot easily provide users
-    with a different implementation without large rewrites.
-    Adding this method allows query level errors to be handled
-    centrally.
+    On MIPS, pipe returns two values rather than taking a pointer.
     
-    Fixes #35804
+    On MIPS64, call pipe2 rather than pipe.
     
-    Change-Id: I94e6329de89a7ee1284ce9ef76af4363d2d081f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214317
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Also, use the correct system call number for fcntl on mips64.
+    
+    Change-Id: Ie72acdefeb593f44cb98735fc40eac99cf73509e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202417
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go      |  8 ++++++++
- src/database/sql/sql_test.go | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/runtime/sys_linux_mips64x.s |  6 +++---
+ src/runtime/sys_linux_mipsx.s   | 10 +++++++++-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

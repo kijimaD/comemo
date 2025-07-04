@@ -1,20 +1,85 @@
-commit 6417e91962f40ce929a279ac46d958d627c357da
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Mon Aug 20 18:42:02 2018 -0700
+commit f2316c27892b82ee414b0e43708edca2e7995468
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Wed Apr 18 10:56:06 2018 +0200
 
-    cmd/link: pass provided ldflags when testing whether an ldflag is supported
+    net: add support for splice(2) in (*TCPConn).ReadFrom on Linux
     
-    It's possible for one of the ldflags to cause the compiler driver to
-    use a different linker than the default, so we need to make sure that
-    the flag is supported by whichever linker is specified.
+    This change adds support for the splice system call on Linux,
+    for the purpose of optimizing (*TCPConn).ReadFrom by reducing
+    copies of data from and to userspace. It does so by creating a
+    temporary pipe and splicing data from the source connection to the
+    pipe, then from the pipe to the destination connection. The pipe
+    serves as an in-kernel buffer for the data transfer.
     
-    Fixes #27110.
+    No new API is added to package net, but a new Splice function is
+    added to package internal/poll, because using splice requires help
+    from the network poller. Users of the net package should benefit
+    from the change transparently.
     
-    Change-Id: Ic0c51b886e34344d324e68cbf6673b168c14992f
-    Reviewed-on: https://go-review.googlesource.com/130316
+    This change only enables the optimization if the Reader in ReadFrom
+    is a TCP connection. Since splice is a more general interface, it
+    could, in theory, also be enabled if the Reader were a unix socket,
+    or the read half of a pipe.
+    
+    However, benchmarks show that enabling it for unix sockets is most
+    likely not a net performance gain. The tcp <- unix case is also
+    fairly unlikely to be used very much by users of package net.
+    
+    Enabling the optimization for pipes is also problematic from an
+    implementation perspective, since package net cannot easily get at
+    the *poll.FD of an *os.File. A possible solution to this would be
+    to dup the pipe file descriptor, register the duped descriptor with
+    the network poller, and work on that *poll.FD instead of the original.
+    However, this seems too intrusive, so it has not been done. If there
+    was a clean way to do it, it would probably be worth doing, since
+    splicing from a pipe to a socket can be done directly.
+    
+    Therefore, this patch only enables the optimization for what is likely
+    the most common use case: tcp <- tcp.
+    
+    The following benchmark compares the performance of the previous
+    userspace genericReadFrom code path to the new optimized code path.
+    The sub-benchmarks represent chunk sizes used by the writer on the
+    other end of the Reader passed to ReadFrom.
+    
+    benchmark                          old ns/op     new ns/op     delta
+    BenchmarkTCPReadFrom/1024-4        4727          4954          +4.80%
+    BenchmarkTCPReadFrom/2048-4        4389          4301          -2.01%
+    BenchmarkTCPReadFrom/4096-4        4606          4534          -1.56%
+    BenchmarkTCPReadFrom/8192-4        5219          4779          -8.43%
+    BenchmarkTCPReadFrom/16384-4       8708          8008          -8.04%
+    BenchmarkTCPReadFrom/32768-4       16349         14973         -8.42%
+    BenchmarkTCPReadFrom/65536-4       35246         27406         -22.24%
+    BenchmarkTCPReadFrom/131072-4      72920         52382         -28.17%
+    BenchmarkTCPReadFrom/262144-4      149311        95094         -36.31%
+    BenchmarkTCPReadFrom/524288-4      306704        181856        -40.71%
+    BenchmarkTCPReadFrom/1048576-4     674174        357406        -46.99%
+    
+    benchmark                          old MB/s     new MB/s     speedup
+    BenchmarkTCPReadFrom/1024-4        216.62       206.69       0.95x
+    BenchmarkTCPReadFrom/2048-4        466.61       476.08       1.02x
+    BenchmarkTCPReadFrom/4096-4        889.09       903.31       1.02x
+    BenchmarkTCPReadFrom/8192-4        1569.40      1714.06      1.09x
+    BenchmarkTCPReadFrom/16384-4       1881.42      2045.84      1.09x
+    BenchmarkTCPReadFrom/32768-4       2004.18      2188.41      1.09x
+    BenchmarkTCPReadFrom/65536-4       1859.38      2391.25      1.29x
+    BenchmarkTCPReadFrom/131072-4      1797.46      2502.21      1.39x
+    BenchmarkTCPReadFrom/262144-4      1755.69      2756.68      1.57x
+    BenchmarkTCPReadFrom/524288-4      1709.42      2882.98      1.69x
+    BenchmarkTCPReadFrom/1048576-4     1555.35      2933.84      1.89x
+    
+    Fixes #10948
+    
+    Change-Id: I3ce27f21f7adda8b696afdc48a91149998ae16a5
+    Reviewed-on: https://go-review.googlesource.com/107715
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/internal/poll/splice_linux.go | 184 ++++++++++++++++
+ src/net/splice_linux.go           |  35 ++++
+ src/net/splice_stub.go            |  13 ++
+ src/net/splice_test.go            | 426 ++++++++++++++++++++++++++++++++++++++
+ src/net/tcpsock_posix.go          |   3 +
+ 5 files changed, 661 insertions(+)

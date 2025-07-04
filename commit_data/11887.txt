@@ -1,14 +1,21 @@
-commit 8c4fecdcb9abdd7cc6b4b0e97fad936c87ddb4c0
+commit 7959960148c991cb50ee6893b78e9c7aa7b24054
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 14 14:57:57 2012 +0900
+Date:   Tue Feb 14 14:44:59 2012 +0900
 
-    net: fix windows build
+    syscall: regenerate z-files for openbsd
     
-    R=rsc, bradfitz
+    This CL provides regenerated z-files for OpenBSD 5.0 stable.
+    Also fixes OpenBSD build.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5661055
+    https://golang.org/cl/5656052
 
- src/pkg/net/fd.go               | 8 ++++----
- src/pkg/net/fd_windows.go       | 3 ++-
- src/pkg/net/sendfile_windows.go | 2 +-
- 3 files changed, 7 insertions(+), 6 deletions(-)
+ src/pkg/syscall/zerrors_openbsd_386.go    | 124 ++++++---
+ src/pkg/syscall/zerrors_openbsd_amd64.go  | 124 ++++++---
+ src/pkg/syscall/zsyscall_openbsd_386.go   |   2 +-
+ src/pkg/syscall/zsyscall_openbsd_amd64.go |   2 +-
+ src/pkg/syscall/zsysnum_openbsd_386.go    | 400 +++++++++++++++---------------
+ src/pkg/syscall/zsysnum_openbsd_amd64.go  | 400 +++++++++++++++---------------
+ src/pkg/syscall/ztypes_openbsd_386.go     |  47 ++--
+ 7 files changed, 607 insertions(+), 492 deletions(-)

@@ -1,15 +1,16 @@
-commit bf99d8f843ae3dfa7a3a4cd5c17aec79e2b9997f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Sep 3 09:05:25 2015 +1200
+commit a6dc5414361b70d0190d65d43afbaba6fb707328
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 11 06:42:48 2015 -0700
 
-    cmd/link: only embed runtime.goarm in the module that contains the runtime package
+    cmd/go: warn on get from code.google.com that it is shutting down
     
-    Change-Id: Ia18984343ca4ced3671d967ff9a5b0e32874430c
-    Reviewed-on: https://go-review.googlesource.com/14220
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #10193.
+    
+    Change-Id: Ibbb747babb697a66b943e5da76b0ada41f1fb14f
+    Reviewed-on: https://go-review.googlesource.com/12070
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/arm/obj.go |  6 ------
- src/cmd/link/internal/ld/lib.go  | 31 +++++++++++++++++++++----------
- 2 files changed, 21 insertions(+), 16 deletions(-)
+ src/cmd/go/get.go     | 10 ++++++++++
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+)

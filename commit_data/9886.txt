@@ -1,12 +1,15 @@
-commit 417c42218f486b443099be2b283dc9cc56c8f858
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 6 10:41:52 2011 -0700
+commit f80d8fbcf0851959c047d55d0b31bbeb256a9f0c
+Author: Miki Tebeka <miki.tebeka@gmail.com>
+Date:   Thu Oct 6 09:58:36 2011 -0700
 
-    gotest: document -test.parallel
+    testing: Add support for running tests in parallel (t.Parallel API).
     
-    R=golang-dev, bradfitz, dsymonds, gri
+    See discussion at https://groups.google.com/d/topic/golang-dev/RAKiqi44GEU/discussion
+    
+    R=golang-dev, bradfitz, dvyukov, rogpeppe, r, r, borman
     CC=golang-dev
-    https://golang.org/cl/5223043
+    https://golang.org/cl/5071044
 
- src/cmd/gotest/doc.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/gotest/flag.go     |   2 +
+ src/pkg/testing/testing.go | 104 ++++++++++++++++++++++++++++++---------------
+ 2 files changed, 72 insertions(+), 34 deletions(-)

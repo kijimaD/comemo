@@ -1,43 +1,24 @@
-commit ff052737a946b5f9381dc054d61857ee4d500899
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 28 20:59:47 2020 -0400
+commit c7e3d817ab48a6a8a0221d78a54d76bbb4e07e4b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 26 14:43:15 2020 -0400
 
-    cmd/go/internal/modload: allow 'go get' to use replaced versions
+    [dev.link] cmd/link: migrate symbol's Value and Align when converting to sym.Symbols
     
-    'go mod tidy' has been able to use replaced versions since CL 152739,
-    but 'go get' failed for many of the same paths. Now that we are
-    recommending 'go get' more aggressively due to #40728, we should make
-    that work too.
+    Currently, in LoadFull we migrate a symbol's Value to sym.Symbol
+    only for external symbols. And symbol's Align is not migrated at
+    all. As we move LoadFull forward, there are already places where
+    we set symbol's Value and Align (e.g. in doelf). Migrate them
+    correctly.
     
-    In the future, we might consider factoring out the new replacementRepo
-    type so that 'go list' can report the new versions as well.
+    Currently I think we only set them on external symbols, but as
+    we move forward I think we'll need to set them on Go symbols as
+    well.
     
-    For #41577
-    For #41416
-    For #37438
-    Updates #26241
-    
-    Change-Id: I9140c556424b584fdd9bdd0a747842774664a7d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258220
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I63e97e38fc08b653ba9faefe15697944faf21bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225658
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modfetch/repo.go               |   9 +
- src/cmd/go/internal/modget/get.go                  |  17 +
- src/cmd/go/internal/modget/mvs.go                  |   2 +-
- src/cmd/go/internal/modload/import.go              |  93 ++--
- src/cmd/go/internal/modload/modfile.go             |  54 +-
- src/cmd/go/internal/modload/query.go               | 546 +++++++++++++++------
- src/cmd/go/internal/modload/query_test.go          |  22 +-
- src/cmd/go/testdata/script/mod_build_info_err.txt  |   2 +-
- src/cmd/go/testdata/script/mod_get_replaced.txt    | 110 +++++
- src/cmd/go/testdata/script/mod_list_retract.txt    |   4 +-
- src/cmd/go/testdata/script/mod_replace_import.txt  |   7 +-
- .../go/testdata/script/mod_replace_readonly.txt    |  36 ++
- src/cmd/go/testdata/script/mod_retract_replace.txt |   2 +-
- src/cmd/go/testdata/script/mod_vendor_auto.txt     |   2 +-
- 14 files changed, 676 insertions(+), 230 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

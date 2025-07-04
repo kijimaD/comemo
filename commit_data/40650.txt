@@ -1,31 +1,28 @@
-commit 73317080e12234defb59f84e2b5b15f69650b5d5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 21 00:24:25 2019 +0000
+commit 350f71f4cb52dd6c4a9a84225153d9fafe7b4d40
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 10 11:04:29 2019 -0400
 
-    runtime: add scavenging code for new page allocator
+    cmd/go: in tests, don't assume that the 'git' binary is present
     
-    This change adds a scavenger for the new page allocator along with
-    tests. The scavenger walks over the heap backwards once per GC, looking
-    for memory to scavenge. It walks across the heap without any lock held,
-    searching optimistically. If it finds what appears to be a scavenging
-    candidate it acquires the heap lock and attempts to verify it. Upon
-    verification it then scavenges.
+    Add a helper-function to testenv to make these skips more ergonomic.
+    Also update a few existing skips in cmd/go/... to use it.
     
-    Notably, unlike the old scavenger, it doesn't show any preference for
-    huge pages and instead follows a more strict last-page-first policy.
+    Updates #25300
     
-    Updates #35112.
-    
-    Change-Id: I0621ef73c999a471843eab2d1307ae5679dd18d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195697
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4205b4fb2b685dfac1cff3c999f954bff7b0f3c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181538
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go      |  71 +++++++-
- src/runtime/malloc.go           |   2 +-
- src/runtime/mgcscavenge.go      | 369 ++++++++++++++++++++++++++++++++++++++
- src/runtime/mgcscavenge_test.go | 382 ++++++++++++++++++++++++++++++++++++++++
- src/runtime/mpagealloc.go       |  25 ++-
- src/runtime/mpagealloc_test.go  |  25 +--
- src/runtime/mpallocbits.go      |  27 ++-
- 7 files changed, 880 insertions(+), 21 deletions(-)
+ src/cmd/go/go_test.go                              | 92 ++++++++++++----------
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 57 +++++++++++++-
+ src/cmd/go/internal/modload/import_test.go         |  1 +
+ src/cmd/go/internal/modload/query_test.go          |  1 +
+ src/cmd/go/testdata/script/get_404_meta.txt        |  1 +
+ .../go/testdata/script/get_insecure_redirect.txt   |  1 +
+ src/cmd/go/testdata/script/mod_get_hash.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       |  1 +
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt  |  1 +
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    |  1 +
+ src/cmd/go/vendor_test.go                          |  9 +++
+ src/internal/testenv/testenv.go                    | 19 +++++
+ 12 files changed, 141 insertions(+), 45 deletions(-)

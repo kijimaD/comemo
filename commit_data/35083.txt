@@ -1,14 +1,17 @@
-commit 15095be9fbe726d4a3ef43b68d2fbc83e6484ded
-Author: shogo-ma <Choroma194@gmail.com>
-Date:   Sat Apr 21 16:46:27 2018 +0000
+commit 943e2635b304a24c001c793f22ff4493cc077daa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 15:08:19 2017 -0800
 
-    net/http: remove unnecessary parameter type
+    cmd/go: remove file created by test
     
-    Change-Id: I954ca86c142e81c03ec867d10997617d1643b35d
-    GitHub-Last-Rev: 4ffcc780f16f20ad3a531638d4cef1c7d04da0bc
-    GitHub-Pull-Request: golang/go#24987
-    Reviewed-on: https://go-review.googlesource.com/108675
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The file cmd/go/testdata/src/testcache/script.sh was accidentally
+    committed with CL 83256. Sorry about that.
+    
+    Updates #22593
+    
+    Change-Id: Id8f07587ea97015ed75439db220560a5446e53e6
+    Reviewed-on: https://go-review.googlesource.com/83395
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/client.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/src/testcache/script.sh | 2 --
+ 1 file changed, 2 deletions(-)

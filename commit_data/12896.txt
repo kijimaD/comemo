@@ -1,19 +1,15 @@
-commit 99fc28174369621cfe7a445cc4718fba0148745d
-Author: Joel Sing <jsing@google.com>
-Date:   Tue Apr 17 02:35:41 2012 +1000
+commit c81705f13a5898e40e7e51e83086903cb55da5bf
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 16 11:56:37 2012 +1000
 
-    runtime: update defs for openbsd
+    time: parse fractional second with single digit
     
-    Update runtime defs for openbsd. Add struct __tfork, which will be
-    needed by an upcoming change.
+    Fixes #3487.
     
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6007050
+    https://golang.org/cl/6011050
 
- src/pkg/runtime/defs_openbsd.go        |  15 +-
- src/pkg/runtime/defs_openbsd_386.h     | 246 +++++++++++++++---------------
- src/pkg/runtime/defs_openbsd_amd64.h   | 271 +++++++++++++++++----------------
- src/pkg/runtime/signal_openbsd_386.c   |   2 +-
- src/pkg/runtime/signal_openbsd_amd64.c |   2 +-
- 5 files changed, 269 insertions(+), 267 deletions(-)
+ src/pkg/time/format.go    | 2 +-
+ src/pkg/time/time_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

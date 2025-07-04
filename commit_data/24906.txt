@@ -1,71 +1,20 @@
-commit deb096122a08e7c56797294db801f203de2a6663
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Nov 14 19:53:03 2015 -0500
+commit fd50db2a66e2058d51569bb13ee46af15cde101d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 16:21:25 2015 +1000
 
-    crypto/tls: add TLS_RSA_WITH_AES_128_GCM_SHA256 and TLS_RSA_WITH_AES_256_GCM_SHA384 cipher suites
+    cmd/internal/obj: remove unused code
     
-    Fixes #9894.
+    Following on from CL 14350, remove the remaining dead code from data.go.
     
-    Change-Id: I9c7ce771df2e2d1c99a06f800dce63c4e1875993
-    Reviewed-on: https://go-review.googlesource.com/16924
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Also leave a TODO to be addressed later (with a unit test) to reduce
+    the overhead of SymGrow.
+    
+    Change-Id: Iebad775b1280b54b89e87a3a073ca8af19a8bfba
+    Reviewed-on: https://go-review.googlesource.com/14359
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/crypto/tls/cipher_suites.go                    |   4 +
- src/crypto/tls/handshake_client_test.go            |  16 ++
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 104 ++++++------
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    | 167 +++++++++----------
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 100 +++++------
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  | 167 +++++++++----------
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  84 +++++-----
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       | 165 +++++++++----------
- src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      | 149 ++++++++---------
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  84 +++++-----
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       | 165 +++++++++----------
- src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      | 149 ++++++++---------
- .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  81 +++++++++
- .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  81 +++++++++
- src/crypto/tls/testdata/Client-TLSv12-ALPN         | 164 +++++++++---------
- src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch | 161 +++++++++---------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 111 ++++++-------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    | 171 ++++++++++---------
- .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 | 183 ++++++++++-----------
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 107 ++++++------
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  | 171 ++++++++++---------
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  84 +++++-----
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  76 ++++-----
- .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  76 ++++-----
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       | 165 +++++++++----------
- src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      | 149 ++++++++---------
- src/crypto/tls/testdata/Client-TLSv12-SCT          | 161 +++++++++---------
- src/crypto/tls/testdata/Server-SSLv3-RSA-3DES      |  60 +++----
- src/crypto/tls/testdata/Server-SSLv3-RSA-AES       |  62 +++----
- src/crypto/tls/testdata/Server-SSLv3-RSA-RC4       |  52 +++---
- .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     |  78 +++++----
- src/crypto/tls/testdata/Server-TLSv10-RSA-3DES     |  52 +++---
- src/crypto/tls/testdata/Server-TLSv10-RSA-AES      |  58 +++----
- src/crypto/tls/testdata/Server-TLSv10-RSA-RC4      |  46 +++---
- src/crypto/tls/testdata/Server-TLSv11-FallbackSCSV |  28 ++--
- src/crypto/tls/testdata/Server-TLSv11-RSA-RC4      |  46 +++---
- src/crypto/tls/testdata/Server-TLSv12-ALPN         |  84 +++++-----
- src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  84 +++++-----
- .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  76 ++++-----
- .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  76 ++++-----
- .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  68 ++++----
- .../Server-TLSv12-ClientAuthRequestedAndGiven      |  68 ++++----
- .../Server-TLSv12-ClientAuthRequestedNotGiven      |  50 +++---
- .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |  78 +++++----
- src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  64 +++----
- .../testdata/Server-TLSv12-IssueTicketPreDisable   |  64 +++----
- src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     |  56 +++----
- src/crypto/tls/testdata/Server-TLSv12-RSA-AES      |  60 +++----
- src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  67 ++++----
- .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  67 ++++----
- src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      |  50 +++---
- src/crypto/tls/testdata/Server-TLSv12-Resume       |  60 +++----
- .../tls/testdata/Server-TLSv12-ResumeDisabled      |  70 ++++----
- src/crypto/tls/testdata/Server-TLSv12-SNI          |  44 ++---
- .../tls/testdata/Server-TLSv12-SNI-GetCertificate  |  44 ++---
- .../Server-TLSv12-SNI-GetCertificateNotFound       |  44 ++---
- 56 files changed, 2580 insertions(+), 2471 deletions(-)
+ src/cmd/internal/obj/data.go | 122 ++-----------------------------------------
+ 1 file changed, 4 insertions(+), 118 deletions(-)

@@ -1,12 +1,12 @@
-commit fa851b17a2fd2350043b3e56dce398a606692c23
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 2 11:02:09 2015 -0800
+commit e6f76aac32dc1b1b467559de63a52e9ee69ae8e6
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Jan 1 22:16:38 2015 -0500
 
-    go/printer: clearer logic (clenaup)
+    math: be consistent in how we document special cases
     
-    Change-Id: I278ce47b38ec5732d981aec06b71f9ee5747c3bb
-    Reviewed-on: https://go-review.googlesource.com/3730
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic6bc4af7bcc89b2881b2b9e7290aeb6fd54804e2
+    Reviewed-on: https://go-review.googlesource.com/2239
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/printer/printer.go | 27 +++++++++++++--------------
- 1 file changed, 13 insertions(+), 14 deletions(-)
+ src/math/nextafter.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

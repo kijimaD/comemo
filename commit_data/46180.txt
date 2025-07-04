@@ -1,18 +1,22 @@
-commit f153b6739b30c1e99f8646f2dafc77a92204f10d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 26 14:16:24 2021 -0700
+commit 89f38323faa57d3f7475016f778be69fcffbe9fb
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 24 18:10:11 2020 -0500
 
-    cmd/compile: use typecheck.InitUniverse in unit tests
+    [dev.regabi] cmd/compile: add register ABI analysis utilities
     
-    Rather than ad hoc setting up the universe, just initialize it
-    properly.
+    Introduce a new utility routine for analyzing a given function
+    signature to how its various input and output parameters will be
+    passed (in registers or on the stack) for a given ABI description,
+    along with some unit tests.
     
-    Change-Id: I18484b952321f55eb3e1e48fd383068a4ee75f66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345475
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Id64a98a0a142e42dd9c2dc9f6607c0d827ef84fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273011
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/export_test.go | 37 +++++++----------------------
- 1 file changed, 9 insertions(+), 28 deletions(-)
+ src/cmd/compile/fmtmap_test.go                  |   1 +
+ src/cmd/compile/internal/gc/abiutils.go         | 351 ++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/abiutils_test.go    | 270 ++++++++++++++++++
+ src/cmd/compile/internal/gc/abiutilsaux_test.go | 157 +++++++++++
+ 4 files changed, 779 insertions(+)

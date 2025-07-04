@@ -1,42 +1,15 @@
-commit d016330241c526f09b5ec70cdf17bfd0c257006b
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Feb 5 08:49:49 2019 +0100
+commit ba607240f76fce446e1104d034e444ec42e22c73
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 17:36:55 2018 -0500
 
-    runtime: whitelist debugCall32..debugCall65536 in debugCallCheck
+    cmd/go: add a chmod command to script_test
     
-    Whitelists functions debugCall32 through debugCall65536 in
-    runtime.debugCallCheck so that any instruction inside those functions
-    is considered a safe point.
-    This is useful for implementing nested function calls.
-    
-    For example when evaluating:
-    
-            f(g(x))
-    
-    The debugger should:
-    
-    1. initiate the call to 'f' until the entry point of 'f',
-    2. complete the call to 'g(x)'
-    3. copy the return value of 'g(x)' in the arguments of 'f'
-    4. complete the call to 'f'
-    
-    Similarly for:
-    
-            f().amethod()
-    
-    The debugger should initiate the call to '.amethod()', then initiate
-    and complete the call to f(), copy the return value to the arguments
-    of '.amethod()' and finish its call.
-    However in this example, unlike the other example, it may be
-    impossible to determine the entry point of '.amethod()' until after
-    'f()' is evaluated, which means that the call to 'f()' needs to be
-    initiated while stopped inside a debugCall... function.
-    
-    Change-Id: I575c23542709cedb1a171d63576f7e11069c7674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161137
+    Change-Id: I5d4f65553f6c368d101be59aae9440f5ec9573b7
+    Reviewed-on: https://go-review.googlesource.com/c/153461
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/asm_amd64.s  |  2 ++
- src/runtime/debugcall.go | 22 +++++++++++++++++++++-
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/script_test.go         | 19 +++++++++++++++++++
+ src/cmd/go/testdata/script/README |  4 ++++
+ 2 files changed, 23 insertions(+)

@@ -1,17 +1,12 @@
-commit 8f931e49f5ce3692c25f68b415a0228f1d32c40f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 23 16:48:31 2015 -0800
+commit cf4527172cc7dc3f83dd81e16aeb424c88dd6ac5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Sep 17 12:13:53 2015 -0400
 
-    cmd/compile: remove dead code
+    misc/ios: skip revoked certificates
     
-    Get rid of residue after removing old parser.
-    
-    Change-Id: I0dace1037d50959071a082c276f9f374eef6edb2
-    Reviewed-on: https://go-review.googlesource.com/17179
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If65e5e55b359a61740d2ef185147bb6df90e0b0c
+    Reviewed-on: https://go-review.googlesource.com/14654
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/gc/lex.go    | 85 ++---------------------------------
- src/cmd/compile/internal/gc/parser.go |  1 -
- 2 files changed, 3 insertions(+), 83 deletions(-)
+ misc/ios/detect.go | 3 +++
+ 1 file changed, 3 insertions(+)

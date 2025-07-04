@@ -1,20 +1,23 @@
-commit de5c573baabf925ee7cb868285ed4f14de5f7fe9
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Mar 8 05:52:07 2017 +0900
+commit 1c6ef9aeedf951a7a1fa7f510aa42150d3051567
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 16:07:47 2017 -0500
 
-    syscall: add Conn and RawConn interfaces
+    cmd/compile: copy literals when inlining
     
-    This change adds Conn and RawConn interfaces which can be used to
-    manipulate raw network connection end points typically represented as
-    socket descriptors.
+    Without this, literals keep their original source positions through
+    inlining, which results in strange jumps in line numbers of inlined
+    function bodies. By copying literals, inlining can update their source
+    position like other nodes.
     
-    Fixes #19435.
+    Fixes #15453.
     
-    Change-Id: Ide2d28eeab91bfd27473ab47a87bec69950b64c9
-    Reviewed-on: https://go-review.googlesource.com/37913
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Iad5d9bbfe183883794213266dc30e31bab89ee69
+    Reviewed-on: https://go-review.googlesource.com/37232
+    Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/syscall/net.go | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/cmd/compile/internal/gc/inl.go | 43 ++++++++++++++++++++------------
+ test/inline_literal.go             | 50 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 16 deletions(-)

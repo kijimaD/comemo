@@ -1,27 +1,26 @@
-commit 75800a9a2842438c872c6464b3a87b33fedfea27
-Author: Joel Sing <jsing@google.com>
-Date:   Wed Dec 11 11:41:30 2013 -0500
+commit dba08e0615b54f3b9ebbf3133e6918de7b130645
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 11 14:47:18 2013 +1100
 
-    crypto/sha256: block implementation in amd64 assembly
+    misc/dist: rename to makerelease
     
-    Benchmark on Intel(R) Xeon(R) CPU X5650  @ 2.67GHz
+    The ambiguity has gone on too long.
     
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes         1259          677  -46.23%
-    BenchmarkHash1K            14387         6749  -53.09%
-    BenchmarkHash8K           106006        50107  -52.73%
-    
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes         6.35        11.81    1.86x
-    BenchmarkHash1K            71.17       151.72    2.13x
-    BenchmarkHash8K            77.28       163.49    2.12x
-    
-    R=agl
+    R=golang-dev, minux.ma, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/28460043
+    https://golang.org/cl/39920043
 
- src/pkg/crypto/sha256/sha256.go           |   2 +-
- src/pkg/crypto/sha256/sha256block.go      |   2 +
- src/pkg/crypto/sha256/sha256block_amd64.s | 256 ++++++++++++++++++++++++++++++
- src/pkg/crypto/sha256/sha256block_decl.go |  11 ++
- 4 files changed, 270 insertions(+), 1 deletion(-)
+ misc/{dist => makerelease}/darwin/Distribution        |   0
+ misc/{dist => makerelease}/darwin/Resources/bg.png    | Bin
+ misc/{dist => makerelease}/darwin/etc/paths.d/go      |   0
+ misc/{dist => makerelease}/darwin/scripts/postinstall |   0
+ misc/{dist => makerelease}/darwin/scripts/preinstall  |   0
+ misc/{dist/bindist.go => makerelease/makerelease.go}  |  18 +++++++++---------
+ misc/{dist => makerelease}/windows/LICENSE.rtf        | Bin
+ misc/{dist => makerelease}/windows/README.txt         |   0
+ misc/{dist => makerelease}/windows/images/Banner.jpg  | Bin
+ misc/{dist => makerelease}/windows/images/Dialog.jpg  | Bin
+ .../windows/images/DialogLeft.jpg                     | Bin
+ misc/{dist => makerelease}/windows/images/gopher.ico  | Bin
+ misc/{dist => makerelease}/windows/installer.wxs      |   0
+ 13 files changed, 9 insertions(+), 9 deletions(-)

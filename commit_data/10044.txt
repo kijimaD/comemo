@@ -1,12 +1,32 @@
-commit aa42881ed03c23b89f7eab87768f8669851bc0cc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 19 08:23:13 2011 +1100
+commit b1fd528db5305d85c6dfabd8ff7d0656c7f97a39
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 19 08:03:30 2011 +1100
 
-    http: add test for panic inside hijacked request
+    html: parse raw text and RCDATA elements, such as <script> and <title>.
     
-    R=golang-dev, rsc, rsc
+    Pass tests1.dat, test 26:
+    #data
+    <script><div></script></div><title><p></title><p><p>
+    #document
+    | <html>
+    |   <head>
+    |     <script>
+    |       "<div>"
+    |     <title>
+    |       "<p>"
+    |   <body>
+    |     <p>
+    |     <p>
+    
+    Thanks to Andy Balholm for driving this change.
+    
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5283052
+    https://golang.org/cl/5301042
 
- src/pkg/http/serve_test.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 34 ++++++++++++++++++--
+ src/pkg/html/parse_test.go |  8 ++---
+ src/pkg/html/render.go     | 38 ++++++++++++++--------
+ src/pkg/html/token.go      | 79 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/html/token_test.go | 71 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 209 insertions(+), 21 deletions(-)

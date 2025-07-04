@@ -1,16 +1,33 @@
-commit eb788045d85f48980b8513a71661fcf3100c98c8
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jun 13 17:43:02 2014 +1000
+commit 50365666c7264ac0608220adeff2c4f503b8fb67
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 13 02:04:03 2014 -0400
 
-    image/png: fix compare-to-golden-file test.
+    undo CL 101970047 / 30307cc8bef2
     
-    bufio.Scanner.Scan returns whether the scan succeeded, not whether it
-    is done, so the test was mistakenly breaking early.
+    makes windows-amd64-race benchmarks slower
     
-    LGTM=r
-    R=r
+    ««« original CL description
+    testing: make benchmarking faster
+    
+    Allow the number of benchmark iterations to grow faster for fast benchmarks, and don't round up twice.
+    
+    Using the default benchtime, this CL reduces wall clock time to run benchmarks:
+    
+    net/http        49s   -> 37s   (-24%)
+    runtime         8m31s -> 5m55s (-30%)
+    bytes           2m37s -> 1m29s (-43%)
+    encoding/json   29s   -> 21s   (-27%)
+    strings         1m16s -> 53s   (-30%)
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/93670045
+    https://golang.org/cl/101970047
+    »»»
+    
+    TBR=josharian
+    CC=golang-codereviews
+    https://golang.org/cl/105950044
 
- src/pkg/image/png/reader_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/testing/benchmark.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

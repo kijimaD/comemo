@@ -1,16 +1,23 @@
-commit 1c05a90ae28df67ae74a2ad49293e11d9222cb1c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 24 11:45:12 2011 +1100
+commit 913c8d73978795e4f2cdd1f87de3af5239ebdc84
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 24 11:20:28 2011 +1100
 
-    runtime: fix freebsd-amd64 (and part of 386)
+    syscall: StartProcess fixes for windows
     
-    R=rsc
+    - StartProcess will work with relative (to attr.Dir, not
+      current directory) executable filenames
+    - StartProcess will only work if executable filename points
+      to the real file, it will not search for executable in the
+      $PATH list and others (see CreateProcess manual for details)
+    - StartProcess argv strings can contain any characters
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4285063
+    https://golang.org/cl/4306041
 
- src/pkg/runtime/freebsd/386/signal.c   |  5 +++--
- src/pkg/runtime/freebsd/amd64/defs.h   | 23 +++++++++++++++++++----
- src/pkg/runtime/freebsd/amd64/signal.c |  5 +++--
- src/pkg/runtime/freebsd/defs.c         |  2 ++
- src/pkg/runtime/freebsd/os.h           |  1 +
- 5 files changed, 28 insertions(+), 8 deletions(-)
+ src/pkg/exec/exec_test.go               |  52 +++++
+ src/pkg/os/os_test.go                   |  44 +++--
+ src/pkg/syscall/exec_windows.go         | 328 ++++++++++++++++++++------------
+ src/pkg/syscall/syscall_windows.go      |   3 +-
+ src/pkg/syscall/zsyscall_windows_386.go |  20 +-
+ 5 files changed, 308 insertions(+), 139 deletions(-)

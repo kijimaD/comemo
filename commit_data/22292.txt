@@ -1,13 +1,18 @@
-commit 14bbab47584844d2c32534564f0f3f51b76df05a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 2 20:42:59 2015 -0700
+commit 3d0397a4f4f4034f4cb330ec7e5b05a359a86196
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 18:47:44 2015 -0500
 
-    cmd/internal/gc/big: gofmt vendored code
+    cmd/internal/obj/x86: change SHRQ to store second source in From3, not jammed into From
     
-    Change-Id: I035e6f1cd159644db5eeef83056b9c34c401e60f
-    Reviewed-on: https://go-review.googlesource.com/8441
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    SHRQ CX, DX:AX is changing to SHRQ CX, AX, DX.
+    This is the first step: using SHRQ From=CX, From3=AX, To=DX
+    as the preferred encoding.
+    Once the assemblers and 6g have been updated,
+    support for the old encoding can be removed.
+    
+    Change-Id: Ie603fb8ac25a6df78e42f7ddcae078a7684a7c26
+    Reviewed-on: https://go-review.googlesource.com/6693
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/big/arith_decl.go | 2 --
- src/cmd/internal/gc/big/vendor.bash   | 3 +++
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 58 ++++++++++++++++++++++++++++------------
+ 1 file changed, 41 insertions(+), 17 deletions(-)

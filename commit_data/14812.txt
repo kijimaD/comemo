@@ -1,12 +1,12 @@
-commit 8cf45909b59dbc9edf856b129c6b84603438973b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Jan 6 22:43:32 2013 -0500
+commit 02370f6760ca41a9a2061a1398e6a7af64bf541a
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Sun Jan 6 18:08:58 2013 -0800
 
-    bytes: Change Compare example to be consistent with sort.Search's.
+    go/types: Set Signature.Recv for imported types
     
-    R=rsc, adg
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/7057049
+    https://golang.org/cl/7065046
 
- src/pkg/bytes/example_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/go/types/gcimporter.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

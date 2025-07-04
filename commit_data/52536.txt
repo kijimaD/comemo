@@ -1,36 +1,24 @@
-commit 76ac54b50ea39bbb1389ecfed71f4f0991cb4289
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Jan 16 16:21:48 2023 +0100
+commit 90a11e921ba3b928706854655bd010f309a96458
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 9 12:57:31 2022 -0400
 
-    cmd/internal/obj: generate SEH aux symbols for windows/amd64
+    cmd/compile: more fix on boolean ops on ARM64
     
-    This CL updates the Go compiler so it generate SEH unwind info [1] as a
-    function auxiliary symbol when building for windows/amd64.
+    Following CL 405114, the extension rule is also wrong. It is safe
+    to drop the extension if the value is from a boolean-generating
+    instruction, but not a boolean-typed Value in general (e.g. a Phi
+    or a in-register parameter). Fix it.
     
-    A follow up CL will teach the Go linker how to assemble these codes
-    into the PE .xdata section.
+    Updates #52788.
     
-    Updates #57302
-    
-    [1] https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
-    
-    Change-Id: I40ae0437bfee326c1a67c2b5e1496f0bf3ecea17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461749
-    Reviewed-by: Davis Goodin <dagood@microsoft.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Icf3028fe8e90806f9f57fbe2b38d47da27a97e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405115
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/internal/goobj/objfile.go           |   1 +
- src/cmd/internal/obj/link.go                |   3 +
- src/cmd/internal/obj/objfile.go             |   8 +-
- src/cmd/internal/obj/plist.go               |   3 +
- src/cmd/internal/obj/sym.go                 |   2 +-
- src/cmd/internal/obj/x86/obj6.go            |   2 +
- src/cmd/internal/obj/x86/seh.go             | 141 ++++++++++++++++++++++++++++
- src/cmd/internal/objabi/symkind.go          |   1 +
- src/cmd/internal/objabi/symkind_string.go   |   5 +-
- src/cmd/link/internal/sym/symkind.go        |   4 +
- src/cmd/link/internal/sym/symkind_string.go |   7 +-
- 11 files changed, 170 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   4 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 148 ++++++++++++++++++++++++++-
+ test/fixedbugs/issue52788a.go                |  29 ++++++
+ test/fixedbugs/issue52788a.out               |   1 +
+ 4 files changed, 177 insertions(+), 5 deletions(-)

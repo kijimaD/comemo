@@ -1,0 +1,14 @@
+commit 497cb7c0c3042d3c6605b46a1bf35b7c3bc8b046
+Author: Mark Freeman <mark@golang.org>
+Date:   Fri May 30 15:44:11 2025 -0400
+
+    cmd/compile/internal/noder: document quirk of string elements
+    
+    Change-Id: Ifc3bf896aaaf7c6ce06a01e3dd43780d203638cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

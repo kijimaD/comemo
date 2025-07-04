@@ -1,16 +1,13 @@
-commit 92ba69d216e6b840b02ae4ecdc7fb425a94473b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 15 14:52:06 2016 -0800
+commit 4a25f6ca05896f25bd8a1b561b09915b456f36c6
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Sep 9 22:39:45 2015 -0400
 
-    cmd/compile: set importpkg.Direct correctly when using binary imports
+    math, math/big: added support for mips64{,le}
     
-    Fixes #13977.
-    
-    Change-Id: Icf54b4d2d746d30da207d1e17c975d18188b1cf8
-    Reviewed-on: https://go-review.googlesource.com/18702
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5129a5b9dbbc57d97da723c2fc247bd28f951817
+    Reviewed-on: https://go-review.googlesource.com/14451
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/math/big/arith_mips64x.s | 46 ++++++++++++++++++++++
+ src/math/stubs_mips64x.s     | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 137 insertions(+)

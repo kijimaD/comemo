@@ -1,16 +1,21 @@
-commit bd2dc2d819b85beb8887466a165242e2d540e4b9
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Wed Jun 1 09:44:38 2016 -0300
+commit c1c7547f6ad7264c1d6eea3fc1645b2eab104694
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 13:31:08 2016 -0700
 
-    doc: rename Unshare to Unshareflags in go1.7 release notes
+    net/http: add Request.Context and Request.WithContext
     
-    Implementation changed in https://golang.org/cl/23612.
+    Currently only used by the client. The server is not yet wired up.  A
+    TODO remains to document how it works server-side, once implemented.
     
-    Updates #15810
+    Updates #14660
     
-    Change-Id: I8fff9e3aa3e54162546bb9ec1cc2ebba2b6d9fed
-    Reviewed-on: https://go-review.googlesource.com/23614
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I27c2e74198872b2720995fa8271d91de200e23d5
+    Reviewed-on: https://go-review.googlesource.com/21496
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.7.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go      |  3 ++-
+ src/net/http/request.go        | 37 +++++++++++++++++++++++++++++++++++++
+ src/net/http/response_test.go  |  7 ++++++-
+ src/net/http/transport.go      |  9 +++++++++
+ src/net/http/transport_test.go | 21 +++++++++++++++++----
+ 5 files changed, 71 insertions(+), 6 deletions(-)

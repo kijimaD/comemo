@@ -1,67 +1,19 @@
-commit 111cdb58487f1a3d2bd82be14a90837f31a3e320
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Jun 15 19:07:24 2022 +0800
+commit 08d4cc20cad0e95b4e368c2f38268199f9c68548
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Aug 23 00:48:10 2021 +0800
 
-    all: update to current golang.org/x/sys revision
+    cmd/compile: fix stencil call expression.
     
-    go get -d golang.org/x/sys@6c1b26c55098eae66ce95ab7c3712ab6cbfff2b7
-    go mod tidy
-    go mod vendor
+    Fixes: #47878
     
-    This fixes the problem of the second return value in syscall on linux/loong64.
-    
-    Change-Id: I8018ae96f4e5ca9779b2c053cdccc6b2866bf0de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412274
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I369350813726fd518b4eab2b98f43bf031a6dee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344210
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +--
- .../golang.org/x/sys/unix/asm_linux_loong64.s      |  4 +--
- .../vendor/golang.org/x/sys/unix/ifreq_linux.go    |  9 +------
- .../golang.org/x/sys/unix/syscall_solaris.go       |  1 +
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_loong64.go |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  2 +-
- .../x/sys/unix/zerrors_linux_mips64le.go           |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  2 +-
- .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |  2 +-
- .../x/sys/unix/zsyscall_solaris_amd64.go           | 14 +++++++++++
- .../golang.org/x/sys/unix/ztypes_linux_386.go      |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_arm.go      |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_loong64.go  |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_mips.go     |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |  2 +-
- .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |  2 +-
- .../golang.org/x/sys/unix/ztypes_openbsd_386.go    |  8 +++---
- .../golang.org/x/sys/unix/ztypes_openbsd_amd64.go  |  8 +++---
- .../golang.org/x/sys/unix/ztypes_openbsd_arm.go    |  8 +++---
- .../golang.org/x/sys/unix/ztypes_openbsd_arm64.go  |  8 +++---
- .../golang.org/x/sys/unix/ztypes_openbsd_mips64.go |  8 +++---
- src/cmd/vendor/modules.txt                         |  2 +-
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 +--
- src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.c    | 29 +++++++++-------------
- src/vendor/modules.txt                             |  2 +-
- 46 files changed, 88 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  7 +++++
+ test/typeparam/issue47878.go              | 46 +++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

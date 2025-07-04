@@ -1,42 +1,18 @@
-commit 174707869544b246c055b9a5f53ca7d4ea860b67
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 18 10:18:34 2017 -0700
+commit 7751d56e3955aaf5285f16b1643e6d8153e32b80
+Author: Peter Nguyen <peter@mictis.com>
+Date:   Fri Feb 3 21:45:50 2017 +0100
 
-    cmd/internal/obj: un-embed FuncInfo field in LSym
+    net/rpc/jsonrpc: Update package doc with info about JSON-RPC 2.0
     
-    Automated refactoring using github.com/mdempsky/unbed (to rewrite
-    s.Foo to s.FuncInfo.Foo) and then gorename (to rename the FuncInfo
-    field to just Func).
+    Currently the net/rpc/jsonrpc package only implements JSON-RPC version
+    1.0. This change updates the package's documentation with link to find
+    packages for JSON-RPC 2.0.
     
-    Passes toolstash-check -all.
+    Fixes #10929
     
-    Change-Id: I802c07a1239e0efea058a91a87c5efe12170083a
-    Reviewed-on: https://go-review.googlesource.com/40670
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I3b6f1d17738a1759d7b62ab7b3ecef5b248d30ca
+    Reviewed-on: https://go-review.googlesource.com/36330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/asm.go      |  2 +-
- src/cmd/compile/internal/gc/gsubr.go |  6 +++---
- src/cmd/compile/internal/gc/obj.go   |  4 ++--
- src/cmd/compile/internal/gc/pgen.go  |  2 +-
- src/cmd/compile/internal/gc/plive.go |  2 +-
- src/cmd/internal/obj/arm/asm5.go     |  8 +++----
- src/cmd/internal/obj/arm/obj5.go     | 42 ++++++++++++++++++------------------
- src/cmd/internal/obj/arm64/asm7.go   |  6 +++---
- src/cmd/internal/obj/arm64/obj7.go   | 40 +++++++++++++++++-----------------
- src/cmd/internal/obj/ld.go           |  2 +-
- src/cmd/internal/obj/link.go         |  3 +--
- src/cmd/internal/obj/mips/asm0.go    |  8 +++----
- src/cmd/internal/obj/mips/obj0.go    | 42 ++++++++++++++++++------------------
- src/cmd/internal/obj/objfile.go      | 30 +++++++++++++-------------
- src/cmd/internal/obj/pass.go         |  6 +++---
- src/cmd/internal/obj/pcln.go         | 18 ++++++++--------
- src/cmd/internal/obj/plist.go        | 14 ++++++------
- src/cmd/internal/obj/ppc64/asm9.go   |  6 +++---
- src/cmd/internal/obj/ppc64/obj9.go   | 30 +++++++++++++-------------
- src/cmd/internal/obj/s390x/asmz.go   |  4 ++--
- src/cmd/internal/obj/s390x/objz.go   | 30 +++++++++++++-------------
- src/cmd/internal/obj/x86/asm6.go     |  6 +++---
- src/cmd/internal/obj/x86/obj6.go     | 26 +++++++++++-----------
- 23 files changed, 168 insertions(+), 169 deletions(-)
+ src/net/rpc/jsonrpc/client.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

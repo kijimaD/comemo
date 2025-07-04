@@ -1,16 +1,99 @@
-commit 1082e2390e55519a576f21c0424f41246d232808
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jul 10 14:38:35 2015 -0700
+commit faa7a7e8ae824c78e78b272604f89e834ade6695
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 20 16:30:49 2015 -0400
 
-    cmd/link/internal/ld: stricter object file decoding
+    runtime: implement GC stack barriers
     
-    Instead of silently truncating integers to their expected range, check
-    that they're within range and emit errors if not.  Intended to help
-    narrow down the cause of issue #11617.
+    This commit implements stack barriers to minimize the amount of
+    stack re-scanning that must be done during mark termination.
     
-    Change-Id: Ia7b577270f8438ca7479262702371e26277f1ea7
-    Reviewed-on: https://go-review.googlesource.com/12050
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Currently the GC scans stacks of active goroutines twice during every
+    GC cycle: once at the beginning during root discovery and once at the
+    end during mark termination. The second scan happens while the world
+    is stopped and guarantees that we've seen all of the roots (since
+    there are no write barriers on writes to local stack
+    variables). However, this means pause time is proportional to stack
+    size. In particularly recursive programs, this can drive pause time up
+    past our 10ms goal (e.g., it takes about 150ms to scan a 50MB heap).
+    
+    Re-scanning the entire stack is rarely necessary, especially for large
+    stacks, because usually most of the frames on the stack were not
+    active between the first and second scans and hence any changes to
+    these frames (via non-escaping pointers passed down the stack) were
+    tracked by write barriers.
+    
+    To efficiently track how far a stack has been unwound since the first
+    scan (and, hence, how much needs to be re-scanned), this commit
+    introduces stack barriers. During the first scan, at exponentially
+    spaced points in each stack, the scan overwrites return PCs with the
+    PC of the stack barrier function. When "returned" to, the stack
+    barrier function records how far the stack has unwound and jumps to
+    the original return PC for that point in the stack. Then the second
+    scan only needs to proceed as far as the lowest barrier that hasn't
+    been hit.
+    
+    For deeply recursive programs, this substantially reduces mark
+    termination time (and hence pause time). For the goscheme example
+    linked in issue #10898, prior to this change, mark termination times
+    were typically between 100 and 500ms; with this change, mark
+    termination times are typically between 10 and 20ms. As a result of
+    the reduced stack scanning work, this reduces overall execution time
+    of the goscheme example by 20%.
+    
+    Fixes #10898.
+    
+    The effect of this on programs that are not deeply recursive is
+    minimal:
+    
+    name                   old time/op    new time/op    delta
+    BinaryTree17              3.16s ± 2%     3.26s ± 1%  +3.31%  (p=0.000 n=19+19)
+    Fannkuch11                2.42s ± 1%     2.48s ± 1%  +2.24%  (p=0.000 n=17+19)
+    FmtFprintfEmpty          50.0ns ± 3%    49.8ns ± 1%    ~     (p=0.534 n=20+19)
+    FmtFprintfString          173ns ± 0%     175ns ± 0%  +1.49%  (p=0.000 n=16+19)
+    FmtFprintfInt             170ns ± 1%     175ns ± 1%  +2.97%  (p=0.000 n=20+19)
+    FmtFprintfIntInt          288ns ± 0%     295ns ± 0%  +2.73%  (p=0.000 n=16+19)
+    FmtFprintfPrefixedInt     242ns ± 1%     252ns ± 1%  +4.13%  (p=0.000 n=18+18)
+    FmtFprintfFloat           324ns ± 0%     323ns ± 0%  -0.36%  (p=0.000 n=20+19)
+    FmtManyArgs              1.14µs ± 0%    1.12µs ± 1%  -1.01%  (p=0.000 n=18+19)
+    GobDecode                8.88ms ± 1%    8.87ms ± 0%    ~     (p=0.480 n=19+18)
+    GobEncode                6.80ms ± 1%    6.85ms ± 0%  +0.82%  (p=0.000 n=20+18)
+    Gzip                      363ms ± 1%     363ms ± 1%    ~     (p=0.077 n=18+20)
+    Gunzip                   90.6ms ± 0%    90.0ms ± 1%  -0.71%  (p=0.000 n=17+18)
+    HTTPClientServer         51.5µs ± 1%    50.8µs ± 1%  -1.32%  (p=0.000 n=18+18)
+    JSONEncode               17.0ms ± 0%    17.1ms ± 0%  +0.40%  (p=0.000 n=18+17)
+    JSONDecode               61.8ms ± 0%    63.8ms ± 1%  +3.11%  (p=0.000 n=18+17)
+    Mandelbrot200            3.84ms ± 0%    3.84ms ± 1%    ~     (p=0.583 n=19+19)
+    GoParse                  3.71ms ± 1%    3.72ms ± 1%    ~     (p=0.159 n=18+19)
+    RegexpMatchEasy0_32       100ns ± 0%     100ns ± 1%  -0.19%  (p=0.033 n=17+19)
+    RegexpMatchEasy0_1K       342ns ± 1%     331ns ± 0%  -3.41%  (p=0.000 n=19+19)
+    RegexpMatchEasy1_32      82.5ns ± 0%    81.7ns ± 0%  -0.98%  (p=0.000 n=18+18)
+    RegexpMatchEasy1_1K       505ns ± 0%     494ns ± 1%  -2.16%  (p=0.000 n=18+18)
+    RegexpMatchMedium_32      137ns ± 1%     137ns ± 1%  -0.24%  (p=0.048 n=20+18)
+    RegexpMatchMedium_1K     41.6µs ± 0%    41.3µs ± 1%  -0.57%  (p=0.004 n=18+20)
+    RegexpMatchHard_32       2.11µs ± 0%    2.11µs ± 1%  +0.20%  (p=0.037 n=17+19)
+    RegexpMatchHard_1K       63.9µs ± 2%    63.3µs ± 0%  -0.99%  (p=0.000 n=20+17)
+    Revcomp                   560ms ± 1%     522ms ± 0%  -6.87%  (p=0.000 n=18+16)
+    Template                 75.0ms ± 0%    75.1ms ± 1%  +0.18%  (p=0.013 n=18+19)
+    TimeParse                 358ns ± 1%     364ns ± 0%  +1.74%  (p=0.000 n=20+15)
+    TimeFormat                360ns ± 0%     372ns ± 0%  +3.55%  (p=0.000 n=20+18)
+    
+    Change-Id: If8a9bfae6c128d15a4f405e02bcfa50129df82a2
+    Reviewed-on: https://go-review.googlesource.com/10314
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 86 +++++++++++++++++++++++++------------
- 1 file changed, 59 insertions(+), 27 deletions(-)
+ src/runtime/asm_386.s      |  34 ++++++++-
+ src/runtime/asm_amd64.s    |  34 ++++++++-
+ src/runtime/asm_amd64p32.s |  35 ++++++++-
+ src/runtime/asm_arm.s      |  41 ++++++++++-
+ src/runtime/asm_arm64.s    |  41 ++++++++++-
+ src/runtime/asm_ppc64x.s   |  42 ++++++++++-
+ src/runtime/mbarrier.go    |  18 ++++-
+ src/runtime/mgcmark.go     | 178 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/panic1.go      |   1 +
+ src/runtime/stack1.go      |   7 ++
+ src/runtime/stack_test.go  |  33 +++++++++
+ src/runtime/stubs.go       |   7 ++
+ src/runtime/traceback.go   |  33 ++++++++-
+ 13 files changed, 481 insertions(+), 23 deletions(-)

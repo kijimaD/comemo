@@ -1,22 +1,15 @@
-commit ad341843a7661e4883c8a66b12433e55db1dfc7e
-Author: Michael Teichgräber <mteichgraeber@gmx.de>
-Date:   Wed Jan 30 09:25:16 2013 -0800
+commit 779e9dfd4d48b853b1406736b21965dd25f1ead5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 30 09:23:36 2013 -0800
 
-    net: SplitHostPort: adjust error message for missing port in IPv6 addresses
+    doc/go1.1.html: document division by zero change from CL 6710045
     
-    An hostport of "[::1]" now results in the same error message
-    "missing port in address" as the hostport value "127.0.0.1",
-    so SplitHostPort won't complain about "too many colons
-    in address" anymore for an IPv6 address missing a port.
+    I am still not convinced this is a change we should make, but at least
+    documenting it will keep us from forgetting it as we get closer to Go 1.1.
     
-    Added tests checking the error values.
-    
-    Fixes #4526.
-    
-    R=dave, rsc, mikioh.mikioh
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7038045
+    https://golang.org/cl/7226064
 
- src/pkg/net/ip_test.go | 32 ++++++++++++++++++++++++++++
- src/pkg/net/ipsock.go  | 57 ++++++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 80 insertions(+), 9 deletions(-)
+ doc/go1.1.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

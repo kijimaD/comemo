@@ -1,14 +1,22 @@
-commit 354467ffbb81247ff17de9a70796b155337cb299
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 18 03:18:23 2014 -0500
+commit ba603c31002b25a74bef2a092c094ff4b23b3c90
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 14 13:01:12 2014 +1100
 
-    crypto/cipher: update docs for the Stream interface
+    [dev.cc] runtime: convert openbsd/amd64 port to Go
     
-    Specify what will happen if len(dst) != len(src).
-    
-    Change-Id: I66afa3730f637753b825189687418f14ddec3629
-    Reviewed-on: https://go-review.googlesource.com/1754
-    Reviewed-by: Adam Langley <agl@golang.org>
+    LGTM=rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/171660043
 
- src/crypto/cipher/cipher.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/defs_openbsd_amd64.go   |  72 +++++----
+ src/runtime/os1_openbsd.go          | 235 +++++++++++++++++++++++++++
+ src/runtime/os2_openbsd.go          |  14 ++
+ src/runtime/os_openbsd.c            | 309 ------------------------------------
+ src/runtime/os_openbsd.go           |  30 +++-
+ src/runtime/os_openbsd.h            |  26 ---
+ src/runtime/signal_openbsd.go       |  46 ++++++
+ src/runtime/signal_openbsd_amd64.go |  49 ++++++
+ src/runtime/signal_openbsd_amd64.h  |  31 ----
+ src/runtime/signals_openbsd.h       |  54 -------
+ 10 files changed, 409 insertions(+), 457 deletions(-)

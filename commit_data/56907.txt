@@ -1,27 +1,18 @@
-commit fc51e5023ec99fee405ae61ee4ab2c8c9bc66f24
-Author: withsky <withsky2002@gmail.com>
-Date:   Wed Jul 17 12:06:34 2024 +0000
+commit 8870c05b60d80c0f1f984ac365eff3fd8f95982a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:15:43 2023 -0700
 
-    math/big: fix comment typo in natdiv.go
+    doc/go1.21: mention directive handling in go/{ast,build}
     
-    Comment in line 395:
-    [x₀ < S, so S - x₀ < 0; drop it]
-    Should be:
-    [x₀ < S, so S - x₀ > 0; drop it]
+    For #56986
+    For #59033
     
-    The proof is based on S - x₀ > 0, thus it's a typo of comment.
-    
-    Fixes #68466
-    
-    Change-Id: I68bb7cb909ba2bfe02a8873f74b57edc6679b72a
-    GitHub-Last-Rev: 40a2fc80cf22e97e0f535454a9b87b31b2e51421
-    GitHub-Pull-Request: golang/go#68487
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598855
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I7d03fe34d418aff97a551b236b5d43506e402871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499415
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/math/big/natdiv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.21.html | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

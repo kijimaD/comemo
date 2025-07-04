@@ -1,24 +1,23 @@
-commit 79b809afb325ae266497e21597f126a3e98a1ef7
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Apr 10 13:58:17 2025 -0700
+commit 691f5b8e74e7a2d11740f54a4a6827ff7ec9f661
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 11:49:37 2024 -0800
 
-    os: handle trailing slashes in os.RemoveDir on Windows
+    go/types: generate typeset.go from types2 source
     
-    CL 661575 inadvertently caused os.RemoveDir on Windows to
-    fail when given a path with a trailing / or \, due to the
-    splitPath function not correctly stripping trailing
-    separators.
+    To simplify the translation, use extra atPos calls where needed
+    in the respective types2 source.
     
-    Fixes #73317
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 420 LOC.
     
-    Change-Id: I21977b94bb08ff1e563de6f5f16a4bdf5024a15e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664715
-    Auto-Submit: Damien Neil <dneil@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I839844a6e85ccb1111d76c43de23127d8f9fbbce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567776
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/os/export_windows_test.go |  1 +
- src/os/os_windows_test.go     | 36 ++++++++++++++++++++++++++++++++
- src/os/path_windows.go        | 48 +++++++++++++++++++++++++++++++++++++++----
- src/os/removeall_test.go      | 21 +++++++++++++++++++
- 4 files changed, 102 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/typeset.go | 24 ++++++++++++++----------
+ src/go/types/generate_test.go              |  1 +
+ src/go/types/typeset.go                    | 14 ++++++++++----
+ 3 files changed, 25 insertions(+), 14 deletions(-)

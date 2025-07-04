@@ -1,16 +1,21 @@
-commit 2ad67147936bb1bf1f95d2a2ae41deab236712e9
+commit 432f18221fa77b814854053e751c125c9920886c
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Dec 17 08:33:51 2012 -0800
+Date:   Mon Dec 17 11:07:40 2012 -0500
 
-    syscall: lazily populate the environment cache on Plan 9
+    runtime: implement getenv for Plan 9
     
-    This decreases the amount of system calls during the
-    first call to Getenv. Calling Environ will still read
-    in all environment variables and populate the cache.
+    With this change the runtime can now read GOMAXPROCS, GOGC, etc.
     
-    R=golang-dev, rsc
+    I'm not quite sure how we missed this.
+    
+    R=seed, lucio.dere, rsc
     CC=golang-dev
-    https://golang.org/cl/6939048
+    https://golang.org/cl/6935062
 
- src/pkg/syscall/env_plan9.go | 36 +++++++++++++++++++++++-------------
- 1 file changed, 23 insertions(+), 13 deletions(-)
+ src/pkg/runtime/env_plan9.c       | 33 +++++++++++++++++++++
+ src/pkg/runtime/env_posix.c       | 61 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_plan9.h        |  1 +
+ src/pkg/runtime/runtime.c         | 52 ---------------------------------
+ src/pkg/runtime/sys_plan9_386.s   | 12 +++++++-
+ src/pkg/runtime/sys_plan9_amd64.s | 24 +++++++++++++++
+ 6 files changed, 130 insertions(+), 53 deletions(-)

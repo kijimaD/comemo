@@ -1,17 +1,14 @@
-commit 08543f071520074854f280ad789cf79c5a00af7d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Feb 16 10:36:10 2021 +0100
+commit 340efd3608c2dc69b8786a8e7ca472e9f78d9002
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 21:32:15 2020 -0700
 
-    ios/fs: mention f.dir in (*subFS).fixErr godoc
+    go/token: explain file base offset better in documentation
     
-    There is no dir parameter to (f *subFS).fixErr.
+    Fixes #36648.
     
-    Change-Id: I49e42bac5e102cfab0d289658d9871429cfec515
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292389
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I92d4462fea0079f63697fb8f407fd2d50b7d68f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238117
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/fs/sub.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/token/position.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

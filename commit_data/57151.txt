@@ -1,16 +1,21 @@
-commit 85d2eadcf2715a1230e393ca4cd65ad328f76966
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Aug 12 16:01:55 2024 -0400
+commit fe73c186eba2c849a2f2aeaca091ddb5bac3aef1
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 29 11:44:04 2023 -0400
 
-    test: add test case for wasmexport parameter types
+    cmd/{go,compile}: run gofmt
     
-    For #65199.
+    Ran gofmt on a couple of Go source files that needed it.
     
-    Change-Id: Iecd11281706201a655b51583a08318b5ffd8ab04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604975
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I0e9f78831f531a728b892a63c6e0c517d92b11a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507156
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/wasmexport2.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 58 insertions(+)
+ src/cmd/compile/internal/devirtualize/devirtualize.go | 10 +++++-----
+ src/cmd/compile/internal/typecheck/stmt.go            |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go            |  4 ++--
+ src/cmd/go/internal/gover/gover.go                    |  1 -
+ src/cmd/go/main.go                                    |  6 +++---
+ 5 files changed, 11 insertions(+), 12 deletions(-)

@@ -1,18 +1,20 @@
-commit 070c1fcbc505f9c4b4fc759c6fafc60cff28edcb
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 16 15:47:08 2023 +0700
+commit 86bbcc6a7503e96ea55d5c685141c7d109b07cde
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Wed Nov 9 16:40:24 2022 +0800
 
-    cmd/compile: move ssagen.dvarint to objw.Uvarint
+    cmd/go: enable -x in go mod tidy
     
-    Follow up discussion in CL 535077.
+    Updates #35849
     
-    Change-Id: I102c90839e39c463e878ff925872376303724e12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535636
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I8b40a2de6a05880a9f939349a714b631888f5f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448915
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/objw/objw.go  |  9 +++++++++
- src/cmd/compile/internal/ssagen/ssa.go | 18 ++----------------
- 2 files changed, 11 insertions(+), 16 deletions(-)
+ src/cmd/go/alldocs.go                                  |  4 +++-
+ src/cmd/go/internal/modcmd/tidy.go                     |  5 ++++-
+ src/cmd/go/testdata/script/mod_tidy_support_buildx.txt | 18 ++++++++++++++++++
+ 3 files changed, 25 insertions(+), 2 deletions(-)

@@ -1,32 +1,25 @@
-commit 0138c1abef3871b72e47d5909ce08c9218f61b16
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 23 20:21:50 2024 +0200
+commit a756cc0967c240820b491fa6412cfe6bd7b4bf8b
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Tue Aug 29 12:39:58 2023 -0500
 
-    Revert "crypto/rand: add randcrash=0 GODEBUG"
+    cmd/go: add missing str imports to fix addmod and savedir
     
-    A GODEBUG is actually a security risk here: most programs will start to
-    ignore errors from Read because they can't happen (which is the intended
-    behavior), but then if a program is run with GODEBUG=randcrash=0 it will
-    use a partial buffer in case an error occurs, which may be catastrophic.
+    The addmod.go and savedir.go testdata generation tools were missing the
+    "cmd/go/internal/str" import, causing them to fail to build. This change
+    adds the imports.
     
-    Note that the proposal was accepted without the GODEBUG, which was only
-    added later.
+    This makes progress on the work to use Join functions rather than path
+    manipulation using the path separator:
+    https://go-review.googlesource.com/c/go/+/463178
     
-    This (partially) reverts CL 608435. I kept the tests.
-    
-    Updates #66821
-    
-    Change-Id: I3fd20f9cae0d34115133fe935f0cfc7a741a2662
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: Ia70253afc0a351c646e672bd4178a8738e4e69cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524155
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- doc/godebug.md                 |  5 -----
- src/crypto/rand/rand.go        |  7 -------
- src/crypto/rand/rand_test.go   | 10 +---------
- src/internal/godebugs/table.go |  1 -
- src/runtime/metrics/doc.go     |  4 ----
- 5 files changed, 1 insertion(+), 26 deletions(-)
+ src/cmd/go/testdata/addmod.go  | 1 +
+ src/cmd/go/testdata/savedir.go | 1 +
+ 2 files changed, 2 insertions(+)

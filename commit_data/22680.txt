@@ -1,18 +1,15 @@
-commit e5e52f4f2c6f67e41b97fd539c1963f85536c985
+commit 6134caf1f965045bcc009c0bdb26031ce5583892
 Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 22 12:18:01 2015 -0400
+Date:   Mon Mar 30 16:59:09 2015 -0400
 
-    runtime: factor checking if P run queue is empty
+    runtime: improve MemStats comments
     
-    There are a variety of places where we check if a P's run queue is
-    empty. This test is about to get slightly more complicated, so factor
-    it out into a new function, runqempty. This function is inlinable, so
-    this has no effect on performance.
+    This tries to clarify that Alloc and HeapAlloc are tied to how much
+    freeing has been done by the sweeper.
     
-    Change-Id: If4a0b01ffbd004937de90d8d686f6ded4aad2c6b
-    Reviewed-on: https://go-review.googlesource.com/9287
+    Change-Id: Id8320074bd75de791f39ec01bac99afe28052d02
+    Reviewed-on: https://go-review.googlesource.com/8354
     Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/proc1.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/runtime/mstats.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

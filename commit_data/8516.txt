@@ -1,25 +1,13 @@
-commit a825e8a69f3811c55d9bbf988ef0cec667d5380c
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri May 27 08:46:51 2011 -0300
+commit a1d2cbf6450871ad1b21f46f53c6b7a4e500e776
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 27 21:06:50 2011 +1000
 
-    cgo: restrict #cgo directives to prevent shell expansion
+    crypto/tls/generate_cert.go: fix misspelling of O_CREATE.
+    Fixes #1888.
     
-    Fixes issue #1879.
-    
-    Directives were not directly expanded, but since their
-    content ended up in makefiles, further expansion would
-    take place there.  This prevents such artifacts by
-    restricting the set of characters that may be used in
-    a directive value.
-    
-    To build the list of safe characters I went through the
-    contents of /usr/lib/pkgconfig and extracted LDFLAGS
-    and CFLAGS information, so hopefully this is a
-    reasonable default to get started.
-    
-    R=rsc
+    R=ken
     CC=golang-dev
-    https://golang.org/cl/4532092
+    https://golang.org/cl/4515148
 
- src/cmd/cgo/gcc.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/generate_cert.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

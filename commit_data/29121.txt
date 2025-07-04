@@ -1,36 +1,20 @@
-commit d6dbf3a0d38773b37bd8fa8d64a3f192102e388b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 21 19:35:26 2016 -0700
+commit 9f7ea616742f8d58ecc140afcb0fa53bcb84fe9b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Aug 26 11:39:47 2016 -0400
 
-    cmd/compile: use List instead of OKEY for OSLICE*
+    math: optimize Ceil, Floor and Trunc on s390x
     
-    Performance changes are negligible, but that's expected.
-    This is a part of a general effort to eliminate OKEY nodes.
+    Use the FIDBR instruction to round floating-point numbers to integers.
     
-    Passes toolstash -cmp.
+    name   old time/op  new time/op  delta
+    Ceil   14.1ns ± 0%   3.0ns ± 0%  -78.89%  (p=0.000 n=10+10)
+    Floor  6.42ns ± 0%  3.03ns ± 0%  -52.80%  (p=0.000 n=10+10)
+    Trunc  6.67ns ± 0%  3.03ns ± 0%  -54.57%   (p=0.000 n=10+9)
     
-    Updates #15350
-    
-    name       old alloc/op     new alloc/op     delta
-    Template       40.6MB ± 0%      40.6MB ± 0%  -0.04%         (p=0.000 n=9+10)
-    Unicode        33.4MB ± 0%      33.4MB ± 0%    ~           (p=0.853 n=10+10)
-    GoTypes         120MB ± 0%       120MB ± 0%  -0.03%         (p=0.000 n=9+10)
-    Compiler        470MB ± 0%       469MB ± 0%  -0.06%        (p=0.000 n=10+10)
-    
-    name       old allocs/op    new allocs/op    delta
-    Template         404k ± 0%        404k ± 0%    ~           (p=0.165 n=10+10)
-    Unicode          350k ± 0%        350k ± 0%    ~            (p=0.211 n=9+10)
-    GoTypes         1.21M ± 0%       1.21M ± 0%    ~           (p=0.315 n=10+10)
-    Compiler        4.35M ± 0%       4.35M ± 0%  -0.03%        (p=0.001 n=10+10)
-    
-    Change-Id: I17d547bf9568b1ee2514a7ffab930424617f995e
-    Reviewed-on: https://go-review.googlesource.com/32213
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3b416f6d0bccaaa9b547de86356471365862399c
+    Reviewed-on: https://go-review.googlesource.com/27827
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go       | 12 ++++++---
- src/cmd/compile/internal/gc/subr.go      | 46 ++++++++++++++++++--------------
- src/cmd/compile/internal/gc/syntax.go    | 10 +++----
- src/cmd/compile/internal/gc/typecheck.go |  3 +++
- 4 files changed, 43 insertions(+), 28 deletions(-)
+ src/math/floor_s390x.s | 26 ++++++++++++++++++++++++++
+ src/math/stubs_s390x.s |  9 ---------
+ 2 files changed, 26 insertions(+), 9 deletions(-)

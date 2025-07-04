@@ -1,12 +1,23 @@
-commit 813590b145448decb4de52e12ce522fe9c16f9a7
+commit 9fe8681df6c16d5c534fe43a04e5fd43d7cdc521
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 12 07:58:50 2013 -0700
+Date:   Fri Apr 12 05:20:15 2013 -0700
 
-    cmd/ld: if we fail from an unexpected PE flags value, print it
+    runtime: use UMTX_OP_WAIT_UINT on FreeBSD
     
-    R=golang-dev, minux.ma, r
+    UMTX_OP_WAIT expects that the address points to a uintptr, but
+    the code in lock_futex.c uses a uint32.  UMTX_OP_WAIT_UINT is
+    just like UMTX_OP_WAIT, but the address points to a uint32.
+    This almost certainly makes no difference on a little-endian
+    system, but since the kernel supports it we should do the
+    right thing.  And, who knows, maybe it matters.
+    
+    R=golang-dev, bradfitz, r, ality
     CC=golang-dev
-    https://golang.org/cl/8709043
+    https://golang.org/cl/8699043
 
- src/cmd/ld/ldpe.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/defs_freebsd.go      | 4 ++--
+ src/pkg/runtime/defs_freebsd_386.h   | 4 ++--
+ src/pkg/runtime/defs_freebsd_amd64.h | 4 ++--
+ src/pkg/runtime/defs_freebsd_arm.h   | 4 ++--
+ src/pkg/runtime/os_freebsd.c         | 2 +-
+ 5 files changed, 9 insertions(+), 9 deletions(-)

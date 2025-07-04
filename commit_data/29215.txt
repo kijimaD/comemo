@@ -1,25 +1,29 @@
-commit d8256824ac39e4badb14feffe94f4342a0bd21b3
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 24 17:56:00 2016 -0400
+commit cd0ba4c169b591cc22f51cb61463eb45af7b930d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 29 16:10:32 2016 -0700
 
-    runtime: remove unnecessary step from bulkBarrierPreWrite
+    archive/tar: make Reader error handling consistent
     
-    Currently bulkBarrierPreWrite calls writebarrierptr_prewrite, but this
-    means that we check writeBarrier.needed twice and perform cgo checks
-    twice.
+    The tar.Reader guarantees stickiness of errors. Ensuring this property means
+    that the methods of Reader need to be consistent about whose responsibility it
+    is to actually ensure that errors are sticky.
     
-    Change bulkBarrierPreWrite to call writebarrierptr_prewrite1 to skip
-    over these duplicate checks.
+    In this CL, we make it only the responsibility of the exported methods
+    (Next and Read) to store tr.err. All other methods just return the error as is.
     
-    This may speed up bulkBarrierPreWrite slightly, but mostly this will
-    save us from running out of nosplit stack space on ppc64x in the near
-    future.
+    As part of this change, we also check the error value of mergePAX (and test
+    that it properly detects invalid PAX files). Since the value of mergePAX was
+    never used before, we change it such that it always returns ErrHeader instead
+    of strconv.SyntaxError. This keeps it consistent with other usages of strconv
+    in the same tar package.
     
-    Updates #17503.
-    
-    Change-Id: I1cea1a2207e884ab1a279c6a5e378dcdc048b63e
-    Reviewed-on: https://go-review.googlesource.com/31890
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ia1c31da71f1de4c175da89a385dec665d3edd167
+    Reviewed-on: https://go-review.googlesource.com/28215
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mbitmap.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/archive/tar/reader.go                       | 176 ++++++++++--------------
+ src/archive/tar/reader_test.go                  |   8 ++
+ src/archive/tar/testdata/pax-bad-hdr-file.tar   | Bin 0 -> 2560 bytes
+ src/archive/tar/testdata/pax-bad-mtime-file.tar | Bin 0 -> 2560 bytes
+ 4 files changed, 80 insertions(+), 104 deletions(-)

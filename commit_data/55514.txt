@@ -1,20 +1,46 @@
-commit 3d20a327a1f91ae912865aa13bc07cda9930fefc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 2 13:00:02 2024 -0500
+commit a7b75972f267aac5607b16b0e9826d56386a92af
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 4 05:20:58 2023 +0000
 
-    runtime: initialize crashFD to -1
+    runtime: check for overflow in sweep assist
     
-    crashFD defaults to the zero value of (surprise!) zero. Zero is a valid
-    FD, so on the first call to SetCrashOutput we actually close FD 0 since
-    it is a "valid" FD.
+    The sweep assist computation is intentionally racy for performance,
+    since the specifics of sweep assist aren't super sensitive to error.
+    However, if overflow occurs when computing the live heap delta, we can
+    end up with a massive sweep target that causes the sweep assist to sweep
+    until sweep termination, causing severe latency issues. In fact, because
+    heapLive doesn't always increase monotonically then anything that
+    flushes mcaches will cause _all_ allocating goroutines to inevitably get
+    stuck in sweeping.
     
-    Initialize crashFD to -1, the sentinel for "no FD".
+    Consider the following scenario:
+    1. SetGCPercent is called, updating sweepHeapLiveBasis to heapLive.
+    2. Very shortly after, ReadMemStats is called, flushing mcaches and
+       decreasing heapLive below the value sweepHeapLiveBasis was set to.
+    3. Every allocating goroutine goes to refill its mcache, calls into
+       deductSweepCredit for sweep assist, and gets stuck sweeping until
+       the sweep phase ends.
     
-    Change-Id: I3b108c60603f2b83b867cbe079f035c159b6a6ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560776
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fix this by just checking for overflow in the delta live heap calculation
+    and if it would overflow, pick a small delta live heap. This probably
+    means that no sweeping will happen at all, but that's OK. This is a
+    transient state and the runtime will recover as soon as heapLive
+    increases again.
+    
+    Note that deductSweepCredit doesn't check overflow on other operations
+    but that's OK: those operations are signed and extremely unlikely to
+    overflow. The subtraction targeted by this CL is only a problem because
+    it's unsigned. An alternative fix would be to make the operation signed,
+    but being explicit about the overflow situation seems worthwhile.
+    
+    Fixes #57523.
+    
+    Change-Id: Ib18f71f53468e913548aac6e5358830c72ef0215
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460376
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go    | 1 +
- src/runtime/runtime.go | 2 ++
- 2 files changed, 3 insertions(+)
+ src/runtime/mgcsweep.go | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

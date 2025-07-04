@@ -1,44 +1,24 @@
-commit 897ad2fe907b98eae4cf60d78b7a262a221931fc
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Aug 16 12:06:10 2022 -0500
+commit e82ed0cd83cec1e6d15ba5a037f77c0b9f1ec8c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 14:10:39 2021 -0700
 
-    cmd/compile: fix score for Select{0,1} with type flags
+    runtime: start moduledata memory load early
     
-    A recent change was made for ppc64x to treat ANDCCconst as
-    a tuple, allowing ANDconst to be removed from the list
-    of ops. Included in that change were some improvements to the
-    rules to avoid some extra code, mainly the elimination of a
-    cmp 0 following an andi. and in some cases the following
-    isel. While those changes worked for most cases, in a few
-    cases some extra unnecessary code was generated.
+    The slowest thing that can happen in funcdata is a cache miss
+    on moduledata.gofunc. Move that memory load earlier.
     
-    Currently the snippet appears in archive/zip.(*FileHeader).Mode:
+    Also, for better ergonomics when working on this code,
+    do more calculations as uintptrs.
     
-            ANDCC R4,$1,R5                       // andi. r5,r4,1
-            ANDCC R4,$16,R5                      // andi. r5,r4,16
-            CMPW R5,R0                           // cmpw r5,r0
-            ADDIS $0,$-32768,R5                  // lis r5,-32768
-            OR R5,$511,R5                        // ori r5,r5,511
-            MOVD $438,R6                         // li r6,438
-            ISEL $2,R6,R5,R5                     // isel r5,r6,r5,eq
-            MOVD $-147,R6                        // li r6,-147
-            AND R6,R5,R6                         // and r6,r5,r6
-            ANDCC R4,$1,R4                       // andi. r4,r4,1
-            ISEL $2,R5,R6,R4                     // isel r4,r5,r6,eq
+    name                   old time/op  new time/op  delta
+    StackCopyWithStkobj-8  10.5ms ± 5%   9.9ms ± 4%  -6.03%  (p=0.000 n=15+15)
     
-    The first ANDCC is never used and should not be there.
-    From the ssa.html file, the scheduler is not putting the Select1
-    close to the ISEL, which results in the flag being clobbered
-    before it can be used. By changing the score for a Select0 or Select1
-    with type Flags, the extra ANDCC does not occur.
-    
-    Change-Id: I82f4bc7c02afb1c2b1c048dc6995e0b3f9363fb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424294
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Change-Id: I590f4449725983c7f8d274c4ac7ed384d9018d85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354134
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/schedule.go | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ src/runtime/symtab.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

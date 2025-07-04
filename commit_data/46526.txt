@@ -1,35 +1,36 @@
-commit 6097ebe627b7bc58d63d6765abc005f548b9644c
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Sep 12 19:43:25 2021 -0400
+commit ae9771713383c1ee01a544cd50cfdbc22841380a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 6 23:05:22 2021 +0000
 
-    go/types: record all instances, not just inferred instances
+    runtime,runtime/metrics: use explicit histogram boundaries
     
-    This change modifies the way we record instance information. It changes
-    the Info.Inferred map to use the instantiated *ast.Ident as its key, and
-    record information for all instances, not just those that were produced
-    via function type inference. Accordingly, Info.Inferred is renamed to
-    Info.Instances, and the Inferred type is renamed to Instance, with its
-    Sig field changed to Type.
+    This change modifies the semantics of
+    runtime/metrics.Float64Histogram.Buckets to remove implicit buckets to
+    that extend to positive and negative infinity and instead defines all
+    bucket boundaries as explicitly listed.
     
-    This was largely motivated by suggestions from mdempsky on the go/types
-    API proposal (#47916). In our analysis, always using the *ast.Ident as
-    key and recording all instances makes the API easier to understand and
-    use.
+    Bucket boundaries remain the same as before except
+    /gc/heap/allocs-by-size:objects and /gc/heap/frees-by-size:objects no
+    longer have a bucket that extends to negative infinity.
     
-    Instance.TArgs is also renamed to TypeArgs, consistent with other name
-    changes.
+    This change simplifies the Float64Histogram API, making it both easier
+    to understand and easier to use.
     
-    Updates #47916
+    Also, add a test for allocs-by-size and frees-by-size that checks them
+    against MemStats.
     
-    Change-Id: Ic25ad0cfd65fee6b05e513843c3866ee7a77cfe3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349629
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #43443.
+    
+    Change-Id: I5620f15bd084562dadf288f733c4a8cace21910c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281238
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/go/types/api.go      |  30 ++++++---
- src/go/types/api_test.go | 155 +++++++++++++++++++++++++++++++++--------------
- src/go/types/call.go     |  10 +--
- src/go/types/check.go    |  36 +++++++++--
- src/go/types/typexpr.go  |   1 +
- 5 files changed, 163 insertions(+), 69 deletions(-)
+ src/runtime/histogram.go         | 32 ++++++++++++++++++++++++++++----
+ src/runtime/metrics.go           | 32 +++++++++++++++++++++++---------
+ src/runtime/metrics/histogram.go | 29 ++++++++++++++++-------------
+ src/runtime/metrics_test.go      | 36 ++++++++++++++++++++++++++++++++----
+ 4 files changed, 99 insertions(+), 30 deletions(-)

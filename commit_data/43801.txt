@@ -1,19 +1,22 @@
-commit 4f63e0a1f88695eec9fc3116d6833b447bcd94a7
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Nov 12 09:33:34 2020 -0800
+commit 1d083eba5bf09427ac132b913091cb3d8c1e733a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 15:18:54 2020 -0400
 
-    cmd/compile:  update comments only for Node types and some functions
+    [dev.link] cmd/link: fix minor error on error reporting
     
-    Improve the comments in syntax.go on Node structs and constants. Also, updated a
-    few function header comments.
+    Correctly propagate ... arguments. (Maybe vet should warn on it?)
     
-    Change-Id: I3e6e4a3c5678fc0b4e18844507b3460303ce1240
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269538
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230017
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    
+    Change-Id: Ife56dc2321847cdaf0caea3142c2c7dad8b5924d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230027
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/closure.go |  4 ++
- src/cmd/compile/internal/gc/dcl.go     |  2 +
- src/cmd/compile/internal/gc/inl.go     | 23 ++++++------
- src/cmd/compile/internal/gc/syntax.go  | 68 ++++++++++++++++++++++------------
- 4 files changed, 63 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/ld/util.go       | 2 +-
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

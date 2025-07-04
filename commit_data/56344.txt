@@ -1,31 +1,19 @@
-commit 44b54b99c92e6023024e5219be8894a10a8a42fa
-Author: go101 <tapir.liu@gmail.com>
-Date:   Fri May 3 09:56:47 2024 +0000
+commit 04f059f9efbb2a202ddb6a3c6f87efa8073e562f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 28 10:29:58 2023 -0700
 
-    strings,bytes: improve Repeat panic messages
+    net: don't recheck goosPrefersCgo in hostLookupOrder
     
-    The Repeat("-", maxInt) call should produce
+    We only did it for testing. Remove the single test that required it.
     
-       panic: runtime error: makeslice: len out of range
-    
-    instead of
-    
-       panic: strings: Repeat output length overflow
-    
-    This PR is only for theory perfection.
-    
-    Change-Id: If67d87b147d666fbbb7238656f2a0cb6cf1dbb5b
-    GitHub-Last-Rev: 29dc0cb9c9c63d8a008960b4527d6aa6798c1c17
-    GitHub-Pull-Request: golang/go#67068
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581936
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib6c3a2debfd3f48e95af37f23fdfde847ff87a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490395
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/bytes/bytes.go          |  2 +-
- src/bytes/bytes_test.go     | 47 ++++++++++++++++++++++++++++++---------------
- src/strings/strings.go      |  2 +-
- src/strings/strings_test.go | 47 ++++++++++++++++++++++++++++++---------------
- 4 files changed, 64 insertions(+), 34 deletions(-)
+ src/net/conf.go      | 13 +++----------
+ src/net/conf_test.go | 12 ------------
+ 2 files changed, 3 insertions(+), 22 deletions(-)

@@ -1,14 +1,12 @@
-commit d9ee9a0f6e4b83737013fff1551d0875c4442709
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 23 19:00:15 2015 -0700
+commit 4965a77f1d2e964e2dd08d1a2c2d5a5ae57f4d41
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 15 12:46:04 2015 -0700
 
-    runtime: fix runtime·raise for dragonfly amd64
+    cmd/go: fix typo
     
-    Fixes #11847.
-    
-    Change-Id: I21736a4c6f6fb2f61aec1396ce2c965e3e329e92
-    Reviewed-on: https://go-review.googlesource.com/12621
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I171a1125e25b13c934c2cd545bd03f49f642910d
+    Reviewed-on: https://go-review.googlesource.com/11113
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_dragonfly_amd64.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,59 +1,27 @@
-commit 85bb4294c07cc63fb21743594f3c7872387ff0f4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 12 14:02:36 2020 -0700
+commit b328ab1d1e245fbf9273b6d6a89871fd9dbf036a
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Mar 9 11:08:04 2020 -0400
 
-    cmd/compile: fix and improve alias detection
+    [dev.link] cmd/link: remove global datap, moved to *Link
     
-    "aliased" is the function responsible for detecting whether we can
-    turn "a, b = x, y" into just "a = x; b = y", or we need to pre-compute
-    y and save it in a temporary variable because it might depend on a.
+    This change moves datap from global space into the link context. Rather
+    than having it exist in context, we could have it returned from dodata,
+    and pass it as a parameter, but it is used in awkward places in the
+    Arch functions. Easiest for now is just keeping it in the context, until
+    we more formally move it to slices of loader.Sym.
     
-    It currently has two issues:
+    This is a largely non-functional change.
     
-    1. It suboptimally treats assignments to blank as writes to heap
-       memory. Users generally won't write "_, b = x, y" directly, but it
-       comes up a lot in generated code within the compiler.
-    
-       This CL changes it to ignore blank assignments.
-    
-    2. When deciding whether the assigned variable might be referenced by
-       pointers, it mistakenly checks Class() and Name.Addrtaken() on "n"
-       (the *value* expression being assigned) rather than "a" (the
-       destination expression).
-    
-       It doesn't appear to result in correctness issues (i.e.,
-       incorrectly reporting no aliasing when there is potential aliasing),
-       due to all the (overly conservative) rewrite passes before code
-       reaches here. But it generates unnecessary code and could have
-       correctness issues if we improve those other passes to be more
-       aggressive.
-    
-       This CL fixes the misuse of "n" for "a" by renaming the variables
-       to "r" and "l", respectively, to make their meaning clearer.
-    
-    Improving these two cases shaves 4.6kB of text from cmd/go, and 93kB
-    from k8s.io/kubernetes/cmd/kubelet:
-    
-           text        data     bss     dec     hex filename
-        9732136      290072  231552 10253760         9c75c0 go.before
-        9727542      290072  231552 10249166         9c63ce go.after
-        97977637    1007051  301344 99286032        5eafc10 kubelet.before
-        97884549    1007051  301344 99192944        5e99070 kubelet.after
-    
-    While here, this CL also collapses "memwrite" and "varwrite" into a
-    single variable. Logically, they're detecting the same thing: are we
-    assigning to a memory location that a pointer might alias. There's no
-    need for two variables.
-    
-    Updates #6853.
-    Updates #23017.
-    
-    Change-Id: I5a307b8e20bcd2196e85c55eb025d3f01e303008
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261677
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ica93bd857c39913ad470a61c63bc8d21704d6308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222664
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 62 +++++++++++++++++++------------------
- 1 file changed, 32 insertions(+), 30 deletions(-)
+ src/cmd/link/internal/ld/data.go  | 14 +++++---------
+ src/cmd/link/internal/ld/elf.go   |  8 ++++----
+ src/cmd/link/internal/ld/lib.go   |  2 +-
+ src/cmd/link/internal/ld/link.go  |  2 ++
+ src/cmd/link/internal/ld/macho.go |  4 ++--
+ src/cmd/link/internal/ld/pe.go    |  6 +++---
+ src/cmd/link/internal/ld/xcoff.go |  2 +-
+ 7 files changed, 18 insertions(+), 20 deletions(-)

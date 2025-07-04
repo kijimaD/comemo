@@ -1,22 +1,18 @@
-commit 05293d6b499afe9f37c11582c4a9a41fd92ba258
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 25 16:35:17 2023 -0700
+commit 04d8c2327d5a2788757f22fd0e23198f7045c20f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 16:22:13 2022 +0700
 
-    go/types, types2: fix incorrect logic in assignability check
+    runtime: convert kqueue netpollWakeSig to atomic type
     
-    Do not return prematurely in assignableTo.
+    Updates #53821
     
-    Fixes #54424.
-    
-    Change-Id: I769b3b4ad9d79b7bce60b92cc59c3564117e36db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498400
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I85d7444be36967e1e7e0ff2ce2f19b73581ecdde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423880
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/types2/operand.go          | 16 ++++++++++++----
- src/go/types/operand.go                             | 16 ++++++++++++----
- src/internal/types/testdata/fixedbugs/issue54424.go | 12 ++++++++++++
- 3 files changed, 36 insertions(+), 8 deletions(-)
+ src/runtime/netpoll_kqueue.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

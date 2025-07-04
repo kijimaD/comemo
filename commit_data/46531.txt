@@ -1,17 +1,25 @@
-commit ebc6ce40ceb587af54dfcac910931606fe2d9a66
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 20 20:45:09 2021 -0700
+commit 0c5afc4fb7e3349ec4efdce6554f83554e3d087c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 7 17:50:14 2021 -0500
 
-    go/types: return typeHash value without blanks
+    testing/fstest,os: clarify racy behavior of TestFS
     
-    This is an adjusted port of CL 349990 from types2 to go/types:
-    typeHash remains unexported but is adjusted to not contain blanks.
+    The testing.TestFS function assumes that the file system it's testing
+    doesn't change under it. Clarify this in the documentation and fix the
+    use of os.TestDirFS that's currently susceptible to this race.
     
-    Change-Id: I37fa826b8a185e3c275ae9bea29a3b0ed386d2c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351171
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #42637.
+    
+    Change-Id: Ia7792380726177f8953d150ee87381b66cb01cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282452
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/environment.go |  5 +++--
- src/go/types/typestring.go  | 46 ++++++++++++++++++++++++++++++++-------------
- 2 files changed, 36 insertions(+), 15 deletions(-)
+ src/os/os_test.go            | 2 +-
+ src/os/testdata/dirfs/a      | 0
+ src/os/testdata/dirfs/b      | 0
+ src/os/testdata/dirfs/dir/x  | 0
+ src/testing/fstest/testfs.go | 1 +
+ 5 files changed, 2 insertions(+), 1 deletion(-)

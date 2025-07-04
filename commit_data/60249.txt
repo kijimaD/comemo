@@ -1,0 +1,17 @@
+commit e8f7a959ecc0071644ed033365a0d76630706696
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jun 4 18:44:09 2024 +0000
+
+    crypto/x509: don't panic when asn1.ObjectIdentifier is shorter than x509.OID
+    
+    Change-Id: Ia08673450edc93fe1a9c7c05b7e69a05cd5ac8b9
+    GitHub-Last-Rev: c396197cb1f94b7fe8405d89c805c0566aa07fda
+    GitHub-Pull-Request: golang/go#64655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548915
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/oid.go      |  2 +-
+ src/crypto/x509/oid_test.go | 65 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 1 deletion(-)

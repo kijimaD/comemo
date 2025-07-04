@@ -1,31 +1,19 @@
-commit 9ff01162295c815c252dec812f6ce983aa90a62b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Sep 16 02:29:12 2022 +1000
+commit db9e549fd2a97b5a812ad088266f09654efa267f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:18:13 2022 +0800
 
-    cmd/asm,cmd/internal/obj/riscv,cmd/link: improve TLS handling on riscv64
+    crypto/x509/internal/macos: simplify code using unsafe.{SliceData,StringData}
     
-    The existing Thread Local Storage (TLS) implementation for riscv64 uses
-    initial-exec (IE) mode, however a MOV of a TLS symbol currently loads the
-    thread pointer offset and not the actual address or memory location.
+    Updates #54854
     
-    Rework TLS on riscv64 to generate the full instruction sequence needed to
-    load from or store to a TLS symbol. Additionally, provide support for both
-    initial-exec (IE) and local-exec (LE) TLS - in many cases we can use LE,
-    which is slightly more efficient and easier to support in the linker.
-    
-    Change-Id: I1b43f8888b3b6b10354bbb79d604771e64d92645
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431103
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Change-Id: I8a64a1176cbe16489e1fd21c66a7abc7d8b8e9b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428154
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go   |  5 +++
- src/cmd/asm/internal/asm/testdata/riscv64.s | 10 +++++
- src/cmd/internal/obj/riscv/obj.go           | 63 +++++++++++++++++++++++++++--
- src/cmd/internal/objabi/reloctype.go        | 16 ++++----
- src/cmd/internal/objabi/reloctype_string.go |  8 ++--
- src/cmd/link/internal/riscv64/asm.go        | 22 ++++++----
- src/runtime/tls_riscv64.s                   | 11 ++---
- 7 files changed, 103 insertions(+), 32 deletions(-)
+ src/crypto/x509/internal/macos/corefoundation.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

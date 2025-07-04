@@ -1,19 +1,18 @@
-commit 51995aa434b3d9501cdcff8a1747f669a4168cbb
-Author: Damien Lespiau <damien.lespiau@intel.com>
-Date:   Mon May 1 14:49:06 2017 +0100
+commit ea48c9d2325dfe3ccd64a2bfeea9516cb5a1d2e3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 21 11:28:49 2017 -0500
 
-    cmd/asm: enable CMPPS, CMPPD, CMPSS and CMPSD encoding tests
+    runtime: more detail for crash_test.go
     
-    The generated test cases had their arguments reversed, putting them back
-    in order makes those tests pass.
+    This updates the testcase to display the timestamps for the
+    runtime.a, it dependent packages atomic.a and sys.a, and
+    source files.
     
-      CMPPS SRC, DEST, CC
-    
-    Change-Id: Ie15021edc533d5681a6a78d10d88b665e3de9017
-    Reviewed-on: https://go-review.googlesource.com/42097
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id2901b4e8aa8eb9775c4f404ac01cc07b394ba91
+    Reviewed-on: https://go-review.googlesource.com/37332
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
- 1 file changed, 32 insertions(+), 32 deletions(-)
+ src/runtime/crash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

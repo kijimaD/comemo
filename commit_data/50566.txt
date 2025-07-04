@@ -1,25 +1,24 @@
-commit 493ebc359029a066d039adf861ea33bec68422b8
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Sep 20 16:15:49 2022 -0700
+commit d39c8739662835b2f92894a8550bbcd59f83557f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 12:14:25 2021 -0700
 
-    all: update vendored golang.org/x/net
+    cmd/compile/internal/types2: fix conversions of constants to type parameter
     
-    Pull in HTTP/2 fix needed for net/http test case.
+    When converting a constant to a type parameter, the result is never
+    constant (type parameters are not constant types), but we still need
+    to verfy that the constant is representable by each specific type in
+    the type set of the type parameter.
     
-            f8f703f979 http2: accept HEAD requests with a body
+    Fixes #49247.
     
-    For #53960
-    
-    Change-Id: I59bbd83977daced5ed21ec5345af8cdb607e532e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432197
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I460983c7070b33baadce25dd23210e10930cfb2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360396
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  2 +
- src/net/http/h2_bundle.go                          | 72 ++++++++++++----------
- .../golang.org/x/net/dns/dnsmessage/message.go     |  4 +-
- .../golang.org/x/net/http/httpproxy/proxy.go       |  3 +-
- src/vendor/modules.txt                             |  2 +-
- 6 files changed, 48 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go     | 39 ++++++++++++++++------
+ src/cmd/compile/internal/types2/expr.go            |  1 +
+ src/cmd/compile/internal/types2/predicates.go      |  6 ++++
+ .../types2/testdata/fixedbugs/issue49247.go2       | 20 +++++++++++
+ .../internal/types2/testdata/spec/conversions.go2  | 21 ++++++++++++
+ 5 files changed, 77 insertions(+), 10 deletions(-)

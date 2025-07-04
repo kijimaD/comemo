@@ -1,23 +1,14 @@
-commit 43ed65f869828f8dfc2f860b8ca1f7648e6bb93d
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Mar 13 18:58:17 2016 +0100
+commit bd7086996c4daef1dab56d18669625723662c555
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 6 14:58:54 2016 -0800
 
-    runtime: speed up growslice by avoiding divisions
+    doc: fix incorrect example in asm.html
     
-    Only compute the number of maximum allowed elements per slice once.
-    Special case newcap computation for slices with byte sized elements.
+    Fixes #13845.
     
-    name              old time/op  new time/op  delta
-    GrowSliceBytes-2  61.1ns ± 1%  43.4ns ± 1%  -29.00%  (p=0.000 n=20+20)
-    GrowSliceInts-2   85.9ns ± 1%  75.7ns ± 1%  -11.80%  (p=0.000 n=20+20)
-    
-    Change-Id: I5d9c0d5987cdd108ac29dc32e31912dcefa2324d
-    Reviewed-on: https://go-review.googlesource.com/20653
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie83179b2d20c47a0296645d9e2fdc43271be495a
+    Reviewed-on: https://go-review.googlesource.com/18307
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/append_test.go | 18 ++++++++++++++++++
- src/runtime/slice.go       | 22 ++++++++++++++++------
- 2 files changed, 34 insertions(+), 6 deletions(-)
+ doc/asm.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

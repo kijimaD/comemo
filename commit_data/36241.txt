@@ -1,19 +1,27 @@
-commit c166ff6838ff8a8b871f6efd265791442242ddad
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 18 16:18:28 2018 -0400
+commit e511f153752ab1f17b2862aa47bb149c0ed79990
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 12 07:42:20 2018 -0700
 
-    cmd/compile: update delve's reference data for ssa/debug_test
+    debug/gosym: intern LineTable strings
     
-    Recent versions of Delve pay attention to the debugging changes
-    for 1.11, which causes different (better!) debugging behavior.
-    Update the reference data to reflect this.
+    This cuts the allocated space while executing
     
-    Change-Id: I2efa165aa71769ace9f7885b4ce3420cd9b2d3a3
-    Reviewed-on: https://go-review.googlesource.com/128697
-    Run-TryBot: David Chase <drchase@google.com>
+    go tool objdump -S `go tool -n compile`
+    
+    by over 10%.
+    
+    It also speeds it up slightly:
+    
+    name              old time/op       new time/op       delta
+    ObjdumpSCompiler        9.03s ± 1%        8.88s ± 1%  -1.59%  (p=0.000 n=20+20)
+    
+    Updates #24725
+    
+    Change-Id: Ic6ef8e273ede589334ab6e07099ac2e5bdf990c9
+    Reviewed-on: https://go-review.googlesource.com/106798
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../internal/ssa/testdata/hist.dlv-opt.nexts       | 67 ----------------------
- .../internal/ssa/testdata/scopes.dlv-opt.nexts     | 17 ------
- 2 files changed, 84 deletions(-)
+ src/debug/gosym/pclntab.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

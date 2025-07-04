@@ -1,14 +1,13 @@
-commit 1cf27acfed67a25bb1e53115739a7d88efd9997d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Aug 23 14:33:41 2012 +0800
+commit 6fd2febaeffd9f8d2188adfbb6f00f9241e201f4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 22 21:30:18 2012 -0700
 
-    cmd/ld: set ELF header flags for our Linux/ARM binary
-    To make it more compliant.
-    This won't affect the behavior of running on OABI-only kernels.
+    time: fix spacing in comment.
+    No semantic change.
     
-    R=golang-dev, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6475044
+    https://golang.org/cl/6475050
 
- src/cmd/ld/elf.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,25 @@
-commit 5f5e9f4ff1c855e88474f007043863093fff40cc
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 30 11:31:31 2024 +0100
+commit 8dea63547035e2246e09ba96d0338ad9ba8b39ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 3 17:42:01 2023 -0700
 
-    go/ast: simplify walking lists with generics
+    go/types, types2: make Checker.renameTParams work on any type
     
-    Change-Id: Ib6e3fd9c5788400420555b2889e6dba0853446bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582495
+    This permits the rewrite of type parameters in arbitrary types,
+    not just tuples.
+    
+    Preparation for fixing #59956.
+    For #59338.
+    
+    Change-Id: I9ccaac1f163051cb837cae2208763cafb1d239cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492515
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/go/ast/walk.go | 68 ++++++++++++++++--------------------------------------
- 1 file changed, 20 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/types2/call.go  |  8 +++++---
+ src/cmd/compile/internal/types2/infer.go | 15 +++++++++------
+ src/go/types/call.go                     |  8 +++++---
+ src/go/types/infer.go                    | 15 +++++++++------
+ 4 files changed, 28 insertions(+), 18 deletions(-)

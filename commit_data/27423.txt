@@ -1,28 +1,39 @@
-commit f962e6e0e21b9e73981e6cf2407ea01fce04b989
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 18 00:35:43 2016 +0000
+commit 080e2d4320adfb63fa9b67e163341733a15f35f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 25 17:19:59 2016 -0700
 
-    net/http: add test confirming a connection reuse case
+    cmd/compile: don’t generate Nodes for PCDATA
     
-    Verify that for a server doing chunked encoding, with the final data
-    and EOF arriving together, the client will reuse the connection even
-    if it closes the body without seeing an EOF. The server sends at least
-    one non-zero chunk and one zero chunk. This verifies that the client's
-    bufio reading reads ahead and notes the EOF, so even if the JSON
-    decoder doesn't read the EOF itself, as long as somebody sees it, a
-    close won't forcible tear down the connection. This was true at least
-    of https://golang.org/cl/21291
+    We were allocating two Nodes just to help Naddr
+    fill in Type and Offset.
+    Fill them in directly instead.
     
-    No code change. Test already passed (even with lots of runs, including
-    in race mode with randomized goroutine scheduling).
+    Passes toolstash -cmp.
     
-    Updates #15703
+    name       old time/op     new time/op     delta
+    Template       324ms ± 5%      320ms ± 5%  -1.34%        (p=0.033 n=25+22)
+    Unicode        164ms ± 6%      162ms ± 5%    ~           (p=0.152 n=24+23)
+    GoTypes        1.05s ± 5%      1.05s ± 6%    ~           (p=0.653 n=23+25)
+    Compiler       5.12s ± 4%      5.06s ± 3%  -1.13%        (p=0.006 n=25+23)
+    MakeBash       41.8s ± 2%      41.6s ± 3%  -0.65%        (p=0.024 n=24+24)
     
-    Change-Id: I2140b3eec6b099b6b6e54f153fe271becac5d949
-    Reviewed-on: https://go-review.googlesource.com/23200
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    name       old alloc/op    new alloc/op    delta
+    Template      57.8MB ± 0%     57.3MB ± 0%  -0.87%        (p=0.000 n=25+25)
+    Unicode       41.2MB ± 0%     41.1MB ± 0%  -0.29%        (p=0.000 n=24+22)
+    GoTypes        193MB ± 0%      191MB ± 0%  -0.97%        (p=0.000 n=22+25)
+    Compiler       850MB ± 0%      840MB ± 0%  -1.28%        (p=0.000 n=25+25)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        506k ± 0%       500k ± 0%  -1.15%        (p=0.000 n=25+25)
+    Unicode         402k ± 0%       400k ± 0%  -0.37%        (p=0.000 n=24+25)
+    GoTypes        1.52M ± 0%      1.50M ± 0%  -1.42%        (p=0.000 n=25+25)
+    Compiler       6.16M ± 0%      6.04M ± 0%  -2.05%        (p=0.000 n=24+25)
+    
+    Change-Id: Ia80d28b32023a620d9ddf99c1252c16fa6477b3c
+    Reviewed-on: https://go-review.googlesource.com/21174
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,40 +1,14 @@
-commit b58d9bb8c8b3f700479defc31f31f06073e88004
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 8 12:12:49 2019 +0200
+commit 0a04c0430e9671bd531a2928a8416424da1e3dde
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 18:27:13 2019 -0800
 
-    syscall: move Renameat to syscall_linux_$GOARCH.go
+    cmd/compile: restore constant folding optimization within OADDSTR
     
-    On linux/riscv64, the renameat syscall no longer exists and has been
-    superseded by renameat2. Thus we'll have to use Renameat2 to implement
-    Renameat on linux/riscv64 for #27532. Prepare for this by moving the
-    Renameat definition to the GOARCH specific files.
-    
-    Follow CL 157899 which did the same for golang.org/x/sys/unix
-    
-    Change-Id: I9670213cc3987df48fee962ddee36915a7785560
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192077
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib55f2458c75aee49302f0dd4e2a819f9931a5ed3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166982
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/syscall_linux.go           |  1 -
- src/syscall/syscall_linux_386.go       |  1 +
- src/syscall/syscall_linux_amd64.go     |  1 +
- src/syscall/syscall_linux_arm.go       |  1 +
- src/syscall/syscall_linux_arm64.go     |  1 +
- src/syscall/syscall_linux_mips64x.go   |  1 +
- src/syscall/syscall_linux_mipsx.go     |  1 +
- src/syscall/syscall_linux_ppc64x.go    |  1 +
- src/syscall/syscall_linux_s390x.go     |  1 +
- src/syscall/zsyscall_linux_386.go      | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_amd64.go    | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_arm.go      | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_arm64.go    | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mips.go     | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mips64.go   | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mips64le.go | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_mipsle.go   | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_ppc64.go    | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_ppc64le.go  | 40 +++++++++++++++++-----------------
- src/syscall/zsyscall_linux_s390x.go    | 40 +++++++++++++++++-----------------
- 20 files changed, 228 insertions(+), 221 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 11 -----------
+ 1 file changed, 11 deletions(-)

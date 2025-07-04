@@ -1,28 +1,28 @@
-commit c7aa48ecedf1db2bfad4f50ee2e21d8daa8aa692
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 8 12:45:42 2023 -0700
+commit ac0844ec274bf6cfd64bc8fa1e2cc8b24c789dee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 27 00:33:56 2022 -0700
 
-    cmd/cgo: recognize unsafe.{StringData,SliceData}
+    [dev.unified] cmd/compile: move "has init" to private metadata
     
-    A simple call to unsafe.StringData can't contain any pointers.
+    Currently, there's a "has init" bool in the public metadata section,
+    which is only needed by cmd/compile; but because it's in the public
+    metadata section, it's known to the go/types importers too. This CL
+    moves it instead to the new compiler-only private metadata section
+    added in the last CL for the inline bodies index.
     
-    When looking for field references, a call to unsafe.StringData or
-    unsafe.SliceData can be treated as a type conversion.
+    The existing bool in the public metadata section is left in place, and
+    just always set to false, to avoid breaking the x/tools importer. The
+    next time we bump the export version number, we can remove the bool
+    properly. But no urgency just yet.
     
-    In order to make unsafe.SliceData useful, recognize slice expressions
-    when calling C functions.
-    
-    Fixes #59954
-    
-    Change-Id: I08a3ace7882073284c1d46a5210582a2521b0b4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493556
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I380f358652374b5a221f85020a53dc65912ddb29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419676
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/gcc.go                          | 104 +++++++++++++++++++++++++++-
- src/cmd/cgo/internal/testerrors/ptr_test.go |  24 ++++++-
- 2 files changed, 124 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/importer/ureader.go |  2 +-
+ src/cmd/compile/internal/noder/unified.go    | 23 +++++++++++++----------
+ src/go/internal/gcimporter/ureader.go        |  2 +-
+ src/internal/pkgbits/encoder.go              |  4 ++++
+ 4 files changed, 19 insertions(+), 12 deletions(-)

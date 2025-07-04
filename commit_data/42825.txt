@@ -1,39 +1,39 @@
-commit 3d774611feee49aa44b4f5ed65d40497a47ad4c8
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sat Aug 22 05:47:06 2020 -0700
+commit 7855d6835d3a27e967a0c2d748f9f39305e7ba47
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jan 4 19:45:38 2020 +0900
 
-    src/go.mod, net/http: update bundled and latest golang.org/x/net
+    cmd/compile: add a script to measure ssa/gen's coverage
     
-    Updates x/net/http2 to git rev c89045814202410a2d67ec20ecf177ec77ceae7f
+    Since rulegen is only tested by inspecting and running its output code,
+    we have no good way to see if any chunks of its source are actually
+    being unused.
     
-        http2: perform connection health check
-        https://golang.org/cl/198040 (fixes #31643)
+    Code coverage only works as part of 'go test', since it needs to
+    instrument our code. Add a script that sets up a tiny test for that
+    purpose, with a quick example on how to use it.
     
-        http2: use ASCII space trimming for parsing Trailer header
-        https://golang.org/cl/231437
+    We need to use a script, because there's no other way to make this work
+    without breaking 'go run *.go'. It's far more common to run the
+    generator than to obtain a coverage profile, so this solution seems like
+    the right tradeoff, and we don't break existing users.
     
-        all: update golang.org/x/crypto to v0.0.0-20200622213623-75b288015ac9
-        https://golang.org/cl/239700 (updates #30965)
+    The script isn't terribly portable, but that's okay for now.
     
-        net/http2: fix erringRoundTripper
-        https://golang.org/cl/243257 (updates #40213)
+    At the time of wriging, coverage sits at 89.7%. I've manually skimmed
+    main.go and rulegen.go, and practically all unused code is either error
+    handling, or optional code like *genLog and "if false". A couple of
+    small exceptions stand out, though I'm not paying attention to them in
+    this CL.
     
-    also updates the vendored version of golang.org/x/net as per
+    While at it, inline a couple of tiny unusedInspector methods that were
+    only needed once or twice.
     
-    $ go get golang.org/x/net@c890458142
-    $ go mod tidy
-    $ go mod vendor
-    $ go generate -run bundle std
-    
-    Change-Id: Iea2473ef086df760144d9656f03a0218eb9da91f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249842
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I78c5fb47c8536d70e546a437637d4428ec7adfaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212760
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go.mod                |  2 +-
- src/go.sum                |  4 +--
- src/net/http/h2_bundle.go | 70 +++++++++++++++++++++++++++++++++++++++++++----
- src/vendor/modules.txt    |  2 +-
- 4 files changed, 68 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/gen/cover.bash | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 24 +++++++++---------------
+ 2 files changed, 35 insertions(+), 15 deletions(-)

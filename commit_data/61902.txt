@@ -1,0 +1,15 @@
+commit 80a2982a801eaedc416d59801ac8fefcf1e4acf5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 12 11:28:09 2024 -0800
+
+    spec: align EBNF rules consistently (cosmetic change)
+    
+    Change-Id: Ib1b14b8880c6de5606f7f425a5fc1c8749d8a4b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635799
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 126 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 62 insertions(+), 64 deletions(-)

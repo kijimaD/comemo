@@ -1,31 +1,14 @@
-commit 070951c5dcc47c9cff2ad4c1ac6170a4060a4d0c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 2 13:22:18 2022 -0800
+commit 8e368708c510219dabfb38a4781d2152420c778f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:12:04 2021 -0400
 
-    constraints: remove package
+    cmd/link: implement windows/arm64 external linking
     
-    It has moved to golang.org/x/exp/constraints. Perhaps it will move
-    back to the standard library in a future release.
-    
-    For golang/go#45458
-    Fixes golang/go#50792
-    
-    Change-Id: I93aa251a7afe7b329a3d3faadc0c5d6388b1f0e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382460
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia73309ec7013138b37028e669d7ae5eac81126e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312044
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- api/go1.18.txt                                     |   6 --
- doc/go1.18.html                                    |   8 --
- .../types2/testdata/fixedbugs/issue47818.go2       |   4 -
- .../types2/testdata/fixedbugs/issue49705.go2       |   7 +-
- src/constraints/constraints.go                     |  50 ---------
- src/constraints/constraints_test.go                | 117 ---------------------
- src/go/types/testdata/fixedbugs/issue47818.go2     |   4 -
- src/go/types/testdata/fixedbugs/issue49705.go2     |   7 +-
- test/typeparam/issue50121.dir/a.go                 |   8 +-
- test/typeparam/issue50121b.dir/a.go                |   9 +-
- test/typeparam/issue50193.go                       |  11 +-
- 11 files changed, 28 insertions(+), 203 deletions(-)
+ src/cmd/link/internal/arm64/asm.go | 186 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/pe.go     |  10 ++
+ 2 files changed, 140 insertions(+), 56 deletions(-)

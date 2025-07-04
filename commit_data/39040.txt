@@ -1,25 +1,18 @@
-commit 5003b6264503c0858649ba5b10d4ec5c6f3902a1
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Sun May 5 09:35:14 2019 -0400
+commit 77caea5bf2c5103a81283d9fb5b7ca030b884af2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 6 14:08:19 2018 -0800
 
-    html/template: add support for JavaScript modules
+    cmd/cover: use -toolexec in tests to run newly built cover program
     
-    html/template does not properly treat JavaScript code as
-    JavaScript when using a <script> tag with "module" set as
-    the type attribute.
+    This ensures that "go test cmd/cover" tests the current cover program,
+    not the installed cover program.
     
-    See also:
-    https://www.w3.org/TR/html5/semantics-scripting.html#element-attrdef-script-type and
-    https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2
-    
-    Original change from tomut at https://golang.org/cl/135417
-    
-    Fixes #31327
-    
-    Change-Id: I6239be69cd7994990d091400664e4474124a98fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175218
+    Change-Id: I58e718ded7eb1cd8da448d0194262209bb025b20
+    Reviewed-on: https://go-review.googlesource.com/c/153058
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/js.go      | 1 +
- src/html/template/js_test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/cover/cover_test.go        | 58 ++++++++++++++++++++++++++++++--------
+ src/cmd/cover/testdata/toolexec.go | 33 ++++++++++++++++++++++
+ 2 files changed, 80 insertions(+), 11 deletions(-)

@@ -1,31 +1,52 @@
-commit f41dc711d80cf750a6df994a49608ffd3786bb19
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 12:59:15 2018 +0100
+commit 1dcb5836ad2c60776561da2923c70576ba2eefc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 1 14:07:21 2018 -0500
 
-    cmd/link: add wasm architecture
+    cmd/go: accept only limited compiler and linker flags in #cgo directives
     
-    This commit adds the wasm architecture to the link command.
+    Both gcc and clang accept an option -fplugin=code.so to load
+    a plugin from the ELF shared object file code.so.
+    Obviously that plugin can then do anything it wants
+    during the build. This is contrary to the goal of "go get"
+    never running untrusted code during the build.
+    (What happens if you choose to run the result of
+    the build is your responsibility.)
     
-    Design doc: https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4
+    Disallow this behavior by only allowing a small set of
+    known command-line flags in #cgo CFLAGS directives
+    (and #cgo LDFLAGS, etc).
     
-    Updates #18892
+    The new restrictions can be adjusted by the environment
+    variables CGO_CFLAGS_ALLOW, CGO_CFLAGS_DISALLOW,
+    and so on. See the documentation.
     
-    Change-Id: I5aef29954984537f2979679b5d393209e462f564
-    Reviewed-on: https://go-review.googlesource.com/103795
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    In addition to excluding cgo-defined flags, we also have to
+    make sure that when we pass file names on the command
+    line, they don't look like flags. So we now refuse to build
+    packages containing suspicious file names like -x.go.
+    
+    A wrinkle in all this is that GNU binutils uniformly accept
+    @foo on the command line to mean "if the file foo exists,
+    then substitute its contents for @foo in the command line".
+    So we must also reject @x.go, flags and flag arguments
+    beginning with @, and so on.
+    
+    Fixes #23672, CVE-2018-6574.
+    
+    Change-Id: I59e7c1355155c335a5c5ae0d2cf8fa7aa313940a
+    Reviewed-on: https://team-review.git.corp.google.com/209949
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- misc/wasm/wasm_exec.js             |   2 +-
- src/cmd/dist/build.go              |   2 +
- src/cmd/dist/buildtool.go          |   1 +
- src/cmd/link/internal/ld/data.go   |   4 +
- src/cmd/link/internal/ld/dwarf.go  |   2 +-
- src/cmd/link/internal/ld/lib.go    |   3 +
- src/cmd/link/internal/ld/outbuf.go |   6 +
- src/cmd/link/internal/ld/sym.go    |   2 +-
- src/cmd/link/internal/wasm/asm.go  | 485 +++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/wasm/obj.go  |  34 +++
- src/cmd/link/main.go               |   3 +
- src/runtime/asm.s                  |   3 +
- 12 files changed, 544 insertions(+), 3 deletions(-)
+ misc/cgo/errors/src/err1.go               |   2 +-
+ src/cmd/cgo/doc.go                        |  16 +-
+ src/cmd/compile/internal/gc/noder.go      |  16 ++
+ src/cmd/dist/build.go                     |   2 +-
+ src/cmd/go/alldocs.go                     |  31 ++--
+ src/cmd/go/go_test.go                     | 151 ++++++++++++++++++-
+ src/cmd/go/internal/envcmd/env.go         |   7 +-
+ src/cmd/go/internal/help/helpdoc.go       |  31 ++--
+ src/cmd/go/internal/load/pkg.go           |  94 ++++++++++--
+ src/cmd/go/internal/work/exec.go          |  90 +++++++++--
+ src/cmd/go/internal/work/security.go      | 160 ++++++++++++++++++++
+ src/cmd/go/internal/work/security_test.go | 240 ++++++++++++++++++++++++++++++
+ 12 files changed, 780 insertions(+), 60 deletions(-)

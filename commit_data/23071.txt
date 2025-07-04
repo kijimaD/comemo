@@ -1,23 +1,19 @@
-commit 6f7b4e893871775b74e57d5d048ff0565d32ef79
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 15 13:30:42 2015 -0700
+commit 1f39beb01a5ca6a9015d6a30af5a968a247f8d10
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 21 13:46:54 2015 -0400
 
-    cmd/doc: put blank lines around comment for types, etc.
+    runtime: avoid divide-by-zero in GC trigger controller
     
-    Better layout.
+    The trigger controller computes GC CPU utilization by dividing by the
+    wall-clock time that's passed since concurrent mark began. Since this
+    delta is nanoseconds it's borderline impossible for it to be zero, but
+    if it is zero we'll currently divide by zero. Be robust to this
+    possibility by ignoring the utilization in the error term if no time
+    has elapsed.
     
-    Fixes #10859.
-    
-    The issue suggests rearranging so the comment comes out
-    after the methods. I tried this and it looks good but it is less
-    useful, since the stuff you're probably looking for - the methods
-    - are scrolled away by the comment. The most important
-    information should be last because that leaves it on your
-    screen after the print if the output is long.
-    
-    Change-Id: I560f992601ccbe2293c347fa1b1018a3f5346c82
-    Reviewed-on: https://go-review.googlesource.com/10160
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I93dfc9e84735682af3e637f6538d1e7602634f09
+    Reviewed-on: https://go-review.googlesource.com/9175
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/doc/pkg.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

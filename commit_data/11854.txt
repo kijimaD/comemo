@@ -1,18 +1,12 @@
-commit 0a2ffb26385104613ed29bf80da56053566cdb21
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 13 12:24:02 2012 -0800
+commit 47424d90ec11d9e72088b661a52e769b8074be70
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 14 07:11:39 2012 +1100
 
-    go/doc: don't lose exported consts/vars with unexported type
+    text/template: drop reference to os.EPERM in the test
     
-    Fixes #2998.
-    
-    R=rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5650078
+    https://golang.org/cl/5654077
 
- src/pkg/go/doc/reader.go           |  2 +-
- src/pkg/go/doc/testdata/b.0.golden | 28 ++++++++++++++++++++++++++++
- src/pkg/go/doc/testdata/b.1.golden | 36 +++++++++++++++++++++++++++++++++++-
- src/pkg/go/doc/testdata/b.2.golden | 28 ++++++++++++++++++++++++++++
- src/pkg/go/doc/testdata/b.go       | 28 ++++++++++++++++++++++++++++
- 5 files changed, 120 insertions(+), 2 deletions(-)
+ src/pkg/text/template/exec_test.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

@@ -1,30 +1,24 @@
-commit b86e76681366447798c94abb959bb60875bcc856
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 19 13:26:01 2018 -0800
+commit 3ba818c894a1aa1e616a8531a1262d4f9d54f02a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Oct 18 13:45:03 2017 -0400
 
-    path: use OS-specific function in MkdirAll, don't always keep trailing slash
+    cmd/compile: distinguish args and return values in DWARF
     
-    CL 86295 changed MkdirAll to always pass a trailing path separator to
-    support extended-length paths on Windows.
+    Set DW_AT_variable_parameter on DW_TAG_formal_parameters that are
+    actually return values. variable_parameter is supposed to indicate inout
+    parameters, but Go doesn't really have those, and DWARF doesn't have
+    explicit support for multiple return values. This seems to be the best
+    compromise, especially since the implementation of the two is very
+    similar -- both are stack slots.
     
-    However, when Stat is called on an existing file followed by trailing
-    slash, it will return a "not a directory" error, skipping the fast
-    path at the beginning of MkdirAll.
+    Fixes #21100
     
-    This change fixes MkdirAll to only pass the trailing path separator
-    where required on Windows, by using an OS-specific function fixRootDirectory.
-    
-    Updates #23918
-    
-    Change-Id: I23f84a20e65ccce556efa743d026d352b4812c34
-    Reviewed-on: https://go-review.googlesource.com/95255
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icebabc92b7b397e0aa00a7237478cce84ad1a670
+    Reviewed-on: https://go-review.googlesource.com/71670
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/os/path.go         |  4 +---
- src/os/path_plan9.go   |  4 ++++
- src/os/path_unix.go    |  4 ++++
- src/os/path_windows.go | 11 +++++++++++
- 4 files changed, 20 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 11 ++++++-----
+ src/cmd/internal/dwarf/dwarf.go     | 28 ++++++++++++++++++----------
+ 2 files changed, 24 insertions(+), 15 deletions(-)

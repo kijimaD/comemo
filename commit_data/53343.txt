@@ -1,17 +1,18 @@
-commit f0e356a07d321ef674fcda71cd8014f055c10b07
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 25 14:50:08 2023 -0700
+commit 515040548c1ca97fb4c2208d3c602aa65d1ed941
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 10 22:13:23 2022 +0700
 
-    doc: add release notes for new min/max built-ins
+    cmd/compile/internal/amd64: more robust detection of GOAMD64=v1
     
-    For #59488.
+    Using build tool tags instead of relying on GOAMD64 env, which can be
+    overriden at make.bash time.
     
-    Change-Id: Iefabb06014767c5f633082a112a81e9ff5f09a30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498397
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: I96bb4b7416ea0bd1ab552feec9ede45b89a584c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422614
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.21.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/amd64/versions_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

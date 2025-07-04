@@ -1,14 +1,13 @@
-commit 1084ab98b77cc9c231a7e21257f223b49046019b
+commit 7ab25a441cb2b7015dff4b24892627acfda647be
 Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sat Dec 10 10:04:33 2011 -0800
+Date:   Sat Dec 10 13:02:23 2011 +1100
 
-    spec: adjust complex constant example
+    pkg: adjust "the a" in comments
     
-    Fixes https://golang.org/cl/5444053/#msg41
-    
-    R=golang-dev, iant
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5478058
+    https://golang.org/cl/5476055
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/server.go | 2 +-
+ src/pkg/testing/testing.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

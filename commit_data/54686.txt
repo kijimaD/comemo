@@ -1,38 +1,40 @@
-commit 872d7181f4084461441787c70ffd1354314987af
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 6 20:53:27 2023 -0400
+commit 7a92c4fc637621368eb26a7e72bb027b29568e50
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 7 11:58:45 2022 -0500
 
-    runtime/cgo: avoid taking the address of crosscall2 in code
+    cmd/go: print test2json start events
     
-    Currently, set_crosscall2 takes the address of crosscall2 without
-    using the GOT, which, on some architectures, results in a
-    PC-relative relocation (e.g. R_AARCH64_ADR_PREL_PG_HI21 on ARM64)
-    to the crosscall2 symbol. But crosscall2 is dynamically exported,
-    so the C linker thinks it may bind to a symbol from a different
-    DSO. Some C linker may not like a PC-relative relocation to such a
-    symbol. Using a local trampoline to avoid taking the address of a
-    dynamically exported symbol.
+    Add a new "Action":"start" test2json event to mark the
+    start of the test binary execution. This adds useful information
+    to the JSON traces, and it also lets programs watching test
+    execution see the order in which the tests are being run,
+    because we arrange for the starts to happen sequentially.
     
-    It may be possible to not dynamically export crosscall2. But this
-    CL is safer for backport. Later we may remove the trampolines
-    after unexport crosscall2, if they are not needed.
-    
-    Fixes #62556.
-    
-    Change-Id: Id28457f65ef121d3f87d8189803abc65ed453283
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9fc865a486a55a7e9315f8686f59a2aa06455884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448357
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/cgo/internal/testcarchive/carchive_test.go | 32 ++++++++++++++++++++++
- src/runtime/cgo/asm_386.s                          |  7 ++++-
- src/runtime/cgo/asm_amd64.s                        |  7 ++++-
- src/runtime/cgo/asm_arm.s                          |  7 ++++-
- src/runtime/cgo/asm_arm64.s                        |  7 ++++-
- src/runtime/cgo/asm_loong64.s                      |  7 ++++-
- src/runtime/cgo/asm_mips64x.s                      |  7 ++++-
- src/runtime/cgo/asm_mipsx.s                        |  7 ++++-
- src/runtime/cgo/asm_ppc64x.s                       |  7 ++++-
- src/runtime/cgo/asm_riscv64.s                      |  7 ++++-
- src/runtime/cgo/asm_s390x.s                        |  7 ++++-
- 11 files changed, 92 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/test/test.go                   | 88 +++++++++++++++-------
+ src/cmd/go/testdata/script/test_json.txt           |  6 ++
+ src/cmd/internal/test2json/test2json.go            |  5 +-
+ src/cmd/internal/test2json/testdata/ascii.json     |  1 +
+ src/cmd/internal/test2json/testdata/bench.json     |  1 +
+ src/cmd/internal/test2json/testdata/benchfail.json |  1 +
+ .../internal/test2json/testdata/benchshort.json    |  1 +
+ src/cmd/internal/test2json/testdata/empty.json     |  1 +
+ src/cmd/internal/test2json/testdata/frame.json     |  1 +
+ src/cmd/internal/test2json/testdata/framebig.json  |  1 +
+ src/cmd/internal/test2json/testdata/framefuzz.json |  1 +
+ .../internal/test2json/testdata/issue23036.json    |  1 +
+ .../internal/test2json/testdata/issue23920.json    |  1 +
+ .../internal/test2json/testdata/issue29755.json    |  1 +
+ src/cmd/internal/test2json/testdata/panic.json     |  1 +
+ src/cmd/internal/test2json/testdata/smiley.json    |  1 +
+ src/cmd/internal/test2json/testdata/timeout.json   |  1 +
+ src/cmd/internal/test2json/testdata/unicode.json   |  1 +
+ src/cmd/internal/test2json/testdata/vet.json       |  1 +
+ src/cmd/test2json/main.go                          |  3 +
+ 20 files changed, 90 insertions(+), 28 deletions(-)

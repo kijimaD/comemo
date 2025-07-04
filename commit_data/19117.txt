@@ -1,13 +1,35 @@
-commit e9ad3bf0ff0ccfe8f766cca286ff9446b534b2ac
-Author: Rob Pike <r@golang.org>
-Date:   Sat Apr 12 14:56:17 2014 +1000
+commit 427a444f67544416a7e96b705a10b8be38269767
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 11 09:40:36 2014 -0700
 
-    doc/go1.3.html: windows NewCallbackCDecl
+    net/http: quiet useless warning during shutdown
     
-    LGTM=alex.brainman
-    R=alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/87250043
+    What was happening on Issue 7010 was handler intentionally took 30
+    milliseconds and the proxy's client timeout was 35 milliseconds. Then it
+    slammed the proxy with a bunch of requests.
+    
+    Sometimes the server would be too slow to respond in its 5 millisecond
+    window and the client code would cancel the request, force-closing the
+    persistConn.  If this came at the right time, the server's reply was
+    already in flight, and one of the goroutines would report:
+    
+    Unsolicited response received on idle HTTP channel starting with "H"; err=<nil>
+    
+    ... rightfully scaring the user.
+    
+    But the error was already handled and returned to the user, and this
+    connection knows it's been shut down. So look at the closed flag after
+    acquiring the same mutex guarding another field we were checking, and
+    don't complain if it's a known shutdown.
+    
+    Also move closed down below the mutex which guards it.
+    
+    Fixes #7010
+    
+    LGTM=dsymonds
+    R=golang-codereviews, dsymonds
+    CC=adg, golang-codereviews, rsc
+    https://golang.org/cl/86740044
 
- doc/go1.3.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/net/http/transport.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

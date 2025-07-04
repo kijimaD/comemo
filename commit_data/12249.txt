@@ -1,15 +1,15 @@
-commit 180541b2b1bde56f31d0f895a12c25bb01d8c58b
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 28 14:23:57 2012 +1100
+commit 69015b6fc467a9e0d5772794f15476da458d7cc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 18:52:40 2012 -0800
 
-    text/template: fix redefinition bugs
+    test: bug424: wrong embedded method called
     
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5696087
+    https://golang.org/cl/5695083
 
- src/pkg/text/template/multi_test.go       |  6 ++++++
- src/pkg/text/template/parse/parse.go      |  2 ++
- src/pkg/text/template/parse/parse_test.go |  3 +++
- src/pkg/text/template/template.go         | 20 +++++++++++---------
- 4 files changed, 22 insertions(+), 9 deletions(-)
+ test/bugs/424.dir/lib.go  | 16 +++++++++++++
+ test/bugs/424.dir/main.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/bugs/424.go          |  9 +++++++
+ test/golden.out           |  3 +++
+ 4 files changed, 89 insertions(+)

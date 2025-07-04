@@ -1,21 +1,21 @@
-commit d8c9eece2828195e5488b63ba80f98c31b182953
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Wed May 17 15:33:07 2023 +0200
+commit bc805795bd28ae4cd1a70b3053a3a71668bfef87
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:36:12 2022 +0700
 
-    runtime: add debugger hook for fatal signals
+    runtime: convert m.preemptGen to atomic type
     
-    On Go <= 1.20 signals that caused the program to exit would eventually
-    call runtime.fatal. After the changes made in go.dev/cl/462437 but it
-    would still be nice if debuggers (eg. Delve) had a function they could
-    hook to intercept fatal signals.
+    Updates #53821
     
-    Change-Id: Icf2b65187f95d52e60825c84f386806a75b38f6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495736
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I134dac3b1eb35f2da00e5ef8f4c264f08d4f65b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423887
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/signal_unix.go | 81 ++++++++++++++++++++++++----------------------
- 1 file changed, 43 insertions(+), 38 deletions(-)
+ src/runtime/os_windows.go  | 8 ++++----
+ src/runtime/preempt.go     | 5 ++---
+ src/runtime/runtime2.go    | 4 ++--
+ src/runtime/signal_unix.go | 2 +-
+ 4 files changed, 9 insertions(+), 10 deletions(-)

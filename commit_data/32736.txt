@@ -1,13 +1,17 @@
-commit 37fc70bac3a02e38859a09996e7ea95c3c64aed4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 15 12:04:34 2017 -0700
+commit d433de6e86ce08e1b33e5d604080d3f504529006
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Fri May 19 19:52:59 2017 -0700
 
-    cmd/internal/objabi: remove unused flag funcs
+    cmd/go: warn on -race with -covermode=set.
     
-    Change-Id: I728c5606882ece949d58e86f9558fc16ae4ffd85
-    Reviewed-on: https://go-review.googlesource.com/64052
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #20435.
+    
+    Change-Id: I15576f36b26d01642c1187325baea82d3077e578
+    Reviewed-on: https://go-review.googlesource.com/43777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objabi/flag.go | 26 --------------------------
- 1 file changed, 26 deletions(-)
+ src/cmd/go/go_test.go                | 18 ++++++++++++++++++
+ src/cmd/go/internal/test/testflag.go |  4 ++++
+ 2 files changed, 22 insertions(+)

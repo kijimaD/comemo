@@ -1,18 +1,21 @@
-commit a81b0dc6ee9096e3885e083e2dea2c743c0f4540
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Sep 19 18:18:41 2021 -0700
+commit 81f4f0e912775d11df35220ea598e54c272073fd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 5 11:53:00 2021 -0800
 
-    cmd/compile: rename instType -> instanceType
+    [dev.regabi] cmd/compile: remove race-y check in Name.Canonical
     
-    This is to keep in alignment with the naming in go/types.
+    The backend doesn't synchronize compilation of functions with their
+    enclosed function literals, so it's not safe to double-check that
+    IsClosureVar isn't set on the underlying Name. Plenty of frontend
+    stuff would blow-up if this was wrong anyway, so it should be fine to
+    omit.
     
-    Change-Id: I19ded29b39665d7b892fdbc8e92c7f15caf7ab66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350950
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I3e97b64051fe56d97bf316c9b5dcce61f2082428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281812
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
- src/cmd/compile/internal/typecheck/iimport.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ir/name.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,23 +1,17 @@
-commit b1ec5ad00ae6ddf2e022a90432547a96292098f0
-Author: Edoardo Spadolini <edoardo.spadolini@gmail.com>
-Date:   Fri Jul 26 14:06:55 2024 +0000
+commit 7f799f33b62320147391f43603e6d28a384865f1
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Wed Aug 2 02:55:17 2023 +0000
 
-    crypto/tls: add missing RUnlock in ticketKeys
+    database/sql/driver: add a new test case for type t
     
-    If GetConfigForClient returns a tls.Config that has
-    SessionTicketsDisabled set, the TLS server handshake currently leaves
-    the Config's internal RWMutex read locked after calculating the
-    ticketKeys to use for the handshake.
-    
-    Change-Id: I07e450a0d2edda9e80f51fc2c20af633aa271684
-    GitHub-Last-Rev: 693d7acf952e9478708fe4cd69788f3115e6fe23
-    GitHub-Pull-Request: golang/go#68607
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601335
+    Change-Id: I38bb68570f7f097a6dfeef1c75896396992d81f7
+    GitHub-Last-Rev: 10ba48a546956fa2a5b602680fb312638aade92d
+    GitHub-Pull-Request: golang/go#53706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416234
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/tls/common.go | 1 +
+ src/database/sql/driver/types_test.go | 1 +
  1 file changed, 1 insertion(+)

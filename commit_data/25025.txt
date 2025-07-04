@@ -1,28 +1,18 @@
-commit ab4c9298b8185a056ff1152f2c7bd9b38d3d06f3
+commit 3d1f8c237956ca657b9517040a7431e87f9d8a18
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Nov 23 15:26:00 2015 +1100
+Date:   Wed Sep 16 14:18:12 2015 +1000
 
-    runtime: do not call timeBeginPeriod on windows
+    runtime: print errno and byte count before crashing in mem_windows.go
     
-    Calling timeBeginPeriod changes Windows global timer resolution
-    from 15ms to 1ms. This used to improve Go runtime scheduler
-    performance, but not anymore. Thanks to @aclements, scheduler now
-    behaves the same way if we call timeBeginPeriod or not.
+    As per iant suggestion during issue #12587 crash investigation.
     
-    Remove call to timeBeginPeriod, since it is machine global
-    resource, and there are downsides of using low timer resolution.
-    See issue #8687 for details.
+    Also adjust incorrect throw message in sysUsed while we are here.
     
-    Fixes #8687
-    
-    Change-Id: Ib7e41aa4a81861b62a900e0e62776c9ef19bfb73
-    Reviewed-on: https://go-review.googlesource.com/17164
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ice07904fdd6e0980308cb445965a696d26a1b92e
+    Reviewed-on: https://go-review.googlesource.com/14633
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/export_windows_test.go  | 5 +----
- src/runtime/os1_windows.go          | 8 +-------
- src/runtime/syscall_windows_test.go | 7 -------
- 3 files changed, 2 insertions(+), 18 deletions(-)
+ src/runtime/mem_windows.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

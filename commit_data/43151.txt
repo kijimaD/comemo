@@ -1,21 +1,23 @@
-commit b8ec1d5f49ec5f9350f2b0bd99560e4aadfcb70c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 30 17:37:24 2020 -0700
+commit ad92148058ee060ddbc4ff789f537d8d94f57c5d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 11 11:16:19 2020 -0400
 
-    internal/poll: use ignoringEINTR in Darwin Fsync
+    [dev.link] cmd/link: demote DWARF line symbols to anonymous aux
     
-    Also add comment explaining why we don't use ignoringEINTR around
-    call to close.
+    Convert DWARF .debug_line symbols to anonymous aux syms, so as
+    to save space in object files and reduce the number of symbols
+    that have to be added to the linker's lookup tables.
     
-    Fixes #41115
-    
-    Change-Id: Ia7bbe01eaf26003f70d184b7e82803efef2b2c18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258542
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5b350f036e21a7a7128cb08148ab7c243aaf0d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223018
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_fsync_darwin.go | 7 ++++---
- src/internal/poll/fd_unix.go         | 7 +++++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go  | 3 ---
+ src/cmd/internal/obj/objfile.go  | 4 +++-
+ src/cmd/internal/obj/objfile2.go | 6 +++---
+ src/cmd/internal/obj/plist.go    | 5 +----
+ src/cmd/internal/obj/sym.go      | 2 +-
+ 5 files changed, 8 insertions(+), 12 deletions(-)

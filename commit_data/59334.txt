@@ -1,72 +1,17 @@
-commit a4d0269a4f74e8a66ee7487491857e1a1c582231
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 11 08:54:58 2025 -0400
+commit f1722e9a6e57e4e7b926c4204707f7a15091b5c0
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 15 13:04:36 2024 -0800
 
-    math/big: use clearer loop bounds check elimination
+    slices: simplify rotate code
     
-    Checking that the lengths are equal and panicking teaches the compiler
-    that it can assume “i in range for z” implies “i in range for x”, letting us
-    simplify the actual loops a bit.
+    The rotate-by-reverse code in fact does only 2 writes per entry, so
+    it is fine and simpler.
     
-    It also turns up a few places in math/big that were playing maybe a little
-    too fast and loose with slice lengths. Update those to explicitly set all the
-    input slices to the same length.
-    
-    These speedups are basically irrelevant, since they only happen
-    in real code if people are compiling with -tags math_big_pure_go.
-    But at least the code is clearer.
-    
-    benchmark \ system                   c3h88    c2s16       s7      386   s7-386   c4as16      mac      arm  loong64  ppc64le  riscv64    s390x
-    AddVV/words=1/impl=go                    ~  +11.20%   +5.11%   -7.67%   -7.77%   +1.90%  +10.76%  -33.22%        ~  +10.98%        ~   +6.60%
-    AddVV/words=10/impl=go             -22.12%  -13.48%  -10.37%  -17.95%  -18.07%  -24.58%  -22.04%  -29.95%  -14.22%        ~   -6.33%   +3.66%
-    AddVV/words=16/impl=go              -9.75%  -13.73%        ~  -21.90%  -18.66%  -30.03%  -20.45%  -28.09%  -17.33%   -7.15%   -8.96%  +12.55%
-    AddVV/words=100/impl=go             -5.91%   -1.02%        ~  -29.23%  -22.18%  -25.62%   -6.49%  -23.59%  -22.31%   -1.88%  -14.13%   +9.23%
-    AddVV/words=1000/impl=go            -0.52%   -0.19%   -3.58%  -33.89%  -23.46%  -22.46%        ~  -24.00%  -24.73%   +0.93%  -15.79%  +12.32%
-    AddVV/words=10000/impl=go                ~        ~        ~  -33.79%  -23.72%  -23.79%   -5.98%  -23.92%        ~   +0.78%  -15.45%   +8.59%
-    AddVV/words=100000/impl=go               ~        ~        ~  -33.90%  -24.25%  -22.82%   -4.09%  -24.63%        ~   +1.00%  -13.56%        ~
-    SubVV/words=1/impl=go                    ~  +11.64%  +14.05%        ~   -4.07%        ~  +10.79%  -33.69%        ~        ~   +3.89%  +12.33%
-    SubVV/words=10/impl=go             -10.31%  -14.09%   -7.38%  +13.76%  -13.25%  -18.05%  -20.08%  -24.97%  -14.15%  +10.13%   -0.97%   -2.51%
-    SubVV/words=16/impl=go              -8.06%  -13.73%   -5.70%  +17.00%  -12.83%  -23.76%  -17.52%  -25.25%  -17.30%   -2.80%   -4.96%  -18.25%
-    SubVV/words=100/impl=go             -9.22%   -1.30%   -2.76%  +20.88%  -14.35%  -15.29%   -8.49%  -19.64%  -22.31%   -0.68%  -14.30%   -9.04%
-    SubVV/words=1000/impl=go            -0.60%        ~   -3.43%  +23.08%  -16.14%  -11.96%        ~  -28.52%  -24.73%        ~  -15.95%   -9.91%
-    SubVV/words=10000/impl=go                ~        ~        ~  +26.01%  -15.24%  -11.92%        ~  -28.26%   +4.25%        ~  -15.42%   -5.95%
-    SubVV/words=100000/impl=go               ~        ~        ~  +25.71%  -15.83%  -12.13%        ~  -27.88%   -1.27%        ~  -13.57%   -6.72%
-    LshVU/words=1/impl=go               +0.56%   +0.36%        ~        ~        ~        ~        ~        ~        ~        ~        ~        ~
-    LshVU/words=10/impl=go             +13.37%   +4.63%        ~        ~        ~        ~        ~   -2.90%        ~        ~        ~        ~
-    LshVU/words=16/impl=go             +22.83%   +6.47%        ~        ~        ~        ~        ~        ~   +0.80%        ~        ~   +5.88%
-    LshVU/words=100/impl=go             +7.56%  +13.95%        ~        ~        ~        ~        ~        ~   +0.33%   -2.50%        ~        ~
-    LshVU/words=1000/impl=go            +0.64%  +17.92%        ~        ~        ~        ~        ~   -6.52%        ~   -2.58%        ~        ~
-    LshVU/words=10000/impl=go                ~  +17.60%        ~        ~        ~        ~        ~   -6.64%   -6.22%   -1.40%        ~        ~
-    LshVU/words=100000/impl=go               ~  +14.57%        ~        ~        ~        ~        ~        ~   -5.47%        ~        ~        ~
-    RshVU/words=1/impl=go                    ~        ~        ~        ~        ~        ~        ~        ~        ~        ~        ~   +2.72%
-    RshVU/words=10/impl=go                   ~        ~        ~        ~        ~        ~        ~   +2.50%        ~        ~        ~        ~
-    RshVU/words=16/impl=go                   ~   +0.53%        ~        ~        ~        ~        ~   +3.82%        ~        ~        ~        ~
-    RshVU/words=100/impl=go                  ~        ~        ~        ~        ~        ~        ~   +6.18%        ~        ~        ~        ~
-    RshVU/words=1000/impl=go                 ~        ~        ~        ~        ~        ~        ~   +7.00%        ~        ~        ~        ~
-    RshVU/words=10000/impl=go                ~        ~        ~        ~        ~        ~        ~        ~        ~        ~        ~        ~
-    RshVU/words=100000/impl=go               ~        ~        ~        ~        ~        ~        ~   +7.05%        ~        ~        ~        ~
-    MulAddVWW/words=1/impl=go          -10.34%   +4.43%  +10.62%   -1.62%   -4.74%   -2.86%  +11.75%        ~   -8.00%   +8.89%   +3.87%        ~
-    MulAddVWW/words=10/impl=go          -1.61%   -5.87%        ~   -8.30%   -4.55%   +0.87%        ~   -5.28%  -20.82%        ~        ~   -2.32%
-    MulAddVWW/words=16/impl=go          -2.96%   -5.28%        ~   -9.22%   -5.28%        ~        ~   -3.74%  -19.52%   -1.48%   -2.53%   -9.52%
-    MulAddVWW/words=100/impl=go         -3.89%   -7.53%   +1.93%  -10.49%   -4.87%   -8.27%        ~        ~   -0.65%   -0.61%   -7.59%  -20.61%
-    MulAddVWW/words=1000/impl=go        -0.45%   -3.91%   +4.54%  -11.46%   -4.69%   -8.53%        ~        ~   -0.05%        ~   -8.88%  -19.77%
-    MulAddVWW/words=10000/impl=go            ~   -3.30%   +4.10%  -11.34%   -4.10%   -9.43%        ~   -0.61%        ~   -0.55%   -8.21%  -18.48%
-    MulAddVWW/words=100000/impl=go      -0.30%   -3.03%   +4.31%  -11.55%   -4.41%   -9.74%        ~   -0.75%   +0.63%        ~   -7.80%  -19.82%
-    AddMulVVWW/words=1/impl=go               ~  +13.09%  +12.50%   -7.05%  -10.41%   +2.53%  +13.32%   -3.49%        ~  +15.56%   +3.62%        ~
-    AddMulVVWW/words=10/impl=go        -15.96%   -9.06%   -5.06%  -14.56%  -11.83%   -5.44%  -26.30%  -14.23%  -11.44%   -1.79%   -5.93%   -6.60%
-    AddMulVVWW/words=16/impl=go        -19.05%  -12.43%   -6.19%  -14.24%  -12.67%   -8.65%  -18.64%  -16.56%  -10.64%   -3.00%   -7.61%  -12.80%
-    AddMulVVWW/words=100/impl=go       -22.13%  -16.59%  -13.04%  -13.79%  -11.46%  -12.01%   -6.46%  -21.80%   -5.08%   -3.13%  -13.60%  -22.53%
-    AddMulVVWW/words=1000/impl=go      -17.07%  -17.05%  -14.08%  -13.59%  -12.13%  -11.21%        ~  -22.81%   -4.27%   -1.27%  -16.35%  -23.47%
-    AddMulVVWW/words=10000/impl=go     -15.03%  -16.78%  -14.23%  -13.86%  -11.84%  -11.69%        ~  -22.75%  -13.39%   -1.10%  -14.37%  -22.01%
-    AddMulVVWW/words=100000/impl=go    -13.70%  -14.90%  -14.26%  -13.55%  -12.04%  -11.63%        ~  -22.61%        ~   -2.53%  -10.42%  -23.16%
-    
-    Change-Id: Ic6f64344484a762b818c7090d1396afceb638607
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/665155
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I5feea9698b5575f1f0ae9069cc1d074643529262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562321
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/arith.go  | 67 +++++++++++++++++++++++++++++++-------------------
- src/math/big/nat.go    |  6 ++---
- src/math/big/natdiv.go |  4 +--
- 3 files changed, 47 insertions(+), 30 deletions(-)
+ src/slices/slices.go | 54 +++++-----------------------------------------------
+ 1 file changed, 5 insertions(+), 49 deletions(-)

@@ -1,21 +1,38 @@
-commit bdf746caaa23ccf2bc7b7e2e123349133ce001a6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 18 12:32:05 2017 +0100
+commit 707cadd7fa1c8653a7b3409be4dc79823c45306c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:49:50 2017 -0500
 
-    all: remove unnecessary ", _" from map reads
+    cmd/go: split out cmd/go/internal/clean,doc,fix,generate,list,run,tool,version,vet
     
-    If the bool value isn't used, there is no need to assign to underscore -
-    there is a shorter form that only returns the value and behaves in the
-    exact same way.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    Change-Id: Iaf801b8e966da6c2f565bc39e3bb028175c92d60
-    Reviewed-on: https://go-review.googlesource.com/40920
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: Ib22fc435827d4a05a77a5200ac437ce00e2a4da3
+    Reviewed-on: https://go-review.googlesource.com/36204
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/types/api.go                      |  2 +-
- src/net/http/transport.go                |  2 +-
- src/net/internal/socktest/sys_cloexec.go |  2 +-
- src/net/internal/socktest/sys_unix.go    | 12 ++++++------
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/dist/deps.go                               | 17 +++++++++++-
+ src/cmd/go/{ => internal/clean}/clean.go           | 12 ++++-----
+ src/cmd/go/{ => internal/doc}/doc.go               |  6 ++---
+ src/cmd/go/{ => internal/fix}/fix.go               |  4 +--
+ src/cmd/go/{ => internal/generate}/generate.go     | 17 ++++++------
+ .../go/{ => internal/generate}/generate_test.go    |  2 +-
+ src/cmd/go/{ => internal/get}/pkg_test.go          |  2 +-
+ src/cmd/go/{ => internal/get}/tag_test.go          |  2 +-
+ src/cmd/go/{ => internal/get}/vcs_test.go          |  2 +-
+ src/cmd/go/{ => internal/list}/context.go          |  2 +-
+ src/cmd/go/{ => internal/list}/list.go             | 14 +++++-----
+ src/cmd/go/{ => internal/run}/run.go               | 10 +++----
+ src/cmd/go/{ => internal/tool}/tool.go             |  6 ++---
+ src/cmd/go/{ => internal/version}/version.go       |  4 +--
+ src/cmd/go/{ => internal/vet}/vet.go               |  6 ++---
+ src/cmd/go/main.go                                 | 31 ++++++++++++++--------
+ 16 files changed, 80 insertions(+), 57 deletions(-)

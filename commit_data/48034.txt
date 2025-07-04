@@ -1,21 +1,30 @@
-commit b37c6e15477a934f894488751bed8abcf16b4f5c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 27 21:26:27 2022 -0800
+commit 14056d0d004489592ee0173e685ff86f241cfb4f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 22 15:38:33 2021 -0700
 
-    go/types, types2: delete TypeList.String
+    cmd/compile/internal/types2: add unsafe.Add and unsafe.Slice
     
-    This method is unused and was not discussed in the API
-    proposals. Note that all error output goes through the
-    local sprintf which handles arguments specially.
+    This is a port of CL 312212, CL 312591 (except check_test.go), and
+    CL 312790 to types2.
     
-    Fixes #50760.
+    Updates #19367.
+    Updates #40481.
     
-    Change-Id: Iae66b0253cc0ece037d3d280951dc2d223c119fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381634
+    Change-Id: I58ba0b0dad157baba3f82c909d5eb1268b931be4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312511
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/go1.18.txt                               |  1 -
- src/cmd/compile/internal/types2/typelists.go | 11 -----------
- src/go/types/typelists.go                    | 11 -----------
- 3 files changed, 23 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 39 +++++++++++++++
+ src/cmd/compile/internal/types2/builtins_test.go   | 10 ++++
+ src/cmd/compile/internal/types2/check.go           | 10 ++--
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/index.go           | 57 +++++++++++++++-------
+ src/cmd/compile/internal/types2/testdata/expr3.src |  1 +
+ src/cmd/compile/internal/types2/universe.go        |  4 ++
+ test/makechan.go                                   |  2 +-
+ test/makemap.go                                    |  4 +-
+ 9 files changed, 102 insertions(+), 27 deletions(-)

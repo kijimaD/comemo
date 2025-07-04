@@ -1,13 +1,13 @@
-commit 30d08b404cc52a7378090287ee8ead2411e9b530
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 24 16:04:17 2011 +1000
+commit 8ab2c98972eeec9ed1da79360f69b9d97e9bcc5f
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jun 24 15:00:59 2011 +1000
 
-    weekly.2011-06-23
+    os: fixed PathListSeparator to ';' for windows.
+    Fixed issue 1992
     
-    R=golang-dev, robert.hencke, r
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4625062
+    https://golang.org/cl/4661047
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+), 1 deletion(-)
+ src/pkg/os/path_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,53 @@
-commit 0f7a1951b82b80dcf1b8398e8ead03ed158e029e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 21 14:22:01 2011 +1000
+commit 5f134f9b5ba3030a6c13c562f7436b68df8f036e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 21 12:50:45 2011 +1000
 
-    exp/template: A template can be in one set only.
-    This simplifies the API and makes it easier to make the template
-    invocation statically secure, at the cost of some minor flexibility.
+    html: sync html/testdata/webkit with upstream WebKit.
     
-    R=golang-dev, dsymonds, r
+    As $GOROOT/src/pkg/html/testdata/webkit/README says, we're pulling from
+    $WEBKITROOT/LayoutTests/html5lib/resources.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4794045
+    https://golang.org/cl/4810043
 
- src/pkg/exp/template/doc.go       | 24 +++++++++++-------------
- src/pkg/exp/template/exec.go      | 18 +++++-------------
- src/pkg/exp/template/exec_test.go |  4 ++--
- src/pkg/exp/template/parse.go     | 36 +++++++++++++++++++++++-------------
- src/pkg/exp/template/set.go       | 36 ++++++++----------------------------
- 5 files changed, 49 insertions(+), 69 deletions(-)
+ src/pkg/html/testdata/webkit/adoption01.dat        |  194 ++++
+ src/pkg/html/testdata/webkit/adoption02.dat        |   31 +
+ src/pkg/html/testdata/webkit/comments01.dat        |   17 +-
+ src/pkg/html/testdata/webkit/doctype01.dat         |   63 +-
+ src/pkg/html/testdata/webkit/dom2string.js         |  135 ---
+ src/pkg/html/testdata/webkit/entities01.dat        |    9 -
+ src/pkg/html/testdata/webkit/entities02.dat        |  120 ++
+ src/pkg/html/testdata/webkit/html5test-com.dat     |  246 ++++
+ src/pkg/html/testdata/webkit/inbody01.dat          |   43 +
+ src/pkg/html/testdata/webkit/isindex.dat           |   40 +
+ .../pending-spec-changes-plain-text-unsafe.dat     |  Bin 0 -> 115 bytes
+ .../html/testdata/webkit/pending-spec-changes.dat  |   28 +
+ src/pkg/html/testdata/webkit/plain-text-unsafe.dat |    8 +
+ .../html/testdata/webkit/scripted/adoption01.dat   |   15 +
+ src/pkg/html/testdata/webkit/scripted/webkit01.dat |   28 +
+ src/pkg/html/testdata/webkit/tables01.dat          |  197 ++++
+ src/pkg/html/testdata/webkit/tests1.dat            |   59 +-
+ src/pkg/html/testdata/webkit/tests10.dat           |  369 ++++++
+ src/pkg/html/testdata/webkit/tests13.dat           |    9 -
+ src/pkg/html/testdata/webkit/tests14.dat           |    2 +-
+ src/pkg/html/testdata/webkit/tests15.dat           |    2 +-
+ src/pkg/html/testdata/webkit/tests17.dat           |  153 +++
+ src/pkg/html/testdata/webkit/tests18.dat           |  269 +++++
+ src/pkg/html/testdata/webkit/tests19.dat           | 1220 ++++++++++++++++++++
+ src/pkg/html/testdata/webkit/tests2.dat            |   27 +-
+ src/pkg/html/testdata/webkit/tests20.dat           |  455 ++++++++
+ src/pkg/html/testdata/webkit/tests21.dat           |  221 ++++
+ src/pkg/html/testdata/webkit/tests22.dat           |  157 +++
+ src/pkg/html/testdata/webkit/tests23.dat           |  155 +++
+ src/pkg/html/testdata/webkit/tests24.dat           |   79 ++
+ src/pkg/html/testdata/webkit/tests25.dat           |  219 ++++
+ src/pkg/html/testdata/webkit/tests26.dat           |  195 ++++
+ src/pkg/html/testdata/webkit/tests3.dat            |   12 +
+ src/pkg/html/testdata/webkit/tests6.dat            |   10 +
+ src/pkg/html/testdata/webkit/tests9.dat            |   27 +
+ src/pkg/html/testdata/webkit/tests_innerHTML_1.dat |  733 ++++++++++++
+ src/pkg/html/testdata/webkit/tricky01.dat          |  261 +++++
+ src/pkg/html/testdata/webkit/webkit01.dat          |  460 +++++++-
+ src/pkg/html/testdata/webkit/webkit02.dat          |  104 ++
+ 39 files changed, 6139 insertions(+), 233 deletions(-)

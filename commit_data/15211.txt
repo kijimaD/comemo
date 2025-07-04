@@ -1,36 +1,12 @@
-commit 052c942e20576f01f72d226d11aaf11e721009f3
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Feb 12 13:17:49 2013 -0500
+commit 4d8b1feb7988d21dcf07219250e972bfbc02020a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 13 01:04:13 2013 +0800
 
-    test: ensure all failing tests exit nonzero.
+    sync/atomic: support NetBSD/ARM (ARM11 or above)
     
-    Previously merely printing an error would cause the golden
-    file comparison (in 'bash run') to fail, but that is no longer
-    the case with the new run.go driver.
-    
-    R=iant
+    R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7310087
+    https://golang.org/cl/7287044
 
- test/alias1.go      |   8 +-
- test/bigalg.go      |  15 +++-
- test/cmplxdivide.go |   3 +
- test/const4.go      |   7 +-
- test/copy.go        |   5 ++
- test/decl.go        |   5 +-
- test/defer.go       |   2 +
- test/divide.go      |   8 ++
- test/escape.go      |   2 +
- test/float_lit.go   |   4 +
- test/floatcmp.go    |   3 +
- test/func7.go       |   3 +-
- test/func8.go       |   4 +-
- test/init1.go       |   1 +
- test/literal.go     |   3 +-
- test/map.go         | 228 ++++++++++++++++++++++++++--------------------------
- test/nil.go         |   2 +-
- test/recover3.go    |   4 +
- test/rename.go      |   6 +-
- test/string_lit.go  |   3 +-
- test/zerodivide.go  |   3 +
- 21 files changed, 189 insertions(+), 130 deletions(-)
+ src/pkg/sync/atomic/asm_netbsd_arm.s | 89 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 89 insertions(+)

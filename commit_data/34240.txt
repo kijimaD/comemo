@@ -1,17 +1,13 @@
-commit 1102616c772c262175f5ba5f12d6b574d0ad9101
-Author: Arthur Khashaev <arthur@khashaev.ru>
-Date:   Mon Feb 12 03:28:12 2018 +0300
+commit d19ced040a23809e293fd74af364240076ff311d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 11 16:30:45 2017 -0400
 
-    cmd/go: fix command injection in VCS path
+    cmd/dist: refresh deps.go after recent package io changes
     
-    Fixes #23867, CVE-2018-7187
-    
-    Change-Id: I5d0ba4923c9ed354ef76290e149c182447f9dfe2
-    Reviewed-on: https://go-review.googlesource.com/94656
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaa960c85011289e047c64b53cf610838eb50332d
+    Reviewed-on: https://go-review.googlesource.com/70073
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/get/vcs.go      | 35 +++++++++------------------------
- src/cmd/go/internal/get/vcs_test.go | 39 +++++++++++++++++++------------------
- 2 files changed, 29 insertions(+), 45 deletions(-)
+ src/cmd/dist/deps.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit adc5b559dbc7e86e4d8c4265d7da31f97fb0cb59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 13 10:57:12 2024 -0700
+
+    spec: adjust for-range prose to include iterator functions where missing
+    
+    Also add a missing table entry to the language versions section in the
+    appendix.
+    
+    Fixes #67977.
+    
+    Change-Id: I1f98abbbcc34a4ff31f390752635435eaf6120b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592595
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

@@ -1,20 +1,19 @@
-commit cd294636c846860e4bb792e62c30b516ef6676ec
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Oct 8 22:33:38 2015 +0200
+commit 090843b65074a306e4e807bdca1fbb7262ffce26
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Oct 1 14:21:37 2015 +1000
 
-    net: return rooted DNS names on Plan 9
+    text/template: change IsTrue to take interface{} instead of reflect.Value.
     
-    This change returns rooted DNS names on Plan 9,
-    for consistency with other operating systems.
+    This is a follow-up to a326c3e to avoid reflect being in the API.
     
-    Updates #12193.
+    Fixes #12801.
     
-    Change-Id: If983920c5b9a8f67d4ccb51bb295fac8dfb87e88
-    Reviewed-on: https://go-review.googlesource.com/15581
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Ic4c2e592e2c35b5911f75d88f1d9c44787c80f30
+    Reviewed-on: https://go-review.googlesource.com/15240
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/lookup_plan9.go | 23 +++++++++++++++++------
- 1 file changed, 17 insertions(+), 6 deletions(-)
+ src/html/template/template.go | 3 +--
+ src/text/template/exec.go     | 8 ++++++--
+ src/text/template/funcs.go    | 2 +-
+ 3 files changed, 8 insertions(+), 5 deletions(-)

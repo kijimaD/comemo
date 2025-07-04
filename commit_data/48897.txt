@@ -1,24 +1,25 @@
-commit 415e3fd8a6e62d7e9cf7d0c995518179dc0b7723
-Author: 张云浩 <zhangyunhao@bytedance.com>
-Date:   Fri Apr 15 07:45:17 2022 +0000
+commit df00abc61b415eb05d4df9fd2bf3fdda1aaaaba3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 24 09:07:52 2021 -0700
 
-    slices: use !{{Less}} instead of {{GreaterOrEqual}}
+    [dev.typeparams] cmd/compile: skip escape analysis diagnostics for wrappers
     
-    In CL 371574 PatchSet 18, we replaced all !{{Less}} with {{GreaterOrEqual}} to fix a problem(handle NaNs when sorting float64 slice) in exp/slices.
+    This CL changes escape analysis to skip reporting diagnostics (at
+    least for parameter tagging) for generated wrappers.
     
-    We don't actually need this change, because we don't guarantee that the slice will be sorted eventually if there are NaNs(we could have a[i] < a[j] for some i,j with i>j).
+    We're inconsistent about when/where wrappers are generated, which made
+    errorcheck tests of escape analysis unnecessarily brittle to changes
+    in wrapper generation. This CL addresses this making errorcheck tests
+    only care about tagging of the actual functions themselves, not the
+    wrappers too.
     
-    This CL reverts all the replacements in exp/slices and does not affect any codes in the sort package.
-    
-    Change-Id: Idc225d480de3e2efef2add35c709ed880d1306cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400534
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
+    Change-Id: Ia1a0b9dabee4d4162b05647f871db03b032c945a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330689
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/sort/gen_sort_variants.go | 32 ++++++++++----------------------
- 1 file changed, 10 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 17 +++++++++++------
+ test/uintptrescapes2.go                   |  2 +-
+ 2 files changed, 12 insertions(+), 7 deletions(-)

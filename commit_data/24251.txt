@@ -1,16 +1,17 @@
-commit f4f0344fe26cca96cc6063459b48e7af61ae483b
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 13:00:01 2015 +0000
+commit c4bfd2de2039601f20ca2133b83261f703987211
+Author: Silvan Jegen <s.jegen@gmail.com>
+Date:   Tue Jan 13 21:41:23 2015 +0100
 
-    encoding/base64,xml: map/slice literals janitoring
+    bufio: Remove unneeded error initialization
     
-    Simplify slice/map literal expressions.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
+    The default value for error is nil so there is no need to assign this
+    value here.
     
-    Change-Id: I639cfb02b1f57dea4087863df3995889c9371529
-    Reviewed-on: https://go-review.googlesource.com/13837
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I4714ef7607996ccbf91b704390e1d1d39ee3847b
+    Reviewed-on: https://go-review.googlesource.com/12355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/base64/base64_test.go | 10 +++++-----
- src/encoding/xml/marshal_test.go   |  2 +-
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/bufio/bufio.go | 1 -
+ 1 file changed, 1 deletion(-)

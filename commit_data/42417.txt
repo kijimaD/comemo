@@ -1,29 +1,17 @@
-commit 6ad5f4e334a7b2cecf319d7f4aecfaa8d790395e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri May 8 11:57:44 2020 -0400
+commit a5bfd9da1d1b24f326399b6b75558ded14514f23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 17 09:00:57 2019 -0500
 
-    go/build: move build constraint docs to 'go help buildconstraint'
+    go/build: rename WorkingDir to Dir
     
-    CL 228017 added a new help page 'go help buildconstraint' which
-    summarized the information on build constraints in the go/build
-    documentation. The summary was almost as long as the go/build
-    documentation, since there's very little that can be left out.
+    Fixes #36168
     
-    This CL moves the original go/build documentation to
-    'go help buildconstraint' to eliminate redundnancy. The text
-    describing enabled tags is slightly different (targeting command-line
-    users more than go/build users), but the rest of the documentation is
-    unchanged.
-    
-    Fixes #37018
-    
-    Change-Id: Ic0ed4c6fdae2395dd58852e1600c701247c9c4cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232981
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If2b7368671e83657a3a74dd030e66e7c68bf2361
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go               | 103 ++++++++++++++++++++++++------------
- src/cmd/go/internal/help/helpdoc.go | 103 ++++++++++++++++++++++++------------
- src/go/build/doc.go                 |  98 +++-------------------------------
- 3 files changed, 145 insertions(+), 159 deletions(-)
+ api/go1.14.txt             |  2 +-
+ src/go/build/build.go      | 20 ++++++++++----------
+ src/go/build/build_test.go |  6 +++---
+ 3 files changed, 14 insertions(+), 14 deletions(-)

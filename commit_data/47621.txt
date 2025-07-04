@@ -1,17 +1,28 @@
-commit 1d47a1184a4718a34ab1df4d9bf05a284aba4c70
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 26 07:36:09 2021 -0800
+commit 97b3ce430bb64fb6c8dfb244d400468932f2e984
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 1 16:50:53 2021 -0400
 
-    bufio: mention that panic at slicing means underlying reader is broken
+    runtime: make gcTestMoveStackOnNextCall not double the stack
     
-    Fixes #49795
+    Currently, gcTestMoveStackOnNextCall doubles the stack allocation on
+    each call because stack movement always doubles the stack. That's
+    rather unfortunate if you're doing a bunch of stack movement tests in
+    a row that don't actually have to grow the stack because you'll
+    quickly hit the stack size limit even though you're hardly using any
+    of the stack.
     
-    Change-Id: I2b4fd14f0ed36b643522559bebf5ce52b1d7b304
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367214
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fix this by adding a special stack poison value for
+    gcTestMoveStackOnNextCall that newstack recognizes and inhibits the
+    allocation doubling.
+    
+    Change-Id: Iace7055a0f33cb48dc97b8f4b46e45304bee832c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306672
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bufio/bufio.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/gc_test.go | 17 +++++++++++++++++
+ src/runtime/mgc.go     |  2 +-
+ src/runtime/stack.go   | 13 ++++++++++++-
+ 3 files changed, 30 insertions(+), 2 deletions(-)

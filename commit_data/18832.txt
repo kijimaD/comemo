@@ -1,17 +1,25 @@
-commit ab844022eeedc6c16d0cdb7fb6fee01dd9e6307a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 11 23:58:11 2014 -0400
+commit ae9b661fa859222b9bcbcafc1a63f3f305385e75
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 12 10:33:09 2014 +0900
 
-    cmd/gc: fix crash in -live mode
+    runtime: make use of THREAD_SHARE userspace mutex on freebsd
     
-    debuglive >= 1 is not the condition under which we
-    start recording messages (we avoid printing for
-    init functions even if debuglive is set).
+    For now Note, futexsleep and futexwakeup are designed for threads,
+    not for processes. The explicit use of UMTX_OP_WAIT_UINT_PRIVATE and
+    UMTX_OP_WAKE_PRIVATE can avoid unnecessary traversals of VM objects,
+    to hit undiscovered bugs related to VM system on SMP/SMT/NUMA
+    environment.
     
-    LGTM=bradfitz, iant
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/74390043
+    Update #7496
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/72760043
 
- src/cmd/gc/plive.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/defs_freebsd.go      | 6 ++++--
+ src/pkg/runtime/defs_freebsd_386.h   | 6 ++++--
+ src/pkg/runtime/defs_freebsd_amd64.h | 6 ++++--
+ src/pkg/runtime/defs_freebsd_arm.h   | 6 ++++--
+ src/pkg/runtime/os_freebsd.c         | 6 +++---
+ 5 files changed, 19 insertions(+), 11 deletions(-)

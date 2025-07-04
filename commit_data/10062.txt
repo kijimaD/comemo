@@ -1,12 +1,13 @@
-commit 57d07e32d82e1ea0f8edd7fba95bd192cb5f539e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Oct 19 18:30:06 2011 -0200
+commit 526d0818cca60a021e8c3c5ca34f7ed7d43f61ae
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Oct 19 18:26:08 2011 -0200
 
-    misc/vim: add highlighting for delete
+    fmt: don't panic formatting nil interfaces
     
-    R=golang-dev, n13m3y3r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5303050
+    https://golang.org/cl/5296044
 
- misc/vim/syntax/go.vim | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go | 5 +++++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,33 +1,21 @@
-commit 2fc6366fb56aa77efa3cecd44ce941472786a418
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 17 18:32:04 2019 -0700
+commit 17436af8413071a50515c90af69c23f77cb201e3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 3 09:45:48 2019 -0400
 
-    cmd/compile: remove OCASE and rename OXCASE to OCASE
+    cmd/go/internal/modload: fix aliasing bug in (*mvsReqs).Required with -mod=vendor
     
-    We used to use OXCASE to represent general, possibly multi-valued
-    cases, and then desugar these during walk into single-value cases
-    represented by OCASE.
+    (*mvsReqs).Required assumes that it is safe to mutate the slice
+    returned by (*mvsReqs).required. In most cases, that was true, but in
+    the case of -mod=vendor it resulted in unsynchronized (and
+    potentially interfering) writes to the global vendorList.
     
-    In CL 194660, we switched to eliminated the desugaring step and
-    instead handle the multi-valued cases directly, which eliminates the
-    need for an OCASE Op. Instead, we can simply remove OCASE, and rename
-    OXCASE to just OCASE.
+    Fixes #30550
     
-    Passes toolstash-check.
-    
-    Change-Id: I3cc184340f9081d37453927cca1c059267fdbc12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196117
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I99bcc2037e0182418b7dfda1002f8b540dbf3a1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170598
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go       | 19 +------------------
- src/cmd/compile/internal/gc/iexport.go   |  4 ++--
- src/cmd/compile/internal/gc/iimport.go   | 10 ++--------
- src/cmd/compile/internal/gc/noder.go     |  4 ++--
- src/cmd/compile/internal/gc/op_string.go | 24 +++++++++++++++++-------
- src/cmd/compile/internal/gc/order.go     |  4 ++--
- src/cmd/compile/internal/gc/select.go    |  2 +-
- src/cmd/compile/internal/gc/swt.go       |  2 +-
- src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- src/cmd/compile/internal/gc/walk.go      |  7 +------
- 11 files changed, 34 insertions(+), 52 deletions(-)
+ src/cmd/go/internal/modload/load.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

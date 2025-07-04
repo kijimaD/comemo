@@ -1,36 +1,23 @@
-commit 6019a52d4dab7c243ee9088c3522c821c0c95cfa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Jan 8 13:01:37 2022 -0800
+commit 0613c748e8919536c360cfc9be4e63a0b55d4286
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 15 11:36:23 2021 -0400
 
-    go/types, types2: better error message when using *interface instead of interface
+    cmd/go: move 'go install cmd@version' code into internal/load
     
-    - detect *interface case and report specific error
-    - replaced switch with sequence of if's for more clarity
-    - fixed isInterfacePtr: it applies to all interfaces, incl.
-      type parameters
-    - reviewed/fixed all uses of isInterfacePtr
-    - adjusted error messages to be consistently of the format
-      "type %s is pointer to interface, not interface"
+    'go run cmd@version' will use the same code.
     
-    Fixes #48312.
+    This changes error messages a bit.
     
-    Change-Id: Ic3c8cfcf93ad57ecdb60f6a727cce9e1aa4afb5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376914
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #42088
+    
+    Change-Id: Iaed3997a3d27f9fc0e868013ab765f1fb638a0b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310410
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/call.go            | 64 +++++++++++++---------
- src/cmd/compile/internal/types2/lookup.go          | 10 ++--
- src/cmd/compile/internal/types2/operand.go         |  2 +-
- .../internal/types2/testdata/check/methodsets.src  | 12 ++--
- .../types2/testdata/fixedbugs/issue47747.go2       |  4 +-
- .../types2/testdata/fixedbugs/issue48312.go2       | 20 +++++++
- src/go/types/call.go                               | 64 +++++++++++++---------
- src/go/types/lookup.go                             | 10 ++--
- src/go/types/operand.go                            |  2 +-
- src/go/types/testdata/check/methodsets.src         | 12 ++--
- src/go/types/testdata/fixedbugs/issue47747.go2     |  4 +-
- src/go/types/testdata/fixedbugs/issue48312.go2     | 20 +++++++
- test/fixedbugs/issue48471.go                       |  2 +-
- test/method2.go                                    |  2 +-
- 14 files changed, 145 insertions(+), 83 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    | 187 +++++++++++++++++++++
+ src/cmd/go/internal/work/build.go                  | 144 ++--------------
+ .../go/testdata/script/mod_install_pkg_version.txt |  26 +--
+ 3 files changed, 210 insertions(+), 147 deletions(-)

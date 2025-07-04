@@ -1,14 +1,15 @@
-commit 5946e46138d68014e944069af337e317e3603cf4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 7 11:33:26 2011 -0500
+commit 4371e094578cdb463a09ca57777078f36feb3002
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Mon Mar 7 11:11:21 2011 -0500
 
-    goinstall: fix build
+    hash: new FNV-1a implementation
     
-    func init runs *after* var declarations
-    
-    TBR=niemeyer
+    R=agl1, rsc
     CC=golang-dev
-    https://golang.org/cl/4260055
+    https://golang.org/cl/4257042
 
- src/cmd/goinstall/syslist_test.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/pkg/Makefile             |   1 +
+ src/pkg/hash/fnv/Makefile    |  11 +++
+ src/pkg/hash/fnv/fnv.go      | 133 ++++++++++++++++++++++++++++++++++
+ src/pkg/hash/fnv/fnv_test.go | 167 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 312 insertions(+)

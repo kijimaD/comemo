@@ -1,16 +1,15 @@
-commit 793e4ec3dd440ddb68ec4d154f5711ef76d32b60
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Mar 16 15:26:13 2017 -0400
+commit 8ace3461a46d09466f0e1a8ea3ff41ac9cbd46f4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Nov 23 00:50:46 2016 +0100
 
-    cmd/compile: fix MIPS Zero lower rule
+    doc: add SIGPIPE behaviour change to go1.8.txt
     
-    A copy-paste error in CL 38150. Fix build.
+    CL 32796 changes the SIGPIPE behaviour for c-archive and c-shared
+    programs. Add it to go1.8.txt.
     
-    Change-Id: Ib2afc83564ebe7dab934d45522803e1a191dea18
-    Reviewed-on: https://go-review.googlesource.com/38292
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I31200187033349c642965a4bb077bcc77d5329a3
+    Reviewed-on: https://go-review.googlesource.com/33397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules | 2 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

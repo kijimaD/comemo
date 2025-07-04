@@ -1,16 +1,32 @@
-commit c4c73ce0e3a7b5c3a61678325c61b09783f76220
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 17 16:53:37 2018 -0700
+commit 78a37347143bd03026a6c6860a550b1638ce5314
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Aug 9 11:36:03 2019 -0400
 
-    go/importer: remove support for defunct binary export format
+    cmd/link: add notion of multiple compilation units per package
     
-    Fixes #27999.
+    As we move the debug_line generation into the compiler, we need to
+    upgrade the notion of compilationUnit to not just be on a per package
+    basis.  That won't be the case as it will be impossible for all
+    compilationUnits to have the same set of files names used to build the
+    debug_lines table. (For example, assembled files in a package don't know
+    about any files but themselves, so the debug_lines table could only
+    reference themseves. As such, we need to break the 1:1 relationship
+    between compUnit and package.)
     
-    Change-Id: I488681eff4fb8e2580cf97a2d7631110d66ab19e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/143023
-    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
+    Change-Id: I2e517bb6c01de0115bbf777af828a2fe59c09ce8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189618
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/internal/gcimporter/bimport.go         | 896 --------------------------
- src/go/internal/gcimporter/gcimporter.go      |   6 +-
- src/go/internal/gcimporter/gcimporter_test.go |  14 +-
- 3 files changed, 15 insertions(+), 901 deletions(-)
+ src/cmd/link/internal/ld/data.go              |   5 +-
+ src/cmd/link/internal/ld/deadcode.go          |   5 +-
+ src/cmd/link/internal/ld/dwarf.go             | 256 +++++++++++++-------------
+ src/cmd/link/internal/ld/lib.go               |   5 +-
+ src/cmd/link/internal/ld/link.go              |   4 +-
+ src/cmd/link/internal/objfile/objfile.go      |   8 +-
+ src/cmd/link/internal/sym/compilation_unit.go |  22 +++
+ src/cmd/link/internal/sym/library.go          |   1 +
+ src/cmd/link/internal/sym/symbol.go           |   2 +-
+ 9 files changed, 168 insertions(+), 140 deletions(-)

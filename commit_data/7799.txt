@@ -1,13 +1,12 @@
-commit 2ca46a789b287c2c265dab8b4a05911b5304921d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 17 13:46:05 2011 -0400
+commit bc35379763174f1829e1908eb91c2f50780bc7e4
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Mar 17 01:45:05 2011 -0400
 
-    time: isolate syscall reference in sys.go
+    .hgignore: Ignore all goinstalled packages
     
-    R=dsymonds
+    R=golang-dev, niemeyer, rsc1, rog, rsc
     CC=golang-dev
-    https://golang.org/cl/4291052
+    https://golang.org/cl/4285047
 
- src/pkg/time/sleep.go |  5 ++---
- src/pkg/time/sys.go   | 14 +++++++++++---
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ .hgignore | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

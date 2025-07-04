@@ -1,0 +1,28 @@
+commit f85c40438fea862be03d2de4b58ed3afe7cfe033
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 24 09:33:45 2024 -0400
+
+    internal/runtime/exithook: make safe for concurrent os.Exit
+    
+    Real programs can call os.Exit concurrently from multiple goroutines.
+    Make internal/runtime/exithook not crash in that case.
+    
+    The throw on panic also now runs in the deferred context,
+    so that we will see the full stack trace that led to the panic.
+    That should give us more visibility into the flaky failures on
+    bugs #55167 and #56197 as well.
+    
+    Fixes #67631.
+    
+    Change-Id: Iefdf71b3a3b52a793ca88d89a9c270eb50ece094
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588235
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go                          |  3 +-
+ src/internal/runtime/exithook/hooks.go             | 53 +++++++++++++++-------
+ src/runtime/ehooks_test.go                         | 46 ++++++++++---------
+ src/runtime/proc.go                                | 10 ++--
+ .../testdata/testexithooks/testexithooks.go        | 14 +++++-
+ 5 files changed, 82 insertions(+), 44 deletions(-)

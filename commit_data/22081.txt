@@ -1,17 +1,15 @@
-commit a432568300e1432c3a49d80b48900411589a816d
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Mar 16 16:45:29 2015 -0700
+commit 20f9f544bfd8562cc6e186e0cb0335667d24fee6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 10:29:25 2015 -0500
 
-    crypto/tls: panic with unknown hash functions.
+    [dev.cc] misc/nacl: add testdata for cmd/internal/rsc.io/x86/x86asm
     
-    Just so that we notice in the future if another hash function is added
-    without updating this utility function, make it panic when passed an
-    unknown handshake hash function. (Which should never happen.)
+    Should fix nacl build on dev.cc.
     
-    Change-Id: I60a6fc01669441523d8c44e8fbe7ed435e7f04c8
-    Reviewed-on: https://go-review.googlesource.com/7646
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Joël Stemmer <stemmertech@gmail.com>
+    Change-Id: I166a03b5f6903bd8bbce65af4e5f2899807bb6cc
+    Reviewed-on: https://go-review.googlesource.com/5575
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/prf.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/nacl/testzip.proto | 9 +++++++++
+ 1 file changed, 9 insertions(+)

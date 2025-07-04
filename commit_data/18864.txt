@@ -1,15 +1,20 @@
-commit 22aa54965e1cc7f0a2b194588c1bd8c7c627182d
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Mar 14 16:44:54 2014 +0100
+commit cbe777b2c70320f52f85c6c8f1242b35dd45b341
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 14 10:07:51 2014 -0400
 
-    cmd/go: fix invalid go pack command line in the output of go build -x
+    cmd/gc: replace '·' as '.' in ELF/Mach-O symbol tables
     
-    Fixes #7262
+    Old versions of DTrace (as those shipped in OS X and FreeBSD)
+    don't support unicode characters in symbol names.  Replace '·'
+    to '.' to make DTrace happy.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Fixes #7493
+    
+    LGTM=aram, rsc
+    R=aram, rsc, gobot, iant
     CC=golang-codereviews
-    https://golang.org/cl/76110043
+    https://golang.org/cl/72280043
 
- src/cmd/go/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/macho.c  | 17 ++++++++++++++++-
+ src/cmd/ld/symtab.c | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

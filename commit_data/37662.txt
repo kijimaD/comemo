@@ -1,17 +1,15 @@
-commit cc8ae42a12cbbd7c7de0c1195d413fed5d9c4bbc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 11 21:03:11 2018 -0500
+commit 0829e1b757969cc5e22df6c5b5a45cff8f073a38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 24 15:46:40 2017 -0800
 
-    cmd/go: retain sums for replacement modules in 'go mod tidy'
+    misc/cgo/testcarchive: make the tests work when using gccgo
     
-    Fixes #27868
-    
-    Change-Id: I6c2d221c4325a2f44625e797a82735d812ee0ec1
-    Reviewed-on: https://go-review.googlesource.com/c/153817
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I62a7a8ebbbc1f1a266234b53680768da157b2df5
+    Reviewed-on: https://go-review.googlesource.com/130416
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modcmd/tidy.go              | 12 ++++++++++-
- src/cmd/go/testdata/script/mod_sum_replaced.txt | 28 +++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ misc/cgo/testcarchive/carchive_test.go | 71 +++++++++++++++++++++++++++++-----
+ misc/cgo/testcarchive/main_unix.c      |  8 +++-
+ 2 files changed, 69 insertions(+), 10 deletions(-)

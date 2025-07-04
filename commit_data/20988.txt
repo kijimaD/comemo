@@ -1,18 +1,66 @@
-commit df1739c77d4eb4f700722b4eb70b6036df96a9b9
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 12 13:45:19 2014 -0800
+commit 31b1207fde70531cd5092d83c01ad5e0f07eb951
+Merge: 84f7ac98f7 b802240300
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 3 10:53:11 2014 -0500
 
-    runtime: if key type is reflexive, don't call equal(k, k)
+    [dev.power64] all: merge default into dev.power64
     
-    Most types are reflexive (k == k for all k of type t), so don't
-    bother calling equal(k, k) when the key type is reflexive.
+    Trivial merge except for src/runtime/asm_power64x.s and
+    src/runtime/signal_power64x.c
     
-    Change-Id: Ia716b4198b8b298687843b94b878dbc5e8fc2c65
-    Reviewed-on: https://go-review.googlesource.com/1480
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/168950044
 
- src/cmd/gc/reflect.c   | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/type.go    | 27 +++++++++++++++++++++++++++
- src/runtime/hashmap.go |  6 +++---
- src/runtime/type.go    |  1 +
- 4 files changed, 81 insertions(+), 3 deletions(-)
+ .hgtags                              |   1 +
+ AUTHORS                              |   4 +
+ CONTRIBUTORS                         |   4 +
+ doc/go1.4.html                       | 306 ++++++++++++++++++++++++++++++-----
+ misc/cgo/test/cgo_test.go            |   1 +
+ misc/cgo/test/issue6997_linux.go     |   2 +-
+ misc/cgo/test/issue9026.go           |  33 ++++
+ src/cmd/cgo/gcc.go                   |  24 +--
+ src/cmd/go/doc.go                    |   4 +-
+ src/cmd/go/generate.go               |   2 +-
+ src/cmd/internal/objfile/elf.go      |  25 +++
+ src/cmd/internal/objfile/goobj.go    |  12 ++
+ src/cmd/internal/objfile/macho.go    |  24 +++
+ src/cmd/internal/objfile/objfile.go  |  10 ++
+ src/cmd/internal/objfile/pe.go       |  31 ++++
+ src/cmd/internal/objfile/plan9obj.go |  22 +++
+ src/cmd/objdump/Makefile             |  10 --
+ src/cmd/objdump/elf.go               |  65 --------
+ src/cmd/objdump/macho.go             |  77 ---------
+ src/cmd/objdump/main.go              | 277 ++++---------------------------
+ src/cmd/objdump/objdump_test.go      |   2 +-
+ src/cmd/objdump/pe.go                |  99 ------------
+ src/cmd/objdump/plan9obj.go          |  70 --------
+ src/database/sql/fakedb_test.go      |   2 +
+ src/database/sql/sql.go              |   5 +
+ src/net/http/main_test.go            |   2 +-
+ src/runtime/asm_386.s                |   6 +
+ src/runtime/asm_amd64.s              |   6 +
+ src/runtime/asm_amd64p32.s           |   6 +
+ src/runtime/asm_arm.s                |   6 +
+ src/runtime/asm_power64x.s           |   6 +
+ src/runtime/crash_cgo_test.go        |  29 +++-
+ src/runtime/extern.go                |  11 +-
+ src/runtime/heapdump.c               |   2 +-
+ src/runtime/mgc0.c                   |   4 +-
+ src/runtime/mprof.go                 |   2 +-
+ src/runtime/os_plan9_386.c           |   2 +-
+ src/runtime/os_plan9_amd64.c         |   2 +-
+ src/runtime/os_windows_386.c         |   2 +-
+ src/runtime/os_windows_amd64.c       |   2 +-
+ src/runtime/proc.c                   |  14 +-
+ src/runtime/runtime.h                |   8 +-
+ src/runtime/signal_386.c             |   2 +-
+ src/runtime/signal_amd64x.c          |   2 +-
+ src/runtime/signal_arm.c             |   2 +-
+ src/runtime/signal_power64x.c        |   2 +-
+ src/runtime/stack.c                  |   2 +-
+ src/runtime/traceback.go             |  33 ++--
+ src/sync/atomic/value.go             |   2 +-
+ test/fixedbugs/issue7690.go          |  49 ++++++
+ 50 files changed, 655 insertions(+), 661 deletions(-)

@@ -1,12 +1,13 @@
-commit 79de0d00ae68a2fd272863a965dc08aec47d73b1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 17 16:59:16 2012 -0700
+commit 5e1864fbe57872667005033ac76e6bc821fe7f82
+Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
+Date:   Tue Sep 18 08:39:26 2012 +1000
 
-    misc/dist: generate tarballs for Mac OS X
+    A+C: update Eric Roshan-Eisner
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6503118
+    https://golang.org/cl/6492135
 
- misc/dist/bindist.go | 42 +++++++++++++++++++++++++++---------------
- 1 file changed, 27 insertions(+), 15 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

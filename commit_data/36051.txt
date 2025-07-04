@@ -1,20 +1,25 @@
-commit 4016de0daffd46087e9ee9dc994e39c257191b40
-Author: Jack <jackxbritton@gmail.com>
-Date:   Wed Jul 18 19:12:14 2018 +0000
+commit ec60e4a0d2ddabd7667fd9bff9f376e6a181ce8d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 8 21:47:17 2018 +0000
 
-    filepath: updates doc to give case where WalkFunc info arg may be nil
+    cmd/compile/internal/ssa: add initial README
     
-    If a filepath.WalkFunc is called with an non-nil err argument, it's possible
-    that the info argument will be nil. The comment above filepath.WalkFunc now
-    reflects this.
+    This is the first version of an introductory document that should help
+    developers who want to get started with this package.
     
-    Fixes #26425
+    I recently started poking around this part of the compiler, and was
+    confused by a few basic ideas such as memory arguments. I also hadn't
+    heard about GOSSAFUNC until another developer pointed it out. Both of
+    those are essential if one wants to do any non-trivial work here.
     
-    Change-Id: Ib9963b3344587d2993f1698c5a801f2d1286856b
-    GitHub-Last-Rev: 553fc266b570d0c47efe12b3b670f88112e3b334
-    GitHub-Pull-Request: golang/go#26435
-    Reviewed-on: https://go-review.googlesource.com/124635
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This document can of course be expanded with more pointers and tips to
+    better understand this package's code and behavior. Its intent is not to
+    cover all of its features; but it should be enough for most developers
+    to start playing with it without extensive compiler experience.
+    
+    Change-Id: Ifd2d047fbd038ab50f4625a15c4d49932b42fd66
+    Reviewed-on: https://go-review.googlesource.com/99715
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/path/filepath/path.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/README.md | 59 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

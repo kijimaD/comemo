@@ -1,12 +1,12 @@
-commit 3730ddcbd846fec80a588880999e8cc280ff7450
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Sep 21 14:50:38 2012 -0500
+commit 413fbed34194e4ff0da2a088fa589b33cae7e941
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Sep 21 20:20:26 2012 +0200
 
-    doc: document go1.0.3
+    cmd/6g: cosmetic improvements to regopt debugging.
     
-    R=rsc, r
-    CC=gobot, golang-dev
-    https://golang.org/cl/6532049
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6528044
 
- doc/devel/release.html | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/6g/reg.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

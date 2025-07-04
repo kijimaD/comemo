@@ -1,20 +1,24 @@
-commit 4777fd3d31bee83d076b3b3d981367103da17e34
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 17:11:40 2024 -0700
+commit d2ee7821d357a4e4948b9a6251e82b4ced9a1eae
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Aug 3 10:07:09 2023 -0400
 
-    cmd/go/internal/toolchain: use sync.OnceValue
+    go/types, types2: don't panic during interface completion
     
-    Rename initPathExts to pathExts, make it return the slice of extensions,
-    and wrap into sync.OnceValue.
+    It should be possible for the importer to construct an invalid
+    interface, as would have been produced by type checking.
     
-    While at it, return early if PATHEXT is empty.
+    Fixes #61737
     
-    Change-Id: I33508762e87edd226e0a52df4063473c496c0210
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611017
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I72e063f4f1a6205d273a623acce2ec08c34c3cc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515555
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/toolchain/path_windows.go | 37 +++++++++++----------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 23 ++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go  | 49 ++++++++++-------------------
+ src/go/types/api_test.go                    | 23 ++++++++++++++
+ src/go/types/typeset.go                     | 37 ++++++----------------
+ 4 files changed, 72 insertions(+), 60 deletions(-)

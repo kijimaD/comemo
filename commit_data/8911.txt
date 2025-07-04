@@ -1,14 +1,14 @@
-commit 4dfdacd2bdfd3acd8686c1d0fa0f872b3ec66c8b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 30 15:39:00 2011 +1000
+commit 73896bdc854409b2c058a3fb22a8d12fa11c1144
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 29 21:56:13 2011 -0700
 
-    build: make version.bash aware of branches
+    net: break up and simplify Dial a bit
     
-    Fixes #2026.
+    No API or functional change.
     
-    R=bradfitz, rsc
+    R=jacek.masiulaniec, mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/4645074
+    https://golang.org/cl/4630081
 
- src/version.bash | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/net/dial.go | 86 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 39 insertions(+), 47 deletions(-)

@@ -1,27 +1,20 @@
-commit d465aee0b80b8eb0b63929deb8de0b21187c59a7
-Author: khr@golang.org <khr@golang.org>
-Date:   Mon Jul 22 13:27:09 2024 -0700
+commit cf7ae4f1364efa0e9b93bedf127ba1ccc7664fcb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Jun 15 09:50:03 2023 +0000
 
-    cmd/internal/testdir: fix failure when GOAMD64=v3 is specified in goenv file
+    compress/bzip2: fix typo
     
-    Fixes #68548
+    Remove redundant "this".
     
-    Add GOENV=off, GOFLAGS= to the build of the stdlib, so that it matches
-    what runcmd does. This ensures that the runtime and the test are built
-    with the same flags. As opposed to before this CL, where flags were used
-    in the stdlib build but not the runcmd build.
-    
-    (Part of the problem here is that cmd/internal/testdir/testdir_test.go
-    plays fast and loose with the build cache to make the tests run faster.
-    Maybe some of that fast-and-loose mechanism can be removed now that we
-    have a better build cache? I'm not sure.)
-    
-    Change-Id: I449d4ff517c69311d0aa4411e7fb96c0cca49269
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600276
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia845e44119bf5ba1862f62da335466219a37c325
+    GitHub-Last-Rev: f0cdaf03285da8b053b71cc2911f5ab5beff580b
+    GitHub-Pull-Request: golang/go#60807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/testdir/testdir_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/compress/bzip2/bit_reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

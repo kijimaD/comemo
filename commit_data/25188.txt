@@ -1,23 +1,33 @@
-commit 423b0cc25ad8f75825db70a370ea9b696a17074d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Dec 7 02:12:12 2015 -0800
+commit cfb116d4538dcf2455ca59e786396c779019c065
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 02:59:49 2015 -0700
 
-    cmd/compile: base mapaccess optimizations on algtype
+    archive/tar: expand abilities of TestReader
     
-    algtype already controls the behavior of the normal map access code
-    paths, so it makes sense to base the decision on which optimized paths
-    are applicable on it too.
+    Motivation:
+    * There are an increasing number of "one-off" corrupt files added
+    to make sure that package does not succeed or crash on them.
+    Instead, allow for the test to specify the error that is expected
+    to occur (if any).
+    * Also, fold in the logic to check the MD5 checksum into this
+    function.
     
-    Enables use of optimized paths for key types like [8]byte and struct{s
-    string}.
+    The following tests are being removed:
+    * TestIncrementalRead: Done by TestReader by using io.CopyBuffer
+    with a buffer of 8. This achieves the same behavior as this test.
+    * TestSparseEndToEnd: Since TestReader checks the MD5 checksums
+    if the input corpus provides them, then this is redundant.
+    * TestSparseIncrementalRead: Redundant for the same reasons that
+    TestIncrementalRead is now redundant
+    * TestNegativeHdrSize: Added to TestReader corpus
+    * TestIssue10968: Added to TestReader corpus
+    * TestIssue11169: Added to TestReader corpus
     
-    Fixes #13271.
+    With this change, code coverage did not change: 85.3%
     
-    Change-Id: I48c52d97abaa7259ad5aba9641ea996a967cd359
-    Reviewed-on: https://go-review.googlesource.com/17464
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8550d48657d4dbb8f47dfc3dc280758ef73b47ec
+    Reviewed-on: https://go-review.googlesource.com/15176
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ src/archive/tar/reader_test.go | 296 +++++++++++------------------------------
+ 1 file changed, 81 insertions(+), 215 deletions(-)

@@ -1,30 +1,22 @@
-commit 80acfe950fce409477b9fae097696701a9ff66e3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 5 11:17:59 2016 -0800
+commit eee727d0855b9e78f9df87e08d57b1d7f264876c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Sep 13 13:21:23 2016 -0700
 
-    runtime/cgo: retry pthread_create on EAGAIN for OpenBSD
+    cmd/go: note when some Go files were ignored on no-Go-files errors
     
-    For reasons that I do not know, OpenBSD does not call pthread_create
-    directly, but instead looks it up in libpthread.so. That means that we
-    can't use the code used on other systems to retry pthread_create on
-    EAGAIN, since that code simply calls pthread_create.
+    It is pretty confusing when there are Go files ignored for mismatching
+    build tags and similar and we output "no buildable Go files" without
+    giving any other information about some Go files have been ignored.
     
-    This patch copies that code to an OpenBSD-specific version.
+    Fixes #17008.
     
-    Also, check for an EAGAIN failure in the test, as that seems to be the
-    underlying cause of the test failure on several systems including OpenBSD.
-    
-    Fixes #18146.
-    
-    Change-Id: I3bceaa1e03a7eaebc2da19c9cc146b25b59243ef
-    Reviewed-on: https://go-review.googlesource.com/33905
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1766ee86a9a7a72f6694deae3f73b47bfc9d0be5
+    Reviewed-on: https://go-review.googlesource.com/29113
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue18146.go           | 18 +++++++++++++-----
- src/runtime/cgo/gcc_libinit_openbsd.c | 24 ++++++++++++++++++++++++
- src/runtime/cgo/gcc_openbsd_386.c     |  3 ++-
- src/runtime/cgo/gcc_openbsd_amd64.c   |  3 ++-
- src/runtime/cgo/libcgo_unix.h         |  9 ++++++++-
- 5 files changed, 49 insertions(+), 8 deletions(-)
+ src/go/build/build.go                    | 11 ++++++++---
+ src/go/build/build_test.go               | 11 +++++++++++
+ src/go/build/testdata/ignored/ignored.go |  3 +++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

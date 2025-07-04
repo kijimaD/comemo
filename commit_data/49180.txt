@@ -1,30 +1,30 @@
-commit 2eb8b6eec65d3d214c07067db474bbb93de3443a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 6 20:17:52 2022 +0000
+commit 33ff1559702388c57c45f9e6cd032f06e8c3c163
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jul 26 16:33:44 2021 -0400
 
-    runtime: make CPU limiter assist time much less error-prone
+    go/types: preserve untyped constants on the RHS of a shift expression
     
-    At the expense of performance (having to update another atomic counter)
-    this change makes CPU limiter assist time much less error-prone to
-    manage. There are currently a number of issues with respect to how
-    scavenge assist time is treated, and this change resolves those by just
-    having the limiter maintain its own internal pool that's drained on each
-    update.
+    CL 291316 fixed go/types to verify that untyped shift counts are
+    representable by uint, but as a side effect also converted their types
+    to uint.
     
-    While we're here, clear the measured assist time each cycle, which was
-    the impetus for the change.
+    Rearrange the logic to keep the check for representability, but not
+    actually convert untyped integer constants. Untyped non-integer
+    constants are still converted, to preserve the behavior of 1.16. This
+    behavior for non-integer types is a bug, filed as #47410.
     
-    Change-Id: I84c513a9f012b4007362a33cddb742c5779782b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404304
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Updates #47410
+    Fixes #47243
+    
+    Change-Id: I5eab4aab35b97f932fccdee2d4a18623ee2ccad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337529
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/export_test.go   | 12 ++++++---
- src/runtime/mgc.go           | 12 ++++++---
- src/runtime/mgclimit.go      | 62 +++++++++++++++++++++-----------------------
- src/runtime/mgclimit_test.go | 48 ++++++++++++++++++----------------
- src/runtime/mgcmark.go       |  5 ++--
- src/runtime/mgcpacer.go      |  2 +-
- src/runtime/mheap.go         |  5 ++--
- 7 files changed, 79 insertions(+), 67 deletions(-)
+ src/go/types/api_test.go   | 12 ++++++++++++
+ src/go/types/check_test.go |  7 +++++++
+ src/go/types/expr.go       | 34 +++++++++++++++++++++++++---------
+ 3 files changed, 44 insertions(+), 9 deletions(-)

@@ -1,23 +1,26 @@
-commit bcfe519d58e0ef99faad76b7d13108cd48d75e32
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 1 13:57:46 2014 -0400
+commit 548b15def6c22741d1c22fe911ff23c0b224fb88
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 31 19:21:17 2014 -0400
 
-    runtime: fix correctness test at end of traceback
+    runtime: mark some C globals as having no pointers.
     
-    We were requiring that the defer stack and the panic stack
-    be completely processed, thinking that if any were left over
-    the stack scan and the defer stack/panic stack must be out
-    of sync. It turns out that the panic stack may well have
-    leftover entries in some situations, and that's okay.
+    C globals are conservatively scanned.  This helps
+    avoid false retention, especially for 32 bit.
     
-    Fixes #8132.
-    
-    LGTM=minux, r
-    R=golang-codereviews, minux, r
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/100900044
+    LGTM=rsc
+    R=golang-codereviews, khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/102040043
 
- src/pkg/runtime/traceback_arm.c | 13 +++++++--
- src/pkg/runtime/traceback_x86.c | 59 ++++++++++++++++++++++++++++++++++++++++-
- test/fixedbugs/issue8132.go     | 32 ++++++++++++++++++++++
- 3 files changed, 101 insertions(+), 3 deletions(-)
+ src/pkg/runtime/alg.goc        | 1 +
+ src/pkg/runtime/heapdump.c     | 2 ++
+ src/pkg/runtime/malloc.goc     | 1 +
+ src/pkg/runtime/msize.c        | 5 +++++
+ src/pkg/runtime/os_darwin.c    | 1 +
+ src/pkg/runtime/os_dragonfly.c | 1 +
+ src/pkg/runtime/os_freebsd.c   | 1 +
+ src/pkg/runtime/os_netbsd.c    | 1 +
+ src/pkg/runtime/os_openbsd.c   | 1 +
+ src/pkg/runtime/os_solaris.c   | 1 +
+ src/pkg/runtime/proc.c         | 1 +
+ 11 files changed, 16 insertions(+)

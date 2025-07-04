@@ -1,24 +1,17 @@
-commit d40bb738ff59bada723fe5f834d41531391b532a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Apr 22 17:35:28 2017 -0700
+commit 39651bb50bc0e1038e77e63baa37729bc4676e8a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 18:39:16 2017 -0500
 
-    cmd/compile: remove types.Sym.lsym
+    expvar: parallelize BenchmarkMapAdd{Same,Different}
     
-    It was just a cache, and the CL series yesterday
-    removed 40% of the calls to types.Linksym in make.bash.
+    The other expvar tests are already parallelized, and this will help to
+    measure the impact of potential implementations for #18177.
     
-    Testing atop CL 40693 (backend concurrency)
-    indicates that removing it is actually a very minor
-    performance improvement.
+    updates #18177
     
-    Passes toolstash-check.
-    
-    Change-Id: I97c2973036964acdd11b3cb842bc31f33ae60389
-    Reviewed-on: https://go-review.googlesource.com/41492
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0f4f1a16a0285556cbcc8339855b6459af412675
+    Reviewed-on: https://go-review.googlesource.com/36717
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types/sizeof_test.go | 2 +-
- src/cmd/compile/internal/types/sym.go         | 6 +-----
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/expvar/expvar_test.go | 47 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 34 insertions(+), 13 deletions(-)

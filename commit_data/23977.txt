@@ -1,15 +1,19 @@
-commit 87c8707e6ffa40937191ae37e27af5d17d1a215a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 4 10:38:50 2015 -0700
+commit 1284d7d403875d11cff97dfb7c946a7ee11e1569
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 25 11:48:27 2015 +0200
 
-    spec: clarify sentence about non-constant shifts
+    net/url: don't escape star requests when writing requests
     
-    Fixes #10514.
+    Includes a new net/http test too.
     
-    Change-Id: Iae95a304d3ebb1ed82567aa234e05dc434db984f
-    Reviewed-on: https://go-review.googlesource.com/13098
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #11202
+    
+    Change-Id: I61edc594f4de8eb6780b8dfa221269dd482e8f35
+    Reviewed-on: https://go-review.googlesource.com/11492
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request_test.go | 26 ++++++++++++++++++++++++++
+ src/net/url/url.go           |  3 +++
+ src/net/url/url_test.go      | 11 +++++++++++
+ 3 files changed, 40 insertions(+)

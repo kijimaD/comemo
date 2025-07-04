@@ -1,14 +1,15 @@
-commit 4d01922e46514d065d357355f08b3922cc65f782
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 17 14:45:51 2015 -0700
+commit 1c26176b67786151db0e4162ce6f8ad2f5c9ffd1
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 00:04:42 2015 -0400
 
-    encoding/gob: fix hang from skipping large slices
+    net/url: fix docs for URL.String
     
-    Change-Id: I4e59b5b1702e08d7c6191d0a70fb0a555f3340c8
-    Reviewed-on: https://go-review.googlesource.com/9061
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10227.
+    
+    Change-Id: I64d5522e76da5a717e3c4169405e5ef35d6c262e
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/gob/decode.go       | 3 +++
- src/encoding/gob/encoder_test.go | 2 ++
- 2 files changed, 5 insertions(+)
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,36 +1,23 @@
-commit 3d6647d6f8d27df84dfc29a4734fcd8a69a36ce6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 17 09:09:07 2018 -0700
+commit c7b7c433637ba7bf14328e0fbccdd4bdbc5f65b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 21:11:47 2017 -0500
 
-    cmd/compile: improve regalloc live values debug printing
+    cmd/go: do not let test vet failures stop reporting of later test results
     
-    Before:
+    (This only manifested in test vet failures for packages without tests,
+    or else we'd probably have seen this sooner.)
     
-    live values at end of each block
-      b1: v3 v2 v7 avoid=0
-      b2: v3 v13 avoid=81
-      b3: v19[AX] v3 avoid=81
-      b6: avoid=0
-      b7: avoid=0
-      b5: avoid=0
-      b4: v3 v18 avoid=81
+    Fixes #23047.
     
-    After:
-    
-    live values at end of each block
-      b1: v3 v2 v7
-      b2: v3 v13 avoid=AX DI
-      b3: v19[AX] v3 avoid=AX DI
-      b6:
-      b7:
-      b5:
-      b4: v3 v18 avoid=AX DI
-    
-    Change-Id: Ibec5c76a16151832b8d49a21c640699fdc9a9d28
-    Reviewed-on: https://go-review.googlesource.com/109000
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I41d09a7780999bbe1951377ffcc811ba86ea5000
+    Reviewed-on: https://go-review.googlesource.com/83955
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                         |  4 ++++
+ src/cmd/go/internal/test/test.go              | 22 ++++++++++++----------
+ src/cmd/go/testdata/src/vetfail/p1/p1.go      |  7 +++++++
+ src/cmd/go/testdata/src/vetfail/p2/p2.go      |  6 ++++++
+ src/cmd/go/testdata/src/vetfail/p2/p2_test.go |  7 +++++++
+ 5 files changed, 36 insertions(+), 10 deletions(-)

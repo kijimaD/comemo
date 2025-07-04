@@ -1,37 +1,22 @@
-commit 20803b845f26111eb9281f8ece98383d48ea1b3f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 10:29:50 2016 -0400
+commit 1cb3044c9fcd88e1557eca1bf35845a4108bc1db
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Apr 1 03:49:43 2016 +0200
 
-    cmd/compile: eliminate PPARAMREF
+    all: use bytes.Equal, bytes.Contains and strings.Contains
     
-    As in the elimination of PHEAP|PPARAM in CL 23393,
-    this is something the front end can trivially take care of
-    and then not bother the back ends with.
-    It also eliminates some suspect (and only lightly exercised)
-    code paths in the back ends.
-    
-    I don't have a smoking gun for this one but it seems
-    more clearly correct.
-    
-    Change-Id: I3b3f5e669b3b81d091ff1e2fb13226a6f14c69d5
-    Reviewed-on: https://go-review.googlesource.com/23431
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iba82a5bd3846f7ab038cc10ec72ff6bcd2c0b484
+    Reviewed-on: https://go-review.googlesource.com/21377
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/arm/gsubr.go   | 11 +----------
- src/cmd/compile/internal/gc/cgen.go     | 35 +++++++++------------------------
- src/cmd/compile/internal/gc/closure.go  |  2 +-
- src/cmd/compile/internal/gc/cplx.go     |  1 -
- src/cmd/compile/internal/gc/dcl.go      |  3 ++-
- src/cmd/compile/internal/gc/esc.go      |  4 ++--
- src/cmd/compile/internal/gc/fmt.go      |  1 -
- src/cmd/compile/internal/gc/gen.go      |  7 +++----
- src/cmd/compile/internal/gc/go.go       |  1 -
- src/cmd/compile/internal/gc/racewalk.go |  2 +-
- src/cmd/compile/internal/gc/sinit.go    |  2 +-
- src/cmd/compile/internal/gc/ssa.go      |  5 +----
- src/cmd/compile/internal/gc/subr.go     |  2 +-
- src/cmd/compile/internal/gc/syntax.go   | 17 +++++++++++++---
- src/cmd/compile/internal/gc/walk.go     |  6 ++----
- src/cmd/compile/internal/x86/gsubr.go   | 11 +----------
- 16 files changed, 39 insertions(+), 71 deletions(-)
+ src/cmd/compile/internal/gc/global_test.go | 2 +-
+ src/cmd/gofmt/gofmt_test.go                | 4 ++--
+ src/compress/flate/writer_test.go          | 2 +-
+ src/crypto/cipher/xor_test.go              | 2 +-
+ src/crypto/x509/verify_test.go             | 2 +-
+ src/crypto/x509/x509_test.go               | 2 +-
+ src/encoding/xml/marshal.go                | 2 +-
+ src/html/template/css.go                   | 2 +-
+ src/html/template/escape_test.go           | 2 +-
+ src/internal/trace/parser.go               | 2 +-
+ 10 files changed, 11 insertions(+), 11 deletions(-)

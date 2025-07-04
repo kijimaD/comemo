@@ -1,16 +1,21 @@
-commit 052b3c99b22c508d2a3ed44b3dcd0ca6c159ba5e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 19:46:49 2020 -0700
+commit 9e914f55dded9f779aae86cfb2e989bc9a1d3ea4
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Thu Oct 24 14:36:57 2019 +0300
 
-    cmd/compile: convert reassociation optimizations to typed aux
+    cmd/go/internal/modload: fail if no package was found in local module
     
-    Passes toolstash-check.
+    Changing the Import function to return a PackageNotInModuleError if no
+    package was found in a local module. This replacing the vague message
+    "missing dot in first path element" you get today with much more friendly
+    one - "module was found, but does not contain package".
     
-    Change-Id: I85a161c4e1c29e06e3f7e6ad4a59ff8cc51c7296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229683
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #35273
+    
+    Change-Id: I6d726c17e6412258274b10f58f76621617d26e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203118
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 64 +++++++++++++-------------
- 1 file changed, 32 insertions(+), 32 deletions(-)
+ src/cmd/go/internal/modload/import.go             | 11 +++++++++++
+ src/cmd/go/testdata/script/mod_replace_import.txt | 20 ++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

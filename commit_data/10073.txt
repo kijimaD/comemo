@@ -1,20 +1,12 @@
-commit 696ced50feea2e9711636deeb5a5835cfeb998e9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 21 14:11:36 2011 -0700
+commit d481d7c854f53f0f8283b1f726d3b40f86443e09
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 21 13:59:27 2011 -0700
 
-    big: usable zero Rat values without need for explicit initialization
+    fmt: simplify the code some more by storing the field in the pp structure.
     
-    - no explicit API change, but new(big.Rat) now creates a big.Rat value
-      of 0 that is immediately usable, in sync. w/ the conventions elsewhere
-    - various cleanups along the way
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5301056
+    https://golang.org/cl/5293058
 
- src/pkg/big/int.go      |   2 +-
- src/pkg/big/nat.go      |  13 +++--
- src/pkg/big/nat_test.go |  20 ++++----
- src/pkg/big/rat.go      | 129 ++++++++++++++++++++++++++++++++----------------
- src/pkg/big/rat_test.go |  46 +++++++++++++++--
- 5 files changed, 147 insertions(+), 63 deletions(-)
+ src/pkg/fmt/print.go | 177 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 84 insertions(+), 93 deletions(-)

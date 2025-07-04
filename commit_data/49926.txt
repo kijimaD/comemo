@@ -1,24 +1,21 @@
-commit 0d8efa6e842169e61cbe343441092b6f7c9b886c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 23 16:36:08 2022 -0700
+commit f6f6621312263e1e3ea2928bdccc967f0f977865
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 21 11:25:59 2021 -0700
 
-    internal/xcoff: use saferio to read string table
+    go/types: make ptrRecv a method hasPtrRecv of Func
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
+    This is a clean port of CL 351310 from types2 to go/types
+    with the necessary changes to methodset.go which doesn't
+    exist in types2.
     
-    For #47653
-    Fixes #52526
-    
-    Change-Id: Id90a5e391a4f684f45f8d7e32608eb03b8081076
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413875
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifdac820d3be14c7bfa778b7bca3f6ba58d220b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351311
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/xcoff/file.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/go/types/lookup.go    |  2 +-
+ src/go/types/methodset.go | 23 ++---------------------
+ src/go/types/named.go     |  4 ++--
+ src/go/types/object.go    | 23 +++++++++++++++++++++--
+ src/go/types/resolver.go  |  2 +-
+ 5 files changed, 27 insertions(+), 27 deletions(-)

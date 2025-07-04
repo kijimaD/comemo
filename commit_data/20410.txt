@@ -1,17 +1,14 @@
-commit d6cd230c985b5216ea6059ab69738c59658801ae
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Sep 12 16:16:09 2014 -0700
+commit 8620e2b04e0ca6296070fe36ca7f5952af3b90e9
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 6 10:12:47 2014 -0700
 
-    runtime: test iteration order of sparse maps
+    runtime: badreflectcall runs on the G stack - convert to Go.
     
-    The behavior was fixed in CL 141270043. Add a test.
-    
-    Fixes #8410.
-    
-    LGTM=khr
-    R=khr, remyoudompheng
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/137560044
+    https://golang.org/cl/136260043
 
- src/runtime/map_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ src/pkg/runtime/proc.c  | 6 ------
+ src/pkg/runtime/proc.go | 4 ++++
+ 2 files changed, 4 insertions(+), 6 deletions(-)

@@ -1,22 +1,20 @@
-commit f6c4b4bf9646f2a3dce6f09ecb93498ddf06d96c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 26 21:18:01 2021 -0500
+commit 666448abebed5c165b90814a0f4146a8ae084fb0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 09:46:21 2020 -0400
 
-    syscall: add windows/arm64 support
+    doc/go1.15: rationalize runtime sections
     
-    types_windows_arm64.go is a copy of types_windows_amd64.go.
-    All that matters for these types seems to be that they are 64-bit vs 32-bit.
+    Use the "Core library -> runtime" section for changes that affect the
+    runtime package API and use the top-level "Runtime" section for
+    package-independent behavior changes. Also, move the one change that's
+    really about os (and net) into the "os" package section and reword it
+    to be more accurate.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
+    Updates #37419.
     
-    Change-Id: Ia7788d6e88e5db899371c75dc7dea7d912a689ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288825
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I32896b039f29ac67308badd0d0b36e8c6e39f64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236718
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/syscall/types_windows_arm64.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ doc/go1.15.html | 72 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 35 insertions(+), 37 deletions(-)

@@ -1,24 +1,26 @@
-commit 89699847bf29c9891c95c8c55f8b6bff82c8f4e2
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jul 11 15:34:09 2023 -0700
+commit d2e0587f77e1cbbd5c7966242c85edba83b37157
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri May 13 23:52:48 2022 +0800
 
-    net/url: document requirements for IPv6 addresses in URL.Host
+    cmd/compile: derive relation between x+delta and x in prove
     
-    When the host subcomponent of a URL is an IPv6 address, it must be
-    surrounded by square brackets to prevent colons in the address
-    from being interpreted as the port: "[fe80::1]:80".
+    If x+delta cannot overflow/underflow, we can derive:
+      x+delta < x if delta<0 (this CL included)
+      x+delta > x if delta>0 (this CL not included due to
+      a recursive stack overflow)
     
-    Document this requirement.
+    Remove 95 bounds checks during ./make.bat
     
-    Fixes #61093
-    Fixes #61276
+    Fixes #51622
     
-    Change-Id: Iaf411b9dc211fd876468d6e2e94ff672ba0d329d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508976
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I60d9bd84c5d7e81bbf808508afd09be596644f09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406175
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/url/url.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 20 ++++++++++++++------
+ test/prove.go                         | 15 ++++++++++++---
+ 2 files changed, 26 insertions(+), 9 deletions(-)

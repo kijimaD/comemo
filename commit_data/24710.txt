@@ -1,22 +1,27 @@
-commit b1050542c1dcff9f5902ab2745aae3ccc8340c11
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 3 12:04:20 2015 -0800
+commit 686d44d9e0c4e43716f8dd51ffaf81b8754f3620
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Aug 25 13:12:32 2015 +1000
 
-    net/http: don't panic after request if Handler sets Request.Body to nil
+    runtime: check pointer equality in arm64 cmpbody
     
-    The Server's server goroutine was panicing (but recovering) when
-    cleaning up after handling a request. It was pretty harmless (it just
-    closed that one connection and didn't kill the whole process) but it
-    was distracting.
+    Updates #11336
     
-    Updates #13135
+    Follow the lead of amd64 by doing a pointer equality check
+    before comparing string/byte contents on arm64.
     
-    Change-Id: I2a0ce9e8b52c8d364e3f4ce245e05c6f8d62df14
-    Reviewed-on: https://go-review.googlesource.com/16572
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    BenchmarkCompareBytesEqual-8               25.8           26.3           +1.94%
+    BenchmarkCompareBytesToNil-8               9.59           9.59           +0.00%
+    BenchmarkCompareBytesEmpty-8               9.59           9.17           -4.38%
+    BenchmarkCompareBytesIdentical-8           26.3           9.17           -65.13%
+    BenchmarkCompareBytesSameLength-8          16.3           16.3           +0.00%
+    BenchmarkCompareBytesDifferentLength-8     16.3           16.3           +0.00%
+    BenchmarkCompareBytesBigUnaligned-8        1132038        1131409        -0.06%
+    BenchmarkCompareBytesBig-8                 1126758        1128470        +0.15%
+    BenchmarkCompareBytesBigIdentical-8        1084366        9.17           -100.00%
+    
+    Change-Id: Id7125c31957eff1ddb78897d4511bd50e79af3f7
+    Reviewed-on: https://go-review.googlesource.com/13885
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 25 +++++++++++++++++++++++++
- src/net/http/server.go     |  8 +++++---
- 2 files changed, 30 insertions(+), 3 deletions(-)
+ src/runtime/asm_arm64.s | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,14 +1,12 @@
-commit 3861cb438857d3cb55c1465d2d8d37621db01e93
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Mon Sep 23 18:11:25 2013 +1000
+commit d00fb0a1ea881f43ef320c65ef606c9900a9df86
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 23 01:23:42 2013 -0400
 
-    go/build: add go1.2 build tag
+    doc/go1.2: document that godoc and vet will always be installed to their old locations (not $GOPATH/bin).
     
-    Fixes #6449.
-    
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13829044
+    https://golang.org/cl/13830043
 
- src/pkg/go/build/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.2.html | 2 ++
+ 1 file changed, 2 insertions(+)

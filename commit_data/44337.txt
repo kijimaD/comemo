@@ -1,24 +1,14 @@
-commit 7af821a661be57cdd13212695cd6c1095487f2b4
-Author: yangwenmai <yangwen.yw@gmail.com>
-Date:   Fri Dec 25 09:36:41 2020 +0800
+commit b05b254e9da137a599b309f4c5158a05e9e11d32
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 12 15:34:43 2020 -0700
 
-    all: faster midpoint computation in binary search
+    doc/go1.15: sort debug/pe entry alphabetically
     
-    On my machine (3.1 GHz Quad-Core Intel Core i7, macOS 10.15.7 10.15.7), go 1.15.6
+    For #37419
     
-    benchstat:
-    name          old time/op  new time/op  delta
-    SearchInts-8  20.3ns ± 1%  16.6ns ± 6%  -18.37%  (p=0.000 n=9+10)
-    
-    Change-Id: I346e5955fd6df6ce10254b22267dbc8d5a2b16c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279439
-    Reviewed-by: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: If98ecffbfd976cb66a87b1cce4e82b3ddee1639e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237738
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/token/position.go            |  2 +-
- src/go/token/position_bench_test.go | 24 ++++++++++++++++++++++++
- src/reflect/type.go                 |  2 +-
- src/strconv/makeisprint.go          |  4 ++--
- src/strconv/quote.go                |  4 ++--
- 5 files changed, 30 insertions(+), 6 deletions(-)
+ doc/go1.15.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

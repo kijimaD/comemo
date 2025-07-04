@@ -1,15 +1,36 @@
-commit a5eda13d20405c659203db34f6d30942ca67fb96
+commit 72521319c733e5de62bb837508ea9fa2b1f3a0a2
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 26 14:30:40 2015 -0500
+Date:   Thu Jan 29 12:26:21 2015 -0500
 
-    runtime: disable TestGdbPython on ppc64
+    liblink: use same TEXT $frame-arg encoding for all architectures
     
-    (issue #10017)
-    
-    Change-Id: Ia1267dfdb4474247926a998e32d9c6520015757d
-    Reviewed-on: https://go-review.googlesource.com/6130
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I3417a8c5ddd7f405939edc9fdef086e4741495a1
+    Reviewed-on: https://go-review.googlesource.com/3571
     Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/runtime-gdb_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/5a/a.y      |   47 ++-
+ src/cmd/5a/y.tab.c  | 1049 +++++++++++++++++++++++++-------------------------
+ src/cmd/5g/ggen.c   |    6 +-
+ src/cmd/5l/5.out.h  |    1 +
+ src/cmd/6a/a.y      |   41 +-
+ src/cmd/6a/y.tab.c  |  728 ++++++++++++++++++-----------------
+ src/cmd/6g/ggen.c   |   10 +-
+ src/cmd/8a/a.y      |   46 +--
+ src/cmd/8a/y.tab.c  |  864 +++++++++++++++++++++---------------------
+ src/cmd/8a/y.tab.h  |    6 +-
+ src/cmd/8g/ggen.c   |    7 +-
+ src/cmd/9a/a.y      |   45 ++-
+ src/cmd/9a/y.tab.c  | 1052 +++++++++++++++++++++++++++------------------------
+ src/cmd/9g/ggen.c   |   10 +-
+ src/cmd/9l/9.out.h  |    1 +
+ src/liblink/asm5.c  |    8 +-
+ src/liblink/asm6.c  |    6 +-
+ src/liblink/asm8.c  |    7 +-
+ src/liblink/asm9.c  |   21 +-
+ src/liblink/list5.c |    6 +-
+ src/liblink/list6.c |   17 +-
+ src/liblink/list8.c |   10 +-
+ src/liblink/list9.c |   24 +-
+ src/liblink/obj6.c  |   26 +-
+ src/liblink/obj9.c  |   21 +-
+ 25 files changed, 2055 insertions(+), 2004 deletions(-)

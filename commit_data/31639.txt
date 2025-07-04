@@ -1,27 +1,16 @@
-commit 95d991d30c59edc4943bd8baf5c664c5f8b1cebe
-Author: Joe Richey joerichey@google.com <joerichey@google.com>
-Date:   Mon May 22 14:36:43 2017 -0700
+commit 9600c32cc516b66f5337bebc61e249af4638c106
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:45:10 2017 +0100
 
-    crypto/rand: use blocking getrandom call on Linux when supported
+    go/printer: remove unused comment parameter
     
-    By changing getRandomLinux to immediately use the getrandom() syscall
-    without GRND_NONBLOCK, we now only fall back to reading from
-    /dev/urandom on Linux if the kernel does not support the getrandom()
-    syscall. This means reads for crypto/rand will now block if the kernel
-    has insufficient entropy on Linux kernels after v3.16.
+    Found by github.com/mvdan/unparam.
     
-    Before, if the kernel had insufficient entropy, it would fall back to
-    reading from /dev/urandom. This would potentially return predictable
-    data.
-    
-    Fixes #19274
-    
-    Change-Id: I1cb081ce2f3096f18ad2820e52ecdbd993dc2afc
-    Reviewed-on: https://go-review.googlesource.com/43852
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b0c7cfdc1ab4fe0d79ef4c5a31612bbcf2ff3ad
+    Reviewed-on: https://go-review.googlesource.com/37833
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/rand/rand_linux.go | 28 +++++++---------------------
- 1 file changed, 7 insertions(+), 21 deletions(-)
+ src/go/printer/printer.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

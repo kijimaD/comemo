@@ -1,22 +1,28 @@
-commit 8d57f4dcef5d69a0a3f807afaa9625018569010b
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Mon Jul 11 16:12:41 2022 +0300
+commit 9c43872bd831396ccf637f4569a18d784d1e9bce
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Sep 27 07:48:33 2021 -0500
 
-    cmd/pprof: fix addr calculation for Windows
+    reflect,runtime: add reflect support for regabi on PPC64
     
-    This makes it possible to use `disasm` with ASLR windows binaries.
+    This adds the regabi support needed for reflect including:
+    - implementation of the makeFuncSub and methodValueCall for
+    reflect
+    - implementations of archFloat32FromReg and archFloat32ToReg
+    needed for PPC64 due to differences in the way float32 are
+    represented in registers as compared to other platforms
+    - change needed to stack.go due to the functions that are
+    changed above
     
-    For #46639
-    
-    Change-Id: I08aff38dc0b33fdfb07e0206766db066e33207d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416976
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ida40d831370e39b91711ccb9616492b7fad3debf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352429
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/internal/objfile/pe.go | 45 ++++++++++++++++++++----------------------
- src/cmd/pprof/pprof.go         |  3 +--
- src/cmd/pprof/pprof_test.go    |  3 ---
- 3 files changed, 22 insertions(+), 29 deletions(-)
+ src/reflect/asm_ppc64x.s          | 74 ++++++++++++++++++++++++++++++---------
+ src/reflect/float32reg_generic.go |  3 ++
+ src/reflect/float32reg_ppc64x.s   | 31 ++++++++++++++++
+ src/reflect/stubs_ppc64x.go       | 11 ++++++
+ src/runtime/stack.go              |  2 +-
+ 5 files changed, 104 insertions(+), 17 deletions(-)

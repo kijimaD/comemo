@@ -1,35 +1,31 @@
-commit a41b1d50523c3fc6fb874310d4340b845b13b250
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 12 14:42:24 2017 -0700
+commit 87c475c2276977a0bf1208f95884261b0426fddc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 6 13:30:40 2017 -0800
 
-    runtime: convert hmap.overflow into hmap.extra
+    cmd/compile/internal/ssa: use obj.LSym instead of gc.Sym
     
-    Any change to how we allocate overflow buckets
-    will require some extra hmap storage,
-    but we don't want hmap to grow,
-    particular as small maps usually don't need overflow buckets.
+    Gc's Sym type represents a package-qualified identifier, which is a
+    frontend concept and doesn't belong in SSA. Bonus: we can replace some
+    interface{} types with *obj.LSym.
     
-    This CL converts the existing hmap overflow field,
-    which is usually used for pointer-free maps,
-    into a generic extra field.
+    Passes toolstash -cmp.
     
-    This extra field can be used to hold data that is optional.
-    If it is valuable enough to do have special
-    handling of overflow buckets, which are medium-sized,
-    it is valuable enough to pay an extra alloc and two extra words for.
-    
-    Adding fields to extra would entail adding overhead to pointer-free maps;
-    any mapextra fields added would need to be weighed against that.
-    This CL is just rearrangement, though.
-    
-    Updates #19931
-    Updates #19992
-    
-    Change-Id: If8537a206905b9d4dc6cd9d886184ece671b3f80
-    Reviewed-on: https://go-review.googlesource.com/40976
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I456eb9957207d80f99f6eb9b8eab4a1f3263e9ed
+    Reviewed-on: https://go-review.googlesource.com/36415
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/hashmap.go | 35 ++++++++++++++++++++---------------
- 1 file changed, 20 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |  6 +++---
+ src/cmd/compile/internal/arm/ssa.go          |  6 +++---
+ src/cmd/compile/internal/arm64/ssa.go        |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go           | 10 +++++-----
+ src/cmd/compile/internal/mips/ssa.go         |  6 +++---
+ src/cmd/compile/internal/mips64/ssa.go       |  6 +++---
+ src/cmd/compile/internal/ppc64/ssa.go        |  6 +++---
+ src/cmd/compile/internal/s390x/ssa.go        |  6 +++---
+ src/cmd/compile/internal/ssa/config.go       |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go  | 12 ++++--------
+ src/cmd/compile/internal/ssa/writebarrier.go | 10 +++++-----
+ src/cmd/compile/internal/x86/ssa.go          |  6 +++---
+ 12 files changed, 39 insertions(+), 43 deletions(-)

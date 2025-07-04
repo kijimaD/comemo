@@ -1,23 +1,26 @@
-commit 01636cf3fd35787cf6df449414d5db00b3e89692
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 14 14:36:46 2022 -0500
+commit 29b968e76638c22368f775a4347a544a096d9380
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Oct 22 17:40:08 2021 +0800
 
-    syscall: export X__ifi_pad and X_f on s390x and riscv64
+    runtime,cmd/compile: change reg duff{zero,copy} for regabi riscv64
     
-    This brings the exported field names on these GOARCHes
-    in line with the other supported linux platforms.
+    As CL 356519 require, X8-X23 will be argument register, however X10, X11
+    is used by duff device.
     
-    Fixes #57313.
+    This CL changes X10, X11 into X24, X25 to meet the prerequisite.
     
-    Change-Id: I2107a7116ba60dc0c0a27f776318e3eb69e51682
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457557
+    Update #40724
+    
+    Change-Id: Ie9b899afbba7e9a51bb7dacd89e49ca1c1fc33ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357976
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/syscall/mkpost.go               | 10 ++++++++--
- src/syscall/ztypes_linux_riscv64.go |  2 +-
- src/syscall/ztypes_linux_s390x.go   | 14 +++++++-------
- 3 files changed, 16 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/riscv64/ggen.go       |    2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   14 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   10 +-
+ src/runtime/duff_riscv64.s                     | 1790 ++++++++++++------------
+ src/runtime/mkduff.go                          |   22 +-
+ 5 files changed, 919 insertions(+), 919 deletions(-)

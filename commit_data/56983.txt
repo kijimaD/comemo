@@ -1,19 +1,28 @@
-commit 77a3c3b984c22186a9f9ec17b13c2d13060bc9c9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 25 12:47:20 2024 -0700
+commit 46249e56e12ff7fadf118660860284bf20f053cc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 5 20:04:31 2023 -0400
 
-    go/types, types2: remove superfluous if statement (minor cleanup)
+    cmd/dist: remove stale files from gentab
     
-    Found while re-reading this code.
+    There are several files in gentab that have a nil generator, which
+    means they used to be generated, but aren't any more, so dist should
+    delete them if it encounters them. However, cleaning only look for
+    these file names in the small number of directories listed in
+    cleanlist, and none of these files were originally generated into any
+    of the directories in cleanlist. Specifically, enam.c was generated
+    into $GOROOT/src/cmd/[568]l starting with CL 5620045 until CL 35740044
+    and the anames[5689].c files were generated into $GOROOT/src/liblink
+    starting with CL 35740044 and CL 120690043 until CL 6110. None of
+    these directories even exist any more, and if these files did somehow
+    exist, dist wouldn't delete them anyway.
     
-    Change-Id: I5c87bb38ce07e49f1d122db1630c48d5ff082a30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594975
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Hence, we can safely remove these files from gentab.
+    
+    Change-Id: Ifed322d64a7a81a76537fcd9fc7020c7aca48050
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/resolver.go | 4 +---
- src/go/types/resolver.go                    | 4 +---
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/dist/build.go | 7 -------
+ 1 file changed, 7 deletions(-)

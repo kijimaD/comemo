@@ -1,12 +1,21 @@
-commit abbe111135e5410d0ea2f16d5c7f36e0c6e89cf9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 7 20:25:10 2013 -0800
+commit 18441e8adeab78b32507fefc84be495873928f8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 7 22:45:12 2013 -0500
 
-    C: add Jeremy Schlatter (Google CLA)
+    net: do not use RLock around Accept
     
-    R=golang-dev, dsymonds
+    It might be non-blocking, but it also might be blocking.
+    Cannot take the chance, as Accept might block indefinitely
+    and make it impossible to acquire ForkLock exclusively
+    (during fork+exec).
+    
+    Fixes #4737.
+    
+    R=golang-dev, dave, iant, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7307070
+    https://golang.org/cl/7309050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/fd_unix.go      | 3 +++
+ src/pkg/net/sock_cloexec.go | 6 +++---
+ src/pkg/net/sys_cloexec.go  | 6 +++---
+ 3 files changed, 9 insertions(+), 6 deletions(-)

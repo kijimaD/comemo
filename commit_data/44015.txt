@@ -1,22 +1,18 @@
-commit 3298300ddf45a0792b4d8ea5e05f0fbceec4c9f9
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Thu Dec 10 09:52:52 2020 +0800
+commit 0586fbb9d34a56abffbe3111e3701f3bd88033f5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 22:22:33 2020 -0400
 
-    text/template: error on range over send channel
+    [dev.link] cmd/link: use new reloc pass on S390X
     
-    template range require channel contains RecvDir
-    if recv on send only channel will raise an panic.
-    
-    Fixes #43065
-    
-    Change-Id: Ie0ea70ce60e074bf8c9f2378e07ef1d4c41dc38f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276532
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ia51ca2c89f1d382813a27310211c1f8631afb125
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231919
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/text/template/exec.go      |  4 ++++
- src/text/template/exec_test.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+)
+ src/cmd/link/internal/ld/data.go   | 36 +++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/lib.go    |  5 ++++-
+ src/cmd/link/internal/ld/main.go   |  2 +-
+ src/cmd/link/internal/s390x/asm.go | 25 +++++++------------------
+ src/cmd/link/internal/s390x/obj.go | 20 ++++++++++----------
+ 5 files changed, 41 insertions(+), 47 deletions(-)

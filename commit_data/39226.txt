@@ -1,14 +1,19 @@
-commit a326bc6df27309815e4a2ae005adef233cfb9ea9
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed May 22 00:10:32 2019 +0200
+commit 3a91061504818fec41c3896de46ae61ff8709e94
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 19 18:24:32 2019 +0100
 
-    net/url: clarify that RawPath is optionally set
+    doc: note go tool tour removal in 1.12 release notes
     
-    Fixes #29662
+    Note the removal of the go tool tour command in the Go 1.12 release
+    notes.
     
-    Change-Id: I38b52b96712e44a323333da17dbbc883516773b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177900
+    Updates #24819
+    
+    Change-Id: I258ab9401ea2cc06a83328c67299376fcf23c980
+    Reviewed-on: https://go-review.googlesource.com/c/158618
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/net/url/url.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ doc/go1.12.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

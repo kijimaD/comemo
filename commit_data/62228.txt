@@ -1,0 +1,25 @@
+commit 3e0f9e3973f6190cb63c511175e169543a466fe6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jan 27 13:02:27 2025 +0100
+
+    crypto/internal/fips140test: add functional tests
+    
+    Running TestIntegrityCheckFailure|TestCASTFailures|TestFIPS140 with -v
+    and the appropriate GOFIPS140 environment variables will produce logs
+    sufficient for the functional testing session of the FIPS 140-3
+    validation. The tests can also be cross-compiled with -c and executed on
+    the target.
+    
+    Change-Id: I6a6a465606518923d3f288e030c0f1b977aa6415
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648816
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/fips140test/check_test.go  |  60 +++-
+ src/crypto/internal/fips140test/fips_test.go   | 407 +++++++++++++++++++++++++
+ src/crypto/internal/fips140test/nistec_test.go |   7 -
+ src/crypto/internal/fips140test/sshkdf_test.go |  27 +-
+ 4 files changed, 465 insertions(+), 36 deletions(-)

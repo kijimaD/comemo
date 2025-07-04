@@ -1,16 +1,25 @@
-commit 1473789b74d69ba3d27c4880d2a8b442151e784d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 18 17:17:26 2018 +0000
+commit 692f2e9c44e629e84b315f10c8538c9461fd6d61
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 6 20:10:51 2017 -0500
 
-    net/http: remove stderr log spam in test
+    cmd/compile: fix bug in logic for computing var abstract origins
     
-    Fixes #24831
+    The DWARF inline info generation code was using file/line/column (from
+    src.Pos) as a means of matching up pre- and post-optimization variable
+    nodes. This turns out to be problematic since it looks as though
+    distinct formals on the same line can be assigned the same column
+    number. Work around this issue by adding variable names to the
+    disambiguation code. Added a testpoint to the linker DWARF test that
+    checks to make sure each abstract origin offset of distinct within a
+    given DWARF DW_AT_inlined_routine body.
     
-    Change-Id: Icd39093d1b7d9b25aa8374c0298cdb1dea48e672
-    Reviewed-on: https://go-review.googlesource.com/107817
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Fixes #23020.
+    
+    Change-Id: Ie09bbe01dc60822d84d4085547b138e644036fb3
+    Reviewed-on: https://go-review.googlesource.com/82396
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/transport_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/dwinl.go   |  6 ++++++
+ src/cmd/link/internal/ld/dwarf_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

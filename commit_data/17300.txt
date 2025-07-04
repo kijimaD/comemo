@@ -1,20 +1,12 @@
-commit 3b4d792606bf6de962bed73e79c261d7ddd7266c
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 16 21:45:59 2013 -0400
+commit 18f5ce856191062224d4bb08c7c2623296aeeaa2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 16 21:54:04 2013 +0400
 
-    cmd/gc: separate "has pointers" from "needs zeroing" in stack frame
+    runtime/race: add output tests for different GORACE params
     
-    When the new call site-specific frame bitmaps are available,
-    we can cut the zeroing to just those values that need it due
-    to scope escaping.
-    
-    R=cshapiro, cshapiro
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13045043
+    https://golang.org/cl/13065043
 
- src/cmd/5g/ggen.c | 10 +++++-----
- src/cmd/6g/ggen.c | 10 +++++-----
- src/cmd/8g/ggen.c | 10 +++++-----
- src/cmd/gc/go.h   |  4 +++-
- src/cmd/gc/pgen.c | 38 +++++++++++++++++++++++++-------------
- 5 files changed, 43 insertions(+), 29 deletions(-)
+ src/pkg/runtime/race/output_test.go | 66 ++++++++++++++++++++++++++++++++-----
+ 1 file changed, 58 insertions(+), 8 deletions(-)

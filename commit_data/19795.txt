@@ -1,17 +1,25 @@
-commit 76f1b901dba2aa68c1e9e9a7e073287d4f293a53
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jul 21 20:52:11 2014 -0700
+commit 446bfffcd6cfcaca141988a9d844aac61a704866
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jul 22 10:08:23 2014 +1000
 
-    runtime: keep build version around in binaries
+    crypto/subtle: make ConstantTimeCompare return zero for args of different length.
     
-    So we can tell from a binary which version of
-    Go built it.
+    This is more useful than panicking, since otherwise every caller needs
+    to do the length check before calling; some will forget, and have a
+    potential submarine crasher as a result. Other implementations of this
+    functionality do a length check.
     
-    LGTM=minux, rsc
-    R=golang-codereviews, minux, khr, rsc, dave
+    This is backward compatible, except if someone has written code that
+    relies on this panicking with different length args. However, that was
+    not the case before Go 1.3 either.
+    
+    Updates #7304.
+    
+    LGTM=agl
+    R=agl, minux, hanwen
     CC=golang-codereviews
-    https://golang.org/cl/117040043
+    https://golang.org/cl/118750043
 
- src/cmd/dist/buildruntime.c | 3 ++-
- src/pkg/runtime/proc.c      | 9 +++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/crypto/subtle/constant_time.go      | 5 ++---
+ src/pkg/crypto/subtle/constant_time_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 3 deletions(-)

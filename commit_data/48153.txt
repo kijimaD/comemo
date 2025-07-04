@@ -1,26 +1,18 @@
-commit 5bd734839d9967f48184431b978c2dabb39c8953
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Feb 12 10:24:38 2022 -0800
+commit c4c68fb57f1b081557a837e8809094b42cfdc5e3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Apr 28 05:21:33 2021 +0000
 
-    go/types, types2: add additional tests using core types during unification
+    cmd/compile/internal/walk: delete unused statement
     
-    This change adds tests that use a type parameter's core type during
-    function argument type inference, not just during constraint type
-    inference.
-    
-    Also, fix a typo in a comment.
-    
-    For #50755.
-    
-    Change-Id: I0c3196bdce5338341e0b6dfd7c63efb2e43ace25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385376
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I3f118c868b13ec51b2e501424b35564929eed56d
+    GitHub-Last-Rev: d15ae124c582417cd10bceaef0b5c0ebbf100f7e
+    GitHub-Pull-Request: golang/go#45816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314570
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../types2/testdata/fixedbugs/issue50755.go2       | 24 ++++++++++++++++++++--
- src/cmd/compile/internal/types2/unify.go           |  2 +-
- src/go/types/testdata/fixedbugs/issue50755.go2     | 24 ++++++++++++++++++++--
- src/go/types/unify.go                              |  2 +-
- 4 files changed, 46 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/range.go | 1 -
+ 1 file changed, 1 deletion(-)

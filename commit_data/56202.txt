@@ -1,20 +1,17 @@
-commit 59209c4b3587f10e07ce466d41dcb74b332babd5
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 30 17:08:22 2023 +0800
+commit b07b00565b0d06d521e7c7aee0897a6434157c0f
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Sat Apr 8 20:42:26 2023 +0800
 
-    internal/abi, internal/buildcfg: always enable register ABI on loong64
+    maps: replace slicesEqual with slices.Equal
     
-    Change-Id: Ia3a31556c8d355eb6bdb42d3b3c8bc6b37311ed9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525575
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I15aeef9c6d3ddc80644a14d6266d21a8515ede4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483156
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/abi/abi_generic.go | 2 +-
- src/internal/abi/abi_loong64.go | 2 --
- src/internal/buildcfg/exp.go    | 4 +---
- 3 files changed, 2 insertions(+), 6 deletions(-)
+ src/maps/maps_test.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

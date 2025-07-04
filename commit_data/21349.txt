@@ -1,15 +1,18 @@
-commit 35b8e511c282a4d03f50dca0570a5f65795926b9
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jan 26 22:31:25 2015 +0000
+commit d11f41118116e0b5c2fb3b3296323d888dff2d6e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 22 19:07:05 2014 -0800
 
-    Revert "crypto/ecdsa: make Sign safe with broken entropy sources"
+    reflect: add kindNoPointers if a function layout has no pointers.
     
-    This reverts commit 8d7bf2291b095d3a2ecaa2609e1101be46d80deb.
+    malloc checks kindNoPointers and if it is not set and the object
+    is one pointer in size, it assumes it contains a pointer.  So we
+    must set kindNoPointers correctly; it isn't just a hint.
     
-    Change-Id: Iad2c74a504d64bcf7ca707b00bda29bc796a2ae9
-    Reviewed-on: https://go-review.googlesource.com/3320
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Fixes #9425
+    
+    Change-Id: Ia43da23cc3298d6e3d6dbdf66d32e9678f0aedcf
+    Reviewed-on: https://go-review.googlesource.com/2055
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/ecdsa/ecdsa.go      | 59 +---------------------------------
- src/crypto/ecdsa/ecdsa_test.go | 72 ------------------------------------------
- 2 files changed, 1 insertion(+), 130 deletions(-)
+ src/reflect/type.go | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

@@ -1,13 +1,32 @@
-commit 301bc66a478198f0edfb5526d84f1d0c8a3d5c05
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Wed Oct 30 13:56:12 2019 +0100
+commit 295c56627afaa9db19ee7fcb0df33c1d6fa3c9fa
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Fri May 10 22:38:56 2019 +0700
 
-    runtime: fix netpollBreak for AIX
+    internal/envcmd: print GO111MODULE when executing "go env"
     
-    Change-Id: I2629711ce02d935130fb2aab29f9028b62ba9fe6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204318
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    If we look at the issues in the past releases that are related
+    to go command that involved modules, its usually mention or ask about
+    the value of GO111MODULE, either in separate line or in separate
+    comment.
+    
+    There are quite long time range before GO111MODULE will be removed
+    (unused).  The next release is still default to auto [1], and until Go
+    1.13 unsupported (two releases after that) there is about one and half
+    years after that.
+    
+    Since the change is not that big (one line) [2], maybe temporary adding
+    it to "go env" give more clarity and benefit in issue reporting rather
+    than not.
+    
+    [1] https://github.com/golang/go/issues/31857
+    
+    Fixes #29656
+    
+    Change-Id: I609ad6664774018e4f4147ec6158485172968e16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176837
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/netpoll_aix.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/envcmd/env.go | 1 +
+ 1 file changed, 1 insertion(+)

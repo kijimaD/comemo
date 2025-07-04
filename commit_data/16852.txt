@@ -1,17 +1,12 @@
-commit a0a45bbb71d6232040d18ee5d8e3d6eebcbfe944
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 24 08:43:08 2013 +0900
+commit e97c870692aa80feabd2e22c191476220fc1281f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 24 08:27:20 2013 +1000
 
-    net: consolidate listenerBacklog declaration
+    math/rand: mention that the default Source is thread-safe
     
-    Also adds maxListenerBacklog placeholder for Plan 9.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11674044
+    https://golang.org/cl/11709043
 
- src/pkg/net/ipsock_plan9.go |  3 ---
- src/pkg/net/net.go          |  2 ++
- src/pkg/net/sock_plan9.go   | 10 ++++++++++
- src/pkg/net/sock_posix.go   |  2 --
- 4 files changed, 12 insertions(+), 5 deletions(-)
+ src/pkg/math/rand/rand.go | 1 +
+ 1 file changed, 1 insertion(+)

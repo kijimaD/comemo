@@ -1,18 +1,19 @@
-commit 1dad218da1239a8375b7fad5dd83e4a840e3fdbb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 20 10:36:27 2016 -0400
+commit df035a8d866cf4cef339a60d37c6f937d4c6b9f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 8 11:16:19 2016 -0800
 
-    cmd/link: move declarations into loops
+    cmd/compile: fix bug in vmatch1 list traversal nodeSeq change
     
-    (Split out from CL 22205.)
+    Bug accidentally inserted in https://golang.org/cl/20210.  Doesn't seem
+    to make a difference, but restore original code anyhow.
     
-    Change-Id: Id32698f48ce02b55c15b6f2842215e0ffdbf425b
-    Reviewed-on: https://go-review.googlesource.com/22298
+    Update #14473.
+    
+    Change-Id: I9cf87987ff158e27c7231027819317cdde8c132c
+    Reviewed-on: https://go-review.googlesource.com/20401
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/elf.go   | 6 ++----
- src/cmd/link/internal/ld/macho.go | 6 ++----
- src/cmd/link/internal/ld/pe.go    | 6 ++----
- 3 files changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

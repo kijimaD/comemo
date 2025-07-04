@@ -1,57 +1,42 @@
-commit 86dcc431e9282013eb8ce6cce22c882f37a05147
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 16 18:50:40 2011 -0500
+commit 541b67d051fbd26f3727d4d13c6d2b025af8a775
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 16 15:43:06 2011 -0800
 
-    runtime: hg revert -r 6ec0a5c12d75
+    go/printer, gofmt: fine tuning of line spacing
     
-    That was the last build that was close to working.
-    I will try that change again next week.
-    Make is being very subtle today.
+    - no empty lines inside empty structs and interfaces
+    - top-level declarations are separated by a blank line if
+      a) they are of different kind (e.g. const vs type); or
+      b) there are documentation comments associated with a
+         declaration (this is new)
+    - applied gofmt -w misc src
     
-    At the reverted-to CL, the ARM traceback appears
-    to be broken.  I'll look into that next week too.
+    The actual changes are in go/printer/nodes.go:397-400 (empty structs/interfaces),
+    and go/printer/printer.go:307-309 (extra line break). The remaining
+    changes are cleanups w/o changing the existing functionality.
     
-    R=golang-dev, r
+    Fixes issue  2570.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5492063
+    https://golang.org/cl/5493057
 
- src/Make.pkg                          |   2 +-
- src/cmd/Makefile                      |   7 +--
- src/make.bash                         |   8 +--
- src/pkg/runtime/Makefile              |  83 +++++++++++++++++++---------
- src/pkg/runtime/Makefile.auto         | 101 ----------------------------------
- src/pkg/runtime/asm_386.s             |   2 +-
- src/pkg/runtime/asm_amd64.s           |   2 +-
- src/pkg/runtime/asm_arm.s             |   2 +-
- src/pkg/runtime/defs1_linux.go        |   2 -
- src/pkg/runtime/defs2_linux.go        |   2 -
- src/pkg/runtime/defs_arm_linux.go     |   2 -
- src/pkg/runtime/defs_darwin.go        |   2 -
- src/pkg/runtime/defs_freebsd.go       |   2 -
- src/pkg/runtime/defs_linux.go         |   2 -
- src/pkg/runtime/defs_netbsd.go        |   2 -
- src/pkg/runtime/defs_openbsd.go       |   2 -
- src/pkg/runtime/defs_windows.go       |   2 -
- src/pkg/runtime/goc2c.c               |   3 -
- src/pkg/runtime/lock_futex.c          |   2 -
- src/pkg/runtime/lock_sema.c           |   2 -
- src/pkg/runtime/mkasmh.sh             |  25 +--------
- src/pkg/runtime/mkgodefs.sh           |  24 +-------
- src/pkg/runtime/mkversion.c           |   8 +--
- src/pkg/runtime/rt0_windows_amd64.s   |   2 +-
- src/pkg/runtime/signal_darwin_amd64.c |   2 +-
- src/pkg/runtime/sys_darwin_386.s      |   2 +-
- src/pkg/runtime/sys_darwin_amd64.s    |   2 +-
- src/pkg/runtime/sys_freebsd_386.s     |   2 +-
- src/pkg/runtime/sys_freebsd_amd64.s   |   2 +-
- src/pkg/runtime/sys_linux_386.s       |   2 +-
- src/pkg/runtime/sys_linux_amd64.s     |   2 +-
- src/pkg/runtime/sys_linux_arm.s       |   2 +-
- src/pkg/runtime/sys_netbsd_386.s      |   2 +-
- src/pkg/runtime/sys_netbsd_amd64.s    |   2 +-
- src/pkg/runtime/sys_openbsd_386.s     |   2 +-
- src/pkg/runtime/sys_openbsd_amd64.s   |   2 +-
- src/pkg/runtime/sys_plan9_386.s       |   2 +-
- src/pkg/runtime/sys_windows_386.s     |   2 +-
- src/pkg/runtime/sys_windows_amd64.s   |   2 +-
- 39 files changed, 85 insertions(+), 236 deletions(-)
+ src/cmd/gofix/testdata/reflect.type.go.in       |  1 +
+ src/cmd/gofix/testdata/reflect.type.go.out      |  1 +
+ src/pkg/crypto/openpgp/keys.go                  |  1 +
+ src/pkg/crypto/x509/x509.go                     |  1 +
+ src/pkg/encoding/gob/codec_test.go              |  3 ++
+ src/pkg/encoding/gob/type.go                    |  1 +
+ src/pkg/exp/ssh/tcpip.go                        |  1 +
+ src/pkg/go/printer/nodes.go                     | 18 +++++++---
+ src/pkg/go/printer/printer.go                   | 45 ++++++++++++++++++-------
+ src/pkg/go/printer/testdata/comments.golden     |  5 +--
+ src/pkg/go/printer/testdata/comments.input      |  6 ++--
+ src/pkg/go/printer/testdata/declarations.golden | 21 ++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 26 ++++++++++++++
+ src/pkg/log/syslog/syslog.go                    |  4 +++
+ src/pkg/math/all_test.go                        |  4 +++
+ src/pkg/math/sin.go                             |  1 +
+ src/pkg/net/ipraw_test.go                       |  1 +
+ src/pkg/sort/sort.go                            |  4 +++
+ 18 files changed, 122 insertions(+), 22 deletions(-)

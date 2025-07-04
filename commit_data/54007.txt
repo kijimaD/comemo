@@ -1,24 +1,17 @@
-commit 60506f4d7f912bff9af886ea1befb8aa9583d535
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 22:53:30 2023 +1000
+commit dedce99c06c85c25f5e999ee55691648486dd934
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 10:13:50 2022 +0800
 
-    runtime/cgo: consolidate freebsd cgo code
+    os: convert Process.isdone to atomic type
     
-    Most freebsd architectures now use the same code, deduplicate accordingly.
-    
-    The arm code differs slightly in that it has a compile time check for
-    ARM_TP_ADDRESS, however this is written in a way that it can be included
-    for all architectures.
-    
-    Change-Id: I7f6032b63521d24d0c3b5e0e08d57e32b4f9ddc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518619
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia3213d22678be0d56bf4f34dfe458441f7f5da97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426077
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
 
- .../cgo/{gcc_freebsd_arm.c => gcc_freebsd.c}       | 11 ++--
- src/runtime/cgo/gcc_freebsd_386.c                  | 60 ---------------------
- src/runtime/cgo/gcc_freebsd_arm64.c                | 61 ----------------------
- src/runtime/cgo/gcc_freebsd_riscv64.c              | 60 ---------------------
- 4 files changed, 6 insertions(+), 186 deletions(-)
+ src/os/exec.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

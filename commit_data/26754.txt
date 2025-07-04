@@ -1,21 +1,19 @@
-commit a25e368f44941c22406b2f88535ec9e812fd4dba
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Apr 6 18:42:14 2016 +0100
+commit 4accfe1be5d6324a31543a6bfd9eadfa00d90342
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 17:39:27 2016 +0900
 
-    test: make goprint.go wait for goroutine termination
+    net: re-enable TestDualStack{TCP,UDP}Listener on dragonfly
     
-    Test goprint.go sometimes failed on a slow builder (plan9_arm)
-    because of timing dependency.  Instead of sleeping for a fixed
-    time to allow the child goroutine to finish, wait explicitly for
-    child termination by calling runtime.NumGoroutine until the
-    returned value is 1.
+    It looks like the latest DragonFly BSD kernels, at least 4.4 and above,
+    have finished working on handling of shared IP control blocks. Let's
+    re-enbale test cases referring to IP control blocks and see what
+    happens.
     
-    Fixes #15097
+    Updates #13146.
     
-    Change-Id: Ib3ef5ec3c8277083c774542f48bcd4ff2f79efde
-    Reviewed-on: https://go-review.googlesource.com/21603
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icbe2250e788f6a445a648541272c99b598c3013d
+    Reviewed-on: https://go-review.googlesource.com/19406
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/goprint.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/net/listen_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

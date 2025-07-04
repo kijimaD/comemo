@@ -1,21 +1,23 @@
-commit 360c19157ae5465c9548bd9e050263b9e336c9bf
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Mar 28 12:19:46 2018 +0200
+commit 1722a2d79dbf876d6f73e5c1276f070fe758c0f1
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Jul 19 07:21:30 2017 -0700
 
-    cmd/compile: print accurate escape reason for non-const-length slices
+    doc: mention the scratch repo
     
-    This change makes `-m -m` print a better explanation for the case
-    where a slice is marked as escaping and heap-allocated because it
-    has a non-constant len/cap.
+    If people are interested in contributing to Go, but not sure what
+    change they'd like to make just yet, we can point them to the scratch
+    repo, so they can go through the process of submitting and merging
+    something now, and make more useful contributions later.
     
-    Fixes #24578
+    My evidence that sending people to the scratch repo would encourage
+    future contributions is that a number of people who went through the
+    workshop at Gophercon have continued to send CL's after submitting to
+    the scratch repo, even though I doubt they planned to before going
+    through the workshop.
     
-    Change-Id: I0ebafb77c758a99857d72b365817bdba7b446cc0
-    Reviewed-on: https://go-review.googlesource.com/102895
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ieb48415773c0ee7dc400f8bf6f57f752eca8eeb5
+    Reviewed-on: https://go-review.googlesource.com/49970
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 19 +++++++++++++++----
- test/escape_array.go               |  7 +++++++
- test/escape_because.go             |  7 +++++++
- 3 files changed, 29 insertions(+), 4 deletions(-)
+ doc/contribute.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

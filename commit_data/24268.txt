@@ -1,24 +1,16 @@
-commit d7c12042bf061a861a9217cfcb199e9d35df393e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Sep 3 17:48:21 2015 +1000
+commit 8043f450c170a90de9a04bd801b4f3189ea613ea
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:24:03 2015 -0700
 
-    runtime: provide room for first 4 syscall parameters in windows usleep2
+    [dev.ssa] cmd/compile: fix test verb
     
-    Windows amd64 requires all syscall callers to provide room for first
-    4 parameters on stack. We do that for all our syscalls, except inside
-    of usleep2. In https://codereview.appspot.com/7563043#msg3 rsc says:
+    The verb doesn't do anything, but if/when we move
+    these to the test directory, having it be right
+    will be one fewer thing to remember.
     
-    "We don't need the stack alignment and first 4 parameters on amd64
-    because it's just a system call, not an ordinary function call."
-    
-    He seems to be wrong on both counts. But alignment is already fixed.
-    Fix parameter space now too.
-    
-    Fixes #12444
-    
-    Change-Id: I66a2a18d2f2c3846e3aa556cc3acc8ec6240bea0
-    Reviewed-on: https://go-review.googlesource.com/14282
+    Change-Id: Ibf0280d7cc14bf48927e25215de6b91c111983d9
+    Reviewed-on: https://go-review.googlesource.com/12438
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_windows_amd64.s | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/testdata/short_ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

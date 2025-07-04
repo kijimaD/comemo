@@ -1,19 +1,25 @@
-commit 6aaa86ff667f0900bd09cb29eb722c71a3af65e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 27 18:44:30 2011 -0400
+commit 19f795042a24a931dc8a0fea49b01967f0ed9859
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 15:26:36 2011 -0700
 
-    gc: avoid package name ambiguity in error messages
+    http: add FileSystem interface, make FileServer use it
     
-    Fixes #2006.
+    Permits serving from virtual filesystems, such as files linked
+    into a binary, or from a zip file.
     
-    R=ken2
+    Also adds a gofix for:
+    
+    http.FileServer(root, prefix) -> http.StripPrefix(prefix, http.FileServer(http.Dir(root)))
+    
+    R=r, rsc, gri, adg, dsymonds, r, gri
     CC=golang-dev
-    https://golang.org/cl/4643056
+    https://golang.org/cl/4629047
 
- src/cmd/gc/go.h                   |  2 ++
- src/cmd/gc/go.y                   |  2 ++
- src/cmd/gc/subr.c                 |  9 +++++++++
- test/fixedbugs/bug345.dir/io.go   | 15 +++++++++++++++
- test/fixedbugs/bug345.dir/main.go | 28 ++++++++++++++++++++++++++++
- test/fixedbugs/bug345.go          |  7 +++++++
- 6 files changed, 63 insertions(+)
+ src/cmd/godoc/godoc.go           |  2 +-
+ src/cmd/gofix/Makefile           |  1 +
+ src/cmd/gofix/httpfs.go          | 63 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/httpfs_test.go     | 47 ++++++++++++++++++++++++++++
+ src/pkg/http/fs.go               | 60 ++++++++++++++++++++++++++++--------
+ src/pkg/http/fs_test.go          | 66 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/readrequest_test.go | 48 +++++++++++++++++++++++------
+ 7 files changed, 264 insertions(+), 23 deletions(-)

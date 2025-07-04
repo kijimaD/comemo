@@ -1,26 +1,23 @@
-commit 009bfeae866f45549865e554420a05c10e9578ca
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Fri Jan 1 12:14:34 2021 +0000
+commit d41b9066dad9091c55e2b6e6c48ceaee7dff1cf6
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 7 12:54:46 2020 -0400
 
-    reflect: add VisibleFields function
+    [dev.link] cmd/link: add PPC64 debugging option to encourage text section splits
     
-    When writing code that reflects over a struct type, it's a common requirement to know the full set of struct fields, including fields available due to embedding of anonymous members while excluding fields that are erased because they're at the same level as another field with the same name.
+    Add a new debugging command line option (-debugppc64textsize=N) that
+    forces the start of a new text section after ".text" hits N bytes as
+    opposed to the architected limit of 2^26. This is intended to enable
+    testing of the linker code paths that handle multiple .text sections
+    on PPC64 without resorting to building giant applications.
     
-    The logic to do this is not that complex, but it's a little subtle and easy to get wrong.
+    Updates #20492.
     
-    This CL adds a new `VisibleFields` function to the reflect package that returns the full set of effective fields that apply in a given struct type.
-    
-    Performance isn't a prime consideration, as it's common to cache results by type.
-    
-    Fixes #42782
-    
-    Change-Id: I7f1af76cecff9b8a2490f17eec058826e396f660
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/281233
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I74ab7fd1e412e9124de5bd0d8d248c5e73225ae3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241073
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/reflect/visiblefields.go      | 101 ++++++++++++
- src/reflect/visiblefields_test.go | 326 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 427 insertions(+)
+ src/cmd/link/internal/ld/data.go | 73 ++++++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/main.go | 33 +++++++++---------
+ 2 files changed, 61 insertions(+), 45 deletions(-)

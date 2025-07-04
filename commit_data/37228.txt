@@ -1,21 +1,40 @@
-commit e8df7df68f8d3b182570049879e780fec57a1878
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sat Nov 3 02:19:47 2018 +0900
+commit 12ed0ddec198db0eaabbaaef28bb5ffb17204e11
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 11 16:13:04 2018 -0400
 
-    syscall: add Syscall18 on Windows
+    cmd/link: use BestSpeed for DWARF compression
     
-    There are some OpenGL functions that take more than 15 arguments.
-    This CL adds Syscall18 to enable to call such functions on Windows
-    via syscall functions.
+    DWARF compression accounts for roughly 30% of the linker's time. This
+    CL switches from DefaultCompression to BestSpeed, which virtually
+    eliminates this time. This roughly halves the overhead of handling
+    DWARF in the linker:
     
-    Fixes #28434
+    name \ time/op         nodwarf     dwarf        dwarf-speed
+    BuildCmdGoAll          10.0s ±11%   10.6s ± 5%   10.8s ± 5%
+                 nodwarf                  +6.41%       +8.03%
+                   dwarf                                 ~
+    LinkCmdGo              626ms ± 5%  1096ms ± 2%   860ms ± 2%
+                 nodwarf                 +75.17%      +37.36%
+                   dwarf                              -21.59%
     
-    Change-Id: Ic7e37dda9cadf4516183e98166bfc52844ad2bbe
-    Reviewed-on: https://go-review.googlesource.com/c/147117
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Previously, enabling DWARF had a 75% overhead in link time for cmd/go.
+    This change reduces this overhead to 37% (a 22% reduction).
+    
+    The effect on binary size is minimal compared to DefaultCompression,
+    and still substantially better than no compression:
+    
+                 cmd/go bytes
+    nodwarf      10106953
+    dwarf        12159049 nodwarf+20%
+    dwarf-speed  12408905 nodwarf+23%
+    dwarf-nozlib 17766473 nodwarf+76%
+    
+    Updates #26318.
+    
+    Change-Id: I33bb7caa038a2753c29104501663daf4839e7054
+    Reviewed-on: https://go-review.googlesource.com/123356
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/syscall_windows.go | 13 +++++++++++++
- src/syscall/dll_windows.go     |  7 +++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/link/internal/ld/data.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

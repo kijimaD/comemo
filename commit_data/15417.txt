@@ -1,20 +1,15 @@
-commit aa3efb28f02924a451f2c519794cc473b15b7559
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 25 16:11:34 2013 -0500
+commit 707ab1347f114934d65b713e22fdd62b4a83ca36
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 25 12:43:03 2013 -0800
 
-    cmd/gc: can stop tracking gotype in regopt
+    all: fix some vet-found printf errors
     
-    Now that the type information is in TYPE instructions
-    that are not rewritten by the optimization passes,
-    we don't have to try to preserve the type information
-    (no longer) attached to MOV instructions.
-    
-    R=ken2
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7402054
+    https://golang.org/cl/7393059
 
- src/cmd/5g/reg.c | 1 -
- src/cmd/6g/reg.c | 2 --
- src/cmd/8g/reg.c | 2 --
- src/cmd/gc/go.h  | 1 -
- 4 files changed, 6 deletions(-)
+ src/pkg/archive/tar/reader_test.go     | 2 +-
+ src/pkg/encoding/gob/gobencdec_test.go | 2 +-
+ src/pkg/encoding/json/decode_test.go   | 2 +-
+ src/pkg/net/http/request_test.go       | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

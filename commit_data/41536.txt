@@ -1,31 +1,35 @@
-commit 5e4da0adac18aad82b85e6ce3f928392b7998994
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 1 13:09:09 2020 -0800
+commit fb9af8411eaa3e38d2f72e28a305772f50042657
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 10 10:19:12 2019 +0700
 
-    cmd/compile: add streamlined Block Reset+AddControl routines
+    encoding/json: support TextUnmarshaler for map keys with string underlying types
     
-    For use in rewrite rules. Shrinks cmd/compile:
+    When unmarshaling to a map, the map's key type must either be a string,
+    an integer, or implement encoding.TextUnmarshaler. But for a user
+    defined type, reflect.Kind will not distinguish between the static type
+    and the underlying type. In:
     
-    compile 20082104  19967416  -114688 -0.571%
+            var x MyString = "x"
+            t := reflect.TypeOf(x)
+            println(t.Kind() == reflect.String)
     
-    Passes toolstash-check -all.
+    the Kind of x is still reflect.String, even though the static type of x
+    is MyString.
     
-    Change-Id: Ic856508b27ec5b7fb9b6ca63e955a7139ae7dc30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221780
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Moreover, checking for the map's key type is a string occurs first, so
+    even if the map key type MyString implements encoding.TextUnmarshaler,
+    it will be ignored.
+    
+    To fix the bug, check for encoding.TextUnmarshaler first.
+    
+    Fixes #34437
+    
+    Change-Id: I780e0b084575e1dddfbb433fe03857adf71d05fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200237
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/ssa/block.go          |  28 +
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  16 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 123 ++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 189 +++----
- src/cmd/compile/internal/ssa/rewriteARM.go     | 705 +++++++++----------------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 429 +++++----------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |  75 +--
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  63 +--
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 183 +++----
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |   3 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 133 ++---
- src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +-
- 12 files changed, 675 insertions(+), 1275 deletions(-)
+ src/encoding/json/decode.go      |  4 ++--
+ src/encoding/json/decode_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

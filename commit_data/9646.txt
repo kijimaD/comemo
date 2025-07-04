@@ -1,40 +1,16 @@
-commit ac1b9545e3b7c0bda0031b36769daf6061bb686e
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Sep 9 15:08:57 2011 +0200
+commit 3301e5a4f5b45be69b4d58af2f3995179e2a4131
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Sep 9 17:38:29 2011 +1000
 
-    ld: grow dwarf includestack on demand.
+    path/filepath: make UNC file names work
     
-    Fixes #2241
-    while not breaking issue 1878 again.
+    Fixes #2201
     
-    R=rsc
+    R=golang-dev, r, rsc, alex.brainman, robert.hencke, jp
     CC=golang-dev
-    https://golang.org/cl/4988048
+    https://golang.org/cl/4950051
 
- src/cmd/gc/obj.c             | 10 +-----
- src/cmd/ld/dwarf.c           | 26 ++++++++------
- test/dwarf/linedirectives.go | 83 ++++++++++++++++++++++++++++++++++++++++++++
- test/dwarf/main.go           | 29 ++++++++++++++++
- test/dwarf/z1.go             |  5 +++
- test/dwarf/z10.go            |  6 ++++
- test/dwarf/z11.go            |  4 +++
- test/dwarf/z12.go            |  4 +++
- test/dwarf/z13.go            |  4 +++
- test/dwarf/z14.go            |  4 +++
- test/dwarf/z15.go            |  4 +++
- test/dwarf/z16.go            |  4 +++
- test/dwarf/z17.go            |  4 +++
- test/dwarf/z18.go            |  5 +++
- test/dwarf/z19.go            |  4 +++
- test/dwarf/z2.go             |  4 +++
- test/dwarf/z20.go            |  4 +++
- test/dwarf/z3.go             |  4 +++
- test/dwarf/z4.go             |  4 +++
- test/dwarf/z5.go             |  4 +++
- test/dwarf/z6.go             |  4 +++
- test/dwarf/z7.go             |  4 +++
- test/dwarf/z8.go             |  4 +++
- test/dwarf/z9.go             |  4 +++
- test/golden.out              |  2 ++
- test/run                     |  2 +-
- 26 files changed, 215 insertions(+), 21 deletions(-)
+ src/pkg/path/filepath/path.go         |  8 +++--
+ src/pkg/path/filepath/path_test.go    | 68 +++++++++++++++++++++++++++++++++++
+ src/pkg/path/filepath/path_windows.go | 35 ++++++++++++++++--
+ 3 files changed, 107 insertions(+), 4 deletions(-)

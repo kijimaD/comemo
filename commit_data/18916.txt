@@ -1,13 +1,16 @@
-commit f182a6eec895a6d916ed61e9d6f50a84fd970e69
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Mar 21 18:13:23 2014 +0100
+commit 287967f74c9d937b1075a648be5fd9247283cef6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 21 13:59:30 2014 +1100
 
-    runtime: skip stack growth test in short mode
+    doc/go_faq.html: update description of stack management
+    They aren't segmented any more, at least with gc.
+    Also improve the comparison of goroutines and threads.
+    Fixes #7373.
     
-    LGTM=dvyukov
-    R=dvyukov
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/78410043
+    https://golang.org/cl/77950044
 
- src/pkg/runtime/stack_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go_faq.html | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

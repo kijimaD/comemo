@@ -1,37 +1,13 @@
-commit 4152b4345724dae4b058d48a23d29ac8f8bda453
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 14:16:15 2012 +1100
+commit 6c0aa2f296142c7acbd3b99e0378fe39b76db48a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:12:17 2012 +1100
 
-    os: delete Exec, NewFile takes uintptr, rename ShellExpand, doc fixes
+    unicode/utf8: document return value for decode errors
+    Also replace archaic definition of rune.
     
-    Delete O_NDELAY, O_NONBLOCK, O_NOCTTY, O_ASYNC.
-    
-    Clean up some docs.
-    
-    Rename ShellExpand -> ExpandEnv.
-    
-    Make NewFile take a uintptr; change File.Fd to return one.
-    (for API compatibility between Unix and Windows)
-    
-    Fixes #2947
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5655045
+    https://golang.org/cl/5654048
 
- doc/go1.html                  | 17 +++++++++++++----
- doc/go1.tmpl                  | 17 +++++++++++++----
- src/pkg/net/fd.go             | 10 +++++-----
- src/pkg/net/file.go           |  2 +-
- src/pkg/net/newpollserver.go  |  6 +++---
- src/pkg/net/sendfile_linux.go |  2 +-
- src/pkg/os/env.go             |  8 ++++----
- src/pkg/os/error_posix.go     |  1 -
- src/pkg/os/exec/exec_test.go  |  2 +-
- src/pkg/os/exec_plan9.go      | 14 --------------
- src/pkg/os/exec_posix.go      | 21 +--------------------
- src/pkg/os/file.go            | 26 +++++++++++---------------
- src/pkg/os/file_unix.go       | 21 +++++++++------------
- src/pkg/os/file_windows.go    | 13 +++++++------
- src/pkg/os/stat_windows.go    |  4 ----
- 15 files changed, 69 insertions(+), 95 deletions(-)
+ src/pkg/unicode/utf8/utf8.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

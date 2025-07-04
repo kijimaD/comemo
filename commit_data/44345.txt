@@ -1,18 +1,14 @@
-commit 6a40dd05d833b2bd78eb68ac67d7e860edff6878
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 19 20:06:24 2021 -0800
+commit 15e3e0d4dc7a2b985fba7318379d438a54765154
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 15 14:11:08 2020 +0200
 
-    cmd/compile/internal/types2: review of sanitize.go
+    doc/gccgo: change gold build instructions to use Git repository
     
-    Remove the "// UNREVIEWED" marker and add guards (as in go/types)
-    to prevent data races. To see the added guards, see compare patch
-    sets 3 and 4. The equivalent changes for go/types were done in
-    https://golang.org/cl/294411.
+    Use the binutils Git repository instead of CVS.
     
-    Change-Id: Ibef07eaae400bd32bff32b102cc743580290d135
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294510
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I10100ca44d64ab3621367d1d4ac9e9a50d212d0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237839
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/sanitize.go | 87 ++++++++++++++++++++++-------
- 1 file changed, 66 insertions(+), 21 deletions(-)
+ doc/gccgo_install.html | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

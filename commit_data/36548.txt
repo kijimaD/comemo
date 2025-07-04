@@ -1,29 +1,29 @@
-commit 5ac247674884a93f3a7630649ee00923724e7961
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Aug 30 15:47:04 2018 -0600
+commit 73e38303f3e24ea651778705606b390d088070f0
+Author: Dmitri Shuralyov <dmitri@shuralyov.com>
+Date:   Fri May 4 13:05:15 2018 -0400
 
-    cmd/compile: make math/bits.RotateLeft* an intrinsic on amd64
+    net/http: write status code in Redirect when Content-Type header set
     
-    Previously, pattern matching was good enough to achieve good performance
-    for the RotateLeft* functions, but the inlining cost for them was much
-    too high. Make RotateLeft* intrinsic on amd64 as a stop-gap for now to
-    reduce inlining costs.
+    This is a followup to CL 110296. That change added a new behavior
+    to Redirect, where the short HTML body is not written if the
+    Content-Type header is already set. It was implemented by doing
+    an early return. That unintentionally prevented the correct status
+    code from being written, so it would always default to 200.
+    Existing tests didn't catch this because they don't check status code.
     
-    This should be done (or at least looked at) for other architectures
-    as well.
+    This change fixes that issue by removing the early return and
+    moving the code to write a short HTML body behind an if statement.
+    It adds written status code checks to Redirect tests.
     
-    Updates golang/go#17566
+    It also tries to improve the documentation wording and code style
+    in TestRedirect_contentTypeAndBody.
     
-    Change-Id: I6a106ff00b6c4e3f490650af3e083ed2be00c819
-    Reviewed-on: https://go-review.googlesource.com/132435
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #25166.
+    
+    Change-Id: Idce004baa88e278d098661c03c9523426c5eb898
+    Reviewed-on: https://go-review.googlesource.com/111517
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 22 +++++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go | 12 +++--
- src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 64 ++++++++++++++++++++++++++
- test/inline_math_bits_rotate.go                | 28 +++++++++++
- 6 files changed, 151 insertions(+), 4 deletions(-)
+ src/net/http/serve_test.go | 41 +++++++++++++++++++++++++----------------
+ src/net/http/server.go     | 30 ++++++++++++++++--------------
+ 2 files changed, 41 insertions(+), 30 deletions(-)

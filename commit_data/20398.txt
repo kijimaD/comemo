@@ -1,45 +1,35 @@
-commit 99f7df0598238b03d78cc6c89e0bd6b6b9feb246
+commit 83824639c3ae9f357daf7ac2f8590b46d167296b
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 00:18:20 2014 -0400
+Date:   Thu Sep 4 23:12:10 2014 -0400
 
-    cmd/gc: turn Go prototypes into ptr liveness maps for assembly functions
+    syscall: in linux/arm Syscall, zero R3, R4, R5
     
-    The goal here is to allow assembly functions to appear in the middle
-    of a Go stack (having called other code) and still record enough information
-    about their pointers so that stack copying and garbage collection can handle
-    them precisely. Today, these frames are handled only conservatively.
+    The general kernel system call interface
+    takes 6 arguments: R0, R1, R2, R3, R4, R5.
     
-    If you write
+    Syscall is for calls that only need 3.
+    The amd64 and 386 versions zero the extra arg registers,
+    but the arm version does not.
     
-            func myfunc(x *float64) (y *int)
+    func utimensat calls Syscall with 3 arguments.
+    The kernel expects a 4th argument.
+    That turns out to be whatever is in R3 at the time of the call.
+    CL 137160043 changed various pieces of code and apparently
+    changed the value left in R3 at the time of utimensat's Syscall.
+    This causes the kernel to return EINVAL.
     
-    (with no body, an 'extern' declaration), then the Go compiler now emits
-    a liveness bitmap for use from the assembly definition of myfunc.
-    The bitmap symbol is myfunc.args_stackmap and it contains two bitmaps.
-    The first bitmap, in effect at function entry, marks all inputs as live.
-    The second bitmap, not in effect at function entry, marks the outputs
-    live as well.
+    Change linux/arm Syscall to zero R3, R4, R5, so that calls will
+    behave deterministically, even if they pass too few arguments.
     
-    In funcdata.h, define new assembly macros:
+    Arguably, utimensat could be fixed too, but the predictable
+    zeroing is certainly worth doing, and once done utimensat's
+    use of Syscall is fine.
     
-    GO_ARGS opts in to using the Go compiler-generated liveness bitmap
-    for the current function.
+    Fixes arm build.
     
-    GO_RESULTS_INITIALIZED indicates that the results have been initialized
-    and need to be kept live for the remainder of the function; it causes a
-    switch to the second generated bitmap for the assembly code that follows.
-    
-    NO_LOCAL_POINTERS indicates that there are no pointers in the
-    local variables being stored in the function's stack frame.
-    
-    LGTM=khr
-    R=khr
+    TBR=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/137520043
+    https://golang.org/cl/141080043
 
- src/cmd/dist/build.c   |  2 ++
- src/cmd/gc/pgen.c      | 49 +++++++++++++++++++++++++++++++++++++++++++++----
- src/liblink/objfile.c  | 12 ++++++++++++
- src/runtime/asm.s      | 14 ++++++++++++++
- src/runtime/funcdata.h | 26 ++++++++++++++++++++++++++
- 5 files changed, 99 insertions(+), 4 deletions(-)
+ src/pkg/syscall/asm_linux_arm.s | 3 +++
+ 1 file changed, 3 insertions(+)

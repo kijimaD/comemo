@@ -1,14 +1,21 @@
-commit 4a1756824fb609952c884b4210421ca9e315e1c3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 29 14:18:52 2015 -0800
+commit 5da9c8cd0a0427d1771b3a9a6d8d931430ce50dd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Dec 27 19:15:38 2014 -0500
 
-    test/closure2.go: correctly "use" tmp
+    runtime: ignore SIGPROF to foreign threads before cgocallback is fully initialized
     
-    cmd/go doesn't complain (this is an open issue), but go/types does
+    Some libraries, for example, OpenBLAS, create work threads in a global constructor.
+    If we're doing cpu profiling, it's possible that SIGPROF might come to some of the
+    worker threads before we make our first cgo call. Cgocallback used to terminate the
+    process when that happens, but it's better to miss a couple profiling signals than
+    to abort in this case.
     
-    Change-Id: I2caec1f7aec991a9500d2c3504c29e4ab718c138
-    Reviewed-on: https://go-review.googlesource.com/3541
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #9456.
+    
+    Change-Id: I112b8e1a6e10e6cc8ac695a4b518c0f577309b6b
+    Reviewed-on: https://go-review.googlesource.com/2141
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/closure2.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/crash_cgo_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sigqueue.go       |  9 +++++++
+ 2 files changed, 64 insertions(+)

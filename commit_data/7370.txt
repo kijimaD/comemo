@@ -1,14 +1,12 @@
-commit 4fa6d57f6e8f45b7952e6d5b9637f385f121b1e0
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 4 14:32:59 2011 -0500
+commit f8404ee3e1a19cff8c32b7b85889805f8325b81c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 4 09:29:08 2011 -0800
 
-    runtime: fix asm.h on Windows
+    spec: fix Typeof() return type
     
-    Thanks to mhantsch@gmail.com.
-    
-    R=adg, brainman
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4092048
+    https://golang.org/cl/4121058
 
- src/pkg/runtime/mkasmh.sh | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

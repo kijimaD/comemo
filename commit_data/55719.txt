@@ -1,17 +1,25 @@
-commit f7777688ca19584ed7c278431560f6a545822370
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Sun Feb 18 20:18:08 2024 +0100
+commit 9f532dd0de78af91694a2d7e5e3c45b2978d1062
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 7 15:12:29 2023 -0500
 
-    doc: document os.ModeSocket support on Windows
+    cmd/go: avoid running slow tests on non-longtest builders
     
-    Updates #33357.
+    Also annotate calls to tooSlow with specific reasons.
     
-    Change-Id: I66866475447e03f604202f34ddfbafdc0512cb72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565135
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    This will somewhat reduce test coverage on the 'darwin' builders until
+    we have darwin 'longtest' builders (#35678,#49055), but still seems
+    worthwhile to avoid alert fatigue from tests that really shouldn't be
+    running in the short configurations.
+    
+    Fixes #58918.
+    Fixes #58919.
+    
+    Change-Id: I0000f0084b262beeec3eca3e9b8a45d61fab4313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474137
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/99-minor/os/33357.md | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/go_test.go | 76 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 40 insertions(+), 36 deletions(-)

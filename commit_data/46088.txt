@@ -1,19 +1,15 @@
-commit 65074a40867d9c42a6b89f96b9eeef5a39234846
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Fri May 21 22:21:09 2021 +0200
+commit ac0ba6707c1655ea4316b41d06571a0303cc60eb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Dec 7 11:33:00 2020 +0100
 
-    cmd/dist: remove unused variables
+    doc/go1.16: add missing </a> tag
     
-    Remove the unused defaultcflags and defaultldflags variables.
+    For #40700
     
-    Reported by staticcheck.
-    
-    Change-Id: Icc42f2e670496dbe2ffb26abe25128d8e53e2a6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321931
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ic4e16106cbbe18d0c9efffee81c5234ddeedfd32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275674
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/dist/build.go | 5 -----
- 1 file changed, 5 deletions(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

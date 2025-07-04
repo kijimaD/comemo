@@ -1,14 +1,36 @@
-commit be5deb93fb1af69a01acef214274a0708d711221
+commit 052c942e20576f01f72d226d11aaf11e721009f3
 Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Feb 12 16:13:14 2013 -0500
+Date:   Tue Feb 12 13:17:49 2013 -0500
 
-    exp/ssa: omit Function's package name when printing intra-package references.
+    test: ensure all failing tests exit nonzero.
+    
+    Previously merely printing an error would cause the golden
+    file comparison (in 'bash run') to fail, but that is no longer
+    the case with the new run.go driver.
     
     R=iant
     CC=golang-dev
-    https://golang.org/cl/7307105
+    https://golang.org/cl/7310087
 
- src/pkg/exp/ssa/func.go  | 24 +++++++++++++++++++-----
- src/pkg/exp/ssa/print.go | 11 ++++-------
- src/pkg/exp/ssa/ssa.go   |  2 +-
- 3 files changed, 24 insertions(+), 13 deletions(-)
+ test/alias1.go      |   8 +-
+ test/bigalg.go      |  15 +++-
+ test/cmplxdivide.go |   3 +
+ test/const4.go      |   7 +-
+ test/copy.go        |   5 ++
+ test/decl.go        |   5 +-
+ test/defer.go       |   2 +
+ test/divide.go      |   8 ++
+ test/escape.go      |   2 +
+ test/float_lit.go   |   4 +
+ test/floatcmp.go    |   3 +
+ test/func7.go       |   3 +-
+ test/func8.go       |   4 +-
+ test/init1.go       |   1 +
+ test/literal.go     |   3 +-
+ test/map.go         | 228 ++++++++++++++++++++++++++--------------------------
+ test/nil.go         |   2 +-
+ test/recover3.go    |   4 +
+ test/rename.go      |   6 +-
+ test/string_lit.go  |   3 +-
+ test/zerodivide.go  |   3 +
+ 21 files changed, 189 insertions(+), 130 deletions(-)

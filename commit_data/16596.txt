@@ -1,18 +1,17 @@
-commit 8e8b8b85c261d219ed3b37638b6cd96d47da79d6
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 18 14:18:25 2013 -0700
+commit 269b2f2d4dbab20f8d66ed9495f344acb8da4315
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 18 14:43:37 2013 -0400
 
-    cmd/go: write coverage to file, add percentage statistic
-    Move the data dumper to the testing package, where it has access
-    to file I/O.
-    Print a percentage value at the end of the run.
+    cmd/gc: fix race detector on tail-call wrappers
     
-    R=rsc, adg
+    (By not using the tail-call wrappers when the race
+    detector is enabled.)
+    
+    R=golang-dev, minux.ma, dvyukov, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/10264045
+    https://golang.org/cl/10227043
 
- src/cmd/go/test.go         | 62 +++++++++++--------------------
- src/cmd/go/testflag.go     |  9 ++++-
- src/pkg/testing/cover.go   | 91 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/testing/testing.go |  5 +++
- 4 files changed, 124 insertions(+), 43 deletions(-)
+ src/cmd/gc/go.h       | 1 -
+ src/cmd/gc/racewalk.c | 2 +-
+ src/cmd/gc/subr.c     | 6 ++----
+ 3 files changed, 3 insertions(+), 6 deletions(-)

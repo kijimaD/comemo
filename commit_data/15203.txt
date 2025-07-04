@@ -1,22 +1,12 @@
-commit 1c1096ea31ed50f3553382ebb81a6a16396e56ec
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Feb 11 18:20:52 2013 -0500
+commit 6c119a9e70fffbc9111b4114d6a5f32ca202cd6b
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Feb 11 09:10:35 2013 -0800
 
-    test: a number of fixes.
+    api: Update readme.
     
-    Details:
-    - reorder.go: delete p8.
-      (Once expectation is changed per b/4627 it is identical to p1.)
-    - switch.go: added some more (degenerate) switches.
-    - range.go: improved error messages in a few cases.
-    - method.go: added tests of calls to promoted methods.
-    
-    R=iant
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7306087
+    https://golang.org/cl/7303065
 
- test/method.go  | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++------
- test/range.go   | 22 +++++++++---------
- test/reorder.go | 28 +++++------------------
- test/switch.go  | 59 +++++++++++++++++++++++++++++++++++++++++------
- 4 files changed, 133 insertions(+), 47 deletions(-)
+ api/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

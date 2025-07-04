@@ -1,19 +1,20 @@
-commit 3fefec96adae7e0ea66e2b624d4bef54a3a8b7df
-Author: Andy Pan <i@andypan.me>
-Date:   Tue Mar 26 07:13:57 2024 +0800
+commit 96e8e62821ddb862e947fc9a1609e8e5b713cf14
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 11 22:16:20 2022 +0000
 
-    runtime: fix the failures from longtest builders
+    runtime: initialize the memory limit in mallocinit
     
-    Follow up CL 560155
+    Currently the memory limit is left uninitialized before gcinit, and
+    allocations may happen. The result is that the span allocation path
+    might try to scavenge memory unnecessarily. Prevent this by setting the
+    memory limit up early to its default value.
     
-    Change-Id: Id9230d79c296452f3741123c75b45c3d3b1be4f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574295
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I886d9a8fa645861e4f88e0d54af793418426f520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450736
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/testdata/script/build_runtime_gcflags.txt    | 4 ++--
- src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 4 ++--
- src/cmd/internal/objabi/pkgspecial.go                   | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/malloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

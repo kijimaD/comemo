@@ -1,24 +1,48 @@
-commit f639a81cd5e85ca9538c76e612867aa4c2ae241b
-Author: Ruixin Bao <ruixin.bao@ibm.com>
-Date:   Mon Apr 27 16:20:45 2020 -0700
+commit 194ae3236d81cf16dc39b955efc1b9202b59d067
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Sun Apr 14 08:16:13 2019 +0200
 
-    cmd/compile: adopt strong aux typing for some s390x rules
+    math/big: implement recursive algorithm for division
     
-    Convert some optimizations rules to strongly-typed versions. So far, I
-    have only converted the rules that need no additional changes (i.e: only
-    need to change '->' to "=>").
+    The current division algorithm produces one word of result at a time,
+    using 2-word division to compute the top word and mulAddVWW to compute
+    the remainder. The top word may need to be adjusted by 1 or 2 units.
     
-    This CL covers the rules from line 478 - line 800 in S390X.rules file.
-    Some compare and branch rules also fall in this range, but they were
-    already done previously in another CL.
+    The recursive version, based on Burnikel, Ziegler, "Fast Recursive Division",
+    uses the same principles, but in a multi-word setting, so that
+    multiplication benefits from the Karatsuba algorithm (and possibly later
+    improvements).
     
-    Passes toolstash-check.
-    Change-Id: I9167c5f1a32f4fd6c29bacc13fff95e83b0533e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230338
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    benchmark                             old ns/op        new ns/op      delta
+    BenchmarkDiv/20/10-4                  38.2             38.3           +0.26%
+    BenchmarkDiv/40/20-4                  38.7             38.5           -0.52%
+    BenchmarkDiv/100/50-4                 62.5             62.6           +0.16%
+    BenchmarkDiv/200/100-4                238              259            +8.82%
+    BenchmarkDiv/400/200-4                311              338            +8.68%
+    BenchmarkDiv/1000/500-4               604              649            +7.45%
+    BenchmarkDiv/2000/1000-4              1214             1278           +5.27%
+    BenchmarkDiv/20000/10000-4            38279            36510          -4.62%
+    BenchmarkDiv/200000/100000-4          3022057          1359615        -55.01%
+    BenchmarkDiv/2000000/1000000-4        310827664        54012939       -82.62%
+    BenchmarkDiv/20000000/10000000-4      33272829421      1965401359     -94.09%
+    BenchmarkString/10/Base10-4           158              156            -1.27%
+    BenchmarkString/100/Base10-4          797              792            -0.63%
+    BenchmarkString/1000/Base10-4         3677             3814           +3.73%
+    BenchmarkString/10000/Base10-4        16633            17116          +2.90%
+    BenchmarkString/100000/Base10-4       5779029          1793808        -68.96%
+    BenchmarkString/1000000/Base10-4      889840820        85524031       -90.39%
+    BenchmarkString/10000000/Base10-4     134338236860     4935657026     -96.33%
+    
+    Fixes #21960
+    Updates #30943
+    
+    Change-Id: I134c6f81a47870c688ca95b6081eb9211def15a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172018
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules | 224 ++++++++---------
- src/cmd/compile/internal/ssa/rewriteS390X.go | 358 +++++++++++++--------------
- 2 files changed, 291 insertions(+), 291 deletions(-)
+ src/math/big/int_test.go |   7 +-
+ src/math/big/nat.go      | 196 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/math/big/nat_test.go |  24 ++++++
+ 3 files changed, 216 insertions(+), 11 deletions(-)

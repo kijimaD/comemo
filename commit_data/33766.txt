@@ -1,19 +1,21 @@
-commit 2e5011d8029e29f37bae359f2b1d398212a961ee
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 1 15:15:42 2017 -0500
+commit b15e8babc8bfb4ef17a543fdcb23d63e4d76dbf3
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Aug 18 14:56:12 2017 +0300
 
-    runtime: even more TestStackGrowth timeout debugging
+    cmd/asm: add amd64 PALIGNR instruction
     
-    This adds logging for the expected duration of a growStack, plus
-    progress information on the growStack that timed out.
+    3rd change out of 3 to cover AMD64 SSSE3 instruction set in Go asm.
+    This commit adds instruction that do require new ytab variable.
     
-    Updates #19381.
-    
-    Change-Id: Ic358f8350f499ff22dd213b658aece7d1aa62675
-    Reviewed-on: https://go-review.googlesource.com/81556
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I0bc7d9401c9176eb3760c3d59494ef082e97af84
+    Reviewed-on: https://go-review.googlesource.com/56870
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/stack_test.go | 23 +++++++++++++++++------
- 1 file changed, 17 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 16 ++++++++--------
+ src/cmd/internal/obj/x86/a.out.go            |  1 +
+ src/cmd/internal/obj/x86/anames.go           |  1 +
+ src/cmd/internal/obj/x86/asm6.go             |  5 +++++
+ 4 files changed, 15 insertions(+), 8 deletions(-)

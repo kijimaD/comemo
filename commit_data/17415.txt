@@ -1,16 +1,18 @@
-commit 916937274938adf506040b1118e1e20f990cf2b2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 29 13:21:21 2013 +1000
+commit e4bb139e75bf9bff76ebe6e060b7196579ce2172
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 28 19:51:02 2013 +0900
 
-    sort: use a very fast random generator for benchmarks
+    net: make protocol-specific Dial and Listen return consistent error value
     
-    Adapted from https://golang.org/cl/11564044.
+    Update #4856
     
-    Fixes breakage of darwin-amd64-race builder.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/13352045
+    https://golang.org/cl/12916046
 
- src/pkg/sort/sort_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/net/iprawsock_posix.go | 14 +++++++-------
+ src/pkg/net/ipsock_posix.go    | 13 +------------
+ src/pkg/net/tcpsock_posix.go   | 10 +++++-----
+ src/pkg/net/udpsock_posix.go   | 20 ++++++++++----------
+ src/pkg/net/unixsock_posix.go  | 28 ++++++++++------------------
+ 5 files changed, 33 insertions(+), 52 deletions(-)

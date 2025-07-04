@@ -1,17 +1,29 @@
-commit 4d37f968252b85ea3b26513b39ed606a5a50bc32
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 10 15:26:27 2022 -0500
+commit d01cd8fa1dc6110cbb301fd711fe43ea744cb5c9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 3 10:33:02 2021 -0500
 
-    net/http: fix triv.go
+    misc/cgo/testcarchive: log command output more consistently
     
-    CL 428137 replaced 'buf := make(bytes.Buffer)' with 'var buf strings.Builder'.
-    That change also requires passing &buf to io.Copy instead of buf.
+    Also check that executables exist immediately after building them
+    in parallel tests.
     
-    Change-Id: I72b3faa46693e7d1441298f49dc6b95859c3bff3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449635
+    The parallel tests in this package occasionally fail with
+    "no such file or directory", implying that either the build
+    command failed to actually write out the binary or something
+    concurrently deleted it.
+    
+    This is purely a shot in the dark, but I'm hoping that perhaps
+    the stderr output from one of these commands will shed some
+    light on the underlying failure mode.
+    
+    For #49693
+    
+    Change-Id: I2e768190c56053550879b89a3ac88c027d4741dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369034
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/net/http/triv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testcarchive/carchive_test.go | 118 +++++++++++++++++++++------------
+ 1 file changed, 76 insertions(+), 42 deletions(-)

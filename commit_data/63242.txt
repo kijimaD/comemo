@@ -1,0 +1,18 @@
+commit c2f0fe5854bbae49327f8222098142ab6db74a99
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 22 17:18:12 2025 -0700
+
+    internal/synctest: speed up TestWeak
+    
+    Run TestWeak for fewer iterations. Five is enough reproduce #73817,
+    which was the motivation for this test. runtime.GC is ridiculously
+    slow on wasm, and not especially fast anywhere else.
+    
+    Change-Id: Ieb5235d064b123cbc22a306425e385c273b54493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675716
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/synctest/synctest_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

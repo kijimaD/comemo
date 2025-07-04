@@ -1,21 +1,22 @@
-commit bfe7c81906212c69df754d5f4e3baa6413f092b3
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 8 09:28:53 2017 -0800
+commit 645e984f39a6cf0ffdf965dc04130d9c7f57e8a4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 26 15:37:15 2016 +1100
 
-    crypto/x509: document AuthorityKeyId and don't mutate it.
+    doc: s/race/ethnicity/ in the Code of Conduct
     
-    The AuthorityKeyId value from the template was used by
-    CreateCertificate, but that wasn't documented. Also, CreateCertificate
-    would stash a value in the template if it needed to override it, which
-    was wrong: template should be read-only.
+    As agreed upon by the Code of Conduct working group, "race" may refer to
+    an attempt to classify people based on "defining characteristics",
+    regardless of how this people view themselves, while "ethnicity" refers
+    to how people identify themselves.
     
-    Fixes #18962.
+    The Code of Conduct working group believes that the term "ethnicity"
+    will be more comprehensive and inclusive, and will better serve the Go
+    community.
     
-    Change-Id: Ida15c54c341e5bbf553756e8aa65021d8085f453
-    Reviewed-on: https://go-review.googlesource.com/36556
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I724b72cadb8cf29b4bac8f83017b0303feae3c94
+    Reviewed-on: https://go-review.googlesource.com/32133
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/x509.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ doc/conduct.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

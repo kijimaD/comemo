@@ -1,20 +1,24 @@
-commit 4a52267574db7b04915c6dc3648cfd8255844dd3
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Mar 11 09:15:38 2019 -0400
+commit 56421f26ef8526427e034639510a162f3b40d825
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 19:36:21 2018 +0100
 
-    cmd/go/internal/modfetch: update comment referring to old Import function
+    runtime: use StorepNoWB instead of atomicstorep in netpoll
     
-    The Import function was moved from modfetch/repo.go to modload/import.go
-    in vgo CL 122880, and its semantics have changed in vgo CL 123095 to do
-    more than just searching for a module. Both of these changes were ported
-    to cmd/go in CL 123576.
+    We only need the memory barrier from these stores,
+    and we only store nil over nil or over a static function value.
+    The write barrier is unnecessary.
     
-    Delete the mention of the old Import function from the modfetch/repo.go
-    comment, since what it refers to does not exist anymore.
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.0µs ± 0%  17.0µs ± 0%  -0.43%  (p=0.032 n=5+5)
+    SetReadDeadline-6      205ns ± 1%   205ns ± 1%    ~     (p=0.683 n=5+5)
     
-    Change-Id: I6dc6984128152cf9611d30fbc4e6418e91a7641f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166597
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Update #25729
+    
+    Change-Id: I66c097a1db7188697ddfc381f31acec053dfed2c
+    Reviewed-on: https://go-review.googlesource.com/c/146345
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/repo.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/runtime/netpoll.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

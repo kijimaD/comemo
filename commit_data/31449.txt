@@ -1,19 +1,16 @@
-commit 320aabbada08d72d19d190e523bb31874a61471a
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Apr 29 11:50:34 2017 -0600
+commit 689fa9cc2842141ad663845af2b6188cc1c12b5d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:58:36 2017 -0800
 
-    cmd/compile: add test for blank field in composite literal
+    syscall: fix linux/mipsx ret value FP offsets for Syscall9
     
-    Updates #18089.
+    Found by vet.
     
-    Test for that issue; it was inadvertently fixed
-    by CL 34988. Ensure that we don't regress on the fix.
-    
-    Change-Id: Icb85fc20dbb0a47f028f088281319b552b16759d
-    Reviewed-on: https://go-review.googlesource.com/42173
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idf910405566816ddce6781c8e99f90b59f33d63c
+    Reviewed-on: https://go-review.googlesource.com/37308
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/fixedbugs/issue18089.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/syscall/asm_linux_mipsx.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

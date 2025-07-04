@@ -1,17 +1,13 @@
-commit e14d1d7e41eed928e045961195f160069f6abb2d
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Dec 14 17:34:35 2011 +0100
+commit d842acd57ed2633478cb46bbb4c18271ec62f36a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 10:25:48 2011 -0500
 
-    gc: use inferred type rather than original one when reporting non-assignability.
+    crypto/tls: make compatible with go/build
     
-    Fixes #2451
-    
-    R=rsc, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5372105
+    https://golang.org/cl/5484073
 
- src/cmd/gc/fmt.c         | 14 ++++++++------
- test/ddd1.go             |  2 +-
- test/fixedbugs/bug386.go | 12 ++++++++++++
- test/named1.go           |  2 +-
- 4 files changed, 22 insertions(+), 8 deletions(-)
+ src/pkg/crypto/tls/root_stub.go | 2 ++
+ src/pkg/crypto/tls/root_unix.go | 2 ++
+ 2 files changed, 4 insertions(+)

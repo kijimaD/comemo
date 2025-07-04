@@ -1,36 +1,19 @@
-commit bb7e665687d3a9bcbfd7814168a9f6e36d0e632b
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Jun 29 12:36:48 2015 +0100
+commit 0858d8847d0cdcc03ecb336c208706516bc0ab40
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 26 14:57:05 2015 -0700
 
-    encoding/xml: fix xmlns= behavior
+    math/big: removed TODO, cleanups
     
-    When an xmlns="..." attribute was explicitly generated,
-    it was being ignored because the name space on the
-    attribute was assumed to have been explicitly set (to the empty
-    name space) and it's not possible to have an element in the
-    empty name space when there is a non-empty name space set.
+    - factor out handling of sign
+    - rename bstring, pstring to fmtB, fmtP consistent with fmtE, fmtF
+    - move all float-to-string conversion functions into ftoa.go
+    - no functional changes
     
-    We fix this by recording when a default name space has been
-    explicitly set and setting the name space of the element to that
-    so printer.defineNS can do its work correctly.
-    
-    We do not attempt to add our own xmlns="..." attribute
-    when one is explicitly set.
-    
-    We also add tests for EncodeElement, as that's the only way
-    to attain coverage of some of the changed behaviour.
-    Some other test coverage is also increased, although
-    more work remains to be done in this area.
-    
-    This change was jointly developed with Martin Hilton (mhilton on github).
-    
-    Fixes #11431.
-    
-    Change-Id: I7b85e06eea5b18b2c15ec16dcbd92a8e1d6a9a4e
-    Reviewed-on: https://go-review.googlesource.com/11635
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5970ecb874dc9c387630b59147d90bda16a5d8e6
+    Reviewed-on: https://go-review.googlesource.com/10387
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/encoding/xml/marshal.go      | 162 ++++++++++++++++++-----------------
- src/encoding/xml/marshal_test.go | 179 ++++++++++++++++++++++++++++++++++++++-
- src/encoding/xml/xml.go          |   6 ++
- 3 files changed, 269 insertions(+), 78 deletions(-)
+ src/math/big/floatconv.go      | 136 +-----------------------------
+ src/math/big/floatconv_test.go |   1 +
+ src/math/big/ftoa.go           | 185 +++++++++++++++++++++++++++++++++--------
+ 3 files changed, 152 insertions(+), 170 deletions(-)

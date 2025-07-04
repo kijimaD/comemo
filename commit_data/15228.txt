@@ -1,14 +1,16 @@
-commit 594360cb1b31a99a349ba03294f5459aff0bc33d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 13 21:13:07 2013 -0500
+commit 8c30b3f038fe140d7f05ebe60d090e1d4a2eb3b5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 14 10:11:16 2013 +1100
 
-    cmd/8c: disable use of prefetch with GO386=387
+    net: remove noisy test for issue 3590
     
-    Fixes #4798.
+    The test for issue 3590 causes an error to be printed to stderr when run (although the error is obscured during go test std). This is confusing for people who get breakage in the net package as the error is harmless and most likely unrelated to their build breakage.
     
-    R=ken2
+    Given the way the test works, by reaching into the guts of the netFD, I can't see a way to silence the error without adding a bunch of code to support the test, therefore I am suggesting the test be removed before Go 1.1 ships.
+    
+    R=alex.brainman, mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/7323061
+    https://golang.org/cl/7307110
 
- src/cmd/8c/txt.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/fd_unix_test.go | 48 ---------------------------------------------
+ 1 file changed, 48 deletions(-)

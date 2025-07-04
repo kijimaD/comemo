@@ -1,22 +1,17 @@
-commit 96fc07af1c551dd9746221149201e8ab57b90995
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 09:42:52 2020 -0400
+commit c02cd04fe170071c8bb28bcdf6b7ed10b02d2e69
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 25 17:22:57 2020 -0400
 
-    go/build: allow io/fs to depend on time
+    [dev.link] cmd/link: fix buglet in setupdynexp
     
-    In preparation for moving os.FileInfo into io/fs.
-    Also keep syscall from depending on io again.
-    We want to keep them separated, in case io ever
-    needs to start depending on time.
+    This should restore deterministic order of dynexp, and fix
+    Solaris build.
     
-    For #41190.
-    
-    Change-Id: I98350fa03accf4a20c75ddebb0e961aa1ccccd2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243905
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Icb796babaa3238bff90fd8255ee9f023f2306c26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225538
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/build/deps_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

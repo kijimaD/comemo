@@ -1,22 +1,21 @@
-commit c99cfd93a86dc76ff276b13211ef65ab2752bfc7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 26 06:55:49 2017 -0700
+commit 0c38d789bcce1b0de41e3a97478d613aa4665c95
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Tue Jun 6 02:03:55 2017 +0000
 
-    cmd/link: don't use internal linking mode for cgo on PPC64
+    cmd/go: fix TestBuildIDContainsArchModeEnv fail on arm64
     
-    The internal linker doesn't know how to handle multiple TOC sections
-    in internal linking mode. This used to work because before CL 64793 we
-    invoked ld -r on multiple objects, and that merged the TOC sections
-    for us.
+    TestBuildIDContainsArchModeEnv fails on arm64 because defaultGO386 has
+    different value from x86 (amd64/386). On arm64 defaultGO386 = '387' but
+    on x86 defaultGO386 = 'sse2'. The difference will make the test succeed
+    on x86 while fail on arm64 since it generates the same build ID.
+    Fix it by explicitly setting GO386 instead of using default value
     
-    Updates #21961
+    Fixes #20608
     
-    Change-Id: I48260a7195be660016f2f358ebc8cb79652210ab
-    Reviewed-on: https://go-review.googlesource.com/66270
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I864b0e47325942d9513516bdf47f60391d18c0d0
+    Reviewed-on: https://go-review.googlesource.com/45112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/config.go | 3 ++-
- src/cmd/nm/nm_cgo_test.go          | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

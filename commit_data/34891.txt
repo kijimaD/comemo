@@ -1,12 +1,20 @@
-commit c90e0504c004cbd891a7ceda67b5e0bc132bc8d5
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Apr 9 14:43:52 2018 -0400
+commit b72678f37f2087ebf515bf6927bdd102723b28bf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 23 12:46:18 2017 +0100
 
-    crypto/rsa: improve the comment of PublicKey.Size
+    net: skip TestLookupLongTXT on Plan 9
     
-    Change-Id: Ic507cb740395e76d1d011a5a2f395b96c3d172a2
-    Reviewed-on: https://go-review.googlesource.com/105915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    CL 79555 added TestLookupLongTXT. However, this test is
+    failing on Plan 9, because the DNS resolver (ndb/dns)
+    only returns a single TXT record.
+    
+    Updates #22857.
+    
+    Change-Id: I33cdc63a3d3de4d1c7f2684934316c44992fb9e2
+    Reviewed-on: https://go-review.googlesource.com/79695
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rsa/rsa.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/lookup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

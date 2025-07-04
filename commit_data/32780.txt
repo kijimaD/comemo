@@ -1,14 +1,25 @@
-commit 7e10a2f6f3bc509b27d02b3c5462e81798434fba
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sun Sep 3 18:18:51 2017 +0900
+commit b74f01d76f9fa6a38e9828675e21d50ff950be3b
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed May 24 17:43:08 2017 -0400
 
-    net/http: net/http: doc that prefer "must" over "should"
+    cmd/internal/dwarf: update to DWARF4, emit frame_base
     
-    See https://go-review.googlesource.com/c/go/+/59850
+    In preparation for CL 41770, upgrade .debug_info to DWARF4, and emit
+    DW_AT_frame_base on subprograms. This should make no semantic
+    difference.
     
-    Change-Id: I9f0b6bc009eae86cbbdb56562ee4eb8d5eef653e
-    Reviewed-on: https://go-review.googlesource.com/61230
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Also fix a long-standing bug/inconsistency in puttattr: it didn't
+    add the addend to ref_addrs. Previously this didn't matter because it
+    was only used for types, but now it's used for section offsets into
+    symbols that have multiple entries.
+    
+    RELNOTE=yes
+    
+    Change-Id: Ib10654ac92edfa29c5167c44133648151d70cf76
+    Reviewed-on: https://go-review.googlesource.com/44210
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/dwarf/dwarf.go      | 18 ++++++++++--------
+ src/cmd/internal/dwarf/dwarf_defs.go |  5 +++++
+ src/cmd/link/internal/ld/dwarf.go    |  2 +-
+ 3 files changed, 16 insertions(+), 9 deletions(-)

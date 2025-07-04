@@ -1,0 +1,22 @@
+commit bd80d8956f3062d2b2bff2d7da6b879dfa909f12
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 23:00:14 2025 -0500
+
+    cmd/go/internal/modfetch: do not trust server to send all tags in shallow fetch
+    
+    Newer git versions (at least git 2.47.1) do not send all the matching tags
+    for a shallow fetch of a specific hash anymore. The go command assumes
+    that git servers do this. Since that assumption is broken, use the local
+    copy of the remote refs list to augment the tags sent by the server.
+    This makes the cmd/go/internal/modfetch tests pass again with newer git.
+    
+    Fixes #71261.
+    
+    Change-Id: I9fd4f3fd7beeb68a522938599f8f3acd887d0b26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642437
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

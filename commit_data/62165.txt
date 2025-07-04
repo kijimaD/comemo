@@ -1,0 +1,23 @@
+commit 646d285d7d0f5a8b18195e3fdfce7470219175c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 23 11:27:13 2024 -0800
+
+    os: simplify Process.Release
+    
+    Consolidate release/deactivation into a single doRelease method.
+    It needs to check GOOS for backward compatibility, but it's
+    simpler to keep all the logic in one place.
+    
+    Change-Id: I242eb084d44d2682f862a8fbf55c410fb8c53358
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638580
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/exec.go         | 115 +++++++++++++++++++++----------------------------
+ src/os/exec_plan9.go   |  11 +----
+ src/os/exec_unix.go    |  25 +----------
+ src/os/exec_windows.go |  19 +++-----
+ src/os/pidfd_linux.go  |   8 ++--
+ 5 files changed, 61 insertions(+), 117 deletions(-)

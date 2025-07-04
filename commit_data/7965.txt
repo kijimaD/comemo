@@ -1,15 +1,17 @@
-commit 492039ae7fd4ac034b4d47b26b438762d59b53b9
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Mon Apr 4 15:45:03 2011 -0400
+commit 5a59b9eba31bc2f0999bf0735b66cf9c7c968944
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 4 15:40:40 2011 -0400
 
-    os: Fix MkdirAll("/thisdoesnotexist").
+    syscall: add BPF support for freebsd/386, freebsd/amd64
     
-    Fixes #1637.
-    
-    R=rsc, rh, msolo
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4317049
+    https://golang.org/cl/4331050
 
- src/pkg/os/path.go      |  2 +-
- src/pkg/os/path_test.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/pkg/syscall/mkerrors.sh              |    6 +-
+ src/pkg/syscall/types_freebsd.c          |   21 +
+ src/pkg/syscall/zerrors_freebsd_386.go   | 1806 +++++++++++++++++-------------
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 1806 +++++++++++++++++-------------
+ src/pkg/syscall/ztypes_freebsd_386.go    |   50 +
+ src/pkg/syscall/ztypes_freebsd_amd64.go  |   51 +
+ 6 files changed, 2141 insertions(+), 1599 deletions(-)

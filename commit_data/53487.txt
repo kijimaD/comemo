@@ -1,23 +1,21 @@
-commit 1c89de6a71cf5a4c6e9545582cf277bf69bf9206
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Mon Jun 5 23:47:17 2023 +0200
+commit 924f526277c4deecfeb3ff3b48095126d1bb520e
+Author: Abhinav Gupta <abg@uber.com>
+Date:   Fri Aug 12 09:20:40 2022 -0700
 
-    context: add godoc links
+    time: fix LoadLocation documentation formatting
     
-    This clarifies the ambiguity of the TODO word as raised in
-    golang/go#56625.
-    Also links the introduction text to each function.
+    The documentation for LoadLocation contains an enumerated list,
+    but does not render as such because it's missing leading spaces.
     
-    Note: linking from Context methods documentation is blocked for now by
-    golang/go#59728.
+    Output verified with the go doc command and godoc server.
     
-    Change-Id: Ie6080bd8dee3a652436b0875ddc5f452287c9493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501115
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I88b61d34048b7d01ee5cd77c32849af266e2f4c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423297
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/context/context.go | 48 ++++++++++++++++++++++++------------------------
- 1 file changed, 24 insertions(+), 24 deletions(-)
+ src/time/zoneinfo.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

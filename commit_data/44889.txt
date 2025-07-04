@@ -1,23 +1,33 @@
-commit 44dd06670f522e66e7ebfa0bffe14d2b44c93ff8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Mar 9 21:13:34 2021 +0000
+commit 95bb00d1088767ed14e3bd1a5f533a690d619a5f
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Sun Sep 13 02:12:02 2020 +0000
 
-    runtime: support register ABI Go functions from Windows callbacks
+    encoding/json: implement Is on all errors
     
-    This change modifies the system that allows Go functions to be set as
-    callbacks in various Windows systems to support the new register ABI.
+    Allows users to check:
     
-    For #40724.
+          errors.Is(err, &UnmarshalTypeError{})
+          errors.Is(err, &UnmarshalFieldError{})
+          errors.Is(err, &InvalidUnmarshalError{})
+          errors.Is(err, &UnsupportedValueError{})
+          errors.Is(err, &MarshalerError{})
     
-    Change-Id: Ie067f9e8a76c96d56177d7aa88f89cbe7223e12e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300113
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    which is the recommended way of checking for kinds of errors.
+    
+    SyntaxError.Is was implemented in CL 253037.
+    As and Unwrap relevant methods will be added in future CLs.
+    
+    Change-Id: I1f8a503b8fdc0f3afdfe9669a91f3af8d960e028
+    GitHub-Last-Rev: 930cda5384c987a0b31f277ba3b4ab690ea74ac3
+    GitHub-Pull-Request: golang/go#41360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254537
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/export_test.go          |   4 +-
- src/runtime/syscall_windows.go      | 277 ++++++++++++++++++++++++++----------
- src/runtime/syscall_windows_test.go | 105 +++++++++++++-
- 3 files changed, 305 insertions(+), 81 deletions(-)
+ src/encoding/json/decode.go      | 18 ++++++++++++++++++
+ src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
+ src/encoding/json/encode.go      | 12 ++++++++++++
+ src/encoding/json/encode_test.go | 24 +++++++++++++++++++++++-
+ 4 files changed, 84 insertions(+), 1 deletion(-)

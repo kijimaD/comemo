@@ -1,26 +1,22 @@
-commit a38a2d02d5c26adb34ec18b495a1d698517c1735
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Feb 28 14:20:44 2017 +0100
+commit d3a3b74aa1eec3417a754d798a4cad487949fa77
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Wed Aug 31 16:58:56 2016 +0200
 
-    crypto/sha512: fix checkAVX2
+    runtime: 8-byte align the heap_live field for atomic access
     
-    The checkAVX2 test doesn't appear to be correct,
-    because it always returns the value of support_bmi2,
-    even if the value of support_avx2 is false.
+    mheap_.heap_live is an atomically accessed uint64. It is currently not 8-byte
+    aligned on 32-bit platforms, which has been okay because it's only accessed via
+    Xadd64, which doesn't require alignment on 386 or ARM32. However, Xadd64 on
+    MIPS32 does require 8-byte alignment.
     
-    Consequently, checkAVX2 always returns true, as long
-    as BMI2 is supported, even if AVX2 is not supported.
+    Add a padding field to force 8-byte alignment of heap_live and prevent an
+    alignment check crash on MIPS32.
     
-    We change checkAVX2 to return false when support_avx2
-    is false.
-    
-    Fixes #19316.
-    
-    Change-Id: I2ec9dfaa09f4b54c4a03d60efef891b955d60578
-    Reviewed-on: https://go-review.googlesource.com/37590
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I7eddf7883aec7a0a7e0525af5d58ed4338a401d0
+    Reviewed-on: https://go-review.googlesource.com/31635
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/sha512/sha512block_amd64.s | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mstats.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

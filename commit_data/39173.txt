@@ -1,16 +1,20 @@
-commit 80b393e8b2f708782887e311f598526c4e6700ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 14:33:16 2019 -0400
+commit 462e90259af39af9e23c9d919e002913042c2faa
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jan 14 13:47:14 2019 -0800
 
-    cmd/dist: say 'go test .' instead of 'go test' in a few places for cleaner output
+    runtime: keep FuncForPC from crashing for PCs between functions
     
-    This just makes all.bash a bit less chatty.
+    Reuse the strict mechanism from FileLine for FuncForPC, so we don't
+    crash when asking the pcln table about bad pcs.
     
-    Change-Id: I7d2ecabf0c7d8df2065d7052718f611bb2907801
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177418
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #29735
+    
+    Change-Id: Iaffb32498b8586ecf4eae03823e8aecef841aa68
+    Reviewed-on: https://go-review.googlesource.com/c/157799
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/symtab.go        | 20 +++++++++++++++++---
+ test/fixedbugs/issue29735.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 3 deletions(-)

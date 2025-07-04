@@ -1,12 +1,16 @@
-commit 779682107fc61c694ca97151c7e4dc2d301e690e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 8 14:19:38 2014 -0800
+commit c88ba199e2cf24b6dff3d069b50d3bccda4c1552
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 28 20:19:03 2014 -0700
 
-    Fix whitespace (use blanks consistently).
+    fmt: fix documentation for %g and %G
+    It now echoes what strconv.FormatFloat says.
     
-    Change-Id: I73ecfe8f1e46e4821dafc6ed5788f48a1f0deeea
-    Reviewed-on: https://go-review.googlesource.com/1213
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #9012.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169730043
 
- test/fibo.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

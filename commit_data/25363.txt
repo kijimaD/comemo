@@ -1,21 +1,21 @@
-commit ea5b9d5bd32d1027338762372652dc6f9819a788
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 18 09:53:25 2015 -0800
+commit 46630ecd655bf6f88a8edad751ce5c5243b022f8
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Oct 23 02:57:01 2015 +1100
 
-    debug/elf: rename Chdr64.Reserved to _
+    net/http/httptest: fix comment regarding certificate expiry
     
-    This future-proofs the Chdr64 structure against later versions of ELF
-    defining this field and declutters the documentation without changing
-    the layout of the struct.
+    In earlier versions of Go, times were only encoded as an ASN.1 UTCTIME and
+    crypto/tls/generate_cert.go limited times to the maximum UTCTIME value.
+    Revision 050b60a3 added support for ASN.1 GENERALIZEDTIME, allowing larger
+    time values to be represented (per RFC 5280).
     
-    This structure does not exist in the current release, so this change
-    is safe.
+    As a result, when the httptest certificate was regenerated in revision
+    9b2d84ef, the Not After date changed to Jan 29 16:00:00 2084 GMT. Update
+    the comment to reflect this.
     
-    Change-Id: I239aad7243ddaf063a1f8cd521d8a50b30413281
-    Reviewed-on: https://go-review.googlesource.com/18028
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1bd66e011f2749f9372b5c7506f52ea34e264ce9
+    Reviewed-on: https://go-review.googlesource.com/16193
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- api/go1.6.txt        | 1 -
- src/debug/elf/elf.go | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/net/http/httptest/server.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

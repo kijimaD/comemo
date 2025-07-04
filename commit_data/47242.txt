@@ -1,38 +1,23 @@
-commit 00d6d2037ee1bf4b6959219120b79b7c01244b02
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 29 17:41:41 2021 -0400
+commit 80098ef00c1c8a832b2d67d7cbd4dea5f8eff6e9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 14:40:50 2021 +0700
 
-    cmd/doc, go/doc: add basic support for generic code
+    cmd/compile: don't expand invalid embedded interface
     
-    Update cmd/doc and go/doc for the generics, by adding handling for type
-    parameters and the new embedded interface elements.
+    The invalid interface type will be reported already, so don't expand
+    that invalid one, which causes the compiler crashes.
     
-    Specifically:
-     - Format type parameters when summarizing type and function nodes.
-     - Find the origin type name for instantiation expressions, so that
-       methods are associated with generic type declarations.
-     - Generalize the handling of embedding 'error' in interfaces to
-       arbitrary predeclared types.
-     - Keep embedded type literals.
-     - Update filtering to descend into embedded type literals.
+    Updates #43311
     
-    Also add "any" to the list of predeclared types.
-    
-    Updates #49210
-    
-    Change-Id: I6ea82869f19c3cdbc3c842f01581c8fc7e1c2ee7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359778
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ic335cfa74f0b9fcfd0929dc5fd31d9156a8f5f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298710
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/doc/pkg.go                    | 21 +++++++++--
- src/go/doc/exports.go                 | 58 ++++++++++++++++++++---------
- src/go/doc/filter.go                  |  2 +
- src/go/doc/reader.go                  | 29 ++++++++++-----
- src/go/doc/testdata/generics.0.golden | 70 +++++++++++++++++++++++++++++++++++
- src/go/doc/testdata/generics.1.golden | 60 ++++++++++++++++++++++++++++++
- src/go/doc/testdata/generics.2.golden | 70 +++++++++++++++++++++++++++++++++++
- src/go/doc/testdata/generics.go       | 61 ++++++++++++++++++++++++++++++
- 8 files changed, 339 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/types/size.go | 2 +-
+ test/fixedbugs/issue20245.go           | 2 +-
+ test/fixedbugs/issue22921.go           | 2 +-
+ test/fixedbugs/issue27938.go           | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

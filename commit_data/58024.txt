@@ -1,31 +1,38 @@
-commit 9489a2c9a7a5b9364824e8fb342209d8121f05ff
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 3 13:05:57 2024 +0100
+commit be11422b1ec46fb69b387ef29a521ed42621fe3d
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 18 15:51:04 2023 -0400
 
-    crypto/internal/impl: use base package name
+    net/http: index patterns for faster conflict detection
     
-    Otherwise we risk using crypto/aes in one place and
-    crypto/internal/fips/aes in another.
+    Add an index so that pattern registration isn't always quadratic.
     
-    Change-Id: I8f498c9457875a9a11c4576281432b5b1c0278c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624737
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    If there were no index, then every pattern that was registered would
+    have to be compared to every existing pattern for conflicts. This
+    would make registration quadratic in the number of patterns, in every
+    case.
+    
+    The index in this CL should help most of the time. If a pattern has a
+    literal segment, it will weed out all other patterns that have a
+    different literal in that position.
+    
+    The worst case will still be quadratic, but it is unlikely that a set
+    of such patterns would arise naturally.
+    
+    One novel (to me) aspect of the CL is the use of fuzz testing on data
+    that is neither a string nor a byte slice. The test uses fuzzing to
+    generate a byte slice, then decodes the byte slice into a valid
+    pattern (most of the time). This test actually caught a bug: see
+    https://go.dev/cl/529119.
+    
+    Change-Id: Ice0be6547decb5ce75a8062e4e17227815d5d0b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529121
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- .../internal/fips/sha256/sha256block_amd64.go      |  4 ++--
- .../internal/fips/sha256/sha256block_arm64.go      |  2 +-
- .../internal/fips/sha256/sha256block_ppc64x.go     |  2 +-
- .../internal/fips/sha256/sha256block_s390x.go      |  2 +-
- src/crypto/internal/fips/sha3/sha3_s390x.go        |  2 +-
- src/crypto/internal/fips/sha3/sha3_test.go         | 22 +++++++++++-----------
- .../internal/fips/sha512/sha512block_amd64.go      |  2 +-
- .../internal/fips/sha512/sha512block_arm64.go      |  2 +-
- .../internal/fips/sha512/sha512block_ppc64x.go     |  2 +-
- .../internal/fips/sha512/sha512block_s390x.go      |  2 +-
- src/crypto/internal/impl/impl.go                   |  7 ++++++-
- src/crypto/sha256/sha256_test.go                   |  8 ++++----
- src/crypto/sha512/sha512_test.go                   | 12 ++++++------
- src/go/build/deps_test.go                          |  2 +-
- 14 files changed, 38 insertions(+), 33 deletions(-)
+ src/net/http/routing_index.go                      | 124 ++++++++++++
+ src/net/http/routing_index_test.go                 | 207 +++++++++++++++++++++
+ src/net/http/server.go                             |  20 +-
+ .../http/testdata/fuzz/FuzzIndex/48161038f0c8b2da  |   2 +
+ .../http/testdata/fuzz/FuzzIndex/716514f590ce7ab3  |   2 +
+ 5 files changed, 346 insertions(+), 9 deletions(-)

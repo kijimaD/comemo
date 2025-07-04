@@ -1,32 +1,12 @@
-commit 8e0ec5ec09f92464730f89ff1f05e847b881a58a
-Author: Nikhil Benesch <nikhil.benesch@gmail.com>
-Date:   Fri Nov 9 00:55:13 2018 -0500
+commit 1de44474c02be548b11ce50d2e65fa015acfd1fc
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 16:49:23 2018 -0400
 
-    runtime: ensure m.p is never stale
+    doc: update go1.11 release notes
     
-    When a goroutine enters a syscall, its M unwires from its P to allow
-    the P to be retaken by another M if the syscall is slow. The M retains a
-    reference to its old P, however, so that if its old P has not been
-    retaken when the syscall returns, it can quickly reacquire that P.
-    
-    The implementation, however, was confusing, as it left the reference to
-    the potentially-retaken P in m.p, which implied that the P was still
-    wired.
-    
-    Make the code clearer by enforcing the invariant that m.p is never
-    stale. entersyscall now moves m.p to m.oldp and sets m.p to 0;
-    exitsyscall does the reverse, provided m.oldp has not been retaken.
-    
-    With this scheme in place, the issue described in #27660 (assertion
-    failures in the race detector) would have resulted in a clean segfault
-    instead of silently corrupting memory.
-    
-    Change-Id: Ib3e03623ebed4f410e852a716919fe4538858f0a
-    Reviewed-on: https://go-review.googlesource.com/c/148899
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3e2a19fe90334f0c1ed1593c7a9a3a458f15d8e8
+    Reviewed-on: https://go-review.googlesource.com/124799
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/proc.go     | 52 ++++++++++++++++++++++---------------------------
- src/runtime/runtime2.go |  1 +
- 2 files changed, 24 insertions(+), 29 deletions(-)
+ doc/go1.11.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

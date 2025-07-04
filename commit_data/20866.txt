@@ -1,15 +1,13 @@
-commit 1340c6d59303e0acaab6a50cb39a7c978e25f11b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 7 08:19:19 2014 -0800
+commit e5383c68544236bbf41628ef8a3460676e0aec2a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Oct 21 10:02:33 2014 +1100
 
-    cmd/go: disable warnings from cmd/cc when building for SWIG
-    
-    Fixes #9065.
+    debug/pe: use appropriate type for sizeofOptionalHeader32
     
     LGTM=rsc
-    R=rsc, misch
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/171270043
+    https://golang.org/cl/157220043
 
- src/cmd/go/build.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/debug/pe/file.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,32 +1,16 @@
-commit 73dd74a9fe5a000123c0ef47ce5e0dbea1907d41
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 2 17:45:57 2020 -0400
+commit c6fea80b9582d7c4f86bf88b404ac6ebb33359fd
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 26 13:39:04 2019 -0500
 
-    cmd/internal/goobj2: add referenced symbol names to object file
+    [dev.link] cmd/link: add SymVersion loader method
     
-    Currently, for symbols defined in other packages and referenced
-    by index, we don't record its name in the object file, as the
-    linker doesn't need the name, only the index. As a consequence,
-    tools like objdump and nm also don't know the referenced symbol
-    names and cannot dump it properly.
+    Add a loader method to retrieve the version from a loader.Sym
+    (useful mainly for debugging at the moment).
     
-    This CL adds referenced symbol names to the object file. So the
-    object file is self-contained. And tools can retrieve referenced
-    symbol names properly.
-    
-    Tools now should work as good for new object files as for old
-    object files.
-    
-    Fixes #38875.
-    
-    Change-Id: I16c685c1fd83273ab1faef474e19acf4af46396f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236168
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I82e0e316bb86eb41b9cf366e656a0f848cf3424e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212617
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/goobj/readnew.go      | 12 +++++---
- src/cmd/internal/goobj2/objfile.go     | 53 ++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/objfile2.go       | 39 +++++++++++++++++++++++++
- src/cmd/link/internal/loader/loader.go |  2 +-
- 4 files changed, 101 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

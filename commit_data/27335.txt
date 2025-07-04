@@ -1,57 +1,19 @@
-commit feb6131b1a4c0da098821c516e06499add886182
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 26 21:50:59 2016 -0400
+commit e41f527f4d56a94b33ab73efaae3575760916194
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Mar 16 21:29:17 2016 -0500
 
-    cmd/compile: add -linkobj flag to allow writing object file in two parts
+    cmd/compile: allow inlining of functions with switch statements
     
-    This flag is experimental and the semantics may change
-    even after Go 1.7 is released. There are no changes to code
-    not using the flag.
+    Allow inlining of functions with switch statements as long as they don't
+    contain a break or type switch.
     
-    The first part is for reading by future compiles.
-    The second part is for reading by the final link step.
-    Splitting the file this way allows distributed build systems
-    to ship the compile-input part only to compile steps and
-    the linker-input part only to linker steps.
+    Fixes #13071
     
-    The first part is basically just the export data,
-    and the second part is basically everything else.
-    The overall files still have the same broad structure,
-    so that existing tools will work with both halves.
-    It's just that various pieces are empty in the two halves.
-    
-    This also copies the two bits of data the linker needed from
-    export data into the object header proper, so that the linker
-    doesn't need any export data at all. That eliminates a TODO
-    that was left for switching to the binary export data.
-    (Now the linker doesn't need to know about the switch.)
-    
-    The default is still to write out a combined output file.
-    Nothing changes unless you pass -linkobj to the compiler.
-    There is no support in the go command for -linkobj,
-    since the go command doesn't copy objects around.
-    The expectation is that other build systems (like bazel, say)
-    might take advantage of this.
-    
-    The header adjustment and the option for the split output
-    was intended as part of the zip archives, but the zip archives
-    have been cut from Go 1.7. Doing this to the current archives
-    both unblocks one step in the switch to binary export data
-    and enables alternate build systems to experiment with the
-    new flag using the Go 1.7 release.
-    
-    Change-Id: I8b6eab25b8a22b0a266ba0ac6d31e594f3d117f3
-    Reviewed-on: https://go-review.googlesource.com/22500
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I057be351ea4584def1a744ee87eafa5df47a7f6d
+    Reviewed-on: https://go-review.googlesource.com/20824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/doc.go              |   7 +-
- src/cmd/compile/internal/gc/go.go   |   1 +
- src/cmd/compile/internal/gc/main.go |   3 +-
- src/cmd/compile/internal/gc/obj.go  |  62 ++++++++++++++-
- src/cmd/link/internal/ld/go.go      |  82 +++++--------------
- src/debug/gosym/pclntab_test.go     |  16 ++++
- test/linkobj.go                     | 155 ++++++++++++++++++++++++++++++++++++
- 7 files changed, 260 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go |  2 +-
+ src/cmd/compile/internal/gc/inl.go |  3 ++-
+ test/inline.go                     | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 2 deletions(-)

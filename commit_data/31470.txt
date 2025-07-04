@@ -1,30 +1,35 @@
-commit a93e9f0fad01c0be444d89d1e46d1d357128b4bc
+commit 005c77dde89d6a062c021a3ed0e180a6848d82b4
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 2 05:35:55 2017 -0700
+Date:   Wed Feb 22 00:05:18 2017 -0800
 
-    cmd/dist: spin up fewer test dir runners
+    cmd/compile: add -dolinkobj flag
     
-    5 shards, each of which spins up NumCPU processes,
-    each of which is running at GOMAXPROCS=NumCPU,
-    is too much for one machine. It makes my laptop unusable.
+    When set to false, the -dolinkobj flag instructs the compiler
+    not to generate or emit linker information.
     
-    It might also be in part responsible for test flakes
-    that require a moderately responsive system,
-    like #18589 (backedge scheduling) and #19276 (locklinear).
+    This is handy when you need the compiler's export data,
+    e.g. for use with go/importer,
+    but you want to avoid the cost of full compilation.
     
-    It's possible that Go should be a better neighbor in general;
-    that's #17969. In the meantime, fix this corner of the world.
+    This must be used with care, since the resulting
+    files are unusable for linking.
     
-    Builders snapshot the world and run shards on different
-    machines, so keeping sharding high for them is good.
+    This CL interacts with #18369,
+    where adding gcflags and ldflags to buildid has been mooted.
+    On the one hand, adding gcflags would make safe use of this
+    flag easier, since if the full object files were needed,
+    a simple 'go install' would fix it.
+    On the other hand, this would mean that
+    'go install -gcflags=-dolinkobj=false' would rebuild the object files,
+    although any existing object files would probably suffice.
     
-    This is a partial reversion of CL 18199.
-    
-    Fixes #20141.
-    
-    Change-Id: I123cf9436f4f4da3550372896265c38117b78071
-    Reviewed-on: https://go-review.googlesource.com/42431
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8dc75ab5a40095c785c1a4d2260aeb63c4d10f73
+    Reviewed-on: https://go-review.googlesource.com/37384
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  1 +
+ src/cmd/compile/internal/gc/main.go | 55 +++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/obj.go  | 10 +++++--
+ 3 files changed, 37 insertions(+), 29 deletions(-)

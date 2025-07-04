@@ -1,46 +1,44 @@
-commit 0e9f8a21f8b6534931f1ab50909161a289a0da3c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 14 10:09:08 2018 -0700
+commit fb4fb0430b8d77b5487f51fd780bba25476e816c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 13 15:54:42 2018 +0200
 
-    runtime,cmd/compile: pass strings and slices to convT2{E,I} by value
+    syscall: check Fchmodat flags parameter on Linux
     
-    When we pass these types by reference, we usually have to allocate
-    temporaries on the stack, initialize them, then pass their address
-    to the conversion functions. It's simpler to pass these types
-    directly by value.
+    As mentioned in #25845, port CL 46474 from golang.org/x/sys/unix to the
+    syscall package.
     
-    This particularly applies to conversions needed for fmt.Printf
-    (to interface{} for constructing a [...]interface{}).
+    Currently Linux' fchmodat(2) syscall implementation doesn't support the
+    flags parameter (though it might in future versions [1]). Fchmodat in
+    the syscall package takes the parameter and (wrongly) passes it on to the
+    syscall which will ignore it.
     
-    func f(a, b, c string) {
-         fmt.Printf("%s %s\n", a, b)
-         fmt.Printf("%s %s\n", b, c)
-    }
+    According to the POSIX.1-2008 manual page [2], AT_SYMLINK_NOFOLLOW is
+    the only valid value for the flags parameter and EOPNOTSUPP should be
+    returned in case changing the mode of a symbolic link is not supported
+    by the underlying system. EINVAL should be returned for any other value
+    of the flags parameter.
     
-    This function's stack frame shrinks from 200 to 136 bytes, and
-    its code shrinks from 535 to 453 bytes.
+      [1] https://patchwork.kernel.org/patch/9596301/
+      [2] http://pubs.opengroup.org/onlinepubs/9699919799/functions/chmod.html
     
-    The go binary shrinks 0.3%.
+    Updates #20130
+    Updates #25845
     
-    Update #24286
-    
-    Aside: for this function f, we don't really need to allocate
-    temporaries for the convT2E function. We could use the address
-    of a, b, and c directly. That might get similar (or maybe better?)
-    improvements. I investigated a bit, but it seemed complicated
-    to do it safely. This change was much easier.
-    
-    Change-Id: I78cbe51b501fb41e1e324ce4203f0de56a1db82d
-    Reviewed-on: https://go-review.googlesource.com/c/135377
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I1021dd0e6a4f4cb3557cb1c1b34dd618c378cda6
+    Reviewed-on: https://go-review.googlesource.com/118658
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  8 ++--
- src/cmd/compile/internal/gc/builtin/runtime.go |  8 ++--
- src/cmd/compile/internal/gc/order.go           | 13 ++++--
- src/cmd/compile/internal/gc/walk.go            |  8 ++--
- src/runtime/iface.go                           | 58 ++++++++------------------
- test/fixedbugs/issue20250.go                   |  4 +-
- test/live.go                                   |  8 ++--
- 7 files changed, 45 insertions(+), 62 deletions(-)
+ src/syscall/syscall_linux.go           | 15 +++++++-
+ src/syscall/syscall_linux_test.go      | 63 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_386.go      | 30 ++++++++--------
+ src/syscall/zsyscall_linux_amd64.go    | 30 ++++++++--------
+ src/syscall/zsyscall_linux_arm.go      | 30 ++++++++--------
+ src/syscall/zsyscall_linux_arm64.go    | 30 ++++++++--------
+ src/syscall/zsyscall_linux_mips.go     | 30 ++++++++--------
+ src/syscall/zsyscall_linux_mips64.go   | 30 ++++++++--------
+ src/syscall/zsyscall_linux_mips64le.go | 30 ++++++++--------
+ src/syscall/zsyscall_linux_mipsle.go   | 30 ++++++++--------
+ src/syscall/zsyscall_linux_ppc64.go    | 30 ++++++++--------
+ src/syscall/zsyscall_linux_ppc64le.go  | 30 ++++++++--------
+ src/syscall/zsyscall_linux_s390x.go    | 30 ++++++++--------
+ 13 files changed, 242 insertions(+), 166 deletions(-)

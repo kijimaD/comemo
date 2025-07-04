@@ -1,31 +1,26 @@
-commit 2dfff3633b839a913bd2f427cd362ab07194b052
-Author: lukechampine <luke.champine@gmail.com>
-Date:   Fri Sep 20 17:25:07 2019 +0000
+commit e4665da9bcdd4e9136c7ed97ab4253def130b89d
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 15:02:31 2019 +0200
 
-    crypto/ed25519: outline NewKeyFromSeed and Sign
+    cmd/go/internal/work: make toolchain builds reproducible when buildmode=pie
     
-    This allows the returned key/signature to be stack-allocated where possible.
+    When buildmode=pie, external linking is forced, and our toolchain build id
+    will be included in the external build id, resulting in the building of
+    a toolchain tool will never reach a fixed point id.
     
-    name              old time/op    new time/op    delta
-    NewKeyFromSeed-4    61.8µs ± 8%    57.2µs ±11%      ~     (p=0.056 n=5+5)
-    Signing-4           56.6µs ± 3%    67.8µs ±38%      ~     (p=1.000 n=5+5)
+    More importantly, this change will make make.bash converge on self-hosted
+    Android builds (Android refuses to run non-PIE executables).
     
-    name              old alloc/op   new alloc/op   delta
-    NewKeyFromSeed-4     64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    Signing-4             512B ± 0%      448B ± 0%   -12.50%  (p=0.008 n=5+5)
+    Fixes #31320
+    Updates #18968
     
-    name              old allocs/op  new allocs/op  delta
-    NewKeyFromSeed-4      1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    Signing-4             6.00 ± 0%      5.00 ± 0%   -16.67%  (p=0.008 n=5+5)
-    
-    Change-Id: I7dc6a1b8a483c4b213f380ac7c30cefc5caca0f9
-    GitHub-Last-Rev: 0dd2e0f93e9cd1410760544be638238f18fa5cd4
-    GitHub-Pull-Request: golang/go#34357
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195980
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Icb5db9f4b1b688afe37f4dafe261ffda580fa4e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170942
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/ed25519/ed25519.go      | 21 +++++++++++++++------
- src/crypto/ed25519/ed25519_test.go |  9 +++++++++
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/gc.go     | 9 ++++++++-
+ src/cmd/internal/sys/supported.go  | 8 ++++++++
+ src/cmd/link/internal/ld/config.go | 4 ++--
+ 3 files changed, 18 insertions(+), 3 deletions(-)

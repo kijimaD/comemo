@@ -1,18 +1,22 @@
-commit a29dd1f2bd0ee0048f03782ba67034a0441a147e
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun Oct 18 09:49:16 2020 -0700
+commit 6435590182bb06f12c5caae749855390a981a37f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 2 14:20:23 2020 -0400
 
-    net: add Example for Unix dialer with context
+    [dev.link] cmd/oldlink: update with recent changes
     
-    Showing users how to accomplish this more easily is a compromise
-    between doing nothing and adding a new API to the net package.
+    Update the old linker to bring in recent changes made on the
+    master branch: CL 225397 and CL 220917.
     
-    Fixes #38506.
+    This brings cmd/oldlink to be in sync with commit
+    aa4d92b8aab63c847ab077417b809694a2a6ea81.
     
-    Change-Id: I43f831cf94951c987cf3c8c1aa55f0012ee8034e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263417
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic386736fa30944dcb71c57096915381d3e6be82c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227028
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/example_test.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/oldlink/internal/arm64/l.go | 2 +-
+ src/cmd/oldlink/internal/ld/link.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

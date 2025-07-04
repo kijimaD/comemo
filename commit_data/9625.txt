@@ -1,12 +1,12 @@
-commit ede613ac22073160830ddfe797dee0e808368cf7
+commit 8953c5ccc512d97929de73c13b4b192a9c1359dd
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 8 10:03:27 2011 +1000
+Date:   Thu Sep 8 09:45:47 2011 +1000
 
-    doc: fix date in weekly snapshot history
+    tag weekly.2011-09-07
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4978057
+    https://golang.org/cl/4991043
 
- doc/devel/weekly.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

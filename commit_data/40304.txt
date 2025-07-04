@@ -1,22 +1,17 @@
-commit 5375c71289917ac7b25c6fa4bb0f4fa17be19a07
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Wed Oct 16 16:05:24 2019 -0700
+commit e5f0d144f96c24f9244590a5414c402a10a1aba0
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed May 1 14:43:16 2019 -0400
 
-    net/http/httptest: add EnableHTTP2 to Server
+    cmd/go/internal/web: fix log message
     
-    Adds a knob EnableHTTP2, that enables an unstarted
-    Server and its respective client to speak HTTP/2,
-    but only after StartTLS has been invoked.
+    The web package is now used for proxy fetches, so its logs shouldn't
+    start with "Parsing meta tags".
     
-    Fixes #34939
-    
-    Change-Id: I287c568b8708a4d3c03e7d9eca7c323b8f4c65b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201557
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I22a7dce09e3a681544ee4b860f93c63336e547ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174740
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httptest/example_test.go | 22 +++++++++++++++++++++
- src/net/http/httptest/server.go       | 12 +++++++++++-
- src/net/http/httptest/server_test.go  | 36 +++++++++++++++++++++++++++++++++++
- 3 files changed, 69 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/web/http.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

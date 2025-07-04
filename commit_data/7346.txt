@@ -1,13 +1,30 @@
-commit 274d095121d33b8d1ccf9848f5db8c7288e478eb
+commit 1e063b32cdeaa6e07c8e720823ec5d280145cbcd
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 3 00:36:24 2011 -0500
+Date:   Wed Feb 2 23:03:47 2011 -0500
 
-    A+C: add Christopher Nielsen (individual CLA)
+    runtime: faster allocator, garbage collector
     
-    R=golang-dev, r2
+    GC is still single-threaded.
+    Multiple threads will happen in another CL.
+    
+    Garbage collection pauses are typically
+    about half as long as they were before this CL.
+    
+    R=brainman, iant, r
     CC=golang-dev
-    https://golang.org/cl/3989061
+    https://golang.org/cl/3975046
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/debug.go      |   3 +-
+ src/pkg/runtime/iface.c       |   4 +-
+ src/pkg/runtime/malloc.goc    | 177 +++++-----
+ src/pkg/runtime/malloc.h      |  43 +--
+ src/pkg/runtime/mcentral.c    |  25 +-
+ src/pkg/runtime/mfinal.c      |  14 +-
+ src/pkg/runtime/mgc0.c        | 727 ++++++++++++++++++++++++++++++++----------
+ src/pkg/runtime/mheap.c       |  15 +-
+ src/pkg/runtime/mprof.goc     |   6 +-
+ src/pkg/runtime/msize.c       |   7 +-
+ src/pkg/runtime/slice.c       |   2 +-
+ src/pkg/runtime/string.goc    |   4 +-
+ src/pkg/runtime/windows/mem.c |   2 +-
+ 13 files changed, 714 insertions(+), 315 deletions(-)

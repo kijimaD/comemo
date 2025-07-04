@@ -1,15 +1,29 @@
-commit 1eed2a5ab299807341af05eca2a829d95f08c6e8
-Author: Fedor Korotkiy <dartslon@gmail.com>
-Date:   Thu Feb 28 15:35:30 2019 +0300
+commit 6fff980cf1f9af9f4b11e7fc7ead4987cc5fc560
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 26 14:33:32 2018 -0800
 
-    cmd/go: PackageVetx in vet.cfg should list only immediate dependencies.
+    cmd/compile: initialize sparse slice literals dynamically
     
-    Updates #30296
+    When a slice composite literal is sparse, initialize it dynamically
+    instead of statically.
     
-    Change-Id: Ifea1a4c82c1c5b31fdc2e96fdbb1274748c8f50e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164459
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    s := []int{5:5, 20:20}
+    
+    To initialize the backing store for s, use 2 constant writes instead
+    of copying from a static array with 21 entries.
+    
+    This CL also fixes pathologies in the compiler when the slice is
+    *very* sparse.
+    
+    Fixes #23780
+    
+    Change-Id: Iae95c6e6f6a0e2994675cbc750d7a4dd6436b13b
+    Reviewed-on: https://go-review.googlesource.com/c/151319
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/action.go      |  2 +-
- src/cmd/go/testdata/script/vet_deps.txt | 34 +++++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go  | 11 ++++++++++-
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ test/fixedbugs/issue23780.go          | 17 +++++++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

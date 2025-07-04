@@ -1,19 +1,94 @@
-commit 6eae03e136f031649683d359a0879f6d6ae5e023
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Oct 20 09:48:24 2016 -0700
+commit 14e59511661303ab1406f7c21ee27e58bcd0750e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jun 27 12:23:39 2016 +0200
 
-    net/http: drop custom tls.Config cloning code.
+    runtime: increase malloc size classes
     
-    Now that we have the Clone method on tls.Config, net/http doesn't need
-    any custom functions to do that any more.
+    When we calculate class sizes, in some cases we discard considerable
+    amounts of memory without an apparent reason. For example, we choose
+    size 8448 with 6 objects in 7 pages. But we can well use object
+    size 9472, which is also 6 objects in 7 pages but +1024 bytes (+12.12%).
     
-    Change-Id: Ib60707d37f1a7f9a7d7723045f83e59eceffd026
-    Reviewed-on: https://go-review.googlesource.com/31595
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Increase class sizes to the max value that leads to the same
+    page count/number of objects. Full list of affected size classes:
+    
+    class 36: pages: 2 size: 1664->1792 +128 (7.69%)
+    class 39: pages: 1 size: 2560->2688 +128 (5.0%)
+    class 40: pages: 3 size: 2816->3072 +256 (9.9%)
+    class 41: pages: 2 size: 3072->3200 +128 (4.16%)
+    class 42: pages: 3 size: 3328->3456 +128 (3.84%)
+    class 44: pages: 3 size: 4608->4864 +256 (5.55%)
+    class 47: pages: 4 size: 6400->6528 +128 (2.0%)
+    class 48: pages: 5 size: 6656->6784 +128 (1.92%)
+    class 51: pages: 7 size: 8448->9472 +1024 (12.12%)
+    class 52: pages: 6 size: 8704->9728 +1024 (11.76%)
+    class 53: pages: 5 size: 9472->10240 +768 (8.10%)
+    class 54: pages: 4 size: 10496->10880 +384 (3.65%)
+    class 57: pages: 7 size: 14080->14336 +256 (1.81%)
+    class 59: pages: 9 size: 16640->18432 +1792 (10.76%)
+    class 60: pages: 7 size: 17664->19072 +1408 (7.97%)
+    class 62: pages: 8 size: 21248->21760 +512 (2.40%)
+    class 64: pages: 10 size: 24832->27264 +2432 (9.79%)
+    class 65: pages: 7 size: 28416->28672 +256 (0.90%)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.59s ± 5%     2.52s ± 4%    ~     (p=0.132 n=6+6)
+    Fannkuch11-12                2.13s ± 3%     2.17s ± 3%    ~     (p=0.180 n=6+6)
+    FmtFprintfEmpty-12          47.0ns ± 3%    46.6ns ± 1%    ~     (p=0.355 n=6+5)
+    FmtFprintfString-12          131ns ± 0%     131ns ± 1%    ~     (p=0.476 n=4+6)
+    FmtFprintfInt-12             121ns ± 6%     122ns ± 2%    ~     (p=0.511 n=6+6)
+    FmtFprintfIntInt-12          182ns ± 2%     186ns ± 1%  +2.20%  (p=0.015 n=6+6)
+    FmtFprintfPrefixedInt-12     184ns ± 5%     181ns ± 2%    ~     (p=0.645 n=6+6)
+    FmtFprintfFloat-12           272ns ± 7%     265ns ± 1%    ~     (p=1.000 n=6+5)
+    FmtManyArgs-12               783ns ± 2%     802ns ± 2%  +2.38%  (p=0.017 n=6+6)
+    GobDecode-12                7.04ms ± 4%    7.00ms ± 2%    ~     (p=1.000 n=6+6)
+    GobEncode-12                6.36ms ± 6%    6.17ms ± 6%    ~     (p=0.240 n=6+6)
+    Gzip-12                      242ms ±14%     233ms ± 7%    ~     (p=0.310 n=6+6)
+    Gunzip-12                   36.6ms ±22%    36.0ms ± 9%    ~     (p=0.841 n=5+5)
+    HTTPClientServer-12         93.1µs ±29%    88.0µs ±32%    ~     (p=0.240 n=6+6)
+    JSONEncode-12               27.1ms ±39%    26.2ms ±35%    ~     (p=0.589 n=6+6)
+    JSONDecode-12               71.7ms ±36%    71.5ms ±36%    ~     (p=0.937 n=6+6)
+    Mandelbrot200-12            4.78ms ±10%    4.70ms ±16%    ~     (p=0.394 n=6+6)
+    GoParse-12                  4.86ms ±34%    4.95ms ±36%    ~     (p=1.000 n=6+6)
+    RegexpMatchEasy0_32-12       110ns ±37%     110ns ±36%    ~     (p=0.660 n=6+6)
+    RegexpMatchEasy0_1K-12       240ns ±38%     234ns ±47%    ~     (p=0.554 n=6+6)
+    RegexpMatchEasy1_32-12      77.2ns ± 2%    77.2ns ±10%    ~     (p=0.699 n=6+6)
+    RegexpMatchEasy1_1K-12       337ns ± 5%     331ns ± 4%    ~     (p=0.552 n=6+6)
+    RegexpMatchMedium_32-12      125ns ±13%     132ns ±26%    ~     (p=0.561 n=6+6)
+    RegexpMatchMedium_1K-12     35.9µs ± 3%    36.1µs ± 5%    ~     (p=0.818 n=6+6)
+    RegexpMatchHard_32-12       1.81µs ± 4%    1.82µs ± 5%    ~     (p=0.452 n=5+5)
+    RegexpMatchHard_1K-12       52.4µs ± 2%    54.4µs ± 3%  +3.84%  (p=0.002 n=6+6)
+    Revcomp-12                   401ms ± 2%     390ms ± 1%  -2.82%  (p=0.002 n=6+6)
+    Template-12                 54.5ms ± 3%    54.6ms ± 1%    ~     (p=0.589 n=6+6)
+    TimeParse-12                 294ns ± 1%     298ns ± 2%    ~     (p=0.160 n=6+6)
+    TimeFormat-12                323ns ± 4%     318ns ± 5%    ~     (p=0.297 n=6+6)
+    
+    name                      old speed      new speed      delta
+    GobDecode-12               109MB/s ± 4%   110MB/s ± 2%    ~     (p=1.000 n=6+6)
+    GobEncode-12               121MB/s ± 6%   125MB/s ± 6%    ~     (p=0.240 n=6+6)
+    Gzip-12                   80.4MB/s ±12%  83.3MB/s ± 7%    ~     (p=0.310 n=6+6)
+    Gunzip-12                  495MB/s ±41%   541MB/s ± 9%    ~     (p=0.931 n=6+5)
+    JSONEncode-12             80.7MB/s ±39%  82.8MB/s ±34%    ~     (p=0.589 n=6+6)
+    JSONDecode-12             30.4MB/s ±40%  31.0MB/s ±37%    ~     (p=0.937 n=6+6)
+    GoParse-12                13.2MB/s ±33%  13.2MB/s ±35%    ~     (p=1.000 n=6+6)
+    RegexpMatchEasy0_32-12     321MB/s ±34%   326MB/s ±34%    ~     (p=0.699 n=6+6)
+    RegexpMatchEasy0_1K-12    4.49GB/s ±31%  4.74GB/s ±37%    ~     (p=0.589 n=6+6)
+    RegexpMatchEasy1_32-12     414MB/s ± 2%   415MB/s ± 9%    ~     (p=0.699 n=6+6)
+    RegexpMatchEasy1_1K-12    3.03GB/s ± 5%  3.09GB/s ± 4%    ~     (p=0.699 n=6+6)
+    RegexpMatchMedium_32-12   7.99MB/s ±12%  7.68MB/s ±22%    ~     (p=0.589 n=6+6)
+    RegexpMatchMedium_1K-12   28.5MB/s ± 3%  28.4MB/s ± 5%    ~     (p=0.818 n=6+6)
+    RegexpMatchHard_32-12     17.7MB/s ± 4%  17.0MB/s ±15%    ~     (p=0.351 n=5+6)
+    RegexpMatchHard_1K-12     19.6MB/s ± 2%  18.8MB/s ± 3%  -3.67%  (p=0.002 n=6+6)
+    Revcomp-12                 634MB/s ± 2%   653MB/s ± 1%  +2.89%  (p=0.002 n=6+6)
+    Template-12               35.6MB/s ± 3%  35.5MB/s ± 1%    ~     (p=0.615 n=6+6)
+    
+    Change-Id: I465a47f74227f316e3abea231444f48c7a30ef85
+    Reviewed-on: https://go-review.googlesource.com/24493
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/tls/common.go   |  8 ++++++--
- src/crypto/tls/tls_test.go |  4 ++++
- src/net/http/transport.go  | 48 ++++------------------------------------------
- 3 files changed, 14 insertions(+), 46 deletions(-)
+ src/runtime/malloc.go | 10 ++++-----
+ src/runtime/msize.go  | 61 +++++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 49 insertions(+), 22 deletions(-)

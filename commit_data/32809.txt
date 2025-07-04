@@ -1,21 +1,19 @@
-commit 83f0af1742db6830a5b3124bbef7f6d2bf2a1ddf
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Sep 12 22:51:17 2017 +0200
+commit a4ee95c805fb77e594603bcd62d7858dc9e853ab
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon May 1 14:27:36 2017 -0500
 
-    cmd/compile: remove a few unnecessary gotos
+    runtime: avoid division in gc
     
-    Rework the logic to remove them. These were the low hanging fruit,
-    with labels that were used only once and logic that was fairly
-    straightforward.
+    Replace int division with (cheaper) byte division in heapBitsSetType.
+    Provides noticeable speed-up:
     
-    Change-Id: I02a01c59c247b8b2972d8d73ff23f96f271de038
-    Reviewed-on: https://go-review.googlesource.com/63410
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    GrowSlicePtr-6   181ns ± 3%   169ns ± 3%  -6.85%  (p=0.000 n=10+10)
+    
+    Change-Id: I4064bb72e8e692023783b8f58d19491844c39382
+    Reviewed-on: https://go-review.googlesource.com/42290
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/reflect.go   | 20 +++++++++-----------
- src/cmd/compile/internal/gc/subr.go      |  4 ++--
- src/cmd/compile/internal/gc/typecheck.go |  6 +++---
- src/cmd/compile/internal/gc/walk.go      | 13 +++++--------
- 4 files changed, 19 insertions(+), 24 deletions(-)
+ src/runtime/mbitmap.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

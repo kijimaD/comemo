@@ -1,0 +1,20 @@
+commit e988d6c423209864a2e00f333fe66cbddce4ccf1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 26 15:39:14 2024 -0400
+
+    cmd/cgo/internal/testsanitizers: add test case for #66427
+    
+    The added program fails consistently with "signal handler spoils
+    errno" error under TSAN.
+    
+    For #66427.
+    
+    Change-Id: Id57b9e62aa30b273a1c793aecd86ec1f211062fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581722
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../cgo/internal/testsanitizers/testdata/tsan15.go | 60 ++++++++++++++++++++++
+ src/cmd/cgo/internal/testsanitizers/tsan_test.go   |  1 +
+ 2 files changed, 61 insertions(+)

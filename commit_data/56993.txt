@@ -1,31 +1,18 @@
-commit f95ae3d68989505fcac9ec23cacc03d602ec6739
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Wed Apr 3 15:13:04 2024 +0800
+commit 0ddd067be6b9a76680a22d97765827e1e98c5ca9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 12:38:59 2023 -0400
 
-    cmd/asm: change register type for loong64 floating-point
+    cmd/go: document changes to go test -c and -o
     
-    On Loong64, the two input operands and one output operand of the ADDF
-    instruction are both floating-point registers; and the floating-point
-    comparison instruction CMPEQ{F,D}, CMPGE{F,D}, CMPGT{F,D} both input
-    operands are floating-point registers, and the output operation is a
-    floating-point condition register, currently, only FCC0 is used as the
-    floating-point condition register.
+    This was missing from CL 466397.
     
-    Example:
-            ADDF    F0, F1, F0
-            CMPEQF  F0, F1, FCC0
+    For #15513.
     
-    Change-Id: I4c1c453e522d43f294a8dcab7b6b5247f41c9c68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580281
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I138b7d76842815f4e702d7fe551aa8968097f75b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500955
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/arch/loong64.go            | 11 -----------
- src/cmd/asm/internal/asm/asm.go                 |  6 ------
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 +++++++-------
- src/cmd/compile/internal/loong64/ssa.go         |  2 ++
- src/cmd/internal/obj/loong64/asm.go             | 25 ++++++++++++++++++++++---
- 5 files changed, 31 insertions(+), 27 deletions(-)
+ src/cmd/go/alldocs.go            | 6 ++++--
+ src/cmd/go/internal/test/test.go | 6 ++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

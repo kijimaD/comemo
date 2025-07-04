@@ -1,12 +1,15 @@
-commit cb3fe3aa0d15f2e827252b2a0b4ba48bad1d8e00
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:49:15 2017 +1000
+commit e29ea14100cd4eac22f8aa21ab629d767119707c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 08:11:21 2017 +1200
 
-    cmd/link: introduce and use peFile.dataDirectory
+    cmd/link/internal/ld: unexport ReadOnly and RelROMap
     
-    Change-Id: I61f64287a488ed82e71639540697b6ade5a0426a
-    Reviewed-on: https://go-review.googlesource.com/59428
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I08e33b92dd8a22e28ec15aa5753904aa8e1c71f5
+    Reviewed-on: https://go-review.googlesource.com/42031
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 32 +++++++++++++-------------------
- 1 file changed, 13 insertions(+), 19 deletions(-)
+ src/cmd/link/internal/ld/data.go    | 16 ++++++++--------
+ src/cmd/link/internal/ld/symkind.go | 10 +++++-----
+ 2 files changed, 13 insertions(+), 13 deletions(-)

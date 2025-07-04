@@ -1,18 +1,25 @@
-commit c01feba15de402dce666e4f9bf14a06fc64aa97d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 11 15:41:21 2022 -0700
+commit 9f928f9318efb9e6a9d45e7ed959afaaee4b7315
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 23 10:00:10 2021 -0400
 
-    spec: clarify "continue" statement
+    [dev.typeparams] go/types, types2: set tset when constructing interfaces in the universe
     
-    Taking into account the discussion and relevant feedback on a
-    change proposed in 2013 (see e-mail thread mentioned in issue).
+    As of CL 334894, type sets are lazily evaluated on interfaces. For the
+    universe interfaces error and comparable, this can lead to data races
+    when type checking concurrently. Fix this by computing their type set
+    when they are defined.
     
-    Fixes #48864.
+    Tested using the repro from #47345. I considered checking this in as a
+    test, but it probably wouldn't add much value going forward.
     
-    Change-Id: I811d518b7cbdf6b815695174f1da3d4251f491c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405756
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #47345
+    
+    Change-Id: I014a511b8e3c092c86201a8bfc7f5f494f8f20e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336910
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/universe.go | 8 ++++++--
+ src/go/types/universe.go                    | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,14 +1,17 @@
-commit b34ec90e1945af8ed22bf96254deb4c637c0bfbc
-Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Wed Sep 11 10:50:56 2013 +1000
+commit 6034406eae500a10ed9bb4085559935cda275ec0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 14:54:55 2013 -0400
 
-    cmd/api: make api check directory per-user
+    build: more "undefined behavior" fixes
     
-    Fixes #6353.
+    Fixes #5764.
     
-    R=golang-dev, bradfitz, alex.brainman
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13652043
+    https://golang.org/cl/13441051
 
- src/cmd/api/run.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/6g/gsubr.c | 2 +-
+ src/cmd/6l/obj.c   | 2 +-
+ src/cmd/6l/span.c  | 2 ++
+ src/libbio/bgetc.c | 2 +-
+ 4 files changed, 5 insertions(+), 3 deletions(-)

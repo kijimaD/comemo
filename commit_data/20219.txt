@@ -1,25 +1,16 @@
-commit 29f9f3ec80237ff0b2eb17f042747c08a10e0a14
-Author: Kelsey Hightower <kelsey.hightower@gmail.com>
-Date:   Fri Aug 29 22:19:30 2014 -0700
+commit 21a4bdef2fa2ae5425c8d309a8e914e3e514c30a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 23:24:18 2014 +0400
 
-    net/http: add BasicAuth method to *http.Request
-    
-    The net/http package supports setting the HTTP Authorization header
-    using the Basic Authentication Scheme as defined in RFC 2617, but does
-    not provide support for extracting the username and password from an
-    authenticated request using the Basic Authentication Scheme.
-    
-    Add BasicAuth method to *http.Request that returns the username and
-    password from authenticated requests using the Basic Authentication
-    Scheme.
-    
-    Fixes #6779.
+    runtime: restore nacl timens
+    Deleted in cl/123700044.
+    I am not sure whether I need to restore it,
+    or delete rest of the uses...
     
     LGTM=bradfitz
-    R=golang-codereviews, josharian, bradfitz, alberto.garcia.hierro, blakesgentry
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/76540043
+    https://golang.org/cl/129580043
 
- src/pkg/net/http/request.go      | 30 +++++++++++++++++
- src/pkg/net/http/request_test.go | 70 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 100 insertions(+)
+ src/pkg/runtime/time.go | 3 +++
+ 1 file changed, 3 insertions(+)

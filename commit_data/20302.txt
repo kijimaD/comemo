@@ -1,25 +1,27 @@
-commit 73a6d36d872b00fe873f70fe6c36333ea5c7b65f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 21:22:18 2014 -0400
+commit 854dbb7fdcc85ca187e4d91a5a85d392242bb1cb
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Sat Aug 30 07:50:50 2014 +0900
 
-    cmd/dist: make textflag.h available in runtime, avoid android/linux conflicts
+    net: ensure identical queries are not sent multiple times in builtin stub resolver
     
-    1) cmd/dist was copying textflag.h to the build include directory,
-    but only after compiling package runtime. So other packages could
-    use it, just not runtime. Copy earlier, so that runtime can use it too.
+    Prevents non-rooted queries with > ndots dots from being tried twice on error.
+    Fixes #8616.
     
-    2) We decided for android that anything marked linux is also included
-    in the build. The generated linux-specific files in cmd/dist must therefore
-    have explicit +build !android tags, or else you can't have simultaneous
-    linux/arm and android/arm builds in a single client. The tag was already
-    there for at least one file, but it was missing from many others.
+    Benchmark results on linux/amd64
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkGoLookupIPNoSuchHost      8212394      4413293  -46.26%
     
-    LGTM=r
-    R=r
+    benchmark                       old allocs   new allocs    delta
+    BenchmarkGoLookupIPNoSuchHost          216          108  -50.00%
+    
+    benchmark                        old bytes    new bytes    delta
+    BenchmarkGoLookupIPNoSuchHost        17460         8726  -50.02%
+    
+    LGTM=iant, mikioh.mikioh
+    R=golang-codereviews, iant, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/134500043
+    https://golang.org/cl/137870043
 
- src/cmd/dist/build.c        |  7 +++----
- src/cmd/dist/buildruntime.c | 18 ++++++++++++++++--
- src/cmd/dist/goc2c.c        |  4 ++++
- 3 files changed, 23 insertions(+), 6 deletions(-)
+ src/pkg/net/dnsclient_unix.go      | 21 +++++++++------------
+ src/pkg/net/dnsclient_unix_test.go |  6 ++++++
+ 2 files changed, 15 insertions(+), 12 deletions(-)

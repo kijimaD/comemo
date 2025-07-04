@@ -1,23 +1,25 @@
-commit 1805f425ada8184b53175fd166b5fec7c02850a4
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 26 11:09:51 2019 -0700
+commit 89df035464e63ea7c90b981266e9a77a227c456b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Dec 6 16:18:12 2018 -0500
 
-    database/sql: check if src is nil before converting to string
+    cmd/go: fix errors for commands run outside of modules
     
-    A nil src (NULL database value) will result in a "nil" string,
-    which will never parse correctly in a ParseInt or similar
-    numeric conversion. The resulting error is confusing. Check
-    for a nil src prior to converting the value to string
-    if the resulting string will be parsed after that.
+    Since CL 148517, several commands (including list and get) work when
+    GO111MODULE=on even when no go.mod file is present. This broke an
+    assumption made by "fix" and "generate" which caused panics when run
+    with a list of .go files (whether or not the command was run inside a
+    module).
     
-    Closes #31274
+    This change fixes those assumptions and adds test cases for other
+    commands run outside modules.
     
-    Change-Id: I90f12cceff00fbbfdd3e343b04fa7e2596390e6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174177
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #29097
+    
+    Change-Id: I7927559769c5d4617d73eb63f3b17e2f26d8c219
+    Reviewed-on: https://go-review.googlesource.com/c/153158
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/database/sql/convert.go  | 12 ++++++++++++
- src/database/sql/sql_test.go |  2 +-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/fix/fix.go             |  2 +-
+ src/cmd/go/internal/generate/generate.go   |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt | 31 ++++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

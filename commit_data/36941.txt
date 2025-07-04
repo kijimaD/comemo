@@ -1,17 +1,34 @@
-commit e2d70b8b4b7a9450b66e3516f36e75f46b7fb80f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 3 20:28:47 2018 -0400
+commit adeb7e640b04526c38c481aff85b923ca14fc92b
+Author: Thomas Wanielista <tomwans@gmail.com>
+Date:   Fri Dec 22 16:17:56 2017 -0500
 
-    regexp: simplify BenchmarkCompileOnepass
+    go/doc: classify function returning slice or array of T as constructor
     
-    One benchmark is fine.
-    Having one per test case is overkill.
+    Previously, go/doc would only consider functions and slices that
+    return types of T or any number of pointers to T: *T, **T, etc. This
+    change expands the definition of a constructor to include functions
+    that return arrays of a type (or pointer to that type) in its first
+    return.
     
-    Change-Id: Id4ce789484dab1e79026bdd23cbcd63b2eaceb3f
-    Reviewed-on: https://go-review.googlesource.com/c/139777
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    With this change, the following return types also classify a function
+    as a constructor of type T:
+    
+    [1]T
+    [1]*T
+    [1]**T
+    (and so on)
+    
+    Fixes #22856.
+    
+    Change-Id: I37957c5f2d6a7b2ceeb3fbaef359057f2039393d
+    Reviewed-on: https://go-review.googlesource.com/85355
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/regexp/onepass_test.go | 20 +++++---------------
- 1 file changed, 5 insertions(+), 15 deletions(-)
+ src/go/doc/reader.go                                   |  6 +++---
+ .../{issue18063.0.golden => issue22856.0.golden}       | 18 +++++++++---------
+ .../{issue18063.1.golden => issue22856.1.golden}       | 18 +++++++++---------
+ .../{issue18063.2.golden => issue22856.2.golden}       | 18 +++++++++---------
+ src/go/doc/testdata/{issue18063.go => issue22856.go}   | 12 +++---------
+ 5 files changed, 33 insertions(+), 39 deletions(-)

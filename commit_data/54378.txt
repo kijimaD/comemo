@@ -1,22 +1,25 @@
-commit 2e7e1d2e8d96ddf2aff00feb645cfa94bc9e4786
+commit 9ec69908aaacebb0796807afa55f7682db15afb4
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 8 16:39:17 2023 -0400
+Date:   Wed Oct 12 13:29:01 2022 -0400
 
-    net: synchronize calls to Close in the withTCPConnPair test helper
+    os: use the correct constant for P_PID on NetBSD
     
-    withTCPConnPair is supposed to return only when both peer functions
-    have completed. However, due to the use of "defer" it was closing the
-    peers' connections after the synchronization point instead of before.
+    Dragonfly and FreeBSD both used numerical values for these constants
+    chosen to be the same as on Solaris. For some reason, NetBSD did not,
+    and happens to interpret value 0 as P_ALL instead of P_PID
+    (see https://github.com/NetBSD/src/blob/3323ceb7822f98b3d2693aa26fd55c4ded6d8ba4/sys/sys/idtype.h#L43-L44).
     
-    Fixes #62542.
+    Using the correct value for P_PID should cause wait6 to wait for the
+    correct process, which may help to avoid the deadlocks reported in
     
-    Change-Id: I3e06c78984664172ff2d28b0fc582b8182f710f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526977
+    For #50138.
+    Updates #13987.
+    
+    Change-Id: I0eacd1faee4a430d431fe48f9ccf837f49c42f39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442478
     Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Commit-Queue: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/net_test.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/os/wait_wait6.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

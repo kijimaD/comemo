@@ -1,0 +1,20 @@
+commit 2d216141a10fc7bb7872f13b95b070df471ece45
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 28 16:07:45 2025 +0100
+
+    internal/trace: expose clock snapshot timestamps on sync event
+    
+    Add ClockSnapshot field to the Sync event type and populate it with the
+    information from the new EvClockSnapshot event when available.
+    
+    For #69869
+    
+    Change-Id: I3b24b5bfa15cc7a7dba270f5e6bf189adb096840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653576
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/event.go | 47 +++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 41 insertions(+), 6 deletions(-)

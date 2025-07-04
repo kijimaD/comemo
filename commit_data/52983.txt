@@ -1,21 +1,19 @@
-commit 3e9876cd3a5a83be9bb0f5cbc600aadf9b599558
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 9 19:36:13 2023 +0000
+commit c70e93ff3d1855b0d0a0508ab83dd751ee65f5b3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 05:22:00 2022 -0700
 
-    runtime: add traceEnabled function
+    [dev.unified] cmd/compile/internal/typecheck: replace unreachable code with assert
     
-    This change introduces the trivial traceEnabled function to help tighten
-    up the execution tracer's API in preparation for the execution trace
-    redesign GOEXPERIMENT.
+    Since the removal of -G=0 mode, IR is always well-typed. And in
+    well-typed IR, convlit will always returns expressions having real
+    types (i.e., not untyped).
     
-    A follow-up change will refactor the runtime to use it.
-    
-    Change-Id: I19c8728e30aefe543b4a826d95446affa14897e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494180
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1ac99a88c94777829852519347a716d19af7948c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413363
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/trace.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go | 18 ++++--------------
+ 1 file changed, 4 insertions(+), 14 deletions(-)

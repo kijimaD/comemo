@@ -1,69 +1,19 @@
-commit b09925b31d3012345b1926e6f8133551fa050fe2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 1 09:38:44 2015 -0700
+commit 40ff393e4c2a5f069f3d1bf27741b6f2b3c501ed
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 13:55:13 2015 -0800
 
-    cmd/5g etc: merge simple case expressions onto fewer lines
+    cmd/internal/obj: delete Rconv from LinkArch
     
-    The c2go translation left a lot of case expressions on separate lines.
-    Merge expressions onto single lines subject to these constraints:
+    It is unused and should have been deleted when Rconv was made
+    a global function.
     
-    * Max 4 clauses, all literals or names
-    * Don't move expressions with comments
-    
-    The change was created by running http://play.golang.org/p/yHajs72h-g:
-    
-    $ mergecase cmd/internal/{ld,gc,obj}/*.go cmd/internal/obj/*/*.go
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: Iba41b390d302e5486e5dc6ba7599a92270676556
-    Reviewed-on: https://go-review.googlesource.com/7593
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id745dcee6f0769604cabde04887c6d0c94855405
+    Reviewed-on: https://go-review.googlesource.com/6521
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/align.go       |  21 ++---
- src/cmd/internal/gc/cgen.go        |  11 +--
- src/cmd/internal/gc/closure.go     |   3 +-
- src/cmd/internal/gc/const.go       |  69 +++++-----------
- src/cmd/internal/gc/cplx.go        |   6 +-
- src/cmd/internal/gc/esc.go         |  33 +++-----
- src/cmd/internal/gc/fmt.go         |  55 ++++---------
- src/cmd/internal/gc/gen.go         |  30 +++----
- src/cmd/internal/gc/gsubr.go       |  10 +--
- src/cmd/internal/gc/init.go        |   5 +-
- src/cmd/internal/gc/inl.go         |  29 ++-----
- src/cmd/internal/gc/lex.go         |  11 +--
- src/cmd/internal/gc/mparith1.go    |  13 +--
- src/cmd/internal/gc/order.go       |  50 ++++--------
- src/cmd/internal/gc/pgen.go        |   8 +-
- src/cmd/internal/gc/plive.go       |  17 ++--
- src/cmd/internal/gc/racewalk.go    |  39 +++------
- src/cmd/internal/gc/reflect.go     |   7 +-
- src/cmd/internal/gc/reg.go         |   6 +-
- src/cmd/internal/gc/select.go      |   6 +-
- src/cmd/internal/gc/sinit.go       |  30 ++-----
- src/cmd/internal/gc/subr.go        |  81 ++++++-------------
- src/cmd/internal/gc/typecheck.go   |  80 +++++--------------
- src/cmd/internal/gc/unsafe.go      |   3 +-
- src/cmd/internal/gc/walk.go        | 115 ++++++++------------------
- src/cmd/internal/ld/data.go        |   3 +-
- src/cmd/internal/ld/dwarf.go       |  11 +--
- src/cmd/internal/ld/elf.go         |   4 +-
- src/cmd/internal/ld/ldelf.go       |   4 +-
- src/cmd/internal/ld/ldpe.go        |  13 +--
- src/cmd/internal/ld/lib.go         |  11 +--
- src/cmd/internal/ld/macho.go       |   7 +-
- src/cmd/internal/ld/pe.go          |   5 +-
- src/cmd/internal/ld/sym.go         |   3 +-
- src/cmd/internal/ld/symtab.go      |   9 +--
- src/cmd/internal/obj/arm/asm5.go   |  22 ++---
- src/cmd/internal/obj/arm/obj5.go   |  10 +--
- src/cmd/internal/obj/arm64/asm7.go | 160 ++++++++++++-------------------------
- src/cmd/internal/obj/arm64/obj7.go |   3 +-
- src/cmd/internal/obj/pass.go       |   3 +-
- src/cmd/internal/obj/ppc64/asm9.go | 120 ++++++++++------------------
- src/cmd/internal/obj/ppc64/obj9.go |   7 +-
- src/cmd/internal/obj/sym.go        |   3 +-
- src/cmd/internal/obj/x86/asm6.go   |  51 +++---------
- src/cmd/internal/obj/x86/obj6.go   |  22 ++---
- 45 files changed, 358 insertions(+), 851 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go   | 1 -
+ src/cmd/internal/obj/i386/obj8.go  | 1 -
+ src/cmd/internal/obj/link.go       | 1 -
+ src/cmd/internal/obj/ppc64/obj9.go | 2 --
+ src/cmd/internal/obj/x86/obj6.go   | 2 --
+ 5 files changed, 7 deletions(-)

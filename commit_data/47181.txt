@@ -1,18 +1,16 @@
-commit 7548327374844719bf90cce199e7fa4b43b94e2b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 2 10:14:29 2021 -0700
+commit 06c72f3627ea749d8579d0d590fd715b2d5e512f
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Dec 14 19:39:02 2020 +0800
 
-    comd/compile/internal/types2: add missing nil check in const conversion
+    A+C: change email address for Baokun Lee
     
-    Follow-up on CL 360396.
-    
-    Fixes #49296.
-    
-    Change-Id: Ie08f86ae884da4cfd5db557cbf4f721a237dc39f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360796
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib82e1c8c549c91e20c5aff5e50736617c6831f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277792
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/types2/conversions.go       |  2 ++
- .../types2/testdata/fixedbugs/issue49296.go2         | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

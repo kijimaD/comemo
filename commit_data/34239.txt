@@ -1,21 +1,26 @@
-commit c941e27e70c3e06e1011d2dd71d72a7a06a9bcbc
+commit cf3f771203c46d73a84d86e5ef7865d19e983150
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 15 15:57:13 2018 -0800
+Date:   Mon Oct 9 11:31:20 2017 -0700
 
-    cmd/go: restrict meta imports to valid schemes
+    runtime: unify amd64 -buildmode=exe entry point code
     
-    Before this change, when using -insecure, we permitted any meta import
-    repo root as long as it contained "://". When not using -insecure, we
-    restrict meta import repo roots to be valid URLs. People may depend on
-    that somehow, so permit meta import repo roots to be invalid URLs, but
-    require them to have valid schemes per RFC 3986.
+    All of the amd64 entry point code is the same except for Plan 9.
+    Unify it all into asm_amd64.s.
     
-    Fixes #23867
-    
-    Change-Id: Iac666dfc75ac321bf8639dda5b0dba7c8840922d
-    Reviewed-on: https://go-review.googlesource.com/94603
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id47ce3a7bb2bb0fd48f326a2d88ed18b17dee456
+    Reviewed-on: https://go-review.googlesource.com/69292
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/get/vcs.go      | 34 +++++++++++++++++++++++++++--
- src/cmd/go/internal/get/vcs_test.go | 43 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 75 insertions(+), 2 deletions(-)
+ src/runtime/asm_amd64.s           | 15 +++++++++++++++
+ src/runtime/rt0_android_amd64.s   |  5 +----
+ src/runtime/rt0_darwin_amd64.s    |  9 +--------
+ src/runtime/rt0_dragonfly_amd64.s |  9 +--------
+ src/runtime/rt0_freebsd_amd64.s   |  8 ++------
+ src/runtime/rt0_linux_amd64.s     |  9 +--------
+ src/runtime/rt0_netbsd_amd64.s    |  9 +--------
+ src/runtime/rt0_openbsd_amd64.s   |  9 +--------
+ src/runtime/rt0_solaris_amd64.s   |  9 +--------
+ src/runtime/rt0_windows_amd64.s   |  9 +--------
+ 10 files changed, 25 insertions(+), 66 deletions(-)

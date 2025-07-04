@@ -1,20 +1,21 @@
-commit 454a058ffcd90dc8db311c08747506186af1f952
-Author: ruinan <ruinan.sun@arm.com>
-Date:   Fri Jul 1 06:25:12 2022 +0000
+commit 89cc528e430c18c6c36b8e8bbfb1bab26ed110e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 23 16:39:32 2021 -0700
 
-    cmd/compile: Add shiftIsBounded check for logic shifts of arm64
+    cmd/compile/internal/types2: better error messages for empty type sets
     
-    This CL adds shiftIsBounded checks for the Lsh* and Rsh* rules in arm64.
-    There is no need to check the shift value again with CMP + CSEL when the
-    shift value is valid.
+    - change _TypeSet.hasTerms() to report if a type set has actual types
+      (excluding a "universe" term)
+    - handle empty type set type arguments correctly
+    - bring comments up-to-date in Checker.satisfies
     
-    Change-Id: I54620de64f02a1b5a11089add237248ae2de01b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417714
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I87f9a1096ebb21a1b08c87a9b59f400f3bc2f040
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358175
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  140 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 1776 ++++++++++++++++++++------
- test/codegen/shift.go                        |   91 +-
- 3 files changed, 1560 insertions(+), 447 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go     | 32 +++++++++++++++-------
+ .../internal/types2/testdata/check/typeinst2.go2   | 28 ++++++++++++++++---
+ .../types2/testdata/fixedbugs/issue47411.go2       |  2 +-
+ src/cmd/compile/internal/types2/typeset.go         |  2 +-
+ 4 files changed, 48 insertions(+), 16 deletions(-)

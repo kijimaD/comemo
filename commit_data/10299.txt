@@ -1,19 +1,12 @@
-commit bad305c27bc70b9900739822ca974bff52f4e289
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Nov 9 14:55:52 2011 +1100
+commit 4ac425fcddd7e3a923fe59f2375a2a75fa18ed33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 8 18:16:25 2011 -0800
 
-    http: make httputil's chunked reader/writer code a direct copy
+    runtime: add comments for various functions in proc.c
     
-    Arrange the code so that it's easier to keep edits in sync.
-    
-    R=golang-dev, mikioh.mikioh, bradfitz, andybalholm, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5345041
+    https://golang.org/cl/5357047
 
- src/pkg/net/http/chunked.go               | 125 ++++++++++++++++++++++++--
- src/pkg/net/http/chunked_test.go          |  39 +++++++++
- src/pkg/net/http/httputil/chunked.go      | 140 ++++++++++++++++++++++++------
- src/pkg/net/http/httputil/chunked_test.go |   8 +-
- src/pkg/net/http/request.go               |  90 -------------------
- src/pkg/net/http/response_test.go         |   2 +-
- 6 files changed, 280 insertions(+), 124 deletions(-)
+ src/pkg/runtime/proc.c | 68 +++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 56 insertions(+), 12 deletions(-)

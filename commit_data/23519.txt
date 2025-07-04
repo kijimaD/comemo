@@ -1,15 +1,17 @@
-commit 450988b5a2697083bcd377c0c7721cb3d7254dc9
-Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
-Date:   Fri Apr 24 21:47:25 2015 +0300
+commit 8401b19e7e6bf60d66b2d71cd3fa2215c4649d31
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 20 13:26:02 2015 -0700
 
-    net/http: escape path in implicit /tree→/tree/ ServeMux.Handle redirect
+    cmd/doc: fix handling of paths like ./fmt
     
-    Fixes #10572
+    An error in string slice offsets caused the loop to run forever if the
+    first character in the argument was a period.
     
-    Change-Id: I764f3c226cf98ff39d9e553e4613d0ee108ef766
-    Reviewed-on: https://go-review.googlesource.com/9311
+    Fixes #10833.
+    
+    Change-Id: Iefb6aac5cff8864fe93d08e2600cb07d82c6f6df
+    Reviewed-on: https://go-review.googlesource.com/10285
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/serve_test.go | 3 +++
- src/net/http/server.go     | 3 ++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/doc/main.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

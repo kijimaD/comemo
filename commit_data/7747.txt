@@ -1,19 +1,13 @@
-commit c734b50b11c6d9e46856c51870dc4bee94b8f18c
+commit 86e35a96a71ea734bb0e47d618193ca6b429f8ce
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 11 16:15:33 2011 -0800
+Date:   Fri Mar 11 14:46:36 2011 -0800
 
-    gotype: clean handling of stdin, added tests
+    go/typechecker: fix build
     
-    - removed uses of global variables
-    - minor cleanups
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4277044
+    https://golang.org/cl/4278043
 
- src/cmd/gotype/Makefile       |   3 ++
- src/cmd/gotype/doc.go         |   2 +
- src/cmd/gotype/gotype.go      | 103 ++++++++++++++++++++++--------------------
- src/cmd/gotype/gotype_test.go |  29 ++++++++++++
- src/pkg/Makefile              |   1 -
- 5 files changed, 89 insertions(+), 49 deletions(-)
+ src/pkg/go/typechecker/testdata/test1.src | 2 +-
+ src/pkg/go/typechecker/testdata/test4.src | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

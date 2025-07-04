@@ -1,25 +1,25 @@
-commit 1518d431321100cd9f0e18d740da7c835ba438dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 16 11:57:06 2016 -0700
+commit 1b9f168f73c44b2743338a16e8122a13203e8e9b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 14 12:45:18 2016 -0700
 
-    net/http, net/http/httptrace: new package for tracing HTTP client requests
+    cmd/compile: use int for field index
     
-    Updates #12580
+    All of a struct's fields have to fit into memory anyway, so index them
+    with int instead of int64.  This also makes it nicer for
+    cmd/compile/internal/gc to reuse the same NumFields function.
     
-    Change-Id: I9f9578148ef2b48dffede1007317032d39f6af55
-    Reviewed-on: https://go-review.googlesource.com/22191
+    Change-Id: I210be804a0c33370ec9977414918c02c675b0fbe
+    Reviewed-on: https://go-review.googlesource.com/20691
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go            |   6 +-
- src/internal/nettrace/nettrace.go    |  43 +++++++
- src/net/dial.go                      |  11 ++
- src/net/http/httptrace/trace.go      | 225 +++++++++++++++++++++++++++++++++++
- src/net/http/httptrace/trace_test.go |  62 ++++++++++
- src/net/http/request.go              |  22 +++-
- src/net/http/transport.go            |  94 +++++++++++----
- src/net/http/transport_test.go       | 100 ++++++++++++++++
- src/net/lookup.go                    |  44 +++++--
- 9 files changed, 573 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 26 ++++++-------
+ src/cmd/compile/internal/gc/subr.go            |  9 -----
+ src/cmd/compile/internal/gc/type.go            | 21 +++++++---
+ src/cmd/compile/internal/gc/typecheck.go       | 11 ------
+ src/cmd/compile/internal/gc/walk.go            |  8 ----
+ src/cmd/compile/internal/ssa/decompose.go      | 12 +++---
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  4 +-
+ src/cmd/compile/internal/ssa/type.go           | 54 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/type_test.go      | 48 +++++++++++------------
+ 10 files changed, 88 insertions(+), 107 deletions(-)

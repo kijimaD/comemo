@@ -1,27 +1,12 @@
-commit e32f4ba77d920411e916cece41b3a40e0db0a074
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Nov 30 11:44:54 2011 +1100
+commit 72a2979ef07e309f1168ed5a5e144ceeddb25472
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Nov 29 15:47:36 2011 -0800
 
-    html: parse the contents of <iframe> elements as raw text
+    spec: update spacing to match gofmt, where reasonable.
     
-    Pass tests5.dat, test 4:
-    <iframe> <!---> </iframe>x
-    
-    | <html>
-    |   <head>
-    |   <body>
-    |     <iframe>
-    |       " <!---> "
-    |     "x"
-    
-    Also pass tests through test 9:
-    <style> <!</-- </style>x
-    
-    R=nigeltao
+    R=gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5450044
+    https://golang.org/cl/5327053
 
- src/pkg/html/parse_test.go | 2 ++
- src/pkg/html/render.go     | 2 +-
- src/pkg/html/token.go      | 7 +++----
- 3 files changed, 6 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 136 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 68 insertions(+), 68 deletions(-)

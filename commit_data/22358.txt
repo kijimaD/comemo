@@ -1,13 +1,12 @@
-commit 65085188494e0bb1a0edae36993a43e4670b9e48
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 3 04:37:24 2015 -0400
+commit bcf43e956538e3709428b5b0a07407dbfcd26135
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 8 22:44:33 2015 +0900
 
-    misc/cgo/test/issue9400: add arm64 implementation
+    net: gofmt
     
-    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f4
-    Reviewed-on: https://go-review.googlesource.com/8451
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: Ifcf7b96e67b63a08f410a7ba21e8bf4dd20e7d8e
+    Reviewed-on: https://go-review.googlesource.com/7122
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/cgo/test/issue9400/asm_arm64.s | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/net/ipsock_test.go | 68 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

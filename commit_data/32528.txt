@@ -1,12 +1,19 @@
-commit ac9be2020b3d57c4b23e83432d732c1d0b308316
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:45:56 2017 +1000
+commit 4aca8b00fffe2d228d6dc9d4d061148bb721efd4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 08:07:56 2017 +1200
 
-    cmd/link: introduce and use peFile.writeFileHeader
+    cmd/internal/objabi: shrink SymType down to a uint8
     
-    Change-Id: I1324b69ab9edb870589197fa601b5764634d42a4
-    Reviewed-on: https://go-review.googlesource.com/59427
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Now that it only takes small values.
+    
+    Change-Id: I08086d392529d8775b470d65afc2475f8d0e7f4a
+    Reviewed-on: https://go-review.googlesource.com/42030
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 82 +++++++++++++++++++++++-------------------
- 1 file changed, 45 insertions(+), 37 deletions(-)
+ src/cmd/internal/obj/objfile.go           | 2 +-
+ src/cmd/internal/objabi/symkind.go        | 2 +-
+ src/cmd/internal/objabi/symkind_string.go | 2 +-
+ src/cmd/link/internal/ld/objfile.go       | 9 +++++++--
+ 4 files changed, 10 insertions(+), 5 deletions(-)

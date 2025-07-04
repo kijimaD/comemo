@@ -1,19 +1,31 @@
-commit 8a0779f9b91e3392d90dab9217be7fdbee08f523
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 5 16:08:08 2013 -0400
+commit f38ff9e5ea24d1ea27928cfdc35c4679abe4673f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 5 23:33:50 2013 +0400
 
-    compress/bzip2: support concatenated files
+    undo CL 12250043 / e911f94c4902
     
-    While we're here, add a test for the same functionality in gzip,
-    which was already implemented, and add bzip2 CRC checks.
+    Break all 386 builders.
     
-    Fixes #5772.
+    ««« original CL description
+    runtime: use gcpc/gcsp during traceback of goroutines in syscalls
+    gcpc/gcsp are used by GC in similar situation.
+    gcpc/gcsp are also more stable than gp->sched,
+    because gp->sched is mutated by entersyscall/exitsyscall
+    in morestack and mcall. So it has higher chances of being inconsistent.
+    Also, rename gcpc/gcsp to syscallpc/syscallsp.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12387044
+    https://golang.org/cl/12250043
+    »»»
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12424045
 
- src/pkg/compress/bzip2/bzip2.go      | 161 +++++++++++++++++++++++++++--------
- src/pkg/compress/bzip2/bzip2_test.go |  13 +++
- src/pkg/compress/gzip/gzip_test.go   |  17 ++++
- 3 files changed, 156 insertions(+), 35 deletions(-)
+ src/pkg/runtime/mgc0.c          | 10 +++++-----
+ src/pkg/runtime/proc.c          | 39 ++++++++++++++++++++-------------------
+ src/pkg/runtime/runtime.h       |  8 ++++----
+ src/pkg/runtime/traceback_arm.c |  4 ++--
+ src/pkg/runtime/traceback_x86.c |  4 ++--
+ 5 files changed, 33 insertions(+), 32 deletions(-)

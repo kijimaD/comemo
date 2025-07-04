@@ -1,13 +1,12 @@
-commit bb55b9c6aec020a0aead564e44b79cae09a888bd
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 5 09:28:24 2013 +1100
+commit 77913e9aab3bcf62b2e0be42709149315a9074d9
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Dec 3 15:24:27 2013 -0800
 
-    A+C: add Dmitri Shuralyov
+    encoding/gob: do not hide an unsafe.Pointer in a uintptr
     
-    R=golang-dev, iant
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/31900043
+    https://golang.org/cl/23320044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/encoding/gob/decode.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

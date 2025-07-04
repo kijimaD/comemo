@@ -1,27 +1,26 @@
-commit f02cc88f46e01c21e550dbf212aefcdad138a91d
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat May 19 09:42:52 2018 +0200
+commit 3fbfc83db298c55669b6165eca1b8a56b04c895c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 4 14:39:00 2018 +0700
 
-    test: relax whitespaces matching in codegen tests
+    cmd/vet: recognise func type conversions
     
-    The codegen testsuite uses regexp to parse the syntax, but it doesn't
-    have a way to tell line comments containing checks from line comments
-    containing English sentences. This means that any syntax error (that
-    is, non-matching regexp) is currently ignored and not reported.
+    In hasSideEffects, vet has to be taught whether or not a CallExpr is an
+    actual function call, or just a type conversion.
     
-    There were some tests in memcombine.go that had an extraneous space
-    and were thus effectively disabled. It would be great if we could
-    report it as a syntax error, but for now we just punt and swallow the
-    spaces as a workaround, to avoid the same mistake again.
+    The previous code knew how to differentiate fn(arg) from int(arg), but
+    it incorrectly saw (func(T))(fn) as a func call. This edge case is
+    slightly tricky, since the CallExpr.Fun has a func signature type, just
+    like in func calls.
     
-    Fixes #25452
+    However, the difference is that in this case the Fun is a type, not a
+    value. This information is in types.TypeAndValue, so use it.
     
-    Change-Id: Ic7747a2278bc00adffd0c199ce40937acbbc9cf0
-    Reviewed-on: https://go-review.googlesource.com/113835
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I18bb8b23abbe7decc558b726ff2dc31fae2f13d6
+    Reviewed-on: https://go-review.googlesource.com/111416
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/codegen/memcombine.go | 4 ++--
- test/run.go                | 9 +++++----
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/vet/bool.go          | 15 ++++++++-------
+ src/cmd/vet/testdata/bool.go |  3 +--
+ 2 files changed, 9 insertions(+), 9 deletions(-)

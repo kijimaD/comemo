@@ -1,28 +1,42 @@
-commit 54ce8793a8932d81a45875d32a4cfdc520ee1c83
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Jul 26 10:39:38 2021 -0700
+commit 478bde3a4388997924a02ee9296864866d8ba3ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 12:49:20 2020 -0500
 
-    cmd: update x/tools and remove copy of txtar
+    io/fs: add Sub
     
-    golang.org/x/tools/txtar is the main location for this package. We
-    don't need our own copy.
+    Sub provides a convenient way to refer to a subdirectory
+    automatically in future operations, like Unix's chdir(2).
     
-    For golang/go#47193
+    The CL also includes updates to fstest to check Sub implementations.
     
-    Change-Id: I480eb591f57a0d05b433a657653e2021e39354eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337352
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    As part of updating fstest, I changed the meaning of TestFS's
+    expected list to introduce a special case: if you list no expected files,
+    that means the FS must be empty. In general it's OK not to list all
+    the expected files, but if you list none, that's almost certainly a
+    mistake - if your FS were broken and empty, you wouldn't find out.
+    Making no expected files mean "must be empty" makes the mistake
+    less likely - if your file system ever worked, then your test will keep
+    it working.
+    
+    That change found a testing bug: embedtest was making exactly
+    that mistake.
+    
+    Fixes #42322.
+    
+    Change-Id: I63fd4aa866b30061a0e51ca9a1927e576d6ec41e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274856
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341937
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/fsys/fsys_test.go              |  3 +-
- src/cmd/go/internal/txtar/archive_test.go          | 67 ----------------------
- src/cmd/go/proxy_test.go                           |  2 +-
- src/cmd/go/script_test.go                          |  3 +-
- src/cmd/go/testdata/addmod.go                      |  2 +-
- src/cmd/go/testdata/savedir.go                     |  2 +-
- .../golang.org/x/tools}/txtar/archive.go           |  6 +-
- src/cmd/vendor/modules.txt                         |  1 +
- 8 files changed, 11 insertions(+), 75 deletions(-)
+ doc/go1.16.html                            |   2 +-
+ src/embed/internal/embedtest/embed_test.go |   2 +-
+ src/io/fs/readdir_test.go                  |  12 ++-
+ src/io/fs/readfile_test.go                 |  16 ++++
+ src/io/fs/sub.go                           | 127 +++++++++++++++++++++++++++++
+ src/io/fs/sub_test.go                      |  57 +++++++++++++
+ src/os/file.go                             |   7 ++
+ src/testing/fstest/mapfs.go                |  10 +++
+ src/testing/fstest/testfs.go               |  42 ++++++++++
+ 9 files changed, 271 insertions(+), 4 deletions(-)

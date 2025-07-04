@@ -1,26 +1,30 @@
-commit 2563b6f9fe76da6c9f95c7766986f4684b80ae6d
+commit 786a2ef380f662ecdd7e089b59f9ce075a24ef42
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 3 14:44:29 2016 -0700
+Date:   Thu May 14 20:11:28 2015 -0700
 
-    cmd/compile/internal/ssa: use Compare instead of Equal
+    cmd/compile: use a uint8-sized named type for Addr.Type
     
-    They have different semantics.
+    No immediate reduction in the size of Addr.
     
-    Equal is stricter and is designed for the front-end.
-    Compare is looser and cheaper and is designed for the back-end.
-    To avoid possible regression, remove Equal from ssa.Type.
+    Passes toolstash -cmp.
     
-    Updates #15043
-    
-    Change-Id: Ie23ce75ff6b4d01b7982e0a89e6f81b5d099d8d6
-    Reviewed-on: https://go-review.googlesource.com/21483
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I78ea4c6e181b6e571ce70a5f1ae8158844eb197d
+    Reviewed-on: https://go-review.googlesource.com/20276
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/type.go        | 13 +++----------
- src/cmd/compile/internal/ssa/TODO          |  2 --
- src/cmd/compile/internal/ssa/cse.go        |  2 +-
- src/cmd/compile/internal/ssa/func.go       |  2 +-
- src/cmd/compile/internal/ssa/stackalloc.go |  4 ++--
- src/cmd/compile/internal/ssa/type.go       | 11 +----------
- 6 files changed, 8 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/amd64/gsubr.go |  2 +-
+ src/cmd/compile/internal/arm/ggen.go    |  6 +++---
+ src/cmd/compile/internal/arm64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/mips64/ggen.go |  6 +++---
+ src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/x86/ggen.go    |  6 +++---
+ src/cmd/compile/internal/x86/peep.go    |  2 +-
+ src/cmd/internal/obj/arm/asm5.go        |  4 ++--
+ src/cmd/internal/obj/arm64/asm7.go      | 13 +++++--------
+ src/cmd/internal/obj/data.go            |  4 ++--
+ src/cmd/internal/obj/link.go            | 12 ++++++------
+ src/cmd/internal/obj/ppc64/asm9.go      |  2 +-
+ src/cmd/internal/obj/util.go            |  2 +-
+ src/cmd/internal/obj/x86/asm6.go        |  4 ++--
+ 15 files changed, 39 insertions(+), 42 deletions(-)

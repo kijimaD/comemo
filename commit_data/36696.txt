@@ -1,18 +1,23 @@
-commit 37db664c6cd480b578d6114854bc20c2bc3cddcd
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 17 14:25:06 2018 +1000
+commit 467e15accc95d4e080a8088eaff0aaa28f572c7e
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon May 21 15:33:20 2018 +0200
 
-    builtin: document when len and cap are constant
+    runtime: use raise instead of pthread_self and pthread_kill
     
-    The rules are subtle, but under some circumstances the result
-    can be constant. Mention this and refer to the appropriate
-    section of the specification.
+    pthread_self and pthread_kill are not safe to call from a signal
+    handler. In particular, pthread_self fails in iOS when called from
+    a signal handler context.
     
-    Fixes #27588.
+    Use raise instead; it is signal handler safe and simpler.
     
-    Change-Id: I4beaad036db87501378fb2ef48d216742d096933
-    Reviewed-on: https://go-review.googlesource.com/135519
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I0cbfe25151aed245f55d7b76719ce06dc78c6a75
+    Reviewed-on: https://go-review.googlesource.com/113877
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/builtin/builtin.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/os_darwin.go       |  6 ------
+ src/runtime/sys_darwin.go      |  9 ++++-----
+ src/runtime/sys_darwin_386.s   | 19 +++----------------
+ src/runtime/sys_darwin_amd64.s | 16 +++-------------
+ 4 files changed, 10 insertions(+), 40 deletions(-)

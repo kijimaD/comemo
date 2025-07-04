@@ -1,17 +1,14 @@
-commit 6db697950eeab6d6ea4076bd97f6572918a2d5a7
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Sep 22 17:49:12 2017 +0100
+commit 3cc2da6397e5ca8efd5d0cf3e919f33bc74dc4b6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jun 3 21:36:51 2017 +0200
 
-    cmd/compile: remove unused cases from switch
+    encoding/json: clarify unmarshaling behaviour on bad fields
     
-    The first just falls through, and the default case does nothing. They
-    can be deleted.
+    Fixes #19526
     
-    Change-Id: I82ab1ce3acde0b8423334cfbf35f9e0c806cd494
-    Reviewed-on: https://go-review.googlesource.com/65410
+    Change-Id: Ifaaf454e0e89fdf4309118c2e2e6ac0d0a43c39d
+    Reviewed-on: https://go-review.googlesource.com/44711
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/encoding/json/decode.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

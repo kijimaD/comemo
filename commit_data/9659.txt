@@ -1,15 +1,15 @@
-commit 80a5ddbdb1af3442e86b7db2fbb5f25e3bdca9fe
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Mon Sep 12 16:01:30 2011 -0700
+commit 3b189d8f9c243d594b8ab8db495da9c60bae5428
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 12 16:52:49 2011 -0400
 
-    exp/template/html: fix bug /*/ is not a full JS block comment.
+    crypto/tls: handle non-TLS more robustly
     
-    Similar tests for CSS already catch this problem in tCSS.
+    Fixes #2253.
     
-    R=nigeltao
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/4967065
+    https://golang.org/cl/4960066
 
- src/pkg/exp/template/html/escape.go      | 4 ++--
- src/pkg/exp/template/html/escape_test.go | 8 ++++++++
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/pkg/crypto/tls/conn.go                  | 13 ++++++++
+ src/pkg/crypto/tls/handshake_server_test.go | 46 +++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

@@ -1,20 +1,23 @@
-commit 80e25fc9232d07e5f28a9087722718ce2c84ff77
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 19 23:07:38 2011 -0500
+commit b94c0d2a774f6d35c3c4abf25af405dbe76825ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 19 23:07:21 2011 -0500
 
-    docs: float->float64 plus a couple of other tweaks.
+    go spec: remove float, complex in favor of float64 and complex128
     
-    R=rsc, gri
+    The default float type is not very useful but for the most basic applications.
+    For instance, as it is now, using the math package requires conversions for float
+    variables (the arguments for math functions are usually float64). Typical real
+    applications tend to specify the floating point precision required.
+    
+    This proposal removes the predeclared types float and complex. Variable declarations
+    without type specification but with constant floating point or complex initializer
+    expressions will assume the type float64 or complex128 respectively.
+    
+    The predeclared function cmplx is renamed to complex.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/3978042
+    https://golang.org/cl/3423041
 
- doc/devel/roadmap.html          |  5 ++---
- doc/effective_go.html           |  9 +++++----
- doc/gccgo_install.html          |  4 ++--
- doc/go_faq.html                 | 13 +++++++++----
- doc/go_for_cpp_programmers.html |  2 +-
- doc/go_tutorial.html            | 20 +++++++++++++-------
- doc/go_tutorial.txt             | 20 +++++++++++++-------
- doc/install.html                |  7 +++----
- doc/progs/sort.go               | 12 ++++++------
- 9 files changed, 54 insertions(+), 38 deletions(-)
+ doc/go_spec.html | 129 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 63 insertions(+), 66 deletions(-)

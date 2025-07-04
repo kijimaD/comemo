@@ -1,30 +1,25 @@
-commit d7e5cd5851f9fea4512c20cf275d979516828521
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Mar 6 09:23:15 2025 +0100
+commit a64d5be9125c9508d5cf4ff1a869ec2316097f92
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 3 14:23:49 2024 -0500
 
-    compress/flate,compress/lzw: fix incorrect godoc links
+    cmd/go/internal/list: make a copy of the package before zeroing fields
     
-    Fix incorrect godoc links related to the use of the name "Reader" for
-    different things in the various compress/* packages:
-    - in compress/flate Reader is the interface describing the underlying reader,
-      not the decompressor as in other packages, so "returned reader" must
-      not be linked to Reader.
-    - in compress/lzw and compress/gzip Reader is the decompressor, not the
-      interface of the underlying reader, so "underlying reader" must not
-      be linked to Reader.
+    go list -json=<fields> zeroes out the fields in the package struct
+    that aren't specified. The problem with this is that some of the fields
+    have references into other fields: specifically, the NoGoError's
+    Error() function accesses the package struct's Dir field, so if we
+    clear it out the error will just print out "no Go files in" without a
+    directory. Instead, make a copy of the package struct before we zero
+    out the fields so the original values are still there.
     
-    With this patch the formatting of "underlying reader" and "returned
-    reader" is consistent accross compress/* packages.
+    For #64946
     
-    Change-Id: Iea315fd5ee5b6c177855693d68841f3709a382cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655335
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I95103e91fa0782bb23a86a965d5eb87cb12654c6
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/compress/flate/deflate.go | 4 ++--
- src/compress/flate/inflate.go | 4 ++--
- src/compress/gzip/gunzip.go   | 4 ++--
- src/compress/lzw/reader.go    | 2 +-
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/list/list.go                    |  6 ++++--
+ src/cmd/go/testdata/script/list_json_issue64946.txt | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

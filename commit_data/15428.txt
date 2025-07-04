@@ -1,15 +1,30 @@
-commit 71b3b460738decbce5f1797492eaa59b06d69687
+commit 9fe60801aeca801010b42e1dd7ad57a173dc9740
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 26 00:45:43 2013 +0100
+Date:   Tue Feb 26 00:40:28 2013 +0100
 
-    cmd/gc: accept cases with same value but different types in switch.
+    cmd/gc: apply escape analysis results to closures.
     
-    Fixes #4781.
+    This avoids an allocation when closures are used
+    as "macros", in Walk idioms, or as argument to defer.
     
-    R=golang-dev, rsc
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkSearchWrappers       1171          354  -69.77%
+    BenchmarkCallClosure             3            3  -12.54%
+    BenchmarkCallClosure1          119            7  -93.95%
+    BenchmarkCallClosure2          183           74  -59.18%
+    BenchmarkCallClosure3          187           75  -59.57%
+    BenchmarkCallClosure4          187           76  -58.98%
+    
+    Compared to Go 1:
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkSearchWrappers         3208          354  -88.97%
+    
+    Fixes #3520.
+    
+    R=daniel.morsing, bradfitz, minux.ma, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7365056
+    https://golang.org/cl/7397056
 
- src/cmd/gc/swt.c | 12 ++++++++----
- test/switch.go   | 29 +++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 4 deletions(-)
+ src/cmd/gc/closure.c        |  6 +++++-
+ src/pkg/sort/search_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

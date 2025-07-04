@@ -1,20 +1,16 @@
-commit 33987b408c391433ad8214a56677e9af6463fd10
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Mar 25 10:37:11 2022 -0500
+commit bbda92359289ae5992bbd8da9ce37932e531adda
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 17:30:08 2021 -0700
 
-    cmd/compile: reallocate FPR31 to XER for PPC64 regalloc
+    doc/go1.17: mention new Windows SysProcAttr fields
     
-    We are limited to 64 registers in the allocator today, and PPC64
-    has not been allocating F0,F26-F31 for quite some time without
-    performance impact.
+    For #44011
+    For #44513
     
-    Change-Id: If9d60be5037c94991fdd90a44461c3a6b96315cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395835
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I512466f2e775e36098eb36ca7ef82333cd9e632a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323352
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   6 +-
- src/cmd/compile/internal/ssa/opGen.go        | 204 +++++++++++++--------------
- 2 files changed, 106 insertions(+), 104 deletions(-)
+ doc/go1.17.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

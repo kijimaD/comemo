@@ -1,32 +1,22 @@
-commit 9582b6e8fd1b278e670987c7689920888191b14f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Feb 20 21:28:02 2020 +0000
+commit 0c703b37dffe74d3fffc04347884bb0ee2fba5b3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 05:12:11 2019 +1100
 
-    runtime: implement the spanSet data structure
+    internal/cpu,internal/bytealg: add support for riscv64
     
-    This change implements the spanSet data structure which is based off of
-    the gcSweepBuf data structure. While the general idea is the same (one
-    has two of these which one switches between every GC cycle; one to push
-    to and one to pop from), there are some key differences.
+    Based on riscv-go port.
     
-    Firstly, we never have a need to iterate over this data structure so
-    delete numBlocks and block. Secondly, we want to be able to pop from the
-    front of the structure concurrently with pushes to the back. As a result
-    we need to maintain both a head and a tail and this change introduces an
-    atomic headTail structure similar to the one used by sync.Pool. It also
-    implements popfirst in a similar way.
+    Updates #27532
     
-    As a result of this headTail, we need to be able to explicitly reset the
-    length, head, and tail when it goes empty at the end of sweep
-    termination, so add a reset method.
-    
-    Updates #37487.
-    
-    Change-Id: I5b8ad290ec32d591e3c8c05e496c5627018074f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221181
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia3aed521d4109e7b73f762c5a3cdacc7cdac430d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204635
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mspanset.go | 232 +++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 172 insertions(+), 60 deletions(-)
+ src/internal/bytealg/equal_riscv64.s      | 49 +++++++++++++++++++++++++++++
+ src/internal/bytealg/indexbyte_generic.go |  2 +-
+ src/internal/bytealg/indexbyte_native.go  |  2 +-
+ src/internal/bytealg/indexbyte_riscv64.s  | 52 +++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_riscv64.go           |  7 +++++
+ 5 files changed, 110 insertions(+), 2 deletions(-)

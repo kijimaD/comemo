@@ -1,35 +1,50 @@
-commit 1b1c6b838e678cbc9d93a78324fb5de873cd4487
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Feb 23 00:02:27 2025 +1100
+commit dcbe77246922fe7ef41f07df228f47a37803f360
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jan 9 13:13:45 2024 -0500
 
-    cmd/compile: simplify intrinsification of BitLen16 and BitLen8
+    runtime: replace rwmutexR/W with per-rwmutex lock rank
     
-    Decompose BitLen16 and BitLen8 within the SSA rules for architectures that
-    support BitLen32 or BitLen64, rather than having a custom intrinsic.
+    CL 549536 intended to decouple the internal implementation of rwmutex
+    from the semantic meaning of an rwmutex read/write lock in the static
+    lock ranking.
     
-    Change-Id: Ie4188ce69d1021e63cec27a8e7418efb0714812b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651817
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Unfortunately, it was not thought through well enough. The internals
+    were represented with the rwmutexR and rwmutexW lock ranks. The idea was
+    that the internal lock ranks need not model the higher-level ordering,
+    since those have separate rankings. That is incorrect; rwmutexW is held
+    for the duration of a write lock, so it must be ranked before any lock
+    taken while any write lock is held, which is precisely what we were
+    trying to avoid.
+    
+    This is visible in violations like:
+    
+            0 : execW 11 0x0
+            1 : rwmutexW 51 0x111d9c8
+            2 : fin 30 0x111d3a0
+            fatal error: lock ordering problem
+    
+    execW < fin is modeled, but rwmutexW < fin is missing.
+    
+    Fix this by eliminating the rwmutexR/W lock ranks shared across
+    different types of rwmutex. Instead require users to define an
+    additional "internal" lock rank to represent the implementation details
+    of rwmutex.rLock. We can avoid an additional "internal" lock rank for
+    rwmutex.wLock because the existing writeRank has the same semantics for
+    semantic and internal locking. i.e., writeRank is held for the duration
+    of a write lock, which is exactly how rwmutex.wLock is used, so we can
+    use writeRank directly on wLock.
+    
+    For #64722.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-staticlockranking
+    Change-Id: Ia572de188a46ba8fe054ae28537648beaa16b12c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555055
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM.rules     |  1 +
- src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  1 +
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  1 +
- src/cmd/compile/internal/ssa/_gen/MIPS.rules    |  1 +
- src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  1 +
- src/cmd/compile/internal/ssa/_gen/S390X.rules   |  1 +
- src/cmd/compile/internal/ssa/_gen/Wasm.rules    |  1 +
- src/cmd/compile/internal/ssa/rewriteARM.go      | 34 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go    | 34 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 34 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS.go     | 34 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go    | 34 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go    | 51 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteWasm.go     | 51 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go   | 39 +++----------------
- 15 files changed, 284 insertions(+), 34 deletions(-)
+ src/runtime/export_test.go |   2 +-
+ src/runtime/lockrank.go    | 219 +++++++++++++++++++++++----------------------
+ src/runtime/mklockrank.go  |  22 ++---
+ src/runtime/proc.go        |   4 +-
+ src/runtime/rwmutex.go     |  30 ++++---
+ 5 files changed, 143 insertions(+), 134 deletions(-)

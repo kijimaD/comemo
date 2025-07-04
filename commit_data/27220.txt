@@ -1,28 +1,23 @@
-commit 81b2ea4d34a42bee14e1ed17d5166546be957849
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 30 17:17:26 2016 -0500
+commit 3c2a21ff13c53b93db50cfb37b186d6200e2ceec
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 25 15:37:40 2016 -0500
 
-    net/http: add Transport.MaxIdleConns limit
+    runtime: fix transient _Gwaiting states in newstack
     
-    The HTTP client had a limit for the maximum number of idle connections
-    per-host, but not a global limit.
+    With concurrent stack shrinking, the stack can move the instant after
+    a G enters _Gwaiting. There are only two places that put a G into
+    _Gwaiting: gopark and newstack. We fixed uses of gopark. This commit
+    fixes newstack by simplifying its G transitions and, in particular,
+    eliminating or narrowing the transient _Gwaiting states it passes
+    through so it's clear nothing in the G is accessed while in _Gwaiting.
     
-    This CLs adds a global idle connection limit too,
-    Transport.MaxIdleConns.
+    For #12967.
     
-    All idle conns are now also stored in a doubly-linked list. When there
-    are too many, the oldest one is closed.
-    
-    Fixes #15461
-    
-    Change-Id: I72abbc28d140c73cf50f278fa70088b45ae0deef
-    Reviewed-on: https://go-review.googlesource.com/22655
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2440ead411d2bc61beb1e2ab020ebe3cb3481af9
+    Reviewed-on: https://go-review.googlesource.com/20039
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go      |  2 +-
- src/net/http/export_test.go    |  2 +
- src/net/http/transport.go      | 86 ++++++++++++++++++++++++++++++++++++------
- src/net/http/transport_test.go | 71 +++++++++++++++++++++++++++++-----
- 4 files changed, 138 insertions(+), 23 deletions(-)
+ src/runtime/stack.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

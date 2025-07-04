@@ -1,0 +1,33 @@
+commit fab2b8b0fa569959243345dd4dcef651451d24fa
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Nov 20 16:11:06 2024 -0500
+
+    crypto/hkdf: init package
+    
+    This commit imports the x/crypto/hkdf package as a public crypto package
+    based on the linked proposal. Since we've already implemented this
+    internal to the FIPS boundary (mod some small changes based on the
+    proposal discussion) this largely defers to that implementation.
+    
+    Updates #61477
+    
+    Change-Id: Ie3dcee75314dfbe22eec8b31c43c926fe80637bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630296
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ api/next/61477.txt                                 |   3 +
+ doc/next/6-stdlib/3-hkdf.md                        |   2 +
+ doc/next/6-stdlib/99-minor/crypto/hkdf/61477.md    |   1 +
+ src/crypto/hkdf/example_test.go                    |  53 +++++++++
+ src/crypto/hkdf/hkdf.go                            |  49 +++++++++
+ .../{internal/fips140test => hkdf}/hkdf_test.go    | 122 ++++++++++++---------
+ src/crypto/internal/fips140/hkdf/cast.go           |   2 +-
+ src/crypto/internal/fips140/hkdf/hkdf.go           |   7 +-
+ src/crypto/internal/fips140/tls13/tls13.go         |   2 +-
+ src/crypto/internal/hpke/hpke.go                   |   2 +-
+ src/go/build/deps_test.go                          |   5 +-
+ 11 files changed, 188 insertions(+), 60 deletions(-)

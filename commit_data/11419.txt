@@ -1,22 +1,14 @@
-commit 71b1c6d3c98b0f34070be4c8f5e9d4c0cb2731ac
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 26 13:02:03 2012 -0500
+commit 32d7a7364f10b652c36e1515623586d0db82ef20
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Jan 26 16:50:56 2012 +0000
 
-    godoc: move overview before API TOC
+    net/http: make ParseForm ignore unknown content types.
+    Also fix a shadowed error variable bug.
     
-    Compare:
-    http://swtch.com/junk/regexp0.html [old]
-    http://swtch.com/junk/regexp.html [new]
-    
-    Especially for packages with large APIs, this makes the
-    overview more promiment, so that it can give the appropriate
-    context for reading the API list.  This should help significantly
-    in packages with large APIs, like net, so that the first thing users
-    see is not a jumble of functions but an introduction to the package.
-    
-    R=adg, gri, r, kevlar, dsymonds, rogpeppe
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5573068
+    https://golang.org/cl/5573072
 
- lib/godoc/package.html | 203 ++++++++++++++++++++++++++-----------------------
- 1 file changed, 106 insertions(+), 97 deletions(-)
+ src/pkg/net/http/request.go      |  4 +---
+ src/pkg/net/http/request_test.go | 19 +++++++++++--------
+ 2 files changed, 12 insertions(+), 11 deletions(-)

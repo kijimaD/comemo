@@ -1,0 +1,23 @@
+commit 4506796a6ebee9799dd6272c0fb12c7b993631e2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Jun 21 10:51:08 2025 -0700
+
+    encoding/json/jsontext: consistently use JSON terminology
+    
+    RFC 8259, section 2 uses the term "begin-array" amd "begin-object"
+    rather than "start array" or "start object".
+    Be consistent in our documentation.
+    
+    Change-Id: I172eb354c5e64b84c74bd662b1e581424e719a32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683155
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/encoding/json/jsontext/doc.go    | 4 ++--
+ src/encoding/json/jsontext/encode.go | 4 ++--
+ src/encoding/json/jsontext/state.go  | 4 ++--
+ src/encoding/json/jsontext/token.go  | 8 ++++----
+ 4 files changed, 10 insertions(+), 10 deletions(-)

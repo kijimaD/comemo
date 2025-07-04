@@ -1,14 +1,16 @@
-commit 2d7ddfa64dcdc480f07c579f298b9019ba737f96
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Jul 29 13:48:00 2011 -0400
+commit 124172e2cfe55f1bfefb5e478a42ae3b29e62478
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 29 13:47:54 2011 -0400
 
-    libmach: stubs for openbsd
+    godoc: allow form feed in text files
     
-    Add libmach stubs for openbsd.
+    Now recognizes misc/emacs/go-mode-load.el as text.
     
-    R=rsc
+    Fixes #2115.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4815065
+    https://golang.org/cl/4801061
 
- src/libmach/openbsd.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/cmd/godoc/utils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,16 @@
-commit fc2507dbd3b1c1df97a9673a2ed5243f05a3449a
+commit b6e3a98cf3a7acb3d5c1431eb04e9c3edad6c6ed
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 28 03:56:30 2016 +0000
+Date:   Tue May 10 13:03:42 2016 -0700
 
-    doc: remove mention of Go 1.6.3 working on Sierra
+    cmd/go: make C compiler warnings fatal on builders
     
-    We thought it would at the time, but then Beta 4 changed the ABI
-    again, so it wasn't true in practice.
+    Fixes #14698
     
-    Fixes #17643
-    
-    Change-Id: I36b747bd69a56adc7291fa30d6bffdf67ab8741b
-    Reviewed-on: https://go-review.googlesource.com/32238
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I82fa781bf136c30e900d8e910ff576ba8b218acb
+    Reviewed-on: https://go-review.googlesource.com/23005
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.7.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/go/build.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

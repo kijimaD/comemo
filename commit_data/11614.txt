@@ -1,18 +1,15 @@
-commit 829053686478c980b122bb7b255354f8c64ef0bd
+commit 4c1abd6c64085a005b0d9d54eee97cd0c06151b2
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 4 00:54:08 2012 -0500
+Date:   Sat Feb 4 00:48:31 2012 -0500
 
-    build: use cmd/dist
+    build: dist-based build for windows
     
-    R=bradfitz, ality, r, r, iant, mikioh.mikioh
+    R=golang-dev, bradfitz, iant, alex.brainman, go.peter.90
     CC=golang-dev
-    https://golang.org/cl/5615058
+    https://golang.org/cl/5630047
 
- src/all.bash   |   7 ++--
- src/clean.bash |  33 +++-------------
- src/env.bash   | 107 -------------------------------------------------
- src/make.bash  | 123 ++++++++++-----------------------------------------------
- src/run.bash   |  41 +++++++------------
- src/sudo.bash  |   2 +-
- test/run       |   4 +-
- 7 files changed, 45 insertions(+), 272 deletions(-)
+ src/all.bat            |  18 ++++
+ src/cmd/dist/windows.c | 229 ++++++++++++++++++++++++++++++++++++-------------
+ src/make.bat           |  52 +++++++++++
+ src/run.bat            |  47 ++++++++++
+ 4 files changed, 288 insertions(+), 58 deletions(-)

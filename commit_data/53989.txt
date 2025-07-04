@@ -1,31 +1,36 @@
-commit ac64a3628b54f47dc3aa84fc4527fd753db7b834
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 20:19:59 2023 +1000
+commit 972870da11bb4ddd3df393473c494bd2b546cc56
+Author: Kévin Dunglas <kevin@dunglas.fr>
+Date:   Tue Aug 30 10:18:50 2022 +0000
 
-    runtime/cgo: rename crosscall_386 to crosscall1 and standardise API
+    net/http/httputil: forward 1xx responses in ReverseProxy
     
-    Most architectures have a crosscall1 function that takes a function
-    pointer, a setg_gcc function pointer and a g pointer. However,
-    crosscall_386 only takes a function pointer and the call to setg_gcc
-    is performed in the thread entry function.
+    Support for 1xx responses has recently been merged in
+    net/http (CL 269997).
     
-    Rename crosscall_386 to crosscall1 for consistency with other
-    architectures, as well as standardising the API - while not strictly
-    necessary, it will allow for further deduplication as the calling
-    code becomes more consistent.
+    As discussed in this CL
+    (https://go-review.googlesource.com/c/go/+/269997/comments/1ff70bef_c25a829a),
+    support for forwarding 1xx responses in ReverseProxy has been extracted
+    in this separate patch.
     
-    Change-Id: I77cf42e1e15e0a4c5802359849a849c32cebd92f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518618
+    According to RFC 7231, "a proxy MUST forward 1xx responses unless the
+    proxy itself requested the generation of the 1xx response".
+    Consequently, all received 1xx responses are automatically forwarded as long as the
+    underlying transport supports ClientTrace.Got1xxResponse.
+    
+    Fixes #26088
+    Fixes #51914
+    
+    Change-Id: I3a35ea023b798bfe56b7fb8696d5a49695229cfd
+    GitHub-Last-Rev: dab8a461fb65b547306cae9b4c664e60020a8fa6
+    GitHub-Pull-Request: golang/go#53164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409536
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
 
- src/runtime/cgo/gcc_386.S         | 14 ++++++++++----
- src/runtime/cgo/gcc_freebsd_386.c |  8 ++------
- src/runtime/cgo/gcc_linux_386.c   |  8 ++------
- src/runtime/cgo/gcc_netbsd_386.c  |  8 ++------
- src/runtime/cgo/gcc_openbsd_386.c |  8 ++------
- src/runtime/cgo/gcc_windows_386.c |  6 ++++--
- src/runtime/cgo/libcgo.h          |  5 -----
- 7 files changed, 22 insertions(+), 35 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 20 ++++++++
+ src/net/http/httputil/reverseproxy_test.go | 82 ++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+)

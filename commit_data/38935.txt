@@ -1,26 +1,22 @@
-commit 50ad09418eb22cb9f6294ca86b0bfd77af7d2128
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Wed Apr 24 14:33:50 2019 -0300
+commit 21da8e6022d1d148741ba3c08cdc555df500520e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Dec 10 10:53:39 2018 +0100
 
-    cmd/compile: intrinsify math/bits.Add64 for ppc64x
+    internal/xcoff: add big archive support
     
-    This change creates an intrinsic for Add64 for ppc64x and adds a
-    testcase for it.
+    This commit adds support to read AIX big archive inside internal/xcoff
+    package.
     
-    name               old time/op  new time/op  delta
-    Add64-160          1.90ns ±40%  2.29ns ± 0%     ~     (p=0.119 n=5+5)
-    Add64multiple-160  6.69ns ± 2%  2.45ns ± 4%  -63.47%  (p=0.016 n=4+5)
-    
-    Change-Id: I9abe6fb023fdf62eea3c9b46a1820f60bb0a7f97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173758
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Change-Id: I4317b40824b24312a69c918dfc6438dc3aff7be7
+    Reviewed-on: https://go-review.googlesource.com/c/153398
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           |  4 ++--
- src/cmd/compile/internal/ppc64/ssa.go        | 30 +++++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go        | 17 ++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 17 ++++++++++++++++
- test/codegen/mathbits.go                     | 10 ++++++++++
- 7 files changed, 78 insertions(+), 3 deletions(-)
+ src/internal/xcoff/ar.go                 | 228 +++++++++++++++++++++++++++++++
+ src/internal/xcoff/ar_test.go            |  79 +++++++++++
+ src/internal/xcoff/testdata/bigar-empty  |   2 +
+ src/internal/xcoff/testdata/bigar-ppc64  | Bin 0 -> 2468 bytes
+ src/internal/xcoff/testdata/printbye.c   |   5 +
+ src/internal/xcoff/testdata/printhello.c |   5 +
+ 6 files changed, 319 insertions(+)

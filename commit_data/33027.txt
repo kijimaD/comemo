@@ -1,38 +1,18 @@
-commit 4cd58c2f2687fc5930a3da2581da09e2e96f69f5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Oct 6 01:40:58 2017 -0700
+commit 81ed9ca1d411f0bd8738ea60b3a8045446ad85fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 27 16:21:48 2017 +0000
 
-    archive/tar: improve handling of directory paths
+    cmd/go: skip broken TestExecutableGOROOT/RelocatedExe
     
-    The USTAR format says:
-    <<<
-    Implementors should be aware that the previous file format did not include
-    a mechanism to archive directory type files.
-    For this reason, the convention of using a filename ending with
-    <slash> was adopted to specify a directory on the archive.
-    >>>
+    Test just doesn't work.
     
-    In light of this suggestion, make the following changes:
-    * Writer.WriteHeader refuses to encode a header where a file that
-    is obviously a file-type has a trailing slash in the name.
-    * formatter.formatString avoids encoding a trailing slash in the event
-    that the string is truncated (the full string will be encoded elsewhere,
-    so stripping the slash is safe).
-    * Reader.Next treats a TypeRegA (which is the zero value of Typeflag)
-    as a TypeDir if the name has a trailing slash.
+    Updates #20284
     
-    Change-Id: Ibf27aa8234cce2032d92e5e5b28546c2f2ae5ef6
-    Reviewed-on: https://go-review.googlesource.com/69293
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I31c3f771e68dcdc471767594a1467e19fbf5fe88
+    Reviewed-on: https://go-review.googlesource.com/46830
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@google.com>
 
- src/archive/tar/common.go                   |   5 +++++
- src/archive/tar/reader.go                   |   3 +++
- src/archive/tar/reader_test.go              |  11 +++++++++++
- src/archive/tar/strconv.go                  |   8 ++++++++
- src/archive/tar/tar_test.go                 |   9 +++++++++
- src/archive/tar/testdata/trailing-slash.tar | Bin 0 -> 2560 bytes
- src/archive/tar/writer.go                   |   1 +
- src/archive/tar/writer_test.go              |   6 ++++++
- 8 files changed, 43 insertions(+)
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

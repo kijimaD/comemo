@@ -1,16 +1,25 @@
-commit 20943baed3da37226b1c2a5006d8c8e64d7b869d
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Jun 20 13:34:10 2011 +1000
+commit c319fb07bcae09589f83f060a4fdfef93a521348
+Author: Julian Phillips <julian@quantumfyre.co.uk>
+Date:   Mon Jun 20 13:00:43 2011 +1000
 
-    exec: add support for Plan 9
+    goinstall: Add support for arbitary code repositories
     
-    R=paulzhol, mirtchovski, fshahriar, alex.brainman, r
+    Extend goinstall to support downloading from any hg/git/svn/bzr hosting
+    site, not just the standard ones.  The type of hosting is automatically
+    checked by trying all the tools, so the import statement looks like:
+    
+      import "example.com/mything"
+    
+    Which will work for Mercurial (http), Subversion (http, svn), Git (http,
+    git) and Bazaar (http, bzr) hosting.
+    
+    All the existing package imports will work through this new mechanism,
+    but the existing hard-coded host support is left in place to ensure
+    there is no change in behaviour.
+    
+    R=golang-dev, bradfitz, fvbommel, go.peter.90, n13m3y3r, adg, duperray.olivier
     CC=golang-dev
-    https://golang.org/cl/4386041
+    https://golang.org/cl/4650043
 
- src/pkg/exec/Makefile            |  3 +++
- src/pkg/exec/lp_plan9.go         | 51 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/os/error_plan9.go        |  1 +
- src/pkg/os/exec_plan9.go         |  6 +++--
- src/pkg/syscall/syscall_plan9.go | 15 ++++++++++--
- 5 files changed, 72 insertions(+), 4 deletions(-)
+ src/cmd/goinstall/download.go | 231 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 168 insertions(+), 63 deletions(-)

@@ -1,20 +1,21 @@
-commit adf21a9b56f3498385152d701ddd0e8679fe57ed
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Apr 7 10:12:06 2025 +0000
+commit a66a3bf494f652bc4fb209d861cbdba1dea71303
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 15:01:25 2024 -0800
 
-    internal/cpu: add a detection for Neoverse(N3, V3, V3ae) cores
+    go/types, types2: add tracing to Checker.validType
     
-    The memmove implementation relies on the variable
-    runtime.arm64UseAlignedLoads to select fastest code
-    path. Considering Neoverse N3, V3 and V3ae cores
-    prefer aligned loads, this patch adds code to detect
-    them for memmove performance.
+    Debugging support.
     
-    Change-Id: I7266fc35d8b2c15ff516c592b987bafacb82b620
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664038
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #65711.
+    
+    Change-Id: I2b8b03d2c6e02d32a4f9272313e852f17da35b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567975
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/cpu/cpu_arm64_hwcap.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/validtype.go | 33 ++++++++++++++++++++--------
+ src/go/types/generate_test.go                |  2 +-
+ src/go/types/validtype.go                    | 33 ++++++++++++++++++++--------
+ 3 files changed, 49 insertions(+), 19 deletions(-)

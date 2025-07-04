@@ -1,15 +1,25 @@
-commit 3980c4db192783c6aefa0a5978e553046c9c7dea
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri May 7 10:47:47 2021 -0700
+commit f588974a521d2626cba2a6ac3219c47eb3004aa1
+Author: surechen <surechen17@gmail.com>
+Date:   Fri May 15 22:59:38 2020 +0800
 
-    doc/go1.17: fill in TODO for compress/lzw package
+    math/big: reduce allocations for building decimal strings
     
-    Fixes #46005
+    Append operations in the decimal String function may cause several allocations.
+    Use make to pre allocate slices in String that have enough capacity to avoid additional allocations in append operations.
     
-    Change-Id: I80ca21eb64d245749af62506ba960dbc1726c6c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318012
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    name                 old time/op  new time/op  delta
+    DecimalConversion-8   139µs ± 7%   109µs ± 2%  -21.06%  (p=0.000 n=10+10)
+    
+    Change-Id: Id0284d204918a179a0421c51c35d86a3408e1bd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233980
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
 
- doc/go1.17.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/math/big/decimal.go | 3 +++
+ 1 file changed, 3 insertions(+)

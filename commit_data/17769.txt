@@ -1,18 +1,19 @@
-commit 0965459bd908fdbd0ffc6a6cb82d58bd0091fc0a
+commit 8ba6deb1ec6cc48b54e98cb97de5e907e7901c58
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 9 11:08:22 2013 -0400
+Date:   Wed Oct 9 08:37:06 2013 -0400
 
-    debug/dwarf: handle surprising clang encoding
+    compress/flate: fix infinite loop on malformed data
     
-    Fixes a bug in cgo on OS X using clang.
-    See golang.org/issue/6472 for details.
+    Test using compress/gzip, because that's how the
+    data arrived.
     
-    Fixes #6472.
+    Fixes #6550.
     
-    R=golang-dev, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14575043
+    https://golang.org/cl/14441051
 
- misc/cgo/test/issue6472.go  | 22 ++++++++++++++++++++++
- src/pkg/debug/dwarf/type.go | 43 +++++++++++++++++++++++++++++++------------
- 2 files changed, 53 insertions(+), 12 deletions(-)
+ src/pkg/compress/flate/inflate.go           |   4 ++++
+ src/pkg/compress/gzip/gunzip_test.go        |  31 ++++++++++++++++++++++++++++
+ src/pkg/compress/gzip/testdata/issue6550.gz | Bin 0 -> 65536 bytes
+ 3 files changed, 35 insertions(+)

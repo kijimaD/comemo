@@ -1,25 +1,19 @@
-commit 9d0239771a2ddd77be0ba64c2782e1328a378190
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 30 16:13:39 2015 +1100
+commit d460b6e5c6c998ebc862e541a1779b8d6595d127
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Mar 1 13:47:54 2015 -0500
 
-    cmd/go: always link external test packages first when using gccgo
+    misc/ios: add go_darwin_arm_exec script
     
-    This CL is an amagamation of several fixes Canonical have made on their
-    fork of the cmd/go tool (packaged as gccgo-go.deb on Ubuntu 14.04+).
+    This script is getting very close to complete, and is complex enough
+    that I'd like to get what's there so far reviewed. With it the builder
+    is left failing on eight packages. Two of those involve correcting
+    GOROOT which may need modifications to this script, the others are
+    either a unix sockets bug I have to hunt down or are caused by lldb
+    getting stuck on SIGSEGV, a TODO.
     
-    Additionally this CL brings gccgoToolchain.ldi() up to date with the version
-    that will ship in gccgo-5.0. As gccgo is most likely to be used with its
-    own version of the go tool that it supples it makes good sense that the libgo
-    version should dictate the contents of gccgotoolchain.ld()
-    
-    Please see https://codereview.appspot.com/222890043/ for more details on the
-    issues fixed.
-    
-    Change-Id: Icf7deb43f8e80b424757f1673e6bca7a0aa2a1ac
-    Reviewed-on: https://go-review.googlesource.com/8250
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5ff933800167b6764b51ad195da7dcda61d59ff8
+    Reviewed-on: https://go-review.googlesource.com/6404
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/go/build.go | 40 ++++++++++++++++++++++------------------
- src/cmd/go/pkg.go   |  1 +
- src/cmd/go/test.go  |  9 +++++----
- 3 files changed, 28 insertions(+), 22 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 505 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 505 insertions(+)

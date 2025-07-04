@@ -1,19 +1,17 @@
-commit 408f7a4663fdb19357e2c0967eb442a1e5679b2d
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 17 15:10:51 2023 -0400
+commit 266c70c26306e98d32d95dc62463c829f39bcce8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 14 11:37:17 2022 -0400
 
-    cmd/dist: don't pass -linkmode=auto
+    doc/go1.19: add a release note for 'go list -json=SomeField'
     
-    This is the default value of this flag, so passing it clutters up
-    debugging output. This also makes it clearer which tests are running
-    with a default configuration.
+    For #29666.
     
-    Change-Id: If793934829c79f087c7a6e3fa8f64dc33959c213
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496176
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I575375fb039e5809b0ed2ce985f6352a61142d63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417595
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ doc/go1.19.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

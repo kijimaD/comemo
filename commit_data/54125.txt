@@ -1,27 +1,38 @@
-commit 9e9556d328c53ed0a4d8b36feee949885d648ba8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 18 15:38:44 2023 -0400
+commit e6d9057e2f3442b133afe7e37bec72bb9b780b04
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 7 10:32:51 2022 -0500
 
-    cmd/go: find GOROOT using os.Executable when installed to GOROOT/bin/GOOS_GOARCH
+    cmd/compile: add coverage fixup mode
     
-    When running make.bash in a cross-compiled configuration
-    (for example, GOARCH different from GOHOSTARCH), cmd/go
-    is installed to GOROOT/bin/GOOS_GOARCH instead of GOROOT/bin.
+    Adds a -coveragecfg=<configfile> command line option to the compiler
+    to help support a cooperative "tool and compiler" mode for coverage
+    instrumentation. In this mode the cmd/cover tool generates most of the
+    counter instrumentation via source-to-source rewriting, but the
+    compiler fixes up the result if passed the "-coveragecfg" option. The
+    fixups include:
     
-    That means that we need to look for GOROOT in both ../.. and ../../..,
-    not just the former.
+      - reclassifying counter variables (special storage class)
+      - marking meta-data variables are read-only
+      - adding in an init call to do registation
     
-    Fixes #62119.
-    Updates #18678.
+    Updates #51430.
     
-    Change-Id: I283c6a10c46df573ff44da826f870417359226a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521015
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Iead72b85209725ee044542374465f118a3ee72e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395895
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                     | 38 ++++++---
- src/cmd/go/testdata/script/goroot_executable.txt   |  8 +-
- .../testdata/script/goroot_executable_trimpath.txt | 91 ++++++++++++++++++++++
- 3 files changed, 125 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/base/flag.go              |  25 ++-
+ src/cmd/compile/internal/coverage/cover.go         | 189 +++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go                |  10 ++
+ src/cmd/compile/internal/ir/symtab.go              |   7 +-
+ src/cmd/compile/internal/pkginit/init.go           |  15 ++
+ src/cmd/compile/internal/typecheck/builtin.go      |  50 ++++--
+ .../compile/internal/typecheck/builtin/coverage.go |  14 ++
+ .../compile/internal/typecheck/builtin/runtime.go  |   2 +
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |  44 ++---
+ src/cmd/compile/internal/typecheck/syms.go         |  29 ++++
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/internal/coverage/cmddefs.go                   |  66 +++++++
+ 12 files changed, 410 insertions(+), 42 deletions(-)

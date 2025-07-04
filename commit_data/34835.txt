@@ -1,31 +1,27 @@
-commit 4946d9e87b7340b7846fa2e5f4aea28c4d5f6ab4
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 4 12:54:47 2018 -0400
+commit 262141a12a6ef0d914fe7aff8b3bde45ea59abb0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Nov 9 14:14:44 2017 -0800
 
-    runtime: stop when we run out of hints in race mode
+    database/sql: check for arg counts after eliminating arguments
     
-    Currently, the runtime falls back to asking for any address the OS can
-    offer for the heap when it runs out of hint addresses. However, the
-    race detector assumes the heap lives in [0x00c000000000,
-    0x00e000000000), and will fail in a non-obvious way if we go outside
-    this region.
+    Check for the expected number of arguments in a SQL statement
+    after arguments are eliminated in the argument converter.
     
-    Fix this by actively throwing a useful error if we run out of heap
-    hints in race mode.
+    This situation was already tested for in TestNamedValueChecker.
+    However the test used Exec which didn't have any check for
+    NumInput on it at all, thus this issue was never caught.
     
-    This problem is currently being triggered by TestArenaCollision, which
-    intentionally triggers this fallback behavior. Fix the test to look
-    for the new panic message in race mode.
+    In addition to moving the NumInput check on the Query
+    methods after the converter, add the NumInput check
+    to the Exec methods as well.
     
-    Fixes #24670.
-    Updates #24133.
+    Fixes #22630
     
-    Change-Id: I57de6d17a3495dc1f1f84afc382cd18a6efc2bf7
-    Reviewed-on: https://go-review.googlesource.com/104717
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If45920c6e1cf70dca63822a0cedec2cdc5cc611c
+    Reviewed-on: https://go-review.googlesource.com/76732
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go      |  8 ++++++++
- src/runtime/malloc_test.go | 13 ++++++++++++-
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/database/sql/sql.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

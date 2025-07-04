@@ -1,20 +1,12 @@
-commit 4aa5dcc2592587c9ef98a9526b26e0dfb5470bf8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Nov 23 18:21:52 2017 +1100
+commit ec04f107adb14b2095b827deae160a5f36e362a2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 29 17:28:15 2017 +0900
 
-    internal/poll: do not use Windows TransmitFile with pipes
+    cmd/cgo: update documentation on implementation details
     
-    It appears that TransmitFile Windows API does not work with Windows
-    pipes. So just copy data from pipe and into TCP connection manually.
-    
-    Fixes #22278
-    
-    Change-Id: I4810caca5345eac5bffb3176956689b8ae993256
-    Reviewed-on: https://go-review.googlesource.com/79775
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iec771d5bbdf510b6c5ec17a614da90e7974a6348
+    Reviewed-on: https://go-review.googlesource.com/59870
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/sendfile_windows.go |  9 +++++
- src/net/tcpsock_test.go               | 72 +++++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+)
+ src/cmd/cgo/doc.go | 99 ++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 66 insertions(+), 33 deletions(-)

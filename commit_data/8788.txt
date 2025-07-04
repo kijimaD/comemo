@@ -1,13 +1,16 @@
-commit e068b85bea6301c833c8e3f908888d8bcd39ba8f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 20 14:12:23 2011 +1000
+commit 20943baed3da37226b1c2a5006d8c8e64d7b869d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 20 13:34:10 2011 +1000
 
-    goinstall: wait for all commands to finish instead of timeout
-    goinstall: make ".git" repo suffix optional
+    exec: add support for Plan 9
     
-    R=golang-dev, r, r
+    R=paulzhol, mirtchovski, fshahriar, alex.brainman, r
     CC=golang-dev
-    https://golang.org/cl/4643048
+    https://golang.org/cl/4386041
 
- src/cmd/goinstall/download.go | 55 +++++++++++++++++++++++--------------------
- 1 file changed, 29 insertions(+), 26 deletions(-)
+ src/pkg/exec/Makefile            |  3 +++
+ src/pkg/exec/lp_plan9.go         | 51 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/error_plan9.go        |  1 +
+ src/pkg/os/exec_plan9.go         |  6 +++--
+ src/pkg/syscall/syscall_plan9.go | 15 ++++++++++--
+ 5 files changed, 72 insertions(+), 4 deletions(-)

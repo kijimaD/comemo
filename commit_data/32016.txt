@@ -1,16 +1,29 @@
-commit 121d076679a376ef5549c858195c5a8357cba36e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 14 19:02:05 2017 +0000
+commit 18e77673d85fe8d230b8c2dfffe7cd5341b72c4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 20:50:34 2017 -0400
 
-    syscall: skip TestUnshare on Linux upon permission error
+    cmd/link: emit a mach-o dwarf segment that dsymutil will accept
     
-    Fixes #17206
+    Right now, at least with Xcode 8.3, we invoke dsymutil and dutifully
+    copy what it produces back into the binary, but it has actually dropped
+    all the DWARF information that we wanted, because it didn't like
+    the look of go.o.
     
-    Change-Id: Id0ebc3a55ea1c5f52608decffee04c8398a8774b
-    Reviewed-on: https://go-review.googlesource.com/48571
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Make it like the look of go.o.
+    
+    DWARF is tested in other ways, but typically indirectly and not for cgo programs.
+    Add a direct test, and one that exercises cgo.
+    This detects missing dwarf information in cgo-using binaries on macOS,
+    at least with Xcode 8.3, and possibly earlier versions as well.
+    
+    Fixes #19772.
+    
+    Change-Id: I0082e52c0bc8fc4e289770ec3dc02f39fd61e743
+    Reviewed-on: https://go-review.googlesource.com/38855
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/dwarf_test.go        | 115 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go   |   4 ++
+ src/cmd/link/internal/ld/macho.go |   2 +-
+ 3 files changed, 120 insertions(+), 1 deletion(-)

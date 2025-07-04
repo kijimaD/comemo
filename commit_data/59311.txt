@@ -1,19 +1,18 @@
-commit 786e62bcd3f03d73ddf0c999780ffe6f1a0319ea
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 15 09:19:36 2025 -0700
+commit 1f1fcc34736087db4d385abf26b4ec0ef64193a1
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 1 10:11:56 2024 +0000
 
-    runtime: don't use cgo_unsafe_args for syscall9 wrapper
+    os/exec: remove unnecessary fmt.Sprintf call
     
-    It uses less stack space this way.
-    
-    Similar to CL 386719
-    Update #71302
-    
-    Change-Id: I585bde5f681a90a6900cbd326994ab8a122fd148
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/665695
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ic0ac97a15dadd756d727fd8abe23359b0347af19
+    GitHub-Last-Rev: a96a3f5fe7fbfb41f38acadab3c03c4a76c89b78
+    GitHub-Pull-Request: golang/go#66052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568317
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/sys_darwin.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

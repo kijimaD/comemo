@@ -1,24 +1,15 @@
-commit 41981930354fdc7bbb59950ce8f303939396b211
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 4 12:53:11 2023 -0700
+commit 3e758593905c1377b0db8d388839171159d0fea5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 6 18:00:35 2022 -0400
 
-    cmd/compile/internal/ssagen: sort locals by alignment, not size
+    cmd/link/internal/ld: update _func names to match runtime
     
-    Sorting variables by size doesn't actually do anything, but sorting by
-    alignment makes sure we can optimally pack variables into the stack
-    frame.
-    
-    While here, replace the monolithic description at the top of
-    cmpstackvarlt with line-by-line explanations of what each comparison
-    is doing.
-    
-    Change-Id: I860677799618130ce4a55f084cec637cb9a2e295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516197
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I4a47f676c0e533f7612fc3eb1b5dd8039f72782f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428659
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go | 27 ++++++++++++++++-----------
- 1 file changed, 16 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

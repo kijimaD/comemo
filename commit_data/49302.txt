@@ -1,42 +1,19 @@
-commit 7ec6ef432a85a390365f2daed788f0d14c830c73
-Author: Khaled Yakdan <yakdan@code-intelligence.com>
-Date:   Wed May 18 08:54:30 2022 +0000
+commit 2fbf6aafe7de215a1d03e14aa488aa8fd31f56a7
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 9 11:40:46 2021 -0700
 
-    cmd/compile, cmd/link: use libFuzzer 8-bit instead of extra counters
+    [dev.typeparams] cmd/compile: handle interface type parameters in type switches
     
-    By using libFuzzer’s 8-bit counters instead of extra counters, the
-    coverage instrumentation in libFuzzer mode is improved in three ways:
-      1- 8-bit counters are supported on all platforms, including macOS and
-         Windows, with all relevant versions of libFuzzer, whereas extra
-         counters are a Linux-only feature that only recently received
-         support on Windows.
-      2- Newly covered blocks are now properly reported as new coverage by
-         libFuzzer, not only as new features.
-      3- The NeverZero strategy is used to ensure that coverage counters
-         never become 0 again after having been positive once. This resolves
-         issues encountered when fuzzing loops with iteration counts that
-         are multiples of 256 (e.g., larger powers of two).
-    
-    Change-Id: I9021210d7fbffd07c891ad08750402ee91cb3df5
-    GitHub-Last-Rev: 9057e4b21d146ce9ffb3993982bfb84b96705989
-    GitHub-Pull-Request: golang/go#51318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387334
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9bba21a64d7e9f42395b6fcdf8aa3ca01cf131dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340912
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/gc/obj.go           |  4 +--
- src/cmd/compile/internal/ir/name.go          |  6 ++---
- src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
- src/cmd/compile/internal/walk/order.go       | 34 ++++++++++++++++---------
- src/cmd/internal/objabi/symkind.go           |  2 +-
- src/cmd/internal/objabi/symkind_string.go    |  8 +++---
- src/cmd/link/internal/ld/data.go             | 14 +++++-----
- src/cmd/link/internal/ld/elf.go              |  2 +-
- src/cmd/link/internal/ld/xcoff.go            |  2 +-
- src/cmd/link/internal/sym/symkind.go         | 38 ++++++++++++++--------------
- src/cmd/link/internal/sym/symkind_string.go  |  8 +++---
- src/runtime/libfuzzer.go                     | 35 ++++++++++++++++++++++++-
- src/runtime/libfuzzer_amd64.s                | 23 +++++++++++++++++
- src/runtime/libfuzzer_arm64.s                | 21 +++++++++++++++
- 14 files changed, 143 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 30 +++++++++++++++----------
+ test/typeparam/typeswitch6.go             | 30 +++++++++++++++++++++++++
+ test/typeparam/typeswitch6.out            |  5 +++++
+ test/typeparam/typeswitch7.go             | 37 +++++++++++++++++++++++++++++++
+ test/typeparam/typeswitch7.out            |  3 +++
+ 5 files changed, 93 insertions(+), 12 deletions(-)

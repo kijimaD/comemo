@@ -1,29 +1,16 @@
-commit b9b2bed8933a467dcc48eedeec83dfea7ff3148a
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Wed May 12 20:41:26 2021 -0700
+commit 974def803ee9fd03a755014dcb62d55105c846f1
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Fri Sep 4 16:56:54 2020 +0800
 
-    syscall: some containers may fail syscall.TestSetuidEtc
+    go/ast: add test for Filter
     
-    The test previously had the hardcoded assumption that /proc/self/status
-    files had "Groups:" lines containing numerical IDs in ascending order.
-    Because of the possibility of non-monotonic ordering of GIDs in user
-    namespaces, this assumption was not universally true for all
-    /proc/self/gid_map setups.
-    
-    To ensure this test can pass in those setups, sanity check failed
-    "Groups:" line matches with a string sorted version of the expected
-    values. (For the test cases here, numerical and string sorted order
-    are guaranteed to match.)
-    
-    Fixes #46145
-    
-    Change-Id: Ia060e80b123604bc394a15c02582fc406f944d36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319591
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia14659a9c44f9e1504eb88b5693932b9dd4bb286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252939
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/test/issue1435.go        | 21 +++++++++++++++++----
- src/syscall/syscall_linux_test.go | 21 +++++++++++++++++----
- 2 files changed, 34 insertions(+), 8 deletions(-)
+ src/go/ast/commentmap_test.go | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

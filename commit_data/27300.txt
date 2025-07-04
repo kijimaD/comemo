@@ -1,24 +1,26 @@
-commit a633d766d1763f4f4648e423c4e8a8635b183d03
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 6 08:51:16 2016 +0900
+commit 060038bdd036e98622e22bc4538c7d192fb7217c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 18:12:14 2016 -0700
 
-    Revert "net: add support for Zone of IPNet"
+    cmd/compile: don't penalize ODOT and friends when inlining
     
-    Updates #14518.
+    Historically ODOT and friends have been considered to cost an extra
+    budget point when deciding whether they should be inlined, because they
+    had an ONAME node that represented the name to the right of the dot.
+    This doesn't really make sense, as in general that symbol does not add
+    any extra instructions; it just affects the offset of the load or store
+    instruction.  And the ONAME node is gone now.  So, remove the extra
+    cost.
     
-    This reverts commit 3e9264c9ae781a2cd28127deaed6ae26f84b4b15.
+    This does not pass toolstash -cmp, as it changes inlining decisions.
+    For example, mspan.init in runtime/mheap.go is now considered to be an
+    inlining candidate.
     
-    Change-Id: I2531b04efc735b5b51ef675541172f2f5ae747d9
-    Reviewed-on: https://go-review.googlesource.com/22836
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5ad27f08c66fd5daa4c8472dd0795df989183f5e
+    Reviewed-on: https://go-review.googlesource.com/20891
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/interface_bsd.go     |  1 -
- src/net/interface_linux.go   |  3 ---
- src/net/interface_test.go    |  6 +-----
- src/net/interface_windows.go |  3 ---
- src/net/ip.go                | 14 ++++----------
- src/net/ip_test.go           |  8 --------
- 6 files changed, 5 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 7 -------
+ 1 file changed, 7 deletions(-)

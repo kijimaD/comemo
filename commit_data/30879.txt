@@ -1,16 +1,14 @@
-commit 95bfd927f5d05fd2fb82dba918ff8d36bbc6d400
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 28 11:17:52 2017 -0700
+commit afb350811e926c7521b766946976cf88dd7d29f2
+Author: Euan Kemp <euank@euank.com>
+Date:   Tue Dec 13 21:49:57 2016 -0800
 
-    cmd/compile: fix two instances of { lineno = ...; yyerror }
+    runtime: correct writebarrier typos
     
-    Updates #19683
-    
-    Change-Id: Ic00d5a9807200791cf37553f4f802dbf27beea19
-    Reviewed-on: https://go-review.googlesource.com/38770
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7d67c3d64be915f0be5932d2c068606d74f93c29
+    Reviewed-on: https://go-review.googlesource.com/34378
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/runtime/os_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

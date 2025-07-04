@@ -1,16 +1,17 @@
-commit 9ed095bc593bd8f05b22c901975c14dca20ea7d5
+commit 8b6ef69e239ac9abbb187915dbd345c0406435ec
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 15 20:03:41 2014 -0500
+Date:   Sat Feb 15 20:00:57 2014 -0500
 
-    build: disable race detector test in run.bat on windows
+    cmd/gc: avoid pointer beyond array in range loop
     
-    CL 64170043 disabled it in run.bash for Unix systems.
-    I did not realize Windows systems also ran the race detector test.
+    This problem was discovered by reading the code.
+    I have not seen it in practice, nor do I have any ideas
+    on how to trigger it reliably in a test. But it's still worth
+    fixing.
     
-    TBR=iant
+    TBR=ken2
     CC=golang-codereviews
-    https://golang.org/cl/64480043
+    https://golang.org/cl/64370046
 
- src/run.bash | 3 ++-
- src/run.bat  | 6 +++++-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/gc/range.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,17 +1,24 @@
-commit 3415d0c49ddb6c48a90919eb023c71c7e82c3189
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 18 21:23:33 2016 -0800
+commit a35c85c0cc518b89e0318bf8b6c2c584c61090bb
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 21:15:18 2015 +1300
 
-    cmd/go: fix handling of asm files for -compiler=gccgo
+    cmd/internal/obj, runtime: implement IE model TLS on ppc64le
     
-    Pass -c to generate an object.  Pass GOPKGPATH as a symbol, not a
-    string.  Pass -xassembler-with-cpp so that the preprocessor is run.
+    This requires changing the tls access code to match the patterns documented in
+    the ABI documentation or the system linker will "optimize" it into ridiculousness.
     
-    Change-Id: I84690a73cc580bb05724ed07c120cec9cfd5e48b
-    Reviewed-on: https://go-review.googlesource.com/18733
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    With this change, -buildmode=pie works, although as it is tested in testshared,
+    the tests are not run yet.
+    
+    Change-Id: I1efa6687af0a5b8db3385b10f6542a49056b2eb3
+    Reviewed-on: https://go-review.googlesource.com/15971
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/link.go          | 13 ++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go   |  1 +
+ src/cmd/internal/obj/ppc64/anames9.go |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go    | 38 +++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/elf.go       | 39 ++++++++++++++++++++---------------
+ src/cmd/link/internal/ppc64/asm.go    | 11 +++++++++-
+ src/runtime/tls_ppc64x.s              |  6 ++----
+ 7 files changed, 86 insertions(+), 23 deletions(-)

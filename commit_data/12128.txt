@@ -1,17 +1,14 @@
-commit 433e47dc030c19402af1f62f78789ff2ccbb66ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 21 23:04:38 2012 -0500
+commit 8d29a09707877185d0a19fe2d68459cf2f833bff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 15:02:31 2012 +1100
 
-    ld: only set SNOPTRBSS during load
+    doc: move styles to style.css
     
-    dodata will convert to SNOPTRDATA if appropriate.
-    Should fix arm build (hope springs eternal).
-    
-    TBR=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5687074
+    https://golang.org/cl/5685075
 
- src/cmd/5l/obj.c | 8 ++------
- src/cmd/6l/obj.c | 8 ++------
- src/cmd/8l/obj.c | 4 ++--
- 3 files changed, 6 insertions(+), 14 deletions(-)
+ doc/go1.html  | 6 ------
+ doc/go1.tmpl  | 6 ------
+ doc/style.css | 3 +++
+ 3 files changed, 3 insertions(+), 12 deletions(-)

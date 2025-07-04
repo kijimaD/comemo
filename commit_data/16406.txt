@@ -1,46 +1,16 @@
-commit 7472ce0e58b6c73902af51fc0aab13bf8e90aa80
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 24 15:49:26 2013 -0700
+commit 30fde1b2795c2db5672b86a45ec32fdb8942573e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 24 16:34:50 2013 -0400
 
-    fmt.Printf: introduce notation for random access to arguments.
-    This text is added to doc.go:
+    doc: start go 1.2 notes
     
-            Explicit argument indexes:
+    This is a file of hints, not a file of polished text.
+    Let's not try to do polished text until we start the
+    release process.
     
-            In Printf, Sprintf, and Fprintf, the default behavior is for each
-            formatting verb to format successive arguments passed in the call.
-            However, the notation [n] immediately before the verb indicates that the
-            nth one-indexed argument is to be formatted instead. The same notation
-            before a '*' for a width or precision selects the argument index holding
-            the value. After processing a bracketed expression [n], arguments n+1,
-            n+2, etc. will be processed unless otherwise directed.
-    
-            For example,
-                    fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
-            will yield "22, 11", while
-                    fmt.Sprintf("%[3]*[2].*[1]f", 12.0, 2, 6),
-            equivalent to
-                    fmt.Sprintf("%6.2f", 12.0),
-            will yield " 12.00". Because an explicit index affects subsequent verbs,
-            this notation can be used to print the same values multiple times
-            by resetting the index for the first argument to be repeated:
-                    fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
-            will yield "16 17 0x10 0x11".
-    
-    The notation chosen differs from that in C, but I believe it's easier to read
-    and to remember (we're indexing the arguments), and compatibility with
-    C's printf was never a strong goal anyway.
-    
-    While we're here, change the word "field" to "arg" or "argument" in the
-    code; it was being misused and was confusing.
-    
-    R=rsc, bradfitz, rogpeppe, minux.ma, peter.armitage
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/9680043
+    https://golang.org/cl/9750043
 
- doc/go1.2.txt           |   1 +
- src/pkg/fmt/doc.go      |  24 ++++++
- src/pkg/fmt/fmt_test.go |  40 +++++++++-
- src/pkg/fmt/print.go    | 207 +++++++++++++++++++++++++++++++-----------------
- src/pkg/fmt/scan.go     |  44 +++++-----
- 5 files changed, 218 insertions(+), 98 deletions(-)
+ doc/go1.2.txt | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,27 +1,26 @@
-commit 9ce47e66e8eb7348005f1e45a77a729e7f146a1e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jun 15 01:29:02 2024 +1000
+commit cdf3249d74c4187bc0c1737e1bb6ab1aa52c0b6f
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 16 01:42:39 2023 -0800
 
-    cmd/internal/obj/arm64: add support for BTI instruction
+    os: make FindProcess use pidfd on Linux
     
-    Add support for the `BTI' instruction to the arm64 assembler. This
-    instruction provides Branch Target Identification for targets of
-    indirect branches. A BTI can be marked with a target type of
-    'C' (call), 'J' (jump) or 'JC' (jump or call).
+    Amend FindProcess to use pidfdFind, and make it return ErrProcessDone
+    if pidfdFind is used and the process is not found.
     
-    Updates #66054
+    Since this is a change in API, introduce GODEBUG osfinderr=0 setting
+    to disable the feature.
     
-    Change-Id: I1cf31a0382207bb75b9b2deb49ac298a59c00d8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646781
+    Change-Id: I724c6f622f0c99f21a70b864cf7cf2b8836869ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542699
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Marvin Drees <marvin.drees@9elements.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s          |  6 ++++++
- src/cmd/asm/internal/asm/testdata/arm64error.s     |  2 ++
- src/cmd/internal/obj/arm64/a.out.go                |  9 +++++++--
- src/cmd/internal/obj/arm64/anames.go               |  1 +
- src/cmd/internal/obj/arm64/asm7.go                 | 23 +++++++++++++++++++++-
- .../internal/obj/arm64/specialoperand_string.go    |  9 ++++++---
- 6 files changed, 44 insertions(+), 6 deletions(-)
+ doc/godebug.md                 |  5 +++++
+ src/internal/godebugs/table.go |  1 +
+ src/os/exec.go                 |  9 ++++++++-
+ src/os/exec_unix.go            | 10 ++++++++--
+ src/os/pidfd_linux.go          | 20 ++++++++++++++++++++
+ src/os/pidfd_other.go          |  4 ++++
+ src/runtime/metrics/doc.go     |  4 ++++
+ 7 files changed, 50 insertions(+), 3 deletions(-)

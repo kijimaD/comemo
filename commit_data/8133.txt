@@ -1,14 +1,14 @@
-commit a58fe3bd23f4a8ee6ed3321277ebf87f59ee1591
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Apr 17 09:43:27 2011 -0700
+commit 99b0eefd4007d370b653454e804153e28a5338f3
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Sat Apr 16 18:44:51 2011 +1000
 
-    websocket: fix socket leak in test
+    misc/goplay: fix Tab and Shift+Enter in Firefox.
     
-    Possibly fixes issue 1694.
+    Fixes #1633.
     
-    R=bradfitzgo
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4427049
+    https://golang.org/cl/4439042
 
- src/pkg/websocket/websocket_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ misc/goplay/goplay.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

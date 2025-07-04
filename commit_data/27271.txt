@@ -1,15 +1,15 @@
-commit 7a964e1df4c94941d7ca53491de4ff7f12bc0941
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 27 13:47:19 2016 -0400
+commit 2330ae8cf80e4fa5e6e2909e0c8562fd3d9beec6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Jan 25 16:27:23 2016 +0100
 
-    cmd/vet: add mips64x assembly check support
+    testing: finish implementation of subtests
     
-    Change-Id: I0a6a92604dbfa4b0f9c5ae483b574331f246dcad
-    Reviewed-on: https://go-review.googlesource.com/22502
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    API not exposed yet.
+    
+    Change-Id: Iaba0adc0fa1ae8075e6b56796f99ee8db9177a78
+    Reviewed-on: https://go-review.googlesource.com/18896
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/asmdecl.go      |  15 ++++
- src/cmd/vet/testdata/asm5.s | 193 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 208 insertions(+)
+ src/testing/sub_test.go | 225 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go  |  24 ++++++
+ 2 files changed, 249 insertions(+)

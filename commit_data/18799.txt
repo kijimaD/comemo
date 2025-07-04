@@ -1,20 +1,16 @@
-commit b2fa6f41a48b141e7307f9640f4ceb748a42b4cd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 7 14:22:17 2014 -0500
+commit 9460cf78257fd8326827f1564da5da29b3bb8089
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 7 19:44:35 2014 +0100
 
-    runtime: comment out breakpoint in windows/386 sighandler
+    liblink: fix morestack handling on amd64p32.
     
-    This code being buggy is the only explanation I can come up
-    with for issue 7325. It's probably not, but the only alternative
-    is a Windows kernel bug. Comment this out to see what breaks
-    or gets fixed.
+    It was using MOVL to pass a 64-bit argument
+    (concatenated framesize and argsize) to morestack11.
     
-    Update #7325
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dave, rsc
+    R=dave, rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/72590044
+    https://golang.org/cl/72360044
 
- src/pkg/runtime/os_windows_386.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/liblink/obj6.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

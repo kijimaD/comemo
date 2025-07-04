@@ -1,19 +1,19 @@
-commit e884334b552e3fb2b502e468fd28309a7758bde2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 6 11:17:20 2015 -0800
+commit 9c04d00214cb836ddcf4b7b6b0c4b4e5c11bb957
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 26 11:39:10 2015 -0400
 
-    runtime: use pthread_sigmask, not sigprocmask, on Darwin ARM/ARM64
+    runtime: check explicitly for short unwinding of stacks
     
-    Other systems use pthread_sigmask.  It was a mistake to use sigprocmask
-    here.
+    Right now we find out implicitly if stack barriers are in place,
+    or defers. This change makes sure we find out about short
+    unwinds always.
     
-    Change-Id: Ie045aa3f09cf035fcf807b7543b96fa5b847958a
-    Reviewed-on: https://go-review.googlesource.com/16720
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibdde1ba9c79eb792660dcb7aa6f186e4e4d559b3
+    Reviewed-on: https://go-review.googlesource.com/13966
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/sys_darwin_arm.s   | 4 ++--
- src/runtime/sys_darwin_arm64.s | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/proc1.go     | 2 ++
+ src/runtime/runtime2.go  | 1 +
+ src/runtime/stack1.go    | 1 +
+ src/runtime/traceback.go | 6 ++++++
+ 4 files changed, 10 insertions(+)

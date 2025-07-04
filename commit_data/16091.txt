@@ -1,12 +1,30 @@
-commit 2cf658f6f52ac302499ceed491af0e3d2243a8fc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 4 13:51:20 2013 +1100
+commit 272687ec24ca828f8c7ba22c64e0060436124051
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Apr 3 18:23:43 2013 -0700
 
-    untag go1.1beta1
+    cmd/nm: don't add filename elements for m symbols
     
-    R=golang-dev, dave
-    CC=golang-dev
-    https://golang.org/cl/8342046
+    The compilers used to generate only one 'm' symbol
+    to record the stack frame size for each function.
+    
+    In cmd/nm, the 'm' and 'f' symbols are handled in
+    the same switch case with a special exception for
+    the symbol described above called ".frame".
+    
+    Now that the compilers emit additional 'm' symbols
+    for precise garbage collection of the stack, the
+    current logic is incorrect. cmd/nm will attempt to
+    interpret these new 'm' symbols as 'f' symbols and
+    add them to the file name index table.
+    
+    This fails with an out-of-memory condition when
+    zenter encounters an 'm' symbol with a very large
+    value (usually the .args symbol indicating a
+    variadic NOSPLIT function).
+    
+    R=iant
+    CC=dave, gobot, golang-dev, rsc
+    https://golang.org/cl/7962045
 
- .hgtags | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/nm/nm.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

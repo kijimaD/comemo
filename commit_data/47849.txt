@@ -1,17 +1,23 @@
-commit ebac50e9cef66920ecfe018252ffdc2294a0c249
-Author: Carl Johnson <me@carlmjohnson.net>
-Date:   Sat Dec 18 02:54:22 2021 +0000
+commit 728e3dc6f9c900654d94642135e0dcfe2f7bb645
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 16:31:29 2021 +0000
 
-    doc/go1.18: add net/http.MaxBytesHandler
+    runtime: make gcSetTriggerRatio a method of gcControllerState
     
-    For #47694
+    gcSetTriggerRatio's purpose is to set a bunch of downstream values when
+    we choose to commit to a new trigger ratio computed by the gcController.
+    Now that almost all the inputs it uses to compute the downstream values
+    are in gcControllerState anyway, make it a method of gcControllerState.
     
-    Change-Id: Ifab2c2720ec2ccef175a0e14a95f8df0437eb009
-    GitHub-Last-Rev: f3c2f12c7b6472610428cff5cad2a4497c47150e
-    GitHub-Pull-Request: golang/go#50250
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373015
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    For #44167.
+    
+    Change-Id: I1b7ea709e8378566f812ae3450ab169d7fb66aea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306599
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.18.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/mgc.go      |  2 +-
+ src/runtime/mgcpacer.go | 22 +++++++++++-----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

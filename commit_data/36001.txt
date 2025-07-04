@@ -1,12 +1,20 @@
-commit e07e9c4fd50687370a4027fb9f319edb75f5ac04
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 16 16:35:04 2018 +0000
+commit bd18c09095ed432f9638b3b1181b3c5390c8c51c
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Sun Jan 28 23:30:48 2018 +0100
 
-    doc: add net/http additions to go1.11 notes
+    crypto/tls: parse certificate first in X509KeyPair to get better errors
     
-    Change-Id: Ib2da2b0ceb33867a41b0b9b7e4dcecb11f964b73
-    Reviewed-on: https://go-review.googlesource.com/124035
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    parsePrivateKey can't return useful error messages because it does trial
+    decoding of multiple formats.  Try ParseCertificate first in case it
+    offers a useful error message.
+    
+    Fixes #23591
+    
+    Change-Id: I380490a5850bee593a7d2f584a27b2a14153d768
+    Reviewed-on: https://go-review.googlesource.com/90435
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- doc/go1.11.html | 31 +++++++++++++++++++++++++------
- 1 file changed, 25 insertions(+), 6 deletions(-)
+ src/crypto/tls/tls.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

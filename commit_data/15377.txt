@@ -1,36 +1,19 @@
-commit 9f647288efecb0522df319969bdc82c34d36880a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 22 14:25:50 2013 -0500
+commit 9c7aa5fea983fe58d126542013861a022adefa70
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 22 10:40:23 2013 -0800
 
-    cmd/gc: avoid runtime code generation for closures
+    mime/multipart: allow unescaped newlines through in quoted-printable
     
-    Change ARM context register to R7, to get out of the way
-    of the register allocator during the compilation of the
-    prologue statements (it wants to use R0 as a temporary).
+    This makes Go's quoted-printable decoder more like other
+    popular ones, allowing through a bare \r or \n, and also
+    passes through \r\n which looked like a real bug before.
     
-    Step 2 of http://golang.org/s/go11func.
+    Fixes #4771
     
-    R=ken2
+    R=minux.ma
     CC=golang-dev
-    https://golang.org/cl/7369048
+    https://golang.org/cl/7300092
 
- src/cmd/5g/ggen.c               |   5 +-
- src/cmd/5g/gsubr.c              |  21 +++++++
- src/cmd/5g/peep.c               |   2 +
- src/cmd/6g/ggen.c               |   3 +-
- src/cmd/6g/gsubr.c              |  18 ++++++
- src/cmd/6g/peep.c               |   2 +
- src/cmd/8g/ggen.c               |   3 +-
- src/cmd/8g/gsubr.c              |  18 ++++++
- src/cmd/8g/peep.c               |   2 +
- src/cmd/gc/closure.c            | 128 +++++++++++++++++++-------------------
- src/cmd/gc/go.h                 |   2 +
- src/cmd/gc/racewalk.c           |   4 ++
- src/cmd/gc/runtime.go           |   2 -
- src/cmd/gc/typecheck.c          |  15 +++++
- src/cmd/gc/walk.c               |   9 ++-
- src/pkg/runtime/asm_arm.s       |  12 ++--
- src/pkg/runtime/closure_386.c   | 108 --------------------------------
- src/pkg/runtime/closure_amd64.c | 127 --------------------------------------
- src/pkg/runtime/closure_arm.c   | 132 ----------------------------------------
- 19 files changed, 172 insertions(+), 441 deletions(-)
+ src/pkg/mime/multipart/quotedprintable.go      |  58 ++++++++--
+ src/pkg/mime/multipart/quotedprintable_test.go | 149 ++++++++++++++++++++++++-
+ 2 files changed, 196 insertions(+), 11 deletions(-)

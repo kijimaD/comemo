@@ -1,17 +1,24 @@
-commit 707f888797c6d37cf5da85e666e992d45f973150
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Tue Nov 1 08:19:34 2022 +0900
+commit c3c74777bc5dcd351af6dc4811011241efe07d21
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 8 14:55:26 2022 +0100
 
-    cmd/compile/internal/pgo: gofmt and simplify
+    runtime, syscall: implement syscall.Pipe using syscall.Pipe2 on solaris
     
-    Change-Id: I29621cb6a3845917e7558be28579fe0e1b2d5afa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446776
+    All other platforms providing the pipe2 syscall already implement it
+    that way. Do so as well on solaris, which allows to drop
+    runtime.syscall_pipe and its dependencies as well.
+    
+    Change-Id: Icf04777f21d1804da74325d173fefdc87caa42eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390716
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/pgo/irgraph.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/os3_solaris.go      |  3 ---
+ src/runtime/sys_solaris_amd64.s | 12 ------------
+ src/runtime/syscall_solaris.go  | 18 ------------------
+ src/syscall/asm_solaris_amd64.s |  3 ---
+ src/syscall/syscall_solaris.go  | 14 +-------------
+ 5 files changed, 1 insertion(+), 49 deletions(-)

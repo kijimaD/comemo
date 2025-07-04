@@ -1,25 +1,26 @@
-commit d4112310a4d3b1981d77226a3d52a8b566b0c0bc
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Feb 20 16:17:06 2024 +0800
+commit d61ae9ded4ebc142fb0edccfee893fa10c233357
+Author: hopehook <hopehook@qq.com>
+Date:   Sun Feb 12 22:27:35 2023 +0800
 
-    net: harmonize the time units used for TCP keep-alive on DragonFly and other UNIX's by seconds
+    mime/multipart: fix Reader.ReadForm(math.MaxInt64) overflow
     
-    Follows up CL 542275
+    Because "CopyN" will read one more byte, which will cause us
+    to overflow when calling "Reader.ReadForm(math.MaxInt64)".
     
-    Fixes #65809
+    So we should check if the parameter exceeds "math.MaxInt64"
+    to avoid returning no data.
     
-    Change-Id: Iba01efb4ff0fbb7a67840875322f0338337ebb78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565315
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fixes #58384.
+    
+    Change-Id: I30088ce6468176b21e4a9a0b8b6080f2986dda23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467557
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/tcpconn_keepalive_dragonfly_test.go | 92 -----------------------------
- src/net/tcpconn_keepalive_unix_test.go      |  2 +-
- src/net/tcpsockopt_dragonfly.go             | 53 -----------------
- src/net/tcpsockopt_unix.go                  |  2 +-
- 4 files changed, 2 insertions(+), 147 deletions(-)
+ src/mime/multipart/formdata.go      |  3 +++
+ src/mime/multipart/formdata_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

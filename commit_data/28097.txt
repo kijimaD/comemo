@@ -1,16 +1,18 @@
-commit 26124030a051b6b05a29349fdc4b92880e18c8a8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 28 09:03:08 2016 -0700
+commit bec0863b53777f313396a10f0bc1349139d1009e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 28 13:44:15 2016 -0700
 
-    androidtest.bash: use go list to get pkg dir
+    net: remove unneeded tags from dnsRR structs
     
-    This will be more robust in the faces of
-    future changes to the pkg dir layout.
+    DNS packing and unpacking uses hand-coded struct walking functions
+    rather than reflection, so these tags are unneeded and just contribute
+    to their runtime reflect metadata size.
     
-    Change-Id: Iaf078093f02ef3a10884a19c25e2068cbbf5f36a
-    Reviewed-on: https://go-review.googlesource.com/27929
+    Change-Id: I2db09d5159912bcbc3b482cbf23a50fa8fa807fa
+    Reviewed-on: https://go-review.googlesource.com/22594
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/androidtest.bash | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/net/dnsmsg.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

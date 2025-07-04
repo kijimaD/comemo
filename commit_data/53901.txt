@@ -1,21 +1,27 @@
-commit a04f5adc3c748a4bb33d83363b08648d5ba6d79f
-Author: apocelipes <seve3r@outlook.com>
-Date:   Fri Aug 4 03:15:12 2023 +0000
+commit 88149ed43e50325f3200b580be400c91ed01aaac
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 6 17:48:26 2022 -0700
 
-    encoding/xml, image/jpeg, image/png: use the builtin min function
+    os: fix wrong error msg from TestReadClosed
     
-    Change-Id: I9bafc7aa4e20e7cd994b75e7576156ca68f4fc8b
-    GitHub-Last-Rev: e037f689bddd0ef03a6ad38982fe98b4c26aaede
-    GitHub-Pull-Request: golang/go#61746
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515855
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    If test would fail, the error message will have wrong error and its
+    type, because e is used after the failed type assertion.
+    
+    To fix, use the original err.
+    
+    While at it,
+     - combine the checks for error type and value into one statement;
+     - use the standard "got ..., want ..." format.
+    
+    Fixes: 212d2f82e050 ("os: add ErrClosed, return for use of closed File")
+    Change-Id: I862a96607b461ab89cce6bed2443b28aa2c16468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/encoding/xml/typeinfo.go | 7 -------
- src/image/jpeg/writer.go     | 8 --------
- src/image/png/reader.go      | 7 -------
- 3 files changed, 22 deletions(-)
+ src/os/os_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,16 +1,16 @@
-commit f49a757ad0d8f5987953684ea20153c713f7d9b9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 26 17:23:33 2016 -0800
+commit 3a96bf0d80304462fda5c68281feb625a2f525ce
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Nov 14 00:06:46 2015 -0500
 
-    unsafe: clarify that Alignof returns required alignment
+    cmd/dist: disable shootout/spectralnorm on linux/mips64 builder
     
-    Also document the special behavior of Alignof(s.f), and mention the
-    correspondence between Alignof and reflect.Type.{Align,FieldAlign}.
+    It is too slow with kernel FPU emulator.
     
-    Change-Id: I6f81047a04c86887f1b1164473225616cae45a26
-    Reviewed-on: https://go-review.googlesource.com/18949
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #12688.
+    
+    Change-Id: Ib3a5adfeb46e894550231b14eb0f4fb20aecee11
+    Reviewed-on: https://go-review.googlesource.com/16922
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unsafe/unsafe.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

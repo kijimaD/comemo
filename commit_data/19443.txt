@@ -1,13 +1,15 @@
-commit 0a8ce65c7a32f991e6a147165c2d0ff86b1db2f6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon May 26 19:20:45 2014 +0400
+commit 4b3019b17ce8fcf0b9fab916897aaee9b24ce7fc
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 23 17:39:58 2014 -0700
 
-    misc: properly spell Chrome in doc
+    doc: mention that reflect.SetMapIndex no longer panics
+    when deleting from a nil map.  See issue 8051.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=r
+    R=golang-codereviews, r, khr
     CC=golang-codereviews
-    https://golang.org/cl/99440046
+    https://golang.org/cl/96540051
 
- misc/nacl/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.3.html           | 6 ++++++
+ src/pkg/reflect/value.go | 1 +
+ 2 files changed, 7 insertions(+)

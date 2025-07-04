@@ -1,19 +1,18 @@
-commit 74ec5bf2d88364a9f29ab0468a3285e82abe5eb9
+commit d5b40b6ac261c987244ba0131c272b0b7ebc25cf
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 23 02:23:14 2015 -0400
+Date:   Fri Jun 5 11:51:49 2015 -0400
 
-    runtime: make pcln table check not trigger next to foreign code
+    runtime: add GODEBUG gcshrinkstackoff, gcstackbarrieroff, and gcstoptheworld variables
     
-    Foreign code can be arbitrarily aligned,
-    so the function before it can have
-    arbitrarily much padding.
-    We can't call pcvalue on values in the padding.
+    While we're here, update the documentation and delete variables with no effect.
     
-    Fixes #11653.
-    
-    Change-Id: I7d57f813ae5a2409d1520fcc909af3eeef2da131
-    Reviewed-on: https://go-review.googlesource.com/12550
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4df0d266dff880df61b488ed547c2870205862f0
+    Reviewed-on: https://go-review.googlesource.com/10790
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/symtab.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/runtime/extern.go   | 45 ++++++++++++++++++++++++++++++---------------
+ src/runtime/mgc.go      |  6 ++++++
+ src/runtime/mgcmark.go  |  4 ++++
+ src/runtime/runtime1.go | 36 ++++++++++++++++++++----------------
+ src/runtime/stack1.go   |  4 ++++
+ 5 files changed, 64 insertions(+), 31 deletions(-)

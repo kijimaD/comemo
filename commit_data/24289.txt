@@ -1,30 +1,12 @@
-commit 2027b00e63d9128eaba4a0164072380561c0fc9c
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Sun Aug 30 22:29:00 2015 +0200
+commit c97b49976d9251701ec6678689c794a352b9f890
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 14:05:59 2015 -0700
 
-    hash/crc32: add AMD64 optimized IEEE CRC calculation
+    cmd/go: fix typo in comment
     
-    IEEE is the most commonly used CRC-32 polynomial, used by zip, gzip and others.
-    
-    Based on http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
-    
-    benchmark                       old ns/op     new ns/op     delta
-    BenchmarkIEEECrc1KB-8           3193          352           -88.98%
-    BenchmarkIEEECrc4KB-8           5025          1307          -73.99%
-    BenchmarkCastagnoliCrc1KB-8     126           126           +0.00%
-    
-    benchmark                       old MB/s     new MB/s     speedup
-    BenchmarkIEEECrc1KB-8           320.68       2901.92      9.05x
-    BenchmarkIEEECrc4KB-8           815.08       3131.80      3.84x
-    BenchmarkCastagnoliCrc1KB-8     8100.80      8109.78      1.00x
-    
-    Change-Id: I99c9a48365f631827f516e44f97e86155f03cb90
-    Reviewed-on: https://go-review.googlesource.com/14080
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3d5e46d376953fbdd21ce8c161214eaed6378d84
+    Reviewed-on: https://go-review.googlesource.com/12490
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/hash/crc32/crc32.go                            |  12 +-
- src/hash/crc32/crc32_amd64.go                      |  54 +++++++
- src/hash/crc32/crc32_amd64.s                       | 169 +++++++++++++++++++++
- .../crc32/{crc32_amd64x.go => crc32_amd64p32.go}   |  16 +-
- src/hash/crc32/crc32_generic.go                    |  11 ++
- 5 files changed, 251 insertions(+), 11 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

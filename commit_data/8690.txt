@@ -1,14 +1,12 @@
-commit 18333f2de55880a413046f3d8dd667e0cb14ee0d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 10 12:31:10 2011 -0700
+commit 531c01d9902b39c6666fc8cd7747b4ac557615c7
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jun 10 13:32:20 2011 -0400
 
-    Go memory model: minor clarification
+    crypto/openpgp: build fix (unreviewed)
     
-    Fixes #1941.
-    
-    R=rsc
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/4576053
+    https://golang.org/cl/4572057
 
- doc/go_mem.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,20 @@
-commit 29a83af5ef4e4792b6fcfeafc30ddeca63d821f8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 26 14:19:19 2015 +1100
+commit db0d3892e0f3b246475c473685249427f86e3a56
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 00:08:51 2014 -0500
 
-    os: add windows test for Hostname
+    lib9: provide alterantive implementation of ldexp and frexp
     
-    Change-Id: I9b38b3a384722cf000eab18b62f73f90bcb56c5c
-    Reviewed-on: https://go-review.googlesource.com/6070
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Libc on Darwin/ARM has a buggy implementation of ldexp and frexp
+    that could not handle denormal numbers.
+    
+    Also disable VFP runfast (flush-to-zero) mode so that the gc
+    compiler can correctly handle denormal constants used in math and
+    strconv tests.
+    
+    Change-Id: Ie64220b882f414e0b37f406f38181c3586104d46
+    Reviewed-on: https://go-review.googlesource.com/2119
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/os/os_test.go | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ src/lib9/math_darwin_arm.c | 102 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 102 insertions(+)

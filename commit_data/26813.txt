@@ -1,20 +1,41 @@
-commit de7ee57c7ead59899d5b412a839c995de0e813b5
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Fri Apr 8 18:19:10 2016 +0200
+commit 6520da6ed5241b0383d50a286b4be0da70dc352b
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Feb 24 23:22:40 2016 +0100
 
-    cmd: remove bio.Bread
+    fmt: use public io.RuneScanner interface for ScanState reader
     
-    Replace calls to bio.Bread with calls to io.ReadFull.
+    All io.Reader that are passed to newScanState in all the standard
+    library tests that implement io.RuneReader also implement io.RuneScanner.
     
-    Change-Id: I2ee8739d01e04a4da9c20b6ce7d1d5b89914b8ad
-    Reviewed-on: https://go-review.googlesource.com/21750
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Do not check on each call ScanState's UnreadRune that the used RuneReader
+    also implements the UnreadRune method by using a private interface.
+    Instead require the used Reader to implement the public RuneScanner
+    interface.
+    
+    The extra implementation logic for UnreadRune is removed from ScanState.
+    Instead the readRune wrapper is extended to implement UnreadRune for the
+    RuneScanner interface. If the Reader passed to newScanstate does not
+    implement RuneScanner the readRune wrapper is used to implement the
+    missing functionality.
+    
+    Note that a RuneReader that does not implement RuneScanner will also
+    be wrapped by runeRead which was not the case before.
+    Performance with the readRune wrapper is better than without before.
+    
+    Add benchmark to compare performance with and without using the
+    readRune wrapper.
+    
+    name                             old time/op  new time/op  delta
+    ScanInts-2                        704µs ± 0%   615µs ± 1%  -12.73%  (p=0.000 n=20+20)
+    ScanRecursiveInt-2               82.6ms ± 0%  51.4ms ± 0%  -37.71%  (p=0.000 n=20+20)
+    ScanRecursiveIntReaderWrapper-2  85.1ms ± 0%  52.4ms ± 0%  -38.36%  (p=0.000 n=20+20)
+    
+    Change-Id: I8c6e85db9b87a8171caab12f020b6e256b498e81
+    Reviewed-on: https://go-review.googlesource.com/19895
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/bio/buf.go         | 11 -----------
- src/cmd/link/internal/ld/ar.go      | 10 +++++-----
- src/cmd/link/internal/ld/go.go      |  3 ++-
- src/cmd/link/internal/ld/ldelf.go   | 10 ++++++----
- src/cmd/link/internal/ld/ldmacho.go | 34 +++++++++++++++++++++++++---------
- src/cmd/link/internal/ld/ldpe.go    | 14 +++++++++-----
- src/cmd/link/internal/ld/lib.go     | 21 +++++++++++++--------
- 7 files changed, 60 insertions(+), 43 deletions(-)
+ src/fmt/scan.go      | 109 ++++++++++++++++++++++++---------------------------
+ src/fmt/scan_test.go |  12 ++++++
+ 2 files changed, 63 insertions(+), 58 deletions(-)

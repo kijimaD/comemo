@@ -1,18 +1,17 @@
-commit 998cc2a1c5cad0e928f0ac07f69af36123192460
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Apr 29 12:24:30 2019 +1000
+commit cc8ae42a12cbbd7c7de0c1195d413fed5d9c4bbc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 21:03:11 2018 -0500
 
-    cmd,runtime: enable cgo for openbsd/arm64
+    cmd/go: retain sums for replacement modules in 'go mod tidy'
     
-    Updates #31656.
+    Fixes #27868
     
-    Change-Id: Ide6f829282fcdf20c67998b766a201a6a92c3035
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174132
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6c2d221c4325a2f44625e797a82735d812ee0ec1
+    Reviewed-on: https://go-review.googlesource.com/c/153817
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/build.go               |  2 +-
- src/cmd/nm/nm_cgo_test.go           |  9 +++--
- src/runtime/cgo/gcc_openbsd_arm64.c | 67 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 75 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modcmd/tidy.go              | 12 ++++++++++-
+ src/cmd/go/testdata/script/mod_sum_replaced.txt | 28 +++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

@@ -1,0 +1,33 @@
+commit 835e36fc7f631f74233edfd4ab43b6b56833db86
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Oct 29 14:22:11 2024 +0000
+
+    cmd/go: add subdirectory support to go-import meta tag
+    
+    This CL adds ability to specify a subdirectory in the go-import meta tag.
+    A go-import meta tag now will support:
+    <meta name="go-import" content="root-path vcs repo-url subdir">
+    
+    Fixes: #34055
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Iedac520f97e0646254cc1bd2f97d5a9a5236829b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625577
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/alldocs.go                              | 22 ++++++-
+ src/cmd/go/internal/help/helpdoc.go                | 22 ++++++-
+ src/cmd/go/internal/modfetch/coderepo.go           | 21 +++++-
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 12 +++-
+ src/cmd/go/internal/modfetch/repo.go               |  4 +-
+ src/cmd/go/internal/vcs/discovery.go               | 11 +++-
+ src/cmd/go/internal/vcs/discovery_test.go          | 36 ++++++----
+ src/cmd/go/internal/vcs/vcs.go                     |  8 ++-
+ src/cmd/go/internal/vcs/vcs_test.go                | 22 +++++++
+ src/cmd/go/testdata/script/mod_get_subdir.txt      | 77 ++++++++++++++++++++++
+ src/cmd/go/testdata/vcstest/git/gitreposubdir.txt  | 26 ++++++++
+ .../go/testdata/vcstest/git/gitreposubdirv2.txt    | 31 +++++++++
+ src/cmd/go/testdata/vcstest/go/gitreposubdir.txt   |  6 ++
+ src/cmd/go/testdata/vcstest/go/gitreposubdirv2.txt |  6 ++
+ 14 files changed, 275 insertions(+), 29 deletions(-)

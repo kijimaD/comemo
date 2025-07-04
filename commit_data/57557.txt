@@ -1,24 +1,21 @@
-commit 6ad3933e285b036137a339f598f00a21578fcbfb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 27 10:54:26 2024 -0700
+commit f6360cf488e4ddab0f920065b8775773f702e6bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 16 11:39:06 2023 -0700
 
-    go/types, types2: move go/types-only Scope methods into scopes2.go
+    syscall: remove deprecation notice
     
-    Remove them them from types2.
+    The syscall package isn't getting new system call support,
+    but it is not deprecated.
     
-    Updates #69673.
+    Fixes #60797
     
-    Change-Id: I7843f6da1edf3a19f85c61706104d173e04088d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616261
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I33b60269f9ce70ac2108fa0f3d42fd87a3076bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520018
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 158 --------------------------
- src/cmd/compile/internal/types2/scope.go    |  60 ----------
- src/go/types/api_test.go                    | 152 -------------------------
- src/go/types/scope.go                       |  60 ----------
- src/go/types/scope2.go                      |  72 ++++++++++++
- src/go/types/scope2_test.go                 | 167 ++++++++++++++++++++++++++++
- 6 files changed, 239 insertions(+), 430 deletions(-)
+ src/syscall/syscall.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

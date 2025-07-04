@@ -1,12 +1,14 @@
-commit b6522c43d5349f4b460dcb78d9173eee14ef0938
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Apr 25 13:01:08 2012 -0700
+commit 61a8eb07f80b1db11a527060c9d861a20ab86d52
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 25 12:46:16 2012 -0700
 
-    dashboard: sort user interface by internal counter, not date
+    net/http: ignore paths on CONNECT requests in ServeMux
     
-    R=golang-dev, rsc
+    Fixes #3538
+    
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/6114053
+    https://golang.org/cl/6117058
 
- misc/dashboard/app/build/ui.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/server.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

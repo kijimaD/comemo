@@ -1,28 +1,24 @@
-commit 35874308993d5dbb3a618254babb5c1fa85bd1e3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 25 21:03:54 2024 -0700
+commit 5a3048bf0eefd2f99382a980f975d6a1fb6b921a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 16 11:18:02 2023 -0400
 
-    cmd/go: don't print dynimport link error messages
+    cmd/api: rename api.go to main_test.go
     
-    When using the -x or -n option, we were printing the external
-    linker error messages from producing the dynimport file.
-    This was confusing because those linker errors are unimportant and
-    ignored; only the linker exit status matters, and failure doesn't
-    drop the build.
+    This makes cmd/api no longer an importable package.
+    In CL 453258 I forgot that there was no direct prohibition
+    on importing packages from cmd - we just rely on the
+    fact that cmd/* is all package main and everything else
+    is cmd/internal.
     
-    Change cmd/go -x to not print the error messages, and to instead
-    print the linker command line with a notation of whether the
-    link succeeded or failed.
+    Fixes #62069.
     
-    Fixes #68743
-    
-    Change-Id: Ie3cc58d2d6a7d33d7baa6f1273b4fb5a7deee7e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615916
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ifed738d333b40663f85eca8f83025fcea5df89a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520038
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go         | 44 +++++---------------------------
- src/cmd/go/testdata/script/cgo_undef.txt | 21 +++++++++++++++
- 2 files changed, 28 insertions(+), 37 deletions(-)
+ src/cmd/api/api_test.go              | 2 +-
+ src/cmd/api/boring_test.go           | 2 +-
+ src/cmd/api/{api.go => main_test.go} | 5 +++--
+ 3 files changed, 5 insertions(+), 4 deletions(-)

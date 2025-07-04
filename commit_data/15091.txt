@@ -1,15 +1,17 @@
-commit 5ea52a4d91fd45a2a727a4f6cca96d08cb2960f2
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sat Feb 2 12:39:04 2013 +0100
+commit f607c479eabab497b3e7d3dead472a19bd27e063
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 21:21:27 2013 -0500
 
-    cmg/gc: Fix evaluation order of map indexing during multiple assignments
+    cmd/gc: silence redundant error prints for misuse of [...]int
     
-    Fixes #4620.
+    Fixes #4452.
     
-    R=rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7241051
+    https://golang.org/cl/7241065
 
- src/cmd/gc/walk.c           | 16 ++++++++++++++--
- test/fixedbugs/issue4620.go | 21 +++++++++++++++++++++
- 2 files changed, 35 insertions(+), 2 deletions(-)
+ src/cmd/gc/align.c          |  8 ++++++--
+ src/cmd/gc/const.c          |  3 ++-
+ src/cmd/gc/typecheck.c      | 17 +++++++++++++----
+ test/fixedbugs/issue4452.go | 13 +++++++++++++
+ 4 files changed, 34 insertions(+), 7 deletions(-)

@@ -1,18 +1,14 @@
-commit 4e9fc0df4837d6c786fd79344019b25ac4b06eea
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 12 17:56:14 2015 -0400
+commit 0558f12123d8838575acb64fc7d9d58c59511b89
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 18:30:08 2015 +0300
 
-    runtime: implement GC scan work estimator
+    test: add tests for escape analysis of slices
     
-    This implements tracking the scan work ratio of a GC cycle and using
-    this to estimate the scan work that will be required by the next GC
-    cycle. Currently this estimate is unused; it will be used to drive
-    mutator assists.
+    False positives (var incorrectly escapes) are marked with BAD.
     
-    Change-Id: I8685b59d89cf1d83eddfc9b30d84da4e3a7f4b72
-    Reviewed-on: https://go-review.googlesource.com/8833
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I9e9a3f71b060520103bcf289829a2efdf6f2b517
+    Reviewed-on: https://go-review.googlesource.com/5298
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go    | 47 +++++++++++++++++++++++++++++++++++++++++++++--
- src/runtime/mstats.go |  6 ++++++
- 2 files changed, 51 insertions(+), 2 deletions(-)
+ test/escape_slice.go | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)

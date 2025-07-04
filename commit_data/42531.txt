@@ -1,16 +1,20 @@
-commit e25aa4fcea5a3ee5cfaf3e566c83d8a71166d4ab
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 16 14:54:57 2020 -0400
+commit ce7a0dda31b22a800aca199182901cbbc9a625a1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 3 15:17:26 2020 -0500
 
-    doc/go1.15: enumerate ELF-based OSes
+    [dev.link] cmd/link: add loader support for recording ElfType for symbols
     
-    Users don't necessarily know if their OS is ELF-based.
+    Add hooks in the loader for recording the ElfType of a symbol, as a
+    replacement for the sym.Symbol ElfType() and SetElfType() methods.
+    This symbol property is set only for symbols read from shared
+    libraries by ldshlibsyms.
     
-    For #37419.
-    
-    Change-Id: I4a4256c5f5eb34211729e1311582bb0e210f1f8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238240
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I3a3c193c3718dcfb73a2364d6e19e0419dab5b41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213420
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.15.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 42 ++++++++++++++++++++++++++++++----
+ 1 file changed, 38 insertions(+), 4 deletions(-)

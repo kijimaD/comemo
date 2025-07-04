@@ -1,25 +1,18 @@
-commit 80cb59c0c15d2391f7b8d2571121f8213df70f7b
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Nov 18 11:40:48 2021 -0800
+commit 23ffb5b9ae9e6e313df648d8bf6ab7b8f5ff0cf1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 26 23:29:25 2021 +0700
 
-    internal/fuzz: fix chunk swap mutator
+    runtime: overwrite existing keys for mapassign_faststr variant
     
-    When swapping two chunks of bytes in a slice, don't pick chunks which
-    extend beyond the end of the slice. Also don't pick chunks which
-    intersect with each other.
+    Fixes #45045
     
-    Fixes #49047
-    
-    Change-Id: I070eb1888d05ae849ec6122d01c40c45e602019f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365175
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ifcc7bd31591870446ce3e5127489a0b887d413f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305089
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/fuzz/mutators_byteslice.go      | 14 +++++++++++++-
- src/internal/fuzz/mutators_byteslice_test.go | 19 +++++++++++++------
- 2 files changed, 26 insertions(+), 7 deletions(-)
+ src/runtime/map_faststr.go   |  3 +++
+ test/fixedbugs/issue45045.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

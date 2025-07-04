@@ -1,17 +1,19 @@
-commit 59dae58174ef6dd2ca5720fcce97c565979375ce
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 22:50:44 2016 -0400
+commit 33f95ec4ecf96c795d69c643f80e4bd7f6a8f1bb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 08:49:07 2016 -0700
 
-    net/url: document and add example for ParseQuery("x")
+    syscall: superficial cleanup of amd64 unix assembly
     
-    Fixes #16460.
+    This is preliminary work to unifying them.
     
-    Change-Id: Ie9d5f725d2d7e8210ab6f7604a5a05fc49f707de
-    Reviewed-on: https://go-review.googlesource.com/31331
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #11041
+    
+    Change-Id: Ibe83da3d626f1da9e8888e26cedd3af2152b42e6
+    Reviewed-on: https://go-review.googlesource.com/25114
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/url/example_test.go | 19 +++++++++++++++++++
- src/net/url/url.go          |  4 ++++
- 2 files changed, 23 insertions(+)
+ src/syscall/asm_dragonfly_amd64.s | 22 +++++++++++-----------
+ src/syscall/asm_freebsd_amd64.s   | 22 +++++++++++-----------
+ 2 files changed, 22 insertions(+), 22 deletions(-)

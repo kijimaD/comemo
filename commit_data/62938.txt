@@ -1,0 +1,30 @@
+commit 591c4b50c0d8c61087c30261efd5e97668625e06
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Thu May 16 15:48:36 2024 -0700
+
+    runtime: verify attribution of mutex delay
+    
+    Have the test use the same clock (cputicks) as the profiler, and use the
+    test's own measurements as hard bounds on the magnitude to expect in the
+    profile.
+    
+    Compare the depiction of two users of the same lock: one where the
+    critical section is fast, one where it is slow. Confirm that the profile
+    shows the slow critical section as a large source of delay (with #66999
+    fixed), rather than showing the fast critical section as a large
+    recipient of delay.
+    
+    Previously reviewed as https://go.dev/cl/586237.
+    
+    For #66999
+    
+    Change-Id: Ic2d78cc29153d5322577d84abdc448e95ed8f594
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667616
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+
+ src/runtime/export_test.go  |   2 +
+ src/runtime/metrics_test.go | 202 ++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 169 insertions(+), 35 deletions(-)

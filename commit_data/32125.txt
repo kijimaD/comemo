@@ -1,21 +1,20 @@
-commit bd3dc9d6da5f3ede9001ca3f4493d48c4e48de0f
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Aug 8 03:06:02 2017 +0200
+commit 19bd145d0721a28658b15deb548f22a3405d83bd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 7 00:42:51 2017 +0000
 
-    net: fix LookupCNAME on Plan 9
+    Revert "cmd/compile: make typenamesym do less work"
     
-    Looking up a nonexistent CNAME record on an existing
-    domain on Plan 9 can return either a "dns failure"
-    error or a "resource does not exist" error.
+    This reverts commit 91433eb5772ab4aa62efb9f5cde07e4a1556e96e.
     
-    Fixes #21335.
+    Reason for revert: broke deterministic build.
     
-    Change-Id: Iead8ed4fe3167db06adb4ab7797c52c7efc3ff89
-    Reviewed-on: https://go-review.googlesource.com/53670
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
+    Fixes #19872.
+    
+    Change-Id: Ia1a0fc651b818bdf69454df43bd189689c0348a0
+    Reviewed-on: https://go-review.googlesource.com/39871
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/lookup_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go | 60 ++++++++++------------------------
+ src/cmd/compile/internal/gc/type.go    |  2 --
+ 2 files changed, 18 insertions(+), 44 deletions(-)

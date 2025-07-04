@@ -1,24 +1,50 @@
-commit 5546cc7eabef2775d379a6cdb4f4d2926fa7ab23
+commit 41f93a430fd673ccc4b52c3755e31ff6f64bf9a3
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 28 23:28:53 2011 -0400
+Date:   Mon Mar 28 23:28:42 2011 -0400
 
-    update tree for package net changes
+    net: drop laddr from Dial, cname from LookupHost; new functions
     
-    Converted with gofix.
+    Drop laddr argument from Dial.
     
-    R=adg
+    Drop cname return from LookupHost.
+    
+    Add LookupIP, LookupCNAME, ParseCIDR, IP.Equal.
+    Export SplitHostPort, JoinHostPort.
+    Add AAAA (IPv6) support to host lookups.
+    
+    Preparations for implementing some of the
+    lookups using cgo.
+    
+    ParseCIDR and IP.Equal are logically new in this CL
+    but accidentally snuck into an earlier CL about unused
+    labels that was in the same client.
+    
+    In crypto/tls, drop laddr from Dial to match net.
+    
+    R=golang-dev, dsymonds, adg, rh
     CC=golang-dev
-    https://golang.org/cl/4284049
+    https://golang.org/cl/4244055
 
- src/pkg/exp/draw/x11/conn.go        |  6 +++---
- src/pkg/http/serve_test.go          |  8 ++++----
- src/pkg/http/transport.go           |  2 +-
- src/pkg/netchan/import.go           |  2 +-
- src/pkg/rpc/client.go               |  4 ++--
- src/pkg/rpc/jsonrpc/client.go       |  2 +-
- src/pkg/smtp/smtp.go                |  2 +-
- src/pkg/syslog/syslog.go            |  2 +-
- src/pkg/syslog/syslog_unix.go       |  2 +-
- src/pkg/websocket/client.go         |  4 ++--
- src/pkg/websocket/websocket_test.go | 10 +++++-----
- 11 files changed, 22 insertions(+), 22 deletions(-)
+ src/pkg/crypto/tls/handshake_client_test.go |  2 +-
+ src/pkg/crypto/tls/tls.go                   |  5 +-
+ src/pkg/net/Makefile                        |  2 +
+ src/pkg/net/cgo_stub.go                     | 21 +++++++
+ src/pkg/net/dial.go                         | 79 +++++++++----------------
+ src/pkg/net/dialgoogle_test.go              | 13 ++++-
+ src/pkg/net/dnsclient.go                    | 80 ++++++++++++++++++++++---
+ src/pkg/net/dnsmsg.go                       | 42 +++++++++++++-
+ src/pkg/net/hosts_test.go                   |  1 -
+ src/pkg/net/ip.go                           | 53 ++++++++++-------
+ src/pkg/net/ip_test.go                      | 90 ++++++++++++++++++++++-------
+ src/pkg/net/iprawsock.go                    |  2 +-
+ src/pkg/net/ipsock.go                       | 17 +++---
+ src/pkg/net/lookup.go                       | 38 ++++++++++++
+ src/pkg/net/net_test.go                     | 23 ++++----
+ src/pkg/net/port.go                         |  4 +-
+ src/pkg/net/server_test.go                  | 10 ++--
+ src/pkg/net/sock.go                         |  4 +-
+ src/pkg/net/tcpsock.go                      |  7 ++-
+ src/pkg/net/textproto/textproto.go          |  2 +-
+ src/pkg/net/timeout_test.go                 |  2 +-
+ src/pkg/net/udpsock.go                      |  2 +-
+ 22 files changed, 353 insertions(+), 146 deletions(-)

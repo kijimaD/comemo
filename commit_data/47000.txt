@@ -1,17 +1,15 @@
-commit c526cf8c1ea535de6a30fc8c553c377bda4d6781
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 21 15:56:08 2021 -0700
+commit 40765ffa95e87e603845d83591f75efa54049eca
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 11:27:23 2021 -0500
 
-    cmd/compile/internal/types2: range clause to accept type sets with single underlying types
+    os/exec: disable failing LookPathTest on windows/arm64
     
-    This generalizes range clauses. Removed some dead code and cleaned
-    up the surrounding bits.
+    For #44379.
     
-    Change-Id: Icd8384205afa3f52b7e7df9abed5de2bb556861d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357778
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I9a3cf4d511a8286117f877c2ff9dbde56fa55983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293709
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/stmt.go            | 70 +++++++++-------------
- .../internal/types2/testdata/check/typeparams.go2  | 12 ++--
- 2 files changed, 35 insertions(+), 47 deletions(-)
+ src/os/exec/lp_windows_test.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

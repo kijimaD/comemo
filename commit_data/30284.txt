@@ -1,18 +1,24 @@
-commit ae1d05981fd97a07e4dc26c37e887a8bfa5ebc89
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 15 12:36:24 2017 -0800
+commit 03d641b990bf83b0553d723a2b8764af48de4e11
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 17:14:47 2016 -0400
 
-    os: skip TestPipeThreads on Solaris
+    net: break up >1GB reads and writes on stream connections
     
-    I don't know why it is not working.  Filed issue 19111 for this.
+    Also fix behavior of Buffers.WriteTo when writev returns an error.
     
-    Fixes build.
+    Fixes #16266.
     
-    Update #19111.
-    
-    Change-Id: I76f8d6aafba5951da2f3ad7d10960419cca7dd1f
-    Reviewed-on: https://go-review.googlesource.com/37092
+    Change-Id: Idc9503408ce2cb460663768fab86035cbab11aef
+    Reviewed-on: https://go-review.googlesource.com/31584
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/fd_plan9.go     |  1 +
+ src/net/fd_unix.go      | 12 +++++++++--
+ src/net/fd_windows.go   |  3 ++-
+ src/net/tcpsock_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/writev_test.go  | 41 ++++++++++++++++++++++++++++++++++++
+ src/net/writev_unix.go  |  6 +++++-
+ 6 files changed, 115 insertions(+), 4 deletions(-)

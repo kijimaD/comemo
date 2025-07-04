@@ -1,13 +1,19 @@
-commit 3b6de5e847bb8bf12f2299e2026ebf35c2026463
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 30 19:47:16 2013 +0400
+commit 27d17255dbe5c620dba1a427c2fd5e2d46cb03f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 10:27:08 2013 -0400
 
-    net: fix memory leak on unix
-    If netFD is closed by finalizer, runtime netpoll descriptor is not freed.
+    cmd/gc: insert \n at end of every input file
     
-    R=golang-dev, dave, alex.brainman
+    Not just the first one.
+    
+    Fixes #5433.
+    Fixes #5913.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12037043
+    https://golang.org/cl/12028049
 
- src/pkg/net/fd_unix.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/cmd/gc/go.h          | 1 +
+ src/cmd/gc/lex.c         | 5 ++++-
+ test/fixedbugs/bug435.go | 2 +-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,22 +1,17 @@
-commit ba66d89d7882892f762e7980562287d2c79ad87e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 29 21:49:20 2019 +0000
+commit e1acd854f754f496be341211e9deee53fc7e3404
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 15 13:00:03 2019 -0800
 
-    net/http: prevent Transport from spamming stderr on server 408 reply
+    cmd/go: add newline after module-requires-version message
     
-    HTTP 408 responses now exist and are seen in the wild (e.g. from
-    Google's GFE), so make Go's HTTP client not spam about them when seen.
-    They're normal (now).
+    Fixes #30263
     
-    Fixes #32310
-    
-    Change-Id: I558eb4654960c74cf20db1902ccaae13d03310f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179457
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iefb3d8baf815c19eaf915a59048e1da799ca0cdf
+    Reviewed-on: https://go-review.googlesource.com/c/162957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/export_test.go    |  1 +
- src/net/http/transport.go      | 20 +++++++++++-
- src/net/http/transport_test.go | 74 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 94 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

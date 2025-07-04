@@ -1,19 +1,31 @@
-commit 41245ab28390fed22ba03ee87c0e3db97b16c73b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 9 17:14:15 2021 -0800
+commit 7d7bd5abc7f7ac901830b79496f63ce86895e262
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 11 12:04:25 2020 -0400
 
-    cmd/compile/internal/types2: remove concept of finals
+    cmd/internal/obj/ppc64: don't remove NOP in assembler
     
-    This is a 1:1 port of the respective change in go/types
-    in https://golang.org/cl/299590.
+    Previously, the assembler removed NOPs from the Prog list in
+    obj9.go. NOPs shouldn't be removed if they were added as
+    an inline mark, as described in the issue below.
     
-    Change-Id: I65ad723f2e21e3d95fc0b94665e0121e31871a48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300250
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #40689
+    
+    Once the NOPs were left in the Prog list, some instructions
+    were flagged as invalid because they had an operand which was
+    not represented in optab. In order to preserve the previous
+    assembler behavior, entries were added to optab for those
+    operand cases. They were not flagged as errors before because
+    the NOP instructions were removed before the code to check the
+    valid opcode/operand combinations.
+    
+    Change-Id: Iae5145f94459027cf458e914d7c5d6089807ccf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247842
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/check.go   | 21 ---------------------
- src/cmd/compile/internal/types2/typexpr.go | 12 ++++++------
- 2 files changed, 6 insertions(+), 27 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go |  3 +++
+ src/cmd/internal/obj/ppc64/obj9.go | 11 +++--------
+ 2 files changed, 6 insertions(+), 8 deletions(-)

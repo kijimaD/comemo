@@ -1,15 +1,14 @@
-commit 1f84cd9771c6aab344dc6f46b50838ff7d239e87
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Jan 4 15:07:03 2018 +0530
+commit 7e10a2f6f3bc509b27d02b3c5462e81798434fba
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Sep 3 18:18:51 2017 +0900
 
-    cmd/go: add -v option in the usage section for get
+    net/http: net/http: doc that prefer "must" over "should"
     
-    Updates #23332
+    See https://go-review.googlesource.com/c/go/+/59850
     
-    Change-Id: I964d36ed751ef1844ab6c40f61047297ff1443a3
-    Reviewed-on: https://go-review.googlesource.com/85797
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9f0b6bc009eae86cbbdb56562ee4eb8d5eef653e
+    Reviewed-on: https://go-review.googlesource.com/61230
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/go/alldocs.go          | 2 +-
- src/cmd/go/internal/get/get.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

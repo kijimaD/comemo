@@ -1,21 +1,21 @@
-commit 407c56ae9f40d3a83ba4e259c67ccbb58d2485b0
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 16 14:46:53 2017 -0400
+commit 99e1e4f657c24769a2b42a4aa26c226b6e1db915
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 17 15:06:12 2017 +1100
 
-    runtime: generalize {alloc,free}Stack to {alloc,free}Manual
+    cmd/link: assume that runtime.epclntab lives in .text section
     
-    We're going to start using manually-managed spans for GC workbufs, so
-    rename the allocate/free methods and pass in a pointer to the stats to
-    use instead of using the stack stats directly.
+    Sometimes STEXT symbols point to the first byte of .data
+    section, instead of the end of .text section. But, while writing
+    pe symbol table, we should treat them as if they belong to the
+    .text section. Change pe symbol table records for these symbols.
     
-    For #19325.
+    Fixes #14710
     
-    Change-Id: I37df0147ae5a8e1f3cb37d59c8e57a1fcc6f2980
-    Reviewed-on: https://go-review.googlesource.com/38576
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I1356e61aa8fa37d590d7b1677b2bac214ad0ba4e
+    Reviewed-on: https://go-review.googlesource.com/35272
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/HACKING.md | 10 +++++-----
- src/runtime/mheap.go   | 41 ++++++++++++++++++++++++++++-------------
- src/runtime/stack.go   | 12 ++++++------
- 3 files changed, 39 insertions(+), 24 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

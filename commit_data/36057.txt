@@ -1,12 +1,14 @@
-commit 8cbc02af8bbb17d16152088ef6d6d8dfa7a69a8b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 18 20:20:56 2018 +0000
+commit a9b799a22978730f5de2d5bfc99a1dc0acddcae2
+Author: adrienpetel <peteladrien@gmail.com>
+Date:   Sun Apr 1 19:22:02 2018 +0400
 
-    doc/go1.11: add some links to text/scanner, remove parens
+    net: mark tests with retry as parallel
     
-    Change-Id: I30d2b4b94f26300f2cf7b4ecd328a4875d69db51
-    Reviewed-on: https://go-review.googlesource.com/124777
+    Fixes #24580
+    
+    Change-Id: I35e2ff145f251485fd3cfd7b03b6f3fae8d97ad6
+    Reviewed-on: https://go-review.googlesource.com/103975
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/net/lookup_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

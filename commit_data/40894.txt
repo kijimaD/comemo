@@ -1,21 +1,33 @@
-commit e16f64c0947dac656465fe9321af5a626a7a4107
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 22 17:14:25 2019 -0500
+commit 1dc0110bf725640a9b912e3d31e6654ed1c4da9d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Aug 7 16:27:39 2019 -0400
 
-    misc: log 'ok' from 'go run' tests on success
+    cmd/go: improve 'go mod download' and 'go list -m' error messages
     
-    Otherwise, these tests produce no output, which can make the overall
-    output of all.bash a bit tricky to decipher.
+    modload.ListModules now wraps errors as module.ModuleError as
+    appropriate. The resulting errors always include the module path and
+    will include the version, if known.
     
-    Updates #30316
-    Updates #29062
+    'go mod download' no longer ignores errors reported by ListModules.
+    Previously, it started requesting module info, go.mod, and zip. Those
+    requests would fail, overwriting the original failure. They were
+    usually less descriptive.
     
-    Change-Id: I33b9e070fd28b9f21ece128e9e603a982c08b7cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208483
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    'go mod download' with a module not in the build list (and no version
+    query) is now an error. Previously, this was silently ignored.
+    
+    Fixes #30743
+    
+    Change-Id: Icee8c1c6c5240de135a8b6ba42d6bbcdb757cdac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189323
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/cgo/testasan/main.go   | 7 +++++++
- misc/cgo/testsigfwd/main.go | 1 +
- src/cmd/dist/test.go        | 4 ++--
- 3 files changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/list/list.go            |  2 +-
+ src/cmd/go/internal/modcmd/download.go      | 20 ++++++++++++-----
+ src/cmd/go/internal/modload/list.go         | 35 ++++++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_download.txt | 10 +++++++++
+ src/cmd/go/testdata/script/mod_list.txt     |  8 +++----
+ src/cmd/go/testdata/script/mod_query.txt    |  2 +-
+ 6 files changed, 55 insertions(+), 22 deletions(-)

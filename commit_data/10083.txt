@@ -1,12 +1,12 @@
-commit 2572ca2ff2cda56a3fb1732a4b628fc7b85ea798
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Tue Oct 25 08:35:20 2011 +0100
+commit d72267ae23380cdec4fd84a66058772ae7f84da6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 24 19:29:44 2011 -0700
 
-    runtime: include bootstrap m in mcpu accounting
+    http: doc typo
     
-    R=rsc, dvyukov
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5307052
+    https://golang.org/cl/5303067
 
- src/pkg/runtime/proc.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

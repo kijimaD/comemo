@@ -1,17 +1,21 @@
-commit 18f518362b3fbe3dd9bd22927ce0396084d0ef42
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Feb 11 09:42:07 2012 +1100
+commit e0b2ce34017472c684dfceae23879925711e0f88
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Feb 10 22:50:55 2012 +0100
 
-    compress: add comments to gzip and zlib.
+    cmd/gc: suspend safemode during typecheck of inlined bodies.
     
-    Fixes #2939.
+    Should be obviously correct.  Includes minimal test case.
+    A future CL should clear up the logic around typecheckok and importpkg != nil someday.
     
-    R=rsc, r
+    R=rsc, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5655050
+    https://golang.org/cl/5652057
 
- src/pkg/compress/gzip/gunzip.go |  8 ++++++--
- src/pkg/compress/gzip/gzip.go   |  2 ++
- src/pkg/compress/zlib/reader.go | 11 ++++++++---
- src/pkg/compress/zlib/writer.go |  5 ++++-
- 4 files changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/gc/inl.c       | 72 +++++++++++++++++++++++++++++++++++++++++++++-----
+ test/golden.out        |  2 ++
+ test/run               |  2 +-
+ test/safe/main.go      | 14 ++++++++++
+ test/safe/nousesafe.go |  8 ++++++
+ test/safe/pkg.go       | 16 +++++++++++
+ test/safe/usesafe.go   |  8 ++++++
+ 7 files changed, 115 insertions(+), 7 deletions(-)

@@ -1,21 +1,32 @@
-commit c0f27eb3d580c8b9efd73802678eba4c6c9461be
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Oct 19 15:53:43 2022 +1100
+commit e8cda0a6c925668972ada40602ada08468fa90dc
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Nov 18 10:52:35 2021 -0800
 
-    cmd/compile/internal/ssa: wire up late lower block function
+    cmd/compile: don't run ComputeAddrTaken on imported generic functions
     
-    Currently, the lowerBlock function is reused with lateLowerValue, meaning
-    that any block rewriting rules in the late lower pass are silently ignored.
-    Change the late lower pass to actually use the lateLowerBlock function with
-    the lateLowerValue function.
+    It causes a crash because of the unexpected XDOT operation. It's not
+    needed, since we will run ComputeAddrTaken() on function instantiations
+    after stenciling. And it's not always correct, since we may not be able
+    to distinguish between a array and a slice, if a type is dependent on a
+    type param.
     
-    Change-Id: Iaac1c2955bb27078378cac50cde3716e79a7d9f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444335
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    However, we do need to call ComputeAddrTaken on instantiations created
+    during inlining, since that is after the main ComputeAddrTaken pass.
+    
+    Fixes #49659
+    
+    Change-Id: I0bb610cf11f14e4aa9068f6ca2a012337b069c79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365214
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/config.go | 10 +++++++---
- src/cmd/compile/internal/ssa/lower.go  |  2 +-
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/node.go        |  2 +-
+ src/cmd/compile/internal/noder/stencil.go  |  7 +++++++
+ src/cmd/compile/internal/typecheck/func.go |  7 ++++++-
+ test/typeparam/issue49659.dir/a.go         | 13 +++++++++++++
+ test/typeparam/issue49659.dir/b.go         | 15 +++++++++++++++
+ test/typeparam/issue49659.go               |  7 +++++++
+ test/typeparam/issue49659b.go              | 28 ++++++++++++++++++++++++++++
+ 7 files changed, 77 insertions(+), 2 deletions(-)

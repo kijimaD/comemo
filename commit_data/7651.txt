@@ -1,16 +1,16 @@
-commit 6afe7eba32c06022ef11ab0307d6b3361b59a8f0
-Author: Petar Maymounkov <petarm@gmail.com>
-Date:   Sun Mar 6 15:02:06 2011 -0500
+commit eeb8d00c867570a500029cd113e6e34119c54766
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Sun Mar 6 14:57:05 2011 -0500
 
-    http: add cookie support
+    syscall: work around FreeBSD execve kernel bug
     
-    R=rsc1, mattn, bradfitzwork, pascal, bradfitzgo
+    FreeBSD's execve implementation has an integer underflow in a bounds test which
+    causes it to erroneously think the argument list is too long when argv[0] is
+    longer than interpreter + path.
+    
+    R=rsc, bradfitz, rsc1
     CC=golang-dev
-    https://golang.org/cl/4214042
+    https://golang.org/cl/4259056
 
- src/pkg/http/Makefile       |   1 +
- src/pkg/http/cookie.go      | 336 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/cookie_test.go |  96 +++++++++++++
- src/pkg/http/request.go     |   9 ++
- src/pkg/http/response.go    |   9 ++
- 5 files changed, 451 insertions(+)
+ src/pkg/syscall/exec_unix.go | 4 ++++
+ 1 file changed, 4 insertions(+)

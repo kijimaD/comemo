@@ -1,0 +1,25 @@
+commit 31cabcf08429be71299975f7961822d26f8ea389
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 1 15:08:28 2025 +0100
+
+    crypto/internal/fips140: mark OpenBSD unsupported
+    
+    Since OpenBSD 7.3, external linking uses -fexecute-only, which breaks
+    the integrity check. Since we are not validating on OpenBSD anyway,
+    mark it as unsupported at least for now.
+    
+    Fixes #70880
+    
+    Change-Id: I6a6a4656b6c7a97c0962b4158d920f9e6b19678e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639337
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: صادق <sadq04724@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/test.go                   | 1 +
+ src/crypto/internal/fips140/fips140.go | 1 +
+ 2 files changed, 2 insertions(+)

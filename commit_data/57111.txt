@@ -1,19 +1,19 @@
-commit b97971ea2edbc29798e8a29a5e270698987a7f1d
-Author: khr@golang.org <khr@golang.org>
-Date:   Fri Jul 19 14:54:54 2024 -0700
+commit 413e6c0499cfc29a0306ebc27160eca32882089c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Jun 20 13:58:56 2023 +0800
 
-    cmd/compile: rip out constant handling in poset data structure
+    cmd/compile/internal/ir: typo
     
-    The prove pass now tracks possible constant values explicitly, so
-    the poset data structure no longer has to. This simplifies a bunch of
-    the special cases in poset.
+    n.TypeCheck() == 3 is never true now, in n.SetTypecheck(x), when x > 2,
+    it panic.
     
-    Change-Id: I0efff65269bc5d53c6d18e4760b0375cfb2ae8b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599795
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic876680435d4536eb63dcedee20a07ccdf918b91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/poset.go      | 272 +++--------------------------
- src/cmd/compile/internal/ssa/poset_test.go | 132 --------------
- 2 files changed, 27 insertions(+), 377 deletions(-)
+ src/cmd/compile/internal/ir/node.go | 1 -
+ 1 file changed, 1 deletion(-)

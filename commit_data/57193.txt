@@ -1,19 +1,24 @@
-commit 7fcd4a7007979e4aaa9e8893bd0088f5f28627e7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 19 14:15:04 2024 -0700
+commit 49d42128fd8594c172162961ead19ac95e247d24
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Wed Jul 12 22:26:57 2023 +0930
 
-    internal/pkgbits: s/errorf/panicf/ because that's what it is
+    all: fix typos and remove repeated words
     
-    Make it obvious that this function panics.
-    
-    Change-Id: I272142d2cf7132aa8915f8f4b5945834376db062
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606935
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I5f06a4ef1d827eb0fe32a8d98444142108b0d573
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508996
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/pkgbits/decoder.go | 6 +++---
- src/internal/pkgbits/encoder.go | 4 ++--
- src/internal/pkgbits/support.go | 2 +-
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/internal/coverage/cmerge/merge.go | 2 +-
+ src/internal/diff/diff.go             | 2 +-
+ src/internal/testenv/exec.go          | 4 ++--
+ src/net/http/h2_bundle.go             | 2 +-
+ src/runtime/metrics.go                | 2 +-
+ src/runtime/mgcscavenge.go            | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,28 +1,34 @@
-commit 1b4f1dc95d221c1e9d0afb9067fd6a09f12dd061
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue Jun 11 17:25:06 2024 -0700
+commit c5c2184538411c8cf7abc4e536fbe7af8b0307f5
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Mon May 8 17:07:18 2023 +1000
 
-    os: improve newFile, rm newDir
+    runtime: implement wasip1 netpoll
     
-    1. Assuming that CI environments do not use NFS (and if they do,
-       they have TMPDIR set pointing to a local file system), we can
+    Implements netpoll using WASI's poll_oneoff system call.
     
-     - remove localTmp;
-     - remove newDir, replacing calls to it with t.TempDir;
-     - remove repeated comments about NFS.
+    This enables non-blocking I/O support for wasip1.
     
-    2. Use t.Name, t.Cleanup and t.Helper to improve newFile and simplify
-       its usage. Ensure the cleanup reports all errors.
-    
-    Change-Id: I0a79a6a3d52faa323ed2658ef73f8802847f3c09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592096
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie395fa49d651c8b8262d485e2847dd65b0a10bc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493357
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go      | 101 +++++++++++++------------------------------------
- src/os/os_unix_test.go |  30 +++------------
- 2 files changed, 32 insertions(+), 99 deletions(-)
+ misc/wasm/go_wasip1_wasm_exec                      |   4 +-
+ src/cmd/dist/test.go                               |  13 +-
+ src/internal/poll/errno_unix.go                    |   2 +-
+ .../poll/{fd_poll_wasm.go => fd_poll_js.go}        |   2 +-
+ src/internal/poll/fd_poll_runtime.go               |   2 +-
+ src/runtime/internal/wasitest/host_test.go         |  14 ++
+ src/runtime/internal/wasitest/nonblock_test.go     |  96 ++++++++
+ src/runtime/internal/wasitest/testdata/nonblock.go |  48 ++++
+ src/runtime/netpoll.go                             |   4 +-
+ src/runtime/netpoll_fake.go                        |   6 +-
+ src/runtime/netpoll_wasip1.go                      | 254 +++++++++++++++++++++
+ src/runtime/os_wasip1.go                           |   8 +
+ 12 files changed, 442 insertions(+), 11 deletions(-)

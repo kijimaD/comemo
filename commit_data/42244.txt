@@ -1,16 +1,21 @@
-commit c12d7020f4d1712fde6944f6e57011937fcf89f5
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri May 1 00:39:34 2020 +0200
+commit 647741721cd06efd0bd17ca7f7a85ae2264a6fe7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 14:28:15 2019 -0500
 
-    cmd/dist: don't copy riscv64 specific files for bootstrap build
+    cmd/go: convert TestIssue6844 to a script test
     
-    For now this will only avoid copying math/big/arith_riscv64.s
+    It was attempting to write a test binary to the working directory.
     
-    Change-Id: Ib236e4bf1a6a758649629268a6f512f307596e74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231298
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I82eca3a8a3e019dc6dacbe1f02a0583577694b93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207614
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/buildtool.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/go_test.go                          | 13 -------------
+ src/cmd/go/testdata/dep_test.go                |  7 -------
+ src/cmd/go/testdata/script/test_rebuildall.txt | 14 ++++++++++++++
+ 3 files changed, 14 insertions(+), 20 deletions(-)

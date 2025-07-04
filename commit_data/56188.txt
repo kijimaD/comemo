@@ -1,15 +1,18 @@
-commit 2f3ff1fcdfd93ef596760532a3b47f1c6fb292f0
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Apr 8 12:49:22 2024 -0400
+commit 0853f8caec60f59df234c287be7f5971ab62133f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Dec 28 11:21:47 2022 +0700
 
-    go/types: update package doc
+    cmd/compile: add test that non-name call does not allocate
     
-    It wasn't DocLink compatible in a number of ways.
+    Updates #57434
     
-    Change-Id: Ib7ab9a908ef47561ac70cdc0c157d49dcfd03a02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577375
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib90c228f95c3d61204e60f63d7de55884d839e05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459496
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/api.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/test/issue57434_test.go | 38 ++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

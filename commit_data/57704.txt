@@ -1,29 +1,20 @@
-commit c15e589733c7862f58542c9f526bf7bb8881636d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Oct 8 13:17:47 2024 -0400
+commit 65c133506f42c3e4180c0444970b224228244afc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jul 14 20:30:43 2023 +0200
 
-    cmd/link: apply -B UUID to external linking on Mach-O
+    runtime: remove unused F_{GET,SET}FL cgo constants on solaris and openbsd
     
-    Currently, on Mach-O, the -B UUID setting is only applied in
-    internal linking mode, whereas in external linking mode the UUID
-    is always rewritten to a hash of Go build ID. This CL makes it
-    apply to external linking as well. This makes the behavior
-    consistent on both linkmodes, and also consistent with the -B
-    flag's behavior for GNU build ID on ELF.
+    The generated constants were already removed by CL 497076, so the cgo
+    constants used to generate them are no longer needed as well.
     
-    Add tests.
-    
-    Updates #68678.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
-    Change-Id: I276a5930e231141440cdba16e8812df28ac4237b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618599
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I37dabd800461d134424af8bd72fb0c1b8504d604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509676
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/link/internal/ld/lib.go                 |  5 +-
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  5 +-
- src/cmd/link/internal/ld/macho_update_uuid.go   |  3 +-
- src/cmd/link/link_test.go                       | 76 ++++++++++++++++++++++++-
- 4 files changed, 83 insertions(+), 6 deletions(-)
+ src/runtime/defs_openbsd.go | 3 ---
+ src/runtime/defs_solaris.go | 2 --
+ 2 files changed, 5 deletions(-)

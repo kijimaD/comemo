@@ -1,15 +1,15 @@
-commit 614b02d22a66cfcd9f5c9631246b4b529484e642
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 2 18:11:49 2013 -0800
+commit 5e46d540c844df8a6dc6009e52b60e6cd67a012e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 2 17:52:54 2013 -0500
 
-    spec: clarify language about unary operator &
+    cmd/dist: use separate args for separate compiler flags
     
-    A composite literal may be parenthesized when
-    used as operand for the unary operator &.
+    This makes dist safe for CL 7035043 (but keeps working now too).
     
-    R=rsc, iant, r, ken
+    R=golang-dev, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6996053
+    https://golang.org/cl/7029047
 
- doc/go_spec.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.c        | 31 +++++++++++++++++++++----------
+ src/cmd/dist/buildruntime.c | 22 ++++++++++++++--------
+ 2 files changed, 35 insertions(+), 18 deletions(-)

@@ -1,25 +1,20 @@
-commit 12579009b3f7eb6d137863d5ca87e295c9d88641
-Author: Colin <me@colinking.co>
-Date:   Wed Apr 22 15:53:52 2020 +0000
+commit 3c47eada3f628cbd8a0f47563e6c9287d91d4765
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 4 18:11:57 2019 -0500
 
-    database/sql: count connections expired in foreground with MaxLifetimeClosed
+    cmd/internal/obj/ppc64: handle MOVDU for SP delta
     
-    Previously the connection pool would only count connections
-    expired in the background connectionCleaner goroutine towards the
-    MaxLifetimeClosed stat.
+    If a MOVDU instruction is used with an offset of SP, the
+    instruction changes SP therefore needs an SP delta, which is used
+    for generating the PC-SP table for stack unwinding. MOVDU is
+    frequently used for allocating the frame and saving the LR in the
+    same instruction, so this is particularly useful.
     
-    This change increments the stat correctly when checking for
-    expiry in when acquiring and releasing a connection.
-    
-    Fixes #38058
-    
-    Change-Id: Id707ddd40a42a4c38658d5f2931da131647d6c29
-    GitHub-Last-Rev: 0f205ede439efa355a628b6112450f2ca9ced005
-    GitHub-Pull-Request: golang/go#38263
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227278
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Icb63eb55aa01c3dc350ac4e4cff6371f4c3c5867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205279
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/sql.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/ppc64/obj9.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,25 +1,27 @@
-commit 615d44c287a9c8a5f1062dd24ba341d806abc944
+commit 56462d0f10f4d88f30e0b9a6763835c85c3cd632
 Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 31 17:34:22 2018 -0500
+Date:   Tue Sep 26 19:42:26 2017 -0400
 
-    runtime: refactor test for pushing sigpanic frame
+    runtime: normalize (*sigctxt).fault() type
     
-    This logic is duplicated in all of the preparePanic functions. Pull it
-    out into one architecture-independent function.
+    (*sigctxt).fault() currently returns either uintptr, uint32, or uint64
+    depending on the platform. Make them all return uintptr.
     
-    Change-Id: I7ef4e78e3eda0b7be1a480fb5245fc7424fb2b4e
-    Reviewed-on: https://go-review.googlesource.com/91255
+    For #10958 (but a nice change on its own).
+    
+    Change-Id: I7813e779d0edcba112dd47fda776f4ce6e50e227
+    Reviewed-on: https://go-review.googlesource.com/68015
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/panic.go              | 33 +++++++++++++++++++++++++++++++++
- src/runtime/signal_386.go         | 17 ++---------------
- src/runtime/signal_amd64x.go      | 17 ++---------------
- src/runtime/signal_arm.go         | 14 ++------------
- src/runtime/signal_arm64.go       | 14 ++------------
- src/runtime/signal_linux_s390x.go | 14 ++------------
- src/runtime/signal_mips64x.go     | 14 ++------------
- src/runtime/signal_mipsx.go       | 14 ++------------
- src/runtime/signal_ppc64x.go      | 14 ++------------
- 9 files changed, 49 insertions(+), 102 deletions(-)
+ src/runtime/signal_darwin_arm.go   | 2 +-
+ src/runtime/signal_darwin_arm64.go | 2 +-
+ src/runtime/signal_freebsd_arm.go  | 2 +-
+ src/runtime/signal_linux_arm.go    | 2 +-
+ src/runtime/signal_linux_arm64.go  | 2 +-
+ src/runtime/signal_linux_ppc64x.go | 2 +-
+ src/runtime/signal_nacl_arm.go     | 2 +-
+ src/runtime/signal_netbsd_arm.go   | 2 +-
+ src/runtime/signal_openbsd_arm.go  | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

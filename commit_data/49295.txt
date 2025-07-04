@@ -1,34 +1,38 @@
-commit 137133953025159683d48af2298f105a8fa2cbb9
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit ca3c6985cd143f170699d22ed984b7eed0f68e4d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 3 08:10:17 2021 -0700
 
-    go, math, os, reflect: support standard library for loong64
+    [dev.typeparams] cmd/compile: implement generic type switches
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Add a new dynamicType node, which is used as a case entry when
+    the type being switched to is generic.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I2ad9ed01fc913b90e75023ac0fa70de87a9f5de1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342324
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ice77c6f224b8fdd3ff574fdf4a8ea5f6c7ddbe75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339429
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/types/gccgosizes.go   |  1 +
- src/math/big/arith_loong64.s | 34 ++++++++++++++++++++++++++++++++++
- src/os/endian_little.go      |  2 +-
- src/reflect/asm_loong64.s    | 40 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 76 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/escape/expr.go     |  3 ++
+ src/cmd/compile/internal/ir/expr.go         |  9 ++++++
+ src/cmd/compile/internal/ir/node.go         |  8 +++--
+ src/cmd/compile/internal/ir/node_gen.go     | 28 ++++++++++++++++
+ src/cmd/compile/internal/ir/op_string.go    | 15 +++++----
+ src/cmd/compile/internal/ir/type.go         | 14 ++++++++
+ src/cmd/compile/internal/noder/irgen.go     |  4 +++
+ src/cmd/compile/internal/noder/stencil.go   | 50 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/transform.go |  4 +++
+ src/cmd/compile/internal/typecheck/stmt.go  |  4 +++
+ src/cmd/compile/internal/walk/switch.go     | 45 +++++++++++++++++++++-----
+ test/typeparam/typeswitch1.go               | 29 +++++++++++++++++
+ test/typeparam/typeswitch1.out              |  5 +++
+ test/typeparam/typeswitch2.go               | 31 ++++++++++++++++++
+ test/typeparam/typeswitch2.out              |  5 +++
+ test/typeparam/typeswitch3.go               | 35 ++++++++++++++++++++
+ test/typeparam/typeswitch3.out              |  3 ++
+ test/typeparam/typeswitch4.go               | 33 +++++++++++++++++++
+ test/typeparam/typeswitch4.out              |  3 ++
+ test/typeparam/typeswitch5.go               | 28 ++++++++++++++++
+ test/typeparam/typeswitch5.out              |  4 +++
+ 21 files changed, 342 insertions(+), 18 deletions(-)

@@ -1,17 +1,32 @@
-commit 0357c38adfd5d368390d82a2ab5b32748e4bb549
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Oct 5 16:07:59 2015 +1300
+commit ba0c142d32eecde6165db764ba8dc925b8d93c4d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 13:06:28 2015 +1000
 
-    cmd/compile: do not let regopt use REGTMP on ppc64
+    cmd: delete old[5689]a
     
-    ppc64 codegen assumes that it is OK to stomp on r31 at any time, but it is not
-    excluded from the set of registers that regopt is allowed to use.
+    These are the old assemblers written in C, and now they are
+    not needed.
     
-    Fixes #12597
+    Fixes #10510.
     
-    Change-Id: I29c7655e32abd22f3c21d88427b73e4fca055233
-    Reviewed-on: https://go-review.googlesource.com/15245
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Id9337ffc8eccfd93c84b2e23f427fb1a576b543d
+    Reviewed-on: https://go-review.googlesource.com/12784
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/reg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go |    5 -
+ src/cmd/go/build.go       |   26 +-
+ src/cmd/go/pkg.go         |    4 -
+ src/cmd/old5a/a.y         |  804 ------------------
+ src/cmd/old5a/lex.go      |  373 ---------
+ src/cmd/old5a/y.go        | 1547 ----------------------------------
+ src/cmd/old6a/a.y         |  730 ----------------
+ src/cmd/old6a/lex.go      |  983 ----------------------
+ src/cmd/old6a/y.go        | 1530 ----------------------------------
+ src/cmd/old8a/a.y         |  722 ----------------
+ src/cmd/old8a/lex.go      |  771 -----------------
+ src/cmd/old8a/y.go        | 1509 ---------------------------------
+ src/cmd/old9a/a.y         | 1066 ------------------------
+ src/cmd/old9a/lex.go      |  560 -------------
+ src/cmd/old9a/y.go        | 2028 ---------------------------------------------
+ 15 files changed, 1 insertion(+), 12657 deletions(-)

@@ -1,17 +1,15 @@
-commit 94ff311d1b91d0bfe2dc53d20d06e81af5a3c46f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Jan 12 12:08:40 2012 +0100
+commit e955a3cca2ad600666f2f814aad6075a42a88d4d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 12 14:15:58 2012 +1100
 
-    gc: avoid false positives when using scalar struct fields.
+    net/textproto: always copy the data from bufio to avoid corruption
     
-    The escape analysis code does not make a distinction between
-    scalar and pointers fields in structs. Non-pointer fields
-    that escape should not make the whole struct escape.
+    Fixes #2621.
     
-    R=lvd, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5489128
+    R=rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5498104
 
- src/cmd/gc/esc.c |  6 +++++-
- test/escape2.go  | 42 ++++++++++++++++++++++++++++++++++++------
- 2 files changed, 41 insertions(+), 7 deletions(-)
+ src/pkg/net/textproto/reader.go      | 71 +++++++++++-------------------------
+ src/pkg/net/textproto/reader_test.go |  9 +++++
+ 2 files changed, 30 insertions(+), 50 deletions(-)

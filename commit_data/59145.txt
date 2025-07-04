@@ -1,18 +1,23 @@
-commit 574e836055f2b329824ae3646bf1cb563ca03d54
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Feb 18 17:53:19 2025 +1100
+commit af3f94ce646201914a62145821630cc232c1d014
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Feb 14 16:42:27 2024 -0600
 
-    cmd/asm/internal/asm: add additional tests for constant loads on riscv64
+    cmd/cgo/internal/test: disable issue8694 and issue9510 on ppc64x with internal linking
     
-    This improves test coverage around the various constant load edge cases.
+    These link in libgcc functions which require more advanced handling
+    of small toc relocations. The internal linker is not capable of
+    placing these functions to ensure they are always resolvable.
     
-    Change-Id: Ibafeec78e76d95e9f56b48fa6bd012772bf505c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652776
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Idd4a0264bfbbd7016472120dc4bee84814e8c2eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564235
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s | 40 ++++++++++++++++++++---------
- 1 file changed, 28 insertions(+), 12 deletions(-)
+ .../test/cgo_stubs_ppc64x_internal_linking_test.go        | 15 +++++++++++++++
+ src/cmd/cgo/internal/test/issue8694.go                    |  2 +-
+ src/cmd/cgo/internal/test/issue9510.go                    |  2 +-
+ 3 files changed, 17 insertions(+), 2 deletions(-)

@@ -1,31 +1,31 @@
-commit 86cca11ffde0a4a353f0cc7bf7cfcdffd7929398
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 3 10:24:29 2018 -0800
+commit 1b548dc5fbe5b75085d1b9b3230d5f0fdebfeaf5
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:52:04 2017 +0200
 
-    time: revert CL 78735 (was: space padding using underscore)
+    cmd/dist: rename variables + functions
     
-    CL 78735 description:
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (9).
     
-        time: add space padding layout strings(using underscore) for not only day but others
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
     
-        As mentioned in #22802, only day component of layout string has space
-        padding(represented by one underscore before its placeholder). This
-        commit expands the rule for month, hour, minute and second.
-    
-        Updates #22802 (maybe fixes it)
-    
-    Revert this CL because it breaks currently working formats that happen
-    to use underscores.
-    
-    Fixes #23259
-    
-    Change-Id: I64acaaca9b5b74785ee0f0be7910574e87daa649
-    Reviewed-on: https://go-review.googlesource.com/85998
+    Change-Id: I9247433d7d07a2c99d15b0a4d23164bcbc042768
+    Reviewed-on: https://go-review.googlesource.com/61015
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/format.go      | 72 +++++++------------------------------------------
- src/time/format_test.go | 34 -----------------------
- 2 files changed, 10 insertions(+), 96 deletions(-)
+ src/cmd/dist/build.go       | 32 +++++++++++++++----------------
+ src/cmd/dist/main.go        |  4 ++--
+ src/cmd/dist/sys_windows.go |  2 +-
+ src/cmd/dist/util.go        | 46 ++++++++++++++++++++++-----------------------
+ 4 files changed, 42 insertions(+), 42 deletions(-)

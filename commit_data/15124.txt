@@ -1,17 +1,24 @@
-commit 6b4cf2b36781bcc3fddd8374c68dd143d12dadc1
+commit 89a2a8c8df6f494dc75dd6a44dcd8ad1eccf1a20
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 4 00:00:36 2013 -0500
+Date:   Sun Feb 3 23:47:03 2013 -0500
 
-    time: fix error message from Parse
+    cmd/go, testing: revise docs for test flags
     
-    Was incorrectly discarding the offending text in some cases.
+    In cmd/go's 'go help testflag':
+    * Rewrite list of flags to drop test. prefix on every name.
+    * Sort list of flags.
+    * Add example of using -bench to match all benchmarks.
     
-    Fixes #4493.
+    In testing:
+    * Remove mention of undefined 'CPU group' concept.
     
-    R=golang-dev, bradfitz
+    Fixes #4488.
+    Fixes #4508.
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/7277050
+    https://golang.org/cl/7288053
 
- src/pkg/time/format.go    | 4 ++--
- src/pkg/time/time_test.go | 5 +++++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/test.go         | 87 +++++++++++++++++++++++++---------------------
+ src/pkg/testing/testing.go |  2 +-
+ 2 files changed, 48 insertions(+), 41 deletions(-)

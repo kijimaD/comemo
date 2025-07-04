@@ -1,0 +1,28 @@
+commit f90f7e90b3239562c33252bb34354281696b9fdb
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 3 13:29:42 2024 -0700
+
+    cmd: use built-in min/max instead of bespoke versions
+    
+    Now that we're bootstrapping from a toolchain that has min/max builtins.
+    
+    Update #64751
+    
+    Change-Id: I63eedf3cca00f56f62ca092949cb2dc61db03361
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/abt/avlint32.go      |  7 -------
+ src/cmd/compile/internal/ssa/_gen/S390X.rules |  4 ++--
+ src/cmd/compile/internal/ssa/likelyadjust.go  | 20 +++-----------------
+ src/cmd/compile/internal/ssa/prove.go         | 10 +++++-----
+ src/cmd/compile/internal/ssa/regalloc.go      | 17 ++---------------
+ src/cmd/compile/internal/ssa/rewrite.go       | 27 ---------------------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go  |  8 ++++----
+ src/cmd/compile/internal/ssagen/ssa.go        | 18 ++----------------
+ src/cmd/dist/util.go                          |  7 -------
+ 9 files changed, 18 insertions(+), 100 deletions(-)

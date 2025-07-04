@@ -1,20 +1,16 @@
-commit 8efb5e7d638684bcfc5e1aed1b352886b48f421b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 19 14:33:11 2014 -0500
+commit d4d77052b4d615d72a485fece53879c7c66f5a2a
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 19 11:18:35 2014 -0500
 
-    cmd/addr2line: reimplement in Go
+    crypto/x509: add example of using a custom root list.
     
-    We never updated libmach for the new object file format,
-    so it the existing 'go tool addr2line' is broken.
-    Reimplement in Go to fix.
+    Fixes #6267.
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=r, josharian
+    R=golang-codereviews, josharian, r
     CC=golang-codereviews
-    https://golang.org/cl/66020043
+    https://golang.org/cl/61020043
 
- src/cmd/addr2line/main.c  |  90 ----------------------------
- src/cmd/addr2line/main.go | 147 ++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/build.c      |   2 -
- src/cmd/go/pkg.go         |  15 ++---
- 4 files changed, 155 insertions(+), 99 deletions(-)
+ src/pkg/crypto/tls/example_test.go  | 57 +++++++++++++++++++++++
+ src/pkg/crypto/x509/example_test.go | 91 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 148 insertions(+)

@@ -1,14 +1,16 @@
-commit ca4431a3846de4b1c5cf2388ca22d915f510f7fd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 21 16:07:47 2016 -0700
+commit 244efebe7faa30c087a19a09eb2c72ef4c1824d9
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 17 22:22:32 2016 -0400
 
-    cmd/compile: avoid one symbol lookup for qualified identifiers
+    runtime: fix out of date comments
     
-    For -newparser only.
+    The transition from mark 1 to mark 2 no longer enqueues new root
+    marking jobs, but some of the comments still refer to this. Fix these
+    comments.
     
-    Change-Id: I0eaa05035df11734e2bda7ad456b9b30485d9465
-    Reviewed-on: https://go-review.googlesource.com/31718
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3f98628dba32c5afe30495ab495da42b32291e9e
+    Reviewed-on: https://go-review.googlesource.com/24965
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/runtime/mgc.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,14 +1,20 @@
-commit 9c1f54c9ed67b77385940c58fb15af18166d4840
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 15 13:26:22 2012 -0500
+commit 2506fd43d463b5fe5e5c89982a6fea4a1602908b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 15 11:48:17 2012 -0500
 
-    cmd/go: go test -i correctly handle cgo packages
-    Previous CL (5674043) omit the case where runtime/cgo itself is out-of-date.
-    Fixes #2936 (again).
+    build: add make.bash --no-clean option
     
-    R=rsc
+    Makes it possible to run
+    
+    GOARCH=amd64 make.bash
+    GOARCH=386 make.bash --no-clean
+    
+    to avoid deleting some of the work done by the first one.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5674048
+    https://golang.org/cl/5673056
 
- src/cmd/go/test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.c | 10 ++++++----
+ src/make.bash        |  8 ++++++--
+ 2 files changed, 12 insertions(+), 6 deletions(-)

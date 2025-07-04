@@ -1,19 +1,41 @@
-commit 6861b2eff58955c7f67a262864c09056a7bdec04
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 22 10:26:49 2024 -0700
+commit ebfd80ba6f231f80484d5fedca5b60e1f166644e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 15:32:52 2022 -0500
 
-    go/types, types2: better error message for invalid ERROR pattern in tests
+    cmd/go: propagate Context arguments through modfetch methods
     
-    When unquoting of an ERROR or ERRORx pattern fails, say so instead of
-    simply printing "syntax error".
+    For #56886.
+    For #38714.
     
-    Change-Id: I586dffa86ca80f5b40a5cbe16a7005cc1f7862f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586958
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I15c4a8673407d3423d7e203d645c6d0fb780d192
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452456
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 8 ++++----
- src/go/types/check_test.go                    | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go                     |  21 +++
+ src/cmd/go/internal/load/pkg.go                    |   8 +-
+ src/cmd/go/internal/modcmd/download.go             |   8 +-
+ src/cmd/go/internal/modcmd/edit.go                 |   2 +-
+ src/cmd/go/internal/modcmd/verify.go               |   8 +-
+ src/cmd/go/internal/modfetch/cache.go              | 148 +++++++++++----------
+ src/cmd/go/internal/modfetch/cache_test.go         |   5 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  51 +++----
+ src/cmd/go/internal/modfetch/codehost/git.go       | 125 ++++++++---------
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  81 ++++++++---
+ src/cmd/go/internal/modfetch/codehost/svn.go       |   7 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |  95 ++++++-------
+ src/cmd/go/internal/modfetch/coderepo.go           |  81 +++++------
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  27 ++--
+ src/cmd/go/internal/modfetch/fetch.go              |  36 ++---
+ src/cmd/go/internal/modfetch/proxy.go              |  43 +++---
+ src/cmd/go/internal/modfetch/repo.go               |  69 +++++-----
+ .../internal/modfetch/zip_sum_test/zip_sum_test.go |   6 +-
+ src/cmd/go/internal/modload/build.go               |   4 +-
+ src/cmd/go/internal/modload/init.go                |   8 +-
+ src/cmd/go/internal/modload/load.go                |   6 +-
+ src/cmd/go/internal/modload/modfile.go             |   2 +-
+ src/cmd/go/internal/modload/mvs.go                 |   4 +-
+ src/cmd/go/internal/modload/query.go               |  56 ++++----
+ 24 files changed, 500 insertions(+), 401 deletions(-)

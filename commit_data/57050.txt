@@ -1,23 +1,25 @@
-commit 1b6bb779ef92de489a51b177035362795636624b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 31 09:59:28 2024 -0700
+commit b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 12 16:11:35 2023 -0400
 
-    go/types, types2: factor out typechecker-specific code from recording.go
+    cmd/link: fix log formats for log.Fatal calls
     
-    With this CL, the go/types and types2 recording.go files are
-    mostly identical except for the use of different syntax trees.
-    Preparation for generating go/types/recording.go from types2
-    sources.
+    link contains many calls to log.Fatal, but it uses the default log output
+    format, which is configured for server programs, not command-line tools.
+    Set it up for command-line tools instead.
     
-    Change-Id: Iea85f8554ee04f1e1f7da63f8019725ac8f6caf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602117
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Changes errors like
+    
+    2023/06/12 14:32:24 reference to undefined builtin "runtime.gcWriteBarrier" from package "internal/abi"
+    
+    to
+    
+    link: reference to undefined builtin "runtime.gcWriteBarrier" from package "internal/abi"
+    Change-Id: I3565960408c03f2f499a7517ec18c01870eb166c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502698
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/check.go     | 77 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/recording.go | 67 +-----------------------
- src/go/types/check.go                        | 35 +++++++++++++
- src/go/types/recording.go                    | 30 ++---------
- 4 files changed, 117 insertions(+), 92 deletions(-)
+ src/cmd/link/internal/ld/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

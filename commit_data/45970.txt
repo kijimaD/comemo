@@ -1,18 +1,29 @@
-commit 5805efc78e11e54c2c887ae10f277b09bbf81cf4
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Aug 12 12:12:56 2021 -0400
+commit 7fca39aa05ad3c60abac1ae51ae9847dfbe017d6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 21 17:43:16 2020 -0500
 
-    doc/go1.17: remove draft notice
+    cmd/internal/buildid: exclude Mach-O code signature in hash calculation
     
-    Fixes #44513.
+    The code signature contains hashes of the entire file (except the
+    signature itself), including the buildid. Therefore, the buildid
+    cannot depend on the signature. Otherwise updating buildid will
+    invalidate the signature, and vice versa. As we cannot change the
+    code-signing algorithm, we can only change buildid calculation.
     
-    Change-Id: I82c44a681b1fa67df123af86ee02a980b13acdc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341673
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    This CL changes the buildid calculation to exclude the Mach-O
+    code signature. So updating code signature after stamping the
+    buildid will not invalidate the buildid.
+    
+    Updates #38485, #42684.
+    
+    Change-Id: I8a9e2e25ca9dc00d9556d13b81652f43bbf6a084
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272255
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.17.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/internal/buildid/buildid_test.go | 31 ++++++++++++++++++++
+ src/cmd/internal/buildid/rewrite.go      | 50 ++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)

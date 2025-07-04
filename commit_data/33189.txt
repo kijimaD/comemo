@@ -1,17 +1,16 @@
-commit 6fd1f825c1310e2a586a9ae0fc128a0b3c115b12
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 20 14:26:28 2017 -0400
+commit df91b8044dbe790c69c16058330f545be069cc1f
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Jul 25 13:03:48 2017 -0700
 
-    runtime: support cgo traceback on PPC64LE
+    doc: list editor options by name, not plugin name
     
-    Code essentially mirrors AMD64 implementation.
+    So the users can recognize their option by their editor's name.
     
-    Change-Id: I39f7f099ce11fdc3772df039998cc11947bb22a2
-    Reviewed-on: https://go-review.googlesource.com/72270
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #20398.
+    
+    Change-Id: Id314d4dbe26f40231a479b179620d7e66512b506
+    Reviewed-on: https://go-review.googlesource.com/51114
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/runtime/crash_cgo_test.go  |   4 +-
- src/runtime/sys_linux_ppc64x.s | 101 +++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 99 insertions(+), 6 deletions(-)
+ doc/editors.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

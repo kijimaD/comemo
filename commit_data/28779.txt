@@ -1,16 +1,19 @@
-commit 9c850958cea35d019142f8341beacb4151e1511b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Oct 7 18:11:06 2016 -0400
+commit 883e128f4571a59842e1156b5ebe25d8420162d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 19 20:27:55 2016 -0700
 
-    go/types: expose Default function, which converts untyped T to T
+    net/smtp: document that the smtp package is frozen
     
-    Change-Id: Ibcf5e0ba694b280744a00c2c6fda300f0a653455
-    Reviewed-on: https://go-review.googlesource.com/30715
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This copies the frozen wording from the log/syslog package.
+    
+    Fixes #16436
+    
+    Change-Id: If5d478023328925299399f228d8aaf7fb117c1b4
+    Reviewed-on: https://go-review.googlesource.com/25080
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/types/assignments.go | 4 ++--
- src/go/types/builtins.go    | 2 +-
- src/go/types/conversions.go | 2 +-
- src/go/types/expr.go        | 6 +++---
- src/go/types/predicates.go  | 4 ++--
- 5 files changed, 9 insertions(+), 9 deletions(-)
+ src/net/smtp/smtp.go | 5 +++++
+ 1 file changed, 5 insertions(+)

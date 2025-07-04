@@ -1,24 +1,36 @@
-commit e136cac48c14aa85795625169379eeeddce35e4f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 11 10:15:58 2016 +1100
+commit 9c9d74aba7eb4de2a253b04817ff26b32a6fea40
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 14:10:40 2015 -0500
 
-    net: make TestInterfaceAddrsWithNetsh more robust
+    runtime: prevent sigprof during all stack barrier ops
     
-    TestInterfaceAddrsWithNetsh invokes Windows netsh command passing
-    it a particular interface name. This approach somehow does not work
-    on some computers (see issue for details). Change that to call netsh
-    without specifying any interface name. This provides output for all
-    interfaces available. So we can achieve same goal parsing this output.
-    Also makes test faster because we only need to invoke netsh once.
+    A sigprof during stack barrier insertion or removal can crash if it
+    detects an inconsistency between the stkbar array and the stack
+    itself. Currently we protect against this when scanning another G's
+    stack using stackLock, but we don't protect against it when unwinding
+    stack barriers for a recover or a memmove to the stack.
     
-    Fixes #14130.
+    This commit cleans up and improves the stack locking code. It
+    abstracts out the lock and unlock operations. It uses the lock
+    consistently everywhere we perform stack operations, and pushes the
+    lock/unlock down closer to where the stack barrier operations happen
+    to make it more obvious what it's protecting. Finally, it modifies
+    sigprof so that instead of spinning until it acquires the lock, it
+    simply doesn't perform a traceback if it can't acquire it. This is
+    necessary to prevent self-deadlock.
     
-    Change-Id: I7911692ca64e372af1e1f9d6acb718c67071de67
-    Reviewed-on: https://go-review.googlesource.com/19441
-    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #11863, which introduced stackLock to fix some of these
+    issues, but didn't go far enough.
+    
+    Updates #12528.
+    
+    Change-Id: I9d1fa88ae3744d31ba91500c96c6988ce1a3a349
+    Reviewed-on: https://go-review.googlesource.com/17036
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net_windows_test.go | 105 ++++++++++++++++++++++++++++++++++----------
- 1 file changed, 82 insertions(+), 23 deletions(-)
+ src/runtime/mgcmark.go |  5 +++++
+ src/runtime/mstkbar.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/proc.go    | 25 +++++++++++++------------
+ 3 files changed, 47 insertions(+), 12 deletions(-)

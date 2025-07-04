@@ -1,16 +1,22 @@
-commit 5536180ae72e8745c8a831e03f56a86360d76c52
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Tue Oct 31 09:47:27 2017 +0000
+commit 816deacc70f48d14638104e284b3b75d5b1e8036
+Author: Audrey Lim <audreylh@gmail.com>
+Date:   Sat Jul 15 12:33:06 2017 -0600
 
-    net/http: display connect methods table properly in `go doc`
+    archive/zip: fix Writer to validate file
     
-    When run `go doc -u http.connectMethod`, the whole table is treated as
-    a single long line. This commit inserts `\t` at the begining of each line,
-    so the table can be displayed properly in `go doc`.
+    The ZIP format uses uint16 to contain the length of the file name and
+    the length of the Extra section. This change verifies that the length
+    of these fields fit in an uint16 prior to writing the ZIP file. If not,
+    an error is returned.
     
-    Change-Id: I6408efd31f84c113e81167d62e1791643000d629
-    Reviewed-on: https://go-review.googlesource.com/74651
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #17402
+    
+    Change-Id: Ief9a864d2fe16b89ddb9917838283b801a2c58a4
+    Reviewed-on: https://go-review.googlesource.com/50250
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ src/archive/zip/writer.go   | 13 +++++++++++++
+ src/archive/zip/zip_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

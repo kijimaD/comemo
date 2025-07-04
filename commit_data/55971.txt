@@ -1,19 +1,21 @@
-commit dda4b17ee4866a32a7d0b522f9a366cb6d687ce1
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 18 15:38:20 2024 +0100
+commit b431277da850b47cd05c5e7697303c0d6fbe2cea
+Author: Keiichi Hirobe <chalenge.akane@gmail.com>
+Date:   Tue Mar 28 01:56:29 2023 +0900
 
-    runtime: remove nosplit directives from several Windows syscall helpers
+    internal/singleflight: move Done call in TestForgetUnshared
     
-    Some of the Windows syscall helpers don't need to be nosplit. Removing
-    this directive will allow to add instrumentation to these functions
-    without having to worry about the stack size.
+    Prior to this change, there was a possibility that the call of ForgetUnshared at line 134 could acquire the lock first.
+    Then, after ForgetUnshared released the lock, the doCall function could acquire it and complete its call.
+    This change prevents this situation by ensuring that ForgetUnshared at line 134 only executes after doCall has finished executing and released the lock.
     
-    Change-Id: I3885621f23733af48563803c704563474010b8d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572415
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I45cd4040e40ed52ca8e1b3863092886668dfd521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479499
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/os_windows.go      | 15 ---------------
- src/runtime/syscall_windows.go | 12 +++---------
- 2 files changed, 3 insertions(+), 24 deletions(-)
+ src/internal/singleflight/singleflight_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

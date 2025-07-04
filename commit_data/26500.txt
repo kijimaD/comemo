@@ -1,54 +1,14 @@
-commit 24ce64d1a967eb9c4f1a42e7371362b09920bd60
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 21 13:21:55 2016 -0400
+commit 6d61725c36a36eb9b5a5fddfeb3525e52fbe9762
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 28 20:53:41 2016 +0000
 
-    cmd/compile, runtime: new static name encoding
+    doc: don't imply that the new HTTP status 451 is from RFC 6585
     
-    Create a byte encoding designed for static Go names.
+    From twitter bug report: https://twitter.com/ox/status/692737249411207168
     
-    It is intended to be a compact representation of a name
-    and optional tag data that can be turned into a Go string
-    without allocating, and describes whether or not it is
-    exported without unicode table.
-    
-    The encoding is described in reflect/type.go:
-    
-    // The first byte is a bit field containing:
-    //
-    //      1<<0 the name is exported
-    //      1<<1 tag data follows the name
-    //      1<<2 pkgPath *string follow the name and tag
-    //
-    // The next two bytes are the data length:
-    //
-    //       l := uint16(data[1])<<8 | uint16(data[2])
-    //
-    // Bytes [3:3+l] are the string data.
-    //
-    // If tag data follows then bytes 3+l and 3+l+1 are the tag length,
-    // with the data following.
-    //
-    // If the import path follows, then ptrSize bytes at the end of
-    // the data form a *string. The import path is only set for concrete
-    // methods that are defined in a different package than their type.
-    
-    Shrinks binary sizes:
-    
-            cmd/go: 164KB (1.6%)
-            jujud:  1.0MB (1.5%)
-    
-    For #6853.
-    
-    Change-Id: I46b6591015b17936a443c9efb5009de8dfe8b609
-    Reviewed-on: https://go-review.googlesource.com/20968
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic5f4eeb00d705217542db558edc25e206f6b640d
+    Reviewed-on: https://go-review.googlesource.com/19050
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 185 +++++++++++++++++++++++++--------
- src/cmd/link/internal/ld/decodesym.go  |  43 +++++---
- src/reflect/type.go                    | 175 +++++++++++++++++++++++--------
- src/reflect/value.go                   |   8 +-
- src/runtime/iface.go                   |  28 +++--
- src/runtime/type.go                    |  86 +++++++++++----
- 6 files changed, 387 insertions(+), 138 deletions(-)
+ doc/go1.6.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

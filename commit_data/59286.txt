@@ -1,23 +1,18 @@
-commit 21acfdc4ef18fcf2e5e6114fe800fec0a10e493c
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 10 12:46:52 2025 -0700
+commit 5d4c6088be94e0380d4b937f381eaa28ed7ba010
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Feb 28 09:30:08 2024 +0000
 
-    cmd/compile: turn off variable-sized make() stack allocation with -N
+    testing: fix typo in comment
     
-    Give people a way to turn this optimization off.
-    
-    (Currently the constant-sized make() stack allocation is not disabled
-    with -N. Kinda inconsistent, but oh well, probably worse to change it now.)
-    
-    Update #73253
-    
-    Change-Id: Idb9ffde444f34e70673147fd6a962368904a7a55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/664655
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Change-Id: I5aa6093b0199df1ef5b0ad0fcfa651a4b990bfd5
+    GitHub-Last-Rev: b053d993eb497500ee63024ef12784f63fac6c0e
+    GitHub-Pull-Request: golang/go#65986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567655
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: t hepudds <thepudds1460@gmail.com>
 
- src/cmd/compile/internal/walk/builtin.go | 2 +-
+ src/testing/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,21 @@
-commit 3a0d6091d64f0204d0942764d3356ac0572be0e3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 16 16:05:51 2018 -0400
+commit 8ec35ab66ae4abdb98b3b0d7c3ca4522601c7168
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jul 10 04:54:37 2018 +1000
 
-    internal/syscall/windows: add LockFileEx and UnlockFileEx for use in cmd/go
+    runtime: correct new thread stack for openbsd MAP_STACK
     
-    Updates #26794
+    OpenBSD 6.4 will require the stack pointer to be pointing at an area that is
+    marked as MAP_STACK when entering and exiting syscalls. Adjust the stack pointer
+    used for a new thread such that it points within the stack, not at the top of
+    it (i.e. outside).
     
-    Change-Id: Ic1d3078176721f3d2e5d8188c234383037babbaf
-    Reviewed-on: https://go-review.googlesource.com/c/145177
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #26142
+    
+    Change-Id: I905bd8e5be3dfc325392e7ac490fb56a7c71b3aa
+    Reviewed-on: https://go-review.googlesource.com/122735
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/internal/syscall/windows/syscall_windows.go  | 12 +++++++++++
- src/internal/syscall/windows/zsyscall_windows.go | 26 ++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/runtime/os_openbsd.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

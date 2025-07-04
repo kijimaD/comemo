@@ -1,15 +1,15 @@
-commit 6a40d549f101031025ba0c79f171725c3d64ed2b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Apr 21 20:36:35 2014 +1000
+commit 1bb4f37fcec4b22b663c995b0ff6a19a639d112d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 21 00:09:22 2014 -0400
 
-    cmd/nm: disable TestNM on darwin, linux and solaris
+    runtime, go/build: re-enable cgo on FreeBSD.
+    Fixes #7331.
     
-    Update #7829
-    
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=dave, iant
+    R=golang-codereviews, dave, gobot, iant
     CC=golang-codereviews
-    https://golang.org/cl/89810043
+    https://golang.org/cl/89150043
 
- src/cmd/nm/nm_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/go/build/build.go         | 1 +
+ src/pkg/runtime/sys_freebsd_arm.s | 5 +++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

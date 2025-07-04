@@ -1,25 +1,35 @@
-commit 9302a57134a698b62576cd3b849017a02c731c98
-Author: Aleksey Markin <alexanius@gmail.com>
-Date:   Wed Mar 26 18:47:15 2025 +0300
+commit fc0d9a4b7d8bfd1130b1fe8419b50fffa76b00a9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 31 11:43:38 2024 -0500
 
-    cmd/link/internal/ld: introduce -funcalign=N option
+    net/http: reject client-side retries in server timeout tests
     
-    This patch adds linker option -funcalign=N that allows to set alignment
-    for function entries.
+    This breaks an unbounded client-side retry loop if the server's
+    timeout happens to fire during its final read of the TLS handshake.
     
-    This CL is based on vasiliy.leonenko@gmail.com's cl/615736.
+    The retry loop was observed on wasm platforms at CL 557437.
+    I was also able to reproduce chains of dozens of retries on my
+    linux/amd64 workstation by adjusting some timeouts and adding a couple
+    of sleeps, as in this patch:
+    https://gist.github.com/bcmills/d0a0a57e5f64eebc24e8211d8ea502b3
+    However, on linux/amd64 on my workstation the test always eventually
+    breaks out of the retry loop due to timing jitter.
     
-    For #72130
+    I couldn't find a retry-specific hook in the http.Client,
+    http.Transport, or tls.Config structs, so I have instead abused the
+    Transport.Proxy hook for this purpose. Separately, we may want to
+    consider adding a retry-specific hook, or changing the net/http
+    implementation to avoid transparently retrying in this case.
     
-    Change-Id: I57e5c9c4c71a989533643fda63a9a79c5c897dea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660996
+    Fixes #65410.
+    Updates #65178.
+    
+    Change-Id: I0e43c039615fe815f0a4ba99a8813c48b1fdc7e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559835
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/link/doc.go              |  2 +
- src/cmd/link/internal/ld/data.go |  4 +-
- src/cmd/link/internal/ld/lib.go  |  6 ++-
- src/cmd/link/internal/ld/main.go |  4 ++
- src/cmd/link/link_test.go        | 83 +++++++++++++++++++++++++++++++++++++++-
- 5 files changed, 94 insertions(+), 5 deletions(-)
+ src/net/http/serve_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

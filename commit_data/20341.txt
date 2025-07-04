@@ -1,103 +1,17 @@
-commit 220a6de47eced55956eb8af8d643d4f5b67fd634
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 00:06:45 2014 -0400
+commit ac49e6735bb3757a16816f7400ce823cd6fc8508
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 2 00:14:22 2014 -0400
 
-    build: adjustments for move from src/pkg to src
+    runtime: convert cpuprof from C to Go
     
-    This CL adjusts code referring to src/pkg to refer to src.
-    
-    Immediately after submitting this CL, I will submit
-    a change doing 'hg mv src/pkg/* src'.
-    That change will be too large to review with Rietveld
-    but will contain only the 'hg mv'.
-    
-    This CL will break the build.
-    The followup 'hg mv' will fix it.
-    
-    For more about the move, see golang.org/s/go14nopkg.
-    
-    LGTM=r
-    R=r
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, rsc
     CC=golang-codereviews
-    https://golang.org/cl/134570043
+    https://golang.org/cl/132440043
 
- .hgignore                           |  12 +--
- doc/articles/go_command.html        |   2 +-
- doc/articles/race_detector.html     |  24 ++---
- doc/contribute.html                 |  16 +--
- doc/debugging_with_gdb.html         |  50 ++++-----
- doc/effective_go.html               |   4 +-
- doc/gccgo_contribute.html           |   2 +-
- doc/go_faq.html                     |   4 +-
- misc/android/go_android_exec.go     |   2 +-
- misc/makerelease/makerelease.go     |   4 +-
- src/androidtest.bash                |   3 +-
- src/cmd/5a/a.y                      |   2 +-
- src/cmd/5a/y.tab.c                  |   2 +-
- src/cmd/5c/cgen.c                   |   2 +-
- src/cmd/5g/cgen.c                   |   2 +-
- src/cmd/5g/ggen.c                   |   2 +-
- src/cmd/5g/gsubr.c                  |   4 +-
- src/cmd/6a/a.y                      |   2 +-
- src/cmd/6a/y.tab.c                  |   2 +-
- src/cmd/6c/cgen.c                   |   2 +-
- src/cmd/6c/sgen.c                   |   2 +-
- src/cmd/6g/cgen.c                   |   2 +-
- src/cmd/6g/ggen.c                   |   2 +-
- src/cmd/6g/gsubr.c                  |   4 +-
- src/cmd/8a/a.y                      |   2 +-
- src/cmd/8a/y.tab.c                  |   2 +-
- src/cmd/8c/cgen.c                   |   2 +-
- src/cmd/8g/cgen.c                   |   2 +-
- src/cmd/8g/ggen.c                   |   2 +-
- src/cmd/8g/gsubr.c                  |   4 +-
- src/cmd/api/goapi.go                |   2 +-
- src/cmd/api/goapi_test.go           |   4 +-
- src/cmd/cc/pgen.c                   |   2 +-
- src/cmd/cgo/ast.go                  |   2 +-
- src/cmd/dist/build.c                | 208 +++++++++++++++++++-----------------
- src/cmd/dist/buildruntime.c         |   2 +-
- src/cmd/dist/windows.c              |   2 +-
- src/cmd/fix/fix.go                  |   2 +-
- src/cmd/gc/md5.c                    |   2 +-
- src/cmd/gc/pgen.c                   |   4 +-
- src/cmd/gc/plive.c                  |   4 +-
- src/cmd/gc/reflect.c                |  38 +++----
- src/cmd/gc/select.c                 |   2 +-
- src/cmd/gc/subr.c                   |   2 +-
- src/cmd/gc/walk.c                   |   4 +-
- src/cmd/go/build.go                 |  15 ++-
- src/cmd/go/main.go                  |   4 +-
- src/cmd/go/pkg.go                   |  15 +--
- src/cmd/go/test.bash                |   6 +-
- src/cmd/gofmt/doc.go                |   2 +-
- src/cmd/ld/data.c                   |   2 +-
- src/cmd/ld/decodesym.c              |   4 +-
- src/cmd/ld/dwarf.c                  |   2 +-
- src/cmd/ld/lib.c                    |   6 +-
- src/cmd/ld/pcln.c                   |   2 +-
- src/cmd/nm/nm_test.go               |   2 +-
- src/liblink/asm5.c                  |   2 +-
- src/liblink/asm6.c                  |   2 +-
- src/liblink/asm8.c                  |   2 +-
- src/liblink/obj5.c                  |   2 +-
- src/liblink/obj6.c                  |   2 +-
- src/liblink/obj8.c                  |   2 +-
- src/liblink/sym.c                   |   2 +-
- src/make.bash                       |   2 +-
- src/make.rc                         |   2 +-
- src/pkg/go/build/build.go           |  23 ++--
- src/pkg/math/sqrt.go                |   2 +-
- src/pkg/net/http/httptest/server.go |   2 +-
- src/pkg/net/smtp/smtp_test.go       |   2 +-
- src/pkg/reflect/type.go             |   2 +-
- src/pkg/reflect/value.go            |   2 +-
- src/pkg/runtime/Makefile            |   2 +-
- src/pkg/runtime/debug/stack_test.go |  18 ++--
- src/pkg/runtime/pprof/pprof_test.go |  42 ++++----
- src/pkg/runtime/race/race.go        |   2 +-
- src/pkg/runtime/runtime_test.go     |   2 +-
- src/pkg/sync/atomic/race.s          |   2 +-
- test/bench/garbage/parser.go        |   2 +-
- test/stress/parsego.go              |   2 +-
- 79 files changed, 309 insertions(+), 321 deletions(-)
+ src/pkg/runtime/cpuprof.go  | 424 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cpuprof.goc | 433 --------------------------------------------
+ src/pkg/runtime/debug.go    |  19 --
+ src/pkg/runtime/proc.c      |  17 +-
+ src/pkg/runtime/runtime.h   |   2 +-
+ 5 files changed, 431 insertions(+), 464 deletions(-)

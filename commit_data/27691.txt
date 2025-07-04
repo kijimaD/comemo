@@ -1,15 +1,16 @@
-commit c3818e56d0f60493a63b2bb03a09f261d3e0ada2
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Wed Jun 15 12:53:05 2016 -0400
+commit dae98d5c3b02b39f53168a9403d24e1ddd4a16d4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 19:35:59 2016 -0400
 
-    internal/trace: err if binary is not supplied for old trace
+    test: skip nilptr3 test on s390x
     
-    Change-Id: Id25c90993c4cbb7449d7031301b6d214a67d7633
-    Reviewed-on: https://go-review.googlesource.com/24134
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fails for the same reason as ppc64 and mips64 (incomplete
+    optimization).
+    
+    Change-Id: Ieb4d997fc27d4f2b756e63dd7f588abe10c0213a
+    Reviewed-on: https://go-review.googlesource.com/20963
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/trace/parser.go      | 25 +++++++++++++++++++------
- src/internal/trace/parser_test.go |  4 +++-
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ test/nilptr3.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

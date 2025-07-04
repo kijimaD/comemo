@@ -1,13 +1,43 @@
-commit 9c9e36b34040d33b9f9a0b6fd918ef470338aec4
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 19 15:15:52 2015 -0400
+commit ed09e0e2bfb146dede246014381b447246885b00
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 23 13:02:31 2015 -0400
 
-    cmd/internal/gc: sync nowritebarrier checks and write barrier insertion
+    runtime: fix underflow in next_gc calculation
     
-    Change-Id: I348223d0336e28d95b8e68d7653aa547acc7c9c3
-    Reviewed-on: https://go-review.googlesource.com/10262
-    Reviewed-by: Austin Clements <austin@google.com>
+    Currently, it's possible for the next_gc calculation to underflow.
+    Since next_gc is unsigned, this wraps around and effectively disables
+    GC for the rest of the program's execution. Besides being obviously
+    wrong, this is causing test failures on 32-bit because some tests are
+    running out of heap.
+    
+    This underflow happens for two reasons, both having to do with how we
+    estimate the reachable heap size at the end of the GC cycle.
+    
+    One reason is that this calculation depends on the value of heap_live
+    at the beginning of the GC cycle, but we currently only record that
+    value during a concurrent GC and not during a forced STW GC. Fix this
+    by moving the recorded value from gcController to work and recording
+    it on a common code path.
+    
+    The other reason is that we use the amount of allocation during the GC
+    cycle as an approximation of the amount of floating garbage and
+    subtract it from the marked heap to estimate the reachable heap.
+    However, since this is only an approximation, it's possible for the
+    amount of allocation during the cycle to be *larger* than the marked
+    heap size (since the runtime allocates white and it's possible for
+    these allocations to never be made reachable from the heap). Currently
+    this causes wrap-around in our estimate of the reachable heap size,
+    which in turn causes wrap-around in next_gc. Fix this by bottoming out
+    the reachable heap estimate at 0, in which case we just fall back to
+    triggering GC at heapminimum (which is okay since this only happens on
+    small heaps).
+    
+    Fixes #10555, fixes #10556, and fixes #10559.
+    
+    Change-Id: Iad07b529c03772356fede2ae557732f13ebfdb63
+    Reviewed-on: https://go-review.googlesource.com/9286
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/cgen.go | 6 ++++++
- src/cmd/internal/gc/walk.go | 3 +++
- 2 files changed, 9 insertions(+)
+ src/runtime/mgc.go | 33 ++++++++++++++++++++++++---------
+ 1 file changed, 24 insertions(+), 9 deletions(-)

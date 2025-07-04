@@ -1,19 +1,15 @@
-commit e457cc38afbbff194e0c6c484d608cf3c4498533
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon Nov 4 10:10:14 2019 +0100
+commit ee46250e06eeaaf40a4b7610a9c7e51e11c8895e
+Author: frennkie <mail@rhab.de>
+Date:   Sun Jun 2 12:10:58 2019 +0000
 
-    misc/ios: bump -mios-version-min
+    net: fix the doc string on parseIPv6
     
-    Recent Xcode versions started to complain about the current min
-    version:
-    
-    ld: warning: OS version (6.0.0) too small, changing to 7.0.0
-    
-    Change-Id: Ieb525dd3e57429fe226b9d30d584b073c5e4768c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204663
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie9fef7767f3263ef7daed8415ab2f59c5377a3cb
+    GitHub-Last-Rev: a4d13b7452f0fe060cb7575acfc200e3353fdde0
+    GitHub-Pull-Request: golang/go#32385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180037
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/clangwrap.sh | 2 +-
+ src/net/ip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

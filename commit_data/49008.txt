@@ -1,21 +1,25 @@
-commit 93218ea1a755f67b8aae15dab92387716d50fecc
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Fri Apr 29 15:28:03 2022 +0800
+commit c65ca97a452f872516a7e9462cd27ac17d913747
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 7 04:03:24 2021 -0700
 
-    reflect: implement float32 for regabi riscv64
+    [dev.typeparams] cmd/compile: fix windows longtest builder
     
-    This CL implement archFloat32FromReg and archFloat32ToReg
-    need for riscv64 due to differences in the way float32 are
-    represented in registers as compared to other platforms.
+    CL 332469 broke the Windows longtest builders, because it changed the
+    names assigned to autotmp variables that end up in export data.
     
-    Change-Id: I5eab27df242f84b387b0c8dc7f347c93b3fd9df0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403134
-    Run-TryBot: mzh <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    The naming of autotmps doesn't actually matter, so instead we can just
+    hack iexport to write out "$autotmp" as a magic marker, and let the
+    reader replace it with an appropriate unique name. This is a little
+    hacky, but so is iexport's handling of autotmps already, and this
+    should also go away eventually with unified IR.
+    
+    Change-Id: Ic17395337c745b66b9d63ee566299290214e6273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333089
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/reflect/float32reg_generic.go |  2 +-
- src/reflect/float32reg_riscv64.s  | 27 +++++++++++++++++++++++++++
- src/reflect/stubs_riscv64.go      |  8 ++++++++
- 3 files changed, 36 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 11 +++++++++--
+ src/cmd/compile/internal/typecheck/iimport.go | 12 ++++++++++--
+ 2 files changed, 19 insertions(+), 4 deletions(-)

@@ -1,45 +1,25 @@
-commit 120f445495a573f80b1f0c0acc326c281c01b13e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 4 14:51:39 2022 -0400
+commit 5c028751bde57d069bd0fe4c6769cba11c975d31
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 21:11:32 2021 +0000
 
-    test/nosplit: apply stack limit adjustment in the right place
+    [dev.typeparams] runtime/internal/sys: replace uses of GOARCH with goarch.GOARCH
     
-    The nosplit test was originally written when the stack limit was a
-    mere 128 bytes. Now it's much larger, but rather than rewriting all of
-    the tests, we apply a hack to just add the extra space into the stack
-    frames of the existing tests.
+    Refactoring performed by the rf tool:
     
-    Unfortunately, we add it in the wrong place. The extra space should be
-    added just once per chain of nosplit functions, but instead we add it
-    to every frame that appears first on a line in the test's little
-    script language. This means that for tests like
+        rf 'ex . {
+            import "internal/goarch"
+            import "runtime/internal/sys"
+            sys.GOARCH -> goarch.GOARCH
+        }'
     
-        start 0 call f1
-        f1 16 nosplit call f2
-        f2 16 nosplit call f3
-        f3 16 nosplit call f4
-        f4 16 nosplit call f5
-        f5 16 nosplit call f6
-        f6 16 nosplit call f7
-        f7 16 nosplit call f8
-        f8 16 nosplit call end
-        end 1000
-        REJECT
-    
-    we add 672 bytes to *every* frame, meaning that we wind up way over
-    the stack limit by the end of the stanza, rather than just a little as
-    originally intended.
-    
-    Fix this by instead adding the extra space to the first nosplit
-    function in a stanza. This isn't perfect either, since we could have a
-    nosplit -> split -> nosplit chain, but it's the best we can do without
-    a graph analysis.
-    
-    Change-Id: Ibf156c68fe3eb1b64a438115f4a17f1a6c7e2bd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398174
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4b0246bf4e734f08313c6fff7b547db362057714
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328338
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/nosplit.go | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ src/runtime/extern.go              | 7 +++++--
+ src/runtime/heapdump.go            | 3 +--
+ src/runtime/internal/sys/consts.go | 2 --
+ 3 files changed, 6 insertions(+), 6 deletions(-)

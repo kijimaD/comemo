@@ -1,33 +1,15 @@
-commit 6363fc5aa6b3aa1ee8826582c6f7a356aa8e4201
+commit 744b23fe4827598a3e76b8fd014fccc824048788
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 03:06:40 2012 -0400
+Date:   Thu Jun 7 02:05:08 2012 -0400
 
-    cmd/gc: fix type checking loop
+    cmd/gc: do not crash on struct with _ field
     
-    CL 4313064 fixed its test case but did not address a
-    general enough problem:
-    
-    type T1 struct { F *T2 }
-    type T2 T1
-    type T3 T2
-    
-    could still end up copying the definition of T1 for T2
-    before T1 was done being evaluated, or T3 before T2
-    was done.
-    
-    In order to propagate the updates correctly,
-    record a copy of an incomplete type for re-execution
-    once the type is completed. Roll back CL 4313064.
-    
-    Fixes #3709.
+    Fixes #3607.
     
     R=ken2
-    CC=golang-dev, lstoakes
-    https://golang.org/cl/6301059
+    CC=golang-dev
+    https://golang.org/cl/6296052
 
- src/cmd/gc/go.h          |   5 ++-
- src/cmd/gc/lex.c         |   1 -
- src/cmd/gc/typecheck.c   | 115 ++++++++++++++++-------------------------------
- test/fixedbugs/bug443.go |  17 +++++++
- test/map1.go             |  18 ++++++++
- 5 files changed, 76 insertions(+), 80 deletions(-)
+ src/cmd/gc/subr.c        |  4 ++--
+ test/fixedbugs/bug442.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

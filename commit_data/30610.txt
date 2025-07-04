@@ -1,28 +1,15 @@
-commit b0e91d836a0abd46899cf78fdd93303afcf6c637
-Author: Philip Hofer <phofer@umich.edu>
-Date:   Fri Mar 3 13:44:18 2017 -0800
+commit cd66c38619cbf6e031d9af4cea8197cd6980ffa1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 16:27:27 2016 +0000
 
-    cmd/compile: clean up ssa.Value memory arg usage
+    runtime/pprof: skip profiling tests on mips if highres timers not available
     
-    This change adds a method to replace expressions
-    of the form
+    Fixes #17936
     
-       v.Args[len(v.Args)-1]
-    
-    so that the code's intention to walk memory arguments
-    is explicit.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I0c80d73bc00989dd3cdf72b4f2c8e1075a2515e0
-    Reviewed-on: https://go-review.googlesource.com/37757
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I20d09712b7d7303257994356904052ba64bc5bf2
+    Reviewed-on: https://go-review.googlesource.com/33306
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go      |  4 ++--
- src/cmd/compile/internal/ssa/schedule.go     |  8 ++++----
- src/cmd/compile/internal/ssa/tighten.go      |  2 +-
- src/cmd/compile/internal/ssa/value.go        | 20 ++++++++++++++++++++
- src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
- 5 files changed, 28 insertions(+), 8 deletions(-)
+ src/runtime/pprof/pprof_test.go | 52 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 51 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit 7aba72baaae64792707076724307f6bdc7fec44f
+commit b47cef394b779b647dd033895dd13445451c77c5
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 29 15:53:57 2012 -0500
+Date:   Wed Feb 29 15:50:46 2012 -0500
 
-    os: diagnose chdir error during StartProcess
+    path/filepath: note that SplitList is different from strings.Split
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r, bradfitz, gustavo
     CC=golang-dev
-    https://golang.org/cl/5711044
+    https://golang.org/cl/5712044
 
- src/pkg/os/exec_posix.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/path/filepath/path.go | 1 +
+ 1 file changed, 1 insertion(+)

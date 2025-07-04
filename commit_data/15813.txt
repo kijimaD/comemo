@@ -1,20 +1,23 @@
-commit a7a803c7b7b5322c90d093cc603ebafd0c3c320a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 18 11:39:00 2013 -0700
+commit 7f50c23e2d18c445bfe790692e998ff91b37ddc2
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Mar 18 12:18:49 2013 +1100
 
-    database/sql: allow simultaneous queries, etc in a Tx
+    runtime: correct mmap return value checking on netbsd/openbsd
     
-    Now that revision 0c029965805f is in, it's easy
-    to guarantee that we never access a driver.Conn
-    concurrently, per the database/sql/driver contract,
-    so we can remove this overlarge mutex.
+    The current SysAlloc implementation suffers from a signed vs unsigned
+    comparision bug. Since the error code from mmap is negated, the
+    unsigned comparision of v < 4096 is always false on error. Fix this
+    by switching to the darwin/freebsd/linux mmap model and leave the mmap
+    return value unmodified.
     
-    Fixes #3857
-    
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7707047
+    https://golang.org/cl/7870044
 
- src/pkg/database/sql/sql.go      | 26 +++++---------------------
- src/pkg/database/sql/sql_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 21 deletions(-)
+ src/pkg/runtime/mem_netbsd.c        | 9 ++++-----
+ src/pkg/runtime/mem_openbsd.c       | 9 ++++-----
+ src/pkg/runtime/sys_netbsd_386.s    | 2 --
+ src/pkg/runtime/sys_netbsd_amd64.s  | 2 --
+ src/pkg/runtime/sys_openbsd_386.s   | 2 --
+ src/pkg/runtime/sys_openbsd_amd64.s | 2 --
+ 6 files changed, 8 insertions(+), 18 deletions(-)

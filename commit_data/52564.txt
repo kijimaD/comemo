@@ -1,27 +1,23 @@
-commit 6a97a60b4b80dfa9db91200c054d734e18dda115
-Author: David Chase <drchase@google.com>
-Date:   Thu Apr 6 14:42:53 2023 -0400
+commit aeaf4b0e5b21ea0819b4e862ed86ce44760516bf
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 10 16:09:54 2022 -0400
 
-    cmd/compile: remove broken LEA "optimization"
+    runtime: not mark save_g NOFRAME on ARM
     
-    CL 440035 added rewrite rules to simplify "costly" LEA
-    instructions, but the types in the rewrites were wrong and
-    the code would go bad if the wrong-typed register was spilled.
+    On ARM, when GOARM<=6 the TLS pointer is fetched via a call to a
+    kernel helper. This call clobbers LR, even just temporarily. If
+    the function is NOFRAME, if a profiling signal lands right after
+    the call returns, the unwinder will find the wrong LR. Not mark it
+    NOFRAME, so the LR will be saved in the usual way and stack
+    unwinding should work.
     
-    CL 482536 attempted to fix this by correcting the type in the
-    rewrite, but that "fix" broke something on windows-amd64-race.
+    May fix #52829.
     
-    Instead / for-now, remove the offending rewrite rules.
-    
-    Updates #21735.
-    Fixes #59432.
-    
-    Change-Id: I0497c42db414f2055e1378e0a53e2bceee9cd5d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482820
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I419a31dcf4afbcff8d7ab8f179eec3c477589e60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405482
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- .../compile/internal/ssa/_gen/AMD64latelower.rules |   8 -
- .../compile/internal/ssa/rewriteAMD64latelower.go  | 393 ---------------------
- 2 files changed, 401 deletions(-)
+ src/runtime/tls_arm.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

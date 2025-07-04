@@ -1,17 +1,28 @@
-commit 293a205f3c196dcc2eb22bc03b520cad659fce93
-Author: Kristóf Havasi <kristof.havasi@gmail.com>
-Date:   Mon Nov 4 13:25:34 2024 +0100
+commit af8a2bde7b5b0b9db3d18c82d4b51ad30760eb09
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 21:48:28 2023 -0700
 
-    internal/platform: fix 'reportsr' typo in comment
+    cmd/compile/internal/ssa: remove Frontend.MyImportPath
     
-    Gets rendered at https://pkg.go.dev/internal/platform#Broken
+    This method is only used to find the path of the function being
+    compiled for hash debugging, but it was instead returning the path of
+    the package being compiled. These are typically the same, but can be
+    different for certain functions compiled across package boundaries
+    (e.g., method value wrappers and generic functions).
     
-    Change-Id: I128d9f02f113b1b326bc7d6a0e48fe0c944546dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624915
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    It's redundant either with f.fe.Func().Sym().Pkg.Path (package path of
+    the function being compiled) or f.Config.ctxt.Pkgpath (package path of
+    the compilation unit), so just remove it instead.
+    
+    Change-Id: I1daae09055043d0ecb1fcc874a0b0006a6f8bddf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526516
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/platform/supported.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/config.go      | 3 ---
+ src/cmd/compile/internal/ssa/export_test.go | 3 ---
+ src/cmd/compile/internal/ssa/func.go        | 3 ++-
+ src/cmd/compile/internal/ssagen/ssa.go      | 4 ----
+ 4 files changed, 2 insertions(+), 11 deletions(-)

@@ -1,18 +1,22 @@
-commit 1476686cdb6acafdf62aad7672c3839bc4ca7033
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 14 13:46:58 2014 -0700
+commit 51f3cbabfc58c0db89b1142f94d794b59727f572
+Author: Guillaume J. Charmes <guillaume@charmes.net>
+Date:   Wed May 14 10:15:43 2014 -0700
 
-    doc/effective_go.html: a little more about errors
-    Make it a little clearer how they are used, in particular that
-    it is not enough just to return a nil pointer on error, but also
-    to return an error value explaining the problem.
+    archive/tar: Fix bug preventing untar
     
-    Fixes #1963.
+    Do not use ustar format if we need the GNU one.
+    Change \000 to \x00 for consistency
+    Check for "ustar\x00" instead of "ustar\x00\x00" for conistency with tar
+    and compatiblity with archive generated with older code (which was ustar\x00\x20\x00)
+    Add test for long name + big file.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/97360045
+    https://golang.org/cl/99050043
 
- doc/effective_go.html | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/pkg/archive/tar/reader.go                    |   6 +++---
+ src/pkg/archive/tar/testdata/writer-big-long.tar | Bin 0 -> 4096 bytes
+ src/pkg/archive/tar/writer.go                    |   4 ++--
+ src/pkg/archive/tar/writer_test.go               |  23 +++++++++++++++++++++++
+ 4 files changed, 28 insertions(+), 5 deletions(-)

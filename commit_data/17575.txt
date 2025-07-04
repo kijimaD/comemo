@@ -1,15 +1,14 @@
-commit fe62a1f1feadabf6de15e524090c8010449890ff
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 12 11:59:18 2013 +0900
+commit e38eddbfe4f2aff84a200d51b52fab4b38ae4f26
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 12 11:18:34 2013 +1000
 
-    net: move mock ICMP into separate file
+    cmd/8l: fix 386 builds
     
-    This is in prepartion for fixing issue 6320.
+    Remove set but unused variable.
     
-    R=golang-dev, dave
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/13611043
+    https://golang.org/cl/13490047
 
- src/pkg/net/ipraw_test.go    | 110 ----------------------------------------
- src/pkg/net/mockicmp_test.go | 116 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 116 insertions(+), 110 deletions(-)
+ src/cmd/8l/pass.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

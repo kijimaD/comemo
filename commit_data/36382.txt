@@ -1,22 +1,12 @@
-commit d865e1fa483d689f1f4afae0b2b6260a5b657959
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 21 08:31:38 2018 +0200
+commit a5f19812cf0a8be6df68b9f90a8b80d734b6e862
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 24 16:25:45 2018 -0700
 
-    syscall: add S_IRWXG and S_IRWXO on OpenBSD
+    go/types: fix lhs/rhs mixup in docs
     
-    As discussed in CL 126621, these constants are already defined on Linux,
-    Darwin, FreeBSD and NetBSD. In order to ensure portability of existing
-    code using the syscall package, provide them for OpenBSD (and
-    DragonflyBSD, in a separate CL) as well.
-    
-    Change-Id: Ia9e07cb01f989d144a620d268daa8ec946788861
-    Reviewed-on: https://go-review.googlesource.com/130336
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifd51636c9254de51b8a21371d7507a9481bcca0a
+    Reviewed-on: https://go-review.googlesource.com/109142
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/types_openbsd.go        | 2 ++
- src/syscall/ztypes_openbsd_386.go   | 2 ++
- src/syscall/ztypes_openbsd_amd64.go | 2 ++
- src/syscall/ztypes_openbsd_arm.go   | 2 ++
- 4 files changed, 8 insertions(+)
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

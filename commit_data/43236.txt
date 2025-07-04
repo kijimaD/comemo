@@ -1,15 +1,19 @@
-commit 68bc950583221c972a132a2aa2813b6a1f5cd955
-Author: David Chase <drchase@google.com>
-Date:   Tue Aug 11 12:52:01 2020 -0400
+commit 9d468f482f20f886d3c7d66c60e1ce0acbaaad44
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Fri Mar 20 08:40:38 2020 +0000
 
-    cmd/compile: enable late call lowering for "callDeferStack"
+    doc/articles/wiki: use correct variable name in closures guide
     
-    Change-Id: I773fce43d43f6e19180531e7bd1cc50bd8f31f75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248187
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes non-existent variable TitleValidator to be validPath in
+    the closures, functions literal section.
+    
+    Fixes #36779
+    
+    Change-Id: I59762c358c3e00d1cc03d9d1e2aace03f145321d
+    GitHub-Last-Rev: a5e9b17a3707fc48c6d87bab3a4968f2ef63ab65
+    GitHub-Pull-Request: golang/go#36783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216479
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ doc/articles/wiki/index.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,22 @@
-commit fa80fe7b1cc770d37b2263eb5d81c87db75ceb80
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 26 10:45:01 2023 -0700
+commit f70b93a6e9ab6ef6ec4a9f1748f852e1601c0905
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 25 14:12:29 2022 -0700
 
-    cmd/go: simplify code that still assumed the build cache could be nil
+    archive/zip: if non-zero base offset fails, fall back to zero
     
-    cache.Default always returns a non-nil value since Go 1.12; the docs were
-    updated in https://go.dev/cl/465555.
+    This permits us to read files that earlier Go releases could read.
+    It is also compatible with other zip programs.
     
-    This updates all the callers of cache.Default that were checking whether
-    the result was nil so the code isn't misleading/confusing to readers.
-    
-    Change-Id: Ia63567dd70affef6041c744259f65cea79a2752e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489355
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7e2999f1073c4db5ba3f51f92681e0b149d55b3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408734
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/list/list.go    | 14 -------
- src/cmd/go/internal/test/test.go    |  8 ----
- src/cmd/go/internal/work/buildid.go | 80 ++++++++++++++++++-------------------
- 3 files changed, 38 insertions(+), 64 deletions(-)
+ src/archive/zip/reader.go                  |  14 ++++++++++++++
+ src/archive/zip/reader_test.go             |  18 ++++++++++++++++++
+ src/archive/zip/testdata/test-baddirsz.zip | Bin 0 -> 1170 bytes
+ 3 files changed, 32 insertions(+)

@@ -1,27 +1,18 @@
-commit 4a381e3ee3ad6104fc1e1bc255f29d6bf47d7969
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Nov 13 19:12:39 2016 +0100
+commit 39ce6eb9ec53e53e361824feb96cbbc6d236df5a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 25 11:52:24 2016 -0400
 
-    net/http: enable timeout tests on Plan 9
+    runtime: report GCSys and OtherSys in heap profile
     
-    Deadlines have been implemented on Plan 9 in CL 31521.
+    The comment block at the end of the heap profile includes *almost*
+    everything from MemStats. Add the missing fields. These are useful for
+    debugging RSS that has gone to GC-internal data structures.
     
-    Enable the following tests:
-    
-     - TestServerTimeouts
-     - TestOnlyWriteTimeout
-     - TestTLSHandshakeTimeout
-     - TestIssue4191_InfiniteGetTimeout
-     - TestIssue4191_InfiniteGetToPutTimeout
-    
-    Updates #7237.
-    
-    Change-Id: If5e75cfaa9133dcf9ce6aac9fc2badafc1612b64
-    Reviewed-on: https://go-review.googlesource.com/33197
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I0ee8a918d49629e28fd8fd2bf6861c4529461c24
+    Reviewed-on: https://go-review.googlesource.com/29276
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/serve_test.go     | 9 ---------
- src/net/http/transport_test.go | 6 ------
- 2 files changed, 15 deletions(-)
+ src/runtime/pprof/pprof.go | 2 ++
+ 1 file changed, 2 insertions(+)

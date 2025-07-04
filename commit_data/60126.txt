@@ -1,0 +1,22 @@
+commit 2bf686dfe902c900bb0c9a140b49e5697d451944
+Author: islishude <islishude@gmail.com>
+Date:   Wed May 22 00:44:40 2024 +0000
+
+    net/http: add partitioned attribute to cookie type
+    
+    Fixes #62490
+    
+    Change-Id: Ibe7df96f50275c9321462e994a962031cb1f3018
+    GitHub-Last-Rev: 7df8738b804c3d82460eec1fc4acd7c6ad733fe1
+    GitHub-Pull-Request: golang/go#62499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526435
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Théo Dury <tdury2@gmail.com>
+
+ api/next/62490.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/net/http/62490.md |  1 +
+ src/net/http/cookie.go                       | 24 ++++++++++++++++++------
+ src/net/http/cookie_test.go                  |  6 ++++++
+ 4 files changed, 26 insertions(+), 6 deletions(-)

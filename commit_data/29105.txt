@@ -1,20 +1,21 @@
-commit c7e0dda45046c539d99b7e8c3bd3e79b3fab9776
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 23 06:04:14 2016 -0700
+commit 157fc454eccb850a0a74029a49f8d947ff1a3762
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 17:11:29 2016 -0700
 
-    net/http: add Server.ReadHeaderTimeout, IdleTimeout, document WriteTimeout
+    path/filepath: don't return SkipDir at top
     
-    Updates #14204
-    Updates #16450
-    Updates #16100
+    If the walker function called on a top-level file returns SkipDir,
+    then (before this change) Walk would return SkipDir, which the
+    documentation implies will not happen.
     
-    Change-Id: Ic283bcec008a8e0bfbcfd8531d30fffe71052531
-    Reviewed-on: https://go-review.googlesource.com/32024
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16280.
+    
+    Change-Id: I37d63bdcef7af4b56e342b624cf0d4b42e65c297
+    Reviewed-on: https://go-review.googlesource.com/24780
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 54 +++++++++++++++++++++++++++++
- src/net/http/server.go     | 84 +++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 125 insertions(+), 13 deletions(-)
+ src/path/filepath/path.go      |  9 +++++++--
+ src/path/filepath/path_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 25 insertions(+), 5 deletions(-)

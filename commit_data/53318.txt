@@ -1,59 +1,22 @@
-commit 869da4a2a48555d71f0298caba6385c4d10590ba
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon May 22 19:23:04 2023 +0200
+commit 469a87d7a57572148a176db1f43767aa90cdd10d
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Mon Jul 25 06:31:46 2022 +0000
 
-    crypto/tls: add QUIC 0-RTT APIs
+    net/http: remove unused method needsSniff
     
-    Fixes #60107
-    
-    Change-Id: I158b1c2d80d8ebb5ed7a8e6f313f69060754e220
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496995
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ia8c67d148fc7e71cac8954ccce6fffb8a6f423df
+    GitHub-Last-Rev: 9441b8f0c510a3a03dc22816e2616d57f1411965
+    GitHub-Pull-Request: golang/go#54036
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419322
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Javad Rajabzadeh <ja7ad@live.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- api/next/44886.txt                                 |   6 +-
- api/next/60107.txt                                 |   6 +
- src/crypto/tls/conn.go                             |   2 +-
- src/crypto/tls/handshake_client.go                 |  23 ++
- src/crypto/tls/handshake_client_tls13.go           |  30 ++
- src/crypto/tls/handshake_messages.go               |   9 +
- src/crypto/tls/handshake_messages_test.go          |   9 +
- src/crypto/tls/handshake_server_tls13.go           |  71 +++--
- src/crypto/tls/key_schedule.go                     |   1 +
- src/crypto/tls/quic.go                             |  42 ++-
- src/crypto/tls/quic_test.go                        |   8 +-
- .../testdata/Server-TLSv10-ExportKeyingMaterial    |  76 ++---
- src/crypto/tls/testdata/Server-TLSv12-ALPN         |  64 ++--
- .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  64 ++--
- .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  64 ++--
- .../testdata/Server-TLSv12-ExportKeyingMaterial    |  80 ++---
- src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  74 ++---
- .../testdata/Server-TLSv12-IssueTicketPreDisable   |  74 ++---
- src/crypto/tls/testdata/Server-TLSv12-Resume       |  88 +++---
- .../tls/testdata/Server-TLSv13-AES128-SHA256       | 166 +++++------
- .../tls/testdata/Server-TLSv13-AES256-SHA384       | 172 +++++------
- src/crypto/tls/testdata/Server-TLSv13-ALPN         | 170 ++++++-----
- .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 164 +++++-----
- src/crypto/tls/testdata/Server-TLSv13-ALPN-NoMatch |  27 +-
- .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 166 +++++------
- .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 166 +++++------
- .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 332 ++++++++++-----------
- ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 268 ++++++++---------
- .../Server-TLSv13-ClientAuthRequestedAndGiven      | 326 ++++++++++----------
- .../Server-TLSv13-ClientAuthRequestedNotGiven      | 178 +++++------
- .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 158 +++++-----
- src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 122 ++++----
- .../testdata/Server-TLSv13-ExportKeyingMaterial    | 166 +++++------
- .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 190 ++++++------
- src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 166 +++++------
- .../testdata/Server-TLSv13-IssueTicketPreDisable   | 166 +++++------
- src/crypto/tls/testdata/Server-TLSv13-P256         | 170 +++++------
- src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 166 +++++------
- src/crypto/tls/testdata/Server-TLSv13-Resume       |  84 +++---
- .../Server-TLSv13-Resume-HelloRetryRequest         | 131 ++++----
- src/crypto/tls/testdata/Server-TLSv13-X25519       | 166 +++++------
- src/crypto/tls/ticket.go                           |  40 ++-
- 42 files changed, 2416 insertions(+), 2235 deletions(-)
+ src/net/http/response_test.go | 13 -------------
+ src/net/http/server.go        |  6 ------
+ 2 files changed, 19 deletions(-)

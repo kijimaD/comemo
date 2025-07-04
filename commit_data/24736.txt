@@ -1,19 +1,26 @@
-commit 171204b5617b317250d54bd45750476f69ee33d8
-Author: Austin Clements <austin@google.com>
-Date:   Sat Oct 24 21:30:59 2015 -0400
+commit d497eeb00540cebe5fb875570a06cc0083e8016b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Aug 27 10:59:43 2015 +1200
 
-    runtime: factor mark done transition
+    runtime: remove unused xchgp/xchgp1
     
-    Currently the code for completion of mark 1/mark 2 is duplicated in
-    background workers and assists. Factor this in to a single function
-    that will serve as the transition function for concurrent mark.
+    I noticed that they were unimplemented on arm64 but then that they were
+    in fact not used at all.
     
-    Change-Id: I4d9f697a15da0d349db3b34d56f3a220dd41d41b
-    Reviewed-on: https://go-review.googlesource.com/16359
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iee579feda2a5e374fa571bcc8c89e4ef607d50f6
+    Reviewed-on: https://go-review.googlesource.com/13951
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go     | 30 ++++++++++++++++++++++--------
- src/runtime/mgcmark.go |  9 +--------
- 2 files changed, 23 insertions(+), 16 deletions(-)
+ src/runtime/asm_386.s         |  7 -------
+ src/runtime/asm_amd64.s       |  7 -------
+ src/runtime/asm_amd64p32.s    |  7 -------
+ src/runtime/asm_ppc64x.s      |  3 ---
+ src/runtime/atomic_386.go     |  3 ---
+ src/runtime/atomic_amd64x.go  |  3 ---
+ src/runtime/atomic_arm.go     | 10 ----------
+ src/runtime/atomic_arm64.go   |  3 ---
+ src/runtime/atomic_pointer.go |  9 +--------
+ src/runtime/atomic_ppc64x.go  |  3 ---
+ 10 files changed, 1 insertion(+), 54 deletions(-)

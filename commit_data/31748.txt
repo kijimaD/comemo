@@ -1,15 +1,14 @@
-commit 32d42fb6ec5421f0c64fe7f7ffec0b9e7956e1ea
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jun 8 10:58:20 2017 +1000
+commit 0fd6df352205e2781ab34349527cf677b6c1283f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 7 10:28:46 2016 -0800
 
-    compress/lzw: don't follow code == hi if last is invalid.
+    cmd/compile: simplify printing of constant bools
     
-    Fixes #20597.
-    
-    Change-Id: Iaa059277c02e80a2fbef59cf8bb3c58d2b90fda0
-    Reviewed-on: https://go-review.googlesource.com/45111
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: I9339e83e39075826bf5819e55804a94208fe84ae
+    Reviewed-on: https://go-review.googlesource.com/38140
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/compress/lzw/reader.go      |  2 +-
- src/compress/lzw/reader_test.go | 71 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 72 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

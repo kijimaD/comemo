@@ -1,12 +1,16 @@
-commit 1fbff651331ca03d33200658373629f66bfc8d71
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 9 10:54:33 2015 -0700
+commit a93e5b4ff9449abff05a4882bf8ea86ad506b2bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 16 01:49:47 2015 +0000
 
-    doc: go1.6.txt: text/template and space trimming
+    Revert "runtime: diagnose invalid pointers during GC"
     
-    Change-Id: I33c0425361c98b175d8d87e0f7e44946bfb3e3fa
-    Reviewed-on: https://go-review.googlesource.com/14440
-    Reviewed-by: Rob Pike <r@golang.org>
+    Broke arm64. Update #9880.
+    
+    This reverts commit 38d9b2a3a942892193195a6912ab23cdaff23e20.
+    
+    Change-Id: I35fa21005af2183828a9d8b195ebcfbe45ec5138
+    Reviewed-on: https://go-review.googlesource.com/12247
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,32 +1,22 @@
-commit 1edc2769ca5eb60293747c37e765bc56ce04d2da
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Feb 7 15:00:46 2022 -0500
+commit d36b7d7bdd130dacfc6166d16dd879e2231baf62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 1 22:56:01 2021 -0700
 
-    cmd/link/internal/loadpe: add rudimentary COMDAT support
+    [dev.typeparams] cmd/compile/internal/importer: review of gcimporter_test.go
     
-    Add some rudimentary support to the PE file loader for handling
-    sections in COMDAT when reading host object files. This is needed
-    in order to link programs with support libraries that are of a more
-    modern vintage than GCC 5.X.
+    This CL removes the // UNREVIEWED disclaimer at the top of the
+    file. This file is essentially a copy of its reviewed version
+    at src/go/internal/gcimporter/gcimporter_test.go with adjustments
+    to make it work for the compiler and types2. To see the changes
+    made with respect to the original, compare patchset 2 against
+    patchset 3.
     
-    If a given section XYZ is in COMDAT, the symbol for that section will
-    be flagged, e.g. section 'Characteristics' field will have the
-    IMAGE_SCN_LNK_COMDAT bit set, and the symbol will be followed by an
-    "aux" symbol that includes the COMDAT handling strategy that the
-    linker needs to use.
-    
-    This patch supports two COMDAT strategies (IMAGE_COMDAT_SELECT_ANY and
-    IMAGE_COMDAT_SELECT_SAME_SIZE); more work will have to be done in the
-    future to support other flavors if it turns out that they are needed.
-    
-    Updates #35006.
-    
-    Change-Id: I516e825c30ed3df94ba08323b8a24fb847e10c1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383835
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iaeb9a56a6a56f4c1d93e7bfedc5b1f1968fa6792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324131
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/loadpe/ldpe.go | 92 ++++++++++++++++++++++++++++--------
- 1 file changed, 71 insertions(+), 21 deletions(-)
+ .../compile/internal/importer/gcimporter_test.go   | 23 ++++++++++------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

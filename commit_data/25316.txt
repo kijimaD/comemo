@@ -1,29 +1,19 @@
-commit 5c0629b503ff9044906a785f360354a5e45cf9ce
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Thu Nov 19 15:24:42 2015 -0400
+commit 77b1fef27e736764395633413fc13c14d8fed712
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 19 17:01:37 2015 -0700
 
-    net: prefer error for original name on lookups
+    cmd/compile, syscall: use go:norace comment for forkAndExecInChild
     
-    With certain names and search domain configurations the
-    returned error would be one encountered while querying a
-    generated name instead of the original name. This caused
-    confusion when a manual check of the same name produced
-    different results.
+    Use a go:norace comment rather than having the compiler know the special
+    name syscall.forkAndExecInChild.
     
-    Now prefer errors encountered for the original name.
-    
-    Also makes the low-level DNS connection plumbing swappable
-    in tests enabling tighter control over responses without
-    relying on the network.
-    
-    Fixes #12712
-    Updates #13295
-    
-    Change-Id: I780d628a762006bb11899caf20b5f97b462a717f
-    Reviewed-on: https://go-review.googlesource.com/16953
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I69bc6aa6fc40feb2148d23f269ff32453696fb28
+    Reviewed-on: https://go-review.googlesource.com/16097
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/dnsclient_unix.go      | 21 ++++++++---
- src/net/dnsclient_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
- src/net/hook.go                |  3 ++
- 3 files changed, 98 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/racewalk.go | 12 +-----------
+ src/syscall/exec_bsd.go                 |  1 +
+ src/syscall/exec_linux.go               |  1 +
+ src/syscall/exec_plan9.go               |  1 +
+ src/syscall/exec_solaris.go             |  1 +
+ 5 files changed, 5 insertions(+), 11 deletions(-)

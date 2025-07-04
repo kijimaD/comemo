@@ -1,23 +1,21 @@
-commit 4de1d1d5cde4424d9361be516e4db4d7e76dd1f3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 3 10:33:11 2018 -0800
+commit 101fbc2c829beadacefdad1c852e0888e2f16d4d
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 20 13:09:08 2017 -0500
 
-    spec: consistently use "element" rather than "value" for map entry values
+    runtime: make nextFreeFast inlinable
     
-    The spec refers to a map's key and element types; thus the respective
-    values are "keys" and "elements". Also, a map value is the value of
-    the entire map.
+    https://golang.org/cl/22598 made nextFreeFast inlinable.
+    But during https://golang.org/cl/63611 it was discovered, that it is no longer inlinable.
+    Reduce number of statements below inlining threshold to make it inlinable again.
+    Also update tests, to prevent regressions.
+    Doesn't reduce readability.
     
-    Similar fix for channels, where appropriate.
-    
-    Fixes #23254.
-    
-    Change-Id: I6f03ea6d86586c7b0b3e84f0c2e9446b8109fa53
-    Reviewed-on: https://go-review.googlesource.com/85999
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia672784dd48ed3b1ab46e390132f1094fe453de5
+    Reviewed-on: https://go-review.googlesource.com/65030
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- doc/go_spec.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 12 ++++++++----
+ src/runtime/malloc.go                   |  3 +--
+ 2 files changed, 9 insertions(+), 6 deletions(-)

@@ -1,20 +1,22 @@
-commit 9ee21f90d2594412dd60dd821831056db708fa53
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 10 16:18:43 2016 -0400
+commit b5e43e669a5e1591c9a6c7157b4dd0d2796d3037
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Aug 12 10:31:17 2016 +1200
 
-    math/big: add (*Int).Sqrt
+    cmd/link: when dynlinking, do not mangle short symbol names
     
-    This is needed for some of the more complex primality tests
-    (to filter out exact squares), and while the code is simple the
-    boundary conditions are not obvious, so it seems worth having
-    in the library.
+    When dynamically linking, a type symbol's name is replaced with a name based on
+    the SHA1 of the name as type symbol's names can be very long.  However, this
+    can make a type's symbol name longer in some cases. So skip it in that case.
+    One of the symbols this changes the treatment of is 'type.string' and that fixes a
+    bug where -X doesn't work when dynamically linking.
     
-    Change-Id: Ica994a6b6c1e412a6f6d9c3cf823f9b653c6bcbd
-    Reviewed-on: https://go-review.googlesource.com/30706
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #16671
+    
+    Change-Id: If5269038261b76fb0ec52e25a9c1d64129631e3c
+    Reviewed-on: https://go-review.googlesource.com/26890
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/math/big/int.go      | 11 +++++++++++
- src/math/big/int_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- src/math/big/nat.go      | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 87 insertions(+)
+ src/cmd/link/internal/ld/objfile.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

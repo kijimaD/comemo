@@ -1,0 +1,16 @@
+commit f1ebad19bd3fcaaed98e8652172a7e55c105de75
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 31 20:12:19 2025 +0000
+
+    internal/goexperiment: add Green Tea GC goexperiment
+    
+    Change-Id: Ia3ea5290842d8eddfafad4882f5874a2aff03e94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/goexperiment/exp_greenteagc_off.go | 8 ++++++++
+ src/internal/goexperiment/exp_greenteagc_on.go  | 8 ++++++++
+ src/internal/goexperiment/flags.go              | 3 +++
+ 3 files changed, 19 insertions(+)

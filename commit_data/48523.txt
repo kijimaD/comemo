@@ -1,22 +1,32 @@
-commit 1d19cea740a5a044848aaab3dc119f60c947be1d
-Author: Maisem Ali <maisem@tailscale.com>
-Date:   Mon Mar 21 17:43:45 2022 +0000
+commit 5fcd18bc9bd89bad5270434f99d40e820affbd82
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 19 11:43:58 2021 -0700
 
-    net/http/httptest: fix race in Server.Close
+    [dev.fuzz] internal/fuzz,testing: treat panics as recoverable
     
-    When run with race detector the test fails without the fix.
+    And only log the last panic, not all of them, during minimization.
+    This change makes the worker processes quiet, so now the only
+    process that logs anything is the coordinator. This hides all of
+    the panics caused during minimization of an input which causes
+    a panic.
     
-    Fixes #51799
+    This change also alters the usage of tRunner such that we now
+    recover from recoverable panics instead of terminating the
+    process. This results in larger stack traces, since we include
+    a bit more of the trace within testing. There is a TODO to see
+    if it's possible to slice the stack up so that it is somewhat
+    more informative.
     
-    Change-Id: I273adb6d3a2b1e0d606b9c27ab4c6a9aa4aa8064
-    GitHub-Last-Rev: a5ddd146a2a65f2e817eed5133449c79b3af2562
-    GitHub-Pull-Request: golang/go#51805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393974
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic85eabd2e70b078412fbb88adf424a8da25af876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321230
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/http/httptest/server.go      | 29 ++++++++-----------
- src/net/http/httptest/server_test.go | 54 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+), 18 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt | 10 +++++----
+ src/internal/fuzz/worker.go                      |  8 --------
+ src/testing/fuzz.go                              |  6 +++++-
+ src/testing/testing.go                           | 26 ++++++++++++++++++++++--
+ 4 files changed, 35 insertions(+), 15 deletions(-)

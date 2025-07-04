@@ -1,15 +1,39 @@
-commit eb67eab861442e6275deb584ecf08c95a639cedb
-Author: David Chase <drchase@google.com>
-Date:   Wed Aug 12 15:46:19 2020 -0400
+commit ab5a40c5e3162a565b26de4b1e7595f7922ba761
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 26 15:12:33 2020 -0500
 
-    cmd/compile: late call expansion for rtcall
+    runtime: fix rounding in materializeGCProg
     
-    Change-Id: I0708c9d649d8a579857330b68d9fbcbbeced29e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248189
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    materializeGCProg allocates a temporary buffer for unrolling a GC
+    program. Unfortunately, when computing the size of the buffer, it
+    rounds *down* the number of bytes needed to store bitmap before
+    rounding up the number of pages needed to store those bytes. The fact
+    that it rounds up to pages usually mitigates the rounding down, but
+    the type from #37470 exists right on the boundary where this doesn't
+    work:
+    
+    type Sequencer struct {
+            htable [1 << 17]uint32
+            buf    []byte
+    }
+    
+    On 64-bit, this GC bitmap is exactly 8 KiB of zeros, followed by three
+    one bits. Hence, this needs 8193 bytes of storage, but the current
+    math in materializeGCProg rounds *down* the three one bits to 8192
+    bytes. Since this is exactly pageSize, the next step of rounding up to
+    the page size doesn't mitigate this error, and materializeGCProg
+    allocates a buffer that is one byte too small. runGCProg then writes
+    one byte past the end of this buffer, causing either a segfault (if
+    you're lucky!) or memory corruption.
+    
+    Fixes #37470.
+    
+    Change-Id: Iad24c463c501cd9b1dc1924bc2ad007991a094a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221197
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 48 ++++++++++++++++++++++++++++++--------
- 1 file changed, 38 insertions(+), 10 deletions(-)
+ src/runtime/mbitmap.go | 6 +++++-
+ src/runtime/stubs.go   | 7 +++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,22 +1,15 @@
-commit a88cb1d8e117685134b719e1042b022e5189d804
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 30 14:56:12 2019 -0400
+commit 4422319fbf8db7700752ae2a755244bbd24672de
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 20 09:38:37 2018 +0100
 
-    cmd/cgo: fix unexpected semicolon in rewritten line
+    doc/go1.12: fix GOARCH value in Syscall18 link
     
-    Followup to CL 157961 and CL 158457.
-    Finish the list of operators and punctuation
-    that disable semicolon insertion at end-of-line
-    The reported case was "(" but "." was also missing.
+    Currently the link works also with the non-existing GOARCH armd64, but
+    let's correct in anyhow.
     
-    Fixes #31017.
-    
-    Change-Id: I0c06443f38dc8250c62e3aadd104abfa0e3be074
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174524
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ida647b8f9dd2f8460b019f5a23759f10a6da8e60
+    Reviewed-on: https://go-review.googlesource.com/c/155277
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/issue29781.go | 11 +++++++++++
- src/cmd/cgo/godefs.go       | 36 +++++++++++++++++++++++-------------
- 2 files changed, 34 insertions(+), 13 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

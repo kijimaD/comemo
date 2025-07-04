@@ -1,15 +1,13 @@
-commit 057fa94d3160a31b29d7a3bde9727dd1df0e31e2
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Sat Apr 23 11:34:08 2011 -0700
+commit f3113ee9b91712d49400589ff2b2c5f7514ffc85
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 23 11:25:27 2011 -0700
 
-    rc/env.bash: fix for Go tool-chain build on windows under msys.
+    fmt: tweak the doc for %U.
+    Fixes #1727.
     
-    The path conversion is done automatically if msys' builtin
-    shell commands are used.
-    
-    R=rsc1, peterGo, brainman, Mr_Dark, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4452042
+    https://golang.org/cl/4437069
 
- src/env.bash | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

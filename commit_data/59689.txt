@@ -1,21 +1,32 @@
-commit ef3bb638de442dc41d1e34a32e893d2041731e8c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu May 22 09:12:48 2025 -0700
+commit 48e00ab70a49652d4b015ac71b80da9f3ae7d1ab
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 9 15:27:30 2024 +0200
 
-    Revert "cmd/doc: better support for no network"
+    image/gif: revert incorrect usage of clear
     
-    This reverts commit 988eb0d11e8d96e8ca150f401ed82326b276f653.
+    CL 570555 replaced a loop which added empty
+    color.RGBA elements with a call to clear.
     
-    Reason for revert: breaks viewing documentation for unfetched modules
+    color.Palette is a slice of interfaces, so using
+    clear results in a slice of nil elements, rather
+    than what we previously had which was empty
+    color.RGBA elements. This could cause a panic when
+    attempting to re-encode a GIF which had an
+    extended color palette because of the weird
+    transparency hack.
     
-    For #73833
+    This was discovered by OSS-Fuzz. I've added a test
+    case using their reproducer in order to prevent
+    future regressions.
     
-    Change-Id: I89bc459e820c85e96837d1707058501488a14eef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675575
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I00a89257d90b6cca68672173eecdaa0a24f18d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577555
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/doc/main.go             | 10 +---------
- src/cmd/go/internal/load/pkg.go |  2 +-
- 2 files changed, 2 insertions(+), 10 deletions(-)
+ src/image/gif/reader.go      |  6 ++++--
+ src/image/gif/reader_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

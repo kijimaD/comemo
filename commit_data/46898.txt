@@ -1,18 +1,17 @@
-commit 9e8ed86813dd49c4160dd4813901e2ac03de5abd
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 14 14:57:49 2021 -0700
+commit 1b6f0bf1b29303e029d653f4b056326867f73366
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 17:51:35 2021 -0800
 
-    debug/buildinfo: fix test for build settings
+    [dev.typeparams] cmd/compile/internal/types: review of sizes_test.go
     
-    This CL fixes the debug/buildinfo test, which did not expect build settings.
+    The changes between (equivalent, and reviewed) go/types/sizes_test.go
+    and sizes_test.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    For #37475
-    
-    Change-Id: Ie8c15ec633b4eec6a976120c8db64f116589d98e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356012
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I36a9a8a9e0e5a869af392a6d04b50c166c8dbedf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291177
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/debug/buildinfo/buildinfo_test.go | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/sizes_test.go | 1 -
+ 1 file changed, 1 deletion(-)

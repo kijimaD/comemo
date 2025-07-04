@@ -1,32 +1,17 @@
-commit 801e40a0a4320827d52eca60bb42946cc5f81fc4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 22:17:22 2014 -0500
+commit 656a40254566bb1fae3bfa30448d103d911e04c4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 13 21:01:33 2014 -0500
 
-    cmd/gc: rename AFATVARDEF to AVARDEF
+    cmd/gc: rephrase the invalid indexing operation error message
+    Old:
+    prog.go:9: invalid operation: this[i] (index of type int)
+    New:
+    prog.go:9: invalid operation: this[i] (type int does not support indexing)
     
-    The "fat" referred to being used for multiword values only.
-    We're going to use it for non-fat values sometimes too.
-    
-    No change other than the renaming.
-    
-    TBR=iant
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/63650043
+    https://golang.org/cl/52540043
 
- src/cmd/5g/ggen.c  |  2 +-
- src/cmd/5g/peep.c  |  2 +-
- src/cmd/5g/prog.c  |  2 +-
- src/cmd/5l/5.out.h |  2 +-
- src/cmd/6g/ggen.c  |  2 +-
- src/cmd/6g/prog.c  |  2 +-
- src/cmd/6l/6.out.h |  2 +-
- src/cmd/8g/ggen.c  |  2 +-
- src/cmd/8g/prog.c  |  2 +-
- src/cmd/8l/8.out.h |  2 +-
- src/cmd/gc/gen.c   |  4 ++--
- src/cmd/gc/go.h    |  2 +-
- src/cmd/gc/pgen.c  | 14 +++++++-------
- src/cmd/gc/plive.c |  4 ++--
- src/liblink/asm6.c |  2 +-
- src/liblink/asm8.c |  2 +-
- 16 files changed, 24 insertions(+), 24 deletions(-)
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

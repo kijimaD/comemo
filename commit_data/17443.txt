@@ -1,13 +1,12 @@
-commit 2df3d800378fda123395609189fabdd403634d80
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 30 17:12:42 2013 +1000
+commit 5d6ea6f70ee340f13beeee9af0b326d302cabfe7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 30 15:32:51 2013 +1000
 
-    go/build: fix deps_test for Plan 9's os/user dependencies and to
-    include the new image/color/palette package.
+    doc/go1.2.txt: compress/flate changes
     
-    R=r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13314044
+    https://golang.org/cl/13324046
 
- src/pkg/go/build/deps_test.go | 35 +++++++++++++++++++----------------
- 1 file changed, 19 insertions(+), 16 deletions(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

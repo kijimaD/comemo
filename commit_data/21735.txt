@@ -1,18 +1,23 @@
-commit b59dd94f331677d28250b51729d5bc888fe4cef0
-Author: Chris Manghane <cmang@golang.org>
-Date:   Tue Dec 9 07:59:24 2014 -0800
+commit 5beec6a69952f6d07b49579ce6e71b0aa4cc4399
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 30 09:57:11 2015 -0800
 
-    cmd/internal/gc: method selector should not auto-deref named pointer type
+    [dev.cc] cmd/asm: handle the case where a macro is named without arguments
     
-    Fixes #9017.
+    Given
+            #define X() foo
+            X()
+            X
+    cpp produces
+            foo
+            X
+    Asm does now as well.
     
-    Change-Id: I26cb1e7d6e137ff145773169cfe2d8bd4e1b339c
-    Reviewed-on: https://go-review.googlesource.com/1252
+    Change-Id: Ia36b88a23ce1660e6a02559c4f730593d62066f1
+    Reviewed-on: https://go-review.googlesource.com/3611
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Chris Manghane <cmang@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/gc/subr.go      |  3 +++
- src/cmd/internal/gc/typecheck.go | 13 +++++++++
- test/fixedbugs/issue9017.go      | 57 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 73 insertions(+)
+ src/cmd/asm/internal/lex/input.go    | 54 ++++++++++++++++++++++++++----------
+ src/cmd/asm/internal/lex/lex.go      |  9 +++---
+ src/cmd/asm/internal/lex/lex_test.go |  9 ++++++
+ 3 files changed, 53 insertions(+), 19 deletions(-)

@@ -1,17 +1,14 @@
-commit 3089d189569ed272eaf2bc6c4330e848a46e9999
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 27 17:41:12 2019 +0000
+commit ac277d9234a89070a80dcbd03ef580566480fe42
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Nov 7 10:28:38 2018 +0100
 
-    net: fix test after 8.8.8.8 changed its reverse DNS name
+    internal/traceparser: skip test on iOS
     
-    Google's 8.8.8.8 DNS server used to reports its reverse DNS name
-    as ending in ".google.com". Now it's "dns.google.".
-    
-    Change-Id: I7dd15f03239e5c3f202e471618ab867690cb4f9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169679
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifc9581ba82a13f507c288282b517ebf8a5f93b4e
+    Reviewed-on: https://go-review.googlesource.com/c/148058
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/net/lookup_test.go | 25 +++++++++++--------------
- 1 file changed, 11 insertions(+), 14 deletions(-)
+ src/internal/traceparser/gc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

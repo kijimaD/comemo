@@ -1,15 +1,14 @@
-commit 14e52c74bc7492098ea630bc84514fb427ef8bd9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 17 07:30:04 2013 -0700
+commit f84cbd0950bd05209df7a18e79c1be6b3d31811a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 17 15:41:17 2013 +0400
 
-    crypto/cipher: StreamWriter.Closer docs + behavior change
+    runtime: fix test for new closure representation
+    I've hit it several times already.
+    Currently it crashes with nil deref.
     
-    Don't panic when the underlying Writer isn't a Closer. And
-    document what Close does and clarify that it's not a Flush.
-    
-    R=golang-dev, agl
+    R=golang-dev, daniel.morsing, r
     CC=golang-dev
-    https://golang.org/cl/10310043
+    https://golang.org/cl/10317045
 
- src/pkg/crypto/cipher/io.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/runtime/stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

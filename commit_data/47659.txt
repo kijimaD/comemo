@@ -1,15 +1,18 @@
-commit c3a7fb207409a77b2ad644fe777db04d7df8e08c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Dec 1 11:39:51 2021 -0500
+commit 9e3328e7407ab7cd24f48d27ba69d265c57d5805
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 3 16:29:34 2021 -0400
 
-    doc/go1.18: mention stack trace change
+    cmd/internal/objabi: remove StackPreempt
     
-    For #47694.
+    None of the stack check prologues depend on this constant at this
+    point (and, indeed, they shouldn't).
     
-    Change-Id: I06cac88d5328c8c0e38212ad801d70bc36cdfc6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368234
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iaa40d9c47285b26952f02a7bdde574e8385ffe95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307152
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/internal/objabi/stack.go | 4 ----
+ 1 file changed, 4 deletions(-)

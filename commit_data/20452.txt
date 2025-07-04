@@ -1,11 +1,15 @@
-commit 2107b30e58b4650e14f5ceb8230c5573597d607d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 16 21:49:10 2014 -0700
+commit 1fadd9e1aed80d27799cecace3f3764048d8ddd3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 9 07:22:11 2014 +0900
 
-    doc/go1.4.txt: add sync/atomic.Value
+    net: don't set wrong option for controlling tcp keepalive on openbsd
     
+    Fixes #8679.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/145800043
+    https://golang.org/cl/141730043
 
- doc/go1.4.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/tcpsockopt_openbsd.go | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

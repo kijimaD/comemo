@@ -1,32 +1,15 @@
-commit ddd8d7c0a6859114f1f9bfbb3c56fb63f870badc
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:11 2021 -0600
+commit 68bc950583221c972a132a2aa2813b6a1f5cd955
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 11 12:52:01 2020 -0400
 
-    cmd/internal/obj: consolidate AMOVW and AMOVWZ optab entries
+    cmd/compile: enable late call lowering for "callDeferStack"
     
-    This requires consolidating the register move operations into a
-    single case entry in asmout.  These moves are also used to
-    sign/zero-extend register values.
-    
-    Combine the three asmout cases for register moves.  This allows
-    AMOVWZ and AMOVW to be handled with the same optab entries.
-    
-    Likewise, remove the diagnostic error for non-zero constant
-    loads into R0 using the register move operations, it is not
-    possible to match this asmout case with a non-zero constant.
-    
-    Finally, fix the load constant 0 via "MOV[BHW]{,Z} $0, Rx".
-    These now generate "li Rx, $0" instead of a zero/sign-extend
-    of the contents of R0.
-    
-    Change-Id: Ia4a263661582f10feda27ee21cb121e05ea931dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308190
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: I773fce43d43f6e19180531e7bd1cc50bd8f31f75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248187
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  9 ++++
- src/cmd/internal/obj/ppc64/asm9.go        | 85 ++++++++++---------------------
- 2 files changed, 36 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

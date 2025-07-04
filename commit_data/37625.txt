@@ -1,12 +1,33 @@
-commit 033d09493d3dc03fda13801902b6e2e102b9d73c
-Author: Gerasimos (Makis) Maropoulos <kataras2006@hotmail.com>
-Date:   Sun Dec 9 00:20:50 2018 +0200
+commit 352583ff774d33539aeef4a3ce471406880b586d
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Jun 5 21:05:11 2018 -0300
 
-    crypto/ecdsa: fix NSA reference to Suite B implementer's guide to FIPS 186-3
+    encoding/hex: pre-allocate Dump buffer
     
-    Change-Id: I34877ac1d6d7fe9ffa7eabe46b4032af84d33794
-    Reviewed-on: https://go-review.googlesource.com/c/153337
+    name          old time/op    new time/op    delta
+    Dump/256-4      7.76µs ± 2%    5.82µs ± 2%  -24.91%  (p=0.008 n=5+5)
+    Dump/1024-4     28.4µs ± 2%    22.6µs ± 3%  -20.58%  (p=0.008 n=5+5)
+    Dump/4096-4      112µs ± 2%      88µs ± 0%  -20.80%  (p=0.016 n=5+4)
+    Dump/16384-4     444µs ± 3%     361µs ± 7%  -18.73%  (p=0.008 n=5+5)
+    
+    name          old alloc/op   new alloc/op   delta
+    Dump/256-4      4.00kB ± 0%    1.39kB ± 0%  -65.20%  (p=0.008 n=5+5)
+    Dump/1024-4     16.2kB ± 0%     5.5kB ± 0%  -66.04%  (p=0.008 n=5+5)
+    Dump/4096-4     63.9kB ± 0%    20.6kB ± 0%  -67.78%  (p=0.008 n=5+5)
+    Dump/16384-4     265kB ± 0%      82kB ± 0%  -69.00%  (p=0.008 n=5+5)
+    
+    name          old allocs/op  new allocs/op  delta
+    Dump/256-4        7.00 ± 0%      3.00 ± 0%  -57.14%  (p=0.008 n=5+5)
+    Dump/1024-4       9.00 ± 0%      3.00 ± 0%  -66.67%  (p=0.008 n=5+5)
+    Dump/4096-4       11.0 ± 0%       3.0 ± 0%  -72.73%  (p=0.008 n=5+5)
+    Dump/16384-4      13.0 ± 0%       3.0 ± 0%  -76.92%  (p=0.008 n=5+5)
+    
+    Change-Id: I0a0d6de315b979142b05e333880da8a5e52b12ef
+    Reviewed-on: https://go-review.googlesource.com/116495
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/ecdsa/ecdsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/hex/hex.go      | 13 +++++++++++--
+ src/encoding/hex/hex_test.go | 13 +++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

@@ -1,22 +1,21 @@
-commit 87c03bdf62bfece1d74039e4e07c2aa277149b17
-Author: Siddhartha Bagaria <starsid@gmail.com>
-Date:   Wed Sep 18 15:05:40 2024 -0700
+commit 0d69747d91071be62f2cf4759e10d56426b84b26
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 24 11:24:40 2023 -0400
 
-    cmd/link: fix flags order in linkerFlagSupported
+    net/http: document setting of Proxy-Authorization header
     
-    Flags from CGo directives should be placed before extldflags so that
-    extldflags get more preference. This is also the order followed by the
-    final link command.
+    Add a test for setting a proxy username/password in
+    the HTTP_PROXY environment variable as well.
     
-    Fixes #69350
+    Fixes #61505
     
-    Change-Id: I2cfb22ae4ea7a160cc614440e88ef2eb82ea7399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614275
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I31c3fa94c7bc463133321e9af9289fd47da75b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/transport.go      |  4 ++++
+ src/net/http/transport_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

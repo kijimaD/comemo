@@ -1,25 +1,30 @@
-commit 961837dec23f900bbf8b04230c72397a0aab4be6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 3 18:55:59 2019 +0000
+commit 78f0de10eccf3606dbc4b854a4cd3a7e502edc07
+Author: Maya Rashish <maya@netbsd.org>
+Date:   Sat Apr 20 11:57:11 2019 +0000
 
-    Revert "cmd/go: add a Latest field to the output of 'go mod download -json'"
+    runtime: move linux specific code into linux specific files
     
-    This reverts CL 183841.
+    Allows us to stop whitelisting this error on many OS/arch combinations
     
-    Fixes #34533
+    XXX I'm not sure I am running vet correctly, and testing all platforms right.
     
-    Reason for revert: Introduced a significant performance regression for repos with many incompatible-version tags.
-    
-    Change-Id: I75d7fd76e6e1a0902b114b00167b38439e0f8221
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198699
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I29f548bd5f4a63bd13c4d0667d4209c75c886fd9
+    GitHub-Last-Rev: 52f6ff4a6b986e86f8b26c3d19da7707d39f1664
+    GitHub-Pull-Request: golang/go#31583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173157
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/go/alldocs.go                              |  1 -
- src/cmd/go/internal/modcmd/download.go             | 30 ----------------------
- src/cmd/go/testdata/script/mod_download.txt        |  4 +--
- src/cmd/go/testdata/script/mod_download_latest.txt | 20 ---------------
- src/cmd/go/testdata/script/mod_list_upgrade.txt    | 20 ---------------
- 5 files changed, 1 insertion(+), 74 deletions(-)
+ src/cmd/vet/all/whitelist/darwin_arm.txt   | 5 -----
+ src/cmd/vet/all/whitelist/darwin_arm64.txt | 3 ---
+ src/cmd/vet/all/whitelist/freebsd_arm.txt  | 1 -
+ src/cmd/vet/all/whitelist/nacl_arm.txt     | 1 -
+ src/cmd/vet/all/whitelist/netbsd_arm.txt   | 1 -
+ src/cmd/vet/all/whitelist/openbsd_arm.txt  | 1 -
+ src/cmd/vet/all/whitelist/plan9_arm.txt    | 1 -
+ src/runtime/asm_arm.s                      | 3 ---
+ src/runtime/asm_arm64.s                    | 3 ---
+ src/runtime/sys_linux_arm.s                | 3 +++
+ src/runtime/sys_linux_arm64.s              | 3 +++
+ 11 files changed, 6 insertions(+), 19 deletions(-)

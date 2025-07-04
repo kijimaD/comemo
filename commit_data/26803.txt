@@ -1,31 +1,19 @@
-commit 6fee4aa5c76612d133d2b01441e608cfa696bae9
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Apr 9 12:54:45 2016 +1000
+commit a131a66e63d805db05bb320146815ee053a1c258
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 13:05:35 2016 -0800
 
-    cmd/link/internal: make ld.Bso a *bio.Writer
+    cmd/compile: create test binary in temp directory
     
-    This is a pre requesite of CL 21722 and removes a lot of unidiomatic
-    boilerplate in the linker.
+    The new TestDashS was leaving a dreg "test" file in
+    cmd/compile/internal/gc.  Create it in the temporary directory instead.
     
-    Change-Id: If7491b88212b2be7b0c8c588e9c196839131f8ad
-    Reviewed-on: https://go-review.googlesource.com/21780
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also change path.Join to filepath.Join throughout global_test.go.
+    
+    Change-Id: Ib7707fada2b3ab5e8abc2ba74e4c402821c1408b
+    Reviewed-on: https://go-review.googlesource.com/19965
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  | 16 ++++++-------
- src/cmd/link/internal/arm/asm.go    | 12 +++++-----
- src/cmd/link/internal/arm64/asm.go  | 12 +++++-----
- src/cmd/link/internal/ld/ar.go      |  2 +-
- src/cmd/link/internal/ld/data.go    | 46 ++++++++++++++++++-------------------
- src/cmd/link/internal/ld/dwarf.go   |  2 +-
- src/cmd/link/internal/ld/ldelf.go   |  8 +++----
- src/cmd/link/internal/ld/ldpe.go    |  2 +-
- src/cmd/link/internal/ld/lib.go     | 34 +++++++++++++--------------
- src/cmd/link/internal/ld/pcln.go    |  2 +-
- src/cmd/link/internal/ld/pobj.go    | 15 ++++++------
- src/cmd/link/internal/mips64/asm.go | 12 +++++-----
- src/cmd/link/internal/ppc64/asm.go  | 12 +++++-----
- src/cmd/link/internal/s390x/asm.go  | 14 +++++------
- src/cmd/link/internal/x86/asm.go    | 14 +++++------
- 15 files changed, 102 insertions(+), 101 deletions(-)
+ src/cmd/compile/internal/gc/global_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

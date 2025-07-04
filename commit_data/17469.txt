@@ -1,14 +1,17 @@
-commit f2380a81d707c40e4f8950a2a01bd28a9f004b12
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 4 17:02:08 2013 -0700
+commit 80f39f7b73fb3353b36014d0c97abc7b2d1bc555
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 5 08:23:11 2013 +1000
 
-    cmd/dist: don't print misleading warning when using GOROOT_FINAL
+    html/template: export the parse.Tree for the escaped template
+    The underlying parse tree is visible in text/template, so it should be visible here.
+    Done by copying the underlying *parse.Tree up to the top level of the struct, and then making sure it's kept up to date.
+    Fixes #6318.
     
-    Fixes #5240.
-    
-    R=golang-dev, bradfitz
+    R=mikesamuel
     CC=golang-dev
-    https://golang.org/cl/13546044
+    https://golang.org/cl/13479044
 
- src/cmd/dist/build.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/html/template/escape.go      | 2 ++
+ src/pkg/html/template/escape_test.go | 4 ++++
+ src/pkg/html/template/template.go    | 9 ++++++++-
+ 3 files changed, 14 insertions(+), 1 deletion(-)

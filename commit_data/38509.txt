@@ -1,17 +1,16 @@
-commit 9a49b17f25f88fd9824e2c20bdf4468269d0da43
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 21 13:30:25 2019 +0100
+commit d6e204e71ff68b69af30b8ff0a0026bca1cbee10
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Fri Nov 2 16:56:42 2018 +0000
 
-    misc/cgo: gofmt testdata files
+    database/sql: add description to String method of IsolationLevel struct.
     
-    Change-Id: I64e05a1f768cb57194506021bb7fdca0ad19bf1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168461
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add simple description to String method of IsolationLevel struct.
+    
+    Change-Id: I8bdf829c81d4895b8542a3f21437bed61c6e925d
+    GitHub-Last-Rev: 7e16d6a93a9560cf3a09413dfc47d0cb04bb2fde
+    GitHub-Pull-Request: golang/go#28560
+    Reviewed-on: https://go-review.googlesource.com/c/147040
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testplugin/testdata/iface/main.go      | 3 ++-
- misc/cgo/testplugin/testdata/plugin1/plugin1.go | 3 ++-
- misc/cgo/testplugin/testdata/plugin2/plugin2.go | 3 ++-
- misc/cgo/testshared/testdata/exe/exe.go         | 3 ++-
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ src/database/sql/sql.go | 1 +
+ 1 file changed, 1 insertion(+)

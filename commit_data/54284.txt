@@ -1,19 +1,21 @@
-commit 62fb281cf72d4b7fa0a29500911a4af3a244f90f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 31 19:15:19 2023 -0700
+commit e7e554e546af2038e6395ecee30241c230a77349
+Author: Félix Dorn <github@felixdorn.fr>
+Date:   Sat Oct 1 21:53:19 2022 +0000
 
-    bytes, strings: use "reports whether" in HasPrefix and HasSuffix
+    log/syslog: return nil directly
     
-    Update the doc comments to use the more idiomatic and common phrase
-    "reports whether" instead of "tests whether".
+    Reduce return complexity.
     
-    Change-Id: I2b7f8cce2d192f66e296ebaa9b37f37e8276b4ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524898
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I280a0fe1a49371e231e93e0d3e177730b6f28769
+    GitHub-Last-Rev: 2ebc10641d1b6706a66132a84c1c5b0f394034c6
+    GitHub-Pull-Request: golang/go#55989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437516
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/bytes.go     | 4 ++--
- src/strings/strings.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/log/syslog/syslog.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

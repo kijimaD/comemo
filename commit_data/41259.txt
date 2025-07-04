@@ -1,28 +1,24 @@
-commit 6a8164a254117729104f70aecb47ecf481263c8d
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Feb 7 11:15:11 2020 -0500
+commit bc40294d47f100b6da4b21823cf85d11ce931c1b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 21 15:05:26 2019 -0400
 
-    go/doc: clarify that NewFromFiles caller must filter by GOOS/GOARCH
+    debug/dwarf: expose CU byte order
     
-    The most well known and important build constraints to take into
-    account when rendering package documentation are the GOOS/GOARCH
-    values. Make it more clear in the NewFromFiles documentation that
-    they are a part of all build constraints that the caller is
-    responsible for filtering out.
+    Currently, dwarf.Reader exposes the current compilation unit's address
+    size, but doesn't expose its byte order. Both are important for
+    decoding many attributes. For example, location descriptions include
+    addresses that are encoded in native form for the CU.
     
-    Also suggest the "go/build".Context.MatchFile method for performing
-    file matching. The logic to perform build context file matching is
-    subtle and has many rules that aren't well known (for example,
-    taking the gc or gccgo compiler into account). It is currently the
-    only exported API in the standard library that implements this logic,
-    and it would be unfortunate if people attempt to re-create it because
-    they don't realize it is already available.
+    This CL exposes the byte order of the compilation unit in the same way
+    we already expose its address size, which makes it possible to decode
+    attributes containing native addresses.
     
-    Updates #23864
-    
-    Change-Id: I3c5901e7081acf79125b2d429ec3aa3b58416ed7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218477
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I92f156818fe92b049d1dfc1613816bb1689cfadf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192698
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/doc/doc.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/debug/dwarf/entry.go      |  6 ++++++
+ src/debug/dwarf/entry_test.go | 20 +++++++++++++++++---
+ 2 files changed, 23 insertions(+), 3 deletions(-)

@@ -1,43 +1,13 @@
-commit 60fd32a47fdffb95d3646c9fc75acc9beff67183
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 19 08:31:04 2016 -0700
+commit b3309877114d1953f47f484101a9d2e317e5c6ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 18:57:19 2016 +0000
 
-    cmd/compile: change the way we handle large map values
+    cmd/compile: fix old comment references to go.y
     
-    mapaccess{1,2} returns a pointer to the value.  When the key
-    is not in the map, it returns a pointer to zeroed memory.
-    Currently, for large map values we have a complicated scheme which
-    dynamically allocates zeroed memory for this purpose.  It is ugly
-    code and requires an atomic.Load in a bunch of places we'd rather
-    not have it.
-    
-    Switch to a scheme where callsites of mapaccess{1,2} which expect
-    large return values pass in a pointer to zeroed memory that
-    mapaccess can return if the key is not found.  This avoids the
-    atomic.Load on all map accesses with a few extra instructions only
-    for the large value acccesses, plus a bit of bss space.
-    
-    There was a time (1.4 & 1.5?) where we did something like this but
-    all the tricks to make the right size zero value were done by the
-    linker.  That scheme broke in the presence of dyamic linking.
-    The scheme in this CL works even when dynamic linking.
-    
-    Fixes #12337
-    
-    Change-Id: Ic2d0319944af33bbb59785938d9ab80958d1b4b1
-    Reviewed-on: https://go-review.googlesource.com/22221
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: Iec323998133ef20ff962f06a46d15dd342a82f5f
+    Reviewed-on: https://go-review.googlesource.com/20390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  2 +
- src/cmd/compile/internal/gc/builtin/runtime.go |  2 +
- src/cmd/compile/internal/gc/go.go              |  3 ++
- src/cmd/compile/internal/gc/main.go            |  5 ++
- src/cmd/compile/internal/gc/obj.go             |  5 ++
- src/cmd/compile/internal/gc/reflect.go         | 24 ++++++++++
- src/cmd/compile/internal/gc/walk.go            | 18 +++++--
- src/runtime/hashmap.go                         | 65 +++++++++-----------------
- src/runtime/hashmap_fast.go                    | 33 +++++++------
- src/runtime/map_test.go                        | 16 +++++++
- 10 files changed, 110 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |  3 +--
+ src/cmd/compile/internal/gc/bimport.go | 44 +++++++++++++++++-----------------
+ 2 files changed, 23 insertions(+), 24 deletions(-)

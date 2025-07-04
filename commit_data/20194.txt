@@ -1,15 +1,23 @@
-commit ef64d9ffcc237fde9bcaed1fd00c5036c4f489de
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 28 23:26:50 2014 -0700
+commit 75b72b1b27dd74ca9a1ebdba22f545233431a99f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 24 20:31:45 2014 -0400
 
-    runtime: don't allocate a new string in printf
+    cmd/gc: re-enable IfacePointerOnly
     
-    LGTM=dave
-    R=rsc, dave
-    CC=golang-codereviews
-    https://golang.org/cl/139890043
+    CL 130240043 did this but broke ARM, because
+    it made newErrorCString start allocating, so we rolled
+    it back in CL 133810043.
+    
+    CL 133820043 removed that allocation.
+    
+    Try again.
+    
+    Fixes #8405.
+    
+    LGTM=bradfitz, dave
+    R=golang-codereviews, bradfitz
+    CC=dave, golang-codereviews, r
+    https://golang.org/cl/133830043
 
- src/pkg/runtime/print1.go | 2 +-
- src/pkg/runtime/string.c  | 1 +
- src/pkg/runtime/stubs.go  | 1 +
- 3 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

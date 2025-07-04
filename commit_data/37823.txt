@@ -1,18 +1,19 @@
-commit af4320350b3a156de0d1cfa9845ab1e48dcbfefa
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Jan 3 11:03:19 2019 -0800
+commit 3eb0b2e80d39f62ac7561e85215e3e7222dba2db
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Aug 30 15:39:45 2018 -0600
 
-    runtime: add test for go function argument scanning
+    fmt: remove spelling mistake in example
     
-    Derived from Naoki's reproducer.
+    "someting" is misspelled and the error handling both clobbers the
+    error that occurs and distracts from the point of the example, which
+    is to demonstrate how Printf works. It's better to just panic with the
+    error.
     
-    Update #29362
-    
-    Change-Id: I1cbd33b38a2f74905dbc22c5ecbad4a87a24bdd1
-    Reviewed-on: https://go-review.googlesource.com/c/156122
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5fb0a4a1a8b4772cbe0302582fa878d95e3a4060
+    Reviewed-on: https://go-review.googlesource.com/132376
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue29362.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ src/fmt/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

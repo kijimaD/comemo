@@ -1,36 +1,13 @@
-commit 1a0c8fe9bb4498024c82dcc9d1beeb3e60cfe5d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 19 13:32:55 2012 -0500
+commit 72fb81eeb6a58a781ccfd3092f3657bddaa8cae3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sun Feb 19 19:26:05 2012 +0100
 
-    cmd/cgo: bug fixes
+    doc: Fixed type in documentation for FormatFloat.
     
-    * disallow embedding of C type (Fixes issue 2552)
-    * detect 0-length array (Fixes issue 2806)
-    * use typedefs when possible, to avoid attribute((unavailable)) (Fixes issue 2888)
-    * print Go types constructed from C types using original C types (Fixes issue 2612)
-    
-    This fix changes _cgo_export.h to repeat the preamble from import "C".
-    Otherwise the fix to issue 2612 is impossible, since it cannot refer to
-    types that have not been defined.  If people are using //export and
-    putting non-header information in the preamble, they will need to
-    refactor their code.
-    
-    R=golang-dev, r, r
+    R=r, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5672080
+    https://golang.org/cl/5656108
 
- doc/go1.html                               |  19 ++++++++++++++-
- doc/go1.tmpl                               |  19 ++++++++++++++-
- src/cmd/cgo/ast.go                         |  15 ++++++++----
- src/cmd/cgo/doc.go                         |   9 +++++---
- src/cmd/cgo/gcc.go                         |  35 ++++++++++++++++++++--------
- src/cmd/cgo/godefs.go                      |   2 +-
- src/cmd/cgo/main.go                        |   7 +++++-
- src/cmd/cgo/out.go                         |  17 ++++++++------
- src/cmd/cgo/util.go                        |   6 ++++-
- src/pkg/debug/dwarf/testdata/typedef.c     |   8 ++++++-
- src/pkg/debug/dwarf/testdata/typedef.elf   | Bin 10837 -> 12448 bytes
- src/pkg/debug/dwarf/testdata/typedef.macho | Bin 5256 -> 5024 bytes
- src/pkg/debug/dwarf/type.go                |  36 ++++++++++++++++++++++++++++-
- src/pkg/debug/dwarf/type_test.go           |  19 +++++++++++----
- 14 files changed, 157 insertions(+), 35 deletions(-)
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

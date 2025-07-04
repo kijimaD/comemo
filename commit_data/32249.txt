@@ -1,16 +1,42 @@
-commit c50a9718a6749c693ce13faaa0e1c4038bfb6c5e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 11 08:21:31 2017 -0700
+commit 6694a6888b7d3740b402cd3a2b7534e4d2d45c12
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 14 17:43:42 2017 +0900
 
-    runtime: mask a bounded slice access in hashmap evacuate
+    net: delay IP protocol stack-snooping system calls
     
-    Shaves a few instructions off.
+    This change delays IP protocol stack-snooping system calls until the
+    start of connection setup for the better experience with some system
+    call auditing, such as seccomp on Linux. See #16789 for examples.
     
-    Change-Id: I39f1b01ae7e770d632d5e77a6aa4b5a1f123b41a
-    Reviewed-on: https://go-review.googlesource.com/55090
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Also updates the documentation on favoriteAddrFamily, which is the
+    owner of stack-snooping system calls.
+    
+    Fixes #16789.
+    
+    Change-Id: I4af27bc1ed06ffb1f657b6f6381c328c1f41c66c
+    Reviewed-on: https://go-review.googlesource.com/40750
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/hashmap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/dial_test.go       |  18 +++----
+ src/net/error_test.go      |   2 +-
+ src/net/external_test.go   |   4 +-
+ src/net/fd_plan9.go        |   8 +--
+ src/net/fd_unix.go         |   3 --
+ src/net/fd_windows.go      |   3 --
+ src/net/interface_test.go  |   6 +--
+ src/net/ipsock.go          |  43 ++++++++++------
+ src/net/ipsock_plan9.go    |  31 +++++-------
+ src/net/ipsock_posix.go    | 122 ++++++++++++++++++++-------------------------
+ src/net/ipsock_test.go     |   2 +-
+ src/net/listen_test.go     |  16 +++---
+ src/net/lookup_test.go     |  22 ++++----
+ src/net/main_test.go       |   4 +-
+ src/net/mockserver_test.go |  16 +++---
+ src/net/net.go             |   6 ---
+ src/net/platform_test.go   |  14 +++---
+ src/net/sockopt_bsd.go     |   2 +-
+ src/net/tcpsock_test.go    |  12 ++---
+ src/net/udpsock_test.go    |   4 +-
+ 20 files changed, 157 insertions(+), 181 deletions(-)

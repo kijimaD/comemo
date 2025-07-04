@@ -1,23 +1,18 @@
-commit bb5441de4893c0802e3445250fbcc13c7b8e105c
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Aug 16 10:42:18 2019 -0700
+commit 055f16a9e9fb7ba7e1360b40e5924cc7ba95317c
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Mar 8 11:56:16 2019 +0530
 
-    cmd/gofmt: update TestRewrite to avoid future regressions
+    cmd/doc: add a line gap after a method with no comment
     
-    CL 162337 changed go/ast to better handle block comments,
-    but was reverted because it introduced an off-by-one bug.
-    This CL adds a test case to enforce the correct behavior
-    so that future changes do not break this again.
+    Fixes #30492
     
-    Updates #18929
-    Updates #33538
-    
-    Change-Id: I2d25c139d007f8db1091b7a48b1dd20c584e2699
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190523
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Iec658bdf8bfac21e1bcc3eed900722cc535ec00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166178
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/gofmt/testdata/import.golden | 5 +++++
- src/cmd/gofmt/testdata/import.input  | 3 +++
- 2 files changed, 8 insertions(+)
+ src/cmd/doc/doc_test.go     | 1 +
+ src/cmd/doc/pkg.go          | 3 +++
+ src/cmd/doc/testdata/pkg.go | 4 ++++
+ 3 files changed, 8 insertions(+)

@@ -1,28 +1,20 @@
-commit 8981092d71aee273d27b0e11cf932a34d4d365c1
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Nov 8 03:20:36 2020 +0100
+commit b40c6580639beb1fd24bbf8cc50f4488c245c41b
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Mon May 4 17:50:17 2020 -0700
 
-    cmd/link: ignore SEH marking on PE objects
+    net/http/httputil: don't use testing.T after test completes
     
-    Microsoft's linker looks at whether all input objects have an empty
-    section called @feat.00. If all of them do, then it enables SEH;
-    otherwise it doesn't enable that feature. So, since around the Windows
-    XP SP2 era, most tools that make PE objects just tack on that section,
-    so that it won't gimp Microsoft's linker logic. Go doesn't support SEH,
-    so in theory, none of this really matters to us. But actually, if the
-    linker tries to ingest an object with @feat.00 -- which are produced by
-    LLVM's resource compiler, for example -- it chokes because of the
-    IMAGE_SYM_ABSOLUTE section that it doesn't know how to deal with. Since
-    @feat.00 is just a marking anyway, skip IMAGE_SYM_ABSOLUTE sections that
-    are called @feat.00.
+    This fixes a race condition where
+    TestReverseProxyWebSocketCancelation appears to
+    panic after otherwise passing.
     
-    Change-Id: I1d7bfcf6001186c53e2c487c5ac251ca65efefee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268239
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Fixes #38863
+    
+    Change-Id: Ib89f4c40da879b92ac1fc5ed8b6e48da929e4a18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232257
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/loadpe/ldpe.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/net/http/httputil/reverseproxy_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

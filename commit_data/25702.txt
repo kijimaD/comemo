@@ -1,29 +1,23 @@
-commit 9f58bf5f6b9ffd0c6e15d717fb741fd235339512
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 29 12:18:32 2016 -0500
+commit 45d1c8ab59cd08ef4a7976f44c8c19ed53b118f8
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Oct 20 00:23:11 2015 -0700
 
-    cmd/go: avoid a few symlink-induced errors in internal and vendor checks
+    crypto/tls: return a typed error on invalid record headers
     
-    This CL expands symlinks only when an error would be reported otherwise.
-    Since the expansions are only on error paths, anything that worked yesterday
-    should still work after this CL.
+    The user can inspect the record data to detect that the other side is
+    not using the TLS protocol.
     
-    This CL fixes a regression from Go 1.5 in "go run", or else we'd probably
-    postpone it.
+    This will be used by the net/http client (in a follow-on CL) to detect
+    when an HTTPS client is speaking to an HTTP server.
     
-    Changing only the error paths is meant as a way to reduce the risk of
-    making this change so late in the release cycle, but it may actually be
-    the right strategy for symlinks in general.
+    Updates #11111.
     
-    Fixes #14054.
-    
-    Change-Id: I42ed1276f67a0c395297a62bcec7d36c14c06404
-    Reviewed-on: https://go-review.googlesource.com/19102
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I872f78717aa8e8e98cebd8075436209a52039a73
+    Reviewed-on: https://go-review.googlesource.com/16078
+    Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/main.go    |  9 +++++++++
- src/cmd/go/pkg.go     | 21 ++++++++++++++++++++
- 3 files changed, 83 insertions(+), 1 deletion(-)
+ src/crypto/tls/conn.go | 27 +++++++++++++++++++++++----
+ 1 file changed, 23 insertions(+), 4 deletions(-)

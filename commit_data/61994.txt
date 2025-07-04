@@ -1,0 +1,21 @@
+commit 9d0772b23ed8dae1667a3328a72f384eccf812d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 6 16:22:10 2025 -0800
+
+    cmd/compile/internal/syntax: add test case for invalid label use
+    
+    This case is not properly handled by the type checkers (see issue)
+    but the compiler uses the parser's label checking so it works as
+    expected.
+    
+    For #70974.
+    
+    Change-Id: I0849376bf7514a9a7730846649c3fe28c91f44ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/testdata/issue70974.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

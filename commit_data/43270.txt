@@ -1,24 +1,21 @@
-commit 84f3b33f10d8f12818975cb188da46145ac2036a
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 5 16:34:27 2020 -0400
+commit 7af6a31b48c5cb4d8cc9ca346949d1143ece76ca
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 18 18:46:04 2020 +0000
 
-    syscall: remove dependency on io
+    runtime: add countAlloc benchmark
     
-    Keep syscall and io separated; neither should depend on the other.
+    This change adds a small microbenchmark for (*mspan).countAlloc, which
+    we're about to replace. Admittedly this isn't a critical piece of code,
+    but the benchmark was useful in understanding the performance change.
     
-    Change-Id: Icdd61bd0c05d874cabd7b5ae6631dd09dec90112
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243902
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iea93c00f571ee95534a42f2ef2ab026b382242b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224438
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                              |  2 +-
- src/internal/syscall/windows/registry/key.go           | 17 ++---------------
- src/internal/syscall/windows/registry/registry_test.go |  6 +++---
- src/internal/syscall/windows/registry/value.go         | 13 +------------
- src/mime/type_windows.go                               |  2 +-
- src/syscall/fs_js.go                                   |  7 +++----
- src/time/zoneinfo_windows.go                           |  2 +-
- 7 files changed, 12 insertions(+), 37 deletions(-)
+ src/runtime/export_test.go |  8 ++++++++
+ src/runtime/gc_test.go     | 19 +++++++++++++++++++
+ 2 files changed, 27 insertions(+)

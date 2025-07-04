@@ -1,31 +1,17 @@
-commit 85d7bab91d9a3ed1f76842e4328973ea75efef54
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Jun 15 21:19:04 2022 +0100
+commit c92759978372ffc354f83e08b1dd6fa496e9b545
+Author: wangyuntao <ytcoode@gmail.com>
+Date:   Fri Jul 16 10:29:05 2021 +0000
 
-    go/printer: report allocs and set bytes
+    cmd/compile: eliminate repetitive code
     
-    We now get more than just time/op.
-    
-            name      time/op
-            Print-16    6.29ms ± 3%
-    
-            name      speed
-            Print-16  8.25MB/s ± 3%
-    
-            name      alloc/op
-            Print-16     483kB ± 0%
-    
-            name      allocs/op
-            Print-16     17.8k ± 0%
-    
-    Change-Id: I6b5e9a30a826ff8603724bd5983e6b7f5ec12708
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412554
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I02c8b65f7c1c1606c9964ab6c54d5ab5f1b444a5
+    GitHub-Last-Rev: 3d740b9ac129d38981ee295456d2d7f803a79b77
+    GitHub-Pull-Request: golang/go#47242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334990
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/printer/performance_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/scc.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

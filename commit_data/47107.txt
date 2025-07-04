@@ -1,41 +1,16 @@
-commit 3aecb3a8f7e1435c76003a20068c0208fd73649a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 8 21:42:01 2021 +0000
+commit c9d9b40b1355a8e6674aaaf6abaf362e66abae47
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Feb 24 09:12:34 2021 -0800
 
-    runtime: fix sweep termination condition
+    context: avoid importing context package twice
     
-    Currently, there is a chance that the sweep termination condition could
-    flap, causing e.g. runtime.GC to return before all sweep work has not
-    only been drained, but also completed. CL 307915 and CL 307916 attempted
-    to fix this problem, but it is still possible that mheap_.sweepDrained is
-    marked before any outstanding sweepers are accounted for in
-    mheap_.sweepers, leaving a window in which a thread could observe
-    isSweepDone as true before it actually was (and after some time it would
-    revert to false, then true again, depending on the number of outstanding
-    sweepers at that point).
-    
-    This change fixes the sweep termination condition by merging
-    mheap_.sweepers and mheap_.sweepDrained into a single atomic value.
-    
-    This value is updated such that a new potential sweeper will increment
-    the oustanding sweeper count iff there are still outstanding spans to be
-    swept without an outstanding sweeper to pick them up. This design
-    simplifies the sweep termination condition into a single atomic load and
-    comparison and ensures the condition never flaps.
-    
-    Updates #46500.
-    Fixes #45315.
-    
-    Change-Id: I6d69aff156b8d48428c4cc8cfdbf28be346dbf04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333389
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id0a127e080dda8ee62738922c6de8caf3719dd68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295949
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Kevin Burke <kev@inburke.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mcentral.go         |  91 ++++++++---------
- src/runtime/mgc.go              |  12 ++-
- src/runtime/mgcsweep.go         | 214 +++++++++++++++++++++++++++-------------
- src/runtime/mheap.go            |  11 ++-
- src/runtime/pprof/mprof_test.go |  11 ---
- 5 files changed, 208 insertions(+), 131 deletions(-)
+ src/context/benchmark_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

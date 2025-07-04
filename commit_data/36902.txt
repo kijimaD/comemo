@@ -1,12 +1,33 @@
-commit ffc7bc55f351976c9bb1e04aeba75397d40cbb53
-Author: Qais Patankar <qaisjp@gmail.com>
-Date:   Tue Oct 9 10:14:59 2018 +0100
+commit d8a1465ca8d5c27215e5bdd2d776af743f74b928
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 4 15:42:12 2018 -0700
 
-    cmd/compile: fix Compiler Directives typo
+    go/types: extend cycle detection past simple type cycles
     
-    Change-Id: I098b3c627c2142affd4e800a2c1f37e00f3775c5
-    Reviewed-on: https://go-review.googlesource.com/c/140777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change improves upon cycle detection by taking into account
+    cycles involving constants, variables, _and_ types. All new code
+    (except for the additional tests) is guarded by the useCycleMarking
+    (internal) flag and thus can be disabled on short notice if it
+    introduced new problems. (The intent is to remove this flag shortly
+    after 1.11 is released.)
+    
+    The test suite has been extended with various additional (and mostly
+    esoteric) test cases which now correctly report cycles. A handful of
+    existing test cases now report additional errors, but those are mostly
+    esoteric cases. Overall, this is an improvement over the status quo.
+    
+    Fixes #8699.
+    For #20770.
+    
+    Change-Id: I6086719acd0d5200edca4a3dbe703d053496af31
+    Reviewed-on: https://go-review.googlesource.com/116815
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/decl.go              | 111 ++++++++++++++++++++++++++------------
+ src/go/types/testdata/cycles2.src |  27 ++++------
+ src/go/types/testdata/cycles3.src |   2 +-
+ src/go/types/testdata/cycles5.src |  27 ++++++++++
+ src/go/types/testdata/decls0.src  |   8 +--
+ src/go/types/testdata/issues.src  |   2 +-
+ 6 files changed, 118 insertions(+), 59 deletions(-)

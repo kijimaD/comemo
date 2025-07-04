@@ -1,17 +1,14 @@
-commit d340b10366a0ce9425365ca233c5b6636c62faaa
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 8 14:55:45 2015 -0700
+commit c9089e64be4b3b020425a29f5ec17400bac40b50
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Mar 12 22:13:21 2015 +1300
 
-    log: logging an empty string should still print a line
+    cmd/asm/internal/asm: report arch if assembly fails
     
-    Print("") was printing a header but no line.
+    Just a trivial thing I noticed in passing.
     
-    Fixes #9665.
-    
-    Change-Id: Iac783187786065e1389ad6e8d7ef02c579ed7bd8
-    Reviewed-on: https://go-review.googlesource.com/8665
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I875069ceffd623f9e430d07feb5042ab9e69917e
+    Reviewed-on: https://go-review.googlesource.com/7472
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/log/log.go      |  2 +-
- src/log/log_test.go | 17 ++++++++++++++++-
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

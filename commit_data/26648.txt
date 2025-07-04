@@ -1,14 +1,19 @@
-commit f76b793784cc8c89ca1b28002846a8cd76a90fb5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 00:41:54 2016 -0700
+commit 338a891e79444de97d6f485b1632d42899c47c6d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 18:47:01 2016 -0800
 
-    net/http/httputil: deprecate Client+ServerConn harder, use Deprecated syntax
+    cmd/compile: eliminate pushedio and savedstate
     
-    Also cleans up return parameter stutter and missing periods.
+    While here, get drop the lexlineno{++,--} hacks for canned imports.
+    They were added in commit d3237f9, but don't seem to serve any
+    purpose.
     
-    Change-Id: I47f5c230227ddfd1b105d5e06842f89ffea50760
-    Reviewed-on: https://go-review.googlesource.com/21362
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I00f9e6be0ae9f217f2fa113b85e041dfd0303757
+    Reviewed-on: https://go-review.googlesource.com/19652
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/httputil/persist.go | 71 +++++++++++++++++++---------------------
- 1 file changed, 34 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/gc/go.go     |  2 --
+ src/cmd/compile/internal/gc/lex.go    | 51 +++++++----------------------------
+ src/cmd/compile/internal/gc/parser.go | 14 ++++++++--
+ 3 files changed, 22 insertions(+), 45 deletions(-)

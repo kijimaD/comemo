@@ -1,30 +1,37 @@
-commit 94484d8ed5155873306ab41f49b0b30be19031a9
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Oct 5 15:45:46 2017 -0500
+commit 5d14ac74f614631a38be95cc9724ff38068c6c76
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Wed Aug 2 19:18:30 2017 +0200
 
-    cmd/compile: intrinsify math.{Trunc/Ceil/Floor} on amd64
+    encoding/csv: report line start line in errors
     
-    This significantly speed-ups Trunc.
-    Ceil/Floor are using the same instruction, so do them too.
+    Errors returned by Reader contain the line where the Reader originally
+    encountered the error. This can be suboptimal since that line does not
+    always correspond with the line the current record/field started at.
     
-    name     old time/op  new time/op  delta
-    Floor-6  3.33ns ± 1%  3.22ns ± 0%   -3.39%  (p=0.000 n=10+10)
-    Ceil-6   3.33ns ± 1%  3.22ns ± 0%   -3.16%  (p=0.000 n=10+7)
-    Trunc-6  4.83ns ± 0%  3.22ns ± 0%  -33.36%  (p=0.000 n=6+8)
+    This can easily happen with LazyQuotes as seen in #19019, but also
+    happens for example when a quoted fields has no closing quote and
+    the parser hits EOF before it finds another quote.
     
-    Change-Id: If848790e458eedfe38a6a0407bb4f589c68ac254
-    Reviewed-on: https://go-review.googlesource.com/68630
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    When this happens finding the erroneous field can be somewhat
+    complicated and time consuming, and in most cases it would be better to
+    report the line where the record started.
+    
+    This change updates Reader to keep track of the line on which a record
+    begins and uses it for errors instead of the current line, making it
+    easier to find errors.
+    
+    Although a user-visible change, this should have no impact on existing
+    code, since most users don't explicitly work with the line in the error
+    and probably already expect the new behaviour.
+    
+    Updates #19019
+    
+    Change-Id: Ic9bc70fad2651c69435d614d537e7a9266819b05
+    Reviewed-on: https://go-review.googlesource.com/52830
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          | 12 ++++++++
- src/cmd/compile/internal/gc/builtin.go         |  1 +
- src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
- src/cmd/compile/internal/gc/ssa.go             | 41 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 +++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  4 +++
- src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 42 ++++++++++++++++++++++++++
- src/math/floor_amd64.s                         | 12 --------
- 9 files changed, 120 insertions(+), 12 deletions(-)
+ src/encoding/csv/reader.go      | 11 +++++++----
+ src/encoding/csv/reader_test.go | 14 ++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

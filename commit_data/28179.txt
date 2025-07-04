@@ -1,22 +1,40 @@
-commit 3df926d52addd638e23e5b29e692bb670e484966
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 2 12:14:38 2016 -0400
+commit 2f41edf120923000c92ed65ab501590fb1c8c548
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed May 4 11:23:24 2016 +1200
 
-    runtime: improve message when a bad pointer is found on the stack
+    cmd/link: always read type data for dynimport symbols
     
-    Currently this message says "invalid stack pointer", which could be
-    interpreted as the value of SP being invalid. Change it to "invalid
-    pointer found on stack" to emphasize that it's a pointer on the stack
-    that's invalid.
+    Consider three shared libraries:
     
-    Updates #16948.
+     libBase.so -- defines a type T
+     lib2.so    -- references type T
+     lib3.so    -- also references type T, and something from lib2
     
-    Change-Id: I753624f8cc7e08cf13d3ea5d9c790cc4af9fa372
-    Reviewed-on: https://go-review.googlesource.com/28430
-    Run-TryBot: Austin Clements <austin@google.com>
+    lib2.so will contain a type symbol for T in its symbol table, but no
+    definition. If, when linking lib3.so the linker reads the symbols from lib2.so
+    before libBase.so, the linker didn't read the type data and later crashed.
+    
+    The fix is trivial but the test change is a bit messy because the order the
+    linker reads the shared libraries in ends up depending on the order of the
+    import statements in the file so I had to rename one of the test packages so
+    that gofmt doesn't fix the test by accident...
+    
+    Fixes #15516
+    
+    Change-Id: I124b058f782c900a3a54c15ed66a0d91d0cde5ce
+    Reviewed-on: https://go-review.googlesource.com/22744
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testshared/shared_test.go                | 76 +++++++++++++----------
+ misc/cgo/testshared/src/dep2/dep2.go              | 10 ++-
+ misc/cgo/testshared/src/dep3/dep3.go              | 22 +++++++
+ misc/cgo/testshared/src/{dep => depBase}/asm.s    |  0
+ misc/cgo/testshared/src/{dep => depBase}/dep.go   |  6 +-
+ misc/cgo/testshared/src/{dep => depBase}/gccgo.go |  2 +-
+ misc/cgo/testshared/src/{dep => depBase}/stubs.go |  2 +-
+ misc/cgo/testshared/src/exe/exe.go                |  6 +-
+ misc/cgo/testshared/src/exe3/exe3.go              |  7 +++
+ src/cmd/link/internal/ld/lib.go                   |  7 ++-
+ 10 files changed, 92 insertions(+), 46 deletions(-)

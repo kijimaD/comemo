@@ -1,23 +1,18 @@
-commit 6ca3acc3709426bdc744ef9494314c33361f24bd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 21 17:18:07 2022 -0500
+commit c8b0dcea4a3e67289ccf985b10616200817cca86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 08:54:59 2022 -0500
 
-    cmd/go: in TestScript/mod_outside, run 'go build' before checking cmd/addr2line staleness
+    doc/go1.18: note short-circuit and/or in html/template
     
-    If the build cache is cleaned (using 'go clean -cache' or similar), or
-    if a toolchain is freshly installed without warming the cache, the
-    build cache might not contain the dependencies needed to verify that
-    cmd/addr2line is not stale. In that case, the test should refill the
-    cache instead of failing.
+    It was already noted in text/template; copied from there.
     
-    Fixes #56889.
-    
-    Change-Id: Ic6cf13b92bafa9c795e50eb0e4e1a9ae00ee8538
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452458
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ie749d04004af60f2333073ddf556ff7e16c81c45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379794
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/mod_outside.txt | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.18.html | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

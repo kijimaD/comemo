@@ -1,54 +1,29 @@
-commit 9d3d370632ef56c1966afc67b796fa950cb347c5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 23 15:56:24 2017 -0700
+commit 9f98e49825e38267dc5e91b827cb1db3291ff3bb
+Author: Evgeniy Polyakov <zbr@ioremap.net>
+Date:   Thu Apr 20 16:51:36 2017 +0300
 
-    archive/tar: support reporting and selecting the format
+    runtime: make time correctly update on Wine
     
-    The Reader and Writer are now at feature parity,
-    meaning that everything that can be parsed by the Reader,
-    can also be composed by the Writer.
+    Implemented low-level time system for windows on hardware (software),
+    which does not support memory mapped _KSYSTEM_TIME page update.
     
-    This position enables us to support selection of the format
-    in a backwards compatible way, since it ensures that everything
-    that can be read can also be round-trip written.
+    In particular this problem exists on Wine where _KSYSTEM_TIME
+    only contains time at the start, and is never modified.
     
-    As such, we add the following new API:
-        type Format int
-                const FormatUnknown Format = 0 ...
-        type Header struct { ...; Format Format }
+    On start we try to detect Wine and if it's so we fallback to
+    GetSystemTimeAsFileTime() for current time and a monotonic
+    timer based on QueryPerformanceCounter family of syscalls:
+    https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
     
-    The new Header.Format field is populated by the Reader on the
-    best guess on what the format is. Note that the Reader is very liberal
-    in what it permits, so a hybrid TAR file using aspects of multiple
-    formats can still be decoded, but will be reported as FormatUnknown.
+    Fixes #18537
     
-    Even though Reader has full support for V7 and basic support for STAR,
-    it will still report those formats as unknown (and the constants for
-    those formats are not even exported). The reasons for this is because
-    the Writer has no support for V7 or STAR. Leaving it as unknown allows
-    the Writer to choose a format usually USTAR or GNU that can encode
-    the equivalent Header.
-    
-    When writing, the Header.allowedFormats will take the Format field
-    into consideration if it is a known format.
-    
-    Fixes #18710
-    
-    Change-Id: I00980c475d067c6969d3414e1ff0224fdd89cd49
-    Reviewed-on: https://go-review.googlesource.com/58230
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I269d22467ed9b0afb62056974d23e731b80c83ed
+    Reviewed-on: https://go-review.googlesource.com/35710
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/common.go                      |  66 ++++++++------
- src/archive/tar/format.go                      | 115 ++++++++++++++++++-------
- src/archive/tar/reader.go                      |  45 ++++++++--
- src/archive/tar/reader_test.go                 |  56 ++++++++----
- src/archive/tar/tar_test.go                    | 115 +++++++++++++------------
- src/archive/tar/testdata/gnu-not-utf8.tar      | Bin 1536 -> 1536 bytes
- src/archive/tar/testdata/gnu-utf8.tar          | Bin 2560 -> 2560 bytes
- src/archive/tar/testdata/pax-pos-size-file.tar | Bin 2560 -> 2560 bytes
- src/archive/tar/testdata/writer-big.tar        | Bin 512 -> 512 bytes
- src/archive/tar/writer.go                      |  20 ++---
- src/archive/tar/writer_test.go                 |  14 +--
- 11 files changed, 277 insertions(+), 154 deletions(-)
+ src/runtime/os_windows.go       | 83 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/sys_windows_386.s   | 12 +++++-
+ src/runtime/sys_windows_amd64.s | 10 +++++
+ 3 files changed, 102 insertions(+), 3 deletions(-)

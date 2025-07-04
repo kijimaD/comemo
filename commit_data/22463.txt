@@ -1,15 +1,13 @@
-commit 2ce82c6c65ce07f85523a05ec7cf94332e496452
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:41:26 2015 -0400
+commit 5fca39967de70e78e0a1a4060d2e8feee77393d1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 13:33:39 2015 -0400
 
-    cmd/go: run darwin/arm64 tests sequentially
+    cmd/dist: show reason for command failure
     
-    Just like darwin/arm, the test devices can only install and execute
-    a single app at a time.
-    
-    Change-Id: I74e6130ef83537c465b4585a366d02953fd907bf
-    Reviewed-on: https://go-review.googlesource.com/8827
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I9fb5c1c11a750766ae2d9532869d5ab26f1cf9cf
+    Reviewed-on: https://go-review.googlesource.com/7624
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/build.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/dist/util.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

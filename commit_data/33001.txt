@@ -1,12 +1,22 @@
-commit dd4988fd995e54a19781f7caeb49e020602697f6
-Author: Laurent Voisin <lpvoisin@gmail.com>
-Date:   Sun Oct 8 18:01:18 2017 +0200
+commit a6df299e89f6ba56d71571f694fb7327294ae72e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 22 16:11:10 2017 -0400
 
-    encoding/gob: fix a typo in the package documentation
+    cmd/go: detect Go assembly before assembling with gcc
     
-    Change-Id: I6aee75a6ae1470dfc658d72a5b6508fb93503057
-    Reviewed-on: https://go-review.googlesource.com/69115
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Avoids confusing errors from the GNU assembler
+    processing Go assembly source code.
+    
+    Fixes #19448.
+    
+    Change-Id: Ic2c68b2521847cca5a3d078a092e5c60ec340840
+    Reviewed-on: https://go-review.googlesource.com/46423
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/gob/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go               | 13 +++++++++++++
+ src/cmd/go/internal/work/build.go   | 10 ++++++++++
+ src/cmd/go/testdata/src/cgoasm/p.go |  8 ++++++++
+ src/cmd/go/testdata/src/cgoasm/p.s  |  2 ++
+ 4 files changed, 33 insertions(+)

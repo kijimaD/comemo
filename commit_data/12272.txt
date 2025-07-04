@@ -1,12 +1,12 @@
-commit da633714fd14bbb52ef10bad8bc4c354305118ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 29 09:06:05 2012 -0800
+commit fc79058199f4038a96c3c7ad31843c71894e9668
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Feb 29 08:45:57 2012 -0800
 
-    spec: fix sentence
+    gob: trivial print fix
     
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5706065
+    https://golang.org/cl/5707062
 
- doc/go_spec.html | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ src/pkg/encoding/gob/encoder_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

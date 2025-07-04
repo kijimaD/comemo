@@ -1,15 +1,28 @@
-commit ba444d8422880060175c3ea7d42f008adea37fbc
+commit 67d48daae96c26ae734f6a4245bd40080a5bd934
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 13:59:12 2011 -0400
+Date:   Mon Sep 26 13:59:01 2011 -0400
 
-    strconv: faster Unquote in common case
+    test: merge nilptr/* into one test
     
-    Also reject literal newline in " and ' quoted strings.
+    The 512 MB array causes load delays on some systems.
+    Now that we have recover, we can do all the tests in
+    one binary, so that the delay is incurred just once.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5139045
+    https://golang.org/cl/5142044
 
- src/pkg/strconv/quote.go      | 16 ++++++++++++++++
- src/pkg/strconv/quote_test.go | 16 ++++++++++++++++
- 2 files changed, 32 insertions(+)
+ test/golden.out                |   2 -
+ test/nilptr.go                 | 125 +++++++++++++++++++++++++++++++++++++++++
+ test/nilptr/arrayindex.go      |  26 ---------
+ test/nilptr/arrayindex1.go     |  31 ----------
+ test/nilptr/arraytoslice.go    |  36 ------------
+ test/nilptr/arraytoslice1.go   |  33 -----------
+ test/nilptr/arraytoslice2.go   |  34 -----------
+ test/nilptr/slicearray.go      |  32 -----------
+ test/nilptr/structfield.go     |  34 -----------
+ test/nilptr/structfield1.go    |  37 ------------
+ test/nilptr/structfield2.go    |  36 ------------
+ test/nilptr/structfieldaddr.go |  34 -----------
+ test/run                       |   2 +-
+ 13 files changed, 126 insertions(+), 336 deletions(-)

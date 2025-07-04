@@ -1,16 +1,34 @@
-commit aa2a31e6c47cdeffe1abdc8a1a80d50711341083
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Sep 26 10:25:13 2011 -0400
+commit 10bf744772c0cfae8ea0e9f34adb7afec3d03a72
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Mon Sep 26 02:10:43 2011 -0700
 
-    exp/ssh: move common code to common.go
+    exp/template/html: make sure marshalled JSON can be parsed as JS.
     
-    R=agl
+    This makes sure that all JS newlines are encoded in JSON.
+    
+    It also moots a TODO about possibly escaping supplemental codepoints.
+    I served:
+    
+    Content-Type: text/javascript;charset=UTF-8
+    
+    var s = "%s";
+    document.write("<p>", s, "</p><ol>");
+    for (var i = 0; i < s.length; i++) {
+      document.write("<li>", s.charCodeAt(i).toString(16), "</li>");
+    }
+    document.write("</l>");
+    
+    where %s was replaced with bytes "\xf0\x9d\x84\x9e" to test
+    straight UTF-8 instead of encoding surrogates separately.
+    
+    Recent Firefox, Chrome, and Safari all decoded it properly.
+    I have yet to try it on IE or older versions.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5132041
+    https://golang.org/cl/5129042
 
- src/pkg/exp/ssh/Makefile     |   6 +--
- src/pkg/exp/ssh/common.go    |  33 ++++++++++++
- src/pkg/exp/ssh/messages.go  |  70 +++++++++++++++++++++++++
- src/pkg/exp/ssh/server.go    | 121 ++++++++++---------------------------------
- src/pkg/exp/ssh/transport.go |  35 ++++++++++++-
- 5 files changed, 166 insertions(+), 99 deletions(-)
+ src/pkg/exp/template/html/escape_test.go | 29 +++++++++++++--
+ src/pkg/exp/template/html/js.go          | 61 ++++++++++++++++++++++----------
+ src/pkg/exp/template/html/js_test.go     | 47 +++++++++++++++++++++++-
+ 3 files changed, 116 insertions(+), 21 deletions(-)

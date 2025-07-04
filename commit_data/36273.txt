@@ -1,18 +1,17 @@
-commit 3e0f5f934eb474196297fddf957157422f93a2d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 11:07:30 2018 -0400
+commit 7b7affa56d3957c2f721595de732d03e04bf2a62
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 16 11:29:53 2018 +0200
 
-    doc/code: drop mentions of GOPATH/pkg directory
+    doc: use past releases in Release Policy explanation
     
-    It's already half gone and later will be all gone.
-    It's not worth explaining in an introduction doc.
+    As suggested by Ian on the issue, just use past releases to avoid any
+    confusion regarding current and future releases.
     
-    Fixes #24506
-    Updates #4719
+    Fixes #23891
     
-    Change-Id: Ie48128b3aa090d84e0e734aa45f14a4480292913
-    Reviewed-on: https://go-review.googlesource.com/129679
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie513cd3e15aa04822898be57f71976e6fe6bd816
+    Reviewed-on: https://go-review.googlesource.com/107078
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- doc/code.html | 51 ++++++---------------------------------------------
- 1 file changed, 6 insertions(+), 45 deletions(-)
+ doc/devel/release.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,25 +1,20 @@
-commit e0c76d95abfc1621259864adb3d101cf6f1f90fc
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue Dec 10 12:10:13 2024 -0800
+commit f31a030e90d50ac7245bbae77f5598ad99411b0d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 2 10:29:29 2023 +0100
 
-    syscall: remove a wrong comment in Clearenv
+    runtime: remove unused getOSRev on openbsd
     
-    The comment being removed was added by commit ff3173849e
-    (which predates Gerrit and Rietveld, so no CL link), and
-    at the time it made sense.
+    It's unused since CL 538458.
     
-    Since CL 148370043 (and up to the current implementation of Clearenv)
-    the env map, which is populated by copyenv, is actually used, so the
-    comment is no longer valid.
-    
-    It is also misleading, so it's best to remove it.
-    
-    Change-Id: I8bd2e8bca6262759538e5bcbd396f0c71cca6a4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635078
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic8d30b0fb54f3f1d723626c5db56fbf4cf181dea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539155
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/syscall/env_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_openbsd.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

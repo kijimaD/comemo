@@ -1,31 +1,14 @@
-commit 05511a5c0ae238325c10b0e4e44c3f66f928e4cf
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 22 16:34:16 2019 +0000
+commit 09c9d3a58a4aa1531ac516754f65c31aa8418d3f
+Author: Shivani Singhal <shivani.singhal2804@gmail.com>
+Date:   Sun Aug 4 12:47:55 2019 +0530
 
-    runtime: release worldsema before Gosched in STW GC mode
+    net/http: fix typo in Response.Body's doc
     
-    After CL 182657 we no longer hold worldsema across the GC, we hold
-    gcsema instead.
+    Fixes #33453.
     
-    However in STW GC mode we don't release worldsema before calling Gosched
-    on the user goroutine (note that user goroutines are disabled during STW
-    GC) so that user goroutine holds onto it. When the GC is done and the
-    runtime inevitably wants to "stop the world" again (though there isn't
-    much to stop) it'll sit there waiting for worldsema which won't be
-    released until the aforementioned goroutine is scheduled, which it won't
-    be until the GC is done!
-    
-    So, we have a deadlock.
-    
-    The fix is easy: just release worldsema before calling Gosched.
-    
-    Fixes #34736.
-    
-    Change-Id: Ia50db22ebed3176114e7e60a7edaf82f8535c1b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208379
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If0aa48f953633690884ddcff033b3be6d1d66443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188541
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/mgc.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/net/http/response.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

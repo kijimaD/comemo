@@ -1,18 +1,37 @@
-commit 5bcb9707b63c12bbd6ab6dd8f0913b2518b83531
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Thu Dec 27 11:45:03 2012 +1100
+commit 888111e081fc8eda605d5c2706f14d0f9473fae2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 26 12:48:26 2012 -0800
 
-    log/syslog: add stub for Plan 9
+    exp/types: configurable types.Check API
     
-    Proper local system log semantics still need to be
-    created for Plan 9. In the meantime, the test suite
-    (viz., exp/gotype) expects there to be some Go
-    source for each import path. Thus, here is a stub,
-    equivalent to syslog_windows, for this purpose.
+    - added Context type for configuration of type checker
+    - type check all function and method bodies
+    - (partial) fixes to shift hinting (still not complete)
+    - revamped test harness - does not rely on specific position
+      representation anymore, just a standard (compiler) error
+      message
+    - lots of bug fixes
     
-    R=golang-dev, rsc, alex.brainman
+    R=adonovan, rsc
     CC=golang-dev
-    https://golang.org/cl/7000062
+    https://golang.org/cl/6948071
 
- src/pkg/log/syslog/syslog_plan9.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/pkg/exp/gotype/gotype.go            |   7 +-
+ src/pkg/exp/gotype/gotype_test.go       |  37 ++++---
+ src/pkg/exp/types/api.go                |  65 +++++++++++
+ src/pkg/exp/types/builtins.go           |  71 ++++++++++--
+ src/pkg/exp/types/check.go              | 187 ++++++++++++++++++++------------
+ src/pkg/exp/types/check_test.go         | 133 +++++++++++------------
+ src/pkg/exp/types/const.go              |  78 ++++++-------
+ src/pkg/exp/types/errors.go             |  20 ++--
+ src/pkg/exp/types/expr.go               | 108 +++++++++++-------
+ src/pkg/exp/types/operand.go            |   6 +-
+ src/pkg/exp/types/stmt.go               |  27 ++++-
+ src/pkg/exp/types/testdata/builtins.src |  16 +++
+ src/pkg/exp/types/testdata/decls1.src   |   8 ++
+ src/pkg/exp/types/testdata/decls2a.src  |   6 +-
+ src/pkg/exp/types/testdata/expr0.src    |  16 +++
+ src/pkg/exp/types/testdata/stmt0.src    |  10 ++
+ src/pkg/exp/types/types.go              |  22 +---
+ src/pkg/exp/types/types_test.go         |  10 +-
+ 18 files changed, 529 insertions(+), 298 deletions(-)

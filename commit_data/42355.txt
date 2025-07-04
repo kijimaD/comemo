@@ -1,34 +1,31 @@
-commit e3ccf406231ece59975d999f18f37d1615112aaf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 12 23:06:14 2020 -0400
+commit e3c7ffcd957785bc9d3e1f2db9219bd74a96bbb1
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 4 14:58:04 2019 -0800
 
-    cmd/go: terminate TestScript commands more aggressively when the test times out
+    os: reset dirinfo when seeking on Darwin
     
-    - Avoid starting subprocesses when the test is already very close to
-      timing out. The overhead of starting and stopping processes may
-      cause the test to exceed its deadline even if each individual
-      process is signaled soon after it is started.
+    The first Readdirnames calls opendir and caches the result.
+    The behavior of that cached opendir result isn't specified on a seek
+    of the underlying fd. Free the opendir result on a seek so that
+    we'll allocate a new one the next time around.
     
-    - If a command does not shut down quickly enough after receiving
-      os.Interrupt, send it os.Kill using the same style of grace period
-      as in CL 228438.
+    Also fix wasm behavior in this regard, so that a seek to the
+    file start resets the Readdirnames position, regardless of platform.
     
-    - Fail the test if a background command whose exit status is not
-      ignored is left running at the end of the test. We have no reliable
-      way to distinguish a failure due to the termination signal from an
-      unexpected failure, and the termination signal varies across
-      platforms (so may cause failure on one platform but success on
-      another).
+    p.s. I hate the Readdirnames API.
     
-    For #38797
+    Fixes #35767.
     
-    Change-Id: I767898cf551dca45579bf01a9d1bb312e12d6193
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233526
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ieffb61b3c5cdd42591f69ab13f932003966f2297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209961
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                      |  20 --
- src/cmd/go/script_test.go                  | 283 ++++++++++++++++++++---------
- src/cmd/go/testdata/script/README          |   5 +-
- src/cmd/go/testdata/script/script_wait.txt |   7 +-
- 4 files changed, 202 insertions(+), 113 deletions(-)
+ src/os/dir_darwin.go         | 10 +++++++++
+ src/os/dir_unix.go           |  2 ++
+ src/os/file_unix.go          |  1 +
+ src/syscall/fs_js.go         |  8 ++++---
+ test/fixedbugs/issue35767.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 69 insertions(+), 3 deletions(-)

@@ -1,44 +1,24 @@
-commit 19a48048543098a05efe48adb1cf8f01bfce75f1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 29 13:29:43 2022 +0200
+commit 276fb279d1703451e5b962350727f84e4e8e9814
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 11:50:46 2021 -0700
 
-    runtime: support MADV_DONTNEED on the BSDs and Solaris/Illumos
+    cmd/compile/internal/syntax: remove AllowTypeSets mode
     
-    Like on Linux, use GODEBUG=madvdontneed=1 to enable madvise with
-    MADV_DONTNEED instead of MADV_FREE.
+    The respective issue has been accepted, so we can always
+    accept constraint literals with omitted interfaces.
     
-    Based on previous work by Marcelo Araujo in CL 181498.
+    For #48424.
     
-    Fixes #32519
-    
-    Change-Id: Ib49faf05c42a65591b90e75f663146f213030529
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266937
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ia3d325401252a5a22d5ffa98d2ae6af73178dec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355709
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/defs1_netbsd_386.go     | 3 ++-
- src/runtime/defs1_netbsd_amd64.go   | 3 ++-
- src/runtime/defs1_netbsd_arm.go     | 3 ++-
- src/runtime/defs1_netbsd_arm64.go   | 3 ++-
- src/runtime/defs1_solaris_amd64.go  | 3 ++-
- src/runtime/defs_dragonfly.go       | 3 ++-
- src/runtime/defs_dragonfly_amd64.go | 3 ++-
- src/runtime/defs_freebsd.go         | 3 ++-
- src/runtime/defs_freebsd_386.go     | 3 ++-
- src/runtime/defs_freebsd_amd64.go   | 3 ++-
- src/runtime/defs_freebsd_arm.go     | 3 ++-
- src/runtime/defs_freebsd_arm64.go   | 3 ++-
- src/runtime/defs_netbsd.go          | 3 ++-
- src/runtime/defs_openbsd.go         | 3 ++-
- src/runtime/defs_openbsd_386.go     | 3 ++-
- src/runtime/defs_openbsd_amd64.go   | 3 ++-
- src/runtime/defs_openbsd_arm.go     | 3 ++-
- src/runtime/defs_openbsd_arm64.go   | 3 ++-
- src/runtime/defs_openbsd_mips64.go  | 3 ++-
- src/runtime/defs_solaris.go         | 3 ++-
- src/runtime/extern.go               | 5 ++++-
- src/runtime/mem_bsd.go              | 6 +++++-
- 22 files changed, 49 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/noder/noder.go         | 2 +-
+ src/cmd/compile/internal/syntax/error_test.go   | 2 +-
+ src/cmd/compile/internal/syntax/parser.go       | 2 +-
+ src/cmd/compile/internal/syntax/parser_test.go  | 6 +++---
+ src/cmd/compile/internal/syntax/printer_test.go | 4 ++--
+ src/cmd/compile/internal/syntax/syntax.go       | 1 -
+ src/cmd/compile/internal/types2/check_test.go   | 2 +-
+ 7 files changed, 9 insertions(+), 10 deletions(-)

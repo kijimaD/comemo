@@ -1,0 +1,36 @@
+commit 77e3d8cf13a31343ba98268c2dddf6bc41f6ce4c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Aug 14 11:21:28 2024 -0400
+
+    internal/runtime/maps: small maps point directly to a group
+    
+    If the map contains 8 or fewer entries, it is wasteful to have a
+    directory that points to a table that points to a group.
+    
+    Add a special case that replaces the directory with a direct pointer to
+    a group.
+    
+    We could theoretically do similar for single table maps (no directory,
+    just point directly to a table), but that is left for later.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I6fc04dfc11c31dadfe5b5d6481b4c4abd43d48ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611188
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  26 ++-
+ src/cmd/link/internal/ld/dwarf.go                 |  19 +-
+ src/internal/runtime/maps/export_test.go          |  41 +++-
+ src/internal/runtime/maps/map.go                  | 243 ++++++++++++++++++++--
+ src/internal/runtime/maps/map_swiss_test.go       |  44 ++--
+ src/internal/runtime/maps/map_test.go             |   3 +-
+ src/internal/runtime/maps/table.go                |  68 +++++-
+ src/runtime/map_swiss_test.go                     |   4 +-
+ src/runtime/runtime-gdb.py                        |  88 ++++++--
+ src/runtime/runtime-gdb_test.go                   |  13 ++
+ 10 files changed, 460 insertions(+), 89 deletions(-)

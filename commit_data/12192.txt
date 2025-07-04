@@ -1,14 +1,18 @@
-commit d45ee4cb5f44b2ebc79a65f1fcbc4d3f81fbdd40
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 24 15:06:32 2012 +1100
+commit 15d8b05f0ca604e40ba42a3e9f6d30b1a280d1d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 23:01:36 2012 -0500
 
-    test: fix the fix of the rename tests.
-    Now they actually test again instead of just setting iota to zero.
+    ld: fix alignment of rodata section
     
-    R=golang-dev, rsc
+    We were not aligning the code size,
+    so read-only data, which follows in the same
+    segment, could be arbitrarily misaligned.
+    
+    Fixes #2506.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5700058
+    https://golang.org/cl/5693055
 
- test/rename.go  | 79 +++++++++++++++++++++++++++++----------------------------
- test/rename1.go | 77 +++++++++++++++++++++++++++----------------------------
- 2 files changed, 78 insertions(+), 78 deletions(-)
+ src/cmd/ld/data.c | 5 +++++
+ 1 file changed, 5 insertions(+)

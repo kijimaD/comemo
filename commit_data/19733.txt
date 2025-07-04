@@ -1,15 +1,13 @@
-commit c213b8864fa8b48225bac97245031613db89572a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jul 15 14:45:59 2014 +1000
+commit deae10e0384c3224662946bc33e3a5badff782c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 14 19:14:27 2014 -0700
 
-    cmd/go: skip vcs tests on nacl and android
+    go/ast: fix walk to handle "for range x"
     
-            Fixes build failures on nacl/* and android/* platforms.
-    
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/113140043
+    https://golang.org/cl/117790043
 
- src/cmd/go/vcs_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/go/ast/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

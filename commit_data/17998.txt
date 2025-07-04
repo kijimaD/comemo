@@ -1,14 +1,12 @@
-commit a392cf4fd36728efe852d422d702cb23f5ba6d73
+commit 08b846b1293f3aa5e7fab55d6455a36330104c5c
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 16 12:59:30 2013 -0500
+Date:   Mon Dec 16 12:52:21 2013 -0500
 
-    runtime: fix test
+    debug/goobj: add package for reading new Go object files
     
-    Was supposed to be in the nm CL.
-    
-    TBR=r
+    R=golang-dev, r, iant
     CC=golang-dev
-    https://golang.org/cl/42870043
+    https://golang.org/cl/40610043
 
- src/pkg/runtime/runtime_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/debug/goobj/read.go | 555 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 555 insertions(+)

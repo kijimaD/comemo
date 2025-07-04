@@ -1,14 +1,17 @@
-commit f113a629b2bf6ca31ebd3acd7afc7352a0186342
-Author: Dhruvdutt Jadhav <dhruvdutt.jadhav@gmail.com>
-Date:   Tue Apr 3 17:08:45 2018 +0000
+commit ac8a70d20960bb8bda2b7523281b5b3f83334063
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 17 17:13:49 2017 +0000
 
-    README: update number of contributors
+    Revert "net: Forget lookups for canceled contexts"
     
-    Change-Id: I5a1c7ed83a430a509d8f61f4aba8772d5d16ad48
-    GitHub-Last-Rev: fed86d88691c8a62bafac18a4e5c0944a4e59050
-    GitHub-Pull-Request: golang/go#24664
-    Reviewed-on: https://go-review.googlesource.com/104515
+    This reverts commit 6a3d4be3b80054b1d802b73d5a519e252e0f82ed.
+    
+    Reason for revert: breaks various builds. See comments on CL 77670
+    
+    Change-Id: Iaf3260319b560f49ace06af705a2114630f32063
+    Reviewed-on: https://go-review.googlesource.com/78515
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/lookup.go      |  2 +-
+ src/net/lookup_test.go | 22 ----------------------
+ 2 files changed, 1 insertion(+), 23 deletions(-)

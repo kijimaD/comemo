@@ -1,44 +1,24 @@
-commit 913d05133c7fb3adfd2b1a34a47d635d8e072fa2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 6 13:21:34 2022 -0400
+commit 5cd1b847dc6e2d70e503fb44e27d0ece261ebfff
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 18:15:53 2021 -0400
 
-    cmd/go: avoid spurious readdir during fsys.Walk
+    go/types: eliminate typeHashing global variable
     
-    fsys.Walk is cloned from filepath.Walk, which has always handled
-    a walk of a directory by reading the full directory before calling the
-    callback on the directory itself. So if the callback returns fs.SkipDir,
-    those entries are thrown away, but the expense of reading them was
-    still incurred. (Worse, this is the expensive directory read that also
-    calls Stat on every entry.) On machines with slow file system I/O,
-    these reads are particularly annoying. For example, if I do
+    This is a port of CL 345929 to go/types. It is also a step toward making
+    instantiation concurrency-safe.
     
-            go list m...
+    Also fix some whitespace in instantiate.go.
     
-    there is a call to filepath.Walk that is told about $GOROOT/src/archive
-    and responds by returning filepath.SkipDir because archive does not
-    start with m, but it only gets the chance to do that after the archive
-    directory has been read. (Same for all the other top-level directories.)
-    Even something like go list github.com/foo/bar/... reads every top-level
-    $GOPATH/src directory.
+    Updates #47910
     
-    When we designed filepath.WalkDir, one of the changes we made was
-    to allow calling the callback twice for a directory: once before reading it,
-    and then possibly again if the read produces an error (uncommon).
-    This CL changes fsys.Walk to use that same model. None of the callbacks
-    need changing, but now the $GOROOT/src/archive and other top-level
-    directories won't be read when evaluating a pattern like 'm...'.
-    
-    For #53577.
-    Fixes #53765.
-    
-    Change-Id: Idfa3b9e2cc335417bfd9d66dd584cb16f92bd12e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416179
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icdeb227cb83eee15da6db90daab294c8c55db601
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346557
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/fsys/fsys.go                   | 24 ++++++++--------------
- src/cmd/go/testdata/script/fsys_walk.txt           |  6 ++++++
- .../script/{list_permissions.txt => list_perm.txt} |  3 +--
- src/cmd/go/testdata/script/mod_perm.txt            | 23 +++++++++++++++++++++
- 4 files changed, 38 insertions(+), 18 deletions(-)
+ src/go/types/instantiate.go |  5 +++--
+ src/go/types/subst.go       | 13 ++++---------
+ src/go/types/typestring.go  | 19 ++++++++++++-------
+ 3 files changed, 19 insertions(+), 18 deletions(-)

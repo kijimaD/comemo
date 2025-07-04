@@ -1,14 +1,12 @@
-commit c898c519b0fe4660519a1785552dbf578e8a94f1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 15 15:10:01 2012 -0700
+commit bd6404a4cc90aec9c9599ae97cd244dc09088588
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 17:40:17 2012 -0400
 
-    cmd/go: quiet some logging
+    runtime: fix arm build
     
-    This should've been behind -v before but was missed.
-    
-    R=golang-dev, rsc
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5836046
+    https://golang.org/cl/5832047
 
- src/cmd/go/http.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/asm_arm.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,21 +1,22 @@
-commit 5b0ce94c07524f910278de1d90e31c5bc0805bbd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 14:13:06 2022 +0700
+commit 09d3df0183a78a3900a888873519cc7d994d5e19
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 21 08:39:17 2021 -0500
 
-    runtime: convert g.parkingOnChan to atomic type
+    cmd/compile/internal/ppc64: add initial spill support
     
-    Updates #53821
+    This adds some initial support for spilling and reloading
+    registers in the new ABI for PPC64.
+    - Code has been added to allow argument registers
+    to be spilled around the morestack call in the prolog.
+    - Functions for loadRegResult and spillRegArg have been
+    added and set in the arch config for PPC64.
     
-    Change-Id: I54de39b984984fb3c160aba5afacb90131fd47c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424394
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I4ede3c61468857aaf06f804b5e7c3dd9da9cf36b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351189
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/chan.go     | 6 +++---
- src/runtime/runtime2.go | 4 ++--
- src/runtime/select.go   | 5 ++---
- src/runtime/stack.go    | 4 ++--
- 4 files changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ppc64/galign.go |  2 ++
+ src/cmd/compile/internal/ppc64/ssa.go    | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

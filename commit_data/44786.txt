@@ -1,16 +1,14 @@
-commit 2e94401277128f9e08e3319903d1b78c09c4ab98
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 23 11:59:34 2021 +0100
+commit bd6dfe9a3e381e6aae7aa11787ba70fcb77909ff
+Author: surechen <surechen17@gmail.com>
+Date:   Wed May 13 17:03:36 2020 +0800
 
-    os/exec: use testenv.SkipFlaky in TestExtraFilesFDShuffle
+    math/big: add a comment for SetMantExp
     
-    Change-Id: Icc1980ea0f6363c667bf91371404a8df6ed6b8ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303950
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I9ff5d1767cf70648c2251268e5e815944a7cb371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233737
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/exec/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/float.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

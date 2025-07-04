@@ -1,19 +1,22 @@
-commit 795809b5c7d7e281e392399b9a366cbe92aa9e98
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 23 17:43:09 2016 -0700
+commit 27ebc84716f19e1c5b21e3a14de3204d19f28499
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Sat Apr 2 10:29:11 2016 +0200
 
-    go/types: better debugging output for init order computation
+    cmd/compile: handle non-negatives in prove
     
-    Also: Added some test cases for issue #10709.
-    No impact when debugging output is disabled (default).
+    Handle this case:
+    if 0 <= i && i < len(a) {
+            use a[i]
+    }
     
-    For #10709.
+    Shaves about 5k from pkg/tools/linux_amd64/*.
     
-    Change-Id: I0751befb222c86d46225377a674f6bad2990349e
-    Reviewed-on: https://go-review.googlesource.com/23442
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I6675ff49aa306b0d241b074c5738e448204cd981
+    Reviewed-on: https://go-review.googlesource.com/21431
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api_test.go  | 41 +++++++++++++++++++++++++++++++++++++++++
- src/go/types/initorder.go | 45 +++++++++++++++++++++++++++++++++------------
- src/go/types/resolver.go  |  2 +-
- 3 files changed, 75 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 12 ++++++++++--
+ test/prove.go                         | 25 ++++++++++++++++++++++---
+ 2 files changed, 32 insertions(+), 5 deletions(-)

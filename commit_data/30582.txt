@@ -1,20 +1,14 @@
-commit 5ed952368e3777845afd934e38219c5567b09cc4
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Mar 7 16:05:40 2017 +0000
+commit 2442b49c47aa818bbc55e4c064e9ea0ca058735f
+Author: Marcel Edmund Franke <marcel.edmund.franke@gmail.com>
+Date:   Mon Nov 14 21:46:25 2016 +0100
 
-    runtime/pprof: actually use tag parameter
+    html/template: typo fix
     
-    It's only ever called with the value it was using, but the code was
-    counterintuitive. Use the parameter instead, like the other funcs near
-    it.
+    comment on unexported function starts with wrong functionname
     
-    Found by github.com/mvdan/unparam.
-    
-    Change-Id: I45855e11d749380b9b2a28e6dd1d5dedf119a19b
-    Reviewed-on: https://go-review.googlesource.com/37893
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib16c2fe42b5a8d4606ed719f620923c17839d091
+    Reviewed-on: https://go-review.googlesource.com/33203
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/proto.go | 2 +-
+ src/html/template/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

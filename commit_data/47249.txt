@@ -1,35 +1,32 @@
-commit 988efd58197205060ace508d29984fbab6eb3840
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 2 18:30:08 2021 -0400
+commit d85083911d6ea742901933a544467dad55bb381f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 23 15:05:37 2020 -0500
 
-    cmd/link: don't use label symbol for absolute address relocations on ARM64 PE
+    runtime: encapsulate access to allgs
     
-    On ARM64 PE, when external linking, the PE relocation does not
-    have an explicit addend, and instead has the addend encoded in
-    the instruction or data. An instruction (e.g. ADRP, ADD) has
-    limited width for the addend, so when the addend is large we use
-    a label symbol, which points to the middle of the original target
-    symbol, and a smaller addend. But for an absolute address
-    relocation in the data section, we have the full width to encode
-    the addend and we should not use the label symbol. Also, since we
-    do not adjust the addend in the data, using the label symbol will
-    actually make it point to the wrong address. E.g for an R_ADDR
-    relocation targeting x+0x123456, we should emit 0x123456 in the
-    data with an IMAGE_REL_ARM64_ADDR64 relocation pointing to x,
-    whereas the current code emits  0x123456 in the data with an
-    IMAGE_REL_ARM64_ADDR64 relocation pointing to the label symbol
-    x+1MB, so it will actually be resolved to x+0x223456. This CL
-    fixes this.
+    Correctly accessing allgs is a bit hairy. Some paths need to lock
+    allglock, some don't. Those that don't are safest using atomicAllG, but
+    usage is not consistent.
     
-    Fixes #47557.
+    Rather than doing this ad-hoc, move all access* through forEachG /
+    forEachGRace, the locking and atomic versions, respectively. This will
+    make it easier to ensure safe access.
     
-    Change-Id: I64e02b56f1d792f8c20ca61b78623ef5c3e34d7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360895
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    * markroot is the only exception, as it has a far-removed guarantee of
+    safe access via an atomic load of allglen far before actual use.
+    
+    Change-Id: Ie1c7a8243e155ae2b4bc3143577380c695680e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279994
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/arm64/asm.go |  2 +-
- src/cmd/link/link_test.go          | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/heapdump.go  |  7 ++++---
+ src/runtime/mgc.go       |  8 +++-----
+ src/runtime/mgcmark.go   | 32 +++++++++++++++++++-------------
+ src/runtime/mprof.go     | 35 +++++++++++++++++++----------------
+ src/runtime/proc.go      | 40 +++++++++++++++++++++++++++++-----------
+ src/runtime/trace.go     |  5 +++--
+ src/runtime/traceback.go | 21 +++++++++------------
+ 7 files changed, 86 insertions(+), 62 deletions(-)

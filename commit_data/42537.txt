@@ -1,16 +1,16 @@
-commit 292a771b876b2d7deae141dd352c43e650ac3f54
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 15 15:02:54 2020 -0700
+commit 56d6b87972c9852570fe017ac5fa153314c21992
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 9 14:01:41 2020 -0800
 
-    net/rpc: clarify documention of Call.Done field
+    runtime: change checkptr to use throw instead of panic
     
-    Fixes #36116
+    Updates #34964.
     
-    Change-Id: I93909f2addee9a9435ad658e8b40eef966ce53fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238078
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5afb2c1e77a9a47358a1d0d108c4a787d7172b94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214217
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/rpc/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/checkptr.go | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)

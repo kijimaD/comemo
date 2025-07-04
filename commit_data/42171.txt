@@ -1,31 +1,14 @@
-commit 5c22c01d450c2da859644d2c020b75860308bf71
-Author: Rebecca Stambler <rstambler@golang.org>
-Date:   Mon Apr 27 19:41:14 2020 -0400
+commit b60c7a5c7f50fc75ddecb7f1dea6c2e47a12b42c
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Nov 10 11:56:15 2019 +0530
 
-    go/types: improve errors for method calls with pointer receivers
+    go/doc: document unicode quoting conversion
     
-    The compiler has better error messages for methods called without a
-    pointer receiver when one is expected. This change is similar to
-    CL 229801, but for method calls.
+    Fixes #30955
     
-    Also, added better error messages for functions called with the wrong
-    capitalization. I left the third TODO in this switch statement almost
-    as-is because I'm not sure that the extra complexity is worth it -
-    I adjusted the error to look like the one the compiler reports.
-    
-    Fixes golang/go#38658
-    
-    Change-Id: Ie0ca2503e12f3659f112f0135cc27db1b027fdcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230380
-    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8a2bff5215ddf6c3a80b1e760cb72b0bb9a5e0d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206122
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/call.go                 | 21 +++++++++++++++++----
- src/go/types/testdata/decls3.src     | 18 +++++++++---------
- src/go/types/testdata/decls4.src     |  4 ++--
- src/go/types/testdata/expr3.src      |  4 ++--
- src/go/types/testdata/issue28251.src |  4 ++--
- src/go/types/testdata/issues.src     |  8 ++++++--
- src/go/types/testdata/methodsets.src | 12 ++++++------
- 7 files changed, 44 insertions(+), 27 deletions(-)
+ src/go/doc/comment.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

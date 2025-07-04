@@ -1,17 +1,22 @@
-commit 74c6b84182eef81e3585b467d47f416dba1224a5
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Apr 10 21:14:04 2014 -0700
+commit a30eaa12eb2ecb484d3ced8775fadeeb20a21569
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 17:12:31 2014 -0700
 
-    expvar: fix map key output
+    net/http: fix up Response.Write edge cases
     
-    To create a valid JSON string, "%s" is not enough.
-    Fixes #7761.
+    The Go HTTP server doesn't use Response.Write, but others do,
+    so make it correct. Add a bunch more tests.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/86730043
+    This bug is almost a year old. :/
+    
+    Fixes #5381
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/85740046
 
- src/pkg/expvar/expvar.go      | 2 +-
- src/pkg/expvar/expvar_test.go | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/http/response.go           |  51 +++++++++++++++--
+ src/pkg/net/http/response_test.go      |   4 ++
+ src/pkg/net/http/responsewrite_test.go | 102 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 152 insertions(+), 5 deletions(-)

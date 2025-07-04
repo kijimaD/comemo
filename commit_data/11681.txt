@@ -1,15 +1,16 @@
-commit 518ee115b75c72c68364e1f376d9d9d3f808ffda
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 7 18:00:30 2012 -0800
+commit 92f55949f9e747477937e66df3cb486b1912e97f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 11:53:32 2012 +1100
 
-    net/http/httputil: preserve query params in reverse proxy
+    encoding/hex: canonicalize error type names
+    Also simplify the tests.
     
-    Fixes #2853
+    Fixes #2849.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5642056
+    https://golang.org/cl/5643045
 
- src/pkg/net/http/httputil/reverseproxy.go      |  7 ++++-
- src/pkg/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 1 deletion(-)
+ src/pkg/encoding/hex/hex.go      |  26 +++---
+ src/pkg/encoding/hex/hex_test.go | 167 +++++++++++++++------------------------
+ 2 files changed, 74 insertions(+), 119 deletions(-)

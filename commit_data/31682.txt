@@ -1,21 +1,18 @@
-commit 91a80cc174dc2b0df4cab12966c498ac435dbc31
-Author: Wei Xiao <Wei.Xiao@arm.com>
-Date:   Thu May 25 13:59:39 2017 +0800
+commit 143fd8ef2ab4450d7298b59a45d15232518f982d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 4 04:55:56 2017 +0100
 
-    runtime: fix stack split at bad time when disable inlining
+    os/user: use the stubs fallback for Android
     
-    key32 is called between entersyscallblock and exitsyscall
-    stack split may occur if disable inlining and the G is preempted
+    Using the stubs, user.Current will no longer fail on Android, fixing
+    the os/exec.TestCredentialNoSetGroups test.
     
-    Fix the problem by describing key32 as nosplit function
-    
-    Fixes #20510
-    
-    Change-Id: I1f0787995936f34ef0052cf79fde036f1b338865
-    Reviewed-on: https://go-review.googlesource.com/44390
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8b9842aa6704c0cde383c549a614bab0a0ed7695
+    Reviewed-on: https://go-review.googlesource.com/37765
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/lock_futex.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/os/user/lookup_android.go | 13 -------------
+ src/os/user/lookup_stubs.go   |  5 ++++-
+ 2 files changed, 4 insertions(+), 14 deletions(-)

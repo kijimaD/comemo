@@ -1,27 +1,14 @@
-commit a50962131acb7def8241cd5e78b99746c6e52771
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 18 20:44:54 2017 -0700
+commit 95011d4e018c9499c8a4739bc728e38ddc12b9e1
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:32:24 2017 -0800
 
-    cmd/compile/internal/syntax: compute BranchStmt.Target statements
+    crypto/x509: sort the list of fields used by CreateCertificate.
     
-    - Add new BranchStmt.Target field: It's the destination for break,
-      continue, or goto statements.
-    
-    - When parsing with CheckBranches enabled, set the BranchStmt.Target
-      field. We get the information practically for free from the branch
-      checker, so keep it for further use.
-    
-    - Fix a couple of comments.
-    
-    - This could use a test, but the new Target field is currently not
-      used, and writing a test is tedious w/o a general tree visitor.
-      Do it later. For now, visually verified output from syntax dump.
-    
-    Change-Id: Id691d89efab514ad885e19ac9759506106579520
-    Reviewed-on: https://go-review.googlesource.com/40988
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I20f4419ca377ee9428075e42db0bad46a75d983f
+    Reviewed-on: https://go-review.googlesource.com/36557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/branches.go    | 70 +++++++++++++++-----------
- src/cmd/compile/internal/syntax/dumper_test.go |  2 +-
- src/cmd/compile/internal/syntax/nodes.go       |  6 +++
- 3 files changed, 47 insertions(+), 31 deletions(-)
+ src/crypto/x509/x509.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

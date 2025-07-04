@@ -1,13 +1,15 @@
-commit 9801c8e886441460027c5b9a69382f26f3a86b4c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 16 18:15:36 2011 -0400
+commit 5af6ce541f744d56d800d1810cfa41c7f95869b6
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Aug 16 17:28:16 2011 -0400
 
-    A+C: Aleksandar Dezelin (individual CLA)
+    net: add multicast stubs for openbsd
     
-    R=golang-dev, gri
+    Add multicast stubs and sync with recent changes.
+    
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/4901047
+    https://golang.org/cl/4838058
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/net/Makefile             |  4 +++-
+ src/pkg/net/interface_openbsd.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

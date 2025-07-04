@@ -1,56 +1,28 @@
-commit 2c0c68d621415f0c2dffb71b20fdc0fdbbcfb5fe
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 6 14:36:49 2018 -0800
+commit b78b54ff83bab4587f0df5747f432d1b3e7e6846
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 24 17:11:32 2017 -0400
 
-    cmd/compile: fix miscompilation of "defer delete(m, k)"
+    cmd/compile: elide write barriers for copy of notinheap pointers
     
-    Previously, for slow map key types (i.e., any type other than a 32-bit
-    or 64-bit plain memory type), we would rewrite
+    Currently copy and append for types containing only scalars and
+    notinheap pointers still get compiled to have write barriers, even
+    though those write barriers are unnecessary. Fix these to use
+    HasHeapPointer instead of just Haspointer so that they elide write
+    barriers when possible.
     
-        defer delete(m, k)
+    This fixes the unnecessary write barrier in runtime.recordspan when it
+    grows the h.allspans slice. This is important because recordspan gets
+    called (*very* indirectly) from (*gcWork).tryGet, which is
+    go:nowritebarrierrec. Unfortunately, the compiler's analysis has no
+    hope of seeing this because it goes through the indirect call
+    fixalloc.first, but I saw it happen.
     
-    into
-    
-        ktmp := k
-        defer delete(m, &ktmp)
-    
-    However, if the defer statement was inside a loop, we would end up
-    reusing the same ktmp value for all of the deferred deletes.
-    
-    We already rewrite
-    
-        defer print(x, y, z)
-    
-    into
-    
-        defer func(a1, a2, a3) {
-            print(a1, a2, a3)
-        }(x, y, z)
-    
-    This CL generalizes this rewrite to also apply for slow map deletes.
-    
-    This could be extended to apply even more generally to other builtins,
-    but as discussed on #24259, there are cases where we must *not* do
-    this (e.g., "defer recover()"). However, if we elect to do this more
-    generally, this CL should still make that easier.
-    
-    Lastly, while here, fix a few isues in wrapCall (nee walkprintfunc):
-    
-    1) lookupN appends the generation number to the symbol anyway, so "%d"
-    was being literally included in the generated function names.
-    
-    2) walkstmt will be called when the function is compiled later anyway,
-    so no need to do it now.
-    
-    Fixes #24259.
-    
-    Change-Id: I70286867c64c69c18e9552f69e3f4154a0fc8b04
-    Reviewed-on: https://go-review.googlesource.com/99017
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ieba3abc555a45f573705eab780debcfe5c4f5dd1
+    Reviewed-on: https://go-review.googlesource.com/73413
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/order.go | 20 +-----------
- src/cmd/compile/internal/gc/walk.go  | 60 ++++++++++++++++--------------------
- src/runtime/map_test.go              | 21 +++++++++++++
- 3 files changed, 48 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  4 ++--
+ test/notinheap3.go                  | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

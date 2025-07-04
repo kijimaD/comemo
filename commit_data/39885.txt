@@ -1,29 +1,20 @@
-commit 9a44023ce922407fe4e847400924e2b2980bd2c5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 5 12:02:55 2019 -0400
+commit d23bf3daa9384a8c30d3231b5f02d0bea481415e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 25 12:35:42 2019 -0700
 
-    cmd/go/internal/web: include snippets of plain-text server responses in error detail
+    cmd/compile: move sinit.go globals into InitSchedule
     
-    For the server response to be displayed, the response must be served
-    as type text/plain with charset us-ascii or utf-8, and must consist of
-    only graphic characters and whitespace.
+    Eliminates global state from sinit.go.
     
-    We truncate the server response at the first blank line or after 8
-    lines or a fixed number of characters, and tab-indent (if multiple
-    lines) to ensure that the response is offset from ordinary go command
-    output.
+    Passes toolstash-check.
     
-    Fixes #30748
+    Updates #22326.
     
-    Change-Id: I0bc1d734737e456e3251aee2252463b6355e8c97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189783
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie3cb14bff625baa20134d1488962ab02d24f0c15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169899
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/web/api.go                     | 125 ++++++++++++++++++++-
- src/cmd/go/internal/web/http.go                    |  21 +++-
- src/cmd/go/testdata/script/mod_auth.txt            |   2 +
- src/cmd/go/testdata/script/mod_proxy_errors.txt    |  19 ++++
- src/cmd/go/testdata/script/mod_sumdb_file_path.txt |   5 +-
- 5 files changed, 166 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 84 ++++++++++++++++++------------------
+ 1 file changed, 41 insertions(+), 43 deletions(-)

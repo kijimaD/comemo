@@ -1,12 +1,12 @@
-commit bc35379763174f1829e1908eb91c2f50780bc7e4
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Thu Mar 17 01:45:05 2011 -0400
+commit 393ea2dfa8128a1f6910a19de2ddb9cb6778f34f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 17 16:37:34 2011 +1100
 
-    .hgignore: Ignore all goinstalled packages
+    doc: mention godoc in "implements" FAQ
     
-    R=golang-dev, niemeyer, rsc1, rog, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4285047
+    https://golang.org/cl/4248066
 
- .hgignore | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go_faq.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

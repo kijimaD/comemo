@@ -1,24 +1,22 @@
-commit 251baea1afc07f3ca7ca10935aaba1476cfd34d9
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jun 4 07:07:22 2013 -0700
+commit 2c0b00744f067c7d9f44a735f77aa0eb0e2e345e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 4 08:33:00 2013 +0200
 
-    cmd/ld: fix gcdata and gcbss symbols
+    cmd/6c, cmd/8c: avoid generating long multiplication when not necessary.
     
-    These two symbols don't show up in the Go symbol table
-    since they're defined in dodata which is called sometime
-    after symtab. They do, however, show up in the ELF symbol
-    table.
+    On amd64
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkHashStringSpeed                91           74  -18.49%
+    BenchmarkHashInt32Speed                 54           45  -17.88%
+    BenchmarkHashInt64Speed                 76           58  -23.53%
+    BenchmarkHashStringArraySpeed          231          188  -18.61%
     
-    This regression was introduced in changeset 01c40d533367.
+    Fixes #5367.
     
-    Also, remove the corresponding strings from the ELF strtab
-    section now that they're unused.
-    
-    R=golang-dev, iant
+    R=golang-dev, iant, dave, daniel.morsing, ality, rsc
     CC=golang-dev
-    https://golang.org/cl/8650043
+    https://golang.org/cl/9040043
 
- src/cmd/ld/data.c   |  9 ++-------
- src/cmd/ld/elf.c    |  6 ------
- src/cmd/ld/symtab.c | 15 +++++++++++++--
- 3 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/6c/cgen.c | 5 +++--
+ src/cmd/8c/cgen.c | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

@@ -1,28 +1,23 @@
-commit fb63e4fefbb1325a21f643febc97987c82fcae7a
+commit 41fd4f988ce2297ea6d2bf7755e753638a8cf33a
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 12 00:03:32 2013 -0400
+Date:   Thu Jul 11 23:24:35 2013 -0400
 
-    runtime: make cas64 like cas32 and casp
+    misc/cgo/test: make test work with -linkmode=internal
     
-    The current cas64 definition hard-codes the x86 behavior
-    of updating *old with the new value when the cas fails.
-    This is inconsistent with cas32 and casp.
-    Make it consistent.
+    The static func named thread in issue5337.go's C snippet
+    conflicts with the static func named thread in issue3350.go's C snippet.
+    I don't know why (they're both static) but I also don't care,
+    because -linkmode=internal only needs to be able to handle
+    the cgo in the standard library, and it does.
     
-    This means that the cas64 uses will be epsilon less efficient
-    than they might be, because they have to do an unnecessary
-    memory load on x86. But so be it. Code clarity and consistency
-    is more important.
+    Change the test to avoid this problem.
     
-    R=golang-dev, bradfitz
+    Fixes build (after run.bash is fixed to detect the breakage).
+    
+    R=minux.ma
+    TBR=minux.ma
     CC=golang-dev
-    https://golang.org/cl/10909045
+    https://golang.org/cl/11201043
 
- src/pkg/runtime/asm_amd64.s  |  5 +----
- src/pkg/runtime/atomic_386.c | 16 ++++++++--------
- src/pkg/runtime/atomic_arm.c |  5 ++---
- src/pkg/runtime/lfstack.c    |  8 ++++----
- src/pkg/runtime/parfor.c     |  4 ++--
- src/pkg/runtime/runtime.c    | 20 ++++++++++++++++----
- src/pkg/runtime/runtime.h    |  2 +-
- 7 files changed, 34 insertions(+), 26 deletions(-)
+ misc/cgo/test/issue5337.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,18 +1,32 @@
-commit a2891aef7533f66870fc9fef0c2d7d54167f2d1d
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue Sep 3 20:00:56 2024 -0700
+commit b6898dde3d7488cfa41b4f126f6fed49d2918ea5
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jul 25 11:57:37 2023 -0400
 
-    cmd/link/internal/ld: rm os.Getwd from elf_test
+    go/types, types2: instantiated interfaces must be concurrency safe
     
-    When specifying the package to build, a relative path is sufficient.
+    It is the responsibility of go/types to complete any interface it
+    creates, except for those created by the user using NewInterface.
+    However, this was not being done for interfaces created during
+    instantiation.
     
-    Change-Id: I1ae08065b5cd77ec25be42dc1e664720a07baa62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610039
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fix this by (rather carefully) ensuring that all newly created
+    interfaces are eventually completed.
+    
+    Fixes golang/go#61561
+    
+    Change-Id: I3926e7c9cf80714838d2c1b5f36a2d3221c60c41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513015
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/link/internal/ld/elf_test.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go  | 55 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/interface.go |  1 +
+ src/cmd/compile/internal/types2/named.go     |  7 ++++
+ src/cmd/compile/internal/types2/subst.go     |  6 +++
+ src/go/types/api_test.go                     | 55 ++++++++++++++++++++++++++++
+ src/go/types/interface.go                    |  1 +
+ src/go/types/named.go                        |  7 ++++
+ src/go/types/subst.go                        |  6 +++
+ 8 files changed, 138 insertions(+)

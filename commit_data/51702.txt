@@ -1,21 +1,22 @@
-commit 8b79c41dd581cebc645c4c330cb325f7f74d9929
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 19 19:18:20 2023 -0800
+commit da2773fe3e2f6106634673a38dc3a6eb875fe7d8
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Mar 5 19:21:15 2022 +1030
 
-    cmd/go: update test for change in panic(nil) behavior
+    all: fix some typos
     
-    panic(nil) now panics with runtime.PanicNilError.
-    
-    For #25448
-    
-    Change-Id: I58994aa80d4d11f0c5fcd988714f7b4b45c6b5ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462293
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I7dfae0fc91c2d70873ec7ec920be7c0a4888153a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390175
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/bzip2/huffman.go  | 2 +-
+ src/crypto/tls/conn.go         | 2 +-
+ src/crypto/x509/parser.go      | 2 +-
+ src/debug/dwarf/entry.go       | 2 +-
+ src/html/template/escape.go    | 4 ++--
+ src/index/suffixarray/sais.go  | 2 +-
+ src/index/suffixarray/sais2.go | 2 +-
+ src/math/big/nat.go            | 2 +-
+ src/net/lookup.go              | 2 +-
+ 9 files changed, 10 insertions(+), 10 deletions(-)

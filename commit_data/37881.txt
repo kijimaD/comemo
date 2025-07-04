@@ -1,18 +1,12 @@
-commit 3e9c3cfd1e163e65eaf60c35739f668b9fda5888
-Author: Viacheslav Poturaev <vearutop@gmail.com>
-Date:   Wed Jan 9 12:54:50 2019 +0000
+commit 6b7099caa17e50410821f4a66ebb5c48717ad3c7
+Author: Warren Fernandes <warren.f.fernandes@gmail.com>
+Date:   Wed Sep 5 22:35:01 2018 -0600
 
-    cmd/go: remove init() to fix precedence issue when setting debug mod info
+    expvar: fix name of Var interface
     
-    Fixes #29628
-    
-    Change-Id: I95dabed797ef7a1a770b6f4219840f653306af7e
-    GitHub-Last-Rev: 9275dd8f1c6a0cfa16ae882fcfc100991f8338f7
-    GitHub-Pull-Request: golang/go#29630
-    Reviewed-on: https://go-review.googlesource.com/c/157097
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibc40237981fdd20316f73f7f6f3dfa918dd0af5d
+    Reviewed-on: https://go-review.googlesource.com/133658
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/build.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/expvar/expvar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

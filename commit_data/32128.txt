@@ -1,14 +1,18 @@
-commit a35377515f6a232305a52f89c164d2782951bc11
-Author: Lyle Franklin <lylejfranklin@gmail.com>
-Date:   Sat Jul 15 13:33:56 2017 -0700
+commit e8475c94b82813889daa2b8188135f32f0625429
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 6 20:27:33 2017 -0700
 
-    strings: add Examples for TrimFunc and variants during Gophercon!
+    cmd/compile/internal/types: shorten struct type names
     
-    Change-Id: I6bfe5b914cf11be1cd1f8e61d557cc718725f0be
-    Reviewed-on: https://go-review.googlesource.com/49013
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    They are in the types package, no need to mention the Type suffix.
+    
+    Change-Id: Ie4fe1e3c1793514145e33f9df373d715f63e1aad
+    Reviewed-on: https://go-review.googlesource.com/39911
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/strings/example_test.go | 81 +++++++++++++++++++++++++++++----------------
- 1 file changed, 52 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/align.go          |   4 +-
+ src/cmd/compile/internal/gc/bimport.go        |   8 +-
+ src/cmd/compile/internal/types/sizeof_test.go |  24 ++--
+ src/cmd/compile/internal/types/type.go        | 188 +++++++++++++-------------
+ 4 files changed, 112 insertions(+), 112 deletions(-)

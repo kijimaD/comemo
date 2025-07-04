@@ -1,20 +1,21 @@
-commit fe1b2f95e6dbfb6e6212bb391706ae62eb0ae5ec
-Author: David Chase <drchase@google.com>
-Date:   Wed Nov 29 16:09:26 2023 -0500
+commit 030ca34f5786f0b924dcab26379ee2f82104220d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Dec 1 21:59:00 2022 +0100
 
-    doc: describe for loop changes (lifetime, range int; range func experiment)
+    path/filepath: remove extra Clean call in EvalSymlinks on Windows
     
-    See also https://go.dev/wiki/RangefuncExperiment, written as a companion
-    to this change.
+    EvalSymlinks calls Clean twice, one in walkSymlinks and another in
+    toNorm. The later is not necessary, as toNorm is only called by
+    EvalSymlinks and just after walkSymlinks cleans the path without any
+    path manipulation in between.
     
-    For #61422.
-    
-    Change-Id: I129bf38dd2fa4aef47454138b4ca5ed18653aecf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546095
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ibdb782c7eed59468f0ebb913e98d2a7db0df010d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454615
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- doc/go1.22.html | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ src/path/filepath/path_windows_test.go | 10 ++++++++--
+ src/path/filepath/symlink_windows.go   |  2 --
+ 2 files changed, 8 insertions(+), 4 deletions(-)

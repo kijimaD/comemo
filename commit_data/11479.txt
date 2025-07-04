@@ -1,19 +1,15 @@
-commit ff451e8670cff9f825706b193657c8b2129310f8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 30 14:07:50 2012 -0800
+commit 260db6ea5a3dbf12a95fd438704e01cae42e3f56
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 30 12:08:35 2012 -0800
 
-    godoc: add URL mode m=methods
+    build: fix buildscript breakage after all.bash
     
-    If set, all methods are shown, not just those
-    of non-exported anonynous fields.
+    Fix from Russ. Tested that multiple builds in a row
+    work again.
     
-    This change will only become functional once
-    CL 5576057 is submitted.
-    
-    R=golang-dev, bradfitz
+    R=rsc, rsc
     CC=golang-dev
-    https://golang.org/cl/5599048
+    https://golang.org/cl/5599047
 
- src/cmd/godoc/doc.go   |  3 ++-
- src/cmd/godoc/godoc.go | 13 +++++++++----
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/buildscript.sh | 2 ++
+ 1 file changed, 2 insertions(+)

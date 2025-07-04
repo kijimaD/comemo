@@ -1,23 +1,15 @@
-commit a4d03a9bf7604b727abd0a1ebfb118ff6366ee50
-Author: Joshua Rubin <joshua@rubixconsulting.com>
-Date:   Fri Oct 27 01:47:08 2017 -0600
+commit 762a0bae06b61f58a3783042167c54752c533aa1
+Author: Wembley G. Leach, Jr <wembley.gl@gmail.com>
+Date:   Mon Aug 7 21:22:14 2017 -0400
 
-    net/http: fix minor leak in Header.WriteSubset
+    math/bits: Add examples for Reverse functions
     
-    Header.WriteSubset uses a sync.Pool but wouldn't Put the sorter back in
-    the pool if there was an error writing to the io.Writer
-    
-    I'm not really sure why the sorter is returned to begin with. The
-    comment says "for possible return to headerSorterCache".
-    
-    This also doesn't address potential panics that might occur, but the
-    overhead of doing the Put in a defer would likely be too great.
-    
-    Change-Id: If3c45a4c3e11f6ec65d187e25b63455b0142d4e3
-    Reviewed-on: https://go-review.googlesource.com/73910
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I30563d31f6acea594cc853cc6b672ec664f90d48
+    Reviewed-on: https://go-review.googlesource.com/53636
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/net/http/header.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/bits/example_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

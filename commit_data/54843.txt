@@ -1,21 +1,38 @@
-commit ea3010d994c927907fda2d742799f5629cdf9265
-Author: dchaofei <dchaofei@gmail.com>
-Date:   Thu May 19 02:02:50 2022 +0000
+commit a2d8157a7ecc8c7a91c93182ae4778aef505677e
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Sep 22 16:22:04 2022 -0700
 
-    crypto/x509: optimize the performance of checkSignature
+    archive/tar, archive/zip: return ErrInsecurePath for unsafe paths
     
-    The loop should be terminated immediately when `algo` has been found
+    Return a distinguishable error when reading an archive file
+    with a path that is:
     
-    Fixes #52955
+            - absolute
+            - escapes the current directory (../a)
+            - on Windows, a reserved name such as NUL
     
-    Change-Id: Ib3865c4616a0c1af9b72daea45f5a1750f84562f
-    GitHub-Last-Rev: 721322725fb2d3a3ea410d09fd8320dfef865d8d
-    GitHub-Pull-Request: golang/go#52987
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Users may ignore this error and proceed if they do not need name
+    sanitization or intend to perform it themselves.
+    
+    Fixes #25849
+    Fixes #55356
+    
+    Change-Id: Ieefa163f00384bc285ab329ea21a6561d39d8096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449937
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/crypto/x509/x509.go | 1 +
- 1 file changed, 1 insertion(+)
+ api/next/55356.txt             |  2 ++
+ doc/go1.20.html                | 25 +++++++++++++++++++++++++
+ src/archive/tar/common.go      |  1 +
+ src/archive/tar/reader.go      | 13 +++++++++++++
+ src/archive/tar/reader_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/archive/tar/writer_test.go |  4 ++--
+ src/archive/zip/reader.go      | 30 +++++++++++++++++++++++++++---
+ src/archive/zip/reader_test.go | 36 ++++++++++++++++++++++++++++++++++--
+ src/archive/zip/struct.go      |  7 -------
+ 9 files changed, 141 insertions(+), 14 deletions(-)

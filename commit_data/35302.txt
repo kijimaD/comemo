@@ -1,19 +1,37 @@
-commit 74879f0f014549f7881539d96d842ae1d6d3aa92
-Author: Sabin Mihai Rapan <sabin.rapan@gmail.com>
-Date:   Mon Feb 5 19:44:09 2018 +0200
+commit 85bdd05c0542e9274b1b5ffc3b329a7865fda5e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 5 23:57:41 2018 -0500
 
-    strconv: update Unquote example to be more concise
+    cmd/go: rebuild as needed for tests of packages that add methods
     
-    Changed the example to convey the intent of the Unquote function
-    in a more succint way.
+    If A's external test package imports B, which imports A,
+    and A's (internal) test code also adds something to A that
+    invalidates anything in the export data from a build of A
+    without its test code, then strictly speaking we need to
+    rebuild B against the test-augmented version of A before
+    using it to build A's external test package.
     
-    Fixes #23693
+    We've been skating by without doing this for a very long time,
+    but I knew we'd need to handle it better eventually,
+    I planned for it in the new build cache simplifications,
+    and the code was ready. Now that we have a real-world
+    test case that needs it, turn on the "proper rebuilding" code.
     
-    Change-Id: I49465641d730e70b5af0d47057335af39882bcec
-    Reviewed-on: https://go-review.googlesource.com/92015
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    It doesn't really matter how much things slow down, since
+    a real-world test cases that caused an internal compiler error
+    before is now handled correctly, but it appears to be small:
+    I wasn't able to measure an effect on "go test -a -c fmt".
+    And of course most builds won't use -a and will be cached well.
+    
+    Fixes #6204.
+    Fixes #23701.
+    
+    Change-Id: I2cd60cf400d1928428979ab05831f48ff7cee6ca
+    Reviewed-on: https://go-review.googlesource.com/92215
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strconv/example_test.go | 34 +++++++++++++++-------------------
- 1 file changed, 15 insertions(+), 19 deletions(-)
+ src/cmd/go/go_test.go            | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go |  9 +--------
+ 2 files changed, 39 insertions(+), 8 deletions(-)

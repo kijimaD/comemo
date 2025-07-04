@@ -1,33 +1,19 @@
-commit d2f317218bf563121e80b36bb06a8ba46d040a20
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Sep 9 19:47:37 2017 +0530
+commit 708a01fbf40cfd82675923f88dd306ef6eb17114
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon May 29 19:50:24 2017 +0300
 
-    math: implement fast path for Exp
+    cmd/vet: add a test for embedded stringer
     
-    - using FMA and AVX instructions if available to speed-up
-    Exp calculation on amd64
+    This should help narrowing down the possible cause of #20514.
     
-    - using a data table instead of #define'ed constants because
-    these instructions do not support loading floating point immediates.
-    One has to use a memory operand / register.
+    Updates #20514.
     
-    - Benchmark results on Intel(R) Core(TM) i5-5200U CPU @ 2.20GHz:
-    
-    Original vs New (non-FMA path)
-    name  old time/op    new time/op    delta
-    Exp     16.0ns ± 1%    16.1ns ± 3%   ~     (p=0.308 n=9+10)
-    
-    Original vs New (FMA path)
-    name  old time/op    new time/op    delta
-    Exp     16.0ns ± 1%    13.7ns ± 2%  -14.80%  (p=0.000 n=9+10)
-    
-    Change-Id: I3d8986925d82b39b95ee979ae06f59d7e591d02e
-    Reviewed-on: https://go-review.googlesource.com/62590
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ie997400c9749aace7783bd585b23dbb4cefc181d
+    Reviewed-on: https://go-review.googlesource.com/44375
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/exp_amd64.s | 75 +++++++++++++++++++++++++++++++++++++---------------
- src/math/exp_asm.go  | 11 ++++++++
- 2 files changed, 65 insertions(+), 21 deletions(-)
+ src/cmd/vet/testdata/print.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

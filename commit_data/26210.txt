@@ -1,18 +1,15 @@
-commit 501b1fc3f211dafea8a3055fa1d575bf2698af33
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 10 18:23:03 2016 -0800
+commit d7ad7b9efecf034e2d95fe48b455a8dbb2204f2e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 4 13:34:54 2016 -0800
 
-    cmd/compile: cleanup unsafenmagic
+    [dev.ssa] cmd/compile: zero register masks for each edge
     
-    In particular, make Alignof work more like Sizeof. Other idiomatic
-    cleanups while here.
+    Forgot to reset these masks before each merge edge is processed.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I4def20894f3d95e49ab6a50ddba189be36fdd258
-    Reviewed-on: https://go-review.googlesource.com/20555
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2f593189b63f50a1cd12b2dd4645ca7b9614f1f3
+    Reviewed-on: https://go-review.googlesource.com/18223
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/unsafe.go | 88 +++++++++++------------------------
- 1 file changed, 27 insertions(+), 61 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

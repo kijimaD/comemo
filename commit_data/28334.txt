@@ -1,30 +1,14 @@
-commit 1ee544641450236e8c78d8d408e6cb8ab69cee60
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 12 13:39:54 2016 -0700
+commit 1b86862d0d6eeb818bc622fee5f140951bd31063
+Author: Scott Bell <scott@sctsm.com>
+Date:   Mon May 16 13:13:25 2016 -0700
 
-    cmd/compile: remove incannedimport
+    doc: fix broken link to the vet command documentation
     
-    This used to be used to give special semantics to the builtin
-    definitions of package runtime and unsafe, but none of those are
-    relevant anymore:
+    Fixes #15188
     
-    - The builtin runtime and unsafe packages do not risk triggering false
-      import cycles since they no longer contain `import "runtime"`.
-    
-    - bimport.go never creates ODCLTYPE, so no need to special case them.
-    
-    - "incannedimport != 0" is only true when "importpkg != nil" anyway,
-      so "incannedimport == 0 && importpkg == nil" is equivalent to just
-      "importpkg == nil".
-    
-    Change-Id: I076f15dd705d4962e7a4c33972e304ef67e7effb
-    Reviewed-on: https://go-review.googlesource.com/29084
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0ab7791f7db499cef6bc52292d3d93ff4da7caff
+    Reviewed-on: https://go-review.googlesource.com/23151
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go   | 2 +-
- src/cmd/compile/internal/gc/go.go        | 2 --
- src/cmd/compile/internal/gc/main.go      | 3 ---
- src/cmd/compile/internal/gc/typecheck.go | 6 ++----
- 4 files changed, 3 insertions(+), 10 deletions(-)
+ doc/cmd.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

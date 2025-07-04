@@ -1,0 +1,35 @@
+commit 54efef99b2b9432c2eb6cd63a287a13d43b9bb7b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 23 20:26:02 2024 +0000
+
+    iter: deflake TestPull by letting exiting goroutines finish
+    
+    Currently TestPull is flaky because goroutines spawned to run subtests
+    exit asynchronously when they finish and TestPull has explicit checks
+    for the number of existing goroutines.
+    
+    This is pretty much only a problem between subtests executing, because
+    within each subtest the coroutine goroutine spawned for iter.Pull always
+    exits fully synchronously before the final `next` or `stop` returns.
+    
+    So, we can resolve the problem by ensuring the first goroutine count the
+    test takes likely doesn't contain any exiting goroutines. The trick is
+    to set GOMAXPROCS=1 and spin in runtime.Gosched until the number of
+    goroutines stabilizes to some reasonable degree (we pick 100 consecutive
+    iterations; there are only a handful of possible goroutines that can
+    run, so this is giving that handful around 20 chances to actually run to
+    completion).
+    
+    When running TestPull under stress2, this issue is easily reproducible
+    before this CL. After this CL, it no longer reproduces under these
+    conditions.
+    
+    Fixes #66017.
+    
+    Change-Id: I4bf0a9771f7364df7dd58f8aeb3ae26742d5746f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587917
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/iter/pull_test.go | 37 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 35 insertions(+), 2 deletions(-)

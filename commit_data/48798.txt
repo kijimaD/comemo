@@ -1,21 +1,28 @@
-commit e3982660a73b04a87c08215cb5aaa16d816ea573
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 15 13:46:00 2022 -0700
+commit b6fc4d01a8d9cefe180fde97ace36588d1d31417
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jun 9 18:51:24 2021 -0400
 
-    runtime: don't block preemption signal in new M's or ensureSigM
+    [dev.typeparams] go/types: convert testdata/fixedbugs tests to type set sytax
     
-    No test because we already have a test in the syscall package.
-    The issue reports 1 failure per 100,000 iterations, which is rare enough
-    that our builders won't catch the problem.
+    This is a port of CL 324530 to go/types. One error position in
+    issue39634.go2 was adjusted by a character, to account for go/types'
+    positioning.
     
-    Fixes #52226
-    
-    Change-Id: I17633ff6cf676b6d575356186dce42cdacad0746
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400315
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie06974ea9ee81d3ae66ef58dba522936ab4ce2d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326681
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/signal_unix.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/types/testdata/fixedbugs/issue39634.go2 | 4 ++--
+ src/go/types/testdata/fixedbugs/issue39680.go2 | 4 ++--
+ src/go/types/testdata/fixedbugs/issue39699.go2 | 2 +-
+ src/go/types/testdata/fixedbugs/issue39723.go2 | 2 +-
+ src/go/types/testdata/fixedbugs/issue39755.go2 | 4 ++--
+ src/go/types/testdata/fixedbugs/issue41124.go2 | 4 ++--
+ src/go/types/testdata/fixedbugs/issue42758.go2 | 2 +-
+ src/go/types/testdata/fixedbugs/issue45548.go2 | 2 +-
+ src/go/types/testdata/fixedbugs/issue45635.go2 | 2 +-
+ src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 10 files changed, 14 insertions(+), 14 deletions(-)

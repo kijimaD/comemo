@@ -1,26 +1,15 @@
-commit fee3aca2e02a44b51d3f41b94701055de434ae6b
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 11 14:38:14 2011 -0500
+commit 882f9d6d7a74a9701b2c07b210b5555c5caefed3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 11 11:22:47 2011 -0800
 
-    syscall: fix mksysnum_linux.sh
+    ld: Permit an Mach-O symbol to be exported in the dynamic symbol table.
     
-    A few system call numbers on x86 Linux are
-    defined in terms of a previous definition,
+    Submitting TBR to fix Darwin build.
     
-    e.g.,
-            #define __NR_timer_create       259
-            #define __NR_timer_settime      (__NR_timer_create+1)
-            ...
-            #define __NR_mq_open            277
-            #define __NR_mq_unlink          (__NR_mq_open+1)
-    
-    This change assumes the numbers are sorted
-    sequentially in the input file.
-    
-    R=rsc, bradfitzwork
+    R=rsc
+    TBR=rsc
     CC=golang-dev
-    https://golang.org/cl/3946041
+    https://golang.org/cl/3912043
 
- src/pkg/syscall/mksysnum_linux.sh    | 16 ++++++++++++----
- src/pkg/syscall/zsysnum_linux_386.go | 13 +++++++++++++
- 2 files changed, 25 insertions(+), 4 deletions(-)
+ src/cmd/ld/ldmacho.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

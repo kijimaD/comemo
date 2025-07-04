@@ -1,12 +1,29 @@
-commit 87367cf86a0a8390418a8e2431a11d5dcdddff72
-Author: Julie <julie@golang.org>
-Date:   Wed Jun 12 12:51:22 2019 -0400
+commit 933e34ac995cf7b2a1d044dc530bfafbf697758d
+Author: Keith Randall <khr@google.com>
+Date:   Mon Feb 25 14:51:58 2019 -0800
 
-    doc: add release notes for database/sql
+    cmd/compile: treat slice pointers as non-nil
     
-    Change-Id: I032a3342c3ac899a39d357420b981b6f281518f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181939
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    var a []int = ...
+    p := &a[0]
+    _ = *p
+    
+    We don't need to nil check on the 3rd line. If the bounds check on the 2nd
+    line passes, we know p is non-nil.
+    
+    We rely on the fact that any cap>0 slice has a non-nil pointer as its
+    pointer to the backing array. This is true for all safely-constructed slices,
+    and I don't see any reason why someone would violate this rule using unsafe.
+    
+    R=go1.13
+    
+    Fixes #30366
+    
+    Change-Id: I3ed764fcb72cfe1fbf963d8c1a82e24e3b6dead7
+    Reviewed-on: https://go-review.googlesource.com/c/163740
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.13.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go |  4 +++-
+ test/codegen/slices.go                   | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

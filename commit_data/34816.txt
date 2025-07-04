@@ -1,32 +1,24 @@
-commit 7dbf9d43f5a62a604ab3e6ceb1ee7ac4f3a80d80
-Author: Javier Kohen <jkohen@google.com>
-Date:   Tue Mar 20 14:35:37 2018 -0400
+commit 92c35824710e001b8a6b19cddf739c0b6b05306a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 10:57:14 2017 -0500
 
-    regexp: use sync.Pool to cache regexp.machine objects
+    cmd/go/internal/work: do not write trivial.c when testing gcc flags
     
-    Performance optimization for the internals of the Regexp type. This adds
-    no features and has no user-visible impact beyond performance. Copy now
-    shares the cache, so memory usage for programs that use Copy a lot
-    should go down; Copy has effectively become a no-op.
+    CL 61111 disabled the writing of trivial.c in -n mode, which
+    made -n mode at least inconsistent with regular mode in
+    how it was testing for flags. We think that both were getting
+    the same answer, so avoid creating the file in both modes
+    to make sure.
     
-    The before v. after benchmark results show a lot of noise from run to
-    run, but there's a clear improvement to the Shared case and no detriment
-    to the Copied case.
+    If this CL turns out to be wrong, then when we revert it we
+    should make sure that the empty file is written even in -n mode,
+    because this check affects the command-line flags printed
+    by other commands in that mode.
     
-    BenchmarkMatchParallelShared-4                        361           77.9          -78.42%
-    BenchmarkMatchParallelCopied-4                        70.3          72.2          +2.70%
-    
-    Macro benchmarks show that the lock contention in Regexp is gone, and my
-    server is now able to scale linearly 2.5x times more than before (and I
-    only stopped there because I ran out of CPU in my test machine).
-    
-    Fixes #24411
-    
-    Change-Id: Ib33abff2802f27599f5d09084775e95b54e3e1d7
-    Reviewed-on: https://go-review.googlesource.com/101715
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0a050bfc148fe5a9d430a153d7816b2821277f0d
+    Reviewed-on: https://go-review.googlesource.com/78115
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/regexp.go | 62 +++++++++++++++++++++-------------------------------
- 1 file changed, 25 insertions(+), 37 deletions(-)
+ src/cmd/go/internal/work/exec.go | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

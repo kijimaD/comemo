@@ -1,18 +1,14 @@
-commit c863db4e8762d24df791025314ceb4241df921a3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 7 18:02:58 2013 -0800
+commit 77c343328ece54d140af2ed5514d68bb91b29734
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jan 8 10:00:21 2013 +1100
 
-    spec: s/char_lit/rune_lit/
+    cmd/go: use filepath.SplitList when inspecting GOPATH
     
-    The spec talks explicitly about rune literals but the
-    respective production is still called char_lit for
-    historic reasons. Updated the two occurences.
+    There exists a test case for this condition, but it only runs on unix systems, which neatly dovetails into the code always using ':' as the list separator.
     
-    Fixes #4602.
-    
-    R=rsc, iant, r, ken
+    R=adg, iant
     CC=golang-dev
-    https://golang.org/cl/7070048
+    https://golang.org/cl/7057052
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

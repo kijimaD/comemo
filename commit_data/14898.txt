@@ -1,13 +1,12 @@
-commit 40b3758864deab9e096b6ee8d102caf11ecce051
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Jan 17 18:48:11 2013 +0800
+commit f5958c614166e957f2e409aaaf1db30e3c17e794
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Thu Jan 17 15:08:20 2013 +1100
 
-    os: use SameFile in TestStartProcess
-    Fixes #4650.
+    doc/articles/json_and_go: fix some format.
     
-    R=golang-dev, bradfitz, alex.brainman
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7085048
+    https://golang.org/cl/7131045
 
- src/pkg/os/os_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ doc/articles/json_and_go.html | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

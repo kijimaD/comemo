@@ -1,32 +1,18 @@
-commit 143c1c82371d52a4f2cf72c56eaaac4c8766e234
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 23 15:51:42 2018 -0400
+commit dce644d95be4929f84dde88d4b6a610fc43c729c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 10 08:51:54 2018 +0200
 
-    cmd/go/internal/{modcmd,modload}: lock edits to go.mod
+    cmd/go: fix spelling in proxy documentation
     
-    Use an arbitrary lockfile to serialize edits, and use atomic renames
-    to actually write the go.mod file so that we never drop version
-    requirements due to a command failing partway through a write.
+    After running mkalldocs.sh this also adds some previously missing parts
+    to alldocs.go
     
-    Multiple invocations of the 'go' command may read the go.mod file
-    concurrently, and will see some consistent version even if some other
-    invocation changes it concurrently.
-    
-    Multiple commands may attempt to write the go.mod file concurrently.
-    One writer will succeed and write a consistent, complete go.mod file.
-    The others will detect the changed contents and fail explicitly: it is
-    not, in general, possible to resolve two conflicting changes to module
-    requirements, so we surface the problem to the user rather than trying
-    to solve the problem heuristically.
-    
-    Updates #26794
-    
-    Change-Id: Ia1a06a01ef93fa9be664f560eb83bb86b0207443
-    Reviewed-on: https://go-review.googlesource.com/c/146380
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifa624c54543fd31d699a0d4bb5df7b1969bf941c
+    Reviewed-on: https://go-review.googlesource.com/128915
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modcmd/edit.go  | 14 +++++++--
- src/cmd/go/internal/modload/init.go | 58 +++++++++++++++++++++++++++++--------
- 2 files changed, 57 insertions(+), 15 deletions(-)
+ src/cmd/go/alldocs.go                 | 18 +++++++++++++++---
+ src/cmd/go/internal/modfetch/proxy.go |  2 +-
+ 2 files changed, 16 insertions(+), 4 deletions(-)

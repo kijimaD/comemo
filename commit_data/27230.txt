@@ -1,12 +1,16 @@
-commit 3836354f113367a6a405ac17a65f406514ea9313
+commit 8540a1c4dfd6f4950f5a1da6241c76765262ddbd
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 28 13:51:12 2016 -0500
+Date:   Wed Mar 16 20:14:13 2016 +0000
 
-    doc: update go1.7.txt
+    net/http: remove init func reference to ServeMux
     
-    Change-Id: I53dd5affc3a1e1f741fe44c7ce691bb2cd432764
-    Reviewed-on: https://go-review.googlesource.com/22657
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Shrinks cmd/go by 30KB.
+    
+    Change-Id: Ied31192e85af76ebac743f8cc12bd9ef6ec5048f
+    Reviewed-on: https://go-review.googlesource.com/20765
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.7.txt | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/net/http/http_test.go | 6 ++++--
+ src/net/http/server.go    | 9 +++++++--
+ 2 files changed, 11 insertions(+), 4 deletions(-)

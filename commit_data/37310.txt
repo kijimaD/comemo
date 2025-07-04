@@ -1,63 +1,17 @@
-commit ad4a58e31501bce5de2aad90a620eaecdc1eecb8
-Author: Keith Randall <khr@google.com>
-Date:   Mon Nov 5 11:00:01 2018 -0800
+commit 30678788b2fef14a614a1cb5b0ea4a7b12a61236
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 16 21:29:39 2018 -0400
 
-    strings,bytes: use inlineable function trampolines instead of linkname
+    cmd/go/internal/modfetch: make subdirectories unwritable too
     
-    Cleans things up quite a bit.
+    The top-level directory in a module was marked unwritable
+    but not the subdirectories. Fix that.
     
-    There's still a few more, like runtime.cmpstring, which might also
-    be worth fixing.
-    
-    Change-Id: Ide18dd621efc129cc686db223f47fa0b044b5580
-    Reviewed-on: https://go-review.googlesource.com/c/148578
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ia57e5343624753851d9fe1ddfe496b870b67f924
+    Reviewed-on: https://go-review.googlesource.com/124381
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/bytes/bytes.go                          | 19 ++++++++++++
- src/bytes/bytes_decl.go                     | 24 ---------------
- src/cmd/vet/all/whitelist/386.txt           |  1 -
- src/cmd/vet/all/whitelist/all.txt           |  3 --
- src/cmd/vet/all/whitelist/amd64.txt         |  1 -
- src/cmd/vet/all/whitelist/arm.txt           |  1 -
- src/cmd/vet/all/whitelist/arm64.txt         |  1 -
- src/cmd/vet/all/whitelist/mipsx.txt         |  1 -
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt |  1 -
- src/cmd/vet/all/whitelist/ppc64x.txt        |  1 -
- src/cmd/vet/all/whitelist/s390x.txt         |  1 -
- src/cmd/vet/all/whitelist/wasm.txt          |  1 -
- src/internal/bytealg/compare_386.s          |  9 ------
- src/internal/bytealg/compare_amd64.s        |  9 ------
- src/internal/bytealg/compare_amd64p32.s     | 10 -------
- src/internal/bytealg/compare_arm.s          |  9 ------
- src/internal/bytealg/compare_arm64.s        |  9 ------
- src/internal/bytealg/compare_generic.go     | 28 ------------------
- src/internal/bytealg/compare_mipsx.s        | 33 ---------------------
- src/internal/bytealg/compare_ppc64x.s       | 31 --------------------
- src/internal/bytealg/compare_s390x.s        |  9 ------
- src/internal/bytealg/compare_wasm.s         | 11 -------
- src/internal/bytealg/equal_386.s            | 19 ------------
- src/internal/bytealg/equal_amd64.s          | 19 ------------
- src/internal/bytealg/equal_amd64p32.s       | 20 -------------
- src/internal/bytealg/equal_arm.s            |  4 ---
- src/internal/bytealg/equal_arm64.s          | 21 --------------
- src/internal/bytealg/equal_mips64x.s        |  4 ---
- src/internal/bytealg/equal_mipsx.s          |  4 ---
- src/internal/bytealg/equal_ppc64x.s         | 20 -------------
- src/internal/bytealg/equal_s390x.s          | 13 ---------
- src/internal/bytealg/equal_wasm.s           | 21 --------------
- src/internal/bytealg/indexbyte_386.s        |  8 -----
- src/internal/bytealg/indexbyte_amd64.s      | 24 ---------------
- src/internal/bytealg/indexbyte_amd64p32.s   | 18 ------------
- src/internal/bytealg/indexbyte_arm.s        |  8 -----
- src/internal/bytealg/indexbyte_arm64.s      | 16 ----------
- src/internal/bytealg/indexbyte_generic.go   | 22 --------------
- src/internal/bytealg/indexbyte_mips64x.s    |  8 -----
- src/internal/bytealg/indexbyte_mipsx.s      |  8 -----
- src/internal/bytealg/indexbyte_ppc64x.s     | 16 ----------
- src/internal/bytealg/indexbyte_s390x.s      | 16 ----------
- src/internal/bytealg/indexbyte_wasm.s       | 45 -----------------------------
- src/strings/strings.go                      |  5 ++++
- src/strings/strings_decl.go                 | 10 -------
- 45 files changed, 24 insertions(+), 538 deletions(-)
+ src/cmd/go/internal/modfetch/unzip.go |  2 +-
+ src/cmd/go/mod_test.go                | 19 ++++++++++++++++---
+ 2 files changed, 17 insertions(+), 4 deletions(-)

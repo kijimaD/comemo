@@ -1,12 +1,16 @@
-commit 6ede93498c664c33f84f1ab7f81dc15d6444f2f0
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 10 12:06:24 2013 +1100
+commit 4230044bb867f80469076e3407ef368a93ca8d56
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 19:35:07 2013 -0500
 
-    misc/cgo/testcdefs: rm correct file in test.bash
+    runtime: remove non-extern decls of runtime.goarm
     
-    R=golang-dev, rsc
+    The linker is in charge of providing the one true declaration.
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/39780043
+    https://golang.org/cl/39560043
 
- misc/cgo/testcdefs/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/obj.c               | 2 +-
+ src/pkg/runtime/asm_arm.s      | 2 --
+ src/pkg/runtime/os_linux_arm.c | 2 +-
+ 3 files changed, 2 insertions(+), 4 deletions(-)

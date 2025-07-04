@@ -1,27 +1,12 @@
-commit 37cee77ac681654a20939faa047f11b308908902
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 28 14:43:56 2013 +1000
+commit aff7ea9458d9010aec816e451fa557a3fd3a7d68
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 28 09:40:08 2013 +1000
 
-    text/template: allow {{else if ... }} to simplify if chains
-    The method is simple: the parser just parses
+    C: add Asim Shankar (Google CLA)
     
-            {{if A}}a{{else if B}}b{{end}}
-    
-    to the same tree that would be produced by
-    
-            {{if A}}a{{else}}{{if B}}b{{end}}{{end}}
-    
-    Thus no changes are required in text/template itself
-    or in html/template, only in text/template/parse.
-    
-    Fixes #6085
-    
-    R=golang-dev, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13327043
+    https://golang.org/cl/13313043
 
- src/pkg/text/template/doc.go              |  6 ++++++
- src/pkg/text/template/exec_test.go        |  2 ++
- src/pkg/text/template/parse/parse.go      | 31 +++++++++++++++++++++++++++----
- src/pkg/text/template/parse/parse_test.go |  5 +++++
- 4 files changed, 40 insertions(+), 4 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

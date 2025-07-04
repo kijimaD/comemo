@@ -1,17 +1,18 @@
-commit a34e6650c0847ba54445b036dfd33e7d98fe8a2c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 31 12:30:19 2018 -0700
+commit 438a757d73958ca9b9874df32d13e001180906af
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Feb 5 17:04:44 2018 -0500
 
-    encoding/hex: improve Decode and DecodeString docs
+    cmd/compile/internal: reuse more memory
     
-    Simplify the wording of both.
+    Reuse even more memory, and keep track of it in a long-lived debugState
+    object rather than piecemeal in the Cache.
     
-    Make the DecodeString docs more accurate:
-    DecodeString returns a slice, not a string.
-    
-    Change-Id: Iba7003f55fb0a37aafcbeee59a30492c0f68aa4e
-    Reviewed-on: https://go-review.googlesource.com/115615
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib6936b4e8594dc6dda1f59ece753c00fd1c136ba
+    Reviewed-on: https://go-review.googlesource.com/92404
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/encoding/hex/hex.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/fmt_test.go           |   1 -
+ src/cmd/compile/internal/gc/pgen.go   |   2 +-
+ src/cmd/compile/internal/ssa/cache.go |  21 +---
+ src/cmd/compile/internal/ssa/debug.go | 210 ++++++++++++++++++++++------------
+ 4 files changed, 136 insertions(+), 98 deletions(-)

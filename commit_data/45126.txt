@@ -1,18 +1,16 @@
-commit 82e4a6310b78290cb55be6e6e5d0e274aa004faf
-Author: Ruslan Andreev <ruslan.andreev@huawei.com>
-Date:   Tue Dec 22 19:22:14 2020 +0800
+commit 5d12434eee031e3db9e0bfe753c663b565b6a0f9
+Author: Alexey Vilenskiy <bynovhack@gmail.com>
+Date:   Fri Aug 14 11:37:31 2020 +0300
 
-    runtime: move roots' bases calculation to gcMarkRootPrepare
+    reflect: support multiple keys in struct tags
     
-    This patch provides changes according to Austin's TODO. It just moves
-    calculation of base indexes of each root type from markroot function
-    to gcMarkRootPrepare.
+    Fixes #40281
     
-    Change-Id: Ib231de34e7f81e922762fc3ee2b1830921c0c7cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279461
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie624bce3a78a06d7ed71bba1f501e66802dffd13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/mgc.go     |  4 ++++
- src/runtime/mgcmark.go | 37 ++++++++++++++++++-------------------
- 2 files changed, 22 insertions(+), 19 deletions(-)
+ src/reflect/all_test.go | 170 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/type.go     |  27 +++++++-
+ 2 files changed, 194 insertions(+), 3 deletions(-)

@@ -1,33 +1,20 @@
-commit c797256a8f7dcf24fdc798b1e0845d58aeeef7a2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 6 20:39:57 2017 -0500
+commit 9be14c4058287f88dc927ea847e3d6d57ff4047b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 03:31:47 2016 +0000
 
-    runtime/pprof: add GNU build IDs to Mappings recorded from /proc/self/maps
+    net: add test that TCP Close unblocks blocked Reads
     
-    This helps systems that maintain an external database mapping
-    build ID to symbol information for the given binary, especially
-    in the case where /proc/self/maps lists many different files
-    (for example, many shared libraries).
+    I guess this was fixed at some point. Remove a skipped test in
+    net/http and add an explicit test in net.
     
-    Avoid importing debug/elf to avoid dragging in that whole
-    package (and its dependencies like debug/dwarf) into the
-    build of every program that generates a profile.
+    Fixes #17695
     
-    Fixes #19431.
-    
-    Change-Id: I6d4362a79fe23e4f1726dffb0661d20bb57f766f
-    Reviewed-on: https://go-review.googlesource.com/37855
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Idb9f3e236b726bb45098474b830c95c1fce57529
+    Reviewed-on: https://go-review.googlesource.com/33242
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go           |   2 +-
- src/runtime/pprof/elf.go            | 109 ++++++++++++++++++++++++++++++++++++
- src/runtime/pprof/proto.go          |  10 ++--
- src/runtime/pprof/proto_test.go     |   2 +
- src/runtime/pprof/testdata/README   |   9 +++
- src/runtime/pprof/testdata/test32   | Bin 0 -> 528 bytes
- src/runtime/pprof/testdata/test32be | Bin 0 -> 520 bytes
- src/runtime/pprof/testdata/test64   | Bin 0 -> 760 bytes
- src/runtime/pprof/testdata/test64be | Bin 0 -> 856 bytes
- 9 files changed, 127 insertions(+), 5 deletions(-)
+ src/net/http/serve_test.go |  3 ---
+ src/net/net_test.go        | 19 +++++++++++++++++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

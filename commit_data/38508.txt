@@ -1,16 +1,14 @@
-commit 9f56845f2ca53316e1554dff4d4b373fec91ab84
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 21 09:32:03 2019 -0700
+commit f08352bd16e03555112154781afe84c3b5d6e0c8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 2 15:47:40 2018 +0000
 
-    cmd/compile: stop shadowing bool type in rewrite rules
+    runtime: look up runtime env variables case insensitively on Windows
     
-    This disrupts code instrumentation tools like go-fuzz.
+    Fixes #28557
     
-    Change-Id: I524f31316975096ca5e3b1203a82e91ed1b6097e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168801
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifca958b78e8c62fbc66515e693f528d799e8e84b
+    Reviewed-on: https://go-review.googlesource.com/c/147039
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 20 +++----
- src/cmd/compile/internal/ssa/rewriteARM64.go | 82 ++++++++++++++--------------
- 2 files changed, 51 insertions(+), 51 deletions(-)
+ src/runtime/env_posix.go | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

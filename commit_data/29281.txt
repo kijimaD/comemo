@@ -1,26 +1,19 @@
-commit 40aaf283124de44d513ca086976194f0133faa82
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Fri Oct 28 14:42:42 2016 -0200
+commit a6edffb28696b739136172995ed3ec000e8e6fdb
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 6 13:39:22 2016 -0700
 
-    runtime: get ppc64x ISA level and hardware capabilities from HWCAP/HWCAP2
+    cmd/compile: add BVC/BVS to branch ops in ppc64/prog.go
     
-    This implements a check that can be done at runtime for the ISA level and
-    hardware capability. It follows the same implementation as in s390x.
+    Includes test case shown to fail with unpatched compiler.
     
-    These checks will be important as we enable new instructions and write go
-    asm implementations using those.
+    Fixes #17005.
     
-    Updates #15403
-    Fixes #16643
-    
-    Change-Id: Idfee374a3ffd7cf13a7d8cf0a6c83d247d3bee16
-    Reviewed-on: https://go-review.googlesource.com/32330
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I49b7b1a3f02736d85846a2588018b73f68d50320
+    Reviewed-on: https://go-review.googlesource.com/28573
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/os_linux.go        |  1 +
- src/runtime/os_linux_noauxv.go |  2 +-
- src/runtime/os_linux_ppc64x.go | 60 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 62 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ppc64/prog.go |  2 ++
+ test/fixedbugs/issue17005.go           | 46 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

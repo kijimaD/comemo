@@ -1,17 +1,14 @@
-commit d38cc47c0c2d830fd745b49bf6be1b0ff0e17b14
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 1 09:19:53 2011 -0800
+commit 6bee4e556fddec07cbdeb348dd91d3e55f7e2960
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 1 14:46:32 2011 +0100
 
-    text/template: replace Add with AddParseTree
-    Makes it clear we're adding exactly one tree and creating a
-    new template for it.
+    gc: avoid re-genning ninit in branches involving float comparison.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5448077
+    https://golang.org/cl/5451050
 
- src/pkg/html/template/escape.go     |  4 +++-
- src/pkg/html/template/template.go   | 19 ++++++++++++-------
- src/pkg/text/template/multi_test.go | 28 ++++++++++++++++++++++++++++
- src/pkg/text/template/template.go   | 23 +++++++++--------------
- 4 files changed, 52 insertions(+), 22 deletions(-)
+ src/cmd/5g/cgen.c | 4 ++++
+ src/cmd/6g/cgen.c | 4 ++++
+ src/cmd/8g/cgen.c | 4 ++++
+ 3 files changed, 12 insertions(+)

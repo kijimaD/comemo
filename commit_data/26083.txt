@@ -1,17 +1,15 @@
-commit 1d40e2b14b67f74681d71255ae833c6748d47b3f
-Author: Muhammed Uluyol <uluyol0@gmail.com>
-Date:   Sat Mar 5 23:51:25 2016 -0500
+commit 63a6f305ef7e4f0cd0d99e9714b259c1930f5609
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 13:42:13 2015 -0500
 
-    Rewrite leftover references to plan9.bell-labs.com to 9p.io.
+    cmd/compile: diagnose invalid switch interface{} case earlier
     
-    Change-Id: Iadb4aa016a7b361d01827787dbc59164d5d147f2
-    Reviewed-on: https://go-review.googlesource.com/20291
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11737.
+    
+    Change-Id: Id231b502ac5a44035dc3a02515b43bf665cb1e87
+    Reviewed-on: https://go-review.googlesource.com/17816
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/yacc/doc.go                | 2 +-
- src/debug/gosym/symtab.go          | 2 +-
- src/image/color/palette/gen.go     | 2 +-
- src/image/color/palette/palette.go | 2 +-
- src/path/filepath/path.go          | 2 +-
- src/path/path.go                   | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/swt.go |  2 ++
+ test/fixedbugs/issue11737.go       | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

@@ -1,21 +1,22 @@
-commit c55c33af52c5ed97c93ec67bf7373d095bcb957d
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed Sep 14 02:11:02 2016 -0700
+commit 30fc940c70ee5ee27f0a455248735b8b57f34fb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 20 17:26:24 2016 -0700
 
-    os/exec: add examples for CombinedOutput, StdinPipe, StderrPipe
+    go/types: don't drop type in n:1 var decl if one is given
     
-    Updates #16360.
+    In n:1 variable declarations (multiple lhs variables with single
+    multi-valued initialization expression) where also a variable
+    type is provided, make sure that that type is assigned to all
+    variables on the lhs before the init expression assignment is
+    checked. Otherwise, (some) variables are assumed to take the type
+    of the corresponding value of the multi-valued init expression.
     
-    Adds examples for:
-    + CombinedOutput
-    + StdinPipe
-    + StderrPipe
+    Fixes #15755.
     
-    Change-Id: I19293e64b34ed9268da00e0519173a73bfbc2c10
-    Reviewed-on: https://go-review.googlesource.com/29150
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I969cb5a95c85e28dbb38abd7fa7df16ff5554c03
+    Reviewed-on: https://go-review.googlesource.com/23313
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/exec/example_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 50 insertions(+)
+ src/go/types/decl.go             | 19 +++++++++++++++++++
+ src/go/types/testdata/issues.src | 16 ++++++++++++++++
+ 2 files changed, 35 insertions(+)

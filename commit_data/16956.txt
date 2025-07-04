@@ -1,17 +1,42 @@
-commit bd65404eef75fb7e37e50cb70721fe707f346792
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 1 07:12:32 2013 +1000
+commit 9f75dd7f25d0171bb0b32522de41b252d6eef111
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 31 14:10:46 2013 -0700
 
-    spec: clarify a couple of issues about channels
+    undo CL 11884043 / bfd5ed8236d5
     
-    1. They are FIFOs.
-    2. They are safe for concurrent access.
+    CL submitted prematurely by mistake.
     
-    Fixes #5911.
+    ««« original CL description
+    spec: clarify index and selector expressions
     
-    R=golang-dev, dvyukov, adg
+    1) Explain a[i] and a[i:j] where a is of type *A as
+       shortcut for (*a)[i] and (*a)[i:j], respectively.
+    
+    2) Together with 1), because len() of nil slices is
+       well defined, there's no need to special case nil
+       operands anymore.
+    
+    3) The result of indexing or slicing a constant string
+       is always a non-constant byte or string value.
+    
+    4) The result of slicing an untyped string is a value
+       of type string.
+    
+    5) If the operand of a valid slice a[i:j] is nil (i, j
+       must be 0 for it to be valid - this already follows
+       from the in-range rules), the result is a nil slice.
+    
+    Fixes #4913.
+    Fixes #5951.
+    
+    R=rsc, r, iant, ken
     CC=golang-dev
-    https://golang.org/cl/11549043
+    https://golang.org/cl/11884043
+    »»»
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/12170046
 
- doc/go_spec.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ doc/go_spec.html | 69 +++++++++++++++++++++++---------------------------------
+ 1 file changed, 28 insertions(+), 41 deletions(-)

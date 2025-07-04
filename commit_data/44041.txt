@@ -1,23 +1,24 @@
-commit 139cd0e12ff9d7628c321abbfb8d2f4ada461543
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 17 14:59:45 2020 -0800
+commit 4daf8719e7f4c71a620f650d73caab2a9d7ea499
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon May 4 12:21:18 2020 +0530
 
-    go/build: make TestDependencies work again
+    runtime: use correct truncated constants for float conversion
     
-    CL 243940 accidentally broke TestDependencies such that it always passed.
-    Make it work again, and add a test so that it won't break in the same way.
+    There is a range of numbers lower than 0x7fff_ffff_ffff_ffff which
+    cannot be represented by a 64 bit float. We set that to the correct
+    limit beyond which conversions can happen properly.
     
-    This revealed that the new embed package was missing from TestDepencies,
-    so add it.
+    It appears that the negative bound check can indeed by correctly handled
+    by I64TruncF64S. But we use the same limit for consistency.
     
-    Fixes #43249
+    Fixes #38839
     
-    Change-Id: I02b3e38dd35ad88880c4344d46de13b7639aa4c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279073
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib783a22cb331fba7e6955459f41c67f9ceb53461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231837
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go | 30 ++++++++++++++++++++++++++++--
- 1 file changed, 28 insertions(+), 2 deletions(-)
+ src/runtime/conv_wasm_test.go | 128 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_wasm.s        |   6 +-
+ 2 files changed, 131 insertions(+), 3 deletions(-)

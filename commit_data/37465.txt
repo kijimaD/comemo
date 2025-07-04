@@ -1,26 +1,18 @@
-commit 47df645473210267fd7512c5b92de00908198974
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Nov 22 00:06:42 2018 +0100
+commit faadda040d49c581a82fc459c34186c8bff58a2b
+Author: Roberto Clapis <robclap8@gmail.com>
+Date:   Thu Aug 2 15:27:14 2018 +0200
 
-    os: prevent RemoveAll to remove "." on Plan 9
+    os: add check for empty executable path on darwin
     
-    CL 150497 enabled TestRemoveAllDot on "noat" systems.
+    os used to panic (access out of bounds) if executablePath was left empty
     
-    However, this test is failing on Plan 9 because the rmdir
-    system call allows to remove "." on Plan 9.
+    Fixes #22529
     
-    This change prevents the "noat" implementation of RemoveAll to
-    remove ".", so it remains consistent with the "at" implementation.
-    
-    Fixes #28903.
-    
-    Change-Id: Ifc8fe36bdd8053a4e416f0590663c844c97ce72a
-    Reviewed-on: https://go-review.googlesource.com/c/150621
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: Iead5e60a3b000dbde421a8e8612c3690340879ce
+    Reviewed-on: https://go-review.googlesource.com/127546
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/path.go           | 11 +++++++++++
- src/os/removeall_at.go   | 11 -----------
- src/os/removeall_noat.go |  7 +++++++
- 3 files changed, 18 insertions(+), 11 deletions(-)
+ src/os/executable_darwin.go | 5 +++++
+ 1 file changed, 5 insertions(+)

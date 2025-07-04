@@ -1,15 +1,22 @@
-commit 97c859f8da0c85c33d0f29ba5e11094d8e691e87
-Author: Michal Bohuslávek <mbohuslavek@gmail.com>
-Date:   Wed Sep 2 19:05:22 2015 +0200
+commit 3e476827a68a64168f345ae96d2fa1bb80eb6bf4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 18 18:56:47 2015 +1000
 
-    encoding/xml: reject invalid comments
+    cmd/compile/internal/gc: move intLiteral to gc.Node
     
-    Fixes #11112.
+    intLiteral is used by the gins wrappers in arm64, ppc64 and
+    mips64. Refactor the function to a method on gc.Node and update
+    the callers to use the common copy.
     
-    Change-Id: I16e7363549a0dec8c61addfa14af0866c1fd7c40
-    Reviewed-on: https://go-review.googlesource.com/14173
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2db90d801a9cb18f8526eb921e13daa75ca1cf6f
+    Reviewed-on: https://go-review.googlesource.com/14744
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/read_test.go | 21 +++++++++++++++++++++
- src/encoding/xml/xml.go       |  7 ++++++-
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/arm64/gsubr.go  | 16 ++--------------
+ src/cmd/compile/internal/gc/const.go     | 13 +++++++++++++
+ src/cmd/compile/internal/mips64/gsubr.go | 16 ++--------------
+ src/cmd/compile/internal/ppc64/gsubr.go  | 16 ++--------------
+ 4 files changed, 19 insertions(+), 42 deletions(-)

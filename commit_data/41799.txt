@@ -1,23 +1,18 @@
-commit 5db079d2e5f97952be288c28a3a0690a523efdce
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Sun Mar 29 03:04:51 2020 +0000
+commit 8bb47a5eecf57b88c1b9cc088a21ae869c6a6764
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 25 14:07:10 2019 -0400
 
-    crypto/rsa: reject invalid length PKCS#1v1.5 signatures
+    net/http: skip failing test on windows-amd64-longtest builder
     
-    Per RFC 8017, reject signatures which are not the same length as the RSA
-    modulus. This matches the behavior of SignPKCS1v15 which properly left pads
-    the signatures it generates to the size of the modulus.
+    bradfitz is actively thinking about a proper fix.
+    In the meantime, skip the test to suss out any other failures in the builder.
     
-    Fixes #21896
+    Updates #35122
     
-    Change-Id: I2c42a0b24cf7fff158ece604b6f0c521a856d932
-    GitHub-Last-Rev: 6040f7990633630a0ad157cb17e016bb7db98a27
-    GitHub-Pull-Request: golang/go#38140
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226203
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9bf0640222e3d385c1a3e2be5ab52b80d3e8c21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203500
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/rsa/pkcs1v15.go      |  7 +++++++
- src/crypto/rsa/pkcs1v15_test.go | 18 ++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/net/http/transport_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

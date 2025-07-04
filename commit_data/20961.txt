@@ -1,13 +1,13 @@
-commit 107eea518b9c9fa4f406bbaeff4ea169e4aa0363
+commit 9cd8cb0b17e4bbff7cfce29631dc78c9cafd2e8f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 11 09:16:41 2014 +1100
+Date:   Thu Oct 30 12:33:57 2014 +1100
 
-    doc: document go1.4
+    tag go1.4beta1
     
-    LGTM=bradfitz
-    R=rsc, bradfitz
+    TBR=rsc
+    R=r, rsc
     CC=golang-codereviews
-    https://golang.org/cl/189810043
+    https://golang.org/cl/164240043
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,13 +1,15 @@
-commit 7abc8c4accefec10cb10e06cec572ee4146f37f7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 9 14:38:45 2014 -0700
+commit 7de0c315f68035456c764f6edea393bc1581dc80
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 12:08:22 2014 -0400
 
-    debug/elf: add comments explaining applyRelocations for amd64/arm64
+    CONTRIBUTORS: add Raul Silvera (Google CLA)
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Raul wrote the pprof code in CL 153750043.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/155190043
+    https://golang.org/cl/146450043
 
- src/debug/elf/file.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

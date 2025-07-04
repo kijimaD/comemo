@@ -1,22 +1,18 @@
-commit fb5bdb4cc94d23209d77a73c4148b3f9fbb10173
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 6 13:06:58 2023 -0700
+commit 77c0e99c192331d44ddab664c4b6442925410cdc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 28 14:02:18 2022 +0200
 
-    cmd/compile: absorb InvertFlags into Noov comparisons
+    net/netip: use IPv4Unspecified in TestIPProperties
     
-    Unfortunately, there isn't a single op that provides the resulting
-    computation.
-    At least, I couldn't find one.
+    Also inline the single-use unspecified{4,6} variables.
     
-    Fixes #62469
-    
-    Change-Id: I236f3965b827aaeb3d70ef9fe89be66b116494f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526276
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I5992273031e0b8db1bc6f5de8fce669310226ee9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435915
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules | 30 +++++++++--------
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 46 +++++++++++++++++++++++++++
- test/fixedbugs/issue62469.go                  | 15 +++++++++
- 3 files changed, 77 insertions(+), 14 deletions(-)
+ src/net/netip/netip_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

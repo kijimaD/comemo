@@ -1,13 +1,15 @@
-commit a60b91d5ad7522813ecc2b67df0b321723dffc9b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 5 10:45:56 2014 -0700
+commit be781a72c43cb346d155152ec25cc80790b753fd
+Author: Tyler Bunnell <tylerbunnell@gmail.com>
+Date:   Sun May 4 23:00:47 2014 -0400
 
-    tag go1.2.2
+          archive/zip: Document ModTime is always UTC
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Fixes #7592
+    
+    LGTM=robert.hencke, adg
+    R=golang-codereviews, robert.hencke, gobot, adg
     CC=golang-codereviews
-    https://golang.org/cl/96000043
+    https://golang.org/cl/90810043
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/struct.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

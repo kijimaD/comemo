@@ -1,18 +1,19 @@
-commit 328214e85ccffa80daa2b78d017c0ccb249f8221
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue May 12 11:05:24 2020 +0800
+commit 3457359b90c1b4ef0c9143d2d2e9575b3e72cf4b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 11:24:06 2020 -0500
 
-    cmd/compile: convert more ARM64.rules lines to typed aux mode
+    cmd/go: convert TestRelativeGOBINFail to script framework
     
-    Add a check code for checking whether the "c" value can be
-    represented as a signed 32 bit integer in some rules.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Passes toolstash-check -all.
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I84e4431dc75945985695516d34565b841c8b53e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233738
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1cb3e2e28700b05b08933f4e24cd996268c1f163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214428
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 266 ++++++++++----------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 360 +++++++++++++++------------
- 2 files changed, 335 insertions(+), 291 deletions(-)
+ src/cmd/go/go_test.go                                      | 10 ----------
+ src/cmd/go/testdata/script/install_relative_gobin_fail.txt |  8 ++++++++
+ 2 files changed, 8 insertions(+), 10 deletions(-)

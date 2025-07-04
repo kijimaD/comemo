@@ -1,27 +1,29 @@
-commit b3a5640397e887514a860b9eb73e125c2b650f7b
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Mar 8 23:38:42 2021 -0500
+commit f46a5b1e4559191363dbd4f510105dd31ae97aaa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 11 15:48:22 2020 -0400
 
-    go/types: remove the concept of finals
+    cmd/link: support PIE internal linking on darwin/amd64
     
-    Checker.finals and the corresponding atEnd were added in CL 191418 as a
-    mechanism to postpone interface type comparison until after all
-    interfaces were complete. In the intervening CL 195837 we've adopted a
-    convention of ensuring that interfaces are complete before comparing
-    them. Since then we've also added the additional case of expansion for
-    lazily resolving syntax.
+    This CL adds support of PIE internal linking on darwin/amd64.
     
-    Checker.later defers resolution of types until points in the checking
-    pass where all reachable types can be fully type checked, so the concept
-    of finals should no longer be necessary.
+    This is also preparation for supporting internal linking on
+    darwin/arm64 (macOS), which requires PIE for everything.
     
-    Change-Id: I58818c1a6b605dccc9b0ecb3a1f6859c138175d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299590
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #38485.
+    
+    Change-Id: I2ed58583dcc102f5e0521982491fc7ba6f2754ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261642
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/check.go   | 21 ---------------------
- src/go/types/typexpr.go | 12 ++++++------
- 2 files changed, 6 insertions(+), 27 deletions(-)
+ misc/cgo/test/issue4029.c                     |   1 +
+ misc/cgo/test/issue4029.go                    |   4 +
+ misc/cgo/test/issue4029w.go                   |   2 +-
+ src/cmd/dist/test.go                          |  17 +-
+ src/cmd/internal/sys/supported.go             |   3 +-
+ src/cmd/link/internal/amd64/asm.go            |  65 +++-----
+ src/cmd/link/internal/ld/config.go            |   1 +
+ src/cmd/link/internal/ld/lib.go               |   6 +
+ src/cmd/link/internal/ld/macho.go             | 226 +++++++++++++++++++++++++-
+ src/cmd/link/internal/loader/symbolbuilder.go |  18 ++
+ 10 files changed, 289 insertions(+), 54 deletions(-)

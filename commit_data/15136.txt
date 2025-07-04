@@ -1,23 +1,24 @@
-commit d1e16d06b4df98930b5c6b0775cdd414dfdebd50
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 4 20:26:25 2013 -0800
+commit 572d984eaa64e6e3a1a67ecde9f6a1038d76becc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 4 22:48:31 2013 -0500
 
-    net/http: fix Server blocking after a Handler's Write fails
+    cmd/gc: fix escape analysis
     
-    If a Handle's Write to a ResponseWriter fails (e.g. via a
-    net.Conn WriteDeadline via WriteTimeout on the Server), the
-    Server was blocking forever waiting for reads on that
-    net.Conn, even after a Write failed.
+    If the analysis reached a node twice, then the analysis was cut off.
+    However, if the second arrival is at a lower depth (closer to escaping)
+    then it is important to repeat the traversal.
     
-    Instead, once we see a Write fail, close the connection,
-    since it's then dead to us anyway.
+    The repeating must be cut off at some point to avoid the occasional
+    infinite recursion. This CL cuts it off as soon as possible while still
+    passing all tests.
     
-    Fixes #4741
+    Fixes #4751.
     
-    R=golang-dev, adg
-    CC=golang-dev
-    https://golang.org/cl/7301043
+    R=ken2
+    CC=golang-dev, lvd
+    https://golang.org/cl/7303043
 
- src/pkg/net/http/serve_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go     |  4 +++
- 2 files changed, 64 insertions(+)
+ src/cmd/gc/esc.c | 28 ++++++++++++++++++++++++----
+ src/cmd/gc/go.h  |  1 +
+ test/escape2.go  | 16 ++++++++++++++++
+ 3 files changed, 41 insertions(+), 4 deletions(-)

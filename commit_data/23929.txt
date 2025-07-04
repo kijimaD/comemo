@@ -1,14 +1,17 @@
-commit b63fb59de89aef5e8f41969bee8a851ac3946c63
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jul 31 12:03:48 2015 +1000
+commit eb30fda83e0e1cb30ad8ac1fb46c9606da84bc76
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 23 14:01:45 2015 -0700
 
-    test/bench/shootout: clean up binaries after run
+    go/types: in string(x) conversions, x must be of integer type
     
-    Update #11943
+    Port of https://go-review.googlesource.com/11365
     
-    Change-Id: I3e6592876bf16d2f9129995b723ecf69c069653d
-    Reviewed-on: https://go-review.googlesource.com/12913
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #11357.
+    
+    Change-Id: Icd20fa038696a8853d1d14477e1c1132938b3e2e
+    Reviewed-on: https://go-review.googlesource.com/11368
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- test/bench/shootout/timing.sh | 3 +++
- 1 file changed, 3 insertions(+)
+ src/go/types/conversions.go           | 2 +-
+ src/go/types/testdata/conversions.src | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

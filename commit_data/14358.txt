@@ -1,14 +1,12 @@
-commit 6694f14b6787b5e24699beb6bc7bebf01273e152
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 8 09:04:27 2012 -0800
+commit 3f7f030c5965bbf62ae2cb54f10ea01d2f49e212
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 8 20:37:05 2012 +0400
 
-    test: run some more tests by default
+    runtime: fix instrumentation of slice append for race detection
     
-    R=golang-dev, remyoudompheng, iant, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6833043
+    https://golang.org/cl/6819107
 
- test/args.go | 5 +----
- test/nul1.go | 8 +-------
- test/run.go  | 3 ---
- 3 files changed, 2 insertions(+), 14 deletions(-)
+ src/pkg/runtime/slice.c | 2 ++
+ 1 file changed, 2 insertions(+)

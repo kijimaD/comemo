@@ -1,29 +1,17 @@
-commit 229cde5149fb30b5207c03e7ad296d9dbe027e66
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 14 14:50:37 2023 -0400
+commit fd2ac5ef968545e8283e32160fe69a9de1e98842
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 10:30:46 2022 +0800
 
-    cmd/go: fix tests when go.env sets GOPROXY=direct GOSUMDB=off
+    testing: convert common.hasSub to atomic type
     
-    Tested locally by changing GOROOT/go.env. At some point perhaps we
-    should also set up a builder that runs with some common expected
-    modifications to go.env
-    (such as GOTOOLCHAIN=local GOPROXY=direct GOSUMDB=off).
-    
-    Fixes #61358.
-    Updates #61359.
-    
-    Change-Id: I365ec536bec86370e302fb726fa897400ab42cf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509637
+    Change-Id: I3d8a9b901efabe62f432c06361826f46c78d2605
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426080
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/scriptconds_test.go                     |  1 +
- src/cmd/go/testdata/script/README                  |  2 ++
- src/cmd/go/testdata/script/gotoolchain_net.txt     |  4 +++-
- src/cmd/go/testdata/script/gotoolchain_version.txt | 13 +++++++++++--
- .../go/testdata/script/mod_prefer_compatible.txt   | 20 +++++++++++++++++---
- src/cmd/go/testdata/script/mod_sumdb_file_path.txt |  4 +++-
- src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 22 +++++++++++-----------
- 7 files changed, 48 insertions(+), 18 deletions(-)
+ src/testing/benchmark.go | 6 +++---
+ src/testing/testing.go   | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

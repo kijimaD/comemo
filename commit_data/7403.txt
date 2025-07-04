@@ -1,18 +1,15 @@
-commit 2aaabfc828268c93d7d242f570f2dade1397b6f4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 8 20:35:02 2011 -0800
+commit 3629d723288755f45e94c4c9fea1a92893455d0a
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Tue Feb 8 20:07:05 2011 -0800
 
-    http: handle unchunked, un-lengthed HTTP/1.1 responses
+        container/ring: Replace Iter() with Do().
     
-    Fixes #716
+    Faster in most cases, and not prone to memory leaks. Named "Do" to match with similarly named method on Vector.
     
-    This CL simply resumes the previous CL in-flight at
-    https://golang.org/cl/906042/
-    
-    R=rsc, petar-m, dsymonds
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4157042
+    https://golang.org/cl/4134046
 
- src/pkg/http/response_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/transfer.go      | 27 +++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/pkg/container/ring/ring.go      | 19 ++++++++-----------
+ src/pkg/container/ring/ring_test.go | 14 ++------------
+ 2 files changed, 10 insertions(+), 23 deletions(-)

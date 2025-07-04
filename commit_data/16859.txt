@@ -1,16 +1,12 @@
-commit 9c6fecc2da35d3d4ee685cc7f56c69f4671e8888
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Wed Jul 24 11:20:53 2013 -0400
+commit a0935cc97983c3d3e4b2be896ecc0d92572a02c0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 24 17:48:13 2013 +0900
 
-    misc/emacs: Make godef-jump behave more like find-tag by supporting pop-tag-mark
+    runtime: fix throw message in netpoll
     
-    Push point to the find-tag marker ring to support pop-tag-mark.
-    
-    Fixes #5804.
-    
-    R=adonovan
+    R=dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/11457044
+    https://golang.org/cl/11761043
 
- misc/emacs/go-mode.el | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/runtime/netpoll.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

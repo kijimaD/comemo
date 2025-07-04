@@ -1,16 +1,14 @@
-commit 2a81292ac35a1a71d64f28150c96e57b74f882d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 9 14:08:19 2011 -0800
+commit acc82ad72174111f3ced310f2bd3bd10d5c83f77
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Feb 9 13:13:17 2011 -0800
 
-    srcextract: HTML-escape output if so desired
+    peep: bug fix
     
-    This functionality was removed with CL 4169041.
-    
-    Minor simplifications.
-    
-    R=r, adg
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4171042
+    https://golang.org/cl/4173041
 
- doc/codelab/wiki/srcextract.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/5g/list.c |   6 +-
+ src/cmd/5g/peep.c | 173 +++++++++++++++++++++++-------------------------------
+ src/cmd/5g/reg.c  |  68 +++++++++++++++++++++
+ 3 files changed, 145 insertions(+), 102 deletions(-)

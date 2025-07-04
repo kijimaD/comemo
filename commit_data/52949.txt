@@ -1,30 +1,22 @@
-commit 46847c639b3e5b3df0c4b06fd19d1cc90bc0306e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 5 16:50:56 2023 -0400
+commit ec58e3f3271de385cf976a805e611d3da09c3a0e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 17 15:19:59 2022 -0700
 
-    cmd/go/internal/modload: skip reading go.mod files for imports in 'go mod tidy' of modules before 'go 1.21'
+    test: add regress test for #53419
     
-    This eliminate a network access in 'go mod tidy' of an already-tidy
-    module, which would otherwise be needed to fetch go.mod checksums for
-    the test dependencies whose go.mod checksums were omitted in Go
-    releases between Go 1.17 and 1.20 due to bug #56222.
+    This currently works with GOEXPERIMENT=unified. Add a regress test to
+    make sure it stays that way.
     
-    For modules between 'go 1.17' and 'go 1.20' we intentionally preserve
-    the old 'go mod tidy' output (omitting go.sum entries for the go.mod
-    files of test dependencies of external packages). We should also avoid
-    performing extra sumdb lookups for checksums that would be discarded
-    anyway.
+    Updates #53419.
     
-    Updates #56222.
-    
-    Change-Id: I7f0f1c8e902db0e3414c819621c4b99052f503f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492741
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I2ea1f9039c59807fbd497d69a0420771f8d6d035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413014
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/import.go             | 10 ++++++++--
- src/cmd/go/internal/modload/load.go               | 16 ++++++++++++----
- src/cmd/go/testdata/script/mod_sum_issue56222.txt | 15 ++++++++++++++-
- 3 files changed, 34 insertions(+), 7 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go |  1 +
+ test/run.go                                   |  1 +
+ test/typeparam/issue53419.go                  | 28 +++++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+)

@@ -1,17 +1,29 @@
-commit 9b6efc25cddad4bebfa64fd8543afd07fbb0ab3e
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Aug 30 01:13:44 2024 +0000
+commit d2ec964e9c1ec84aa2e4444783ed68018ae4d5e4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 13 16:04:06 2023 -0400
 
-    go/ast: remove unused code
+    cmd/dist: test all 'std cmd' packages, even ones without _test.go files
     
-    Change-Id: I57a03961dc97d20224498a67687a8c8ecfbbb627
-    GitHub-Last-Rev: 07ca14263feb7476c7163cc4172b8d3b324d74e9
-    GitHub-Pull-Request: golang/go#69157
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609758
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Remove the optimization added in CL 10492 that skips running 'go test'
+    on Go packages without _test.go files. By now, 'go test' can find real
+    problems even in packages that don't have any custom tests.
+    
+    On my fairly fast laptop, running go test -short on all 164 normal
+    and 96 vendored packages without tests took around 10 seconds on
+    the first run and 2.5 seconds on the second, a small fraction of
+    the total all.bash time. So prioritize gains in the test coverage
+    over those savings in all.bash time.
+    
+    Fixes golang/go#60463.
+    
+    Change-Id: I3d2bec5c367de687e57131e7fd7e6b84fed30187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503095
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/ast/commentmap.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/cmd/dist/test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

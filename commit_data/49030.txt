@@ -1,22 +1,36 @@
-commit fdb640b7a1324c2a4fc579389c4bc287ea90f1db
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jan 22 10:16:24 2021 -0800
+commit 69d945fc6e80475c163f96ba86fe716e77bb0104
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 7 21:38:49 2021 -0700
 
-    crypto/x509: disable signing with MD5WithRSA
+    [dev.typeparams] cmd/compile/internal/types2: use scope numbers to identify local types
     
-    MD5 is hopelessly broken, we already don't allow verification of
-    MD5 signatures, we shouldn't support generating them.
+    Rather than using a local types' position information, use the type
+    name's scope numbers to uniquely identify the type from others with
+    the same name.
     
-    Fixes #42125
+    We use scope numbers rather than indices (with number-1 == index)
+    to preserve the invariant that the zero value for a scope is a ready
+    to use empty scope.
     
-    Change-Id: Ib25d750e6fc72a03198a505ac71e6d2c99eff2ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285872
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Using scope numbers turned out to be fairly simple after all and
+    provides a reasonably stable identification which will make debugging
+    simpler. A scope number series may be a bit longer than a unique ID for
+    each type name but local types should be reasonably rare.
+    
+    Also did a minor cleanup in universe.go to ensure Named.orig is set up
+    correctly (there's still an open TODO but with a work-around).
+    
+    Change-Id: I73935fa9bd960809fd5c95fe8b8a535c313cfc8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333192
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/x509/x509.go      | 15 ++++++---------
- src/crypto/x509/x509_test.go |  4 ++--
- 2 files changed, 8 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/instance.go    |  2 +-
+ src/cmd/compile/internal/types2/scope.go       |  4 +++-
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  2 --
+ src/cmd/compile/internal/types2/typestring.go  | 29 +++++++++++++++-----------
+ src/cmd/compile/internal/types2/universe.go    | 12 +++++++----
+ 6 files changed, 30 insertions(+), 21 deletions(-)

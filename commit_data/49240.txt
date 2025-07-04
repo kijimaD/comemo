@@ -1,33 +1,21 @@
-commit 30b17b6f604e30327df7ea800711526201d19aff
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Mon Nov 15 20:53:47 2021 +0800
+commit 1b193598b3a4ad3138626ca97bca752e9e63b21c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 2 18:01:46 2021 -0700
 
-    internal/{cpu, goarch}: add constant definition for loong64
+    [dev.typeparams] cmd/compile: fail early on unexpected types2.Invalid
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    In unified IR, fail right away if we find a types2.Invalid while
+    writing out the package. This provides a clearer error message for
+    https://github.com/golang/go/issues/25838#issuecomment-448746670.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Updates #25838.
     
-    Updates #46229
-    
-    Change-Id: I39d42e5959391e47bf621b3bdd3d95de72f023cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342318
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6902fdd891fc31bbb832b6fdba00eca301282409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338973
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/cpu/cpu_loong64.go       | 11 +++++++++++
- src/internal/goarch/goarch.go         |  1 +
- src/internal/goarch/goarch_loong64.go | 15 +++++++++++++++
- 3 files changed, 27 insertions(+)
+ src/cmd/compile/internal/noder/writer.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

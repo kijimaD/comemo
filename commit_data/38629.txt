@@ -1,23 +1,25 @@
-commit fc7ac2e8c0499d047ce0120a2f5df23093df6c17
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Apr 2 23:58:43 2019 +0200
+commit 29b01d556de22ad0c8b7b24d827123886ae9a701
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 3 18:13:05 2018 -0400
 
-    runtime/cgo: look for android_get_device_api_level in libc.so
+    crypto/tls: implement TLS 1.3 KeyLogWriter support
     
-    The presence of the android_get_device_api_level symbol is used to
-    detect Android Q or later. Use the suggestion by Ryan Prichard and
-    look for it in libc.so and not in the entire program where someone
-    else might have defined it.
+    Also, add support for the SSLKEYLOGFILE environment variable to the
+    tests, to simplify debugging of unexpected failures.
     
-    Manually tested on an Android Q amd64 emulator and arm64 Pixel.
+    Updates #9671
     
-    Updates #29674
-    
-    Change-Id: Iaef35d8f8910037b3690aa21f319e216a05a9a73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170127
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I20a34a5824f083da93097b793d51e796d6eb302b
+    Reviewed-on: https://go-review.googlesource.com/c/147417
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/cgo/gcc_android.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/common.go                 | 14 ++++++++---
+ src/crypto/tls/handshake_client.go       |  2 +-
+ src/crypto/tls/handshake_client_test.go  | 43 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_client_tls13.go | 22 ++++++++++++++++
+ src/crypto/tls/handshake_server.go       |  2 +-
+ src/crypto/tls/handshake_server_test.go  |  7 ++++++
+ src/crypto/tls/handshake_server_tls13.go | 22 ++++++++++++++++
+ 7 files changed, 106 insertions(+), 6 deletions(-)

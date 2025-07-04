@@ -1,15 +1,35 @@
-commit 238a39594b0237d0ca2be4b7ccf89c0e22a766d9
+commit fddc3ca11c38b063cb24e14d99cc023e746d0e20
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 15:24:26 2015 -0400
+Date:   Wed Jun 3 22:21:07 2015 -0400
 
-    cmd/go: add test for issue 3652
+    testing: add -test.count flag to run tests and benchmarks multiple times
     
-    Fixes #3652. (Well, already fixed, but tests that it stays fixed.)
+    The flag is available from the go test command as -count:
     
-    Change-Id: I4e17f595ee2ad513de86ac3861e8e66b1230b3be
-    Reviewed-on: https://go-review.googlesource.com/12195
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    % go test -run XXX -bench . -count 3
+    PASS
+    BenchmarkSprintfEmpty           30000000                54.0 ns/op
+    BenchmarkSprintfEmpty           30000000                51.9 ns/op
+    BenchmarkSprintfEmpty           30000000                53.8 ns/op
+    BenchmarkSprintfString          10000000               238 ns/op
+    BenchmarkSprintfString          10000000               239 ns/op
+    BenchmarkSprintfString          10000000               234 ns/op
+    BenchmarkSprintfInt             10000000               232 ns/op
+    BenchmarkSprintfInt             10000000               226 ns/op
+    BenchmarkSprintfInt             10000000               225 ns/op
+    ...
+    
+    If -cpu is set, each test is run n times for each cpu value.
+    
+    Original by r (CL 10663).
+    
+    Change-Id: If3dfbdf21698952daac9249b5dbca66f5301e91b
+    Reviewed-on: https://go-review.googlesource.com/10669
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/go/alldocs.go  | 5 +++++
+ src/cmd/go/test.go     | 5 +++++
+ src/cmd/go/testflag.go | 1 +
+ src/testing/testing.go | 9 +++++++--
+ 4 files changed, 18 insertions(+), 2 deletions(-)

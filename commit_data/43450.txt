@@ -1,24 +1,54 @@
-commit 44dbeaf35600ae70f3e6296914ea31147d5f010c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 9 12:41:50 2020 -0400
+commit 815509ae31fc7eaf753def9deb9cafee968f92b3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Mar 30 15:23:19 2020 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on AMD64
+    cmd/compile: improve lowered moves and zeros for ppc64le
     
-    These are identical to And8 and Or8, just using ANDL/ORL instead of
-    ANDB/ORB.
+    This change includes the following:
+    - Generate LXV/STXV sequences instead of LXVD2X/STXVD2X on power9.
+    These instructions do not require an index register, which
+    allows more loads and stores within a loop without initializing
+    multiple index registers. The LoweredQuadXXX generate LXV/STXV.
+    - Create LoweredMoveXXXShort and LoweredZeroXXXShort for short
+    moves that don't generate loops, and therefore don't clobber the
+    address registers or flags.
+    - Use registers other than R3 and R4 to avoid conflicting with
+    registers that have already been allocated to avoid unnecessary
+    register moves.
+    - Eliminate the use of R14 as scratch register and use R31
+    instead.
+    - Add PCALIGN when the LoweredMoveXXX or LoweredZeroXXX generates a
+    loop with more than 3 iterations.
     
-    Change-Id: I99cf90a8b0b5f211fb23325dddd55821875f0c8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263140
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
+    This performance opportunity was noticed in github.com/golang/snappy
+    benchmarks. Results on power9:
+    
+    WordsDecode1e1    54.1ns ± 0%    53.8ns ± 0%   -0.51%  (p=0.029 n=4+4)
+    WordsDecode1e2     287ns ± 0%     282ns ± 1%   -1.83%  (p=0.029 n=4+4)
+    WordsDecode1e3    3.98µs ± 0%    3.64µs ± 0%   -8.52%  (p=0.029 n=4+4)
+    WordsDecode1e4    66.9µs ± 0%    67.0µs ± 0%   +0.20%  (p=0.029 n=4+4)
+    WordsDecode1e5     723µs ± 0%     723µs ± 0%   -0.01%  (p=0.200 n=4+4)
+    WordsDecode1e6    7.21ms ± 0%    7.21ms ± 0%   -0.02%  (p=1.000 n=4+4)
+    WordsEncode1e1    29.9ns ± 0%    29.4ns ± 0%   -1.51%  (p=0.029 n=4+4)
+    WordsEncode1e2    2.12µs ± 0%    1.75µs ± 0%  -17.70%  (p=0.029 n=4+4)
+    WordsEncode1e3    11.7µs ± 0%    11.2µs ± 0%   -4.61%  (p=0.029 n=4+4)
+    WordsEncode1e4     119µs ± 0%     120µs ± 0%   +0.36%  (p=0.029 n=4+4)
+    WordsEncode1e5    1.21ms ± 0%    1.22ms ± 0%   +0.41%  (p=0.029 n=4+4)
+    WordsEncode1e6    12.0ms ± 0%    12.0ms ± 0%   +0.57%  (p=0.029 n=4+4)
+    RandomEncode       286µs ± 0%     203µs ± 0%  -28.82%  (p=0.029 n=4+4)
+    ExtendMatch       47.4µs ± 0%    47.0µs ± 0%   -0.85%  (p=0.029 n=4+4)
+    
+    Change-Id: Iecad3a39ae55280286e42760a5c9d5c1168f5858
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226539
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go          |  2 +-
- src/cmd/compile/internal/gc/ssa.go             | 12 +++++++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  6 ++--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go          | 48 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 34 ++++++++++++++++++
- 7 files changed, 103 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 586 ++++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  13 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  86 +++-
+ src/cmd/compile/internal/ssa/opGen.go        |  98 ++++-
+ src/cmd/compile/internal/ssa/rewrite.go      |   4 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go |  86 +++-
+ test/codegen/copy.go                         |  34 ++
+ 7 files changed, 833 insertions(+), 74 deletions(-)

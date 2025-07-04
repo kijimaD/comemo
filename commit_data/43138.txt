@@ -1,24 +1,17 @@
-commit 567ef8bd8e76bdbc00df6b1903976b89b34a84d8
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 29 15:13:17 2020 +0200
+commit a8e8e05ed1d53108c2ac2ff6c89ea1c0e8d74d64
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 11 16:14:39 2020 -0400
 
-    runtime: correct arguments to pipe2 syscall in pipe on netbsd/arm64
+    [dev.link] cmd/internal/objabi: rerun stringer for sym kind
     
-    Follow the implementation of pipe2 to pass arguments and handle return
-    values.
+    Regenerate this file, since has become a bit out of date.
     
-    With this fix the runtime tests pass on netbsd/arm64 (tested using
-    gomote on the netbsd-arm64-bsiegert builder).
-    
-    Update #30824
-    
-    Change-Id: I346db68fc9dde8dc7f11351af05c1ad3105f4a32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258000
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I4bfa3820f23fb9df36f9a48e63898f4c5de8b31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223058
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/sys_netbsd_arm64.s | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ src/cmd/internal/objabi/symkind_string.go | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)

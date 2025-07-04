@@ -1,13 +1,12 @@
-commit 2fca1a4049ad96cecaa1c35a44d11265cd2f7e45
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 13 23:12:48 2011 -0700
+commit b065b56da1cccf42e913c1dd1c72500495ef56e7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 14 14:19:34 2011 +1000
 
-    lib9/create.c: delete unused variable
-    fixes build with GCC4.6
+    tag weekly.2011-04-13
     
-    R=adg
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4396048
+    https://golang.org/cl/4400044
 
- src/lib9/create.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

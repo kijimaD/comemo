@@ -1,18 +1,48 @@
-commit 3494010f7dc1705d6317c82bfe458f61cf2bca66
-Author: Peter Waller <peter.waller@gmail.com>
-Date:   Tue Oct 30 17:36:18 2012 -0700
+commit fa3e4fc4290aaa901c4f4de2bb7cdd71d4e586a3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 31 10:24:37 2012 +1100
 
-    syscall/exec_linux: enable changing controlling tty
+    net: fix connection resets when closed on windows
     
-    As discussed in the following thread:
-    https://groups.google.com/forum/?fromgroups=#!topic/golang-dev/emeJffxWhVo
+    It is common to close network connection while another goroutine is
+    blocked reading on another goroutine. This sequence corresponds to
+    windows calls to WSARecv to start io, followed by GetQueuedCompletionStatus
+    that blocks until io completes, and, finally, closesocket called from
+    another thread. We were expecting that closesocket would unblock
+    GetQueuedCompletionStatus, and it does, but not always
+    (http://code.google.com/p/go/issues/detail?id=4170#c5). Also that sequence
+    results in connection is being reset.
     
-    This is required to enable applications such as `less` to use something
-    other than stdin as the controlling terminal.
+    This CL inserts CancelIo between GetQueuedCompletionStatus and closesocket,
+    and waits for both WSARecv and GetQueuedCompletionStatus to complete before
+    proceeding to closesocket.  This seems to fix both connection resets and
+    issue 4170. It also makes windows code behave similar to unix version.
     
-    R=dave, iant
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/6785057
+    Unfortunately, CancelIo needs to be called on the same thread as WSARecv.
+    So we have to employ strategy we use for connections with deadlines to
+    every connection now. It means, there are 2 unavoidable thread switches
+    for every io. Some newer versions of windows have new CancelIoEx api that
+    doesn't have these drawbacks, and this CL uses this capability when available.
+    As time goes by, we should have less of CancelIo and more of CancelIoEx
+    systems. Computers with CancelIoEx are also not affected by issue 4195 anymore.
+    
+    Fixes #3710
+    Fixes #3746
+    Fixes #4170
+    Partial fix for issue 4195
+    
+    R=golang-dev, mikioh.mikioh, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6604072
 
- src/pkg/syscall/exec_linux.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/net/fd_unix.go                    |   2 +
+ src/pkg/net/fd_windows.go                 | 164 ++++++++++++++++--------------
+ src/pkg/net/net_test.go                   |  39 +++++++
+ src/pkg/net/rpc/server_test.go            |  21 ++++
+ src/pkg/net/sendfile_windows.go           |   4 +-
+ src/pkg/net/timeout_test.go               |  79 ++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |   5 +
+ src/pkg/syscall/zsyscall_windows_386.go   |  13 +++
+ src/pkg/syscall/zsyscall_windows_amd64.go |  13 +++
+ src/pkg/syscall/ztypes_windows.go         |   1 +
+ 10 files changed, 265 insertions(+), 76 deletions(-)

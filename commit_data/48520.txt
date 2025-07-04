@@ -1,20 +1,44 @@
-commit a10a209b23f877c80d8a5f3ebda1ce4b492ac3a9
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jan 7 10:11:08 2022 -0800
+commit e99e9a6e0147592b12175a19a2a9dafe96a984f9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 26 13:54:31 2021 -0700
 
-    net/http/httputil: ignore CloseNotify when a non-background context is present
+    [dev.typeparams] cmd/compile: simplify ~r/~b naming
     
-    If the http.Request passed to ReverseProxy.ServeHTTP has a context
-    with a non-nil Done channel, don't watch the ResponseWriter's
-    CloseNotify channel.
+    The compiler renames anonymous and blank result parameters to ~rN or
+    ~bN, but the current semantics for computing N are rather annoying and
+    difficult to reproduce cleanly. They also lead to difficult to read
+    escape analysis results in tests.
     
-    Avoids starting an extra background goroutine in the common case.
+    This CL changes N to always be calculated as the parameter's index
+    within the function's result parameter tuple. E.g., if a function has
+    a single result, it will now always be named "~r0".
     
-    Change-Id: I1328f3e02d3025caa0f446a2f20dfc14ef604c64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376415
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    The normative change to this CL is fairly simple, but it requires
+    updating a lot of test expectations.
+    
+    Change-Id: I58a3c94de00cb822cb94efe52d115531193c993c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323010
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/net/http/httputil/reverseproxy.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/logopt/logopt_test.go |  4 +--
+ src/cmd/compile/internal/noder/object.go       | 22 +++++++------
+ src/cmd/compile/internal/typecheck/dcl.go      |  9 ++----
+ test/escape2.go                                | 44 +++++++++++++-------------
+ test/escape2n.go                               | 44 +++++++++++++-------------
+ test/escape5.go                                |  8 ++---
+ test/escape_array.go                           | 16 +++++-----
+ test/escape_calls.go                           |  2 +-
+ test/escape_closure.go                         |  8 ++---
+ test/escape_param.go                           | 10 +++---
+ test/escape_runtime_atomic.go                  |  4 +--
+ test/escape_slice.go                           |  4 +--
+ test/escape_struct_return.go                   |  4 +--
+ test/escape_unsafe.go                          | 10 +++---
+ test/fixedbugs/issue12006.go                   |  6 ++--
+ test/fixedbugs/issue12588.go                   |  6 ++--
+ test/fixedbugs/issue42284.dir/a.go             |  2 +-
+ 17 files changed, 101 insertions(+), 102 deletions(-)

@@ -1,17 +1,16 @@
-commit 93b7d1bf1eefbc3ff33ec935b3c15601820bd4f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jun 24 10:41:12 2012 -0700
+commit e2f2929d85ab27960ed83e740728a89cd1d521e6
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Fri Jun 22 15:07:22 2012 -0700
 
-    net/http: fix doc inaccuracy and typo; tighten test
+    net/rpc: fix typo in documentation, clarify semantics of error return
     
-    Note url.Error wrapping, and s/issue/issuing/.
+    Several of my students were confused by trying to use both the error
+    return and a reply return, so I figured it was worth explicitly clarifying
+    that returning an error overrides the reply.
     
-    Fixes #3724
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6294093
+    https://golang.org/cl/6327051
 
- src/pkg/net/http/client.go      | 3 ++-
- src/pkg/net/http/client_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/net/rpc/server.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

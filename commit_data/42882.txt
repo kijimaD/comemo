@@ -1,12 +1,21 @@
-commit d7a6a44deb3a56aa3f94b75f7ab4ffa1a0fa8cef
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Tue Aug 25 10:38:50 2020 +0300
+commit 5c7dbf40e1e0af9d8fc4521e1ce7bd0afaa1f2c4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 24 13:58:29 2020 -0500
 
-    doc/asm: add BP is callee-save paragraph
+    misc/cgo/testshared: explicitly set GOBIN (instead of unsetting it)
     
-    Change-Id: Id38e639c66a42acf0b1c4488cdfd0b7b6cf71c78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250397
-    Reviewed-by: Keith Randall <khr@golang.org>
+    If GOBIN is set in the GOENV file, then merely unsetting it in the
+    process environment is not sufficient. We can instead either set GOBIN
+    explicitly, or disable GOENV explicitly. For now, we (semi-arbitrary)
+    choose the former.
+    
+    Fixes #37390
+    
+    Change-Id: Iec54532c804b70546d695105cd89e9169eac5dbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220652
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/asm.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ misc/cgo/testshared/shared_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

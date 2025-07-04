@@ -1,26 +1,31 @@
-commit 7937466022627d90ffde9ddfb2499023c060c8a1
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Tue Dec 4 09:03:32 2018 +0100
+commit 3b7b9dce43613d22ac58cc61b19268b32a157df0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jun 11 09:11:29 2018 +0100
 
-    syscall, cmd/go/internal/lockedfile: remove Flock syscall for aix/ppc64
+    cmd/compile/internal/gc: various minor cleanups
     
-    AIX doesn't provide flock() syscall, it was previously emulated by fcntl
-    calls. However, there are some differences between a flock() syscall and
-    a flock() using fcntl. Therefore, it's safer to remove it and just
-    provide FcntlFlock.
+    Two funcs and a field were unused. Remove them.
     
-    Thus, lockedfile implementation must be moved to use FcntlFlock on aix/ppc64.
+    A few statements could be made simpler.
     
-    Updates #29065.
-    Fixes #29084.
+    importsym's pos parameter was unused, so remove it.
     
-    Change-Id: Ic48fd9f315f24c2acdf09b91d917da131a1f2dd5
-    Reviewed-on: https://go-review.googlesource.com/c/152397
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Finally, don't use printf-like funcs with constant strings that have no
+    formatting directives.
+    
+    Change-Id: I415452249bf2168aa353ac4f3643dfc03017ee53
+    Reviewed-on: https://go-review.googlesource.com/117699
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- .../{filelock_solaris.go => filelock_fcntl.go}     |  6 +++--
- .../lockedfile/internal/filelock/filelock_other.go |  2 +-
- .../lockedfile/internal/filelock/filelock_test.go  |  4 +--
- src/syscall/flock_aix.go                           | 31 +++-------------------
- 4 files changed, 11 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/gc/bv.go         | 11 -----------
+ src/cmd/compile/internal/gc/const.go      |  2 +-
+ src/cmd/compile/internal/gc/dwinl.go      |  2 +-
+ src/cmd/compile/internal/gc/export.go     |  6 +++---
+ src/cmd/compile/internal/gc/iexport.go    |  2 +-
+ src/cmd/compile/internal/gc/main.go       |  4 ++--
+ src/cmd/compile/internal/gc/mpint.go      |  4 ++--
+ src/cmd/compile/internal/gc/scope_test.go |  1 -
+ src/cmd/compile/internal/gc/walk.go       |  8 --------
+ 9 files changed, 10 insertions(+), 30 deletions(-)

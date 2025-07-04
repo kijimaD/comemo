@@ -1,14 +1,34 @@
-commit ac3028f0a9950890f850306fdde03b272dc6baee
+commit 41a6165c030c41cc7e44b28c251b22c49fb9618b
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 17:00:52 2011 -0500
+Date:   Tue Dec 20 16:50:13 2011 -0500
 
-    build: fix build
+    build: use go command during build
     
-    Missing file during last CL.
+    If something goes wrong, it should suffice to set
+    USE_GO_TOOL=false in env.bash to fall back to the
+    makefiles.  I will delete the makefiles in January.
     
-    TBR=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5505047
+    https://golang.org/cl/5502047
 
- src/buildinfo.sh | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ src/buildscript.sh               |  30 +++
+ src/buildscript_darwin_386.sh    | 546 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_darwin_amd64.sh  | 545 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_freebsd_386.sh   | 546 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_freebsd_amd64.sh | 545 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_linux_386.sh     | 546 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_linux_amd64.sh   | 545 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_linux_arm.sh     | 549 +++++++++++++++++++++++++++++++++++++++
+ src/buildscript_netbsd_386.sh    | 546 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_netbsd_amd64.sh  | 545 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_openbsd_386.sh   | 546 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_openbsd_amd64.sh | 545 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_plan9_386.sh     | 547 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_windows_386.sh   | 548 ++++++++++++++++++++++++++++++++++++++
+ src/buildscript_windows_amd64.sh | 547 ++++++++++++++++++++++++++++++++++++++
+ src/env.bash                     |   4 +
+ src/make.bash                    |  20 +-
+ src/pkg/runtime/autogen.sh       |  33 +--
+ src/run.bash                     |  52 +++-
+ 19 files changed, 7739 insertions(+), 46 deletions(-)

@@ -1,14 +1,14 @@
-commit d6be71c788680b078925637cc418f35321ab0f13
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 21 11:27:08 2011 -0400
+commit f338d9f73b50436669e532200de27edeef1959b0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 21 17:13:16 2011 +1000
 
-    gopprof: update list of memory allocators
+    goinstall: undo 1ad616fb313d (always rebuild...)
     
-    Also import new weblist command from Google version.
+    CL 4627051 is a better way of doing the same thing.
     
-    R=r, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4650048
+    https://golang.org/cl/4654045
 
- src/cmd/prof/gopprof | 287 +++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 242 insertions(+), 45 deletions(-)
+ src/cmd/goinstall/main.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,16 +1,45 @@
-commit f234c9423bd87e7bf81ad7d1bab2b452c722b3b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 25 17:33:15 2024 -0700
+commit f6ec9b11a6e139aa7e3a63739c588264ed89cbbe
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 5 21:48:59 2023 -0400
 
-    go/types, types2: fix test name (for debugging)
+    cmd/dist: remove deptab and cleanlist in favor of gentab
     
-    Change-Id: I982cf4da98af73ac41936a9d0b51588e3dbfd706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594739
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    dist's deptab is a list of changes to the automatically derived set of
+    package dependencies. It's as old as dist itself, and the first
+    version of deptab in CL 5620045 was quite complex. From the beginning,
+    some of the entries in deptab have been for generated files that need
+    to be added to the dependency set because they can't be discovered if
+    they don't exist. gentab is also as old as dist itself, and lists the
+    generated dependency files.
+    
+    The interaction between deptab and gentab is rather odd. gentab
+    contains only base file names, not whole paths. To figure out what
+    files to generate, dist takes a Cartesian product of deptab and gentab
+    and calls the generator wherever the basename of a path in deptab
+    matches an entry in gentab. This perhaps made sense at the time
+    because some of the generated files appeared in more than one package
+    in deptab.
+    
+    These days, deptab consists exclusively of generated files because
+    dist can correctly derive all other dependencies, and all of the
+    generated files have unique paths. This makes the Cartesian product
+    approach needlessly complex (and so confusing!), and means that the
+    only purpose served by deptab is to provide full paths for generated
+    files.
+    
+    Furthermore, in the dist clean command, it also needed to expand the
+    file names in gentab to complete paths, but it did so using a
+    different list, cleanlist, and the same Cartesian product algorithm.
+    
+    This CL drops all of this complexity by putting full paths into
+    gentab, which lets us delete deptab and cleanlist.
+    
+    Change-Id: Ie3993983734f6da3be453bb4c17a64e22dcf3e8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501137
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 2 +-
- src/go/types/api_test.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go    | 121 +++++++++++++----------------------------------
+ src/cmd/distpack/pack.go |   2 +-
+ 2 files changed, 34 insertions(+), 89 deletions(-)

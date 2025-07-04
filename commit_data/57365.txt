@@ -1,83 +1,18 @@
-commit 501b389efc6213eda80eeed2253d3d7f931f3db5
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Jun 3 15:49:23 2024 +0800
+commit f32e0c30e4a002cda2dbb5e628a7f1047e304e01
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Aug 1 20:22:13 2023 +0000
 
-    runtime: optimize the function memclrNoHeapPointers on loong64
+    encoding/json: replace "between or" with "between and" in comment
     
-    The relevant performance improved by 54.61%.
-    
-    benchmark:
-    goos: linux
-    goarch: loong64
-    pkg: runtime
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                            │     old      │                 new                 │
-                            │    sec/op    │   sec/op     vs base                │
-    Memclr/5                   4.803n ± 0%   2.801n ± 0%  -41.68% (p=0.000 n=20)
-    Memclr/16                  4.803n ± 0%   3.202n ± 0%  -33.33% (p=0.000 n=20)
-    Memclr/64                  9.605n ± 0%   5.061n ± 1%  -47.30% (p=0.000 n=20)
-    Memclr/256                 29.22n ± 0%   10.24n ± 0%  -64.96% (p=0.000 n=20)
-    Memclr/4096                413.4n ± 0%   106.9n ± 0%  -74.14% (p=0.000 n=20)
-    Memclr/65536               6.566µ ± 0%   1.673µ ± 0%  -74.52% (p=0.000 n=20)
-    Memclr/1M                 104.95µ ± 0%   52.51µ ± 0%  -49.97% (p=0.000 n=20)
-    Memclr/4M                  419.8µ ± 0%   209.9µ ± 0%  -49.99% (p=0.000 n=20)
-    Memclr/8M                  839.6µ ± 0%   419.9µ ± 0%  -49.98% (p=0.000 n=20)
-    Memclr/16M                1687.6µ ± 0%   845.3µ ± 0%  -49.91% (p=0.000 n=20)
-    Memclr/64M                 6.725m ± 0%   3.389m ± 0%  -49.61% (p=0.000 n=20)
-    MemclrUnaligned/0_5        6.003n ± 0%   4.581n ± 0%  -23.69% (p=0.000 n=20)
-    MemclrUnaligned/0_16       6.005n ± 0%   5.084n ± 0%  -15.33% (p=0.000 n=20)
-    MemclrUnaligned/0_64      10.810n ± 0%   6.229n ± 0%  -42.38% (p=0.000 n=20)
-    MemclrUnaligned/0_256      30.43n ± 0%   10.68n ± 0%  -64.90% (p=0.000 n=20)
-    MemclrUnaligned/0_4096     414.8n ± 0%   107.1n ± 0%  -74.18% (p=0.000 n=20)
-    MemclrUnaligned/0_65536    6.566µ ± 0%   1.700µ ± 0%  -74.11% (p=0.000 n=20)
-    MemclrUnaligned/1_5        6.003n ± 0%   4.582n ± 0%  -23.67% (p=0.000 n=20)
-    MemclrUnaligned/1_16      11.610n ± 0%   5.080n ± 0%  -56.24% (p=0.000 n=20)
-    MemclrUnaligned/1_64      16.810n ± 0%   7.370n ± 0%  -56.16% (p=0.000 n=20)
-    MemclrUnaligned/1_256      36.42n ± 0%   12.95n ± 0%  -64.44% (p=0.000 n=20)
-    MemclrUnaligned/1_4096     420.6n ± 0%   114.6n ± 0%  -72.75% (p=0.000 n=20)
-    MemclrUnaligned/1_65536    6.573µ ± 0%   1.708µ ± 0%  -74.01% (p=0.000 n=20)
-    MemclrUnaligned/4_5        6.003n ± 0%   4.582n ± 0%  -23.67% (p=0.000 n=20)
-    MemclrUnaligned/4_16      10.410n ± 0%   5.069n ± 0%  -51.30% (p=0.000 n=20)
-    MemclrUnaligned/4_64      15.610n ± 0%   7.372n ± 0%  -52.77% (p=0.000 n=20)
-    MemclrUnaligned/4_256      35.22n ± 0%   12.95n ± 0%  -63.23% (p=0.000 n=20)
-    MemclrUnaligned/4_4096     419.4n ± 0%   114.6n ± 0%  -72.68% (p=0.000 n=20)
-    MemclrUnaligned/4_65536    6.571µ ± 0%   1.708µ ± 0%  -74.01% (p=0.000 n=20)
-    MemclrUnaligned/7_5        6.003n ± 0%   4.581n ± 0%  -23.69% (p=0.000 n=20)
-    MemclrUnaligned/7_16       8.855n ± 0%   5.079n ± 0%  -42.65% (p=0.000 n=20)
-    MemclrUnaligned/7_64      14.010n ± 0%   7.370n ± 0%  -47.39% (p=0.000 n=20)
-    MemclrUnaligned/7_256      33.62n ± 0%   12.95n ± 0%  -61.48% (p=0.000 n=20)
-    MemclrUnaligned/7_4096     417.8n ± 0%   114.7n ± 0%  -72.56% (p=0.000 n=20)
-    MemclrUnaligned/7_65536    6.570µ ± 0%   1.708µ ± 0%  -74.00% (p=0.000 n=20)
-    MemclrUnaligned/0_1M      104.96µ ± 0%   52.51µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/0_4M       419.8µ ± 0%   209.9µ ± 0%  -49.99% (p=0.000 n=20)
-    MemclrUnaligned/0_8M       839.5µ ± 0%   419.8µ ± 0%  -49.99% (p=0.000 n=20)
-    MemclrUnaligned/0_16M     1687.9µ ± 0%   844.9µ ± 0%  -49.94% (p=0.000 n=20)
-    MemclrUnaligned/0_64M      6.725m ± 0%   3.382m ± 0%  -49.72% (p=0.000 n=20)
-    MemclrUnaligned/1_1M      104.97µ ± 0%   52.51µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/1_4M       419.8µ ± 0%   210.0µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/1_8M       839.5µ ± 0%   419.8µ ± 0%  -50.00% (p=0.000 n=20)
-    MemclrUnaligned/1_16M     1687.6µ ± 0%   844.2µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/1_64M      6.724m ± 0%   3.367m ± 0%  -49.93% (p=0.000 n=20)
-    MemclrUnaligned/4_1M      104.97µ ± 0%   52.51µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/4_4M       419.8µ ± 0%   210.0µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/4_8M       839.5µ ± 0%   419.8µ ± 0%  -50.00% (p=0.000 n=20)
-    MemclrUnaligned/4_16M     1687.5µ ± 0%   844.4µ ± 0%  -49.96% (p=0.000 n=20)
-    MemclrUnaligned/4_64M      6.725m ± 0%   3.366m ± 0%  -49.95% (p=0.000 n=20)
-    MemclrUnaligned/7_1M      104.97µ ± 0%   52.51µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/7_4M       419.8µ ± 0%   210.0µ ± 0%  -49.97% (p=0.000 n=20)
-    MemclrUnaligned/7_8M       839.5µ ± 0%   419.8µ ± 0%  -50.00% (p=0.000 n=20)
-    MemclrUnaligned/7_16M     1687.9µ ± 0%   844.3µ ± 0%  -49.98% (p=0.000 n=20)
-    MemclrUnaligned/7_64M      6.724m ± 0%   3.362m ± 0%  -50.00% (p=0.000 n=20)
-    geomean                    4.659µ        2.114µ       -54.61%
-    
-    Change-Id: If0174e4cd8be5e17ad146698508a966158fe83e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589539
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: Id19a15f9367de10e08a9ec22a8cb50c58d517906
+    GitHub-Last-Rev: f413d71c9ad0f2efc0b4811c7188cc2caa9c1de0
+    GitHub-Pull-Request: golang/go#61701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514976
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/memclr_loong64.s | 139 ++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 117 insertions(+), 22 deletions(-)
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

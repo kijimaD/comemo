@@ -1,46 +1,16 @@
-commit 752fec22bb1934decb73195ef049e88c625242f5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 27 11:59:36 2013 -0800
+commit 43c04ba1b8c81114d09c0f9f326987070e0ee291
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Feb 27 19:47:14 2013 +0100
 
-    net: add DialOpt, the extensible Dial w/ options dialer
+    cmd/gc: don't emit type instructions for nonexisting locals
     
-    Add DialOpt. So we have:
+    If all locals are optimized away, the type instructions would stay in the instruction stream. Call fixautoused to scrub the output.
     
-    func Dial(net, addr string) (Conn, error)
-    func DialTimeout(net, addr string, timeout time.Duration) (Conn, error)
-    func DialOpt(addr string, opts ...DialOption) (Conn, error)
+    Fixes #4915.
     
-    DialTimeout (and Dial) are regrettable in retrospect. Maybe
-    in a future Go we'll be back down to one Dial, with DialOpt
-    becoming Dial.
-    
-    DialOpt looks like:
-    
-    c, err := net.DialOpt("google.com:80")  // tcp is default
-    c, err := net.DialOpt("google.com:80", net.Timeout(30 * time.Second))
-    c, err := net.DialOpt("google.com:80", net.TCPFastOpen())
-    c, err := net.DialOpt("google.com:80", net.LocalAddr(..))
-    c, err := net.DialOpt("google.com:53", net.Network("udp6"))
-    
-    And then: (clustered in godoc)
-    
-    type DialOption interface { /* private only */ }
-      func Deadline(time.Time) DialOption
-      func LocalAddr(Addr) DialOption
-      func Network(string) DialOption
-      func TCPFastOpen() DialOption
-      func Timeout(time.Duration) DialOption
-    
-    I'm pretty confident we could add Happy Eyeballs to this too.
-    
-    Fixes #3097
-    Update #3610
-    Update #4842
-    
-    R=golang-dev, r, dave, minux.ma, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7365049
+    https://golang.org/cl/7385055
 
- src/pkg/net/dial.go    | 143 +++++++++++++++++++++++++++++++++++++++++++++----
- src/pkg/net/fd_unix.go |   2 +-
- 2 files changed, 134 insertions(+), 11 deletions(-)
+ src/cmd/gc/pgen.c | 2 ++
+ 1 file changed, 2 insertions(+)

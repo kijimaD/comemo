@@ -1,20 +1,31 @@
-commit 4e8aaf6b22557a485cd3af874bf5be2722b07835
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Jan 13 22:11:44 2019 +0100
+commit 48af3a8be593d349d7af8e831e26b5b2798a464e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Sep 3 12:14:31 2018 +0100
 
-    net: skip TestLookupGmailTXT on Plan 9
+    cmd/compile: fix store-to-load forwarding of 32-bit sNaNs
     
-    CL 157638 updated TestLookupGmailTXT. However, this
-    test is failing on Plan 9, because the DNS resolver
-    (ndb/dns) only returns a single TXT record.
+    Signalling NaNs were being converted to quiet NaNs during constant
+    propagation through integer <-> float store-to-load forwarding.
+    This occurs because we store float32 constants as float64
+    values and CPU hardware 'quietens' NaNs during conversion between
+    the two.
     
-    Updates #29722.
+    Eventually we want to move to using float32 values to store float32
+    constants, however this will be a big change since both the compiler
+    and the assembler expect float64 values. So for now this is a small
+    change that will fix the immediate issue.
     
-    Change-Id: I01cd94e6167902361c3f5d615868f6f763a31fb1
-    Reviewed-on: https://go-review.googlesource.com/c/157737
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Fixes #27193.
+    
+    Change-Id: Iac54bd8c13abe26f9396712bc71f9b396f842724
+    Reviewed-on: https://go-review.googlesource.com/132956
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/lookup_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/float_test.go      | 111 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/check.go          |  15 ++--
+ src/cmd/compile/internal/ssa/gen/generic.rules |   4 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  32 +++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   8 +-
+ 5 files changed, 159 insertions(+), 11 deletions(-)

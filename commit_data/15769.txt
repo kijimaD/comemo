@@ -1,14 +1,16 @@
-commit a4a8651419af7864996b904203cc3496416a6ac8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 14 14:06:46 2013 -0700
+commit 8bbb6d3ed04ed0d79438045bb8d56b8c03a42944
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 14:35:47 2013 -0400
 
-    database/sql: document non-open of Open; add Ping
+    cmd/ld: another use-after-free
     
-    Fixes #4804
+    This only shows up in the duplicate symbol error message.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7819043
+    https://golang.org/cl/7486053
 
- src/pkg/database/sql/sql.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/5l/obj.c | 1 +
+ src/cmd/6l/obj.c | 1 +
+ src/cmd/8l/obj.c | 2 +-
+ 3 files changed, 3 insertions(+), 1 deletion(-)

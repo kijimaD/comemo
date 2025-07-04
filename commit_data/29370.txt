@@ -1,12 +1,16 @@
-commit 1a07257777ba49231fbf8b81bc6efe34b8422fec
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:57 2016 +0200
+commit 62ba15a492a5a26fce70aab5f44cac4a841b956e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 11 08:29:04 2016 -0700
 
-    reflect: add support for GOARCH=mips{,le}
+    cmd/compile: add more non-returning runtime calls
     
-    Change-Id: I8b0c4bfe1e4c401d5c36a51b937671e6362c73a4
-    Reviewed-on: https://go-review.googlesource.com/31485
+    This list now matches the one in popt.go.
+    
+    Change-Id: Ib24de531cc35252f0ef276e5c6d247654b021533
+    Reviewed-on: https://go-review.googlesource.com/28965
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/asm_mipsx.s | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

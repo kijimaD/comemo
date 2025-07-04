@@ -1,13 +1,14 @@
-commit ba0e02b207930f3c4cda364d823820a40bb99f8e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 15:04:31 2012 -0800
+commit 630c83888622190f310a1c9748c676d76e127811
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 12 14:45:32 2012 -0800
 
-    cgo: write _cgo_export.h to object directory, not source dir
+    build: don't use a fixed filename in temp
     
-    R=golang-dev, bradfitz
+    Fixes #2688
+    
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5540048
+    https://golang.org/cl/5539050
 
- src/cmd/cgo/out.go        | 2 +-
- src/pkg/go/build/build.go | 3 +--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ doc/progs/run | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

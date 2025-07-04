@@ -1,17 +1,14 @@
-commit c4c92ebeb656d059f88a2164f6ca9b136ce9fbf9
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 17 14:45:29 2012 -0500
+commit ce020ffacd8c43e1682e2c83db6d1e7f0c305eea
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 17 17:13:16 2012 -0200
 
-    cmd/gc: fix comparison of struct with _ field
+    runtime: remove use of ?:
     
-    Fixes #2989.
+    Fixes #3061.
     
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5674091
+    https://golang.org/cl/5656089
 
- src/cmd/gc/go.h   |  1 +
- src/cmd/gc/subr.c | 25 ++++++++++++++++++++-----
- test/cmp.go       | 19 +++++++++++++++++++
- test/cmp6.go      |  5 +++++
- 4 files changed, 45 insertions(+), 5 deletions(-)
+ src/pkg/runtime/mheap.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

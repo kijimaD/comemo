@@ -1,28 +1,48 @@
-commit 12e48f3bbf7a28a6340aee5d9a5eacf3a98e869c
-Author: Silke Hofstra <silke@slxh.eu>
-Date:   Wed Apr 20 15:02:35 2022 +0000
+commit e590cb64f940b2d4996a6e7773c1b855be952632
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 4 08:54:09 2021 -0400
 
-    os: look up hostname from PATH in test
+    [dev.typeparams] runtime: handle d.link carefully when freeing a defer
     
-    When running TestHostname, the location of the hostname binary
-    is hardcoded as /bin/hostname. However, on some systems the actual
-    location is /usr/bin/hostname.
+    CL 339396 allowed stack copying on entry to and during freedefer, but
+    this introduced a subtle bug: if d is heap-allocated, and d.link
+    points to a stack-allocated defer, stack copying during freedefer can
+    briefly introduce a stale pointer, which the garbage collector can
+    discover and panic about. This happens because d has already been
+    unlinked from the defer chain when freedefer is called, so stack
+    copying won't update stack pointers in it.
     
-    Change this behaviour to perform a lookup for hostname in PATH,
-    and skip the test when it cannot be found there.
+    Fix this by making freedefer nosplit again and immediately clearing
+    d.link.
     
-    Fixes #52402
+    This should fix the longtest builders, which currently fail on
+    GOMAXPROCS=2 runtime -cpu=1,2,4 -quick in the TestDeferHeapAndStack
+    test.
     
-    Change-Id: I5418bf77258f5ffb2a9f834b8c68d8a7b7a452d7
-    GitHub-Last-Rev: 750f36fcf9d4b26b75e91b895d6f7c6a275536ee
-    GitHub-Pull-Request: golang/go#52403
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400794
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This seems like the simplest fix, but it just deals with the subtlety
+    rather than eliminating it. Really, every call site of freedefer (of
+    which there are surprisingly many) has hidden subtlety between
+    unlinking the defer and calling freedefer. We could consolidate the
+    subtlety into each call site by requiring that they unlink the defer
+    and set d.link to nil before calling freedefer. freedefer could check
+    this condition like it checks that various other fields have already
+    been zeroed. A more radical option is to replace freedefer with
+    "popDefer", which would both pop the defer off the link and take care
+    of freeing it. There would still be a brief moment of subtlety, but it
+    would be in one place, in popDefer. Annoyingly, *almost* every call to
+    freedefer just pops the defer from the head of the G's list, but
+    there's one place when handling open-coded defers where we have to
+    remove a defer from the middle of the list. I'm inclined to first fix
+    that subtlety by only expanding open-coded defer records when they're
+    at the head of the defer list, and then revisit the popDefer idea.
+    
+    Change-Id: I3130d2542c01a421a5d60e8c31f5379263219627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339730
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/os_test.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/runtime/panic.go    | 10 ++++++++++
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

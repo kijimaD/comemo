@@ -1,21 +1,30 @@
-commit 81a4fe6fd29a427c613038260ea12c5374cc5894
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 13 17:26:03 2021 +0200
+commit e34c44a7c46d63a96e262f837670052759cd4569
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Dec 29 12:09:51 2020 +0700
 
-    cmd/link/internal/ld: re-enable DWARF tests on solaris/illumos
+    [dev.regabi] cmd/compile: refactoring typecheck arith
     
-    It looks like these are fixed on current tip after CL 84655
-    marked them to be skipped.
+    Currently, the tcArith logic is complicated and involes many
+    un-necessary checks for some ir.Op. This CL refactors how it works:
     
-    Fixes #23168
+     - Add a new tcShiftOp function, which only does necessary works for
+       typechecking OLSH/ORSH. That ends up moving OLSH/ORSH to a separated
+       case in typecheck1.
     
-    Change-Id: I0020e6da1042f723eb54186ef0fe925df5326230
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349250
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+     - Move OASOP to separated case, so its logic is detached from tcArith.
+    
+     - Move OANDAND/OOROR to separated case, which does some validation
+       dedicated to logical operators only.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I0db7b7c7a3e52d6f9e9d87eee6967871f1c32200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279442
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/dwarf_test.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/cmd/compile/internal/typecheck/expr.go      | 186 ++++++------------------
+ src/cmd/compile/internal/typecheck/typecheck.go | 114 ++++++++++++---
+ 2 files changed, 135 insertions(+), 165 deletions(-)

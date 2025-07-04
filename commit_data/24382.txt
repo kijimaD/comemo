@@ -1,35 +1,19 @@
-commit 12dfc3bee482f16263ce4673a0cce399127e2a0d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Aug 28 15:31:51 2015 +1000
+commit cc6ed285e58be9c3c16ab2f2bc34d61687dfc3ff
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 20 15:48:53 2015 -0400
 
-    text/template, html/template: add block keyword and permit template redefinition
+    runtime: remove # from gctrace line
     
-    This change adds a new "block" keyword that permits the definition
-    of templates inline inside existing templates, and loosens the
-    restriction on template redefinition. Templates may now be redefined,
-    but in the html/template package they may only be redefined before
-    the template is executed (and therefore escaped).
+    Whenever someone pastes gctrace output into GitHub, it helpfully turns
+    the GC cycle number into a link to some unrelated issue. Prevent this
+    by removing the pound before the cycle number. The fact that this is a
+    cycle number is probably more obvious at a glance than most of the
+    other numbers.
     
-    The intention is that such inline templates can be redefined by
-    subsequent template definitions, permitting a kind of template
-    "inheritance" or "overlay". (See the example for details.)
-    
-    Fixes #3812
-    
-    Change-Id: I733cb5332c1c201c235f759cc64333462e70dc27
-    Reviewed-on: https://go-review.googlesource.com/14005
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ifa5fc7fe6c715eac50e639f25bc36c81a132ffea
+    Reviewed-on: https://go-review.googlesource.com/12413
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/html/template/clone_test.go       | 12 ++++-
- src/html/template/example_test.go     | 36 +++++++++++++++
- src/html/template/template.go         |  4 +-
- src/text/template/doc.go              |  8 ++++
- src/text/template/example_test.go     | 36 +++++++++++++++
- src/text/template/exec_test.go        | 33 ++++++++++++++
- src/text/template/multi_test.go       | 22 ++--------
- src/text/template/parse/lex.go        |  2 +
- src/text/template/parse/lex_test.go   | 16 ++++---
- src/text/template/parse/parse.go      | 83 +++++++++++++++++++++++++----------
- src/text/template/parse/parse_test.go | 27 ++++++++++++
- src/text/template/template.go         | 32 ++++----------
- 12 files changed, 239 insertions(+), 72 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

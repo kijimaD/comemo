@@ -1,24 +1,21 @@
-commit 21ac23a96f204dfb558a8d3071380c1d105a93ba
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 4 16:46:33 2024 +0000
+commit 789980ec0e4f6512cd021d238e6c8e309a7e1cf2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jul 29 02:03:38 2023 +1000
 
-    unique: don't retain uncloned input as key
+    cmd/internal/obj/mips: use more appropriate register types for OP_FRRR/OP_SRR
     
-    Currently the unique package tries to clone strings that get stored in
-    its internal map to avoid retaining large strings.
+    Rather than passing registers as uint32, use int16 and cast to uint32 in
+    the OP_FRRR/OP_SRR implementation. This allows a large number of casts to be
+    removed and code simplified at call sites.
     
-    However, this falls over entirely due to the fact that the original
-    string is *still* stored in the map as a key. Whoops. Fix this by
-    storing the cloned value in the map instead.
-    
-    This change also adds a test which fails without this change.
-    
-    Change-Id: I1a6bb68ed79b869ea12ab6be061a5ae4b4377ddb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610738
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia4bf3bd022f79d65e45fca64db13db12739e5b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514099
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/unique/handle.go      |  7 ++++---
- src/unique/handle_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/mips/asm0.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

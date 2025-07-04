@@ -1,15 +1,12 @@
-commit 88f8af127ab675b94e18f161c59415edd92110e9
+commit 3a317183a140c6804ce1729f8f456075faf7252f
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 16 10:15:36 2012 +1100
+Date:   Thu Feb 16 10:15:10 2012 +1100
 
-    bufio: don't return errors from good Peeks
+    net/http: add some examples
     
-    Fixes #3022
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds, adg, rogpeppe, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5674060
+    https://golang.org/cl/5673052
 
- src/pkg/bufio/bufio.go      |  9 ++++++---
- src/pkg/bufio/bufio_test.go | 21 +++++++++++++++++++++
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ src/pkg/net/http/example_test.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

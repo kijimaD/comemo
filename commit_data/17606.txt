@@ -1,19 +1,14 @@
-commit 83da0fd989d7e5c981bde26a8a9cc0d0f88fe9ed
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 16 13:03:00 2013 +1000
+commit f43b6d470eea1618b3ead2e1e21612b6d22730e1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 16 11:20:07 2013 +1000
 
-    doc/go1.2.html: compiler changes
-    Document the semantic changes within the gc toolchain.
+    doc: add uninstallation instructions
     
-    Also delete the mention of unbalanced right delims in template
-    That change was rolled back.
+    Fixes #5821.
     
-    Absent typos, things we've forgotten, and new things that happen,
-    the release notes are ready.
-    
-    R=golang-dev, adg, dominik.honnef
+    R=golang-dev, kamil.kisiel
     CC=golang-dev
-    https://golang.org/cl/13368052
+    https://golang.org/cl/13720043
 
- doc/go1.2.html | 59 +++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 36 insertions(+), 23 deletions(-)
+ doc/install.html | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)

@@ -1,24 +1,16 @@
-commit 2cb3d1d8936b2aa009edbde7696dde48961c77b3
-Author: Tom Bergan <tombergan@google.com>
-Date:   Fri May 26 10:05:38 2017 -0700
+commit c5cdda401e483a3a4dae7cc61eb78521ab953b04
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Mar 7 09:03:40 2017 -0800
 
-    net/http: update bundled x/net/http2
+    encoding/base64, html/template: fix grammar mistakes
     
-    This updates the bundled copy of x/net/http2 to x/net git rev
-    3470a06c1357df53 for:
+    Replace 'does not contains' with 'does not contain' where it appears
+    in the source code.
     
-    http2: fix typo in comment
-    https://golang.org/cl/44271
-    
-    http2: fix nil dereference after Read completes with an error
-    https://golang.org/cl/44330
-    
-    Fixes #20501
-    
-    Change-Id: Ie6a5fb092f77044f504f146721dae86299e04011
-    Reviewed-on: https://go-review.googlesource.com/44331
-    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Change-Id: Ie7266347c429512c8a41a7e19142afca7ead3922
+    Reviewed-on: https://go-review.googlesource.com/37887
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/h2_bundle.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/encoding/base64/base64.go    | 2 +-
+ src/html/template/escape_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,26 +1,34 @@
-commit b89f4c67200e6128e1dc936a9362b07900c2af3e
-Author: Quey-Liang Kao <s101062801@m101.nthu.edu.tw>
-Date:   Wed Apr 15 13:23:52 2020 +0000
+commit 54e6ba6724dfde355070238f9abc16362cac2e3d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Oct 26 21:01:32 2019 +0200
 
-    runtime: add async preemption support on riscv64
+    syscall/js: garbage collect references to JavaScript values
     
-    This CL adds support of call injection and async preemption on
-    riscv64. We also clobbered REG_TMP for the injected call. Unsafe
-    points related to REG_TMP access have been marked in previous commits.
+    The js.Value struct now contains a pointer, so a finalizer can
+    determine if the value is not referenced by Go any more.
     
-    Fixes #36711.
+    Unfortunately this breaks Go's == operator with js.Value. This change
+    adds a new Equal method to check for the equality of two Values.
+    This is a breaking change. The == operator is now disallowed to
+    not silently break code.
     
-    Change-Id: I1a1df5b7fc23eaafc34a6a6448fcc3c91054496e
-    GitHub-Last-Rev: f6110d470713be70d960fd3e984fea89bb371719
-    GitHub-Pull-Request: golang/go#38146
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226206
+    Additionally the helper methods IsUndefined, IsNull and IsNaN got added.
+    
+    Fixes #35111
+    
+    Change-Id: I58a50ca18f477bf51a259c668a8ba15bfa76c955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203600
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go |  12 ++++
- src/runtime/mkpreempt.go          |  29 ++++++++-
- src/runtime/preempt_riscv64.s     | 127 +++++++++++++++++++++++++++++++++++++-
- src/runtime/signal_riscv64.go     |  14 ++++-
- 4 files changed, 176 insertions(+), 6 deletions(-)
+ misc/wasm/wasm_exec.js        |  49 ++++++++++----
+ src/net/http/roundtrip_js.go  |  10 +--
+ src/syscall/fs_js.go          |   4 +-
+ src/syscall/js/export_test.go |   9 +++
+ src/syscall/js/func.go        |   2 +-
+ src/syscall/js/js.go          | 153 ++++++++++++++++++++++++++++++++----------
+ src/syscall/js/js_js.s        |   4 ++
+ src/syscall/js/js_test.go     |  91 +++++++++++++++++++------
+ 8 files changed, 244 insertions(+), 78 deletions(-)

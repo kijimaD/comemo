@@ -1,35 +1,31 @@
-commit 5791233461d9eaef94f8a29cee7a1933a5c015d2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Oct 24 19:13:55 2011 -0400
+commit 2f3f3aa2ed298344f03813214d6b8d486b5f113e
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Oct 25 09:33:15 2011 +1100
 
-    exp/ssh: introduce Session to replace Cmd for interactive commands
+    html: dump attributes when running parser tests.
     
-    This CL replaces the Cmd type with a Session type representing
-    interactive channels. This lays the foundation for supporting
-    other kinds of channels like direct-tcpip or x11.
+    The WebKit test data shows attributes as though they were child nodes:
     
-    client.go:
-    * replace chanlist map with slice.
-    * generalize stdout and stderr into a single type.
-    * unexport ClientChan to clientChan.
+    <a X>0<b>1<a Y>2
+    dumps as:
+    | <html>
+    |   <head>
+    |   <body>
+    |     <a>
+    |       x=""
+    |       "0"
+    |       <b>
+    |         "1"
+    |     <b>
+    |       <a>
+    |         y=""
+    |         "2"
     
-    doc.go:
-    * update ServerConfig/ServerConn documentation.
-    * update Client example for Session.
+    So we need to do the same when dumping a tree to compare with it.
     
-    message.go:
-    * make channelExtendedData more like channelData.
-    
-    session.go:
-    * added Session which replaces Cmd.
-    
-    R=agl, rsc, n13m3y3r, gustavo
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5302054
+    https://golang.org/cl/5322044
 
- src/pkg/exp/ssh/Makefile    |   1 +
- src/pkg/exp/ssh/client.go   | 290 ++++++++++++--------------------------------
- src/pkg/exp/ssh/doc.go      |  36 +++---
- src/pkg/exp/ssh/messages.go |   2 +-
- src/pkg/exp/ssh/session.go  | 132 ++++++++++++++++++++
- 5 files changed, 230 insertions(+), 231 deletions(-)
+ src/pkg/html/parse_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

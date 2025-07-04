@@ -1,16 +1,16 @@
-commit 21b2e168424ee28bd20f7886ab53f68513857fa2
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Thu Mar 27 18:47:00 2014 +0100
+commit fc6befba3c2a076f34fd4225cf76a7e8639ac100
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 26 21:52:29 2014 -0400
 
-    cmd/gc: fix spurious 'use of untyped nil' error
+    runtime: initialize complete Hiter during mapiterinit
     
-    Fixes #6402
+    The garbage collector will scan these pointers,
+    so make sure they are initialized.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/81340044
+    https://golang.org/cl/80960047
 
- src/cmd/gc/const.c          |  5 ++++-
- test/fixedbugs/issue6402.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/pkg/runtime/hashmap.goc | 8 ++++++++
+ 1 file changed, 8 insertions(+)

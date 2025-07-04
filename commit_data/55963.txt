@@ -1,23 +1,21 @@
-commit b822f098c557ea3d9200fd2d8a2e2b4d641e83e4
-Author: Peter Collingbourne <pcc@google.com>
-Date:   Mon Mar 11 20:10:48 2024 -0700
+commit f46ea60f2b072885439d5b3b2f751b16d2b1f18e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 28 11:18:40 2023 -0700
 
-    os: don't try to make the directory FD non-blocking in os.ReadDir
+    go/types, types2: slightly tighter checks in Checker.use
     
-    This will fail because epoll_ctl() fails on directory FDs, so we
-    end up issuing unnecessary syscalls. My test program that calls
-    filepath.WalkDir on a large directory tree runs 1.23 ± 0.04 times
-    faster than with the original implementation.
+    Checker.use is called to check expressions and "use" variables
+    in case of an error. Use Checker.exprOrType instead of just
+    rawExpr.
     
-    Change-Id: Ie33d798c48057a7b2d0bacac80fcdde5b5a8bb1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570877
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4da6fa51ef3b0c9b07c453494452836caced9b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479897
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/os/dir.go          |  2 +-
- src/os/file.go         |  8 ++++++++
- src/os/file_plan9.go   |  4 ++++
- src/os/file_unix.go    | 30 ++++++++++++++++++++++++++++--
- src/os/file_windows.go |  4 ++++
- 5 files changed, 45 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/call.go | 2 +-
+ src/go/types/call.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

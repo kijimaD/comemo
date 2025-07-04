@@ -1,19 +1,22 @@
-commit 73912a1b914251d29eb60c8e85262d931f895b90
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 27 15:25:44 2017 -0700
+commit 10f3b090270a979dfbbb48be98973feac61dfc91
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 13 14:29:57 2016 -0800
 
-    cmd/vet: remove Peek from list of canonical methods
+    cmd/cgo: don't strip qualifiers from C void* pointer
     
-    It is insufficiently canonical;
-    see the discussion at issue 19719.
+    Now that we try to handle qualifiers correctly (as of CL 33325), don't
+    strip them from a void* pointer. Otherwise we break a case like "const
+    void**", as the "const" qualifier is dropped and the resulting
+    "void**" triggers a warning from the C compiler.
     
-    Fixes #19719
+    Fixes #18298.
     
-    Change-Id: I0559ff3b1b39d7bc4b446d104f36fdf8ce3da50e
-    Reviewed-on: https://go-review.googlesource.com/38722
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If51df1889b0f6a907715298c152e6d4584747acb
+    Reviewed-on: https://go-review.googlesource.com/34370
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/method.go | 1 -
- 1 file changed, 1 deletion(-)
+ misc/cgo/test/issue17537.go | 16 ++++++++++++++++
+ src/cmd/cgo/gcc.go          |  9 +++++++++
+ 2 files changed, 25 insertions(+)

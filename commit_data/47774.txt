@@ -1,24 +1,38 @@
-commit f4ca598c9f08a4d00942a1c6a6b8cc7d8f162b66
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 3 11:44:00 2021 -0500
+commit 4baa39ca22c34d4c224ac69da644c85dee196474
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Apr 2 14:36:08 2021 -0400
 
-    net: don't check "invalid.invalid" lookup errors in TestLookupHostCancel
+    [dev.fuzz] testing: let -fuzztime specify a number of executions
     
-    The exact error isn't actually relevant to the test,
-    and may depend on whether the Go or cgo resolver is used.
+    -fuzztime now works similarly to -benchtime: if it's given a string
+    with an "x" suffix (as opposed to "s" or some other unit of
+    duration), the fuzzing system will generate and run a maximum number
+    of values.
     
-    Also run the test in parallel, because it spends most of its time
-    sleeping in between lookups.
+    This CL also implements tracking and printing counts, since most of
+    the work was already done.
     
-    Fixes #38767
-    Fixes #43140
-    
-    Change-Id: I2d64ffddf2eb114a69ed3242daa9a9e4a5679f67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369037
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I013007984b5adfc1a751c379dc98c8d46b4a97e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306909
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/lookup_test.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/test/testflag.go               |   2 +-
+ src/cmd/go/testdata/script/test_fuzz.txt           |   8 +-
+ src/cmd/go/testdata/script/test_fuzz_cache.txt     |   2 +-
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt    |   2 +-
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  48 +++-
+ src/cmd/go/testdata/script/test_fuzz_match.txt     |   6 +-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  18 +-
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt   |   6 +-
+ src/internal/fuzz/fuzz.go                          | 269 ++++++++++++++++-----
+ src/internal/fuzz/worker.go                        |  73 ++++--
+ src/testing/benchmark.go                           |  14 +-
+ src/testing/fuzz.go                                |   8 +-
+ src/testing/internal/testdeps/deps.go              |   4 +-
+ src/testing/sub_test.go                            |   2 +-
+ src/testing/testing.go                             |  10 +-
+ 15 files changed, 344 insertions(+), 128 deletions(-)

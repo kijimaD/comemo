@@ -1,15 +1,30 @@
-commit 6ea2af0890260fec6cc951b5f426c0464e43266d
+commit f93ef07b1143abf3003555c4afcadc0e9842cbf8
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 11 16:39:54 2021 -0400
+Date:   Fri Nov 20 17:03:42 2020 -0500
 
-    cmd/go: add a regression test for #45979
+    cmd/go/internal/modload: remove the Reqs function
     
-    Change-Id: Id7f83b2e6a99af798e55b272b04880ebb588351f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328230
+    The Reqs function returns an mvs.Reqs implemention for the global
+    build list. The API that it presents assumes that the build list is
+    globally consistent (problematic for #40775) and readily available
+    (problematic for #36460).
+    
+    Fortunately, it is no longer used outside of the modload package.
+    We can instead use individual instances of the unexported mvsReqs
+    struct, making the dependency on the global build list more explicit.
+    
+    For #36460
+    For #40775
+    
+    Change-Id: I8674442f2a86416b0bf9c3395cb591c1e724c9d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272129
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- .../go/testdata/script/mod_get_lazy_indirect.txt   | 38 ++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/cmd/go/internal/modload/init.go     |  4 ++--
+ src/cmd/go/internal/modload/load.go     |  4 ++--
+ src/cmd/go/internal/modload/mvs.go      | 11 -----------
+ src/cmd/go/internal/modload/mvs_test.go |  8 +++-----
+ 4 files changed, 7 insertions(+), 20 deletions(-)

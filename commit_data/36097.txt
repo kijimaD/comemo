@@ -1,24 +1,29 @@
-commit a59f443897838c3d45f1f1df2d0fed9aa1aa232f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 18 16:09:36 2018 -0400
+commit 804d03281c04096fca7f73dc33d1d62e09a86892
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Tue Apr 3 00:35:46 2018 -0400
 
-    cmd/go: case-encode versions as well as module paths in files, URLs
+    cmd/go: rebuild as needed when vetting test packages
     
-    While writing the GOPROXY docs it occurred to me that versions
-    can contain upper-case letters as well. The docs therefore say
-    that versions are case-encoded the same as paths in the proxy
-    protocol (and therefore in the cache as well). Make it so.
+    If A's external test package imports B, which imports A, and A's
+    internal test code adds something to A that invalidates anything in A's
+    export data, then we need to build B against the test-augmented version
+    of A before using it to build A's external test package.
     
-    Change-Id: Ibc0c4af0192a4af251e5dd6f2d36cda7e529099a
-    Reviewed-on: https://go-review.googlesource.com/124795
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    https://golang.org/cl/92215 taught 'go test' to do this rebuilding
+    properly, but 'go vet' was not taught the same trick when it learned to
+    vet test packages in https://golang.org/cl/87636. This commit moves the
+    necessary logic into the load.TestPackagesFor function so it can be
+    shared by 'go test' and 'go vet'.
+    
+    Fixes #23701.
+    
+    Change-Id: I1086d447eca02933af53de693384eac99a08d9bd
+    Reviewed-on: https://go-review.googlesource.com/104315
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go              | 12 ++-
- src/cmd/go/internal/modfetch/proxy.go              | 18 ++++-
- src/cmd/go/internal/module/module.go               | 65 ++++++++++++----
- src/cmd/go/proxy_test.go                           | 26 +++++--
- .../go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt   |  2 +-
- .../mod/rsc.io_!q!u!o!t!e_v1.5.3-!p!r!e.txt        | 88 ++++++++++++++++++++++
- src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt    |  2 +-
- src/cmd/go/testdata/script/mod_case.txt            |  7 ++
- 8 files changed, 192 insertions(+), 28 deletions(-)
+ src/cmd/go/go_test.go            |  3 ++-
+ src/cmd/go/internal/load/pkg.go  | 53 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go | 50 -------------------------------------
+ 3 files changed, 55 insertions(+), 51 deletions(-)

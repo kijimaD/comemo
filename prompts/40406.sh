@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40406: f922cc64463939d5561abf5f6e30291b4c034892
+# Index 40406: a4f5c9c40de3fcf4396037ba63dc547225e00375
 
 echo "🚀 Generating explanation for commit 40406..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40406
-- **コミットハッシュ**: f922cc64463939d5561abf5f6e30291b4c034892
-- **GitHub URL**: https://github.com/golang/go/commit/f922cc64463939d5561abf5f6e30291b4c034892
+- **コミットハッシュ**: a4f5c9c40de3fcf4396037ba63dc547225e00375
+- **GitHub URL**: https://github.com/golang/go/commit/a4f5c9c40de3fcf4396037ba63dc547225e00375
 
 ### 章構成
 

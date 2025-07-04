@@ -1,32 +1,19 @@
-commit 5fe3f0a265c90a9c0346403742c6cafeb154503b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Jul 18 16:55:26 2023 +0200
+commit 8a3d167f5b4b482a230cd9800df9969af60561af
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 10:35:31 2022 +0800
 
-    runtime: ensure stack is aligned in _rt0_amd64_windows_lib
+    testing: increment tempDirSeq non-atomically
     
-    The Windows DLL loader may call a DLL entry point, in our case
-    _rt0_amd64_windows_lib, with a stack that is
-    not 16-byte aligned. In theory, it shouldn't, but under some
-    circumstances, it does (see below how to reproduce it).
+    It's unnecessary to to call atomic.AddInt32 since there is a mutex lock.
     
-    Having an unaligned stack can, and probably will, cause problems
-    down the line, for example if a movaps instruction tries to store
-    a value in an unaligned address it throws an Access Violation exception
-    (code 0xc0000005).
-    
-    I managed to consistently reproduce this issue by loading a Go DLL into
-    a C program that has the Page Heap Verification diagnostic enabled [1].
-    
-    Updates #54187 (and potentially fixes)
-    
-    [1] https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/example-12---using-page-heap-verification-to-find-a-bug
-    
-    Change-Id: Id0fea7f407e024c9b8cdce10ce4802d7535e7542
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510755
+    Change-Id: I31fcece17c34f99a95772d744aebd3f6a8cf1d23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426081
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/rt0_windows_amd64.s | 7 ++++++-
+ src/testing/testing.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)

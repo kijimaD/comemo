@@ -1,14 +1,23 @@
-commit 58490972c0d5a9dc59450474d38533faf69e4aaf
-Author: korzhao <korzhao95@gmail.com>
-Date:   Tue Aug 10 22:05:34 2021 +0800
+commit 15085f89746762e0919fa257feac3eb5b996e6db
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 13:38:26 2020 -0800
 
-    cmd/link: fix dead reference link
+    [dev.regabi] cmd/compile: tweak hash bucket type descriptor
     
-    Change-Id: I0f53cc2b845f8a52fece2aaba1445a0ecb9cdc53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341129
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    There's no need for the bucket type to be precise. The compiler
+    doesn't actually generate code that references these fields; it just
+    needs it for size and GC bitmap calculations.
+    
+    However, changing the type field does alter the runtime type
+    descriptor and relocations emitted by the compiler, so this change
+    isn't safe for toolstash.
+    
+    Change-Id: Icf79d6c4326515889b13435a575d618e3bbfbcd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274712
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/loadelf/ldelf.go     | 2 +-
- src/cmd/link/internal/loadmacho/ldmacho.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,26 @@
-commit 3098cf01754a2cda60ff2953f5c09c010d7683bf
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 13 09:11:49 2017 +0200
+commit 4dcba023c62d7f7968abc54fa5d38d2bf11412ba
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 16:56:48 2017 -0400
 
-    archive/tar: populate Devmajor and Devminor in FileInfoHeader on *BSD
+    runtime: use pselect6 for usleep on linux/amd64 and linux/arm
     
-    Extract device major/minor number on all the BSDs and set Devmajor and
-    Devminor in FileInfoHeader. Code based on the corresponding Major/Minor
-    implementations in golang.org/x/sys/unix.
+    Android O black-lists the select system call because its libc, Bionic,
+    does not use this system call. Replace our use of select with pselect6
+    (which is allowed) on the platforms that support targeting Android.
+    linux/arm64 already uses pselect6 because there is no select on arm64,
+    so only linux/amd64 and linux/arm need changing. pselect6 has been
+    available since Linux 2.6.16, which is before Go's minimum
+    requirement.
     
-    Change-Id: Ieffa7ce0cdbe6481950de666b2f5f88407a32382
-    Reviewed-on: https://go-review.googlesource.com/63470
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Fixes #20409.
+    
+    Change-Id: Ic526b5b259a9e01d2f145a1f4d2e76e8c49ce809
+    Reviewed-on: https://go-review.googlesource.com/43641
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/stat_unix.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ src/runtime/sys_linux_amd64.s | 9 ++++++---
+ src/runtime/sys_linux_arm.s   | 7 +++++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

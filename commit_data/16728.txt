@@ -1,23 +1,16 @@
-commit 01e1b0cb5377d665065707f9a270b223ea85a570
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jul 11 13:52:20 2013 -0400
+commit a2c30fe6481fa5b18331bb54a660928f6816cc44
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 10 22:06:52 2013 -0400
 
-    runtime: adjust traceback for new preemptive reality
-    Currently it crashes as follows:
-    fatal error: unknown pc
-    ...
-    goroutine 71698 [runnable]:
-    runtime.racegoend()
-            src/pkg/runtime/race.c:171
-    runtime.goexit()
-            src/pkg/runtime/proc.c:1276 +0x9
-    created by runtime_test.testConcurrentReadsAfterGrowth
-            src/pkg/runtime/map_test.go:264 +0x332
+    cmd/ld: correct assignment of sizes to mach-o symbols
     
-    R=golang-dev, rsc
+    If you compute the size by subtraction from the address
+    of the next symbol, it helps to wait until the symbols have
+    been sorted by address.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10674047
+    https://golang.org/cl/11143043
 
- src/pkg/runtime/traceback_arm.c | 2 +-
- src/pkg/runtime/traceback_x86.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/ldmacho.c | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

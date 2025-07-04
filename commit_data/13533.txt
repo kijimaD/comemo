@@ -1,25 +1,18 @@
-commit adc933726206e7f2be6a2ded826b6a3596df5ffd
+commit 6cbf35c1721ff8b22da2176d4ae5f9a98ae98b40
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jul 30 21:12:05 2012 +0200
+Date:   Mon Jul 30 09:14:49 2012 +0200
 
-    test: add a compiledir pattern in run.go
+    cmd/gc: fix initialization order involving method calls.
     
-    The compiledir pattern compiles all files xxx.dir/*.go
-    in lexicographic order (which is assumed to coincide with
-    the topological order of dependencies).
+    They were previously ignored when deciding order and
+    detecting dependency loops.
+    Fixes #3824.
     
-    R=rsc
+    R=rsc, golang-dev
     CC=golang-dev, remy
-    https://golang.org/cl/6440048
+    https://golang.org/cl/6455055
 
- test/fixedbugs/bug088.go |  2 +-
- test/fixedbugs/bug106.go |  2 +-
- test/fixedbugs/bug282.go |  2 +-
- test/fixedbugs/bug306.go |  2 +-
- test/fixedbugs/bug377.go |  2 +-
- test/fixedbugs/bug396.go |  2 +-
- test/fixedbugs/bug404.go |  2 +-
- test/fixedbugs/bug407.go |  2 +-
- test/run.go              | 23 ++++++++++++++++++++++-
- test/testlib             |  7 +++++++
- 10 files changed, 37 insertions(+), 9 deletions(-)
+ src/cmd/gc/reflect.c     |  7 ++++++-
+ src/cmd/gc/sinit.c       |  6 ++++++
+ test/fixedbugs/bug446.go | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit bd8103d50b5e576610709738d9e3138ae7887c28
-Author: Quentin Smith <quentin@golang.org>
-Date:   Fri Oct 21 16:34:40 2016 -0400
+commit 6ebacf18a5769d071f467fae455a142a964a43da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 17:09:30 2016 -0700
 
-    os/exec: document how Command fills in Cmd.Args
+    doc: more tweaks to the FAQ
     
-    Fixes #17536
-    
-    Change-Id: Ica8c3d696848822ac65b7931455b1fd94809bfe8
-    Reviewed-on: https://go-review.googlesource.com/31710
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0a3726f841122643bd1680ef6bd450c2039f362b
+    Reviewed-on: https://go-review.googlesource.com/28213
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/exec/exec.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ doc/go_faq.html | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

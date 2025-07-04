@@ -1,21 +1,59 @@
-commit 99b65ae9304d8cc04b1d6c72d59bcb8e8ad539cd
-Author: Andy Pan <i@andypan.me>
-Date:   Thu Apr 4 16:52:06 2024 +0800
+commit 1635205a72d26721af54f01ccbab8e0b51ded3a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 19 17:04:07 2023 -0500
 
-    net: update the doc for TCPConn.SetKeepAlivePeriod on Windows
+    cmd/dist: add -distpack flag to build distribution archives
     
-    The method comment of TCPConn.SetKeepAlivePeriod had become
-    obsolete and inaccurate since CL 565495 and CL 570077 were merged.
+    We want to enable others to reproduce the exact distribution archives
+    we are serving on go.dev/dl. Today the code for building those
+    archives lives in golang.org/x/build, which is fundamentally tied to
+    running on the Go team build infrastructure and not easy for others to
+    run. This CL adds a new flag -distpack to cmd/dist, usually invoked as
+    make.bash -distpack, to build the distribution archives using code in
+    the main repository that anyone can run. Starting in Go 1.21,
+    the Go team build infrastructure will run this instead of its current
+    custom code to build those archives.
     
-    For #65817
+    The current builds are not reproducible even given identical
+    infrastructure, because the archives are stamped with the current
+    time. It is helpful to have a timestamp in the archives indicating
+    when the code is from, but that time needs to be reproducible.
+    To ensure this, the new -distpack flag extends the VERSION file to
+    include a time stamp, which it uses as the modification time for all
+    files in the archive.
     
-    Change-Id: Ide99b2949676d452a505ba6fd634088f05c9df44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576435
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    The new -distpack flag is implemented by a separate program,
+    cmd/distpack, instead of being in cmd/dist, so that it can be compiled
+    by the toolchain being distributed and not the bootstrap toolchain.
+    Otherwise details like the exact compression algorithms might vary
+    from one bootstrap toolchain to another and produce non-reproducible
+    builds. So there is a new 'go tool distpack', but it's omitted from
+    the distributions themselves, just as 'go tool dist' is.
+    
+    make.bash already accepts any flags for cmd/dist, including -distpack.
+    make.bat is less sophisticated and looks for each known flag, so this
+    CL adds an update to look for -distpack. The CL also changes make.bat
+    to accept the idiomatic Go -flagname in addition to the non-idiomatic
+    (for Go) --flagname. Previously it insisted on the --flag form.
+    
+    I have confirmed that using make.bash -distpack produces the
+    identical distribution archives for windows/amd64, linux/amd64,
+    darwin/amd64, and darwin/arm64 whether it is run on
+    windows/amd64, linux/amd64, or darwin/amd64 hosts.
+    
+    For #24904.
+    
+    Change-Id: Ie6d69365ee3d7294d05b4f96ffb9159b41918074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470676
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <amedee@google.com>
 
- src/net/tcpsock.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go            |  40 ++++-
+ src/cmd/distpack/archive.go      | 197 ++++++++++++++++++++
+ src/cmd/distpack/archive_test.go |  39 ++++
+ src/cmd/distpack/pack.go         | 376 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/distpack/test.go         | 166 +++++++++++++++++
+ src/make.bat                     |  40 ++++-
+ 6 files changed, 849 insertions(+), 9 deletions(-)

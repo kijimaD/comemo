@@ -1,19 +1,18 @@
-commit 433b2f17eef632b55b9946e71e2754d67fda1765
+commit 72bf3bc1763cd8dd07c511919ca86577720fc163
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 6 11:38:16 2012 -0800
+Date:   Tue Nov 6 11:35:58 2012 -0800
 
-    test: fix index.go to pass with recent index checks
+    cmd/gc: check for array bounds overflow in slice expression
     
-    The compiler now gives an error for out of bounds constant
-    indexes for arrays, and for negative constant indexes for both
-    arrays and slices.
+    The test for this is test/index.go, which is not run by
+    default.  That test does not currently pass even after this is
+    applied, due to issue 4348.
     
-    With this change the index.go test passes if CLs 6815085,
-    6815088, and 6812089 are committed.
+    Fixes #4344.
     
-    R=golang-dev, remyoudompheng, rsc
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/6810085
+    https://golang.org/cl/6815085
 
- test/index.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c | 62 ++++++++++++++++++++++++++++----------------------
+ 1 file changed, 35 insertions(+), 27 deletions(-)

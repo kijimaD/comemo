@@ -1,28 +1,33 @@
-commit c74f3c457613638311e3cb2a57a9fca2df849e7a
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Wed Jan 30 02:53:56 2013 -0800
+commit ccc61eadd548e66c906a0a33e8a9c2d03238649a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jan 30 01:55:02 2013 +0100
 
-    runtime: add support for panic/recover in Plan 9 note handler
+    runtime: implement range access functions in race detector.
     
-    This change also resolves some issues with note handling: we now make
-    sure that there is enough room at the bottom of every goroutine to
-    execute the note handler, and the `exitstatus' is no longer a global
-    entity, which resolves some race conditions.
+    Range access functions are already available in TSan library
+    but were not yet used.
     
-    R=rminnich, npe, rsc, ality
+    Time for go test -race -short:
+    
+    Before:
+    compress/flate 24.244s
+    exp/norm       >200s
+    go/printer     78.268s
+    
+    After:
+    compress/flate 17.760s
+    exp/norm        5.537s
+    go/printer      5.738s
+    
+    Fixes #4250.
+    
+    R=dvyukov, golang-dev, fullung
     CC=golang-dev
-    https://golang.org/cl/6569068
+    https://golang.org/cl/7229044
 
- src/cmd/dist/buildruntime.c          |   6 ++
- src/pkg/runtime/defs_plan9_386.h     |  30 +++++++++-
- src/pkg/runtime/defs_plan9_amd64.h   |  34 ++++++++++-
- src/pkg/runtime/os_plan9.h           |  10 +++-
- src/pkg/runtime/runtime.h            |   3 +
- src/pkg/runtime/signal_plan9_386.c   | 101 ++++++++++++++++++++++++++++++++
- src/pkg/runtime/signal_plan9_amd64.c | 108 +++++++++++++++++++++++++++++++++++
- src/pkg/runtime/signals_plan9.h      |  25 +++++++-
- src/pkg/runtime/stack.h              |  12 +++-
- src/pkg/runtime/sys_plan9_386.s      |  54 ++++++++++++++++--
- src/pkg/runtime/sys_plan9_amd64.s    |  50 +++++++++++++++-
- src/pkg/runtime/thread_plan9.c       |  63 +++++++-------------
- 12 files changed, 439 insertions(+), 57 deletions(-)
+ src/pkg/runtime/race.c       | 38 ++++++++++++++++++++++++++
+ src/pkg/runtime/race.h       |  2 ++
+ src/pkg/runtime/race/race.go | 12 +++++++++
+ src/pkg/runtime/race0.c      | 20 ++++++++++++++
+ src/pkg/runtime/slice.c      | 64 +++++++++++++++++++++-----------------------
+ 5 files changed, 103 insertions(+), 33 deletions(-)

@@ -1,31 +1,38 @@
-commit d2cb5b78e0783e142f16dd399339b35be14f8fd9
+commit a98bb7e244954f1e035e9b9b6868a92cff04089c
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 28 12:50:47 2019 -0700
+Date:   Sun Oct 28 12:01:11 2018 -0700
 
-    runtime: fix TestLldbPython in module mode (again)
+    cmd/compile: only optimize chained Moves on disjoint stack mem
     
-    When run with GOPATH=/dev/null, go build fails:
+    This optimization is not sound if A, B, or C
+    might overlap with each other.
     
-    $ GOPATH=/dev/null go test -run=TestLldbPython -v -count=1 runtime
-    === RUN   TestLldbPython
-    --- FAIL: TestLldbPython (0.21s)
-        runtime-lldb_test.go:169: building source exit status 1
-            go: failed to create cache directory /dev/null/pkg/mod/cache: mkdir /dev/null: not a directory
-    FAIL
-    FAIL    runtime 0.220s
+    Thanks to Michael Munday for pointing this
+    out during the review of CL 143479.
     
-    But run.bash sets GOPATH=/dev/null.
+    This reduces the number of times this optimization
+    triggers during make.bash from 386 to 74.
     
-    Fix this by setting GOPATH to the empty string before passing to 'go build'.
+    This is unfortunate, but I don't see an obvious way around it,
+    short of souping up the disjointness analysis.
     
-    Fixes #31100
+    name        old object-bytes  new object-bytes  delta
+    Template          507kB ± 0%        507kB ± 0%   +0.13%  (p=0.008 n=5+5)
+    Unicode           225kB ± 0%        225kB ± 0%     ~     (all equal)
+    GoTypes          1.85MB ± 0%       1.85MB ± 0%   +0.02%  (p=0.008 n=5+5)
+    Flate             328kB ± 0%        328kB ± 0%     ~     (all equal)
+    GoParser          402kB ± 0%        402kB ± 0%     ~     (all equal)
+    Reflect          1.41MB ± 0%       1.41MB ± 0%     ~     (all equal)
+    Tar               457kB ± 0%        458kB ± 0%   +0.20%  (p=0.008 n=5+5)
+    XML               600kB ± 0%        601kB ± 0%   +0.03%  (p=0.008 n=5+5)
     
-    Change-Id: I573c4755d209e0c3eb26c20d4f7870c2961f2782
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169918
+    Change-Id: Ida408cb627145ba9faf473a78606f050c2f3f51c
+    Reviewed-on: https://go-review.googlesource.com/c/145208
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/runtime-lldb_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 11 ++++++++---
+ src/cmd/compile/internal/ssa/rewrite.go        |  7 +++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 18 +++++++++++-------
+ 3 files changed, 26 insertions(+), 10 deletions(-)

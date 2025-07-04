@@ -1,28 +1,85 @@
-commit 3e94140465984ff6c8d658051d022e8eacf057c3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 10 22:03:28 2021 +0000
+commit 72b501cb0326f62a20621636942e5a95fc3c1466
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Nov 27 11:25:00 2020 +0530
 
-    runtime/debug: make TestFreeOSMemory more robust
+    compress/lzw: add Reset method to Reader and Writer
     
-    FreeOSMemory relies on the function FreeOSMemory increasing HeapReleased
-    as opposed to the background scavenger, because it reads memory stats
-    *after* the free of a large allocation. However, before that even
-    happens, the background scavenger can swoop in and release all that
-    memory, making it appear as if FreeOSMemory didn't do anything.
+    We add a Reset method which clears any internal state of an encoder
+    or a decoder to let it be reused again as a new Writer or Reader respectively.
     
-    This change modifies the test to just make sure that the large
-    allocation's memory is returned to the OS *somehow*, by the end of the
-    test. It doesn't really care which happens. It also increases the size
-    of that large allocation to increase the likelihood that the test isn't
-    relying 100% on the background scavenger, and that FreeOSMemory is doing
-    some of the work.
+    We also export the encoder and decoder structs, renaming them
+    to be Reader and Writer, and we guarantee that the underlying types
+    from the constructors will always be Reader and Writer respectively.
     
-    Fixes #49478.
+    Benchmark results by reusing the encoder:
+    on cpu: Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
     
-    Change-Id: Ief1d839753720ebb88cbb616c46302293ee2d19c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363414
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    name                 time/op
+    Decoder/1e4-8          93.6µs ± 1%
+    Decoder/1e-Reuse4-8    87.7µs ± 1%
+    Decoder/1e5-8           877µs ± 1%
+    Decoder/1e-Reuse5-8     860µs ± 3%
+    Decoder/1e6-8          8.79ms ± 1%
+    Decoder/1e-Reuse6-8    8.82ms ± 4%
+    Encoder/1e4-8           168µs ± 2%
+    Encoder/1e-Reuse4-8     160µs ± 1%
+    Encoder/1e5-8          1.64ms ± 1%
+    Encoder/1e-Reuse5-8    1.61ms ± 2%
+    Encoder/1e6-8          16.2ms ± 6%
+    Encoder/1e-Reuse6-8    15.8ms ± 2%
+    
+    name                 speed
+    Decoder/1e4-8         107MB/s ± 1%
+    Decoder/1e-Reuse4-8   114MB/s ± 1%
+    Decoder/1e5-8         114MB/s ± 1%
+    Decoder/1e-Reuse5-8   116MB/s ± 3%
+    Decoder/1e6-8         114MB/s ± 1%
+    Decoder/1e-Reuse6-8   113MB/s ± 5%
+    Encoder/1e4-8        59.7MB/s ± 2%
+    Encoder/1e-Reuse4-8  62.4MB/s ± 1%
+    Encoder/1e5-8        61.1MB/s ± 1%
+    Encoder/1e-Reuse5-8  62.0MB/s ± 2%
+    Encoder/1e6-8        61.7MB/s ± 5%
+    Encoder/1e-Reuse6-8  63.4MB/s ± 2%
+    
+    name                 alloc/op
+    Decoder/1e4-8          21.8kB ± 0%
+    Decoder/1e-Reuse4-8     50.0B ± 0%
+    Decoder/1e5-8          21.8kB ± 0%
+    Decoder/1e-Reuse5-8     70.4B ± 2%
+    Decoder/1e6-8          21.9kB ± 0%
+    Decoder/1e-Reuse6-8      271B ± 3%
+    Encoder/1e4-8          77.9kB ± 0%
+    Encoder/1e-Reuse4-8    4.17kB ± 0%
+    Encoder/1e5-8          77.9kB ± 0%
+    Encoder/1e-Reuse5-8    4.27kB ± 0%
+    Encoder/1e6-8          77.9kB ± 0%
+    Encoder/1e-Reuse6-8    5.22kB ± 0%
+    
+    name                 allocs/op
+    Decoder/1e4-8            2.00 ± 0%
+    Decoder/1e-Reuse4-8      1.00 ± 0%
+    Decoder/1e5-8            2.00 ± 0%
+    Decoder/1e-Reuse5-8      1.00 ± 0%
+    Decoder/1e6-8            2.00 ± 0%
+    Decoder/1e-Reuse6-8      1.00 ± 0%
+    Encoder/1e4-8            3.00 ± 0%
+    Encoder/1e-Reuse4-8      2.00 ± 0%
+    Encoder/1e5-8            3.00 ± 0%
+    Encoder/1e-Reuse5-8      2.00 ± 0%
+    Encoder/1e6-8            3.00 ± 0%
+    Encoder/1e-Reuse6-8      2.00 ± 0%
+    
+    Fixes #26535
+    
+    Change-Id: Icde613fea6234a5bdce95f1e49910f5687e30b22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273667
+    Trust: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/runtime/debug/garbage_test.go | 65 +++++++++++++++++++++++++++++++++------
- 1 file changed, 55 insertions(+), 10 deletions(-)
+ src/compress/lzw/reader.go      | 207 ++++++++++++++++++++++------------------
+ src/compress/lzw/reader_test.go |  88 ++++++++++++++---
+ src/compress/lzw/writer.go      | 206 ++++++++++++++++++++-------------------
+ src/compress/lzw/writer_test.go |  54 +++++++++++
+ 4 files changed, 349 insertions(+), 206 deletions(-)

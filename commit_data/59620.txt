@@ -1,26 +1,21 @@
-commit e59e128f90aa2453d8881a622524df90feb9d22f
-Author: Damien Neil <dneil@google.com>
-Date:   Mon May 19 13:09:06 2025 -0700
+commit e0cd90528e1ea9d8e7362391b645178fcd0a7e03
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 19:33:51 2023 +0800
 
-    os: add Root.MkdirAll
+    reflect: add available godoc link
     
-    For #67002
-    
-    Change-Id: Idd74b5b59e787e89bdfad82171b6a7719465f501
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674116
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Ib199ce1a781e8e3a66d3dc8bda617e6bc30b290e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539578
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
 
- api/next/67002.txt                              |   1 +
- doc/next/6-stdlib/99-minor/os/67002.md          |   1 +
- src/internal/syscall/windows/at_windows.go      |   2 +
- src/internal/syscall/windows/syscall_windows.go |   1 +
- src/os/path_test.go                             | 121 +++++++++++++---------
- src/os/root.go                                  |  14 ++-
- src/os/root_noopenat.go                         |  22 ++++
- src/os/root_openat.go                           | 132 +++++++++++++++++++-----
- src/os/root_test.go                             |  50 ++++++++-
- src/os/root_unix.go                             |  17 ++-
- src/os/root_windows.go                          |  21 +++-
- 11 files changed, 297 insertions(+), 85 deletions(-)
+ src/reflect/arena.go    |  4 ++--
+ src/reflect/makefunc.go |  6 +++---
+ src/reflect/type.go     |  2 +-
+ src/reflect/value.go    | 12 ++++++------
+ 4 files changed, 12 insertions(+), 12 deletions(-)

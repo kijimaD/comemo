@@ -1,14 +1,31 @@
-commit e6d9eda2fc13786c55292429b510128252ad8817
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 28 10:50:31 2017 -0700
+commit 26be4b9113e9c4f14399388652e961137658b6cb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 13:30:19 2017 -0700
 
-    cmd/vet/all: fix print statement, add platform information
+    cmd/compile: avoid an assignment of n.Type in walk
     
-    Change-Id: Ibbb89c01f3e812a0602961f959672fcb6523449b
-    Reviewed-on: https://go-review.googlesource.com/47031
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    In the future, walk will probably run concurrently
+    with SSA construction. It is possible for walk
+    to be walking a function node that is referred
+    to by another function undergoing SSA construction.
+    In that case, this particular assignment to n.Type
+    is race-y.
+    
+    This assignment is also not necessary;
+    evconst does not change the type of n.
+    Both arguments to evconst must have the same type,
+    and at the end of evconst, n is replaced with n.Left.
+    
+    Remove the assignment, and add a check to ensure
+    that its removal remains correct.
+    
+    Updates #15756
+    
+    Change-Id: Id95faaff42d5abd76be56445d1d3e285775de8bf
+    Reviewed-on: https://go-review.googlesource.com/38609
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/all/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

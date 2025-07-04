@@ -1,39 +1,24 @@
-commit b7a2d413a3f710f14accedf185c93bfb63d24fd0
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Oct 20 09:56:14 2020 +0200
+commit bba88467f86472764a656e61f5f3265ed6853692
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 19 17:48:42 2020 -0700
 
-    testing: print cpu type as label for benchmarks
+    cmd/compile: add indexed-load CMP instructions
     
-    Supports 386 and amd64 architectures on all operating systems.
+    Things like CMPQ 4(AX)(BX*8), CX
     
-    Example output:
-    $ go test -bench=.*
-    goos: darwin
-    goarch: amd64
-    pkg: strconv
-    cpu: Intel(R) Core(TM) i7-3520M CPU @ 2.90GHz
-    BenchmarkAtof64Decimal-4                24431032                46.8 ns/op
-    ...
+    Fixes #37955
     
-    As the displayed CPU information is only used for information
-    purposes it is lazily initialized when needed using the new
-    internal/sysinfo package.
-    
-    This allows internal/cpu to stay without dependencies and avoid
-    initialization costs when the CPU information is not needed as
-    the new code to query the CPU name in internal/cpu can be
-    dead code eliminated if not used.
-    
-    Fixes #39214
-    
-    Change-Id: I77ae5c5d2fed6b28fa78dd45075f9f0a6a7f1bfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263804
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icbed430f65c91a0e3f38a633d8321d79433ad8b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224219
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/build/deps_test.go       |  6 ++++-
- src/internal/cpu/cpu_no_name.go | 19 ++++++++++++++++
- src/internal/cpu/cpu_x86.go     | 49 +++++++++++++++++++++++++++++++++++++++++
- src/internal/sysinfo/sysinfo.go | 31 ++++++++++++++++++++++++++
- src/testing/benchmark.go        |  7 ++++++
- 5 files changed, 111 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go              |  13 +
+ src/cmd/compile/internal/ssa/addressingmodes.go    |  26 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  19 ++
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  10 +
+ src/cmd/compile/internal/ssa/opGen.go              | 225 +++++++++++++
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 371 +++++++++++++++++++++
+ test/codegen/memops.go                             |  60 ++++
+ 7 files changed, 724 insertions(+)

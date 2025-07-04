@@ -1,19 +1,18 @@
-commit 187fd2698d2f9fc2fc52aa7d4c0922552f848e98
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 23 17:35:02 2024 -0800
+commit ff9269ee11d9ac3069572e40d641eb5884ae6abd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 16:45:33 2023 -0500
 
-    cmd/compile: make write barrier code amenable to paired loads/stores
+    doc: add release notes for runtime-internal contention
     
-    It currently isn't because it does load/store/load/store/...
-    Rework to do overwrite processing in pairs so it is instead
-    load/load/store/store/...
+    For #57071.
+    For #61422.
     
-    Change-Id: If7be629bc4048da5f2386dafb8f05759b79e9e2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631495
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I5d546d8828be897cb087e85a1251213c582b3894
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547059
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 49 +++++++++++++++++++---------
- test/codegen/writebarrier.go                 | 13 ++++++++
- 2 files changed, 47 insertions(+), 15 deletions(-)
+ doc/go1.22.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

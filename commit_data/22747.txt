@@ -1,35 +1,12 @@
-commit d942737f8a3b15a79d2d1252e107edeb2e51d7e5
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Apr 26 15:18:41 2015 -0700
+commit aaa092cfd70bbdfc577c0c9837d98fa0c416447d
+Author: kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Tue Apr 7 20:19:45 2015 +0930
 
-    crypto/x509: allow parsing of certificates with unknown critical extensions.
+    encoding/gob: make method doc string match method name
     
-    Previously, unknown critical extensions were a parse error. However, for
-    some cases one wishes to parse and use a certificate that may contain
-    these extensions. For example, when using a certificate in a TLS server:
-    it's the client's concern whether it understands the critical extensions
-    but the server still wishes to parse SNI values out of the certificate
-    etc.
-    
-    This change moves the rejection of unknown critical extensions from
-    ParseCertificate to Certificate.Verify. The former will now record the
-    OIDs of unknown critical extensions in the Certificate and the latter
-    will fail to verify certificates with them. If a user of this package
-    wishes to handle any unknown critical extensions themselves, they can
-    extract the extensions from Certificate.Extensions, process them and
-    remove known OIDs from Certificate.UnknownCriticalExtensions.
-    
-    See discussion at
-    https://groups.google.com/forum/#!msg/golang-nuts/IrzoZlwalTQ/qdK1k-ogeHIJ
-    and in the linked bug.
-    
-    Fixes #10459
-    
-    Change-Id: I762521a44c01160fa0901f990ba2f5d4977d7977
-    Reviewed-on: https://go-review.googlesource.com/9390
+    Change-Id: I6859bd9c9dba30fc5eeb9bbc1de90af67984944c
+    Reviewed-on: https://go-review.googlesource.com/8526
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/verify.go    |  4 ++++
- src/crypto/x509/x509.go      | 26 ++++++++++++++++++--------
- src/crypto/x509/x509_test.go | 28 +++++++++++++++++++++++++---
- 3 files changed, 47 insertions(+), 11 deletions(-)
+ src/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

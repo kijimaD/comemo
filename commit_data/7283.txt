@@ -1,12 +1,12 @@
-commit 9173a095300ad4a1d0e57b4d096c39a655753382
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 31 18:54:25 2011 +1100
+commit 3bfd35b72e24ec5c918a9e0f233634db45950c68
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jan 31 15:58:44 2011 +1100
 
-    bufio: make Flush a no-op when the buffer is empty
+    run.bash: disable doc/codelab/wiki test on windows
     
-    R=r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4119048
+    https://golang.org/cl/4119047
 
- src/pkg/bufio/bufio.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/run.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

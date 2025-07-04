@@ -1,19 +1,24 @@
-commit cdb270cf0737a4752e5375b737eba83929f2b415
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Aug 23 19:27:49 2022 -0700
+commit 8dbf3e9393400d72d313e5616c88873e07692c70
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 23 10:16:41 2021 -0700
 
-    reflect: fix stale Value.kind documentation
+    cmd/compile: fix fuse pass to do CFG surgery correctly
     
-    The lowests fives bits are the kind, and the next five bits are attributes,
-    not the other way around.
+    removePred and removeArg do different things. removePred moves the last
+    predecessor to index k, whereas removeArg slides all the args k or
+    greater down by 1 index.
     
-    Change-Id: I5e1d13b195b766e99f66bb1227cc7f84e85dc49d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425185
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Kind of unfortunate different behavior in things named similarly.
+    
+    Fixes #49122
+    
+    Change-Id: I9ae409bdac744e713f4c121f948e43db6fdc8542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358117
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/reflect/value.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/fuse_branchredirect.go |  6 +++++-
+ test/fixedbugs/issue49122.go                        | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

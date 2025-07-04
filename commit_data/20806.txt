@@ -1,13 +1,22 @@
-commit d7660143b6fb99073614b60269f57d9e47f07c2c
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 28 12:11:34 2014 -0700
+commit 96d1e4ab5938d263457a9c18fdf6fdf0581c6ec6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 14 14:09:56 2014 -0700
 
-    doc/go1.4.html: new ports
+    math/big: Allow non-prime modulus for ModInverse
     
-    LGTM=rsc, aram, minux
-    R=golang-codereviews, aram, minux, rsc
+    The inverse is defined whenever the element and the
+    modulus are relatively prime.  The code already handles
+    this situation, but the spec does not.
+    
+    Test that it does indeed work.
+    
+    Fixes #8875
+    
+    LGTM=agl
+    R=agl
     CC=golang-codereviews
-    https://golang.org/cl/162370045
+    https://golang.org/cl/155010043
 
- doc/go1.4.html | 39 +++++++++++++++++++++++++++++++--------
- 1 file changed, 31 insertions(+), 8 deletions(-)
+ src/math/big/int.go      | 15 ++++++++-------
+ src/math/big/int_test.go | 36 ++++++++++++++++++++++++++----------
+ 2 files changed, 34 insertions(+), 17 deletions(-)

@@ -1,31 +1,36 @@
-commit 4635ad047a426f43a4b70cd11ce52b062d0da34f
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Wed Feb 26 14:13:15 2025 -0500
+commit c2dbbe4e942c3cb605a5dc6922410e90028a2e68
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 29 13:52:11 2024 -0500
 
-    crypto/tls: align cert decode alert w/ BSSL
+    cmd: vendor golang.org/x/telemetry and call counter.Open in cmd/go
     
-    For malformed client/server certificates in a TLS handshake send
-    a decode_error alert, matching BoringSSL behaviour.
+    This change vendors golang.org/x/telemetry and calls counter.Open in
+    cmd/go right at the beginning.
     
-    Previously crypto/tls used a bad_certificate alert for this purpose.
-    The TLS specification is imprecise enough to allow this to be considered
-    a spec. justified choice, but since all other places in the protocol
-    encourage using decode_error for structurally malformed messages we may
-    as well do the same here and get some extra cross-impl consistency for
-    free.
+    For #58894
     
-    This also allows un-ignoring the BoGo
-    GarbageCertificate-[Client|Server]-[TLS12|TLS13] tests.
-    
-    Updates #72006
-    
-    Change-Id: Ide45ba1602816e71c3289a60e77587266c3b9036
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652995
+    Change-Id: Iae56328440614b213c1429972e6f68f22c2112cd
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-windows-amd64-longtest,gotip-linux-amd64-longtest-race
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559199
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/tls/bogo_config.json    | 1 -
- src/crypto/tls/handshake_client.go | 2 +-
- src/crypto/tls/handshake_server.go | 2 +-
- 3 files changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/go.mod                                     |   1 +
+ src/cmd/go.sum                                     |   2 +
+ src/cmd/go/main.go                                 |   7 +-
+ src/cmd/vendor/golang.org/x/telemetry/LICENSE      |  27 +
+ src/cmd/vendor/golang.org/x/telemetry/PATENTS      |  22 +
+ .../golang.org/x/telemetry/counter/counter.go      |  94 +++
+ .../x/telemetry/counter/counter_go118.go           |  34 +
+ .../vendor/golang.org/x/telemetry/counter/doc.go   |  30 +
+ .../x/telemetry/internal/counter/counter.go        | 328 ++++++++++
+ .../x/telemetry/internal/counter/file.go           | 705 +++++++++++++++++++++
+ .../x/telemetry/internal/counter/parse.go          | 130 ++++
+ .../x/telemetry/internal/counter/stackcounter.go   | 164 +++++
+ .../golang.org/x/telemetry/internal/mmap/mmap.go   |  37 ++
+ .../x/telemetry/internal/mmap/mmap_other.go        |  25 +
+ .../x/telemetry/internal/mmap/mmap_unix.go         |  47 ++
+ .../x/telemetry/internal/mmap/mmap_windows.go      |  54 ++
+ .../x/telemetry/internal/telemetry/mode.go         | 117 ++++
+ src/cmd/vendor/modules.txt                         |   6 +
+ 18 files changed, 1828 insertions(+), 2 deletions(-)

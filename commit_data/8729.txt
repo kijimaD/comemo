@@ -1,22 +1,12 @@
-commit db5a4ffc2ab9bbd435e71fc36632fa5264e35771
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 15 13:28:35 2011 +1000
+commit 414da2e4a3806a33c1a245ce7a4b6403461e5c30
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jun 15 11:50:21 2011 +1000
 
-    goinstall: use go/make package to scan and build packages
+    syscall: mksyscall_windows.pl should output unix newline.
     
-    R=rsc, n13m3y3r, kevlar
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4515180
+    https://golang.org/cl/4601058
 
- src/cmd/goinstall/Makefile        |  18 ----
- src/cmd/goinstall/doc.go          |   2 +
- src/cmd/goinstall/main.go         |  68 +++++++++------
- src/cmd/goinstall/make.go         | 168 -------------------------------------
- src/cmd/goinstall/parse.go        | 172 --------------------------------------
- src/cmd/goinstall/path.go         | 149 ---------------------------------
- src/cmd/goinstall/syslist_test.go |  61 --------------
- src/pkg/Makefile                  |   1 +
- src/pkg/go/build/build.go         | 172 ++++++++++++++++++++++++++++++++------
- src/pkg/go/build/build_test.go    |  36 ++++----
- src/pkg/go/build/dir.go           |  11 ++-
- 11 files changed, 214 insertions(+), 644 deletions(-)
+ src/pkg/syscall/mksyscall_windows.pl | 2 ++
+ 1 file changed, 2 insertions(+)

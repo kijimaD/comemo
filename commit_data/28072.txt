@@ -1,22 +1,20 @@
-commit bee42067649390557c772c561e02d46b3f066fe3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Aug 25 22:19:16 2016 -0400
+commit f4d38a87927f42272c7dfd10283beac8865edeab
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 28 22:27:36 2016 +1300
 
-    runtime: have typelinksinit work forwards
+    cmd/compile: de-dup the gclocals symbols in compiler too
     
-    For reasons I have forgotten typelinksinit processed modules backwards.
-    (I suspect this was an attempt to process types in the executing
-    binary first.)
+    These symbols are de-duplicated in the linker but the compiler generates quite
+    many duplicates too: 2425 of 13769 total symbols for runtime.a for example.
+    De-duplicating them in the compiler saves the linker a bit of work.
     
-    It does not appear to be necessary, and it is not the order we want
-    when a module can be loaded at an arbitrary point during a program's
-    execution as a plugin. So reverse the order.
+    Fixes #14983
     
-    While here, make it safe to call typelinksinit multiple times.
-    
-    Change-Id: Ie10587c55c8e5efa0542981efb6eb3c12dd59e8c
-    Reviewed-on: https://go-review.googlesource.com/27822
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5f18e5f9743563c795aad8f0a22d17a7ed147711
+    Reviewed-on: https://go-review.googlesource.com/22293
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/type.go | 39 +++++++++++++++++++--------------------
- 1 file changed, 19 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go  | 13 -------------
+ src/cmd/compile/internal/gc/plive.go | 13 ++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go   |  2 --
+ 3 files changed, 12 insertions(+), 16 deletions(-)

@@ -1,23 +1,17 @@
-commit e2c420591cbbd684594a111fa5cdeb40c68964a5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Oct 19 14:02:14 2020 -0400
+commit e9850462aa1e35d92ff428915df7bb0c9e79df81
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 11 12:51:44 2020 +0700
 
-    cmd/go/internal/modload: remove printStackInDie functionality
+    cmd/compile: don't inline reflect.Value.UnsafeAddr/Pointer if enable checkptr
     
-    Previously, when running cmd/go tests, if the module root directory is
-    requested when modules are explicitly disabled, we printed a stack
-    trace in addition to the error message that's normally printed. The
-    stack trace isn't that useful, and it makes the actual error hard to
-    find.
+    Fixes #35073
     
-    Change-Id: I8230d668f3f16659f08d0d685124c41b4055c5b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263659
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4b555bbc33d39a97544e6dd9c61d95ae212f472b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222878
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modload/build.go  |  4 ----
- src/cmd/go/internal/modload/init.go   | 10 ----------
- src/cmd/go/internal/modload/testgo.go | 11 -----------
- 3 files changed, 25 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  6 ++++++
+ test/fixedbugs/issue35073.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

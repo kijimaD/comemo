@@ -1,17 +1,597 @@
-commit a13903562d612346507d9bacf481aaf0d9fa02fc
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Aug 14 15:08:59 2022 +0800
+commit c6c884be3854f3c94f1ee93a273544c9c5c35df5
+Merge: 51ca5706ab af72ddfcd7
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Sep 20 15:45:51 2021 -0400
 
-    cmd/compile/internal/ssagen: gofmt -w -s ssa.go
+    [dev.fuzz] all: merge master (af72ddf) into dev.fuzz
     
-    Change-Id: Ie169c226e8973c8b504412cc0ac1f14abcdfdb1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423755
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This now includes the fix in CL 350729, which means
+    we no longer need to skip the test in dev.fuzz.
+    
+    Conflicts:
+    
+    - src/cmd/compile/internal/noder/unified_test.go
+    
+    Merge List:
+    
+    + 2021-09-20 af72ddfcd7 cmd/compile: extend dump-to-file to handle "genssa" (asm) case.
+    + 2021-09-20 3c764babe7 cmd/go: write go.mod requirements more consistently for go 1.17+
+    + 2021-09-20 6268468e02 cmd/link: generate DIE for types referenced only through dictionaries
+    + 2021-09-20 6acac8b685 cmd/compile: delay all transforms for generic funcs/methods
+    + 2021-09-20 988f18d61d go/types: export Named._Orig as Named.Origin
+    + 2021-09-20 b6dddaccd7 cmd/compile: fix transform.AssignOp to deal with tricky case
+    + 2021-09-20 9e60c37147 cmd/compile: document register-based ABI for ppc64
+    + 2021-09-20 79159f2e83 cmd/compile: fix simplification rules on arm/arm64
+    + 2021-09-20 eff27e858b cmd/compile: ensure constant shift amounts are in range for arm
+    + 2021-09-20 9ebe7c8ec6 go/test: add a test for issue 48344
+    + 2021-09-20 6f35430faa cmd/compile: allow rotates to be merged with logical ops on arm64
+    + 2021-09-20 2d9b486420 cmd/compile: update doc at top of iexport.go on the changes for typeparams
+    + 2021-09-20 a81b0dc6ee cmd/compile: rename instType -> instanceType
+    + 2021-09-20 119213566a cmd/cgo: remove hardcoded '-pie' ldflag for linux/arm
+    + 2021-09-20 a83a558733 cmd/compile: fix export/import of range loop.
+    + 2021-09-19 315dbd10c9 cmd/compile: fold double negate on arm64
+    + 2021-09-19 83b36ffb10 cmd/compile: implement constant rotates on arm64
+    + 2021-09-19 771b8ea4f4 cmd/compile: fix missing markHiddenClosureDead in deadcode pass
+    + 2021-09-18 c894b442d1 net/rpc: remove warnings on incompatible methods at registration
+    + 2021-09-17 4b654c0eec cmd/compile: SSA ".this" variable
+    + 2021-09-17 f01721efb9 cmd/compile: remove self copies in tail-call wrappers
+    + 2021-09-17 163871feb1 time: re-add space-padded day of year to docs
+    + 2021-09-17 ac7c34767d time: support fractional timezone minutes in MarshalBinary
+    + 2021-09-17 07b30a4f77 cmd/compile: delay transformAssign if lhs/rhs have typeparam
+    + 2021-09-17 c10b980220 cmd/compile: restore tail call for method wrappers
+    + 2021-09-17 50e4508269 cmd/compile: fix import/export of Init and Def fields.
+    + 2021-09-17 3fa35b5f97 go/types: ensure that we always get a new signature in expandNamed
+    + 2021-09-17 3fa7dbeff5 cmd/go: fix GOARCH value in GOAMD64 docs
+    + 2021-09-17 974b0166d6 syscall: implement Pipe using pipe2 syscall on all linux platforms
+    + 2021-09-17 1a49dcb82f syscall: remove //sysnb comment generating Setreuid for linux/arm64
+    + 2021-09-17 cea7a71d40 cmd/compile: fix generic type handling in crawler
+    + 2021-09-17 74e384f50d internal/poll: inject a hook into the runtime finalizer to count the closed pipes
+    + 2021-09-17 323c6f74d3 log: don't format if writing to io.Discard
+    + 2021-09-17 7f36ef0aff cmd/compile/internal/noder: hide TestUnifiedCompare behind -cmp flag
+    + 2021-09-17 70493b3eb0 runtime/cgo: save and restore X3 (aka GP) for crosscall1 on riscv64
+    + 2021-09-17 6d02ce8584 runtime: fix prettyprinting of parametric types in gdb
+    + 2021-09-17 6602c86a38 cmd/internal/obj/riscv: improve instruction validation
+    + 2021-09-17 14e812bfc5 syscall: do not use handle lists on windows when NoInheritHandles is true
+    + 2021-09-16 8d2a9c32a2 all: remove incorrectly repeated words in comments
+    + 2021-09-16 af9da137a9 A+C: update name to real name and add to AUTHORS
+    + 2021-09-16 265b59aefd cmd/cgo: for godefs, don't let field prefix removal cause duplicates
+    + 2021-09-16 4efdaa7bc7 testing: skip panics when picking the line number for decoration
+    + 2021-09-16 e09dcc211a go/types, types2: add an additional shift test case
+    + 2021-09-16 5402b4376c spec: fix incorrect type in a shift example
+    + 2021-09-16 d09e09bc61 cmd/compile: fixing writebarrier.go for -G=3
+    + 2021-09-16 bcdc61d830 cmd/compile: preserve statements better in expandCalls
+    + 2021-09-16 48e2b1ea91 cmd/compile: fix LocResults formatting
+    + 2021-09-16 b1bedc0774 cmd/go: add GOAMD64 environment variable
+    + 2021-09-16 04f5116c98 cmd/go: clean paths before checking same directory
+    + 2021-09-16 e7dbe3908e cmd/cgo: add missing tab in exports for a result of void
+    + 2021-09-15 cfa233d76b cmd/compile: remove unneeded early transforms, with dictionary change
+    + 2021-09-15 59a9a035ff cmd/compile: switch to computing dict format on instantiated functions
+    + 2021-09-15 0edc6c4fa0 cmd/internal/obj/ppc64: generate prologue code compatible with new ABI
+    + 2021-09-15 03df68d3c3 runtime: fix setting of cpu features for amd64
+    + 2021-09-15 6196979365 cmd/go/internal/modload: prevent tidy downgrading disambiguating modules
+    + 2021-09-15 72bb8185b5 cmd/compile: emit DWARF info about dictionary entries
+    + 2021-09-15 5b48fca1fa cmd/compile: mark wrapper functions with DW_AT_trampoline
+    + 2021-09-15 e4dfd788e6 go/internal/gcimporter,cmd/compile: minor clean-up in iimport.go
+    + 2021-09-15 4847c47cb8 cmd/compile/internal/types2: eliminate Named.instPos
+    + 2021-09-15 3100f54f20 cmd/compile/internal/types2: merge Named type loading and expansion
+    + 2021-09-15 738cebb174 cmd/compile/internal/types2: implement Identical for *Union types
+    + 2021-09-15 b26d325cb1 cmd/compile/internal/types2: remove some unnecessary loading/expansion of Named types
+    + 2021-09-15 9fc28892cb cmd/compile/internal/types2: export TypeHash, return value without blanks
+    + 2021-09-15 2da3375e9b runtime: in adjustTimers back up as far as necessary
+    + 2021-09-15 c7f2f51fed cmd/go: remove subcommand prefix from error messages
+    + 2021-09-15 0bb40b08c4 go/types: implement Identical for *Union types
+    + 2021-09-15 cb4e1de021 go/types: minor cleanup of instantiation
+    + 2021-09-15 a0f3129466 go/types: instantiate methods when instantiating Named types
+    + 2021-09-14 bf26e43d0f go/types: eliminate Named.instPos
+    + 2021-09-14 2933c451a0 go/types: merge Named type loading and expansion
+    + 2021-09-14 137543bb93 cmd/compile: set IsShape based on type being in the Shapes pkg
+    + 2021-09-14 3a72175cdc cmd/compile: fix test/typeparam/mdempsky/4.go for -G=3
+    + 2021-09-14 b2c04f0d48 runtime: avoid loop variable capture in test
+    + 2021-09-14 181e8cde30 go/internal/gcimporter: remove outdated comment
+    + 2021-09-14 8699425b55 syscall: remove use of IN_KUBERNETES in test
+    + 2021-09-14 b3c6de9dcd cmd/internal/obj/ppc64: allow VR register arguments to VS registers
+    + 2021-09-14 ee91bb8319 cmd/compile: prevent typecheck importer reading type parameter twice
+    + 2021-09-14 2953cd0083 go/internal/gcimporter: prevent importReader reading type parameter twice
+    + 2021-09-14 b8c802b116 cmd/compile: prevent importReader reading type parameter twice
+    + 2021-09-14 4a4221e818 all: remove some unused code
+    + 2021-09-14 71adc658de runtime: change time.now to ABIInternal
+    + 2021-09-14 146e8d4994 reflect: use Value.Len instead of conversion to slice header
+    + 2021-09-13 9a58aa267e spec: fix prose about terminating statements
+    + 2021-09-13 42057e9848 cmd/compile: save the note of fields when translating struct
+    + 2021-09-13 960d036f8f cmd/go: add missing parenthesis in a call to "PrintVersion"
+    + 2021-09-13 81a4fe6fd2 cmd/link/internal/ld: re-enable DWARF tests on solaris/illumos
+    + 2021-09-13 f93a63addb reflect: add a floating point section to DeepEqual tests
+    + 2021-09-13 a0c409cbc8 reflect: add fast paths for common, simple Kinds to DeepEqual
+    + 2021-09-13 ac40c9872f reflect: fix _faststr optimization
+    + 2021-09-13 c8a58f29dc cmd/go: add test to check for a potential workspace loading issue
+    + 2021-09-13 e74e363a6b strings: add Clone function
+    + 2021-09-13 bced369a50 cmd/link: minor code cleanup in dwarf gen
+    + 2021-09-13 c3b217a0e5 cmd/go: document 'go install cmd@version' ignores vendor directories
+    + 2021-09-12 ad97d204f0 go/types: remove some unnecessary loading/expansion of Named types
+    + 2021-09-12 0d8a4bfc96 bufio: add Writer.AvailableBuffer
+    + 2021-09-11 23832ba2e2 reflect: optimize for maps with string keys
+    + 2021-09-11 a50225a0dc bufio: make Reader.Reset and Writer.Reset work on the zero value
+    + 2021-09-10 cf2fe5d6f1 doc/asm: fix HTML markup
+    + 2021-09-10 1bf2cd1291 debug/elf: retain original error message when getSymbols fails.
+    + 2021-09-10 5a4b9f9494 time: reference -tags=timetzdata in testing panic
+    + 2021-09-10 025308fe08 testing: increase alternation precedence
+    + 2021-09-10 5a94a90d84 cmd/compile/internal/types2: better error message for invalid array decls
+    + 2021-09-10 da1aa65053 cmd/compile/internal/syntax: correct follow token for type parameter lists
+    + 2021-09-10 96ab854ab0 cmd/compile/internal: better AST line highlight in ssa.html
+    + 2021-09-10 90c5660616 embed: guarantee the returned file of FS.Open implements io.Seeker
+    + 2021-09-10 c69f5c0d76 cmd/compile: add support for Abs and Copysign intrinsics on riscv64
+    + 2021-09-10 2091bd3f26 cmd/compile: simiplify arm64 bitfield optimizations
+    + 2021-09-09 b32209d22d cmd/compile: fix test case for unified IR (fix build)
+    + 2021-09-09 1a708bcf1d cmd/compile: don't crash while reporting invalid alias cycle
+    + 2021-09-09 426ff3746f cmd/cgo, runtime/cgo: avoid GCC/clang conversion warnings
+    + 2021-09-09 73483df406 cmd/compile/internal/syntax: better error message for missing type constraint
+    + 2021-09-09 e1c3f2158f time: propagate "," separator for fractional seconds into Format
+    + 2021-09-09 c981874a5a cmd/compile: fix implement for closure in a global assignment
+    + 2021-09-09 2c4f389c02 cmd/link: enable internal linker in more cases for ppc64le
+    + 2021-09-09 fb84e99eb7 test: add compiler regress tests for #46461
+    + 2021-09-09 b9e1a24581 cmd/compile: fix case where init info of OAS node is dropped
+    + 2021-09-09 f9271e4f85 go/types, types2: rename RParams -> RecvTypeParams
+    + 2021-09-09 ea434450c2 reflect: add hooks for dealing with narrow width floats
+    + 2021-09-09 a53e3d5f88 net: deprecate (net.Error).Temporary
+    + 2021-09-09 19457a58e5 cmd/compile: stenciled conversions might be NOPs
+    + 2021-09-09 a295b3cec8 test: re-enable AsmCheck tests for types2-based frontends
+    + 2021-09-09 66f0d35f71 go/types: reduce number of delayed functions
+    + 2021-09-09 d2a77f1c76 go/types: handle recursive type parameter constraints
+    + 2021-09-09 9e1eea6f8b go/types: detect constraint type inference cycles
+    + 2021-09-09 b86e8dd0f3 test/typeparam: fix issue48094b test build
+    + 2021-09-09 c84f3a4004 syscall: drop fallback to pipe in Pipe on linux/arm
+    + 2021-09-09 376a079762 cmd/compile: fix unified IR panic when expanding nested inline function
+    + 2021-09-09 6edc57983a internal/poll: report open fds when TestSplicePipePool fails
+    + 2021-09-09 2481f6e367 cmd/compile: fix wrong instantiated type for embedded receiver
+    + 2021-09-09 d62866ef79 cmd/compile: move checkptr alignment to SSA generation
+    + 2021-09-09 8fad81cd62 cmd/compile: fold handling OCONV logic to separate function
+    + 2021-09-09 9cbc76bdf9 cmd/internal/obj/arm64: add checks for incorrect use of REGTMP register
+    + 2021-09-09 42563f89d7 cmd/compile: remove 'ext' fields from unified IR reader/writer types
+    + 2021-09-09 4c52eac49b cmd/compile: simplify value coding for unified IR
+    + 2021-09-09 e30a09013b cmd/compile: extrapolate $GOROOT in unified IR
+    + 2021-09-08 a1f6208e56 go/types, types2: add Environment to Config
+    + 2021-09-08 f5f8a911d8 cmd/compile/internal/types2: spell out 'Type' in type parameter APIs
+    + 2021-09-08 bff39cf6cb cmd/compile: add automated rewrite cycle detection
+    + 2021-09-08 b61e1ed863 cmd/compile/internal/types2: temporarily pin the Checker to Interface during checking
+    + 2021-09-08 47f3e1e02c cmd/compile/internal/types2: move NewTypeParam off of Checker
+    + 2021-09-08 ccc927b8f6 cmd/compile/internal/types2: move typeHash to environment.go
+    + 2021-09-08 30e9bfbcef cmd/compile/internal/types2: implement deduplication of instances using the Environment
+    + 2021-09-08 0406d3a8e5 go/ast: rename MultiIndexExpr to IndexListExpr
+    
+    Change-Id: I7f917d45b0507c122c212305144b0b455618ff54
 
- src/cmd/compile/internal/ssagen/ssa.go | 644 ++++++++++++++++-----------------
- 1 file changed, 322 insertions(+), 322 deletions(-)
+ AUTHORS                                            |   1 +
+ CONTRIBUTORS                                       |   2 +-
+ doc/asm.html                                       |   6 +-
+ doc/go_spec.html                                   |   9 +-
+ misc/cgo/testgodefs/testdata/issue48396.go         |  18 +
+ misc/cgo/testgodefs/testdata/main.go               |   3 +
+ misc/cgo/testgodefs/testgodefs_test.go             |   1 +
+ src/bufio/bufio.go                                 |  18 +
+ src/bufio/bufio_test.go                            |  58 +-
+ src/bufio/example_test.go                          |  12 +
+ src/cmd/asm/internal/asm/testdata/arm64error.s     |  21 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s          |  15 +
+ src/cmd/asm/internal/asm/testdata/riscv64.s        |   2 +
+ src/cmd/cgo/gcc.go                                 |  25 +
+ src/cmd/cgo/out.go                                 |   7 +-
+ src/cmd/compile/abi-internal.md                    |  99 +++
+ src/cmd/compile/internal/amd64/ssa.go              |  21 +-
+ src/cmd/compile/internal/arm/ssa.go                |  10 +-
+ src/cmd/compile/internal/arm64/ssa.go              |  21 +-
+ src/cmd/compile/internal/deadcode/deadcode.go      |   1 +
+ src/cmd/compile/internal/dwarfgen/dwarf.go         |   3 +
+ src/cmd/compile/internal/escape/stmt.go            |   3 +-
+ src/cmd/compile/internal/importer/iimport.go       |  26 +-
+ src/cmd/compile/internal/inline/inl.go             |   3 +
+ src/cmd/compile/internal/ir/expr.go                |   9 +-
+ src/cmd/compile/internal/ir/fmt.go                 |   5 +-
+ src/cmd/compile/internal/ir/mini.go                |   2 +-
+ src/cmd/compile/internal/ir/name.go                |   1 +
+ src/cmd/compile/internal/ir/node_gen.go            |   6 +-
+ src/cmd/compile/internal/ir/stmt.go                |   9 +-
+ src/cmd/compile/internal/ir/symtab.go              |  55 +-
+ src/cmd/compile/internal/mips/ssa.go               |   9 +-
+ src/cmd/compile/internal/mips64/ssa.go             |   9 +-
+ src/cmd/compile/internal/noder/decl.go             |   2 +-
+ src/cmd/compile/internal/noder/decoder.go          |   3 +-
+ src/cmd/compile/internal/noder/encoder.go          |   3 +-
+ src/cmd/compile/internal/noder/expr.go             |  63 +-
+ src/cmd/compile/internal/noder/helpers.go          |  71 +-
+ src/cmd/compile/internal/noder/import.go           |  10 +-
+ src/cmd/compile/internal/noder/irgen.go            |  64 +-
+ src/cmd/compile/internal/noder/noder.go            |   8 +-
+ src/cmd/compile/internal/noder/reader.go           |  61 +-
+ src/cmd/compile/internal/noder/reader2.go          |  24 +-
+ src/cmd/compile/internal/noder/stencil.go          | 556 +++++++-----
+ src/cmd/compile/internal/noder/stmt.go             |  72 +-
+ src/cmd/compile/internal/noder/transform.go        | 100 +--
+ src/cmd/compile/internal/noder/types.go            |  14 +-
+ src/cmd/compile/internal/noder/unified.go          |   7 +-
+ src/cmd/compile/internal/noder/unified_test.go     |   8 +-
+ src/cmd/compile/internal/noder/writer.go           |  76 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |  10 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |  17 +-
+ src/cmd/compile/internal/riscv64/ssa.go            |  14 +-
+ src/cmd/compile/internal/s390x/ssa.go              |  10 +-
+ src/cmd/compile/internal/ssa/check.go              |   3 -
+ src/cmd/compile/internal/ssa/compile.go            |  59 +-
+ src/cmd/compile/internal/ssa/debug_lines_test.go   | 213 +++++
+ src/cmd/compile/internal/ssa/expand_calls.go       | 124 ++-
+ src/cmd/compile/internal/ssa/func.go               |   2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |   1 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go         |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules         | 154 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules       | 120 ++-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   9 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go         |  10 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules        |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules      |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go      |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go        |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules     |   5 +
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go     |   3 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |   1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules        |   1 +
+ src/cmd/compile/internal/ssa/gen/WasmOps.go        |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   6 +-
+ src/cmd/compile/internal/ssa/html.go               |  17 +-
+ src/cmd/compile/internal/ssa/location.go           |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go              | 277 ++++++
+ src/cmd/compile/internal/ssa/print.go              |  52 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |  32 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |   3 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |   3 +
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 504 +++++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 989 +++++++++++++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |   3 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   3 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |   3 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     |   9 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |   3 +
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |   3 +
+ .../compile/internal/ssa/testdata/inline-dump.go   |  17 +
+ src/cmd/compile/internal/ssa/testdata/sayhi.go     |  12 +
+ src/cmd/compile/internal/ssa/value.go              |  10 +-
+ src/cmd/compile/internal/ssa/writebarrier.go       |   2 +-
+ src/cmd/compile/internal/ssagen/abi.go             |  20 +-
+ src/cmd/compile/internal/ssagen/ssa.go             | 483 ++++++----
+ src/cmd/compile/internal/syntax/parser.go          |  36 +-
+ .../internal/syntax/testdata/issue43527.go2        |  23 +
+ .../compile/internal/syntax/testdata/tparams.go2   |  10 +-
+ src/cmd/compile/internal/typecheck/crawler.go      |  45 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |  68 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |  67 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |   9 +-
+ src/cmd/compile/internal/typecheck/subr.go         |  67 +-
+ src/cmd/compile/internal/typecheck/typecheck.go    |   1 +
+ src/cmd/compile/internal/types/identity.go         |  31 +-
+ src/cmd/compile/internal/types/type.go             |   6 +
+ src/cmd/compile/internal/types2/api.go             |   5 +
+ src/cmd/compile/internal/types2/api_test.go        |  45 +-
+ src/cmd/compile/internal/types2/assignments.go     |   2 +-
+ src/cmd/compile/internal/types2/builtins.go        |   2 +-
+ src/cmd/compile/internal/types2/call.go            |  24 +-
+ src/cmd/compile/internal/types2/check.go           |   7 +-
+ src/cmd/compile/internal/types2/decl.go            |  10 +-
+ src/cmd/compile/internal/types2/environment.go     |  81 ++
+ src/cmd/compile/internal/types2/errors.go          |   2 +-
+ src/cmd/compile/internal/types2/errors_test.go     |   1 -
+ src/cmd/compile/internal/types2/index.go           |   2 +-
+ src/cmd/compile/internal/types2/infer.go           |   2 +-
+ src/cmd/compile/internal/types2/instantiate.go     |  62 +-
+ .../compile/internal/types2/instantiate_test.go    |  62 ++
+ src/cmd/compile/internal/types2/interface.go       |  15 +-
+ src/cmd/compile/internal/types2/lookup.go          |  24 +-
+ src/cmd/compile/internal/types2/named.go           | 140 ++-
+ src/cmd/compile/internal/types2/object.go          |  20 +-
+ src/cmd/compile/internal/types2/predicates.go      |  18 +-
+ src/cmd/compile/internal/types2/signature.go       |  44 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   4 +-
+ src/cmd/compile/internal/types2/subst.go           | 105 +--
+ .../types2/testdata/fixedbugs/issue43527.go2       |  16 +
+ .../types2/testdata/fixedbugs/issue47887.go2       |  28 +
+ .../types2/testdata/fixedbugs/issue47996.go2       |   2 +-
+ .../types2/testdata/fixedbugs/issue48234.go2       |  10 +
+ src/cmd/compile/internal/types2/type.go            |   2 +-
+ src/cmd/compile/internal/types2/typelists.go       |  16 +-
+ src/cmd/compile/internal/types2/typeparam.go       |  12 +-
+ src/cmd/compile/internal/types2/typestring.go      | 115 ++-
+ src/cmd/compile/internal/types2/typexpr.go         |  10 +
+ src/cmd/compile/internal/types2/unify.go           |   3 -
+ src/cmd/compile/internal/types2/universe.go        |   4 +-
+ src/cmd/compile/internal/walk/convert.go           |  38 -
+ src/cmd/compile/internal/walk/expr.go              |  13 +-
+ src/cmd/compile/internal/walk/order.go             |   6 +
+ src/cmd/compile/internal/walk/stmt.go              |   8 +
+ src/cmd/compile/internal/wasm/ssa.go               |  13 +-
+ src/cmd/compile/internal/x86/ssa.go                |   9 +-
+ src/cmd/dist/build.go                              |  11 +
+ src/cmd/dist/buildruntime.go                       |   1 +
+ src/cmd/dist/test.go                               |   5 -
+ src/cmd/go.mod                                     |  11 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |  11 +-
+ src/cmd/go/internal/base/tool.go                   |   2 +-
+ src/cmd/go/internal/bug/bug.go                     |   2 +-
+ src/cmd/go/internal/cfg/cfg.go                     |   3 +
+ src/cmd/go/internal/clean/clean.go                 |  16 +-
+ src/cmd/go/internal/envcmd/env.go                  |  32 +-
+ src/cmd/go/internal/get/get.go                     |  10 +-
+ src/cmd/go/internal/help/helpdoc.go                |   4 +
+ src/cmd/go/internal/list/list.go                   |  10 +-
+ src/cmd/go/internal/load/pkg.go                    |   5 +-
+ src/cmd/go/internal/modcmd/download.go             |  10 +-
+ src/cmd/go/internal/modcmd/edit.go                 |  50 +-
+ src/cmd/go/internal/modcmd/editwork.go             |  26 +-
+ src/cmd/go/internal/modcmd/graph.go                |   2 +-
+ src/cmd/go/internal/modcmd/init.go                 |   2 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |   2 +-
+ src/cmd/go/internal/modcmd/vendor.go               |  34 +-
+ src/cmd/go/internal/modcmd/verify.go               |   2 +-
+ src/cmd/go/internal/modcmd/why.go                  |   4 +-
+ src/cmd/go/internal/modget/get.go                  |  34 +-
+ src/cmd/go/internal/modget/query.go                |   8 +-
+ src/cmd/go/internal/modload/buildlist.go           |  68 +-
+ src/cmd/go/internal/modload/import.go              |  46 +-
+ src/cmd/go/internal/modload/load.go                |  18 +-
+ src/cmd/go/internal/run/run.go                     |  12 +-
+ src/cmd/go/internal/test/test.go                   |   2 +-
+ src/cmd/go/internal/test/testflag.go               |   2 +-
+ src/cmd/go/internal/tool/tool.go                   |   6 +-
+ src/cmd/go/internal/version/version.go             |  10 +-
+ src/cmd/go/internal/vet/vet.go                     |   2 +-
+ src/cmd/go/internal/vet/vetflag.go                 |   4 +-
+ src/cmd/go/internal/work/action.go                 |   4 +-
+ src/cmd/go/internal/work/build.go                  |  33 +-
+ src/cmd/go/internal/work/exec.go                   |  22 +-
+ src/cmd/go/internal/work/gc.go                     |   5 +
+ src/cmd/go/internal/work/init.go                   |  15 +-
+ src/cmd/go/testdata/script/build_i_deprecate.txt   |   6 +-
+ src/cmd/go/testdata/script/env_unset.txt           |   6 +-
+ src/cmd/go/testdata/script/env_write.txt           |  18 +-
+ src/cmd/go/testdata/script/get_go_file.txt         |  12 +-
+ .../script/get_insecure_no_longer_supported.txt    |   4 +-
+ src/cmd/go/testdata/script/gopath_install.txt      |   2 +-
+ src/cmd/go/testdata/script/gopath_local.txt        |   4 +-
+ src/cmd/go/testdata/script/govcs.txt               |  26 +-
+ src/cmd/go/testdata/script/list_shadow.txt         |   2 +-
+ src/cmd/go/testdata/script/mod_all.txt             |  67 +-
+ src/cmd/go/testdata/script/mod_bad_domain.txt      |   2 +-
+ src/cmd/go/testdata/script/mod_dot.txt             |   6 +-
+ src/cmd/go/testdata/script/mod_download.txt        |  10 +-
+ src/cmd/go/testdata/script/mod_edit.txt            |  10 +-
+ src/cmd/go/testdata/script/mod_get_changes.txt     |  12 +-
+ .../testdata/script/mod_get_deprecate_install.txt  |   4 +-
+ src/cmd/go/testdata/script/mod_get_downgrade.txt   |   4 +-
+ .../testdata/script/mod_get_downgrade_missing.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_get_go_file.txt     |  10 +-
+ src/cmd/go/testdata/script/mod_get_main.txt        |  14 +-
+ src/cmd/go/testdata/script/mod_get_newcycle.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_get_nopkgs.txt      |   4 +-
+ src/cmd/go/testdata/script/mod_get_patch.txt       |   6 +-
+ src/cmd/go/testdata/script/mod_get_patchcycle.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_get_patchmod.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_get_patterns.txt    |   4 +-
+ src/cmd/go/testdata/script/mod_get_pkgtags.txt     |   4 +-
+ src/cmd/go/testdata/script/mod_get_private_vcs.txt |   2 +-
+ src/cmd/go/testdata/script/mod_get_replaced.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_get_split.txt       |   2 +-
+ src/cmd/go/testdata/script/mod_get_svn.txt         |   2 +-
+ src/cmd/go/testdata/script/mod_get_wild.txt        |   2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |   6 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       |   4 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |  22 +-
+ src/cmd/go/testdata/script/mod_invalid_path.txt    |   2 +-
+ .../go/testdata/script/mod_invalid_path_plus.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt |  32 +-
+ src/cmd/go/testdata/script/mod_list.txt            |   4 +-
+ src/cmd/go/testdata/script/mod_list_sums.txt       |   2 +-
+ .../testdata/script/mod_list_update_nolatest.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   6 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |   6 +-
+ .../go/testdata/script/mod_prefer_compatible.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_proxy_invalid.txt   |   4 +-
+ src/cmd/go/testdata/script/mod_query.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_query_empty.txt     |   4 +-
+ src/cmd/go/testdata/script/mod_query_exclude.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_query_main.txt      |  10 +-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt |   2 +-
+ src/cmd/go/testdata/script/mod_retention.txt       |  22 +-
+ .../go/testdata/script/mod_retract_fix_version.txt |   2 +-
+ .../go/testdata/script/mod_retract_pseudo_base.txt |   2 +-
+ src/cmd/go/testdata/script/mod_run_nonmain.txt     |   2 +-
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt |   6 +-
+ src/cmd/go/testdata/script/mod_sum_readonly.txt    |   6 +-
+ src/cmd/go/testdata/script/mod_sumdb.txt           |   2 +-
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |   2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat.txt     |   2 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |   9 +-
+ .../script/mod_tidy_compat_incompatible.txt        |   7 +-
+ .../script/mod_tidy_downgrade_ambiguous.txt        |  58 ++
+ src/cmd/go/testdata/script/mod_tidy_too_new.txt    |   4 +-
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt   |   6 +-
+ src/cmd/go/testdata/script/mod_vendor.txt          |   6 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |   8 +-
+ src/cmd/go/testdata/script/mod_vendor_embed.txt    |   4 +-
+ src/cmd/go/testdata/script/run_dirs.txt            |  14 +-
+ src/cmd/go/testdata/script/run_wildcard.txt        |   2 +-
+ src/cmd/go/testdata/script/test_flag.txt           |   6 +-
+ src/cmd/go/testdata/script/test_race_install.txt   |   2 +-
+ src/cmd/go/testdata/script/work_prune.txt          | 104 +++
+ src/cmd/internal/dwarf/dwarf.go                    | 128 ++-
+ src/cmd/internal/goobj/objfile.go                  |   2 +
+ src/cmd/internal/obj/arm64/a.out.go                |   7 +-
+ src/cmd/internal/obj/arm64/asm7.go                 |  21 +
+ src/cmd/internal/obj/dwarf.go                      |   4 +-
+ src/cmd/internal/obj/objfile.go                    |   3 +
+ src/cmd/internal/obj/ppc64/a.out.go                |  10 +-
+ src/cmd/internal/obj/ppc64/asm9.go                 |  85 +-
+ src/cmd/internal/obj/ppc64/asm_test.go             |  41 +
+ src/cmd/internal/obj/ppc64/obj9.go                 |  63 +-
+ src/cmd/internal/obj/riscv/anames.go               |   2 +
+ src/cmd/internal/obj/riscv/cpu.go                  |   2 +
+ src/cmd/internal/obj/riscv/obj.go                  |  18 +-
+ src/cmd/internal/obj/util.go                       |   5 +
+ src/cmd/link/internal/ld/config.go                 |  12 +-
+ src/cmd/link/internal/ld/dwarf.go                  | 149 ++--
+ src/cmd/link/internal/ld/dwarf_test.go             | 115 ++-
+ src/cmd/link/internal/loader/loader.go             |   9 +
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 295 +++---
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/database/sql/convert_test.go                   |   3 -
+ src/debug/elf/file.go                              |   8 +-
+ src/embed/embed.go                                 |   6 +
+ src/go.mod                                         |   3 +
+ src/go/ast/ast.go                                  |  10 +-
+ src/go/ast/walk.go                                 |   2 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |   3 -
+ src/go/internal/gcimporter/iimport.go              |  19 +-
+ src/go/internal/typeparams/typeparams.go           |  13 +-
+ src/go/parser/parser.go                            |   4 +-
+ src/go/printer/nodes.go                            |   2 +-
+ src/go/types/api.go                                |   5 +
+ src/go/types/api_test.go                           |  43 +
+ src/go/types/call.go                               |  50 +-
+ src/go/types/check.go                              |   7 +-
+ src/go/types/decl.go                               |  67 +-
+ src/go/types/environment.go                        |   7 -
+ src/go/types/errors.go                             |   2 +-
+ src/go/types/errors_test.go                        |   1 -
+ src/go/types/expr.go                               |   2 +-
+ src/go/types/exprstring.go                         |   2 +-
+ src/go/types/infer.go                              | 125 +++
+ src/go/types/instantiate.go                        |   8 +-
+ src/go/types/instantiate_test.go                   |  82 ++
+ src/go/types/lookup.go                             |  28 +-
+ src/go/types/named.go                              | 189 ++--
+ src/go/types/object.go                             |  21 +-
+ src/go/types/predicates.go                         |  12 +-
+ src/go/types/resolver.go                           |   2 +-
+ src/go/types/signature.go                          |  24 +-
+ src/go/types/sizeof_test.go                        |   4 +-
+ src/go/types/struct.go                             |   2 +-
+ src/go/types/subst.go                              |  69 +-
+ src/go/types/testdata/fixedbugs/issue43527.go2     |  16 +
+ src/go/types/testdata/fixedbugs/issue45550.go2     |  10 +
+ src/go/types/testdata/fixedbugs/issue47796.go2     |  33 +
+ src/go/types/testdata/fixedbugs/issue47887.go2     |  28 +
+ src/go/types/testdata/fixedbugs/issue48136.go2     |  36 +
+ src/go/types/type.go                               |   2 +-
+ src/go/types/typeparam.go                          |   2 +-
+ src/go/types/typestring.go                         |  10 -
+ src/go/types/typexpr.go                            |  12 +-
+ src/go/types/unify.go                              |   3 -
+ src/internal/abi/abi.go                            |  28 +-
+ src/internal/buildcfg/cfg.go                       |  16 +
+ src/internal/buildcfg/cfg_test.go                  |  25 +
+ src/internal/cfg/cfg.go                            |   1 +
+ src/internal/poll/splice_linux_test.go             |  53 +-
+ src/log/log.go                                     |  53 +-
+ src/log/log_test.go                                |  14 +-
+ src/net/lookup.go                                  |  16 +-
+ src/net/net.go                                     |   8 +-
+ src/net/rpc/server.go                              |  24 +-
+ src/os/exec/exec_windows_test.go                   |  14 +
+ src/reflect/abi.go                                 |  42 +
+ src/reflect/all_test.go                            | 133 ++-
+ src/reflect/deepequal.go                           |  21 +-
+ src/reflect/float32reg_generic.go                  |  21 +
+ src/reflect/value.go                               |  79 +-
+ src/runtime/cgo/gcc_riscv64.S                      | 108 +--
+ src/runtime/cgo/gcc_sigaction.c                    |  10 +-
+ src/runtime/crash_cgo_test.go                      |   1 +
+ src/runtime/map.go                                 |  21 +
+ src/runtime/mpagealloc.go                          |   2 +-
+ src/runtime/proc.go                                |   2 +-
+ src/runtime/runtime-gdb.py                         |   9 +-
+ src/runtime/time.go                                |  30 +-
+ src/runtime/time_linux_amd64.s                     |  37 +-
+ src/strings/clone.go                               |  23 +
+ src/strings/clone_test.go                          |  40 +
+ src/syscall/exec_linux_test.go                     |  16 -
+ src/syscall/exec_windows.go                        |   8 +-
+ src/syscall/syscall_linux.go                       |  17 +
+ src/syscall/syscall_linux_386.go                   |  26 -
+ src/syscall/syscall_linux_amd64.go                 |  26 -
+ src/syscall/syscall_linux_arm.go                   |  30 -
+ src/syscall/syscall_linux_arm64.go                 |  25 -
+ src/syscall/syscall_linux_mips64x.go               |  24 -
+ src/syscall/syscall_linux_mipsx.go                 |  23 -
+ src/syscall/syscall_linux_ppc64x.go                |  24 -
+ src/syscall/syscall_linux_riscv64.go               |  24 -
+ src/syscall/syscall_linux_s390x.go                 |  24 -
+ src/syscall/zsyscall_linux_386.go                  |  30 +-
+ src/syscall/zsyscall_linux_amd64.go                |  30 +-
+ src/syscall/zsyscall_linux_arm.go                  |  30 +-
+ src/syscall/zsyscall_linux_arm64.go                |  20 +-
+ src/syscall/zsyscall_linux_mips.go                 |  32 +-
+ src/syscall/zsyscall_linux_mips64.go               |  20 +-
+ src/syscall/zsyscall_linux_mips64le.go             |  20 +-
+ src/syscall/zsyscall_linux_mipsle.go               |  32 +-
+ src/syscall/zsyscall_linux_ppc64.go                |  20 +-
+ src/syscall/zsyscall_linux_ppc64le.go              |  20 +-
+ src/syscall/zsyscall_linux_riscv64.go              |  20 +-
+ src/syscall/zsyscall_linux_s390x.go                |  20 +-
+ src/testing/helper_test.go                         |  35 +-
+ src/testing/helperfuncs_test.go                    |  32 +
+ src/testing/match.go                               | 108 ++-
+ src/testing/match_test.go                          |  29 +-
+ src/testing/testing.go                             |   3 +
+ src/time/format.go                                 |  52 +-
+ src/time/format_test.go                            |  20 +
+ src/time/internal_test.go                          |   2 +-
+ src/time/sleep_test.go                             |  67 ++
+ src/time/time.go                                   |  31 +-
+ src/time/time_test.go                              |  32 +-
+ test/abi/method_wrapper.go                         |  35 +
+ test/codegen/bitfield.go                           | 144 ++-
+ test/codegen/bits.go                               |   8 +
+ test/codegen/math.go                               |   4 +
+ test/codegen/rotate.go                             |  42 +-
+ test/fixedbugs/issue48289.go                       |  28 +
+ test/fixedbugs/issue48301.go                       |  13 +
+ test/fixedbugs/issue48357.go                       |  20 +
+ test/fixedbugs/issue48459.go                       |  17 +
+ test/fixedbugs/issue48473.go                       |  30 +
+ test/fixedbugs/issue48476.go                       |  21 +
+ test/run.go                                        |  16 +-
+ test/typeparam/issue46461.go                       |  13 +
+ test/typeparam/issue46461b.dir/a.go                |   7 +
+ test/typeparam/issue46461b.dir/b.go                |  11 +
+ test/typeparam/issue46461b.go                      |   7 +
+ test/typeparam/issue47797.go                       |  22 +
+ test/typeparam/issue48094b.dir/a.go                |   8 +
+ test/typeparam/issue48094b.dir/b.go                |   9 +
+ test/typeparam/issue48094b.go                      |   7 +
+ test/typeparam/issue48137.go                       |  25 +
+ test/typeparam/issue48225.go                       |  37 +
+ test/typeparam/issue48253.go                       |  34 +
+ test/typeparam/issue48276a.go                      |  19 +
+ test/typeparam/issue48276a.out                     |   1 +
+ test/typeparam/issue48276b.go                      |  15 +
+ test/typeparam/issue48280.dir/a.go                 |  11 +
+ test/typeparam/issue48280.dir/main.go              |  11 +
+ test/typeparam/issue48280.go                       |   7 +
+ test/typeparam/issue48306.dir/a.go                 |   9 +
+ test/typeparam/issue48306.dir/main.go              |  15 +
+ test/typeparam/issue48306.go                       |   7 +
+ test/typeparam/issue48317.go                       |  38 +
+ test/typeparam/issue48337a.dir/a.go                |  32 +
+ test/typeparam/issue48337a.dir/main.go             |  12 +
+ test/typeparam/issue48337a.go                      |   7 +
+ test/typeparam/issue48337a.out                     |   1 +
+ test/typeparam/issue48337b.dir/a.go                |  25 +
+ test/typeparam/issue48337b.dir/main.go             |  11 +
+ test/typeparam/issue48337b.go                      |   7 +
+ test/typeparam/issue48344.go                       |  26 +
+ test/typeparam/issue48453.go                       |  21 +
+ test/typeparam/issue48462.dir/a.go                 |  22 +
+ test/typeparam/issue48462.dir/main.go              |  23 +
+ test/typeparam/issue48462.go                       |   7 +
+ 434 files changed, 8145 insertions(+), 3887 deletions(-)

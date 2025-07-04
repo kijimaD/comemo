@@ -1,16 +1,37 @@
-commit aca9f4e484b529aeb15bf6f9633a5f07d9bab940
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 21 22:41:54 2025 +0200
+commit 19626726205b5653ff9a1820d35bf1b7e820d4ce
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Apr 11 22:25:27 2024 +0800
 
-    crypto/tls: signature_algorithms in CertificateRequest can't be empty
+    doc: make use of simpler symbol links for relnotes
     
-    Change-Id: I6a6a4656ab97e1f247df35b2589cd73461b4ac76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675917
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    This is a practical use of CL 577915, follow-up to CL 577835.
+    
+    Change-Id: Ibe7e2fa11b444afa1898dc6f6aba1512fe98f1fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578195
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/crypto/tls/handshake_messages.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/next/6-stdlib/1-time.md                           |  2 +-
+ doc/next/6-stdlib/99-minor/archive/tar/50102.md       |  7 ++++---
+ doc/next/6-stdlib/99-minor/database/sql/64707.md      |  7 +++----
+ doc/next/6-stdlib/99-minor/debug/elf/66054.md         |  6 +++---
+ doc/next/6-stdlib/99-minor/net/62254.md               |  7 +++----
+ doc/next/6-stdlib/99-minor/net/http/64910.md          |  4 ++--
+ doc/next/6-stdlib/99-minor/net/http/httptest/59473.md |  4 ++--
+ doc/next/6-stdlib/99-minor/os/33357.md                |  6 +++---
+ doc/next/6-stdlib/99-minor/os/61893.md                |  8 ++++----
+ doc/next/6-stdlib/99-minor/os/62484.md                |  3 +--
+ doc/next/6-stdlib/99-minor/os/63703.md                |  4 ++--
+ doc/next/6-stdlib/99-minor/path/filepath/57151.md     |  4 ++--
+ doc/next/6-stdlib/99-minor/path/filepath/63703.md     |  8 ++++----
+ doc/next/6-stdlib/99-minor/reflect/60427.md           | 12 ++++++------
+ doc/next/6-stdlib/99-minor/reflect/61308.md           |  6 +++---
+ doc/next/6-stdlib/99-minor/runtime/debug/42888.md     |  6 ++----
+ doc/next/6-stdlib/99-minor/slices/65238.md            |  4 ++--
+ doc/next/6-stdlib/99-minor/syscall/62254.md           |  2 +-
+ doc/next/6-stdlib/99-minor/syscall/65817.md           |  2 +-
+ doc/next/6-stdlib/99-minor/testing/fstest/63675.md    |  7 +++----
+ doc/next/6-stdlib/99-minor/unicode/utf16/44940.md     |  6 +++---
+ 21 files changed, 55 insertions(+), 60 deletions(-)

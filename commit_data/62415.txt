@@ -1,0 +1,24 @@
+commit 2298215f5b02458e6578b6813cf2361924d64649
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 25 21:56:29 2025 +0100
+
+    cmd/link: use __got as the .got section name
+    
+    The __nl_symbol_ptr is not a common section name anymore. LLVM prefers
+    __got for GOT symbols in the __DATA_CONST segment.
+    
+    Note that the Go linker used to place the GOT section in the __DATA
+    segment, but since CL 644055 we place it in the __DATA_CONST segment.
+    
+    Updates #71416.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest
+    Change-Id: Icb776e19855eaabb4777a9b1eb433497842413b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/link/internal/ld/macho.go      | 4 ++--
+ src/cmd/link/internal/ld/macho_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

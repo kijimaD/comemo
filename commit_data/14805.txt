@@ -1,14 +1,12 @@
-commit c75340488616b2744cbd7029d4b5a8e7003eaf87
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jan 7 10:48:06 2013 +1100
+commit 56961274bbbdac59ab23af9ad592dfac89c94869
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 7 09:59:37 2013 +1100
 
-    bytes: fix docs: s/array/slice/.
+    bytes: Examples recommending bytes.Compare(a, b) rel_op 0 to test a rel_op b.
     
-    R=rsc, mdempsky, dave
+    R=golang-dev, minux.ma, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/7028051
+    https://golang.org/cl/7042045
 
- src/pkg/bytes/buffer_test.go |  2 +-
- src/pkg/bytes/bytes.go       | 60 ++++++++++++++++++++++----------------------
- src/pkg/bytes/bytes_test.go  | 26 +++++++++----------
- 3 files changed, 44 insertions(+), 44 deletions(-)
+ src/pkg/bytes/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

@@ -1,26 +1,19 @@
-commit b2aab72d9a7d3e82904be25c86ff24dc09847fc8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jan 7 13:23:45 2015 -0800
+commit 7d516079de6a8333817b1c13a45701a02f80d209
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 16:17:09 2014 -0500
 
-    cmd/cgo: remove obsolete -cdefs flag
+    runtime: convert netbsd/arm to Go
     
-    Now that there's no 6c compiler anymore, there's no need for cgo to
-    generate C headers that are compatible with it.
+    This was the last src/runtime/*.c file.
     
-    Fixes #9528
-    
-    Change-Id: I43f53869719eb9a6065f1b39f66f060e604cbee0
-    Reviewed-on: https://go-review.googlesource.com/2482
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=austin
+    R=austin
+    CC=golang-codereviews
+    https://golang.org/cl/187770043
 
- misc/cgo/testcdefs/cdefstest.c  |   9 ---
- misc/cgo/testcdefs/cdefstest.go |  60 ---------------
- misc/cgo/testcdefs/main.c       |  76 ------------------
- misc/cgo/testcdefs/main.go      |  13 ----
- misc/cgo/testcdefs/test.bash    |  16 ----
- src/cmd/cgo/doc.go              |   4 -
- src/cmd/cgo/gcc.go              |  33 ++++----
- src/cmd/cgo/godefs.go           | 167 ----------------------------------------
- src/cmd/cgo/main.go             |  14 +---
- src/run.bash                    |  11 ---
- 10 files changed, 16 insertions(+), 387 deletions(-)
+ src/runtime/defs1_netbsd_arm.go  | 29 +++++++++++++++++-------
+ src/runtime/os_netbsd_arm.c      | 34 ----------------------------
+ src/runtime/os_netbsd_arm.go     | 28 +++++++++++++++++++++++
+ src/runtime/signal_netbsd_arm.go | 48 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/signal_netbsd_arm.h  | 30 -------------------------
+ 5 files changed, 97 insertions(+), 72 deletions(-)

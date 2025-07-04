@@ -1,13 +1,12 @@
-commit ca91ce2d856f79d6cc1cb2d67ed0daef2a89b377
+commit 278952c393387290ad43c028b54888329438936c
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jun 17 10:51:10 2011 +1000
+Date:   Fri Jun 17 10:50:38 2011 +1000
 
-    doc/effective_go: add a note about prefixing error strings with their
-    package name.
+    regexp: add a package prefix to error strings.
     
-    R=r, rsc
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/4630042
+    https://golang.org/cl/4630041
 
- doc/effective_go.html | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/pkg/regexp/regexp.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

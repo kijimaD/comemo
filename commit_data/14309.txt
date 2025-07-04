@@ -1,16 +1,18 @@
-commit a906f9aa86c4305a1247391244e52b17e555f723
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Nov 4 12:41:49 2012 +1100
+commit c46f1f40daad83c940e1b3c09f77b9867d598473
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Nov 3 00:11:06 2012 +0100
 
-    net: do not test TestReadWriteDeadline timeout upper bound during short test
+    cmd/gc: instrument blocks for race detection.
     
-    It also increases timeout deltas to allow for longer wait.
-    Also disables this test on plan9.
+    It happens that blocks are used for function calls in a
+    quite low-level way so they cannot be instrumented as
+    usual.
     
-    R=golang-dev, minux.ma
+    Blocks are also used for inlined functions.
+    
+    R=golang-dev, rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/6821062
+    https://golang.org/cl/6821068
 
- src/pkg/net/ipsock_plan9.go |  2 ++
- src/pkg/net/timeout_test.go | 13 +++++++++----
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/gc/racewalk.c | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

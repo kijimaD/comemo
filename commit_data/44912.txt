@@ -1,24 +1,42 @@
-commit 254948a50e12aac1059816a1575ccef1b3892723
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 2 12:33:23 2021 -0400
+commit de0957dc081e1ec49c99a0f37403ceadbaaedf85
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 10 22:53:59 2020 +0100
 
-    cmd/compile: mark unused values as invalid to prevent problems in expandCalls
+    cmd/go: relax version's error on unexpected flags
     
-    Leftover values that have been replaced can cause problems in later
-    passes (within expandCalls).  For example, a struct select that
-    itself yields a struct will have a problematic rewrite, if the chance
-    is presented.
+    In https://golang.org/cl/221397 we made commands like "go version -v"
+    error, since both of the command's flags only make sense when arguments
+    follow them. Without arguments, the command only reports Go's own
+    version, and the flags are most likely a mistake.
     
-    Updates #40724.
+    However, the script below is entirely reasonable:
     
-    Change-Id: I1b445c47c301c3705f7fc0a9d39f1f5c84f4e190
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306869
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+            export GOFLAGS=-v # make all Go commands verbose
+            go version
+            go build
+    
+    After the previous CL, "go version" would error. Instead, only error if
+    the flag was passed explicitly, and not via GOFLAGS.
+    
+    The patch does mean that we won't error on "GOFLAGS=-v go version -v",
+    but that very unlikely false negative is okay. The error is only meant
+    to help the user not misuse the flags, anyway - it's not a critical
+    error of any sort.
+    
+    To reuse inGOFLAGS, we move it to the base package and export it there,
+    since it's where the rest of the GOFLAGS funcs are.
+    
+    Fixes #41264.
+    
+    Change-Id: I74003dd25d94bacf9ac507b5cad778fd65233321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254157
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 25 ++++++++++++++++++-
- test/abi/zombie_struct_select.go             | 36 ++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/base/goflags.go    | 17 +++++++++++++++++
+ src/cmd/go/internal/version/version.go |  9 ++++++++-
+ src/cmd/go/internal/work/init.go       | 22 +++-------------------
+ src/cmd/go/testdata/script/version.txt |  6 ++++++
+ 4 files changed, 34 insertions(+), 20 deletions(-)

@@ -1,24 +1,22 @@
-commit 46b2fc05a2681a9dd3b606176e738d786b0c2176
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 11 17:31:36 2021 +0000
+commit 2f3db220d1ff1610e315d95d276782d4533f052b
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Wed Mar 17 14:13:35 2021 +0000
 
-    runtime: adjust TestPhysicalMemoryUtilization to handle large page sizes
+    crypto/tls: remove flaky cancellation test
     
-    Currently TestPhysicalMemoryUtilization can fail on systems with large
-    physical page sizes like 64 KiB because all the of the holes to be
-    scavenged are not aligned to the page size. The holes themselves are 64
-    KiB so this is actually quite likely.
+    This will be reintroduced again once the source of the
+    flakiness has been determined and fixed.
     
-    Bump the size of the allocations for systems with larger physical page
-    sizes, and add additional slack to the threshold for unaligned pieces of
-    the holes that may be unaligned.
+    Fixes #45084
     
-    Fixes #49411.
-    
-    Change-Id: Iafb35b8761dc9cdc53d3745c4771b1a64c5c97b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363415
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6677b27fcd71e8c9bb8edbe8e3be70e5a271ebd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302569
+    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/testdata/testprog/gc.go | 26 ++++++++++++++++++++++----
- 1 file changed, 22 insertions(+), 4 deletions(-)
+ src/crypto/tls/handshake_client_test.go | 36 ---------------------------------
+ 1 file changed, 36 deletions(-)

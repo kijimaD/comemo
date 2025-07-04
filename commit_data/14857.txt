@@ -1,15 +1,13 @@
-commit b73a1a8e32ed4f394299a9fec5cfb53e963f6c08
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Fri Jan 11 15:44:42 2013 +0100
+commit 9ae7f340845f3cffd53859577644aa0099798cc4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 11 12:35:58 2013 +0800
 
-    cmd/6g, cmd/8g: Allow optimization of return registers.
+    cmd/gc, cmd/ld: update doc.go for -race
     
-    The peephole optimizer would keep hands off AX and X0 during returns, even though go doesn't return through registers.
-    
-    R=dave, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7030046
+    https://golang.org/cl/7066052
 
- src/cmd/6g/peep.c | 2 --
- src/cmd/8g/peep.c | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/gc/doc.go | 2 +-
+ src/cmd/ld/doc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

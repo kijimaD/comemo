@@ -1,37 +1,20 @@
-commit 615a52b95b5eedb94297f8de6e7838b16445bd16
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jun 6 12:38:19 2016 -0700
+commit 1151473077fb03df798d4eb57a22fa820f9e41f8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 13:40:35 2016 -0400
 
-    cmd/compile: inline x, ok := y.(T) where T is a scalar
+    runtime: check that sysUnused is always physical-page aligned
     
-    When T is a scalar, there are no runtime calls
-    required, which makes this a clear win.
+    If sysUnused is passed an address or length that is not aligned to the
+    physical page boundary, the kernel will unmap more memory than the
+    caller wanted. Add a check for this.
     
-    encoding/binary:
-    WriteInts-8                958ns ± 3%     864ns ± 2%   -9.80%  (p=0.000 n=15+15)
+    For #9993.
     
-    This also considerably shrinks a core fmt
-    routine:
-    
-    Before: "".(*pp).printArg t=1 size=3952 args=0x20 locals=0xf0
-    After:  "".(*pp).printArg t=1 size=2624 args=0x20 locals=0x98
-    
-    Unfortunately, I find it very hard to get stable
-    numbers out of the fmt benchmarks due to thermal scaling.
-    
-    Change-Id: I1278006b030253bf8e48dc7631d18985cdaa143d
-    Reviewed-on: https://go-review.googlesource.com/26659
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I68ff03032e7b65cf0a853fe706ce21dc7f2aaaf8
+    Reviewed-on: https://go-review.googlesource.com/22065
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/compile/internal/gc/cgen.go      | 12 ++++++++++--
- src/cmd/compile/internal/gc/gsubr.go     | 18 ++++++++++++++++--
- src/cmd/compile/internal/gc/opnames.go   |  1 +
- src/cmd/compile/internal/gc/racewalk.go  |  2 +-
- src/cmd/compile/internal/gc/ssa.go       |  4 ++++
- src/cmd/compile/internal/gc/subr.go      | 19 +++++++++++++++++++
- src/cmd/compile/internal/gc/syntax.go    |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  6 ++++++
- src/cmd/compile/internal/gc/walk.go      | 30 ++++++++++++++++++++++++------
- test/interface/assertinline.go           | 16 +++++++++++++++-
- 10 files changed, 97 insertions(+), 13 deletions(-)
+ src/runtime/mem_linux.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

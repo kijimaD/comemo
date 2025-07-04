@@ -1,12 +1,12 @@
-commit 46d1461ab75d67844ed4292cb7324a23f3a8496a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Dec 9 23:24:58 2013 -0500
+commit 6ede93498c664c33f84f1ab7f81dc15d6444f2f0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 10 12:06:24 2013 +1100
 
-    strconv: add example for Unquote.
+    misc/cgo/testcdefs: rm correct file in test.bash
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/38920043
+    https://golang.org/cl/39780043
 
- src/pkg/strconv/quote_example_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ misc/cgo/testcdefs/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

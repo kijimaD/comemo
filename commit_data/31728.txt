@@ -1,15 +1,24 @@
-commit dc6ae87c8caa0dabdaa0ca85fbefb0c2a61c8602
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 6 14:21:16 2017 -0700
+commit 6bc593805f2c2b0ef8b194cc186b804237744cb4
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Wed Mar 8 11:36:30 2017 +0200
 
-    math: clarify comment about bit-identical results across architectures
+    cmd/vet: eliminate "might be too small for shift" warnings
     
-    Updates #18354.
+    Determine int, uint and uintptr bit sizes from GOARCH environment
+    variable if it is set. Otherwise use host-specific sizes.
     
-    Change-Id: I76bc4a73d8dc99eeda14b395e451d75a65184191
-    Reviewed-on: https://go-review.googlesource.com/45013
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #19321
+    
+    Change-Id: I494b8e4b49b59d32794f50ff2ce06ba040cb8460
+    Reviewed-on: https://go-review.googlesource.com/37950
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/math/const.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/vet/all/whitelist/32bit.txt |  16 ++++++
+ src/cmd/vet/all/whitelist/64bit.txt |  26 ---------
+ src/cmd/vet/all/whitelist/all.txt   |  18 ------
+ src/cmd/vet/shift.go                |  16 ++++--
+ src/cmd/vet/testdata/shift.go       | 111 +++++++++++++++++++++---------------
+ src/cmd/vet/types.go                |   5 ++
+ src/go/types/sizes.go               |   6 +-
+ 7 files changed, 102 insertions(+), 96 deletions(-)

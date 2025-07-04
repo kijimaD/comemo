@@ -1,15 +1,25 @@
-commit c05c3a9d1180e6d449049d9ed96c46b65837bb29
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Fri Feb 24 11:32:33 2012 +1100
+commit 19bab1dc78f1a1398d8e86bda1513b3671995ed7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 24 10:30:39 2012 +1100
 
-    html/template: make doctype check case-insensitive
+    test/[n-r]*.go: add documentation
+    The rename ones needed redoing.
     
-    Fixes #3094.
-    
-    R=golang-dev, rsc, nigeltao
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5687065
+    https://golang.org/cl/5698054
 
- src/pkg/html/template/escape.go      | 2 +-
- src/pkg/html/template/escape_test.go | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ test/nil.go       |   2 +
+ test/nilptr.go    |   3 ++
+ test/parentype.go |   2 +
+ test/peano.go     |   3 ++
+ test/printbig.go  |   2 +
+ test/range.go     |   2 +
+ test/recover3.go  |   2 +
+ test/rename.go    | 109 +++++++++++++++++++++++++++++++++---------------------
+ test/rename1.go   |  71 +++++++++++++++++++++--------------
+ test/reorder.go   |   2 +-
+ test/reorder2.go  |   2 +-
+ test/rune.go      |   3 ++
+ test/runtime.go   |   5 ++-
+ 13 files changed, 134 insertions(+), 74 deletions(-)

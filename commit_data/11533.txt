@@ -1,18 +1,28 @@
-commit 8039683cef026edb88ae9dc6cd766feccdb40ff4
+commit cc777490fbe5f0c6575f4e84dea31b7d745d747e
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 31 18:15:42 2012 -0800
+Date:   Tue Jan 31 18:14:44 2012 -0800
 
-    gc: use octal escapes in mkopnames
+    build: add include files for Plan 9
     
-    Plan 9's tr(1) doesn't accept the C-style escapes
-    for tab and newline characters.  I was going to use
-    the \xFF hexadecimal escapes but GNU tr(1) doesn't
-    accept those.  It seems octal is the least common
-    denominator.
+    Previously, I had made available a tarball of
+    the modified system headers that were necessary
+    to build on Plan 9 but that was only a stopgap.
+    I think this method is much better since no
+    files outside of $GOROOT will have to be added
+    or modified during the build process.
+    
+    Also, this is just the first step. I'll change
+    the build to reference these files in another CL
+    (that also contains a few more Makefile changes).
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5576079
+    https://golang.org/cl/5552056
 
- src/cmd/gc/mkopnames | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/plan9/386/u.h      | 14 ++++++++++++++
+ include/plan9/libc.h       | 19 +++++++++++++++++++
+ include/plan9/mach.h       |  7 +++++++
+ include/plan9/ureg_amd64.h |  5 +++++
+ include/plan9/ureg_arm.h   |  5 +++++
+ include/plan9/ureg_x86.h   |  5 +++++
+ 6 files changed, 55 insertions(+)

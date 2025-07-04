@@ -1,25 +1,25 @@
-commit 8ff4cee56491eeb3ce146974109cb4893ef5cbd6
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Dec 17 19:57:54 2024 +0100
+commit c9888bdfe2cdd85d14d7d184863d2e8bc42ff73c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 30 13:23:00 2023 -0700
 
-    cmd/go,crypto: reject using Go+BoringCrypto and fips140 together
+    cmd/internal/obj/arm64: fix frame pointer restore in epilogue
     
-    The combination is untested and nonsensical. Both are solutions to the
-    same problem.
+    For leaf but nonzero-frame functions.
     
-    For #69536
+    Currently we're not restoring it properly. We also need to restore
+    it before popping the stack frame, so that the frame won't get
+    clobbered by a signal handler in the meantime.
     
-    Change-Id: I95cc3baaf03b64ce08096e304e311a29e9577385
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637177
+    Fixes #63830
+    
+    Needs a test, but I'm not at all sure how we would actually do that. Leaving for inspiration.
+    
+    Change-Id: I273a25f2a838f05a959c810145cccc5428eaf164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/fips140/fips140.go        | 4 ++++
- src/cmd/go/testdata/script/env_changed.txt    | 3 +++
- src/cmd/go/testdata/script/fips.txt           | 3 +++
- src/cmd/go/testdata/script/fipssnap.txt       | 3 +++
- src/crypto/internal/boring/boring.go          | 7 +++++++
- src/crypto/internal/fips140test/check_test.go | 5 +++++
- 6 files changed, 25 insertions(+)
+ src/cmd/internal/obj/arm64/obj7.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

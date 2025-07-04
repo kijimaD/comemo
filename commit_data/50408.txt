@@ -1,16 +1,28 @@
-commit 51fdfeb1ce89c61332e28ef97a3e72a1d327c2df
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 19:07:30 2022 +0800
+commit bc0eb5789e01817823fd9707d2d4857691f898ad
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Oct 19 18:40:27 2021 -0400
 
-    runtime/race: use strings.Builder
+    cmd/compile/internal/typecheck: record whether an interface is implicit
     
-    Change-Id: I644f696d00b5bce448e0a00835b3162f5203f346
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428278
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    In preparation for capturing the implicit interface bit in export data,
+    thread through the IsImplicit property from types2 into typecheck.
+    
+    Change-Id: I9b46fe73de102935a127e6ececaacd76738b557e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357109
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/race/sched_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/reader.go       |  2 +-
+ src/cmd/compile/internal/noder/stencil.go      |  2 +-
+ src/cmd/compile/internal/noder/types.go        |  2 +-
+ src/cmd/compile/internal/test/abiutils_test.go |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go  |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go     |  4 ++--
+ src/cmd/compile/internal/typecheck/type.go     |  2 +-
+ src/cmd/compile/internal/types/sizeof_test.go  |  2 +-
+ src/cmd/compile/internal/types/type.go         | 13 +++++++++++--
+ src/cmd/compile/internal/types/universe.go     |  8 ++++----
+ 10 files changed, 24 insertions(+), 15 deletions(-)

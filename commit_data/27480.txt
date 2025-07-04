@@ -1,16 +1,19 @@
-commit 82ec4cd79f117191d12fc14060c4b4b786feca5b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 13 12:13:00 2016 +0900
+commit 777a77b4d29853e13dc803b2923bf88b498ed306
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 07:30:17 2016 -0700
 
-    net: don't crash DNS flood test on darwin
+    cmd/compile: don't skip PPARAMOUT in esccall after varargs
     
-    Also renames the test function to TestDNSFlood.
+    Fixes bug I introduced in CL 21202.
     
-    Updates #15659.
+    Fixes #15013.
     
-    Change-Id: Ia562004c43bcc19c2fee9440321c27b591f85da5
-    Reviewed-on: https://go-review.googlesource.com/23077
+    Change-Id: I2344d7e22b8273425a0a56f4a77588b5c6e4d8c6
+    Reviewed-on: https://go-review.googlesource.com/21270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_test.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 25 +++++++++++++------------
+ test/fixedbugs/issue15013.go       | 24 ++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 12 deletions(-)

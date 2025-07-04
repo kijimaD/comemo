@@ -1,32 +1,12 @@
-commit 65276933cd70115fffbaa2ef877f97745af069ea
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Aug 29 09:34:52 2011 -0400
+commit 0b12223fbe25d3c9d05b63179c7d063e4885df1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 29 09:24:24 2011 -0400
 
-    5g: fix build on Plan 9
+    doc/codelab/wiki: fix Makefile
     
-    5g/cgen.c:
-    . USED(n4) as it is only mentioned in unreachable code later;
-    . dropped unused assignments;
-    . commented out unreachable code;
-    5g/cgen64.c:
-    5g/ggen.c:
-    . dropped unused assignments of function return value;
-    5g/gg.h:
-    . added varargck pragmas;
-    5g/peep.c:
-    . USED(p1) used only in unreacheable code;
-    . commented out unreachable code;
-    5g/reg.c:
-    . dropped unused assignment;
-    
-    R=golang-dev, rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4953048
+    https://golang.org/cl/4971043
 
- src/cmd/5g/cgen.c   | 11 +++++------
- src/cmd/5g/cgen64.c | 10 +++++-----
- src/cmd/5g/gg.h     |  3 +++
- src/cmd/5g/ggen.c   |  2 +-
- src/cmd/5g/peep.c   |  8 +++++++-
- src/cmd/5g/reg.c    |  1 -
- 6 files changed, 21 insertions(+), 14 deletions(-)
+ doc/codelab/wiki/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,23 +1,35 @@
-commit a4dd6ea1524901fab5deac60772345babd058ae7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 19 09:18:59 2016 -0700
+commit e853131699680c875d2d4e6cf82d959272dacd00
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 15:15:57 2016 -0800
 
-    runtime: add maxSliceCap
+    cmd/internal/obj: stop using as+ALAST as an opcode
     
-    This avoids expensive division calculations
-    for many common slice element sizes.
+    Currently, package obj reserves a range of 1<<12 opcodes for each
+    target architecture.  E.g., mips64 has [6<<12, 7<<12).
     
-    name                      old time/op  new time/op  delta
-    MakeSlice-8               51.9ns ± 3%  35.1ns ± 2%  -32.41%  (p=0.000 n=10+10)
-    GrowSliceBytes-8          44.1ns ± 2%  44.1ns ± 1%     ~     (p=0.984 n=10+10)
-    GrowSliceInts-8           60.9ns ± 3%  60.9ns ± 3%     ~     (p=0.698 n=10+10)
-    GrowSlicePtr-8             131ns ± 1%   120ns ± 2%   -8.41%   (p=0.000 n=8+10)
-    GrowSliceStruct24Bytes-8   111ns ± 2%   103ns ± 3%   -7.23%    (p=0.000 n=8+8)
+    However, because mips.ABEQ and mips.ALAST are both within that range,
+    the expression mips.ABEQ+mips.ALAST in turn falls (far) outside that
+    range around 12<<12, meaning it could theoretically collide with
+    another arch's opcodes.
     
-    Change-Id: I2630eb3d73c814db030cad16e620ea7fecbbd312
-    Reviewed-on: https://go-review.googlesource.com/22223
-    Reviewed-by: Keith Randall <khr@golang.org>
+    More practically, it's a problem because 12<<12 overflows an int16,
+    which hampers fixing #14692.  (We could also just switch to uint16 to
+    avoid the overflow, but that still leaves the first problem.)
+    
+    As a workaround, use Michael Hudson-Doyle's solution from
+    https://golang.org/cl/20182 and use negative values for these variant
+    instructions.
+    
+    Passes toolstash -cmp for GOARCH=arm and GOARCH=mips64.
+    
+    Updates #14692.
+    
+    Change-Id: Iad797d10652360109fa4db19d4d1edb6529fc2c0
+    Reviewed-on: https://go-review.googlesource.com/20345
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/malloc.go |  2 +-
- src/runtime/slice.go  | 35 +++++++++++++++++++++++++----------
- 2 files changed, 26 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go  | 16 ++++----
+ src/cmd/internal/obj/mips/asm0.go | 78 +++++++++++++++++++--------------------
+ 2 files changed, 47 insertions(+), 47 deletions(-)

@@ -1,20 +1,32 @@
-commit 478277f81283b9e941c4fdadc253797e6d035971
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 23 22:03:29 2021 -0500
+commit a9a1217112aa8f5e01fe2f3e5f203ac880dbd566
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 25 22:22:59 2020 -0400
 
-    cmd/compile/internal-abi: use x87 mode, not MMX mode
+    [dev.link] cmd/link: handle runtime.text/etext symbols more consistently
     
-    Florian Weimer pointed out that my justification for using MMX mode
-    was nonsense and that staying in x87 mode simplifies transitions to
-    and from C. Hence, switch the spec to say we're always in x87 mode.
+    Currently, on most platforms, the start/end symbols runtime.text
+    and runtime.etext are defined in symtab pass and assigned values
+    in address pass. In some cases (darwin+dynlink or AIX+external),
+    however, they are defined and assigned values in textaddress pass
+    (because they need non-zero sizes). Then their values get
+    overwritten in address pass. This is bad. The linker expects
+    their values to be consistent. In particular, in CL 239281,
+    findfunctab is split to two parts. The two parts need to have a
+    consistent view of the start/end symbols. If its value changes in
+    between, bad things can happen.
     
-    For #40724.
+    This CL fixes it by always defining runtime.text/etext symbols in
+    the textaddress pass.
     
-    Change-Id: Iad916b2c376db41f95614aa6897f6b1184576bb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295789
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fix darwin and AIX builds.
+    
+    Change-Id: Ifdc1bcb69d99be1b7e5b4fd31d473650c03e3b9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240065
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal-abi.md | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/data.go   | 26 +++++++++-----------------
+ src/cmd/link/internal/ld/lib.go    |  3 ++-
+ src/cmd/link/internal/ld/symtab.go |  2 --
+ 3 files changed, 11 insertions(+), 20 deletions(-)

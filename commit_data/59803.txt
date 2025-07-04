@@ -1,25 +1,18 @@
-commit 8552bcf7c261cd150d0074c4ec7e2412b20af0a5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jun 11 16:46:21 2025 -0400
+commit 799968dfc3b9121019b752a9110489baa71a4355
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 23 10:12:55 2024 -0700
 
-    cmd/go/internal/fips140: ignore GOEXPERIMENT on error
+    go.types, types2: factor out isUntypedNumeric predicate
     
-    During toolchain selection, the GOEXPERIMENT value may not be valid for
-    the current version (but it is valid for the selected version). In this
-    case, cfg.ExperimentErr is set and cfg.Experiment is nil.
+    No need for Unalias or under calls for this predicate.
     
-    Normally cmd/go main exits when ExperimentErr is set, so Experiment is
-    ~never nil. But that is skipped during toolchain selection, and
-    fips140.Init is used during toolchain selection.
-    
-    Fixes #74111.
-    
-    Change-Id: I6a6a636c65ee5831feaf3d29993a60613bbec6f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680976
+    Change-Id: Idcdcda3e153d829ee5b26ad112ccfda3f4efedde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581255
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/fips140/fips140.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/predicates.go | 22 +++++++++++++++-------
+ src/go/types/predicates.go                    | 22 +++++++++++++++-------
+ 2 files changed, 30 insertions(+), 14 deletions(-)

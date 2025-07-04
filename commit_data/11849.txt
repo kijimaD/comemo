@@ -1,23 +1,14 @@
-commit 9a4487458a6a7f434b21bac375aaf2af06f33e86
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Feb 13 13:58:17 2012 -0500
+commit aaac05ae2371940cb868788b8ca365146bb2b84d
+Author: Darren Elwood <darren@textnode.com>
+Date:   Mon Feb 13 13:58:12 2012 -0500
 
-    all: update 'gotest' to 'go test'
+    8a, 8l: add LFENCE, MFENCE, SFENCE
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5645099
+    https://golang.org/cl/5650076
 
- src/pkg/crypto/tls/handshake_client_test.go | 2 +-
- src/pkg/crypto/tls/handshake_server_test.go | 8 ++++----
- src/pkg/go/printer/performance_test.go      | 2 +-
- src/pkg/go/printer/printer.go               | 2 +-
- src/pkg/go/printer/printer_test.go          | 2 +-
- src/pkg/math/big/calibrate_test.go          | 2 +-
- src/pkg/math/big/nat.go                     | 2 +-
- src/pkg/net/http/httptest/server.go         | 2 +-
- src/pkg/path/filepath/path_test.go          | 2 +-
- src/pkg/runtime/softfloat64.go              | 2 +-
- src/pkg/sync/mutex_test.go                  | 2 +-
- src/pkg/sync/rwmutex_test.go                | 2 +-
- 12 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/8a/lex.c   | 3 +++
+ src/cmd/8l/8.out.h | 4 ++++
+ src/cmd/8l/optab.c | 4 ++++
+ 3 files changed, 11 insertions(+)

@@ -1,20 +1,12 @@
-commit 2f98bac3107d3dee4f546055e790cf0076454c80
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Apr 13 13:25:28 2015 +1000
+commit db96e6821ad7dab72b459165a66c6dbb08160eda
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 17 11:15:30 2015 -0700
 
-    image/jpeg: don't assume that an ensureNBits failure implies that we can
-    call unreadByteStuffedByte.
+    math/big: clearer semantics for Float.Scan
     
-    If ensureNBits was due to an io.EOF that was translated to
-    jpeg.errShortHuffmanData, then we may have read no bytes, so there is no
-    byte-stuffed-byte to unread.
-    
-    Fixes #10387
-    
-    Change-Id: I39a3842590c6cef2aa48943288d52f603338b44d
-    Reviewed-on: https://go-review.googlesource.com/8841
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I72e8389ec080be8a0119f98df898de6f5510fa4d
+    Reviewed-on: https://go-review.googlesource.com/7693
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/image/jpeg/reader.go      | 16 +++-------------
- src/image/jpeg/reader_test.go | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+), 13 deletions(-)
+ src/math/big/floatconv.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

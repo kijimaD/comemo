@@ -1,15 +1,13 @@
-commit e607380ff69de8dd6235e662895644b56b4114ff
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Aug 29 23:42:05 2012 +0800
+commit db3474f1bb17e8443c7c4369a79d65242db08a14
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 29 13:24:53 2012 +1000
 
-    cmd/ld: handle a special case of scattered relocation 2/1 on Darwin/386
-            Fixes #1635.
+    A+C: add Patrick Crosby (individual contributor)
     
-    R=golang-dev, dave, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6496043
+    https://golang.org/cl/6489049
 
- misc/cgo/test/cgo_test.go  |  1 +
- misc/cgo/test/issue1635.go | 33 +++++++++++++++++++++++++++++++++
- src/cmd/ld/ldmacho.c       | 21 +++++++++++++++------
- 3 files changed, 49 insertions(+), 6 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

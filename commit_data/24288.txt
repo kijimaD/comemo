@@ -1,14 +1,20 @@
-commit f0ea976ee4591785fb028b77bcd02fb8590650ed
-Author: Tormod Erevik Lea <tormodlea@gmail.com>
-Date:   Wed Sep 16 10:54:31 2015 +0200
+commit 419a6c0709556a76099d9718a52f43a3c5249d31
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 12:17:29 2015 -0700
 
-    cmd/go: indent first test binary flag description for `go test -h`
+    cmd/go: pass an unmodified environment to a go run program
     
-    Fixes #12642
+    Fixes #11709.
+    Fixed #11449.
     
-    Change-Id: I0b94437055b7d444f5caf7ea310e85357c467bdf
-    Reviewed-on: https://go-review.googlesource.com/14612
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If8fdb27d3dc25fb7017226d143a29cbebc1374c5
+    Reviewed-on: https://go-review.googlesource.com/12483
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/generate.go |  2 +-
+ src/cmd/go/go_test.go  | 15 +++++++++++++++
+ src/cmd/go/main.go     |  3 +++
+ src/cmd/go/run.go      |  1 +
+ 4 files changed, 20 insertions(+), 1 deletion(-)

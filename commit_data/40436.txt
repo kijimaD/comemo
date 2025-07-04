@@ -1,16 +1,18 @@
-commit 3706cd85d37ec554821393eb49cb3c88edf9308a
-Author: Vivek V <iamvivekv96@gmail.com>
-Date:   Fri Oct 25 07:14:18 2019 +0000
+commit 9c86eae3844105c2e66ca6064ca70fd287894819
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Mon May 13 14:20:53 2019 -0400
 
-    debug/dwarf: call strings.EqualFold instead of calling Lower twice
+    runtime: resolve latent TODOs
     
-    Change-Id: I8dcb425c37a067277549ba3bda6a21206459890a
-    GitHub-Last-Rev: dc51b9b425ca51cd0a4ac494d4c7a3c0e2306951
-    GitHub-Pull-Request: golang/go#35132
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203097
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    These were added in https://go-review.googlesource.com/1224; according
+    to austin@google.com these annotations are not valuable - resolving by
+    removing the TODOs.
+    
+    Change-Id: Icf3f21bc385cac9673ba29f0154680e970cf91f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176899
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/debug/dwarf/line.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go      | 1 -
+ src/runtime/mgcmark.go  | 2 --
+ src/runtime/mgcsweep.go | 1 -
+ 3 files changed, 4 deletions(-)

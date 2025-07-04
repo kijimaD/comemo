@@ -1,0 +1,20 @@
+commit b057b8872d8297ec9ccbfd9d29dad51dff795846
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Dec 17 19:05:23 2024 +0200
+
+    bytes, strings: add cross-references in docstrings
+    
+    For newly funcs SplitSeq, SplitAfterSeq, FieldsSeq, FieldsFuncSeq.
+    
+    Updates #61901.
+    
+    Change-Id: I3c97bfd9c2250de68aaea348c82a05635ee797af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637176
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/iter.go   | 10 +++++-----
+ src/strings/iter.go | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

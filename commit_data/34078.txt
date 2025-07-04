@@ -1,26 +1,16 @@
-commit fc31d4e28d65a2843c45352170a189b5e64cdb58
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 16 15:28:57 2018 -0800
+commit c4d63a0d34d1876868245f5bafc86d3cc00e3763
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Sep 9 16:52:58 2017 -0700
 
-    go/parser: improved error recovery after missing type
+    crypto/x509: abstract SAN parsing function
     
-    R=go1.11
+    We'll need this for handling name constraints during verification.
     
-    This CL also introduces a new TODO in parser.go. To be
-    addressed in a separate CL to make this easier to review.
-    
-    Also: Make parser's test harness easier to use by ignoring
-    auto-inserted (invisible) semicolons when computing error
-    positions. Adjusted testdata/commas.src accordingly.
-    
-    Fixes #23434.
-    
-    Change-Id: I050592d11d5f984f71185548394c000eea509205
-    Reviewed-on: https://go-review.googlesource.com/87898
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4ef19d9489fb2a9ae9a62699d81cef92a21fda28
+    Reviewed-on: https://go-review.googlesource.com/62692
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/go/parser/error_test.go           |  6 +++++
- src/go/parser/parser.go               | 42 ++++++++++++++++++++++++++++-------
- src/go/parser/testdata/commas.src     |  4 ++--
- src/go/parser/testdata/issue23434.src | 25 +++++++++++++++++++++
- 4 files changed, 67 insertions(+), 10 deletions(-)
+ src/crypto/x509/x509.go | 44 +++++++++++++++++++++++++++-----------------
+ 1 file changed, 27 insertions(+), 17 deletions(-)

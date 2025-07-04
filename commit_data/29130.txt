@@ -1,16 +1,12 @@
-commit 4f6d479186f8a0303159f04c3673f6ea80b45a03
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 26 15:58:51 2016 -0400
+commit 87061054e709f5408db4bc1b9ac8e5685883d9fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 23:26:07 2016 -0700
 
-    cmd/compile: make LR allocatable in non-leaf functions on MIPS64
+    cmd/compile: use printer in stmtfmt, hconv
     
-    The mechanism is initially introduced (and reviewed) in CL 30597
-    on S390X.
-    
-    Change-Id: I83024d2fc84c8efc23fbda52b3ad83073f42cb93
-    Reviewed-on: https://go-review.googlesource.com/32179
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If11d328101a82de5ead04159d3085e3d59869283
+    Reviewed-on: https://go-review.googlesource.com/27919
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  12 +-
- src/cmd/compile/internal/ssa/opGen.go         | 495 +++++++++++++-------------
- 2 files changed, 254 insertions(+), 253 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 104 ++++++++++++++++++-------------------
+ 1 file changed, 52 insertions(+), 52 deletions(-)

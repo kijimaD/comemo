@@ -1,16 +1,15 @@
-commit 1ded9fdcff8722ae961fb9da015faac874b7690e
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Thu May 19 22:26:01 2016 -0700
+commit 12fb62a57db6a34c4ba0162ac970724d60dbbfbb
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 17:24:18 2016 -0400
 
-    syscall: fix unshare test on mips
+    debug/elf: add s390x relocations
     
-    Change-Id: Iedce3770a92112802f3a45c7b95ee145ab5b187e
-    Reviewed-on: https://go-review.googlesource.com/23282
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8440f69c7f99d65b2f69035c26b4a62104f22bd3
+    Reviewed-on: https://go-review.googlesource.com/20874
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/syscall/exec_linux_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/debug/elf/elf.go                               | 134 +++++++++++++++++++++
+ src/debug/elf/file.go                              |  51 ++++++++
+ src/debug/elf/file_test.go                         |  19 +++
+ .../testdata/go-relocation-test-gcc531-s390x.obj   | Bin 0 -> 3864 bytes
+ 4 files changed, 204 insertions(+)

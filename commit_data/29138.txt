@@ -1,16 +1,38 @@
-commit 09692182fa79fcaf89aa08ccf74ad74562ccba04
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 12:43:37 2016 -0400
+commit 320bd562cbb24a01beb02706c42d06a290160645
+Author: Joonas Kuorilehto <joneskoo@derbian.fi>
+Date:   Sat Aug 20 14:41:42 2016 +0300
 
-    runtime: print sigcode on signal crash
+    crypto/tls: add KeyLogWriter for debugging
     
-    For #17496.
+    Add support for writing TLS client random and master secret
+    in NSS key log format.
     
-    Change-Id: I671a59581c54d17bc272767eeb7b2742b54eca38
-    Reviewed-on: https://go-review.googlesource.com/32183
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format
+    
+    Normally this is enabled by a developer debugging TLS based
+    applications, especially HTTP/2, by setting the KeyLogWriter
+    to an open file. The keys negotiated in handshake are then
+    logged and can be used to decrypt TLS sessions e.g. in Wireshark.
+    
+    Applications may choose to add support similar to NSS where this
+    is enabled by environment variable, but no such mechanism is
+    built in to Go. Instead each application must explicitly enable.
+    
+    Fixes #13057.
+    
+    Change-Id: If6edd2d58999903e8390b1674ba4257ecc747ae1
+    Reviewed-on: https://go-review.googlesource.com/27434
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/signal_sighandler.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/common.go                           | 19 +++++
+ src/crypto/tls/handshake_client.go                 |  4 +
+ src/crypto/tls/handshake_client_test.go            | 41 ++++++++++
+ src/crypto/tls/handshake_server.go                 |  4 +
+ src/crypto/tls/handshake_server_test.go            | 37 +++++++++
+ src/crypto/tls/testdata/Client-TLSv10-KeyLogWriter | 82 ++++++++++++++++++++
+ src/crypto/tls/testdata/Server-TLSv10-KeyLogWriter | 88 ++++++++++++++++++++++
+ src/crypto/tls/tls_test.go                         |  4 +
+ src/net/http/transport.go                          |  2 +
+ 9 files changed, 281 insertions(+)

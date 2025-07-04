@@ -1,15 +1,20 @@
-commit 4422319fbf8db7700752ae2a755244bbd24672de
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Dec 20 09:38:37 2018 +0100
+commit f2ed3e1da16ba02543268b14d962e1026257604e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 25 10:11:19 2018 -0700
 
-    doc/go1.12: fix GOARCH value in Syscall18 link
+    cmd/go: don't let script grep commands match $WORK
     
-    Currently the link works also with the non-existing GOARCH armd64, but
-    let's correct in anyhow.
+    If $WORK happens to contain the string that a stdout/stderr/grep
+    command is searching for, a negative grep command will fail incorrectly.
     
-    Change-Id: Ida647b8f9dd2f8460b019f5a23759f10a6da8e60
-    Reviewed-on: https://go-review.googlesource.com/c/155277
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #27170
+    Fixes #27221
+    
+    Change-Id: I84454d3c42360fe3295c7235d388381525eb85b4
+    Reviewed-on: https://go-review.googlesource.com/131398
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.12.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/script_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

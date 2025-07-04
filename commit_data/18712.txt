@@ -1,19 +1,14 @@
-commit ebe1eb6537d4873863db4a526250a0e5ddab41b2
-Author: Graham King <graham4king@gmail.com>
-Date:   Mon Mar 3 11:11:04 2014 -0800
+commit 8b1b1e159d0ff464062b5325edf29c52000fd1f4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 3 02:16:15 2014 -0500
 
-    cmd/ld: DWARF opcode base to 10
+    test/run: add /usr/pkg/bin to PATH.
+    perl is installed by pkgsrc to /usr/pkg/bin.
     
-    DWARF 2 has 9 standard opcodes, so dwarfdump expects us to use an
-    opcode base of at least 10. Previously we used 5.
-    
-    Discussion:
-    https://groups.google.com/forum/#!topic/golang-dev/d-BqpPgalzc
-    
-    LGTM=josharian, rsc
-    R=golang-codereviews, gobot, rsc, josharian, iant, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/69320043
+    https://golang.org/cl/70630043
 
- src/cmd/ld/dwarf.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ test/run | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

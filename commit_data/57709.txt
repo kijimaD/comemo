@@ -1,17 +1,27 @@
-commit b3a9bf1f62a1cdc792916f7fb8042c07732d8f16
-Author: Shuo Wang <wangshuo@kylinos.cn>
-Date:   Mon Oct 21 06:29:38 2024 +0000
+commit e63be91667aeaafe2ce32c4da69f89097e074bbc
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 24 15:14:44 2023 -0400
 
-    cmd/compile: fix the typos in genericOps.go
+    cmd/go: clarify promotion of C warnings to errors
     
-    Change-Id: I7ff869e21e67cf6a193f7a92bf7b05f047ee005c
-    GitHub-Last-Rev: bf01f582492c95ff169eab89b688bfb938695c50
-    GitHub-Pull-Request: golang/go#69957
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620778
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    CL 23005 (back in 2016!) added logic to promote C compiler warnings to
+    errors when running on the Go builders.
+    
+    CL 437298 kept the logic to promote warnings to errors on the
+    builders, but dropped the explanatory message, I believe
+    unintentionally. Indeed, now there isn't even a comment in the code
+    explaining what's going on.
+    
+    This CL adds back an explanatory message to the printed output, which
+    also serves as a explanation in the code as to why we're checking
+    $GO_BUILDER_NAME.
+    
+    Change-Id: I769c55d213f96f73d20a41ab926fb91e71a5a22c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522775
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/genericOps.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

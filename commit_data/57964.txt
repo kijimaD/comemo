@@ -1,20 +1,34 @@
-commit d31d77a26333a3af1ae346875bec4784121a8213
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 26 15:06:14 2024 -0500
+commit d66fc90a0daf879ca0b4d9be43c123b13ed59853
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 13 12:50:17 2023 -0400
 
-    cmd/go: remove confusing TrimPrefix(str, "\n")
+    cmd/link: round up default start address to alignment
     
-    It's not clear why strings here would have a *prefix* \n. This trim
-    was introduced back in March 2012 without explanation in omnibus
-    commit b03a5f66e8f8a6b36c9d67e82d2edc9b3d4076ba (as a HasPrefix, since
-    we didn't have TrimPrefix at the time).
+    If the -R flag (the segment alignment) is specified but the -T
+    flag (start address) is not, currently the default start address
+    may be under-aligned, and some math in the linker may be broken.
+    Round up the start address to align it.
     
-    Change-Id: Ib0a7af36900e437fdc52ec5c1c921f92833f6cef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558638
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #62064.
+    
+    Change-Id: I3b98c9d0cf7d3cd944b9436a36808899d2e52572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527822
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/test/test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/elf_test.go             | 25 +++++++++++++++++++++++++
+ src/cmd/link/internal/amd64/obj.go   | 15 +++++++--------
+ src/cmd/link/internal/arm/obj.go     | 13 ++++++-------
+ src/cmd/link/internal/arm64/obj.go   | 19 +++++++++----------
+ src/cmd/link/internal/ld/main.go     |  2 +-
+ src/cmd/link/internal/ld/pe.go       |  8 ++++----
+ src/cmd/link/internal/ld/xcoff.go    | 11 +++++------
+ src/cmd/link/internal/loong64/obj.go |  6 +++---
+ src/cmd/link/internal/mips/obj.go    |  6 +++---
+ src/cmd/link/internal/mips64/obj.go  | 13 ++++++-------
+ src/cmd/link/internal/ppc64/obj.go   | 13 ++++++-------
+ src/cmd/link/internal/riscv64/obj.go |  6 +++---
+ src/cmd/link/internal/s390x/obj.go   |  6 +++---
+ src/cmd/link/internal/x86/obj.go     | 18 ++++--------------
+ 14 files changed, 85 insertions(+), 76 deletions(-)

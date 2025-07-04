@@ -1,46 +1,42 @@
-commit fbfc2031a673c95700e46ddf56404a0f648fc8a9
+commit 365594ad59873cd8f7fde5ec158067bf695185ee
 Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Sep 2 18:46:59 2017 +0200
+Date:   Sat Aug 5 13:44:25 2017 +0200
 
-    cmd/compile: specialize map creation for small hint sizes
+    runtime: simplify memory capacity check in growslice
     
-    Handle make(map[any]any) and make(map[any]any, hint) where
-    hint <= BUCKETSIZE special to allow for faster map initialization
-    and to improve binary size by using runtime calls with fewer arguments.
+    Instead of comparing if the number of elements will
+    not fit into memory check if the memory size of the
+    slices backing memory is higher then the memory limit.
     
-    Given hint is smaller or equal to BUCKETSIZE in which case
-    overLoadFactor(hint, 0)  is false and no buckets would be allocated by makemap:
-    * If hmap needs to be allocated on the stack then only hmap's hash0
-      field needs to be initialized and no call to makemap is needed.
-    * If hmap needs to be allocated on the heap then a new special
-      makehmap function will allocate hmap and intialize hmap's
-      hash0 field.
+    This avoids a division or maxElems lookup.
     
-    Reduces size of the godoc by ~36kb.
+    With et.size > 0:
+       uintptr(newcap)                > maxSliceCap(et.size)
+    -> uintptr(int(capmem / et.size)) > _MaxMem  /  et.size
+    ->             capmem / et.size   > _MaxMem  /  et.size
+    ->             capmem             > _MaxMem
     
-    AMD64
-    name         old time/op    new time/op    delta
-    NewEmptyMap    16.6ns ± 2%     5.5ns ± 2%  -66.72%  (p=0.000 n=10+10)
-    NewSmallMap    64.8ns ± 1%    56.5ns ± 1%  -12.75%  (p=0.000 n=9+10)
+    Note that due to integer division from capmem > _MaxMem
+    it does not follow that uintptr(newcap) > maxSliceCap(et.size).
     
-    Updates #6853
+    Consolidated runtime GrowSlice benchmarks by using sub-benchmarks and
+    added more struct sizes to show performance improvement when division
+    is avoided for element sizes larger than 32 bytes.
     
-    Change-Id: I624e90da6775afaa061178e95db8aca674f44e9b
-    Reviewed-on: https://go-review.googlesource.com/61190
+    AMD64:
+    GrowSlice/Byte       38.9ns ± 2%  38.9ns ± 1%    ~     (p=0.974 n=20+20)
+    GrowSlice/Int        58.3ns ± 3%  58.0ns ± 2%    ~     (p=0.154 n=20+19)
+    GrowSlice/Ptr        95.7ns ± 2%  95.1ns ± 2%  -0.60%  (p=0.034 n=20+20)
+    GrowSlice/Struct/24  95.4ns ± 1%  93.9ns ± 1%  -1.54%  (p=0.000 n=19+19)
+    GrowSlice/Struct/32   110ns ± 1%   108ns ± 1%  -1.76%  (p=0.000 n=19+20)
+    GrowSlice/Struct/40   138ns ± 1%   128ns ± 1%  -7.09%  (p=0.000 n=20+20)
+    
+    Change-Id: I1c37857c74ea809da373e668791caffb6a5cbbd3
+    Reviewed-on: https://go-review.googlesource.com/53471
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 250 +++++++++++++------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   3 +
- src/cmd/compile/internal/gc/reflect.go         |   4 +-
- src/cmd/compile/internal/gc/ssa.go             |   6 +
- src/cmd/compile/internal/gc/subr.go            |   8 +
- src/cmd/compile/internal/gc/walk.go            |  71 +++++--
- src/runtime/export_test.go                     |   7 +-
- src/runtime/hashmap.go                         |  11 +-
- src/runtime/map_test.go                        | 139 ++++++++++++--
- src/runtime/runtime-gdb_test.go                |   8 +-
- test/live.go                                   |   4 +-
- test/live2.go                                  |   4 +-
- 12 files changed, 343 insertions(+), 172 deletions(-)
+ src/runtime/append_test.go | 78 ++++++++++++++++++++++++++--------------------
+ src/runtime/slice.go       |  2 +-
+ 2 files changed, 45 insertions(+), 35 deletions(-)

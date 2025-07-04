@@ -1,14 +1,14 @@
-commit b3166bcb8e0a3cda0b3f81e88c66f73deb734641
-Author: Caine Tighe <arctanofyourface@gmail.com>
-Date:   Thu Mar 17 13:57:36 2011 -0400
+commit 9ad091e17871549c7620bd27c2ed4b730ed0bbd6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 17 10:47:42 2011 -0700
 
-    os: remove fstat TODO
+    gob: eliminate two more allocations in decode.
+    - just an oversight; we were reallocating a buffer.
+    - use unsafe to avoid allocating storage for a string twice.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3559041
+    https://golang.org/cl/4290056
 
- src/pkg/os/dir_darwin.go  | 3 +--
- src/pkg/os/dir_freebsd.go | 3 +--
- src/pkg/os/dir_linux.go   | 3 +--
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ src/pkg/gob/decode.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

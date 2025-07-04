@@ -1,14 +1,12 @@
-commit 39835b4aa0e3e8dbf90849812c8657d85a3b1a44
-Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
-Date:   Mon Dec 17 22:50:00 2012 +0800
+commit 6dd7da85662ba2dcd2e31f0a4fbc810e33fbe212
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Mon Dec 17 18:13:12 2012 +1100
 
-    syscall: document that documentation is platform specific
+    fmt: fix a typo
     
-    Fixes #4051
-    
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6943063
+    https://golang.org/cl/6937065
 
- src/pkg/syscall/syscall.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/pkg/fmt/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

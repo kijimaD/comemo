@@ -1,14 +1,15 @@
-commit 067315c647a8c973147bb53fb7a3483e99aa863e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Oct 26 19:41:21 2012 +1100
+commit 38070a72c5ba4f7eb2d90e79be8e06f2f991f7e7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Oct 26 08:39:36 2012 +0200
 
-    net: avoid allocation in setAddr
+    reflect: stop thinking that MaxFloat32 overflows float32.
     
-    setAddr was showing up in profiles due to string concatenation construction the os.File name field. netFD.sysfile's Name() is never used, except in dup() so I believe it is safe to avoid this allocation.
+    Fixes #4282.
     
-    R=mikioh.mikioh, rsc
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6742058
+    https://golang.org/cl/6759052
 
- src/pkg/net/fd_unix.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/pkg/reflect/all_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    |  2 +-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

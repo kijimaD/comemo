@@ -1,23 +1,42 @@
-commit 56076c3080022f595541932fb4cea379939ec313
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Mar 4 19:53:14 2023 -0800
+commit d31f85009cb81604c23e3e471fc4f7d62b9089ff
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 8 14:31:42 2022 -0700
 
-    io: reduce allocations in Pipe constructor
+    cmd/compile: skip emitting dictionaries with missing method expressions
     
-    Rather than having PipeWriter and PipeReader a wrapper type on pipe,
-    make them have the same underlying memory representation and
-    rely instead of simply casting the same *pipe pointer
-    as either a *PipeReader or *PipeWriter to control the set of methods.
+    The nounified frontend currently tries to construct dictionaries that
+    correspond to invalid instantiations (i.e., instantiations T[X] where
+    X does not satisfy the constraints specified on T's type parameter).
+    As a consequence, we may fail to find method expressions needed by the
+    dictionary.
     
-    This reduces the number of allocations by 2,
-    going from a total of 6 down to 4 allocations.
+    The real fix for this is to avoid creating those dictionaries in the
+    first place, because they should never actually be needed at runtime.
+    But that seems scary for a backport: we've repeatedly attempted to
+    backport generics fixes, which have fixed one issue but introduced
+    another.
     
-    Change-Id: I09207a00c4b7afb44c7773d752c5628a07e24fda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473535
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    This CL is a minimally invasive solution to #54225, which avoids the
+    ICE by instead skipping emitting the invalid dictionary. If the
+    dictionary ends up not being needed (which I believe will always be
+    the case), then the linker's reachability analysis will simply ignore
+    its absence.
+    
+    Or worst case, if the dictionary *is* reachable somehow, we've simply
+    turned an ICE into a link-time missing symbol failure. That's not
+    great for user experience, but it seems like a small trade off to
+    avoid risking breaking any other currently working code.
+    
+    Updates #54225.
+    
+    Change-Id: Ic379696079f4729b1dd6a66994a58cca50281a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429655
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/io/pipe.go | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 26 +++++++++++++++++++++++-
+ test/typeparam/issue54225.go              | 33 +++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

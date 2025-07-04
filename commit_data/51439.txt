@@ -1,14 +1,16 @@
-commit 109de31a1e70e8b959fe7e04df3b92774517dfa6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 09:26:43 2022 -0500
+commit 1fadc392ccaefd76ef7be5b685fb3889dbee27c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 14:32:56 2022 -0800
 
-    doc/go1.20: document new freebsd/riscv64 port
+    doc/go1.18: in workspace mode doc, link to "go work" docs
     
-    Change-Id: I3931b84466f1ded9eecd8b70373ee183268a87a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452759
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #45713
+    For #47694
+    
+    Change-Id: I6f615c07749fca49c19f2ae22f79971c29aa8183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381779
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.20.html | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

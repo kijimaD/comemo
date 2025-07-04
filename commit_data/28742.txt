@@ -1,21 +1,23 @@
-commit 2756d56c894e5b044907da74b6d5f3c684eab00d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Oct 6 15:43:47 2016 -0400
+commit fb3cf5c686b09bab8c1bef5f7589aaef0e6d9712
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 9 19:38:04 2016 -0700
 
-    cmd/compile: intrinsify math/big.mulWW, divWW on AMD64
+    math/rand: fix raciness in Rand.Read
     
-    Change-Id: I59f7afa7a5803d19f8b21fe70fc85ef997bb3a85
-    Reviewed-on: https://go-review.googlesource.com/30542
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    There are no synchronization points protecting the readVal and readPos
+    variables. This leads to a race when Read is called concurrently.
+    Fix this by adding methods to lockedSource, which is the case where
+    a race matters.
+    
+    Fixes #16308.
+    
+    Change-Id: Ic028909955700906b2d71e5c37c02da21b0f4ad9
+    Reviewed-on: https://go-review.googlesource.com/24852
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go          | 14 ++++++
- src/cmd/compile/internal/gc/ssa.go             | 47 ++++++++++++++------
- src/cmd/compile/internal/gc/walk.go            |  7 ++-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  6 ++-
- src/cmd/compile/internal/ssa/opGen.go          | 59 +++++++++++++++++++++++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 36 ++++++++++++++++
- 8 files changed, 152 insertions(+), 23 deletions(-)
+ src/math/rand/race_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/rand/rand.go      | 42 ++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 84 insertions(+), 5 deletions(-)

@@ -1,17 +1,19 @@
-commit 640164bc1ca8382fc02ab978f7857d01d4262eb7
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Mar 25 14:28:15 2016 -0400
+commit d37d76af43f590935b13f2d33b07ef51c2976354
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Jan 30 14:29:02 2016 -0800
 
-    reflect: test name data is aligned
+    cmd/compile: fix parsing of inlined interface types with unexported methods
     
-    For #14962.
+    Fixes #14164.
     
-    Change-Id: I3539d882487c99dee99ac953e039b79c6b963cf9
-    Reviewed-on: https://go-review.googlesource.com/21150
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ib1d1d29674c99cf88e0ae12724823a31f5dbb95c
+    Reviewed-on: https://go-review.googlesource.com/19087
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/all_test.go    | 13 +++++++++++++
- src/reflect/export_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/cmd/compile/internal/gc/parser.go | 18 ++++++++++++++
+ test/fixedbugs/issue14164.dir/a.go    | 47 +++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue14164.dir/main.go | 12 +++++++++
+ test/fixedbugs/issue14164.go          |  7 ++++++
+ 4 files changed, 84 insertions(+)

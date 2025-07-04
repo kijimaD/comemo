@@ -1,64 +1,25 @@
-commit 151668c694a15029db236976f06f18482859db61
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 20 17:02:35 2022 -0400
+commit 773f43b35638092f9c0dc56f4a468dce2eb3a8ef
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 22 12:47:53 2021 -0500
 
-    cmd/go: extract the TestScript engine into a standalone package
+    go/types, types2: substitute for type parameters in signatures when
+    comparing type identity
     
-    This change decouples the script engine from both cmd/go and the
-    testing package; I intend to reuse it in the replacement for the
-    vcs-test.golang.org server.
+    Generic signatures should be considered identical modulo type parameter
+    renaming. Update Identical to reflect this, by substituting type
+    parameters.
     
-    This change also adds a few new script commands:
+    Fixes #49722
     
-            - 'echo' echoes its arguments, useful for verifying argument expansion.
-    
-            - 'cat' prints the contents of files, useful for debugging failing script tests.
-    
-            - 'help' displays information about script commands and conditions,
-              reducing the toil of maintaining lists in the README file.
-    
-    The 'cmp' and 'cmpenv' commands now use internal/diff instead of their
-    own separate diff implementation.
-    
-    The 'env' command now writes to the script log instead of the stdout
-    buffer. (This makes it more consistent with the behavior of other
-    synchronous builtins.)
-    
-    The 'stale' command no longer logs output when a target is
-    unexpectedly non-stale. (However, the ouput of the 'stale' command is
-    not usually very useful anyway.)
-    
-    The 'grep', 'stdout', and 'stderr' commands now display matching lines
-    (like Unix 'grep'), making their negation behavior more consistent
-    with running real commands on a command-line.
-    
-    Likewise, the 'cmp' command now always displays differences. That
-    makes it useful with the '?' prefix to produce diffs for informational
-    purposes while debugging.
-    
-    For #27494.
-    
-    Change-Id: If49fd81d9b922d07c20618a8e2cef908191f9ef6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419875
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I33743768c72d8aa59c29bf72fcbabc5974f0b805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366178
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              |   12 +-
- src/cmd/go/internal/script/cmds.go                 | 1125 +++++++++++++
- src/cmd/go/internal/script/conds.go                |  179 +++
- src/cmd/go/internal/script/engine.go               |  785 ++++++++++
- src/cmd/go/internal/script/errors.go               |   64 +
- .../go/internal/script/scripttest/scripttest.go    |  143 ++
- src/cmd/go/internal/script/state.go                |  239 +++
- src/cmd/go/script_test.go                          | 1652 ++------------------
- src/cmd/go/scriptcmds_test.go                      |  131 ++
- src/cmd/go/scriptconds_test.go                     |  165 ++
- src/cmd/go/scriptreadme_test.go                    |  272 ++++
- src/cmd/go/testdata/script/README                  |  472 ++++--
- src/cmd/go/testdata/script/build_dash_x.txt        |    3 +-
- src/cmd/go/testdata/script/build_issue48319.txt    |    2 +-
- src/cmd/go/testdata/script/script_help.txt         |    7 +
- src/cmd/go/testdata/script/script_wait.txt         |    7 +-
- 16 files changed, 3560 insertions(+), 1698 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go   | 50 +++++++++++++++++++
+ src/cmd/compile/internal/types2/predicates.go | 72 ++++++++++++++++++---------
+ src/go/types/api_test.go                      | 50 +++++++++++++++++++
+ src/go/types/predicates.go                    | 72 ++++++++++++++++++---------
+ 4 files changed, 196 insertions(+), 48 deletions(-)

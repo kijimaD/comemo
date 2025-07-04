@@ -1,18 +1,17 @@
-commit 0d73f1e333bc9d0b0c07345efc498ebecaebf786
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 20 12:58:16 2017 -0700
+commit 554d49af61574bfacd3b106fd5c20aba4a1f1201
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 27 19:02:22 2017 +0900
 
-    cmd/compile: change liveness-related functions into methods
+    vendor: update vendored lif
     
-    No functional change; just making the code slightly more idiomatic.
+    Updates golang_org/x/net/lif to rev fcc8ed8 for:
+    - lif: rename internal types (http://golang.org/cl/43070)
     
-    Passes toolstash-check.
-    
-    Change-Id: I66d14a8410bbecf260d0ea5683564aa413ce5747
-    Reviewed-on: https://go-review.googlesource.com/65070
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0aad9a8b504d673b29d3c26b3717ffa8512e0cdf
+    Reviewed-on: https://go-review.googlesource.com/44392
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 40 ++++++++++++++++++------------------
- 1 file changed, 20 insertions(+), 20 deletions(-)
+ src/vendor/golang_org/x/net/lif/defs_solaris.go       | 2 +-
+ src/vendor/golang_org/x/net/lif/link.go               | 2 +-
+ src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,14 +1,12 @@
-commit f2c9d228508d7da944c92804befa28c158e3ea43
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 22 08:50:56 2011 +1100
+commit 5e5592cf30b3415cf76189c4343f915541596cbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 16:35:31 2011 -0500
 
-    os/exec: enable inherited file descriptor test
-    
-    Fixes #2596.
+    os/user: not on windows
     
     R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5498061
+    https://golang.org/cl/5498062
 
- src/pkg/os/exec/exec_test.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/pkg/os/user/lookup_stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

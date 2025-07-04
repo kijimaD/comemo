@@ -1,0 +1,30 @@
+commit 6b2ffc72b67713de4f08915937a64392aa4dbff0
+Author: Than McIntosh <thanm@google.com>
+Date:   Sat Jul 27 14:59:42 2024 +0000
+
+    cmd: extract cmd/go's cfg.LookPath into separate pathcache package
+    
+    Lift out the LookPath cached lookup utility function into a separate
+    "cmd/internal/pathcache" package, so that it can be reused in other
+    commands in addition to cmd/go. No change in functionality.
+    
+    Change-Id: Ica7fa627000843360c3e353d40a9a70605fbe033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601479
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cfg/bench_test.go                       | 3 ++-
+ src/cmd/go/internal/cfg/cfg.go                              | 3 ++-
+ src/cmd/go/internal/generate/generate.go                    | 3 ++-
+ src/cmd/go/internal/load/pkg.go                             | 3 ++-
+ src/cmd/go/internal/script/cmds.go                          | 4 ++--
+ src/cmd/go/internal/script/scripttest/scripttest.go         | 4 ++--
+ src/cmd/go/internal/toolchain/select.go                     | 3 ++-
+ src/cmd/go/internal/vcs/vcs.go                              | 3 ++-
+ src/cmd/go/internal/work/build.go                           | 3 ++-
+ src/cmd/go/internal/work/buildid.go                         | 3 ++-
+ src/cmd/go/internal/work/exec.go                            | 3 ++-
+ src/cmd/go/internal/work/gccgo.go                           | 3 ++-
+ src/cmd/go/internal/work/shell.go                           | 3 ++-
+ src/cmd/{go/internal/cfg => internal/pathcache}/lookpath.go | 2 +-
+ 14 files changed, 27 insertions(+), 16 deletions(-)

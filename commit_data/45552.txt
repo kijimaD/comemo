@@ -1,19 +1,20 @@
-commit 18e666bad75362ef7d031ebf557effdc42dd290f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 5 11:24:24 2021 -0400
+commit 615c7c18a70e0d6638accdb0fcc5f60c57a2118b
+Author: Mikhail Fesenko <proggga@gmail.com>
+Date:   Wed Oct 28 20:35:23 2020 +0000
 
-    cmd/go: skip TestExecInDeletedDir on aix and solaris-based platforms
+    cmd/buildid: move and reuse duplicated HashToString code to cmd/internal/buildid/buildid
     
-    They empirically do not seem to support deleting the current working
-    directory.
-    
-    Updates #34499
-    
-    Change-Id: I705cdf8b545fbb837d5b75d2904a7c2a89276fa5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317249
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I1e1ac770d4aac12d7d7ec57ef95f77a3e14a678c
+    GitHub-Last-Rev: c01db4346eb08ffe0c1953892fb4222764048e30
+    GitHub-Pull-Request: golang/go#42052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263418
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/go_test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/buildid/buildid.go          | 19 ++-----------------
+ src/cmd/go/internal/work/buildid.go | 35 +++++------------------------------
+ src/cmd/internal/buildid/buildid.go | 29 +++++++++++++++++++++++++----
+ 3 files changed, 32 insertions(+), 51 deletions(-)

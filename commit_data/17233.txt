@@ -1,16 +1,14 @@
-commit f8ca13c3e5a85d6f9dbce499aca8006c104376ee
+commit 9bbf1e1b725e12e207e6791da9d84f1f647df1d6
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 14 21:53:27 2013 +0400
+Date:   Wed Aug 14 21:20:11 2013 +0400
 
-    net: make TCPStress test shorter
-    It timeouts on freebsd builders:
-    http://build.golang.org/log/3d8169e13bff912bebf6fd3c54b34ad2d29a7221
-    but there are always runnable goroutines,
-    which suggests that it's slowly progressing.
+    net: make TestDeadlineRace shorter
+    1. Do less iterations in short mode
+    2. Bound number of times SetDeadline is executed
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12939043
+    https://golang.org/cl/12937043
 
- src/pkg/net/tcp_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/net/timeout_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

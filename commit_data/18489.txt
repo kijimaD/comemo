@@ -1,22 +1,16 @@
-commit 87d58f44a1e53a61c7bd4b11a7f7aa616f6e373d
-Author: Alexander Larsson <alexander.larsson@gmail.com>
-Date:   Thu Feb 13 20:08:30 2014 +1100
+commit a3e3b8e9db553fb6870c9488e9817f4bd0bb9593
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 07:28:22 2014 +0100
 
-    archive/tar: support extended attributes
+    cmd/gc: fix warnings on Plan 9
     
-    This adds support for archives with the SCHILY.xattr field in the
-    pax header. This is what gnu tar and star generate.
-    Fixes #7154.
+    warning: src/cmd/gc/popt.c:700 format mismatch d VLONG, arg 4
+    warning: src/cmd/gc/popt.c:700 format mismatch d VLONG, arg 5
     
-    LGTM=dsymonds
-    R=golang-codereviews, gobot, dsymonds
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/54570043
+    https://golang.org/cl/62910043
 
- src/pkg/archive/tar/common.go           |   2 ++
- src/pkg/archive/tar/reader.go           |   8 +++++-
- src/pkg/archive/tar/reader_test.go      |  44 ++++++++++++++++++++++++++++++--
- src/pkg/archive/tar/testdata/xattrs.tar | Bin 0 -> 5120 bytes
- src/pkg/archive/tar/writer.go           |   6 +++++
- src/pkg/archive/tar/writer_test.go      |  40 +++++++++++++++++++++++++++++
- 6 files changed, 97 insertions(+), 3 deletions(-)
+ src/cmd/gc/popt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

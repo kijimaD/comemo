@@ -1,25 +1,22 @@
-commit f7fc25ed5a16ee7678680ffd0bcc3078cc249e0a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 14 00:04:05 2020 +1000
+commit 2f22143cd5a22b1faba9223115514432f145d15c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 3 12:37:35 2020 -0500
 
-    image/gif: add more writer benchmarks
+    [dev.link] cmd/link: remove holes from global index space
     
-    The two existing benchmarks encode randomized pixels, which isn't very
-    representative. The two new benchmarks encode a PNG photo as a GIF.
+    In CL 217064, we made symbol's global index unique, but we still
+    reserve index space for each object file, which means we may
+    leave holes in the index space if the symbol is a dup or is
+    overwritten. In this CL, we stop reserving index spaces. Instead,
+    symbols are added one at a time, and only added if it does not
+    already exist. There is no more holes in the index space.
     
-    Also rename the benchmarks for consistency.
-    
-    Also fix the bytes-per-op measure for paletted images, which are 1 (not
-    4) bytes per pixel.
-    
-    Also simplify BenchmarkEncodeRandomPaletted (formerly just called
-    BenchmarkEncode). It doesn't need to generate a random palette (and the
-    GIF encoder largely doesn't care about the palette's RGBA values).
-    Use palette.Plan9 instead, a pre-existing 256-element color palette.
-    
-    Change-Id: I10a6ea4e9590bb0d9f76e8cc0f4a88d43b1d650d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248218
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: I3c4e67163c556ba1198e13065706510dac4692fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217519
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/image/gif/writer_test.go | 53 +++++++++++++++++++++++++++++++-------------
- 1 file changed, 38 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go       |   4 +-
+ src/cmd/link/internal/loader/loader.go      | 160 ++++++++++++----------------
+ src/cmd/link/internal/loader/loader_test.go |   3 +-
+ 3 files changed, 68 insertions(+), 99 deletions(-)

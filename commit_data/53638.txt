@@ -1,22 +1,19 @@
-commit da5d8fdd0c8963ca8f355088bf810c030eb7da27
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Wed Jun 14 12:16:38 2023 +1000
+commit aab8d2b448c4855a4e4a9c2d477671a75828f78b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Aug 25 02:26:08 2022 +0800
 
-    runtime: run wasip1 tests with wazero
+    runtime: convert netpollWaiters to internal atomic type
     
-    The latest wazero release supports non-blocking I/O and pre-opened
-    sockets. Unmask the relevant wasip1 tests so that there are multiple
-    WebAssembly runtimes exercising these code paths.
+    Updates #53821
     
-    Change-Id: I8506ab35186f98fde2cd3ce84634d5fcb7b053f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503595
+    Change-Id: I8776382b3eb0b7752cfc0d9287b707039d3f05c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425358
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/internal/wasitest/nonblock_test.go | 2 --
- src/runtime/internal/wasitest/tcpecho_test.go  | 2 ++
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/netpoll.go      | 6 +++---
+ src/runtime/netpoll_stub.go | 2 +-
+ src/runtime/proc.go         | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)

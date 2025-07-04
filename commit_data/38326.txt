@@ -1,26 +1,17 @@
-commit 83a33d3855e257b383b2a3a10dfd9748ad17cfb4
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri Mar 8 15:01:32 2019 -0800
+commit 035f9e8102d3b46877b7462fcd365324272d1d0e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Oct 12 15:39:30 2018 -0400
 
-    cmd/compile: reverse order of slice bounds checks
+    doc: update docs.html with new tour import path
     
-    Turns out this makes the fix for 28797 unnecessary, because this order
-    ensures that the RHS of IsSliceInBounds ops are always nonnegative.
+    As of golang.org/cl/141857 the import path has changed from
+    golang.org/x/tour/gotour to golang.org/x/tour
     
-    The real reason for this change is that it also makes dealing with
-    <0 values easier for reporting values in bounds check panics (issue #30116).
-    
-    Makes cmd/go negligibly smaller.
-    
-    Update #28797
-    
-    Change-Id: I1f25ba6d2b3b3d4a72df3105828aa0a4b629ce85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166377
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib54ab2e50188ef66c8a5c45136babfa49ad6934a
+    Reviewed-on: https://go-review.googlesource.com/c/141917
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 33 ++++++++-------------------------
- test/loopbce.go                    |  6 +++---
- test/prove.go                      |  4 ++--
- 3 files changed, 13 insertions(+), 30 deletions(-)
+ doc/docs.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

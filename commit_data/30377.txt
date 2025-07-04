@@ -1,17 +1,19 @@
-commit ea5529de155cfd3f2c31698344b1ca001e0f8819
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Feb 23 17:41:31 2017 -0800
+commit 5513f855f6e627606f0b516c4a16ae32d82d99fd
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Nov 2 13:43:57 2016 -0400
 
-    crypto/tls: use io.ReadFull in conn_test.go
+    cmd/vet: add test case for ppc64{,le}
     
-    An io.Reader does not guarantee that it will read in the entire buffer.
-    To ensure that property, io.ReadFull should be used instead.
+    Adapted from the mips64 test case.
     
-    Change-Id: I0b863135ab9abc40e813f9dac07bfb2a76199950
-    Reviewed-on: https://go-review.googlesource.com/37403
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #17745.
+    
+    Change-Id: I46f0900028adb936dcab2cdc701ea11d0a3cb95e
+    Reviewed-on: https://go-review.googlesource.com/32611
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/tls/conn_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/vet/testdata/asm7.s | 193 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 193 insertions(+)

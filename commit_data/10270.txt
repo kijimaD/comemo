@@ -1,19 +1,16 @@
-commit 986ad31b2dad78d2238a426904fcf9fbf120d2c8
-Author: Ron Minnich <rminnich@gmail.com>
-Date:   Mon Nov 7 11:42:13 2011 -0500
+commit 2e1bb76f9b7264b8d6cdb4d244746fd8ac45f160
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Nov 7 11:42:08 2011 -0500
 
-    gc: use HEADER_IO macro from gopack
+    gc: format nits
     
-    Use HEADER_IO macro from gopack to read archive header
-    The HEADER_IO macro portably reads archive headers. The
-    current arsize code fails in the case of archive headers produced
-    on plan 9 6c and read on other systems (it's not portable).
-    Modify lex.c to use the portable macro
-    Build tested (including tests) on OSX.
+    src/cmd/gc/bits.c: corrected a mistaken format;
+    src/cmd/gc/go.h: %E can accept uints.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5323072
+    https://golang.org/cl/5331041
 
- src/cmd/gc/lex.c | 24 ++++++++++++++++++------
- 1 file changed, 18 insertions(+), 6 deletions(-)
+ src/cmd/gc/bits.c | 2 +-
+ src/cmd/gc/go.h   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,27 +1,21 @@
-commit 30b17f4f97d37f654c5090001c5b44c331b00d0c
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Jun 15 02:08:47 2023 -0400
+commit cd52818487fade395c4d9189ce6e70cc03aeecb2
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun Aug 21 20:33:42 2022 +0000
 
-    net/http: only disable Fetch API in tests
+    net: turn off dns compression for go resolver queries
     
-    The Fetch API was meant to only be disabled in tests.
-    Since wasm_exec.js defines a global 'process' object,
-    it ended up being disabled anywhere that script is used.
+    We don't need compression enabled here, because we only set one question in the dns message. So there is nothing to compress. Also it reduces 8 allocs per LookupHost.
     
-    Make the heuristic stricter so that it's less likely to
-    trigger anywhere but when testing js/wasm using Node.js.
-    
-    For #57613.
-    Fixes #60808.
-    
-    Change-Id: Ief8def802b466ef4faad16daccefcfd72e4398b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503675
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I0968f837011daf6d7a7b22d9af4a8cc5b2878f4c
+    GitHub-Last-Rev: 7eb3362bcaa86f47c9d975375b54c7177e8dd15e
+    GitHub-Pull-Request: golang/go#54576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425043
     Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/roundtrip_js.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/net/dnsclient_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

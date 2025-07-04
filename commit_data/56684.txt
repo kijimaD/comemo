@@ -1,19 +1,27 @@
-commit 7bc7039a6a518ed43f6177763d584e354ebd4bd7
-Author: Andy Pan <i@andypan.me>
-Date:   Fri May 24 10:07:54 2024 +0800
+commit 4859392cc29a35a0126e249ecdedbd022c755b20
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu May 18 14:46:20 2023 +0200
 
-    syscall: prevent redundant newline from empty $extraimports
+    runtime: fix TestSehUnwind
     
-    Currently mksyscall script produces one redundant newline
-    when $extraimports is empty, leading to a gofmt warning
-    reported by "git codereview change".
+    This CL fixes two problems:
     
-    Change-Id: I57b0fa040347375698973e777285deded16ab62e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587877
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    - NewContextStub initialize a context with the wrong FP. That
+    function should dereference the FP returned by getcallerfp, as it
+    returns the callers's FP instead of the caller's caller FP.
+    CL 494857 will rename getcallerfp to getfp to make this fact clearer.
+    
+    - sehCallers skips the bottom frame when it should.
+    
+    Fixes #60053
+    
+    Change-Id: I7d59b0175fc95281fcc7dd565ced9293064df3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496140
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/syscall/mksyscall.pl | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/export_windows_test.go      | 11 ++++++++---
+ src/runtime/runtime-seh_windows_test.go |  4 ++--
+ 2 files changed, 10 insertions(+), 5 deletions(-)

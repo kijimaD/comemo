@@ -1,16 +1,14 @@
-commit 96a773d61bc60022af0097f4a08495880a5ea33e
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 22 12:32:05 2023 -0400
+commit 5c8ec89cb53025bc76b242b0d2410bf5060b697e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 13:06:28 2022 -0400
 
-    cmd/cgo/internal/testcshared: drop bespoke host test support
+    doc/go1.19: minor adjustments and links
     
-    Updates #59999.
+    A few last-minute clarifications before the release.
     
-    Change-Id: If0b80713a6bb5d8c59d9dd0b219f2f47173090e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497077
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ia0123441633c147aa3f76ea29ed26c7722e2416c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419994
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/internal/testcshared/cshared_test.go | 85 +-----------------------
- 1 file changed, 1 insertion(+), 84 deletions(-)
+ doc/go1.19.html | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

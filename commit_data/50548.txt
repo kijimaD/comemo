@@ -1,32 +1,25 @@
-commit f1b7b2fc52947711b8e78f7078c9e0bda35320d3
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 19 17:26:05 2022 -0400
+commit 02e5913406b2ac354695471690b79d8d4242ad8d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 15:00:16 2021 -0700
 
-    runtime: make mSpanStateBox accessors nosplit
+    go/types, types2: remove confusing debugging output in inference error message
     
-    get, at least, is called from typedmemclr which must not be interruptible.
-    These were previously nosplit by accident before CL 424395 (the only
-    call they had was an intrinsic, so they were leaf functions, so they had
-    no prologue). After CL 424395 they contained a call (in noinline builds),
-    thus had a prologue, thus had a suspension point.
+    When type inference cannot infer type arguments it prints the list of
+    inferred type arguments (often empty) at the end of the error message.
+    This was meant as debugging support only. Removed for now.
     
-    I have no idea how we might test this.
+    Eventually we should provide a better error message.
     
-    This is another motivating use case for having a nosplitrec directive
-    in the runtime.
+    Fixes #49272.
     
-    Fixes #55156
-    Fixes #54779
-    Fixes #54906
-    Fixes #54907
-    
-    Change-Id: I851d733d71bda7172c4c96e027657e22b499ee00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431919
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I68d43a6ace91081009cab0f2fbad7bfbddf5e76b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360554
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/mbarrier.go | 2 ++
- src/runtime/mheap.go    | 7 +++++++
- 2 files changed, 9 insertions(+)
+ src/cmd/compile/internal/types2/infer.go | 2 +-
+ src/go/types/infer.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

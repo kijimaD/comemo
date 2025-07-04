@@ -1,31 +1,22 @@
-commit 43f889b9e5c45ed53af84419380e8cb69db7c103
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 31 10:53:48 2024 -0400
+commit 972fc055eb43bfe0e777f0301739b95c2053c208
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 8 15:44:57 2023 -0700
 
-    cmd/internal/objabi, cmd/link: add FIPS symbol kinds
+    cmd/compile/internal/ir: add Type param to NewBasicLit
     
-    Add FIPS symbol kinds that will be needed for FIPS support.
-    This is a separate CL to keep the re-generated changes in
-    the string methods separate from hand-written changes.
+    This CL adds an explicit Type parameter to NewBasicLit so that callers
+    can directly construct typed OLITERAL nodes.
     
-    The separate symbol kinds will let us group the FIPS-related
-    code and data together, so that it can be checksummed at
-    startup, as required by FIPS.
-    
-    It's also separate because it breaks buildall, by changing the
-    on-disk symbol kind enumeration. We want non-buildall
-    changes to be as simple as possible.
-    
-    For #69536.
-    
-    Change-Id: I2d5a238498929fff8b24736ee54330c17323bd86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625995
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I0ab50ac3d7ddb7adcc903633a62ac496921165e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527096
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/internal/objabi/symkind.go          |   4 +
- src/cmd/internal/objabi/symkind_string.go   |  46 ++++-----
- src/cmd/link/internal/sym/symkind.go        |  25 +++++
- src/cmd/link/internal/sym/symkind_string.go | 141 ++++++++++++++++------------
- 4 files changed, 133 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/ir/const.go      | 32 ++++++++++++++++++++++++++++---
+ src/cmd/compile/internal/ir/expr.go       | 14 +++++---------
+ src/cmd/compile/internal/noder/helpers.go |  2 --
+ src/cmd/compile/internal/noder/reader.go  |  6 +++---
+ src/cmd/compile/internal/walk/switch.go   |  2 +-
+ 5 files changed, 38 insertions(+), 18 deletions(-)

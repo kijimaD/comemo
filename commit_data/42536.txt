@@ -1,24 +1,21 @@
-commit 0ce1ffc49d3935a41e1fff2aec224c254a9fad1d
-Author: Andy Balholm <andy@balholm.com>
-Date:   Mon Jun 15 15:54:49 2020 -0700
+commit 65219650fff0cd8317b3f031784c4471f3fd7073
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 9 16:22:01 2020 -0500
 
-    regexp/syntax: append patchLists in constant time
+    cmd/go: remove references to 1.13 in 'go help modules'
     
-    By keeping a tail pointer, we can append to a patchList in constant
-    time, rather than in time proportional to the length of the list. This
-    gets rid of the quadratic compile times we were seeing for long series
-    of alternations.
+    In "Module support" section, there were two mentions of "Go 1.13",
+    assuming that's the latest version. Rather than update these to 1.14,
+    this CL changes those to "The go command".
     
-    This is basically the same change as
-    https://github.com/google/re2/commit/e9d517989f66f2e0a24cde42f4d2424dd3e4a9b9.
+    Also, a minor change in wording for finding go.mod files.
     
-    Fixes #39542.
-    
-    Change-Id: Ib4ca0ca9c55abd1594df1984653c7d311ccf7572
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238079
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id194be9405b540f221464814e71c361a22cc0f55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214140
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/syntax/compile.go | 68 +++++++++++++++++++-------------------------
- 1 file changed, 29 insertions(+), 39 deletions(-)
+ src/cmd/go/alldocs.go               | 7 ++++---
+ src/cmd/go/internal/modload/help.go | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

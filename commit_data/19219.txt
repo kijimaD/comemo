@@ -1,13 +1,15 @@
-commit 800d8adf35ebf340c8bc4769318531717aaab88e
-Author: Mark Zavislak <zavislak@google.com>
-Date:   Mon Apr 21 08:55:23 2014 -0700
+commit 296eeaa78df8537964821756c393cbd06174a119
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 21 21:12:18 2014 +1000
 
-    runtime: fix typo in error message
+    cmd/nm: do not fail TestNM if symbol has less then 3 columns in nm output
     
-    LGTM=robert.hencke, iant
-    R=golang-codereviews, robert.hencke, iant
+    Fixes #7829
+    
+    LGTM=dave
+    R=golang-codereviews, aram, dave
     CC=golang-codereviews
-    https://golang.org/cl/89760043
+    https://golang.org/cl/89830043
 
- src/pkg/runtime/malloc.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/nm/nm_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

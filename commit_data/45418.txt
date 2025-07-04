@@ -1,18 +1,42 @@
-commit 6afa0ae4e54ec049f291050b82c2a770bb3644b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 28 18:00:16 2021 -0700
+commit 5cd4390f3853b8d0d2d962f7acdac87c0eba3d77
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 13 18:19:21 2020 -0400
 
-    cmd/compile/internal/types2: match compiler error for invalid type alias decl
+    cmd/go: don't fetch files missing sums in readonly mode
     
-    Fixes #45594.
+    If the go command needs a .mod or .zip file in -mod=readonly mode
+    (now the default), and that file doesn't have a hash in the main
+    module's go.sum file, the go command will now report an error before
+    fetching the file, rather than at the end when failing to update
+    go.sum. The error says specifically which entry is missing.
     
-    Change-Id: I2fcc784e6908403dd96b009546e1ac2f53b9f0e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314776
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    If this error is encountered when loading the build list, it will
+    suggest 'go mod tidy'.
+    
+    If this error is encountered when loading a specific package (an
+    import or command line argument), the error will mention that package
+    and will suggest 'go mod tidy' or 'go get -d'.
+    
+    Fixes #41934
+    Fixes #41935
+    
+    Change-Id: I96ec2ef9258bd4bade9915c43d47e6243c376a81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262341
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/decl.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go                    |  5 +-
+ src/cmd/go/internal/modfetch/fetch.go              | 22 ++++++
+ src/cmd/go/internal/modload/import.go              | 68 +++++++++++++++--
+ src/cmd/go/internal/modload/load.go                |  2 +
+ src/cmd/go/internal/modload/modfile.go             | 14 +++-
+ src/cmd/go/internal/modload/query.go               |  9 ++-
+ src/cmd/go/internal/modload/search.go              |  3 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |  6 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   | 13 ++++
+ .../testdata/script/mod_load_replace_mismatch.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_readonly.txt        |  3 +-
+ src/cmd/go/testdata/script/mod_sum_readonly.txt    | 87 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_sumdb.txt           |  2 +-
+ src/cmd/go/testdata/script/sum_readonly.txt        | 29 --------
+ 14 files changed, 216 insertions(+), 49 deletions(-)

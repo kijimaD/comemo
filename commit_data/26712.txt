@@ -1,14 +1,17 @@
-commit acefcb732cae4daa59a621cb102793860b564a12
-Author: Eric Lagergren <ericscottlagergren@gmail.com>
-Date:   Tue Feb 23 18:40:42 2016 -0800
+commit d1cc7f70cdd4c99e821165b0e773e748a438f5b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 13:35:12 2016 -0800
 
-    io: define SeekStart, SeekCurrent, SeekEnd constants for use with Seeker
+    cmd/compile: give informative error instead of "stupid shift"
     
-    Fixes #6885
+    Fixes #13940.
     
-    Change-Id: I6907958186f6a2427da1ad2f6c20bd5d7bf7a3f9
-    Reviewed-on: https://go-review.googlesource.com/19862
+    Change-Id: I00fe377c949e5be4cbc035f6ca18e547e326bfba
+    Reviewed-on: https://go-review.googlesource.com/19856
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/io.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/gc/mparith2.go | 8 ++++++--
+ test/fixedbugs/bug108.go                | 2 +-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

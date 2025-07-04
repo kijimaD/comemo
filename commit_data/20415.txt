@@ -1,27 +1,19 @@
-commit 2eccf0d18fcbb2f369b80567bb43da58054313b5
+commit e8fc362049aea9000b5e5fe58d0c46dd14e05ba1
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 14 21:25:44 2014 -0400
+Date:   Sat Sep 6 15:27:39 2014 -0400
 
-    runtime: convert syscall_windows.c to Go
+    runtime/cgo: use just #include "textflag.h"
     
-    This is necessary because syscall.Syscall blocks, and the
-    garbage collector needs to be able to scan that frame while
-    it is blocked, and C frames have no garbage collection
-    information.
+    This will withstand the src/pkg/ to src/ move.
     
-    Windows builders are broken now due to this problem:
-    http://build.golang.org/log/152ca9a4be6783d3a8bf6e2f5b9fc265089728b6
-    
-    LGTM=alex.brainman
-    R=alex.brainman
+    LGTM=r
+    R=iant, r
     CC=golang-codereviews
-    https://golang.org/cl/144830043
+    https://golang.org/cl/134530044
 
- src/runtime/os_windows.c       |  32 +++++---
- src/runtime/runtime.h          |   4 +-
- src/runtime/syscall_windows.c  | 166 -----------------------------------------
- src/runtime/syscall_windows.go |  82 ++++++++++++++++++++
- src/runtime/thunk_windows.s    |  30 ++++++++
- src/syscall/asm_windows.s      |  13 ----
- src/syscall/dll_windows.go     |   2 +-
- 7 files changed, 138 insertions(+), 191 deletions(-)
+ src/pkg/runtime/cgo/asm_386.s           | 2 +-
+ src/pkg/runtime/cgo/asm_amd64.s         | 2 +-
+ src/pkg/runtime/cgo/asm_arm.s           | 2 +-
+ src/pkg/runtime/cgo/asm_nacl_amd64p32.s | 2 +-
+ src/pkg/runtime/cgo/callbacks.c         | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

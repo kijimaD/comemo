@@ -1,20 +1,12 @@
-commit c0ecfb072b02d5764e387af560bfedb1cadcac1c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 31 09:45:13 2012 -0800
+commit 847197d3393e1e51576a156b5117828f4fe68355
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 1 02:42:56 2012 +0900
 
-    net/http: close client fd sooner on response read error
-    
-    This fixes some test noise in TestStressSurpriseServerCloses when
-    ulimit -n something low, like 256 on a Mac.
-    
-    Previously, when the server closed on us and we were expecting more
-    responses (like we are in that test), we'd read an "Unexpected EOF"
-    and just forget about the client's net.Conn.  Now it's closed,
-    rather than waiting on the finalizer to release the fd.
+    net: disable normal multicast testing on linux/arm
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5602043
+    https://golang.org/cl/5603043
 
- src/pkg/net/http/transport.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/multicast_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

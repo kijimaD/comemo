@@ -1,0 +1,27 @@
+commit 9ae38be3025fa71ec2967111e0a184f886876cb1
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jun 27 08:46:28 2025 -0700
+
+    sync: disassociate WaitGroups from bubbles on Wait
+    
+    Fix a race condition in disassociating a WaitGroup in a synctest
+    bubble from its bubble. We previously disassociated the WaitGroup
+    when count becomes 0, but this causes problems when an Add call
+    setting count to 0 races with one incrementing the count.
+    
+    Instead, disassociate a WaitGroup from its bubble when Wait returns.
+    Wait must not be called concurrently with an Add call with a
+    positive delta and a 0 count, so we know that the disassociation
+    will not race with an Add call trying to create a new association.
+    
+    Fixes #74386
+    
+    Change-Id: I9b519519921f7691869a64a245a5ee65d071d054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684635
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/synctest/synctest_test.go | 33 +++++++++++++++++++++++++--------
+ src/sync/waitgroup.go                  | 21 +++++++++++++--------
+ 2 files changed, 38 insertions(+), 16 deletions(-)

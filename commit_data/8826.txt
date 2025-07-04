@@ -1,12 +1,18 @@
-commit 36b5e1d6986d38aa47d9c8e3147b2dd488d22155
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 22 19:33:07 2011 -0400
+commit cd7826e5f6d187cd8f555f36d5654a372e95dba8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 23 09:27:28 2011 +1000
 
-    io: clarify Read, ReadAt, Copy, Copyn EOF behavior
+    First cut at the parser for the new template package.
     
-    R=golang-dev, bradfitz, iant, dsymonds, nigeltao, r
+    This is not a full grammar, but the pieces are there to implement whatever we converge on.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4629062
+    https://golang.org/cl/4629053
 
- src/pkg/io/io.go | 55 +++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 37 insertions(+), 18 deletions(-)
+ src/pkg/exp/template/Makefile      |   1 +
+ src/pkg/exp/template/lex.go        | 121 +++++++--
+ src/pkg/exp/template/lex_test.go   |  63 ++---
+ src/pkg/exp/template/parse.go      | 518 +++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/template/parse_test.go | 175 +++++++++++++
+ 5 files changed, 823 insertions(+), 55 deletions(-)

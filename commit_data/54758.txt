@@ -1,112 +1,19 @@
-commit bf97e724b50303e721d62b59cca726a679d492ce
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Oct 17 15:19:33 2023 -0400
+commit ed615aaf5bd6bb9ab0c9d88f4e41b4d2ff07a10e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 30 16:40:27 2020 +0100
 
-    all: drop old +build lines
+    crypto/x509: expand package docs and clarify package target
     
-    Running 'go fix' on the cmd+std packages handled much of this change.
+    Fixes #26624
     
-    Also update code generators to use only the new go:build lines,
-    not the old +build ones.
-    
-    For #41184.
-    For #60268.
-    
-    Change-Id: If35532abe3012e7357b02c79d5992ff5ac37ca23
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536237
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ifab3fc2209d71b9a7de383eaa5786b7446de25fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266541
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/cover.bash            | 2 +-
- src/cmd/compile/internal/typecheck/_builtin/coverage.go | 1 -
- src/cmd/dist/notgo120.go                                | 1 -
- src/cmd/dist/sys_default.go                             | 1 -
- src/cmd/dist/util_gc.go                                 | 1 -
- src/cmd/dist/util_gccgo.go                              | 1 -
- src/cmd/dist/vfp_arm.s                                  | 1 -
- src/cmd/dist/vfp_default.s                              | 1 -
- src/cmd/go/internal/modcmd/vendor.go                    | 2 +-
- src/cmd/go/internal/modload/import.go                   | 2 +-
- src/cmd/internal/goobj/mkbuiltin.go                     | 1 -
- src/cmd/internal/notsha256/sha256block_386.s            | 1 -
- src/cmd/internal/notsha256/sha256block_amd64.go         | 1 -
- src/cmd/internal/notsha256/sha256block_amd64.s          | 1 -
- src/cmd/internal/notsha256/sha256block_decl.go          | 2 --
- src/cmd/internal/notsha256/sha256block_generic.go       | 1 -
- src/cmd/internal/notsha256/sha256block_ppc64x.s         | 2 --
- src/cmd/internal/obj/stringer.go                        | 1 -
- src/cmd/link/internal/ld/elf_test.go                    | 1 -
- src/cmd/link/internal/ld/execarchive.go                 | 1 -
- src/cmd/link/internal/ld/execarchive_noexec.go          | 1 -
- src/crypto/boring/notboring_test.go                     | 1 -
- src/crypto/internal/boring/sig/sig_other.s              | 1 -
- src/crypto/internal/edwards25519/field/fe_arm64.s       | 2 +-
- src/internal/goexperiment/exp_arenas_off.go             | 1 -
- src/internal/goexperiment/exp_arenas_on.go              | 1 -
- src/internal/goexperiment/exp_boringcrypto_off.go       | 1 -
- src/internal/goexperiment/exp_boringcrypto_on.go        | 1 -
- src/internal/goexperiment/exp_cacheprog_off.go          | 1 -
- src/internal/goexperiment/exp_cacheprog_on.go           | 1 -
- src/internal/goexperiment/exp_cgocheck2_off.go          | 1 -
- src/internal/goexperiment/exp_cgocheck2_on.go           | 1 -
- src/internal/goexperiment/exp_coverageredesign_off.go   | 1 -
- src/internal/goexperiment/exp_coverageredesign_on.go    | 1 -
- src/internal/goexperiment/exp_fieldtrack_off.go         | 1 -
- src/internal/goexperiment/exp_fieldtrack_on.go          | 1 -
- src/internal/goexperiment/exp_heapminimum512kib_off.go  | 1 -
- src/internal/goexperiment/exp_heapminimum512kib_on.go   | 1 -
- src/internal/goexperiment/exp_loopvar_off.go            | 1 -
- src/internal/goexperiment/exp_loopvar_on.go             | 1 -
- src/internal/goexperiment/exp_newinliner_off.go         | 1 -
- src/internal/goexperiment/exp_newinliner_on.go          | 1 -
- src/internal/goexperiment/exp_pagetrace_off.go          | 1 -
- src/internal/goexperiment/exp_pagetrace_on.go           | 1 -
- src/internal/goexperiment/exp_preemptibleloops_off.go   | 1 -
- src/internal/goexperiment/exp_preemptibleloops_on.go    | 1 -
- src/internal/goexperiment/exp_range_off.go              | 1 -
- src/internal/goexperiment/exp_range_on.go               | 1 -
- src/internal/goexperiment/exp_regabiargs_off.go         | 1 -
- src/internal/goexperiment/exp_regabiargs_on.go          | 1 -
- src/internal/goexperiment/exp_regabiwrappers_off.go     | 1 -
- src/internal/goexperiment/exp_regabiwrappers_on.go      | 1 -
- src/internal/goexperiment/exp_staticlockranking_off.go  | 1 -
- src/internal/goexperiment/exp_staticlockranking_on.go   | 1 -
- src/internal/goexperiment/mkconsts.go                   | 4 +---
- src/internal/race/norace.go                             | 1 -
- src/internal/race/race.go                               | 1 -
- src/math/big/arith_386.s                                | 1 -
- src/math/big/arith_amd64.go                             | 1 -
- src/math/big/arith_amd64.s                              | 1 -
- src/math/big/arith_arm.s                                | 1 -
- src/math/big/arith_arm64.s                              | 1 -
- src/math/big/arith_decl.go                              | 1 -
- src/math/big/arith_decl_pure.go                         | 1 -
- src/math/big/arith_decl_s390x.go                        | 1 -
- src/math/big/arith_loong64.s                            | 2 +-
- src/math/big/arith_mips64x.s                            | 2 --
- src/math/big/arith_mipsx.s                              | 2 --
- src/math/big/arith_ppc64x.s                             | 2 --
- src/math/big/arith_riscv64.s                            | 1 -
- src/math/big/arith_s390x.s                              | 1 -
- src/math/big/arith_s390x_test.go                        | 1 -
- src/math/big/arith_wasm.s                               | 1 -
- src/math/bits/bits_errors.go                            | 1 -
- src/math/bits/bits_errors_bootstrap.go                  | 1 -
- src/math/bits/make_examples.go                          | 1 -
- src/math/bits/make_tables.go                            | 1 -
- src/math/floor_ppc64x.s                                 | 1 -
- src/math/modf_ppc64x.s                                  | 1 -
- src/net/http/h2_error.go                                | 1 -
- src/net/http/h2_error_test.go                           | 1 -
- src/net/sendfile_linux_test.go                          | 1 -
- src/runtime/internal/atomic/atomic_andor_test.go        | 1 -
- src/runtime/race_s390x.s                                | 1 -
- src/runtime/vdso_linux_s390x.go                         | 1 -
- src/sort/gen_sort_variants.go                           | 1 -
- src/strconv/bytealg.go                                  | 1 -
- src/strconv/bytealg_bootstrap.go                        | 1 -
- src/strconv/makeisprint.go                              | 1 -
- 89 files changed, 6 insertions(+), 96 deletions(-)
+ src/crypto/x509/x509.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

@@ -1,14 +1,28 @@
-commit 05ff4d7a1aa18811d12e9ccaa774b6e71dc613b8
+commit 0fc9db794492323e0a4b8c7bf8c8f4069257f58a
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 23 16:05:36 2013 -0400
+Date:   Mon Sep 23 15:58:35 2013 -0400
 
-    runtime/pprof: fix profile parser in test
+    undo CL 13321048 / 9567c5da6e25
+    
+    Makes build unnecessarily slower. Will fix the parser instead.
+    
+    ««« original CL description
+    runtime/pprof: run TestGoroutineSwitch for longer
+    
+    Short test now takes about 0.5 second here.
     
     Fixes #6417.
     
-    R=golang-dev, bradfitz
+    The failure was also seen on our builders.
+    
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/13843043
+    https://golang.org/cl/13321048
+    »»»
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13720048
 
- src/pkg/runtime/pprof/pprof_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/pprof/pprof_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

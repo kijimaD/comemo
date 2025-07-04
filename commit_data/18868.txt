@@ -1,16 +1,14 @@
-commit f210fd1fa905ad381c8cb358ed7c004ec582f90f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Mar 14 19:37:39 2014 +0100
+commit 0da73b9f073b2b1e9b78b3a6f6bc077101a05658
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 14 21:21:44 2014 +0400
 
-    cmd/6g, runtime: alignment fixes for amd64p32.
+    runtime: fix a race in bgsweep
+    See the comment for description.
     
     LGTM=rsc
-    R=rsc, dave, iant, khr
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/75820044
+    https://golang.org/cl/75670044
 
- src/cmd/6g/ggen.c              |  2 +-
- src/pkg/runtime/hashmap_fast.c | 66 +++++++++++++++++-------------------------
- src/pkg/runtime/panic.c        | 11 +++----
- src/pkg/runtime/print.c        |  4 +--
- 4 files changed, 35 insertions(+), 48 deletions(-)
+ src/pkg/runtime/mgc0.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,20 +1,18 @@
-commit b136b17a8c105cd600bd52df507d461784593dee
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Wed Jan 30 17:34:34 2019 +0000
+commit 007e8a2fbda83e8863f7dda5632a100928318019
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 25 17:41:11 2018 -0400
 
-    cmd/go/internal/modconv: remove unused variables
+    runtime: rename gosweepdone to isSweepDone and document better
     
-    Change-Id: I429db8dca219fb931f7b05ce7a7324e8c4ba935b
-    GitHub-Last-Rev: 2257a5bf23e7d79f54bedba2c2bed8c59bb6114c
-    GitHub-Pull-Request: golang/go#29999
-    Reviewed-on: https://go-review.googlesource.com/c/160423
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    gosweepdone is another anachronism from the time when the sweeper was
+    implemented in C. Rename it to "isSweepDone" for the modern era.
+    
+    Change-Id: I8472aa6f52478459c3f2edc8a4b2761e73c4c2dd
+    Reviewed-on: https://go-review.googlesource.com/c/138658
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modconv/glide.go | 3 +--
- src/cmd/go/internal/modconv/glock.go | 3 +--
- src/cmd/go/internal/modconv/tsv.go   | 3 +--
- src/cmd/go/internal/modconv/vconf.go | 3 +--
- src/cmd/go/internal/modconv/vyml.go  | 3 +--
- 5 files changed, 5 insertions(+), 10 deletions(-)
+ src/runtime/mgc.go      |  4 ++--
+ src/runtime/mgcsweep.go | 11 ++++++++---
+ 2 files changed, 10 insertions(+), 5 deletions(-)

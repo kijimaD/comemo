@@ -1,36 +1,33 @@
-commit bdab4cf47a47b69caacad6fd7ff6ab27bb22ab1c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 21 18:11:32 2022 -0700
+commit de23549a3967ade982d848a5b6ae3cb3fa0dba45
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Aug 24 12:37:15 2021 -0400
 
-    cmd/go, cmd/link: support failure to create _cgo_import.go
+    [dev.cmdgo] cmd/go: fix calls to modFileGoVersion to pass in modFile
     
-    For a package that uses cgo, the file _cgo_import.go is created to
-    record information required for internal linking: the non-Go dynamic
-    symbols and libraries that the package depends on. Generating this
-    information sometimes fails, because it can require recreating all the
-    dependencies of all transitively imported packages. And the
-    information is rarely needed, since by default we use external linking
-    when there are packages outside of the standard library that use cgo.
+    Before this change, we were arbitrarily picking a module to get the Go
+    version from in calls to modFileGoVersion. We now pass in the modFile to
+    modFileGoVersion when we have the file. Most of the calls were to get
+    the goVersion argument for commitRequirements, so now we have
+    commitRequirements call modFileGoVersion on the modFile directly
+    One of the calls to commitRequirements (when running go mod tidy with
+    a different Go version) passed in a new go version to update the file
+    to. Now, the modFile is updated before calling commitRequirements.
     
-    With this CL, if generating _cgo_import.go fails, we don't report an
-    error. Instead, we mark the package as requiring external linking, by
-    adding an empty file named "dynimportfail" into the generated archive.
-    If the linker sees a file with that name, it rejects an attempt to use
-    internal linking.
+    For the remaining cases of modFileGoVersion, it's replaced by a call to
+    the new (*MainModuleSet).GoVersion function, which either returns the go
+    version on the workspace file (in workspace mode) or the version of the
+    single go.mod file.
     
-    Fixes #52863
-    
-    Change-Id: Ie586e6753a5b67e49bb14533cd7603d9defcf0ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413460
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie88c3ca76c7f29ffc4faa16bb76f6cb7eccb5029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344749
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/cgo/doc.go                       | 10 +++++
- src/cmd/go/internal/work/exec.go         | 45 ++++++++++++++++-----
- src/cmd/go/testdata/script/cgo_undef.txt | 68 ++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/config.go       |  9 +++++
- src/cmd/link/internal/ld/lib.go          |  9 +++++
- 5 files changed, 131 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go |  4 +-
+ src/cmd/go/internal/modload/init.go      | 76 ++++++++++++++++++++------------
+ src/cmd/go/internal/modload/list.go      |  2 +-
+ src/cmd/go/internal/modload/load.go      | 14 ++++--
+ src/cmd/go/internal/modload/modfile.go   |  8 +---
+ 5 files changed, 64 insertions(+), 40 deletions(-)

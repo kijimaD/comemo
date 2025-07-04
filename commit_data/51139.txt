@@ -1,21 +1,24 @@
-commit 4538f30e2d35fdf44331d7066098c0daf2dd1a85
-Author: Dmitry Alimov <it.alimovdmitry@gmail.com>
-Date:   Mon Nov 7 19:46:13 2022 +0000
+commit 08025a9d6d7d33f3ac0c78b4d067bdc339225507
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 17:09:41 2021 -0500
 
-    cmd/covdata: fix wrong struct name in the comment
+    cmd: go get golang.org/x/tools@fd2bfb7 (Dec 7 2021)
     
-    Invalid struct name in the comment in merge.go
-    dstate -> mstate
-    dstate already exists and is in cmd/covdata/dump.go
+            cd src/cmd
+            go get golang.org/x/tools@fd2bfb7
+            go mod tidy
+            go mod vendor
     
-    Change-Id: Id8b2412d2f81ae8afa1e9df3d09c218d84818ffb
-    GitHub-Last-Rev: 898eda4a204be0fcd5bdf2e51766af24c9304919
-    GitHub-Pull-Request: golang/go#56631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448475
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Brings in fixes to cmd/vet for 'any' changes.
+    
+    Change-Id: I70a48d451bd99f5d82f91fd079fbdd1b4bac2520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370136
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/covdata/merge.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go.mod                                                      | 2 +-
+ src/cmd/go.sum                                                      | 4 ++--
+ .../golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go  | 6 ++++--
+ src/cmd/vendor/modules.txt                                          | 2 +-
+ 4 files changed, 8 insertions(+), 6 deletions(-)

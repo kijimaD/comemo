@@ -1,22 +1,26 @@
-commit c10db03cbe152c0851a0794fe230c4b40bbdbd82
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri May 31 17:11:50 2019 -0400
+commit fae44a2be350940c3b29919e274e9a7e63f22df7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 13 17:00:36 2019 -0800
 
-    cmd/compile: make sure build works when intrinsics are disabled
+    src, misc: apply gofmt
     
-    Some runtime functions, like getcallerpc/sp, don't have Go or
-    assembly implementations and have to be intrinsified. Make sure
-    they are, even if intrinsics are disabled.
+    This applies the new gofmt literal normalizations to the library.
     
-    This makes "go build -gcflags=all=-d=ssa/intrinsics/off hello.go"
-    work.
-    
-    Change-Id: I77caaed7715d3ca7ffef68a3cdc9357f095c6b9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179897
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8c1e8ef62eb556fc568872c9f77a31ef236348e7
+    Reviewed-on: https://go-review.googlesource.com/c/162539
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/archive/tar/strconv.go                         |  2 +-
+ src/archive/tar/strconv_test.go                    | 42 +++++++++++-----------
+ src/cmd/compile/internal/gc/testdata/fp_test.go    | 18 +++++-----
+ .../golang.org/x/sys/windows/security_windows.go   |  2 +-
+ src/compress/flate/deflate_test.go                 |  2 +-
+ src/go/internal/gcimporter/testdata/exports.go     |  2 +-
+ src/math/cmplx/tan.go                              |  6 ++--
+ src/math/sin.go                                    | 36 +++++++++----------
+ src/math/sincos.go                                 |  6 ++--
+ src/math/tan.go                                    | 22 ++++++------
+ src/math/tanh.go                                   | 12 +++----
+ 11 files changed, 75 insertions(+), 75 deletions(-)

@@ -1,21 +1,47 @@
-commit 60a16ea36799710b449b69594506c471c76d02a2
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 12 15:30:08 2015 -0500
+commit 4e0618c99262260e5992dc77b60fa2fc93f8c9b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 18:38:25 2015 -0800
 
-    runtime: remove drainallwbufs argument to drainworkbuf
+    math/big: permit internal nat.scan to accept decimal point
     
-    All calls to drainworkbuf now pass true for this argument, so remove
-    the argument and update the documentation to reflect the simplified
-    interface.
+    This will simplify parsing of rational and (eventually) floating point numbers.
     
-    At a higher level, there are no longer any situations where we drain
-    "one wbuf" (though drainworkbuf didn't guarantee this anyway).  We
-    either drain everything, or we drain a specific number of objects.
+    Also streamlined inner loop. As a result, scan runs faster for all but short
+    (<= 10 digit) numbers. For short numbers it is < 10% slower (cause is known
+    and could be addressed in a future CL).
     
-    Change-Id: Ib7ee0fde56577eff64232ee1e711ec57c4361335
-    Reviewed-on: https://go-review.googlesource.com/4784
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Minor unrelated cleanups. Added additional tests.
+    
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkScanPi               134465        125122        -6.95%
+    BenchmarkScan10Base2          493           540           +9.53%
+    BenchmarkScan100Base2         3608          3244          -10.09%
+    BenchmarkScan1000Base2        35376         32377         -8.48%
+    BenchmarkScan10000Base2       481504        450028        -6.54%
+    BenchmarkScan100000Base2      17936774      17648080      -1.61%
+    BenchmarkScan10Base8          258           280           +8.53%
+    BenchmarkScan100Base8         1389          1323          -4.75%
+    BenchmarkScan1000Base8        14221         13036         -8.33%
+    BenchmarkScan10000Base8       271298        258993        -4.54%
+    BenchmarkScan100000Base8      15715465      15672580      -0.27%
+    BenchmarkScan10Base10         249           268           +7.63%
+    BenchmarkScan100Base10        1324          1220          -7.85%
+    BenchmarkScan1000Base10       13398         12234         -8.69%
+    BenchmarkScan10000Base10      259157        249342        -3.79%
+    BenchmarkScan100000Base10     15670613      15582409      -0.56%
+    BenchmarkScan10Base16         231           251           +8.66%
+    BenchmarkScan100Base16        1093          1065          -2.56%
+    BenchmarkScan1000Base16       12687         12196         -3.87%
+    BenchmarkScan10000Base16      282349        271443        -3.86%
+    BenchmarkScan100000Base16     16742669      16552917      -1.13%
+    
+    Change-Id: I4b9b078792788aef872b307399f00ffd34903127
+    Reviewed-on: https://go-review.googlesource.com/2960
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ src/math/big/int.go      |   2 +-
+ src/math/big/int_test.go |   4 +-
+ src/math/big/nat.go      | 258 +++++++++++++++++++++++++++++++----------------
+ src/math/big/nat_test.go | 121 +++++++++++++++-------
+ src/math/big/rat.go      |   2 +-
+ 5 files changed, 261 insertions(+), 126 deletions(-)

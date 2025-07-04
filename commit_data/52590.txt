@@ -1,36 +1,31 @@
-commit c1ac63e9732a54ef8349fe0bdbb3fa47bd0847c2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Mar 28 12:45:17 2023 -0400
+commit 756fcd8fc2cbdf6575d8da454c5006c50220dafd
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Nov 24 17:48:09 2021 +0800
 
-    cmd/compile: don't inline hot calls into big functions
+    cmd/compile/internal/ssa: config functions used in lower pass for loong64
     
-    Standard inlining has a reduced maximum cost of callees (20 instead of
-    80) when inlining into a "big" function, to limit how much bigger we
-    will make an already big function.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    When adding PGO hot call budget increases, we inadvertently bypassed
-    this "big" function restriction, allowing hot calls of up to
-    inlineHotMaxBudget, even into big functions.
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Add the restriction back, even for hot calls. If a function is already
-    very large, we probably shouldn't inline even more.
+    Updates #46229
     
-    A very important note here is that function "big"-ness is computed prior
-    to any inlining. One potential problem with PGO is that many hot calls
-    inline into an initially-small function and ultimately make it very
-    large. This CL does nothing to address that case, which would require
-    recomputing size after inlining.
-    
-    This CL has no impact on sweet PGO benchmarks. I specifically dug into
-    tile38, which contained 0 hot big functions. Other benchmarks are
-    probably similar.
-    
-    Change-Id: I3b6304eaf7738a219359d4b8bb121d68babfea8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482157
+    Change-Id: I50d20eb22f2108d245513de8ac95ebe0b7e1a1dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367037
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 94 ++++++++++++++++++++++------------
- 1 file changed, 61 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/ssa/config.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

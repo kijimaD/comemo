@@ -1,15 +1,29 @@
-commit 817c5c4517855314dd67fb48041c9a570538fbc2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 17:06:31 2020 -0800
+commit 9a44023ce922407fe4e847400924e2b2980bd2c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 5 12:02:55 2019 -0400
 
-    doc/go1.14: mention go/doc.NewFromFiles and associated new data fields
+    cmd/go/internal/web: include snippets of plain-text server responses in error detail
     
-    Updates #23864
-    Updates #36878
+    For the server response to be displayed, the response must be served
+    as type text/plain with charset us-ascii or utf-8, and must consist of
+    only graphic characters and whitespace.
     
-    Change-Id: I6efdaafbe5207c625643f201a5931ad735941365
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217125
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    We truncate the server response at the first blank line or after 8
+    lines or a fixed number of characters, and tab-indent (if multiple
+    lines) to ensure that the response is offset from ordinary go command
+    output.
+    
+    Fixes #30748
+    
+    Change-Id: I0bc1d734737e456e3251aee2252463b6355e8c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189783
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.14.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/go/internal/web/api.go                     | 125 ++++++++++++++++++++-
+ src/cmd/go/internal/web/http.go                    |  21 +++-
+ src/cmd/go/testdata/script/mod_auth.txt            |   2 +
+ src/cmd/go/testdata/script/mod_proxy_errors.txt    |  19 ++++
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |   5 +-
+ 5 files changed, 166 insertions(+), 6 deletions(-)

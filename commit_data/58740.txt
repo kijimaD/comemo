@@ -1,33 +1,21 @@
-commit 5ff7a634e19a3e8e8a24bbdb948de19695234943
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Feb 13 14:38:09 2025 -0800
+commit e914671f5d5e72b2f897a9f2dfc6bf2203d3254a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 6 12:34:02 2023 -0500
 
-    net/http, net/http/internal/httpcommon: add httpcommon package
+    runtime/pprof: add section headers to Profile doc
     
-    The golang.org/x/net/internal/httpcommon package is
-    a new package containing internal functions common to the
-    HTTP/2 and HTTP/3 implementations.
+    Adding explicit section headers makes it cleaner to split the profile
+    descriptions into multiple paragraphs, as there is now an explicit
+    transition from discussion of one profile type to the next.
     
-    Update to golang.org/x/net@v0.35.1-0.20250213222735-884432780bfd,
-    which includes the httpcommon package.
+    For #14689.
     
-    Since net/http can't depend on a x/net/internal package,
-    add net/http/internal/httpcommon which bundles the x/net
-    package.
-    
-    Change-Id: Iba6c4be7b3e2d9a9d79c4b5153497b0e04b4497b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649296
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Ifcff918367e91a165ee5f74423be3935b421972b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547955
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/go.mod                                     |   2 +-
- src/go.sum                                     |   4 +-
- src/go/build/deps_test.go                      |   1 +
- src/net/http/h2_bundle.go                      | 453 ++-------------------
- src/net/http/http.go                           |   2 +-
- src/net/http/http_test.go                      |   4 +-
- src/net/http/internal/httpcommon/httpcommon.go | 532 +++++++++++++++++++++++++
- src/vendor/modules.txt                         |   2 +-
- 8 files changed, 574 insertions(+), 426 deletions(-)
+ src/runtime/pprof/pprof.go | 57 +++++++++++++++++++++++++++++-----------------
+ 1 file changed, 36 insertions(+), 21 deletions(-)

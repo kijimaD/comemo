@@ -1,23 +1,32 @@
-commit 29b9a328d268d53833d2cc063d1d8b4bf6852675
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 13:18:06 2022 -0400
+commit a9a01a3fbdf70e7a9d914fe0b9b5ab1199fd74fe
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 7 10:54:17 2021 -0700
 
-    runtime: trivial replacements of g in remaining files
+    cmd/compile: remove now-unneeded SetHasTParam() for cached ptr element
     
-    Rename g variables to gp for consistency.
+    We had code in NewPtr() to set the HasTParam/HasShape flag as needed for
+    the cached ptr element if it wasn't set correctly based on its Elem.
+    This was causing the race mentioned in the issue.
     
-    Change-Id: I09ecdc7e8439637bc0e32f9c5f96f515e6436362
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418591
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    But that setting code is no longer needed, as long as we call
+    SetRParams() soon after calling NewIncompleteNamedType(), before
+    creating/translating the underlying type (which we do). The
+    HasTParam/HasShape attribute can only come from setting of rparams or a
+    direct typeparam/shape somewhere in the underlying type, both of which
+    don't depend on recursion, etc. (as long as the rparams are set early).
+    Added a check that HasTParam/HasShape are set correctly for the cached
+    pointer/slice elems in NewPtr() and NewSlice().
+    
+    Fixes #48191
+    
+    Change-Id: Ide7d82efb77ae97901e75b2e6c65bd1bfc25e0ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348089
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/cgocheck.go             |  6 +++---
- src/runtime/debug.go                | 16 ++++++++--------
- src/runtime/export_debuglog_test.go |  8 ++++----
- src/runtime/export_test.go          | 10 +++++-----
- src/runtime/malloc.go               |  2 +-
- src/runtime/msan.go                 |  4 ++--
- src/runtime/os_js.go                |  4 ++--
- src/runtime/os_plan9.go             | 18 +++++++++---------
- src/runtime/signal_windows.go       | 12 ++++++------
- 9 files changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |   5 +-
+ src/cmd/compile/internal/types/type.go        |  13 +-
+ test/typeparam/issue48191.go                  | 269 ++++++++++++++++++++++++++
+ 3 files changed, 278 insertions(+), 9 deletions(-)

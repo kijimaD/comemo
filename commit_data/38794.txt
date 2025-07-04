@@ -1,40 +1,20 @@
-commit d7df9de5a2d8978351705901a9252888c7a935bb
-Author: David Benjamin <davidben@google.com>
-Date:   Sun Oct 28 14:52:51 2018 -0500
+commit 3dd509d23d2118c3b4eb093707e184c1a1d330d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 27 10:47:02 2018 +0100
 
-    crypto/tls: fix a minor MAC vs padding leak
+    lib/time: update tzdata to 2018g
     
-    The CBC mode ciphers in TLS are a disaster. By ordering authentication
-    and encryption wrong, they are very subtly dependent on details and
-    implementation of the padding check, admitting attacks such as POODLE
-    and Lucky13.
+    Now that the tree has been frozen for some time, update the tzdata
+    database to version 2018g (released 2018-10-26) for Go 1.12.
     
-    crypto/tls does not promise full countermeasures for Lucky13 and still
-    contains some timing variations. This change fixes one of the easy ones:
-    by checking the MAC, then the padding, rather than all at once, there is
-    a very small timing variation between bad MAC and (good MAC, bad
-    padding).
+    Updates #22487
     
-    The consequences depend on the effective padding value used in the MAC
-    when the padding is bad. extractPadding simply uses the last byte's
-    value, leaving the padding bytes effectively unchecked. This is the
-    scenario in SSL 3.0 that led to POODLE. Specifically, the attacker can
-    take an input record which uses 16 bytes of padding (a full block) and
-    replace the final block with some interesting block. The MAC check will
-    succeed with 1/256 probability due to the final byte being 16. This
-    again means that after 256 queries, the attacker can decrypt one byte.
-    
-    To fix this, bitwise AND the two values so they may be checked with one
-    branch. Additionally, zero the padding if the padding check failed, to
-    make things more robust.
-    
-    Updates #27071
-    
-    Change-Id: I332b14d215078928ffafe3cfeba1a68189f08db3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170701
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I9e82bcdaef28d308643c08c9fd3472e4c14a196e
+    Reviewed-on: https://go-review.googlesource.com/c/151299
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/conn.go | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 365101 -> 363811 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

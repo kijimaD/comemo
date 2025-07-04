@@ -1,28 +1,18 @@
-commit 941ac9ce706aabc970aa220504a4213fe3abc8a9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 21 16:26:09 2019 -0500
+commit d1338ec30e8c611395a6b253b441734adb9635de
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 29 14:41:00 2019 -0700
 
-    cmd/go: do not panic when computing Shlib for a package with no Target
+    syscall: include complete prototype of system calls
     
-    In module mode, a non-main package lacks an install target.
+    The prototypes were truncated because they were on multiple lines
+    of the source file.
     
-    The location of the .shlib corresponding to a given target is stored
-    in a .shlibname file alongside its install target, so in module mode
-    a non-main package also lacks a .shlibname file.
+    Copied from the STD lines for these functions in
+    https://svn.freebsd.org/base/stable/12/sys/kern/syscalls.master
     
-    This also implies that such a package cannot be installed with
-    'go install -buildmode=linkshared', but that is a problem
-    for another day.
-    
-    Fixes #35759
-    Updates #34347
-    
-    Change-Id: Id3e0e068266d5fb9b061a59e70f9a65985d4973b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208233
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I618a5444f1353aabee2758c06f86ad726185d19c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/load/pkg.go                |  5 ++++-
- src/cmd/go/testdata/script/list_linkshared.txt | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/syscall/syscall_freebsd.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

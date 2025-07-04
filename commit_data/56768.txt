@@ -1,15 +1,50 @@
-commit da65071f36d6d64881df177a9a9d5f3fc2daade7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Jun 8 09:53:38 2024 +0800
+commit bdc5533f391ad60303b16a906668f5112ea0a2a2
+Author: Li <gang.g.li@intel.com>
+Date:   Mon May 22 17:00:40 2023 +0800
 
-    cmd/compile/internal/types2: fix typo in comment for StoreTypesInSyntax
+    runtime: pad work.full and pad.empty to avoid false sharing
     
-    Change-Id: Ia73b15b6df5e6f88741f2b54258d7cbad0239ddd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591396
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    With the Garbage collector (GC), we observed a false-sharing between
+    work.full and work.empty. (referenced most from runtime.gcDrain and
+    runtime.getempty)
+    
+    This false-sharing becomes worse and impact performance on multi core
+    system. On Intel Xeon 8480+ and default GC setting(GC=100), we can
+    observed top HITM>4% (by perf c2c)caused by it.
+    
+    After resolveed this false-sharing issue, we can get performance 8%~9.7%
+    improved. Verify workloads:
+    
+    DeathStarBench/hotelReservation: 9.7% of RPS improved
+    https://github.com/delimitrou/DeathStarBench/tree/master/hotelReservation
+    
+    gRPC-go/benchmark: 8% of RPS improved
+    https://github.com/grpc/grpc-go/tree/master/benchmark
+    
+    gRPC-go/benchmark 9 iterations' data with master branch:
+            master          w/ fs opt.
+            208862.4        246390.9
+            221680.0        266019.3
+            223886.9        248789.7
+            212169.3        257837.8
+            219922.4        234331.8
+            197401.7        261627.7
+            214562.4        255429.7
+            214328.5        237087.8
+            229443.2        230591.3
+    
+    max     229443.2        266019.3        116%
+    med     214562.4        248789.7        116%
+    avg     215806.3        248678.5        115%
+    
+    Change-Id: Ib386de021cd2dbb802a107f487556d848ba9212d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496915
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/api.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

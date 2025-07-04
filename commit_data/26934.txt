@@ -1,19 +1,20 @@
-commit 644493f1090e965cbde3e3245bc8b12bb5486477
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 14 08:48:36 2016 -0700
+commit bf3909824ccf0c03e372d1a341792a8f783f03f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 15:08:25 2016 -0800
 
-    cmd/compile: clear hidden value at end of channel range body
+    cmd/compile: convert cgen/gen/pgen and friends to nodeListSeq
     
-    While we’re here, clean up a few comments.
+    Added Seq method to nodeListIterator. Added new functions nodeSeqLen,
+    nodeSeqFirst, nodeSeqSecond. Allow nil as source argument to setNodeSeq.
     
-    Fixes #15281
-    
-    Change-Id: Ia6173e9941133db08f57bc80bdd3c5722122bfdb
-    Reviewed-on: https://go-review.googlesource.com/22082
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ifc1cd4d7207b7a125b3830c92c4d6d6f00eedd54
+    Reviewed-on: https://go-review.googlesource.com/20195
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/range.go | 14 +++++---
- test/fixedbugs/issue15281.go         | 64 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go   | 32 ++++++++--------
+ src/cmd/compile/internal/gc/gen.go    | 40 +++++++++-----------
+ src/cmd/compile/internal/gc/pgen.go   |  4 +-
+ src/cmd/compile/internal/gc/syntax.go | 69 ++++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/walk.go   | 40 ++++++++++----------
+ 5 files changed, 124 insertions(+), 61 deletions(-)

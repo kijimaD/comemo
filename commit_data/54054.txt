@@ -1,21 +1,35 @@
-commit 1038fc207bcd8bd35a50ffd8aaa4bba40c9bca9a
+commit ceffdc8545c3155b030de9e91d399dc34bd3c678
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 15 14:20:50 2023 -0700
+Date:   Mon Sep 12 13:01:57 2022 -0700
 
-    cmd/compile/internal/escape: change escapes and persists into bitset
+    cmd/compile: implement slice-to-array conversions
     
-    This CL introduces a locAttr bitset type, which will make it easier to
-    add additional attributes in the near future.
+    The conversion T(x) is implemented as *(*T)(x). Accordingly, runtime
+    panic messages for (*T)(x) are made more general.
     
-    Change-Id: I2689aa623097279dc1e7b7cf2adf5184d710c5a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520258
+    Fixes #46505.
+    
+    Change-Id: I76317c0878b6a5908299506d392eed50d7ef6523
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430415
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/escape/escape.go |  9 ++++----
- src/cmd/compile/internal/escape/graph.go  | 36 ++++++++++++++++++++-----------
- src/cmd/compile/internal/escape/solve.go  | 14 ++++++------
- 3 files changed, 34 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/escape/expr.go       |   4 +
+ src/cmd/compile/internal/ir/expr.go           |   2 +-
+ src/cmd/compile/internal/ir/fmt.go            |   2 +
+ src/cmd/compile/internal/ir/node.go           |   1 +
+ src/cmd/compile/internal/ir/op_string.go      | 273 +++++++++++++-------------
+ src/cmd/compile/internal/typecheck/iexport.go |   2 +-
+ src/cmd/compile/internal/typecheck/iimport.go |   2 +-
+ src/cmd/compile/internal/typecheck/subr.go    |  13 +-
+ src/cmd/compile/internal/walk/convert.go      |  18 ++
+ src/cmd/compile/internal/walk/expr.go         |   4 +
+ src/cmd/compile/internal/walk/walk.go         |   3 +-
+ src/runtime/error.go                          |   2 +-
+ src/runtime/panic.go                          |   4 +-
+ test/convert4.go                              |  24 ++-
+ test/escape_slice.go                          |   4 +
+ 15 files changed, 210 insertions(+), 148 deletions(-)

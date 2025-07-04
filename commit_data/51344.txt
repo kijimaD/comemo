@@ -1,37 +1,17 @@
-commit 5c834a2eb051a0227814b5ea31437aac3ade100c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 4 15:12:32 2022 -0700
+commit 4f6f68ee4b50162d3bd01efb9b8a5f6a10dc54af
+Author: Patrik Nyblom <pnyb@google.com>
+Date:   Wed Jan 12 17:50:55 2022 -0800
 
-    go/types, types2: implement type checking of "clear" built-in
+    testing: skip flaky TestRaiseException on windows-amd64-2012
     
-    Will become available with Go 1.21.
+    This is in relation to #49681
     
-    Recognizing the `clear` built-in early is not causing any problems:
-    if existing code defines a `clear`, that will be used as before. If
-    code doesn't define `clear` the error message will make it clear
-    that with 1.21 the function will be available. It's still possible
-    to define a local `clear` and get rid of the error; but more likely
-    the name choice should be avoided going forward, so this provides a
-    useful early "heads-up".
-    
-    For #56351.
-    
-    Change-Id: I3d0fb1eb3508fbc78d7514b6238eac89610158c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448076
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I32ad8b506cf8fb0a94b15c3cc8b1eaf5af728c59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378254
+    Run-TryBot: Patrik Nyblom <pnyb@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Patrik Nyblom <pnyb@google.com>
 
- src/cmd/compile/internal/types2/builtins.go        | 27 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/builtins_test.go   |  5 ++++
- src/cmd/compile/internal/types2/universe.go        |  2 ++
- src/go/types/builtins.go                           | 27 ++++++++++++++++++++++
- src/go/types/builtins_test.go                      |  5 ++++
- src/go/types/universe.go                           |  2 ++
- src/internal/types/errors/codes.go                 |  9 ++++++++
- src/internal/types/testdata/check/builtins0.go     | 11 +++++++++
- src/internal/types/testdata/check/builtins1.go     | 14 +++++++++++
- .../types/testdata/fixedbugs/issue56351.go         | 11 +++++++++
- 10 files changed, 113 insertions(+)
+ src/runtime/syscall_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

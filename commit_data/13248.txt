@@ -1,18 +1,14 @@
-commit 322057cbfce3c9c295aef4b87d1bf689f75c345f
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Sat Jun 2 13:06:12 2012 -0400
+commit d87bc2f0c0e12672592e7dbf30d2c439376891d9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jun 2 12:54:28 2012 -0400
 
-    math: amd64 versions of Ceil, Floor and Trunc
+    cmd/5c, cmd/5g, cmd/5l: enable use of R12, F8-F15
     
-    Ceil  to 4.81 from 20.6 ns/op
-    Floor to 4.37 from 13.5 ns/op
-    Trunc to 3.97 from 14.3 ns/op
-    Also changed three MOVSDs to MOVAPDs in log_amd64.s
-    
-    R=rsc, golang-dev
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6262048
+    https://golang.org/cl/6248070
 
- src/pkg/math/floor_amd64.s | 70 +++++++++++++++++++++++++++++++++++++++++++---
- src/pkg/math/log_amd64.s   |  6 ++--
- 2 files changed, 69 insertions(+), 7 deletions(-)
+ src/cmd/5c/reg.c   |  9 +++++----
+ src/cmd/5g/reg.c   | 21 +++++++++++++++------
+ src/cmd/5l/5.out.h |  3 +--
+ 3 files changed, 21 insertions(+), 12 deletions(-)

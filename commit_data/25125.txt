@@ -1,17 +1,13 @@
-commit 3afee4380b89fb6797a1bf15c22216eb13038e2f
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Wed Dec 2 16:42:17 2015 -0800
+commit 02e8ec008ca80e6b7dd93410aa9abac3a906dee4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 29 10:16:09 2015 +1000
 
-    os: skip TestHardLink on Android.
+    text/template, html/template: fix block example name
     
-    From Android release M (Marshmallow), hard linking files is blocked
-    and an attempt to call link() on a file will return EACCES.
-    - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
-    
-    Change-Id: Ifdadaa31e3d5ee330553f45db6c001897dc955be
-    Reviewed-on: https://go-review.googlesource.com/17339
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I004a43842430201296363a9745480bee94920041
+    Reviewed-on: https://go-review.googlesource.com/15084
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/os/os_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/html/template/example_test.go | 2 +-
+ src/text/template/example_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

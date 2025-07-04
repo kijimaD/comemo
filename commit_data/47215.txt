@@ -1,19 +1,19 @@
-commit e0e6e4d23fe840c2c9b4caed30930cad6788b797
+commit b89483497a7349bb8dba9110e765f5ff1189f69d
 Author: Katie Hockman <katie@golang.org>
-Date:   Wed Nov 3 10:58:59 2021 -0400
+Date:   Thu Mar 4 13:02:24 2021 -0500
 
-    internal/fuzz: improve error for mismatched types
+    [dev.fuzz] testing: only let workers run fuzz targets
     
-    Fixes #48635
+    Previously, ever worker would run all of the unit tests, benchmarks, and
+    examples. Only the single coordinator needs to do this.
     
-    Change-Id: Ia3cde119d5eb31bc771fe3a39acb2372dbd988ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361114
+    Change-Id: I0dfa7f79b390b6c3220d8ea646e2d2312eee6bb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298809
     Trust: Katie Hockman <katie@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/test_fuzz.txt |  5 +++--
- src/internal/fuzz/fuzz.go                | 10 +++++++---
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt | 25 +++++++++++++++++++
+ src/testing/testing.go                          | 32 ++++++++++++++-----------
+ 2 files changed, 43 insertions(+), 14 deletions(-)

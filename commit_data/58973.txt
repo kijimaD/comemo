@@ -1,17 +1,20 @@
-commit d43c0f80d80ff274d30e46fa3737deb8863d7094
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 6 14:52:02 2025 -0800
+commit 99efe7c39e80b92511bb06153da4d4d8db6138a6
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jan 27 03:27:17 2024 +0000
 
-    net: add comment about blocking to Conn.Close
+    cmd/internal/moddeps: fix test fail when the last element of GOROOT start with a dot or underscore
     
-    Fixes #18187
+    Fixes #54221
     
-    Change-Id: I3d0119838ddbfb99a067ba563e5d247f574ef841
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655517
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id16f553251daf0b7c51f45232a4133f7dfb1ebb9
+    GitHub-Last-Rev: 675c2bfcbb4fd31da0442dd0e612874934cc0d87
+    GitHub-Pull-Request: golang/go#65298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558696
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/net.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

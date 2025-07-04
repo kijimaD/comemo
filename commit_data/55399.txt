@@ -1,27 +1,21 @@
-commit d29980cdc4a8776257b1ca0d03549da205b39d3e
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Thu Jan 18 19:34:48 2024 -0500
+commit d871f63bcfa4d32ec442afa0f2a190543f94073f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 20:30:35 2023 -0800
 
-    doc/initial: initial contents of release notes
+    go/types, types2: avoid recursive invocation when unifying underlying types
     
-    Add files to doc/initial that set up the overall structure
-    of the release notes document.
+    There's no need to invoke unifier.nify recursively when we decide to
+    unify underlying types. Just update the respective type variable and
+    continue.
     
-    For #64169.
-    
-    Change-Id: Ifbf330e554e1fa20d47c72cc309d5cd26048a323
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556817
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I3abe335464786dc509d18651dff14b20022c7d63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464347
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- doc/initial/1-intro.md                     | 12 ++++++++++++
- doc/initial/2-language.md                  |  3 +++
- doc/initial/3-tools.md                     |  6 ++++++
- doc/initial/4-runtime.md                   |  1 +
- doc/initial/5-toolchain.md                 |  7 +++++++
- doc/initial/6-stdlib/0-heading.md          |  2 ++
- doc/initial/6-stdlib/99-minor/0-heading.md |  3 +++
- doc/initial/6-stdlib/99-minor/README       |  1 +
- doc/initial/7-ports.md                     |  2 ++
- 9 files changed, 37 insertions(+)
+ src/cmd/compile/internal/types2/unify.go | 8 ++++++--
+ src/go/types/unify.go                    | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,36 +1,20 @@
-commit e844f53a0198e81b359d198fc0dcf15cf01d6ed1
+commit fcbe51c9e3ecbb1cb5d8d50f64b0bc42a6a0c7f5
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 07:46:11 2014 -0400
+Date:   Fri Sep 5 14:59:09 2014 -0400
 
-    runtime: stop scanning stack frames/args conservatively
+    misc/cgo/test: make issue5548 test pickier
     
-    The goal here is to commit fully to having precise information
-    about stack frames. If we need information we don't have,
-    crash instead of assuming we should scan conservatively.
+    If there is doubt about passing arguments correctly
+    (as there is in this test), there should be doubt about
+    getting the results back intact too. Using 0 and 1
+    (especially 0 for success) makes it easy to get a PASS
+    accidentally when the return value is not actually
+    being propagated. Use less common values.
     
-    Since the stack copying assumes fully precise information,
-    any crashes during garbage collection that are introduced by
-    this CL are crashes that could have happened during stack
-    copying instead. Those are harder to find because stacks are
-    copied much less often than the garbage collector is invoked.
-    
-    In service of that goal, remove ARGSIZE macros from
-    asm_*.s, change switchtoM to have no arguments
-    (it doesn't have any live arguments), and add
-    args and locals information to some frames that
-    can call back into Go.
-    
-    LGTM=khr
-    R=khr, rlh
-    CC=golang-codereviews
-    https://golang.org/cl/137540043
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/141110043
 
- src/runtime/asm_386.s      |  9 +++---
- src/runtime/asm_amd64.s    | 10 +++----
- src/runtime/asm_amd64p32.s |  6 +---
- src/runtime/asm_arm.s      |  9 +++---
- src/runtime/mgc0.c         | 74 +++++++++++++++++++++-------------------------
- src/runtime/runtime.h      |  1 -
- src/runtime/symtab.go      |  7 -----
- src/runtime/traceback.go   | 48 ++++++++++--------------------
- 8 files changed, 64 insertions(+), 100 deletions(-)
+ misc/cgo/test/issue5548.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

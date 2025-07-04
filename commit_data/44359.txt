@@ -1,24 +1,18 @@
-commit 811167e2c94e1480328513575cdddbc9ad9a7447
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Feb 14 14:44:14 2021 +0100
+commit 27144d166b25de731bc26ee5bce861e4574b81bb
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 11 14:48:08 2020 -0400
 
-    cmd/link: do not pass -Bsymbolic for PE DLLs
+    [dev.link] cmd/link: refactor dwarf gen methods to be comp-unit centric
     
-    This is only a valid option on ELF. Binutils accepts it, but LLVM
-    rejects it, so for Windows, it's best to just omit it.
+    Refactor some of the linker's DWARF generation methods so as to have
+    helper routines that do all the work for a given comp unit for a given
+    section (range, loc, etc). No change in functionality, this is just a
+    reorg in preparation for a later patch in this sequence.
     
-    Updates #44250.
-    Updates #39326.
-    Updates #38755.
-    Updates #36439.
-    Updates #43800.
-    
-    Change-Id: Iffd2345d757f23dd737e63bd464cd412527077c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291632
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I86fc789220326a4e522904a5924c8971d6757189
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237677
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 187 ++++++++++++++++++++------------------
+ 1 file changed, 99 insertions(+), 88 deletions(-)

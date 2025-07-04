@@ -1,21 +1,23 @@
-commit 7b7d7d7818dfc1db22930be9333e8cc9f8c7f68c
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 21:11:18 2021 -0400
+commit 5246fa5e75b129a7dbd9722aa4de0cbaf7ceae43
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 09:45:07 2020 -0500
 
-    go/types: fix range over exprs of type parameter type
+    mime/multipart: handle ReadForm(math.MaxInt64) better
     
-    This is a port of CL 339897 to go/types. In addition, an error message
-    that was adjusted in CL 274974 is ported to go/types (CL 274974 was
-    only considered necessary for compiler compatibility).
+    Returning an error about integer overflow is needlessly pedantic.
+    The meaning of ReadForm(MaxInt64) is easily understood
+    (accept a lot of data) and can be implemented.
     
-    Change-Id: Idfe44d759c925f9fed353a2d1898d3d4d8d85452
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342433
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #40430.
+    
+    Change-Id: I8a522033dd9a2f9ad31dd2ad82cf08d553736ab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275112
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/builtins.go                   |   8 +-
- src/go/types/stmt.go                       |  40 ++-------
- src/go/types/testdata/check/typeparams.go2 | 137 ++++++++++++++++++++++-------
- 3 files changed, 113 insertions(+), 72 deletions(-)
+ src/mime/multipart/formdata.go      |  8 ++++++--
+ src/mime/multipart/formdata_test.go | 14 +++++---------
+ src/net/http/request_test.go        |  2 +-
+ 3 files changed, 12 insertions(+), 12 deletions(-)

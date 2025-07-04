@@ -1,29 +1,91 @@
-commit 2540f4e49d47f951de6c7697acdc510bcb7b3ed1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri May 13 16:07:06 2022 -0700
+commit fd0011dca5b35ec07ff53df4c3231a2a119796a9
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 26 15:44:22 2021 -0400
 
-    cmd/compile: remove base.Ctxt.Pkgpath fallback paths
+    [dev.typeparams] runtime,cmd/compile,cmd/link: replace jmpdefer with a loop
     
-    Historically, the compiler set types.LocalPkg.Path to "", so a lot of
-    compiler code checks for this, and then falls back to using
-    base.Ctxt.Pkgpath instead.
+    Currently, deferreturn runs deferred functions by backing up its
+    return PC to the deferreturn call, and then effectively tail-calling
+    the deferred function (via jmpdefer). The effect of this is that the
+    deferred function appears to be called directly from the deferee, and
+    when it returns, the deferee calls deferreturn again so it can run the
+    next deferred function if necessary.
     
-    Since CL 393715, we now initialize types.LocalPkg.Path to
-    base.Ctxt.Pkgpath, so these code paths can now simply rely on Pkg.Path
-    always being meaningful.
+    This unusual flow control leads to a large number of special cases and
+    complications all over the tool chain.
     
-    Updates #51734.
+    This used to be necessary because deferreturn copied the deferred
+    function's argument frame directly into its caller's frame and then
+    had to invoke that call as if it had been called from its caller's
+    frame so it could access it arguments. But now that we've simplified
+    defer processing so the runtime only deals with argument-less
+    closures, this approach is no longer necessary.
     
-    Change-Id: I0aedbd7cf8e14edbfef781106a9510344d468f2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406317
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This CL simplifies all of this by making deferreturn simply call
+    deferred functions in a loop.
+    
+    This eliminates the need for jmpdefer, so we can delete a bunch of
+    per-architecture assembly code.
+    
+    This eliminates several special cases on Wasm, since it couldn't
+    support these calling shenanigans directly and thus had to simulate
+    the loop a different way. Now Wasm can largely work the way the other
+    platforms do.
+    
+    This eliminates the per-architecture Ginsnopdefer operation. On PPC64,
+    this was necessary to reload the TOC pointer after the tail call
+    (since TOC pointers in general make tail calls impossible). The tail
+    call is gone, and in the case where we do force a jump to the
+    deferreturn call when recovering from an open-coded defer, we go
+    through gogo (via runtime.recovery), which handles the TOC. On other
+    platforms, we needed a NOP so traceback didn't get confused by seeing
+    the return to the CALL instruction, rather than the usual return to
+    the instruction following the CALL instruction. Now we don't inject a
+    return to the CALL instruction at all, so this NOP is also
+    unnecessary.
+    
+    The one potential effect of this is that deferreturn could now appear
+    in stack traces from deferred functions. However, this could already
+    happen from open-coded defers, so we've long since marked deferreturn
+    as a "wrapper" so it gets elided not only from printed stack traces,
+    but from runtime.Callers*.
+    
+    Change-Id: Ie9f700cd3fb774f498c9edce363772a868407bf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337652
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/pkginit/init.go     | 2 +-
- src/cmd/compile/internal/ssagen/ssa.go       | 3 ---
- src/cmd/compile/internal/staticdata/embed.go | 2 +-
- src/cmd/compile/internal/types/type.go       | 3 ---
- 4 files changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go   |  1 -
+ src/cmd/compile/internal/arm/galign.go     |  1 -
+ src/cmd/compile/internal/arm64/galign.go   |  1 -
+ src/cmd/compile/internal/mips/galign.go    |  1 -
+ src/cmd/compile/internal/mips64/galign.go  |  1 -
+ src/cmd/compile/internal/ppc64/galign.go   |  1 -
+ src/cmd/compile/internal/ppc64/ggen.go     | 27 --------------
+ src/cmd/compile/internal/riscv64/galign.go |  1 -
+ src/cmd/compile/internal/s390x/galign.go   |  1 -
+ src/cmd/compile/internal/ssagen/arch.go    |  3 +-
+ src/cmd/compile/internal/ssagen/ssa.go     | 12 -------
+ src/cmd/compile/internal/wasm/ssa.go       |  7 ++--
+ src/cmd/compile/internal/x86/galign.go     |  1 -
+ src/cmd/internal/obj/arm/asm5.go           | 11 +++---
+ src/cmd/internal/obj/wasm/wasmobj.go       | 36 -------------------
+ src/cmd/internal/obj/x86/asm6.go           |  1 -
+ src/cmd/internal/objabi/funcid.go          |  2 --
+ src/cmd/link/internal/ld/pcln.go           |  9 +++--
+ src/runtime/asm_386.s                      | 20 -----------
+ src/runtime/asm_amd64.s                    | 15 --------
+ src/runtime/asm_arm.s                      | 14 --------
+ src/runtime/asm_arm64.s                    | 17 ---------
+ src/runtime/asm_mips64x.s                  | 16 ---------
+ src/runtime/asm_mipsx.s                    | 16 ---------
+ src/runtime/asm_ppc64x.s                   | 28 ---------------
+ src/runtime/asm_riscv64.s                  | 15 --------
+ src/runtime/asm_s390x.s                    | 15 --------
+ src/runtime/asm_wasm.s                     | 29 ---------------
+ src/runtime/panic.go                       | 58 +++++++++++++-----------------
+ src/runtime/stubs.go                       |  2 --
+ src/runtime/symtab.go                      |  1 -
+ 31 files changed, 39 insertions(+), 324 deletions(-)

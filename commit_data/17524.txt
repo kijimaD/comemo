@@ -1,12 +1,15 @@
-commit 6cbc5387c30b7358d930c10f465c70c16357fd36
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 10 15:13:45 2013 +1000
+commit 5d2c3a687c1bab80eff325fa544ee62f4c826479
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 19:11:05 2013 -0400
 
-    doc/go1.2.html: introduction, language changes
+    encoding/json: document actual behavior for Unmarshal into interface{}
     
-    R=golang-dev, remyoudompheng, dominik.honnef, adg
+    Fixes #4900.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13341049
+    https://golang.org/cl/13400044
 
- doc/go1.2.html | 231 ++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 147 insertions(+), 84 deletions(-)
+ src/pkg/encoding/json/decode.go      |  4 +---
+ src/pkg/encoding/json/decode_test.go | 41 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

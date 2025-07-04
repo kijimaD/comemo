@@ -1,19 +1,51 @@
-commit 8f559bcb4666b2358c227aa1bd3a82f3b806d45a
-Author: Bharath Kumar Uppala <uppala.bharath@gmail.com>
-Date:   Sun Nov 21 02:15:39 2021 +0530
+commit eeadfa2d3810c252f86a88ddd282b48be5abc6df
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Mar 29 08:28:01 2021 -0700
 
-    testing: mention that TB also covers the new type F
+    cmd/compile: fix various small bugs related to type lists
     
-    Fixes #48146
+    Fix various small bugs related to delaying transformations due to type
+    params. Most of these relate to the need to delay a transformation when
+    an argument of an expression or statement has a type parameter that has
+    a structural constraint. The structural constraint implies the operation
+    should work, but the transformation can't happen until the actual value
+    of the type parameter is known.
     
-    Change-Id: I7c667a7915db81558514bc9fada6898c565eb0fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365894
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+     - delay transformations for send statements and return statements if
+       any args/values have type params.
+    
+     - similarly, delay transformation of a call where the function arg has
+       type parameters. This is mainly important for the case where the
+       function arg is a pure type parameter, but has a structural
+       constraint that requires it to be a function. Move the setting of
+       n.Use to transformCall(), since we may not know how many return
+       values there are until then, if the function arg is a type parameter.
+    
+     - set the type of unary expressions from the type2 type (as we do with
+       most other expressions), since that works better with expressions
+       with type params.
+    
+     - deal with these delayed transformations in subster.node() and convert
+       the CALL checks to a switch statement.
+    
+     - make sure ir.CurFunc is set properly during stenciling, including
+       closures (needed for transforming return statements during
+       stenciling).
+    
+    New test file typelist.go with tests for these cases.
+    
+    Change-Id: I1b82f949d8cec47d906429209e846f4ebc8ec85e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305729
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/expr.go      |  4 +-
+ src/cmd/compile/internal/noder/helpers.go   | 27 ++++++++----
+ src/cmd/compile/internal/noder/stencil.go   | 67 +++++++++++++++++++++--------
+ src/cmd/compile/internal/noder/stmt.go      | 14 ++++++
+ src/cmd/compile/internal/noder/transform.go |  2 +
+ test/typeparam/typelist.go                  | 64 +++++++++++++++++++++++++++
+ 6 files changed, 150 insertions(+), 28 deletions(-)

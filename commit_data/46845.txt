@@ -1,37 +1,25 @@
-commit 2ecdf9d800f631cfde30b7463a3ed2c0b60611d5
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 8 16:28:35 2021 -0400
+commit 22f9e1ccbc9db9a1d9ecbadca972264e5ad2f169
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 4 11:41:34 2021 -0500
 
-    go/parser: allow eliding interface in constraint literals
+    [dev.regabi] runtime: initialize special registers before sigpanic
     
-    This is a port of CL 353133 from cmd/compile/internal/syntax, with
-    significant adjustments for the mechanics of go/parser.
+    In case that we are panicking in ABI0 context or external code,
+    special registers are not initialized. Initialized them in
+    injected code before calling sigpanic.
     
-    Some additional cleanup is made along the way: parseParameterList can
-    call parseParamDecl without indirection, and the tparams argument is
-    redundant with the closing token. Also, the error that "all type
-    parameters must be named" is positioned on the first unnamed type
-    parameter.
+    TODO: Windows, Plan 9.
     
-    Error recovery in go/parser is notably worse here than the compiler
-    parser, so the test data had to be adjusted to synchronize positions.
-    Fixing this error recovery will have to wait for a later CL.
-    
-    As with the compiler changes, these changes are guarded behind a flag so
-    that they may be easily removed if #48424 is not accepted.
-    
-    For #48424
-    
-    Change-Id: If87925d246f36aaab11a95442f75f659462d4286
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354870
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I0919b80e7cc55463f3dd94f1f63cba305717270a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289710
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/go/internal/typeparams/common.go    |  10 ++-
- src/go/parser/parser.go                 | 126 ++++++++++++++++++++------------
- src/go/parser/testdata/typeset.go2      |  75 +++++++++++++++++++
- src/go/printer/testdata/generics.golden |   5 ++
- src/go/printer/testdata/generics.input  |   5 ++
- 5 files changed, 170 insertions(+), 51 deletions(-)
+ src/runtime/asm.s           |  5 +++++
+ src/runtime/asm_amd64.s     | 12 ++++++++++++
+ src/runtime/signal_amd64.go |  7 +++++--
+ src/runtime/stubs.go        |  4 ++++
+ 4 files changed, 26 insertions(+), 2 deletions(-)

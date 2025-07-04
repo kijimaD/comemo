@@ -1,0 +1,21 @@
+commit 16dbd2be3969f4658ced59ddb89871d9f00cf3a5
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 5 08:34:12 2025 -0700
+
+    cmd/compile: be more conservative about arm64 insns that can take zero register
+    
+    It's really only needed for stores and store-like instructions
+    (atomic exchange, compare-and-swap, ...).
+    
+    Fixes #73180
+    
+    Change-Id: I8ecd833a301355adf0fa4bff43250091640c6226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663155
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  38 +-
+ src/cmd/compile/internal/ssa/opGen.go         | 482 +++++++++++++-------------
+ test/fixedbugs/issue73180.go                  |  15 +
+ 3 files changed, 275 insertions(+), 260 deletions(-)

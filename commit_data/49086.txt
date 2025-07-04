@@ -1,20 +1,24 @@
-commit b8d55a7604aaffb9645ba1fcff9ea2c84697f7d6
-Author: Heisenberg <lziqiang1@gmail.com>
-Date:   Wed Jul 22 08:59:30 2020 +0800
+commit e9836fe31897ef6e8a5c82c3f8fc8c2b31a3bea3
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 12:54:37 2021 -0400
 
-    compress/flate: cancel redundant operations
+    [dev.typeparams] go/types: clean up index expr implementation for type parameters
     
-    The assignment operation in the program seems to be redundant, the first judgment will continue to overwrite the previous value.
-    The subsequent slicing operation will cut all the values without frequency.
+    This is a port of CL 332553 to go/types. The "expr" variable is renamed to
+    "e" in Checker.indexExpr to be consistent with types2.
     
-    Change-Id: Id59fc36dd5bacfde881edaf0d9c1af5348286611
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244157
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7905bebf2e8dab47256361362b16becf7596cf95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335110
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/compress/flate/huffman_code.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/go/types/index.go                          | 135 ++++++++++++-------------
+ src/go/types/testdata/check/typeparams.go2     |  17 ++--
+ src/go/types/testdata/fixedbugs/issue45635.go2 |   5 +-
+ src/go/types/typeparam.go                      |   7 ++
+ src/go/types/typeset.go                        |  15 +++
+ src/go/types/typestring.go                     |   2 +-
+ src/go/types/union.go                          |   2 +-
+ 7 files changed, 101 insertions(+), 82 deletions(-)

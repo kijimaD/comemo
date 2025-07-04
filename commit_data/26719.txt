@@ -1,24 +1,17 @@
-commit d8c815d8b5df75c9c030a318fbc566f38c58526f
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 1 16:53:37 2016 -0500
+commit 5c096cc092013331022c33c5e3d31228edd17dab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 23 17:16:21 2016 -0800
 
-    cmd/compile: note escape of parts of closured-capture vars
+    runtime: deflake TestCgoCheckBytes
     
-    Missed a case for closure calls (OCALLFUNC && indirect) in
-    esc.go:esccall.
+    Bump up the multiplier to 20.  Also run the fast version first, so that
+    the slow version is likely to start up faster.
     
-    Cleanup to runtime code for windows to more thoroughly hide
-    a technical escape.  Also made code pickier about failing
-    to late non-optional kernel32.dll.
-    
-    Fixes #14409.
-    
-    Change-Id: Ie75486a2c8626c4583224e02e4872c2875f7bca5
-    Reviewed-on: https://go-review.googlesource.com/20102
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia0654cc1212ab03a45da1904d3e4b57d6a8d02a0
+    Reviewed-on: https://go-review.googlesource.com/19835
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  5 +++++
- src/runtime/os1_windows.go         | 35 ++++++++++++++++++++---------------
- test/escape_closure.go             | 26 ++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 15 deletions(-)
+ src/runtime/crash_cgo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,19 @@
-commit d1cc7f70cdd4c99e821165b0e773e748a438f5b8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 23 13:35:12 2016 -0800
+commit e91019d2536cd067da5f8f22e03efc4492561a99
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 25 16:08:32 2015 -0800
 
-    cmd/compile: give informative error instead of "stupid shift"
+    net/http: add test that automatic gzip works for HTTP2's Transport
     
-    Fixes #13940.
+    And updates h2_bundle.go with the fix from x/net/http2.
     
-    Change-Id: I00fe377c949e5be4cbc035f6ca18e547e326bfba
-    Reviewed-on: https://go-review.googlesource.com/19856
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13298
+    Updates #6891
+    
+    Change-Id: Ia25f22fa10e2a64b9d59211269882681aa18c101
+    Reviewed-on: https://go-review.googlesource.com/17241
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/mparith2.go | 8 ++++++--
- test/fixedbugs/bug108.go                | 2 +-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/net/http/clientserver_test.go | 50 +++++++++++++++++++--------
+ src/net/http/h2_bundle.go         | 73 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 101 insertions(+), 22 deletions(-)

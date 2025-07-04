@@ -1,20 +1,12 @@
-commit 2be64d36456d6e2ad14476b6d09b9fc4e2ac591e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 24 15:41:26 2019 -0700
+commit fb69478ecd7a6bec18b0e77665bbaadce4b7f2e8
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Dec 4 16:23:39 2018 -0500
 
-    unicode/utf8: use binary literals
+    doc: 1.12 release notes for go/doc, go/token, and reflect packages
     
-    We were using hex literals and had the binary literal in a comment.
-    When I was working with this code, I always referred to the comment.
-    That's an indicator that we should just use the binary literal directly.
-    
-    Updates #19308
-    
-    Change-Id: I2279cb8efb4ae5f2e1558c15979058ab09eb4f6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173663
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5f0ceeca2025cf19bcf610e150f7b7067fdd7397
+    Reviewed-on: https://go-review.googlesource.com/c/152637
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/unicode/utf8/utf8.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ doc/go1.12.html | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

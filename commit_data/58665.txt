@@ -1,28 +1,32 @@
-commit 3310f324ad33571f68d3f0534dd4ebe9872ab2bd
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Sat Dec 14 12:53:29 2024 -0500
+commit e158cb21e58a8e50645a15f3747c76627eaaa231
+Author: Sean Liao <sean@liao.dev>
+Date:   Thu Nov 23 18:43:12 2023 +0000
 
-    crypto/internal/fips140test: add TLS-v1.2 ACVP tests
+    .github: clean up issue forms
     
-    Adds ACVP test coverage for the SP 800-135rev1 RFC 7627 TLS v1.2 KDF
-    based on the NIST spec:
+    bugs:
+    * drop unused labels
+    * drop the reproduce checkbox:
+      it's not a strong signal and introduces clutter in github as a task list
+    * link go.dev/play
     
-      https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html
+    govuln:
+    * use correct label
+    * ask for version of the tool
+    * link go.dev/play
     
-    Only SHA2-256, SHA2-384 and SHA2-512 are valid hash algorithms for the
-    TLSKDF algorithm.
+    telemetry:
+    * align title with purpose
     
-    Updates #69642
-    
-    Change-Id: I553d4f6a1d6652ed486af0e2c94730c8063fb47f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636116
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id7dd876e518c75dc22e9aec43d9af6e18af088fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544775
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
 
- .../internal/fips140test/acvp_capabilities.json    |  4 +++-
- .../internal/fips140test/acvp_test.config.json     |  4 +++-
- src/crypto/internal/fips140test/acvp_test.go       | 24 ++++++++++++++++++++++
- 3 files changed, 30 insertions(+), 2 deletions(-)
+ .github/ISSUE_TEMPLATE/00-bug.yml       | 15 +++++----------
+ .github/ISSUE_TEMPLATE/04-vuln.yml      | 16 ++++++++++------
+ .github/ISSUE_TEMPLATE/12-telemetry.yml |  2 +-
+ 3 files changed, 16 insertions(+), 17 deletions(-)

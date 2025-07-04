@@ -1,12 +1,14 @@
-commit f21ee1e1d8a70abd130d0435eb1a1d2e95c88129
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 8 10:35:44 2015 -0800
+commit 439b32936367c3efd0dadab48dd51202e1a510f1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 18:47:42 2014 +1100
 
-    README: emphasize that we don't accept pull requests
+    remove the obsolete lib/codereview.
     
-    Change-Id: Ie31f957f6b60b0a9405147c7a0af789df01a4b02
-    Reviewed-on: https://go-review.googlesource.com/2550
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idd2e74053ce4a2be3d757aef1bb83313973de6f0
+    Reviewed-on: https://go-review.googlesource.com/1175
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- README.md | 2 ++
- 1 file changed, 2 insertions(+)
+ lib/codereview/codereview.cfg |    2 -
+ lib/codereview/codereview.py  | 3694 -----------------------------------------
+ lib/codereview/test.sh        |  199 ---
+ 3 files changed, 3895 deletions(-)

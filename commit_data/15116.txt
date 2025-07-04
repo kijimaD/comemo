@@ -1,12 +1,16 @@
-commit 0df8c7517ebb93bfbe690748ae5b0a8c39854aaf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 4 14:34:35 2013 +1100
+commit 97916f11548110b282c460aa9f939bac139ca99c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Feb 4 12:37:18 2013 +1100
 
-    archive/tar: add Copyright notice to example_test.go
+    archive/tar: Add reader and writer code example.
     
-    R=golang-dev, mikioh.mikioh
+    Remove the previous comment examples.
+    
+    R=golang-dev, minux.ma, adg
     CC=golang-dev
-    https://golang.org/cl/7278050
+    https://golang.org/cl/7220048
 
- src/pkg/archive/tar/example_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/archive/tar/example_test.go | 75 +++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/reader.go       | 14 -------
+ src/pkg/archive/tar/writer.go       | 11 ------
+ 3 files changed, 75 insertions(+), 25 deletions(-)

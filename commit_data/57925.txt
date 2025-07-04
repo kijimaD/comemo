@@ -1,55 +1,33 @@
-commit 583d750fa119d504686c737be6a898994b674b69
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Sat Nov 2 15:40:13 2024 +0800
+commit e924ea03cc7651cffdec9636a0d79d54eb6e7e0d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 11 15:53:49 2023 -0400
 
-    cmd/compile: wire up bits.Reverse intrinsics for loong64
+    cmd/link: disable DWARF by default in c-shared mode on darwin
     
-    Micro-benchmark results on Loongson 3A5000 and 3A6000:
+    Currently, linking a Go c-shared object with C code using Apple's
+    new linker, it fails with
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A6000 @ 2500.00MHz
-              |  CL 624576   |               this CL                |
-              |    sec/op    |    sec/op     vs base                |
-    Reverse     2.8130n ± 0%   0.8008n ± 0%  -71.53% (p=0.000 n=20)
-    Reverse8    0.7014n ± 0%   0.4040n ± 0%  -42.40% (p=0.000 n=20)
-    Reverse16   1.2975n ± 0%   0.6632n ± 1%  -48.89% (p=0.000 n=20)
-    Reverse32   2.7520n ± 0%   0.4042n ± 0%  -85.31% (p=0.000 n=20)
-    Reverse64   2.8970n ± 0%   0.4041n ± 0%  -86.05% (p=0.000 n=20)
-    geomean      1.828n        0.5116n       -72.01%
+    % cc a.c go.so
+    ld: segment '__DWARF' filesize exceeds vmsize in 'go.so'
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A5000 @ 2500.00MHz
-              |  CL 624576   |               this CL                |
-              |    sec/op    |    sec/op     vs base                |
-    Reverse     4.0050n ± 0%   0.8011n ± 0%  -80.00% (p=0.000 n=20)
-    Reverse8    0.8010n ± 0%   0.5210n ± 1%  -34.96% (p=0.000 n=20)
-    Reverse16   1.6160n ± 0%   0.6008n ± 0%  -62.82% (p=0.000 n=20)
-    Reverse32   3.8550n ± 0%   0.5179n ± 0%  -86.57% (p=0.000 n=20)
-    Reverse64   3.8050n ± 0%   0.5177n ± 0%  -86.40% (p=0.000 n=20)
-    geomean      2.378n        0.5828n       -75.49%
+    Apple's new linker has more checks for unmapped segments. It is
+    very hard to make it accept a Mach-O shared object with an
+    additional DWARF segment.
     
-    Updates #59120
+    We may want to stop combinding DWARF into the shared object (see
+    also #62577). For now, disable DWARF by default in c-shared mode
+    on darwin. (One can still enable it with -ldflags=-w=0, which will
+    contain DWARF, but it will need the old C linker to link against
+    with.)
     
-    This patch is a copy of CL 483656.
-    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    For #61229.
     
-    Change-Id: I98681091763279279c8404bd0295785f13ea1c8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624276
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: I4cc77da54fac10e2c2cbcffa92779cba82706d75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527415
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/loong64/ssa.go            |  3 ++
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  4 +++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  4 +++
- src/cmd/compile/internal/ssa/opGen.go              | 42 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 26 ++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      | 10 +++---
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  5 +++
- test/codegen/mathbits.go                           | 29 +++++++++++++++
- 8 files changed, 118 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

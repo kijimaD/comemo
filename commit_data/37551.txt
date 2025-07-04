@@ -1,47 +1,29 @@
-commit e985ba80233ea5d222548f0a85370e98aaf8fa5d
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Nov 30 12:25:18 2018 +0100
+commit c81d216d844f165b729fa3dbb0c3d834eb4268a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 10:51:53 2018 -0400
 
-    syscall: avoid "64"-postfixed libSystem syscalls on iOS
+    go/doc: allow interior dot in heading, as in "go.mod"
     
-    The stat(2) man page contain this comment about the 64-bit versions
-    of the system file functions:
+    Only the expected headings are affected.
+    Diffing the output of "go run headscan.go" before and after:
     
-    "Platforms that were released after these updates only have the
-    newer variants available to them.  These platforms have the macro
-    _DARWIN_FEATURE_ONLY_64_BIT_INODE defined."
+    $ diff head1 head2
+    26a27,28
+    >       Edit go.mod from tools or scripts
+    >       Make go.mod semantically consistent
+    168c170
+    < 141 headings found
+    ---
+    > 143 headings found
+    $
     
-    It turns out that on iOS the _DARWIN_FEATURE_ONLY_64_BIT_INODE is
-    defined and that even though the "64"-postfixed versions are
-    accessible they are deemed private. Apps that refer to private
-    API are not admissible on App Store, and after the Go runtime
-    started using libSystem instead of direct syscalls, the App Store
-    submission checks reject apps built with Go tip.
+    Fixes #26938.
     
-    The fix is simple: use the non-postfixed versions on iOS.
-    
-    getdirentries(2) is not changed; it is not available at all on iOS
-    and needs replacement.
-    
-    Updates #28984
-    
-    Change-Id: Icb8d44e271456acaa1913ba486fcf5b569722fa9
-    Reviewed-on: https://go-review.googlesource.com/c/151938
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I204fd982a60773aa26880cd19eed890c373b8ab6
+    Reviewed-on: https://go-review.googlesource.com/129677
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_darwin.go        |   6 --
- src/syscall/syscall_darwin_386.go    |   6 ++
- src/syscall/syscall_darwin_amd64.go  |   6 ++
- src/syscall/syscall_darwin_arm.go    |   6 ++
- src/syscall/syscall_darwin_arm64.go  |   6 ++
- src/syscall/zsyscall_darwin_386.go   | 188 +++++++++++++++++------------------
- src/syscall/zsyscall_darwin_386.s    |  24 ++---
- src/syscall/zsyscall_darwin_amd64.go | 188 +++++++++++++++++------------------
- src/syscall/zsyscall_darwin_amd64.s  |  24 ++---
- src/syscall/zsyscall_darwin_arm.go   | 188 +++++++++++++++++------------------
- src/syscall/zsyscall_darwin_arm.s    |  24 ++---
- src/syscall/zsyscall_darwin_arm64.go | 188 +++++++++++++++++------------------
- src/syscall/zsyscall_darwin_arm64.s  |  24 ++---
- 13 files changed, 448 insertions(+), 430 deletions(-)
+ src/go/doc/comment.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

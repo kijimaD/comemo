@@ -1,19 +1,43 @@
-commit a7e9e84716e2d39b1e7ea7f231334c88f2428260
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Mon Apr 27 09:51:01 2020 -0400
+commit eb93c684d40de4924fc0664d7d9e98a84d5a100b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 2 14:43:34 2019 -0400
 
-    math/big: simplify hasVX checking on s390x
+    crypto/tls: select only compatible chains from Certificates
     
-    Originally, we use an assembly function that returns a boolean result to
-    tell whether the machine has vector facility or not. It is now no longer
-    needed when we can directly use cpu.S390X.HasVX variable.
+    Now that we have a full implementation of the logic to check certificate
+    compatibility, we can let applications just list multiple chains in
+    Certificates (for example, an RSA and an ECDSA one) and choose the most
+    appropriate automatically.
     
-    Change-Id: Ic1dae851982532bcfd9a9453416c112347f21d87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230318
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    NameToCertificate only maps each name to one chain, so simply deprecate
+    it, and while at it simplify its implementation by not stripping
+    trailing dots from the SNI (which is specified not to have any, see RFC
+    6066, Section 3) and by not supporting multi-level wildcards, which are
+    not a thing in the WebPKI (and in crypto/x509).
+    
+    The performance of SupportsCertificate without Leaf is poor, but doesn't
+    affect current users. For now document that, and address it properly in
+    the next cycle. See #35504.
+    
+    While cleaning up the Certificates/GetCertificate/GetConfigForClient
+    behavior, also support leaving Certificates/GetCertificate nil if
+    GetConfigForClient is set, and send unrecognized_name when there are no
+    available certificates.
+    
+    Fixes #29139
+    Fixes #18377
+    
+    Change-Id: I26604db48806fe4d608388e55da52f34b7ca4566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205059
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/math/big/arith_decl_s390x.go |  5 +++--
- src/math/big/arith_s390x.s       | 22 ----------------------
- 2 files changed, 3 insertions(+), 24 deletions(-)
+ src/crypto/tls/alert.go                  |  2 +
+ src/crypto/tls/common.go                 | 66 +++++++++++++++++++-------------
+ src/crypto/tls/conn_test.go              | 12 +-----
+ src/crypto/tls/handshake_server.go       |  6 ++-
+ src/crypto/tls/handshake_server_test.go  | 24 ++++++++++++
+ src/crypto/tls/handshake_server_tls13.go | 13 +++----
+ src/crypto/tls/tls.go                    |  5 ++-
+ 7 files changed, 81 insertions(+), 47 deletions(-)

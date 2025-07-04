@@ -1,22 +1,24 @@
-commit f2ac0ae8bbb5d2fad29f0f434f3a26649976cf2c
-Author: Dan Peterson <danp@danp.net>
-Date:   Thu Feb 13 17:09:23 2025 -0400
+commit f2d243db8f7592fc436ec8a71637875b6c3223ec
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Dec 12 21:39:54 2023 +0000
 
-    cmd/go/internal/cacheprog: drop Request.ObjectID
+    iter: fix race instrumentation for Pull2
     
-    ObjectID was a misnaming of OutputID from cacheprog's initial
-    implementation. It was maintained for compatibility with existing
-    cacheprog users in 1.24 but can be removed in 1.25.
+    Pull2 tests are failing with -race, giving false-positive race conditions
+    due to bad race instrumentation.
     
-    Updates #64876
+    No tests for this as it should be caught by the race builders. The only
+    reason it was not caught is because it is behind GOEXPERIMENT=rangefunc.
     
-    Change-Id: I8ff53bc581c16b7739e1cfbaa8bd35d285d3231d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649435
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes #64651
+    
+    Change-Id: I20554da930b0e19594e0e267f01a1e7a9cbc577a
+    GitHub-Last-Rev: 7c1f19238d2c0b7efa5f0a2033893914e402bbc2
+    GitHub-Pull-Request: golang/go#64653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548895
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/cache/cache.go         |  2 +-
- src/cmd/go/internal/cache/prog.go          |  9 ---------
- src/cmd/go/internal/cacheprog/cacheprog.go | 13 +------------
- 3 files changed, 2 insertions(+), 22 deletions(-)
+ src/iter/iter.go | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

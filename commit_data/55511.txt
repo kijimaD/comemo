@@ -1,17 +1,59 @@
-commit 3b83560baf1e2ba9e03a718fcc91f820c714ecdf
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Feb 2 17:30:03 2024 +0800
+commit 66c58b946beaa38de35241c3f64ec358f5ad03f1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Dec 14 09:43:16 2022 -0800
 
-    cmd/compile/internal: fix function names
+    crypto/tls: replace all usages of BytesOrPanic
     
-    Change-Id: Id9103aa4bda221f5eb34a0ede8676364c574b696
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560616
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Message marshalling makes use of BytesOrPanic a lot, under the
+    assumption that it will never panic. This assumption was incorrect, and
+    specifically crafted handshakes could trigger panics. Rather than just
+    surgically replacing the usages of BytesOrPanic in paths that could
+    panic, replace all usages of it with proper error returns in case there
+    are other ways of triggering panics which we didn't find.
+    
+    In one specific case, the tree routed by expandLabel, we replace the
+    usage of BytesOrPanic, but retain a panic. This function already
+    explicitly panicked elsewhere, and returning an error from it becomes
+    rather painful because it requires changing a large number of APIs.
+    The marshalling is unlikely to ever panic, as the inputs are all either
+    fixed length, or already limited to the sizes required. If it were to
+    panic, it'd likely only be during development. A close inspection shows
+    no paths for a user to cause a panic currently.
+    
+    This patches ends up being rather large, since it requires routing
+    errors back through functions which previously had no error returns.
+    Where possible I've tried to use helpers that reduce the verbosity
+    of frequently repeated stanzas, and to make the diffs as minimal as
+    possible.
+    
+    Thanks to Marten Seemann for reporting this issue.
+    
+    Fixes #58001
+    Fixes CVE-2022-41724
+    
+    Change-Id: Ieb55867ef0a3e1e867b33f09421932510cb58851
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1679436
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    TryBot-Result: Security TryBots <security-trybots@go-security-trybots.iam.gserviceaccount.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468125
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/inline/inl.go                         | 2 +-
- src/cmd/compile/internal/inline/inlheur/analyze_func_params.go | 2 +-
- src/cmd/compile/internal/ir/reassign_consistency_check.go      | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/crypto/tls/boring_test.go             |   2 +-
+ src/crypto/tls/common.go                  |   2 +-
+ src/crypto/tls/conn.go                    |  46 +-
+ src/crypto/tls/handshake_client.go        |  95 ++--
+ src/crypto/tls/handshake_client_test.go   |   4 +-
+ src/crypto/tls/handshake_client_tls13.go  |  74 +--
+ src/crypto/tls/handshake_messages.go      | 716 ++++++++++++++++--------------
+ src/crypto/tls/handshake_messages_test.go |  19 +-
+ src/crypto/tls/handshake_server.go        |  73 +--
+ src/crypto/tls/handshake_server_test.go   |  31 +-
+ src/crypto/tls/handshake_server_tls13.go  |  71 +--
+ src/crypto/tls/key_schedule.go            |  19 +-
+ src/crypto/tls/ticket.go                  |   8 +-
+ 13 files changed, 657 insertions(+), 503 deletions(-)

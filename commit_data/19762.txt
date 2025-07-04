@@ -1,29 +1,65 @@
-commit 086df1dc77710cb6fa06ca561e1fafd5a4c78d8e
-Author: snyh <snyh@snyh.org>
-Date:   Fri Jul 18 02:47:21 2014 -0400
+commit f378f300345431204d5842751db2add7994d9957
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 17 14:41:46 2014 -0700
 
-    cmd/cgo: disable inappropriate warnings when the gcc struct is empty
+    undo CL 101570044 / 2c57aaea79c4
     
-    package main
-    //#cgo CFLAGS: -Wall
-    //void test() {}
-    import "C"
-    func main() {
-        C.test()
-    }
+    redo stack allocation.  This is mostly the same as
+    the original CL with a few bug fixes.
     
-    This code will cause gcc issuing warnings about unused variable.
+    1. add racemalloc() for stack allocations
+    2. fix poolalloc/poolfree to terminate free lists correctly.
+    3. adjust span ref count correctly.
+    4. don't use cache for sizes >= StackCacheSize.
     
-    This commit use offset of the second return value of
-    Packages.structType to detect whether the gcc struct is empty,
-    and if it's directly invoke the C function instead of writing an
-    unused code.
+    Should fix bugs and memory leaks in original changelist.
     
-    LGTM=dave, minux
-    R=golang-codereviews, iant, minux, dave
+    ««« original CL description
+    undo CL 104200047 / 318b04f28372
+    
+    Breaks windows and race detector.
+    TBR=rsc
+    
+    ««« original CL description
+    runtime: stack allocator, separate from mallocgc
+    
+    In order to move malloc to Go, we need to have a
+    separate stack allocator.  If we run out of stack
+    during malloc, malloc will not be available
+    to allocate a new stack.
+    
+    Stacks are the last remaining FlagNoGC objects in the
+    GC heap.  Once they are out, we can get rid of the
+    distinction between the allocated/blockboundary bits.
+    (This will be in a separate change.)
+    
+    Fixes #7468
+    Fixes #7424
+    
+    LGTM=rsc, dvyukov
+    R=golang-codereviews, dvyukov, khr, dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/109640045
+    https://golang.org/cl/104200047
+    »»»
+    
+    TBR=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/101570044
+    »»»
+    
+    LGTM=dvyukov
+    R=dvyukov, dave, khr, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/112240044
 
- misc/cgo/test/empty.go | 18 ++++++++++++++++++
- src/cmd/cgo/out.go     |  6 ++++--
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.h      |  27 ++-
+ src/pkg/runtime/mcache.c      |  23 ++-
+ src/pkg/runtime/mcentral.c    |   2 +
+ src/pkg/runtime/mem.go        |   2 +-
+ src/pkg/runtime/mgc0.c        |  25 ++-
+ src/pkg/runtime/mheap.c       | 327 ++++++++++++++++++++---------------
+ src/pkg/runtime/proc.c        |   6 +-
+ src/pkg/runtime/runtime.h     |  15 +-
+ src/pkg/runtime/stack.c       | 387 +++++++++++++++++++++++++++---------------
+ src/pkg/runtime/stack_test.go |  49 ++++++
+ 10 files changed, 557 insertions(+), 306 deletions(-)

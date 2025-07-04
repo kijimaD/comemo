@@ -1,32 +1,23 @@
-commit d09ca2cb8ec5306f20b527266ce161bd9292cad4
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Sun Aug 15 15:57:43 2021 +0800
+commit f9d50953b94c15936a72a39a205b3d72ea6dee41
+Author: Xiangdong Ji <xiangdong.ji@gmail.com>
+Date:   Mon Jun 28 20:27:30 2021 +0800
 
-    cmd/go/internal: configure go tool workflow for loong64
+    net: fix failure of TestCVE202133195
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    TestCVE202133195 fails in testing LookupSRV if /etc/resolv.conf sets the option
+    'ndots' larger than the number of dots in the domain name under query.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Fix the issue by making the input domain name in test codes 'rooted' to skip search
+    list qualifying.
     
-    Updates #46229
+    Fixes #46955
     
-    Change-Id: I6b537a7d842b0683586917fe7ea7cd4d70d888de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342308
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1909fa7e54e9c9af57623e57cafc905729ff99fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330842
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/imports/build.go | 1 +
- src/cmd/go/internal/work/exec.go     | 2 ++
- 2 files changed, 3 insertions(+)
+ src/net/dnsclient_unix_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

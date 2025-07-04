@@ -1,14 +1,27 @@
-commit 1f40b841b3fe4399b19e0fc8b1824583742e2cf2
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 16 17:14:48 2014 -0700
+commit 58b86e50138adaed962ad12a55ede7fb8b0886d9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 16 14:36:44 2014 -0700
 
-    flag: document that Bool also accepts "T" and "F"
-    Fixes #7752.
+    liblink, cmd/gc, cmd/{5,6,8}{a,c}: rename linkwriteobj to writeobj
     
-    LGTM=bradfitz, ruiu
-    R=golang-codereviews, bradfitz, ruiu
+    The name linkwriteobj is misleading because it implies that
+    the function has something to do with the linker, which it
+    does not.  The name is historical: the function performs an
+    operation that was previously performed by the linker, but no
+    longer is.
+    
+    LGTM=rsc
+    R=rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/88690043
+    https://golang.org/cl/88210045
 
- src/pkg/flag/flag.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ include/link.h        | 2 +-
+ src/cmd/5a/lex.c      | 2 +-
+ src/cmd/5c/swt.c      | 2 +-
+ src/cmd/6a/lex.c      | 2 +-
+ src/cmd/6c/swt.c      | 2 +-
+ src/cmd/8a/lex.c      | 2 +-
+ src/cmd/8c/swt.c      | 2 +-
+ src/cmd/gc/obj.c      | 2 +-
+ src/liblink/objfile.c | 5 ++++-
+ 9 files changed, 12 insertions(+), 9 deletions(-)

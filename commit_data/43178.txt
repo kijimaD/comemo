@@ -1,17 +1,17 @@
-commit bb48f9925cf541e7b5f4bfafb9d008671c4ace47
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 25 20:19:55 2020 +1000
+commit dad94e7c39e748a4134efc67ff9256a5addf34b7
+Author: Robert Kuska <rkuska@gmail.com>
+Date:   Fri Mar 13 19:21:19 2020 +0100
 
-    cmd/link: add support for openbsd/mips64
+    net/http: use atomicBool for inShutdown
     
-    Update #40995
+    This removes the TODO leftover by replacing the original int32 for
+    atomicBool that mimicks atomic operations for boolean.
     
-    Change-Id: I2cf9b85a960f479eaa59bf58081d03a0467bc2b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250582
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I1b2cac0c9573c890c7315e9906ce6bfccee3d770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223357
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/mips64/obj.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/net/http/server.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

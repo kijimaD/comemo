@@ -1,22 +1,21 @@
-commit c1828fbcbf8b8e18308e87bbac0d71244ec167f5
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Dec 11 14:23:12 2023 -0800
+commit 81cd9ff7dbf46a57710fd72330f2d60e3db959d0
+Author: pgxiaolianzi <gnnu_d13@163.com>
+Date:   Mon Feb 27 06:51:55 2023 +0000
 
-    crypto/x509: remove TestPlatformVerifierLegacy tests
+    all: fix typos
     
-    They are no longer necessary, woohoo!
-    
-    Updates #52108
-    Fixes #56791
-    
-    Change-Id: I11a4c17162da4295309f74f2f8362bab0f506f78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548976
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ica8d5e5799a4de532764ae86cdb623508d3a8e18
+    GitHub-Last-Rev: 3e97cca9de3885f2fe0d7deb776e59cc1c73146d
+    GitHub-Pull-Request: golang/go#58689
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471021
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/crypto/x509/root_darwin_test.go  | 131 -----------------------------------
- src/crypto/x509/root_windows_test.go | 127 ---------------------------------
- 2 files changed, 258 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go    | 2 +-
+ src/net/http/transport_test.go        | 2 +-
+ src/os/exec/exec_test.go              | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

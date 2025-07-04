@@ -1,19 +1,75 @@
-commit 97677273532cf1a4e8b181c242d89c0be8c92bb6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 3 19:11:53 2018 +0100
+commit cda3c6f91d7c3cdd370cbc4c34f34fd597d028bd
+Merge: adc1f587ac 2ea7d3461b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 20 09:21:00 2017 -0500
 
-    test: skip locklinear's lockmany test for now
+    [dev.boringcrypto] all: merge go1.9.2 into dev.boringcrypto
     
-    Since it's been reliably failing on one of the linux-arm builders
-    (arm5spacemonkey) for a long time.
-    
-    Updates #24221.
-    
-    Change-Id: I8fccc7e16631de497ccc2c285e510a110a93ad95
-    Reviewed-on: https://go-review.googlesource.com/104535
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I695e804ad8bbb6d90a28108bcf8623fc2bfab659
 
- test/locklinear.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/devel/release.html                             |  26 ++
+ doc/go1.9.html                                     |   5 +
+ misc/cgo/test/cgo_test.go                          |   1 +
+ misc/cgo/test/issue21668.go                        |  13 +
+ misc/cgo/test/issue21708.go                        |  16 +
+ src/cmd/cgo/gcc.go                                 |  57 +--
+ src/cmd/cgo/main.go                                |   4 +-
+ src/cmd/compile/internal/gc/noder.go               |  13 +-
+ src/cmd/compile/internal/gc/ssa.go                 |   4 +-
+ src/cmd/compile/internal/gc/subr.go                |  28 +-
+ .../compile/internal/gc/testdata/gen/zeroGen.go    |  63 +++
+ src/cmd/compile/internal/gc/testdata/zero.go       | 216 +++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       | 166 +++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  17 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  58 +--
+ src/cmd/compile/internal/ssa/opGen.go              |  16 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 506 ++++++++++++++-------
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 172 +++----
+ src/cmd/compile/internal/syntax/nodes_test.go      |   2 +-
+ src/cmd/compile/internal/syntax/parser.go          |  16 +-
+ src/cmd/compile/internal/syntax/parser_test.go     |  14 +-
+ src/cmd/compile/internal/syntax/printer_test.go    |   2 +-
+ src/cmd/compile/internal/syntax/scanner_test.go    |  13 +
+ src/cmd/compile/internal/syntax/source.go          |  11 +-
+ src/cmd/compile/internal/syntax/syntax.go          |  19 +-
+ src/cmd/go/go_test.go                              |  30 +-
+ src/cmd/go/internal/get/get.go                     |   5 +
+ src/cmd/go/internal/get/vcs.go                     |  58 ++-
+ src/cmd/internal/obj/x86/asm6.go                   |   7 +
+ src/cmd/internal/objabi/line.go                    |   2 +-
+ src/crypto/x509/root_darwin_test.go                |   5 +
+ src/crypto/x509/verify.go                          |   8 +-
+ src/crypto/x509/verify_test.go                     |  96 ++++
+ src/crypto/x509/x509_test.go                       |  68 ---
+ src/database/sql/fakedb_test.go                    |   1 +
+ src/database/sql/sql.go                            |  12 +
+ src/database/sql/sql_test.go                       |   8 +-
+ src/expvar/expvar.go                               |  12 +-
+ src/expvar/expvar_test.go                          |  22 +
+ src/internal/poll/export_windows_test.go           |  17 +
+ src/internal/poll/fd_unix.go                       |   1 +
+ src/internal/poll/fd_windows.go                    |  83 ++--
+ src/internal/poll/fd_windows_test.go               | 111 +++++
+ src/log/log.go                                     |   6 +-
+ src/log/log_test.go                                |  11 +
+ src/net/dial_test.go                               |   2 +
+ src/net/fd_windows.go                              |   2 +-
+ src/net/smtp/auth.go                               |  33 +-
+ src/net/smtp/smtp.go                               |   1 +
+ src/net/smtp/smtp_test.go                          |  79 +++-
+ src/os/file_windows.go                             |   2 +-
+ src/os/os_test.go                                  |   2 +
+ src/reflect/all_test.go                            |  25 +
+ src/reflect/value.go                               |  10 +-
+ src/runtime/chan_test.go                           |  57 +++
+ src/runtime/cpuprof.go                             |   1 +
+ src/runtime/gc_test.go                             |  18 +-
+ src/runtime/mgc.go                                 |   5 +-
+ src/runtime/proc.go                                |  16 +-
+ src/runtime/stubs.go                               |   8 +-
+ src/runtime/time.go                                |   8 +-
+ src/time/time.go                                   |   4 +-
+ test/fixedbugs/issue21655.go                       |  40 ++
+ test/fixedbugs/issue21963.go                       |  27 ++
+ test/fixedbugs/issue22083.go                       |  41 ++
+ 65 files changed, 1754 insertions(+), 648 deletions(-)

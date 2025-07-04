@@ -1,39 +1,17 @@
-commit 2fbca94db7e14fc1d18162cd203d7afc19b520e8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 23 20:38:20 2020 -0800
+commit 8c6876e9a481a2ea48070d3285a07163f564877b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 13:58:27 2019 -0700
 
-    runtime: add goroutines returned by poller to local run queue
+    cmd/compile: disable checkptr for //go:cgo_unsafe_args functions
     
-    In Go 1.13, when the network poller found a list of ready goroutines,
-    they were added to the global run queue. The timer goroutine would
-    typically sleep in a futex with a timeout, and when the timeout
-    expired the timer goroutine would either be handed off to an idle P
-    or added to the global run queue. The effect was that on a busy system
-    with no idle P's goroutines waiting for timeouts and goroutines waiting
-    for the network would start at the same priority.
+    Fixes #34968.
     
-    That changed on tip with the new timer code. Now timer functions are
-    invoked directly from a P, and it happens that the functions used
-    by time.Sleep and time.After and time.Ticker add the newly ready
-    goroutines to the local run queue. When a P looks for work it will
-    prefer goroutines on the local run queue; in fact it will only
-    occasionally look at the global run queue, and even when it does it
-    will just pull one goroutine off. So on a busy system with both active
-    timers and active network connections the system can noticeably prefer
-    to run goroutines waiting for timers rather than goroutines waiting
-    for the network.
-    
-    This CL undoes that change by, when possible, adding goroutines
-    waiting for the network to the local run queue of the P that checked.
-    This doesn't affect network poller checks done by sysmon, but it
-    does affect network poller checks done as each P enters the scheduler.
-    
-    This CL also makes injecting a list into either the local or global run
-    queue more efficient, using bulk operations rather than individual ones.
-    
-    Change-Id: I85a66ad74e4fc3b458256fb7ab395d06f0d2ffac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216198
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I538d653fab6cf7cf9b9b7022a1c2d4ae6ee497b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201823
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 88 ++++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 80 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/lex.go |  2 +-
+ test/fixedbugs/issue34968.go       | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

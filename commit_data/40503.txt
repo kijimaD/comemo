@@ -1,22 +1,14 @@
-commit cc4b824e53ef52e1572808c7b7f9b8507516c816
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Tue Oct 29 15:39:42 2019 +0100
+commit 82ee4e7f78bf34da31e1d050529ab82dc03cf13a
+Author: Alex Myasoedov <msoedov@gmail.com>
+Date:   Mon May 20 18:15:05 2019 +0300
 
-    runtime: fix nbpipe_test for AIX
+    context: document CancelFunc to be safe for simultaneous use by multiple goroutines
     
-    Fcntl can't be called using syscall.Syscall as it doesn't work on AIX.
-    Moreover, fcntl isn't exported by syscall package.
+    Fixes #32145
     
-    However, it can be accessed by exporting it from runtime package
-    using export_aix_test.go.
-    
-    Change-Id: Ib6af66d9d7eacb9ca0525ebc4cd4c92951735f1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204059
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If4c9dd3a2af748974141ad6e571f80efcbaad772
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177899
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_aix_test.go        |  7 +++++++
- src/runtime/nbpipe_fcntl_aix_test.go  | 17 +++++++++++++++++
- src/runtime/nbpipe_fcntl_unix_test.go | 14 ++++++++++++++
- src/runtime/nbpipe_test.go            |  4 ++--
- 4 files changed, 40 insertions(+), 2 deletions(-)
+ src/context/context.go | 1 +
+ 1 file changed, 1 insertion(+)

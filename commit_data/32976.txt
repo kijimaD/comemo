@@ -1,25 +1,61 @@
-commit a92a77c56f598b28b5eb640d29fabc6843b365c2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Sep 23 16:03:43 2017 -0400
+commit 855d823d2de359fb4fcd354f1704d36d340c659f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 19 19:06:08 2017 +0000
 
-    cmd/internal/obj/arm64: fix handling of unaligned offset between 256 and 504
+    A+C: updated update
     
-    C_PPAUTO was matching offsets that is a multiple 8. But this
-    condition is dropped in CL 55610, causing unaligned offset
-    between 256 and 504 mistakenly matched to some classes, e.g.
-    C_UAUTO8K. This CL restores this condition, also fixes an
-    error that C_PPAUTO shouldn't match C_PSAUTO, because the
-    latter is not guaranteed to be multiple of 8. C_PPAUTO_8 is
-    unnecessary, removed.
+    I updated my tool to deal with Github-only contributors without Gerrit
+    accounts. The "dep" repo is the main source of these, although there
+    are a few others.
     
-    Fixes #21992.
+    Add Alexander Kauer (individual CLA)
+    Add Anders Pearson (individual CLA)
+    Add Brad Whitaker (corporate CLA for Fastly, Inc.)
+    Add Daisuke Fujita (individual CLA)
+    Add Daniel Upton (individual CLA)
+    Add David Volquartz Lebech (individual CLA)
+    Add Emilien Kenler (individual CLA)
+    Add Fazal Majid (corporate CLA for Apsalar)
+    Add Gustav Westling (individual CLA)
+    Add Henry Chang (individual CLA)
+    Add Jianqiao Li (corporate CLA for Google Inc.)
+    Add Jin-wook Jeong (individual CLA)
+    Add Kaleb Elwert (individual CLA)
+    Add Kashav Madan (individual CLA)
+    Add Koki Ide (individual CLA)
+    Add Konstantin (individual CLA)
+    Add Kyle Jones (individual CLA)
+    Add Leon Klingele (individual CLA)
+    Add Martin Olsen (individual CLA)
+    Add Máximo Cuadros Ortiz (individual CLA)
+    Add Miguel Molina (individual CLA)
+    Add Nathaniel Cook (individual CLA)
+    Add Neil Lyons (individual CLA)
+    Add Nick Robinson (individual CLA)
+    Add Niranjan Godbole (individual CLA)
+    Add Oleg Bulatov (individual CLA)
+    Add Oliver Tonnhofer (individual CLA)
+    Add Paul Querna (individual CLA)
+    Add Peter Bourgon (individual CLA)
+    Add Quentin Renard (individual CLA)
+    Add Ray Tung (individual CLA)
+    Add Rob Phoenix (individual CLA)
+    Add Ryan Boehning (individual CLA)
+    Add Sakeven Jiang (individual CLA)
+    Add Stephen Searles (individual CLA)
+    Add Steven Wilkin (individual CLA)
+    Add Sunny (individual CLA)
+    Add Ted Kornish (individual CLA)
+    Add Victor Vrantchan (individual CLA)
+    Add Wander Lairson Costa (individual CLA)
+    Add Zakatell Kanda (individual CLA)
     
-    Change-Id: I75d5a0e5f5dc3dae335721fbec1bbcd4a3b862f2
-    Reviewed-on: https://go-review.googlesource.com/65730
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #12042
+    
+    Change-Id: I2e4828cce880965c77b374c1e115d0e437d108c7
+    Reviewed-on: https://go-review.googlesource.com/46090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm64/a.out.go   |  4 +--
- src/cmd/internal/obj/arm64/anames7.go |  2 --
- src/cmd/internal/obj/arm64/asm7.go    | 63 +++++++++++++----------------------
- test/fixedbugs/issue19137.go          | 16 +++++++++
- 4 files changed, 41 insertions(+), 44 deletions(-)
+ AUTHORS      | 39 +++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)

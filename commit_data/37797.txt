@@ -1,14 +1,24 @@
-commit 58a17b43d14a1e31e5aa2738747157488168cd96
-Author: Taufiq Rahman <taufiqrx8@gmail.com>
-Date:   Sat Dec 29 16:18:11 2018 +0000
+commit 6fa08c0fdbc8435d0a7b0c2576ba2183adfac8f3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 29 07:06:31 2018 -0600
 
-    net/http: fix typographical error in transport.go
+    text/template: fix newline counting in raw strings
     
-    Change-Id: I5f9de0daa3c18ecd7d6cd30ea13d147e227b3550
-    GitHub-Last-Rev: 5eabcbd91f8988c8f74f5bd11fb0e79cb85a9451
-    GitHub-Pull-Request: golang/go#29454
-    Reviewed-on: https://go-review.googlesource.com/c/155920
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    lexRawQuote already uses the next method, which keeps track of newlines
+    on a character by character basis. Adding up newlines in emit again
+    results in the newlines being counted twice, which can mean bad position
+    information in error messages.
+    
+    Fix that, and add a test.
+    
+    Fixes #27319.
+    
+    Change-Id: Id803be065c541412dc808d388bc6d8a86a0de41e
+    Reviewed-on: https://go-review.googlesource.com/131996
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/text/template/parse/lex.go        | 2 +-
+ src/text/template/parse/parse_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

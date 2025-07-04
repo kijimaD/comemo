@@ -1,21 +1,18 @@
-commit 1564817d8c941344caa14d14fac55f7e7b46055e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 16 21:13:15 2017 -0500
+commit be7c50a7101a6e3cbd39648814c9f1030980c0f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 01:11:49 2016 +0000
 
-    runtime/pprof: use more efficient hash table for staging profile
+    net/http: deflake TestServerSetKeepAlivesEnabledClosesConns
     
-    The old hash table was a place holder that allocates memory
-    during every lookup for key generation, even for keys that hit
-    in the the table.
+    Fixes #17754
+    Updates #9478 (details in here)
     
-    Change-Id: I4f601bbfd349f0be76d6259a8989c9c17ccfac21
-    Reviewed-on: https://go-review.googlesource.com/37163
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iae2c1ca05a18ed266b53b2594c22fc57fab33c5e
+    Reviewed-on: https://go-review.googlesource.com/32587
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/map.go        | 89 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/pprof/pprof.go      |  4 +-
- src/runtime/pprof/proto.go      | 88 +++++++++++++++-------------------------
- src/runtime/pprof/proto_test.go |  2 +-
- 4 files changed, 125 insertions(+), 58 deletions(-)
+ src/net/http/export_test.go | 12 ++++++++++++
+ src/net/http/serve_test.go  |  3 +++
+ 2 files changed, 15 insertions(+)

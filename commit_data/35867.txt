@@ -1,23 +1,14 @@
-commit adfa8b86915296d1e98ce695420fc6d1faba6eb6
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Sat Jun 30 10:14:49 2018 +0100
+commit e65d6a6abe1ea4731dcb86f02fd7a68e97ed97eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 13 16:08:16 2018 -0700
 
-    cmd/compile: keep autos whose address reaches a phi
+    cmd/compile: document new line directives
     
-    If the address of an auto reaches a phi then any further stores to
-    the pointer represented by the phi probably need to be kept. This
-    is because stores to the other arguments to the phi may be visible
-    to the program.
+    Fixes #24183.
     
-    Fixes #26153.
-    
-    Change-Id: Ic506c6c543bf70d792e5b1a64bdde1e5fdf1126a
-    Reviewed-on: https://go-review.googlesource.com/121796
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I5ef31c4a3aad7e05568b7de1227745d686d4aff8
+    Reviewed-on: https://go-review.googlesource.com/100462
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
- test/fixedbugs/issue26153.go              | 29 +++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/cmd/compile/doc.go | 60 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 46 insertions(+), 14 deletions(-)

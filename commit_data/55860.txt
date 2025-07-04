@@ -1,41 +1,35 @@
-commit 8590f0aef30d1e4d242af97ae15266facb26493b
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Thu Mar 7 10:28:46 2024 +0000
+commit dac514ea370d9a5e5129614c58082fe1905f6dcb
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Mon Mar 20 22:16:21 2023 +0000
 
-    net/http: remove persistConn reference from wantConn
+    runtime: reuse freed memory blocks on wasm
     
-    Transport getConn creates wantConn w, tries to obtain idle connection for it
-    based on the w.key and, when there is no idle connection, puts wantConn into
-    idleConnWait wantConnQueue.
+    When compiling Go programs to WebAssembly, the memory allocation
+    strategy was neither releasing memory to the OS nor reusing blocks freed
+    by calls to runtime.sysFreeOS.
     
-    Then getConn dials connection for w in a goroutine and blocks.
-    After dial succeeds getConn unblocks and returns connection to the caller.
+    This CL unifies the plan9 and wasm memory management strategy
+    since both platforms use a linear memory space and do not have a
+    mechanism for returning memory blocks to the OS.
     
-    At this point w is stored in the idleConnWait and will not be evicted
-    until another wantConn with the same w.key is requested or alive
-    connection returned into the idle pool which may not happen e.g. if
-    server closes the connection.
+    Fixes #59061
     
-    The problem is that even after tryDeliver succeeds w references
-    persistConn wrapper that allocates bufio.Reader and bufio.Writer and
-    prevents them from being garbage collected.
-    
-    To fix the problem this change removes persistConn and error references
-    from wantConn and delivers them via channel to getConn.
-    
-    This way wantConn could be kept in wantConnQueues arbitrary long.
-    
-    Fixes #43966
-    Fixes #50798
-    
-    Change-Id: I77942552f7db04c225fb40d770b3101a8cfe655d
-    GitHub-Last-Rev: 027a0833f98b23ddadb3ec7ee4f2e62653bc7705
-    GitHub-Pull-Request: golang/go#62227
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522095
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I282ba93c0fe1a0961a31c0825b2a7e0478b8713d
+    GitHub-Last-Rev: 1c485be4fb798679fde7db148392de558a6fa97c
+    GitHub-Pull-Request: golang/go#59065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476717
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/transport.go | 125 +++++++++++++++++++++++-----------------------
- 1 file changed, 62 insertions(+), 63 deletions(-)
+ src/runtime/mem_js.go    |  71 ++----------------
+ src/runtime/mem_plan9.go | 174 --------------------------------------------
+ src/runtime/mem_sbrk.go  | 183 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_js.go     |   4 +-
+ src/runtime/os_plan9.go  |   2 +-
+ 5 files changed, 194 insertions(+), 240 deletions(-)

@@ -1,18 +1,54 @@
-commit 3d7392a08f00a7328af45c877dc0b3a431780c5b
-Author: fangguizhen <1297394526@qq.com>
-Date:   Thu May 27 16:11:52 2021 +0000
+commit 6c1c055d1ea417d050503efe92c1eead0da68cef
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 18 23:29:14 2021 -0400
 
-    net/rpc: reduce the execution of reflect and decode
+    cmd/internal/moddeps: use filepath.SkipDir only on directories
     
-    Change-Id: Ief4b5e1c2d1002392901124c0694afe58c271573
-    GitHub-Last-Rev: e3b8a60377becfc9c30178d7ae6131d7a4b82dde
-    GitHub-Pull-Request: golang/go#46421
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323014
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    If a filepath.WalkFunc returns filepath.SkipDir when invoked on a
+    non-directory file, it skips the remaining files in the containing
+    directory.¹
+    
+    CL 276272 accidentally added a code path that triggers this behavior
+    whenever filepath.Walk reaches a non-directory file that begins with
+    a dot, such as .gitattributes or .DS_Store, causing findGorootModules
+    to return early without finding any modules in GOROOT. Tests that use
+    it ceased to provide test coverage that the tree is tidy.
+    
+    Add an explicit check for info.IsDir in the 5 places that intend to
+    use filepath.SkipDir to skip traversing that directory. Even paths
+    like GOROOT/bin and GOROOT/pkg which are unlikely to be anything but
+    a directory are worth checking, since the goal of moddeps is to take
+    a possibly problematic GOROOT tree as input and detect problems.
+    
+    While the goal of findGorootModules is to find all modules in GOROOT
+    programmatically (in case new modules are added or modified), there
+    are 4 modules now that are quite likely to exist, so check for their
+    presence to avoid similar regressions. (It's not hard to update this
+    test if a well-known GOROOT module is removed or otherwise modified;
+    but if it becomes hard we can simplify it to check for a reasonable
+    number of modules instead.)
+    
+    Also fix the minor skew that has crept in since the test got disabled.
+    
+    ¹ This wasn't necessarily an intentional design decision, but it was
+      found only when Go 1.4 was already out. See CL 11690 for details.
+    
+    Fixes #46254.
+    
+    Change-Id: Id55ed926f8c0094b1af923070de72bacca05996f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320991
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/rpc/server.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go   |  36 ++++++--
+ src/go.mod                                 |   2 +-
+ src/go.sum                                 |   4 +-
+ src/net/http/h2_bundle.go                  | 133 ++++++++++++++++++++++-------
+ src/net/http/socks_bundle.go               |   2 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go     |   5 +-
+ src/vendor/golang.org/x/sys/cpu/cpu_aix.go |   1 +
+ src/vendor/modules.txt                     |   2 +-
+ 8 files changed, 137 insertions(+), 48 deletions(-)

@@ -1,42 +1,20 @@
-commit 7b767f4e521c2481e08051c843badd0382fde3b0
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Sep 23 10:03:54 2015 +0200
+commit 04d6edc36debf5e3ec5420f2522f7ef4341bb65e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 18 18:23:34 2015 -0700
 
-    internal/race: add package
+    [dev.ssa] cmd/compile: clean up zeroing.  Use duffzero when appropriate.
     
-    Factor out duplicated race thunks from sync, syscall net
-    and fmt packages into a separate package and use it.
-    
-    Fixes #8593
-    
-    Change-Id: I156869c50946277809f6b509463752e7f7d28cdb
-    Reviewed-on: https://go-review.googlesource.com/14870
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4deb03340e87f43179d5e22bf81843c17b5581fc
+    Reviewed-on: https://go-review.googlesource.com/14756
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/deps.go           | 83 +++++++++++++++++++++---------------------
- src/fmt/fmt_test.go            |  3 +-
- src/fmt/norace_test.go         |  9 -----
- src/fmt/race_test.go           |  9 -----
- src/go/build/deps_test.go      | 11 +++---
- src/internal/race/doc.go       | 11 ++++++
- src/internal/race/norace.go    | 40 ++++++++++++++++++++
- src/internal/race/race.go      | 50 +++++++++++++++++++++++++
- src/net/fd_windows.go          |  9 +++--
- src/net/race.go                | 31 ----------------
- src/net/race0.go               | 26 -------------
- src/sync/cond.go               | 21 ++++++-----
- src/sync/export_test.go        |  2 -
- src/sync/mutex.go              | 13 ++++---
- src/sync/pool.go               |  5 ++-
- src/sync/race.go               | 42 ---------------------
- src/sync/race0.go              | 34 -----------------
- src/sync/rwmutex.go            | 49 +++++++++++++------------
- src/sync/waitgroup.go          | 33 +++++++++--------
- src/sync/waitgroup_test.go     |  3 +-
- src/syscall/race.go            | 30 ---------------
- src/syscall/race0.go           | 25 -------------
- src/syscall/syscall_unix.go    | 19 +++++-----
- src/syscall/syscall_windows.go | 15 ++++----
- 24 files changed, 239 insertions(+), 334 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  27 +-
+ src/cmd/compile/internal/gc/ssa_test.go            |   2 +
+ .../compile/internal/gc/testdata/gen/zeroGen.go    |  88 ++++
+ src/cmd/compile/internal/gc/testdata/zero_ssa.go   | 563 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  53 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  86 ++--
+ src/cmd/compile/internal/ssa/opGen.go              |  11 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |  49 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 417 +++++++++++++--
+ 9 files changed, 1183 insertions(+), 113 deletions(-)

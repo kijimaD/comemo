@@ -1,26 +1,25 @@
-commit f880efcc1666e2b99fbda644eeff258e4a15dd38
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Tue Dec 18 16:32:09 2018 -0800
+commit 78ce3a0368279653d05cbd1003e801363caba75a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 7 20:59:04 2018 -0700
 
-    Revert "runtime: use QPC for nanotime and time.now on windows/arm"
+    reflect: use a bigger object when we need a finalizer to run
     
-    This reverts change https://golang.org/cl/154758.
+    If an object is allocated as part of a tinyalloc, then other live
+    objects in the same tinyalloc chunk keep the finalizer from being run,
+    even if the object that has the finalizer is dead.
     
-    Restore the previous implementations of nanotime and time.now, which
-    are sufficiently high resolution and more efficient than
-    QueryPerformanceCounter. The intent of the change was to improve
-    resolution of tracing timestamps, but the change was overly broad
-    as it was only necessary to fix cputicks(). cputicks() is fixed in
-    a subsequent change.
+    Make sure the object we're setting the finalizer on is big enough
+    to not trigger tinyalloc allocation.
     
-    Updates #26148
+    Fixes #26857
+    Update #21717
     
-    Change-Id: Ib9883d02fe1af2cc4940e866d8f6dc7622d47781
-    Reviewed-on: https://go-review.googlesource.com/c/154761
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I56ad8679426283237ebff20a0da6c9cf64eb1c27
+    Reviewed-on: https://go-review.googlesource.com/128475
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/os_windows.go     |  13 ++---
- src/runtime/sys_windows_arm.s | 109 ++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 110 insertions(+), 12 deletions(-)
+ src/reflect/all_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

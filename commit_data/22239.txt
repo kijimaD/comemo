@@ -1,22 +1,12 @@
-commit a2f3d73fee16ee2a4662593f3bcdd1cdb99a7961
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 20 13:34:03 2015 -0400
+commit deff22dd881319e76604179b5b290fac18d5362f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 19:44:03 2015 -0500
 
-    runtime: improve comment about non-preemption during GC work
+    build: add bootstrap.bash for bootstrapping new systems
     
-    Currently, gcDrainN is documented saying that it must be run on the
-    system stack. In fact, the problem and solution here are somewhat
-    subtler. First, it doesn't have to happen on the system stack, it just
-    has to be non-stoppable (that is, non-preemptible). Second, this isn't
-    specific to gcDrainN (though gcDrainN is perhaps the most surprising
-    instance); it's general to anything that uses the gcWork structure.
-    
-    Move the comment to gcWork and generalize it.
-    
-    Change-Id: I5277b5abb070e47f8d783bc15a310b379c6adc22
-    Reviewed-on: https://go-review.googlesource.com/8247
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ic74830608fe077b4e97e8ce8009017c1e273c672
+    Reviewed-on: https://go-review.googlesource.com/6408
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 3 ---
- src/runtime/mgcwork.go | 7 +++++++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/bootstrap.bash | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

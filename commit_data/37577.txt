@@ -1,35 +1,78 @@
-commit 159797a5fc561b6881faf2656e330049fb11ef8c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 2 11:27:53 2018 -0400
+commit 285747b900ac8e1b006d8d88d876e8a08452b7ef
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Aug 16 03:39:43 2018 +0000
 
-    go/importer: add ForCompiler, which accepts a token.FileSet
+    cmd/compile: optimize ARM's comparision
     
-    The importer.For function logically requires a FileSet, but did not
-    when it was first created because export data did not then record
-    position information. This change adds a new function, ForCompiler,
-    that has an additional FileSet parameter, and deprecates the For
-    function.
+    Since MULA&MULS cost more CPU cycles than MUL, so
+            MUL Rx, Ry, Rd
+            CMP Ra, Rd
+    cost less cycles than
+            MULA Rx, Ry, Ra, Rd
+            CMP $0, Rd
     
-    Before this change, cmd/vet would report confusing spurious
-    positions for token.Pos values produced by the importer.
-    The bug is essentially unfixable in cmd/vet.
+    This CL implement that optimization, and the GobEncode-4 of the go1 benchmark
+    got a little improvement, while other cases got little impact (noise excluded).
     
-    This CL includes a test that the FileSet is correctly populated.
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              25.2s ± 1%     25.2s ± 0%    ~     (p=0.420 n=30+29)
+    Fannkuch11-4                13.3s ± 0%     13.3s ± 0%  +0.03%  (p=0.003 n=27+30)
+    FmtFprintfEmpty-4           406ns ± 0%     405ns ± 0%    ~     (p=0.309 n=30+30)
+    FmtFprintfString-4          672ns ± 0%     670ns ± 0%  -0.32%  (p=0.000 n=29+29)
+    FmtFprintfInt-4             717ns ± 0%     714ns ± 0%  -0.42%  (p=0.000 n=27+22)
+    FmtFprintfIntInt-4         1.07µs ± 0%    1.07µs ± 0%  +0.11%  (p=0.000 n=19+30)
+    FmtFprintfPrefixedInt-4    1.12µs ± 0%    1.12µs ± 0%  -0.43%  (p=0.000 n=23+30)
+    FmtFprintfFloat-4          2.25µs ± 0%    2.25µs ± 0%    ~     (p=0.509 n=29+29)
+    FmtManyArgs-4              4.01µs ± 1%    4.00µs ± 0%  -0.35%  (p=0.000 n=30+30)
+    GobDecode-4                53.6ms ± 4%    51.9ms ± 2%  -3.17%  (p=0.000 n=30+30)
+    GobEncode-4                51.1ms ± 2%    50.6ms ± 2%  -0.98%  (p=0.000 n=30+30)
+    Gzip-4                      2.61s ± 0%     2.61s ± 0%    ~     (p=0.504 n=30+30)
+    Gunzip-4                    312ms ± 0%     312ms ± 0%    ~     (p=0.866 n=30+30)
+    HTTPClientServer-4          977µs ± 7%     974µs ± 8%    ~     (p=0.804 n=30+29)
+    JSONEncode-4                127ms ± 1%     125ms ± 2%  -1.88%  (p=0.000 n=29+29)
+    JSONDecode-4                435ms ± 3%     431ms ± 2%  -0.80%  (p=0.005 n=30+30)
+    Mandelbrot200-4            18.4ms ± 0%    18.4ms ± 0%  -0.02%  (p=0.006 n=29+25)
+    GoParse-4                  22.4ms ± 0%    22.4ms ± 0%    ~     (p=0.105 n=27+29)
+    RegexpMatchEasy0_32-4       753ns ± 0%     753ns ± 0%    ~     (all equal)
+    RegexpMatchEasy0_1K-4      4.32µs ± 0%    4.32µs ± 0%    ~     (p=0.554 n=29+28)
+    RegexpMatchEasy1_32-4       788ns ± 0%     788ns ± 0%    ~     (all equal)
+    RegexpMatchEasy1_1K-4      5.54µs ± 0%    5.55µs ± 0%  +0.03%  (p=0.013 n=29+30)
+    RegexpMatchMedium_32-4     1.08µs ± 0%    1.08µs ± 0%    ~     (p=0.443 n=28+28)
+    RegexpMatchMedium_1K-4      258µs ± 0%     258µs ± 0%    ~     (p=0.932 n=30+28)
+    RegexpMatchHard_32-4       14.8µs ± 0%    14.8µs ± 0%  -0.06%  (p=0.021 n=30+30)
+    RegexpMatchHard_1K-4        442µs ± 0%     442µs ± 0%    ~     (p=0.554 n=29+30)
+    Revcomp-4                  41.7ms ± 1%    41.7ms ± 1%    ~     (p=0.763 n=28+30)
+    Template-4                  528ms ± 1%     528ms ± 0%    ~     (p=0.072 n=30+29)
+    TimeParse-4                3.31µs ± 0%    3.31µs ± 0%    ~     (p=0.215 n=30+30)
+    TimeFormat-4               6.07µs ± 0%    6.07µs ± 0%    ~     (p=0.733 n=30+30)
+    [Geo mean]                  386µs          385µs       -0.29%
     
-    The changes to cmd/vendor will be applied upstream in a follow-up.
+    name                     old speed      new speed      delta
+    GobDecode-4              14.3MB/s ± 4%  14.8MB/s ± 2%  +3.23%  (p=0.000 n=30+30)
+    GobEncode-4              15.0MB/s ± 2%  15.2MB/s ± 2%  +0.99%  (p=0.000 n=30+30)
+    Gzip-4                   7.44MB/s ± 0%  7.44MB/s ± 0%    ~     (p=0.328 n=29+30)
+    Gunzip-4                 62.2MB/s ± 0%  62.2MB/s ± 0%    ~     (p=0.905 n=30+30)
+    JSONEncode-4             15.2MB/s ± 1%  15.5MB/s ± 2%  +1.93%  (p=0.000 n=29+29)
+    JSONDecode-4             4.46MB/s ± 3%  4.50MB/s ± 2%  +0.79%  (p=0.007 n=30+30)
+    GoParse-4                2.58MB/s ± 1%  2.58MB/s ± 1%    ~     (p=0.223 n=29+30)
+    RegexpMatchEasy0_32-4    42.5MB/s ± 0%  42.5MB/s ± 0%    ~     (p=0.964 n=30+30)
+    RegexpMatchEasy0_1K-4     237MB/s ± 0%   237MB/s ± 0%    ~     (p=0.392 n=29+28)
+    RegexpMatchEasy1_32-4    40.6MB/s ± 0%  40.6MB/s ± 0%    ~     (p=0.974 n=30+29)
+    RegexpMatchEasy1_1K-4     185MB/s ± 0%   185MB/s ± 0%  -0.03%  (p=0.012 n=29+30)
+    RegexpMatchMedium_32-4    920kB/s ± 0%   920kB/s ± 0%    ~     (all equal)
+    RegexpMatchMedium_1K-4   3.97MB/s ± 0%  3.97MB/s ± 0%    ~     (all equal)
+    RegexpMatchHard_32-4     2.17MB/s ± 0%  2.17MB/s ± 0%  +0.18%  (p=0.000 n=30+28)
+    RegexpMatchHard_1K-4     2.32MB/s ± 0%  2.32MB/s ± 0%    ~     (all equal)
+    Revcomp-4                61.0MB/s ± 1%  61.0MB/s ± 1%    ~     (p=0.744 n=28+30)
+    Template-4               3.68MB/s ± 1%  3.67MB/s ± 0%    ~     (p=0.147 n=30+29)
+    [Geo mean]               12.7MB/s       12.7MB/s       +0.41%
     
-    Fixes #28995
-    
-    Change-Id: I9271bcb1f28e96845c913e15f0304bac93d4d4c4
-    Reviewed-on: https://go-review.googlesource.com/c/152258
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic6053c350c94e9bf57db16542e1370b848155342
+    Reviewed-on: https://go-review.googlesource.com/129535
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- .../x/tools/go/analysis/unitchecker/unitchecker.go |  7 +++++-
- .../go/analysis/unitchecker/unitchecker112.go      |  9 ++++++++
- src/go/importer/importer.go                        | 18 +++++++++++----
- src/go/importer/importer_test.go                   | 26 +++++++++++++++++++---
- src/go/internal/gcimporter/gcimporter.go           |  6 +----
- src/go/internal/gcimporter/gcimporter_test.go      | 25 ++++++++++++++-------
- 6 files changed, 70 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules |   4 +
+ src/cmd/compile/internal/ssa/rewriteARM.go | 120 +++++++++++++++++++++++++++++
+ 2 files changed, 124 insertions(+)

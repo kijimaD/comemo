@@ -1,22 +1,14 @@
-commit c53de859e25b56d665f59c3bd2844bf5f288ecc3
-Author: Andy Maloney <asmaloney@gmail.com>
-Date:   Mon Aug 3 10:15:52 2015 -0400
+commit 26f12beb5d1828858c365409af23393013c0e4e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 25 05:33:51 2015 +0200
 
-    doc: Mention contributor agreement immediately after Gerrit
+    doc: add a missing space in func signature
     
-    I walked through the steps for a contribution but ended up
-    with an error when doing "git mail" because I didn't have a
-    signed agreement.
+    Fixes #11383
     
-    Added a section to check for or create one through Gerrit right
-    after the user has created the account and logged in.
-    
-    Moved some info from copyright section to the new section.
-    
-    Change-Id: I79bbd3e18fc3a742fa59a242085da14be9e19ba0
-    Reviewed-on: https://go-review.googlesource.com/13062
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I7ef0bb8b535ef513afdfcda19317ae4ff21f7166
+    Reviewed-on: https://go-review.googlesource.com/11490
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/contribute.html | 61 +++++++++++++++++++++++++++++++----------------------
- 1 file changed, 36 insertions(+), 25 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

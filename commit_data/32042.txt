@@ -1,14 +1,38 @@
-commit ced46c628877d9277a70c986467c1aff5f0b412c
-Author: Tony Walker <walkert.uk@gmail.com>
-Date:   Sat Jul 15 22:27:29 2017 +0000
+commit 29be3f1999d1ccf01110f4e1f2d628f54f6c65da
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 9 11:35:42 2017 -0500
 
-    sort: add example for Strings
+    runtime: generalize GC trigger
     
-    Change-Id: I33f0e2362e85287b493d9279d43b760733e2abcb
-    Reviewed-on: https://go-review.googlesource.com/48831
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Currently the GC triggering condition is an awkward combination of the
+    gcMode (whether or not it's gcBackgroundMode) and a boolean
+    "forceTrigger" flag.
+    
+    Replace this with a new gcTrigger type that represents the range of
+    transition predicates we need. This has several advantages:
+    
+    1. We can remove the awkward logic that affects the trigger behavior
+       based on the gcMode. Now gcMode purely controls whether to run a
+       STW GC or not and the gcTrigger controls whether this is a forced
+       GC that cannot be consolidated with other GC cycles.
+    
+    2. We can lift the time-based triggering logic in sysmon to just
+       another type of GC trigger and move the logic to the trigger test.
+    
+    3. This sets us up to have a cycle count-based trigger, which we'll
+       use to make runtime.GC trigger concurrent GC with the desired
+       consolidation properties.
+    
+    For #18216.
+    
+    Change-Id: If9cd49349579a548800f5022ae47b8128004bbfc
+    Reviewed-on: https://go-review.googlesource.com/37516
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/sort/example_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/malloc.go |  6 +++--
+ src/runtime/mgc.go    | 74 ++++++++++++++++++++++++++++++++++++++-------------
+ src/runtime/mheap.go  |  2 +-
+ src/runtime/proc.go   |  6 ++---
+ 4 files changed, 64 insertions(+), 24 deletions(-)

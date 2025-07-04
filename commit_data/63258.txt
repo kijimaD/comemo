@@ -1,0 +1,23 @@
+commit a8e99ab19cbf8568cb452b899d0ed3f0d65848c5
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Fri May 30 16:05:04 2025 -0400
+
+    internal/trace: expose the go version read by the reader
+    
+    This change adds a function to expose the version set by the trace
+    reader after reading the trace header (in tests). The trace validator
+    needs to be able to determine what version of the trace it needs to
+    validate against. Clock snapshot checks have been disabled for
+    Windows and WASM.
+    
+    For #63185
+    
+    Change-Id: Ia3d63e6ed7a5ecd87e63292b84cc417d982aaa5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/export_reader_test.go | 12 ++++++++++++
+ src/internal/trace/reader_test.go        |  5 +++++
+ 2 files changed, 17 insertions(+)

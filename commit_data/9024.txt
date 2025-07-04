@@ -1,60 +1,12 @@
-commit 8bd5089513a668ed3d9600d3cd60e200708bed0d
+commit 6ec6f1ef62e94bd7f443374c2c1fdfbd67e90c32
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jul 12 16:39:38 2011 +1000
+Date:   Tue Jul 12 16:17:02 2011 +1000
 
-    image: change Pix from []FooColor to []uint8.
-    
-    Some benchmark numbers below. The image/draw fast-paths show dramatic
-    improvement, the generic slow-paths show a smaller slow-down.
-    
-    BEFORE
-    png.BenchmarkEncodePaletted      200       8203800 ns/op      37.45 MB/s
-    png.BenchmarkEncodeRGBOpaque         100      26940440 ns/op      45.61 MB/s
-    png.BenchmarkEncodeRGBA       20      73821000 ns/op      16.65 MB/s
-    jpeg.BenchmarkEncodeRGBOpaque         50      35598640 ns/op      34.52 MB/s
-    draw.BenchmarkFillOver       500           4024226 ns/op
-    draw.BenchmarkFillSrc      10000            152736 ns/op
-    draw.BenchmarkCopyOver       500           3452824 ns/op
-    draw.BenchmarkCopySrc      50000             73218 ns/op
-    draw.BenchmarkNRGBAOver      500           3941234 ns/op
-    draw.BenchmarkNRGBASrc      1000           2484400 ns/op
-    draw.BenchmarkYCbCr         1000           2609005 ns/op
-    draw.BenchmarkGlyphOver     2000           1169575 ns/op
-    draw.BenchmarkRGBA           200           9031390 ns/op
-    draw.BenchmarkGenericOver             50          34636620 ns/op
-    draw.BenchmarkGenericMaskOver        100          16561150 ns/op
-    draw.BenchmarkGenericSrc             100          13873760 ns/op
-    draw.BenchmarkGenericMaskSrc         100          25198860 ns/op
-    
-    AFTER
-    png.BenchmarkEncodePaletted      200       8206600 ns/op      37.43 MB/s
-    png.BenchmarkEncodeRGBOpaque         100      26129530 ns/op      47.03 MB/s
-    png.BenchmarkEncodeRGBA       20      75776750 ns/op      16.22 MB/s
-    jpeg.BenchmarkEncodeRGBOpaque         50      37192940 ns/op      33.04 MB/s
-    draw.BenchmarkFillOver       500           3008134 ns/op
-    draw.BenchmarkFillSrc      10000            154214 ns/op
-    draw.BenchmarkCopyOver      1000           2169988 ns/op
-    draw.BenchmarkCopySrc      50000             73095 ns/op
-    draw.BenchmarkNRGBAOver     1000           2491079 ns/op
-    draw.BenchmarkNRGBASrc      2000           1361244 ns/op
-    draw.BenchmarkYCbCr         1000           2554269 ns/op
-    draw.BenchmarkGlyphOver     2000           1042225 ns/op
-    draw.BenchmarkRGBA           100          10233340 ns/op
-    draw.BenchmarkGenericOver             50          38421560 ns/op
-    draw.BenchmarkGenericMaskOver        100          17521190 ns/op
-    draw.BenchmarkGenericSrc             100          16351200 ns/op
-    draw.BenchmarkGenericMaskSrc         100          26538190 ns/op
+    image/draw: add benchmarks.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4675076
+    https://golang.org/cl/4695043
 
- src/pkg/exp/gui/x11/conn.go  |  17 +--
- src/pkg/image/bmp/reader.go  |   9 +-
- src/pkg/image/color.go       |  24 ++--
- src/pkg/image/draw/draw.go   | 263 ++++++++++++++++++-----------------
- src/pkg/image/image.go       | 317 ++++++++++++++++++++++++++-----------------
- src/pkg/image/jpeg/reader.go |  11 +-
- src/pkg/image/jpeg/writer.go |   6 +-
- src/pkg/image/png/writer.go  |  20 ++-
- 8 files changed, 369 insertions(+), 298 deletions(-)
+ src/pkg/image/draw/bench_test.go | 206 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 206 insertions(+)

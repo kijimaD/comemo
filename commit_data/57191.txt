@@ -1,25 +1,22 @@
-commit d2b6bdb0350e9b2b8f704b214ce5936b72de043d
-Author: Paschalis T <paschalis.tsilias@gmail.com>
-Date:   Fri Aug 16 01:29:18 2024 +0300
+commit b4872ea187ded651edcfdcf1299de0b14999101b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 12 09:53:49 2023 -0400
 
-    math/rand: make calls to Seed no-op
+    cmd/go: fix go get go@badversion
     
-    Makes calls to the global Seed a no-op. The GODEBUG=randseednop=0
-    setting can be used to revert this behavior.
+    It was panicking instead of printing a nice error.
     
-    Fixes #67273
+    Fixes #61258.
+    Fixes #61259.
     
-    Change-Id: I79c1b2b23f3bc472fbd6190cb916a9d7583250f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606055
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia30853db5bc7f1f2a4c7e91169c659ae2b79adcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509097
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/godebug.md                                |  7 ++++++
- doc/next/6-stdlib/99-minor/math/rand/67273.md |  3 +++
- src/internal/godebugs/table.go                |  1 +
- src/math/rand/rand.go                         | 11 ++++++++
- src/math/rand/rand_test.go                    | 36 +++++++++++++++++++++++++++
- src/runtime/metrics/doc.go                    |  4 +++
- 6 files changed, 62 insertions(+)
+ src/cmd/go/internal/modfetch/toolchain.go        | 30 +++++++++++++----
+ src/cmd/go/internal/modget/query.go              |  5 ++-
+ src/cmd/go/internal/modload/query.go             |  6 +++-
+ src/cmd/go/testdata/script/mod_get_toolchain.txt | 43 +++++++++++++++++++-----
+ 4 files changed, 67 insertions(+), 17 deletions(-)

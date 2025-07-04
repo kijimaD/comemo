@@ -1,20 +1,22 @@
-commit 37b15baa3b884d5de8563f91be2afa3659e8258f
-Author: Tim Wright <tenortim@gmail.com>
-Date:   Sat Nov 4 19:35:23 2017 -0700
+commit 0d65cd6c1c2b9bebb461e34b365e2de8ed375592
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Aug 5 20:03:32 2017 +0900
 
-    syscall: fix NaCl Link syscall error handling
+    cmd/internal/obj/x86: don't apply workaround for solaris to darwin
     
-    The existing NaCl filesystem Link system call erroneously allowed
-    a caller to call Link on an existing target which violates the POSIX
-    standard and effectively corrupted the internal filesystem
-    representation.
+    Currently, we have a workaround for solaris that enforce aboslute
+    addressing for external symbols. However, We don't want to use the
+    workaround for darwin.
+    This CL also refactors code a little bit, because the original function
+    name is not appropriate now.
     
-    Fixes #22383
+    Updates #17490
     
-    Change-Id: I77b16c37af9bf00a1799fa84277f066180edac47
-    Reviewed-on: https://go-review.googlesource.com/76110
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id21f9cdf33dca6a40647226be49010c2c324ee24
+    Reviewed-on: https://go-review.googlesource.com/54871
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/os_test.go      | 21 +++++++++++++++++++++
- src/syscall/fs_nacl.go |  4 ++++
- 2 files changed, 25 insertions(+)
+ src/cmd/internal/obj/x86/asm6.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

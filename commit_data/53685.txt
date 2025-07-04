@@ -1,24 +1,19 @@
-commit 089e37a931d30d4055c7468facb602c4cfa9b537
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Jun 30 13:48:10 2023 -0700
+commit 9da49a7d2e47919ecbf54e75bfc15ffb022cf1d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 24 14:25:11 2022 +0200
 
-    bytes: remove builders check from compare test
+    time: use internal/itoa
     
-    TestCompareBytes already took into account the -short
-    testing flag, however, only if not run on one of the Go builders.
-    This extra condition is no longer necessary as we have much
-    better longtest coverage than we did when the check was added.
+    In initLocal for GOOS=js, use internal/itoa introduced in CL 301549
+    instead of a local implementation.
     
-    Fixes #61071
-    
-    Change-Id: I0fc716f4e7baa04019ee00608f223f27c931edcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507416
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: If107d5cf0ce56f4d926507db2cbd6da422c6d15a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425302
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/compare_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/time/zoneinfo_js.go | 26 +++-----------------------
+ 1 file changed, 3 insertions(+), 23 deletions(-)

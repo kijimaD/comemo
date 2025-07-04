@@ -1,29 +1,28 @@
-commit 1abe9c1c73739786bb927342c4072e229affea8f
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Jan 5 15:20:50 2022 -0800
+commit 492eb059f9ce08285fae8284e69b1103b63e879e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Apr 16 13:34:37 2021 -0400
 
-    cmd/compile: print "internal compiler error" message for all compiler panics
+    cmd/go: fix mod_install_pkg_version
     
-    Change hidePanic (now renamed handlePanic) to print out the "internal
-    compiler error" message for all panics and runtime exceptions, similar
-    to what we already do for the SSA backend in ssa.Compile().
+    mainPackagesOnly now includes non-main packages matched by literal
+    arguments in the returned slice, since their errors must be reported.
     
-    Previously, hidePanic would not catch panics/exceptions unless it wanted
-    to completely hide the panic because there had already been some
-    compiler errors.
+    GoFilesPackages attaches the same error to its package if
+    opts.MainOnly is true. This changes the error output of 'go run'
+    slightly, but it seems like an imporovement.
     
-    Tested by manually inserting a seg fault in the compiler, and verifying
-    that the seg fault is cause and "internal compiler error" message (with
-    stack trace) is displayed proeprly.
+    For #42088
     
-    Updates #50423
-    
-    Change-Id: Ibe846012e147fcdcc63ac147aae4bdfc47bf5a58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376057
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8f2942470383af5d4c9763022bc94338f5314b07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310829
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    | 32 ++++++++++++++++++----
+ src/cmd/go/internal/run/run.go                     |  7 ++---
+ .../go/testdata/script/mod_install_pkg_version.txt |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |  4 ---
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt |  5 ++++
+ 5 files changed, 34 insertions(+), 16 deletions(-)

@@ -1,21 +1,130 @@
-commit a06b08e7d1837df636d24f945fe9b3b2a369b450
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 2 17:20:15 2021 -0400
+commit 5abba0c73723a843315c0f7ed014617445af6243
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 15 12:59:05 2020 -0400
 
-    cmd/internal/obj/ppc64: simplify huge frame prologue
+    cmd/go: prepare tests for GO111MODULE=on by default
     
-    CL 307010 for ppc64.
+    Set GO111MODULE=off explicitly in tests specific to GOPATH mode.
     
-    I spent a long time trying to figure out how to use the carry bit from
-    ADDCCC to further simplify this (like what we do on arm64), but gave
-    up after I couldn't figure out how to access the carry bit without
-    just adding more instructions.
+    Added a go.mod file to other tests that assumed GOPATH mode.
     
-    Change-Id: I6cad51b93616865b203cb16554f16121375aabbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307149
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixed an issue in the build metadata file generated in
+    modload/build.go, which did not end with a newline. This broke the
+    build_dash_x test, which expects to be able to run the script printed
+    by 'go build -x' to produce the same result. The script is broken if
+    the build metadata file doesn't end with a newline.
+    
+    Change-Id: I59f2a492a9f5a66f6c4aa702f429909d5c5e815d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255051
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/obj/ppc64/obj9.go | 103 ++++++++++++++++---------------------
- 1 file changed, 44 insertions(+), 59 deletions(-)
+ src/cmd/go/internal/modload/build.go               |  4 +-
+ .../go/testdata/script/build_cache_arch_mode.txt   | 10 ++--
+ .../go/testdata/script/build_cache_disabled.txt    |  8 ++-
+ .../testdata/script/build_cd_gopath_different.txt  |  1 +
+ .../script/build_cgo_consistent_results.txt        |  6 ++-
+ src/cmd/go/testdata/script/build_dash_x.txt        |  2 +-
+ src/cmd/go/testdata/script/build_exe.txt           | 12 +++--
+ src/cmd/go/testdata/script/build_gopath_order.txt  |  3 +-
+ .../go/testdata/script/build_import_comment.txt    | 57 +++++++++++++++-------
+ src/cmd/go/testdata/script/build_import_cycle.txt  |  3 ++
+ src/cmd/go/testdata/script/build_internal.txt      | 45 ++++++++++++-----
+ src/cmd/go/testdata/script/build_issue6480.txt     |  8 ++-
+ .../script/build_link_x_import_path_escape.txt     |  8 ++-
+ src/cmd/go/testdata/script/build_n_cgo.txt         |  4 ++
+ src/cmd/go/testdata/script/build_no_go.txt         |  4 ++
+ src/cmd/go/testdata/script/build_output.txt        |  8 ++-
+ .../script/build_patterns_outside_gopath.txt       |  9 +++-
+ .../go/testdata/script/build_plugin_non_main.txt   | 17 +++----
+ src/cmd/go/testdata/script/build_test_only.txt     |  8 ++-
+ src/cmd/go/testdata/script/build_vendor.txt        |  1 +
+ src/cmd/go/testdata/script/cgo_asm_error.txt       |  8 ++-
+ src/cmd/go/testdata/script/cgo_bad_directives.txt  | 43 ++++++++--------
+ .../go/testdata/script/cgo_depends_on_syscall.txt  |  6 ++-
+ src/cmd/go/testdata/script/cover_asm.txt           | 10 ++--
+ .../go/testdata/script/cover_blank_func_decl.txt   | 10 ++--
+ src/cmd/go/testdata/script/cover_cgo.txt           |  8 ++-
+ .../go/testdata/script/cover_cgo_extra_file.txt    | 12 +++--
+ .../go/testdata/script/cover_cgo_extra_test.txt    | 12 +++--
+ src/cmd/go/testdata/script/cover_cgo_xtest.txt     | 10 ++--
+ src/cmd/go/testdata/script/cover_dash_c.txt        | 10 ++--
+ src/cmd/go/testdata/script/cover_dep_loop.txt      | 10 ++--
+ src/cmd/go/testdata/script/cover_dot_import.txt    | 20 +++++---
+ src/cmd/go/testdata/script/cover_error.txt         | 18 ++++---
+ .../go/testdata/script/cover_import_main_loop.txt  | 10 ++--
+ src/cmd/go/testdata/script/cover_pattern.txt       | 10 ++--
+ src/cmd/go/testdata/script/cover_statements.txt    |  4 ++
+ .../testdata/script/cover_sync_atomic_import.txt   | 12 +++--
+ .../go/testdata/script/generate_bad_imports.txt    |  6 ++-
+ src/cmd/go/testdata/script/generate_invalid.txt    |  6 ++-
+ .../testdata/script/get_custom_domain_wildcard.txt |  3 +-
+ src/cmd/go/testdata/script/get_dash_t.txt          |  3 +-
+ src/cmd/go/testdata/script/get_domain_root.txt     |  3 +-
+ .../go/testdata/script/get_dot_slash_download.txt  |  3 +-
+ src/cmd/go/testdata/script/get_goroot.txt          |  3 +-
+ .../testdata/script/get_insecure_custom_domain.txt |  3 +-
+ src/cmd/go/testdata/script/get_insecure_update.txt |  3 +-
+ .../go/testdata/script/get_internal_wildcard.txt   |  3 +-
+ src/cmd/go/testdata/script/get_issue11307.txt      |  3 +-
+ .../script/{mod_get_legacy.txt => get_legacy.txt}  |  3 +-
+ src/cmd/go/testdata/script/get_race.txt            |  3 +-
+ src/cmd/go/testdata/script/get_test_only.txt       |  3 +-
+ src/cmd/go/testdata/script/get_update.txt          |  3 +-
+ .../script/get_update_unknown_protocol.txt         |  3 +-
+ src/cmd/go/testdata/script/get_update_wildcard.txt |  3 +-
+ .../go/testdata/script/get_vcs_error_message.txt   |  1 +
+ src/cmd/go/testdata/script/get_vendor.txt          |  3 +-
+ .../go/testdata/script/gopath_vendor_dup_err.txt   |  1 +
+ .../go/testdata/script/install_cgo_excluded.txt    |  6 ++-
+ .../script/install_relative_gobin_fail.txt         |  6 ++-
+ .../go/testdata/script/install_shadow_gopath.txt   |  3 +-
+ .../go/testdata/script/link_syso_issue33139.txt    |  6 ++-
+ src/cmd/go/testdata/script/list_case_collision.txt | 22 +++++----
+ src/cmd/go/testdata/script/list_dedup_packages.txt |  1 +
+ src/cmd/go/testdata/script/list_symlink.txt        |  1 +
+ .../go/testdata/script/list_symlink_internal.txt   |  3 +-
+ .../script/list_symlink_vendor_issue14054.txt      |  3 +-
+ .../script/list_symlink_vendor_issue15201.txt      |  3 +-
+ src/cmd/go/testdata/script/list_test_simple.txt    | 20 ++++----
+ .../script/list_wildcard_skip_nonmatching.txt      | 16 +++---
+ src/cmd/go/testdata/script/load_test_pkg_err.txt   | 12 +++--
+ src/cmd/go/testdata/script/run_hello_pkg.txt       |  9 ++--
+ src/cmd/go/testdata/script/run_vendor.txt          |  1 +
+ .../go/testdata/script/test_benchmark_fatal.txt    |  6 ++-
+ .../go/testdata/script/test_benchmark_labels.txt   |  6 ++-
+ src/cmd/go/testdata/script/test_build_failure.txt  | 10 ++--
+ src/cmd/go/testdata/script/test_deadline.txt       |  4 ++
+ src/cmd/go/testdata/script/test_empty.txt          |  4 ++
+ src/cmd/go/testdata/script/test_example_goexit.txt |  6 ++-
+ .../go/testdata/script/test_import_error_stack.txt | 11 +++++
+ src/cmd/go/testdata/script/test_json.txt           | 18 ++++---
+ src/cmd/go/testdata/script/test_main_twice.txt     |  6 ++-
+ .../script/test_match_no_tests_build_failure.txt   |  8 ++-
+ src/cmd/go/testdata/script/test_no_run_example.txt |  8 ++-
+ src/cmd/go/testdata/script/test_no_tests.txt       |  6 ++-
+ src/cmd/go/testdata/script/test_race.txt           |  6 ++-
+ .../script/test_race_cover_mode_issue20435.txt     |  6 ++-
+ src/cmd/go/testdata/script/test_race_install.txt   |  6 ++-
+ .../go/testdata/script/test_race_install_cgo.txt   |  6 ++-
+ src/cmd/go/testdata/script/test_regexps.txt        |  8 ++-
+ .../go/testdata/script/test_relative_import.txt    |  3 +-
+ .../script/test_relative_import_dash_i.txt         |  3 +-
+ .../script/test_syntax_error_says_fail.txt         | 11 +++++
+ src/cmd/go/testdata/script/test_vendor.txt         | 12 ++++-
+ src/cmd/go/testdata/script/test_vet.txt            | 16 +++---
+ .../script/test_write_profiles_on_timeout.txt      |  9 ++--
+ .../go/testdata/script/test_xtestonly_works.txt    |  8 ++-
+ src/cmd/go/testdata/script/testing_issue40908.txt  |  6 ++-
+ .../testdata/script/vendor_gopath_issue11409.txt   |  1 +
+ src/cmd/go/testdata/script/vendor_import.txt       |  1 +
+ src/cmd/go/testdata/script/vendor_import_wrong.txt | 11 +++++
+ src/cmd/go/testdata/script/vendor_issue12156.txt   |  1 +
+ .../go/testdata/script/vendor_list_issue11977.txt  |  3 +-
+ src/cmd/go/testdata/script/vendor_resolve.txt      |  1 +
+ .../go/testdata/script/vendor_test_issue11864.txt  |  3 +-
+ .../go/testdata/script/vendor_test_issue14613.txt  |  1 +
+ src/cmd/go/testdata/script/vet.txt                 | 18 ++++---
+ 106 files changed, 596 insertions(+), 242 deletions(-)

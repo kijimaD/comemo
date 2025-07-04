@@ -1,15 +1,21 @@
-commit f8dde60e2b70f6edccfec63980ef7e2b59fe9652
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Apr 20 10:04:13 2012 -0400
+commit eea5a432cb629670522dc2903d3c464b58652fee
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Apr 20 15:48:13 2012 +1000
 
-    doc: don't wrap package names in directory listing
+    exp/html: start making inBodyIM match the spec
     
-    Fixes #3522.
+    Reorder some start tags.
     
-    R=golang-dev, dsymonds
+    Improve handling of </body>.
+    Handle </html>.
+    
+    Pass 2 additional tests (by handling </html>).
+    
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6063054
+    https://golang.org/cl/6082043
 
- doc/style.css          | 5 +++--
- lib/godoc/package.html | 4 ++--
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/exp/html/parse.go                  | 56 +++++++++++++++++-------------
+ src/pkg/exp/html/testlogs/tests15.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
+ 3 files changed, 33 insertions(+), 27 deletions(-)

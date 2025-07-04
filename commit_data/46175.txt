@@ -1,25 +1,18 @@
-commit eb6a07fcf99050c447097a8ff6358c484c0f8715
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 26 12:05:45 2021 -0700
+commit 2b76429eb01ec1752f7622e3011babd7140ab870
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 24 18:09:00 2020 -0500
 
-    cmd/compile: unexport Type.Vargen
+    [dev.regabi] cmd/compile: refactor type initialization code into helper
     
-    This field is only used outside of packages types in two places, and
-    they follow the same pattern. So this CL creates a Type.Setvargen
-    function that they can use instead, so that Type.Vargen can be
-    unexported.
+    Create a helper routine for initializing the types package, so as make
+    it easier to use in unit testing (in a follow-on patch).
     
-    A bit clumsy, but it works for now.
-    
-    Change-Id: I7b4f33fac635e2464df2fbc0607ab40902f6f09f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345469
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I0f937788dfd34ac6641a4f28c16e47008aa08116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273010
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/decl.go          |  3 +--
- src/cmd/compile/internal/typecheck/typecheck.go |  8 +-------
- src/cmd/compile/internal/types/fmt.go           |  4 ++--
- src/cmd/compile/internal/types/type.go          | 25 ++++++++++++++++++++++---
- 4 files changed, 26 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

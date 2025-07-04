@@ -1,17 +1,18 @@
-commit 8159b6901f0f18f213897f27d5bd4806c3e18ee2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 28 11:16:55 2013 -0700
+commit cbea724378e1586cd92f1fffddcad61af893ba1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 28 12:53:59 2013 +1000
 
-    time: add more docs on Sleep
+    sync: improve once.Do documentation readability
     
-    Merge the comment from runtime/time.goc ("at least")
-    and also note that negative is okay and won't crash.
-    I see people going out of their way to avoid passing
-    a negative value to Sleep.
+    The previous wording, though accurate, was hard to parse.
+    In particular, it was tempting to interpret "the method"
+    as referring to "the function f" instead of "Do", and
+    required effort to find the correct antecedent for
+    "this receiver".
     
-    R=golang-dev, adg, r, alex.brainman
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/13271045
+    https://golang.org/cl/13307043
 
- src/pkg/time/sleep.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/sync/once.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

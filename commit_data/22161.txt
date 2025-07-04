@@ -1,19 +1,33 @@
-commit 546a54bb2e96f9561e71acf5e70df466056aefaf
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Mar 24 11:18:46 2015 -0400
+commit 3c8a89daf3a05a1dd98075a733db7a20bef2dc5c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 25 14:41:21 2015 +0900
 
-    runtime: Remove write barrier on g
+    runtime: simplify CPU profiling code
     
-    There are calls to stdcall when the GC thinks the world is stopped
-    and stdcall write a *g for the CPU profiler. This produces a write
-    barrier but the GC is not prepared to deal with write barriers when
-    it thinks the world is stopped. Since the g is on allg it does not
-    need a write barrier to keep it alive so eliminate the write barrier.
+    This makes Go's CPU profiling code somewhat more idiomatic; e.g.,
+    using := instead of forward declaring variables, using "int" for
+    element counts instead of "uintptr", and slices instead of C-style
+    pointer+length.  This makes the code easier to read and eliminates a
+    lot of type conversion clutter.
     
-    Change-Id: I937633409a66553d7d292d87d7d58caba1fad0b6
-    Reviewed-on: https://go-review.googlesource.com/7979
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Rick Hudson <rlh@golang.org>
+    Additionally, in sigprof we can collect just maxCPUProfStack stack
+    frames, as cpuprof won't use more than that anyway.
+    
+    Change-Id: I0235b5ae552191bcbb453b14add6d8c01381bd06
+    Reviewed-on: https://go-review.googlesource.com/6072
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/os1_windows.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/cpuprof.go       | 34 +++++++++++++++-------------------
+ src/runtime/extern.go        |  4 ++--
+ src/runtime/mprof.go         |  6 +++---
+ src/runtime/os1_windows.go   |  2 +-
+ src/runtime/proc1.go         | 32 ++++++++++++++------------------
+ src/runtime/signal_386.go    |  2 +-
+ src/runtime/signal_amd64x.go |  2 +-
+ src/runtime/signal_arm.go    |  2 +-
+ src/runtime/signal_ppc64x.go |  2 +-
+ src/runtime/trace.go         |  4 ++--
+ src/runtime/traceback.go     | 18 +++++++++---------
+ 11 files changed, 50 insertions(+), 58 deletions(-)

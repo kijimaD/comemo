@@ -1,27 +1,12 @@
-commit 654f35865fbbb595593e245887e58ba50d213f9c
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Thu Aug 8 16:33:57 2013 -0700
+commit b379b32f31b13381308887fcf02ca52b937a0f07
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 15:25:15 2013 -0700
 
-    net: avoid string operation and make valid domain names explicit
+    cmd/api: add a benchmark over the standard library
     
-    Having a trailing dot in the string doesn't really simplify
-    the checking loop in isDomainName. Avoid this unnecessary allocation.
-    Also make the valid domain names more explicit by adding some more
-    test cases.
-    
-    benchmark            old ns/op    new ns/op    delta
-    BenchmarkDNSNames       2420.0        983.0  -59.38%
-    
-    benchmark           old allocs   new allocs    delta
-    BenchmarkDNSNames           12            0  -100.00%
-    
-    benchmark            old bytes    new bytes    delta
-    BenchmarkDNSNames          336            0  -100.00%
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/12662043
+    https://golang.org/cl/12603045
 
- src/pkg/net/dnsclient.go    | 12 ++++++------
- src/pkg/net/dnsname_test.go | 20 +++++++++++++++++++-
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ src/cmd/api/goapi_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

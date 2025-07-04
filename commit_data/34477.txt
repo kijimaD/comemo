@@ -1,17 +1,16 @@
-commit 9745397e1d5e84258887995fc3af6d9d3a5b0409
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 6 14:30:26 2018 +0100
+commit 0129e0d6ea275bacbbeff0ce051798a929c6562c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 26 23:11:32 2017 -0400
 
-    runtime: fix stack switch check in walltime/nanotime on linux/arm
+    misc/cgo/testshared: disable TestTwoGopathShlibsGccgo
     
-    CL 98095 got the check wrong. We should be testing
-    'getg() == getg().m.curg', not 'getg().m == getg().m.curg'.
+    For #22224.
     
-    Change-Id: I32f6238b00409b67afa8efe732513d542aec5bc7
-    Reviewed-on: https://go-review.googlesource.com/98855
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Iae873fddc72a79a96a32eaeb5d4dd885eaf810cb
+    Reviewed-on: https://go-review.googlesource.com/73851
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_linux_arm.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testshared/shared_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,16 +1,46 @@
-commit 915126bb911d0cb40f02e9775f2cf7c726f47299
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Tue Aug 29 18:56:59 2017 +0900
+commit e41fb5591fa02f69b046a14048215f2d96414f96
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 3 07:45:20 2017 -0700
 
-    net/http: make startBackgroundRead panic if hijacked
+    cmd/compile: avoid panic when printing *<N>
     
-    Fixes #20933
+    When compiling the program:
     
-    Change-Id: I827c8d265674a7448c51c1da991e9b3b4501ba11
-    Reviewed-on: https://go-review.googlesource.com/59850
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    package p
+    
+    func _(){
+            *;:=
+    }
+    
+    Before:
+    
+    x.go:4:3: syntax error: unexpected semicolon, expecting expression
+    x.go:4:4: non-name *%!v(PANIC=runtime error: invalid memory address or nil pointer dereference) on left side of :=
+    x.go:5:1: syntax error: unexpected }, expecting expression
+    
+    After:
+    
+    x.go:4:3: syntax error: unexpected semicolon, expecting expression
+    x.go:4:4: non-name *<N> on left side of :=
+    x.go:5:1: syntax error: unexpected }, expecting expression
+    
+    No test because:
+    
+    (1) we don't have a good mechanism to check for the
+        absence of the string "PANIC" in an error message
+    (2) the string "*<N>", while better, is itself ugly enough
+        that I don't want to actively check for it
+    (3) the bug isn't very important, the kind of thing only fuzzers encounter
+    (4) the fix is obvious and trivial
+    
+    Fixes #20220
+    
+    Change-Id: I35faa986b60b671414ee999d6264b06937f250e3
+    Reviewed-on: https://go-review.googlesource.com/42498
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

@@ -1,23 +1,12 @@
-commit 0e435347b1ed888f51706d5467fabb829292a5ff
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Sep 10 14:05:31 2016 -0700
+commit 114051aa1d5da5dec1b2707b1403261a3135b9b5
+Author: Johan Sageryd <j@1616.se>
+Date:   Sun May 8 18:06:03 2016 +0200
 
-    cmd: fix format strings used with obj.Headtype
+    text/template: fix typo in documentation
     
-    Found by vet. Introduced by CL 28853.
-    
-    Change-Id: I3199e0cbdb1c512ba29eb7e4d5c1c98963f5a954
-    Reviewed-on: https://go-review.googlesource.com/28957
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I4ccfaa16e153aad001d670891b3848264e63cf6f
+    Reviewed-on: https://go-review.googlesource.com/23031
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go    | 8 ++++----
- src/cmd/link/internal/amd64/obj.go  | 2 +-
- src/cmd/link/internal/arm/obj.go    | 2 +-
- src/cmd/link/internal/arm64/obj.go  | 2 +-
- src/cmd/link/internal/ld/data.go    | 2 +-
- src/cmd/link/internal/ld/sym.go     | 2 +-
- src/cmd/link/internal/mips64/obj.go | 2 +-
- src/cmd/link/internal/ppc64/obj.go  | 2 +-
- src/cmd/link/internal/x86/obj.go    | 2 +-
- 9 files changed, 12 insertions(+), 12 deletions(-)
+ src/text/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

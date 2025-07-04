@@ -1,15 +1,16 @@
-commit 940932056ecd61d6da7e5babb439c0ac6bf1d296
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 8 13:59:34 2011 -0400
+commit 72dcab1c40f5160e6bbcc5f26887c8f08b2f5d28
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 10:37:26 2011 -0700
 
-    syscall: add route flags for linux
+    godoc: fix local link for factory functions
     
-    R=golang-dev
+    - fix suggested by rodrigo.moraes
+    
+    Fixes #1755.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4956069
+    https://golang.org/cl/4977057
 
- src/pkg/syscall/mkerrors.sh            |  3 ++-
- src/pkg/syscall/zerrors_linux_386.go   | 41 ++++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_amd64.go | 41 ++++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_arm.go   | 41 ++++++++++++++++++++++++++++++++++
- 4 files changed, 125 insertions(+), 1 deletion(-)
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

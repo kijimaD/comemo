@@ -1,24 +1,18 @@
-commit af6aa0fd745d48c2db70712ebfe6833d30a9a85d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 11:54:24 2016 -0400
+commit 5630cb7518140e58174db7c0db40f16d982ba647
+Author: Dave Day <djd@golang.org>
+Date:   Wed Mar 16 10:24:03 2016 +1100
 
-    cmd/go, go/build: add support for binary-only packages
+    net: make SplitHostPort return an empty host on error
     
-    See https://golang.org/design/2775-binary-only-packages for design.
+    This change also refactors SplitHostPort to avoid using gotos and
+    naked returns.
     
-    Fixes #2775.
+    Fixes #14827
     
-    Change-Id: I33e74eebffadc14d3340bba96083af0dec5172d5
-    Reviewed-on: https://go-review.googlesource.com/22433
+    Change-Id: I4dca528936757fd06da76c23af8a0f6175bbedd1
+    Reviewed-on: https://go-review.googlesource.com/20726
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/build.go        |  8 ++++++
- src/cmd/go/go_test.go      | 68 ++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/help.go         | 10 ++++++-
- src/cmd/go/list.go         |  2 ++
- src/cmd/go/pkg.go          | 43 ++++++++++++++++++++---------
- src/go/build/build.go      | 40 +++++++++++++++++++++++----
- src/go/build/build_test.go |  6 ++--
- src/go/build/doc.go        | 22 +++++++++++++++
- 8 files changed, 177 insertions(+), 22 deletions(-)
+ src/net/ip_test.go |  5 ++++-
+ src/net/ipsock.go  | 42 +++++++++++++++++-------------------------
+ 2 files changed, 21 insertions(+), 26 deletions(-)

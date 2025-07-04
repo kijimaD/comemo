@@ -1,15 +1,12 @@
-commit 5b2cd445fbc586e6a1c12420436a5523cd9f8d78
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu May 31 09:10:03 2012 +1000
+commit aad8e954740ee21333f60a673b0b77b2c2718923
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 31 06:12:24 2012 +0900
 
-    cmd/go: add -ccflags
+    net: fix test to avoid unintentional nil pointer dereference
     
-    Add -ccflags to pass arguments to {5,6,8}c
-    similar to -gcflags for {5,6,8}g.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6260047
+    https://golang.org/cl/6248065
 
- src/cmd/go/build.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/net/unicast_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

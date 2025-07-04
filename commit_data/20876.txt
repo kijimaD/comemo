@@ -1,14 +1,13 @@
-commit 9bc842ca180d88d3cf4956b37dadcc21c53eded8
+commit ecd1cc173aed7360ce1c9e7454e5b0b548728c18
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 9 20:20:26 2014 -0500
+Date:   Wed Oct 22 10:51:30 2014 -0400
 
-    cmd/dist: remove old misc/pprof
+    CONTRIBUTORS: add Austin Clements's google.com email (Google CLA)
     
-    LGTM=dave, bradfitz, r, alex.brainman
-    R=r, dave, bradfitz, alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/167350043
+    LGTM=bradfitz, austin
+    R=austin
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/158330045
 
- misc/pprof           | 5100 --------------------------------------------------
- src/cmd/dist/build.c |    9 -
- 2 files changed, 5109 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

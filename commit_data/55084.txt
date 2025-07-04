@@ -1,24 +1,21 @@
-commit d7fcb5cf80953f1d63246f1ae9defa60c5ce2d76
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Tue Dec 13 16:30:45 2022 +0800
+commit 2321abc5e9e3fab42384347a95209082fa53013a
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Dec 21 09:50:48 2022 -0800
 
-    cmd/dist, cmd/link, internal, runtime: implement buildmode=plugin for linux/loong64
+    archive/tar, archive/zip: revert documentation of ErrInsecurePath
     
-    According to review, buildmode=shared has unfixed shortcomings and
-    should be considered legacy at this time. So only buildmode=plugin is
-    going to be added for loong64 which is a relatively new platform.
+    CL 452616 disables path security checks by default, enabling them
+    only when GODEBUG=tarinsecurepath=0 or GODEBUG=zipinsecurepath=0
+    is set. Remove now-obsolete documenation of the path checks.
     
-    Change-Id: Iac0b9f57e4ee01755458e180bb24d1b2a146fdf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480878
+    For #55356
+    
+    Change-Id: I4ae57534efe9e27368d5e67773a502dd0e56eff4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458875
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/dist/test.go                 |  2 +-
- src/cmd/link/internal/loong64/asm.go | 42 +++++++++++++++++++++++++++++++++++-
- src/internal/platform/supported.go   |  2 +-
- src/runtime/asm_loong64.s            | 11 ++++++++++
- 4 files changed, 54 insertions(+), 3 deletions(-)
+ src/archive/tar/reader.go |  9 ---------
+ src/archive/zip/reader.go | 11 -----------
+ 2 files changed, 20 deletions(-)

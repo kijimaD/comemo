@@ -1,21 +1,45 @@
-commit b5af5c0834a57751fae78fefc922f5e9f5b50941
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 15 13:22:45 2022 -0500
+commit 6d95e5a4ff9f2ffa12ca225974d0ce45fd2504d4
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Feb 11 13:54:45 2021 +0000
 
-    runtime: enable sigPerThreadSyscall handling on android
+    encoding/csv: add FieldPos method
     
-    CL 383434 forgot to enable these paths for android, which is still linux
-    just not via GOOS.
+    This enables a consumer of a CSV to find out the position
+    of a CSV field without implementing an intermediate buffer.
+    This is useful to produce good higher level error messages when
+    the CSV syntax is OK but the field values don't match expectations.
     
-    Fixes #51213.
+    This also changes the existing semantics of the `ParseError.Column`
+    field to bring it in line with precedent elsewhere in the Go
+    standard library (notably go/token.Position) - the column is
+    now 1-based and indicates a byte count rather than a rune count,
+    and the error position reporting at the end of a last line without
+    a newline is now fixed.
     
-    Change-Id: I102e53e8671403ded6edb4ba04789154d7a0730b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385954
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This change has some impact on performance:
+    
+    ```
+    name                                     old time/op    new time/op    delta
+    Read-8                                     2.14µs ± 0%    2.15µs ± 0%    ~     (p=0.056 n=5+5)
+    ReadWithFieldsPerRecord-8                  2.15µs ± 2%    2.15µs ± 1%    ~     (p=0.151 n=5+5)
+    ReadWithoutFieldsPerRecord-8               2.15µs ± 0%    2.15µs ± 0%  +0.37%  (p=0.024 n=5+5)
+    ReadLargeFields-8                          3.55µs ± 2%    3.59µs ± 0%    ~     (p=0.206 n=5+5)
+    ReadReuseRecord-8                          1.18µs ± 1%    1.22µs ± 1%  +2.93%  (p=0.008 n=5+5)
+    ReadReuseRecordWithFieldsPerRecord-8       1.18µs ± 0%    1.21µs ± 0%  +2.54%  (p=0.008 n=5+5)
+    ReadReuseRecordWithoutFieldsPerRecord-8    1.18µs ± 0%    1.22µs ± 1%  +3.66%  (p=0.008 n=5+5)
+    ReadReuseRecordLargeFields-8               2.53µs ± 1%    2.57µs ± 1%  +1.70%  (p=0.008 n=5+5)
+    Write-8                                    1.02µs ± 1%    1.01µs ± 0%  -1.18%  (p=0.016 n=5+4)
+    ```
+    
+    Fixes #44221.
+    
+    Change-Id: Id37c50fc396024eef406c5bad45380ecd414f5ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291290
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Paul Jolly <paul@myitcv.org.uk>
 
- src/runtime/signal_unix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/csv/reader.go      |  71 +++-
+ src/encoding/csv/reader_test.go | 909 +++++++++++++++++++++++-----------------
+ 2 files changed, 585 insertions(+), 395 deletions(-)

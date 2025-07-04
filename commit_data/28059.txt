@@ -1,17 +1,18 @@
-commit f9acd3918e5eb8819f8f5e9697af55f395a1074d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Aug 25 13:42:49 2016 -0700
+commit cbd72318b964bde9d95102571cd22d1919dbd37f
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Sat Apr 2 18:07:24 2016 -0300
 
-    net/http, cmd/compile: minor vet fixes
+    net: search domain from hostname if no search directives
     
-    Updates #11041
+    Fixes #14897
     
-    Change-Id: Ia0151723e3bc0d163cc687a02bfc5e0285d95ffa
-    Reviewed-on: https://go-review.googlesource.com/27810
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iffe7462983a5623a37aa0dc6f74c8c70e10c3244
+    Reviewed-on: https://go-review.googlesource.com/21464
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/scanner_test.go | 2 +-
- src/net/http/httptrace/example_test.go          | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/dnsconfig_unix.go      | 29 +++++++++++++++++++----
+ src/net/dnsconfig_unix_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 4 deletions(-)

@@ -1,16 +1,12 @@
-commit 165ebaf97bc4c4863a756775d75ddc750c55b8f2
-Author: ludweeg <mursalimovemeel@gmail.com>
-Date:   Sat Oct 6 18:38:37 2018 +0300
+commit 581ed192e5c9f9015e8a50f34cb9d5880066a9db
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri May 25 14:34:45 2018 +0000
 
-    net: simplify bool expression
+    internal/cpu: convert CRLF to LF line ending, and some superfulous space
     
-    Simplify `!(x <= y)` to `x > y` and `!(x >= y)` to `x < y` where x,y are not defined as float.
-    
-    Change-Id: Id1e5b518395d97e75f96aa4ac5d6c0ee990c0e7d
-    Reviewed-on: https://go-review.googlesource.com/c/140337
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: Ie355f06e9be93d7f7501f697a94ff83d6d0826a2
+    Reviewed-on: https://go-review.googlesource.com/114556
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/internal/cpu/cpu_s390x.s | 202 +++++++++++++++++++++----------------------
+ 1 file changed, 101 insertions(+), 101 deletions(-)

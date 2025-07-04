@@ -1,25 +1,18 @@
-commit f0b6d3753f57bf37487b127f968920743c401ed9
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Fri Mar 5 04:01:00 2021 +0000
+commit 365059e1d13c30c26ef0725becea2329f47cc16f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 30 14:35:51 2020 -0400
 
-    cmd/go: update PWD variable for 'go generate'
+    [dev.link] cmd/link: add back SUNDEFEXT case
     
-    Most subprocess invocations in the go command use base.AppendPWD to
-    append an accurate value of PWD to the command's environment, which can
-    speed up calls like os.Getwd and also help to provide less-confusing
-    output from scripts. Update `go generate` to do so.
+    The SUNDEFEXT case was lost during the refactoring. Add it back.
     
-    Fixes #43862
+    Fix ppc64le build.
     
-    Change-Id: I3b756f1532b2d922f7d74fd86414d5567a0122c0
-    GitHub-Last-Rev: 3ec8da265a2777d1dcbcea00f107b8f5905f3640
-    GitHub-Pull-Request: golang/go#43940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287152
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Baokun Lee <bk@golangcn.org>
+    Change-Id: I14594ee2c3e0a794c93839247fb3e6206c2e657a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245919
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/generate/generate.go |  1 +
- src/cmd/go/testdata/script/generate.txt  | 10 +++++++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

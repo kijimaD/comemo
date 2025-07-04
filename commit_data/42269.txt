@@ -1,149 +1,19 @@
-commit b5f7ff4aa9c1fef6437f350595caae4ee4b5708d
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri May 1 18:58:41 2020 -0400
+commit 91bb1d734ecb44f687f3549ace10ee8f70e977a8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 18 20:07:11 2019 -0500
 
-    all: update vendored dependencies for Go 1.15 release
+    runtime: move m.thread to mOS
     
-    The Go 1.15 code freeze has just started. This is the time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    This field is only used on Windows.
     
-    Those versions have already gone through code review, and now they
-    will undergo additional testing during the freeze period.
-    If there are new issues in these dependencies discovered, we have
-    the freeze period to deal with that. By the end of the freeze period,
-    we will have confidence that the Go 1.15 release and the dependency
-    versions it has selected are robust.
-    
-    If one of the Go 1.15.x minor releases requires changing code in one of
-    the vendored packages, we'll be able to do so on top of the versions
-    that are selected here, and not be forced to use versions that came
-    from different time periods, or try to jump across multiple untested
-    versions in a minor release.
-    
-    The dependency versions that are selected in this commit are:
-    
-            github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
-            github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340
-            golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4
-            golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
-            golang.org/x/mod v0.2.1-0.20200429172858-859b3ef565e2
-            golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5
-            golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3
-            golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530
-            golang.org/x/tools v0.0.0-20200504152539-33427f1b0364
-            golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
-    
-    github.com/ianlancetaylor/demangle is considered in scope and updated.
-    github.com/google/pprof is out of scope and was not updated.
-    
-    For #36905.
-    
-    Change-Id: Icb6996eb0df11f16edd9a42e04434012c0336354
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231657
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I12d4df09261f8e7ad54c2abd7beda669af28c8e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207778
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go.mod                                     |  13 +-
- src/cmd/go.sum                                     |  28 +-
- .../github.com/ianlancetaylor/demangle/demangle.go |   1 +
- src/cmd/vendor/golang.org/x/mod/modfile/print.go   |  25 +-
- src/cmd/vendor/golang.org/x/mod/modfile/read.go    | 319 ++++----
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 154 +++-
- src/cmd/vendor/golang.org/x/mod/zip/zip.go         |  20 +-
- .../x/sys/internal/unsafeheader/unsafeheader.go    |  30 +
- src/cmd/vendor/golang.org/x/sys/unix/README.md     |   4 +-
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   8 +-
- .../golang.org/x/sys/unix/syscall_darwin.1_13.go   |  21 +-
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  13 +-
- .../golang.org/x/sys/unix/syscall_linux_386.go     |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_amd64.go   |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_arm.go     |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_arm64.go   |  28 +-
- .../golang.org/x/sys/unix/syscall_linux_mips64x.go |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_mipsx.go   |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_ppc64x.go  |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_riscv64.go |   8 +-
- .../golang.org/x/sys/unix/syscall_linux_s390x.go   |   2 +-
- .../golang.org/x/sys/unix/syscall_linux_sparc64.go |   2 +-
- .../vendor/golang.org/x/sys/unix/syscall_unix.go   |  17 +-
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  27 +-
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   4 +
- .../x/sys/unix/zerrors_linux_mips64le.go           |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   4 +
- .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   4 +
- .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  31 +
- .../golang.org/x/sys/unix/zsyscall_linux_386.go    |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_amd64.go  |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_arm64.go  |   4 +-
- .../golang.org/x/sys/unix/zsyscall_linux_mips.go   |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_mips64.go |   2 +-
- .../x/sys/unix/zsyscall_linux_mips64le.go          |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_mipsle.go |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_ppc64.go  |   2 +-
- .../x/sys/unix/zsyscall_linux_ppc64le.go           |   2 +-
- .../golang.org/x/sys/unix/zsyscall_linux_s390x.go  |   2 +-
- .../x/sys/unix/zsyscall_linux_sparc64.go           |   2 +-
- .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   2 +
- .../x/sys/unix/zsysnum_linux_mips64le.go           |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   2 +
- .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   2 +
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  56 +-
- .../golang.org/x/sys/unix/ztypes_linux_386.go      |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_arm.go      |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_mips.go     |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |   1 +
- .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |   1 +
- .../golang.org/x/tools/go/analysis/analysis.go     |  16 +
- .../go/analysis/internal/analysisflags/flags.go    |   2 +-
- .../x/tools/go/analysis/passes/printf/printf.go    |  62 +-
- .../go/analysis/passes/unreachable/unreachable.go  |  13 +-
- .../x/tools/go/ast/inspector/inspector.go          |   6 +-
- .../x/tools/internal/analysisinternal/analysis.go  | 118 +++
- src/cmd/vendor/modules.txt                         |  15 +-
- src/go.mod                                         |   7 +-
- src/go.sum                                         |  12 +-
- .../golang.org/x/crypto/chacha20/chacha_generic.go | 119 +--
- src/vendor/golang.org/x/crypto/chacha20/xor.go     |  17 +-
- .../chacha20poly1305/chacha20poly1305_generic.go   |  56 +-
- src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |   2 +-
- .../golang.org/x/crypto/poly1305/mac_noasm.go      |   4 +-
- .../golang.org/x/crypto/poly1305/poly1305.go       |  26 +-
- .../golang.org/x/crypto/poly1305/sum_amd64.go      |  11 -
- .../golang.org/x/crypto/poly1305/sum_generic.go    |  21 +-
- .../golang.org/x/crypto/poly1305/sum_noasm.go      |  13 -
- .../golang.org/x/crypto/poly1305/sum_ppc64le.go    |  11 -
- .../golang.org/x/crypto/poly1305/sum_s390x.go      |  72 +-
- .../golang.org/x/crypto/poly1305/sum_s390x.s       | 667 +++++++++------
- .../golang.org/x/crypto/poly1305/sum_vmsl_s390x.s  | 909 ---------------------
- src/vendor/golang.org/x/text/unicode/bidi/core.go  |   8 +-
- src/vendor/modules.txt                             |   7 +-
- 101 files changed, 1468 insertions(+), 1662 deletions(-)
+ src/runtime/os_windows.go | 2 ++
+ src/runtime/runtime2.go   | 3 +--
+ 2 files changed, 3 insertions(+), 2 deletions(-)

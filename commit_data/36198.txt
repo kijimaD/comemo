@@ -1,14 +1,47 @@
-commit db810b6e394c38a0bd0eb52c3475d0fbc08469f8
-Author: Phil Pearl <philip.j.r.pearl@gmail.com>
-Date:   Wed Jun 20 20:40:33 2018 +0100
+commit 9446eaa9443cb4ac5e2dcdc0f7a8d3633d96b3ec
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 11 11:12:28 2018 +0200
 
-    crypto/ecdsa: add a package level example
+    go/build, runtime/internal/sys: reserve RISC-V arch names
     
-    Change-Id: I4063d5ec4ac45561b94472b528583be564981912
-    Reviewed-on: https://go-review.googlesource.com/120144
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    In #17528 it was discussed (off-topic to the actual issue) to reserve
+    GOARCH names for the RISC-V architecture. With the first RISC-V
+    Linux-capable development boards released (e.g. HiFive Unleashed),
+    Linux distributions being ported to RISC-V (e.g. Debian, Fedora) and
+    RISC-V support being added to gccgo (CL 96377), it becomes more likely
+    that Go software (and maybe Go itself) will be ported as well.
+    
+    Add riscv and riscv64 (which is already used by gccgo), so Go 1.11 will
+    already recognize "*_riscv{,64}.go" as reserved files.
+    
+    Change-Id: I042aab19c68751d82ea513e40f7b1d7e1ad924ea
+    Reviewed-on: https://go-review.googlesource.com/106256
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/ecdsa/example_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/go/build/syslist.go                         |  2 +-
+ src/runtime/internal/sys/zgoarch_386.go         |  2 ++
+ src/runtime/internal/sys/zgoarch_amd64.go       |  2 ++
+ src/runtime/internal/sys/zgoarch_amd64p32.go    |  2 ++
+ src/runtime/internal/sys/zgoarch_arm.go         |  2 ++
+ src/runtime/internal/sys/zgoarch_arm64.go       |  2 ++
+ src/runtime/internal/sys/zgoarch_arm64be.go     |  2 ++
+ src/runtime/internal/sys/zgoarch_armbe.go       |  2 ++
+ src/runtime/internal/sys/zgoarch_mips.go        |  2 ++
+ src/runtime/internal/sys/zgoarch_mips64.go      |  2 ++
+ src/runtime/internal/sys/zgoarch_mips64le.go    |  2 ++
+ src/runtime/internal/sys/zgoarch_mips64p32.go   |  2 ++
+ src/runtime/internal/sys/zgoarch_mips64p32le.go |  2 ++
+ src/runtime/internal/sys/zgoarch_mipsle.go      |  2 ++
+ src/runtime/internal/sys/zgoarch_ppc.go         |  2 ++
+ src/runtime/internal/sys/zgoarch_ppc64.go       |  2 ++
+ src/runtime/internal/sys/zgoarch_ppc64le.go     |  2 ++
+ src/runtime/internal/sys/zgoarch_riscv.go       | 31 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_riscv64.go     | 31 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_s390.go        |  2 ++
+ src/runtime/internal/sys/zgoarch_s390x.go       |  2 ++
+ src/runtime/internal/sys/zgoarch_sparc.go       |  2 ++
+ src/runtime/internal/sys/zgoarch_sparc64.go     |  2 ++
+ src/runtime/internal/sys/zgoarch_wasm.go        |  2 ++
+ 24 files changed, 105 insertions(+), 1 deletion(-)

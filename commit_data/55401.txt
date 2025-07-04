@@ -1,43 +1,19 @@
-commit 5a61d8d36be864c0c87cdad9118c801b2ce17331
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 3 10:41:09 2024 -0500
+commit 2a3c695c4b8354c942a5096a85df5d355f4e1718
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 12:18:39 2023 -0500
 
-    runtime: simplify freedefer logic
+    cmd/link: remove special cases for relocations in .go.buildinfo
     
-    Currently, freedefer's API forces a subtle and fragile situation. It
-    requires that the caller unlink the _defer from the G list, but
-    freedefer itself is responsible for zeroing some _defer fields. In the
-    window between these two steps, we have to prevent stack growth
-    because stack growth walks the defer list (which no longer contains
-    the unlinked defer) to adjust pointers, and would thus leave an
-    unadjusted and potentially invalid pointer behind in the _defer before
-    freedefer zeroes it.
+    .go.buildinfo has no relocations anymore, as of Go 1.18.
     
-    This setup puts part of this subtle responsibility on the caller and
-    also means freedefer must be nosplit, which forces other shenanigans
-    to avoid nosplit overflows.
-    
-    We can simplify all of this by replacing freedefer with a new popDefer
-    function that's responsible for both unlinking and zeroing the _defer,
-    in addition to freeing it.
-    
-    Some history: prior to regabi, defer records contained their argument
-    frame, which deferreturn copied to the stack before freeing the defer
-    record (and subsequently running the defer). Since that argument frame
-    didn't have a valid stack map until we ran the deferred function, the
-    non-preemptible window was much larger and more difficult to isolate.
-    Now we use normal closure calls to capture defer state and call the
-    defer, so the non-preemptible window is narrowed to just the unlinking
-    step.
-    
-    Change-Id: I7cf95ba18e1e2e7d73f616b9ed9fb38f5e725d72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553696
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I98369c6a0ef07ada770eaa12f6f56c210e812abc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464436
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/panic.go | 56 +++++++++++++++++++++-------------------------------
- 1 file changed, 22 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/ld/data.go  | 8 --------
+ src/cmd/link/internal/ld/xcoff.go | 5 -----
+ 2 files changed, 13 deletions(-)

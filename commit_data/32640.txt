@@ -1,20 +1,27 @@
-commit 669dcca9effc232a587da14216853c2bf6c1f8a5
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Tue Sep 5 13:15:56 2017 -0700
+commit 9bced47706f605c3d1b75d694dd3c9fb771ce7ba
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 10 13:53:39 2017 +0200
 
-    doc: add a diagnostics guide
+    reflect: don't panic in ArrayOf if elem size is 0
     
-    Diagnostics guide lists various dimensions of
-    diagnostics tools and libraries available in Go.
-    As a follow-up, I will add an entry section where
-    we navigate user to the right tool depending on
-    the type of problem they are willing to improve
-    or understand better.
+    We do a division by the elem type size to check if the array size would
+    be too large for the virtual address space. This is a silly check if the
+    size is 0, but the problem is that it means a division by zero and a
+    panic.
     
-    Change-Id: I4e94b4b834014f51c988103457da84200c7827d9
-    Reviewed-on: https://go-review.googlesource.com/61693
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Since arrays of empty structs are valid in a regular program, make them
+    also work in reflect.
+    
+    Use a separate, explicit test with struct{}{} to make sure the test for
+    a zero-sized type is not confused with the rest.
+    
+    Fixes #20313.
+    
+    Change-Id: I47b8b87e6541631280b79227bdea6a0f6035c9e0
+    Reviewed-on: https://go-review.googlesource.com/43131
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/diagnostics.html | 439 +++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/docs.html        |   5 +
- 2 files changed, 444 insertions(+)
+ src/reflect/all_test.go | 1 +
+ src/reflect/type.go     | 8 +++++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

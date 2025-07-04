@@ -1,18 +1,14 @@
-commit 0e4b878258ffc3fca6a8fc6a98ebd81fc933b249
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 21 11:59:19 2021 -0800
+commit e224787fef3227587aceddbe21a792e3102d3cfb
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Fri Apr 9 23:56:44 2021 +0800
 
-    doc/go1.18: mention debug/plan9obj.ErrNoSymbols
+    runtime: fix formatting of gcMark
     
-    For #47694
-    For #48052
-    
-    Change-Id: I136be9b498033309d876099aae16bad330555416
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373774
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I08aed75f3aab0da705544665e532f332adfb075e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308949
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Trust: David Chase <drchase@google.com>
 
- doc/go1.18.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/runtime/mgc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

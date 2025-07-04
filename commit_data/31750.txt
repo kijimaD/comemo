@@ -1,14 +1,23 @@
-commit 631cdec676a1f92284b54297ca8ce4c209e2fc9d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 7 20:04:11 2017 -0700
+commit 84b9329bd9085a47325818005b6162af265ddfa4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 6 11:08:08 2016 -0800
 
-    test: add test that caused gccgo undefined symbol error
+    cmd/compile: add Type.LongString and Type.ShortString
     
-    Change-Id: I94aa87fe951701413b479c05b0bc8810255eb01c
-    Reviewed-on: https://go-review.googlesource.com/45085
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reduces duplication and centralizes documentation.
+    Moves all uses of FmtUnsigned and tconv inside fmt.go.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: If6d906e7e839de05f36423523a3a1d596e29807d
+    Reviewed-on: https://go-review.googlesource.com/38141
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/fixedbugs/bug502.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go     | 20 ++++++++++++++++++++
+ src/cmd/compile/internal/gc/reflect.go | 12 ++++++------
+ src/cmd/compile/internal/gc/subr.go    |  9 ++-------
+ src/cmd/compile/internal/gc/swt.go     |  4 +---
+ 4 files changed, 29 insertions(+), 16 deletions(-)

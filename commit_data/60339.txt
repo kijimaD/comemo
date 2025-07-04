@@ -1,0 +1,21 @@
+commit 72e2220b50db5179ddca2226a64bf1d3aa94f49a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jun 18 23:43:21 2024 +0800
+
+    encoding/json: clarify the map's key type for Unmarshal
+    
+    While here, also fix doc link for encoding.TextMarshaler.
+    
+    Fixes #67495
+    
+    Change-Id: Ia2a674c5c35b5a849ce8f5eef3d34d165b3195b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/decode.go | 3 +--
+ src/encoding/json/encode.go | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)

@@ -1,19 +1,34 @@
-commit 0a486b8a06cbef96f04ec1294d2683232225da44
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Mon Oct 5 17:17:58 2015 -0700
+commit 23e4744c07f78151a4e9fa5187b84ed26fe3628b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 29 14:02:34 2015 -0400
 
-    cmd/go: print `go test -help` to stderr
+    runtime: report GC CPU utilization in MemStats
     
-    Usage of all commands is printed to stderr, except go test, which is printed to
-    stdout. This is inconsistent.
+    This adds a GCCPUFraction field to MemStats that reports the
+    cumulative fraction of the program's execution time spent in the
+    garbage collector. This is equivalent to the utilization percent shown
+    in the gctrace output and makes this available programmatically.
     
-    Print `go test -help` to stderr instead.
+    This does make one small effect on the gctrace output: we now report
+    the duration of mark termination up to just before the final
+    start-the-world, rather than up to just after. However, unlike
+    stop-the-world, I don't believe there's any way that start-the-world
+    can block, so it should take negligible time.
     
-    R=rsc@golang.org
+    While there are many statistics one might want to expose via MemStats,
+    this is one of the few that will undoubtedly remain meaningful
+    regardless of future changes to the memory system.
     
-    Change-Id: I079f4788134bf9aedcccc26838879eedad1c925e
-    Reviewed-on: https://go-review.googlesource.com/15434
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The diff for this change is larger than the actual change. Mostly it
+    lifts the code for computing the GC CPU utilization out of the
+    debug.gctrace path.
+    
+    Updates #10323.
+    
+    Change-Id: I0f7dc3fdcafe95e8d1233ceb79de606b48acd989
+    Reviewed-on: https://go-review.googlesource.com/12844
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go    | 33 +++++++++++++++++----------------
+ src/runtime/mstats.go | 36 +++++++++++++++++++-----------------
+ 2 files changed, 36 insertions(+), 33 deletions(-)

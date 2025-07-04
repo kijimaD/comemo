@@ -1,33 +1,16 @@
-commit 04807d3acf160b270fbec42b7b672d531dec06b7
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 9 09:49:40 2024 -0800
+commit 15e5e35be5894e059c343679d895abb258b967c2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 18 11:48:15 2023 -0400
 
-    runtime/internal/maps: optimize long string keys for small maps
+    os: in TestMkdirStickyUmask, create a non-sticky directory as a control
     
-    For large strings, do a quick equality check on all the slots.
-    Only if more than one passes the quick equality check do we
-    resort to hashing.
+    Fixes #62684.
     
-                                   │    baseline    │             experiment              │
-                                   │     sec/op     │   sec/op     vs base                │
-    MegMap-24                        16609.50n ± 1%   13.91n ± 3%  -99.92% (p=0.000 n=10)
-    MegOneMap-24                     16655.00n ± 0%   12.27n ± 1%  -99.93% (p=0.000 n=10)
-    MegEqMap-24                         41.31µ ± 1%   25.03µ ± 1%  -39.40% (p=0.000 n=10)
-    MegEmptyMap-24                      2.034n ± 0%   2.027n ± 2%        ~ (p=0.541 n=10)
-    MegEmptyMapWithInterfaceKey-24      5.931n ± 2%   5.599n ± 1%   -5.60% (p=0.000 n=10)
-    MapStringKeysEight_16-24            8.473n ± 7%   8.224n ± 5%        ~ (p=0.315 n=10)
-    MapStringKeysEight_32-24            8.441n ± 2%   8.147n ± 1%   -3.48% (p=0.002 n=10)
-    MapStringKeysEight_64-24            8.769n ± 1%   8.517n ± 1%   -2.87% (p=0.000 n=10)
-    MapStringKeysEight_128-24           10.73n ± 4%   13.57n ± 8%  +26.57% (p=0.000 n=10)
-    MapStringKeysEight_256-24           12.97n ± 2%   14.35n ± 4%  +10.64% (p=0.001 n=10)
-    MapStringKeysEight_1M-24         17359.50n ± 3%   13.92n ± 4%  -99.92% (p=0.000 n=10)
-    
-    Change-Id: I4cc2ea4edab12a4b03236de626c7bcf0f96b6cc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625905
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: If7afa811526973671d83e21440cbbc1a7b2120d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529115
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/runtime/maps/runtime_faststr_swiss.go | 103 ++++++++++++++++-----
- src/runtime/map_benchmark_test.go                  |  10 +-
- 2 files changed, 86 insertions(+), 27 deletions(-)
+ src/os/os_unix_test.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

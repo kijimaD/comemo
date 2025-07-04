@@ -1,17 +1,13 @@
-commit fdf33730e1f84a5f0cd13bcbf2efbdceedab1114
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Mar 31 15:53:21 2018 -0700
+commit 7de9e5e199fb9a39e5564ead221b3615d6f89341
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 16:06:00 2017 -0500
 
-    cmd/compile: refactor constant node constructors
+    api: update next.txt
     
-    Passes toolstash-check.
-    
-    Change-Id: I6a2d46e69d4d3a06858c80c4ea1ad3f5a58f6956
-    Reviewed-on: https://go-review.googlesource.com/103859
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I540bdabe8ffda4697315fa6f09ad710c05b4a94d
+    Reviewed-on: https://go-review.googlesource.com/78134
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go |  1 +
- src/cmd/compile/internal/gc/subr.go  | 28 ++++++++--------------------
- 2 files changed, 9 insertions(+), 20 deletions(-)
+ api/next.txt | 47 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 44 insertions(+), 3 deletions(-)

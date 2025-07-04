@@ -1,23 +1,31 @@
-commit 39366326cc2600792a9d9f8c170aae5bc1613d25
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Sun Jan 22 17:16:59 2017 -0800
+commit d80e8de54ec633d018ccef94b67c796dda4e1944
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 24 13:05:10 2016 -0400
 
-    net/http/pprof: return error when requested profile duration exceeds WriteTimeout
+    cmd/compile: avoid truncating fieldname var locations
     
-    Updates Profile and Trace handlers to reject requests for durations >=
-    WriteTimeout.
+    Don't include package path when creating LSyms for auto and param
+    variables during Prog generation, and update the DWARF emit routine
+    accordingly (remove the code that chops off package path from names in
+    DWARF var location expressions). Implementation suggested by mdempsky@.
     
-    Modifies go tool pprof to print the body of the http response when
-    status != 200.
+    The intent of this change is to have saner location expressions in cases
+    where the variable corresponds to a structure field. For example, the
+    SSA compiler's "decompose" phase can take a slice value and break it
+    apart into three scalar variables corresponding to the fields (slice "X"
+    gets split into "X.len", "X.cap", "X.ptr"). In such cases we want the
+    name in the location expression to omit the package path but preserve
+    the original variable name (e.g. "X").
     
-    Fixes #18755
+    Fixes #16338
     
-    Change-Id: I6faed21685693caf39f315f003039538114937b0
-    Reviewed-on: https://go-review.googlesource.com/35564
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibc444e7f3454b70fc500a33f0397e669d127daa1
+    Reviewed-on: https://go-review.googlesource.com/31819
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/pprof/internal/fetch/fetch.go | 18 +++++++++++++++---
- src/net/http/pprof/pprof.go           | 23 +++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go |  1 +
+ src/cmd/internal/dwarf/dwarf.go     |  5 -----
+ src/runtime/runtime-gdb_test.go     | 18 +++++++++++++++++-
+ 3 files changed, 18 insertions(+), 6 deletions(-)

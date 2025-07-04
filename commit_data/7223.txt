@@ -1,14 +1,12 @@
-commit e7183e75189c2420eb4b8f0b56344ae4c1d33ef6
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 24 14:12:43 2011 -0500
+commit 4871d0d19ae5cde1b81d1817e4144ee63f1e40c5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 24 10:19:23 2011 -0800
 
-    net: return cname in LookupHost
+    encoding/line: fix up a few typos and infelicities in the doc comments
     
-    Fixes #1395.
-    
-    R=adg
+    R=anschelsc, agl1
     CC=golang-dev
-    https://golang.org/cl/4036044
+    https://golang.org/cl/3988045
 
- src/pkg/net/dnsclient.go | 27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+ src/pkg/encoding/line/line.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

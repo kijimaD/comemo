@@ -1,19 +1,17 @@
-commit b1f29b2d443f5c8df15d6702937ae786660375be
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Dec 27 20:32:11 2014 -0800
+commit 9ad6b7e322deaf72e3c373952249dd078d6bd30e
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Nov 15 03:55:14 2014 +1100
 
-    runtime: get rid of goalg, no longer needed
+    [dev.cc] runtime: convert openbsd/386 port to Go
     
-    The goalg function was a holdover from when we had algorithm
-    tables in both C and Go.  It is no longer needed.
-    
-    Change-Id: Ia0c1af35bef3497a899f22084a1a7b42daae72a0
-    Reviewed-on: https://go-review.googlesource.com/2099
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/173200044
 
- src/reflect/type.go         |  3 ++-
- src/runtime/alg.go          | 13 ++++---------
- src/runtime/hashmap.go      | 16 ++++++++--------
- src/runtime/hashmap_fast.go | 12 ++++++------
- src/runtime/type.go         |  2 +-
- 5 files changed, 21 insertions(+), 25 deletions(-)
+ src/runtime/defs_openbsd_386.go   | 64 +++++++++++++++++++++++----------------
+ src/runtime/defs_openbsd_amd64.go |  4 +--
+ src/runtime/os1_openbsd.go        |  2 +-
+ src/runtime/signal_openbsd_386.go | 41 +++++++++++++++++++++++++
+ src/runtime/signal_openbsd_386.h  | 23 --------------
+ 5 files changed, 82 insertions(+), 52 deletions(-)

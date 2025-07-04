@@ -1,17 +1,25 @@
-commit 9cc3469106df94ad0d3c806bcfbddb7e5224d8b6
+commit 90c924ff88a8b5ab65538ccc16d160922b1b4003
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 15:43:17 2021 -0400
+Date:   Mon Jul 6 10:58:05 2020 -0400
 
-    all: do not test internal linking on windows/arm64
+    testing/fstest: new package for testing file system code
     
-    (It doesn't work and isn't used by default.)
+    This change adds basic test helpers for file system code.
     
-    Change-Id: I90118d889bd963471f0915d8183502b55bd9dbf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312045
+    The type MapFS is a simple map-based file system for use when
+    exercising general file system code.
+    
+    The func TestFS tests a file system implementation.
+    
+    For #41190.
+    
+    Change-Id: I5a2036f57e733915ad508651ad7317749794423c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243910
     Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/link_test.go     | 3 ++-
- src/cmd/nm/nm_cgo_test.go     | 5 +++++
- src/debug/pe/file_cgo_test.go | 4 ++++
- 3 files changed, 11 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go        |   3 +-
+ src/testing/fstest/mapfs.go      | 204 ++++++++++++++++++++++
+ src/testing/fstest/mapfs_test.go |  19 ++
+ src/testing/fstest/testfs.go     | 364 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 589 insertions(+), 1 deletion(-)

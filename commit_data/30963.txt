@@ -1,26 +1,16 @@
-commit 105cc2bd6396f47bc613721fb6c1db66050e15ab
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 31 12:34:25 2017 -0400
+commit 6a1cac27005f5e37c9c4acd0f63121e61b41ae3c
+Author: Michael Marineau <mike@marineau.org>
+Date:   Tue Jan 3 00:15:05 2017 -0800
 
-    time: test and fix Time.Round, Duration.Round for d > 2⁶²
+    runtime: check sched_getaffinity return value
     
-    Round uses r+r < d to decide whether the remainder is
-    above or below half of d (to decide whether to round up or down).
-    This is wrong when r+r wraps negative, because it looks < d
-    but is really > d.
+    Android on ChromeOS uses a restrictive seccomp filter that blocks
+    sched_getaffinity, leading this code to index a slice by -errno.
     
-    No one will ever care about rounding to a multiple of
-    d > 2⁶² (about 146 years), but might as well get it right.
-    
-    Fixes #19807.
-    
-    Change-Id: I1b55a742dc36e02a7465bc778bf5dd74fe71f7c0
-    Reviewed-on: https://go-review.googlesource.com/39151
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iec09a4f79dfbc17884e24f39bcfdad305de75b37
+    Reviewed-on: https://go-review.googlesource.com/34794
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/time/time.go      | 12 +++++++++---
- src/time/time_test.go |  2 ++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/runtime/os_linux.go | 3 +++
+ 1 file changed, 3 insertions(+)

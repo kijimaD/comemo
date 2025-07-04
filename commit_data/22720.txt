@@ -1,20 +1,14 @@
-commit 9a0fd97ff3084376b2c6058502ddc4fead530c66
+commit 5242d2cef42c890f94194c65e0f19761bae813b2
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 27 10:46:02 2015 -0700
+Date:   Fri Apr 3 17:45:54 2015 -0700
 
-    runtime: remove a modulus calculation from pollorder
+    bytes: fix comment
     
-    This is a follow-up to CL 9269, as suggested
-    by dvyukov.
+    The the has been deleted.
     
-    There is probably even more that can be done
-    to speed up this shuffle. It will matter more
-    once CL 7570 (fine-grained locking in select)
-    is in and can be revisited then, with benchmarks.
-    
-    Change-Id: Ic13a27d11cedd1e1f007951214b3bb56b1644f02
-    Reviewed-on: https://go-review.googlesource.com/9393
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I4290105435d4f1fd10c7014f913a3147ddeb3c2b
+    Reviewed-on: https://go-review.googlesource.com/8469
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/select.go | 2 +-
+ src/bytes/buffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,23 @@
-commit aada57f39b60c2aef88dbafc7b406df9c2680f12
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Sep 11 12:34:58 2016 -0700
+commit 7af2ce3f159760033c903b3730bfb5995b4edd40
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue May 10 21:28:30 2016 -0700
 
-    misc/cgo/test: add skipped test for issue 17065
+    cmd/build: reject non-existant directories in ImportDir
     
-    Updates #17065
+    Re-apply @adg's CL https://golang.org/cl/7129048 that was
+    previously disabled in https://golang.org/cl/7235052 because
+    it broke `godoc net/http` for go1.1.
     
-    Change-Id: I113caced6de666a9b032ab2684ece79482aa7357
-    Reviewed-on: https://go-review.googlesource.com/28964
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Currently `godoc net/http` seems to work fine with this CL.
+    
+    Fixes #3428.
+    
+    Change-Id: I7df06df02fd62dededac6ec60bea62561be59cf1
+    Reviewed-on: https://go-review.googlesource.com/23013
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue17065.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/go/build/build.go      |  6 +++++-
+ src/go/build/build_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

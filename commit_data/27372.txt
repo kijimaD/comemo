@@ -1,18 +1,22 @@
-commit 21d781070cea6001ee541933ed76dc6da96bde4c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 11 13:39:36 2016 -0700
+commit bd83cc6dae36399f3c8fd99bd4ceea6570c70f5a
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed Mar 23 16:35:50 2016 +0100
 
-    cmd/compile: use one format for exporting calls of builtin functions
+    cmd/compile: prettify loop iterations
     
-    Minor cleanup. Each of these cases appears both during export and
-    import when running all.bash and thus is tested by all.bash.
+    This commit replaces some of
     
-    Change-Id: Iaa4a5a5b163cefe33e43d08d396e02a02e5c22a5
-    Reviewed-on: https://go-review.googlesource.com/23060
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    for i := len(x) - 1; i >= 0; i-- {...}
+    
+    style loops, which do not rely on reverse iteration order.
+    
+    Change-Id: I5542834286562da058200c06e7a173b13760e54d
+    Reviewed-on: https://go-review.googlesource.com/21044
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 17 +++++++++++++----
- src/cmd/compile/internal/gc/bimport.go | 19 ++++---------------
- 2 files changed, 17 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/esc.go         | 12 ++++++------
+ src/cmd/compile/internal/gc/main.go        |  4 +---
+ src/cmd/compile/internal/gc/typecheck.go   |  5 ++---
+ src/cmd/compile/internal/ssa/dom.go        |  7 +++----
+ src/cmd/compile/internal/ssa/stackalloc.go |  2 +-
+ 5 files changed, 13 insertions(+), 17 deletions(-)

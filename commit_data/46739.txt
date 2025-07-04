@@ -1,20 +1,15 @@
-commit 5140ad104b03f6c119beb7e74546fb53bf40b66d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 4 17:44:56 2021 -0700
+commit 13f02018aff2b98be8b396635a0a73532ac1722e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 24 21:04:39 2021 -0800
 
-    cmd/compile/internal/types2: update the recorded function type after inference
+    [dev.typeparams] test: enable more errorcheck tests w/ -G=3
     
-    This is a clean port of CL 353831 from go/types to types2.
-    
-    For #47916.
-    
-    Change-Id: I2c2b9c7bbcd416fb21f3032c55a06406bad9334a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353934
+    Change-Id: I170e4f9c5a1db4bad02a5fe4bddc65d4c75f51e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286232
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 6 ++++--
- src/cmd/compile/internal/types2/call.go     | 6 ++++++
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ test/run.go | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)

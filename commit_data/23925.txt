@@ -1,14 +1,17 @@
-commit 4e0be154f7ac474f0768e0ca65612b5b111c2716
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 31 09:03:58 2015 +1000
+commit ef4a17bc8030d7d800db76a7a57c4fb9dd2360ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 22 16:01:17 2015 -0700
 
-    doc: solaris info added to go1.5.html
+    go/types: add missing test for constant shifts
     
-    Fixes #11952.
+    Port of https://go-review.googlesource.com/11344 to std repo.
     
-    Change-Id: I548f9d75c6223bf79bdf654ef733f1568e3d5804
-    Reviewed-on: https://go-review.googlesource.com/12990
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #11325.
+    
+    Change-Id: I634beaf77cbaeb09de50aa1410e8c53fc37b19df
+    Reviewed-on: https://go-review.googlesource.com/11317
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.5.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/go/types/expr.go             |  8 +++++++-
+ src/go/types/testdata/shifts.src | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

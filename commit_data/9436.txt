@@ -1,17 +1,15 @@
-commit 07490c0f05035ddb9990646547527e69f416d9ed
-Author: Jeff Hodges <jeff@somethingsimilar.com>
-Date:   Mon Aug 22 15:19:27 2011 +1000
+commit aca429371539b1e22ca6eebaa66689c03cf49673
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 14:19:37 2011 +1000
 
-        json: calculate Offset for Indent correctly
+    template/parse: remove Walk.
+    It was ill-conceived and can be resurrected if needed.
     
-    Fixes #2171
-    
-    This is the real change.
-    
-    R=adg
-    CC=golang-dev, r, rsc
-    https://golang.org/cl/4943041
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4930043
 
- src/pkg/json/indent.go       |  1 +
- src/pkg/json/scanner_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/pkg/template/parse/Makefile      |   1 -
+ src/pkg/template/parse/parse_test.go | 127 -----------------------------------
+ src/pkg/template/parse/walk.go       |  89 ------------------------
+ 3 files changed, 217 deletions(-)

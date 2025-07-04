@@ -1,16 +1,24 @@
-commit 7c793826d44a6abb76f7846c51503f574eafe9e4
-Author: Carlos Castillo <cookieo9@gmail.com>
-Date:   Fri Mar 1 16:48:21 2013 -0800
+commit f235d5d8d702778c7d16e573c855519a8238951c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 1 16:41:39 2013 -0800
 
-    cmd/go: pass -intgosize to SWIG
+    runtime: special-case append([]byte, string) for small strings
+    Also make the crossover point an architecture-dependent constant,
+    although it's the same everywhere for now.
     
-    swig >= 2.0.9 requires the size of int values to be passed via a command line flag. Should swig complain about the -intgosize not being supported, then alert the user to their outdated version of swig.
+    BenchmarkAppendStr1Byte            416          145  -65.14%
+    BenchmarkAppendStr4Bytes           743          217  -70.79%
+    BenchmarkAppendStr8Bytes           421          270  -35.87%
+    BenchmarkAppendStr16Bytes          415          403   -2.89%
+    BenchmarkAppendStr32Bytes          415          391   -5.78%
     
-    Fixes #4756.
-    
-    R=golang-dev, minux.ma, iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7331048
+    https://golang.org/cl/7459044
 
- src/cmd/go/build.go | 104 +++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 78 insertions(+), 26 deletions(-)
+ src/pkg/runtime/append_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/arch_386.h     |  3 ++-
+ src/pkg/runtime/arch_amd64.h   |  3 ++-
+ src/pkg/runtime/arch_arm.h     |  3 ++-
+ src/pkg/runtime/slice.c        | 16 +++++++++++++---
+ 5 files changed, 51 insertions(+), 6 deletions(-)

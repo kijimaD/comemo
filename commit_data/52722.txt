@@ -1,26 +1,20 @@
-commit 9d35ebba062cae9cc7bd716ad279ac7d44060a93
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 19 18:48:00 2023 -0400
+commit d8762b2f4532cc2e5ec539670b88bbc469a13938
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 19 13:45:51 2022 -0700
 
-    std: fix various nilness findings
+    runtime: fix overflow in PingPongHog test
     
-    Found by running
-    $ go run golang.org/x/tools/go/analysis/passes/nilness/cmd/nilness@latest std
+    On 32-bit systems the result of hogCount*factor can overflow.
+    Use division instead to do comparison.
     
-    No actual bugs--other than one panic(nil)--but a
-    few places where error nilness was unclear.
+    Update #52207
     
-    Change-Id: Ia916ba30f46f29c1bcf928cc62280169b922463a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486675
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Change-Id: I429fb9dc009af645acb535cee5c70887527ba207
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407415
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/bytes/buffer_test.go               | 2 +-
- src/crypto/internal/bigmod/nat_test.go | 2 +-
- src/encoding/xml/xml_test.go           | 5 +++--
- src/net/timeout_test.go                | 7 ++++---
- src/os/timeout_test.go                 | 7 ++++---
- src/testing/example.go                 | 3 +--
- 6 files changed, 14 insertions(+), 12 deletions(-)
+ src/runtime/proc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,7 @@
-commit 6ee69a97269eb26186d08832dcafd9432945f5ad
+commit 156e8b306d009ef118a4138f34098c8c41976a08
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jul 31 20:03:05 2013 +0400
+Date:   Wed Jul 31 19:59:27 2013 +0400
 
-    undo CL 12167043 / 475e11851fc1
-    
-    Submitted with some unrelated changes that were not intended to go in.
-    
-    ««« original CL description
     runtime: do not park sysmon thread if any goroutines are running
     Sysmon thread parks if no goroutines are running (runtime.sched.npidle == runtime.gomaxprocs).
     Currently it's unparked when a goroutine enters syscall, it was enough
@@ -17,11 +12,6 @@ Date:   Wed Jul 31 20:03:05 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12167043
-    »»»
-    
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/12171044
 
- src/pkg/runtime/proc.c | 30 ++++--------------------------
- 1 file changed, 4 insertions(+), 26 deletions(-)
+ src/pkg/runtime/proc.c | 30 ++++++++++++++++++++++++++----
+ 1 file changed, 26 insertions(+), 4 deletions(-)

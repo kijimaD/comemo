@@ -1,23 +1,78 @@
-commit 571d93e977862f91bb153f0b98937ca655505fcd
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sun Dec 9 03:30:08 2018 +1100
+commit a0a7e9fc0c9139053c9ae02b85f03e78fb9cd550
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jun 26 02:58:54 2018 +0000
 
-    cmd/go/internal/work: ensure correct group for TestRespectSetgidDir
+    cmd/compile: implement "OPC $imm, (mem)" for 386
     
-    mkdir(2) inherits the parent directory group on *BSD (including Darwin),
-    and it may inherit on other platforms if the parent directory is SetGID.
+    New read-modify-write operations are introduced in this CL for 386.
     
-    This can cause TestRespectSetgidDir SetGID to fail when the process does
-    not have have permission for the inherited group on the new temporary
-    directory.
+    1. The total size of pkg/linux_386 decreases about 10KB (excluding
+    cmd/compile).
     
-    Fixes #29160
+    2. The go1 benchmark shows little regression.
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              3.32s ± 4%     3.29s ± 2%    ~     (p=0.059 n=30+30)
+    Fannkuch11-4                3.49s ± 1%     3.46s ± 1%  -0.92%  (p=0.001 n=30+30)
+    FmtFprintfEmpty-4          47.7ns ± 2%    46.8ns ± 5%  -1.93%  (p=0.011 n=25+30)
+    FmtFprintfString-4         79.5ns ± 7%    80.2ns ± 3%  +0.89%  (p=0.001 n=28+29)
+    FmtFprintfInt-4            90.5ns ± 2%    92.1ns ± 2%  +1.82%  (p=0.014 n=22+30)
+    FmtFprintfIntInt-4          141ns ± 1%     144ns ± 3%  +2.23%  (p=0.013 n=22+30)
+    FmtFprintfPrefixedInt-4     183ns ± 2%     184ns ± 3%    ~     (p=0.080 n=21+30)
+    FmtFprintfFloat-4           409ns ± 3%     412ns ± 3%  +0.83%  (p=0.040 n=30+30)
+    FmtManyArgs-4               597ns ± 6%     607ns ± 4%  +1.71%  (p=0.006 n=30+30)
+    GobDecode-4                7.21ms ± 5%    7.18ms ± 6%    ~     (p=0.665 n=30+30)
+    GobEncode-4                7.17ms ± 6%    7.09ms ± 7%    ~     (p=0.117 n=29+30)
+    Gzip-4                      413ms ± 4%     399ms ± 4%  -3.48%  (p=0.000 n=30+30)
+    Gunzip-4                   41.3ms ± 4%    41.7ms ± 3%  +1.05%  (p=0.011 n=30+30)
+    HTTPClientServer-4         63.5µs ± 3%    62.9µs ± 2%  -0.97%  (p=0.017 n=30+27)
+    JSONEncode-4               20.3ms ± 5%    20.1ms ± 5%  -1.16%  (p=0.004 n=30+30)
+    JSONDecode-4               66.2ms ± 4%    67.7ms ± 4%  +2.21%  (p=0.000 n=30+30)
+    Mandelbrot200-4            5.16ms ± 3%    5.18ms ± 3%    ~     (p=0.123 n=30+30)
+    GoParse-4                  3.23ms ± 2%    3.27ms ± 2%  +1.08%  (p=0.006 n=30+30)
+    RegexpMatchEasy0_32-4      98.9ns ± 5%    97.1ns ± 4%  -1.83%  (p=0.006 n=30+30)
+    RegexpMatchEasy0_1K-4       842ns ± 3%     842ns ± 3%    ~     (p=0.550 n=30+30)
+    RegexpMatchEasy1_32-4       107ns ± 4%     105ns ± 4%  -1.93%  (p=0.012 n=30+30)
+    RegexpMatchEasy1_1K-4      1.03µs ± 4%    1.04µs ± 4%    ~     (p=0.304 n=30+30)
+    RegexpMatchMedium_32-4      132ns ± 2%     129ns ± 4%  -2.02%  (p=0.000 n=21+30)
+    RegexpMatchMedium_1K-4     44.1µs ± 4%    43.8µs ± 3%    ~     (p=0.641 n=30+30)
+    RegexpMatchHard_32-4       2.26µs ± 4%    2.23µs ± 4%  -1.28%  (p=0.023 n=30+30)
+    RegexpMatchHard_1K-4       68.1µs ± 3%    68.6µs ± 4%    ~     (p=0.089 n=30+30)
+    Revcomp-4                   1.85s ± 2%     1.84s ± 2%    ~     (p=0.072 n=30+30)
+    Template-4                 69.2ms ± 3%    68.5ms ± 3%  -1.04%  (p=0.012 n=30+30)
+    TimeParse-4                 441ns ± 3%     446ns ± 4%  +1.21%  (p=0.001 n=30+30)
+    TimeFormat-4                415ns ± 3%     415ns ± 3%    ~     (p=0.436 n=30+30)
+    [Geo mean]                 67.0µs         66.9µs       -0.17%
     
-    Change-Id: Iac05511e501dfe307a753f801223b1049cc0947d
-    Reviewed-on: https://go-review.googlesource.com/c/153357
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    name                     old speed      new speed      delta
+    GobDecode-4               107MB/s ± 5%   107MB/s ± 6%    ~     (p=0.663 n=30+30)
+    GobEncode-4               107MB/s ± 6%   108MB/s ± 7%    ~     (p=0.117 n=29+30)
+    Gzip-4                   47.0MB/s ± 4%  48.7MB/s ± 4%  +3.61%  (p=0.000 n=30+30)
+    Gunzip-4                  470MB/s ± 4%   466MB/s ± 4%  -1.05%  (p=0.011 n=30+30)
+    JSONEncode-4             95.6MB/s ± 5%  96.7MB/s ± 5%  +1.16%  (p=0.005 n=30+30)
+    JSONDecode-4             29.3MB/s ± 4%  28.7MB/s ± 4%  -2.17%  (p=0.000 n=30+30)
+    GoParse-4                17.9MB/s ± 2%  17.7MB/s ± 2%  -1.06%  (p=0.007 n=30+30)
+    RegexpMatchEasy0_32-4     323MB/s ± 5%   329MB/s ± 4%  +1.93%  (p=0.006 n=30+30)
+    RegexpMatchEasy0_1K-4    1.22GB/s ± 3%  1.22GB/s ± 3%    ~     (p=0.496 n=30+30)
+    RegexpMatchEasy1_32-4     298MB/s ± 4%   303MB/s ± 4%  +1.84%  (p=0.017 n=30+30)
+    RegexpMatchEasy1_1K-4     995MB/s ± 4%   989MB/s ± 4%    ~     (p=0.307 n=30+30)
+    RegexpMatchMedium_32-4   7.56MB/s ± 4%  7.74MB/s ± 4%  +2.46%  (p=0.000 n=22+30)
+    RegexpMatchMedium_1K-4   23.2MB/s ± 4%  23.4MB/s ± 3%    ~     (p=0.651 n=30+30)
+    RegexpMatchHard_32-4     14.2MB/s ± 4%  14.3MB/s ± 4%  +1.29%  (p=0.021 n=30+30)
+    RegexpMatchHard_1K-4     15.0MB/s ± 3%  14.9MB/s ± 4%    ~     (p=0.069 n=30+29)
+    Revcomp-4                 138MB/s ± 2%   138MB/s ± 2%    ~     (p=0.072 n=30+30)
+    Template-4               28.1MB/s ± 3%  28.4MB/s ± 3%  +1.05%  (p=0.012 n=30+30)
+    [Geo mean]               79.7MB/s       80.2MB/s       +0.60%
+    
+    Change-Id: I44a1dfc942c9a385904553c4fe1fa8e509c8aa31
+    Reviewed-on: https://go-review.googlesource.com/120916
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/build_test.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |   8 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go |   6 +
+ src/cmd/compile/internal/ssa/opGen.go      |  60 +++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 401 ++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/x86/ssa.go        |  27 ++
+ test/codegen/arithmetic.go                 |   4 +
+ 6 files changed, 505 insertions(+), 1 deletion(-)

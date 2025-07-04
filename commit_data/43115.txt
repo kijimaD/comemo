@@ -1,14 +1,19 @@
-commit 72a9dec156408a87548deb920a67b8bf787062db
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Fri Sep 25 13:30:18 2020 +0300
+commit b0b185c5faa87296b4ed1754f902bec854b06f73
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 6 13:35:21 2020 -0500
 
-    doc/go1.16: document net.ErrClosed usage in crypto/tls
+    [dev.link] cmd/link: remove patchDWARFName from the linker
     
-    Change-Id: I130cf79b93c6456dbe87f0042209e204c4e319b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257457
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Remove the various bits of code in the linker that patch DWARF name
+    attributes (rewrite "". to packagepath).
+    
+    Change-Id: I29a38d680d411ccf1c1eeb760f2d15fc8ec22d90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222719
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.16.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go      |  4 --
+ src/cmd/link/internal/loader/loader.go | 94 ----------------------------------
+ 2 files changed, 98 deletions(-)

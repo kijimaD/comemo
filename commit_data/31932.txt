@@ -1,34 +1,26 @@
-commit c991d2ab14496789146560608c5756d5d83b35f6
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jun 27 17:30:39 2017 -0700
+commit 3a1ce1085ad08296557e8a87573fae4634ce7d8e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 23 22:47:56 2017 -0400
 
-    archive/tar: use best effort at writing USTAR header
+    runtime: access _cgo_yield indirectly
     
-    Prior to this change, if the Writer needed to use the PAX format, it would
-    output a USTAR header with an empty name. This should be okay since the PAX
-    specification dictates that the PAX record for "path" should override the
-    semantic meaning of any of the old USTAR fields.
+    The darwin linker for ARM does not allow PC-relative relocation
+    of external symbol in text section. Work around it by accessing
+    it indirectly: putting its address in a global variable (which is
+    not external), and accessing through that variable.
     
-    Unfortunately, the implementation of tar on OpenBSD 6.1 is too strict with
-    their handling of PAX files such that they check for the validity of this
-    bogus field even though the PAX header is present.
+    Fixes #19684.
     
-    To allow Go's Writer output be parsible by OpenBSD's tar utility,
-    we write a best-effort (ASCII-only and truncated) version of the original
-    file name. Note that this still fails in some edge-cases (for example,
-    a Chinese filename containing all non-ASCII characters). OpenBSD should really
-    relax their checking, as you honestly can't always expect a sensible path
-    to be generated when USTAR cannot handle the original path.
-    
-    Fixes #20707
-    
-    Change-Id: Id7d77349023d2152d7291d582cd050b6681760e4
-    Reviewed-on: https://go-review.googlesource.com/46914
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I41361bbb281b5dbdda0d100ae49d32c69ed85a81
+    Reviewed-on: https://go-review.googlesource.com/38596
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
 
- src/archive/tar/testdata/ustar.issue12594.tar | Bin 3072 -> 3072 bytes
- src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
- src/archive/tar/writer.go                     |  10 ++++++++--
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/cgo.go        |  2 ++
+ src/runtime/lock_futex.go | 18 +++++++++---------
+ src/runtime/lock_sema.go  | 14 +++++++-------
+ src/runtime/proc.go       |  8 ++++----
+ 4 files changed, 22 insertions(+), 20 deletions(-)

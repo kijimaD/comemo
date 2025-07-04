@@ -1,15 +1,18 @@
-commit 762a0bae06b61f58a3783042167c54752c533aa1
-Author: Wembley G. Leach, Jr <wembley.gl@gmail.com>
-Date:   Mon Aug 7 21:22:14 2017 -0400
+commit 315858371337af5898307136d142f9457f6d0c1c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 7 14:38:54 2017 -0700
 
-    math/bits: Add examples for Reverse functions
+    cmd/compile/internal/types: remove Cmptmp
     
-    Change-Id: I30563d31f6acea594cc853cc6b672ec664f90d48
-    Reviewed-on: https://go-review.googlesource.com/53636
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    It's unused and redundant with types.Type.Compare.
+    
+    Change-Id: I8d93473e9cee61650cb0c19a402316a3d418160e
+    Reviewed-on: https://go-review.googlesource.com/40011
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/bits/example_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/cmd/compile/internal/gc/main.go     |   1 -
+ src/cmd/compile/internal/gc/types.go    | 186 --------------------------------
+ src/cmd/compile/internal/types/utils.go |   2 -
+ 3 files changed, 189 deletions(-)

@@ -1,20 +1,41 @@
-commit 478b1d260a21a83a090ba120efb79753495545e1
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Nov 17 08:54:48 2022 +0000
+commit d36d5bd3c1906d3581ac4ac0d8a1a0eb4b5b16c4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 1 18:15:24 2022 +0000
 
-    net: call getSystemDNSConfig inside lookupWithFake to avoid nil dereference panic when running tests alone
+    runtime: clean up inconsistent heap stats
     
-    It happens with tests that only call lookupWithFake, and before them no-one calls resolverConf.tryUpdate. running alone one of these: TestIssue8434, TestIssueNoSuchHostExists cause a nil dereference panic.
+    The inconsistent heaps stats in memstats are a bit messy. Primarily,
+    heap_sys is non-orthogonal with heap_released and heap_inuse. In later
+    CLs, we're going to want heap_sys-heap_released-heap_inuse, so clean
+    this up by replacing heap_sys with an orthogonal metric: heapFree.
+    heapFree represents page heap memory that is free but not released.
     
-    Change-Id: I3fccd96dff5b3c77b5420a7f73742acbafa80142
-    GitHub-Last-Rev: 7456fd16a7ff4845b4ca305d4107d29f1d6f7b3e
-    GitHub-Pull-Request: golang/go#56759
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450856
+    I think this change also simplifies a lot of reasoning about these
+    stats; it's much clearer what they mean, and to obtain HeapSys for
+    memstats, we no longer need to do the strange subtraction from heap_sys
+    when allocating specifically non-heap memory from the page heap.
+    
+    Because we're removing heap_sys, we need to replace it with a sysMemStat
+    for mem.go functions. In this case, heap_released is the most
+    appropriate because we increase it anyway (again, non-orthogonality). In
+    which case, it makes sense for heap_inuse, heap_released, and heapFree
+    to become more uniform, and to just represent them all as sysMemStats.
+    
+    While we're here and messing with the types of heap_inuse and
+    heap_released, let's also fix their names (and last_heap_inuse's name)
+    up to the more modern Go convention of camelCase.
+    
+    For #48409.
+    
+    Change-Id: I87fcbf143b3e36b065c7faf9aa888d86bd11710b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397677
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/dnsclient_unix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go      |  3 ++-
+ src/runtime/mgc.go         |  4 +--
+ src/runtime/mgcscavenge.go | 21 ++++++++-------
+ src/runtime/mheap.go       | 35 ++++++++++---------------
+ src/runtime/mstats.go      | 65 +++++++++++++++++++++++-----------------------
+ 5 files changed, 62 insertions(+), 66 deletions(-)

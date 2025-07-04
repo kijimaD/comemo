@@ -1,16 +1,13 @@
-commit e44853c969fbb4f6cfa20e873638f095e20dee5e
+commit abae84713462d517315ac5ee3aa522e7922da52b
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 11 09:35:50 2011 +1000
+Date:   Mon Jul 11 09:19:18 2011 +1000
 
-    flag: make -help nicer.
-    - suppress the print that -help is not defined.
-    - return a special error code if -help is set
-    - do not change behavior if an explict "help" flag is defined.
+    exp/template: add functions print and println.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4641099
+    https://golang.org/cl/4687041
 
- src/pkg/flag/flag.go      | 16 +++++++++++++++-
- src/pkg/flag/flag_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/exec_test.go |  6 ++++--
+ src/pkg/exp/template/funcs.go     | 26 ++++++++++++++++++--------
+ 2 files changed, 22 insertions(+), 10 deletions(-)

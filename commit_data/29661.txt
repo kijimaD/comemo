@@ -1,27 +1,16 @@
-commit 0d163ce1c95d03a173eba246de6d45db69e678ac
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Oct 28 10:10:46 2016 -0700
+commit 05f599594ac4f8db63d6a2d628b6ba5781273cad
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Oct 1 15:41:03 2016 +0900
 
-    database/sql: do not bypass the driver locks with Context methods
+    syscall: re-enable TestPassFD on dragonfly
     
-    When context methods were initially added it was attempted to unify
-    behavior between drivers without Context methods and those with
-    Context methods to always return right away when the Context expired.
-    However in doing so the driver call could be executed outside of the
-    scope of the driver connection lock and thus bypassing thread safety.
+    At least it works well on DragonFly BSD 4.6.
     
-    The new behavior waits until the driver operation is complete. It then
-    checks to see if the context has expired and if so returns that error.
-    
-    Change-Id: I4a5c7c3263420c57778f36a5ed6fa0ef8cb32b20
-    Reviewed-on: https://go-review.googlesource.com/32422
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3b210745246c6d8d42e32ba65ee3b9a17d171ff7
+    Reviewed-on: https://go-review.googlesource.com/30170
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/ctxutil.go       | 232 ++++++++------------------------------
- src/database/sql/driver/driver.go |  46 ++++++--
- src/database/sql/fakedb_test.go   |  34 +++++-
- src/database/sql/sql.go           |  67 ++++++++---
- src/database/sql/sql_test.go      |  80 ++++++++++++-
- 5 files changed, 242 insertions(+), 217 deletions(-)
+ src/syscall/syscall_unix_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

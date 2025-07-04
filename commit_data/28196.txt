@@ -1,20 +1,16 @@
-commit cd2d5ee0485fd0fa5a102c9de372c70b7a31d154
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Jun 19 12:11:47 2016 -0700
+commit 4d6788ecae127017ab4ab4d5d5907b8912a08bd6
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu May 5 00:04:54 2016 +0530
 
-    cmd/compile: unify arraylit and structlit
+    runtime: clean up profiling data files produced by TestCgoPprof
     
-    They were almost identical.
-    Merge them and some of their calling code.
+    Fixes #15541
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I9e92a864a6c09c9e18ed52dc247a678467e344ba
-    Reviewed-on: https://go-review.googlesource.com/26754
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9b6835157db0eb86de13591e785f971ffe754baa
+    Reviewed-on: https://go-review.googlesource.com/22783
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 199 ++++++++++-------------------------
- src/cmd/compile/internal/gc/walk.go  |   6 +-
- 2 files changed, 55 insertions(+), 150 deletions(-)
+ src/runtime/crash_cgo_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

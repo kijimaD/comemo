@@ -1,12 +1,12 @@
-commit 44262d157425c396f913b88c81b27f13dd30cff7
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Tue Nov 1 15:13:33 2011 +0900
+commit b910a2739629f10eea56c44467f99263ef303f46
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 1 01:09:22 2011 -0400
 
-    doc: fix typo in spec example code comment
+    go spec: introduce rune type
     
-    R=r, golang-dev, adg
+    R=r, iant, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5308071
+    https://golang.org/cl/5293048
 
- doc/go_spec.html | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ doc/go_spec.html | 53 ++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 30 insertions(+), 23 deletions(-)

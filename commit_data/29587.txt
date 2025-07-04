@@ -1,23 +1,25 @@
-commit b21743c6d0484a6912d1a4ee20905c7b9b578ed8
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Nov 17 12:15:19 2016 -0800
+commit ac24388e5e5bdc129451c074a349a982e1d55ffa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 26 11:14:41 2016 -0700
 
-    crypto/tls: reject zero-length SCTs.
+    runtime: merge setting new signal mask in minit
     
-    The SignedCertificateTimestampList[1] specifies that both the list and
-    each element must not be empty. Checking that the list is not empty was
-    handled in [2] and this change checks that the SCTs themselves are not
-    zero-length.
+    All the variants that sets the new signal mask in minit do the same
+    thing, so merge them. This requires an OS-specific sigdelset function;
+    the function already exists for linux, and is now added for other OS's.
     
-    [1] https://tools.ietf.org/html/rfc6962#section-3.3
-    [2] https://golang.org/cl/33265
-    
-    Change-Id: Iabaae7a15f6d111eb079e5086e0bd2005fae9e48
-    Reviewed-on: https://go-review.googlesource.com/33355
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie96f6f02e2cf09c43005085985a078bd9581f670
+    Reviewed-on: https://go-review.googlesource.com/29771
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/handshake_messages.go      |  2 +-
- src/crypto/tls/handshake_messages_test.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/os3_solaris.go  | 16 +++++-----------
+ src/runtime/os_darwin.go    | 17 +++++------------
+ src/runtime/os_dragonfly.go | 18 ++++++------------
+ src/runtime/os_freebsd.go   | 18 ++++++------------
+ src/runtime/os_linux.go     | 16 ++--------------
+ src/runtime/os_netbsd.go    | 15 +++++----------
+ src/runtime/os_openbsd.go   | 18 ++++++------------
+ src/runtime/signal_unix.go  | 25 +++++++++++++++++++++++++
+ 8 files changed, 60 insertions(+), 83 deletions(-)

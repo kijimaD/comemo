@@ -1,92 +1,29 @@
-commit 1ddab592291584b2bd5b44b547618046d95c6abd
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Sun Sep 11 14:47:36 2022 +0200
+commit a292b3905c0976ed2ab7aae24fa96d506cb7b0a7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 00:55:13 2022 +0700
 
-    cmd/compile: use shorter version of movzx for LoweredHASCPUFeature
+    internal/testenv: add and use OptimizationOff/SkipIfOptimizationOff
     
-    The values loaded from memory are booleans. Upper 32 bits are not needed.
-    Use the 32-bit version of movzx.
+    So we don't have to duplicate the logic to detect noopt builder in
+    multiple places.
     
-    compilecmp linux/amd64:
+    Based on khr@'s suggestion in CL 422037.
     
-    math/bits
-    math/bits.OnesCount 83 -> 78  (-6.02%)
-    
-    math
-    math.ceil 109 -> 103  (-5.50%)
-    math.Gamma changed
-    math.sinPi changed
-    
-    runtime
-    runtime.(*sweepLocked).sweep changed
-    runtime.(*mspan).countAlloc 182 -> 178  (-2.20%)
-    runtime.(*pageBits).popcntRange 552 -> 542  (-1.81%)
-    go:(**mspan).runtime.countAlloc 243 -> 232  (-4.53%)
-    runtime.sweepLocked.countAlloc 221 -> 215  (-2.71%)
-    runtime.(*pageCache).allocN changed
-    
-    math/rand
-    math/rand.(*Zipf).Uint64 506 -> 499  (-1.38%)
-    
-    cmd/vendor/golang.org/x/sys/unix
-    cmd/vendor/golang.org/x/sys/unix.(*CPUSet).Count 147 -> 145  (-1.36%)
-    
-    cmd/internal/obj/ppc64
-    cmd/internal/obj/ppc64.(*ctxt9).asmout changed
-    
-    cmd/cover
-    main.htmlGen 1170 -> 1164  (-0.51%)
-    
-    cmd/compile/internal/bitvec
-    cmd/compile/internal/bitvec.(*BitVec).Count 221 -> 213  (-3.62%)
-    cmd/compile/internal/bitvec.BitVec.Count changed
-    
-    cmd/link/internal/loader
-    cmd/link/internal/loader.(*Bitmap).Count 214 -> 212  (-0.93%)
-    cmd/link/internal/loader.Bitmap.Count 171 -> 169  (-1.17%)
-    cmd/link/internal/loader.(*Loader).NReachableSym changed
-    cmd/link/internal/loader.(*Loader).Stat changed
-    
-    cmd/vendor/github.com/ianlancetaylor/demangle
-    cmd/vendor/github.com/ianlancetaylor/demangle.oldRustToString changed
-    
-    cmd/vendor/github.com/google/pprof/internal/graph
-    cmd/vendor/github.com/google/pprof/internal/graph.(*builder).addNode changed
-    
-    cmd/compile/internal/ssa
-    cmd/compile/internal/ssa.rewriteValuePPC64_OpPPC64FTRUNC changed
-    cmd/compile/internal/ssa.(*regAllocState).computeLive 10441 -> 10409  (-0.31%)
-    cmd/compile/internal/ssa.(*regAllocState).regalloc changed
-    cmd/compile/internal/ssa.rewriteValuePPC64_OpPPC64FCEIL changed
-    cmd/compile/internal/ssa.(*regAllocState).allocReg changed
-    cmd/compile/internal/ssa.rewriteValuePPC64_OpPPC64FFLOOR changed
-    cmd/compile/internal/ssa.countRegs 83 -> 78  (-6.02%)
-    
-    cmd/compile/internal/liveness
-    cmd/compile/internal/liveness.ArgLiveness.func2 changed
-    
-    cmd/compile/internal/amd64
-    cmd/compile/internal/amd64.ssaGenValue changed
-    
-    file                               before   after    Δ       %
-    math/bits.s                        2618     2613     -5      -0.191%
-    math.s                             37246    37240    -6      -0.016%
-    runtime.s                          486910   486879   -31     -0.006%
-    math/rand.s                        9980     9973     -7      -0.070%
-    cmd/vendor/golang.org/x/sys/unix.s 119232   119230   -2      -0.002%
-    cmd/cover.s                        31341    31335    -6      -0.019%
-    cmd/compile/internal/bitvec.s      5542     5534     -8      -0.144%
-    cmd/link/internal/loader.s         75315    75311    -4      -0.005%
-    cmd/compile/internal/ssa.s         3570581  3570544  -37     -0.001%
-    total                              20041552 20041446 -106    -0.001%
-    
-    Change-Id: I29845744c512a1f833cb1fa3bb43b6b0e0eaac68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430175
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Idb338e8bc08cdf00460574bfc0d2f7018c79bbd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422038
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/test/issue53888_test.go      |  5 +----
+ src/crypto/ed25519/ed25519_test.go                    |  6 +++---
+ src/crypto/internal/edwards25519/edwards25519_test.go |  8 +++-----
+ src/crypto/internal/nistec/nistec_test.go             |  8 +++-----
+ src/internal/testenv/testenv.go                       | 13 +++++++++++++
+ src/math/big/int_test.go                              |  4 +---
+ src/net/netip/netip_test.go                           |  4 ++--
+ src/reflect/all_test.go                               |  2 +-
+ src/runtime/traceback_test.go                         |  3 +--
+ 9 files changed, 28 insertions(+), 25 deletions(-)

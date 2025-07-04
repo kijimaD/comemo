@@ -1,20 +1,18 @@
-commit f580b7511491c866a102f3f8be912be8f824b830
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Oct 6 12:16:47 2021 -0700
+commit aca22bddf231c862a1d6c9d8af8eed804c329d22
+Author: David Chase <drchase@google.com>
+Date:   Tue Jan 26 19:33:34 2021 -0500
 
-    all: update go.mod for golang.org/x/net
+    [dev.regabi] cmd/compile: remove nested functions from expands_calls.go
     
-    Somehow CL 353390 managed to update the vendored code to d2e5035098b3,
-    but not the go.mod and other version references. Fix.
+    Replace nested function spaghetti with state object and methods.
+    Still somewhat complex, but a bit more explicit.
     
-    Change-Id: Ic265c10f7bd7ec982671b46c5d9ae50636a13309
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354391
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I21987c8e4be75821faa5a248af05d2095cdfb0d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287132
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go.mod             |  2 +-
- src/go.sum             | 10 ++--------
- src/vendor/modules.txt |  2 +-
- 3 files changed, 4 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 1225 +++++++++++++-------------
+ 1 file changed, 618 insertions(+), 607 deletions(-)

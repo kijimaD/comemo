@@ -1,22 +1,16 @@
-commit bf18d57d4a186302ed7a3b07d60cd6facda08a71
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 24 22:41:07 2012 -0400
+commit ca6b4d535f56dbfd0f0334bc7747bde20914d7b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 24 17:32:25 2012 -0700
 
-    runtime: handle and test large map values
+    misc/dist: use archive/tar.FileInfoHeader
     
-    This is from CL 5451105 but was dropped from that CL.
-    See also CL 6137051.
+    Fixes #3299
     
-    The only change compared to 5451105 is to check for
-    h != nil in reflect·mapiterinit; allowing use of nil maps
-    must have happened after that original CL.
-    
-    Fixes #3573.
-    
-    R=golang-dev, dave, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6215078
+    https://golang.org/cl/6250056
 
- src/pkg/runtime/hashmap.c | 161 ++++++++++++++++++++++++++++++++--------------
- test/bigmap.go            | 105 +++++++++++++++++++++++++++++-
- 2 files changed, 215 insertions(+), 51 deletions(-)
+ misc/dist/bindist.go     | 64 ++----------------------------------------------
+ misc/dist/stat_darwin.go | 32 ------------------------
+ misc/dist/stat_linux.go  | 32 ------------------------
+ 3 files changed, 2 insertions(+), 126 deletions(-)

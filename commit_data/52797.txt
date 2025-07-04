@@ -1,24 +1,18 @@
-commit 0972096c5c2facec2d5c6db08a2df32684f41caa
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Apr 24 11:26:23 2023 -0400
+commit 74dc84a0e54f2ad1eaec07212b2908a1e55f5e93
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 16:51:06 2022 -0400
 
-    cmd/api: make api/next/* entries required, not optional
+    doc/go1.19: add a release note for CL 404134
     
-    We want the API check to catch if some API present in api/next/*
-    files is no longer implemented in the tree, and report it in the
-    same CL that is making the change (by failing loudly). Arguably
-    this should've been the case since CL 315350, but I didn't notice
-    it at the time. Do it now.
+    For #51473.
     
-    For #43956.
-    
-    Change-Id: I73330dd5fd3f5706a1fdf13b2bf8e0f24c6b48e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488135
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I01a35e5ebc83b8b72e414ed1730e9147ea590959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/api/api.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ doc/go1.19.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

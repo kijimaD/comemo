@@ -1,16 +1,26 @@
-commit 699dbb60b7274a525f53797aa1d145cc762cf953
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 24 08:08:15 2013 -0800
+commit 41183d015d17ab537287599e2bf72ca1cdeafb55
+Author: S.Çağlar Onur <caglar@10ur.org>
+Date:   Sun Dec 22 08:55:29 2013 -0800
 
-    runtime/cgo: always set signal mask before calling pthread_create
+    cgo/runtime: replace sigprocmask with pthread_sigmask.
     
-    This was done correctly for most targets but was missing from
-    FreeBSD/ARM and Linux/ARM.
+    sigprocmask use in a multithreaded environment is undefined so replace it with pthread_sigmask.
     
-    R=golang-codereviews, dave
-    CC=golang-codereviews
-    https://golang.org/cl/45180043
+    Fixes #6811.
+    
+    R=jsing, iant
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/30460043
 
- src/pkg/runtime/cgo/gcc_freebsd_arm.c | 7 +++++++
- src/pkg/runtime/cgo/gcc_linux_arm.c   | 7 +++++++
- 2 files changed, 14 insertions(+)
+ src/pkg/runtime/cgo/gcc_dragonfly_386.c   | 4 ++--
+ src/pkg/runtime/cgo/gcc_dragonfly_amd64.c | 4 ++--
+ src/pkg/runtime/cgo/gcc_freebsd_386.c     | 4 ++--
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c   | 4 ++--
+ src/pkg/runtime/cgo/gcc_linux_386.c       | 4 ++--
+ src/pkg/runtime/cgo/gcc_linux_amd64.c     | 4 ++--
+ src/pkg/runtime/cgo/gcc_netbsd_386.c      | 4 ++--
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c    | 4 ++--
+ src/pkg/runtime/cgo/gcc_netbsd_arm.c      | 4 ++--
+ src/pkg/runtime/cgo/gcc_openbsd_386.c     | 4 ++--
+ src/pkg/runtime/cgo/gcc_openbsd_amd64.c   | 4 ++--
+ 11 files changed, 22 insertions(+), 22 deletions(-)

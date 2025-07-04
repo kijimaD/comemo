@@ -1,38 +1,51 @@
-commit 8427429c592588af8c49522c76b3e0e0e335d270
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 14 11:27:46 2022 -0400
+commit b9417ffd2797753219aa404abcb848e7c7c8bfd8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sat May 15 18:46:05 2021 -0700
 
-    os: raise open file rlimit at startup
+    [dev.fuzz] internal/fuzz: move coverage capture closer to function
     
-    Some systems set an artificially low soft limit on open file count,
-    for compatibility with code that uses select and its hard-coded
-    maximum file descriptor (limited by the size of fd_set).
+    When instrumented packages intersect with the packages used by the
+    testing or internal/fuzz packages the coverage counters become noisier,
+    as counters will be triggered by non-fuzzed harness code.
     
-    Go does not use select, so it should not be subject to these limits.
-    On some systems the limit is 256, which is very easy to run into, even
-    in simple programs like gofmt when they parallelize walking a file tree.
+    Ideally counters would be deterministic, as there are many advanced
+    fuzzing strategies that require mutating the input while maintaining
+    static coverage.
     
-    After a long discussion on go.dev/issue/46279, we decided the best
-    approach was for Go to raise the limit unconditionally for itself, and
-    then leave old software to set the limit back as needed. Code that
-    really wants Go to leave the limit alone can set the hard limit, which
-    Go of course has no choice but to respect.
+    The simplest way to mitigate this noise is to capture the coverage
+    counters as closely as possible to the invocation of the fuzz target
+    in the testing package. In order to do this add a new function which
+    captures the current values of the counters, SnapshotCoverage. This
+    function copies the current counters into a static buffer,
+    coverageSnapshot, which workerServer.fuzz can then inspect when it
+    comes time to check if new coverage has been found.
     
-    Take 2, after CL 392415 was rolled back for macOS and OpenBSD failures.
-    The macOS failures should be handled by the new call to sysctl("kern.maxfilesperproc"),
-    and the OpenBSD failures are handled by skipping the test (and filing #51713).
+    This method is not foolproof. As the fuzz target is called in a
+    goroutine, harness code can still cause counters to be incremented
+    while the target is being executed. Despite this we do see
+    significant reduction in churn via this approach. For example,
+    running a  basic target that causes strconv to be instrumented for
+    500,000 iterations causes ~800 unique sets of coverage counters,
+    whereas by capturing the counters closer to the target we get ~40
+    unique sets.
     
-    Fixes #46279.
+    It may be possible to make counters completely deterministic, but
+    likely this would require rewriting testing/F.Fuzz to not use tRunner
+    in a goroutine, and instead use it in a blocking manner (which I
+    couldn't figure out an obvious way to do), or by doing something even
+    more complex.
     
-    Change-Id: I45c81b94590b447b483018a05ae980b8f02dc5de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393354
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I95c2f3b1d7089c3e6885fc7628a0d3a8ac1a99cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320329
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/os/rlimit.go        | 32 ++++++++++++++++++++++++++++++++
- src/os/rlimit_darwin.go | 22 ++++++++++++++++++++++
- src/os/rlimit_stub.go   | 12 ++++++++++++
- src/os/rlimit_test.go   | 37 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 103 insertions(+)
+ src/internal/fuzz/coverage.go         | 26 ++++++++++++++------------
+ src/internal/fuzz/fuzz.go             |  6 +++---
+ src/internal/fuzz/worker.go           | 16 +++++-----------
+ src/testing/fuzz.go                   | 16 ++++++++++++----
+ src/testing/internal/testdeps/deps.go |  8 ++++++++
+ src/testing/testing.go                |  4 ++++
+ 6 files changed, 46 insertions(+), 30 deletions(-)

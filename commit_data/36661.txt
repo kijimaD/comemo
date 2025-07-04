@@ -1,23 +1,18 @@
-commit 9f59918cae5eb23fdf0135b77280907365b52069
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 13 12:18:09 2018 -0700
+commit 73b5951391a9c206414b2f460a043374b1383b94
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue May 15 00:52:18 2018 +0200
 
-    path/filepath: correct symlink eval for symlink at root
+    misc/wasm: fix passing large negative integers from JS to Go
     
-    For a relative symlink in the root directory, such as /tmp ->
-    private/tmp, we were dropping the leading slash.
+    This commit addresses a FIXME left in the code of wasm_exec.js to
+    properly get the upper 32 bit of a JS number to be stored as an
+    64-bit integer. A bitshift operation is not possible, because in
+    JavaScript bitshift operations only operate on the lower 32 bits.
     
-    No test because we can't create a symlink in the root directory.
-    The test TestGZIPFilesHaveZeroMTimes was failing on the Darwin builders.
-    
-    Updates #19922
-    Updates #20506
-    
-    Change-Id: Ic83cb6d97ad0cb628fc551ac772a44fb3e20f038
-    Reviewed-on: https://go-review.googlesource.com/135295
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I8f627fd604e592682d9d322942a4852db64a7f66
+    Reviewed-on: https://go-review.googlesource.com/113076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/symlink.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ misc/wasm/wasm_exec.js    |  6 +-----
+ src/syscall/js/js_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 5 deletions(-)

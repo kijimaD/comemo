@@ -1,21 +1,23 @@
-commit 4b654c0eeca65ffc6588ffd9c99387a7e48002c1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 17 16:26:13 2021 -0400
+commit eb626409d152caabac418eccbe86b49d1fc6a6f5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 4 18:28:55 2021 -0800
 
-    cmd/compile: SSA ".this" variable
+    [dev.regabi] cmd/compile: simplify CaptureVars
     
-    We used to not SSA ".this" variable, because in tail-call method
-    wrappers it relies on updating ".this" in place in memory, and
-    the tail call IR node and SSA op do not have an explicit use of
-    ".this". It is no longer the case for the new tail call
-    representation. Remove the restriction.
+    CaptureVars is responsible for deciding whether free variables should
+    be captured by value or by reference, but currently it also makes up
+    for some of the short-comings of the frontend symbol resolution /
+    type-checking algorithms. These are really separate responsibilities,
+    so move the latter into type-checking where it fits better.
     
-    Change-Id: I4e1ce8459adbb0d5a80c64f1ece982737bd95305
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350751
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: Iffbd53e83846a9ca9dfb54b597450b8543252850
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281534
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/compile/internal/typecheck/func.go | 49 +++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 28 deletions(-)

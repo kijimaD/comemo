@@ -1,17 +1,18 @@
-commit 310be7be5c41e70f1c2306f23c108aff2b0ed78b
-Author: pvoicu <pvoicu@paypal.com>
-Date:   Fri Aug 18 03:32:49 2017 -0700
+commit be66d174523809e00d3fba3cd3c52d6b74bc7e73
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Thu Apr 20 13:01:59 2017 +0100
 
-    runtime: fix usleep by correctly setting nanoseconds parameter for pselect6
+    net/http: use bullet characters for godoc lists
     
-    Fixes #21518
+    Brad noticed a bullet list was rendered as preformatted text because of
+    the indentation. One can use a unicode bullet as an ersatz for bullet
+    lists.
     
-    Change-Id: Idd67e3f0410d0ce991b34dcc0c8f15e0d5c529c9
-    Reviewed-on: https://go-review.googlesource.com/56850
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #20043
+    
+    Change-Id: Iaed3582d14bd05920455669039a900d7155960d9
+    Reviewed-on: https://go-review.googlesource.com/41212
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_linux_386.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/client.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

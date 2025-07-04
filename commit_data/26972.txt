@@ -1,20 +1,26 @@
-commit 1151473077fb03df798d4eb57a22fa820f9e41f8
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 14 13:40:35 2016 -0400
+commit 5763476f739ad4d6b122c2a7ae26a845ea020a7e
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 5 11:33:13 2016 +0100
 
-    runtime: check that sysUnused is always physical-page aligned
+    fmt: use fewer allocations for %q string formatting
     
-    If sysUnused is passed an address or length that is not aligned to the
-    physical page boundary, the kernel will unmap more memory than the
-    caller wanted. Add a check for this.
+    Reuse the internal buffer and use append versions of
+    the strconv quote functions to avoid some allocations.
     
-    For #9993.
+    Add more tests.
     
-    Change-Id: I68ff03032e7b65cf0a853fe706ce21dc7f2aaaf8
-    Reviewed-on: https://go-review.googlesource.com/22065
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    name                  old time/op    new time/op    delta
+    SprintfQuoteString-2     486ns ± 2%     416ns ± 2%  -14.42%  (p=0.000 n=20+20)
+    
+    name                  old allocs/op  new allocs/op  delta
+    SprintfQuoteString-2      4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=20+20)
+    
+    Change-Id: I63795b51fd95c53c5993ec8e6e99b659941f9f54
+    Reviewed-on: https://go-review.googlesource.com/20251
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mem_linux.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/fmt/fmt_test.go | 99 ++++++++++++++++++++++++++++++++++++++++++++---------
+ src/fmt/format.go   | 24 ++++++-------
+ 2 files changed, 95 insertions(+), 28 deletions(-)

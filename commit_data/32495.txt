@@ -1,14 +1,66 @@
-commit c875cea7ae174f723aed10ea31911cd7013ee261
-Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
-Date:   Sun Aug 27 11:30:19 2017 +0300
+commit c120e449fbc618f9510387d718de0cef5f73af3a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 17:37:30 2017 -0500
 
-    net/http: mention RegisterOnShutdown in Server.Shutdown docs
+    encoding/gob: replace RWMutex usage with sync.Map
     
-    Closes #21637
+    This provides a significant speedup for encoding and decoding when
+    using many CPU cores.
     
-    Change-Id: Icc3528572ea2a25e62757cc8fbbb9c3fa96a78b2
-    Reviewed-on: https://go-review.googlesource.com/59350
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    name                        old time/op  new time/op  delta
+    EndToEndPipe                5.26µs ± 2%  5.38µs ± 7%     ~     (p=0.121 n=8+7)
+    EndToEndPipe-6              1.86µs ± 5%  1.80µs ±11%     ~     (p=0.442 n=8+8)
+    EndToEndPipe-48             1.39µs ± 2%  1.41µs ± 4%     ~     (p=0.645 n=8+8)
+    EndToEndByteBuffer          1.54µs ± 5%  1.57µs ± 5%     ~     (p=0.130 n=8+8)
+    EndToEndByteBuffer-6         620ns ± 6%   310ns ± 8%  -50.04%  (p=0.000 n=8+8)
+    EndToEndByteBuffer-48        506ns ± 4%   110ns ± 3%  -78.22%  (p=0.000 n=8+8)
+    EndToEndSliceByteBuffer      149µs ± 3%   153µs ± 5%   +2.80%  (p=0.021 n=8+8)
+    EndToEndSliceByteBuffer-6    103µs ±17%    31µs ±12%  -70.06%  (p=0.000 n=8+8)
+    EndToEndSliceByteBuffer-48  93.2µs ± 2%  18.0µs ± 5%  -80.66%  (p=0.000 n=7+8)
+    EncodeComplex128Slice       20.6µs ± 5%  20.9µs ± 8%     ~     (p=0.959 n=8+8)
+    EncodeComplex128Slice-6     4.10µs ±10%  3.75µs ± 8%   -8.58%  (p=0.004 n=8+7)
+    EncodeComplex128Slice-48    1.14µs ± 2%  0.81µs ± 2%  -28.98%  (p=0.000 n=8+8)
+    EncodeFloat64Slice          10.2µs ± 7%  10.1µs ± 6%     ~     (p=0.694 n=7+8)
+    EncodeFloat64Slice-6        2.01µs ± 6%  1.80µs ±11%  -10.30%  (p=0.004 n=8+8)
+    EncodeFloat64Slice-48        701ns ± 3%   408ns ± 2%  -41.72%  (p=0.000 n=8+8)
+    EncodeInt32Slice            11.8µs ± 7%  11.7µs ± 6%     ~     (p=0.463 n=8+7)
+    EncodeInt32Slice-6          2.32µs ± 4%  2.06µs ± 5%  -10.89%  (p=0.000 n=8+8)
+    EncodeInt32Slice-48          731ns ± 2%   445ns ± 2%  -39.10%  (p=0.000 n=7+8)
+    EncodeStringSlice           9.13µs ± 9%  9.18µs ± 8%     ~     (p=0.798 n=8+8)
+    EncodeStringSlice-6         1.91µs ± 5%  1.70µs ± 5%  -11.07%  (p=0.000 n=8+8)
+    EncodeStringSlice-48         679ns ± 3%   397ns ± 3%  -41.50%  (p=0.000 n=8+8)
+    EncodeInterfaceSlice         449µs ±11%   461µs ± 9%     ~     (p=0.328 n=8+8)
+    EncodeInterfaceSlice-6       503µs ± 7%    88µs ± 7%  -82.51%  (p=0.000 n=7+8)
+    EncodeInterfaceSlice-48      335µs ± 8%    22µs ± 1%  -93.55%  (p=0.000 n=8+7)
+    DecodeComplex128Slice       67.2µs ± 4%  67.0µs ± 6%     ~     (p=0.721 n=8+8)
+    DecodeComplex128Slice-6     22.0µs ± 8%  18.9µs ± 5%  -14.44%  (p=0.000 n=8+8)
+    DecodeComplex128Slice-48    46.8µs ± 3%  34.9µs ± 3%  -25.48%  (p=0.000 n=8+8)
+    DecodeFloat64Slice          39.4µs ± 4%  40.3µs ± 3%     ~     (p=0.105 n=8+8)
+    DecodeFloat64Slice-6        16.1µs ± 2%  11.2µs ± 7%  -30.64%  (p=0.001 n=6+7)
+    DecodeFloat64Slice-48       38.1µs ± 3%  24.0µs ± 7%  -37.10%  (p=0.000 n=8+8)
+    DecodeInt32Slice            39.1µs ± 4%  40.1µs ± 5%     ~     (p=0.083 n=8+8)
+    DecodeInt32Slice-6          16.3µs ±21%  10.6µs ± 1%  -35.17%  (p=0.000 n=8+7)
+    DecodeInt32Slice-48         36.5µs ± 6%  21.9µs ± 9%  -39.89%  (p=0.000 n=8+8)
+    DecodeStringSlice           82.9µs ± 6%  85.5µs ± 5%     ~     (p=0.121 n=8+7)
+    DecodeStringSlice-6         32.4µs ±11%  26.8µs ±16%  -17.37%  (p=0.000 n=8+8)
+    DecodeStringSlice-48        76.0µs ± 2%  57.0µs ± 5%  -25.02%  (p=0.000 n=8+8)
+    DecodeInterfaceSlice         718µs ± 4%   752µs ± 5%   +4.83%  (p=0.038 n=8+8)
+    DecodeInterfaceSlice-6       500µs ± 6%   165µs ± 7%  -66.95%  (p=0.000 n=7+8)
+    DecodeInterfaceSlice-48      470µs ± 5%   120µs ± 6%  -74.55%  (p=0.000 n=8+7)
+    DecodeMap                   3.29ms ± 5%  3.34ms ± 5%     ~     (p=0.279 n=8+8)
+    DecodeMap-6                 7.73ms ± 8%  7.53ms ±18%     ~     (p=0.779 n=7+8)
+    DecodeMap-48                7.46ms ± 6%  7.71ms ± 3%     ~     (p=0.161 n=8+8)
+    
+    https://perf.golang.org/search?q=upload:20170426.4
+    
+    Change-Id: I335874028ef8d7c991051004f8caadd16c92d5cc
+    Reviewed-on: https://go-review.googlesource.com/41872
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/encoding/gob/decode.go    |  6 ++---
+ src/encoding/gob/encode.go    |  6 ++---
+ src/encoding/gob/type.go      | 56 ++++++++++++++++++-------------------------
+ src/encoding/gob/type_test.go |  6 ++---
+ 4 files changed, 31 insertions(+), 43 deletions(-)

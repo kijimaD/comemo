@@ -1,12 +1,18 @@
-commit e61c047c3e5ac3ad253c9046d479d769d14f7808
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 30 20:32:32 2012 +0400
+commit 9dfc6f6427b4b44d5684dad1ae5cea45a82821ee
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 29 14:46:57 2012 -0700
 
-    net/rpc: protect serviceMap with RWMutex
+    go_spec.html: clarify rune and string literals
+    No changes to the meaning, just clearer language and more
+    examples, including illegal rune and string literals.
+    In particular, "character literal" and "character constant"
+    are now called "rune literal" and "rune constant" and the
+    word "character" always refers to the source text, not
+    program values.
     
-    R=r, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/6494044
+    https://golang.org/cl/6448137
 
- src/pkg/net/rpc/server.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 63 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 37 insertions(+), 26 deletions(-)

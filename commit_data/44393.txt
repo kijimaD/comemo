@@ -1,20 +1,18 @@
-commit 07c658316b411a4b0e71a3a7e78b970b091795ab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 16:59:29 2021 -0800
+commit 7eb5941b95a588a23f18fa4c22fe42ff0119c311
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 23 17:19:01 2020 -0400
 
-    io/ioutil: forward TempFile and TempDir to os package
+    crypto/tls: replace VerifyPeerCertificate example with VerifyConnection
     
-    For #42026
-    Fixes #44311
+    Look at how much better it is!
     
-    Change-Id: I3dabcf902d155f95800b4adf1d7578906a194ce6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285378
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Updates #36736
+    
+    Change-Id: I53a314a103a42dd869c05823fa50f37d70f9d283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239560
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/io/ioutil/export_test.go   |   7 ---
- src/io/ioutil/tempfile.go      | 108 +++--------------------------------------
- src/io/ioutil/tempfile_test.go |  13 ++---
- 3 files changed, 13 insertions(+), 115 deletions(-)
+ src/crypto/tls/example_test.go | 79 ++++++++++++++++++++----------------------
+ 1 file changed, 37 insertions(+), 42 deletions(-)

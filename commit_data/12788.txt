@@ -1,12 +1,13 @@
-commit 16fd9fd64083872fe7c2bc4d4585556731634898
+commit d71d11fa93b880ee47f0d3c4b6115fb1642681b0
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 28 11:38:34 2012 +1100
+Date:   Wed Mar 28 09:13:48 2012 +1100
 
-    doc: link to Go Project Dashboard from package list
+    cmd/godoc: use virtual filesystem to implement -templates flag
     
-    R=golang-dev, r
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5937048
+    https://golang.org/cl/5921045
 
- lib/godoc/package.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/godoc/godoc.go | 8 --------
+ src/cmd/godoc/main.go  | 3 +++
+ 2 files changed, 3 insertions(+), 8 deletions(-)

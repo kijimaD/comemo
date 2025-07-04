@@ -1,24 +1,13 @@
-commit 423e7e603765d0253d8970af1ae4bc1e8efd3fe5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 10 13:43:36 2017 -0700
+commit 3717b429f25b042b98fbdf2c0d4e3dc5307e91ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 23 20:55:17 2017 +0000
 
-    cmd/compile: skip array bounds errors when type is broken
+    doc: note that plugins are not fully baked
     
-    This avoids false positives
-    like those found in #19880.
-    
-    Fixes #19880
-    
-    Change-Id: I583c16cc3c71e7462a72500db9ea2547c468f8c1
-    Reviewed-on: https://go-review.googlesource.com/40255
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6341b8cce0b4a9922928f73f8b459cbb9ec25e79
+    Reviewed-on: https://go-review.googlesource.com/35571
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/typecheck.go |  7 +++++--
- test/fixedbugs/bug255.go                 |  2 +-
- test/fixedbugs/issue19880.go             | 20 ++++++++++++++++++++
- test/fixedbugs/issue7525.go              |  6 ++----
- test/fixedbugs/issue7525b.go             | 13 +++++++++++++
- test/fixedbugs/issue7525c.go             | 13 +++++++++++++
- 6 files changed, 54 insertions(+), 7 deletions(-)
+ doc/go1.8.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

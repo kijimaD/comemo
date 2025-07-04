@@ -1,26 +1,20 @@
-commit 8659ad972f0f1fb389397cb35f810d9ccb36539f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 23 20:50:25 2024 -0700
+commit 936ce874ace0bed17eac20dfa21fe04a45d30603
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 14:11:27 2023 -0400
 
-    encoding/json: rewrite interface{} to any
+    cmd/go: add gover.Max and gover.MaxToolchain
     
-    For #49884
+    I've inlined these by hand enough times now.
     
-    Change-Id: I1623201c47c820a152773d2f43d0072a1466d3bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588118
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    For #57001.
+    
+    Change-Id: Ia274bd444f12b07ce14eeb2b5a66546880db8f77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499982
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/encoding/json/decode.go    | 12 ++++++------
- src/encoding/json/encode.go    |  2 +-
- src/encoding/json/fuzz_test.go |  8 ++++----
- src/encoding/json/stream.go    |  4 ++--
- 4 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/gover/gover.go | 20 ++++++++++++++++++++
+ src/cmd/go/internal/modget/get.go  |  4 ++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

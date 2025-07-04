@@ -1,66 +1,20 @@
-commit 11f11f2a00aa3149a6ea69a50e7b7b429cf368b7
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jun 18 18:35:36 2025 -0700
+commit 5ff0b531748fcdc88d6667e55e021fe02e0c0089
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 26 09:38:44 2024 +0200
 
-    encoding/json/v2: support ISO 8601 durations
+    bytes: skip TestNewBufferShallow if optimization is disabled
     
-    Based on the discussion in #71631, it is hotly contested
-    whether the default JSON representation for a Go time.Duration
-    should be the time.Duration.String format or
-    a particular profile of ISO 8601.
-    Regardless of the default, it seems clear that we should
-    at least support ISO 8601 if specified via a format flag.
-    Note that this CL does not alter the default representation.
+    TestNewBufferShallow should be skipped if optimization is disabled.
     
-    Unfortunately, ISO 8601 is a large and evolving standard
-    with many optional extensions and optional restrictions.
-    Thus, the term "ISO 8601 duration" unfortunately does not
-    resolve to a particular grammar, nor one that is stable.
+    It is currently failing on no-opt builders.
     
-    However, there is precedence that we can follow in this matter.
-    JSON finds its heritage in JavaScript and
-    JavaScript is adding a Temporal.Duration type whose default
-    JSON representation is ISO 8601.
-    There is a well-specified grammar for their particular
-    profile of ISO 8601, which is documented at:
-        https://tc39.es/proposal-temporal/#prod-Duration
-    
-    This particular CL adds support for ISO 8601 according to
-    the exact same grammar that JavaScript uses.
-    While Temporal.Duration is technically still a proposal,
-    it is already in stage 3 of the TC39 proposal process
-    (i.e., "no changes to the proposal are expected"
-    and "has been recommended for implementation")
-    and therefore close to final adoption.
-    
-    One major concern with ISO 8601 is that it supports
-    nominal date units like years, months, weeks, and days
-    that do not have an accurate meaning without being
-    anchored to a particular point in time and place on Earth.
-    
-    Fortunately, JavaScript (by default) avoids producing
-    Temporal.Duration values with nominal units unless
-    arithmetic in JavaScript explicitly sets a largestUnits
-    value that is larger than "hours". In the Go implementation,
-    we support syntactically parsing the full ISO 8601 grammar
-    (according to JavaScript), but semantically report an error if
-    nominal units are present. This ensures that ISO 8601 durations
-    remain accurate so long as they only use the accurate units
-    of hours, minutes, or seconds.
-    
-    Updates #71631
-    
-    Change-Id: I983593662f2150461ebc486a5acfeb72f0286939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/682403
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ib5e62022a56a4e5f158f247d69a6229d2cb4d99e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581915
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
 
- src/encoding/json/v2/arshal.go           |  42 +++--
- src/encoding/json/v2/arshal_test.go      |  36 +++-
- src/encoding/json/v2/arshal_time.go      | 189 ++++++++++++++++++-
- src/encoding/json/v2/arshal_time_test.go | 302 ++++++++++++++++++++-----------
- src/encoding/json/v2/example_test.go     |  45 ++---
- 5 files changed, 456 insertions(+), 158 deletions(-)
+ src/bytes/buffer_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

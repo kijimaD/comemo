@@ -1,14 +1,14 @@
-commit f8284b64cecf38338cf62ddc6398c0a9fe655326
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 22 14:00:10 2013 -0500
+commit fd32ac4bae462672b8b6b3737111f3c213f7230a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 22 13:44:49 2013 +0400
 
-    doc/effective_go.html: add a section about the blank identifier
+    runtime: account stop-the-world time in the "other" GOGCTRACE section
+    Currently it's summed to mark phase.
+    The change makes it easier to diagnose long stop-the-world phases.
     
-    R=golang-dev, minux.ma, bradfitz, adg
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7134056
+    https://golang.org/cl/7182043
 
- doc/effective_go.html | 150 ++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/progs/unused1.go  |  12 ++++
- doc/progs/unused2.go  |  16 ++++++
- 3 files changed, 178 insertions(+)
+ src/pkg/runtime/mgc0.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

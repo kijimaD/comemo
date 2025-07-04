@@ -1,16 +1,28 @@
-commit 1fadc392ccaefd76ef7be5b685fb3889dbee27c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 28 14:32:56 2022 -0800
+commit cfac62a1cc021cae55c9c5e373ebe9c408b75a5d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 22 18:34:57 2021 -0400
 
-    doc/go1.18: in workspace mode doc, link to "go work" docs
+    cmd/compile: fix bug in defer wrapping
     
-    For #45713
-    For #47694
+    The defer wrapping feature added to the compiler's "order" phase
+    creates temporaries into which it copies defer arguments. If one of
+    these temps is large enough that we place it into the defer closure by
+    address (as opposed to by value), then the temp in question can't be
+    reused later on in the order phase, nor do we want a VARKILL
+    annotation for it at the end of the current block scope.
     
-    Change-Id: I6f615c07749fca49c19f2ae22f79971c29aa8183
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381779
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Test written by Cherry.
+    
+    Updates #40724.
+    
+    Change-Id: Iec7efd87ec5a3e3d7de41cdcc7f39c093ed1e815
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312869
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/order.go | 20 +++++++++++++++---
+ test/abi/wrapdefer_largetmp.go         | 37 ++++++++++++++++++++++++++++++++++
+ test/abi/wrapdefer_largetmp.out        |  1 +
+ 3 files changed, 55 insertions(+), 3 deletions(-)

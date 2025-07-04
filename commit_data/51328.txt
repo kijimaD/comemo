@@ -1,30 +1,25 @@
-commit 32851587d1adeb07503c2b6168ab11f008972606
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 3 19:07:39 2022 -0400
+commit 9bce08999a4122a28daf99cde7f22cb023b79660
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Aug 25 13:50:24 2021 -0700
 
-    cmd/go: add PGO auto mode
+    all: add a handful of fuzz targets
     
-    Add "auto" mode for the -pgo build flag. When -pgo=auto is
-    specified, if there is a default.pgo file in the directory of the
-    main package, it will be selected and used for the build.
+    Adds simple fuzz targets to archive/tar, archive/zip, compress/gzip,
+    encoding/json, image/jpeg, image/gif, and image/png.
     
-    Currently it requires exactly one main package when -pgo=auto is
-    specified. (We'll support multiple main packages in the future.)
-    
-    Also apply to other build-related subcommands, "go install", "go
-    run", "go test", and "go list".
-    
-    For #55022.
-    
-    Change-Id: Iab7974ab8932daf0e83506de505e044a8e412466
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438737
+    Change-Id: Ide1a8de88a9421e786eeeaea3bb93f41e0bae347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352109
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                         |  2 +
- src/cmd/go/internal/load/pkg.go               | 55 ++++++++++++++++++++-
- src/cmd/go/internal/work/build.go             |  2 +
- src/cmd/go/internal/work/init.go              | 20 --------
- src/cmd/go/testdata/script/build_pgo_auto.txt | 69 +++++++++++++++++++++++++++
- 5 files changed, 127 insertions(+), 21 deletions(-)
+ src/archive/tar/fuzz_test.go   | 97 ++++++++++++++++++++++++++++++++++++++++++
+ src/archive/zip/fuzz_test.go   | 81 +++++++++++++++++++++++++++++++++++
+ src/compress/gzip/fuzz_test.go | 92 +++++++++++++++++++++++++++++++++++++++
+ src/encoding/json/fuzz_test.go | 83 ++++++++++++++++++++++++++++++++++++
+ src/image/gif/fuzz_test.go     | 61 ++++++++++++++++++++++++++
+ src/image/jpeg/fuzz_test.go    | 61 ++++++++++++++++++++++++++
+ src/image/png/fuzz_test.go     | 68 +++++++++++++++++++++++++++++
+ 7 files changed, 543 insertions(+)

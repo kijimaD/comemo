@@ -1,17 +1,16 @@
-commit 81a9a7f4c293794855ed640cdc53835f566b6414
-Author: Mostafa Solati <mostafa.solati@gmail.com>
-Date:   Thu May 19 02:55:03 2022 +0430
+commit c3b57af8bc0fb4fe9b30e42891e9aff54c0c7a82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 21:10:31 2021 -0700
 
-    reflect: add example for FieldByName
+    [dev.typeparams] cmd/compile/internal/types2: minor cleanup of writeTParamList
     
-    Change-Id: I47e1cc261fdcd6f83a8593893b979d130150d0b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407174
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iaa58b17ad65e93548bb3da8231e0cb6da0c48105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339903
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/reflect/example_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/types2/infer.go      |  2 +-
+ src/cmd/compile/internal/types2/typestring.go | 22 +++++++++++++---------
+ 2 files changed, 14 insertions(+), 10 deletions(-)

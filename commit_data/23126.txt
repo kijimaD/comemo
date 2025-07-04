@@ -1,18 +1,49 @@
-commit 1893d3b320887daeb0a088dc3067c45dd87d9d5b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 22 15:21:56 2015 -0700
+commit b0b1a660526925d39c5c31e18df68db4d5b6687a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 24 22:33:13 2015 -0400
 
-    cmd/compile/internal/big: update and apply vendor.bash
+    runtime: reset spinning in mspinning if work was ready()ed
     
-    Package-external tests must use the vendored math/big package, not
-    the original one, otherwise tests may fail if there are discrepancies
-    in the implementation.
+    This fixes a bug where the runtime ready()s a goroutine while setting
+    up a new M that's initially marked as spinning, causing the scheduler
+    to later panic when it finds work in the run queue of a P associated
+    with a spinning M. Specifically, the sequence of events that can lead
+    to this is:
     
-    Change-Id: Ic5f0489aa6420ffea1f488633453f871ce1f0f66
-    Reviewed-on: https://go-review.googlesource.com/10380
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    1) sysmon calls handoffp to hand off a P stolen from a syscall.
+    
+    2) handoffp sees no pending work on the P, so it calls startm with
+       spinning set.
+    
+    3) startm calls newm, which in turn calls allocm to allocate a new M.
+    
+    4) allocm "borrows" the P we're handing off in order to do allocation
+       and performs this allocation.
+    
+    5) This allocation may assist the garbage collector, and this assist
+       may detect the end of concurrent mark and ready() the main GC
+       goroutine to signal this.
+    
+    6) This ready()ing puts the GC goroutine on the run queue of the
+       borrowed P.
+    
+    7) newm starts the OS thread, which runs mstart and subsequently
+       mstart1, which marks the M spinning because startm was called with
+       spinning set.
+    
+    8) mstart1 enters the scheduler, which panics because there's work on
+       the run queue, but the M is marked spinning.
+    
+    To fix this, before marking the M spinning in step 7, add a check to
+    see if work was been added to the P's run queue. If this is the case,
+    undo the spinning instead.
+    
+    Fixes #10573.
+    
+    Change-Id: I4670495ae00582144a55ce88c45ae71de597cfa5
+    Reviewed-on: https://go-review.googlesource.com/9332
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/big/example_test.go      | 2 +-
- src/cmd/compile/internal/big/floatexample_test.go | 2 +-
- src/cmd/compile/internal/big/vendor.bash          | 8 +++++++-
- 3 files changed, 9 insertions(+), 3 deletions(-)
+ src/runtime/proc1.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

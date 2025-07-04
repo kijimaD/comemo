@@ -1,35 +1,21 @@
-commit 451a2eb0abf38874fb144963a44356495141465d
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Fri Mar 15 05:10:08 2019 +0900
+commit 49dafc70c8558271fc2205061d07eed490f2bc18
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 22 17:00:37 2018 +0200
 
-    runtime, internal/poll: report only critical event scanning error
+    cmd: add XCOFF objfile and adapt cmd/nm tests
     
-    This change makes the runtime-integrated network poller report only
-    critical event scanning errors.
+    This commit adds a new file format in cmd/internal/objfile for XCOFF.
+    It also adapts tests inside cmd/nm for AIX.
     
-    In the previous attempt, CL 166497, we treated any combination of error
-    events as event scanning errors and it caused false positives in event
-    waiters because platform-dependent event notification mechanisms allow
-    event originators to use various combination of events.
+    Updates: #25893
     
-    To avoid false positives, this change makes the poller treat an
-    individual error event as a critical event scanning error by the
-    convention of event notification mechanism implementations.
-    
-    Updates #30624.
-    Fixes #30817.
-    Fixes #30840.
-    
-    Change-Id: I906c9e83864527ff73f636fd02bab854d54684ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167777
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    Change-Id: I1e55ea0b7f7d08a871343bee27d11e2d3baad254
+    Reviewed-on: https://go-review.googlesource.com/c/145397
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/error_test.go |  6 ++++
- src/internal/poll/read_test.go  | 62 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/netpoll_aix.go      |  2 +-
- src/runtime/netpoll_epoll.go    |  2 +-
- src/runtime/netpoll_kqueue.go   |  2 +-
- src/runtime/netpoll_solaris.go  |  2 +-
- 6 files changed, 72 insertions(+), 4 deletions(-)
+ src/cmd/internal/objfile/objfile.go |   1 +
+ src/cmd/internal/objfile/xcoff.go   | 133 ++++++++++++++++++++++++++++++++++++
+ src/cmd/nm/nm_test.go               |  37 +++++++---
+ 3 files changed, 161 insertions(+), 10 deletions(-)

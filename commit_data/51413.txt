@@ -1,27 +1,18 @@
-commit 1c9eba19d5b7d1bba5c6c86b4625fe37bb609096
-Author: Tim King <taking@google.com>
-Date:   Mon Nov 21 14:09:35 2022 -0800
+commit 827babf6aa602c76e45fabfdc2efe8d3f30edabd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 26 09:50:41 2022 -0500
 
-    cmd: update golang.org/x/tools to 3b9d20c52192
+    cmd/go: add mv and support "! cmp" in script tests
     
-    To pick up CL 452155.
+    For #50183
     
-    Done by
-            go get -d golang.org/x/tools@master
-            go mod tidy
-            go mod vendor
-    
-    Change-Id: I4dba4ba9f17123cfe567704b0d5e5fc16f9ffd83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452615
-    Run-TryBot: Tim King <taking@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ie384333fb7a69d0d2cfaba0cfc4eb7afba2fd745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380916
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go.mod                                           |  2 +-
- src/cmd/go.sum                                           |  4 ++--
- .../vendor/golang.org/x/tools/go/analysis/analysis.go    | 15 ++-------------
- src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go     |  2 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go       |  1 +
- .../x/tools/internal/analysisinternal/analysis.go        | 16 ++--------------
- src/cmd/vendor/modules.txt                               |  2 +-
- 7 files changed, 10 insertions(+), 32 deletions(-)
+ src/cmd/go/script_test.go         | 57 ++++++++++++++++++++++++++-------------
+ src/cmd/go/testdata/script/README | 13 ++++++---
+ 2 files changed, 47 insertions(+), 23 deletions(-)

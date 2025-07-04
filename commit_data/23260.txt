@@ -1,23 +1,19 @@
-commit 9ae3c560b977a8ca719f9e2955388907952766e5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 4 15:15:48 2015 -0400
+commit e2e322d293bfd12db095229dd54349c61f4669cf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon May 4 09:17:53 2015 -0700
 
-    cmd/link: implement -buildid for non-ELF binaries
+    time: Fix ordering of slots in AfterQueueing test
     
-    Non-ELF binary formats are much less flexible and typically do not
-    have a good place to store the build ID.
+    We shouldn't sort the slots array, as it is used each time the
+    test is run.  Tests after the first should continue to use the
+    unsorted ordering.
     
-    We store it as raw bytes at the beginning of the text segment.
+    Note that this doesn't fix the flaky test.  Just a bug I saw
+    while investigating.
     
-    The only system I know of that will be upset about this is NaCl,
-    and NaCl is an ELF system and does not use this.
-    
-    For #11048.
-    
-    Change-Id: Iaa7ace703c4cf36392e752eea9b55e2ce49e9826
-    Reviewed-on: https://go-review.googlesource.com/10708
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic03cca637829d569d50d3a2278d19410d4dedba9
+    Reviewed-on: https://go-review.googlesource.com/9637
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go | 24 ++++++++++++++++++++++++
- src/cmd/link/internal/ld/pobj.go |  1 +
- 2 files changed, 25 insertions(+)
+ src/time/sleep_test.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

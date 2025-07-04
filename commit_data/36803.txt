@@ -1,70 +1,21 @@
-commit 9108ae775145a4ecd086f04eb5c45155d8636298
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 3 17:13:09 2018 -0400
+commit b28e33d371cf96f6f34bbc576b6fd95468ea25bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 29 13:13:24 2018 -0700
 
-    runtime: eliminate mark 2 and fix mark termination race
+    go/types: add struct field with invalid type if field has errors
     
-    The mark 2 phase was originally introduced as a way to reduce the
-    chance of entering STW mark termination while there was still marking
-    work to do. It works by flushing and disabling all local work caches
-    so that all enqueued work becomes immediately globally visible.
-    However, mark 2 is not only slow–disabling caches makes marking and
-    the write barrier both much more expensive–but also imperfect. There
-    is still a rare but possible race (~once per all.bash) that can cause
-    GC to enter mark termination while there is still marking work. This
-    race is detailed at
-    https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md#appendix-mark-completion-race
-    The effect of this is that mark termination must still cope with the
-    possibility that there may be work remaining after a concurrent mark
-    phase. Dealing with this increases STW pause time and increases the
-    complexity of mark termination.
+    This ensures that all struct fields are present and thus the struct
+    has the original number of fields even if some fields have type
+    errors. (This only applies as long as the field names themselves
+    don't conflict.)
     
-    Furthermore, a similar but far more likely race can cause early
-    transition from mark 1 to mark 2. This is unfortunate because it
-    causes performance instability because of the cost of mark 2.
+    Fixes #25627.
     
-    This CL fixes this by replacing mark 2 with a distributed termination
-    detection algorithm. This algorithm is correct, so it eliminates the
-    mark termination race, and doesn't require disabling local caches. It
-    ensures that there are no grey objects upon entering mark termination.
-    With this change, we're one step closer to eliminating marking from
-    mark termination entirely (it's still used by STW GC and checkmarks
-    mode).
-    
-    This CL does not eliminate the gcBlackenPromptly global flag, though
-    it is always set to false now. It will be removed in a cleanup CL.
-    
-    This led to only minor variations in the go1 benchmarks
-    (https://perf.golang.org/search?q=upload:20180909.1) and compilebench
-    benchmarks (https://perf.golang.org/search?q=upload:20180910.2).
-    
-    This significantly improves performance of the garbage benchmark, with
-    no impact on STW times:
-    
-    name                        old time/op    new time/op   delta
-    Garbage/benchmem-MB=64-12    2.21ms ± 1%   2.05ms ± 1%   -7.38% (p=0.000 n=18+19)
-    Garbage/benchmem-MB=1024-12  2.30ms ±16%   2.20ms ± 7%   -4.51% (p=0.001 n=20+20)
-    
-    name                        old STW-ns/GC  new STW-ns/GC  delta
-    Garbage/benchmem-MB=64-12      138k ±44%     141k ±23%     ~    (p=0.309 n=19+20)
-    Garbage/benchmem-MB=1024-12    159k ±25%     178k ±98%     ~    (p=0.798 n=16+18)
-    
-    name                        old STW-ns/op  new STW-ns/op                delta
-    Garbage/benchmem-MB=64-12     4.42k ±44%    4.24k ±23%     ~    (p=0.531 n=19+20)
-    Garbage/benchmem-MB=1024-12     591 ±24%      636 ±111%    ~    (p=0.309 n=16+18)
-    
-    (https://perf.golang.org/search?q=upload:20180910.1)
-    
-    Updates #26903.
-    Updates #17503.
-    
-    Change-Id: Icbd1e12b7a12a76f423c9bf033b13cb363e4cd19
-    Reviewed-on: https://go-review.googlesource.com/c/134318
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I2414b1f432ce139b3cd2776ff0d46d8dcf38b650
+    Reviewed-on: https://go-review.googlesource.com/115115
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/gc_test.go |   4 +-
- src/runtime/mgc.go     | 279 +++++++++++++++++++++++++------------------------
- src/runtime/mwbbuf.go  |   5 +
- 3 files changed, 148 insertions(+), 140 deletions(-)
+ src/go/types/issues_test.go      | 41 ++++++++++++++++++++++++++++++++++++++++
+ src/go/types/testdata/decls3.src |  4 ++--
+ src/go/types/typexpr.go          | 17 +++++++++++++++++
+ 3 files changed, 60 insertions(+), 2 deletions(-)

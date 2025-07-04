@@ -1,37 +1,14 @@
-commit ed1ac056735e67c0f6bc23c60a9c2a0f999c80cb
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Feb 21 20:09:31 2013 -0800
+commit 2482ef723304ccfd95cf6838663e4627b175d16a
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Feb 22 12:23:19 2013 +1100
 
-    cmd/go: don't call ImportDir unnecessarily
+    testing: document that example output must use line comments
     
-    This significantly speeds up the go tool on
-    slow file systems (or those with cold caches).
+    Fixes #4812.
     
-    The following numbers were obtained using
-    an encrypted ext4 file system running on
-    Linux 3.7.9.
-    
-    # Before
-    $ sudo sysctl -w 'vm.drop_caches=3'
-    $ time go list code.google.com/p/go.net/... | wc -l
-    9
-    
-    real    0m16.921s
-    user    0m0.637s
-    sys     0m0.317s
-    
-    # After
-    $ sudo sysctl -w 'vm.drop_caches=3'
-    $ time go list code.google.com/p/go.net/... | wc -l
-    9
-    
-    real    0m8.175s
-    user    0m0.220s
-    sys     0m0.177s
-    
-    R=rsc, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7369044
+    https://golang.org/cl/7396051
 
- src/cmd/go/main.go | 27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
+ src/pkg/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

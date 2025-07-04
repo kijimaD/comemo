@@ -1,55 +1,17 @@
-commit ff14e08cd3c4423ae6c243ef20a3b9b4c04335ed
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Wed Apr 10 11:48:11 2024 +0800
+commit 98617fd23fa799173c33741987d41ee64cbb2a4f
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Jun 19 19:17:46 2023 +0200
 
-    cmd/compile, math: improve implementation of math.{Max,Min} on loong64
+    runtime/trace: add godoc links
     
-    Make math.{Min,Max} intrinsics and implement math.{archMax,archMin}
-    in hardware.
-    
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A6000 @ 2500.00MHz
-             │  old.bench   │              new.bench              │
-             │    sec/op    │   sec/op     vs base                │
-    Max         7.606n ± 0%   3.087n ± 0%  -59.41% (p=0.000 n=20)
-    Min         7.205n ± 0%   2.904n ± 0%  -59.69% (p=0.000 n=20)
-    MinFloat   37.220n ± 0%   4.802n ± 0%  -87.10% (p=0.000 n=20)
-    MaxFloat   33.620n ± 0%   4.802n ± 0%  -85.72% (p=0.000 n=20)
-    geomean     16.18n        3.792n       -76.57%
-    
-    goos: linux
-    goarch: loong64
-    pkg: runtime
-    cpu: Loongson-3A5000 @ 2500.00MHz
-             │  old.bench   │              new.bench              │
-             │    sec/op    │   sec/op     vs base                │
-    Max        10.010n ± 0%   7.196n ± 0%  -28.11% (p=0.000 n=20)
-    Min         8.806n ± 0%   7.155n ± 0%  -18.75% (p=0.000 n=20)
-    MinFloat   60.010n ± 0%   7.976n ± 0%  -86.71% (p=0.000 n=20)
-    MaxFloat   56.410n ± 0%   7.980n ± 0%  -85.85% (p=0.000 n=20)
-    geomean     23.37n        7.566n       -67.63%
-    
-    Updates #59120.
-    
-    Change-Id: I6815d20bc304af3cbf5d6ca8fe0ca1c2ddebea2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580283
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6db8ce8d7e0a1cb3d955493fa49eb7dff372eb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504375
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/loong64/ssa.go         | 58 +++++++++++++++++++
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 +
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  5 ++
- src/cmd/compile/internal/ssa/opGen.go           | 68 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 12 ++++
- src/cmd/compile/internal/ssagen/ssa.go          |  8 +--
- src/math/dim_asm.go                             |  2 +-
- src/math/dim_loong64.s                          | 77 +++++++++++++++++++++++++
- src/math/dim_noasm.go                           |  2 +-
- test/codegen/floats.go                          |  4 ++
- 10 files changed, 233 insertions(+), 6 deletions(-)
+ src/runtime/trace/annotation.go |  8 ++++----
+ src/runtime/trace/trace.go      | 14 +++++++-------
+ 2 files changed, 11 insertions(+), 11 deletions(-)

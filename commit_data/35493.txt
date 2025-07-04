@@ -1,31 +1,32 @@
-commit 8e5cb0da1b7c6d7c18a60ff0c688538dbe27f8f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 23 22:30:41 2018 +0000
+commit 45ffeab549fa4b03b231a0872025364e13c7f7f0
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 18 20:35:34 2017 -0800
 
-    net/http: conservatively flush Transport request headers by default
+    runtime: eliminate most uses of mheap_.arena_*
     
-    This changes the http.Transport to flush the bufio.Writer between
-    writing the request headers and the body.
+    This replaces all uses of the mheap_.arena_* fields outside of
+    mallocinit and sysAlloc. These fields fundamentally assume a
+    contiguous heap between two bounds, so eliminating these is necessary
+    for a sparse heap.
     
-    That wasn't done in the past to minimize the number of TCP packets on
-    the wire, but that's just an optimization, and it causes problems when
-    servers are waiting for the headers and the client is blocked on
-    something before reading the body.
+    Many of these are replaced with checks for non-nil spans at the test
+    address (which in turn checks for a non-nil entry in the heap arena
+    array). Some of them are just for debugging and somewhat meaningless
+    with a sparse heap, so those we just delete.
     
-    Instead, only do the don't-flush optimization if we know we're not
-    going to block, whitelisting a set of common in-memory Request.Body
-    types. (the same set of types special-cased by http.NewRequest)
+    Updates #10460.
     
-    Fixes #22088
-    
-    Change-Id: I7717750aa6df32dd3eb92d181b45bc7af24b1144
-    Reviewed-on: https://go-review.googlesource.com/114316
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I8345b95ffc610aed694f08f74633b3c63506a41f
+    Reviewed-on: https://go-review.googlesource.com/85886
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/transfer.go       | 28 ++++++++++++++++++++++++++++
- src/net/http/transfer_test.go  | 28 ++++++++++++++++++++++++++++
- src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++--
- 3 files changed, 92 insertions(+), 2 deletions(-)
+ src/runtime/cgocall.go  | 12 +-----------
+ src/runtime/heapdump.go | 13 +++++++++++--
+ src/runtime/malloc.go   |  2 +-
+ src/runtime/mbitmap.go  | 12 ------------
+ src/runtime/mcentral.go |  2 +-
+ src/runtime/mgcmark.go  | 39 ++++++++++++++-------------------------
+ src/runtime/mwbbuf.go   |  3 +--
+ 7 files changed, 29 insertions(+), 54 deletions(-)

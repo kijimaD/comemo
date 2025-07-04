@@ -1,26 +1,22 @@
-commit 150d2448e5a213cd679396371c0a147918dc2125
-Author: Michał Derkacz <michal@Lnet.pl>
-Date:   Sun Jun 14 00:06:24 2020 +0200
+commit 1b15c7f1026232afd0e398aa5925f534b6b05bdc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 24 10:43:09 2020 -0500
 
-    cmd/compile,cmd/internal/obj/riscv,runtime: use Duff's devices on riscv64
+    cmd/compile: debug rewrite
     
-    Implement runtime.duffzero and runtime.duffcopy for riscv64.
-    Use obj.ADUFFZERO/obj.ADUFFCOPY for medium size, word aligned
-    zeroing/moving.
+    If -d=ssa/PASS/debug=N is specified (N >= 2) for a rewrite pass
+    (e.g. lower), when a Value (or Block) is rewritten, print the
+    Value (or Block) before and after.
     
-    Change-Id: I42ec622055630c94cb77e286d8d33dbe7c9f846c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237797
+    For #31915.
+    Updates #19013.
+    
+    Change-Id: I80eadd44302ae736bc7daed0ef68529ab7a16776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176718
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/riscv64/ggen.go       |  10 +-
- src/cmd/compile/internal/riscv64/ssa.go        |  14 +
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  14 +
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  38 ++
- src/cmd/compile/internal/ssa/opGen.go          |  28 +
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  33 +
- src/cmd/internal/obj/riscv/obj.go              |   8 +-
- src/runtime/duff_riscv64.s                     | 907 +++++++++++++++++++++++++
- src/runtime/mkduff.go                          |  28 +
- 9 files changed, 1076 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 37 ++++++++++++++++++++++++++++++---
+ test/devirt.go                          |  2 +-
+ 2 files changed, 35 insertions(+), 4 deletions(-)

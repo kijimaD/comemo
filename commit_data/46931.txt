@@ -1,20 +1,21 @@
-commit 3befaf0cdb18420f45acfa7cee725297aa550faf
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Sat Oct 16 23:19:57 2021 +0800
+commit e196cb8258647652f552757d024b261731d95218
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Feb 16 18:24:48 2021 -0800
 
-    net/url: fix stale RFC 3986 links
+    [dev.typeparams] cmd/dist:  disable -G=3 on the std go tests for now
     
-    The URLs for RFC 3986 have been changed from:
-      http://tools.ietf.org/html/rfc3986
-    to:
-      https://datatracker.ietf.org/doc/html/rfc3986
+    Disable -G=3 tests on the std go tests, in order to see if -G=3 is
+    causing the flakiness for the dev.typeparams builder, as opposed to
+    other changes in typeparams branch. It's possible that -G=3 is using
+    more CPU/RAM that causes flakiness, as opposed to more specific bugs.
     
-    Change-Id: I0662557d91bbb7de51d7ca4bc64e838741cd9074
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356429
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I610bce2aabd26b2b1fddc5e63f85ffe4e958e0d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292850
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/url/url_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/dist/test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

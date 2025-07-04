@@ -1,35 +1,20 @@
-commit a0624701865261a43ee87d31b15271365a94f47b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Mar 6 12:36:58 2024 -0500
+commit c0aacdcf8a75fbe78688583ea3b344a7ef50a95d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 16 17:45:02 2023 -0700
 
-    cmd: update to golang.org/x/sys@v0.18.0
+    cmd/go: import runtime/cgo when externally linking
     
-    This is a requirement of x/telemetry so update it before updating
-    telemetry.
+    Fixes #31544
     
-    Commands run (in both std and cmd):
-            go get golang.org/x/sys@v0.18.0
-            go mod tidy
-            go mod vendor
-    
-    For #66099
-    
-    Change-Id: I636f0c0be89c05b9213c461b1a2eb2a4afb8a84b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569420
+    Change-Id: Ic99875ad227876eb741e93653589310327c9c0ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477195
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- src/cmd/vendor/golang.org/x/sys/unix/aliases.go    |  2 +-
- .../x/sys/unix/syscall_darwin_libSystem.go         |  2 +-
- .../golang.org/x/sys/unix/syscall_freebsd.go       | 12 +--
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 99 ++++++++++++++++++++++
- .../vendor/golang.org/x/sys/unix/zsyscall_linux.go | 10 +++
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 60 +++++++++++++
- src/cmd/vendor/modules.txt                         |  2 +-
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 +-
- src/vendor/modules.txt                             |  2 +-
- 12 files changed, 186 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/load/pkg.go             | 29 +++++++++++++++++++---
+ src/cmd/go/testdata/script/build_static.txt | 38 +++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 4 deletions(-)

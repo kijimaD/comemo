@@ -1,17 +1,17 @@
-commit b5e1ae46adb2d3552d5df78e6a410f479ef1efb2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 22 20:50:32 2017 -0700
+commit 0be4ef3ea6a915e3b2ab0cac35209566a1ae3068
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 18:22:42 2016 +0000
 
-    cmd/compile: don't crash when reporting some syntax errors
+    cmd/go: ensure streaming test's stdout, stderr are same as cmd/go's
     
-    Fixes #19667.
+    Fixes #18153
     
-    Change-Id: Iaa71e2020af123c1bd3ac25e0b760956688e8bdf
-    Reviewed-on: https://go-review.googlesource.com/38458
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie8a32dd6fe306f00e51cde77dd4ea353f7109940
+    Reviewed-on: https://go-review.googlesource.com/34010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/printer.go |  3 +++
- test/fixedbugs/issue19667.go               | 13 +++++++++++++
- 2 files changed, 16 insertions(+)
+ src/cmd/dist/test.go                               | 26 +++++++++++++++
+ src/cmd/dist/test_linux.go                         | 27 +++++++++++++++
+ src/cmd/go/test.go                                 | 15 +++------
+ .../go/testdata/testterminal18153/terminal_test.go | 39 ++++++++++++++++++++++
+ 4 files changed, 96 insertions(+), 11 deletions(-)

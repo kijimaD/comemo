@@ -1,21 +1,26 @@
-commit ed01ceaf4838cd67fd802df481769fa9ae9d0440
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jun 25 15:58:38 2021 -0400
+commit 9262909764ea63285805c87f8d41837a532fda62
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 22 12:09:08 2020 -0500
 
-    runtime/race: use race build tag on syso_test.go
+    [dev.regabi] cmd/compile: rewrite problematic use of Node fields
     
-    All other test files in the runtime/race package have race build
-    tag, except syso_test.go. The test is only relevant if the race
-    detector is supported. So apply the build tag.
+    For the upcoming rewrite to access methods, a few direct accesses
+    are problematic for the automated tool, most notably direct copies
+    or use of Node structs as opposed to pointers.
     
-    Fixes #46931.
+    Fix these manually.
     
-    Change-Id: Icdb94214d3821b4ccf61133412ef39b4d7cc7691
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331050
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I8bdbb33216737c09e1edda284d5c414422d86284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273006
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/race/syso_test.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       |   4 +-
+ src/cmd/compile/internal/gc/escape.go    |  10 +-
+ src/cmd/compile/internal/gc/iimport.go   |  10 +-
+ src/cmd/compile/internal/gc/sinit.go     |  40 +++---
+ src/cmd/compile/internal/gc/ssa.go       | 224 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go |  18 ++-
+ 6 files changed, 156 insertions(+), 150 deletions(-)

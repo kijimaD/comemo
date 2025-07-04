@@ -1,19 +1,13 @@
-commit 1338f327b2deb81ba81107b5033d1b10e97e3abe
+commit c1fcdb0e00f9163bc3f60069182f231afb83523e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 16:45:06 2014 -0400
+Date:   Wed Aug 6 15:25:17 2014 -0400
 
-    cmd/go: implement 'internal' convention
+    codereview: handle upload of merge
     
-    See golang.org/s/go14internal for design.
-    
-    LGTM=r
-    R=r, adg
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/120600043
+    https://golang.org/cl/118690043
 
- src/cmd/go/pkg.go                                  | 65 ++++++++++++++++++++--
- src/cmd/go/test.bash                               | 16 ++++++
- src/cmd/go/testdata/testinternal/p.go              |  3 +
- src/cmd/go/testdata/testinternal2/p.go             |  3 +
- .../testdata/testinternal2/x/y/z/internal/w/w.go   |  1 +
- 5 files changed, 83 insertions(+), 5 deletions(-)
+ lib/codereview/codereview.py | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

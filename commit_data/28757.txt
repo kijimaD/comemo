@@ -1,18 +1,19 @@
-commit 8728df645c70e6420eb59e5886bc839022998322
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Apr 24 17:36:41 2016 -0400
+commit 4054769a31f66039f5fd74ca3164e9233f724da8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 14 07:25:05 2016 -0700
 
-    runtime: remove canBackTrace variable from TestGdbPython
+    runtime/internal/atomic: fix assembly arg sizes
     
-    The canBackTrace variable is true for all of the architectures
-    Go supports and this is likely to remain the case as new
-    architectures are added.
-    
-    Change-Id: I73900c018eb4b2e5c02fccd8d3e89853b2ba9d90
-    Reviewed-on: https://go-review.googlesource.com/22423
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I80ccf40cd3930aff908ee64f6dcbe5f5255198d3
+    Reviewed-on: https://go-review.googlesource.com/24914
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime-gdb_test.go | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/runtime/internal/atomic/asm_386.s      | 6 +++---
+ src/runtime/internal/atomic/asm_amd64.s    | 2 +-
+ src/runtime/internal/atomic/asm_amd64p32.s | 4 ++--
+ src/runtime/internal/atomic/asm_arm.s      | 6 +++---
+ src/runtime/internal/atomic/asm_arm64.s    | 4 ++--
+ src/runtime/internal/atomic/asm_ppc64x.s   | 2 +-
+ 6 files changed, 12 insertions(+), 12 deletions(-)

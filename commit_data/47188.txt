@@ -1,35 +1,19 @@
-commit c702f91b38f98c98a12b9933dce42dbd500e21fd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 1 13:45:21 2021 -0700
+commit 3e524ee65addd8a30bbfb4fd69508d429fda6d4f
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 1 11:02:48 2021 -0500
 
-    net: add ReadFromUDPAddrPort
+    cmd/compile: make modified Aux type for OpArgXXXX pass ssa/check
     
-    It is now possible to do completely allocation-free UDP.
+    For #40724.
     
-    This is implemented completely separately from ReadFromUDP
-    because ReadFromUDP exists in a delicate balance to allow
-    mid-stack inlining. After performance-sensitive callers have
-    migrated to ReadFromUDPAddrPort, we may be able to simplify
-    ReadFromUDP to call ReadFromUDPAddrPort.
-    
-    name                          old time/op    new time/op    delta
-    WriteToReadFromUDPAddrPort-8    4.71µs ± 2%    4.81µs ± 5%    +2.18%  (p=0.000 n=14+14)
-    
-    name                          old alloc/op   new alloc/op   delta
-    WriteToReadFromUDPAddrPort-8     4.00B ± 0%     0.00B       -100.00%  (p=0.000 n=15+15)
-    
-    name                          old allocs/op  new allocs/op  delta
-    WriteToReadFromUDPAddrPort-8      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=15+15)
-    
-    Change-Id: I37f5ad9416a1d4333ed48d83474b2cf933b2a1be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360600
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7d1e76139d187cd15a6e0df9d19542b7200589f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297911
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/udpsock.go       | 12 ++++++++++++
- src/net/udpsock_plan9.go | 19 +++++++++++++++++++
- src/net/udpsock_posix.go | 25 +++++++++++++++++++++++++
- src/net/udpsock_test.go  |  2 +-
- 4 files changed, 57 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go          |  6 ++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
+ src/cmd/compile/internal/ssa/op.go             | 41 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/opGen.go          |  4 +--
+ src/cmd/compile/internal/ssa/value.go          |  2 +-
+ 5 files changed, 32 insertions(+), 25 deletions(-)

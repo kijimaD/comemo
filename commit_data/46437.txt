@@ -1,27 +1,15 @@
-commit 137543bb93e15286b54d58d17d51e609ed49339a
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Sep 14 08:39:08 2021 -0700
+commit b4a71c95d2388cbbab70bd751b9706f848643dd6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 28 14:36:45 2020 -0500
 
-    cmd/compile: set IsShape based on type being in the Shapes pkg
+    doc/go1.16: reference misc/ios/README for how to build iOS programs
     
-    Move ShapePkg to types, and change types.NewNamed to automatically set
-    IsShape/HasShape if a type is in the shapes pkg. This means that
-    imported shape types will automatically have the correct
-    IsShape/HasShape flags, even though we are not explicitly
-    exporting/importing those flags.
+    Updates #43371, #43343.
     
-    Updates #48337
-    
-    Change-Id: I8b6131a663205f73f395943c9d0c8bdb2a213401
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349869
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: Ib89b809a5220717507272453ea86224d1928dd36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280154
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/typecheck/subr.go | 10 +++++++---
- src/cmd/compile/internal/types/type.go     |  6 ++++++
- test/typeparam/issue48337b.dir/a.go        | 25 +++++++++++++++++++++++++
- test/typeparam/issue48337b.dir/main.go     | 11 +++++++++++
- test/typeparam/issue48337b.go              |  7 +++++++
- 5 files changed, 56 insertions(+), 3 deletions(-)
+ doc/go1.16.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

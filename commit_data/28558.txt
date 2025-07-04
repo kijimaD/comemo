@@ -1,18 +1,16 @@
-commit 097a581dc0d97efac1dfbe5d79819bbf6bf681a7
+commit 03abde49713b46366fa47a037040697c8fdad3bb
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 27 07:20:10 2016 -0700
+Date:   Thu Jun 2 12:01:03 2016 -0700
 
-    runtime: simplify signalstack by dropping nil as argument
+    runtime: only permit SetCgoTraceback to be called once
     
-    Change the two calls to signalstack(nil) to inline the code
-    instead (it's two lines).
+    Accept a duplicate call, but nothing else.
     
-    Change-Id: Ie92a05494f924f279e40ac159f1b677fda18f281
-    Reviewed-on: https://go-review.googlesource.com/29854
+    Change-Id: Iec24bf5ddc3b0f0c559ad2158339aca698601743
+    Reviewed-on: https://go-review.googlesource.com/23692
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_netbsd.go   |  3 ++-
- src/runtime/signal_unix.go | 14 ++++----------
- 2 files changed, 6 insertions(+), 11 deletions(-)
+ src/runtime/traceback.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

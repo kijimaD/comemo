@@ -1,19 +1,26 @@
-commit d44ec4c05f33213a4e428113517b07049de67808
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Thu Mar 7 09:19:51 2024 +0000
+commit 6827f0d7722ae08cf25cf2212f78bfc6ab8bfd0d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 14 20:50:38 2023 +1100
 
-    cmd/go: fix typo in comment
+    runtime: provide and use a GO_PPC64X_HAS_FUNCDESC define
     
-    Change-Id: I211442f2bbdab29820126a350cbdb0886a10d6e5
-    GitHub-Last-Rev: 0347054a55713f9dabee38f63900b56025a39c60
-    GitHub-Pull-Request: golang/go#66160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569697
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Rather than implying that all ppc64 GOARCHs use function descriptors,
+    provide a define for platforms that make use of function descriptors.
+    Condition on GO_PPC64X_HAS_FUNCDESC when choosing whether or not
+    to load the entry address from the first slot of the function
+    descriptor.
+    
+    Updates #56001.
+    
+    Change-Id: I9cdc788f2de70a1262c17d8485b555383d1374b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476117
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/base/tool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_ppc64x.h     | 14 ++++++++++++++
+ src/runtime/asm_ppc64x.s     | 14 ++++++--------
+ src/runtime/cgo/asm_ppc64x.s |  6 ++----
+ 3 files changed, 22 insertions(+), 12 deletions(-)

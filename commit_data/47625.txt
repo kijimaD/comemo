@@ -1,19 +1,18 @@
-commit 9f2a075df905d873e3e426b2f549c327d228ac26
-Author: tangxi666 <tx1275044634@gmail.com>
-Date:   Sat Nov 27 05:20:05 2021 +0000
+commit 3651eff74efcd80519372d58eb06a0fe3f3f2808
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 1 20:08:32 2021 -0400
 
-    cmd/go: fix a typo in mod_lazy_new_import.txt
+    cmd/link: delete CompilationUnit.Pkg field
     
-    x/y -> a/y
+    It is never used. It is actually CompilationUnit.Lib.Pkg that
+    contains the package path.
     
-    Change-Id: If24970623731098bb72345b8f4c8518b563bbec8
-    GitHub-Last-Rev: 8a35dddbc155d97f03c08c06d945596584bc2e6d
-    GitHub-Pull-Request: golang/go#49813
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367202
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I18189644ea080080868d144e81dfee02f4549133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306710
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/testdata/script/mod_lazy_new_import.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/sym/compilation_unit.go | 1 -
+ 1 file changed, 1 deletion(-)

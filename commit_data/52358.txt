@@ -1,20 +1,38 @@
-commit eedd97d5fd9d7b773dc7b1b8d7e00e137da091bb
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Mar 21 08:57:43 2023 -0400
+commit cb6fc99b32cd5ec80e98f0eaec18bcfffba572ca
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 28 12:58:32 2022 -0400
 
-    log/slog: clarify Logger.WithGroup doc
+    runtime: mark sigtramp as TOPFRAME on the rest of unix
     
-    Make it clear that "qualified by the given name" doesn't imply
-    any particular implementation, but depends on how the Handler
-    treats groups.
+    This extends CL 402190 from Linux to the rest of the Unix OSes.
     
-    Updates golang/go#56345.
+    Marking sigtramp as TOPFRAME allows gentraceback to stop tracebacks at
+    the end of a signal handler, since there is not much beyond sigtramp.
     
-    Change-Id: Idf52553108bc1a7d2091a06cc4fc4cc0fc52cc14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478056
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8b7f5d55d41889f59c0a79c65351b9b0b2d77717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402934
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/log/slog/logger.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/sys_aix_ppc64.s       | 2 +-
+ src/runtime/sys_darwin_amd64.s    | 2 +-
+ src/runtime/sys_darwin_arm64.s    | 2 +-
+ src/runtime/sys_dragonfly_amd64.s | 2 +-
+ src/runtime/sys_freebsd_386.s     | 2 +-
+ src/runtime/sys_freebsd_amd64.s   | 2 +-
+ src/runtime/sys_freebsd_arm.s     | 2 +-
+ src/runtime/sys_freebsd_arm64.s   | 2 +-
+ src/runtime/sys_netbsd_386.s      | 2 +-
+ src/runtime/sys_netbsd_amd64.s    | 2 +-
+ src/runtime/sys_netbsd_arm.s      | 2 +-
+ src/runtime/sys_netbsd_arm64.s    | 2 +-
+ src/runtime/sys_openbsd_386.s     | 2 +-
+ src/runtime/sys_openbsd_amd64.s   | 2 +-
+ src/runtime/sys_openbsd_arm.s     | 2 +-
+ src/runtime/sys_openbsd_arm64.s   | 2 +-
+ src/runtime/sys_openbsd_mips64.s  | 2 +-
+ src/runtime/sys_solaris_amd64.s   | 2 +-
+ 18 files changed, 18 insertions(+), 18 deletions(-)

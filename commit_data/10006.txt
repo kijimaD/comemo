@@ -1,14 +1,12 @@
-commit c5a6b05ba4500be3d977592e756538290defdf14
+commit 3e0c0a8add600cd395c4e30a4db8cc1ede90acc9
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 17 12:54:18 2011 -0700
+Date:   Mon Oct 17 12:53:10 2011 -0700
 
-    go spec: clarifying variable declaractions w/ constants
+    go spec: "delete" built-in function
     
-    Fixes #2377.
-    
-    R=r, rsc
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5267048
+    https://golang.org/cl/5272045
 
- doc/go_spec.html | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 43 +++++++++++++++++++++++++------------------
+ 1 file changed, 25 insertions(+), 18 deletions(-)

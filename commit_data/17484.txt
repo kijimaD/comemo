@@ -1,18 +1,19 @@
-commit e1ac15743b026f843401b95d34c2c0f54847e15d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 6 15:47:52 2013 -0400
+commit 39e004b69eba1b56c03e488d0002eb6a75598fc5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 6 12:01:18 2013 -0700
 
-    cmd/gc: remove "send used as value" hint
+    api: update go1.1, except and next.txt with constant values
     
-    This message was helpful for pre-Go 1 users updating to Go 1.
-    That time is past. Now the message is confusing because it
-    depends on knowing what pre-Go 1 looked like.
+    O_SYNC changes only on linux-arm (and linux-arm-cgo), but
+    changes to match O_SYNC on linux-{386,amd64} and what Linux
+    upstream now uses.  See discussion and links on
+    https://golang.org/cl/13261050/
     
-    Update #4697.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13335051
+    https://golang.org/cl/13575045
 
- src/cmd/gc/typecheck.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ api/except.txt |     6 +
+ api/go1.1.txt  | 48653 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |   536 +-
+ 3 files changed, 49193 insertions(+), 2 deletions(-)

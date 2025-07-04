@@ -1,22 +1,31 @@
-commit 22a65ba7b7276b67237198db4609cf3e4bde34e7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 21 12:51:34 2023 -0800
+commit 434b2a5d0dbdfdce6327beb06ca03c02b3fd2785
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 31 16:51:32 2022 -0400
 
-    go/types, types2: avoid unused variable error in invalid x.(type) expression
+    syscall: relax output check in TestGroupCleanupUserNamespace
     
-    This change removes one of the two follow-on errors in the issue below.
+    “If you have a procedure with ten parameters, you probably missed some.”
+    ― attr. Alan J. Perlis
     
-    For #58612.
+    I argue that the same is true for hard-coded special cases.
     
-    Change-Id: If1eec5031e524bad33caa4a914f52e6a1e273b60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470015
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    In TestGroupCleanupUserNamespace, instead of a curated list of strings
+    observed in the wild we now check for a prefix, as was done for
+    TestGroupCleanup in CL 24670.
+    
+    Updates #16224.
+    Updates #16303.
+    Updates #19938.
+    Updates #34547.
+    Updates #46752.
+    Fixes #52088.
+    
+    Change-Id: I59c5b0c048113e306996c0f8247e09c714d2423a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397316
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/expr.go             | 11 ++++++-----
- src/go/types/expr.go                                | 14 +++++++-------
- src/internal/types/testdata/fixedbugs/issue58612.go | 14 ++++++++++++++
- 3 files changed, 27 insertions(+), 12 deletions(-)
+ src/syscall/exec_linux_test.go | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

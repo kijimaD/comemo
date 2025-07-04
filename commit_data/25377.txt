@@ -1,14 +1,17 @@
-commit 11ac72a1161921f61a8e36ed50474c1789b7ca1c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Dec 22 09:35:27 2015 +0900
+commit 3abb8441087dbc1f08320c40a750ac1a7209b9fe
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 23 12:34:03 2015 -0400
 
-    net: fix race in TestTCPStress
+    [dev.ssa] cmd/compile: repair ssa testing build and test
     
-    Fixes #13704.
+    Calls to NewConfig required an extra parameter that
+    sometimes could not be nil.
     
-    Change-Id: I7afef5058fa88b0de41213cf46219b684369f47f
-    Reviewed-on: https://go-review.googlesource.com/18111
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I806dd53c045056a0c2d30d641a20fe27fb790539
+    Reviewed-on: https://go-review.googlesource.com/16272
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/tcp_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/dom_test.go      |  2 +-
+ src/cmd/compile/internal/ssa/export_test.go   |  4 +++-
+ src/cmd/compile/internal/ssa/nilcheck_test.go | 20 ++++++++++----------
+ 3 files changed, 14 insertions(+), 12 deletions(-)

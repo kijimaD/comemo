@@ -1,14 +1,14 @@
-commit a3008e235e7445ddf581739a165861e15489785d
-Author: Miki Tebeka <miki.tebeka@gmail.com>
-Date:   Fri Dec 16 10:39:20 2011 -0500
+commit 055b4f7ea018ce64e560915d4dab0afb3f54d234
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 16 19:51:25 2011 +0900
 
-    codereview: Initialize "found" in codereview.py.
+    syscall: sort Makefile, mkall.sh and mkerrors.sh entries
     
-    Fixes #2569 (hg undo crashes when CL not found).
-    
-    R=golang-dev, rsc
+    R=golang-dev, jsing
     CC=golang-dev
-    https://golang.org/cl/5489052
+    https://golang.org/cl/5495062
 
- lib/codereview/codereview.py | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/syscall/Makefile    | 16 ++++++-------
+ src/pkg/syscall/mkall.sh    | 56 +++++++++++++++++++++----------------------
+ src/pkg/syscall/mkerrors.sh | 58 ++++++++++++++++++++++-----------------------
+ 3 files changed, 65 insertions(+), 65 deletions(-)

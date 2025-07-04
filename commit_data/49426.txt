@@ -1,14 +1,15 @@
-commit 19d71acd978891b201bc5ce79bdcd20b36d04a2e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jun 7 16:35:13 2022 -0400
+commit 946e2543f878929752da9d16575dd5e96ac78532
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jul 6 07:17:07 2021 +0000
 
-    doc/go1.19: document that the assembler requires -p
+    runtime: use RDCYCLE for cputicks on riscv64
     
-    For #51400.
+    Use RDCYCLE instruction instead of RDTIME emulation
     
-    Change-Id: I50fb4313105ae6dbbbe2c98cbe4a8f8e2563eba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410824
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id7b3de42a36d2d1b163c39cc79870eee7c840ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332954
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go1.19.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/asm_riscv64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

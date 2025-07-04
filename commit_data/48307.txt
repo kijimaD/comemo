@@ -1,24 +1,37 @@
-commit 43b09c096a33b8a3cd3477546c445e2c41efcfdf
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Mar 4 18:52:49 2022 -0500
+commit 402f177efc5d03c11ac6fd25ebd1f42b0b7ec30c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 5 14:33:18 2021 -0500
 
-    go/types, types2: record all type instances, even duplicates
+    cmd/compile: fix intrinsic setting for mul64, add64 on ppc64le
     
-    Due to instance de-duplication, we were failing to record some type
-    instances in types.Info.Instances. Fix this by moving the instance
-    recording out of the resolver.
+    I found a performance regression between the runtime.Hash
+    benchmarks when comparing Go 1.16 to latest on ppc64le. This
+    was due to the addition of Mul64 to runtime/internal/math
+    with the comments that this should be treated as an intrinsic
+    on platforms where available. However this is was not being
+    intrinsified on ppc64le because the code in ssagen/ssa.go didn't
+    correctly specify ppc64le. It had the argument for ArchPPC64
+    but should have also included ArchPPC64LE.
     
-    Fixes #51494
+    Treating Mul64 as an intrinsic shows this improvement, and these
+    results are better than Go 1.16:
     
-    Change-Id: Iddd8989307d95886eedb321efa4ab98cd2b3573a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390041
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Hash5        27.0ns ± 0%     14.0ns ± 0%   -48.1
+    Hash16       26.6ns ± 0%     14.0ns ± 0%   -47.3
+    Hash64       50.7ns ± 0%     17.9ns ± 0%   -64.6
+    Hash1024      500ns ± 0%       99ns ± 0%   -80.1
+    Hash65536    30.6µs ± 0%      4.0µs ± 0%   -86
+    
+    Many of the Map related benchmarks in the runtime package also showed
+    improvement once Mul64 is intrinsified.
+    
+    Change-Id: I3b5ce637b1620348d81a30cfc359c97ab63aae0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317303
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go | 275 +++++++++++++++-------------
- src/cmd/compile/internal/types2/typexpr.go  |   5 +-
- src/go/types/api_test.go                    | 243 +++++++++++++-----------
- src/go/types/typexpr.go                     |   5 +-
- 4 files changed, 286 insertions(+), 242 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

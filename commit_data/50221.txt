@@ -1,27 +1,20 @@
-commit 69aed4712d73c9c1b70be3e2e222eb55391e2fb0
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jun 25 11:11:07 2022 -0700
+commit 7fcf9a1e58c088eb63b7fc3db494016bf210966b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 8 14:12:33 2021 -0400
 
-    cmd/compile: use better splitting condition for string binary search
+    cmd/go: do not expect a specific timing in test_fuzz_minimize
     
-    Currently we use a full cmpstring to do the comparison for each
-    split in the binary search for a string switch.
+    Empirically, it may take more than 3 seconds for minimization to begin.
+    If that is the case, the "elapsed:" message may start at 4s or higher.
     
-    Instead, split by comparing a single byte of the input string with a
-    constant. That will give us a much faster split (although it might be
-    not quite as good a split).
+    Fixes #48870
     
-    Fixes #53333
-    
-    R=go1.20
-    
-    Change-Id: I28c7209342314f367071e4aa1f2beb6ec9ff7123
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414894
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I6bb4367b61377454b0af664d80232fdb46e7c245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354794
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/walk/switch.go | 92 +++++++++++++++++++++++++++++++--
- test/codegen/switch.go                  | 27 ++++++++++
- 2 files changed, 114 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

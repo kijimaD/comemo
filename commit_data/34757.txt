@@ -1,16 +1,23 @@
-commit 9364c13d09fb0df5a2f8cb4c86af9d37af857f20
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 29 07:38:14 2018 +0000
+commit 01c979dabef2c8edb3fffd99e1f89781b4d2c159
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Nov 14 13:17:44 2017 -0500
 
-    runtime: parse auxv for page size on dragonfly
+    doc: correct supported gdb version info
     
-    Decode AT_PAGESZ to determine physPageSize on dragonfly.
+    GDB 7.5 recognizes DWARF4 by default.
     
-    Change-Id: I7236d7cbe43433f16dffddad19c1655bc0c7f31d
-    Reviewed-on: https://go-review.googlesource.com/103257
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    GDB 7.5 release note does not explicitly mention DWARF4 support
+    but according to GCC 4.8 release note
+     https://gcc.gnu.org/gcc-4.8/changes.html
+    
+     "DWARF4 is now the default when generating DWARF debug
+     information. ...
+     GDB 7.5, Valgrind 3.8.0 and elfutils 0.154 debug information
+     consumers support DWARF4 by default."
+    
+    Change-Id: I56b011c7c38fbc103bbd366ceaea3b709c66ab7f
+    Reviewed-on: https://go-review.googlesource.com/77570
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/runtime/auxv_none.go    |  1 +
- src/runtime/os_dragonfly.go | 39 +++++++++++++++++++++++++++++++++++++--
- 2 files changed, 38 insertions(+), 2 deletions(-)
+ doc/debugging_with_gdb.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

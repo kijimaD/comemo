@@ -1,0 +1,15 @@
+commit aef61555dae947826e8ee69ff0e31efc4a1d4179
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 10 12:47:22 2024 +0200
+
+    time: don't check non-nil err twice in parse
+    
+    Change-Id: I40a1b49035321b05032eacf4525a62b8c562e0d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/time/format.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

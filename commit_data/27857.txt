@@ -1,16 +1,21 @@
-commit f88a88402cbf93b37f701a8ca0c70b7d2558a057
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Sun Jul 31 12:55:06 2016 -0400
+commit d57a118afabdd5b0f516d8d3225b2c7f8c96d64a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 15 14:22:27 2016 -0700
 
-    regexp: add some tests that were fixed in #12980
+    cmd/compile: remove dead flags
     
-    Also includes a minor golint cleanup in the tests.
+    For some time now, the -d flag has been used to control various named
+    debug options, rather than setting Debug['d']. Consequently, that
+    means dflag() always returns false, which means the -y flag is also
+    useless.
     
-    Change-Id: I8c0fc81479e635e7cca18d5c48c28b654afa59d8
-    Reviewed-on: https://go-review.googlesource.com/25380
+    Similarly, Debug['L'] is never used anywhere, so the -L flag can be
+    dropped too.
+    
+    Change-Id: I4bb12454e462410115ec4f5565facf76c5c2f255
+    Reviewed-on: https://go-review.googlesource.com/22121
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/all_test.go | 38 ++++++++++++++++++++++++++++++++------
- 1 file changed, 32 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go  | 22 ----------------------
+ src/cmd/compile/internal/gc/main.go |  2 --
+ 2 files changed, 24 deletions(-)

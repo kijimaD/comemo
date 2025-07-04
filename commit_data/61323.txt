@@ -1,0 +1,21 @@
+commit f5526b56dbf45ce1f2e856f4aa78674dd0b5afe3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Oct 29 14:57:06 2024 +0000
+
+    runtime: skip TestNewOSProc0 with asan and msan
+    
+    These fail for the same reason as for the race detector, and is the most
+    frequently failing test in both.
+    
+    For #70054.
+    For #64257.
+    For #64256.
+    
+    Change-Id: I3649e58069190b4450f9d4deae6eb8eca5f827a3
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623176
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/{norace_linux_test.go => nosan_linux_test.go} | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

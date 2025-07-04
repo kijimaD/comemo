@@ -1,14 +1,16 @@
-commit 9b6069bf983678b2f490be029d493e711bf80bd9
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Oct 7 20:07:56 2015 -0400
+commit c55870a5412fb374c9c392a06c3949b291c48e15
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Aug 7 12:19:03 2015 +0200
 
-    net/url: fix mentions of URL.EscapedPath method
+    [dev.ssa] cmd/compile/internal/gc: handle all inputs for shifts.
     
-    Fixes #12862.
+    Disable CX as output for shift operations.
     
-    Change-Id: I6921ae31bd5515f344fd97d08eafc317228b98a0
-    Reviewed-on: https://go-review.googlesource.com/15590
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I85e6b22d09009b38847082dc375b6108c2dee80a
+    Reviewed-on: https://go-review.googlesource.com/13370
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/url/url.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 23 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |  3 ++-
+ src/cmd/compile/internal/ssa/opGen.go             | 24 +++++++++++------------
+ 3 files changed, 37 insertions(+), 13 deletions(-)

@@ -1,25 +1,22 @@
-commit 68bcef7e9f979b24f42bbddd3400cae97b9de846
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Tue Jul 23 23:11:10 2024 -0600
+commit 36dc84ca5738e5aa03814dba4c439a0d823a1fa9
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 14 11:53:26 2023 +0000
 
-    cmd/go: add support for go get -tool
+    encoding/json: declare hex as a const
     
-    Running `go get -tool example.com/m1` will add a tool line to your mod
-    file and add any missing dependencies.
+    hex is in fact immutable, declare it as a const to avoid accidental
+    modification, also for consistency with other packages.
     
-    Running `go get -tool example.com/m1@none` will drop the tool line from
-    your mod file.
-    
-    For golang/go#48429
-    
-    Change-Id: I07b4776f1f55eff588d08cb6649d94cc42a729d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563175
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I99f292e98c82d4c4526e46c9897d154d0c073da5
+    GitHub-Last-Rev: d2f06965e7e03df470d8c3c8882619187abf1609
+    GitHub-Pull-Request: golang/go#62011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519155
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/alldocs.go                       |  5 ++-
- src/cmd/go/internal/modget/get.go           | 36 +++++++++++++++-
- src/cmd/go/internal/modload/init.go         | 13 +++++-
- src/cmd/go/testdata/script/mod_get_tool.txt | 66 +++++++++++++++++++++++++++++
- 4 files changed, 117 insertions(+), 3 deletions(-)
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit e6248c9c99cf8bd0d195a972305c0235d92101a8
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Feb 27 20:13:51 2015 -0500
+commit 017182258a41ad2e2377799a8878097b21bea53d
+Author: Erik Aigner <aigner.erik@gmail.com>
+Date:   Thu Feb 5 08:07:18 2015 +0100
 
-    cmd/pack: skip fork test on darwin/arm
+    net/http: Fix typo in MaxBytesReader comment
     
-    Change-Id: I65b50d2501fe822bc9044a851ac0b3467feadd9f
-    Reviewed-on: https://go-review.googlesource.com/6330
+    Change-Id: Ida064ff422d077d508ef94f52fc813daa6277a99
+    Reviewed-on: https://go-review.googlesource.com/3933
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/pack/pack_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

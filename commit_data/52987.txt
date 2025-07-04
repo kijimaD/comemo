@@ -1,26 +1,26 @@
-commit 8992bb19ad625b42ce3d94f99d3c3a5a07b64e4c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 9 19:37:24 2023 +0000
+commit 46b01ec667c05fb8eb8f382b173e126282acd80c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 07:56:25 2022 -0700
 
-    runtime: replace trace.enabled with traceEnabled
+    [dev.unified] cmd/compile/internal/noder: remove needType logic
     
-    [git-generate]
-    cd src/runtime
-    grep -l 'trace\.enabled' *.go | grep -v "trace.go" | xargs sed -i 's/trace\.enabled/traceEnabled()/g'
+    This logic is a holdover from very early on when it wasn't as clear
+    how we would handle dictionary entries for derived types, particularly
+    ones that are emitted during desugaring.
     
-    Change-Id: I14c7821c1134690b18c8abc0edd27abcdabcad72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494181
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    However, the current plan is to explicitly wire runtime type info
+    through IR nodes, so we can drop this logic.
+    
+    Notably, the "needed" bit is exposed to the go/types importers, so
+    removing it would break the x/tools importer. To minimize churn for
+    now, we can just leave the bools in place.
+    
+    Change-Id: I374927887d4f3d6d711d3355607849a407d717c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413367
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/debugcall.go |  6 ++---
- src/runtime/mcentral.go  |  6 ++---
- src/runtime/mgc.go       | 14 +++++-----
- src/runtime/mgcmark.go   |  2 +-
- src/runtime/mgcpacer.go  |  8 +++---
- src/runtime/mgcsweep.go  |  8 +++---
- src/runtime/mheap.go     |  6 ++---
- src/runtime/proc.go      | 70 ++++++++++++++++++++++++------------------------
- 8 files changed, 60 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 23 +----------------------
+ 1 file changed, 1 insertion(+), 22 deletions(-)

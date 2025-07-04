@@ -1,23 +1,31 @@
-commit 9088c691dac424540f562d6271c5ee479e9f9d80
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 17 09:35:21 2023 -0800
+commit 06a43e4ab62bc5f8353e1c6ed5267d51ce2b483c
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Feb 25 14:56:04 2022 -0800
 
-    cmd/compile: ensure temp register mask isn't empty
+    cmd/compile: fix case for structural types where we should be looking at typeparams
     
-    We need to avoid nospill registers at this point in regalloc.
-    Make sure that we don't restrict our register set to avoid registers
-    desired by other instructions, if the resulting set includes only
-    nospill registers.
+    In getInstantiation, we were not computing tparams correctly for the
+    case where the receiver of a method was a fully-instantiated type. This
+    wasn't affecting later parts of the function, since method
+    instantiations of fully-instantiated types were already being calculated
+    in an earlier path. But it did give us a non-typeparam when trying to
+    see if a shape was associated with a type param with a structural type.
+    The fix is just to get the typeparams associated with the base generic
+    type. Then we can eliminate a conditional check later in the code.
+    The tparam parameter of Shapify should always be non-nil
     
-    Fixes #57846
+    Fixes #51367
     
-    Change-Id: I05478e4513c484755dc2e8621d73dac868e45a27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461685
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6f95fe603886148b2dad0c581416c51373c85009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388116
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go |  2 +-
- test/fixedbugs/issue57846.go             | 33 ++++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go  | 13 ++++++++-----
+ src/cmd/compile/internal/typecheck/subr.go |  6 +++---
+ test/typeparam/issue51367.dir/a.go         | 14 ++++++++++++++
+ test/typeparam/issue51367.dir/main.go      | 13 +++++++++++++
+ test/typeparam/issue51367.go               |  7 +++++++
+ 5 files changed, 45 insertions(+), 8 deletions(-)

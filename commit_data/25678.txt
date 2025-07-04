@@ -1,18 +1,61 @@
-commit 26397f1383ff02770a62160891e9de349aa1fb92
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 26 22:13:01 2016 -0500
+commit 5a0d9ef87387ce620af03274be2dd34a8ba4a99c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 12 14:09:03 2015 +0000
 
-    runtime: fix upper bound on out-of-memory print
+    crypto/tls, crypto/aes: remove allocations when Writing & Reading
     
-    It's possible for arena_start+MaxArena32 to wrap.
-    We do the right thing in the bounds check but not in the print.
+    benchmark          old ns/op     new ns/op     delta
+    BenchmarkTLS-4     8571          7938          -7.39%
     
-    For #13992 (to fix the print there, not the bug).
+    benchmark          old MB/s     new MB/s     speedup
+    BenchmarkTLS-4     119.46       128.98       1.08x
     
-    Change-Id: I4df845d0c03f0f35461b128e4f6765d3ccb71c6d
-    Reviewed-on: https://go-review.googlesource.com/18975
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    benchmark          old allocs     new allocs     delta
+    BenchmarkTLS-4     8              0              -100.00%
+    
+    benchmark          old bytes     new bytes     delta
+    BenchmarkTLS-4     128           0             -100.00%
+    
+    On:
+    
+    func BenchmarkTLS(b *testing.B) {
+            b.ReportAllocs()
+            b.SetBytes(1024)
+            ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                    io.Copy(ioutil.Discard, r.Body)
+            }))
+            defer ts.Close()
+            buf := make([]byte, 1024)
+            for i := range buf {
+                    buf[i] = byte(i)
+            }
+            c, err := tls.Dial("tcp", ts.Listener.Addr().String(), &tls.Config{
+                    InsecureSkipVerify: true,
+            })
+            if err != nil {
+                    b.Fatal(err)
+            }
+            defer c.Close()
+            clen := int64(b.N) * 1024
+            if _, err := c.Write([]byte(
+                "POST / HTTP/1.1\r\nHost: foo\r\nContent-Length: " +
+                fmt.Sprint(clen) + "\r\n\r\n")); err != nil {
+                    b.Fatal(err)
+            }
+            b.ResetTimer()
+            for i := 0; i < b.N; i++ {
+                    if _, err := c.Write(buf); err != nil {
+                            b.Fatal(err)
+                    }
+            }
+    }
+    
+    Change-Id: I206e7e2118b97148f9751b740d8470895634d3f5
+    Reviewed-on: https://go-review.googlesource.com/16828
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/malloc.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/crypto/aes/aes_gcm.go | 12 ++++++++++++
+ src/crypto/tls/conn.go    | 35 +++++++++++++++++------------------
+ 2 files changed, 29 insertions(+), 18 deletions(-)

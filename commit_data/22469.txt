@@ -1,17 +1,16 @@
-commit 4af5dcb2db977ea3c2e2218be7912951b3a44113
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 13 09:30:56 2015 -0700
+commit 1fdd1d181bb3633f64f251f354be21ca44865b5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 10 15:18:10 2015 -0400
 
-    iostest.bash: do not restart device by default
+    cmd/6g: make proginfo register bits constants
     
-    This is friendlier for manual runs and personal devices.
-    Builders will pass -restart.
+    Also replace proginfo call with cheaper calls where only flags are needed.
     
-    Fixes #10333.
-    
-    Change-Id: Ia64c8f1660e275b5a1543d7f81f5f5efb623182f
-    Reviewed-on: https://go-review.googlesource.com/8870
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ib6e5c12bd8752b87c0d8bcf22fa9e25e04a7941f
+    Reviewed-on: https://go-review.googlesource.com/7630
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/iostest.bash | 34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
+ src/cmd/6g/peep.go | 19 +++++++------------
+ src/cmd/6g/prog.go | 20 +++++++++++++-------
+ src/cmd/6g/reg.go  | 10 ++++++++++
+ 3 files changed, 30 insertions(+), 19 deletions(-)

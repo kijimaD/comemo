@@ -1,14 +1,14 @@
-commit 1f3fe910664069a94acdbd27d2ba3e6f5b256dbe
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 17 14:56:04 2015 +1100
+commit 5944cb8d1ae8903c30483f654a15a02a6e3c6e56
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 21 13:05:25 2015 -0500
 
-    test: fix recover4 test on 64kb systems
+    [dev.cc] cmd/asm/internal/asm: fix test on nacl
     
-    Fix recover4.go to work on 64kb systems.
+    Need to add testdata to NaCl's testing file system.
     
-    Change-Id: I211cb048de1268a8bbac77c6f3a1e0b8c8277594
-    Reviewed-on: https://go-review.googlesource.com/7673
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ie9703b5475c7f87e737a06de85d1f88e2062f090
+    Reviewed-on: https://go-review.googlesource.com/5541
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/recover4.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ misc/nacl/testzip.proto | 5 +++++
+ 1 file changed, 5 insertions(+)

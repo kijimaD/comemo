@@ -1,18 +1,25 @@
-commit 1df777f6a425d9e61f8094cfb1d96fd90bb0bdf1
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed May 10 15:35:33 2017 +0900
+commit e73f4894949c4ced611881329ff8f37805152585
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 22:25:06 2017 +0000
 
-    go/build: accept spaces in cgo directives
+    os/exec: remove duplicate environment variables in Cmd.Start
     
-    Fixes #7906
+    Nobody intends to have duplicates anyway because it's so undefined
+    and everything handles it so poorly.
     
-    Change-Id: Ibcf9cd670593241921ab3c426ff7357f799ebc3e
-    Reviewed-on: https://go-review.googlesource.com/43072
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Removing duplicates automatically simplifies code and makes existing
+    code do what people already expect.
+    
+    Fixes #12868
+    
+    Change-Id: I95eeba8c59ff94d0f018012a6f4e031aaabfd5d9
+    Reviewed-on: https://go-review.googlesource.com/37586
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go      | 64 ++++++++++++++++++++++++++++++++++++++++++++++
- src/go/build/build.go      | 20 +++++----------
- src/go/build/build_test.go |  4 ++-
- 3 files changed, 73 insertions(+), 15 deletions(-)
+ src/os/exec/env_test.go     | 39 +++++++++++++++++++++++++++++++++++++++
+ src/os/exec/example_test.go | 12 ++++++++++++
+ src/os/exec/exec.go         | 40 ++++++++++++++++++++++++++++++++++++++--
+ src/os/exec/exec_test.go    | 20 ++++++++++++++++++++
+ 4 files changed, 109 insertions(+), 2 deletions(-)

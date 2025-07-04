@@ -1,18 +1,15 @@
-commit b32ad8bff5be1170e044d6a7a9e34f56e1990ce9
+commit 3933cb2371d6a0ffbd5d6bb47435bde4006fb917
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 24 09:02:01 2011 -0700
+Date:   Tue May 24 08:31:43 2011 -0700
 
-    http: Client test for streaming responses (no code changes)
+    http: fix Set-Cookie date parsing
     
-    I had a report that this was broken. It seems fine.
-    
-    I think the reporter was just never flushing their response
-    headers.  If I omit the test server's initial Flush I get the
-    same behavior as reported. (a hang at Client.Get)
+    Fixes #1855
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4552062
+    https://golang.org/cl/4527073
 
- src/pkg/http/client_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/pkg/http/cookie.go      | 32 ++++++++++++++++++++++++++------
+ src/pkg/http/cookie_test.go | 15 ++++++++++++++-
+ 2 files changed, 40 insertions(+), 7 deletions(-)

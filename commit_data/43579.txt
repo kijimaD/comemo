@@ -1,24 +1,24 @@
-commit a0a44397e91055cb92d5a69e3851d628a7227971
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 24 16:29:26 2020 -0400
+commit 5a706d163d332ec3a83e38849efbaf550a9da7ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 23:26:39 2020 +0000
 
-    runtime: save/restore g unconditionally on darwin/arm64
+    Revert "time/tzdata: new package"
     
-    Now that we always have TLS set up, we can always save the G
-    register, regardless of whether cgo is used. This makes pure Go
-    programs signal-safe.
+    This reverts CL 224588.
     
-    Updates #38485.
+    Reason for revert: Test failing on secondary platforms.
     
-    Change-Id: Icbc69acf0e2a5652fbcbbd074258a1a5efe87f1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265119
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: Ic15fdc73a0d2b860e776733abb82c58809e13160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_arm64.s        | 3 ---
- src/runtime/sys_darwin_arm64.s | 6 ++----
- src/runtime/tls_arm64.s        | 4 ++++
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ doc/go1.15.html                     |    14 -
+ lib/time/update.bash                |     2 -
+ src/go/build/deps_test.go           |     2 -
+ src/time/embed.go                   |    12 -
+ src/time/tzdata/generate_zipdata.go |    83 -
+ src/time/tzdata/tzdata.go           |   107 -
+ src/time/tzdata/tzdata_test.go      |    95 -
+ src/time/tzdata/zipdata.go          | 13048 ----------------------------------
+ src/time/zoneinfo_read.go           |    23 -
+ 9 files changed, 13386 deletions(-)

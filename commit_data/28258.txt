@@ -1,15 +1,30 @@
-commit a0d2010208199d2cfca0581348efde4e04d0ab06
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 14:12:35 2016 -0700
+commit 3c090019172afd4517360606efc50750d3e278fa
+Author: David Chase <drchase@google.com>
+Date:   Fri May 6 17:05:02 2016 -0700
 
-    cmd/compile: implement fmt.Formatter for *Sym formats %s, %v
+    cmd/compile: correct sparseSet probes in regalloc to avoid index error
     
-    Change-Id: I0c362edba66c763e84990e3c5508013021f3e6fe
-    Reviewed-on: https://go-review.googlesource.com/28334
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    In regalloc, a sparse map is preallocated for later use by
+    spill-in-loop sinking.  However, variables (spills) are added
+    during register allocation before spill sinking, and a map
+    query involving any of these new variables will index out of
+    bounds in the map.
+    
+    To fix:
+    1) fix the queries to use s.orig[v.ID].ID instead, to ensure
+    proper indexing.  Note that s.orig will be nil for values
+    that are not eligible for spilling (like memory and flags).
+    
+    2) add a test.
+    
+    Fixes #15585.
+    
+    Change-Id: I8f2caa93b132a0f2a9161d2178320d5550583075
+    Reviewed-on: https://go-review.googlesource.com/22911
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/closure.go   |  2 +-
- src/cmd/compile/internal/gc/fmt.go       | 90 ++++++++++++++++++--------------
- src/cmd/compile/internal/gc/typecheck.go |  4 +-
- 4 files changed, 54 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 15 +++++++----
+ test/fixedbugs/issue15585.go             | 45 ++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 5 deletions(-)

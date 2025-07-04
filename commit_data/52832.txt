@@ -1,19 +1,25 @@
-commit 04f059f9efbb2a202ddb6a3c6f87efa8073e562f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 28 10:29:58 2023 -0700
+commit 55fc07e16416bd3677c81bb6379ac8f9e881e5cf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 3 12:49:11 2022 -0700
 
-    net: don't recheck goosPrefersCgo in hostLookupOrder
+    [dev.unified] cmd/compile/internal/noder: add optExpr for optional expressions
     
-    We only did it for testing. Remove the single test that required it.
+    Previously, {writer,reader}.expr would allow for nil
+    expressions (i.e., no expression at all, not a "nil" identifier). But
+    only a few contexts allow this, and it simplifies some logic if we can
+    assume the expression is non-nil.
     
-    Change-Id: Ib6c3a2debfd3f48e95af37f23fdfde847ff87a41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490395
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    So this CL introduces optExpr as a wrapper method for handling nil
+    expressions specially.
+    
+    Change-Id: I438bae7a3191126f7790ec0bf5b77320fe855514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410099
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/conf.go      | 13 +++----------
- src/net/conf_test.go | 12 ------------
- 2 files changed, 3 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  |  9 ++++-----
+ src/cmd/compile/internal/noder/reader.go | 16 ++++++++++------
+ src/cmd/compile/internal/noder/writer.go | 17 +++++++++++------
+ 3 files changed, 25 insertions(+), 17 deletions(-)

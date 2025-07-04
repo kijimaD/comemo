@@ -1,85 +1,37 @@
-commit f1aefc0d36a5e3305a08c1d4b6954f685d32da57
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 20 14:45:54 2011 -0700
+commit 5ee7ef90cddf2d5b3fa7fd9092a86f47fc5d56ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 20 14:36:19 2011 -0700
 
-    test: match gccgo error messages for goto.go and bug344.go
+    suffixarray: improved serialization code
     
-    goto.go:39:2: error: goto jumps over declaration of ‘x’
-    goto.go:40:2: note: ‘x’ defined here
-    goto.go:57:2: error: goto jumps over declaration of ‘x’
-    goto.go:62:2: note: ‘x’ defined here
-    goto.go:77:2: error: goto jumps over declaration of ‘x’
-    goto.go:78:2: note: ‘x’ defined here
-    goto.go:87:2: error: goto jumps over declaration of ‘x’
-    goto.go:88:2: note: ‘x’ defined here
-    goto.go:114:2: error: goto jumps into block
-    goto.go:115:2: note: goto target block starts here
-    goto.go:125:2: error: goto jumps into block
-    goto.go:122:2: note: goto target block starts here
-    goto.go:130:2: error: goto jumps into block
-    goto.go:133:4: note: goto target block starts here
-    goto.go:142:2: error: goto jumps into block
-    goto.go:145:2: note: goto target block starts here
-    goto.go:179:2: error: goto jumps into block
-    goto.go:180:10: note: goto target block starts here
-    goto.go:186:2: error: goto jumps into block
-    goto.go:187:10: note: goto target block starts here
-    goto.go:194:2: error: goto jumps into block
-    goto.go:196:4: note: goto target block starts here
-    goto.go:205:3: error: goto jumps into block
-    goto.go:202:11: note: goto target block starts here
-    goto.go:211:3: error: goto jumps into block
-    goto.go:212:4: note: goto target block starts here
-    goto.go:219:3: error: goto jumps into block
-    goto.go:220:18: note: goto target block starts here
-    goto.go:227:3: error: goto jumps into block
-    goto.go:228:18: note: goto target block starts here
-    goto.go:241:3: error: goto jumps into block
-    goto.go:243:4: note: goto target block starts here
-    goto.go:290:2: error: goto jumps into block
-    goto.go:287:6: note: goto target block starts here
-    goto.go:299:2: error: goto jumps into block
-    goto.go:294:6: note: goto target block starts here
-    goto.go:306:2: error: goto jumps into block
-    goto.go:303:12: note: goto target block starts here
-    goto.go:313:2: error: goto jumps into block
-    goto.go:310:24: note: goto target block starts here
-    goto.go:320:2: error: goto jumps into block
-    goto.go:317:18: note: goto target block starts here
-    goto.go:327:2: error: goto jumps into block
-    goto.go:324:18: note: goto target block starts here
-    goto.go:334:2: error: goto jumps into block
-    goto.go:331:18: note: goto target block starts here
-    goto.go:341:2: error: goto jumps into block
-    goto.go:338:18: note: goto target block starts here
-    goto.go:395:2: error: goto jumps into block
-    goto.go:398:2: note: goto target block starts here
-    goto.go:403:2: error: goto jumps into block
-    goto.go:406:2: note: goto target block starts here
-    goto.go:413:2: error: goto jumps into block
-    goto.go:417:2: note: goto target block starts here
-    goto.go:424:3: error: goto jumps into block
-    goto.go:426:2: note: goto target block starts here
-    goto.go:436:3: error: goto jumps into block
-    goto.go:433:2: note: goto target block starts here
-    goto.go:492:2: error: goto jumps into block
-    goto.go:495:2: note: goto target block starts here
-    goto.go:500:2: error: goto jumps into block
-    goto.go:503:2: note: goto target block starts here
-    goto.go:510:2: error: goto jumps into block
-    goto.go:514:2: note: goto target block starts here
-    goto.go:521:3: error: goto jumps into block
-    goto.go:523:2: note: goto target block starts here
-    goto.go:533:3: error: goto jumps into block
-    goto.go:530:2: note: goto target block starts here
+    Use gobs to serialize indexes instead of encoding/binary.
     
-    bug344.go:17:2: error: goto jumps into block
-    bug344.go:20:21: note: goto target block starts here
+    Even with gobs, serialize data in slices instead of
+    applying gob to the entire data structure at once,
+    to reduce the amount of extra buffer memory needed
+    inside gob.
     
-    R=rsc
+    7x faster Write/Read for new BenchmarkSaveRestore
+    compared to old code; possibly because encoding/binary
+    is more expensive for int32 slice elements (interface
+    call to get little/big endian encoding), while gob's
+    encoding is fixed (unconfirmed).
+    
+    new (using gobs):
+    suffixarray.BenchmarkSaveRestore               1        2153604000 ns/op
+    
+    old (using encoding/binary):
+    suffixarray.BenchmarkSaveRestore               1        15118322000 ns/op
+    
+    The actual serialized data is slightly larger then using
+    the old code for very large indices because full 32bit indices
+    require 5bytes using gobs instead of 4bytes (encoding/binary)
+    in serialized form.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5077044
+    https://golang.org/cl/5087041
 
- test/fixedbugs/bug344.go |   4 +-
- test/goto.go             | 140 +++++++++++++++++++++++------------------------
- 2 files changed, 72 insertions(+), 72 deletions(-)
+ src/pkg/index/suffixarray/suffixarray.go      | 64 +++++++++++++++++++--------
+ src/pkg/index/suffixarray/suffixarray_test.go | 19 ++++++++
+ 2 files changed, 65 insertions(+), 18 deletions(-)

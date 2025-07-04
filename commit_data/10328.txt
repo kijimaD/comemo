@@ -1,18 +1,13 @@
-commit e4eacf39e9db9357fa4823c9c8c230e444ab6170
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Wed Nov 9 17:20:34 2011 -0600
+commit a9aef26a558f6e9c44d6aac5d85ad3c16f1bc0f9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 9 14:40:49 2011 -0800
 
-    misc/windows: Go for Windows installer in MSI format
+    effective_go: fix up the description of cipher blocks and streams
     
-    Requesting suggestions for the comment and description strings in installer.wxs.
-    Fixes #2394.
-    
-    R=rsc, alex.brainman, tjyang2001
+    R=golang-dev, r, agl, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5339046
+    https://golang.org/cl/5374046
 
- misc/windows/README        |  7 ++--
- misc/windows/installer.iss | 98 ----------------------------------------------
- misc/windows/installer.wxs | 80 +++++++++++++++++++++++++++++++++++++
- misc/windows/package.bash  | 26 +++++++-----
- 4 files changed, 101 insertions(+), 110 deletions(-)
+ doc/effective_go.html | 56 ++++++++++++++++++++++++++++++---------------------
+ doc/effective_go.tmpl | 53 +++++++++++++++++++++++++++++-------------------
+ 2 files changed, 65 insertions(+), 44 deletions(-)

@@ -1,25 +1,17 @@
-commit b6c871a2af7c916f3c862e38816713aa8bf824a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 15:26:21 2018 -0500
+commit f260ae65232a88c9c6832bd954c6e0660d0773d4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 21 14:26:21 2017 -0700
 
-    doc: s/tool chain/toolchain/
+    cmd/compile/internal/types: unexport Type.Copy
     
-    We were not being consistent.
-    Standardize on toolchain.
+    It's only used/needed by SubstAny.
     
-    Change-Id: Id0e756b5214ce4a1341f733634ed95263f03a61c
-    Reviewed-on: https://go-review.googlesource.com/87017
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    CL prepared with gorename.
+    
+    Change-Id: I243138f9dcc4e6af9b81a7746414e6d7b3ba10a2
+    Reviewed-on: https://go-review.googlesource.com/65311
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- doc/articles/go_command.html |  2 +-
- doc/asm.html                 |  4 ++--
- doc/debugging_with_gdb.html  |  4 ++--
- doc/go1.1.html               |  8 ++++----
- doc/go1.2.html               |  2 +-
- doc/go1.3.html               |  4 ++--
- doc/go1compat.html           |  4 ++--
- doc/go_faq.html              |  2 +-
- doc/install-source.html      | 16 ++++++++--------
- 9 files changed, 23 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/types/type.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

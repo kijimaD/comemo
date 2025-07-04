@@ -1,26 +1,54 @@
-commit 287d1ec96c1271de532c6b1160cd9cbbe717ee34
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 22 21:36:11 2020 +0000
+commit 52a5bf4d33d55bac37b07e5ff0c33b104e1fe5f8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 21:28:47 2019 -0500
 
-    runtime: ensure allocToCache updates searchAddr in a valid way
+    crypto/tls: re-enable RSA-PSS in TLS 1.2 again
     
-    Currently allocToCache assumes it can move the search address past the
-    block it allocated the cache from, which violates the property that
-    searchAddr should always point to mapped memory (i.e. memory represented
-    by pageAlloc.inUse).
+    TLS 1.3, which requires RSA-PSS, is now enabled without a GODEBUG
+    opt-out, and with the introduction of
+    Certificate.SupportedSignatureAlgorithms (#28660) there is a
+    programmatic way to avoid RSA-PSS (disable TLS 1.3 with MaxVersion and
+    use that field to specify only PKCS#1 v1.5 SignatureSchemes).
     
-    This bug was already fixed once for pageAlloc.alloc in the Go 1.14
-    release via CL 216697, but that changed failed to take into account
-    allocToCache.
+    This effectively reverts 0b3a57b5374bba3fdf88258e2be4c8be65e6a5de,
+    although following CL 205061 all of the signing-side logic is
+    conveniently centralized in signatureSchemesForCertificate.
     
-    Fixes #38605.
+    Fixes #32425
     
-    Change-Id: Id08180aa10d19dc0f9f551a1d9e327a295560dff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229577
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7c9a8893bb5d518d86eae7db82612b9b2cd257d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205063
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/mpagecache.go      | 13 +++++++++----
- src/runtime/mpagecache_test.go | 33 +++++++++++++++++++++++++++++++--
- 2 files changed, 40 insertions(+), 6 deletions(-)
+ src/crypto/tls/auth.go                             |   7 +-
+ src/crypto/tls/auth_test.go                        |   2 +-
+ src/crypto/tls/common.go                           |  15 -
+ src/crypto/tls/handshake_client_test.go            |  13 +-
+ src/crypto/tls/handshake_server.go                 |   2 +-
+ src/crypto/tls/handshake_server_test.go            |  23 +-
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  74 +--
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    |  92 ++--
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  74 +--
+ .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   |  78 +--
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 348 ++++++-------
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 538 ++++++++++-----------
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 354 +++++++-------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  64 +--
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  64 +--
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  60 +--
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  80 +--
+ ...erver-TLSv12-ClientAuthRequestedAndEd25519Given |  66 +--
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      | 104 ++--
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given |  80 +--
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      |  62 +--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  64 +--
+ src/crypto/tls/testdata/Server-TLSv12-P256         |  54 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  50 +-
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  50 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  37 +-
+ src/crypto/tls/testdata/Server-TLSv12-X25519       |  50 +-
+ src/crypto/tls/tls_test.go                         |   3 +-
+ 28 files changed, 1264 insertions(+), 1244 deletions(-)

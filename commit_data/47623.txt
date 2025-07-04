@@ -1,17 +1,15 @@
-commit a142d6587cb6a7ac59ebf49120167c96bdc3bcf6
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Mon Nov 22 01:26:48 2021 +0000
+commit a78b12aea7d18a402cecbaa4eca4c8ba09cc05ca
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Fri Apr 2 12:02:17 2021 +0000
 
-    doc: go1.18 release notes for CLs 323318/332771
+    cmd/link: remove unnecessary attrReachable test
     
-    Updates #47694
-    
-    Change-Id: Ib76737996a701906117e096eb6d05b388576a874
-    GitHub-Last-Rev: 05b96499651bb4e90617460a72f1df9f2c8615f3
-    GitHub-Pull-Request: golang/go#49588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363840
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I5a6fde3ce57be1760cc8c92910fe77beb8b9c655
+    GitHub-Last-Rev: 0b2f3cb3a81336d94d288afe7c324a5a54114ebb
+    GitHub-Pull-Request: golang/go#45259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305169
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: David Chase <drchase@google.com>
 
- doc/go1.18.html | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

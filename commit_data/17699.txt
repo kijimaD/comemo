@@ -1,12 +1,14 @@
-commit 4be17b7a7e43067f451cc1001f43495bcf2f6f45
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 25 16:17:54 2013 +1000
+commit b3caa86f91a22f1aa31ac6a6cabf3a5e88751940
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 25 14:10:49 2013 +1000
 
-    doc/go1.2.html: add go/ast.SliceExpr.Slice3
+    doc: document installation of go.tools commands
     
-    R=golang-dev, adg
+    Fixes #5663.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13877044
+    https://golang.org/cl/13891043
 
- doc/go1.2.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/install-source.html | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

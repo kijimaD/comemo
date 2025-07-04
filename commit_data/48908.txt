@@ -1,20 +1,30 @@
-commit 06b0a655a1f46abab2e3c173259ad184b557dd89
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Apr 26 12:34:35 2022 -0400
+commit badb98364b3710933de89bfe579fb8d1f82741c8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 23 14:45:34 2021 -0700
 
-    net: skip TestDialCancel on darwin-arm64
+    [dev.typeparams] cmd/compile: switch CaptureVars to use syntax.Walk
     
-    We're turning up Macs in a network environment that clashes with this
-    test. I don't think it's critical to get it working, so skip it.
+    This CL refactors CaptureVars to use a visitor type so it's easier to
+    break out helper functions to review.
     
-    For #49149.
+    It also simplifies the quirks-mode handling of function literals:
+    instead of trying to maintain information about whether we're inside a
+    function literal or not, it now just rewrites the recorded position
+    information for any newly added free variables after walking the
+    function literal.
     
-    Change-Id: I925e3ecc5356c4cefd208bdcff3d98021215d0b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402181
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    (Quirks mode is only for "toolstash -cmp"-style binary output testing
+    of normal code and will eventually be removed, so I don't think it's
+    important that this is an O(N^2) algorithm for deeply nested function
+    literals with lots of free variables.)
+    
+    Change-Id: I0689984f6d88cf9937d4706d2d8de96415eaeee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330789
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/dial_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/noder/writer.go | 140 ++++++++++++++++++-------------
+ 1 file changed, 82 insertions(+), 58 deletions(-)

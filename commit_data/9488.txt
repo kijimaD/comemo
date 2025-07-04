@@ -1,29 +1,12 @@
-commit 55db9fe7309442ac4ba2aaacc65cfab3db86e7f1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 25 16:08:13 2011 -0400
+commit 948418f16a59a27238c066dc3ca4b86124fc9346
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Thu Aug 25 12:25:19 2011 -0400
 
-    build: fix unused parameters
+    template: Grammar fix for template documentation.
     
-    Found with gcc 4.6 -Wunused -Wextra
-    but should be applicable to Plan 9 too.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4958044
+    https://golang.org/cl/4944043
 
- src/cmd/6g/gobj.c        |  2 ++
- src/cmd/6g/gsubr.c       |  2 ++
- src/cmd/cov/main.c       |  3 +++
- src/cmd/gc/closure.c     |  2 ++
- src/cmd/gc/dcl.c         |  2 ++
- src/cmd/gc/lex.c         |  4 ++++
- src/cmd/gc/walk.c        |  4 ++++
- src/cmd/godefs/main.c    |  5 ++++-
- src/cmd/gopack/ar.c      |  2 ++
- src/cmd/prof/main.c      |  4 ++++
- src/lib9/exitcode.c      |  1 +
- src/libmach/executable.c | 19 ++++++++++++++++++-
- src/libmach/fakeobj.c    | 28 ++++++++++++++--------------
- src/libmach/linux.c      |  4 ++++
- src/libmach/map.c        |  2 ++
- 15 files changed, 68 insertions(+), 16 deletions(-)
+ src/pkg/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

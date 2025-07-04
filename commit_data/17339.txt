@@ -1,17 +1,16 @@
-commit 47ecd52377f66d665060b2d05a447f2b970cda95
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Tue Aug 20 20:48:29 2013 +1000
+commit 9b65dac494903780ef2134eb4fd6a8ee97cd7f4e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 20 17:02:42 2013 +0900
 
-    misc/xcode: use `xcode-select` to determine path
+    net: enable runtime-integrated network pollster on freebsd/arm
     
-    If xcode-select is available, use it to determine the path to the
-    DVTFoundation.xcplugindata file.
-    
-    Fixes #5997.
+    Fixes #6146.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12741047
+    https://golang.org/cl/12927048
 
- misc/xcode/4/go4xcode.sh | 26 +++++++++++++++++++-------
- 1 file changed, 19 insertions(+), 7 deletions(-)
+ src/pkg/net/fd_bsd.go          | 2 +-
+ src/pkg/net/fd_poll_runtime.go | 2 +-
+ src/pkg/net/fd_poll_unix.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

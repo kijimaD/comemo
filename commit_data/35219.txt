@@ -1,19 +1,15 @@
-commit dda4591c8cc0b57e76339f1f18a6f5670cee2aaa
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 6 17:44:26 2018 -0700
+commit 8554fd6e7dbfc76805ca48b71765879eeb6fb64d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 11 17:37:16 2018 -0800
 
-    runtime: add BenchmarkScanStack
+    cmd/compile: document reserved import paths
     
-    There are many possible stack scanning benchmarks,
-    but this one is at least a start.
+    Fixes #20708.
     
-    cpuprofiling shows about 75% of CPU in func scanstack.
-    
-    Change-Id: I906b0493966f2165c1920636c4e057d16d6447e0
-    Reviewed-on: https://go-review.googlesource.com/105535
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2db450947b64b8b5af3822c7fbcc3e99746ae9d7
+    Reviewed-on: https://go-review.googlesource.com/87496
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/gc_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/cmd/compile/internal/gc/subr.go | 5 +++++
+ 1 file changed, 5 insertions(+)

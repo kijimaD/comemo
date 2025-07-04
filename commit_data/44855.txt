@@ -1,34 +1,36 @@
-commit e27f3966bbb95d0f3330a60202eabe8dff57a311
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Mar 25 13:24:16 2021 -0400
+commit b96d32bd92087470f85cfab99e289e609a593d03
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 1 00:45:34 2020 -0400
 
-    cmd/compile: be sure to wrap defer/go calls with arguments
+    cmd/go/internal/modload: track which packages are in 'all' during loading
     
-    CL 298669 implemented wrapping for defer/go calls so the function
-    being called with defer or go statement has no arguments. This
-    simplifies the compiler and the runtime, especially with the
-    new ABI.
+    If the user requests the 'all' pattern in addition to explicit roots
+    outside of 'all', we should not load the transitive dependencies of
+    those explicit roots as if they were *in* 'all'. Without the '-test'
+    flag, we should not load test dependencies of any package outside of
+    'all'. Even *with* the '-test' flag, we should only load test
+    dependencies of the requested roots, not test dependencies of other
+    packages that happen to be imported by those roots.
     
-    If the called function does not have any argument, we don't need
-    to wrap. But the code missed the cases of method receiver, as
-    well as some apparent argumentless builtin calls which may later
-    be rewritten to having arguments (e.g. recover). This CL makes
-    sure to wrap those cases. Also add a check to ensure that go and
-    defer calls are indeed argumentless.
+    More precise tracking of membership in 'all' will be important when we
+    implement lazy loading, because membership in 'all' determines which
+    module dependencies we will record in the main module's go.mod file.
     
-    Handle "defer recover()" specially, as recover() is lowered to
-    runtime.gorecover(FP) where FP is the frame's FP. FP needs to be
-    evaluated before wrapping.
+    This change also reduces reliance on global state, factors out the
+    loading process into several smaller functions, and sets us up to
+    reuse the 'go mod vendor' version of the 'all' pattern for lazy
+    loading.
     
-    Updates #40724.
+    For #36460
+    Fixes #40799
     
-    Change-Id: I2758b6c69ab6aa02dd588441a457fe28ddd0d5a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304771
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I5ca21c86a860daee1316f732cea131a331d8ddf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240505
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go   |  8 ++++++++
- src/cmd/compile/internal/walk/builtin.go | 12 ++++++++++++
- src/cmd/compile/internal/walk/expr.go    | 10 +---------
- src/cmd/compile/internal/walk/order.go   | 25 +++++++++++++++++++------
- 4 files changed, 40 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/modload/load.go       | 727 +++++++++++++++++++++---------
+ src/cmd/go/testdata/script/mod_notall.txt |   4 +-
+ 2 files changed, 525 insertions(+), 206 deletions(-)

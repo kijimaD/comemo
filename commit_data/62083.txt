@@ -1,0 +1,55 @@
+commit f7b8dd9033663944e3b563afaeb55dace4c060fc
+Author: Roxy Light <roxy@zombiezen.com>
+Date:   Tue Jul 16 10:21:30 2024 -0700
+
+    io/fs: add ReadLinkFS interface
+    
+    Added implementations for *io/fs.subFS, os.DirFS, and testing/fstest.MapFS.
+    Amended testing/fstest.TestFS to check behavior.
+    
+    Addressed TODOs in archive/tar and os.CopyFS around symbolic links.
+    
+    I am deliberately not changing archive/zip in this CL,
+    since it currently does not resolve symlinks
+    as part of its filesystem implementation.
+    I am unsure of the compatibility restrictions on doing so,
+    so figured it would be better to address independently.
+    
+    testing/fstest.MapFS now includes resolution of symlinks,
+    with MapFile.Data storing the symlink data.
+    The behavior change there seemed less intrusive,
+    especially given its intended usage in tests,
+    and it is especially helpful in testing the io/fs function implementations.
+    
+    Fixes #49580
+    
+    Change-Id: I58ec6915e8cc97341cdbfd9c24c67d1b60139447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385534
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Funda Secgin <fundasecgin33@gmail.com>
+
+ api/next/49580.txt                                 |   8 ++
+ doc/next/6-stdlib/99-minor/archive/tar/49580.md    |   2 +
+ doc/next/6-stdlib/99-minor/io/fs/49580.md          |   1 +
+ doc/next/6-stdlib/99-minor/os/49580.md             |   2 +
+ doc/next/6-stdlib/99-minor/testing/fstest/49580.md |   3 +
+ src/archive/tar/writer.go                          |  14 +-
+ src/archive/tar/writer_test.go                     |  32 +++--
+ src/io/fs/readlink.go                              |  45 ++++++
+ src/io/fs/readlink_test.go                         | 106 ++++++++++++++
+ src/io/fs/sub.go                                   |  33 ++++-
+ src/io/fs/walk_test.go                             |  41 ++++++
+ src/os/dir.go                                      |  60 ++++----
+ src/os/file.go                                     |  31 +++-
+ src/os/file_test.go                                | 156 +++++++++++++++++++++
+ src/os/os_test.go                                  |   8 +-
+ src/testing/fstest/mapfs.go                        | 115 +++++++++++++--
+ src/testing/fstest/mapfs_test.go                   |  66 +++++++++
+ src/testing/fstest/testfs.go                       |  29 +++-
+ src/testing/fstest/testfs_test.go                  |   3 +
+ 19 files changed, 688 insertions(+), 67 deletions(-)

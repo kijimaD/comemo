@@ -1,23 +1,15 @@
-commit 3d1ce27ba51eb5bccc8773bd6f73924bd2910783
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:14:53 2015 +0100
+commit 6c4b54f409b537ce60e539e2ec1c56abfe1e145c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 15:45:29 2015 -0500
 
-    cmd/7l: add the ARM64 linker
+    runtime: missed change from reorganization CL
     
-    Only internal linking without cgo is supported for now.
+    That is, I accidentally dropped this change of Austin's
+    when preparing my CL. I blame Git.
     
-    Change-Id: I91eb1572c1ccc805db62fc4c29080df98797d51a
-    Reviewed-on: https://go-review.googlesource.com/7048
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9dd772c84edefad96c4b16785fdd2dea04a4a0d6
+    Reviewed-on: https://go-review.googlesource.com/5320
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/7l/asm.go             | 581 +-----------------------------------------
- src/cmd/7l/l.go               |   4 +-
- src/cmd/7l/obj.go             |  25 +-
- src/cmd/internal/ld/arch.go   |   9 +
- src/cmd/internal/ld/elf.go    |  39 ++-
- src/cmd/internal/ld/ldelf.go  |   7 +
- src/cmd/internal/ld/lib.go    |   3 +-
- src/cmd/internal/ld/link.go   |   1 +
- src/cmd/internal/ld/symtab.go |   1 +
- 9 files changed, 65 insertions(+), 605 deletions(-)
+ src/runtime/mgc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

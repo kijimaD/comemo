@@ -1,21 +1,19 @@
-commit 1f570787a804e2cbc44a3afc83d85c7564aeb394
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 2 10:06:44 2023 -0700
+commit 429a4041eb2657fad8870cad5662202f3bd0eeb6
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Jun 7 09:42:03 2022 -0400
 
-    cmd/compile: enable reverse type inference
+    doc/go1.19: complete TODOs for go/types
     
-    For #59338.
+    Fill in the details of outstanding TODO items for go/types changes.
     
-    Change-Id: I8141d421cdc60e47ee5794fc1ca81246bd8a8a25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491475
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    For #51400
+    
+    Change-Id: Ib40d75fa1018aa164022cb49b293795dd597d49d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410815
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/noder/irgen.go        |  5 ++--
- src/cmd/compile/internal/types2/stdlib_test.go | 11 ++++++--
- src/go/types/stdlib_test.go                    |  7 ++++-
- test/fixedbugs/issue59338.go                   | 39 ++++++++++++++++++++++++++
- 4 files changed, 56 insertions(+), 6 deletions(-)
+ doc/go1.19.html | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

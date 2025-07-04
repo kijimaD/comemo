@@ -1,30 +1,23 @@
-commit 4ceb5a94d83b823fe7c3e4d25541854759651933
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 10 10:33:16 2022 -0800
+commit 04e1176fd288f1ceba987d8d2fd9040e45157b38
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Apr 13 18:00:09 2021 -0400
 
-    go/types, types2: refer to type parameter if so for interface pointer errors
+    cmd/go: support 'go run cmd@version'
     
-    Follow-up on comment in CL 376914.
+    'go run' can now build a command at a specific version in module-aware
+    mode, ignoring the go.mod file in the current directory if there is one.
     
-    Also:
-    - add missing check != nil test in assignableTo
-    - use check.sprintf rather than fmt.Sprintf in missingMethodReason
+    For #42088
     
-    For #48312.
-    
-    Change-Id: Ie209b4101a7f2c279e42a59987d0068079c8b69f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377375
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I0bd9bcbe40c0442a268cd1cc315a8a2cbb5adeee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310074
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/call.go            |  2 +-
- src/cmd/compile/internal/types2/lookup.go          | 23 ++++++++++++++--------
- src/cmd/compile/internal/types2/operand.go         |  2 +-
- .../types2/testdata/fixedbugs/issue47747.go2       |  2 +-
- .../types2/testdata/fixedbugs/issue48312.go2       |  2 +-
- src/go/types/call.go                               |  2 +-
- src/go/types/lookup.go                             | 23 ++++++++++++++--------
- src/go/types/operand.go                            |  2 +-
- src/go/types/testdata/fixedbugs/issue47747.go2     |  2 +-
- src/go/types/testdata/fixedbugs/issue48312.go2     |  2 +-
- 10 files changed, 38 insertions(+), 24 deletions(-)
+ src/cmd/go/alldocs.go                              | 15 +++-
+ src/cmd/go/internal/run/run.go                     | 74 ++++++++++++++--
+ src/cmd/go/testdata/mod/example.com_cmd_v1.0.0.txt |  8 +-
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt | 98 ++++++++++++++++++++++
+ 4 files changed, 184 insertions(+), 11 deletions(-)

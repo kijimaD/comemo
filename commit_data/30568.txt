@@ -1,22 +1,19 @@
-commit 9207a7437e382e4a05436fc26a2e24740a0492ec
-Author: Josselin Costanzi <josselin@costanzi.fr>
-Date:   Sun Mar 5 18:55:18 2017 +0100
+commit 2f497263e4ff6121a1ba80e7a57e950061896626
+Author: Patrick Lee <pattyshack101@gmail.com>
+Date:   Fri Nov 11 19:24:07 2016 -0800
 
-    encoding/base64: add alphabet and padding restrictions
+    cmd/pprof: add options to skip tls verification
     
-    Document and check that the alphabet cannot contain '\n' or '\r'.
-    Document that the alphabet cannot contain the padding character.
-    Document that the padding character must be equal or bellow '\xff'.
-    Document that the padding character must not be '\n' or '\r'.
+    Don't verify tls host when profiling https+insecure://host/port/...,
+    as per discussion in https://go-review.googlesource.com/#/c/20885/.
     
-    Fixes #19343
-    Fixes #19318
+    Fixes: #11468
     
-    Change-Id: I6de0034d347ffdf317d7ea55d6fe38b01c2c4c03
-    Reviewed-on: https://go-review.googlesource.com/37838
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibfc236e5442a00339334602a4014e017c62d9e7a
+    Reviewed-on: https://go-review.googlesource.com/33157
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/base64/base64.go | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/pprof/internal/fetch/fetch.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

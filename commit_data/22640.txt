@@ -1,17 +1,19 @@
-commit e589e08014d8f508e93a6c0061e9fa50248cbe78
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 21 10:46:29 2015 -0700
+commit dd95244d4b9be2dda0e899535fa6f7c637937617
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 30 08:47:07 2015 -0400
 
-    misc/cgo/testcshared: add c-shared test with no exports
+    iostest.bash: build script for iOS
     
-    The purpose of this test is to make sure that -buildmode=c-shared
-    works even when the shared library can be built without invoking cgo.
+    In the spirit of nacltest.bash and androidtest.bash. Sets up the
+    exec script and reboots the device.
     
-    Change-Id: Id6f95af755992b209aff770440ca9819b74113ab
-    Reviewed-on: https://go-review.googlesource.com/9166
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    The reboot helps make sure previous runs do not interfere with the
+    current run. It is reasonably easy for a bad program, e.g. one with
+    a corrupt stack, to get the device stuck.
+    
+    Change-Id: I61317527741c45a70c390fe21adc4895510fc79f
+    Reviewed-on: https://go-review.googlesource.com/8242
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- misc/cgo/testcshared/main2.c              | 56 +++++++++++++++++++++++++++++++
- misc/cgo/testcshared/src/libgo2/libgo2.go | 52 ++++++++++++++++++++++++++++
- misc/cgo/testcshared/test.bash            | 12 ++++++-
- 3 files changed, 119 insertions(+), 1 deletion(-)
+ src/iostest.bash | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)

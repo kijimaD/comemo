@@ -1,15 +1,21 @@
-commit 5e0f8edbdc071db5cc2d50878df3089477df2b27
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Tue Jul 6 23:39:29 2021 +0800
+commit c4f0da5750e72e3c82ade212af024523b04f6f9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 16 17:16:23 2020 -0800
 
-    cmd/compile: remove useless fcount
+    [dev.typeparams] cmd/compile/internal/types2: remove code for implicit type arguments
     
-    Change-Id: Ibc23b43dc9a7fabb27d7991977b283459f3deae3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333009
-    Run-TryBot: Keith Randall <khr@golang.org>
+    The design draft doesn't support this anymore.
+    
+    Also: Fixed a potential bug in the receiver unpack code
+          (found by rfindley@).
+    
+    Change-Id: Ic52eedc686adcb4d5a98884ad0134679c3685c13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278853
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/noder.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/types2/decl.go     | 41 ++---------------------------
+ src/cmd/compile/internal/types2/resolver.go |  2 ++
+ 2 files changed, 4 insertions(+), 39 deletions(-)

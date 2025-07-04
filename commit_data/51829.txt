@@ -1,25 +1,18 @@
-commit cb61585e870e2967d965d673c98f9d9a45b6e855
+commit 3046ae927d7664a63bb8c3a2fb3b9ca95bcf93de
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 11 17:27:56 2023 -0500
+Date:   Wed Mar 16 14:45:42 2022 -0400
 
-    cmd/dist: skip building std for the host when cross-compiling
+    cmd/doc: use the 'go' command from buildCtx.GOROOT, not whatever is in $PATH
     
-    The purpose of building the host toolchain is so that we can use it to
-    build and test the target configuration.
+    For #51483.
     
-    The host configuration should already be tested separately (with its
-    own builder), so we do not need to build the parts of that
-    configuration that are not relevant to the task of building and
-    testing the target configuration.
-    
-    Updates #47257.
-    
-    Change-Id: I814778d2d65b1f2887c9419232b5bfd4068f58af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461676
+    Change-Id: I6150fdf97763d858e9ab012e807515da3387c25f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393366
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/build.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/doc/dirs.go                         | 16 +++++++++++----
+ src/cmd/go/testdata/script/mod_doc_path.txt | 30 +++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 4 deletions(-)

@@ -1,29 +1,25 @@
-commit 8a0cf719a626ebd1ec11531ebaeacccbd19178ec
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 9 12:29:48 2022 -0400
+commit 2ade8ae325e6410f9696f431e6c50479216e63ae
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 10:20:50 2021 -0500
 
-    cmd/link/internal/ld: panic if inlined functions missing FuncInfo
+    go/types: rename is_X predicates back to isX (step 2 of 2)
     
-    All inlined functions are Go functions, and thus should be capable of
-    having a FuncInfo. Missing FuncInfo is likely indication of a compiler
-    bug that dropped the symbol too early, failing to add it to the symbol
-    list used for writing output. I believe all existing cases have been
-    fixed; this check will prevent regressions.
+    This is a port of CL 361134 to go/types.
     
-    The exception is -linkshared mode. There symbols are loaded from the
-    shared library, and the FuncInfo is not available. This is a bug, as it
-    can result in incorrect the FuncID in inlinedCall, but it is very
-    involved to fix.
-    
-    For #54959.
-    For #55954.
-    
-    Change-Id: Ib0dc4f1ea62525b55f68604d6013ff33223fdcdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429637
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ibac4365a85561b32a90b0118d48aa9302f227b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362554
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/go/types/builtins.go    | 12 ++++++------
+ src/go/types/check.go       |  2 +-
+ src/go/types/conversions.go | 12 ++++++------
+ src/go/types/expr.go        | 36 ++++++++++++++++++------------------
+ src/go/types/index.go       |  6 +++---
+ src/go/types/predicates.go  | 24 ++++++++++++------------
+ src/go/types/sizes.go       |  2 +-
+ src/go/types/stmt.go        |  2 +-
+ src/go/types/typexpr.go     |  2 +-
+ 9 files changed, 49 insertions(+), 49 deletions(-)

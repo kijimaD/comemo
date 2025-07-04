@@ -1,26 +1,20 @@
-commit 397ba2cb4a10ec5e383f1df7617b4b8bccf8dfab
+commit e6a49555a723e176dbcc45ca9201006575fd3e56
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 11:30:08 2013 -0400
+Date:   Wed Sep 11 09:57:05 2013 -0400
 
-    cmd/cgo: replace C.malloc with our own wrapper
+    cmd/go: use pattern to prune file tree walk
     
-    This allows us to make two changes:
+    For example, if the pattern is m... there is
+    no need to look in directories not beginning with m.
     
-    1. Force the argument type to be size_t, even on broken
-       systems that declare malloc to take a ulong.
+    Fixes #5214.
     
-    2. Call runtime.throw if malloc fails.
-       (That is, the program crashes; it does not panic.)
-    
-    Fixes #3403.
-    Fixes #5926.
-    
-    R=golang-dev, iant
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13413047
+    https://golang.org/cl/13253049
 
- src/cmd/cgo/ast.go        |  7 +++++++
- src/cmd/cgo/main.go       |  2 +-
- src/cmd/cgo/out.go        | 40 ++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/cgocall.c |  2 ++
- 4 files changed, 48 insertions(+), 3 deletions(-)
+ src/cmd/go/main.go                  | 39 +++++++++++++++++++++
+ src/cmd/go/match_test.go            | 70 ++++++++++++++++++++++++++++++++-----
+ src/cmd/go/test.bash                | 16 +++++++++
+ src/cmd/go/testdata/src/badpkg/x.go |  1 +
+ 4 files changed, 117 insertions(+), 9 deletions(-)

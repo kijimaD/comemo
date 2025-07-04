@@ -1,24 +1,17 @@
-commit 6bd63ca3468290003609ba3244f2aa3bede4e36a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 9 18:37:26 2015 -0700
+commit 03c8164849f2dc2af3ba1839bedbbf7819031d38
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 15:55:44 2015 -0500
 
-    cmd/compile: hide NodeList details in evconst
+    cmd/compile: fix magic multiply smashing AX
     
-    The new code is a bit less efficient,
-    but it does not involve altering the structure
-    of any linked lists.
-    This will make it easier to replace NodeLists
-    with Node slices.
-    We can return to a more efficient algorithm
-    when NodeLists have been replaced.
+    Fixes #12411.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I0bb5ee75e7c0646e6d37fe558c8f0548729d8aa1
-    Reviewed-on: https://go-review.googlesource.com/20277
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2202a754c7750e3b2119e3744362c98ca0d2433e
+    Reviewed-on: https://go-review.googlesource.com/17818
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 49 ++++++++++++++++++------------------
- 1 file changed, 25 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go | 19 ++++++++++---------
+ src/cmd/compile/internal/x86/ggen.go   | 21 ++++++++++-----------
+ test/fixedbugs/issue12411.go           | 24 ++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 20 deletions(-)

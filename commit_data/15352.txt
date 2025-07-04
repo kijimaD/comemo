@@ -1,16 +1,87 @@
-commit 0cdc0b3b78dcb029bc4951637a0d9be11ee0d7e5
+commit df93283d5694814efc97efd2132da11722d11523
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 21 12:53:25 2013 -0500
+Date:   Thu Feb 21 12:19:54 2013 -0500
 
-    cmd/5g, cmd/6g: fix node dump formats
+    cmd/fix: delete pre-Go 1 fixes
     
-    lvd changed the old %N to %+hN and these
-    never got updated.
+    Assume people who were going to update to Go 1 have done so.
+    Those with pre-Go 1 trees remaining will need to update first
+    to Go 1.0 (using its 'go fix') and then to Go 1.1.
     
-    R=ken2
+    Cuts the cmd/fix test time by 99% (3 seconds to 0.03 seconds).
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7391045
+    https://golang.org/cl/7402046
 
- src/cmd/5g/cgen.c | 4 ++--
- src/cmd/6g/cgen.c | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/fix/error.go              | 353 ----------------
+ src/cmd/fix/error_test.go         | 240 -----------
+ src/cmd/fix/filepath.go           |  56 ---
+ src/cmd/fix/filepath_test.go      |  33 --
+ src/cmd/fix/go1pkgrename.go       | 146 -------
+ src/cmd/fix/go1pkgrename_test.go  | 139 ------
+ src/cmd/fix/go1rename.go          | 167 --------
+ src/cmd/fix/go1rename_test.go     | 195 ---------
+ src/cmd/fix/googlecode.go         |  41 --
+ src/cmd/fix/googlecode_test.go    |  31 --
+ src/cmd/fix/hashsum.go            |  94 -----
+ src/cmd/fix/hashsum_test.go       |  99 -----
+ src/cmd/fix/hmacnew.go            |  61 ---
+ src/cmd/fix/hmacnew_test.go       | 107 -----
+ src/cmd/fix/htmlerr.go            |  47 ---
+ src/cmd/fix/htmlerr_test.go       |  39 --
+ src/cmd/fix/httpfinalurl.go       |  57 ---
+ src/cmd/fix/httpfinalurl_test.go  |  37 --
+ src/cmd/fix/httpfs.go             |  70 ----
+ src/cmd/fix/httpfs_test.go        |  47 ---
+ src/cmd/fix/httpheaders.go        |  67 ---
+ src/cmd/fix/httpheaders_test.go   |  73 ----
+ src/cmd/fix/httpserver.go         | 141 -------
+ src/cmd/fix/httpserver_test.go    |  53 ---
+ src/cmd/fix/imagecolor.go         |  85 ----
+ src/cmd/fix/imagecolor_test.go    | 126 ------
+ src/cmd/fix/imagenew.go           |  83 ----
+ src/cmd/fix/imagenew_test.go      |  51 ---
+ src/cmd/fix/imageycbcr.go         |  64 ---
+ src/cmd/fix/imageycbcr_test.go    |  54 ---
+ src/cmd/fix/iocopyn.go            |  41 --
+ src/cmd/fix/iocopyn_test.go       |  37 --
+ src/cmd/fix/mapdelete.go          |  89 ----
+ src/cmd/fix/mapdelete_test.go     |  43 --
+ src/cmd/fix/math.go               |  51 ---
+ src/cmd/fix/math_test.go          |  47 ---
+ src/cmd/fix/netdial.go            | 117 ------
+ src/cmd/fix/netdial_test.go       |  57 ---
+ src/cmd/fix/netudpgroup.go        |  58 ---
+ src/cmd/fix/netudpgroup_test.go   |  53 ---
+ src/cmd/fix/newwriter.go          |  90 ----
+ src/cmd/fix/newwriter_test.go     |  83 ----
+ src/cmd/fix/oserrorstring.go      |  75 ----
+ src/cmd/fix/oserrorstring_test.go |  57 ---
+ src/cmd/fix/osopen.go             | 124 ------
+ src/cmd/fix/osopen_test.go        |  82 ----
+ src/cmd/fix/procattr.go           |  62 ---
+ src/cmd/fix/procattr_test.go      |  74 ----
+ src/cmd/fix/reflect.go            | 862 --------------------------------------
+ src/cmd/fix/reflect_test.go       |  38 --
+ src/cmd/fix/signal.go             |  50 ---
+ src/cmd/fix/signal_test.go        |  94 -----
+ src/cmd/fix/sorthelpers.go        |  49 ---
+ src/cmd/fix/sorthelpers_test.go   |  45 --
+ src/cmd/fix/sortslice.go          |  52 ---
+ src/cmd/fix/sortslice_test.go     |  35 --
+ src/cmd/fix/strconv.go            | 127 ------
+ src/cmd/fix/strconv_test.go       |  93 ----
+ src/cmd/fix/stringssplit.go       |  72 ----
+ src/cmd/fix/stringssplit_test.go  |  51 ---
+ src/cmd/fix/template.go           | 111 -----
+ src/cmd/fix/template_test.go      |  55 ---
+ src/cmd/fix/timefileinfo.go       | 298 -------------
+ src/cmd/fix/timefileinfo_test.go  | 187 ---------
+ src/cmd/fix/url.go                | 101 -----
+ src/cmd/fix/url2.go               |  46 --
+ src/cmd/fix/url2_test.go          |  31 --
+ src/cmd/fix/url_test.go           | 159 -------
+ src/cmd/fix/xmlapi.go             | 111 -----
+ src/cmd/fix/xmlapi_test.go        |  85 ----
+ 70 files changed, 6848 deletions(-)

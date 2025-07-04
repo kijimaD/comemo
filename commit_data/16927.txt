@@ -1,14 +1,15 @@
-commit 3d6bce411c001bd7665a052045a376ba1cf30b63
+commit 5c8ad2e13dc4fd69d116562876d67b87896e963c
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 30 23:48:18 2013 +0400
+Date:   Tue Jul 30 22:13:51 2013 +0400
 
-    runtime: fix code formatting
-    This is mainly to force another build
-    with goroutine preemption.
+    runtime: fix race builders
+    Do not run Syscall benchmarks under race detector,
+    they split stack in syscall status.
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12006045
+    https://golang.org/cl/12093045
 
- src/pkg/runtime/runtime.h | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/norace_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc_test.go   | 43 -------------------------------
+ 2 files changed, 58 insertions(+), 43 deletions(-)

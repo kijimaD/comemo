@@ -1,34 +1,25 @@
-commit cf9263dee1bb160f013a080bbda3532a7d35da15
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Dec 16 16:54:03 2022 +0100
+commit 4469557974a95b1f4bc1c700aee6779a0f15d22e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 8 15:24:33 2022 -0500
 
-    runtime: factor out windows sigtramp
+    net/http/pprof: skip TestDeltaProfile on all arm and arm64 architectures
     
-    This CL factors out part of the Windows sigtramp implementation, which
-    was duplicated in all four architectures. The new common code is
-    implemented in Go rather than in assembly, which will make Windows
-    error handling easier to reason and maintain.
+    Given that we have seen failures with the same failure mode on both
+    openbsd/arm and android/arm64, it seems likely that the underlying bug
+    affects at least all ARM-based architectures.
     
-    While here, implement the control flow guard workaround on
-    windows/386, which almost comes for free.
+    It appears that either these architectures are not able to sample at
+    the frequency expected by the test, or the samples are for some reason
+    being dropped.
     
-    Change-Id: I0bf38c28c54793225126e161bd95527a62de05e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458135
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    For #50218
+    
+    Change-Id: I42a6c8ecda57448f8068e8facb42a4a2cecbbb37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383997
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/defs_windows.go       |   5 ++
- src/runtime/defs_windows_386.go   |   5 ++
- src/runtime/defs_windows_amd64.go |   5 ++
- src/runtime/defs_windows_arm.go   |   5 ++
- src/runtime/defs_windows_arm64.go |   5 ++
- src/runtime/signal_windows.go     | 101 ++++++++++++++++++++++++--
- src/runtime/sys_windows_386.s     |  85 ++++++++--------------
- src/runtime/sys_windows_amd64.s   | 137 +++++++++--------------------------
- src/runtime/sys_windows_arm.s     | 121 +++++--------------------------
- src/runtime/sys_windows_arm64.s   | 145 ++++++--------------------------------
- 10 files changed, 221 insertions(+), 393 deletions(-)
+ src/net/http/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

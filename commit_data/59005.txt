@@ -1,22 +1,24 @@
-commit be2ecfbff88f20a888ec49446a45dd6bc8ed8d12
-Author: Than McIntosh <thanm@golang.org>
-Date:   Tue Mar 11 09:16:05 2025 -0400
+commit 6120688146c11506e7a1e836ec8a2492eceb211c
+Author: codesoap <codesoap@mailbox.org>
+Date:   Wed Jan 31 18:31:56 2024 +0000
 
-    debug/dwarf: read DWARF 5 cu base offsets on SeekPC() path
+    container/heap: remove confusing claim of memory leak
     
-    This patch fixes a bug in CL 655976 relating to DWARF 5 support; we
-    were reading in compile unit base offsets on the Seek() path but not
-    on the corresponding SeekPC path (we need the offsets to be read in
-    both cases).
+    The term "memory leak" was misused here, as the memory is still referenced
+    by the slice.
     
-    Updates #26379.
-    Fixes #72778.
+    Fixes #65403
     
-    Change-Id: I02850b786a53142307219292f2c5099eb0271559
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656675
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id102419d4c798fb2a4ec8be86be9ec9b5cdd98e6
+    GitHub-Last-Rev: 3febcd0ba4ab5897bef8f2d7ded594ef09932771
+    GitHub-Pull-Request: golang/go#65404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559775
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/debug/dwarf/entry.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/container/heap/example_pq_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

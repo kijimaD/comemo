@@ -1,15 +1,16 @@
-commit d409e44cfb7b2a323658f4b6fd6d5bb3a9104889
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 28 22:37:35 2014 +0400
+commit c88a6719255f5dc8c85b367eaf9569f171e73b56
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 28 03:18:27 2014 -0800
 
-    runtime: fix buffer overflow in make(chan)
-    On 32-bits one can arrange make(chan) params so that
-    the chan buffer gives you access to whole memory.
+    net: make it possible to use FilePacketConn with IPConn
     
-    LGTM=r
-    R=golang-codereviews, r
-    CC=bradfitz, golang-codereviews, iant, khr
-    https://golang.org/cl/50250045
+    Fixes #6803.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/57560043
 
- src/pkg/runtime/chan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/file_test.go | 6 ++++++
+ src/pkg/net/file_unix.go | 2 ++
+ 2 files changed, 8 insertions(+)

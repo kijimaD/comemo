@@ -1,21 +1,26 @@
-commit d6098e4277bab633c2df752ed90e1e826918ca67
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 29 20:28:20 2016 -0700
+commit d97625ae9e7195a68d1c9f2b2ff54eb85545982e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 29 09:44:53 2016 -0400
 
-    cmd/compile: intrinsify sync/atomic for amd64
+    [dev.garbage] runtime: fix nfree accounting
     
-    Uses the same implementation as runtime/internal/atomic.
+    Commit 8dda1c4 changed the meaning of "nfree" in sweep from the number
+    of newly freed objects to the total number of free objects in the
+    span, but didn't update where sweep added nfree to c.local_nsmallfree.
+    Hence, we're over-accounting the number of frees. This is causing
+    TestArrayHash to fail with "too many allocs NNN - hash not balanced".
     
-    Reorganize the intrinsic detector to make it more table-driven.
+    Fix this by computing the number of newly freed objects and adding
+    that to c.local_nsmallfree, so it behaves like it used to. Computing
+    this requires a small tweak to mallocgc: apparently we've never set
+    s.allocCount when allocating a large object; fix this by setting it to
+    1 so sweep doesn't get confused.
     
-    Also works on amd64p32.
-    
-    Change-Id: I7a5238951d6018d7d5d1bc01f339f6ee9282b2d0
-    Reviewed-on: https://go-review.googlesource.com/28076
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I31902ffd310110da4ffd807c5c06f1117b872dc8
+    Reviewed-on: https://go-review.googlesource.com/22595
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 364 ++++++++++++++++++++++++++-----------
- src/sync/atomic/asm_amd64.s        |   3 +
- src/sync/atomic/asm_amd64p32.s     |  15 +-
- src/sync/atomic/atomic_test.go     |   4 +
- 4 files changed, 265 insertions(+), 121 deletions(-)
+ src/runtime/malloc.go   |  1 +
+ src/runtime/mgcsweep.go | 10 ++++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

@@ -1,15 +1,20 @@
-commit 3eaaed5030a531d11a228353b3f964e4b0227ba7
+commit 6db28ee8e0e9d9a880f27cfcba409a1ac566a5c7
 Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Jun 24 13:23:02 2013 -0700
+Date:   Mon Jun 24 13:17:56 2013 -0700
 
-    net/rpc: fix RegisterName rejects "." character.
+    misc/{bbedit|IntelliJIDEA|kate}: add missing delete predeclared identifier
     
-    Fixes #5617.
+    In general the description should describe what is added or fixed,
+    not how it was done (the code does this), but in this case the cause
+    was delete was missing, so the fix is to add it.
     
-    R=r, rsc
-    CC=gobot, golang-dev
-    https://golang.org/cl/10370043
+    Fixes  issue 5765.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/10496043
 
- src/pkg/net/rpc/server.go      | 11 +++++++----
- src/pkg/net/rpc/server_test.go | 13 +++++++++++++
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ misc/IntelliJIDEA/Go.xml | 1 +
+ misc/bbedit/Go.plist     | 5 +++--
+ misc/kate/go.xml         | 1 +
+ 3 files changed, 5 insertions(+), 2 deletions(-)

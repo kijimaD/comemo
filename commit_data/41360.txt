@@ -1,39 +1,27 @@
-commit 675a2e70780208dce18a0bc4b3e420de71fe0178
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Dec 6 17:25:51 2019 -0500
+commit 87e2b34f7bdd997b09f926ccbef6bfd2794d8e2a
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 22 15:39:16 2019 +0200
 
-    cmd/link: generate relative relocs for PIE
+    cmd/compile: in prove, learn facts from OpSliceMake
     
-    Go's PIE binaries have tons of relocations, all R_X86_64_64 [1] when
-    internally linked. R_X86_64_64 relocations require symbol lookup in the
-    dynamic linker, which can be quite slow. The simple Go HTTP server
-    in #36028 takes over 1s to complete dynamic linking!
+    Now that OpSliceMake is called by runtime.makeslice callers,
+    prove can see and record the actual length and cap of each
+    slice being constructed.
     
-    The external linker generates R_X86_64_RELATIVE [2] relocations, which
-    are significantly more efficient. It turns out that generating these
-    relocations internally is quite simple, so lets do it.
+    This small patch is enough to remove 260 additional bound checks
+    from cmd+std.
     
-    Rather than referencing targ.Dynid in r_info and having the dynamic
-    linker do a symbol lookup and then add (final targ address) + r.Add, use
-    AddAddrPlus to generate another R_ADDR to have the linker compute (targ
-    address + r.Add). The dynamic linker is then only left with base address
-    + r_addend.
+    Thanks to Martin Möhrmann for pointing me to CL141822 that
+    I had missed.
     
-    Since we don't reference the symbol in the final relocation, Adddynsym
-    is no longer necessary, saving ~1MB (of ~9MB) from the binary size of
-    the example in #36028.
+    Updates #24660
     
-    [1] R_AARCH64_ABS64 on arm64.
-    [2] R_AARCH64_RELATIVE on arm64.
-    
-    Fixes #36028
-    
-    Change-Id: Ie0f4bb1d911f2e05ab46a0a0454c0f46ac01b43b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210181
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I14556850f285392051f3f07d13b456b608b64eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196784
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/amd64/asm.go | 28 ++++++++++++++++++++--------
- src/cmd/link/internal/arm64/asm.go | 25 +++++++++++++++++++------
- 2 files changed, 39 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 27 +++++++++++++++++++++++
+ test/prove.go                         | 40 ++++++++++++++++++++++++++++-------
+ 2 files changed, 59 insertions(+), 8 deletions(-)

@@ -1,14 +1,24 @@
-commit 41908a54530120b68a79e0fd22b5e709d33cced0
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Wed Nov 30 18:43:28 2016 -0800
+commit 5c7a005266f84ecea26859619630a862eccc0d48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 3 13:21:55 2016 -0700
 
-    api: promote next.txt to go1.8.txt, update go tool
+    spec: ignore struct tags when converting structs
     
-    Change-Id: I37f2893ce14009efe095aac3bc811d650c66bf2a
-    Reviewed-on: https://go-review.googlesource.com/33761
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is a backwards-compatible language change.
+    
+    Per the proposal (#16085), the rules for conversions are relaxed
+    such that struct tags in any of the structs involved in the conversion
+    are ignored (recursively).
+    
+    Because this is loosening the existing rules, code that compiled so
+    far will continue to compile.
+    
+    For #16085.
+    Fixes #6858.
+    
+    Change-Id: I0feef651582db5f23046a2331fc3f179ae577c45
+    Reviewed-on: https://go-review.googlesource.com/24190
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- api/go1.8.txt      | 259 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt       | 259 -----------------------------------------------------
- src/cmd/api/run.go |   2 +-
- 3 files changed, 260 insertions(+), 260 deletions(-)
+ doc/go_spec.html | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

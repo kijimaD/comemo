@@ -1,21 +1,16 @@
-commit 671814b9044bebd9f5801cf83df74acbdf31d732
+commit 4d6bfcf24504bb2de0bf63bf43ad703ba808a3e9
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 28 22:04:34 2013 +0400
+Date:   Tue May 28 21:09:27 2013 +0400
 
-    runtime: allocate page table lazily
-    This removes the 256MB memory allocation at startup,
-    which conflicts with ulimit.
-    Also will allow to eliminate an unnecessary memory dereference in GC,
-    because the page table is usually mapped at known address.
-    Update #5049.
-    Update #5236.
+    os/exec: fix test hang
+    Currently the test closes random files descriptors,
+    which leads to hang (in particular if netpoll fd is closed).
+    Try to open only fd 3, since the parent process expects it to be fd 3 anyway.
+    Fixes #5571.
     
-    R=golang-dev, khr, r, khr, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9791044
+    https://golang.org/cl/9778048
 
- src/pkg/runtime/malloc.goc | 27 ++++++++++++++++++---------
- src/pkg/runtime/malloc.h   |  4 +++-
- src/pkg/runtime/mgc0.c     |  2 +-
- src/pkg/runtime/mheap.c    | 18 ++++++++++++++++++
- 4 files changed, 40 insertions(+), 11 deletions(-)
+ src/pkg/os/exec/exec_test.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

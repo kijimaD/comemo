@@ -1,25 +1,36 @@
-commit 63a08e61bd5ac5132ed160351933622443c16b58
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Apr 10 11:08:25 2023 +0700
+commit f2cd6d60aee86f5dd582a4abf26a70cff44589b7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 4 21:45:02 2022 +0200
 
-    cmd/compile: teach prove about bitwise OR operation
+    net/netip: reduce allocations in Addr.String for v4-in-v6 addresses
     
-    For now, only apply the rule if either of arguments are constants. That
-    would catch a lot of real user code, without slowing down the compiler
-    with code generated for string comparison (experience in CL 410336).
+    ip.Unmap will always return an Addr with ip.z == z4 in case of an
+    v4-in-v6 address. Thus, Addr.string4 can be called directly without the
+    additional indirection.
     
-    Updates #57959
-    Fixes #45928
+    name                      old time/op    new time/op    delta
+    IPString/v6_v4-4             108ns ± 3%      74ns ± 4%  -31.23%  (p=0.000 n=9+10)
+    IPStringExpanded/v6_v4-4    89.6ns ± 6%    77.2ns ± 3%  -13.91%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-4       253ns ± 8%     197ns ± 3%  -22.13%  (p=0.000 n=10+10)
     
-    Change-Id: Ie2e830d6d0d71cda3947818b22c2775bd94f7971
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483359
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    name                      old alloc/op   new alloc/op   delta
+    IPString/v6_v4-4             40.0B ± 0%     24.0B ± 0%  -40.00%  (p=0.000 n=10+10)
+    IPStringExpanded/v6_v4-4     48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    AddrPortString/v6_v4-4       77.0B ± 0%     61.0B ± 0%  -20.78%  (p=0.000 n=10+10)
+    
+    name                      old allocs/op  new allocs/op  delta
+    IPString/v6_v4-4              2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    IPStringExpanded/v6_v4-4      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrPortString/v6_v4-4        4.00 ± 0%      3.00 ± 0%  -25.00%  (p=0.000 n=10+10)
+    
+    Change-Id: Id4affaf7a493aa11579c48721294f2e5889a8bef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403914
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/ssa/prove.go | 8 ++++++++
- test/prove.go                         | 5 +++++
- 2 files changed, 13 insertions(+)
+ src/net/netip/netip.go      |  5 ++---
+ src/net/netip/netip_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 3 deletions(-)

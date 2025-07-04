@@ -1,16 +1,14 @@
-commit 2e8b375e0e14386160af9e40cd101d89cdbfadd0
+commit f1fee448bcac162ff917f35da1536354507c4713
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 10 16:00:39 2011 -0800
+Date:   Thu Mar 10 12:54:33 2011 -0800
 
-    go/ast: fix printing of maps
+    go/ast: ast.Print needs a file set to print position values nicely
     
-    Print a newline after each map entry;
-    similar to the style used for slices
-    and structs.
+    Also removed a TODO (AST nodes have been restructured a while ago).
     
-    R=r, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4274042
+    https://golang.org/cl/4245077
 
- src/pkg/go/ast/print.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/go/ast/print.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

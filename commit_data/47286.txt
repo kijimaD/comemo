@@ -1,26 +1,21 @@
-commit e48e4b4cbbe270bc43e4209dce10c9225254aa64
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 4 21:44:06 2021 +0000
+commit e4f3cfadf618df5135bf0952507ab491975cceb5
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Feb 25 15:16:25 2021 -0500
 
-    runtime: use a controller to control the scavenge rate
+    net: don't append a dot to TXT records on Plan 9
     
-    Currently the scavenge rate is determined by a bunch of ad-hoc
-    mechanisms. Just use a controller instead, now that we have one.
+    TXT records are not domain names, so no need to call absDomainName.
+    The output now matches the pure Go resolver.
     
-    To facilitate this, the scavenger now attempts to scavenge for at least
-    1 ms at a time, because any less and the timer system is too imprecise to
-    give useful feedback to the controller. Also increase the amount that we
-    scavenge at once, to try to reduce the overheads involved (at the
-    expense of a little bit of latency).
+    Fixes #44619
     
-    This change also modifies the controller to accept an update period,
-    because it's useful to allow that to be variable.
-    
-    Change-Id: I8a15b2355d0a7c6cbac68c957082d5819618f7d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353975
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I1ebf09152ff5c0446d2e2b4c26671358892d9dc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296589
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: David du Colombier <0intro@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcpacer.go    |  15 ++---
- src/runtime/mgcscavenge.go | 159 ++++++++++++++++++++++++++-------------------
- 2 files changed, 96 insertions(+), 78 deletions(-)
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

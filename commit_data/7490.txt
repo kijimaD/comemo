@@ -1,16 +1,12 @@
-commit eb8688154bbc330f19c46d0932c8899848e9e799
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 16 22:01:57 2011 -0800
+commit 6ccc96eea96058e36e30b4e051d32f5bd10f9816
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 16 21:20:50 2011 -0500
 
-    arm runtime: attempt to fix build by adding casp (same as cas)
-    untested.
-    
-    Fixes #1523.
+    doc/devel/release: discuss StartProcess in release notes
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4171057
+    https://golang.org/cl/4172051
 
- src/pkg/runtime/arm/cas5.s | 35 +++++++++++++++++++++++++++++++++--
- src/pkg/runtime/arm/cas6.s | 23 +++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 2 deletions(-)
+ doc/devel/release.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

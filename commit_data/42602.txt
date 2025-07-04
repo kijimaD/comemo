@@ -1,14 +1,31 @@
-commit cd10f5f632983e63b156478abdfa0bd57e93898c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 24 14:31:49 2020 -0400
+commit 1f9f88b95eaec50c72c8595ca9f52b7b876e28f9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 24 08:25:52 2020 -0800
 
-    crypto/tls: relax the docs of InsecureSkipVerify
+    cmd/go: fix cgo test when min macOS version is set
     
-    Fixes #39074
+    Regression tests for #24161 use a macro to conditionally compile some
+    stub definitions. The macro tests that the minimum macOS version is
+    less than 10.12.
     
-    Change-Id: I72ec95f4b190253bb82d52a03a769b0399170b93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239746
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    We get duplicate definitions when building this test with
+    CGO_CFLAGS=-mmacosx-version-min=10.x where 10.x < 10.12. With this
+    change, we use a different macro, __MAC_OS_X_VERSION_MAX_ALLOWED__,
+    which tests the SDK version instead of the minimum macOS version. This
+    checks whether these definitions are present in headers.
+    
+    After this change, 'go tool dist test cgo_test' should pass with
+    CGO_FLAGS=-mmacosx-version-min=10.10.
+    
+    Updates #35459
+    
+    Change-Id: I88d63601c94b0369c73c38d216a2d41ba7d4e579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216243
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/common.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ misc/cgo/test/testdata/issue24161e0/main.go | 2 +-
+ misc/cgo/test/testdata/issue24161e1/main.go | 2 +-
+ misc/cgo/test/testdata/issue24161e2/main.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

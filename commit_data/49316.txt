@@ -1,19 +1,20 @@
-commit 61fc5df6897544d8ecf8efd5b39648a6bd121ec8
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon May 23 08:58:51 2022 +0800
+commit 677dfe5ad677d7072ffd69963c407a8945e94ec5
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Tue Aug 3 13:41:49 2021 -0700
 
-    runtime: add missing {TOPFRAME,NOFRAME} flag for linux/loong64
+    [dev.typeparams] cmd/compile: don't print out node pointer in ir.Dump
     
-    Co-authored-by: limeidan <limeidan@loongson.cn>
-    Change-Id: I0011a10f831e6c2b0da96265682212b0747f0e2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407774
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This has been a part of the node dumping since the very beginning, but
+    this makes diffing -W output pretty annoying. -d=dumpptrs already prints
+    these out if needed.
+    
+    Change-Id: I9524a7f7b44ec780ae42a8a2a9588f11ab3950f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340253
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/asm_loong64.s | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

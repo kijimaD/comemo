@@ -1,28 +1,18 @@
-commit 78d99491038143de569c3b7706e904ed16c37793
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sat Sep 7 17:53:54 2019 +0200
+commit fb9b818bbd2273579ea09f71017ee42bbc91a3b3
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 24 18:21:11 2019 +0100
 
-    syscall: disable sysctl on iOS
+    cmd/link/internal/wasm: do not generate more than 100000 data segments
     
-    Sysctl is blocked by the App Store submission checks.
+    Some WebAssembly runtimes (e.g. Node.js) fail to load a wasm binary if
+    it has more than 100000 data segments. Do not skip zero regions any more
+    if the limit was reached.
     
-    Fixes #34133
-    
-    Change-Id: I9e83cf87e942d6249e9bb67a95dba230e44badd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193843
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I14c4c2aba142d1d2b887bce6d03b8c1c1746c5ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168884
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/syscall_darwin.go        |  1 -
- src/syscall/syscall_darwin_386.go    |  1 +
- src/syscall/syscall_darwin_amd64.go  |  1 +
- src/syscall/syscall_darwin_arm.go    |  4 ++++
- src/syscall/syscall_darwin_arm64.go  |  4 ++++
- src/syscall/zsyscall_darwin_386.go   | 42 ++++++++++++++++++------------------
- src/syscall/zsyscall_darwin_386.s    |  4 ++--
- src/syscall/zsyscall_darwin_amd64.go | 42 ++++++++++++++++++------------------
- src/syscall/zsyscall_darwin_amd64.s  |  4 ++--
- src/syscall/zsyscall_darwin_arm.go   | 21 ------------------
- src/syscall/zsyscall_darwin_arm64.go | 21 ------------------
- 11 files changed, 56 insertions(+), 89 deletions(-)
+ src/cmd/link/internal/wasm/asm.go | 38 +++++++++++++++++++++++---------------
+ 1 file changed, 23 insertions(+), 15 deletions(-)

@@ -1,16 +1,14 @@
-commit 76f71959c860cbd36c52d789d82914d8c2e300c9
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 9 12:31:11 2014 -0500
+commit 3bbc8638d5dd2564b3c60a603c094c0e570bd301
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 06:53:05 2014 -0700
 
-    runtime: restore error message on early needm
+    fmt: fix one-letter typo in doc.go
+    Stupid mistake in previous CL.
     
-    needm used to print an error before exiting when it was called too
-    early, but this error was lost in the transition to Go.  Bring back
-    the error so we don't silently exit(1) when this happens.
-    
-    Change-Id: I8086932783fd29a337d7dea31b9d6facb64cb5c1
-    Reviewed-on: https://go-review.googlesource.com/1226
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166880043
 
- src/runtime/proc1.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

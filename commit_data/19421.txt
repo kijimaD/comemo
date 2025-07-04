@@ -1,13 +1,16 @@
-commit 80f0a7df26d216c96400d1f7cfbb5106d4b354df
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed May 21 13:23:24 2014 +1000
+commit cb6cb42ede03d6a35fbe6603f22e8855910f9f51
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 20 16:26:04 2014 -0700
 
-    tag go1.3beta1 and go1.3beta2
+    reflect: don't panic on delete from nil map.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Fixes #8051
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/100660043
+    https://golang.org/cl/95560046
 
- .hgtags | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/reflect/all_test.go | 3 +++
+ src/pkg/runtime/hashmap.goc | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,22 +1,43 @@
-commit 85138da832f8740bee9241e80acb291a4954a10a
+commit 3278dc158e34779eb46cd1b5a73c1d0c18602184
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 2 13:36:50 2013 -0800
+Date:   Mon Dec 2 13:05:04 2013 -0800
 
-    reflect: prevent the callXX routines from calling makeFuncStub
-    and methodValueCall directly.  Instead, we inline their behavior
-    inside of reflect.call.
+    runtime: pass key/value to map accessors by reference, not by value.
     
-    This change is required because otherwise we have a situation where
-    reflect.callXX calls makeFuncStub, neither of which knows the
-    layout of the args passed between them.  That's bad for
-    precise gc & stack copying.
+    This change is part of the plan to get rid of all vararg C calls
+    which are a pain for getting exact stack scanning.
     
-    Fixes #6619.
+    We allocate a chunk of zero memory to return a pointer to when a
+    map access doesn't find the key.  This is simpler than returning nil
+    and fixing things up in the caller.  Linker magic allocates a single
+    zero memory area that is shared by all (non-reflect-generated) map
+    types.
     
-    R=golang-dev, dvyukov, rsc, iant, khr
+    Passing things by reference gets rid of some copies, so it speeds
+    up code with big keys/values.
+    
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkBigKeyMap           34           31   -8.48%
+    BenchmarkBigValMap           37           30  -18.62%
+    BenchmarkSmallKeyMap         26           23  -11.28%
+    
+    R=golang-dev, dvyukov, khr, rsc
     CC=golang-dev
-    https://golang.org/cl/26970044
+    https://golang.org/cl/14794043
 
- src/pkg/reflect/all_test.go | 24 ++++++++++++++++++++++++
- src/pkg/reflect/value.go    | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+)
+ src/cmd/gc/builtin.c             |  10 +-
+ src/cmd/gc/fmt.c                 |   4 +
+ src/cmd/gc/go.h                  |   2 +
+ src/cmd/gc/range.c               |  28 ++--
+ src/cmd/gc/reflect.c             | 113 +++++++++++++--
+ src/cmd/gc/runtime.go            |  10 +-
+ src/cmd/gc/walk.c                | 149 ++++++++++++++------
+ src/pkg/reflect/type.go          |   6 +
+ src/pkg/reflect/value.go         |   2 +-
+ src/pkg/runtime/hashmap.c        | 293 +++++++++++++++------------------------
+ src/pkg/runtime/hashmap_fast.c   |  13 +-
+ src/pkg/runtime/mapspeed_test.go |  30 ++++
+ src/pkg/runtime/runtime.h        |   6 -
+ src/pkg/runtime/type.h           |   1 +
+ src/pkg/runtime/typekind.h       |   2 +-
+ 15 files changed, 389 insertions(+), 280 deletions(-)

@@ -1,14 +1,29 @@
-commit fcfd91858b7b57de0577e98703390f604971eaf4
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Jan 18 01:10:18 2017 +0100
+commit 7eed848a178cbecae7131434eed1eaab81709a85
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Oct 18 14:00:30 2016 +0530
 
-    doc/go1.8: document Plan 9 requirements
+    math: speed up Gamma(+Inf)
     
-    Fixes #18610.
+    Add special case for Gamma(+∞) which speeds it up:
     
-    Change-Id: I19da4d59a1b6293c9a4722aa696e2cb58d982a15
-    Reviewed-on: https://go-review.googlesource.com/35333
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark            old ns/op     new ns/op     delta
+    BenchmarkGamma-4     14.5          7.44          -48.69%
+    
+    The documentation for math.Gamma already specifies it as a special
+    case:
+    
+            Gamma(+Inf) = +Inf
+    
+    The original C code that has been used as the reference implementation
+    (as mentioned in the comments in gamma.go) also treats Gamma(+∞) as a
+    special case:
+    
+    if( x == INFINITY )
+            return(x);
+    
+    Change-Id: Idac36e19192b440475aec0796faa2d2c7f8abe0b
+    Reviewed-on: https://go-review.googlesource.com/31370
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.8.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/math/gamma.go | 2 ++
+ 1 file changed, 2 insertions(+)

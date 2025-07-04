@@ -1,32 +1,18 @@
-commit a0dc7bf08481d906cb7d65d86bb347a583d84fd0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu May 22 18:06:27 2025 +0700
+commit b6778c5230d554c1ba1a69b104513021467d32b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 09:59:20 2024 -0700
 
-    cmd/compile: fix ICE when transforming loopvar
+    internal/poll: better panic for invalid write return value
     
-    When transforming for loop variables, the compiler does roughly
-    following steps:
+    For #61060
     
-            (1) prebody = {z := z' for z in leaked}
-            ...
-            (4) init' = (init : s/z/z' for z in leaked)
-    
-    However, the definition of z is not updated to `z := z'` statement,
-    causing ReassignOracle incorrectly use the new init statement with z'
-    instead of z, trigger the ICE.
-    
-    Fixing this by updating the correct/new definition statement for z
-    during the prebody initialization.
-    
-    Fixes #73823
-    
-    Change-Id: Ice2a6741be7478506c58f4000f591d5582029136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675475
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I13cd73b4062cb7bd248d2a4afae06dfa29ac0203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577955
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/loopvar/loopvar.go |  1 +
- test/fixedbugs/issue73823.go                | 58 +++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+)
+ src/internal/poll/fd_unix.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

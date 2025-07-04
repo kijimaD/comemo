@@ -1,28 +1,36 @@
-commit ad4d9b046482a3a3fef19388a0d692ff4ebbe730
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Tue May 28 13:26:31 2024 -0700
+commit ef23bd11a813176fe5fdd2c0fd19031ea3492b9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 13:22:45 2023 -0400
 
-    net/netip: check if address is v6 mapped in Is methods
+    cmd/go: convert semver.Compare to gover.ModCompare
     
-    In all of the Is* methods, check if the address is a v6 mapped v4
-    address, and unmap it if so.
+    This sets up for introducing the 'go' and 'toolchain' modules
+    but should be a no-op by itself.
     
-    Thanks to Enze Wang of Alioth (@zer0yu) and Jianjun Chen of Zhongguancun
-    Lab (@chenjj) for reporting this issue.
+    For #57001.
     
-    Fixes #67680
-    Fixes CVE-2024-24790
-    
-    Change-Id: I6bd03ca1a5d93a0b59027d861c84060967b265b0
-    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1460
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590316
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2e02b5d417f1edd4f4653b101e4975fe23093f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497456
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/net/netip/inlining_test.go |  2 --
- src/net/netip/netip.go         | 26 +++++++++++++++++++++-
- src/net/netip/netip_test.go    | 50 ++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 71 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/load/pkg.go          |  3 ++-
+ src/cmd/go/internal/modcmd/vendor.go     |  2 +-
+ src/cmd/go/internal/modget/get.go        |  6 +++---
+ src/cmd/go/internal/modload/build.go     |  4 ++--
+ src/cmd/go/internal/modload/buildlist.go | 26 +++++++++++++-------------
+ src/cmd/go/internal/modload/edit.go      | 15 ++++++++-------
+ src/cmd/go/internal/modload/import.go    |  6 +++---
+ src/cmd/go/internal/modload/init.go      |  7 +++----
+ src/cmd/go/internal/modload/load.go      |  4 ++--
+ src/cmd/go/internal/modload/modfile.go   |  2 +-
+ src/cmd/go/internal/modload/mvs.go       | 14 +++++++-------
+ src/cmd/go/internal/modload/mvs_test.go  |  2 +-
+ src/cmd/go/internal/modload/query.go     | 24 +++++++++++++-----------
+ src/cmd/go/internal/modload/vendor.go    |  2 +-
+ src/cmd/go/internal/mvs/graph.go         | 11 ++++++-----
+ src/cmd/go/internal/mvs/mvs.go           | 19 ++++++++++---------
+ src/cmd/go/internal/mvs/mvs_test.go      |  4 ++--
+ src/cmd/go/internal/workcmd/sync.go      |  3 ++-
+ 18 files changed, 80 insertions(+), 74 deletions(-)

@@ -1,18 +1,29 @@
-commit f2fadfefaf8b050a401296faa9c9b060828c3d42
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Sep 25 14:42:44 2012 +0800
+commit 5c4e2570c1704dde8ca5fbd965fe78e1c32853c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 21:35:20 2012 -0400
 
-    cmd/5c: fix dataflag annotation
+    cmd/dist: new version for string for development branch
     
-    file        old_size     new_size    base@c1ce95068533
-    bin/go      14717392     6287824     5918236
+    Remove VERSION, which was forcing version to 'devel'.
     
-    this huge size difference is due to GC data for runtime.mheap
-    (NOPTR dataflag is not obeyed).
+    Old:
+    $ go version
+    go version devel
     
-    R=rsc, dave
+    New:
+    $ go version
+    go version devel +0a3866d6cc6b Mon Sep 24 20:08:05 2012 -0400
+    
+    The date and time (and time zone) is that of the most recent commit,
+    not the time of the build itself. With some effort we could normalize
+    the zone, but I don't think it's worth the effort (more C coding,
+    since Mercurial is unhelpful).
+    
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6547051
+    https://golang.org/cl/6569049
 
- src/cmd/5c/txt.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ VERSION              | 1 -
+ src/cmd/api/goapi.go | 2 +-
+ src/cmd/dist/build.c | 8 +++++---
+ 3 files changed, 6 insertions(+), 5 deletions(-)

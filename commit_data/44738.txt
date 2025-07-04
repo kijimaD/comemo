@@ -1,21 +1,33 @@
-commit 095ba225973152734b0722e7c5758accb2639c15
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 17 12:22:58 2021 -0400
+commit bca0b44629f1317cc177072560d9a1486620e48f
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 24 22:57:01 2020 -0400
 
-    cmd/internal/objabi,runtime: simplify sys.GOEXPERIMENT parsing
+    cmd/compile: also check package.function for GOSSAFUNC match
     
-    Previously, the runtime had to understand the full syntax of the
-    GOEXPERIMENT environment variable. Now, sys.GOEXPERIMENT is the
-    pre-processed experiment list produced by objabi, so we can simplify
-    the runtime parser.
+    Old behavior is still enabled because it doesn't hurt to leave
+    it in and existing users of this feature (there are dozens of
+    us!) will not be surprised.  Adding this finer control allows
+    users to avoid writing ssa.html where they can't, shouldn't, or
+    just don't want to.
     
-    Change-Id: I0d113a4347dde50a35b8b1f2b0110c88fe802921
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303049
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Example, both ways:
+    
+    $ GOSSAFUNC="(*Reader).Reset" go test -c -o ./a compress/gzip
+    dumped SSA to bytes/ssa.html
+    dumped SSA to strings/ssa.html
+    dumped SSA to bufio/ssa.html
+    dumped SSA to compress/gzip/ssa.html
+    
+    $ GOSSAFUNC="compress/gzip.(*Reader).Reset" go test -c -o ./a compress/gzip
+    dumped SSA to compress/gzip/ssa.html
+    
+    Updates #40919.
+    
+    Change-Id: I06b77c3c1d326372a32651570b5dd6e56dfb1d7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250340
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/objabi/util.go | 3 ++-
- src/runtime/proc.go             | 6 +++---
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

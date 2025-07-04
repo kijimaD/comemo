@@ -1,26 +1,31 @@
-commit 21e1ffe7bc7793a8f1c1fca4dfa32f1f3f70681c
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Fri Jan 21 14:21:38 2022 +0900
+commit 63daa774b566d7fe58b3aa82cda9e595929bb777
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 20:16:37 2021 -0400
 
-    bufio: implement large write forwarding in Writer.WriteString
+    go/types: guard against checking instantiation when generics is disabled
     
-    Currently bufio.Writer implements forwarding to the underlying Writer
-    for large writes via Write, but it does not do the same for large
-    writes via WriteString.
+    When type checking t[_], where t is a type name, it was possible to leak
+    an error message related to generics. Fix this by guarding on
+    typeparams.Enabled.
     
-    If the underlying Writer is also a StringWriter, use the same "large
-    writes" logic also in WriteString while taking care to only check
-    once per call to WriteString whether the underlying Writer implements
-    StringWriter.
+    In order to test this fix, we need to be able to run the new go/types
+    test only if type parameters are disabled. Introduce the .go1 test data
+    suffix (similar to .go2) to control this behavior.
     
-    Change-Id: Id81901c07b035936816b9e41b1f5688e699ee8e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380074
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Originally found via fuzzing, though the test case was manually
+    simplified.
+    
+    Updates #46404
+    
+    Change-Id: Ib1e2c27cf974c2a5ca5b9d6d01b84a30ba4d583b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329793
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bufio/bufio.go      | 21 ++++++++++++++---
- src/bufio/bufio_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+), 3 deletions(-)
+ src/go/types/check_test.go                     | 13 ++++++++-----
+ src/go/types/testdata/fixedbugs/issue46404.go1 |  8 ++++++++
+ src/go/types/typexpr.go                        |  8 ++++++--
+ 3 files changed, 22 insertions(+), 7 deletions(-)

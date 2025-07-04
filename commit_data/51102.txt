@@ -1,26 +1,18 @@
-commit 69abfab979a22307bbd1b3f5f02a64349d16d3d5
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Jul 12 16:53:22 2021 -0500
+commit ecf6b52b7f4ba6e8c98f25adf9e83773fe908829
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 4 17:59:19 2021 -0800
 
-    cmd/link: support PPC64 prefixed relocations for power10
+    test/ken/slicearray.go: correct type width in comment
     
-    Handle emitting (to ld) or resolving commonly used ELFv2 1.5
-    relocations. The new ISA provides PC relative addressing with
-    34 bit signed addresses, and many other relocations which can
-    replace addis + d-form type relocations with a single prefixed
-    instruction.
+    The type was changed in https://golang.org/cl/3991043 but the comment
+    wasn't updated.
     
-    Updates #44549
-    
-    Change-Id: I7d4f4314d1082daa3938f4353826739be35b0e81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355149
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I7ba3f625c732e5e801675ffc5d4a28e1d310faa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369374
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/objabi/reloctype.go        |  28 +++-
- src/cmd/internal/objabi/reloctype_string.go |  55 ++++----
- src/cmd/link/internal/ppc64/asm.go          | 204 +++++++++++++++++-----------
- 3 files changed, 182 insertions(+), 105 deletions(-)
+ test/ken/slicearray.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

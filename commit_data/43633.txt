@@ -1,29 +1,19 @@
-commit e62adb1c0b8e7ca49eefc70389fbb9f739d6e32c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 29 13:30:54 2020 -0700
+commit 29d925dfcf7dc577e46d4557a5ef6eaa7f2a67af
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 16 18:26:12 2020 -0700
 
-    cmd/compile: fix devirtualization of promoted interface methods
+    test: add test for nil check / bounds check compiler confusion
     
-    A method selector expression can pick out a method or promoted method
-    (represented by ODOTMETH), but it can also pick out an interface
-    method from an embedded interface-typed field (represented by
-    ODOTINTER).
+    This test started failing at CL 228106 and was fixed by CL 228677.
     
-    In the case that we're picking out an interface method, we're not able
-    to fully devirtualize the method call. However, we're still able to
-    improve escape analysis somewhat. E.g., the included test case
-    demonstrates that we can optimize "i.M()" to "i.(T).I.M()", which
-    means the T literal can be stack allocated instead of heap allocated.
+    Fixes #38496
     
-    Fixes #42279.
-    
-    Change-Id: Ifa21d19011e2f008d84f9624b7055b4676b6d188
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266300
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2dadcd99227347e8d28179039f5f345e728c4595
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228698
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 26 +++++++++++++++++---------
- test/escape_iface.go               |  8 ++++++++
- 2 files changed, 25 insertions(+), 9 deletions(-)
+ test/fixedbugs/issue38496.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

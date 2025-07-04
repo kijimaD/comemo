@@ -1,25 +1,25 @@
-commit 00234b052e969a5c84e6ad9f07414beb3bfb6377
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 5 15:38:18 2022 +0200
+commit d7149e502dfb13fdc94439eebaf1823a6c6dd84f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 20 00:09:09 2021 +0700
 
-    internal/poll, internal/syscall/unix, net: enable writev on solaris
+    reflect: restore Value.Pointer implementation
     
-    The writev syscall is available since at least Solaris 11.3.
+    CL 350691 added Value.UnsafePointer and make Value.Pointer call it
+    internally. It has a downside that Value.Pointer can now eligible to be
+    inlined, thus making un-intentional side effect, like the test in
+    fixedbugs/issue15329.go becomes flaky.
     
-    Reuse the existing illumos writev wrapper on solaris to implement
-    internal/poll.writev for net.(*netFD).writeBuffers.
+    This CL restore Value.Pointer original implementation, pre CL 350691,
+    with the deprecation TODO removed.
     
-    Change-Id: I23adc3bb4637740c72bfb61bfa9697b432dfe3db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427714
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #49067
+    
+    Change-Id: I735af182f8e729294333ca906ffc062f477cfc99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356949
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/poll/{fd_writev_illumos.go => fd_writev_solaris.go}   | 2 --
- src/internal/poll/{iovec_illumos.go => iovec_solaris.go}           | 2 --
- src/internal/poll/writev.go                                        | 7 ++++++-
- src/internal/syscall/unix/{writev_illumos.go => writev_solaris.go} | 2 --
- src/net/writev_test.go                                             | 2 +-
- src/net/writev_unix.go                                             | 2 +-
- 6 files changed, 8 insertions(+), 9 deletions(-)
+ src/reflect/value.go | 37 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 36 insertions(+), 1 deletion(-)

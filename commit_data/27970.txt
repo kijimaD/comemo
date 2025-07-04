@@ -1,22 +1,24 @@
-commit 2c58cb36f971aed484e880769eb2b0a21654459a
-Author: Eric Lagergren <ericscottlagergren@gmail.com>
-Date:   Sat Aug 20 15:46:06 2016 -0700
+commit 3c1a4c1902711c16489ed0c3506df97439ffbd85
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 19 21:06:53 2016 -0700
 
-    encoding/xml: do not ignore error return from copyValue
+    cmd/compile: don't nilcheck newobject and return values from mapaccess{1,2}
     
-    The error return from copyValue was ignored causing some XML attribute
-    parsing to swallow an error.
+    They are guaranteed to be non-nil, no point in inserting
+    nil checks for them.
     
-    Additionally, type MyMarshalerAttrTest had no UnmarshalXMLAttr method
-    causing marshalTests not to be symmetrical and the test suite to fail
-    for test case 101.
+    Fixes #15390
     
-    Fixes #16158
-    
-    Change-Id: Icebc505295a2c656ca4b42ba37bb0957dd7260c6
-    Reviewed-on: https://go-review.googlesource.com/27455
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3b9a0f2319affc2139dcc446d0a56c6785ae5a86
+    Reviewed-on: https://go-review.googlesource.com/22291
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/encoding/xml/marshal_test.go | 17 ++++++++++++++++-
- src/encoding/xml/read.go         |  5 +----
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go      | 24 ++++++++++++++++++++----
+ src/cmd/compile/internal/gc/fmt.go       |  6 ++++++
+ src/cmd/compile/internal/gc/ssa.go       | 30 +++++++++++++++++-------------
+ src/cmd/compile/internal/gc/syntax.go    |  1 +
+ src/cmd/compile/internal/gc/walk.go      |  9 +++++----
+ src/cmd/compile/internal/ssa/nilcheck.go |  2 --
+ test/nilptr3.go                          | 21 +++++++++++++++++++++
+ test/nilptr3_ssa.go                      | 21 +++++++++++++++++++++
+ 8 files changed, 91 insertions(+), 23 deletions(-)

@@ -1,18 +1,17 @@
-commit 145dd38471fe5e14b8a77f5f466b70ab49c9a62b
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 14 14:44:21 2023 -0500
+commit 55e5b03cb359c591a2ca6ad8b6e9274d094b1632
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 24 17:01:14 2022 -0500
 
-    archive/tar, archive/zip: document ErrInsecurePath and GODEBUG setting
+    doc/go1.18: note changes to automatic go.mod and go.sum updates
     
-    These are mentioned in the release notes but not the actual doc comments.
-    Nothing should exist only in release notes.
+    Fixes #51242
+    Updates #45551
     
-    Change-Id: I8d10f25a2c9b2677231929ba3f393af9034b777b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462195
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iba6e6acd9a94d24e26fcdd125f1022430723ada7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387920
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan Mills <bcmills@google.com>
 
- src/archive/tar/reader.go | 8 +++++++-
- src/archive/zip/reader.go | 8 ++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ doc/go1.18.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,14 +1,23 @@
-commit fb9706d3bed364276c075081fbab820719fc5965
+commit d6b9a03b7f6f158c470405e2e4d6a68dcd094a95
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 6 20:11:49 2012 +0400
+Date:   Tue Nov 6 12:09:40 2012 +0400
 
-    cmd/go: use correct paths with race detector
-    Currently the build fails with -race if a package in GOPATH
-    imports another package in GOPATH.
+    runtime: disable parallel for tests under race detector.
+    The race detector does not understand ParFor synchronization, because it's implemented in C.
+    If run with -cpu=2 currently race detector says:
+     WARNING: DATA RACE
+     Read by goroutine 5:
+      runtime_test.TestParForParallel()
+          src/pkg/runtime/parfor_test.go:118 +0x2e0
+      testing.tRunner()
+          src/pkg/testing/testing.go:301 +0x8f
+     Previous write by goroutine 6:
+      runtime_test.func·024()
+          src/pkg/runtime/parfor_test.go:111 +0x52
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6811083
+    https://golang.org/cl/6811082
 
- src/cmd/go/build.go | 3 +++
+ src/pkg/runtime/parfor_test.go | 3 +++
  1 file changed, 3 insertions(+)

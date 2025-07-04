@@ -1,21 +1,14 @@
-commit 99df76f0869f00ad9ba53e3aecc22d625ae23de1
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Sun Jul 21 16:01:46 2019 -0400
+commit d24d25b4e43badc38539b563f5264b341ccf3746
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:45:40 2019 +0100
 
-    mime: update type of .js and .mjs files to text/javascript
+    runtime: enable external linker tests for aix/ppc64
     
-    application/javascript is being deprecated per
-    https://datatracker.ietf.org/doc/draft-ietf-dispatch-javascript-mjs/
-    
-    Specify a charset to be consistent with other text/* mime types.
-    
-    Fixes #32351
-    
-    Change-Id: I7300f6cfdbcf574103764991cb75172a252a3400
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186927
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Icc42843adb15c2aba1cfea854fad049c6704344b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164014
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/type.go | 4 ++--
+ src/runtime/crash_cgo_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

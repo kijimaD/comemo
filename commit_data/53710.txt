@@ -1,29 +1,19 @@
-commit da7b4b01bdb6127ed78203d6f7015a454bd26c2f
-Author: Philip Silva <philip.silva@protonmail.com>
-Date:   Mon Jul 10 22:22:15 2023 +0200
+commit 3680b5e9c4f42fcf9155aa42b3b344d1fbe19571
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Jun 5 13:22:29 2022 +0800
 
-    internal/bytealg: use generic IndexByte on plan9/amd64
+    cmd/compile: teach prove about bitwise OR operation
     
-    Use generic implementation of IndexByte/IndexByteString
-    on plan9/amd64 since the assembly implementation
-    uses SSE instructions which are classified as floating
-    point instructions and cannot be used in a note handler.
-    A similar issue was fixed in CL 100577.
+    Fixes #45928.
     
-    This fixes runtime.TestBreakpoint.
-    
-    Fixes #61087.
-    
-    Change-Id: Id0c085e47da449be405ea04ab9b93518c4e2fde8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508400
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifbb0effbca4ab7c0eb56069fee40edb564553c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410336
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/internal/bytealg/indexbyte_amd64.s    | 2 ++
- src/internal/bytealg/indexbyte_generic.go | 6 +++++-
- src/internal/bytealg/indexbyte_native.go  | 2 +-
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 3 +++
+ test/prove.go                         | 5 +++++
+ 2 files changed, 8 insertions(+)

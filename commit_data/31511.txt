@@ -1,63 +1,16 @@
-commit ddcb975ffc05f4b41b063beb5613081fd081fce1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Apr 30 18:21:16 2017 +1000
+commit 31e633464481a0748fb95eda2a2d3d604755d286
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 11:14:45 2017 -0800
 
-    internal/poll: remove allocation in windows FD.Writev
+    go/build: move math/bits into L1 set of dependencies
     
-    Use closure parameter instead of external variable to
-    remove 1 allocation.
+    Per suggestion from rsc.
     
-    I tried to add test, but it is difficult to add something simple
-    and not flake here. I did test this with:
-    
-    diff --git a/src/net/writev_test.go b/src/net/writev_test.go
-    index 4c05be4..e417d68 100644
-    --- a/src/net/writev_test.go
-    +++ b/src/net/writev_test.go
-    @@ -99,6 +99,15 @@ func TestBuffers_WriteTo(t *testing.T) {
-            }
-     }
-    
-    +func TestBuffers_WriteToAllocs(t *testing.T) {
-    +       allocs := testing.AllocsPerRun(10, func() {
-    +               testBuffer_writeTo(t, 10, false)
-    +       })
-    +       if allocs > 0 {
-    +               t.Fatalf("got %v; want 0", allocs)
-    +       }
-    +}
-    +
-     func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
-            oldHook := poll.TestHookDidWritev
-            defer func() { poll.TestHookDidWritev = oldHook }()
-    
-    It makes allocation count go down by 1 after the fix.
-    
-    Before:
-    
-    C:\>u:\test -test.v -test.run=WriteToAllocs
-    === RUN   TestBuffers_WriteToAllocs
-    --- FAIL: TestBuffers_WriteToAllocs (0.05s)
-            writev_test.go:107: got 66; want 0
-    FAIL
-    
-    and after:
-    
-    C:\>u:\test -test.v -test.run=WriteToAllocs
-    === RUN   TestBuffers_WriteToAllocs
-    --- FAIL: TestBuffers_WriteToAllocs (0.04s)
-            writev_test.go:107: got 65; want 0
-    FAIL
-    
-    Thanks to @MichaelMonashev for report and the fix.
-    
-    Fixes #19222
-    
-    Change-Id: I0f73cd9e2c8bbaa0653083f81f3ccb83b5ea84e1
-    Reviewed-on: https://go-review.googlesource.com/42893
+    Change-Id: I4b61ec6f35ffaaa792b75e011fbba1bdfbabc1f6
+    Reviewed-on: https://go-review.googlesource.com/37501
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/poll/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,31 +1,45 @@
-commit 5f616a6fe789622f3e0ed0e8a00db9471e2a02f4
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Oct 23 11:10:10 2020 -0400
+commit bfd569fcb07440b85c503a399d78bcd6581824a3
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Mar 6 22:20:45 2020 +0000
 
-    cmd/go: in 'go mod init', suggest running 'go mod tidy'
+    cmd/compile: delete the floating point Greater and Geq ops
     
-    When 'go mod init' is run in an existing project, it may import
-    requirements from a vendor configuration file, but the requirements
-    may not be complete, and go.sum won't contain sums for module
-    zips. With -mod=readonly, the next build command is likely to fail.
+    Extend CL 220417 (which removed the integer Greater and Geq ops) to
+    floating point comparisons. Greater and Geq can always be
+    implemented using Less and Leq.
     
-    'go mod init' will now suggest running 'go mod tidy' if there are .go
-    files or subdirectories in the current directory.
+    Fixes #37316.
     
-    We could potentially run 'go mod tidy' automatically within
-    'go mod init', but it seems better to guide users to using 'go mod tidy'
-    as a separate command to fix missing dependencies.
-    
-    For #41712
-    Updates #40278
-    
-    Change-Id: Iaece607f291244588a732ef4c5d576108965ca91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264622
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ieaddb4877dd0ff9037a1dd11d0a9a9e45ced71e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222397
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modload/init.go          | 23 +++++++++++++++++++++
- src/cmd/go/testdata/script/mod_init_tidy.txt | 30 ++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 36 ++++------
+ src/cmd/compile/internal/ssa/gen/386.rules     | 10 ---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 40 ++++-------
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  4 --
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  6 --
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |  3 -
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  3 -
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 --
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 ---
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  6 --
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    |  3 -
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 --
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  6 --
+ src/cmd/compile/internal/ssa/opGen.go          | 24 -------
+ src/cmd/compile/internal/ssa/rewrite386.go     | 72 -------------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 72 -------------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 72 -------------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 72 -------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 72 -------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 72 -------------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 72 -------------------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 60 ----------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 96 --------------------------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 12 ----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 88 -----------------------
+ test/codegen/floats.go                         |  2 +-
+ 26 files changed, 30 insertions(+), 889 deletions(-)

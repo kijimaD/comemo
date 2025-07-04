@@ -1,23 +1,22 @@
-commit f90a42b41080cf5a289f151f2166d0d0a795e836
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Nov 29 12:04:42 2021 -0800
+commit dac136f87b9d5fdda9b5c33dfa0f94dc8c9880c7
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Sat Mar 13 00:27:30 2021 +1030
 
-    cmd/compile: change iexportVersionGeneric to 2
+    archive/zip: fix character device handling in fileModeToUnixMode
     
-    Don't expect/allow generics-related info in iexportVersion 1, now that
-    we increased the export version to 2.
+    The switch case for fs.ModeDevice can only be reached for block devices
+    while character devices match fs.ModeDevice | fs.ModeCharDevice. This
+    would cause character devices to wrongly be reported as regular files.
     
-    Fixes #49853
+    This bug has existed since the switch was first introduced in CL 5624048.
     
-    Change-Id: I9bacee7f8e7cb9bb3b02a00084fad77edd220121
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367634
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Icdbedb015e5376b385b3115d2e4574daa052f796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300891
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/importer/iimport.go  | 2 +-
- src/cmd/compile/internal/typecheck/iexport.go | 2 +-
- src/go/internal/gcimporter/iimport.go         | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/archive/zip/struct.go      |  8 +++-----
+ src/archive/zip/writer_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 5 deletions(-)

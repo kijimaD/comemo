@@ -1,29 +1,105 @@
-commit 7f39f21c7be83b9ff59089b29fa9e723c13cafa9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 4 16:54:54 2016 +0000
+commit fdd0179bb1fdd70d405929b78c7d2fb6b61369b0
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Feb 24 11:55:20 2016 +0100
 
-    io: add ReadAtSizer interface
+    all: fix typos and spelling
     
-    ReadAtSizer is a common abstraction for a stateless,
-    concurrently-readable fixed number of bytes.
-    
-    This interface has existed in various codebases for over 3 years (previously
-    usually named SizeReaderAt). It is used inside Google in dl.google.com
-    (mentioned in https://talks.golang.org/2013/oscon-dl.slide) and other
-    packages. It is used in Camlistore, in Juju, in the Google API Go client, in
-    github.com/nightlyone/views, and 33 other pages of Github search results.
-    
-    It is implemented by io.SectionReader, bytes.Reader, strings.Reader, etc.
-    
-    Time to finally promote this interface to the standard library and give it a
-    standard name, blessing it as best practice.
-    
-    Updates #7263
-    Updates #14889
-    
-    Change-Id: Id28c0cafa7d2d37e8887c54708b5daf1b11c83ea
-    Reviewed-on: https://go-review.googlesource.com/21492
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Icd06d99c42b8299fd931c7da821e1f418684d913
+    Reviewed-on: https://go-review.googlesource.com/19829
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/io.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/bufio/bufio.go                                     |  2 +-
+ src/bufio/scan_test.go                                 |  2 +-
+ src/cmd/asm/doc.go                                     |  2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s              |  2 +-
+ src/cmd/asm/internal/flags/flags.go                    |  4 ++--
+ src/cmd/compile/internal/amd64/peep.go                 |  2 +-
+ src/cmd/compile/internal/arm64/ggen.go                 |  2 +-
+ src/cmd/compile/internal/gc/bexport.go                 |  2 +-
+ src/cmd/compile/internal/gc/mparith3.go                |  2 +-
+ src/cmd/compile/internal/gc/order.go                   |  2 +-
+ src/cmd/compile/internal/gc/plive.go                   |  2 +-
+ src/cmd/compile/internal/gc/reflect.go                 |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go                 |  2 +-
+ src/cmd/compile/internal/x86/peep.go                   |  2 +-
+ src/cmd/dist/build.go                                  |  2 +-
+ src/cmd/go/go_test.go                                  |  2 +-
+ src/cmd/go/pkg.go                                      |  2 +-
+ src/cmd/internal/obj/arm/obj5.go                       |  2 +-
+ src/cmd/internal/obj/mips/obj0.go                      |  2 +-
+ src/cmd/internal/obj/x86/obj6.go                       |  2 +-
+ src/cmd/link/internal/arm/asm.go                       |  2 +-
+ src/cmd/link/internal/arm/obj.go                       |  2 +-
+ src/cmd/link/internal/arm64/asm.go                     |  2 +-
+ src/cmd/link/internal/ld/dwarf_defs.go                 |  2 +-
+ src/cmd/link/internal/ld/ldelf.go                      |  6 +++---
+ src/cmd/link/internal/ld/macho.go                      |  2 +-
+ src/cmd/pprof/internal/report/report.go                |  2 +-
+ src/cmd/pprof/internal/report/source.go                |  2 +-
+ src/crypto/ecdsa/ecdsa_test.go                         |  2 +-
+ src/crypto/md5/md5block_arm.s                          |  2 +-
+ src/crypto/tls/handshake_client_test.go                |  2 +-
+ src/crypto/x509/root_darwin_test.go                    |  2 +-
+ src/database/sql/sql_test.go                           |  2 +-
+ src/debug/dwarf/entry.go                               |  2 +-
+ src/encoding/base32/base32_test.go                     |  2 +-
+ src/encoding/base64/base64_test.go                     |  2 +-
+ src/encoding/json/bench_test.go                        |  4 ++--
+ src/go/build/build.go                                  |  2 +-
+ src/go/build/build_test.go                             |  8 ++++----
+ src/go/internal/gcimporter/gcimporter.go               |  2 +-
+ src/go/types/builtins.go                               |  2 +-
+ src/go/types/testdata/const0.src                       |  2 +-
+ src/html/template/template_test.go                     |  2 +-
+ src/image/gif/reader.go                                |  2 +-
+ src/internal/syscall/windows/registry/registry_test.go |  4 ++--
+ src/math/big/float.go                                  |  2 +-
+ src/math/big/floatconv.go                              |  2 +-
+ src/net/dnsclient.go                                   |  2 +-
+ src/net/dnsclient_unix_test.go                         |  4 ++--
+ src/net/http/client_test.go                            |  2 +-
+ src/net/http/cookie.go                                 |  2 +-
+ src/net/http/h2_bundle.go                              | 14 +++++++-------
+ src/net/http/httptest/server_test.go                   |  2 +-
+ src/net/http/request.go                                |  2 +-
+ src/net/http/request_test.go                           |  2 +-
+ src/net/http/requestwrite_test.go                      |  2 +-
+ src/net/http/server.go                                 |  2 +-
+ src/net/http/transport.go                              |  2 +-
+ src/net/http/transport_test.go                         |  2 +-
+ src/net/interface_bsd.go                               |  2 +-
+ src/net/interface_darwin.go                            |  2 +-
+ src/net/interface_freebsd.go                           |  2 +-
+ src/net/interface_test.go                              |  4 ++--
+ src/net/interface_unix_test.go                         |  2 +-
+ src/net/ip_test.go                                     |  4 ++--
+ src/net/ipsock_posix.go                                |  2 +-
+ src/net/listen_test.go                                 |  4 ++--
+ src/net/net_windows_test.go                            |  4 ++--
+ src/net/sendfile_windows.go                            |  2 +-
+ src/net/udpsock_test.go                                |  2 +-
+ src/os/exec/exec_test.go                               |  2 +-
+ src/os/exec/lp_windows_test.go                         |  6 +++---
+ src/os/os_test.go                                      |  2 +-
+ src/os/str.go                                          |  2 +-
+ src/os/user/lookup_windows.go                          |  2 +-
+ src/path/filepath/path_windows.go                      |  2 +-
+ src/reflect/all_test.go                                |  2 +-
+ src/regexp/exec_test.go                                |  2 +-
+ src/runtime/asm_arm.s                                  |  2 +-
+ src/runtime/cgo/callbacks.go                           |  2 +-
+ src/runtime/chan_test.go                               |  2 +-
+ src/runtime/memclr_amd64.s                             |  2 +-
+ src/runtime/memmove_ppc64x.s                           |  2 +-
+ src/runtime/mgcwork.go                                 |  2 +-
+ src/runtime/netpoll_solaris.go                         |  4 ++--
+ src/runtime/proc.go                                    |  2 +-
+ src/runtime/runtime_test.go                            |  2 +-
+ src/runtime/softfloat_arm.go                           |  2 +-
+ src/runtime/sys_solaris_amd64.s                        |  2 +-
+ src/sort/sort_test.go                                  |  4 ++--
+ src/syscall/route_bsd.go                               |  2 +-
+ src/text/template/multi_test.go                        |  2 +-
+ 92 files changed, 115 insertions(+), 115 deletions(-)

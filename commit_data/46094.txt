@@ -1,17 +1,24 @@
-commit 4d00fcbc4303bca38ecfc1c8a07661089496c1ab
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 15:59:08 2021 -0400
+commit 2cec6c4a8cca6106c9939ae1560d614dec656839
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 10:17:50 2020 -0500
 
-    go/types: clean up panics in instantiation
+    [dev.regabi] cmd/compile: generate Node methods using program
     
-    This is a straightforward port of CL 341862 to go/types.
+    Add Node method generator by Matthew Dempsky,
+    lightly adapted to account for a few special cases.
+    No more writing these by hand.
     
-    Change-Id: I4214c08d2889e2daf40254385656c6beed79571d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342487
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I6933b895df666928b851bddf81b994799c0c97f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275434
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/instantiate.go | 43 +++++++++++++++++++++++++------------------
- src/go/types/named.go       |  9 ++++-----
- 2 files changed, 29 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/ir/expr.go     |  455 +-------------
+ src/cmd/compile/internal/ir/func.go     |   13 -
+ src/cmd/compile/internal/ir/mini.go     |    8 +
+ src/cmd/compile/internal/ir/mknode.go   |  175 ++++++
+ src/cmd/compile/internal/ir/name.go     |   14 +-
+ src/cmd/compile/internal/ir/node_gen.go | 1029 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/stmt.go     |  382 ------------
+ src/cmd/compile/internal/ir/type.go     |  113 ----
+ 8 files changed, 1214 insertions(+), 975 deletions(-)

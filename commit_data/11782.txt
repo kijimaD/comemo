@@ -1,24 +1,15 @@
-commit fbab6d8512c876dcef65e85f7a400117bc1f08f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Feb 11 08:47:19 2012 +1100
+commit 09f6a491947373107e1425eae1187d573e398492
+Author: James Whitehead <jnwhiteh@gmail.com>
+Date:   Fri Feb 10 13:35:03 2012 -0800
 
-    os,syscall: fix windows build
+    exp/types: Use build.FindTree in GcImporter
     
-    make syscall.ProcAttr.Files be []uintptr
+    Fixes #2932
     
-    all.bash passes on Linux.
-    things seem to compile on GOOS={darwin,windows}
-    
-    R=golang-dev, mattn.jp, alex.brainman, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5653055
+    https://golang.org/cl/5654046
 
- src/pkg/net/sendfile_windows.go | 2 +-
- src/pkg/os/exec/exec_test.go    | 5 ++---
- src/pkg/os/exec_posix.go        | 2 +-
- src/pkg/os/file_windows.go      | 6 +++---
- src/pkg/syscall/exec_bsd.go     | 6 ++++--
- src/pkg/syscall/exec_linux.go   | 5 ++++-
- src/pkg/syscall/exec_unix.go    | 6 +++---
- src/pkg/syscall/exec_windows.go | 2 +-
- 8 files changed, 19 insertions(+), 15 deletions(-)
+ src/pkg/exp/types/gcimporter.go      | 11 +++++++----
+ src/pkg/exp/types/gcimporter_test.go |  2 +-
+ 2 files changed, 8 insertions(+), 5 deletions(-)

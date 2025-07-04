@@ -1,12 +1,13 @@
-commit cbd28eceabaabb130fcd48d7777dad7a64d149c1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 13 10:07:54 2015 +1100
+commit 33da2430f16ca650a37f0aa028aee5174a58bd08
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 11 11:22:54 2014 +1100
 
-    go1.5.txt: log: add global Output function
+    doc: tweak Go 1.4 release notes
     
-    Change-Id: I5a54a041cfe9ff2d9514f2d6596b53ec7fc91845
-    Reviewed-on: https://go-review.googlesource.com/2689
-    Reviewed-by: Rob Pike <r@golang.org>
+    LGTM=dave, dsymonds
+    R=golang-codereviews, dave, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/184350043
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.4.html | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

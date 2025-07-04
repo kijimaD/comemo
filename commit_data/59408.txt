@@ -1,33 +1,17 @@
-commit fa2bb342d7b0024440d996c2d6d6778b7a5e0247
-Author: Keith Randall <khr@golang.org>
-Date:   Mon May 5 10:51:52 2025 -0700
+commit e3d4491ad611a3cc3a78a8356ec467bb35f2de68
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 10 13:05:30 2024 +0000
 
-    Revert "cmd/compile: allow all of the preamble to be preemptible"
+    cmd/preprofile: fix typo in comment
     
-    This reverts commits
-    
-    3f3782feed6e0726ddb08afd32dad7d94fbb38c6 (CL 648518)
-    b386b628521780c048af14a148f373c84e687b26 (CL 668475)
-    
-    Fixes #73542
-    
-    Change-Id: I218851c5c0b62700281feb0b3f82b6b9b97b910d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670055
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib44e9e6345fa8df7f46bc9cbdc19ad8ba73c8b83
+    GitHub-Last-Rev: 5a37ad798807c1bbc1600086ff162dc7019d1bca
+    GitHub-Pull-Request: golang/go#66233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570415
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/arm/obj5.go    | 15 ++++++++++++--
- src/cmd/internal/obj/arm64/obj7.go  | 15 ++++++++++++--
- src/cmd/internal/obj/loong64/obj.go | 13 +++++++++++--
- src/cmd/internal/obj/mips/obj0.go   |  8 ++++++++
- src/cmd/internal/obj/plist.go       | 25 ++++++++++++++++++++++--
- src/cmd/internal/obj/ppc64/obj9.go  |  8 ++++++++
- src/cmd/internal/obj/riscv/obj.go   |  8 ++++++++
- src/cmd/internal/obj/s390x/objz.go  | 10 ++++++++++
- src/cmd/internal/obj/x86/obj6.go    | 21 ++++++++++++++++----
- src/runtime/preempt.go              |  1 -
- src/runtime/runtime2.go             | 39 +++++++++++++++----------------------
- src/runtime/stack.go                | 23 ----------------------
- 12 files changed, 127 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

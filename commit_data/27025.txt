@@ -1,21 +1,42 @@
-commit b57ac333310e8b8ec01708dcca99430b641457c5
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 15 12:49:30 2016 -0700
+commit 21af2d39c25f71a3044c40e7b106b8c47d06a6a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 22:48:07 2016 -0500
 
-    cmd/compile: forward-looking desired register biasing
+    cmd/compile, cmd/link: eliminate string merging pass
     
-    Improve forward-looking desired register calculations.
-    It is now inter-block and handles a bunch more cases.
+    Deleting the string merging pass makes the linker 30-35% faster
+    but makes jujud (using the github.com/davecheney/benchjuju snapshot) 2.5% larger.
+    Two optimizations bring the space overhead down to 0.6%.
     
-    Fixes #14504
-    Fixes #14828
-    Fixes #15254
+    First, change the default alignment for string data to 1 byte.
+    (It was previously defaulting to larger amounts, usually pointer width.)
     
-    Change-Id: Ic240fa0ec6a779d80f577f55c8a6c4ac8c1a940a
-    Reviewed-on: https://go-review.googlesource.com/22160
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Second, write out the type string for T (usually a bigger expression) as "*T"[1:],
+    so that the type strings for T and *T share storage.
+    
+    Combined, these obtain the bulk of the benefit of string merging
+    at essentially no cost. The remaining benefit from string merging
+    is not worth the excessive cost, so delete it.
+    
+    As penance for making the jujud binary 0.6% larger,
+    the next CL in this sequence trims the reflect functype
+    information enough to make the jujud binary overall 0.75% smaller
+    (that is, that CL has a net -1.35% effect).
+    
+    For #6853.
+    Fixes #14648.
+    
+    Change-Id: I3fdd74c85410930c36bb66160ca4174ed540fc6e
+    Reviewed-on: https://go-review.googlesource.com/20334
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 541 ++++++++++++++++++++++++-------
- 1 file changed, 422 insertions(+), 119 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go   |  17 +++-
+ src/cmd/internal/obj/link.go             |   2 +
+ src/cmd/link/internal/ld/data.go         |   7 +-
+ src/cmd/link/internal/ld/lib.go          |   2 +
+ src/cmd/link/internal/ld/mergestrings.go | 161 -------------------------------
+ src/cmd/link/internal/ld/pobj.go         |   1 -
+ src/cmd/link/internal/ld/symtab.go       |  11 +++
+ 7 files changed, 35 insertions(+), 166 deletions(-)

@@ -1,21 +1,15 @@
-commit 4fca3953210ded1ff08e0c1681c027b620c206b2
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed May 11 23:52:05 2011 -0400
+commit f58d911698e8e4690675fe276dac4795c39a9dfe
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Wed May 11 23:41:59 2011 -0400
 
-    ld: fix alignment of rodata section on Plan 9
+    gc: fix type switch error message for invalid cases.
     
-    This was causing a panic in the reflect package
-    since type.* pointers with their low bits set are
-    assumed to have certain flags set that disallow
-    the use of reflection.
+    Fixes #1606.
     
-    Thanks to Pavel and Taru for help tracking down
-    this bug.
-    
-    R=rsc, paulzhol, taruti
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4511041
+    https://golang.org/cl/4532045
 
- src/cmd/8l/obj.c  | 2 +-
- src/cmd/ld/data.c | 4 +---
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/gc/swt.c         |  5 ++++-
+ test/fixedbugs/bug340.go | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

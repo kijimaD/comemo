@@ -1,12 +1,26 @@
-commit 1c5ac0827d2d0d2f5fb3b7f2b34b37e170beff1d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 14 14:10:14 2016 -0700
+commit 8f726907113e6be6dd886d6a790619b2535330fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 13 15:22:56 2016 -0400
 
-    cmd/vet/all: check platforms concurrently
+    [dev.ssa] cmd/compile: implement shifts & multiplications for SSA on ARM
     
-    Change-Id: I63e7fd7f62aa80e1252b0c5b6c472439aa66da73
-    Reviewed-on: https://go-review.googlesource.com/29169
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Implement shifts and multiplications for up to 32-bit values.
+    
+    Also handle Exit block.
+    
+    Progress on SSA backend for ARM. Still not complete.
+    container/heap, crypto/subtle, hash/adler32 packages compile and
+    tests passed.
+    
+    Updates #15365.
+    
+    Change-Id: I6bee4d5b0051e51d5de97e8a1938c4b87a36cbf8
+    Reviewed-on: https://go-review.googlesource.com/23096
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/all/main.go | 34 +++++++++++++++++++++++++---------
- 1 file changed, 25 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |   74 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |   73 ++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |   24 +-
+ src/cmd/compile/internal/ssa/opGen.go      |  141 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 1607 +++++++++++++++++++++++-----
+ 5 files changed, 1639 insertions(+), 280 deletions(-)

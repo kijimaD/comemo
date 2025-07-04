@@ -1,12 +1,14 @@
-commit d7f050a73e2cf7d890c3711c78f60627da01ea9d
+commit 41453d2ed2a0ddb6c4acf5f1c41323749c0bafce
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 9 00:11:43 2011 -0500
+Date:   Thu Dec 8 23:20:21 2011 -0500
 
-    spec: rune is now an alias for int32
+    exp/types: fix linux build
     
-    R=golang-dev, dsymonds, r
+    I don't understand why it was only broken on Linux
+    
+    TBR=gri
     CC=golang-dev
-    https://golang.org/cl/5467048
+    https://golang.org/cl/5479045
 
- doc/go_spec.html | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/exp/types/gcimporter.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

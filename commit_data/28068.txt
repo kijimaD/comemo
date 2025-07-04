@@ -1,19 +1,42 @@
-commit d2dd0dfda813deb27415962656e7a6496170cef3
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Aug 26 11:28:41 2016 -0400
+commit 4093481523b1e064e998d5d586276db45f4d11a7
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Feb 24 14:36:30 2016 -0500
 
-    cmd/internal/obj/s390x: add FIDBR and FIEBR instructions
+    [dev.garbage] runtime: add bit and cache ctz64 (count trailing zero)
     
-    FIDBR and FIEBR can be used for floating-point to integer rounding.
-    The relevant functions (Ceil, Floor and Trunc) will be updated
-    in a future CL.
+    Add to each span a 64 bit cache (allocCache) of the allocBits
+    at freeindex. allocCache is shifted such that the lowest bit
+    corresponds to the bit freeindex. allocBits uses a 0 to
+    indicate an object is free, on the other hand allocCache
+    uses a 1 to indicate an object is free. This facilitates
+    ctz64 (count trailing zero) which counts the number of 0s
+    trailing the least significant 1. This is also the index of
+    the least significant 1.
     
-    Change-Id: I5952d67ab29d5ef8923ff1143e17a8d30169d692
-    Reviewed-on: https://go-review.googlesource.com/27826
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Each span maintains a freeindex indicating the boundary
+    between allocated objects and unallocated objects. allocCache
+    is shifted as freeindex is incremented such that the low bit
+    in allocCache corresponds to the bit a freeindex in the
+    allocBits array.
+    
+    Currently ctz64 is written in Go using a for loop so it is
+    not very efficient. Use of the hardware instruction will
+    follow. With this in mind comparisons of the garbage
+    benchmark are as follows.
+    
+    1.6 release        2.8 seconds
+    dev:garbage branch 3.1 seconds.
+    
+    Profiling shows the go implementation of ctz64 takes up
+    1% of the total time.
+    
+    Change-Id: If084ed9c3b1eda9f3c6ab2e794625cb870b8167f
+    Reviewed-on: https://go-review.googlesource.com/20200
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s |  2 ++
- src/cmd/internal/obj/s390x/a.out.go       |  2 ++
- src/cmd/internal/obj/s390x/anames.go      |  2 ++
- src/cmd/internal/obj/s390x/asmz.go        | 17 +++++++++++++++++
- 4 files changed, 23 insertions(+)
+ src/runtime/malloc.go   |  15 ++--
+ src/runtime/mbitmap.go  | 188 ++++++++++++++++++++++++++----------------------
+ src/runtime/mcentral.go |  31 +++++---
+ src/runtime/mgcsweep.go |  13 ++--
+ src/runtime/mheap.go    |  14 +++-
+ 5 files changed, 148 insertions(+), 113 deletions(-)

@@ -1,20 +1,14 @@
-commit 507afa68c5a3ce37a824288d19d8b8b0918a1530
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 10 14:11:39 2014 -0700
+commit 761dacee6222ee20720aec0d9ef8da8aa230d36d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 10 11:19:41 2014 -0700
 
-    cmd/ld: fix PC deltas in DWARF line number table
+    doc/install.html: fix erroneous HTML annotation
+    align=middle is invalid; use align=center
     
-    The putpclcdelta function set the DWARF line number PC to
-    s->value + pcline->pc, which is correct, but the code then set
-    the local variable pc to epc, which can be a different value.
-    This caused the next delta in the DWARF table to be wrong.
-    
-    Fixes #8098.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/104950045
+    https://golang.org/cl/106910044
 
- src/cmd/ld/dwarf.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/install.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

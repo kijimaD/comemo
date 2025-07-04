@@ -1,22 +1,19 @@
-commit e0948d825d8dab1a685bcb94bfc9ad69b9b6c075
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 25 18:00:10 2023 -0700
+commit 6bead8f77afd2f7317eb011ca019b61ac3d90c17
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Nov 7 14:54:52 2022 +0000
 
-    cmd/compile: use type hash from itab field instead of type field
+    sync/atomic: disallow type conversions of atomic.Pointer[T]
     
-    It is one less dependent load away, and right next to another
-    field in the itab we also load as part of the type switch or
-    type assert.
+    Fixes #56603
     
-    Change-Id: If7aaa7814c47bd79a6c7ed4232ece0bc1d63550e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533117
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6af9d80201025ae4028bfaa4a62e5de9ac0c501d
+    GitHub-Last-Rev: e6ed5e14512e1221a3c6cb181406cf00eec07e99
+    GitHub-Pull-Request: golang/go#56604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448275
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ir/stmt.go     | 26 +++++++++++++----------
- src/cmd/compile/internal/ssagen/ssa.go  | 17 +++++++++------
- src/cmd/compile/internal/walk/switch.go |  2 +-
- test/codegen/switch.go                  | 37 +++++++++++++++++++++++++++------
- 4 files changed, 58 insertions(+), 24 deletions(-)
+ src/sync/atomic/type.go | 4 ++++
+ 1 file changed, 4 insertions(+)

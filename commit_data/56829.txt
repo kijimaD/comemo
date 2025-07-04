@@ -1,22 +1,70 @@
-commit d73a8a206a7d3c179cdc498a29be215fa48a1ec2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 30 22:29:35 2024 -0700
+commit a17de43ef12250cd9a0ffdd8ff2d05fb18fcf322
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Mon May 8 17:08:20 2023 +1000
 
-    cmd/cgo: fail on v, err := C.fn when fn is a builtin function
+    net: implement wasip1 FileListener and FileConn
     
-    We were already checking for _CMalloc, but in fact none of the
-    builtin functions support returning an error.
+    Implements net.FileListener and net.FileConn for wasip1.
     
-    Fixes #67707
+    net.FileListener can be used with a pre-opened socket. If the WASM
+    module knows the file descriptor, a listener can be constructed with:
     
-    Change-Id: I0ee432a9f13ace472c3f36f641efc7d18eda0631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589575
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+        l, err := net.FileListener(os.NewFile(fd, ""))
+    
+    If the WASM module does not know the file descriptor, but knows that at
+    least one of the preopens is a socket, it can find the file descriptor
+    and construct a listener like so:
+    
+        func findListener() (net.Listener, error) {
+            // We start looking for pre-opened sockets at fd=3 because 0, 1,
+            // and 2 are reserved for stdio. Pre-opened directories also
+            // start at fd=3, so we skip fds that aren't sockets. Once we
+            // reach EBADF we know there are no more pre-opens.
+            for preopenFd := uintptr(3); ; preopenFd++ {
+                l, err := net.FileListener(os.NewFile(preopenFd, ""))
+    
+                var se syscall.Errno
+                switch errors.As(err, &se); se {
+                case syscall.ENOTSOCK:
+                    continue
+                case syscall.EBADF:
+                    err = nil
+                }
+                return l, err
+            }
+        }
+    
+    A similar strategy can be used with net.FileConn and pre-opened
+    connection sockets.
+    
+    The wasmtime runtime supports pre-opening listener sockets:
+    
+        $ wasmtime --tcplisten 127.0.0.1:8080 module.wasm
+    
+    Change-Id: Iec6ae4ffa84b3753cce4f56a2817e150445db643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493358
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/cgo/gcc.go                                     |  4 ++--
- src/cmd/cgo/internal/testerrors/errors_test.go         |  1 +
- src/cmd/cgo/internal/testerrors/testdata/issue67707.go | 15 +++++++++++++++
- 3 files changed, 18 insertions(+), 2 deletions(-)
+ misc/wasm/go_wasip1_wasm_exec                     |   4 +-
+ src/internal/poll/fd_unix.go                      |   9 +-
+ src/internal/poll/fd_unixjs.go                    |  11 ++
+ src/internal/poll/fd_wasip1.go                    |  53 +++++++
+ src/net/fd_wasip1.go                              | 168 ++++++++++++++++++++++
+ src/net/file_stub.go                              |   2 +-
+ src/net/file_wasip1.go                            |  62 ++++++++
+ src/net/net_fake.go                               | 116 ++++++++-------
+ src/net/net_fake_js.go                            |  27 ++++
+ src/os/file_wasip1.go                             |  22 +++
+ src/runtime/internal/wasitest/tcpecho_test.go     |  92 ++++++++++++
+ src/runtime/internal/wasitest/testdata/tcpecho.go |  74 ++++++++++
+ src/syscall/fs_wasip1.go                          |  12 +-
+ src/syscall/net_fake.go                           |  63 ++++++++
+ src/syscall/net_js.go                             |  56 --------
+ src/syscall/net_wasip1.go                         |  70 +++------
+ 16 files changed, 665 insertions(+), 176 deletions(-)

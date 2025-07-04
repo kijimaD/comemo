@@ -1,27 +1,18 @@
-commit c870d56f98eab5370726afd223fe0ab14d9e88ab
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 9 16:01:20 2018 -0700
+commit 40fc4bbfb86ea82ecb16794cd093a36a87d38197
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 11 09:40:45 2018 +0200
 
-    net/http/httputil: fix race/crash in previous ReverseProxy change
+    net: skip TestSendfileParts on dragonfly and solaris
     
-    The previous ReverseProxy change, CL 137335, introduced a bug which could cause
-    a race and/or a crash.
+    Skip it like on freebsd until there is proper a fix for #25809
     
-    This reliably crashed before:
+    Updates #25809
     
-    $ go test -short -race -v -run=TestReverseProxyFlushInterval -count=20 net/http/httputil
-    
-    The problem was a goroutine was running http.ResponseWriter.Flush
-    after the http.Handler's ServeHTTP completed. There was code to
-    prevent that (a deferred stop call) but the stop call didn't consider
-    the case where time.AfterFunc had already fired off a new goroutine
-    but that goroutine hadn't yet scheduled.
-    
-    Change-Id: I06357908465a3b953efc33e63c70dec19a501adf
-    Reviewed-on: https://go-review.googlesource.com/c/140977
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id53c433aee75f2a992ab6a8d58d98fd1f8a6c1c6
+    Reviewed-on: https://go-review.googlesource.com/117698
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/httputil/reverseproxy.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/sendfile_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

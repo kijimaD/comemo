@@ -1,17 +1,16 @@
-commit b613d21ffd17c1dda480b205f0cce5031bdbd5dd
-Author: Junyang Shao <shaojunyang@google.com>
-Date:   Tue Mar 18 21:13:23 2025 +0000
+commit 5c92f43c51e9313504ff86bec9b0cd0e5eb1c1bc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Feb 11 21:40:26 2024 +0000
 
-    testing: allow manual timer control in testing.B.Loop
+    math/rand/v2: use a doc link for crypto/rand
     
-    Fixes #72922
+    It's easier to go look at its documentation when there's a link.
     
-    Change-Id: I56610d2d11d151a8f95b6434bbedbfcd5c11c317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658975
+    Change-Id: Iad6c1aa1a3f4b9127dc526b4db473239329780d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563255
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/testing/benchmark.go |  6 +++---
- src/testing/loop_test.go | 10 ++++++----
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ src/math/rand/v2/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

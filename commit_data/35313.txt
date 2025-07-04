@@ -1,52 +1,14 @@
-commit 28edaf4584c4cbfb0ed03692108ebc90db039d17
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Mar 1 11:40:36 2018 -0500
+commit ee59f6dff2c25b39d12b16082343a74c825b5ea1
+Author: JBD <jbd@google.com>
+Date:   Fri Feb 9 01:14:31 2018 +0000
 
-    cmd/compile,test: combine byte loads and stores on ppc64le
+    doc: minor wording improvement to the diagnostics guide
     
-    CL 74410 added rules to combine consecutive byte loads and
-    stores when the byte order was little endian for ppc64le. This
-    is the corresponding change for bytes that are in big endian order.
-    These rules are all intended for a little endian target arch.
-    
-    This adds new testcases in test/codegen/memcombine.go
-    
-    Fixes #22496
-    Updates #24242
-    
-    Benchmark improvement for encoding/binary:
-    name                      old time/op    new time/op    delta
-    ReadSlice1000Int32s-16      11.0µs ± 0%     9.0µs ± 0%  -17.47%  (p=0.029 n=4+4)
-    ReadStruct-16               2.47µs ± 1%    2.48µs ± 0%   +0.67%  (p=0.114 n=4+4)
-    ReadInts-16                  642ns ± 1%     630ns ± 1%   -2.02%  (p=0.029 n=4+4)
-    WriteInts-16                 654ns ± 0%     653ns ± 1%   -0.08%  (p=0.629 n=4+4)
-    WriteSlice1000Int32s-16     8.75µs ± 0%    8.20µs ± 0%   -6.19%  (p=0.029 n=4+4)
-    PutUint16-16                1.16ns ± 0%    0.93ns ± 0%  -19.83%  (p=0.029 n=4+4)
-    PutUint32-16                1.16ns ± 0%    0.93ns ± 0%  -19.83%  (p=0.029 n=4+4)
-    PutUint64-16                1.85ns ± 0%    0.93ns ± 0%  -49.73%  (p=0.029 n=4+4)
-    LittleEndianPutUint16-16    1.03ns ± 0%    0.93ns ± 0%   -9.71%  (p=0.029 n=4+4)
-    LittleEndianPutUint32-16    0.93ns ± 0%    0.93ns ± 0%     ~     (all equal)
-    LittleEndianPutUint64-16    0.93ns ± 0%    0.93ns ± 0%     ~     (all equal)
-    PutUvarint32-16             43.0ns ± 0%    43.1ns ± 0%   +0.12%  (p=0.429 n=4+4)
-    PutUvarint64-16              174ns ± 0%     175ns ± 0%   +0.29%  (p=0.429 n=4+4)
-    
-    Updates made to functions in gcm.go to enable their matching. An existing
-    testcase prevents these functions from being replaced by those in encoding/binary
-    due to import dependencies.
-    
-    Change-Id: Idb3bd1e6e7b12d86cd828fb29cb095848a3e485a
-    Reviewed-on: https://go-review.googlesource.com/98136
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8469fbbb934f096f04ad68c592aacdb805b6d2d4
+    GitHub-Last-Rev: 6d2cfcc23d0d8e6a1b6ca383dae51f0cada2e1b3
+    GitHub-Pull-Request: golang/go#23754
+    Reviewed-on: https://go-review.googlesource.com/92996
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        |    62 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   232 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    77 +-
- src/cmd/compile/internal/ssa/opGen.go        |    98 +-
- src/cmd/compile/internal/ssa/regalloc.go     |     2 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 12026 +++++++++++++++++++++++--
- src/cmd/internal/obj/ppc64/asm9.go           |     2 +
- src/crypto/cipher/gcm.go                     |     2 +
- test/codegen/memcombine.go                   |    16 +-
- 9 files changed, 11707 insertions(+), 810 deletions(-)
+ doc/diagnostics.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

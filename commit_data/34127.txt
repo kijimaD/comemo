@@ -1,14 +1,12 @@
-commit caa7d854c885c2a37b3da5f16e18be4b65cd8e75
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 5 22:31:25 2017 +0000
+commit ec40c7e189182918480099bd73b5c0c73018736c
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Oct 4 13:20:45 2017 -0700
 
-    doc: mention net/http Server Content-Type change
+    doc: add missing "Minor revisions" header for 1.9
     
-    Updates #20784
-    
-    Change-Id: Ic07c78a86da5026e407ac9ecb3117d320c198048
-    Reviewed-on: https://go-review.googlesource.com/82016
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Ib042e472e62f48a6afaba1762beaf102a9b99cf5
+    Reviewed-on: https://go-review.googlesource.com/68290
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.10.html | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/devel/release.html | 2 ++
+ 1 file changed, 2 insertions(+)

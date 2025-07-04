@@ -1,22 +1,43 @@
-commit 10529a01fd8b0d5cc07eb3f6aa00a0272597684b
-Author: Gustav Westling <zegl@westling.xyz>
-Date:   Wed May 9 19:05:46 2018 +0000
+commit b8906889861d0efaf5682a7d26417111eaba3480
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 17 21:42:51 2018 -0800
 
-    encoding/base32: handle NoPadding when using buffered encoding in Close
+    cmd/compile/internal/syntax: implement comment reporting in scanner
     
-    This changes makes encoder.Close aware of how many bytes to write if there
-    is any data left in the buffer.
+    R=go1.11
     
-    Fixes #25295
+    In order to collect comments in the AST and for error testing purposes,
+    the scanner needs to not only recognize and skip comments, but also be
+    able to report them if so desired. This change adds a mode flag to the
+    scanner's init function which controls the scanner behavior around
+    comments.
     
-    Change-Id: I4138891359935509cb561c453b8059ba2b9e576b
-    GitHub-Last-Rev: f374096d2f3cae8635506074f59e1cd440c14844
-    GitHub-Pull-Request: golang/go#25316
-    Reviewed-on: https://go-review.googlesource.com/112515
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In the common case where comments are not needed, there must be no
+    significant overhead. Thus, comments are reported via a handler upcall
+    rather than being returned as a _Comment token (which the parser would
+    have to filter out with every scanner.next() call).
+    
+    Because the handlers for error messages, directives, and comments all
+    look the same (they take a position and text), and because directives
+    look like comments, and errors never start with a '/', this change
+    simplifies the scanner's init call to only take one (error) handler
+    instead of 2 or 3 different handlers with identical signature. It is
+    trivial in the handler to determine if we have an error, directive,
+    or general comment.
+    
+    Finally, because directives are comments, when reporting directives
+    the full comment text is returned now rather than just the directive
+    text. This simplifies the implementation and makes the scanner API
+    more regular. Furthermore, it provides important information about
+    the comment style used by a directive, which may matter eventually
+    when we fully implement /*line file:line:col*/ directives.
+    
+    Change-Id: I2adbfcebecd615e4237ed3a832b6ceb9518bf09c
+    Reviewed-on: https://go-review.googlesource.com/88215
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/base32/base32.go      |  3 ++-
- src/encoding/base32/base32_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go       | 43 ++++++++---
+ src/cmd/compile/internal/syntax/scanner.go      | 94 ++++++++++++++++---------
+ src/cmd/compile/internal/syntax/scanner_test.go | 68 ++++++++++++++++--
+ src/cmd/compile/internal/syntax/source.go       |  9 ++-
+ 4 files changed, 164 insertions(+), 50 deletions(-)

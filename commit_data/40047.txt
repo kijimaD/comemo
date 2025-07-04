@@ -1,27 +1,19 @@
-commit 87e2b34f7bdd997b09f926ccbef6bfd2794d8e2a
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Sep 22 15:39:16 2019 +0200
+commit d91f7e6637cc96029cd5a360a0a74153b39a3ae6
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Mar 28 08:05:43 2019 -0400
 
-    cmd/compile: in prove, learn facts from OpSliceMake
+    runtime: fix GDB tests on s390x running Ubuntu 18.04
     
-    Now that OpSliceMake is called by runtime.makeslice callers,
-    prove can see and record the actual length and cap of each
-    slice being constructed.
+    On Ubuntu 18.04 I am seeing GDB fail to restore the stack pointer
+    during this test because stack unwinding can't find the PC. This CL
+    is essentially a partial revert of CL 23940 and fixes the issue on
+    s390x.
     
-    This small patch is enough to remove 260 additional bound checks
-    from cmd+std.
-    
-    Thanks to Martin Möhrmann for pointing me to CL141822 that
-    I had missed.
-    
-    Updates #24660
-    
-    Change-Id: I14556850f285392051f3f07d13b456b608b64eb9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196784
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ib4c41162dc85dc882eb6e248330f4082c3fa94c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169857
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 27 +++++++++++++++++++++++
- test/prove.go                         | 40 ++++++++++++++++++++++++++++-------
- 2 files changed, 59 insertions(+), 8 deletions(-)
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

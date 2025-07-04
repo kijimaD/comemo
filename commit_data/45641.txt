@@ -1,19 +1,38 @@
-commit 3d324f127dbb916f38d7476e9c4ff106e5d54f99
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu May 13 09:41:45 2021 -0600
+commit 39a5ee52b9b41b1e4f4cf821c78ef5b7be68d181
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 2 19:03:16 2020 +0000
 
-    net/http: prevent infinite wait during TestMissingStatusNoPanic
+    runtime: decouple consistent stats from mcache and allow P-less update
     
-    If the client request never makes it to the server, the outstanding
-    accept is never broken. Change the test to always close the listening
-    socket when the client request completes.
+    This change modifies the consistent stats implementation to keep the
+    per-P sequence counter on each P instead of each mcache. A valid mcache
+    is not available everywhere that we want to call e.g. allocSpan, as per
+    issue #42339. By decoupling these two, we can add a mechanism to allow
+    contexts without a P to update stats consistently.
     
-    Updates #45358
+    In this CL, we achieve that with a mutex. In practice, it will be very
+    rare for an M to update these stats without a P. Furthermore, the stats
+    reader also only needs to hold the mutex across the update to "gen"
+    since once that changes, writers are free to continue updating the new
+    stats generation. Contention could thus only arise between writers
+    without a P, and as mentioned earlier, those should be rare.
     
-    Change-Id: I744a91dfa11704e7e528163d7669c394e90456dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319275
-    Trust: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    A nice side-effect of this change is that the consistent stats acquire
+    and release API becomes simpler.
+    
+    Fixes #42339.
+    
+    Change-Id: Ied74ab256f69abd54b550394c8ad7c4c40a5fe34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267158
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/http/transport_test.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/runtime/mcache.go      | 16 +++-----
+ src/runtime/mgcscavenge.go |  8 +---
+ src/runtime/mgcsweep.go    | 10 ++---
+ src/runtime/mheap.go       | 27 +++----------
+ src/runtime/mstats.go      | 95 +++++++++++++++++++++++++++++-----------------
+ src/runtime/proc.go        |  4 ++
+ src/runtime/runtime2.go    |  8 +++-
+ 7 files changed, 88 insertions(+), 80 deletions(-)

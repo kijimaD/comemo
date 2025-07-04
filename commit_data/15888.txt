@@ -1,12 +1,14 @@
-commit 79ae1ad48911ac6d36105cd5ec38247892f8a10b
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Fri Mar 22 14:54:20 2013 +1100
+commit 0ffdfe42d169bf54ac60240822bb9032648af4c7
+Author: Miki Tebeka <miki.tebeka@gmail.com>
+Date:   Thu Mar 21 20:06:25 2013 -0700
 
-    math: remove repeated comment.
+    cmd/cgo: fix the cgo example on multiple assignment context.
     
-    R=golang-dev, nigeltao
+    Change from atoi to strtol since atoi does not set errno.
+    
+    R=golang-dev, minux.ma, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7835046
+    https://golang.org/cl/7888047
 
- src/pkg/math/sqrt.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,16 @@
-commit 29aac3d91bc0ecc1aa5c03321cc0549dda436a4e
+commit a84e3ad198387019aaef6e979e46e498600ea12f
 Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Jul 9 12:48:55 2014 +0200
+Date:   Wed Jul 9 12:33:42 2014 +0200
 
-    debug/plan9obj: fix test build
+    runtime: use the nsec system call instead of /dev/bintime on Plan 9
     
-    LGTM=0intro, dave
-    R=dave, 0intro
-    CC=golang-codereviews
-    https://golang.org/cl/106560044
+    LGTM=0intro
+    R=0intro
+    CC=ality, dave, golang-codereviews, jas, mischief, rsc
+    https://golang.org/cl/104570043
 
- src/pkg/debug/plan9obj/file_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/os_plan9.c        | 30 +++++++-----------------------
+ src/pkg/runtime/os_plan9.h        |  1 +
+ src/pkg/runtime/sys_plan9_386.s   | 10 ++++++++++
+ src/pkg/runtime/sys_plan9_amd64.s |  5 +++++
+ 4 files changed, 23 insertions(+), 23 deletions(-)

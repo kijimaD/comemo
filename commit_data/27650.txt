@@ -1,21 +1,21 @@
-commit 41dd1696ab13755bf7a129e0c73523ffb9fcbe66
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 7 09:54:09 2016 -0700
+commit a25e368f44941c22406b2f88535ec9e812fd4dba
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Apr 6 18:42:14 2016 +0100
 
-    cmd/compile: fix heap dump test on android
+    test: make goprint.go wait for goroutine termination
     
-    go_android_exec is looking for "exitcode=" to decide the result
-    of running a test.  The heap dump test nondeterministically prints
-    "finalized" right at the end of the test.  When the timing is just
-    right, we print "finalizedexitcode=0" and confuse go_android_exec.
+    Test goprint.go sometimes failed on a slow builder (plan9_arm)
+    because of timing dependency.  Instead of sleeping for a fixed
+    time to allow the child goroutine to finish, wait explicitly for
+    child termination by calling runtime.NumGoroutine until the
+    returned value is 1.
     
-    This failure happens occasionally on the android builders.
+    Fixes #15097
     
-    Change-Id: I4f73a4db05d8f40047ecd3ef3a881a4ae3741e26
-    Reviewed-on: https://go-review.googlesource.com/23861
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ib3ef5ec3c8277083c774542f48bcd4ff2f79efde
+    Reviewed-on: https://go-review.googlesource.com/21603
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/debug/heapdump_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/goprint.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

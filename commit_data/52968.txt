@@ -1,24 +1,20 @@
-commit 1d92e0e3fa6bb79d0679f3dbb47877f4a693deb9
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 21 13:40:58 2023 -0400
+commit 6bad7e82430bb1eb927a2901f44f9664637db27d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 17 13:38:07 2022 -0700
 
-    reflect: change rtype so that it (not *rtype) implements Type
+    compress/gzip: always close bodyReader in Example_compressingReader
     
-    The abi.Type field was changed to *abi.Type, thus the
-    bitwise representation is the same, many casts are now
-    avoided and replace by either rtype{afoo} or rfoo.Type.
+    For #53362
+    Fixes #53414
     
-    Change-Id: Ie7643edc714a0e56027c2875498a4dfe989cf7dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487558
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I352164e70c136eed210c7ee4ceba5dc631f81f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412955
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/reflect/all_test.go       |   6 +-
- src/reflect/benchmark_test.go |   5 +-
- src/reflect/export_test.go    |  12 +--
- src/reflect/makefunc.go       |   2 +-
- src/reflect/type.go           | 233 ++++++++++++++++++++++--------------------
- src/reflect/value.go          |  24 ++---
- 6 files changed, 145 insertions(+), 137 deletions(-)
+ src/compress/gzip/example_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,19 +1,26 @@
-commit 6125d0c4265067cdb67af1340bf689975dd128f4
-Author: komisan19 <komiyama6219@gmail.com>
-Date:   Fri Jul 2 05:41:10 2021 +0000
+commit 88e33f6ecb9ea44a464bd3863f8037bc081b2a6e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 25 14:02:46 2020 -0800
 
-    cmd/dist: correct comment: SysProcAttri -> SysProcAttr
+    [dev.regabi] cmd/compile: fix latent import/export issue with break/continue
     
-    Fixes #46982
+    In CL 145200, I changed OBREAK, OCONTINUE, OGOTO, and OLABEL to just
+    use Sym instead of Node. However, within the export data, I forgot to
+    update the code for OBREAK and OCONTINUE.
     
-    Change-Id: I07a18507b7aad828714b187f296fa7268f32b1c4
-    GitHub-Last-Rev: f498febffdae0bc93ae1794d1ee62b2ef3ecf1bb
-    GitHub-Pull-Request: golang/go#46983
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331869
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This isn't currently an issue because the inliner currently disallows
+    these anyway, but it'll be an issue in the future once we add support
+    for inlining them. Also, Russ independently ran into it in CL 273246.
+    
+    Updates #14768.
+    
+    Change-Id: I94575df59c08a750b0dce1d3ce612aba7bfeeb76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273270
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/iexport.go | 13 ++++++-------
+ src/cmd/compile/internal/gc/iimport.go | 14 ++++----------
+ 2 files changed, 10 insertions(+), 17 deletions(-)

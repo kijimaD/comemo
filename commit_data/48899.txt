@@ -1,24 +1,13 @@
-commit 35f2aba2830483270249d4f34250e38af88bd33d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 25 11:14:48 2022 -0400
+commit c309c89db5aa15e1dad486c49ed4fd1babd23360
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 24 10:44:39 2021 -0700
 
-    os: skip TestRemoveAllRace on dragonfly
+    reflect: document that InterfaceData is a low-entropy RNG
     
-    This test occasionally fails on the dragonfly-amd64 builder with
-    "directory not empty". Since that is the only platform on which we
-    observe these failures, and since the test had a different (and also
-    invalid-looking) failure mode prior to this one (in #50716), we
-    suspect that it is due to either a bug in the platform or a
-    platform-specific Go bug.
-    
-    For #52301.
-    
-    Change-Id: Id36c499651b9c48e6b8b0107d01f73d2a7b6bab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402155
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie26b9060630e2e774ac23d8492eaaf785bfca6b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330709
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/os/os_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/reflect/value.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

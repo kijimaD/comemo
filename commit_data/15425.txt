@@ -1,14 +1,14 @@
-commit 4692711d7f172ab69a9576ffbe753314755f780a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 26 06:33:59 2013 +0800
+commit 93158bf24388bb21cf4102c831a2e8920ffab132
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 26 09:23:34 2013 +1100
 
-    strconv, fmt: clarify behavior of CanBackquote and "%#q".
-    Fixes #4858.
+    doc: document that weekly.html is only a historical reference
     
-    R=golang-dev, bradfitz, r, rsc
+    Fixes #4810.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7387044
+    https://golang.org/cl/7401050
 
- src/pkg/fmt/doc.go       | 3 ++-
- src/pkg/strconv/quote.go | 5 +++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ doc/devel/weekly.html | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

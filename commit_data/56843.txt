@@ -1,19 +1,24 @@
-commit f214a760754ac0584999fb8098ce6172181ed791
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Mon Jun 24 11:45:12 2024 -0400
+commit aa99c4d2925e3628460482db8657765880e6836c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 24 07:10:17 2023 -0400
 
-    cmd/vendor: vendor x/telemetry@38a4430
+    cmd/go: handle queries properly in go install m@v
     
-    For #68109
+    The original code only handled go install m@v1.0.0
+    but not queries like go install m@v1 or m@master.
+    Handle those by invoking more of the module machinery.
     
-    Change-Id: I73a3d23dd6c15ff4954ebe7a52c6c308fea947ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593684
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    For #57001.
+    
+    Change-Id: I7d54fc3dd65072e5906a17ff95b407b0f7feac69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497879
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                                |  2 +-
- src/cmd/go.sum                                                |  2 ++
- .../golang.org/x/telemetry/internal/telemetry/proginfo.go     | 11 +++++++----
- src/cmd/vendor/modules.txt                                    |  2 +-
- 4 files changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/go/gotoolchain.go                         | 62 +++++++----------------
+ src/cmd/go/internal/modload/init.go               | 14 +++++
+ src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt |  4 ++
+ src/cmd/go/testdata/script/gotoolchain.txt        | 13 +++++
+ 4 files changed, 50 insertions(+), 43 deletions(-)

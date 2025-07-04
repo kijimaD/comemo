@@ -1,56 +1,27 @@
-commit 4826abb6c2f391a9fb26c83d8ec4d6bc7cc6dc1a
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Nov 30 10:41:46 2020 +0100
+commit 07d9ea64abf9f98c525155f4f22776512d4d835d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Apr 28 09:32:00 2020 +1000
 
-    cmd/compile: do not assume TST and TEQ set V on arm
+    image: guard against NewXxx integer overflow
     
-    These replacement rules assume that TST and TEQ set V. But TST and
-    TEQ do not set V. This is a problem because instructions like LT are
-    actually checking for N!=V. But with TST and TEQ not setting V, LT
-    doesn't do anything meaningful. It's possible to construct trivial
-    miscompilations from this, such as:
+    Prior to this commit, NewXxx could panic when passed an image.Rectangle
+    with one of width or height being negative. But it might not panic if
+    both were negative, because (bpp * w * h) could still be positive. After
+    this commit, it will panic if both are negative.
     
-        package main
+    With overflow, NewXxx might not have panicked if (bpp * w * h), the
+    length passed to "make([]uint8, length)", was still non-negative (after
+    truncation), but even if w and h were valid (non-negative), the overall
+    byte slice wasn't long enough. Iterating over the pixels would possibly
+    panic later with index out of bounds. This change moves the panic
+    earlier, closer to where the mistake is.
     
-        var x = [4]int32{-0x7fffffff, 0x7fffffff, 2, 4}
-    
-        func main() {
-            if x[0] > x[1] {
-                panic("fail 1")
-            }
-            if x[2]&x[3] < 0 {
-                panic("fail 2") // Fails here
-            }
-        }
-    
-    That first comparison sets V, via the CMP that subtracts the values
-    causing the overflow. Then the second comparison operation thinks that
-    it uses the result of TST, when it actually uses the V from CMP.
-    
-    Before this fix:
-    
-        TST             R0, R1
-        BLT             loc_6C164
-    
-    After this fix:
-    
-        TST             R0, R1
-        BMI             loc_6C164
-    
-    The BMI instruction checks the N flag, which TST sets.  This commit
-    fixes the issue by using [LG][TE]noov instead of vanilla [LG][TE], and
-    also adds a test case for the direct issue.
-    
-    Fixes #42876.
-    
-    Change-Id: I13c62c88d18574247ad002b671b38d2d0b0fc6fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274026
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I011feb2d53515fc3f0fe72bb6c23b3953772c577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230220
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 128 ++++++------
- src/cmd/compile/internal/ssa/rewriteARM.go | 306 ++++++++++++++---------------
- test/fixedbugs/issue42876.go               |  18 ++
- 3 files changed, 235 insertions(+), 217 deletions(-)
+ src/image/geom.go       | 35 ++++++++++++++++++
+ src/image/image.go      | 96 +++++++++++++++++++++++++++++++++----------------
+ src/image/image_test.go | 72 +++++++++++++++++++++++++++++++++++++
+ src/image/ycbcr.go      | 20 +++++++++++
+ 4 files changed, 193 insertions(+), 30 deletions(-)

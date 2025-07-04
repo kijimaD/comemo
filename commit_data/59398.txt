@@ -1,19 +1,17 @@
-commit f760e1fe494681297c5f050b646b5bcde9c71662
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Apr 28 23:28:20 2025 -0400
+commit 07b4fee5810005357ba64d2934de90dee244f51d
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 8 02:59:26 2024 +0000
 
-    cmd/api: skip 3 non-TestCheck tests in -check mode
+    cmd/link: fix typo in comment
     
-    TestIssue64958 takes a while, so it's not worth running both without
-    and with -check flag. The others are fast, but there's still no good
-    reason to run anything but TestCheck when the -check flag is on.
-    
-    Change-Id: I13ebb90e3c863006f21441909b05364e1b316ed6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668656
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ib24841f4823c357ddeefa28435c2b80867d752d2
+    GitHub-Last-Rev: b0c6c58b24af43b0a0e759b152eb245b3bf1ce4e
+    GitHub-Pull-Request: golang/go#66182
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570015
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/api/api_test.go | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/link/link_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

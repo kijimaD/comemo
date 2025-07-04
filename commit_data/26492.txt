@@ -1,23 +1,19 @@
-commit f045ca8d45c1f06312a022e40677eec3fc2e0ed3
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 16:03:07 2016 +0100
+commit e3f3f940a09ee99e952be43fd3b19c969cf229d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 15:58:52 2016 -0500
 
-    misc/ios: serialize iOS execution
+    runtime/cgo: add cgo build tag to C files
     
-    The iOS exec wrapper use complicated machinery to run a iOS binary
-    on a device.
-    Running several binaries concurrently doesn't work (reliably), which
-    can break tests running concurrently. For my setup, the
-    runtime:cpu124 and sync_cpu tests can't run reliably without one of them
-    crashing.
+    This makes "CGO_ENABLED=0 go list runtime/cgo" work,
+    which fixes the current cmd/go test failure.
     
-    Add a file lock to the exec wrapper to serialize execution.
-    
-    Fixes #14318 (for me)
-    
-    Change-Id: I023610e014b327f8d66f1d2fd2e54dd0e56f2be0
-    Reviewed-on: https://go-review.googlesource.com/21074
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ia55ce3ba1dbb09f618ae5f4c8547722670360f59
+    Reviewed-on: https://go-review.googlesource.com/19001
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/runtime/cgo/gcc_darwin_amd64.c | 2 ++
+ src/runtime/cgo/gcc_libinit.c      | 1 +
+ src/runtime/cgo/gcc_setenv.c       | 1 +
+ src/runtime/cgo/gcc_util.c         | 2 ++
+ 4 files changed, 6 insertions(+)

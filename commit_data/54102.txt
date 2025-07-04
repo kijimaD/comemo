@@ -1,42 +1,20 @@
-commit ba7ba9bcc0e755f2c072d308e1c9f79bb2564e03
-Author: j178 <sherlockjoe8@gmail.com>
-Date:   Fri Aug 18 12:04:35 2023 +0800
+commit eab78849fc24f890836d00c04b495e64d4fe4187
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 19 10:50:11 2022 +0200
 
-    errors: optimize Is and As by reusing reflection of target
+    cmd/go/internal, go/build: remove unused errGoBuildWithoutBuild
     
-    goos: darwin
-    goarch: amd64
-    pkg: errors
-    cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-            │     old     │                 new                 │
-            │   sec/op    │   sec/op     vs base                │
-    Is-12     133.4n ± 0%   126.8n ± 3%   -4.91% (p=0.001 n=10)
-    As-12     464.1n ± 1%   307.2n ± 0%  -33.80% (p=0.000 n=10)
-    geomean   248.8n        197.4n       -20.66%
+    Last use was removed by CL 240607.
     
-            │    old     │                 new                 │
-            │    B/op    │    B/op     vs base                 │
-    Is-12     24.00 ± 0%   24.00 ± 0%       ~ (p=1.000 n=10) ¹
-    As-12     40.00 ± 0%   40.00 ± 0%       ~ (p=1.000 n=10) ¹
-    geomean   30.98        30.98       +0.00%
-    ¹ all samples are equal
-    
-            │    old     │                 new                 │
-            │ allocs/op  │ allocs/op   vs base                 │
-    Is-12     1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
-    As-12     2.000 ± 0%   2.000 ± 0%       ~ (p=1.000 n=10) ¹
-    geomean   1.414        1.414       +0.00%
-    ¹ all samples are equal
-    
-    Change-Id: I0844f3ab77e63b5f773594157dcffaffffd5e70d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520756
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icfe9e477c6035823bd676a2ff28e1ac202dd991e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431662
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/errors/wrap.go      | 19 +++++++++++++++----
- src/errors/wrap_test.go | 21 +++++++++++++++++++++
- 2 files changed, 36 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/imports/build.go  | 3 +--
+ src/cmd/go/internal/modindex/build.go | 3 +--
+ src/go/build/build.go                 | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

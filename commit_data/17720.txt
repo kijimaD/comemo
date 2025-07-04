@@ -1,25 +1,16 @@
-commit 6b188ef57a644838bd4c673d6d14b49879db6297
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Oct 1 23:44:20 2013 -0400
+commit 57f69710d5d0f8fb24bb07aa3ce83f98077d9112
+Author: Dave Day <djd@golang.org>
+Date:   Tue Oct 1 20:44:57 2013 -0400
 
-    cmd/dist, build: support building statically linked toolchain
+    cmd/go: use -installsuffix to determine the includes directory list
     
-    Added a new $GO_DISTFLAGS to make.bash, and while we're here,
-    added mention $CXX in make.bash (CL 13704044).
+    Currently, the directories generaed by includeArgs can have the "_race"
+    suffix added if invoked with -race flag, but ignores -installsuffix if
+    set.
     
-    Fixes #6448.
-    Update #3564
-    We can pass GO_DISTFLAGS=-s from misc/dist to make.bash so that
-    it will build a statically linked toolchain.
-    (Note: OS X doesn't have the concept of static linking, so don't
-    pass GO_DISTFLAGS=-s for OS X builds)
-    
-    R=adg, rsc, iant
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/13887043
+    https://golang.org/cl/14174043
 
- src/cmd/dist/a.h     | 1 +
- src/cmd/dist/build.c | 8 ++++++++
- src/cmd/dist/main.c  | 1 +
- src/make.bash        | 7 ++++++-
- 4 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

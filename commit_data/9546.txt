@@ -1,21 +1,25 @@
-commit 58b05e24482fc206c9473b01dd06c59464cc0b2b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Aug 30 09:37:22 2011 +1000
+commit 596bf61d6cb19d0d39c0adb5c210932279fc795d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 29 12:46:32 2011 -0700
 
-    goinstall: select the tag that is closest to runtime.Version
+    json: add struct tag option to wrap literals in strings
     
-    release.r50 looks for newest tag <= go.r50
-    weekly.2010-10-10 looks for newest tag <= go.2010-10-10
+    Since JavaScript doesn't have [u]int64 types, some JSON APIs
+    encode such types as strings to avoid losing precision.
     
-    Implements behavior for hg, git, and bzr.
+    This adds a new struct tag option ",string" to cause
+    fields to be wrapped in JSON strings on encoding
+    and unwrapped from strings when decoding.
     
-    R=dsymonds, rsc, n13m3y3r
+    R=rsc, gustavo
     CC=golang-dev
-    https://golang.org/cl/4873057
+    https://golang.org/cl/4918051
 
- src/cmd/goinstall/Makefile    |   6 ++
- src/cmd/goinstall/doc.go      |   7 +-
- src/cmd/goinstall/download.go | 223 ++++++++++++++++++++++++++----------------
- src/cmd/goinstall/tag_test.go |  73 ++++++++++++++
- src/pkg/Makefile              |   1 -
- 5 files changed, 224 insertions(+), 86 deletions(-)
+ src/pkg/json/Makefile       |  1 +
+ src/pkg/json/decode.go      | 32 +++++++++++++-----------
+ src/pkg/json/decode_test.go |  5 ++++
+ src/pkg/json/encode.go      | 59 +++++++++++++++++++++++++++++++--------------
+ src/pkg/json/encode_test.go | 38 +++++++++++++++++++++++++++++
+ src/pkg/json/tags.go        | 44 +++++++++++++++++++++++++++++++++
+ src/pkg/json/tags_test.go   | 28 +++++++++++++++++++++
+ 7 files changed, 175 insertions(+), 32 deletions(-)

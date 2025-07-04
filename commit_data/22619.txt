@@ -1,26 +1,31 @@
-commit 918fdae3482b203565aef4d37cee05bf1b46431d
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Tue Jan 27 10:04:11 2015 +0100
+commit 7b2b45e544140aa51d335b09f11b4baf84e3be18
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 26 23:26:45 2015 +0900
 
-    reflect: implement ArrayOf
+    net: simplify test helpers
     
-    This change exposes reflect.ArrayOf to create new reflect.Type array
-    types at runtime, when given a reflect.Type element.
+    This change consolidates test helpers that test platform capabilities.
+    testNetwork, testAddress and testListenArgs report whether given
+    ariguments are testable on the current platform configuration to
+    mitigate to receive weird test results.
     
-    - reflect: implement ArrayOf
-    - reflect: tests for ArrayOf
-    - runtime: document that typeAlg is used by reflect and must be kept in
-      synchronized
-    
-    Fixes #5996.
-    
-    Change-Id: I5d07213364ca915c25612deea390507c19461758
-    Reviewed-on: https://go-review.googlesource.com/4111
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie1ed568a1f9cc50f3155945ea01562904bc2c389
+    Reviewed-on: https://go-review.googlesource.com/8076
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go    | 243 ++++++++++++++++++++++++++++++++++++++++++---
- src/reflect/export_test.go |   1 -
- src/reflect/type.go        |  88 ++++++++++++----
- src/reflect/value.go       |   6 ++
- src/runtime/alg.go         |   2 +
- 5 files changed, 307 insertions(+), 33 deletions(-)
+ src/net/conn_test.go       |  21 +----
+ src/net/file_test.go       |  91 ++++++++-----------
+ src/net/ipraw_test.go      |  29 ++----
+ src/net/iprawsock.go       |   7 ++
+ src/net/iprawsock_posix.go |   7 --
+ src/net/net_test.go        |  10 +--
+ src/net/packetconn_test.go |  49 +++-------
+ src/net/platform_test.go   | 137 ++++++++++++++++++++++++++++
+ src/net/protoconn_test.go  |  27 +-----
+ src/net/server_test.go     | 220 ++++++++++++++++++---------------------------
+ src/net/tcpsock.go         |   7 ++
+ src/net/tcpsock_posix.go   |   7 --
+ src/net/udpsock.go         |   7 ++
+ src/net/udpsock_posix.go   |   7 --
+ src/net/unix_test.go       |  25 +++---
+ 15 files changed, 327 insertions(+), 324 deletions(-)

@@ -1,19 +1,20 @@
-commit f33e8f66980dc6d09f54e032266043beb2dbb75e
-Author: fangguizhen <1297394526@qq.com>
-Date:   Mon Jan 16 17:46:20 2023 +0000
+commit 4f8094386c3c015f6b6f3efc3a002d188433d388
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 3 15:13:11 2022 -0500
 
-    time: no need to wrap error with errors.New
+    cmd/go: error out of 'go work use' if no directories are given
     
-    Change-Id: Ibd519ed6419f8f21c89a111a0326d0788aca9d19
-    GitHub-Last-Rev: 45e3224f9afef57f49eebf3cbdf6b1d01cfd7346
-    GitHub-Pull-Request: golang/go#57819
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462046
+    Otherwise, the behavior of 'go work use -r' (without arguments)
+    may be surprising.
+    
+    Change-Id: I50cf1339591720ec5bd333146b89c9944ce420d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389855
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/time/tick.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/go/alldocs.go                          |  2 +-
+ src/cmd/go/internal/workcmd/use.go             |  5 ++++-
+ src/cmd/go/testdata/script/work_use_noargs.txt | 11 +++++++++++
+ 3 files changed, 16 insertions(+), 2 deletions(-)

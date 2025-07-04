@@ -1,12 +1,14 @@
-commit 8521811cdeeba5ed2c992e0eb1aae0f71da2b037
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Mar 20 14:59:51 2012 +1100
+commit 351213ce92d3e3ebf6546a332ae873a43da667a6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 20 14:53:18 2012 +1100
 
-    run.bat: disable test in test\bench\go1 to fix build
+    api: update go1.txt after adding functions to html/template
+    Fixes build, teaches lesson.
     
     R=golang-dev, r
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5848066
+    https://golang.org/cl/5853051
 
- src/run.bat | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ api/go1.txt | 8 ++++++++
+ 1 file changed, 8 insertions(+)

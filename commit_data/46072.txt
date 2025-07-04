@@ -1,19 +1,35 @@
-commit 0c83e01e0c1df712002af8bded845fbca9677ffa
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Aug 18 09:03:44 2021 +0200
+commit d9cb84c84bb0edc1afb782f99de4cc424ac0d23f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 3 16:52:45 2020 -0800
 
-    cmd/go/testdata/script: fix test script added by CL 334873
+    [dev.regabi] cmd/compile: add SameSource, Uses, and DeclaredBy helpers
     
-    CL 334873 added the net/http import to the wrong section in
-    test_vet.txt. Correct this to fix the longtest builders.
+    Currently, because we use the same *Name to represent both declaration
+    and uses of an object, it's ambiguous what "n1 == n2" means when
+    comparing two Node values. It can mean any of: Are these the same
+    syntactic element? Is n1 a use of declared variable n2? Are n1 and n2
+    both uses of the same declared variable?
     
-    Change-Id: If28409ad1c2ed3bd3a2922fc20d5e534c30fa249
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343169
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    We'd like to introduce a new IdentExpr node to replace use of Name
+    within the AST, but that means those three cases need to be handled
+    differently. The first case needs to stay "n1 == n2", but the other
+    cases need to become "n1.Name() == n2" and "n1.Name() == n2.Name()",
+    respectively. ("n1.Name() == n2.Name()" also currently works for the
+    second case, but eventually we'll want to get rid of the Name.Name
+    method.)
+    
+    This CL introduces helper functions SameSource and Uses to handle
+    these cases. It also introduces DeclaredBy, which is another somewhat
+    common case that the next CL introduces uses of.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Updates #42990.
+    
+    Change-Id: Ia816c124446e9067645d5820a8163f295968794f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275305
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/test_vet.txt | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/name.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

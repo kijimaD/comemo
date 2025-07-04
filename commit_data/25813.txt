@@ -1,19 +1,21 @@
-commit 5dc053b9dec4dc25fac195065ad32462ac28a543
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Feb 21 10:46:59 2016 +0100
+commit 1cb53ce36bc8b69e2f3ed9113d3b0f1d9d0d1405
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 24 14:29:06 2015 +1100
 
-    fmt: fix zero padding for NaN
+    runtime: fix handling VirtualAlloc failure in sysUsed
     
-    Makes zero padding of NaN and infinities consistent
-    by using spaces instead of zeroes to pad NaN.
-    Adds more tests for NaN formatting.
+    Original code is mistakenly panics on VirtualAlloc failure - we want
+    it to go looking for smaller memory region that VirtualAlloc will
+    succeed to allocate. Also return immediately if VirtualAlloc succeeds.
+    See rsc comment on issue #12587 for details.
     
-    Fixes #14421
+    I still don't have a test for this. So I can only hope that this
     
-    Change-Id: Ia20f8e878cc81ac72a744ec10d65e84b94e09c6a
-    Reviewed-on: https://go-review.googlesource.com/19723
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #12587
+    
+    Change-Id: I052068ec627fdcb466c94ae997ad112016f734b7
+    Reviewed-on: https://go-review.googlesource.com/17169
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/fmt/fmt_test.go | 11 ++++++++++-
- src/fmt/format.go   |  8 ++++++--
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/runtime/mem_windows.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

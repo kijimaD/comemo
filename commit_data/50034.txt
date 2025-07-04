@@ -1,19 +1,18 @@
-commit 2cc6983a2103d64cd33a0fb67dc7ea2adcac3ba8
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 18 19:15:20 2022 +0200
+commit 4a8995179edc48bf37aacc80703287c4c6b2e8e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 09:45:24 2021 -0700
 
-    runtime/pprof: report MaxRSS on windows
+    cmd/compile/internal/types2: add a NewSignatureType constructor accepting type parameters
     
-    Use GetProcessMemoryInfo to report MaxRSS in memory profiles on windows.
+    This is a clean port of CL 352615 from go/types to types2 with
+    renames from types -> types2.
     
-    Change-Id: I4ac5fe58961b1d5da8a5c1caa8a6e3d0a3281837
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424414
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib9bae3fd8b93c3bd6c56e4e039a296cb34b0eb47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352869
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/pprof/pprof_norusage.go |  2 +-
- src/runtime/pprof/pprof_windows.go  | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go | 21 ++++++++++-----------
+ src/cmd/compile/internal/types2/signature.go | 26 +++++++++++++++++++++++++-
+ 2 files changed, 35 insertions(+), 12 deletions(-)

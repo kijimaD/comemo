@@ -1,14 +1,14 @@
-commit 40bc0a77096be97fb7cf55e767b22d7babcc000b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 11 21:30:09 2018 +0000
+commit 5526ef1c51eaebe0f9d0ca0ae883f8389ccccaeb
+Author: Daniel Nephin <dnephin@gmail.com>
+Date:   Sat Mar 24 17:33:16 2018 +0000
 
-    doc: mention that *_js.go files are now ignored and treated like a GOOS
+    cmd/test2json: document missing "skip" action
     
-    Fixes #26329
-    
-    Change-Id: Id87fd106e69d3d9682653eb753b1de616adeed2b
-    Reviewed-on: https://go-review.googlesource.com/123416
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I906e61170279f0647598e2fd4fa931aac1b69288
+    GitHub-Last-Rev: f6df43e8e10e3b032a67490611c0ba5ad8e948df
+    GitHub-Pull-Request: golang/go#24517
+    Reviewed-on: https://go-review.googlesource.com/102396
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/test2json/main.go | 1 +
+ 1 file changed, 1 insertion(+)

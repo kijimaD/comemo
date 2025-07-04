@@ -1,17 +1,19 @@
-commit 1cdd9b407db0f842387dc5e4f18e6563dcd87b18
+commit 22be4bfdbf8100cfff28c4053dcfd35370917993
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 6 09:36:51 2014 -0500
+Date:   Mon Oct 20 12:16:46 2014 -0400
 
-    os: document that users of Fd should keep f alive
+    regexp: fix TestOnePassCutoff
     
-    Fixes #9046.
+    The stack blowout can no longer happen,
+    but we can still test that too-complex regexps
+    are rejected.
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/162680043
+    Replacement for CL 162770043.
+    
+    LGTM=iant, r
+    R=r, iant
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/162860043
 
- src/os/file_plan9.go   | 3 ++-
- src/os/file_unix.go    | 1 +
- src/os/file_windows.go | 1 +
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ src/regexp/all_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

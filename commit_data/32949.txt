@@ -1,37 +1,16 @@
-commit ec3b6131de8f9c9c25283260c95c616c74f6d790
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 4 13:24:49 2017 -0400
+commit eb86abaa36097971d1cd52c1479da246f2b49073
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 15 13:52:13 2017 -0700
 
-    net/smtp: fix PlainAuth to refuse to send passwords to non-TLS servers
+    cmd/compile: better error for malformed packages
     
-    PlainAuth originally refused to send passwords to non-TLS servers
-    and was documented as such.
+    Fixes #14270.
     
-    In 2013, issue #5184 was filed objecting to the TLS requirement,
-    despite the fact that it is spelled out clearly in RFC 4954.
-    The only possibly legitimate use case raised was using PLAIN auth
-    for connections to localhost, and the suggested fix was to let the
-    server decide: if it advertises that PLAIN auth is OK, believe it.
-    That approach was adopted in CL 8279043 and released in Go 1.1.
-    
-    Unfortunately, this is exactly wrong. The whole point of the TLS
-    requirement is to make sure not to send the password to the wrong
-    server or to a man-in-the-middle. Instead of implementing this rule,
-    CL 8279043 blindly trusts the server, so that if a man-in-the-middle
-    says "it's OK, you can send me your password," PlainAuth does.
-    And the documentation was not updated to reflect any of this.
-    
-    This CL restores the original TLS check, as required by RFC 4954
-    and as promised in the documentation for PlainAuth.
-    It then carves out a documented exception for connections made
-    to localhost (defined as "localhost", "127.0.0.1", or "::1").
-    
-    Change-Id: I1d3729bbd33aa2f11a03f4c000e6bb473164957b
-    Reviewed-on: https://go-review.googlesource.com/68170
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iaf2496a24b1aba443391b90951cef472add73f13
+    Reviewed-on: https://go-review.googlesource.com/45950
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/smtp/auth.go      | 33 ++++++++++++++++++---------------
- src/net/smtp/smtp_test.go | 32 ++++++++++++++++++++++----------
- 2 files changed, 40 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

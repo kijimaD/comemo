@@ -1,14 +1,27 @@
-commit 88bbf4f1dff08507bb860bbf81219f34dce9eb83
+commit 710028d3a4400d1ab24a5b8a08cafdb0359dbafc
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 7 13:06:02 2011 -0400
+Date:   Thu Apr 7 13:03:06 2011 -0400
 
-    codereview: fix clpatch
+    codereview: drop Author: line on self-clpatch
     
-    I love Python.  Write once, crash anywhere.
+    Right now if a Go developer makes a patch on one machine
+    and then clpatches it onto another machine, changes
+    subsequently made to the description are kept only
+    locally, under the assumption that you are running
+    clpatch because someone else wrote the CL, so you
+    don't have permission to update the web.
     
-    TBR=r
+    This change makes clpatch discard the "this was a
+    clpatch" information from the metadata when you
+    clpatch your own CLs from one machine to another.
+    
+    This should eliminate some confusion (for example
+    in CL 4314054) but will no doubt introduce other
+    confusion.
+    
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4382043
+    https://golang.org/cl/4387041
 
- lib/codereview/codereview.py | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ lib/codereview/codereview.py | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

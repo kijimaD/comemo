@@ -1,28 +1,32 @@
-commit e7d59ed204bbb0e70fe1898abb1b82fdf7c25a1f
-Author: Sameer Ajmani <sameer@google.com>
-Date:   Wed Mar 29 17:47:50 2023 -0400
+commit 1efe38750a1f29c946fde694738c4ba2ed48ff98
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat May 7 13:58:24 2022 +0800
 
-    context: clean up test files
+    cmd/compile: teach prove about and operation
     
-    Tests in package context cannot depend directly on package testing due to an import cycle.
-    We resolved this by having test functions in package context_test (x_test.go) forward to
-    test functions in package context (context_test.go). This is fragile, since it's easy
-    to add a test to context_test.go and forget to add the forwarding function, and tests
-    written in this way cannot easily use testing package features like t.Run for subtests.
+    For this code:
+    z &= 63
+    _ = x<<z | x>>(64-z)
+    Now can prove 'x<<z' in bound. In ppc64 lowering pass, it will not
+    produce an extra '(ANDconst <typ.Int64> [63] z)' causing
+    codegen/rotate.go failed. Just remove the type check in rewrite rules
+    as the workaround.
     
-    It turns out that only four test functions actually use unexported members of package
-    context. This CL moves all except those four to x_test.go and makes them regular tests.
-    It also updates TestCause to use t.Run and t.Parallel to parallelize its test cases.
-    It also adds documentation indicating when tests should be added to each file.
+    Removes 32 bounds checks during make.bat.
     
-    Change-Id: Ic60bae32a7a44e07831b5388c9af219d53ba9af3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480375
+    Fixes #52563.
+    
+    Change-Id: I14ed2c093ff5638dfea7de9bc7649c0f756dd71a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404315
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Sameer Ajmani <sameer@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/context/context_test.go | 794 +-----------------------------------------
- src/context/example_test.go |   2 -
- src/context/x_test.go       | 830 ++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 813 insertions(+), 813 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 28 ++++++++--------
+ src/cmd/compile/internal/ssa/prove.go        |  3 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 48 ++++++++++++++--------------
+ test/prove.go                                |  8 +++++
+ 4 files changed, 49 insertions(+), 38 deletions(-)

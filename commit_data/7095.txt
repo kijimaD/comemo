@@ -1,22 +1,18 @@
-commit 3a052b5f549398f8159d1bb7d2be90ac4ca340b6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jan 12 15:55:17 2011 +1100
+commit a80cdcbe0a7e5baf69a0f298bb729630b345dcf0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 17:56:45 2011 -0800
 
-    net: use closesocket api instead of CloseHandle on Windows
-    
-    thanks to piotrnar for the original CL.
-    Fixes #1371.
+    gob: make (en|dec)code(Ui|I)nt methods rather than functions.
+    No functional (ha!) change.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3834042
+    https://golang.org/cl/3959041
 
- src/pkg/net/fd.go                       |  4 +++
- src/pkg/net/fd_windows.go               | 63 ++++++++++++++-------------------
- src/pkg/net/ipsock.go                   |  2 +-
- src/pkg/net/sock.go                     |  6 ++--
- src/pkg/net/tcpsock.go                  |  2 +-
- src/pkg/net/unixsock.go                 |  2 +-
- src/pkg/syscall/syscall_windows.go      |  1 +
- src/pkg/syscall/zsyscall_windows_386.go | 15 ++++++++
- 8 files changed, 53 insertions(+), 42 deletions(-)
+ src/pkg/gob/codec_test.go | 12 ++++-----
+ src/pkg/gob/debug.go      | 28 +++++++++----------
+ src/pkg/gob/decode.go     | 66 ++++++++++++++++++++++-----------------------
+ src/pkg/gob/decoder.go    |  4 +--
+ src/pkg/gob/encode.go     | 68 +++++++++++++++++++++++------------------------
+ src/pkg/gob/encoder.go    |  6 ++---
+ 6 files changed, 92 insertions(+), 92 deletions(-)

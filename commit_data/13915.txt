@@ -1,16 +1,40 @@
-commit 3cd890dd5a8e5be33ce6f65ab7690ba0e1c235ef
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 00:06:31 2012 -0400
+commit 9050550c12e2d09cf8f0c22a270cfa90120cdf6d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 24 13:23:15 2012 +1000
 
-    test: minor fixes in run and testlib
+    text/template: allow .Field access to parenthesized expressions
     
-    Can tell this doesn't get run very often, but it is still important
-    for when you've broken everything else.
+    Change the grammar so that field access is a proper operator.
+    This introduces a new node, ChainNode, into the public (but
+    actually internal) API of text/template/parse. For
+    compatibility, we only use the new node type for the specific
+    construct, which was not parseable before. Therefore this
+    should be backward-compatible.
     
-    R=golang-dev, r
+    Before, .X.Y was a token in the lexer; this CL breaks it out
+    into .Y applied to .X. But for compatibility we mush them
+    back together before delivering. One day we might remove
+    that hack; it's the simple TODO in parse.go/operand.
+    
+    This change also provides grammatical distinction between
+            f
+    and
+            (f)
+    which might permit function values later, but not now.
+    
+    Fixes #3999.
+    
+    R=golang-dev, dsymonds, gri, rsc, mikesamuel
     CC=golang-dev
-    https://golang.org/cl/6547065
+    https://golang.org/cl/6494119
 
- test/run     | 2 ++
- test/testlib | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/html/template/escape_test.go      |   5 +
+ src/pkg/text/template/doc.go              |   4 +-
+ src/pkg/text/template/exec.go             |  19 +++-
+ src/pkg/text/template/exec_test.go        |  23 +++++
+ src/pkg/text/template/parse/lex.go        |  64 ++++++++++---
+ src/pkg/text/template/parse/lex_test.go   |  34 +++++--
+ src/pkg/text/template/parse/node.go       |  51 +++++++++-
+ src/pkg/text/template/parse/parse.go      | 149 +++++++++++++++++++-----------
+ src/pkg/text/template/parse/parse_test.go |   7 +-
+ 9 files changed, 268 insertions(+), 88 deletions(-)

@@ -1,24 +1,26 @@
-commit 360600b1d20bc4b421217435d921a2437be07893
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Sat Jan 25 10:28:02 2025 -0800
+commit 5038ce82b628e195af703168422e139e7faf1485
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 30 06:09:57 2024 +0700
 
-    crypto/tls: replace custom intern cache with weak cache
+    cmd/compile: add missing OASOP case in mayModifyPkgVar
     
-    Uses the new weak package to replace the existing custom intern cache
-    with a map of weak.Pointers instead. This simplifies the cache, and
-    means we don't need to store a slice of handles on the Conn anymore.
+    CL 395541 made staticopy safe, stop applying the optimization once
+    seeing an expression that may modify global variables. However, it
+    misses the case for OASOP expression, causing the static init
+    mis-recognizes the modification and think it's safe.
     
-    Change-Id: I5c2bf6ef35fac4255e140e184f4e48574b34174c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644176
-    TryBot-Bypass: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Fixing this by adding missing OASOP case.
+    
+    Fixes #66585
+    
+    Change-Id: I603cec018d3b5a09825c14e1f066a0e16f8bde23
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575216
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/tls/cache.go                   | 93 +++++++------------------------
- src/crypto/tls/cache_test.go              | 72 ++++--------------------
- src/crypto/tls/conn.go                    |  3 -
- src/crypto/tls/handshake_client.go        | 10 +---
- src/crypto/tls/handshake_client_tls13.go  |  1 -
- src/crypto/tls/handshake_messages_test.go |  4 --
- src/crypto/tls/ticket.go                  | 46 +++++++--------
- 7 files changed, 57 insertions(+), 172 deletions(-)
+ src/cmd/compile/internal/staticinit/sched.go |  6 ++++++
+ test/fixedbugs/issue66585.go                 | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

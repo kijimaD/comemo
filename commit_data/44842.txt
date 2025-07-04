@@ -1,16 +1,19 @@
-commit 24764496c7f7f58867a46aec7192b9425a3fea08
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 29 11:32:50 2021 -0700
+commit 565ad134c994b7a831e1bea336fdc64f0aeefc85
+Author: chainhelen <chainhelen@gmail.com>
+Date:   Tue Sep 8 03:36:19 2020 +0000
 
-    go/types: remove outdated comment
+    runtime: make PCDATA_RegMapUnsafe more clear and remove magic number
     
-    dev.typeparams is not used anymore for active development.
-    
-    Change-Id: Ic773cbc70e3532375d75b6c6caa31f55f7c733b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305569
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ibf3ee755c3fbec03a9396840dc92ce148c49d9f7
+    GitHub-Last-Rev: 945d8aaa136003dc381c6aa48bff9ea7ca2c6991
+    GitHub-Pull-Request: golang/go#41262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253377
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/errorcodes.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/internal/objabi/funcdata.go | 2 +-
+ src/runtime/debugcall.go            | 2 +-
+ src/runtime/preempt.go              | 2 +-
+ src/runtime/symtab.go               | 3 +++
+ 4 files changed, 6 insertions(+), 3 deletions(-)

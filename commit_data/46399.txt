@@ -1,19 +1,23 @@
-commit 1a708bcf1d17171056a42ec1597ca8848c854d2a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 9 14:42:42 2021 -0700
+commit fbc4458c068459940c63952bcc6a697728f508fc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 22:00:53 2020 -0800
 
-    cmd/compile: don't crash while reporting invalid alias cycle
+    [dev.regabi] cmd/compile: simplify some tree traversal code
     
-    Add a missing nil check in the formatting code for expression
-    nodes. Matches the nil checks in the same code.
+    When looking for referenced functions within bottomUpVisitor and
+    initDeps, the logic for ODOTMETH, OCALLPART, and OMETHEXPR are
+    basically identical, especially after previous refactorings to make
+    them use MethodExprName. This CL makes them exactly identical.
     
-    Fixes #48301.
+    Passes toolstash -cmp.
     
-    Change-Id: Ia9bfd3535254a94996ee190b544d95e15433d252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348740
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1f59c9be99aa9484d0397a0a6fb8ddd894a31c68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280441
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/fmt.go |  2 +-
- test/fixedbugs/issue48301.go       | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/scc.go            | 49 ++++++++-------------------
+ src/cmd/compile/internal/pkginit/initorder.go |  6 +---
+ 2 files changed, 15 insertions(+), 40 deletions(-)

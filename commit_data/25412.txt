@@ -1,24 +1,22 @@
-commit a7d2b4d7cef3bf3107c6cf9725cd1c6151cf18d4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 18 15:29:51 2015 -0800
+commit d43f2e37edf4115e31a0c9218d87182d0aa1c4f0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 21 13:13:56 2015 -0700
 
-    runtime: disable a signal by restoring the original disposition
+    [dev.ssa] cmd/compile: introduce storeconst ops
     
-    Fixes #13034.
-    Fixes #13042.
-    Update #9896.
+    Introduce opcodes that store a constant value.
+    AuxInt now needs to hold both the value to be stored and the
+    constant offset at which to store it.  Introduce a StoreConst
+    type to help encode/decode these parts to/from an AuxInt.
     
-    Change-Id: I189f381090223dd07086848aac2d69d2c00d80c4
-    Reviewed-on: https://go-review.googlesource.com/18062
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1631883abe035cff4b16368683e1eb3d2ccb674d
+    Reviewed-on: https://go-review.googlesource.com/16170
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- misc/cgo/testcarchive/main3.c              | 153 ++++++++++++++++++++++
- misc/cgo/testcarchive/src/libgo3/libgo3.go |  44 +++++++
- misc/cgo/testcarchive/test.bash            |  18 ++-
- misc/cgo/testcshared/main5.c               | 197 +++++++++++++++++++++++++++++
- misc/cgo/testcshared/src/libgo5/libgo5.go  |  44 +++++++
- misc/cgo/testcshared/test.bash             |  20 ++-
- src/os/signal/doc.go                       |  21 ++-
- src/runtime/runtime2.go                    |   1 -
- src/runtime/signal1_unix.go                |  13 +-
- 9 files changed, 486 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  28 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  73 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  13 +-
+ src/cmd/compile/internal/ssa/op.go           |  55 +++
+ src/cmd/compile/internal/ssa/opGen.go        |  40 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 694 ++++++++++++++++++---------
+ 6 files changed, 650 insertions(+), 253 deletions(-)

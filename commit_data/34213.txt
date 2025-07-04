@@ -1,22 +1,124 @@
-commit b3cb740be5f9901f2a9051f4f6c584cf729f6af7
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Feb 6 09:36:13 2018 -0500
+commit 1ec78d1dd1bbf2605b0723952a8d30b53ae9f279
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Oct 2 03:09:28 2017 +0000
 
-    compiler: honor //line directives in DWARF variable file/line attrs
+    cmd/compile: optimize ARM code with CMN/TST/TEQ
     
-    During DWARF debug generation, the DW_AT_decl_line / DW_AT_decl_file
-    attributes for variable DIEs were being computed without taking into
-    account the possibility of "//line" directives. Fix things up to use
-    the correct src.Pos methods to pick up this info.
+    CMN/TST/TEQ were supported since ARMv4, which can be used to
+    simplify comparisons.
     
-    Fixes #23704.
+    This patch implements the optimization and here are the benchmark
+    results.
     
-    Change-Id: I88c21a0e0a9602392be229252d856a6d665868e2
-    Reviewed-on: https://go-review.googlesource.com/92255
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    1. A special test case got 18.21% improvement.
+    name                     old time/op    new time/op    delta
+    TSTTEQ-4                    806µs ± 1%     659µs ± 0%  -18.21%  (p=0.000 n=20+18)
+    (https://github.com/benshi001/ugo1/blob/master/tstteq_test.go)
+    
+    2. There is no regression in the compilecmp benchmark.
+    name        old time/op       new time/op       delta
+    Template          2.31s ± 1%        2.30s ± 1%    ~     (p=0.661 n=10+9)
+    Unicode           1.32s ± 3%        1.32s ± 5%    ~     (p=0.280 n=10+10)
+    GoTypes           7.69s ± 1%        7.65s ± 0%  -0.52%  (p=0.027 n=10+8)
+    Compiler          36.5s ± 1%        36.4s ± 1%    ~     (p=0.546 n=9+9)
+    SSA               85.1s ± 2%        84.9s ± 1%    ~     (p=0.529 n=10+10)
+    Flate             1.43s ± 2%        1.43s ± 2%    ~     (p=0.661 n=10+9)
+    GoParser          1.81s ± 2%        1.81s ± 1%    ~     (p=0.796 n=10+10)
+    Reflect           5.10s ± 2%        5.09s ± 1%    ~     (p=0.853 n=10+10)
+    Tar               2.47s ± 1%        2.48s ± 1%    ~     (p=0.123 n=10+10)
+    XML               2.59s ± 1%        2.58s ± 1%    ~     (p=0.853 n=10+10)
+    [Geo mean]        4.78s             4.77s       -0.17%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          2.72s ± 3%        2.73s ± 2%    ~     (p=0.928 n=10+10)
+    Unicode           1.58s ± 4%        1.60s ± 1%    ~     (p=0.087 n=10+9)
+    GoTypes           9.41s ± 2%        9.36s ± 1%    ~     (p=0.060 n=10+10)
+    Compiler          44.4s ± 2%        44.2s ± 2%    ~     (p=0.289 n=10+10)
+    SSA                110s ± 2%         110s ± 1%    ~     (p=0.739 n=10+10)
+    Flate             1.67s ± 2%        1.63s ± 3%    ~     (p=0.063 n=10+10)
+    GoParser          2.12s ± 1%        2.12s ± 2%    ~     (p=0.840 n=10+10)
+    Reflect           5.94s ± 1%        5.98s ± 1%    ~     (p=0.063 n=9+10)
+    Tar               3.01s ± 2%        3.02s ± 2%    ~     (p=0.584 n=10+10)
+    XML               3.04s ± 3%        3.02s ± 2%    ~     (p=0.696 n=10+10)
+    [Geo mean]        5.73s             5.72s       -0.20%
+    
+    name        old text-bytes    new text-bytes    delta
+    HelloSize         579kB ± 0%        579kB ± 0%    ~     (all equal)
+    
+    name        old data-bytes    new data-bytes    delta
+    HelloSize        5.46kB ± 0%       5.46kB ± 0%    ~     (all equal)
+    
+    name        old bss-bytes     new bss-bytes     delta
+    HelloSize        72.8kB ± 0%       72.8kB ± 0%    ~     (all equal)
+    
+    name        old exe-bytes     new exe-bytes     delta
+    HelloSize        1.03MB ± 0%       1.03MB ± 0%    ~     (all equal)
+    
+    3. There is little change in the go1 benchmark (excluding the noise).
+    name                     old time/op    new time/op     delta
+    BinaryTree17-4              40.3s ± 1%      40.6s ± 1%  +0.80%  (p=0.000 n=30+30)
+    Fannkuch11-4                24.2s ± 1%      24.1s ± 0%    ~     (p=0.093 n=30+30)
+    FmtFprintfEmpty-4           834ns ± 0%      826ns ± 0%  -0.93%  (p=0.000 n=29+24)
+    FmtFprintfString-4         1.39µs ± 1%     1.36µs ± 0%  -2.02%  (p=0.000 n=30+30)
+    FmtFprintfInt-4            1.43µs ± 1%     1.44µs ± 1%    ~     (p=0.155 n=30+29)
+    FmtFprintfIntInt-4         2.09µs ± 0%     2.11µs ± 0%  +1.16%  (p=0.000 n=28+30)
+    FmtFprintfPrefixedInt-4    2.33µs ± 1%     2.36µs ± 0%  +1.25%  (p=0.000 n=30+30)
+    FmtFprintfFloat-4          4.27µs ± 1%     4.32µs ± 1%  +1.27%  (p=0.000 n=30+30)
+    FmtManyArgs-4              8.18µs ± 0%     8.14µs ± 0%  -0.46%  (p=0.000 n=25+27)
+    GobDecode-4                 101ms ± 1%      101ms ± 1%    ~     (p=0.182 n=29+29)
+    GobEncode-4                89.6ms ± 1%     87.8ms ± 2%  -2.02%  (p=0.000 n=30+29)
+    Gzip-4                      4.07s ± 1%      4.08s ± 1%    ~     (p=0.173 n=30+27)
+    Gunzip-4                    602ms ± 1%      600ms ± 1%  -0.29%  (p=0.000 n=29+28)
+    HTTPClientServer-4          679µs ± 4%      683µs ± 3%    ~     (p=0.197 n=30+30)
+    JSONEncode-4                241ms ± 1%      239ms ± 1%  -0.84%  (p=0.000 n=30+30)
+    JSONDecode-4                903ms ± 1%      882ms ± 1%  -2.33%  (p=0.000 n=30+30)
+    Mandelbrot200-4            41.8ms ± 0%     41.8ms ± 0%    ~     (p=0.719 n=30+30)
+    GoParse-4                  45.5ms ± 1%     45.8ms ± 1%  +0.52%  (p=0.000 n=30+30)
+    RegexpMatchEasy0_32-4      1.27µs ± 1%     1.27µs ± 0%  -0.60%  (p=0.000 n=30+30)
+    RegexpMatchEasy0_1K-4      7.77µs ± 6%     7.69µs ± 4%  -0.96%  (p=0.040 n=30+30)
+    RegexpMatchEasy1_32-4      1.29µs ± 1%     1.28µs ± 1%  -0.54%  (p=0.000 n=30+30)
+    RegexpMatchEasy1_1K-4      10.3µs ± 6%     10.2µs ± 3%    ~     (p=0.453 n=30+27)
+    RegexpMatchMedium_32-4     1.98µs ± 1%     2.00µs ± 1%  +0.85%  (p=0.000 n=30+29)
+    RegexpMatchMedium_1K-4      503µs ± 0%      503µs ± 1%    ~     (p=0.752 n=30+30)
+    RegexpMatchHard_32-4       27.1µs ± 1%     26.5µs ± 0%  -1.96%  (p=0.000 n=30+24)
+    RegexpMatchHard_1K-4        809µs ± 1%      799µs ± 1%  -1.29%  (p=0.000 n=29+30)
+    Revcomp-4                  67.3ms ± 2%     67.2ms ± 1%    ~     (p=0.265 n=29+29)
+    Template-4                  1.08s ± 1%      1.07s ± 0%  -1.39%  (p=0.000 n=30+22)
+    TimeParse-4                6.93µs ± 1%     6.96µs ± 1%  +0.40%  (p=0.005 n=30+30)
+    TimeFormat-4               13.3µs ± 0%     13.3µs ± 1%    ~     (p=0.734 n=30+30)
+    [Geo mean]                  709µs           707µs       -0.32%
+    
+    name                     old speed      new speed       delta
+    GobDecode-4              7.59MB/s ± 1%   7.57MB/s ± 1%    ~     (p=0.145 n=29+29)
+    GobEncode-4              8.56MB/s ± 1%   8.74MB/s ± 1%  +2.07%  (p=0.000 n=30+29)
+    Gzip-4                   4.76MB/s ± 1%   4.75MB/s ± 1%  -0.25%  (p=0.037 n=30+30)
+    Gunzip-4                 32.2MB/s ± 1%   32.3MB/s ± 1%  +0.29%  (p=0.000 n=29+28)
+    JSONEncode-4             8.04MB/s ± 1%   8.11MB/s ± 1%  +0.85%  (p=0.000 n=30+30)
+    JSONDecode-4             2.15MB/s ± 1%   2.20MB/s ± 1%  +2.29%  (p=0.000 n=30+30)
+    GoParse-4                1.27MB/s ± 1%   1.26MB/s ± 1%  -0.73%  (p=0.000 n=30+30)
+    RegexpMatchEasy0_32-4    25.1MB/s ± 1%   25.3MB/s ± 0%  +0.61%  (p=0.000 n=30+30)
+    RegexpMatchEasy0_1K-4     131MB/s ± 6%    133MB/s ± 4%  +1.35%  (p=0.009 n=28+30)
+    RegexpMatchEasy1_32-4    24.9MB/s ± 1%   25.0MB/s ± 1%  +0.54%  (p=0.000 n=30+30)
+    RegexpMatchEasy1_1K-4    99.2MB/s ± 6%  100.2MB/s ± 3%    ~     (p=0.448 n=30+27)
+    RegexpMatchMedium_32-4    503kB/s ± 1%    500kB/s ± 0%  -0.66%  (p=0.002 n=30+24)
+    RegexpMatchMedium_1K-4   2.04MB/s ± 0%   2.04MB/s ± 1%    ~     (p=0.358 n=30+30)
+    RegexpMatchHard_32-4     1.18MB/s ± 1%   1.20MB/s ± 1%  +1.75%  (p=0.000 n=30+30)
+    RegexpMatchHard_1K-4     1.26MB/s ± 1%   1.28MB/s ± 1%  +1.42%  (p=0.000 n=30+30)
+    Revcomp-4                37.8MB/s ± 2%   37.8MB/s ± 1%    ~     (p=0.266 n=29+29)
+    Template-4               1.80MB/s ± 1%   1.82MB/s ± 1%  +1.46%  (p=0.000 n=30+30)
+    [Geo mean]               6.91MB/s        6.96MB/s       +0.70%
+    
+    fixes #21583
+    
+    Change-Id: I24065a80588ccae7de3ad732a3cfb0026cf7e214
+    Reviewed-on: https://go-review.googlesource.com/67490
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/gc/pgen.go    | 12 +++++-----
- src/cmd/link/internal/ld/dwarf_test.go | 44 +++++++++++++++++++++-------------
- 2 files changed, 33 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |    12 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |   136 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |    20 +-
+ src/cmd/compile/internal/ssa/opGen.go      |   241 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go | 14155 +++++++++++++++++----------
+ 5 files changed, 9270 insertions(+), 5294 deletions(-)

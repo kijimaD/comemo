@@ -1,17 +1,24 @@
-commit 529939072eef730c82333344f321972874758be8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 16 17:54:27 2021 -0800
+commit 007e247af1661e507efb702ffbf5b4e2bd2f0f0a
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 11 17:29:17 2021 -0400
 
-    doc/go1.18: document union element restriction
+    cmd/link: move cgo export map from loadcgo to setCgoAttr
     
-    For #47694
+    Currently, both loadcgo and setCgoAttr do some processing of
+    cgo_export_static and cgo_export_dynamic cgo directives, which means
+    they both have to parse them. There's no reason to do this in loadcgo,
+    so move all directive processing to setCgoAttr.
     
-    Change-Id: I9af871a4a45b002e72629904011aac8f076617f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372974
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For #40724.
+    
+    Change-Id: Icb3cdf7ef3517e866dd220e40a5f5dec7fd47e2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309339
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/go.go   | 28 +++++-----------------------
+ src/cmd/link/internal/ld/util.go |  2 +-
+ 2 files changed, 6 insertions(+), 24 deletions(-)

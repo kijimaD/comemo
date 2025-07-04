@@ -1,22 +1,28 @@
-commit 63e833154c230e9f46b41f913b12d3c72912cabc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 1 21:43:00 2022 -0800
+commit dd7529408412ec94a454d8455f7547327ee0d64d
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sun Apr 25 08:46:42 2021 -0700
 
-    go/types, types2: better error messages for expression switches
+    [dev.fuzz] internal/fuzz: add extra []byte mutators
     
-    Fixes #50965.
+    Adds four []byte mutators which:
+      * insert a chunk of constant bytes
+      * overwirtes a chunk with constant bytes
+      * shuffle a range of bytes
+      * swaps two chunks
     
-    Change-Id: I61a74bdb46cf5e72ab94dbe8bd114704282b6211
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382354
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Also updates the 'set byte to random value' mutator to use XOR in
+    order to avoid a no-op.
+    
+    Additionally updates the rng call which chooses the []byte mutators
+    so all the available mutators are used.
+    
+    Change-Id: I0703518922952f4b1c81b19b196ee91c73b0d5f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313270
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/types2/expr.go                 | 13 ++++++-------
- .../compile/internal/types2/testdata/check/stmt0.src    |  2 +-
- .../internal/types2/testdata/fixedbugs/issue43110.src   |  2 +-
- .../internal/types2/testdata/fixedbugs/issue50965.go    | 17 +++++++++++++++++
- src/go/types/expr.go                                    | 13 ++++++-------
- src/go/types/testdata/check/stmt0.src                   |  2 +-
- src/go/types/testdata/fixedbugs/issue43110.src          |  2 +-
- src/go/types/testdata/fixedbugs/issue50965.go           | 17 +++++++++++++++++
- 8 files changed, 50 insertions(+), 18 deletions(-)
+ src/internal/fuzz/mutator.go | 89 ++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 85 insertions(+), 4 deletions(-)

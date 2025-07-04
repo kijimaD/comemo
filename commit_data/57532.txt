@@ -1,29 +1,25 @@
-commit 607975cfa15768e3587facfbde18ef9f18c46170
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Sep 24 12:53:21 2024 +0000
+commit 197522d3ae9e033bc51c5700cf4f7743fb624d8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 14 14:07:56 2023 -0700
 
-    cmd/dist: enforce the lowest bootstrap version
+    go/types, types2: use exact unification when comparing interface methods
     
-    The go1.24 release notes say that go1.22.6 is the
-    minimum bootstraps required,
-    the go team also use go1.22.6 bootstraps in testing,
-    so if there's a problem with using an older version,
-    automated testing won't uncover it.
+    Irrespective of whether unification is exact or inexact, method
+    signatures of interfaces must always match exactly: a type never
+    satisfies/implements an interface if relevant method signatures
+    are different (i.e., not identical, possibly after substitution).
     
-    Now enforce this in dist to avoid
-    release notes that do not match reality, which can be confusing.
+    Fixes #61879.
     
-    For #64751
-    
-    Change-Id: Icd2f8a47b2bbb2d7c3dab9be9a228f43b9630063
-    GitHub-Last-Rev: 425cd7f03c09ca5e4017d5a70a71fe8cf56d63e5
-    GitHub-Pull-Request: golang/go#69168
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609762
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I20c0aa28ac86e2edec615b40f2269938e4a96938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/dist/buildtool.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/unify.go           |  6 +--
+ src/go/types/unify.go                              |  6 +--
+ .../types/testdata/fixedbugs/issue61879.go         | 57 ++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 6 deletions(-)

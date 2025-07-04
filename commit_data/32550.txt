@@ -1,18 +1,19 @@
-commit 738acbc2f0c93a84ce3c4c5436456e63f18553bd
-Author: Guilherme Rezende <guilhermebr@gmail.com>
-Date:   Mon Jul 24 17:04:02 2017 -0300
+commit 320aabbada08d72d19d190e523bb31874a61471a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Apr 29 11:50:34 2017 -0600
 
-    net/mail: parse cases when phrase has special chars without quotes
+    cmd/compile: add test for blank field in composite literal
     
-    Updates #21018
+    Updates #18089.
     
-    Change-Id: I00b6667fb5fee78559a391815f58760a2baea90e
-    Reviewed-on: https://go-review.googlesource.com/50911
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Test for that issue; it was inadvertently fixed
+    by CL 34988. Ensure that we don't regress on the fix.
+    
+    Change-Id: Icb85fc20dbb0a47f028f088281319b552b16759d
+    Reviewed-on: https://go-review.googlesource.com/42173
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/mail/message.go      | 21 ++++++++++++++-------
- src/net/mail/message_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 7 deletions(-)
+ test/fixedbugs/issue18089.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

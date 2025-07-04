@@ -1,15 +1,25 @@
-commit f113e9a14f08d23be78f75050185f9796a1d243f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Feb 18 14:18:53 2021 -0500
+commit 8dae5390cbc2b4d3b772b8f17182e885523b698b
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 12 11:07:56 2020 -0700
 
-    cmd/dist: match goexperiment.regabi tag when GOEXPERIMENT is on
+    runtime: raise alert threshold on window smhasher test
     
-    Change-Id: I5e4347dde6dcb49cd96608e4f67e54c7b3050bc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293851
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This alert is triggering occasionally. I've investigated the
+    collisions that happen, and they all seem to be pairwise, so they are
+    not a big deal.  "pairwise" = when there are 32 collisions, it is two
+    keys mapping to the same hash, 32 times, not 33 keys all mapping to
+    the same hash.
+    
+    Add some t.Logf calls in case this comes back, which will help isolate
+    the problem.
+    
+    Fixes #39352
+    
+    Change-Id: I1749d7c8efd0afcf9024d8964d15bc0f58a86e4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237718
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/hash_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

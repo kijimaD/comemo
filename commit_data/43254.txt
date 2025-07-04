@@ -1,25 +1,19 @@
-commit e0cb80e4d10bb9967d70ff1a0d7e66c9d8af21cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 9 17:42:41 2020 -0700
+commit 683c266f958db9acff705856f2c0aeb031d9782c
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 25 11:32:59 2018 +0100
 
-    cmd/compile/internal/syntax: provide BadExpr where needed, call correct error handler
+    build: add default GOROOT_BOOTSTRAP in Windows
     
-    - For "if" statements without a condition, provide a BadExpr rather than nil
-      (clients expect IfStmt.Cond != nil since the parser is taking care of
-      reporting a missing condition).
+    CL 57753 added support to make.bash and make.rc to
+    default GOROOT_BOOTSTRAP to 'go env GOROOT'. This
+    patch does the same in make.bat for Windows.
     
-    - For 3-index slice expressions, also provide BadExpr where an index is
-      required but missing.
+    Updates #18545
+    Fixes #28641
     
-    - Declare a parser-local error method to hide the embedded error method
-      so we don't use it by mistake.
-    
-    Accidentally found while adjusting prototype parser to work for generics.
-    
-    Change-Id: Iacc211cc60869be05efe9ae630d65dff1dac00a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261218
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9152cc5080ed219b4de5bad0bd12d7725422ee1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/96455
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/syntax/parser.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/make.bat | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

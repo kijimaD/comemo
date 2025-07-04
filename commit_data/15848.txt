@@ -1,18 +1,19 @@
-commit bd21f7f1b59325d128bec1d26074aba75dc18b04
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 20 09:06:33 2013 -0700
+commit f701e1c32043116448e7227ee598b21e00ce42c7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 20 23:42:00 2013 +1100
 
-    net/http/fcgi: Request.Body should always be non-nil
+    cmd/6c, cmd/8c: fix stack allocated Biobuf leaking at exit
     
-    Found this inconsistency from net/http's Server while
-    debugging Issue 4183
+    Fixes #5085.
     
-    Unfortunately this package lacks testing around this,
-    or most of child.go. :/
+    {6,8}c/swt.c allocates a third Biobuf in automatic memory which is not terminated at the end of the function. This causes the buffer to be 'in use' when the batexit handler fires, confusing valgrind.
     
-    R=golang-dev, adg
+    Huge thanks to DMorsing for the diagnosis.
+    
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/7735046
+    https://golang.org/cl/7844044
 
- src/pkg/net/http/fcgi/child.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/6c/swt.c | 2 +-
+ src/cmd/8c/swt.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

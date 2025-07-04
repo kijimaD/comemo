@@ -1,30 +1,17 @@
-commit 2c5b53866c001632678c0467f713d019cf50c1a6
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Sep 10 15:52:36 2012 -0400
+commit a7743d7ad25a5a37699c1bc8378f8f2523956f72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 10 10:16:09 2012 -0700
 
-    undo CL 6498092 / 4ff71bc1a199
+    net/http: add If-None-Match and If-Range support to ServeContent
     
-    Broke tests on 386.
+    Also, clear Content-Type and Content-Length on Not Modified
+    responses before server.go strips them and spams the logs with
+    warnings.
     
-    ««« original CL description
-    6l/8l: emit correct opcodes to F(SUB|DIV)R?D.
-    
-    When the destination was not F0, 6l and 8l swapped FSUBD/FSUBRD and
-    FDIVD/FDIVRD.
-    
-    R=golang-dev, dave, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6498092
-    »»»
-    
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/6492100
+    https://golang.org/cl/6503090
 
- src/cmd/6l/optab.c                      |  8 ++++----
- src/cmd/8l/optab.c                      |  8 ++++----
- test/fixedbugs/bug453.dir/bug453.go     | 22 ----------------------
- test/fixedbugs/bug453.dir/bug453.s      | 31 -------------------------------
- test/fixedbugs/bug453.dir/bug453_ref.go | 15 ---------------
- test/fixedbugs/bug453.go                |  7 -------
- 6 files changed, 8 insertions(+), 83 deletions(-)
+ src/pkg/net/http/fs.go      |  64 ++++++++++++++++-
+ src/pkg/net/http/fs_test.go | 163 ++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 189 insertions(+), 38 deletions(-)

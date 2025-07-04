@@ -1,16 +1,17 @@
-commit 1c0c611fc2a7e1ce7eb39626ca7b120b62aac557
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Dec 21 02:48:01 2014 -0500
+commit 231b8d61e9a7eec0e2145217828a4881392db230
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 13 13:48:59 2014 -0500
 
-    cmd/ld: put .bss from external objects into real .bss section
+    [dev.power64] 9l: remove enum as's tag for c2go
     
-    Fixes #9359.
+    None of the other compilers have a tag for this enum.
+    Cleaning all of this up to use proper types will happen after
+    the conversion.
     
-    Change-Id: Iba62935b5a14de23d914f433a09a40417d7e88ed
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/1889
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=minux, rsc
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/166690043
 
- src/cmd/ld/ldelf.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/9l/9.out.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

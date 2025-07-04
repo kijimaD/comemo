@@ -1,23 +1,27 @@
-commit 6a51c000def084b820756f066397fd2505e75e25
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 25 11:23:12 2023 +0000
+commit 485a572243568530721009829393ba2c0deb7bd0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 5 09:41:53 2022 -0400
 
-    encoding/gob: use reflect.Value.IsZero
+    cmd: use 128-bit SHA256 & encode in base64 for content hashes
     
-    The reflect method was added in Go 1.13, in 2019.
-    gob's own version dates all the way back to 2011.
+    We used to use SHA1 for content hashes, but CL 402595 changed
+    all the “don't care” hashes to cmd/internal/notsha256 (negated SHA256).
+    This made object files a little bit bigger: fmt.a on my Mac laptop grows
+    from 910678 to 937612 bytes (+3%).
     
-    The behavior appears to be the same, and all tests still pass.
-    gob does have special cases like always encoding arrays even when they
-    are the zero value, but that is done via the sendZero boolean field.
+    To remove that growth, truncate the hash we use for these purposes
+    to 128 bits (half a SHA256), and also use base64 instead of hex for
+    encoding it when a string form is needed. This brings fmt.a down to
+    901706 bytes (-1% from original, -4% from current).
     
-    Change-Id: I9057b7436963e231fdbf2f6c4b1edb58a2b13305
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479397
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Id81da1cf3ee85ed130b3cda73aa697d8c0053a62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404294
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/encoding/gob/encode.go | 37 +------------------------------------
- 1 file changed, 1 insertion(+), 36 deletions(-)
+ src/cmd/compile/internal/staticdata/data.go | 13 ++++++++++---
+ src/cmd/internal/goobj/objfile.go           |  3 +--
+ src/cmd/internal/obj/sym.go                 |  5 ++++-
+ 3 files changed, 15 insertions(+), 6 deletions(-)

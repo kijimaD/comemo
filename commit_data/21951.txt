@@ -1,27 +1,22 @@
-commit f00362b9ecf9fbca6f099493a4e8d1c6a030dee3
-Author: Andrew Pilloud <andrewpilloud@igneoussystems.com>
-Date:   Thu Feb 12 20:24:47 2015 -0800
+commit b5b11bdbc6be59c0449f95949d68dd4151a3a8d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 13 08:06:36 2015 -0800
 
-    net: LookupHost and Resolve{TCP,UDP,IP}Addr should use zone from getaddrinfo
+    test: deflake init1.go test, tighten its bounds
     
-    The unix and windows getaddrinfo calls return a zone with IPv6
-    addresses. IPv6 link-local addresses returned are only valid on the
-    given zone. When the zone is dropped, connections to the address
-    will fail. This patch replaces IP with IPAddr in several internal
-    resolver functions, and plumbs through the zone.
+    Per the comment at top, this test is about whether the GC runs during
+    init, but it was testing more than that, and testing how much the GC
+    collected in a certain amount of time.
     
-    Change-Id: Ifea891654f586f15b76988464f82e04a42ccff6d
-    Reviewed-on: https://go-review.googlesource.com/5851
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Instead, loosen this test to just see whether it ran at all and not
+    how well it did.
+    
+    Fixes #9848
+    
+    Change-Id: I31da7dd769140d7b49aa6c149a543fae6076aa5e
+    Reviewed-on: https://go-review.googlesource.com/4820
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/cgo_stub.go       |   2 +-
- src/net/cgo_unix.go       |  10 +++--
- src/net/dnsclient_unix.go |  16 ++++++--
- src/net/ipsock.go         |  64 +++++++++++++----------------
- src/net/ipsock_test.go    | 100 +++++++++++++++++++++++-----------------------
- src/net/lookup.go         |  22 ++++++----
- src/net/lookup_plan9.go   |  12 +++---
- src/net/lookup_stub.go    |   2 +-
- src/net/lookup_unix.go    |   2 +-
- src/net/lookup_windows.go |  21 +++++-----
- 10 files changed, 132 insertions(+), 119 deletions(-)
+ test/init1.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

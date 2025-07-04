@@ -1,17 +1,13 @@
-commit 4be93851c37281af977f1c1aaa2e2c65c8f40ce0
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Tue Aug 13 11:04:09 2013 -0700
+commit 66c58cea67cb48d1cce2f96036557dafbfbf8c19
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 21:15:47 2013 +0400
 
-    io: prevent write to PipeWriter after Close
+    sync/atomic: trigger paging fault early on linux/arm
+    so that we don't need to traceback through __kuser_cmpxchg
     
-    Return an ErrClosedPipe rather than allowing the write to proceed.
-    
-    Fixes #5330.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12541053
+    https://golang.org/cl/12869043
 
- src/pkg/io/pipe.go      |  4 ++++
- src/pkg/io/pipe_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/pkg/sync/atomic/asm_linux_arm.s | 6 ++++++
+ 1 file changed, 6 insertions(+)

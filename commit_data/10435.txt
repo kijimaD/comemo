@@ -1,27 +1,14 @@
-commit 9859af879bb303acfb37300e314d3057e98a5eaf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 17 14:47:49 2011 -0800
+commit ea2c0cd88f830a1f8af9ee5f9a9cfb643f3cbd30
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 18 01:53:07 2011 +1100
 
-    godoc: provide mode for flat (non-indented) directory listings
+    os: re-enable hostname test on openbsd
     
-    This feature should make it easier to look at very large
-    directory trees.
+    Now that Sysctl() works, re-enable the hostname test.
     
-    - a new mode (URL: /pkg/?m=flat) shows directory listings w/o
-      indentation and entries with full path (html and text mode)
-    - in text mode, hierarchical (non-flat) directory listings are
-      now presented with indentation (/pkg/?m=text)
-    - in html mode, hierarchical (non-flat) directory listings are
-      presented with slightly less indentation
-    - there is an internal hook for programmatic control of the
-      display mode (for specialized versions of godoc).
-    
-    R=bradfitz
-    CC=golang-dev, rsc
-    https://golang.org/cl/5410043
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5408042
 
- lib/godoc/package.html | 18 +++++++++++++-----
- lib/godoc/package.txt  |  9 +++++----
- src/cmd/godoc/doc.go   |  7 ++++---
- src/cmd/godoc/godoc.go | 30 ++++++++++++++++++++++++++----
- 4 files changed, 48 insertions(+), 16 deletions(-)
+ src/pkg/os/os_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

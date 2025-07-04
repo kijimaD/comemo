@@ -1,16 +1,18 @@
-commit ce94c0a79170a174096de902ee93ad38e6c75d6f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 3 09:55:02 2018 -0800
+commit 8802b188c6303b0c03f200bb1489237cc40b968e
+Author: Rajath Agasthya <rajathagasthya@gmail.com>
+Date:   Sat Aug 19 18:05:10 2017 -0700
 
-    cmd/go: on Windows, disable cache if LocalAppData is not set
+    fmt: Implement pp.WriteString method
     
-    Fixes #23146
+    This allows io.WriteString to make use of WriteString method
+    implemented by pp when writing a string to fmt.State.
     
-    Change-Id: I06e3328ecca5e27f8e1ada05c2d7cd9bdda714e6
-    Reviewed-on: https://go-review.googlesource.com/85996
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #20786
+    
+    Change-Id: Ice7a92bf303127ad87f05562217fa076f5c589ad
+    Reviewed-on: https://go-review.googlesource.com/61430
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/cache/default.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/fmt/fmt_test.go | 18 ++++++++++++++++++
+ src/fmt/print.go    |  7 +++++++
+ 2 files changed, 25 insertions(+)

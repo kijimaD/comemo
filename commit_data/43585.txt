@@ -1,35 +1,35 @@
-commit e3c58bbeb8c76fa3abc0f7153edbab72208c1f88
-Author: Antonio Huete Jimenez <tuxillo@quantumachine.net>
-Date:   Wed Oct 28 11:44:26 2020 +0000
+commit 2222e0601a367ab3e2da52c84cb8d4150dd9c705
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 14 08:16:51 2020 -0700
 
-    os: do not use procfs for os.Executable in dragonfly
+    cmd/compile: mark static slice backing arrays as noalg
     
-      procfs(5) is not always mounted in DragonFly BSD, for example during
-      the binary package build with synth. os.Executable() consumers
-      will then fail, we've spotted this when trying to build tinygo:
+    file      before    after     Δ       %
+    addr2line 4413296   4404160   -9136   -0.207%
+    api       5982648   5978232   -4416   -0.074%
+    asm       5075640   5057656   -17984  -0.354%
+    buildid   2886200   2881304   -4896   -0.170%
+    cgo       4854168   4844936   -9232   -0.190%
+    compile   19694784  19680752  -14032  -0.071%
+    cover     5278008   5269256   -8752   -0.166%
+    dist      3699528   3690984   -8544   -0.231%
+    doc       4694824   4690408   -4416   -0.094%
+    fix       3411336   3411048   -288    -0.008%
+    link      6721496   6703320   -18176  -0.270%
+    nm        4371152   4357904   -13248  -0.303%
+    objdump   4760960   4747680   -13280  -0.279%
+    pack      2340824   2336520   -4304   -0.184%
+    pprof     14810820  14801188  -9632   -0.065%
+    test2json 2861896   2857528   -4368   -0.153%
+    trace     11681076  11676228  -4848   -0.042%
+    vet       8285464   8276184   -9280   -0.112%
+    total     115824120 115665288 -158832 -0.137%
     
-        [...]
-    
-        copying source files
-        ./build/tinygo build-builtins -target=armv6m-none-eabi [...]
-        panic: could not get executable path: readlink /proc/curproc/file:
-        no such file or directory
-    
-        [...]
-    
-      Use KERN_PROC_PATHNAME as FreeBSD does.
-    
-    Change-Id: Ic65bea02cd0309fb24dec8ba8d2b151d1acde67b
-    GitHub-Last-Rev: 083120a43b3158bb45d7e1a66fa32e3335a2d407
-    GitHub-Pull-Request: golang/go#36826
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216622
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I66e1985c3a81cd9b2aa72cb4b4a8aa1781e473b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228222
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/os/executable_dragonfly.go | 12 ++++++++++++
- src/os/executable_freebsd.go   | 33 ++++++---------------------------
- src/os/executable_procfs.go    |  4 +---
- src/os/executable_sysctl.go    | 35 +++++++++++++++++++++++++++++++++++
- 4 files changed, 54 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 1 +
+ 1 file changed, 1 insertion(+)

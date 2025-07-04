@@ -1,21 +1,28 @@
-commit 9ca2474fd274d7bce8da454d1a7da074e40944ad
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Mon Jun 15 13:04:05 2020 -0400
+commit db48d458388e62aa1ae8947a5f5bbd60b467bcf6
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 18 15:14:46 2019 -0500
 
-    cmd/go: fix mod_gomodcache and generate_env TestScripts on Plan 9
+    [dev.link] cmd/link: handle multiple levels of overwrite
     
-    Adjust these two tests for Plan 9,
-    which uses $path instead of $PATH,
-    and $home instead of $HOME.
+    Revamp the way that symbol overwrites are handled to deal with symbols
+    that are overwritten more than once (such as "_cgo_mmap"). The
+    scenario here is that a symbol can be overwritten twice, once during
+    preload, and then again when host objects are read during internal
+    linking. This can result in a situation where we have two entries in
+    the overwrite map, from X -> Y and then from Y -> Z. Rather than
+    search the overwrite map when adding new entries, add a helper routine
+    for querying the map that catches this situation and fixes it up.
     
-    Fixes #39599
+    Also with this patch is a couple of tweaks to the loader.Dump method
+    to insure that it can dump the entire global index space without
+    crashing due to odd overwrites (as in the scenario above).
     
-    Change-Id: Idba95e07d307e76f0f61acd904905b417c52d43a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237941
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib6c8a0e03e92fc2b57318001711b501eeaf12249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212098
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/testdata/script/generate_env.txt   | 3 ++-
- src/cmd/go/testdata/script/mod_gomodcache.txt | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go        | 94 +++++++++++++++++++++++----
+ src/cmd/link/internal/loader/symbolbuilder.go |  4 +-
+ 2 files changed, 81 insertions(+), 17 deletions(-)

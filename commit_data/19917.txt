@@ -1,14 +1,17 @@
-commit 2185dbcd8554ef728df06c30ef83e4c61e8c17d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 16:12:24 2014 -0400
+commit c0ccf6f314a1658e148d1aae4db5ac2be249fbe8
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Wed Aug 6 12:11:37 2014 -0700
 
-    codereview: do not hit upload_complete on first patch
+    debug/dwarf: fix Reader panic on DW_TAG_unspecified_type
     
-    Causes server 500 error, so don't do it.
+    The linker currently produces the DWARF 3 DW_TAG_unspecified_type tag, however the Reader in debug/dwarf will panic whenever that tag is encountered.
     
-    TBR=minux
+    Fixes #8437.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, iant, rsc
     CC=golang-codereviews
-    https://golang.org/cl/125770043
+    https://golang.org/cl/117280043
 
- lib/codereview/codereview.py | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/debug/dwarf/type.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

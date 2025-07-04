@@ -1,20 +1,20 @@
-commit 8d31a86a1e7be5f84af9df8aeb36bc1e157d50eb
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 18 11:13:19 2015 -0800
+commit 70462f90ec6cf4c0a98f9c556f71b9c99aea94c0
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 21 11:31:44 2015 -0400
 
-    reflect: mark mapassign as noescape
+    runtime: simplify mSpan_Sweep
     
-    The lack of this annotation causes Value.SetMapIndex to allocate
-    when it doesn't need to.
+    This is a cleanup following cc8f544, which was a minimal change to fix
+    issue #11617. This consolidates the two places in mSpan_Sweep that
+    update sweepgen. Previously this was necessary because sweepgen must
+    be updated before freeing the span, but we freed large spans early.
+    Now we free large spans later, so there's no need to duplicate the
+    sweepgen update. This also means large spans can take advantage of the
+    sweepgen sanity checking performed for other spans.
     
-    Add comments about why it's safe to do so.
-    
-    Add a test to make sure we stay allocation-free.
-    
-    Change-Id: I00826e0d73e317a31bdeae5c7e46bf95b0c6ae6a
-    Reviewed-on: https://go-review.googlesource.com/17060
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I23b79dbd9ec81d08575cd307cdc0fa6b20831768
+    Reviewed-on: https://go-review.googlesource.com/12451
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
- src/reflect/value.go    | 22 +++++++++++++++-------
- 2 files changed, 44 insertions(+), 7 deletions(-)
+ src/runtime/mgcsweep.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

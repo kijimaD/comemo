@@ -1,19 +1,20 @@
-commit 5d1287fa62de7b9c401749cd79147a5e38b11209
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 1 12:37:40 2023 -0800
+commit caf8fb1e828deb05cdd2df45f9de13c048de39c6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 7 17:26:17 2022 -0500
 
-    doc: remove encoding/binary.NativeEndian release note placeholder
+    cmd/go: use Cancel and WaitDelay to terminate test subprocesses
     
-    This was released in 1.21, release noted in CL 524675.
-    (I think it was missed originally and then and backported,
-    but then somehow incorrectly made it into the 1.22 dragnet.)
+    Updates #50436.
+    Updates #56163.
+    Fixes #24050.
     
-    Change-Id: I45f3182f14f77f8b92a3b7d5ef0011b71fd3c176
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546675
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Bypass: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1b00eb8fb60e0879f029642b5bad97b2e139fee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- doc/go1.22.html | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/go/internal/test/test.go                  | 72 ++++++++++---------
+ src/cmd/go/testdata/script/test_timeout_stdin.txt | 88 +++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 35 deletions(-)

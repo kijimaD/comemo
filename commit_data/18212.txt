@@ -1,13 +1,20 @@
-commit 5277b90ec43e9b75f481ce737ade1d2a78bd32e1
-Author: Nicholas Katsaros <nick@nickkatsaros.com>
-Date:   Fri Jan 10 14:33:54 2014 +1100
+commit f739dae7db61e748c1a23e1fae32274e5431bbd2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 10 01:33:24 2014 +0100
 
-    net: add SetKeepAlivePeriod for windows
+    cmd/gc: mark OGOTO as a statement for formatters.
     
-    R=golang-codereviews, alex.brainman, bradfitz, mikioh.mikioh
+    Nodes of goto statements were corrupted when written
+    to export data.
+    
+    Fixes #7023.
+    
+    R=rsc, dave, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/11393043
+    https://golang.org/cl/46190043
 
- src/pkg/net/tcpsockopt_windows.go | 17 +++++++++++++++--
- src/pkg/syscall/ztypes_windows.go |  8 ++++++++
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ src/cmd/gc/fmt.c                  |  1 +
+ test/fixedbugs/issue7023.dir/a.go | 10 ++++++++++
+ test/fixedbugs/issue7023.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue7023.go       | 10 ++++++++++
+ 4 files changed, 32 insertions(+)

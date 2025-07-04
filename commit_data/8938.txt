@@ -1,20 +1,21 @@
-commit b177c97803ede6d9cfe0214863a69d0aad977f22
+commit 9cf37c3723383e3f489ee4b8087ecc152e79bf39
 Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 5 14:23:51 2011 +1000
+Date:   Mon Jul 4 16:15:14 2011 +1000
 
-    exp/template: functions
-    Add the ability to attach functions to template and template sets.
-    Make variadic functions and methods work.
-    Still to come: static checking of function names during parse.
+    docs: fold the prog.sh scripting from makehtml into htmlgen itself.
+    This allows us to drop some crufty scripting and provides a firmer
+    footing for building better tools for preparing documents with source
+    code inside.
     
-    R=golang-dev, dsymonds
+    Also eliminate line numbers from the examples and text.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4643068
+    https://golang.org/cl/4650069
 
- src/pkg/exp/template/Makefile     |   1 +
- src/pkg/exp/template/exec.go      | 118 +++++++++++++++++++++++++++-----------
- src/pkg/exp/template/exec_test.go |  17 +++++-
- src/pkg/exp/template/funcs.go     |  63 ++++++++++++++++++++
- src/pkg/exp/template/parse.go     |  20 +++++--
- src/pkg/exp/template/set.go       |  16 +++++-
- 6 files changed, 196 insertions(+), 39 deletions(-)
+ doc/go_tutorial.html | 1049 +++++++++++++++++++++++++-------------------------
+ doc/go_tutorial.txt  |  108 +++---
+ doc/htmlgen.go       |  167 +++++++-
+ doc/makehtml         |   16 +-
+ doc/prog.sh          |   72 ----
+ 5 files changed, 729 insertions(+), 683 deletions(-)

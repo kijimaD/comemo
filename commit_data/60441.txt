@@ -1,0 +1,18 @@
+commit 2edf00cf0d19cfb737cce0901f348974a7dbaa53
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jul 17 00:55:11 2024 +0700
+
+    cmd/compile: simplify outerfn check in closureName
+    
+    Since CL 523275, outerfn is always non-nil.
+    
+    Change-Id: I42cfff90546e506e04a74fb4f754a25f1eadddc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598636
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/func.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

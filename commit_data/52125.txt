@@ -1,21 +1,30 @@
-commit af2bc6de6203608f26217d59db0d1a31549272e6
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Mon Feb 27 12:07:57 2023 +0800
+commit c0bbeb0982403db17bacb1533776fb638cb449ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 1 17:02:28 2022 -0700
 
-    net,os: set the theoretical unlimited remaining bytes to max int64
+    cmd/compile: adjust types2 shift check to match go/types (cleanup)
     
-    Based on https://go-review.googlesource.com/c/go/+/466015/comment/073a63fa_7a9e485f
+    With this change, the shift checking code matches the corresponding
+    go/types code, but for the differences in the internal error reporting,
+    and call of check.overflow.
     
-    Change-Id: I3e1b035de6b8217c5fa5695e436f164b3058e33c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471439
+    The change leads to the recording of an untyped int value if the RHS
+    of a non-constant shift is an untyped integer value. Adjust the type
+    in the compiler's irgen accordingly. Add test/shift3.go to verify
+    behavior.
+    
+    Change-Id: I20386fcb1d5c48becffdc2203081fb70c08b282d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398236
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/sendfile_linux.go | 2 +-
- src/net/splice_linux.go   | 2 +-
- src/os/readfrom_linux.go  | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/expr.go             |  9 +++++
+ src/cmd/compile/internal/types2/api_test.go        | 12 ++++++
+ src/cmd/compile/internal/types2/expr.go            | 46 +++++++++++++++-------
+ .../types2/testdata/fixedbugs/issue52031.go        | 33 ++++++++++++++++
+ test/shift3.go                                     | 41 +++++++++++++++++++
+ 5 files changed, 126 insertions(+), 15 deletions(-)

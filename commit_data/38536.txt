@@ -1,14 +1,32 @@
-commit 42cdc26665a6aeccb6c8fd9c0620961c7b434862
-Author: Hasan Ozgan <hasan@ozgan.net>
-Date:   Thu Feb 7 23:22:54 2019 +0000
+commit 817f567fa8be4753acfad0b795ec41ab1c0cdb65
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 5 12:39:11 2018 +0100
 
-    database/sql: add example for DB.Prepare and Tx.Prepare
+    runtime/internal/sys: regenerate zgoos_*.go files
     
-    Change-Id: Ib9272a7713ed7aaf8ad54c4827be8c095763e648
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/161677
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    zgoos_aix.go is missing GoosJs, the order of GoosAndroid and GoosAix is
+    mixed up in all files and GoosHurd was added after CL 146023 introduced
+    GOOS=hurd.
+    
+    Change-Id: I7e2f5a15645272e9020cfca86e44c364fc072a2b
+    Reviewed-on: https://go-review.googlesource.com/c/147397
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/example_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 57 insertions(+)
+ src/runtime/internal/sys/zgoos_aix.go       |  4 +++-
+ src/runtime/internal/sys/zgoos_android.go   |  3 ++-
+ src/runtime/internal/sys/zgoos_darwin.go    |  3 ++-
+ src/runtime/internal/sys/zgoos_dragonfly.go |  3 ++-
+ src/runtime/internal/sys/zgoos_freebsd.go   |  3 ++-
+ src/runtime/internal/sys/zgoos_hurd.go      | 23 +++++++++++++++++++++++
+ src/runtime/internal/sys/zgoos_js.go        |  2 ++
+ src/runtime/internal/sys/zgoos_linux.go     |  3 ++-
+ src/runtime/internal/sys/zgoos_nacl.go      |  3 ++-
+ src/runtime/internal/sys/zgoos_netbsd.go    |  3 ++-
+ src/runtime/internal/sys/zgoos_openbsd.go   |  3 ++-
+ src/runtime/internal/sys/zgoos_plan9.go     |  3 ++-
+ src/runtime/internal/sys/zgoos_solaris.go   |  3 ++-
+ src/runtime/internal/sys/zgoos_windows.go   |  3 ++-
+ src/runtime/internal/sys/zgoos_zos.go       |  3 ++-
+ 15 files changed, 52 insertions(+), 13 deletions(-)

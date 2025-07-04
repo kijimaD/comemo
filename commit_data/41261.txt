@@ -1,21 +1,16 @@
-commit 25da21ddc935f1af1b10361c52984ddaaade9265
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Feb 10 17:29:13 2020 -0500
+commit 90f9426573e80bb072c80d7bf9fe3abd6d9a81ce
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Jul 30 10:02:09 2019 +0300
 
-    crypto/elliptic: document the Name and names of each curve
+    context: mention asynchronous cancellation propagation
     
-    See https://tools.ietf.org/html/rfc8422#appendix-A for a helpful table.
+    Fixes #33185
     
-    Also, commit to keeping them singletons, as that assumption is already
-    made all over the place in the ecosystem.
-    
-    Fixes #34193
-    
-    Change-Id: I2ec50fa18bb80e11d6101f2562df60b5e27d4f66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218921
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I0adcffa5d1c9e55ae52309c59f961b0710166098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187921
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/elliptic/elliptic.go | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+ src/context/context.go | 2 ++
+ 1 file changed, 2 insertions(+)

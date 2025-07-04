@@ -1,25 +1,31 @@
-commit 1eb37facdd20f28666363057dd51459aa6dd44a7
-Author: Daniela Petruzalek <daniela.petruzalek@gmail.com>
-Date:   Wed Jan 4 15:26:03 2023 +0000
+commit c0158b6a00eaecbd28ded0f66e65b9985f6db078
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 22:56:00 2022 -0500
 
-    os: fix findOneDriveDir to expand strings that contain environment variables
+    go/internal/srcimporter: use the 'go' command from the Importer's GOROOT
     
-    On Windows the registry data type REG_EXPAND_SZ indicates that the string requires expansion
-    of environment variables. The existing implementation doesn't take that into consideration
-    and just returns the unexpanded string, ignoring the registry type. This implementation ensures
-    that environment variables are properly expanded when needed.
+    We have no guarantee in general that there is any 'go' command in
+    $PATH at all, let alone the correct one. However, we can expect that
+    if a 'go' command is not in scope, the Importer should have a correct
+    GOROOT setting: otherwise, it would not be able to import anything
+    from 'std' at all.
     
-    Fixes #57576
+    Given that information, when we run `go tool cgo` we should use
+    GOROOT/bin/go specifically, not whatever 'go' we find in $PATH.
     
-    Change-Id: Ia02c1b05a4cf6eaaffb3be88ce1c9ee100db250f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460535
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This fixes a failure in go/types.TestStdlib that manifests as a
+    timeout in when the 'go' command is not present in $PATH, due to
+    repeated retries for every package that transitively depends on
+    runtime/cgo.
+    
+    For #51461
+    
+    Change-Id: I30cc4613f6f02a04e83c8d55657ef01888c7770f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391807
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/os_windows_test.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/go/internal/srcimporter/srcimporter.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

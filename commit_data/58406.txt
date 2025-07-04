@@ -1,37 +1,19 @@
-commit dd7a7ba38f36dd6abc1e14b8d0e8bf05a5383161
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 16 19:24:20 2024 +0100
+commit 9d836d41d0d9df3acabf7f9607d3b09188a9bfc6
+Author: Christian Kruse <ctkruse99@gmail.com>
+Date:   Thu Nov 2 15:32:08 2023 -0700
 
-    crypto/internal/fips140/aes: mark AES-ECB as not approved
+    boring: update documentation to include arm64
     
-    NIST SP 800-131Ar3 ipd, scheduled for publication in 2025Q1, marks
-    AES-ECB as disallowed for encryption, and legacy use for decryption.
+    Support for boring has been extended to include linux/arm64. This change
+    updates the docs to reflect that.
     
-    There are apparently no details on how the transition is going to work,
-    so to avoid surprises we just mark direct use of the Block as
-    non-approved.
+    Fixes #63920
     
-    We need to use Encrypt from higher level modes without tripping the
-    service indicator. Within the aes package, we just use the internal
-    function. For the gcm package we could do something more clever, but
-    this deep into the freeze, just make an exported function that we commit
-    to use nowhere else.
-    
-    I could not figure out a decent way to block ECB on GODEBUG=fips140=only.
-    
-    For #69536
-    
-    Change-Id: I972a4b5da8efd0a0ab68d7dd509bec73aa2d6b68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636775
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If8d6eca713e8245dcc222c3e38d140874d48725d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539298
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/internal/fips140/aes/aes.go             | 13 +++++++++++--
- src/crypto/internal/fips140/aes/cbc.go             |  4 ++--
- src/crypto/internal/fips140/aes/ctr.go             |  2 +-
- src/crypto/internal/fips140/aes/gcm/cmac.go        |  8 ++++----
- src/crypto/internal/fips140/aes/gcm/gcm_asm.go     |  4 ++--
- src/crypto/internal/fips140/aes/gcm/gcm_generic.go |  8 ++++----
- 6 files changed, 24 insertions(+), 15 deletions(-)
+ src/crypto/internal/boring/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

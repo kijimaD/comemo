@@ -1,25 +1,18 @@
-commit 4b17b152a3a3d238669c93b31de34e87c2855f6e
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sat Aug 20 21:09:53 2016 -0400
+commit 4938d7b5fc06bbd137619eddd494a8cca288eb25
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 20 17:29:50 2016 -0700
 
-    hash/crc32: fix optimized s390x implementation
+    cmd/compile: fix dominator check in check()
     
-    The code wasn't checking to see if the data was still >= 64 bytes
-    long after aligning it.
+    Ancestor comparison was the wrong way around, effectively
+    disabling the def-must-dominate-use check.
     
-    Aligning the data is an optimization and we don't actually need
-    to do it. In fact for smaller sizes it slows things down due to
-    the overhead of calling the generic function. Therefore for now
-    I have simply removed the alignment stage. I have also added a
-    check into the assembly to deliberately trigger a segmentation
-    fault if the data is too short.
+    Update #15084
     
-    Fixes #16779.
-    
-    Change-Id: Ic01636d775efc5ec97689f050991cee04ce8fe73
-    Reviewed-on: https://go-review.googlesource.com/27409
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic56d674c5000569d2cc855bbb000a60eae517c7c
+    Reviewed-on: https://go-review.googlesource.com/22330
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/hash/crc32/crc32_s390x.go | 35 ++++++++---------------------------
- src/hash/crc32/crc32_s390x.s  |  7 +++++++
- 2 files changed, 15 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ssa/check.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,34 @@
-commit 692df217ca21b6df8e4dc65538fcc90733e8900e
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Wed Oct 19 12:26:55 2016 -0700
+commit 11e93aa24a61e0c4b25600bf2a681b8779371fe8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 16:09:08 2016 -0700
 
-    database/sql: add missing unlock when context is expired
+    cmd/vet: allow any printf verb with any interface
     
-    Missing the DB mutex unlock on an early return after checking
-    if the context has expired.
+    fmt treats interfaces as being transparent.
+    As a result, we cannot say with confidence
+    that any particular verb is wrong.
     
-    Fixes #17518
+    This fixes the following vet false positives
+    in the standard library:
     
-    Change-Id: I247cafcef62623d813f534a941f3d5a3744f0738
-    Reviewed-on: https://go-review.googlesource.com/31494
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    database/sql/sql_test.go:210: arg dep for printf verb %p of wrong type: sql.finalCloser
+    fmt/fmt_test.go:1663: arg nil for printf verb %s of wrong type: untyped nil
+    go/ast/commentmap.go:328: arg node for printf verb %p of wrong type: ast.Node
+    net/http/transport_test.go:120: arg c for printf verb %p of wrong type: net.Conn
+    net/http/httptest/server.go:198: arg c for printf verb %p of wrong type: net.Conn
+    net/http/httputil/dump_test.go:258: arg body for printf verb %p of wrong type: io.Reader
+    reflect/set_test.go:81: arg x for printf verb %p of wrong type: io.Writer
+    reflect/set_test.go:141: arg bb for printf verb %p of wrong type: io.Reader
+    
+    Updates #11041
+    Updates #16314
+    
+    Change-Id: I76df01abb3c34a97b6960f551bed9c1c91377cfc
+    Reviewed-on: https://go-review.googlesource.com/27127
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/database/sql/sql.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/vet/testdata/print.go |  5 +++++
+ src/cmd/vet/types.go          | 11 ++++-------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

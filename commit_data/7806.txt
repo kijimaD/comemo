@@ -1,12 +1,22 @@
-commit bf91e827ac08ba3375353108840d641c5a581865
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 18 10:19:19 2011 +1100
+commit 39a1465d11506409902c21d25a7bc616d5e954a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 17 15:32:29 2011 -0700
 
-    filepath: do not run TestEvalSymlinks on Windows
+    go/parser: fix memory leak by making a copy of token literals
     
-    R=golang-dev, rsc1
-    CC=adg, golang-dev
-    https://golang.org/cl/4274069
+    The scanner returns slices into the original source
+    for token values. If those slices are making it into
+    the AST and from there into other long-living data
+    structures (e.g. godoc search), references to the
+    original source are kept around involuntarily.
+    
+    For the current godoc and source tree, this change reduces
+    memory consumption after indexing and before GC by ~92MB
+    or almost 30%, and by ~10MB after GC (or about 6%).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4273072
 
- src/pkg/path/filepath/path_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/go/parser/parser.go | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)

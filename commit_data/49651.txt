@@ -1,18 +1,21 @@
-commit 28be440d3434a440d0c144ba2128b30ce9771ecf
-Author: yanweizhi <yanweizhi@bytedance.com>
-Date:   Tue Jul 19 18:56:23 2022 +0800
+commit a35c5c98c0487f93d70b468483f2ca8e0d698bb7
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sun Jul 25 23:15:15 2021 +0000
 
-    A+C: add Weizhi Yan
+    runtime: constify a test variable
     
-    Change-Id: I2cef8fa2a61fc69b9b21ff75428af428d99ae2f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418174
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Simple cleanup, no functionality change.
+    
+    Change-Id: I8eceda4496a396e0117a0a601186c653982fb004
+    GitHub-Last-Rev: 58defc575e5834a3685bbb8179fdee4afa8d8fc7
+    GitHub-Pull-Request: golang/go#47389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337289
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/runtime/export_test.go | 2 +-
+ src/runtime/map_test.go    | 2 +-
+ src/runtime/stubs.go       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,145 @@
+commit 0e17905793cb5e0acc323a0cdf3733199d93976a
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Apr 11 14:19:51 2025 -0700
+
+    encoding/json: add json/v2 with GOEXPERIMENT=jsonv2 guard
+    
+    This imports the proposed new v2 JSON API implemented in
+    github.com/go-json-experiment/json as of commit
+    d3c622f1b874954c355e60c8e6b6baa5f60d2fed.
+    
+    When GOEXPERIMENT=jsonv2 is set, the encoding/json/v2 and
+    encoding/jsontext packages are visible, the encoding/json
+    package is implemented in terms of encoding/json/v2, and
+    the encoding/json package include various additional APIs.
+    (See #71497 for details.)
+    
+    When GOEXPERIMENT=jsonv2 is not set, the new API is not
+    present and the encoding/json package is unchanged.
+    
+    The experimental API is not bound by the Go compatibility
+    promise and is expected to evolve as updates are made to
+    the json/v2 proposal.
+    
+    The contents of encoding/json/internal/jsontest/testdata
+    are compressed with zstd v1.5.7 with the -19 option.
+    
+    Fixes #71845
+    For #71497
+    
+    Change-Id: Ib8c94e5f0586b6aaa22833190b41cf6ef59f4f01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665796
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/json/bench_test.go                    |    2 +
+ src/encoding/json/decode.go                        |    2 +
+ src/encoding/json/decode_test.go                   |    2 +
+ src/encoding/json/encode.go                        |    2 +
+ src/encoding/json/encode_test.go                   |    2 +
+ src/encoding/json/example_marshaling_test.go       |    2 +
+ src/encoding/json/example_test.go                  |    2 +
+ src/encoding/json/example_text_marshaling_test.go  |    2 +
+ src/encoding/json/fold.go                          |    2 +
+ src/encoding/json/fold_test.go                     |    2 +
+ src/encoding/json/fuzz_test.go                     |    2 +
+ src/encoding/json/indent.go                        |    2 +
+ src/encoding/json/internal/internal.go             |   41 +
+ src/encoding/json/internal/jsonflags/flags.go      |  205 +
+ src/encoding/json/internal/jsonflags/flags_test.go |   75 +
+ src/encoding/json/internal/jsonopts/options.go     |  202 +
+ .../json/internal/jsonopts/options_test.go         |  233 +
+ src/encoding/json/internal/jsontest/testcase.go    |   37 +
+ src/encoding/json/internal/jsontest/testdata.go    |  607 ++
+ .../jsontest/testdata/canada_geometry.json.zst     |  Bin 0 -> 67918 bytes
+ .../jsontest/testdata/citm_catalog.json.zst        |  Bin 0 -> 9811 bytes
+ .../jsontest/testdata/golang_source.json.zst       |  Bin 0 -> 93459 bytes
+ .../jsontest/testdata/string_escaped.json.zst      |  Bin 0 -> 9052 bytes
+ .../jsontest/testdata/string_unicode.json.zst      |  Bin 0 -> 11000 bytes
+ .../jsontest/testdata/synthea_fhir.json.zst        |  Bin 0 -> 53517 bytes
+ .../jsontest/testdata/twitter_status.json.zst      |  Bin 0 -> 37733 bytes
+ src/encoding/json/internal/jsonwire/decode.go      |  629 ++
+ src/encoding/json/internal/jsonwire/decode_test.go |  443 +
+ src/encoding/json/internal/jsonwire/encode.go      |  294 +
+ src/encoding/json/internal/jsonwire/encode_test.go |  332 +
+ src/encoding/json/internal/jsonwire/wire.go        |  217 +
+ src/encoding/json/internal/jsonwire/wire_test.go   |   98 +
+ src/encoding/json/jsontext/coder_test.go           |  856 ++
+ src/encoding/json/jsontext/decode.go               | 1168 +++
+ src/encoding/json/jsontext/decode_test.go          | 1267 +++
+ src/encoding/json/jsontext/doc.go                  |  107 +
+ src/encoding/json/jsontext/encode.go               |  972 ++
+ src/encoding/json/jsontext/encode_test.go          |  737 ++
+ src/encoding/json/jsontext/errors.go               |  182 +
+ src/encoding/json/jsontext/example_test.go         |  130 +
+ src/encoding/json/jsontext/export.go               |   77 +
+ src/encoding/json/jsontext/fuzz_test.go            |  236 +
+ src/encoding/json/jsontext/options.go              |  303 +
+ src/encoding/json/jsontext/pools.go                |  152 +
+ src/encoding/json/jsontext/quote.go                |   41 +
+ src/encoding/json/jsontext/state.go                |  828 ++
+ src/encoding/json/jsontext/state_test.go           |  396 +
+ src/encoding/json/jsontext/token.go                |  527 ++
+ src/encoding/json/jsontext/token_test.go           |  168 +
+ src/encoding/json/jsontext/value.go                |  395 +
+ src/encoding/json/jsontext/value_test.go           |  200 +
+ src/encoding/json/number_test.go                   |    2 +
+ src/encoding/json/scanner.go                       |    2 +
+ src/encoding/json/scanner_test.go                  |    2 +
+ src/encoding/json/stream.go                        |    2 +
+ src/encoding/json/stream_test.go                   |    2 +
+ src/encoding/json/tables.go                        |    2 +
+ src/encoding/json/tagkey_test.go                   |    2 +
+ src/encoding/json/tags.go                          |    2 +
+ src/encoding/json/tags_test.go                     |    2 +
+ src/encoding/json/v2/arshal.go                     |  570 ++
+ src/encoding/json/v2/arshal_any.go                 |  283 +
+ src/encoding/json/v2/arshal_default.go             | 1910 ++++
+ src/encoding/json/v2/arshal_funcs.go               |  432 +
+ src/encoding/json/v2/arshal_inlined.go             |  230 +
+ src/encoding/json/v2/arshal_methods.go             |  337 +
+ src/encoding/json/v2/arshal_test.go                | 9488 ++++++++++++++++++++
+ src/encoding/json/v2/arshal_time.go                |  600 ++
+ src/encoding/json/v2/arshal_time_test.go           |  312 +
+ src/encoding/json/v2/bench_test.go                 |  647 ++
+ src/encoding/json/v2/doc.go                        |  170 +
+ src/encoding/json/v2/errors.go                     |  420 +
+ src/encoding/json/v2/errors_test.go                |  115 +
+ src/encoding/json/v2/example_orderedobject_test.go |  113 +
+ src/encoding/json/v2/example_test.go               |  692 ++
+ src/encoding/json/v2/fields.go                     |  646 ++
+ src/encoding/json/v2/fields_test.go                |  821 ++
+ src/encoding/json/v2/fold.go                       |   58 +
+ src/encoding/json/v2/fold_test.go                  |  127 +
+ src/encoding/json/v2/fuzz_test.go                  |   39 +
+ src/encoding/json/v2/inline_test.go                |  109 +
+ src/encoding/json/v2/intern.go                     |   88 +
+ src/encoding/json/v2/intern_test.go                |  146 +
+ src/encoding/json/v2/options.go                    |  288 +
+ src/encoding/json/v2_bench_test.go                 |  483 +
+ src/encoding/json/v2_decode.go                     |  253 +
+ src/encoding/json/v2_decode_test.go                | 2803 ++++++
+ src/encoding/json/v2_diff_test.go                  | 1129 +++
+ src/encoding/json/v2_encode.go                     |  240 +
+ src/encoding/json/v2_encode_test.go                | 1410 +++
+ src/encoding/json/v2_example_marshaling_test.go    |   76 +
+ src/encoding/json/v2_example_test.go               |  313 +
+ .../json/v2_example_text_marshaling_test.go        |   70 +
+ src/encoding/json/v2_fuzz_test.go                  |   85 +
+ src/encoding/json/v2_indent.go                     |  133 +
+ src/encoding/json/v2_inject.go                     |  153 +
+ src/encoding/json/v2_options.go                    |  528 ++
+ src/encoding/json/v2_scanner.go                    |   82 +
+ src/encoding/json/v2_scanner_test.go               |  306 +
+ src/encoding/json/v2_stream.go                     |  231 +
+ src/encoding/json/v2_stream_test.go                |  504 ++
+ src/encoding/json/v2_tagkey_test.go                |  121 +
+ src/go/build/deps_test.go                          |   23 +-
+ src/internal/goexperiment/exp_jsonv2_off.go        |    8 +
+ src/internal/goexperiment/exp_jsonv2_on.go         |    8 +
+ src/internal/goexperiment/flags.go                 |    3 +
+ src/time/time_test.go                              |   17 +-
+ 107 files changed, 39814 insertions(+), 3 deletions(-)

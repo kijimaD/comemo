@@ -1,33 +1,16 @@
-commit 572f7660a774ebd8552408a6058b36cc90f6f563
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jan 27 19:22:28 2016 +0100
+commit 25a28da0807f3fa85588fb219f6fa40314bde675
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Aug 28 12:09:13 2015 +1200
 
-    runtime/race: run tests with GOMAXPROCS=1
+    cmd/dist, cmd/go: run testshared on arm64
     
-    We set GOMAXPROCS=1 to prevent test flakiness.
-    There are two sources of flakiness:
-    1. Some tests rely on particular execution order.
-       If the order is different, race does not happen at all.
-    2. Ironically, ThreadSanitizer runtime contains a logical race condition
-       that can lead to false negatives if racy accesses happen literally at the same time.
-    Tests used to work reliably in the good old days of GOMAXPROCS=1.
-    So let's set it for now. A more reliable solution is to explicitly annotate tests
-    with required execution order by means of a special "invisible" synchronization primitive
-    (that's what is done for C++ ThreadSanitizer tests). This is issue #14119.
+    And enable PIE in the go tool.
     
-    This reduces flakes on RaceAsFunc3 test from 60/3000 to 1/3000.
-    
-    Fixes #14086
-    Fixes #14079
-    Fixes #14035
-    
-    Change-Id: Ibaec6b2b21e27b62563bffbb28473a854722cf41
-    Reviewed-on: https://go-review.googlesource.com/18968
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibb60ccfe62518cde6e33080bbc78bfcbecff6a4e
+    Reviewed-on: https://go-review.googlesource.com/14000
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/race/output_test.go |  5 ++++-
- src/runtime/race/race_test.go   | 15 ++++++++++++++-
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ src/cmd/go/build.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

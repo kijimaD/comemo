@@ -1,20 +1,18 @@
-commit 1591dad27484573ffee88a0c718c3d20da75fd54
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 26 16:42:03 2017 -0700
+commit 2c7043c273a04dc3ca081321484c8a30d4c2c23b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 00:02:53 2017 +0000
 
-    net: move some Linux-specific tests to unixsock_linux_test.go file
+    net: don't run TestDialListenerAddr in short mode on non-builders
     
-    Also changed name from TestUnix... to TestUnixgram....
+    It listens on all addresses, which users might not want.
     
-    Updates #21965
+    Updates #18806 (follow-up to feedback from CL 45088)
     
-    Change-Id: I2833110b77e9fe1b28d4a15feb3d70453ab98d3b
-    Reviewed-on: https://go-review.googlesource.com/66333
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I51de2d3fc3cd88a61eb3c63018c47aea920c0549
+    Reviewed-on: https://go-review.googlesource.com/45157
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/unixsock_linux_test.go | 104 +++++++++++++++++++++++++++++++++++++++++
- src/net/unixsock_test.go       |  99 ---------------------------------------
- 2 files changed, 104 insertions(+), 99 deletions(-)
+ src/net/dial_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

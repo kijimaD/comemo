@@ -1,22 +1,20 @@
-commit fe9b292b11355af6b5f6e1d9247b88fa134657ed
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Mar 7 18:13:51 2025 +0000
+commit f719d5cffdb8298eff7a5ef533fe95290e8c869c
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Jan 25 23:11:02 2024 +0000
 
-    go/types,types2: allocate the used* maps in initFiles
+    runtime: crash stack support for loong64
     
-    As described in the associated comment, we need to reallocate usedVars
-    and usedPkgNames in initFiles, as they are nilled out at the end of
-    Checker.Files, which may be called multiple times.
-    
-    Fixes #72122
-    
-    Change-Id: I9f6eb86e072d9d43a8720f6a5e86d827de6006a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655437
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Icc2641b888440cc27444b5dfb2b8ff286e6a595d
+    GitHub-Last-Rev: f5772e32e9190ab1eed94fcf2c9e58d6bc0d74d6
+    GitHub-Pull-Request: golang/go#63923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539536
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/check.go | 7 +++++++
- src/go/types/check.go                    | 7 +++++++
- 2 files changed, 14 insertions(+)
+ src/runtime/asm.s         |  2 ++
+ src/runtime/asm_loong64.s | 37 ++++++++++++++++++++++++++++++-------
+ src/runtime/proc.go       |  2 +-
+ 3 files changed, 33 insertions(+), 8 deletions(-)

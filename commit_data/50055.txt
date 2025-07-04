@@ -1,18 +1,24 @@
-commit 48da729e8468b630ee003ac51cbaac595d53bec8
-Author: Abirdcfly <fp544037857@gmail.com>
-Date:   Wed Aug 17 09:54:14 2022 +0000
+commit b35c668072204c2ef2773df383bab5b04b7abca6
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Fri Sep 24 10:31:20 2021 -0500
 
-    net/http/cookiejar: remove duplicate words from comments
+    cmd/compile: add PPC64-specific inlining for runtime.memmove
     
-    Change-Id: Id44f587199683fd8018865af1c2442f9f74e0dad
-    GitHub-Last-Rev: 35b1ab88677586c79918d363f22e05bc0c3c6479
-    GitHub-Pull-Request: golang/go#54495
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424434
-    Reviewed-by: hopehook <hopehook@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: hopehook <hopehook@qq.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Add rule to PPC64.rules to inline runtime.memmove in more cases, as is
+    done for other target architectures
+    Updated tests in codegen/copy.go to verify changes are done on
+    ppc64/ppc64le
+    
+    Updates #41662
+    
+    Change-Id: Id937ce21f9b4f4047b3e66dfa3c960128ee16a2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352054
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/net/http/cookiejar/jar.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 19 +++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 78 ++++++++++++++++++++++++++++
+ test/codegen/copy.go                         |  8 +++
+ 3 files changed, 105 insertions(+)

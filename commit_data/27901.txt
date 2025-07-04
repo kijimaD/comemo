@@ -1,48 +1,36 @@
-commit 5b9ff11c3d50368c44ae7aa9cb4b58c67494e7bb
-Author: David Chase <drchase@google.com>
-Date:   Mon Aug 15 13:51:00 2016 -0700
+commit 9b6bf20a35130b2b0754f2ec54370e207e2f2d9b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 15 16:56:37 2016 -0400
 
-    cmd/compile: ppc64le working, not optimized enough
+    crypto/aes: de-couple asm and go implementations
     
-    This time with the cherry-pick from the proper patch of
-    the old CL.
+    There is currently only one assembly implementation of AES
+    (amd64). While it is possible to fit other implementations to the
+    same pattern it complicates the code. For example s390x does not
+    use expanded keys, so having enc and dec in the aesCipher struct
+    is confusing.
     
-    Stack size increased.
-    Corrected NaN-comparison glitches.
-    Marked g register as clobbered by calls.
-    Fixed shared libraries.
+    By separating out the asm implementations we can more closely
+    match the data structures to the underlying implementation. This
+    also opens the door for AES implementations that support block
+    cipher modes other than GCM (e.g. CTR and CBC).
     
-    live_ssa.go still disabled because of differences.
-    Presumably turning on more optimization will fix
-    both the stack size and the live_ssa.go glitches.
+    This commit changes BenchmarkExpandKey to test the go
+    implementation of key expansion. It might be better to have some
+    sort of 'initialisation' benchmark instead to cover the startup
+    costs of the assembly implementations (which might be doing
+    key expansion in a different way, or not at all).
     
-    Enhanced debugging output for shared libs test.
-    
-    Rebased onto master.
-    
-    Updates #16010.
-    
-    Change-Id: I40864faf1ef32c118fb141b7ef8e854498e6b2c4
-    Reviewed-on: https://go-review.googlesource.com/27159
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I094a7176b5bbe2177df73163a9c0b711a61c12d6
+    Reviewed-on: https://go-review.googlesource.com/22193
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testshared/shared_test.go           | 18 ++++++
- src/cmd/compile/internal/gc/ssa.go           |  2 +-
- src/cmd/compile/internal/ppc64/ssa.go        | 89 +++++++++++++++++++++-------
- src/cmd/compile/internal/ssa/config.go       |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 +--
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 +-
- src/cmd/compile/internal/ssa/opGen.go        | 10 ++--
- src/cmd/compile/internal/ssa/regalloc.go     |  8 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 80 -------------------------
- src/cmd/internal/obj/ppc64/a.out.go          | 10 ++--
- src/cmd/internal/obj/ppc64/asm9.go           |  4 +-
- src/cmd/internal/obj/stack.go                |  2 +-
- src/runtime/stack.go                         |  2 +-
- test/fixedbugs/issue15747.go                 |  2 +-
- test/live.go                                 |  2 +-
- test/nosplit.go                              |  4 +-
- test/sliceopt.go                             |  2 +-
- 17 files changed, 121 insertions(+), 128 deletions(-)
+ src/crypto/aes/aes_gcm.go        |  2 +-
+ src/crypto/aes/aes_test.go       |  2 +-
+ src/crypto/aes/cipher.go         | 18 +++++------
+ src/crypto/aes/cipher_amd64.go   | 66 ++++++++++++++++++++++++++++++++++++++++
+ src/crypto/aes/cipher_asm.go     | 48 -----------------------------
+ src/crypto/aes/cipher_generic.go | 27 ++++++----------
+ 6 files changed, 87 insertions(+), 76 deletions(-)

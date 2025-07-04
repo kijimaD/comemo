@@ -1,24 +1,34 @@
-commit 705e2e987e229a913b687561a6370e77dbab4165
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sun Apr 2 20:01:28 2023 +0800
+commit f269d90bf201ee97c42ce625376883866ad77332
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 20:52:05 2022 -0700
 
-    debug/elf: avoid decompress of section twice
+    spec: use original terminology in metasyntax (cleanup)
     
-    In rare cases, elf will get a corrupted section starts with 0x1,
-    which happens to be COMPRESS_ZLIB that causing decompress twice.
-    This CL drops sectionData decompress data after open section.
+    The metasyntax used in the spec is exactly the Wirth Syntax
+    Notation (WSN), which eventually influenced EBNF. Add a link
+    but keep mentioning EBNF which is likely more commonly known.
     
-    Fixes #59208
+    Use the original terms in the productions. Specifically, use
+    the words "Term" and "Factor" rather than "Alternative" and
+    "Term".
     
-    Change-Id: I7999a55868b3b3481509e1ac35985f7580f0f688
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480895
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The terminology cleanup also resolves an inconsistency in the
+    subsequent prose which is referring to the correct "terms" now.
+    
+    While at it, add a production for the entire Syntax itself,
+    matching the original WSN definition.
+    
+    Also, replace the two uses of "grammar" with "syntax" for
+    consistency ("syntax" is the prevalent term used throughout
+    the spec).
+    
+    Fixes #50074.
+    
+    Change-Id: If770d5f32f56f509f85893782c1dafbb0eb29b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405814
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/elf/file.go      | 86 ++++++++++++++++++++--------------------------
- src/debug/elf/file_test.go | 46 +++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 49 deletions(-)
+ doc/go_spec.html | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

@@ -1,15 +1,14 @@
-commit f85b94aa85e6dffca51979538a9b4f0d96a3a645
+commit a257c753ac151d654d40258f11fdcda5dba7f779
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 12 12:23:01 2012 -0800
+Date:   Wed Dec 12 11:33:03 2012 -0800
 
-    net/http: return nicer error when Client request Host is blank
+    misc/dashboard: don't email about netbsd failures
     
-    Update #4271
+    Too flaky.
     
-    R=golang-dev, rsc
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6931052
+    https://golang.org/cl/6925056
 
- src/pkg/net/http/transport.go      |  3 +++
- src/pkg/net/http/transport_test.go | 14 ++++++++++++++
- 2 files changed, 17 insertions(+)
+ misc/dashboard/app/build/notify.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

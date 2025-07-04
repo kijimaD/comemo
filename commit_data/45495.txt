@@ -1,28 +1,18 @@
-commit 30674ae91b7fa20b9f68e1e79d8d7cd8ead495cd
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Apr 30 10:21:18 2021 -0500
+commit de477138d1b11982e86d8d0898e2a471771899b6
+Author: Ayzat Sadykov <ayzat.ziko.93@gmail.com>
+Date:   Sat Oct 24 22:11:51 2020 +0000
 
-    cmd/dist: disable misc/cgo/testsanitizers on ppc64le
+    database/sql: fix comment on DB.stop()
     
-    A while back in this release the sanitizer tests were enabled
-    for ppc64le, where previously they were never run. This
-    uncovered some errors in these tests on ppc64le. One linker
-    fix was made but there are still bugs in how tsan is made to
-    work within the code, especially in how signals are enabled
-    with cgo.
+    Previously, 2 goroutines were created in OpenDB and a comment in the DB.close() field indicated that they were canceled. Later, session Resetter () was removed, but the comment remained the same. This commit just fixes this message
     
-    Some attempts were made to make this work but intermittent
-    failures continue to happen with the Trybots so I am just
-    going to disable this test for ppc64le within cmd/dist.
-    
-    Updates #45040
-    
-    Change-Id: I5392368ccecd4079ef568d0c645c9f7c94016d99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315430
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie81026f51d7770e9cf8004818154021f626fb2e8
+    GitHub-Last-Rev: 38b338a0d1cd713d71fa547aa842d395e6d75484
+    GitHub-Pull-Request: golang/go#42191
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264838
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

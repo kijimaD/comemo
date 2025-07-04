@@ -1,38 +1,42 @@
-commit ce58a39fca067a19c505220c0c907ccf32793427
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 20 15:22:33 2018 -0700
+commit 61158c162fa19dbe73d23e6e094ae310adf8918b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 26 20:56:58 2018 -0500
 
-    cmd/compile/internal/gc: fix Node.copy and introduce (raw|sep)copy
+    cmd/compile: compute register liveness maps
     
-    Node.copy used to make a shallow copy of a node. Often, this is not
-    correct: If a node n's Orig field pointed to itself, the copy's Orig
-    field has to be adjusted to point to the copy. Otherwise, if n is
-    modified later, the copy's Orig appears modified as well (because it
-    points to n).
+    This extends the liveness analysis to track registers containing live
+    pointers. We do this by tracking bitmaps for live pointer registers
+    in parallel with bitmaps for stack variables.
     
-    This was fixed for one specific case with
-    https://go-review.googlesource.com/c/go/+/136395 (issue #26855).
+    This does not yet do anything with these liveness maps, though they do
+    appear in the debug output for -live=2.
     
-    This change instead addresses copy in general:
+    We'll optimize this in later CLs:
     
-    In two cases we don't want the Orig adjustment as it causes escape
-    analysis output to fail (not match the existing error messages).
-    rawcopy is used in those cases.
+    name        old time/op       new time/op       delta
+    Template          193ms ± 5%        195ms ± 2%    ~     (p=0.050 n=9+9)
+    Unicode          97.7ms ± 2%       98.4ms ± 2%    ~     (p=0.315 n=9+10)
+    GoTypes           674ms ± 2%        685ms ± 1%  +1.72%  (p=0.001 n=9+9)
+    Compiler          3.21s ± 1%        3.28s ± 1%  +2.28%  (p=0.000 n=10+9)
+    SSA               7.70s ± 1%        7.79s ± 1%  +1.07%  (p=0.015 n=10+10)
+    Flate             130ms ± 3%        133ms ± 2%  +2.19%  (p=0.003 n=10+10)
+    GoParser          159ms ± 3%        161ms ± 2%  +1.51%  (p=0.019 n=10+10)
+    Reflect           444ms ± 1%        450ms ± 1%  +1.43%  (p=0.000 n=9+10)
+    Tar               181ms ± 2%        183ms ± 2%  +1.45%  (p=0.010 n=10+9)
+    XML               230ms ± 1%        234ms ± 1%  +1.56%  (p=0.000 n=8+9)
+    [Geo mean]        405ms             411ms       +1.48%
     
-    In several cases Orig is set to the copy immediately after making
-    a copy; a new function sepcopy is used there.
+    No effect on binary size because we're not yet emitting the register
+    maps.
     
-    Updates #26855.
-    Fixes #27765.
+    For #24543.
     
-    Change-Id: Idaadeb5c4b9a027daabd46a2361348f7a93f2b00
-    Reviewed-on: https://go-review.googlesource.com/136540
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ieb022f0aea89c0ea9a6f035195bce2f0e67dbae4
+    Reviewed-on: https://go-review.googlesource.com/109352
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/const.go     |  7 +++----
- src/cmd/compile/internal/gc/order.go     | 12 ++++--------
- src/cmd/compile/internal/gc/sinit.go     | 12 ++++--------
- src/cmd/compile/internal/gc/subr.go      | 33 ++++++++++++++++++++++++++++----
- src/cmd/compile/internal/gc/typecheck.go |  8 --------
- src/cmd/compile/internal/gc/walk.go      |  2 +-
- 6 files changed, 41 insertions(+), 33 deletions(-)
+ src/cmd/compile/fmt_test.go          |   2 +
+ src/cmd/compile/internal/gc/plive.go | 338 ++++++++++++++++++++++++++++-------
+ 2 files changed, 272 insertions(+), 68 deletions(-)

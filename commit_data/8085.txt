@@ -1,13 +1,31 @@
-commit 0f03eedb878968851f36189f31fb3b1dfce31d84
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 14 14:18:35 2011 +1000
+commit 507df959e48835cc58f89cdf23fcbead54d03563
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 13 23:42:06 2011 -0400
 
-    weekly.2011-04-13
+    runtime: drop chan circular linked list in favor of circular buffer
     
-    R=dsymonds
+    The list elements are already being allocated out of a
+    single memory buffer.  We can drop the Link* pointer
+    following and the memory it requires, replacing it with
+    index operations.
+    
+    The change also keeps a channel from containing a pointer
+    back into its own allocation block, which would create a
+    cycle.  Blocks involved in cycles are not guaranteed to be
+    finalized properly, and channels depend on finalizers to
+    free OS-level locks on some systems.  The self-reference
+    was keeping channels from being garbage collected.
+    
+    runtime-gdb.py will need to be updated in order to dump
+    the content of buffered channels with the new data structure.
+    
+    Fixes #1676.
+    
+    R=ken2, r
     CC=golang-dev
-    https://golang.org/cl/4396047
+    https://golang.org/cl/4411045
 
- .hgtags                |  1 -
- doc/devel/release.html | 88 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 88 insertions(+), 1 deletion(-)
+ src/cmd/ld/dwarf.c     | 13 +----------
+ src/pkg/runtime/chan.c | 63 +++++++++++++++++++-------------------------------
+ test/gc2.go            | 41 ++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 51 deletions(-)

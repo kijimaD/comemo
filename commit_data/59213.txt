@@ -1,38 +1,35 @@
-commit 0b31e6d4cc804ab76ae8ced151ee2f50657aec14
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 3 03:26:25 2025 +0000
+commit db67824361e5bdaf846c339b224f4ccb349566d1
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 15:21:26 2023 +0800
 
-    runtime: cleanup M vgetrandom state before dropping P
+    syscall: add available godoc link
     
-    When an M is destroyed, we put its vgetrandom state back on the shared
-    list for another M to reuse. This list is simply a slice, so appending
-    to the slice may allocate. Currently this operation is performed in
-    mdestroy, after the P is released, meaning allocation is not allowed.
-    
-    More the cleanup earlier in mdestroy when allocation is still OK.
-    
-    Also add //go:nowritebarrierrec to mdestroy since it runs without a P,
-    which would have caught this bug.
-    
-    Fixes #73141.
-    
-    Change-Id: I6a6a636c3fbf5c6eec09d07a260e39dbb4d2db12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662455
-    Reviewed-by: Jason Donenfeld <Jason@zx2c4.com>
+    Change-Id: I0fcb79f471cdb8b464924d9b04c675f120861f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/os3_solaris.go            |  5 ++++-
- src/runtime/os_aix.go                 |  5 ++++-
- src/runtime/os_darwin.go              |  5 ++++-
- src/runtime/os_dragonfly.go           |  5 ++++-
- src/runtime/os_linux.go               |  9 ++++-----
- src/runtime/os_netbsd.go              |  5 ++++-
- src/runtime/os_openbsd.go             |  5 ++++-
- src/runtime/os_plan9.go               |  5 ++++-
- src/runtime/os_windows.go             |  4 +++-
- src/runtime/proc.go                   |  3 +++
- src/runtime/vgetrandom_linux.go       | 11 +++++++++--
- src/runtime/vgetrandom_unsupported.go |  2 +-
- 12 files changed, 48 insertions(+), 16 deletions(-)
+ src/syscall/dir_plan9.go       |  8 +++----
+ src/syscall/dll_windows.go     | 48 +++++++++++++++++++++---------------------
+ src/syscall/exec_plan9.go      |  6 +++---
+ src/syscall/exec_unix.go       | 18 ++++++++--------
+ src/syscall/flock_aix.go       |  2 +-
+ src/syscall/flock_bsd.go       |  2 +-
+ src/syscall/flock_linux.go     |  2 +-
+ src/syscall/pwd_plan9.go       |  2 +-
+ src/syscall/route_bsd.go       |  4 ++--
+ src/syscall/sockcmsg_unix.go   |  2 +-
+ src/syscall/syscall.go         |  8 +++----
+ src/syscall/syscall_js.go      |  4 ++--
+ src/syscall/syscall_linux.go   |  4 ++--
+ src/syscall/syscall_plan9.go   |  4 ++--
+ src/syscall/syscall_solaris.go |  2 +-
+ src/syscall/syscall_unix.go    |  6 +++---
+ src/syscall/syscall_wasip1.go  |  6 +++---
+ src/syscall/syscall_windows.go | 12 +++++------
+ src/syscall/timestruct.go      |  4 ++--
+ 19 files changed, 72 insertions(+), 72 deletions(-)

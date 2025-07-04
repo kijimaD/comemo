@@ -1,18 +1,16 @@
-commit 0f14c2a0423ed2416db38ca24edfcb47f46c4e4c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Apr 20 03:26:53 2020 +0700
+commit 6ce4384fd6621454a1d58a4ab46f92da8d8567ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 14:49:56 2019 -0800
 
-    cmd/compile: rewrite shift rules to use typed aux fields
+    runtime: mark testSetPanicOnFault as go:nocheckptr
     
-    Passes toolstash-check.
+    The test deliberately constructs an invalid pointer, so don't check it.
     
-    Change-Id: I02e78591fe46e19a43dc36913baef0338a014a3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228860
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #35379
+    
+    Change-Id: Ifeff3484740786b0470de3a4d2d4103d91e06f5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205717
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 200 ++++----
- src/cmd/compile/internal/ssa/rewrite.go        |   8 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 656 ++++++++++++-------------
- 3 files changed, 433 insertions(+), 431 deletions(-)
+ src/runtime/runtime_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

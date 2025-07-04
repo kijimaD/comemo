@@ -1,22 +1,27 @@
-commit 06ac26279cb93140bb2b03bcef9a3300c166cade
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 5 16:24:14 2019 -0700
+commit 0a4d352992606d3becebfa0cdac392827039b49d
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu May 2 22:59:27 2019 -0400
 
-    runtime: initial scheduler changes for timers on P's
+    net/http: fix TestTransportMaxConnsPerHost flakes
     
-    Add support to the main scheduler loop for handling timers on P's.
-    This is not used yet, as timers are not yet put on P's.
+    The testcase created a race between the close of the current connection
+    and the client grabbing a connection for the next request. The client
+    may receive the current connection which may be closed during its use.
+    We can have the trasnport close all idle connections thereby forcing the
+    client to receive a new connection.
     
-    Updates #6239
-    Updates #27707
+    Closing idle connections did not handle cleaning up host connection
+    counts for http/2. We will now decrement the host connection count for
+    http/2 connections.
     
-    Change-Id: I6a359df408629f333a9232142ce19e8be8496dae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171826
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #31784
+    
+    Change-Id: Iefc0d0d7ed9fa3acd8b4f42004f1579fc1de63fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go     | 166 ++++++++++++++++++++++++++++++++++++++++++++----
- src/runtime/runtime2.go |  14 +++-
- src/runtime/time.go     |  21 ++++++
- 3 files changed, 186 insertions(+), 15 deletions(-)
+ src/net/http/transport.go      | 11 +++--------
+ src/net/http/transport_test.go |  4 ++--
+ 2 files changed, 5 insertions(+), 10 deletions(-)

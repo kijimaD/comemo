@@ -1,39 +1,41 @@
-commit 39c8d2b7faed06b0e91a1ad7906231f53aab45d1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Apr 23 20:37:12 2016 -0700
+commit eab3707d6d5a746eb60011c40831ea9083ae533c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 17:40:46 2016 -0800
 
-    os: parse command line without shell32.dll
+    [dev.inline] cmd/compile: rename various fields from Lineno to Pos
     
-    Go uses CommandLineToArgV from shell32.dll to parse command
-    line parameters. But shell32.dll is slow to load. Implement
-    Windows command line parsing in Go. This should make starting
-    Go programs faster.
+    Various minor adjustments.
     
-    I can see these speed ups for runtime.BenchmarkRunningGoProgram
-    
-    on my Windows 7 amd64:
-    name                old time/op  new time/op  delta
-    RunningGoProgram-2  11.2ms ± 1%  10.4ms ± 2%  -6.63%  (p=0.000 n=9+10)
-    
-    on my Windows XP 386:
-    name                old time/op  new time/op  delta
-    RunningGoProgram-2  19.0ms ± 3%  12.1ms ± 1%  -36.20%  (p=0.000 n=10+10)
-    
-    on @egonelbre Windows 10 amd64:
-    name                old time/op  new time/op  delta
-    RunningGoProgram-8  17.0ms ± 1%  15.3ms ± 2%  -9.71%  (p=0.000 n=10+10)
-    
-    This CL is based on CL 22932 by John Starks.
-    
-    Fixes #15588.
-    
-    Change-Id: Ib14be0206544d0d4492ca1f0d91fac968be52241
-    Reviewed-on: https://go-review.googlesource.com/37915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iedfb97989f7bedaa3e9e8993b167e05f162434a7
+    Reviewed-on: https://go-review.googlesource.com/34136
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/os/exec_windows.go        |  80 ++++++++++++++++++++++---
- src/os/export_windows_test.go |   5 +-
- src/os/os_windows_test.go     | 134 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 208 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go    |  4 +-
+ src/cmd/compile/internal/arm/ssa.go      |  4 +-
+ src/cmd/compile/internal/arm64/ssa.go    |  4 +-
+ src/cmd/compile/internal/gc/align.go     |  4 +-
+ src/cmd/compile/internal/gc/asm_test.go  |  2 +-
+ src/cmd/compile/internal/gc/bexport.go   |  4 +-
+ src/cmd/compile/internal/gc/closure.go   | 14 +++---
+ src/cmd/compile/internal/gc/dcl.go       | 26 +++++------
+ src/cmd/compile/internal/gc/esc.go       | 54 +++++++++++------------
+ src/cmd/compile/internal/gc/fmt.go       |  4 +-
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 +--
+ src/cmd/compile/internal/gc/main.go      |  4 +-
+ src/cmd/compile/internal/gc/noder.go     |  8 ++--
+ src/cmd/compile/internal/gc/sinit.go     |  4 +-
+ src/cmd/compile/internal/gc/ssa.go       | 74 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/subr.go      | 36 ++++++++--------
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    |  4 +-
+ src/cmd/compile/internal/gc/type.go      |  8 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++---
+ src/cmd/compile/internal/gc/util.go      |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 10 ++---
+ src/cmd/compile/internal/mips/ssa.go     |  4 +-
+ src/cmd/compile/internal/mips64/ssa.go   |  4 +-
+ src/cmd/compile/internal/ppc64/ssa.go    |  4 +-
+ src/cmd/compile/internal/s390x/ssa.go    |  4 +-
+ src/cmd/compile/internal/x86/ssa.go      |  4 +-
+ 28 files changed, 155 insertions(+), 155 deletions(-)

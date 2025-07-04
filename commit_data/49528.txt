@@ -1,23 +1,15 @@
-commit 6b6c64b1cc918633824e7a9165816c81f0c08b21
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 24 17:02:24 2022 -0400
+commit 4f2620285d7ce1802aff3d1f85e5ab0168d57bf3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 24 21:12:06 2021 -0700
 
-    cmd/internal/archive: don't rely on an erroneous install target in tests
+    cmd/compile/internal/types2: fix type set printing and add test
     
-    Non-main packages in module mode should not be installed to
-    GOPATH/pkg, but due to #37015 they were installed there anyway.
-    This change switches the 'go install' command to instead use
-    'go build -buildmode=archive' with an explicit archive path.
-    
-    For #37015.
-    
-    Change-Id: Ib0c8f213100b6473a7657af96f31395703e28493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414055
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I44ca1f889b041467d5febacaf6037cfd75859175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344873
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/internal/archive/archive_test.go | 153 +++++++++++++++++--------------
- 1 file changed, 82 insertions(+), 71 deletions(-)
+ src/cmd/compile/internal/types2/typeset.go      | 12 ++---
+ src/cmd/compile/internal/types2/typeset_test.go | 67 ++++++++++++++++++++++++-
+ 2 files changed, 71 insertions(+), 8 deletions(-)

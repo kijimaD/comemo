@@ -1,57 +1,28 @@
-commit 281cfcfc1b15fbb87fd32660b0a1d50be996d108
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jun 10 16:42:59 2025 +0000
+commit 552faa8927a23fd5967435295c14af1741ac3653
+Author: Sabyrzhan Tasbolatov <snovitoll@gmail.com>
+Date:   Sun Apr 14 16:55:57 2024 +0500
 
-    runtime: handle system goroutines later in goroutine profiling
+    runtime: reduced struct sizes found via pahole
     
-    Before CL 650697, there was only one system goroutine that could
-    dynamically change between being a user goroutine and a system
-    goroutine, and that was the finalizer/cleanup goroutine. In goroutine
-    profiles, it was handled explicitly. It's status would be checked during
-    the first STW, and its stack would be recorded. This let the goroutine
-    profiler completely ignore system goroutines once the world was started
-    again.
+    During my research of pahole with Go structs, I've found couple of
+    structs in runtime/ pkg where we can reduce several structs' sizes
+    highligted by pahole tool which detect byte holes and paddings.
     
-    CL 650697 added dedicated cleanup goroutines (there may be more than
-    one), and with this, the logic for finalizer goroutines no longer
-    scaled. In that CL, I let the isSystemGoroutine check be dynamic and
-    dropped the special case, but this was based on incorrect assumptions.
-    Namely, it's possible for the scheduler to observe, for example, the
-    finalizer goroutine as a system goroutine and ignore it, but then later
-    the goroutine profiler itself sees it as a user goroutine. At that point
-    it's too late and already running. This violates the invariant of the
-    goroutine profile that all goroutines are handled by the profiler before
-    they start executing. In practice, the result is that the goroutine
-    profiler can crash when it checks this invariant (not checking the
-    invariant means racily reading goroutine stack memory).
+    Overall, there are 80 bytes reduced.
     
-    The root cause of the problem is that these system goroutines do not
-    participate in the goroutine profiler's state machine. Normally, when
-    profiling, goroutines transition from 'absent' to 'in-progress' to
-    'satisfied'. However with system goroutines, the state machine is
-    ignored entirely. They always stay in the 'absent' state. This means
-    that if a goroutine transitions from system to user, it is eligible for
-    a profile record when it shouldn't be. That transition shouldn't be
-    allowed to occur with respect to the goroutine profiler, because the
-    goroutine profiler is trying to snapshot the state of every goroutine.
-    
-    The fix to this problem is simple: don't ignore system goroutines. Let
-    them participate in the goroutine profile state machine. Instead, decide
-    whether or not to record the stack after the goroutine has been acquired
-    for goroutine profiling. This means if the scheduler observes the
-    finalizer goroutine as a system goroutine, it will get promoted in the
-    goroutine profiler's state machine, and no other part of the goroutine
-    profiler will observe the goroutine again. Simultaneously, the
-    stack record for the goroutine will be correctly skipped.
-    
-    Fixes #74090.
-    
-    Change-Id: Icb9a164a033be22aaa942d19e828e895f700ca74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680477
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I398e5ed6f5b199394307741981cb5ad5b875e98f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578795
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/mprof.go            | 15 +++++++++++----
- src/runtime/pprof/pprof_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 4 deletions(-)
+ src/runtime/mgclimit.go    | 27 ++++++++++++++-------------
+ src/runtime/mgcscavenge.go | 14 +++++++-------
+ src/runtime/netpoll.go     |  4 ++--
+ src/runtime/proc.go        |  2 +-
+ src/runtime/runtime2.go    |  6 +++---
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/symtab.go      |  3 +--
+ 7 files changed, 29 insertions(+), 29 deletions(-)

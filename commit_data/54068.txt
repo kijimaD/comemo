@@ -1,35 +1,19 @@
-commit 4e411e7bc44378422fa52f478927d9f71c39f385
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 16 19:45:12 2023 -0700
+commit 1e96f42c2a80ca99c202409683ba5bd755bf3d85
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 19 10:52:27 2022 +0200
 
-    cmd/compile: cleanup Func construction
+    syscall: drop compatibility for FreeBSD < 10.0
     
-    This CL moves more common Func-setup logic into ir.NewFunc. In
-    particular, it now handles constructing the Name and wiring them
-    together, setting the Typecheck bit, and setting Sym.Func.
-    
-    Relatedly, this CL also extends typecheck.DeclFunc to append the
-    function to typecheck.Target.Funcs, so that callers no longer need to
-    do this.
-    
-    Change-Id: Ifa0aded8df0517188eb295d0dccc107af85f1e8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520338
+    Change-Id: Idd8cee84215e61817a86915160c91242670798af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431663
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/inline/inl.go          |  3 +-
- src/cmd/compile/internal/ir/func.go             | 50 +++++++++++------------
- src/cmd/compile/internal/noder/reader.go        | 53 +++++++++++--------------
- src/cmd/compile/internal/pkginit/init.go        | 18 +++------
- src/cmd/compile/internal/reflectdata/alg.go     |  2 -
- src/cmd/compile/internal/ssa/export_test.go     |  3 +-
- src/cmd/compile/internal/ssagen/abi.go          |  2 -
- src/cmd/compile/internal/typecheck/dcl.go       | 11 +++--
- src/cmd/compile/internal/typecheck/export.go    | 42 ++++++--------------
- src/cmd/compile/internal/typecheck/syms.go      |  9 ++---
- src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
- src/cmd/compile/internal/types/scope.go         | 11 -----
- 12 files changed, 77 insertions(+), 129 deletions(-)
+ src/syscall/route_freebsd_32bit.go | 11 ++++-------
+ src/syscall/syscall_freebsd.go     | 16 +---------------
+ 2 files changed, 5 insertions(+), 22 deletions(-)

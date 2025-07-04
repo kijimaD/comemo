@@ -1,17 +1,15 @@
-commit 551e26382385a91cbe9cfc94b1327d29f030f254
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Mon Sep 17 21:29:10 2012 +0200
+commit af832ac0b9609922d486f511dad04fba7a24dc44
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 11:21:02 2012 -0700
 
-    cmd/gc: add missing conversion from bool to interface in switches.
+    misc/dashboard/builder: reinstate 'go get -d' error handling hack
     
-    In switches without an expression, the compiler would not convert the implicit true to an interface, causing codegen errors.
+    I thought this was redundant since the behavior of 'go get -d' had
+    changed. I was wrong. Should have tested more thoroughly.
     
-    Fixes #3980.
-    
-    R=golang-dev, rsc
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6497147
+    https://golang.org/cl/6500136
 
- src/cmd/gc/swt.c |  7 +++++++
- test/switch.go   | 11 +++++++++++
- 2 files changed, 18 insertions(+)
+ misc/dashboard/builder/main.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

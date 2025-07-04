@@ -1,12 +1,15 @@
-commit c69402d82b5860df253b77ad07b6aa572c9f87cd
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Dec 10 11:17:43 2013 -0800
+commit de8549dfd36bc46ca9c10903dad6e504e1444a86
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 10 14:02:42 2013 -0500
 
-    runtime: remove outdated comment and related indentation
+    test/run: make -v output look like go test output
     
-    R=golang-dev, iant
+    Among other things, it makes it easier to scan to
+    see what is slow.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/39810043
+    https://golang.org/cl/40040044
 
- src/pkg/runtime/mgc0.c | 212 ++++++++++++++++++++++++-------------------------
- 1 file changed, 103 insertions(+), 109 deletions(-)
+ test/run.go | 47 ++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 32 insertions(+), 15 deletions(-)

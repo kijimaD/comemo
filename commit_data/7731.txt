@@ -1,17 +1,14 @@
-commit 2099e9fdacbd64cdec0b9e5ea436063265ae1d98
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 10 12:54:18 2011 -0800
+commit 034ca39e56d60e3eaa037fa976b8954939ce6d2f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 10 12:42:31 2011 -0800
 
-    gofmt: remove -trace and -ast flags
-    
-    Functionality was only present for
-    debuggging and now is available in
-    gocheck where is makes more sense.
+    flag: visit the flags in sorted order, for better messages.
+    Fixes #1601.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4239078
+    https://golang.org/cl/4249070
 
- src/cmd/gofmt/doc.go   | 16 ++++------------
- src/cmd/gofmt/gofmt.go | 13 +------------
- 2 files changed, 5 insertions(+), 24 deletions(-)
+ src/pkg/flag/flag.go      | 27 +++++++++++++++++++++++----
+ src/pkg/flag/flag_test.go |  7 +++++++
+ 2 files changed, 30 insertions(+), 4 deletions(-)

@@ -1,16 +1,14 @@
-commit 9e199702c829d303ebe001a09c47aa4ec3b3ff81
-Author: Mike Wiacek <mjwiacek@google.com>
-Date:   Wed Dec 28 16:15:35 2016 -0800
+commit ad50408fe7d9edfc7a1d9791e7391df132bc58b2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 20 19:43:34 2016 +0900
 
-    net/http/httputil: clarify the contract on ReverseProxy's Director.
+    path/filepath: simplify TestToNorm
     
-    Avoid potential race conditions by clarifying to implemntors of the
-    ReverseProxy interface, the lifetime of provided http.Request structs.
-    
-    Fixes #18456
-    Change-Id: I46aa60322226ecc3a0d30fa1ef108e504171957a
-    Reviewed-on: https://go-review.googlesource.com/34720
+    Change-Id: I8a176ed9c7f59ebdfd39c1e2b88905f977179982
+    Reviewed-on: https://go-review.googlesource.com/31119
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httputil/reverseproxy.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/path/filepath/path_windows_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

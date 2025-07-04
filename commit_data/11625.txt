@@ -1,12 +1,14 @@
-commit 8f0602fb077f44b310567330fa5cc463a9b91ac7
+commit 1d69b1244561d541c48ef2f7d5223c7e8515975f
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Sun Feb 5 00:36:20 2012 -0200
+Date:   Sun Feb 5 00:35:08 2012 -0200
 
-    .hgignore: add VERSION.cache
+    cmd/dist: add GOBIN to env's output
+    
+    clean.bash depends on it being set.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5627051
+    https://golang.org/cl/5630056
 
- .hgignore | 1 +
+ src/cmd/dist/build.c | 1 +
  1 file changed, 1 insertion(+)

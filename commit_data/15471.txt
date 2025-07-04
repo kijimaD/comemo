@@ -1,18 +1,12 @@
-commit 877153f04aef18d25757ad3bf4b097460c7c4699
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Feb 27 17:00:02 2013 -0500
+commit d1d38c535d848775c06b19d753773936441d90da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 12:42:26 2013 -0800
 
-    exp/ssa: fix *bsd breakage.
+    net: fix windows build
     
-    Use portable ReadDirent, not linux Getdents.
-    
-    R=gri
-    TBR=gri
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7405051
+    https://golang.org/cl/7392054
 
- src/pkg/exp/ssa/interp/external.go         | 2 +-
- src/pkg/exp/ssa/interp/external_plan9.go   | 6 +++---
- src/pkg/exp/ssa/interp/external_unix.go    | 6 +++---
- src/pkg/exp/ssa/interp/external_windows.go | 6 +++---
- 4 files changed, 10 insertions(+), 10 deletions(-)
+ src/pkg/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,34 +1,19 @@
-commit 489f508ccfb7f0648852e0fea882b204a5776573
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 20:32:27 2022 -0700
+commit 6372e7efbab5a613b73271938acbd1c6f558814e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 7 13:05:16 2021 -0700
 
-    cmd/compile: avoid "not used" errors due to bad go/defer statements
+    cmd/api: support type parameters
     
-    The syntax for go and defer specifies an arbitrary expression, not
-    a call; the call requirement is spelled out in prose. Don't to the
-    call check in the parser; instead move it to the type checker. This
-    is simpler and also allows the type checker to check expressions that
-    are not calls, and avoid "not used" errors due to such expressions.
+    Fixes #48706
     
-    We would like to make the same change in go/parser and go/types
-    but the change requires Go/DeferStmt nodes to hold an ast.Expr
-    rather than an *ast.CallExpr. We cannot change that for backward-
-    compatibility reasons. Since we don't test this behavior for the
-    type checkers alone (only for the compiler), we get away with it
-    for now.
-    
-    Follow-up on CL 425675 which introduced the extra errors in the
-    first place.
-    
-    Change-Id: I90890b3079d249bdeeb76d5673246ba44bec1a7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425794
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If0f8d0b49300027e3b2b46f6870302acf2e00f4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354612
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 14 --------------
- src/cmd/compile/internal/types2/stmt.go   |  6 ++++++
- test/fixedbugs/issue23586.go              |  8 +++-----
- 3 files changed, 9 insertions(+), 19 deletions(-)
+ src/cmd/api/goapi.go                       | 76 +++++++++++++++++++++++++++++-
+ src/cmd/api/testdata/src/pkg/p4/golden.txt |  4 ++
+ src/cmd/api/testdata/src/pkg/p4/p4.go      | 22 +++++++++
+ 3 files changed, 100 insertions(+), 2 deletions(-)

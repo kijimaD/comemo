@@ -1,18 +1,20 @@
-commit a82ed3bc81f9f758230e38719a1c048a45a69021
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 27 12:16:09 2015 -0400
+commit 4b2774f5ea4f6f0beb75259f65e60585b6dbfd56
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 8 14:18:33 2015 -0700
 
-    cmd/go: enable vendoring experiment by default
+    runtime: make sysmon-triggered GC concurrent
     
-    If we're going to do this for Go 1.6 we might as well do it now
-    and find out what breaks.
+    sysmon triggers a GC if there has been no GC for two minutes.
+    Currently, this is a STW GC. There is no reason for this to be STW, so
+    make it concurrent.
     
-    Change-Id: I8306b7829d8d13b564a1466c902ec6ba1a5a58c1
-    Reviewed-on: https://go-review.googlesource.com/13967
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10261.
+    
+    Change-Id: I92f3ac37272d5c2a31480ff1fa897ebad08775a9
+    Reviewed-on: https://go-review.googlesource.com/11955
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/alldocs.go | 28 +++++++++++++++++-----------
- src/cmd/go/get.go     |  4 ++--
- src/cmd/go/help.go    | 24 +++++++++++++++---------
- src/cmd/go/pkg.go     |  6 ++++--
- 4 files changed, 38 insertions(+), 24 deletions(-)
+ src/runtime/proc.go  | 2 +-
+ src/runtime/proc1.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

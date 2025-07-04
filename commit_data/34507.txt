@@ -1,24 +1,28 @@
-commit 7a2a96d6ad75762f427669beb0220810adb6a9e1
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Mar 7 18:23:21 2018 +0100
+commit b97688d112216c94791b60a846384561974399b4
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sun Sep 17 17:20:35 2017 +0100
 
-    runtime/cgo: make sure nil is undefined before defining it
+    math: optimize dim and remove s390x assembly implementation
     
-    While working on standalone builds of gomobile bindings, I ran into
-    errors on the form:
+    By calculating dim directly, rather than calling max, we can simplify
+    the generated code significantly. The compiler now reports that dim
+    is easily inlineable, but it can't be inlined because there is still
+    an assembly stub for Dim.
     
-    gcc_darwin_arm.c:30:31: error: ambiguous expansion of macro 'nil' [-Werror,-Wambiguous-macro]
-    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS11.2.sdk/usr/include/MacTypes.h:94:15: note: expanding this definition of 'nil'
+    Since dim is now very simple I no longer think it is worth having
+    assembly implementations of it. I have therefore removed the s390x
+    assembly. Removing the other assembly for Dim is #21913.
     
-    Fix it by undefining nil before defining it in libcgo.h.
+    name  old time/op  new time/op  delta
+    Dim   4.29ns ± 0%  3.53ns ± 0%  -17.62%  (p=0.000 n=9+8)
     
-    Change-Id: I8e9660a68c6c351e592684d03d529f0d182c0493
-    Reviewed-on: https://go-review.googlesource.com/99215
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Ic38a6b51603cbc661dcdb868ecf2b1947e9f399e
+    Reviewed-on: https://go-review.googlesource.com/64194
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/cgo/gcc_darwin_arm.c   | 6 +++---
- src/runtime/cgo/gcc_darwin_arm64.c | 6 +++---
- src/runtime/cgo/libcgo.h           | 1 +
- 3 files changed, 7 insertions(+), 6 deletions(-)
+ src/math/dim.go        | 13 ++++++++++++-
+ src/math/dim_s390x.s   | 36 ------------------------------------
+ src/math/stubs_s390x.s |  3 +++
+ 3 files changed, 15 insertions(+), 37 deletions(-)

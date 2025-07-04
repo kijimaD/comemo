@@ -1,18 +1,34 @@
-commit 03c52a5d65e06ab881af75a365004bea7ed7359d
-Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
-Date:   Thu Nov 1 16:21:18 2012 -0400
+commit 27c990e7946d69fecc0c823e54f7d7da631ed1a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 1 12:39:20 2012 -0700
 
-    crypto: use better hash benchmarks
+    encoding/binary: skip blank fields when (en/de)coding structs
     
-    Labels the existing benchmark as stream, and add benchmarks that
-    compute the checksum.
+    - minor unrelated cleanups
+    - performance impact in the noise
     
-    R=golang-dev, agl
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkReadSlice1000Int32s        83462        83346   -0.14%
+    BenchmarkReadStruct                  4141         4247   +2.56%
+    BenchmarkReadInts                    1588         1586   -0.13%
+    BenchmarkWriteInts                   1550         1489   -3.94%
+    BenchmarkPutUvarint32                  39           39   +1.02%
+    BenchmarkPutUvarint64                 142          144   +1.41%
+    
+    benchmark                        old MB/s     new MB/s  speedup
+    BenchmarkReadSlice1000Int32s        47.93        47.99    1.00x
+    BenchmarkReadStruct                 16.90        16.48    0.98x
+    BenchmarkReadInts                   18.89        18.91    1.00x
+    BenchmarkWriteInts                  19.35        20.15    1.04x
+    BenchmarkPutUvarint32              101.90       100.82    0.99x
+    BenchmarkPutUvarint64               56.11        55.45    0.99x
+    
+    Fixes #4185.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/6814060
+    https://golang.org/cl/6750053
 
- src/pkg/crypto/md5/md5_test.go       | 28 ++++++++++++++--------------
- src/pkg/crypto/sha1/sha1_test.go     | 28 ++++++++++++++--------------
- src/pkg/crypto/sha256/sha256_test.go | 28 ++++++++++++++--------------
- src/pkg/crypto/sha512/sha512_test.go | 28 ++++++++++++++--------------
- 4 files changed, 56 insertions(+), 56 deletions(-)
+ src/pkg/encoding/binary/binary.go      | 49 ++++++++++++++++----
+ src/pkg/encoding/binary/binary_test.go | 81 +++++++++++++++++++++++++++-------
+ 2 files changed, 107 insertions(+), 23 deletions(-)

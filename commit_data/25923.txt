@@ -1,17 +1,21 @@
-commit 763e8fcc8931b44db77f7bcbc7b6943a2a8fb747
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Jan 27 16:36:31 2016 +0000
+commit 71d2fa8bae19ea2bbfb4a7968286b046214069e1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 3 18:32:15 2015 +0000
 
-    syscall: new files for plan_arm support
+    net/http: deflake a non-short test, clean up export_test.go
     
-    Implementation closely follows plan9_386 version.
+    This makes TestTransportResponseCloseRace much faster and no longer
+    flaky.
     
-    Change-Id: Ifb76e001fb5664e6a23541cf4768d7f11b2be68b
-    Reviewed-on: https://go-review.googlesource.com/18967
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In the process it also cleans up test hooks in net/http which were
+    inconsistent and scattered.
+    
+    Change-Id: Ifd0b11dbc7e8915c24eb5bdc36731ed6751dd7ec
+    Reviewed-on: https://go-review.googlesource.com/17316
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/asm_plan9_arm.s       |  97 +++++++++++++
- src/syscall/zsyscall_plan9_arm.go | 294 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 391 insertions(+)
+ src/net/http/export_test.go    | 114 ++++++++++++++++++++---------------------
+ src/net/http/transport.go      |  50 ++++++++----------
+ src/net/http/transport_test.go |  14 ++++-
+ 3 files changed, 90 insertions(+), 88 deletions(-)

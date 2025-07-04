@@ -1,32 +1,15 @@
-commit 0316dafda26619175f35e5e89f1920ebf37c85a3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 30 00:54:40 2014 -0400
+commit a6cd73345013af7a6b45447f50352b5c860c46bd
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Aug 25 11:40:10 2014 -0700
 
-    runtime: rename SysAlloc to sysAlloc for Go
+    crypto/cipher: add CFB test vectors.
     
-    Renaming the C SysAlloc will let Go define a prototype without exporting it.
-    For use in cpuprof.goc's translation to Go.
+    Fixes #8576.
     
-    LGTM=mdempsky
-    R=golang-codereviews, mdempsky
-    CC=golang-codereviews, iant
-    https://golang.org/cl/140060043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/136720043
 
- src/pkg/runtime/cpuprof.goc     |  2 +-
- src/pkg/runtime/heapdump.c      |  2 +-
- src/pkg/runtime/malloc.c        |  8 ++++----
- src/pkg/runtime/malloc.h        | 14 +++++++-------
- src/pkg/runtime/mem_darwin.c    |  2 +-
- src/pkg/runtime/mem_dragonfly.c |  2 +-
- src/pkg/runtime/mem_freebsd.c   |  2 +-
- src/pkg/runtime/mem_linux.c     |  2 +-
- src/pkg/runtime/mem_nacl.c      |  6 +++---
- src/pkg/runtime/mem_netbsd.c    |  2 +-
- src/pkg/runtime/mem_openbsd.c   |  2 +-
- src/pkg/runtime/mem_plan9.c     |  4 ++--
- src/pkg/runtime/mem_solaris.c   |  2 +-
- src/pkg/runtime/mem_windows.c   |  2 +-
- src/pkg/runtime/mheap.c         |  2 +-
- src/pkg/runtime/mprof.goc       |  2 +-
- src/pkg/runtime/stack.c         |  2 +-
- 17 files changed, 29 insertions(+), 29 deletions(-)
+ src/pkg/crypto/cipher/cfb_test.go | 77 ++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 76 insertions(+), 1 deletion(-)

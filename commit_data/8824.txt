@@ -1,14 +1,12 @@
-commit 123549acb1be28d1a973d13430e6d2cb3145c544
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 23 09:16:20 2011 +1000
+commit 6b4fb9f85a6e8ab13b4d2a30b55331967a232b69
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 23 08:39:00 2011 +1000
 
-    exec: better error message for windows LookPath
+    image: basic test for the 16-bits-per-color-channel types.
     
-    Fixes #1991.
-    
-    R=golang-dev, bradfitz, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4648049
+    https://golang.org/cl/4635059
 
- src/pkg/exec/lp_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/image_test.go | 79 +++++++++++++++++++++++++++++++--------------
+ 1 file changed, 55 insertions(+), 24 deletions(-)

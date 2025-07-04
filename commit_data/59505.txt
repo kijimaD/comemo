@@ -1,25 +1,20 @@
-commit b30fa1bcc411f3a65a6e8f40ff3acdb1526ce0d0
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 24 11:10:05 2025 -0700
+commit f94d82b2c03c756f1d8893dc0282e9608e7d32a1
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Mar 15 13:47:53 2024 +0800
 
-    runtime: improve scan inner loop
+    slices: add func Repeat
     
-    On every arch except amd64, it is faster to do x&(x-1) than x^(1<<n).
+    Fixes #65238
     
-    Most archs need 3 instructions for the latter: MOV $1, R; SLL n, R;
-    ANDN R, x. Maybe 4 if there's no ANDN.
-    
-    Most archs need only 2 instructions to do x&(x-1). It takes 3 on
-    x86/amd64 because NEG only works in place.
-    
-    Only amd64 can do x^(1<<n) in a single instruction.
-    (We could on 386 also, but that's currently not implemented.)
-    
-    Change-Id: I3b74b7a466ab972b20a25dbb21b572baf95c3467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672956
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I32ae4d922788cc6fbbe80f5b558a075951e3c892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571895
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/mbitmap.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ api/next/65238.txt                         |  1 +
+ doc/next/6-stdlib/99-minor/slices/65238.md |  2 +
+ src/slices/slices.go                       | 24 ++++++++++
+ src/slices/slices_test.go                  | 74 ++++++++++++++++++++++++++++++
+ 4 files changed, 101 insertions(+)

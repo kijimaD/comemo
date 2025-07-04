@@ -1,0 +1,45 @@
+commit c31a5c571f32f350a0a1b30f2b0e85576096e14c
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed May 14 14:35:41 2025 +0800
+
+    cmd/compile: fold negation into addition/subtraction on loong64
+    
+    This change also avoid double negation, and add loong64 codegen for arithmetic tests.
+    Reduce the number of go toolchain instructions on loong64 as follows.
+    
+        file      before    after     Δ       %
+        addr2line 279972    279896  -76    -0.0271%
+        asm       556390    556310  -80    -0.0144%
+        buildid   272376    272300  -76    -0.0279%
+        cgo       481534    481550  +16    +0.0033%
+        compile   2457992   2457396 -596   -0.0242%
+        covdata   323488    323404  -84    -0.0260%
+        cover     518630    518490  -140   -0.0270%
+        dist      340894    340814  -80    -0.0235%
+        distpack  282568    282484  -84    -0.0297%
+        doc       790224    789984  -240   -0.0304%
+        fix       324408    324348  -60    -0.0185%
+        link      704910    704666  -244   -0.0346%
+        nm        277220    277144  -76    -0.0274%
+        objdump   508026    507878  -148   -0.0291%
+        pack      221810    221786  -24    -0.0108%
+        pprof     1470284   1469880 -404   -0.0275%
+        test2json 254896    254852  -44    -0.0173%
+        trace     1100390   1100074 -316   -0.0287%
+        vet       781398    781142  -256   -0.0328%
+        go        1529668   1529128 -540   -0.0353%
+        gofmt     318668    318568  -100   -0.0314%
+        total     13795746 13792094 -3652  -0.0265%
+    
+    Change-Id: I88d1f12cfc4be0e92687c48e06a57213aa484aca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 10 +++
+ src/cmd/compile/internal/ssa/rewrite.go         |  5 ++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 83 +++++++++++++++++++++++++
+ test/codegen/arithmetic.go                      | 10 +++
+ 4 files changed, 108 insertions(+)

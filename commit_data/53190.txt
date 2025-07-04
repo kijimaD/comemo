@@ -1,31 +1,20 @@
-commit a1f3dc33dced2d337261b693b1ef1bf6a5bbce8d
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 22 10:32:31 2023 -0400
+commit 9a2001a8cc75b1ceda17da828edcee93c9d9f42c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 16 16:08:35 2022 -0700
 
-    cmd/cgo: merge overlayDir into one package
+    cmd/dist: always pass -short=true with -quick
     
-    There are many copies of overlaydir_test.go between the cgo tests
-    from when these couldn't share code. Now that they can, merge these
-    copies into a cmd/cgo/internal/cgotest package.
+    Fixes #53818
     
-    Change-Id: I203217f5d08e6306cb049a13718652cf7c447b80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497078
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I190a8bcf50d92b9c10e9980e630ebb362d8b19ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417918
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .../overlaydir_test.go => cgotest/overlaydir.go}   |  9 +--
- src/cmd/cgo/internal/testcarchive/carchive_test.go |  3 +-
- .../cgo/internal/testcarchive/overlaydir_test.go   | 78 ----------------------
- src/cmd/cgo/internal/testcshared/cshared_test.go   |  3 +-
- .../cgo/internal/testcshared/overlaydir_test.go    | 78 ----------------------
- src/cmd/cgo/internal/testlife/life_test.go         |  3 +-
- src/cmd/cgo/internal/testlife/overlaydir_test.go   | 78 ----------------------
- src/cmd/cgo/internal/testplugin/overlaydir_test.go | 78 ----------------------
- src/cmd/cgo/internal/testplugin/plugin_test.go     |  3 +-
- src/cmd/cgo/internal/testshared/overlaydir_test.go | 78 ----------------------
- src/cmd/cgo/internal/testshared/shared_test.go     |  5 +-
- src/cmd/cgo/internal/testso/so_test.go             |  3 +-
- src/cmd/cgo/internal/teststdio/overlaydir_test.go  | 78 ----------------------
- src/cmd/cgo/internal/teststdio/stdio_test.go       |  3 +-
- 14 files changed, 18 insertions(+), 482 deletions(-)
+ src/cmd/dist/test.go        | 2 +-
+ src/runtime/runtime_test.go | 7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

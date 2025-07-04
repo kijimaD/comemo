@@ -1,16 +1,18 @@
-commit 6150414cb8819ab9f054298ec7f8006a43ab8eea
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 16 14:25:33 2014 -0500
+commit 1415a53b75fe3dc4fa53208e82839533bb2f1a30
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 24 09:37:25 2014 -0700
 
-    runtime: update URL for heap dump format
+    unsafe: document that unsafe programs are not protected
+    The compatibility guideline needs to be clear about this even
+    though it means adding a clause that was not there from the
+    beginning. It has always been understood, so this isn't really
+    a change in policy, just in its expression.
     
-    I just created that redirect, so we can change
-    it once the wiki moves.
-    
-    LGTM=bradfitz, khr
-    R=khr, bradfitz
+    LGTM=bradfitz, gri, rsc
+    R=golang-codereviews, bradfitz, gri, rsc
     CC=golang-codereviews
-    https://golang.org/cl/177780043
+    https://golang.org/cl/162060043
 
- src/runtime/heapdump.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1compat.html   | 8 ++++++++
+ src/unsafe/unsafe.go | 3 +++
+ 2 files changed, 11 insertions(+)

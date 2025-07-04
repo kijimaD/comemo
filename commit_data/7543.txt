@@ -1,18 +1,14 @@
-commit 73aacbda205127dd5a51eae4ab02869a98f92404
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Feb 23 11:48:40 2011 -0500
+commit 83da7d15a3520e18361b488b803bf38804b86350
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Feb 23 11:32:29 2011 -0500
 
-    codereview: fix clpatch with empty diffs
-    
-    Avoid passing the placeholder diff to hgpatch, so that
-    clpatch-ing an empty diff grabs the metadata and warns
-    about it being empty, rather than failing with a
-    hard-to-debug problem ("mkdir: no such file or dir",
-    no metadata, etc).
+    json: use base64 to encode []byte
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4172060
+    https://golang.org/cl/4160058
 
- lib/codereview/codereview.py | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/pkg/json/decode.go      | 58 +++++++++++++++++++++++++++++++++++++++------
+ src/pkg/json/decode_test.go | 27 ++++++++++++++++-----
+ src/pkg/json/encode.go      | 26 ++++++++++++++++++--
+ 3 files changed, 96 insertions(+), 15 deletions(-)

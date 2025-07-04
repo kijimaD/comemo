@@ -1,20 +1,75 @@
-commit 82047a080f0aa320e316773fe8bcbb7c7bcd5a1f
-Author: alex-semenyuk <alexsemenyuk88@gmail.com>
-Date:   Sun Mar 29 08:12:06 2020 +0000
+commit 8f30d25168cae6380d9ef50528063716261356c4
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Sun Apr 14 08:00:38 2019 +0200
 
-    test, test/fixedbugs, crypto/x509, go/internal/gccgoimporter: fix typos
+    math/big: use nat pool to reduce allocations in mul and sqr
     
-    Change-Id: Ie2d605ca8cc3bde2e26c6865642ff4e6412cd075
-    GitHub-Last-Rev: ce5c3ba369b2ef476e7c63e4404baa256584f357
-    GitHub-Pull-Request: golang/go#38137
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226201
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This notably allows to reuse temporaries across
+    the karatsubaSqr recursion.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkNatMul/10-4         227           228           +0.44%
+    BenchmarkNatMul/100-4        8339          8589          +3.00%
+    BenchmarkNatMul/1000-4       313796        312272        -0.49%
+    BenchmarkNatMul/10000-4      11924720      11873589      -0.43%
+    BenchmarkNatMul/100000-4     503813354     503839058     +0.01%
+    BenchmarkNatSqr/20-4         549           513           -6.56%
+    BenchmarkNatSqr/30-4         945           874           -7.51%
+    BenchmarkNatSqr/50-4         1993          1832          -8.08%
+    BenchmarkNatSqr/80-4         4096          3874          -5.42%
+    BenchmarkNatSqr/100-4        6192          5712          -7.75%
+    BenchmarkNatSqr/200-4        20388         19543         -4.14%
+    BenchmarkNatSqr/300-4        38735         36715         -5.21%
+    BenchmarkNatSqr/500-4        99562         93542         -6.05%
+    BenchmarkNatSqr/800-4        195554        184907        -5.44%
+    BenchmarkNatSqr/1000-4       286302        275053        -3.93%
+    BenchmarkNatSqr/10000-4      9817057       9441641       -3.82%
+    BenchmarkNatSqr/100000-4     390713416     379696789     -2.82%
+    
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkNatMul/10-4         1              1              +0.00%
+    BenchmarkNatMul/100-4        1              1              +0.00%
+    BenchmarkNatMul/1000-4       2              1              -50.00%
+    BenchmarkNatMul/10000-4      2              1              -50.00%
+    BenchmarkNatMul/100000-4     9              11             +22.22%
+    BenchmarkNatSqr/20-4         2              1              -50.00%
+    BenchmarkNatSqr/30-4         2              1              -50.00%
+    BenchmarkNatSqr/50-4         2              1              -50.00%
+    BenchmarkNatSqr/80-4         2              1              -50.00%
+    BenchmarkNatSqr/100-4        2              1              -50.00%
+    BenchmarkNatSqr/200-4        2              1              -50.00%
+    BenchmarkNatSqr/300-4        4              1              -75.00%
+    BenchmarkNatSqr/500-4        4              1              -75.00%
+    BenchmarkNatSqr/800-4        10             1              -90.00%
+    BenchmarkNatSqr/1000-4       10             1              -90.00%
+    BenchmarkNatSqr/10000-4      731            1              -99.86%
+    BenchmarkNatSqr/100000-4     19687          6              -99.97%
+    
+    benchmark                    old bytes     new bytes     delta
+    BenchmarkNatMul/10-4         192           192           +0.00%
+    BenchmarkNatMul/100-4        4864          4864          +0.00%
+    BenchmarkNatMul/1000-4       57344         49224         -14.16%
+    BenchmarkNatMul/10000-4      565248        498772        -11.76%
+    BenchmarkNatMul/100000-4     5749504       7263720       +26.34%
+    BenchmarkNatSqr/20-4         672           352           -47.62%
+    BenchmarkNatSqr/30-4         992           512           -48.39%
+    BenchmarkNatSqr/50-4         1792          896           -50.00%
+    BenchmarkNatSqr/80-4         2688          1408          -47.62%
+    BenchmarkNatSqr/100-4        3584          1792          -50.00%
+    BenchmarkNatSqr/200-4        6656          3456          -48.08%
+    BenchmarkNatSqr/300-4        24448         16387         -32.97%
+    BenchmarkNatSqr/500-4        36864         24591         -33.29%
+    BenchmarkNatSqr/800-4        69760         40981         -41.25%
+    BenchmarkNatSqr/1000-4       86016         49180         -42.82%
+    BenchmarkNatSqr/10000-4      2524800       487368        -80.70%
+    BenchmarkNatSqr/100000-4     68599808      5876581       -91.43%
+    
+    Change-Id: I8e6e409ae1cb48be9d5aa9b5f428d6cbe487673a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172017
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/x509_test.go            | 2 +-
- src/go/internal/gccgoimporter/parser.go | 2 +-
- test/blank1.go                          | 2 +-
- test/chanlinear.go                      | 2 +-
- test/fixedbugs/issue9521.go             | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/math/big/nat.go      | 14 +++++++++++---
+ src/math/big/nat_test.go | 29 ++++++++++++++++++++++++++++-
+ 2 files changed, 39 insertions(+), 4 deletions(-)

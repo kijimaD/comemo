@@ -1,15 +1,15 @@
-commit 02ad841dd82bd644b12efa168ad9fc4c623d6b37
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Dec 13 09:19:11 2018 -0700
+commit 6a11e1e8db0e21f2875f20aba1bfd214291c08f8
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sat Jun 30 02:59:37 2018 +0300
 
-    math: correct mPi4 comment
+    cmd/link/internal/amd64: remove /*fallthrough*/ comments
     
-    The previous comment mis-stated the number of bits in mPi4.
-    The correct value is 19*64 + 1 == 1217 bits.
+    These are artifacts originating from C->Go translation.
     
-    Change-Id: Ife971ff6936ce2d5b81ce663ce48044749d592a0
-    Reviewed-on: https://go-review.googlesource.com/c/154017
+    Change-Id: Ib5cdcaf42f43f3968482892fb4945e19ef38bd6d
+    Reviewed-on: https://go-review.googlesource.com/121795
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/trig_reduce.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,16 +1,16 @@
-commit a00de45bbbd44bf592654dd0811fa4bcb883b1ae
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 17 11:57:42 2012 -0800
+commit 45d739748ebec720fbf459001b480ca0b8821542
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 10:45:36 2012 -0800
 
-    mime: make FormatMediaType take full type for consistency
+    fmt: enable and fix malloc test
+    On 32-bit machines, %g takes an extra malloc. I don't know why yet,
+    but this makes the test pass again, and enables it even for -short.
     
-    Fixes #2405
+    Fixes #2653.
     
-    R=rsc
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5539048
+    https://golang.org/cl/5542055
 
- src/pkg/mime/mediatype.go      | 17 +++++++++++------
- src/pkg/mime/mediatype_test.go | 21 +++++++++++++++++++++
- src/pkg/mime/type.go           | 15 ++++-----------
- 3 files changed, 36 insertions(+), 17 deletions(-)
+ src/pkg/fmt/fmt_test.go | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

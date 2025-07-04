@@ -1,12 +1,14 @@
-commit 1003b3e1f06935070a0000a41011898325b100ce
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Aug 15 12:01:23 2016 -0700
+commit eb79f21c48915454b372de7fee2c6b86d52ea0bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 12 21:58:44 2016 -0700
 
-    doc: update version tag in source install instructions
+    cmd/compile, go/importer: minor cleanups
     
-    Change-Id: Id83e0371b7232b01be83640ef1e47f9026cf2a23
-    Reviewed-on: https://go-review.googlesource.com/27055
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic7a1fb0dbbf108052c970a4a830269a5673df7df
+    Reviewed-on: https://go-review.googlesource.com/21963
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/install-source.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |  5 ++--
+ src/cmd/compile/internal/gc/bimport.go | 10 +++++---
+ src/go/internal/gcimporter/bimport.go  | 46 ++++++++++++++--------------------
+ 3 files changed, 27 insertions(+), 34 deletions(-)

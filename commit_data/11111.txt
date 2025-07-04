@@ -1,14 +1,17 @@
-commit f2b51f564f2bf457c4dc77c88adb5d11b513d658
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 11 12:44:31 2012 -0800
+commit feaa9ed10aa369d27dcf5a69863c481f4875bd39
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jan 11 21:26:54 2012 +0100
 
-    cmd/go: change deadline to 10 minutes
+    gc: export nil literals without inferred type.
     
-    1 minute is not enough for the slower builders.
+    Fixes #2678
     
-    R=adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5533068
+    https://golang.org/cl/5529066
 
- src/cmd/go/test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/gc/fmt.c                 |  4 +++-
+ test/fixedbugs/bug392.dir/one.go |  6 ++++++
+ test/fixedbugs/bug392.dir/two.go |  4 ++++
+ test/fixedbugs/bug392.go         | 11 +++++++++++
+ 4 files changed, 24 insertions(+), 1 deletion(-)

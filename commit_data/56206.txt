@@ -1,30 +1,44 @@
-commit cf760ce29ce96be610d79a639eb930e85f78a149
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Apr 9 15:20:21 2024 -0400
+commit e875cbd9aaec22264da01b76958e565b3262e970
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 17 13:32:03 2023 -0700
 
-    go/types: flip the default value of GODEBUG=gotypesalias=1
+    syscall: add a sync.Pool for a NetlinkRIB scratch buffer
     
-    This CL changes the interpretation of the unset value
-    of gotypesalias to equal "1". The actual deletion of
-    all the transitional logic will happen in a follow-up.
+    The syscall.NetlinkRIB signature means it necessarily allocates but
+    this changes makes it allocate a bit less. For example, in the net
+    package:
     
-    Note that the compiler still interprets unset as "0".
-    More work appears to be required within the compiler
-    before it is safe to flip its default.
+        name                           old time/op    new time/op    delta
+        Interfaces-8                     59.1µs ± 3%    57.3µs ± 2%   -3.02%  (p=0.000 n=10+10)
+        InterfaceByIndex-8               53.1µs ± 5%    50.6µs ± 2%   -4.81%  (p=0.000 n=10+10)
+        InterfaceByName-8                59.3µs ± 2%    57.4µs ± 1%   -3.29%  (p=0.000 n=10+10)
+        InterfaceAddrs-8                  105µs ± 1%     101µs ± 1%   -4.22%  (p=0.000 n=10+9)
+        InterfacesAndAddrs-8             38.2µs ± 3%    36.3µs ± 2%   -4.98%  (p=0.000 n=10+10)
+        InterfacesAndMulticastAddrs-8     152µs ± 2%     154µs ± 6%     ~     (p=0.105 n=10+10)
     
-    Change-Id: I854ab1fd856c7c361a757676b0670e2f23402816
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577715
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+        name                           old alloc/op   new alloc/op   delta
+        Interfaces-8                     22.8kB ± 0%    18.7kB ± 0%  -17.90%  (p=0.000 n=10+9)
+        InterfaceByIndex-8               16.2kB ± 0%    12.1kB ± 0%  -25.22%  (p=0.000 n=10+10)
+        InterfaceByName-8                22.8kB ± 0%    18.8kB ± 0%  -17.85%  (p=0.000 n=10+10)
+        InterfaceAddrs-8                 36.6kB ± 0%    28.5kB ± 0%  -22.28%  (p=0.000 n=10+10)
+        InterfacesAndAddrs-8             9.60kB ± 0%    5.51kB ± 0%  -42.59%  (p=0.000 n=10+7)
+        InterfacesAndMulticastAddrs-8     141kB ± 0%     141kB ± 0%     ~     (all equal)
+    
+        name                           old allocs/op  new allocs/op  delta
+        Interfaces-8                       53.0 ± 0%      52.0 ± 0%   -1.89%  (p=0.000 n=10+10)
+        InterfaceByIndex-8                 28.0 ± 0%      27.0 ± 0%   -3.57%  (p=0.000 n=10+10)
+        InterfaceByName-8                  54.0 ± 0%      53.0 ± 0%   -1.85%  (p=0.000 n=10+10)
+        InterfaceAddrs-8                    155 ± 0%       153 ± 0%   -1.29%  (p=0.000 n=10+10)
+        InterfacesAndAddrs-8               38.0 ± 0%      37.0 ± 0%   -2.63%  (p=0.000 n=10+10)
+        InterfacesAndMulticastAddrs-8      77.0 ± 0%      77.0 ± 0%     ~     (all equal)
+    
+    Signed-off-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic3278b2c000af78d7ed816645463c3b7ff0c90ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/go/internal/gcimporter/ureader.go |  5 +++--
- src/go/types/api_test.go              |  1 -
- src/go/types/check.go                 | 12 ++++++++++--
- src/go/types/check_test.go            | 11 -----------
- src/go/types/decl.go                  |  2 +-
- src/go/types/eval_test.go             |  7 +++++--
- src/go/types/issues_test.go           |  2 +-
- src/internal/godebugs/table.go        |  2 +-
- 8 files changed, 21 insertions(+), 21 deletions(-)
+ src/net/interface_test.go    |  6 ++++++
+ src/syscall/netlink_linux.go | 16 +++++++++++++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)

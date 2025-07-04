@@ -1,14 +1,21 @@
-commit 0dac1e2e8743476d266a00a81f8bd64400bd8065
-Author: David Timm <dtimm@pivotal.io>
-Date:   Thu Aug 30 12:25:53 2018 -0600
+commit 8c62fc0ca3c96ecbd3a6e81546aa8c53e32ff500
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri May 4 06:54:18 2018 +0200
 
-    net/http: add example for http.HandleFunc
+    strings: fix encoding of \u0080 in map
     
-    Change-Id: Id0e2fb2abad5b776ac0ed76e55e36c6b774b5b7a
-    Reviewed-on: https://go-review.googlesource.com/132278
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fix encoding of PAD (U+0080) which has the same value as utf8.RuneSelf
+    being incorrectly encoded as \x80 in strings.Map due to using <= instead
+    of a < comparison operator to check one byte encodings for utf8.
+    
+    Fixes #25242
+    
+    Change-Id: Ib6c7d1f425a7ba81e431b6d64009e713d94ea3bc
+    Reviewed-on: https://go-review.googlesource.com/111286
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/example_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/strings/strings.go      |  4 ++--
+ src/strings/strings_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

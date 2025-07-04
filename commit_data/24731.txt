@@ -1,34 +1,16 @@
-commit f54bcedce19a2c5aed897a8697e65ba037a8f53d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 23 14:15:18 2015 -0400
+commit 7cadf23afb3c54f36758d09710b87a0a9db4b4b9
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 25 22:49:59 2015 -0500
 
-    runtime: beginning of decentralized off->mark transition
+    [dev.ssa] cmd/compile: fix phi floats
     
-    This begins the conversion of the centralized GC coordinator to a
-    decentralized state machine by introducing the internal API that
-    triggers the first state transition from _GCoff to _GCmark (or
-    _GCmarktermination).
+    The code previously always used AX causing errors.  For now, just
+    switch off the type in order to at least generate valid code.
     
-    This change introduces the transition lock, the off->mark transition
-    condition (which is very similar to shouldtriggergc()), and the
-    general structure of a state transition. Since we're doing this
-    conversion in stages, it then falls back to the GC coordinator to
-    actually execute the cycle. We'll start moving logic out of the GC
-    coordinator and in to transition functions next.
-    
-    This fixes a minor bug in gcstoptheworld debug mode where passing the
-    heap trigger once could trigger multiple STW GCs.
-    
-    Updates #11970.
-    
-    Change-Id: I964087dd190a639eb5766398f8e1bbf8b352902f
-    Reviewed-on: https://go-review.googlesource.com/16355
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iaf13120a24b62456b9b33c04ab31f2d5104b381b
+    Reviewed-on: https://go-review.googlesource.com/13943
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/malloc.go |   4 +-
- src/runtime/mgc.go    | 142 +++++++++++++++++++++++++++++++++-----------------
- src/runtime/mheap.go  |   2 +-
- src/runtime/proc.go   |   2 +-
- src/runtime/trace.go  |   2 +-
- 5 files changed, 98 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 46 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go       | 20 ++++++++---
+ 2 files changed, 62 insertions(+), 4 deletions(-)

@@ -1,17 +1,16 @@
-commit 533b372280a2124f39a1093e7211f5b677b619d9
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Mon Sep 19 17:27:49 2011 -0700
+commit bf595ba1c2431582236b09bca5e17e30cc9aa05e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 19 16:55:08 2011 -0700
 
-    exp/template/html: define isComment helper
+    gob: don't allocate a slice if there's room to decode already
+    Fixes #2275.
     
-    Non semantics-changing refactoring in preparation for comment elision.
-    
-    R=nigeltao
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5071043
+    https://golang.org/cl/5082041
 
- src/pkg/exp/template/html/context.go     | 16 +++++++++++++---
- src/pkg/exp/template/html/escape.go      | 11 ++++++-----
- src/pkg/exp/template/html/escape_test.go |  8 ++++----
- src/pkg/exp/template/html/transition.go  |  8 ++++----
- 4 files changed, 27 insertions(+), 16 deletions(-)
+ src/pkg/gob/codec_test.go   |  2 +-
+ src/pkg/gob/decode.go       | 33 +++++++++++++++++++---------
+ src/pkg/gob/doc.go          |  5 ++++-
+ src/pkg/gob/encoder_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 79 insertions(+), 13 deletions(-)

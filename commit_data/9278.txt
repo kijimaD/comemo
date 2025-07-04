@@ -1,12 +1,14 @@
-commit 16cdba8572ef96ec51e162fc9c1280df46d9e7d1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 2 15:19:44 2011 -0400
+commit 11e254e62c020e9596d864a6503a4f0db9a6fb83
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Aug 2 07:45:04 2011 -0400
 
-    errchk: add -0 flag
+    ld: fail linking if the top-level package is not main.
     
-    R=lvd
+    This makes {5,6,8}l conform to the spec more tightly.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4837049
+    https://golang.org/cl/4826063
 
- test/errchk | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/ld/go.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

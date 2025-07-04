@@ -1,15 +1,13 @@
-commit ddcdbd447084da04aede72356dadd99a08a96cc9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 24 22:53:37 2011 -0700
+commit c4918db8b982b23362842c23c95fac2cde433d31
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 25 15:04:07 2011 +1000
 
-    os: Fix test to work on Solaris.
+    strconv: add QuoteRune, which is analogous to Quote, but for runes rather than strings.
     
-    On Solaris /bin is a symlink to /usr/bin, so running "pwd" in
-    the directory "/bin" prints out "/usr/bin".
-    
-    R=rsc, r, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4559043
+    https://golang.org/cl/4556059
 
- src/pkg/os/os_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/strconv/quote.go      | 33 ++++++++++++++++++++++++---------
+ src/pkg/strconv/quote_test.go | 39 +++++++++++++++++++++++++++++----------
+ 2 files changed, 53 insertions(+), 19 deletions(-)

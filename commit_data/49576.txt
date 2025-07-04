@@ -1,27 +1,14 @@
-commit aad9382e590265efb5e5fa3591c30486dcf215e0
-Author: Ben Sarah Golightly <golightly.ben@googlemail.com>
-Date:   Wed Jun 29 19:42:46 2022 +0100
+commit 7b38dd8e255710721b7d843cddbbb46f50267aa5
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Thu Jul 29 04:22:47 2021 +0900
 
-    go/doc/comment: support links in lists in comments
+    runtime: remove unnecesarry newline on freeStackSpans
     
-    The proposed (#51082) new go doc comment additions supports lists,
-    links, and doc links, but does not support links and doc links inside
-    lists, so implemnent this.
-    
-    Fixes #53610
-    
-    Change-Id: I4fa17d204fc9efa8f3633133e4a49e56cf1aa9bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415174
-    Reviewed-by: Ben Golightly <golightly.ben@googlemail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I16a3241d8818c67922ddbf7830b8c2c5f317e1a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338209
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/go/doc/comment/parse.go               |  7 ++++++
- src/go/doc/comment/testdata/linklist.txt  | 18 ++++++++++++++
- src/go/doc/comment/testdata/linklist2.txt | 39 +++++++++++++++++++++++++++++++
- src/go/doc/comment/testdata/linklist3.txt | 31 ++++++++++++++++++++++++
- src/go/doc/comment/testdata/linklist4.txt | 36 ++++++++++++++++++++++++++++
- 5 files changed, 131 insertions(+)
+ src/runtime/stack.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,26 +1,16 @@
-commit f31305b71bcbfe85b918466aa6dd18e19a4b94a1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 15 16:28:05 2019 -0800
+commit 8919fe9e4d00aec34cfb8e3a0e5c7f629c9e1fc5
+Author: Eduard Urbach <e.urbach@gmail.com>
+Date:   Tue Apr 24 14:28:19 2018 +0000
 
-    cmd/asm: improve DATA size operand validation
+    net/http: explain more how Pusher.Push works
     
-    Prior to this change, DATA instructions accepted
-    the values 1, 2, 4, and 8 as sizes.
-    The acceptable sizes were further restricted
-    to 4 and 8 for float constants.
+    This will clarify that the resources are not completely pushed yet when `Push` returns and that it starts a separate goroutine. This might be implementation dependant but as I believe there is currently only one implementation it should be added to the documentation of the interface which most people will look up first.
     
-    This was both too restrictive and not restrictive enough:
-    string constants may reasonably have any length,
-    and address constants should really only accept pointer-length sizes.
-    
-    Fixes #30269
-    
-    Change-Id: I06e44ecdf5909eca7b19553861aec1fa39655c2b
-    Reviewed-on: https://go-review.googlesource.com/c/163747
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id151c5563fd0c4e611eb1d93b4f64bf747ddf6d4
+    GitHub-Last-Rev: 1f46eb9a081f4529abc04026589ffd463be579b3
+    GitHub-Pull-Request: golang/go#25025
+    Reviewed-on: https://go-review.googlesource.com/c/108939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/asm.go         | 28 +++++++++++++++++++++-------
- src/cmd/asm/internal/asm/pseudo_test.go |  7 +++++++
- 2 files changed, 28 insertions(+), 7 deletions(-)
+ src/net/http/http.go | 4 ++++
+ 1 file changed, 4 insertions(+)

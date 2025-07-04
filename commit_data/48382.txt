@@ -1,32 +1,34 @@
-commit b054c7dc1738c810e74756ae0ac4797ce5d31cf6
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 14 11:27:46 2022 -0400
+commit d137b745398e8313c0f086d4d044751295be6163
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Fri May 14 09:59:20 2021 +1200
 
-    os: raise open file rlimit at startup
+    cmd/go: fix spacing in help text of -overlay flag
     
-    Some systems set an artificially low soft limit on open file count,
-    for compatibility with code that uses select and its hard-coded
-    maximum file descriptor (limited by the size of fd_set).
+    There was a space missing in the first line shown below, and an extra
+    space in the second line shown. Thanks Peter Bourgon for noting this.
     
-    Go does not use select, so it should not be subject to these limits.
-    On some systems the limit is 256, which is very easy to run into, even
-    in simple programs like gofmt when they parallelize walking a file tree.
+    BEFORE:
+    $ go help build | grep -A1 'has some limitations'
+    has some limitations:importantly, cgo files included from outside the
+    include path must be  in the same directory as the Go package they are
     
-    After a long discussion on go.dev/issue/46279, we decided the best
-    approach was for Go to raise the limit unconditionally for itself, and
-    then leave old software to set the limit back as needed. Code that
-    really wants Go to leave the limit alone can set the hard limit, which
-    Go of course has no choice but to respect.
+    AFTER:
+    $ go help build | grep -A1 'has some limitations'
+    has some limitations: importantly, cgo files included from outside the
+    include path must be in the same directory as the Go package they are
     
-    Fixes #46279.
+    Note that I edited alldocs.go by hand here, as the mkalldocs.sh script
+    produces a lot more changes, for example adding the -insecure flag
+    documentation in. Not sure what's wrong there.
     
-    Change-Id: Id6107503437d47a870a41be25e822fc79cea08b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392415
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I303f6d6b42b0e24cec0748a949dc23beec64b917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319949
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/os/rlimit.go      | 31 +++++++++++++++++++++++++++++++
- src/os/rlimit_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+)
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/work/build.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

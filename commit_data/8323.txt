@@ -1,15 +1,12 @@
-commit e1bf165b28f204ede84b46821a04ed14785dd5ea
-Author: Adam Langley <agl@golang.org>
-Date:   Thu May 5 13:37:42 2011 -0400
+commit da39008a27794e4d216e8f027ba326d23f87144c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu May 5 10:16:59 2011 -0700
 
-    crypto/x509: export raw SubjectPublicKeyInfo.
+    image: make AlphaColor.Set conform to usual signature
     
-    The SPKI will probably be used for identifying public keys in future
-    HSTS specs.
-    
-    R=bradfitz
+    R=nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/4485044
+    https://golang.org/cl/4471045
 
- src/pkg/crypto/x509/x509.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/image/image.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

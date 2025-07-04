@@ -1,31 +1,19 @@
-commit 461adfd817eea64ee6b96f5711a48854bcda6241
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Sat Oct 15 14:37:19 2016 +0200
+commit d2dd0dfda813deb27415962656e7a6496170cef3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Aug 26 11:28:41 2016 -0400
 
-    compress/flate: make compression level 0 consistent
+    cmd/internal/obj/s390x: add FIDBR and FIEBR instructions
     
-    Tests for determinism was not working as intended since io.Copybuffer
-    uses the io.WriterTo if available.
+    FIDBR and FIEBR can be used for floating-point to integer rounding.
+    The relevant functions (Ceil, Floor and Trunc) will be updated
+    in a future CL.
     
-    This exposed that level 0 (no compression) changed output
-    based on the number of writes and buffers given to the
-    writer.
-    
-    Previously, Write would emit a new raw block (BTYPE=00) for
-    every non-empty call to Write.
-    
-    This CL fixes it such that a raw block is only emitted upon
-    the following conditions:
-            * A full window is obtained (every 65535 bytes)
-            * Flush is called
-            * Close is called
-    
-    Change-Id: I807f866d97e2db7820f11febab30a96266a6cbf1
-    Reviewed-on: https://go-review.googlesource.com/31174
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I5952d67ab29d5ef8923ff1143e17a8d30169d692
+    Reviewed-on: https://go-review.googlesource.com/27826
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/compress/flate/deflate.go     | 4 ++--
- src/compress/flate/writer_test.go | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s |  2 ++
+ src/cmd/internal/obj/s390x/a.out.go       |  2 ++
+ src/cmd/internal/obj/s390x/anames.go      |  2 ++
+ src/cmd/internal/obj/s390x/asmz.go        | 17 +++++++++++++++++
+ 4 files changed, 23 insertions(+)

@@ -1,14 +1,17 @@
-commit 1f3d38fdaaff88d7ce711612fbe9b7fc7182efd7
-Author: Ketan Parmar <ketanbparmar@gmail.com>
-Date:   Fri Feb 8 11:58:23 2019 +0530
+commit 2294e3ebd374e18b191d0e8d8d32c46b0a1ef961
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Oct 6 03:35:17 2018 +0000
 
-    bytes: add examples for ToTitleSpecial, ToUpperSpecial and ToLowerSpecial
+    cmd/compile: combine similar code in amd64's assembly generator
     
-    Change-Id: If700a150492181f68e23e90ef829ff9eaf7ca7b5
-    Reviewed-on: https://go-review.googlesource.com/c/161737
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This CL combines similar code in amd64's assembly generator. The
+    total size of pkg/linux_amd64/cmd/compile/ decreases about 4.5KB,
+    while the generated amd64 code is not affected.
+    
+    Change-Id: I4cdbdd22bde8857aafdc29b47fa100a906fa1598
+    Reviewed-on: https://go-review.googlesource.com/c/140298
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bytes/example_test.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/cmd/compile/internal/amd64/ssa.go | 94 +++++++++++------------------------
+ 1 file changed, 30 insertions(+), 64 deletions(-)

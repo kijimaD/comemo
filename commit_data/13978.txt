@@ -1,12 +1,12 @@
-commit 4bf6249ba5f168b8b5f0115fe638bdf2740a8011
-Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
-Date:   Fri Sep 28 10:01:09 2012 +1000
+commit a7d4c3f43dbcab516b6bbd4723fbff30469898a7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 27 15:34:18 2012 -0700
 
-    testing: remove redundant whitespace in output
+    doc: clarify that the displayed tar file name is an example
     
-    R=golang-dev, r
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/6565061
+    https://golang.org/cl/6573065
 
- src/pkg/testing/benchmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

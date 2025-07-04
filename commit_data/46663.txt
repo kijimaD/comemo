@@ -1,24 +1,17 @@
-commit b35c668072204c2ef2773df383bab5b04b7abca6
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Fri Sep 24 10:31:20 2021 -0500
+commit be28e5abc5ddca0d6b2d8c91b7bb9c05717154e7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 20 09:45:03 2021 -0500
 
-    cmd/compile: add PPC64-specific inlining for runtime.memmove
+    cmd/go: fix mod_get_fallback test
     
-    Add rule to PPC64.rules to inline runtime.memmove in more cases, as is
-    done for other target architectures
-    Updated tests in codegen/copy.go to verify changes are done on
-    ppc64/ppc64le
+    Fixes #43795
     
-    Updates #41662
-    
-    Change-Id: Id937ce21f9b4f4047b3e66dfa3c960128ee16a2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352054
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I3d791d0ac9ce0b523c78c649aaf5e339a7f63b76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284797
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 19 +++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 78 ++++++++++++++++++++++++++++
- test/codegen/copy.go                         |  8 +++
- 3 files changed, 105 insertions(+)
+ src/cmd/go/testdata/script/mod_get_fallback.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

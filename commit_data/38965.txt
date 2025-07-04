@@ -1,19 +1,17 @@
-commit 9f12e2e04bc5fb5c53546cf9c53dabe0d1c8fa55
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Apr 30 09:18:23 2019 +0200
+commit bbae8d55083d14c414f32af638d5a5174b8027cc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Dec 13 00:38:37 2018 +1100
 
-    runtime: implement pthread functions for darwin/arm64
+    syscall: use correct cmsg alignment for openbsd/arm
     
-    They were not needed when Go only produced binaries with cgo suppport.
-    Now that Go is about to run self-hosted on iOS we do need these.
+    The OpenBSD armv7 port requires 64-bit alignment for cmsgs.
     
-    Updates #31722
+    Rework the cmsg alignment code to facilitate this.
     
-    Change-Id: If233aa2b31edc7b1c2dcac68974f9fba0604f9a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174300
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I52cf55a8a4cda46c6ef35b0f694862b842028b42
+    Reviewed-on: https://go-review.googlesource.com/c/153837
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_darwin_arm64.s | 85 +++++++++++++++++++++++++++++++++++-------
- 1 file changed, 72 insertions(+), 13 deletions(-)
+ src/syscall/sockcmsg_unix.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

@@ -1,17 +1,23 @@
-commit e6c5e2a36358465ab5038d8af9e70f3b98d5ba88
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Apr 12 09:55:37 2012 +1000
+commit 6277656d69640da9166bbac2a132a3ddee61dcac
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 12 09:35:43 2012 +1000
 
-    misc/dashboard: cope with removed Package fields.
+    html, exp/html: escape ' and " as &#39; and &#34;, since IE8 and
+    below do not support &apos;.
     
-    adg removed some now-unwanted fields in Package a while ago,
-    but there are still datastore entities with those fields,
-    so we must explicitly check for ErrFieldMismatch and ignore it.
+    This makes package html consistent with package text/template's
+    HTMLEscape function.
     
-    R=golang-dev, rsc
-    CC=adg, golang-dev
-    https://golang.org/cl/6007043
+    Fixes #3489.
+    
+    R=rsc, mikesamuel, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5992071
 
- misc/dashboard/app/build/build.go | 15 ++++++++++++++-
- misc/dashboard/app/build/init.go  |  7 ++++++-
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/escape.go      |  8 +++++---
+ src/pkg/exp/html/render_test.go |  2 +-
+ src/pkg/exp/html/token_test.go  | 11 ++++++-----
+ src/pkg/html/escape.go          |  8 +++++---
+ src/pkg/net/http/server.go      |  6 ++++--
+ src/pkg/text/template/funcs.go  |  2 +-
+ 6 files changed, 22 insertions(+), 15 deletions(-)

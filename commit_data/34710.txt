@@ -1,20 +1,12 @@
-commit a29e25b82c9d39c448df6dfcea01bfeb111da1bc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Mar 26 16:58:51 2018 +0200
+commit 17f35c6993cdaf197db79cc6e62108f05f60bd0b
+Author: Ian Kent <iankent85@gmail.com>
+Date:   Sat Sep 23 21:45:35 2017 +0100
 
-    cmd/cgo: add support for GOARCH=sparc64
+    net/http: fix copy-paste error in the ServeTLS docs
     
-    Even though GOARCH=sparc64 is not supported by gc (yet), it is easy to
-    make cgo already support it.
-    
-    This e.g. allows to generate Go type definitions for linux/sparc64 in
-    the golang.org/x/sys/unix package without using gccgo.
-    
-    Change-Id: I8886c81e7c895a0d93e350d81ed653fb59d95dd8
-    Reviewed-on: https://go-review.googlesource.com/102555
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id7f0d978ce5b0471a404d6e6673b789e7db04650
+    Reviewed-on: https://go-review.googlesource.com/65653
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

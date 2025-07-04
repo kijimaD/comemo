@@ -1,18 +1,79 @@
-commit bd1783e812bf10f5829b742135ef886623cccc5c
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Jun 27 16:23:37 2022 -0700
+commit 72c003ef82ba7c997f49e187e953872bfcbf5263
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 12:11:14 2021 -0700
 
-    crypto/x509: improve RevocationList documentation
+    cmd/compile: unexport Type.Width and Type.Align [generated]
     
-    Adds documentation for a handful of RevocationList fields.
+    [git-generate]
+    cd src/cmd/compile/internal
     
-    Updates #50674
+    : Workaround rf issue with types2 tests.
+    rm types2/*_test.go
     
-    Change-Id: I26b838553d870b631deaf8b9a5b4d0b251fdef20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414635
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    : Rewrite uses. First a type-safe rewrite,
+    : then a second pass to fix unnecessary conversions.
+    rf '
+    ex ./abi ./escape ./gc ./liveness ./noder ./reflectdata ./ssa ./ssagen ./staticinit ./typebits ./typecheck ./walk {
+      import "cmd/compile/internal/types"
+      var t *types.Type
+      t.Width -> t.Size()
+      t.Align -> uint8(t.Alignment())
+    }
+    
+    ex ./abi ./escape ./gc ./liveness ./noder ./reflectdata ./ssa ./ssagen ./staticinit ./typebits ./typecheck ./walk {
+      import "cmd/compile/internal/types"
+      var t *types.Type
+      int64(uint8(t.Alignment())) -> t.Alignment()
+    }
+    '
+    
+    : Rename fields to lower case.
+    (
+    cd types
+    rf '
+    mv Type.Width Type.width
+    mv Type.Align Type.align
+    '
+    )
+    
+    : Revert types2 changes.
+    git checkout HEAD^ types2
+    
+    Change-Id: I42091faece104c4ef619d9d4d50514fd48c8f029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345480
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/x509.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go        | 20 +++----
+ src/cmd/compile/internal/escape/utils.go        |  6 +-
+ src/cmd/compile/internal/gc/export.go           |  2 +-
+ src/cmd/compile/internal/gc/obj.go              |  2 +-
+ src/cmd/compile/internal/liveness/plive.go      |  4 +-
+ src/cmd/compile/internal/noder/transform.go     |  4 +-
+ src/cmd/compile/internal/reflectdata/alg.go     | 12 ++--
+ src/cmd/compile/internal/reflectdata/reflect.go | 74 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/debug.go           |  4 +-
+ src/cmd/compile/internal/ssa/expand_calls.go    | 38 ++++++-------
+ src/cmd/compile/internal/ssa/op.go              |  4 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |  6 +-
+ src/cmd/compile/internal/ssagen/pgen.go         |  8 +--
+ src/cmd/compile/internal/ssagen/ssa.go          | 10 ++--
+ src/cmd/compile/internal/staticinit/sched.go    | 14 ++---
+ src/cmd/compile/internal/typebits/typebits.go   |  8 +--
+ src/cmd/compile/internal/typecheck/const.go     |  4 +-
+ src/cmd/compile/internal/typecheck/expr.go      |  4 +-
+ src/cmd/compile/internal/types/alg.go           |  2 +-
+ src/cmd/compile/internal/types/size.go          | 66 +++++++++++-----------
+ src/cmd/compile/internal/types/type.go          | 24 ++++----
+ src/cmd/compile/internal/walk/assign.go         |  8 +--
+ src/cmd/compile/internal/walk/builtin.go        |  6 +-
+ src/cmd/compile/internal/walk/compare.go        | 26 ++++-----
+ src/cmd/compile/internal/walk/complit.go        |  4 +-
+ src/cmd/compile/internal/walk/convert.go        |  8 +--
+ src/cmd/compile/internal/walk/expr.go           |  4 +-
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ src/cmd/compile/internal/walk/range.go          |  6 +-
+ src/cmd/compile/internal/walk/walk.go           |  2 +-
+ 30 files changed, 191 insertions(+), 191 deletions(-)

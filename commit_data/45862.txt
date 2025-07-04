@@ -1,20 +1,32 @@
-commit 86d72fa2cba51342ba5617abf43a732f9fd668ca
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Jun 23 12:59:48 2021 +0800
+commit 6826287c6b1ff2e3f23611472a9d81ac5e3aa89a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 09:37:54 2020 -0500
 
-    time: handle invalid UTF-8 byte sequences in quote to prevent panic
+    [dev.regabi] cmd/compile: replace evconst with non-mutating version
     
-    Fixes #46883
-    Updates CL 267017
+    evconst is one of the largest sources of Op rewrites,
+    which prevent separating different kinds of nodes
+    (in this case, arithmetic nodes and OLITERAL nodes).
     
-    Change-Id: I15c307bfb0aaa2877a148d32527681f79df1a650
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330289
-    Reviewed-by: Kevin Burke <kev@inburke.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The change in swt.go is necessary because otherwise
+    the syntax graph ends up containing that OLEN expression
+    multiple times, which violates the invariant that it's a tree
+    except for ONAME, OLITERAL, and OTYPE nodes.
+    (Before, the OLEN was overwritten by an OLITERAL, so the
+    invariant still held, but now that we don't overwrite it,
+    we need a different copy for each instance.)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ia004774ab6852fb384805d0f9f9f234b40842811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272869
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/time/format.go    | 18 +++++++++++++++---
- src/time/time_test.go |  5 +++++
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 115 +++++++++++++++++--------------
+ src/cmd/compile/internal/gc/swt.go       |   5 +-
+ src/cmd/compile/internal/gc/typecheck.go |  15 ++--
+ src/cmd/compile/internal/gc/walk.go      |   4 +-
+ 4 files changed, 76 insertions(+), 63 deletions(-)

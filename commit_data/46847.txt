@@ -1,20 +1,26 @@
-commit b41030e6e00d1507141c7c00c014fe8bd9e41ef6
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Oct 10 10:46:56 2021 -0400
+commit 7b0dfb177f3ae81641af898bb5479256fb21fd5d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 4 12:40:04 2021 -0500
 
-    go/internal/gcimporter: enable importing typeparam/issue48424.go
+    [dev.regabi] runtime: use g register in some assembly functions on AMD64
     
-    This is a partial revert of CL 353389, now that go/types supports
-    eliding interface in constraints.
+    Now that we have a g register, just use it.
     
-    For #48424
+    Note: functions that can be called from ABI0 context (e.g.
+    morestack) is unchanged. Functions that switch g is also
+    unchanged, because we need to set the new g in both the register
+    and TLS.
     
-    Change-Id: Ibde26fb66bf6bd5a4c919acffd045a57783d1b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354990
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    TODO: other OSes.
+    
+    Change-Id: I692a82a7caa8417ff620a59676a6275f56747b94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289718
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/asm_amd64.s       | 22 ++++++++++++++--------
+ src/runtime/race_amd64.s      | 12 ++++++++++++
+ src/runtime/sys_linux_amd64.s | 16 ++++++++++++++++
+ 3 files changed, 42 insertions(+), 8 deletions(-)

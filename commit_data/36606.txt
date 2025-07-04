@@ -1,25 +1,28 @@
-commit 3e5b5d69dcdb82494f550049986426d84dd6b8f8
-Author: Jake B <doogie1012@gmail.com>
-Date:   Wed Sep 5 08:52:43 2018 +0000
+commit 2486ebfb6381146d3c50c8495000da2193c42785
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 9 11:11:49 2018 +0700
 
-    net: ensure WriteTo on Windows sends even zero-byte payloads
+    cmd/vet: assume that no builtin funcs are pure
     
-    This builds on:
-    https://github.com/golang/go/pull/27445
+    That was the intention with the existing code, but it was buggy; builtin
+    functions aren't treated as values by types.TypeAndVal. Thus, we should
+    use the IsBuiltin method instead of IsValue.
     
-    "...And then send change to fix windows internal/poll.FD.WriteTo - together with making TestUDPZeroBytePayload run again."
-    - alexbrainman - https://github.com/golang/go/issues/26668#issuecomment-408657503
+    Teaching vet what builtin funcs are pure is already being tracked as a
+    separate issue, #22851.
     
-    Fixes #26668
+    While at it, also add a test with methods, just to be sure that the
+    current logic doesn't break with that edge case either.
     
-    Change-Id: Icd9ecb07458f13e580b3e7163a5946ccec342509
-    GitHub-Last-Rev: 3bf2b8b46bb8cf79903930631433a1f2ce50ec42
-    GitHub-Pull-Request: golang/go#27446
-    Reviewed-on: https://go-review.googlesource.com/132781
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Fixes #25303.
+    
+    Change-Id: Ic18402b22cceeabf76641c02f575b194b9a536cc
+    Reviewed-on: https://go-review.googlesource.com/112177
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/poll/fd_windows.go |  3 ---
- src/net/udpsock_test.go         | 12 +++++++-----
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/vet/bool.go          | 16 +++++++++++-----
+ src/cmd/vet/testdata/bool.go |  9 ++++++++-
+ 2 files changed, 19 insertions(+), 6 deletions(-)

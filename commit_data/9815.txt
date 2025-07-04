@@ -1,25 +1,21 @@
-commit 260991ad5f1cd73ff9f993bb389ac6d7e56fb509
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Tue Sep 27 22:08:14 2011 -0700
+commit 71557713b0a7cf53c9c8a80986c89ae4036af74c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 27 16:21:28 2011 -0700
 
-    exp/template/html: do not escape the RHS of assignments
+    index/suffixarray: revert change from int -> int32
     
-    In
+    CL 5040041 (https://golang.org/cl/5040041)
+    changed the use of []int to []int32 internally so
+    that encoding/binary could be used. This is no
+    longer needed (gobs can encode ints), and using
+    []int is more in sync w/ the semantics of the data
+    structure (the index elements are indices which are
+    ints). Changing it back.
     
-      {{$x := . | foo}}
-      {{$x}}
-    
-    the first action is a variable assignment that contributes
-    nothing to the output while the first is a use that needs
-    to be escaped.
-    
-    This CL fixes escapeAction to distinguish assignments from
-    interpolations and to only modify interpolations.
-    
-    R=nigeltao, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5143048
+    https://golang.org/cl/5141049
 
- src/pkg/exp/template/html/escape.go      |  4 ++++
- src/pkg/exp/template/html/escape_test.go | 12 +++++++++++-
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/pkg/index/suffixarray/qsufsort.go    | 38 ++++++++++++++++----------------
+ src/pkg/index/suffixarray/suffixarray.go | 10 ++++-----
+ 2 files changed, 23 insertions(+), 25 deletions(-)

@@ -1,14 +1,12 @@
-commit 9d063816ef42f90ae0af001f3348fc535fdef753
-Author: Jean-Marc Eurin <jmeurin@google.com>
-Date:   Mon May 7 11:46:01 2012 -0400
+commit a96a98360642c7d87cb2ad7e26310c7f5b7dbd90
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon May 7 11:40:43 2012 -0400
 
-    misc/emacs: Restore the window position after a successful gofmt.
+    C: correct entry: jmeurin, not jme.
     
-    This adds restoring the window position so that the buffer doesn't jump around after the erase/copy.
-    
-    R=sameer
-    CC=golang-dev
-    https://golang.org/cl/5981055
+    R=golang-dev, rsc
+    CC=golang-dev, jme, jmeurin
+    https://golang.org/cl/6192057
 
- misc/emacs/go-mode.el | 59 +++++++++++++++++++++++++++------------------------
- 1 file changed, 31 insertions(+), 28 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

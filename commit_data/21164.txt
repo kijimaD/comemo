@@ -1,28 +1,26 @@
-commit ccdb50931f815fdf8de16f876478d7a1d0ee6696
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 29 16:15:05 2014 -0500
+commit 2f28916f02b3e75ffdf253c8f672fffed0f63753
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 21 20:56:33 2014 +0100
 
-    cmd/gc, runtime: make assertI2T and variants not variadic
+    [dev.cc] liblink: fix warnings on Plan 9
     
-    A side effect of this change is that when assertI2T writes to the
-    memory for the T being extracted, it can use typedmemmove
-    for write barriers.
+    warning: src/liblink/list6.c:94 set and not used: s
+    warning: src/liblink/list6.c:157 format mismatch ld VLONG, arg 3
+    warning: src/liblink/list6.c:157 format mismatch E UINT, arg 4
+    warning: src/liblink/list6.c:157 format mismatch d VLONG, arg 5
+    warning: src/liblink/list6.c:163 set and not used: s
+    warning: src/liblink/list9.c:105 set and not used: s
+    warning: src/liblink/list9.c:185 format mismatch ld VLONG, arg 3
+    warning: src/liblink/list9.c:185 format mismatch E UINT, arg 4
+    warning: src/liblink/list9.c:185 format mismatch d VLONG, arg 5
+    warning: src/liblink/list9.c:193 set and not used: s
     
-    There are other ways we could have done this, but this one
-    finishes a TODO in package runtime.
-    
-    Found with GODEBUG=wbshadow=2 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
-    
-    Change-Id: Icbc8aabfd8a9b1f00be2e421af0e3b29fa54d01e
-    Reviewed-on: https://go-review.googlesource.com/2279
-    Reviewed-by: Keith Randall <khr@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=austin, golang-codereviews, minux
+    https://golang.org/cl/176130043
 
- src/cmd/gc/builtin.c  |  26 +++---
- src/cmd/gc/order.c    |  28 ++++++-
- src/cmd/gc/runtime.go |  26 +++---
- src/cmd/gc/walk.c     | 114 ++++++++++++--------------
- src/runtime/iface.go  | 219 ++++++++++++++++++++++----------------------------
- src/runtime/malloc.go |   4 +-
- 6 files changed, 197 insertions(+), 220 deletions(-)
+ include/link.h      | 1 +
+ src/liblink/list6.c | 6 +++---
+ src/liblink/list9.c | 6 +++---
+ 3 files changed, 7 insertions(+), 6 deletions(-)

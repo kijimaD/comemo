@@ -1,30 +1,12 @@
-commit ca2a886cbade477e2c7cf09cdac604b757fb70a9
-Author: griesemer <gri@golang.org>
-Date:   Fri Nov 10 11:38:51 2017 -0800
+commit 2c3d13b21045c337475ac0c08b226e4dd51f2280
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:40:32 2017 +1000
 
-    cmd/compile: record original and absolute file names for line directives
+    cmd/link: introduce and use peSection.pad
     
-    Also, with this change, error locations don't print absolute positions
-    in [] brackets following positions relative to line directives. To get
-    the absolute positions as well, specify the -L flag.
-    
-    Fixes #22660.
-    
-    Change-Id: I9ecfa254f053defba9c802222874155fa12fee2c
-    Reviewed-on: https://go-review.googlesource.com/77090
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I068e9bb6e692b5eff193ddb46af3f04785f98518
+    Reviewed-on: https://go-review.googlesource.com/56316
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/errors/errors_test.go                 |  2 +-
- src/cmd/asm/internal/lex/input.go              |  3 +-
- src/cmd/compile/internal/gc/main.go            |  1 +
- src/cmd/compile/internal/gc/subr.go            |  2 +-
- src/cmd/compile/internal/syntax/parser.go      |  7 ++--
- src/cmd/compile/internal/syntax/parser_test.go |  2 +-
- src/cmd/internal/obj/line_test.go              |  2 +-
- src/cmd/internal/obj/util.go                   |  2 +-
- src/cmd/internal/src/pos.go                    | 23 ++++++------
- src/cmd/internal/src/pos_test.go               | 14 ++++----
- src/cmd/internal/src/xpos_test.go              |  2 +-
- test/fixedbugs/issue22660.go                   | 50 ++++++++++++++++++++++++++
- 12 files changed, 83 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

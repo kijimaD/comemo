@@ -1,49 +1,12 @@
-commit 8fd65b0e1d6b737072982a1cf846ff76b1353f02
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Sep 11 21:42:30 2012 +0200
+commit b64a99da88a92a0cfb85fbc6851437e399e5d4e6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 11 17:15:20 2012 +1000
 
-    cmd/gc: Inline pointer sized T2I interface conversions
+    C: add Francesc Campoy (Google CLA)
     
-    This CL also adds support for marking the likelyness of IF nodes in the AST being true. This feature is being used here to mark the slow path as unlikely.
-    
-    src/pkg/runtime:
-    benchmark                  old ns/op    new ns/op    delta
-    BenchmarkConvT2IUintptr           16            1  -91.63%
-    
-    test/bench/go1:
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    5416917000   5461355000   +0.82%
-    BenchmarkFannkuch11      3810355000   3842609000   +0.85%
-    BenchmarkGobDecode         19950950     19855420   -0.48%
-    BenchmarkGobEncode         11301220     11308530   +0.06%
-    BenchmarkGzip             548119600    546869200   -0.23%
-    BenchmarkGunzip           176145400    180208300   +2.31%
-    BenchmarkJSONEncode        93117400     70163100  -24.65%
-    BenchmarkJSONDecode       406626800    409999200   +0.83%
-    BenchmarkMandelbrot200      6300992      6317866   +0.27%
-    BenchmarkParse              7664396      7451625   -2.78%
-    BenchmarkRevcomp         1189424000   1412332000  +18.74%
-    BenchmarkTemplate         491308400    458654200   -6.65%
-    
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkGobDecode            38.47        38.66    1.00x
-    BenchmarkGobEncode            67.92        67.87    1.00x
-    BenchmarkGzip                 35.40        35.48    1.00x
-    BenchmarkGunzip              110.16       107.68    0.98x
-    BenchmarkJSONEncode           20.84        27.66    1.33x
-    BenchmarkJSONDecode            4.77         4.73    0.99x
-    BenchmarkParse                 7.56         7.77    1.03x
-    BenchmarkRevcomp             213.69       179.96    0.84x
-    BenchmarkTemplate              3.95         4.23    1.07x
-    
-    R=rsc, dave, nigeltao
+    R=golang-dev, dsymonds, campoy
     CC=golang-dev
-    https://golang.org/cl/6351090
+    https://golang.org/cl/6490102
 
- src/cmd/gc/builtin.c    |  1 +
- src/cmd/gc/gen.c        |  9 +++++++--
- src/cmd/gc/go.h         |  1 +
- src/cmd/gc/runtime.go   |  1 +
- src/cmd/gc/walk.c       | 42 ++++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/iface.c | 12 ++++++++++++
- 6 files changed, 62 insertions(+), 4 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

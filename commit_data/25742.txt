@@ -1,17 +1,19 @@
-commit 68aa7fb636d236c23be4fa05f87a898b5e7df362
-Author: Ryan Brown <ribrdb@google.com>
-Date:   Wed Feb 10 16:51:23 2016 -0800
+commit 5500d46914baf26e164ba6dae22ccd343556b5ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 10:57:27 2015 -0800
 
-    cmd/link: fix padding for dwarf aranges on 32 bit platforms.
+    cmd/compile/internal/gc: fix incorrect parsing of &(T{}) when followed by {
     
-    Fixes #14278
+    Handling of &(T{}) assumed that the parser would not introduce ()'s.
     
-    Change-Id: I6a0c1370d595f0573ff0eb933450b1eea41f4bb3
-    Reviewed-on: https://go-review.googlesource.com/19452
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Also: Better comments around handling of OPAREN syntax tree optimization.
+    
+    Fixes #13261.
+    
+    Change-Id: Ifc5047a0448f5e7d74cd42f6608b87dcc9c2f2fb
+    Reviewed-on: https://go-review.googlesource.com/17040
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go |   4 +-
- src/runtime/runtime-lldb_test.go  | 262 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 265 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 55 +++++++++++++++++++++++------------
+ test/fixedbugs/issue13261.go          | 29 ++++++++++++++++++
+ 2 files changed, 65 insertions(+), 19 deletions(-)

@@ -1,19 +1,25 @@
-commit bda37a0b8a4e89318901a68492b79cf6531fa2ff
-Author: Austin Clements <austin@google.com>
-Date:   Sat Oct 3 19:52:08 2020 -0400
+commit ddfc55b076d945f215875d6b65c36fc53b332cc1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 8 16:28:33 2020 -0400
 
-    runtime: tidy compileCallback
+    os/signal: increase settle time in tests
     
-    This makes a few minor cleanups and simplifications to compileCallback.
+    I noticed a timeout in TestIgnore in
+    https://build.golang.org/log/52d83a72f3a5ea9a16eb5d670c729694144f9624,
+    which suggests that the settle time is currently set too low.
     
-    Change-Id: Ibebf4b5ed66fb68bba7c84129c127cd4d8a691fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263269
-    Trust: Austin Clements <austin@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    I've also added a check for the same GO_TEST_TIMEOUT_SCALE used in
+    TestTerminalSignal, so that if this builder remains too slow we can
+    increase the builder's scale factor rather than the test's baseline
+    running time.
+    
+    Updates #33174
+    
+    Change-Id: I18b10eaa3bb5ae2f604300aedaaf6f79ee7ad567
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227649
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime2.go        |  8 ----
- src/runtime/syscall_windows.go | 86 ++++++++++++++++++++++++++----------------
- 2 files changed, 53 insertions(+), 41 deletions(-)
+ src/os/signal/signal_test.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

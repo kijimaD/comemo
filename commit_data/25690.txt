@@ -1,19 +1,25 @@
-commit e3f3f940a09ee99e952be43fd3b19c969cf229d0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 15:58:52 2016 -0500
+commit 9b299c1efd902842b788d7dc103512b6b2568ea9
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Nov 5 17:52:53 2015 +0100
 
-    runtime/cgo: add cgo build tag to C files
+    unicode/utf8: removed uses of ranging over string
     
-    This makes "CGO_ENABLED=0 go list runtime/cgo" work,
-    which fixes the current cmd/go test failure.
+    Ranging over string is much slower than using DecodeRuneInString.
+    See golang.org/issue/13162.
     
-    Change-Id: Ia55ce3ba1dbb09f618ae5f4c8547722670360f59
-    Reviewed-on: https://go-review.googlesource.com/19001
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Replacing ranging over a string with the implementation of the Bytes
+    counterpart results in the following performance improvements:
+    
+    RuneCountInStringTenASCIIChars-8     43.0ns ± 1%  16.4ns ± 2%  -61.80%  (p=0.000 n=7+8)
+    RuneCountInStringTenJapaneseChars-8   161ns ± 2%   154ns ± 2%   -4.58%  (p=0.000 n=8+8)
+    ValidStringTenASCIIChars-8           52.2ns ± 1%  13.2ns ± 1%  -74.62%  (p=0.001 n=7+7)
+    ValidStringTenJapaneseChars-8         173ns ± 2%   153ns ± 2%  -11.78%  (p=0.000 n=7+8)
+    
+    Update golang/go#13162
+    
+    Change-Id: Ifc40a6a94bb3317f1f2d929d310bd2694645e9f6
+    Reviewed-on: https://go-review.googlesource.com/16695
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cgo/gcc_darwin_amd64.c | 2 ++
- src/runtime/cgo/gcc_libinit.c      | 1 +
- src/runtime/cgo/gcc_setenv.c       | 1 +
- src/runtime/cgo/gcc_util.c         | 2 ++
- 4 files changed, 6 insertions(+)
+ src/unicode/utf8/utf8.go | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

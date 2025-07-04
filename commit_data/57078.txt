@@ -1,60 +1,19 @@
-commit 4f7dc282c4bdfba4e63b39bbe9846c1469dc7ee5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 19 13:52:31 2024 -0400
+commit b7e74678657680a0eb31679623f90b539666c5f4
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jun 14 20:31:08 2023 +0800
 
-    all: split old and swiss map abi and compiler integration
+    test/codegen: add fsqrt test for riscv64
     
-    The two map implementations are still identical, but now the compiler
-    targets the appropriate ABI depending on GOEXPERIMENT.
+    Add FSQRTD FSQRTS codegen tests for riscv64
     
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-swissmap
-    Change-Id: I8438f64f044ba9de30ddbf2b8ceb9b4edd2d5614
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580779
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I16ca3753ad1ba37afbd9d0f887b078e33f98fda0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503275
     Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../compile/internal/reflectdata/map_noswiss.go    | 303 +++++++++++++++++++++
- src/cmd/compile/internal/reflectdata/map_swiss.go  | 303 +++++++++++++++++++++
- src/cmd/compile/internal/reflectdata/reflect.go    | 291 +-------------------
- src/cmd/compile/internal/rttype/rttype.go          |   6 +-
- src/cmd/compile/internal/ssagen/ssa.go             |  14 +-
- src/cmd/compile/internal/types/fmt.go              |   2 +-
- src/cmd/compile/internal/types/sizeof_test.go      |   2 +-
- src/cmd/compile/internal/types/type.go             |  67 +++--
- src/cmd/compile/internal/walk/builtin.go           | 113 +++++++-
- src/cmd/compile/internal/walk/order.go             |   7 +-
- src/cmd/compile/internal/walk/walk.go              |  38 ++-
- src/cmd/link/internal/ld/deadcode.go               |   8 +-
- src/cmd/link/internal/ld/dwarf.go                  | 132 ++++++++-
- src/cmd/link/internal/ld/dwarf_test.go             |  11 +-
- src/internal/abi/map.go                            |  19 --
- src/internal/abi/map_noswiss.go                    |  55 ++++
- src/internal/abi/map_select_noswiss.go             |  10 +
- src/internal/abi/map_select_swiss.go               |  22 ++
- src/internal/abi/map_swiss.go                      |  55 ++++
- src/internal/abi/type.go                           |  43 +--
- src/reflect/all_test.go                            |  79 ++++--
- src/reflect/map_noswiss.go                         |  28 +-
- src/reflect/map_swiss.go                           |  28 +-
- src/runtime/export_map_noswiss_test.go             |  58 ++++
- src/runtime/export_map_swiss_test.go               |  58 ++++
- src/runtime/export_test.go                         |  46 ----
- src/runtime/map_fast32_noswiss.go                  |  42 +--
- src/runtime/map_fast32_swiss.go                    |  42 +--
- src/runtime/map_fast64_noswiss.go                  |  42 +--
- src/runtime/map_fast64_swiss.go                    |  42 +--
- src/runtime/map_faststr_noswiss.go                 |  68 ++---
- src/runtime/map_faststr_swiss.go                   |  68 ++---
- src/runtime/map_noswiss.go                         | 104 +++----
- src/runtime/map_noswiss_test.go                    | 188 +++++++++++++
- src/runtime/map_swiss.go                           | 104 +++----
- src/runtime/map_swiss_test.go                      | 188 +++++++++++++
- src/runtime/map_test.go                            | 176 ------------
- src/runtime/runtime-gdb.py                         |   1 +
- src/runtime/runtime-gdb_test.go                    |   4 +-
- src/runtime/type.go                                |  12 +-
- 40 files changed, 1969 insertions(+), 910 deletions(-)
+ test/codegen/math.go | 2 ++
+ 1 file changed, 2 insertions(+)

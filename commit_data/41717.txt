@@ -1,43 +1,16 @@
-commit 5d47f870a64982173f3da8a82a6a793b83075d6a
-Author: Roland Shoemaker <roland@letsencrypt.org>
-Date:   Fri Mar 20 20:28:43 2020 +0000
+commit 4ec51894eed186413c81c71772e3df55351ecbb9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 22 00:38:08 2019 -0700
 
-    crypto/x509: add RevocationList and CreateRevocationList
+    runtime: force testing calls of netpoll to run on system stack
     
-    The existing Certificate.CreateCRL method generates non-conformant CRLs and
-    as such cannot be used for implementations that require standards
-    compliance. This change implements a new top level method, CreateCRL, which
-    generates compliant CRLs, and offers an extensible API if any
-    extensions/fields need to be supported in the future.
+    Fixes #35053
     
-    Here is an example Issuer/CRL generated using this change:
-    -----BEGIN CERTIFICATE-----
-    MIIBNjCB3aADAgECAgEWMAoGCCqGSM49BAMCMBIxEDAOBgNVBAMTB3Rlc3Rpbmcw
-    IhgPMDAwMTAxMDEwMDAwMDBaGA8wMDAxMDEwMTAwMDAwMFowEjEQMA4GA1UEAxMH
-    dGVzdGluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLHrudbSM36sn1VBrmm/
-    OfQTyEsI4tIUV1VmneOKHL9ENBGCiec4GhQm2SGnDT/sZy2bB3c3yozh/roS6cZJ
-    UZqjIDAeMA4GA1UdDwEB/wQEAwIBAjAMBgNVHQ4EBQQDAQIDMAoGCCqGSM49BAMC
-    A0gAMEUCIQCoAYN6CGZPgd5Sw5a1rd5VexciT5MCxTfXj+ZfJNfoiAIgQVCTB8AE
-    Nm2xset7+HOgtQYlKNw/rGd8cFcv5Y9aUzo=
-    -----END CERTIFICATE-----
-    -----BEGIN X509 CRL-----
-    MIHWMH0CAQEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAxMHdGVzdGluZxgPMDAwMTAx
-    MDIwMDAwMDBaGA8wMDAxMDEwMzAwMDAwMFowFjAUAgECGA8wMDAxMDEwMTAxMDAw
-    MFqgHjAcMA4GA1UdIwQHMAWAAwECAzAKBgNVHRQEAwIBBTAKBggqhkjOPQQDAgNJ
-    ADBGAiEAjqfj/IG4ys5WkjrbTNpDbr+saHGO/NujLJotlLL9KzgCIQDm8VZPzj0f
-    NYEQgAW4nsiUzlvEUCoHMw0141VCZXv67A==
-    -----END X509 CRL-----
-    
-    Fixes #35428
-    
-    Change-Id: Id96b6f47698d0bed39d586b46bd12374ee6ff88f
-    GitHub-Last-Rev: c83a6017164e71df3989fe57322b3b4869a09f37
-    GitHub-Pull-Request: golang/go#36945
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217298
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I31853d434610880044c169e0c1e9732f97ff1bdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202444
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/crypto/x509/x509.go      | 142 +++++++++++++++++++++
- src/crypto/x509/x509_test.go | 288 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 430 insertions(+)
+ src/runtime/export_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

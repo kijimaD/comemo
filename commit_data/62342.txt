@@ -1,0 +1,65 @@
+commit e7cd4979bec709b6d9c7428912e66348405e2a51
+Author: Than McIntosh <thanm@golang.org>
+Date:   Wed Dec 11 13:15:27 2024 -0500
+
+    cmd: initial compiler+linker support for DWARF5 .debug_addr
+    
+    This patch rolls the main .debug_info DWARF section from version 4 to
+    version 5, and also introduces machinery in the Go compiler and linker
+    for taking advantage of the DWARF5 ".debug_addr" section for
+    subprogram DIE "high" and "low" PC attributes. All functionality is
+    gated by GOEXPERIMENT=dwarf5.
+    
+    For the compiler portion of this patch, we add a new DIE attribute
+    form "DW_FORM_addrx", which accepts as an argument a function (text)
+    symbol.  The dwarf "putattr" function is enhanced to handle this
+    format by invoking a new dwarf context method "AddIndirectTextRef".
+    Under the hood, this method invokes the Lsym method WriteDwTxtAddrx,
+    which emits a new objabi.R_DWTXTADDR_* relocation. The size of the
+    relocation is dependent on the number of functions in the package; we
+    pick a size that is just big enough for the largest func index.
+    
+    In the linker portion of this patch, we now switch over to writing out
+    a version number of 5 (instead of 4) in the compile unit header (this
+    is required if we want to use addrx attributes). In the parallel portion
+    of DWARF gen, within each compilation unit we scan subprogram DIEs to
+    look for R_DWTXTADDR_* relocations, and when we find such a reloc,
+    we assign a slot in the .debug_addr section for the func targeted.
+    After the parallel portion is complete, we then walk through all of the
+    compilation units to assign a value to their DW_AT_addr_base attribute,
+    which points to the portion of the single .debug_addr section containing
+    the text addrs for that compilation unit.
+    
+    Note that once this patch is in, programs built with GOEXPERIMENT=dwarf5
+    will have broken/damaged DWARF info; in particular, since we've changed
+    only the CU and subprogram DIEs and haven't incorported the other
+    changes mandated by DWARF5 (ex: .debug_ranges => .debug_rnglists)
+    a lot of the variable location info will be missing/incorrect. This
+    will obviously change in subsequent patches.
+    
+    Note also that R_DWTXTADDR_* can't be used effectively for lexical
+    scope DIE hi/lo PC attrs, since there isn't a viable way to encode
+    "addrx + constant" in the attribute value (you would need a new entry
+    for each attr endpoint in .debug_addr, which would defeat the point).
+    
+    Updates #26379.
+    
+    Change-Id: I2dfc45c9a8333e7b2a58f8e3b88fc8701fefd006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635337
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/gc/compile.go        |   2 +
+ src/cmd/internal/dwarf/dwarf.go               | 109 ++++++++++----
+ src/cmd/internal/dwarf/dwarf_defs.go          |   8 +-
+ src/cmd/internal/obj/data.go                  |  19 +++
+ src/cmd/internal/obj/dwarf.go                 |  13 +-
+ src/cmd/internal/obj/link.go                  |   1 +
+ src/cmd/link/internal/dwtest/dwtest.go        |  55 +++++++
+ src/cmd/link/internal/ld/data.go              |  46 +++++-
+ src/cmd/link/internal/ld/data_test.go         |  27 ++++
+ src/cmd/link/internal/ld/dwarf.go             | 201 +++++++++++++++++++++++---
+ src/cmd/link/internal/ld/dwarf_test.go        |  12 +-
+ src/cmd/link/internal/sym/compilation_unit.go |  13 +-
+ 12 files changed, 447 insertions(+), 59 deletions(-)

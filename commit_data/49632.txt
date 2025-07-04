@@ -1,21 +1,32 @@
-commit 923740a8cc82e0bd3cd6098f94130b1967c4b361
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Sun Jul 10 11:11:05 2022 +0800
+commit ea51e223c28babc530df475497de0be4579b5e86
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Wed Feb 17 15:00:34 2021 +0000
 
-    cmd/compile: fix type assert in dict pass
+    cmd/{asm,compile}: add fused multiply-add support on riscv64
     
-    For type assertions, if src type is empty interface, we should
-    use normal type assertions rather than dynamic type assertions.
+    Add support to the assembler for F[N]M{ADD,SUB}[SD] instructions.
+    Argument order is:
     
-    Fixes #53762
+      OP RS1, RS2, RS3, RD
     
-    Change-Id: I596b2e4ad647fe5e42ad884f7273c78f8f50dac2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416736
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Also, add support for the FMA intrinsic to the compiler. Automatic
+    FMA matching is left to a future CL.
+    
+    Change-Id: I47166c7393b2ab6bfc2e42aa8c1a8997c3a071b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293030
+    Trust: Michael Munday <mike.munday@lowrisc.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/noder/stencil.go |  2 +-
- test/typeparam/issue53762.go              | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/asm.go                |   7 +
+ src/cmd/asm/internal/asm/testdata/riscv64.s    |   8 ++
+ src/cmd/compile/internal/riscv64/ssa.go        |  13 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  15 ++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   5 +
+ src/cmd/compile/internal/ssa/opGen.go          |  68 +++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 191 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |   2 +-
+ src/cmd/internal/obj/riscv/obj.go              | 104 +++++++++++---
+ test/codegen/math.go                           |  16 +++
+ 10 files changed, 406 insertions(+), 23 deletions(-)

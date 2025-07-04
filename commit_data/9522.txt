@@ -1,26 +1,13 @@
-commit a3bc7681b54d62a6b54f3b05b05b91e9304c26eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 28 22:23:44 2011 -0400
+commit f627215bab022893466788417c6f70d0b496d77b
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Mon Aug 29 10:40:28 2011 +1000
 
-    godashboard: fix utf-8 in user names
+    runtime: go interface to cdecl calbacks
+    cdecl calbacks have been implemented in C/ASM code, just Go function is missing
     
-    Also standardize on 'utf8' as encoding name.
-    Apparently either is acceptable.
-    
-    The user, because it is a StringProperty,
-    must be of type unicode in order to handle
-    Unicode correctly.  It must *not* have type string.
-    
-    The desc, because it is a BlobProperty, must
-    be of type string in order to handle Unicode correctly.
-    It must *not* have type unicode.
-    
-    Yay encoding type pedantry without static typing.
-    
-    R=adg, mattn.jp
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4973045
+    https://golang.org/cl/4969047
 
- misc/dashboard/godashboard/app.yaml   |  2 +-
- misc/dashboard/godashboard/gobuild.py | 11 +++++++----
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/pkg/runtime/windows/syscall.goc | 4 ++++
+ 1 file changed, 4 insertions(+)

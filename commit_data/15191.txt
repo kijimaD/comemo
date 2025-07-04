@@ -1,26 +1,16 @@
-commit 106827990466b9246f9395233882b1e816df398a
-Author: Shane Hansen <shanemhansen@gmail.com>
-Date:   Mon Feb 11 11:36:29 2013 +1100
+commit d8630694db6b00782a9172ac6b88ec9fc8f7da3f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Feb 10 17:39:13 2013 -0500
 
-    archive/tar: read/write extended pax/gnu tar archives
+    doc: move os specific build instructions to wiki
     
-    Support reading pax archives and applying extended attributes
-    like long names, subsecond mtime resolutions, etc. Default to
-    writing pax archives for long file and link names.
-    Support reading gnu archives using the ././@LongLink extended
-    header for file name and link target.
+    Fixes #4010.
     
-    Fixes #3300
+    This proposal avoids cluttering the main install-source.html with OS specific instructions by linking to the wiki for details. See discussion in the comments.
     
-    R=dsymonds, dave, rogpeppe, remyoudompheng, chressie, rsc
+    R=adg, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6700047
+    https://golang.org/cl/7241068
 
- src/pkg/archive/tar/common.go          |   9 ++
- src/pkg/archive/tar/reader.go          | 179 ++++++++++++++++++++++++++++++++-
- src/pkg/archive/tar/reader_test.go     | 106 ++++++++++++++++++-
- src/pkg/archive/tar/testdata/pax.tar   | Bin 0 -> 10240 bytes
- src/pkg/archive/tar/testdata/ustar.tar | Bin 0 -> 2048 bytes
- src/pkg/archive/tar/writer.go          | 107 +++++++++++++++++++-
- src/pkg/archive/tar/writer_test.go     |  80 +++++++++++++++
- 7 files changed, 472 insertions(+), 9 deletions(-)
+ doc/install-source.html | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)

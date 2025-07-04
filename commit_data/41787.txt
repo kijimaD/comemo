@@ -1,27 +1,14 @@
-commit 89e13c88e4f9f3a3eea7bf105e5af475727a4c33
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Mar 28 16:11:15 2020 +0000
+commit dad512f6df83367a46d9135daa13e27f51b8ba04
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Oct 25 20:54:20 2019 +0800
 
-    runtime: check the correct sanity condition in the page allocator
+    cmd/dist: fix wrong goarch on mips64le
     
-    Currently there are a few sanity checks in the page allocator which
-    should fail immediately but because it's a check for a negative number
-    on a uint, it's actually dead-code.
-    
-    If there's a bug in the page allocator which would cause the sanity
-    check to fail, this could cause memory corruption by returning an
-    invalid address (more precisely, one might either see a segfault, or
-    span overlap).
-    
-    This change fixes these sanity checks to check the correct condition.
-    
-    Fixes #38130.
-    
-    Change-Id: Ia19786cece783d39f26df24dec8788833a6a3f21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226297
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I625f0bc533a7d14010c0344f36e8f157a19c13f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203437
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/mpagealloc.go | 4 ++--
- src/runtime/mpagecache.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

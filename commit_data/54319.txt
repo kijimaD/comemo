@@ -1,27 +1,34 @@
-commit 5cdb132228b90732d57215893a9910ded694c585
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jun 27 17:17:33 2023 -0500
+commit 0bf7ee9977c0218562c50a0b0f0d9cbdf33f65e6
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Sep 2 20:45:18 2022 -0700
 
-    cmd/compile/internal/ssa: improve masking codegen on PPC64
+    archive/tar: limit size of headers
     
-    Generate RLDIC[LR] instead of MOVD mask, Rx; AND Rx, Ry, Rz.
-    This helps reduce code size, and reduces the latency caused
-    by the constant load.
+    Set a 1MiB limit on special file blocks (PAX headers, GNU long names,
+    GNU link names), to avoid reading arbitrarily large amounts of data
+    into memory.
     
-    Similarly, for smaller-than-register values, truncate constants
-    which exceed the range of the value's type to avoid needing to
-    load a constant.
+    Thanks to Adam Korczynski (ADA Logics) and OSS-Fuzz for reporting
+    this issue.
     
-    Change-Id: I6019684795eb8962d4fd6d9585d08b17c15e7d64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515576
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Fixes CVE-2022-2879
+    For #54853
+    
+    Change-Id: I85136d6ff1e0af101a112190e027987ab4335680
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1565555
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439355
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- .../compile/internal/ssa/_gen/PPC64latelower.rules |  13 +++
- src/cmd/compile/internal/ssa/rewrite.go            |  19 ++++
- .../compile/internal/ssa/rewritePPC64latelower.go  | 123 +++++++++++++++++++++
- test/codegen/bits.go                               |  26 +++++
- 4 files changed, 181 insertions(+)
+ src/archive/tar/format.go                          |   4 +++
+ src/archive/tar/reader.go                          |  14 +++++++++--
+ src/archive/tar/reader_test.go                     |  11 ++++++++-
+ src/archive/tar/testdata/pax-bad-hdr-large.tar.bz2 | Bin 0 -> 156 bytes
+ src/archive/tar/writer.go                          |   3 +++
+ src/archive/tar/writer_test.go                     |  27 +++++++++++++++++++++
+ 6 files changed, 56 insertions(+), 3 deletions(-)

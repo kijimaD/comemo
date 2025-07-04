@@ -1,28 +1,26 @@
-commit 0193139becc629407fc6a8802d33294667086d74
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 15 19:47:52 2011 -0400
+commit fb9ea79916f4aeadc5e1960659ea3f9f4be580a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 15 14:06:35 2011 -0700
 
-    undo CL 4557047 / 8818ac606e92
+    godoc: replace direct OS file system accesses in favor
+           of accesses via a FileSystem interface.
     
-    I don't think we've discussed this API enough.
+    Preparation for appengine version which gets its files
+    via a snapshot or zip file and uses a corresponding
+    FileSystem implementation.
     
-    ««« original CL description
-    bike/shed: new package.
-    
-    It comes up often enough that it's time to provide
-    the utility of a standard package.
-    
-    R=r, mirtchovski, adg, rsc, n13m3y3r, ality, go.peter.90, lstoakes, iant, jan.mercl, bsiegert, robert.hencke, rogpeppe, befelemepeseveze, kevlar
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4557047
-    »»»
-    
-    R=dsymonds, bradfitz, gri
-    CC=golang-dev
-    https://golang.org/cl/4576065
+    https://golang.org/cl/4572065
 
- src/pkg/Makefile                 |  1 -
- src/pkg/bike/shed/Makefile       | 11 -----------
- src/pkg/bike/shed/colors.go      | 26 --------------------------
- src/pkg/bike/shed/colors_test.go | 15 ---------------
- 4 files changed, 53 deletions(-)
+ src/cmd/godoc/Makefile      |  2 +
+ src/cmd/godoc/codewalk.go   | 30 +++++++-------
+ src/cmd/godoc/dirtrees.go   | 37 ++++++++---------
+ src/cmd/godoc/filesystem.go | 96 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/godoc.go      | 47 ++++++++++------------
+ src/cmd/godoc/index.go      | 11 +++---
+ src/cmd/godoc/main.go       |  4 ++
+ src/cmd/godoc/mapping.go    |  3 +-
+ src/cmd/godoc/parser.go     | 69 ++++++++++++++++++++++++++++++++
+ src/cmd/godoc/utils.go      |  7 +++-
+ 10 files changed, 237 insertions(+), 69 deletions(-)

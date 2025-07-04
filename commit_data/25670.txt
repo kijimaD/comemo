@@ -1,21 +1,24 @@
-commit 73d590b4bd3e4dbf48613a09db938bf2fe03a1aa
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 26 15:26:09 2016 -0500
+commit 06eb504ca4a58b3c9c742d920f75630b26701980
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Nov 13 11:41:52 2015 -0800
 
-    cmd/internal/obj/arm64: adjust literal pool flush for span-dependent jump enlargement
+    runtime: remove zgoarch_*.go files
     
-    The current code delays the literal pool until the very last moment,
-    but based on the assumption that span-dependent jumps are as
-    short as possible. If they need to be enlarged in a later round, that
-    very last moment may be too late. Flush a little early to prevent that.
+    These now live in runtime/internal/sys.
     
-    Fixes #13579.
-    
-    Change-Id: I759b5db5c43a977bf2b940872870cbbc436ad141
-    Reviewed-on: https://go-review.googlesource.com/18972
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I270597142516512bfc1395419e51d8083ba1663f
+    Reviewed-on: https://go-review.googlesource.com/16891
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/runtime/zgoarch_386.go      | 26 --------------------------
+ src/runtime/zgoarch_amd64.go    | 26 --------------------------
+ src/runtime/zgoarch_amd64p32.go | 26 --------------------------
+ src/runtime/zgoarch_arm.go      | 26 --------------------------
+ src/runtime/zgoarch_arm64.go    | 26 --------------------------
+ src/runtime/zgoarch_mips64.go   | 26 --------------------------
+ src/runtime/zgoarch_mips64le.go | 26 --------------------------
+ src/runtime/zgoarch_ppc64.go    | 26 --------------------------
+ src/runtime/zgoarch_ppc64le.go  | 26 --------------------------
+ 9 files changed, 234 deletions(-)

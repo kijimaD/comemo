@@ -1,18 +1,17 @@
-commit e4d7525c3e119de30490550fe2516fd6958eac30
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Fri May 14 15:00:46 2021 +0200
+commit 0c861724a05009a75eaa2a3f187101bd13a583b5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 30 14:42:56 2020 -0400
 
-    cmd/dist: display first class port status in json output
+    cmd/go/internal/modload: add structured errors for queries matching the main module
     
-    Fixes #38874
+    For #37438
     
-    Change-Id: I819dd008fd6869d335888b4aa03dcf739da9a9a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320069
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I7df80ae0917b0b4ecad98947da39ddf8554b07c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266717
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/build.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/query.go | 46 +++++++++++++++++++++++++++++++++---
+ 1 file changed, 43 insertions(+), 3 deletions(-)

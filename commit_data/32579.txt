@@ -1,12 +1,15 @@
-commit f7cb5bca1a93dfe5b4356e0c4a4c4207d2d2b194
-Author: griesemer <gri@golang.org>
-Date:   Thu Aug 31 15:02:24 2017 +0200
+commit 0dd7b8f879a517e9a4cb9113c27f803df3d4fb07
+Author: feilengcui008 <feilengcui008@gmail.com>
+Date:   Wed May 3 14:08:43 2017 +0800
 
-    math/big: fix internal comment
+    runtime: clean redundant call of environ function
     
-    Change-Id: Id003e2dbecad7b3c249a747f8b4032135dfbe34f
-    Reviewed-on: https://go-review.googlesource.com/60670
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: Ica7179d225c1fb79381f82f58ea5050ac6418b9c
+    Reviewed-on: https://go-review.googlesource.com/42493
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/decimal.go | 2 +-
+ src/runtime/env_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

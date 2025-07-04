@@ -1,17 +1,31 @@
-commit d9bb69396034d6e3553018592926fbf0cd75a0cf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 10 23:59:59 2016 -0800
+commit 9338f39459adc0d62277e141495cc5f7886b5896
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Dec 21 14:40:23 2015 -0800
 
-    cmd/compile: sort interface methods in tointerface0
+    crypto/x509: handle ECC private keys with the wrong length.
     
-    Might as well sort them while they're still in a slice.
+    SEC-1 says: “The component privateKey is the private key defined to be
+    the octet string of length ⌊log₂(n)/8⌋ (where n is the order of the
+    curve)”.
     
-    Change-Id: I40c25ddc5c054dcb4da2aeefa79947967609d599
-    Reviewed-on: https://go-review.googlesource.com/20591
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Previously the code for parsing ECC private keys would panic (on
+    non-amd64) when the private was too long. It would also pass a too-short
+    private key to crypto/elliptic, possibly resulting in undesirable
+    behaviour.
+    
+    This change makes the parsing function handle both too much and too
+    little padding because GnuTLS does the former and OpenSSL did the latter
+    until 30cd4ff294252c4b6a4b69cbef6a5b4117705d22. It also causes
+    serialisation to pad private keys correctly.
+    
+    Fixes #13699
+    
+    Change-Id: If9c2faeaeb45af8a4d7770d784f3d2633e7f8290
+    Reviewed-on: https://go-review.googlesource.com/18094
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go  | 3 ++-
- src/cmd/compile/internal/gc/subr.go | 7 -------
- 2 files changed, 2 insertions(+), 8 deletions(-)
+ src/crypto/x509/sec1.go      | 28 +++++++++++++++++++++++++---
+ src/crypto/x509/sec1_test.go | 42 ++++++++++++++++++++++++++++--------------
+ 2 files changed, 53 insertions(+), 17 deletions(-)

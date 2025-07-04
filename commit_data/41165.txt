@@ -1,20 +1,18 @@
-commit 37981da9a4c649fe0570c84e78d9bf38a0bb90f0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 25 02:32:52 2020 +1100
+commit cb30430af84a220f67d4cedc47c273c31051d291
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Sep 10 14:42:50 2019 -0400
 
-    cmd/vendor: cherry pick asm_linux_riscv64.s for x/sys/unix
+    go/internal/gccgoimporter: remove guard on some assertions
     
-    Manually cherry pick asm_linux_riscv64.s from x/sys/unix rev 4c3a92842,
-    as needed for the linux/riscv64 port.
+    Remove unnecessary conditional guard for a couple of assertions in the
+    type parser's update() method (inspired by comment from Robert). No
+    change in functionality.
     
-    Normally this would be a vendor update, however this is significantly
-    more risky at this point in time - a full update can be done post release.
-    
-    Updates #27532
-    
-    Change-Id: I03bb191bc44dcd24b9a29243957b88d7a9091852
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216260
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I706a54569e75c6960768247889b7dec3f267dde9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194565
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- .../golang.org/x/sys/unix/asm_linux_riscv64.s      | 54 ++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+ src/go/internal/gccgoimporter/parser.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

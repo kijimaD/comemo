@@ -1,20 +1,20 @@
-commit 03978a97e5336c0ef46cec9b4f0733e9d897d083
-Author: sandyskies <chenmingjie0828@163.com>
-Date:   Mon Oct 21 17:32:13 2019 +0000
+commit 1033065ee381da075e458de0420d0a5838e910cb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 29 20:03:29 2019 +0000
 
-    io: make CopyBuffer docs state when buf is not used
+    runtime: add physHugePageSize
     
-    Document that if either src implements the WriteTo interface
-    or if dst implements the ReaderFrom interface, then
-    buf will not be used.
+    This change adds the global physHugePageSize which is initialized in
+    osinit(). physHugePageSize contains the system's transparent huge page
+    (or superpage) size in bytes.
     
-    Fixes #32276
+    For #30333.
     
-    Change-Id: Id0a69c90e255e694e7ec9f79ffe4d8391441e59e
-    GitHub-Last-Rev: 750e7e86d5d9b985fae7f2329fd219cacf72a62b
-    GitHub-Pull-Request: golang/go#32279
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179137
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I2f0198c40729dbbe6e6f2676cef1d57dd107562c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170858
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/io/io.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/malloc.go   |  8 ++++++++
+ src/runtime/os_linux.go | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

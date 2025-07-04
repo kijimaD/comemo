@@ -1,14 +1,14 @@
-commit 695024b8fa78677362ad2c3d57fa63de7f5fbab4
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Aug 1 09:20:44 2012 +1000
+commit cbc3268d1dda9e2f6a6c5458ba2c859e454057f6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 31 20:59:06 2012 +0900
 
-    image/png: tRNS chunk is *non*-alpha-premultiplied.
+    misc/cgo/test: fix darwin build
     
-    R=r
+    uuid_t is defined in unistd.h on OS X, unfortunately.
+    
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6446062
+    https://golang.org/cl/6455057
 
- src/pkg/image/png/reader.go      |  2 +-
- src/pkg/image/png/reader_test.go | 15 +++++++++-----
- src/pkg/image/png/writer.go      | 44 ++++++++++++++++------------------------
- 3 files changed, 29 insertions(+), 32 deletions(-)
+ misc/cgo/test/basic.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

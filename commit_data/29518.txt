@@ -1,16 +1,31 @@
-commit 4bee9012b31a762799ea861cd5f55583f1f602f5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Nov 12 22:12:22 2016 +0100
+commit d41a7f77c5ed5114fe81b65ee28013227d20d637
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 20 14:59:39 2016 +1200
 
-    net/http/httptest: remove workaround on Plan 9
+    cmd/link: do not directly embed Symbols in Link
     
-    This issue has been fixed in CL 31390.
+    Mostly done with sed.
     
-    Change-Id: I0c2425fd33be878037d10d612a50116a7b693431
-    Reviewed-on: https://go-review.googlesource.com/33195
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic8c534a3fdd332b5420d062ee85bb77a30ad1efb
+    Reviewed-on: https://go-review.googlesource.com/29346
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httptest/server.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/link/internal/ld/ar.go       | 2 +-
+ src/cmd/link/internal/ld/data.go     | 4 ++--
+ src/cmd/link/internal/ld/deadcode.go | 4 ++--
+ src/cmd/link/internal/ld/elf.go      | 2 +-
+ src/cmd/link/internal/ld/go.go       | 2 +-
+ src/cmd/link/internal/ld/ldelf.go    | 8 ++++----
+ src/cmd/link/internal/ld/ldmacho.go  | 6 +++---
+ src/cmd/link/internal/ld/ldpe.go     | 6 +++---
+ src/cmd/link/internal/ld/lib.go      | 6 +++---
+ src/cmd/link/internal/ld/link.go     | 2 +-
+ src/cmd/link/internal/ld/macho.go    | 2 +-
+ src/cmd/link/internal/ld/main.go     | 2 +-
+ src/cmd/link/internal/ld/objfile.go  | 4 ++--
+ src/cmd/link/internal/ld/pe.go       | 4 ++--
+ src/cmd/link/internal/ld/sym.go      | 8 ++++----
+ src/cmd/link/internal/ld/symtab.go   | 2 +-
+ 16 files changed, 32 insertions(+), 32 deletions(-)

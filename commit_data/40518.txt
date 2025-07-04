@@ -1,15 +1,14 @@
-commit 15bff20829a474909e39f73a525e237496afc144
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Oct 31 17:19:28 2019 -0400
+commit 24b43013a12ed8bab9adcce5b8265b1fb87ff506
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 16 09:45:56 2019 -0700
 
-    doc: document Go 1.13.4
+    errors: remove mention of Wrapper interface
     
-    Change-Id: Ib29e642c56eca96826187f5737d74f8c0430ac3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204638
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    The Wrapper type no longer exists.
+    
+    Change-Id: I21051f26c6722a957295819f2f385f2bbd0db355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177618
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/errors/wrap.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

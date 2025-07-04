@@ -1,27 +1,20 @@
-commit 5f0d821adda38b728592b9ee919c94013eb2ab5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Aug 28 13:00:41 2021 -0700
+commit f8ac2370324ad9b058fe9b943f5807ac28a88f6f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 19:18:20 2020 -0800
 
-    cmd/compile/internal/types2: use a typeWriter to write types (cleanup)
+    test: import file name for issue19028
     
-    Rather then passing through a buffer, qualified, and visited
-    list to each helper function, maintain state in a typeWriter
-    object and use methods on it. This cleans up this code quite
-    a bit.
+    The pattern in NNN.dir directories is that if we have a.go,
+    the other files import "./a". For gc it happens to work to use a path,
+    but not for gofrontend. Better to be consistent.
     
-    Use a map ("seen") for cycle detection rather than a list.
-    
-    Move printing of [ and ] for type lists into the typeList
-    method so that callers don't have to do it themselves.
-    
-    Change-Id: I1346373e979cb90710fbc073953aa51e2f6581f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345890
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I2e023cbf6bd115f9fb77427b097b0ff9b9992f17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278113
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/object.go     |   2 +-
- src/cmd/compile/internal/types2/subst.go      |   7 +-
- src/cmd/compile/internal/types2/typelists.go  |   4 +-
- src/cmd/compile/internal/types2/typestring.go | 206 +++++++++++++-------------
- src/cmd/compile/internal/types2/unify.go      |  13 +-
- 5 files changed, 119 insertions(+), 113 deletions(-)
+ test/fixedbugs/issue19028.dir/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

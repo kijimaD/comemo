@@ -1,0 +1,24 @@
+commit ee3da5061789cd3d2a6558b71a99ab7ecda23777
+Author: limeidan <limeidan@loongson.cn>
+Date:   Fri Jan 5 10:33:42 2024 +0800
+
+    cmd/internal/obj/loong64: reclassify three-register operation instructions and two-register operation instructions
+    
+    The instructions belonging to case 32 have the same structure as the
+    instructions in case 2.
+    
+    The instructions in case 33 are actually two-register operation
+    instructions. We move their definitions from function oprrr to oprr and
+    merge their implementation into case 9.
+    
+    Change-Id: Id04aaa497e78d8198a58f8d406876d16b3f393a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565616
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/loong64/asm.go | 130 +++++++++++++++---------------------
+ 1 file changed, 52 insertions(+), 78 deletions(-)

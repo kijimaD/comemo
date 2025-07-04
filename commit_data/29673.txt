@@ -1,14 +1,19 @@
-commit 0b1b6d4ce32818e0aa6db3bd37c6ca4a4d5613af
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 29 17:04:31 2016 -0800
+commit 6c5e377d23136bd371d205e1c2aae6ddccb4597e
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 14 13:23:11 2016 -0400
 
-    doc: remove remaining cmd/go entries from go1.8.txt
+    cmd/compile: relax liveness restrictions on ambiguously live
     
-    None of them need to be called out in the release notes.
+    Update gc liveness to remove special conservative treatment
+    of ambiguously live vars, since there is no longer a need to
+    protect against GCDEBUG=gcdead.
     
-    Change-Id: I143a1879b25063574e4107c1e89264434d45d1d5
-    Reviewed-on: https://go-review.googlesource.com/33676
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id6e2d03218f7d67911e8436d283005a124e6957f
+    Reviewed-on: https://go-review.googlesource.com/24896
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.txt | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 22 ++++++++--------------
+ test/live.go                         | 19 ++++++++++---------
+ 2 files changed, 18 insertions(+), 23 deletions(-)

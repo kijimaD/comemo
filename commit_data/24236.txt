@@ -1,14 +1,17 @@
-commit e216735dfad648b8ef26ffd389305a141c1dec75
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Mon Sep 7 22:31:04 2015 +0800
+commit fb90f4c1c2a966efb3ec2af48738ad9075dee229
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Fri Jul 17 16:33:51 2015 +0200
 
-    math/big: add example for RoundingMode
+    os: improve documentation on Rename
     
-    Updates #11241
+    Rename should document that it returns *LinkError,
+    like Create and Stat do.
     
-    Change-Id: I0614c5a9a7a4c399ad5d664f36c70c3210911905
-    Reviewed-on: https://go-review.googlesource.com/14356
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #10061
+    
+    Change-Id: I7bfe8b0267f6c4a57dd6b26cba44928714711724
+    Reviewed-on: https://go-review.googlesource.com/12353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/floatexample_test.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,15 +1,19 @@
-commit a65a095ca423c21bdd53a6a8300b501b88d60137
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Sat Apr 24 16:19:07 2021 +0200
+commit 0f4bb9627ebc27d4e669e41d7f58396e063abb70
+Author: Ethan Hur <ethan0311@gmail.com>
+Date:   Sun Mar 14 13:43:26 2021 +0000
 
-    cmd/go/internal/bug: remove duplicate code
+    cmd/compile: fix outdated comment
     
-    Change-Id: I8a14b2fbb44f7ed1ea126cf27adc447f33fdf6f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313170
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    variable xtop has removed and refactored after go 1.16, but there are comments referring xtop.
+    
+    It may mislead new contributors to be confused.
+    
+    Change-Id: Id79c747d8daef14049b29e70a4ecd34054a28a5e
+    GitHub-Last-Rev: 94b55208862fdc9fa0de39aacf2c9ef9987cef56
+    GitHub-Pull-Request: golang/go#44995
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301629
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/bug/bug.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/func.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

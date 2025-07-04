@@ -1,18 +1,15 @@
-commit e4bb139e75bf9bff76ebe6e060b7196579ce2172
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 28 19:51:02 2013 +0900
+commit d595b67a12f1ecc0839bc4ced7efae916ed5584d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 11:16:53 2013 +1000
 
-    net: make protocol-specific Dial and Listen return consistent error value
+    cmd/go: add -race flag to 'go list'
     
-    Update #4856
+    Causes the package dependencies to include those for race detection.
+    Fixes #5653.
     
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12916046
+    https://golang.org/cl/13236045
 
- src/pkg/net/iprawsock_posix.go | 14 +++++++-------
- src/pkg/net/ipsock_posix.go    | 13 +------------
- src/pkg/net/tcpsock_posix.go   | 10 +++++-----
- src/pkg/net/udpsock_posix.go   | 20 ++++++++++----------
- src/pkg/net/unixsock_posix.go  | 28 ++++++++++------------------
- 5 files changed, 33 insertions(+), 52 deletions(-)
+ src/cmd/go/list.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

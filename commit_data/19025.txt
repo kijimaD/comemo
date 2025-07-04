@@ -1,19 +1,15 @@
-commit a26c01ad446d2853f0c6a7ddaacadb02efa00b7b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 3 19:04:15 2014 -0400
+commit c274ff6761ed8bdaea7d99fcaeb1116fff3763dd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 3 16:11:03 2014 -0400
 
-    cmd/cc: emit gc bitmaps in read-only memory
+    fmt: fix go syntax formatting of []byte(nil)
+    Fixes #7639.
     
-    Cuts hello world by 70kB, because we don't write
-    those names into the symbol table.
-    
-    Update #6853
-    
-    LGTM=khr
-    R=khr
+    LGTM=rsc
+    R=r, adg, rsc
     CC=golang-codereviews
-    https://golang.org/cl/80370045
+    https://golang.org/cl/81240043
 
- src/cmd/cc/pgen.c   | 1 +
- src/cmd/ld/symtab.c | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go | 2 ++
+ src/pkg/fmt/print.go    | 9 +++++++++
+ 2 files changed, 11 insertions(+)

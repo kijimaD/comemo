@@ -1,27 +1,14 @@
-commit c72b8aa3b36632f7bf96111346a554667dd08f7f
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jun 8 14:24:18 2015 -0700
+commit 649c7b6daca6e29a719c9d29c65148a4628e729f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:07:18 2015 +0200
 
-    crypto/tls: don't require an explicit client-auth EKU.
+    net: add cgo support for Solaris
     
-    Previously we enforced both that the extended key usages of a client
-    certificate chain allowed for client authentication, and that the
-    client-auth EKU was in the leaf certificate.
-    
-    This change removes the latter requirement. It's still the case that the
-    chain must be compatible with the client-auth EKU (i.e. that a parent
-    certificate isn't limited to another usage, like S/MIME), but we'll now
-    accept a leaf certificate with no EKUs for client-auth.
-    
-    While it would be nice if all client certificates were explicit in their
-    intended purpose, I no longer feel that this battle is worthwhile.
-    
-    Fixes #11087.
-    
-    Change-Id: I777e695101cbeba069b730163533e2977f4dc1fc
-    Reviewed-on: https://go-review.googlesource.com/10806
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: Ib66bebd418d97f38956970f93e69aa41e7c55523
+    Reviewed-on: https://go-review.googlesource.com/8262
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/crypto/tls/handshake_server.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/net/cgo_solaris.go | 15 +++++++++++++++
+ src/net/cgo_unix.go    |  2 +-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

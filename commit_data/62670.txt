@@ -1,0 +1,24 @@
+commit 9c88db5f1eba68999184bb043a0b339349b81db4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 24 03:08:33 2025 -0400
+
+    runtime: always show runfinq in traceback
+    
+    Today, runtime.runfinq is hidden whenever runtime frames are hidden.
+    
+    However this frame serves as a hint that this goroutine is running
+    finalizers, which is otherwise unclear, but can be useful when debugging
+    issues with finalizers.
+    
+    Fixes #73011.
+    
+    Change-Id: I6a6a636cb63951fbe1fefc3554fe9cea5d0a0fb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/crash_test.go                          | 75 ++++++++++++++++++++++
+ .../testdata/testprog/finalizer_deadlock.go        | 74 +++++++++++++++++++++
+ src/runtime/traceback.go                           | 15 +++++
+ 3 files changed, 164 insertions(+)

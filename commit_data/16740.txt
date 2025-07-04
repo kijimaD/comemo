@@ -1,17 +1,12 @@
-commit 1d4ed0c86bd58b3ddfbeed831511e487e017dc1d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 11 22:40:21 2013 -0400
+commit 09e72f5670664539a4f01c60faea4a366d2a0fb8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 12 12:30:18 2013 +1000
 
-    cmd/gc: fix error message for import as 'init'
+    make.bat: incease runtime test timeout to 300s (fixes build)
     
-    Fixes #5853.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11104044
+    https://golang.org/cl/11064044
 
- src/cmd/gc/go.y              |   4 +
- src/cmd/gc/y.tab.c           | 635 ++++++++++++++++++++++---------------------
- src/cmd/gc/y.tab.h           |   2 +-
- test/fixedbugs/issue4517d.go |   9 +
- 4 files changed, 338 insertions(+), 312 deletions(-)
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

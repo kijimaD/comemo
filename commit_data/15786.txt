@@ -1,14 +1,51 @@
-commit 2924638d2631bf30f490e30ed120c4089c716b71
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Mar 15 09:02:36 2013 +0100
+commit 5146a93e72e870b06150c5419e1b83056ecc697b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 01:11:03 2013 -0400
 
-    runtime: replace lock() with casp() in the GC
+    runtime: accept GOTRACEBACK=crash to mean 'crash after panic'
     
-    Note: BitTarget will be removed by a forthcoming changeset.
+    This provides a way to generate core dumps when people need them.
+    The settings are:
     
-    R=golang-dev, dvyukov
-    CC=golang-dev, rsc
-    https://golang.org/cl/7837044
+            GOTRACEBACK=0  no traceback on panic, just exit
+            GOTRACEBACK=1  default - traceback on panic, then exit
+            GOTRACEBACK=2  traceback including runtime frames on panic, then exit
+            GOTRACEBACK=crash traceback including runtime frames on panic, then crash
+    
+    Fixes #3257.
+    
+    R=golang-dev, devon.odell, r, daniel.morsing, ality
+    CC=golang-dev
+    https://golang.org/cl/7666044
 
- src/pkg/runtime/mgc0.c | 60 ++++++++++++++++++++++++--------------------------
- 1 file changed, 29 insertions(+), 31 deletions(-)
+ src/pkg/runtime/extern.go           | 52 ++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/os_plan9.c          |  7 +++++
+ src/pkg/runtime/os_plan9_386.c      |  7 ++++-
+ src/pkg/runtime/os_plan9_amd64.c    |  7 ++++-
+ src/pkg/runtime/os_windows.c        | 13 ++++++++++
+ src/pkg/runtime/os_windows_386.c    |  7 ++++-
+ src/pkg/runtime/os_windows_amd64.c  |  6 ++++-
+ src/pkg/runtime/panic.c             |  6 ++++-
+ src/pkg/runtime/proc.c              |  2 +-
+ src/pkg/runtime/runtime.c           | 15 ++++++++++-
+ src/pkg/runtime/runtime.h           |  3 ++-
+ src/pkg/runtime/signal_386.c        |  6 ++++-
+ src/pkg/runtime/signal_amd64.c      |  6 ++++-
+ src/pkg/runtime/signal_arm.c        |  6 ++++-
+ src/pkg/runtime/signal_unix.c       | 20 +++++++++++++-
+ src/pkg/runtime/signal_unix.h       |  3 ++-
+ src/pkg/runtime/symtab.c            |  2 +-
+ src/pkg/runtime/sys_darwin_386.s    | 15 ++++++-----
+ src/pkg/runtime/sys_darwin_amd64.s  | 13 +++++-----
+ src/pkg/runtime/sys_freebsd_386.s   |  9 ++++---
+ src/pkg/runtime/sys_freebsd_amd64.s |  4 +--
+ src/pkg/runtime/sys_freebsd_arm.s   |  4 +--
+ src/pkg/runtime/sys_linux_386.s     |  6 ++---
+ src/pkg/runtime/sys_linux_amd64.s   |  4 +--
+ src/pkg/runtime/sys_linux_arm.s     |  4 +--
+ src/pkg/runtime/sys_netbsd_386.s    |  5 ++--
+ src/pkg/runtime/sys_netbsd_amd64.s  |  4 +--
+ src/pkg/runtime/sys_netbsd_arm.s    |  4 +--
+ src/pkg/runtime/sys_openbsd_386.s   |  5 ++--
+ src/pkg/runtime/sys_openbsd_amd64.s |  4 +--
+ 30 files changed, 193 insertions(+), 56 deletions(-)

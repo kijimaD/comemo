@@ -1,26 +1,22 @@
-commit fce449680a241a283f7661edb94eef5427bf595c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 8 12:32:06 2022 +0700
+commit b69b2f63d65609b400b4a40ae01e4a48638f050f
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Oct 27 14:03:24 2021 -0700
 
-    cmd/compile: fix missing walk pass for static initialization slice
+    net/http: do not send Transfer-Encoding: identity in responses
     
-    CL 403995 fixed static init of literal contains dynamic exprs, by
-    ensuring their init are ordered properly. However, we still need to walk
-    the generated init codes before appending to parent init. Otherwise,
-    codes that requires desugaring will be unhandled, causing the compiler
-    backend crashing.
+    Server handlers may set a "Transfer-Encoding: identity" header on
+    responses to disable chunking, but this header should not be sent
+    on the wire.
     
-    Fixes #56105
+    Fixes #49194.
     
-    Change-Id: Ic25fd4017473f5412c8e960a91467797a234edfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440455
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I46a9e3b8ff9d93edd7d1c34d264fc309fa322ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359176
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/walk/complit.go |  1 +
- test/fixedbugs/issue56105.go             | 11 +++++++++++
- 2 files changed, 12 insertions(+)
+ src/net/http/clientserver_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/net/http/server.go            |  7 ++++---
+ 2 files changed, 38 insertions(+), 3 deletions(-)

@@ -1,12 +1,14 @@
-commit 2f3d103f550d005536a4249c1d172ff824c9f082
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jun 19 09:36:25 2015 +0900
+commit 85a15778005c8412005ef7366cf40b0a50ace5ba
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed May 13 20:28:05 2015 -0400
 
-    os: fix nits found by vet
+    math/big, cmd/internal/gc/big: fix vet detected printf problem
     
-    Change-Id: I97812575ff9c69301a5ce2e1c814b40e1da32a55
-    Reviewed-on: https://go-review.googlesource.com/11271
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I54425d8cbe0277d7a0c9d66c37f2128a0dfa6441
+    Reviewed-on: https://go-review.googlesource.com/10041
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/os_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/internal/gc/big/float_test.go | 2 +-
+ src/math/big/float_test.go            | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

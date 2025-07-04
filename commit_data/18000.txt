@@ -1,12 +1,14 @@
-commit ab9b2ae38cced9938bb5d8dfdc671fcd2be9b204
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Mon Dec 16 10:44:23 2013 -0800
+commit a392cf4fd36728efe852d422d702cb23f5ba6d73
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 16 12:59:30 2013 -0500
 
-    strings: Add IndexFunc example
+    runtime: fix test
     
-    R=golang-dev, bradfitz
+    Was supposed to be in the nm CL.
+    
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/42370043
+    https://golang.org/cl/42870043
 
- src/pkg/strings/example_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/runtime/runtime_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

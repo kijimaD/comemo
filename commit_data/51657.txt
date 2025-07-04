@@ -1,22 +1,45 @@
-commit 7e740f91c52c6b56d5e2af9c5295e5397565556c
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 13 15:23:05 2023 -0500
+commit fd2e1e743a86a53a30427cf3606543ecc9bd60bd
+Author: Alan Donovan <alan@alandonovan.net>
+Date:   Wed Jan 5 09:20:15 2022 -0500
 
-    src: update go.mod files to go 1.21
+    unicode/utf8: optimize Valid to parity with ValidString
     
-    Go 1.21 is now in progress here.
+    The benchmarks added in this change revealed that ValidString
+    runs ~17% faster than Valid([]byte) on the ASCII prefix
+    of the input. Inspection of the assembly revealed that the
+    code generated for p[8:] required recomputing the slice capacity
+    to handle the cap=0 special case, which added an ADD -8 instruction.
+    By making len=cap, the capacity becomes a common subexpression
+    with the length, saving the ADD instruction.
+    (Thanks to khr for the tip.)
     
-    For #36905.
+    Incidentally, I tried a number of other optimizations but was
+    unable to make consistent gains across all benchmarks. The most
+    promising was to retain the bitmask of non-ASCII bytes from the
+    fast loop; the slow loop would shift it, and when it becomes zero,
+    return to the fast loop. This made the MostlyASCII benchmark 4x
+    faster, but made the other cases slower by up to 10%.
     
-    Change-Id: Ib4d2271b3b8b5fe29e8358614a3d6d20a035e1a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462199
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
+    benchmark                                   old ns/op     new ns/op     delta
+    BenchmarkValidTenASCIIChars-16              4.09          4.06          -0.85%
+    BenchmarkValid100KASCIIChars-16             9325          7747          -16.92%
+    BenchmarkValidTenJapaneseChars-16           27.0          27.2          +0.85%
+    BenchmarkValidLongMostlyASCII-16            57277         58361         +1.89%
+    BenchmarkValidLongJapanese-16               94002         93131         -0.93%
+    BenchmarkValidStringTenASCIIChars-16        4.15          4.07          -1.74%
+    BenchmarkValidString100KASCIIChars-16       7980          8019          +0.49%
+    BenchmarkValidStringTenJapaneseChars-16     26.0          25.9          -0.38%
+    BenchmarkValidStringLongMostlyASCII-16      58550         58006         -0.93%
+    BenchmarkValidStringLongJapanese-16         97964         100038        +2.12%
+    
+    Change-Id: Ic9d585dedd9af83c27dd791ecd805150ac949f15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375594
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Alex Rakoczy <alex@golang.org>
 
- src/cmd/go.mod | 2 +-
- src/go.mod     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/unicode/utf8/utf8.go      |  5 ++++
+ src/unicode/utf8/utf8_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)

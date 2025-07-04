@@ -1,20 +1,29 @@
-commit 762eda346a9f4062feaa8a9fc0d17d72b11586f0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 23 15:48:37 2020 -0800
+commit 6a4441d6fec675a83a8827dc359320e473662b9d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Apr 27 17:46:01 2020 +0000
 
-    go/types: fix incorrect string(int) conversion (regression)
+    Revert "go/types: add UsesCgo config to support _cgo_gotypes.go"
     
-    The bug was introduced by https://golang.org/cl/220844.
+    This reverts CL 33677.
     
-    Fixes #42790.
+    Reason for revert: NetBSD is broken
     
-    Change-Id: I44d619a1a4d3f2aee1c5575d5cfddcc4ba10895f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272666
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Updates #38649
+    
+    Change-Id: Id60e3c97d3cb4fb0053dea03b95dbbb0b850c883
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230038
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/conversions.go  | 16 ++++++++--------
- test/fixedbugs/issue42790.go |  9 +++++++++
- 2 files changed, 17 insertions(+), 8 deletions(-)
+ src/go/internal/srcimporter/srcimporter.go      | 60 +------------------
+ src/go/internal/srcimporter/srcimporter_test.go | 11 ----
+ src/go/types/api.go                             | 11 +---
+ src/go/types/assignments.go                     |  2 +-
+ src/go/types/call.go                            | 79 ++++---------------------
+ src/go/types/check.go                           |  9 +--
+ src/go/types/operand.go                         | 10 ----
+ src/go/types/package.go                         |  1 -
+ src/go/types/resolver.go                        |  5 +-
+ src/go/types/universe.go                        |  8 +--
+ 10 files changed, 21 insertions(+), 175 deletions(-)

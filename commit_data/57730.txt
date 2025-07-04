@@ -1,22 +1,24 @@
-commit 7ad9a2c65fbffead70474465f5a0f1ad67fe5703
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 22 10:13:29 2024 -0700
+commit 777e65feb613ee1c8e2cdd165fd1fbe972f63451
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 23:14:43 2023 -0700
 
-    go/types, types2: rename kindString to compositeKind and simplify function
+    net/http/cgi: workaround for closure inlining issue
     
-    Simplify functionality of compositeKind (formerly: kindString) by
-    giving it a smaller scope. Move it into operand.go for future use
-    in that file. Adjust existing uses.
+    This is a temporary workaround for issue #62277, to get the longtest
+    builders passing again. As mentioned on the issue, the underlying
+    issue was present even before CL 522318; it just now affects inlined
+    closures in initialization expressions too, not just explicit init
+    functions.
     
-    Change-Id: I73d04a8c0be44d9604e56bd4c0289afdcdd32238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621457
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
+    This CL can and should be reverted once that issue is fixed properly.
+    
+    Change-Id: I612a501e131d1b5eea648aafeb1a3a3fe8fe8c83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522935
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/expr.go    | 36 ++++++------------------------
- src/cmd/compile/internal/types2/operand.go | 32 ++++++++++++++++++++++++++
- src/go/types/expr.go                       | 36 ++++++------------------------
- src/go/types/operand.go                    | 32 ++++++++++++++++++++++++++
- 4 files changed, 78 insertions(+), 58 deletions(-)
+ src/net/http/cgi/host.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

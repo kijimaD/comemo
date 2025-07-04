@@ -1,27 +1,17 @@
-commit 0d676f3d1e8cf430007a19d295aa4271cdb40216
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Oct 8 11:14:35 2013 +1100
+commit e121de2f016df84f635c6bfb8b32e3b781e9f51f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 7 10:43:28 2013 -0700
 
-    doc/articles/wiki: fix path handling and clean up test process
+    spec: unsafe.Pointers are pointers
     
-    Fixes #6525.
+    But they cannot be dereferenced.
+    See also issue 6116.
     
-    R=r
+    Fixes #6358.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/14383043
+    https://golang.org/cl/14374046
 
- doc/articles/wiki/Makefile               | 12 +----
- doc/articles/wiki/final-noclosure.go     | 14 +++---
- doc/articles/wiki/final-noerror.go       |  6 +--
- doc/articles/wiki/final-parsetemplate.go | 10 ++---
- doc/articles/wiki/final-template.go      |  8 ++--
- doc/articles/wiki/final.go               | 10 ++---
- doc/articles/wiki/htmlify.go             | 16 -------
- doc/articles/wiki/index.html             | 28 ++++++------
- doc/articles/wiki/notemplate.go          |  6 +--
- doc/articles/wiki/part2.go               |  4 +-
- doc/articles/wiki/part3-errorhandling.go |  8 ++--
- doc/articles/wiki/part3.go               |  6 +--
- doc/articles/wiki/srcextract.go          | 76 --------------------------------
- doc/articles/wiki/test.bash              |  9 +++-
- 14 files changed, 51 insertions(+), 162 deletions(-)
+ doc/go_spec.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

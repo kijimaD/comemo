@@ -1,26 +1,19 @@
-commit 4357f71ca7ecd3869e2e0805ee4d6cd275a71a7c
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 23 15:51:29 2021 -0400
+commit 3b6c812f3defa90bfd7dbddf24bc6135adc5a7eb
+Author: Santiago De la Cruz <51337247+xhit@users.noreply.github.com>
+Date:   Thu Aug 27 04:00:59 2020 +0000
 
-    cmd/compile: remove more dead code and data structures
+    doc: add linux/riscv64 valid combination
     
-    Remove more now-redundant code, methods, and types
-    associated with transition to register ABI.
-    Repaired some broken comments.
+    Mention valid combination GOOS=linux and GOARCH=riscv64
+    in the "Installing Go from source" document.
     
-    Tested on link-register architectures (arm64, ppc64le)
+    Updates #27532
     
-    Updates #40724.
-    
-    Change-Id: Ie8433f6d38ec4a1d9705f22dcb596f267d81f203
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304189
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8c1406087132f5c82a2eee5dbcda95d53c64d263
+    GitHub-Last-Rev: ee74ff9517bd428b75400956d5b7f774ff800ae5
+    GitHub-Pull-Request: golang/go#41063
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250997
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/abi/abiutils.go     | 15 ++----------
- src/cmd/compile/internal/ssa/op.go           | 19 +--------------
- src/cmd/compile/internal/ssa/writebarrier.go |  4 ----
- src/cmd/compile/internal/ssagen/ssa.go       | 36 +---------------------------
- 4 files changed, 4 insertions(+), 70 deletions(-)
+ doc/install-source.html | 3 +++
+ 1 file changed, 3 insertions(+)

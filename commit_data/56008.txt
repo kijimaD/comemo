@@ -1,32 +1,19 @@
-commit 0a0758af796c249b1eff5878bb838fe97e56c12e
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue Mar 19 18:20:09 2024 -0700
+commit f5371581c73f2153bb7e7c85648896ff8bdce845
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 3 14:25:58 2023 +0000
 
-    src/go.mod, net/http: update bundled+latest golang.org/x/net
+    Revert "cmd/compile: allow more inlining of functions that construct closures"
     
-    Updates x/net/http2 to git rev 89f602b7bbf237abe0467031a18b42fc742ced08
+    This reverts commit http://go.dev/cl//479095
     
-        http2: validate client/outgoing trailers
-        https://golang.org/cl/572655 (updates #64766)
+    Reason for revert: causes failures in google-internal testing
     
-    and also updates the vendored version of golang.org/x/net per:
-    
-    $ go get golang.org/x/net@89f602b7bb
-    $ go mod tidy
-    $ go mod vendor
-    $ go generate -run bundle std
-    
-    Change-Id: Ibd0e819d9125e72665bafec53ba626e257b594a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572676
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: If1018b35be0b8627e2959f116179ada24d44d67c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481637
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/go.mod                |   2 +-
- src/go.sum                |   4 +-
- src/net/http/h2_bundle.go | 607 +++++++++++++++++++++++++++++++++++++++++-----
- src/vendor/modules.txt    |   2 +-
- 4 files changed, 552 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 11 ++++++-----
+ test/closure3.dir/main.go              | 26 +++++++++++---------------
+ 2 files changed, 17 insertions(+), 20 deletions(-)

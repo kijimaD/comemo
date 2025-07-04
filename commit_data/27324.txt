@@ -1,15 +1,15 @@
-commit 7c5c6645d2ac21073b146c3d1a83c9b8c6463c25
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 6 18:46:35 2016 +0000
+commit 254d63baa78741fe415e58361ddc3e10a311458c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 17:14:23 2016 -0400
 
-    net: skip more flaky net tests on flaky net builders
+    cmd/go: add s390x support
     
-    e.g. https://storage.googleapis.com/go-build-log/9b937dd8/linux-arm_df54a25a.log
+    Minimum architecture of z196 required so that GCC can assemble
+    gcc_s390x.S in runtime/cgo.
     
-    Change-Id: Ic5864c7bd840b4f0c6341f919fcbcd5c708b14e7
-    Reviewed-on: https://go-review.googlesource.com/22881
+    Change-Id: I603ed2edd39f826fb8193740ece5bd11d18c3dc5
+    Reviewed-on: https://go-review.googlesource.com/20876
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/build.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

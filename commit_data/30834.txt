@@ -1,17 +1,34 @@
-commit a69754e30c9582e830ba244578724449955d4160
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri Mar 24 09:00:17 2017 -0700
+commit 54ef0447fed1a59b95111b86a037c3443daf0b9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 22:04:49 2016 -0800
 
-    cmd/compile: unnamed parameters do not escape
+    [dev.inline] cmd/compile/internal/syntax: clean up error and pragma handling
     
-    Fixes #19687
+    Reviewed in and cherry-picked from https://go-review.googlesource.com/#/c/33873/.
     
-    Change-Id: I2e4769b4ec5812506df4ac5dc6bc6a7c5774ecb0
-    Reviewed-on: https://go-review.googlesource.com/38600
-    Run-TryBot: Keith Randall <khr@golang.org>
+    - simplify error handling in source.go
+      (move handling of first error into parser, where it belongs)
+    
+    - clean up error handling in scanner.go
+    
+    - move pragma and position base handling from scanner
+      to parser where it belongs
+    
+    - have separate error methods in parser to avoid confusion
+      with handlers from scanner.go and source.go
+    
+    - (source.go) and (scanner.go, source.go, tokens.go)
+      may be stand-alone packages if so desired, which means
+      these files are now less entangled and easier to maintain
+    
+    Change-Id: I81510fc7ef943b78eaa49092c0eab2075a05878c
+    Reviewed-on: https://go-review.googlesource.com/34235
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/esc.go |  9 +++++++++
- test/escape5.go                    | 14 ++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go       | 60 ++++++++++++++++--
+ src/cmd/compile/internal/syntax/scanner.go      | 82 ++++++++++---------------
+ src/cmd/compile/internal/syntax/scanner_test.go | 38 ++++++------
+ src/cmd/compile/internal/syntax/source.go       | 50 +++++++--------
+ 4 files changed, 128 insertions(+), 102 deletions(-)

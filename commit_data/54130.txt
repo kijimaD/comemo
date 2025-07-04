@@ -1,43 +1,23 @@
-commit caf9e15fb76631ca692f4779135aec5b82a68370
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 1 14:41:42 2023 -0400
+commit e978ef36e3e8d09413387883b5b01fc6cdbb7640
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 27 18:30:01 2022 +1000
 
-    runtime: drop stack-allocated pcvalueCaches
+    image/gif,image/jpeg,image/png: skip FuzzDecode in testing short mode
     
-    Now that pcvalue keeps its cache on the M, we can drop all of the
-    stack-allocated pcvalueCaches and stop carefully passing them around
-    between lots of operations. This significantly simplifies a fair
-    amount of code and makes several structures smaller.
+    The image/gif.FuzzDecode takes an excessive amount of time to run on various
+    builders - skip these in testing short mode. Likewise for image/jpeg and
+    image/png.
     
-    This series of changes has no statistically significant effect on any
-    runtime Stack benchmarks.
+    Fixes #55839
     
-    I also experimented with making the cache larger, now that the impact
-    is limited to the M struct, but wasn't able to measure any
-    improvements.
-    
-    This is a re-roll of CL 515277
-    
-    Change-Id: Ia27529302f81c1c92fb9c3a7474739eca80bfca1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520064
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1049d06b9dcbbc7dbc4f53d3c49b64e2254eabbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435175
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/debugcall.go      |  2 +-
- src/runtime/export_test.go    |  2 +-
- src/runtime/heapdump.go       |  2 +-
- src/runtime/mbitmap.go        |  2 +-
- src/runtime/mgcmark.go        |  2 +-
- src/runtime/mgcstack.go       |  2 --
- src/runtime/preempt.go        |  4 ++--
- src/runtime/race.go           |  2 +-
- src/runtime/stack.go          |  3 +--
- src/runtime/stkframe.go       |  4 ++--
- src/runtime/symtab.go         | 30 ++++++++++++++----------------
- src/runtime/symtabinl.go      |  7 +++----
- src/runtime/symtabinl_test.go |  3 +--
- src/runtime/trace.go          |  3 +--
- src/runtime/traceback.go      | 17 +++++++----------
- 15 files changed, 37 insertions(+), 48 deletions(-)
+ src/image/gif/fuzz_test.go  | 4 ++++
+ src/image/jpeg/fuzz_test.go | 4 ++++
+ src/image/png/fuzz_test.go  | 4 ++++
+ 3 files changed, 12 insertions(+)

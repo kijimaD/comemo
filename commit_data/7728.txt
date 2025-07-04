@@ -1,14 +1,23 @@
-commit 8e1fa76047e93bf2816520af52759137972a534f
+commit aae7b695acd7183332ca971f41426824448eca1e
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 10 08:46:57 2011 -0800
+Date:   Thu Mar 10 08:17:22 2011 -0800
 
-    http: don't hit external network in client_test.go
+    http: move RemoteAddr & UsingTLS from ResponseWriter to Request
     
-    More reliable.
+    ResponseWriter.RemoteAddr() string -> Request.RemoteAddr string
+    ResponseWriter.UsingTLS() bool -> Request.TLS *tls.ConnectionState
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4249068
+    R=rsc, bradfitzwork
+    CC=gburd, golang-dev
+    https://golang.org/cl/4248075
 
- src/pkg/http/client_test.go | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ src/cmd/godoc/main.go             |  2 +-
+ src/pkg/http/cgi/host.go          |  8 ++++++--
+ src/pkg/http/cgi/host_test.go     |  1 +
+ src/pkg/http/httptest/recorder.go | 24 ++++--------------------
+ src/pkg/http/request.go           | 17 +++++++++++++++++
+ src/pkg/http/serve_test.go        | 21 +++++++++++++++++++++
+ src/pkg/http/server.go            | 34 +++++++++++++++-------------------
+ src/pkg/rpc/server.go             |  2 +-
+ src/pkg/websocket/server.go       |  4 ++--
+ 9 files changed, 68 insertions(+), 45 deletions(-)

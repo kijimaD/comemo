@@ -1,22 +1,25 @@
-commit f511467532f7b0009b6eff7752f2250e7f63ab12
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Nov 9 00:21:02 2019 +0000
+commit 38fc0afca6139ba2e28061712f68cbe426d238e7
+Author: kawakami <kawakami.ozone@gmail.com>
+Date:   Sun Jun 23 05:30:24 2019 +0900
 
-    runtime: fix min/max logic in findScavengeCandidate
+    cmd/cgo: fix inappropriate array copy
     
-    Before this CL, if max > min and max was unaligned to min, then the
-    function could return an unaligned (unaligned to min) region to
-    scavenge. On most platforms, this leads to some kind of crash.
+    Ensure that during rewriting of expressions that take the address of
+    an array, that we properly recognize *ast.IndexExpr as an operation
+    to create a pointer variable and thus assign the proper addressOf
+    and deference operators as "&" and "*" respectively.
     
-    Fix this by explicitly aligning max to the next multiple of min.
+    This fixes a regression from CL 142884.
     
-    Fixes #35445.
-    Updates #35112.
+    Fixed #32579
     
-    Change-Id: I0af42d4a307b48a97e47ed152c619d77b0298291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206277
+    Change-Id: I3cb78becff4f8035d66fc5536e5b52857eacaa3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183458
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcscavenge.go      | 18 ++++++++++++------
- src/runtime/mgcscavenge_test.go | 12 ++++++++++++
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ misc/cgo/test/cgo_test.go |  1 +
+ misc/cgo/test/test.go     | 12 ++++++++++++
+ src/cmd/cgo/gcc.go        |  2 ++
+ 3 files changed, 15 insertions(+)

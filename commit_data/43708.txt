@@ -1,22 +1,25 @@
-commit 3510a1e32cbc86b73db143aefcc00aadc44c27bd
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Nov 5 05:59:34 2020 +0100
+commit 65f46486a1f27017bc991e132725e8d939d069dd
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Apr 21 11:29:51 2020 -0400
 
-    internal/cpu: fix and cleanup ARM64 cpu feature fields and options
+    cmd/go/internal/load: load imports for all package data errors
     
-    Remove all cpu features from the ARM64 struct that are not initialized
-    to reduce cache lines used and to avoid those features being
-    accidentially used without actual detection if they are present.
+    go/build.Import can return errors for many different reasons like
+    inconsistent package clauses or errors parsing build constraints.
+    It will still return a *build.Package with imports from files it was
+    able to process. Package.load should load these imports, even after an
+    unknown error.
     
-    Add missing option to mask the CPUID feature.
+    There is already a special case for scanner.ErrorList (parse
+    error). This CL expands that behavior for all errors.
     
-    Change-Id: I94bf90c0655de1af2218ac72117ac6c52adfc289
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267658
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Martin Möhrmann <moehrmann@google.com>
+    Fixes #38568
+    
+    Change-Id: I871827299c556f1a9a5b12e7755b221e9d8c6e0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229243
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/cpu/cpu.go       | 17 -----------------
- src/internal/cpu/cpu_arm64.go |  1 +
- 2 files changed, 1 insertion(+), 17 deletions(-)
+ src/cmd/go/internal/load/pkg.go              | 12 +----
+ src/cmd/go/internal/load/test.go             |  4 +-
+ src/cmd/go/testdata/script/list_load_err.txt | 79 ++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 13 deletions(-)

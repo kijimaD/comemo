@@ -1,47 +1,17 @@
-commit f542576b9e576758b7e0a8ec7f8d07b5d0c1f29a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 24 15:03:04 2016 -0700
+commit 3c8d6af8e02bbf230c2bef9f181d8ea393068299
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 16 11:08:41 2016 -0400
 
-    cmd/compile: add compiler phase timing
+    cmd/link: use -znocopyreloc when dynamic linking
     
-    Timings is a simple data structure that collects times of labeled
-    Start/Stop events describing timed phases, which later can be written
-    to a file.
+    On ARM, use the gold linker to avoid copy relocations.
+    https://sourceware.org/bugzilla/show_bug.cgi?id=19962
     
-    Adjacent phases with common label prefix are automatically collected
-    in a group together with the accumulated phase time.
-    
-    Timing data can be appended to a file in benchmark data format
-    using the new -bench flag:
-    
-    $ go build -gcflags="-bench=/dev/stdout" -o /dev/null go/types
-    commit: devel +8847c6b Mon Aug 15 17:51:53 2016 -0700
-    goos: darwin
-    goarch: amd64
-    BenchmarkCompile:go/types:fe:init              1       663292 ns/op      0.07 %
-    BenchmarkCompile:go/types:fe:loadsys           1      1337371 ns/op      0.14 %
-    BenchmarkCompile:go/types:fe:parse             1     47008869 ns/op      4.91 %    10824 lines    230254 lines/s
-    BenchmarkCompile:go/types:fe:typecheck:top1    1      2843343 ns/op      0.30 %
-    BenchmarkCompile:go/types:fe:typecheck:top2    1       447457 ns/op      0.05 %
-    BenchmarkCompile:go/types:fe:typecheck:func    1     15119595 ns/op      1.58 %      427 funcs     28241 funcs/s
-    BenchmarkCompile:go/types:fe:capturevars       1        56314 ns/op      0.01 %
-    BenchmarkCompile:go/types:fe:inlining          1      9805767 ns/op      1.02 %
-    BenchmarkCompile:go/types:fe:escapes           1     53598646 ns/op      5.60 %
-    BenchmarkCompile:go/types:fe:xclosures         1       199302 ns/op      0.02 %
-    BenchmarkCompile:go/types:fe:subtotal          1    131079956 ns/op     13.70 %
-    BenchmarkCompile:go/types:be:compilefuncs      1    692009428 ns/op     72.33 %      427 funcs       617 funcs/s
-    BenchmarkCompile:go/types:be:externaldcls      1        54591 ns/op      0.01 %
-    BenchmarkCompile:go/types:be:dumpobj           1    133478173 ns/op     13.95 %
-    BenchmarkCompile:go/types:be:subtotal          1    825542192 ns/op     86.29 %
-    BenchmarkCompile:go/types:unaccounted          1       106101 ns/op      0.01 %
-    BenchmarkCompile:go/types:total                1    956728249 ns/op    100.00 %
-    
-    For #16169.
-    
-    Change-Id: I93265fe0cb08e47cd413608d0824c5dd35ba7899
-    Reviewed-on: https://go-review.googlesource.com/24462
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icf82a38d39495d4518812713b957a03a6652c728
+    Reviewed-on: https://go-review.googlesource.com/22141
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go    |  60 ++++++++-
- src/cmd/compile/internal/gc/timings.go | 235 +++++++++++++++++++++++++++++++++
- 2 files changed, 294 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

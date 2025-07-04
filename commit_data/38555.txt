@@ -1,30 +1,26 @@
-commit e007916cea969c4d5917da931413fba4eb43e8f6
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Mar 21 14:00:46 2019 -0400
+commit 44dcb5cb61aee5435e0b3c78544a1d3352a4cc98
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 5 19:26:25 2018 +0000
 
-    cmd/go/internal/load: always use DefaultExecName to determine binary name
+    runtime: clean up MSpan* MCache* MCentral* in docs
     
-    It should produce equivalent results to split on the import path of the
-    package rather than its directory, in GOPATH mode. That means the common
-    code in DefaultExecName can be used.
+    This change cleans up references to MSpan, MCache, and MCentral in the
+    docs via a bunch of sed invocations to better reflect the Go names for
+    the equivalent structures (i.e. mspan, mcache, mcentral) and their
+    methods (i.e. MSpan_Sweep -> mspan.sweep).
     
-    We're in the middle of Go 1.12 cycle, so now is a good time to make it
-    happen for Go 1.13.
-    
-    Modify isVersionElement to accept path elements like "v2", "v3", "v10",
-    rather than "/v2", "/v3", "/v10". Then use it in DefaultExecName instead
-    of the ad-hoc isVersion function. There is no change in behavior.
-    
-    Add tests for DefaultExecName and isVersionElement.
-    
-    Updates #26869
-    
-    Change-Id: Ic6da2c92587459aa2b327385e994b72a6e183092
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168678
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie911ac975a24bd25200a273086dd835ab78b1711
+    Reviewed-on: https://go-review.googlesource.com/c/147557
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/load/pkg.go      | 46 ++++++------------------
- src/cmd/go/internal/load/pkg_test.go | 68 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+), 35 deletions(-)
+ src/runtime/heapdump.go  |  4 ++--
+ src/runtime/mcache.go    |  2 +-
+ src/runtime/mcentral.go  | 10 +++++-----
+ src/runtime/mfixalloc.go |  2 +-
+ src/runtime/mgcmark.go   |  2 +-
+ src/runtime/mgcsweep.go  | 20 ++++++++++----------
+ src/runtime/mheap.go     | 44 ++++++++++++++++++++++----------------------
+ src/runtime/mstats.go    |  2 +-
+ 8 files changed, 43 insertions(+), 43 deletions(-)

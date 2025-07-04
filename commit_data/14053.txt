@@ -1,26 +1,13 @@
-commit d9953c9ddea6467f6cd3c59ccc34546cfc0f42c8
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 7 18:37:05 2012 +0200
+commit f8485954bf06546675ac779f18fa7e8fb561113a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 00:13:28 2012 +0800
 
-    test: use rundir and errorcheckdir for a few more tests.
+    syscall: fix Statfs and Fstatfs on Linux/ARM
     
-    Update #4139.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6620070
+    https://golang.org/cl/6615055
 
- test/fixedbugs/bug083.go                       |  7 ++----
- test/fixedbugs/bug133.go                       |  7 ++----
- test/fixedbugs/bug160.go                       |  7 ++----
- test/fixedbugs/bug322.go                       |  7 ++----
- test/fixedbugs/bug324.dir/{main.go => prog.go} |  0
- test/fixedbugs/bug324.go                       | 11 ++++-----
- test/fixedbugs/bug367.dir/{main.go => prog.go} |  0
- test/fixedbugs/bug367.go                       |  8 +++---
- test/fixedbugs/bug414.dir/main.go              | 18 --------------
- test/fixedbugs/bug414.dir/p1.go                | 34 +++++++++++++-------------
- test/fixedbugs/bug414.dir/prog.go              | 18 ++++++++++++++
- test/fixedbugs/bug414.go                       |  7 +++---
- test/run.go                                    | 15 +++---------
- 13 files changed, 59 insertions(+), 80 deletions(-)
+ src/pkg/syscall/syscall_linux_arm.go  | 24 ++++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_linux_arm.go | 25 -------------------------
+ 2 files changed, 22 insertions(+), 27 deletions(-)

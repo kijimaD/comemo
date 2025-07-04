@@ -1,18 +1,27 @@
-commit 9d332a8324dbbfaafceffaf9ad765c6d8d083450
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Mar 10 20:38:32 2015 +0300
+commit c497349a5b03d0bdee18bdb4b4fe2d833df37d95
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 13 17:01:43 2015 -0800
 
-    cmd/trace: dump thread id on proc start
+    [dev.cc] cmd/asm: support ARM
     
-    Augment ProcStart events with OS thread id.
-    This helps in scheduler locality analysis.
+    There are many peculiarites of the ARM architecture that require work:
+    condition codes, new instructions, new instruction arg counts, and more.
     
-    Change-Id: I93fea75d3072cf68de66110d0b59d07101badcb5
-    Reviewed-on: https://go-review.googlesource.com/7302
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Rewrite the parser to do a cleaner job, flowing left to right through the
+    sequence of elements of an operand.
+    
+    Add ARM to arch.
+    Add ARM-specific details to the arch in a new file, internal/arch/arm.
+    These are probably better kept away from the "portable" asm. However
+    there are some pieces, like MRC, that are hard to disentangle. They
+    can be cleaned up later.
+    
+    Change-Id: I8c06aedcf61f8a3960a406c094e168182d21b972
+    Reviewed-on: https://go-review.googlesource.com/4923
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/trace/trace.go          | 9 ++++++++-
- src/internal/trace/parser.go    | 4 ++--
- src/runtime/pprof/trace_test.go | 3 ++-
- src/runtime/trace.go            | 4 ++--
- 4 files changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/arch/arch.go |  73 +++++++-
+ src/cmd/asm/internal/arch/arm.go  | 190 ++++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go   | 241 +++++++++++++++++++------
+ src/cmd/asm/internal/asm/parse.go | 367 +++++++++++++++++++++++++++++++-------
+ 4 files changed, 752 insertions(+), 119 deletions(-)

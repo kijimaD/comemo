@@ -1,14 +1,15 @@
-commit 54a72d90f62030034f03cacbac1d1ec02c0444c6
-Author: Luigi Riefolo <luigi.riefolo@gmail.com>
-Date:   Tue Sep 27 03:02:40 2016 +0200
+commit 0f5697a81deab54f1673a48bd0ce613ebf1ddae6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu May 26 12:10:28 2016 +0200
 
-    go/doc: add IsPredeclared function
+    strconv: use Run for some benchmarks
     
-    IsPredeclared allows simplifying src/golang.org/x/tools/godoc/linkify.go
+    This serves as an example of table-driven benchmarks which are analoguous to the common pattern for table-driven tests.
     
-    Change-Id: I56b3223896f844630bc2e940255572d1682f0d06
-    Reviewed-on: https://go-review.googlesource.com/29870
+    Change-Id: I47f94c121a7117dd1e4ba03b3f2f8bcb5da38063
+    Reviewed-on: https://go-review.googlesource.com/23470
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/reader.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/strconv/ftoa_test.go | 85 ++++++++++++++++++++++--------------------------
+ 1 file changed, 38 insertions(+), 47 deletions(-)

@@ -1,22 +1,28 @@
-commit 859cab099c5a9a9b4939960b630b78e468c8c39e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 30 03:40:51 2016 +0000
+commit b13b249f43d4d38b145cd01135026286052bbc88
+Author: Frits van Bommel <fvbommel@gmail.com>
+Date:   Sat Apr 30 11:13:29 2016 +0200
 
-    net/http: make DefaultTransport's Dialer enable DualStack ("Happy Eyeballs")
+    cmd/compile: Improve readability of HTML produced by GOSSAFUNC
     
-    As @pmarks-net said in the bug, this is something of a prisoner's
-    dilemma, but it does help people who occasionally report problems.
+    Factor out the Aux/AuxInt handling in (*Value).LongString() and
+    use it in (*Value).LongHTML() as well.
+    This especially improves readability of auxFloat32, auxFloat64,
+    and auxSymValAndOff values which would otherwise be printed as
+    opaque integers.
+    This change also makes LongString() slightly less verbose by
+    eliding offsets that are zero (as is very often the case).
     
-    This is temporary. IPv6 is happening regardless of our decision here,
-    so we'll do this for now.
+    Additionally, ensure the HTML is interpreted as UTF-8 so that
+    non-ASCII characters (especially the "middle dots" in some symbols)
+    show up correctly.
     
-    Fixes #15324
-    
-    Change-Id: I8cc29c6efa56222970996c71182fc9ee89d78539
-    Reviewed-on: https://go-review.googlesource.com/28077
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie26221df876faa056d322b3e423af63f33cd109d
+    Reviewed-on: https://go-review.googlesource.com/22641
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Frits van Bommel <fvbommel@gmail.com>
 
- src/net/http/transport.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/html.go  | 13 ++------
+ src/cmd/compile/internal/ssa/value.go | 56 +++++++++++++++++++++--------------
+ 2 files changed, 35 insertions(+), 34 deletions(-)

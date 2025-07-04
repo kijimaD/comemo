@@ -1,22 +1,25 @@
-commit 71d9505998fe224ebb7380616392f71f7ebf26bf
-Author: Nevkontakte <aleks@nevkontakte.com>
-Date:   Mon Apr 21 13:13:04 2025 +0000
+commit 58052fe8e707cc0285cffb239bc7a5343243e316
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 6 12:39:23 2024 -0500
 
-    crypto/tls: skip part of the test based on GOOS instead of GOARCH
+    cmd: update telemetry to d5a85b2
     
-    This allows to skip the last part of the test under GopherJS as well as
-    WebAssembly, since GopherJS shares GOOS=js with wasm.
+    commands run:
+            go get golang.org/x/telemetry@d5a85b2
+            go mod tidy
+            go mod vendor
     
-    Change-Id: I41adad788043c1863b23eb2a6da9bc9aa2833092
-    GitHub-Last-Rev: d8d42a3b7ccb2bee6479306b6ac1a319443702ec
-    GitHub-Pull-Request: golang/go#51827
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394114
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Fixes #66099
+    
+    Change-Id: Ia9215855f1472fa885792d5b23a986f29759af18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569421
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
 
- src/crypto/tls/handshake_client_test.go | 4 ++--
- src/crypto/tls/handshake_server_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go.mod                                     |  4 +--
+ src/cmd/go.sum                                     |  8 ++---
+ .../x/telemetry/internal/upload/upload.go          |  9 +++++
+ src/cmd/vendor/golang.org/x/telemetry/start.go     | 40 +++++++++++++++++++++-
+ src/cmd/vendor/modules.txt                         |  4 +--
+ 5 files changed, 56 insertions(+), 9 deletions(-)

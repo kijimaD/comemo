@@ -1,35 +1,23 @@
-commit 77505c25d83a2130011736d6a2a915eaa3ae230a
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Feb 28 12:18:18 2021 +0100
+commit c4fed25553ee266ed9cb3a98e7a33a82af110ed4
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 27 09:45:21 2020 -0700
 
-    syscall: treat proc thread attribute lists as unsafe.Pointers
+    cmd/compile: add floating point load+op operations to addressing modes pass
     
-    It turns out that the proc thread update function doesn't actually
-    allocate new memory for its arguments and instead just copies the
-    pointer values into the preallocated memory. Since we were allocating
-    that memory as []byte, the garbage collector didn't scan it for pointers
-    to Go allocations and freed them. We _could_ fix this by requiring that
-    all users of this use runtime.KeepAlive for everything they pass to the
-    update function, but that seems harder than necessary. Instead, we can
-    just do the allocation as []unsafe.Pointer, which means the GC can
-    operate as intended and not free these from beneath our feet. In order
-    to ensure this remains true, we also add a test for this.
+    They were missed as part of the refactoring to use a separate
+    addressing modes pass.
     
-    Fixes #44662.
+    Fixes #40426
     
-    Change-Id: Ib392ba8ceacacec94b11379919c8179841cba29f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297389
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie0418b2fac4ba1ffe720644ac918f6d728d5e420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244859
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/exec_windows.go         |  4 ++--
- src/syscall/export_windows_test.go  | 11 +++++++++++
- src/syscall/syscall_windows.go      |  5 +++--
- src/syscall/syscall_windows_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/syscall/types_windows.go        |  8 +++++++-
- src/syscall/zsyscall_windows.go     |  2 +-
- 6 files changed, 60 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go           |   6 +-
+ src/cmd/compile/internal/ssa/addressingmodes.go |  17 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  34 ++-
+ src/cmd/compile/internal/ssa/opGen.go           | 320 ++++++++++++++++++++++++
+ test/codegen/memops.go                          |  23 ++
+ 5 files changed, 391 insertions(+), 9 deletions(-)

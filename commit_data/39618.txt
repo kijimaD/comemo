@@ -1,33 +1,38 @@
-commit 66ff373911a87140319a6550e4e1b2c6043b1329
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Aug 23 14:40:20 2019 -0400
+commit 632162ccbc61a7321f322b1b99c04aefc414802b
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Mar 6 12:53:56 2019 +0100
 
-    cmd/vendor: update vendored x/arch repo to 8a70ba74b3a1
+    misc/android: enable many more tests on GOOS=android
     
-    Update vendored x/arch repo to pick up the fix of issue #33802.
+    Android tests are built on the host and run on the device. To do
+    that, the exec wrapper copies the test binary and testdata to the device.
+    To enable many more tests, make the copied environment more like the host:
     
-    This is done with the following commands:
+    - Copy all of pkg from GOROOT, not just the android pkg directory.
+    - Copy any parent testdata directories as well as the package's own.
+    - Copy *.go files from the package directory. This enables misc/cgo/stdio
+    and misc/cgo/life tests that were invisible before so disable them explicitly.
+    - Always copy the GOROOT, even for tests outside GOROOT. This is expensive
+     but only done once per make.bash.
+    - Build the go tool for the device and put it in PATH. Set GOCACHE
+    to a writable directory and disable cgo.
     
-    $ cd $GOROOT/src/cmd
-    $ go get -d golang.org/x/arch@latest
-    go: finding golang.org/x/arch latest
-    go: downloading golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
-    go: extracting golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
-    $ go mod tidy
-    $ go mod vendor
+    While here, use a single directory for all the exec wrapper files and
+    delete that once per make.bash as well.
     
-    Fixes #33802.
+    In total, this CL enables many tests in the subrepos that would need skips
+    without it, in particular the x/tools tests.
     
-    Change-Id: I0a44f1d83d6f573124cea1f099378b1c851f3feb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191619
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #11452
+    Updates #23824
+    Updates #11811
+    
+    Change-Id: I2e50d8b57db9bc4637f25272a5360c8b2cf4e627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165797
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go.mod                                        |  2 +-
- src/cmd/go.sum                                        |  5 +++--
- src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go | 16 ++++++++--------
- src/cmd/vendor/modules.txt                            |  2 +-
- 4 files changed, 13 insertions(+), 12 deletions(-)
+ misc/android/go_android_exec.go | 107 +++++++++++++++++++++++++++-------------
+ misc/cgo/life/life_test.go      |   3 ++
+ misc/cgo/stdio/stdio_test.go    |   3 ++
+ 3 files changed, 80 insertions(+), 33 deletions(-)

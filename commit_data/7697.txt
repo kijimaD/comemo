@@ -1,14 +1,12 @@
-commit da423122685446a25c1e639ceb2b7f7320ea2745
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Mar 8 18:28:42 2011 +0100
+commit 1ddc27888bfc0b02c4adfc6da642c22483694767
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Mar 8 12:23:06 2011 -0500
 
-    6l,8l: fix gdb crash.
-    DWARF function types no longer need to be pointer-ified explicitly.
-    Fixes #1579.
+    codereview.py: do not suggest hg change -d if current user is not CL author
     
-    R=rsc, lvd1
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4247065
+    https://golang.org/cl/4253064
 
- src/cmd/ld/dwarf.c | 1 -
- 1 file changed, 1 deletion(-)
+ lib/codereview/codereview.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,15 +1,17 @@
-commit 951a97e42ff6ce8a2656180d90eca112d795ea0b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Apr 3 12:14:02 2012 +1000
+commit 065db4ea99f80cce6d9ed794467697955f0eaa2e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 3 11:44:52 2012 +1000
 
-    encoding/base64: fix panic when input len is not a multiple of 4
+    text/template: pipelined arg was not typechecked
+    Without this fix, an erroneous template causes a panic; should be caught safely.
+    The bug did not affect correct templates.
     
-    Fixes #3442.
+    Fixes #3267.
     
-    R=for.go.yong, dsymonds, sougou, minux.ma, rsc
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5975052
+    https://golang.org/cl/5900065
 
- src/pkg/encoding/base64/base64.go      | 5 +++++
- src/pkg/encoding/base64/base64_test.go | 3 +++
- 2 files changed, 8 insertions(+)
+ src/pkg/text/template/exec.go      | 7 ++++++-
+ src/pkg/text/template/exec_test.go | 8 ++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

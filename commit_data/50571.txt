@@ -1,18 +1,17 @@
-commit 88a6a4d1ba75c01fcc7ab8b2b5c6108c36eb92b9
-Author: Kevin Chen <kevin@chenbc.me>
-Date:   Thu Sep 22 14:45:52 2022 +0000
+commit 58fb05a24a756a9a4386faff977e6495cdccb12f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 2 10:19:24 2021 +0700
 
-    cmd/compile/internal/syntax: remove TypeList syntax in comment
+    cmd/compile: explain special treatment when rewrite slice literal args
     
-    Change-Id: Ic4df6a8e198b069a9f3a28710fa40f29bd658b06
-    GitHub-Last-Rev: 51040eb5e53f4cf0238cb0b7876d1ee612a924ef
-    GitHub-Pull-Request: golang/go#55345
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432795
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Followup discussion in CL 360055.
+    
+    Change-Id: I36212c2a497b152d01ed86d244d5f57bd34a64a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360614
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/escape/call.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

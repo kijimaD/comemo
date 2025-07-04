@@ -1,15 +1,21 @@
-commit a16f4175b5ed1135279b29897e4d1d327476ec88
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 09:24:24 2022 -0500
+commit 8f7d96f5bcb927a576a43b890f2643e521107665
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 12:53:13 2022 -0800
 
-    doc/go1.20: document spec changes
+    go/types, types2: remove Qualifier parameter from Checker.implements
     
-    Change-Id: I2e35bddfe20c96a8dc0ab187286aaf543ff66164
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452758
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Where we provide it we take it from the Checker (which is already
+    passed in). Thus there's no need to pass it separately. Cleanup.
+    
+    Change-Id: I63ae445ccac5643235d85e1867462ef5c01ad5fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381297
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.20.html | 29 ++++++++++++++++++++++++-----
- 1 file changed, 24 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/api.go         |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 17 ++++++-----------
+ src/cmd/compile/internal/types2/operand.go     |  8 ++------
+ src/go/types/api.go                            |  2 +-
+ src/go/types/instantiate.go                    | 17 ++++++-----------
+ src/go/types/operand.go                        |  8 ++------
+ 6 files changed, 18 insertions(+), 36 deletions(-)

@@ -1,14 +1,18 @@
-commit 7bc42a145a03d61b504b18d20f2a4e5d8e2436fd
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 12 17:48:34 2016 -0400
+commit 69371671c722d3fcc4f2e1c57dd6a40fc4973ebc
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Aug 17 13:18:43 2016 -0700
 
-    runtime: don't reserve space for stack barriers if they're off
+    crypto/hmac: don't test for length equality in Equal.
     
-    Change-Id: I79ebccdaefc434c47b77bd545cc3c50723c18b61
-    Reviewed-on: https://go-review.googlesource.com/31135
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    subtle.ConstantTimeCompare now tests the length of the inputs (although
+    it didn't when this code was written) so this test in crypto/hmac is now
+    superfluous.
+    
+    Fixes #16336.
+    
+    Change-Id: Ic02d8537e776fa1dd5694d3af07a28c4d840d14b
+    Reviewed-on: https://go-review.googlesource.com/27239
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mstkbar.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/crypto/hmac/hmac.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

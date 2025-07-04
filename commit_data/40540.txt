@@ -1,18 +1,19 @@
-commit dc0c23ec9d5a89b8bdc3aed8e0b8a31a0c6fee69
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Nov 1 11:15:44 2019 -0400
+commit 3ce865d7a0b88714cc433454ae2370a105210c01
+Author: Michael McLoughlin <mmcloughlin@gmail.com>
+Date:   Wed Jan 2 18:47:33 2019 -0800
 
-    crypto/dsa: change bitwise checks to mod operations
+    crypto/sha*: replace putUint{32,64} helpers
     
-    Even though bitwise operations may be slightly more
-    performant, the readability improvement of a mod
-    operation is worth the tradeoff.
+    Replaces putUint{32,64} functions in crypto/sha* packages with the
+    equivalent functions encoding/binary.BigEndian.PutUint{32,64}.
     
-    Change-Id: I352c92ad355c6eb6ef99e3da00e1eff2d2ea5812
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204739
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I9208d2125202ea9c97777560e6917d21893aced0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/dsa/dsa.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/sha1/sha1.go     | 37 +++++++++----------------------------
+ src/crypto/sha256/sha256.go | 43 ++++++++++++-------------------------------
+ src/crypto/sha512/sha512.go | 35 ++++++++++++-----------------------
+ 3 files changed, 33 insertions(+), 82 deletions(-)

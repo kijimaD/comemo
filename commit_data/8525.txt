@@ -1,24 +1,17 @@
-commit 399a311e64aa7bc5282ce1489a53f1f25c2edeb0
+commit f7a266a5aa73d314e77f4c2aa02c2605568d65b2
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 27 16:43:02 2011 -0700
+Date:   Fri May 27 16:29:33 2011 -0700
 
-    http: client+server benchmark
+    encoding/binary: add a non-reflect fast path for Write
     
-    baseline runs: (6g, gopher.mtv)
+    before/after:
+    binary.BenchmarkWrite     100000             18312 ns/op
+    binary.BenchmarkWrite     500000              4468 ns/op
     
-    http_test.BenchmarkClientServer  5000  412588 ns/op
-    http_test.BenchmarkClientServer  5000  403346 ns/op
-    http_test.BenchmarkClientServer  5000  413936 ns/op
-    http_test.BenchmarkClientServer  5000  410287 ns/op
-    http_test.BenchmarkClientServer  5000  388037 ns/op
-    http_test.BenchmarkClientServer  5000  405545 ns/op
-    http_test.BenchmarkClientServer  5000  405179 ns/op
-    http_test.BenchmarkClientServer  5000  413827 ns/op
-    http_test.BenchmarkClientServer  5000  392723 ns/op
-    
-    R=golang-dev, r
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4515155
+    https://golang.org/cl/4515154
 
- src/pkg/http/serve_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/pkg/encoding/binary/binary.go      | 104 +++++++++++++++++++++++++--------
+ src/pkg/encoding/binary/binary_test.go |  32 ++++++++++
+ 2 files changed, 111 insertions(+), 25 deletions(-)

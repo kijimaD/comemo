@@ -1,22 +1,23 @@
-commit 5428cc4f148bec34987781137ccd30494a99ad15
+commit 9b221f9350b555a1e8c01c08a88ed6590ca11a17
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Feb 2 09:35:07 2024 +0700
+Date:   Thu Feb 16 14:35:25 2023 +0700
 
-    cmd/compile/internal/typecheck: remove constant bounds check
+    hash/maphash: add purego implementation
     
-    types2 handles all constant-related bounds checks in user Go code now,
-    so it's safe to remove the check from typecheck, avoid the inconsistency
-    with type parameter.
+    Fixes #47342
     
-    Fixes #65417
-    
-    Change-Id: I82dd197b78e271725d132b5a20450ae3e90f9abc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560575
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I9c3b36de3e7c85d3e7aff2f84abc78a1b382008c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468795
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/expr.go | 13 ---------
- test/fixedbugs/issue65417.go               | 42 ++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 13 deletions(-)
+ src/cmd/dist/test.go                |   6 +++
+ src/go/build/deps_test.go           |   5 +-
+ src/hash/maphash/maphash.go         |  51 ++++--------------
+ src/hash/maphash/maphash_purego.go  | 104 ++++++++++++++++++++++++++++++++++++
+ src/hash/maphash/maphash_runtime.go |  43 +++++++++++++++
+ 5 files changed, 167 insertions(+), 42 deletions(-)

@@ -1,19 +1,35 @@
-commit 25e46693a1085f604a9c92ee26afed2b4d45a9dd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 22 11:56:55 2023 -0400
+commit 1ab6b790be3de2364edc3c15741afe3705f7c358
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 9 18:32:53 2022 -0700
 
-    cmd/go: impersonate 'go tool dist list' if 'go tool dist' is not present
+    reflect: optimize Value.IsZero
     
-    Fixes #60939.
+    If a struct or array is comparable, then we can leverage rtype.equal,
+    which is almost always faster than what Go reflection can achieve.
     
-    Change-Id: I6a15db558a8e80e242818cccd642899aba47e596
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505176
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    As a secondary optimization, pre-compute Value.Len and Value.NumField
+    outside of the loop conditional.
+    
+    Performance:
+    
+            name                       old time/op  new time/op  delta
+            IsZero/ArrayComparable      136ns ± 4%    16ns ± 1%  -88.28%  (p=0.008 n=5+5)
+            IsZero/ArrayIncomparable    197ns ±10%   123ns ± 1%  -37.74%  (p=0.008 n=5+5)
+            IsZero/StructComparable    26.4ns ± 0%   9.6ns ± 1%  -63.68%  (p=0.016 n=4+5)
+            IsZero/StructIncomparable  43.5ns ± 1%  27.8ns ± 1%  -36.21%  (p=0.008 n=5+5)
+    
+    The incomparable types gain a performance boost since
+    they are generally constructed from nested comparable types.
+    
+    Change-Id: If2c1929f8bb1b5b19306ef0c69f3c95a27d4b60d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411478
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/base/tool.go                 | 23 +++++--
- src/cmd/go/internal/tool/tool.go                 | 85 ++++++++++++++++++++++--
- src/cmd/go/testdata/script/dist_list_missing.txt | 57 ++++++++++++++++
- 3 files changed, 155 insertions(+), 10 deletions(-)
+ src/reflect/all_test.go | 40 +++++++++++++++++++++++++++++++++++-----
+ src/reflect/value.go    | 22 ++++++++++++++++++++--
+ 2 files changed, 55 insertions(+), 7 deletions(-)

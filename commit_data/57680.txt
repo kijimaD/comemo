@@ -1,23 +1,27 @@
-commit a8e2ecc8b188f4f6c8529477392e344243ce40bd
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Thu Oct 17 12:57:26 2024 +0000
+commit 08a08083c13c1e5dfc320f71d3a1602b5c628599
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 16:14:50 2023 -0700
 
-    internal/runtime/atomic: add Xchg8 for 386
+    cmd/compile/internal/typecheck: merge SubstArgTypes into LookupRuntime
     
-    For #69735
+    LookupRuntime is the only reason for using SubstArgTypes, and most
+    callers to LookupRuntime need to immediately call it anyway. So might
+    as well fuse them together.
     
-    Change-Id: I5b9f57315d693d613dc88dc02c10bee39aeeef76
-    GitHub-Last-Rev: 690337e5b81a48bdcb808526d0c5f4837e8912b7
-    GitHub-Pull-Request: golang/go#69923
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620756
+    Change-Id: Ie0724ed164b949040e898a2a77bea632801b64fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521415
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/runtime/atomic/atomic_386.go | 3 +++
- src/internal/runtime/atomic/atomic_386.s  | 8 ++++++++
- src/internal/runtime/atomic/xchg8_test.go | 2 +-
- 3 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/compare/compare.go | 11 +++------
+ src/cmd/compile/internal/reflectdata/alg.go | 12 +++-------
+ src/cmd/compile/internal/typecheck/syms.go  | 16 ++++++++-----
+ src/cmd/compile/internal/walk/assign.go     | 15 ++++--------
+ src/cmd/compile/internal/walk/builtin.go    | 37 ++++++++++-------------------
+ src/cmd/compile/internal/walk/convert.go    |  5 ++--
+ src/cmd/compile/internal/walk/range.go      | 10 +++-----
+ src/cmd/compile/internal/walk/walk.go       | 24 +++++++------------
+ 8 files changed, 48 insertions(+), 82 deletions(-)

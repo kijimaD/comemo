@@ -1,23 +1,23 @@
-commit 4a2d3d06873559df2b6933f260dc8f75c54c9771
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 11 17:13:50 2018 -0500
+commit 29bc4f12581d836a96139c924f16a4987324edd1
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 28 01:44:09 2018 +0700
 
-    cmd/go: in module mode, populate PackagePublic.Root with the module root
+    encoding/json: add Path to UnmarshalTypeError
     
-    'go test' uses the Root field to determine the set of files that
-    invalidate test results, and there is no other sensible meaning of
-    “root” for code within a module.
+    When parsing nested object, UnmarshalTypeError does not contain actual
+    path to nested field in original JSON.
     
-    Fixes #29111
+    This commit change Field to contain the full path to that field. One
+    can get the Field name by stripping all the leading path elements.
     
-    Change-Id: Icf1be90a26d22665613e42cb968087b63c36e74c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/154100
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #22369
+    
+    Change-Id: I6969cc08abe8387a351e3fb2944adfaa0dccad2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/145218
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/load/pkg.go                   |  7 ++-
- src/cmd/go/internal/test/test.go                  | 17 +++--
- src/cmd/go/testdata/script/build_cache_output.txt |  7 ++-
- src/cmd/go/testdata/script/mod_test_cached.txt    | 77 +++++++++++++++++++++++
- 4 files changed, 100 insertions(+), 8 deletions(-)
+ src/encoding/json/decode.go      |  8 ++++++--
+ src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++--
+ 2 files changed, 28 insertions(+), 4 deletions(-)

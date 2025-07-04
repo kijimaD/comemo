@@ -1,22 +1,40 @@
-commit 45f251ad6cfe0a8fa1aeac0c2c8e42bfe3549c29
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jun 17 15:23:53 2021 -0400
+commit b30c7a80443c6aed5a7f57ae4c57d691ea88ad9a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 22 13:47:55 2020 -0800
 
-    cmd/pprof,runtime/pprof: disable test on more broken platforms
+    [dev.regabi] cmd/compile/internal/gc: add MethodName for getting referenced method
     
-    runtime/pprof has a more complete list of platforms with broken
-    profiling than I used in cmd/pprof in https://golang.org/cl/325809.
-    Duplicate that list in cmd/pprof and clean it up a bit in runtime/pprof
-    for easier reference.
+    A common operation throughout the front end is getting the ONAME for a
+    method used in a method selector, method expression, or method value.
+    This CL adds MethodName as a uniform API for doing this for all of
+    these kinds of nodes.
     
-    Change-Id: I8f2580aac223de9b73cfff4355f49916f7b76493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329149
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For method selectors (ODOTMETH) and method expressions (ONAMEs where
+    isMethodExpression reports true), we take advantage of the Node.Opt
+    field to save the types.Field. This is the approach we already started
+    taking in golang.org/cl/271217 (caching types.Field in Node.Opt for
+    ODOT).
+    
+    For method values (OCALLPART), we continue using the existing
+    callpartMethod helper function. Escape analysis already uses Node.Opt
+    for tracking the method value's closure's data flow.
+    
+    A subsequent, automated refactoring CL will make more use of this
+    method. For now, we just address a few cases in inl.go that aren't
+    easily automated.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ic92b288b2d8b2fa7e18e3b68634326b8ef0d869b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272387
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/pprof/pprof_test.go     | 17 +++++++++++++++++
- src/runtime/pprof/pprof_test.go | 32 ++++++++++++++++++++++----------
- 2 files changed, 39 insertions(+), 10 deletions(-)
+ src/cmd/compile/fmtmap_test.go           |  1 -
+ src/cmd/compile/internal/gc/closure.go   |  1 +
+ src/cmd/compile/internal/gc/inl.go       | 11 ++---------
+ src/cmd/compile/internal/gc/syntax.go    |  6 +++++-
+ src/cmd/compile/internal/gc/typecheck.go | 21 +++++++++++++++++++++
+ 5 files changed, 29 insertions(+), 11 deletions(-)

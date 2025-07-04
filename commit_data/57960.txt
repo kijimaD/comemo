@@ -1,54 +1,23 @@
-commit 3730814f2f2bf24550920c39a16841583de2dac1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 11 10:04:17 2024 -0500
+commit bfa8a8586f6ba62265c31d4edc2027f5b15f7ed3
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Wed Sep 13 09:44:19 2023 +0000
 
-    crypto/internal/bigmod: optimize addMulVVW on Wasm
+    runtime: silently allow pinning of non-Go pointers in runtime.Pinner.Pin
     
-    The current implementation of addMulVVW makes heavy use of
-    64x64->128 bit multiplications and 64-bit add-with-carry, which
-    are compiler intrinsics and are very efficient on many
-    architectures. However, those are not supported on Wasm. Here we
-    implement it with 32x32->64 bit operations, which is more
-    efficient on Wasm.
+    People may not know the details of a pointer, this makes the
+    runtime.Pinner.Pin API easier to use.
     
-    crypto/rsa benchmarks with Node:
+    Fixes #62356
     
-                         │   old.txt   │              new.txt                │
-                         │   sec/op    │   sec/op     vs base                │
-    DecryptPKCS1v15/2048   7.726m ± 1%   4.895m ± 2%  -36.65% (p=0.000 n=35)
-    DecryptPKCS1v15/3072   23.52m ± 1%   15.33m ± 1%  -34.83% (p=0.000 n=35)
-    DecryptPKCS1v15/4096   52.64m ± 2%   35.40m ± 1%  -32.75% (p=0.000 n=35)
-    EncryptPKCS1v15/2048   264.2µ ± 1%   176.9µ ± 1%  -33.02% (p=0.000 n=35)
-    DecryptOAEP/2048       7.608m ± 1%   4.911m ± 1%  -35.45% (p=0.000 n=35)
-    EncryptOAEP/2048       266.2µ ± 0%   183.3µ ± 2%  -31.15% (p=0.000 n=35)
-    SignPKCS1v15/2048      7.836m ± 1%   5.009m ± 2%  -36.08% (p=0.000 n=35)
-    VerifyPKCS1v15/2048    262.9µ ± 1%   176.3µ ± 1%  -32.94% (p=0.000 n=35)
-    SignPSS/2048           7.814m ± 0%   5.020m ± 1%  -35.76% (p=0.000 n=35)
-    VerifyPSS/2048         267.0µ ± 1%   183.8µ ± 1%  -31.17% (p=0.000 n=35)
-    geomean                2.718m        1.794m       -34.01%
-    
-    With wazero:
-    
-                         │    old.txt   │              new.txt                │
-                         │    sec/op    │   sec/op     vs base                │
-    DecryptPKCS1v15/2048   13.445m ± 0%   6.528m ± 0%  -51.45% (p=0.000 n=25)
-    DecryptPKCS1v15/3072    41.07m ± 0%   18.85m ± 0%  -54.10% (p=0.000 n=25)
-    DecryptPKCS1v15/4096    91.84m ± 1%   39.66m ± 0%  -56.81% (p=0.000 n=25)
-    EncryptPKCS1v15/2048    461.3µ ± 0%   197.2µ ± 0%  -57.25% (p=0.000 n=25)
-    DecryptOAEP/2048       13.438m ± 0%   6.577m ± 0%  -51.06% (p=0.000 n=25)
-    EncryptOAEP/2048        471.5µ ± 0%   207.7µ ± 0%  -55.95% (p=0.000 n=25)
-    SignPKCS1v15/2048      13.739m ± 0%   6.687m ± 0%  -51.33% (p=0.000 n=25)
-    VerifyPKCS1v15/2048     461.3µ ± 1%   196.8µ ± 0%  -57.35% (p=0.000 n=25)
-    SignPSS/2048           13.765m ± 0%   6.686m ± 0%  -51.43% (p=0.000 n=25)
-    VerifyPSS/2048          470.8µ ± 0%   208.9µ ± 1%  -55.64% (p=0.000 n=25)
-    geomean                 4.769m        2.179m       -54.31%
-    
-    Change-Id: I97f37d8cf1e3e9756a4e03ab4e681bf04152925f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626957
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I071df44e01320648a6df5e2a1e65afd6ea52e274
+    GitHub-Last-Rev: 560a581b63c6e7fe6c8829437e7ab3acd3b31514
+    GitHub-Pull-Request: golang/go#62549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527156
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/crypto/internal/bigmod/nat.go         | 19 -------------
- src/crypto/internal/bigmod/nat_generic.go | 28 ++++++++++++++++++++
- src/crypto/internal/bigmod/nat_wasm.go    | 44 +++++++++++++++++++++++++++++++
- 3 files changed, 72 insertions(+), 19 deletions(-)
+ src/runtime/pinner.go      | 29 ++++++++++++++++-------------
+ src/runtime/pinner_test.go | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+), 13 deletions(-)

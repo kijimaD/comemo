@@ -1,19 +1,19 @@
-commit 683c266f958db9acff705856f2c0aeb031d9782c
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Feb 25 11:32:59 2018 +0100
+commit d56c8149ac3b6c8c074d46853ce8c7b4e03d4b0f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 18 10:30:04 2019 -0400
 
-    build: add default GOROOT_BOOTSTRAP in Windows
+    [dev.link] cmd/internal/obj: use index for static symbols
     
-    CL 57753 added support to make.bash and make.rc to
-    default GOROOT_BOOTSTRAP to 'go env GOROOT'. This
-    patch does the same in make.bat for Windows.
+    In assembly we always reference symbols by name. But for static
+    symbols, as they are reachable only within the current file, we
+    can assign them local indices and use the indices to reference
+    them. The index is only meaningful locally, and it is fine.
     
-    Updates #18545
-    Fixes #28641
-    
-    Change-Id: I9152cc5080ed219b4de5bad0bd12d7725422ee1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/96455
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I16e011cd41575ef703ceb6f35899e5fa58fbcf1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201997
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/make.bat | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/sym.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

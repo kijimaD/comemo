@@ -1,17 +1,13 @@
-commit 3fd5e0be9dd321e990e0322ca173149505197e82
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 4 16:53:05 2012 +1000
+commit 7e2e4a732df1c6259ebea6b65deb3fc8421fbd13
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 4 13:20:18 2012 +0800
 
-    godoc: make examples editable and runnable in playground
+    cmd/go: add support for -test.benchmem
     
-    R=dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6523045
+    https://golang.org/cl/6587074
 
- doc/play/playground.js | 154 ++++++++++++++++++++-----------------------------
- doc/style.css          |  78 +++++++++++++++++++++++++
- lib/godoc/example.html |  23 ++++++--
- lib/godoc/package.html |  42 ++++++++++++++
- src/cmd/godoc/godoc.go |  32 +++++++---
- src/cmd/godoc/main.go  |  26 ++++++++-
- 6 files changed, 248 insertions(+), 107 deletions(-)
+ src/cmd/go/test.go     | 3 +++
+ src/cmd/go/testflag.go | 2 ++
+ 2 files changed, 5 insertions(+)

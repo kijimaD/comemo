@@ -1,26 +1,32 @@
-commit ad36f871512ea54a9044e256b2743b8346b725dd
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Oct 22 23:43:11 2020 +1100
+commit 9f40f9f4d3e9e5a08cfd1df5af23a6f61d67d408
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 2 22:44:25 2020 -0700
 
-    strconv: increase the Eisel-Lemire exp10 range
+    cmd/dist: remove darwin/386, darwin/arm as valid ports
     
-    This grows the exp10 range for which the Eisel-Lemire algorithm applies
-    from [-307, +288] to [-348, +347], roughly equivalent to the existing
-    powersOfTen table in extfloat.go (which uses a different algorithm).
+    This only removes the ability to build it, and removes it as a
+    src/buildall.bash target (which uses go tool dist list).
     
-    name                  old time/op  new time/op  delta
-    Atof64Decimal-4       48.4ns ± 1%  48.7ns ± 3%   ~     (p=0.698 n=5+5)
-    Atof64Float-4         57.9ns ± 1%  58.1ns ± 2%   ~     (p=0.873 n=5+5)
-    Atof64FloatExp-4      71.8ns ± 2%  72.2ns ± 2%   ~     (p=0.730 n=5+5)
-    Atof64Big-4            165ns ± 1%   164ns ± 1%   ~     (p=0.635 n=5+5)
-    Atof64RandomBits-4     165ns ± 1%   165ns ± 6%   ~     (p=0.143 n=5+5)
-    Atof64RandomFloats-4   147ns ± 2%   147ns ± 1%   ~     (p=0.857 n=5+5)
+    Now:
     
-    Change-Id: Idf7dc5297db6db2bd9e0bd4cb0e55e021916fa43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264139
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Nigel Tao <nigeltao@golang.org>
+    $ go tool dist list | grep ^darwin
+    darwin/amd64
+    darwin/arm64
+    
+    After this, remaining is removing leftover port--specific code in the
+    tree.
+    
+    Updates #37610
+    Updates #37611
+    
+    Change-Id: I00f03b2355c2e152f75e57abd3063be243529d2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226985
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/strconv/eisel_lemire.go | 124 ++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 119 insertions(+), 5 deletions(-)
+ src/cmd/api/goapi.go      | 11 +++++++++--
+ src/cmd/api/goapi_test.go |  1 -
+ src/cmd/dist/build.go     |  2 --
+ src/cmd/go/go_test.go     |  4 ++--
+ 4 files changed, 11 insertions(+), 7 deletions(-)

@@ -1,19 +1,16 @@
-commit 758447cdc94e4ae0b5d26a784a930403a633cd03
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 13:51:17 2016 +1100
+commit ae276d8c2342aff7b9bdf6563ffac5d21da70db6
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 18 17:49:45 2016 -0500
 
-    test/fixedbugs: add test for divide by zero being optimized away
+    [dev.ssa] cmd/compile: reenable TestStackBarrierProfiling
     
-    This only tests amd64 because it's currently broken on non-SSA
-    backends.
+    Tested it 1000x on OS X and Linux amd64, no failures.
+    Updated TODO.
     
-    Fixes #8613
-    
-    Change-Id: I6bc501c81c395e533bb9c7335789750e0c6b7a8f
-    Reviewed-on: https://go-review.googlesource.com/21325
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia60c8d90962f6e5f7c3ed1ded6ba1b25eee983e1
+    Reviewed-on: https://go-review.googlesource.com/19662
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- test/fixedbugs/issue8613.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/cmd/compile/internal/ssa/TODO | 1 -
+ src/runtime/pprof/pprof_test.go   | 5 -----
+ 2 files changed, 6 deletions(-)

@@ -1,13 +1,20 @@
-commit 43b18f42410f427dbfa5b33cae88f6ef574bd547
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue May 1 20:01:00 2018 -0400
+commit 99e37e98b474f27a29ccc89d781f211869b53fa2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 24 17:17:38 2018 -0500
 
-    cmd/trace: handle invalid goid para in /trace
+    cmd/internal/obj/arm: support NOFRAME
     
-    Change-Id: I1cb7c8b70a5ae16386f6abb577c23d821f7ff7f0
-    Reviewed-on: https://go-review.googlesource.com/112197
-    Reviewed-by: Peter Weinberger <pjw@google.com>
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    This adds support on arm for the NOFRAME symbol attribute used by
+    ppc64 and s390x in preference to using a frame size of -4. This is
+    modeled on ppc64's implementation of NOFRAME.
+    
+    This passes toolstash -cmp.
+    
+    Change-Id: I0d15e81770e54222ae329ce4496da0601673677f
+    Reviewed-on: https://go-review.googlesource.com/92039
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/trace/trace.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go | 37 +++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)

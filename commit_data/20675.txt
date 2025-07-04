@@ -1,18 +1,16 @@
-commit 14cd40d91267820c2db888a6d11e79a413f766b5
-Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
-Date:   Wed Oct 8 15:58:56 2014 -0700
+commit b4380a3ba2da2515225ab45ff07082d67399757a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 29 14:05:33 2014 -0700
 
-    reflect: add direct call tests to TestMakeFuncVariadic
+    runtime: delete unused variables.
     
-    TestMakeFuncVariadic only called the variadic function via Call and
-    CallSlice, not via a direct function call.
+    We're not comparing with code addresses any more.  Instead,
+    we use nil algorithm functions to mark uncomparable types.
     
-    I thought these tests would fail under gccgo tip, but they don't.  Still seems worth having though.
-    
-    LGTM=iant
-    R=golang-codereviews, gobot, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/152060043
+    https://golang.org/cl/151040044
 
- src/reflect/all_test.go | 23 ++++++++++++++++++++++-
- 1 file changed, 22 insertions(+), 1 deletion(-)
+ src/runtime/stubs.go | 4 ----
+ 1 file changed, 4 deletions(-)

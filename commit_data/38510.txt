@@ -1,22 +1,21 @@
-commit 4906a00cdd0e71915d691acad3f852d498ee1a6f
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Thu Mar 21 16:04:25 2019 +0100
+commit e8df7df68f8d3b182570049879e780fec57a1878
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sat Nov 3 02:19:47 2018 +0900
 
-    image/png: add Fuzz function
+    syscall: add Syscall18 on Windows
     
-    Add a Fuzz function to package png, under the gofuzz build
-    tag. This function is based on the png/png.go code, from
-    github.com/dvyukov/go-fuzz-corpus, modified to use direct
-    comparison of image bounds rather than reflect.DeepEqual.
+    There are some OpenGL functions that take more than 15 arguments.
+    This CL adds Syscall18 to enable to call such functions on Windows
+    via syscall functions.
     
-    Updates #30979
-    Updates #19109
+    Fixes #28434
     
-    Change-Id: Idb86e7ded0c2d78e6cadbeda84c7b1f35b8c579c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168558
-    Reviewed-by: thepudds <thepudds1460@gmail.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ic7e37dda9cadf4516183e98166bfc52844ad2bbe
+    Reviewed-on: https://go-review.googlesource.com/c/147117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/png/fuzz.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 52 insertions(+)
+ src/runtime/syscall_windows.go | 13 +++++++++++++
+ src/syscall/dll_windows.go     |  7 +++++++
+ 2 files changed, 20 insertions(+)

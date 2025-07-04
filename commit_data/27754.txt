@@ -1,26 +1,37 @@
-commit bb337372fb6e171a6e8a7665ce91eda734f8cdd2
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jun 29 11:09:36 2016 +0200
+commit a223ccae386449169774597b15a00f2d70addce7
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 11 20:23:19 2016 -0400
 
-    runtime: fix race atomic operations on external memory
+    cmd/compile/internal/s390x: add s390x support
     
-    The assembly is broken: it does `MOVQ g(R12), R14` expecting that
-    R12 contains tls address, but it does not do get_tls(R12) before.
-    This magically works on linux: `MOVQ g(R12), R14` is compiled to
-    `mov %fs:0xfffffffffffffff8,%r14` which does not use R12.
-    But it crashes on windows.
+    s390x does not require duffzero/duffcopy since it has
+    storage-to-storage instructions that can copy/clear up to 256
+    bytes at a time.
     
-    Add explicit `get_tls(R12)`.
+    peep contains several new passes to optimize instruction
+    sequences that match s390x instructions such as the
+    compare-and-branch and load/store multiple instructions.
     
-    Fixes #16206
+    copyprop and subprop have been extended to work with moves that
+    require sign/zero extension. This work could be ported to other
+    architectures that do not used sized math however it does add
+    complexity and will probably be rendered unnecessary by ssa in
+    the near future.
     
-    Change-Id: Ic1f21a6fef2473bcf9147de6646929781c9c1e98
-    Reviewed-on: https://go-review.googlesource.com/24590
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1b64b281b452ed82a85655a0df69cb224d2a6941
+    Reviewed-on: https://go-review.googlesource.com/20873
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/race/race_linux_test.go   | 37 ++++++++++++++++++++++++++++
- src/runtime/race/race_windows_test.go | 46 +++++++++++++++++++++++++++++++++++
- src/runtime/race_amd64.s              |  1 +
- 3 files changed, 84 insertions(+)
+ src/cmd/compile/internal/s390x/cgen.go   |  178 ++++
+ src/cmd/compile/internal/s390x/galign.go |   66 ++
+ src/cmd/compile/internal/s390x/ggen.go   |  577 +++++++++++
+ src/cmd/compile/internal/s390x/gsubr.go  | 1115 ++++++++++++++++++++
+ src/cmd/compile/internal/s390x/peep.go   | 1664 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/s390x/prog.go   |  179 ++++
+ src/cmd/compile/internal/s390x/reg.go    |  130 +++
+ src/cmd/compile/main.go                  |    3 +
+ src/cmd/dist/buildtool.go                |    1 +
+ 9 files changed, 3913 insertions(+)

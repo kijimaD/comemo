@@ -1,12 +1,23 @@
-commit cf49b35bd000279137c353fbdc9c02610b67be27
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 11 11:35:36 2015 -0500
+commit 1d765b77a04fb12c2d97e0a8c9491de2bbfcbacc
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Tue Oct 13 19:49:40 2015 -0700
 
-    doc: fix typo "heirarchy"
+    runtime: Reduce testing for fastlog2 implementation
     
-    Change-Id: Iae2bf44ec15975f440d026fd52fcccfbd9c598d9
-    Reviewed-on: https://go-review.googlesource.com/17740
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The current fastlog2 testing checks all 64M values in the domain of
+    interest, which is too much for platforms with no native floating point.
+    
+    Reduce testing under testing.Short() to speed up builds for those platforms.
+    
+    Related to #12620
+    
+    Change-Id: Ie5dcd408724ba91c3b3fcf9ba0dddedb34706cd1
+    Reviewed-on: https://go-review.googlesource.com/15830
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joel Sing <jsing@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/fastlog2_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

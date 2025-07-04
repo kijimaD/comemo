@@ -1,33 +1,26 @@
-commit 1cdabf0c8b1297a1b82fda975f9313f69b77b262
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed May 11 12:44:06 2022 -0700
+commit 5fde02e312796012b5ddacd79cbaafb91d329c72
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 8 10:52:19 2022 -0500
 
-    runtime: avoid staticinit dependency with sigsetAllExiting
+    runtime: add msan support on freebsd/amd64
     
-    Currently, package runtime runs `osinit` before dynamic initialization
-    of package-scope variables; but on GOOS=linux, `osinit` involves
-    mutating `sigsetAllExiting`.
+    Adjust build constraints and change the runtime to call the C mmap function
+    when using cgo.
     
-    This currently works because cmd/compile and gccgo have
-    non-spec-conforming optimizations that statically initialize
-    `sigsetAllExiting`, but disabling that optimization causes
-    `sigsetAllExiting` to be dynamically initialized instead. This in turn
-    causes the mutations in `osinit` to get lost.
+    R=go1.20
     
-    This CL moves the initialization of `sigsetAllExiting` from `osinit`
-    into its initialization expression, and then removes the special case
-    for continuing to perform the static-initialization optimization for
-    package runtime.
+    For #53298
     
-    Updates #51913.
-    
-    Change-Id: I3be31454277c103372c9701d227dc774b2311dad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405549
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If9c3306dc16a8645d1bb9be0343e0472d6c4783f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411274
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/os_linux.go    | 18 ------------------
- src/runtime/signal_unix.go | 32 ++++++++++++++++++++++++++++----
- 2 files changed, 28 insertions(+), 22 deletions(-)
+ src/runtime/cgo/gcc_mmap.c      |  2 +-
+ src/runtime/cgo/mmap.go         |  2 +-
+ src/runtime/cgo_mmap.go         |  2 +-
+ src/runtime/mmap.go             |  2 +-
+ src/runtime/msan/msan.go        |  2 +-
+ src/runtime/sys_freebsd_amd64.s | 35 +++++++++++++++++++++++++++++++++--
+ 6 files changed, 38 insertions(+), 7 deletions(-)

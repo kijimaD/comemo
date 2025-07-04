@@ -1,18 +1,18 @@
-commit 09fb56dc7d8230db521816e75fcff0f77241de0e
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Apr 1 15:53:52 2015 +1300
+commit be3133bfda9c71b70d7494588c01a86e437ea920
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Feb 16 02:03:53 2015 +1100
 
-    cmd/go: start support for -linkshared
+    runtime: add support for openbsd/arm
     
-    This will fruitlessly rebuild stale packages that are in a shared
-    library.
-    
-    Change-Id: I66a6e1adf7818558e7d1351ab215a5021b4a8a6b
-    Reviewed-on: https://go-review.googlesource.com/8333
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2bc101aa19172e705ee4de5f3c73a8b4bbf4fa6f
+    Reviewed-on: https://go-review.googlesource.com/4912
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/build.go    | 14 ++++++++++++++
- src/cmd/go/doc.go      |  3 +++
- src/cmd/go/test.go     |  1 +
- src/cmd/go/testflag.go |  3 ++-
- 4 files changed, 20 insertions(+), 1 deletion(-)
+ src/runtime/defs_openbsd_arm.go   | 170 +++++++++++++++++
+ src/runtime/os_openbsd_arm.go     |  17 ++
+ src/runtime/rt0_freebsd_arm.s     |   6 +-
+ src/runtime/rt0_netbsd_arm.s      |   4 +-
+ src/runtime/rt0_openbsd_arm.s     |  11 ++
+ src/runtime/signal_openbsd_arm.go |  53 ++++++
+ src/runtime/sys_openbsd_arm.s     | 377 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 631 insertions(+), 7 deletions(-)

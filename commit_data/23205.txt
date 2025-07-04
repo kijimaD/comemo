@@ -1,32 +1,14 @@
-commit ffef180f822fc46f37ec7325c490e44deffc747a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 22 01:16:52 2015 -0400
+commit edcc8f9ef1128e0cb70131b4d6f6a06023be5ce8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 29 17:30:56 2015 -0700
 
-    cmd/compile: remove Node.Nincr, Node.Nelse, Node.Initplan
+    cmd/dist: rename buildmode method to supportedBuildmode
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 288
-    $
-    
-    Change-Id: I4e316efa246132b3faa3a892e4fe9c9039250665
-    Reviewed-on: https://go-review.googlesource.com/10520
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie36fd46ad3c0799200fdf4240483a207335570d8
+    Reviewed-on: https://go-review.googlesource.com/9531
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/esc.go       |  6 ------
- src/cmd/compile/internal/gc/export.go    |  2 --
- src/cmd/compile/internal/gc/fmt.go       | 20 +++++---------------
- src/cmd/compile/internal/gc/gen.go       |  4 ++--
- src/cmd/compile/internal/gc/go.y         |  4 ++--
- src/cmd/compile/internal/gc/inl.go       | 32 +++++++++++---------------------
- src/cmd/compile/internal/gc/order.go     |  6 +++---
- src/cmd/compile/internal/gc/racewalk.go  | 15 +++++++--------
- src/cmd/compile/internal/gc/range.go     | 10 +++++-----
- src/cmd/compile/internal/gc/select.go    |  2 +-
- src/cmd/compile/internal/gc/sinit.go     | 14 +++++++-------
- src/cmd/compile/internal/gc/swt.go       |  4 ++--
- src/cmd/compile/internal/gc/syntax.go    |  3 ---
- src/cmd/compile/internal/gc/typecheck.go | 10 ++++------
- src/cmd/compile/internal/gc/walk.go      |  6 +++---
- src/cmd/compile/internal/gc/y.go         |  4 ++--
- 16 files changed, 54 insertions(+), 88 deletions(-)
+ src/cmd/dist/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

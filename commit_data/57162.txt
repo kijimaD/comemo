@@ -1,27 +1,50 @@
-commit b2cdaf73469d7f15181b3abfb7b168475375c373
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 13 09:01:05 2024 -0700
+commit cd6676126b7e663e6202e98e2f235fff20d5e858
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Thu Jun 22 17:09:21 2023 -0700
 
-    cmd/compile: improve unneeded zeroing removal
+    database/sql: prevent internal context error from being returned from Rows.Err()
     
-    After newobject, we don't need to write zeroes to initialize the
-    object.  It has already been zeroed by the allocator.
+    CL 497675 modified Rows such that context errors are propagated through
+    Rows.Err(). This caused an issue where calling Close meant that an
+    internal cancellation error would (eventually) be returned from Err:
     
-    This is already handled in most cases, but because we run builtin
-    decomposition after the opt pass, we don't handle cases where the zero
-    of a compound builtin is being written. Improve the zero detector to
-    handle those cases.
+    1. A caller makes a query using a cancellable context.
+    2. initContextClose sees that either the query context or the
+       transaction context can be canceled, so will need to spawn a
+       goroutine to capture their errors.
+    3. initContextClose derives a context from the query context via
+       WithCancel and sets rs.cancel.
+    4. When a user calls Close, rs.cancel is called. awaitDone's ctx is
+       cancelled, which is good, since we don't want it to hang forever.
+    5. This internal cancellation (after CL 497675) has its error saved on
+       contextDone.
+    6. Later, calling Err will return the error in contextDone if present.
     
-    Fixes #68845
+    This leads to a race condition depending on how quickly Err is called
+    after Close.
     
-    Change-Id: If3dde2e304a05e5a6a6723565191d5444b334bcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605255
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    The docs for Close and Err state that calling Close should have no
+    affect on the return result for Err. So, a potential fix is to ensure
+    that awaitDone does not save the error when the cancellation comes from
+    a Close via rs.cancel.
+    
+    This CL does that, using a new context not derived from the query
+    context, whose error is ignored as the query context's error used to be
+    before the original bugfix.
+    
+    The included test fails before the CL, and passes afterward.
+    
+    Fixes #60932
+    
+    Change-Id: I2bf4c549efd83d62b86e298c9c45ebd06a3ad89a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505397
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go |  6 ++++
- test/codegen/issue68845.go              | 52 +++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+)
+ src/database/sql/sql.go      | 17 +++++++++++------
+ src/database/sql/sql_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 6 deletions(-)

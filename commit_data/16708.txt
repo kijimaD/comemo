@@ -1,19 +1,17 @@
-commit 2a730f8b16f1345ec8c077cb9453c5b1dcbb2c33
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Jul 5 13:25:23 2013 +1000
+commit 48936e46a1d2d92858c5ae044a6247bdccf067c9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jul 5 10:12:13 2013 +1000
 
-    syscall: reduce duplication between *bsd and linux
+    image/gif: close the lzw.Reader we create.
     
-    Part 3 of several.
+    The lzw.NewReader doc comment says, "It is the caller's responsibility
+    to call Close on the ReadCloser when finished reading."
     
-    * Linux has grown a SetsockoptByte.
-    * SetsockoptIPMreqn is handled directly by syscall_linux.go and syscall_freebsd.go.
+    Thanks to Andrew Bonventre for noticing this.
     
-    R=golang-dev, mikioh.mikioh, r, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/10775043
+    R=r, dsymonds, adg
+    CC=andybons, golang-dev
+    https://golang.org/cl/10821043
 
- src/pkg/syscall/syscall_bsd.go   | 38 --------------------------------------
- src/pkg/syscall/syscall_linux.go | 32 --------------------------------
- src/pkg/syscall/syscall_unix.go  | 37 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 70 deletions(-)
+ src/pkg/image/gif/reader.go | 1 +
+ 1 file changed, 1 insertion(+)

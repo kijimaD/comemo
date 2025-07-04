@@ -1,17 +1,16 @@
-commit f2dfbe98adca83ac32382ef6099349b61a0d5508
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Tue Oct 29 09:19:35 2019 +0100
+commit 9be2d46422c90068db8bb9d29cb025907c6100b0
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri May 17 03:27:15 2019 +0000
 
-    os: return from TestRemoveAllWithMoreErrorThanReqSize when RemoveAll succeeds on Windows
+    misc/android: fix a typo in README
     
-    Also remove unused test hook.
+    A cross C compiler should be specified when cross building go
+    for android on x86 host. This CL fixes the typo in README.
     
-    Updates #35117
-    
-    Change-Id: I6f05ba234fb09e4b44e77c1539c02d1aed49910a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204060
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ideda915364d9f7f0fcd53146abc1e74506a8a8e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177777
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- src/os/path.go           |  3 ---
- src/os/removeall_test.go | 12 +++++-------
- 2 files changed, 5 insertions(+), 10 deletions(-)
+ misc/android/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

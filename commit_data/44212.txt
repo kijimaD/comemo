@@ -1,19 +1,46 @@
-commit 6ac91e460c294bda5a50e628b7556bf20525fa44
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Sun Jan 31 12:42:44 2021 +0000
+commit e3491c46034cecbaf0f33928b09e1e3c0c6a0d20
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 20:46:05 2020 -0400
 
-    doc/go1.16: minor markup fixes
+    net/http: handle body rewind in HTTP/2 connection loss better
     
-    Add missing <code> tags.
-    Remove unnecessary <br> tag.
+    In certain cases the HTTP/2 stack needs to resend a request.
+    It obtains a fresh body to send by calling req.GetBody.
+    This call was missing from the path where the HTTP/2
+    round tripper returns ErrSkipAltProtocol, meaning fall back
+    to HTTP/1.1. The result was that the HTTP/1.1 fallback
+    request was sent with no body at all.
     
-    For #40700
+    This CL changes that code path to rewind the body before
+    falling back to HTTP/1.1. But rewinding the body is easier
+    said than done. Some requests have no GetBody function,
+    meaning the body can't be rewound. If we need to rewind and
+    can't, that's an error. But if we didn't read anything, we don't
+    need to rewind. So we have to track whether we read anything,
+    with a new ReadCloser wrapper. That in turn requires adding
+    to the couple places that unwrap Body values to look at the
+    underlying implementation.
     
-    Change-Id: I03d3ce1c89a9ae3d3195dcd2bb8b1a61f011e1ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288275
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    This CL adds the new rewinding code in the main retry loop
+    as well.
+    
+    The new rewindBody function also takes care of closing the
+    old body before abandoning it. That was missing in the old
+    rewind code.
+    
+    Thanks to Aleksandr Razumov for CL 210123
+    and to Jun Chen for CL 234358, both of which informed
+    this CL.
+    
+    Fixes #32441.
+    
+    Change-Id: Id183758526c087c6b179ab73cf3b61ed23a2a46a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234894
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.16.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/transfer.go       | 10 +++++--
+ src/net/http/transport.go      | 64 ++++++++++++++++++++++++++++++++++++------
+ src/net/http/transport_test.go | 26 +++++++++++++++++
+ 3 files changed, 90 insertions(+), 10 deletions(-)

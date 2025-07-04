@@ -1,22 +1,24 @@
-commit df6072b41c76f2ac839d248b7c706fa554f483ed
+commit b83d4af330858e819787efbbf6c5267f44d5b654
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 10 16:24:01 2013 -0400
+Date:   Sun Mar 10 14:17:04 2013 -0400
 
-    cmd/ld: include full symbol table in Mach-O output
+    cmd/ld: make mach-o sections match internal sections
     
-    This makes binaries work with OS X nm.
+    This brings Mach-O generation more in line with ELF generation.
+    
+    Having separate sections for the symtab and pclntab mean that we
+    can find them that way, instead of using the deprecated debug segments.
+    (And the host linker will keep separate sections for us, but probably
+    not the debug segments.)
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7558044
+    https://golang.org/cl/7688043
 
- src/cmd/6l/asm.c         |  58 +-----------
- src/cmd/8l/asm.c         |  58 +-----------
- src/cmd/ld/data.c        |  14 ++-
- src/cmd/ld/go.c          |  28 +-----
- src/cmd/ld/lib.c         |   1 -
- src/cmd/ld/lib.h         |   8 +-
- src/cmd/ld/macho.c       | 232 ++++++++++++++++++++++++++++++++++++++++-------
- src/cmd/ld/macho.h       |   1 +
- src/libmach/executable.c |   1 -
- 9 files changed, 231 insertions(+), 170 deletions(-)
+ src/cmd/ld/data.c        |  15 +++--
+ src/cmd/ld/dwarf.c       |  16 +++---
+ src/cmd/ld/lib.h         |   6 +-
+ src/cmd/ld/macho.c       | 145 ++++++++++++++++++++---------------------------
+ src/cmd/ld/macho.h       |  10 +---
+ src/libmach/executable.c |  84 ++++++++++++---------------
+ 6 files changed, 121 insertions(+), 155 deletions(-)

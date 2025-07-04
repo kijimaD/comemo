@@ -1,17 +1,14 @@
-commit fa6d038e9848c529e0ddffad8ba4f21043774f06
+commit bb4cf3f3514614e95b77918d3e15ff1b1f94397d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 24 16:09:49 2011 +0400
+Date:   Wed Aug 24 13:10:22 2011 +0400
 
-    http: adjust test threshold for larger suse buffers
+    http: on invalid request, send 400 response
     
-    My theory is that suse has larger TCP buffer sizes
-    by default.  I now check over 100MB, rather than over 2MB.
-    100MB is ~halfway between the 1MB limit and the 200MB
-    request that's attempted.
+    Fixes #2160
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4926048
+    https://golang.org/cl/4930049
 
- src/pkg/http/serve_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/server.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

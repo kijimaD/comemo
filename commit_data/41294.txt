@@ -1,20 +1,27 @@
-commit 3c630bb400b5bce64b598dc4cc907d0faacf77a6
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 9 12:41:16 2020 -0500
+commit 37c033b0a5433ce4132e8694705ad66d4650f670
+Author: Andrew Medvedev <andrew.y.medvedev@gmail.com>
+Date:   Sat Sep 21 20:18:47 2019 +0300
 
-    cmd/go: convert two go get tests to the script framework
+    crypto/x509: give type hint in error message in marshalPublicKey
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Currently if type of public key is unsupported, error message is "only
+    RSA and ECDSA public keys supported". After adding Ed25519 this message
+    is no longer correct.
     
-    Updates #36320
-    Updates #17751
+    Moreover, it is superfluous because documentation for
+    MarshalPKIXPublicKey, CreateCertificateRequest and CreateCertificate
+    already lists supported public key types.
     
-    Change-Id: Ib1ccc72fc717df79214480b48dd98188d6061b46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214117
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This CL removes unnecessary details from error message.
+    It also adds reporting the type of unsupported key, which helps
+    debugging cases when struct (instead of a pointer) to otherwise correct
+    public key is given.
+    
+    Fixes #32640
+    
+    Change-Id: I45e6e3d756b543688d850009b4da8a4023c05027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196777
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/go_test.go                              | 49 ----------------------
- .../testdata/script/get_insecure_custom_domain.txt |  5 +++
- .../script/get_update_unknown_protocol.txt         | 13 ++++++
- 3 files changed, 18 insertions(+), 49 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

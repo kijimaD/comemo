@@ -1,25 +1,16 @@
-commit 07b4b4a1a87a74d600d483d155ec1744e08df9c3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 9 12:41:34 2019 -0800
+commit 47cc59f31f8e2ef18ee34402be7b94cbe39638aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 22 17:14:36 2018 -0700
 
-    cmd/compile: add scale field to SSA Ops
+    cmd/dist: copy cmd/internal/xcoff to bootstrap directory
     
-    Refactoring only.
+    Fixes build.
     
-    This makes it easier to add ops
-    that do indexed memory loads/stores.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I82df0d4154718577ec42106fa1bc76571bf65096
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166425
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id3d78ae9e4669371b4ebf29f69217d0809ffb829
+    Reviewed-on: https://go-review.googlesource.com/c/143917
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        | 93 ++++++----------------------
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 92 +++++++++++++--------------
- src/cmd/compile/internal/ssa/gen/main.go     |  5 ++
- src/cmd/compile/internal/ssa/op.go           |  1 +
- src/cmd/compile/internal/ssa/opGen.go        | 44 +++++++++++++
- 5 files changed, 116 insertions(+), 119 deletions(-)
+ src/cmd/dist/buildtool.go | 1 +
+ 1 file changed, 1 insertion(+)

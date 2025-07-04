@@ -1,21 +1,18 @@
-commit a3677b5f223db6ccadf26f81a751c4f8c8c0eaf9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 20 12:23:27 2012 -0500
+commit e6ca125f14d0f677205d3247f26da60ab8069b9c
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Dec 21 01:27:50 2012 +1100
 
-    math: handle exponent separately in Log2
+    cmd/[568]l: do not generate PT_TLS on openbsd
     
-    This guarantees that powers of two return exact answers.
+    The OpenBSD ld.so(1) does not currently support PT_TLS and refuses
+    to load ELF binaries that contain PT_TLS sections. Do not emit PT_TLS
+    sections - we will handle this appropriately in runtime/cgo instead.
     
-    We could do a multiprecision approximation for the
-    rest of the answer too, but this seems like it should be
-    good enough.
-    
-    Fixes #4567.
-    
-    R=golang-dev, iant, remyoudompheng
+    R=golang-dev, minux.ma, iant
     CC=golang-dev
-    https://golang.org/cl/6943074
+    https://golang.org/cl/6846064
 
- src/pkg/math/all_test.go | 7 +++++++
- src/pkg/math/log10.go    | 3 ++-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/5l/asm.c | 5 ++++-
+ src/cmd/6l/asm.c | 5 ++++-
+ src/cmd/8l/asm.c | 5 ++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)

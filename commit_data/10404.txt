@@ -1,16 +1,18 @@
-commit 3db596113d1e663969f68df2cfe6fc36b566663f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 12:49:22 2011 -0500
+commit 0d37998a06b5f5fddbdbe0aed4cbb7536b4201f6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 15 12:48:22 2011 -0500
 
-    misc/benchcmp: benchmark comparison script
+    syscall: make windows build again after d3963c0fca78 change
     
-    I've been using this since April and posted it on the
-    mailing list, but it seems worth having in the repository.
-    Not sure about the location.
-    
-    R=golang-dev, r, r
+    R=rsc, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5371100
+    https://golang.org/cl/5373097
 
- misc/benchcmp | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ src/pkg/os/exec_windows.go          | 9 +++++----
+ src/pkg/os/file_windows.go          | 3 ++-
+ src/pkg/runtime/windows/thread.c    | 8 ++++----
+ src/pkg/syscall/env_windows.go      | 1 -
+ src/pkg/syscall/mkerrors_windows.sh | 4 ++--
+ src/pkg/syscall/syscall_windows.go  | 5 -----
+ src/pkg/syscall/zerrors_windows.go  | 2 +-
+ 7 files changed, 14 insertions(+), 18 deletions(-)

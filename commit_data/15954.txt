@@ -1,20 +1,21 @@
-commit 3660b532ac9f2393629744a9494aadffd8aee4c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 26 11:50:29 2013 -0700
+commit 8480e6f476c70af47158983052a9325447e57ab3
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Mar 26 11:43:09 2013 -0700
 
-    reflect: add garbage collection info in ChanOf, MapOf, PtrTo, SliceOf
+    runtime: ensure forward progress when unwinding an arm stack frame
     
-    ArrayOf will remain unexported (and therefore unused) for Go 1.1.
+    The arm gentraceback mishandled frame linkage values pointing
+    to the assembly return function.  This function is special as
+    its frame size is zero and it contains only one instruction.
+    These conditions would preserve the frame pointer and result
+    in an off by one error when unwinding the caller.
     
-    Fixes #4375.
+    Fixes #5124
     
-    R=0xe2.0x9a.0x9b, r, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7716048
+    https://golang.org/cl/8023043
 
- src/cmd/gc/reflect.c        |   7 ++
- src/pkg/reflect/all_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/reflect/type.go     | 173 +++++++++++++++++++++++++++++++++++++----
- src/pkg/runtime/hashmap.c   |   7 ++
- src/pkg/runtime/mgc0.h      |   3 +
- 5 files changed, 359 insertions(+), 14 deletions(-)
+ misc/cgo/test/callback.go       | 9 +--------
+ src/pkg/runtime/traceback_arm.c | 5 +++--
+ 2 files changed, 4 insertions(+), 10 deletions(-)

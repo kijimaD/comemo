@@ -1,46 +1,28 @@
-commit 360e1b8197b78685cf08ab5914aa629fb739b2c3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 26 22:48:44 2022 -0800
+commit bedfeed54a7a80123c07f83c325a0bcfe5c43398
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Aug 7 16:28:35 2020 +0000
 
-    go/types, types2: fix implements and identical predicates
+    runtime,runtime/metrics: add metric to track scheduling latencies
     
-    - Use the correct predicate in Checker.implements: for interfaces
-      we cannot use the API Comparable because it always returns true
-      for all non-type parameter interface types: Comparable simply
-      answers if == and != is permitted, and it's always been permitted
-      for interfaces. Instead we must use Interface.IsComparable which
-      looks at the type set of an interface.
+    This change adds a metric to track scheduling latencies, defined as the
+    cumulative amount of time a goroutine spends being runnable before
+    running again. The metric is an approximations and samples instead of
+    trying to record every goroutine scheduling latency.
     
-    - When comparing interfaces for identity, we must also consider the
-      whether the type sets have the comparable bit set.
+    This change was primarily authored by mknyszek@google.com.
     
-    With this change, `any` doesn't implement `comparable` anymore. This
-    only matters for generic functions and types, and the API functions.
-    It does mean that for now (until we allow type-constrained interfaces
-    for general non-constraint use, at some point in the future) a type
-    parameter that needs to be comparable cannot be instantiated with an
-    interface anymore.
-    
-    For #50646.
-    
-    Change-Id: I7e7f711bdcf94461f330c90509211ec0c2cf3633
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381254
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie0be7e6e7be421572eb2317d3dd8dd6f3d6aa152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308933
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go     |  2 +-
- src/cmd/compile/internal/types2/issues_test.go     |  9 +++--
- src/cmd/compile/internal/types2/predicates.go      |  3 ++
- .../internal/types2/testdata/check/issues.go2      | 11 +++---
- .../types2/testdata/fixedbugs/issue50646.go2       | 11 +++---
- src/cmd/compile/internal/types2/unify.go           |  3 ++
- src/go/types/instantiate.go                        |  2 +-
- src/go/types/issues_test.go                        |  9 +++--
- src/go/types/predicates.go                         |  3 ++
- src/go/types/testdata/check/issues.go2             | 11 +++---
- src/go/types/testdata/fixedbugs/issue50646.go2     | 11 +++---
- src/go/types/unify.go                              |  3 ++
- test/typeparam/issue48276a.go                      |  2 +-
- test/typeparam/issue48276a.out                     |  2 +-
- test/typeparam/issue50646.go                       | 39 ----------------------
- 15 files changed, 42 insertions(+), 79 deletions(-)
+ src/runtime/histogram.go           |  4 ++++
+ src/runtime/metrics.go             |  9 +++++++++
+ src/runtime/metrics/description.go |  5 +++++
+ src/runtime/metrics/doc.go         |  4 ++++
+ src/runtime/proc.go                | 41 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime2.go            | 17 ++++++++++++++++
+ src/runtime/sizeof_test.go         |  2 +-
+ 7 files changed, 81 insertions(+), 1 deletion(-)

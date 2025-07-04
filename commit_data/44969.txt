@@ -1,23 +1,16 @@
-commit d57189e92b9b4cd6909aefbcee02e9cb6fc05cff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 6 11:36:36 2021 -0700
+commit 4c4a376736fff47b08ab6053605c3b68d87552b5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 18 13:01:54 2020 -0700
 
-    test/syntax: remove interface.go
+    runtime/debug: skip fault address test on unsupported platforms
     
-    The exact same test case covered by this file is also in
-    fixedbugs/bug121.go. No need for duplication.
     
-    Also, the actual syntax error tested (multiple method names
-    with a single signature) is an unlikely syntax error, and
-    only here for historical reasons (in the very beginning, this
-    was actually possible to write). Now, virtually nobody is making
-    this mistake.
-    
-    Change-Id: I9d68e0aee2a63025f44e6338647f8250ecc3077a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307789
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6a6fe616365fa542218fbc9ff61805ff70a1ef63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255999
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- test/syntax/interface.go | 14 --------------
- 1 file changed, 14 deletions(-)
+ src/runtime/debug/panic_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

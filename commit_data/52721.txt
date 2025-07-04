@@ -1,33 +1,22 @@
-commit 5c865c78c378548c282b22d96e6d0375079d4417
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 17 10:56:09 2023 -0400
+commit dd83fd8a70d324be96d2fcac753b202db0625538
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 19 12:10:38 2022 -0700
 
-    crypto/tls: retry DialWithTimeout until the listener accepts a connection
+    cmd/dist: pass a -test.timeout option to a host test
     
-    The point of DialWithTimeout seems to be to test what happens when the
-    connection times out during handshake. However, the test wasn't
-    actually verifying that the connection made it into the handshake at
-    all. That would not only fail to test the intended behavior, but also
-    leak the Accept goroutine until arbitrarily later, at which point it
-    may call t.Error after the test t is already done.
+    For a host test we build the test using "go test -c" and then run the
+    test binary. A test binary run in this way has no default timeout.
+    This CL gives it a timeout of 5 minutes, scaled for the target.
+    We can adjust the timeout if necessary.
     
-    Instead, we now:
+    For #52998
     
-    - retry the test with a longer timeout if we didn't accept a
-      connection, and
-    
-    - wait for the Accept goroutine to actually complete when the test
-      finishes.
-    
-    Fixes #59646.
-    
-    Change-Id: Ie56ce3297e2c183c02e67b8f6b26a71e50964558
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485115
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib759142f3e71cbb37ec858182998fc5d4fba7ab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407374
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/tls_test.go | 70 +++++++++++++++++++++++++++++++---------------
- 1 file changed, 47 insertions(+), 23 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

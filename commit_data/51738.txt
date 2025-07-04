@@ -1,21 +1,38 @@
-commit 030ca34f5786f0b924dcab26379ee2f82104220d
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Dec 1 21:59:00 2022 +0100
+commit 67f1a436b9c4055e02d9d031c6c2e9d6c9456bf0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 13 17:32:07 2021 -0500
 
-    path/filepath: remove extra Clean call in EvalSymlinks on Windows
+    cmd/dist: log CPU model when testing
     
-    EvalSymlinks calls Clean twice, one in walkSymlinks and another in
-    toNorm. The later is not necessary, as toNorm is only called by
-    EvalSymlinks and just after walkSymlinks cleans the path without any
-    path manipulation in between.
+    Knowing whether test failures are correlated with specific CPU models on
+    has proven useful on several issues. Log it for prior to testing so it
+    is always available.
     
-    Change-Id: Ibdb782c7eed59468f0ebb913e98d2a7db0df010d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454615
+    internal/sysinfo provides the CPU model, but it is not available in the
+    bootstrap toolchain, so we can't access this in cmd/dist. Instead use a
+    separate binary which cmd/dist will only build once testing begins.
+    
+    The addition of new data to the beginning of cmd/dist output will break
+    x/build/cmd/coordinator's banner parsing, leaving extra lines in the log
+    output, though information will not be lost.
+    https://golang.org/cl/372538 fixes up the coordinator and should be
+    submitted and deployed before this CL is submitted.
+    
+    This is a redo of CL 371474. It switches back to the original approach
+    of using a separate binary, as the bootstap toolchain won't allow
+    cmd/dist to import internal packages.
+    
+    For #46272.
+    For #49209.
+    For #50146.
+    
+    Change-Id: I906bbda987902a2120c5183290a4e89a2440de58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378589
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/path/filepath/path_windows_test.go | 10 ++++++++--
- src/path/filepath/symlink_windows.go   |  2 --
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go              | 25 +++++++++++++++++++++++++
+ src/cmd/internal/metadata/main.go | 19 +++++++++++++++++++
+ 2 files changed, 44 insertions(+)

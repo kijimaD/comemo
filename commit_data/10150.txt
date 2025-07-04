@@ -1,18 +1,15 @@
-commit 584233608941dc579d8a4b90f463a8653f38de3a
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Mon Oct 31 11:47:44 2011 -0400
+commit 350a5ce64fc17d229137f66e855a9d733dc76e2e
+Author: Jan Newmarch <jan.newmarch@gmail.com>
+Date:   Mon Oct 31 11:33:14 2011 -0400
 
-    net: Plan 9 fixes
+    misc/emacs/go-lang.el: Fix restoration of multiple windows in a frame after gofmt
+    If a frame has multiple windows then the windows must all be restored
+    after gofmt has finished and the old windows must be restored.
+    Before this fix, only the Go code edit window would be left.
     
-    Makes all tests pass.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5320041
+    https://golang.org/cl/5280050
 
- src/pkg/net/lookup_plan9.go  | 13 +++++++++++--
- src/pkg/net/lookup_test.go   |  4 ++--
- src/pkg/net/net_test.go      |  4 ++++
- src/pkg/net/tcpsock_plan9.go | 18 ++++++++++++++++++
- src/pkg/net/timeout_test.go  |  7 +++++++
- 5 files changed, 42 insertions(+), 4 deletions(-)
+ misc/emacs/go-mode.el | 78 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 40 insertions(+), 38 deletions(-)

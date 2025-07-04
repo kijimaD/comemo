@@ -1,31 +1,35 @@
-commit 6939061d47f807fbdb9c43859a61c30c6b015da8
+commit 8f3f4c96a3d13be7cd9e4a82e2df51d840cda756
 Author: Joel Sing <jsing@google.com>
-Date:   Sat Aug 24 02:15:50 2013 +1000
+Date:   Sat Aug 24 01:51:25 2013 +1000
 
-    os: dragonfly support
+    syscall: dragonfly/amd64 support
     
-    Make the os package build and work on dragonfly.
+    Add syscall support for dragonfly/amd64.
+    
+    Also add support for generating syscall z* files for dragonfly.
     
     R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/13183044
+    https://golang.org/cl/13188043
 
- src/pkg/os/dir_unix.go           |  2 +-
- src/pkg/os/env_unix_test.go      |  2 +-
- src/pkg/os/error_unix.go         |  2 +-
- src/pkg/os/exec/exec_test.go     |  5 +++-
- src/pkg/os/exec/lp_unix.go       |  2 +-
- src/pkg/os/exec/lp_unix_test.go  |  2 +-
- src/pkg/os/exec_posix.go         |  2 +-
- src/pkg/os/exec_unix.go          |  2 +-
- src/pkg/os/file_posix.go         |  2 +-
- src/pkg/os/file_unix.go          |  2 +-
- src/pkg/os/os_test.go            | 11 ++++++--
- src/pkg/os/os_unix_test.go       |  2 +-
- src/pkg/os/path_unix.go          |  2 +-
- src/pkg/os/pipe_bsd.go           |  2 +-
- src/pkg/os/signal/signal_test.go |  2 +-
- src/pkg/os/signal/signal_unix.go |  2 +-
- src/pkg/os/stat_dragonfly.go     | 61 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/os/sys_bsd.go            |  2 +-
- 18 files changed, 89 insertions(+), 18 deletions(-)
+ src/pkg/syscall/asm_dragonfly_amd64.s      | 133 ++++++++++
+ src/pkg/syscall/bpf_bsd.go                 |   2 +-
+ src/pkg/syscall/consistency_unix_test.go   |   2 +-
+ src/pkg/syscall/env_unix.go                |   2 +-
+ src/pkg/syscall/exec_bsd.go                |   2 +-
+ src/pkg/syscall/exec_unix.go               |   2 +-
+ src/pkg/syscall/mkall.sh                   |   8 +-
+ src/pkg/syscall/mkerrors.sh                |  19 ++
+ src/pkg/syscall/mksyscall.pl               |  16 ++
+ src/pkg/syscall/mksysnum_dragonfly.pl      |  43 ++++
+ src/pkg/syscall/passfd_test.go             |   7 +-
+ src/pkg/syscall/route_bsd.go               |   2 +-
+ src/pkg/syscall/route_dragonfly.go         |  72 ++++++
+ src/pkg/syscall/sockcmsg_unix.go           |   2 +-
+ src/pkg/syscall/syscall_bsd.go             |   6 +-
+ src/pkg/syscall/syscall_dragonfly.go       | 394 +++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_dragonfly_amd64.go |  58 +++++
+ src/pkg/syscall/syscall_no_getwd.go        |   2 +-
+ src/pkg/syscall/syscall_unix.go            |   2 +-
+ src/pkg/syscall/types_dragonfly.go         | 241 ++++++++++++++++++
+ 20 files changed, 1002 insertions(+), 13 deletions(-)

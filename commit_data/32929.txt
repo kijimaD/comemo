@@ -1,22 +1,28 @@
-commit e8fd15fd05446edb322a4c553deefbfb940428bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 16 08:31:48 2017 -0600
+commit 952ecbe0a27aadd184ca3e2c342beb464d6b1653
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 21:32:41 2017 +0000
 
-    cmd/go: replace PackageInternal.GoFiles, AllGoFiles with methods
+    cmd/go: disable tool version check during bootstrap
     
-    These are rarely used and can be computed on demand,
-    to make clear that they are never out of sync with the
-    lists in the non-internal Package fields.
+    The check that the go tool version matched the go compiler version was
+    too aggressive and didn't cover the bootstrapping case with make.bash.
     
-    Change-Id: I8c621dceaff1aeb39a3ed83f18e848adf14d7106
-    Reviewed-on: https://go-review.googlesource.com/56284
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    We never noticed because we never had a VERSION file in place.
+    
+    Repro:
+    
+    $ echo "go1.9beta1" > $GOROOT/VERSION
+    $ cd $GOROOT/src
+    $ ./make.bash
+    
+    No test, because x/build/cmd/release catches it.
+    
+    Updates #19064
+    Fixes #20674
+    
+    Change-Id: Ibdd7a92377f4cc77d71ed548f02d48bde6550f67
+    Reviewed-on: https://go-review.googlesource.com/45778
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/go/internal/base/path.go         | 22 ---------------
- src/cmd/go/internal/fix/fix.go           |  2 +-
- src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
- src/cmd/go/internal/generate/generate.go |  2 +-
- src/cmd/go/internal/get/get.go           |  2 +-
- src/cmd/go/internal/load/pkg.go          | 47 ++++++++++++++++++++------------
- 6 files changed, 34 insertions(+), 43 deletions(-)
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

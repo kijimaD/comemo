@@ -1,20 +1,14 @@
-commit 33ed35647520f2162c2fed1b0e5f19cec2c65de3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 14 11:16:50 2016 -0700
+commit 1249197936aef58cb2296a3cd57b519ba3243042
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 18 13:43:50 2016 -0700
 
-    cmd: add internal/browser package
+    doc/go1.7: add runtime.KeepAlive
     
-    cmd/cover, cmd/trace, and cmd/pprof all open browsers.
-    'go bug' will soon also open a browser.
-    It is time to unify the browser-handling code.
+    Update #13347.
     
-    Change-Id: Iee6b443e21e938aeaaac366a1aefb1afbc7d9b2c
-    Reviewed-on: https://go-review.googlesource.com/29160
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I04bf317ed409478a859355f833d4a5e30db2b9c9
+    Reviewed-on: https://go-review.googlesource.com/23226
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cover/html.go                       | 22 ++--------------
- src/cmd/internal/browser/browser.go         | 41 +++++++++++++++++++++++++++++
- src/cmd/internal/pprof/commands/commands.go | 15 +++--------
- src/cmd/trace/main.go                       | 23 ++--------------
- 4 files changed, 48 insertions(+), 53 deletions(-)
+ doc/go1.7.txt | 1 +
+ 1 file changed, 1 insertion(+)

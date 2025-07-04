@@ -1,19 +1,16 @@
-commit d8008a9eef07e235358f0f7ca94a729aad4aa3b1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 4 20:06:37 2012 +1100
+commit 20548b153f05528c0c58347a817fb3a3eee6cd0c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 2 16:17:34 2012 -0700
 
-    cmd/5g: improve shift code generation
+    sort: make return value for 'not found' clearer in docs
+    It was well-defined but easy to miss that the return value for
+    "not found" is len(input) not -1 as many expect.
     
-    This CL is a backport of 6012049 which improves code
-    generation for shift operations.
+    Fixes #4205.
     
-    benchmark       old ns/op    new ns/op    delta
-    BenchmarkLSL            9            5  -49.67%
-    BenchmarkLSR            9            4  -50.00%
-    
-    R=golang-dev, minux.ma, r, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6813045
+    https://golang.org/cl/6820080
 
- src/cmd/5g/ggen.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/sort/search.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

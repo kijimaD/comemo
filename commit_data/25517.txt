@@ -1,22 +1,16 @@
-commit a8fc547f786f17ad5a2176d9041a8d1f76895748
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 8 11:36:36 2016 -0500
+commit b4447a1e819e1c76d338d4597858013ede2e2280
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Nov 5 09:41:55 2015 +0100
 
-    cmd/compile: apply -importmap to imports before checking for package unsafe
+    cmd/go: skip TestGoGenerateEnv on Plan 9
     
-    There are fewer special cases this way: the import map applies
-    to all import paths, not just the ones not spelled "unsafe".
+    TestGoGenerateEnv was added in CL 16537.
+    However, Plan 9 doesn't have the env command.
     
-    This is also consistent with what the code in cmd/go and go/build expects.
-    They make no exception for "unsafe".
-    
-    For #13703.
-    
-    Change-Id: I622295261ca35a6c1e83e8508d363bddbddb6c0a
-    Reviewed-on: https://go-review.googlesource.com/18438
+    Change-Id: I5f0c937a1b9b456dcea41ceac7865112f2f65c45
+    Reviewed-on: https://go-review.googlesource.com/16690
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
 
- src/cmd/compile/internal/gc/lex.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go/go_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

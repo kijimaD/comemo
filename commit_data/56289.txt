@@ -1,16 +1,19 @@
-commit e689118852c9c1841ee4c17aeeb3ec3a5242e9a2
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Apr 24 10:04:01 2024 -0700
+commit 3f987ae61d4c52ddc364abf6472227d7821c9e43
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 24 10:09:17 2023 -0400
 
-    crypto/tls: skip bogo suite on windows builders
+    internal/testenv: actually try to exec on ios and wasm
     
-    Updates #66913
+    Due to a stray edit in CL 486275, the assignment to tryExecOk
+    in tryExec on ios would be immediately overwritten back to false.
+    This change fixes the stray edit.
     
-    Change-Id: Ie6bb262ee95593d23a93ef06656a561a7b1006ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581515
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I4f45fbf130dc912305e5f453b0d1a622ba199ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488076
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/crypto/tls/bogo_shim_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/internal/testenv/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

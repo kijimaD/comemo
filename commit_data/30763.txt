@@ -1,42 +1,12 @@
-commit d972dc2de9d6b2b85656654b4d3a01dd02e446ec
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Mar 6 10:07:25 2017 +0100
+commit 63a7ee78239953a15c67d4de3195655b5129eff6
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Dec 1 20:30:22 2016 +0100
 
-    net/http/cookiejar: fix out-of-bounds errors on malformed domains
+    net: fix writev tests on Android
     
-    The old implementation of Jar made the assumption that the host names
-    in the URLs given to SetCookies() and Cookies() methods are well-formed.
-    This is not an unreasonable assumption as malformed host names do not
-    trigger calls to SetCookies or Cookies (at least not from net/http)
-    as the HTTP request themselves are not executed. But there can be other
-    invocations of these methods and at least on Linux it was possible to
-    make DNS lookup to domain names with two trailing dots (see issue #7122).
-    
-    This is an old bug and this CL revives an old change (see
-    https://codereview.appspot.com/52100043) to fix the issue. The discussion
-    around 52100043 focused on the interplay between the jar and the
-    public suffix list and who is responsible for which type if domain name
-    canonicalization. The new bug report in issue #19384 used a nil public
-    suffix list which demonstrates that the package cookiejar alone exhibits
-    this problem and any solution cannot be fully delegated to the
-    implementation of the used PublicSuffixList: Package cookiejar itself
-    needs to protect against host names of the form ".." which triggered an
-    out-of-bounds error.
-    
-    This CL does not address the issue of host name canonicalization and
-    the question who is responsible for it. This CL just prevents the
-    out-of-bounds error: It is a very conservative change, i.e. one might
-    still set and retrieve cookies for host names like "weird.stuf...".
-    Several more test cases document how the current code works.
-    
-    Fixes #19384.
-    
-    Change-Id: I14be080e8a2a0b266ced779f2aeb18841b730610
-    Reviewed-on: https://go-review.googlesource.com/37843
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iacced25363f54ee2cc1e00a71605dba7fb447162
+    Reviewed-on: https://go-review.googlesource.com/33772
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/cookiejar/jar.go      |  2 +-
- src/net/http/cookiejar/jar_test.go | 46 +++++++++++++++++++++++++++++++++++++-
- 2 files changed, 46 insertions(+), 2 deletions(-)
+ src/net/writev_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

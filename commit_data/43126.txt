@@ -1,30 +1,15 @@
-commit 1f4d035178d2d792a74b6b872f6a213bf5fd9326
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 28 10:11:06 2020 +0200
+commit 96dc04412d18cc999af21cecb22dea9e7b896360
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 10 13:45:19 2020 -0400
 
-    runtime: initialise cpu.HWCap on netbsd/arm64
+    test/run: handle asmcheck -gcflags= commands better
     
-    NetBSD does not supply AT_HWCAP, however we still need to initialise
-    cpu.HWCaps.  For now specify the bare minimum until we add some form of
-    capabilities detection. See
-    https://golang.org/issue/30824#issuecomment-494901591
+    The default is for later flags to override earlier ones,
+    so if the asmcheck set flags, it lost the important -S=2.
     
-    Follows CL 174129 which did the same for openbsd/arm64.
-    
-    Updates #30824
-    
-    Change-Id: I43a86b583bc60d259a66772703de06970124bb7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257998
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Id538254908d658da2acb55157ac4f6fa44f6a467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222820
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os_netbsd.go       |  1 +
- src/runtime/os_netbsd_386.go   |  3 +++
- src/runtime/os_netbsd_amd64.go |  3 +++
- src/runtime/os_netbsd_arm.go   |  3 +++
- src/runtime/os_netbsd_arm64.go | 12 +++++++++++-
- 5 files changed, 21 insertions(+), 1 deletion(-)
+ test/run.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

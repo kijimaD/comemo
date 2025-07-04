@@ -1,23 +1,19 @@
-commit 579c69ac1ca63d56a1861998f13fb87aeda6d72e
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sat Jul 27 10:13:51 2019 -0700
+commit 14c3692502be68275a8deb9c19dabbbd510a4f31
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Mar 16 14:05:00 2019 +0100
 
-    internal/fmtsort: don't out-of-bounds panic if there's a race condition
+    cmd/dist: reenable testing of Examples for js/wasm
     
-    Raising an out-of-bounds panic is confusing. There's no indication
-    that the underlying problem is a race.
+    Testing Examples for js/wasm is supported as of ac56baa, so we can
+    reenable them.
     
-    The runtime already does a pretty good job of detecting this kind of
-    race (modification while iterating). We might as well just reorganize
-    a bit to avoid the out-of-bounds panic.
+    This reverts CL 119377 (commit 9a91713).
     
-    Fixes #33275
+    Fixes #25933
     
-    Change-Id: Icdd337ad2eb3c84f999db0850ec1d2ff2c146b6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191197
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I0f228a3ec385dbe9573d3c33e42dccd4488d7152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167800
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/fmtsort/sort.go     | 14 +++++++++-----
- test/fixedbugs/issue33275.go     | 34 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue33275_run.go | 25 +++++++++++++++++++++++++
- 3 files changed, 68 insertions(+), 5 deletions(-)
+ src/cmd/dist/test.go | 5 -----
+ 1 file changed, 5 deletions(-)

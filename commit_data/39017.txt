@@ -1,43 +1,19 @@
-commit 5aee621ccb266a04a3c87e1fcfda860a362b22a8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 2 17:46:29 2019 -0400
+commit 503091a77c43263a5ce86f9358de3445524627b7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Nov 28 13:38:02 2018 +0100
 
-    cmd: update golang.org/x/sys dependency
+    cmd: improve aix/ppc64 new symbol addressing
     
-    $ go get -u golang.org/x/sys
-    $ go mod vendor
-    $ go mod tidy
+    This commit updates the new symbol addressing made for aix/ppc64 according
+    to feedbacks given in CL 151039.
     
-    Change-Id: Ie0a4646aef41b00ec8e27bc6f7e3ec9c270c8ccb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174946
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic4eb9943dc520d65f7d084adf8fa9a2530f4d3f9
+    Reviewed-on: https://go-review.googlesource.com/c/151302
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   6 +-
- src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |  14 +-
- .../golang.org/x/sys/unix/mksysctl_openbsd.pl      | 265 ---------------------
- .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  |   6 +-
- src/cmd/vendor/golang.org/x/sys/unix/syscall.go    |   1 -
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  63 +++++
- .../golang.org/x/sys/unix/zsysctl_openbsd_386.go   |   2 +
- .../golang.org/x/sys/unix/zsysctl_openbsd_amd64.go |   2 +-
- .../golang.org/x/sys/unix/zsysctl_openbsd_arm.go   |   4 +-
- .../golang.org/x/sys/unix/zsysctl_openbsd_arm64.go |   2 +-
- .../golang.org/x/sys/unix/ztypes_linux_386.go      |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_arm.go      |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_mips.go     |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |  15 ++
- .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |  15 ++
- .../golang.org/x/sys/windows/syscall_windows.go    |   3 -
- src/cmd/vendor/modules.txt                         |  30 +--
- 26 files changed, 296 insertions(+), 299 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 12 +++++++-----
+ src/cmd/internal/obj/ppc64/obj9.go |  1 +
+ src/cmd/link/internal/ppc64/asm.go |  9 ++++++++-
+ 3 files changed, 16 insertions(+), 6 deletions(-)

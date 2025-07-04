@@ -1,14 +1,12 @@
-commit 7b4a4d3788df6cb55bd35ecf5180ba40a422e313
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 11 21:24:44 2011 -0800
+commit 8c6f997379ae528c4a7faff5d782a88c3ee59f1e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 12 16:17:54 2011 +1100
 
-    godoc: remove TODO (bug257.go can now be indexed)
+    hg: add cgo/_cgo_* to .hgignore.
     
-    Pending CL 3752044.
-    
-    R=r, r2
+    R=rsc, nigeltao_gnome
     CC=golang-dev
-    https://golang.org/cl/3949042
+    https://golang.org/cl/3956042
 
- src/cmd/godoc/index.go | 6 ------
- 1 file changed, 6 deletions(-)
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

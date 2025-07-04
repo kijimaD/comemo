@@ -1,14 +1,16 @@
-commit 47bdda649695052be099e3249977fc7e5e02cf81
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Aug 25 05:43:54 2015 +1000
+commit be2a3e2ac9de4a5f3587c3a4e150e700f0216347
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Jul 1 20:37:25 2015 +0100
 
-    doc: remove mention of defunct golang-bugs mailing list
+    [dev.ssa] cmd/compile/internal/gc: mark unimplemented variable classes as such
     
-    Fixes #12299
+    Doesn't fix the build entirely, but does make it get to the race
+    detector tests.
     
-    Change-Id: Id7b73d2935c9f7c0952f833613973ef455d02b0d
-    Reviewed-on: https://go-review.googlesource.com/13858
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie986d52374936855b7ee975dc68742306527eb15
+    Reviewed-on: https://go-review.googlesource.com/11835
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/contrib.html | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

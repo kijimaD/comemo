@@ -1,12 +1,22 @@
-commit ebdc8faf0411d04fa4e2e47d1c7861682141f866
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 15:32:35 2016 -0700
+commit 7ba54d45732219af86bde9a5b73c145db82b70c6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Mar 28 02:29:18 2016 -0700
 
-    cmd/compile: use fmt.State in nodefmt and stmtfmt
+    compress: update documentation regarding footer verification
     
-    Change-Id: Iac87007af4ee268b45f11ec05bf4757f2e7eedd8
-    Reviewed-on: https://go-review.googlesource.com/28336
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Address two documentation issues:
+    1) Document that the GZIP and ZLIB footer is only verified when the
+    reader has been fully consumed.
+    2) The zlib reader is guaranteed to not read past the EOF if the
+    input io.Reader is also a io.ByteReader. This functionality was
+    documented in the flate and gzip packages but not on zlib.
+    
+    Fixes #14867
+    
+    Change-Id: I43d46b93e38f98a04901dc7d4f18ed2f9e09f6fb
+    Reviewed-on: https://go-review.googlesource.com/21218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 110 ++++++++++++++++++-------------------
- 1 file changed, 55 insertions(+), 55 deletions(-)
+ src/compress/gzip/gunzip.go | 2 ++
+ src/compress/zlib/reader.go | 5 ++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

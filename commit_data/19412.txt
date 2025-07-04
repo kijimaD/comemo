@@ -1,31 +1,17 @@
-commit dfbb2a95bfdc6ddff22b8f197371b7abffe7d507
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue May 20 14:02:57 2014 -0400
+commit 294f9b88c4fed9837555abfe61fd1e443e9b3c6c
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 20 10:46:44 2014 -0700
 
-    undo CL 84040045 / 5302b4c58aa0
+    cmd/go: document file types
+    Explain which files the go command looks at, and what they represent.
+    Fixes #6348.
     
-    This idea was rejected in CL 5731059. We should fix the
-    runtime docs instead.
-    
-    ««« original CL description
-    cmd/dist: reflect local changes to tree in goversion
-    
-    runtime.Version() requires a trailing "+" when
-    tree had local modifications at time of build.
-    
-    Fixes #7701
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=rsc
+    R=rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/84040045
-    
-    »»»
-    
-    LGTM=rsc, mra
-    R=iant, rsc, mra
-    CC=golang-codereviews
-    https://golang.org/cl/100520043
+    https://golang.org/cl/96480043
 
- src/cmd/dist/build.c | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/go/doc.go  | 45 ++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/go/help.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go |  1 +
+ 3 files changed, 83 insertions(+), 3 deletions(-)

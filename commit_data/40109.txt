@@ -1,33 +1,32 @@
-commit debbb1e78d08b201313c83f2d236de90d8444c8e
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Tue Oct 1 22:40:20 2019 +0300
+commit 3e2ceaf4def85005d90d37b8b4510d3e40b16fb7
+Author: Rens Rikkerink <1952177+ikkerens@users.noreply.github.com>
+Date:   Tue Apr 9 20:16:35 2019 +0000
 
-    text/template/parse: speed up nodes printing
+    cmd/go: mod init outside of GOPATH silently fails
     
-    This CL is a follow up for 198080.
-    Added a private writeTo method to the Node interface,
-    in order to use the same builder for printing all nodes
-    in the tree. Benchmark output against master:
+    Running `go mod init` outside of GOPATH with `GO111MODULE=off`
+    silently fails. This behavior was undocumented.
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkParseLarge-8         24594994      25292054      +2.83%
-    BenchmarkVariableString-8     117           118           +0.85%
-    BenchmarkListString-8         10475         3353          -67.99%
+    This CL makes go mod fail with the error:
     
-    benchmark                     old allocs     new allocs     delta
-    BenchmarkVariableString-8     3              3              +0.00%
-    BenchmarkListString-8         149            31             -79.19%
+       go: modules disabled by GO111MODULE=off; see 'go help modules'
+    Comparing with already erroring GO111MODULE=<value> conditions:
     
-    benchmark                     old bytes     new bytes     delta
-    BenchmarkVariableString-8     72            72            +0.00%
-    BenchmarkListString-8         5698          1608          -71.78%
+    * With GO111MODULE=auto, inside GOPATH:
+        go modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'
+    * With GO111MODULE=auto outside of GOPATH:
+        go: cannot determine module path for source directory /path/to/dir (outside GOPATH, no import comments)
     
-    Change-Id: I2b1cf07cda65c1b80083fb99671289423700feba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198278
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Fixes #31342
+    
+    Change-Id: I749787d2a8640913c4ac263072d051314d76e778
+    GitHub-Last-Rev: b38447457d8cabed367ea4872cf7f238a49539c7
+    GitHub-Pull-Request: golang/go#31255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170697
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/parse/node.go       | 129 +++++++++++++++++++++++++++++-----
- src/text/template/parse/parse_test.go |  22 +++++-
- 2 files changed, 130 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/modcmd/init.go          | 3 +++
+ src/cmd/go/testdata/script/mod_off_init.txt | 7 +++++++
+ 2 files changed, 10 insertions(+)

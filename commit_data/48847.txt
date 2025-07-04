@@ -1,20 +1,20 @@
-commit e25a5ce120673835a7e6c92bf0d88f44a61e9079
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 25 14:31:32 2022 -0500
+commit 1de332996c25bf99bb31c82393dc018e6cec18ae
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 17 12:28:53 2021 -0400
 
-    test: rename live_syscall.go to live_uintptrkeepalive.go
+    doc/go1.17: document go/parser.SkipObjectResolution
     
-    CL 388095 will change this file significantly. Move it preemptively to
-    ensure git tracks the move properly.
+    Documents the mode added in CL 306149 to skip object resolution.
     
-    For #51087
+    Fixes #46298
     
-    Change-Id: I1408aecf8675723041b64e54cf44cdec38cc655c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388094
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6a14aaa00790f9f7e4e4ba17033355f5e878d74b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329009
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/{live_syscall.go => live_uintptrkeepalive.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ doc/go1.17.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

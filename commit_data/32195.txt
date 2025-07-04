@@ -1,14 +1,18 @@
-commit 812124a56758175ecd19a3dc0ae261bb02969d9c
-Author: Mark Wolfe <mark@wolfe.id.au>
-Date:   Tue Aug 8 21:22:41 2017 +1000
+commit d4a623f99bd0dd60e00e3f6103e49f94d9451ce2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Apr 9 11:38:06 2017 +0900
 
-    encoding/binary: add example for Read multi
+    cmd/cgo: remove unused enums
     
-    Change-Id: I27ff99aa7abb070f6ae79c8f964aa9bd6a83b89d
-    Reviewed-on: https://go-review.googlesource.com/53730
+    Previously, int values of #define macro are retrieved from DWARF via enums.
+    Currently, those values are retrieved from symbol tables.
+    It seems that previous code is unused.
+    
+    Change-Id: Id76c54baa46d6196738ea35aebd5de99b05b9bf8
+    Reviewed-on: https://go-review.googlesource.com/40072
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/binary/example_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/cgo/gcc.go | 46 +++-------------------------------------------
+ 1 file changed, 3 insertions(+), 43 deletions(-)

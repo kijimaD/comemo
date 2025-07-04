@@ -1,17 +1,28 @@
-commit 903e7cc69971b2c7bf40a1e7ff2a9e3dd353dc5a
-Author: Nick Sherron <nsherron90@gmail.com>
-Date:   Fri Feb 18 22:43:31 2022 +0000
+commit 89bf297b2486adaaff04be154a066ea9f5e63994
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 29 21:49:15 2021 -0400
 
-    doc/go1.18: fix grammar error
+    cmd/internal/objfile: emit better error for Go object of a different version
     
-    sed 's/the/that/g'
+    The Go object file format can change from version to version.
+    Tools like cmd/objdump and cmd/nm only onderstand the current
+    version of the object file. Currently, when it encounters an
+    object built with a different version of the toolchain, it emits
+    a generic error "unrecognized object file", which is not very
+    helpful for users. This CL makes it emit a clearer error. Now it
+    emits
     
-    Change-Id: I3f539817b055d54b0ec99346555ac91b756d9ed6
-    GitHub-Last-Rev: 2e7df1c3462d4b3a17e9a05ff178341f4ee369b0
-    GitHub-Pull-Request: golang/go#51267
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386854
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    objdump: open go116.o: go object of a different version: go116ld
+    
+    Change-Id: I063c6078ed1da78f97cea65796779ae093a1a8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315609
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/archive/archive.go |  11 ++++++++++-
+ src/cmd/internal/objfile/objfile.go |   3 +++
+ src/cmd/objdump/objdump_test.go     |  15 +++++++++++++++
+ src/cmd/objdump/testdata/go116.o    | Bin 0 -> 478 bytes
+ 4 files changed, 28 insertions(+), 1 deletion(-)

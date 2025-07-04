@@ -1,32 +1,25 @@
-commit 172acae68ae4c89190df48a7cec084d6cc27c49d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 14 12:08:32 2014 -0700
+commit 0e8de61d7311d6bc74fc244de44df9be452a112b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 13:20:51 2014 -0400
 
-    net/http: make race detector happy for recently-added test
+    liblink, cmd/link: add version number to object file
     
-    Update #7264
+    There are changes we know we want to make, but not before Go 1.3
+    Add a version number so that we can make them more easily later.
     
-    Races:
-    http://build.golang.org/log/a2e401fdcd4903a61a3375bff5da702a20ddafad
-    http://build.golang.org/log/ec4c69e92076a747ac6d5df7eb7b382b31ab3d43
-    
-    I think this is the first time I've actually seen a manifestation
-    of Issue 7264, and one that I can reproduce.
-    
-    I don't know why it triggers on this test and not any others
-    just like it, or why I can't reproduce Issue 7264
-    independently, even when Dmitry gives me minimal repros.
-    
-    Work around it for now with some synchronization to make the
-    race detector happy.
-    
-    The proper fix will probably be in net/http/httptest itself, not
-    in all hundred some tests.
-    
-    LGTM=rsc
-    R=rsc
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/87640043
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/87670043
 
- src/pkg/net/http/transport_test.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/link/testdata/Makefile                |  15 ++++++++++-----
+ src/cmd/link/testdata/autosection.6           | Bin 909 -> 912 bytes
+ src/cmd/link/testdata/autoweak.6              | Bin 428 -> 431 bytes
+ src/cmd/link/testdata/dead.6                  | Bin 1062 -> 1065 bytes
+ src/cmd/link/testdata/hello.6                 | Bin 269 -> 272 bytes
+ src/cmd/link/testdata/layout.6                | Bin 431 -> 434 bytes
+ src/cmd/link/testdata/link.hello.darwin.amd64 |   4 ++--
+ src/cmd/link/testdata/pclntab.6               | Bin 4604 -> 4607 bytes
+ src/liblink/objfile.c                         |   6 +++++-
+ src/pkg/debug/goobj/read.go                   |   5 +++++
+ 10 files changed, 22 insertions(+), 8 deletions(-)

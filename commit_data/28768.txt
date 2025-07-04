@@ -1,21 +1,36 @@
-commit 6ca48f710f6ae163aa87e883a0a4cf8a91dad0a4
-Author: Chris McGee <sirnewton_01@yahoo.ca>
-Date:   Wed Sep 28 21:29:08 2016 -0400
+commit cad4e97af8f2e0b9f09b97f67fb3a89ced2e9021
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 18 06:05:24 2016 +0000
 
-    net: implement network interface API for Plan 9
+    [release-branch.go1.7] net/http, net/http/cgi: fix for CGI + HTTP_PROXY security issue
     
-    The new implementation parses the plan9 interface files
-    and builds Interface representations for the net package.
+    Because,
     
-    Updates #17218
+    * The CGI spec defines that incoming request header "Foo: Bar" maps to
+      environment variable HTTP_FOO == "Bar". (see RFC 3875 4.1.18)
     
-    Change-Id: I3199d18d9e96a17e922186c3abff1d7cd9cbec2e
-    Reviewed-on: https://go-review.googlesource.com/29963
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    * The HTTP_PROXY environment variable is conventionally used to configure
+      the HTTP proxy for HTTP clients (and is respected by default for
+      Go's net/http.Client and Transport)
+    
+    That means Go programs running in a CGI environment (as a child
+    process under a CGI host) are vulnerable to an incoming request
+    containing "Proxy: attacker.com:1234", setting HTTP_PROXY, and
+    changing where Go by default proxies all outbound HTTP requests.
+    
+    This is CVE-2016-5386, aka https://httpoxy.org/
+    
+    Fixes #16405
+    
+    Change-Id: I6f68ade85421b4807785799f6d98a8b077e871f0
+    Reviewed-on: https://go-review.googlesource.com/25010
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/25013
 
- src/net/interface.go       |   2 +-
- src/net/interface_plan9.go | 199 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/interface_stub.go  |   2 +-
- 3 files changed, 201 insertions(+), 2 deletions(-)
+ src/net/http/cgi/host.go       |  4 ++++
+ src/net/http/cgi/host_test.go  | 37 ++++++++++++++++++++++++++++++++++---
+ src/net/http/transport.go      |  3 +++
+ src/net/http/transport_test.go | 14 +++++++++++++-
+ 4 files changed, 54 insertions(+), 4 deletions(-)

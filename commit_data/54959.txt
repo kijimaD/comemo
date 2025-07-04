@@ -1,20 +1,26 @@
-commit 3188758653fc7d2b229e234273d41878ddfdd5f2
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Mon Sep 4 14:37:13 2023 +0800
+commit 2c7c98c3ad719aa9d6d2594827a6894ff9950042
+Author: Rongrong <rongrong@oss.cipunited.com>
+Date:   Mon Nov 21 14:05:40 2022 +0800
 
-    log/slog: add LogLoggerLevel to enable setting level on the default logger
+    syscall, runtime/internal/syscall: zero r2 before mips linux syscalls
     
-    Fixes #62418
+    All mips variant perform syscalls similarly. R2 (v0) holds r1 and R3
+    (v1) holds r2 of a syscall. The latter is only used by 2-ret syscalls.
+    A 1-ret syscall would not touch R3 but keeps it as is, making r2 be a
+    random value. Always reset it to 0 before SYSCALL to fix the issue.
     
-    Change-Id: I889a53d00c8a463b4d7ddb41893c000d7cd0e7b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525096
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Fixes #56426
+    
+    Change-Id: Ie49965c0c3c224c4a895703ac659205cd040ff56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
 
- api/next/62418.txt                     |  1 +
- src/log/slog/example_log_level_test.go | 58 ++++++++++++++++++++++++++++++
- src/log/slog/handler.go                |  2 +-
- src/log/slog/logger.go                 | 42 +++++++++++++++++++---
- src/log/slog/logger_test.go            | 66 ++++++++++++++++++++++++++++++++++
- 5 files changed, 163 insertions(+), 6 deletions(-)
+ src/runtime/internal/syscall/asm_linux_mips64x.s | 1 +
+ src/runtime/internal/syscall/asm_linux_mipsx.s   | 1 +
+ src/syscall/asm_linux_mips64x.s                  | 5 +++--
+ src/syscall/asm_linux_mipsx.s                    | 2 ++
+ 4 files changed, 7 insertions(+), 2 deletions(-)

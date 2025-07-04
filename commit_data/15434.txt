@@ -1,17 +1,15 @@
-commit 26498684cb71de328b28974b87df3d5ab9486e4c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Feb 26 14:18:48 2013 +1100
+commit ffa0f8306020387ed7004b680f678473bf9fa65d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 26 11:55:41 2013 +1100
 
-    os: use windows ReadConsole to read from console
+    exp/cookiejar: implement IDNA/Punycode's toASCII.
     
-    Fixes #4760.
-    
-    R=golang-dev, minux.ma, bradfitz
+    R=dr.volker.dobler
     CC=golang-dev
-    https://golang.org/cl/7312053
+    https://golang.org/cl/7398049
 
- src/pkg/os/file_windows.go                | 38 +++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_windows.go        |  1 +
- src/pkg/syscall/zsyscall_windows_386.go   | 13 +++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 13 +++++++++++
- 4 files changed, 65 insertions(+)
+ src/pkg/exp/cookiejar/jar.go           |   9 +-
+ src/pkg/exp/cookiejar/jar_test.go      |   4 +-
+ src/pkg/exp/cookiejar/punycode.go      | 159 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/cookiejar/punycode_test.go | 161 +++++++++++++++++++++++++++++++++
+ 4 files changed, 323 insertions(+), 10 deletions(-)

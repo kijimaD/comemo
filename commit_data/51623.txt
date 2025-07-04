@@ -1,16 +1,28 @@
-commit d74c31f0ba8b7940350f93df044a5cb7002e02d0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Dec 29 15:52:37 2022 +0100
+commit 9c4a8620c802fbb03545e401c41f11d622b84b42
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 28 09:28:47 2022 -0500
 
-    doc/go1.20: update cryptography release notes
+    CONTRIBUTORS: update for the Go 1.18 release
     
-    Change-Id: I5d6d2bd5cbb246ea514e5adbe936fb31b92904af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459978
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This update was created using the updatecontrib command:
+    
+            go install golang.org/x/build/cmd/updatecontrib@latest
+            cd gotip
+            updatecontrib
+    
+    With manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    For #12042.
+    
+    Change-Id: If08b7e798cff6ec4248011bdadcc524b510aaff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388394
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
 
- doc/go1.20.html | 71 ++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 43 insertions(+), 28 deletions(-)
+ CONTRIBUTORS | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 96 insertions(+), 1 deletion(-)

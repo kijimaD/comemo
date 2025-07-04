@@ -1,19 +1,15 @@
-commit fda5dcd9bba38bcdbe9ac473985e108e125c34a5
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Oct 6 13:41:02 2022 -0400
+commit 8ce1a953fb125ab390e816540d7f6c304ee7e52b
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Sat Oct 2 22:50:31 2021 +0800
 
-    cmd/go: fix incorrect determination of import path is DirImportPath
+    io: add error check to TeeReader Example
     
-    In practice this only shows up when a vendored package, imported on the
-    command line, imports an internal package.
-    
-    Change-Id: I34c161d1f1ef15a87c58a422f17d11f77fbac53f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439735
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I0b94bdced47483c6412e9979ce2d103fbfc52afb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353729
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
 
- src/cmd/go/internal/modload/load.go            |  1 +
- src/cmd/go/testdata/script/vendor_internal.txt | 16 ++++++++++++++++
- 2 files changed, 17 insertions(+)
+ src/io/example_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

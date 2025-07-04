@@ -1,14 +1,15 @@
-commit 256116ad2564b10c18750633dce047fd92d57bc7
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jan 29 15:26:15 2015 +0300
+commit 17577e48c907744fbfd09ea5a4002178f3a83972
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 31 17:31:32 2014 -0800
 
-    runtime: fix trace ticks frequency on windows
+    runtime: use SETEQ instead of JZ for cas
     
-    Change-Id: I8c7fcc7705070bc9979e39d08a4c9b2870087a08
-    Reviewed-on: https://go-review.googlesource.com/3500
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ibabbca3988d39bdce584924173a912d45f50f0dd
+    Reviewed-on: https://go-review.googlesource.com/2243
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/pprof/trace_parser_test.go |  5 +++++
- src/runtime/pprof/trace_test.go        | 15 ++++++++-------
- src/runtime/trace.go                   | 12 ++++++++++--
- 3 files changed, 23 insertions(+), 9 deletions(-)
+ src/runtime/asm_386.s      | 22 +++-------------------
+ src/runtime/asm_amd64.s    | 22 +++-------------------
+ src/runtime/asm_amd64p32.s | 22 +++-------------------
+ 3 files changed, 9 insertions(+), 57 deletions(-)

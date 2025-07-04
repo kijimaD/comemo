@@ -1,39 +1,19 @@
-commit 653a4bd8d46a8a329f37e8a9fc909c3bb92b02bc
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 9 22:55:36 2018 -0700
+commit 4a778cdf3375d418062b3c3e9f6891cc9162e3d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 13 11:56:15 2018 -0700
 
-    cmd/compile: optimize loads from readonly globals into constants
+    os: don't poll fifos on Darwin
     
-    Instead of
-       MOVB go.string."foo"(SB), AX
-    do
-       MOVB $102, AX
+    The Darwin kqueue implementation doesn't report any event when the
+    last writer for a fifo is closed.
     
-    When we know the global we're loading from is readonly, we can
-    do that read at compile time.
+    Fixes #24164
     
-    I've made this arch-dependent mostly because the cases where this
-    happens often are memory->memory moves, and those don't get
-    decomposed until lowering.
-    
-    Did amd64/386/arm/arm64. Other architectures could follow.
-    
-    Update #26498
-    
-    Change-Id: I41b1dc831b2cd0a52dac9b97f4f4457888a46389
-    Reviewed-on: https://go-review.googlesource.com/c/141118
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic2c47018ef1284bf2e26379f8dd7646edaad4d05
+    Reviewed-on: https://go-review.googlesource.com/118566
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules   |   4 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules   |   4 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules |   5 +
- src/cmd/compile/internal/ssa/rewrite.go      |  44 ++++++
- src/cmd/compile/internal/ssa/rewrite386.go   |  54 +++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 215 +++++++++++++++++++++++----
- src/cmd/compile/internal/ssa/rewriteARM.go   |  54 +++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go |  72 +++++++++
- test/codegen/strings.go                      |  27 ++++
- 10 files changed, 459 insertions(+), 31 deletions(-)
+ src/os/fifo_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file_unix.go |  15 +++++++-
+ src/os/pipe_test.go |  67 ++++++++++++++++++++++++++++++++
+ 3 files changed, 189 insertions(+), 2 deletions(-)

@@ -1,14 +1,19 @@
-commit b115207baf6c2decc3820ada4574ef4e5ad940ec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 19 18:25:08 2018 -0800
+commit c7271c0c258634982ac4e18cdac287fcc43f93e1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 6 12:45:03 2018 -0400
 
-    syscall: document LockOSThread with GNU/Linux SysProcAttr.Ptrace
+    cmd/link: improve comments for relocsym
     
-    Fixes #28315
+    This patch contains the remnants of CL (122482), which was intended to
+    reduce memory allocation in 'relocsym'. Another CL (113637) went in
+    first that included pretty much all of the code changes in 122482,
+    however there are some changes to comments that are worth preserving.
     
-    Change-Id: Ie02c72d02ad2f66c9cdbbba579a304641f327672
-    Reviewed-on: https://go-review.googlesource.com/c/155138
+    Change-Id: Iacdbd2bfe3b7ca2656596570f06ce9a646211913
+    Reviewed-on: https://go-review.googlesource.com/122482
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/exec_linux.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go | 15 +++++++++-
+ src/cmd/link/internal/ld/lib.go  | 63 ++++++++++++++++++++++++++--------------
+ 2 files changed, 55 insertions(+), 23 deletions(-)

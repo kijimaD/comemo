@@ -1,25 +1,17 @@
-commit 8a83ef8479c410ad2002a6e642f295ab8a62de2c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 27 15:56:37 2023 -0400
+commit 357b9225174fa227b47246e57f61a1bf66c1354c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:18:51 2022 +0800
 
-    cmd/go: make go list -m -u all not complain about missing checksums
+    runtime: convert local var stop,ready at TestDebugCallUnsafePoint to atomic type
     
-    This is a band-aid of a fix for Go 1.21, to create space to work on
-    a real fix for Go 1.22, if in fact the real fix is different. It simply
-    disables the go.sum update check during go list -m -u.
-    I don't have a self-contained test for the breakage. See #61605.
-    All existing tests continue to pass.
+    For #53821
     
-    For #61605.
-    After merging into the Go 1.21 branch we can move #61605 to the Go 1.22 milestone.
-    
-    Change-Id: Ib155710092003f08d2a6ce0aefa8e0270cad5a5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513778
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Id972d4ccadc72de69dea46f8be146c9843d1d095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427135
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/list.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/debug_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

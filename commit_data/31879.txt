@@ -1,15 +1,29 @@
-commit ded29e7b3914b87faf0131aeb5e43436c92bc527
-Author: Michael Hendricks <michael@ndrix.org>
-Date:   Tue Jun 20 20:38:14 2017 -0500
+commit 2c47c3e22e0d4f238a844da6904ce4e98bb4efd1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 21 20:27:47 2017 -0700
 
-    os: fix documentation for Executable on OpenBSD
+    cmd/doc: implement "go doc struct.field"
     
-    Executable on OpenBSD now uses Args[0] so procfs is no longer
-    required.
+    By analogy with the handling of methods on types, show the documentation
+    for a single field of a struct.
     
-    Change-Id: I4155ac76f8909499783e876e92ee4f13a35b47dd
-    Reviewed-on: https://go-review.googlesource.com/46211
+            % go doc ast.structtype.fields
+            struct StructType {
+                Fields *FieldList  // list of field declarations
+            }
+            %
+    
+    Fixes #19169.
+    
+    Change-Id: I002f992e4aa64bee667e2e4bccc7082486149842
+    Reviewed-on: https://go-review.googlesource.com/38438
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/executable.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/doc/doc_test.go        | 23 +++++++++++++++++
+ src/cmd/doc/main.go            | 15 ++++++-----
+ src/cmd/doc/pkg.go             | 57 +++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/alldocs.go          | 23 +++++++++--------
+ src/cmd/go/internal/doc/doc.go | 23 +++++++++--------
+ 5 files changed, 112 insertions(+), 29 deletions(-)

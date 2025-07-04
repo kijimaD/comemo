@@ -1,17 +1,15 @@
-commit 4a14bc524bbcf401e4d7a8cc54566605bda4b4d1
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Feb 4 09:00:17 2011 -0500
+commit 459da21603b965c7e2814d5012c361ce7c6e87c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 20:35:14 2011 -0800
 
-    crypto/openpgp/packet: add public key support
+    issue 1402: added test case
     
-    Note that DSA public key support is nascent and the verification
-    functions clearly don't support it yet. I'm intending to get RSA keys
-    working first.
-    
-    R=bradfitzgo
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3973054
+    https://golang.org/cl/4079063
 
- src/pkg/crypto/openpgp/packet/public_key.go      | 260 +++++++++++++++++++++++
- src/pkg/crypto/openpgp/packet/public_key_test.go |  58 +++++
- 2 files changed, 318 insertions(+)
+ test/bugs/bug322.dir/lib.go  | 15 ++++++++++++++
+ test/bugs/bug322.dir/main.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ test/bugs/bug322.go          |  8 ++++++++
+ test/golden.out              |  6 ++++++
+ 4 files changed, 76 insertions(+)

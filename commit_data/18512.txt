@@ -1,15 +1,36 @@
-commit 824e918ca4f799c4105ef1b96d81894a137a1b29
+commit a069cf048dcfcd4c657d59b40ff318c8ab09b65c
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 21:11:50 2014 -0500
+Date:   Thu Feb 13 20:59:39 2014 -0500
 
-    cmd/gc: fix liveness for addressed results
+    cmd/gc: distinguish unnamed vs blank-named return variables better
     
-    Was spuriously marking results live on entry to function.
+    Before, an unnamed return value turned into an ONAME node n with n->sym
+    named ~anon%d, and n->orig == n.
     
-    TBR=iant
+    A blank-named return value turned into an ONAME node n with n->sym
+    named ~anon%d but n->orig == the original blank n. Code generation and
+    printing uses n->orig, so that this node formatted as _.
+    
+    But some code does not use n->orig. In particular the liveness code does
+    not know about the n->orig convention and so mishandles blank identifiers.
+    It is possible to fix but seemed better to avoid the confusion entirely.
+    
+    Now the first kind of node is named ~r%d and the second ~b%d; both have
+    n->orig == n, so that it doesn't matter whether code uses n or n->orig.
+    
+    After this change the ->orig field is only used for other kinds of expressions,
+    not for ONAME nodes.
+    
+    This requires distinguishing ~b from ~r names in a few places that care.
+    It fixes a liveness analysis bug without actually changing the liveness code.
+    
+    TBR=ken2
     CC=golang-codereviews
-    https://golang.org/cl/63640043
+    https://golang.org/cl/63630043
 
- src/cmd/gc/plive.c | 9 ++++++++-
- test/live.go       | 9 +++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/gc/dcl.c  | 22 ++++++++++++++--------
+ src/cmd/gc/fmt.c  | 16 ++++++++++++----
+ src/cmd/gc/walk.c |  2 +-
+ test/escape5.go   |  8 ++++----
+ test/live.go      |  7 +++++++
+ 5 files changed, 38 insertions(+), 17 deletions(-)

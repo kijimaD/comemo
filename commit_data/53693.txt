@@ -1,23 +1,20 @@
-commit 28ca813a1373ff3c8845b0145ce915cca73ff182
-Author: darkfeline <darkfeline@felesatra.moe>
-Date:   Tue Jul 18 03:34:30 2023 +0000
+commit 65535581aaf5441b68d8d31d3f338df4042f1972
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 29 16:42:21 2022 -0400
 
-    net/rpc: use conventional `err` in example
+    cmd/go: skip gccgo cgo tests in TestScript/build_overlay
     
-    It is conventional to use `err` for error variables, so change the example to use `err` instead of `e`.
+    cgo builds with -compiler=gccgo are broken as of CL 421879.
     
-    Change-Id: I53bc3c5384fe608b322a55c564e9aee228b43329
-    GitHub-Last-Rev: 3e2ed84eefad7104b952bc6eab1c3b0af6f8f80e
-    GitHub-Pull-Request: golang/go#61375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510075
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Allen Li <ayatane@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #54761.
+    Updates #46731.
+    
+    Change-Id: I0306b0bd96669f70279fc96814cc72d934a1ad6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426496
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/net/rpc/server.go      | 6 +++---
- src/net/rpc/server_test.go | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/build_overlay.txt | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

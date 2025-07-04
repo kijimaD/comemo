@@ -1,22 +1,31 @@
-commit 6eb40d158a80985460afc3924c4239dc97a34ae0
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue Aug 27 21:07:57 2024 +0200
+commit ac64a3628b54f47dc3aa84fc4527fd753db7b834
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 20:19:59 2023 +1000
 
-    cmd/trace,internal/trace,runtime: refactor to access frames via range over func
+    runtime/cgo: rename crosscall_386 to crosscall1 and standardise API
     
-    Change-Id: Id0be0eb35ae8560bd5338ec296a086aaf4617db0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608856
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Most architectures have a crosscall1 function that takes a function
+    pointer, a setg_gcc function pointer and a g pointer. However,
+    crosscall_386 only takes a function pointer and the call to setg_gcc
+    is performed in the thread entry function.
+    
+    Rename crosscall_386 to crosscall1 for consistency with other
+    architectures, as well as standardising the API - while not strictly
+    necessary, it will allow for further deduplication as the calling
+    code becomes more consistent.
+    
+    Change-Id: I77cf42e1e15e0a4c5802359849a849c32cebd92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518618
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/trace/gstate.go                    | 12 +++++-------
- src/cmd/trace/pprof.go                     | 20 ++++++++++----------
- src/cmd/trace/regions.go                   |  5 ++---
- src/cmd/trace/viewer.go                    |  5 ++---
- src/internal/trace/event.go                | 10 ++++------
- src/internal/trace/summary.go              | 26 ++++++++------------------
- src/internal/trace/testtrace/validation.go |  9 +++------
- src/internal/trace/trace_test.go           | 18 ++++++------------
- src/runtime/trace_cgo_test.go              |  5 ++---
- 9 files changed, 42 insertions(+), 68 deletions(-)
+ src/runtime/cgo/gcc_386.S         | 14 ++++++++++----
+ src/runtime/cgo/gcc_freebsd_386.c |  8 ++------
+ src/runtime/cgo/gcc_linux_386.c   |  8 ++------
+ src/runtime/cgo/gcc_netbsd_386.c  |  8 ++------
+ src/runtime/cgo/gcc_openbsd_386.c |  8 ++------
+ src/runtime/cgo/gcc_windows_386.c |  6 ++++--
+ src/runtime/cgo/libcgo.h          |  5 -----
+ 7 files changed, 22 insertions(+), 35 deletions(-)

@@ -1,17 +1,15 @@
-commit 4eb67563f64d634daf4b61ee6e7f7bc3b291c20a
-Author: Adam Langley <agl@golang.org>
-Date:   Sat May 14 19:13:12 2011 -0400
+commit 816f4bb1d81e20fe1a9fff06b1cff7e69fb6e581
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat May 14 09:45:32 2011 -0700
 
-    crypto/openpgp: change PublicKey.Serialize to include the header.
+    misc/vim: drop indent support for jump labels.
     
-    Signature.Serialize already does this and they should be consistent.
+    It interferes with keys in composite literals,
+    which are much more common.
     
-    R=bradfitz
+    R=dchest, jnwhiteh, rlight2
     CC=golang-dev
-    https://golang.org/cl/4521064
+    https://golang.org/cl/4521065
 
- src/pkg/crypto/openpgp/packet/packet.go          |  8 ++++++
- src/pkg/crypto/openpgp/packet/public_key.go      | 33 ++++++++++++++++++----
- src/pkg/crypto/openpgp/packet/public_key_test.go | 36 ++++++++++++++++++++++--
- src/pkg/crypto/openpgp/packet/signature.go       |  6 ++--
- 4 files changed, 71 insertions(+), 12 deletions(-)
+ misc/vim/indent/go.vim | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

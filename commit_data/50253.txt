@@ -1,23 +1,38 @@
-commit a31c062c9fbf212b244fbece6295a2a4279459e0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 11:26:43 2022 -0700
+commit 4186db6155ccd4cfcf71dee0bce566a097f49406
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 4 11:56:12 2021 -0700
 
-    go/parser: parse import specs the same way as the syntax parser
+    cmd/compile: some fixes in type substituter for Instantiate
     
-    This results in better error recovery and allows us to use the
-    same tests for go/types and types2.
+    In the case in (*TSubster).Type() that we were running into an
+    incomplete underlying type (TFORW), we should just be immediately
+    returning the type returned by ts.SubstForwFunc(forw), since that call
+    returns a proper type node, and has set up any remaining work that has
+    to be done when we get done with the current top-level type definition.
+    (For import, that function is doInst, which does an Instantiate of the
+    new substituted type, with the delayed part via deferredInstStack.) We
+    should not continue doing the later parts of (*TSubster).Type(), since
+    the underlying type may not yet have its methods filled in, etc.
     
-    For #54511.
+    Also, in Instantiate(), we need to put the desired new type on
+    deferredInstStack, even if the base type node already exists, if the
+    type node is in TFORW state. This is now exactly the case when
+    Instantiate is called from (*TSubster).Type via doInst, since
+    (*TSubster).Type has already called NewIncompleteNamedType().
     
-    Change-Id: Ic11a9dafb8c62e0cb952b3924d55a28b438241c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427154
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Fixes #48716
+    Fixes #48889
+    
+    Change-Id: Icd6be5721c4ac75bf8869b8bbdeca50069d632ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355250
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/parser/parser.go                       | 13 ++++++++++---
- src/go/types/resolver.go                      |  3 +++
- src/go/types/testdata/fixedbugs/issue43190.go | 18 ++++++++++--------
- 3 files changed, 23 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go | 24 +++++++++--
+ src/cmd/compile/internal/typecheck/subr.go    |  2 +-
+ test/typeparam/issue48716.dir/a.go            | 51 +++++++++++++++++++++++
+ test/typeparam/issue48716.dir/main.go         | 58 +++++++++++++++++++++++++++
+ test/typeparam/issue48716.go                  |  7 ++++
+ 5 files changed, 138 insertions(+), 4 deletions(-)

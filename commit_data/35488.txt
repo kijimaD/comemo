@@ -1,24 +1,32 @@
-commit 65c365bf0f4add682419ba8fe68db43a0cab0e83
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue May 22 18:08:12 2018 -0400
+commit 29e9c4d4a4064fcd5edcb47d4782bd96082a068e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 23 14:25:50 2016 -0600
 
-    cmd/compile: fix debug info generation for loads from Phis
+    runtime: lay out heap bitmap forward in memory
     
-    Apparently a LoadReg can take a Phi as its argument. The Phi has names
-    in the NamedValue table, so just read the Load's names from the Phi.
+    Currently the heap bitamp is laid in reverse order in memory relative
+    to the heap itself. This was originally done out of "excessive
+    cleverness" so that computing a bitmap pointer could load only the
+    arena_start field and so that heaps could be more contiguous by
+    growing the arena and the bitmap out from a common center point.
     
-    The example given, XORKeyStream in chacha20, is pretty complicated so I
-    didn't try to actually debug it and verify that the results are right.
-    But the debug logging looks reasonable, with the right names in the right
-    registers at the right times.
+    However, this appears to have no actual performance benefit, it
+    complicates nearly every use of the bitmap, and it makes already
+    confusing code more confusing. Furthermore, it's still possible to use
+    a single field (the new bitmap_delta) for the bitmap pointer
+    computation by employing slightly different excessive cleverness.
     
-    Fixes #25404
+    Hence, this CL puts the bitmap into forward order.
     
-    Change-Id: I2c3183dcfb033948556d6805bd66c22c0b45625c
-    Reviewed-on: https://go-review.googlesource.com/114008
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    This is a (very) updated version of CL 9404.
+    
+    Change-Id: I743587cc626c4ecd81e660658bad85b54584108c
+    Reviewed-on: https://go-review.googlesource.com/85881
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go  | 15 ++++++++-
+ src/runtime/mbitmap.go | 87 ++++++++++++++++++++++++--------------------------
+ src/runtime/mheap.go   |  5 +--
+ 3 files changed, 59 insertions(+), 48 deletions(-)

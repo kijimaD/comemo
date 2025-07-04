@@ -1,32 +1,27 @@
-commit 9f40f9f4d3e9e5a08cfd1df5af23a6f61d67d408
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 2 22:44:25 2020 -0700
+commit 60f34f739de41d8000661baac5dc1cebba80e892
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Oct 23 17:14:09 2019 -0400
 
-    cmd/dist: remove darwin/386, darwin/arm as valid ports
+    cmd/dist: support GOROOT vendoring
     
-    This only removes the ability to build it, and removes it as a
-    src/buildall.bash target (which uses go tool dist list).
+    In the second step of make.bash, cmd/dist builds cmd/go by invoking
+    the compiler, linker, and other tools directly on transitive
+    dependencies of cmd/go. Essentially, cmd/dist acts as a minimal
+    version of 'go install' when building go_toolchain.
     
-    Now:
+    Until now, cmd/go has had no transitive dependencies in vendor
+    directories. This changes in CL 202698, where several packages are
+    deleted and equivalent versions in golang.org/x/mod are used
+    instead. So this CL adds support to cmd/dist for vendor directories.
     
-    $ go tool dist list | grep ^darwin
-    darwin/amd64
-    darwin/arm64
+    Updates #31761
     
-    After this, remaining is removing leftover port--specific code in the
-    tree.
-    
-    Updates #37610
-    Updates #37611
-    
-    Change-Id: I00f03b2355c2e152f75e57abd3063be243529d2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226985
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iab4cdc7e505069a8df296287d16fbaa871944955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203537
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/api/goapi.go      | 11 +++++++++--
- src/cmd/api/goapi_test.go |  1 -
- src/cmd/dist/build.go     |  2 --
- src/cmd/go/go_test.go     |  4 ++--
- 4 files changed, 11 insertions(+), 7 deletions(-)
+ src/cmd/dist/build.go   | 105 ++++++++++++++++++++++++++++++++----------------
+ src/cmd/dist/imports.go |  31 ++++++++++++++
+ 2 files changed, 101 insertions(+), 35 deletions(-)

@@ -1,19 +1,32 @@
-commit 50f38d040532edde038c992ddbe978658556c51f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 1 11:53:36 2021 -0700
+commit 060cdbc7b57d1c4e97038e3ad259d2572a58047f
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 15 23:43:30 2020 -0500
 
-    cmd/compile: emit unified IR wrappers after inlining
+    [dev.typeparams] go/types: import object resolution from dev.go2go
     
-    This CL delays unified IR's wrapper generation to after inlining.
+    Changes from dev.go2go:
+     + Removed enableImplicitTParam
+     + Fixed a bug in unpackRecv where pointer receivers were not being
+       detected in the syntax. This didn't seem to actually matter, as I
+       couldn't produce an incorrect test case as a result of this bug (I
+       guess by the time method sets are considered, functions have already
+       been type checked).
+     + Updated to the new error API.
+     + A line setting t.underlying to Typ[Invalid] was restored in
+       Checker.validType when a cycle is detected. Though this didn't seem
+       to matter, it preserves an invariant that invalid types are used to
+       suppress error reporting.
     
-    Change-Id: Idfe496663489d6b797a647eb17200c6322d0334a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347029
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3b53b35368c244d67571f23d70fb991af50db540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278595
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/main.go       |  1 +
- src/cmd/compile/internal/noder/reader.go  | 83 +++++++++++++++++--------------
- src/cmd/compile/internal/noder/unified.go |  5 --
- 3 files changed, 47 insertions(+), 42 deletions(-)
+ src/go/types/decl.go             | 142 +++++++++++++++++++++++++++++++++------
+ src/go/types/resolver.go         | 139 +++++++++++++++++++++++++++++---------
+ src/go/types/stmt.go             |   2 +-
+ src/go/types/testdata/decls0.src |  10 +--
+ src/go/types/typexpr.go          |  43 +++++++++++-
+ 5 files changed, 280 insertions(+), 56 deletions(-)

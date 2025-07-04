@@ -1,24 +1,20 @@
-commit f025d19e7b3f0c66242760c213cc2b54cb100f69
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 23 17:21:07 2024 +0000
+commit e21dc702d54e85381a97259db7deec710108279b
+Author: Deleplace <deleplace@google.com>
+Date:   Mon Nov 13 09:32:33 2023 +0100
 
-    runtime: hold traceAcquire across casgstatus in injectglist
+    slices: zero the slice elements discarded by Delete, DeleteFunc, Compact, CompactFunc, Replace.
     
-    Currently injectglist emits all the trace events before actually calling
-    casgstatus on each goroutine. This is a problem, since tracing can
-    observe an inconsistent state (gstatus does not match tracer's 'emitted
-    an event' state).
+    To avoid memory leaks in slices that contain pointers, clear the elements between the new length and the original length.
     
-    This change fixes the problem by having injectglist do what every other
-    scheduler function does, and that's wrap each call to casgstatus in
-    traceAcquire/traceRelease.
+    Fixes #63393
     
-    Fixes #70883.
-    
-    Change-Id: I857e96cec01688013597e8efc0c4c3d0b72d3a70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638558
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic65709726f4479d70c6bce14aa367feb753d41da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541477
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/slices/slices.go      |  26 +++++-----
+ src/slices/slices_test.go | 130 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+), 12 deletions(-)

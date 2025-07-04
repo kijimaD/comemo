@@ -1,15 +1,12 @@
-commit b506c3e17aad13ec64ff24d86ec034259bd224d1
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Oct 29 22:03:58 2012 +1100
+commit 1158c6b9c6facc396cfbcbd2fbedd860cb66fef7
+Author: Taj Khattra <taj.khattra@gmail.com>
+Date:   Sun Oct 28 21:16:50 2012 +1100
 
-    misc/dashboard/codereview: only accept "NOT LGTM" on the first line of a message.
+    container/list: fix typo
     
-    Too many people quote entire emails and put their reply at the top ("top posting"),
-    so we shouldn't recognise review commands anywhere in the review text.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, fullung, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6815048
+    https://golang.org/cl/6682046
 
- misc/dashboard/codereview/dashboard/cl.go | 2 +-
+ src/pkg/container/list/list.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

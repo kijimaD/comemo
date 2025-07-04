@@ -1,23 +1,20 @@
-commit 318812e7c1b6b9ca890e62263a4cab1cb78ea6ed
-Author: David Lazar <lazard@golang.org>
-Date:   Thu Apr 20 16:19:55 2017 -0400
+commit 7bd968fbfdfd943d8bfc3f6f48b47c5fe990f9ba
+Author: Максим Федосеев <max.faceless.frei@gmail.com>
+Date:   Mon Jan 30 17:11:01 2017 +0500
 
-    testing: use function names to identify helpers
+    crypto/tls: fix link to more info about channel bindings
     
-    Previously, helpers were identified by entry PC, but this breaks if the
-    helper is inlined (as in notHelperCallingHelper). Instead, identify
-    helpers by function name (with package path). Now TestTBHelper and
-    TestTBHelperParallel pass with -l=4.
+    Link in the description of TLSUnique field of ConnectionState struct
+    leads to an article that is no longer available, so this commit
+    replaces it with link to a copy of the very same article on another
+    site.
     
-    To keep the code unified, this change makes it so that the runner
-    is also identified by function name instead of entry PC.
+    Fixes #18842.
     
-    Change-Id: I1b1987fc49d114e69d075fab56aeeacd5294982b
-    Reviewed-on: https://go-review.googlesource.com/41257
-    Run-TryBot: David Lazar <lazard@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8f8d298c4774dc0fbbad5042db0684bb3220aee8
+    Reviewed-on: https://go-review.googlesource.com/36052
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/testing/testing.go | 53 +++++++++++++++++++++++++-------------------------
- 1 file changed, 27 insertions(+), 26 deletions(-)
+ src/crypto/tls/common.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

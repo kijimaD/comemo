@@ -1,21 +1,26 @@
-commit e180e2c27c3c3f06a4df6352386efedc15a1e38c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 28 17:07:01 2021 -0400
+commit 2e64511ac965085cc6a74888b0e441c7e4a47468
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jan 15 11:19:13 2021 -0500
 
-    cmd/internal/goobj, cmd/link: remove funcdataoff
+    [dev.typeparams] go/types: unify methods in missingMethod
     
-    FUNCDATA is always a symbol reference with 0 offset. Assert the
-    offset is 0 and remove funcdataoff.
+    Unify methods in Checker.missingMethod. This code was accidentally
+    dropped from the merge, while dropping support for method type
+    parameters, but is needed for checking implementations of generic
+    interfaces.
     
-    Change-Id: I326815365c9db5aeef6b869df5d78a9957bc16a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352894
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Put the logic back, including checks that are only needed for method
+    type parameters. It makes the code no simpler to assume that method type
+    parameters are disallowed, and we have checks elsewhere that produce
+    errors for methods with type parameters.
+    
+    Change-Id: I91f0c9d3e04537fdb9f7ae23a4ce4cec9f1da10e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284252
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/goobj/funcinfo.go     | 35 +++++--------------
- src/cmd/internal/obj/link.go           | 17 +++++-----
- src/cmd/internal/obj/objfile.go        |  4 ---
- src/cmd/internal/obj/pcln.go           | 11 +++---
- src/cmd/link/internal/ld/pcln.go       | 35 +++++++------------
- src/cmd/link/internal/loader/loader.go | 62 +++++++++++++++-------------------
- 6 files changed, 62 insertions(+), 102 deletions(-)
+ src/go/types/lookup.go | 62 +++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 49 insertions(+), 13 deletions(-)

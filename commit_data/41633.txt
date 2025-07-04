@@ -1,29 +1,23 @@
-commit c3b9042132efc4e9f3485cd12b07acd1ca9c7d57
-Author: zikaeroh <zikaeroh@gmail.com>
-Date:   Wed Mar 11 17:02:50 2020 -0700
+commit 15634a023062ad29ba53e8a4211e15d389f86ee9
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 16 08:54:58 2019 -0400
 
-    cmd/cover: skip function declarations with blank names
+    [dev.link] cmd: convert symbol "shared" flag to object file flag
     
-    Function declarations with blank ("_") names do not introduce a binding,
-    and therefore cannot be referenced or executed (in fact, they do not
-    make it into the final compiled binary at all). As such, counters
-    defined while annotating their bodies will always be zero.
+    For the new object file format, don't tag individual symbols with a
+    "shared" flag, since that characteristic is better off as an attribute
+    of the containing object file as opposed to the individual symbol. Add
+    a new flags field in the object file header and put a bit in the flags
+    if the shared flags is in effect during compilation.
     
-    These types of functions are commonly used to create compile-time
-    checks (e.g., stringer) which are not expected to be executed.
-    
-    Skip over these functions when annotating a file, preventing the unused
-    counters from being generated and appearing as uncovered lines in
-    coverage reports.
-    
-    Fixes #36264
-    
-    Change-Id: I6b516cf43c430a6248d68d5f483a3902253fbdab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223117
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2cf6d33bf7bf2fd8a7614ae0cd6ef03914777498
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201398
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/cover/cover.go                             |  5 ++++
- .../go/testdata/script/cover_blank_func_decl.txt   | 31 ++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/cmd/internal/goobj2/objfile.go     | 18 +++++++++++++++---
+ src/cmd/internal/obj/objfile2.go       |  9 +++++----
+ src/cmd/link/internal/loader/loader.go |  7 ++++---
+ 3 files changed, 24 insertions(+), 10 deletions(-)

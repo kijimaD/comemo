@@ -1,19 +1,36 @@
-commit 429eb3c6960a0b919a150aaa570e6a3f6f8758e9
+commit c65647d6204531e93c19ea2dba01ff13d1b8ef31
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 13 15:33:55 2016 -0700
+Date:   Tue Apr 19 15:02:06 2016 -0700
 
-    cmd/compile: remove two unnecessary Pkg fields
+    cmd/compile: handle unsafe.Pointer(f()) correctly
     
-    Exported is no longer used since removing the text-format exporter,
-    and Safe is only used within importfile so it can be made into a local
-    variable.
+    Previously statements like
     
-    Change-Id: I92986f704d7952759c79d9243620a22c24602333
-    Reviewed-on: https://go-review.googlesource.com/29115
+        f(unsafe.Pointer(g()), int(h()))
+    
+    would be reordered into a sequence of statements like
+    
+        autotmp_g := g()
+        autotmp_h := h()
+        f(unsafe.Pointer(autotmp_g), int(autotmp_h))
+    
+    which can leave g's temporary value on the stack as a uintptr, rather
+    than an unsafe.Pointer. Instead, recognize uintptr-to-unsafe.Pointer
+    conversions when reordering function calls to instead produce:
+    
+        autotmp_g := unsafe.Pointer(g())
+        autotmp_h := h()
+        f(autotmp_g, int(autotmp_h))
+    
+    Fixes #15329.
+    
+    Change-Id: I2cdbd89d233d0d5c94791513a9fd5fd958d11ed5
+    Reviewed-on: https://go-review.googlesource.com/22273
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/go.go   |  2 --
- src/cmd/compile/internal/gc/main.go | 10 +++++-----
- 2 files changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 14 +++++++
+ test/fixedbugs/issue15329.go         | 79 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+)

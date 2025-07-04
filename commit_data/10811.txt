@@ -1,14 +1,15 @@
-commit 7e6890a670e676f8040e690c7dc1409d0972bf22
+commit 5b2f8d96cec0b1800cc099e022175b3588fd86a2
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Dec 15 17:50:59 2011 +0100
+Date:   Thu Dec 15 17:38:47 2011 +0100
 
-    gc: inlining, allow empty bodies, fix _ arguments.
+    gc: omit argument names from function types in error messages
+    
+    Fixes #2563
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5487077
+    https://golang.org/cl/5495047
 
- src/cmd/gc/fmt.c | 4 ++++
- src/cmd/gc/inl.c | 6 +++---
- test/cmp.go      | 3 ++-
- 3 files changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/gc/fmt.c         |  2 +-
+ test/fixedbugs/bug389.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

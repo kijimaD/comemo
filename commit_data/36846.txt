@@ -1,18 +1,23 @@
-commit d16e4d34fc24c2c4ad6d4965edb17204ca5e1c67
-Author: Don Byington <don@dbyington.com>
-Date:   Wed Oct 3 21:54:54 2018 +0000
+commit 6cfeedb229bcad20b99fafe3d127a087edcd07e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 31 15:18:21 2018 -0700
 
-    reflect: add an example for Kind
+    go/types: remove visited flag for constants and variables (cleanup)
     
-    Fixes #27990
+    Now that we have a color marking scheme for all objects, the
+    pre-existing 'visited' flag for constants and variables is
+    redundant: visited is the same as marking an object non-white.
     
-    Change-Id: I0f09fc6f68cec770b1c26eed2315afbf6bf6cd4d
-    GitHub-Last-Rev: 8486e6d5019c6c21b10e5fcf10a2727cf2705174
-    GitHub-Pull-Request: golang/go#27991
-    Reviewed-on: https://go-review.googlesource.com/c/139417
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Refactor the respective 'visited' flag logic from constDecl and
+    varDecl into the color switch in objDecl and remove the 'visited'
+    flag.
+    
+    Follow-up on https://go-review.googlesource.com/c/go/+/114517 .
+    
+    Change-Id: Ie20de65e3b26a5a6ff7b0eddc3d089f56be204e8
+    Reviewed-on: https://go-review.googlesource.com/115619
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/reflect/example_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/go/types/decl.go   | 49 ++++++++++++++++---------------------------------
+ src/go/types/object.go |  6 ++----
+ 2 files changed, 18 insertions(+), 37 deletions(-)

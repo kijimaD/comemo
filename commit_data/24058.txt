@@ -1,12 +1,19 @@
-commit cfb5bc993a145a301e83c18096136de47a69542d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 24 13:49:30 2015 +1000
+commit 1cbbd7f545870e128ebfc14b3cb93d57be79c773
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jun 18 16:27:29 2015 +0200
 
-    internal/syscall/windows/registry: remove debugging dreg
+    cmd/trace: fix time scale
     
-    Change-Id: I1b9f6ad322a7f68fa160c4f09d7fb56815e505a7
-    Reviewed-on: https://go-review.googlesource.com/13828
-    Reviewed-by: Rob Pike <r@golang.org>
+    Integrate the latest trace-viewer changes.
+    It now handles nanoseconds without any issues (thanks to @egonelbre!).
+    So change timestamps from microseconds to nanoseconds.
+    
+    Change-Id: I010f27effde7e80c9992e6f276f6912354d27df4
+    Reviewed-on: https://go-review.googlesource.com/11244
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Egon Elbre <egonelbre@gmail.com>
 
- src/internal/syscall/windows/registry/value.go | 1 -
- 1 file changed, 1 deletion(-)
+ misc/trace/README.md              |    2 +-
+ misc/trace/trace_viewer_lean.html | 1975 +++++++++++++++++++------------------
+ src/cmd/trace/trace.go            |   25 +-
+ 3 files changed, 1033 insertions(+), 969 deletions(-)

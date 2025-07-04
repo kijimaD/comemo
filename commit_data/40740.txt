@@ -1,17 +1,14 @@
-commit 0e312f212c11b9f35fdd85bcbb6ec082bc341c17
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 11 14:34:36 2019 +1100
+commit 98e1bd2b79bb7da0743450d9e6c0b622ff1e681f
+Author: Andrew <andybons@golang.org>
+Date:   Mon Jun 24 15:28:00 2019 -0400
 
-    strconv: reformat and tidy comments in example
+    doc/go1.13: add release notes for the errors package
     
-    Apply the suggestions made in the too-late review of
-            golang.org/cl/137215
-    to move the comments to a separate line and use proper
-    punctuation.
+    Also removes remaining TODOs
     
-    Change-Id: If2b4e5ce8af8c78fa51280d5c87c852a76dae459
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206125
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id80021b7a64c923c4ebd69fb6e8831a43a76dc72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183625
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/strconv/example_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/go1.13.html | 30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)

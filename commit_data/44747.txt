@@ -1,25 +1,39 @@
-commit 4deaa6a178d89631302470f78574c1e957cf84a5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Mar 18 16:01:23 2021 +0000
+commit 3d774611feee49aa44b4f5ed65d40497a47ad4c8
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Aug 22 05:47:06 2020 -0700
 
-    runtime: call nanotimeQPC from nanotime1 without a wrapper
+    src/go.mod, net/http: update bundled and latest golang.org/x/net
     
-    This changes makes it so that nanotimeQPC calls nanotime1 without an ABI
-    wrapper by specifying the ABIInternal version directly. The reason why
-    this is necessary is because ABI wrappers typically require additional
-    stack space, and nanotimeQPC is used deep within nosplit contexts,
-    and with the ABI wrappers now enabled, this exhausts the stack guard
-    space held for nosplit functions. Rather than increase the stack guard,
-    we choose to do this.
+    Updates x/net/http2 to git rev c89045814202410a2d67ec20ecf177ec77ceae7f
     
-    For #40724.
+        http2: perform connection health check
+        https://golang.org/cl/198040 (fixes #31643)
     
-    Change-Id: Ia9173ca903335a9d6f380f57f4a45e49b58da6bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303069
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+        http2: use ASCII space trimming for parsing Trailer header
+        https://golang.org/cl/231437
+    
+        all: update golang.org/x/crypto to v0.0.0-20200622213623-75b288015ac9
+        https://golang.org/cl/239700 (updates #30965)
+    
+        net/http2: fix erringRoundTripper
+        https://golang.org/cl/243257 (updates #40213)
+    
+    also updates the vendored version of golang.org/x/net as per
+    
+    $ go get golang.org/x/net@c890458142
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate -run bundle std
+    
+    Change-Id: Iea2473ef086df760144d9656f03a0218eb9da91f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249842
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/sys_windows_amd64.s | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 +--
+ src/net/http/h2_bundle.go | 70 +++++++++++++++++++++++++++++++++++++++++++----
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 68 insertions(+), 10 deletions(-)

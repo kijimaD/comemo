@@ -1,23 +1,14 @@
-commit e978ef36e3e8d09413387883b5b01fc6cdbb7640
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Sep 27 18:30:01 2022 +1000
+commit 283373d124b39be62fb4dc0349ddf0cb1c99aeb7
+Author: Mostafa Solati <mostafa.solati@gmail.com>
+Date:   Tue Aug 3 21:39:29 2021 +0430
 
-    image/gif,image/jpeg,image/png: skip FuzzDecode in testing short mode
+    database/sql: fix tx.Prepare documentation
     
-    The image/gif.FuzzDecode takes an excessive amount of time to run on various
-    builders - skip these in testing short mode. Likewise for image/jpeg and
-    image/png.
-    
-    Fixes #55839
-    
-    Change-Id: I1049d06b9dcbbc7dbc4f53d3c49b64e2254eabbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435175
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes: #45978
+    Change-Id: I3d5ccd621d670f97bb1a642b4e84b6629347a315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339291
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/image/gif/fuzz_test.go  | 4 ++++
- src/image/jpeg/fuzz_test.go | 4 ++++
- src/image/png/fuzz_test.go  | 4 ++++
- 3 files changed, 12 insertions(+)
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

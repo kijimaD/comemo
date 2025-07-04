@@ -1,16 +1,42 @@
-commit 7a77645aa8f297b78ba0b297d6d50871d1d1ad05
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu May 3 09:22:45 2012 +1000
+commit d42495aa803b2efc3c58317b79f99e723c1b5195
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 2 16:22:56 2012 -0400
 
-    misc/dashboard/codereview: add copyright notices to Go files
+    cmd/cc: add PREFETCH built-in (like SET, USED)
     
-    R=golang-dev, dsymonds
+    This makes it possible to inline the prefetch of upcoming
+    memory addresses during garbage collection, instead of
+    needing to flush registers, make a function call, and
+    reload registers.  On garbage collection-heavy workloads,
+    this results in a 5% speedup.
+    
+    Fixes #3493.
+    
+    R=dvyukov, ken, r, dave
     CC=golang-dev
-    https://golang.org/cl/6177043
+    https://golang.org/cl/5990066
 
- misc/dashboard/codereview/dashboard/cl.go     | 4 ++++
- misc/dashboard/codereview/dashboard/front.go  | 4 ++++
- misc/dashboard/codereview/dashboard/gc.go     | 4 ++++
- misc/dashboard/codereview/dashboard/mail.go   | 4 ++++
- misc/dashboard/codereview/dashboard/people.go | 4 ++++
- 5 files changed, 20 insertions(+)
+ src/cmd/5c/gc.h              |    1 +
+ src/cmd/5c/txt.c             |    6 +
+ src/cmd/6c/gc.h              |    1 +
+ src/cmd/6c/peep.c            |    5 +
+ src/cmd/6c/reg.c             |    4 +
+ src/cmd/6c/txt.c             |   12 +
+ src/cmd/8c/gc.h              |    1 +
+ src/cmd/8c/peep.c            |    6 +
+ src/cmd/8c/reg.c             |    4 +
+ src/cmd/8c/txt.c             |   12 +
+ src/cmd/cc/Makefile          |    2 +-
+ src/cmd/cc/cc.h              |    1 +
+ src/cmd/cc/cc.y              |    6 +-
+ src/cmd/cc/lex.c             |    1 +
+ src/cmd/cc/pgen.c            |    5 +
+ src/cmd/cc/sub.c             |    1 +
+ src/cmd/cc/y.tab.c           | 1536 +++++++++++++++++++++---------------------
+ src/cmd/cc/y.tab.h           |   92 +--
+ src/pkg/runtime/arch_386.h   |    4 -
+ src/pkg/runtime/arch_amd64.h |    4 -
+ src/pkg/runtime/arch_arm.h   |    2 -
+ src/pkg/runtime/asm_386.s    |    5 -
+ src/pkg/runtime/asm_amd64.s  |    5 -
+ 23 files changed, 886 insertions(+), 830 deletions(-)

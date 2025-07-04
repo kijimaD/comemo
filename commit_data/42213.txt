@@ -1,16 +1,29 @@
-commit df2862cf54858ba5b1ada7d2ca99e57f3c13dd23
-Author: kakulisen <lziqiang1@gmail.com>
-Date:   Wed Apr 29 15:43:11 2020 +0800
+commit 4e8d27068df52eb372dc2ba7e929e47850934805
+Author: go101 <tapir.liu@gmail.com>
+Date:   Fri Nov 15 00:38:04 2019 +0000
 
-    math: Add a function example
+    reflect: factor out special channel assignability rule from haveIdenticalUnderlyingType
     
-    When I browsed the source code, I saw that there is no corresponding example of this function. I am not sure if there is a need for an increase, this is my first time to submit CL.
+    Go specification says: A value x is assignable to a variable of type T if x
+    is a bidirectional channel value, T is a channel type, x's type V and T have
+    identical element types, and at least one of V or T is not a defined type.
+    However, the current reflection implementation is incorrect which makes
+    "x is assignable to T" even if type V and T are both defined type.
     
-    Change-Id: Idbf4e1e1ed2995176a76959d561e152263a2fd26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230741
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The current reflection implementation also mistakes the base types of two
+    non-defined pointer types share the same underlying type when the two
+    base types satisfy the above mentioned special channel assignability rule.
+    
+    Fixes #29469
+    
+    Change-Id: Ia4b9c4ac47dc8e76a11faef422b2e5c5726b78b3
+    GitHub-Last-Rev: 487c20a564091a1d2ba5feb95ab5196331c699c2
+    GitHub-Pull-Request: golang/go#29739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157822
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/example_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++----
+ src/reflect/type.go     | 26 +++++++++++++++++---------
+ src/reflect/value.go    |  5 +++++
+ 3 files changed, 63 insertions(+), 13 deletions(-)

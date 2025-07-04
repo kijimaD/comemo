@@ -1,19 +1,16 @@
-commit d270e6f28c803cc9fb53f5adc2b935f73b146f86
+commit 52ecd2ce96c7635eaf731c1003fdd4507f4d08aa
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 19:02:11 2013 -0800
+Date:   Thu Dec 12 18:55:05 2013 -0800
 
-    test: match gccgo import error messages
+    debug/dwarf: remove unused field addrsize from Data
     
-    Gccgo doesn't have the same equivalent of file name and
-    package as the gc compiler, so the error messages are
-    necessarily different.
+    The addrsize field is not a constant for an entire executable
+    file, and is now handled by the dataFormat interface when
+    reading the data.
     
-    R=golang-dev, rsc
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/40510048
+    https://golang.org/cl/41620043
 
- test/fixedbugs/issue5957.dir/c.go | 10 +++++-----
- test/import1.go                   |  2 +-
- test/import4.dir/empty.go         |  2 +-
- test/import4.dir/import4.go       |  4 ++--
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ src/pkg/debug/dwarf/open.go | 1 -
+ 1 file changed, 1 deletion(-)

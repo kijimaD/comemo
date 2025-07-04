@@ -1,12 +1,18 @@
-commit 6dd7da85662ba2dcd2e31f0a4fbc810e33fbe212
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Mon Dec 17 18:13:12 2012 +1100
+commit 475dee9082f740f77a9e17d2e2242e647c860f13
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Sun Dec 16 20:19:35 2012 -0500
 
-    fmt: fix a typo
+    net/smtp: add optional Hello method
     
-    R=golang-dev, dsymonds
+    Add a Hello method that allows clients to set the server sent in the EHLO/HELO exchange; the default remains localhost.
+    Based on CL 5555045 by rsc.
+    
+    Fixes #4219.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6937065
+    https://golang.org/cl/6946057
 
- src/pkg/fmt/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/smtp/smtp.go      |  65 ++++++++++++--
+ src/pkg/net/smtp/smtp_test.go | 192 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 248 insertions(+), 9 deletions(-)

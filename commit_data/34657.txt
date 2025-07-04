@@ -1,25 +1,21 @@
-commit 8a1519249fb482c9ae0831913d7a963e052cb97a
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Feb 22 14:40:03 2018 -0800
+commit 37b056948d058679efa4e87fb6c9b2a2ddfa31a3
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Oct 31 16:51:21 2017 -0700
 
-    crypto/x509: support the PSS certificates that OpenSSL 1.1.0 generates.
+    strings: add Builder
     
-    It serialises optional parameters as empty rather than NULL. It's
-    probably technically correct, although ASN.1 has a long history of doing
-    this different ways.
+    This is like a write-only subset of bytes.Buffer with an
+    allocation-free String method.
     
-    But OpenSSL is likely common enough that we want to support this
-    encoding.
+    Fixes #18990.
     
-    Fixes #23847
-    
-    Change-Id: I81c60f0996edfecf59467dfdf75b0cf8ba7b1efb
-    Reviewed-on: https://go-review.googlesource.com/96417
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icdf7240f4309a52924dc3af04a39ecd737a210f4
+    Reviewed-on: https://go-review.googlesource.com/74931
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/x509.go      |  4 ++--
- src/crypto/x509/x509_test.go | 53 +++++++++++++++++++++++++++++++++++---------
- 2 files changed, 45 insertions(+), 12 deletions(-)
+ src/strings/builder.go      | 120 +++++++++++++++++++
+ src/strings/builder_test.go | 282 ++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/example_test.go |  11 ++
+ 3 files changed, 413 insertions(+)

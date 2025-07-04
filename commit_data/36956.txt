@@ -1,29 +1,14 @@
-commit 8e0aea162b5ed27b444a2a54aa16152022483141
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 2 20:45:45 2018 -0400
+commit 930185f26dfc85615511fa14ed5f831fb9aa266f
+Author: Dave Russell <forfuncsake@gmail.com>
+Date:   Wed Jun 13 03:43:12 2018 +0000
 
-    testing: implement -benchtime=100x
+    doc/contribute.html: add whitespace after <code> blocks, where missing
     
-    When running benchmarks with profilers and trying to
-    compare one run against another, it is very useful to be
-    able to force each run to execute exactly the same number
-    of iterations.
-    
-    Discussion on the proposal issue #24735 led to the decision
-    to overload -benchtime, so that instead of saying
-    -benchtime 10s to run a benchmark for 10 seconds,
-    you say -benchtime 100x to run a benchmark 100 times.
-    
-    Fixes #24735.
-    
-    Change-Id: Id17c5bd18bd09987bb48ed12420d61ae9e200fd7
-    Reviewed-on: https://go-review.googlesource.com/c/139258
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iea5c705dd58f9b83fbeb0500defcc08c34716169
+    GitHub-Last-Rev: 35702c784e2329fe3e44947430d246f8cdb04645
+    GitHub-Pull-Request: golang/go#25858
+    Reviewed-on: https://go-review.googlesource.com/118536
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go            |  2 ++
- src/cmd/go/internal/test/test.go |  2 ++
- src/testing/benchmark.go         | 75 ++++++++++++++++++++++++++++++----------
- src/testing/sub_test.go          |  4 +--
- 4 files changed, 63 insertions(+), 20 deletions(-)
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

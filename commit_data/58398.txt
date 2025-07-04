@@ -1,26 +1,19 @@
-commit 6bd56fcaebde61eb6bd21906a7d7136d009be4a6
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 12 18:19:43 2024 -0500
+commit be26ae18caf7ddffca4073333f80d0d9e76483c3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 2 15:06:35 2023 -0400
 
-    testing: improve b.Loop example
+    cmd/go/internal/vcs: error out if the requested repo does not support a secure protocol
     
-    The current b.Loop example doesn't focus on the basic usage of b.Loop.
-    Replace this with a new example that uses (slightly) more realistic
-    things to demonstrate the most salient points of b.Loop.
+    Fixes #63845.
     
-    We also move the example into an example file so that we can write a
-    real Benchmark function and a real function to be benchmarks, which
-    makes this much closer to what a user would actually write.
-    
-    Updates #61515.
-    
-    Change-Id: I4d830b3bfe3eb3cd8cdecef469fea0541baebb43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635896
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If86d6b13d3b55877b35c087112bd76388c9404b8
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539321
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/testing/benchmark_test.go    | 30 -------------------------
- src/testing/example_loop_test.go | 48 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 30 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go                     | 25 ++++++++++++++-----
+ .../go/testdata/script/mod_insecure_issue63845.txt | 28 ++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 6 deletions(-)

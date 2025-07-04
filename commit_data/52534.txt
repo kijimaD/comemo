@@ -1,18 +1,24 @@
-commit 0a092d7f8007554e393e19ff5f841574bb2cb790
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 27 06:03:31 2023 +1100
+commit 9ae7dc304082cc36d0d587c5edcc899497f2d06f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 9 11:29:36 2022 -0400
 
-    cmd/internal/obj/arm64: use more appropriate types for opldpstp
+    cmd/compile: fix If lowering on ARM64
     
-    This allows for a large number of casts to be removed at call sites.
-    While here, use consistent register naming.
+    On ARM64, an If block is lowered to (NZ cond yes no). This is
+    incorrect because cond is a boolean value and therefore only the
+    last byte is meaningful (same as AMD64, see ARM64Ops.go). But here
+    we are comparing a full register width with 0. Correct it by
+    comparing only the last bit.
     
-    Change-Id: I68cee985f6500ed9523f7fb3efbc11bb849681dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471516
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Fixes #52788.
+    
+    Change-Id: I2cacf9f3d2f45e149c361a290f511b2d4ed845c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405114
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 72 ++++++++++++++++++++------------------
- 1 file changed, 37 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  17 ++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 160 ++++++++++++++++++++++++++-
+ test/fixedbugs/issue52788.go                 |  27 +++++
+ 3 files changed, 201 insertions(+), 3 deletions(-)

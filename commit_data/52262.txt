@@ -1,48 +1,16 @@
-commit e671fe0c3efc497397af3362a4b79c895fbd8bfc
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Feb 6 11:37:39 2023 -0800
+commit 01b8f5e8821eac0e3456d6200b351629fd3752f4
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Apr 19 16:38:04 2022 +0800
 
-    bytes: add Buffer.Available and Buffer.AvailableBuffer
+    runtime: use fastrand64 in mapiterinit
     
-    This adds a new Buffer.AvailableBuffer method that returns
-    an empty buffer with a possibly non-empty capacity for use
-    with append-like APIs.
-    
-    The typical usage pattern is something like:
-    
-            b := bb.AvailableBuffer()
-            b = appendValue(b, v)
-            bb.Write(b)
-    
-    It allows logic combining append-like APIs with Buffer
-    to avoid needing to allocate and manage buffers themselves and
-    allows the append-like APIs to directly write into the Buffer.
-    
-    The Buffer.Write method uses the builtin copy function,
-    which avoids copying bytes if the source and destination are identical.
-    Thus, Buffer.Write is a constant-time call for this pattern.
-    
-    Performance:
-    
-            BenchmarkBufferAppendNoCopy  2.909 ns/op  5766942167.24 MB/s
-    
-    This benchmark should only be testing the cost of bookkeeping
-    and never the copying of the input slice.
-    Thus, the MB/s should be orders of magnitude faster than RAM.
-    
-    Fixes #53685
-    
-    Change-Id: I0b41e54361339df309db8d03527689b123f99085
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474635
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I5698c7576a0f39ae62de7bea64286ac8e578d421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400916
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/53685.txt        |  2 ++
- src/bytes/buffer.go       |  9 +++++++++
- src/bytes/buffer_test.go  | 41 +++++++++++++++++++++++++++++++++++++++++
- src/bytes/example_test.go | 13 +++++++++++++
- 4 files changed, 65 insertions(+)
+ src/runtime/map.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

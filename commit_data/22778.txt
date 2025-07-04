@@ -1,12 +1,20 @@
-commit 13ae23751a6af70e3eaa4a4e12c4f6f0c71582da
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 29 15:05:45 2015 -0700
+commit fb919e3a60ac83c427d470fa3382d8d8b606a369
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 8 21:41:47 2015 +1000
 
-    src: don't assume go is in PATH in buildall.bash
+    cmd/asm/internal/asm: add arm64 end to end tests
     
-    Change-Id: I5569dcdefe8adba346810124b16721674956bce6
-    Reviewed-on: https://go-review.googlesource.com/9515
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add end to end tests for arm64 to support CL 8405.
+    
+    There are several instruction forms commented out at the moment
+    they will be addressed in CL 8405 or later followups.
+    
+    Change-Id: I6eeeb810c1e03cd49bb3c881bc46a29cdb817822
+    Reviewed-on: https://go-review.googlesource.com/8631
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/buildall.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go   |   4 +
+ src/cmd/asm/internal/asm/testdata/arm64.out |  46 +++++
+ src/cmd/asm/internal/asm/testdata/arm64.s   | 252 ++++++++++++++++++++++++++++
+ 3 files changed, 302 insertions(+)

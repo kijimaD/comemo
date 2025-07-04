@@ -1,26 +1,23 @@
-commit 7f9494c277a471f6f47f4af3036285c0b1419816
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Feb 2 09:13:17 2022 -0800
+commit 14ade57ab8f2a6b9608fc3cab57957f39caead40
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 23 22:20:55 2021 +0000
 
-    crypto/elliptic: make IsOnCurve return false for invalid field elements
+    runtime: fix scavenge min fraction constant floor division
     
-    Thanks to Guido Vranken for reporting this issue.
+    Currently there's a minor bug where the constant for the min fraction of
+    time spent scavenging is rounded down to zero. I don't think this
+    affects anything in practice because this case is exceedingly rare and
+    extreme, but currently it doesn't properly prevent the pacing parameters
+    from getting out of hand in these extreme cases.
     
-    Fixes #50974
-    Fixes CVE-2022-23806
+    Fixes #44036.
     
-    Change-Id: I0201c2c88f13dd82910985a495973f1683af9259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382455
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
+    Change-Id: I7de644ab0ecac33765c337a736482a0966882780
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313249
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/elliptic/elliptic.go      |  5 ++++
- src/crypto/elliptic/elliptic_test.go | 55 ++++++++++++++++++++++++++++++++++++
- src/crypto/elliptic/p224.go          |  3 ++
- src/crypto/elliptic/p384.go          |  3 ++
- src/crypto/elliptic/p521.go          |  3 ++
- 5 files changed, 69 insertions(+)
+ src/runtime/mgcscavenge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

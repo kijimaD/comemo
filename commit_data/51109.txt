@@ -1,18 +1,24 @@
-commit edfe07834905809d687b30632ccb849b84ebd4f2
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Aug 31 22:25:51 2022 +0200
+commit 765cc726b64044a55fb37d10a8bec1c153b06be5
+Author: miller <millerresearch@gmail.com>
+Date:   Sun Dec 5 16:39:20 2021 +0000
 
-    net/http: ignore ranges if the content is empty in serveContent
+    src/cmd/go/internal/work: lock Builder output mutex consistently
     
-    Fixes #54794
+    To prevent interleaving of output when 'go build' compiles several
+    packages in parallel, the output mutex in the Builder struct must
+    be locked around any calls to Builder.Print which could generate
+    arbitrary amounts of text (ie more than is guaranteed to be written
+    atomically to a pipe).
     
-    Change-Id: I6f2b7b86b82ea27b9d53cf989daa21cb8ace13da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427195
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #49987
+    For #49338
+    
+    Change-Id: I7947df57667deeff3f03f231824298d823f8a943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369018
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
 
- src/net/http/fs.go      | 146 ++++++++++++++++++++++++++----------------------
- src/net/http/fs_test.go |  21 +++++++
- 2 files changed, 101 insertions(+), 66 deletions(-)
+ src/cmd/go/internal/work/buildid.go | 4 ++++
+ 1 file changed, 4 insertions(+)

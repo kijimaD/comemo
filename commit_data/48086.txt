@@ -1,33 +1,44 @@
-commit 727790a2fda02e75844ce91320c05fd2bf1f431d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 2 15:04:58 2022 -0800
+commit 7ef0237d89b7cf5ca9537e926aca3ca59944e1e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 16 17:00:02 2021 -0400
 
-    go/types, types2: remove superflous type parameter length checks
+    cmd/go/internal/modload: clean up error reporting
     
-    There is no need to check for length equality of type parameter
-    lists in Checker.missingMethod: the Identical predicate does
-    this check. Furthermore, we don't have methods with their own
-    type parameters. Remove the unnecessary (duplicate) code.
+    • Consolidate 'if ld.AllowErrors' conditions into an 'ld.errorf'
+      method.
     
-    Also, update doc string on missingMethod and rename the 2nd
-    result parameter for clarity, and clarify internal comments.
+    • Rename SilenceErrors to SilencePackageErrors and clarify its
+      documentation. (There is currently no way to silence errors in the
+      module graph. Perhaps we should add one, but for now let's at least
+      clarify the existing behavior.)
     
-    For go/types, include the same case-folding code as for types2
-    but leave it disabled or now. Adjust any other differences in
-    the missingMethod implementation.
+    • Move 'tidy -v' verbose logging into LoadPackages, where other
+      logging happens.
     
-    With this change, the types2 and go/types code of missingMethod
-    is identical again except for the disabled case-folding lookup.
+    • Make checkMultiplePaths a loader method (since it only matters
+      during package loading anyway).
     
-    No functionality changes.
+    • Check package and module-graph errors in loadFromRoots instead of
+      LoadPackages. These checks were previously omitted on the
+      ImportFromFiles path, which seems likely to be a bug. (We now
+      suppress package errors explicitly in ImportFromFiles, which at
+      least makes the bug more explicit.)
     
-    Preparation for fixing some of the outstanding error reporting issues.
+    This somewhat simplifies the code structure in preparation for
+    the lazy-mode tidy implementation.
     
-    Change-Id: I4778d006c17f4e084ecc2cac7386c68e86aa49eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382614
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #36460
+    
+    Change-Id: I3ce3586c6934989d5194f00f99e7cc4423cf767f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313229
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/lookup.go | 54 ++++++++----------------------
- src/go/types/lookup.go                    | 55 +++++++++++--------------------
- 2 files changed, 33 insertions(+), 76 deletions(-)
+ src/cmd/go/internal/load/pkg.go          |   2 +-
+ src/cmd/go/internal/modcmd/why.go        |   2 +-
+ src/cmd/go/internal/modget/get.go        |   2 +-
+ src/cmd/go/internal/modload/buildlist.go |  65 ++---------
+ src/cmd/go/internal/modload/load.go      | 192 +++++++++++++++++++++++--------
+ 5 files changed, 156 insertions(+), 107 deletions(-)

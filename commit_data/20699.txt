@@ -1,32 +1,13 @@
-commit 64bed3f55fdf3628e0bfe75079a8f5f845aa7bb2
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Oct 13 18:35:53 2014 -0700
+commit 7210753f1f1b951817c71ceb0af5cefff9c69c31
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 1 08:30:51 2014 +1000
 
-    crypto/x509: continue to recognise MaxPathLen of zero as "no value".
+    doc: document go1.3.3
     
-    In [1] the behaviour of encoding/asn1 with respect to marshaling
-    optional integers was changed. Previously, a zero valued integer would
-    be omitted when marshaling. After the change, if a default value was
-    set then the integer would only be omitted if it was the default value.
-    
-    This changed the behaviour of crypto/x509 because
-    Certificate.MaxPathLen has a default value of -1 and thus zero valued
-    MaxPathLens would no longer be omitted when marshaling. This is
-    arguably a bug-fix -- a value of zero for MaxPathLen is valid and
-    meaningful and now could be expressed. However it broke users
-    (including Docker) who were not setting MaxPathLen at all.
-    
-    This change again causes a zero-valued MaxPathLen to be omitted and
-    introduces a ZeroMathPathLen member that indicates that, yes, one
-    really does want a zero. This is ugly, but we value not breaking users.
-    
-    [1] https://code.google.com/p/go/source/detail?r=4218b3544610e8d9771b89126553177e32687adf
-    
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews, golang-dev
-    https://golang.org/cl/153420045
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/149280044
 
- src/crypto/x509/x509.go      | 15 ++++++++++-
- src/crypto/x509/x509_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 77 insertions(+), 1 deletion(-)
+ doc/devel/release.html | 5 +++++
+ 1 file changed, 5 insertions(+)

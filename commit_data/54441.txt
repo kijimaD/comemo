@@ -1,19 +1,31 @@
-commit c80a9f172bbab2b19fa3680c7928fcedf3088e4d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 11 20:19:46 2023 -0700
+commit c45ebef05edcb217be8f9bf1d7649763132727cc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 17 15:57:48 2022 -0400
 
-    cmd/compile/internal/types: add Type.Registers
+    runtime: avoid unsafe.{Slice,String} in debuglog
     
-    To be used by package abi in the following CL.
+    CL 428157 and CL 428759 switched debuglog to using unsafe.String and
+    unsafe.Slice, which broke the build with -tags=debuglog because this is
+    a no write barrier context, but runtime.unsafeString and unsafeSlice can
+    panic, which includes write barriers.
     
-    Change-Id: Ic2470069e65f8d9b01ec161c28e5b86dca2ec141
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527338
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    We could add a panicCheck1 path to these functions to reallow write
+    barriers, but it is a big mess to pass around the caller PC,
+    particularly since the compiler generates calls. It is much simpler to
+    just avoid unsafe.String and Slice.
+    
+    Also add a basic test to build the runtime with -tags=debuglog to help
+    avoid future regressions.
+    
+    For #54854.
+    
+    Change-Id: I702418b986fbf189664e9aa4f40bc7de4d9e7781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443380
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types/size.go        | 69 +++++++++++++++++++++++----
- src/cmd/compile/internal/types/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types/type.go        | 16 +++++++
- 3 files changed, 77 insertions(+), 10 deletions(-)
+ src/runtime/debuglog.go      | 15 +++++++++++++--
+ src/runtime/debuglog_test.go | 12 ++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

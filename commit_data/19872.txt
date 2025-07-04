@@ -1,16 +1,20 @@
-commit 6c007bb065dbbf0db878c68221d302f49b3e8350
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 4 20:29:36 2014 -0700
+commit 77df26f0bd7b52f0edb06c0af9904d64faf787ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 4 16:12:55 2014 -0700
 
-    runtime: only use a single variable in USED
+    archive/zip: accept bogus trailing zeros in extras
     
-    The gccgo version of USED only accepts a single variable, so
-    this simplifies merging.
+    Popular tools both add incorrect trailing zeroes to the zip
+    extras, and popular tools accept trailing zeros. We seemed to
+    be the only ones being strict here. Stop being strict. :(
     
-    LGTM=minux, dave
-    R=golang-codereviews, minux, dave
-    CC=golang-codereviews
-    https://golang.org/cl/115630043
+    Fixes #8186
+    
+    LGTM=ruiu, adg, dave
+    R=adg, ruiu, dave
+    CC=frohrweck, golang-codereviews
+    https://golang.org/cl/117550044
 
- src/pkg/runtime/netpoll_epoll.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader.go      |  9 +++++++--
+ src/pkg/archive/zip/reader_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

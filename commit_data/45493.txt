@@ -1,33 +1,54 @@
-commit abb110bf3de82f85aefe0fb284cc9359488b5f09
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat May 1 15:41:34 2021 +0000
+commit 320cc79002b5ce5f8d7f667f0aa78a1fdce59eb4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Oct 25 01:34:17 2020 +1100
 
-    os/user: implement (*User).GroupIds on solaris
+    cmd/compile: eliminate unnecessary sign/zero extension for riscv64
     
-    It seems like getgrouplist is supported since Solaris 11.3 (released in
-    2016):
-    https://docs.oracle.com/cd/E86824_01/html/E54766/getgrouplist-3c.html
+    Add additional rules to eliminate unnecessary sign/zero extension for riscv64.
+    Also where possible, replace an extension following a load with a different typed
+    load. This removes almost another 8,000 instructions from the go binary.
     
-    Use it to implement (*User).GroupIds on solaris, like on other Unix
-    platforms.
+    Of particular note, change Eq16/Eq8/Neq16/Neq8 to zero extend each value before
+    subtraction, rather than zero extending after subtraction. While this appears to
+    double the number of zero extensions, it often lets us completely eliminate them
+    as the load can already be performed in a properly typed manner.
     
-    Unfortunately it looks like getgrouplist was added to illumos only
-    fairly recently, see
-    https://github.com/illumos/illumos-gate/commit/f2c438c5058c64b7373448f239156bf60009abcb
+    As an example, prior to this change runtime.memequal16 was:
     
-    Thus, don't use it on GOOS=illumos for now.
+    0000000000013028 <runtime.memequal16>:
+       13028:       00813183                ld      gp,8(sp)
+       1302c:       00019183                lh      gp,0(gp)
+       13030:       01013283                ld      t0,16(sp)
+       13034:       00029283                lh      t0,0(t0)
+       13038:       405181b3                sub     gp,gp,t0
+       1303c:       03019193                slli    gp,gp,0x30
+       13040:       0301d193                srli    gp,gp,0x30
+       13044:       0011b193                seqz    gp,gp
+       13048:       00310c23                sb      gp,24(sp)
+       1304c:       00008067                ret
     
-    Updates #14709
+    Whereas it now becomes:
     
-    Change-Id: Ibfcdbfca6b7d1af96630512d08921e5637ca76d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315278
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    0000000000012fa8 <runtime.memequal16>:
+       12fa8:       00813183                ld      gp,8(sp)
+       12fac:       0001d183                lhu     gp,0(gp)
+       12fb0:       01013283                ld      t0,16(sp)
+       12fb4:       0002d283                lhu     t0,0(t0)
+       12fb8:       405181b3                sub     gp,gp,t0
+       12fbc:       0011b193                seqz    gp,gp
+       12fc0:       00310c23                sb      gp,24(sp)
+       12fc4:       00008067                ret
+    
+    Change-Id: I16321feb18381241cab121c0097a126104c56c2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264659
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/user/getgrouplist_unix.go                             | 4 ++--
- src/os/user/{listgroups_solaris.go => listgroups_illumos.go} | 6 +++---
- src/os/user/listgroups_unix.go                               | 4 ++--
- src/os/user/user_test.go                                     | 2 +-
- 4 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go        |   5 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  79 ++-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   2 +
+ src/cmd/compile/internal/ssa/opGen.go          |  14 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 775 ++++++++++++++++++++++++-
+ 5 files changed, 843 insertions(+), 32 deletions(-)

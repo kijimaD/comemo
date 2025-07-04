@@ -1,12 +1,14 @@
-commit aeaa8171407675611b3d08f1d0950f72c0929ad1
+commit c68ae9d4675c35e3795c79349c67f653e5082db9
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 19:52:34 2011 -0400
+Date:   Mon Sep 26 19:35:32 2011 -0400
 
-    websocket: remove use of container/vector
+    bytes: add EqualFold
     
-    R=golang-dev, r
-    CC=golang-dev, ukai
-    https://golang.org/cl/5140046
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5123047
 
- src/pkg/websocket/hixie.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/pkg/bytes/bytes.go      | 55 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/bytes_test.go | 28 +++++++++++++++++++++++
+ src/pkg/strings/strings.go  |  3 ++-
+ 3 files changed, 85 insertions(+), 1 deletion(-)

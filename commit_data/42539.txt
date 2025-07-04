@@ -1,17 +1,23 @@
-commit d872bbcfec29f2585ed8144fba6262d4228619cf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 16 21:57:43 2020 -0700
+commit 5d076d579a338d313806196cd3d045cc402565e5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 9 10:48:14 2020 +0100
 
-    reflect: handling flagIndir in DeepEqual potential cycles
+    misc/cgo/test: re-enable darwin cgo tests in race mode
     
-    Fixes #39607
+    Go 1.14 will drop support for macOS 10.10, see #23011
     
-    Change-Id: Ia7e597e0da8a193a25382cc633a1c6080b4f7cbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238361
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This reverts CL 125304
+    
+    Updates #26475
+    Updates #26513
+    
+    Change-Id: Ia13eef30f22d67103f7ae45424124fbb116e1261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214057
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go  |  6 ++++++
- src/reflect/deepequal.go | 16 ++++++++++++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ misc/cgo/test/issue21897.go                      | 11 +----------
+ misc/cgo/test/issue21897b.go                     |  2 +-
+ misc/cgo/test/testdata/issue24161_darwin_test.go |  8 --------
+ 3 files changed, 2 insertions(+), 19 deletions(-)

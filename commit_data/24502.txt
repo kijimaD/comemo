@@ -1,16 +1,15 @@
-commit ee07504d26a4d61ca0bc0728fea58f7b2fd52cc2
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Tue Oct 13 13:58:11 2015 -0400
+commit 226b28c85cd762f777135c102d83770fc4e6ade9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 31 12:10:22 2015 -0400
 
-    misc/cgo/testcshared: use -pie for android-L.
+    cmd/go: fix go get x/... matching internal directories
     
-    Also, handle the case where 'read' returns EINVAL instead of EBADF
-    when the descriptor is not ready. (android 4.4.4/cyanogenmod, nexus7)
+    Fixes #11960.
     
-    Change-Id: I56c5949d27303d44a4fd0de38951b85e20cef167
-    Reviewed-on: https://go-review.googlesource.com/15810
+    Change-Id: I9361a9f17f4eaf8e4f54b4ba380fd50a4b9cf003
+    Reviewed-on: https://go-review.googlesource.com/13023
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcshared/main2.c   |  2 +-
- misc/cgo/testcshared/test.bash | 15 ++++++++++-----
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/go/get.go     |  8 +++-----
+ src/cmd/go/go_test.go | 13 ++++++++++++-
+ 2 files changed, 15 insertions(+), 6 deletions(-)

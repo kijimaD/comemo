@@ -1,15 +1,30 @@
-commit d0351e96669be3629e9a0ad4c841af42eeb624e5
+commit 49580db149b177b0bbebb9fc61094b1e6c5a38d2
 Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 24 10:17:59 2015 -0800
+Date:   Thu Sep 17 10:37:07 2015 -0700
 
-    text/template,html/template: correct comment in DefinedTemplates
+    asm: give error message for unadorned symbol reference
     
-    The prefix includes a semicolon.
+    On amd64, the program
     
-    Change-Id: I4bdb79aa9931e835e297f3ea2c46a001cd123d56
-    Reviewed-on: https://go-review.googlesource.com/17200
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TEXT    foo0(SB),7,$-8
+        ADDQ R520, R1
+        RET
+    
+    used to trigger this error because R520 was being passed through to obj:
+    
+    asm: doasm: notfound ft=23 tt=23 00000 (x.s:2)  ADDQ    0, 0 23 23
+    
+    Now it gets this one, as it is indeed a parse error:
+    
+    x.s:2: illegal addressing mode for symbol R520
+    
+    This couldn't be fixed until #12632 had been fixed for arm64.
+    
+    Fixes #12470.
+    
+    Change-Id: I19830c4ae9337887b93f85d9a239e2b89dbb2219
+    Reviewed-on: https://go-review.googlesource.com/14691
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/html/template/template.go | 2 +-
- src/text/template/exec.go     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

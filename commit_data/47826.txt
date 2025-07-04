@@ -1,18 +1,18 @@
-commit 2e6e9df2c1242274b02b584c617947aeed39c398
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 16 10:50:34 2021 -0800
+commit 4b00eb7af4f0dffbb0825e225dbcffd2e3e52865
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 12 19:42:28 2021 -0400
 
-    go/types, types2: use compiler error message for undefined operators
+    cmd/compile: allow OpArgXXXReg comes before LoweredGetClosurePtr
     
-    For #48712.
+    Both OpArgXXXReg and LoweredGetClosurePtr must come very early,
+    because they carry registers that are technically live on entry.
+    But no need to impose ordering requirement between them.
     
-    Change-Id: I1596fe8688f093e0e92cf5b8d5501aac8631324e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372894
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iee1db6239a75e5b381e0ad25ba5503169333217b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309629
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/expr.go | 12 ++----------
- src/go/types/expr.go                    |  4 ++--
- 2 files changed, 4 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

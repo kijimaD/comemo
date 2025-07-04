@@ -1,21 +1,18 @@
-commit f2239d39571a176ebeb726e2d6cccbc3aa1ba4a9
-Author: HAMANO Tsukasa <hamano@osstech.co.jp>
-Date:   Wed May 2 05:54:12 2018 +0000
+commit 32a0a1d37c87bbbc5f9650da9a4b7262f3162ae4
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Jan 11 22:19:01 2018 +0530
 
-    encoding/asn1: allow Marshaling and Unmarshaling private tag class
+    doc/articles/wiki: highlight the use of _ warning
     
-    ASN.1 has an private class, but current implementation does not support it.
+    This moves the paragraph mentioning the use of _ higher up
+    to emphasize the warning and thereby reducing chances of getting
+    stuck.
     
-    Change-Id: I3ebf07a048831869572f75223cb17d4c115caef7
-    GitHub-Last-Rev: b3c69ad091218acfa0bb0e34111cceae69586eb9
-    GitHub-Pull-Request: golang/go#25195
-    Reviewed-on: https://go-review.googlesource.com/110561
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Fixes #22617
+    
+    Change-Id: I64352a3e966a22d86fc9d381332bade49d74714a
+    Reviewed-on: https://go-review.googlesource.com/87375
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/asn1/asn1.go         | 7 +++++++
- src/encoding/asn1/asn1_test.go    | 4 +++-
- src/encoding/asn1/common.go       | 6 ++++++
- src/encoding/asn1/marshal.go      | 2 ++
- src/encoding/asn1/marshal_test.go | 9 +++++++++
- 5 files changed, 27 insertions(+), 1 deletion(-)
+ doc/articles/wiki/index.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,17 +1,27 @@
-commit 8d428ed218d2b65dbb4abbd9be870c95439a2b14
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 19 12:04:10 2016 +0900
+commit 272df158ac431cc253b87a713735df70155ed456
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 27 17:57:42 2016 -0700
 
-    net: don't return io.EOF from zero byte reads on Plan 9
+    cmd/compile: clean up ... Bound marker
     
-    Updates #15735.
-    Fixes #15741.
+    This mostly a mechanical change.
+    However, the change in assignop (subr.go) is a bug fix.
+    The code didn’t match the comment,
+    and the comment was correct.
+    Nevertheless, this CL passes toolstash -cmp.
     
-    Change-Id: Ic4ad7e948e8c3ab5feffef89d7a37417f82722a1
-    Reviewed-on: https://go-review.googlesource.com/23199
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The last direct reference to dddBound outside
+    type.go (in typecheck.go) will go away
+    in a future CL.
+    
+    Change-Id: Ifb1691e0a07f906712c18c4a4cd23060807a5da5
+    Reviewed-on: https://go-review.googlesource.com/21235
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/fd_plan9.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/align.go     | 2 +-
+ src/cmd/compile/internal/gc/bexport.go   | 6 ++++--
+ src/cmd/compile/internal/gc/fmt.go       | 2 +-
+ src/cmd/compile/internal/gc/subr.go      | 2 +-
+ src/cmd/compile/internal/gc/type.go      | 9 +++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
+ 6 files changed, 20 insertions(+), 9 deletions(-)

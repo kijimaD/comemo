@@ -1,24 +1,18 @@
-commit 111064925b34bfd60949c09f0d0b06c8f34430f2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Nov 16 12:26:23 2016 +0000
+commit d2df8498f366669acbae24f38e3683b3acdab102
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Sep 28 12:51:39 2016 -0700
 
-    testing: comment out flag.Parse from example
+    database/sql: close Rows when context is cancelled
     
-    The TestMain docs explain that flag.Parse() should be called if TestMain
-    itself depends on command-line flags.
+    To prevent leaking connections, close any open Rows when the
+    context is cancelled. Also enforce context cancel while reading
+    rows off of the wire.
     
-    The issue here is that the example implementation does not use any
-    flags, and thus the flag.Parse call is unnecessary. This leads to people
-    who use this example as a starting point for their own implementations
-    to forget that the call is not necessary in most cases.
-    
-    Comment it out instead of removing the line to keep it as a reminder, as
-    suggested by Minux Ma.
-    
-    Change-Id: I6ffc5413e7036366ae3cf0f069b7065e832a3b45
-    Reviewed-on: https://go-review.googlesource.com/33273
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I62237ecdb7d250d6734f6ce3d2b0bcb16dc6fda7
+    Reviewed-on: https://go-review.googlesource.com/29957
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/ctxutil.go  | 24 ++++++++++++++++++
+ src/database/sql/sql.go      | 45 ++++++++++++++++++++++++++++------
+ src/database/sql/sql_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 119 insertions(+), 8 deletions(-)

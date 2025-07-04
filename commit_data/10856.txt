@@ -1,13 +1,13 @@
-commit 13b26cb36a71f93aba29b933435101aa5e5d9e8e
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 16 22:52:02 2011 -0800
+commit 76a078332173ab49e0a9d3fad4854960ee0b1c50
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Dec 17 13:14:59 2011 +1100
 
-    runtime: use correct traceback file on arm
-    reported by fred richter
+    goinstall: only suggest -fix for bad imports when appropriate
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5494062
+    https://golang.org/cl/5495073
 
- src/pkg/runtime/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/goinstall/download.go | 14 +++++++++-----
+ src/cmd/goinstall/main.go     |  4 ++++
+ 2 files changed, 13 insertions(+), 5 deletions(-)

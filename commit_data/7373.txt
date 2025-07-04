@@ -1,20 +1,18 @@
-commit 6e615a57af895f1d4f7f7ff95d741b3f188fef5c
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 4 13:14:38 2011 -0800
+commit c14c4e55e00ff06b83063cc2117444a2d75a3b0d
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Feb 4 14:33:21 2011 -0500
 
-    scan: permit base prefixes 0nnn and 0xnn when scanning
-    signed or unsigned integers using %v or the formatless scanner.
-    That is, Sscan("0x11", &i) or Sscanf("0x11", "%v", &i) will now
-    set i to 17.   If a format other than %v is presented, the behavior
-    is as before.
+    8l: fix crash writing Plan 9 binaries
     
-    Fixes #1469.
+    Was crashing with GOOS=plan9 unless -s was passed.
+    Add symbols and line numbers to Plan 9 a.out.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4131042
+    https://golang.org/cl/4080050
 
- src/pkg/fmt/doc.go       |  4 ++++
- src/pkg/fmt/scan.go      | 58 +++++++++++++++++++++++++++++++++++++-----------
- src/pkg/fmt/scan_test.go | 14 +++++++++++-
- 3 files changed, 62 insertions(+), 14 deletions(-)
+ src/cmd/8l/asm.c    | 88 ++++++++++++++++++++++++++++++++---------------------
+ src/cmd/8l/l.h      |  2 +-
+ src/cmd/ld/lib.h    |  1 +
+ src/cmd/ld/symtab.c | 56 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 111 insertions(+), 36 deletions(-)

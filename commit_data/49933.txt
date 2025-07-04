@@ -1,22 +1,25 @@
-commit d09c6ac41769cc782ec982ffc8f20fbd796791f8
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Tue Jun 14 09:24:32 2022 -0500
+commit 7158ae4e32894cf7050eef287c5e9818b9fb9ce1
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Sep 21 20:20:36 2021 -0400
 
-    test/codegen: updated multiple tests to verify on ppc64,ppc64le
+    go/types: don't panic if targs don't match tparams when substituting
     
-    Updated multiple tests in test/codegen: math.go, mathbits.go, shift.go
-    and slices.go to verify on ppc64/ppc64le as well
+    Invalid code may produce instances where the number of type arguments
+    does not match the number of type parameters. Such code will cause an
+    error, but should not cause a panic when substituting in those invalid
+    instances.
     
-    Change-Id: Id88dd41569b7097819fb4d451b615f69cf7f7a94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412115
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #48529
+    
+    Change-Id: Ie5ff5ace55921540a7224cc5022ef9ff7649361a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351337
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- test/codegen/math.go     |  4 ++++
- test/codegen/mathbits.go | 16 ++++++++++++++++
- test/codegen/shift.go    | 18 ++++++++++++++++++
- test/codegen/slices.go   | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 86 insertions(+)
+ src/go/types/named.go                          |  2 +-
+ src/go/types/subst.go                          |  4 +++-
+ src/go/types/testdata/fixedbugs/issue46461.go2 | 11 +++++++++++
+ src/go/types/testdata/fixedbugs/issue48529.go2 | 11 +++++++++++
+ 4 files changed, 26 insertions(+), 2 deletions(-)

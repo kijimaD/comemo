@@ -1,28 +1,24 @@
-commit 1cf08182f92698aeba8be040dafb5296707cdbf2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 15:05:39 2017 -0800
+commit d2315fdc11ebdf5c0ae94f33cb01ffaab82c00b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 13:14:16 2016 -0400
 
-    go/printer: fix format with leading comments in composite literal
+    html/template: adjust ambiguous URL context text
     
-    This fix is less pervasive than it seems. The only change affecting
-    formatting is on printer.go:760. The remaining changes have no effect
-    on formatting since the value of p.level is ignored except on this
-    specific line.
+    Before: ... appears in an ambiguous URL context.
+    After:  ... appears in an ambiguous context within a URL.
     
-    The remaining changes are:
-    - renamed adjBlock to funcBody since that's how it is used
-    - introduced new printer field 'level' tracking the composite
-      literal nesting level
-    - update/restore the composite literal nesting level as needed
+    It's a minor point, but it's confused multiple people.
+    Try to make clearer that the ambiguity is "where exactly inside the URL?"
     
-    Fixes #18782.
+    Fixes #17319.
     
-    Change-Id: Ie833a9b5a559c4ec0f2eef2c5dc97aa263dca53a
-    Reviewed-on: https://go-review.googlesource.com/35811
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id834868d1275578036c1b00c2bdfcd733d9d2b7b
+    Reviewed-on: https://go-review.googlesource.com/31465
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/printer/nodes.go                  | 17 ++++++---
- src/go/printer/printer.go                | 11 ++++--
- src/go/printer/testdata/comments2.golden | 59 ++++++++++++++++++++++++++++++
- src/go/printer/testdata/comments2.input  | 63 ++++++++++++++++++++++++++++++++
- 4 files changed, 142 insertions(+), 8 deletions(-)
+ src/html/template/error.go       | 2 +-
+ src/html/template/escape.go      | 2 +-
+ src/html/template/escape_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

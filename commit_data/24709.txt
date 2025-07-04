@@ -1,24 +1,18 @@
-commit 9179c9cb5c369e075a65a2a5addd4a0e0b099b16
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 26 13:58:23 2015 -0700
+commit 3efe36d4c46c609b036f3d6eb209788aa71ec57f
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 24 19:11:35 2015 -0500
 
-    cmd/compile: make sure instrumented call has type width
+    runtime: fix nmspinning comparison
     
-    The width of the type of an external variable defined with a type
-    literal may not be set when the instrumentation pass is run.  There are
-    two cases in the standard library that fail without the call to dowidth:
+    nmspinning has a value range of [0, 2^31-1].  Update the comment to
+    indicate this and fix the comparison so it's not always false.
     
-    ../../../src/encoding/base32/base32.go:322: constant -1000000000 overflows uintptr
-    ../../../src/encoding/base32/base32.go:329: constant -1000000000 overflows uintptr
-    ../../../src/encoding/json/encode.go:385: constant -1000000000 overflows uintptr
-    ../../../src/encoding/json/encode.go:387: constant -1000000000 overflows uintptr
+    Fixes #11280
     
-    Change-Id: I7c3334f7decdb7488595ffe4090cd262d7334283
-    Reviewed-on: https://go-review.googlesource.com/16331
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iedaf0654dcba5e2c800645f26b26a1a781ea1991
+    Reviewed-on: https://go-review.googlesource.com/13877
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/cgo/testsanitizers/test.bash       |  5 +++++
- src/cmd/compile/internal/gc/racewalk.go | 16 ++++++++++++++--
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/runtime/proc1.go    | 2 +-
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

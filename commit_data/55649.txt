@@ -1,22 +1,18 @@
-commit 808c8fb815183f0bd6978b17e41e7edf254b78ec
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Feb 16 15:01:47 2024 -0500
+commit 89c3f7c119cc3909104abaa55a6438d7b54d4a42
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 16 21:19:42 2023 +0700
 
-    cmd/go: change the naming of flag counters
+    cmd/compile/internal/walk: remove unused eqFor
     
-    We're making the following changes:
-     * From cmd/go/flag-<flagname> to cmd/go/flag:<flagname>
-     * From cmd/go/<subcommand-name>:flag-<flagname> to
-           cmd/go/flag:<subcommand-name>-<flagname>
-     * From cmd/go:subcommand-<subcommand-name> to
-           cmd/go/subcommand:<subcommand-name>
+    CL 436436 replaced eqFor with reflectdata.EqFor, but forgot removing it.
     
-    Change-Id: Id682840bb4330fceeb070fc69203d0bfb03f3a29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564857
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I3f2bf02da2e161a27718226b970b81815e9f0a46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468815
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/main.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/walk/compare.go | 27 ---------------------------
+ 1 file changed, 27 deletions(-)

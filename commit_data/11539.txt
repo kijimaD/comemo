@@ -1,12 +1,25 @@
-commit 702151a2001763aa0b535304377b4b2415141c92
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Wed Feb 1 09:43:22 2012 -0500
+commit e280035fc1afdf4c1855d74bc4178ff0a8a18332
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Feb 1 04:14:37 2012 -0800
 
-    godoc: fix redirect loop for URL "/".
+    gc, cc: avoid using the wrong library when building the compilers
     
-    R=golang-dev, bradfitz, rsc, adg
+    This can happen on Plan 9 if we we're building
+    with the 32-bit and 64-bit host compilers, one
+    after the other.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5606045
+    https://golang.org/cl/5599053
 
- src/cmd/godoc/godoc.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ .hgignore           | 2 +-
+ src/cmd/5c/Makefile | 2 +-
+ src/cmd/5g/Makefile | 2 +-
+ src/cmd/6c/Makefile | 2 +-
+ src/cmd/6g/Makefile | 2 +-
+ src/cmd/8c/Makefile | 2 +-
+ src/cmd/8g/Makefile | 2 +-
+ src/cmd/cc/Makefile | 2 +-
+ src/cmd/gc/Makefile | 2 +-
+ src/cmd/gc/go.h     | 2 ++
+ 10 files changed, 11 insertions(+), 9 deletions(-)

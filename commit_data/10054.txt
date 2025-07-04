@@ -1,15 +1,12 @@
-commit 314afb417a9372290ffcf1b456f531e91b7667b9
+commit cf0952d352d3f56b9c5a7b4637805051e3814057
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 19 08:48:26 2011 -0700
+Date:   Wed Oct 19 08:45:38 2011 -0700
 
-    http: comment tweaks
+    syscall: update ztypes_linux_386 for terminal changes
     
-    It hasn't been primitive in a while.
-    
-    R=golang-dev, adg
+    R=golang-dev, dave, iant
     CC=golang-dev
-    https://golang.org/cl/5287041
+    https://golang.org/cl/5299045
 
- src/pkg/http/client.go    | 5 ++++-
- src/pkg/http/transport.go | 5 +++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/syscall/ztypes_linux_386.go | 111 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 111 insertions(+)

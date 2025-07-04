@@ -1,23 +1,20 @@
-commit 800fb11efb8a57d8aaf11052e3a9d91138964f21
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 16 16:47:34 2021 -0500
+commit 6c0135d3772e710328c751fbc704927931f129ca
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 11 16:27:25 2020 -0400
 
-    runtime: remove redudant tryWakeP component
+    cmd/go: don't always link in cgo for PIE
     
-    Here tryWakeP can't already be true, so there is no need to combine the
-    values.
+    Internal linking for PIE is now supported and enabled by default
+    on some platforms, for which cgo is not needed. Don't always
+    bring in cgo.
     
-    This CL should have no functional changes.
-    
-    For #43997.
-    For #44313.
-    
-    Change-Id: I640c7bb88a5f70c8d22f89f0b5b146b3f60c0136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307911
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I043ed436f0e6a3acbcc53ec543f06e193d614b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261498
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go   |  3 ++-
+ src/cmd/internal/sys/supported.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,27 +1,18 @@
-commit d98bf7d0151c3feeceba6348519bb5c16e8ddc3f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 15:05:23 2022 -0700
+commit 61890fb1237a3d2c3be809f66dd3f831cd2cc3d2
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 12 16:45:40 2021 -0400
 
-    go/types, types2: consolidate testdata/fixedbugs/issue46404.go
+    internal/fuzz: fix -fuzzminimizetime with 'x' bug
     
-    Rename .../issue46404.go1 to .../issue46404.go so that it is
-    not skipped anymore when running tests, and copy for types2.
+    Fixes #48928
     
-    Disable the code for now due to a difference in error
-    reporting due to the slightly different handling of index
-    expressions. This allows us to make progress with test
-    consolidation.
-    
-    For #54511.
-    
-    Change-Id: Ib5c9ffa49b1b24ec680ddb5001bc3dcb1df7eb1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426656
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I3825ec615ab5fc19389ef4c10ad1042005a3761c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355450
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../compile/internal/types2/testdata/fixedbugs/issue46404.go}  |  4 +++-
- src/go/types/testdata/fixedbugs/issue46404.go                  | 10 ++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt | 57 +++++++++++++++++++----
+ src/internal/fuzz/fuzz.go                         |  8 ++--
+ 2 files changed, 54 insertions(+), 11 deletions(-)

@@ -1,19 +1,19 @@
-commit 4b287553a439856a98f5422df683bb8d71e4d21b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 24 11:25:28 2015 -0400
+commit b3241912ff62ab64ec3c61bc8c198b6e12890a77
+Author: Alexander Zolotov <goldifit@gmail.com>
+Date:   Sat May 9 16:41:32 2015 +0300
 
-    reflect: test GC bits for slices
+    cmd/go: run gofmt from current GOROOT
     
-    Currently we test bitmap repetitions constructed by the compiler (for
-    small arrays) and repetitions performed by GC programs (large arrays
-    and reflect-constructed arrays), but we don't test dynamic repetitions
-    performed by the runtime for slice backing stores. Add tests that
-    parallel the array tests using slices.
+    The existing implementation executes `gofmt` binary from PATH
+    environment variable on invocation `go fmt` command.
+    Relying on PATH might lead to confusions for users with several Go installations.
+    It's more appropriate to run `gofmt` from GOBIN (if defined) or GOROOT.
     
-    Change-Id: If4425941a33cc5b20178dd819a7371e347e47585
-    Reviewed-on: https://go-review.googlesource.com/11422
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10755
+    
+    Change-Id: I56d42a747319c766f2911508fab3994c3a366d12
+    Reviewed-on: https://go-review.googlesource.com/9900
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/reflect/all_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ src/cmd/go/fmt.go | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

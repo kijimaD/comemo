@@ -1,13 +1,16 @@
-commit 6095ff3864d73e69c11196c0ea1bb5973bcd24bd
+commit eb8688154bbc330f19c46d0932c8899848e9e799
 Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 16 22:35:31 2011 -0800
+Date:   Wed Feb 16 22:01:57 2011 -0800
 
-    Effective Go: stress that comments are uninterpreted text
-    that should look in godoc.
+    arm runtime: attempt to fix build by adding casp (same as cas)
+    untested.
     
-    R=rsc, dsymonds
+    Fixes #1523.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4192041
+    https://golang.org/cl/4171057
 
- doc/effective_go.html | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/runtime/arm/cas5.s | 35 +++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/arm/cas6.s | 23 +++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 2 deletions(-)

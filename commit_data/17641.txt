@@ -1,12 +1,12 @@
-commit e27b0cdfc46d00537ec2a9540db51a5ff6a8a099
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 17 18:06:58 2013 -0700
+commit e903f5b26a34a38a1d91677958b2d0545d71e4f2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 18 10:48:11 2013 +1000
 
-    test: add a test that crashed gccgo
+    C: add Thomas Habets (Google CLA)
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/13683046
+    https://golang.org/cl/13501050
 
- test/fixedbugs/bug476.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,21 +1,30 @@
-commit 70b277cf2e953bb9994b00898280f4659a47471e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Mar 4 14:27:36 2021 +0700
+commit 89cf569a45f035bae45553f399880b92ede65f38
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Jul 21 15:53:30 2020 -0400
 
-    cmd/compile: only check return for valid functions
+    [dev.link] move FuncID creation into the compiler/assembler
     
-    CheckReturn uses fn.Type() unconditionally, so for invalid function,
-    fn.Type() will be nil, causes the compiler crashes.
+    Leaving creation of the funcID till the linker requires the linker to
+    load the function and file names into memory. Moving these into the
+    compiler/assembler prevents this.
     
-    Updates #43311
+    This work is a step towards moving all func metadata into the compiler.
     
-    Change-Id: I4420dd296c72ea83986b38fbf2c7f51fa59757c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298709
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iebffdc5a909adbd03ac263fde3f4c3d492fb1eac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244024
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
- test/fixedbugs/issue17588.go                    | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  1 +
+ src/cmd/internal/goobj2/funcinfo.go    | 16 +++++++++++-----
+ src/cmd/internal/goobj2/objfile.go     |  4 ++--
+ src/cmd/internal/obj/link.go           |  1 +
+ src/cmd/internal/obj/objfile.go        |  2 +-
+ src/cmd/internal/obj/objfile2.go       |  1 +
+ src/cmd/internal/obj/plist.go          |  2 ++
+ src/cmd/internal/objabi/funcid.go      | 22 ++++------------------
+ src/cmd/link/internal/ld/pcln.go       | 18 +++++++++++-------
+ src/cmd/link/internal/loader/loader.go |  4 ++++
+ 10 files changed, 38 insertions(+), 33 deletions(-)

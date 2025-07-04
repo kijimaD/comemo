@@ -1,25 +1,17 @@
-commit 2744155d369ca838be57d1eba90c3c6bfc4a3b30
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 7 22:54:50 2023 +0700
+commit 601ad2e4570896d07df8ace7d2ab9100a57d301c
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Nov 3 15:34:35 2022 +0800
 
-    cmd/compile: fix ICE with parenthesized builtin calls
+    math: fix function name in comment
     
-    CL 419456 starts using lookupObj to find types2.Object associated with
-    builtin functions. However, the new code does not un-parenthesized the
-    callee expression, causing an ICE because of nil obj returned.
-    
-    Un-parenthesizing the callee expression fixes the problem.
-    
-    Fixes #63436
-    
-    Change-Id: Iebb4fbc08575e7d0b1dbd026c98e8f949ca16460
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533476
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iabf955cdb161d02cb4a3e06f466b331e1b6eb2c2
+    Signed-off-by: cui fliter <imcusg@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447456
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 2 +-
- test/fixedbugs/issue63436.go             | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/math/logb.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

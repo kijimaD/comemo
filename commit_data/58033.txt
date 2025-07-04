@@ -1,27 +1,40 @@
-commit 53b2b64b649b26c7bb3397bec5d86d3b203eb015
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 15 19:22:16 2024 +0000
+commit 2fba42cb52e203d09878b385034b625788275663
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 10:56:49 2023 -0400
 
-    sync: add explicit noCopy fields to Map, Mutex, and Once
+    cmd/compile: implement range over func
     
-    Following CLs will refactor Mutex and change the internals of Map. This
-    ends up breaking tests in x/tools for the copylock vet check, because
-    the error message changes. Let's insulate ourselves from such things
-    permanently by adding an explicit noCopy field. We'll update the vet
-    check to accept that as the problem, rather than depend on less explicit
-    internals.
+    Add compiler support for range over functions.
+    See the large comment at the top of
+    cmd/compile/internal/rangefunc/rewrite.go for details.
     
-    We capture Once here too to clean up the error message as well.
+    This is only reachable if GOEXPERIMENT=range is set,
+    because otherwise type checking will fail.
     
-    Change-Id: Iead985fc8ec9ef3ea5ff615f26dde17bb03aeadb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627777
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For proposal #61405 (but behind a GOEXPERIMENT).
+    For #61717.
+    
+    Change-Id: I05717f94e63089c503acc49b28b47edeb4e011b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510541
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/sync/map.go   | 2 ++
- src/sync/mutex.go | 2 ++
- src/sync/once.go  | 2 ++
- test/assign.go    | 7 +++++--
- 4 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/escape/call.go            |    2 +-
+ src/cmd/compile/internal/ir/expr.go                |    1 +
+ src/cmd/compile/internal/ir/stmt.go                |    3 +-
+ src/cmd/compile/internal/ir/symtab.go              |    5 +-
+ src/cmd/compile/internal/noder/irgen.go            |   19 +-
+ src/cmd/compile/internal/noder/reader.go           |   12 +-
+ src/cmd/compile/internal/noder/writer.go           |   11 +
+ src/cmd/compile/internal/rangefunc/rewrite.go      | 1142 ++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go             |   30 +-
+ src/cmd/compile/internal/syntax/nodes.go           |   11 +-
+ src/cmd/compile/internal/syntax/tokens.go          |    4 +-
+ .../compile/internal/typecheck/_builtin/runtime.go |    3 +
+ src/cmd/compile/internal/typecheck/builtin.go      |  392 +++----
+ src/cmd/compile/internal/walk/expr.go              |   11 +
+ src/cmd/compile/internal/walk/stmt.go              |    4 +-
+ test/range3.go                                     |  335 +++++-
+ test/rangegen.go                                   |  333 ++++++
+ 17 files changed, 2101 insertions(+), 217 deletions(-)

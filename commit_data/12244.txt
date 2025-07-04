@@ -1,15 +1,14 @@
-commit 740d5038667d385f99eb42d54381b330390f0417
+commit 8c7b832ad5dc04efc0a5978a67963b521cc1cb18
 Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Tue Feb 28 11:28:10 2012 +1100
+Date:   Tue Feb 28 11:26:01 2012 +1100
 
-    net: add stubs for NetBSD
+    os: fix NetBSD build
     
-    This fixes the build of package net for GOOS=NetBSD.
-    Of course, a real implementation would be even better.
+    os.fileStat.Sys is no longer exported.
     
-    R=golang-dev, r
+    R=golang-dev, m4dh4tt3r, r
     CC=golang-dev
-    https://golang.org/cl/5693065
+    https://golang.org/cl/5696074
 
- src/pkg/net/sockoptip_netbsd.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/pkg/os/stat_netbsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

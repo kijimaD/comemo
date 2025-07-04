@@ -1,18 +1,15 @@
-commit 3ed6e830b9cb7541e20a19665f4e1c41453170f2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 10 14:16:41 2015 -0700
+commit ed9a4c91c2e82aabe8ef4a6391d9d3306eff63bc
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 18 07:37:51 2015 +1000
 
-    mime: fix docs for WordDecoder.Decode
+    runtime: document that GC blocks the whole program
     
-    It was correct for an early version of the CL which introduced the
-    type, but later versions of the CL changed the behavior without
-    updating the documentation.
+    No code changes. Just make it clear that runtime.GC is not concurrent.
     
-    Fixes #12568
-    
-    Change-Id: Ia4090a02ba122e9f8317ed86c4c9839ae2c539e0
-    Reviewed-on: https://go-review.googlesource.com/14496
+    Change-Id: I00a99ebd26402817c665c9a128978cef19f037be
+    Reviewed-on: https://go-review.googlesource.com/12345
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/encodedword.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

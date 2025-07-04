@@ -1,12 +1,12 @@
-commit 2a9478ed6446e2cbdef47d9dea1bd857c86631c1
+commit e53351013df40af9a56380dc979762ce13851fa0
 Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 30 14:41:04 2012 +1000
+Date:   Mon Jul 30 14:13:12 2012 +1000
 
-    misc/dashboard/codereview: pass user information to gobot when assigning reviewer.
+    misc/dashboard/codereview: switch to using gobot to update CL reviewer info.
     
-    R=bradfitz
-    CC=gobot, golang-dev, rsc
-    https://golang.org/cl/6457052
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6453063
 
- misc/dashboard/codereview/dashboard/cl.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ misc/dashboard/codereview/dashboard/cl.go | 36 ++++++++++---------------------
+ 1 file changed, 11 insertions(+), 25 deletions(-)

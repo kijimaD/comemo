@@ -1,21 +1,43 @@
-commit 8fd0f83552d3ef9ca38c031bec93a36b189e3e11
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Mar 21 00:58:18 2021 +1100
+commit eb3e27ac1a9346c7c2669ba2b863811607eddeae
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 15 14:42:15 2020 -0400
 
-    cmd/compile/internal/ssa: correct sign extension for consts on riscv64
+    cmd/go: add -retracted flag to 'go list'
     
-    Correct sign extension handling for consts on riscv64. This fixes a bug
-    in part exposed by CL 302609 - previously 64 bit consts were rewritten into
-    multiple 32 bit consts and the expansion would result in sign/zero extension
-    not being eliminated. With this change a MOVDconst with a 64 bit value can be
-    followed by a MOV{B,H,W}reg, which will be eliminated without actually
-    truncating to a smaller value.
+    The -retracted flag causes 'go list' to load information about
+    retracted module module versions.
     
-    Change-Id: I8d9cd380217466997b341e008a1f139bc11a0d51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303350
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    When -retracted is used with -f or -json, the Retracted field is set
+    to a string containing the reason for the retraction on retracted
+    module versions. The string is based on comments on the retract
+    directive. This field is also populated when the -u flag is used.
+    
+    When -retracted is used with -versions, retracted versions are shown.
+    Normally, they are omitted.
+    
+    For #24031
+    
+    Change-Id: Ic13d516eddffb1b8404e21034f78cecc9896d1b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228382
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 12 ++++++------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/go/alldocs.go                              |  15 ++-
+ src/cmd/go/internal/list/list.go                   | 100 ++++++++++++++++---
+ src/cmd/go/internal/modcmd/download.go             |   5 +-
+ src/cmd/go/internal/modcmd/why.go                  |   3 +-
+ src/cmd/go/internal/modload/build.go               |  50 ++++++++--
+ src/cmd/go/internal/modload/list.go                |  27 +++---
+ .../mod/example.com_retract_missingmod_v1.0.0.txt  |   8 ++
+ .../mod/example.com_retract_missingmod_v1.9.0.txt  |   4 +
+ .../mod/example.com_retract_self_all_v1.9.0.txt    |  14 +++
+ .../example.com_retract_self_prerelease_v1.0.0.txt |  16 +++
+ .../example.com_retract_self_prerelease_v1.9.0.txt |  19 ++++
+ ...mple.com_retract_self_prerelease_v1.9.1-pre.txt |  16 +++
+ ..._self_pseudo_v0.0.0-20200325131415-0123456789ab |  20 ++++
+ .../example.com_retract_self_pseudo_v1.0.0-bad.txt |  14 +++
+ .../mod/example.com_retract_self_pseudo_v1.9.0.txt |  16 +++
+ src/cmd/go/testdata/script/mod_list_pseudo.txt     |  21 +---
+ src/cmd/go/testdata/script/mod_list_retract.txt    | 108 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_retract_replace.txt |  51 ++++++++++
+ 18 files changed, 455 insertions(+), 52 deletions(-)

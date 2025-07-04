@@ -1,17 +1,18 @@
-commit 65dc7dc90bece08e9810de12acf06f82cc6a6384
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 20 11:40:41 2012 -0700
+commit 1abd8d8fd04fd64f90d3c1cbce675ab2317ec449
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 21 00:51:48 2012 +0800
 
-    sort: document two undocumented functions
+    misc/cgo/gmp: update for Go 1
+    1. make the program go buildable
+    2. update os.EINVAL and runtime.Cgocalls()
+    3. wrap mpz_div_2exp() and mpz_mul_2exp to support both
+       pre-5.0 and post-5.0 gmp (we really have no reason to
+       restrict ourselves to gmp 5.0+)
     
-    They looked out of place in godoc.
-    Includes documenting sort stability.
-    
-    Fixes #3356
-    
-    R=golang-dev, gri, trolleriprofessorn
+    R=golang-dev, remyoudompheng, iant
     CC=golang-dev
-    https://golang.org/cl/5855044
+    https://golang.org/cl/5847061
 
- src/pkg/sort/sort.go | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/cgo/gmp/gmp.go | 24 ++++++++++++++++++------
+ misc/cgo/gmp/pi.go  |  2 +-
+ 2 files changed, 19 insertions(+), 7 deletions(-)

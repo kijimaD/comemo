@@ -1,12 +1,18 @@
-commit 1174a18c3d2c61466db60feb3919288b1dd8a548
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 24 13:18:36 2013 -0800
+commit b582ef385555f88d41679a621d34bc260de4eb68
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Feb 24 17:19:09 2013 +0100
 
-    cmd/vet: fix up some nits in print.go found by kamil.kisiel@gmail.com
+    crypto/rsa: fix infinite loop in GenerateMultiPrimeKey for large nprimes
     
-    R=golang-dev, kamil.kisiel, bradfitz
+    The heuristics for BitLen of a product of randomly generated primes
+    are wrong, and the generated candidates never match the required
+    size for nprimes > 10. This corner case is not expected to be used in
+    practice.
+    
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/7369049
+    https://golang.org/cl/7397052
 
- src/cmd/vet/print.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/crypto/rsa/rsa.go      | 19 +++++++++++++++++--
+ src/pkg/crypto/rsa/rsa_test.go | 26 ++++++++++++++++++++++----
+ 2 files changed, 39 insertions(+), 6 deletions(-)

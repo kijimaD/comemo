@@ -1,17 +1,27 @@
-commit 4930a8d0582d96d390339d2ca454ff8375bb535a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 3 09:54:53 2014 -0700
+commit e66ff2b9080669373704914191abf2ee5f65eb75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 28 12:16:06 2014 -0700
 
-    runtime: relax flaky GC pause test
+    go/token: implement PositionFor accessors
     
-    We often saw GC pauses of 0 ns, not just on Windows.
-    Google Compute Engine timer granularity might suck
-    too.
+    Package addition.
     
-    LGTM=rsc
-    R=rsc, dvyukov
+    PositionFor permits access to both, positions
+    adjusted by //line comments (like the Position
+    accessors), and unadjusted "raw" positions
+    unaffected by //line comments.
+    
+    Raw positions are required for correct formatting
+    of source code via go/printer which until now had
+    to manually fix adjusted positions.
+    
+    Fixes #7702.
+    
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/140910043
+    https://golang.org/cl/135110044
 
- src/pkg/runtime/gc_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/go/token/position.go      |  51 +++++++++++++------
+ src/pkg/go/token/position_test.go | 101 ++++++++++++++++++++++++++++++--------
+ 2 files changed, 116 insertions(+), 36 deletions(-)

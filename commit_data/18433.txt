@@ -1,13 +1,13 @@
-commit 730f51ab58cebb05eb06eea5113e4c2bcb1aff65
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Feb 9 13:56:47 2014 -0800
+commit 193f4151ee62c5f893ae2aff0cc26b3aced84bd3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 10 08:25:47 2014 +1100
 
-    archive/zip: add flate writing benchmark
+    C: add Robert Sesek (Google CLA)
     
-    LGTM=adg
-    R=adg
+    LGTM=bradfitz
+    R=dave, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/60530049
+    https://golang.org/cl/61310043
 
- src/pkg/archive/zip/writer_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,15 +1,27 @@
-commit ce43fb806f8fc1442adfef812db9301910d3210c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Dec 11 17:50:08 2023 -0500
+commit cc82867f6bf650e6b48a6e87849e4fdd5b94ef70
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 28 05:07:02 2022 -0400
 
-    doc/go1.22: document ast.Unparen
+    runtime/race: update race_windows_amd64.syso
     
-    Updates #60061
+    Update race_windows_amd64.syso to latest tsan (V3) runtime.
     
-    Change-Id: Ifa51f0bac0346ebc352c7524204aa94336a2b5ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548882
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This version of the runtime depends on libsynchronization.a, so to
+    use this syso, you need to also be using a sufficiently up to date
+    version of GCC (notably GCC 5.1, installed on the Go windows builders
+    right now, does not include this library).
+    
+    Updates #48231.
+    Updates #35006.
+    Fixes #49761.
+    
+    Change-Id: Ia1e2b1d8fe7e2c99728150734935a2c522006caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420197
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/race/README                            |   2 +-
+ .../race/internal/amd64v1/race_windows.syso        | Bin 461185 -> 550036 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,14 @@
-commit 187cccbde167f6979fb026524eea1004ec1d625a
-Author: David du Colombier <0intro@gmail.com>
-Date:   Mon Feb 2 17:40:47 2015 +0100
+commit a1c9e103719289b4f291fcb631ad324a0e331aed
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 5 00:20:45 2015 -0500
 
-    os: fix TestMkdirAllAtSlash on Plan 9
+    reflect: document that Values can't be compared directly
     
-    Since CL 3676, the TestMkdirAllAtSlash test
-    depends on syscall.EROFS, which isn't defined
-    on Plan 9.
+    Fixes #9504.
     
-    This change works around this issue by
-    defining a system dependent isReadonlyError
-    function.
-    
-    Change-Id: If972fd2fe4828ee3bcb8537ea7f4ba29f7a87619
-    Reviewed-on: https://go-review.googlesource.com/3696
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I148f407ace3d1b4db3f19fbb8561d1ee6c4c13b3
+    Reviewed-on: https://go-review.googlesource.com/2273
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/os_unix_test.go | 4 ++++
- src/os/path_test.go    | 4 +++-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/reflect/value.go | 4 ++++
+ 1 file changed, 4 insertions(+)

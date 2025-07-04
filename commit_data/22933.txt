@@ -1,13 +1,15 @@
-commit 0211d7d7b06216c7c3664ae6ef95c088d5699b8d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 7 15:41:01 2015 -0400
+commit f5b5e4181422e927463bc4de713ed8ac857e4803
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 16 10:13:23 2015 +1000
 
-    runtime: turn off checkmark by default
+    image: spell coordinate consistently, without the hyphen.
     
-    Change-Id: Ic8cb8b1ed8715d6d5a53ec3cac385c0e93883514
-    Reviewed-on: https://go-review.googlesource.com/9825
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I211c0d33dc292c6a703d788f6d4d286107bcb6b0
+    Reviewed-on: https://go-review.googlesource.com/8906
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/runtime1.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/image/draw/clip_test.go          |  6 +++---
+ src/image/draw/draw.go               | 10 ++++++----
+ src/image/internal/imageutil/gen.go  |  2 +-
+ src/image/internal/imageutil/impl.go |  2 +-
+ 4 files changed, 11 insertions(+), 9 deletions(-)

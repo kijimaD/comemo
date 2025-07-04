@@ -1,27 +1,16 @@
-commit 9f2a71b6e7b418182dd0467e7d054ccf8130c026
-Author: Dilyn Corner <dilyn.corner@gmail.com>
-Date:   Fri Mar 19 18:18:18 2021 +0000
+commit 63828096f61593cd766d6e25fce74133efeb17f8
+Author: zhouzhongyuan <zhouzhongyuan96@gmail.com>
+Date:   Fri May 8 18:13:58 2020 +0800
 
-    make.bash: this change modifies Go to correctly select a dyamic linker
+    math/big: add function example
     
-    Alpine Linux is not the only musl-based Linux distribution. Checking for
-    /etc/alpine-release excludes many other distributions (Oasis, KISS,
-    Sabotage, sta.li). Not having the correct GO_LDSO set during go builds will
-    result in the wrong linker/loader on nonalpine musl systems for pie builds.
-    Instead, the dynamic loader should be checked for every system and set. This
-    results in the correct dynamic linker being found on glibc systems
-    (/lib/ld-linux-x86-64.so.2) and musl systems (/lib/ld-musl-x84_64.so.1).
+    While reading the source code of the math/big package, I found the SetString function example of float type missing.
     
-    Fixes #45034
-    
-    Change-Id: I4c9389abc759aa34431dc6c781022636b81d6910
-    GitHub-Last-Rev: e17b9eb10693bfce7c9ce03af3b15bd0e56e8dbe
-    GitHub-Pull-Request: golang/go#45036
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301989
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id8c16a58e2e24f9463e8ff38adbc98f8c418ab26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232804
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/make.bash | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/math/big/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

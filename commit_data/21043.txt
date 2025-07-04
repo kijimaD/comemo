@@ -1,14 +1,19 @@
-commit 5f029deb3950398609d4d3927310dc6ea95e2943
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 22 07:58:26 2014 -0800
+commit d3d60975b4870458933a40885ea9f7a4b07b5e56
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Nov 10 13:42:34 2014 -0500
 
-    doc: fix comment type typo
+    [dev.garbage] runtime: Code to implement write barriers
+    To turn concurrent gc on alter the if false in func gogc
+    currently at line 489 in malloc.go
     
-    Fixes #9418
-    
-    Change-Id: I044fa1d26d972f012f00388a84c4d0f143cf4f63
-    Reviewed-on: https://go-review.googlesource.com/1970
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/172190043
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 21 +++++++++++----------
+ src/runtime/mgc0.c    | 39 ++++++++++++++++++++++++++++++++++-----
+ src/runtime/mgc0.go   | 19 ++++++++++++++++++-
+ src/runtime/runtime.h |  1 +
+ src/runtime/stubs.go  |  2 ++
+ 5 files changed, 66 insertions(+), 16 deletions(-)

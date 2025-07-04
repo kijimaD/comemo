@@ -1,33 +1,20 @@
-commit 0c6146711c184b711c9d2d664056380e149fa714
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 12 17:41:03 2014 -0400
+commit 298c623e8caadf68198ba7bc4e6b128cb87983d7
+Author: Joel Stemmer <stemmertech@gmail.com>
+Date:   Fri Aug 8 12:42:20 2014 -0700
 
-    cmd/go, go/build: implement import comment checking
+    time: Fix missing colon when formatting time zone offsets with seconds
     
-    See golang.org/s/go14customimport for design.
+    When formatting time zone offsets with seconds using the stdISO8601Colon
+    and stdNumColon layouts, the colon was missing between the hour and minute
+    parts.
     
-    Added case to deps_test to allow go/build to import regexp.
-    Not a new dependency, because go/build already imports go/doc
-    which imports regexp.
-    
-    Fixes #7453.
+    Fixes #8497.
     
     LGTM=r
-    R=r, josharian
+    R=golang-codereviews, iant, gobot, r
     CC=golang-codereviews
-    https://golang.org/cl/124940043
+    https://golang.org/cl/126840043
 
- src/cmd/go/pkg.go                                 |   5 +-
- src/cmd/go/test.bash                              |  36 +++++
- src/cmd/go/testdata/importcom/bad.go              |   3 +
- src/cmd/go/testdata/importcom/conflict.go         |   3 +
- src/cmd/go/testdata/importcom/src/bad/bad.go      |   1 +
- src/cmd/go/testdata/importcom/src/conflict/a.go   |   1 +
- src/cmd/go/testdata/importcom/src/conflict/b.go   |   1 +
- src/cmd/go/testdata/importcom/src/works/x/x.go    |   1 +
- src/cmd/go/testdata/importcom/src/works/x/x1.go   |   1 +
- src/cmd/go/testdata/importcom/src/wrongplace/x.go |   1 +
- src/cmd/go/testdata/importcom/works.go            |   3 +
- src/cmd/go/testdata/importcom/wrongplace.go       |   3 +
- src/pkg/go/build/build.go                         | 161 ++++++++++++++++++++--
- 13 files changed, 206 insertions(+), 14 deletions(-)
+ src/pkg/time/format.go      |  2 +-
+ src/pkg/time/format_test.go | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

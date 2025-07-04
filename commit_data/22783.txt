@@ -1,15 +1,16 @@
-commit 4f38ef811f0aedb7d61932caff43695ddc4f9c89
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 29 17:16:21 2015 +0900
+commit 7ac67b55680eee8f16c477301726007bc15fcd5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 8 08:44:08 2015 -0700
 
-    net: add missing Close tests
+    cmd/internal/ld: change elf64 from int to bool
     
-    This change adds missing CloseRead test and Close tests on Conn,
-    Listener and PacketConn with various networks.
-    
-    Change-Id: Iadf99eaf526a323f853d203edc7c8d0577f67972
-    Reviewed-on: https://go-review.googlesource.com/9469
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaf2dba7d699a8d52f91ce10222ab0d1a0f1f21fc
+    Reviewed-on: https://go-review.googlesource.com/8625
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net_test.go | 380 +++++++++++++++++++++++++++-------------------------
- 1 file changed, 201 insertions(+), 179 deletions(-)
+ src/cmd/internal/ld/elf.go    | 22 +++++++++++-----------
+ src/cmd/internal/ld/symtab.go |  2 +-
+ 2 files changed, 12 insertions(+), 12 deletions(-)

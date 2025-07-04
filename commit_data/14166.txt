@@ -1,12 +1,19 @@
-commit c5ebeff3aacb6a9f2460d4bc90a50ab6deb926ec
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Thu Oct 18 08:12:44 2012 +1100
+commit fcd5fd2ad4c9283307c0e0b9f15c00b32c57483a
+Author: Shane Hansen <shanemhansen@gmail.com>
+Date:   Wed Oct 17 14:29:00 2012 -0400
 
-    doc/codewalk/markov: fix the highlight range of the step "The NewChain constructor function".
+    crypto/cipher: panic on invalid IV length
     
-    R=r, minux.ma, adg
+    Give better user feedback when invalid IV is used
+    to construct a cipher.
+    
+    Fixes #3411
+    
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/6710044
+    https://golang.org/cl/6652053
 
- doc/codewalk/markov.xml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/cipher/cbc.go | 6 ++++++
+ src/pkg/crypto/cipher/cfb.go | 6 ++++++
+ src/pkg/crypto/cipher/ctr.go | 2 +-
+ 3 files changed, 13 insertions(+), 1 deletion(-)

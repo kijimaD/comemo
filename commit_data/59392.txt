@@ -1,34 +1,29 @@
-commit 12110c3f7ed378cd1819abf72ffadcb18502c127
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 11 12:21:14 2024 -0800
+commit 7381123235ec13b596633c81bd9d84342e387e10
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 19:08:59 2024 -0500
 
-    cmd/compile: improve multiplication strength reduction
+    runtime: re-add call to ts.cleanHead (née cleantimers) during timer add
     
-    Use an automatic algorithm to generate strength reduction code.
-    You give it all the linear combination (a*x+b*y) instructions in your
-    architecture, it figures out the rest.
+    Before CL 564118, there were two ways to add a new timer:
+    addtimer or modtimer. Much code was duplicated between them
+    and it was always valid to call modtimer instead of addtimer
+    (but not vice versa), so that CL changed all addtimer call sites
+    to use modtimer and deleted addtimer.
     
-    Just amd64 and arm64 for now.
+    One thing that was unique to addtimer, however, was that it
+    called cleantimers (now named ts.cleanHead) after locking the
+    timers, while modtimer did not. This was the only difference
+    in the duplicated code, and I missed it. Restore the call to
+    ts.cleanHead when adding a new timer.
     
-    Fixes #67575
+    Also fix double-unlock in cleanHead.
     
-    Change-Id: I35c69382bebb1d2abf4bb4e7c43fd8548c6c59a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626998
-    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I26cc50d650f31f977c0c31195cd013244883dba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568338
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules      |  44 +-
- src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  21 +-
- .../compile/internal/ssa/_gen/ARM64latelower.rules |   5 +
- src/cmd/compile/internal/ssa/_gen/rulegen.go       |   6 +
- src/cmd/compile/internal/ssa/config.go             | 260 +++++++
- src/cmd/compile/internal/ssa/rewrite.go            |  24 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 788 ++-------------------
- src/cmd/compile/internal/ssa/rewriteARM64.go       | 343 +--------
- .../compile/internal/ssa/rewriteARM64latelower.go  |  17 +
- src/cmd/compile/internal/test/mulconst_test.go     |  91 ++-
- test/codegen/arithmetic.go                         |   2 +-
- test/codegen/multiply.go                           | 312 ++++++++
- 12 files changed, 780 insertions(+), 1133 deletions(-)
+ src/runtime/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,22 @@
-commit b2b15d1230f3b4f669b5dd171c31e1b081bffede
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jul 19 12:02:54 2013 +1000
+commit 58f12ffd79df8ae369afa7ec60ee26d72ce2d843
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 16:53:45 2013 -0400
 
-    net/http: document and test Client.Post treating Reader body as ReadCloser
+    runtime: handle morestack/lessstack in stack trace
     
-    R=golang-dev, r
+    If we start a garbage collection on g0 during a
+    stack split or unsplit, we'll see morestack or lessstack
+    at the top of the stack. Record an argument frame size
+    for those, and record that they terminate the stack.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/11542044
+    https://golang.org/cl/11533043
 
- src/pkg/net/http/client.go         |  7 +++++--
- src/pkg/net/http/transport_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 2 deletions(-)
+ src/pkg/runtime/asm_386.s       | 12 ++++++++++--
+ src/pkg/runtime/asm_amd64.s     | 12 ++++++++++--
+ src/pkg/runtime/asm_arm.s       | 16 ++++++++++++----
+ src/pkg/runtime/proc.c          | 13 ++-----------
+ src/pkg/runtime/traceback_arm.c | 11 +++++++----
+ src/pkg/runtime/traceback_x86.c | 13 ++++++++-----
+ 6 files changed, 49 insertions(+), 28 deletions(-)

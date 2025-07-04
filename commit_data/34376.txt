@@ -1,23 +1,15 @@
-commit c5d6c42d35059bb911cf9f4a77704438ab4f9de0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 24 10:50:38 2018 -0800
+commit 0c5b00d0cd41a9f1662f6cc306bb74f70e8abd08
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 23 14:08:41 2017 -0700
 
-    runtime: improve 386/amd64 systemstack
+    spec: remove sentence discussing existing implementations
     
-    Minor improvements, noticed while investigating other things.
+    Fixes #22282.
     
-    Shorten the prologue.
-    
-    Make branch direction better for static branch prediction;
-    the most common case by far is switching stacks (g==curg).
-    
-    Change-Id: Ib2211d3efecb60446355cda56194221ccb78057d
-    Reviewed-on: https://go-review.googlesource.com/97377
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4097e9cbd590ab6c8b1511a3b752c6ac98ac819b
+    Reviewed-on: https://go-review.googlesource.com/72792
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/asm_386.s      | 21 ++++++++++-----------
- src/runtime/asm_amd64.s    | 20 ++++++++++----------
- src/runtime/asm_amd64p32.s | 21 ++++++++++-----------
- 3 files changed, 30 insertions(+), 32 deletions(-)
+ doc/go_spec.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

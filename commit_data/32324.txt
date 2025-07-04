@@ -1,18 +1,13 @@
-commit 3ce05d2d8d6dbdbec527a9aa49085558bbe05ec0
-Author: Kyle Shannon <kyle@pobox.com>
-Date:   Wed Aug 9 10:27:48 2017 -0600
+commit 6b451ce3f39ed7a9474ec1eca59009da699c6c89
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:58:07 2017 -0400
 
-    cmd/go: add support for Fossil SCM to go get
+    cmd/compile: expand comment on cgo_unsafe_args in inlinine
     
-    Fixes #10010.
-    
-    Change-Id: Ib13ac28eafed72c456d8b5b6549015cdf5fdda94
-    Reviewed-on: https://go-review.googlesource.com/56190
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie8fd7839806b4a6bcfac5ac1f984db7ab282c3b5
+    Reviewed-on: https://go-review.googlesource.com/41150
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Lazar <lazard@golang.org>
 
- src/cmd/go/internal/get/get.go      |  8 ++----
- src/cmd/go/internal/get/vcs.go      | 50 +++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/get/vcs_test.go | 18 +++++++++++++
- 3 files changed, 70 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

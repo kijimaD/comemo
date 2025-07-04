@@ -1,13 +1,15 @@
-commit be4c38ed34fec9bc8b93235989f519ce57b45c4c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 7 11:37:29 2015 +0900
+commit b66a50999220ba2bd815ccc9d93234bb48cd3c40
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 00:36:09 2015 -0500
 
-    net: move testHookSetKeepAlive into hook.go
+    cmd/internal/obj/x86: add CALL *name(SB)
     
-    Change-Id: I1f2d4e3b0351a7a47c3a6073833a17dbc0c7b05c
-    Reviewed-on: https://go-review.googlesource.com/8520
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This was in i386 but not in x86 and was missed during the merge.
+    Needed for linux/386.
+    
+    Change-Id: Ia6e495c044f53bcb98f3bb03e20d8f6d35a8f8ff
+    Reviewed-on: https://go-review.googlesource.com/6902
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/dial.go | 2 --
- src/net/hook.go | 5 ++++-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 50 +++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 44 insertions(+), 6 deletions(-)

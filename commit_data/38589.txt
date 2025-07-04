@@ -1,18 +1,14 @@
-commit 93af67783796a48b3f59bd969dc0c528c37571ec
-Author: Daniel Cormier <danielc@knowbe4.com>
-Date:   Fri Nov 10 11:50:13 2017 -0500
+commit 5e9ad4a9b4a11e1e879ff061e09a10eef6bd605b
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Nov 8 09:48:06 2018 +0530
 
-    net/textproto: properly write terminating sequence if DotWriter is closed with no writes
+    time: handle negative offsets on js/wasm
     
-    Fixed textproto.Writer.DotWriter() to properly write \r\n.\r\n to the buffer
-    when Close() is called without any bytes written. This properly writes the
-    terminating sequence outlined in RFC 5321 section 4.1.1.4 and RFC 3977
-    section 3.1.1, even when no other bytes are written.
+    Fixes #28649
     
-    Change-Id: I262fd2963ee76fff7ffae8e3cb0e86255694b361
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/77350
+    Change-Id: I9f6807ee3c3007f670dd509780805c7b255a2bda
+    Reviewed-on: https://go-review.googlesource.com/c/148338
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/textproto/writer.go      |  5 +++--
- src/net/textproto/writer_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 2 deletions(-)
+ src/time/zoneinfo_js.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

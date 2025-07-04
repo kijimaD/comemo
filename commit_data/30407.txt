@@ -1,42 +1,58 @@
-commit 566e72d0cedc593054dd36f9d3e91b588e849074
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Feb 26 15:25:57 2017 -0800
+commit b2290229c23fed8e4a63241568e436b1daa1196f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 19:41:01 2016 -0400
 
-    cmd/compile: ignore some dead code when deciding whether to inline
+    cmd/cgo: add #line directives to avoid printing bogus references to Go source files
     
-    Constant evaluation provides some rudimentary
-    knowledge of dead code at inlining decision time.
-    Use it.
+    A bit contrived to come up with an example, but it happened in #15836, somehow.
     
-    This CL addresses only dead code inside if statements.
-    For statements are never inlined anyway,
-    and dead code inside for statements is rare.
-    Analyzing switch statements is worth doing,
-    but it is more complicated, since we would have
-    to evaluate each case; leave it for later.
+            $ cat /tmp/x.go
+            package main
     
-    Fixes #9274
+            /*
+            #include <stddef.h>
     
-    After this CL, the following functions in std+cmd
-    can be newly inlined:
+            int foo(void);
     
-    cmd/internal/obj/x86/asm6.go:3122: can inline subreg
-    cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go:172: can inline instPrefix
-    cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go:202: can inline truncated
-    go/constant/value.go:234: can inline makeFloat
-    go/types/labels.go:52: can inline (*block).insert
-    math/big/float.go:231: can inline (*Float).Sign
-    math/bits/bits.go:57: can inline OnesCount
-    net/http/server.go:597: can inline (*Server).newConn
-    runtime/hashmap.go:1165: can inline reflect_maplen
-    runtime/proc.go:207: can inline os_beforeExit
-    runtime/signal_unix.go:55: can inline init.5
-    runtime/stack.go:1081: can inline gostartcallfn
+            int foo(void) {
+                    return 2;
+            }
     
-    Change-Id: I4c92fb96aa0c3d33df7b3f2da548612e79b56b5b
-    Reviewed-on: https://go-review.googlesource.com/37499
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+            #define int asdf
+            */
+            import "C"
+    
+            func main() {
+                    println(C.foo())
+            }
+    
+            $ go run /tmp/x.go
+            # command-line-arguments
+            cgo-builtin-prolog:9:31: error: unknown type name 'asdf'   <<<<<
+            _GoString_ GoStringN(char *p, int l);
+                                          ^
+            /tmp/x.go:12:13: note: expanded from macro 'int'
+            #define int asdf
+                        ^
+            cgo-builtin-prolog:10:28: error: unknown type name 'asdf'  <<<<<
+            _GoBytes_ GoBytes(void *p, int n);
+                                       ^
+            /tmp/x.go:12:13: note: expanded from macro 'int'
+            #define int asdf
+                        ^
+            2 errors generated.
+    
+    The two marked lines used to refer incorrectly to /tmp/x.go.
+    
+    Fixes #15836.
+    
+    Change-Id: I08ef60a53cfd148112fceb651eaf7b75d94a7a8d
+    Reviewed-on: https://go-review.googlesource.com/32613
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 11 ++++++++++-
- src/cmd/compile/internal/gc/inl.go   | 10 ++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/cgo/ast.go |  1 +
+ src/cmd/cgo/gcc.go |  1 +
+ src/cmd/cgo/out.go | 13 +++++++++++++
+ 3 files changed, 15 insertions(+)

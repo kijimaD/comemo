@@ -1,18 +1,35 @@
-commit 8e8f4be3f45981eaac11f1434196a1a1f8faddfd
-Author: David Chase <drchase@google.com>
-Date:   Thu Jan 19 13:12:54 2023 -0500
+commit f2c7e78592973436a55cdfc4bca2fc3bce526cad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 14 18:30:44 2022 -0700
 
-    cmd/link: clean up per-binary slice creation in ld
+    spec: document operations which accept []byte|string constrained types
     
-    A code cleanup opportunity noticed while trying to make slices
-    be aligned.
+    Pre-1.18, as special cases, the built-in operations append and copy
+    accepted strings as second arguments if the first argument was a byte
+    slice. With Go 1.18, these two built-ins as well as slice expressions
+    rely on the notion of core types in their specification.
     
-    Change-Id: I34a807b4cf67d9b4a136c83714a34ffe71dcb166
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462757
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Because we want to permit slice expressions, append, and copy to
+    operate on (1st or 2nd operands) that are type parameters restricted
+    by []byte | string (and variations thereof), the simple notion of
+    core type is not sufficient for these three operations. (The compiler
+    already permits such more relaxed operations).
+    
+    In the section on core types, add a paragraph and examples introducing
+    the (artificial) core type "bypestring", which describes the core type
+    of type sets whose underlying types are []byte or string. Adjust the
+    rules for slice expressions, append, and copy accordingly.
+    
+    Also (unrelated): Adjust prose in the only paragraph where we used
+    personal speech ("we") to impersonal speech, to match the rest of
+    the spec.
+    
+    Fixes #52859.
+    
+    Change-Id: I1cbda3095a1136fb99334cc3a62a9a349a27ce1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412234
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/link/internal/ld/symtab.go | 87 ++++++++++++++++++--------------------
- 1 file changed, 42 insertions(+), 45 deletions(-)
+ doc/go_spec.html | 44 ++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 36 insertions(+), 8 deletions(-)

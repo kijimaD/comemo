@@ -1,22 +1,22 @@
-commit b16e94d13d0f9b84ed92563a12984190f91ead66
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Dec 12 09:31:59 2022 -0600
+commit 18e1a5a0859a268af83d3bbe855b8bf3b2d25298
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 10 21:51:04 2022 -0800
 
-    syscall: skip TestUseCgroupFD if cgroupfs mounted RO
+    spec: combine section on type parameters and type parameter lists
     
-    The skipping logic should also trigger if /sys/fs/cgroup is
-    mounted read-only too. This is how it is mounted on the
-    ppc64le/p10 containers today.
+    This change moves the relevant prose of the section on type parameters
+    into the section on type parameter lists and eliminates the former.
     
-    Fixes #57262
+    With this change, the section on types now exclusively describes all
+    Go composite types.
     
-    Change-Id: Idc0ab050052ebf5777ac09f9519215b437b0ee7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456835
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    User-defined named types (defined types and type parameters) are
+    described with their declarations.
+    
+    Change-Id: I3e421cd236e8801d31a4a81ff1e5ec9933e3ed20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385037
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 58 ++++++++++++++++++++++----------------------------------
+ 1 file changed, 23 insertions(+), 35 deletions(-)

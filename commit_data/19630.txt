@@ -1,13 +1,13 @@
-commit 5bfe8adee5100444cdde78d4897d1673df96c813
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jun 28 19:20:46 2014 -0700
+commit 873ceeff543b1fc0dddbc354b674819d302f5362
+Author: Preetam Jinka <pj@preet.am>
+Date:   Sat Jun 28 10:11:26 2014 -0700
 
-    runtime: fix GC bitmap corruption
-    Fixes #8299.
+    crypto/cipher: Fix typo in example comment
     
-    R=golang-codereviews
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/103640044
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/101510047
 
- src/pkg/runtime/mgc0.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/pkg/crypto/cipher/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

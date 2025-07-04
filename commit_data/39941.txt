@@ -1,22 +1,14 @@
-commit baf7d95350c9eab317efe769cf113b3611a6ccd0
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 12 09:47:43 2019 -0400
+commit 61e0cac2988c29130417a323fd539604983854fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 3 19:38:11 2019 +0000
 
-    cmd/go: use alternate debug_modinfo recipe for gccgo
+    strings: document that NewReplacer can panic
     
-    Use a different recipe for capturing debug modinfo if we're compiling
-    with the gccgo toolchain, to avoid applying a go:linkname directive to
-    a variable (not supported by gccgo).
+    Fixes #31233
     
-    Fixes #30344.
-    
-    Change-Id: I9ce3d42c3bbb809fd68b140f56f9bbe3406c351b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171768
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2831d5e6532d3f4ed7eb99af5d6e0e1a41ebac9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170624
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/load/pkg.go      |  2 +-
- src/cmd/go/internal/modload/build.go | 24 +++++++++++++++++++++---
- src/cmd/go/internal/work/exec.go     |  2 +-
- 3 files changed, 23 insertions(+), 5 deletions(-)
+ src/strings/replace.go | 2 ++
+ 1 file changed, 2 insertions(+)

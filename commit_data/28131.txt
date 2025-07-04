@@ -1,31 +1,14 @@
-commit 5c3edc46a6014f9ff74a5e46a69a8891cad3190d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 30 09:57:48 2016 -0700
+commit 9fe572e509470d53c220e7f43a825d70a7f0d8b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 29 15:44:36 2016 -0700
 
-    cmd/compile: add Trunc-of-Ext simplifications
+    runtime: fix cgocallback_gofunc argument passing on arm64
     
-    This is a follow-up to the discussion
-    in CL 27853.
-    
-    During make.bash, trigger count:
-    
-    24 rewrite generic.rules:57
-    22 rewrite generic.rules:69
-    10 rewrite generic.rules:54
-    10 rewrite generic.rules:58
-    10 rewrite generic.rules:67
-     7 rewrite generic.rules:66
-     4 rewrite generic.rules:59
-     3 rewrite generic.rules:50
-     3 rewrite generic.rules:51
-     3 rewrite generic.rules:52
-     1 rewrite generic.rules:64
-    
-    Change-Id: Id96cb6a707a4a564831f763c2d4d0e180c94bbef
-    Reviewed-on: https://go-review.googlesource.com/28088
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I4b34bcd5cde71ecfbb352b39c4231de6168cc7f3
+    Reviewed-on: https://go-review.googlesource.com/22651
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  21 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 272 +++++++++++++++++++++++++
- 2 files changed, 293 insertions(+)
+ src/runtime/asm_arm64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

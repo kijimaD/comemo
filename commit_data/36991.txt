@@ -1,18 +1,36 @@
-commit 3785be3093ef8a8ea3c71ff9608451de1ad85db8
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Oct 16 04:02:03 2018 +0000
+commit c359d759a77fcec1457f3eb5c5d04fb74f47dad4
+Author: David Chase <drchase@google.com>
+Date:   Tue Jun 12 14:10:33 2018 -0400
 
-    test/codegen: fix confusing test cases
+    cmd/compile: ensure that operand of ORETURN is not double-walked
     
-    ARMv7's MULAF/MULSF/MULAD/MULSD are not fused,
-    this CL fixes the confusing test cases.
+    Inlining of switch statements into a RETURNed expression
+    can sometimes lead to the switch being walked twice, which
+    results in a miscompiled switch statement. The bug depends
+    on:
     
-    Change-Id: I35022e207e2f0d24a23a7f6f188e41ba8eee9886
-    Reviewed-on: https://go-review.googlesource.com/c/142439
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    1) multiple results
+    2) named results
+    3) a return statement whose expression includes a call to a
+    function containing a switch statement that is inlined.
+    
+    It may also be significant that the default case of that
+    switch is a panic(), though that's not proven.
+    
+    Rearranged the walk case for ORETURN so that double walks are
+    not possible.  Added a test, because this is so fiddly.
+    Added a check against double walks, verified that it fires
+    w/o other fix.
+    
+    Fixes #25776.
+    
+    Change-Id: I2d594351fa082632512ef989af67eb887059729b
+    Reviewed-on: https://go-review.googlesource.com/118318
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/codegen/floats.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/swt.go  |  5 ++
+ src/cmd/compile/internal/gc/walk.go |  5 +-
+ test/fixedbugs/issue25776.go        | 99 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 108 insertions(+), 1 deletion(-)

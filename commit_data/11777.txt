@@ -1,15 +1,12 @@
-commit 0bc6836e81223a82653c44a4a6023e762a1e51cc
+commit ce63ec93ce47cd18e08b525fc6b84ab1c2abc920
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 10 01:27:59 2012 -0500
+Date:   Fri Feb 10 01:11:56 2012 -0500
 
-    builder: set $GOBUILDEXIT for Windows
+    regexp/syntax: delete old package comment
     
-    Actually %GOBUILDEXIT% I suppose.
-    
-    R=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5651058
+    https://golang.org/cl/5651057
 
- misc/dashboard/builder/main.go | 1 +
- src/all.bat                    | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/regexp/syntax/regexp.go | 2 --
+ 1 file changed, 2 deletions(-)

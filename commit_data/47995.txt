@@ -1,31 +1,20 @@
-commit 4284d4555382ec9da4b301afe328faf850158ffb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 12 15:54:15 2022 -0800
+commit e5bc4f2a77e497f30dce08014bc6addd8a7d9982
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 20 21:07:23 2021 -0400
 
-    go/types, types2: use a map instead of a field for marking in validType
+    cmd/compile: reenable name preservation on copies in expand_calls
     
-    With this change validType doesn't modify global state anymore.
-    It also eliminates the need for an extra field in each object.
+    This reverts CL 311829, and reenables CL 309330. The issue
+    should be fixed in the previous CL.
     
-    Preparation for fixing issue #48962.
-    
-    Change-Id: If241ec77ff48911d5b43d89adabfb8ef54452c6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378176
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I69db0565c72470a1814f135d8f8ec62c781bfc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312094
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/check.go       |  2 ++
- src/cmd/compile/internal/types2/decl.go        |  2 +-
- src/cmd/compile/internal/types2/named.go       |  1 -
- src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- src/cmd/compile/internal/types2/validtype.go   | 32 +++++++++++++++-----------
- src/go/types/check.go                          |  2 ++
- src/go/types/decl.go                           |  2 +-
- src/go/types/named.go                          |  1 -
- src/go/types/sizeof_test.go                    |  2 +-
- src/go/types/typexpr.go                        |  2 +-
- src/go/types/validtype.go                      | 32 +++++++++++++++-----------
- 12 files changed, 46 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 18 ++++++++----------
+ test/live_regabi.go                          |  5 +----
+ 2 files changed, 9 insertions(+), 14 deletions(-)

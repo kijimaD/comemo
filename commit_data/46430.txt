@@ -1,19 +1,22 @@
-commit 2953cd00836323112846b21f60fa1d68aa0f9a77
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 10 08:20:28 2021 +0700
+commit 0620c674ddca234e0a69b5a35c5fb06a881dd73b
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 28 12:37:55 2020 -0800
 
-    go/internal/gcimporter: prevent importReader reading type parameter twice
+    [dev.regabi] cmd/compile: remove original addrtaken bit
     
-    This is port of CL 349009 to go/internal/gcimporter.
+    Switch the source of truth to the new addrtaken bit. Remove the old one.
     
-    Updates #48280
-    
-    Change-Id: I7d40d8b67333538ca58fe012535d54e891d0ed16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349010
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ie53679ab14cfcd34b55e912e7ecb962a22db7db3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275696
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/internal/gcimporter/iimport.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/inline/inl.go     |  1 -
+ src/cmd/compile/internal/ir/name.go        | 14 +-------------
+ src/cmd/compile/internal/typecheck/expr.go |  8 --------
+ src/cmd/compile/internal/typecheck/func.go |  1 -
+ src/cmd/compile/internal/walk/order.go     |  1 -
+ 5 files changed, 1 insertion(+), 24 deletions(-)

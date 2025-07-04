@@ -1,18 +1,16 @@
-commit 28d7eec3a23c04fb74863d032d499b76c3c3d4c3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Feb 7 13:53:58 2025 -0800
+commit dce7f335c5f9373dc1b56d7165f1a722e9240c61
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 12 11:10:35 2023 -0800
 
-    crypto/internal/fips140/drbg: add Counter warning
+    doc/go1.22: document zero-copy to net.UnixConn
     
-    The support we provide is tightly scoped, and is not safe for generic
-    usage elsewhere in the standard library.
+    For #58808
     
-    Change-Id: Ic38d5c4b416859ab30e2b4a3fc977ba8a2535ae8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647815
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Id73b9e4b5fb96426a01b76ce7a1053a6ad61a58e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549197
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/crypto/internal/fips140/drbg/ctrdrbg.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/go1.22.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

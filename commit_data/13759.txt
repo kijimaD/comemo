@@ -1,14 +1,17 @@
-commit a225eaf9b771cdb42defcc89015dc12cd04c4438
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 6 14:58:37 2012 -0700
+commit 256cd7e78eb0cc4cfd7ed472b9e11f22d34098b6
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Sep 7 02:13:14 2012 +1000
 
-    cmd/yacc: always import fmt, safely
-    The parser depends on it but the client might not import it, so make sure it's there.
-    Fixes #4038.
+    syscall: regenerate/update netbsd z-files
     
-    R=golang-dev, rsc
+    Regenerate/update netbsd z-files on NetBSD 6.0 RC1.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6497094
+    https://golang.org/cl/6506062
 
- src/cmd/yacc/yacc.go | 130 ++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 119 insertions(+), 11 deletions(-)
+ src/pkg/syscall/zerrors_netbsd_386.go   | 53 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_netbsd_amd64.go | 53 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_netbsd_386.go   |  7 -----
+ src/pkg/syscall/zsysnum_netbsd_amd64.go |  7 -----
+ 4 files changed, 106 insertions(+), 14 deletions(-)

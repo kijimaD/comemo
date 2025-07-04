@@ -1,26 +1,22 @@
-commit f45c2d7e47e6dcfb69876092037257562813cc37
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 2 13:32:40 2022 +0700
+commit 40f82f8a092ac1f23eb3af86f34b7436a6fc19e0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 12 15:38:52 2021 -0700
 
-    go/types,types2: move notinheap tests to fixedbugs directory
+    unsafe: optimize Slice bounds checking
     
-    So they can be added to ignored list, since the tests now require
-    cgo.Incomplete, which is not recognized by go/types and types2.
+    This reduces the number of branches to bounds check non-empty slices
+    from 5 to 3. It does also increase the number of branches to handle
+    empty slices from 1 to 3; but for non-panicking calls, they should all
+    be predictable.
     
-    Updates #46731
+    Updates #48798.
     
-    Change-Id: I9f24e3c8605424d1f5f42ae4409437198f4c1326
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427142
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3ffa66857096486f4dee417e1a66eb8fdf7a3777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355490
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 2 ++
- src/go/types/stdlib_test.go                    | 2 ++
- test/{ => fixedbugs}/notinheap.go              | 0
- test/{ => fixedbugs}/notinheap2.go             | 0
- test/{ => fixedbugs}/notinheap3.go             | 0
- test/run.go                                    | 2 +-
- 6 files changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/slice.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

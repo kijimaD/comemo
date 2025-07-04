@@ -1,30 +1,26 @@
-commit e9fd40a866e9e47ba65976d4cfeaeef7eaf76266
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 10 13:13:14 2022 -0700
+commit c78a267bd4ccdd8699a9dbe9bad3597bf3de47e9
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Nov 12 11:46:23 2021 -0500
 
-    go/types: add errorcalls_test, apply it, and fix errorf call sites
+    go/types: return an error from Instantiate on incorrect len(targs)
     
-    The errorcalls_test makes sure that we use error instead of errorf
-    where possible. Copied from types2 and adjusted for go/types.
+    Instantiate already returns an error when validation fails. Panicking on
+    an incorrect number of type arguments means that callers must both
+    pre-validate the number of type arguments and handle resulting errors.
+    Returning an error rather than panicking allows eliminating
+    pre-validation at the call-site.
     
-    Change-Id: Ib0572308c87e4415bf89aec8d64e662abe94754b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441958
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Also update the Instantiate docstring to correct some stale/inaccurate
+    information, and to clarify its behavior more precisely.
+    
+    Updates #47916
+    
+    Change-Id: I997ef30b3486760a90b0db4c3ea7111280d74a81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363635
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/builtins.go        | 12 +++++-----
- src/go/types/check.go           |  2 +-
- src/go/types/decl.go            |  2 +-
- src/go/types/errorcalls_test.go | 53 +++++++++++++++++++++++++++++++++++++++++
- src/go/types/expr.go            |  8 +++----
- src/go/types/index.go           |  6 ++---
- src/go/types/interface.go       |  4 ++--
- src/go/types/mono.go            |  2 +-
- src/go/types/resolver.go        | 12 +++++-----
- src/go/types/signature.go       |  6 ++---
- src/go/types/stmt.go            | 20 ++++++++--------
- src/go/types/typexpr.go         |  2 +-
- src/go/types/version.go         |  8 +++----
- 13 files changed, 95 insertions(+), 42 deletions(-)
+ src/go/types/instantiate.go | 50 +++++++++++++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 20 deletions(-)

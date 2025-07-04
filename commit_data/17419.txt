@@ -1,12 +1,19 @@
-commit b3fd434ae07db5cf6385fb6b97a467e6f312c253
-Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Thu Aug 29 17:14:57 2013 +1000
+commit 10e2ffdf2ca657567fc1708f6387fef69a8445b6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 29 14:41:44 2013 +1000
 
-    net: make channel-based semaphore depend on receive, not send
+    os/exec: return idempotent Closer from StdinPipe
     
-    R=r, dvyukov
+    Before this fix, it was always an error to use the Close method on the
+    io.WriteCloser obtained from Cmd.StdinPipe, as it would race with the
+    Close performed by Cmd.Wait.
+    
+    Fixes #6270.
+    
+    R=golang-dev, r, remyoudompheng, bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/13348045
+    https://golang.org/cl/13329043
 
- src/pkg/net/net.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/os/exec/exec.go      | 22 ++++++++++++++++++++--
+ src/pkg/os/exec/exec_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 2 deletions(-)

@@ -1,25 +1,15 @@
-commit 7fdb0292a5e322c302b5ab685d8ee2623a69608a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 7 12:38:39 2014 -0700
+commit 192bccbf33b7493b36989921c8a81ece41904aa5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 7 12:55:28 2014 +0400
 
-    cmd/go: pass --build-id=none when generating a cgo .o
+    runtime: shrink stacks in parallel
+    Shrinkstack does not touch normal heap anymore,
+    so we can shink stacks concurrently with marking.
     
-    Some systems, like Ubuntu, pass --build-id when linking.  The
-    effect is to put a note in the output file.  This is not
-    useful when generating an object file with the -r option, as
-    it eventually causes multiple build ID notes in the final
-    executable, all but one of which are for tiny portions of the
-    file and are therefore useless.
-    
-    Disable that by passing an explicit --build-id=none when
-    linking with -r on systems that might do this.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/119460043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, khr, rlh, rsc
+    https://golang.org/cl/122130043
 
- misc/cgo/test/buildid_linux.go  | 77 +++++++++++++++++++++++++++++++++++++++++
- misc/cgo/test/cgo_linux_test.go |  5 +--
- src/cmd/go/build.go             | 18 +++++++++-
- 3 files changed, 97 insertions(+), 3 deletions(-)
+ src/pkg/runtime/mgc0.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

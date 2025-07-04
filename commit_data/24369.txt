@@ -1,46 +1,15 @@
-commit b07a9efa7841ccd14a694d026a1e62111989f9d1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 24 15:10:47 2015 -0700
+commit 68557de116fe7007541d54f08bffbdd06354f1f9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jul 27 12:19:00 2015 +0900
 
-    math/big: faster string conversion routines
+    net: deflake TestDialTimeout{,FDLeak} in the case of TCP simultaneous open
     
-    Eliminated unnecessary string conversions throughout and removed
-    (internal) capability for arbitrary character sets in conversion
-    routines (functionality was not exported and not used internally).
+    Fixes #11872.
     
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkDecimalConversion-8      198283        187085        -5.65%
-    BenchmarkStringPiParallel-8       46116         47822         +3.70%
-    BenchmarkString10Base2-8          216           166           -23.15%
-    BenchmarkString100Base2-8         886           762           -14.00%
-    BenchmarkString1000Base2-8        7296          6625          -9.20%
-    BenchmarkString10000Base2-8       72371         65563         -9.41%
-    BenchmarkString100000Base2-8      725849        672766        -7.31%
-    BenchmarkString10Base8-8          160           114           -28.75%
-    BenchmarkString100Base8-8         398           309           -22.36%
-    BenchmarkString1000Base8-8        2650          2244          -15.32%
-    BenchmarkString10000Base8-8       24974         21745         -12.93%
-    BenchmarkString100000Base8-8      245457        217489        -11.39%
-    BenchmarkString10Base10-8         337           288           -14.54%
-    BenchmarkString100Base10-8        1298          1046          -19.41%
-    BenchmarkString1000Base10-8       6200          5752          -7.23%
-    BenchmarkString10000Base10-8      24942         22589         -9.43%
-    BenchmarkString100000Base10-8     8012921       7947152       -0.82%
-    BenchmarkString10Base16-8         156           107           -31.41%
-    BenchmarkString100Base16-8        344           255           -25.87%
-    BenchmarkString1000Base16-8       2067          1705          -17.51%
-    BenchmarkString10000Base16-8      19026         16112         -15.32%
-    BenchmarkString100000Base16-8     184038        163457        -11.18%
-    
-    Change-Id: I68bd807529bd9b985f4b6ac2a87764bcc1a7d2f7
-    Reviewed-on: https://go-review.googlesource.com/14926
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ibc7d8438374c9d90fd4cbefb61426c7f4f96af0d
+    Reviewed-on: https://go-review.googlesource.com/12691
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/decimal.go      |  2 +-
- src/math/big/ftoa.go         |  6 ++--
- src/math/big/intconv.go      | 56 ++++++++++++++---------------
- src/math/big/nat_test.go     | 10 +++---
- src/math/big/natconv.go      | 66 +++++++++++++---------------------
- src/math/big/natconv_test.go | 85 +++++++++++++++++++++-----------------------
- src/math/big/ratconv.go      |  6 ++--
- 7 files changed, 106 insertions(+), 125 deletions(-)
+ src/net/dial_test.go    | 24 ++++++++++++++++++++----
+ src/net/timeout_test.go | 13 +++++++++++++
+ 2 files changed, 33 insertions(+), 4 deletions(-)

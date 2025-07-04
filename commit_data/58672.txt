@@ -1,39 +1,20 @@
-commit 8b8ab2584d52c96ed84207208f13a37272cab217
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jan 29 17:16:02 2025 +0000
+commit 5df4a6376f4368e55bfb848f27f078f237f01482
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Nov 28 18:50:01 2023 +0000
 
-    internal/trace: merge event and tracev2 packages
+    doc: document PCALIGN directive
     
-    These two packages were historically separate in an attempt to provide a
-    unified description of trace v1 and trace v2 formats. In practice this
-    turned out to be pointless, since it made more sense to keep the trace
-    v1 parser in a self-contained bubble with a converter to v2. Future
-    trace wire format migrations should probably just follow the same
-    general strategy, if there's a substantial change. (Minor changes can be
-    handled more organically.)
+    Fixes #64283
     
-    Change-Id: Ic765df62065fe53cfae59b505297527c3fa42dfb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645395
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie0167410fc5557143f0b2e17af56ad9fe34605cf
+    GitHub-Last-Rev: 77144c76d38ca261b6728ba12ff128d22553efa5
+    GitHub-Pull-Request: golang/go#64296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544115
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/trace/main.go                              |   6 +-
- src/go/build/deps_test.go                          |   8 +-
- src/internal/trace/base.go                         |   5 +-
- src/internal/trace/batch.go                        |  19 ++--
- src/internal/trace/batchcursor.go                  |   3 +-
- src/internal/trace/event.go                        |   3 +-
- src/internal/trace/generation.go                   |  25 ++---
- src/internal/trace/internal/testgen/trace.go       |  13 +--
- src/internal/trace/internal/tracev1/parser.go      | 121 +++++++++++----------
- src/internal/trace/order.go                        |  13 +--
- src/internal/trace/raw/event.go                    |   4 +-
- src/internal/trace/raw/reader.go                   |   6 +-
- src/internal/trace/raw/textreader.go               |   8 +-
- src/internal/trace/raw/writer.go                   |   4 +-
- src/internal/trace/tracev1.go                      |   3 +-
- src/internal/trace/tracev2/{event.go => events.go} |  72 +++++++++---
- .../trace/tracev2/{event/event.go => spec.go}      |  24 ++--
- src/internal/trace/version/version.go              |   7 +-
- 18 files changed, 190 insertions(+), 154 deletions(-)
+ doc/asm.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,14 +1,15 @@
-commit 70e58a2f9b2531c8e18a2e80051ffe6f1f08a33d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 14 14:47:13 2012 -0400
+commit b2a9079e54dc4e1e97551b8c60f2077888a544dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 15 02:24:49 2012 +0800
 
-    io/ioutil: fix crash when Stat fails
+    runtime: manage stack by ourselves for badcallback on windows/amd64
+    This function uses 48-byte of precious non-split stack for every callback
+    function, and without this CL, it can easily overflow the non-split stack.
+    I encountered this when trying to enable misc/cgo/test on windows/amd64.
     
-    Fixes #3320.
-    
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5824051
+    https://golang.org/cl/5784075
 
- src/pkg/io/ioutil/ioutil.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/runtime/sys_windows_amd64.s | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

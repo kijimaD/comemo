@@ -1,0 +1,38 @@
+commit 63ba2b9d84dede1df107db30b4ff8139711402eb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 25 15:08:54 2024 -0400
+
+    cmd/compile,internal/runtime/maps: stack allocated maps and small alloc
+    
+    The compiler will stack allocate the Map struct and initial group if
+    possible.
+    
+    Stack maps are initialized inline without calling into the runtime.
+    Small heap allocated maps use makemap_small.
+    
+    These are the same heuristics as existing maps.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I6c371d1309716fd1c38a3212d417b3c76db5c9b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622042
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ .../compile/internal/typecheck/_builtin/runtime.go |   1 +
+ src/cmd/compile/internal/typecheck/builtin.go      | 392 +++++++++++----------
+ src/cmd/compile/internal/walk/builtin.go           |  92 ++++-
+ src/internal/abi/map_swiss.go                      |   6 +
+ src/internal/runtime/maps/export_test.go           |   2 +-
+ src/internal/runtime/maps/map.go                   |  90 +++--
+ src/runtime/map_swiss.go                           |  15 +-
+ test/live.go                                       |  10 +
+ test/live_noswiss.go                               |  32 --
+ test/live_regabi.go                                |  10 +
+ test/live_regabi_noswiss.go                        |  31 --
+ test/live_regabi_swiss.go                          |  31 --
+ test/live_swiss.go                                 |  32 --
+ 13 files changed, 364 insertions(+), 380 deletions(-)

@@ -1,21 +1,17 @@
-commit 9b184fd23c47a8eae3587b247d05b25f8cab04ed
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 1 07:49:12 2015 +0900
+commit 4af5dcb2db977ea3c2e2218be7912951b3a44113
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 09:30:56 2015 -0700
 
-    net: deflake listener tests
+    iostest.bash: do not restart device by default
     
-    This change makes TestDualStack{TCP,UDP}Listener work more properly by
-    attempting to book an available service port before testing.
+    This is friendlier for manual runs and personal devices.
+    Builders will pass -restart.
     
-    Also simplifies error messages in tests.
+    Fixes #10333.
     
-    Fixes #5001.
-    
-    Change-Id: If13b0d0039878c9bd32061a0440664e4fa7abaf7
-    Reviewed-on: https://go-review.googlesource.com/9661
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia64c8f1660e275b5a1543d7f81f5f5efb623182f
+    Reviewed-on: https://go-review.googlesource.com/8870
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/dial_test.go       |  40 ++++
- src/net/listen_test.go     | 544 ++++++++++++++++++++++++---------------------
- src/net/mockserver_test.go |  63 ++++++
- 3 files changed, 391 insertions(+), 256 deletions(-)
+ src/iostest.bash | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

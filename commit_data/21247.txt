@@ -1,12 +1,16 @@
-commit a88d709268b7aa0bb859964981dc1fab5ab019de
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jan 13 16:43:34 2015 +1100
+commit 77e96c9208d037157c31012c4db192c8b56c6c43
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 10 11:07:40 2014 +1100
 
-    runtime: make windows goenvs look more like Go
+    [release-branch.go1.4] api: create go1.4.txt
     
-    Change-Id: I4f84a89553f77382a8064f49db0f5eb575b64313
-    Reviewed-on: https://go-review.googlesource.com/2714
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    I read through and vetted these but others should look too.
+    
+    LGTM=bradfitz, adg
+    R=r, minux, bradfitz, adg
+    CC=adg, golang-codereviews, gri, iant
+    https://golang.org/cl/182560043
 
- src/runtime/os1_windows.go | 34 ++++++++++++++++++++++------------
- 1 file changed, 22 insertions(+), 12 deletions(-)
+ api/go1.4.txt      | 604 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/api/run.go |   5 +-
+ 2 files changed, 607 insertions(+), 2 deletions(-)

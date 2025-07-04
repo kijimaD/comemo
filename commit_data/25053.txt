@@ -1,65 +1,19 @@
-commit a48de745b28a39d58dcd916f410704f0f7d75d7c
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Sat Aug 15 13:04:46 2015 +0300
+commit 97b64d88eb66981d9105bb3997b47955d2b1bd19
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 18 12:06:24 2015 -0400
 
-    encoding/gob: reduce the amount of memory allocations.
+    runtime: avoid debug prints of huge objects
     
-    Benchmark results:
+    Currently when the GC prints an object for debugging (e.g., for a
+    failed invalidptr or checkmark check), it dumps the entire object. To
+    avoid inundating the user with output for really large objects, limit
+    this to printing just the first 128 words (which are most likely to be
+    useful in identifying the type of an object) and the 32 words around
+    the problematic field.
     
-    benchmark                              old ns/op     new ns/op     delta
-    BenchmarkEndToEndPipe-4                7547          7294          -3.35%
-    BenchmarkEndToEndByteBuffer-4          5146          5092          -1.05%
-    BenchmarkEndToEndSliceByteBuffer-4     552779        439768        -20.44%
-    BenchmarkEncodeComplex128Slice-4       266370        266184        -0.07%
-    BenchmarkEncodeFloat64Slice-4          111891        110258        -1.46%
-    BenchmarkEncodeInt32Slice-4            74482         74080         -0.54%
-    BenchmarkEncodeStringSlice-4           84404         84279         -0.15%
-    BenchmarkEncodeInterfaceSlice-4        3942925       3045995       -22.75%
-    BenchmarkDecodeComplex128Slice-4       451837        415282        -8.09%
-    BenchmarkDecodeFloat64Slice-4          283584        262558        -7.41%
-    BenchmarkDecodeInt32Slice-4            246571        237383        -3.73%
-    BenchmarkDecodeStringSlice-4           734210        479625        -34.67%
-    BenchmarkDecodeInterfaceSlice-4        4778225       4160935       -12.92%
-    
-    benchmark                              old allocs     new allocs     delta
-    BenchmarkEndToEndPipe-4                3              2              -33.33%
-    BenchmarkEndToEndByteBuffer-4          3              2              -33.33%
-    BenchmarkEndToEndSliceByteBuffer-4     1002           402            -59.88%
-    BenchmarkEncodeComplex128Slice-4       1              1              +0.00%
-    BenchmarkEncodeFloat64Slice-4          1              1              +0.00%
-    BenchmarkEncodeInt32Slice-4            1              1              +0.00%
-    BenchmarkEncodeStringSlice-4           1              1              +0.00%
-    BenchmarkEncodeInterfaceSlice-4        3001           1              -99.97%
-    BenchmarkDecodeComplex128Slice-4       188            185            -1.60%
-    BenchmarkDecodeFloat64Slice-4          188            185            -1.60%
-    BenchmarkDecodeInt32Slice-4            188            185            -1.60%
-    BenchmarkDecodeStringSlice-4           2188           1185           -45.84%
-    BenchmarkDecodeInterfaceSlice-4        6197           4194           -32.32%
-    
-    benchmark                              old bytes     new bytes     delta
-    BenchmarkEndToEndPipe-4                64            48            -25.00%
-    BenchmarkEndToEndByteBuffer-4          64            48            -25.00%
-    BenchmarkEndToEndSliceByteBuffer-4     34551         10554         -69.45%
-    BenchmarkEncodeComplex128Slice-4       55            55            +0.00%
-    BenchmarkEncodeFloat64Slice-4          33            33            +0.00%
-    BenchmarkEncodeInt32Slice-4            32            32            +0.00%
-    BenchmarkEncodeStringSlice-4           36            36            +0.00%
-    BenchmarkEncodeInterfaceSlice-4        144555        347           -99.76%
-    BenchmarkDecodeComplex128Slice-4       28240         28097         -0.51%
-    BenchmarkDecodeFloat64Slice-4          11840         11697         -1.21%
-    BenchmarkDecodeInt32Slice-4            10817         10673         -1.33%
-    BenchmarkDecodeStringSlice-4           56128         39985         -28.76%
-    BenchmarkDecodeInterfaceSlice-4        132565        100421        -24.25%
-    
-    Change-Id: Ief7c7706b1f2916486ab7190b81aafbb16b70f1e
-    Reviewed-on: https://go-review.googlesource.com/13660
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id94a5c9d8162f8bd9b2a63bf0b1bfb0adde83c68
+    Reviewed-on: https://go-review.googlesource.com/14764
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/gob/codec_test.go   |  2 --
- src/encoding/gob/dec_helpers.go  |  9 +++---
- src/encoding/gob/decgen.go       |  9 +++---
- src/encoding/gob/decode.go       | 62 ++++++++++++++++++++++------------------
- src/encoding/gob/encode.go       | 19 ++++++++++--
- src/encoding/gob/encoder_test.go |  2 +-
- src/encoding/gob/timing_test.go  | 45 +++++++++++++++++++++++++++--
- 7 files changed, 105 insertions(+), 43 deletions(-)
+ src/runtime/mgcmark.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,26 +1,15 @@
-commit 8f1e2a2610765528068107e33ab0d1d2ff224ce3
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Jun 13 12:24:19 2017 +0000
+commit cdeda796c7be35f84e8fafd55aa5960901d56a6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 24 15:55:41 2017 -0700
 
-    cmd/internal/obj/arm64: fix assemble fcmp/fcmpe bug
+    cmd/compile: move typepkg back to gc package (cleanup)
     
-    The current code treats floating-point constant as integer
-    and does not treat fcmp/fcmpe as the comparison instrucitons
-    that requires special handling.
-    
-    The fix corrects the type of immediate arguments and adds fcmp/fcmpe
-    in the special handing.
-    
-    Uncomment the fcmp/fcmpe cases.
-    
-    Fixes #21567
-    Change-Id: I6782520e2770f6ce70270b667dd5e68f71e2d5ad
-    Reviewed-on: https://go-review.googlesource.com/57852
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4d5c54d2dceabf4630e5e642835b20c8c6890524
+    Reviewed-on: https://go-review.googlesource.com/41616
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/arch/arm64.go           |  4 +++-
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 16 ++++++++--------
- src/cmd/internal/obj/arm64/asm7.go           |  2 +-
- 3 files changed, 12 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 20 +++++++++++++++-----
+ src/cmd/compile/internal/types/pkg.go  |  7 -------
+ 2 files changed, 15 insertions(+), 12 deletions(-)

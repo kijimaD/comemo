@@ -1,27 +1,20 @@
-commit 971ec8728e27a3a9e0b0b26413e2b994c828f86d
-Author: Joshua M. Clulow <josh@sysmgr.org>
-Date:   Fri Nov 1 22:26:59 2019 -0700
+commit 0ac4ea79f725a0cc3797faa32ab698b8b3d77343
+Author: andrius4669 <andrius4669@gmail.com>
+Date:   Thu May 23 15:43:51 2019 +0000
 
-    runtime: check for events when port_getn fails with ETIME
+    mime: encode CTL and non-US-ASCII characters in FormatMediaType
     
-    On illumos systems, and at least historically on Solaris systems, it is
-    possible for port_getn(3C) calls to return some number of events and
-    then fail with error ETIME.
+    Encodes non-WSP CTL and non-US-ASCII UTF-8 characters using syntax specified in RFC 2231.
     
-    Generally we expect this to happen if the caller passes an nget value
-    larger than 1 and calls with a timeout; if less than the requested
-    number of events accumulate the system will still return them after
-    timeout failure so the caller must check the updated nget value in the
-    ETIME case.  Note that although less likely this can still happen even
-    when requesting just 1 event, especially with a short timeout value or
-    on a busy system.
+    Fixes #7668
+    Fixes #9624
     
-    Fixes #35261
-    
-    Change-Id: I0d83251b69a2fadc64c4e8e280aa596e2e1548ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204801
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I433f167c5bdd84a7f811ac0410b08b10790e0d9f
+    GitHub-Last-Rev: 9c77146760341fdb3af35c1b94d4ee00ffb0daae
+    GitHub-Pull-Request: golang/go#29328
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154760
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/netpoll_solaris.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/mime/mediatype.go      | 36 ++++++++++++++++++++++++++++++++----
+ src/mime/mediatype_test.go | 25 ++++++++++++++++++++++---
+ 2 files changed, 54 insertions(+), 7 deletions(-)

@@ -1,24 +1,20 @@
-commit 07f9c25b357d2eb1305e5016a967df1b00d345bd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Dec 9 12:53:28 2015 -0800
+commit 9703564c9aaa037b95b6dcbdefe0fa505710c4ff
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 9 09:33:29 2015 -0700
 
-    cmd/compile: remove unneeded error message cleanup pass
+    [dev.ssa] cmd/compile: make sure we don't move loads between blocks
     
-    This code used to be necessary because of the error messages generated
-    by the YACC-based parser, but they're no longer relevant under the new
-    recursive descent parser:
+    This can lead to multiple stores being live at once.
     
-      - LBRACE no longer exists, so "{ or {" can never occur.
+    Do OINDEX and ODOT using addresses & loads instead of specific ops.
+    This keeps SSA values from containing unSSAable types.
     
-      - The parser never generates error messages about "@" or "?" now
-        (except in import sections, where they're actually legitimate).
-    
-      - The s/LLITERAL/litbuf/ substitution is handled in p.syntax_error.
-    
-    Change-Id: Id39f747e4aa492c5830d14a47b161920bd4589ad
-    Reviewed-on: https://go-review.googlesource.com/17690
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I79567e9d43cdee09084eb89ea0bd7aa3aad48ada
+    Reviewed-on: https://go-review.googlesource.com/15654
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/parser.go |  1 -
- src/cmd/compile/internal/gc/subr.go   | 10 ----------
- 2 files changed, 11 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 39 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 22 +++++++++------
+ 3 files changed, 36 insertions(+), 29 deletions(-)

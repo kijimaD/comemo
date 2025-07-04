@@ -1,19 +1,49 @@
-commit fda92615040c831bdcd812fd20ddb0da9dcef70b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 13 13:57:48 2021 -0800
+commit 78afca22c9485dbd44da3b909866bbb9c1eaf440
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Mar 19 20:19:33 2021 -0600
 
-    cmd/compile/internal/types2: better position for invalid slice indices error
+    runtime: fix bogus NtCurrentTeb()->TlsSlots[n] calculation on windows/arm64
     
-    Report the error at the first place (which is to say, latest index)
-    causing the error.
+    runtime.save_g adds X18 to runtime.tls_g in order to have a pointer to
+    thread local storage. X18 represents a pointer to the TEB on ARM64 and
+    runtime.tls_g is set in runtime.wintls at initialization time. This
+    function calls TlsAlloc to allocate a "TLS slot", which is supposed to
+    index into NtCurrentTeb()->TlsSlots. So the full calculation we want is:
     
-    Change-Id: I31cf0a4d243fc66cfab84b7fec98055f4eb60ddf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363671
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+        X18 + offsetof(TEB, TlsSlots) + 8*TlsAllocReturnValue
+    
+    It makes sense to store the complete value of "offsetof(TEB,
+    TlsSlots) + TlsAllocReturnValue" into runtime.tls_g so that the
+    calculation can simplify to:
+    
+        X18 + runtime.tls_g
+    
+    But, instead of computing that, we're currently doing something kind of
+    strange, in which we:
+    
+        - call TlsAlloc, which puts its return value into X0
+        - make sure X0 is less than 64, so we don't overflow
+        - set runtime.tls_g to 8*X1 + offsetof(TEB, TlsSlots)
+    
+    The question is: why are we using X1 instead of X0? What is in X1?
+    
+    Probably it was, by luck, zero before, and TlsAlloc returned zero, so
+    there was no problem. But on recent versions of Windows, X1 is some
+    other garbage value and not zero, so we eventually crash when trying to
+    dereference X18 + runtime.tls_g.
+    
+    This commit fixes the problem by just computing:
+    
+       runtime.tls_g = 8*X0 + offsetof(TEB, TlsSlots)
+    
+    Fixes #45138.
+    
+    Change-Id: I560426bae7468217bd183ac6c6eb4b56a3815b09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303273
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/index.go               |  9 ++++++---
- .../compile/internal/types2/testdata/check/expr3.src   | 18 +++++++++---------
- 2 files changed, 15 insertions(+), 12 deletions(-)
+ src/runtime/sys_windows_arm64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

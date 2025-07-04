@@ -1,20 +1,12 @@
-commit 1942e3814bd99ff9466bcbc82eb63d3fab130484
-Author: Austin Clements <austin@google.com>
-Date:   Sat Jul 18 23:22:18 2015 -0700
+commit 4da658cf96f97278748dd0bc39cce48a87078eb5
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Wed Jun 10 16:28:51 2015 +0300
 
-    runtime: clarify runtime.GC blocking behavior
+    encoding/csv: fix comment in parseRecord
     
-    The runtime.GC documentation was rewritten in df2809f to make it clear
-    that it blocks until GC is complete, but the re-rewrite in ed9a4c9 and
-    e28a679 lost this property when clarifying that it may also block the
-    entire program and not just the caller.
-    
-    Try to arrive at wording that conveys both of these properties.
-    
-    Change-Id: I1e255322aa28a21a548556ecf2a44d8d8ac524ef
-    Reviewed-on: https://go-review.googlesource.com/12392
+    Change-Id: I82edd9364e1b4634006f5e043202a69f383dcdbe
+    Reviewed-on: https://go-review.googlesource.com/10826
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/encoding/csv/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

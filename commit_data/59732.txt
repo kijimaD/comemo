@@ -1,47 +1,33 @@
-commit e481a08e0ecb823f368318b142d3dec7340fe51e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 28 16:01:33 2025 -0400
+commit 5bb4f4947158311255583ff2d6acd427ac2cb0d8
+Author: Lasse Folger <lassefolger@google.com>
+Date:   Wed Apr 17 13:30:58 2024 +0000
 
-    runtime: guarantee no GOMAXPROCS update syscalls after GOMAXPROCS call
+    Revert "go/types, types2: track gotypesalias non-default behavior"
     
-    We already guarantee that no automatic updates to GOMAXPROCS occur after
-    a GOMAXPROCS call returns. This is easily achieved by having the update
-    goroutine double-check that updates are still allowed during STW before
-    committing the new value.
+    This reverts commit c51f6c62576ab3088a981b9cef90e413ac99e333.
     
-    However, it is possible for sysmon to concurrently run defaultGOMAXPROCS
-    to compute a new GOMAXPROCS value after GOMAXPROCS returns. This new
-    value will be discarded later, but we'll still perform the system calls
-    necessary to compute the new value.
+    Reason for revert: This breaks toolchain bootstrapping in Google. Root cause investigation is pending.
     
-    Normally this distinction doesn't matter, but if you want to sandbox a
-    Go program, then you may want to disable GOMAXPROCS updates to reduce
-    the system call footprint. A call to GOMAXPROCS will disable updates,
-    but without a guarantee on when sysmon will observe the change it is
-    somewhat fragile.
+    Error message is:
     
-    Add explicit synchronization between GOMAXPROCS and sysmon to guarantee
-    that sysmon won't run defaultGOMAXPROCS after GOMAXPROCS returns.
+    ```
+    <unknown line number>: internal compiler error: panic: godebug: Value of name not listed in godebugs.All: gotypesalias
+    ```
     
-    The synchronization is a bit complex because we can't hold a mutex
-    across STW, nor take a semaphore from sysmon, but the result isn't too
-    bad.
-    
-    One oddity is that sched.customGOMAXPROCS and gomaxprocs are no longer
-    updated in lockstep (even though both are protected by sched.lock), but
-    I don't believe anything should depend on that.
-    
-    For #73193.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-staticlockranking
-    Change-Id: I6a6a636cff243a9b69ac1b5d2f98925648e60236
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677037
+    Change-Id: Ie3dff566a29b3b0846ebc8fe0a371c656a043a4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579575
+    Reviewed-by: Chressie Himpel <chressie@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Lasse Folger <lassefolger@google.com>
 
- src/runtime/debug.go      | 15 ++++++++---
- src/runtime/lockrank.go   | 55 ++++++++++++++++++++++-------------------
- src/runtime/mklockrank.go |  3 ++-
- src/runtime/proc.go       | 63 ++++++++++++++++++++++++++++++++++++++++++++---
- src/runtime/runtime2.go   |  1 -
- 5 files changed, 103 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/types2/check.go      |  6 ------
+ src/cmd/compile/internal/types2/check_test.go |  2 +-
+ src/cmd/compile/internal/types2/decl.go       | 16 ----------------
+ src/go/types/check.go                         |  8 +-------
+ src/go/types/check_test.go                    |  2 +-
+ src/go/types/decl.go                          |  4 ----
+ src/internal/godebugs/table.go                |  2 +-
+ src/runtime/metrics/doc.go                    |  4 ----
+ 8 files changed, 4 insertions(+), 40 deletions(-)

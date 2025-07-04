@@ -1,21 +1,19 @@
-commit 665a4166650d088c067130eb41f8f95efb9c12ed
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 24 18:50:54 2014 -0400
+commit d208361cde17ff65451ae1da5e273ef8c65ee7c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 11:09:58 2014 -0400
 
-    os: fix Args setup on Windows
+    runtime: remove uses of ScanConservatively
     
-    Should fix the Windows build. Untested.
+    Along with CLs 139610043 and 141490043,
+    this removes all conservative scanning during
+    garbage collection, except _cgo_allocate,
+    which is SWIG-only.
     
-    on Windows, args are made by src/os/exec_windows.go, not package runtime.
-    runtime·goargs has if(Windows) return;
-    
-    The two init funcs in pkg os were conflicting, with the second
-    overwriting Args back to an empty slice.
-    
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/143540044
+    LGTM=rlh, khr
+    R=golang-codereviews, dvyukov, rlh, khr
+    CC=golang-codereviews, iant
+    https://golang.org/cl/144860043
 
- src/os/proc.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/runtime/malloc.h |  1 +
+ src/runtime/mgc0.c   | 55 +++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 47 insertions(+), 9 deletions(-)

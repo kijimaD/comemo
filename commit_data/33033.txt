@@ -1,16 +1,34 @@
-commit 0c53b4ec4f909fd12d4f39ddedd393f469f74ae4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 10 17:19:56 2017 -0700
+commit c991d2ab14496789146560608c5756d5d83b35f6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jun 27 17:30:39 2017 -0700
 
-    cmd/compile: disable TestNexting in short mode
+    archive/tar: use best effort at writing USTAR header
     
-    Updates #22206
+    Prior to this change, if the Writer needed to use the PAX format, it would
+    output a USTAR header with an empty name. This should be okay since the PAX
+    specification dictates that the PAX record for "path" should override the
+    semantic meaning of any of the old USTAR fields.
     
-    Change-Id: If75feddc01f8f86f294929fa7081c70eb15e581d
-    Reviewed-on: https://go-review.googlesource.com/69790
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Unfortunately, the implementation of tar on OpenBSD 6.1 is too strict with
+    their handling of PAX files such that they check for the validity of this
+    bogus field even though the PAX header is present.
+    
+    To allow Go's Writer output be parsible by OpenBSD's tar utility,
+    we write a best-effort (ASCII-only and truncated) version of the original
+    file name. Note that this still fails in some edge-cases (for example,
+    a Chinese filename containing all non-ASCII characters). OpenBSD should really
+    relax their checking, as you honestly can't always expect a sensible path
+    to be generated when USTAR cannot handle the original path.
+    
+    Fixes #20707
+    
+    Change-Id: Id7d77349023d2152d7291d582cd050b6681760e4
+    Reviewed-on: https://go-review.googlesource.com/46914
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/archive/tar/testdata/ustar.issue12594.tar | Bin 3072 -> 3072 bytes
+ src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
+ src/archive/tar/writer.go                     |  10 ++++++++--
+ 3 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,14 +1,37 @@
-commit 545ef1103712dda49542709d48ce030addecb8e7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 23 10:52:16 2018 -0700
+commit f62a24349d1512ce897587a962e5a1596137a441
+Merge: 3e52f22ece 9ce6b5c2ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 12:48:04 2017 -0500
 
-    cmd/compile: remove toolstash workaround in bexport.go
+    [dev.boringcrypto] all: merge go1.10beta1 into dev.boringcrypto
     
-    Change-Id: Ie4facdcab4b35cf7d350c4b8fa06a3c5a0c6caeb
-    Reviewed-on: https://go-review.googlesource.com/108875
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I413306229201e13121fa57463eae0da07a1f396f
 
- src/cmd/compile/internal/gc/bexport.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ api/go1.10.txt                                     | 645 +++++++++++++++++++++
+ api/next.txt                                       | 641 --------------------
+ doc/contribute.html                                |   4 +-
+ doc/editors.html                                   |   8 +-
+ doc/go1.10.html                                    | 282 ++++++---
+ doc/go_faq.html                                    |   2 +-
+ lib/time/update.bash                               |   4 +-
+ lib/time/zoneinfo.zip                              | Bin 366776 -> 364985 bytes
+ misc/cgo/testplugin/test.bash                      |   3 -
+ src/cmd/api/run.go                                 |   2 +-
+ src/cmd/compile/internal/gc/dwinl.go               |   6 +
+ src/cmd/dist/test.go                               |  59 +-
+ src/cmd/go/internal/cache/cache.go                 |  95 ++-
+ src/cmd/go/internal/cache/cache_test.go            | 121 ++++
+ src/cmd/go/internal/work/exec.go                   |   5 +
+ src/cmd/link/internal/ld/dwarf_test.go             |  25 +-
+ .../golang.org/x/arch/arm64/arm64asm/condition.go  |   0
+ .../x/arch/arm64/arm64asm/condition_util.go        |   0
+ src/encoding/json/decode.go                        |  13 +
+ src/encoding/json/decode_test.go                   |  97 +++-
+ src/encoding/json/encode.go                        |  13 +-
+ src/encoding/json/encode_test.go                   |   7 +-
+ src/encoding/xml/marshal_test.go                   |  19 +
+ src/encoding/xml/typeinfo.go                       |   2 +-
+ src/net/http/httputil/dump_test.go                 |   2 -
+ src/net/http/server.go                             |   2 +-
+ src/runtime/signal_unix.go                         |   8 +
+ 27 files changed, 1298 insertions(+), 767 deletions(-)

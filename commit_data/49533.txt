@@ -1,24 +1,24 @@
-commit 1821639b57a643f9c3f6d3b3d329d2283d5d7a57
-Author: Khaled Yakdan <yakdan@code-intelligence.com>
-Date:   Sat Jun 25 05:17:45 2022 +0000
+commit 166b691b652356074ea346157e8bbc13933380aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 25 21:48:21 2021 -0700
 
-    runtime: mark string comparison hooks as no split
+    cmd/compile/internal/types2: remove need for instance (struct)
     
-    These functions can be inserted by the compiler into the code to be
-    instrumented. This may result in these functions having callers that
-    are nosplit. That is why they must be nosplit.
+    instance was only used to hold the instantiation position for
+    lazy instantiation (and encode the fact that we have a lazy
+    instantiation). Just use a (pointer to a) syntax.Pos instead.
     
-    This is a followup for CL 410034 in order to fix #53190.
+    We could use a syntax.Pos (no pointer) and rely on the fact
+    that we have a known position (or fake position, if need be)
+    to indicate lazy instantiation. But using a pointer leads to
+    a smaller Named struct.
     
-    Change-Id: I03746208a2a302a581a1eaad6c9d0672bb1e949a
-    GitHub-Last-Rev: 6506d86f221d745de083fad862bba7ba04a80455
-    GitHub-Pull-Request: golang/go#53544
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413978
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I441a839a125f453ad6c501de1ce499b72a2f67a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345177
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/libfuzzer.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/named.go       | 18 +++++-------------
+ src/cmd/compile/internal/types2/typestring.go  |  2 +-
+ 3 files changed, 7 insertions(+), 15 deletions(-)

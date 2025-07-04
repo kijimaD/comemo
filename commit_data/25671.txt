@@ -1,33 +1,20 @@
-commit eb3b1830b01fca572fcdd9c95aeb8090e6c09497
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jan 19 22:45:37 2016 -0500
+commit c8bc7f1abd74fe0fda3be763d8cbdba371cb3820
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 14:04:40 2015 -0800
 
-    runtime: attach mark workers to P after they park
+    cmd/compile: better syntax error handling for new parser
     
-    Currently mark workers attach to their designated Ps before parking,
-    either during initialization or after performing a phase transition.
-    However, in both of these cases, it's possible that the mark worker is
-    running on a different P than the one it attaches to. This is a
-    problem, because as soon as the worker attaches to a P, that P's
-    scheduler can execute the worker. If the worker hasn't yet parked on
-    the P it's actually running on, this means the worker G will be
-    running in two places at once. The most visible consequence of this is
-    that once the first instance of the worker does park, it will clear
-    g.m and the second instance will crash shortly when it tries to use
-    g.m.
+    - better error messages
+    - better error recovery by advancing to "follow" token after error
+    - make sure that we make progress after all errors
+    - minor cleanups
     
-    Fix this by moving the attach to the gopark callback. At this point,
-    the G is genuinely stopped and the callback is running on the system
-    stack, so it's safe for another P's scheduler to pick up the worker G.
-    
-    Fixes #13363. Fixes #13978.
-    
-    Change-Id: If2f7c4a4174f9511f6227e14a27c56fb842d1cc8
-    Reviewed-on: https://go-review.googlesource.com/18761
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ie43b8b02799618d70dc8fc227fab3e4e9e0d8e3a
+    Reviewed-on: https://go-review.googlesource.com/16892
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go  | 89 +++++++++++++++++++++++++++++++++--------------------
- src/runtime/proc.go |  2 ++
- 2 files changed, 58 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/gc/go.go     |   3 +-
+ src/cmd/compile/internal/gc/parser.go | 231 +++++++++++++++++-----------------
+ 2 files changed, 120 insertions(+), 114 deletions(-)

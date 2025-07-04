@@ -1,16 +1,13 @@
-commit 17377ab6510837db1a1df6d8547cb9c921f300f2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 13 13:19:06 2013 +1100
+commit 83da2014a84878382b213beea69ac2e4f3b0729e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 13 02:27:42 2013 +0800
 
-    os: do not use hosts file for windows tests
+    encoding/xml: fix htmlAutoClose and its generating script
+    Thanks Mitică for reporting this.
     
-    Not everyone has the file (http://golang.org/issue/4723#c4).
-    
-    Update #4723.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7311091
+    https://golang.org/cl/7308081
 
- src/pkg/os/os_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/encoding/xml/xml.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

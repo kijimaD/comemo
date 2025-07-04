@@ -1,14 +1,14 @@
-commit 7fb3d8e45e523ceffd6eb748a3b9b0bf11a65ffd
+commit 3acddba2ec9ec2b6e8e9f6b9b6843d3780587bfe
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 13 13:56:39 2013 -0400
+Date:   Fri Sep 13 03:50:50 2013 +0000
 
-    reflect: document FieldByName shortcoming
+    cmd/5l: fix handling of RET.EQ in wrapper function
     
-    Fixes #4876.
+    Keith is too clever for me.
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/13701044
+    R=ken2
+    CC=golang-dev, khr
+    https://golang.org/cl/13272050
 
- src/pkg/reflect/type.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/5l/noop.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

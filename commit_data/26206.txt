@@ -1,18 +1,24 @@
-commit 88a21ebb210a282626b6fccf562957db9bcd9bf4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 10 15:50:49 2016 -0800
+commit ab5d2bf92f04ea56c560536e03787a9a111eac25
+Author: David Chase <drchase@google.com>
+Date:   Wed Dec 30 19:47:36 2015 -0500
 
-    cmd/compile: rework checkdupfields
+    cmd/compile: suppress export of Note field within exported bodies
     
-    Use a map to detect duplicate symbols. Allows eliminating an otherwise
-    unneeded field from Sym and gets rid of a global variable.
+    Added a format option to inhibit output of .Note field in
+    printing, and enabled that option during export.
+    Added test.
     
-    Change-Id: Ic004bca7e9130a1261a1cddbc17244529a2a1df4
-    Reviewed-on: https://go-review.googlesource.com/20552
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #13777.
+    
+    Change-Id: I739f9785eb040f2fecbeb96d5a9ceb8c1ca0f772
+    Reviewed-on: https://go-review.googlesource.com/18217
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/dcl.go         | 35 +++++++++++++++---------------
- src/cmd/compile/internal/gc/go.go          |  1 -
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- 3 files changed, 18 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/export.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go      | 29 ++++++++++++++++++++---------
+ src/cmd/internal/obj/fmt.go             |  1 +
+ test/fixedbugs/issue13777.dir/burnin.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue13777.dir/main.go   | 11 +++++++++++
+ test/fixedbugs/issue13777.go            |  7 +++++++
+ 6 files changed, 59 insertions(+), 10 deletions(-)

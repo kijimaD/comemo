@@ -1,40 +1,33 @@
-commit ecdc8c1b3f54367338de37174531f81574c791b2
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 8 14:41:06 2024 +0100
+commit bc9da01e9d7de25f04173f7122e09fe0996aaa05
+Author: Holger Hans Peter Freyther <freythergo@gmail.com>
+Date:   Sun Sep 24 12:05:37 2023 +0000
 
-    crypto/internal/cryptotest: add SkipTestAllocations
+     cmd/go: permit additional cflags when compiling
     
-    [                                                                     ]
-    [    It has been [ 0 ] days since Filippo broke a TestAllocations.    ]
-    [                                                                     ]
+    In CL 475375 the Go command started to generate the "preferlinkext"
+    token file for "strange/dangerous" compiler flags. This serves as a hint
+    to the Go linker whether to call the external linker or not.
     
-    Concentrate all the skips in one place, so we don't have to re-discover
-    always the same ones via trial and error.
+    Permit compiler flags used by bazel and bazelbuild/rules_go during
+    compilation of cgo code to not prefer external linking. This restores
+    the behavior of previous versions of Go.
     
-    This might over-skip fixable allocations, but all these targets are not
-    fast anyway, so they are not worth going back for.
+    As a side effect, it also allows these flags to appear
+    in #cgo directives in source code. We don't know of any cases
+    where that is actually useful, but it appears to be harmless
+    and simplifies the implementation of the internal linking change.
     
-    Removed the sysrand TestAllocations because it causes an import loop
-    with cryptotest and it's covered by TestAllocations in crypto/rand.
+    Fixes #60865
     
-    Change-Id: Icd40e97f9128e037f567147f8c9dafa758a47fac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626438
+    Change-Id: I176a6a2a2cf36293dd9aed24be928f98fa2fb6d9
+    GitHub-Last-Rev: 071e915b8e4e6b466e1accbfd2b9b45fc9982a34
+    GitHub-Pull-Request: golang/go#60868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504335
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/crypto/ed25519/ed25519_test.go                 |  9 ++----
- src/crypto/internal/cryptotest/allocations.go      | 37 ++++++++++++++++++++++
- .../internal/edwards25519/edwards25519_test.go     |  5 ++-
- src/crypto/internal/fips/sha3/sha3_test.go         |  3 +-
- src/crypto/internal/nistec/nistec_test.go          |  5 ++-
- src/crypto/internal/sysrand/rand_test.go           | 24 --------------
- src/crypto/md5/md5_test.go                         |  1 +
- src/crypto/rand/rand_test.go                       | 19 ++---------
- src/crypto/rsa/rsa_test.go                         |  8 ++---
- src/crypto/sha1/sha1_test.go                       |  4 +--
- src/crypto/sha256/sha256_test.go                   |  7 +---
- src/crypto/sha512/sha512_test.go                   |  7 +---
- 12 files changed, 52 insertions(+), 77 deletions(-)
+ src/cmd/go/internal/work/security.go               |  4 ++++
+ .../script/cgo_suspect_flag_force_external.txt     | 26 ++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

@@ -1,22 +1,31 @@
-commit 2184a394777ccc9ce9625932b2ad773e6e626be0
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Dec 14 18:25:21 2023 +0100
+commit 9e45b1d53e4f4c19863bb36276e019b96b8764c0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 14 13:36:19 2022 -0500
 
-    runtime/metrics: godoc link fixes
+    cmd/compile,cmd/link: set DW_AT_decl_line for function declarations
     
-    Fix rendering of link to runtime/debug.ReadGCStats in package overview:
-    as the package is not imported we must specify the absolute package
-    name.
+    DW_AT_decl_line provides the line number of function declarations (the
+    line containing the func keyword). This is the equivalent to CL 429638,
+    but provided via DWARF.
     
-    Change-Id: I123db49eee05e6812427e19873e628b4e4feb203
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549735
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Note that the file of declarations (DW_AT_decl_file) is already provided
+    for non-inlined functions. It is omitted for inlined functions because
+    those DWARF subprograms may be generated outside of their source
+    compilation unit, where referencing the file table is difficult.
+    
+    Fixes #57308.
+    
+    Change-Id: I3ad12e1f366c4465c2a588297988a5825ef7efec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458195
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/metrics/doc.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  7 +++----
+ src/cmd/internal/dwarf/dwarf.go            |  7 +++++++
+ src/cmd/internal/obj/dwarf.go              | 12 ++++++++++--
+ src/cmd/internal/obj/link.go               |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go     | 27 ++++++++++++++++++++-------
+ 5 files changed, 41 insertions(+), 14 deletions(-)

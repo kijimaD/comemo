@@ -1,31 +1,22 @@
-commit 03875bd9bc112d25a4496f7ff22888f23a26baea
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 11 13:30:43 2020 -0400
+commit 719b1ba27822e01cbef0d418d26a321a25948313
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 07:36:39 2020 -0800
 
-    cmd/go: add modload.NeedRoot mode for commands that need module root
+    net: report port number correctly in Plan 9 error
     
-    This makes error reporting a bit more consistent for 'go mod'
-    subcommands. Most of these commands only work in module mode when a
-    go.mod file is present.
+    The code was incorrectly using a string conversion of a numeric port
+    to display the port number.
     
-    Setting modload.ForceUseModules reports an error when GO111MODULE=off.
+    No test because as far as I can tell this code is only executed if
+    there is some error in a /net file.
     
-    Setting modload.RootMode to modload.NeedRoot reports an error when no
-    go.mod file is present.
+    Updates #32479
     
-    Change-Id: I1daa8d2971cb8658e0c804765839d903734a412e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254369
+    Change-Id: I0b8deebbf3c0b7cb1e1eee0fd059505f3f4c1623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modcmd/download.go      |  4 +---
- src/cmd/go/internal/modcmd/graph.go         | 11 ++---------
- src/cmd/go/internal/modcmd/init.go          |  4 +---
- src/cmd/go/internal/modcmd/tidy.go          |  2 ++
- src/cmd/go/internal/modcmd/vendor.go        |  2 ++
- src/cmd/go/internal/modcmd/verify.go        | 11 ++---------
- src/cmd/go/internal/modcmd/why.go           |  2 ++
- src/cmd/go/internal/modload/init.go         |  8 ++++++--
- src/cmd/go/testdata/script/mod_off.txt      |  4 ++--
- src/cmd/go/testdata/script/mod_off_init.txt |  2 +-
- 10 files changed, 21 insertions(+), 29 deletions(-)
+ src/net/ipsock_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

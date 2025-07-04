@@ -1,21 +1,12 @@
-commit f6f5ce87cdaad3ca4805f6a16bba3b6851fddf2d
+commit bd41831f66837f59428ae824b33979db9eaaf30c
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 3 09:20:53 2012 -0800
+Date:   Fri Feb 3 08:33:29 2012 -0800
 
-    godoc: fix identifier search
+    godoc: diagnostic for empty FS tree
     
-    Thanks to Andrey Mirtchovski for tracking this down.
-    
-    This was broken by CL 5528077 which removed the InsertSemis
-    flag from go/scanner - as a result, semicolons are now always
-    inserted and the respective indexer code checked for the
-    wrong token.
-    
-    Replaced the code by a direct identifier test.
-    
-    R=rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5606065
+    https://golang.org/cl/5615055
 
- src/cmd/godoc/index.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/godoc/godoc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

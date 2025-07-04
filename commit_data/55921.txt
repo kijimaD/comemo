@@ -1,31 +1,25 @@
-commit 74a0e3160d969fac27a65cd79a76214f6d1abbf5
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 10 23:41:33 2024 -0400
+commit 42137704fca158f14c4aebff61b54ebeae788a4a
+Author: 0xc0d <aliasgharjosie@gmail.com>
+Date:   Tue Nov 22 00:14:11 2022 +0000
 
-    time: clean up benchmarks
+    net/mail: fix EOF error while reading header-only message
     
-    Comparing BenchmarkStop against very old commits like
-    CL 13094043, I was very confused about how timers had
-    gotten almost 10X slower since 2013.
+    Check if any header found in case of EOF to recognize header-only
+    messages and if so, return a Message with the found headers
+    and a body from the reader which is already empty.
     
-    It turns out that CL 68060043 introduced a factor of 1000
-    in the benchmark cost, by counting batches of 1000 as 1 op
-    instead of 1000 ops, and timers have actually gotten
-    dramatically faster since 2013, with the addition of per-P
-    timer heaps and other optimizations.
+    Fixes #33823.
     
-    This CL rewrites the benchmarks to use testing.PB directly,
-    so that the factor of 1000 disappears, and "/op" really means "/op".
-    In the few tests that need to run in batches for one reason or
-    another, add "1000" to the name to make clear that batches
-    are being run.
-    
-    Change-Id: I27ed74d1e420934982e4205aad4f218cdfc42509
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570495
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I2f0396b08e9be4e6c89c212ce62b9c87b5f63123
+    GitHub-Last-Rev: 356a9420837bf7e247247f7dc7c8a1d218684aeb
+    GitHub-Pull-Request: golang/go#47898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344269
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/time/sleep_test.go | 116 ++++++++++++++++++++++++++-----------------------
- src/time/tick_test.go  |  12 ++---
- 2 files changed, 67 insertions(+), 61 deletions(-)
+ src/net/mail/message.go      |  2 +-
+ src/net/mail/message_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

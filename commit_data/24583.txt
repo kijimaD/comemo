@@ -1,20 +1,26 @@
-commit 3c1712db0bd3aa360ad08d9a8e57f6f9b64df6a4
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Wed Oct 21 00:39:27 2015 +0800
+commit d2150c83284c06ef3d7e106ca52160a8d1caeca2
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Aug 6 18:33:49 2015 +0200
 
-    cmd/vet: fix shadow assignment check with complex rhs
+    [dev.ssa] cmd/compile/internal/ssa/gen: generate better code when right-shifting with a constant.
     
-    This change fixes shadow assignment check in cases when RHS is not an identifier
-    or a type assertion.
+    The lowering rules were missing the non-64 bit case.
     
-    Fixes #12188
+    SBBLcarrymask can be folded to a int32 integer whose
+    type has a smaller bit size. Without the new AND rules
+    the following would be generated:
     
-    Change-Id: I0940df8d9c237ab8b8d3272eb6895e676c75c115
-    Reviewed-on: https://go-review.googlesource.com/16038
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+        v19 = MOVLconst <uint8> [-1] : SI
+        v20 = ANDB <uint8> v18 v19 : DI
+    
+    which is obviously a NOP.
+    
+    Fixes #12022
+    
+    Change-Id: I5f4209f78edc0f118e5b9b2908739f09cefebca4
+    Reviewed-on: https://go-review.googlesource.com/13301
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/shadow.go          | 2 ++
- src/cmd/vet/testdata/shadow.go | 7 ++++++-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 281 +++++++++++++++++++++++++++
+ 2 files changed, 293 insertions(+)

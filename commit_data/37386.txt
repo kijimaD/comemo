@@ -1,26 +1,16 @@
-commit 62b850f1c50aa2532512085feb86cbe5d9c99581
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Aug 25 11:33:12 2018 +0100
+commit 240ae7e304c3fe2c22cc903964e19783f9cd6bac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 19 14:35:02 2018 -0700
 
-    cmd/vet: rewrite method check to use go/types
+    cmd/vet: if a function modifies its args, it's not a print wrapper
     
-    Now that vet can rely on go/types, there's no reason to do extra work to
-    avoid using it. The rewrite lets us get rid of the field list flattening
-    code, as well as the slight verbosity that comes with go/printer.
+    Fixes #26486
+    Updates #26555
     
-    While at it, make the testdata/method.go expected errors be more
-    specific, to make sure that we're not breaking the warnings that are
-    printed.
-    
-    Finally, update whitelist/all.txt, since the reported errors now include
-    qualified types.
-    
-    Change-Id: I760a1b3b1f60e4a478c9dc43bd7f584a8459593e
-    Reviewed-on: https://go-review.googlesource.com/c/148919
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I402137b796e574e9b085ab54290d1b4ef73d3fcc
+    Reviewed-on: https://go-review.googlesource.com/125039
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt | 10 +++----
- src/cmd/vet/method.go             | 57 ++++++++++-----------------------------
- src/cmd/vet/testdata/method.go    |  4 +--
- 3 files changed, 21 insertions(+), 50 deletions(-)
+ src/cmd/vet/print.go          | 39 +++++++++++++++++++++++++++++++++------
+ src/cmd/vet/testdata/print.go | 11 +++++++++++
+ 2 files changed, 44 insertions(+), 6 deletions(-)

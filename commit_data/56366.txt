@@ -1,26 +1,44 @@
-commit 9050ce9b334419066c364e747499a2faf4425dad
-Author: Techassi <git@techassi.dev>
-Date:   Mon May 6 07:35:48 2024 +0000
+commit ea9097c9f75cf7149ebbcc3edc1161122bb15e5a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 18:02:26 2023 -0700
 
-    crypto/x509: include OID in duplicate extension error message
+    go/types, types2: implement reverse type inference for function arguments
     
-    Include the OID in the error message when parsing X.509
-    certificates. This should ease fixing such issues, because
-    users can clearly identify the duplicate extension via the
-    reported error. Previously, this wasn't possible and
-    required either manually adjusting the standard library or
-    inspecting the certificate with various debugging tools.
+    Allow function-typed function arguments to be generic and collect
+    their type parameters together with the callee's type parameters
+    (if any). Use a single inference step to infer the type arguments
+    for all type parameters simultaneously.
     
-    Fixes #66880
+    Requires Go 1.21 and that Config.EnableReverseTypeInference is set.
+    Does not yet support partially instantiated generic function arguments.
+    Not yet enabled in the compiler.
     
-    Change-Id: I8c22f3a9f9c648ccff66073840830208832a3f85
-    GitHub-Last-Rev: b855a161d46f208e57f19c87e01140cc77865422
-    GitHub-Pull-Request: golang/go#67157
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583096
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Known bug: inference may produce an incorrect result is the same
+               generic function is passed twice in the same function
+               call.
+    
+    For #59338.
+    
+    Change-Id: Ia1faa27a28c6353f0bbfd7f81feafc21bd36652c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483935
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/crypto/x509/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api.go             |   2 +-
+ src/cmd/compile/internal/types2/api_test.go        |  43 ++++++-
+ src/cmd/compile/internal/types2/call.go            | 125 +++++++++++++++++----
+ src/cmd/compile/internal/types2/expr.go            |  21 ++++
+ src/cmd/compile/internal/types2/infer.go           |  23 ++--
+ src/go/types/api.go                                |   2 +-
+ src/go/types/api_test.go                           |  43 ++++++-
+ src/go/types/call.go                               | 125 +++++++++++++++++----
+ src/go/types/check_test.go                         |   5 +-
+ src/go/types/expr.go                               |  21 ++++
+ src/go/types/infer.go                              |  23 ++--
+ src/internal/types/testdata/examples/inference2.go |  31 ++++-
+ .../types/testdata/fixedbugs/issue59338a.go        |  21 ++++
+ .../types/testdata/fixedbugs/issue59338b.go        |  21 ++++
+ 14 files changed, 420 insertions(+), 86 deletions(-)

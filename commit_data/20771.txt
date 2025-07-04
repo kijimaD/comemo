@@ -1,39 +1,15 @@
-commit d1b2913710f9f238f480a332cfc421f416bf8c23
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Oct 22 12:30:15 2014 +1100
+commit f950a14bb555938cd3878dd59cc447026e1108b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 23:39:00 2014 -0400
 
-    runtime/cgo: encode BLX directly, fixes one clang build error on arm
+    runtime: fix windows/amd64 build
     
-    Fixes #8348.
+    Out of stack space due to new 2-word call in freedefer.
+    Go back to smaller function calls.
     
-    Trying to work around clang's dodgy support for .arch by reverting to the external assembler didn't work out so well. Minux had a much better solution to encode the instructions we need as .word directives which avoids .arch altogether.
-    
-    I've confirmed with gdb that this form produces the expected machine code
-    
-    Dump of assembler code for function crosscall_arm1:
-       0x00000000 <+0>:     push    {r4, r5, r6, r7, r8, r9, r10, r11, r12, lr}
-       0x00000004 <+4>:     mov     r4, r0
-       0x00000008 <+8>:     mov     r5, r1
-       0x0000000c <+12>:    mov     r0, r2
-       0x00000010 <+16>:    blx     r5
-       0x00000014 <+20>:    blx     r4
-       0x00000018 <+24>:    pop     {r4, r5, r6, r7, r8, r9, r10, r11, r12, pc}
-    
-    There is another compilation failure that blocks building Go with clang on arm
-    
-    # ../misc/cgo/test
-    # _/home/dfc/go/misc/cgo/test
-    /tmp/--407b12.s: Assembler messages:
-    /tmp/--407b12.s:59: Error: selected processor does not support ARM mode `blx r0'
-    clang: error: assembler command failed with exit code 1 (use -v to see invocation)
-    FAIL    _/home/dfc/go/misc/cgo/test [build failed]
-    
-    I'll open a new issue for that
-    
-    LGTM=iant
-    R=iant, minux
+    TBR=brainman
     CC=golang-codereviews
-    https://golang.org/cl/158180047
+    https://golang.org/cl/152340043
 
- src/runtime/cgo/gcc_arm.S | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ src/runtime/panic.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

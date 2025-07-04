@@ -1,20 +1,12 @@
-commit a30bede5ef81fd90b4792e97707d264cc6a3cf1a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 6 14:10:47 2013 -0800
+commit 56d1faa8b667c6867c8704c276c1cbedf9c5be6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 16:56:53 2013 -0500
 
-    net/http: remove allocations in HeaderWriteSubset
+    net/http/httputil: fix build
     
-    Before:
-    BenchmarkHeaderWriteSubset  500000  2354 ns/op  197 B/op  2 allocs/op
-    After:
-    BenchmarkHeaderWriteSubset 1000000  2085 ns/op    0 B/op  0 allocs/op
-    
-    Fixes #3761
-    
-    R=golang-dev, rsc
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7508043
+    https://golang.org/cl/7540043
 
- src/pkg/net/http/header.go      | 47 +++++++++++++++++++++++++++++++----------
- src/pkg/net/http/header_test.go |  6 ++----
- 2 files changed, 38 insertions(+), 15 deletions(-)
+ src/pkg/net/http/httputil/dump_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

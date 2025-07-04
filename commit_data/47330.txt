@@ -1,15 +1,31 @@
-commit 9e6ad46bccfa7a63e768236bcd1fd54dab38e4d1
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Fri Oct 8 09:59:15 2021 +0800
+commit b0733ba12d1190859a95ee93edac940de8052fed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 16 20:28:43 2020 -0800
 
-    net/http: fix spelling in documentation
+    hash/maphash: increase the buffer size
     
-    Change-Id: I8b0924300eafe27de98975512a78a6527a92e446
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354729
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    This helps a lot for larger writes.
+    
+    name            old time/op    new time/op    delta
+    Hash8Bytes-8      16.5ns ± 4%    16.8ns ± 2%   +1.76%  (p=0.000 n=29+30)
+    Hash320Bytes-8    55.0ns ± 2%    41.4ns ± 2%  -24.64%  (p=0.000 n=28+28)
+    Hash1K-8           190ns ± 2%     130ns ± 3%  -31.65%  (p=0.000 n=30+30)
+    Hash8K-8          1.57µs ± 2%    1.05µs ± 3%  -33.01%  (p=0.000 n=30+29)
+    
+    name            old speed      new speed      delta
+    Hash8Bytes-8     485MB/s ± 4%   476MB/s ± 2%   -1.73%  (p=0.000 n=29+30)
+    Hash320Bytes-8  5.82GB/s ± 2%  7.72GB/s ± 3%  +32.55%  (p=0.000 n=28+29)
+    Hash1K-8        5.39GB/s ± 2%  7.88GB/s ± 3%  +46.32%  (p=0.000 n=30+30)
+    Hash8K-8        5.21GB/s ± 2%  7.77GB/s ± 3%  +49.28%  (p=0.000 n=30+29)
+    
+    Updates #42710
+    
+    Change-Id: Idaf4b2a8a41fc62fc16b54c9358cf2cc7009cf29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278760
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httputil/dump.go | 2 +-
- src/net/http/serve_test.go    | 2 +-
- src/net/http/transfer.go      | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/hash/maphash/maphash.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

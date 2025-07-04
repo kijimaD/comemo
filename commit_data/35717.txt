@@ -1,21 +1,29 @@
-commit 46076c37578fba9b49059584ef896099c9240fb2
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Thu Jun 14 11:51:57 2018 +0200
+commit 51b027116c2c90e7cb938362b0134ff710fea54e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 2 11:27:15 2018 +0100
 
-    mime/multipart: return error from NextPart if boundary is empty
+    runtime: use vDSO for clock_gettime on linux/arm
     
-    NewReader cannot return an error. This behaviour is kept.
-    NextPart returns EOF when boundary is empty.
-    RFC 2046 does not allow it. The fix is to return an error
-    on the call of NextPart.
+    Use the __vdso_clock_gettime fast path via the vDSO on linux/arm to
+    speed up nanotime and walltime. This results in the following
+    performance improvement for time.Now on a RaspberryPi 3 (running
+    32bit Raspbian, i.e. GOOS=linux/GOARCH=arm):
     
-    Fixes #23170
+    name     old time/op  new time/op  delta
+    TimeNow  0.99µs ± 0%  0.39µs ± 1%  -60.74%  (p=0.000 n=12+20)
     
-    Change-Id: I775afd3f93e8b56e6cb274bc5c9de362a18bcc3c
-    Reviewed-on: https://go-review.googlesource.com/118822
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3598278a6c88d7f6a6ce66c56b9d25f9dd2f4c9a
+    Reviewed-on: https://go-review.googlesource.com/98095
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/multipart/multipart.go      | 4 +++-
- src/mime/multipart/multipart_test.go | 8 ++++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/runtime/os_linux.go        |  1 +
+ src/runtime/os_linux_noauxv.go |  2 +-
+ src/runtime/os_linux_novdso.go | 10 +++++
+ src/runtime/sys_linux_arm.s    | 88 +++++++++++++++++++++++++++++++++++-------
+ src/runtime/vdso_elf32.go      |  2 +-
+ src/runtime/vdso_linux.go      |  4 +-
+ src/runtime/vdso_linux_arm.go  | 19 +++++++++
+ src/runtime/vdso_linux_test.go |  2 +-
+ 8 files changed, 110 insertions(+), 18 deletions(-)

@@ -1,12 +1,17 @@
-commit fdf3ceafc61c0cf9b7b7bd6757f0c51393a7a83c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 7 20:08:21 2017 +0000
+commit 818353022e03620b1c4966ec5ef8691e21f06ec7
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sun Sep 10 00:22:27 2017 +0100
 
-    net/http: document ResponseWriter.WriteHeader more
+    crypto/elliptic: temporarily disable s390x assembly
     
-    Change-Id: I65209b90ed7c56d4c751b3e4b3ce1de52dae368c
-    Reviewed-on: https://go-review.googlesource.com/82635
+    This disables the s390x assembly. It will be re-enabled when #20215
+    is resolved on s390x.
+    
+    Change-Id: I789eca2dd478004956107359fae98ed012f04abb
+    Reviewed-on: https://go-review.googlesource.com/62292
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/crypto/elliptic/p256_s390x.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

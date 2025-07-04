@@ -1,19 +1,29 @@
-commit deb2f89eb16929819cddbd293240f06f5f396bc1
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Nov 4 16:35:22 2023 +0800
+commit eb2bc919760d7a3e5ffd6022756cd7bda2f2dc63
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 16:38:37 2023 -0700
 
-    time: add available godoc link
+    net/http, net/internal, net/smtp: add wasip1
     
-    Change-Id: Idfe9cf2f2e4750d6673455f98deef2efc2d292a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539837
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: Ib49b7ccabe18de544455f7d09c7d715d6564a73d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479625
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/time/format.go   | 34 +++++++++++++++++-----------------
- src/time/sleep.go    | 20 ++++++++++----------
- src/time/tick.go     |  8 ++++----
- src/time/time.go     | 50 +++++++++++++++++++++++++-------------------------
- src/time/zoneinfo.go |  4 ++--
- 5 files changed, 58 insertions(+), 58 deletions(-)
+ src/net/http/roundtrip.go                                           | 2 +-
+ src/net/http/transport_default_other.go                             | 3 +--
+ src/net/http/{transport_default_js.go => transport_default_wasm.go} | 3 +--
+ src/net/internal/socktest/main_test.go                              | 2 +-
+ src/net/internal/socktest/main_unix_test.go                         | 2 +-
+ src/net/internal/socktest/switch_unix.go                            | 2 +-
+ src/net/internal/socktest/sys_unix.go                               | 2 +-
+ src/net/smtp/smtp_test.go                                           | 2 +-
+ 8 files changed, 8 insertions(+), 10 deletions(-)

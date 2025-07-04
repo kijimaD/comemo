@@ -1,43 +1,23 @@
-commit fff4f599fe1c21e411a99de5c9b3777d06ce0ce6
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Apr 11 09:50:59 2019 -0700
+commit 153c0da89bca6726545cf4451053235b552d3d51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 19 18:12:13 2019 -0800
 
-    cmd/compile,runtime: allocate defer records on the stack
+    path/filepath: revert "fix Windows-specific Clean bug"
     
-    When a defer is executed at most once in a function body,
-    we can allocate the defer record for it on the stack instead
-    of on the heap.
+    Revert CL 137055, which changed Clean("\\somepath\dir\") to return
+    "\\somepath\dir" on Windows. It's not entirely clear this is correct,
+    as this path is really "\\server\share\", and as such the trailing
+    slash may be the path on that share, much like "C:\". In any case, the
+    change broke existing code, so roll it back for now and rethink for 1.13.
     
-    This should make defers like this (which are very common) faster.
+    Updates #27791
+    Fixes #30307
     
-    This optimization applies to 363 out of the 370 static defer sites
-    in the cmd/go binary.
-    
-    name     old time/op  new time/op  delta
-    Defer-4  52.2ns ± 5%  36.2ns ± 3%  -30.70%  (p=0.000 n=10+10)
-    
-    Fixes #6980
-    Update #14939
-    
-    Change-Id: I697109dd7aeef9e97a9eeba2ef65ff53d3ee1004
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171758
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I69200b1efe38bdb6d452b744582a2bfbb3acbcec
+    Reviewed-on: https://go-review.googlesource.com/c/163077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/gc/esc.go     |   1 +
- src/cmd/compile/internal/gc/escape.go  |   1 +
- src/cmd/compile/internal/gc/go.go      |   1 +
- src/cmd/compile/internal/gc/reflect.go |  42 +++++++
- src/cmd/compile/internal/gc/ssa.go     | 196 +++++++++++++++++++++++----------
- src/runtime/mgcmark.go                 |  20 +++-
- src/runtime/panic.go                   |  44 ++++++++
- src/runtime/runtime2.go                |   9 +-
- src/runtime/stack.go                   |  13 ++-
- src/runtime/stack_test.go              |  55 +++++++++
- src/runtime/stubs.go                   |   3 -
- src/runtime/syscall_windows.go         |   2 +-
- src/runtime/traceback.go               |  42 ++-----
- test/codegen/stack.go                  |   5 +
- test/live.go                           |   2 +-
- 15 files changed, 328 insertions(+), 108 deletions(-)
+ src/path/filepath/path.go      | 11 +++--------
+ src/path/filepath/path_test.go |  3 ---
+ 2 files changed, 3 insertions(+), 11 deletions(-)

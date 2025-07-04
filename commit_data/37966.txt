@@ -1,26 +1,13 @@
-commit 6fa1336531b0d1dac2b18123d74bcec4e0defdd9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 23 18:10:54 2019 -0800
+commit 0a8720580983c3a39c6c46fe08a2136a04bc118f
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Sep 18 01:13:04 2018 +0300
 
-    go/types: permit signed integer shift count
+    cmd/compile/internal/gc: simplify bool expression
     
-    Permit shifts by non-constant signed integer shift counts.
-    Share logic for constant shift counts in non-constant
-    shifts and improve error messages a little bit.
-    
-    R=Go1.13
-    
-    Updates #19113.
-    
-    Change-Id: Ia01d83ca8aa60a6a3f4c49f026e0c46396f852be
-    Reviewed-on: https://go-review.googlesource.com/c/159317
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Idcd79788e64947a927af662b6394ac7218e62ba8
+    Reviewed-on: https://go-review.googlesource.com/135836
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/expr.go             | 37 +++++++++++++++++++------------------
- src/go/types/stdlib_test.go      |  1 +
- src/go/types/testdata/decls1.src |  4 ++--
- src/go/types/testdata/expr1.src  |  8 ++++----
- src/go/types/testdata/shifts.src | 26 ++++++++++++++++++++------
- 5 files changed, 46 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

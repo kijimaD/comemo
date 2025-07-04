@@ -1,25 +1,19 @@
-commit b8a12928a65a15ecce5c9332da9feef0cb221389
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Sep 16 00:58:56 2015 -0700
+commit 707b619c3a9d94ea61a471aeecfe1c914c3372e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 24 15:23:26 2015 +0900
 
-    archive/tar: convert Reader.Next to be loop based
+    syscall: fix alignment check for link-layer information on BSD variants
     
-    Motivation for change:
-    * Recursive logic is hard to follow, since it tends to apply
-    things in reverse. On the other hand, the tar formats tend to
-    describe meta headers as affecting the next entry.
-    * Recursion also applies changes in the wrong order. Two test
-    files are attached that use multiple headers. The previous Go
-    behavior differs from what GNU and BSD tar do.
+    When link-layer information is wrapped with sockaddr_dl, we need to
+    follow the len field of sockaddr_dl. When link-layer information is
+    naked, we need to use the length of whole link-layer information.
     
-    Change-Id: Ic1557256fc1363c5cb26570e5d0b9f65a9e57341
-    Reviewed-on: https://go-review.googlesource.com/14624
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12641.
+    
+    Change-Id: I4d377f64cbab1760b993fc55c719288616042bbb
+    Reviewed-on: https://go-review.googlesource.com/14939
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/reader.go                   | 130 +++++++++++++---------------
- src/archive/tar/reader_test.go              |  24 +++++
- src/archive/tar/testdata/gnu-multi-hdrs.tar | Bin 0 -> 4608 bytes
- src/archive/tar/testdata/pax-multi-hdrs.tar | Bin 0 -> 4608 bytes
- 4 files changed, 84 insertions(+), 70 deletions(-)
+ src/syscall/route_bsd.go      |  9 ++++++---
+ src/syscall/route_bsd_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 3 deletions(-)

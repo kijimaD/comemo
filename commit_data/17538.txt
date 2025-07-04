@@ -1,14 +1,17 @@
-commit 90f91928866a602df045b6c44f58a6f2f741bbf0
+commit 159c2b7e46f0b8293f1eed66ebec70ca845ac591
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 14:43:21 2013 -0400
+Date:   Tue Sep 10 14:41:07 2013 -0400
 
-    cmd/go: run benchmarks in sequence
+    cmd/go: fix error for 'go install x.go' when GOBIN is not set
     
-    Fixes #5662.
+    Fixes #6191.
+    Fixes #5426.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13650043
+    https://golang.org/cl/13234052
 
- src/cmd/go/test.go | 21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ src/cmd/go/build.go  | 5 ++++-
+ src/cmd/go/pkg.go    | 1 +
+ src/cmd/go/test.bash | 9 +++++++--
+ 3 files changed, 12 insertions(+), 3 deletions(-)

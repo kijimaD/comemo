@@ -1,12 +1,15 @@
-commit 936498e5dcd8a329a5da8cd743f60bdb820e6c22
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Nov 1 22:59:53 2012 +0400
+commit 4094c1bae7cb6ace9311e560623bc0eb80bae91e
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Thu Nov 1 14:49:38 2012 -0400
 
-    cmd/gc: fix build
+    syscall: add {Get,Set,List,Remove}xattr on Linux.
     
-    R=golang-dev
+    R=golang-dev, minux.ma, fullung, dave, rsc, hanwenn
     CC=golang-dev
-    https://golang.org/cl/6826047
+    https://golang.org/cl/6350074
 
- src/cmd/gc/racewalk.c | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/pkg/syscall/syscall_linux.go        |  9 ++--
+ src/pkg/syscall/zsyscall_linux_386.go   | 95 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 95 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 95 +++++++++++++++++++++++++++++++++
+ 4 files changed, 289 insertions(+), 5 deletions(-)

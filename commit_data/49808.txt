@@ -1,19 +1,34 @@
-commit 51a23d6681aef3736e09fbc61fc9ae03305efc2c
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Jul 18 08:51:32 2022 -0700
+commit 9a58aa267e3686c86d3e5bf1d14117a2a127838c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 10 17:06:43 2021 -0700
 
-    net/url: clarify RawPath documentation
+    spec: fix prose about terminating statements
     
-    Consistently recommend using EscapedPath rather than RawPath directly.
+    CL 85215 added prose to provide some minimal intuition for the
+    definition of a "terminating statement". While the original definition
+    was perfectly fine, the added prose was actually incorrect: If the
+    terminating statement is a goto, it might jump to a labeled statement
+    following that goto in the same block (it could be the very next
+    statement), and thus a terminating statement does not in fact
+    "prevent execution of all statements that lexically appear after
+    it in the same block".
     
-    For #33596.
+    Rather than explaining the special case for gotos with targets that
+    are lexically following the goto in the same block, this CL opts for
+    a simpler approach.
     
-    Change-Id: Ibe5c2dfa7fe6b1fbc540efed6db1291fc6532726
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418035
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Thanks to @3bodar (Github) for finding this.
+    
+    Fixes #48323.
+    
+    Change-Id: I8031346250341d038938a1ce6a75d3e687d32c37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349172
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/url/url.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

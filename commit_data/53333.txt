@@ -1,24 +1,22 @@
-commit e8c6003023b64b80bea6af8c4bb0b54d55f65dc0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 24 15:22:33 2023 -0400
+commit d4280fda462e06819a416a2e298b7896bdc1654c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 9 00:30:15 2022 -0700
 
-    cmd/go: expand acceptable toolchains a bit
+    test: more robust detection of GOEXPERIMENT=unified
     
-    Allow both prefix-goVERSION and goVERSION-suffix for custom toolchains.
-    Also make sure that a tie in the toolchain and min version goes to the
-    toolchain line.
+    `go env GOEXPERIMENT` prints what experiments are enabled relative to
+    the baseline configuration, so it's not a very robust way to detect
+    what experiments have been statically enabled at bootstrap time.
     
-    For #57001.
+    Instead, we can check build.Default.ToolTags, which has goexperiment.*
+    for all currently enabled experiments, independent of baseline.
     
-    Change-Id: Ibeea5f47db7349cfdf36da188bb43e195e196f5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498076
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6132deaa73b1e79ac24176ef4de5af67a507ee26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422234
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/gotoolchain.go                  |  2 +-
- src/cmd/go/internal/gover/latest.go        | 13 +++----------
- src/cmd/go/internal/gover/toolchain.go     | 14 ++++++++++++--
- src/cmd/go/testdata/script/gotoolchain.txt | 29 +++++++++++++++++++++++++++++
- 4 files changed, 45 insertions(+), 13 deletions(-)
+ test/run.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,18 +1,18 @@
-commit 3efa09f3862b68f0dfa5012455f475836e040e91
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 18 14:20:34 2019 -0800
+commit 52fdd624a4087342f529cd7e52c92f44adf2e2bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 17 14:31:48 2019 -0400
 
-    time: deflake TestTicker
+    cmd/go/internal/mvs: in Req, omit versions implied by older-than-selected versions already in the graph
     
-    Take the opportunity of deflaking to make it take less time to run.
+    Fixes #31248
     
-    Updates #35537
-    
-    Change-Id: I91ca8094fbe18fbfcd34dfda98da1592c9c82943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207403
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia54f2098c3b85549681198a487a31e8ce8fc59eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186557
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/time/tick_test.go | 71 ++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 50 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go                   |  8 ++--
+ src/cmd/go/internal/mvs/mvs_test.go              |  8 ++++
+ src/cmd/go/testdata/script/mod_indirect_tidy.txt | 60 ++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 4 deletions(-)

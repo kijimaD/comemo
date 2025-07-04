@@ -1,16 +1,31 @@
-commit 6cc8aa7ece96aca282db19f08aa5c98ed13695d9
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Feb 23 11:48:15 2021 -0500
+commit 37682f7a797a2f13dcc5496e506bfd662f6e51fd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Jun 20 14:38:38 2020 -0400
 
-    go/types: minor updates to comments to align with types2
+    [dev.link] cmd/link: apply relocations while writing symbols
     
-    Change-Id: Ic4fcd67cd9222eae6b72d9e91e37f3b0293b0b8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295530
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    We can apply relocations of a symbol right after the symbol data
+    is copied to output buffer. This should help locality and
+    parallelism (parallelizing over blocks, instead of over segments).
+    
+    Linking cmd/compile,
+    Asmb+Reloc     23.9ms ±18%    16.5ms ±11%   -30.73%  (p=0.008 n=5+5)
+    
+    Linking cmd/compile with external linking,
+    Asmb+Reloc     74.0ms ± 3%    33.8ms ± 8%   -54.32%  (p=0.008 n=5+5)
+    
+    In external linking mode, allocation goes up slightly, as we do
+    smaller batching now. It doesn't seem too bad.
+    Asmb+Reloc     15.0MB ± 0%    16.7MB ± 0%   +11.22%  (p=0.008 n=5+5)
+    
+    Change-Id: Ide33d9ff86c39124c8f5cfc050d7badc753a1ced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239197
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/conversions.go | 2 +-
- src/go/types/issues_test.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/asmb.go | 12 ++++++----
+ src/cmd/link/internal/ld/data.go | 52 ++++++++--------------------------------
+ src/cmd/link/internal/ld/main.go |  5 +---
+ 3 files changed, 19 insertions(+), 50 deletions(-)

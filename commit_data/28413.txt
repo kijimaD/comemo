@@ -1,20 +1,17 @@
-commit 9658de32c6141ca036a741006da5b83b4b2c6af5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 15 19:48:53 2016 -0700
+commit 7a9f6c2b56bd87ff7f9296344c9e63cc46194428
+Author: Keith Randall <khr@golang.org>
+Date:   Mon May 23 13:09:12 2016 -0700
 
-    cmd/compile: remove unused cases in Naddr
+    cmd/compile: benchmark needs dominator tree
     
-    Gins, and in turn Naddr, is only used with ONAME and OLITERAL Nodes,
-    so we can drastically simplify Naddr.
+    Now that CSE uses dom tree to order partitions, we need the
+    dom tree computed before benchmarking CSE.
     
-    Passes toolstash/buildall.
+    Fixes #15801
     
-    Change-Id: I2deb7eb771fd55e7c7f00040a9aee54588fcac11
-    Reviewed-on: https://go-review.googlesource.com/29247
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifa4702c7b75250f34de185e69a880b3f3cc46a12
+    Reviewed-on: https://go-review.googlesource.com/23361
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/gsubr.go | 98 ------------------------------------
- 1 file changed, 98 deletions(-)
+ src/cmd/compile/internal/ssa/passbm_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

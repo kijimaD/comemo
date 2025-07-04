@@ -1,28 +1,15 @@
-commit 2bc8ed8e9c5d8ae303b42bbd8c65f2c5dc38352a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 26 16:18:52 2021 -0400
+commit 35b80eac7d2ba6cd632b3dc195f8588d95212fbf
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Feb 14 11:19:39 2021 +0100
 
-    runtime: normalize sigprof traceback flags
+    hash/maphash: remove duplicate from Hash documentation
     
-    Each gentraceback call uses a different set of flags. Combine these into
-    a common variable, only adjusted as necessary.
+    Fixes #44255
     
-    The effective changes here are:
-    
-    * cgo traceback now has _TraceJumpStack. This is a no-op since it
-      already passes curg.
-    * libcall traceback now has _TraceJumpStack. This is a behavior change
-      and will allow following stack transitions if a libcall is performed on
-      g0.
-    * VDSO traceback drops _TraceTrap. vdsoPC is a return address, so
-      _TraceTrap was not necessary.
-    
-    Change-Id: I351b3cb8dc77df7466795d5fbf2bd8f30bba2d37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358900
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I14d2edbee0a0c39e04111414a57d70ee2fdfb6af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291631
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/hash/maphash/maphash.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

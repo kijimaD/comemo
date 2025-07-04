@@ -1,17 +1,21 @@
-commit af67f7de3f7b0d26f95d813022f876eef1fa3889
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Fri Dec 2 21:17:29 2016 -0800
+commit b9fd510cd00b6aa26e2ea7001a07b90ebf97d2ed
+Author: Jirka Daněk <dnk@mail.muni.cz>
+Date:   Mon Jan 18 16:26:05 2016 +0100
 
-    cmd/go: give useful error when msan isn't supported
+    encoding/json: add struct and field name to UnmarshalTypeError message
     
-    Fixes #18180.
+    The UnmarshalTypeError has two new fields Struct and Field,
+    used when constructing the error message.
     
-    Change-Id: I7006fe6cf08139e5aaaf35412b962a4e82109f59
-    Reviewed-on: https://go-review.googlesource.com/33898
+    Fixes #6716.
+    
+    Change-Id: I67da171480a9491960b3ae81893770644180f848
+    Reviewed-on: https://go-review.googlesource.com/18692
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/build.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/encoding/json/decode.go      | 82 +++++++++++++++++++++++++++-------------
+ src/encoding/json/decode_test.go | 42 ++++++++++++++++----
+ 2 files changed, 90 insertions(+), 34 deletions(-)

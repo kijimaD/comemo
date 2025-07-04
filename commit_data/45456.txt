@@ -1,26 +1,36 @@
-commit 95c5f4da80960d0e3511d39c9a9db7280099a37e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 30 10:20:38 2021 -0700
+commit d677899e903c4741920846f1af2c14c56f6e710e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 22:36:58 2020 +0000
 
-    cmd/compile/internal/types2: list errors by default in TestManual
+    runtime: flush local_scan directly and more often
     
-    TestManual is used for debugging; in this case we usually want to
-    see error messages reported rather than checked against ERROR comments
-    in the provided files. Make this the default. Use the new -verify
-    flag to verify reported errors against ERROR comments.
+    Now that local_scan is the last mcache-based statistic that is flushed
+    by purgecachedstats, and heap_scan and gcController.revise may be
+    interacted with concurrently, we don't need to flush heap_scan at
+    arbitrary locations where the heap is locked, and we don't need
+    purgecachedstats and cachestats anymore. Instead, we can flush
+    local_scan at the same time we update heap_live in refill, so the two
+    updates may share the same revise call.
     
-    With this change we cannot get an error list for the non-manual
-    tests, but that is usually not useful anyway because there are
-    usually many errors in those test files. Run those tests manually
-    instead.
+    Clean up unused functions, remove code that would cause the heap to get
+    locked in the allocSpan when it didn't need to (other than to flush
+    local_scan), and flush local_scan explicitly in a few important places.
+    Notably we need to flush local_scan whenever we flush the other stats,
+    but it doesn't need to be donated anywhere, so have releaseAll do the
+    flushing. Also, we need to flush local_scan before we set heap_scan at
+    the end of a GC, which was previously handled by cachestats. Just do so
+    explicitly -- it's not much code and it becomes a lot more clear why we
+    need to do so.
     
-    Also, corrected -lang flag synopsys: it applies to all tests, not
-    just TestManual.
-    
-    Change-Id: I56e0ea0583840fc3ea150d9ccfc330370b66191c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315729
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I35ac081784df7744d515479896a41d530653692d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246968
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/check_test.go | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ src/runtime/mcache.go | 22 ++++++++++++++++++++--
+ src/runtime/mgc.go    | 14 ++++++++++++--
+ src/runtime/mheap.go  | 49 +++----------------------------------------------
+ src/runtime/mstats.go | 25 -------------------------
+ 4 files changed, 35 insertions(+), 75 deletions(-)

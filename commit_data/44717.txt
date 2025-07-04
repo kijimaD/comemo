@@ -1,25 +1,20 @@
-commit 65178441297002592a65d4f92c1dc97994ac7d24
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Mar 18 03:37:58 2021 +1100
+commit 4e4d5df0b0af23d2fcb5690e89f27bd7e64e48f1
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu May 7 18:08:35 2020 +0800
 
-    cmd/compile: use a single const MOV operand for riscv64
+    cmd/compile: complete adjust MIPS64x rewrite rules to use typed aux fields
     
-    Most platforms only use a single MOV const operand - remove the MOV{B,H,W}const
-    operands from riscv64 and consistently use MOVDconst instead. The implementation
-    of all four is the same and there is no benefit gained from having multiple const
-    operands (in fact it requires a lot more rewrite rules).
+    Follow CL 228937
+    All MIPS64x rewrite rules has been converted into =>.
     
-    Change-Id: I0ba7d7554e371a1de762ef5f3745e9c0c30d41ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302610
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    toolstash-check passed for b1b67841d1..f2ad426737
+    
+    Change-Id: I7eb7541ae1b86a005770003b61c555672660d2e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230778
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 136 ++---
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   3 -
- src/cmd/compile/internal/ssa/opGen.go          |  39 --
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 711 +++++--------------------
- 5 files changed, 180 insertions(+), 711 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules | 174 +++---
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 804 ++++++++++++++------------
+ 2 files changed, 525 insertions(+), 453 deletions(-)

@@ -1,14 +1,20 @@
-commit 875f34fd4962935d8e0e17d030b91e4c4feb4f08
-Author: Matthew Horsnell <matthew.horsnell@gmail.com>
-Date:   Mon May 21 23:29:30 2012 -0400
+commit 7648f61c7d7d1cd05a507086821133fae61c37af
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue May 22 10:31:08 2012 +1000
 
-    debug/elf: Expose entry point from Header in File struct.
-    Fixes #3470.
+    exp/html: adjust inCellIM to match spec
     
-    R=rsc, golang-dev
+    Clean up flow of control.
+    
+    Ignore </table>, </tbody>, </tfoot>, </thead>, </tr> if there is not
+    an appropriate element in table scope.
+    
+    Pass 3 more tests.
+    
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6195074
+    https://golang.org/cl/6206093
 
- src/pkg/debug/elf/file.go      | 3 +++
- src/pkg/debug/elf/file_test.go | 4 ++--
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/parse.go                  | 34 ++++++++++++++----------------
+ src/pkg/exp/html/testlogs/webkit02.dat.log |  6 +++---
+ 2 files changed, 19 insertions(+), 21 deletions(-)

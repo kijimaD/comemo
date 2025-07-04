@@ -1,21 +1,14 @@
-commit 49003da6d437ef1a4e1e55cf86240480f17dc8ab
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jun 17 17:40:35 2020 -0400
+commit 153a9e80332ca165d9d00149e9d8b9747d486c18
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 6 18:24:29 2019 -0500
 
-    cmd/go/internal/trace: add function to distinguish goroutines
+    doc: add section on go.mod file syntax
     
-    trace.StartGoroutine will associate the trace information on the context
-    with a new chrome profiler thread id. The chrome profiler doesn't
-    expect multiple trace events to have the same thread id, so this
-    will allow us to display concurrent events on the trace.
+    Updates #33637
     
-    Updates #38714
-    
-    Change-Id: I888b0cce15a5a01db66366716fdd85bf86c832cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248319
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I265e4fda863b871a3ce0ca7b6c926081dadbf5a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210799
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/trace/trace.go | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ doc/modules.md | 392 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 381 insertions(+), 11 deletions(-)

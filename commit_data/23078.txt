@@ -1,15 +1,16 @@
-commit b21ff39679486c03648b1abda7ce206fcf09bc36
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Tue May 19 10:47:24 2015 +1000
+commit 5e9ab665fb34c1072eec48e4c9d246e235a07038
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 23 09:13:32 2015 +1000
 
-    flag: Fix up a package comment a bit.
+    image/jpeg: have the LargeImageWithShortData test only allocate 64 MiB, not 604
+    MiB.
     
-    I think "the flag" was a typo, and the word "after" was repetitive.
+    Fixes #10531
     
-    Change-Id: I81c034ca11a3a778ff1eb4b3af5b96bc525ab985
-    Reviewed-on: https://go-review.googlesource.com/10195
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I9eece86837c3df2b1f7df315d5ec94bd3ede3eec
+    Reviewed-on: https://go-review.googlesource.com/9238
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/image/jpeg/reader_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

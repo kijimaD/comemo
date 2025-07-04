@@ -1,22 +1,31 @@
-commit 3622ad9705983b799aa189e052bdd38dd0755965
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jun 12 11:51:34 2024 -0400
+commit 067dd573b2deba45a02383139bd2885321b2f71d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 24 12:43:09 2023 -0400
 
-    doc/next: reword map iterator function notes
+    cmd/go: fix PGO script flag matching
     
-    The notes don't define identifiers m and seq. Describe in words
-    instead.
+    build_pgo.txt hard-coded a check for / rather than using ${/}, causing a
+    failure on Windows
     
-    While here, rename 3-structs.md to 4-structs.md.
+    The failure in build_pgo_auto_multi.txt is more interesting. If the
+    first argument to stdout starts with `-` the script engine expects it to
+    be a flag to grep, and thus doesn't regexp-escape `\` in the expansion
+    of `${/}`.
     
-    For #65614.
+    The script engine doesn't _require_ that these are flags to grep, so it
+    is still possible to use them for matching, but this ideally will change
+    in the future, so change all patterns to avoid starting with `-`.
     
-    Change-Id: I6690f552903d1870c70e28673c87ac84b7c5c041
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592195
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #60408.
+    
+    Change-Id: Ie4041a730d22ce40a4436abae7713f211dcb42e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497881
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/6-stdlib/3-iter.md                      | 10 +++++-----
- doc/next/6-stdlib/{3-structs.md => 4-structs.md} |  0
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/build_pgo.txt            |  6 ++++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt       | 20 +++++++++++---------
+ src/cmd/go/testdata/script/build_pgo_auto_multi.txt |  8 +++++---
+ 3 files changed, 20 insertions(+), 14 deletions(-)

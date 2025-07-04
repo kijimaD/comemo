@@ -1,22 +1,23 @@
-commit 7c9f910607afbb5e33146d966e6c60ac5dbf3b31
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Nov 13 13:10:42 2016 -0800
+commit 836a3ae6639c310e1a13834c1f8f84bb982d920d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 20 15:57:53 2016 +1200
 
-    all: fix vet nits
+    cmd/link: remove more unused ctxt parameters
     
-    Fixes these vet complaints:
+    This time in elf.go.
     
-    net/error_test.go:254: unrecognized printf flag for verb 'T': '#'
-    os/os_test.go:1067: arg mt for printf verb %d of wrong type: time.Time
-    runtime/debug/garbage_test.go:83: arg dt for printf verb %d of wrong type: time.Time
-    
-    Change-Id: I0e986712a4b083b75fb111e687e424d06a85a47b
-    Reviewed-on: https://go-review.googlesource.com/33167
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ifaf71742ebbc9aadc8606c39ea2d417ae5cc7e0d
+    Reviewed-on: https://go-review.googlesource.com/29450
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/error_test.go             | 2 +-
- src/os/os_test.go                 | 2 +-
- src/runtime/debug/garbage_test.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/amd64/asm.go  |  2 +-
+ src/cmd/link/internal/arm/asm.go    |  2 +-
+ src/cmd/link/internal/arm64/asm.go  |  2 +-
+ src/cmd/link/internal/ld/elf.go     | 64 ++++++++++++++++++-------------------
+ src/cmd/link/internal/mips64/asm.go |  2 +-
+ src/cmd/link/internal/ppc64/asm.go  |  2 +-
+ src/cmd/link/internal/s390x/asm.go  |  2 +-
+ src/cmd/link/internal/x86/asm.go    |  2 +-
+ 8 files changed, 39 insertions(+), 39 deletions(-)

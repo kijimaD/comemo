@@ -1,15 +1,23 @@
-commit fce4f0484c3eccf128b114c27d8eace075b935f9
+commit 387895f9ac5d34bfd32f23c1640b598c105bcb73
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Apr 16 22:25:40 2014 -0400
+Date:   Wed Apr 16 22:10:59 2014 -0400
 
-    cmd/ld: populate pe symbol table with Go symbols
+    debug/pe: add optional header to File
     
-    Fixes #6936
+    This information is required by cmd/nm
+    to calculate absolute symbol addresses.
+    
+    Update #6936
+    Update #7738
     
     LGTM=rsc
-    R=golang-codereviews, bradfitz, rsc
+    R=golang-codereviews, bradfitz, gobot, rsc
     CC=golang-codereviews
-    https://golang.org/cl/87770048
+    https://golang.org/cl/87500043
 
- src/cmd/ld/pe.c | 126 +++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 97 insertions(+), 29 deletions(-)
+ src/pkg/debug/pe/file.go                       |  35 ++++++-
+ src/pkg/debug/pe/file_test.go                  | 139 ++++++++++++++++++++++---
+ src/pkg/debug/pe/pe.go                         |  72 +++++++++++++
+ src/pkg/debug/pe/testdata/gcc-amd64-mingw-exec | Bin 0 -> 37376 bytes
+ src/pkg/debug/pe/testdata/gcc-amd64-mingw-obj  | Bin 0 -> 736 bytes
+ 5 files changed, 226 insertions(+), 20 deletions(-)

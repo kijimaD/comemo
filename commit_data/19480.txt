@@ -1,17 +1,22 @@
-commit 300f3c4913188c1c40b8ff91235e50d886c0d7ed
+commit f83608256614f831430ee62ffdf86027c0be87a5
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 2 08:48:20 2014 +1000
+Date:   Mon Jun 2 08:34:26 2014 +1000
 
-    cmd/dist: only use beta tag in version string for the exact revision
+    misc/goplay: remove program
     
-    Right now, any revision on the default branch after go1.3beta2 is
-    described by "go verson" as go1.3beta2 plus some revision.
-    That's OK for now, but once go1.3 is released, that will seem wrong.
+    This program has barely been touched since it was first committed,
+    and in its current state it opens a code execution vector similar
+    to the one that was recently fixed in go.tools/playground/socket.
     
-    LGTM=rsc
-    R=rsc
+    Rather than try to make it secure, remove it.
+    
+    LGTM=minux, rsc
+    R=rsc, minux
     CC=golang-codereviews
-    https://golang.org/cl/98650046
+    https://golang.org/cl/102030047
 
- src/cmd/dist/build.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ misc/goplay/Makefile  |   6 --
+ misc/goplay/README    |   1 -
+ misc/goplay/doc.go    |  23 ----
+ misc/goplay/goplay.go | 288 --------------------------------------------------
+ 4 files changed, 318 deletions(-)

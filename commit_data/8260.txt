@@ -1,17 +1,18 @@
-commit 8133cb3565603ec58e7eea3a39f8bdddc39a5c9e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 28 13:14:35 2011 -0400
+commit f319e1df37f233956211dc5663f7289ccb6b12f4
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 28 00:16:15 2011 -0700
 
-    gc: preserve original expression for errors
+    http: add Header.Write method
     
-    Fixes #1722.
-    
-    R=ken2
+    R=golang-dev, bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4442099
+    https://golang.org/cl/4426069
 
- src/cmd/gc/go.h          |  1 +
- src/cmd/gc/subr.c        |  2 ++
- src/cmd/gc/typecheck.c   | 21 ++++++++++++++++-----
- test/fixedbugs/bug337.go | 19 +++++++++++++++++++
- 4 files changed, 38 insertions(+), 5 deletions(-)
+ src/pkg/http/cgi/child.go   | 13 ++-------
+ src/pkg/http/fcgi/child.go  | 10 +------
+ src/pkg/http/header.go      | 40 ++++++++++++++++++++++++-
+ src/pkg/http/header_test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/request.go     |  2 +-
+ src/pkg/http/response.go    | 28 +-----------------
+ src/pkg/http/server.go      |  2 +-
+ 7 files changed, 116 insertions(+), 50 deletions(-)

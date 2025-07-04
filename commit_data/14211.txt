@@ -1,12 +1,23 @@
-commit 34f2050626bd26a63fc7333555fbbad280abc214
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 24 11:40:32 2012 +0200
+commit 80dbe74360e8576337208ec68baca7a63946a72a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 23 11:16:08 2012 -0400
 
-    exp/locale/collate: clarification in comments on use of returned value.
+    cmd/gc, cmd/ld: use go.weak instead of weak as the weak symbol prefix
     
-    R=r
+    Also defend our symbol prefixes (now just "go" and "type")
+    from use as import paths.
+    
+    Fixes #4257.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6752043
+    https://golang.org/cl/6744072
 
- src/pkg/exp/locale/collate/collate.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/export.c |    2 +
+ src/cmd/gc/go.y     |   12 +-
+ src/cmd/gc/lex.c    |   11 +-
+ src/cmd/gc/subr.c   |   16 +-
+ src/cmd/gc/y.tab.c  | 1431 ++++++++++++++++++++-------------------------------
+ src/cmd/gc/y.tab.h  |   68 +--
+ src/cmd/ld/go.c     |    8 +-
+ 7 files changed, 612 insertions(+), 936 deletions(-)

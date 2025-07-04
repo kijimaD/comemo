@@ -1,14 +1,18 @@
-commit 930185f26dfc85615511fa14ed5f831fb9aa266f
-Author: Dave Russell <forfuncsake@gmail.com>
-Date:   Wed Jun 13 03:43:12 2018 +0000
+commit 0bcf8bcd998a79f2479c2bb7096eb57a38ffee85
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Mar 1 01:55:33 2018 +0100
 
-    doc/contribute.html: add whitespace after <code> blocks, where missing
+    test: in asmcheck, regexp must match from beginning of line
     
-    Change-Id: Iea5c705dd58f9b83fbeb0500defcc08c34716169
-    GitHub-Last-Rev: 35702c784e2329fe3e44947430d246f8cdb04645
-    GitHub-Pull-Request: golang/go#25858
-    Reviewed-on: https://go-review.googlesource.com/118536
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This avoid simple bugs like "ADD" matching "FADD". Obviously
+    "ADD" will still match "ADDQ" so some care is still required
+    in this regard, but at least a first class of possible errors
+    is taken care of.
+    
+    Change-Id: I7deb04c31de30bedac9c026d9889ace4a1d2adcb
+    Reviewed-on: https://go-review.googlesource.com/97817
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/contribute.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ test/run.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

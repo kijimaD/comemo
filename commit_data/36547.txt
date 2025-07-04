@@ -1,23 +1,50 @@
-commit 8201b92aae7ba51ed2e2645c1f7815bfe845db72
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Thu Aug 30 21:45:21 2018 +0000
+commit 3b137dd2df19c261a007b8a620a2182cd679d700
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Mar 29 00:55:53 2018 +0200
 
-    crypto/x509: clarify docs for SystemCertPool
+    cmd/compile: add wasm architecture
     
-    The sentence in the docs for SystemCertPool that states that mutations
-    to a returned pool do not affect any other pool is ambiguous as to who
-    the any other pools are, because pools can be created in multiple ways
-    that have nothing to do with the system certificate pool. Also the use
-    of the word 'the' instead of 'a' early in the sentence implies there is
-    only one shared pool ever returned.
+    This commit adds the wasm architecture to the compile command.
+    A later commit will contain the corresponding linker changes.
     
-    Fixes #27385
+    Design doc: https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4
     
-    Change-Id: I43adbfca26fdd66c4adbf06eb85361139a1dea93
-    GitHub-Last-Rev: 2f1ba09fa403d31d2d543dca15727c6c2f896ec7
-    GitHub-Pull-Request: golang/go#27388
-    Reviewed-on: https://go-review.googlesource.com/132378
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    The following files are generated:
+    - src/cmd/compile/internal/ssa/opGen.go
+    - src/cmd/compile/internal/ssa/rewriteWasm.go
+    - src/cmd/internal/obj/wasm/anames.go
+    
+    Updates #18892
+    
+    Change-Id: Ifb4a96a3e427aac2362a1c97967d5667450fba3b
+    Reviewed-on: https://go-review.googlesource.com/103295
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/x509/cert_pool.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/arch.go           |   28 +
+ src/cmd/asm/internal/asm/asm.go             |    9 +
+ src/cmd/compile/internal/gc/go.go           |    8 +
+ src/cmd/compile/internal/gc/main.go         |    4 +-
+ src/cmd/compile/internal/gc/ssa.go          |   12 +-
+ src/cmd/compile/internal/ssa/config.go      |   14 +
+ src/cmd/compile/internal/ssa/gen/WASM.rules |  391 ++
+ src/cmd/compile/internal/ssa/gen/WASMOps.go |  208 +
+ src/cmd/compile/internal/ssa/opGen.go       | 1236 +++++-
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 6284 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go    |    6 +-
+ src/cmd/compile/internal/ssa/tighten.go     |    3 +-
+ src/cmd/compile/internal/wasm/ssa.go        |  430 ++
+ src/cmd/compile/main.go                     |    2 +
+ src/cmd/dist/buildtool.go                   |    4 +
+ src/cmd/go/internal/work/gc.go              |    2 +-
+ src/cmd/internal/obj/link.go                |    3 +-
+ src/cmd/internal/obj/stringer.go            |    2 +-
+ src/cmd/internal/obj/util.go                |    1 +
+ src/cmd/internal/obj/wasm/a.out.go          |  288 ++
+ src/cmd/internal/obj/wasm/anames.go         |  189 +
+ src/cmd/internal/obj/wasm/wasmobj.go        |  934 ++++
+ src/cmd/internal/objabi/head.go             |    5 +
+ src/cmd/internal/objabi/reloctype.go        |    3 +
+ src/cmd/internal/sys/arch.go                |   11 +
+ 25 files changed, 9976 insertions(+), 101 deletions(-)

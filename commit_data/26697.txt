@@ -1,17 +1,21 @@
-commit 2ae749c13fa365fc14a639c5a7f74d2c12d98b31
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 4 18:48:06 2016 +0900
+commit e7524d51fdf64b48a4ec2fbc13596a5c8a80cc05
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 22 11:53:20 2016 -0800
 
-    net: rename TestSelfConnect to TestTCPSelfConnect
+    cmd/compile: move Io state into lexer and remove Io type
     
-    Alos moves TestTCPSelfConnect into tcpsock_test.go
+    Pass lexer around so state is accessible and dependency is explicit.
+    In the process remove EOF -> '\n' conversion that has to be corrected
+    for when reporting errors.
     
-    Change-Id: I3e1cbd029594ecb36a67f42bc3ecdbc7176a95dc
-    Reviewed-on: https://go-review.googlesource.com/21447
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: If95564b70e7484dedc1f5348e585cd19acbc1243
+    Reviewed-on: https://go-review.googlesource.com/19819
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dial_test.go    | 46 ----------------------------------------------
- src/net/tcpsock_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/gc/go.go     |  10 --
+ src/cmd/compile/internal/gc/lex.go    | 216 +++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/parser.go |  28 ++---
+ src/cmd/compile/internal/gc/subr.go   |   6 -
+ 4 files changed, 119 insertions(+), 141 deletions(-)

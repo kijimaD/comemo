@@ -1,19 +1,24 @@
-commit 3e428363c4b793c552925703f206b9382fdfcb51
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 25 00:14:58 2019 -0700
+commit 3cb92fcba71f9c0d64b3b714fc92870065848345
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Tue Apr 2 04:35:50 2019 -0700
 
-    cmd/compile: remove -s flag
+    cmd/link/internal/ld: fix c-archive mach-o compatibility
     
-    This is better handled by tools like cmd/gofmt, which can
-    automatically rewrite the source code and already supports a syntactic
-    version of this simplification. (go/types can be used if
-    type-sensitive simplification is actually necessary.)
+    These workarounds predate proper DWARF support
+    and are no longer necessary.
     
-    Change-Id: I51332a8f3ff4ab3087bc6b43a491c6d92b717228
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197118
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Before this patch, running `/usr/bin/symbols go.o`
+    using the object in the c-archive would fail, causing
+    App Store rejections.
+    
+    Fixes #31022 #28997
+    
+    Change-Id: I6a210b6369c13038777c6e21e874e81afcb50c2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go      | 1 -
- src/cmd/compile/internal/gc/typecheck.go | 5 -----
- 2 files changed, 6 deletions(-)
+ src/cmd/link/dwarf_test.go        | 20 ++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go |  8 ++------
+ 2 files changed, 22 insertions(+), 6 deletions(-)

@@ -1,18 +1,26 @@
-commit d15597e1b21a0324692e8664eb6b2f8158dafd10
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 2 13:08:59 2015 +1000
+commit 4044adedf7eb8c3ab89f00479965be62e029f350
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 30 16:38:10 2015 -0400
 
-    math/big: trim trailing zeros before hex printing
+    runtime/cgo, cmd/dist: turn off exc_bad_access handler by default
     
-    m was being resliced as the result of looking for the first
-    non zero word of the mantissa, however m was not used later
-    in printing.
+    App Store policy requires programs do not reference the exc_server
+    symbol. (Some public forum threads show that Unity ran into this
+    several years ago and it is a hard policy rule.) While some research
+    suggests that I could write my own version of exc_server, the
+    expedient course is to disable the exception handler by default.
     
-    Spotted by Gordon Klaus, https://groups.google.com/forum/#!topic/golang-nuts/MdDLbvOjb4o
+    Go programs only need it when running under lldb, which is primarily
+    used by tests. So enable the exception handler in cmd/dist when we
+    are running the tests.
     
-    Change-Id: Ifbebb51ea5e0d86cb8e0422eb184b8634639a733
-    Reviewed-on: https://go-review.googlesource.com/10604
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #10646
+    
+    Change-Id: I853905254894b5367edb8abd381d45585a78ee8b
+    Reviewed-on: https://go-review.googlesource.com/9549
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/ftoa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go                     | 30 ++++++++++++++++++++++++++++--
+ src/runtime/cgo/gcc_signal_darwin_armx.c |  7 ++-----
+ src/runtime/cgo/gcc_signal_darwin_lldb.c |  2 +-
+ 3 files changed, 31 insertions(+), 8 deletions(-)

@@ -1,27 +1,17 @@
-commit f2eea4c1dc37886939c010daff89c03d5a3825be
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Nov 14 13:33:32 2020 +0100
+commit b6f6259f2d46afaaffe62f6e42b3577cb03a44f4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:22:00 2020 -0700
 
-    cmd/compile: mask SLL,SRL,SRAconst shift amount
+    cmd/compile: convert floating point optimizations to typed aux
     
-    mips SRA/SLL/SRL shift amounts are used mod 32; this change aligns the
-    XXXconst rules to mask the shift amount by &31.
+    Passes toolstash-check.
     
-    Passes
-    
-      $ GOARCH=mips go build -toolexec 'toolstash -cmp' -a std
-      $ GOARCH=mipsle go build -toolexec 'toolstash -cmp' -a std
-    
-    Fixes #42587
-    
-    Change-Id: I6003ebd0bc500fba4cf6fb10254e1b557bf8c48f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270117
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I1318ede351da4cf769f7b9d87b275720fc278159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229685
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules |  7 +++----
- src/cmd/compile/internal/ssa/gen/MIPSOps.go |  6 +++---
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 29 ++++++-----------------------
- test/fixedbugs/issue42587.go                | 15 +++++++++++++++
- 4 files changed, 27 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 16 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 54 +++++++++++++-------------
+ 2 files changed, 35 insertions(+), 35 deletions(-)

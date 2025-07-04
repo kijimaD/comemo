@@ -1,20 +1,13 @@
-commit 40f0a0d759d5930bc8bd046fa61c7cc3fe48be5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 30 18:47:15 2011 -0700
+commit 68a04dce931430ad4e50910eed09efbc0409158e
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Wed Aug 31 08:27:00 2011 +1000
 
-    godoc index: first step towards reducing index size
+    image: add PalettedImage interface, and make image/png recognize it.
     
-    - canonicalize package descriptors
-    - remove duplicate storage of file paths
-    - reduces (current) written index file by approx 3.5MB
-    (from 28434237B to 24686643B, or 13%)
-    
-    - next step: untangle DAG (when serializing, using
-    gob, the index dag explodes into an index tree)
-    
-    R=dsymonds
+    R=golang-dev, rsc, bradfitz, nigeltao
     CC=golang-dev
-    https://golang.org/cl/4983042
+    https://golang.org/cl/4956046
 
- src/cmd/godoc/index.go | 52 ++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 40 insertions(+), 12 deletions(-)
+ src/pkg/image/image.go      | 14 ++++++++++++++
+ src/pkg/image/png/writer.go | 24 ++++++++++++++++++------
+ 2 files changed, 32 insertions(+), 6 deletions(-)

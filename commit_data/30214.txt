@@ -1,45 +1,25 @@
-commit 5157039fbd55e2fb7dfac6c461ca743ddced44bd
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 10 14:04:59 2017 +1100
+commit dd500193d3e96e6bc9700fd43fc68b55e662d7c1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 27 21:52:51 2016 -0400
 
-    image/color: tweak the YCbCr to RGBA conversion formula again.
+    runtime: fix preemption of fractional and idle mark workers
     
-    The 0x10101 magic constant is a little more principled than 0x10100, as
-    the rounding adjustment now spans the complete range [0, 0xffff] instead
-    of [0, 0xff00].
+    Currently, gcDrain looks for the preemption flag at getg().preempt.
+    However, commit d6625ca moved mark worker draining to the system
+    stack, which means getg() returns the g0, which never has the preempt
+    flag set, so idle and fractional workers don't get preempted after
+    10ms and just run until they run out of work. As a result, if there's
+    enough idle time, GC becomes effectively STW.
     
-    Consider this round-tripping code:
+    Fix this by looking for the preemption flag on getg().m.curg, which
+    will always be the user G (where the preempt flag is set), regardless
+    of whether gcDrain is running on the user or the g0 stack.
     
-    y, cb, cr := color.RGBToYCbCr(r0, g0, b0)
-    r1, g1, b1 := color.YCbCrToRGB(y, cb, cr)
-    
-    Due to rounding errors both ways, we often but not always get a perfect
-    round trip (where r0 == r1 && g0 == g1 && b0 == b1). This is true both
-    before and after this commit. In some cases we got luckier, in others we
-    got unluckier.
-    
-    For example, before this commit, (180, 135, 164) doesn't round trip
-    perfectly (it's off by 1) but (180, 135, 165) does. After this commit,
-    both cases are reversed: the former does and the latter doesn't (again
-    off by 1). Over all possible (r, g, b) triples, there doesn't seem to be
-    a big change for better or worse.
-    
-    There is some history in these CLs:
-    
-    image/color: tweak the YCbCr to RGBA conversion formula.
-    https://go-review.googlesource.com/#/c/12220/2/src/image/color/ycbcr.go
-    
-    image/color: have YCbCr.RGBA work in 16-bit color, per the Color
-    interface.
-    https://go-review.googlesource.com/#/c/8073/2/src/image/color/ycbcr.go
-    
-    Change-Id: Ib25ba7039f49feab2a9d1a4141b86db17db7b3e1
-    Reviewed-on: https://go-review.googlesource.com/36732
-    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Ib554cf49a705b86ccc3d08940bc869f868c50dd2
+    Reviewed-on: https://go-review.googlesource.com/32251
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/image/color/ycbcr.go             | 58 +++++++++++++++++++++++++++++++++---
- src/image/internal/imageutil/gen.go  |  2 +-
- src/image/internal/imageutil/impl.go |  8 ++---
- 3 files changed, 59 insertions(+), 9 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

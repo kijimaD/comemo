@@ -1,12 +1,31 @@
-commit 9209d893c88054f35be9757eaad8449eb3a90105
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 2 16:42:40 2015 -0800
+commit 06ed8f0df76e9b0256de286392d42d1ea7dec809
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Jan 6 19:48:31 2015 +0100
 
-    strconv: fix internal documentation (clarification, typos)
+    strconv: speed up atoi for common cases
     
-    Change-Id: I7514e643a6a81ca715adbf6f8d19d3b2dd43fe6c
-    Reviewed-on: https://go-review.googlesource.com/3810
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Add compile time constants for bases 10 and 16 instead of computing the cutoff
+    value on every invocation of ParseUint by a division.
+    
+    Reduce usage of slice operations.
+    
+    amd64:
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkAtoi          44.6          36.0          -19.28%
+    BenchmarkAtoiNeg       44.2          38.9          -11.99%
+    BenchmarkAtoi64        72.5          56.7          -21.79%
+    BenchmarkAtoi64Neg     66.1          58.6          -11.35%
+    
+    386:
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkAtoi          86.6          73.0          -15.70%
+    BenchmarkAtoiNeg       86.6          72.3          -16.51%
+    BenchmarkAtoi64        126           108           -14.29%
+    BenchmarkAtoi64Neg     126           108           -14.29%
+    
+    Change-Id: I0a271132120d776c97bb4ed1099793c73e159893
+    Reviewed-on: https://go-review.googlesource.com/2460
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/strconv/decimal.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/strconv/atoi.go | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)

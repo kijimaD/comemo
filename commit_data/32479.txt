@@ -1,27 +1,68 @@
-commit 86dde2debbab6dec105e0bf74ef74d7220974dde
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Aug 9 16:56:08 2017 +0900
+commit f5f5a00b92a07ebe5a371b515cb2bdacf89f0d91
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 10 16:33:21 2017 -0500
 
-    testing: error if -parallel is given N<1
+    reflect: parallelize benchmarks
     
-    Otherwise, if there are any parallel tests, it will hang and panic with
-    "all goroutines are asleep - deadlock!".
+    Add a benchmark for PtrTo: it's the motivation for #17973, which is
+    the motivation for #18177.
     
-    Do not use flag.Uint to handle the error for us because we also want to
-    error on N==0, and because it would make setting the default to
-    GOMAXPROCS(0) more difficult, since it's an int.
+    Results remain comparable with the non-parallel version with -cpu=1:
     
-    Check for it right after flag.Parse, and mimic flag errors by printing
-    the usage and returning exit code 2.
+    benchmark                             old ns/op     new ns/op     delta
+    BenchmarkCall                         357           360           +0.84%
+    BenchmarkCall-6                       90.3          90.7          +0.44%
+    BenchmarkCallArgCopy/size=128         319           323           +1.25%
+    BenchmarkCallArgCopy/size=128-6       329           82.2          -75.02%
+    BenchmarkCallArgCopy/size=256         354           335           -5.37%
+    BenchmarkCallArgCopy/size=256-6       340           85.2          -74.94%
+    BenchmarkCallArgCopy/size=1024        374           703           +87.97%
+    BenchmarkCallArgCopy/size=1024-6      378           95.8          -74.66%
+    BenchmarkCallArgCopy/size=4096        627           631           +0.64%
+    BenchmarkCallArgCopy/size=4096-6      643           120           -81.34%
+    BenchmarkCallArgCopy/size=65536       10502         10169         -3.17%
+    BenchmarkCallArgCopy/size=65536-6     10298         2240          -78.25%
+    BenchmarkFieldByName1                 139           132           -5.04%
+    BenchmarkFieldByName1-6               144           24.9          -82.71%
+    BenchmarkFieldByName2                 2721          2778          +2.09%
+    BenchmarkFieldByName2-6               3953          578           -85.38%
+    BenchmarkFieldByName3                 19136         18357         -4.07%
+    BenchmarkFieldByName3-6               23072         3850          -83.31%
+    BenchmarkInterfaceBig                 12.7          15.5          +22.05%
+    BenchmarkInterfaceBig-6               14.2          2.48          -82.54%
+    BenchmarkInterfaceSmall               13.1          15.1          +15.27%
+    BenchmarkInterfaceSmall-6             13.0          2.54          -80.46%
+    BenchmarkNew                          43.8          43.0          -1.83%
+    BenchmarkNew-6                        40.5          6.67          -83.53%
     
-    Fixes #20542.
+    benchmark                             old MB/s     new MB/s     speedup
+    BenchmarkCallArgCopy/size=128         400.24       395.15       0.99x
+    BenchmarkCallArgCopy/size=128-6       388.74       1557.76      4.01x
+    BenchmarkCallArgCopy/size=256         722.44       762.44       1.06x
+    BenchmarkCallArgCopy/size=256-6       751.98       3003.83      3.99x
+    BenchmarkCallArgCopy/size=1024        2733.22      1455.50      0.53x
+    BenchmarkCallArgCopy/size=1024-6      2706.40      10687.53     3.95x
+    BenchmarkCallArgCopy/size=4096        6523.32      6488.25      0.99x
+    BenchmarkCallArgCopy/size=4096-6      6363.85      34003.09     5.34x
+    BenchmarkCallArgCopy/size=65536       6239.88      6444.46      1.03x
+    BenchmarkCallArgCopy/size=65536-6     6363.83      29255.26     4.60x
     
-    Change-Id: I0c9d4587f83d406a8f5e42ed74e40be46d639ffb
-    Reviewed-on: https://go-review.googlesource.com/54150
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    benchmark           old allocs     new allocs     delta
+    BenchmarkCall       0              0              +0.00%
+    BenchmarkCall-6     0              0              +0.00%
+    
+    benchmark           old bytes     new bytes     delta
+    BenchmarkCall       0             0             +0.00%
+    BenchmarkCall-6     0             0             +0.00%
+    
+    updates #17973
+    updates #18177
+    
+    Change-Id: If70c5c742e8d1b138347f4963ad7cff38fffc018
+    Reviewed-on: https://go-review.googlesource.com/36831
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go  | 11 +++++++++++
- src/testing/testing.go |  6 ++++++
- 2 files changed, 17 insertions(+)
+ src/reflect/all_test.go | 78 ++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 57 insertions(+), 21 deletions(-)

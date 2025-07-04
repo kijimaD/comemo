@@ -1,12 +1,15 @@
-commit 6211b596d62853f0440cee3097566c4654dc16da
+commit 98176b7760bbdc592396f7fed6af0bc1a3a70a11
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 18 11:21:16 2011 -0700
+Date:   Mon Apr 18 10:59:39 2011 -0700
 
-    mime: add a TODO, fix the format of an error
+    mime: RFC 2231 continuation / non-ASCII support
     
-    R=r, rsc1
+    Fixes #1119.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4440054
+    https://golang.org/cl/4437052
 
- src/pkg/mime/mediatype.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/mime/mediatype.go      | 153 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/mime/mediatype_test.go |  59 +++++++++++++++-
+ 2 files changed, 203 insertions(+), 9 deletions(-)

@@ -1,27 +1,36 @@
-commit c6118af55864916c2c3b1bca8e216e627f232bf3
-Author: Keith Randall <khr@google.com>
-Date:   Mon Sep 17 14:46:07 2018 -0700
+commit b88276da6626102801a3621839d8f198176816ce
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 2 14:46:00 2018 -0400
 
-    cmd/compile: don't do floating point optimization x+0 -> x
+    runtime: fix bitmap copying corner-cases
     
-    That optimization is not valid if x == -0.
+    When an object spans heap arenas, its bitmap is discontiguous, so
+    heapBitsSetType unrolls the bitmap into the object itself and then
+    copies it out to the real heap bitmap. Unfortunately, since this code
+    path is rare, it had two unnoticed bugs related to the head and tail
+    of the bitmap:
     
-    The test is a bit tricky because 0 == -0. We distinguish
-    0 from -0 with 1/0 == inf, 1/-0 == -inf.
+    1. At the head of the object, we were using hbitp as the destination
+    bitmap pointer rather than h.bitp, but hbitp points into the
+    *temporary* bitmap space (that is, the object itself), so we were
+    failing to copy the partial bitmap byte at the head of an object.
     
-    This has been a bug since CL 24790 in Go 1.8. Probably doesn't
-    warrant a backport.
+    2. The core copying loop copied all of the full bitmap bytes, but
+    always drove the remaining word count down to 0, even if there was a
+    partial bitmap byte for the tail of the object. As a result, we never
+    wrote partial bitmap bytes at the tail of an object.
     
-    Fixes #27718
+    I found these by enabling out-of-place unrolling all the time. To
+    improve our chances of detecting these sorts of bugs in the future,
+    this CL mimics this by enabling out-of-place mode 50% of the time when
+    doubleCheck is enabled so that we test both in-place and out-of-place
+    mode.
     
-    Note: the optimization x-0 -> x is actually valid.
-    But it's probably best to take it out, so as to not confuse readers.
-    
-    Change-Id: I99f16a93b45f7406ec8053c2dc759a13eba035fa
-    Reviewed-on: https://go-review.googlesource.com/135701
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I69e5d829fb3444be4cf11f4c6d8462c26dc467e8
+    Reviewed-on: https://go-review.googlesource.com/110995
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   3 -
- src/cmd/compile/internal/ssa/rewritegeneric.go | 108 -------------------------
- test/fixedbugs/issue27718.go                   |  72 +++++++++++++++++
- 3 files changed, 72 insertions(+), 111 deletions(-)
+ src/runtime/mbitmap.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

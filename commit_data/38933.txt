@@ -1,19 +1,19 @@
-commit 049c8dbfdbdd414359699c215f15764a7aa733b5
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sat Apr 27 11:45:11 2019 +0200
+commit 01e072db5d26c224dfbe7763a5b94ab23c163983
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 11 07:46:10 2018 -0800
 
-    syscall: allow setting security attributes on processes
+    cmd/cgo: don't cache bad pointer typedefs
     
-    This allows creating processes that can only be debugged/accessed by
-    certain tokens, according to a particular security descriptor. We
-    already had everything ready for this but just neglected to pass through
-    the value from the user-accessible SysProcAttr.
+    The set of bad pointer typedefs changes as we see more typedefs, so
+    avoid looking in the cache when we find one.
     
-    Change-Id: I4a3fcc9f5078aa0058b26c103355c984093ae03f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174197
-    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    Fixes #29175
+    
+    Change-Id: Idd82289bdd8628d11a983fa5ec96517e3a5bcbf1
+    Reviewed-on: https://go-review.googlesource.com/c/153597
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/syscall/exec_windows.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/cgo/gcc.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

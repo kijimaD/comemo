@@ -1,16 +1,17 @@
-commit bbf480a8c5debced7439dfc0e7f5a69993d760fb
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 19 21:12:04 2020 -0400
+commit 7e71c9c3edbf5b7a8608d6f739c20420a618e0ab
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Sun Nov 3 23:40:44 2019 -0500
 
-    all.rc: pass arguments to make.rc
+    cmd/go/internal/modget: synchronize writes to modOnly map in runGet
     
-    all.bash passes argument to make.bash. Do the same for all.rc.
+    Fixes #35317
     
-    Change-Id: Ic709c6b32c2986ca5acf16520be4ce7f1c058f5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228891
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id858a25dc16a1bbff1802d25bcd4aca31c1133bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205067
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/all.rc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modget/get.go             | 3 +++
+ src/cmd/go/testdata/script/mod_issue35317.txt | 8 ++++++++
+ 2 files changed, 11 insertions(+)

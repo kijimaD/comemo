@@ -1,12 +1,14 @@
-commit 354219951e93ededd1cfc812af7be8a328d5c9c4
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Thu Jan 27 08:26:28 2011 -0500
+commit 5899cab03720acfb593f16dd89273ea2c5a2cc88
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 27 23:19:37 2011 +1000
 
-    8l: fix ldpe sym name length == 8 strdup incorrect.
+    doc/codelab/wiki: tests use available TCP port
     
-    R=rsc
+    R=bradfitz, dsymonds, r2, dangabrad, rsc
     CC=golang-dev
-    https://golang.org/cl/4102043
+    https://golang.org/cl/4043043
 
- src/cmd/ld/ldpe.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/codelab/wiki/Makefile |  4 ++--
+ doc/codelab/wiki/get.go   | 16 +++++++++++++++-
+ doc/codelab/wiki/test.sh  | 17 +++++++++++------
+ 3 files changed, 28 insertions(+), 9 deletions(-)

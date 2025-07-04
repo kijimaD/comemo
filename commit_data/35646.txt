@@ -1,18 +1,18 @@
-commit 40fc4bbfb86ea82ecb16794cd093a36a87d38197
+commit 5b21bf6f814180e45d9f048f311a28b7886cd626
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jun 11 09:40:45 2018 +0200
+Date:   Tue Feb 27 13:31:12 2018 +0100
 
-    net: skip TestSendfileParts on dragonfly and solaris
+    runtime: simplify walltime/nanotime on linux/{386,amd64}
     
-    Skip it like on freebsd until there is proper a fix for #25809
+    Avoid an unnecessary MOVL/MOVQ.
     
-    Updates #25809
+    Follow CL 97377
     
-    Change-Id: Id53c433aee75f2a992ab6a8d58d98fd1f8a6c1c6
-    Reviewed-on: https://go-review.googlesource.com/117698
+    Change-Id: Ic43976d6b0cece3ed455496d18aedd67e0337d3f
+    Reviewed-on: https://go-review.googlesource.com/97358
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/sendfile_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/sys_linux_386.s   | 6 ++----
+ src/runtime/sys_linux_amd64.s | 6 ++----
+ 2 files changed, 4 insertions(+), 8 deletions(-)

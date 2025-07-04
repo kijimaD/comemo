@@ -1,22 +1,20 @@
-commit 03df68d3c33e83a23cf5f22389a37f2d09721bef
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Wed Sep 15 18:37:08 2021 +0000
+commit dfbcff80c65991e90b7a06a09e4399f7725356dc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Dec 31 16:51:12 2020 +0700
 
-    runtime: fix setting of cpu features for amd64
+    [dev.regabi] cmd/compile: make copyExpr return *ir.Name directly
     
-    Because of wrong case of letters, the cpu features flags were not
-    set properly for amd64.
+    copyExpr just calls copyExpr1 with "clear" is false, so make it return
+    *ir.Name directly instead of ir.Node
     
-    Fixes #48406.
+    Passes toolstash -cmp.
     
-    Change-Id: If19782851670e91fd31d119f4701c47373fa7e71
-    GitHub-Last-Rev: 91c7321ca49343c86917f071babec8a004ca5c77
-    GitHub-Pull-Request: golang/go#48403
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350151
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I31ca1d88d9eaf8ac37517022f1c74285ffce07d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280714
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/order.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,23 +1,15 @@
-commit 2b1659b57d6e021029636ee39b4a30c4f9074c6c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 7 23:27:25 2014 -0400
+commit dca460574f28bee2c096eaafb82cbc4f88069c0b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 29 12:24:06 2014 -0700
 
-    runtime: change Windows M.thread from void* to uintptr
+    net: fix misleading package comment example
     
-    It appears to be an opaque bit pattern more than a pointer.
-    The Go garbage collector has discovered that for m0
-    it is set to 0x4c.
+    Fixes #8607
     
-    Should fix Windows build.
-    
-    TBR=brainman
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/149640043
+    https://golang.org/cl/146470043
 
- src/runtime/asm_386.s      |  3 +++
- src/runtime/asm_amd64.s    |  3 +++
- src/runtime/asm_amd64p32.s |  3 +++
- src/runtime/asm_arm.s      |  3 +++
- src/runtime/os_windows.c   | 14 +++++++-------
- src/runtime/runtime.h      |  4 +++-
- 6 files changed, 22 insertions(+), 8 deletions(-)
+ src/net/net.go | 1 -
+ 1 file changed, 1 deletion(-)

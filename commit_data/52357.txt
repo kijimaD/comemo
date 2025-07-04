@@ -1,20 +1,20 @@
-commit f9a4cfd5109cc53b700aeefc18f0aa362b94214e
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Mar 21 08:23:20 2023 -0400
+commit c90a19a7601a201ac54be352608d46365adc0095
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 5 23:33:58 2022 +0700
 
-    log/slog: use unsafe.StringData, SliceData
+    cmd/compile: set correct package for vars/params/results from nested instantiation
     
-    Use the new functions in 1.20 (unsafe.StringData, etc.) instead
-    of StringHeader and StructHeader from the reflect package.
+    Fixes #52117
     
-    Updates golang/go#56345.
-    
-    Change-Id: I84d0db7b203aeffe45ce8b06beb7b4ee17e19949
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478055
+    Change-Id: Ib5b2cdbdbce1d516aa10a0df349449b756f2f404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398474
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/log/slog/value_unsafe.go | 24 ++++++------------------
- 1 file changed, 6 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 10 ++++++++++
+ test/typeparam/issue52117.dir/a.go        | 15 +++++++++++++++
+ test/typeparam/issue52117.dir/b.go        |  7 +++++++
+ test/typeparam/issue52117.go              |  7 +++++++
+ 4 files changed, 39 insertions(+)

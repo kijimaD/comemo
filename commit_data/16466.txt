@@ -1,12 +1,14 @@
-commit 85046d3e52aeb3e083a06cb02c6a1dda87d199ca
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Jun 3 03:11:57 2013 +0800
+commit 2c1acc18f42ffd2412e0e1b9acc04fbc5ea7c0aa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 19:10:11 2013 +0200
 
-    api: update next.txt
+    test: correct sizeof.go.
+    
+    It would not pass on amd64 due to alignment of pointers.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9950043
+    https://golang.org/cl/9949043
 
- api/next.txt | 295 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 295 insertions(+)
+ test/sizeof.go | 54 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 27 insertions(+), 27 deletions(-)

@@ -1,34 +1,18 @@
-commit ecca94a7d1fb4f00101af9831fcb395ed08b6948
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 7 14:10:46 2021 -0400
+commit 0f55d37d440d83f206bfc00b4a2521c1a0bb258b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 24 12:00:43 2020 +0200
 
-    cmd/go/internal/modload: add a dormant depth type
+    cmd/compile: use typed rules for const folding on amd64
     
-    This change adds the depth constants 'lazy' and 'eager', but leaves
-    the go117EnableLazyLoading constant set to false so that the depth in
-    effect is still always 'eager'.
+    Passes
     
-    The go117EnableLazyLoading constant can be toggled to true once the
-    module loader has been updated to maintain the lazy-loading invariants
-    in the go.mod file. In the meantime, this will allow me to
-    progressively replace uses of go117LazyTODO with real conditions and
-    locally toggle lazy-mode on to see which tests are still failing
-    (or which behaviors are missing test coverage).
+      gotip build -toolexec 'toolstash -cmp' -a std
     
-    For #36460
-    
-    Change-Id: Ifd358265a3903a5000003c2072f28171f336e15c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308515
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I78cfe2962786604bdd78e02a2c33de68512cfeb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256997
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/go/internal/modload/build.go       |  2 +-
- src/cmd/go/internal/modload/buildlist.go   | 64 +++++++++++++++++++-----------
- src/cmd/go/internal/modload/import_test.go |  2 +-
- src/cmd/go/internal/modload/init.go        |  6 +--
- src/cmd/go/internal/modload/load.go        | 10 ++---
- src/cmd/go/internal/modload/modfile.go     | 64 ++++++++++++++++++++++++++----
- 6 files changed, 107 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  98 +++++------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 242 +++++++++++++--------------
+ 2 files changed, 170 insertions(+), 170 deletions(-)

@@ -1,38 +1,22 @@
-commit b2efd1de97402ec4b8fb4e9e0ec29c8e49e8e200
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 27 22:27:32 2023 +0000
+commit 7da4675dadbdb079df486de44365e5685dfd99b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 11:14:32 2023 -0800
 
-    runtime: put ReadMemStats debug assertions behind a double-check mode
+    go/types, types2: use factored parse/typecheck functions, generate hilbert_test.go
     
-    ReadMemStats has a few assertions it makes about the consistency of the
-    stats it's about to produce. Specifically, how those stats line up with
-    runtime-internal stats. These checks are generally useful, but crashing
-    just because some stats are wrong is a heavy price to pay.
-    
-    For a long time this wasn't a problem, but very recently it became a
-    real problem. It turns out that there's real benign skew that can happen
-    wherein sysmon (which doesn't synchronize with a STW) generates a trace
-    event when tracing is enabled, and may mutate some stats while
-    ReadMemStats is running its checks.
-    
-    Fix this by synchronizing with both sysmon and the tracer. This is a bit
-    heavy-handed, but better that than false positives.
-    
-    Also, put the checks behind a debug mode. We want to reduce the risk of
-    backporting this change, and again, it's not great to crash just because
-    user-facing stats are off. Still, enable this debug mode during the
-    runtime tests so we don't lose quite as much coverage from disabling
-    these checks by default.
-    
-    Fixes #64401.
-    
-    Change-Id: I9adb3e5c7161d207648d07373a11da8a5f0fda9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545277
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Change-Id: I4a325736d18a98bbcd02bfa3d32b1d1dd2048dc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461609
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/export_test.go |   2 +
- src/runtime/gc_test.go     |   5 ++
- src/runtime/mstats.go      | 114 +++++++++++++++++++++++++--------------------
- 3 files changed, 71 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/types2/builtins_test.go |  8 +-------
+ src/cmd/compile/internal/types2/hilbert_test.go  | 17 +---------------
+ src/cmd/compile/internal/types2/mono_test.go     |  6 +-----
+ src/go/types/builtins_test.go                    |  5 +----
+ src/go/types/generator.go                        |  1 +
+ src/go/types/hilbert_test.go                     | 25 ++++--------------------
+ src/go/types/mono_test.go                        |  8 ++------
+ 7 files changed, 11 insertions(+), 59 deletions(-)

@@ -1,22 +1,22 @@
-commit 87f4e36ce7d7dffbf1f2a869f3014321f6cfff3c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 4 12:38:53 2016 -0700
+commit d00a3cead8423c8af6c5781aa2a3efe0a9a442ae
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 12 15:19:36 2016 -0700
 
-    Revert "spec: add new language for alias declarations"
+    runtime: make gdb test resilient to line numbering
     
-    This reverts commit aff37662d1f70f2bf9e47b4f962e85521e7c18d1.
+    Don't break on line number, instead break on the actual call.
+    This makes the test more robust to line numbering changes in the backend.
     
-    Reason: Decision to back out current alias implementation.
-    https://github.com/golang/go/issues/16339#issuecomment-258527920
+    A CL (28950) changed the generated code line numbering slightly.  A MOVW
+    $0, R0 instruction at the start of the function changed to line
+    10 (because several constant zero instructions got CSEd, and one gets
+    picked arbitrarily).  That's too fragile for a test.
     
-    Fixes #16339.
-    Fixes #17746.
-    Fixes #17784.
-    
-    Change-Id: I5737b830d7f6fb79cf36f26403b4ad8533ba1dfe
-    Reviewed-on: https://go-review.googlesource.com/32813
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5d6a8ef0603de7d727585004142780a527e70496
+    Reviewed-on: https://go-review.googlesource.com/29085
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 75 +++++---------------------------------------------------
- 1 file changed, 6 insertions(+), 69 deletions(-)
+ src/runtime/runtime-gdb_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

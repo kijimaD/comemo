@@ -1,42 +1,17 @@
-commit 65fbf0e834e85997f137c46cc1677ed3e2c8ff4e
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Nov 8 09:15:53 2017 +0530
+commit 65717b2dca2d927a2210696c1fe22c0952f9c139
+Author: pvoicu <pvoicu@paypal.com>
+Date:   Fri Aug 18 03:32:49 2017 -0700
 
-    strings: optimize ToLower
+    [release-branch.go1.9] runtime: fix usleep by correctly setting nanoseconds parameter for pselect6
     
-    Handling the ASCII case inline and call unicode.ToLower only
-    for non-ASCII cases.
+    Fixes #21518
     
-    Gives good improvements for the ASCII case and minor perf
-    degrade for non-ASCII case
-    
-    name                                     old time/op    new time/op    delta
-    ToLower/#00                                10.8ns ± 1%     9.0ns ± 1%  -16.83%  (p=0.008 n=5+5)
-    ToLower/abc                                23.3ns ± 4%    12.6ns ± 1%  -46.01%  (p=0.008 n=5+5)
-    ToLower/AbC123                             91.0ns ± 2%    70.4ns ± 0%  -22.59%  (p=0.008 n=5+5)
-    ToLower/azAZ09_                             104ns ± 3%      75ns ± 1%  -28.35%  (p=0.008 n=5+5)
-    ToLower/longStrinGwitHmixofsmaLLandcAps     254ns ± 4%     157ns ± 0%  -38.19%  (p=0.016 n=5+4)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS     446ns ± 1%     451ns ± 1%     ~     (p=0.056 n=5+5)
-    ToLower/ⱭⱭⱭⱭⱭ                               345ns ± 1%     348ns ± 0%   +0.93%  (p=0.016 n=5+5)
-    
-    name                                     old alloc/op   new alloc/op   delta
-    ToLower/#00                                 0.00B          0.00B          ~     (all equal)
-    ToLower/abc                                 0.00B          0.00B          ~     (all equal)
-    ToLower/AbC123                              16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    ToLower/azAZ09_                             24.0B ± 0%     16.0B ± 0%  -33.33%  (p=0.008 n=5+5)
-    ToLower/longStrinGwitHmixofsmaLLandcAps     80.0B ± 0%     64.0B ± 0%  -20.00%  (p=0.008 n=5+5)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS     96.0B ± 0%     96.0B ± 0%     ~     (all equal)
-    ToLower/ⱭⱭⱭⱭⱭ                               48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    
-    Ran on a machine with Intel(R) Core(TM) i5-5200U CPU @ 2.20GHz
-    
-    Fixes #17859
-    
-    Change-Id: Iacc1e6b77e1aedba9447a6e94352606f131ea597
-    Reviewed-on: https://go-review.googlesource.com/76470
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Idd67e3f0410d0ce991b34dcc0c8f15e0d5c529c9
+    Reviewed-on: https://go-review.googlesource.com/56891
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Petrica Voicu <pvoicu@paypal.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/strings.go      | 28 +++++++++++++++++++++++++++-
- src/strings/strings_test.go | 15 +++++++++++++++
- 2 files changed, 42 insertions(+), 1 deletion(-)
+ src/runtime/sys_linux_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

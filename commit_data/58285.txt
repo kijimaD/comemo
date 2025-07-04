@@ -1,18 +1,43 @@
-commit 592da0ba474b94b6eceee62b5613f1c9c1ed9c89
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 11 13:44:43 2024 -0700
+commit c65f74d339169a5597c64a0076c17905c85b37d8
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Oct 19 18:50:21 2023 +0800
 
-    net/http: run TestServerShutdownStateNew in a synctest bubble
+    net,internal/poll: mark it as handled even if sendfile(2) succeeded with 0 bytes sent
     
-    Took ~12s previously, ~0s now.
+    CL 415834 fixed #53658 and somehow it only fixed it on Linux,
+    sendfile can also succeed with 0 bytes sent on other platforms
+    according to their manuals, this CL will finish the work that
+    CL 415834 left out on other platforms.
     
-    Change-Id: I72580fbde73482a40142cf84cd3d78a50afb9f44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630382
+    goos: darwin
+    goarch: arm64
+    pkg: net
+                         │     old     │                new                 │
+                         │   sec/op    │   sec/op     vs base               │
+    SendfileZeroBytes-10   7.563µ ± 5%   7.184µ ± 6%  -5.01% (p=0.009 n=10)
+    
+                         │     old     │                new                 │
+                         │    B/op     │    B/op     vs base                │
+    SendfileZeroBytes-10   3562.5 ± 7%   590.0 ± 2%  -83.44% (p=0.000 n=10)
+    
+                         │    old    │             new              │
+                         │ allocs/op │ allocs/op   vs base          │
+    SendfileZeroBytes-10   0.00 ± 0%   11.00 ± 0%  ? (p=0.000 n=10)
+    
+    [1] https://man.freebsd.org/cgi/man.cgi?sendfile(2)
+    [2] https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/sendfile.2.html
+    [3] https://man.dragonflybsd.org/?command=sendfile&section=2
+    [4] https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html
+    
+    Change-Id: I55832487595ee8e0f44f367cf2a3a1d827ba590d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536455
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/async_test.go        |  52 +++++
- src/net/http/clientserver_test.go |  32 +++
- src/net/http/netconn_test.go      | 410 ++++++++++++++++++++++++++++++++++++++
- src/net/http/serve_test.go        |  78 ++++----
- 4 files changed, 528 insertions(+), 44 deletions(-)
+ src/internal/poll/sendfile_bsd.go     | 16 ++++---
+ src/internal/poll/sendfile_solaris.go | 16 ++++---
+ src/net/sendfile_test.go              | 86 +++++++++++++++++++++++++++++++++++
+ src/net/sendfile_unix_alt.go          | 10 ++--
+ 4 files changed, 111 insertions(+), 17 deletions(-)

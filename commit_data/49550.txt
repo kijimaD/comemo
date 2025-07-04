@@ -1,15 +1,23 @@
-commit 47e792e22eb0dd85c0197e32c2791f252be7244d
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon May 30 18:44:57 2022 +0800
+commit 67f7e16bcce0a3e68bf92e233ea16c8a9d2ac07a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 26 20:26:32 2021 -0700
 
-    runtime: clean up unused function gosave on loong64
+    encoding/gob: optimize decoding of []byte
     
-    Change-Id: I28960a33d251a36e5e364fa6e27c5b2e13349f6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409354
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    The reflect.Value.Slice method unfortunately allocates every time
+    since it needs to place the slice header on the heap.
+    This is silly since gob immediately stores the result back into slice.
+    Instead, use the reflect.Value.SetLen method.
+    
+    DecodeBytesSlice  75.0µs ± 2%  35.2µs ± 6%  -53.02%
+    
+    Change-Id: I3ca0529d01bf978f2b76e215f52d369f458951ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345572
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/asm_loong64.s | 15 ---------------
- 1 file changed, 15 deletions(-)
+ src/encoding/gob/decode.go      | 2 +-
+ src/encoding/gob/timing_test.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

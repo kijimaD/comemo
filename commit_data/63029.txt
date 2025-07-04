@@ -1,0 +1,23 @@
+commit 19f05770b05ef2a12692f522056ffb3bc23583ea
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 14 15:57:58 2025 -0700
+
+    cmd/compile: schedule induction variable increments late
+    
+    for ..; ..; i++ {
+     ...
+    }
+    
+    We want to schedule the i++ late in the block, so that all other
+    uses of i in the block are scheduled first. That way, i++ can
+    happen in place in a register instead of requiring a temporary register.
+    
+    Change-Id: Id777407c7e67a5ddbd8e58251099b0488138c0df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672998
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/schedule.go | 28 ++++++++++++++++++++++------
+ test/codegen/schedule.go                 | 17 +++++++++++++++++
+ 2 files changed, 39 insertions(+), 6 deletions(-)

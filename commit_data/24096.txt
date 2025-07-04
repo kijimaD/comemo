@@ -1,14 +1,12 @@
-commit b55c4a0c540f164687bcceeb50d07397b5e098be
-Author: Vincent Vanackere <vincent.vanackere@gmail.com>
-Date:   Wed Aug 26 15:55:27 2015 +0200
+commit e71276c7417fcaed566478b37b0f68031a7fc157
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 9 10:10:12 2015 +1000
 
-    cmd/go: properly ignore import comments for vendored packages rooted at GOPATH
+    doc: add -test.count and get -insecure to go1.5.html
     
-    Fixes #12232.
-    
-    Change-Id: Ide3fb7f5fc5ae377ae8683fbb94fd0dc01480549
-    Reviewed-on: https://go-review.googlesource.com/13924
+    Change-Id: Ie3d603a95826b9b6a7acd4825991f24c3c61408b
+    Reviewed-on: https://go-review.googlesource.com/11956
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/pkg.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.5.html | 54 +++++++++++++++++++++++++-----------------------------
+ 1 file changed, 25 insertions(+), 29 deletions(-)

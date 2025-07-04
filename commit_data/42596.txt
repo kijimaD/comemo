@@ -1,20 +1,54 @@
-commit bff372793a6bb685b6338eb84ddb5583d57c7f9c
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Tue Jul 7 07:39:05 2020 -0400
+commit 8689ea6a4a2aa33b90bfbcf5076bfff0b6fdcaed
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jan 21 10:21:17 2020 +0000
 
-    doc/go1.15: update Go 1.15 release notes using relnote
+    cmd/go: make Script/test_regexps less flaky under load
     
-    The additions were generated using golang.org/x/build/cmd/relnote.
+    With the command below, I was able to reproduce failures within the
+    first 50 or so runs:
     
-    Updates #37419
+            go test -c -o test && stress -p 32 ./test -test.run Script/test_regexp
     
-    Change-Id: I99e934377e4bb511c44908039ad6d3bfd3ee35ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241065
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    When printing the full failure output, we'd see:
+    
+            BenchmarkX
+                BenchmarkX: x_test.go:13: LOG: X running N=1
+            BenchmarkX/Y
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
+            BenchmarkX/Y            1000000000               0.000050 ns/op
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=30
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=1207
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=120700
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=12070000
+                BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
+            BenchmarkX/Y            1000000000               0.000715 ns/op
+    
+    In other words, the N values aren't required to be exact. It seems like
+    they are cut short if the machine is under stress. That's the exact
+    scenario we reproduce above, since I used -p=32 on my laptop with only 4
+    real CPU cores.
+    
+    First, don't require each line to be present. Instead, use patterns
+    that span multiple lines, so that we can just match the first and last
+    N= lines.
+    
+    Second, don't require the last N= lines to be exact; simply require
+    them to have a reasonably large number of digits.
+    
+    Fixes #36664.
+    
+    Change-Id: I7a9818f1a07099fa6482a26da2ac5cbea0f8ab30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215578
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.15.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/testdata/script/test_regexps.txt | 33 +++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

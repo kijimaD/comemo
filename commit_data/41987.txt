@@ -1,19 +1,17 @@
-commit 646b4ac06583396bb296f9b3f855fdab4ebe0060
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 17 15:25:03 2020 -0400
+commit 11db7e44692a2389b7e9bc2e157b363cf7be5ed8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 20 17:24:14 2019 -0400
 
-    runtime: explictly state lock ordering direction
+    runtime: test a frameless function for async preemption
     
-    At least as far as I can tell, this file never explicitly states whether
-    locks with higher or lower rank should be taken first. It is implied in
-    some comments, and clear from the code, of course.
+    Frameless function is an interesting case for call injection
+    espcially for LR architectures. Extend the test for this case.
     
-    Add an explicit comment to make things more clear and hopefully reduce
-    new locks being adding in the wrong spot.
-    
-    Change-Id: I17c6fd5fc216954e5f3550cf91f17e25139f1587
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228785
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I074090d09eeaf642e71e3f44fea216f66d39b817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202339
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/lockrank.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/testdata/testprog/preempt.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

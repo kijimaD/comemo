@@ -1,16 +1,34 @@
-commit 23cb8864b52e5f2f60618a551ca564574e0575b0
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed May 25 19:34:01 2016 +0200
+commit a62ae9f62fcfca02075b70e6e0aa757f4fd8f5ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 30 16:41:18 2016 +1100
 
-    runtime: use Run for more benchmarks
+    crypto/x509: add SystemCertPool, refactor system cert pool loading
     
-    Names for Append?Bytes are slightly changed in addition to adding a slash.
+    This exports the system cert pool.
     
-    Change-Id: I0291aa29c693f9040fd01368eaad9766259677df
-    Reviewed-on: https://go-review.googlesource.com/23426
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The system cert loading was refactored to let it be run multiple times
+    (so callers get a copy, and can't mutate global state), and also to
+    not discard errors.
+    
+    SystemCertPool returns an error on Windows. Maybe it's fixable later,
+    but so far we haven't used it, since the system verifies TLS.
+    
+    Fixes #13335
+    
+    Change-Id: I3dfb4656a373f241bae8529076d24c5f532f113c
+    Reviewed-on: https://go-review.googlesource.com/21293
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/append_test.go | 149 +++++++++++++++------------------------------
- 1 file changed, 48 insertions(+), 101 deletions(-)
+ src/crypto/x509/cert_pool.go           | 24 ++++++++++++++++++------
+ src/crypto/x509/root.go                |  9 +++++++--
+ src/crypto/x509/root_cgo_darwin.go     | 12 ++++++++----
+ src/crypto/x509/root_darwin_arm_gen.go |  7 ++++---
+ src/crypto/x509/root_darwin_armx.go    |  7 ++++---
+ src/crypto/x509/root_nocgo_darwin.go   |  4 ++--
+ src/crypto/x509/root_plan9.go          | 18 +++++++++++-------
+ src/crypto/x509/root_unix.go           | 23 +++++++++++++++--------
+ src/crypto/x509/root_windows.go        |  3 +--
+ src/crypto/x509/verify.go              | 14 ++++++++++----
+ 10 files changed, 80 insertions(+), 41 deletions(-)

@@ -1,19 +1,14 @@
-commit f6b30e53bbb026ce1d0aeddd112a8bdb0cd836c3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 20 16:30:43 2020 -0700
+commit e3a7d6c29757fd81c753b0e6267936c839e972c3
+Author: Benjamin Peterson <benjamin@python.org>
+Date:   Wed Nov 6 17:54:32 2019 +0000
 
-    reflect: return user-visible method name in panic string
+    os: fix reference to nonexistent errors.Wrapper
     
-    This was accidentally broken in CL 166462, which introduce another
-    function in the panicking path without adjusting the argument to
-    runtime.Caller.
-    
-    Change-Id: Ib6f9ed8673fefd458c7a4e3a918c45c5b31ca552
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229082
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I857d39486cbddbbee0c00fd45eb77f21488f4806
+    GitHub-Last-Rev: 1b500183cfebadffb4c183e56850bfb794a11703
+    GitHub-Pull-Request: golang/go#35399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205602
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/reflect/all_test.go | 203 ++++++++++++++++++++++++++----------------------
- src/reflect/value.go    |  21 +++--
- 2 files changed, 127 insertions(+), 97 deletions(-)
+ src/os/error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

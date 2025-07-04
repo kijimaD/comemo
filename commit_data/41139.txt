@@ -1,17 +1,28 @@
-commit fb8cdb7e4b491088829d59839b15270fcbcb629b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Jan 19 02:19:06 2020 +1100
+commit 78d99491038143de569c3b7706e904ed16c37793
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Sep 7 17:53:54 2019 +0200
 
-    cmd/internal/obj/riscv: populate DWARF register mapping for riscv64
+    syscall: disable sysctl on iOS
     
-    Updates #27532
+    Sysctl is blocked by the App Store submission checks.
     
-    Change-Id: If147242c45d5c2d5cdc5b0428db32eeec13a958a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215377
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #34133
+    
+    Change-Id: I9e83cf87e942d6249e9bb67a95dba230e44badd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193843
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/internal/obj/riscv/cpu.go | 71 +++++++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/riscv/obj.go |  3 --
- 2 files changed, 71 insertions(+), 3 deletions(-)
+ src/syscall/syscall_darwin.go        |  1 -
+ src/syscall/syscall_darwin_386.go    |  1 +
+ src/syscall/syscall_darwin_amd64.go  |  1 +
+ src/syscall/syscall_darwin_arm.go    |  4 ++++
+ src/syscall/syscall_darwin_arm64.go  |  4 ++++
+ src/syscall/zsyscall_darwin_386.go   | 42 ++++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_386.s    |  4 ++--
+ src/syscall/zsyscall_darwin_amd64.go | 42 ++++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_amd64.s  |  4 ++--
+ src/syscall/zsyscall_darwin_arm.go   | 21 ------------------
+ src/syscall/zsyscall_darwin_arm64.go | 21 ------------------
+ 11 files changed, 56 insertions(+), 89 deletions(-)

@@ -1,17 +1,14 @@
-commit 4760b5a478f9760e82819439843bca92085281d5
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 2 13:46:49 2016 -0800
+commit a29113f609302f933d6e1d3ad62af17e0f41e1dc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 16 17:08:37 2015 -0800
 
-    misc: update timezone database to IANA 2016a
+    go/build: in TestDependencies, crypto/tls does not use cgo
     
-    Fixes #14202
-    
-    Change-Id: Ia6dccecb1b9b3f6c0838c99090e6ddf1ad43303c
-    Reviewed-on: https://go-review.googlesource.com/19175
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: Id164a099e0ac8bd231ee7ed8d7b7a34c91f5f68f
+    Reviewed-on: https://go-review.googlesource.com/16991
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 360617 -> 360703 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

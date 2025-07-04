@@ -1,20 +1,65 @@
-commit 5ce06cf71d62e6fc1740d97b4ff4dda7e039c606
-Author: Josselin Costanzi <josselin@costanzi.fr>
-Date:   Sun Mar 5 18:04:30 2017 +0100
+commit b6a15683f0c4d177b3711b55724506aebb03f764
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Sun Oct 30 00:11:37 2016 -0400
 
-    encoding/base64: fix decode reports incorrect index
+    math: use SIMD to accelerate some scalar math functions on s390x
     
-    Fix Decode to return the correct illegal data index from a corrupted
-    input that contains whitespaces.
+    Note, most math functions are structured to use stubs, so that they can
+    be accelerated with assembly on any platform.
+    Sinh, cosh, and tanh were not structued with stubs, so this CL does
+    that. This set of routines was chosen as likely to produce good speedups
+    with assembly on any platform.
     
-    Fixes #19406
+    Technique used was minimax polynomial approximation using tables of
+    polynomial coefficients, with argument range reduction.
+    A table of scaling factors was also used for cosh and log10.
     
-    Change-Id: Ib2b2b6ed7e41f024d0da2bd035caec4317c2869c
-    Reviewed-on: https://go-review.googlesource.com/37837
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+                         before       after      speedup
+    BenchmarkCos         22.1 ns/op   6.79 ns/op  3.25x
+    BenchmarkCosh       125   ns/op  11.7  ns/op 10.68x
+    BenchmarkLog10       48.4 ns/op  12.5  ns/op  3.87x
+    BenchmarkSin         22.2 ns/op   6.55 ns/op  3.39x
+    BenchmarkSinh       125   ns/op  14.2  ns/op  8.80x
+    BenchmarkTanh        65.0 ns/op  15.1  ns/op  4.30x
+    
+    Accuracy was tested against a high precision
+    reference function to determine maximum error.
+    Approximately 4,000,000 points were tested for each function,
+    producing the following result.
+    Note: ulperr is error in "units in the last place"
+    
+           max
+          ulperr
+    sin    1.43 (returns NaN beyond +-2^50)
+    cos    1.79 (returns NaN beyond +-2^50)
+    cosh   1.05
+    sinh   3.02
+    tanh   3.69
+    log10  1.75
+    
+    Also includes a set of tests to test non-vector functions even
+    when SIMD is enabled
+    
+    Change-Id: Icb45f14d00864ee19ed973d209c3af21e4df4edc
+    Reviewed-on: https://go-review.googlesource.com/32352
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/encoding/base64/base64.go      | 6 ++++--
- src/encoding/base64/base64_test.go | 2 ++
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/math/arith_s390x.go       |  29 ++++
+ src/math/arith_s390x_test.go  | 144 +++++++++++++++++
+ src/math/cosh_s390x.s         | 227 +++++++++++++++++++++++++++
+ src/math/export_s390x_test.go |  14 ++
+ src/math/log10_s390x.s        | 170 ++++++++++++++++++++
+ src/math/sin_s390x.s          | 356 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/sinh.go              |   8 +-
+ src/math/sinh_s390x.s         | 261 +++++++++++++++++++++++++++++++
+ src/math/sinh_stub.s          |  17 ++
+ src/math/stubs_arm64.s        |   9 ++
+ src/math/stubs_mips64x.s      |   9 ++
+ src/math/stubs_mipsx.s        |  10 ++
+ src/math/stubs_ppc64x.s       |   9 ++
+ src/math/stubs_s390x.s        | 158 +++++++++++++++++--
+ src/math/tanh.go              |   4 +-
+ src/math/tanh_s390x.s         | 173 ++++++++++++++++++++
+ 16 files changed, 1586 insertions(+), 12 deletions(-)

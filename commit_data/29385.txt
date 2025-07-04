@@ -1,14 +1,16 @@
-commit 3f69909851813006216f49083932badee396c4f1
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:51:12 2016 +0200
+commit 4c83d2914467e670d680b967ec689f8434136188
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 12 15:10:04 2016 -0400
 
-    test: disable unsupported test for GOARCH=mips{,le}
+    cmd/dist: disable test of internal PIE linking
     
-    External linking on mips/mipsle is not supported yet (issue #17792).
+    Updates #17068
     
-    Change-Id: Ic25f4f8fe9e0ec35c72ca9f85c053b398df4952c
-    Reviewed-on: https://go-review.googlesource.com/31512
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I61b75ec07ca8705a678677d262e11b16848cddf3
+    Reviewed-on: https://go-review.googlesource.com/29079
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- test/fixedbugs/issue10607.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

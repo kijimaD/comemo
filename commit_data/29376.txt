@@ -1,16 +1,16 @@
-commit fa770016484165d65200243811f177f1332a9e94
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:25 2016 +0200
+commit e4691d92dac9c46ea9ae380d5110dbceff45fad3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 8 23:58:17 2016 +0000
 
-    runtime/internal/sys: add arch defs for GOARCH=mips{,le}
+    net/http: skip test needing good DNS in short mode, except on builders
     
-    Change-Id: I6288f1fca1ae4c64b3907af700811ee842053020
-    Reviewed-on: https://go-review.googlesource.com/31472
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #16732
+    
+    Change-Id: If0a7f9425cf75b9e31b3091c43cb23d6e039f568
+    Reviewed-on: https://go-review.googlesource.com/28782
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/internal/sys/arch.go           |  1 +
- src/runtime/internal/sys/arch_mips.go      | 18 ++++++++++++++++++
- src/runtime/internal/sys/arch_mipsle.go    | 18 ++++++++++++++++++
- src/runtime/internal/sys/zgoarch_mips.go   | 26 ++++++++++++++++++++++++++
- src/runtime/internal/sys/zgoarch_mipsle.go | 26 ++++++++++++++++++++++++++
- 5 files changed, 89 insertions(+)
+ src/net/http/transport_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

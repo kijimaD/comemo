@@ -1,37 +1,25 @@
-commit bffb0590c1e1125830377165eb98bf1b73bb016e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 9 01:08:34 2014 -0400
+commit ced0ba56289a5326332705a6617c10f3412cee0b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 4 10:00:30 2014 +0900
 
-    runtime: merge mallocgc, gomallocgc
+    net: fix parsing literal IP address in builtin dns stub resolver
     
-    I assumed they were the same when I wrote
-    cgocallback.go earlier today. Merge them
-    to eliminate confusion.
+    This CL fixes a bug introduced by CL 128820043 which is that
+    builtin dns stub resolver doesn't work well with literal IPv6
+    address namesever entries in /etc/resolv.conf.
     
-    I can't tell what gomallocgc did before with
-    a nil type but without FlagNoScan.
-    I created a call like that in cgocallback.go
-    this morning, translating from a C file.
-    It was supposed to do what the C version did,
-    namely treat the block conservatively.
-    Now it will.
+    Also simplifies resolv.conf parser and adds more test cases.
     
-    LGTM=khr
-    R=khr
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/141810043
+    https://golang.org/cl/140040043
 
- src/runtime/cgocallback.go |  2 +-
- src/runtime/chan.go        |  2 +-
- src/runtime/malloc.c       | 15 ---------------
- src/runtime/malloc.go      | 19 +++++++++----------
- src/runtime/mgc0.c         |  8 ++++----
- src/runtime/os_plan9.c     |  5 +++--
- src/runtime/os_windows.c   |  4 +++-
- src/runtime/panic.go       |  2 +-
- src/runtime/parfor.c       |  3 ++-
- src/runtime/proc.c         |  4 ++--
- src/runtime/runtime.c      |  5 +++--
- src/runtime/select.go      |  2 +-
- src/runtime/string.go      |  6 +++---
- 13 files changed, 33 insertions(+), 44 deletions(-)
+ src/pkg/net/dnsclient_unix_test.go      |  4 +-
+ src/pkg/net/dnsconfig_unix.go           | 35 ++++---------
+ src/pkg/net/dnsconfig_unix_test.go      | 91 +++++++++++++++++++++------------
+ src/pkg/net/testdata/domain-resolv.conf |  5 ++
+ src/pkg/net/testdata/empty-resolv.conf  |  1 +
+ src/pkg/net/testdata/resolv.conf        |  5 +-
+ src/pkg/net/testdata/search-resolv.conf |  5 ++
+ 7 files changed, 83 insertions(+), 63 deletions(-)

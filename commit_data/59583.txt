@@ -1,20 +1,19 @@
-commit e27a6e9e5369a3ba4082f025384019ba066f48ba
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 9 19:45:25 2025 +0000
+commit 2e1003e2f7e42efc5771812b9ee6ed264803796c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 26 22:59:41 2024 +0200
 
-    doc: add release notes for cleanups and the unique package
+    cmd/go: replace reflect.DeepEqual with slices.Equal and maps.Equal
     
-    For #71661.
+    All of these maps and slices are made up of comparable types,
+    so we can avoid the overhead of reflection entirely.
     
-    Change-Id: I74870de3f17a938bc9fd83ccc41e13e64b55b5e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671438
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If77dbe648a336ba729c171e84c9ff3f7e160297d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574597
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/next/6-stdlib/99-minor/runtime/71825.md | 5 +++++
- doc/next/6-stdlib/99-minor/runtime/72949.md | 8 ++++++++
- doc/next/6-stdlib/99-minor/unique/71772.md  | 4 ++++
- doc/next/6-stdlib/99-minor/unique/71846.md  | 4 ++++
- 4 files changed, 21 insertions(+)
+ src/cmd/go/internal/modload/buildlist.go |  6 +++---
+ src/cmd/go/internal/modload/load.go      | 11 ++++++-----
+ src/cmd/go/internal/mvs/mvs.go           |  4 ++--
+ 3 files changed, 11 insertions(+), 10 deletions(-)

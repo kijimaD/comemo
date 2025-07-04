@@ -1,22 +1,16 @@
-commit ec3c5b9d178ee373a41e46f6074c8729cfd11084
+commit 772cea817d075c496091f4c735800f14159c5051
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 5 23:01:10 2016 -0700
+Date:   Wed Feb 24 16:20:59 2016 -0800
 
-    cmd/link: eliminate a bunch of open coded elf64/rela switches
+    cmd/compile: fix off-by-1 in getr
     
-    We already have variables to track whether the target platform is
-    64-bit vs 32-bit or RELA vs REL, so no point in repeating the list of
-    obscure architecture characters everywhere.
+    Introduced by (and missed during code review of) golang.org/cl/19847.
     
-    Passes toolstash/buildall.
-    
-    Change-Id: I6a07f74188ac592ef229a7c65848a9ba93013cdb
-    Reviewed-on: https://go-review.googlesource.com/21569
+    Change-Id: I03b76f36e5da69c31730380592dfa1c32570e17f
+    Reviewed-on: https://go-review.googlesource.com/19912
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go  | 21 ++++++---------------
- src/cmd/link/internal/ld/elf.go    | 10 ++++------
- src/cmd/link/internal/ld/symtab.go |  6 ++----
- 3 files changed, 12 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

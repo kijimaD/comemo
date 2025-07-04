@@ -1,22 +1,16 @@
-commit 008ab9adb8382a274ba25c005a046b912af94809
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 7 15:46:34 2023 -0400
+commit e5ed2212a3838b1e64dc7bb6538f6be32b939cf3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:14:47 2022 +0800
 
-    go/types: fix panic in allowVersion when pos is invalid
+    cmd/trace: use strings.Builder
     
-    CL 515656 updated go/types to use file base as key in the posVers map,
-    but introduced a panic when the corresponding *token.File is nil.
-    
-    Check that pos is valid before performing the lookup.
-    
-    Fixes #61822
-    
-    Change-Id: I1ac9d48c831a470de8439a50022ba5f59b3e0bed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516738
+    Change-Id: I690dc517c08be4cd66439baad8b91f16622ff0d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428292
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/go/types/version.go                             |  7 ++++---
- src/internal/types/testdata/fixedbugs/issue61822.go | 19 +++++++++++++++++++
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ src/cmd/trace/annotations.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

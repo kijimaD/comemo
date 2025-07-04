@@ -1,12 +1,14 @@
-commit 785fbd94fda295469aac854f8c7eadb78832b457
-Author: Corey Thomasson <cthom.lists@gmail.com>
-Date:   Thu Apr 14 10:30:56 2011 +1000
+commit eb5e4b85194f2c01c8eac0c8f47c509f0e198d14
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 14 10:28:59 2011 +1000
 
-    net: sort records returned by LookupMX
+    doc/install.html: document use of libc6-dev-i386
     
-    R=rog, adg, rsc
+    Fixes #1689.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4388048
+    https://golang.org/cl/4404043
 
- src/pkg/net/dnsclient.go | 31 +++++++++++++++++++++++--------
- 1 file changed, 23 insertions(+), 8 deletions(-)
+ doc/install.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

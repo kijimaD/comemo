@@ -1,14 +1,17 @@
-commit 81033fbd8e414447049e356af382fa6ecca072ea
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 7 13:10:32 2022 -0400
+commit 3001b0abf00d94c3d6b3a6fa343ef89bc060c4bb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 15 13:47:03 2021 -0400
 
-    doc/go1.19: some platforms are still on TSAN v2
+    cmd/link: remove elfwritedynentsym
     
-    For #51400
+    elfwritedynentsym and elfWriteDynEntSym are identical.
     
-    Change-Id: Ie6d6ac773aa81b105e15ef7399374f574197d775
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410817
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I893a9a65fdc496f98ba6e66c2bf1ed8dd52f52fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342709
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.19.html | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

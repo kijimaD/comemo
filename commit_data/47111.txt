@@ -1,35 +1,19 @@
-commit 353d5b6c536c7028eba058ba27014fae0206298a
-Author: Zhi Zheng <zhi.zheng052@gmail.com>
-Date:   Mon Apr 5 16:00:07 2021 -0700
+commit 3deb528199383b39425fc99f3741a6ade6ab5a6b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 23 21:22:20 2021 -0500
 
-    runtime: enable crash dump creation on Windows
+    cmd/compile/internal-abi: update internal ABI spec for g register
     
-    This change provides ability to create dumps on Windows that can be used by
-    "dlv core" command. Currently only full dumps can be correctly read by Delve.
-    Below are the steps to create and use the dumps.
+    We've already implemented dedicating R14 as the G register on amd64,
+    so remove the TODO saying we might want to hold off on this.
     
-    1. Configure Windows OS to collect dumps before running the program.
-    Instructions on how to do the configuration are here:
-    https://docs.microsoft.com/en-us/windows/win32/wer/collecting-user-mode-dumps.
-    In order for Delve to read the dump, set the DumpType to full dump, i.e. DumpType=2.
+    For #40724.
     
-    2. Go program only generates dumps when the environment variable GOTRACEBACK
-    is set to crash. Run command "set GOTRACEBACK=crash" before running the program.
-    
-    3. Dump files will be generated in %LOCALAPPDATA%\CrashDumps
-    
-    4. Use Delve command "dlv core" to open the dump, e.g.: "dlv core a.exe a.exe.3840.dmp".
-    
-    Fixes #20498
-    
-    Change-Id: Ib9aa82e7aea9da19594dc49348876997b24e9600
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307372
-    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Patrik Nyblom <pnyb@google.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I45b24ced03cac862127b53f5e9a4b4bcf6b1f86c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295790
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/os_windows.go     |  4 +++
- src/runtime/panic.go          | 11 +++++++
- src/runtime/signal_windows.go | 74 ++++++++++++++++++++++++++++++-------------
- 3 files changed, 67 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal-abi.md | 3 ---
+ 1 file changed, 3 deletions(-)

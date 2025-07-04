@@ -1,20 +1,34 @@
-commit ae0a08dee964772fbb36008f03a5f082a405e219
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 8 23:02:34 2024 +0000
+commit 38531c6290bfb321d74fa4e48a6e889e29b60dab
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Apr 12 10:07:35 2023 -0400
 
-    runtime: use maxprocs instead of stwprocs for GC CPU pause time metrics
+    log/slog: catch panics in LogValue
     
-    Currently we use stwprocs as the multiplier for the STW CPU time
-    computation, but this isn't the same as GOMAXPROCS, which is used for
-    the total time in the CPU metrics. The two numbers need to be
-    comparable, so this change switches to using maxprocs to make it so.
+    If a LogValue call panics, recover and return an error instead.
     
-    Change-Id: I423e3c441d05b1bd656353368cb323289661e302
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570256
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The error contains some stack information to make it easier to
+    find the problem. A number of people complained that panics
+    in fmt.Formatter.Format functions are hard to debug because
+    there is no context.
+    
+    This is an example of the error text:
+    
+        LogValue panicked
+        called from log/slog.panickingLogValue.LogValue (/usr/local/google/home/jba/repos/go/src/log/slog/value_test.go:221)
+        called from log/slog.Value.resolve (/usr/local/google/home/jba/repos/go/src/log/slog/value.go:465)
+        called from log/slog.Value.Resolve (/usr/local/google/home/jba/repos/go/src/log/slog/value.go:446)
+        called from log/slog.TestLogValue (/usr/local/google/home/jba/repos/go/src/log/slog/value_test.go:192)
+        called from testing.tRunner (/usr/local/google/home/jba/repos/go/src/testing/testing.go:1595)
+        (rest of stack elided)
+    
+    Fixes #59141.
+    
+    Change-Id: I62e6ff6968d1aa34873e955c2d606d25418a673b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484097
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/runtime/mgc.go    | 15 ++++++++++++---
- src/runtime/mstats.go |  6 +++---
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/log/slog/value.go      | 34 +++++++++++++++++++++++++++++++++-
+ src/log/slog/value_test.go | 19 +++++++++++++++++++
+ 2 files changed, 52 insertions(+), 1 deletion(-)

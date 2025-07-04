@@ -1,41 +1,29 @@
-commit 644628536f248cf3d5c977ed49abe51243d69ae6
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 4 12:56:04 2024 +0100
+commit de3bae1952ba058b96649bce0b35f1e5dbb73805
+Author: Daiki Ueno <dueno@redhat.com>
+Date:   Sat Sep 23 23:25:20 2023 +0000
 
-    crypto/rand: move OS interaction to crypto/internal/sysrand
+    crypto/tls: pretty-print SignatureScheme in tests
     
-    We're going to use that package as the passive entropy source for the
-    FIPS module, and we need to import it from a package that will be
-    imported by crypto/rand.
+    When running crypto/tls tests with GOEXPERIMENT=boringcrypto, some
+    tests are embedded with unreadable hexadecimal values:
     
-    Since there is no overridable Reader now, introduced a mechanism to test
-    the otherwise impossible failure of the OS entropy source.
+      === RUN   TestBoringServerSignatureAndHash/5053...3536
     
-    For #69536
+    This corresponds to a string representation of SignatureScheme as it
+    implements fmt.Stringer.  With this change, the above will be printed
+    as:
     
-    Change-Id: I558687ed1ec896dba05b99b937970bb809de3fe7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624976
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+      === RUN   TestBoringServerSignatureAndHash/PSSWithSHA256
+    
+    Change-Id: I953c0bb35c68e77a7f01e7f1fceda203c272faf7
+    GitHub-Last-Rev: 19700d53a8578d335dc803ac94cc7c6c72e9920a
+    GitHub-Pull-Request: golang/go#63175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530715
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- .../sysrand}/internal/seccomp/seccomp_linux.go     |   0
- .../internal/seccomp/seccomp_unsupported.go        |   0
- src/crypto/internal/sysrand/rand.go                |  77 +++++++++++
- src/crypto/{rand => internal/sysrand}/rand_aix.go  |   2 +-
- .../{rand => internal/sysrand}/rand_arc4random.go  |   2 +-
- .../{rand => internal/sysrand}/rand_getrandom.go   |   2 +-
- src/crypto/{rand => internal/sysrand}/rand_js.go   |   2 +-
- .../{rand => internal/sysrand}/rand_linux_test.go  |   5 +-
- .../{rand => internal/sysrand}/rand_netbsd.go      |   2 +-
- .../{rand => internal/sysrand}/rand_plan9.go       |   2 +-
- src/crypto/internal/sysrand/rand_test.go           | 142 +++++++++++++++++++++
- .../{rand => internal/sysrand}/rand_wasip1.go      |   2 +-
- .../{rand => internal/sysrand}/rand_windows.go     |   2 +-
- src/crypto/rand/rand.go                            |  48 +------
- src/crypto/rand/rand_test.go                       |  31 +----
- src/go/build/deps_test.go                          |   5 +-
- src/runtime/panic.go                               |   5 +
- 17 files changed, 245 insertions(+), 84 deletions(-)
+ src/crypto/tls/boring_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

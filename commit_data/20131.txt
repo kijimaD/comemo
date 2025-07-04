@@ -1,16 +1,20 @@
-commit dff17f4617843bc4c7cbfcdb265cc0fb265c8252
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 25 14:56:35 2014 -0700
+commit 30ef2c7debeeb9f5bcab8cd2c60a8587f35bc0ae
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:46:05 2014 +0400
 
-    unicode/maketables: add -output flag, buffer output, use gofmt
-    Simplify the invocation (and speed it up substantially) in preparation
-    for move to go generate.
+    runtime: fix memstats
+    Newly allocated memory is subtracted from inuse, while it was never added to inuse.
+    Span leftovers are subtracted from both inuse and idle,
+    while they were never added.
+    Fixes #8544.
+    Fixes #8430.
     
-    LGTM=bradfitz, mpvl
-    R=mpvl, bradfitz, josharian
-    CC=golang-codereviews
-    https://golang.org/cl/135790043
+    LGTM=khr, cookieo9
+    R=golang-codereviews, khr, cookieo9
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/130200044
 
- src/pkg/unicode/Makefile      |   3 +-
- src/pkg/unicode/maketables.go | 176 ++++++++++++++++++++++++++++--------------
- 2 files changed, 117 insertions(+), 62 deletions(-)
+ src/pkg/runtime/malloc.h       |  1 +
+ src/pkg/runtime/malloc_test.go | 22 +++++++++++++++++++---
+ src/pkg/runtime/mheap.c        | 24 ++++++++++++++----------
+ 3 files changed, 34 insertions(+), 13 deletions(-)

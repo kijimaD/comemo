@@ -1,30 +1,19 @@
-commit b95d332c7e876eb8de8e0df84894c934a3f5cbde
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 23 14:24:26 2022 -0700
+commit a4b2a04bc50d568579f437f324d56471bf31ec6c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 25 18:08:36 2021 -0400
 
-    test: compile source files as if from "test" module
+    [dev.typeparams] cmd/internal/obj/arm64: use ABI-compatible registers in function prologue
     
-    This CL updates test/run.go to compile xxx.dir/x.go with a package
-    path of "test/x" instead of just "x". This prevents collisions with
-    standard library packages.
+    Avoid using R1, R2, etc. in function prologue, which may carry
+    live argument values.
     
-    It also requires updating a handful of tests to account for the
-    updated package paths.
-    
-    Fixes #25693.
-    
-    Change-Id: I49208c56ab3cb229ed667d547cd6e004d2175fcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395258
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I80322b3f7e8fda7aaff622aaa99bc76d02e09727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322852
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- test/fixedbugs/bug345.go           |  5 +----
- test/fixedbugs/issue19467.dir/z.go |  7 ++++---
- test/fixedbugs/issue29919.dir/a.go |  4 ++--
- test/fixedbugs/issue42401.dir/b.go |  5 +++--
- test/fixedbugs/issue5957.dir/c.go  |  6 +++---
- test/linkname.dir/linkname2.go     |  2 +-
- test/run.go                        | 32 ++++++++++++++------------------
- 7 files changed, 28 insertions(+), 33 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 80 +++++++++++++++++++-------------------
+ 1 file changed, 40 insertions(+), 40 deletions(-)

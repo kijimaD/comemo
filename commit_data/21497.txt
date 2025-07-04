@@ -1,20 +1,20 @@
-commit d738c6b0cad4782f50712b8a2dac95e0c1cb2366
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 00:48:33 2014 -0500
+commit 1de9c4073b7c0586c67279474bb373101d1964b8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 8 15:30:22 2015 -0800
 
-    liblink, cmd/ld, runtime: set the type of runtime.tlsg in runtime
+    runtime: use urandom instead of random
     
-    In the old code, liblink, cmd/ld and runtime all have code determine
-    whether runtime.tlsg is an actual variable or a placeholder for TLS
-    relocation. This change consolidate them into one: the runtime/tls_arm.s
-    will ultimately determine the type of that variable.
+    Random is bad, it can block and prevent binaries from starting.
+    Use urandom instead.  We'd rather have bad random bits than no
+    random bits.
     
-    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237e43
-    Reviewed-on: https://go-review.googlesource.com/2118
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I360e1cb90ace5518a1b51708822a1dae27071ebd
+    Reviewed-on: https://go-review.googlesource.com/2582
     Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/ld/lib.c      |  8 +++++++-
- src/liblink/asm5.c    |  5 +++--
- src/runtime/tls_arm.s | 11 +++++++++--
- 3 files changed, 19 insertions(+), 5 deletions(-)
+ src/runtime/os1_darwin.go  | 2 +-
+ src/runtime/os1_freebsd.go | 2 +-
+ src/runtime/os1_linux.go   | 2 +-
+ src/runtime/os3_solaris.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

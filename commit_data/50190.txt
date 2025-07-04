@@ -1,25 +1,24 @@
-commit f21514c7f8c972ce2291d41cf5b6263f0eb350c7
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Aug 29 10:48:28 2022 +0700
+commit be571a36c7aa7198aef4712f8c6cde633e2f380b
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Thu Oct 7 20:14:22 2021 +0800
 
-    cmd/compile: only inline method wrapper if method don't contain closures
+    cmd/compile: fix the index variable is shadowed in dictPass
     
-    CL 327871 changes methodWrapper to always perform inlining after global
-    escape analysis. However, inlining the method may reveal closures, which
-    require walking all function bodies to decide whether to capture free
-    variables by value or by ref.
+    The CL 349613 causes this problem.
+    In fact, we want to use the outer i to find m.List[i],
+    but the newly created index variable i in the nearest
+    for range shadow the outer i.
     
-    To fix it, just not doing inline if the method contains any closures.
+    Fixes #48838.
     
-    Fixes #53702
-    
-    Change-Id: I4b0255b86257cc6fe7e5fafbc545cc5cff9113e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426334
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I10f0bd985340f9443eefaadda6fc56e4e7e9a10c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354549
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 21 ++++++++++++++++++---
- test/run.go                                     |  5 -----
- 2 files changed, 18 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  4 ++--
+ test/typeparam/issue48838.go              | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

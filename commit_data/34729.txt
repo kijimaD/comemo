@@ -1,25 +1,20 @@
-commit fc7a72596bb325df3cdcb298c0a0ad2944421a1d
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Mar 10 15:39:02 2018 +0000
+commit 79dbc1cc7b029e9f2e45cc9d7796151bd90b224a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Nov 10 18:35:30 2017 +0000
 
-    cmd/internal/obj/arm64: add LDPW/LDPSW/STPW to arm64 assembler
+    cmd/compile: replace classnames with Class.String
     
-    1. STPW stores the lower 32-bit words of a pair of registers to memory.
-    2. LDPW loads two 32-bit words from memory, zero extends them to 64-bit,
-    and then copies to a pair of registers.
-    3. LDPSW does the same as LDPW, except a sign extension.
+    Since the slice of names is almost exactly the same as what stringer is
+    already generating for us.
     
-    This CL implements those 3 instructions and adds test cases.
+    Passes toolstash -cmp on std cmd.
     
-    Change-Id: Ied9834d8240240d23ce00e086b4ea456e1611f1a
-    Reviewed-on: https://go-review.googlesource.com/99956
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3f1e95efc690c0108236689e721627f00f79a461
+    Reviewed-on: https://go-review.googlesource.com/77190
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  84 ++++++++++--
- src/cmd/internal/obj/arm64/a.out.go       |   7 +-
- src/cmd/internal/obj/arm64/anames.go      |   3 +
- src/cmd/internal/obj/arm64/anames7.go     |   2 +
- src/cmd/internal/obj/arm64/asm7.go        | 215 ++++++++++++++++++------------
- 5 files changed, 219 insertions(+), 92 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 16 +---------------
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ 2 files changed, 3 insertions(+), 17 deletions(-)

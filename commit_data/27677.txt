@@ -1,19 +1,12 @@
-commit 5d876e3e2eb3a30a8c66888912cf41785fa65a96
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jun 11 19:55:34 2016 +0900
+commit 39f1ecd157941420693239fa269643ce8a34c267
+Author: Burcu Dogan <jbd@google.com>
+Date:   Thu Apr 7 10:50:47 2016 -0700
 
-    os: use wait6 to avoid wait/kill race on freebsd
+    C: fix jbd's identity
     
-    This change is a followup to https://go-review.googlesource.com/23967
-    for FreeBSD.
-    
-    Updates #13987.
-    Updates #16028.
-    
-    Change-Id: I0f0737372fce6df89d090fe9847305749b79eb4c
-    Reviewed-on: https://go-review.googlesource.com/24021
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib4353710a742b1067723c7c6186e8639559668a3
+    Reviewed-on: https://go-review.googlesource.com/21655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/wait_unimp.go |  2 +-
- src/os/wait_wait6.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 1 deletion(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

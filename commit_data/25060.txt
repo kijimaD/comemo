@@ -1,33 +1,17 @@
-commit e36bf614c8b2cda985b8c77f144640f82a3413a1
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Mon Nov 23 16:16:42 2015 -0800
+commit e643dc79d4d9c9d6cd680351a8d3aab5de531903
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:31 2015 -0700
 
-    regexp: fix one-pass compilation
+    net: check 'ok' return in dnsmsg when initially packing rr.Header()
     
-    The one-pass transformation is structured as a search over the input
-    machine for conditions that violate the one-pass requisites. At each
-    iteration, we should fully explore all non-input paths that proceed from
-    the current instruction; this is implemented via recursive check calls.
-    But when we reach instructions that demand input (InstRune*), these
-    should be put onto the search queue.
+    In the present code, there is no way for ok to ever return false, but
+    it still a good idea to check it.
     
-    Instead of searching this way, the routine previously (effectively)
-    proceeded through the machine one instruction at a time until finding an
-    Inst{Match,Fail,Rune*}, calling check on each instruction. This caused
-    bug #11905, where the transformation stopped before rewriting all
-    InstAlts as InstAltMatches.
-    
-    Further, the check function unnecessarily recurred on InstRune*
-    instructions. (I believe this helps to mask the above bug.)
-    
-    This change also deletes some unused functions and duplicate test cases.
-    
-    Fixes #11905.
-    
-    Change-Id: I5b0b26efea3d3bd01c7479a518b5ed1b886701cd
-    Reviewed-on: https://go-review.googlesource.com/17195
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8f360018b33a5d85dabbbbec0f89ffc81f77ecbb
+    Reviewed-on: https://go-review.googlesource.com/13956
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/onepass.go      | 83 +++-----------------------------------
- src/regexp/onepass_test.go | 99 +++++++++++++++++++++++++++-------------------
- 2 files changed, 64 insertions(+), 118 deletions(-)
+ src/net/dnsmsg.go | 3 +++
+ 1 file changed, 3 insertions(+)

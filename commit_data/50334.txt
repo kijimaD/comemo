@@ -1,16 +1,22 @@
-commit e3885c4ee5f35a7012fa11d8fc84a27c3c1177a0
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:06:50 2022 +0800
+commit bde0463da3f31934791b0bb2ccacdf6206314073
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Oct 16 03:59:41 2021 +1100
 
-    log: use strings.Builder
+    cmd/internal/obj/riscv: fix trampoline calls from large functions
     
-    Change-Id: I02c4664f1ba72623a5470e92bbebabb2f4862428
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428264
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    On riscv64, the JAL instruction is only capable of reaching +/-1MB. In the case where
+    a single function and its trampolines exceeds this size, it is possible that the JAL
+    is unable to reach the trampoline, which is laid down after the function text. In the
+    case of large functions, switch back to using a AUIPC+JALR pairs rather than using
+    trampolines.
+    
+    Fixes #48791
+    
+    Change-Id: I119cf3bc20ce4933a9b7ab41a8e514437c6addb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356250
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/log/log_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/riscv/asm_test.go | 95 +++++++++++++++++++++++++++++-----
+ src/cmd/internal/obj/riscv/obj.go      | 36 +++++++++++--
+ 2 files changed, 113 insertions(+), 18 deletions(-)

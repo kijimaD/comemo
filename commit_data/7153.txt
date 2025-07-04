@@ -1,19 +1,14 @@
-commit bcd910cfe28eb237741e3bf25fc2c454206a1c30
+commit 61a4e9812e11efe3ea41142fc49e331c333a333e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 19 13:41:42 2011 -0500
+Date:   Wed Jan 19 13:35:45 2011 -0500
 
-    runtime: add per-pause gc stats
+    fmt: document %X of string, []byte
     
-    R=r, r2
+    suggested by Mark Summerfield
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/3980042
+    https://golang.org/cl/4018042
 
- src/pkg/runtime/debug.go | 12 +++++++-----
- src/pkg/runtime/malloc.h |  4 +++-
- src/pkg/runtime/mgc0.c   |  5 ++++-
- test/garbage/Makefile    |  4 ++--
- test/garbage/parser.go   | 48 +++++++++++++++++++++++++++++++++++-------------
- test/garbage/peano.go    |  4 +---
- test/garbage/stats.go    | 44 ++++++++++++++++++++++++++++++++++++++++++++
- test/garbage/tree.go     |  6 +-----
- 8 files changed, 97 insertions(+), 30 deletions(-)
+ src/pkg/fmt/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

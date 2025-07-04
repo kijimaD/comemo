@@ -1,27 +1,13 @@
-commit 4a9ebb18f1ff90cbc182648e65cc9071c8920e3c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 15:53:57 2011 -0400
+commit 7db617b4747342e48d2f6586dacecd31511f365a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 2 12:06:36 2011 -0700
 
-    gofmt, gofix: sort imports
+    builtin: document the basic types
+    The recursive definitions are illegal Go, but godoc doesn't mind.
     
-    Add ast.SortImports(fset, file) to go/ast, for use by both programs.
-    
-    Fixes #346.
-    
-    R=golang-dev, r
+    R=bradfitz, r, n13m3y3r, rsc
     CC=golang-dev
-    https://golang.org/cl/5330069
+    https://golang.org/cl/5322067
 
- src/cmd/gofix/fix.go                         |  21 ++++-
- src/cmd/gofix/import_test.go                 |  30 ++++++
- src/cmd/gofix/main.go                        |  21 +++--
- src/cmd/gofix/main_test.go                   |  13 +--
- src/cmd/gofix/testdata/reflect.export.go.in  |   2 +-
- src/cmd/gofix/testdata/reflect.export.go.out |   2 +-
- src/cmd/gofmt/gofmt.go                       |   2 +
- src/cmd/gofmt/gofmt_test.go                  |   1 +
- src/cmd/gofmt/testdata/import.golden         | 108 ++++++++++++++++++++++
- src/cmd/gofmt/testdata/import.input          | 108 ++++++++++++++++++++++
- src/pkg/go/ast/Makefile                      |   1 +
- src/pkg/go/ast/import.go                     | 131 +++++++++++++++++++++++++++
- 12 files changed, 419 insertions(+), 21 deletions(-)
+ src/pkg/builtin/builtin.go | 80 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 78 insertions(+), 2 deletions(-)

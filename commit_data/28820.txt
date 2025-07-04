@@ -1,18 +1,24 @@
-commit d13fa4d2256d6dfd030c03a82db258872e3e646c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 5 12:44:28 2016 +1000
+commit 2da5633eb9091608047881953f75b489a3134cdc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 1 21:54:40 2016 -0700
 
-    os: use FindFirstFile when GetFileAttributesEx fails in Stat
+    runtime: fix nanotime for macOS Sierra, again.
     
-    Fixes #15355
+    macOS Sierra beta4 changed the kernel interface for getting time.
+    DX now optionally points to an address for additional info.
+    Set it to zero to avoid corrupting memory.
     
-    Change-Id: Idbab7a627c5de249bb62d519c5a47f3d2f6c82a7
-    Reviewed-on: https://go-review.googlesource.com/22796
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Fixes #16570
+    
+    Change-Id: I9f537e552682045325cdbb68b7d0b4ddafade14a
+    Reviewed-on: https://go-review.googlesource.com/25400
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go |  1 +
- src/os/os_windows_test.go                       | 11 +++++++++++
- src/os/stat_windows.go                          | 19 ++++++++++++++++++-
- 3 files changed, 30 insertions(+), 1 deletion(-)
+ src/runtime/sys_darwin_386.s   | 7 ++++---
+ src/runtime/sys_darwin_amd64.s | 1 +
+ 2 files changed, 5 insertions(+), 3 deletions(-)

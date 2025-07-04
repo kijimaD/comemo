@@ -1,26 +1,38 @@
-commit 0709f1bb00287371da61a1fc94f6e2a086aa0f29
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Nov 19 20:18:50 2023 -0800
+commit e738a2f19b0375662abc8a9f293b003b6a46019b
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Dec 8 10:03:03 2022 -0500
 
-    cmd/compile/internal/ir: add CallExpr.GoDefer
+    go/types, types2: always rename type parameters during inference
     
-    The devirtualizer and inliner both want to recognize call expressions
-    that are part of a go or defer statement. This CL refactors them to
-    use a single CallExpr.GoDefer flag, which gets set during
-    normalization of go/defer statements during typecheck.
+    Type inference uses a trick of "renaming" type parameters in the type
+    parameter list to avoid cycles during unification. This separates the
+    identity of type parameters from type arguments. When this trick was
+    introduced in CL 385494, we restricted its application to scenarios
+    where inference is truly self-recursive: the type parameter list being
+    inferred was the same as the type parameter list of the outer function
+    declaration. Unfortunately, the heuristic used to determine
+    self-recursiveness was flawed: type-checking function literals clobbers
+    the type-checker environment, losing information about the outer
+    signature.
     
-    While here, drop some OCALLMETH assertions. Typecheck has been
-    responsible for desugaring them into OCALLFUNC for a while now, and
-    ssagen will check this again for us later anyway.
+    We could fix this by introducing yet more state into the type-checker
+    (e.g. a 'declSig' field that would hold the signature of the active
+    function declaration), but it is simpler to just avoid this optimization
+    and always perform type parameter renaming. We can always optimize
+    later.
     
-    Change-Id: I3fc370f4417431aae97239313da6fe523f512a2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543657
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    This CL removes the check for true self-recursion, always performing the
+    renaming.
+    
+    Fixes golang/go#57155
+    
+    Change-Id: I34c7617005c1f0ccfe2192da0e5ed104be6b92c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456236
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- .../compile/internal/devirtualize/devirtualize.go  | 30 +++++++++---------
- src/cmd/compile/internal/inline/inl.go             | 16 +---------
- src/cmd/compile/internal/ir/expr.go                |  3 +-
- src/cmd/compile/internal/typecheck/stmt.go         | 36 ++++++++++++----------
- 4 files changed, 38 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/types2/infer.go           | 40 ++++++++--------------
+ src/go/types/infer.go                              | 40 ++++++++--------------
+ .../types/testdata/fixedbugs/issue57155.go         | 14 ++++++++
+ 3 files changed, 42 insertions(+), 52 deletions(-)

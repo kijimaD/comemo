@@ -1,16 +1,16 @@
-commit 18160e074003fb477501760fe3a4a458afdf4a90
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 13 14:31:31 2015 -0800
+commit 8d081679d5e72637ec724df7d6ec5f9e1f6a78e6
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Sep 7 19:29:26 2015 -0500
 
-    cmd/compile: cleanup in parser.go
+    [dev.ssa] test: ensure that all current tests run
     
-    Inlined non_dcl_stmt in stmt since it was called only from there.
+    Some of the test files were missing, so add them.
     
-    Change-Id: I616c41332cfd86bbf3493d0ce7b1256384215220
-    Reviewed-on: https://go-review.googlesource.com/16893
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifac248edf33e1e4ccd82355f596d74eab4ff01a2
+    Reviewed-on: https://go-review.googlesource.com/14328
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/parser.go | 77 ++++++++++-------------------------
- 1 file changed, 21 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

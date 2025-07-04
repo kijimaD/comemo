@@ -1,22 +1,20 @@
-commit a0237c527bbd093bfabe682cbab0562bc4c628e4
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 20:11:02 2017 -0700
+commit 2c1bff6e0681ff2cace0f69c28b05f47d4262aa3
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Mon Apr 17 21:01:10 2017 +0200
 
-    archive/tar: centralize errors in common.go
+    io/ioutil: make TestTempFile more robust
     
-    Move all sentinel errors to common.go since some of them are
-    returned by both the reader and writer and remove errInvalidHeader
-    since it not used.
+    The first part of this test tries to confirm that we can't create
+    a TempFile in a non-existent directory, but does not ensure that
+    the non-existent directory really does not exist.  Instead, let's
+    create an empty temp directory, and use a non-existent subdir of
+    that.
     
-    Also, consistently use the "tar: " prefix for errors.
-    
-    Change-Id: I0afb185bbf3db80dfd9595321603924454a4c2f9
-    Reviewed-on: https://go-review.googlesource.com/55650
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I176f14ed5f5a2d7a8c29d8f6949755db69d7dbb6
+    Reviewed-on: https://go-review.googlesource.com/40914
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/common.go | 11 +++++++++--
- src/archive/tar/reader.go |  5 -----
- src/archive/tar/writer.go | 10 +---------
- 3 files changed, 10 insertions(+), 16 deletions(-)
+ src/io/ioutil/tempfile_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

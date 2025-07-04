@@ -1,16 +1,25 @@
-commit 084b07d6f6104bf9585ffe71fc2477046102c1da
-Author: DQNEO <dqneoo@gmail.com>
-Date:   Wed Feb 10 22:34:09 2021 +0900
+commit a89fd32316954dea9fa87e45b266eb2e648f7f8e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 23 17:29:17 2020 -0400
 
-    spec: improve sentence structure for passing a slice
+    [dev.link] cmd/link: fix data race on AIX
     
-    Change-Id: I453d06da2f596eb0b99905aec46a05547d73c62c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290872
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    On AIX, in relocsym we call Xcoffadddynrel, which adds a
+    relocation record to a global array. relocsym already runs in
+    parallel. In the past we only parallelize over segments, and
+    we call Xcoffadddynrel only for symbols in data segment, so it is
+    effectively called sequentially. In CL 239197 we started to do
+    more fine-grained parallelism, so we need to make sure it is safe
+    to call Xcoffadddynrel in parallel.
+    
+    Fix AIX build.
+    
+    Change-Id: I3128193995a5a99d9fa04c8e728e590f17298da3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239561
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go_spec.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/xcoff.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

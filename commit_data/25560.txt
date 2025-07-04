@@ -1,12 +1,26 @@
-commit 4525571f7e911102636ce0af3bedcd467ee8b45c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 06:52:27 2016 -0500
+commit 2fdff9586b9bd82be784e5f55cbf5a75e54b9b1f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 10 11:25:15 2015 -0800
 
-    doc: document Go 1.5.3
+    cmd/go: always use --whole-archive for gccgo packages
     
-    Change-Id: I9b4b76abfba66ff655aef55b43d9b4721aba604a
-    Reviewed-on: https://go-review.googlesource.com/18587
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    This is, in effect, what the gc toolchain does.  It fixes cases where Go
+    code refers to a C global variable; without this, if the global variable
+    was the only thing visible in the C code, the generated cgo file might
+    not get pulled in from the archive, leaving the Go variable
+    uninitialized.
+    
+    This was reported against gccgo as https://gcc.gnu.org/PR68255 .
+    
+    Change-Id: I3e769dd174f64050ebbff268fbbf5e6fab1e2a1b
+    Reviewed-on: https://go-review.googlesource.com/16775
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/gcc68255.go   | 17 +++++++++++++++++
+ misc/cgo/test/gcc68255/a.go | 17 +++++++++++++++++
+ misc/cgo/test/gcc68255/c.c  |  8 ++++++++
+ misc/cgo/test/gcc68255/c.h  |  5 +++++
+ src/cmd/go/build.go         | 12 ++----------
+ 6 files changed, 50 insertions(+), 10 deletions(-)

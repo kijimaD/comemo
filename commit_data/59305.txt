@@ -1,25 +1,20 @@
-commit 64371adcf4f431adc1f6afab4d7e61bb9b5eff72
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Apr 15 11:17:03 2025 -0700
+commit 4b43913f4062f811c1c29a8b871b91877b46be52
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 29 20:17:09 2024 +0700
 
-    cmd/go/internal/imports: remove test dependency on json internals
+    cmd/internal/testdir: support -godebug
     
-    TestScan loads encoding/json and verifies that various imports
-    match expectations. The new v2 encoding/json violates these
-    expectations. Since this test is testing the ScanDir function,
-    not encoding/json, change it to use a test package with defined
-    imports instead.
+    Similar with what we are doing for -goexperiment.
     
-    Change-Id: I68a0813ccf37daadbd6ea52872a8ac132141e82a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/665795
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Bypass: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    For #65778
+    
+    Change-Id: I7dda69512a3ffb491e3de31941ae1c3d34fececf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568156
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/imports/scan_test.go           | 22 +++++++++++-----------
- .../internal/imports/testdata/test/child/child.go  |  5 +++++
- src/cmd/go/internal/imports/testdata/test/tags.txt |  0
- src/cmd/go/internal/imports/testdata/test/test.go  | 10 ++++++++++
- .../go/internal/imports/testdata/test/test_test.go |  9 +++++++++
- src/cmd/go/internal/imports/testdata/test/want.txt |  2 ++
- 6 files changed, 37 insertions(+), 11 deletions(-)
+ src/cmd/internal/testdir/testdir_test.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

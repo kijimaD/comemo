@@ -1,24 +1,19 @@
-commit f84bbd52b0021c401b0b6508e90e913ae0aa241d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jun 4 15:41:45 2020 -0400
+commit 199bc0003d3a2444da604f0d073efc550632bae6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 9 12:44:52 2020 -0500
 
-    cmd/compile: mark block control instruction unsafe in "all unsafe" functions
+    doc/go1.14: -d=checkptr is not yet recommended on Windows
     
-    Currently, for runtime functions and nosplit functions, it is
-    considered "all unsafe", meaning that the entire function body is
-    unsafe points. In the past, we didn't mark CALLs in such
-    functions unsafe, which is fixed in CL 230541. We also didn't
-    mark block control instructions (for mostly-empty blocks) unsafe.
-    This CL fixes it.
+    Hopefully we'll have the remaining safety violations in the standard
+    library ironed out by 1.15.
     
-    May fix #36110.
+    We also fix a minor (but important) typo while we're here.
     
-    Change-Id: I3be8fdcef2b294e5367b31eb1c1b5e79966565fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236597
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #34964, #34972.
+    
+    Change-Id: Ic72fd4d9411b749f8c0cea87e95ab68347009893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 12 +++++++++---
- src/cmd/compile/internal/gc/ssa.go   |  4 ++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ doc/go1.14.html | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

@@ -1,15 +1,14 @@
-commit a6ce691bd4d59dbf36f5672881d1a37c8fe78375
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 13:57:57 2012 -0500
+commit 0210f4137b97b0e66c92b5f89a957085293670d5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 7 10:54:04 2012 -0800
 
-    doc: give up on OS X Leopard
+    io: more docs on WriterAt
     
-    Fixes #3206.
+    Updates #1599
     
-    R=golang-dev, gri, bradfitz
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5769046
+    https://golang.org/cl/5774043
 
- doc/install-source.html | 2 +-
- doc/install.html        | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/io/io.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

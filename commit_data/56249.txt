@@ -1,24 +1,31 @@
-commit 1a3682b4c1e44f334c5cc8fbad3c28b853c2aff2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 18 12:42:43 2024 -0400
+commit 15c12762466b4c5f92b1668f86f73d0b1e66b62b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 20 02:41:08 2023 +0000
 
-    runtime: use bootstrapRand to initialize hashkey
+    runtime: bring back minHeapIdx in scavenge index
     
-    The seed for rand is not initialized until after alginit. Before
-    initialization, rand returns a deterministic sequence, making hashkey
-    deterministic across processes.
+    The scavenge index currently doesn't guard against overflow, and CL
+    436395 removed the minHeapIdx optimization that allows the chunk scan to
+    skip scanning chunks that haven't been mapped for the heap, and are only
+    available as a consequence of chunks' mapped region being rounded out to
+    a page on both ends.
     
-    Switch to bootstrapRand, like other early rand calls, such as
-    initialization of aeskeysched.
+    Because the 0'th chunk is never mapped, minHeapIdx effectively prevents
+    overflow, fixing the iOS breakage.
     
-    Fixes #66885.
+    This change also refactors growth and initialization a little bit to
+    decouple it from pageAlloc a bit and share code across platforms.
     
-    Change-Id: I5023a9161232b49fda2ebd1d5f9338bbdd17b1fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580136
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: If7fc3245aa81cf99451bf8468458da31986a9b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486695
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/alg.go      |  2 +-
- src/runtime/map_test.go | 80 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go      |  1 +
+ src/runtime/mgcscavenge.go      | 31 +++++++++++++++++++++++++++----
+ src/runtime/mpagealloc.go       |  6 ++++--
+ src/runtime/mpagealloc_32bit.go | 35 +++++++++++++++++++++++------------
+ src/runtime/mpagealloc_64bit.go |  8 ++++----
+ 5 files changed, 59 insertions(+), 22 deletions(-)

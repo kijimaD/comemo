@@ -1,34 +1,24 @@
-commit cd1fc871568e9947e84377f82c8d7a4882a07067
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Oct 31 11:47:17 2022 -0500
+commit 1e34c00b4c84a32423042e3d03397277e6c3573c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 22 12:49:09 2022 -0700
 
-    cmd/compile: intrinsify math/bits/ReverseBytes{16|32|64} for ppc64/power10
+    go/types, types2: remove uses of "type list" and "operational type" (cleanup)
     
-    This change intrinsifies ReverseBytes{16|32|64} by generating the
-    corresponding new instructions in Power10: brh, brd and brw and
-    adds a verification test for the same.
-    On Power 9 and 8, the .go code performs optimally as it is.
+    Fixes #49193.
     
-    Performance improvement seen on Power10:
-    ReverseBytes32  1.38ns ± 0%  1.18ns ± 0%  -14.2
-    ReverseBytes64  1.52ns ± 0%  1.11ns ± 0%  -26.87
-    ReverseBytes16  1.41ns ± 1%  1.18ns ± 0%  -16.47
-    
-    Change-Id: I88f127f3ab9ba24a772becc21ad90acfba324b37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446675
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ief31ea6b3dddf9452efb94763c89b8639aa3ce9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394656
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go           |  2 +-
- src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  2 +
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go   |  3 ++
- src/cmd/compile/internal/ssa/_gen/genericOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go           | 48 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go    | 54 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go          | 21 ++++++++--
- test/codegen/mathbits.go                        |  3 ++
- test/run.go                                     |  4 +-
- 9 files changed, 132 insertions(+), 6 deletions(-)
+ .../types2/testdata/check/funcinference.go         |  2 +-
+ .../internal/types2/testdata/check/issues1.go      | 29 +++++++++----------
+ .../internal/types2/testdata/check/typeinst1.go    | 12 ++++----
+ .../types2/testdata/fixedbugs/issue42758.go        |  2 +-
+ src/go/types/testdata/check/funcinference.go       |  2 +-
+ src/go/types/testdata/check/issues1.go             | 33 ++++++++++------------
+ src/go/types/testdata/check/typeinst1.go           | 14 +++++----
+ src/go/types/testdata/fixedbugs/issue42758.go      |  2 +-
+ 8 files changed, 47 insertions(+), 49 deletions(-)

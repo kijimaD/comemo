@@ -1,13 +1,16 @@
-commit d4fe9c6a9d8232b9d925dfd1f0e11f4891a5ad27
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 19 15:33:29 2012 +0900
+commit 21d3721eb873c7a99e570e75deb9046a9aadd0bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 19 01:24:01 2012 -0500
 
-    encoding/json: fix comments, tweak tests for tag names
+    regexp: add SubexpNames
     
-    R=bradfitz
+    Fixes #2440.
+    
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5558047
+    https://golang.org/cl/5559043
 
- src/pkg/encoding/json/encode.go      | 3 ++-
- src/pkg/encoding/json/tagkey_test.go | 6 +++---
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/regexp/all_test.go      | 59 ++++++++++++++++++++++++++---------------
+ src/pkg/regexp/regexp.go        | 23 ++++++++++++----
+ src/pkg/regexp/syntax/regexp.go | 16 +++++++++++
+ 3 files changed, 71 insertions(+), 27 deletions(-)

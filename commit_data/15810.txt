@@ -1,16 +1,12 @@
-commit b7b4783622b4e21e7fb515b614bc651fe6210d7c
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Mon Mar 18 08:56:38 2013 +1100
+commit 36ed57931b1f9ae95e2eaf7beb88dbd5b63fa701
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 16 14:53:12 2013 -0700
 
-    misc/dist: fix Windows breakage
+    make.bash: delete vestigial TODO, now resolved
     
-    The files could use some attention on the
-    Windows side but better to wait until after
-    the upcoming release.
-    
-    R=golang-dev, adg
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7621044
+    https://golang.org/cl/7789050
 
- misc/dist/bindist.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/make.bash | 1 -
+ 1 file changed, 1 deletion(-)

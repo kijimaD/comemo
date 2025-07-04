@@ -1,19 +1,18 @@
-commit 6df855ebac86499402cfd31d92256592c3b2a233
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Thu May 15 11:16:34 2025 -0400
+commit 334835e6b3e115919068b662133b975c1de0eccb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 20 11:25:45 2024 -0700
 
-    testing: fix panic in t.Log
+    cmd/compile/internal/noder: remove wrapName
     
-    If a testing.TB is no longer on the stack, t.Log would panic because
-    its outputWriter is nil. Check for nil and drop the write, which
-    is the previous behavior.
+    The OPARENs inserted here used to be necessary for better error
+    diagnostics, but now those are handled by types2.
     
-    Change-Id: Ifde97997a3aa26ae604ac9c218588c1980110cbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673215
+    Change-Id: I88d50d34d9e00cdd7d0fb32f6e460a179345a787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573115
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Jonathan Amsterdam <jba@google.com>
 
- src/testing/sub_test.go | 24 ++++++++++++++++++++----
- src/testing/testing.go  | 19 ++++++++++++++-----
- 2 files changed, 34 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 19 +------------------
+ src/cmd/compile/internal/noder/writer.go |  1 -
+ 2 files changed, 1 insertion(+), 19 deletions(-)

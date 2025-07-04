@@ -1,25 +1,29 @@
-commit 6d3a7e79a4660b1ecce8cc9d930c3a9f6222a6f2
+commit 4d54f27b35d4d6849b37daf09a4babc5ddc5117b
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Apr 17 17:56:58 2015 +0900
+Date:   Thu Feb 26 17:52:26 2015 +0900
 
-    net: clean up cgo
+    net/internal/socktest: new package
     
-    This change adds a type addrinfoErrno to represent getaddrinfo,
-    getnameinfo-specific errors, and uses it in cgo-based lookup functions.
+    Package socktest provides utilities for socket testing.
     
-    Also retags cgo files for clarification and does minor cleanup.
+    This package allows test cases in the net package to simulate
+    complicated network conditions such as that a destination address is
+    resolvable/discoverable but is not routable/reachable at network layer.
+    Those conditions are required for testing functionality of timeout,
+    multiple address families.
     
-    Change-Id: I6db7130ad7bf35bbd4e8839a97759e1364c43828
-    Reviewed-on: https://go-review.googlesource.com/9020
+    Change-Id: Idbe32bcc3319b41b0cecac3d058014a93e13288b
+    Reviewed-on: https://go-review.googlesource.com/6090
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/cgo_android.go |  4 +--
- src/net/cgo_bsd.go     |  6 ++--
- src/net/cgo_linux.go   | 16 ++++-----
- src/net/cgo_netbsd.go  |  4 +--
- src/net/cgo_openbsd.go |  4 +--
- src/net/cgo_stub.go    |  8 +++--
- src/net/cgo_unix.go    | 93 +++++++++++++++++++++++++++++---------------------
- src/net/cgo_windows.go | 13 +++++++
- src/net/error_test.go  |  2 +-
- 9 files changed, 86 insertions(+), 64 deletions(-)
+ src/net/internal/socktest/main_test.go         |  40 +++++++
+ src/net/internal/socktest/main_unix_test.go    |  24 ++++
+ src/net/internal/socktest/main_windows_test.go |  22 ++++
+ src/net/internal/socktest/switch.go            | 150 +++++++++++++++++++++++
+ src/net/internal/socktest/switch_stub.go       |  10 ++
+ src/net/internal/socktest/switch_unix.go       |  29 +++++
+ src/net/internal/socktest/switch_windows.go    |  29 +++++
+ src/net/internal/socktest/sys_cloexec.go       |  41 +++++++
+ src/net/internal/socktest/sys_unix.go          | 157 +++++++++++++++++++++++++
+ src/net/internal/socktest/sys_windows.go       | 121 +++++++++++++++++++
+ 10 files changed, 623 insertions(+)

@@ -1,41 +1,20 @@
-commit 0323895cc015aa155013a945caf05f08615ccdcc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 30 11:40:06 2017 -0700
+commit b63ca1e9743571e37c42350d3931400fe4c89386
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Dec 28 19:25:44 2016 -0800
 
-    cmd/compile: catch and report nowritebarrier violations later
+    net/http: add test for http2 Server WriteTimeout
     
-    Prior to this CL, the SSA backend reported violations
-    of the //go:nowritebarrier annotation immediately.
-    This necessitated emitting errors during SSA compilation,
-    which is not compatible with a concurrent backend.
+    Current handling of WriteTimeout for http2 does not
+    extend the timeout on new streams. Disable the WriteTimeout
+    in http2 for 1.8 release.
     
-    Instead, check for such violations later.
-    We already save the data required to do a late check
-    for violations of the //go:nowritebarrierrec annotation.
-    Use the same data, and check //go:nowritebarrier at the same time.
+    Updates #18437
     
-    One downside to doing this is that now only a single
-    violation will be reported per function.
-    Given that this is for the runtime only,
-    and violations are rare, this seems an acceptable cost.
-    
-    While we are here, remove several 'nerrors != 0' checks
-    that are rendered pointless.
-    
-    Updates #15756
-    Fixes #19250 (as much as it ever can be)
-    
-    Change-Id: Ia44c4ad5b6fd6f804d9f88d9571cec8d23665cb3
-    Reviewed-on: https://go-review.googlesource.com/38973
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I20480432ab176f115464434645defb56ebeb6ece
+    Reviewed-on: https://go-review.googlesource.com/34723
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/dcl.go           |  3 +++
- src/cmd/compile/internal/gc/pgen.go          |  7 -------
- src/cmd/compile/internal/gc/ssa.go           | 16 ----------------
- src/cmd/compile/internal/ssa/config.go       |  3 ---
- src/cmd/compile/internal/ssa/export_test.go  |  1 -
- src/cmd/compile/internal/ssa/func.go         |  1 -
- src/cmd/compile/internal/ssa/writebarrier.go |  3 ---
- 7 files changed, 3 insertions(+), 31 deletions(-)
+ src/net/http/serve_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

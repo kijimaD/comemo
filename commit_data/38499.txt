@@ -1,19 +1,44 @@
-commit 409c97c5f017037e3a47aff64e3e65ce22eee5ba
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Mar 19 06:59:51 2019 +0100
+commit ff51353c3887b9d83130d958fb503ff1f2291fde
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 17:42:15 2018 +0100
 
-    misc/android: pass on GOPROXY to device environment
+    runtime: move nanotime wrappers to time and poll packages
     
-    Android devices don't have git available, so many go tool commands
-    that fetch dependencies fail. Builders already have a GOPROXY
-    available, so pass that along to the device environment.
+    The nanotime wrappers in runtime introduce a bunch
+    of unnecessary code onto hot paths, e.g.:
     
-    Updates #30885
+    0000000000449d70 <time.runtimeNano>:
+      449d70:       64 48 8b 0c 25 f8 ff    mov    %fs:0xfffffffffffffff8,%rcx
+      449d77:       ff ff
+      449d79:       48 3b 61 10             cmp    0x10(%rcx),%rsp
+      449d7d:       76 26                   jbe    449da5 <time.runtimeNano+0x35>
+      449d7f:       48 83 ec 10             sub    $0x10,%rsp
+      449d83:       48 89 6c 24 08          mov    %rbp,0x8(%rsp)
+      449d88:       48 8d 6c 24 08          lea    0x8(%rsp),%rbp
+      449d8d:       e8 ae 18 01 00          callq  45b640 <runtime.nanotime>
+      449d92:       48 8b 04 24             mov    (%rsp),%rax
+      449d96:       48 89 44 24 18          mov    %rax,0x18(%rsp)
+      449d9b:       48 8b 6c 24 08          mov    0x8(%rsp),%rbp
+      449da0:       48 83 c4 10             add    $0x10,%rsp
+      449da4:       c3                      retq
+      449da5:       e8 56 e0 00 00          callq  457e00 <runtime.morestack_noctxt>
+      449daa:       eb c4                   jmp    449d70 <time.runtimeNano>
     
-    Change-Id: Id0d2338932f0cd7de4d95d9e0ca9b79d29336ffe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168118
+    Move them to the corresponding packages which eliminates all of this.
+    
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.1µs ± 1%  17.0µs ± 0%  -0.66%  (p=0.032 n=5+5)
+    SetReadDeadline-6      234ns ± 1%   232ns ± 0%  -0.77%  (p=0.016 n=5+4)
+    
+    Update #25729
+    
+    Change-Id: Iee05027adcdc289ba895c5f5a37f154e451bc862
+    Reviewed-on: https://go-review.googlesource.com/c/146342
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/android/go_android_exec.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/poll/fd_poll_runtime.go |  2 ++
+ src/runtime/time.go                  | 12 ------------
+ src/time/time.go                     |  6 +++++-
+ 3 files changed, 7 insertions(+), 13 deletions(-)

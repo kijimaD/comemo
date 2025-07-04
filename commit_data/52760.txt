@@ -1,26 +1,25 @@
-commit 30886390c2a59a24c23229f434453ca9ae247962
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 19 14:16:37 2023 -0700
+commit 8841699160946263859ea492779bea4aa909f1de
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 20 12:48:17 2022 -0700
 
-    runtime: in __tsan_fini tell scheduler we are entering non-Go code
+    internal/pkgbits: finish documentation
     
-    __tsan_fini will call exit which will call destructors which
-    may in principle call back into Go functions. Prepare the scheduler
-    by calling entersyscall before __tsan_fini.
+    This CL adds documentation for all exported pkgbits APIs, and removes
+    its UNREVIEWED comments.
     
-    Fixes #59711
+    Updates #48194.
     
-    Change-Id: Ic4df8fba3014bafa516739408ccfc30aba4f22ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486615
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifff548cd9f31a5c5cc5f400a6dae5c98c46ec4ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407614
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_cgo_test.go                  | 37 ++++++++++++++++++++++++++
- src/runtime/race.go                            |  7 +++++
- src/runtime/testdata/testprogcgo/destructor.c  | 22 +++++++++++++++
- src/runtime/testdata/testprogcgo/destructor.go | 23 ++++++++++++++++
- 4 files changed, 89 insertions(+)
+ src/internal/pkgbits/codes.go       | 21 +++++++++-
+ src/internal/pkgbits/decoder.go     | 48 +++++++++++++++++++++--
+ src/internal/pkgbits/encoder.go     | 77 ++++++++++++++++++++++++++++++-------
+ src/internal/pkgbits/frames_go17.go |  3 ++
+ src/internal/pkgbits/reloc.go       |  2 -
+ src/internal/pkgbits/sync.go        |  3 --
+ 6 files changed, 130 insertions(+), 24 deletions(-)

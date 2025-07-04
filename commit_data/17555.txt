@@ -1,28 +1,17 @@
-commit ab38e2a498f432fc33dc1f91815756cf2c56af72
+commit 382738af513a5390620b55a84b9e14f3afd0128e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 12:00:37 2013 -0400
+Date:   Wed Sep 11 11:38:56 2013 -0400
 
-    runtime: show m stack during crash on m stack
+    net: defend against broken getaddrinfo on Linux
     
-    The various throwing > 0 finish a change started
-    in a previous CL, which sets throwing = -1 to mean
-    "don't show the internals". That gets set during the
-    "all goroutines are asleep - deadlock!" crash, and it
-    should also be set during any other expected crash
-    that does not indicate a problem within the runtime.
+    getaddrinfo is supposed to set errno when it returns
+    EAI_SYSTEM, but sometimes it does not.
     
-    Most runtime.throw do indicate a problem within the
-    runtime, however, so we should be able to enumerate
-    the ones that should be silent. The goroutine sleeping
-    deadlock is the only one I can think of.
-    
-    Update #5139
+    Fixes #6232.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13662043
+    https://golang.org/cl/13532045
 
- src/pkg/runtime/panic.c         | 2 +-
- src/pkg/runtime/traceback_arm.c | 2 +-
- src/pkg/runtime/traceback_x86.c | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/cgo_unix.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

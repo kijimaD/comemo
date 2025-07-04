@@ -1,15 +1,26 @@
-commit 02a36668aa13c3182d29da678764c8f4f5a9499b
-Author: emahiro <ema.hiro@gmail.com>
-Date:   Fri Oct 22 00:34:33 2021 +0900
+commit b19e7b518e564cd309d3eb68dfd2da8839a7433b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 09:23:35 2021 -0500
 
-    runtime: fix typo of pushBackAll
+    runtime: clean up windows a bit
     
-    Fixes: #49081
-    Change-Id: Ie6742f1e7a60c2d92ce1283bcfaa3eac521440a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357629
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Document the various hard-coded architecture checks
+    or remove them in favor of more general checks.
+    This should be a no-op now but will make the arm64 port
+    have fewer diffs.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Ifd6b19e44e8c9ca4a0d2590f314928ce235821b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288813
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_windows.go      | 12 ++++++++----
+ src/runtime/signal_windows.go  | 13 ++++++-------
+ src/runtime/syscall_windows.go |  3 ++-
+ 3 files changed, 16 insertions(+), 12 deletions(-)

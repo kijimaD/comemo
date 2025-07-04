@@ -1,48 +1,25 @@
-commit f99511d59ba6c363d5dea1e015753a17c05c5c01
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Apr 13 15:28:59 2022 -0500
+commit 69728ead871f15cc1fd7e70b67e6768dd1100bae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 15 14:48:45 2021 -0400
 
-    crypto/internal/nistec: re-enable ppc64le asm for P-256
+    cmd/go: update error messages in tests to match CL 332573
     
-    Add support for ppc64le assembler to p256. Most of the changes
-    are due to the change in nistec interfaces.
+    I neglected to run the 'longtest' builder, and the tests
+    that cover the error message changed in CL 332573 apparently
+    do not run in short mode.
     
-    There is a change to p256MovCond based on a reviewer's comment.
+    Updates #36460
+    Updates #42661
     
-    LXVD2X replaces the use of LXVW4X in one function.
-    
-    In addition, some refactoring has been done to this file to
-    reduce size and improve readability:
-    - Eliminate the use of defines to switch between V and VSX
-    registers. V regs can be used for instructions some that
-    previously required VSX.
-    - Use XXPERMDI instead of VPERM to swap bytes loaded and
-    stored with LXVD2X and STXVD2X instructions. This eliminates
-    the need to load the byte swap string into a vector.
-    - Use VMRGEW and VMRGOW instead of VPERM in the VMULT
-    macros. This also avoids the need to load byte strings to
-    swap the high and low values.
-    
-    These changes reduce the file by about 10% and shows an
-    improvement of about 2% at runtime.
-    
-    For #52182
-    
-    Change-Id: Ic48050fc81bb273b7b4023e54864f4255dcc2a4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399755
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Change-Id: I53500ddaca8ac9f0dfaab538923b3c9a4f71665e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334889
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/internal/nistec/generate.go             |    2 +-
- src/crypto/internal/nistec/p256.go                 |    2 +-
- src/crypto/internal/nistec/p256_asm.go             |   94 +-
- src/crypto/internal/nistec/p256_asm_ordinv.go      |  101 ++
- .../{p256_asm_test.go => p256_asm_ordinv_test.go}  |    0
- src/crypto/internal/nistec/p256_asm_ppc64le.s      | 1120 ++++++++------------
- src/crypto/internal/nistec/p256_asm_table_test.go  |    2 +-
- src/crypto/internal/nistec/p256_ppc64le.go         |  511 ---------
- 8 files changed, 521 insertions(+), 1311 deletions(-)
+ src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt    | 2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt      | 2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt     | 2 +-
+ src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

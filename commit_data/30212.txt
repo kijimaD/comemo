@@ -1,18 +1,28 @@
-commit e7ec06e000627ad699a274a5a672bc3f63d6a709
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 7 07:28:49 2017 -0800
+commit b679665a182bd6ec2989ae759df6b11142921cfb
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Oct 27 23:31:38 2016 +0200
 
-    cmd/go: copy FFLAGS from build.Package
+    cmd/compile: move stringtoslicebytetmp to the backend
     
-    Fixes #18975.
+    - removes the runtime function stringtoslicebytetmp
+    - removes the generation of calls to stringtoslicebytetmp from the frontend
+    - adds handling of OSTRARRAYBYTETMP in the backend
     
-    Change-Id: I60dfb299233ecfed4b2da93750ea84e7921f1fbb
-    Reviewed-on: https://go-review.googlesource.com/36482
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This reduces binary sizes and avoids function call overhead.
+    
+    Change-Id: Ib9988d48549cee663b685b4897a483f94727b940
+    Reviewed-on: https://go-review.googlesource.com/32158
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go           | 21 +++++++++++++++++++++
- src/cmd/go/internal/load/pkg.go |  1 +
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/gc/builtin.go         | 294 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
+ src/cmd/compile/internal/gc/racewalk.go        |   4 +
+ src/cmd/compile/internal/gc/ssa.go             |   5 +
+ src/cmd/compile/internal/gc/walk.go            |  10 +-
+ src/runtime/string.go                          |  12 -
+ test/range.go                                  |  25 +++
+ 7 files changed, 188 insertions(+), 163 deletions(-)

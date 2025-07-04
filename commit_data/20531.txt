@@ -1,17 +1,16 @@
-commit 446524269ee152b8053d44117887bc3cc8d5ef9d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 24 17:01:54 2014 -0700
+commit c1e332020ddf1dd31f39d86464136fe06fe6d7fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 15:26:00 2014 -0400
 
-    net/http: check for CloseWrite interface, not TCPConn implementation
+    os/signal: increase timeout from 10ms to 100ms
     
-    Fixes #8724
+    Might make test less flaky.
+    Fixes #8682.
     
-    LGTM=adg
-    R=adg
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/148040043
+    https://golang.org/cl/143160043
 
- src/net/http/export_test.go |  4 ++++
- src/net/http/serve_test.go  | 23 +++++++++++++++++++++++
- src/net/http/server.go      | 10 ++++++++--
- 3 files changed, 35 insertions(+), 2 deletions(-)
+ src/os/signal/signal_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

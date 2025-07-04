@@ -1,29 +1,17 @@
-commit 512277dc19b918da19e083c28427109256ef9309
-Author: Rebecca Stambler <rstambler@golang.org>
-Date:   Fri Apr 24 01:01:48 2020 -0400
+commit 0c8f6cc07c33f99b300c1337c9ccd76bf7e69910
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 15:11:20 2019 -0800
 
-    go/types: improve error message for pointer receiver errors
+    runtime: if InjectDebugCall sees "not at safe point", keep trying
     
-    The compiler produces high quality error messages when an interface is
-    implemented by *T, rather than T. This change improves the analogous
-    error messages in go/types, from "missing method X" to "missing method
-    X (X has pointer receiver)".
+    Fixes #35376
     
-    I am open to improving this message further - I didn't copy the compiler
-    error message exactly because, at one of the call sites of
-    (*check).missingMethod, we no longer have access to the name of the
-    interface.
-    
-    Fixes golang/go#36336
-    
-    Change-Id: Ic4fc38b13fff9e5d9a69cc750c21e0b0c34d85a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229801
-    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Change-Id: Ib95ad336425e73cc4d412dafed0ba5e0a8130bd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/expr.go             |  7 +++++--
- src/go/types/lookup.go           | 13 ++++++++++++-
- src/go/types/operand.go          |  7 ++++++-
- src/go/types/testdata/issues.src |  5 ++++-
- 4 files changed, 27 insertions(+), 5 deletions(-)
+ src/runtime/debug_test.go        | 12 ++++++------
+ src/runtime/export_debug_test.go |  8 +++++++-
+ 2 files changed, 13 insertions(+), 7 deletions(-)

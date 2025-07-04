@@ -1,16 +1,23 @@
-commit c353f1b41dc869210fda0cc0bd29d8587f1a5edf
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Nov 5 12:22:50 2021 -0500
+commit d33e2192a71c33a604af247161ba1d2c1969e4c7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 9 17:23:04 2021 -0500
 
-    crypt/aes: update formatting of ppc64le asm comments
+    cmd/go: allow '+' in package import paths in module mode
     
-    This does not change any code, just reformats the comments in
-    the asm code.
+    This change upgrades x/mod to pull in the fix from CL 300149.
     
-    Change-Id: I70fbfa77db164898d25b59b589d3e85b8399b0fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361694
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Fixes #44776.
+    
+    Change-Id: I273f41df2abfff76d91315b7f19fce851c8770d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300176
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/aes/asm_ppc64le.s | 795 +++++++++++++++++++++----------------------
- 1 file changed, 397 insertions(+), 398 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../go/testdata/script/mod_invalid_path_plus.txt   | 32 ++++++++++++++++++
+ src/cmd/vendor/golang.org/x/mod/module/module.go   | 38 +++++++++++++++++-----
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 5 files changed, 66 insertions(+), 12 deletions(-)

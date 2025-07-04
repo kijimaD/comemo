@@ -1,28 +1,18 @@
-commit 0537a74b76fcab1398da6699c3ff7411fef8fbe7
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Mon May 2 11:50:36 2022 +0000
+commit fac21803ce513b3d8cab1629f37fd0a9ea2fbe07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 30 12:45:51 2021 -0700
 
-    io: NopCloser forward WriterTo implementations if the reader supports it
+    [dev.typeparams] cmd/compile/internal/types2: rename newTypeSet -> computeTypeSet
     
-    This patch also include related fixes to net/http.
+    Follow-up on comment in https://golang.org/cl/329309.
     
-    io_test.go don't test reading or WritingTo of the because the logic is simple.
-    NopCloser didn't even had direct tests before.
-    
-    Fixes #51566
-    
-    Change-Id: I1943ee2c20d0fe749f4d04177342ce6eca443efe
-    GitHub-Last-Rev: a6b9af4e945a6903735a74aa185e2d1c4c2e2cef
-    GitHub-Pull-Request: golang/go#52340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400236
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I31f746180237b916c1825fa1688641849478ba41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332089
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/io/io.go             | 15 +++++++++++++++
- src/io/io_test.go        | 21 +++++++++++++++++++++
- src/net/http/transfer.go | 23 +++++++++++++++++++----
- 3 files changed, 55 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/interface.go | 2 +-
+ src/cmd/compile/internal/types2/type.go      | 4 ++--
+ src/cmd/compile/internal/types2/typeset.go   | 6 +++---
+ src/cmd/compile/internal/types2/typexpr.go   | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,48 +1,53 @@
-commit 72a76ca1f9c195ed39e929cf768d5df5421eada1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 18 11:04:21 2022 -0700
+commit d3ad216f8e7ea7699fe44990c65213c26aba907d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 28 17:06:56 2021 -0700
 
-    cmd/compile: restore test/nested.go test cases
+    cmd/link, runtime: use offset for _func.entry
     
-    When handling a type declaration like:
+    The first field of the func data stored by the linker is the
+    entry PC for the function. Prior to this change, this was stored
+    as a relocation to the function. Change this to be an offset
+    relative to runtime.text.
     
-    ```
-    type B A
-    ```
+    This reduces the number of relocations on darwin/arm64 by about 10%.
+    It also slightly shrinks binaries:
     
-    unified IR has been writing out that B's underlying type is A, rather
-    than the underlying type of A.
+    file      before    after     Δ       %
+    addr2line 3803058   3791298   -11760  -0.309%
+    api       5140114   5104242   -35872  -0.698%
+    asm       4886850   4840626   -46224  -0.946%
+    buildid   2512466   2503042   -9424   -0.375%
+    cgo       4374770   4342274   -32496  -0.743%
+    compile   22920530  22769202  -151328 -0.660%
+    cover     4624626   4588242   -36384  -0.787%
+    dist      3217570   3205522   -12048  -0.374%
+    doc       3715026   3684498   -30528  -0.822%
+    fix       3148226   3119266   -28960  -0.920%
+    link      6350226   6313362   -36864  -0.581%
+    nm        3768850   3757106   -11744  -0.312%
+    objdump   4140594   4127618   -12976  -0.313%
+    pack      2227474   2218818   -8656   -0.389%
+    pprof     13598706  13506786  -91920  -0.676%
+    test2json 2497234   2487426   -9808   -0.393%
+    trace     10198066  10118498  -79568  -0.780%
+    vet       6930658   6889074   -41584  -0.600%
+    total     108055044 107366900 -688144 -0.637%
     
-    This is a bit awkward to implement and adds complexity to importers,
-    who need to handle resolving the underlying type themselves. But it
-    was necessary to handle when A was declared like:
+    It should also incrementally speed up binary launching.
     
-    ```
-    //go:notinheap
-    type A int
-    ```
+    This is the first step towards removing enough relocations
+    that pages that were previously dirtied by the loader may remain clean,
+    which will offer memory savings useful in constrained environments.
     
-    Because we expected A's not-in-heap'ness to be conferred to B, which
-    required knowing that A was on the path from B to its actual
-    underlying type int.
-    
-    However, since #46731 was accepted, we no longer need to support this
-    case. Instead we can write out B's actual underlying type.
-    
-    One stumbling point though is the existing code for exporting
-    interfaces doesn't work for the underlying type of `comparable`, which
-    is now needed to implement `type C comparable`. As a bit of a hack, we
-    we instead export its underlying type as `interface{ comparable }`.
-    
-    Fixes #54512.
-    
-    Change-Id: I0fb892068d656f1e87bb8ef97da27756051126d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424854
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Icfba55e696ba2f9c99c4f179125ba5a3ba4369c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351463
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 40 ++++++++++++++++++--------------
- test/typeparam/nested.go                 | 26 ++++-----------------
- 2 files changed, 28 insertions(+), 38 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 41 ++++++++++++++++++++++++--------------
+ src/debug/gosym/pclntab.go       | 43 +++++++++++++++++++++++++++++++++++-----
+ src/runtime/runtime2.go          |  6 +++---
+ src/runtime/symtab.go            | 16 ++++++++-------
+ 4 files changed, 76 insertions(+), 30 deletions(-)

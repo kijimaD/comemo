@@ -1,19 +1,30 @@
-commit 4225c6cb372e0fea7586dd646e991faa5df20671
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jan 8 12:30:01 2025 -0800
+commit 15fa7a84b88165092d3a05fb0af11f11d967065d
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 10 07:57:46 2023 -0500
 
-    encoding/json: improve fidelity of TestUnmarshal for Numbers
+    cmd/compile/internal/inline: rework call scoring for non-inlinable funcs
     
-    In particular, cover the behavior of unmarshaling a JSON string
-    into a Number type regardless of whether the `string` option
-    is specified or not.
+    This patch fixes some problems with call site scoring, adds some new
+    tests, and moves more of the scoring-related code (for example, the
+    function "ScoreCalls") into "scoring.go". This also fixes some
+    problems with scoring of calls in non-inlinable functions (when new
+    inliner is turned on, scoring has to happen for all functions run
+    through the inliner, not just for inlinable functions). For such
+    functions, we build a table of inlinable call sites immediately prior
+    to scoring; the storage for this table is preserved between functions
+    so as to reduce allocations.
     
-    Change-Id: Ibc55f16860442240bcfeea1fd51aaa76f7e50f67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641416
+    Change-Id: Ie6f691a3ad04fb7a03ab39f882a60aadaf957f6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542217
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/encoding/json/decode_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 43 insertions(+)
+ src/cmd/compile/internal/inline/inl.go             |  23 +--
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  39 ++---
+ .../inline/inlheur/analyze_func_callsites.go       | 103 +-----------
+ .../compile/internal/inline/inlheur/callsite.go    |  12 --
+ .../internal/inline/inlheur/dumpscores_test.go     |  98 ++++++++++++
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 176 ++++++++++++++++++++-
+ .../internal/inline/inlheur/testdata/dumpscores.go |  45 ++++++
+ .../inline/inlheur/testdata/props/calls.go         |  33 ++++
+ 8 files changed, 377 insertions(+), 152 deletions(-)

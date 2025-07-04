@@ -1,13 +1,44 @@
-commit 4b6e560b69f3fe6dfadcf6a43eda8a78b086448c
-Author: djherbis <djherbis@gmail.com>
-Date:   Sat May 21 13:25:47 2016 -0700
+commit 7fc562199109bec2755b14587ef9c64cc305d5e5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 29 16:39:53 2016 -0700
 
-    AUTHORS: correcting my last name Herbis -> Herbison
+    cmd/compile: define high bits of AuxInt
     
-    Change-Id: I91608b15e00c8eaf732db3a99a890d4ceeb41955
-    Reviewed-on: https://go-review.googlesource.com/23317
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Previously if we were only using the low bits of AuxInt,
+    the high bits were ignored and could be junk.  This CL
+    changes that behavior to define the high bits to be the
+    sign-extended version of the low bits for all cases.
+    
+    There are 2 main benefits:
+    - Deterministic representation.  This helps with CSE.
+      (Const8 [0x1]) and (Const8 [0x101]) used to be the same "value"
+      but CSE couldn't see them as such.
+    - Testability.  We can check that all ops leave AuxInt in a state
+      consistent with the new rule.  In the old scheme, it was hard
+      to check whether a rule correctly used only the low-order bits.
+    Side benefits:
+    - ==0 and !=0 tests are easier.
+    
+    Drawbacks:
+    - This differs from the runtime representation in registers,
+      where it is important that we allow upper bits to be undefined
+      (so we're not sign/zero-extending all the time).
+    - Ops that treat AuxInt as unsigned (shifts, mostly) need to be
+      a bit more careful.
+    
+    Change-Id: I9a685ff27e36dc03287c9ab1cecd6c0b4045c819
+    Reviewed-on: https://go-review.googlesource.com/21256
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  47 ++--
+ src/cmd/compile/internal/arm/ssa.go            |   2 +-
+ src/cmd/compile/internal/ssa/check.go          |  22 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  47 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  25 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 139 ++++++------
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  61 +++--
+ src/cmd/compile/internal/ssa/rewrite.go        |   7 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 112 ++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 303 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/value.go          |  18 --
+ 11 files changed, 392 insertions(+), 391 deletions(-)

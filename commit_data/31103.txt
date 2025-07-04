@@ -1,20 +1,26 @@
-commit dec95d8fad2e1b3dea3fa1472cc21542c40236ce
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 7 12:21:50 2017 -0700
+commit 1cbc5aa5290437e81859911cf8e022be2448cc09
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 15 22:33:10 2016 -0800
 
-    database/sql: correctly guard the query Row preventing early release
+    cmd/compile: insertVarPhis micro-optimization
     
-    When a Tx starts a query, prevent returning the connection to the pool
-    until after the query finishes.
+    Algorithmic improvements here are hard.
+    Lifting a lookup out of the loop helps a little, though.
     
-    Fixes #19058
+    To compile the code in #17926:
     
-    Change-Id: I2c0480d9cca9eeb173b5b3441a5aeed6f527e0ac
-    Reviewed-on: https://go-review.googlesource.com/40400
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    name  old s/op   new s/op   delta
+    Real   146 ± 3%   140 ± 4%  -3.87%  (p=0.002 n=10+10)
+    User   143 ± 3%   139 ± 4%  -3.08%  (p=0.005 n=10+10)
+    Sys   8.28 ±35%  8.08 ±28%    ~     (p=0.684 n=10+10)
+    
+    Updates #17926.
+    
+    Change-Id: Ic255ac8b7b409c1a53791058818b7e2cf574abe3
+    Reviewed-on: https://go-review.googlesource.com/33305
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/sql.go      | 18 +++++++++++++-----
- src/database/sql/sql_test.go |  1 -
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/phi.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

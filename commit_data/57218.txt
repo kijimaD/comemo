@@ -1,27 +1,39 @@
-commit 755c18ecdfe64df060be91fb669ca1a68527830b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 21 14:38:30 2024 +0000
+commit f51c55bfc382443b61ca3257c1ffea59eee2559f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 19 16:09:35 2023 -0700
 
-    unique: use TypeFor instead of TypeOf to get type in Make
+    runtime: adjust netpollWaiters after goroutines are ready
     
-    Currently the first thing Make does it get the abi.Type of its argument,
-    and uses abi.TypeOf to do it. However, this has a problem for interface
-    types, since the type of the value stored in the interface value will
-    bleed through. This is a classic reflection mistake.
+    The runtime was adjusting netpollWaiters before the waiting
+    goroutines were marked as ready. This could cause the scheduler
+    to report a deadlock because there were no goroutines ready to run.
+    Keeping netpollWaiters non-zero ensures that at least one goroutine
+    will call netpoll(-1) from findRunnable.
     
-    Fix this by implementing and using a generic TypeFor which matches
-    reflect.TypeFor. This gets the type of the type parameter, which is far
-    less ambiguous and error-prone.
+    This does mean that if a program has network activity for a while
+    and then never has it again, and also has no timers, then we can leave
+    an M stranded in a call to netpoll from which it will never return.
+    At least this won't be a common case. And it's not new; this has been
+    a potential problem for some time.
     
-    Fixes #68990.
+    Fixes #61454
     
-    Change-Id: Idd8d9a1095ef017e9cd7c7779314f7d4034f01a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607355
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I17c7f891c2bb1262fda12c6929664e64686463c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/internal/abi/type.go  | 9 +++++++++
- src/unique/clone_test.go  | 2 +-
- src/unique/handle.go      | 2 +-
- src/unique/handle_test.go | 3 ++-
- 4 files changed, 13 insertions(+), 3 deletions(-)
+ src/runtime/netpoll.go         | 58 ++++++++++++++++++++++++++++++++----------
+ src/runtime/netpoll_aix.go     | 11 ++++----
+ src/runtime/netpoll_epoll.go   | 11 ++++----
+ src/runtime/netpoll_fake.go    |  4 +--
+ src/runtime/netpoll_kqueue.go  | 11 ++++----
+ src/runtime/netpoll_solaris.go | 11 ++++----
+ src/runtime/netpoll_stub.go    | 12 ++++++---
+ src/runtime/netpoll_wasip1.go  | 11 ++++----
+ src/runtime/netpoll_windows.go | 15 ++++++-----
+ src/runtime/proc.go            | 22 ++++++++++------
+ 10 files changed, 107 insertions(+), 59 deletions(-)

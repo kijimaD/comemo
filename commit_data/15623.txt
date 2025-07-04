@@ -1,12 +1,14 @@
-commit 3fc244f37065f3eb0bc8cd54e6aff0ced2889969
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Mar 7 19:15:00 2013 +0900
+commit bcb1da7065424913dda7e25d62f33bfc71afd8a2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 16:52:03 2013 -0800
 
-    net: fix plan9 build
+    all: delete a couple of mentions of the exp and old trees
     
-    R=golang-dev, akumar
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7564043
+    https://golang.org/cl/7551043
 
- src/pkg/net/ipraw_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/api/goapi.go  | 4 +---
+ src/cmd/dist/build.c  | 1 -
+ src/cmd/vet/taglit.go | 1 -
+ 3 files changed, 1 insertion(+), 5 deletions(-)

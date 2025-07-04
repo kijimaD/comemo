@@ -1,30 +1,16 @@
-commit 3f6e69aca585ceaf82595170e5aea5b25a9d29ec
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 20 16:16:04 2015 -0400
+commit e64764c8d03cbc4bd01d6df5c2c833cb6792f6cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 28 17:08:28 2015 -0700
 
-    runtime: steal space for stack barrier tracking from stack
+    cmd/internal/gc: cache commonly used Ptrto types
     
-    The stack barrier code will need a bookkeeping structure to keep track
-    of the overwritten return PCs. This commit introduces and allocates
-    this structure, but does not yet use the structure.
+    Reduces allocations in the compiler by ~1.5%.
     
-    We don't want to allocate space for this structure during garbage
-    collection, so this commit allocates it along with the allocation of
-    the corresponding stack. However, we can't do a regular allocation in
-    newstack because mallocgc may itself grow the stack (which would lead
-    to a recursive allocation). Hence, this commit makes the bookkeeping
-    structure part of the stack allocation itself by stealing the
-    necessary space from the top of the stack allocation. Since the size
-    of this bookkeeping structure is logarithmic in the size of the stack,
-    this has minimal impact on stack behavior.
+    No functional changes. Passes toolstash -cmp.
     
-    Change-Id: Ia14408be06aafa9ca4867f4e70bddb3fe0e96665
-    Reviewed-on: https://go-review.googlesource.com/10313
+    Change-Id: I2416f7fb0aaf9b7d6783c79e840039ad8fa7b5a3
+    Reviewed-on: https://go-review.googlesource.com/9419
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go      | 13 +++++++++++++
- src/runtime/mgcmark.go  | 21 +++++++++++++++++++++
- src/runtime/proc1.go    |  6 ++++--
- src/runtime/runtime2.go |  8 ++++++++
- src/runtime/stack1.go   | 23 +++++++++++++++++++----
- 5 files changed, 65 insertions(+), 6 deletions(-)
+ src/cmd/internal/gc/subr.go | 49 +++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 45 insertions(+), 4 deletions(-)

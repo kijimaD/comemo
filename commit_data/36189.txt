@@ -1,18 +1,22 @@
-commit faadda040d49c581a82fc459c34186c8bff58a2b
-Author: Roberto Clapis <robclap8@gmail.com>
-Date:   Thu Aug 2 15:27:14 2018 +0200
+commit 535ad8efb8a20602fc104556eea985bb12280afd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 10 16:01:23 2018 -0700
 
-    os: add check for empty executable path on darwin
+    cmd/compile: fix check that ensures main.main is a function
     
-    os used to panic (access out of bounds) if executablePath was left empty
+    The check was previously disallowing package main from even importing
+    a non-function symbol named "main".
     
-    Fixes #22529
+    Fixes #24801.
     
-    Change-Id: Iead5e60a3b000dbde421a8e8612c3690340879ce
-    Reviewed-on: https://go-review.googlesource.com/127546
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I849b9713890429f0a16860ef16b5dc7e970d04a4
+    Reviewed-on: https://go-review.googlesource.com/106120
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/executable_darwin.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/dcl.go    |  2 +-
+ test/fixedbugs/issue24801.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue24801.dir/main.go | 11 +++++++++++
+ test/fixedbugs/issue24801.go          |  5 +++++
+ 4 files changed, 26 insertions(+), 1 deletion(-)

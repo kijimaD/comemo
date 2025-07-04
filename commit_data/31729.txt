@@ -1,14 +1,22 @@
-commit 557f6a13beb9e2da58d439d228e7f8f838c61159
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 6 22:05:34 2017 +0000
+commit d343478295f8635e60014fa9481ccea04b6c53a8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 22:22:11 2017 -0800
 
-    doc: delete go1.8.txt
+    cmd/link: eliminate markextra
     
-    Fixes #20591
+    This appears to be leftover from when instruction selection happened
+    in the linker. Many of the morestackX functions listed don't even
+    exist anymore.
     
-    Change-Id: I2a4674a3430c5a4d3c569f3ea654c6ff4d9bf7ee
-    Reviewed-on: https://go-review.googlesource.com/45015
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Now that we select instructions within the compiler and assembler,
+    normal deadcode elimination mechanisms should suffice for these
+    symbols.
+    
+    Change-Id: I2cb1e435101392e7c983957c4acfbbcc87a5ca7d
+    Reviewed-on: https://go-review.googlesource.com/38077
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.txt | 55 -------------------------------------------------------
- 1 file changed, 55 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 25 -------------------------
+ 1 file changed, 25 deletions(-)

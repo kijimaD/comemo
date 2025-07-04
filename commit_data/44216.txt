@@ -1,18 +1,16 @@
-commit 1426a571b79bfcb3c0339e2fd96c893cd1549af6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Feb 1 16:46:49 2021 -0500
+commit 5a00adf1ea4320bb7f6c2d0b5ae7cf540275c0a4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu May 28 12:23:50 2020 -0400
 
-    cmd/link: fix off-by-1 error in findShlibSection
+    doc/go1.15: document no language changes
     
-    We want to find a section that contains addr. sect.Addr+sect.Size
-    is the exclusive upper bound.
+    There are no language changes in Go 1.15, so document that.
     
-    Change-Id: If2cd6bdd6e03174680e066189b0f4bf9e2ba6630
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288592
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #37419.
+    
+    Change-Id: I1e96e58b701f1758d64c79881dfa0b1109836b83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235580
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/decodesym.go | 2 +-
+ doc/go1.15.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

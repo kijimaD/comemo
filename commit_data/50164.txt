@@ -1,22 +1,28 @@
-commit 63e129ba1c458db23f0752d106ed088a2cf38360
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 19 16:01:33 2022 +1000
+commit 195945a40d6c644e91d4811c727e65a0593be1eb
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Wed Oct 6 05:27:52 2021 +0200
 
-    image/png: allow both PLTE and tRNS chunks for TrueColor
+    internal/cpu: remove option to mark cpu features required
     
-    Prior to this commit, png.Decode would allow TrueColor PNG images that
-    have one but not both of PLTE and tRNS chunks.
+    With the removal of SSE2 runtime detection made in
+    golang.org/cl/344350 we can remove this mechanism as there
+    are no required features anymore.
     
-    Fixes #54142
+    For making sure CPUs running a go program support all
+    the minimal hardware requirements the go runtime should
+    do feature checks early in the runtime initialization
+    before it is likely any compiler emitted but unsupported
+    instructions are used. This is already the case for e.g.
+    checking MMX support on 386 arch targets.
     
-    Change-Id: I259c1fff86a0aa5640dbadf7ad834e05fbd1430c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424916
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+    Change-Id: If7b1cb6f43233841e917d37a18314d06a334a734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354209
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/image/png/reader.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/internal/cpu/cpu.go      |  8 +-------
+ src/internal/cpu/cpu_test.go | 20 +-------------------
+ 2 files changed, 2 insertions(+), 26 deletions(-)

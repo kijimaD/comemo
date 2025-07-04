@@ -1,24 +1,22 @@
-commit ee3da5061789cd3d2a6558b71a99ab7ecda23777
-Author: limeidan <limeidan@loongson.cn>
-Date:   Fri Jan 5 10:33:42 2024 +0800
+commit 8b5ed3cdaeba621687c71c19174bb4db0f5713f0
+Author: Josh Rickmar <jrick@zettaport.com>
+Date:   Mon Jun 12 16:10:55 2023 +0000
 
-    cmd/internal/obj/loong64: reclassify three-register operation instructions and two-register operation instructions
+    runtime: Use doas -n in TestSUID on OpenBSD
     
-    The instructions belonging to case 32 have the same structure as the
-    instructions in case 2.
+    This prevents a hang at a su password prompt when running this test on
+    OpenBSD.
     
-    The instructions in case 33 are actually two-register operation
-    instructions. We move their definitions from function oprrr to oprr and
-    merge their implementation into case 9.
+    Fixes #60690.
     
-    Change-Id: Id04aaa497e78d8198a58f8d406876d16b3f393a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565616
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I62d27aa63f225f8247c324b87b5e688319061f4f
+    GitHub-Last-Rev: 217813a4d57a97954449d13c24a465aa0af41da3
+    GitHub-Pull-Request: golang/go#60742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502575
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/loong64/asm.go | 130 +++++++++++++++---------------------
- 1 file changed, 52 insertions(+), 78 deletions(-)
+ src/runtime/security_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

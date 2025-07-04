@@ -1,39 +1,14 @@
-commit 57279ba752d6975f387b7707a99e43ec9ad6725e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 10 21:37:13 2015 -0700
+commit 66416c00eb162f56afe90589e460fcc396b5acc1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 2 16:05:11 2015 -0500
 
-    cmd/internal/gc: separate func-only Node fields
+    misc/ios: more predictable zoneinfo.zip location
     
-    Nodes dominate gc's memory usage, but many fields are only used
-    for a subset of kinds of nodes. This change pulls out fields
-    used only for func-like Nodes. This reduces the size of the
-    Node struct on a 64-bit machine from 504 bytes to 416 bytes (-17%).
+    See golang.org/cl/6511.
     
-    Compiling the runtime, 1.5% of nodes have a non-nil Func.
-    In html/template, 2.7% of nodes have a non-nil Func.
-    
-    This change introduces an extra alloc and associated GC overhead
-    when Func is non-nil. However, when Func is nil, as it almost
-    always is, it spares the garbage collector scanning some Node fields.
-    Empirically, this change appears to be roughly neutral with regard to GC.
-    
-    To keep the diff readable, this CL uses an embedded Func field.
-    A subsequent CL will unembed the field.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: Ide86aa954b097fb8e6154f0811d3691497477004
-    Reviewed-on: https://go-review.googlesource.com/7360
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2145a42877ed6b78400f29c2ef18969870dab5c3
+    Reviewed-on: https://go-review.googlesource.com/6512
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/internal/gc/closure.go |   4 +-
- src/cmd/internal/gc/dcl.go     |  17 ++++--
- src/cmd/internal/gc/export.go  |   2 +-
- src/cmd/internal/gc/go.y       |   6 +-
- src/cmd/internal/gc/inl.go     |   8 ++-
- src/cmd/internal/gc/subr.go    |   4 ++
- src/cmd/internal/gc/syntax.go  | 126 ++++++++++++++++++++++-------------------
- src/cmd/internal/gc/y.go       |   6 +-
- 8 files changed, 98 insertions(+), 75 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

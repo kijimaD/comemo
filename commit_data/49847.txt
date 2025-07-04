@@ -1,21 +1,31 @@
-commit b648591b705490d14147f3beb66c68be9a97c5b5
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 11 12:08:35 2022 -0400
+commit b1bedc0774d8a3a7ff8778e933ee92e8638e9493
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Wed Sep 15 04:30:49 2021 +0000
 
-    runtime: simplify trace buffer management around footer
+    cmd/go: add GOAMD64 environment variable
     
-    Writing out the trace footer currently manages trace buffers
-    differently from the rest of trace code. Rearrange it so it looks like
-    the rest of the code. In particular, we now write the frequency event
-    out to the trace buffer rather than returning it in a special byte
-    slice, and (*traceStackTable).dump threads a traceBufPtr like most
-    other functions that write to the trace buffers.
+    The variable represents the microarchitecture level for which to compile.
+    Valid values are v1 (default), v2, v3, v4.
     
-    Change-Id: I3d0e108e56df884e7bd19823310dfbc0e21af9a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422974
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #45453
+    
+    Change-Id: I095197fc9239d79f98896d7e745e2341354daca4
+    GitHub-Last-Rev: f83ed17204606264073be5b9831f9d24f2f9dbc4
+    GitHub-Pull-Request: golang/go#48359
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349595
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/trace.go | 40 ++++++++++++++++++++--------------------
- 1 file changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/dist/build.go               | 11 +++++++++++
+ src/cmd/dist/buildruntime.go        |  1 +
+ src/cmd/go/alldocs.go               |  4 ++++
+ src/cmd/go/internal/cfg/cfg.go      |  3 +++
+ src/cmd/go/internal/help/helpdoc.go |  4 ++++
+ src/cmd/go/internal/work/gc.go      |  5 +++++
+ src/internal/buildcfg/cfg.go        | 16 ++++++++++++++++
+ src/internal/buildcfg/cfg_test.go   | 25 +++++++++++++++++++++++++
+ src/internal/cfg/cfg.go             |  1 +
+ test/run.go                         |  2 +-
+ 10 files changed, 71 insertions(+), 1 deletion(-)

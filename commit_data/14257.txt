@@ -1,20 +1,28 @@
-commit e14cf90a8b14c7d47aed1cfe504d7ec67890bc43
+commit 4c1a6f84f8d85ad809ef14a685e173b73abb4621
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 31 17:32:16 2012 +0100
+Date:   Wed Oct 31 14:28:18 2012 +0100
 
-    unicode: move unicode and related packages to Unicode 6.2.0.
+    exp/locale/collate: removed weights struct to allow for faster and easier
+    incremental comparisons. Instead, processing is now done directly on colElems.
+    As a result, the size of the weights array is now reduced by 75%.
+    Details:
+    - Primary value of type 1 colElem is shifted by 1 bit so that primaries
+      of all types can be compared without shifting.
+    - Quaternary values are now stored in the colElem itself. This is possible
+      as quaternary values other than 0 or maxQuaternary are only needed when other
+      values are ignored.
+    - Simplified processWeights by removing cases that are needed for ICU but not
+      for us (our CJK primary values fit in a single value).
     
-    R=r, mpvl
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6818067
+    https://golang.org/cl/6817054
 
- src/pkg/exp/locale/collate/build/builder.go |     2 +-
- src/pkg/exp/locale/collate/maketables.go    |     2 +-
- src/pkg/exp/locale/collate/tables.go        | 83305 +++++++++++++-------------
- src/pkg/exp/norm/tables.go                  |  8582 +--
- src/pkg/unicode/graphic.go                  |    22 +-
- src/pkg/unicode/letter.go                   |     4 +-
- src/pkg/unicode/maketables.go               |     6 +-
- src/pkg/unicode/script_test.go              |    11 +-
- src/pkg/unicode/tables.go                   |   753 +-
- 9 files changed, 46802 insertions(+), 45885 deletions(-)
+ src/pkg/exp/locale/collate/build/colelem.go      |   4 +-
+ src/pkg/exp/locale/collate/build/colelem_test.go |   2 +-
+ src/pkg/exp/locale/collate/colelem.go            | 108 +++++++++++++++++------
+ src/pkg/exp/locale/collate/colelem_test.go       |  27 ++++--
+ src/pkg/exp/locale/collate/collate.go            |  44 +++++----
+ src/pkg/exp/locale/collate/export_test.go        |  18 ++--
+ src/pkg/exp/locale/collate/table.go              |  34 +++----
+ 7 files changed, 150 insertions(+), 87 deletions(-)

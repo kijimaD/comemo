@@ -1,20 +1,24 @@
-commit fba90c90964703e84bcb43a3567884960043b756
-Author: Hiroaki Nakamura <hnakamur@gmail.com>
-Date:   Wed May 15 17:57:05 2024 +0900
+commit d740b365b7c1ecefb91b2e2fed5719c8ec49d155
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 11 14:27:25 2023 -0400
 
-    cmd/go/internal/script: Fix build tags of isETXTBSY
+    cmd/compile/internal/pgo: move pprof graph to internal package
     
-    syscall.ETXTBSY is only meaningful on Unix platforms, not on Windows.
+    graph.go is a simplified fork of github.com/google/pprof/internal/graph,
+    which is used as an intermediate data structure to construct the final
+    graph exported by package pgo (IRGraph).
     
-    Fixes #67356
+    Exporting both is a bit confusing as the former is unused outside of the
+    package. Since the naming is also similar, move graph.go to its own
+    package entirely.
     
-    Change-Id: I1b13292d821d61d820b396e08be9a4dd1683e843
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585695
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I2bccb3ddb6c3f63afb869ea9cf34d2a261cad058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494437
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/script/{cmds_other.go => cmds_nonunix.go} | 3 ++-
- src/cmd/go/internal/script/{cmds_posix.go => cmds_unix.go}    | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/pgo/{ => internal/graph}/graph.go | 12 ++++++------
+ src/cmd/compile/internal/pgo/irgraph.go                    |  5 +++--
+ 2 files changed, 9 insertions(+), 8 deletions(-)

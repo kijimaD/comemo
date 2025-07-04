@@ -1,16 +1,30 @@
-commit 0bbcce962a2ef0937b1f5a5e5d3b7033760d0d2f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 8 16:16:23 2019 -0500
+commit 769fda2d5110eef6146d7df3bf0219872c9b0da6
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 19 18:09:39 2019 -0400
 
-    cmd/go/internal/lockedfile: skip flaky TestTransform on plan9
+    cmd/compile: add necessary operand to mergePoint in rewrite rules
     
-    Updates #35471
+    A missing operand to mergePoint caused lower to place values
+    in the wrong blocks.
     
-    Change-Id: Ie06c442e405a267eb909621e1205444b6a00fda1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206197
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Includes test, belt+suspenders to do both ssa check and verify
+    the output (was is how the bug was originally observed).
+    
+    The fixed bug here is very likely present in Go versions
+    1.9-1.12 on amd64 and s390x
+    
+    Fixes #32680.
+    
+    Change-Id: I63e702c4c40602cb795ef71b1691eb704d38ccc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183059
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/lockedfile/transform_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  48 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  48 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 960 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 960 +++++++++++++--------------
+ test/fixedbugs/issue32680.go                 |  23 +
+ test/fixedbugs/issue32680.out                |   1 +
+ 6 files changed, 1032 insertions(+), 1008 deletions(-)

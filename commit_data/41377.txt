@@ -1,17 +1,22 @@
-commit e9956791bfabcb0db0035a1e1479f9ca1b2e32c2
-Author: Jon Johnson <jonjohnson@google.com>
-Date:   Mon Feb 3 18:15:41 2020 +0000
+commit 55738850c43bd1ae46326f7419dbd8f49808c776
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Sep 27 08:21:27 2019 -0700
 
-    encoding/json: fix broken link to json.org
+    net/http: remove TestTimeoutHandlerAndFlusher due to flakes
     
-    This updates the link to a newer image.
+    Removes TestTimeoutHandlerAndFlusher due to flakes on
+    one of the builders due to timing issues.
     
-    Change-Id: Ibdfe8c57d9217a325bcfde98cb6f952ca63d588a
-    GitHub-Last-Rev: f5970ba395781c0d299dfdaa1ed75e46125b8268
-    GitHub-Pull-Request: golang/go#36938
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217297
-    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Perhaps later, we might need to bring it back when we've
+    figured out the timing issues.
+    
+    Fixes #34573.
+    
+    Change-Id: Ia88d4da31fb228296144dc31f9a4288167fb4a53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197757
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/encode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 48 ----------------------------------------------
+ 1 file changed, 48 deletions(-)

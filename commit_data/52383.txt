@@ -1,34 +1,27 @@
-commit d35dd190ff30fcbab6909ac68ae5114b157b9009
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 22 12:19:23 2023 -0400
+commit d8723745bacd1960139ea866e61377a0a75aec2f
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sat Apr 30 10:52:13 2022 +0000
 
-    net/http: improve logging in TestServerSetKeepAlivesEnabledClosesConns
+    vendor, net/http: update golang.org/x/net to tip
     
-    - Log the actual addresses reported, in case that information is relevant.
+    Needed for CL 400236.
     
-    - Keep going after the first error, so that we report more information
-      about the idle connections after they have been used. (Was the first
-      connection dropped completely, or did it later show up as idle?)
-    
-    - Remove the third request at the end of the test. It had been
-      assuming that the address for a new connection would always be
-      different from the address for the just-closed connection; however,
-      that assumption does not hold in general.
-    
-    Removing the third request addresses one of the two failure modes seen
-    in #55195. It may help in investigating the other failure mode, but I
-    do not expect it to fix the failures entirely. (I suspect that the
-    other failure mode is a synchronization bug in returning the idle
-    connection from the first request.)
-    
-    For #55195.
-    
-    Change-Id: If9604ea68db0697268288ce9812dd57633e83fbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478515
+    Change-Id: Ia0b4a5963724ed92be27f557ad141335b389e97f
+    GitHub-Last-Rev: b0e72cb26de251865ef865bf92a6b8ff9dbf7b04
+    GitHub-Pull-Request: golang/go#52621
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403136
     Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/serve_test.go | 25 +++++++++++--------------
- 1 file changed, 11 insertions(+), 14 deletions(-)
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/net/http/h2_bundle.go                          | 45 ++++++++++++------
+ .../golang.org/x/net/dns/dnsmessage/message.go     |  1 +
+ .../golang.org/x/net/http/httpguts/httplex.go      | 54 ++++++++++++----------
+ .../golang.org/x/net/http/httpproxy/proxy.go       |  3 ++
+ src/vendor/golang.org/x/net/idna/trieval.go        | 34 +++++++-------
+ src/vendor/modules.txt                             |  2 +-
+ 8 files changed, 84 insertions(+), 61 deletions(-)

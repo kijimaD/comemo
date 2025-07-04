@@ -1,16 +1,42 @@
-commit f8aecbbff5b85e67fee95033b3a14f3df665ea18
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Oct 20 14:21:07 2020 +0200
+commit 47ade08141b23cfeafed92943e16012d5dc5eb8b
+Author: David Chase <drchase@google.com>
+Date:   Sat Nov 2 23:57:11 2019 -0400
 
-    runtime: move s390x HWCap CPU feature detection to internal/cpu
+    cmd/compile: add logging for large (>= 128 byte) copies
     
-    Change-Id: I7d9e31c3b342731ddd7329962426fdfc80e9ed87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263803
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    For 1.15, unless someone really wants it in 1.14.
+    
+    A performance-sensitive user thought this would be useful,
+    though "large" was not well-defined.  If 128 is large,
+    there are 139 static instances of "large" copies in the compiler
+    itself.
+    
+    Includes test.
+    
+    Change-Id: I81f20c62da59d37072429f3a22c1809e6fb2946d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205066
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/cpu/cpu_s390x.go | 15 +++++++++++++--
- src/runtime/os_linux_s390x.go |  9 ++-------
- 2 files changed, 15 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/logopt/logopt_test.go | 89 +++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/gen/386.rules     |  4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  6 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |  2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  4 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules   | 12 ++--
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go        | 14 ++++
+ src/cmd/compile/internal/ssa/rewrite386.go     |  8 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  8 +--
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  8 +--
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 12 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  4 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  8 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  4 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 20 +++---
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  4 +-
+ 20 files changed, 153 insertions(+), 66 deletions(-)

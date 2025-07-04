@@ -1,22 +1,14 @@
-commit a8fc82f77abff99a3f55b015b017cb4342cd9c08
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Sat Oct 26 18:44:34 2019 -0400
+commit 0f897f916aa6734bb8d089400ea996ee461ae41f
+Author: Maxim Eryomenko <moeryomenko@gmail.com>
+Date:   Tue May 28 02:45:21 2019 +0000
 
-    cmd/asm/internal/asm/testdata/s390x: add test cases for some assembly instructions
+    bytes: remove obsolete comment
     
-    From CL 199979, I noticed that there were some
-    instructions not covered by the test cases. Added those in this CL.
-    
-    Additional tests for assembly instructions are also added
-    based on suggestions made during the review of this CL.
-    
-    Previously, VSB and VSH are not included in asmz.go, they were also
-    added in this patch.
-    
-    Change-Id: I6060a9813b483a161d61ad2240c30eec6de61536
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203721
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Iec4348eb674c8c64497c82e5d7cd656736cfcebd
+    GitHub-Last-Rev: 462c323960be0ca1c126c051ab97f72949bdc2b6
+    GitHub-Pull-Request: golang/go#32225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 60 ++++++++++++++++++++++++++++++-
- src/cmd/internal/obj/s390x/asmz.go        |  2 ++
- 2 files changed, 61 insertions(+), 1 deletion(-)
+ src/bytes/buffer.go | 3 ---
+ 1 file changed, 3 deletions(-)

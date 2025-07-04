@@ -1,29 +1,22 @@
-commit 866920a07351ad5663cc712c31a0f7b5631bc85c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 31 15:41:03 2020 -0800
+commit 75da700d0ae307ebfd4a3493b53e8f361c16f481
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 14 01:29:19 2019 +0700
 
-    std,cmd: sync go.mod with new release branches
+    cmd/compile: consistently use strlit to access constants string values
     
-        cd src
-        go get golang.org/x/sys@release-branch.go1.14-std
-        go mod tidy && go mod vendor
-        cd cmd
-        go get golang.org/x/sys@release-branch.go1.14-cmd
-        go get golang.org/x/tools@release-branch.go1.14
-        go mod tidy && go mod vendor
+    Passes toolstash-check.
     
-    Fixes #36851
-    
-    Change-Id: Ib0a78eec90c92515b6f421972102cc8e8d0c08a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217305
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ieaef20b7649787727b69469f93ffc942022bc079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195198
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go.mod                                 | 4 ++--
- src/cmd/go.sum                                 | 6 ++++--
- src/cmd/vendor/modules.txt                     | 4 ++--
- src/go.mod                                     | 2 +-
- src/go.sum                                     | 4 ++--
- src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 2 +-
- src/vendor/modules.txt                         | 2 +-
- 7 files changed, 13 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/const.go     |  4 ++--
+ src/cmd/compile/internal/gc/noder.go     |  6 +++---
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
+ 7 files changed, 19 insertions(+), 19 deletions(-)

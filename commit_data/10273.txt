@@ -1,18 +1,19 @@
-commit 1c42db883522997230819f512a92622434838842
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 7 13:15:06 2011 -0500
+commit 1170a6460f3917f0b060f6de654759edb98f3df5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 7 12:37:05 2011 -0500
 
-    runtime/cgo: fix data declaration to be extern
+    exp/ssh: improved client authentication support
     
-    Otherwise some OS X toolchains complain about the redeclaration
-    of libcgo_thread_start by multiple object files.  The real definition
-    is in util.c.
+    This CL adds an API for handling the various SSH
+    authenticaton methods. None and password continue
+    to be the only supported methods.
     
-    Fixes #2167.
-    
-    R=golang-dev, bradfitz
+    R=bradfitz, agl, n13m3y3r, rsc, cw
     CC=golang-dev
-    https://golang.org/cl/5364045
+    https://golang.org/cl/5328045
 
- src/pkg/runtime/cgo/libcgo.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/ssh/Makefile       |   1 +
+ src/pkg/exp/ssh/client.go      |  55 +--------------
+ src/pkg/exp/ssh/client_auth.go | 157 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/doc.go         |   2 +-
+ 4 files changed, 162 insertions(+), 53 deletions(-)

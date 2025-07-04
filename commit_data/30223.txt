@@ -1,15 +1,14 @@
-commit 5030bfdf81ba3bf4d66cf6e9ddfd80ef194f07b6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 10 14:56:05 2017 -0800
+commit 864859d209a144eb1a703381ec96b9c897d4e493
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Wed Oct 26 11:46:06 2016 -0700
 
-    cmd/internal/obj/x86: add comments to wrapper prologue insertion
+    net/http/httptrace: refer http.Client users to the blog post
     
-    Make the comments a bit clearer and more accurate,
-    in anticipation of updating the code.
+    Fixes #17152.
     
-    Change-Id: I1111e6c3405a8688fcd29b809a48a762ff41edaa
-    Reviewed-on: https://go-review.googlesource.com/36833
+    Change-Id: I4dd5e505c65f3efe736e46d3781cccf31d7f574f
+    Reviewed-on: https://go-review.googlesource.com/32117
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/net/http/httptrace/trace.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

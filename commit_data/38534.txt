@@ -1,23 +1,24 @@
-commit 6582ee9cba7e4b5ffba1048782393d2557e64f1f
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Mar 22 14:57:32 2019 -0400
+commit 4bb9b61677e937d1f473c27607da3608d0fa7099
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Nov 3 22:57:52 2018 -0700
 
-    test: new test for issue 30908
+    strings: lower running time of TestCompareStrings
     
-    New test case designed to mimic the code in issue 30908, which
-    features duplicate but non-indentical DWARF abstract subprogram DIEs.
+    At each comparison, we're making a copy of the whole string.
+    Instead, use unsafe to share the string backing store with a []byte.
     
-    Updates #30908.
+    It reduces the test time from ~4sec to ~1sec on my machine
+    (darwin/amd64).  Some builders were having much more trouble with this
+    test (>3min), it may help more there.
     
-    Change-Id: Iacb4b53e6a988e46c801cdac236cef883c553f8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168957
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #26174
+    Fixes #28573
+    Fixes #26155
+    Update #26473
+    
+    Change-Id: Id5856fd26faf6ff46e763a088f039230556a4116
+    Reviewed-on: https://go-review.googlesource.com/c/147358
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue30908.dir/a.go | 32 ++++++++++++++++++++++++++++++++
- test/fixedbugs/issue30908.dir/b.go | 35 +++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue30908.dir/m.go | 21 +++++++++++++++++++++
- test/fixedbugs/issue30908.go       |  9 +++++++++
- 4 files changed, 97 insertions(+)
+ src/strings/compare_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

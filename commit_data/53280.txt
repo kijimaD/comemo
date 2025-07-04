@@ -1,21 +1,25 @@
-commit 72bf8acee9a9bd913911d094fc636d2f0f3c446d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 24 16:43:47 2023 +0000
+commit c2a9c55823b1ed14f84d8ce8880dbda3f5b01eb0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 27 09:56:38 2022 -0700
 
-    runtime: ensure consistency of /gc/scan/*
+    cmd/compile: optimize unsafe.Slice generated code
     
-    Currently /gc/scan/total:bytes is computed as a separate sum. Compute it
-    using the same inputs so it's always consistent with the sum of
-    everything else in /gc/scan/*.
+    We don't need a multiply when the element type is size 0 or 1.
     
-    For #56857.
+    The panic functions don't return, so we don't need any post-call
+    code (register restores, etc.).
     
-    Change-Id: I43d9148a23b1d2eb948ae990193dca1da85df8a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497880
+    Change-Id: I0dcea5df56d29d7be26554ddca966b3903c672e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419754
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/metrics.go      | 39 ++++++++++++++++++++++++++++++---------
- src/runtime/metrics_test.go | 14 ++++++++++++++
- 2 files changed, 44 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |   2 +-
+ test/codegen/slices.go                         |  15 +++
+ 4 files changed, 172 insertions(+), 1 deletion(-)

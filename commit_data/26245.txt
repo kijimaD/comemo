@@ -1,25 +1,21 @@
-commit cd798dcb88c69867d1a09e0d2e9430d8edec0f77
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Mon Mar 7 18:36:16 2016 +0100
+commit fb394017f1b5081f1243688c0686ba5faca96835
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 6 19:52:51 2016 +0000
 
-    cmd/compile/internal/ssa: generalize prove to all booleans
+    net/http: fix flaky TestTransportCancelBeforeResponseHeaders test
     
-    * Refacts a bit saving and restoring parents restrictions
-    * Shaves ~100k from pkg/tools/linux_amd64,
-    but most of the savings come from the rewrite rules.
-    * Improves on the following artificial test case:
-    func f1(a4 bool, a6 bool) bool {
-      return a6 || (a6 || (a6 || a4)) || (a6 || (a4 || a6 || (false || a6)))
-    }
+    Add a couple more cases where we convert random network I/O errors
+    into errRequestCanceled if the request was forcefully aborted.
     
-    Change-Id: I714000f75a37a3a6617c6e6834c75bd23674215f
-    Reviewed-on: https://go-review.googlesource.com/20306
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    It failed ~1/1000 times without -race, or very easily with -race.
+    (due to -race randomizing some scheduling)
+    
+    Fixes #11894
+    
+    Change-Id: Ib1c123ce1eebdd88642da28a5948ca4f30581907
+    Reviewed-on: https://go-review.googlesource.com/18287
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |   9 +
- src/cmd/compile/internal/ssa/prove.go          | 402 +++++++++++++++----------
- src/cmd/compile/internal/ssa/rewritegeneric.go | 115 +++++++
- test/prove.go                                  |  80 ++++-
- 4 files changed, 440 insertions(+), 166 deletions(-)
+ src/net/http/transport.go      | 6 ++++++
+ src/net/http/transport_test.go | 1 -
+ 2 files changed, 6 insertions(+), 1 deletion(-)

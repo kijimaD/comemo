@@ -1,17 +1,18 @@
-commit 224f05ba8848d2ef897705a5d587f7918037d6b7
+commit 240b1d5b44f51e6bda24256f276909f64fc4b0ea
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 14:44:06 2012 -0500
+Date:   Thu Feb 23 14:43:58 2012 -0500
 
-    runtime: darwin signal masking
+    runtime: linux signal masking
     
-    Fixes #3101 (darwin).
+    Fixes #3101 (Linux).
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5693044
+    https://golang.org/cl/5696043
 
- src/pkg/runtime/os_darwin.h        |  4 ++++
- src/pkg/runtime/sys_darwin_386.s   |  7 +++++++
- src/pkg/runtime/sys_darwin_amd64.s | 10 ++++++++++
- src/pkg/runtime/thread_darwin.c    | 12 +++++++++++-
- 4 files changed, 32 insertions(+), 1 deletion(-)
+ src/pkg/runtime/os_linux.h        | 11 +++++++++++
+ src/pkg/runtime/sys_linux_386.s   | 12 ++++++++++++
+ src/pkg/runtime/sys_linux_amd64.s | 12 ++++++++++++
+ src/pkg/runtime/sys_linux_arm.s   | 10 ++++++++++
+ src/pkg/runtime/thread_linux.c    | 13 ++++++++++++-
+ 5 files changed, 57 insertions(+), 1 deletion(-)

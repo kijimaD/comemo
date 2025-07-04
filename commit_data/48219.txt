@@ -1,13 +1,26 @@
-commit b33592dcfd2c8cf1e574531ecb49af7755864e82
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Feb 26 21:08:52 2022 -0800
+commit d7473fd9076a978352d3bb29c13464c3c17d46c3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 30 17:21:22 2021 -0400
 
-    spec: the -'s possessive suffix is English, not code
+    cmd/link: mangle ABI name for shared linkage
     
-    Change-Id: I2debcf926ef116c632c7366646d37de8686b7c9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388174
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Currently, when ABI wrappers are used, we don't use ABI aliases.
+    One exception is shared linkage. When loading a shared library, if
+    a symbol has only one ABI, and the name is not mangled, we don't
+    know what ABI it is, so we have to use ABI aliases.
+    
+    This CL makes it always mangle ABIInternal function name in shared
+    linkage, so we know what ABI to choose when loading a shared
+    library. And we now can fully stop using ABI aliases when ABI
+    wrappers are used.
+    
+    Change-Id: Id15d9cd72a59f391f54574710ebba7dc44cb6e23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315869
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/lib.go    | 42 +++++---------------------------------
+ src/cmd/link/internal/ld/macho.go  |  2 +-
+ src/cmd/link/internal/ld/pe.go     |  2 +-
+ src/cmd/link/internal/ld/symtab.go | 18 +++++++++++++---
+ 4 files changed, 22 insertions(+), 42 deletions(-)

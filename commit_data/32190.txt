@@ -1,30 +1,15 @@
-commit adc28cb1e03d4fd3e4750cdcc6215976e3e250c9
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Aug 10 11:35:34 2017 +0200
+commit 20edbda5ea38a690d3260e5396c25135afc80069
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Mon Apr 10 13:12:51 2017 -0500
 
-    cmd/dist: add doc file to fix go doc dist
+    cmd/go: add better error message when gccgo is missing
     
-    $ go tool -h says:
+    Fixes #19628
     
-      For more about each tool command, see 'go tool command -h'.
-    
-    but it was suggested to change the suggestion to say:
-    
-      see 'go doc command'
-    
-    In #18313.
-    
-    That would work for every tool except dist, which has no doc.go.
-    
-    This change adds a doc.go file to cmd/dist.
-    
-    Updates #18313
-    
-    Change-Id: If67a21934b87647a69359d9c14d8de3775c587b7
-    Reviewed-on: https://go-review.googlesource.com/54351
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I19baf694c66aaca8e0d95297c97aacb40db24c47
+    Reviewed-on: https://go-review.googlesource.com/40250
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/doc.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/go/internal/work/build.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

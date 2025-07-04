@@ -1,29 +1,19 @@
-commit 34db5f0c4d80b8fe3fb4b5be90efd9ee92bd1d4d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 29 15:40:32 2017 -0700
+commit e94b9d41432a0560328c786b908e59c27a0a6c47
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Thu May 4 16:14:59 2017 +0300
 
-    cmd/compile: fix evaluation order for OASOP
+    cmd/link/internal/ld: fix external linking on windows
     
-    Currently, we handle "x op= y" by rewriting as "x = x op y", while
-    ensuring that any calls or receive operations in 'x' are only
-    evaluated once. Notably, pointer indirection, indexing operations,
-    etc. are left alone as it's typically safe to re-evaluate those.
+    gcc on windows writes invalid location for .debug_gdb_scripts
+    which causes the executable loading to fail.
     
-    However, those operations were interleaved with evaluating 'y', which
-    could include function calls that might cause re-evaluation to yield
-    different memory addresses.
+    Fixes #20183
     
-    As a fix, simply ensure that we order side-effecting operations in 'y'
-    before either evaluation of 'x'.
-    
-    Fixes #21687.
-    
-    Change-Id: Ib14e77760fda9c828e394e8e362dc9e5319a84b2
-    Reviewed-on: https://go-review.googlesource.com/60091
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5134013bc926b44a55b528f66ab79555855d1f4d
+    Reviewed-on: https://go-review.googlesource.com/42651
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/order.go |  3 +-
- test/fixedbugs/issue21687.go         | 68 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,27 +1,15 @@
-commit 16c3f82ed45931775565b8945bcdcd88183dedb6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jul 2 22:37:19 2013 -0700
+commit a44009ca78b26ffc7ecda006131c424b3e7d9075
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 3 11:56:02 2013 +1000
 
-    net/textproto: reduce allocations in ReadMIMEHeader
+    cmd/go: git checkout the correct default branch.
     
-    ReadMIMEHeader is used by net/http, net/mail, and
-    mime/multipart.
+    origin/master is always a remote branch, and it doesn't make sense to
+    switch to a remote branch. master is the default branch that tracks it.
     
-    Don't do so many small allocations. Calculate up front
-    how much we'll probably need.
-    
-    benchmark                  old ns/op    new ns/op    delta
-    BenchmarkReadMIMEHeader         8433         7467  -11.45%
-    
-    benchmark                 old allocs   new allocs    delta
-    BenchmarkReadMIMEHeader           23           14  -39.13%
-    
-    benchmark                  old bytes    new bytes    delta
-    BenchmarkReadMIMEHeader         1705         1343  -21.23%
-    
-    R=golang-dev, r, iant, adg
-    CC=golang-dev
-    https://golang.org/cl/8179043
+    R=adg
+    CC=golang-dev, matt.jibson
+    https://golang.org/cl/10869046
 
- src/pkg/net/textproto/reader.go | 47 +++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 45 insertions(+), 2 deletions(-)
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,12 @@
-commit 60826e0be6e62ae76f5771b22894bd3dc8bade10
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Jan 18 19:00:38 2013 -0800
+commit 1debf5bbd372592bca0294b6c6f0e7ee09f9928c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 17:57:07 2013 -0500
 
-    cmd/6c, cmd/8c: fix print format for Prog
+    api: update next.txt
     
-    The FmtLong flag should only be used with the %D verb
-    when printing an ATEXT Prog. It was erroneously used
-    for every Prog except ADATA. This caused a preponderance
-    of exclamation points, "!!", in the assembly listings.
-    
-    I also cleaned up the code so that the list.c files look
-    very similar. Now the real differences are easily spotted
-    with a simple diff.
-    
-    R=golang-dev, rsc
+    R=golang-dev, minux.ma, dave
     CC=golang-dev
-    https://golang.org/cl/7128045
+    https://golang.org/cl/7135061
 
- src/cmd/6c/list.c | 53 ++++++++++++++++++++++++-----------------------------
- src/cmd/8c/list.c | 55 +++++++++++++++++++++++++++++++++++--------------------
- 2 files changed, 59 insertions(+), 49 deletions(-)
+ api/next.txt | 118 ++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 104 insertions(+), 14 deletions(-)

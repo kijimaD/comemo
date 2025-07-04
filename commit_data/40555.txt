@@ -1,16 +1,27 @@
-commit fb29e2252c543892501b79b4e65a98f86be07bab
+commit 1531192272dfdebc61050a8dafa626ff4b36b3a4
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Nov 3 10:57:00 2019 -0800
+Date:   Tue Apr 30 21:06:01 2019 -0700
 
-    misc/cgo/testcarchive: add missing exit(0) in main7.c
+    runtime: remove VDSO fallback test and benchmarks
     
-    Fixes #35327
+    These tests assume that it is OK to switch between time implementations,
+    but the clock_gettime call uses CLOCK_MONOTONIC and the fallback call,
+    gettimeofday, uses CLOCK_REALTIME. Disabling the clock_gettime call means
+    that calls to nanotime will start returning very different values.
+    This breaks the new timer code, which assumes that nanotime will return
+    a consistently increasing value.
     
-    Change-Id: I3726bfad24851a0bef8891014f7c5a7c48352307
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205077
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This test is not very useful in any case as it doesn't check the results.
+    
+    Removing this file also removes BenchmarkTimeNow, which is a duplicate
+    of BenchmarkNow in the time package.
+    
+    Updates #27707
+    Fixes #32109
+    
+    Change-Id: I6a884af07f75822d724193c5eed94742f524f07d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174679
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcarchive/testdata/main7.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/vdso_linux_test.go | 63 ------------------------------------------
+ 1 file changed, 63 deletions(-)

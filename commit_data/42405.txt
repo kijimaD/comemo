@@ -1,17 +1,27 @@
-commit 0d20a492823211cd816ded24c98cfcd58b198faa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 21 00:09:34 2020 -0400
+commit 664accc7be901bca737ff8d01377adf36704eb27
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Nov 27 12:33:35 2019 -0500
 
-    run.bat: use ..\bin\go instead of "go" to install std and cmd
+    [dev.link] cmd/link: remove sym.Symbols from loader
     
-    The paths for the other "go" commands in this file were fixed in CL 223741,
-    but this one was missed (and run.bat is not caught by the builders).
+    Pushing the wavefront forward requires a single source of truth for
+    symbols. This CL removes sym.Symbols from the loader for host object
+    loaders, allowing us to have the single source of truth for symbols be
+    the loader, not some strange combination of sym.Symbols and the loader.
     
-    Change-Id: Iba1efddc7d2fbe6af39c39d643508decc954bbc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234758
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib8ff0117ebe6040fade346047535ff342d781081
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209217
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/run.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/ar.go             |  5 ++-
+ src/cmd/link/internal/ld/lib.go            | 34 +++++++---------
+ src/cmd/link/internal/loadelf/ldelf.go     |  7 ++--
+ src/cmd/link/internal/loader/loader.go     | 62 ++++++++++++++++++++----------
+ src/cmd/link/internal/loadmacho/ldmacho.go |  7 ++--
+ src/cmd/link/internal/loadpe/ldpe.go       |  5 +--
+ src/cmd/link/internal/loadxcoff/ldxcoff.go | 15 ++++----
+ src/cmd/link/internal/sym/symbols.go       |  1 +
+ 8 files changed, 74 insertions(+), 62 deletions(-)

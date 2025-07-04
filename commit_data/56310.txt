@@ -1,18 +1,28 @@
-commit 0e7f5cf30ba43f4d388803642b4173e5af20e761
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Apr 26 14:47:37 2024 -0400
+commit e8c8b79f000515e086012df632f01fc0ec21076b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Apr 26 16:41:41 2023 -0400
 
-    doc/README.md: discourage RELNOTE in CLs
+    cmd/api: remove unused functionality
     
-    Release notes should always be files under doc/next. Make it clear that
-    this is the only way to add them: RELNOTE markers in CLs are no longer
-    supported.
+    We no longer use the optional parameter to compareAPI.
+    We now always set allowAdd to false.
+    (Except in tests, making them less useful than they could be.)
+    Flags and parsing their value are no more.
     
-    Change-Id: I34d77eb876f57b84ecdc7e5ecbf3eb5c91e6fed8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582075
+    Remove all the unused functionality and update test cases so they're
+    closer to what the API checker does when it runs for real. Order the
+    features, required, exception variables and fields more consistently.
+    
+    For #43956.
+    
+    Change-Id: Iaa4656a89a3fca3129742165a448d385e55e4a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489436
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/README.md | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/api/api.go      | 65 ++++++++-----------------------------------------
+ src/cmd/api/api_test.go | 59 ++++++++++++++++++++++++++++----------------
+ 2 files changed, 48 insertions(+), 76 deletions(-)

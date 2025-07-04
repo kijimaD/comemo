@@ -1,21 +1,29 @@
-commit 32fdad19a246143ae4f194d1b39886d778de1380
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 18 12:14:20 2022 -0700
+commit 1607c2817241bd141af9331a3e6c3148e5cd5d8b
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri May 28 11:58:05 2021 -0400
 
-    bytes: restore old Trim/TrimLeft behavior for nil
+    go/types: unexport the GoVersion configuration option for Go 1.17
     
-    Keep returning nil for the cases where we historically returned nil,
-    even though this is slightly different for TrimLeft and TrimRight.
+    The GoVersion field was added to types.Config as part of the work on
+    type parameters. Specifically, it was added to be consistent with
+    cmd/compile/internal/types2, which requires such an option.
     
-    Fixes #51793
+    This configuration option is useful, but is also non-trivial and did not
+    go through the proposal process. Unexport it for Go 1.17; we can create
+    a proposal to export it for Go 1.18.
     
-    Change-Id: Ifbdfc6b09d52b8e063cfe6341019f9b2eb8b70e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393876
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #46296
+    
+    Change-Id: Id82d8a7096887dcfc404c4d6d8da9c761b316609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323430
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bytes/bytes.go      | 24 +++++++++++--
- src/bytes/bytes_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 106 insertions(+), 11 deletions(-)
+ src/go/types/api.go         | 4 ++--
+ src/go/types/check.go       | 4 ++--
+ src/go/types/check_test.go  | 2 +-
+ src/go/types/stdlib_test.go | 3 ++-
+ src/go/types/types_test.go  | 6 ++++++
+ 5 files changed, 13 insertions(+), 6 deletions(-)

@@ -1,16 +1,25 @@
-commit 8c5dbba01c9e661ca33a0cb1783c10c71d34da8d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 12 12:10:03 2019 -0500
+commit e301e165ac3bd591a2c8b52dcc5bdd2b0ef68191
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 26 17:09:14 2019 +0000
 
-    crypto/tls: retry ETIMEDOUT flakes in localPipe on dragonfly
+    Revert "syscall: use Ctty before fd shuffle"
     
-    Fixes #29583
+    This reverts commit 103b5b66921b351f8db4fc6e83bf147b1a0d7580.
     
-    Change-Id: Ia89433bddd4c9f67ec1f0150b730cde8a7e973ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206759
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reason for revert: Breaks valid existing programs.
+    
+    Updates #29458
+    
+    Change-Id: I7ace4ae404cf2a8b0e15e646663c50115f74b758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183939
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Greg Thelen <gthelen@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/handshake_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/os/signal/signal_cgo_test.go | 11 -----------
+ src/syscall/exec_bsd.go          | 32 +++++++++++++++---------------
+ src/syscall/exec_darwin.go       | 32 +++++++++++++++---------------
+ src/syscall/exec_libc.go         | 42 ++++++++++++++++++++--------------------
+ src/syscall/exec_linux.go        | 32 +++++++++++++++---------------
+ 5 files changed, 69 insertions(+), 80 deletions(-)

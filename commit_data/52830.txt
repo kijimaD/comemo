@@ -1,27 +1,25 @@
-commit 73a4684caa1567c06e239dc657b82ede77777e3b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 28 17:46:00 2023 -0700
+commit 2fa45a4fcd57070967f081f3a5c33014c3f29fea
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 3 07:50:58 2022 -0400
 
-    go/types, types2: isParameterized must be able to handle tuples
+    cmd/link/internal/loadpe: handle _main reference properly
     
-    CL 484615 rewrote isParameterized by handling tuple types only where
-    they occur (function signatures). However, isParameterized is also
-    called from Checker.callExpr, with a result parameter list which
-    is a tuple. This CL handles tuples again.
+    When building CGO internal linking on windows 386, make sure to avoid
+    rewriting references to "_main" to "main" when reading symbols during
+    host object loading; the main routine defined by the Go runtime is
+    still named "_main" (not "main"). If we don't do this, we wind up with
+    an SXREF symbol named "main", which can then cause the loader to pull
+    an actual "main" symbol out of a host archive, which is undesirable.
     
-    Fixes #59890.
+    Updates #35006.
     
-    Change-Id: I35159ff65f23322432557e6abcab939933933d40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490695
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I3768e3617b560552f4522e9e72af879c6adf7705
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410124
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go             |  4 ++--
- src/cmd/compile/internal/types2/infer.go            | 10 +++++++---
- src/go/types/call.go                                |  4 ++--
- src/go/types/infer.go                               | 10 +++++++---
- src/internal/types/testdata/fixedbugs/issue59890.go | 17 +++++++++++++++++
- 5 files changed, 35 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/loadpe/ldpe.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

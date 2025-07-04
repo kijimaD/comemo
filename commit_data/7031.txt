@@ -1,15 +1,20 @@
-commit 8184778abf3d60fd436541368077a08f3b4287b9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 4 13:16:50 2011 -0800
+commit 6773f1426ff40948d939770a7fc9656072d0ddcd
+Author: Icarus Sparry <golang@icarus.freeuk.com>
+Date:   Tue Jan 4 13:16:29 2011 -0800
 
-    fix occurrences of occur[^sr .,?!;\n]
+    The Dec 06 change
+            changeset:   6839:545c9926d61a
+            user:        Robert Griesemer <gri@golang.org>
+            date:        Mon Dec 06 14:23:18 2010 -0800
+            summary:     go/ast: use token.Pos instead of token.Position; adjust all dependent code
+    broke 'godoc -src fmt', one of the example uses of godoc. It gives a stack backtrace essentially
+    caused by dereferencing a NULL pointer (in C terms). This change fixes the particular issue, but
+    the code probably should be made more robust.
+    Fixes #3818044.
     
-    R=r, r2
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/3794043
+    https://golang.org/cl/3818044
 
- src/pkg/exp/datafmt/datafmt.go                | 2 +-
- src/pkg/go/parser/interface.go                | 2 +-
- src/pkg/go/printer/printer.go                 | 4 ++--
- src/pkg/index/suffixarray/suffixarray_test.go | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ lib/godoc/package.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

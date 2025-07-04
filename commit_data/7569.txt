@@ -1,13 +1,22 @@
-commit 625bcf9f16876865715508d837dd9c36a34e90d7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Feb 25 14:13:14 2011 +1100
+commit 6ca009f58d0d183360cb05cbca71227a712dae53
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 24 20:19:53 2011 -0500
 
-    release.2011-02-24
+    crypto/openpgp: add package
     
-    R=r, rsc
+    R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4213044
+    https://golang.org/cl/3989052
 
- .hgtags                |  1 -
- doc/devel/release.html | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 1 deletion(-)
+ src/pkg/Makefile                              |   6 +
+ src/pkg/crypto/openpgp/Makefile               |  14 +
+ src/pkg/crypto/openpgp/canonical_text.go      |  58 ++++
+ src/pkg/crypto/openpgp/canonical_text_test.go |  50 ++++
+ src/pkg/crypto/openpgp/keys.go                | 280 +++++++++++++++++
+ src/pkg/crypto/openpgp/packet/packet.go       |   4 +-
+ src/pkg/crypto/openpgp/packet/public_key.go   |   2 +-
+ src/pkg/crypto/openpgp/read.go                | 413 ++++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/read_test.go           | 237 +++++++++++++++
+ src/pkg/crypto/openpgp/write.go               |  92 ++++++
+ src/pkg/crypto/openpgp/write_test.go          |  34 +++
+ 11 files changed, 1187 insertions(+), 3 deletions(-)

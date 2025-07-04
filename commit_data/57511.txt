@@ -1,34 +1,25 @@
-commit e3cbda934ce5fa42b324f2042c5ee30a2a2e7c8c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 23 10:46:41 2024 -0700
+commit 41c71d48a126b1429babad2c1df23b773b1fc702
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jun 27 11:30:29 2023 -0500
 
-    go/types, types2: print type parameters for Alias tyoes
+    cmd/compile/internal: add RLDICR opcode for PPC64
     
-    Like for Named types, print type parameters for Alias types.
+    This is encoded similarly to RLDICL, but can clear the least
+    significant bits.
     
-    Add test case for Alias object string to existing test.
-    To make the test work, factor out the mechanism to set
-    GOEXPERIMENT=aliastypeparams at test time and use it
-    for this test as well.
+    Likewise, update the auxint encoding of RLDICL to match those
+    used by the rotate and mask word ssa opcodes for easier usage
+    within lowering rules. The RLDICL ssa opcode is not used yet.
     
-    No test case for un-instantiated generic type Alias type
-    string: there's no existing test framework, the code is
-    identical as for Named types, and these strings only appear
-    in tracing output. Tested manually.
-    
-    Change-Id: I476d04d0b6a7c18b79be1d34a9e3e072941df83f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615195
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I42486dd95714a3e8e2f19ab237a6cf3af520c905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515575
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/check_test.go  | 26 ++++++++++++++++++--------
- src/cmd/compile/internal/types2/object.go      |  2 +-
- src/cmd/compile/internal/types2/object_test.go |  6 +++++-
- src/cmd/compile/internal/types2/typestring.go  |  3 +++
- src/go/types/check_test.go                     | 26 ++++++++++++++++++--------
- src/go/types/object.go                         |  2 +-
- src/go/types/object_test.go                    |  4 +++-
- src/go/types/typestring.go                     |  3 +++
- 8 files changed, 52 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go         | 30 +++++++++---------
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  3 +-
+ src/cmd/compile/internal/ssa/opGen.go         | 45 ++++++++++++++++++---------
+ 3 files changed, 48 insertions(+), 30 deletions(-)

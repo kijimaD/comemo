@@ -1,20 +1,14 @@
-commit 82ae6434b3a95beb64f708078af5a525088d6ccc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 22 17:41:00 2012 -0800
+commit e49a183b760c6ac84d9fe8f63c26d92b5e162c01
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 17:23:50 2012 -0500
 
-    net/http: match curl and others' NO_PROXY wildcard handling
+    runtime/debug: document that Stack is deprecated
     
-    NO_PROXY="example.com" should match "foo.example.com", just
-    the same as NO_PROXY=".example.com".  This is what curl and
-    Python do.
+    Fixes #4070.
     
-    Fixes #4574
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7005049
+    https://golang.org/cl/7004050
 
- src/pkg/net/http/proxy_test.go     |  2 +-
- src/pkg/net/http/transport.go      | 10 ++++++-
- src/pkg/net/http/transport_test.go | 60 ++++++++++++++++++++++++++++----------
- 3 files changed, 55 insertions(+), 17 deletions(-)
+ src/pkg/runtime/debug/stack.go | 2 ++
+ 1 file changed, 2 insertions(+)

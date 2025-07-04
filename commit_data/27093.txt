@@ -1,44 +1,35 @@
-commit a3703618eadeb74b60f2cb9a23fabe178d4b141d
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Apr 5 15:29:14 2016 +0200
+commit 0b281872e6390eb93c8bb176a20c72fef3d726d3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 14:35:39 2016 -0800
 
-    runtime: use per-goroutine sequence numbers in tracer
+    cmd/compile: rename ssa.Type's Elem method to ElemType
     
-    Currently tracer uses global sequencer and it introduces
-    significant slowdown on parallel machines (up to 10x).
-    Replace the global sequencer with per-goroutine sequencer.
+    I would like to add a
     
-    If we assign per-goroutine sequence numbers to only 3 types
-    of events (start, unblock and syscall exit), it is enough to
-    restore consistent partial ordering of all events. Even these
-    events don't need sequence numbers all the time (if goroutine
-    starts on the same P where it was unblocked, then start does
-    not need sequence number).
-    The burden of restoring the order is put on trace parser.
-    Details of the algorithm are described in the comments.
+        func (t *Type) Elem() *Type
     
-    On http benchmark with GOMAXPROCS=48:
-    no tracing: 5026 ns/op
-    tracing: 27803 ns/op (+453%)
-    with this change: 6369 ns/op (+26%, mostly for traceback)
+    method to package gc, but that would collide with the existing
     
-    Also trace size is reduced by ~22%. Average event size before: 4.63
-    bytes/event, after: 3.62 bytes/event.
+        func (t *Type) Elem() ssa.Type
     
-    Besides running trace tests, I've also tested with manually broken
-    cputicks (random skew for each event, per-P skew and episodic random skew).
-    In all cases broken timestamps were detected and no test failures.
+    method needed to make *gc.Type implement ssa.Type.  Because the latter
+    is much less widely used right now than the former will be, this CL
+    renames it to ElemType.
     
-    Change-Id: I078bde421ccc386a66f6c2051ab207bcd5613efa
-    Reviewed-on: https://go-review.googlesource.com/21512
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Longer term, hopefully gc and ssa will share a common Type interface,
+    and ElemType can go away.
+    
+    Change-Id: I270008515dc4c01ef531cf715637a924659c4735
+    Reviewed-on: https://go-review.googlesource.com/20546
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/trace/order.go       | 278 ++++++++++++++++++++++++++++++++++++++
- src/internal/trace/parser.go      | 208 +++++++++++++++-------------
- src/internal/trace/parser_test.go |   8 +-
- src/runtime/proc.go               |  25 +---
- src/runtime/runtime2.go           |  21 +--
- src/runtime/trace.go              | 121 +++++++++--------
- 6 files changed, 478 insertions(+), 183 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 2 +-
+ src/cmd/compile/internal/gc/type.go            | 8 ++++++--
+ src/cmd/compile/internal/ssa/deadstore.go      | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 8 ++++----
+ src/cmd/compile/internal/ssa/type.go           | 6 +++---
+ src/cmd/compile/internal/ssa/type_test.go      | 2 +-
+ 7 files changed, 18 insertions(+), 14 deletions(-)

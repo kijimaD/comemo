@@ -1,0 +1,20 @@
+commit c7f70433d9110e0f2be9be025545a9eeaa6b5dbc
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Sep 30 16:29:40 2024 +0000
+
+    go/ast: update (*File).Imports field in SortImports
+    
+    Fixes #69694
+    
+    Change-Id: I7884d42482f4f9d17e7d050d7c7730f20948169d
+    GitHub-Last-Rev: ecd6efabaa43cc87e31e94002febc9ed4273125a
+    GitHub-Pull-Request: golang/go#69695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616340
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/ast/import.go                          | 10 ++++
+ src/go/ast/internal/tests/sortimports_test.go | 78 +++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+)

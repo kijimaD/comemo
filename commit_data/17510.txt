@@ -1,14 +1,18 @@
-commit 933d7129c07e32ffa403c94634fa0c7045f6b3d8
+commit 85195e2ccfcba41f1d0a4c8a6e1db6b3b6cc9691
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 13:03:59 2013 -0400
+Date:   Mon Sep 9 12:30:53 2013 -0400
 
-    cmd/gc: squelch spurious "invalid recursive type" error
+    cmd/gc: more detail in import conflict error message
+    
+    Cannot happen when using the go command, but help
+    people running commands by hand or with other tools.
+    
+    Fixes #5888.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/13512047
+    https://golang.org/cl/13324048
 
- src/cmd/gc/align.c          |  6 ++++--
- src/cmd/gc/typecheck.c      |  8 +++++++-
- test/fixedbugs/issue5581.go | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+), 3 deletions(-)
+ src/cmd/gc/export.c | 6 ++++--
+ src/cmd/gc/go.h     | 1 +
+ 2 files changed, 5 insertions(+), 2 deletions(-)

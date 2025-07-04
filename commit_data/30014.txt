@@ -1,21 +1,20 @@
-commit 871300308a6c14ccaaed16e201752ee53b3b4037
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Dec 21 11:07:11 2016 +0100
+commit c9517b1ffe7c99a3fd2a748fab51645bd674ad75
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sun Oct 16 22:18:01 2016 +0200
 
-    cmd/compile: never report "truncated to real" for toint calls
+    compress/gzip, compress/zlib: add HuffmanOnly as compression levels.
     
-    Whoever called toint() is expecting the {Mpint, Mpflt, Mpcplx} arg to
-    be converted to an integer expression, so it never makes sense to
-    report an error as "constant X truncated to real".
+    This exposes HuffmanOnly in zlib and gzip packages, which is currently
+    unavailable.
     
-    Fixes #11580
-    
-    Change-Id: Iadcb105f0802358a7f77188c2b1e63fe80c5580c
-    Reviewed-on: https://go-review.googlesource.com/34638
+    Change-Id: If5d103bbc8b5fce2f5d740fd103a235c5d1ed7cd
+    Reviewed-on: https://go-review.googlesource.com/31186
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 6 ++----
- test/fixedbugs/issue16439.go         | 2 +-
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ src/compress/gzip/gzip.go        |  9 +++++----
+ src/compress/zlib/writer.go      | 11 ++++++-----
+ src/compress/zlib/writer_test.go |  5 +++++
+ 3 files changed, 16 insertions(+), 9 deletions(-)

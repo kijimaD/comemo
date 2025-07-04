@@ -1,13 +1,15 @@
-commit 83d4cd758c20bdfa1acb13a14425db692bc445e2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Jun 2 01:45:26 2013 +0400
+commit bf9a00bc8f048e2ca8d9d12d0bcf5dfc41505693
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jun 1 16:33:54 2013 +0200
 
-    runtime: minor code style improvements (followup to change 9778049)
+    cmd/gc: fix overflow in array bounds calculation.
     
-    R=golang-dev, r
+    Fixes #5609.
+    
+    R=golang-dev, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/9693044
+    https://golang.org/cl/9757045
 
- src/pkg/runtime/malloc.goc | 2 +-
- src/pkg/runtime/symtab.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/typecheck.c      |  8 ++++----
+ test/fixedbugs/issue5609.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 4 deletions(-)

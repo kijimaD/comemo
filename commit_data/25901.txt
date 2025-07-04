@@ -1,19 +1,15 @@
-commit 0168c2676f73071331cd385cb3d174313c857738
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 23 18:45:18 2015 -0500
+commit c091d4cd2590aaddf4bcfc9b1fa1bae22ae63bae
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Wed Nov 25 17:35:44 2015 -0800
 
-    runtime: use only per-P gcWork
+    runtime: set TLSG_IS_VARIABLE for android/arm64.
     
-    Currently most uses of gcWork use the per-P gcWork, but there are two
-    places that still use a stack-based gcWork. Simplify things by making
-    these instead use the per-P gcWork.
+    On android, runtime.tls_g is a normal variable.
+    TLS offset is computed in x_cgo_inittls.
     
-    Change-Id: I712d012cce9dd5757c8541824e9641ac1c2a329c
-    Reviewed-on: https://go-review.googlesource.com/19636
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I18bc9a736d5fb2a89d0f798956c754e3c10d10e2
+    Reviewed-on: https://go-review.googlesource.com/17246
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/mgc.go     | 8 ++++----
- src/runtime/mgcwork.go | 8 --------
- 2 files changed, 4 insertions(+), 12 deletions(-)
+ src/runtime/tls_arm64.h | 1 +
+ 1 file changed, 1 insertion(+)

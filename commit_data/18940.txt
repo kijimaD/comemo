@@ -1,12 +1,32 @@
-commit bee3848f4e252578c7439890a92e534b39c1e690
+commit 4ebfa8319914e1ed9727592d1fa360ce339b7597
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 25 14:17:00 2014 -0700
+Date:   Tue Mar 25 13:22:19 2014 -0700
 
-    runtime: fix windows build (buggy commit in 19543:d68b79ccbfed)
+    runtime: accurately record whether heap memory is reserved
     
-    TBR=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/80090043
+    The existing code did not have a clear notion of whether
+    memory has been actually reserved.  It checked based on
+    whether in 32-bit mode or 64-bit mode and (on GNU/Linux) the
+    requested address, but it confused the requested address and
+    the returned address.
+    
+    LGTM=rsc
+    R=rsc, dvyukov
+    CC=golang-codereviews, michael.hudson
+    https://golang.org/cl/79610043
 
- src/pkg/runtime/mem_windows.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/malloc.goc      | 21 +++++++++++++++------
+ src/pkg/runtime/malloc.h        | 13 ++++++++++---
+ src/pkg/runtime/mem_darwin.c    |  7 +++++--
+ src/pkg/runtime/mem_dragonfly.c | 13 ++++++++-----
+ src/pkg/runtime/mem_freebsd.c   | 13 ++++++++-----
+ src/pkg/runtime/mem_linux.c     | 10 ++++++----
+ src/pkg/runtime/mem_nacl.c      | 11 +++++++----
+ src/pkg/runtime/mem_netbsd.c    | 11 +++++++----
+ src/pkg/runtime/mem_openbsd.c   | 11 +++++++----
+ src/pkg/runtime/mem_plan9.c     |  7 ++++---
+ src/pkg/runtime/mem_solaris.c   | 11 +++++++----
+ src/pkg/runtime/mem_windows.c   |  7 +++++--
+ src/pkg/runtime/mgc0.c          |  2 +-
+ src/pkg/runtime/mheap.c         |  2 +-
+ 14 files changed, 91 insertions(+), 48 deletions(-)

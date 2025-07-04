@@ -1,16 +1,21 @@
-commit 8050782cba45c739bfb2cd735766879098c48d99
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 23 13:54:01 2016 -0700
+commit 01d5e63faa7cbfe10c6c45a788cd9859da2dfcdb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 26 13:18:14 2016 -0400
 
-    flag: improve comment for calling String with zero value
+    cmd/compile/internal/gc: rewrite comment to avoid automated meaning
     
-    Update #16694.
+    The comment says 'DΟ NΟT SUBMIT', and that text being in a file can cause
+    automated errors or warnings when trying to check the Go sources into other
+    source control systems.
     
-    Change-Id: Id6be1535d8a146b3dac3bee429ce407a51272032
-    Reviewed-on: https://go-review.googlesource.com/27634
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    (We reject that string in CL commit messages, which I've avoided here
+    by changing the O's to Ο's above.)
+    
+    Change-Id: I6cdd57a8612ded5208f05a8bd6b137f44424a030
+    Reviewed-on: https://go-review.googlesource.com/22434
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/flag/flag.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

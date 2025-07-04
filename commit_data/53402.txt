@@ -1,18 +1,28 @@
-commit 4406e8ef4695fbe5c04b615d18704e83dc57ffc5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 31 11:51:28 2023 -0700
+commit 2c5b1746164581c7393a7a7f7ba796e823af0248
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Wed Aug 3 19:43:49 2022 +0800
 
-    doc/go1.21: mention upgrade to Unicode 15.0.0
+    cmd/link: recognize the new R_LARCH_32_PCREL type on loong64
     
-    For #48621
-    For #55079
+    Due to the latest binutils change [1], at least for certain 32-bit
+    relocs in .eh_frame section, this new type of relocation record is
+    emitted, leading to breakage on systems with bleeding-edge toolchain
+    when trying to link with object(s) with such new-style relocs.
     
-    Change-Id: I279b4fbf07d2fa9de9577559a4e17a57f5692aa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499618
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Simply treating it the same as the existing reloc types seems enough.
+    
+    Fixes #54222
+    
+    [1]: https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=f09482a8747b6fd4c2d59a6a64677d3a3fe1e092
+    
+    Change-Id: I876d6711d5d4a674bead37e57f9503f1622d1136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420983
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/go1.21.html | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

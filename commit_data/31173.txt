@@ -1,27 +1,26 @@
-commit 38521004edcb26ef925690302787e965712c5d71
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 13 12:31:31 2017 -0400
+commit 2cab41d5cb813956a367c464afc0b16b2c418331
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 14:51:57 2017 -0500
 
-    runtime: make internal CallersFrames-equivalent that doesn't escape PC slice
+    cmd/go: split out cmd/go/internal/help
     
-    The Frames API forces the PC slice to escape to the heap because it
-    stores it in the Frames object. However, we'd like to use this API for
-    call stack expansion internally in the runtime in places where it
-    would be very good to avoid heap allocation.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    This commit makes this possible by pulling the bulk of the Frames
-    implementation into an internal frameExpander API. The key difference
-    between these APIs is that the frameExpander does not hold the PC
-    slice; instead, the caller is responsible for threading the PC slice
-    through the frameExpander API calls. This makes it possible to keep
-    the PC slice on the stack. The Frames API then becomes a thin shim
-    around the frameExpander that keeps the PC slice in the Frames object.
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
     
-    Change-Id: If6b2d0b9132a2a905a0cf5deced9feddce76fc0e
-    Reviewed-on: https://go-review.googlesource.com/40610
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Lazar <lazard@golang.org>
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I4cf05b076d81b780c87a31378523929b5da8964b
+    Reviewed-on: https://go-review.googlesource.com/36194
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/symtab.go | 89 ++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 56 insertions(+), 33 deletions(-)
+ src/cmd/go/internal/base/base.go                 |   4 +
+ src/cmd/go/internal/help/help.go                 | 178 ++++++++++++++++++++
+ src/cmd/go/{help.go => internal/help/helpdoc.go} |  16 +-
+ src/cmd/go/main.go                               | 196 ++---------------------
+ 4 files changed, 205 insertions(+), 189 deletions(-)

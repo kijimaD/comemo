@@ -1,15 +1,17 @@
-commit ee908748265debed97592f63a40f41a17e9c9d2a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 30 07:57:20 2013 -0800
+commit 660c4cde9ce10ff158fc76bf8f75c9d0e880d346
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Wed Jan 30 07:56:08 2013 -0800
 
-    encoding/xml: add (*Encoder).Indent
+    include: Plan 9: hide any previous definition of Runemax
     
-    Exposing this on the Encoder allows streaming generation of indented XML.
+    Runemax is already defined in libc on 64-bit version of
+    Plan 9, but is not defined on other versions.
+    To accommodate, we make sure to rename any previous
+    instance of Runemax and re-define it subsequently.
     
-    R=golang-dev, rogpeppe
+    R=rsc, ality, rminnich
     CC=golang-dev
-    https://golang.org/cl/7221075
+    https://golang.org/cl/7232059
 
- src/pkg/encoding/xml/example_test.go | 40 ++++++++++++++++++++++++++++++++++++
- src/pkg/encoding/xml/marshal.go      | 11 ++++++++--
- 2 files changed, 49 insertions(+), 2 deletions(-)
+ include/plan9/libc.h | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,16 +1,13 @@
-commit d54c4ecc329c22a8a79dd4d91a4df8bf41920bf4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 30 11:40:00 2011 +1100
+commit 57c6d36f954bdc0fa60f4312d2e7b93e0fab7a46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 15:04:19 2011 -0700
 
-    time: make TestAfterQueuing retry 3 times before declaring failure.
+    test: add test for interfaces with unexported methods.
     
-    I'm in two minds as to whether this should be a function of gotest.
-    Tests that can flake out like this should be rare enough that we
-    needn't add more mechanism.
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4335042
+    https://golang.org/cl/4271086
 
- src/pkg/time/sleep_test.go | 23 ++++++++++++++++++++---
- 1 file changed, 20 insertions(+), 3 deletions(-)
+ test/interface/private.go  | 32 ++++++++++++++++++++++++++++++++
+ test/interface/private1.go | 18 ++++++++++++++++++
+ 2 files changed, 50 insertions(+)

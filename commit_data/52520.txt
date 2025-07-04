@@ -1,22 +1,28 @@
-commit 2afaa018550ceb42e7a89d1bb53e7fe2d3890377
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Mon May 14 13:50:56 2018 +0200
+commit 831f1168289e65a7ef49942ad8d16cf14af2ef43
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Sun Jan 9 20:29:40 2022 +0000
 
-    encoding/binary: add word size to the error message of the failed constraint
+    math/big: don't force second arg to Jacobi and Int.ModSqrt to escape
     
-    Test added.
+    This CL updates big.Jacobi to avoid forcing its y argument to escape
+    to the heap. The argument was escaping because it was being passed
+    through an empty interface to fmt.Sprintf during an assertion failure.
+    As a result, callers of Jacobi and Int.ModSqrt (which calls Jacobi)
+    could not keep this value on the stack.
     
-    Fixes #22860
+    Noticed when working on https://github.com/cockroachdb/apd/pull/103.
     
-    Change-Id: I08304834a2b7b10b4ac729bf36761692eb4731da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/113075
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5db9ee2149bf13b921886929425861721b53b085
+    GitHub-Last-Rev: 3ee07b5dc3292553cc0cd0eb2d38ef036c341a9d
+    GitHub-Pull-Request: golang/go#50527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377014
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/encoding/binary/binary.go      |  2 +-
- src/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

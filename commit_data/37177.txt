@@ -1,16 +1,23 @@
-commit f14067f3c10e15343f29aed439ff60af856eb323
-Author: Keith Randall <khr@google.com>
-Date:   Mon Oct 29 17:02:42 2018 -0700
+commit b001ffb864ce5486c6edbe98202d3e0687313ce2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jul 8 01:05:18 2018 +0200
 
-    cmd/compile: when comparing 0-size types, make sure expr side-effects survive
+    runtime: fix TestAbort on Plan 9
     
-    Fixes #23837
+    Since CL 122515, TestAbort is failing on Plan 9
+    because there is no SIGTRAP signal on Plan 9,
+    but a note containing the "sys: breakpoint" string.
     
-    Change-Id: I53f524d87946a0065f28a4ddbe47b40f2b43c459
-    Reviewed-on: https://go-review.googlesource.com/c/145757
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This change fixes the TestAbort test by handling
+    the Plan 9 case.
+    
+    Fixes #26265.
+    
+    Change-Id: I2fae00130bcee1cf946d8cc9d147a77f951be390
+    Reviewed-on: https://go-review.googlesource.com/122464
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/walk.go |  8 +++++
- test/fixedbugs/issue23837.go        | 70 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+)
+ src/runtime/crash_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,23 +1,26 @@
-commit 2fdb728d01df54ee2c9c9b80e75d7bee19727af6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 23 17:05:30 2015 +0900
+commit da47902d02c4eb11547241ca32542709341bba7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:16:03 2015 -0500
 
-    runtime: simplify NetBSD semaphores
+    cmd/9a, cmd/9g, cmd/9l, liblink: update for portable Prog, Addr
     
-    NetBSD's semaphore implementation is derived from OpenBSD's, but has
-    subsequently diverged due to cleanups that were only applied to the
-    latter (https://golang.org/cl/137960043, https://golang.org/cl/5563).
-    This CL applies analogous cleanups for NetBSD.
-    
-    Notably, we can also remove the scary NetBSD deadlock warning.
-    NetBSD's manual pages document that lwp_unpark on a not-yet-parked LWP
-    will cause that LWP's next lwp_park system call to return immediately,
-    so there's no race hazard.
-    
-    Change-Id: Ib06844c420d2496ac289748eba13eb4700bbbbb2
-    Reviewed-on: https://go-review.googlesource.com/5564
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Joel Sing <jsing@google.com>
+    Change-Id: I55afed0eabf3c38e72ff105294782ac36446b66b
+    Reviewed-on: https://go-review.googlesource.com/3519
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/runtime/os1_netbsd.go | 102 +++++++++++-----------------------------------
- 1 file changed, 24 insertions(+), 78 deletions(-)
+ src/cmd/9a/a.y      |  271 +++++-----
+ src/cmd/9a/lex.c    |  192 +++----
+ src/cmd/9a/y.tab.c  | 1440 +++++++++++++++++++++++++--------------------------
+ src/cmd/9g/cgen.c   |   26 +-
+ src/cmd/9g/galign.c |   11 -
+ src/cmd/9g/ggen.c   |  116 ++---
+ src/cmd/9g/gobj.c   |   48 +-
+ src/cmd/9g/gsubr.c  |  171 +++---
+ src/cmd/9g/peep.c   |   98 ++--
+ src/cmd/9g/prog.c   |   16 +-
+ src/cmd/9g/reg.c    |  101 ++--
+ src/cmd/9l/9.out.h  |  176 ++++---
+ src/liblink/asm9.c  |  213 ++++----
+ src/liblink/list9.c |  157 +++---
+ src/liblink/obj9.c  |  282 ++++------
+ 15 files changed, 1574 insertions(+), 1744 deletions(-)

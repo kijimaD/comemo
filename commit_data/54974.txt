@@ -1,58 +1,21 @@
-commit c06beb9eff441271bedf34ea9777a92db8018f9d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 10 22:46:47 2023 +0000
+commit 53c480077ab6729e64a4129162664adb70b18c62
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 29 10:48:37 2022 -0500
 
-    internal/trace/v2: resolve syscall parsing ambiguity
+    doc/go1.20: revise linker release note
     
-    After landing the new execution tracer, the Windows builders failed with
-    some new errors.
+    I misunderstood CL 420774. We didn't remove GO_LDSO, just that
+    make.bash no longer tries to set it automatically. If GO_LDSO is
+    explicitly set at make.bash, it is still used as the default
+    dynamic interpreter.
     
-    Currently the GoSyscallBegin event has no indicator that its the target
-    of a ProcSteal event. This can lead to an ambiguous situation that is
-    unresolvable if timestamps are broken. For instance, if the tracer sees
-    the ProcSteal event while a goroutine has been observed to be in a
-    syscall (one that, for instance, did not actually lose its P), it will
-    proceed with the ProcSteal incorrectly.
+    For #54202.
     
-    This is a little abstract. For a more concrete example, see the
-    go122-syscall-steal-proc-ambiguous test.
-    
-    This change resolves this ambiguity by interleaving GoSyscallBegin
-    events into how Ps are sequenced. Because a ProcSteal has a sequence
-    number (it has to, it's stopping a P from a distance) it necessarily
-    has to synchronize with a precise ProcStart event. This change basically
-    just extends this synchronization to GoSyscallBegin, so the ProcSteal
-    can't advance until _exactly the right_ syscall has been entered.
-    
-    This change removes the test skip, since it and CL 541695 fix the two
-    main issues observed on Windows platforms.
-    
-    For #60773.
-    Fixes #64061.
-    
-    Change-Id: I069389cd7fe1ea903edf42d79912f6e2bcc23f62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541696
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ided775438b8e4b87a6acd9bc87657657dbd3d91c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453601
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/trace/goroutinesv2_test.go            |    5 +-
- src/internal/trace/v2/event/go122/event.go         |    6 +-
- .../trace/v2/internal/testgen/go122/trace.go       |   32 +-
- src/internal/trace/v2/order.go                     |   47 +-
- .../go122-syscall-steal-proc-ambiguous.go          |   46 +
- ...syscall-steal-proc-reacquire-new-proc-bare-m.go |    4 +-
- .../go122-syscall-steal-proc-reacquire-new-proc.go |    4 +-
- .../go122-syscall-steal-proc-simple-bare-m.go      |    4 +-
- .../generators/go122-syscall-steal-proc-simple.go  |    4 +-
- .../trace/v2/testdata/tests/go122-annotations.test |  294 +-
- .../trace/v2/testdata/tests/go122-gc-stress.test   | 6369 +++++++++++++-------
- .../tests/go122-syscall-steal-proc-ambiguous.test  |   21 +
- ...scall-steal-proc-reacquire-new-proc-bare-m.test |    6 +-
- ...o122-syscall-steal-proc-reacquire-new-proc.test |    6 +-
- .../go122-syscall-steal-proc-simple-bare-m.test    |    6 +-
- .../tests/go122-syscall-steal-proc-simple.test     |    6 +-
- src/internal/trace/v2/trace_test.go                |    4 -
- src/runtime/trace2event.go                         |    2 +-
- src/runtime/trace2runtime.go                       |    5 +-
- 19 files changed, 4373 insertions(+), 2498 deletions(-)
+ doc/go1.20.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

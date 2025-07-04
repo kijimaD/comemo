@@ -1,18 +1,23 @@
-commit 98f5152368b4afd31eac1df2b3c172052d9b062a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 7 01:55:52 2022 +0700
+commit c84f3a4004076b0e3dcef0a17573d85eb90ef5fc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 8 10:41:56 2021 +0200
 
-    cmd/compile: remove index out of bounds check in walkIndex
+    syscall: drop fallback to pipe in Pipe on linux/arm
     
-    Since when any user errors about out-of-bounds constants should have
-    been already reported by types2.
+    Follow-up for CL 346789
     
-    Change-Id: I81b6bfec53201bbf546c48157fc8154cdb3c6e45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421876
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The pipe2 syscall was added in 2.6.27, so the
+    fallback to use pipe in Pipe on linux/arm can be removed.
+    
+    For #45964
+    
+    Change-Id: I8b18244ca1f849f10e90565b4fef80ce777fef69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347349
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/walk/expr.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/syscall/syscall_linux_arm.go | 4 ----
+ 1 file changed, 4 deletions(-)

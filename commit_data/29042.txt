@@ -1,27 +1,28 @@
-commit 2113c9ad0d82b3d1a734c0b5fc0efc9c44a920d5
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Oct 18 06:18:39 2016 +0200
+commit e26499153e938b21850a7b6b33f27bb3d98e01cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jun 5 17:28:28 2016 -0700
 
-    image/color: improve speed of RGBA methods
+    cmd/compile: use a map to track const switch cases
     
-    Apply the optimizations added to color conversion functions in
-    https://go-review.googlesource.com/#/c/21910/ to the RGBA methods.
+    This is simpler than the sorting technique.
+    It also allows us to simplify or eliminate
+    some of the sorting decisions.
     
-    YCbCrToRGBA/0-4      6.32ns ± 3%  6.58ns ± 2%   +4.15%  (p=0.000 n=20+19)
-    YCbCrToRGBA/128-4    8.02ns ± 2%  5.89ns ± 2%  -26.57%  (p=0.000 n=20+19)
-    YCbCrToRGBA/255-4    8.06ns ± 2%  6.59ns ± 3%  -18.18%  (p=0.000 n=20+20)
-    NYCbCrAToRGBA/0-4    8.71ns ± 2%  8.78ns ± 2%   +0.86%  (p=0.036 n=19+20)
-    NYCbCrAToRGBA/128-4  10.3ns ± 4%   7.9ns ± 2%  -23.44%  (p=0.000 n=20+20)
-    NYCbCrAToRGBA/255-4  9.64ns ± 2%  8.79ns ± 3%   -8.80%  (p=0.000 n=20+20)
+    Most important, sorting will not work when case clauses
+    represent ranges of integers: There is no correct
+    sort order that allows overlap detection by comparing
+    neighbors. Using a map allows of a cheap, simple
+    approach to ranges, namely to insert every int
+    in the map. The equivalent approach for sorting
+    means juggling temporary Nodes for every int,
+    which is a lot more expensive.
     
-    Fixes: #15260
-    
-    Change-Id: I225efdf74603e8d2b4f063054f7baee7a5029de6
-    Reviewed-on: https://go-review.googlesource.com/31773
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I84df3cb805992a1b04d14e0e4b2334f943e0ce05
+    Reviewed-on: https://go-review.googlesource.com/26766
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/image/color/ycbcr.go      | 89 ++++++++++++++++++++++++++++---------------
- src/image/color/ycbcr_test.go | 63 ++++++++++++++++++++++++++----
- 2 files changed, 115 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 21 ++++++++++++
+ src/cmd/compile/internal/gc/swt.go   | 64 ++++++++++++++++++++++++++++--------
+ test/switch5.go                      | 11 +++++++
+ 3 files changed, 82 insertions(+), 14 deletions(-)

@@ -1,17 +1,21 @@
-commit 56e5e0b69c92c9157c7db39112e27a4b5c026b48
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed May 25 13:19:11 2016 -0400
+commit e55896b9f421aeb6c33056a7cf6d7f90f8e36365
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 00:31:58 2016 -0700
 
-    runtime: tell race detector about reflectOffs.lock
+    net/http, net/http/httputil: rename lk to mu
     
-    Fixes #15832
+    The conventional name for a sync.Mutex is "mu".
     
-    Change-Id: I6f3f45e3c21edd0e093ecb1d8a067907863478f5
-    Reviewed-on: https://go-review.googlesource.com/23441
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    These "lk" names date back to a time before conventions.
+    
+    Change-Id: Iee57f9f4423d04269e1125b5d82455c453aac26f
+    Reviewed-on: https://go-review.googlesource.com/21361
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go    | 15 +++++++++++++++
- src/reflect/export_test.go |  4 ++++
- src/runtime/runtime1.go    |  4 ++--
- src/runtime/type.go        | 26 ++++++++++++++++++++------
- 4 files changed, 41 insertions(+), 8 deletions(-)
+ src/net/http/httputil/persist.go      | 102 +++++++++++++++++-----------------
+ src/net/http/httputil/reverseproxy.go |  10 ++--
+ src/net/http/transport.go             |  44 +++++++--------
+ 3 files changed, 78 insertions(+), 78 deletions(-)

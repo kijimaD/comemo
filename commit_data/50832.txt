@@ -1,38 +1,20 @@
-commit 669ec549b554ef7fe957bf284271ed3b7db82da1
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu Aug 18 09:59:35 2022 +0000
+commit ede97290edd6ca9291d44f8eba503fbd8b162ed4
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 22:28:18 2021 -0500
 
-    cmd/compile: enable carry chain scheduling for arm64
+    go/types: re-use type hashing logic in Context.typeHash
     
-    This is a follow up of CL 393656 on arm64.
+    The special handling for *Named types is not necessary. The hash of an
+    instance is simply the hash of its type followed by its type argument
+    list.
     
-    This CL puts ScoreCarryChainTail before ScoreMemory and after
-    ScoreReadFlags, so that the scheduling of the carry chain will not
-    break the scheduling of ScoreVarDef.
-    
-    Benchmarks:
-    name                                  old time/op    new time/op    delta
-    ScalarMult/P256-8                       42.0µs ± 0%    42.0µs ± 0%   -0.13%  (p=0.032 n=5+5)
-    ScalarMult/P224-8                        135µs ± 0%      96µs ± 0%  -29.04%  (p=0.008 n=5+5)
-    ScalarMult/P384-8                        573µs ± 1%     355µs ± 0%  -38.05%  (p=0.008 n=5+5)
-    ScalarMult/P521-8                       1.50ms ± 4%    0.77ms ± 0%  -48.78%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P256/Uncompressed-8     505ns ± 1%     506ns ± 0%     ~     (p=0.460 n=5+5)
-    MarshalUnmarshal/P256/Compressed-8      6.75µs ± 0%    6.73µs ± 0%   -0.27%  (p=0.016 n=5+5)
-    MarshalUnmarshal/P224/Uncompressed-8     927ns ± 0%     818ns ± 0%  -11.76%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P224/Compressed-8       136µs ± 0%      96µs ± 0%  -29.58%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P384/Uncompressed-8    1.77µs ± 0%    1.36µs ± 1%  -23.14%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P384/Compressed-8      56.5µs ± 0%    31.9µs ± 0%  -43.59%  (p=0.016 n=5+4)
-    MarshalUnmarshal/P521/Uncompressed-8    2.91µs ± 0%    2.03µs ± 1%  -30.32%  (p=0.008 n=5+5)
-    MarshalUnmarshal/P521/Compressed-8       148µs ± 0%      68µs ± 1%  -54.28%  (p=0.008 n=5+5)
-    
-    Change-Id: I4bf4e3265d7e1ee85765ff2bf006ca5a794d4979
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432275
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Change-Id: I7aa58e73b81731c3cad3a2fd14124f63cfb685a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362800
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go      | 89 ++++++++++++++++++---------
- src/cmd/compile/internal/ssa/schedule_test.go | 59 ++++++++++++++++++
- 2 files changed, 119 insertions(+), 29 deletions(-)
+ src/go/types/context.go     | 26 ++++++++++----------------
+ src/go/types/instantiate.go |  4 ++--
+ 2 files changed, 12 insertions(+), 18 deletions(-)

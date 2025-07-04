@@ -1,14 +1,18 @@
-commit 35c274a0dad8f123031e87104b18ed1890616825
+commit d7106f280d349c4a34ac5cc4d9de627f23d4ae9c
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 16 13:58:09 2011 +1100
+Date:   Tue Mar 15 22:33:57 2011 -0400
 
-    gofix: fix procattr registration, tests
+    gofix: procattr
     
     R=adg
     CC=golang-dev
-    https://golang.org/cl/4275054
+    https://golang.org/cl/4274059
 
- src/cmd/gofix/httpserver_test.go | 1 -
- src/cmd/gofix/procattr.go        | 2 +-
- src/cmd/gofix/procattr_test.go   | 1 -
- 3 files changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/gofix/Makefile           |  1 +
+ src/cmd/gofix/fix.go             |  5 +++
+ src/cmd/gofix/httpserver_test.go |  4 +++
+ src/cmd/gofix/main.go            |  2 +-
+ src/cmd/gofix/main_test.go       | 49 ++++++++++++++++++++++++++
+ src/cmd/gofix/procattr.go        | 61 ++++++++++++++++++++++++++++++++
+ src/cmd/gofix/procattr_test.go   | 75 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 196 insertions(+), 1 deletion(-)

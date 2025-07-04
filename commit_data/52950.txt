@@ -1,22 +1,28 @@
-commit 93d9035c9e8b129578d3a177fd90eb308e44a597
-Author: Shogo Hida <shogo.hida@gmail.com>
-Date:   Wed May 10 14:41:06 2023 +0000
+commit 527ace0ffa81d59698d3a78ac3545de7295ea76b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 16 23:04:25 2022 +0700
 
-    cmd/go/internal: update documentation of go test and go generate
+    cmd/compile: skip substituting closures in unsafe builtins arguments
     
-    Fixes #57050
+    For unsafe.{Alignof,Offsetof,Sizeof}, subster will transform them them
+    to OLITERAL nodes, and discard their arguments. However, any closure in
+    their children nodes were already processed and added to declaration
+    queue. Thus, we lack of information for generating instantiation for
+    the closure.
     
-    Change-Id: I46cac667ff78ac171c878f4366f8f01f58f1d27d
-    GitHub-Last-Rev: 697c255ece18cd4772b76d62991474a7da2536d8
-    GitHub-Pull-Request: golang/go#57814
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461683
+    To fix it, just skip substituting the closures if we are going to edit
+    the children nodes of unsafe builtins.
+    
+    Fixes #53390
+    
+    Change-Id: Ia815cd05af9dc0491f10faac4399f378ac53dec6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412794
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                    | 9 +++++++++
- src/cmd/go/internal/generate/generate.go | 5 +++++
- src/cmd/go/internal/test/test.go         | 4 ++++
- 3 files changed, 18 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go | 27 ++++++++++++++++++++++-----
+ test/typeparam/issue53390.go              | 20 ++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 5 deletions(-)

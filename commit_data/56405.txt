@@ -1,58 +1,28 @@
-commit a878d3dfa0f9d7cd1de26e3df9eb3983a9f64b53
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed May 8 18:26:42 2024 +0000
+commit f379e78951a405e7e99a60fb231eeedbf976c108
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Apr 24 16:57:28 2023 -0400
 
-    encoding/hex: don't overallocate memory in DecodeString
+    cmd/go: sanitize go env outputs
     
-    Now as []byte(string) doesn't always cause heap allocation (CL 520599, #2205)
-    we can make DecodeString simpler and more performant, by not allocating
-    x2 the required memory.
+    go env, without any arguments, outputs the environment variables in
+    the form of a script that can be run on the host OS. On Unix, single
+    quote the strings and place single quotes themselves outside the
+    single quoted strings. On windows use the set "var=val" syntax with
+    the quote starting before the variable.
     
-    goos: linux
-    goarch: amd64
-    pkg: encoding/hex
-    cpu: AMD Ryzen 5 4600G with Radeon Graphics
-                          │  beforehex   │              afterhex               │
-                          │    sec/op    │   sec/op     vs base                │
-    DecodeString/256-12      197.9n ± 1%   172.2n ± 1%  -13.01% (p=0.000 n=10)
-    DecodeString/1024-12     684.9n ± 1%   598.5n ± 1%  -12.61% (p=0.000 n=10)
-    DecodeString/4096-12     2.764µ ± 0%   2.343µ ± 1%  -15.23% (p=0.000 n=10)
-    DecodeString/16384-12   10.774µ ± 1%   9.348µ ± 1%  -13.23% (p=0.000 n=10)
-    geomean                  1.417µ        1.226µ       -13.53%
+    Fixes #58508
     
-                          │  beforehex   │               afterhex               │
-                          │     B/s      │     B/s       vs base                │
-    DecodeString/256-12     1.205Gi ± 1%   1.385Gi ± 1%  +14.94% (p=0.000 n=10)
-    DecodeString/1024-12    1.393Gi ± 1%   1.593Gi ± 1%  +14.42% (p=0.000 n=10)
-    DecodeString/4096-12    1.380Gi ± 0%   1.628Gi ± 1%  +17.97% (p=0.000 n=10)
-    DecodeString/16384-12   1.416Gi ± 1%   1.632Gi ± 1%  +15.25% (p=0.000 n=10)
-    geomean                 1.346Gi        1.556Gi       +15.64%
-    
-                          │   beforehex   │               afterhex               │
-                          │     B/op      │     B/op      vs base                │
-    DecodeString/256-12        256.0 ± 0%     128.0 ± 0%  -50.00% (p=0.000 n=10)
-    DecodeString/1024-12      1024.0 ± 0%     512.0 ± 0%  -50.00% (p=0.000 n=10)
-    DecodeString/4096-12     4.000Ki ± 0%   2.000Ki ± 0%  -50.00% (p=0.000 n=10)
-    DecodeString/16384-12   16.000Ki ± 0%   8.000Ki ± 0%  -50.00% (p=0.000 n=10)
-    geomean                  2.000Ki        1.000Ki       -50.00%
-    
-                          │ beforehex  │              afterhex               │
-                          │ allocs/op  │ allocs/op   vs base                 │
-    DecodeString/256-12     1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
-    DecodeString/1024-12    1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
-    DecodeString/4096-12    1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
-    DecodeString/16384-12   1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
-    geomean                 1.000        1.000       +0.00%
-    
-    Change-Id: I5676e48f222d90786ea18e808cb4ecde9de82597
-    GitHub-Last-Rev: aeedf3f6c4a2505ae9cc0ae58a94c6b2f30806fd
-    GitHub-Pull-Request: golang/go#67259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584118
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iecd379a4af7285ea9b2024f0202250c74fd9a2bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488375
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/encoding/hex/hex.go      |  8 +++-----
- src/encoding/hex/hex_test.go | 12 ++++++++++++
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/envcmd/env.go           | 60 +++++++++++++++++-
+ src/cmd/go/internal/envcmd/env_test.go      | 94 +++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/env_sanitize.txt |  5 ++
+ src/cmd/go/testdata/script/work_env.txt     |  2 +-
+ 4 files changed, 158 insertions(+), 3 deletions(-)

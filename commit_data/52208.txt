@@ -1,16 +1,19 @@
-commit 73ca5c0dace9e43330d92b751547759075d3b828
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 7 15:56:20 2023 -0500
+commit 2c73f5f32fceb31b5da7f9a820c0c637f57a9ab5
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Fri Apr 8 12:21:33 2022 -0700
 
-    cmd/go: simplify cgo and buildmode checks in tests
+    net/http: remove cloneURL call in WithContext
     
-    Change-Id: I0d6e49226a8708cc5f6ed3bea7658bec202a7ae7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474138
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #52239
+    
+    Change-Id: I08b75e613e3c976855e39d01a6757d94e4207bf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399155
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/go_test.go          | 114 ++++++++++++++++-------------------------
- src/cmd/go/scriptconds_test.go |   4 +-
- 2 files changed, 45 insertions(+), 73 deletions(-)
+ src/net/http/request.go      |  1 -
+ src/net/http/request_test.go | 14 +++-----------
+ 2 files changed, 3 insertions(+), 12 deletions(-)

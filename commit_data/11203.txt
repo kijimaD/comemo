@@ -1,28 +1,12 @@
-commit c5f843326100ae925529ed330e280bcc159d4776
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jan 17 11:18:15 2012 -0500
+commit 4e78818259bb9c43d7bc65ae3c15e935d3727770
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 17 10:01:12 2012 +0100
 
-    buildscripts: move to buildscript directory
-            Fixes #2717.
+    gc: give esc.c's sink an orig so -mm diagnostics work again.
     
-    R=r, rsc, dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5545069
+    https://golang.org/cl/5543063
 
- src/buildscript.sh                                                 | 2 +-
- src/{buildscript_darwin_386.sh => buildscript/darwin_386.sh}       | 0
- src/{buildscript_darwin_amd64.sh => buildscript/darwin_amd64.sh}   | 0
- src/{buildscript_freebsd_386.sh => buildscript/freebsd_386.sh}     | 0
- src/{buildscript_freebsd_amd64.sh => buildscript/freebsd_amd64.sh} | 0
- src/{buildscript_linux_386.sh => buildscript/linux_386.sh}         | 0
- src/{buildscript_linux_amd64.sh => buildscript/linux_amd64.sh}     | 0
- src/{buildscript_linux_arm.sh => buildscript/linux_arm.sh}         | 0
- src/{buildscript_netbsd_386.sh => buildscript/netbsd_386.sh}       | 0
- src/{buildscript_netbsd_amd64.sh => buildscript/netbsd_amd64.sh}   | 0
- src/{buildscript_openbsd_386.sh => buildscript/openbsd_386.sh}     | 0
- src/{buildscript_openbsd_amd64.sh => buildscript/openbsd_amd64.sh} | 0
- src/{buildscript_plan9_386.sh => buildscript/plan9_386.sh}         | 0
- src/{buildscript_windows_386.sh => buildscript/windows_386.sh}     | 0
- src/{buildscript_windows_amd64.sh => buildscript/windows_amd64.sh} | 0
- src/make.bash                                                      | 2 +-
- 16 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/esc.c | 1 +
+ 1 file changed, 1 insertion(+)

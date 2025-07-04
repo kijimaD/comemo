@@ -1,14 +1,15 @@
-commit 3d0a89838536fa828445df638c36c3f8034ac74d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 15:19:55 2017 -0700
+commit 6ad2d6aa922368224730a347d6a82387d4770c40
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 20 12:14:22 2017 -0500
 
-    cmd/compile: improve output when TestAssembly build fails
+    cmd/compile: simplify IsNonNil ConstNil
     
-    Change-Id: Ibee84399d81463d3e7d5319626bb0d6b60b86bd9
-    Reviewed-on: https://go-review.googlesource.com/40861
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9ed5a2065cef06708e319b16c801da2eff42004e
+    Reviewed-on: https://go-review.googlesource.com/35497
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)

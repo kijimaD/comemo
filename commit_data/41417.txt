@@ -1,20 +1,18 @@
-commit 3a9381c6b00c6a2131911b09d0dfb6264d30b15b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 14:06:00 2020 -0800
+commit 274f4cef9329262dcfd4a715ab6c2ebc908d6209
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Oct 2 11:25:24 2019 +0200
 
-    cmd/compile: use ellipses in S390X rules
+    cmd/link: implement Msync for Windows using FlushViewOfFile
     
-    Also, explicitly zero AuxInt in some ops (like Div),
-    to make it clear why they do not use an ellipsis.
+    CL 196846 implemented memory mapped output files but forgot to provide
+    an implementation for Msync. This rectifies that with a simple call to
+    FlushViewOfFile.
     
-    Passes toolstash-check -all.
-    
-    Change-Id: I47b4ed745196ed734927dbb5923edec33ce286da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217013
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5aebef9baf3a2a6ad54ceda096952a5d7d660bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198418
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  171 +--
- src/cmd/compile/internal/ssa/rewriteS390X.go | 2016 +++++---------------------
- 2 files changed, 414 insertions(+), 1773 deletions(-)
+ src/cmd/link/internal/ld/outbuf_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

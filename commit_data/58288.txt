@@ -1,17 +1,24 @@
-commit 0751f3af923af6ab5330b88a8c00ac2ddeddedb6
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Nov 26 15:31:36 2024 -0500
+commit f09db2bb9331f4b31afb867173b1773e6494af27
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 14 20:11:42 2023 +0800
 
-    doc/next: add release note for vet on Printf(s) with non-const s
+    log: add available godoc link
     
-    Fixes #60529
-    Updates #68545
-    
-    Change-Id: Ica048e4861f4de22deb7f42a1d76eb3151fee986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631682
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I80f1377631163cc5843379c36ca10b82fccd5709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535086
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- doc/next/3-tools.md | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/log/log.go               | 52 ++++++++++++++++++++++----------------------
+ src/log/slog/attr.go         |  6 ++---
+ src/log/slog/doc.go          |  2 +-
+ src/log/slog/handler.go      |  2 +-
+ src/log/slog/json_handler.go | 10 ++++-----
+ src/log/slog/level.go        | 14 ++++++------
+ src/log/slog/logger.go       | 48 ++++++++++++++++++++--------------------
+ src/log/slog/record.go       | 10 ++++-----
+ src/log/slog/text_handler.go | 10 ++++-----
+ src/log/slog/value.go        | 44 ++++++++++++++++++-------------------
+ src/log/syslog/syslog.go     | 30 ++++++++++++-------------
+ 11 files changed, 114 insertions(+), 114 deletions(-)

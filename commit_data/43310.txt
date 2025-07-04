@@ -1,29 +1,26 @@
-commit c0417df15664a84c3cc6de8292f78debce111def
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 22 02:12:03 2020 -0700
+commit 91b8b130dda2c3a5933baee439e3fed1098e8318
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 24 16:18:02 2020 -0400
 
-    cmd/compile: improve escape analysis of known calls
+    test: make runindir tests pass regardless of whether module mode is in use
     
-    Escape analysis is currently very naive about identifying calls to
-    known functions: it only recognizes direct calls to a declared
-    function, or direct calls to a closure.
+    The "runindir" tests used "go run", but relied on relative imports
+    (which are not supported by "go run" in module mode). Instead, such
+    tests must use fully-qualified imports, which require either a go.mod
+    file (in module mode) or that the package be in an appropriate
+    subdirectory of GOPATH/src (in GOPATH mode).
     
-    This CL adds a new "staticValue" helper function that can trace back
-    through local variables that were initialized and never reassigned
-    based on a similar optimization already used by inlining. (And to be
-    used by inlining in a followup CL.)
+    To set up such a directory, we use yet another copy of the same
+    overlayDir function currently found in the misc subdirectory of this
+    repository.
     
-    Updates #41474.
+    Fixes #33912
+    Updates #30228
     
-    Change-Id: I8204fd3b1e150ab77a27f583985cf099a8572b2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256458
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If3d7ea2f7942ba496d98aaaf24a90bcdcf4df9f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225205
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/escape.go |  9 ++++---
- src/cmd/compile/internal/gc/inl.go    | 49 +++++++++++++++++++++++++++++++++++
- test/escape_closure.go                | 17 ++++++++++--
- 3 files changed, 69 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue29612.dir/main.go |   4 +-
+ test/run.go                           | 137 +++++++++++++++++++++++++---------
+ 2 files changed, 104 insertions(+), 37 deletions(-)

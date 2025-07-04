@@ -1,19 +1,22 @@
-commit ec75230b55281a84cd1a9aa52d33d5e552c82dd4
-Author: Ross Light <light@google.com>
-Date:   Tue Aug 16 11:10:36 2016 -0700
+commit 55154cf0b27e3c48e7cf7654c890868a95e7eed6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Apr 13 13:34:41 2016 -0400
 
-    reflect: document equality guarantee for Type
+    cmd/link: fix gdb backtrace on architectures using a link register
     
-    The only previous mention of this property was in the String() method.
-    Since this is the only way to uniquely identify a type and we can't
-    change this property without breaking the Go 1 guarantee, it seems
-    better to document this property than hiding it on a method.
+    Also adds TestGdbBacktrace to the runtime package.
     
-    Fixes #16348
+    Dwarf modifications written by Bryan Chan (@bryanpkc) who is also
+    at IBM and covered by the same CLA.
     
-    Change-Id: I3d25f7d6e6007e3c15c2e13010869888d0181fc2
-    Reviewed-on: https://go-review.googlesource.com/27170
+    Fixes #14628
+    
+    Change-Id: I106a1f704c3745a31f29cdadb0032e3905829850
+    Reviewed-on: https://go-review.googlesource.com/20193
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/type.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go |  58 ++++++++++++------
+ src/runtime/runtime-gdb_test.go   | 122 +++++++++++++++++++++++++++++++++-----
+ 2 files changed, 145 insertions(+), 35 deletions(-)

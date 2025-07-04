@@ -1,12 +1,12 @@
-commit df02e65d544d5e5345b10de8719360c94bb8490b
+commit c967ba02102a654b781701216980be31b04044fa
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun Jun 19 13:53:07 2011 +1000
+Date:   Sun Jun 19 09:36:45 2011 +1000
 
-    doc/faq: remove misleading FAQ entry
+    goinstall: always rebuild a package after its dependencies are built
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4638046
+    https://golang.org/cl/4627047
 
- doc/go_faq.html | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/goinstall/main.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

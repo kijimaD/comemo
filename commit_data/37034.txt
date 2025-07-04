@@ -1,33 +1,20 @@
-commit be0f3c286b59a486bec798a4aa6e5eba512e49b8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Oct 16 23:47:55 2018 -0400
+commit e4a50ce97af2d9bb41d5f5af8561a17486274e1e
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Jun 20 11:35:20 2018 +0530
 
-    crypto/tls: replace net.Pipe in tests with real TCP connections
+    cmd/go: remove inadvertent comment for vgo
     
-    crypto/tls is meant to work over network connections with buffering, not
-    synchronous connections, as explained in #24198. Tests based on net.Pipe
-    are unrealistic as reads and writes are matched one to one. Such tests
-    worked just thanks to the implementation details of the tls.Conn
-    internal buffering, and would break if for example the flush of the
-    first flight of the server was not entirely assimilated by the client
-    rawInput buffer before the client attempted to reply to the ServerHello.
+    This change was introduced while adding the dark copy
+    of golang.org/x/vgo in CL 118095.
     
-    Note that this might run into the Darwin network issues at #25696.
+    While the comment made sense in a separate vgo repo, when it is
+    merged with the main repo, this should not remain.
     
-    Fixed a few test races that were either hidden or synchronized by the
-    use of the in-memory net.Pipe.
+    Found while running mkalldocs.sh in CL 119695.
     
-    Also, this gets us slightly more realistic benchmarks, reflecting some
-    syscall cost of Read and Write operations.
-    
-    Change-Id: I5a597b3d7a81b8ccc776030cc837133412bf50f8
-    Reviewed-on: https://go-review.googlesource.com/c/142817
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I112a4629c415032bd29e165ac1c27a0f3cabeede
+    Reviewed-on: https://go-review.googlesource.com/119938
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/conn_test.go             |  7 ++-
- src/crypto/tls/handshake_client_test.go | 36 +++++++--------
- src/crypto/tls/handshake_server_test.go | 79 +++++++++++++++++----------------
- src/crypto/tls/handshake_test.go        | 43 ++++++++++++++++++
- 4 files changed, 107 insertions(+), 58 deletions(-)
+ src/cmd/go/internal/help/help.go | 4 ----
+ 1 file changed, 4 deletions(-)

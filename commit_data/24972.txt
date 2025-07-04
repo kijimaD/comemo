@@ -1,24 +1,17 @@
-commit 0fbf0955d4973cc188c38a8218563577845eccb2
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Nov 19 22:14:13 2015 +1300
+commit a329e21ccdc0a3df9630ccab2096ea658e17201b
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 12 13:26:57 2015 -0700
 
-    cmd/internal/obj/x86: still use (fake) local exec TLS mode on android/386
+    [dev.ssa] cmd/compile/internal/ssa: implement OSQRT
     
-    golang.org/cl/16383 broke android/386 because by a sort of confluence of hacks
-    no TLS relocations were emitted at all when Flag_shared != 0. The hack in
-    runtime/cgo works as well in a PIE executable as it does with a position
-    dependent one, so the simplest fix is to still emit a R_TLS_LE reloc when goos
-    == "android".
-    
-    A real fix is to use something more like the IE model code but loading the
-    offset from %gs to the thread local storage from a global variable rather than
-    from a location chosen by the system linker (this is how android/arm works).
-    
-    Issue #9327.
-    
-    Change-Id: I9fbfc890ec7fe191f80a595b6cf8e2a1fcbe3034
-    Reviewed-on: https://go-review.googlesource.com/17049
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Iec61ca1bdc064c29ceca6d47f600d5643d0a64dd
+    Reviewed-on: https://go-review.googlesource.com/14533
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 10 +++++++++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 16 ++++++++++++++++
+ 6 files changed, 49 insertions(+), 1 deletion(-)

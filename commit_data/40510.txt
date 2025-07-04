@@ -1,40 +1,17 @@
-commit 54697702e435bddb69c0b76b25b3209c78d2120a
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Aug 21 18:22:24 2019 +0200
+commit 9b2bd2f7151381cc54638726808f55c6088fa30a
+Author: Eduard Urbach <e.urbach@gmail.com>
+Date:   Tue May 21 06:06:11 2019 +0000
 
-    encoding/json: avoid work when unquoting strings, take 2
+    mime: add .webp for builtin
     
-    This is a re-submission of CL 151157, since it was reverted in CL 190909
-    due to an introduced crash found by a fuzzer. The revert CL included
-    regression tests, while this CL includes a fixed version of the original
-    change.
+    This change modifies Go to include image/webp as a built-in mime type for the .webp file extension.
     
-    In particular, what we forgot in the original optimization was that we
-    still need the length and trailing quote checks at the beginning of
-    unquoteBytes. Without those, we could end up in a crash later on.
-    
-    We can work out how many bytes can be unquoted trivially in
-    rescanLiteral, which already iterates over a string's bytes.
-    
-    Removing the extra loop in unquoteBytes simplifies the function and
-    speeds it up, especially when decoding simple strings, which are common.
-    
-    While at it, we can remove the check that s[0]=='"', since all call
-    sites already meet that condition.
-    
-    name           old time/op    new time/op    delta
-    CodeDecoder-8    10.6ms ± 2%    10.5ms ± 1%  -1.01%  (p=0.004 n=20+10)
-    
-    name           old speed      new speed      delta
-    CodeDecoder-8   183MB/s ± 2%   185MB/s ± 1%  +1.02%  (p=0.003 n=20+10)
-    
-    Updates #28923.
-    
-    Change-Id: I8c6b13302bcd86a364bc998d72451332c0809cde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190659
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: Id46d34fac8cc859ddd69aa8669294815654214f8
+    GitHub-Last-Rev: f191e1c325126e2caeb3123c912131ce5236542b
+    GitHub-Pull-Request: golang/go#32157
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go | 69 ++++++++++++++++++++++++---------------------
- 1 file changed, 37 insertions(+), 32 deletions(-)
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

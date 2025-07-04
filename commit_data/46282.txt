@@ -1,31 +1,18 @@
-commit 4591f49938aedbbac7a24225047984479abe72b8
-Author: Hans <hzb153@gmail.com>
-Date:   Mon Aug 2 05:43:29 2021 +0000
+commit 9abbe277105f9b9a3b4c5905e7faf9a02827ce18
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 19 13:46:49 2020 -0800
 
-    runtime: do not alloc never used tail bytes in fixalloc
+    test: skip issue11656.go on mips/mips64/ppc64
     
-    Currently, the '_FixAllocChunk % fixalloc.size' tail bytes
-    will never be used when allocing from persistentalloc.
+    For #11656
+    For #43283
     
-    Wasted bytes on darwin/amd64:
-      _FixAllocChunk % mheap_.spanalloc.size             = 64
-      _FixAllocChunk % mheap_.cachealloc.size            = 784
-      _FixAllocChunk % mheap_.specialfinalizeralloc.size = 16
-      _FixAllocChunk % mheap_.specialprofilealloc.size   = 16
-      _FixAllocChunk % mheap_.specialReachableAlloc.size = 16
-      _FixAllocChunk % mheap_.arenaHintAlloc.size        = 16
-    
-    After this commit, fixalloc alloc '_FixAllocChunk / fixalloc.size'
-    objects exactly with zero waste. Sizeof(fixalloc{}) is unchanged.
-    
-    Change-Id: Ifc551f5b7aa9d842fa559abbe532ffcfb4d3540c
-    GitHub-Last-Rev: e08b4c66b82bc7be9d14fb7eb7580504d777481e
-    GitHub-Pull-Request: golang/go#47439
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338090
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I1fcf2b24800f421e36201af43130b487abe605b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279312
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/runtime/mfixalloc.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue11656.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

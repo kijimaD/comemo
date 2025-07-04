@@ -1,23 +1,18 @@
-commit 8cdee790634cd9b5596d33c15ce1a9b66055bac2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 26 06:15:29 2013 +0800
+commit 4eb7ba743d82029063f993bc8eea8940c3c61ac6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 25 16:36:29 2013 -0500
 
-    libmach, cmd/5a, cmd/5c, cmd/5g, cmd/5l: enable DWARF type info for Linux/ARM
-    Fixes #3747.
+    runtime/cgo: fix deadlock involving signals on darwin
+    sigprocmask() is process-wide on darwin, so two concurrent
+    libcgo_sys_thread_start() can result in all signals permanently
+    blocked, which in particular blocks handling of nil derefs.
+    Fixes #4833.
     
-    Update #4912
-    This CL adds gotype into .5 object file.
-    
-    R=golang-dev, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7376054
+    https://golang.org/cl/7324058
 
- src/cmd/5a/lex.c   |   1 +
- src/cmd/5c/swt.c   |   3 +-
- src/cmd/5g/gg.h    |   2 +-
- src/cmd/5g/gobj.c  | 128 +++++++++++++++++++++++++++++------------------------
- src/cmd/5g/gsubr.c |   1 +
- src/cmd/5l/l.h     |   2 +
- src/cmd/5l/obj.c   |  34 ++++++++++++--
- src/libmach/5obj.c |   2 +
- 8 files changed, 110 insertions(+), 63 deletions(-)
+ src/pkg/runtime/cgo/gcc_darwin_386.c   |  4 +-
+ src/pkg/runtime/cgo/gcc_darwin_amd64.c |  4 +-
+ src/pkg/runtime/crash_test.go          | 73 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+), 4 deletions(-)

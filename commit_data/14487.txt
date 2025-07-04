@@ -1,17 +1,20 @@
-commit d4f3185c24e3816acfa5760a0dc4b40b20867867
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 26 15:43:32 2012 -0500
+commit af375cde206ff131acf3e9afd126b36a8ff7b39e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Nov 27 03:05:46 2012 +0800
 
-    spec: add () to method calls in examples
+    libmach, cmd/cc, cmd/cov, cmd/ld, cmd/prof: check malloc return value
     
-    Since p.M is rejected (must call methods), use p.M(),
-    to keep the examples compiling.
+    Update #4415.
     
-    Fixes #4441.
-    
-    R=gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6854096
+    https://golang.org/cl/6856080
 
- doc/go_spec.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/cc/dcl.c         | 4 ++++
+ src/cmd/cov/main.c       | 4 ++++
+ src/cmd/cov/tree.c       | 2 ++
+ src/cmd/ld/dwarf.c       | 8 ++++++++
+ src/cmd/prof/main.c      | 8 ++++++++
+ src/libmach/executable.c | 9 +++++++++
+ src/libmach/obj.c        | 2 ++
+ 7 files changed, 37 insertions(+)

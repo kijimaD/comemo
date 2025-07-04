@@ -1,15 +1,14 @@
-commit 1fd78e1f600d10475b85381427bda9f14f86e0f0
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Sep 11 00:26:50 2015 -0400
+commit 3b26e8b29a488d96ea921839ed22e70d894ebe38
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 13:22:42 2015 -0400
 
-    cmd/go: provide full path as os.Args[0] when invoking tools
+    runtime/pprof: ignore too few samples on Windows test
     
-    cmd/dist needs to re-exec or open itself to detect GOARM (CL 3973) and
-    detect host machine endianness (CL 14460).
+    Fixes #10842.
     
-    Change-Id: If6438831ab0715ba8e236d64bb2c7c1bde1470aa
-    Reviewed-on: https://go-review.googlesource.com/14476
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7de98f3073a47911863a252b7a74d8fdaa48c86f
+    Reviewed-on: https://go-review.googlesource.com/12529
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/tool.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/pprof/pprof_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,22 +1,29 @@
-commit 22d5f9aae364f8d9d77fa67abf791b7d8046af56
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Tue Aug 30 11:42:30 2011 +1000
+commit d01ee38fb09bfc9f03f5930fa2054cc767d611d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 17:22:20 2011 -0700
 
-    exp/template/html: Added handling for URL attributes.
+    godoc: support for reading/writing (splitted) index files.
     
-    1. adds a urlPart field to context
-    2. implements tURL to figure out the URL part
-    3. modifies joinContext to allow common context mismatches
-       around branches to be ignored when not material as in
-       <a href="/foo{{if .HasQuery}}?q={{.Query}}{{/if}}">
-    4. adds a pipeline function that filters dynamically inserted
-       protocols to prevent code injection via URLs.
+    This CL implements a new godoc feature to save the search
+    index on disk. Use -write_index to create the search
+    index file named with -index_files. Use -index_files to
+    provide a glob pattern specifying index file(s) when
+    starting godoc; in this case the run-time indexer is not
+    run.
     
-    R=nigeltao
+    Known issues:
+    - saving/restoring full text index is not yet supported
+    - the list of flags and overall usage logic could use a
+      cleanup
+    
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4957041
+    https://golang.org/cl/4974045
 
- src/pkg/exp/template/html/context.go     | 36 +++++++++++++-
- src/pkg/exp/template/html/escape.go      | 78 ++++++++++++++++++++++++++---
- src/pkg/exp/template/html/escape_test.go | 84 +++++++++++++++++++++++++++++---
- 3 files changed, 183 insertions(+), 15 deletions(-)
+ src/cmd/godoc/appconfig.go | 13 ++++++--
+ src/cmd/godoc/appinit.go   | 27 +++++++++++-----
+ src/cmd/godoc/doc.go       |  6 ++++
+ src/cmd/godoc/godoc.go     | 80 ++++++++++++++++++++++++++++++++++------------
+ src/cmd/godoc/index.go     | 33 +++++++++++++++++++
+ src/cmd/godoc/main.go      | 46 +++++++++++++++++++++++---
+ 6 files changed, 170 insertions(+), 35 deletions(-)

@@ -1,14 +1,30 @@
-commit e12ce1e4005fcefd7a3537c433e6a60044160086
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Dec 8 13:07:35 2016 -0800
+commit 45b26a93f31071deee38b6579da34c2ebe98b978
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Oct 7 14:29:55 2016 -0400
 
-    database/sql: document that drivers may not return right after cancel
+    cmd/{asm,compile}: replace TESTB op with CMPWconst on s390x
     
-    Fixes #18168
+    TESTB was implemented as AND $0xff, Rx, REGTMP. Unfortunately there
+    is no 3-operand AND-with-immediate instruction and so it was emulated
+    by the assembler using two instructions.
     
-    Change-Id: Idbfe3d4daedd93c7caf6f1770ecd988e9af39949
-    Reviewed-on: https://go-review.googlesource.com/34144
+    This CL uses CMPW instead of AND and also optimizes CMPW to use
+    the chi instruction where possible.
+    
+    Overall this CL reduces the size of the .text section of the
+    bin/go binary by ~2%.
+    
+    Change-Id: Ic335c29fc1129378fcbb1265bfb10f5b744a0f3f
+    Reviewed-on: https://go-review.googlesource.com/30690
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s    |   4 +
+ src/cmd/compile/internal/s390x/ssa.go        |   7 -
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  31 ++-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   2 -
+ src/cmd/compile/internal/ssa/opGen.go        |  11 --
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 273 +++++++++++++++++++++++++--
+ src/cmd/internal/obj/s390x/asmz.go           |   8 +-
+ 7 files changed, 286 insertions(+), 50 deletions(-)

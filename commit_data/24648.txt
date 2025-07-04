@@ -1,12 +1,22 @@
-commit 4038901b0f971f554f1a22db6e3e32c57637005b
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Tue Oct 13 21:34:47 2015 -0700
+commit a45f2d8f2898d23804de473841d42670fcdda5dc
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Aug 17 17:46:06 2015 -0500
 
-    text/template: remove redundant indirect
+    [dev.ssa] cmd/compile/internal/ssa: implement ODIV
     
-    Change-Id: I8cc9783fd044bed48347824dcf973c61c78275a5
-    Reviewed-on: https://go-review.googlesource.com/15833
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Implement integer division for non-consts.
+    
+    Change-Id: If40cbde20e5f0ebb9993064def7be468e4eca076
+    Reviewed-on: https://go-review.googlesource.com/13644
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/text/template/exec.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  80 +++
+ src/cmd/compile/internal/gc/ssa_test.go            |   3 +
+ .../internal/gc/testdata/arithBoundary_ssa.go      | 640 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/TODO                  |   3 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   9 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  12 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   9 +
+ src/cmd/compile/internal/ssa/opGen.go              | 130 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 156 +++++
+ 9 files changed, 1041 insertions(+), 1 deletion(-)

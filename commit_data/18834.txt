@@ -1,82 +1,17 @@
-commit 54c901cd08d5beb1269af2e73f59d2dec55634e8
+commit ab844022eeedc6c16d0cdb7fb6fee01dd9e6307a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 11 23:58:39 2014 -0400
+Date:   Tue Mar 11 23:58:11 2014 -0400
 
-    runtime: fix empty string handling in garbage collector
+    cmd/gc: fix crash in -live mode
     
-    The garbage collector uses type information to guide the
-    traversal of the heap. If it sees a field that should be a string,
-    it marks the object pointed at by the string data pointer as
-    visited but does not bother to look at the data, because
-    strings contain bytes, not pointers.
+    debuglive >= 1 is not the condition under which we
+    start recording messages (we avoid printing for
+    init functions even if debuglive is set).
     
-    If you save s[len(s):] somewhere, though, the string data pointer
-    actually points just beyond the string data; if the string data
-    were exactly the size of an allocated block, the string data
-    pointer would actually point at the next block. It is incorrect
-    to mark that next block as visited and not bother to look at
-    the data, because the next block may be some other type
-    entirely.
-    
-    The fix is to ignore strings with zero length during collection:
-    they are empty and can never become non-empty: the base
-    pointer will never be used again. The handling of slices already
-    does this (but using cap instead of len).
-    
-    This was not a bug in Go 1.2, because until January all string
-    allocations included a trailing NUL byte not included in the
-    length, so s[len(s):] still pointed inside the string allocation
-    (at the NUL).
-    
-    This bug was causing the crashes in test/run.go. Specifically,
-    the parsing of a regexp in package regexp/syntax allocated a
-    []syntax.Inst with rounded size 1152 bytes. In fact it
-    allocated many such slices, because during the processing of
-    test/index2.go it creates thousands of regexps that are all
-    approximately the same complexity. That takes a long time, and
-    test/run works on other tests in other goroutines. One such
-    other test is chan/perm.go, which uses an 1152-byte source
-    file. test/run reads that file into a []byte and then calls
-    strings.Split(string(src), "\n"). The string(src) creates an
-    1152-byte string - and there's a very good chance of it
-    landing next to one of the many many regexp slices already
-    allocated - and then because the file ends in a \n,
-    strings.Split records the tail empty string as the final
-    element in the slice. A garbage collection happens at this
-    point, the collection finds that string before encountering
-    the []syntax.Inst data it now inadvertently points to, and the
-    []syntax.Inst data is not scanned for the pointers that it
-    contains. Each syntax.Inst contains a []rune, those are
-    missed, and the backing rune arrays are freed for reuse. When
-    the regexp is later executed, the runes being searched for are
-    no longer runes at all, and there is no match, even on text
-    that should match.
-    
-    On 64-bit machines the pointer in the []rune inside the
-    syntax.Inst is larger (along with a few other pointers),
-    pushing the []syntax.Inst backing array into a larger size
-    class, avoiding the collision with chan/perm.go's
-    inadvertently sized file.
-    
-    I expect this was more prevalent on OS X than on Linux or
-    Windows because those managed to run faster or slower and
-    didn't overlap index2.go with chan/perm.go as often. On the
-    ARM systems, we only run one errorcheck test at a time, so
-    index2 and chan/perm would never overlap.
-    
-    It is possible that this bug is the root cause of other crashes
-    as well. For now we only know it is the cause of the test/run crash.
-    
-    Many thanks to Dmitriy for help debugging.
-    
-    Fixes #7344.
-    Fixes #7455.
-    
-    LGTM=r, dvyukov, dave, iant
-    R=golang-codereviews, dave, r, dvyukov, delpontej, iant
-    CC=golang-codereviews, khr
-    https://golang.org/cl/74250043
+    LGTM=bradfitz, iant
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/74390043
 
- src/pkg/runtime/mgc0.c |  8 ++++++--
- test/gcstring.go       | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 2 deletions(-)
+ src/cmd/gc/plive.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

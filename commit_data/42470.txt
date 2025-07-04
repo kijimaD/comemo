@@ -1,19 +1,29 @@
-commit b6faed1326b0f6c1efd33b99a4550cbc437bd72f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 4 16:20:39 2020 -0400
+commit a7be8cccf80e04bb5c09e9f8c53d2eec4bc36d3a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 17:51:16 2019 -0500
 
-    cmd/asm, cmd/compile, doc: document -spectre flags
+    cmd/go: convert tests using testdata/src/syntaxerror to scripts
     
-    Most of the docs are in the new wiki page
-    https://golang.org/wiki/Spectre.
+    This includes TestMatchesNoTestsDoesNotOverrideBuildFailure
+    and TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL.
+    Convert the tests that use the testdata/src/syntaxerror directory
+    to the script framework.
     
-    Updates #37419.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Change-Id: I6e8f76670593c089de895e1665b41d874f879df9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236599
-    Reviewed-by: Austin Clements <austin@google.com>
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I2b2b616e8c124996ae8c8e5b737f15bb493ec588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212816
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.15.html        | 8 ++++++--
- src/cmd/asm/doc.go     | 7 +++++--
- src/cmd/compile/doc.go | 2 ++
- 3 files changed, 13 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go                                 | 19 -------------------
+ .../script/test_match_no_tests_build_failure.txt      | 15 +++++++++++++++
+ .../testdata/script/test_syntax_error_says_fail.txt   | 14 ++++++++++++++
+ src/cmd/go/testdata/src/syntaxerror/x.go              |  1 -
+ src/cmd/go/testdata/src/syntaxerror/x_test.go         |  4 ----
+ 5 files changed, 29 insertions(+), 24 deletions(-)

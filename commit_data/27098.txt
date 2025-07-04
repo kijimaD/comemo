@@ -1,24 +1,29 @@
-commit 75b844f0d228bda5dea2aabae096909f81355bac
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Apr 7 15:48:15 2016 +0200
+commit 31d13f479a19ca6e07ad60c441298c6eca04eeb2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 8 20:09:48 2016 -0800
 
-    runtime/trace: test detection of broken timestamps
+    cmd/compile: don't use PPARAMOUT names for temps
     
-    On some processors cputicks (used to generate trace timestamps)
-    produce non-monotonic timestamps. It is important that the parser
-    distinguishes logically inconsistent traces (e.g. missing, excessive
-    or misordered events) from broken timestamps. The former is a bug
-    in tracer, the latter is a machine issue.
+    The location of VARDEFs is incorrect for PPARAMOUT variables
+    which are also used as temporary locations.  We put in VARDEFs
+    when setting the variable at return time, but when the location
+    is also used as a temporary the lifetime values are wrong.
     
-    Test that (1) parser does not return a logical error in case of
-    broken timestamps and (2) broken timestamps are eventually detected
-    and reported.
+    Fix copyelim to update the names map properly.  This is a
+    real name bug fix which, as a result, allows me to
+    write a reasonable test to trigger the PPARAMOUT bug.
     
-    Change-Id: Ib4b1eb43ce128b268e754400ed8b5e8def04bd78
-    Reviewed-on: https://go-review.googlesource.com/21608
-    Reviewed-by: Austin Clements <austin@google.com>
+    This is kind of a band-aid fix for #14591.  A more pricipled
+    fix (which allows values to be stored in the return variable
+    earlier than the return point) will be harder.
+    
+    Fixes #14591
+    
+    Change-Id: I7df8ae103a982d1f218ed704c080d7b83cdcfdd9
+    Reviewed-on: https://go-review.googlesource.com/20457
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/internal/trace/parser.go          | 15 +++++++++++
- src/runtime/trace/trace_stack_test.go |  5 +---
- src/runtime/trace/trace_test.go       | 48 +++++++++++++++++++++++++----------
- 3 files changed, 50 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go       |  5 +++++
+ src/cmd/compile/internal/ssa/copyelim.go |  2 +-
+ test/fixedbugs/issue14591.go             | 38 ++++++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)

@@ -1,17 +1,17 @@
-commit a8f8d550e8d221e8bbe290e098e30b660c364ee7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Dec 21 17:44:58 2015 +1100
+commit cdc36252fe38cef9afa1fa1efa61897fae8a21a2
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Oct 27 17:46:53 2015 -0500
 
-    internal/syscall/windows/registry: adjust TestGetMUIStringValue
+    [dev.ssa] cmd/compile/internal/ssa: rewrite rules for const comparisons
     
-    Do not check DaylightName if DynamicDaylightTimeDisabled is false.
+    Shaves ~8k off the go binary on darwin x64.
     
-    Fixes #13502
-    
-    Change-Id: I03e01ec0afdeb0037a5d3ee243674e5a6b559da5
-    Reviewed-on: https://go-review.googlesource.com/17998
-    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I73396af44ae28cd4cfc675290d6858f304d45b76
+    Reviewed-on: https://go-review.googlesource.com/16456
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/syscall/windows/registry/registry_test.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   51 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1384 +++++++++++++++++++++---
+ 2 files changed, 1295 insertions(+), 140 deletions(-)

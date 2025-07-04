@@ -1,21 +1,13 @@
-commit a3d4655c2435e3777c45f09650539b943bab1c66
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue May 21 14:54:54 2019 -0400
+commit da648eac67dded869cfb6af2c0661f21af064f02
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 29 13:23:07 2019 -0800
 
-    crypto/x509: fix value ownership in isSSLPolicy on macOS
+    doc: remove meaningless word from Go 1.12 release notes
     
-    CFDictionaryGetValueIfPresent does not take ownership of the value, so
-    releasing the properties dictionary before passing the value to CFEqual
-    can crash. Not really clear why this works most of the time.
-    
-    See https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFMemoryMgmt/Concepts/Ownership.html
-    
-    Fixes #28092
-    Hopefully fixes #30763
-    
-    Change-Id: I5ee7ca276b753a48abc3aedfb78b8af68b448dd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178537
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I744940e2bbde19ccec53af6c5469d46ba9161f01
+    Reviewed-on: https://go-review.googlesource.com/c/160179
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

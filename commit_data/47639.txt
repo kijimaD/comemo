@@ -1,21 +1,20 @@
-commit ebd0b778c92c4dfc71195ef83d71116957e173ad
+commit 01821137c24750ddc7a58d3469bfd8c5e9d6bd47
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 26 13:27:12 2021 -0800
+Date:   Mon Mar 29 14:59:39 2021 -0700
 
-    go/types: better error message for missing ~ in constraint
+    cmd/compile/internal/types2: review of errors.go
     
-    This is a port of CL 366758 from types2 to go/types.
+    The changes between (equivalent, and reviewed) go/types/errors.go
+    and errors.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
     
-    For #49179.
+    The go/types version is significantly different as it handles
+    error codes but doesn't have some of the types2 changes.
     
-    Change-Id: I7e1c6ffb392d5c535cf901004b7acbe8c3be9b0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367199
+    Change-Id: I48f79ce31490db938c830df7d38e247d55d54f2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305577
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/instantiate.go                    | 25 ++++++++++++++++++++++---
- src/go/types/testdata/fixedbugs/issue49179.go2 | 20 +++++++++++++++++++-
- src/go/types/typeset.go                        |  2 ++
- 3 files changed, 43 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/errors.go | 1 -
+ 1 file changed, 1 deletion(-)

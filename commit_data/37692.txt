@@ -1,21 +1,15 @@
-commit 9ce38f570f1c62662c1ce04a3fbe62817708ac45
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 13 13:55:15 2018 -0800
+commit d778a371be488312fe43b2d710dfc8c7afb3d29c
+Author: Shivansh Rai <shivansh@freebsd.org>
+Date:   Fri May 18 06:50:43 2018 +0530
 
-    math: don't run huge argument tests on s390x
+    cmd/gofmt: update error handling when writing to backup file
     
-    The s390x implementations for Sin/Cos/SinCos/Tan use assembly
-    routines which don't reduce arguments accurately enough for
-    huge inputs.
+    As per commit aa0ae75, handling of io.ErrShortWrite is done in
+    *File.Write() itself.
     
-    Fixes #29221.
-    
-    Change-Id: I340f576899d67bb52a553c3ab22e6464172c936d
-    Reviewed-on: https://go-review.googlesource.com/c/154119
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I92924b51e8df2ae88e6e50318348f44973addba8
+    Reviewed-on: https://go-review.googlesource.com/113696
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go  | 84 -------------------------------------------
- src/math/huge_test.go | 99 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 99 insertions(+), 84 deletions(-)
+ src/cmd/gofmt/gofmt.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

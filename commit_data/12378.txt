@@ -1,13 +1,12 @@
-commit cae604f734ac4e444a36bc3dc18afa42c6f4c737
+commit 5ab9d2befd7c37468121081a84188aa687678e13
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 13:51:44 2012 -0500
+Date:   Mon Mar 5 13:47:36 2012 -0500
 
-    cmd/gc: must not inline panic, recover
+    cmd/gc: show duplicate key in error
     
-    R=lvd, gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5731061
+    https://golang.org/cl/5728064
 
- src/cmd/gc/inl.c |  2 ++
- test/escape4.go  | 20 +++++++++++++-------
- 2 files changed, 15 insertions(+), 7 deletions(-)
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

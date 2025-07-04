@@ -1,13 +1,15 @@
-commit 9665ce19af0451fba4c9da31e625f9f337faf8c3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 27 22:10:57 2014 -0700
+commit d432238fadd10fa514a04975dfe85719b5b8f377
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 27 21:53:39 2014 -0700
 
-    api: update next.txt
+    test: expand issue7863 test
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=adg, golang-codereviews
-    https://golang.org/cl/99530044
+    This was sitting in my client but I forgot hg add.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/101800045
 
- api/next.txt | 33 ++++++++++++---------------------
- 1 file changed, 12 insertions(+), 21 deletions(-)
+ test/fixedbugs/issue7863.go | 53 ++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 48 insertions(+), 5 deletions(-)

@@ -1,22 +1,14 @@
-commit f83608256614f831430ee62ffdf86027c0be87a5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 2 08:34:26 2014 +1000
+commit aa92b3e5d4b649f630a161a50b86c456b8f40277
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 1 00:15:23 2014 +0000
 
-    misc/goplay: remove program
+    lib/timezone: update to IANA 2014d
     
-    This program has barely been touched since it was first committed,
-    and in its current state it opens a code execution vector similar
-    to the one that was recently fixed in go.tools/playground/socket.
-    
-    Rather than try to make it secure, remove it.
-    
-    LGTM=minux, rsc
-    R=rsc, minux
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/102030047
+    https://golang.org/cl/102040045
 
- misc/goplay/Makefile  |   6 --
- misc/goplay/README    |   1 -
- misc/goplay/doc.go    |  23 ----
- misc/goplay/goplay.go | 288 --------------------------------------------------
- 4 files changed, 318 deletions(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 358933 -> 358933 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,23 +1,25 @@
-commit f001df540b3fc66a475985c1b7c810e7df063c8f
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 19 12:33:05 2022 -0700
+commit 83b36ffb108cc6e6cc3282b94c090f70100b5ef0
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 19 09:09:55 2021 -0700
 
-    net/http/httputil: don't insert default User-Agent header in proxied requests
+    cmd/compile: implement constant rotates on arm64
     
-    When ReverseProxy forwards a request with no User-Agent header, leave
-    the header in the forwarded request blank rather than inserting the
-    default Go HTTP clent User-Agent.
+    Explicit constant rotates work, but constant arguments to
+    bits.RotateLeft* needed the additional rule.
     
-    We already did this for NewSingleHostReverseProxy; generalize it to
-    every ReverseProxy.
+    Fixes #48465
     
-    Change-Id: Id81a230cb8d384acdfae190b78a4265d80720388
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407375
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia7544f21d0e7587b6b6506f72421459cd769aea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350909
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/http/httputil/reverseproxy.go      | 10 ++++---
- src/net/http/httputil/reverseproxy_test.go | 46 ++++++++++++------------------
- 2 files changed, 25 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |  3 ++-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 33 ++++++++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 40 ++++++++++++++++++++++++++++
+ test/codegen/rotate.go                       | 19 +++++++++++--
+ 5 files changed, 82 insertions(+), 16 deletions(-)

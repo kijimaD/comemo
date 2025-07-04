@@ -1,15 +1,15 @@
-commit e538e1b627d16778134704310f39a1fec997184d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 15 09:50:40 2015 -0700
+commit 9495e45c8077fe2f562a57da8e3593b1779b2d2f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 4 11:13:56 2015 -0700
 
-    go/types: check that typed constant shift expressions are representable
+    [dev.ssa] cmd/compile: make GOSSAFUNC trigger logging
     
-    Fixes #12945.
+    I find myself always adding this in temporarily.
+    Make it permanent.
     
-    Change-Id: I08b44795fcd7ec59371aea8111f7febead54720b
-    Reviewed-on: https://go-review.googlesource.com/15900
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1646b3930a07d0ea01840736ccd449b7fd24f06e
+    Reviewed-on: https://go-review.googlesource.com/13141
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/expr.go             | 12 ++++++++++--
- src/go/types/testdata/const1.src |  8 ++++++++
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

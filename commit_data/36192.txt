@@ -1,20 +1,17 @@
-commit 2069543bf11fe0432f51231c8a2cd1d4629f5a05
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 2 20:42:00 2018 +0000
+commit 338ac2af6f8ec2a0db6dc51552be4d59a3978e01
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Wed Apr 11 03:22:59 2018 +0000
 
-    encoding/xml: document HTMLAutoClose and HTMLEntity more
+    doc: switch from spaces to tabs for indentation in example code
     
-    They didn't even have public types, which made them pretty mysterious.
+    This is the standard that gofmt uses.
     
-    Give them types and reference the Decoder, which uses them.
-    
-    Also, refer them qualified by their package name in the examples, as
-    we usually do in example*.go files, which usually use package foo_test
-    specifically so we can show the package names along with the symbols.
-    
-    Change-Id: I50ebbbf43778c1627bfa526f8824f52c7953454f
-    Reviewed-on: https://go-review.googlesource.com/127663
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I30e70611ccd0d3bbaa500fa84e9d1ba75970f0bc
+    GitHub-Last-Rev: b2b7af0df9759ad447b6fd3551ea356804d136b2
+    GitHub-Pull-Request: golang/go#24802
+    Reviewed-on: https://go-review.googlesource.com/106123
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/xml/xml.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ doc/install-source.html | 2 +-
+ doc/install.html        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

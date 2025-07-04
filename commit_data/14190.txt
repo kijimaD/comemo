@@ -1,15 +1,15 @@
-commit 922c0b47557db7d686bfebe0e128a7a1dd6116e3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Oct 21 17:15:56 2012 -0400
+commit 772decbc809ff29bd254f3d80f13e25443d80fc5
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun Oct 21 17:02:10 2012 -0400
 
-    cmd/gc: rebuild builtin.c
+    reflect: make Index and Slice accept strings
     
-    Was not in sync with runtime.go, but the diffs
-    didn't really matter, so nothing broke.
+    Fixes #3284.
     
-    R=ken2
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/6733057
+    https://golang.org/cl/6643043
 
- src/cmd/gc/builtin.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/reflect/all_test.go | 24 +++++++++++++++++++++++-
+ src/pkg/reflect/value.go    | 28 ++++++++++++++++++++++++++--
+ 2 files changed, 49 insertions(+), 3 deletions(-)

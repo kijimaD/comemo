@@ -1,30 +1,34 @@
-commit 33249f46aae9a7ed951cd5691639a139aac3a990
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Apr 29 18:31:50 2020 -0400
+commit ea18a1c2126e5e94924f7f68771fd49876fa7d3a
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Mon Nov 18 12:44:33 2019 -0500
 
-    crypto/tls: accept HelloRetryRequest messages with only a cookie
+    runtime/pprof: avoid crash due to truncated stack traces
     
-    Clients have to reject any HelloRetryRequest message that doesn't lead
-    to a change in the ClientHello. Instead, we were rejecting any HRR that
-    didn't select an alternative group, even if it sent a cookie, which
-    would change the CH.
+    The profile proto message builder maintains a location entry cache
+    that maps a location (possibly involving multiple user frames
+    that represent inlined function calls) to the location id. We have
+    been using the first pc of the inlined call sequence as the key of
+    the cached location entry assuming that, for a given pc, the sequence
+    of frames representing the inlined call stack is deterministic and
+    stable. Then, when analyzing the new stack trace, we expected the
+    exact number of pcs to be present in the captured stack trace upon
+    the cache hit.
     
-    The good news is that I know of no TLS servers that use or need HRRs
-    exclusively for cookies (which are mostly useful in DTLS as a way to
-    verify the source address). The bad news is that we poisoned the
-    ecosystem as Go 1.12 to 1.14 will reject such HRRs. Oops, hopefully no
-    one needed this.
+    This assumption does not hold, however, in the presence of the stack
+    trace truncation in the runtime during profiling, and also with the
+    potential bugs in runtime.
     
-    No tests because neither Go nor s_server support cookies. This would
-    presumably get covered once we integrate BoGo.
+    A better fix is to use all the pcs of the inlined call sequece as
+    the key instead of the first pc. But that is a bigger code change.
+    This CL avoids the crash assuming the trace was truncated.
     
-    Fixes #30149
+    Fixes #35538
     
-    Change-Id: I760fb1ded81148ac3096cf201cbc1e941374b83d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231039
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I8c6bae98bc8b178ee51523c7316f56b1cce6df16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207609
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/tls/handshake_client_tls13.go | 75 ++++++++++++++++++--------------
- 1 file changed, 43 insertions(+), 32 deletions(-)
+ src/runtime/pprof/pprof_test.go | 26 ++++++++++++++++++++++++++
+ src/runtime/pprof/proto.go      | 18 +++++++++++++++++-
+ 2 files changed, 43 insertions(+), 1 deletion(-)

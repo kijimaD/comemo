@@ -1,19 +1,20 @@
-commit 911b066bf87980099b52ad0ee93fed1f13fdc813
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Mar 6 14:43:13 2024 +0100
+commit 602e6aa97965c0c14d469c46370b76c0f276edbb
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 12 03:12:40 2023 +1100
 
-    internal/syscall/windows/registry: append .dll when loading kernel32
+    runtime: remove arm64 non-register ABI fallback code
     
-    Win32 LoadLibrary supports loading a DLL omitting the .dll extension,
-    but it is better to be explicit and include the extension. This is
-    consistent with all other uses of LoadLibrary in the Go standard
-    library.
+    This presumably got missed in CL 393875.
     
-    Change-Id: I7349d0a27db5f8ab59061434f37d10918e43b869
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I4f2de00ebd6ec405d5e289a7f8c2fc781607260b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475617
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/internal/syscall/windows/registry/registry_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/sys_freebsd_arm64.s |  5 -----
+ src/runtime/sys_linux_arm64.s   | 11 -----------
+ src/runtime/sys_netbsd_arm64.s  |  5 -----
+ src/runtime/sys_openbsd_arm64.s |  5 -----
+ 4 files changed, 26 deletions(-)

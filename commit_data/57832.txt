@@ -1,22 +1,28 @@
-commit 060bd25310ff38b92dd57bc66c2f026a0b7ee765
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Mon Oct 28 23:10:31 2024 +0000
+commit e844d72421fb34b57eddf2653b33ed5ebf146b64
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 30 12:17:06 2023 -0400
 
-    internal/runtime/atomic: add Xchg8 for arm
+    cmd/compile/internal/inline: no-return flag analysis for inline heuristics
     
-    For #69735
+    Add code to compute whether a given function appears to
+    unconditionally call panic or exit, as a means of driving inlining
+    decisions. Note that this determination is based on
+    heuristics/guesses, as opposed to strict safety analysis; in some
+    cases we may miss a function that does indeed always panic, or mark a
+    function as always invoking panic when it doesn't; the intent is get
+    the right answer in "most" cases.
     
-    Change-Id: I18c0ca15d94a9b1751c1e55459283e01dc114150
-    GitHub-Last-Rev: dd9a39a5551e5a3415ab765cf271fecdbbe89b4c
-    GitHub-Pull-Request: golang/go#69924
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620855
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Updates #61502.
+    
+    Change-Id: Ibba3e60c06c2e54cf29b3ffa0f816518aaacb9a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511558
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/runtime/atomic/atomic_arm.go | 21 +++++++++++++++++++++
- src/internal/runtime/atomic/atomic_arm.s  | 31 +++++++++++++++++++++++++++++++
- src/internal/runtime/atomic/xchg8_test.go | 22 +++++++++++++++++++++-
- 3 files changed, 73 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  41 ++-
+ .../internal/inline/inlheur/analyze_func_flags.go  | 338 +++++++++++++++++++++
+ .../internal/inline/inlheur/funcprops_test.go      |   2 +-
+ .../internal/inline/inlheur/pstate_string.go       |  30 ++
+ .../inline/inlheur/testdata/props/funcflags.go     | 295 ++++++++++++++++++
+ .../internal/inline/inlheur/testdata/props/stub.go | 107 -------
+ 6 files changed, 703 insertions(+), 110 deletions(-)

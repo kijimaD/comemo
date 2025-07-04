@@ -1,16 +1,17 @@
-commit 27032fddee27dd3b02437b118e50c66586052830
-Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Wed Jul 31 16:58:28 2013 +1000
+commit aa38aeaeaf5d9a87b490fa16de9de850a9f5956c
+Author: Ulf Holm Nielsen <doktor@dyregod.dk>
+Date:   Wed Jul 31 16:11:02 2013 +1000
 
-    path/filepath: Panic in Match when parsing invalid character range.
+    time: Allow Parse and Format to handle time zone offsets with seconds
     
-    Fixes #5668.
+    Adds layout cases with seconds for stdISO8601 and stdNumTZ with and without colons. Update time.Format to append seconds for those cases.
     
-    R=golang-dev, rsc, r
+    Fixes #4934.
+    
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12001056
+    https://golang.org/cl/8132044
 
- src/pkg/path/filepath/match.go      | 6 ++++++
- src/pkg/path/filepath/match_test.go | 5 +++++
- src/pkg/path/match_test.go          | 5 +++++
- 3 files changed, 16 insertions(+)
+ src/pkg/time/format.go    | 128 +++++++++++++++++++++++++++++++---------------
+ src/pkg/time/time_test.go |  38 ++++++++++++++
+ 2 files changed, 126 insertions(+), 40 deletions(-)

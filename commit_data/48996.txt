@@ -1,26 +1,36 @@
-commit 7c404d59db3591a7c5854b38dc0f05fcb7ac0cff
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 3 19:28:25 2022 +0000
+commit c45d0eaadb77f11061cf9b18f521eb0b27e6bedb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jul 3 04:53:25 2021 -0700
 
-    runtime: store consistent total allocation stats as uint64
+    [dev.typeparams] cmd/compile: flatten OINLCALL in walk
     
-    Currently the consistent total allocation stats are managed as uintptrs,
-    which means they can easily overflow on 32-bit systems. Fix this by
-    storing these stats as uint64s. This will cause some minor performance
-    degradation on 32-bit systems, but there really isn't a way around this,
-    and it affects the correctness of the metrics we export.
+    Inlining replaces inlined calls with OINLCALL nodes, and then somewhat
+    clumsily tries to rewrite these in place without messing up
+    order-of-evaluation rules.
     
-    Fixes #52680.
+    But handling these rules cleanly is much easier to do during order,
+    and escape analysis is the only major pass between inlining and
+    order. It's simpler to teach escape analysis how to analyze OINLCALL
+    nodes than to try to hide them from escape analysis.
     
-    Change-Id: I7e6ca44047d46b4bd91c6f87c2d29f730e0d6191
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403758
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Does not pass toolstash -cmp, but seems to just be line number
+    changes.
+    
+    Change-Id: I1986cea39793e3e1ed5e887ba29d46364c6c532e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332649
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mcache.go   | 20 ++++++++++----------
- src/runtime/metrics.go  | 12 ++++++------
- src/runtime/mgcsweep.go |  6 +++---
- src/runtime/mstats.go   | 42 ++++++++++++++++++++++--------------------
- 4 files changed, 41 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/escape/call.go        |  11 +++
+ src/cmd/compile/internal/escape/expr.go        |   2 +-
+ src/cmd/compile/internal/escape/stmt.go        |   2 +-
+ src/cmd/compile/internal/inline/inl.go         | 110 +++++++------------------
+ src/cmd/compile/internal/ir/expr.go            |  14 +++-
+ src/cmd/compile/internal/ir/fmt.go             |   9 ++
+ src/cmd/compile/internal/logopt/logopt_test.go |   2 +-
+ src/cmd/compile/internal/noder/reader.go       |  18 +---
+ src/cmd/compile/internal/typecheck/dcl.go      |   1 +
+ src/cmd/compile/internal/walk/order.go         |  33 +++++++-
+ 10 files changed, 102 insertions(+), 100 deletions(-)

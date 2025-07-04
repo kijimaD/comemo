@@ -1,12 +1,12 @@
-commit 438ed18202bfe812963a72a5fd8b8251b4985518
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 25 11:05:42 2012 +1100
+commit 34f2050626bd26a63fc7333555fbbad280abc214
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 24 11:40:32 2012 +0200
 
-    doc: remove misplaced articles from references page
+    exp/locale/collate: clarification in comments on use of returned value.
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6743059
+    https://golang.org/cl/6752043
 
- doc/reference.html | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ src/pkg/exp/locale/collate/collate.go | 1 +
+ 1 file changed, 1 insertion(+)

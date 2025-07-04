@@ -1,29 +1,20 @@
-commit 8b2f84393b50a2ac77ba36f847c52148f98b320f
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Aug 1 15:12:54 2017 -0500
+commit ab9db51e1cf651c0d6d5b56dfd0d9d452f176726
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 16 15:02:02 2017 -0400
 
-    encoding/base32: improve performance in common case
+    runtime: rename mspan.stackfreelist -> manualFreeList
     
-    Unroll loop to improve perfromance back to 1.8 level.
-    name              old time/op    new time/op    delta
-    EncodeToString-6    63.0µs ± 3%    51.7µs ± 2%  -17.94%  (p=0.000 n=10+10)
+    We're going to use this free list for other types of manually-managed
+    memory in the heap.
     
-    name              old speed      new speed      delta
-    EncodeToString-6   130MB/s ± 3%   159MB/s ± 2%  +21.83%  (p=0.000 n=10+10)
+    For #19325.
     
-    Vs 1.8:
-    EncodeToString-6    54.9µs ± 2%    51.7µs ± 2%   -5.95%  (p=0.000 n=10+10)
-    
-    name              old speed      new speed      delta
-    EncodeToString-6   149MB/s ± 2%   159MB/s ± 2%   +6.32%  (p=0.000 n=10+10)
-    
-    Fixes #21262
-    
-    Change-Id: I41bf7e1f61041781386d16d573bffe1a7173c0c3
-    Reviewed-on: https://go-review.googlesource.com/52510
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Ib7e682295133eabfddf3a84f44db43d937bfdd9c
+    Reviewed-on: https://go-review.googlesource.com/38575
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/base32/base32.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/runtime/mheap.go |  9 +++++----
+ src/runtime/stack.go | 24 ++++++++++++------------
+ 2 files changed, 17 insertions(+), 16 deletions(-)

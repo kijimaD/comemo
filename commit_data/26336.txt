@@ -1,16 +1,14 @@
-commit 8540a1c4dfd6f4950f5a1da6241c76765262ddbd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 16 20:14:13 2016 +0000
+commit 830ce3f1ed2771a94ed768816304ce2dd1017da0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 11 21:10:46 2016 -0500
 
-    net/http: remove init func reference to ServeMux
+    [dev.garbage] dev.garbage: create new dev.garbage branch
     
-    Shrinks cmd/go by 30KB.
+    This is for a GC experiment that may or may not go anywhere.
     
-    Change-Id: Ied31192e85af76ebac743f8cc12bd9ef6ec5048f
-    Reviewed-on: https://go-review.googlesource.com/20765
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I46a4535cc768ce8bbe33c72961f1fa87658493f7
+    Reviewed-on: https://go-review.googlesource.com/18534
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/http_test.go | 6 ++++--
- src/net/http/server.go    | 9 +++++++--
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ dev.garbage | 1 +
+ 1 file changed, 1 insertion(+)

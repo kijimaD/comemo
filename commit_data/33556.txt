@@ -1,13 +1,26 @@
-commit 894743b56e83b2d125b18193208323c80b129938
-Author: Marko Mudrinic <mudrinic.mare@gmail.com>
-Date:   Wed Nov 15 12:56:01 2017 +0000
+commit dad5d76e8fff6370f73748c7237b64bda0af13bd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 21 08:45:57 2017 -0700
 
-    crypto/sha1, crypto/sha256: fix typo fisrt -> first
+    runtime: strength reduce key pointer calculations in mapaccess*_fast*
     
-    Change-Id: I9bb7568ca16b420254796eb38dfb86c5ca3399d7
-    Reviewed-on: https://go-review.googlesource.com/77890
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    While we're here, check string length before checking b.tophash.
+    
+    name                     old time/op  new time/op  delta
+    MapStringKeysEight_16-8  11.4ns ±10%   7.0ns ± 2%  -38.27%  (p=0.000 n=29+28)
+    MapStringKeysEight_32-8  10.9ns ± 2%   6.3ns ± 3%  -41.89%  (p=0.000 n=26+30)
+    MapStringKeysEight_64-8  10.8ns ± 3%   6.3ns ± 2%  -41.52%  (p=0.000 n=28+27)
+    MapStringKeysEight_1M-8  10.9ns ± 4%   6.3ns ± 2%  -41.91%  (p=0.000 n=29+29)
+    IntMap-8                 7.05ns ± 4%  6.77ns ± 3%   -3.94%  (p=0.000 n=29+30)
+    
+    
+    Change-Id: I0f3dc3301bdf550e4ac5250e1e64e7f2a0ffb269
+    Reviewed-on: https://go-review.googlesource.com/57590
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/sha1/sha1block_arm64.s     | 2 +-
- src/crypto/sha256/sha256block_arm64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/hashmap.go      |  4 ++
+ src/runtime/hashmap_fast.go | 98 ++++++++++++++-------------------------------
+ src/runtime/runtime_test.go |  2 +-
+ 3 files changed, 35 insertions(+), 69 deletions(-)

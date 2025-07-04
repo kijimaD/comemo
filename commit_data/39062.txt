@@ -1,19 +1,14 @@
-commit 8280455de4728d76f1e084e33284d57eb6ba10ac
+commit 745273f739fc63a5a4089d81c85f33edca58f0e9
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 6 14:23:05 2019 -0700
+Date:   Wed Dec 19 17:49:11 2018 -0800
 
-    cmd/go: don't print phdrs running "go version" on ELF files
+    os: clarify O_TRUNC comment
     
-    I assume this was for debugging purposes.
+    Fixes #28699
     
-    Updates #31624
-    
-    Change-Id: Ie158fde0574c9bbbd9d1b684f51af5681974aff7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175449
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic340c3171bb7d91d8cb9553967c2b51e7d9daba8
+    Reviewed-on: https://go-review.googlesource.com/c/155177
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/version/exe.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

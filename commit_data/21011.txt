@@ -1,13 +1,20 @@
-commit 24bf8f62be681f5c2d23b8faf2816bc48ea81ace
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Dec 13 08:48:44 2014 -0800
+commit 23ecad07cd8cf07a21af07a1e96803f32536ab05
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 5 20:25:20 2014 -0800
 
-    cmd/go: gc never permits C files; gccgo always does
+    os/exec: tell lsof not to block
     
-    Change-Id: I513665626ec0866f32036c26207dc234c17acea1
-    Reviewed-on: https://go-review.googlesource.com/1540
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    For some reason lsof is now hanging on my workstation
+    without the -b (avoid blocking in the kernel) option.
+    Adding -b makes the test pass and shouldn't hurt.
+    
+    I don't know how recent the -b option is.  If the builders
+    are ok with it, it's probably ok.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166220043
 
- src/cmd/go/pkg.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

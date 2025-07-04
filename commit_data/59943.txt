@@ -1,0 +1,24 @@
+commit f6c3a3e3c8c532e73e9dff7acdf04e2b4d5d9537
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Feb 9 10:34:58 2024 -0500
+
+    slices: add Chunk
+    
+    Chunk returns an iterator over consecutive sub-slices of up to n elements of s.
+    
+    Fixes #53987.
+    
+    Change-Id: I508274eca388db39550eb9e4d8abd5ce68d29d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/53987.txt                         |   1 +
+ doc/next/6-stdlib/3-iter.md                |   2 +
+ doc/next/6-stdlib/99-minor/slices/53987.md |   1 +
+ src/slices/example_test.go                 |  27 +++++++
+ src/slices/iter.go                         |  24 +++++++
+ src/slices/iter_test.go                    | 110 +++++++++++++++++++++++++++++
+ 6 files changed, 165 insertions(+)

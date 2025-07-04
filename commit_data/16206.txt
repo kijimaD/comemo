@@ -1,15 +1,16 @@
-commit 4b091c533e2486b6d27e8f0754f0f2755f7931ff
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 20 17:20:41 2013 -0700
+commit 782a57811fc008d6f30fcab24590337a1253ce7d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 20 17:42:14 2013 +1000
 
-    sort: don't depend on math
+    cmd/ld: do not relocate ignored PE sections
     
-    No reason to pull in math just for x != x.
+    This should have been part of CL8715043.
     
-    R=golang-dev, r
+    Update #5106
+    
+    R=golang-dev, r, iant
     CC=golang-dev
-    https://golang.org/cl/8886043
+    https://golang.org/cl/8676050
 
- src/pkg/go/build/deps_test.go | 2 +-
- src/pkg/sort/sort.go          | 9 ++++++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/ld/ldpe.c | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,20 +1,19 @@
-commit 472f519fe26652af2fcef6121e259d7f193b27cf
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon May 3 09:32:22 2021 -0400
+commit e3bb53a7683eb9c3d04c09f28abb4cf9aa89a7c1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 27 17:08:57 2020 +0700
 
-    cmd/compile/internal/ssagen: fix misleading comment
+    cmd/compile: remove isLiteral
     
-    Fix up a slightly stale comment in the part of ssa generation that
-    zeros ambiguously live variables: with the advent of the register ABI,
-    the ir.Func "Dcl" slice is no longer entirely sorted by frame offset,
-    although this is still the case for the local vars in Dcl.
+    It has duplicated logic with "n.isGoConst".
     
-    Change-Id: I633f43d16f0d4e0b444193a6edb6b2aa1154eea7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316309
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: I5bf871ef81c7188ca09dae29c7ff55b3a254d972
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265437
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

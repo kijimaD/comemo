@@ -1,19 +1,38 @@
-commit bd0fc0b9c32e3697380a6484154accacdb928f97
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Mar 10 14:41:38 2021 -0600
+commit 18239be10a0b5caa1b3222b228ff590b1c036382
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 25 19:11:28 2020 -0400
 
-    cmd/link: preserve elf phdr flags when loading external objects
+    cmd/go/internal: remove some users of par.Work
     
-    Preserve program header flags when passing them through loadelf.Load.
-    They shouldn't be coerced to 0 on non-ARM platforms which set them
-    such as ppc64le.
+    par.Work is used in a number of places as a parallel
+    work queue. This change replaces it with goroutines
+    and channels in a number of simpler places where it's
+    used.
     
-    Change-Id: I022613356f910d812de2fc22eac949960eeb53b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300950
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    This is the same CL as golang.org/cl/240062 and golang.org/cl/248326
+    except for the following changes in convert.go (all line numbers
+    from this CL), as well as fixing up imports in download.go:
+    - On line 44, the "*" before modules.Versions is removed (we were
+    trying to assign to a nil value on lines 72 and 73).
+    - Line 64 is new, and ensures that we receive on the semaphore
+    channel once the goroutine function exits. (The previous versions
+    of this CL only received at the end of the function, ignoring
+    the return point in the branch in the middle of the function.)
+    - The semaphore channel receive right before line 74 is gone,
+    replaced with the deferred receive above.
+    - The if block at line 83 is new, accounting for cases where
+    modfetch.ImportRepoRev returned an error in the goroutine,
+    so that versions[i] is ignored.
+    
+    Change-Id: I0e33670bb2eb0a1e4d7a5fa693a471e61ffbc8b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249020
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/loadelf/ldelf.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/modcmd/download.go | 69 +++++++++++++++++++---------------
+ src/cmd/go/internal/modcmd/graph.go    | 19 +++++-----
+ src/cmd/go/internal/modconv/convert.go | 59 ++++++++++++++++-------------
+ src/cmd/go/internal/modget/get.go      | 41 +++++++++++++-------
+ src/cmd/go/internal/modload/list.go    | 37 +++++++++++-------
+ 5 files changed, 134 insertions(+), 91 deletions(-)

@@ -1,47 +1,19 @@
-commit 5bcad92f07317dc81122f72d40433f314e336b7c
+commit 9c08d6508442a7491aeb615c52d69d38b1c477c6
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 21 22:08:42 2012 -0500
+Date:   Tue Feb 21 22:04:30 2012 -0500
 
-    ld: add NOPTRBSS for large, pointer-free uninitialized data
-    cc: add #pragma textflag to set it
-    runtime: mark mheap to go into noptr-bss.
-            remove special case in garbage collector
+    spec: make all comparison results untyped bool
     
-    Remove the ARM from.flag field created by CL 5687044.
-    The DUPOK flag was already in p->reg, so keep using that.
+    Or, depending on your point of view, make the
+    comparisons satisfy any surrounding boolean type.
     
-    Otherwise test/nilptr.go creates a very large binary.
-    Should fix the arm build.
-    Diagnosed by minux.ma; replacement for CL 5690044.
+    Also, fix a few foo_bar -> fooBar in code fragments.
     
-    R=golang-dev, minux.ma, r
+    Fixes #2561.
+    
+    R=golang-dev, r, bradfitz, gri, iant, kevlar
     CC=golang-dev
-    https://golang.org/cl/5686060
+    https://golang.org/cl/5671096
 
- src/cmd/5a/lex.c           |  1 -
- src/cmd/5c/swt.c           |  7 +++----
- src/cmd/5c/txt.c           |  2 ++
- src/cmd/5g/gg.h            |  1 -
- src/cmd/5g/gobj.c          |  1 -
- src/cmd/5g/gsubr.c         |  6 +++---
- src/cmd/5l/asm.c           |  4 ++++
- src/cmd/5l/l.h             |  1 -
- src/cmd/5l/obj.c           | 13 ++++++++-----
- src/cmd/5l/span.c          |  2 ++
- src/cmd/6c/txt.c           |  2 ++
- src/cmd/6l/asm.c           |  4 ++++
- src/cmd/6l/obj.c           | 10 +++++++---
- src/cmd/8c/txt.c           |  2 ++
- src/cmd/8l/asm.c           |  4 ++++
- src/cmd/cc/cc.h            |  3 +++
- src/cmd/cc/dcl.c           |  4 ++++
- src/cmd/cc/dpchk.c         | 18 +++++++++++-------
- src/cmd/cc/lexbody         |  7 +++++++
- src/cmd/cc/macbody         |  4 ++++
- src/cmd/ld/data.c          | 42 ++++++++++++++++++++++++++++++++++--------
- src/cmd/ld/lib.h           |  1 +
- src/cmd/ld/symtab.c        |  4 ++++
- src/libmach/5obj.c         |  2 +-
- src/pkg/runtime/malloc.goc |  2 ++
- src/pkg/runtime/mgc0.c     |  7 ++-----
- 26 files changed, 114 insertions(+), 40 deletions(-)
+ doc/go_spec.html | 57 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 37 insertions(+), 20 deletions(-)

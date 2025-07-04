@@ -1,23 +1,14 @@
-commit fb376021bea084d5320a8059176ab86880832f5c
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 31 09:09:50 2013 -0700
+commit 29de03adf38a1a813500e3fa2953740282b9a1e5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 31 16:29:50 2013 +0900
 
-    runtime: record type information for hashtable internal structures.
-    Remove all hashtable-specific GC code.
+    net: keep lookup IP stuff close
     
-    Fixes bug 6119.
+    Also flattens import declaration.
     
-    R=cshapiro, dvyukov, khr
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/13078044
+    https://golang.org/cl/13373046
 
- src/cmd/gc/go.h           |   4 +
- src/cmd/gc/reflect.c      | 139 ++++++++++++++++++++++-
- src/pkg/reflect/type.go   | 138 ++++++++++++++++++++---
- src/pkg/runtime/hashmap.c | 280 ++++++----------------------------------------
- src/pkg/runtime/hashmap.h |  29 -----
- src/pkg/runtime/malloc.h  |   3 +-
- src/pkg/runtime/mgc0.c    | 111 +-----------------
- src/pkg/runtime/mgc0.h    |   1 -
- src/pkg/runtime/type.h    |   2 +
- 9 files changed, 304 insertions(+), 403 deletions(-)
+ src/pkg/net/lookup.go | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

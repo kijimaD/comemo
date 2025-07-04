@@ -1,14 +1,14 @@
-commit 44f96d4488fb6f11e7b1a3b7197fd47267e00dd9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 15 20:06:08 2014 -0400
+commit c8ef6776e49d5dddd7d328fee2dde522197f2cdc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 15 16:40:48 2014 -0700
 
-    addr2line, objdump: write doc comments
+    doc/install.html: FreeBSD 8 and higher only are supported
+    Fixes #7188
     
-    LGTM=r
-    R=r
+    LGTM=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/88050046
+    https://golang.org/cl/88280044
 
- src/cmd/addr2line/main.go | 15 +++++++++++++--
- src/cmd/objdump/main.go   | 28 ++++++++++++++++++++++++++--
- 2 files changed, 39 insertions(+), 4 deletions(-)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

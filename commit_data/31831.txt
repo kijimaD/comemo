@@ -1,16 +1,13 @@
-commit 2f55031c593ae842ab383c911aadcaee97a6715e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 14 22:04:33 2017 +0000
+commit d80166ebbef1e57457dc383959af83ea2286726e
+Author: Martin Lindhe <martin.j.lindhe@gmail.com>
+Date:   Mon Mar 20 12:14:47 2017 +0100
 
-    net, doc: document JoinHostPort change in release notes, clarify its docs
+    crypto/*: fix spelling of 'below'
     
-    Updates #18059
-    Updates #20587
-    
-    Change-Id: Icbb4c7cb201ac51d2cc6066620b47ba09ff6fe65
-    Reviewed-on: https://go-review.googlesource.com/45780
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: Ic9d65206ec27f6d54bb71395802929e9c769e80a
+    Reviewed-on: https://go-review.googlesource.com/38355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.9.html    | 7 ++-----
- src/net/ipsock.go | 4 ++--
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ src/crypto/aes/asm_ppc64le.s          | 2 +-
+ src/crypto/sha512/sha512block_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

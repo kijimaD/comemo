@@ -1,24 +1,16 @@
-commit 959025c0ac97ec3533ef9f3f70d64453352a7b56
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 9 11:21:42 2017 -0500
+commit a8dc43edd1d04cfd9acabaf1e65fffe1e5bdeb32
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 15 12:47:51 2017 +1100
 
-    sync: import Map from x/sync/syncmap
+    internal/testenv: do not delete target file
     
-    This is a direct port of the version from
-    commit a60ad46e0ed33d02e09bda439efaf9c9727dbc6c
-    (https://go-review.googlesource.com/c/37342/).
+    We did not create it. We should not delete it.
     
-    updates #17973
-    updates #18177
-    
-    Change-Id: I63fa5ef6951b1edd39f84927d1181a4df9b15385
-    Reviewed-on: https://go-review.googlesource.com/36617
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If98454ab233ce25367e11a7c68d31b49074537dd
+    Reviewed-on: https://go-review.googlesource.com/37030
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/map.go                | 367 +++++++++++++++++++++++++++++++++++++++++
- src/sync/map_bench_test.go     | 217 ++++++++++++++++++++++++
- src/sync/map_reference_test.go | 142 ++++++++++++++++
- src/sync/map_test.go           | 170 +++++++++++++++++++
- 4 files changed, 896 insertions(+)
+ src/internal/testenv/testenv_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

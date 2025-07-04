@@ -1,29 +1,16 @@
-commit 6fefb7f9f3b632bdd0c3997ecc5b1096a5077cdf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Nov 4 13:28:25 2021 -0700
+commit b6df58bd1f3b2a05787f62bbec4267f7867d4bbd
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 5 09:50:28 2021 -0800
 
-    cmd/compile: gracefully fallback when inline bodies are missing
+    cmd/compile: detect duplicate importing earlier
     
-    Currently, we rely on a "crawling" step during export to identify
-    function and method bodies that need to be exported or re-exported so
-    we can trim out unnecessary ones and reduce build artifact sizes. To
-    catch cases where we expect a function to be inlinable but we failed
-    to export its body, we made this condition a fatal compiler error.
-    
-    However, with generics, it's much harder to perfectly identify all
-    function bodies that need to be exported; and several attempts at
-    tweaking the algorithm have resulted in still having failure cases.
-    So for now, this CL changes a missing inline body into a graceful
-    failure instead.
-    
-    Change-Id: I04b0872d0dcaae9c3de473e92ce584e4ec6fd782
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361403
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I05ba944e189a884b727e40a9526d212612c3e923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299770
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/inline/inl.go        |  4 ++--
- src/cmd/compile/internal/typecheck/crawler.go |  2 +-
- src/cmd/compile/internal/typecheck/iimport.go | 21 +++++++++++++++++++++
- 3 files changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/func.go    | 11 +++--------
+ src/cmd/compile/internal/typecheck/iimport.go |  2 +-
+ 2 files changed, 4 insertions(+), 9 deletions(-)

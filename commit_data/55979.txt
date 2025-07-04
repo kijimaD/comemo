@@ -1,36 +1,49 @@
-commit 190d0d3e69b113bea0b6b604ba2f0beb62c08741
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 16 18:29:06 2024 -0700
+commit 383a4e78861218bd861632d6cdcac6c8af6a5470
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:52:01 2023 +0100
 
-    database/sql: optimize connection request pool
+    net: mptcp: add end-to-end test
     
-    This replaces a map used as a set with a slice.
+    This adds a simple test validating MPTCP Sock for Linux implementation:
     
-    We were using a surprising amount of CPU in this code, making mapiters
-    to pull out a random element of the map. Instead, just rand.IntN to pick
-    a random element of the slice.
+    - A Listener is created with MPTCP support, accepting new connections in
+      a new thread.
     
-    It also adds a benchmark:
+    - A Dialer with MPTCP support connects to this new Listener
     
-                         │    before    │                after                │
-                         │    sec/op    │   sec/op     vs base                │
-        ConnRequestSet-8   1818.0n ± 0%   452.4n ± 0%  -75.12% (p=0.000 n=10)
+    - On both sides, MPTCP should be used. Note that at this point, we
+      cannot check if a fallback to TCP has been done nor if the correct
+      protocol is being used.
     
-    (whether random is a good policy is a bigger question, but this
-     optimizes the current policy without changing behavior)
+    Technically, a localServer from mockserver_test.go is used, similar to
+    TestIPv6LinkLocalUnicastTCP from tcpsock_test.go. Here with MPTCP, the
+    Listen step is done manually to force using MPTCP and a post step is
+    done to verify extra status after the Accept. More checks are going to
+    be done in the future.
     
-    Updates #66361
+    Please note that the test is skipped if the kernel doesn't allow the
+    creation of an MPTCP socket at all when starting the test.
     
-    Change-Id: I3d456a819cc720c2d18e1befffd2657e5f50f1e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572119
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    The test can be executed with this command:
+    
+      $ ../bin/go test -v net -run "^TestMultiPathTCP$"
+    
+    The "-race" option has also been checked.
+    
+    This work has been co-developped by Benjamin Hesmans
+    <benjamin.hesmans@tessares.net> and Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    Fixes #56539
+    
+    Change-Id: I4b6b39e9175a20f98497b5ea56934e242da06194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471141
+    Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/database/sql/sql.go      | 163 +++++++++++++++++++++++++++++++++----------
- src/database/sql/sql_test.go | 104 ++++++++++++++++++++++++++-
- src/go/build/deps_test.go    |   5 +-
- 3 files changed, 234 insertions(+), 38 deletions(-)
+ src/net/mptcpsock_linux_test.go | 133 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 133 insertions(+)

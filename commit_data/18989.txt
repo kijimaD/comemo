@@ -1,13 +1,17 @@
-commit 1b42d25ae3cd831d2b437744c49385b15b29fd63
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 29 17:10:25 2014 -0400
+commit 2ca99505f6cfc1390b5b69eecb35e46d0e36456d
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sat Mar 29 15:45:40 2014 +0100
 
-    cmd/ld: pass -Qunused-arguments to clang during host linking.
+    cmd/gc: suppress array index error caused by a previously reported error
     
-    LGTM=iant
-    R=iant
+    Fixes #7153
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/82140043
+    https://golang.org/cl/82180043
 
- src/cmd/ld/lib.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c      |  3 ++-
+ test/fixedbugs/bug176.go    |  2 +-
+ test/fixedbugs/issue7153.go | 11 +++++++++++
+ 3 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,25 +1,67 @@
-commit 8854368cb076ea9a2b71c8b3c8f675a8e19b751c
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Sep 24 08:57:06 2021 -0700
+commit d9b79e53bb40275d7974cbc14cc60fc1ce84f8f1
+Author: Junchen Li <junchen.li@arm.com>
+Date:   Fri Jan 8 10:20:34 2021 +0800
 
-    cmd/compile: deal with blank nodes with typeparam type during stenciling
+    cmd/compile: fix wrong complement for arm64 floating-point comparisons
     
-    Deal correctly with a blank local variable with type param type. This is
-    a special case, because a blank local variable is not in the fn.Dcl
-    list. In this case, we must explicitly create a new blank node with the
-    correct substituted type, so we have correct types if the blank local
-    variable has an initializing assignment.
+    Consider the following example,
     
-    Fixes #48602
+      func test(a, b float64, x uint64) uint64 {
+        if a < b {
+          x = 0
+        }
+        return x
+      }
     
-    Change-Id: I903ea44b29934e180404e32800773b7309bf297b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352117
-    Run-TryBot: Dan Scales <danscales@google.com>
+      func main() {
+        fmt.Println(test(1, math.NaN(), 123))
+      }
+    
+    The output is 0, but the expectation is 123.
+    
+    This is because the rewrite rule
+    
+      (CSEL [cc] (MOVDconst [0]) y flag) => (CSEL0 [arm64Negate(cc)] y flag)
+    
+    converts
+    
+      FCMP NaN, 1
+      CSEL MI, 0, 123, R0 // if 1 < NaN then R0 = 0 else R0 = 123
+    
+    to
+    
+      FCMP NaN, 1
+      CSEL GE, 123, 0, R0 // if 1 >= NaN then R0 = 123 else R0 = 0
+    
+    But both 1 < NaN and 1 >= NaN are false. So the output is 0, not 123.
+    
+    The root cause is arm64Negate not handle negation of floating comparison
+    correctly. According to the ARM manual, the meaning of MI, GE, and PL
+    are
+    
+      MI: Less than
+      GE: Greater than or equal to
+      PL: Greater than, equal to, or unordered
+    
+    Because NaN cannot be compared with other numbers, the result of such
+    comparison is unordered. So when NaN is involved, unlike integer, the
+    result of !(a < b) is not a >= b, it is a >= b || a is NaN || b is NaN.
+    This is exactly what PL means. We add NotLessThanF to represent PL. Then
+    the negation of LessThanF is NotLessThanF rather than GreaterEqualF. The
+    same reason for the other floating comparison operations.
+    
+    Fixes #43619
+    
+    Change-Id: Ia511b0027ad067436bace9fbfd261dbeaae01bcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283572
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  6 ++++++
- test/typeparam/issue48602.go              | 25 +++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/cmd/compile/internal/arm64/ssa.go        |  20 +++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  32 +++----
+ src/cmd/compile/internal/ssa/opGen.go        |  40 +++++++++
+ src/cmd/compile/internal/ssa/rewrite.go      |  31 +++++--
+ test/fixedbugs/issue43619.go                 | 119 +++++++++++++++++++++++++++
+ 5 files changed, 215 insertions(+), 27 deletions(-)

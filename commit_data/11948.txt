@@ -1,12 +1,13 @@
-commit fa0100cf26336053f9c072c3cb1081a09df41449
+commit 034c72a5573a8d6f97f7ab241de271a09c356817
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 16 11:34:41 2012 +1100
+Date:   Thu Feb 16 10:44:55 2012 +1100
 
-    make.bat: implement --no-clean
+    build: use setlocal in run.bat
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5656070
+    https://golang.org/cl/5672061
 
- src/make.bat | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/all.bat | 2 +-
+ src/run.bat | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

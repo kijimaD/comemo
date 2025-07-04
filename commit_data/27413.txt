@@ -1,22 +1,16 @@
-commit 28c201860e0838b10972e805582007f9eb61e7ac
-Author: Simon Thulbourn <simon+github@thulbourn.com>
-Date:   Mon Dec 7 16:36:11 2015 +0000
+commit edb19aa1cdc5a712d85c77a76b90f69bd9a2b673
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Mar 24 22:46:10 2016 +0530
 
-    mime/multipart: sort header keys to ensure reproducible output
+    cmd/go: stat the archive file only when executing the commands
     
-    Adds a transparent sort to the mime/multipart package, which is
-    only used in the CreatePart func. This will ensure the ordering
-    of the MIMEHeader.
+    Fixes #14944
     
-    The point of this change was to ensure the output would be consistent
-    and something that could be depended on.
-    
-    Fixes #13522
-    
-    Change-Id: I9584ef9dbe98ce97d536d897326914653f8d9ddf
-    Reviewed-on: https://go-review.googlesource.com/17497
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I73e0997cb6ebaeced1045b0ddadac893319bd78f
+    Reviewed-on: https://go-review.googlesource.com/21065
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/mime/multipart/writer.go      | 13 +++++++++----
- src/mime/multipart/writer_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go   |  6 ++++--
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)

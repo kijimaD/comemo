@@ -1,30 +1,28 @@
-commit a1e7fb4eed7fbb002d2fabbd6a809a1a49dca711
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jul 7 13:09:20 2017 -1000
+commit 83843b16100d889bc84580c9427e02c7c9cee769
+Author: David Lazar <lazard@golang.org>
+Date:   Wed Mar 8 17:08:31 2017 -0500
 
-    test: deflake chan/select3.go
+    cmd/compile: fix names of inlined methods from other packages
     
-    On a slow or distracted machine, 0.1s is sometimes
-    not long enough for a non-blocking function call to complete.
-    This causes rare test flakes.
-    They can be easily reproduced by reducing the wait time to (say) 100ns.
+    Previously, an inlined call to wg.Done() in package main would have the
+    following incorrect symbol name:
     
-    For non-blocking functions, increase the window from 100ms to 10s.
-    Using different windows for block and non-blocking functions,
-    allows us to reduce the time for blocking functions.
-    The risk here is false negatives, but that risk is low;
-    this test is run repeatedly on many fast machines,
-    for which 10ms is ample time.
-    This reduces the time required to run the test by a factor of 10,
-    from ~1s to ~100ms.
+        main.(*sync.WaitGroup).Done
     
-    Fixes #20299
+    This change modifies methodname to return the correct symbol name:
     
-    Change-Id: Ice9a641a66c6c101d738a2ebe1bcb144ae3c9916
-    Reviewed-on: https://go-review.googlesource.com/47812
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+        sync.(*WaitGroup).Done
+    
+    This fix was suggested by @mdempsky.
+    
+    Fixes #19467.
+    
+    Change-Id: I0117838679ac5353789299c618ff8c326712d94d
+    Reviewed-on: https://go-review.googlesource.com/37866
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/chan/select3.go | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go      |  8 ++------
+ test/fixedbugs/issue19467.dir/mysync.go | 21 ++++++++++++++++++++
+ test/fixedbugs/issue19467.dir/z.go      | 34 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue19467.go            |  7 +++++++
+ 4 files changed, 64 insertions(+), 6 deletions(-)

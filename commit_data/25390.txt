@@ -1,21 +1,17 @@
-commit f41378e22578db38bb15009c50e3e05f7f9c4743
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 21 13:49:12 2015 -0500
+commit a30dd9ceeb2fb2361cd5a4ae623258ec0a96c517
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 28 10:17:05 2015 +0200
 
-    cmd/dist: run limited tests in race and libgcc=none modes
+    encoding/json: check for exported fields in embedded structs
     
-    Mostly we just care that the test binaries link and start up.
-    No need to run the full test suites.
+    Addresses issue #12367.
     
-    Takes 12% off my all.bash run time.
+    Must be checked in before CL 14010.
     
-    For #10571.
-    
-    Change-Id: I01af618f3d51deb841ea638424e1389a2df7d746
-    Reviewed-on: https://go-review.googlesource.com/18086
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I7233c3a62d4f55d0ac7e8a87df5fc4ee7beb7207
+    Reviewed-on: https://go-review.googlesource.com/14011
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/encoding/json/decode_test.go | 16 ++++++++++++++--
+ src/encoding/json/encode.go      |  2 +-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

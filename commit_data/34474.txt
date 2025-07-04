@@ -1,31 +1,34 @@
-commit 8916773a3d6faabed5d500f8bf0d89b7048aecde
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Tue Mar 6 02:47:09 2018 +0000
+commit b52b77cb953430b76242724394bb66e79fda9f10
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 24 16:08:46 2017 -0400
 
-    runtime, cmd/compile: use ldp for DUFFCOPY on ARM64
+    cmd/compile, cmd/link: support for DWARF file reference relocations
     
-    name         old time/op  new time/op  delta
-    CopyFat8     2.15ns ± 1%  2.19ns ± 6%     ~     (p=0.171 n=8+9)
-    CopyFat12    2.15ns ± 0%  2.17ns ± 2%     ~     (p=0.137 n=8+10)
-    CopyFat16    2.17ns ± 3%  2.15ns ± 0%     ~     (p=0.211 n=10+10)
-    CopyFat24    2.16ns ± 1%  2.15ns ± 0%     ~     (p=0.087 n=10+10)
-    CopyFat32    11.5ns ± 0%  12.8ns ± 2%  +10.87%  (p=0.000 n=8+10)
-    CopyFat64    20.2ns ± 2%  12.9ns ± 0%  -36.11%  (p=0.000 n=10+10)
-    CopyFat128   37.2ns ± 0%  21.5ns ± 0%  -42.20%  (p=0.000 n=10+10)
-    CopyFat256   71.6ns ± 0%  38.7ns ± 0%  -45.95%  (p=0.000 n=10+10)
-    CopyFat512    140ns ± 0%    73ns ± 0%  -47.86%  (p=0.000 n=10+9)
-    CopyFat520    142ns ± 0%    74ns ± 0%  -47.54%  (p=0.000 n=10+10)
-    CopyFat1024   277ns ± 0%   141ns ± 0%  -49.10%  (p=0.000 n=10+10)
+    New relocation flavor R_DWARFFILEREF, to be applied to DWARF attribute
+    values that correspond to file references (ex: DW_AT_decl_file,
+    DW_AT_call_file). The LSym for this relocation is the file itself; the
+    linker replaces the relocation target with the index of the specified
+    file in the line table's file section.
     
-    Change-Id: If54bc571add5db674d5e081579c87e80153d0a5a
-    Reviewed-on: https://go-review.googlesource.com/97395
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Note: for testing purposes this patch changes the DWARF function
+    subprogram DIE abbrev to include DW_AT_decl_file (allowed by DWARF
+    but not especially useful) so as to have a way to test this
+    functionality. This attribute will be removed once there are other
+    file reference attributes (coming as part of inlining support).
+    
+    Change-Id: Icf676beb60fcc33f06d78e747ef717532daaa3ba
+    Reviewed-on: https://go-review.googlesource.com/73330
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  16 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   2 +-
- src/cmd/compile/internal/ssa/opGen.go        |   2 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go |  36 ++-
- src/runtime/duff_arm64.s                     | 450 ++++++++-------------------
- src/runtime/memmove_test.go                  |   7 +
- src/runtime/mkduff.go                        |  11 +-
- 7 files changed, 189 insertions(+), 335 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go             |  6 +++-
+ src/cmd/internal/obj/objfile.go             | 26 ++++++++++++++--
+ src/cmd/internal/objabi/reloctype.go        | 11 +++++--
+ src/cmd/internal/objabi/reloctype_string.go |  4 +--
+ src/cmd/link/internal/amd64/asm.go          |  2 +-
+ src/cmd/link/internal/ld/data.go            | 16 ++++++++--
+ src/cmd/link/internal/ld/dwarf.go           | 46 ++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/dwarf_test.go      |  9 +++++-
+ src/cmd/link/internal/x86/asm.go            |  2 +-
+ 9 files changed, 105 insertions(+), 17 deletions(-)

@@ -1,16 +1,16 @@
-commit 296b7aeae0b3231f2e943859b37108e5f9e130d3
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sun Oct 14 12:07:45 2018 -0700
+commit b8dc93132690faaa9b097ce3225293b726f995f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 13 15:22:55 2018 -0700
 
-    cmd/compile: fix gdb stepping test
+    misc/cgo/test: add test for passing compatible typedefs
     
-    Not sure why this changed behavior, but seems mostly harmless.
+    Fixes #23720
     
-    Fixes #28198
-    
-    Change-Id: Ie25c6e1fcb64912a582c7ae7bf92c4c1642e83cb
-    Reviewed-on: https://go-review.googlesource.com/c/141649
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I28e0c16503bc043f793e0dab19668f7a66313312
+    Reviewed-on: https://go-review.googlesource.com/118737
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts | 4 ++++
- 1 file changed, 4 insertions(+)
+ misc/cgo/test/issue23720.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

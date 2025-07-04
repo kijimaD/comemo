@@ -1,64 +1,42 @@
-commit d6a3d093c3f630e206abfc974a4a8b6c07884485
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Mar 21 18:49:05 2024 +0000
+commit 134af2e3db41ca4be5ce8b466cfa57774dba8449
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Apr 4 07:08:57 2023 -0400
 
-    runtime: take a stack trace during tracing only when we own the stack
+    log,log/slog: get correct source line when slog calls log
     
-    Currently, the execution tracer may attempt to take a stack trace of a
-    goroutine whose stack it does not own. For example, if the goroutine is
-    in _Grunnable or _Gwaiting. This is easily fixed in all cases by simply
-    moving the emission of GoStop and GoBlock events to before the
-    casgstatus happens. The goroutine status is what is used to signal stack
-    ownership, and the GC may shrink a goroutine's stack if it can acquire
-    the scan bit.
+    Before slog.SetDefault is called the first time, calls to slog's
+    default Logger invoke log's default Logger.
     
-    Although this is easily fixed, the interaction here is very subtle,
-    because stack ownership is only implicit in the goroutine's scan status.
-    To make this invariant more maintainable and less error-prone in the
-    future, this change adds a GODEBUG setting that checks, at the point of
-    taking a stack trace, whether the caller owns the goroutine. This check
-    is not quite perfect because there's no way for the stack tracing code
-    to know that the _Gscan bit was acquired by the caller, so for
-    simplicity it assumes that it was the caller that acquired the scan bit.
-    In all other cases however, we can check for ownership precisely. At the
-    very least, this check is sufficient to catch the issue this change is
-    fixing.
+    Originally, this was done by calling log.Output. This caused source
+    line information to be wrong sometimes, because log.Output requires a
+    call depth and the code invoking it could not know how many calls were
+    between it and the original logging call (slog.Info, etc.). The line
+    information would be right if the default handler was called directly,
+    but wrong if it was wrapped by another handler. The handler has the pc
+    of the logging call, but it couldn't give that pc to the log package.
     
-    To make sure this debug check doesn't bitrot, it's always enabled during
-    trace testing. This new mode has actually caught a few other issues
-    already, so this change fixes them.
+    This CL fixes the problem by adding a function in the log package
+    that uses the pc instead of a call depth, and making that function
+    available to slog.
     
-    One issue that this debug mode caught was that it's not safe to take a
-    stack trace of a _Gwaiting goroutine that's being unparked.
+    The simplest way to add pc functionality to the log package is to add
+    a pc argument to Logger.output, which uses it only if it's not zero.
     
-    Another much bigger issue this debug mode caught was the fact that the
-    execution tracer could try to take a stack trace of a G that was in
-    _Gwaiting solely to avoid a deadlock in the GC. The execution tracer
-    already has a partial list of these cases since they're modeled as the
-    goroutine just executing as normal in the tracer, but this change takes
-    the list and makes it more formal. In this specific case, we now prevent
-    the GC from shrinking the stacks of goroutines in this state if tracing
-    is enabled. The stack traces from these scenarios are too useful to
-    discard, but there is indeed a race here between the tracer and any
-    attempt to shrink the stack by the GC.
+    To make that function visible to slog without exporting it, we store
+    the function in a variable that lives in the new log/internal package.
     
-    Change-Id: I019850dabc8cede202fd6dcc0a4b1f16764209fb
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573155
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I0bb6daebb4abc518a7ccc4e6d2f3c1093b1d0fe4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482239
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
 
- src/internal/trace/v2/trace_test.go |  8 +++++--
- src/runtime/debugcall.go            | 14 +++++++++--
- src/runtime/extern.go               |  3 +++
- src/runtime/mgc.go                  |  4 ++--
- src/runtime/mgcmark.go              |  4 ++--
- src/runtime/proc.go                 | 38 +++++++++++++++++++++++++-----
- src/runtime/runtime1.go             | 46 +++++++++++++++++++------------------
- src/runtime/runtime2.go             | 23 +++++++++++++++++++
- src/runtime/stack.go                | 27 ++++++++++++++++++----
- src/runtime/trace2.go               |  2 +-
- src/runtime/trace2stack.go          | 23 +++++++++++++++++++
- src/runtime/trace2status.go         |  8 +------
- 12 files changed, 152 insertions(+), 48 deletions(-)
+ src/go/build/deps_test.go    |  5 +++--
+ src/log/internal/internal.go | 12 +++++++++++
+ src/log/log.go               | 47 ++++++++++++++++++++++++++++++++------------
+ src/log/slog/handler.go      | 10 ++++------
+ src/log/slog/handler_test.go |  4 ++--
+ src/log/slog/logger.go       |  3 ++-
+ src/log/slog/logger_test.go  | 15 ++++----------
+ 7 files changed, 61 insertions(+), 35 deletions(-)

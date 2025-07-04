@@ -1,14 +1,15 @@
-commit 3ea668a0f2dc692213ec79adad382559a15eb889
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 19 14:43:27 2015 -0500
+commit 4c96e7b79b9bb8207885e8ba63cc19f2d863b75c
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Sep 2 20:25:46 2015 +0200
 
-    cmd/dist: rewrite mkdeps.bash to work on OS X
+    cmd/compile/internal/gc: clean up errcmp
     
-    My version of bash doesn't know what 'declare -A' means.
-    
-    Change-Id: Icf6b0e60ebaea3feaa8661ec0423012f213b53e8
-    Reviewed-on: https://go-review.googlesource.com/17070
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id07811a25bf4aa3ff834e7254a3dfb04522b2926
+    Reviewed-on: https://go-review.googlesource.com/14174
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/dist/mkdeps.bash | 45 ++++++++++++++++++++++++---------------------
- 1 file changed, 24 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

@@ -1,21 +1,21 @@
-commit aebc0b473e364daa0fad3b45e4dc77366408f3cd
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 31 23:58:54 2021 -0700
+commit f4936d09fd5a1fff890d63ee2ab9543243dc4da6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 14 12:56:37 2020 -0700
 
-    cmd/compile: fix bug in phiopt pass
+    cmd/compile: call fninit earlier
     
-    The math to invert the input index was wrong.
+    This allows the global initializers function to go through normal
+    mid-end optimizations (e.g., inlining, escape analysis) like any other
+    function.
     
-    Fixes #45323
+    Updates #33485.
     
-    Change-Id: I7c68cac280e8f01a9c806ecb0f195f169267437e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306431
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I9bcfe98b8628d1aca09b4c238d8d3b74c69010a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254839
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/phiopt.go |  2 +-
- test/fixedbugs/issue45323.go           | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/init.go | 8 +++-----
+ src/cmd/compile/internal/gc/main.go | 6 ++----
+ test/inline.go                      | 2 +-
+ 3 files changed, 6 insertions(+), 10 deletions(-)

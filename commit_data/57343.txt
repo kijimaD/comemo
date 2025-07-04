@@ -1,40 +1,19 @@
-commit 4fd73e5d4ca8c87efa127ee7a3290b1d0fdae313
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 4 18:30:35 2024 +0700
+commit 8613ef81e676bda77f6413a587e68c3dcc5b03ae
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Jul 30 09:46:55 2023 +0100
 
-    cmd: do not use notsha256
+    .github: fix templates with multiple labels
     
-    CL 402595 used notsha256 to prevent the compiler from depending on
-    cgo-based implementations of sha1 and sha256.
+    Also Go2 -> v2
     
-    However, since CL 454836, cmd is built with CGO_ENABLED=0, which
-    will disable boringcrypto. Thus all usages of notsha256 is not necessary
-    anymore.
-    
-    Updates #51940
-    Updates #64751
-    
-    Change-Id: I503090f7a2efb5723e8a79523b143dc7cdb4edd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610596
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Icde8ffc4a1ee2e43241a3dcd00ff0c48992b1e25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514175
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/cgo/main.go                           |  6 +++---
- src/cmd/compile/internal/liveness/plive.go    |  4 ++--
- src/cmd/compile/internal/noder/reader.go      |  4 ++--
- src/cmd/compile/internal/ssa/print.go         |  6 +++---
- src/cmd/compile/internal/staticdata/data.go   | 22 +++++++++++-----------
- src/cmd/compile/internal/types/fmt.go         |  6 +++---
- src/cmd/dist/buildtool.go                     |  1 +
- src/cmd/internal/codesign/codesign.go         | 19 +++++--------------
- src/cmd/internal/obj/objfile.go               |  4 ++--
- src/cmd/internal/obj/sym.go                   |  4 ++--
- src/cmd/link/elf_test.go                      |  4 ++--
- src/cmd/link/internal/ld/elf.go               |  8 ++++----
- src/cmd/link/internal/ld/lib.go               | 10 +++++-----
- src/cmd/link/internal/ld/macho_update_uuid.go |  4 ++--
- src/cmd/objdump/objdump_test.go               |  4 ++--
- 15 files changed, 49 insertions(+), 57 deletions(-)
+ .github/ISSUE_TEMPLATE/03-gopls.md           | 4 +++-
+ .github/ISSUE_TEMPLATE/11-language-change.md | 5 ++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

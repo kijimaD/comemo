@@ -1,14 +1,23 @@
-commit aff84b171c4188cc79bc23bffa3b284b6c02c2d7
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 24 12:30:39 2015 -0800
+commit ebbdf2a14cfb2c694d7ecc815d0adc36c344362a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 15:49:26 2015 -0500
 
-    cmd/asm: fix build for new aliases
+    runtime: eliminate parfor ctx field
     
-    Missing leading A on names.
+    Prior to the conversion of the runtime to Go, this void* was
+    necessary to get closure information in to C callbacks.  There
+    are no more C callbacks and parfor is perfectly capable of
+    invoking a Go closure now, so eliminate ctx and all of its
+    unsafe-ness.  (Plus, the runtime currently doesn't use ctx for
+    anything.)
     
-    Change-Id: I6f3a66bdd3a21220f45a898f0822930b6a7bfa38
-    Reviewed-on: https://go-review.googlesource.com/5801
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I39fc53b7dd3d7f660710abc76b0d831bfc6296d8
+    Reviewed-on: https://go-review.googlesource.com/3395
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/asm/internal/arch/arch.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/export_test.go |  5 ++---
+ src/runtime/mgc.go         |  4 ++--
+ src/runtime/parfor.go      |  6 +-----
+ src/runtime/parfor_test.go | 21 +++++----------------
+ 4 files changed, 10 insertions(+), 26 deletions(-)

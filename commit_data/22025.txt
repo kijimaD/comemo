@@ -1,18 +1,12 @@
-commit 550149fb0490cf77abe676f74b49b7199cb7323d
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Feb 16 02:28:39 2015 +1100
+commit ac452349e4f40c30d50f9922bf2c4592e748ce5e
+Author: Ryan Seys <ryan@ryanseys.com>
+Date:   Wed Feb 18 21:34:44 2015 -0500
 
-    syscall: add support for openbsd/arm
+    doc: fix broken link in README
     
-    Change-Id: I9fe15781f52e0d16707a9c021cf800319721a606
-    Reviewed-on: https://go-review.googlesource.com/4913
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I73450aeb59571f3285ff59ae214739e1866c9aa0
+    Reviewed-on: https://go-review.googlesource.com/5270
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/syscall/asm_openbsd_arm.s       |  132 +++
- src/syscall/mkall.sh                |   12 +-
- src/syscall/syscall_openbsd_arm.go  |   42 +
- src/syscall/zerrors_openbsd_arm.go  | 1582 +++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_openbsd_arm.go | 1291 ++++++++++++++++++++++++++++
- src/syscall/zsysnum_openbsd_arm.go  |  211 +++++
- src/syscall/ztypes_openbsd_arm.go   |  432 ++++++++++
- 7 files changed, 3700 insertions(+), 2 deletions(-)
+ README.md | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

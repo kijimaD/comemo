@@ -1,16 +1,25 @@
-commit 4599419e690628dd798c8d037bba4efd8d0b7391
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 5 07:40:26 2018 -0800
+commit 070cc8eb02248698480957dd7cd6ada07de309de
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 22 18:10:08 2017 -0400
 
-    debug/macho: use bytes.IndexByte instead of a loop
+    runtime: allow write barriers in startpanic_m
     
-    Simpler, and no doubt faster.
+    We're about to start tracking nowritebarrierrec through systemstack
+    calls, which will reveal write barriers in startpanic_m prohibited by
+    various callers.
     
-    Change-Id: Idd401918da07a257de365087721e9ff061e6fd07
-    Reviewed-on: https://go-review.googlesource.com/98759
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    We actually can allow write barriers here because the write barrier is
+    a no-op when we're panicking. Let the compiler know.
+    
+    Updates #22384.
+    For #22460.
+    
+    Change-Id: Ifb3a38d3dd9a4125c278c3680f8648f987a5b0b8
+    Reviewed-on: https://go-review.googlesource.com/72770
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/debug/macho/file.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/mbarrier.go | 2 ++
+ src/runtime/panic.go    | 6 ++++++
+ 2 files changed, 8 insertions(+)

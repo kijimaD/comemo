@@ -1,45 +1,29 @@
-commit ef06a5f44a46dfaf601ca79717ffb00b3591d297
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Feb 8 14:49:30 2022 +0000
+commit bd2175e1b1369bce59cdceb9282c817802a87746
+Author: Ray Wu <ray@liftoff.io>
+Date:   Tue Apr 20 10:41:37 2021 -0700
 
-    misc/reboot: don't use symlinks when copying GOROOT/src
+    cmd/go: show warnings about symlinks only for patterns containing ...
     
-    go:embed disallows using symlinked files by design.
-    crypto/elliptic is the first std package to use it as of CL 380475,
-    and unfortunately that broke the TestRepeatBootstrap long test.
+    Go commands show a warning message any time a pattern is expanded and a
+    symlink to a directory is encountered. For monorepo with non Go projects
+    using symlinks underneath, the output of go commands could be spammed by
+    this warning.
     
-    The reason it uses symlinks is for speed; it wants to copy GOROOT/src,
-    but regular files aren't going to be modified in any way,
-    so a symlink, if supported, means not needing to copy the contents.
+    This commit includes the behavior change to only print this warning when
+    there's a pattern containing ... .
     
-    Replace the symlink attempt with hard links,
-    which will mean regular files remain as such, fixing go:embed.
-    It's worth noting that on many systems hard links won't work,
-    as the temporary filesystem tends to be separate,
-    but it doesn't hurt to try.
+    Fixes #35941
     
-    In my system, where /tmp is tmpfs, the test now copies more bytes.
-    With the added Logf, I can see overlayDir goes from ~30ms to ~100ms.
-    This makes sense, as GOROOT/src currently weighs around 100MiB.
-    To alleviate that slow-down, stop copying testdata directories,
-    as they currently weigh around 20MiB and aren't needed for the test.
-    This gets overlayDir on my system down to an acceptable ~70ms.
-    
-    I briefly considered teaching overlayDir what files can be symlinks,
-    but that seemed fairly complex long-term, as any file could be embedded.
-    
-    While here, start using testing.T.TempDir and fs.WalkDir.
-    
-    For #50995.
-    
-    Change-Id: I17947e6bdee96237e1ca0606ad0b95e7c5987bc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383995
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I094da2628bcd47b86fee8c6529d1066aa013a43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311890
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Matloob <matloob@golang.org>
 
- misc/reboot/overlaydir_test.go | 15 +++++++++++----
- misc/reboot/reboot_test.go     |  9 ++++-----
- 2 files changed, 15 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modload/search.go              |  2 +-
+ src/cmd/go/internal/search/search.go               |  2 +-
+ .../go/testdata/script/list_symlink_issue35941.txt | 18 +++++++++++
+ .../script/mod_tidy_symlink_issue35941.txt         | 36 ++++++++++++++++++++++
+ 4 files changed, 56 insertions(+), 2 deletions(-)

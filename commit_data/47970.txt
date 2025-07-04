@@ -1,24 +1,23 @@
-commit efbecc7eff88a0d54f3ea9fca290e1808e197ae2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 18 19:58:14 2022 -0800
+commit 77860ad2809d88566d28783e0382073fb9836d9b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 20 13:09:54 2021 -0400
 
-    go/types, types2: explicitly check for non-nil type in LookupFieldOrMethod
+    cmd/compile: guard partially live arg spilling with number of registers
     
-    Document and enforce API expectation. Add a test so we don't
-    inadvertently change the function behavior with respect to nil
-    type arguments.
+    The code that does partially live in-register arg spilling is
+    currently guarded with GOEXPERIMENT=regabiargs. But on platforms
+    where GOEXPERIMENT=regabiargs is not enabled there are still tests
+    that use register args. Guard it with actual number of registers
+    used, so it covers both.
     
-    Fixes #50620.
+    Should fix the freeBSD builder.
     
-    Change-Id: Ic000bff7504a03006bd248a319c7a2d49dcf09c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379374
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0d3c49d7a2389096cb6b17ca35b9b4ce567bc91e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311830
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/api_test.go | 12 ++++++++++++
- src/cmd/compile/internal/types2/lookup.go   |  6 +++++-
- src/go/types/api_test.go                    | 12 ++++++++++++
- src/go/types/lookup.go                      |  6 +++++-
- 4 files changed, 34 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

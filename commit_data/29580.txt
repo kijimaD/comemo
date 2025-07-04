@@ -1,12 +1,17 @@
-commit e0942b76c735a69df18d24a23fa16da1e5db8c2e
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Nov 17 12:26:36 2016 -0500
+commit e6143e17d3e0c3ab8a7bd8357001217eb01dc6c6
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 25 18:31:05 2016 -0700
 
-    cmd/asm/internal/asm: fix copy/paste errors in comment
+    net/http: add Client tests for various 3xx redirect codes
     
-    Change-Id: I0249b60e340710bea7b6671c9b7405c278b037bd
-    Reviewed-on: https://go-review.googlesource.com/33351
+    Updates #13994
+    Updates #16840
+    
+    Change-Id: Ia3cad5c211e0c688a945ed6b6277c2552592774c
+    Reviewed-on: https://go-review.googlesource.com/29760
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/amd64.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/client_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)

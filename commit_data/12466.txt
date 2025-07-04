@@ -1,29 +1,12 @@
-commit afb1b0e6b77e40cae93eccd68dbfd5b9404920cb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 10:15:20 2012 -0500
+commit ae7a84347100f375f9c7ba01cf042faf4e9fcc1a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 7 16:28:40 2012 +0900
 
-    undo CL 5754063 / e23b66fcfc94
+    net: use IANA reserved port to test dial timeout
     
-    Does not actually test so files.
-    
-    ««« original CL description
-    misc/cgo: re-enable testso
-    
-    Also enabled it for darwin.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5754063
-    
-    »»»
-    
-    R=golang-dev, minux.ma, r, f
-    CC=golang-dev
-    https://golang.org/cl/5756075
+    https://golang.org/cl/5757060
 
- misc/cgo/testso/Makefile      | 22 ++++++++++++++++++++++
- misc/cgo/testso/cgoso_test.go |  7 -------
- misc/cgo/testso/main.go       | 11 +++++++++++
- misc/cgo/testso/test.bash     |  9 +++++++++
- src/run.bash                  |  5 ++++-
- 5 files changed, 46 insertions(+), 8 deletions(-)
+ src/pkg/net/dial_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

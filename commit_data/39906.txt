@@ -1,23 +1,25 @@
-commit 49e7c7672d6d065435f7058df90b082cb552c7dd
-Author: Lucas Bremgartner <lucas@bremis.ch>
-Date:   Fri Sep 13 19:46:50 2019 +0000
+commit 576442b27bae5009ad7582d5175caadf29f7bf5b
+Author: zdjones <zachj1@gmail.com>
+Date:   Fri Mar 29 19:17:35 2019 +0000
 
-    encoding/json: make Number with the ,string option marshal with quotes
+    cmd/compile: preempt repeated checks for the zero constant in prove
     
-    Add quotes when marshaling a json.Number with the string option
-    set via a struct tag. This ensures that the resulting json
-    can be unmarshaled into the source struct without error.
+    Prove requires access to a zero-valued constant in multiple heavily-used
+    code paths. Currently, prove is checking for the existence of the constant on
+    every iteration of these paths, and creating it if not found.
     
-    Fixes #34268
+    This CL preempts all of these checks by finding or creating the zero constant
+    Value, just once, when the factsTable is initialised on entry to prove(). The
+    Method used to initialise the zero constant, func.ConstInt64(), finds an
+    existing constant if present, or creates one in the entry block otherwise.
     
-    Change-Id: Ide167d9dec77019554870b5957b37dc258119d81
-    GitHub-Last-Rev: dde81b71208be01c253bb87dbb6f81ac6e0785be
-    GitHub-Pull-Request: golang/go#34269
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195043
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #31141
+    
+    Change-Id: Ic9a2fd9d79b67025e24d4483f6e87cf8213ead24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170118
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/encode.go      | 6 ++++++
- src/encoding/json/encode_test.go | 5 ++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 18 +-----------------
+ 1 file changed, 1 insertion(+), 17 deletions(-)

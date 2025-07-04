@@ -1,14 +1,17 @@
-commit 99b0eefd4007d370b653454e804153e28a5338f3
-Author: Dmitry Chestnykh <dchest@gmail.com>
-Date:   Sat Apr 16 18:44:51 2011 +1000
+commit 90e4ece365cd8220a7efd589556fa7e59c1ca939
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 16:33:52 2011 -0700
 
-    misc/goplay: fix Tab and Shift+Enter in Firefox.
+    mime: bunch more tests, few minor parsing fixes
     
-    Fixes #1633.
+    Working towards issue 1119
     
-    R=adg, dsymonds
+    Using test data from http://greenbytes.de/tech/tc2231/
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4439042
+    https://golang.org/cl/4430049
 
- misc/goplay/goplay.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/mime/mediatype.go      | 35 ++++++++++++++-
+ src/pkg/mime/mediatype_test.go | 99 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 120 insertions(+), 14 deletions(-)

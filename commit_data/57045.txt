@@ -1,20 +1,22 @@
-commit ab7435abd9db52732d2d1d3494aae669d91937f1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Jul 3 22:46:30 2024 +0700
+commit 992afd9d54e011355c18f4e0d3c14040a8d65053
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 12 15:26:21 2023 -0400
 
-    cmd/compile: add comment for the context on mismatch import path
+    cmd/go/internal/modload: address comment and test issues from CL 496635
     
-    Follow up suggestion in CL 596396.
+    Michael noticed some minor issues in backports of CL 496635.
+    Those issues have been addressed in the backport CLs; this change
+    applies them to the main branch as well.
     
-    Updates #54542
+    Updates #60313.
     
-    Change-Id: I47bf66684bb8397dc1cfbc4479e2279e59a40cfb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596515
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: If68696711a10a9270193df66ed551395c14cae00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502695
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/unified.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/modload/buildlist.go           |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_issue60313.txt | 10 +++-------
+ 2 files changed, 4 insertions(+), 8 deletions(-)

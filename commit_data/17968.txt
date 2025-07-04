@@ -1,54 +1,12 @@
-commit 107d18299cb6e222ec26f86a28a4454dc1eb8888
-Author: Nick Craig-Wood <nick@craig-wood.com>
-Date:   Thu Dec 12 11:26:36 2013 -0800
+commit 0d624e180877340b0944dccfb49049a8fc15aedd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 12 11:17:54 2013 -0800
 
-    crypto/sha1: Optimise FUNC1 with alternate formulation
+    doc/go1.3.txt: first checkins: makerelease, liblink
     
-    According to Wikipedia: http://en.wikipedia.org/wiki/SHA-1
-    there is an alternate formulation for the FUNC1 transform,
-    namely
-    
-    f1 = d xor (b and (c xor d))
-    
-    instead of
-    
-    f1 = (b and c) or ((not b) and d)
-    
-    This reduces the instruction count of FUNC1 from 6 to 4 and
-    makes about 5% speed improvement on amd64 and suprisingly 17%
-    on 386.
-    
-    amd64 Intel(R) Core(TM) i7 CPU Q 820 @ 1.73GHz:
-    
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes          506          499   -1.38%
-    BenchmarkHash1K             3099         2961   -4.45%
-    BenchmarkHash8K            22292        21243   -4.71%
-    
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes        15.80        16.00    1.01x
-    BenchmarkHash1K           330.40       345.82    1.05x
-    BenchmarkHash8K           367.48       385.63    1.05x
-    
-    i386 Intel(R) Core(TM) i7 CPU Q 820 @ 1.73GHz:
-    
-    benchmark              old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes          647          615   -4.95%
-    BenchmarkHash1K             3673         3161  -13.94%
-    BenchmarkHash8K            26141        22374  -14.41%
-    
-    benchmark               old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes        12.35        13.01    1.05x
-    BenchmarkHash1K           278.74       323.94    1.16x
-    BenchmarkHash8K           313.37       366.13    1.17x
-    
-    The improvements on an Intel(R) Core(TM) i7-4770K CPU @
-    3.50GHz were almost identical.
-    
-    R=golang-dev, r, hanwen
-    CC=golang-dev, rsc
-    https://golang.org/cl/19910043
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/40650047
 
- src/pkg/crypto/sha1/sha1block_386.s   | 10 ++++------
- src/pkg/crypto/sha1/sha1block_amd64.s | 10 ++++------
- 2 files changed, 8 insertions(+), 12 deletions(-)
+ doc/go1.3.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

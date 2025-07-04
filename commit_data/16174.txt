@@ -1,12 +1,16 @@
-commit 0009210b2e76de9a873bb85474b6a9ab0cf0fb65
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Sun Apr 14 09:22:57 2013 +1000
+commit 968732b677e592019526fe1afe0bbf45f52df4b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 12 21:28:38 2013 -0700
 
-    doc: fix typo
+    go/scanner: reject BOMs that are not at the beginning
     
-    R=golang-dev, dsymonds
+    For compliance with gc. See also issue 5265.
+    Not Go1.1 critical, but harmless.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/8729045
+    https://golang.org/cl/8736043
 
- doc/go1.1.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/scanner/scanner.go      | 13 ++++++++++---
+ src/pkg/go/scanner/scanner_test.go |  5 ++++-
+ 2 files changed, 14 insertions(+), 4 deletions(-)

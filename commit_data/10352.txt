@@ -1,12 +1,19 @@
-commit 3f2d787c2b4eb7a1dd75c2613be6d76dfa0dba5a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 11 14:30:27 2011 -0800
+commit 2ba079868204837891e531eecb4215eecfee8ff7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Nov 11 14:11:30 2011 -0800
 
-    runtime: remove declarations of nonexistent functions
+    gofmt: leave nil nodes of the AST unchanged.
     
-    R=rsc, r
-    CC=golang-dev
-    https://golang.org/cl/5369089
+    Without this check, gofmt panics when trying to apply
+    the identity transformation on "item.field" expressions.
+    Fixes #2410.
+    
+    R=rsc, gri
+    CC=golang-dev, remy
+    https://golang.org/cl/5376061
 
- src/pkg/runtime/proc.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/gofmt/gofmt_test.go            |  1 +
+ src/cmd/gofmt/rewrite.go               |  4 ++--
+ src/cmd/gofmt/testdata/rewrite3.golden | 12 ++++++++++++
+ src/cmd/gofmt/testdata/rewrite3.input  | 12 ++++++++++++
+ 4 files changed, 27 insertions(+), 2 deletions(-)

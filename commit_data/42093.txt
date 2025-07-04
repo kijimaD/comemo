@@ -1,22 +1,29 @@
-commit 080a3ee8b26c8e324d40bcd832e9668ecda9af0b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 23 11:37:33 2020 -0700
+commit 4517c02f284cc19262304ba22c1c98b2bbdb0208
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 15:57:36 2019 +0000
 
-    cmd/compile: remove ODDDARG
+    runtime: add per-p mspan cache
     
-    No longer needed after the last CL. Separate commit because
-    renumbering Ops causes toolstash to complain.
+    This change adds a per-p mspan object cache similar to the sudog cache.
+    Unfortunately this cache can't quite operate like the sudog cache, since
+    it is used in contexts where write barriers are disallowed (i.e.
+    allocation codepaths), so rather than managing an array and a slice,
+    it's just an array and a length. A little bit more unsafe, but avoids
+    any write barriers.
     
-    Change-Id: I6223a790cc341f8184eccb503f95a1dfc32a81e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229760
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    The purpose of this change is to reduce the number of operations which
+    require the heap lock in allocation, paving the way for a lockless fast
+    path.
+    
+    Updates #35112.
+    
+    Change-Id: I32cfdcd8528fb7be985640e4f3a13cb98ffb7865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196642
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/fmt.go       |  3 ---
- src/cmd/compile/internal/gc/iimport.go   |  3 ---
- src/cmd/compile/internal/gc/op_string.go | 39 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/order.go     |  3 ---
- src/cmd/compile/internal/gc/syntax.go    |  1 -
- 5 files changed, 19 insertions(+), 30 deletions(-)
+ src/runtime/mheap.go    | 91 ++++++++++++++++++++++++++++++++++++++++++++++---
+ src/runtime/proc.go     |  7 ++++
+ src/runtime/runtime2.go | 13 ++++++-
+ 3 files changed, 106 insertions(+), 5 deletions(-)

@@ -1,19 +1,15 @@
-commit 0a49f706e172443d817cfb3d44e5b366da1cc72a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 4 11:55:33 2022 -0500
+commit def53605418c8134880ffa3700c6a4ba6c689234
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 19 16:22:34 2021 -0400
 
-    cmd/go: run 'go help documentation' through gofmt in TestDocsUpToDate
+    doc/go1.17: add release notes for OpenBSD ports
     
-    mkalldocs.sh runs gofmt on the output, but the test does not.
-    If go help documentation and gofmt disagree, the test will fail.
-    Fix that.
+    Updates #44513.
     
-    Change-Id: I837374a2d36cb5d71278ecefe2a7b6544622c576
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384256
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8758768f6231fd7fcbaa7109eb49ee56cd60d93d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321310
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/help_test.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ doc/go1.17.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

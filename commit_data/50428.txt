@@ -1,20 +1,22 @@
-commit 51c34e2f0b51e62ba195a90fa1c1a8d5be83e2dd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 7 20:33:06 2022 +0000
+commit ec6c00418c83aa4f68a5afc9803831f43f8d794f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 25 13:37:29 2021 +0200
 
-    runtime: remove unused scanSize parameter to gcmarknewobject
+    syscall: use fcntl F_DUP2FD_CLOEXEC in forkAndExecInChild on illumos
     
-    This was left over from the old pacer, and never removed when the old
-    pacer was removed in Go 1.19.
+    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
+    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
     
-    Change-Id: I79e5f0420c6100c66bd06129a68f5bbab7c1ea8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429256
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Illumos implements dup3 like this in libc.
+    
+    Change-Id: I9782bce553ffb832e9b1a12bbf3c0a40c821f56e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358374
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go  | 4 ++--
- src/runtime/mgcmark.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/syscall/exec_libc.go       | 26 ++++++++++++++++++++------
+ src/syscall/syscall_aix.go     |  2 ++
+ src/syscall/syscall_solaris.go |  2 ++
+ 3 files changed, 24 insertions(+), 6 deletions(-)

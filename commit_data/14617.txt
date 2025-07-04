@@ -1,20 +1,12 @@
-commit a617d06252e9a529e7c2df43ba725a507a6df677
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Dec 12 08:35:08 2012 +0100
+commit c3d881b3619f265571014a52dbb50abea515a96c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 13:36:55 2012 -0500
 
-    cmd/6g, cmd/8g: simplify integer division code.
+    lib/codereview: suggest argument to hg mail / hg submit
     
-    Change suggested by iant. The compiler generates
-    special code for a/b when a is -0x80...0 and b = -1.
-    A single instruction can cover the case where b is -1,
-    so only one comparison is needed.
-    
-    Fixes #3551.
-    
-    R=golang-dev, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6922049
+    https://golang.org/cl/6924050
 
- src/cmd/6g/ggen.c | 30 +++++++++++-------------------
- src/cmd/8g/ggen.c | 21 ++++++++++-----------
- 2 files changed, 21 insertions(+), 30 deletions(-)
+ lib/codereview/codereview.py | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

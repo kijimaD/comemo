@@ -1,21 +1,14 @@
-commit 2fb88eceb39a2801cec6583c572c39bd35ce575e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 1 13:32:49 2015 -0500
+commit 3819907a5565c53457b826912a10b18eda708f38
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Feb 5 14:16:13 2015 -0500
 
-    cmd/9l: fix bogus C conversion
+    cmd/cgo: detect misuse of generated _cgo_export.h
     
-    Looks like c2go and gcc disagree about the exact meaning of the
-    usual arithmetic conversions, in a way that broke 9l's archreloc.
-    Fix it.
+    Fixes #9742.
     
-    It's very hard for me to see why the original C code did not say
-    what c2go interpreted it to say, but apparently it did not.
-    This is why Go has explicit numerical conversions.
-    
-    Change-Id: I75bd73afd1fa4ce9a53c887e1bd7d1e26ff43ae4
-    Reviewed-on: https://go-review.googlesource.com/6405
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifedf7ff9465bc49534b708d414c8e435ee9ce6cd
+    Reviewed-on: https://go-review.googlesource.com/3970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/9l/asm.go           | 21 ++++++++++-----------
- src/cmd/internal/ld/data.go | 10 ++++++++--
- 2 files changed, 18 insertions(+), 13 deletions(-)
+ src/cmd/cgo/out.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

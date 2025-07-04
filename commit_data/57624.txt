@@ -1,22 +1,18 @@
-commit 63cd5a39e9a0a01aaf174cacdd4a3997f2fd50fd
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Aug 26 19:37:15 2024 +0200
+commit b581e447394b4ba7a08ea64b214781cae0f4ef6c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 19 09:08:38 2023 -0700
 
-    crypto/rand: add randcrash=0 GODEBUG
+    slices: simplify Clone a bit
     
-    For #66821
+    No need for an explicit nil check. Slicing the input slice
+    down to zero capacity also preserves nil.
     
-    Change-Id: I525c308d6d6243a2bc805e819dcf40b67e52ade5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608435
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I1f53cc485373d0e65971cd87b6243650ac72612c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521037
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/godebug.md                     |  5 +++++
- src/crypto/rand/rand.go            |  7 +++++++
- src/crypto/rand/rand_linux_test.go | 12 +++++-------
- src/crypto/rand/rand_test.go       | 40 ++++++++++++++++++++++++++++++++++++++
- src/internal/godebugs/table.go     |  1 +
- src/runtime/metrics/doc.go         |  4 ++++
- 6 files changed, 62 insertions(+), 7 deletions(-)
+ src/slices/slices.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

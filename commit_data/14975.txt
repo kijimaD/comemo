@@ -1,12 +1,14 @@
-commit 2e15f4b8c49b2e240d4852d39610956a3473da3c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 23 10:57:18 2013 -0800
+commit 34b533cd81dbad155a8e2265d91110434bbac2fb
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jan 23 14:16:22 2013 +0100
 
-    go/types: typechecking conversions, part 1 (non-constants)
+    exp/locale/collate: added functionality for sorting.
+    Eliminates the need for the user to fiddle with keys.
     
-    R=adonovan
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7103058
+    https://golang.org/cl/7060051
 
- src/pkg/go/types/conversions.go | 91 ++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 89 insertions(+), 2 deletions(-)
+ src/pkg/exp/locale/collate/sort.go      | 90 +++++++++++++++++++++++++++++++++
+ src/pkg/exp/locale/collate/sort_test.go | 52 +++++++++++++++++++
+ 2 files changed, 142 insertions(+)

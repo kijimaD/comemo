@@ -1,16 +1,12 @@
-commit 335eef85c33d80c068db766b0841a12d7c1e6d79
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Oct 26 00:29:44 2012 +0200
+commit 7c412e962c1cf5de4e128c0ca2caed14f9b87003
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 25 13:41:04 2012 +0800
 
-    cmd/6g: fix crash in cgen_bmul.
+    syscall: implement (*PtraceRegs).PC() and SetPC()
     
-    Used to print:
-    ../test/torture.go:116: internal compiler error: bad width: 0463 (../test/torture.go:116) MOVB    ,BX (0, 8)
-    
-    R=nigeltao, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6736068
+    https://golang.org/cl/6763043
 
- src/cmd/6g/ggen.c | 29 ++++++++++++++++------------
- test/torture.go   | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 75 insertions(+), 12 deletions(-)
+ src/pkg/syscall/syscall_linux_arm.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

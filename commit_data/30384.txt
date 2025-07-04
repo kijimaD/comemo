@@ -1,28 +1,37 @@
-commit f8ae30c4a201dbdb6652cbb72cd51762863c7447
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 22 13:43:23 2017 -0800
+commit 10f757486e94f60a5e0af180dcd61c9eef7534c6
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Oct 27 16:58:45 2016 +0300
 
-    cmd/compile/internal/parser: improved a couple of error messages
+    cmd/compile/internal/ssa: generate bswap on AMD64
     
-    The new syntax tree introduced with 1.8 represents send statements
-    (ch <- x) as statements; the old syntax tree represented them as
-    expressions (and parsed them as such) but complained if they were
-    used in expression context. As a consequence, some of the errors
-    that in the past were of the form "ch <- x used as value" now look
-    like "unexpected <- ..." because a "<-" is not valid according to
-    Go syntax in those situations. Accept the new error message.
+    Generate bswap+load/store for reading/writing big endian data.
+    Helps encoding/binary.
     
-    Also: Fine-tune handling of misformed for loop headers.
+    name                    old time/op    new time/op    delta
+    ReadSlice1000Int32s-8     5.06µs ± 8%    4.58µs ± 8%   -9.50%        (p=0.000 n=10+10)
+    ReadStruct-8              1.07µs ± 0%    1.05µs ± 0%   -1.51%         (p=0.000 n=9+10)
+    ReadInts-8                 367ns ± 0%     363ns ± 0%   -1.15%          (p=0.000 n=8+9)
+    WriteInts-8                475ns ± 1%     469ns ± 0%   -1.45%        (p=0.000 n=10+10)
+    WriteSlice1000Int32s-8    5.03µs ± 3%    4.50µs ± 3%  -10.45%          (p=0.000 n=9+9)
+    PutUvarint32-8            17.2ns ± 0%    17.2ns ± 0%     ~     (all samples are equal)
+    PutUvarint64-8            46.7ns ± 0%    46.7ns ± 0%     ~           (p=0.509 n=10+10)
     
-    Also: Minor cleanups/better comments.
+    name                    old speed      new speed      delta
+    ReadSlice1000Int32s-8    791MB/s ± 8%   875MB/s ± 8%  +10.53%        (p=0.000 n=10+10)
+    ReadStruct-8            70.0MB/s ± 0%  71.1MB/s ± 0%   +1.54%         (p=0.000 n=9+10)
+    ReadInts-8              81.6MB/s ± 0%  82.6MB/s ± 0%   +1.21%          (p=0.000 n=9+9)
+    WriteInts-8             63.0MB/s ± 1%  63.9MB/s ± 0%   +1.45%        (p=0.000 n=10+10)
+    WriteSlice1000Int32s-8   796MB/s ± 4%   888MB/s ± 3%  +11.65%          (p=0.000 n=9+9)
+    PutUvarint32-8           233MB/s ± 0%   233MB/s ± 0%     ~           (p=0.089 n=10+10)
+    PutUvarint64-8           171MB/s ± 0%   171MB/s ± 0%     ~            (p=0.137 n=10+9)
     
-    Fixes #17590.
-    
-    Change-Id: Ia541dea1f2f015c1b21f5b3ae44aacdec60a8aba
-    Reviewed-on: https://go-review.googlesource.com/37386
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia2dbdef92198eaa7e2af5443a8ed586d4b401ffb
+    Reviewed-on: https://go-review.googlesource.com/32222
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 24 ++++++++++++------------
- test/syntax/chan1.go                      |  4 ++--
- test/syntax/semi4.go                      |  9 ++-------
- 3 files changed, 16 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      |   32 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  198 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1064 ++++++++++++++++++++++++--
+ 3 files changed, 1232 insertions(+), 62 deletions(-)

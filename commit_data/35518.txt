@@ -1,12 +1,21 @@
-commit 53209467dbb94a37ac5550945a59f5d0721976d8
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Tue May 29 08:56:42 2018 +0000
+commit a4e950ec9ed4b862245451a5d167138c73d8c2e9
+Author: Yazen2017 <yazen.shunnar@gmail.com>
+Date:   Sat Feb 17 17:24:21 2018 -0500
 
-    index/suffixarray: fix a typo mistake in comments
+    doc: improve clarity of map index examples
     
-    Change-Id: Ibdd1ca7bfc6fb2419621338f1f8e37c876ba89c0
-    Reviewed-on: https://go-review.googlesource.com/114976
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    The fourth example for map indexing states you have a map of type [K]V
+    and attempts to read in a variable of type T.  Further, the example
+    is meant to showcase the boolean return variable saying whether the
+    map contained a key, but overrides to type T.  This will not compile.
+    
+    Changed last updated date to February 18
+    
+    Fixes: #23895
+    
+    Change-Id: I63c52adbcd989afd4855e329e6c727f4c01f7881
+    Reviewed-on: https://go-review.googlesource.com/94906
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/index/suffixarray/suffixarray.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,20 +1,16 @@
-commit 6f999f239bc34a8bec629a7fa900b8d9bf953586
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Feb 7 13:26:28 2015 +0100
+commit afeca5c22ded0be2bafe6caa092280d1f8dd768a
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Mon Jan 12 14:03:59 2015 -0800
 
-    liblink: fix warnings on Plan 9
+    build: update Windows make.bat for Go-based dist
     
-    warning: src/liblink/list5.c:171 format mismatch lld INT, arg 4
-    warning: src/liblink/list9.c:175 format mismatch lld INT, arg 4
-    warning: src/liblink/list6.c:211 format mismatch lld INT, arg 4
-    warning: src/liblink/list8.c:205 format mismatch lld INT, arg 4
+    These are corresponding Windows changes for the GOROOT_BOOTSTRAP and
+    dist changes in https://golang.org/cl/2470
     
-    Change-Id: I745ea852d8b58ecbbd32723e2a67aa784a729ff8
-    Reviewed-on: https://go-review.googlesource.com/4112
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I21da2d63a60d8ae278ade9bb71ae0c314a2cf9b5
+    Reviewed-on: https://go-review.googlesource.com/2674
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/liblink/list5.c | 2 +-
- src/liblink/list6.c | 2 +-
- src/liblink/list8.c | 2 +-
- src/liblink/list9.c | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/dist/sys_windows.go |  2 +-
+ src/make.bat                | 16 ++++++++++++----
+ 2 files changed, 13 insertions(+), 5 deletions(-)

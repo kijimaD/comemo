@@ -1,47 +1,15 @@
-commit 1d8f822c170891ac72e85020178c27aded27c644
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 17 13:36:02 2011 +1000
+commit d72c96df2a4f9b1b6b83cd7be55b4e53ac3a3c9c
+Author: Aleksandar Dezelin <dezelin@gmail.com>
+Date:   Tue Aug 16 18:36:51 2011 -0400
 
-    url: new package
-    This is just moving the URL code from package http into its own package,
-    which has been planned for a while.
-    Besides clarity, this also breaks a nascent dependency cycle the new template
-    package was about to introduce.
+    net: Added function SetTimeout() to interface Listener.
+    Fixes #2148.
     
-    Add a gofix module, url, and use it to generate changes outside http and url.
-    
-    Sadness about the churn, gladness about some of the naming improvements.
-    
-    R=dsymonds, bradfitz, rsc, gustavo, r
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4893043
+    https://golang.org/cl/4905042
 
- misc/dashboard/builder/http.go      |   3 +-
- src/cmd/godoc/main.go               |   3 +-
- src/cmd/gofix/Makefile              |   1 +
- src/cmd/gofix/url.go                | 116 +++++++++++++++++++++++
- src/cmd/gofix/url_test.go           | 147 +++++++++++++++++++++++++++++
- src/pkg/Makefile                    |   1 +
- src/pkg/exp/template/funcs.go       |   4 +-
- src/pkg/http/Makefile               |   1 -
- src/pkg/http/cgi/child.go           |   5 +-
- src/pkg/http/cgi/host.go            |   2 +-
- src/pkg/http/client.go              |  17 ++--
- src/pkg/http/client_test.go         |  13 +--
- src/pkg/http/fs_test.go             |   3 +-
- src/pkg/http/readrequest_test.go    |  13 +--
- src/pkg/http/request.go             | 116 ++++++-----------------
- src/pkg/http/request_test.go        |   7 +-
- src/pkg/http/requestwrite_test.go   |   9 +-
- src/pkg/http/reverseproxy.go        |   3 +-
- src/pkg/http/reverseproxy_test.go   |   3 +-
- src/pkg/http/serve_test.go          |   3 +-
- src/pkg/http/server.go              |  27 +++---
- src/pkg/http/transport.go           |  25 ++---
- src/pkg/http/transport_test.go      |   7 +-
- src/pkg/url/Makefile                |  11 +++
- src/pkg/{http => url}/url.go        | 183 +++++++++++++++++++++++++-----------
- src/pkg/{http => url}/url_test.go   |  94 +++++++++---------
- src/pkg/websocket/client.go         |   9 +-
- src/pkg/websocket/websocket_test.go |   5 +-
- 28 files changed, 566 insertions(+), 265 deletions(-)
+ src/pkg/net/fd.go       | 7 ++++++-
+ src/pkg/net/tcpsock.go  | 8 ++++++++
+ src/pkg/net/unixsock.go | 8 ++++++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)

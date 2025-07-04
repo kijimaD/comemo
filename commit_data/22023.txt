@@ -1,12 +1,15 @@
-commit 3e981d9830215632d2a34e68273cb4452b9e6ffc
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Mar 14 23:53:31 2015 +1100
+commit 270f8447d6e4847db6e54f1f3befc8c70079fac7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 19 14:00:16 2015 +1100
 
-    doc: note removal of dragonfly/386 port
+    image/jpeg: support 16-bit quantization tables and Extended Sequential
+    frames.
     
-    Change-Id: Ibb7e4f6b95b7a9782a47221cafbe4f20dd77fd38
-    Reviewed-on: https://go-review.googlesource.com/7583
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #9888.
+    
+    Change-Id: I60f1d843e72e1b7bc77ab984f149c9ddb5258a06
+    Reviewed-on: https://go-review.googlesource.com/5251
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/image/jpeg/reader.go | 46 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 34 insertions(+), 12 deletions(-)

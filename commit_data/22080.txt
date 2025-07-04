@@ -1,18 +1,21 @@
-commit 123b38e105342ca65392ba8e20a089fe405b0791
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Mar 16 16:42:12 2015 -0700
+commit c72a21189b3be5498b092e880df55b2b8bcf5d00
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 10:56:10 2015 -0500
 
-    crypto/{ecdsa,rsa}: always use io.ReadFull with crypto/rand.Reader.
+    [dev.cc] runtime, syscall: add names to FP offsets in freebsd, netbsd arm assembly
     
-    crypto/rand.Reader doesn't ensure that short reads don't happen. This
-    change contains a couple of fixups where io.ReadFull wasn't being used
-    with it.
+    Makes them compatible with the new asm.
+    Applied mechanically from vet diagnostics.
     
-    Change-Id: I3855b81f5890f2e703112eeea804aeba07b6a6b8
-    Reviewed-on: https://go-review.googlesource.com/7645
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Manual edits: the names for arguments in time·now(SB) in runtime/sys_*_arm.s.
+    
+    Change-Id: Ib295390d9509d306afc67714e3f50dc832256625
+    Reviewed-on: https://go-review.googlesource.com/5576
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/ecdsa/ecdsa.go | 2 +-
- src/crypto/rsa/rsa.go     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/sys_freebsd_arm.s | 102 +++++++++++++++++++-------------------
+ src/runtime/sys_netbsd_arm.s  | 112 +++++++++++++++++++++---------------------
+ src/syscall/asm_freebsd_arm.s | 112 +++++++++++++++++++++---------------------
+ src/syscall/asm_netbsd_arm.s  | 106 +++++++++++++++++++--------------------
+ 4 files changed, 216 insertions(+), 216 deletions(-)

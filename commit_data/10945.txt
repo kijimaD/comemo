@@ -1,26 +1,13 @@
-commit 97853b46a08e984048e65f1d9c359bb48b8f22e4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 21 08:45:00 2011 -0800
+commit 721e19c24c84ef130528901ed8abedfcb49259b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 10:17:37 2011 -0500
 
-    go/doc: steps towards collecting methods of embedded types
+    os/user: fix for arm (non-cgo)
     
-    No visible external changes yet. The current approach is
-    a stop-gap approach: For methods of anonymous fields to be
-    seen, the anonymous field's types must be exported.
-    
-    Missing: computing the actual MethodDocs and displaying them.
-    
-    (Depending on the operation mode of godoc, the input to go/doc
-    is a pre-filtered AST with all non-exported nodes removed. Non-
-    exported anonymous fields are not even seen by go/doc in this
-    case, and it is impossible to collect associated (even exported)
-    methods. A correct fix will require some more significant re-
-    engineering; AST filtering will have to happen later, possibly
-    inside go/doc.)
-    
-    R=golang-dev, rsc
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5500055
+    https://golang.org/cl/5504056
 
- src/pkg/go/doc/doc.go | 101 +++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 68 insertions(+), 33 deletions(-)
+ src/pkg/os/user/lookup_stubs.go | 2 +-
+ src/pkg/os/user/lookup_unix.go  | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

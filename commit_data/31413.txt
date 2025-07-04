@@ -1,17 +1,23 @@
-commit 8db4d02e8fed0b42d71ef311c3b5481b2e72b26d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Apr 21 14:32:58 2017 +0200
+commit 3557d546090c7fedd69562c88d20767397de835d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 17 10:27:43 2017 -0500
 
-    cmd/go: reject buildmode=pie when -race is enabled
+    cmd/compile: check both syms when folding address into load/store on ARM64
     
-    Fixes #20038
+    The rules for folding addresses into load/stores checks sym1 is
+    not on stack (because the stack offset is not known at that point).
+    But sym1 could be nil, which invalidates the check. Check merged
+    sym instead.
     
-    Change-Id: Id692790ea406892bbe29090d461356bac28b6150
-    Reviewed-on: https://go-review.googlesource.com/41333
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #19137.
+    
+    Change-Id: I8574da22ced1216bb5850403d8f08ec60a8d1005
+    Reviewed-on: https://go-review.googlesource.com/37145
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/work/build.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 30 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 60 ++++++++++++++--------------
+ test/fixedbugs/issue19137.go                 | 22 ++++++++++
+ 3 files changed, 67 insertions(+), 45 deletions(-)

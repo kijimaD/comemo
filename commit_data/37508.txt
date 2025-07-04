@@ -1,12 +1,13 @@
-commit 7f3c6f64bdf5ed03e0a6308520958c88d244e522
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Nov 28 11:35:39 2018 -0500
+commit 8c0fd83f72d0f8804001aeab52489130cb33b90a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 14:55:12 2018 -0400
 
-    doc: update go1.12.html using latest output from relnote tool
+    cmd/go: add test cases for 'go list' with bad import paths
     
-    Change-Id: I6b20c3fd7f15f35d2288d9a0fd6512c541a62c92
-    Reviewed-on: https://go-review.googlesource.com/c/151558
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I45a675c5f699b23284a2a50b33cb22882f4b3b80
+    Reviewed-on: https://go-review.googlesource.com/128016
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.12.html | 146 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 146 insertions(+)
+ src/cmd/go/testdata/script/list_bad_import.txt     | 67 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_bad_import.txt | 59 +++++++++++++++++++
+ 2 files changed, 126 insertions(+)

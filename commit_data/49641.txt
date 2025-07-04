@@ -1,19 +1,22 @@
-commit aa802285265ac370f7ce62299e54ec84635b794e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 16 14:07:06 2022 -0500
+commit 9afbf82667a81827a805f39db51ff36bf0abc737
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 1 19:58:31 2021 +0700
 
-    cmd/go/internal/modfetch: avoid duplicating path components in Git fetch errors
+    cmd/compile: allow objStub from unsafe package
     
-    Fixes #51114
+    CL 346469 added support for unsafe.Sizeof and friends to operate on
+    generic parameters for compiler importer/exporter. This CL adds support
+    for unified IR.
     
-    Change-Id: Iebfe65f826b7b583ff2b48b8bc9d2eb23f2726af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386234
-    Reviewed-by: Valentin Deleplace <deleplace@google.com>
-    Reviewed-by: Nooras Saba‎ <saba@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Updates #48094
+    
+    Change-Id: I63af1a7c3478f59b03ecc23229ac2254d3457868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346769
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modfetch/coderepo.go            |  8 ++++----
- .../go/testdata/script/mod_download_issue51114.txt  | 21 +++++++++++++++++++++
- .../go/testdata/script/mod_download_private_vcs.txt | 10 +++-------
- 3 files changed, 28 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/reader2.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

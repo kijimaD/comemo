@@ -1,19 +1,23 @@
-commit 5ef899111e581b1e57aa1546caa204d48bdf5503
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 10 10:41:08 2015 -0800
+commit 9e77c898688529c4d73ad8912d47b20e679a2cfa
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 7 22:37:15 2015 -0700
 
-    time: reject invalid day of month in Parse
+    runtime: ensure minimum heap distance via heap goal
     
-    There was back-and-forth on this but it has been decided to fix the original
-    complaint, which was easy.
+    Currently we ensure a minimum heap distance of 1MB when computing the
+    assist ratio. Rather than enforcing this minimum on the heap distance,
+    it makes more sense to enforce that the heap goal itself is at least
+    1MB over the live heap size at the beginning of GC. Currently the two
+    approaches are semantically equivalent, but this will let us switch to
+    basing the assist ratio on current heap distance rather than the
+    initial heap distance, since we can't enforce this minimum on the
+    current heap distance (the GC may never finish because the goal posts
+    will always be 1MB away).
     
-    Fixes #7268.
-    
-    Change-Id: I6b607c49ad44579086aba2c4f4c5424b97fbed64
-    Reviewed-on: https://go-review.googlesource.com/17710
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0027b1c26a41a0152b01e5b67bdb1140d43ee903
+    Reviewed-on: https://go-review.googlesource.com/15604
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/time/format.go      |  5 +++++
- src/time/format_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 56 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go   | 26 ++++++++++++++++++--------
+ src/runtime/mheap.go |  8 ++++++--
+ 2 files changed, 24 insertions(+), 10 deletions(-)

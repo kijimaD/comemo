@@ -1,21 +1,31 @@
-commit 28f873444d4e7fdfef9c07108002cd6347a8da0f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 20 19:29:42 2023 +0000
+commit 82f09b75ca181a6be0e594e1917e4d3d91934b27
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 10 11:29:25 2023 -0500
 
-    cmd/trace/v2: add support for the goroutine-oriented task view
+    os/exec: avoid leaking an exec.Cmd in TestWaitInterrupt
     
-    This change adds support for a goroutine-oriented task view via the
-    /trace?taskid=<taskid> endpoint. This works but it's missing regions.
-    That will be implemented in a follow-up CL.
+    In CL 436655 I added a GODEBUG setting to this test process to verify
+    that Wait is eventually called for every exec.Cmd before it becomes
+    unreachable. However, the cmdHang test helpers in
+    TestWaitInterrupt/Exit-hang and TestWaitInterrupt/SIGKILL-hang
+    intentially leak a subprocess in order to simulate a leaky third-party
+    program, as Go users might encounter in practical use.
     
-    For #60773.
-    For #63960.
+    To avoid tripping over the leak check, we call Wait on the leaked
+    subprocess in a background goroutine. Since we expect the process
+    running cmdHang to exit before its subprocess does, the call to Wait
+    should have no effect beyond suppressing the leak check.
     
-    Change-Id: I086694143e5c71596ac22fc551416868f0b80923
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543937
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes #57596.
+    Updates #52580.
+    Updates #50436.
+    
+    Change-Id: Ia4b88ea47fc6b605c27ca6d9d7669c874867a900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460998
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/trace/v2/jsontrace.go | 108 +++++++++++++++++++++++++++++++-----------
- 1 file changed, 80 insertions(+), 28 deletions(-)
+ src/os/exec/exec_test.go | 1 +
+ 1 file changed, 1 insertion(+)

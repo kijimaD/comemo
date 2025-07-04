@@ -1,26 +1,40 @@
-commit 08b5091d03621527d57da7e1ab30584dee167e6d
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat Nov 28 18:09:21 2020 +0800
+commit 9b189686a53d7fec7deb93d7521531157aa023cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 24 12:15:04 2020 -0700
 
-    net: close connection in localServer teardown
+    crypto/x509: don't read symlinked root certs from disk twice
     
-    The transponder sets up a deferred close on accepted connections which
-    is fine after the client reads all data. However there are no mutexes
-    nor channels to block the transponder from closing. If the scheduler
-    runs close before the client read, it will cause an EOF failure.
+    On Linux distros at least, it's common for cert directories to have
+    symlinks pointing to other certs or even other symlinks. An example from
+    Debian stretch's /etc/ssl/certs directory:
     
-    Fixes #42720
+    ...
+    lrwxrwxrwx 1 root root     46 Aug 13  2018 106f3e4d.0 -> Entrust_Root_Certification_Authority_-_EC1.pem
+    lrwxrwxrwx 1 root root     49 Aug 13  2018 116bf586.0 -> GeoTrust_Primary_Certification_Authority_-_G2.pem
+    lrwxrwxrwx 1 root root     35 Aug 13  2018 128805a3.0 -> EE_Certification_Centre_Root_CA.pem
+    lrwxrwxrwx 1 root root     26 Aug 13  2018 157753a5.0 -> AddTrust_External_Root.pem
+    lrwxrwxrwx 1 root root     59 Aug 13  2018 1636090b.0 -> Hellenic_Academic_and_Research_Institutions_RootCA_2011.pem
+    lrwxrwxrwx 1 root root     23 Aug 13  2018 18856ac4.0 -> SecureSign_RootCA11.pem
+    lrwxrwxrwx 1 root root     31 Aug 13  2018 1d3472b9.0 -> GlobalSign_ECC_Root_CA_-_R5.pem
+    lrwxrwxrwx 1 root root     37 Aug 13  2018 1e08bfd1.0 -> IdenTrust_Public_Sector_Root_CA_1.pem
+    lrwxrwxrwx 1 root root     35 Nov  8 21:13 773e07ad.0 -> OISTE_WISeKey_Global_Root_GC_CA.pem
+    -rw-r--r-- 1 root root 200061 Nov  8 21:24 ca-certificates.crt
+    lrwxrwxrwx 1 root root     27 Nov  8 21:13 dc4d6a89.0 -> GlobalSign_Root_CA_-_R6.pem
+    lrwxrwxrwx 1 root root     62 Nov  8 21:13 GlobalSign_Root_CA_-_R6.pem -> /usr/share/ca-certificates/mozilla/GlobalSign_Root_CA_-_R6.crt
+    drwxr-xr-x 2 root root   4096 Jan 26  2019 java
+    lrwxrwxrwx 1 root root     70 Nov  8 21:13 OISTE_WISeKey_Global_Root_GC_CA.pem -> /usr/share/ca-certificates/mozilla/OISTE_WISeKey_Global_Root_GC_CA.crt
+    ...
     
-    Change-Id: Ic21b476c5efc9265a80a2c6f8484efdb5af66405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273672
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    The root_unix.go code read those certs with same-directory twice before.
+    
+    This drops the number of files read from 258 to 130. Saves about 20 ms.
+    
+    Change-Id: I36a1b1e8bb8d89ed3dac8b6255f9048cb7f08fe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229918
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/conn_test.go       |  2 +-
- src/net/mockserver_test.go | 12 +++++++++---
- src/net/protoconn_test.go  |  2 +-
- src/net/server_test.go     |  4 ++--
- src/net/tcpsock_test.go    |  2 +-
- 5 files changed, 14 insertions(+), 8 deletions(-)
+ src/crypto/x509/root_unix.go      | 29 ++++++++++++++++++++++++++++-
+ src/crypto/x509/root_unix_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

@@ -1,17 +1,24 @@
-commit 65fa9ce8b51f86bf3c9c9ff4d7ae41b40a537e69
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 28 21:12:13 2023 +0000
+commit 7575811c2b7c4a4a06a1e4b93c2473dffbb8bdcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 08:00:55 2022 -0400
 
-    runtime: use os.TempDir instead of hard-coding /tmp
+    go/doc/comment: add low-level parsing helpers
     
-    On Android, /tmp does not exist.
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    Change-Id: Ib1797d79d89704a7a9466ad94efd57d2848b3b57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472255
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Implement helpers to recognize old-style headings,
+    plain text (not marked up) URLs, and Go identifiers.
+    
+    For #51082.
+    
+    Change-Id: Ibabce72ef3ffd79a9d33366091f8c76ef27d0182
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397277
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/testdata/testprog/lockosthread.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/comment/old_test.go |  80 +++++++++++
+ src/go/doc/comment/parse.go    | 294 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 374 insertions(+)

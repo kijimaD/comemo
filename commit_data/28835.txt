@@ -1,19 +1,30 @@
-commit ca28620db9392d5aa1002256e41bd066f0cc6377
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 16 11:13:37 2016 -0700
+commit 0484052358ffdfb64cd533b3ea55f7c2b9d0b7bd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 4 06:57:34 2016 -0400
 
-    cmd/go: use normal code 2 for 'no such tool'
+    [dev.ssa] cmd/compile: remove flags from regMask
     
-    Exit code 3 is unprecedented and inconsistent with other failures here,
-    such as having no tool directory.
+    Reg allocator skips flag-typed values. Flag allocator uses the type
+    and whether the op has "clobberFlags" set.
     
-    Fixes #17145
+    Tested on AMD64, ARM, ARM64, 386. Passed 'toolstash -cmp' on AMD64.
+    PPC64 is coded blindly.
     
-    Change-Id: Ie7ed56494d4511a600214666ce3a726d63a8fd8e
-    Reviewed-on: https://go-review.googlesource.com/31253
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib1cc27efecef6a1bb27f7d7ed035a582660d244f
+    Reviewed-on: https://go-review.googlesource.com/25480
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/tool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/config.go       |    6 -
+ src/cmd/compile/internal/ssa/flagalloc.go    |    4 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  213 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  267 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   52 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   |   66 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   57 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |   10 +-
+ src/cmd/compile/internal/ssa/op.go           |    1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 1777 ++++++++++----------------
+ src/cmd/compile/internal/ssa/regalloc.go     |    4 -
+ 11 files changed, 1030 insertions(+), 1427 deletions(-)

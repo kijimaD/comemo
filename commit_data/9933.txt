@@ -1,20 +1,18 @@
-commit 77fac21e82b94a8c1f481e9eeaafc1bad6db274c
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Oct 12 15:59:23 2011 +0200
+commit a0d335c31d43c922d847e6500fc0c9c46ae98148
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 11 22:28:56 2011 -0700
 
-    runtime: append([]byte, string...)
+    go/scanner: remove AllowIllegalChars mode
     
-    Fixes #2274
+    This mode was needed before for clients of
+    the go/scanner that were parsing non-Go code.
+    All those clients have been moved to scanner
+    or have been deleted from the library.
     
-    R=rsc, gri, dsymonds, bradfitz, lvd
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5149045
+    https://golang.org/cl/5232051
 
- doc/go_spec.html          | 11 +++++--
- src/cmd/gc/builtin.c.boot |  1 +
- src/cmd/gc/runtime.go     |  1 +
- src/cmd/gc/typecheck.c    |  8 +++--
- src/cmd/gc/walk.c         | 74 +++++++++++++++++++++++++----------------------
- src/pkg/runtime/slice.c   | 49 +++++++++++++++++++++----------
- test/append.go            |  5 ++++
- 7 files changed, 94 insertions(+), 55 deletions(-)
+ src/pkg/go/scanner/scanner.go      |  9 +++------
+ src/pkg/go/scanner/scanner_test.go | 29 ++++-------------------------
+ 2 files changed, 7 insertions(+), 31 deletions(-)

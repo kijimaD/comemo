@@ -1,12 +1,12 @@
-commit 125419a250ec1f6d9031792093fc2db4fb584d80
+commit bf768294eddebac54ab08eb40dd297de0ccb7142
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 20 13:30:46 2011 -0700
+Date:   Wed Jul 20 11:38:18 2011 -0700
 
-    CONTRIBUTORS: add Mike Solomon (Google CLA)
+    os: point readers at the exec package
     
-    R=golang-dev, rsc
+    R=golang-dev, evan, rsc
     CC=golang-dev
-    https://golang.org/cl/4818041
+    https://golang.org/cl/4802046
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/os/exec_posix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,16 +1,30 @@
-commit 4ab1793a781462d61f19abc1c6060704a8ed01c3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 4 19:04:50 2016 -0800
+commit 0c428a56176353d52170f318e998f342b08dacd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 22:34:17 2015 -0500
 
-    cmd/compile: convert asmlist to []*Node
+    go/build: support vendor directories in Import
     
-    Updates #14473.
+    This fix, plus a one-line change to golang.org/x/tools/go/loader,
+    is sufficient to let that loader package process source code
+    using vendored packages. For example,
     
-    Change-Id: I88745c2a6119dea3b81b57299e70a2a7e4c584a8
-    Reviewed-on: https://go-review.googlesource.com/20272
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            GOPATH="" ssadump net/http # uses vendored http2
+    
+    used to fail, not able to find net/http's import of the vendored
+    copy of golang.org/x/net/http2/hpack.
+    
+    This CL plus the fix to loader (CL 17727) suffices to get ssadump working,
+    as well as - I expect - most other source code processing built
+    on golang.org/x/tools/go/loader.
+    
+    Fixes #12278.
+    
+    Change-Id: I83715e757419171159f67d49bb453636afdd91f0
+    Reviewed-on: https://go-review.googlesource.com/17726
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/export.go | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ src/cmd/go/pkg.go          | 56 +++++++++++------------------
+ src/cmd/go/vendor_test.go  |  2 +-
+ src/go/build/build.go      | 89 +++++++++++++++++++++++++++++++++++++++-------
+ src/go/build/build_test.go | 27 ++++++++++++++
+ 4 files changed, 124 insertions(+), 50 deletions(-)

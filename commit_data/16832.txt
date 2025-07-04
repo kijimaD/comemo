@@ -1,21 +1,13 @@
-commit 21b9d1473838b34911629e754f5cd2165411c1f4
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Jul 20 23:31:51 2013 +0200
+commit cae5213b913b2237d79fe19fa6e2b8974f335e1a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 20 16:09:30 2013 +1000
 
-    regexp: use a very fast random generator for benchmarks.
+    libmach,lib9: override unused parameter warnings (fixes netbsd and openbsd builds)
     
-    Calls into math/rand are very slow, especially under race
-    detector because of heap accesses.
-    
-    go test -bench . -run none -benchtime .1s
-    Before: 23.0s
-    After:  17.4s
-    
-    Fixes #5837.
-    
-    R=golang-dev, dave, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11564044
+    https://golang.org/cl/11623043
 
- src/pkg/regexp/exec_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/libmach/netbsd.c  | 10 ++++++++++
+ src/libmach/openbsd.c | 10 ++++++++++
+ 2 files changed, 20 insertions(+)

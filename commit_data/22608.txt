@@ -1,16 +1,12 @@
-commit 88c08b06b97296e41fc3069f4afbc86d24707b05
+commit ffc229935f0f616418260f06a68eec32a38ac6e1
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 20 13:50:46 2015 -0700
+Date:   Fri Mar 27 14:25:25 2015 +0100
 
-    cmd/internal: C->Go printf cleanup
+    doc: add more performance items to go1.5.txt
     
-    Change-Id: I1cf94377c613fb51ae77f4fe1e3439268b1606a9
-    Reviewed-on: https://go-review.googlesource.com/9161
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia7a08bc855db87890d35b2a1667e245ce5ecf472
+    Reviewed-on: https://go-review.googlesource.com/8197
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/gc/lex.go       | 5 +----
- src/cmd/internal/gc/typecheck.go | 5 +----
- src/cmd/internal/ld/sym.go       | 7 ++-----
- src/cmd/internal/obj/flag.go     | 2 +-
- src/cmd/internal/obj/util.go     | 8 ++++----
- 5 files changed, 9 insertions(+), 18 deletions(-)
+ doc/go1.5.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)

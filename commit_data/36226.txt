@@ -1,25 +1,29 @@
-commit 6b937ace680ac4377c9d952687104f4d23f1ce16
-Author: Leigh McCulloch <leigh@mcchouse.com>
-Date:   Sat Aug 4 06:40:45 2018 +0000
+commit 9be1921042b6b81b7f16fa8640ddc5868af6d31e
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Apr 9 11:12:15 2018 +0000
 
-    doc/contribute: add examples for finding issues on the issue tracker
+    cmd/internal/obj/arm64: optimize constant pool
     
-    For contributors looking for new issues to contribute to it can be
-    difficult to find issues that need a fix and don't already have a fix
-    being considered. There are several labels that help guide the way
-    already, like `NeedsFix`, `HelpWanted`. But many issues with this label
-    will already have a CL. For new contributors this can be especially
-    difficult.
+    "MOVD $0xaaaaaaaa, R2"
+    "MOVD $-0x55555555, R3"
     
-    Fixes #26494
+    For the above instructions, 64-bit constants 0x00000000 aaaaaaaa
+    and 0xffffffff aaaaaaab are stored in the constant pool.
     
-    Change-Id: Ifd38ea65e362b4c580207a06f959646e49ac594f
-    GitHub-Last-Rev: 6d2b54447b2ee754a6d025f5de3ebd8326e035eb
-    GitHub-Pull-Request: golang/go#26516
-    Reviewed-on: https://go-review.googlesource.com/125355
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    This CL optimizes them to
+    "MOVWU $0xaaaaaaaa, R2"
+    "MOVW $-0x05555555, R3"
+    and 32-bit constants 0xaaaaaaaa and 0xaaaaaaab are stored in the
+    constant pool.
+    
+    There is a little size reduction (about total 5KB) in both the go
+    executable and the library files.
+    
+    Change-Id: I7c4bfa6cd9c07da99c69a8f9c15010a0cce3b735
+    Reviewed-on: https://go-review.googlesource.com/105775
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/internal/obj/arm64/asm7.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

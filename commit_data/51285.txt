@@ -1,18 +1,24 @@
-commit 5e73f6a02928518bd8ea0a7b1112ce5e536d5dd6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:30:10 2022 -0500
+commit c5540e53b1f692a8c977fd1e4ee0915eea66f999
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 12:25:43 2022 -0800
 
-    cmd/nm: use the test binary as 'nm' instead of rebuilding it
+    go/types, types2: ensure that signature type bounds are interfaces
     
-    This not only reduces the latency of the test, but also respects
-    build flags like '-race' and '-cover' passed to the 'go test' command.
+    Do this by running verification for instantiated signatures
+    later, after the delayed type parameter set-up had a chance
+    to wrap type bounds in implicit interfaces where needed.
     
-    Change-Id: Iffdc60d444a9ff1d4ff5e688bca1c2ef0dfa03c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450703
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #50450
+    
+    Change-Id: If3ff7dc0be6af14af854830bfddb81112ac575cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375737
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/nm/nm_test.go | 68 ++++++++++++++++++++++++---------------------------
- 1 file changed, 32 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/types2/call.go            | 24 +++++++++++---------
+ .../types2/testdata/fixedbugs/issue50450.go2       | 11 +++++++++
+ src/go/types/call.go                               | 26 +++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue50450.go2     | 11 +++++++++
+ 4 files changed, 51 insertions(+), 21 deletions(-)

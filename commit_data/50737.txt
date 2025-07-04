@@ -1,17 +1,26 @@
-commit 2cbcf36ede1092074b73924d2f4f12ddcf0fcc0a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 10:44:12 2022 +0800
+commit 830b393bcd5a3090b13cd0bd05f51e3d594807f3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 9 00:05:58 2021 +0700
 
-    cmd/internal: use fmt.Fprintf
+    cmd/compile,cmd/go: fix long test builders
     
-    Change-Id: Ifa78c98bf919ea62136f19b2bad0a8ee33afc646
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435695
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    CL 361411 improved error message for go version requirement, but forgot
+    to update the test in cmd/go to match new error message. That causes
+    longtest builders failed.
+    
+    This CL changes mod_vendor_goversion.txt to match compiler error, and
+    limit fixedbugs/issue49368.go to run with -G=3 only.
+    
+    Updates #49368
+    
+    Change-Id: I125fe0a8c2a1595066d39c03e97819e7a1274e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361963
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/test2json/test2json.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ test/fixedbugs/issue49368.go                        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

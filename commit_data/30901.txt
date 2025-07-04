@@ -1,40 +1,14 @@
-commit fa1d54c2edad607866445577fe4949fbe55166e1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 28 14:54:10 2017 -0400
+commit 6e542dce216504cc1e849573a4320084307860d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 15 09:00:21 2016 -0800
 
-    cmd/go: exclude vendored packages from ... matches
+    test: add test gcc78763.go that caused a gccgo compiler crash
     
-    By overwhelming popular demand, exclude vendored packages from ... matches,
-    by making ... never match the "vendor" element above a vendored package.
-    
-    go help packages now reads:
-    
-        An import path is a pattern if it includes one or more "..." wildcards,
-        each of which can match any string, including the empty string and
-        strings containing slashes.  Such a pattern expands to all package
-        directories found in the GOPATH trees with names matching the
-        patterns.
-    
-        To make common patterns more convenient, there are two special cases.
-        First, /... at the end of the pattern can match an empty string,
-        so that net/... matches both net and packages in its subdirectories, like net/http.
-        Second, any slash-separted pattern element containing a wildcard never
-        participates in a match of the "vendor" element in the path of a vendored
-        package, so that ./... does not match packages in subdirectories of
-        ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
-        Note, however, that a directory named vendor that itself contains code
-        is not a vendored package: cmd/vendor would be a command named vendor,
-        and the pattern cmd/... matches it.
-    
-    Fixes #19090.
-    
-    Change-Id: I985bf9571100da316c19fbfd19bb1e534a3c9e5f
-    Reviewed-on: https://go-review.googlesource.com/38745
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I0d990d494ee8eebfc804b526f5ced71944572b4d
+    Reviewed-on: https://go-review.googlesource.com/34491
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                  | 20 +++++++++--
- src/cmd/go/internal/help/helpdoc.go    | 15 ++++++--
- src/cmd/go/internal/load/match_test.go | 34 +++++++++++++++++++
- src/cmd/go/internal/load/search.go     | 62 +++++++++++++++++++++++++++++++---
- src/cmd/go/vendor_test.go              |  6 ++--
- 5 files changed, 124 insertions(+), 13 deletions(-)
+ test/fixedbugs/gcc78763.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

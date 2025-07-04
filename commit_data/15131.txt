@@ -1,22 +1,12 @@
-commit 5ae6a237310e4c8d02fc3257f8be61df44bc9e47
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 5 06:53:58 2013 +0900
+commit 49fe632c7d93dcf83d16cf7ee7fd09b165ce4b94
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 5 05:45:35 2013 +0800
 
-    syscall: regenerate ztype files for linux
+    cmd/go: update doc.go
     
-    This CL adds TCPInfo struct to linux/386,arm.
-    It's already added to linux/amd64.
-    
-    Note that not sure the reason but cgo godefs w/ latest gcc
-    translates a flexible array member in structures correctly,
-    handles it as a non-incomplete, non-opaque type, on Go 1.
-    This CL reverts such changes by hand for the Go 1 contract.
-    
-    R=minux.ma, bradfitz, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7197046
+    https://golang.org/cl/7279047
 
- src/pkg/syscall/ztypes_linux_386.go   | 41 ++++++++++++++++++++++++++++++++---
- src/pkg/syscall/ztypes_linux_amd64.go |  6 ++---
- src/pkg/syscall/ztypes_linux_arm.go   | 37 ++++++++++++++++++++++++++++++-
- 3 files changed, 77 insertions(+), 7 deletions(-)
+ src/cmd/go/doc.go | 87 ++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 40 deletions(-)

@@ -1,12 +1,25 @@
-commit e6a96a6277da312d71c76ecb6f4a9a99ba88c389
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 28 09:05:33 2016 -0700
+commit be730b49ca41e8a7e98a21cf61bb6c9c7fc7857e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 28 09:35:19 2016 +0900
 
-    doc: add cmd/go pkgdir changes to go1.8.txt
+    runtime: drop _SigUnblock for SIGSYS on Linux
     
-    Change-Id: I451ca386781b50ab47b313e07a610867fa14aeaf
-    Reviewed-on: https://go-review.googlesource.com/27990
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    The _SigUnblock flag was appended to SIGSYS slot of runtime signal table
+    for Linux in https://go-review.googlesource.com/22202, but there is
+    still no concrete opinion on whether SIGSYS must be an unblocked signal
+    for runtime.
+    
+    This change removes _SigUnblock flag from SIGSYS on Linux for
+    consistency in runtime signal handling and adds a reference to #15204 to
+    runtime signal table for FreeBSD.
+    
+    Updates #15204.
+    
+    Change-Id: I42992b1d852c2ab5dd37d6dbb481dba46929f665
+    Reviewed-on: https://go-review.googlesource.com/22537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/signal_freebsd.go       | 2 +-
+ src/runtime/sigtab_linux_generic.go | 2 +-
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

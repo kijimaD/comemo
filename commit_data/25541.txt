@@ -1,17 +1,16 @@
-commit ba593d6ab861222ee03b87a6f733afac48f5a04e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 11 12:27:37 2016 -0800
+commit 0bad50f2a455c59fce1ab18567558ea4b847ea90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 11:26:25 2015 -0800
 
-    net: disable sendfile on Solaris for now
+    cmd/compile/internal/gc: fix go.y to match y.go
     
-    There are reports of corruption. Let's disable it for now (for Go 1.6,
-    especially) until we can investigate and fix properly.
+    In https://go-review.googlesource.com/#/c/16554/ y.go was modified
+    manually, but go.y (which is the source for y.go) was not changed.
     
-    Update #13892
-    
-    Change-Id: I557275e5142fe616e8a4f89c00ffafb830eb3b78
-    Reviewed-on: https://go-review.googlesource.com/18540
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I1273801bfd1ac65b875f4465033b0d062abff0b7
+    Reviewed-on: https://go-review.googlesource.com/16745
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/sendfile_solaris.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/go.y |   2 +
+ src/cmd/compile/internal/gc/y.go | 462 ++++++++++++++++++++-------------------
+ 2 files changed, 234 insertions(+), 230 deletions(-)

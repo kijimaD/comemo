@@ -1,18 +1,15 @@
-commit 1065c6f65ad3083976f10f0828633a322f7114b8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 4 21:03:50 2012 -0700
+commit 9f807fcc4ae1bdd38ee637a88128a1c72d984a30
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Fri Oct 5 10:08:54 2012 +1000
 
-    go/printer: parenthesize literal function types in conversions
+    net/mail: make address parsing (more) public
     
-    Also: gofmt -w src misc
+    Code for parsing email addresses was already partially part of the public API with "func (Header) AddressList".  This CL adds a trivial implementation for two public methods to parse address and lists from a string. With tests.
     
-    R=r
-    CC=golang-dev, iant
-    https://golang.org/cl/6591071
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5676067
 
- src/pkg/go/printer/nodes.go                    |  9 ++++++++-
- src/pkg/go/printer/testdata/expressions.golden | 15 +++++++++++++++
- src/pkg/go/printer/testdata/expressions.input  | 15 +++++++++++++++
- src/pkg/go/printer/testdata/expressions.raw    | 15 +++++++++++++++
- src/pkg/reflect/all_test.go                    |  2 +-
- 5 files changed, 54 insertions(+), 2 deletions(-)
+ src/pkg/net/mail/message.go      | 12 +++++++++++-
+ src/pkg/net/mail/message_test.go | 17 ++++++++++++++---
+ 2 files changed, 25 insertions(+), 4 deletions(-)

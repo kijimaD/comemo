@@ -1,0 +1,21 @@
+commit 6df37f70de585a9895c6c0556efe199fa65cf789
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Oct 29 14:18:38 2024 +0800
+
+    internal/poll: make sendfile(2) work on Androids
+    
+    Fixes some Android builders.
+    
+    Ref:
+    https://build.golang.org/log/2b60164954ad0c56ce5134cb2bb81d1532723253
+    https://build.golang.org/log/f5290236a27b099020fe56ff5d271886353b64f8
+    
+    Change-Id: Ia5305aefa9ca8230dfa0cd892b79b8cf60e40430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622998
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/sendfile_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

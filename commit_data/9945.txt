@@ -1,13 +1,12 @@
-commit 1204f740cfa6b77735877a87817a01fc4ac860a7
+commit aa2f439c6aa10c3e901afc41d895914cb91529ee
 Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 12 16:56:39 2011 -0700
+Date:   Wed Oct 12 13:50:08 2011 -0700
 
-    gotest: correct the documentation of -parallel.
-    It said the default was zero, but it's actually $GOMAXPROCS.
+    fmt: remove an obsolete reference to os.ErrorString in a comment
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5229059
+    https://golang.org/cl/5229057
 
- src/cmd/gotest/doc.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,52 +1,46 @@
-commit b7e54d8d0784ceb21f7d4d406cf42c86a7fdb0f8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 24 10:53:17 2020 +0100
+commit 440f7d64048cd94cba669e16fe92137ce6b84073
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Fri Nov 15 19:49:30 2019 +0000
 
-    cmd/go: make 'mod verify' use multiple CPUs
+    all: fix a bunch of misspellings
     
-    'go mod verify' checksums one module zip at a time, which is
-    CPU-intensive on most modern machines with fast disks. As a result, one
-    can see a CPU bottleneck when running the command on, for example, a
-    module where 'go list -m all' lists ~440 modules:
-    
-            $ /usr/bin/time go mod verify
-            all modules verified
-            11.47user 0.77system 0:09.41elapsed 130%CPU (0avgtext+0avgdata 24284maxresident)k
-            0inputs+0outputs (0major+4156minor)pagefaults 0swaps
-    
-    Instead, verify up to GOMAXPROCS zips at once, which should line up
-    pretty well with the amount of processors we can use on a machine. The
-    results below are obtained via 'benchcmd -n 5 GoModVerify go mod verify'
-    on the same large module.
-    
-            name         old time/op         new time/op         delta
-            GoModVerify          9.35s ± 1%          3.03s ± 2%  -67.60%  (p=0.008 n=5+5)
-    
-            name         old user-time/op    new user-time/op    delta
-            GoModVerify          11.2s ± 1%          16.3s ± 3%  +45.38%  (p=0.008 n=5+5)
-    
-            name         old sys-time/op     new sys-time/op     delta
-            GoModVerify          841ms ± 9%          865ms ± 8%     ~     (p=0.548 n=5+5)
-    
-            name         old peak-RSS-bytes  new peak-RSS-bytes  delta
-            GoModVerify         27.8MB ±13%         50.7MB ±27%  +82.01%  (p=0.008 n=5+5)
-    
-    The peak memory usage nearly doubles, and there is some extra overhead,
-    but it seems clearly worth the tradeoff given that we see a ~3x speedup
-    on my laptop with 4 physical cores. The vast majority of developer
-    machines nowadays should have 2-4 cores at least.
-    
-    No test or benchmark is included; one can benchmark 'go mod verify'
-    directly, as I did above. The existing tests also cover correctness,
-    including any data races via -race.
-    
-    Fixes #38623.
-    
-    Change-Id: I45d8154687a6f3a6a9fb0e2b13da4190f321246c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229817
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I5b909df0fd048cd66c5a27fca1b06466d3bcaac7
+    GitHub-Last-Rev: 778c5d21311abee09a5fbda2e4005a5fd4cc3f9f
+    GitHub-Pull-Request: golang/go#35624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207421
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modcmd/verify.go | 55 +++++++++++++++++++++++++-----------
- 1 file changed, 39 insertions(+), 16 deletions(-)
+ misc/trace/trace_viewer_full.html              | 2 +-
+ src/cmd/compile/internal/gc/bexport.go         | 2 +-
+ src/cmd/compile/internal/gc/plive.go           | 2 +-
+ src/cmd/compile/internal/gc/range.go           | 2 +-
+ src/cmd/compile/internal/ssa/block.go          | 2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   | 2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go  | 2 +-
+ src/cmd/link/internal/ld/dwarf.go              | 2 +-
+ src/cmd/link/internal/loadpe/ldpe.go           | 8 ++++----
+ src/crypto/dsa/dsa_test.go                     | 2 +-
+ src/crypto/elliptic/p256.go                    | 2 +-
+ src/crypto/tls/handshake_server.go             | 2 +-
+ src/crypto/tls/handshake_server_test.go        | 2 +-
+ src/debug/elf/file_test.go                     | 2 +-
+ src/debug/pe/file.go                           | 4 ++--
+ src/internal/bytealg/count_s390x.s             | 2 +-
+ src/math/big/nat.go                            | 2 +-
+ src/net/http/serve_test.go                     | 2 +-
+ src/net/http/transfer.go                       | 4 ++--
+ src/net/http/transport.go                      | 2 +-
+ src/net/http/transport_test.go                 | 2 +-
+ src/net/ipsock_posix.go                        | 2 +-
+ src/net/lookup_windows.go                      | 2 +-
+ src/runtime/defs_aix.go                        | 2 +-
+ src/runtime/error.go                           | 2 +-
+ src/runtime/mgcscavenge.go                     | 2 +-
+ src/runtime/mheap.go                           | 2 +-
+ src/runtime/pprof/pprof_test.go                | 2 +-
+ src/runtime/slice.go                           | 2 +-
+ src/runtime/stack.go                           | 2 +-
+ 31 files changed, 36 insertions(+), 36 deletions(-)

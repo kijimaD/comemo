@@ -1,16 +1,27 @@
-commit d0b62d8bfaa449f68a60be3d9b7bf472f02a9204
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 3 04:37:22 2015 -0400
+commit f00362b9ecf9fbca6f099493a4e8d1c6a030dee3
+Author: Andrew Pilloud <andrewpilloud@igneoussystems.com>
+Date:   Thu Feb 12 20:24:47 2015 -0800
 
-    runtime: linux/arm64 cgo support
+    net: LookupHost and Resolve{TCP,UDP,IP}Addr should use zone from getaddrinfo
     
-    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f3
-    Reviewed-on: https://go-review.googlesource.com/8450
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    The unix and windows getaddrinfo calls return a zone with IPv6
+    addresses. IPv6 link-local addresses returned are only valid on the
+    given zone. When the zone is dropped, connections to the address
+    will fail. This patch replaces IP with IPAddr in several internal
+    resolver functions, and plumbs through the zone.
+    
+    Change-Id: Ifea891654f586f15b76988464f82e04a42ccff6d
+    Reviewed-on: https://go-review.googlesource.com/5851
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/runtime/asm_arm64.s       | 156 +++++++++++++++++++++++-------------------
- src/runtime/cgocall.go        |   6 ++
- src/runtime/sys_linux_arm64.s |   5 +-
- src/runtime/tls_arm64.h       |  14 ++++
- src/runtime/tls_arm64.s       |  31 +++++++++
- 5 files changed, 142 insertions(+), 70 deletions(-)
+ src/net/cgo_stub.go       |   2 +-
+ src/net/cgo_unix.go       |  10 +++--
+ src/net/dnsclient_unix.go |  16 ++++++--
+ src/net/ipsock.go         |  64 +++++++++++++----------------
+ src/net/ipsock_test.go    | 100 +++++++++++++++++++++++-----------------------
+ src/net/lookup.go         |  22 ++++++----
+ src/net/lookup_plan9.go   |  12 +++---
+ src/net/lookup_stub.go    |   2 +-
+ src/net/lookup_unix.go    |   2 +-
+ src/net/lookup_windows.go |  21 +++++-----
+ 10 files changed, 132 insertions(+), 119 deletions(-)

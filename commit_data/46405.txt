@@ -1,27 +1,36 @@
-commit da1aa650536b188c4dce287003a6f46b0dc4bdd5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 9 15:43:19 2021 -0700
+commit f8afb8216ad69ed0c4e5ac8b5ad86cc0cb78749d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 23:21:20 2020 -0800
 
-    cmd/compile/internal/syntax: correct follow token for type parameter lists
+    [dev.regabi] cmd/compile: rename CommStmt and CaseStmt [generated]
     
-    When parsing a type parameter declaration, parts of the code still
-    expected a ) as closing token. Use the correct follow token ) or ]
-    depending on parameter list kind.
+    Rename these two AST nodes to match their cmd/compile/internal/syntax
+    and go/ast counterparts.
     
-    Also, consistently use tokstring (not tok.String()) for user-facing
-    (error) messages.
+    Passes toolstash -cmp.
     
-    Follow-up on comment in CL 348730.
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    rf '
+            mv CaseStmt CaseClause
+            mv CommStmt CommClause
+    '
+    sed -E -i -e 's/(Case|Comm)Stmt/\1Clause/g' mknode.go
     
-    For #43527.
-    
-    Change-Id: Ib1d4feb526771a1668a54c3bb7a671f6c8a65940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348742
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I19fba0323a5de1e71346622857011b2f7879bcef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280446
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/syntax/parser.go            | 14 ++++++++------
- src/cmd/compile/internal/syntax/testdata/tparams.go2 |  2 ++
- 2 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go            |  2 +-
+ src/cmd/compile/internal/ir/mknode.go         | 16 +++++-----
+ src/cmd/compile/internal/ir/node_gen.go       | 16 +++++-----
+ src/cmd/compile/internal/ir/stmt.go           | 44 +++++++++++++--------------
+ src/cmd/compile/internal/noder/noder.go       |  8 ++---
+ src/cmd/compile/internal/typecheck/iexport.go |  4 +--
+ src/cmd/compile/internal/typecheck/iimport.go |  8 ++---
+ src/cmd/compile/internal/typecheck/stmt.go    |  2 +-
+ src/cmd/compile/internal/walk/select.go       |  8 ++---
+ 9 files changed, 54 insertions(+), 54 deletions(-)

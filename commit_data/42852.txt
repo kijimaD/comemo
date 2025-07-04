@@ -1,17 +1,19 @@
-commit a98fe2632cf144d6ed41daf7255aa912f0e430db
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 24 21:34:33 2020 -0400
+commit 1894842b751d86b642249d8171250acba0395205
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 22:19:39 2020 -0800
 
-    cmd/go/internal/modload: address issues missed in CL 244774
+    cmd/compile: allow values with aux Sym to fault on nil args
     
-    For #36460
+    And use this newfound power to more precisely describe some PPC64 ops.
     
-    Change-Id: I5e9a42d64e36679b881e96145833e66cf77b98a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250338
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Idb2b669d74fbab5f3508edf19f7e3347306b0daf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217002
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modload/modfile.go | 4 ++--
- src/cmd/go/internal/modload/mvs.go     | 2 --
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
+ src/cmd/compile/internal/ssa/gen/main.go     | 4 ++--
+ src/cmd/compile/internal/ssa/nilcheck.go     | 4 ++++
+ src/cmd/compile/internal/ssa/opGen.go        | 6 +++---
+ 4 files changed, 13 insertions(+), 9 deletions(-)

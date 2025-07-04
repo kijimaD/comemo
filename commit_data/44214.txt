@@ -1,15 +1,22 @@
-commit 0b6cfea6342a7d95f74bc9e273039236ebd7e64f
+commit 6bf2eea62a3425c57f3d908ec32047a9ae41c025
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jan 28 12:19:49 2021 -0500
+Date:   Wed May 27 11:37:00 2020 -0400
 
-    doc/go1.16: document that on OpenBSD syscalls are now made through libc
+    cmd/compile: always use StackMapDontCare as register map index when reg map is not used
     
-    Updates #36435, #40700.
+    When go115ReduceLiveness is true (so we don't emit actual
+    register maps), use StackMapDontCare consistently for the
+    register map index, so RegMapValid is always false.
     
-    Change-Id: I1e2ded111ad58066cc9f2c9d00e719497b0f34d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287634
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    This fixes a compiler crash when doing -live=2 debug print.
+    
+    Fixes #39251.
+    
+    Change-Id: Ice087af491fa69c413f8ee59f923b72d592c0643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235418
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.16.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

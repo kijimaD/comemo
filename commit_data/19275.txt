@@ -1,12 +1,12 @@
-commit ba20c36479412b41d51b3f4f825e601c36f8f009
-Author: Adam Langley <agl@golang.org>
-Date:   Mon May 5 11:34:03 2014 -0700
+commit 4ad7c4a1ce6151c1575f6e95921d1897306b75b2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 5 09:56:26 2014 -0700
 
-    C: Sean Burford (Google CLA)
+    doc: document go1.2.2
     
-    R=gobot
+    R=rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/97070043
+    https://golang.org/cl/100110043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ doc/devel/release.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

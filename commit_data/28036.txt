@@ -1,38 +1,35 @@
-commit a99f812cba4c5a5207fed9be5488312a44a5df34
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jul 2 17:19:25 2016 -0700
+commit 5b765ce310c594276ea919a9cb455cc894fee999
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 11 14:08:10 2016 -0500
 
-    cmd/objdump: implement objdump of .o files
+    runtime: don't clear gcscanvalid in casfrom_Gscanstatus
     
-    Update goobj reader so it can provide all the information
-    necessary to disassemble .o (and .a) files.
+    Currently we clear gcscanvalid in both casgstatus and
+    casfrom_Gscanstatus if the new status is _Grunning. This is very
+    important to do in casgstatus. However, this is potentially wrong in
+    casfrom_Gscanstatus because in this case the caller doesn't own gp and
+    hence the write is racy. Unlike the other _Gscan statuses, during
+    _Gscanrunning, the G is still running. This does not indicate that
+    it's transitioning into a running state. The scan simply hasn't
+    happened yet, so it's neither valid nor invalid.
     
-    Grab architecture of .o files from header.
+    Conveniently, this also means clearing gcscanvalid is unnecessary in
+    this case because the G was already in _Grunning, so we can simply
+    remove this code. What will happen instead is that the G will be
+    preempted to scan itself, that scan will set gcscanvalid to true, and
+    then the G will return to _Grunning via casgstatus, clearing
+    gcscanvalid.
     
-    .o files have relocations in them.  This CL also contains a simple
-    mechanism to disassemble relocations and add relocation info as an extra
-    column in the output.
+    This fix will become necessary shortly when we start keeping track of
+    the set of G's with dirty stacks, since it will no longer be
+    idempotent to simply set gcscanvalid to false.
     
-    Fixes #13862
-    
-    Change-Id: I608fd253ff1522ea47f18be650b38d528dae9054
-    Reviewed-on: https://go-review.googlesource.com/24818
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I688c82e6fbf00d5dbbbff49efa66acb99ee86785
+    Reviewed-on: https://go-review.googlesource.com/20669
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/goobj/read.go           | 35 ++++++++++++----
- src/cmd/internal/obj/link.go             |  8 ++--
- src/cmd/internal/obj/reloctype_string.go | 17 ++++++++
- src/cmd/internal/objfile/disasm.go       | 24 +++++++++--
- src/cmd/internal/objfile/goobj.go        | 71 +++++++++++++++++++++++++++-----
- src/cmd/internal/objfile/objfile.go      | 31 +++++++++++---
- src/cmd/internal/sys/arch.go             | 13 ++++++
- src/cmd/link/internal/arm/asm.go         |  4 +-
- src/cmd/link/internal/ld/ldelf.go        |  2 +-
- src/cmd/link/internal/ld/ldmacho.go      |  2 +-
- src/cmd/link/internal/ld/link.go         |  3 +-
- src/cmd/link/internal/ld/objfile.go      |  2 +-
- src/cmd/pprof/pprof.go                   |  5 +--
- src/debug/gosym/pclntab.go               | 10 +++--
- 14 files changed, 186 insertions(+), 41 deletions(-)
+ src/runtime/proc.go  | 3 ---
+ src/runtime/stack.go | 1 +
+ 2 files changed, 1 insertion(+), 3 deletions(-)

@@ -1,15 +1,12 @@
-commit 7c477418114e954d5a68671833ea9ecba7740459
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 12 13:15:26 2011 +1000
+commit 05c89edcd3dfa4253477d34d4f6839f3180b2108
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 12 13:08:22 2011 +1000
 
-    exp/template: make numbers adhere to Go's rules for ideal constants.
-    Without further type informatnion, 1.0 is a float and an integer
-    must fit in an int.
+    go/build: make Nuke comment say what it does
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4696042
+    https://golang.org/cl/4697041
 
- src/pkg/exp/template/exec.go      | 52 ++++++++++++++++++++-------------------
- src/pkg/exp/template/exec_test.go | 23 ++++++++++++++++-
- 2 files changed, 49 insertions(+), 26 deletions(-)
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

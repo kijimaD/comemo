@@ -1,17 +1,21 @@
-commit c74659290a473cf932ec6bc96bfa7e96a930676e
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Tue Mar 5 03:10:38 2019 +0800
+commit 872a5479574f11d7ebe78118226f2a423e89c993
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 2 09:09:10 2018 -0400
 
-    os: remove unreadable directories in RemoveAll
+    regexp: fix BenchmarkMatch_onepass_regex
     
-    Fixes #30555
+    This benchmark - in contrast to all other benchmarks - was
+    running the regexp match on 1-byte substrings of the input
+    instead of the entire input. Worse, it was doing so by preallocating
+    a slice of slices of every 1-byte substring. Needless to say,
+    this does not accurately reflect what happens when the regexp
+    matcher is given a large input.
     
-    Change-Id: Ib894b4f3cdba23a18a69c9470cf69ceb83591a4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165057
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Change-Id: Icd5b95f0e43f554a6b93164916745941366e03d6
+    Reviewed-on: https://go-review.googlesource.com/c/139778
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/removeall_at.go   |  3 ++-
- src/os/removeall_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/regexp/exec_test.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

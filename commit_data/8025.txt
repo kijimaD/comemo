@@ -1,78 +1,15 @@
-commit fb175cf77ef3a0c49e6bbdb54639fd51dd9a750f
+commit 846a368b8813d6ce1e26a3754ce2a66f73903df1
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 12:26:51 2011 -0400
+Date:   Fri Apr 8 10:59:25 2011 -0400
 
-    reflect: new Type and Value definitions
+    gofix: be more conservative about rewrite to os.Create
     
-    Type is now an interface that implements all the possible type methods.
-    Instead of a type switch on a reflect.Type t, switch on t.Kind().
-    If a method is invoked on the wrong kind of type (for example,
-    calling t.Field(0) when t.Kind() != Struct), the call panics.
+    Rewrite only if we understood all the flags we saw.
     
-    There is one method renaming: t.(*ChanType).Dir() is now t.ChanDir().
-    
-    Value is now a struct value that implements all the possible value methods.
-    Instead of a type switch on a reflect.Value v, switch on v.Kind().
-    If a method is invoked on the wrong kind of value (for example,
-    calling t.Recv() when t.Kind() != Chan), the call panics.
-    
-    Since Value is now a struct, not an interface, its zero value
-    cannot be compared to nil.  Instead of v != nil, use v.IsValid().
-    Instead of other uses of nil as a Value, use Value{}, the zero value.
-    
-    Many methods have been renamed, most due to signature conflicts:
-    
-               OLD                          NEW
-    
-        v.(*ArrayValue).Elem             v.Index
-        v.(*BoolValue).Get               v.Bool
-        v.(*BoolValue).Set               v.SetBool
-        v.(*ChanType).Dir                v.ChanDir
-        v.(*ChanValue).Get               v.Pointer
-        v.(*ComplexValue).Get            v.Complex
-        v.(*ComplexValue).Overflow       v.OverflowComplex
-        v.(*ComplexValue).Set            v.SetComplex
-        v.(*FloatValue).Get              v.Float
-        v.(*FloatValue).Overflow         v.OverflowFloat
-        v.(*FloatValue).Set              v.SetFloat
-        v.(*FuncValue).Get               v.Pointer
-        v.(*InterfaceValue).Get          v.InterfaceData
-        v.(*IntValue).Get                v.Int
-        v.(*IntValue).Overflow           v.OverflowInt
-        v.(*IntValue).Set                v.SetInt
-        v.(*MapValue).Elem               v.MapIndex
-        v.(*MapValue).Get                v.Pointer
-        v.(*MapValue).Keys               v.MapKeys
-        v.(*MapValue).SetElem            v.SetMapIndex
-        v.(*PtrValue).Get                v.Pointer
-        v.(*SliceValue).Elem             v.Index
-        v.(*SliceValue).Get              v.Pointer
-        v.(*StringValue).Get             v.String
-        v.(*StringValue).Set             v.SetString
-        v.(*UintValue).Get               v.Uint
-        v.(*UintValue).Overflow          v.OverflowUint
-        v.(*UintValue).Set               v.SetUint
-        v.(*UnsafePointerValue).Get      v.Pointer
-        v.(*UnsafePointerValue).Set      v.SetPointer
-    
-    Part of the motivation for this change is to enable a more
-    efficient implementation of Value, one that does not allocate
-    memory during most operations.  To reduce the size of the CL,
-    this CL's implementation is a wrapper around the old API.
-    Later CLs will make the implementation more efficient without
-    changing the API.
-    
-    Other CLs to be submitted at the same time as this one
-    add support for this change to gofix (4343047) and update
-    the Go source tree (4353043).
-    
-    R=gri, iant, niemeyer, r, rog, gustavo, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4281055
+    https://golang.org/cl/4376046
 
- src/pkg/reflect/all_test.go      |  393 +++++++-------
- src/pkg/reflect/deepequal.go     |   58 +--
- src/pkg/reflect/tostring_test.go |   54 +-
- src/pkg/reflect/type.go          |  757 +++++++++++++++------------
- src/pkg/reflect/value.go         | 1063 ++++++++++++++++++++++++++++----------
- 5 files changed, 1437 insertions(+), 888 deletions(-)
+ src/cmd/gofix/osopen.go      | 23 +++++++++++++----------
+ src/cmd/gofix/osopen_test.go |  4 ++++
+ 2 files changed, 17 insertions(+), 10 deletions(-)

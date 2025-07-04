@@ -1,17 +1,18 @@
-commit 8cb9c21cce483d016b520838c828b4403c5dfc81
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Mon Apr 27 11:57:21 2015 +0200
+commit debe12cfcf9e0672bce0972cc22ff093f215ac59
+Author: Igor Dolzhikov <bluesriverz@gmail.com>
+Date:   Sun Apr 5 22:32:52 2015 +0600
 
-    regexp: trivial change in comments to update code.google.com link
+    net/http, math/big, cmd/internal/gc/big: replaced errors.New(fmt.Sprintf(...)) in favour fmt.Errorf()
     
-    Replaced code.google.com/p/re2/ with github.com/google/re2/ and
-    updated the file names (re2-exhaustive.txt.bz2 not re2.txt.gz)
-    as well as the re2 make command (make log).
-    
-    Change-Id: I15937b0b8a898d78d45366857ed86421c8d69960
-    Reviewed-on: https://go-review.googlesource.com/9372
+    Change-Id: I38fc0ab84a374cb9be0234e40665d7cea0e76fc1
+    Reviewed-on: https://go-review.googlesource.com/8402
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/exec_test.go    | 8 ++++----
- src/regexp/testdata/README | 3 ++-
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/internal/gc/big/int.go | 3 +--
+ src/cmd/internal/gc/big/rat.go | 2 +-
+ src/math/big/int.go            | 3 +--
+ src/math/big/rat.go            | 2 +-
+ src/net/http/client.go         | 2 +-
+ 5 files changed, 5 insertions(+), 7 deletions(-)

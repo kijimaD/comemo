@@ -1,26 +1,21 @@
-commit fec97c0aa76eb19bd58ca33001063b726ab9ce27
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Jul 14 12:19:36 2018 +0200
+commit b846edfd5979d1cf53d55ea8fd6e4bbcfefb2e75
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:45:53 2018 +0200
 
-    syscall/js: show goroutine stack traces on deadlock
+    cmd/compile: in prove, make addRestrictions more generic
     
-    When using callbacks, it is not necessarily a deadlock if there is no
-    runnable goroutine, since a callback might still be pending. If there
-    is no callback pending, Node.js simply exits with exit code zero,
-    which is not desired if the Go program is still considered running.
-    This is why an explicit check on exit is used to trigger the "deadlock"
-    error. This CL makes it so this is Go's normal "deadlock" error, which
-    includes the stack traces of all goroutines.
+    addRestrictions was taking a branch parameter, binding its logic
+    to that of addBranchRestrictions. Since we will need to use it
+    for updating the facts table for induction variables, refactor it
+    to remove the branch parameter.
     
-    Updates #26382
+    Passes toolstash -cmp.
     
-    Change-Id: If88486684d0517a64f570009a5ea0ad082679a54
-    Reviewed-on: https://go-review.googlesource.com/123936
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: Iaaec350a8becd1919d03d8574ffd1bbbd906d068
+    Reviewed-on: https://go-review.googlesource.com/104036
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/wasm/wasm_exec.js     | 28 ++++++++++++++--------------
- src/syscall/js/callback.go |  8 ++++----
- src/syscall/js/js.go       | 16 ++++++++--------
- 3 files changed, 26 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

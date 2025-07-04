@@ -1,63 +1,16 @@
-commit d03e8b226cd11692ca9505a815af559ce7989700
+commit 54b499e3f1d3ef37765c209919d30f0abf55a2e1
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 4 07:11:55 2016 -0700
+Date:   Fri Jul 8 11:42:19 2016 -0700
 
-    runtime: record current PC for SIGPROF on non-Go thread
+    syscall: add another output for TestGroupCleanupUserNamespace
     
-    If we get a SIGPROF on a non-Go thread, and the program has not called
-    runtime.SetCgoTraceback so we have no way to collect a stack trace, then
-    record a profile that is just the PC where the signal occurred. That
-    will at least point the user to the right area.
+    Fixes #16303.
     
-    Retrieving the PC from the sigctxt in a signal handler on a non-G thread
-    required marking a number of trivial sigctxt methods as nosplit, and,
-    for extra safety, nowritebarrierrec.
-    
-    The test shows that the existing test CgoPprofThread test does not test
-    the stack trace, just the profile signal. Leaving that for later.
-    
-    Change-Id: I8f8f3ff09ac099fc9d9df94b5a9d210ffc20c4ab
-    Reviewed-on: https://go-review.googlesource.com/30252
+    Change-Id: I2832477ce0117a66da53ca1f198ebb6121953d56
+    Reviewed-on: https://go-review.googlesource.com/24833
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/crash_cgo_test.go                   |  4 ++
- src/runtime/defs_plan9_386.go                   |  3 +
- src/runtime/defs_plan9_amd64.go                 |  3 +
- src/runtime/defs_plan9_arm.go                   |  3 +
- src/runtime/proc.go                             | 37 +++++++++--
- src/runtime/signal_386.go                       |  3 +
- src/runtime/signal_amd64x.go                    |  3 +
- src/runtime/signal_arm.go                       |  3 +
- src/runtime/signal_arm64.go                     |  3 +
- src/runtime/signal_darwin_386.go                | 27 +++++---
- src/runtime/signal_darwin_amd64.go              | 43 +++++++------
- src/runtime/signal_darwin_arm.go                | 41 +++++++-----
- src/runtime/signal_darwin_arm64.go              | 73 +++++++++++----------
- src/runtime/signal_dragonfly_amd64.go           | 41 +++++++-----
- src/runtime/signal_freebsd_386.go               | 25 +++++---
- src/runtime/signal_freebsd_amd64.go             | 41 +++++++-----
- src/runtime/signal_freebsd_arm.go               | 39 +++++++-----
- src/runtime/signal_linux_386.go                 | 37 ++++++-----
- src/runtime/signal_linux_amd64.go               | 41 +++++++-----
- src/runtime/signal_linux_arm.go                 | 49 ++++++++------
- src/runtime/signal_linux_arm64.go               | 77 ++++++++++++----------
- src/runtime/signal_linux_mips64x.go             | 81 ++++++++++++-----------
- src/runtime/signal_linux_ppc64x.go              | 85 +++++++++++++------------
- src/runtime/signal_linux_s390x.go               | 48 ++++++++------
- src/runtime/signal_mips64x.go                   |  3 +
- src/runtime/signal_nacl_386.go                  | 37 ++++++-----
- src/runtime/signal_nacl_amd64p32.go             | 41 +++++++-----
- src/runtime/signal_nacl_arm.go                  | 38 ++++++-----
- src/runtime/signal_netbsd_386.go                | 35 ++++++----
- src/runtime/signal_netbsd_amd64.go              | 41 +++++++-----
- src/runtime/signal_netbsd_arm.go                | 49 ++++++++------
- src/runtime/signal_openbsd_386.go               | 24 ++++---
- src/runtime/signal_openbsd_amd64.go             | 40 +++++++-----
- src/runtime/signal_openbsd_arm.go               | 38 ++++++-----
- src/runtime/signal_ppc64x.go                    |  3 +
- src/runtime/signal_solaris_amd64.go             | 41 +++++++-----
- src/runtime/signal_unix.go                      |  9 +--
- src/runtime/testdata/testprogcgo/threadpprof.go |  8 +++
- 38 files changed, 726 insertions(+), 491 deletions(-)
+ src/syscall/exec_linux_test.go | 1 +
+ 1 file changed, 1 insertion(+)

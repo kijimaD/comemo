@@ -1,0 +1,36 @@
+commit 45869f5931554f0db1169bc268db7ffd8d400e9e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 25 22:34:43 2024 -0700
+
+    runtime: get rid of gc programs for types
+    
+    Instead, have the runtime build the gc bitmaps on demand
+    at runtime.
+    
+    Change-Id: If7a245bc62e4bce3ce80972410b0ed307d921abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 147 +++-----------------
+ src/cmd/link/internal/ld/data.go                |  14 +-
+ src/cmd/link/internal/ld/decodesym.go           |  10 +-
+ src/cmd/link/internal/ld/lib.go                 |   8 +-
+ src/internal/abi/type.go                        |  27 ++--
+ src/reflect/all_test.go                         |   2 +-
+ src/reflect/export_test.go                      |   3 -
+ src/reflect/type.go                             | 137 +++---------------
+ src/runtime/arena.go                            |  13 +-
+ src/runtime/bitcursor_test.go                   |  49 +++++++
+ src/runtime/cgocheck.go                         |  93 +------------
+ src/runtime/export_test.go                      |  19 ++-
+ src/runtime/gcinfo_test.go                      |   2 +-
+ src/runtime/malloc.go                           |   4 +
+ src/runtime/mbitmap.go                          | 176 ++++++++----------------
+ src/runtime/mgcsweep.go                         |  13 --
+ src/runtime/race/testdata/map_test.go           |   2 +-
+ src/runtime/stkframe.go                         |   5 +-
+ src/runtime/stubs.go                            |   2 +
+ src/runtime/type.go                             | 176 ++++++++++++++++++++++++
+ 20 files changed, 396 insertions(+), 506 deletions(-)

@@ -1,27 +1,28 @@
-commit ffd9810e5966c8ad972f429866808b73bbefd8bc
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 00:03:26 2017 -0700
+commit f75b5e99ed19e97ea78e62a406d03c1632efa7d4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Apr 12 18:37:27 2017 -0400
 
-    archive/tar: implement specialized logic for GNU format
+    cmd/compile: fix s390x unsigned comparison constant merging rules
     
-    Rather than going through writeHeader, which attempts to handle all formats,
-    implement writeGNUHeader, which only has an understanding of the GNU format.
+    On s390x unsigned integer comparisons with immediates require the immediate
+    to be an unsigned 32-bit integer. The rule was checking that the immediate
+    was a signed 32-bit integer.
     
-    Currently, the implementation is nearly identical to writeUSTARHeader, except:
-    * formatNumeric is used instead of formatOctal
-    * the GNU magic value is used
+    This CL also adds a test for comparisons that could be turned into compare
+    with immediate or equivalent instructions (depending on architecture and
+    optimizations applied).
     
-    This is kept as a separate method since it makes more logical sense
-    when we add support for sparse files, long filenames, and atime/ctime fields,
-    which do not affect USTAR.
+    Fixes #19940.
     
-    Updates #12594
-    
-    Change-Id: I76efc0b39dc649efc22646dfc9867a7c165f34a8
-    Reviewed-on: https://go-review.googlesource.com/55237
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ifd6aa989fd3d50e282f7d30fec9db462c28422b1
+    Reviewed-on: https://go-review.googlesource.com/40433
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/tar/writer.go | 59 ++++++++++++++++++++++++++++++++---------------
- 1 file changed, 41 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go            |    3 +
+ src/cmd/compile/internal/gc/testdata/cmpConst.go   | 2217 ++++++++++++++++++++
+ .../internal/gc/testdata/gen/cmpConstGen.go        |  248 +++
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |    4 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |    8 +-
+ 5 files changed, 2474 insertions(+), 6 deletions(-)

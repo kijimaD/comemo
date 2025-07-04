@@ -1,31 +1,25 @@
-commit 9a7cd11bc8f1763710a18bd90e9db00f8281d69b
-Author: Patrick Mézard <patrick@mezard.eu>
-Date:   Wed Mar 5 12:19:56 2014 +1100
+commit a18bfb8c673591b7cbf5d16842e09e87c2c9b8cf
+Author: Mike Andrews <mra@xoba.com>
+Date:   Tue Mar 4 13:43:26 2014 -0800
 
-    os: try openFile before openDir in windows os.OpenFile
+    net/smtp: set ServerName in StartTLS, as now required by crypto/tls
     
-    Logging calls when running "go install -a std" turns:
+    the crypto/tls revision d3d43f270632 (CL 67010043, requiring ServerName or InsecureSkipVerify) breaks net/smtp,
+    since it seems impossible to do SMTP via TLS anymore. i've tried to fix this by simply using a tls.Config with
+    ServerName, instead of a nil *tls.Config. without this fix, doing SMTP with TLS results in error "tls: either
+    ServerName or InsecureSkipVerify must be specified in the tls.Config".
     
-      547  openDir succeeded
-      3593 openDir failed and fell back to openFile
-      3592 openFile succeeded
-      1    both failed
+    testing: the new method TestTlsClient(...) sets up a skeletal smtp server with tls capability, and test client
+    injects a "fake" certificate allowing tls to work on localhost; thus, the modification to SendMail(...) enabling
+    this.
     
-    into:
+    Fixes #7437.
     
-      3592 openFile succeeded
-      548  openFile failed and fell back
-      547  openDir succeeded
-      1    both failed
-    
-    Here the change trades 3593 failed openDir for 548 failed openFile.
-    
-    Fix issue 7426.
-    
-    LGTM=alex.brainman
-    R=golang-codereviews, alex.brainman, bradfitz
+    LGTM=bradfitz
+    R=golang-codereviews, josharian, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/70480044
+    https://golang.org/cl/70380043
 
- src/pkg/os/file_windows.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/pkg/net/smtp/smtp.go      |   8 ++-
+ src/pkg/net/smtp/smtp_test.go | 144 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 151 insertions(+), 1 deletion(-)

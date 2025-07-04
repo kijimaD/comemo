@@ -1,15 +1,12 @@
-commit d71d08af5ab15c7b166d92a31219c4c218438841
-Author: Brad Fitzpatrick <brad@danga.com>
-Date:   Wed Jan 5 13:09:38 2011 -0500
+commit 4a7d1f2061e9211532c443713872db0859cd70d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 5 10:08:39 2011 -0800
 
-    http: permit empty Reason-Phrase in response Status-Line
-    
-    Fixes #1388.
+    go/ast: correct Pos/End ranges for field lists
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3749043
+    https://golang.org/cl/3797045
 
- src/pkg/http/response.go      |  8 ++++++--
- src/pkg/http/response_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 2 deletions(-)
+ src/pkg/go/ast/ast.go | 30 ++++++++++++++++++++++++++----
+ 1 file changed, 26 insertions(+), 4 deletions(-)

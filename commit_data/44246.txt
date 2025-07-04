@@ -1,18 +1,24 @@
-commit 6530f2617f3100d8f1036afc5cb9b30b36628aaa
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sat Feb 13 02:44:11 2021 +0000
+commit 1193958d6b33888bcb50e22ae9c1cfdcde274c9b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 2 13:00:01 2020 -0700
 
-    doc/go1.16: remove draft notice
+    cmd: update golang.org/x/tools to v0.0.0-20200601175630-2caf76543d99
     
-    Fixes #40700.
+    This teaches vet to recognize %O in a fmt.Printf format string.
+    O has been supported since the 1.13 release, but vet would warn about it.
     
-    Change-Id: I99ed479d1bb3cdf469c0209720c728276182a7a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291809
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #29986
+    
+    Change-Id: I3a7a1fc8141f32888c081c5d92620461624371f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.16.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go.mod                                                       | 2 +-
+ src/cmd/go.sum                                                       | 4 ++--
+ .../vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go    | 1 +
+ src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go  | 5 +++--
+ src/cmd/vendor/modules.txt                                           | 2 +-
+ 5 files changed, 8 insertions(+), 6 deletions(-)

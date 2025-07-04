@@ -1,40 +1,22 @@
-commit dd294fbd5a6eea9574df8c3f842342a8cd10f2c6
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Apr 27 16:03:58 2012 +1000
+commit 9ce770afad1b967fe14ac9a9df4e984e45cea9ee
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 27 15:12:24 2012 +1000
 
-    image/png: speed up PNG decoding for common color models: Gray, NRGBA,
-    Paletted, RGBA.
+    old/regexp, old/template: delete.
     
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkDecodeGray               3681144      2536049  -31.11%
-    BenchmarkDecodeNRGBAGradient     12108660     10020650  -17.24%
-    BenchmarkDecodeNRGBAOpaque       10699230      8677165  -18.90%
-    BenchmarkDecodePaletted           2562806      1458798  -43.08%
-    BenchmarkDecodeRGB                8468175      7180730  -15.20%
+    Both of these have replacements.
     
-    benchmark                        old MB/s     new MB/s  speedup
-    BenchmarkDecodeGray                 17.80        25.84    1.45x
-    BenchmarkDecodeNRGBAGradient        21.65        26.16    1.21x
-    BenchmarkDecodeNRGBAOpaque          24.50        30.21    1.23x
-    BenchmarkDecodePaletted             25.57        44.92    1.76x
-    BenchmarkDecodeRGB                  30.96        36.51    1.18x
-    
-    $ file $GOROOT/src/pkg/image/png/testdata/bench*
-    benchGray.png:           PNG image, 256 x 256, 8-bit grayscale, non-interlaced
-    benchNRGBA-gradient.png: PNG image, 256 x 256, 8-bit/color RGBA, non-interlaced
-    benchNRGBA-opaque.png:   PNG image, 256 x 256, 8-bit/color RGBA, non-interlaced
-    benchPaletted.png:       PNG image, 256 x 256, 8-bit colormap, non-interlaced
-    benchRGB.png:            PNG image, 256 x 256, 8-bit/color RGB, non-interlaced
-    
-    R=r
+    R=golang-dev, r, rsc, r, adg
     CC=golang-dev
-    https://golang.org/cl/6127051
+    https://golang.org/cl/5979046
 
- src/pkg/image/png/reader.go                        |  31 ++++++++++------
- src/pkg/image/png/reader_test.go                   |  39 +++++++++++++++++++++
- src/pkg/image/png/testdata/benchGray.png           | Bin 0 -> 14709 bytes
- src/pkg/image/png/testdata/benchNRGBA-gradient.png | Bin 0 -> 58831 bytes
- src/pkg/image/png/testdata/benchNRGBA-opaque.png   | Bin 0 -> 44237 bytes
- src/pkg/image/png/testdata/benchPaletted.png       | Bin 0 -> 13397 bytes
- src/pkg/image/png/testdata/benchRGB.png            | Bin 0 -> 39571 bytes
- 7 files changed, 59 insertions(+), 11 deletions(-)
+ doc/go1.html                          |    4 +-
+ src/pkg/old/regexp/all_test.go        |  421 ----------
+ src/pkg/old/regexp/find_test.go       |  472 -----------
+ src/pkg/old/regexp/regexp.go          | 1488 ---------------------------------
+ src/pkg/old/template/doc.go           |   91 --
+ src/pkg/old/template/execute.go       |  346 --------
+ src/pkg/old/template/format.go        |   77 --
+ src/pkg/old/template/parse.go         |  742 ----------------
+ src/pkg/old/template/template_test.go |  810 ------------------
+ 9 files changed, 2 insertions(+), 4449 deletions(-)

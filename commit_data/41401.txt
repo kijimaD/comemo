@@ -1,22 +1,18 @@
-commit afd691c579198387c874512ef1c75db651dba9bd
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 13 08:34:41 2020 -0800
+commit 27cf81e1b48efe6a6387f34c7114766c7b0d4d73
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 1 09:54:30 2019 +1000
 
-    runtime: special case interface hashing for pointers
+    text/template: further simplify building the vars list
     
-    Interfaces often contain pointers. Implement a fast path for this case.
+    Followup to https://golang.org/cl/197997
     
-    name                   old time/op  new time/op  delta
-    MapInterfaceString-16  21.4ns ±19%  20.5ns ±10%     ~     (p=0.361 n=10+10)
-    MapInterfacePtr-16     25.8ns ± 8%  17.3ns ± 7%  -33.11%  (p=0.000 n=10+9)
+    If you know the number of elements, you don't need append at all.
+    Either use append to grow, or allocate and index. Here we choose
+    number 2.
     
-    Fixes #37086
-    
-    Change-Id: Ice52820e6259a3edeafcbbbeb25b1e363bef00d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219338
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic58637231789640ff7b293ece04a95a8de7ccf8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198097
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/alg.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/text/template/parse/node.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

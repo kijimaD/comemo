@@ -1,23 +1,27 @@
-commit 7b9d15d5665dc43256a5d6f79a307cc1ad728e2a
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Oct 18 14:29:21 2017 -0400
+commit 77ee861ca208fd7f5a674ac0c442f92009ae42d7
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Wed Jun 14 12:41:14 2017 -0700
 
-    debug/dwarf: clarify StructField.ByteSize doc
+    doc: add an editor guide
     
-    StructField.ByteSize is almost always unset; document that Type.Size()
-    is the place to look.
+    The Go ecosystem provides many tools to make Go
+    development more productive and seamless. Document
+    the availability of the editor plugins and IDEs,
+    add an overview of feature support and screencasts.
     
-    The dwarf package doesn't spend much effort teaching you DWARF, so I
-    don't know what level of handholding is appropriate. Still, no harm in a
-    little comment.
+    Updates #20398.
+    Updates #20402.
+    Updates #20399.
+    Updates #20401.
+    Updates #20569.
     
-    Closes #21093
-    
-    Change-Id: I0ed8cad2fa18e10a47d264ff16c176d603d6033c
-    Reviewed-on: https://go-review.googlesource.com/71671
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0c6cb48eb4e3848807aaad78390493e14f097916
+    Reviewed-on: https://go-review.googlesource.com/45772
+    Reviewed-by: Steve Francia <spf@golang.org>
 
- src/debug/dwarf/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/docs.html            |   6 ++
+ doc/editors.html         | 210 +++++++++++++++++++++++++++++++++++++++++++++++
+ doc/editors/gogland.png  | Bin 0 -> 9430 bytes
+ doc/editors/vimgo.png    | Bin 0 -> 7591 bytes
+ doc/editors/vscodego.png | Bin 0 -> 3373 bytes
+ 5 files changed, 216 insertions(+)

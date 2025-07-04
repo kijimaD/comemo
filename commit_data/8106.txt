@@ -1,14 +1,12 @@
-commit c94f5fb0baa62497a7d440e7537632ac92c090c6
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 14 17:26:12 2011 -0700
+commit 17bd39e7d90f05e68519d4e10a833f61abce7eee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 14 17:16:26 2011 -0700
 
-    gob: fix handling of indirect receivers for GobDecoders.
-    The previous code was just wrong. Let's not talk about it.
-    Passes iant's new test.
+    gob: test case for indirection to large field.
     
-    R=rsc, iant, iant2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4396053
+    https://golang.org/cl/4404048
 
- src/pkg/gob/decode.go | 35 ++++++++++++++++-------------------
- 1 file changed, 16 insertions(+), 19 deletions(-)
+ src/pkg/gob/gobencdec_test.go | 84 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 84 insertions(+)

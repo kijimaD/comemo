@@ -1,12 +1,14 @@
-commit 3959e0798d2be3de99b33bc7d19949ec88adc4c9
-Author: Nick Kubala <nkubala@google.com>
-Date:   Fri Apr 7 14:23:49 2017 -0700
+commit fcfd91858b7b57de0577e98703390f604971eaf4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 18 01:10:18 2017 +0100
 
-    os/exec: Update Cmd.Run() docs to reflect correct error return types
+    doc/go1.8: document Plan 9 requirements
     
-    Change-Id: I3fe92d74ff259abdf5d1fd28cdc822db88aae191
-    Reviewed-on: https://go-review.googlesource.com/39993
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #18610.
+    
+    Change-Id: I19da4d59a1b6293c9a4722aa696e2cb58d982a15
+    Reviewed-on: https://go-review.googlesource.com/35333
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ doc/go1.8.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

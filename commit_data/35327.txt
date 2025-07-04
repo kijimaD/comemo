@@ -1,23 +1,27 @@
-commit 941b3b77648bb307c71d29b81b03349584f876e6
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Thu May 3 08:42:45 2018 +0100
+commit 38f9d7519565d70b5921984e50036c55984b38a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 21 14:15:20 2017 -0800
 
-    cmd/go: fix go list -test where C is a dependency.
+    go/types: correctly determine if panic call refers to built-in
     
-    Currently go list -test runtime/cgo fails with an index out of range
-    error. This appears to be because the updating of import paths that
-    happens as part of -test doesn't take into account the fact that the
-    Internal.Imports of a package do not contain "C", whereas the public
-    Imports do.
+    R=go1.11
     
-    Therefore we skip the public Import of "C" if it exists and continue.
+    The terminating statement check for functions that declare result
+    parameters was using the wrong scope to look up calls to `panic`
+    which in esoteric cases lead to a false positive.
     
-    Change-Id: I5cdc8968890fa7e5da3e375718606037d3282754
-    Reviewed-on: https://go-review.googlesource.com/111175
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Instead of looking up a panic call again at a time when correct
+    scope information would have to be recomputed, collect calls to
+    predeclared panic in a set when type-checking that call.
+    
+    Fixes #23218.
+    
+    Change-Id: I35eaf010e5cb8e43696efba7d77cefffb6f3deb2
+    Reviewed-on: https://go-review.googlesource.com/85198
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/go_test.go            | 3 +++
- src/cmd/go/internal/list/list.go | 8 +++++++-
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/go/types/builtins.go        | 13 +++++++++++++
+ src/go/types/check.go           | 15 ++++++++-------
+ src/go/types/return.go          | 12 +++---------
+ src/go/types/testdata/stmt1.src | 18 ++++++++++++++++++
+ 4 files changed, 42 insertions(+), 16 deletions(-)

@@ -1,30 +1,20 @@
-commit 443990742ec6dd128fab41d4afaa8668e665eadd
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Dec 13 09:31:21 2018 -0800
+commit d145d923f894f3ef2faae52ca05321ef3d5bee7e
+Author: Florin Pățan <florinpatan@gmail.com>
+Date:   Thu Jul 19 12:05:28 2018 +0000
 
-    cmd/compile: ignore out-of-bounds reads from readonly constants
+    cmd/dist: fix compilation on windows
     
-    Out-of-bounds reads of globals can happen in dead code. For code
-    like this:
+    Add missing extensions to binary files in order to allow execution.
     
-    s := "a"
-    if len(s) == 3 {
-       load s[0], s[1], and s[2]
-    }
+    Change-Id: Idfe4c72c80c26b7b938023bc7bbe1ef85e1aa7b0
     
-    The out-of-bounds loads are dead code, but aren't removed yet
-    when lowering. We need to not panic when compile-time evaluating
-    those loads. This can only happen for dead code, so the result
-    doesn't matter.
-    
-    Fixes #29215
-    
-    Change-Id: I7fb765766328b9524c6f2a1e6ab8d8edd9875097
-    Reviewed-on: https://go-review.googlesource.com/c/154057
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Idfe4c72c80c26b7b938023bc7bbe1ef85e1aa7b0
+    GitHub-Last-Rev: ed9d8124270c30b7f25f89656432ef5089466c7e
+    GitHub-Pull-Request: golang/go#26464
+    Reviewed-on: https://go-review.googlesource.com/124936
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++++++++++
- test/fixedbugs/issue29215.go            | 18 ++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/make.bat | 4 ++--
+ src/race.bat | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

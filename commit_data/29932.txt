@@ -1,12 +1,15 @@
-commit b842c9aac79318cfc66ab21efdb640f28e8bc5be
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Tue Jan 10 11:25:14 2017 -0800
+commit 5a0d50f4eb7e35a57364ed5d2f7b79c0b1a80b36
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 18 10:43:47 2016 +1100
 
-    doc: remove inline styles
+    cmd/vet: fix formatting of headings in doc.go.
     
-    Change-Id: I7ca7e9a2d4cf97cf33c60a9a4d0ba5fb0ca6e44c
-    Reviewed-on: https://go-review.googlesource.com/35098
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    This will cause godoc to correctly render these docs,
+    since go/doc.ToHTML requires no punctuation for headings.
+    
+    Change-Id: Ic95245147d3585f2ccc59d4424fcab17d2a5617b
+    Reviewed-on: https://go-review.googlesource.com/31319
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/doc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

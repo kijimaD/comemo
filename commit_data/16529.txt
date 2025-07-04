@@ -1,13 +1,12 @@
-commit 62747bde6c72ea6335a28daaf148a970b991987b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 10 22:58:04 2013 +0400
+commit bdac989ef7f7f3223d8dd4928dee3da595260f47
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:52:07 2013 +0800
 
-    runtime: catch races between channel close and channel send in select
+    doc/go_spec: more examples for unspecified cases of the evaluation order
     
-    R=golang-dev, iant
+    R=golang-dev, bradfitz, gri, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/10137043
+    https://golang.org/cl/7235044
 
- src/pkg/runtime/chan.c                     |  3 ++-
- src/pkg/runtime/race/testdata/chan_test.go | 25 ++++++++++++++++++++++++-
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

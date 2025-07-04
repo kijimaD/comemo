@@ -1,19 +1,29 @@
-commit 3fd729b2a14a7efcf08465cbea60a74da5457f06
-Author: Antonio Pitasi <antonio@pitasi.dev>
-Date:   Wed May 21 11:58:13 2025 +0200
+commit 37f482223f331c4400797f72158fcf1eaa1793c4
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Apr 4 16:30:30 2024 +0800
 
-    log/slog: make TextHandler discard empty Source
+    net: separate the Solaris fast/slow path of setting SOCK_* from others
     
-    Fixes #73808
+    Along with the removal of the slow path from Linux and *BSD.
     
-    Change-Id: Ica4b7a63eebbf0fff41d68f4de928f9da90c8ada
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674875
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    For #59359
+    
+    Change-Id: I6c79594252e5e5f1c1c57c11e09458fcae3793d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
 
- src/log/slog/handler.go      | 3 +++
- src/log/slog/handler_test.go | 2 +-
- src/log/slog/record.go       | 3 +++
- 3 files changed, 7 insertions(+), 1 deletion(-)
+ src/internal/poll/sock_cloexec.go                  | 31 +------
+ src/internal/poll/sock_cloexec_solaris.go          | 47 ++++++++++
+ src/internal/syscall/unix/asm_solaris.s            |  3 +
+ src/internal/syscall/unix/at_solaris.go            |  4 +
+ src/internal/syscall/unix/kernel_version_other.go  |  2 +-
+ .../syscall/unix/kernel_version_solaris.go         | 99 ++++++++++++++++++++++
+ .../syscall/unix/kernel_version_solaris_test.go    | 59 +++++++++++++
+ src/net/sock_cloexec.go                            | 25 +-----
+ src/net/sock_cloexec_solaris.go                    | 47 ++++++++++
+ 9 files changed, 263 insertions(+), 54 deletions(-)

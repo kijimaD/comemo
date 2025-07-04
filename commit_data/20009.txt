@@ -1,16 +1,22 @@
-commit 7f40e5e6e5b446a83577fa25a6bc0359b86d7c3a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 15 11:33:31 2014 -0700
+commit 4928b2074b70e701f8dcc3d09f4c46243482916a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:44:55 2014 -0400
 
-    cmd/gc: disallow pointer constants
+    [dev.power64] cmd/9g: first check point
     
-    Fixes #7760.
-    
-    LGTM=iant
-    R=iant, remyoudompheng
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/130720043
+    https://golang.org/cl/123170043
 
- src/cmd/gc/const.c          |  8 ++++++--
- test/fixedbugs/issue7760.go | 25 +++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/9g/cgen.c   | 1742 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/9g/galign.c |   54 ++
+ src/cmd/9g/gg.h     |  119 ++++
+ src/cmd/9g/ggen.c   | 1028 ++++++++++++++++++++++++++++++
+ src/cmd/9g/gobj.c   |  240 +++++++
+ src/cmd/9g/gsubr.c  | 1708 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/9g/opt.h    |  219 +++++++
+ src/cmd/9g/peep.c   |   94 +++
+ src/cmd/9g/prog.c   |  138 ++++
+ src/cmd/9g/reg.c    |  161 +++++
+ 10 files changed, 5503 insertions(+)

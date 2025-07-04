@@ -1,12 +1,16 @@
-commit ff2f851af1dba1155cf5d072054c5da98f3b2756
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sun Sep 30 15:56:23 2012 +1000
+commit 9a3bc51c8119cde353da5c304b4c52f348ad7c46
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Sep 29 23:23:56 2012 +0800
 
-    exp/types: permit importing packages without available source.
+    test/fixedbugs/bug454.go: add a test for CL 6564052
+       Also mention that ignoring second blank identifier of range is required by the spec in the code.
     
-    R=gri, iant
+       Fixes #4173.
+    
+    R=daniel.morsing, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/6586051
+    https://golang.org/cl/6594043
 
- src/pkg/exp/types/gcimporter.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/gc/range.c       |  6 +++++-
+ test/fixedbugs/bug454.go | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

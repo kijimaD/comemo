@@ -1,49 +1,34 @@
-commit 38921b36ba5b28b49ba36c4f7122ddc19b52bb07
+commit fbdfa99246ecbb04954a042a5809c4748415574d
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 8 15:10:26 2016 -0800
+Date:   Wed Dec 16 12:16:17 2015 -0800
 
-    cmd/compile: rewrite code to omit many nodeSeq calls
+    runtime: for c-archive/c-shared, don't install unnecessary signal handlers
     
-    This CL was automatically generated using a special-purpose AST
-    rewriting tool, followed by manual editing to put some comments back in
-    the right places and fix some bad line breaks.
+    Only install signal handlers for synchronous signals that become
+    run-time panics.  Set the SA_ONSTACK flag for other signal handlers as
+    needed.
     
-    The result is not perfect but it's a big step toward getting back to
-    sanity, and because it was automatically generated there is a decent
-    chance that it is correct.
+    Fixes #13028.
+    Update #12465.
+    Update #13034.
+    Update #13042.
     
-    Passes toolstash -cmp.
-    
-    Update #14473.
-    
-    Change-Id: I01c09078a6d78e2b008bc304d744b79469a38d3d
-    Reviewed-on: https://go-review.googlesource.com/20440
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I28375e70641f60630e10f3c86e24b6e4f8a35cc9
+    Reviewed-on: https://go-review.googlesource.com/17903
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  54 ++++----
- src/cmd/compile/internal/gc/bexport.go   |   6 +-
- src/cmd/compile/internal/gc/bimport.go   |  40 +++---
- src/cmd/compile/internal/gc/cgen.go      |  24 ++--
- src/cmd/compile/internal/gc/closure.go   |  57 ++++----
- src/cmd/compile/internal/gc/const.go     |  13 +-
- src/cmd/compile/internal/gc/dcl.go       |  47 +++----
- src/cmd/compile/internal/gc/esc.go       | 105 +++++++-------
- src/cmd/compile/internal/gc/export.go    |   4 +-
- src/cmd/compile/internal/gc/fmt.go       |  30 ++--
- src/cmd/compile/internal/gc/gen.go       |  12 +-
- src/cmd/compile/internal/gc/inl.go       | 144 ++++++++++----------
- src/cmd/compile/internal/gc/order.go     | 159 +++++++++++-----------
- src/cmd/compile/internal/gc/parser.go    |  32 ++---
- src/cmd/compile/internal/gc/racewalk.go  |  18 +--
- src/cmd/compile/internal/gc/range.go     |  62 ++++-----
- src/cmd/compile/internal/gc/select.go    | 124 +++++++++--------
- src/cmd/compile/internal/gc/sinit.go     |  73 ++++------
- src/cmd/compile/internal/gc/ssa.go       |  18 +--
- src/cmd/compile/internal/gc/subr.go      |  32 ++---
- src/cmd/compile/internal/gc/swt.go       | 104 +++++++-------
- src/cmd/compile/internal/gc/syntax.go    |  20 +++
- src/cmd/compile/internal/gc/typecheck.go | 227 +++++++++++++++----------------
- src/cmd/compile/internal/gc/unsafe.go    |   6 +-
- src/cmd/compile/internal/gc/walk.go      | 194 +++++++++++++-------------
- 25 files changed, 794 insertions(+), 811 deletions(-)
+ misc/cgo/testcarchive/main2.c              | 185 +++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo2/libgo2.go |  45 ++++++
+ misc/cgo/testcarchive/test.bash            |  27 +++-
+ misc/cgo/testcshared/main4.c               | 214 +++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/libgo4/libgo4.go  |  45 ++++++
+ misc/cgo/testcshared/test.bash             |  38 +++--
+ misc/cgo/testsigfwd/main.go                |  60 +++++++-
+ src/os/signal/doc.go                       |  13 +-
+ src/runtime/signal1_unix.go                |   8 ++
+ src/runtime/signal2_unix.go                |  11 +-
+ src/runtime/sys_darwin_amd64.s             |   6 +-
+ src/runtime/sys_linux_arm.s                |   4 +
+ 12 files changed, 635 insertions(+), 21 deletions(-)

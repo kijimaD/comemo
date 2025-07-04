@@ -1,21 +1,12 @@
-commit e7b125fc65695e22e33da1f6bc5bec7efae2bf65
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Aug 24 16:54:56 2013 -0500
+commit 33f3dffa7c3105b98e40c417df577683e341be87
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 24 22:05:14 2013 +0900
 
-    cmd/api: be more robust against OS deleting temp files
+    net: allow TestDialFailPDLeak run in long-mode test
     
-    OS X in particular deletes tmp files (but not directories)
-    pretty reliably.
-    
-    Ask hg whether the go.tools directory in tmp is good before
-    using it.
-    
-    Fixes issue Rob and others were reporting, which I just hit
-    myself now.
-    
-    R=golang-dev, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/13084049
+    https://golang.org/cl/12917050
 
- src/cmd/api/run.go | 31 +++++++++++++++++++++++++++++--
- 1 file changed, 29 insertions(+), 2 deletions(-)
+ src/pkg/net/dial_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

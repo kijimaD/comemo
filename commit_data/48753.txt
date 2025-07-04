@@ -1,37 +1,24 @@
-commit ace7672526692f8290bd98e339169c6eca76ba07
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu Nov 25 14:20:39 2021 +0800
+commit 14305bf0b9ab87bcaca11416ab61e7a4ba09690d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jun 11 17:53:29 2021 +0200
 
-    cmd/compile/internal: fix test error on loong64
+    misc/cgo: generate Windows import libraries for clang
     
-    For TestLogOpt test case, add loong64 support to test the host
-    architecture and os.
+    LLD won't import a .dll directly and instead requires an import library.
+    So generate these using -out-implib, the same way as was done in CL
+    312046, where it makes sense, and elsewhere build the import library
+    using a def file. We can't use -out-implib all the time, because the
+    output file gets overwritten each time the linker is called, rather than
+    merged.
     
-    The Ctz64 is not intrinsified on loong64 for TestIntendedInlining.
+    Updates #46502.
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
-    
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I4ca290bf725425a9a6ac2c6767a5bf4ff2339d0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367043
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Iefe54cb6c576004b83b1039ba673881b8640423d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327211
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
- src/cmd/compile/internal/test/inl_test.go      | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 56 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

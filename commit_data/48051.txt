@@ -1,16 +1,23 @@
-commit a42bbf47d6b0d6f67ad843252cb2e8f56a9d32b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 1 09:07:49 2022 -0800
+commit c0e1301b8c137d4b9f93067469b9608c252f2cea
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 15:00:35 2021 -0400
 
-    doc/go1.18: explain changes to compiler error messages
+    cmd/link: fix PE section attributes for windows/arm64
     
-    For #47694.
-    For #50954.
+    The clang-mingw toolchain on windows/arm64 expects
+    .text to NOT be listed as containing initialized data and
+    .dwarf* to be listed as  containing initialized data.
+    Neither is true today, resulting in the go .text and .dwarf*
+    not being merged with the system .text and .dwarf*.
+    Having multiple .text and .dwarf* sections confuses all
+    kinds of tools.
     
-    Change-Id: I3789e145d64025fe2bf787fa5d01a21832903586
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381968
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1b9832804c5f5d594bf19e8ee0a5ed31bc1d381d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312032
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ld/pe.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

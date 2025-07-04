@@ -1,14 +1,25 @@
-commit 8fbbf63cc61ffbb953a6d44649b644e4211c5d83
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 20 11:22:21 2018 -0400
+commit 950a56899aaf48da9691fbbfb8f48328863e02fa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 5 22:42:16 2018 -0700
 
-    cmd/cgo: document that #including source files in subdirectories is a bad idea
+    cmd/compile: fix method expressions with anonymous receivers
     
-    Suggested in discussion on #26366.
+    Method expressions with anonymous receiver types like "struct { T }.m"
+    require wrapper functions, which we weren't always creating. This in
+    turn resulted in linker errors.
     
-    Change-Id: Id9ad2e429a915f88b4c4b30fc415c722eebe0ea4
-    Reviewed-on: https://go-review.googlesource.com/125297
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL ensures that we generate wrapper functions for any anonymous
+    receiver types used in a method expression.
+    
+    Fixes #22444.
+    
+    Change-Id: Ia8ac27f238c2898965e57b82a91d959792d2ddd4
+    Reviewed-on: https://go-review.googlesource.com/105044
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/doc.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go   |  1 +
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++++++++
+ test/method7.go                          |  7 +++----
+ 3 files changed, 14 insertions(+), 4 deletions(-)

@@ -1,27 +1,22 @@
-commit 094498c9a13cd711ed45a65b153393eb8ae1566b
-Author: Eric Lagergren <ericscottlagergren@gmail.com>
-Date:   Mon Apr 3 15:54:20 2017 -0700
+commit 66063b2da8a93b69e23381260f64c05d1589769c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 6 08:27:37 2017 +0900
 
-    all: fix minor misspellings
+    vendor: update golang.org/x/crypto/chacha20poly1305
     
-    Change-Id: I1f1cfb161640eb8756fb1a283892d06b30b7a8fa
-    Reviewed-on: https://go-review.googlesource.com/39356
+    Updates golang.org/x/crypto/chacha20poly1305 to rev cb497ae for:
+    - chacha20poly1305: fix detection of BMI on amd64 (https://golang.org/cl/34852)
+    - chacha20poly1305: fix typos (https://golang.org/cl/34536)
+    - chacha20poly1305: fix typos (https://golang.org/cl/33855)
+    - chacha20poly1305: fix build constraints (https://golang.org/cl/32391)
+    
+    Change-Id: I3a608b5e21b3a72b5aaa5d0afe6c6cffbb1d6fc1
+    Reviewed-on: https://go-review.googlesource.com/34871
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/bytes.go                            | 2 +-
- src/bytes/bytes_amd64.s                       | 2 +-
- src/cmd/compile/internal/syntax/nodes_test.go | 2 +-
- src/context/context_test.go                   | 2 +-
- src/go/types/object.go                        | 2 +-
- src/hash/crc32/crc32_ppc64le.s                | 2 +-
- src/hash/crc32/crc32_s390x.s                  | 2 +-
- src/math/big/int_test.go                      | 2 +-
- src/net/http/request.go                       | 2 +-
- src/os/os_windows_test.go                     | 2 +-
- src/runtime/memmove_amd64.s                   | 2 +-
- src/runtime/pprof/label_test.go               | 2 +-
- src/runtime/rt0_linux_mips64x.s               | 2 +-
- src/runtime/syscall_windows_test.go           | 2 +-
- 14 files changed, 14 insertions(+), 14 deletions(-)
+ .../chacha20poly1305/chacha20poly1305_amd64.go     |  2 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.s      | 26 +++++++++++++++-------
+ .../chacha20poly1305/chacha20poly1305_noasm.go     |  2 +-
+ 3 files changed, 20 insertions(+), 10 deletions(-)

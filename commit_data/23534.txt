@@ -1,40 +1,27 @@
-commit ca91de7ca09fef7ca000fc0267918c8fdd34b429
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Mon Jun 8 20:04:14 2015 +0000
+commit 9279684908673448aacb4eaea71990ef96fce645
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Wed Apr 22 15:03:59 2015 -0700
 
-    html/template: prevent panic while escaping pipelines
+    math/big: Simple Montgomery Multiplication to accelerate Mod-Exp
     
-    AFAIK, the documentation does not explicitly state whether
-    variables can store a callable entity or not. I believe the
-    current implementation in text/template assumes they cannot
-    though. The call builtin function is supposed to be used for
-    this purpose.
+    On Haswell I measure anywhere between 2X to 3.5X speedup for RSA.
+    I believe other architectures will also greatly improve.
+    In the future may be upgraded by dedicated assembly routine.
     
-    Template "{{0|$}}" should generate an error at runtime,
-    instead of a panic.
+    Built-in benchmarks i5-4278U turbo off:
     
-    Similarly, template "{{0|(nil)}}" should not generate
-    a panic.
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkRSA2048Decrypt           6696649       3073769       -54.10%
+    Benchmark3PrimeRSA2048Decrypt     4472340       1669080       -62.68%
     
-    This CL aborts the sanitization process for a given pipeline
-    when no identifier can be derived from the selected node.
-    It happens with malformed pipelines.
-    
-    We now have the following errors:
-    
-    {{ 0 | $ }}
-    template: foo:1:10: executing "foo" at <$>: can't give argument to non-function $
-    
-    {{ 0 | (nil) }}
-    template: foo:1:11: executing "foo" at <nil>: nil is not a command
-    
-    Fixes #11118
-    Fixes #11356
-    
-    Change-Id: Idae52f806849f4c9ab7aca1b4bb4b59a74723d0e
-    Reviewed-on: https://go-review.googlesource.com/10823
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I17df84f85e34208f990665f9f90ea671695b2add
+    Reviewed-on: https://go-review.googlesource.com/9253
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/html/template/escape.go      |  2 +-
- src/html/template/escape_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/math/big/arith_amd64.s |  28 +++++++++++
+ src/math/big/nat.go        | 114 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/math/big/nat_test.go   |  61 ++++++++++++++++++++++++
+ 3 files changed, 202 insertions(+), 1 deletion(-)

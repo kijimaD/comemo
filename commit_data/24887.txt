@@ -1,44 +1,20 @@
-commit b569b87ca1f6905ed38cafc2bae6e26f4ec416b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 4 09:21:49 2015 -0800
+commit 8712e1867b47e3b741f399c9be0f1e32252a792c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 7 11:11:14 2015 +1000
 
-    cmd/compile/internal/gc: recursive-descent parser
+    cmd/compile/internal/gc: convert Label.Used to bool
     
-    This is a translation of the yacc-based parser with adjustements
-    to make the grammar work for a recursive-descent parser followed
-    by cleanups and simplifications.
+    Convert Label.Used to a boolean. Also move the field to the
+    bottom of the struct to avoid padding.
     
-    The yacc actions were mostly literally copied for correctness
-    with better temporary names.
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
     
-    A few of the syntax tests were adjusted for slightly different
-    error messages (it is very difficult to match the yacc-based
-    error messages in all cases, and sometimes the new parser could
-    produce better errors).
-    
-    The new parser is enabled by default.
-    To switch back to the yacc-based parser, set -oldparser.
-    To hardwire the switch back, uncomment "oldparser = 1" in lex.go.
-    
-    - passes all.bash
-    - ~18% reduced parse time per file on average for make.bash
-    - ~3% reduced compile time for building cmd/compile
-    
-    Change-Id: Icb5651bb9d8b9f66261762d2c94a03793050d4ce
-    Reviewed-on: https://go-review.googlesource.com/16665
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: If09ee92f9d54dce807e7b862cf771005daed810d
+    Reviewed-on: https://go-review.googlesource.com/14308
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/go.go     |    2 +-
- src/cmd/compile/internal/gc/lex.go    |   48 +-
- src/cmd/compile/internal/gc/parser.go | 3438 +++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/subr.go   |    2 +-
- test/fixedbugs/bug358.go              |    7 +-
- test/syntax/chan.go                   |    6 +-
- test/syntax/forvar.go                 |    1 +
- test/syntax/semi4.go                  |    2 +-
- test/syntax/semi6.go                  |    6 +-
- test/syntax/semi7.go                  |    2 +-
- test/syntax/vareq1.go                 |    2 +-
- 11 files changed, 3494 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/gen.go | 6 +++---
+ src/cmd/compile/internal/gc/go.go  | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

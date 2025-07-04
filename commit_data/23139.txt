@@ -1,15 +1,23 @@
-commit b2f95a167aacc11177d66d1a3235d84a2b1f3538
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 26 13:49:59 2015 -0700
+commit 00d4a6b35d519e405aa1702aba114b97f9a8ccce
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 22 17:53:32 2015 -0700
 
-    cmd/link/internal/amd64: -buildmode=c-archive forces external link mode
+    cmd/internal/gc, cmd/internal/ld: add memprofilerate flag
     
-    At some point this code should probably move to cmd/link/internal/ld,
-    but at least for now just handle c-archive like c-shared.
+    Also call runtime.GC before exit to ensure
+    that the profiler picks up all allocations.
     
-    Change-Id: Ic17656529cb0fe189a37f15e670350ab13bb5276
-    Reviewed-on: https://go-review.googlesource.com/10385
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #10537.
+    
+    Change-Id: Ibfbfc88652ac0ce30a6d1ae392f919df6c1e8126
+    Reviewed-on: https://go-review.googlesource.com/9261
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/amd64/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/gc/lex.go  |  1 +
+ src/cmd/internal/gc/util.go | 20 ++++++++++----------
+ src/cmd/internal/ld/pobj.go |  1 +
+ src/cmd/internal/ld/util.go | 12 ++++++++++--
+ 4 files changed, 22 insertions(+), 12 deletions(-)

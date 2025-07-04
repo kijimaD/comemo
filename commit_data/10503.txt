@@ -1,16 +1,12 @@
-commit a899a467f2e8ef7af2153cb91063f2da2bc2f36f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 25 14:13:10 2011 +0300
+commit 38c082f69e08d7dbb56392b54a546801224ee239
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 25 13:32:44 2011 +1100
 
-    time: fix timer stop
-    Due to data structure corruption,
-    some timers could not be removed.
-    Fixes #2495.
+    html/template: fix documentation indent
     
-    R=golang-dev, adg
-    CC=golang-dev, mdbrown
-    https://golang.org/cl/5437060
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5437061
 
- src/pkg/runtime/time.goc   | 13 ++++++++++---
- src/pkg/time/sleep_test.go | 16 ++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ src/pkg/html/template/content.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

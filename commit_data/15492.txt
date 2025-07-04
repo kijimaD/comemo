@@ -1,14 +1,18 @@
-commit 67d0445c876e2015db0cf39dd26ed5643dc77ac3
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Feb 28 07:48:16 2013 +0100
+commit b2249f2018155184abe10781633b8d66e566fa86
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Feb 28 07:18:02 2013 +0100
 
-    log/syslog: fix race in test between channel close and accept.
+    net: pass tests on Plan 9
     
-    Fixes #4769.
+    Ignore problematic tests and un-ignore one
+    we can now pass.
     
-    R=golang-dev, dave, adg, bradfitz
-    CC=fullung, golang-dev
-    https://golang.org/cl/7322089
+    R=rsc, rminnich, ality, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7396060
 
- src/pkg/log/syslog/syslog_test.go | 28 +++++++++++++++++++---------
- 1 file changed, 19 insertions(+), 9 deletions(-)
+ src/pkg/net/file_test.go      |  2 +-
+ src/pkg/net/net_test.go       |  4 ++++
+ src/pkg/net/protoconn_test.go |  5 +++++
+ src/pkg/net/timeout_test.go   | 15 +++++++++++++++
+ 4 files changed, 25 insertions(+), 1 deletion(-)

@@ -1,12 +1,17 @@
-commit e77f057bf345f9e0ef78608abdbd9e85b6e203c4
+commit fc128403dcfc596da7c77251bab2ca5623a406a1
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 9 08:28:17 2011 -0500
+Date:   Fri Dec 9 08:03:51 2011 -0500
 
-    gc: resolve built-ins to built-in symbol
+    gc: minor changes for inlining
+    
+    Copied from 5400043 since they stand alone from inlining.
     
     R=lvd
     CC=golang-dev
-    https://golang.org/cl/5480049
+    https://golang.org/cl/5479046
 
- src/cmd/gc/lex.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/dcl.c                |  8 +++++---
+ src/cmd/gc/typecheck.c          |  3 ++-
+ src/cmd/gc/walk.c               | 12 +++++++++---
+ src/pkg/exp/types/gcimporter.go | 16 ++++++----------
+ 4 files changed, 22 insertions(+), 17 deletions(-)

@@ -1,12 +1,32 @@
-commit bc440f1bfe4ddda6247cef5cc8a9f14ecb3b1373
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Nov 3 10:26:33 2011 +0900
+commit cf6a71216211d8d3f487ab158cbf681742e790d4
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 3 10:11:06 2011 +1100
 
-    test: clear execute bit from source file
+    html: properly close <marquee> elements.
     
-    R=golang-dev, r
+    Pass tests1.dat, test 80:
+    <a href=a>aa<marquee>aa<a href=b>bb</marquee>aa
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <a>
+    |       href="a"
+    |       "aa"
+    |       <marquee>
+    |         "aa"
+    |         <a>
+    |           href="b"
+    |           "bb"
+    |       "aa"
+    
+    Also pass tests through test 82:
+    <!DOCTYPE html><spacer>foo
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5330068
+    https://golang.org/cl/5319071
 
- test/dwarf/linedirectives.go | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/html/parse.go      | 4 ++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

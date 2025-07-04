@@ -1,23 +1,32 @@
-commit 3042463d61a4a9165531aaf45833f1dcefb1e5f9
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 17 16:28:13 2018 -0400
+commit 70f441bc49afa4e9d10c27d7ed5733c4df7bddd3
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Dec 5 22:38:36 2017 -0800
 
-    cmd/compile: in escape analysis, use element type for OIND of slice
+    encoding/json: error when trying to set an embedded pointer to unexported struct types
     
-    The escape analysis models the flow of "content" of X with a
-    level of "indirection" (OIND node) of X. This content can be
-    pointer dereference, or slice/string element. For the latter
-    case, the type of the OIND node should be the element type of
-    the slice/string. This CL fixes this. In particular, this
-    matters when the element type is pointerless, where the data
-    flow should not cause any escape.
+    This CL reverts CL 76851 and takes a different approach to #21357.
+    The changes in encode.go and encode_test.go are reverts that
+    rolls back the changed behavior in CL 76851 where
+    embedded pointers to unexported struct types were
+    unilaterally ignored in both marshal and unmarshal.
     
-    Fixes #15730.
+    Instead, these fields are handled as before with the exception that
+    it returns an error when Unmarshal is unable to set an unexported field.
+    The behavior of Marshal is now unchanged with regards to #21357.
     
-    Change-Id: Iba9f92898681625e7e3ddef76ae65d7cd61c41e0
-    Reviewed-on: https://go-review.googlesource.com/107597
-    Reviewed-by: David Chase <drchase@google.com>
+    This policy maintains the greatest degree of backwards compatibility
+    and avoids silently discarding data the user may have expected to be present.
+    
+    Fixes #21357
+    
+    Change-Id: I7dc753280c99f786ac51acf7e6c0246618c8b2b1
+    Reviewed-on: https://go-review.googlesource.com/82135
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  8 +++++---
- test/escape5.go                    | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ src/encoding/json/decode.go      | 13 ++++++
+ src/encoding/json/decode_test.go | 97 ++++++++++++++++++++++++++++++++--------
+ src/encoding/json/encode.go      | 13 ++----
+ src/encoding/json/encode_test.go |  7 ++-
+ 4 files changed, 97 insertions(+), 33 deletions(-)

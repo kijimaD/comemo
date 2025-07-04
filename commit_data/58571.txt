@@ -1,55 +1,53 @@
-commit f7b8dd9033663944e3b563afaeb55dace4c060fc
-Author: Roxy Light <roxy@zombiezen.com>
-Date:   Tue Jul 16 10:21:30 2024 -0700
+commit ee6b34797b66b957fdf9b7211ee3f0b80ac57758
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Sat Jul 29 18:25:42 2023 -0700
 
-    io/fs: add ReadLinkFS interface
+    all: add floating point option for ARM targets
     
-    Added implementations for *io/fs.subFS, os.DirFS, and testing/fstest.MapFS.
-    Amended testing/fstest.TestFS to check behavior.
+    This change introduces new options to set the floating point
+    mode on ARM targets. The GOARM version number can optionally be
+    followed by ',hardfloat' or ',softfloat' to select whether to
+    use hardware instructions or software emulation for floating
+    point computations, respectively. For example,
+    GOARM=7,softfloat.
     
-    Addressed TODOs in archive/tar and os.CopyFS around symbolic links.
+    Previously, software floating point support was limited to
+    GOARM=5. With these options, software floating point is now
+    extended to all ARM versions, including GOARM=6 and 7. This
+    change also extends hardware floating point to GOARM=5.
     
-    I am deliberately not changing archive/zip in this CL,
-    since it currently does not resolve symlinks
-    as part of its filesystem implementation.
-    I am unsure of the compatibility restrictions on doing so,
-    so figured it would be better to address independently.
+    GOARM=5 defaults to softfloat and GOARM=6 and 7 default to
+    hardfloat.
     
-    testing/fstest.MapFS now includes resolution of symlinks,
-    with MapFile.Data storing the symlink data.
-    The behavior change there seemed less intrusive,
-    especially given its intended usage in tests,
-    and it is especially helpful in testing the io/fs function implementations.
+    For #61588
     
-    Fixes #49580
-    
-    Change-Id: I58ec6915e8cc97341cdbfd9c24c67d1b60139447
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385534
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Funda Secgin <fundasecgin33@gmail.com>
+    Change-Id: I23dc86fbd0733b262004a2ed001e1032cf371e94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514907
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- api/next/49580.txt                                 |   8 ++
- doc/next/6-stdlib/99-minor/archive/tar/49580.md    |   2 +
- doc/next/6-stdlib/99-minor/io/fs/49580.md          |   1 +
- doc/next/6-stdlib/99-minor/os/49580.md             |   2 +
- doc/next/6-stdlib/99-minor/testing/fstest/49580.md |   3 +
- src/archive/tar/writer.go                          |  14 +-
- src/archive/tar/writer_test.go                     |  32 +++--
- src/io/fs/readlink.go                              |  45 ++++++
- src/io/fs/readlink_test.go                         | 106 ++++++++++++++
- src/io/fs/sub.go                                   |  33 ++++-
- src/io/fs/walk_test.go                             |  41 ++++++
- src/os/dir.go                                      |  60 ++++----
- src/os/file.go                                     |  31 +++-
- src/os/file_test.go                                | 156 +++++++++++++++++++++
- src/os/os_test.go                                  |   8 +-
- src/testing/fstest/mapfs.go                        | 115 +++++++++++++--
- src/testing/fstest/mapfs_test.go                   |  66 +++++++++
- src/testing/fstest/testfs.go                       |  29 +++-
- src/testing/fstest/testfs_test.go                  |   3 +
- 19 files changed, 688 insertions(+), 67 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go   |   4 +-
+ src/cmd/compile/internal/arm/galign.go      |   2 +-
+ src/cmd/compile/internal/arm/ssa.go         |   4 +-
+ src/cmd/compile/internal/ssa/_gen/ARM.rules |  58 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go  | 124 ++++++++++++++--------------
+ src/cmd/go/alldocs.go                       |   2 +
+ src/cmd/go/internal/help/helpdoc.go         |   2 +
+ src/cmd/internal/obj/arm/asm5.go            |  10 +--
+ src/cmd/internal/obj/arm/obj5.go            |   2 +-
+ src/cmd/internal/testdir/testdir_test.go    |   2 +-
+ src/cmd/link/internal/ld/lib.go             |  12 ++-
+ src/internal/buildcfg/cfg.go                |  57 +++++++++++--
+ src/math/rand/rand_test.go                  |   3 +-
+ src/runtime/asm_arm.s                       |  22 ++---
+ src/runtime/cgo/asm_arm.s                   |  14 ++--
+ src/runtime/mkpreempt.go                    |   4 +-
+ src/runtime/os_freebsd_arm.go               |  10 ++-
+ src/runtime/os_linux_arm.go                 |  10 ++-
+ src/runtime/preempt_arm.s                   |  12 +--
+ src/runtime/runtime2.go                     |   4 +-
+ 20 files changed, 209 insertions(+), 149 deletions(-)

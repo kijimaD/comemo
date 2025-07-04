@@ -1,15 +1,35 @@
-commit 11a19ae8da805be1a00119b363db7efa4ea03b10
-Author: Ross Light <light@google.com>
-Date:   Thu Jun 25 09:56:08 2015 -0700
+commit b8c87a1155a12f624a5bc746fd6aab260fbaf20a
+Author: Adam Langley <agl@golang.org>
+Date:   Sat May 30 09:40:17 2015 -0700
 
-    cmd/go: create executable when installing to working directory
+    encoding/pem: be more permissive about decoding empty blocks.
     
-    Fixes #11065.
+    As noted in bug #10980, an empty PEM block is encoded as
+    -----BEGIN foo-----
+    -----END foo-----
     
-    Change-Id: Idd854facd5fa78c0334f86740f351d404f9a5b2d
-    Reviewed-on: https://go-review.googlesource.com/11511
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    However, Decode failed to process this.
+    
+    RFC 1421 doesn't answer what the encoding of the empty block should be
+    because PEM messages always contain at least one header. However, PEM
+    these days is just the encoding format – nobody uses the rest of PEM any
+    longer.
+    
+    Having the empty block not contain a newline seems most correct because
+    https://tools.ietf.org/html/rfc1421#section-9 clearly says that the
+    optional “pemtext” carries the leading new-line with it. So if omitted,
+    the new-line should be omitted too.
+    
+    None the less, this changes makes encoding/pem permissive, accepting any
+    number of blank lines in an empty PEM block.
+    
+    Fixes #10980
+    
+    Change-Id: If36bdfbf991ee281eccd50b56ddc95f24c6debb2
+    Reviewed-on: https://go-review.googlesource.com/10516
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/go/build.go   | 14 ++++++++------
- src/cmd/go/go_test.go | 15 ++++++++++++++-
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ src/encoding/pem/pem.go      | 27 ++++++++++---
+ src/encoding/pem/pem_test.go | 93 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 113 insertions(+), 7 deletions(-)

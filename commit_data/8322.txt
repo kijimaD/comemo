@@ -1,12 +1,12 @@
-commit da39008a27794e4d216e8f027ba326d23f87144c
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu May 5 10:16:59 2011 -0700
+commit 0e8032ca49ac0c46781ba7dd106af3d373b3aedd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 5 09:03:00 2011 -0700
 
-    image: make AlphaColor.Set conform to usual signature
+    go spec: newlines cannot be used inside a char or "" string literal
     
-    R=nigeltao, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4471045
+    https://golang.org/cl/4462043
 
- src/pkg/image/image.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

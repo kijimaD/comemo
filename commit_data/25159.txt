@@ -1,14 +1,16 @@
-commit 983926a728ef74d66461dce0dd5a975939beb8d4
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Dec 4 15:31:46 2015 -0700
+commit f35310edff6a16fd247fab47cc4e37874a668c5d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 1 15:40:55 2015 -0700
 
-    net/http: testHeadResponses port for h2
+    syscall: skip a couple tests when running under Kubernetes
     
-    Change-Id: I4cf4596a305510cd25df34ecebd11a19266415f1
-    Reviewed-on: https://go-review.googlesource.com/17435
+    Update #12815
+    
+    Change-Id: I3bf6de74bc8ab07000fe9a4308299839ef20632f
+    Reviewed-on: https://go-review.googlesource.com/15283
+    Reviewed-by: Evan Brown <evanbrown@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/syscall/exec_linux_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

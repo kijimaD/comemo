@@ -1,29 +1,34 @@
-commit f2131f6e0c6ca016143fc402d9d01f6a730f97cd
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Wed Aug 8 21:34:43 2018 +0000
+commit 191efbc419d7e5dec842c20841f6f716da4b561d
+Author: Tom Limoncelli <tal@whatexit.org>
+Date:   Sun Apr 8 16:05:04 2018 -0400
 
-    doc.Example should not worry about unresolved blank identifiers
+    io/ioutil: change TempFile prefix to a pattern
     
-    https://golang.org/pkg/bufio/#example_Scanner_custom is not directly
-    runnable in the playground via godoc, but if I copy+paste the code into
-    https://play.golang.org/ then it runs just fine.
+    Users of TempFile need to be able to supply the suffix, especially
+    when using operating systems that give semantic meaning to the
+    filename extension such as Windows.  Renaming the file to include
+    an extension after the fact is insufficient as it could lead to
+    race conditions.
     
-    This seems to be due to the blank identifier being considered unresolved
-    in the following line in the example:
+    If the string given to TempFile includes a "*", the random string
+    replaces the "*". For example "myname.*.bat" will result in a random
+    filename such as "myname.123456.bat".  If no "*' is included the
+    old behavior is retained, and the random digits are appended to the
+    end.
     
-    _, err = strconv.ParseInt(string(token), 10, 32)
+    If multiple "*" are included, the final one is replaced, thus
+    permitting a pathological programmer to create filenames such as
+    "foo*.123456.bat" but not "foo.123456.*.bat"
     
-    But that's the whole point of blank identifiers- they're not supposed
-    to be resolved.  So let's skip adding the blank identifier to
-    doc.playExample's unresolved map.
+    Fixes #4896
     
-    Fixes #26447
-    
-    Change-Id: I52bc7d99be1d14a61dc012d10c18349d52ba4c51
-    GitHub-Last-Rev: 9172e9dc1378b0f37f96fc2e1ade4dda9d848398
-    GitHub-Pull-Request: golang/go#26448
-    Reviewed-on: https://go-review.googlesource.com/124775
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Iae7f0980b4de6d7d31b87c8c3c3d40767b283c1f
+    Reviewed-on: https://go-review.googlesource.com/105675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/doc/example.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/io/ioutil/example_test.go  | 18 ++++++++++++++++++
+ src/io/ioutil/tempfile.go      | 24 +++++++++++++++++-------
+ src/io/ioutil/tempfile_test.go | 27 ++++++++++++++++++---------
+ 3 files changed, 53 insertions(+), 16 deletions(-)

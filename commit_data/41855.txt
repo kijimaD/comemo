@@ -1,40 +1,21 @@
-commit 42d4df94597626a84b81053792b445c318f6bdf1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 3 18:23:04 2020 -0700
+commit 7067aa1c106d000e99b62e4804118c7bceeed680
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 27 17:13:45 2019 +1100
 
-    cmd/compile: lay out exit post-dominated blocks at the end
+    internal/syscall/windows/registry: make '-gcflags=all=-d=checkptr' flag work
     
-    Complete a long-standing TODO in the code.
+    Mostly replaced [:x] slice operation with [:x:x]. 
     
-    Exit blocks are cold code, so we lay them out at the end of the function.
-    Blocks that are post-dominated by exit blocks are also ipso facto exit blocks.
-    Treat them as such.
+    According to @mdempsky, compiler specially recognizes when you combine
+    a pointer conversion with a full slice operation in a single expression
+    and makes an exception.
     
-    Implement using a simple loop, because there are generally very few exit blocks.
+    Updates golang/go#34972
     
-    In addition to improved instruction cache, this empirically yields
-    better register allocation.
-    
-    Binary size impact:
-    
-    file    before    after     Δ       %
-    cgo     4812872   4808776   -4096   -0.085%
-    fix     3370072   3365976   -4096   -0.122%
-    vet     8252280   8248184   -4096   -0.050%
-    total   115052984 115040696 -12288  -0.011%
-    
-    This also appears to improve compiler performance
-    (-0.15% geomean time/op, -1.20% geomean user time/op),
-    but that could just be alignment effects.
-    Compiler benchmarking hasn't been super reliably recently,
-    and there's no particular reason to think this should
-    speed up the compiler that much.
-    
-    Change-Id: I3d262c4f5cb80626a67a5c17285e2fa09f423c00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227217
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I07d9de3b31da254d55f50d14c18155f8fc8f3ece
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203442
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/ssa/layout.go | 37 +++++++++++++++++++++++++++++++---
- 1 file changed, 34 insertions(+), 3 deletions(-)
+ src/internal/syscall/windows/registry/value.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

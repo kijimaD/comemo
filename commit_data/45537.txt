@@ -1,17 +1,19 @@
-commit d19e5493bd764e26a0662c06c858033a24eaa415
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue May 4 12:53:52 2021 -0400
+commit 7c8d82e92be894fe02b1a0bee775cf803c6849c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 16:34:12 2020 -0400
 
-    doc/go1.17: require macOS 10.13 or later
+    runtime: always enable async preemption on darwin/arm64
     
-    For #44513.
-    For #23011.
+    Now that we have the G register saved, we can enable asynchronous
+    preemption for pure Go programs on darwin/arm64.
     
-    Change-Id: Ic092e38da3601a43d7e2110f500db4a6a6f845f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316889
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Updates #38485, #36365.
+    
+    Change-Id: Ic654fa4dce369efe289b38d59cf1a184b358fe9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265120
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.17.html | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/runtime/signal_unix.go | 11 -----------
+ 1 file changed, 11 deletions(-)

@@ -1,21 +1,30 @@
-commit c46bcd4d13492d3588638ea3ea4c752166709044
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 28 13:23:10 2014 -0700
+commit 5b70b7121968233cd953eba4d77b768400086d9c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 23 21:52:17 2014 -0400
 
-    runtime: move finalizer thread to Go.
+    undo CL 130240043 / b09f70c301a5
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov, khr
+    This change broke divmod.go on all arm platforms.
+    
+    ««« original CL description
+    cmd/gc: change interface representation: only pointers in data word
+    
+    Note that there are various cleanups that can be made if we keep
+    this change, but I do not want to start making changes that
+    depend on this one until the 1.4 cycle closes.
+    
+    Fixes #8405.
+    
+    LGTM=r
+    R=golang-codereviews, adg, r, bradfitz
+    CC=golang-codereviews, iant
+    https://golang.org/cl/130240043
+    »»»
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/124630043
+    https://golang.org/cl/133810043
 
- src/cmd/cc/godefs.c       |  16 +---
- src/pkg/runtime/iface.go  |   3 +-
- src/pkg/runtime/malloc.c  | 107 ++++-----------------
- src/pkg/runtime/malloc.go | 234 ++++++++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/malloc.h  |  23 +++++
- src/pkg/runtime/mgc0.c    | 186 +++++-------------------------------
- src/pkg/runtime/proc.go   |   2 +-
- src/pkg/runtime/stubs.go  |   5 +
- src/pkg/runtime/thunk.s   |   3 +
- 9 files changed, 299 insertions(+), 280 deletions(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

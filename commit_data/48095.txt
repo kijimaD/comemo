@@ -1,24 +1,29 @@
-commit 867a3d55024b654347fcbc0782a39ecd57d94a27
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Feb 2 14:09:26 2022 -0500
+commit 0b9ca4d90737017fc9bb0cf125e2005c61782b79
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 21 23:50:58 2021 +0000
 
-    test: apply GO_TEST_TIMEOUT_SCALE scaling to test timeouts
+    runtime/metrics: add tiny allocs metric
     
-    Change run.go to apply the GO_TEST_TIMEOUT_SCALE scaling factor to
-    test timeouts (mentioned in "-t" clause in test header).
+    Currently tiny allocations are not represented in either MemStats or
+    runtime/metrics, but they're represented in MemStats (indirectly) via
+    Mallocs. Add them to runtime/metrics by first merging
+    memstats.tinyallocs into consistentHeapStats (just for simplicity; it's
+    monotonic so metrics would still be self-consistent if we just read it
+    atomically) and then adding /gc/heap/tiny/allocs:objects to the list of
+    supported metrics.
     
-    Also with this patch, bump up the timeout for fixedbugs/issue46234.go
-    from 30 to 45 seconds, to avoid flakes on very slow builders.
-    
-    Updates #50973.
-    
-    Change-Id: Icbafa482860e24cc1e72fee53511bcc764d06bf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382774
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie478006ab942a3e877b4a79065ffa43569722f3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312909
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- test/fixedbugs/issue46234.go |  3 ++-
- test/run.go                  | 14 ++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go         |  2 +-
+ src/runtime/mcache.go              | 18 +++++++++++-------
+ src/runtime/metrics.go             |  7 +++++++
+ src/runtime/metrics/description.go | 10 ++++++++++
+ src/runtime/metrics/doc.go         |  7 +++++++
+ src/runtime/metrics_test.go        | 23 ++++++++++++++++++++++-
+ src/runtime/mstats.go              | 10 ++++++----
+ 7 files changed, 64 insertions(+), 13 deletions(-)

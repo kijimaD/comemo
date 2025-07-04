@@ -1,18 +1,32 @@
-commit ee0aa3965726111689955e248004ce4e48f7bc63
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 9 20:01:36 2018 -0700
+commit 3c7e491ba82e713129665fcff98a2fd796f968aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 20 21:54:41 2017 -0800
 
-    cmd/go: compile packages imported by runtime with -+
+    go/types: add debugging code to detect use of incomplete interfaces
     
-    Packages imported by the runtime should follow the same memory
-    allocation rules as the runtime package.
+    The comment for phase 2 of checker.interfaceType (typexpr.go:517)
+    requires that embedded interfaces be complete for correctness of
+    the algorithm.
     
-    Change-Id: Id3fadb05605acbd6ac61d7fe6068a2add8bb2308
-    Reviewed-on: https://go-review.googlesource.com/105995
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Yet, the very next comment (typexpr.go:530) states that underlying
+    embedded interfaces may in fact be incomplete.
+    
+    This is in fact the case and the underlying bug in issue #18395.
+    
+    This change makes sure that new interface types are marked complete
+    when finished (per the implicit definition in Interface.Complete,
+    type.go:302). It also adds a check, enabled in debug mode only, to
+    detect the use of incomplete embedded interfaces during construction
+    of a new interface. In debug mode, this check fails for the testcase
+    in the issue (and several others).
+    
+    This change has no noticeable impact with debug mode disabled.
+    
+    For #18395.
+    
+    Change-Id: Ibb81e47257651282fb3755a80a36ab5d392e636d
+    Reviewed-on: https://go-review.googlesource.com/78955
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/internal/work/gc.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/go/types/typexpr.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

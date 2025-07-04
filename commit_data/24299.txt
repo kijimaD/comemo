@@ -1,25 +1,14 @@
-commit 001a75a74c4a27901b0b536efe1be581612c52a9
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Tue Aug 18 14:13:38 2015 -0700
+commit a502fb21820aed165a24a00e969e8cc7735ff09d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 13:11:54 2015 -0400
 
-    runtime/trace: fix tracing of blocking system calls
+    crypto/x509: disable sha2 test with system APIs
     
-    The placement and invocation of traceGoSysCall when using
-    entersyscallblock() instead of entersyscall() differs enough that the
-    TestTraceSymbolize test can fail on some platforms.
+    Fixes #11730.
     
-    This change moves the invocation of traceGoSysCall for entersyscall() so
-    that the same number of "frames to skip" are present in the trace as when
-    entersyscallblock() is used ensuring system call traces remain identical
-    regardless of internal implementation choices.
-    
-    Fixes golang/go#12056
-    
-    Change-Id: I8361e91aa3708f5053f98263dfe9feb8c5d1d969
-    Reviewed-on: https://go-review.googlesource.com/13861
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I5bc60779a87dc07899dd70659a830996bf7812ca
+    Reviewed-on: https://go-review.googlesource.com/12527
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc1.go | 12 ++++++++----
- src/runtime/trace.go |  2 +-
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/crypto/x509/verify_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

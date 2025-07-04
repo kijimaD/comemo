@@ -1,17 +1,14 @@
-commit 5ab935f68a43a503b791e4513a6e76ee615929ff
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 14 14:52:00 2012 +1100
+commit e3f11b3f3c5f5aea874b44296cab2c66632d1965
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 19:48:27 2012 -0800
 
-    godoc: list examples in index
+    go/parser: better error messages for missing commas
     
-    Fixes #2897.
+    Fixes #3008.
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5658047
+    https://golang.org/cl/5660046
 
- doc/godocs.js          | 22 ++++++++++++++++++----
- lib/godoc/example.html |  2 +-
- lib/godoc/package.html |  9 +++++++++
- src/cmd/godoc/godoc.go |  4 ++--
- 4 files changed, 30 insertions(+), 7 deletions(-)
+ src/pkg/go/parser/parser.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

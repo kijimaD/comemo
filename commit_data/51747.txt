@@ -1,33 +1,22 @@
-commit 3900ba4baf0e3b309a55b5ac4dd25f709df09772
-Author: cui fliter <imcusg@gmail.com>
-Date:   Tue Jan 24 09:20:13 2023 +0800
+commit 7026eeb8cfdc5801adddaaa678fb6495a998db0e
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sun Feb 27 23:22:22 2022 +1030
 
-    all: fix some comments
+    cmd/go: fix buildvcs when using older git versions
     
-    Change-Id: I3e9f05d221990b1ae464545d6d8b2e22c35bca21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463077
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Git versions before v2.10.0 do not support --no-show-signature.
+    Using "-c" allows Git to ignore the configuration option if it does not
+    exist.
+    
+    Fixes #51253
+    
+    Change-Id: I2b1adaca0eb18ae31f2e1119e354ce515b00cfc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388194
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
- src/cmd/compile/internal/types/type.go          |  2 +-
- src/cmd/compile/internal/types2/assignments.go  |  2 +-
- src/cmd/compile/internal/types2/conversions.go  |  2 +-
- src/cmd/compile/internal/types2/index.go        |  2 +-
- src/cmd/compile/internal/walk/builtin.go        |  2 +-
- src/cmd/dist/build.go                           |  2 +-
- src/cmd/dist/buildgo.go                         |  2 +-
- src/cmd/go/internal/load/pkg.go                 |  8 ++++----
- src/cmd/go/internal/modget/get.go               |  2 +-
- src/cmd/go/internal/search/search.go            |  6 +++---
- src/cmd/go/internal/vcs/vcs.go                  |  2 +-
- src/cmd/go/internal/web/http.go                 |  2 +-
- src/cmd/go/internal/work/exec.go                | 12 ++++++------
- src/cmd/internal/archive/archive.go             |  2 +-
- src/go/types/conversions.go                     |  2 +-
- src/go/types/index.go                           |  2 +-
- src/syscall/timestruct.go                       |  2 +-
- 18 files changed, 28 insertions(+), 28 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go                      | 2 +-
+ src/cmd/go/testdata/script/version_buildvcs_git.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

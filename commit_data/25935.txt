@@ -1,21 +1,20 @@
-commit 52d9479e3be6cc94256f3ad07a0bd71df2aa4f60
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 26 13:33:48 2016 -0800
+commit 43a9e998d2d54c27066255147fd6c775532b7d31
+Author: Sokolov Yura <funny.falcon@gmail.com>
+Date:   Fri Dec 4 20:54:24 2015 +0300
 
-    cmd/compile: convert Func.Cvars from *NodeList to *[]*Node
+    go/ast: remove many blank lines in SortImports
     
-    Passes toolstash -cmp.
+    Currently only one blank line is checked to be removed.
+    Changing sort.Sort may lead to more blank lines.
+    Let's remove them all.
     
-    Update #14473.
+    It fixes a bug found by https://golang.org/cl/15688
     
-    Change-Id: I7285175b1992a29033fdc9e81d6f30545e5cc30d
-    Reviewed-on: https://go-review.googlesource.com/19967
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I682cc23ecd7b10d9b6feb160da040a155297f578
+    Reviewed-on: https://go-review.googlesource.com/17440
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 28 ++++++++--------------------
- src/cmd/compile/internal/gc/dcl.go     |  2 +-
- src/cmd/compile/internal/gc/esc.go     |  4 +---
- src/cmd/compile/internal/gc/order.go   |  2 +-
- src/cmd/compile/internal/gc/sinit.go   |  2 +-
- src/cmd/compile/internal/gc/syntax.go  | 27 ++++++++++++++++++++++++---
- 6 files changed, 36 insertions(+), 29 deletions(-)
+ src/go/ast/import.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

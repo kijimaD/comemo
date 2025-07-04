@@ -1,16 +1,31 @@
-commit fdee46ee70bc9e052986cb7e68eb97b983bc7191
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Mar 24 12:08:00 2018 +0100
+commit e9d2f1eb36b7600c196474f5de5fa3afd0403c99
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 8 22:03:19 2017 -0500
 
-    cmd/compile: use more ORs in generic.rules
+    cmd/go: add go test -json flag
     
-    No changes in the actual generated compiler code.
+    This CL finally adds one of our longest-requested cmd/go features:
+    a way for test-running harnesses to access test output in structured form.
     
-    Change-Id: I206a7bf7b60f70a73640119fc92974f79ed95a6b
-    Reviewed-on: https://go-review.googlesource.com/102416
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    In fact the structured json output is more informative than the text
+    output, because the output from multiple parallel tests can be
+    interleaved as it becomes available, instead of needing to wait for
+    the previous test to finish before showing any output from the
+    next test.
+    
+    See CL 76872 for the conversion details.
+    
+    Fixes #2981.
+    
+    Change-Id: I749c4fc260190af9fe633437a781ec0cf56b7260
+    Reviewed-on: https://go-review.googlesource.com/76873
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 52 +++++++-------------------
- 1 file changed, 14 insertions(+), 38 deletions(-)
+ src/cmd/go/go_test.go                     | 41 ++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go          | 33 +++++++++++++++++++++++--
+ src/cmd/go/internal/test/testflag.go      |  6 ++++-
+ src/cmd/go/testdata/src/sleepy1/p_test.go | 10 ++++++++
+ src/cmd/go/testdata/src/sleepy2/p_test.go | 10 ++++++++
+ 5 files changed, 96 insertions(+), 4 deletions(-)

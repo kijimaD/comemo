@@ -1,19 +1,20 @@
-commit a2737b1aab2d351792291c5967147220f9327dc4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 9 19:48:29 2023 +0000
+commit 20e1d5ac8cc269c8fc40d08e0b9e14ffe99d19d3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 04:41:38 2022 -0700
 
-    runtime: hide trace lock init details
+    [dev.unified] cmd/compile: special case f(g()) calls in Unified IR
     
-    This change is in service of hiding more execution trace implementation
-    details for big changes to come.
+    For f(g()) calls where g() is multi-valued, we may need to insert
+    implicit conversions to convert g()'s result values to f()'s parameter
+    types. This CL refactors code slightly so this will be easier to
+    handle.
     
-    Change-Id: I49b9716a7bf285d23c86b58912a05eff4ddc2213
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494182
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3a432220dcb62daecf9a66030e8fa1f097e95f95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413362
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go  | 5 +----
- src/runtime/trace.go | 8 ++++++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 11 +++++++++--
+ src/cmd/compile/internal/noder/writer.go | 23 +++++++++++++++++++++--
+ 2 files changed, 30 insertions(+), 4 deletions(-)

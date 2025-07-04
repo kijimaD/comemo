@@ -1,30 +1,18 @@
-commit ca9128f18fe75878ba2d5e0df09ae755c085f72a
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Fri Apr 17 17:27:07 2015 -0700
+commit 0de359da301d1ed5a63c87a8853bedbd829ab906
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Mar 19 23:05:34 2015 +1300
 
-    runtime: merge clone0 and clone
+    cmd/internal/gc: directly produce importpath of package being compiled
     
-    We initially added clone0 to handle the case when G or M don't exist, but
-    it turns out that we could have just modified clone.  (It also helps that
-    the function we're invoking in clone0 no longer needs arguments.)
+    Relying on an importing package being linked at the same time as the
+    imported package does not work in the shared library world.
     
-    As a side-effect, newosproc0 is now supported on all linux archs.
+    This also lets us remove some obscure code from the linker.
     
-    Change-Id: Ie603af75d8f164310fc16446052d83743961f3ca
-    Reviewed-on: https://go-review.googlesource.com/9164
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I57cd5447b42a1a6129b02951d44efffb10cf64be
+    Reviewed-on: https://go-review.googlesource.com/7797
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/export_linux_test.go |  9 +++++++
- src/runtime/export_test.go       |  2 ++
- src/runtime/norace_linux_test.go | 37 +++++++++++++++++++++++++++++
- src/runtime/os1_linux.go         |  6 ++---
- src/runtime/os_linux.go          |  3 ---
- src/runtime/rt0_linux_386.s      |  1 -
- src/runtime/rt0_linux_amd64.s    | 27 ++++++++++-----------
- src/runtime/rt0_linux_arm.s      | 28 ++++++++++------------
- src/runtime/sys_linux_386.s      | 31 ++++++++++++------------
- src/runtime/sys_linux_amd64.s    | 47 +++++++++++-------------------------
- src/runtime/sys_linux_arm.s      | 51 ++++++++--------------------------------
- src/runtime/sys_linux_arm64.s    | 21 ++++++++---------
- src/runtime/sys_linux_ppc64x.s   | 19 +++++++--------
- 13 files changed, 135 insertions(+), 147 deletions(-)
+ src/cmd/internal/gc/reflect.go | 24 +++++++++++++++++++-----
+ src/cmd/internal/ld/lib.go     | 18 ------------------
+ 2 files changed, 19 insertions(+), 23 deletions(-)

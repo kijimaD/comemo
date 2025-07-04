@@ -1,13 +1,13 @@
-commit f837078c505aae1f2fae3d35c525d4666d582989
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Jun 11 20:33:44 2014 -0700
+commit 09576bc695e42b19b31d9abf0205524b1a7f7278
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 12 13:29:22 2014 +1000
 
-    net: do not call time.Now() twice
+    misc/makerelease: update default tag to release-branch.go1.3
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=bradfitz
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/104080043
+    https://golang.org/cl/104090044
 
- src/pkg/net/hosts.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/makerelease/makerelease.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

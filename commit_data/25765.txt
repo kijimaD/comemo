@@ -1,26 +1,17 @@
-commit 5bbb98df0960f57dca73cb7640456608d4cc0917
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Feb 8 17:20:59 2016 -0800
+commit 476aa95015326371d7863cb4c9d4a9850c326236
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 16:20:41 2015 -0500
 
-    cmd/go, cmd/link: make builds deterministic
+    cmd/go: skip TestNoteReading2K on Windows
     
-    Add the following flags when supported by the compiler:
-      -gno-record-gcc-switches
-      -fdebug-prefix-map=$WORK=/tmp/go-build
+    It's intended primarily as a torture test for OS X.
+    Apparently Windows can't take it.
     
-    Add an empty NAME symbol to the ELF .symtab. GNU ld will add a NAME
-    symbol when one is not present; including one of our own prevents it
-    from adding a reference to the link tempdir.
+    Updates fix for #12327.
     
-    Fixes #13247 for compilers that support -fdebug-prefix-map. (gcc, clang
-    in the near future.)
-    
-    Change-Id: I221c71fc59cd23ee8c99bcc038793ff4623c9ffc
-    Reviewed-on: https://go-review.googlesource.com/19363
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: If2af249ea8e2f55bff8f232dce06172e6fef9f49
+    Reviewed-on: https://go-review.googlesource.com/17073
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go                | 40 ++++++++++++++++++++++++++------------
- src/cmd/go/go_test.go              | 27 +++++++++++++++++++++++++
- src/cmd/link/internal/ld/symtab.go |  5 +++++
- 3 files changed, 60 insertions(+), 12 deletions(-)
+ src/cmd/go/note_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

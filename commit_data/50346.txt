@@ -1,17 +1,33 @@
-commit ce8dcd9879652975d83e0843b1d3d3f593a8a4ff
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:37:30 2022 +0800
+commit 6c3cd5d2eb7149c9c1ced7d70c3f4157f27c1588
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Oct 13 03:50:06 2021 -0500
 
-    net/http/httputil: use strings.Builder
+    internal/bytealg: port bytes.Index and bytes.Count to reg ABI on ppc64x
     
-    Change-Id: Ifb51413894791154489bd1d4f529088958212c62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428270
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This change adds support for the reg ABI to the Index and Count
+    functions for ppc64/ppc64le.
+    
+    Most Index and Count benchmarks show improvement in performance on
+    POWER9 with this change. Similar numbers observed on POWER8 and POWER10.
+    
+    name                             old time/op    new time/op    delta
+    Index/32                         71.0ns ± 0%    67.9ns ± 0%   -4.42% (p=0.001 n=7+6)
+    IndexEasy/10                     17.5ns ± 0%    17.2ns ± 0%   -1.30% (p=0.001 n=7+7)
+    
+    name             old time/op    new time/op    delta
+    Count/10           26.6ns ± 0%    25.0ns ± 1%   -6.02%  (p=0.001 n=7+7)
+    Count/32           78.6ns ± 0%    74.7ns ± 0%   -4.97%  (p=0.001 n=7+7)
+    Count/4K           5.03µs ± 0%    5.03µs ± 0%   -0.07%  (p=0.000 n=6+7)
+    CountEasy/10       26.9ns ± 0%    25.2ns ± 1%   -6.31%  (p=0.001 n=7+7)
+    CountSingle/32     11.8ns ± 0%     9.9ns ± 0%  -15.70%  (p=0.002 n=6+6)
+    
+    Change-Id: Ibd146c04f8107291c55f9e6100b8264dfccc41ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355509
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/httputil/dump_test.go         | 2 +-
- src/net/http/httputil/reverseproxy_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/internal/bytealg/count_ppc64x.s | 24 ++++++++++++++++++++---
+ src/internal/bytealg/index_ppc64x.s | 39 +++++++++++++++++++++++++++++++++++--
+ 2 files changed, 58 insertions(+), 5 deletions(-)

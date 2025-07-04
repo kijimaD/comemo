@@ -1,17 +1,34 @@
-commit 917aa72c1438c64e593d68a779892b97012b4779
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Apr 23 11:02:15 2020 +0700
+commit 4208dbef161c554b30607f48c347a6c97add80b3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 28 19:17:21 2019 +0000
 
-    cmd/compile: rewrite dec rules to use typed aux field
+    runtime: make allocNeedsZero lock-free
     
-    Passes toolstash-check -all.
+    In preparation for a lockless fast path in the page allocator, this
+    change makes it so that checking if an allocation needs to be zeroed may
+    be done atomically.
     
-    Change-Id: Ia73233c2269017a5802df821ea2ca138c16a94ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229519
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Unfortunately, this means there is a CAS-loop to ensure monotonicity of
+    the zeroedBase value in heapArena. This CAS-loop exits if an allocator
+    acquiring memory further on in the arena wins or if it succeeds. The
+    CAS-loop should have a relatively small amount of contention because of
+    this monotonicity, though it would be ideal if we could just have
+    CAS-ers with the greatest value always win. The CAS-loop is unnecessary
+    in the steady-state, but should bring some start-up performance gains as
+    it's likely cheaper than the additional zeroing required, especially for
+    large allocations.
+    
+    For very large allocations that span arenas, the CAS-loop should be
+    completely uncontended for most of the arenas it touches, it may only
+    encounter contention on the first and last arena.
+    
+    Updates #35112.
+    
+    Change-Id: If3d19198b33f1b1387b71e1ce5902d39a5c0f98e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203859
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/dec.rules | 38 ++++++++++----------
- src/cmd/compile/internal/ssa/rewritedec.go | 58 +++++++++++++++---------------
- 2 files changed, 48 insertions(+), 48 deletions(-)
+ src/runtime/mheap.go | 40 +++++++++++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)

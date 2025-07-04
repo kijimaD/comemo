@@ -1,15 +1,20 @@
-commit ec92af650c502abcb61508db6e218bda04b778ad
-Author: Charlie Dorian <cldorian@gmail.com>
-Date:   Sun Feb 22 16:12:51 2015 -0500
+commit 0a24b8c77654dde64acafb394dc681289ca93b34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 27 16:51:59 2015 -0800
 
-    math: Dim, Max, Min - allow more bit patterns for NaN
+    math/big: sketched out complete set of Float/string conversion functions
     
-    Fixes #9919
+    Also:
+    - use io.ByteScanner rather than io.RuneScanner internally
+    - minor simplifications in Float.Add/Sub
     
-    Change-Id: Ib443c762f727d4986ca7f8a404362f92b0e91aff
-    Reviewed-on: https://go-review.googlesource.com/5553
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Iae0e99384128dba9eccf68592c4fd389e2bd3b4f
+    Reviewed-on: https://go-review.googlesource.com/3380
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/all_test.go | 33 +++++++++++++++++++++++++++++++++
- src/math/dim_amd64.s | 32 ++++++++++++--------------------
- 2 files changed, 45 insertions(+), 20 deletions(-)
+ src/math/big/float.go      | 156 ++++++++++++++++++++++++++++++++++++---------
+ src/math/big/float_test.go |  12 ++--
+ src/math/big/int.go        |  32 ++++++++--
+ src/math/big/nat.go        |  14 ++--
+ src/math/big/rat.go        |  14 ++--
+ 5 files changed, 171 insertions(+), 57 deletions(-)

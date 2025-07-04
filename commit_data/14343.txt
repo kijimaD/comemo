@@ -1,12 +1,12 @@
-commit f59a605645def8e5afd5052e0e47836921c59c05
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Nov 7 21:35:21 2012 +0100
+commit ccef88c56f8b80e2e2c3aea9dd19be6527fb93f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 7 15:26:41 2012 -0500
 
-    runtime: use runtime·callers when racefuncenter's pc is on the heap.
+    api: refresh next.txt
     
-    R=golang-dev, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6821069
+    https://golang.org/cl/6811092
 
- src/pkg/runtime/race.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ api/next.txt | 239 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 236 insertions(+), 3 deletions(-)

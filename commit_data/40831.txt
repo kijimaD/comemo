@@ -1,18 +1,19 @@
-commit 8cba8a7785920bcef1d6409b3746996b998b3fbf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 16:46:16 2019 -0500
+commit 196e67f95bd00681eab56b5da4eea28b0ca53e51
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 17 21:41:13 2019 -0400
 
-    cmd/go: convert TestMove* to script tests
+    test: new testcase for gccgo bug
     
-    Updates #28387
-    Updates #30316
+    Updates #33020
     
-    Change-Id: If2e66176e2c92a469cbab20e60f4439b0d8668bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207700
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I82554ef20ea35e0087fd9ecd9548c2dfeacdc617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186697
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                            | 57 --------------------
- src/cmd/go/testdata/script/gopath_moved_repo.txt | 68 ++++++++++++++++++++++++
- 2 files changed, 68 insertions(+), 57 deletions(-)
+ test/fixedbugs/issue33020.dir/a.go | 16 ++++++++++++++++
+ test/fixedbugs/issue33020.dir/b.go | 22 ++++++++++++++++++++++
+ test/fixedbugs/issue33020.go       |  9 +++++++++
+ 3 files changed, 47 insertions(+)

@@ -1,33 +1,24 @@
-commit ab7a65f2837b693f015f47572b6bf2c8f1062288
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Feb 17 03:43:33 2020 -0800
+commit 689f6f77f0d54b597ebc82e9bc4a8e1a59bce04d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 17 17:42:15 2019 +0000
 
-    cmd/compile: clean up codegen for branch-on-carry on s390x
+    runtime: integrate new page allocator into runtime
     
-    This CL optimizes code that uses a carry from a function such as
-    bits.Add64 as the condition in an if statement. For example:
+    This change integrates all the bits and pieces of the new page allocator
+    into the runtime, behind a global constant.
     
-        x, c := bits.Add64(a, b, 0)
-        if c != 0 {
-            panic("overflow")
-        }
+    Updates #35112.
     
-    Rather than converting the carry into a 0 or a 1 value and using
-    that as an input to a comparison instruction the carry flag is now
-    used as the input to a conditional branch directly. This typically
-    removes an ADD LOGICAL WITH CARRY instruction when user code is
-    doing overflow detection and is closer to the code that a user
-    would expect to generate.
-    
-    Change-Id: I950431270955ab72f1b5c6db873b6abe769be0da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219757
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I6696bde7bab098a498ab37ed2a2caad2a05d30ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201764
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  14 +
- src/cmd/compile/internal/ssa/rewriteS390X.go | 460 +++++++++++++++++++++++++++
- src/cmd/internal/obj/s390x/condition_code.go |   6 +
- src/math/bits/bits_test.go                   | 124 ++++++++
- test/codegen/mathbits.go                     | 126 ++++++++
- 5 files changed, 730 insertions(+)
+ src/runtime/export_test.go |  59 ++++++++++++++++++++++-
+ src/runtime/gc_test.go     |   4 ++
+ src/runtime/malloc.go      |   3 ++
+ src/runtime/malloc_test.go |  17 +++++++
+ src/runtime/mgcscavenge.go |  22 +++++++--
+ src/runtime/mheap.go       | 113 ++++++++++++++++++++++++++++++++++++++++-----
+ 6 files changed, 199 insertions(+), 19 deletions(-)

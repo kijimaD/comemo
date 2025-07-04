@@ -1,19 +1,26 @@
-commit 4f898840d1e81955231e42a0c5aee29065568196
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Apr 27 02:42:01 2022 +0000
+commit b614c05a151ffc45b8eb5725c9df399aca20663d
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Jul 5 20:58:56 2021 -0700
 
-    runtime: improve the annotation of debugCallV2 for arm64
+    [dev.typeparams] cmd/compile: add built-in name/type "comparable".
     
-    This CL improves the annotation documentation of the debugCallV2 function
-    for arm64.
+    This allows exporting comparable type bounds, and importing back into
+    types2 for typechecking.
     
-    Change-Id: Icc2b52063cf4fe779071039d6a3bca1951108eb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402514
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes typeparam/mdempsky/8.go
+    
+    Change-Id: I3ee12433df2ed68ac6ef4cad24be9fcdfaaca4e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333129
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/asm_arm64.s | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/importer/support.go   |  2 ++
+ src/cmd/compile/internal/noder/types.go        |  8 --------
+ src/cmd/compile/internal/typecheck/bexport.go  |  2 ++
+ src/cmd/compile/internal/typecheck/universe.go | 15 +++++++++++++++
+ src/cmd/compile/internal/types/type.go         |  2 ++
+ src/go/internal/gcimporter/support.go          |  2 ++
+ test/run.go                                    |  1 -
+ 7 files changed, 23 insertions(+), 9 deletions(-)

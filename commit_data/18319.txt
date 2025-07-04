@@ -1,13 +1,16 @@
-commit f69391dd9e33132f5082636ffcfd847d7ac07b53
-Author: Jeff Sickel <jas@corpus-callosum.com>
-Date:   Wed Jan 22 06:23:19 2014 +0100
+commit 062ae4571168608ca2bcd6fa1a9d122a20a5d677
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Jan 21 22:44:54 2014 -0500
 
-    liblink: include missing pragmas for plan9 formatter
+    cmd/gc: do not typecheck nil types in multiple assignment
     
-    R=rsc, r, 0intro
+    Fixes #6572.
+    
+    LGTM=rsc, daniel.morsing, rsc
+    R=golang-codereviews, bradfitz, minux.ma, iant, rsc, gobot, daniel.morsing
     CC=golang-codereviews
-    https://golang.org/cl/36060047
+    https://golang.org/cl/14516055
 
- include/plan9/link.h | 12 ++++++++++++
- src/liblink/list5.c  | 10 +++++-----
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue6572.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

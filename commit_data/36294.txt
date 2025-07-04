@@ -1,34 +1,16 @@
-commit b2e66f1aec4d53df3f21245f68d264744688bb31
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jun 1 11:23:21 2018 +0100
+commit fc215989319aac0a2d5a0f3b7247db9fcb366ff7
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Tue Apr 17 18:38:06 2018 -0400
 
-    cmd/vet: rewrite structtag using go/types
+    encoding/json: simplify dominantField
     
-    This lets us simplify the code considerably. For example, unquoting the
-    tag is no longer necessary, and we can get the field name with a single
-    method call.
+    Fixes #18037
     
-    While at it, fix a typechecking error in testdata/structtag.go, which
-    hadn't been caught since vet still skips past go/types errors in most
-    cases.
-    
-    Using go/types will also let us expand the structtag check more easily
-    if we want to, for example to allow it to check for duplicates in
-    embedded fields.
-    
-    Finally, update one of the test cases to check for regressions when we
-    output invalid tag strings. We also checked that these two changes to
-    testdata/structtag.go didn't fail with the old structtag check.
-    
-    For #25593.
-    
-    Change-Id: Iea4906d0f30a67f36b28c21d8aa96251aae653f5
-    Reviewed-on: https://go-review.googlesource.com/115676
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I20e27bcc013b00b726eb348daf5ca86b138ddcc2
+    Reviewed-on: https://go-review.googlesource.com/107598
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/structtag.go          | 37 ++++++++++++++-----------------------
- src/cmd/vet/testdata/structtag.go |  4 ++--
- 2 files changed, 16 insertions(+), 25 deletions(-)
+ src/encoding/json/encode.go | 30 ++++--------------------------
+ 1 file changed, 4 insertions(+), 26 deletions(-)

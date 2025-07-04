@@ -1,19 +1,31 @@
-commit 9294fa2749ffee7edbbb817a0ef9fe633136fa9c
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 19 10:00:32 2017 -0700
+commit 3b68a647696ebfb61d199155f5f1faa5740e5c55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 6 15:08:28 2017 -0800
 
-    crypto/elliptic: fix carry bug in x86-64 P-256 implementation.
+    cmd/compile/internal/syntax: make a parser error "1.7 compliant"
     
-    Patch from Vlad Krasnov and confirmed to be under CLA.
+    For code such as
     
-    Fixes #20040.
+            if a := 10 { ...
     
-    Change-Id: Ieb8436c4dcb6669a1620f1e0d257efd047b1b87c
-    Reviewed-on: https://go-review.googlesource.com/41070
-    Run-TryBot: Adam Langley <agl@golang.org>
+    the 1.7 compiler reported
+    
+            a := 10 used as value
+    
+    while the 1.8 compiler reported
+    
+            invalid condition, tag, or type switch guard
+    
+    Changed the error message to match the 1.7 compiler.
+    
+    Fixes #18915.
+    
+    Change-Id: I01308862e461922e717f9f8295a9db53d5a914eb
+    Reviewed-on: https://go-review.googlesource.com/36470
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/elliptic/elliptic_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/crypto/elliptic/p256_asm_amd64.s | 10 +++++-----
- 2 files changed, 41 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go |  7 ++++++-
+ test/fixedbugs/issue18915.go              | 21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

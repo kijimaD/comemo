@@ -1,21 +1,38 @@
-commit 9c0b145e4ca75df68da0fb11fb122bcc3b6eff27
-Author: Kato Kazuyoshi <kato.kazuyoshi@gmail.com>
-Date:   Mon Dec 22 21:05:07 2014 -0800
+commit 1fda57ba725044e61148258ea9e98080b0a35260
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 11:23:04 2015 +1100
 
-    os: don't return Chmod's error from Mkdir and OpenFile
+    syscall: split implementation of Dup2 per linux GOOS
     
-    Mkdir and OpenFile call Chmod internally on *BSD and Solaris,
-    because these OSes don't handle the sticky bit correctly.
+    Updates #9974
     
-    However Chmod's error should be ignored. It shouldn't hide
-    the fact that a file itself is created.
+    This proposal moves the definition of Dup2 from the generic syscall_linux.go
+    to the GOOS specific variants. This is in preparation for the arm64 port.
     
-    Fixes #8383
+    For all existing platforms Dup2 is not affected. When arm64 is added we'll use
+    either a forwarding method to Dup3 or
     
-    Change-Id: Ia2e0b2ba72712d73a0a48ba5a263432e0fff31a5
-    Reviewed-on: https://go-review.googlesource.com/2057
-    Reviewed-by: Russ Cox <rsc@golang.org>
+            //sysnb        Dup2(oldfd int, newfd int) (err error) = SYS_DUP3
+    
+    Because mksycall.pl does not sort symbols before generating the output file
+    the diff includes some unavoidable code moves as Dup2 is processed latter in
+    the run.
+    
+    Discussion: https://groups.google.com/forum/#!topic/golang-dev/zpeFtN2z5Fc
+    
+    Change-Id: Icdedf55bb29e749c4230e1ee371bf9d0bd0cfb38
+    Reviewed-on: https://go-review.googlesource.com/5835
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
 
- src/os/file.go      | 11 ++++++-----
- src/os/file_unix.go |  4 ++--
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ src/syscall/syscall_linux.go          |  1 -
+ src/syscall/syscall_linux_386.go      |  1 +
+ src/syscall/syscall_linux_amd64.go    |  1 +
+ src/syscall/syscall_linux_arm.go      |  1 +
+ src/syscall/syscall_linux_ppc64x.go   |  1 +
+ src/syscall/zsyscall_linux_386.go     | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_amd64.go   | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_arm.go     | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_ppc64.go   | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_ppc64le.go | 20 ++++++++++----------
+ 10 files changed, 54 insertions(+), 51 deletions(-)

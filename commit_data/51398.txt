@@ -1,37 +1,26 @@
-commit 335e7647f53293eb320c1f069eaf0ff641810d6d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Nov 18 20:58:12 2022 +0100
+commit 0328b4f4cae6d2340ded9a7d2ce850b98d3bbcbe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 14 17:01:43 2022 -0800
 
-    crypto/internal/bigmod: add amd64 assembly core
+    go/types, types2: move validType code into its own file
     
-    With this change, we are down to 1.2x the running time of the previous
-    variable time implementation.
+    The validType check is independent of the work of declaring objects.
+    Move it into a separate file for better separation of concerns and
+    code organization.
     
-    name                    old time/op  new time/op    delta
-    DecryptPKCS1v15/2048-4  1.37ms ± 0%    1.61ms ± 0%    +17.54%  (p=0.000 n=18+10)
-    DecryptPKCS1v15/3072-4  3.99ms ± 1%    5.46ms ± 1%    +36.64%  (p=0.000 n=20+10)
-    DecryptPKCS1v15/4096-4  8.95ms ± 1%   12.04ms ± 0%    +34.53%  (p=0.000 n=20+10)
-    EncryptPKCS1v15/2048-4  9.24µs ± 7%  223.34µs ± 0%  +2317.67%  (p=0.000 n=20+9)
-    DecryptOAEP/2048-4      1.38ms ± 1%    1.62ms ± 0%    +17.31%  (p=0.000 n=20+10)
-    EncryptOAEP/2048-4      11.5µs ± 6%   225.4µs ± 0%  +1851.82%  (p=0.000 n=20+10)
-    SignPKCS1v15/2048-4     1.38ms ± 0%    1.68ms ± 0%    +21.25%  (p=0.000 n=20+9)
-    VerifyPKCS1v15/2048-4   8.75µs ±11%  221.94µs ± 0%  +2435.02%  (p=0.000 n=20+9)
-    SignPSS/2048-4          1.39ms ± 1%    1.68ms ± 0%    +21.18%  (p=0.000 n=20+10)
-    VerifyPSS/2048-4        11.1µs ± 8%   224.7µs ± 0%  +1917.03%  (p=0.000 n=20+8)
+    No other changes - this is purely a code move.
     
-    Change-Id: I2a91ba99fcd0f86f2b5191d17170da755d7c4690
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452095
+    Preparation for fixing issue #48962.
+    
+    Change-Id: Ib08db2d009c4890882d0978b278e965ca3078851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378674
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/internal/bigmod/_asm/go.mod           |  12 +++
- src/crypto/internal/bigmod/_asm/go.sum           |  32 ++++++
- src/crypto/internal/bigmod/_asm/nat_amd64_asm.go | 130 +++++++++++++++++++++++
- src/crypto/internal/bigmod/nat.go                |  64 ++++++-----
- src/crypto/internal/bigmod/nat_amd64.go          |   7 ++
- src/crypto/internal/bigmod/nat_amd64.s           |  68 ++++++++++++
- src/crypto/internal/bigmod/nat_noasm.go          |  11 ++
- 7 files changed, 299 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/decl.go      | 90 --------------------------
+ src/cmd/compile/internal/types2/validtype.go | 95 ++++++++++++++++++++++++++++
+ src/go/types/decl.go                         | 90 --------------------------
+ src/go/types/validtype.go                    | 95 ++++++++++++++++++++++++++++
+ 4 files changed, 190 insertions(+), 180 deletions(-)

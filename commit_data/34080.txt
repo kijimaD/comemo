@@ -1,23 +1,19 @@
-commit 7ac393a3f208ab72263a245b80e22ad62abae565
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 16 16:17:54 2018 -0800
+commit d851f10b8170c8fdd48a2016fbdd84f9ea71c21a
+Author: Martin Kreichgauer <martinkr@google.com>
+Date:   Fri Sep 29 14:30:51 2017 -0700
 
-    go/parser: improved error message for unexpected literals
+    crypto/x509: add string conversion of PKIX names
     
-    R=go1.11
+    Fixes #21615
     
-    This is a follow up for #11377 which reported that an error like
-    
-    /tmp/xx.go:9:6: expected '(', found 'IDENT' F1
-    
-    shouldn't print 'IDENT', as it's just an internal detail.
-    The relevant change wasn't made in the original fix, so here it is.
-    
-    For #11377.
-    
-    Change-Id: Ib76957d86b88e3e63646fbe4abf03a3b9d045139
-    Reviewed-on: https://go-review.googlesource.com/87900
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic13190617d9b446b35f5dd00f142597c187ab669
+    Reviewed-on: https://go-review.googlesource.com/67270
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Martin Kreichgauer <martinkr@google.com>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/parser/parser.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/crypto/x509/pkix/pkix.go | 77 ++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go    |  2 +-
+ 3 files changed, 166 insertions(+), 1 deletion(-)

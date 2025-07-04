@@ -1,20 +1,28 @@
-commit c5d7f2f1cbaca8938a31a022058b1a3300817e33
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jul 14 18:55:29 2020 -0400
+commit 4615b39514d1463c1cfed624ff3629ab1580a915
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 24 10:26:24 2020 -0500
 
-    cmd/link: skip TestOldLink if the old linker does not exist
+    doc/go1.14: note that module support is ready for production use
     
-    We don't ship the old linker in binary releases. Skip the test if
-    we cannot find the old linker.
+    The public proxy and checksum database launched with Go 1.13 have been
+    running smoothly, pkg.go.dev is serving module-aware documentation,
+    and in 1.14 we have improved the vendoring workflow and finished
+    Subversion support to reach parity with GOPATH mode for users of those
+    features, updated documentation (including the “How to Write Go Code”
+    intro document) and published blog posts describing common modes of
+    usage, and improved the migration path for existing v2+ modules by
+    making version resolution less aggressive about "+incompatible" major
+    versions.
     
-    Fixes #39509.
+    We (always) have more fit-and-finish work to do, but at this point we
+    believe that module mode will provide a better user experience than
+    GOPATH mode for most users, including in production use.
     
-    Change-Id: I1af5552bc56aff5314a384bcb5f3717b725d68e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242604
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I897e0a43e3aebe4c90553c414337a46bfc9c2bef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216317
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/link_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ doc/go1.14.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,18 +1,16 @@
-commit af7f7b7515a335b593049f04d4fedff7c7c7d128
+commit 252161cadcfef4c42c133ba55c74672f520ab80e
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri May 31 15:53:26 2013 -0700
+Date:   Fri May 31 12:18:43 2013 -0700
 
-    lib9/utf: remove unneccesary includes
+    misc/dashboard/builder: add environment variables for Plan 9
     
-    R=golang-dev, r, bradfitz
+    We require $objtype in make.rc and rc needs $path for finding commands.
+    
+    Also include $cputype which we may use in the future.
+    
+    R=golang-dev, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/8651043
+    https://golang.org/cl/9905043
 
- src/lib9/utf/rune.c     | 2 --
- src/lib9/utf/utfecpy.c  | 2 +-
- src/lib9/utf/utflen.c   | 2 --
- src/lib9/utf/utfnlen.c  | 2 --
- src/lib9/utf/utfrrune.c | 1 -
- src/lib9/utf/utfrune.c  | 1 -
- src/lib9/utf/utfutf.c   | 1 -
- 7 files changed, 1 insertion(+), 10 deletions(-)
+ misc/dashboard/builder/main.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

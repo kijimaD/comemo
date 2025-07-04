@@ -1,13 +1,19 @@
-commit 6c204982e03fe69de59991aaa5b16a4fb21297d0
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jun 8 13:55:15 2012 +1000
+commit 97300640ca510f1db2c38bdf48e9e82ee4bae983
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jun 8 02:56:23 2012 +0800
 
-    exp/html: check the context node for consistency when parsing fragments.
+    test/bench/shoutout: fix compliation
+    -lm must come after the source file, versions of gcc insist this strict order.
+    On standard compliant systems, we no longer need malloc.h for malloc.
+    Use pkg-config(1) to get correct glib cflags and libs.
+    Fix compiler warning in threadring.c and k-nucleotide.c.
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6303053
+    https://golang.org/cl/6198076
 
- src/pkg/exp/html/parse.go      | 11 +++++++++++
- src/pkg/exp/html/parse_test.go | 13 +++++++++++++
- 2 files changed, 24 insertions(+)
+ test/bench/shootout/binary-tree.c  | 1 -
+ test/bench/shootout/k-nucleotide.c | 2 +-
+ test/bench/shootout/threadring.c   | 5 +++--
+ test/bench/shootout/timing.sh      | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

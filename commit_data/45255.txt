@@ -1,39 +1,20 @@
-commit 81fcb18df5557943a80d27f248de43968e048aae
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 14 17:12:27 2021 -0400
+commit 7602d4119663b234f655e3bb282b7127a048a5cd
+Author: ananya saxena <ananyasaxena1@gmail.com>
+Date:   Thu Oct 15 17:08:50 2020 +0000
 
-    cmd/go: make Tidy an option in PackageOpts rather than a separate call
+    net/http: remove DualStack in DefaultTransport
     
-    This eliminates some awkwardly-stateful outside calls to
-    modload.{Disallow,Allow,}WriteGoMod.
+    Removing `DualStack` from `http.DefaultTransport` since it is deprecated
+    https://github.com/golang/go/blob/master/src/net/dial.go#L61
     
-    Perhaps more importantly, it gives the loader the opportunity to
-    reload packages and revise dependencies after the tidied requirements
-    are computed. With lazy loading, dropping an irrelevant requirement
-    from the main module's go.mod file may (rarely) cause other test
-    dependencies for packages outside the main module to become
-    unresolved, which may require the loader to re-resolve those
-    dependencies, which may in turn add new roots and increase the
-    selected versions of modules providing other packages.
-    
-    This refactoring allows the loader to iterate between tidying the
-    build list and reloading packages as needed, making the exact
-    sequencing of loading and tidying an implementation detail of the
-    modload package.
-    
-    For #36460
-    For #40775
-    
-    Change-Id: Ib6da3672f32153d5bd7d653d85e3672ab96cbe36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310181
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Id8ea1e68796ef8a8d49f7a04d0c4815aa92a1804
+    GitHub-Last-Rev: 0907b59fa793dafc764188c70487a61a720bbc7c
+    GitHub-Pull-Request: golang/go#41233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253198
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modcmd/tidy.go       | 14 +------------
- src/cmd/go/internal/modload/buildlist.go | 21 +++++++------------
- src/cmd/go/internal/modload/init.go      | 36 +++++++++++++++++++-------------
- src/cmd/go/internal/modload/load.go      | 30 +++++++++++++++++---------
- 4 files changed, 51 insertions(+), 50 deletions(-)
+ src/net/http/transport.go | 1 -
+ 1 file changed, 1 deletion(-)

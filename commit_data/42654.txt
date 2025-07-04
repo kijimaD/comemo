@@ -1,45 +1,35 @@
-commit 14715b24793176b30b3c41adf4ac4e676c2a56f0
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jun 12 14:33:23 2020 -0400
+commit 6e592c2b6d3d32f0eb1211a3795e852627c7a086
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 30 20:13:02 2020 -0800
 
-    cmd/go: add Context parameter to base.command.Run
+    go/types: unexport Checker.LookupFieldOrMethod
     
-    One small step to start propagating the context in
-    cmd/go for tracing purposes.
+    Implementation changes in go/types for #6977 required that internal
+    LookupFieldOrMethod calls had access to the current *Checker. In
+    order to make quick progress, I added a *Checker receiver to the
+    function LookupFieldOrMethod (thus making it a method), and added
+    a new function LookupFieldOrMethod. The plan was always to rename
+    that function (Checker.LookupFieldOrMethod) such that it wouldn't
+    be exported; with the obvious name being Checker.lookupFieldOrMethod.
+    But that name was already in use which is why I postponed the rename.
+    Eventually I forgot to clean it up. This CL fixes that with the
+    following renames:
     
-    Updates #38714
+    Checker.lookupFieldOrMethod => Checker.rawLookupFieldOrMethod
+    Checker.LookupFieldOrMethod => Checker.lookupFieldOrMethod
     
-    Change-Id: Ibb6debeb9233f84d55f0e81244487355cbe7b82c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237684
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Updates #6977.
+    Fixes #36916.
+    
+    Change-Id: Icfafd0de9a19841ba5bd87142730fe7323204491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217134
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/base/base.go         | 3 ++-
- src/cmd/go/internal/bug/bug.go           | 3 ++-
- src/cmd/go/internal/clean/clean.go       | 3 ++-
- src/cmd/go/internal/doc/doc.go           | 3 ++-
- src/cmd/go/internal/envcmd/env.go        | 3 ++-
- src/cmd/go/internal/fix/fix.go           | 3 ++-
- src/cmd/go/internal/fmtcmd/fmt.go        | 3 ++-
- src/cmd/go/internal/generate/generate.go | 3 ++-
- src/cmd/go/internal/get/get.go           | 3 ++-
- src/cmd/go/internal/list/list.go         | 3 ++-
- src/cmd/go/internal/modcmd/download.go   | 3 ++-
- src/cmd/go/internal/modcmd/edit.go       | 3 ++-
- src/cmd/go/internal/modcmd/graph.go      | 3 ++-
- src/cmd/go/internal/modcmd/init.go       | 3 ++-
- src/cmd/go/internal/modcmd/tidy.go       | 3 ++-
- src/cmd/go/internal/modcmd/vendor.go     | 3 ++-
- src/cmd/go/internal/modcmd/verify.go     | 3 ++-
- src/cmd/go/internal/modcmd/why.go        | 3 ++-
- src/cmd/go/internal/modget/get.go        | 3 ++-
- src/cmd/go/internal/run/run.go           | 3 ++-
- src/cmd/go/internal/test/test.go         | 3 ++-
- src/cmd/go/internal/tool/tool.go         | 3 ++-
- src/cmd/go/internal/version/version.go   | 3 ++-
- src/cmd/go/internal/vet/vet.go           | 3 ++-
- src/cmd/go/internal/work/build.go        | 5 +++--
- src/cmd/go/main.go                       | 3 +--
- 26 files changed, 52 insertions(+), 28 deletions(-)
+ api/go1.14.txt           |  1 -
+ src/go/types/builtins.go |  2 +-
+ src/go/types/call.go     |  2 +-
+ src/go/types/lookup.go   | 20 ++++++++++----------
+ 4 files changed, 12 insertions(+), 13 deletions(-)

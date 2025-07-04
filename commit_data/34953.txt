@@ -1,19 +1,39 @@
-commit 7a0bf9436960ffb0b2bd6c7421cd420aa8577402
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Apr 12 16:32:40 2018 +0200
+commit ff534e2130f4ab0f297bb08d66b082878483bfc1
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Nov 21 14:16:04 2017 +0100
 
-    net/http: address comments from previous review
+    math/big: protect against aliasing in nat.divLarge
     
-    Move the test skip to use testenv.SkipFlaky and link to the Go issue.
+    In nat.divLarge (having signature (z nat).divLarge(u, uIn, v nat)),
+    we check whether z aliases uIn or v, but aliasing is currently not
+    checked for the u parameter.
     
-    Update #24826
+    Unfortunately, z and u aliasing each other can in some cases cause
+    errors in the computation.
     
-    Change-Id: I7a0ea3325ffcaa790b25f8cdc429fb52e96a41c7
-    Reviewed-on: https://go-review.googlesource.com/106636
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    The q return parameter (which will hold the result's quotient), is
+    unconditionally initialized as
+    
+        q = z.make(m + 1)
+    
+    When cap(z) ≥ m+1, z.make() will reuse z's backing array, causing q
+    and z to share the same backing array. If then z aliases u, setting q
+    during the quotient computation will then corrupt u, which at that
+    point already holds computation state.
+    
+    To fix this, we add an alias(z, u) check at the beginning of the
+    function, taking care of aliasing the same way we already do for uIn
+    and v.
+    
+    Fixes #22830
+    
+    Change-Id: I3ab81120d5af6db7772a062bb1dfc011de91f7ad
+    Reviewed-on: https://go-review.googlesource.com/78995
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/serve_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/math/big/int_test.go | 20 ++++++++++++++++++++
+ src/math/big/nat.go      |  4 ++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

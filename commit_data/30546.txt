@@ -1,27 +1,19 @@
-commit 2ad7453bf42654a6a1615fa1cc867123570c4595
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 2 14:06:35 2017 -0800
+commit c4099c7593fea9c594ad0e8969452a741acba4c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 11:25:15 2016 -0500
 
-    go/types: continue type-checking with fake packages if imports failed
+    runtime/pprof: delete new TestCPUProfileParse
     
-    This will make type-checking more robust in the presence of import errors.
+    All the existing CPU profiler tests already parse the profile.
+    That should be sufficient indication that profiles can be parsed.
     
-    Also:
-    - import is now relative to directory containing teh file containing the import
-      (matters for relative imports)
-    - factored out package import code from main resolver loop
-    - fixed a couple of minor bugs
+    Fixes #17853.
     
-    Fixes #16088.
-    
-    Change-Id: I1ace45c13cd0fa675d1762877cec0a30afd9ecdc
-    Reviewed-on: https://go-review.googlesource.com/37697
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ie8a190e2ae4eef125c8eb0d4e8b7adac420abbdb
+    Reviewed-on: https://go-review.googlesource.com/33136
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api.go      |  24 +++++-----
- src/go/types/api_test.go |  71 ++++++++++++++++++++++++++++++
- src/go/types/check.go    |  14 +++++-
- src/go/types/resolver.go | 111 +++++++++++++++++++++++++++++++----------------
- 4 files changed, 170 insertions(+), 50 deletions(-)
+ src/runtime/pprof/pprof_test.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

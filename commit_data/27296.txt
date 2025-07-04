@@ -1,17 +1,23 @@
-commit 5bf9b39acc7c4e9658190d8606b5d719678db14a
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Fri Apr 29 21:02:59 2016 +0100
+commit 8d9ece9dde3a9dfc62f3e4dba0a48ec830cafb09
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Mar 18 08:24:40 2016 +0100
 
-    os/exec: re-enable TestExtraFiles for plan9
+    fmt: unify integer formatting
     
-    This test should now succeed after CL 22610 which fixes issue #7118
+    Deduplicate the verb switch for signed and unsigned integer formatting.
     
-    Change-Id: Ie785a84d77b27c832a1ddd81699bf25dab24b97d
-    Reviewed-on: https://go-review.googlesource.com/22640
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Make names of integer related functions consistent
+    with names of other fmt functions.
+    
+    Consolidate basic integer tests.
+    
+    Change-Id: I0c19c24f1c2c06a3b1a4d7d377dcdac3b36bb0f5
+    Reviewed-on: https://go-review.googlesource.com/20831
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/exec/exec_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/fmt/fmt_test.go | 91 ++++++++++++++++++++++++-----------------------------
+ src/fmt/format.go   | 51 ++++++++++++++----------------
+ src/fmt/print.go    | 90 +++++++++++++++++++---------------------------------
+ 3 files changed, 97 insertions(+), 135 deletions(-)

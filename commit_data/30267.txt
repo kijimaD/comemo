@@ -1,27 +1,25 @@
-commit 7ffdb757758c086556e5eba277202d9d8940c2bd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 14 01:00:49 2017 -0500
+commit d8256824ac39e4badb14feffe94f4342a0bd21b3
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 24 17:56:00 2016 -0400
 
-    expvar: add benchmarks for steady-state Map Add calls
+    runtime: remove unnecessary step from bulkBarrierPreWrite
     
-    Add a benchmark for setting a String value, which we may
-    want to treat differently from Int or Float due to the need to support
-    Add methods for the latter.
+    Currently bulkBarrierPreWrite calls writebarrierptr_prewrite, but this
+    means that we check writeBarrier.needed twice and perform cgo checks
+    twice.
     
-    Update tests to use only the exported API instead of making (fragile)
-    assumptions about unexported fields.
+    Change bulkBarrierPreWrite to call writebarrierptr_prewrite1 to skip
+    over these duplicate checks.
     
-    The existing Map benchmarks construct a new Map for each iteration, which
-    focuses the benchmark results on the initial allocation costs for the
-    Map and its entries. This change adds variants of the benchmarks which
-    use a long-lived map in order to measure steady-state performance for
-    Map updates on existing keys.
+    This may speed up bulkBarrierPreWrite slightly, but mostly this will
+    save us from running out of nosplit stack space on ppc64x in the near
+    future.
     
-    Updates #18177
+    Updates #17503.
     
-    Change-Id: I62c920991d17d5898c592446af382cd5c04c528a
-    Reviewed-on: https://go-review.googlesource.com/36959
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1cea1a2207e884ab1a279c6a5e378dcdc048b63e
+    Reviewed-on: https://go-review.googlesource.com/31890
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/expvar/expvar_test.go | 79 +++++++++++++++++++++++++++++++++++------------
- 1 file changed, 59 insertions(+), 20 deletions(-)
+ src/runtime/mbitmap.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

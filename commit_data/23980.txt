@@ -1,26 +1,15 @@
-commit 3dd3ab41acd5eeef5cfd9e83d75f325178ef6a9c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 4 15:04:39 2015 -0700
+commit 834fef80ae025fdeaeeb210803d63634b76ddedd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 8 17:45:54 2015 +1000
 
-    spec: better organization of arithmetic operator section
+    test: add test case for issue 8154
     
-    First step towards cleaning up the operator section - no language
-    changes. Specifically:
+    Updates #8154
     
-    - Grouped arithmetic operations by types (integer, floating-point,
-      string), with corresponding h4 headings.
-    
-    - Changed Operator precedence title from h3 to h4.
-    
-    - Moved Integer Overflow section after integer operations and changed
-      its title from h3 to h4.
-    
-    This puts things that belong together closer. No heading id's were
-    lost (in case of references from outside the spec).
-    
-    Change-Id: I6b349ba8d86a6ae29b596beb297cc45c81e69399
-    Reviewed-on: https://go-review.googlesource.com/13143
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie9c731a91b008277e51c723eef6871bb0919fa4c
+    Reviewed-on: https://go-review.googlesource.com/10831
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 60 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 36 insertions(+), 24 deletions(-)
+ test/fixedbugs/issue8154.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,14 +1,18 @@
-commit 78821616d69c068bcab85e96ab97f0f157700840
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Wed Dec 14 11:21:30 2011 -0800
+commit 22dafc9bc5c8b339628a64c9f786491a60031005
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 14 11:20:21 2011 -0800
 
-    gotest: use build.DefaultContext.GOARCH
+    http: fix failing Transport HEAD request with gzip-looking response
     
-    Fixes https://golang.org/cl/5480060/#msg4
+    We only want to attempt to un-gzip if there's a body (not in
+    response to a HEAD)
     
-    R=golang-dev, r
+    This was accidentally passing before, but revealed to be broken
+    when c3c6e72d7cc went in.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5485051
+    https://golang.org/cl/5477093
 
- src/cmd/gotest/gotest.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/pkg/net/http/transport.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

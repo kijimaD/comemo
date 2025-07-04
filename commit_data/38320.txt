@@ -1,19 +1,19 @@
-commit d3dd2588ebebd7c3a166069a8f572ce7e4b364ef
-Author: karthik nayak <karthik.188@gmail.com>
-Date:   Sat Jan 5 08:44:30 2019 -0500
+commit 0287d8ed1b12229f2ab493602ffa497caabf747c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 18 21:21:46 2018 -0700
 
-    gosym/pclntab: mark LineTable.LineToPC and LineTable.PCToLine as deprecated
+    go/types: collect type info for type ...T in variadic functions
     
-    Currently they aren't marked as deprecated as Godoc, but the comments
-    mention that they are deprecated. Mark them as officially deprecated.
+    Because the code type-checks T rather than ...T (and then corrects
+    the type to []T "manually"), it didn't automatically record the
+    type for the ast.Expr corresponding to ...T. Do it manually.
     
-    Fixes #29576
+    Fixes #28277.
     
-    Change-Id: I795c698ac715476023d80579d60932fba4c5edde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/156331
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3d9aae310c90b01f52d189e70c48dd9007f72207
+    Reviewed-on: https://go-review.googlesource.com/c/143317
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/debug/gosym/pclntab.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/go/types/api_test.go | 12 ++++++++++++
+ src/go/types/typexpr.go  |  5 ++++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

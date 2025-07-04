@@ -1,58 +1,13 @@
-commit bababde766afe97ff2100c467f416caa28475b18
-Merge: 7a5e0fec09 bbae923d20
-Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
-Date:   Fri Nov 8 20:24:43 2019 +0000
+commit 0ab1cc33ef35147b0e1248f2a9d669ae193d6b3e
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 18 17:42:44 2019 -0400
 
-    Merge "cmd: merge branch 'dev.link' into master"
+    doc/go1.13: expand ports, add skeleton language changes section
+    
+    Change-Id: I6338bba2a86fb27421f91203a04b39830bae1e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182800
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/flags/flags.go         |    1 +
- src/cmd/asm/main.go                         |   10 +-
- src/cmd/compile/internal/gc/iexport.go      |   19 +
- src/cmd/compile/internal/gc/iimport.go      |   17 +
- src/cmd/compile/internal/gc/main.go         |    7 +-
- src/cmd/compile/internal/gc/obj.go          |   34 +-
- src/cmd/compile/internal/types/sym.go       |   11 +-
- src/cmd/dist/buildtool.go                   |    2 +
- src/cmd/dist/test.go                        |    2 +-
- src/cmd/go/alldocs.go                       |    4 +-
- src/cmd/go/internal/work/build.go           |    4 +-
- src/cmd/go/internal/work/init.go            |    1 +
- src/cmd/internal/dwarf/dwarf.go             |    8 +-
- src/cmd/internal/goobj/read.go              |    8 +
- src/cmd/internal/goobj/readnew.go           |  187 ++++
- src/cmd/internal/goobj2/builtin.go          |   45 +
- src/cmd/internal/goobj2/builtinlist.go      |  194 ++++
- src/cmd/internal/goobj2/funcinfo.go         |  147 +++
- src/cmd/internal/goobj2/mkbuiltin.go        |  124 +++
- src/cmd/internal/goobj2/objfile.go          |  587 ++++++++++++
- src/cmd/internal/obj/link.go                |   24 +-
- src/cmd/internal/obj/objfile.go             |   14 +-
- src/cmd/internal/obj/objfile2.go            |  429 +++++++++
- src/cmd/internal/obj/sizeof_test.go         |    2 +-
- src/cmd/internal/obj/sym.go                 |  176 ++++
- src/cmd/link/internal/ld/data.go            |    6 +-
- src/cmd/link/internal/ld/deadcode.go        |   75 +-
- src/cmd/link/internal/ld/deadcode2.go       |  441 +++++++++
- src/cmd/link/internal/ld/decodesym.go       |   56 +-
- src/cmd/link/internal/ld/dwarf.go           |   14 +-
- src/cmd/link/internal/ld/go.go              |   45 +-
- src/cmd/link/internal/ld/lib.go             |  563 +++++++-----
- src/cmd/link/internal/ld/link.go            |   13 +
- src/cmd/link/internal/ld/main.go            |    8 +-
- src/cmd/link/internal/ld/pcln.go            |    4 +-
- src/cmd/link/internal/ld/symtab.go          |    2 +-
- src/cmd/link/internal/ld/util.go            |    7 +
- src/cmd/link/internal/loadelf/ldelf.go      |   35 +-
- src/cmd/link/internal/loader/loader.go      | 1308 +++++++++++++++++++++++++++
- src/cmd/link/internal/loadmacho/ldmacho.go  |   21 +-
- src/cmd/link/internal/loadpe/ldpe.go        |   30 +-
- src/cmd/link/internal/loadxcoff/ldxcoff.go  |   25 +-
- src/cmd/link/internal/objfile/objfile.go    |    2 +-
- src/cmd/link/internal/ppc64/asm.go          |    2 +-
- src/cmd/link/internal/sym/symbol.go         |    2 +-
- src/cmd/link/internal/sym/symbols.go        |   11 +
- src/cmd/link/internal/sym/symkind.go        |    5 +
- src/cmd/link/link_test.go                   |   65 ++
- src/runtime/internal/atomic/sys_linux_arm.s |    4 +-
- test/linkx.go                               |    6 +
- 50 files changed, 4471 insertions(+), 336 deletions(-)
+ doc/go1.13.html | 43 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

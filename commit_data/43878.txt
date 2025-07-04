@@ -1,21 +1,15 @@
-commit f0ff6d4a67ec9a956aa655d487543da034cf576b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 25 13:47:42 2020 -0800
+commit ac211c037d7a39a0723420a4937205008e8ae86e
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Apr 22 10:03:00 2020 +0800
 
-    reflect: fix Value.Convert for int-to-string conversions (regression)
+    cmd/compile: rewrite some arm64 rules to use typed aux fields
     
-    The bug was introduced by https://golang.org/cl/220844.
+    Passes toolstash-check -all.
     
-    Updates #42792.
-    Fixes #42835.
-    
-    Change-Id: I03065c7526488aded35ef2f800b7162e1606877a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273326
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibf8c2532b0de65901bf0dd9ef0d198dc54d56470
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229738
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/all_test.go |  3 +++
- src/reflect/value.go    | 12 ++++++++++--
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

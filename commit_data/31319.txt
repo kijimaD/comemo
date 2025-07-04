@@ -1,104 +1,24 @@
-commit 39ce5907ca334fc5c10c6212a9a15f9225dc4877
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 21 14:51:38 2017 -0700
+commit 272ec231b722c5aa5eacf9c86ba30206fde3dd5e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Feb 11 20:06:54 2017 +0100
 
-    cmd/compile: rotate loops so conditional branch is at the end
+    strings: make parameters names less confusing
     
-    Old loops look like this:
-       loop:
-         CMPQ ...
-         JGE exit
-         ...
-         JMP loop
-       exit:
+    Using 'sep' as parameter name for strings functions that take a
+    separator argument is fine, but for functions like Index or Count that
+    look for a substring it's better to use 'substr' (like Contains
+    already does).
     
-    New loops look like this:
-        JMP entry
-      loop:
-        ...
-      entry:
-        CMPQ ...
-        JLT loop
+    Fixes #19039
     
-    This removes one instruction (the unconditional jump) from
-    the inner loop.
-    Kinda surprisingly, it matters.
-    
-    This is a bit different than the peeling that the old obj
-    library did in that we don't duplicate the loop exit test.
-    We just jump to the test.  I'm not sure if it is better or
-    worse to do that (peeling gets rid of the JMP but means more
-    code duplication), but this CL is certainly a much simpler
-    compiler change, so I'll try this way first.
-    
-    The obj library used to do peeling before
-    CL https://go-review.googlesource.com/c/36205 turned it off.
-    
-    Fixes #15837 (remove obj instruction reordering)
-    The reordering is already removed, this CL implements the only
-    part of that reordering that we'd like to keep.
-    
-    Fixes #14758 (append loop)
-    name    old time/op    new time/op    delta
-    Foo-12     817ns ± 4%     538ns ± 0%  -34.08%   (p=0.000 n=10+9)
-    Bar-12     850ns ±11%     570ns ±13%  -32.88%  (p=0.000 n=10+10)
-    
-    Update #19595 (BLAS slowdown)
-    name                       old time/op  new time/op  delta
-    DgemvMedMedNoTransIncN-12  13.2µs ± 9%  10.2µs ± 1%  -22.26%  (p=0.000 n=9+9)
-    
-    Fixes #19633 (append loop)
-    name    old time/op    new time/op    delta
-    Foo-12     810ns ± 1%     540ns ± 0%  -33.30%   (p=0.000 n=8+9)
-    
-    Update #18977 (Fannkuch11 regression)
-    name         old time/op    new time/op    delta
-    Fannkuch11-8                2.80s ± 0%     3.01s ± 0%  +7.47%   (p=0.000 n=9+10)
-    This one makes no sense.  There's strictly 1 less instruction in the
-    inner loop (17 instead of 18).  They are exactly the same instructions
-    except for the JMP that has been elided.
-    
-    go1 benchmarks generally don't look very impressive.  But the gains for the
-    specific issues above make this CL still probably worth it.
-    name                      old time/op    new time/op    delta
-    BinaryTree17-8              2.32s ± 0%     2.34s ± 0%  +1.14%    (p=0.000 n=9+7)
-    Fannkuch11-8                2.80s ± 0%     3.01s ± 0%  +7.47%   (p=0.000 n=9+10)
-    FmtFprintfEmpty-8          44.1ns ± 1%    46.1ns ± 1%  +4.53%  (p=0.000 n=10+10)
-    FmtFprintfString-8         67.8ns ± 0%    74.4ns ± 1%  +9.80%   (p=0.000 n=10+9)
-    FmtFprintfInt-8            74.9ns ± 0%    78.4ns ± 0%  +4.67%   (p=0.000 n=8+10)
-    FmtFprintfIntInt-8          117ns ± 1%     123ns ± 1%  +4.69%   (p=0.000 n=9+10)
-    FmtFprintfPrefixedInt-8     160ns ± 1%     146ns ± 0%  -8.22%   (p=0.000 n=8+10)
-    FmtFprintfFloat-8           214ns ± 0%     206ns ± 0%  -3.91%    (p=0.000 n=8+8)
-    FmtManyArgs-8               468ns ± 0%     497ns ± 1%  +6.09%   (p=0.000 n=8+10)
-    GobDecode-8                6.16ms ± 0%    6.21ms ± 1%  +0.76%   (p=0.000 n=9+10)
-    GobEncode-8                4.90ms ± 0%    4.92ms ± 1%  +0.37%   (p=0.028 n=9+10)
-    Gzip-8                      209ms ± 0%     212ms ± 0%  +1.33%  (p=0.000 n=10+10)
-    Gunzip-8                   36.6ms ± 0%    38.0ms ± 1%  +4.03%    (p=0.000 n=9+9)
-    HTTPClientServer-8         84.2µs ± 0%    86.0µs ± 1%  +2.14%    (p=0.000 n=9+9)
-    JSONEncode-8               13.6ms ± 3%    13.8ms ± 1%  +1.55%   (p=0.003 n=9+10)
-    JSONDecode-8               53.2ms ± 5%    52.9ms ± 0%    ~     (p=0.280 n=10+10)
-    Mandelbrot200-8            3.78ms ± 0%    3.78ms ± 1%    ~      (p=0.661 n=10+9)
-    GoParse-8                  2.89ms ± 0%    2.94ms ± 2%  +1.50%  (p=0.000 n=10+10)
-    RegexpMatchEasy0_32-8      68.5ns ± 2%    68.9ns ± 1%    ~     (p=0.136 n=10+10)
-    RegexpMatchEasy0_1K-8       220ns ± 1%     225ns ± 1%  +2.41%  (p=0.000 n=10+10)
-    RegexpMatchEasy1_32-8      64.7ns ± 0%    64.5ns ± 0%  -0.28%  (p=0.042 n=10+10)
-    RegexpMatchEasy1_1K-8       348ns ± 1%     355ns ± 0%  +1.90%  (p=0.000 n=10+10)
-    RegexpMatchMedium_32-8      102ns ± 1%     105ns ± 1%  +2.95%  (p=0.000 n=10+10)
-    RegexpMatchMedium_1K-8     33.1µs ± 3%    32.5µs ± 0%  -1.75%  (p=0.000 n=10+10)
-    RegexpMatchHard_32-8       1.71µs ± 1%    1.70µs ± 1%  -0.84%   (p=0.002 n=10+9)
-    RegexpMatchHard_1K-8       51.1µs ± 0%    50.8µs ± 1%  -0.48%  (p=0.004 n=10+10)
-    Revcomp-8                   411ms ± 1%     402ms ± 0%  -2.22%   (p=0.000 n=10+9)
-    Template-8                 61.8ms ± 1%    59.7ms ± 0%  -3.44%    (p=0.000 n=9+9)
-    TimeParse-8                 306ns ± 0%     318ns ± 0%  +3.83%  (p=0.000 n=10+10)
-    TimeFormat-8                320ns ± 0%     318ns ± 1%  -0.53%   (p=0.012 n=7+10)
-    
-    Change-Id: Ifaf29abbe5874e437048e411ba8f7cfbc9e1c94b
-    Reviewed-on: https://go-review.googlesource.com/38431
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Idd557409c8fea64ce830ab0e3fec37d3d56a79f0
+    Reviewed-on: https://go-review.googlesource.com/36874
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go      |  3 ++
- src/cmd/compile/internal/ssa/likelyadjust.go |  5 --
- src/cmd/compile/internal/ssa/looprotate.go   | 81 ++++++++++++++++++++++++++++
- 3 files changed, 84 insertions(+), 5 deletions(-)
+ src/strings/strings.go         | 28 ++++++++++++++--------------
+ src/strings/strings_amd64.go   | 26 +++++++++++++-------------
+ src/strings/strings_generic.go | 16 ++++++++--------
+ src/strings/strings_s390x.go   | 26 +++++++++++++-------------
+ 4 files changed, 48 insertions(+), 48 deletions(-)

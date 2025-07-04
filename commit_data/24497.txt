@@ -1,19 +1,22 @@
-commit 5b9c6b9e9e645742f6f1a7552f9fc1113178c514
-Author: Burcu Dogan <jbd@google.com>
-Date:   Mon Oct 12 08:56:05 2015 -0700
+commit bd1efd50991deb1e11e10d8232f609f8b8d13aef
+Author: MathiasB <git@denbeke.be>
+Date:   Fri Jul 31 12:25:06 2015 +0200
 
-    cmd/go: don't accept a relative path as GOBIN
+    net/mail: fixed quoted-local
     
-    Fixes #12907.
+    Fixes some minor issues regarding quoted-string when parsing
+    the local-part.
     
-    Change-Id: I5925852fe6962d4ec7dbb3ea5323e8ddfaf9d576
-    Reviewed-on: https://go-review.googlesource.com/15755
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Those strings should return an error:
+    - quoted-string without any content: `""@test.com`
+    - quoted-string containing tab: "\"\t\"@test.com"
+    
+    Fixes #11293
+    
+    Change-Id: Ied93eb6831915c9b1f8e727cea14168af21f8d3b
+    Reviewed-on: https://go-review.googlesource.com/12905
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/alldocs.go | 2 +-
- src/cmd/go/build.go   | 4 ++++
- src/cmd/go/go_test.go | 9 +++++++++
- src/cmd/go/help.go    | 2 +-
- 4 files changed, 15 insertions(+), 2 deletions(-)
+ src/net/mail/message.go      | 5 ++++-
+ src/net/mail/message_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

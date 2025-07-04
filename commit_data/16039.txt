@@ -1,14 +1,15 @@
-commit a23dd4fe4e448d7f696360f2c84c7c57a1ccaacf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 1 15:15:02 2013 -0700
+commit 94b7853924f817fce39f4c1eae366e973623e12b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 1 14:34:03 2013 -0700
 
-    cmd/godoc: better error message for missing index files
+    sync/atomic: make unaligned 64-bit atomic operation panic on ARM
+    use MOVW.NE instead of BEQ and MOVW.
     
-    Fixes #5024.
-    
-    R=golang-dev, r
+    R=golang-dev, dave, rsc, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/8222045
+    https://golang.org/cl/7718043
 
- src/cmd/godoc/godoc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/sync/atomic/asm_arm.s       | 16 ++++++++++++++++
+ src/pkg/sync/atomic/asm_linux_arm.s |  8 ++++++++
+ src/pkg/sync/atomic/atomic_test.go  |  6 +++---
+ 3 files changed, 27 insertions(+), 3 deletions(-)

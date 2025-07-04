@@ -1,18 +1,63 @@
-commit 034d825ea304a87e4df4f3edad7d3cfcbfc9c526
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Aug 31 21:26:03 2017 +0200
+commit ddcb975ffc05f4b41b063beb5613081fd081fce1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Apr 30 18:21:16 2017 +1000
 
-    runtime: avoid redundant zeroing of hiter
+    internal/poll: remove allocation in windows FD.Writev
     
-    The compiler and reflect already zero hiter before mapiterinit.
+    Use closure parameter instead of external variable to
+    remove 1 allocation.
     
-    While here expand the documentation for mapiterinit.
+    I tried to add test, but it is difficult to add something simple
+    and not flake here. I did test this with:
     
-    Change-Id: I78b05d4d14bf78e8091e5353cdac80ffed30ca1e
-    Reviewed-on: https://go-review.googlesource.com/60673
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+    index 4c05be4..e417d68 100644
+    --- a/src/net/writev_test.go
+    +++ b/src/net/writev_test.go
+    @@ -99,6 +99,15 @@ func TestBuffers_WriteTo(t *testing.T) {
+            }
+     }
+    
+    +func TestBuffers_WriteToAllocs(t *testing.T) {
+    +       allocs := testing.AllocsPerRun(10, func() {
+    +               testBuffer_writeTo(t, 10, false)
+    +       })
+    +       if allocs > 0 {
+    +               t.Fatalf("got %v; want 0", allocs)
+    +       }
+    +}
+    +
+     func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+            oldHook := poll.TestHookDidWritev
+            defer func() { poll.TestHookDidWritev = oldHook }()
+    
+    It makes allocation count go down by 1 after the fix.
+    
+    Before:
+    
+    C:\>u:\test -test.v -test.run=WriteToAllocs
+    === RUN   TestBuffers_WriteToAllocs
+    --- FAIL: TestBuffers_WriteToAllocs (0.05s)
+            writev_test.go:107: got 66; want 0
+    FAIL
+    
+    and after:
+    
+    C:\>u:\test -test.v -test.run=WriteToAllocs
+    === RUN   TestBuffers_WriteToAllocs
+    --- FAIL: TestBuffers_WriteToAllocs (0.04s)
+            writev_test.go:107: got 65; want 0
+    FAIL
+    
+    Thanks to @MichaelMonashev for report and the fix.
+    
+    Fixes #19222
+    
+    Change-Id: I0f73cd9e2c8bbaa0653083f81f3ccb83b5ea84e1
+    Reviewed-on: https://go-review.googlesource.com/42893
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/hashmap.go | 20 +++++---------------
- 1 file changed, 5 insertions(+), 15 deletions(-)
+ src/internal/poll/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit d6c9af6a4ec531369340e51cb008da514477ef17
+commit 901ee5c1513f56c292072eedcdfb3b0218f6d1fe
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 27 00:17:50 2012 -0400
+Date:   Tue Mar 27 00:17:35 2012 -0400
 
-    cmd/go: update for go1 tag format
+    cmd/dist: fix detection of go1 version
     
-    R=golang-dev, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5919048
+    https://golang.org/cl/5924044
 
- src/cmd/go/get.go      | 62 +++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/tag_test.go | 24 +++++++++++++++++++
- src/cmd/go/vcs.go      |  2 +-
- 3 files changed, 86 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

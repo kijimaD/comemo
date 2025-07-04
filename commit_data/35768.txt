@@ -1,15 +1,12 @@
-commit f3f7bd5558d6c4aa2a7f62bb3c9e6d364fc43be9
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Tue Jun 19 20:27:08 2018 +0530
+commit 06572356602c414b84019693cec7286882aa845e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 7 10:20:19 2018 +0100
 
-    cmd/go/internal: add a note about GOCACHE=off
+    database/sql: fix typo in comment
     
-    Fixes #25928
-    
-    Change-Id: I1401ecc54af26eeeee648bb8eeb5d2d3566fa60c
-    Reviewed-on: https://go-review.googlesource.com/119695
+    Change-Id: Ie2966bae1dc2e542c42fb32d8059a4b2d4690014
+    Reviewed-on: https://go-review.googlesource.com/99115
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go               | 1 +
- src/cmd/go/internal/help/helpdoc.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

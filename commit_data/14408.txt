@@ -1,21 +1,18 @@
-commit 36c4a73fb2aa9f9665c71f563a3e8125c29223e2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Nov 15 11:40:10 2012 +1100
+commit 63315c0af1df2bb3fc443860c2cb70a4a60380b5
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 15 03:39:00 2012 +1100
 
-    run.{bash,bat,rc}: unset GOMAXPROCS before ../test
+    crypto/x509: add support for SEC1/EC private keys.
     
-    test/run.go already executes tests in parallel where
-    possible. An unknown GOMAXPROCS value during the tests
-    is known to cause failures with tests that measure
-    allocations.
+    Add support for parsing SEC1 EC private keys and PKCS8 encapsulated
+    EC private key structures.
     
-    ref: https://groups.google.com/d/topic/golang-nuts/tgMhFJ3F5WY/discussion
-    
-    R=fullung, minux.ma, r
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/6847050
+    https://golang.org/cl/6767045
 
- src/run.bash | 2 +-
- src/run.bat  | 7 +++++++
- src/run.rc   | 2 +-
- 3 files changed, 9 insertions(+), 2 deletions(-)
+ src/pkg/crypto/x509/pkcs8.go      | 18 ++++++++--
+ src/pkg/crypto/x509/pkcs8_test.go | 18 +++++++---
+ src/pkg/crypto/x509/sec1.go       | 69 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/sec1_test.go  | 22 +++++++++++++
+ 4 files changed, 120 insertions(+), 7 deletions(-)

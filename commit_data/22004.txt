@@ -1,12 +1,132 @@
-commit 787a8f1159a35b48b57af670bff90f34a3afbf92
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 13 08:34:00 2015 +1100
+commit 8c195bdf120ea86ddda42df89df7bfba80afdf10
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 13 14:40:36 2015 -0500
 
-    doc/go1.5.txt: mention zip.WriterAt
+    [dev.cc] cmd/internal/gc, cmd/new6g etc: convert from cmd/gc, cmd/6g etc
     
-    Change-Id: I9f5ca101e0d2fe71cb1ca810cfeeb82c12f5f8e7
-    Reviewed-on: https://go-review.googlesource.com/7491
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    First draft of converted Go compiler, using rsc.io/c2go rev 83d795a.
+    
+    Change-Id: I29f4c7010de07d2ff1947bbca9865879d83c32c3
+    Reviewed-on: https://go-review.googlesource.com/4851
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/gc/align.go          |   735 +++
+ src/cmd/internal/gc/array.go          |     9 +
+ src/cmd/internal/gc/bits.go           |   167 +
+ src/cmd/internal/gc/builtin.go        |     6 +
+ src/cmd/internal/gc/bv.go             |   208 +
+ src/cmd/internal/gc/closure.go        |   696 +++
+ src/cmd/internal/gc/const.go          |  1764 ++++++
+ src/cmd/internal/gc/cplx.go           |   503 ++
+ src/cmd/internal/gc/dcl.go            |  1565 +++++
+ src/cmd/internal/gc/esc.go            |  1437 +++++
+ src/cmd/internal/gc/export.go         |   596 ++
+ src/cmd/internal/gc/fmt.go            |  1953 ++++++
+ src/cmd/internal/gc/gen.go            |  1017 ++++
+ src/cmd/internal/gc/go.go             |  1179 ++++
+ src/cmd/internal/gc/go.y              |  2252 +++++++
+ src/cmd/internal/gc/gsubr.go          |   617 ++
+ src/cmd/internal/gc/init.go           |   232 +
+ src/cmd/internal/gc/inl.go            |  1040 ++++
+ src/cmd/internal/gc/lex.go            |  3204 ++++++++++
+ src/cmd/internal/gc/md5.go            |   329 +
+ src/cmd/internal/gc/mparith1.go       |   698 +++
+ src/cmd/internal/gc/mparith2.go       |   728 +++
+ src/cmd/internal/gc/mparith3.go       |   377 ++
+ src/cmd/internal/gc/obj.go            |   481 ++
+ src/cmd/internal/gc/opnames.go        |   162 +
+ src/cmd/internal/gc/order.go          |  1188 ++++
+ src/cmd/internal/gc/pgen.go           |   597 ++
+ src/cmd/internal/gc/plive.go          |  2018 +++++++
+ src/cmd/internal/gc/popt.go           |  1283 ++++
+ src/cmd/internal/gc/racewalk.go       |   681 +++
+ src/cmd/internal/gc/range.go          |   426 ++
+ src/cmd/internal/gc/reflect.go        |  1746 ++++++
+ src/cmd/internal/gc/reg.go            |  1401 +++++
+ src/cmd/internal/gc/select.go         |   389 ++
+ src/cmd/internal/gc/sinit.go          |  1602 +++++
+ src/cmd/internal/gc/subr.go           |  3932 ++++++++++++
+ src/cmd/internal/gc/swt.go            |  1028 ++++
+ src/cmd/internal/gc/typecheck.go      |  4076 +++++++++++++
+ src/cmd/internal/gc/unsafe.go         |   178 +
+ src/cmd/internal/gc/util.go           |    70 +
+ src/cmd/internal/gc/walk.go           |  4531 ++++++++++++++
+ src/cmd/internal/gc/y.go              |  3524 +++++++++++
+ src/cmd/internal/gc/y.output          | 10411 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ar.go            |    45 +
+ src/cmd/internal/obj/arm/5.out.go     |     1 +
+ src/cmd/internal/obj/arm/anames5.go   |     2 +-
+ src/cmd/internal/obj/arm/asm5.go      |    30 +-
+ src/cmd/internal/obj/arm/list5.go     |     3 +-
+ src/cmd/internal/obj/arm/obj5.go      |    28 +-
+ src/cmd/internal/obj/data.go          |    34 +-
+ src/cmd/internal/obj/flag.go          |   120 +
+ src/cmd/internal/obj/fmt.go           |    26 -
+ src/cmd/internal/obj/go.go            |    87 +-
+ src/cmd/internal/obj/i386/8.out.go    |     1 +
+ src/cmd/internal/obj/i386/anames8.go  |     4 +-
+ src/cmd/internal/obj/i386/asm8.go     |    15 -
+ src/cmd/internal/obj/i386/list8.go    |     8 +-
+ src/cmd/internal/obj/i386/obj8.go     |     5 +-
+ src/cmd/internal/obj/i386/util.go     |     4 -
+ src/cmd/internal/obj/ld.go            |     4 +-
+ src/cmd/internal/obj/libc.go          |    20 +
+ src/cmd/internal/obj/link.go          |    18 +-
+ src/cmd/internal/obj/mgc0.go          |    37 +
+ src/cmd/internal/obj/pcln.go          |    44 +-
+ src/cmd/internal/obj/ppc64/9.out.go   |     2 +-
+ src/cmd/internal/obj/ppc64/anames9.go |     4 +-
+ src/cmd/internal/obj/ppc64/asm9.go    |     2 +-
+ src/cmd/internal/obj/ppc64/list9.go   |     4 +-
+ src/cmd/internal/obj/ppc64/obj9.go    |     8 +-
+ src/cmd/internal/obj/ppc64/util.go    |     4 -
+ src/cmd/internal/obj/stack.go         |     3 +-
+ src/cmd/internal/obj/sym.go           |    37 +-
+ src/cmd/internal/obj/typekind.go      |    45 +
+ src/cmd/internal/obj/util.go          |   158 +-
+ src/cmd/internal/obj/x86/6.out.go     |     1 +
+ src/cmd/internal/obj/x86/anames6.go   |     4 +-
+ src/cmd/internal/obj/x86/asm6.go      |    16 -
+ src/cmd/internal/obj/x86/list6.go     |    10 +-
+ src/cmd/internal/obj/x86/obj6.go      |    25 +-
+ src/cmd/internal/obj/x86/util.go      |     4 -
+ src/cmd/new5g/cgen.go                 |  2004 ++++++
+ src/cmd/new5g/cgen64.go               |   836 +++
+ src/cmd/new5g/galign.go               |    84 +
+ src/cmd/new5g/gg.go                   |    32 +
+ src/cmd/new5g/ggen.go                 |   822 +++
+ src/cmd/new5g/gsubr.go                |  1599 +++++
+ src/cmd/new5g/peep.go                 |  1868 ++++++
+ src/cmd/new5g/prog.go                 |   163 +
+ src/cmd/new5g/reg.go                  |   136 +
+ src/cmd/new5g/util.go                 |    12 +
+ src/cmd/new6g/cgen.go                 |  1889 ++++++
+ src/cmd/new6g/galign.go               |   109 +
+ src/cmd/new6g/gg.go                   |    24 +
+ src/cmd/new6g/ggen.go                 |  1169 ++++
+ src/cmd/new6g/gsubr.go                |  1755 ++++++
+ src/cmd/new6g/peep.go                 |  1077 ++++
+ src/cmd/new6g/prog.go                 |   272 +
+ src/cmd/new6g/reg.go                  |   144 +
+ src/cmd/new6g/util.go                 |    12 +
+ src/cmd/new8g/cgen.go                 |  1731 ++++++
+ src/cmd/new8g/cgen64.go               |   609 ++
+ src/cmd/new8g/galign.go               |    84 +
+ src/cmd/new8g/gg.go                   |    34 +
+ src/cmd/new8g/ggen.go                 |  1297 ++++
+ src/cmd/new8g/gsubr.go                |  1933 ++++++
+ src/cmd/new8g/peep.go                 |   847 +++
+ src/cmd/new8g/prog.go                 |   291 +
+ src/cmd/new8g/reg.go                  |   112 +
+ src/cmd/new8g/util.go                 |    12 +
+ src/cmd/new9g/cgen.go                 |  1889 ++++++
+ src/cmd/new9g/galign.go               |    92 +
+ src/cmd/new9g/gg.go                   |    28 +
+ src/cmd/new9g/ggen.go                 |  1060 ++++
+ src/cmd/new9g/gsubr.go                |  1169 ++++
+ src/cmd/new9g/opt.go                  |    42 +
+ src/cmd/new9g/peep.go                 |  1071 ++++
+ src/cmd/new9g/prog.go                 |   318 +
+ src/cmd/new9g/reg.go                  |   164 +
+ src/cmd/new9g/util.go                 |    12 +
+ 119 files changed, 88448 insertions(+), 253 deletions(-)

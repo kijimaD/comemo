@@ -1,16 +1,19 @@
-commit 6151a6d7396691a205fc9086561643f1bcb1f62c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 2 21:51:01 2018 -0700
+commit 24e5fae92e2c971fa30ac170b7656ff14f3cfde5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 12 13:52:14 2018 -0400
 
-    cmd/compile: fix fmt_test (fix long test build)
+    cmd/go: fix tests from x/vgo repo
     
-    Follow-up on https://golang.org/cl/146782.
+    This CL fixes up tests from the x/vgo repo that are failing
+    on some of the builders.
+    It will be submitted together with CL 123576.
     
-    TBR=bradfitz
-    
-    Change-Id: Idaf5488fedfc05d6ff71706fa0bcd70bf98ab25a
-    Reviewed-on: https://go-review.googlesource.com/c/147283
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I6bec81a93ad4f7116e8edc8c15beafa25747530c
+    Reviewed-on: https://go-review.googlesource.com/123580
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/modfetch/unzip.go |  3 ++-
+ src/cmd/go/mod_test.go                | 50 ++++++++++++++++++++++-------------
+ 2 files changed, 33 insertions(+), 20 deletions(-)

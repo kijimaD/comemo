@@ -1,31 +1,21 @@
-commit 5c8fbc6f1e4ba78133c53ce73f82ad10e81b42f8
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Thu Apr 9 11:12:12 2015 -0700
+commit 102b80652f7876e9b78b6a3c0c69b530666b52a2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 27 12:00:07 2015 -0700
 
-    runtime: signal forwarding
+    cmd/internal/gc: make class uint8 throughout
     
-    Forward signals to signal handlers installed before Go installs its own,
-    under certain circumstances.  In particular, as iant@ suggests, signals are
-    forwarded iff:
-       (1) a non-SIG_DFL signal handler existed before Go, and
-       (2) signal is synchronous (i.e., one of SIGSEGV, SIGBUS, SIGFPE), and
-            (3a) signal occured on a non-Go thread, or
-            (3b) signal occurred on a Go thread but in CGo code.
+    This prevents conversion noise.
     
-    Supported only on Linux, for now.
+    No functional changes. Passes toolstash -cmp.
     
-    Change-Id: I403219ee47b26cf65da819fb86cf1ec04d3e25f5
-    Reviewed-on: https://go-review.googlesource.com/8712
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I238adf28680f875217827931a689ce7f19a9b371
+    Reviewed-on: https://go-review.googlesource.com/8164
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/cgo/testsigfwd/main.go    | 58 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/test.go           |  3 +++
- src/runtime/os_linux.go        |  3 +++
- src/runtime/signal1_unix.go    | 10 +++++++-
- src/runtime/signal_linux.go    | 52 +++++++++++++++++++++++++++++++++++++
- src/runtime/sys_linux_386.s    | 38 ++++++++-------------------
- src/runtime/sys_linux_amd64.s  | 39 ++++++++--------------------
- src/runtime/sys_linux_arm.s    | 36 ++++++++------------------
- src/runtime/sys_linux_arm64.s  | 35 ++++++++-----------------
- src/runtime/sys_linux_ppc64x.s | 36 +++++++++-----------------
- 10 files changed, 180 insertions(+), 130 deletions(-)
+ src/cmd/internal/gc/dcl.go      | 4 ++--
+ src/cmd/internal/gc/export.go   | 2 +-
+ src/cmd/internal/gc/go.go       | 6 +++---
+ src/cmd/internal/gc/plive.go    | 4 ++--
+ src/cmd/internal/gc/racewalk.go | 2 +-
+ src/cmd/internal/gc/walk.go     | 4 ++--
+ 6 files changed, 11 insertions(+), 11 deletions(-)

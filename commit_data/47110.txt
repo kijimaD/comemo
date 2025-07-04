@@ -1,52 +1,20 @@
-commit d8fc7f785e84515c0a5beb8baeb3c1ca35bebf68
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 28 17:52:22 2021 +0000
+commit 478277f81283b9e941c4fdadc253797e6d035971
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 23 22:03:29 2021 -0500
 
-    runtime: clean up allocation zeroing
+    cmd/compile/internal-abi: use x87 mode, not MMX mode
     
-    Currently, the runtime zeroes allocations in several ways. First, small
-    object spans are always zeroed if they come from mheap, and their slots
-    are zeroed later in mallocgc if needed. Second, large object spans
-    (objects that have their own spans) plumb the need for zeroing down into
-    mheap. Thirdly, large objects that have no pointers have their zeroing
-    delayed until after preemption is reenabled, but before returning in
-    mallocgc.
+    Florian Weimer pointed out that my justification for using MMX mode
+    was nonsense and that staying in x87 mode simplifies transitions to
+    and from C. Hence, switch the spec to say we're always in x87 mode.
     
-    All of this has two consequences:
-    1. Spans for small objects that come from mheap are sometimes
-       unnecessarily zeroed, even if the mallocgc call that created them
-       doesn't need the object slot to be zeroed.
-    2. This is all messy and difficult to reason about.
+    For #40724.
     
-    This CL simplifies this code, resolving both (1) and (2). First, it
-    recognizes that zeroing in mheap is unnecessary for small object spans;
-    mallocgc and its callees in mcache and mcentral, by design, are *always*
-    able to deal with non-zeroed spans. They must, for they deal with
-    recycled spans all the time. Once this fact is made clear, the only
-    remaining use of zeroing in mheap is for large objects.
-    
-    As a result, this CL lifts mheap zeroing for large objects into
-    mallocgc, to parallel all the other codepaths in mallocgc. This is makes
-    the large object allocation code less surprising.
-    
-    Next, this CL sets the flag for the delayed zeroing explicitly in the one
-    case where it matters, and inverts and renames the flag from isZeroed to
-    delayZeroing.
-    
-    Finally, it adds a check to make sure that only pointer-free allocations
-    take the delayed zeroing codepath, as an extra safety measure.
-    
-    Benchmark results: https://perf.golang.org/search?q=upload:20211028.8
-    
-    Inspired by tapir.liu@gmail.com's CL 343470.
-    
-    Change-Id: I7e1296adc19ce8a02c8d93a0a5082aefb2673e8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359477
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Iad916b2c376db41f95614aa6897f6b1184576bb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295789
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/malloc.go   | 25 ++++++++++++++++++++-----
- src/runtime/mcache.go   |  9 +++------
- src/runtime/mcentral.go |  2 +-
- src/runtime/mheap.go    | 21 +++++----------------
- 4 files changed, 29 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal-abi.md | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

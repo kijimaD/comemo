@@ -1,15 +1,19 @@
-commit 6742d0a085021d9638a4d59dd8fb562aec8d51a8
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Apr 18 13:41:11 2012 -0400
+commit b65c9a633ef594b171cb11b823f3d96f47d9f4e3
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Apr 18 22:45:36 2012 +1000
 
-    encoding/asn1: allow lengths up to the maximum int value.
+    exp/html: improve beforeHeadIM
     
-    Previously we capped lengths at 2**24 rather than 2**31.
+    Add a case to ignore doctype tokens.
     
-    R=golang-dev, r, r
+    Clean up the flow of control to more clearly match the spec.
+    
+    Pass one more test.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6050050
+    https://golang.org/cl/6062047
 
- src/pkg/encoding/asn1/asn1.go      | 16 +++++++++++-----
- src/pkg/encoding/asn1/asn1_test.go |  6 ++++++
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/pkg/exp/html/parse.go                 | 31 +++++++++++++------------------
+ src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
+ 2 files changed, 14 insertions(+), 19 deletions(-)

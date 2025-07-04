@@ -1,13 +1,16 @@
-commit c91538f9c92ec53b1291ff2f893a52a249be2bdc
+commit 84386416294922b948e91ebc3226271c1d049998
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 10 13:11:06 2012 +1100
+Date:   Wed Oct 10 11:17:47 2012 +1100
 
-    A+C: change Sergio Correia's email address
+    godoc: add dropdown playground to nav bar
     
-    R=golang-dev, r
+    R=gri, dsymonds, skybrian
     CC=golang-dev
-    https://golang.org/cl/6631059
+    https://golang.org/cl/6631057
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/godocs.js          | 32 ++++++++++++++++++++
+ doc/style.css          | 79 +++++++++++++++++++++++++++++++++++++++++++++++---
+ lib/godoc/godoc.html   | 32 ++++++++++++++++++--
+ lib/godoc/package.html |  2 --
+ src/cmd/godoc/godoc.go |  6 ++--
+ 5 files changed, 140 insertions(+), 11 deletions(-)

@@ -1,28 +1,27 @@
-commit 9be533a8ee7673cbf16699d05517d9c6aebed297
-Author: ruinan <ruinan.sun@arm.com>
-Date:   Tue Jul 12 04:05:41 2022 +0000
+commit 4d716e4d4a25526ba963a7cfb2b5208eb52e71c0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 24 16:12:34 2022 -0500
 
-    cmd/compile: get more bounds info from logic operators in prove pass
+    cmd/go/internal/modfetch: simplify handling of weird version tags
     
-    Currently, the prove pass can get knowledge from some specific logic
-    operators only before the CFG is explored, which means that the bounds
-    information of the branch will be ignored.
+    This fixes an obscure bug in 'go list -versions' if the repo contains
+    a tag with an explicit "+incompatible" suffix. However, I've never
+    seen such a repo in the wild; mostly it's an attempt to wrap my brain
+    around the code and simplify things a bit for the future.
     
-    This CL updates the facts table by the logic operators in every
-    branch. Combined with the branch information, this will be helpful for
-    BCE in some circumstances.
+    Updates #51324
+    Updates #51312
     
-    Fixes #57243
-    
-    Change-Id: I0bd164f1b47804ccfc37879abe9788740b016fd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419555
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I1b078b5db36470cf61aaa85b5244c99b5ee2c842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387917
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 26 ++++++++++++++++++++++++++
- test/codegen/comparisons.go           |  2 +-
- test/prove.go                         | 19 +++++++++++++++++++
- 3 files changed, 46 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go      | 12 ++--
+ src/cmd/go/internal/modfetch/coderepo.go          | 41 +++++++++-----
+ src/cmd/go/internal/modfetch/coderepo_test.go     | 68 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_odd_tags.txt  | 13 +++++
+ 5 files changed, 113 insertions(+), 23 deletions(-)

@@ -1,27 +1,12 @@
-commit 44d9e96da9b7625be81f2c7eacf73fcc609874ce
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 11 17:04:26 2017 -0400
+commit 445652f45361d4935a828f394d7f0322faa6d9ad
+Author: Martin Garton <garton@gmail.com>
+Date:   Fri Jun 30 20:03:27 2017 +0100
 
-    runtime: don't try to free OS-created signal stacks
+    database/sql: fix outdated package name in doc.txt
     
-    Android's libc creates a signal stack for every thread it creates. In
-    Go, minitSignalStack picks up this existing signal stack and puts it
-    in m.gsignal.stack. However, if we later try to exit a thread (because
-    a locked goroutine is exiting), we'll attempt to stackfree this
-    libc-allocated signal stack and panic.
-    
-    Fix this by clearing gsignal.stack when we unminitSignals in such a
-    situation.
-    
-    This should fix the Android build, which is currently broken.
-    
-    Change-Id: Ieea8d72ef063d22741c54c9daddd8bb84926a488
-    Reviewed-on: https://go-review.googlesource.com/70130
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4417c5a8537095a6464ce919b2e5cb250e179939
+    Reviewed-on: https://go-review.googlesource.com/47332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go        | 8 +++++++-
- src/runtime/signal_unix.go | 4 ++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/database/sql/doc.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

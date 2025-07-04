@@ -1,21 +1,12 @@
-commit 567818224edce362fa040ee89e9597982f2bcdf6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 16 16:23:11 2013 -0400
+commit 1d55685e261a6c53403996aa31b1d147ee0090fb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 16 19:51:18 2013 +0400
 
-    cmd/5l, cmd/6l, cmd/8l: accept PCDATA instruction in input
+    runtime: minor cleanup of hashmap code
     
-    The portable code in cmd/ld already knows how to process it,
-    we just have to ignore it during code generation.
-    
-    R=ken2
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11363043
+    https://golang.org/cl/11357043
 
- src/cmd/5l/noop.c  |  8 +++++++-
- src/cmd/5l/optab.c |  2 ++
- src/cmd/5l/span.c  |  6 ++++--
- src/cmd/6l/optab.c | 14 ++++++++++++--
- src/cmd/6l/pass.c  |  5 ++++-
- src/cmd/8l/optab.c | 14 ++++++++++++--
- src/cmd/8l/pass.c  |  9 +++++++--
- 7 files changed, 48 insertions(+), 10 deletions(-)
+ src/pkg/runtime/hashmap.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

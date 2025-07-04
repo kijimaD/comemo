@@ -1,13 +1,15 @@
-commit 5edf5197e052921a44a2afe67242af4886328b6e
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Mon Sep 19 11:50:59 2011 -0400
+commit ad7dea1e96fdebc682b10e02dd14456cdccf4dfa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 11:50:53 2011 -0400
 
-    cgo: cgo to use GOARCH from the environment, not runtime.GOARCH (otherwise it results in necessity of having 8cgo and 6cgo)
+    gc: handle complex CONVNOP
     
-    R=rsc, adg
+    Fixes #2256.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4978061
+    https://golang.org/cl/5044047
 
- src/cmd/cgo/gcc.go  |  9 ++++-----
- src/cmd/cgo/main.go | 17 ++++++++++++-----
- 2 files changed, 16 insertions(+), 10 deletions(-)
+ src/cmd/gc/cplx.c |  3 +++
+ test/ken/cplx2.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

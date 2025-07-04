@@ -1,21 +1,20 @@
-commit 2f2b874b0aab741a8628fd971f4b3aa41e2fdffb
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 4 14:57:14 2023 +0200
+commit b8d55a7604aaffb9645ba1fcff9ea2c84697f7d6
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Wed Jul 22 08:59:30 2020 +0800
 
-    os/exec: skip remount in TestFindExecutableVsNoexec on EROFS
+    compress/flate: cancel redundant operations
     
-    To allow using testenv.SyscallIsNotSupported, rewrite the test to use
-    the exported API only. Given that path is an absolute path,
-    exec.LookPath is equivalent to exec.findExecutable on linux.
+    The assignment operation in the program seems to be redundant, the first judgment will continue to overwrite the previous value.
+    The subsequent slicing operation will cut all the values without frequency.
     
-    Fixes #59087
-    
-    Change-Id: Ia01b84d4e9d5a65a88dd995f9e3c8a81c4ccd19f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481620
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Change-Id: Id59fc36dd5bacfde881edaf0d9c1af5348286611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244157
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/os/exec/lp_linux_test.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ src/compress/flate/huffman_code.go | 2 --
+ 1 file changed, 2 deletions(-)

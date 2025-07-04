@@ -1,18 +1,18 @@
-commit b618f32687ca1f71c5cc137cee735a2811f74a57
+commit 04faa08c070191a7c187e4ff3a9eb7ed9b6b38a6
 Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 15 13:44:35 2011 -0800
+Date:   Thu Dec 15 12:52:29 2011 -0800
 
-    govet: divide the program into one file per vetting suite
-    Just a rearrangement except for a couple of new functions
-    and names so govet.go can have all the generic walk routines.
+    fmt: speed up floating point print, clean up some code
+    %g down to two mallocs from four. Also a mild speedup.
+    
+    fmt_test.BenchmarkSprintfFloat         3016         2703  -10.38%
+    
+    Fixes #2557.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5489058
+    https://golang.org/cl/5491054
 
- src/cmd/govet/Makefile     |   3 +
- src/cmd/govet/govet.go     | 405 ++++-----------------------------------------
- src/cmd/govet/method.go    | 161 ++++++++++++++++++
- src/cmd/govet/print.go     | 202 ++++++++++++++++++++++
- src/cmd/govet/structtag.go |  34 ++++
- 5 files changed, 432 insertions(+), 373 deletions(-)
+ src/pkg/fmt/format.go | 93 +++++++++++++++++++++++++++------------------------
+ src/pkg/fmt/print.go  |  8 ++---
+ 2 files changed, 53 insertions(+), 48 deletions(-)

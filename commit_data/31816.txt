@@ -1,14 +1,20 @@
-commit dd94bacddcd3039e63207856138028c9541b3067
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 14 06:37:55 2017 +0000
+commit 758b5b3284b1e04131ad55ecd7da284bac463e38
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 09:10:57 2017 -0700
 
-    time: unify the Time.Equals vs == pitfall documentation
+    cmd/compile: make Stksize local
     
-    Fixes #19510 (good details therein)
+    Passes toolstash -cmp. No compiler performance impact.
     
-    Change-Id: Id28b66d91435d839fd79eeed486527cc77257c12
-    Reviewed-on: https://go-review.googlesource.com/45698
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #15756
+    
+    Change-Id: I85b45244453ae28d4da76be4313badddcbf3f5dc
+    Reviewed-on: https://go-review.googlesource.com/38330
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/time/time.go | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go  |  3 ---
+ src/cmd/compile/internal/gc/go.go   |  2 --
+ src/cmd/compile/internal/gc/pgen.go | 16 ++++++++--------
+ src/cmd/compile/internal/gc/ssa.go  |  7 ++++---
+ 4 files changed, 12 insertions(+), 16 deletions(-)

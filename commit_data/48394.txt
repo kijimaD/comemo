@@ -1,22 +1,22 @@
-commit 1a2f72619510f944289587d41fcb86cad9026f7d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 10 10:41:54 2022 -0500
+commit a2c07a9a1a445c28fa4db9bd1472b28cad3ca818
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 17 12:18:12 2021 +0200
 
-    runtime/pprof: do not require a GOROOT/src prefix in tests
+    all: update golang.org/x/net to latest
     
-    When paths are trimmed, the reported file locations begin with the
-    package import path (not GOROOT/src).
+    To pull in CL 318309.
     
-    Updates #51461
+    For #41184
     
-    Change-Id: Idbd408a02e8d03329d10e30b0b08263e69e66285
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391812
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I99adb0478e71dbd72e13551a87ed09eae2a0ef2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320312
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/pprof/mprof_test.go | 18 +++++++++---------
- src/runtime/pprof/pprof_test.go | 42 ++++++++++++++++++++---------------------
- 2 files changed, 30 insertions(+), 30 deletions(-)
+ src/go.mod                                | 2 +-
+ src/go.sum                                | 4 ++--
+ src/vendor/golang.org/x/net/route/empty.s | 1 +
+ src/vendor/modules.txt                    | 2 +-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

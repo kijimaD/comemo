@@ -1,15 +1,29 @@
-commit 5aa3d162d526af778c47695ec03b8c8b0ddd7843
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 13:36:00 2025 -0800
+commit 237715cf7c4c2aabf6d3c04473488c1b2477f8ea
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Nov 18 17:52:22 2023 +0000
 
-    cmd/go/internal/modindex: correct isDir doc comment
+    runtime/internal/atomic: add generic implementation for And/Or
     
-    Change-Id: Ic7e272b14a24f78b9ef3ca8e0706775bc9f2a3f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645715
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Without having all the architectures implementing the And/Or operators
+    merged I can't proceed with the public sync/atomic apis. This CL adds a
+    generic implementation that should work for all the remaining arches,
+    while waiting for the native assembly implementations in CL 531835,
+    CL 531678, CL 531895.
+    
+    I regret the oversight of not pushing this earlier.
+    
+    For #61395
+    
+    Change-Id: Ib2d67f359fe324b4743eb79e9c8e52e8f6f5476c
+    GitHub-Last-Rev: d350927ba1c51d1f708be2f2904f826fdb79b8cd
+    GitHub-Pull-Request: golang/go#64214
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543175
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/modindex/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../internal/atomic/atomic_andor_generic.go        | 67 ++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_andor_test.go   |  3 -
+ 2 files changed, 67 insertions(+), 3 deletions(-)

@@ -1,19 +1,15 @@
-commit 70119accdf1f7fcb909ec712f69a02a20a571e95
-Author: Quentin Perez <qperez@ocs.online.net>
-Date:   Fri Oct 30 16:25:29 2015 +0100
+commit 9538e4e73b42c273be9c5e2bb7b356b454b10dbd
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Aug 21 20:31:50 2015 +0200
 
-    cmd/link/internal/ld: fix extra arguments Errorf
+    cmd/trace: don't fail when no browser is available
     
-    lib.go:1309
-    lib.go:1313
-    lib.go:1317
-    lib.go:1325
+    When there is no browser available on the system,
+    we should print the URL instead of failing.
     
-    Change-Id: Ic3d3282d836c28f8bdeb5ce52fb7c018450871b9
-    Reviewed-on: https://go-review.googlesource.com/16473
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4a2b099e17609394273eff150062c285d76bbac1
+    Reviewed-on: https://go-review.googlesource.com/13774
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/link/internal/ld/lib.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/trace/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,79 +1,19 @@
-commit 14e7f174c1bfb80192274b049487716cdde0b4ee
-Author: Tom Thorogood <me+google@tomthorogood.co.uk>
-Date:   Wed Sep 26 11:29:18 2018 +0000
+commit 392ff18b8fdcb1f116f81887ddedfd43b19fdb9c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 20 21:33:52 2018 +0200
 
-    strings: use Builder in ToUpper and ToLower
+    syscall: partially revert "enable some nacl code to be shared with js/wasm"
     
-    Map was optimized to use Builder in 45c7d80832, which avoided the []byte
-    to string converstion. This left the ToUpper and ToLower ASCII fast path
-    with an extra allocation over Map.
+    This partially reverts commit 3bdbb5df7692142c13cf93f6d80b2a907e3f396b.
+    The latest CL of js/wasm's file system support does not use
+    file descriptor mapping any more.
     
-    name                                        old time/op    new time/op    delta
-    ToUpper/#00-12                                3.59ns ± 4%    3.71ns ± 1%     ~     (p=0.056 n=5+5)
-    ToUpper/ONLYUPPER-12                          11.8ns ± 2%    10.5ns ± 2%  -10.85%  (p=0.008 n=5+5)
-    ToUpper/abc-12                                31.8ns ± 1%    25.3ns ± 1%  -20.40%  (p=0.008 n=5+5)
-    ToUpper/AbC123-12                             46.2ns ± 7%    31.9ns ± 8%  -30.89%  (p=0.008 n=5+5)
-    ToUpper/azAZ09_-12                            47.1ns ± 8%    32.6ns ± 4%  -30.77%  (p=0.008 n=5+5)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps-12     137ns ±15%     104ns ±11%  -24.11%  (p=0.008 n=5+5)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars-12     231ns ± 1%     228ns ± 1%     ~     (p=0.079 n=5+5)
-    ToUpper/ɐɐɐɐɐ-12                               207ns ± 3%     206ns ± 1%     ~     (p=0.913 n=5+5)
-    ToUpper/a\u0080\U0010ffff-12                  90.8ns ± 1%    89.6ns ± 1%   -1.30%  (p=0.024 n=5+5)
-    ToLower/#00-12                                3.59ns ± 1%    4.26ns ± 2%  +18.66%  (p=0.008 n=5+5)
-    ToLower/abc-12                                6.32ns ± 1%    6.62ns ± 1%   +4.72%  (p=0.008 n=5+5)
-    ToLower/AbC123-12                             45.0ns ±13%    31.5ns ± 4%  -29.89%  (p=0.008 n=5+5)
-    ToLower/azAZ09_-12                            48.8ns ± 6%    33.2ns ± 3%  -31.91%  (p=0.008 n=5+5)
-    ToLower/longStrinGwitHmixofsmaLLandcAps-12     149ns ±13%      98ns ± 8%  -34.30%  (p=0.008 n=5+5)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-12     237ns ± 4%     237ns ± 2%     ~     (p=0.635 n=5+5)
-    ToLower/ⱭⱭⱭⱭⱭ-12                               181ns ± 1%     181ns ± 1%     ~     (p=0.762 n=5+5)
-    ToLower/A\u0080\U0010ffff-12                  90.6ns ± 1%    92.5ns ± 1%   +2.05%  (p=0.016 n=5+5)
-    
-    name                                        old alloc/op   new alloc/op   delta
-    ToUpper/#00-12                                 0.00B          0.00B          ~     (all equal)
-    ToUpper/ONLYUPPER-12                           0.00B          0.00B          ~     (all equal)
-    ToUpper/abc-12                                 6.00B ± 0%     3.00B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/AbC123-12                              16.0B ± 0%      8.0B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/azAZ09_-12                             16.0B ± 0%      8.0B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps-12     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars-12     48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    ToUpper/ɐɐɐɐɐ-12                               48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    ToUpper/a\u0080\U0010ffff-12                   16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    ToLower/#00-12                                 0.00B          0.00B          ~     (all equal)
-    ToLower/abc-12                                 0.00B          0.00B          ~     (all equal)
-    ToLower/AbC123-12                              16.0B ± 0%      8.0B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToLower/azAZ09_-12                             16.0B ± 0%      8.0B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToLower/longStrinGwitHmixofsmaLLandcAps-12     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-12     48.0B ± 0%     48.0B ± 0%     ~     (all equal)
-    ToLower/ⱭⱭⱭⱭⱭ-12                               32.0B ± 0%     32.0B ± 0%     ~     (all equal)
-    ToLower/A\u0080\U0010ffff-12                   16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    
-    name                                        old allocs/op  new allocs/op  delta
-    ToUpper/#00-12                                  0.00           0.00          ~     (all equal)
-    ToUpper/ONLYUPPER-12                            0.00           0.00          ~     (all equal)
-    ToUpper/abc-12                                  2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/AbC123-12                               2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/azAZ09_-12                              2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/longStrinGwitHmixofsmaLLandcAps-12      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToUpper/ɐɐɐɐɐ-12                                2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    ToUpper/a\u0080\U0010ffff-12                    1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/#00-12                                  0.00           0.00          ~     (all equal)
-    ToLower/abc-12                                  0.00           0.00          ~     (all equal)
-    ToLower/AbC123-12                               2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToLower/azAZ09_-12                              2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToLower/longStrinGwitHmixofsmaLLandcAps-12      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.008 n=5+5)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS-12      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/ⱭⱭⱭⱭⱭ-12                                1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    ToLower/A\u0080\U0010ffff-12                    1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    Updates #26304
-    
-    Change-Id: I4179e21d5e60d950b925fe3ffc74b376b82812d2
-    GitHub-Last-Rev: 2c7c3bb75b8fb16fed5f0c8979ee9941675ed6bf
-    GitHub-Pull-Request: golang/go#27872
-    Reviewed-on: https://go-review.googlesource.com/137575
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iaec9c84b392366282cddc69acc75c8a3eb556824
+    Reviewed-on: https://go-review.googlesource.com/114195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strings/strings.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/syscall/fd_nacl.go   | 244 +++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/fd_nacljs.go | 254 -----------------------------------------------
+ 2 files changed, 244 insertions(+), 254 deletions(-)

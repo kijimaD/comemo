@@ -1,21 +1,18 @@
-commit c804efb5de2f73a7ce12b4b09a2947b164c3aa43
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 00:41:24 2012 -0500
+commit 152a1aa610117baf9a712b17d2673ad73bd490e6
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed Mar 7 00:40:16 2012 -0500
 
-    net: fix TestDialTimeout on windows builder
+    misc/cgo: re-enable testso
     
-    I don't know what's out there, but something
-    is answering to 127.0.71.111:80 on our builder,
-    so use a different port.
+    Also enabled it for darwin.
     
-    Also insert a check that the dial fails, which
-    would have diagnosed this problem.
-    
-    Fixes #3016.
-    
-    R=golang-dev, mikioh.mikioh, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5754062
+    https://golang.org/cl/5754063
 
- src/pkg/net/dial_test.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ misc/cgo/testso/Makefile      | 22 ----------------------
+ misc/cgo/testso/cgoso_test.go |  7 +++++++
+ misc/cgo/testso/main.go       | 11 -----------
+ misc/cgo/testso/test.bash     |  9 ---------
+ src/run.bash                  |  5 +----
+ 5 files changed, 8 insertions(+), 46 deletions(-)

@@ -1,12 +1,14 @@
-commit 805312ac8761c594c8f89e8033a32b975ed833fc
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Tue Dec 4 10:49:27 2018 -0500
+commit c3533d7a26d659c5ae3af27320a462c602bd25ee
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jul 28 01:22:24 2018 +0300
 
-    doc: update 1.12 with latest relnote output
+    cmd/cover: remove unused global var and the unquote function
     
-    Change-Id: Iac0e6671902404a149dd382af37a2be002b1e50f
-    Reviewed-on: https://go-review.googlesource.com/c/152518
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I52a39f2d8f1a296f23624e3ec577d9ad1b8302f1
+    Reviewed-on: https://go-review.googlesource.com/126555
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.12.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/cover/cover.go | 12 ------------
+ 1 file changed, 12 deletions(-)

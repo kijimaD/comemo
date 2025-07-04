@@ -1,20 +1,22 @@
-commit eafe48781a013554961b9bcad8a0262f9ea20acc
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Nov 11 11:32:07 2016 -0500
+commit e518962a27ce0333d42833456e09557ba37a95a0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 18:31:25 2016 -0700
 
-    runtime/pprof/internal: delete package gzip0
+    cmd/internal/obj: simplify Plists
     
-    rsc's change golang.org/cl/32455 added a mechanism
-    that allows pprof to depend on gzip without introducing
-    an import cycle. This obsoletes the need for the gzip0
-    package, which was created solely to remove the need
-    for that dependency.
+    Keep Plists in a slice instead of a linked list.
+    Eliminate unnecessary fields.
+    Also, while here remove gc's unused breakpc and continpc vars.
     
-    Change-Id: Ifa3b98faac9b251f909b84b4da54742046c4e3ad
-    Reviewed-on: https://go-review.googlesource.com/33137
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia04264036c0442843869965d247ccf68a5295115
+    Reviewed-on: https://go-review.googlesource.com/29367
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/go/build/deps_test.go                      |   1 -
- src/runtime/pprof/internal/gzip0/gzip0.go      | 156 -------------------------
- src/runtime/pprof/internal/gzip0/gzip0_test.go |  43 -------
- 3 files changed, 200 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go  |  2 --
+ src/cmd/compile/internal/gc/go.go   |  4 ----
+ src/cmd/compile/internal/gc/pgen.go |  6 +-----
+ src/cmd/internal/obj/link.go        |  3 +--
+ src/cmd/internal/obj/plist.go       | 15 +++------------
+ 5 files changed, 5 insertions(+), 25 deletions(-)

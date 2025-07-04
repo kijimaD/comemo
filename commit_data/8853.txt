@@ -1,18 +1,23 @@
-commit 9dd354c63f2a7b46c399d45b1d4c0bdbbe8d7518
+commit dfacfd6431abd43e09eb4606569fdb899f3b1609
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 27 12:03:19 2011 -0400
+Date:   Mon Jun 27 11:02:32 2011 -0400
 
-    5l, 6l, 8l: drop use of ed during build
+    syscall: regenerate zerrors for darwin/linux/freebsd
     
-    build runs with chmod 0 /bin/ed now
+    did darwin on mac with older, not broken xcode.
+    did linux arm by copying diffs from linux 386.
+    did freebsd amd64 by copying diffs from freebsd 386.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/4635071
+    https://golang.org/cl/4629067
 
- doc/install.html  |  4 ++--
- src/cmd/5l/mkenam | 30 +++++++++++++++---------------
- src/cmd/6l/mkenam | 30 +++++++++++++++---------------
- src/cmd/8l/mkenam | 30 +++++++++++++++---------------
- src/env.bash      |  1 -
- 5 files changed, 47 insertions(+), 48 deletions(-)
+ src/pkg/syscall/mkerrors.sh              |  1 +
+ src/pkg/syscall/zerrors_darwin_386.go    | 79 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go  | 79 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_freebsd_386.go   | 72 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 72 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_386.go     | 63 +++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go   | 63 +++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_arm.go     | 59 ++++++++++++++++++++++++
+ 8 files changed, 488 insertions(+)

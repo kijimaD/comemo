@@ -1,22 +1,29 @@
-commit 8fcc614360cac2c23aafeb2fdc637c72ff1d7dfd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Aug 22 14:55:12 2021 -0700
+commit dcec658f6c9798b226d2f1e72a7b22b613e95c00
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 6 12:02:22 2020 -0800
 
-    cmd/compile/internal/types2: enable TestSelection API test
+    [dev.regabi] cmd/compile: change LocalSlot.N to *ir.Name
     
-    This test was never fully ported from go/types. Implement
-    a conversion function from syntax.Pos to string index so
-    that the test can be enabled again.
+    This was already documented as always being an ONAME, so it just
+    needed a few type assertion changes.
     
-    Also renamed the local variable syntax to segment to avoid
-    confusion with the syntax package.
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: I1b34e50ec138403798efb14c828545780f565507
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344253
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Updates #42982.
+    
+    Change-Id: I61f4b6ebd57c43b41977f4b37b81fe94fb11a723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275757
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/api_test.go | 46 +++++++++++++++--------------
- 1 file changed, 24 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          | 7 +++----
+ src/cmd/compile/internal/ssa/config.go      | 2 +-
+ src/cmd/compile/internal/ssa/debug.go       | 2 +-
+ src/cmd/compile/internal/ssa/export_test.go | 2 +-
+ src/cmd/compile/internal/ssa/location.go    | 2 +-
+ src/cmd/compile/internal/ssa/sizeof_test.go | 2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go  | 2 +-
+ 7 files changed, 9 insertions(+), 10 deletions(-)

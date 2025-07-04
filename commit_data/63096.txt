@@ -1,0 +1,33 @@
+commit b7382cc1f012016c91036c49db0ea6db444b47d8
+Author: Damien Neil <dneil@google.com>
+Date:   Fri May 9 11:07:14 2025 -0700
+
+    runtime: print blocking status of bubbled goroutines in stacks
+    
+    For goroutines in a synctest bubble, include whether the goroutine
+    is "durably blocked" or not in the goroutine status.
+    
+    Synctest categorizes goroutines in certain states as "durably"
+    blocked, where the goroutine is not merely idle but can only
+    be awoken by another goroutine in its bubble. To make it easier
+    for users to understand why a bubble is or is not idle,
+    print the state of each bubbled goroutine.
+    
+    For example:
+    
+      goroutine 36 [chan receive, synctest bubble 34, not durably blocked]:
+      goroutine 37 [chan receive (synctest), synctest bubble 34, durably blocked]:
+    
+    Goroutine 36 is receiving from a channel created outside its bubble.
+    Goroutine 36 is receiving from a channel created inside its bubble.
+    
+    For #67434
+    
+    Change-Id: I006b656a9ce7eeb75b2be21e748440a5dd57ceb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670976
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/traceback.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,13 +1,16 @@
-commit b583108436b22f32d0ddb67b68ca890d306d0fb5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jul 29 15:11:48 2011 -0700
+commit 9bc58accce0ab83dab6ca08f0cc319e75f7dd889
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Fri Jul 29 17:39:02 2011 -0400
 
-    weekly.2011-07-29
+    runtime: fix scheduling race
     
-    R=rsc
+    Affects programs using cgo or runtime.LockOSThread.
+    
+    Fixes #2100.
+    
+    R=rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/4801062
+    https://golang.org/cl/4810059
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 50 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 49 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,13 +1,13 @@
-commit 20dce04742c144f25d351bd83ce952002eef5cff
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 23 15:33:51 2014 +1100
+commit de7d1c409474f0fe5cf88e5d106da683ea79f12e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 12 18:48:00 2014 +1100
 
-    runtime: remove thunk_windows.s
+    hash/crc32: fix comment that the IEEE polynomial applies to MPEG-2.
     
-    Change-Id: I171298e7942093e9cc82e3a0c4fcbb5b10298816
-    Reviewed-on: https://go-review.googlesource.com/1998
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=minux
+    R=adg, minux
+    CC=golang-codereviews
+    https://golang.org/cl/170520043
 
- src/runtime/syscall_windows.go |  8 ++++++++
- src/runtime/thunk_windows.s    | 31 -------------------------------
- 2 files changed, 8 insertions(+), 31 deletions(-)
+ src/hash/crc32/crc32.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

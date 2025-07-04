@@ -1,22 +1,27 @@
-commit a64919945bdb65202783c5f9e078c3e735efc58f
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Jan 27 22:53:25 2023 -0800
+commit 0d651041a9f48bbd1456317dfc784cdfa253e877
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Dec 1 19:48:58 2021 -0800
 
-    net/http: improve js fetch errors
+    syscall: optimize Byte{Ptr,Slice}FromString
     
-    The Error type used in failed fetch invocations contain more
-    information than we're currently extracting. Optimistically
-    look for the cause field for extra context for errors.
+    Use bytealg.IndexByteString(str, 0) instead of looping through the
+    string to check for a zero byte. A quick and dirty benchmark shows 10x
+    performance improvement (on amd64 machine, using go 1.17.3).
     
-    Change-Id: I6c8e4b230a21ec684af2107707aa605fc2148fcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463978
+    BytePtrFromString is used by many functions with string arguments.
+    This change should make many functions in os package, such as those
+    accepting a filename (os.Open, os.Stat, etc.), a tad faster.
+    
+    PS I am aware that syscall package is deprecated and frozen, but this
+    change is mainly for the os package and the likes. The alternative
+    would be for os to switch to x/sys, which is a much bigger change.
+    
+    Change-Id: I18fdd50f9fbfe0a23a4a71bc4bd0a5f5b0eaa475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368457
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Evan Phoenix <evan@phx.io>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/net/http/roundtrip_js.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/syscall/syscall.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

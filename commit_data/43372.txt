@@ -1,35 +1,29 @@
-commit 2291cae2af659876e93a3e1f95c708abb1475d02
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 3 12:25:49 2020 -0400
+commit a265c2c448497fcee1633d2e2b912da52ea22d3c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 30 00:38:09 2020 +0200
 
-    os: use keyed literals for PathError
+    cmd/cgo, misc/cgo: only cache anonymous struct typedefs with parent name
     
-    Necessary to move PathError to io/fs.
+    CL 181857 broke the translation of certain C types using cmd/cgo -godefs
+    because it stores each typedef, array and qualified type with their
+    parent type name in the translation cache.
     
-    For #41190.
+    Fix this by only considering the parent type for typedefs of anonymous
+    structs which is the only case where types might become ambiguous.
     
-    Change-Id: I05e87675f38a22f0570d4366b751b6169f7a1b13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243900
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #31891
+    Fixes #37479
+    Fixes #37621
+    
+    Change-Id: I301a749ec89585789cb0d213593bb8b7341beb88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226341
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/dir_plan9.go      |  8 ++++----
- src/os/dir_unix.go       |  2 +-
- src/os/dir_windows.go    |  4 ++--
- src/os/exec_plan9.go     |  2 +-
- src/os/exec_posix.go     |  2 +-
- src/os/file.go           | 12 ++++++------
- src/os/file_plan9.go     | 50 ++++++++++++++++++++++++------------------------
- src/os/file_posix.go     |  8 ++++----
- src/os/file_unix.go      | 10 +++++-----
- src/os/file_windows.go   | 14 +++++++-------
- src/os/path.go           |  2 +-
- src/os/removeall_at.go   | 14 +++++++-------
- src/os/removeall_noat.go |  2 +-
- src/os/stat_plan9.go     |  6 +++---
- src/os/stat_unix.go      |  6 +++---
- src/os/stat_windows.go   | 10 +++++-----
- src/os/types_windows.go  |  6 +++---
- 17 files changed, 79 insertions(+), 79 deletions(-)
+ misc/cgo/testgodefs/testdata/issue37479.go | 33 ++++++++++++++++++++++++++++++
+ misc/cgo/testgodefs/testdata/issue37621.go | 23 +++++++++++++++++++++
+ misc/cgo/testgodefs/testdata/main.go       |  8 ++++++++
+ misc/cgo/testgodefs/testgodefs_test.go     |  2 ++
+ src/cmd/cgo/gcc.go                         | 19 ++++++++++++++---
+ 5 files changed, 82 insertions(+), 3 deletions(-)

@@ -1,27 +1,15 @@
-commit 88e945fd231b40a41955f2b8505f680a83520fbf
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 31 13:52:17 2015 -0400
+commit 929c2aa2aec07ec774683da56758d885176cff81
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jun 25 18:03:50 2015 -0500
 
-    runtime: recheck GC trigger before actually starting GC
+    [dev.ssa] cmd/compile/ssa: fix unit tests
     
-    Currently allocation checks the GC trigger speculatively during
-    allocation and then triggers the GC without rechecking. As a result,
-    it's possible for G 1 and G 2 to detect the trigger simultaneously,
-    both enter startGC, G 1 actually starts GC while G 2 gets preempted
-    until after the whole GC cycle, then G 2 immediately starts another GC
-    cycle even though the heap is now well under the trigger.
+    Fix out of bounds array panic due to CL 11238.
     
-    Fix this by re-checking the GC trigger non-speculatively just before
-    actually kicking off a new GC cycle.
-    
-    This contributes to #11911 because when this happens, we definitely
-    don't finish the background sweep before starting the next GC cycle,
-    which can significantly delay the start of concurrent scan.
-    
-    Change-Id: I560ab79ba5684ba435084410a9765d28f5745976
-    Reviewed-on: https://go-review.googlesource.com/13025
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Id8a46f1ee20cb1f46775d0c04cc4944d729dfceb
+    Reviewed-on: https://go-review.googlesource.com/11540
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/ssa/check.go          |  3 +++
+ src/cmd/compile/internal/ssa/deadstore_test.go | 13 ++++++++-----
+ 2 files changed, 11 insertions(+), 5 deletions(-)

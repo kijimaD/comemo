@@ -1,19 +1,16 @@
-commit 43edf21eff83e95b32cc43453c3a8df816d85e88
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 6 15:07:46 2018 -0500
+commit 834d2244a0150d8ae29b587ed2193e81e552d601
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Jul 20 13:21:45 2018 +0700
 
-    cmd/cgo: fix typo in gccgo name mangling recipe
+    cm/go/internal/test: make vet run when using go test -c
     
-    The code to implement new-style gccgo name mangling had a recipe that
-    didn't quite match that of the compiler (incorrect handling for '.').
-    This showed up as a failure in the gotools cgo test if the directory
-    containing the test run included a "." character.
+    Fixes #26451
     
-    [This is a copy of https://golang.org/cl/147917].
-    
-    Change-Id: Ia94728ecead879c8d223eb6cee6c102a8af1c86e
-    Reviewed-on: https://go-review.googlesource.com/c/147937
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icd8d6d55dc42adb5c8953787eec7eb29ba46b2aa
+    Reviewed-on: https://go-review.googlesource.com/125215
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/out.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testsanitizers/cc_test.go                 |  5 +++--
+ src/cmd/go/internal/test/test.go                   | 17 +++++++++++------
+ src/cmd/go/testdata/script/test_compile_binary.txt |  6 ++++++
+ 3 files changed, 20 insertions(+), 8 deletions(-)

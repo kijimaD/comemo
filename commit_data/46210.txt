@@ -1,18 +1,17 @@
-commit 56c3856d529d72e280ad6b185f7927657de86c37
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 27 22:59:26 2021 -0700
+commit c3dc22598829eec39b6b55e347ad4b974af24e12
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Dec 14 17:59:36 2020 -0500
 
-    cmd/compile/internal/types: unexport Type.widthCalculated
+    [dev.fuzz] cmd/go: fix test_fuzz_mutate_crash
     
-    It's not needed outside of package types anymore.
+    Add a go.mod file, which is needed now that GO111MODULE=on by default.
     
-    Change-Id: Idadf915fc254920ca778b5f5f8de8a1300da1953
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345794
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I982f32afcf80ec190a2dd4603eb0aebc6fa22c67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278052
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/types/size.go | 6 +++++-
- src/cmd/compile/internal/types/type.go | 6 +-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

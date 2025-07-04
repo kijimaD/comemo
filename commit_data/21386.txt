@@ -1,62 +1,21 @@
-commit bd043d862962ec844994a658d8b4f8ab89b6d80e
-Author: Evan Phoenix <evan@phx.io>
-Date:   Wed Jan 28 09:16:44 2015 -0800
+commit 29b4e34cf208653db1471134a1a6489581a30ff5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Dec 29 17:35:42 2014 +0100
 
-    expvar: Use sync/atomic to manipulate Int for better perf
+    runtime: rename atoi to _atoi on Plan 9
     
-    Using a mutex to protect a single int operation is quite heavyweight.
-    Using sync/atomic provides much better performance. This change was
-    benchmarked as such:
+    Following change 2154, the goatoi function
+    was renamed atoi.
     
-    BenchmarkSync   10000000       139 ns/op
-    BenchmarkAtomic 200000000      9.90 ns/op
+    However, this definition conflicts with the
+    atoi function defined in the Plan 9 runtime,
+    which takes a []byte instead of a string.
     
-    package blah
+    This change fixes the build on Plan 9.
     
-    import (
-            "sync"
-            "sync/atomic"
-            "testing"
-    )
-    
-    type Int struct {
-            mu sync.RWMutex
-            i  int64
-    }
-    
-    func (v *Int) Add(delta int64) {
-            v.mu.Lock()
-            defer v.mu.Unlock()
-            v.i += delta
-    }
-    
-    type AtomicInt struct {
-            i int64
-    }
-    
-    func (v *AtomicInt) Add(delta int64) {
-            atomic.AddInt64(&v.i, delta)
-    }
-    
-    func BenchmarkSync(b *testing.B) {
-            s := new(Int)
-    
-            for i := 0; i < b.N; i++ {
-                    s.Add(1)
-            }
-    }
-    
-    func BenchmarkAtomic(b *testing.B) {
-            s := new(AtomicInt)
-    
-            for i := 0; i < b.N; i++ {
-                    s.Add(1)
-            }
-    }
-    
-    Change-Id: I6998239c785967647351bbfe8533c38e4894543b
-    Reviewed-on: https://go-review.googlesource.com/3430
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ia0f7ca2f965bd5e3cce3177bba9c806f64db05eb
+    Reviewed-on: https://go-review.googlesource.com/2165
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/expvar/expvar.go | 16 +++++-----------
- 1 file changed, 5 insertions(+), 11 deletions(-)
+ src/runtime/os1_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

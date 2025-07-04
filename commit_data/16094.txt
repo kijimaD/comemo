@@ -1,12 +1,14 @@
-commit 485c06622276409d278cff879a9f8b2569cfd01f
+commit 5d1c7bd1a66544376cf267706b005462b275f6a6
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 4 16:10:30 2013 +1100
+Date:   Thu Apr 4 14:21:19 2013 +1100
 
-    doc: mention availability of race detector in go1.1 doc
+    misc/dist: add -version flag to override version name
     
-    R=r
+    Also, don't build the tour when making the source distribution.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8301044
+    https://golang.org/cl/8354043
 
- doc/go1.1.html | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/dist/bindist.go | 61 ++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 35 insertions(+), 26 deletions(-)

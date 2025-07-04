@@ -1,0 +1,19 @@
+commit 834f9710c3b62279d69fc5c574207df2fa741619
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sat May 18 01:37:36 2024 +0000
+
+    cmd/internal/telemetry: fix typo in comments
+    
+    Change-Id: I5595206674170351691b1d9869356db654f20ebb
+    GitHub-Last-Rev: bc0d4d13f6ed0ff87967e89a007c6e28b3671df6
+    GitHub-Pull-Request: golang/go#67464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586159
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/telemetry/telemetry.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

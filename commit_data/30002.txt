@@ -1,26 +1,19 @@
-commit 1cbc5aa5290437e81859911cf8e022be2448cc09
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Nov 15 22:33:10 2016 -0800
+commit 692df217ca21b6df8e4dc65538fcc90733e8900e
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Oct 19 12:26:55 2016 -0700
 
-    cmd/compile: insertVarPhis micro-optimization
+    database/sql: add missing unlock when context is expired
     
-    Algorithmic improvements here are hard.
-    Lifting a lookup out of the loop helps a little, though.
+    Missing the DB mutex unlock on an early return after checking
+    if the context has expired.
     
-    To compile the code in #17926:
+    Fixes #17518
     
-    name  old s/op   new s/op   delta
-    Real   146 ± 3%   140 ± 4%  -3.87%  (p=0.002 n=10+10)
-    User   143 ± 3%   139 ± 4%  -3.08%  (p=0.005 n=10+10)
-    Sys   8.28 ±35%  8.08 ±28%    ~     (p=0.684 n=10+10)
-    
-    Updates #17926.
-    
-    Change-Id: Ic255ac8b7b409c1a53791058818b7e2cf574abe3
-    Reviewed-on: https://go-review.googlesource.com/33305
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I247cafcef62623d813f534a941f3d5a3744f0738
+    Reviewed-on: https://go-review.googlesource.com/31494
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/phi.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/database/sql/sql.go | 1 +
+ 1 file changed, 1 insertion(+)

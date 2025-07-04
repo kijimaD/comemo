@@ -1,19 +1,15 @@
-commit 426bfbe9a375aebf5df2fbc5eb340fccc0466382
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 11 09:52:11 2019 -0700
+commit 2b325f8d5240fe46de768b15cb5085eddfa2b8f6
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Sat Apr 27 04:10:01 2019 +0000
 
-    runtime: move sighandler into signal_unix.go
+    cmd/go: fix typo in "go help version" output
     
-    We couldn't do this before because sighandler was compiled for nacl.
-    
-    Updates #30439
-    
-    Change-Id: Ieec9938b6a1796c48d251cd8b1db1a42c25f3943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200739
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I38b22786aae3d7a08cf2863ef5d15e476fe30093
+    GitHub-Last-Rev: 57d07dd1c711029b965afd32e1d8a3c22560276f
+    GitHub-Pull-Request: golang/go#31711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174086
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/signal_sighandler.go | 154 ---------------------------------------
- src/runtime/signal_unix.go       | 143 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 143 insertions(+), 154 deletions(-)
+ src/cmd/go/alldocs.go                  | 2 +-
+ src/cmd/go/internal/version/version.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

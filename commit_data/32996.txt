@@ -1,23 +1,16 @@
-commit f7ad3a04f9df32bb8af83fe039a3d94779d5e058
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Oct 6 11:53:52 2017 -0400
+commit 3a5f746766efb3e89c78eabc81176960e394ec61
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 13:45:22 2017 +0900
 
-    cmd/link: move ldmacho to its own package
+    net: update documentation on methods of UnixConn
     
-    For #22095
+    This change simplifies the documentation on methods of UnixConn.
     
-    Change-Id: I660080279692b74669c45f42c28cccff71bd33b5
-    Reviewed-on: https://go-review.googlesource.com/68930
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ibd89f9172b28adfcf7fdd43b3bc196ae7f8302cf
+    Reviewed-on: https://go-review.googlesource.com/44913
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/buildtool.go                          |   1 +
- src/cmd/link/internal/ld/data.go                   |  77 -----------
- src/cmd/link/internal/ld/ldelf.go                  |  26 +---
- src/cmd/link/internal/ld/ldpe.go                   |   4 +-
- src/cmd/link/internal/ld/lib.go                    |   9 ++
- src/cmd/link/internal/{ld => loadmacho}/ldmacho.go | 147 ++++++++++-----------
- src/cmd/link/internal/sym/reloc.go                 |  19 +++
- src/cmd/link/internal/sym/symbol.go                |  74 +++++++++++
- 8 files changed, 179 insertions(+), 178 deletions(-)
+ src/net/unixsock.go | 25 +++++++------------------
+ 1 file changed, 7 insertions(+), 18 deletions(-)

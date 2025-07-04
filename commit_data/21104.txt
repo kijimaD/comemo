@@ -1,14 +1,23 @@
-commit d4e48eeca1ceffc95faee0d97f040612f9f206e9
-Author: Emil Hessman <emil@hessman.se>
-Date:   Sun Dec 28 08:21:58 2014 +0100
+commit 5b38501a4f56a4c325c3992b608fb095b3b2e1e5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 14 11:56:31 2014 -0500
 
-    encoding/gob: address go vet report
+    [dev.power64] 5g,6g,8g,9g: debug prints for regopt pass 6 and paint2
     
-    Use Fatalf for formatting directive rather than plain Fatal.
+    Theses were very helpful in understanding the regions and
+    register selection when porting regopt to 9g.  Add them to the
+    other compilers (and improve 9g's successor debug print).
     
-    Change-Id: Iebd30cd6326890e9501746113a6d97480949e3d2
-    Reviewed-on: https://go-review.googlesource.com/2161
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/174130043
 
- src/encoding/gob/encoder_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/opt.h |  2 +-
+ src/cmd/5g/reg.c | 45 +++++++++++++++++++++++++++++++--------------
+ src/cmd/6g/opt.h |  2 +-
+ src/cmd/6g/reg.c | 43 +++++++++++++++++++++++++++++--------------
+ src/cmd/8g/opt.h |  2 +-
+ src/cmd/8g/reg.c | 43 +++++++++++++++++++++++++++++--------------
+ src/cmd/9g/reg.c |  7 ++-----
+ 7 files changed, 94 insertions(+), 50 deletions(-)

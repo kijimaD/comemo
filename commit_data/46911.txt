@@ -1,16 +1,30 @@
-commit 85cbdda5a6d8525973580776c835e725452db898
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 14 15:40:44 2021 -0700
+commit f0d23c9dbb2142b975fa8fb13a57213d0c15bdd1
+Author: Wei Fu <fuweid89@gmail.com>
+Date:   Sun Jan 24 18:21:06 2021 +0800
 
-    doc/go1.18: add release notes for build and VCS info
+    internal/poll: netpollcheckerr before sendfile
     
-    Fixes #37475
-    For #39301
+    In net/http package, the ServeContent/ServeFile doesn't check the I/O
+    timeout error from chunkWriter or *net.TCPConn, which means that both
+    HTTP status and headers might be missing when WriteTimeout happens. If
+    the poll.SendFile() doesn't check the *poll.FD state before sending
+    data, the client will only receive the response body with status and
+    report "malformed http response/status code".
     
-    Change-Id: I765bc667004931ff8973b947f2e95624a4a0375d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356013
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    This patch is to enable netpollcheckerr before sendfile, which should
+    align with normal *poll.FD.Write() and Splice().
+    
+    Fixes #43822
+    
+    Change-Id: I32517e3f261bab883a58b577b813ef189214b954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285914
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ src/internal/poll/sendfile_bsd.go     |  4 +++
+ src/internal/poll/sendfile_linux.go   |  3 ++
+ src/internal/poll/sendfile_solaris.go |  3 ++
+ src/net/sendfile_test.go              | 65 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 75 insertions(+)

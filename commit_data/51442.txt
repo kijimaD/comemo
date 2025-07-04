@@ -1,38 +1,18 @@
-commit f89b39c0af0c91d564266a0f7cb7bb9e52f28038
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 13:28:51 2022 -0500
+commit a5c0b190809436fd196a348f85eca0416f4de7fe
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Tue Nov 2 20:23:34 2021 +0800
 
-    cmd/compile: reenable inlstaticinit
+    cmd/go: fix error message when missing import
     
-    This was disabled in CL 452676 out of an abundance of caution,
-    but further analysis has shown that the failures were not being
-    caused by this optimization. Instead the sequence of commits was:
+    Fixes #48907
     
-    CL 450136 cmd/compile: handle simple inlined calls in staticinit
-    ...
-    CL 449937 archive/tar, archive/zip: return ErrInsecurePath for unsafe paths
-    ...
-    CL 451555 cmd/compile: fix static init for inlined calls
-    
-    The failures in question became compile failures in the first CL
-    and started building again after the last CL.
-    But in the interim the code had been broken by the middle CL.
-    CL 451555 was just the first time that the tests could run and fail.
-    
-    For #30820.
-    
-    Change-Id: I65064032355b56fdb43d9731be2f9f32ef6ee600
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452817
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I504f846fc2ea655ba00aedb30f90847f938c347c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360615
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/base/debug.go | 2 +-
- src/cmd/compile/internal/base/flag.go  | 2 +-
- test/fixedbugs/issue56778.go           | 2 +-
- test/inline.go                         | 2 +-
- test/noinit.go                         | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/mod_go_version_missing.txt | 2 +-
+ src/go/build/build.go                                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

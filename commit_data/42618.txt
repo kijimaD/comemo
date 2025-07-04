@@ -1,23 +1,23 @@
-commit 8d4330742c1866faa8b1ef575877e5afb8a4355c
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Thu May 7 12:50:00 2020 +0000
+commit 6fbdfe48041c883a9f6d8c981a7205b7c327862a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 24 14:11:04 2020 -0500
 
-    compress/flate: fix deflate Reset consistency
+    cmd/compile: on PPC64, fold offset into some loads/stores only when offset is 4-aligned
     
-    Modify the overflow detection logic to shuffle the contents
-    of the table to a lower offset to avoid leaking the effects
-    of a previous use of compress.Writer past Reset calls.
+    On PPC64, MOVWload, MOVDload, and MOVDstore are assembled to a
+    "DS from" instruction which requiers the offset is a multiple of
+    4. Only fold offset to such instructions if it is a multiple of 4.
     
-    Fixes #34121
+    Fixes #36723.
     
-    Change-Id: I9963eadfa5482881e7b7adbad4c2cae146b669ab
-    GitHub-Last-Rev: 8b35798cdd4d5a901d6422647b12984d7e500ba3
-    GitHub-Pull-Request: golang/go#34128
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193605
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    "GOARCH=ppc64 GOOS=linux go build -gcflags=all=-d=ssa/check/on std cmd"
+    passes now.
+    
+    Change-Id: I67f2a6ac02f0d33d470f68ff54936c289a4c765b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216379
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/compress/flate/deflatefast.go | 49 ++++++++++++++++++++----------
- src/compress/flate/writer_test.go | 63 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 97 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 29 +++++++-------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 56 ++++++++++++++--------------
+ test/fixedbugs/issue36723.go                 | 26 +++++++++++++
+ 3 files changed, 70 insertions(+), 41 deletions(-)

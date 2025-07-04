@@ -1,23 +1,26 @@
-commit 926856542fd01ae2f8c05466338a139f2fdfee85
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 1 17:28:19 2021 -0700
+commit 2a8df4488ee893353b1200794bde758e9726e7c7
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 19:51:45 2021 +0100
 
-    syscall,internal/poll: copy arrays by assignment instead of looping
+    os: mark pipes returned by os.Pipe() as inheritable by default
     
-    golang.org/x/sys contains similar code and also needs updating.
+    Now that we don't automatically pass all inheritable handles to new
+    processes, we can make pipes returned by os.Pipe() inheritable, just
+    like they are on Unix. This then allows them to be passed through the
+    SysProcAttr.AdditionalInheritedHandles parameter simply.
     
-    Change-Id: Id00177397639075d4792eb253829d8042941b70c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360602
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #44011.
+    Fixes #21085.
+    
+    Change-Id: I8eae329fbc74f9dc7962136fa9aae8fb66879751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288299
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/internal/poll/fd_windows.go |  8 ++------
- src/syscall/syscall_aix.go      | 16 ++++------------
- src/syscall/syscall_bsd.go      | 24 ++++++------------------
- src/syscall/syscall_linux.go    | 24 ++++++------------------
- src/syscall/syscall_solaris.go  | 16 ++++------------
- src/syscall/syscall_windows.go  | 16 ++++------------
- 6 files changed, 26 insertions(+), 78 deletions(-)
+ src/os/exec/exec_test.go         | 10 ++++++++++
+ src/os/exec/exec_windows_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
+ src/os/file_windows.go           |  5 +++--
+ 3 files changed, 56 insertions(+), 2 deletions(-)

@@ -1,24 +1,25 @@
-commit 9b0140a6954d65e7a83a7d45a72995ca87301f69
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 1 13:12:49 2023 -0700
+commit feed072b6ed002a0085f3c6152c039b84134d38e
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Thu Sep 29 09:53:18 2022 -0500
 
-    cmd/link: type alias sym.LoaderSym and loader.Sym
+    cmd/go: update gcc version check for asan support on ppc64le
     
-    Rather than making these two different types, we can type alias them
-    together. This will ease converting cmd/internal/dwarf to use generics
-    in a subsequent CL.
+    Update the minimum version required for asan to be gcc9.
+    This will ensure that go build -asan is supported only on
+    systems with the required version of gcc. Update the asan
+    error message to include the name of the compiler (the
+    error message is updated to include the name of the compiler
+    instead of C compiler for other platforms as well).
     
-    The one unfortunate quirk is that while we'd currently like loader.Sym
-    to be the authoritative type, to break the cycle we have to instead
-    make loader.Sym an alias of sym.LoaderSym.
+    Related to CL 425355
     
-    Change-Id: I6dde0d492ca89a478c2470c426bb4eed3393d680
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525195
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib864d43b2b3028f39ffcf792890a678361f507f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436740
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/link/internal/ld/dwarf.go             | 16 +++-------------
- src/cmd/link/internal/loader/loader.go        |  2 +-
- src/cmd/link/internal/sym/compilation_unit.go |  2 +-
- 3 files changed, 5 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/work/init.go                                   | 7 +++++--
+ .../testdata/script/install_msan_and_race_and_asan_require_cgo.txt | 4 ++--
+ 2 files changed, 7 insertions(+), 4 deletions(-)

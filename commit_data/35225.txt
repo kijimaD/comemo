@@ -1,31 +1,12 @@
-commit f8ef6ed24a65ef50cb81510a5720abf406c90642
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Apr 25 08:45:52 2018 +0000
+commit 8f6e8f9efd433fc67ff1e6e1caa5bc8edcad38f6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 15 14:17:43 2018 +0100
 
-    internal/bytealg: optimize Index (substring lengths from 9 to 32) on arm64
+    doc: specify which pprof version was vendored in go1.10
     
-    The current code is not optimized for cases where the length of the
-    substring to be searched is between 9 bytes and 32 bytes. This CL
-    optimizes the situations.
-    
-    Benchmark:
-    name                             old time/op  new time/op  delta
-    pkg:strings goos:linux goarch:arm64
-    IndexHard1-8                     1.06ms ± 0%  1.06ms ± 0%   -0.44%  (p=0.000 n=7+8)
-    IndexHard2-8                     1.25ms ± 1%  1.26ms ± 2%     ~     (p=0.328 n=8+8)
-    IndexHard3-8                     2.85ms ± 1%  1.18ms ± 1%  -58.59%  (p=0.000 n=8+8)
-    IndexHard4-8                     2.90ms ± 1%  2.87ms ± 1%   -0.96%  (p=0.021 n=8+8)
-    
-    pkg:bytes goos:linux goarch:arm64
-    IndexByte/4M-8                      726124.200000ns +- 6%     560021.400000ns +-20%  -22.88%  (p=0.008 n=5+5)
-    IndexRune/4M-8                      928768.600000ns +- 0%     793144.600000ns +- 6%  -14.60%  (p=0.008 n=5+5)
-    
-    Change-Id: Ieebeb784ae69b2a0642ea96e9486a1d120923568
-    Reviewed-on: https://go-review.googlesource.com/109895
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I248cb10a2e24f089600c13e86da251970c773d95
+    Reviewed-on: https://go-review.googlesource.com/87662
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/bytealg/index_arm64.go |  4 +-
- src/internal/bytealg/index_arm64.s  | 81 +++++++++++++++++++++++++++++++++----
- 2 files changed, 75 insertions(+), 10 deletions(-)
+ doc/go1.10.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

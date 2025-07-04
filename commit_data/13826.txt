@@ -1,17 +1,15 @@
-commit ab224094d0bf035aff5e70cbd818fe29666cc0d1
+commit ca75fdf972fa3db7385241eda83691dd7ec3fc17
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 14 12:22:45 2012 -0400
+Date:   Fri Sep 14 12:06:21 2012 -0400
 
-    go/build: use custom file readers to avoid I/O
+    cmd/go: treat all commands in exp/ as tools
     
-    When reading Go files, read through import block.
-    When reading non-Go files, read only leading comments.
+    Nothing in exp should get installed directly in bin,
+    at least not by default.
     
-    R=nigeltao, adg, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6493068
+    https://golang.org/cl/6497138
 
- src/pkg/go/build/build.go     |   8 +-
- src/pkg/go/build/read.go      | 238 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/go/build/read_test.go | 226 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 471 insertions(+), 1 deletion(-)
+ src/cmd/go/pkg.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

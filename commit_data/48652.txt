@@ -1,19 +1,40 @@
-commit f8e70fc9a6d2a88d51d36208e64b12a236fce1b1
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Wed Mar 30 15:47:57 2022 +0800
+commit de614651561c6d5bfe1e68bddaf0dedab9a0ecb0
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jun 1 10:49:14 2021 -0700
 
-    strings: document the use of simple case-folding in EqualFold
+    [dev.typeparams] cmd/compile: allow inlining in instantiated functions
     
-    Fixes #52022
+    Change markType to scan generic types and methods, so that inlineable
+    functions inside generic functions/methods will be properly marked for
+    export, which means inlining inside instantiated functions will work
+    correctly.
     
-    Change-Id: I077fc062dfd02f79eb83713490efbe0bdc783d8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396616
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Also, fix handling of closures for instantiated functions. Some code
+    needs to be adjusted, since instantiated functions/methods are compiled
+    as if in the package of the source generic function/type, rather than in
+    the local package. When we create the closure struct, we want to make
+    sure that the .F field has the same package as the other fields for the
+    closure variables. Also, we need to disable a check in tcCompLit() when
+    being done for an instantiated function, since fields of the closure
+    struct will be from the source package, not the local package.
+    
+    Re-enabled part of the orderedmapsimp test that was disabled because of
+    these issues.
+    
+    Change-Id: Ic4dba8917da0a36b17c0bdb69d6d6edfdf14104a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324331
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strings/example_test.go | 7 ++++++-
- src/strings/strings.go      | 4 +++-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/export.go           | 12 ++++----
+ src/cmd/compile/internal/noder/decl.go          | 10 +++++++
+ src/cmd/compile/internal/noder/stencil.go       |  2 --
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 +--
+ src/cmd/compile/internal/typecheck/expr.go      | 15 ++++++++--
+ src/cmd/compile/internal/typecheck/func.go      | 19 ++++++++++++-
+ src/cmd/compile/internal/typecheck/iexport.go   | 21 ++------------
+ src/cmd/compile/internal/types/type.go          | 18 ++++++++++--
+ test/typeparam/orderedmapsimp.dir/a.go          | 38 ++++++++++++-------------
+ test/typeparam/orderedmapsimp.dir/main.go       | 33 ++++++++++-----------
+ 10 files changed, 103 insertions(+), 69 deletions(-)

@@ -1,17 +1,18 @@
-commit 3f7a35d91c7079269dec5cefef7599148f0279e0
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Tue Dec 13 17:57:06 2016 -0500
+commit 51c959b62cbc97a41157a5644f5e010b4e39acc8
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Oct 19 15:21:54 2016 +0200
 
-    encoding/json: add Valid for checking validity of input bytes
+    crypto/tls: expand ClientHelloInfo
     
-    Fixes #18086
+    Fixes #17430
     
-    Change-Id: Idc501dd37893e04a01c6ed9920147d24c0c1fa18
-    Reviewed-on: https://go-review.googlesource.com/34202
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia1c25363d64e3091455ce00644438715aff30a0d
+    Reviewed-on: https://go-review.googlesource.com/31391
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
 
- src/encoding/json/scanner.go      |  5 +++++
- src/encoding/json/scanner_test.go | 20 ++++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ src/crypto/tls/common.go           | 27 ++++++++++++++
+ src/crypto/tls/handshake_server.go | 72 ++++++++++++++++++++++++++------------
+ 2 files changed, 77 insertions(+), 22 deletions(-)

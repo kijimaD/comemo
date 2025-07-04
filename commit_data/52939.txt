@@ -1,17 +1,26 @@
-commit 841e99e2830bfdcfcf76accd2b02e0d5dc2ea3e1
-Author: David Chase <drchase@google.com>
-Date:   Tue May 9 15:03:48 2023 -0400
+commit 635b1244aa7671bcd665613680f527452cac7555
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 15:43:57 2022 -0400
 
-    internal/bisect: adjust stack PCs relative to Callers[2]
+    cmd/go: pass GOEXPERIMENT through to subtests
     
-    This is necessary to make hashes be consistent across runs,
-    otherwise ASLR messes up search.
+    This fixes:
     
-    Change-Id: Icf668dfe4c2008709f7767397b6700d0d5439287
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493857
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+            export GOEXPERIMENT=unified
+            go install cmd
+            go install std cmd
+            go install std cmd
+            go test -short cmd/go -run=TestScript/test_relative_import_dash_i
+    
+    That script test checks that runtime is non-stale, but whether it's stale
+    depends on the setting of GOEXPERIMENT. Stop filtering that variable out.
+    
+    Change-Id: I71bdbca495c16981cdcddf4ab4d87a38ca72a389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412874
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/internal/bisect/bisect.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/go/script_test.go | 1 +
+ 1 file changed, 1 insertion(+)

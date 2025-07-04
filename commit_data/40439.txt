@@ -1,23 +1,24 @@
-commit 42aab4b0af5e50071fa8901a038bdc6f1f42b2ed
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 14 15:49:27 2019 -0400
+commit 5d983303540c0ba12a323c89d05581c76baa2206
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 13 12:29:58 2019 -0700
 
-    runtime: M-targeted signals for libc-based OSes
+    cmd/compile: mark a few more tests as parallel
     
-    For #10958, #24543.
+    Reduces the time on my machine for
     
-    Change-Id: I82bee63b49e15bd5a53228eb85179814c80437ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201403
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    go clean -cache; go test -short -count=1 cmd/compile/internal/gc
+    
+    from 4.7s to 3.7s.
+    
+    Updates #26473
+    
+    Change-Id: I9f9573675ffd6519da63961f48f61260ae4717fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os2_aix.go         | 19 ++++++++++++++++++-
- src/runtime/os3_solaris.go     | 16 ++++++++++++++++
- src/runtime/os_aix.go          |  1 +
- src/runtime/os_darwin.go       |  5 +++++
- src/runtime/sys_darwin.go      | 10 ++++++++++
- src/runtime/sys_darwin_386.s   | 25 +++++++++++++++++++++++++
- src/runtime/sys_darwin_amd64.s | 18 ++++++++++++++++++
- src/runtime/sys_darwin_arm.s   | 12 ++++++++++++
- src/runtime/sys_darwin_arm64.s | 12 ++++++++++++
- 9 files changed, 117 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin_test.go | 1 +
+ src/cmd/compile/internal/gc/global_test.go  | 2 ++
+ src/cmd/compile/internal/gc/scope_test.go   | 2 ++
+ 3 files changed, 5 insertions(+)

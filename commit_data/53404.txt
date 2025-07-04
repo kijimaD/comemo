@@ -1,21 +1,25 @@
-commit 7ecd2212e102c7f92a4a6f8da6f0b9595f888f3f
-Author: David Chase <drchase@google.com>
-Date:   Wed May 31 15:33:58 2023 -0400
+commit 8adc63b3eb21e8bbacd13335bcf8d6b3a9a507c4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 13 04:13:56 2022 +0000
 
-    runtime: preserve R29 in the write barrier flush path on ppc64
+    Revert "runtime/trace: add missing events for the locked g in extra M."
     
-    Surprisingly, it usually survived the call to flush a write
-    barrier.  Usually.
+    This reverts commit ea9c3fd42d94182ce6f87104b68a51ea92f1a571.
     
-    Fixes #60368
+    Reason for revert: break linux/ricsv64, openbsd/arm, illumos/amd64 builders
     
-    Change-Id: I4792a57738e5829c79baebae4d13b62abe9526b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499679
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I98479a8f63e76eed89a0e8846acf2c73e8441377
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423437
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/asm_ppc64x.s | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/internal/trace/goroutines.go               |  5 +--
+ src/runtime/crash_cgo_test.go                  | 13 ------
+ src/runtime/proc.go                            |  9 ----
+ src/runtime/runtime2.go                        |  1 -
+ src/runtime/testdata/testprogcgo/issue29707.go | 58 --------------------------
+ src/runtime/trace.go                           | 13 +-----
+ 6 files changed, 3 insertions(+), 96 deletions(-)

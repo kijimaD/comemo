@@ -1,19 +1,22 @@
-commit 14e446d909784fba7b349b76ec0a234c2a86a491
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Wed Jul 20 00:58:55 2016 +0200
+commit b623b71509b2d24df915d5bc68602e1c6edf38ca
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 12 11:14:25 2016 -0700
 
-    bytes: add examples
+    crypto/x509: don't add an AuthorityKeyId to self-signed certificates.
     
-    `bytes` and `strings` are pretty similar to each other, this commit
-    brings `strings` examples to its counter-part.
+    The AuthorityKeyId is optional for self-signed certificates, generally
+    useless, and takes up space. This change causes an AuthorityKeyId not to
+    be added to self-signed certificates, although it can still be set in
+    the template if the caller really wants to include it.
     
-    Partially addresses #16360
+    Fixes #15194.
     
-    Change-Id: I551320eaa78be9df69012035f1c3333f500e04c9
-    Reviewed-on: https://go-review.googlesource.com/25062
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If5d3c3d9ca9ae5fe67458291510ec7140829756e
+    Reviewed-on: https://go-review.googlesource.com/21895
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/example_test.go | 203 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 203 insertions(+)
+ src/crypto/x509/x509.go      |  14 +++---
+ src/crypto/x509/x509_test.go | 105 ++++++++++++++++++++++++-------------------
+ 2 files changed, 66 insertions(+), 53 deletions(-)

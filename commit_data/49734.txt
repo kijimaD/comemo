@@ -1,36 +1,33 @@
-commit d75e186e2c013d04548940eae913824bae9d7c48
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 19 14:06:41 2022 +1000
+commit d419f9c6124557e0bf08e00d7848e3e518ac4cbd
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 11:57:04 2021 -0400
 
-    fmt: add a function to recover the original format string given a State
+    go/types: spell out 'Type' in type parameter APIs
     
-    Sometimes when implementing a Formatter it's helpful to use the fmt
-    package without invoking the formatter. This new function, FormatString,
-    makes that easier in some cases by recreating the original formatting
-    directive (such as "%3.2f") that caused Formatter.Format to be
-    called.
+    As discussed on the go/types proposal (#47916), we should spell out the
+    word 'Type', rather than using 'T'.
     
-    The original Formatter interface is probably not what we would
-    design today, but we're stuck with it. FormatString, although it
-    takes a State as an argument, compensates by making Formatter a
-    little more flexible.
-    
-    The State does not include the verb so (unlike in the issue), we
-    must provide it explicitly in the call to FormatString. Doing it there
-    minimizes allocations by returning the complete format string.
-    
-    Fixes #51668
-    Updates #51195
-    
-    Change-Id: Ie31c8256515864b2f460df45fbd231286b8b7a28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400875
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I5f51255eedc07fea61f909b7ecb3093a7fab765e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348376
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- api/next/51668.txt    |  1 +
- src/fmt/print.go      | 26 +++++++++++++++++
- src/fmt/state_test.go | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 107 insertions(+)
+ src/go/internal/gcimporter/iimport.go |  6 ++---
+ src/go/types/api_test.go              |  2 +-
+ src/go/types/assignments.go           |  2 +-
+ src/go/types/call.go                  | 18 +++++++--------
+ src/go/types/decl.go                  |  4 ++--
+ src/go/types/index.go                 |  2 +-
+ src/go/types/instantiate.go           | 10 ++++-----
+ src/go/types/lookup.go                | 12 +++++-----
+ src/go/types/named.go                 | 42 +++++++++++++++++------------------
+ src/go/types/object.go                |  4 ++--
+ src/go/types/predicates.go            |  8 +++----
+ src/go/types/signature.go             | 28 +++++++++++------------
+ src/go/types/subst.go                 |  6 ++---
+ src/go/types/typelists.go             | 16 ++++++-------
+ src/go/types/typeparam.go             |  2 +-
+ src/go/types/typestring.go            |  8 +++----
+ 16 files changed, 85 insertions(+), 85 deletions(-)

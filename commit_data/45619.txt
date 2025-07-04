@@ -1,19 +1,27 @@
-commit af0f8c149e8a4b237910fc7b41739bedc546473c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 11 22:40:02 2021 -0400
+commit 48be3ed1394d85af5a7e1a6313fa9cab4d1b7cf9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 15 11:50:31 2020 -0400
 
-    cmd/link: don't cast end address to int32
+    cmd/go: support cgo files in overlays
     
-    When linking a very large binary, the section address may not fit
-    in int32. Don't truncate it.
+    This requires rewriting the paths of the files passed to the cgo tool
+    toolchain to use the overlaid paths instead of the disk paths of
+    files. Because the directories of the overlaid paths don't exist in
+    general, the cgo tool have been updated to run in base.Cwd instead of
+    the package directory.
     
-    Change-Id: Ibcc8d74bf5662611949e547ce44ca8b973de383f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319289
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #39958
+    
+    Change-Id: I8986de889f56ecc2e64fa69f5f6f29fa907408f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262618
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/elf.go   | 2 +-
- src/cmd/link/internal/ld/macho.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go                  | 48 +++++++++++--
+ src/cmd/go/internal/work/gc.go                    |  9 ++-
+ src/cmd/go/testdata/script/build_overlay.txt      | 83 ++++++++++++++++++++++-
+ src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 ++++++++
+ 4 files changed, 156 insertions(+), 12 deletions(-)

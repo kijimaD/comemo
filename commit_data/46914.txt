@@ -1,19 +1,18 @@
-commit ed1c8db308029bd82e6de4d547196f7f841236bb
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Oct 15 12:31:39 2021 -0700
+commit 6530f2617f3100d8f1036afc5cb9b30b36628aaa
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Feb 13 02:44:11 2021 +0000
 
-    cmd/compile: cleanup code in getInstInfo to use switch statement
+    doc/go1.16: remove draft notice
     
-    Simple cleanup: convert a bunch of if's to a switch statement in
-    getInstInfo. Also, use a few extra variables to avoid repeated node
-    conversions (such as n.(*ir.CallExpr))
+    Fixes #40700.
     
-    Change-Id: I7a2a4efb569415256a8bc9350fb100bd2d8cfb39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356311
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I99ed479d1bb3cdf469c0209720c728276182a7a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291809
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 115 ++++++++++++++++--------------
- 1 file changed, 62 insertions(+), 53 deletions(-)
+ doc/go1.16.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

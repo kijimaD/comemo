@@ -1,13 +1,19 @@
-commit e2b4f1fea5b0367fd6d687f677f9a8cb9dc252ea
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 21 14:24:14 2021 -0500
+commit 0f92cd75cf1edf712ab94f5cd7fb6e8267a0d53d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 18 18:27:10 2020 -0400
 
-    doc/go1.16: minor formatting fix
+    [dev.link] cmd/asm: expand package path if known
     
-    Change-Id: Ie924a15da0d9a35089d1d4b3d6c4a07b93bdf270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285393
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    If the package path is known, pass it to the object file writer
+    so the symbol names are pre-expanded. (We already expand the
+    package path in debug info.)
+    
+    Change-Id: I2b2b71edbb98924cbf3c4f9142b7e109e5b7501a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234491
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

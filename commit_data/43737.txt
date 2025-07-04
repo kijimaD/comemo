@@ -1,25 +1,22 @@
-commit bb9a96d03a35ab56f3e1a3e6a6c835f7f2120d54
-Author: Joshua M. Clulow <josh@sysmgr.org>
-Date:   Fri Nov 6 13:11:58 2020 -0800
+commit 00723603eb1e183e010371fc5aa76a3d8efda8d1
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 22 13:40:22 2020 -0400
 
-    os/exec: use "pfiles" for fd debugging on illumos
+    [dev.link] cmd/link/internal/loader: fix AttrSubSymbol
     
-    On illumos (and Solaris) systems, the native "pfiles" tool provides the
-    best information about open file descriptors for a process:
+    The code that runs as a part of loadlibfull converts the linker's
+    outer/sub state and sets the sym.Symbol AttrSubSymbol if a symbol has
+    both A) an outer sym, and B) is listed as a sub-symbol by some other
+    symbol.
     
-        https://illumos.org/man/1/pfiles
+    Make sure that we have the same logic in the original loader method,
+    since we need to use it as part of dodata() prior to loadlibfull.
     
-    Use that instead of "lsof" when debugging file descriptor leaks.
-    
-    Updates #42431.
-    
-    Change-Id: If1250c4e6c9e8adbd076495a09fb1ce63abcc68b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268019
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I200adab741d778a6ba821419e8ea131ad19375bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229440
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/exec/read3.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 36 ++++++++++++++++++++++------------
+ 1 file changed, 23 insertions(+), 13 deletions(-)

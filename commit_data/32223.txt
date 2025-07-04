@@ -1,18 +1,17 @@
-commit 629b5e7561ab10cb11b47e3818dd861f8a030a26
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Mar 10 20:55:51 2017 +0100
+commit 7fa3b79ce52a93d21beb7df0eb7b92148a9b79e5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 06:08:20 2017 -0700
 
-    fmt: add ascii fast path for decoding verbs
+    cmd/vet/all: print all unparseable lines
     
-    name                    old time/op  new time/op  delta
-    SprintfSlowParsingPath   108ns ± 4%   103ns ± 4%  -4.53%  (p=0.000 n=18+18)
+    In my experience, this usually happens when vet panics.
+    Dumping all unparseable lines should help diagnosis.
     
-    Change-Id: I174463f303d1857e8d5b8a6283c025b3546e7b39
-    Reviewed-on: https://go-review.googlesource.com/44450
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Inspired by the trybot failures in CL 40511.
+    
+    Change-Id: Ib73e8c8b2942832589c3cc5d33ef35fdafe9965a
+    Reviewed-on: https://go-review.googlesource.com/40508
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/fmt_test.go | 8 ++++++++
- src/fmt/print.go    | 7 +++++--
- 2 files changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/vet/all/main.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

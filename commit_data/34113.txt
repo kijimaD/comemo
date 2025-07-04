@@ -1,17 +1,18 @@
-commit c10e61424f9c17c2972a438287ff9ac90d6b55a4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 7 04:28:49 2018 +0000
+commit d9e64910affe9298c1d5b60d7085a82dcf1c8454
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 4 12:28:20 2017 -0400
 
-    strconv: detect invalid UTF-8 in the Unquote fast path
+    [release-branch.go1.9] runtime: deflake TestPeriodicGC
     
-    Fixes #23685
+    It was only waiting 0.1 seconds for the two GCs it wanted.
+    Let it wait 1 second.
     
-    Change-Id: I3625bd01f860077ee0976df9e3dfb66754804bcd
-    Reviewed-on: https://go-review.googlesource.com/92535
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib3cdc8127cbf95694a9f173643c02529a85063af
+    Reviewed-on: https://go-review.googlesource.com/68118
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/quote.go      |  4 +++-
- src/strconv/quote_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ src/runtime/gc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

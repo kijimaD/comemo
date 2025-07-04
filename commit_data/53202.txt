@@ -1,22 +1,24 @@
-commit ef67022471bb26973168827ebf41e09f839fa0a7
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 12 08:20:08 2023 -0400
+commit 7e952962dff6aafb9ed888a86a7208f01fbe9508
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:09:14 2022 -0400
 
-    runtime/coverage: add coverage snapshot helper routine
+    runtime: clean up canpanic
     
-    Add a new function runtime/coverage.snapshot(), which samples the
-    current values of coverage counters in a running "go test -cover"
-    binary and returns percentage of statements executed so far. This
-    function is intended to be used by the function testing.Coverage().
+    * The gp argument to canpanic is always equivalent to getg(), so no need
+    to pass it at all.
+    * gp must not be nil or _g_.m would have crashed, so no need to check
+    for nil.
+    * Use acquirem to better reason about preemption.
     
-    Updates #59590.
-    
-    Change-Id: I861393701c0cef47b4980aec14331168a9e64e8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495449
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ic7dc8dc1e56ab4c1644965f6aeba16807cdb2df4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418575
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/runtime/coverage/testsupport.go | 47 +++++++++++++++++++++++++++++++++++++
- src/runtime/coverage/ts_test.go     | 40 +++++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+)
+ src/runtime/os_js.go          |  2 +-
+ src/runtime/os_plan9.go       |  2 +-
+ src/runtime/panic.go          | 19 +++++++++++--------
+ src/runtime/signal_unix.go    |  2 +-
+ src/runtime/signal_windows.go |  2 +-
+ 5 files changed, 15 insertions(+), 12 deletions(-)

@@ -1,14 +1,25 @@
-commit 4e9c86ab8e9faf6da9864db6ad81d396f3f55379
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 28 10:15:24 2017 -0700
+commit e00e57d67cea33d4faef8506ced6f3c2416cfd15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 10:36:13 2017 -0700
 
-    spec: minor grammar fix
+    cmd/compile: ignore all unreachable values during simple phi insertion
     
-    Fixes #20830.
+    Simple phi insertion already had a heuristic to check
+    for dead blocks, namely having no predecessors.
+    When we stopped generating code for dead blocks,
+    we eliminated some values contained in more subtle
+    dead blocks, which confused phi insertion.
+    Compensate by beefing up the reachability check.
     
-    Change-Id: I18178064c955ad8d259df05ee954075ae42909b0
-    Reviewed-on: https://go-review.googlesource.com/47030
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19678
+    
+    Change-Id: I0081e4a46f7ce2f69b131a34a0553874a0cb373e
+    Reviewed-on: https://go-review.googlesource.com/38602
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/phi.go       | 14 ++++++++------
+ src/cmd/compile/internal/ssa/deadcode.go |  8 ++++----
+ test/fixedbugs/issue19678.go             | 21 +++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 10 deletions(-)

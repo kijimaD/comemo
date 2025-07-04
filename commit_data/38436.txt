@@ -1,26 +1,30 @@
-commit 156c830bea6795d57ef9eb9bfe66197413c00fce
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 15 08:49:38 2019 +0100
+commit 8fc99d20f3377c7c5c1dba51b1be865ff61483b0
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Oct 26 18:09:42 2018 +0200
 
-    cmd/compile: eliminate unnecessary type conversions in TrailingZeros(16|8) for arm
+    internal/cpu: remove unused and not required ppc64(le) feature detection
     
-    This follows CL 156999 which did the same for arm64.
+    Minimum Go requirement for ppc64(le) architecture support is POWER8.
+    https://github.com/golang/go/wiki/MinimumRequirements#ppc64-big-endian
     
-    name               old time/op  new time/op  delta
-    TrailingZeros-4    7.30ns ± 1%  7.30ns ± 0%     ~     (p=0.413 n=9+9)
-    TrailingZeros8-4   8.32ns ± 0%  7.17ns ± 0%  -13.77%  (p=0.000 n=10+9)
-    TrailingZeros16-4  8.30ns ± 0%  7.18ns ± 0%  -13.50%  (p=0.000 n=9+10)
-    TrailingZeros32-4  6.46ns ± 1%  6.47ns ± 1%     ~     (p=0.325 n=10+10)
-    TrailingZeros64-4  16.3ns ± 0%  16.2ns ± 0%   -0.61%  (p=0.000 n=7+10)
+    Reduce CPU features supported in internal/cpu to those needed to
+    test minimum requirements and cpu feature kernel support for ppc64(le).
+    Currently no internal/cpu feature variables are used to guard code
+    from using unsupported instructions. The IsPower9 feature variable
+    and detection is kept as it will soon be used to guard code execution.
     
-    Change-Id: I7e9e1abf7e30d811aa474d272b2824ec7cbbaa98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167797
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reducing the set of detected CPU features for ppc64(le) makes
+    implementing Go support for new operating systems easier as
+    CPU feature detection for ppc64(le) needs operating system support
+    (e.g. hwcap on Linux and getsystemcfg syscall on AIX).
+    
+    Change-Id: Ic4c17b31610970e481cd139c657da46507391d1d
+    Reviewed-on: https://go-review.googlesource.com/c/145117
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go         |   8 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules |  11 ++-
- src/cmd/compile/internal/ssa/rewriteARM.go | 140 +++++++++++++++++++++++++++++
- test/codegen/mathbits.go                   |   4 +
- 4 files changed, 158 insertions(+), 5 deletions(-)
+ src/internal/cpu/cpu.go        | 25 ++++++++-----------------
+ src/internal/cpu/cpu_ppc64x.go | 28 +++-------------------------
+ 2 files changed, 11 insertions(+), 42 deletions(-)

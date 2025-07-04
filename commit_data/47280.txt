@@ -1,20 +1,27 @@
-commit 3796df1b13c6be62ca28244dcd6121544770e371
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 4 21:35:55 2021 -0700
+commit d4825819fe58e8531c7fcdf4ce27cec63824db25
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Feb 26 12:57:44 2021 -0500
 
-    net/netip: don't accept ParseAddr with leading zeros
+    [dev.fuzz] internal/fuzz: fix two bugs affecting windows
     
-    Fixes #49365
-    Updates #30999
+    * Appending to the worker environment slice should reallocate it. On
+      Windows, we pass handles through the environment, and concurrent
+      workers were writing to the same memory, resulting in
+      "The handle is invalid" errors.
+    * Instead of passing a handle to the temporary file, we pass its path
+      to each worker instead. The worker is responsible for opening and
+      closing the handle. Previously, all inheritable handles were
+      inherited by all workers, even though only one was used. This
+      prevented temporary files from being deleted after a worker stopped,
+      because other workers would still have open handles to it.
     
-    Change-Id: Ic92bce01b435baf70574c65524bde82f9cee3d8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361534
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If8b8bcfa5b03fbcadd10ef923b036bb0ee5dc3f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297034
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/netip/netip.go      |  6 ++++++
- src/net/netip/netip_test.go | 32 +++++++++++++++++++++-----------
- 2 files changed, 27 insertions(+), 11 deletions(-)
+ src/internal/fuzz/fuzz.go        |  2 +-
+ src/internal/fuzz/sys_windows.go | 43 +++++++++++++++++++---------------------
+ src/internal/fuzz/worker.go      |  2 +-
+ 3 files changed, 22 insertions(+), 25 deletions(-)

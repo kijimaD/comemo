@@ -1,19 +1,29 @@
-commit 26a852112d1c0505846fa3efbc1060a4dbdd7ae5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 18 14:53:12 2017 -0700
+commit f1ba75f8c577e1471f646ef3715fc2f41dd423ef
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 31 11:46:36 2017 -0500
 
-    test: gofmt chan/*.go
+    runtime: don't rescan finalizers queue during mark termination
     
-    These are functional tests, so it is safe to gofmt them.
+    Currently we scan the finalizers queue both during concurrent mark and
+    during mark termination. This costs roughly 20ns per queued finalizer
+    and about 1ns per unused finalizer queue slot (allocated queue length
+    never decreases), which can drive up STW time if there are many
+    finalizers.
     
-    Change-Id: I3067279c1d49809ac6a62054448ab8a6c3de9bda
-    Reviewed-on: https://go-review.googlesource.com/43623
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    However, we only add finalizers to this queue during sweeping, which
+    means that the second scan will never find anything new. Hence, we can
+    fix this by simply not scanning the finalizers queue during mark
+    termination. This brings the STW time under the 100µs goal even with
+    1,000,000 queued finalizers.
+    
+    Fixes #18869.
+    
+    Change-Id: I4ce5620c66fb7f13ebeb39ca313ce57047d1d0fb
+    Reviewed-on: https://go-review.googlesource.com/36013
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- test/chan/fifo.go     |   1 -
- test/chan/perm.go     |  26 ++--
- test/chan/powser1.go  | 322 +++++++++++++++++++++------------------
- test/chan/powser2.go  | 408 +++++++++++++++++++++++++++-----------------------
- test/chan/select3.go  |   7 +-
- test/chan/sendstmt.go |   2 +-
- 6 files changed, 410 insertions(+), 356 deletions(-)
+ src/runtime/mfinal.go  | 16 +++++++++++++++-
+ src/runtime/mgcmark.go |  5 +++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

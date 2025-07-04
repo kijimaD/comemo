@@ -1,20 +1,12 @@
-commit 9d12307a122d263e78108173348d723bd7134479
+commit ec3fe2a5b6aed7fc875cb34825f464c48803965c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 27 15:47:04 2011 -0700
+Date:   Wed Apr 27 15:36:39 2011 -0700
 
-    ioutil: add Discard, update tree.
+    http: put a limit on POST size
     
-    This also removes an unnecessary allocation in
-    http/transfer.go
-    
-    R=r, rsc1, r2, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4426066
+    https://golang.org/cl/4432076
 
- src/pkg/compress/lzw/reader_test.go |  8 +-------
- src/pkg/compress/lzw/writer_test.go |  2 +-
- src/pkg/html/parse_test.go          |  8 +-------
- src/pkg/http/transfer.go            | 12 +++---------
- src/pkg/io/ioutil/ioutil.go         | 10 ++++++++++
- src/pkg/mime/multipart/multipart.go | 11 ++---------
- 6 files changed, 18 insertions(+), 33 deletions(-)
+ src/pkg/http/request.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

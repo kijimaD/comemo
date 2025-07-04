@@ -1,24 +1,28 @@
-commit 5fd6bb4c14b395bc413f281987225b57ae5fe67c
-Author: Larz Conwell <larzconwell@gmail.com>
-Date:   Sat Mar 12 02:57:24 2016 -0500
+commit 03d152f36fd3b64e0c0c86e93c50f5bafeb8e9b3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Jun 24 14:37:17 2016 -0500
 
-    go/doc: hide methods on locally-declared predeclared types
+    [dev.ssa] cmd/compile: Add initial SSA configuration for PPC64
     
-    Currently if you declare a type overwriting a predeclared type
-    and export methods on it they will be exposed in godoc, even
-    though the type itself is not exported. This corrects that
-    by making all methods on these types hidden, since that's
-    the expected output.
+    This adds the initial SSA implementation for PPC64.
+    Builds golang and all.bash runs correctly.  Simple hello.go
+    builds but does not run.
     
-    Fixes #9860
-    
-    Change-Id: I14037bdcef1b4bbefcf299a143bac8bf363718e0
-    Reviewed-on: https://go-review.googlesource.com/20610
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7cec211b934cd7a2dd75a6cdfaf9f71867063466
+    Reviewed-on: https://go-review.googlesource.com/24453
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/doc/reader.go                     | 14 +++++++++-----
- src/go/doc/testdata/predeclared.0.golden |  8 ++++++++
- src/go/doc/testdata/predeclared.1.golden | 22 ++++++++++++++++++++++
- src/go/doc/testdata/predeclared.2.golden |  8 ++++++++
- src/go/doc/testdata/predeclared.go       | 22 ++++++++++++++++++++++
- 5 files changed, 69 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |   13 +
+ src/cmd/compile/internal/ppc64/galign.go     |    5 +
+ src/cmd/compile/internal/ppc64/prog.go       |    2 +
+ src/cmd/compile/internal/ppc64/ssa.go        |  288 +++
+ src/cmd/compile/internal/ssa/config.go       |    9 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  218 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  218 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 1159 ++++++++++-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 2845 ++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go          |    9 +
+ 10 files changed, 4682 insertions(+), 84 deletions(-)

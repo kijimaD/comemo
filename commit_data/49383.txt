@@ -1,20 +1,23 @@
-commit 2730c6af9fb8a7dea9bf610699be0d543aed4da1
-Author: Ikko Ashimine <eltociear@gmail.com>
-Date:   Sat Jun 4 03:41:06 2022 +0000
+commit 9ff61acbd76733ec065cb1185608aa5564f2685a
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 09:36:49 2021 -0400
 
-    runtime: fix typo in libfuzzer_arm64.s
+    go/types,types2: superficial changes to align types and types2
     
-    statment -> statement
+    This CL contains an assortment of superficial fixes noticed while
+    self-reviewing the most recent stack of ports. It also makes a couple
+    adjustments to termlist_test.go, in both go/types and
+    cmd/compile/internal/types2.
     
-    Change-Id: Ia93a466fdc20157a7d6048903e359fe8717ecb8f
-    GitHub-Last-Rev: 0a9bc5cab0ec2ac8d76ede3722c8813372ac771e
-    GitHub-Pull-Request: golang/go#53231
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410374
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I64c8cda5e1704e86ac11c6ffc86d55248f44ef79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342490
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/libfuzzer_arm64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/termlist_test.go | 4 ++--
+ src/go/types/builtins.go                         | 1 -
+ src/go/types/termlist_test.go                    | 6 +++---
+ src/go/types/typestring.go                       | 2 +-
+ 4 files changed, 6 insertions(+), 7 deletions(-)

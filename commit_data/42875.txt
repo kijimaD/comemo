@@ -1,19 +1,25 @@
-commit 4fc3896e7933e31822caa50e024d4e139befc75f
-Author: Shinnosuke Sawada <6warashi9@gmail.com>
-Date:   Mon Aug 17 20:37:51 2020 +0900
+commit d243408ae5ec14131dfd83923d2c140325158c0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 23 13:36:46 2020 -0800
 
-    database/sql: shortestIdleTimeLocked correct min comparison
+    go/types: report correct argument types for make() built-in calls
     
-    When zero or less, maxIdleTime and maxLifetime means unlimited.
-    Helper function shortestIdleTimeLocked must not return the
-    minimum of the two until both are verified to be greater
-    then zero.
+    Change Checker.index to return the type and constant index value
+    rather than just a boolean valid flag and the constant value.
+    While at it, rename some variables and simplify the control flow.
     
-    Fixes #40841
+    Adjust all uses of Checker.index to new signature. In code for
+    make() built-in, collect type information for signature reporting.
     
-    Change-Id: I1130332baf4ad259cd90c10f4221f5def8510655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248817
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Fixes #37393.
+    
+    Change-Id: Id70196faa9539ed5a0d6b59e0f3ea05e05f2f6a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220585
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/go/types/builtins.go      | 10 ++++++----
+ src/go/types/builtins_test.go | 13 ++++++-------
+ src/go/types/expr.go          | 42 ++++++++++++++++++++++++------------------
+ 3 files changed, 36 insertions(+), 29 deletions(-)

@@ -1,13 +1,13 @@
-commit b2bf14acd9058155b983b6ee3ebbebbb98b3550d
-Author: Peter Mundy <go.peter.90@gmail.com>
-Date:   Tue Apr 5 11:49:44 2011 -0700
+commit e6b1d424c48423a1599631a218a2d7427fb70f25
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 11:01:25 2011 -0700
 
-    gotest: fixes for [^.]_test file pattern
+    spec: add parens missing from "protect" example.
+    Fixes #1665.
     
-    R=rsc, r
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4339054
+    https://golang.org/cl/4351051
 
- src/cmd/gotest/doc.go    | 16 +++++++++-------
- src/cmd/gotest/gotest.go |  4 ++--
- 2 files changed, 11 insertions(+), 9 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

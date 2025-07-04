@@ -1,28 +1,16 @@
-commit 4a842f25590fca15a8c564ec6a8edfd9f71bc446
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu May 31 13:06:27 2018 +0100
+commit 74f9432beadb7179169e08b6c910dd533c62b7c8
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Apr 24 15:23:41 2018 +0200
 
-    crypto/{aes,cipher,rand}: use binary.{Big,Little}Endian methods
+    internal/cpu: remove redundant build tag
     
-    Use the binary.{Big,Little}Endian integer encoding methods rather
-    than unsafe or local implementations. These methods are tested to
-    ensure they inline correctly and don't add unnecessary bounds checks,
-    so it seems better to use them wherever possible.
+    The file name suffix arm64 already limits the file to be build only on arm64.
     
-    This introduces a dependency on encoding/binary to crypto/cipher. I
-    think this is OK because other "L3" packages already import
-    encoding/binary.
-    
-    Change-Id: I5cf01800d08554ca364e46cfc1d9445cf3c711a0
-    Reviewed-on: https://go-review.googlesource.com/115555
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I33db713041b6dec9eb00889bac3b54c727e90743
+    Reviewed-on: https://go-review.googlesource.com/108986
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/aes/block.go      | 48 ++++++++++++++++++++++-----------------
- src/crypto/aes/ctr_s390x.go  | 14 ++++++------
- src/crypto/aes/gcm_s390x.go  | 31 +++++--------------------
- src/crypto/cipher/gcm.go     | 54 +++++++++++---------------------------------
- src/crypto/rand/rand_unix.go | 10 ++------
- src/go/build/deps_test.go    |  2 +-
- 6 files changed, 56 insertions(+), 103 deletions(-)
+ src/internal/cpu/cpu_arm64.go | 2 --
+ 1 file changed, 2 deletions(-)

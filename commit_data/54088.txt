@@ -1,34 +1,22 @@
-commit 795e779610cd1ef8ad4c137c067a23ace1190115
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Wed Aug 16 11:14:53 2023 +1000
+commit 2551324cd01b295915c10c6d3d06625676401610
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 22 16:54:19 2022 -0700
 
-    runtime/internal/wasitest: skip racy TCP echo test
+    path/filepath: optimize isReservedName
     
-    The wasip1 TCP echo test introduced in CL 493358 has a race
-    condition with port selection. The test runner probes for a free
-    port and then asks the WASM runtime to listen on the port, which
-    may be taken by another process in the interim.
+    A linear search through a list of 22 strings takes ~80ns.
+    A quick check for 3-4 byte strings reduces this check to 2ns
+    for a vast majority of inputs.
+    In the event of a name match, the new logic is either just
+    as fast (for "CON") or 10x faster (for "LPT9").
     
-    Due to limitations with WASI preview 1, the guest is unable to
-    query the port it's listening on. The test cannot ask the WASM
-    runtime to listen on port 0 (choose a free port) since there's
-    currently no way for the test to query the selected port and
-    connect to it.
-    
-    Given the race condition is unavoidable, this test is now disabled
-    by default and requires opt-in via an environment variable.
-    
-    This commit also eliminates the hard-coded connection timeout.
-    
-    Fixes #61820.
-    
-    Change-Id: I375145c1a1d03ad45c44f528da3347397e6dcb01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519895
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I412fa73beebd7c81dc95f9ed12c35ca1d5d6baf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/internal/wasitest/tcpecho_test.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/path/filepath/path_windows.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

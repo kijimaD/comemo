@@ -1,22 +1,14 @@
-commit 33266df861b6d231ed48b34ebb088cab92454de9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 21 21:51:10 2017 -0700
+commit 6270c5ac28e89322268acd92c14a7a490a53e3a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 09:15:39 2016 -0800
 
-    cmd/internal/obj: clean up checkaddr
+    test: add test case for which gccgo generated incorrect GC info
     
-    Coalesce identical cases.
-    Give it a proper doc comment.
-    Fix comment locations.
-    Update/delete old comments.
-    
-    Passes toolstash-check -all.
-    
-    Change-Id: I88d9cf20e6e04b0c1c6583e92cd96335831f183f
-    Reviewed-on: https://go-review.googlesource.com/38442
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5e33db9e63f70706882b85ab124a48509797b05a
+    Reviewed-on: https://go-review.googlesource.com/33790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/pass.go | 38 +++++++++-----------------------------
- 1 file changed, 9 insertions(+), 29 deletions(-)
+ test/fixedbugs/bug500.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

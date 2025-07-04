@@ -1,31 +1,20 @@
-commit 29ea82d072731aedb2c117bef3aecdb6d035a8d0
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Oct 20 17:04:17 2017 -0700
+commit 2d57d94ac314fd32529b1b2a92a086cb2dce0057
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Jul 21 18:28:06 2017 -0400
 
-    encoding/csv: add ParseError.RecordLine
+    [dev.debug] cmd/compile: track variable decomposition in LocalSlot
     
-    CL 72150 fixes #22352 by reverting the problematic parts of that CL
-    where the line number and column number were inconsistent with each other.
-    This CL adds back functionality to address the issue that CL 72150
-    was trying to solve in the first place. That is, it reports the starting
-    line of the record, so that users have a frame of reference to start with
-    when debugging what went wrong.
+    When the compiler decomposes a user variable, track its origin so that
+    it can be recomposed during DWARF generation.
     
-    In the event of gnarly CSV files with multiline quoted strings, a parse
-    failure likely occurs somewhere between the start of the record and
-    the point where the parser finally detected an error.
-    Since ParserError.{Line,Column} reports where the *error* occurs, we
-    add a RecordLine field to report where the record starts.
-    
-    Also take this time to cleanup and modernize TestRead.
-    
-    Fixes #19019
-    Fixes #22352
-    
-    Change-Id: I16cebf0b81922c35f75804c7073e9cddbfd11a04
-    Reviewed-on: https://go-review.googlesource.com/72310
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia71c7f8e7f4d65f0652f1c97b0dda5d9cad41936
+    Reviewed-on: https://go-review.googlesource.com/50878
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/encoding/csv/reader.go      |  43 +++--
- src/encoding/csv/reader_test.go | 343 +++++++++++++++++-----------------------
- 2 files changed, 168 insertions(+), 218 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          | 55 +++++++++++++++--------------
+ src/cmd/compile/internal/ssa/export_test.go | 22 ++++++------
+ src/cmd/compile/internal/ssa/location.go    | 26 ++++++++++++--
+ src/cmd/compile/internal/ssa/regalloc.go    |  4 +--
+ src/cmd/compile/internal/ssa/sizeof_test.go |  1 +
+ src/cmd/compile/internal/ssa/stackalloc.go  |  2 +-
+ 6 files changed, 66 insertions(+), 44 deletions(-)

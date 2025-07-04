@@ -1,18 +1,16 @@
-commit 7903e3600c988f9d5950355a7f611dcdba004f5e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 4 08:13:39 2013 -0800
+commit cea46387b9c042ea19d0b30c7accf0f9a45d8e11
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Mar 4 16:54:37 2013 +0100
 
-    net/http/cgi: maybe improve darwin test reliability
+    runtime: add garbage collector statistics
     
-    Use a 17 MB payload instead of a 1 MB payload, since
-    OS X can apparently buffer up to 16 MB in its pipes.
+    If the constant CollectStats is non-zero and GOGCTRACE=1
+    the garbage collector will print basic statistics about executed
+    GC instructions.
     
-    Fixes #4958 maybe
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/7453049
+    R=golang-dev, dvyukov
+    CC=golang-dev, rsc
+    https://golang.org/cl/7413049
 
- src/pkg/net/http/cgi/host_test.go      | 3 ---
- src/pkg/net/http/cgi/testdata/test.cgi | 3 ++-
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mgc0.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 77 insertions(+), 1 deletion(-)

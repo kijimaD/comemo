@@ -1,19 +1,17 @@
-commit e11fd00629e8ef664b07cdb93f5f21b8e7a61179
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Jul 27 12:51:17 2017 -0700
+commit e2560ace3cbd3b6816d414bd6011c8111ca5aa1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:55:12 2017 -0700
 
-    path/filepath: add example for Ext
+    cmd/compile: move Node.Initorder to flags
     
-    Make it dead simple to see visually what the function outputs in
-    various scenarios.
+    Grand savings: 6 bits.
     
-    Change-Id: I8f6fcd72fa1515361481f0510412cde221e1d4e3
-    Reviewed-on: https://go-review.googlesource.com/51630
-    Run-TryBot: Kevin Burke <kev@inburke.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I364be54cc41534689e01672ed0fe2c10a560d3d4
+    Reviewed-on: https://go-review.googlesource.com/41794
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/example_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go  | 18 +++++++++---------
+ src/cmd/compile/internal/gc/syntax.go | 13 ++++++++-----
+ 2 files changed, 17 insertions(+), 14 deletions(-)

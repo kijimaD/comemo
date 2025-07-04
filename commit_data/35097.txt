@@ -1,14 +1,19 @@
-commit a3c75d9b313cc9f06969125ff28501c081dac3b8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 12 10:57:23 2018 -0700
+commit 0f3ab149ec41cd35a9f61f49ce17bbc5af02537e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 13 06:32:06 2017 -0800
 
-    cmd/compile: enable indexed export format by default
+    net, os: don't wait for Close in blocking mode
     
-    Change-Id: Id018eeb79afbe2c695a583b3845cfbc1aab08388
-    Reviewed-on: https://go-review.googlesource.com/106797
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #7970
+    Updates #21856
+    Updates #23111
+    
+    Change-Id: I0cd0151fcca740c40c3c976f941b04e98e67b0bf
+    Reviewed-on: https://go-review.googlesource.com/83715
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/poll/fd_unix.go | 25 ++++++++++++++--
+ src/net/fd_unix.go           |  2 +-
+ src/os/file_unix.go          |  2 +-
+ src/os/pipe_test.go          | 68 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 93 insertions(+), 4 deletions(-)

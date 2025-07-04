@@ -1,0 +1,23 @@
+commit 5c2b5e02c422ab3936645e2faa4489bf32fa8a57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Dec 22 20:20:17 2024 -0800
+
+    os: separate Process.handle into a separate memory allocation
+    
+    This is a step toward using AddCleanup rather than SetFinalizer
+    to close process handles.
+    
+    For #70907
+    
+    Change-Id: I7fb37461dd67b27135eab46fbdae94f0058ace85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638575
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/os/exec.go          | 94 +++++++++++++++++++++++++++++++++++++++----------
+ src/os/exec_linux.go    |  4 +--
+ src/os/exec_nohandle.go |  4 ++-
+ src/os/exec_windows.go  |  4 +--
+ 4 files changed, 82 insertions(+), 24 deletions(-)

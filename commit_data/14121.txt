@@ -1,13 +1,12 @@
-commit a3d116cf78cc349fd4e0dd51c8cca64c27b2f4eb
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 11 11:20:01 2012 +1100
+commit 6572c7ee93a3e070699806c5fc3b852aba58f529
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 11 09:24:15 2012 +1100
 
-    A+C: add Jimmy Zelinskie (Individual CLA)
+    doc/godoc.js: assign tmp. id to nodes without id in generateTOC()
     
-    R=golang-dev, iant
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/6642068
+    https://golang.org/cl/6604062
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/godocs.js | 2 ++
+ 1 file changed, 2 insertions(+)

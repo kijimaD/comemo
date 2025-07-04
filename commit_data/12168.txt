@@ -1,15 +1,18 @@
-commit 28e0e1886393cac863074631cc336de6b73a45bb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 10:17:24 2012 -0800
+commit 36d370700957f4ec8db2d36288eb30d2552d8181
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 23 10:51:04 2012 -0500
 
-    math: slightly more readable comments
+    6a/6l: add IMUL3Q and SHLDL
     
-    Replaced /*-style comments with line comments;
-    there are two many *'s already in those lines.
+    Although Intel considers the three-argument form of IMUL to be a
+    variant of IMUL, I couldn't make 6l able to differentiate it without
+    huge changes, so I called it IMUL3.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5699051
+    https://golang.org/cl/5686055
 
- src/pkg/math/const.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/6a/lex.c   | 1 +
+ src/cmd/6l/6.out.h | 1 +
+ src/cmd/6l/optab.c | 6 ++++++
+ 3 files changed, 8 insertions(+)

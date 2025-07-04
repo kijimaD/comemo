@@ -1,18 +1,18 @@
-commit 1922cef5d7d4400725d06303268659cc9ebc86ef
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Fri Feb 23 02:44:04 2024 +0000
+commit 729c05d06524eabcf0b4ed097f94d70aba48de8a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 17 12:42:02 2023 -0400
 
-    internal/fuzz: remove useless code
+    net/http: eliminate more arbitrary timeouts in tests
     
-    Change-Id: I4534a116ef421379b2356bbe80760adae8cdd95f
-    GitHub-Last-Rev: a3fab3f1fa84111f3f3af7cf9f98e964f2423c73
-    GitHub-Pull-Request: golang/go#65892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566315
-    Run-TryBot: Tim King <taking@google.com>
+    Change-Id: I5b3158ecd0eb20dc433a53a2b03eb4551cbb3f7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477196
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/internal/fuzz/encoding_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/net/http/clientserver_test.go |  22 +-
+ src/net/http/main_test.go         |  34 +-
+ src/net/http/serve_test.go        |  26 +-
+ src/net/http/transport_test.go    | 820 +++++++++++++++++++-------------------
+ 4 files changed, 449 insertions(+), 453 deletions(-)

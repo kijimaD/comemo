@@ -1,0 +1,19 @@
+commit 187fd2698d2f9fc2fc52aa7d4c0922552f848e98
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 23 17:35:02 2024 -0800
+
+    cmd/compile: make write barrier code amenable to paired loads/stores
+    
+    It currently isn't because it does load/store/load/store/...
+    Rework to do overwrite processing in pairs so it is instead
+    load/load/store/store/...
+    
+    Change-Id: If7be629bc4048da5f2386dafb8f05759b79e9e2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631495
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 49 +++++++++++++++++++---------
+ test/codegen/writebarrier.go                 | 13 ++++++++
+ 2 files changed, 47 insertions(+), 15 deletions(-)

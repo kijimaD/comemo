@@ -1,16 +1,13 @@
-commit 9144d8752a4a1cdee1a9c7ebd2c5ae2739293509
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 25 09:46:07 2014 -0600
+commit f40e574d85cd9bc492f62e7cbee8924a8a5e584e
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Apr 24 12:24:22 2014 -0700
 
-    bufio: make all read functions UnreadByte-friendly
+    net: fix confusing typo in comment
     
-    Fixes #7844.
-    
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/90620045
+    https://golang.org/cl/93750043
 
- src/pkg/bufio/bufio.go      | 23 +++++++++++++++----
- src/pkg/bufio/bufio_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 5 deletions(-)
+ src/pkg/net/port_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

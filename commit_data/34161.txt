@@ -1,12 +1,39 @@
-commit d009679d42c3a77fffabde7684e2c1b9c0befe94
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Feb 14 00:27:10 2018 -0500
+commit 2e8545531e759a47bbb2c1f9fefa54bafbcf02e5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Oct 5 10:20:17 2017 -0400
 
-    github: add a Pull Request template
+    cmd/link: move build/link mode globals into ctxt
     
-    Change-Id: I02938b2435e3a98efea7ee5545a6f8f5f6f794b4
-    Reviewed-on: https://go-review.googlesource.com/93915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Replace Buildmode with BuildMode and Linkmode with LinkMode.
+    
+    For #22095
+    
+    Change-Id: I51a6f5719d107727bca29ec8e68e3e9d87e31e33
+    Reviewed-on: https://go-review.googlesource.com/68334
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .github/PULL_REQUEST_TEMPLATE.md | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/link/internal/amd64/asm.go              |  10 +-
+ src/cmd/link/internal/arm/asm.go                |  18 ++--
+ src/cmd/link/internal/arm64/asm.go              |   6 +-
+ src/cmd/link/internal/ld/config.go              |  77 +++++++--------
+ src/cmd/link/internal/ld/data.go                |  50 +++++-----
+ src/cmd/link/internal/ld/deadcode.go            |  12 +--
+ src/cmd/link/internal/ld/dwarf.go               |  14 +--
+ src/cmd/link/internal/ld/elf.go                 |  48 ++++-----
+ src/cmd/link/internal/ld/go.go                  |  10 +-
+ src/cmd/link/internal/ld/lib.go                 | 123 ++++++++++++------------
+ src/cmd/link/internal/ld/link.go                |   3 +
+ src/cmd/link/internal/ld/macho.go               |  40 ++++----
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |   8 +-
+ src/cmd/link/internal/ld/main.go                |  16 +--
+ src/cmd/link/internal/ld/pcln.go                |  12 +--
+ src/cmd/link/internal/ld/pe.go                  |  52 +++++-----
+ src/cmd/link/internal/ld/symtab.go              |  24 ++---
+ src/cmd/link/internal/mips/asm.go               |   4 +-
+ src/cmd/link/internal/mips64/asm.go             |   4 +-
+ src/cmd/link/internal/ppc64/asm.go              |  24 ++---
+ src/cmd/link/internal/s390x/asm.go              |   8 +-
+ src/cmd/link/internal/x86/asm.go                |  16 +--
+ 22 files changed, 287 insertions(+), 292 deletions(-)

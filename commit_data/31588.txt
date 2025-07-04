@@ -1,23 +1,20 @@
-commit c20e54533ea49ca68640d9a59c9ed935b27da8e5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 16 18:02:56 2017 -0700
+commit 4de2efe927e3c71798dc55f7b029a8476b756a45
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 22 17:58:31 2017 -0500
 
-    cmd/go: don't fail on missing runtime/internal/sys/zversion.go
+    cmd/trace: traces may end with pending mark assists
     
-    The generated file runtime/internal/sys/zversion.go is deleted by
-    `go tool cmd dist clean` as part of running clean.bash. Don't treat
-    a missing file as a reason to stop running the go tool; just treat
-    is as meaning that runtime/internal/sys is stale.
+    There's no guarantee that all in-progress mark assists will finish
+    before the trace does. Don't crash if that happens.
     
-    No test because I don't particularly want to clobber $GOROOT.
+    I haven't added a test because there's quite a bit of ceremony involved
+    and the bug is fairly straightforward.
     
-    Fixes #20385.
-    
-    Change-Id: I5251a99542cc93c33f627f133d7118df56e18af1
-    Reviewed-on: https://go-review.googlesource.com/43559
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia1369a8e2260fc6a328ad204a1eab1063d2e2c90
+    Reviewed-on: https://go-review.googlesource.com/37540
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/trace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

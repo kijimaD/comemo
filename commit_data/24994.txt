@@ -1,23 +1,26 @@
-commit 35a5bd64315a989a19f49568beddf39ae69ee420
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Nov 20 00:23:52 2015 -0500
+commit dbfd9085d61b4469ab8a4aba8e71e5905d45f495
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 14 11:27:20 2015 -0700
 
-    runtime: make it possible to call syscall on solaris without g
+    text/template: verify that names in FuncMap are valid identifiers
     
-    The nosplit stack is now much bigger, so we can afford to allocate
-    libcall on stack.
+    There was no verification in Funcs that the map had valid names,
+    which meant that the error could only be caught when parsing
+    the template that tried to use them. Fix this by validating the names
+    in Funcs and panicking before parsing if there is a bad name.
     
-    Fix asmsysvicall6 to not update errno if g == nil.
+    This is arguably an API change, since it didn't trigger a panic
+    before, but Funcs did already panic if the function itself was no
+    good, so I argue it's an acceptable change to add more sanity
+    checks.
     
-    These two fixes TestCgoCallbackGC on solaris, which used to stuck
-    in a loop.
+    Fixes #9685.
     
-    Change-Id: Id1b13be992dae9f059aa3d47ffffd37785300933
-    Reviewed-on: https://go-review.googlesource.com/17076
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iabf1d0602c49d830f3ed71ca1ccc7eb9a5521ff5
+    Reviewed-on: https://go-review.googlesource.com/14562
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/os_solaris.go       | 28 ++++++++++++++--------------
- src/runtime/sys_solaris_amd64.s |  4 ++++
- 2 files changed, 18 insertions(+), 14 deletions(-)
+ src/text/template/exec_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ src/text/template/funcs.go     | 22 ++++++++++++++++++-
+ src/text/template/template.go  |  5 +++--
+ 3 files changed, 73 insertions(+), 3 deletions(-)

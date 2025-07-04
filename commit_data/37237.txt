@@ -1,21 +1,16 @@
-commit 84d6a7abe8430233a0f89ba8fb44f9f174e4c544
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Oct 28 11:04:24 2018 -0400
+commit 964c15f36006e6f13695afd4e25e38a18d5c4c2b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 11 17:33:01 2018 -0700
 
-    crypto/tls: implement TLS 1.3 cryptographic computations
+    test: add test of valid code that gccgo failed to compile
     
-    Vendors golang.org/x/crypto/hkdf at e84da0312774c21d64ee2317962ef669b27ffb41
+    Updates #26340
     
-    Updates #9671
-    
-    Change-Id: I2610c4a66756e2a6f21f9823dcbe39edd9c9ea21
-    Reviewed-on: https://go-review.googlesource.com/c/145298
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I3bc7cd544ea77df660bbda7de99a009b63d5be1b
+    Reviewed-on: https://go-review.googlesource.com/123477
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/key_schedule.go                     |  85 ++++
- src/crypto/tls/key_schedule_test.go                | 175 ++++++++
- src/go/build/deps_test.go                          |   2 +-
- .../golang_org/x/crypto/hkdf/example_test.go       |  56 +++
- src/vendor/golang_org/x/crypto/hkdf/hkdf.go        |  93 +++++
- src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go   | 449 +++++++++++++++++++++
- 6 files changed, 859 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue26340.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

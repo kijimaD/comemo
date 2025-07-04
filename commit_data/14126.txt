@@ -1,18 +1,12 @@
-commit 6720997f9e2a4371a5f2fc79b356e1610160139d
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Oct 11 15:28:02 2012 -0400
+commit b13c7eec64eab277e5816c4591c1aaa9c0fc8f28
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 17:02:36 2012 +1100
 
-    crypto/hmac: add Equal function.
+    godoc: update favicon
     
-    It was suggested that it's too easy to use crypto/hmac insecurely and
-    I think that has some merit. This change adds a Equal function to
-    make it obvious that MAC values should be compared in constant time.
-    
-    R=rsc, max
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6632044
+    https://golang.org/cl/6641058
 
- src/pkg/crypto/hmac/hmac.go      | 32 +++++++++++++++++++++++++++-----
- src/pkg/crypto/hmac/hmac_test.go | 19 +++++++++++++++++++
- src/pkg/go/build/deps_test.go    | 10 +++++++---
- 3 files changed, 53 insertions(+), 8 deletions(-)
+ favicon.ico | Bin 785 -> 1150 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,27 +1,16 @@
-commit 98938189a16a764007bce7fcd4bfeb2386043208
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 27 14:39:27 2016 -0700
+commit c3bd93aa264383c0c7928516ca102a225c83ea23
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jun 3 18:06:54 2016 +0900
 
-    cmd/compile: remove duplicate nilchecks
+    net: don't leak test helper goroutine in TestAcceptTimeout
     
-    Mark nil check operations as faulting if their arg is zero.
-    This lets the late nilcheck pass remove duplicates.
+    Fixes #15109.
     
-    Fixes #17242.
-    
-    Change-Id: I4c9938d8a5a1e43edd85b4a66f0b34004860bcd9
-    Reviewed-on: https://go-review.googlesource.com/29952
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ibfdedd6807322ebec84bacfeb492fb53fe066960
+    Reviewed-on: https://go-review.googlesource.com/23742
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go    |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go  |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go  |  2 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go    |  2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go  |  2 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go  |  2 +-
- src/cmd/compile/internal/ssa/opGen.go         | 57 +++++++++++++++------------
- test/nilptr3.go                               | 14 +++++++
- 9 files changed, 53 insertions(+), 32 deletions(-)
+ src/net/timeout_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

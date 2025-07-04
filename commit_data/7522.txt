@@ -1,12 +1,15 @@
-commit 1e73fed888e313284fda240aa9b977dbe10aac5a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 22 11:16:25 2011 +1100
+commit 1f39ed8a2debe6620d345f0a138af23c4e5c5a47
+Author: Padraig Kitterick <padraigkitterick@gmail.com>
+Date:   Tue Feb 22 10:40:37 2011 +1100
 
-    http: add pointer from Handle[Func] to ServeMux docs
+    http: cleaned up HEAD request method.
     
-    R=r
+    Removed a redefinition of the request URL which is never used and
+    redundant checking of the return value from send().
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4169065
+    https://golang.org/cl/4184061
 
- src/pkg/http/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/http/client.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

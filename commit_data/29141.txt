@@ -1,39 +1,24 @@
-commit 07e72666ec6da774860c6f796c3adbdc57c92480
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 27 00:29:43 2016 +0000
+commit 84aac622a40d4707513b02cf056977d852b38e18
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 25 16:02:57 2016 -0700
 
-    net/http: update bundled http2
+    cmd/compile: intrinsify the rest of runtime/internal/atomic for amd64
     
-    Updates http2 to x/net git rev b626cca for:
+    Atomic swap, add/and/or, compare and swap.
     
-        http2: implement support for server push
-        https://golang.org/cl/29439
+    Also works on amd64p32.
     
-        http2: reject stream self-dependencies
-        https://golang.org/cl/31858
-    
-        http2: optimize server frame writes
-        https://golang.org/cl/31495
-    
-        http2: interface to support pluggable schedulers
-        https://golang.org/cl/25366
-        (no user-visible behavior change or API surface)
-    
-        http2: add Server.IdleTimeout
-        https://golang.org/cl/31727
-    
-        http2: make Server return conn protocol errors on bad idle stream frames
-        https://golang.org/cl/31736
-    
-        http2: fix optimized write scheduling
-        https://golang.org/cl/32217 (fix for CL 31495 above)
-    
-    Change-Id: Ie894c72943d355115c8391573bf6b96dc1bd5894
-    Reviewed-on: https://go-review.googlesource.com/32215
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idf2d8f3e1255f71deba759e6e75e293afe4ab2ba
+    Reviewed-on: https://go-review.googlesource.com/27813
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/h2_bundle.go | 1737 +++++++++++++++++++++++++++++++++------------
- 1 file changed, 1284 insertions(+), 453 deletions(-)
+ src/cmd/compile/internal/amd64/prog.go         |   5 +
+ src/cmd/compile/internal/amd64/ssa.go          |  45 +++-
+ src/cmd/compile/internal/gc/ssa.go             |  43 +++
+ src/cmd/compile/internal/ssa/func.go           |  12 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  32 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  41 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  20 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 146 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 348 +++++++++++++++++++++++++
+ 9 files changed, 681 insertions(+), 11 deletions(-)

@@ -1,18 +1,14 @@
-commit 3590d9ce695baa7535537e3d1404de52bf94fae5
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 24 14:37:34 2014 -0700
+commit c4807f6a845898deebda5db04a4c08ce8d772cc3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 23 18:38:13 2014 -0700
 
-    runtime: set sweepgen atomically before updating span state
+    net/http: don't ignore errors in Request.Write
     
-    Sweepone may be running while a new span is allocating.  It
-    must not see the state updated while the sweepgen is unset.
-    
-    Fixes #8399
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    LGTM=josharian, adg
+    R=golang-codereviews, josharian, adg
     CC=golang-codereviews
-    https://golang.org/cl/118050043
+    https://golang.org/cl/119110043
 
- src/pkg/runtime/mheap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/request.go           | 20 +++++++++---
+ src/pkg/net/http/requestwrite_test.go | 58 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 4 deletions(-)

@@ -1,14 +1,12 @@
-commit 43ad726f3466440239954c3afab7a2cfeb6e97b1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 23 11:31:29 2012 -0700
+commit 54a2e63a60d1a0119390081e7f64f3b919f1bd20
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 23 23:21:52 2012 +0800
 
-    text/template: fix typo in package comment
+    doc/reference-cmd: doc/fmt can be invoked by cmd/go but also available as independent command
     
-    Fixes #3383.
-    
-    R=iant, bradfitz
+    R=golang-dev, iant, r
     CC=golang-dev
-    https://golang.org/cl/5891045
+    https://golang.org/cl/5877050
 
- src/pkg/text/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/reference-cmd.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

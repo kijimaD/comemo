@@ -1,29 +1,23 @@
-commit 7994da4cc143fa16803bf80188b849457b7d55c3
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Apr 26 09:26:52 2024 -0500
+commit c63066123bb5c2ef7a6d26d1a6e3e5f1012a1e23
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Fri Apr 28 07:14:08 2023 -0600
 
-    cmd/compile/internal/ssa: on PPC64, try combining CLRLSLDI and SRDconst into RLWINM
+    net/http: avoid leaking the writing goroutine
     
-    This provides a small performance bump to crc64 as measured on ppc64le/power10:
+    The test will wait for all goroutines.
+    A race can occur if the writing goroutine uses the Log after the test exits.
     
-    name              old time/op    new time/op    delta
-    Crc64/ISO64KB       49.6µs ± 0%    46.6µs ± 0%  -6.18%
-    Crc64/ISO4KB        3.16µs ± 0%    2.97µs ± 0%  -5.83%
-    Crc64/ISO1KB         840ns ± 0%     794ns ± 0%  -5.46%
-    Crc64/ECMA64KB      49.6µs ± 0%    46.5µs ± 0%  -6.20%
-    Crc64/Random64KB    53.1µs ± 0%    49.9µs ± 0%  -6.04%
-    Crc64/Random16KB    15.9µs ± 1%    15.0µs ± 0%  -5.73%
+    For #58264
+    For #59883
+    For #59884
     
-    Change-Id: I302b5431c7dc46dfd2d211545c483bdcdfe011f1
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581937
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I9b8ec7c9d024ff74b922b69efa438be5a4fa3483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490255
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/rewrite.go       | 27 ++++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 18 ++++++++++++++++++
- test/codegen/shift.go                         | 21 +++++++++++++++++++++
- 4 files changed, 66 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,18 +1,17 @@
-commit a7f7a9cca749a676cee73f28e48c6f7bffa64807
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Mar 24 19:35:10 2016 -0400
+commit 1c6a35b4fe894ab0dc229be35d8a5fb0080a31d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 2 10:15:34 2016 -0500
 
-    runtime, runtime/cgo: save callee-saved FP registers on arm64
+    runtime: deflake TestGoroutineProfileTrivial
     
-    For #14876.
+    Failed at https://storage.googleapis.com/go-build-log/9875de36/nacl-amd64p32_931ba6cf.log
     
-    Change-Id: I0992859264cbaf9c9b691fad53345bbb01b4cf3b
-    Reviewed-on: https://go-review.googlesource.com/21085
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2bc204ed58da543ee2534b69c29c8e8485d54683
+    Reviewed-on: https://go-review.googlesource.com/19155
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgo/asm_arm64.s    | 20 ++++++++++++++++++--
- src/runtime/rt0_darwin_arm64.s | 18 +++++++++++++++++-
- src/runtime/rt0_linux_arm64.s  | 18 +++++++++++++++++-
- 3 files changed, 52 insertions(+), 4 deletions(-)
+ src/runtime/runtime_test.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

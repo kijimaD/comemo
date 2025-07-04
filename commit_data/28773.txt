@@ -1,20 +1,22 @@
-commit 1a3b739b26e2742fd2febc7c0f87aa8115f390ab
-Author: Joshua Boelter <joshua.boelter@intel.com>
-Date:   Tue Aug 9 22:37:26 2016 -0700
+commit cf92e3845f2a7355d8270d419b7bcab4daf220fc
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 18 10:18:12 2016 -0700
 
-    runtime: check for errors returned by windows sema calls
+    [dev.ssa] cmd/compile: use 2-result divide op
     
-    Add checks for failure of CreateEvent, SetEvent or
-    WaitForSingleObject. Any failures are considered fatal and
-    will throw() after printing an informative message.
+    We now allow Values to have 2 outputs.  Use that ability for amd64.
+    This allows x,y := a/b,a%b to use just a single divide instruction.
     
-    Updates #16646
+    Update #6815
     
-    Change-Id: I3bacf9001d2abfa8667cc3aff163ff2de1c99915
-    Reviewed-on: https://go-review.googlesource.com/26655
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id70bcd20188a2dd8445e631a11d11f60991921e4
+    Reviewed-on: https://go-review.googlesource.com/25004
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/os_windows.go | 51 +++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 47 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        | 140 ++++++++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  32 ++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  25 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 122 +++---------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 184 ++++++++++++++++-----------
+ 5 files changed, 218 insertions(+), 285 deletions(-)

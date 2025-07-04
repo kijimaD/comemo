@@ -1,14 +1,13 @@
-commit 0a55958b52098c4de8fd99caae21e072cf5977e9
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Jan 26 15:10:24 2012 +0100
+commit fa32b1641312f46b57ed8dbfdc83e0f726334a6a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 26 11:37:07 2012 +0400
 
-    cmd/gc: forgotten recursion on ninit itself in order.c
+    net/rpc: fix race in TestClientWriteError test
+    Fixes #2752.
     
-    Fixes test/reorder2.go for all cases tripped up with -lll in 5555072
-    
-    R=rsc
+    R=golang-dev, mpimenov, r
     CC=golang-dev
-    https://golang.org/cl/5569069
+    https://golang.org/cl/5571062
 
- src/cmd/gc/order.c | 24 ++++++------------------
- 1 file changed, 6 insertions(+), 18 deletions(-)
+ src/pkg/net/rpc/server_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

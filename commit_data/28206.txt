@@ -1,20 +1,15 @@
-commit 5514332ed9e770bfb37011f6500a27be53f905c4
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Sep 5 05:19:30 2016 -0400
+commit 6ccab441de1063a16b263107426fe62d2cefa990
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 4 23:47:37 2016 -0700
 
-    os: deduplicate File definition
+    cmd/compile/internal/gc: skip TestFP on mips64x
     
-    Fixes #16993.
+    The legacy mips64 backend doesn't handle large uint->float conversion
+    correctly. See #15552.
     
-    Change-Id: Ibe406f97d2a49acae94531d969c56dbac8ce53b2
-    Reviewed-on: https://go-review.googlesource.com/28511
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I84ceeaa95cc4e85f09cc46dfb30ab5d151f6b205
+    Reviewed-on: https://go-review.googlesource.com/22800
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/os/file_plan9.go   | 5 -----
- src/os/file_unix.go    | 5 -----
- src/os/file_windows.go | 5 -----
- src/os/types.go        | 5 +++++
- 4 files changed, 5 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

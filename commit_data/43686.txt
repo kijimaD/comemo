@@ -1,17 +1,20 @@
-commit ebc1b8ef2854e7006349275bc3b2306022200bbc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 22 21:52:50 2020 +0700
+commit f38fad4aaad7a8de7d466ab89c9c9b115d4c46c7
+Author: David Carter <fresco.raja@gmail.com>
+Date:   Mon Apr 20 22:17:17 2020 +0000
 
-    reflect: update NumMethod doc for interface type
+    cmd/cover: add <title> tag to <head> for coverage report HTML template
     
-    Updates #42123
+    Adds a missing <title> tag to the HTML template to make it
+    more compliant as <title> tags are generally required for valid
+    HTML documents.
     
-    Change-Id: Ieb43b65c88d15b2475b6f3dd9672c44e7831cc34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264357
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1ab2a6ee221c8a79d3cc13d9ac6110f6f4963914
+    GitHub-Last-Rev: 6d519dc9dda01d142e7f367e43e13c37896cc0cf
+    GitHub-Pull-Request: golang/go#38313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227547
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/type.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/cover/html.go | 1 +
+ 1 file changed, 1 insertion(+)

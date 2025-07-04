@@ -1,12 +1,17 @@
-commit 972f364550cd4f180ae5d0af727b36c5d579d239
-Author: Lloyd Dewolf <foolswisdom@gmail.com>
-Date:   Wed Feb 25 10:57:45 2015 -0800
+commit dc51ed218070fcd074e67404e5a658b1c400e777
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 31 14:48:14 2015 +1100
 
-    doc/install-source.html: fix cd command, already in go dir.
+    os: don't silently skip test
     
-    Change-Id: I42929abe5cefd84a1daf4f36ee1806c490ce16ec
-    Reviewed-on: https://go-review.googlesource.com/5960
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This is a followup to CL 3676.
+    
+    Rather than silently returning from the test, a pass,
+    use the Skip facility to mark the test as skipped.
+    
+    Change-Id: I90d237e770150bf8d69f14fb09874e70894a7f86
+    Reviewed-on: https://go-review.googlesource.com/3682
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install-source.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/path_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

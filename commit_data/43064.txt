@@ -1,48 +1,33 @@
-commit fd75989f46c80d2446dd9dcefaffbebdb7f7ea87
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 17 16:24:29 2020 -0400
+commit 19ed0d993cf7b0df804c4c2e96dc674da4059e03
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Mar 3 21:03:40 2020 +0000
 
-    cmd/go/internal/modget: consolidate Load entrypoints
+    cmd/compile: use staticuint64s instead of staticbytes
     
-    This change replaces ImportPaths, ImportPathsQuiet, LoadALL, and
-    LoadVendor with a single LoadPackages function, with a LoadOpts struct
-    that more clearly documents the variations in behavior.
+    There are still two places in src/runtime/string.go that use
+    staticbytes, so we cannot delete it just yet.
     
-    It also eliminates the cmd/go/internal/load.ImportPaths function,
-    which was undocumented and had only one call site (within its own
-    package).
+    There is a new codegen test to verify that the index calculation
+    is constant-folded, at least on amd64. ppc64, mips[64] and s390x
+    cannot currently do that.
     
-    The modload.LoadTests global variable is subsumed by a field in the
-    new LoadOpts struct, and is no longer needed for callers that invoke
-    LoadPackages directly. It has been (temporarily) replaced with a
-    similar global variable, load.ModResolveTests, which can itself be
-    converted to an explicit, local argument.
+    There is also a new runtime benchmark to ensure that this does not
+    slow down performance (tested against parent commit):
     
-    For #37438
-    For #36460
-    Updates #40775
-    Fixes #26977
+    name                      old time/op  new time/op  delta
+    ConvT2EByteSized/bool-4   1.07ns ± 1%  1.07ns ± 1%   ~     (p=0.060 n=14+15)
+    ConvT2EByteSized/uint8-4  1.06ns ± 1%  1.07ns ± 1%   ~     (p=0.095 n=14+15)
     
-    Change-Id: I4fb6086c01b04de829d98875db19cf0118d40f8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255938
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #37612
+    
+    Change-Id: I5ec30738edaa48cda78dfab4a78e24a32fa7fd6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/internal/list/list.go         |   2 +-
- src/cmd/go/internal/load/pkg.go          |  36 ++++--
- src/cmd/go/internal/modcmd/tidy.go       |   9 +-
- src/cmd/go/internal/modcmd/vendor.go     |   8 +-
- src/cmd/go/internal/modcmd/why.go        |  23 ++--
- src/cmd/go/internal/modget/get.go        |  15 ++-
- src/cmd/go/internal/modload/build.go     |  10 +-
- src/cmd/go/internal/modload/buildlist.go |  14 +--
- src/cmd/go/internal/modload/init.go      |  13 +--
- src/cmd/go/internal/modload/load.go      | 191 ++++++++++++++++---------------
- src/cmd/go/internal/test/test.go         |   3 +-
- src/cmd/go/internal/vet/vet.go           |   3 +-
- src/cmd/go/testdata/script/mod_why.txt   |  14 ++-
- 13 files changed, 199 insertions(+), 142 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  2 +-
+ src/cmd/compile/internal/gc/walk.go | 37 ++++++++++++++++++++++++++-----------
+ src/runtime/iface_test.go           | 14 ++++++++++++++
+ test/codegen/smallintiface.go       | 22 ++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 12 deletions(-)

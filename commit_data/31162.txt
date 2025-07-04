@@ -1,25 +1,23 @@
-commit eed6938cbbac17169ad15f6d4fe6bb9c1c0175fe
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Mar 28 16:14:02 2017 -0400
+commit 12c58bbf81c0feca25292a2291a59e16b5ed00f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 2 22:38:04 2017 -0800
 
-    cmd/asm, cmd/internal/obj/s390x, math: add LGDR and LDGR instructions
+    cmd/compile: optimize (ZeroExt (Const [c]))
     
-    The instructions allow moves between floating point and general
-    purpose registers without any conversion taking place.
+    These rules trigger 116 times while running make.bash.
+    And at least for the sample code at
+    https://github.com/golang/go/issues/18906#issuecomment-277174241
+    they are providing optimizations not already present
+    in amd64.
     
-    Change-Id: I82c6f3ad9c841a83783b5be80dcf5cd538ff49e6
-    Reviewed-on: https://go-review.googlesource.com/38777
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Updates #18906
+    
+    Change-Id: I410a480f566f5ab176fc573fb5ac74f9cffec225
+    Reviewed-on: https://go-review.googlesource.com/36217
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
- src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
- src/cmd/internal/obj/s390x/anames.go      |  2 ++
- src/cmd/internal/obj/s390x/asmz.go        | 14 ++++++++++++--
- src/math/cosh_s390x.s                     | 10 +++++-----
- src/math/log10_s390x.s                    |  2 +-
- src/math/sin_s390x.s                      |  4 ++--
- src/math/sinh_s390x.s                     | 14 +++++++-------
- src/math/tanh_s390x.s                     |  8 ++++----
- 9 files changed, 40 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  13 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 156 +++++++++++++++++++++++++
+ 2 files changed, 169 insertions(+)

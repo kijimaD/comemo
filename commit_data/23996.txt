@@ -1,51 +1,15 @@
-commit ad731887a76e4bd5060a212002091ece3740068d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 6 15:36:50 2015 -0400
+commit 64078bf3cfce289ce069fc203464ef83a05e2bd3
+Author: Ross Light <light@google.com>
+Date:   Thu Jun 4 11:45:50 2015 -0700
 
-    runtime: call goexit1 instead of goexit
+    cmd/go: ignore custom import check when there is no import comment
     
-    Currently, runtime.Goexit() calls goexit()—the goroutine exit stub—to
-    terminate the goroutine. This *mostly* works, but can cause a
-    "leftover stack barriers" panic if the following happens:
+    Fixes #10952
     
-    1. Goroutine A has a reasonably large stack.
-    
-    2. The garbage collector scan phase runs and installs stack barriers
-       in A's stack. The top-most stack barrier happens to fall at address X.
-    
-    3. Goroutine A unwinds the stack far enough to be a candidate for
-       stack shrinking, but not past X.
-    
-    4. Goroutine A calls runtime.Goexit(), which calls goexit(), which
-       calls goexit1().
-    
-    5. The garbage collector enters mark termination.
-    
-    6. Goroutine A is preempted right at the prologue of goexit1() and
-       performs a stack shrink, which calls gentraceback.
-    
-    gentraceback stops as soon as it sees goexit on the stack, which is
-    only two frames up at this point, even though there may really be many
-    frames above it. More to the point, the stack barrier at X is above
-    the goexit frame, so gentraceback never sees that stack barrier. At
-    the end of gentraceback, it checks that it saw all of the stack
-    barriers and panics because it didn't see the one at X.
-    
-    The fix is simple: call goexit1, which actually implements the process
-    of exiting a goroutine, rather than goexit, the exit stub.
-    
-    To make sure this doesn't happen again in the future, we also add an
-    argument to the stub prototype of goexit so you really, really have to
-    want to call it in order to call it. We were able to reliably
-    reproduce the above sequence with a fair amount of awful code inserted
-    at the right places in the runtime, but chose to change the goexit
-    prototype to ensure this wouldn't happen again rather than pollute the
-    runtime with ugly testing code.
-    
-    Change-Id: Ifb6fb53087e09a252baddadc36eebf954468f2a8
-    Reviewed-on: https://go-review.googlesource.com/13323
+    Change-Id: I56ab6a806bd3741cffd9d2a53929a6d043626a26
+    Reviewed-on: https://go-review.googlesource.com/10693
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/panic.go |  2 +-
- src/runtime/stubs.go | 15 ++++++++++++++-
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/go/get.go     |  2 +-
+ src/cmd/go/go_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

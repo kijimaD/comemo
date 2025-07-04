@@ -1,17 +1,23 @@
-commit ef7d0413c204f69f8179b50de869acf7bd1e1731
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 10 17:21:40 2022 -0500
+commit 485474d204297ce9ff2b7f6c2a2b0e048c61fb8e
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Wed May 12 15:16:20 2021 +0200
 
-    cmd/go: use the correct gofmt binary in TestScript/fmt_load_errors
+    cmd/go/testdata/script: fix test failing on nocgo builders
     
-    Otherwise, this test may fail when GOROOT/bin is not in $PATH.
+    The regression test introduced in https://golang.org/cl/318770 broke the
+    the nocgo builders.
     
-    Change-Id: Id744f365f6604716207184c9ea49436ab2e3a835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391802
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Update the cgo package used in the test to ensure that it can be build
+    both with cgo enabled and disabled.
+    
+    Change-Id: Iab0486f0b85ac5e5a22fdf8a1998edd50cbb4d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319210
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/list_find_nodeps.txt | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

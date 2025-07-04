@@ -1,20 +1,24 @@
-commit 22cf1e7f7eefb6c53249ea4f92e37197b0c8ce02
-Author: Briheet Singh Yadav <briheetyadav@gmail.com>
-Date:   Mon Jun 17 16:30:16 2024 +0000
+commit 05cc9e55876874462a4726ca0101c970838c80e5
+Author: miller <millerresearch@gmail.com>
+Date:   Mon May 8 16:56:21 2023 +0100
 
-    go/doc: added the predeclared identifiers clear, min, max
+    cmd/go: quote entries in list-valued variables for go env in plan9
     
-    Fixes: #68028
+    When 'go env' without an argument prints environment variables as
+    a script which can be executed by the shell, variables with a
+    list value in Plan 9 (such as GOPATH) need to be printed with each
+    element enclosed in single quotes in case it contains characters
+    significant to the Plan 9 shell (such as ' ' or '=').
     
-    Change-Id: Ib341b9f57b001cccc5dc9e822b7feaabcdb77e63
-    GitHub-Last-Rev: 8dd3467016088ab2a8797f14065d2e6104eb0505
-    GitHub-Pull-Request: golang/go#68029
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593015
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    For #58508
+    
+    Change-Id: Ia30f51307cc6d07a7e3ada6bf9d60bf9951982ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493535
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/doc/reader.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/envcmd/env.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

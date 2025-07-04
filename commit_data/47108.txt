@@ -1,26 +1,20 @@
-commit 645d07819b2224ba4d759829443f7c6442162c69
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 13 10:44:47 2021 -0400
+commit b7f62daa59ea5983d5825e166abc527d4ea69777
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 15 16:01:34 2020 -0500
 
-    sync: add Mutex.TryLock, RWMutex.TryLock, RWMutex.TryRLock
+    cmd/internal/goobj: add test case for object file reader
     
-    Use of these functions is almost (but not) always a bad idea.
+    Add test in which a input Go object file contains a very large number
+    of relocations (more than 1<<20).
     
-    Very rarely they are necessary, and third-party implementations
-    (using a mutex and an atomic word, say) cannot integrate as well
-    with the race detector as implmentations in package sync itself.
+    Updates #41621.
     
-    Fixes #45435.
-    
-    Change-Id: I0128ca48ef5e0a3b09c913f0f3a7ee5c56388000
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319769
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If1ebf3c4fefbf55ddec4e05c5299e7c48fc697d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278493
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/sync/mutex.go        | 15 ++++++++++++
- src/sync/mutex_test.go   | 18 +++++++++++++++
- src/sync/rwmutex.go      | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/sync/rwmutex_test.go | 28 +++++++++++++++++++++++
- 4 files changed, 120 insertions(+)
+ src/cmd/internal/goobj/objfile_test.go | 62 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

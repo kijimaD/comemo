@@ -1,14 +1,17 @@
-commit 41329c07f9a4dbbd041c8ee116d7876571c846ee
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon May 20 15:24:44 2019 -0400
+commit c00595cec55526f30b84903d9472d7f63f9c447d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 10:45:26 2019 -0800
 
-    math/bits: document that Add, Sub, Mul, RotateLeft, ReverseBytes are constant time
+    doc: mention init traceback change in Go 1.12 release notes
     
-    Fixes #31267
+    Updates #29919
     
-    Change-Id: I91e4aa8cf9d797689cb9612d0fe3bf1bb3ad15a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178177
+    Change-Id: Ibf92c9957f71394f08c1203a29eae35a12021585
+    Reviewed-on: https://go-review.googlesource.com/c/159877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/bits/bits.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ doc/go1.12.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

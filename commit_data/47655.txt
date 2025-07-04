@@ -1,32 +1,17 @@
-commit 8ebb8c9ecba4069cc4defffffbbcdde0ba22ced1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 30 16:10:47 2021 -0500
+commit 2b63404ddb04abec5279f0fa574cc06dcef242cf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 2 17:20:15 2021 -0400
 
-    runtime: give the subprocess more time in TestSpuriousWakeupsNeverHangSemasleep
+    cmd/internal/obj/mips: simplify huge frame prologue
     
-    Issue #27250 reproduced readily enough to keep the subprocess hung
-    indefinitely when it occurred, so the timeout does not need to be
-    short to maintain test fidelity. On the other hand, on heavily loaded
-    systems it might take a while for the kernel to actually start the
-    subprocess, and it might also take a while for control flow to return
-    to the test after the subprocess exits.
+    CL 307010 for mips.
     
-    We can reduce noise from this test in two ways:
-    
-    1. Measure the timeout from closer to when the subprocess actually
-    starts sleeping, instead of when we started creating the subprocess.
-    
-    2. Use a longer timeout, since it doesn't actually need to be short.
-    
-    Fixes #38921
-    Updates #27250
-    
-    Change-Id: I01c11ae82d0cdc6e7def2da6544b4d07201b35e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367849
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie9addea728548315fdbb8e46f75da4010a9796bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307051
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/semasleep_test.go | 29 ++++++++++++++++++++++++-----
- 1 file changed, 24 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/mips/obj0.go | 100 +++++++++++++-------------------------
+ 1 file changed, 33 insertions(+), 67 deletions(-)

@@ -1,19 +1,22 @@
-commit 4e1b11e2c9bdb0ddea1141eed487be1a626ff5be
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 21 10:48:00 2018 +0200
+commit be012e1e2e5fb24c765157fd2ca7e05675d6a1c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 19 12:56:29 2018 -0700
 
-    syscall: add S_IRWXG and S_IRWXO on Solaris
+    cmd/cgo: don't use absolute paths in the export header file
     
-    As discussed in CL 126621, these constants are already defined on Linux,
-    Darwin, FreeBSD and NetBSD. In order to ensure portability of existing
-    code using the syscall package, provide them for Solaris as well.
+    We were using absolute paths in the #line directives in the export
+    header file. This makes the header file change if you move GOPATH.
+    The absolute paths aren't helpful for the final user, which is some C
+    program elsewhere.
     
-    Change-Id: Id49f6991f36775b152b9c47b9923cd0a08053bcb
-    Reviewed-on: https://go-review.googlesource.com/130356
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #24945
+    
+    Change-Id: I2da32c9b477df578bd5087435a03fe97abe462e3
+    Reviewed-on: https://go-review.googlesource.com/108315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/types_solaris.go        | 2 ++
- src/syscall/ztypes_solaris_amd64.go | 2 ++
- 2 files changed, 4 insertions(+)
+ misc/cgo/testcarchive/carchive_test.go | 31 +++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go                     | 10 +++++++++-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

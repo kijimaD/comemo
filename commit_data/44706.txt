@@ -1,19 +1,16 @@
-commit 0bd308ff27822378dc2db77d6dd0ad3c15ed2e08
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Mar 17 12:42:19 2021 -0400
+commit 13e41bcde8c788224f4896503b56d42614e0bf97
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 22 12:06:24 2020 +1000
 
-    go/parser: avoid formatting a panic message if an assertion succeeds
+    cmd/objdump: skip cgo test in testGoAndCgoDisasm on AIX
     
-    tryResolve is an extremely hot method on the parser. Eliminating this
-    formatting led to a 20% performance improvement in BenchmarkParse.
+    Updates #40972.
     
-    Change-Id: Idf8850404bd72d45d1351356427a85086422ea68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302629
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Id2092f0bef4fb4bdc4178e7bc9730716136f7b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249760
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/parser/parser.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/objdump/objdump_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

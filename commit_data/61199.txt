@@ -1,0 +1,36 @@
+commit d94b7a187685942579e7d7dc00bf58448cdafce8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Aug 7 13:02:43 2024 -0400
+
+    cmd/compile,internal/runtime/maps: add extendible hashing
+    
+    Extendible hashing splits a swisstable map into many swisstables. This
+    keeps grow operations small.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-amd64-longtest-swissmap
+    Change-Id: Id91f34af9e686bf35eb8882ee479956ece89e821
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604936
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go | 163 ++++---
+ src/internal/runtime/maps/export_noswiss_test.go  |   4 +-
+ src/internal/runtime/maps/export_swiss_test.go    |   4 +-
+ src/internal/runtime/maps/export_test.go          |  27 +-
+ src/internal/runtime/maps/fuzz_test.go            |  12 +-
+ src/internal/runtime/maps/map.go                  | 278 ++++++++++-
+ src/internal/runtime/maps/map_swiss_test.go       | 228 ++++++++++
+ src/internal/runtime/maps/map_test.go             | 211 +++++++--
+ src/internal/runtime/maps/table.go                | 532 ++++++++++++++--------
+ src/internal/runtime/maps/table_debug.go          |   8 +-
+ src/runtime/map_benchmark_test.go                 |   5 +-
+ src/runtime/map_swiss.go                          |   2 +-
+ src/runtime/map_swiss_test.go                     |   8 +-
+ src/runtime/map_test.go                           |  27 ++
+ test/live.go                                      |   2 +-
+ test/live2.go                                     |   4 +-
+ test/live_regabi_swiss.go                         |   2 +-
+ 17 files changed, 1183 insertions(+), 334 deletions(-)

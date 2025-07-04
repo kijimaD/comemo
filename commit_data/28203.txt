@@ -1,21 +1,17 @@
-commit 2939f395e0ab9cd70fb1af51f65af711d2f5f222
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 28 10:38:41 2016 -0700
+commit bcd4b84bc56889b5a9a8a5d457f35fc0188e8315
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 4 22:07:50 2016 -0700
 
-    cmd/go: add bug command
+    runtime: skip TestCgoCallbackGC on linux/mips64x
     
-    This is a slightly rough, skeletal implementation.
-    We will polish and add to it through use.
+    Builder is too slow. This test passed on builder machines but took
+    15+ min.
     
-    .github/ISSUE_TEMPLATE will be updated in a
-    separate CL.
-    
-    Fixes #16635
-    
-    Change-Id: Icf284170d87e61b5b643366c85cffc48f149f730
-    Reviewed-on: https://go-review.googlesource.com/28485
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ief9d67ea47671a57e954e402751043bc1ce09451
+    Reviewed-on: https://go-review.googlesource.com/22798
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/bug.go  | 129 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/main.go |   1 +
- 2 files changed, 130 insertions(+)
+ src/runtime/crash_cgo_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

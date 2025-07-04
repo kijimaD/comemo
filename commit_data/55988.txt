@@ -1,45 +1,41 @@
-commit cb12198de57db6f514d7ef11839d446189e38f4b
-Author: Lance Yang <ioworker0@gmail.com>
-Date:   Tue Mar 19 14:19:43 2024 +0000
+commit 443eb9757cd09ada43ceb9ee80f33bc84e892645
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 28 14:48:59 2023 -0400
 
-    runtime: optimize permission changes with mprotect
+    runtime: get a better g0 stack bound in needm
     
-    On Linux, both mprotect() and mmap() acquire the mmap_lock (in writer mode),
-    posing scalability challenges.
+    Currently, when C calls into Go the first time, we grab an M
+    using needm, which sets m.g0's stack bounds using the SP. We don't
+    know how big the stack is, so we simply assume 32K. Previously,
+    when the Go function returns to C, we drop the M, and the next
+    time C calls into Go, we put a new stack bound on the g0 based on
+    the current SP. After CL 392854, we don't drop the M, and the next
+    time C calls into Go, we reuse the same g0, without recomputing
+    the stack bounds. If the C code uses quite a bit of stack space
+    before calling into Go, the SP may be well below the 32K stack
+    bound we assumed, so the runtime thinks the g0 stack overflows.
     
-    The mmap_lock (formerly called mmap_sem) is a reader/writer lock that controls
-    access to a process's address space; before making changes there (mapping in a
-    new range, for example), the kernel must acquire that lock.
+    This CL makes needm get a more accurate stack bound from
+    pthread. (In some platforms this may still be a guess as we don't
+    know exactly where we are in the C stack), but it is probably
+    better than simply assuming 32K.
     
-    Page-fault handling must also acquire mmap_lock (in reader mode) to ensure that
-    the address space doesn't change in surprising ways while a fault is being resolved.
+    For #59294.
     
-    A process can have a large address space and many threads running (and incurring
-    page faults) concurrently, turning mmap_lock into a significant bottleneck.
-    
-    While both mmap() and mprotect() are protected by the mmap_lock, the shorter
-    duration of mprotect system call, due to their simpler nature, results in a reduced
-    locking time for the mmap_lock.
-    
-    Change-Id: I7f929544904e31eab34d0d8a9e368abe4de64637
-    GitHub-Last-Rev: 6f27a216b4fb789181d00316561b44358a118b19
-    GitHub-Pull-Request: golang/go#65038
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554935
+    Change-Id: Ie52a8f931e0648d8753e4c1dbe45468b8748b527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479915
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/runtime/syscall/defs_linux_386.go     | 1 +
- src/internal/runtime/syscall/defs_linux_amd64.go   | 1 +
- src/internal/runtime/syscall/defs_linux_arm.go     | 1 +
- src/internal/runtime/syscall/defs_linux_arm64.go   | 1 +
- src/internal/runtime/syscall/defs_linux_loong64.go | 1 +
- src/internal/runtime/syscall/defs_linux_mips64x.go | 1 +
- src/internal/runtime/syscall/defs_linux_mipsx.go   | 1 +
- src/internal/runtime/syscall/defs_linux_ppc64x.go  | 1 +
- src/internal/runtime/syscall/defs_linux_riscv64.go | 1 +
- src/internal/runtime/syscall/defs_linux_s390x.go   | 1 +
- src/runtime/mem_linux.go                           | 3 ++-
- src/runtime/os_linux.go                            | 6 ++++++
- 12 files changed, 18 insertions(+), 1 deletion(-)
+ misc/cgo/testcarchive/carchive_test.go     | 54 ++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/testdata/libgo9/a.go | 14 ++++++++
+ misc/cgo/testcarchive/testdata/main9.c     | 24 +++++++++++++
+ src/runtime/cgo.go                         |  2 ++
+ src/runtime/cgo/callbacks.go               |  9 +++++
+ src/runtime/cgo/gcc_stack_darwin.c         | 21 ++++++++++++
+ src/runtime/cgo/gcc_stack_unix.c           | 32 ++++++++++++++++++
+ src/runtime/cgo/gcc_stack_windows.c        |  7 ++++
+ src/runtime/proc.go                        | 22 +++++++++---
+ src/runtime/signal_unix.go                 |  4 +--
+ 10 files changed, 182 insertions(+), 7 deletions(-)

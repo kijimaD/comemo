@@ -1,22 +1,20 @@
-commit 1368de3db23ed51992a57cc828c5f14558b4b49f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 21 19:09:42 2016 +0000
+commit 17a8ec2c4f702039652a4bc9630d233b454cfae8
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Sep 26 00:45:01 2016 -0400
 
-    archive/zip: skip large concurrent tests in race mode
+    cmd/asm, cmd/internal/obj/s390x: improve add/multiply-immediate codegen
     
-    We recently added these large zip64 tests. They're slow-ish already,
-    but fast enough in non-race mode with t.Parallel. But in race mode,
-    the concurrency makes them much slower than the normal
-    non-race-to-race multiplier.
+    Use the A{,G}HI instructions where possible (4 bytes instead of 6 bytes
+    for A{,G}FI). Also, use 32-bit operations where appropriate for
+    multiplication.
     
-    They're taking so long now that it's causing test failures when it
-    sometimes is over the test timeout threshold.
-    
-    Change-Id: I02f4ceaa9d6cab826708eb3860f47a57b05bdfee
-    Reviewed-on: https://go-review.googlesource.com/33423
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4041781cda26be52b54e4804a9e71552310762d0
+    Reviewed-on: https://go-review.googlesource.com/29733
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/zip/zip_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 20 ++++----
+ src/cmd/internal/obj/s390x/asmz.go        | 80 +++++++++++++++++--------------
+ 2 files changed, 55 insertions(+), 45 deletions(-)

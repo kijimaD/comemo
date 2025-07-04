@@ -1,15 +1,26 @@
-commit 0e44c692c2b39a071257e8be24fa971e6dc05f10
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 03:29:19 2020 +1100
+commit d8e8d092f701fb6776dabd07be9d14cce99f2ee8
+Author: Keith Randall <khr@google.com>
+Date:   Thu Oct 17 21:17:18 2019 -0700
 
-    cmd/compile: use NOT pseudo-instruction for riscv64 Slicemask
+    runtime/race: update race detector shared libraries
     
-    Change-Id: Idefb6669d54929065f57e3bd767c91451dc3a375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223562
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Pulls in a new snapshot of the race detector, containing
+    a fix that lets it handle mid-stack inlining correctly.
+    
+    Fixes #33309
+    
+    Change-Id: I7551912a491f0615e77d069f198c1b8a6eead280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201898
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 2 +-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 5 ++---
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/runtime/race/README                  |  14 +++++++-------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 398868 -> 432640 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 503384 -> 555192 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 449328 -> 478360 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 418080 -> 454752 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 505304 -> 570032 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 507208 -> 574896 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 348915 -> 429378 bytes
+ 8 files changed, 7 insertions(+), 7 deletions(-)

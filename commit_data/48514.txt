@@ -1,31 +1,15 @@
-commit 9058080319e5e3b8edbde8c5e2406b11bac163ee
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 23 13:29:43 2022 -0700
+commit a62c08734f8e2fc5333036e3a069a55288d1f674
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 15:44:46 2021 -0700
 
-    cmd/compile: clarify help message for -L flag
+    src/os: revert accidentally submitted change
     
-    The file names reported in error messages by the compiler are
-    printed unchanged from the file names provided to the compiler;
-    the -L flag has no impact on the file names themselves, contrary
-    to what the old flag description suggested.
-    
-    If an error is reported on a line that is affected by a //line
-    directive, an error message reports the file name and line as
-    controlled by the directive (i.e., the actual source position
-    is not known).
-    
-    If the -L flag is provided, the actual source position is also
-    reported in square brackets.
-    
-    This change documents this with an updated help string for the
-    flag.
-    
-    For #36988.
-    
-    Change-Id: I39ee35e6ff6cd5cfa44d87dabb05b8d78575d631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395115
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ib34984a6bd0abc76266e8aac96f9f8ad8ae21d17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322894
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/base/flag.go | 2 +-
+ src/os/pipe_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

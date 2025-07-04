@@ -1,18 +1,21 @@
-commit b61e1ed863886743598c6f816b0740f3768b50f6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 8 13:52:46 2021 -0700
+commit 9eeed291bcfbf6de4d64abd39eb1eb66cdf9fbb2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Dec 23 20:29:28 2020 +0700
 
-    cmd/compile/internal/types2: temporarily pin the Checker to Interface during checking
+    [dev.regabi] cmd/compile: eliminate usage of ir.Node in liveness
     
-    This is a clean port of CL 348371.
+    All function parameters and return values in liveness have explicit
+    *ir.Name type, so use it directly instead of casting from ir.Node. While
+    at it, rename "affectedNode" to "affectedVar" to reflect this change.
     
-    Change-Id: I3a61a5a8928279bc783ef16739f7607de3b6ecf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348575
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Id927e817a92ddb551a029064a2a54e020ca27074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279434
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/interface.go              | 15 ++++++++++++---
- src/cmd/compile/internal/types2/sizeof_test.go            |  2 +-
- .../internal/types2/testdata/fixedbugs/issue48234.go2     | 10 ++++++++++
- src/cmd/compile/internal/types2/universe.go               |  4 ++--
- 4 files changed, 25 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

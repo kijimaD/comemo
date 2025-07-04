@@ -1,17 +1,20 @@
-commit 7db8835a5063248ce1e8db53a93706a2f5fc51dd
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:10:39 2015 -0400
+commit 861546543a9a69173d0c6a85bda9e207c2e8d459
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 22:41:48 2015 -0400
 
-    runtime/debug: disable arm64 test for issue 9993
+    cmd/internal/obj: reimplement line history
     
-    Like other arm64 platforms, darwin/arm64 has a different physical
-    page size to logical page size so it is running into issue 9993. I
-    hope it can be fixed for Go 1.5, but for now it is demonstrating the
-    same bug as the other skipped os+arch combinations.
+    In addition to possibly being clearer code,
+    this replaces an O(n) lookup with an O(log n) lookup.
     
-    Change-Id: Iedaf9afe56d6954bb4391b6e843d81742a75a00c
-    Reviewed-on: https://go-review.googlesource.com/8814
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I0a574c536a965a87f7ad6dcdcc30f737bc771cd5
+    Reviewed-on: https://go-review.googlesource.com/7623
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/debug/garbage_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/lex.go        |  22 +-
+ src/cmd/internal/obj/line_test.go |  21 +-
+ src/cmd/internal/obj/link.go      |  20 +-
+ src/cmd/internal/obj/obj.go       | 489 +++++++++++++++++++-------------------
+ src/cmd/internal/obj/objfile.go   |   6 +-
+ src/cmd/internal/obj/sym.go       |   5 +-
+ 6 files changed, 287 insertions(+), 276 deletions(-)

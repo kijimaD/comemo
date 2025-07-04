@@ -1,27 +1,16 @@
-commit 57c115e1f68a997ba8978d4a5abd6ccc954ae3dd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 24 10:06:36 2021 -0700
+commit ecc8d15bc5f48916176c4bba809b327a72b66e2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 21:59:44 2020 -0500
 
-    crypto/sha{256,512}: unname result parameters for consistency
+    [dev.regabi] cmd/compile: delete OEMPTY
     
-    Sum224 and Sum256 didn't look the same at:
+    Not toolstash -cmp safe, so split into its own CL.
     
-        https://golang.org/pkg/crypto/sha256/
-    
-    Now they match. Likewise with sha512's funcs.
-    
-    Per:
-    https://github.com/golang/go/wiki/CodeReviewComments#named-result-parameters
-    
-    Change-Id: I6b88c8ef15141c78a6cddeb0960b3ad52db34244
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322329
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I523227514a95e19c9afe17556d754a03164bce76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274595
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/sha256/sha256.go |  6 +++---
- src/crypto/sha512/sha512.go | 18 +++++++++---------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ir/node.go      |  1 -
+ src/cmd/compile/internal/ir/op_string.go | 75 ++++++++++++++++----------------
+ 2 files changed, 37 insertions(+), 39 deletions(-)

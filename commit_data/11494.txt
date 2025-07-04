@@ -1,14 +1,15 @@
-commit 38e37011fc739487b551dff7f1f6dab5e7abcde5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 23:33:16 2012 -0500
+commit 0eb647e71c4b67db53181b1aff7755adafda0838
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 30 20:17:34 2012 -0800
 
-    build: force numerical comparison in version.bash
+    test: attempt at making a test more robust
     
-    Fixes #2436.
+    A current theory is that this test is too fast for the
+    time resolution on the VMs where our builders run.
     
-    R=golang-dev, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5576075
+    https://golang.org/cl/5581056
 
- src/version.bash | 2 +-
+ test/map.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

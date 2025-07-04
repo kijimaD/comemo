@@ -1,16 +1,14 @@
-commit aed88be021762c590f50ab80f8cc155e2c55c39f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Feb 4 11:26:22 2015 +0300
+commit 020637daa979cff4035e68b09802e045456fa943
+Author: Michael Matloob <matloob@google.com>
+Date:   Sun Jan 18 16:04:47 2015 -0800
 
-    cmd/gc: restore stack frame debugging
+    cmd/dist: produce a properly formatted zversion.go
     
-    Dump frames of functions.
-    Add function name and var width to output.
+    gofmt inserts a blank line line between const and var declarations
     
-    Change-Id: Ida06b8def96178fa550ca90836eb4a2509b9e13f
-    Reviewed-on: https://go-review.googlesource.com/3870
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3f2ddbd9e66a74eb3f37a2fe641b93820b02229e
+    Reviewed-on: https://go-review.googlesource.com/3022
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/pgen.c |  2 +-
- src/cmd/gc/subr.c | 29 ++++++++++++-----------------
- 2 files changed, 13 insertions(+), 18 deletions(-)
+ src/cmd/dist/buildruntime.go | 1 +
+ 1 file changed, 1 insertion(+)

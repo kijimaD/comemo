@@ -1,20 +1,29 @@
-commit a80543a987c4201f05842ea7d46cc8c999a01b09
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat May 4 01:48:52 2024 +0000
+commit a32232cb18ed07496ec77c1cf2dcefa1cb0ac057
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Tue Apr 11 16:27:43 2023 +0100
 
-    time: use stringslite.Clone
+    html/template: handle all JS whitespace characters
     
-    Change-Id: I82f0e7c0c0c80a3cc0e4a732a59ae1debb37d8d9
-    GitHub-Last-Rev: c8a081f5b37e26058dd0278464950e81e045ab95
-    GitHub-Pull-Request: golang/go#67166
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583195
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Rather than just a small set. Character class as defined by \s [0].
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this.
+    
+    Fixes #59721
+    Fixes CVE-2023-24540
+    
+    [0] https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Character_Classes
+    
+    Change-Id: I56d4fa1ef08125b417106ee7dbfb5b0923b901ba
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1821459
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491616
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/time/format.go | 19 ++++++++-----------
- 1 file changed, 8 insertions(+), 11 deletions(-)
+ src/html/template/js.go      |  8 +++++++-
+ src/html/template/js_test.go | 11 +++++++----
+ 2 files changed, 14 insertions(+), 5 deletions(-)

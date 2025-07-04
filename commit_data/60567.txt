@@ -1,0 +1,24 @@
+commit 4b2716348cfcc336469d38ce9a8e23f0b909ab05
+Author: Manuel Sabin <msabin27@gmail.com>
+Date:   Mon Jun 24 13:58:35 2024 -0400
+
+    crypto/internal/cryptotest: add tests for the cipher.BlockMode interface
+    
+    This CL creates tests for the cipher.BlockMode interface in the new
+    cryptotest package.  This set of tests is called from the tests of
+    implementations of the BlockMode interface e.g. cbc_test.go
+    
+    Updates #25309
+    
+    Change-Id: I3685bbee24d08d66f5bb4b7f001cbf520c844881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595120
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/cipher/cbc_test.go               |  57 +++++++
+ src/crypto/internal/cryptotest/blockmode.go | 224 ++++++++++++++++++++++++++++
+ 2 files changed, 281 insertions(+)

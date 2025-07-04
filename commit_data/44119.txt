@@ -1,19 +1,27 @@
-commit ba76567bc2500204432ed8a5cb28848410e74447
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 15 22:00:02 2020 -0500
+commit 4098ab3ff4de53df4bf2e9b2db0f49e4d12b3d9c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 11 15:11:36 2020 -0400
 
-    cmd/go/internal/modload: delete unused *mvsReqs.next method
+    [dev.link] cmd/link: reduce allocations in Preload
     
-    For #36460
-    Updates #36465
+    Don't create loader.Syms until LoadFull (it will be gone soon
+    anyway.)
     
-    Change-Id: Id818dce21d39a48cf5fc9c015b30497dce9cd1ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278596
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Preallocate loader.objSym array.
+    
+    Don't create loader.values until preloading is done.
+    
+    Linking cmd/compile:
+    
+    name           old alloc/op   new alloc/op   delta
+    Loadlib_GC       36.2MB ± 0%    20.0MB ± 0%  -44.91%  (p=0.016 n=5+4)
+    
+    Change-Id: I82eddcfa7fb8fc4e84e8174a47e59cf1183dd83b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233341
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modload/mvs.go | 16 ----------------
- 1 file changed, 16 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

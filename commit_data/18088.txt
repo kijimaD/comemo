@@ -1,22 +1,15 @@
-commit cbc565a80156a4dd4108ef5e1e170602415418a8
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 19 15:15:24 2013 -0800
+commit cbf6ff3b90f5b70e9e7f6aafc1744efbb4761377
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 19 13:24:42 2013 -0800
 
-    reflect: rewrite Value to separate out pointer vs. nonpointer info.
-    Needed for precise gc and copying stacks.
+    net/http: add Hihack benchmark
     
-    reflect.Value now takes 4 words instead of 3.
+    Notably, to show allocs. Currently: 11766 B/op, 21 allocs/op,
+    at least one alloc of which is in the benchmark loop itself.
     
-    Still to do:
-     - un-iword-ify channel ops.
-     - un-iword-ify method receivers.
-    
-    R=golang-dev, iant, rsc, khr
+    R=golang-dev, jnewlin
     CC=golang-dev
-    https://golang.org/cl/43040043
+    https://golang.org/cl/40370057
 
- src/pkg/reflect/makefunc.go |   6 +-
- src/pkg/reflect/type.go     |   4 +-
- src/pkg/reflect/value.go    | 702 ++++++++++++++++++++++++++------------------
- src/pkg/runtime/hashmap.c   | 140 +++------
- 4 files changed, 466 insertions(+), 386 deletions(-)
+ src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

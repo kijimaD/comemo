@@ -1,21 +1,14 @@
-commit 85bae0a9df6ea04256c7787d14ae789fa697618a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 09:11:03 2017 -0800
+commit 7465bfb1ea1a7ddfec9b267587ee9e6200514f3f
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 31 10:23:50 2016 -0700
 
-    cmd/vet/all: remove printf hacks
+    path: document that filepath is recommended to manipulate filename paths
     
-    Now that vet loads from source,
-    fmt can always be correctly resolved,
-    so the fmt.Formatter type is always available,
-    so we can reinstate the check.
+    Fixes #17690.
     
-    Change-Id: I17f0c7fccf6960c9415de8774b15123135d57be8
-    Reviewed-on: https://go-review.googlesource.com/37692
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ifd300980aa4c11498ed7c083d08bcdd23f5b307a
+    Reviewed-on: https://go-review.googlesource.com/32423
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/main.go               | 25 ++-----------------------
- src/cmd/vet/all/whitelist/all.txt     |  3 +++
- src/cmd/vet/all/whitelist/windows.txt |  2 ++
- 3 files changed, 7 insertions(+), 23 deletions(-)
+ src/path/path.go | 2 ++
+ 1 file changed, 2 insertions(+)

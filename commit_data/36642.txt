@@ -1,34 +1,33 @@
-commit a0fad982b17b8c49c8567867160dee9f021cf1ba
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Aug 27 16:34:53 2018 -0400
+commit 6495bf17105fbf5c76a719bdea3f383eea8b28db
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 10 10:10:36 2018 +0200
 
-    internal/bytealg: implement bytes.Count in asm for ppc64x
+    cmd/compile: ensure init of memclr happens after growslice in extendslice
     
-    This adds an asm implementation for the Count function in ppc64x.
-    The Go code that manipulates a byte at a time is especially
-    inefficient on ppc64x, so an asm implementation is a significant
-    improvement.
+    Using the extendslice init node list to add the init nodes for the memclr
+    call could add init nodes for memclr function before the growslice call
+    created by extendslice.
     
-    bytes:
-    name               old time/op   new time/op    delta
-    CountSingle/10-8    23.1ns ± 0%    18.6ns ± 0%    -19.48%  (p=1.000 n=1+1)
-    CountSingle/32-8    60.4ns ± 0%    19.0ns ± 0%    -68.54%  (p=1.000 n=1+1)
-    CountSingle/4K-8    7.29µs ± 0%    0.45µs ± 0%    -93.80%  (p=1.000 n=1+1)
-    CountSingle/4M-8    7.49ms ± 0%    0.45ms ± 0%    -93.97%  (p=1.000 n=1+1)
-    CountSingle/64M-8    127ms ± 0%       9ms ± 0%    -92.53%  (p=1.000 n=1+1)
+    As all arguments of the memclr were explicitly set in OAS nodes before
+    the memclr call this does not change the generated code currently.
+    ./all.bash runs fine when replacing memclr init with nil suggesting there
+    are currently no additional nodes added to the init of extendslice by
+    the memclr call.
     
-    html:
-    name              old time/op  new time/op  delta
-    Escape-8          57.5µs ± 0%  36.1µs ± 0%  -37.13%  (p=1.000 n=1+1)
-    EscapeNone-8      20.0µs ± 0%   2.0µs ± 0%  -90.14%  (p=1.000 n=1+1)
+    Add the init nodes for the memclr call directly before the node of the
+    memclr call to prevent additional future init nodes for function calls
+    and argument evaluations to be evaluated too early when other compiler
+    code is added.
     
-    Change-Id: Iadbf422c0e9a37b47d2d95fb8c778420f3aabb58
-    Reviewed-on: https://go-review.googlesource.com/131695
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    passes toolstash -cmp
+    
+    Updates #21266
+    
+    Change-Id: I44bd396fe864bfda315175aa1064f9d51c5fb57a
+    Reviewed-on: https://go-review.googlesource.com/112595
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/internal/bytealg/count_generic.go |  2 +-
- src/internal/bytealg/count_native.go  |  2 +-
- src/internal/bytealg/count_ppc64x.s   | 97 +++++++++++++++++++++++++++++++++++
- 3 files changed, 99 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

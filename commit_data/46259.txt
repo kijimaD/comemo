@@ -1,20 +1,42 @@
-commit 8f397bc1183b1094f8d0c702668b1e2b43dc8797
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:18 2021 -0600
+commit 9c384e881e28d322b854ac702ce8f052868f5f41
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:48:33 2020 -0500
 
-    cmd/internal/obj/ppc64: improve long conditional branch fixup
+    [dev.regabi] cmd/compile: cleanup for concrete types - mop-up
     
-    Improve the code which fixes up conditional branches which exceed the
-    range of a single instruction by inserting one extra jump when
-    possible instead of two.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: Ib0eb5b0f47f7d0e0ccd55471307a5f73fbda88a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342930
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL handles all the little files that are left.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I6588c92dbbdd37342a77b365d70e02134a033d2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277932
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/ppc64/a.out.go | 15 +++----
- src/cmd/internal/obj/ppc64/asm9.go  | 86 +++++++++++++++++++++++++++++--------
- 2 files changed, 74 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/align.go     |  1 +
+ src/cmd/compile/internal/gc/closure.go   | 13 +++++++------
+ src/cmd/compile/internal/gc/dcl.go       | 22 +++++++++++++---------
+ src/cmd/compile/internal/gc/embed.go     |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  7 +++----
+ src/cmd/compile/internal/gc/gen.go       | 12 ++++++++++--
+ src/cmd/compile/internal/gc/init.go      |  8 ++++----
+ src/cmd/compile/internal/gc/initorder.go |  2 +-
+ src/cmd/compile/internal/gc/main.go      |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go   |  4 ++--
+ src/cmd/compile/internal/gc/scc.go       |  8 +++++---
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/universe.go  | 25 +++++++++++++++----------
+ src/cmd/compile/internal/gc/unsafe.go    | 18 +++++++++++-------
+ 15 files changed, 77 insertions(+), 53 deletions(-)

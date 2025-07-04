@@ -1,13 +1,17 @@
-commit f187675041c097256527804136188ae29a6b7b21
+commit 09aeca5c04a6a6775e91857459e05888721d6999
 Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Apr 20 20:29:17 2014 +0200
+Date:   Sat Apr 19 09:55:09 2014 +0200
 
-    doc/go1.3.html: fix Goexit link
+    include/plan9: make mklibc.rc compatible with 9atom
     
-    LGTM=minux.ma
-    R=r, minux.ma
+    Since there is no Runemask constant in UTF-8 enum in
+    9atom, removing the other constants leads to an empty
+    enum, which is illegal. Thus, we remove enum entirely.
+    
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/89710043
+    https://golang.org/cl/82660044
 
- doc/go1.3.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/plan9/mklibc.rc | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

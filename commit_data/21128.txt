@@ -1,12 +1,13 @@
-commit 8fa0cf1db2660bb4e2e74a0baad9c2b841456fa9
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Dec 31 11:08:54 2014 -0800
+commit fc288681cf5ac27bb3478cadf8a3e60f4b654082
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Nov 17 17:18:21 2014 +1100
 
-    runtime: remove unused export_test declarations
+    [dev.cc] runtime: replace deleted netpollfd function
     
-    Change-Id: Iac28c4bbe949af5628cef8ecafdd59ab5d71e6cc
-    Reviewed-on: https://go-review.googlesource.com/2240
-    Reviewed-by: Keith Randall <khr@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169710043
 
- src/runtime/export_test.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/runtime/netpoll_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

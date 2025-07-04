@@ -1,42 +1,28 @@
-commit 0bf507efe9f995076e3a65bcf61baf3e905b58c7
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Oct 19 15:06:02 2020 +0100
+commit 5d2ddcd3f51c1ff7aa0a84604b1d8610a17a7933
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 30 14:04:08 2020 -0400
 
-    cmd/go: add BuildID to list -json -export
+    context: fix a flaky timeout in TestLayersTimeout
     
-    That is, the following two pieces of shell code are now equivalent:
+    In CL 223019, I reduced the short timeout in the testLayers helper to
+    be even shorter than it was. That exposed a racy (time-dependent)
+    select later in the function, which failed in one of the slower
+    builders (android-386-emu).
     
-            $ go tool buildid $(go list -export -f {{.Export}} strings)
-            v_0VqA6yzwuMg2dn4u57/PXcIR2Pb8Mi9yRdcdkwe
+    Also streamline the test to make it easier to test with a very high -count flag:
+    - Run tests that sleep for shortDuration in parallel to reduce latency.
+    - Use shorter durations in examples to reduce test running time.
+    - Avoid mutating global state (in package math/rand) in testLayers.
     
-            $ go list -export -f {{.BuildID}} strings
-            v_0VqA6yzwuMg2dn4u57/PXcIR2Pb8Mi9yRdcdkwe
+    After this change (but not before it),
+    'go test -run=TestLayersTimeout -count=100000 context' passes on my workstation.
     
-    This does not expose any information that wasn't available before, but
-    makes this workflow simpler and faster. In the first example, we have to
-    execute two programs, and 'go tool buildid' has to re-open the export
-    data file to read the build ID.
+    Fixes #38161
     
-    With the new mechanism, 'go list -export' already has the build ID
-    ready, so we can simply print it out. Moreover, when listing lots of
-    related packages like './...', we can now obtain all their build IDs at
-    once.
-    
-    Fixes #37281.
-    
-    Change-Id: I8e2f65a08391b3df1a628c6e06e708b8c8cb7865
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263542
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Iaf4abe7ac308b2100d8828267cda9f4f8ae4be82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226457
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go               |  1 +
- src/cmd/go/go_test.go               | 12 ++++++++++++
- src/cmd/go/internal/list/list.go    |  1 +
- src/cmd/go/internal/load/pkg.go     |  1 +
- src/cmd/go/internal/work/buildid.go |  1 +
- src/cmd/go/internal/work/exec.go    |  1 +
- 6 files changed, 17 insertions(+)
+ src/context/context_test.go | 27 ++++++++++++++++++---------
+ src/context/example_test.go |  6 ++++--
+ 2 files changed, 22 insertions(+), 11 deletions(-)

@@ -1,27 +1,33 @@
-commit 6774ddfec758ecf2cc64d58392c438dd64660a00
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Fri Oct 28 02:42:39 2022 -0500
+commit 4325c37d6789aff6f24b05526080b011dda86477
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 23 12:34:04 2021 -0800
 
-    internal/bytealg: fix bug in index function for ppc64le/power9
+    vendor: update golang.org/x/net to tip
     
-    The index function was not handling certain corner cases where there
-    were two more bytes to be examined in the tail end of the string to
-    complete the comparison. Fix code to ensure that when the string has
-    to be shifted two more times the correct bytes are examined.
-    Also hoisted vsplat to V10 so that all paths use the correct value.
-    Some comments had incorrect register names and corrected the same.
-    Added the strings that were failing to strings test for verification.
+    This brings in a fix for OpenBSD that lets it correctly gather network
+    interface information.
     
-    Fixes #56457
+    For #42064
     
-    Change-Id: Idba7cbc802e3d73c8f4fe89309871cc8447792f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446135
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Archana Ravindar <ravindararchana@gmail.com>
+    Change-Id: Ib88fd2f494bb2ee86fd2725d8375b2df1404c4ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366756
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/bytealg/index_ppc64x.s | 11 ++++++-----
- src/strings/strings_test.go         |  5 +++++
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/net/http/h2_bundle.go                          | 76 ++++++++++++++--------
+ src/vendor/golang.org/x/net/lif/address.go         |  1 +
+ src/vendor/golang.org/x/net/lif/binary.go          |  1 +
+ src/vendor/golang.org/x/net/lif/lif.go             |  1 +
+ src/vendor/golang.org/x/net/lif/link.go            |  1 +
+ src/vendor/golang.org/x/net/lif/sys.go             |  1 +
+ src/vendor/golang.org/x/net/lif/syscall.go         |  1 +
+ src/vendor/golang.org/x/net/route/syscall.go       | 26 ++------
+ .../x/net/route/syscall_go1_12_darwin.go           | 13 ----
+ src/vendor/modules.txt                             |  2 +-
+ 12 files changed, 63 insertions(+), 66 deletions(-)

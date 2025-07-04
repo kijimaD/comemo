@@ -1,32 +1,24 @@
-commit 6fa7669fd7d9994ef20e40f41a9771d664d00c5e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 4 15:11:03 2018 -0800
+commit 0906d648aa173f65aaafd6296d43247b426f05f3
+Author: Austin Clements <austin@google.com>
+Date:   Sun Aug 26 21:33:26 2018 -0400
 
-    cmd/compile: unify duplicate const detection logic
+    runtime: eliminate gchelper mechanism
     
-    Consistent logic for handling both duplicate map keys and case values,
-    and eliminates ad hoc value hashing code.
+    Now that we do no mark work during mark termination, we no longer need
+    the gchelper mechanism.
     
-    Also makes cmd/compile consistent with go/types's handling of
-    duplicate constants (see #28085), which is at least an improvement
-    over the status quo even if we settle on something different for the
-    spec.
+    Updates #26903.
+    Updates #17503.
     
-    As a side effect, this also suppresses cmd/compile's warnings about
-    duplicate nils in (non-interface expression) switch statements, which
-    was technically never allowed by the spec anyway.
-    
-    Updates #28085.
-    Updates #28378.
-    
-    Change-Id: I176a251e770c3c5bc11c2bf8d1d862db8f252a17
-    Reviewed-on: https://go-review.googlesource.com/c/152544
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie94e5c0f918cfa047e88cae1028fece106955c1b
+    Reviewed-on: https://go-review.googlesource.com/c/134785
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 63 ++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/swt.go       | 78 +++++---------------------------
- src/cmd/compile/internal/gc/typecheck.go | 65 ++------------------------
- test/fixedbugs/issue28085.go             | 29 ++++++++++++
- 4 files changed, 107 insertions(+), 128 deletions(-)
+ src/runtime/mgc.go      | 68 +++----------------------------------
+ src/runtime/mgcmark.go  |  4 ---
+ src/runtime/proc.go     | 89 ++-----------------------------------------------
+ src/runtime/runtime2.go |  1 -
+ src/runtime/stack.go    |  4 +--
+ 5 files changed, 9 insertions(+), 157 deletions(-)

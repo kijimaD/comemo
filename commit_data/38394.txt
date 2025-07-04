@@ -1,25 +1,29 @@
-commit a1b5cb1d04dc3aac7149a5cb7cfc02111bd4ebef
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 27 18:18:47 2019 -0800
+commit dd789550a74817e88466cdb583ae86c4c1426380
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 23 14:38:22 2018 -0700
 
-    cmd/compile: simplify isGoConst
+    cmd/compile: intrinsify math/bits.Sub on amd64
     
-    The only ways to construct an OLITERAL node are (1) a basic literal
-    from the source package, (2) constant folding within evconst (which
-    only folds Go language constants), (3) the universal "nil" constant,
-    and (4) implicit conversions of nil to some concrete type.
+    name             old time/op  new time/op  delta
+    Sub-8            1.12ns ± 1%  1.17ns ± 1%   +5.20%          (p=0.008 n=5+5)
+    Sub32-8          1.11ns ± 0%  1.11ns ± 0%     ~     (all samples are equal)
+    Sub64-8          1.12ns ± 0%  1.18ns ± 1%   +5.00%          (p=0.016 n=4+5)
+    Sub64multiple-8  4.10ns ± 1%  0.86ns ± 1%  -78.93%          (p=0.008 n=5+5)
     
-    Passes toolstash-check.
+    Fixes #28273
     
-    Change-Id: I30fc6b07ebede7adbdfa4ed562436cbb7078a2ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166981
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibcb6f2fd32d987c3bcbae4f4cd9d335a3de98548
+    Reviewed-on: https://go-review.googlesource.com/c/144258
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/const.go     | 116 +++++--------------------------
- src/cmd/compile/internal/gc/typecheck.go |  13 ++--
- test/fixedbugs/bug297.go                 |   2 +-
- test/fixedbugs/issue11361.go             |   2 +-
- test/fixedbugs/issue17038.go             |   2 +-
- test/fixedbugs/issue8183.go              |   4 +-
- 6 files changed, 30 insertions(+), 109 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |   9 +-
+ src/cmd/compile/internal/gc/ssa.go             |   7 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   9 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  16 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          |  74 +++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 141 +++++++++++++++++++++++++
+ test/codegen/mathbits.go                       |  60 +++++++++++
+ 8 files changed, 312 insertions(+), 5 deletions(-)

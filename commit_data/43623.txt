@@ -1,25 +1,26 @@
-commit 38d1ec8c9d09c680065404fe77168fe992e09e82
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 29 13:57:12 2020 -0400
+commit 4eaf855155acb2da69adbab7728c1a59b9315d41
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Apr 16 15:33:53 2020 +1000
 
-    cmd/internal/obj: use panic instead of log.Fatalf for two messages
+    runtime: clean up now unused pushCallSupported
     
-    These messages can happen if there are
-    duplicate body-less function declarations.
-    Using panic gives the panic handler
-    a chance to handle the panic by printing the
-    queued error messages instead of an internal error.
+    All platforms now support pushCall, hence remove the now unnecessary
+    pushCallSupported flag/guard.
     
-    And if there are no queued error messages,
-    using panic pinpoints the stack trace leading
-    to the incorrect use of NewFuncInfo/NewFileInfo.
-    
-    Change-Id: I7e7ea9822ff9a1e7140f5e5b7cfd6437ff9318a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266338
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I99e4be73839da68a742f3c239bae9ce2f8764624
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228497
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/internal/obj/link.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/signal_386.go         | 2 --
+ src/runtime/signal_amd64.go       | 3 ---
+ src/runtime/signal_arm.go         | 2 --
+ src/runtime/signal_arm64.go       | 2 --
+ src/runtime/signal_linux_s390x.go | 2 --
+ src/runtime/signal_mips64x.go     | 2 --
+ src/runtime/signal_mipsx.go       | 2 --
+ src/runtime/signal_ppc64x.go      | 2 --
+ src/runtime/signal_riscv64.go     | 2 --
+ src/runtime/signal_unix.go        | 7 +------
+ 10 files changed, 1 insertion(+), 25 deletions(-)

@@ -1,18 +1,25 @@
-commit 269bf7e855da04e664fe8d7ffb654c4d0b1439f5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 7 10:43:51 2022 -0700
+commit ddfcc02352feb9e15ff9aa423bb49bfb37d689a3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Aug 17 17:21:03 2021 -0400
 
-    go/types, types2: better error message if type is not in type set
+    cmd/link: do not use GO_LDSO when cross compile
     
-    Fixes #40350.
+    GO_LDSO is a setting that is set when the toolchain is build. It
+    only makes sense to use it on the host platform. Do not use it
+    when targetting a different platform.
     
-    Change-Id: Ia654d6b854971700ca618692a864265557122b23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410876
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    In the past it was not a problem as GO_LDSO was almost always
+    unset. Now, with CL 301989 it is almost always set (maybe we want
+    to revisit it).
+    
+    Fixes #47760.
+    
+    Change-Id: I2704b9968781f46e2d2f8624090db19689b1a32f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343010
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/instantiate.go           |  2 +-
- .../internal/types2/testdata/fixedbugs/issue40350.go     | 16 ++++++++++++++++
- src/go/types/instantiate.go                              |  2 +-
- src/go/types/testdata/fixedbugs/issue40350.go            | 16 ++++++++++++++++
- 4 files changed, 34 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,83 +1,22 @@
-commit 1f77db94f8a453ae96e490fe729c8c6b0ba9479f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 15 15:41:50 2017 -0500
+commit 8f91865e1b2f2df95fb4833babbd0a8fb26085c8
+Author: Zev Goldstein <zev.goldstein@gmail.com>
+Date:   Fri Oct 28 11:42:27 2016 -0400
 
-    runtime: do not call wakep from enlistWorker, to avoid possible deadlock
+    path/filepath: fix Abs on Windows
     
-    We have seen one instance of a production job suddenly spinning to
-    100% CPU and becoming unresponsive. In that one instance, a SIGQUIT
-    was sent after 328 minutes of spinning, and the stacks showed a single
-    goroutine in "IO wait (scan)" state.
+    The filepath.Abs function in windows did not call Clean as the
+    documentation claimed.  This change not only fixes that behavior but
+    also adjusts TestAbs to verify Abs calls Clean as documented.
     
-    Looking for things that might get stuck if a goroutine got stuck in
-    scanning a stack, we found that injectglist does:
+    Fixes #17210
     
-            lock(&sched.lock)
-            var n int
-            for n = 0; glist != nil; n++ {
-                    gp := glist
-                    glist = gp.schedlink.ptr()
-                    casgstatus(gp, _Gwaiting, _Grunnable)
-                    globrunqput(gp)
-            }
-            unlock(&sched.lock)
-    
-    and that casgstatus spins on gp.atomicstatus until the _Gscan bit goes
-    away. Essentially, this code locks sched.lock and then while holding
-    sched.lock, waits to lock gp.atomicstatus.
-    
-    The code that is doing the scan is:
-    
-            if castogscanstatus(gp, s, s|_Gscan) {
-                    if !gp.gcscandone {
-                            scanstack(gp, gcw)
-                            gp.gcscandone = true
-                    }
-                    restartg(gp)
-                    break loop
-            }
-    
-    More analysis showed that scanstack can, in a rare case, end up
-    calling back into code that acquires sched.lock. For example:
-    
-            runtime.scanstack at proc.go:866
-            calls runtime.gentraceback at mgcmark.go:842
-            calls runtime.scanstack$1 at traceback.go:378
-            calls runtime.scanframeworker at mgcmark.go:819
-            calls runtime.scanblock at mgcmark.go:904
-            calls runtime.greyobject at mgcmark.go:1221
-            calls (*runtime.gcWork).put at mgcmark.go:1412
-            calls (*runtime.gcControllerState).enlistWorker at mgcwork.go:127
-            calls runtime.wakep at mgc.go:632
-            calls runtime.startm at proc.go:1779
-            acquires runtime.sched.lock at proc.go:1675
-    
-    This path was found with an automated deadlock-detecting tool.
-    There are many such paths but they all go through enlistWorker -> wakep.
-    
-    The evidence strongly suggests that one of these paths is what caused
-    the deadlock we observed. We're running those jobs with
-    GOTRACEBACK=crash now to try to get more information if it happens
-    again.
-    
-    Further refinement and analysis shows that if we drop the wakep call
-    from enlistWorker, the remaining few deadlock cycles found by the tool
-    are all false positives caused by not understanding the effect of calls
-    to func variables.
-    
-    The enlistWorker -> wakep call was intended only as a performance
-    optimization, it rarely executes, and if it does execute at just the
-    wrong time it can (and plausibly did) cause the deadlock we saw.
-    
-    Comment it out, to avoid the potential deadlock.
-    
-    Fixes #19112.
-    Unfixes #14179.
-    
-    Change-Id: I6f7e10b890b991c11e79fab7aeefaf70b5d5a07b
-    Reviewed-on: https://go-review.googlesource.com/37093
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I20c5f5026042fd7bd9d929ff5b17c8b2653f8afe
+    Reviewed-on: https://go-review.googlesource.com/32292
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/path/filepath/path_test.go    | 5 ++++-
+ src/path/filepath/path_windows.go | 6 +++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

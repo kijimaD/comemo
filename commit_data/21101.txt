@@ -1,14 +1,19 @@
-commit b6e913806ec85f18614ab825fce4e99aae94f899
-Author: Emil Hessman <emil@hessman.se>
-Date:   Sun Dec 28 06:12:19 2014 +0100
+commit 9e7bed88cde087726ad097442ee9b36f4f4021bc
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 14 11:07:33 2014 -0500
 
-    cmd/pack: address go vet reports
+    [dev.power64] 5g,6g,8g: synchronize documentation for regopt structures
     
-    Use log.Fatalf for formatting directives instead of log.Fatal
+    I added several comments to the regopt-related structures when
+    porting it to 9g.  Synchronize those comments back in to the
+    other compilers.
     
-    Change-Id: Ia207b320f5795c63cdfa71f92c19ca6d05cc833f
-    Reviewed-on: https://go-review.googlesource.com/2160
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175720043
 
- src/cmd/pack/pack.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5g/opt.h | 28 ++++++++++++++++++++++------
+ src/cmd/6g/opt.h | 30 +++++++++++++++++++++++-------
+ src/cmd/8g/opt.h | 30 +++++++++++++++++++++++-------
+ 3 files changed, 68 insertions(+), 20 deletions(-)

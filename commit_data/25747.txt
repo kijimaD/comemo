@@ -1,17 +1,14 @@
-commit 18aefe9c194dc1a649386def050c1e6a245f9115
-Author: Austin Clements <austin@google.com>
-Date:   Sun Feb 14 23:53:19 2016 -0500
+commit e8e0d906dc9fef255cb97943c1208ecab3b209b4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 28 12:16:41 2015 +1300
 
-    doc: fix non-possessive "'s"
+    cmd/dist: run testshared on linux/386
     
-    Currently we use "Section's" as the plural of the debug/elf Section
-    struct. Change this to "Sections" because it's not possessive and
-    doesn't seem to fall in to any special cases were the apostrophe is
-    acceptable.
-    
-    Change-Id: Id5d3abbd748502a67ead3f483182ee7729db94a2
-    Reviewed-on: https://go-review.googlesource.com/19505
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I22d40248e83fcad5ab73c0d402183d06e91064c7
+    Reviewed-on: https://go-review.googlesource.com/16388
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go1.6.html | 2 +-
+ src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

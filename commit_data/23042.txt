@@ -1,26 +1,44 @@
-commit 4302fd0409da5e4f1d71471a6770dacdc3301197
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Apr 26 23:52:42 2015 +0200
+commit 8d03acce544a2301eecec83a88396e568f4c8c75
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 23 21:07:33 2015 -0400
 
-    encoding/json: fix decoding of types with '[]byte' as underlying type
+    runtime: multi-threaded, utilization-scheduled background mark
     
-    All slice types which have elements of kind reflect.Uint8 are marshalled
-    into base64 for compactness. When decoding such data into a custom type
-    based on []byte the decoder checked the slice kind instead of the slice
-    element kind, so no appropriate decoder was found.
+    Currently, the concurrent mark phase is performed by the main GC
+    goroutine. Prior to the previous commit enabling preemption, this
+    caused marking to always consume 1/GOMAXPROCS of the available CPU
+    time. If GOMAXPROCS=1, this meant background GC would consume 100% of
+    the CPU (effectively a STW). If GOMAXPROCS>4, background GC would use
+    less than the goal of 25%. If GOMAXPROCS=4, background GC would use
+    the goal 25%, but if the mutator wasn't using the remaining 75%,
+    background marking wouldn't take advantage of the idle time. Enabling
+    preemption in the previous commit made GC miss CPU targets in
+    completely different ways, but set us up to bring everything back in
+    line.
     
-    Fixed by letting the decoder check slice element kind like the encoder.
-    This guarantees that already encoded data can still be successfully
-    decoded.
+    This change replaces the fixed GC goroutine with per-P background mark
+    goroutines. Once started, these goroutines don't go in the standard
+    run queues; instead, they are scheduled specially such that the time
+    spent in mutator assists and the background mark goroutines totals 25%
+    of the CPU time available to the program. Furthermore, this lets
+    background marking take advantage of idle Ps, which significantly
+    boosts GC performance for applications that under-utilize the CPU.
     
-    Fixes #8962.
+    This requires also changing how time is reported for gctrace, so this
+    change splits the concurrent mark CPU time into assist/background/idle
+    scanning.
     
-    Change-Id: Ia320d4dc2c6e9e5fe6d8dc15788c81da23d20c4f
-    Reviewed-on: https://go-review.googlesource.com/9371
-    Reviewed-by: Peter Waldschmidt <peter@waldschmidt.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This also requires increasing the size of the StackRecord slice used
+    in a GoroutineProfile test.
+    
+    Change-Id: I0936ff907d2cee6cb687a208f2df47e8988e3157
+    Reviewed-on: https://go-review.googlesource.com/8850
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/json/decode.go      |  2 +-
- src/encoding/json/decode_test.go | 21 +++++++++++++++++++++
- src/encoding/json/encode.go      |  2 --
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go               | 244 +++++++++++++++++++++++++++++++++++++--
+ src/runtime/mgcmark.go           |  66 +++++++++++
+ src/runtime/proc1.go             |  28 +++++
+ src/runtime/runtime2.go          |   4 +-
+ src/runtime/runtime_unix_test.go |   2 +-
+ src/runtime/traceback.go         |   5 +-
+ 6 files changed, 335 insertions(+), 14 deletions(-)

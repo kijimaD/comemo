@@ -1,26 +1,18 @@
-commit 2c09d6992f7a13d680ce8f3a0f19366dfcc93713
+commit f02067a99aaf5b78cc0969f32c37454ce82200d0
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 14:51:21 2013 -0500
+Date:   Sun Feb 3 14:28:44 2013 -0500
 
-    cmd/gc: slightly better code generation
+    cmd/gc: implement latest rules for checking make sizes
     
-    * Avoid treating CALL fn(SB) as justification for introducing
-    and tracking a registerized variable for fn(SB).
-    
-    * Remove USED(n) after declaration and zeroing of n.
-    It was left over from when the compiler emitted more
-    aggressive set and not used errors, and it was keeping
-    the optimizer from removing a redundant zeroing of n
-    when n was a pointer or integer variable.
-    
-    Update #597.
+    Fixes #4085.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7277048
+    https://golang.org/cl/7277047
 
- src/cmd/5g/reg.c | 4 ++++
- src/cmd/6g/reg.c | 4 ++++
- src/cmd/8g/reg.c | 4 ++++
- src/cmd/gc/gen.c | 2 --
- 4 files changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/gc/mparith1.c        |  6 +++---
+ src/cmd/gc/typecheck.c       | 51 +++++++++++++++++++++++++++++++++-----------
+ src/pkg/runtime/slice.c      |  9 ++++++--
+ test/fixedbugs/issue4085a.go | 18 ++++++++++++++++
+ test/fixedbugs/issue4085b.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 115 insertions(+), 18 deletions(-)

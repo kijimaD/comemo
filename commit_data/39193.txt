@@ -1,22 +1,14 @@
-commit 3f7c5608299b56283a2c885b6146823d5b83b2f7
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun May 12 19:21:33 2019 -0400
+commit 6f93f86498608b2bf003a2bef7152d339fcde384
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 18 17:31:45 2019 -0500
 
-    net/http/httputil: remove os.Stderr claim in ReverseProxy.ErrorLog docs
+    crypto/tls: expand Config.CipherSuites docs
     
-    The motivation for doing so is to avoid making inaccurate claims.
-    Logging may not go to os.Stderr if anyone overrides the log package's
-    default output via https://godoc.org/log#SetOutput. Saying that
-    the standard logger is used should be sufficient to explain the
-    behavior, and users can infer that os.Stderr is used by default,
-    unless it's changed.
+    Fixes #29349
     
-    This change is the same as what was applied to http.Server.ErrorLog
-    documentation in CL 53950.
-    
-    Change-Id: I32873fc548ceee573f8616b4d49b8a8b98881803
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176817
+    Change-Id: Iec16eb2b20b43250249ec85c3d78fd64d1b6e3f3
+    Reviewed-on: https://go-review.googlesource.com/c/158637
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/crypto/tls/common.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

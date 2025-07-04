@@ -1,12 +1,14 @@
-commit 0188cb0e8a7a2355a0eebbf557fc444e5bfa30de
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 3 16:32:42 2019 -0400
+commit a3f64237adf0ccfe379ffa2cb00e013896995a3a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 14:43:23 2018 -0500
 
-    runtime: note about improved _Gscan bit handling
+    cmd/vet: basic tests of go vet -json -c=N flags
     
-    Change-Id: I8de5aa64a24e77e0ef876918fcace7668769ebc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171022
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I787592a5d92ff9329ecdfcf879e491af66c8b749
+    Reviewed-on: https://go-review.googlesource.com/c/149962
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime2.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/testdata/script/vet_asm.txt | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

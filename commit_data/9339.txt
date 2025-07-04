@@ -1,27 +1,18 @@
-commit 2e394c51d9453c2f94c19f444e2f056ba50a22af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 11 13:24:13 2011 -0700
+commit bca65e395e1786f321266da81fb3ed46f5d4e854
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Aug 11 18:49:09 2011 +1000
 
-    godoc: moving to new template package
+    html: parse more malformed tags.
     
-    - first step; rough conversion of all template files
-    - there is plenty of opportunity for cleanups/simplifications (next CLs)
-    - html and text output as before
+    This continues the work in revision 914a659b44ff, now passing more test
+    cases. As before, the new tokenization tests match html5lib's behavior.
     
-    R=r, dsymonds
+    Fixes #2124.
+    
+    R=dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/4852048
+    https://golang.org/cl/4867042
 
- lib/godoc/codewalk.html    |  24 +++----
- lib/godoc/codewalkdir.html |   8 +--
- lib/godoc/dirlist.html     |  11 +--
- lib/godoc/error.html       |   2 +-
- lib/godoc/godoc.html       |  48 ++++++-------
- lib/godoc/package.html     | 169 +++++++++++++++++++++++----------------------
- lib/godoc/package.txt      | 145 +++++++++++++++++++-------------------
- lib/godoc/search.html      | 116 +++++++++++++++----------------
- lib/godoc/search.txt       |  82 ++++++++--------------
- src/cmd/godoc/codewalk.go  |   2 +-
- src/cmd/godoc/format.go    |   2 +-
- src/cmd/godoc/godoc.go     |  54 +++++++++------
- 12 files changed, 323 insertions(+), 340 deletions(-)
+ src/pkg/html/token.go      |  2 +-
+ src/pkg/html/token_test.go | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

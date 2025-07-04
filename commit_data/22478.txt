@@ -1,12 +1,29 @@
-commit 0d1c027bf35001d04e3ea4758f6e198542fe8961
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 13 14:40:09 2015 -0700
+commit 4396ea96c43e1df585c648762b6993e84cb6a2e5
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Mar 11 18:29:12 2015 +0300
 
-    doc/go1.5.txt: fmt fix for empty byte slice
+    runtime: remove futile wakeups from trace
     
-    Change-Id: I392cedc49847c8ea0daa38024fca97a289d805af
-    Reviewed-on: https://go-review.googlesource.com/8890
-    Reviewed-by: Rob Pike <r@golang.org>
+    Channels and sync.Mutex'es allow another goroutine to acquire resource
+    ahead of an unblocked goroutine. This is good for performance, but
+    leads to futile wakeups (the unblocked goroutine needs to block again).
+    Futile wakeups caused user confusion during the very first evaluation
+    of tracing functionality on a real server (a goroutine as if acquires a mutex
+    in a loop, while there is no loop in user code).
+    
+    This change detects futile wakeups on channels and emits a special event
+    to denote the fact. Later parser finds entire wakeup sequences
+    (unblock->start->block) and removes them.
+    
+    sync.Mutex will be supported in a separate change.
+    
+    Change-Id: Iaaaee9d5c0921afc62b449a97447445030ac19d3
+    Reviewed-on: https://go-review.googlesource.com/7380
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.5.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/internal/trace/parser.go    | 65 +++++++++++++++++++++++++++++-
+ src/runtime/chan.go             |  8 ++--
+ src/runtime/pprof/trace_test.go | 88 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/select.go           |  4 +-
+ src/runtime/trace.go            | 15 ++++++-
+ 5 files changed, 171 insertions(+), 9 deletions(-)

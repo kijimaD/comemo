@@ -1,20 +1,20 @@
-commit 583a941d4ed7cb8e03bbeceaf05969c285c30b2e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Aug 15 11:33:18 2017 +0200
+commit 94b6011c78484357ef632f3cce3b382a0bc4c2cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 13:39:24 2017 -0700
 
-    cmd/link: skip TestSizes on Plan 9
+    spec: clarify use of fused-floating point operations
     
-    TestSizes has been added in CL 55551. This test is
-    failing on Plan 9 because executables don't have
-    a DWARF symbol table.
+    Added a paragraph and examples explaining when an implementation
+    may use fused floating-point operations (such as FMA) and how to
+    prevent operation fusion.
     
-    Fixes #21453.
+    For #17895.
     
-    Change-Id: I560611b49aea5417e8c5ac0cec6c7882bd9f8335
-    Reviewed-on: https://go-review.googlesource.com/55692
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I64c9559fc1097e597525caca420cfa7032d67014
+    Reviewed-on: https://go-review.googlesource.com/40391
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/go_spec.html | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)
